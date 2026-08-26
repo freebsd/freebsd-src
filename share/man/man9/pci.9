@@ -23,11 +23,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 27, 2025
+.Dd August 15, 2026
 .Dt PCI 9
 .Os
 .Sh NAME
 .Nm pci ,
+.Nm is_pci_device ,
 .Nm pci_alloc_msi ,
 .Nm pci_alloc_msix ,
 .Nm pci_clear_pme ,
@@ -71,6 +72,7 @@
 .Nm pci_write_config ,
 .Nm pcie_adjust_config ,
 .Nm pcie_flr ,
+.Nm pcie_flr_supported ,
 .Nm pcie_get_max_completion_timeout ,
 .Nm pcie_read_config ,
 .Nm pcie_wait_for_pending_transactions ,
@@ -80,6 +82,8 @@
 .In sys/bus.h
 .In dev/pci/pcireg.h
 .In dev/pci/pcivar.h
+.Ft bool
+.Fn is_pci_device "device_t dev"
 .Ft int
 .Fn pci_alloc_msi "device_t dev" "int *count"
 .Ft int
@@ -166,6 +170,8 @@
 .Fc
 .Ft bool
 .Fn pcie_flr "device_t dev" "u_int max_delay" "bool force"
+.Ft bool
+.Fn pcie_flr_supported "device_t dev"
 .Ft int
 .Fn pcie_get_max_completion_timeout "device_t dev"
 .Ft uint32_t
@@ -202,6 +208,12 @@ device information,
 device configuration,
 and
 message signaled interrupts.
+.Pp
+The
+.Fn is_pci_device
+function can be used to determine if
+.Fa dev
+is a PCI device.
 .Ss Raw Configuration Access
 The
 .Fn pci_read_config
@@ -244,6 +256,15 @@ to the value in
 Any bits not specified in
 .Fa mask
 are preserved.
+For 16-bit accesses to
+.Dv PCIER_DEVICE_CTL
+or
+.Dv PCIER_ROOT_CTL ,
+the corresponding bits in the saved PCI configuration state are also updated
+so the adjustment persists across configuration restores.
+Use
+.Fn pcie_write_config
+for transient changes that must not be saved.
 The previous value of the register is returned.
 .Pp
 The
@@ -845,6 +866,16 @@ Note that
 .Nm pcie_flr
 does not save and restore any state around the reset.
 The caller should save and restore state as needed.
+.Pp
+The
+.Fn pcie_flr_supported
+function returns
+.Dv true
+if
+.Fa dev
+supports FLR according to its PCI-express capability and the PCI quirk
+policy.
+It does not alter the device.
 .Ss Message Signaled Interrupts
 Message Signaled Interrupts
 .Pq MSI

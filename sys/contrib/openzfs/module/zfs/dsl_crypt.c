@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,14 +7,13 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  * Copyright (c) 2018 by Delphix. All rights reserved.
+ * Copyright 2026 Oxide Computer Company
  */
 
 #include <sys/dsl_crypt.h>
@@ -259,12 +256,7 @@ spa_crypto_key_compare(const void *a, const void *b)
 {
 	const dsl_crypto_key_t *dcka = a;
 	const dsl_crypto_key_t *dckb = b;
-
-	if (dcka->dck_obj < dckb->dck_obj)
-		return (-1);
-	if (dcka->dck_obj > dckb->dck_obj)
-		return (1);
-	return (0);
+	return (TREE_CMP(dcka->dck_obj, dckb->dck_obj));
 }
 
 /*
@@ -306,12 +298,7 @@ spa_key_mapping_compare(const void *a, const void *b)
 {
 	const dsl_key_mapping_t *kma = a;
 	const dsl_key_mapping_t *kmb = b;
-
-	if (kma->km_dsobj < kmb->km_dsobj)
-		return (-1);
-	if (kma->km_dsobj > kmb->km_dsobj)
-		return (1);
-	return (0);
+	return (TREE_CMP(kma->km_dsobj, kmb->km_dsobj));
 }
 
 static int
@@ -319,12 +306,7 @@ spa_wkey_compare(const void *a, const void *b)
 {
 	const dsl_wrapping_key_t *wka = a;
 	const dsl_wrapping_key_t *wkb = b;
-
-	if (wka->wk_ddobj < wkb->wk_ddobj)
-		return (-1);
-	if (wka->wk_ddobj > wkb->wk_ddobj)
-		return (1);
-	return (0);
+	return (TREE_CMP(wka->wk_ddobj, wkb->wk_ddobj));
 }
 
 void
@@ -1256,6 +1238,7 @@ dsl_crypto_key_sync(dsl_crypto_key_t *dck, dmu_tx_t *tx)
 typedef struct spa_keystore_change_key_args {
 	const char *skcka_dsname;
 	dsl_crypto_params_t *skcka_cp;
+	nvlist_t *skcka_userprops;
 } spa_keystore_change_key_args_t;
 
 static int
@@ -1267,6 +1250,8 @@ spa_keystore_change_key_check(void *arg, dmu_tx_t *tx)
 	spa_keystore_change_key_args_t *skcka = arg;
 	dsl_crypto_params_t *dcp = skcka->skcka_cp;
 	uint64_t rddobj;
+
+	/* we assume skcka_userprops has already been verified */
 
 	/* check for the encryption feature */
 	if (!spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_ENCRYPTION)) {
@@ -1554,6 +1539,10 @@ spa_keystore_change_key_sync(void *arg, dmu_tx_t *tx)
 	VERIFY0(dsl_dataset_hold(dp, skcka->skcka_dsname, FTAG, &ds));
 	ASSERT(!ds->ds_is_snapshot);
 
+	/* set user properties */
+	dsl_props_set_sync_impl(ds, ZPROP_SRC_LOCAL, skcka->skcka_userprops,
+	    tx);
+
 	if (dcp->cp_cmd == DCP_CMD_NEW_KEY ||
 	    dcp->cp_cmd == DCP_CMD_FORCE_NEW_KEY) {
 		/*
@@ -1632,14 +1621,19 @@ spa_keystore_change_key_sync(void *arg, dmu_tx_t *tx)
 	dsl_dataset_rele(ds, FTAG);
 }
 
+/*
+ * Note: assumes userprops has already been checked for validity.
+ */
 int
-spa_keystore_change_key(const char *dsname, dsl_crypto_params_t *dcp)
+spa_keystore_change_key(const char *dsname, dsl_crypto_params_t *dcp,
+    nvlist_t *userprops)
 {
 	spa_keystore_change_key_args_t skcka;
 
 	/* initialize the args struct */
 	skcka.skcka_dsname = dsname;
 	skcka.skcka_cp = dcp;
+	skcka.skcka_userprops = userprops;
 
 	/*
 	 * Perform the actual work in syncing context. The blocks modified
@@ -2679,23 +2673,16 @@ int
 spa_crypt_get_salt(spa_t *spa, uint64_t dsobj, uint8_t *salt)
 {
 	int ret;
-	dsl_crypto_key_t *dck = NULL;
+	dsl_crypto_key_t *dck;
 
 	/* look up the key from the spa's keystore */
 	ret = spa_keystore_lookup_key(spa, dsobj, FTAG, &dck);
 	if (ret != 0)
-		goto error;
+		return (SET_ERROR(EACCES));
 
 	ret = zio_crypt_key_get_salt(&dck->dck_key, salt);
-	if (ret != 0)
-		goto error;
-
 	spa_keystore_dsl_key_rele(spa, dck, FTAG);
-	return (0);
 
-error:
-	if (dck != NULL)
-		spa_keystore_dsl_key_rele(spa, dck, FTAG);
 	return (ret);
 }
 
@@ -2710,9 +2697,7 @@ spa_do_crypt_objset_mac_abd(boolean_t generate, spa_t *spa, uint64_t dsobj,
     abd_t *abd, uint_t datalen, boolean_t byteswap)
 {
 	int ret;
-	dsl_crypto_key_t *dck = NULL;
-	void *buf = abd_borrow_buf_copy(abd, datalen);
-	objset_phys_t *osp = buf;
+	dsl_crypto_key_t *dck;
 	uint8_t portable_mac[ZIO_OBJSET_MAC_LEN];
 	uint8_t local_mac[ZIO_OBJSET_MAC_LEN];
 	const uint8_t zeroed_mac[ZIO_OBJSET_MAC_LEN] = {0};
@@ -2720,15 +2705,19 @@ spa_do_crypt_objset_mac_abd(boolean_t generate, spa_t *spa, uint64_t dsobj,
 	/* look up the key from the spa's keystore */
 	ret = spa_keystore_lookup_key(spa, dsobj, FTAG, &dck);
 	if (ret != 0)
-		goto error;
+		return (SET_ERROR(EACCES));
+
+	void *buf = abd_borrow_buf_copy(abd, datalen);
+	objset_phys_t *osp = buf;
 
 	/* calculate both HMACs */
 	ret = zio_crypt_do_objset_hmacs(&dck->dck_key, buf, datalen,
 	    byteswap, portable_mac, local_mac);
-	if (ret != 0)
-		goto error;
-
 	spa_keystore_dsl_key_rele(spa, dck, FTAG);
+	if (ret != 0) {
+		abd_return_buf(abd, buf, datalen);
+		return (ret);
+	}
 
 	/* if we are generating encode the HMACs in the objset_phys_t */
 	if (generate) {
@@ -2762,14 +2751,7 @@ spa_do_crypt_objset_mac_abd(boolean_t generate, spa_t *spa, uint64_t dsobj,
 	}
 
 	abd_return_buf(abd, buf, datalen);
-
 	return (0);
-
-error:
-	if (dck != NULL)
-		spa_keystore_dsl_key_rele(spa, dck, FTAG);
-	abd_return_buf(abd, buf, datalen);
-	return (ret);
 }
 
 int
@@ -2777,23 +2759,22 @@ spa_do_crypt_mac_abd(boolean_t generate, spa_t *spa, uint64_t dsobj, abd_t *abd,
     uint_t datalen, uint8_t *mac)
 {
 	int ret;
-	dsl_crypto_key_t *dck = NULL;
-	uint8_t *buf = abd_borrow_buf_copy(abd, datalen);
+	dsl_crypto_key_t *dck;
 	uint8_t digestbuf[ZIO_DATA_MAC_LEN];
 
 	/* look up the key from the spa's keystore */
 	ret = spa_keystore_lookup_key(spa, dsobj, FTAG, &dck);
 	if (ret != 0)
-		goto error;
+		return (SET_ERROR(EACCES));
 
+	uint8_t *buf = abd_borrow_buf_copy(abd, datalen);
 	/* perform the hmac */
 	ret = zio_crypt_do_hmac(&dck->dck_key, buf, datalen,
 	    digestbuf, ZIO_DATA_MAC_LEN);
-	if (ret != 0)
-		goto error;
-
-	abd_return_buf(abd, buf, datalen);
 	spa_keystore_dsl_key_rele(spa, dck, FTAG);
+	abd_return_buf(abd, buf, datalen);
+	if (ret != 0)
+		return (ret);
 
 	/*
 	 * Truncate and fill in mac buffer if we were asked to generate a MAC.
@@ -2808,12 +2789,6 @@ spa_do_crypt_mac_abd(boolean_t generate, spa_t *spa, uint64_t dsobj, abd_t *abd,
 		return (SET_ERROR(ECKSUM));
 
 	return (0);
-
-error:
-	if (dck != NULL)
-		spa_keystore_dsl_key_rele(spa, dck, FTAG);
-	abd_return_buf(abd, buf, datalen);
-	return (ret);
 }
 
 /*

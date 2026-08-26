@@ -1354,21 +1354,51 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 			PF_MD5_UPD(pfr, addr.iflags);
 			break;
 		case PF_ADDR_TABLE:
-			if (strncmp(pfr->addr.v.tblname, PF_OPTIMIZER_TABLE_PFX,
-			    strlen(PF_OPTIMIZER_TABLE_PFX)))
-				PF_MD5_UPD(pfr, addr.v.tblname);
+			PF_MD5_UPD(pfr, addr.v.tblname);
 			break;
 		case PF_ADDR_ADDRMASK:
+		case PF_ADDR_RANGE:
 			/* XXX ignore af? */
 			PF_MD5_UPD(pfr, addr.v.a.addr.addr32);
 			PF_MD5_UPD(pfr, addr.v.a.mask.addr32);
 			break;
+		case PF_ADDR_NONE:
+		case PF_ADDR_NOROUTE:
+		case PF_ADDR_URPFFAILED:
+			/* These do not use any address data. */
+			break;
+		default:
+			panic("Unknown address type %d", pfr->addr.type);
 	}
 
 	PF_MD5_UPD(pfr, port[0]);
 	PF_MD5_UPD(pfr, port[1]);
 	PF_MD5_UPD(pfr, neg);
 	PF_MD5_UPD(pfr, port_op);
+}
+
+static void
+pf_hash_pool(MD5_CTX *ctx, struct pf_kpool *pool)
+{
+	uint16_t x;
+	int y;
+
+	if (pool->cur) {
+		PF_MD5_UPD(pool, cur->addr);
+		PF_MD5_UPD_STR(pool, cur->ifname);
+		PF_MD5_UPD(pool, cur->af);
+	}
+	PF_MD5_UPD(pool, key);
+	PF_MD5_UPD(pool, counter);
+
+	PF_MD5_UPD(pool, mape.offset);
+	PF_MD5_UPD(pool, mape.psidlen);
+	PF_MD5_UPD_HTONS(pool, mape.psid, x);
+	PF_MD5_UPD_HTONL(pool, tblidx, y);
+	PF_MD5_UPD_HTONS(pool, proxy_port[0], x);
+	PF_MD5_UPD_HTONS(pool, proxy_port[1], x);
+	PF_MD5_UPD(pool, opts);
+	PF_MD5_UPD(pool, ipv6_nexthop_af);
 }
 
 static void
@@ -1381,39 +1411,96 @@ pf_hash_rule_rolling(MD5_CTX *ctx, struct pf_krule *rule)
 	pf_hash_rule_addr(ctx, &rule->dst);
 	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
 		PF_MD5_UPD_STR(rule, label[i]);
+	PF_MD5_UPD_HTONL(rule, ridentifier, y);
 	PF_MD5_UPD_STR(rule, ifname);
 	PF_MD5_UPD_STR(rule, rcv_ifname);
+	PF_MD5_UPD_STR(rule, qname);
+	PF_MD5_UPD_STR(rule, pqname);
+	PF_MD5_UPD_STR(rule, tagname);
 	PF_MD5_UPD_STR(rule, match_tagname);
-	PF_MD5_UPD_HTONS(rule, match_tag, x); /* dup? */
+
+	PF_MD5_UPD_STR(rule, overload_tblname);
+
+	pf_hash_pool(ctx, &rule->nat);
+	pf_hash_pool(ctx, &rule->rdr);
+	pf_hash_pool(ctx, &rule->route);
+	PF_MD5_UPD_HTONL(rule, pktrate.limit, y);
+	PF_MD5_UPD_HTONL(rule, pktrate.seconds, y);
+
 	PF_MD5_UPD_HTONL(rule, os_fingerprint, y);
+
+	PF_MD5_UPD_HTONL(rule, rtableid, y);
+	for (int i = 0; i < PFTM_MAX; i++)
+		PF_MD5_UPD_HTONL(rule, timeout[i], y);
+	PF_MD5_UPD_HTONL(rule, max_states, y);
+	PF_MD5_UPD_HTONL(rule, max_src_nodes, y);
+	PF_MD5_UPD_HTONL(rule, max_src_states, y);
+	PF_MD5_UPD_HTONL(rule, max_src_conn, y);
+	PF_MD5_UPD_HTONL(rule, max_src_conn_rate.limit, y);
+	PF_MD5_UPD_HTONL(rule, max_src_conn_rate.seconds, y);
+	PF_MD5_UPD_HTONS(rule, max_pkt_size, y);
+	PF_MD5_UPD_HTONS(rule, qid, x);
+	PF_MD5_UPD_HTONS(rule, pqid, x);
+	PF_MD5_UPD_HTONS(rule, dnpipe, x);
+	PF_MD5_UPD_HTONS(rule, dnrpipe, x);
+	PF_MD5_UPD_HTONL(rule, free_flags, y);
 	PF_MD5_UPD_HTONL(rule, prob, y);
+
+	PF_MD5_UPD_HTONS(rule, return_icmp, x);
+	PF_MD5_UPD_HTONS(rule, return_icmp6, x);
+	PF_MD5_UPD_HTONS(rule, max_mss, x);
+	PF_MD5_UPD_HTONS(rule, tag, x); /* dup? */
+	PF_MD5_UPD_HTONS(rule, match_tag, x); /* dup? */
+	PF_MD5_UPD_HTONS(rule, scrub_flags, x);
+
+	PF_MD5_UPD(rule, uid.op);
 	PF_MD5_UPD_HTONL(rule, uid.uid[0], y);
 	PF_MD5_UPD_HTONL(rule, uid.uid[1], y);
-	PF_MD5_UPD(rule, uid.op);
+	PF_MD5_UPD(rule, gid.op);
 	PF_MD5_UPD_HTONL(rule, gid.gid[0], y);
 	PF_MD5_UPD_HTONL(rule, gid.gid[1], y);
-	PF_MD5_UPD(rule, gid.op);
+
 	PF_MD5_UPD_HTONL(rule, rule_flag, y);
+	PF_MD5_UPD_HTONL(rule, rule_ref, y);
 	PF_MD5_UPD(rule, action);
 	PF_MD5_UPD(rule, direction);
-	PF_MD5_UPD(rule, af);
+	PF_MD5_UPD(rule, log);
+	PF_MD5_UPD(rule, logif);
 	PF_MD5_UPD(rule, quick);
 	PF_MD5_UPD(rule, ifnot);
-	PF_MD5_UPD(rule, rcvifnot);
 	PF_MD5_UPD(rule, match_tag_not);
 	PF_MD5_UPD(rule, natpass);
+
 	PF_MD5_UPD(rule, keep_state);
+	PF_MD5_UPD(rule, af);
 	PF_MD5_UPD(rule, proto);
-	PF_MD5_UPD(rule, type);
-	PF_MD5_UPD(rule, code);
+	PF_MD5_UPD_HTONS(rule, type, x);
+	PF_MD5_UPD_HTONS(rule, code, x);
 	PF_MD5_UPD(rule, flags);
 	PF_MD5_UPD(rule, flagset);
+	PF_MD5_UPD(rule, min_ttl);
 	PF_MD5_UPD(rule, allow_opts);
 	PF_MD5_UPD(rule, rt);
+	PF_MD5_UPD(rule, return_ttl);
 	PF_MD5_UPD(rule, tos);
-	PF_MD5_UPD(rule, scrub_flags);
-	PF_MD5_UPD(rule, min_ttl);
 	PF_MD5_UPD(rule, set_tos);
+	PF_MD5_UPD(rule, anchor_relative);
+	PF_MD5_UPD(rule, anchor_wildcard);
+
+	PF_MD5_UPD(rule, flush);
+	PF_MD5_UPD(rule, prio);
+	PF_MD5_UPD(rule, set_prio[0]);
+	PF_MD5_UPD(rule, set_prio[1]);
+	PF_MD5_UPD(rule, naf);
+	PF_MD5_UPD(rule, rcvifnot);
+	PF_MD5_UPD(rule, statelim.id);
+	PF_MD5_UPD_HTONL(rule, statelim.limiter_action, y);
+	PF_MD5_UPD(rule, sourcelim.id);
+	PF_MD5_UPD_HTONL(rule, sourcelim.limiter_action, y);
+
+	PF_MD5_UPD(rule, divert.addr);
+	PF_MD5_UPD_HTONS(rule, divert.port, x);
+
 	if (rule->anchor != NULL)
 		PF_MD5_UPD_STR(rule, anchor->path);
 }
@@ -2150,7 +2237,7 @@ pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 
 	if (RB_INSERT(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
 		pfsrlim) != NULL) {
-		RB_INSERT(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
+		RB_REMOVE(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
 		    pfsrlim);
 		error = EBUSY;
 		goto unlock;
@@ -2163,6 +2250,8 @@ pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 	return (0);
 
 unlock:
+	if (pfsrlim->pfsrlim_overload.table != NULL)
+		pfr_detach_table(pfsrlim->pfsrlim_overload.table);
 	PF_RULES_WUNLOCK();
 
 free:
@@ -3137,14 +3226,12 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	PF_RULES_WUNLOCK();
 	pf_hash_rule(rule);
-	if (RB_INSERT(pf_krule_global, ruleset->rules[rs_num].inactive.tree, rule) != NULL) {
-		PF_RULES_WLOCK();
-		TAILQ_REMOVE(ruleset->rules[rs_num].inactive.ptr, rule, entries);
-		ruleset->rules[rs_num].inactive.rcount--;
-		pf_free_rule(rule);
-		rule = NULL;
-		ERROUT(EEXIST);
-	}
+	/**
+	 * Note: rule hashes may collide. Accept this, because the worst that can
+	 * happen is that we get counter preservation wrong.
+	 * Failing to insert here would be worse.
+	 **/
+	RB_INSERT(pf_krule_global, ruleset->rules[rs_num].inactive.tree, rule);
 	PF_CONFIG_UNLOCK();
 
 	return (0);
@@ -3808,8 +3895,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCIGETIFACES:
 		case DIOCGIFSPEEDV0:
 		case DIOCGIFSPEEDV1:
-		case DIOCSETIFFLAG:
-		case DIOCCLRIFFLAG:
 		case DIOCGETETHRULES:
 		case DIOCGETETHRULE:
 		case DIOCGETETHRULESETS:
@@ -4808,14 +4893,8 @@ DIOCGETRULENV_error:
 			ruleset->rules[rs_num].active.rcount--;
 		} else {
 			pf_hash_rule(newrule);
-			if (RB_INSERT(pf_krule_global,
-			    ruleset->rules[rs_num].active.tree, newrule) != NULL) {
-				pf_free_rule(newrule);
-				PF_RULES_WUNLOCK();
-				PF_CONFIG_UNLOCK();
-				error = EEXIST;
-				goto fail;
-			}
+			RB_INSERT(pf_krule_global,
+			    ruleset->rules[rs_num].active.tree, newrule);
 
 			if (oldrule == NULL)
 				TAILQ_INSERT_TAIL(

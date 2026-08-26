@@ -389,8 +389,6 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			noutputs = atoi(optarg);
-			if (noutputs != 0)
-				noutputs++;
 			break;
 		case 'r':
 			rflag = true;
@@ -533,7 +531,10 @@ main(int argc, char *argv[])
 	if (oflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
-		nhops_print(fib, af);
+		if (sflag)
+			nhops_stats();
+		else
+			nhops_print(fib, af);
 		xo_close_container("statistics");
 		if (xo_finish() < 0)
 			xo_err(EX_IOERR, "stdout");
@@ -552,6 +553,8 @@ main(int argc, char *argv[])
 
 
 	if (gflag) {
+		if (fib != -1 && setfib(fib) < 0)
+			xo_errx(EX_DATAERR, "setfib: %s", strerror(errno));
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
 		if (sflag) {
@@ -916,7 +919,7 @@ name2protox(const char *name)
 static void
 usage(void)
 {
-	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-j jail] [-46AaCcLnRSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat [-j jail] -i | -I interface [-46abdhnW] [-f address_family]\n"
@@ -934,6 +937,9 @@ usage(void)
 "       netstat [-j jail] -rs [-s] [-M core] [-N system]",
 "       netstat [-j jail] -g [-46W] [-f address_family] [-M core] [-N system]",
 "       netstat [-j jail] -gs [-46s] [-f address_family] [-M core] [-N system]",
-"       netstat [-j jail] -Q");
+"       netstat [-j jail] -Q",
+"       netstat [-j jail] -o -4 | -6",
+"       netstat [-j jail] -os [-s] [-M core] [-N system]",
+"       netstat [-j jail] -O -4 | -6");
 	exit(EX_USAGE);
 }

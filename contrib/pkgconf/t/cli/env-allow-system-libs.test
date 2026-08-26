@@ -1,0 +1,7 @@
+Tool: pkgconf
+ToolArgs: --libs-only-L cflags-libs-only
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+Environment: PKG_CONFIG_SYSTEM_LIBRARY_PATH=/test/local/lib
+Environment: PKG_CONFIG_ALLOW_SYSTEM_LIBS=1
+ExpectedStdout: -L/test/local/lib
+ExpectedExitCode: 0

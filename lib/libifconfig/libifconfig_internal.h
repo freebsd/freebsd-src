@@ -49,7 +49,7 @@ struct errstate {
 
 struct ifconfig_handle {
 	struct errstate error;
-	int sockets[AF_MAX + 1];
+	int sockets[AF_MAX];
 	/** Cached output of getifaddrs */
 	struct ifaddrs *ifap;
 };

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.27 2023/08/19 15:33:04 christos Exp $
+# $File: sql,v 1.38 2024/12/26 19:14:32 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -106,7 +106,7 @@
 # at offset 68 that is preferred over "user version" for indicating the
 # associated application.
 #
-0   string  SQLite\ format\ 3
+0   string  SQLite\040format\0403\0
 # skip DROID fmt-729-signature-id-1053.sqlite by checking for valid page size
 >16 ubeshort >0                 SQLite 3.x
 # deprecated
@@ -220,9 +220,26 @@
 # AUDY	Audacity Project File
 >>>68 belong =0x41554459 (Audacity Project)
 >>>68 belong =0x6A035744 (TeXnicard card database)
+>>>68 belong =0x43455745 (Cewe Fotobuch)
+>>>68 belong =0x5E96730E (Corsair iCue package registry)
+>>>68 belong =0xF9BEB4D9 (Bitcoin wallet)
+>>>68 belong =0x56333500 (Vector35 Binary Ninja)
+>>>68 belong =0x4163726E (FlyingMeat Acorn)
+>>>68 belong =0x544f4952 (Riot Games patcher)
+>>>68 belong =0x544d5052 (Twinmotion project)
+>>>68 belong =0x43484557 (Chewing IME)
 # unknown application ID
 >>>68 default x
 >>>>68 belong !0         \b, application id %u
+>>>>68 belong 0
+>>>>>0xC70	search/0x9000	CREATE\040TABLE\040s3api_per_key_metadata\n	\b, Archive Metadata
+>>>>>0x2A0	search/0x10	CREATE\040TABLE\040version_table\040(\040version\040INTEGER\040NOT\040NULL\040PRIMARY\040KEY\040)	\b, Adobe SDE
+>>>>>0xEA0	search/0x10	CREATE\040TABLE\040version_table\040(\040version\040INTEGER\040NOT\040NULL\040PRIMARY\040KEY\040)	\b, Adobe SDE
+>>>>>0xA0	search/0x100 CREATE\040TABLE\040IPMMessage\040(	\b, Adobe IPM DB
+>>>>>0xC00	search/0x100 CREATE\040TABLE\040IPMMessage\040(	\b, Adobe IPM DB
+>>>>>0x200	search/0xFFFF	C\0R\0E\0A\0T\0E\0\040\0T\0A\0B\0L\0E\0\040\0A\0C\0T\0I\0O\0N\0R\0E\0C\0O\0R\0D\0S\0\040\0(	\b, Microsoft Store Database
+
+
 # The "user version" as read and set by the user_version pragma like:
 # 1 2 4 5 7 9 10 25 36 43 53 400 416 131073 131074 131075 50331648
 >>60 belong !0          \b, user version %d

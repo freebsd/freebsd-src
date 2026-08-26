@@ -56,24 +56,27 @@ MODULE_PARM_DESC(data_debug_level,
 static DEFINE_MUTEX(pkey_mutex);
 
 struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *priv,
-				 struct ib_pd *pd, struct ib_ah_attr *attr)
+				 struct ib_pd *pd, struct rdma_ah_attr *attr)
 {
 	struct ipoib_ah *ah;
+	struct ib_ah *vah;
 
 	ah = kmalloc(sizeof *ah, GFP_KERNEL);
 	if (!ah)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ah->priv      = priv;
 	ah->last_send = 0;
 	kref_init(&ah->ref);
 
-	ah->ah = ib_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
-	if (IS_ERR(ah->ah)) {
+	vah = rdma_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
+	if (IS_ERR(vah)) {
 		kfree(ah);
-		ah = NULL;
-	} else
+		ah = (struct ipoib_ah *)vah;
+	} else {
+		ah->ah = vah;
 		ipoib_dbg(priv, "Created ah %p\n", ah->ah);
+	}
 
 	return ah;
 }
@@ -147,7 +150,6 @@ error:
 static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 {
 	struct ipoib_rx_buf *rx_req;
-	const struct ib_recv_wr *bad_wr;
 	struct mbuf *m;
 	int ret;
 	int i;
@@ -160,7 +162,7 @@ static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 	priv->rx_wr.num_sge = i;
 	priv->rx_wr.wr_id = id | IPOIB_OP_RECV;
 
-	ret = ib_post_recv(priv->qp, &priv->rx_wr, &bad_wr);
+	ret = ib_post_recv(priv->qp, &priv->rx_wr, NULL);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "receive failed for buf %d (%d)\n", id, ret);
 		ipoib_dma_unmap_rx(priv, &priv->rx_ring[id]);
@@ -450,7 +452,6 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
     struct ib_ah *address, u32 qpn, struct ipoib_tx_buf *tx_req, void *head,
     int hlen)
 {
-	const struct ib_send_wr *bad_wr;
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
 	struct mbuf *m;
@@ -473,7 +474,7 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
 	} else
 		priv->tx_wr.wr.opcode	= IB_WR_SEND;
 
-	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
+	return ib_post_send(priv->qp, &priv->tx_wr.wr, NULL);
 }
 
 void
@@ -570,7 +571,7 @@ static void __ipoib_reap_ah(struct ipoib_dev_priv *priv)
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
-			ib_destroy_ah(ah->ah, 0);
+			rdma_destroy_ah(ah->ah, 0);
 			kfree(ah);
 		}
 
@@ -607,9 +608,12 @@ static void ipoib_ah_dev_cleanup(struct ipoib_dev_priv *priv)
 	}
 }
 
-static void ipoib_ib_tx_timer_func(unsigned long ctx)
+static void ipoib_ib_tx_timer_func(struct timer_list *timer)
 {
-	drain_tx_cq((struct ipoib_dev_priv *)ctx);
+	struct ipoib_dev_priv *priv = timer_container_of(priv, timer,
+	    poll_timer);
+
+	drain_tx_cq(priv);
 }
 
 int ipoib_ib_dev_open(struct ipoib_dev_priv *priv)
@@ -865,8 +869,7 @@ int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int por
 		return -ENODEV;
 	}
 
-	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
-		    (unsigned long) priv);
+	timer_setup(&priv->poll_timer, ipoib_ib_tx_timer_func, 0);
 
 	if (if_getflags(dev) & IFF_UP) {
 		if (ipoib_ib_dev_open(priv)) {

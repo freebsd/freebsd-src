@@ -53,7 +53,7 @@ struct delegpt;
  *  Must be an unsigned 32-bit value larger than 0xffff */
 
 /** Allow caching a DNS message with a zero TTL. */
-#define DNSCACHE_STORE_ZEROTTL 0x100000
+#define DNSCACHE_STORE_EXPIRED_MSG_CACHEDB 0x100000
 
 /**
  * Region allocated message reply

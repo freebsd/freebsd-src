@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -252,7 +252,7 @@ bsd_set_hint_scatter_gather_config(struct pqisrc_softstate *softs)
 
 	DBG_FUNC("IN\n");
 
-	/* At least > 16 sg's required to wotk hint correctly.
+	/* At least > 16 sg's required to work hint correctly.
 	 * Default the sg count set by driver/controller. */
 
 	if ((!softs->hint.sg_segments) || (softs->hint.sg_segments >

@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd November 11, 2017
+.Dd Apri 30, 2026
 .Dt SX 9
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Nm sx_sleep ,
 .Nm sx_xholder ,
 .Nm sx_xlocked ,
+.Nm sx_has_waiters ,
 .Nm sx_assert ,
 .Nm SX_SYSINIT ,
 .Nm SX_SYSINIT_FLAGS
@@ -88,6 +89,8 @@
 .Fn sx_xholder "struct sx *sx"
 .Ft int
 .Fn sx_xlocked "const struct sx *sx"
+.Ft int
+.Fn sx_has_waiters "const struct sx *sx"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
@@ -267,6 +270,13 @@ is returned instead.
 .Fn sx_xlocked
 will return non-zero if the current thread holds the exclusive lock;
 otherwise, it will return zero.
+.Pp
+.Fn sx_has_waiters
+will return non-zero if there are threads waiting for this lock;
+otherwise, it will return zero.
+The function assumes (but does not assert) that the caller already holds the
+lock and that it is interested in other threads waiting for it to release the
+lock.
 .Pp
 For ease of programming,
 .Fn sx_unlock

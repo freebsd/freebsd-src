@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.350 2024/11/27 15:37:00 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.359 2025/06/08 14:42:11 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -414,6 +414,7 @@ flush:
 					*need_separator = 1;
 					*printed_something = 1;
 					*returnval = 1;
+					*firstline = 0;
 					return e;
 				}
 				if (*m->desc) {
@@ -1042,11 +1043,28 @@ cvt_flip(int type, int flip)
 		return FILE_LEDOUBLE;
 	case FILE_LEDOUBLE:
 		return FILE_BEDOUBLE;
+	case FILE_BEMSDOSDATE:
+		return FILE_LEMSDOSDATE;
+	case FILE_LEMSDOSDATE:
+		return FILE_BEMSDOSDATE;
+	case FILE_BEMSDOSTIME:
+		return FILE_LEMSDOSTIME;
+	case FILE_LEMSDOSTIME:
+		return FILE_BEMSDOSTIME;
 	default:
 		return type;
 	}
 }
-#define DO_CVT(fld, type) \
+
+/* X86 INT_MIN / -1 traps */
+#define CHECKOVFL(type, a, b, size, sign) \
+	if (size == 32 && sign && CAST(type, a) == CAST(type, 0x80000000) \
+	    && CAST(type, b) == CAST(type, -1)) \
+		return -1; \
+	if (size == 64 && sign && CAST(type, a) == CAST(type, 0x8000000000000000LL) \
+	    && CAST(type, b) == CAST(type, -1)) \
+		return -1
+#define DO_CVT1(fld, type, size, sign) \
 	if (m->num_mask) \
 		switch (m->mask_op & FILE_OPS_MASK) { \
 		case FILE_OPAND: \
@@ -1068,11 +1086,13 @@ cvt_flip(int type, int flip)
 			p->fld *= CAST(type, m->num_mask); \
 			break; \
 		case FILE_OPDIVIDE: \
+			CHECKOVFL(type, p->fld, m->num_mask, size, sign); \
 			if (CAST(type, m->num_mask) == 0) \
 				return -1; \
 			p->fld /= CAST(type, m->num_mask); \
 			break; \
 		case FILE_OPMODULO: \
+			CHECKOVFL(type, p->fld, m->num_mask, size, sign); \
 			if (CAST(type, m->num_mask) == 0) \
 				return -1; \
 			p->fld %= CAST(type, m->num_mask); \
@@ -1081,31 +1101,38 @@ cvt_flip(int type, int flip)
 	if (m->mask_op & FILE_OPINVERSE) \
 		p->fld = ~p->fld \
 
-file_private int
+#define DO_CVT(m, fld, size) \
+	if ((m)->flag & UNSIGNED) { \
+		DO_CVT1(fld, uint##size##_t, size, 0); \
+	} else { \
+		DO_CVT1(s##fld, int##size##_t, size, 1); \
+	}
+
+file_no_overflow file_private int
 cvt_8(union VALUETYPE *p, const struct magic *m)
 {
-	DO_CVT(b, uint8_t);
+	DO_CVT(m, b, 8);
 	return 0;
 }
 
-file_private int
+file_no_overflow file_private int
 cvt_16(union VALUETYPE *p, const struct magic *m)
 {
-	DO_CVT(h, uint16_t);
+	DO_CVT(m, h, 16);
 	return 0;
 }
 
-file_private int
+file_no_overflow file_private int
 cvt_32(union VALUETYPE *p, const struct magic *m)
 {
-	DO_CVT(l, uint32_t);
+	DO_CVT(m, l, 32);
 	return 0;
 }
 
-file_private int
+file_no_overflow file_private int
 cvt_64(union VALUETYPE *p, const struct magic *m)
 {
-	DO_CVT(q, uint64_t);
+	DO_CVT(m, q, 64);
 	return 0;
 }
 
@@ -1159,11 +1186,7 @@ mconvert(struct magic_set *ms, struct magic *m, int flip)
 		return 1;
 	case FILE_SHORT:
 	case FILE_MSDOSDATE:
-	case FILE_LEMSDOSDATE:
-	case FILE_BEMSDOSDATE:
 	case FILE_MSDOSTIME:
-	case FILE_LEMSDOSTIME:
-	case FILE_BEMSDOSTIME:
 		if (cvt_16(p, m) == -1)
 			goto out;
 		return 1;
@@ -1217,6 +1240,8 @@ mconvert(struct magic_set *ms, struct magic *m, int flip)
 		return 1;
 	}
 	case FILE_BESHORT:
+	case FILE_BEMSDOSDATE:
+	case FILE_BEMSDOSTIME:
 		p->h = CAST(short, BE16(p->hs));
 		if (cvt_16(p, m) == -1)
 			goto out;
@@ -1237,6 +1262,8 @@ mconvert(struct magic_set *ms, struct magic *m, int flip)
 			goto out;
 		return 1;
 	case FILE_LESHORT:
+	case FILE_LEMSDOSDATE:
+	case FILE_LEMSDOSTIME:
 		p->h = CAST(short, LE16(p->hs));
 		if (cvt_16(p, m) == -1)
 			goto out;
@@ -1305,7 +1332,7 @@ mconvert(struct magic_set *ms, struct magic *m, int flip)
 		return 0;
 	}
 out:
-	file_magerror(ms, "zerodivide in mconvert()");
+	file_magerror(ms, "zerodivide/overflow/underflow in mconvert()");
 	return 0;
 }
 
@@ -1534,10 +1561,16 @@ msetoffset(struct magic_set *ms, struct magic *m, struct buffer *bb,
 			    "u at level %u", o, cont_level);
 			return -1;
 		}
-		if (CAST(size_t, m->offset) > b->elen)
-			return -1;
-		buffer_init(bb, -1, NULL, b->ebuf, b->elen);
-		ms->eoffset = ms->offset = CAST(int32_t, b->elen - m->offset);
+		if (b->fd == -1) {
+			ms->eoffset = ms->offset =
+			    CAST(int32_t, b->flen - m->offset);
+		} else {
+			if (CAST(size_t, m->offset) > b->elen)
+				return -1;
+			buffer_init(bb, -1, NULL, b->ebuf, b->elen);
+			ms->eoffset = ms->offset =
+			    CAST(int32_t, b->elen - m->offset);
+		}
 	} else {
 		offset = m->offset;
 		if ((m->flag & OFFPOSITIVE) || cont_level == 0) {
@@ -1547,7 +1580,8 @@ normal:
 			ms->offset = offset;
 			ms->eoffset = 0;
 		} else {
-			ms->offset = ms->eoffset + offset;
+			if (b->fd != -1)
+				ms->offset = ms->eoffset + offset;
 		}
 	}
 	if ((ms->flags & MAGIC_DEBUG) != 0) {
@@ -1966,7 +2000,7 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 		    *need_separator = oneed_separator;
 		ms->offset = offset;
 		ms->eoffset = eoffset;
-		return rv || *found_match;
+		return rv ? rv : *found_match;
 
 	case FILE_NAME:
 		if (ms->flags & MAGIC_NODESC)
@@ -2484,6 +2518,8 @@ file_private int
 handle_annotation(struct magic_set *ms, struct magic *m, int firstline)
 {
 	if ((ms->flags & MAGIC_APPLE) && m->apple[0]) {
+		if (!firstline && !(ms->flags & MAGIC_CONTINUE))
+			return 1;
 		if (print_sep(ms, firstline) == -1)
 			return -1;
 		if (file_printf(ms, "%.8s", m->apple) == -1)
@@ -2491,6 +2527,8 @@ handle_annotation(struct magic_set *ms, struct magic *m, int firstline)
 		return 1;
 	}
 	if ((ms->flags & MAGIC_EXTENSION) && m->ext[0]) {
+		if (!firstline && !(ms->flags & MAGIC_CONTINUE))
+			return 1;
 		if (print_sep(ms, firstline) == -1)
 			return -1;
 		if (file_printf(ms, "%s", m->ext) == -1)
@@ -2500,6 +2538,8 @@ handle_annotation(struct magic_set *ms, struct magic *m, int firstline)
 	if ((ms->flags & MAGIC_MIME_TYPE) && m->mimetype[0]) {
 		char buf[1024];
 		const char *p;
+		if (!firstline && !(ms->flags & MAGIC_CONTINUE))
+			return 1;
 		if (print_sep(ms, firstline) == -1)
 			return -1;
 		if (varexpand(ms, buf, sizeof(buf), m->mimetype) == -1)

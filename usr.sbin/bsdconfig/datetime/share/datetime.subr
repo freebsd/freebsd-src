@@ -1,0 +1,142 @@
+if [ ! "$_DATETIME_DATETIME_SUBR" ]; then _DATETIME_DATETIME_SUBR=1
+#
+# Copyright (c) 2026 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." datetime/datetime.subr
+f_include $BSDCFG_SHARE/dialog.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="085.datetime"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_datetime_adjkerntz
+#
+# Best-effort CMOS sync after changing the system clock with date(1).
+#
+f_datetime_adjkerntz()
+{
+	f_quietly adjkerntz -a
+}
+
+# f_dialog_calendar_set_date
+#
+# Prompt with dialog(1) --calendar and set the system date, preserving the
+# current time-of-day. Returns dialog status (Cancel/ESC) without dying.
+#
+f_dialog_calendar_set_date()
+{
+	local prompt="$msg_set_date"
+	local hline="$hline_arrows_tab_enter"
+	local cheight cwidth input_date ret_date retval
+	local cur_tod setstr
+
+	f_dialog_calendar_size cheight cwidth \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$prompt" "$hline"
+
+	input_date=$( date "+%d %m %Y" )
+	ret_date=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--calendar \"\$prompt\"            \
+		$cheight $cwidth                   \
+		$input_date                        \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	retval=$?
+	f_dialog_data_sanitize ret_date
+	f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
+	[ $retval -eq $DIALOG_OK ] || return $retval
+
+	cur_tod=$( date "+%H:%M:%S" )
+	setstr=$( date -j -f "%d/%m/%Y %T" -- \
+		"$ret_date $cur_tod" "+%Y%m%d%H%M.%S" ) ||
+		f_die 1 "$msg_unable_to_set_date"
+
+	f_eval_catch "$0" date 'date "%s"' "$setstr" ||
+		f_die 1 "$msg_unable_to_set_date"
+	f_datetime_adjkerntz
+	f_show_msg "$msg_system_date_set" "$( date )"
+	return $SUCCESS
+}
+
+# f_dialog_timebox_set_time
+#
+# Prompt with dialog(1) --timebox and set the system time, preserving the
+# current calendar date. Returns dialog status (Cancel/ESC) without dying.
+#
+f_dialog_timebox_set_time()
+{
+	local prompt="$msg_set_time"
+	local hline="$hline_arrows_tab_enter"
+	local input_time ret_time retval
+	local cur_day setstr
+
+	#
+	# bsddialog(1) --timebox wants total rows (min 7), not dialog(1)-style
+	# text height. Match bsdinstall time: autosize height, width 40.
+	#
+	input_time=$( date "+%H %M %S" )
+	ret_time=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--timebox \"\$prompt\"             \
+		0 40                               \
+		$input_time                        \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	retval=$?
+	f_dialog_data_sanitize ret_time
+	f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
+	[ $retval -eq $DIALOG_OK ] || return $retval
+
+	cur_day=$( date "+%d/%m/%Y" )
+	setstr=$( date -j -f "%d/%m/%Y %T" -- \
+		"$cur_day $ret_time" "+%Y%m%d%H%M.%S" ) ||
+		f_die 1 "$msg_unable_to_set_time"
+
+	f_eval_catch "$0" date 'date "%s"' "$setstr" ||
+		f_die 1 "$msg_unable_to_set_time"
+	f_datetime_adjkerntz
+	f_show_msg "$msg_system_time_set" "$( date )"
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." datetime/datetime.subr
+
+fi # ! $_DATETIME_DATETIME_SUBR

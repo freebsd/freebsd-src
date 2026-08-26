@@ -1,0 +1,5 @@
+Name: flag-whitespace-2
+Version: 0
+Description: test case for whitespace between flags
+URL: https://github.com/pkgconf/pkgconf
+Cflags: -I/includedir

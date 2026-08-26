@@ -275,13 +275,69 @@ print_device_path_entry(struct devinfo_dev *dev)
 		printf("\n");
 }
 
+/*
+ * This assumes the string to be compared in *cp is either space or
+ * nul terminated.
+ */
+static bool
+match_value(const char *cp, const char *name)
+{
+	const char *end;
+	size_t len;
+
+	end = strchr(cp, ' ');
+	if (end == NULL)
+		return (strcmp(cp, name) == 0);
+
+	if (end == cp)
+		return (false);
+
+	/* NB: strncmp(3) would return zero if name matches a prefix. */
+	len = end - cp;
+	return (strlen(name) == len && memcmp(name, cp, len) == 0);
+}
+
+static bool
+device_matches_name(struct devinfo_dev *dev, const char *name)
+{
+	const char *cp, *val;
+
+	if (strcmp(dev->dd_name, name) == 0)
+		return (true);
+
+	if (*dev->dd_location) {
+		/* Permit matches on the ACPI handle stored in location. */
+		if (name[0] == '\\' && (cp = strstr(dev->dd_location,
+		    "handle=\\")) != NULL) {
+			if (match_value(cp + strlen("handle="), name))
+				return (true);
+		}
+
+		/* Permit matches on the PCI dbsf stored in location. */
+		if (strncmp(name, "pci", strlen("pci")) == 0 &&
+		    (cp = strstr(dev->dd_location, "dbsf=pci")) != NULL) {
+			cp += strlen("dbsf=pci");
+			val = name + strlen("pci");
+			if (match_value(cp, val))
+				return (true);
+
+			/* Also match on pci<b>:<s>:<f> for domain 0. */
+			if (strncmp(cp, "0:", strlen("0:")) == 0 &&
+			    match_value(cp + strlen("0:"), val))
+				return (true);
+		}
+	}
+
+	return (false);
+}
+
 static int
 print_device_path(struct devinfo_dev *dev, void *xname)
 {
 	const char *name = xname;
 	int rv;
 
-	if (strcmp(dev->dd_name, name) == 0) {
+	if (device_matches_name(dev, name)) {
 		print_device_path_entry(dev);
 		return (1);
 	}

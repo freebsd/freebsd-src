@@ -4771,6 +4771,10 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 
 	ac = params->ibp_pri & 3;
 
+	/* Assign sequence number. */
+	if ((m->m_flags & M_AMPDU_MPDU) == 0)
+		ieee80211_output_seqno_assign(ni, -1, m);
+
 	/* Choose a TX rate. */
 	rate = params->ibp_rate0;
 

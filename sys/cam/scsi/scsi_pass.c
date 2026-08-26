@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_pass.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -1481,8 +1483,18 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 		}
 		break;
 	case CAM_DATA_PADDR:
+#ifdef PASS_UNSAFE_PADDR
 		/* Pass down the pointer as-is */
 		break;
+#else
+		/*
+		 * Physical addresses from userspace are not allowed.
+		 * They could be used for arbitrary DMA to/from host
+		 * memory on systems without an IOMMU.
+		 */
+		error = EINVAL;
+		goto bailout;
+#endif
 	case CAM_DATA_SG: {
 		size_t sg_length, size_to_go, alloc_size;
 		uint32_t num_segs_needed;
@@ -1602,6 +1614,7 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 		break;
 	}
 	case CAM_DATA_SG_PADDR: {
+#ifdef PASS_UNSAFE_PADDR
 		size_t sg_length;
 
 		/*
@@ -1661,6 +1674,15 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 			goto bailout;
 		}
 		break;
+#else
+		/*
+		 * Physical addresses from userspace are not allowed.
+		 * They could be used for arbitrary DMA to/from host
+		 * memory on systems without an IOMMU.
+		 */
+		error = EINVAL;
+		goto bailout;
+#endif
 	}
 	default:
 	case CAM_DATA_BIO:
@@ -1754,6 +1776,54 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	return (error);
 }
 
+/*
+ * Allowlist of CCB function codes that userland is permitted to send
+ * through the pass(4) driver.  This is a security boundary: anything
+ * not on this list could allow userland to corrupt kernel state.
+ * Notable exclusions:
+ *  - XPT_ABORT: payload contains a kernel CCB pointer that xpt_action
+ *    dereferences without validation.
+ *  - XPT_SASYNC_CB: payload contains a function pointer that gets
+ *    registered as a kernel callback.
+ *  - Target mode CCBs (XPT_EN_LUN, XPT_TARGET_IO, etc.): should only
+ *    be reachable through the target mode driver.
+ */
+static int
+pass_is_allowed_fc(xpt_opcode fc)
+{
+	switch (fc) {
+	/* I/O operations */
+	case XPT_SCSI_IO:
+	case XPT_ATA_IO:
+	case XPT_SMP_IO:
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+	case XPT_MMC_IO:
+	/* Device info / queries */
+	case XPT_GDEV_TYPE:
+	case XPT_GDEVLIST:
+	case XPT_PATH_INQ:
+	case XPT_GDEV_STATS:
+	case XPT_PATH_STATS:
+	case XPT_DEV_ADVINFO:
+	case XPT_GET_TRAN_SETTINGS:
+	case XPT_SET_TRAN_SETTINGS:
+	case XPT_GET_SIM_KNOB:
+	case XPT_SET_SIM_KNOB:
+	case XPT_MMC_GET_TRAN_SETTINGS:
+	case XPT_MMC_SET_TRAN_SETTINGS:
+	case XPT_CALC_GEOMETRY:
+	/* Misc safe operations */
+	case XPT_NOOP:
+	case XPT_REL_SIMQ:
+	case XPT_RESET_DEV:
+	case XPT_DEBUG:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
 static int
 passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
@@ -1787,14 +1857,14 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		}
 
 		/*
-		 * Some CCB types, like scan bus and scan lun can only go
-		 * through the transport layer device.
+		 * Only allow CCB function codes that are known to be safe
+		 * for userland to issue through the pass(4) driver.
 		 */
-		if (inccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
+		if (!pass_is_allowed_fc(inccb->ccb_h.func_code)) {
 			xpt_print(periph->path, "CCB function code %#x is "
-			    "restricted to the XPT device\n",
+			    "not supported by the pass(4) driver\n",
 			    inccb->ccb_h.func_code);
-			error = ENODEV;
+			error = EINVAL;
 			break;
 		}
 
@@ -1910,14 +1980,14 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		}
 
 		/*
-		 * Some CCB types, like scan bus and scan lun can only go
-		 * through the transport layer device.
+		 * Only allow CCB function codes that are known to be safe
+		 * for userland to issue through the pass(4) driver.
 		 */
-		if (ccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
+		if (!pass_is_allowed_fc(ccb->ccb_h.func_code)) {
 			xpt_print(periph->path, "CCB function code %#x is "
-			    "restricted to the XPT device\n",
+			    "not supported by the pass(4) driver\n",
 			    ccb->ccb_h.func_code);
-			error = ENODEV;
+			error = EINVAL;
 			goto camioqueue_error;
 		}
 

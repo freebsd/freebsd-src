@@ -1,0 +1,58 @@
+genrule(
+    name = "cbor_cmake",
+    srcs = glob(["**"]),
+    outs = [
+        "libcbor.a",
+        "cbor.h",
+        "cbor/arrays.h",
+        "cbor/bytestrings.h",
+        "cbor/callbacks.h",
+        "cbor/cbor_export.h",
+        "cbor/common.h",
+        "cbor/configuration.h",
+        "cbor/data.h",
+        "cbor/encoding.h",
+        "cbor/floats_ctrls.h",
+        "cbor/ints.h",
+        "cbor/maps.h",
+        "cbor/serialization.h",
+        "cbor/streaming.h",
+        "cbor/strings.h",
+        "cbor/tags.h",
+    ],
+    cmd = " && ".join([
+        # Remember where output should go.
+        "INITIAL_WD=`pwd`",
+        "cd `dirname $(location CMakeLists.txt)`",
+        "cmake -DCMAKE_BUILD_TYPE=Release .",
+        "cmake --build .",
+        # Export the .a and .h files for cbor rule, below.
+        "cp -R src/* $$INITIAL_WD/$(RULEDIR)",
+        "cp cbor/configuration.h $$INITIAL_WD/$(RULEDIR)/cbor",
+    ]),
+    visibility = ["//visibility:private"],
+)
+
+cc_import(
+    name = "cbor",
+    hdrs = [
+        "cbor.h",
+        "cbor/arrays.h",
+        "cbor/bytestrings.h",
+        "cbor/callbacks.h",
+        "cbor/cbor_export.h",
+        "cbor/common.h",
+        "cbor/configuration.h",
+        "cbor/data.h",
+        "cbor/encoding.h",
+        "cbor/floats_ctrls.h",
+        "cbor/ints.h",
+        "cbor/maps.h",
+        "cbor/serialization.h",
+        "cbor/streaming.h",
+        "cbor/strings.h",
+        "cbor/tags.h",
+    ],
+    static_library = "libcbor.a",
+    visibility = ["//visibility:public"],
+)

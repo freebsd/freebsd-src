@@ -701,10 +701,15 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	/* does interface exist */
-	if (!if_exists(interface)) {
-		warn("Failed to initialize: %s", interface);
-		logmsg(LOG_ERR, "Failed to initialize: %s", interface);
+	/* filter will be used by the privileged process */
+	if (argc) {
+		filter = copy_argv(argv);
+		if (filter == NULL)
+			logmsg(LOG_NOTICE, "Failed to form filter expression");
+	}
+
+	/* initialize pcap before dropping privileges */
+	if (init_pcap()) {
 		logmsg(LOG_ERR, "Exiting, init failure");
 		exit(1);
 	}
@@ -720,19 +725,6 @@ main(int argc, char **argv)
 
 	tzset();
 	(void)umask(S_IRWXG | S_IRWXO);
-
-	/* filter will be used by the privileged process */
-	if (argc) {
-		filter = copy_argv(argv);
-		if (filter == NULL)
-			logmsg(LOG_NOTICE, "Failed to form filter expression");
-	}
-
-	/* initialize pcap before dropping privileges */
-	if (init_pcap()) {
-		logmsg(LOG_ERR, "Exiting, init failure");
-		exit(1);
-	}
 
 	/* Privilege separation begins here */
 	if (priv_init()) {

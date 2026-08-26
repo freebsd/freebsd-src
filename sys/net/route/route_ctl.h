@@ -164,6 +164,7 @@ struct nhop_iter {
 	struct rib_head		*rh;
 	int			_i;
 	struct nhop_priv	*_next;
+	const bool		wlock;
 };
 
 struct nhop_object *nhops_iter_start(struct nhop_iter *iter);

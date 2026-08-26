@@ -80,7 +80,6 @@ static lbool any_data = FALSE;
 static lbool reading;
 static lbool opening;
 public lbool waiting_for_data;
-public int consecutive_nulls = 0;
 public lbool getting_one_screen = FALSE;
 
 /* Milliseconds to wait for data before displaying "waiting for data" message. */
@@ -97,9 +96,9 @@ extern int exit_F_on_close;
 extern int follow_mode;
 extern int scanning_eof;
 extern char intr_char;
-extern int is_tty;
+extern lbool is_tty;
 extern int quit_if_one_screen;
-extern int one_screen;
+extern lbool one_screen;
 #if HAVE_TIME
 extern time_type less_start_time;
 #endif
@@ -305,46 +304,36 @@ start:
 		if (ret != 0)
 		{
 			if (ret == READ_INTR)
+			{
 				sigs |= S_SWINTERRUPT;
+				getcc_clear();
+			}
 			reading = FALSE;
 			return (ret);
 		}
 	}
 #else
 #if MSDOS_COMPILER==WIN32C
-	if (!(quit_if_one_screen && one_screen) && win32_kbhit2(TRUE))
+	if (!(quit_if_one_screen && one_screen))
 	{
-		int c = WIN32getch();
-		if (c == CONTROL('C') || c == intr_char)
+		char c;
+		if (win32_kbhit2(&c))
 		{
-			sigs |= S_SWINTERRUPT;
-			reading = FALSE;
-			return (READ_INTR);
+			if (c == CONTROL('C') || c == intr_char)
+			{
+				sigs |= S_SWINTERRUPT;
+				reading = FALSE;
+				win32_clear_queue();
+				return (READ_INTR);
+			}
+			win32_enqueue((int) c);
 		}
-		WIN32ungetch(c);
 	}
 #endif
 #endif
 	n = read(fd, buf, len);
 	reading = FALSE;
-#if 0
-	/*
-	 * This is a kludge to workaround a problem on some systems
-	 * where terminating a remote tty connection causes read() to
-	 * start returning 0 forever, instead of -1.
-	 */
-	{
-		if (!ignore_eoi)
-		{
-			if (n == 0)
-				consecutive_nulls++;
-			else
-				consecutive_nulls = 0;
-			if (consecutive_nulls > 20)
-				quit(QUIT_ERROR);
-		}
-	}
-#endif
+
 	if (n < 0)
 	{
 #if HAVE_ERRNO

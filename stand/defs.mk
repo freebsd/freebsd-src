@@ -11,6 +11,7 @@ FORTIFY_SOURCE=	0
 MK_CTF=		no
 MK_SSP=		no
 MK_PIE=		no
+MK_RETPOLINE=	no
 MK_ZEROREGS=	no
 MAN=
 .if !defined(PIC)
@@ -77,7 +78,7 @@ LIBSA=		${BOOTOBJ}/libsa/libsa.a
 .if ${MACHINE} == "i386"
 LIBSA32=	${LIBSA}
 .else
-LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
+LIBSA32=	${BOOTOBJ}/${"${LOADER}" == "loader_ia32":?efi/libsa32efi:libsa32}/libsa32.a
 .endif
 
 # Standard options:
@@ -179,6 +180,20 @@ CFLAGS+=	-fPIC
 .if ${LINKER_FEATURES:Mriscv-relaxations} == ""
 CFLAGS+=	-mno-relax
 .endif
+
+# ZLIB flags
+ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SYSDIR}/contrib/zlib ${NO_WDEPRECATED_NON_PROTOTYPE}
+
+# BZIP2 flags
+BZIP2_CFLAGS=-I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+
+# ZSTD client cflags
+ZSTD_CFLAGS=-I${SYSDIR}/contrib/zstd/lib
+
+# XZ flags
+XZ_DIR=${SRCTOP}/sys/contrib/xz-embedded
+XZ_CFLAGS=-DXZ_USE_CRC64 -I${XZ_DIR}/freebsd -I${XZ_DIR}/linux/include/linux
+
 
 # The boot loader build uses dd status=none, where possible, for reproducible
 # build output (since performance varies from run to run). Trouble is that

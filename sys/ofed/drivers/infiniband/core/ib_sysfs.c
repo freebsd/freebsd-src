@@ -46,6 +46,7 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_pma.h>
+#include <rdma/ib_cache.h>
 
 struct ib_port;
 
@@ -279,6 +280,10 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 		speed = " NDR";
 		rate = 1000;
 		break;
+	case IB_SPEED_XDR:
+		speed = " XDR";
+		rate = 2000;
+		break;
 	case IB_SPEED_SDR:
 	default:		/* default to SDR for invalid rates */
 		speed = " SDR";
@@ -364,7 +369,7 @@ static struct attribute *port_default_attrs[] = {
 	NULL
 };
 
-static size_t print_ndev(struct ib_gid_attr *gid_attr, char *buf)
+static size_t print_ndev(const struct ib_gid_attr *gid_attr, char *buf)
 {
 	if (!gid_attr->ndev)
 		return -EINVAL;
@@ -372,33 +377,26 @@ static size_t print_ndev(struct ib_gid_attr *gid_attr, char *buf)
 	return sprintf(buf, "%s\n", if_name(gid_attr->ndev));
 }
 
-static size_t print_gid_type(struct ib_gid_attr *gid_attr, char *buf)
+static size_t print_gid_type(const struct ib_gid_attr *gid_attr, char *buf)
 {
 	return sprintf(buf, "%s\n", ib_cache_gid_type_str(gid_attr->gid_type));
 }
 
-static ssize_t _show_port_gid_attr(struct ib_port *p,
-				   struct port_attribute *attr,
-				   char *buf,
-				   size_t (*print)(struct ib_gid_attr *gid_attr,
-						   char *buf))
+static ssize_t _show_port_gid_attr(
+	struct ib_port *p, struct port_attribute *attr, char *buf,
+	size_t (*print)(const struct ib_gid_attr *gid_attr, char *buf))
 {
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
-	union ib_gid gid;
-	struct ib_gid_attr gid_attr = {};
+	const struct ib_gid_attr *gid_attr;
 	ssize_t ret;
 
-	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid,
-			   &gid_attr);
-	if (ret)
-		goto err;
+	gid_attr = rdma_get_gid_attr(p->ibdev, p->port_num, tab_attr->index);
+	if (IS_ERR(gid_attr))
+		return PTR_ERR(gid_attr);
 
-	ret = print(&gid_attr, buf);
-
-err:
-	if (gid_attr.ndev)
-		dev_put(gid_attr.ndev);
+	ret = print(gid_attr, buf);
+	rdma_put_gid_attr(gid_attr);
 	return ret;
 }
 
@@ -407,14 +405,28 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 {
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
-	union ib_gid gid;
+	const struct ib_gid_attr *gid_attr;
 	ssize_t ret;
 
-	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid, NULL);
-	if (ret)
-		return ret;
+	gid_attr = rdma_get_gid_attr(p->ibdev, p->port_num, tab_attr->index);
+	if (IS_ERR(gid_attr)) {
+		const union ib_gid zgid = {};
 
-	return sprintf(buf, GID_PRINT_FMT"\n", GID_PRINT_ARGS(gid.raw));
+		/* If reading GID fails, it is likely due to GID entry being
+		 * empty (invalid) or reserved GID in the table.  User space
+		 * expects to read GID table entries as long as it given index
+		 * is within GID table size.  Administrative/debugging tool
+		 * fails to query rest of the GID entries if it hits error
+		 * while querying a GID of the given index.  To avoid user
+		 * space throwing such error on fail to read gid, return zero
+		 * GID as before. This maintains backward compatibility.
+		 */
+		return sprintf(buf, GID_PRINT_FMT"\n", GID_PRINT_ARGS(zgid.raw));
+	}
+
+	ret = sprintf(buf, GID_PRINT_FMT"\n", GID_PRINT_ARGS(gid_attr->gid.raw));
+	rdma_put_gid_attr(gid_attr);
+	return ret;
 }
 
 static ssize_t show_port_gid_attr_ndev(struct ib_port *p,
@@ -1195,7 +1207,7 @@ err_put:
 	return ret;
 }
 
-static ssize_t show_node_type(struct device *device,
+static ssize_t node_type_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1210,8 +1222,9 @@ static ssize_t show_node_type(struct device *device,
 	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
 	}
 }
+static DEVICE_ATTR_RO(node_type);
 
-static ssize_t show_sys_image_guid(struct device *device,
+static ssize_t sys_image_guid_show(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1222,8 +1235,9 @@ static ssize_t show_sys_image_guid(struct device *device,
 		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[2]),
 		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[3]));
 }
+static DEVICE_ATTR_RO(sys_image_guid);
 
-static ssize_t show_node_guid(struct device *device,
+static ssize_t node_guid_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1234,8 +1248,9 @@ static ssize_t show_node_guid(struct device *device,
 		       be16_to_cpu(((__be16 *) &dev->node_guid)[2]),
 		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
 }
+static DEVICE_ATTR_RO(node_guid);
 
-static ssize_t show_node_desc(struct device *device,
+static ssize_t node_desc_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1243,9 +1258,9 @@ static ssize_t show_node_desc(struct device *device,
 	return sprintf(buf, "%.64s\n", dev->node_desc);
 }
 
-static ssize_t set_node_desc(struct device *device,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t node_desc_store(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 	struct ib_device_modify desc = {};
@@ -1261,8 +1276,9 @@ static ssize_t set_node_desc(struct device *device,
 
 	return count;
 }
+static DEVICE_ATTR_RW(node_desc);
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
+static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1271,19 +1287,19 @@ static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
 	strlcat(buf, "\n", PAGE_SIZE);
 	return strlen(buf);
 }
+static DEVICE_ATTR_RO(fw_ver);
 
-static DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);
-static DEVICE_ATTR(sys_image_guid, S_IRUGO, show_sys_image_guid, NULL);
-static DEVICE_ATTR(node_guid, S_IRUGO, show_node_guid, NULL);
-static DEVICE_ATTR(node_desc, S_IRUGO | S_IWUSR, show_node_desc, set_node_desc);
-static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static struct attribute *ib_dev_attrs[] = {
+	&dev_attr_node_type.attr,
+	&dev_attr_node_guid.attr,
+	&dev_attr_sys_image_guid.attr,
+	&dev_attr_fw_ver.attr,
+	&dev_attr_node_desc.attr,
+	NULL,
+};
 
-static struct device_attribute *ib_class_attributes[] = {
-	&dev_attr_node_type,
-	&dev_attr_sys_image_guid,
-	&dev_attr_node_guid,
-	&dev_attr_node_desc,
-	&dev_attr_fw_ver,
+static const struct attribute_group dev_attr_group = {
+	.attrs = ib_dev_attrs,
 };
 
 static void free_port_list_attributes(struct ib_device *device)
@@ -1326,15 +1342,12 @@ int ib_device_register_sysfs(struct ib_device *device,
 	if (ret)
 		return ret;
 
+	device->groups[0] = &dev_attr_group;
+	class_dev->groups = device->groups;
+
 	ret = device_add(class_dev);
 	if (ret)
 		goto err;
-
-	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i) {
-		ret = device_create_file(class_dev, ib_class_attributes[i]);
-		if (ret)
-			goto err_unregister;
-	}
 
 	device->ports_parent = kobject_create_and_add("ports",
 						      &class_dev->kobj);
@@ -1362,20 +1375,15 @@ int ib_device_register_sysfs(struct ib_device *device,
 
 err_put:
 	free_port_list_attributes(device);
-
-err_unregister:
 	device_del(class_dev);
-
 err:
 	return ret;
 }
 
 void ib_device_unregister_sysfs(struct ib_device *device)
 {
-	int i;
-
-	/* Hold kobject until ib_dealloc_device() */
-	kobject_get(&device->dev.kobj);
+	/* Hold device until ib_dealloc_device() */
+	get_device(&device->dev);
 
 	free_port_list_attributes(device);
 
@@ -1383,9 +1391,6 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 		kfree(device->hw_stats);
 		free_hsag(&device->dev.kobj, device->hw_stats_ag);
 	}
-
-	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i)
-		device_remove_file(&device->dev, ib_class_attributes[i]);
 
 	device_unregister(&device->dev);
 }

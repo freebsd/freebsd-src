@@ -1,0 +1,9 @@
+SkipPlatforms: windows
+SetupMkdir: tmp/child
+SetupCopy: lib1/pcfiledir.pc tmp/child/pcfiledir.pc
+SetupSymlink: child/pcfiledir.pc tmp/pcfiledir.pc
+SetupSymlink: tmp/pcfiledir.pc pcfiledir.pc
+WantVariable: prefix
+WantedFlags: define-prefix
+Query: %PWD%/tmp/pcfiledir.pc
+ExpectedStdout: %PWD%/tmp/child

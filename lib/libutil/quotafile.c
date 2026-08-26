@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/mount.h>
 #include <sys/stat.h>

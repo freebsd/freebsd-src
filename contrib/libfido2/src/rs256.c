@@ -18,54 +18,20 @@
 #define get0_RSA(x)	EVP_PKEY_get0((x))
 #endif
 
-#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3050200fL
-static EVP_MD *
-rs256_get_EVP_MD(void)
-{
-	const EVP_MD *from;
-	EVP_MD *to = NULL;
-
-	if ((from = EVP_sha256()) != NULL && (to = malloc(sizeof(*to))) != NULL)
-		memcpy(to, from, sizeof(*to));
-
-	return (to);
-}
-
-static void
-rs256_free_EVP_MD(EVP_MD *md)
-{
-	freezero(md, sizeof(*md));
-}
-#elif OPENSSL_VERSION_NUMBER >= 0x30000000
-static EVP_MD *
-rs256_get_EVP_MD(void)
-{
-	return (EVP_MD_fetch(NULL, "SHA2-256", NULL));
-}
-
-static void
-rs256_free_EVP_MD(EVP_MD *md)
-{
-	EVP_MD_free(md);
-}
+#if defined(__GNUC__)
+#define PRAGMA(s) _Pragma(s)
 #else
+#define PRAGMA(s)
+#endif
+
 static EVP_MD *
 rs256_get_EVP_MD(void)
 {
-	const EVP_MD *md;
-
-	if ((md = EVP_sha256()) == NULL)
-		return (NULL);
-
-	return (EVP_MD_meth_dup(md));
+PRAGMA("GCC diagnostic push")
+PRAGMA("GCC diagnostic ignored \"-Wcast-qual\"")
+	return ((EVP_MD *)EVP_sha256());
+PRAGMA("GCC diagnostic pop")
 }
-
-static void
-rs256_free_EVP_MD(EVP_MD *md)
-{
-	EVP_MD_meth_free(md);
-}
-#endif /* LIBRESSL_VERSION_NUMBER */
 
 static int
 decode_bignum(const cbor_item_t *item, void *ptr, size_t len)
@@ -290,7 +256,6 @@ rs256_verify_sig(const fido_blob_t *dgst, EVP_PKEY *pkey,
 	ok = 0;
 fail:
 	EVP_PKEY_CTX_free(pctx);
-	rs256_free_EVP_MD(md);
 
 	return (ok);
 }

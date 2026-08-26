@@ -4,6 +4,9 @@
 /* zfs_config.h.  Generated from zfs_config.h.in by configure.  */
 /* zfs_config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 to disable ZFS channel program support */
+/* #undef DISABLE_ZCP */
+
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
 /* #undef ENABLE_NLS */
@@ -20,48 +23,11 @@
 /* add_disk() returns int */
 /* #undef HAVE_ADD_DISK_RET */
 
-/* Define if host toolchain supports AES */
-#define HAVE_AES 1
-
 /* Define if you have [rt] */
 #define HAVE_AIO_H 1
 
-#ifdef __amd64__
-#ifndef RESCUE
-/* Define if host toolchain supports AVX */
-#define HAVE_AVX 1
-#endif
-
-/* Define if host toolchain supports AVX2 */
-#define HAVE_AVX2 1
-
-/* Define if host toolchain supports AVX512BW */
-#define HAVE_AVX512BW 1
-
-/* Define if host toolchain supports AVX512CD */
-#define HAVE_AVX512CD 1
-
-/* Define if host toolchain supports AVX512DQ */
-#define HAVE_AVX512DQ 1
-
-/* Define if host toolchain supports AVX512ER */
-#define HAVE_AVX512ER 1
-
-/* Define if host toolchain supports AVX512F */
-#define HAVE_AVX512F 1
-
-/* Define if host toolchain supports AVX512IFMA */
-#define HAVE_AVX512IFMA 1
-
-/* Define if host toolchain supports AVX512PF */
-#define HAVE_AVX512PF 1
-
-/* Define if host toolchain supports AVX512VBMI */
-#define HAVE_AVX512VBMI 1
-
-/* Define if host toolchain supports AVX512VL */
-#define HAVE_AVX512VL 1
-#endif
+/* Define if your assembler supports .cfi_negate_ra_state. */
+/* #undef HAVE_AS_CFI_PSEUDO_OP */
 
 /* backtrace() is available */
 /* #undef HAVE_BACKTRACE */
@@ -195,6 +161,9 @@
 /* backing_dev_info is available through queue gendisk */
 /* #undef HAVE_BLK_QUEUE_DISK_BDI */
 
+/* blk_queue_rot() is available */
+/* #undef HAVE_BLK_QUEUE_ROT */
+
 /* blk_queue_secure_erase() is available */
 /* #undef HAVE_BLK_QUEUE_SECURE_ERASE */
 
@@ -238,6 +207,9 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
+/* dentry aliases are in d_u member */
+/* #undef HAVE_DENTRY_D_U_ALIASES */
+
 /* 3-arg dequeue_signal() takes a type argument */
 /* #undef HAVE_DEQUEUE_SIGNAL_3ARG_TYPE */
 
@@ -271,11 +243,23 @@
 /* fault_in_iov_iter_readable() is available */
 /* #undef HAVE_FAULT_IN_IOV_ITER_READABLE */
 
+/* linux/filelock.h exists */
+/* #undef HAVE_FILELOCK_HEADER */
+
 /* file->f_version exists */
 /* #undef HAVE_FILE_F_VERSION */
 
 /* flush_dcache_page() is GPL-only */
 /* #undef HAVE_FLUSH_DCACHE_PAGE_GPL_ONLY */
+
+/* use __flush_workqueue() to flush delay workqueue */
+/* #undef HAVE_FLUSH_DELAY_WORKQUEUE_INTERNAL */
+
+/* use system_delay_wq for delay workqueue */
+/* #undef HAVE_FLUSH_DELAY_WORKQUEUE_PERCPU */
+
+/* follow_down() takes a flags parameter */
+/* #undef HAVE_FOLLOW_DOWN_FLAGS */
 
 /* Define if compiler supports -Wformat-overflow */
 /* #undef HAVE_FORMAT_OVERFLOW */
@@ -283,17 +267,17 @@
 /* fsync_bdev() is declared in include/blkdev.h */
 /* #undef HAVE_FSYNC_BDEV */
 
+/* fs_context exists */
+/* #undef HAVE_FS_CONTEXT */
+
+/* fs_parse() takes fs_parameter_spec directly */
+/* #undef HAVE_FS_PARSE_TAKES_SPEC */
+
 /* yes */
 /* #undef HAVE_GENERIC_FADVISE */
 
-/* generic_fillattr requires struct mnt_idmap* */
-/* #undef HAVE_GENERIC_FILLATTR_IDMAP */
-
-/* generic_fillattr requires struct mnt_idmap* and u32 request_mask */
+/* generic_fillattr requires request_mask */
 /* #undef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK */
-
-/* generic_fillattr requires struct user_namespace* */
-/* #undef HAVE_GENERIC_FILLATTR_USERNS */
 
 /* generic_*_io_acct() 4 arg available */
 /* #undef HAVE_GENERIC_IO_ACCT_4ARG */
@@ -325,17 +309,14 @@
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
 
-/* iops->getattr() takes struct mnt_idmap* */
-/* #undef HAVE_IDMAP_IOPS_GETATTR */
-
-/* iops->setattr() takes struct mnt_idmap* */
-/* #undef HAVE_IDMAP_IOPS_SETATTR */
-
-/* APIs for idmapped mount are present */
-/* #undef HAVE_IDMAP_MNT_API */
+/* id mapping mechanism is mnt_idmap */
+/* #undef HAVE_IDMAP_MNTIDMAP */
 
 /* mnt_idmap does not have user_namespace */
 /* #undef HAVE_IDMAP_NO_USERNS */
+
+/* id mapping mechanism is user_namespace */
+/* #undef HAVE_IDMAP_USERNS */
 
 /* Define if compiler supports -Wimplicit-fallthrough */
 /* #undef HAVE_IMPLICIT_FALLTHROUGH */
@@ -355,15 +336,6 @@
 /* inode_get_mtime() exists in linux/fs.h */
 /* #undef HAVE_INODE_GET_MTIME */
 
-/* inode_owner_or_capable() exists */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE */
-
-/* inode_owner_or_capable() takes mnt_idmap */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE_IDMAP */
-
-/* inode_owner_or_capable() takes user_ns */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE_USERNS */
-
 /* inode_set_atime_to_ts() exists in linux/fs.h */
 /* #undef HAVE_INODE_SET_ATIME_TO_TS */
 
@@ -373,50 +345,14 @@
 /* inode_set_mtime_to_ts() exists in linux/fs.h */
 /* #undef HAVE_INODE_SET_MTIME_TO_TS */
 
+/* inode_state_read_once() exists */
+/* #undef HAVE_INODE_STATE_READ_ONCE */
+
 /* timestamp_truncate() exists */
 /* #undef HAVE_INODE_TIMESTAMP_TRUNCATE */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
-
-/* iops->create() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_CREATE_IDMAP */
-
-/* iops->create() takes struct user_namespace* */
-/* #undef HAVE_IOPS_CREATE_USERNS */
-
-/* iops->mkdir() returns struct dentry* */
-/* #undef HAVE_IOPS_MKDIR_DENTRY */
-
-/* iops->mkdir() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_MKDIR_IDMAP */
-
-/* iops->mkdir() takes struct user_namespace* */
-/* #undef HAVE_IOPS_MKDIR_USERNS */
-
-/* iops->mknod() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_MKNOD_IDMAP */
-
-/* iops->mknod() takes struct user_namespace* */
-/* #undef HAVE_IOPS_MKNOD_USERNS */
-
-/* iops->permission() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_PERMISSION_IDMAP */
-
-/* iops->permission() takes struct user_namespace* */
-/* #undef HAVE_IOPS_PERMISSION_USERNS */
-
-/* iops->rename() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_RENAME_IDMAP */
-
-/* iops->rename() takes struct user_namespace* */
-/* #undef HAVE_IOPS_RENAME_USERNS */
-
-/* iops->symlink() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_SYMLINK_IDMAP */
-
-/* iops->symlink() takes struct user_namespace* */
-/* #undef HAVE_IOPS_SYMLINK_USERNS */
 
 /* iov_iter_get_pages2() is available */
 /* #undef HAVE_IOV_ITER_GET_PAGES2 */
@@ -436,6 +372,24 @@
 /* kasan_enabled() is GPL-only */
 /* #undef HAVE_KASAN_ENABLED_GPL_ONLY */
 
+/* Define if kernel toolchain supports AES */
+/* #undef HAVE_KERNEL_AES */
+
+/* Define if kernel toolchain supports AVX */
+/* #undef HAVE_KERNEL_AVX */
+
+/* Define if kernel toolchain supports AVX2 */
+/* #undef HAVE_KERNEL_AVX2 */
+
+/* Define if kernel toolchain supports AVX512BW */
+/* #undef HAVE_KERNEL_AVX512BW */
+
+/* Define if kernel toolchain supports AVX512F */
+/* #undef HAVE_KERNEL_AVX512F */
+
+/* Define if kernel toolchain supports AVX512VL */
+/* #undef HAVE_KERNEL_AVX512VL */
+
 /* kernel has kernel_fpu_* functions */
 /* #undef HAVE_KERNEL_FPU */
 
@@ -454,6 +408,9 @@
 /* kernel defines intptr_t */
 /* #undef HAVE_KERNEL_INTPTR_T */
 
+/* Define if kernel toolchain supports MOVBE */
+/* #undef HAVE_KERNEL_MOVBE */
+
 /* kernel has kernel_neon_* functions */
 /* #undef HAVE_KERNEL_NEON */
 
@@ -463,8 +420,38 @@
 /* kernel has linux/objtool.h */
 /* #undef HAVE_KERNEL_OBJTOOL_HEADER */
 
+/* Define if kernel toolchain supports PCLMULQDQ */
+/* #undef HAVE_KERNEL_PCLMULQDQ */
+
+/* Define if kernel toolchain supports SHA512EXT */
+/* #undef HAVE_KERNEL_SHA512EXT */
+
+/* Define if kernel toolchain supports SSE2 */
+/* #undef HAVE_KERNEL_SSE2 */
+
+/* Define if kernel toolchain supports SSE4_1 */
+/* #undef HAVE_KERNEL_SSE4_1 */
+
+/* Define if kernel toolchain supports SSSE3 */
+/* #undef HAVE_KERNEL_SSSE3 */
+
 /* strlcpy() exists */
 /* #undef HAVE_KERNEL_STRLCPY */
+
+/* Define if kernel toolchain supports VAES */
+/* #undef HAVE_KERNEL_VAES */
+
+/* Define if kernel toolchain supports VPCLMULQDQ */
+/* #undef HAVE_KERNEL_VPCLMULQDQ */
+
+/* Define if kernel toolchain supports XSAVE */
+/* #undef HAVE_KERNEL_XSAVE */
+
+/* Define if kernel toolchain supports XSAVEOPT */
+/* #undef HAVE_KERNEL_XSAVEOPT */
+
+/* Define if kernel toolchain supports XSAVES */
+/* #undef HAVE_KERNEL_XSAVES */
 
 /* kernel has kmap_local_page */
 /* #undef HAVE_KMAP_LOCAL_PAGE */
@@ -505,8 +492,14 @@
 /* Noting that make_request_fn() returns blk_qc_t */
 /* #undef HAVE_MAKE_REQUEST_FN_RET_QC */
 
+/* iops->mkdir() returns struct dentry* */
+/* #undef HAVE_MKDIR_DENTRY_RETURN */
+
 /* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
+
+/* 'flags' in 'struct page' is a struct */
+/* #undef HAVE_MM_PAGE_FLAGS_STRUCT */
 
 /* PG_error flag is available */
 /* #undef HAVE_MM_PAGE_FLAG_ERROR */
@@ -517,8 +510,8 @@
 /* page_size() is available */
 /* #undef HAVE_MM_PAGE_SIZE */
 
-/* Define if host toolchain supports MOVBE */
-#define HAVE_MOVBE 1
+/* mount_setattr() and struct mount_attr are available */
+/* #undef HAVE_MOUNT_SETATTR */
 
 /* Define if ns_type is accessible through ns_common */
 /* #undef HAVE_NS_COMMON_TYPE */
@@ -532,20 +525,23 @@
 /* part_to_dev() exists */
 /* #undef HAVE_PART_TO_DEV */
 
-/* iops->getattr() takes a path */
-/* #undef HAVE_PATH_IOPS_GETATTR */
-
-/* Define if host toolchain supports PCLMULQDQ */
-#define HAVE_PCLMULQDQ 1
-
 /* pin_user_pages_unlocked() is available */
 /* #undef HAVE_PIN_USER_PAGES_UNLOCKED */
+
+/* posix_acl_to_xattr() allocates its result */
+/* #undef HAVE_POSIX_ACL_TO_XATTR_ALLOC */
 
 /* proc_handler ctl_table arg is const */
 /* #undef HAVE_PROC_HANDLER_CTL_TABLE_CONST */
 
 /* proc_ops structure exists */
 /* #undef HAVE_PROC_OPS_STRUCT */
+
+/* Define if you have POSIX threads libraries and header files. */
+#define HAVE_PTHREAD 1
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#define HAVE_PTHREAD_PRIO_INHERIT 1
 
 /* If available, contains the Python version number currently in use. */
 /* #undef HAVE_PYTHON */
@@ -565,9 +561,6 @@
 /* register_sysctl_table exists */
 /* #undef HAVE_REGISTER_SYSCTL_TABLE */
 
-/* iops->rename() wants flags */
-/* #undef HAVE_RENAME_WANTS_FLAGS */
-
 /* revalidate_disk() is available */
 /* #undef HAVE_REVALIDATE_DISK */
 
@@ -577,23 +570,8 @@
 /* Define to 1 if you have the <security/pam_modules.h> header file. */
 #define HAVE_SECURITY_PAM_MODULES_H 1
 
-/* setattr_prepare() accepts mnt_idmap */
-/* #undef HAVE_SETATTR_PREPARE_IDMAP */
-
-/* setattr_prepare() is available, doesn't accept user_namespace */
-/* #undef HAVE_SETATTR_PREPARE_NO_USERNS */
-
-/* setattr_prepare() accepts user_namespace */
-/* #undef HAVE_SETATTR_PREPARE_USERNS */
-
-/* iops->set_acl() takes 4 args, arg1 is struct mnt_idmap * */
-/* #undef HAVE_SET_ACL_IDMAP_DENTRY */
-
-/* iops->set_acl() takes 4 args */
-/* #undef HAVE_SET_ACL_USERNS */
-
-/* iops->set_acl() takes 4 args, arg2 is struct dentry * */
-/* #undef HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
+/* iops->set_acl() takes struct dentry */
+/* #undef HAVE_SET_ACL_DENTRY */
 
 /* Define if set_default_d_op() is available */
 /* #undef HAVE_SET_DEFAULT_D_OP */
@@ -606,26 +584,6 @@
 
 /* sops->free_inode() exists */
 /* #undef HAVE_SOPS_FREE_INODE */
-
-#if defined(__amd64__) || defined(__i386__)
-/* Define if host toolchain supports SSE */
-#define HAVE_SSE 1
-
-/* Define if host toolchain supports SSE2 */
-#define HAVE_SSE2 1
-
-/* Define if host toolchain supports SSE3 */
-#define HAVE_SSE3 1
-
-/* Define if host toolchain supports SSE4.1 */
-#define HAVE_SSE4_1 1
-
-/* Define if host toolchain supports SSE4.2 */
-#define HAVE_SSE4_2 1
-
-/* Define if host toolchain supports SSSE3 */
-#define HAVE_SSSE3 1
-#endif
 
 /* STACK_FRAME_NON_STANDARD is defined */
 /* #undef HAVE_STACK_FRAME_NON_STANDARD */
@@ -690,14 +648,67 @@
 /* timer_delete_sync is available */
 /* #undef HAVE_TIMER_DELETE_SYNC */
 
-/* i_op->tmpfile() uses old dentry signature */
-/* #undef HAVE_TMPFILE_DENTRY */
+/* i_op->tmpfile() uses takes struct file */
+/* #undef HAVE_TMPFILE_FILE */
 
-/* i_op->tmpfile() has mnt_idmap */
-/* #undef HAVE_TMPFILE_IDMAP */
+/* Define if host toolchain supports AES */
+#define HAVE_TOOLCHAIN_AES 1
 
-/* i_op->tmpfile() has userns */
-/* #undef HAVE_TMPFILE_USERNS */
+#ifdef __amd64__
+#ifndef RESCUE
+/* Define if host toolchain supports AVX */
+#define HAVE_TOOLCHAIN_AVX 1
+
+/* Define if host toolchain supports AVX2 */
+#define HAVE_TOOLCHAIN_AVX2 1
+#endif
+
+/* Define if host toolchain supports AVX512BW */
+#define HAVE_TOOLCHAIN_AVX512BW 1
+
+/* Define if host toolchain supports AVX512F */
+#define HAVE_TOOLCHAIN_AVX512F 1
+
+/* Define if host toolchain supports AVX512VL */
+#define HAVE_TOOLCHAIN_AVX512VL 1
+#endif
+
+/* Define if host toolchain supports MOVBE */
+#define HAVE_TOOLCHAIN_MOVBE 1
+
+/* Define if host toolchain supports PCLMULQDQ */
+#define HAVE_TOOLCHAIN_PCLMULQDQ 1
+
+/* Define if host toolchain supports SHA512EXT */
+#define HAVE_TOOLCHAIN_SHA512EXT 1
+
+#if defined(__amd64__) || defined(__i386__)
+/* Define if host toolchain supports SSE2 */
+#define HAVE_TOOLCHAIN_SSE2 1
+
+/* Define if host toolchain supports SSE4_1 */
+#define HAVE_TOOLCHAIN_SSE4_1 1
+
+/* Define if host toolchain supports SSSE3 */
+#define HAVE_TOOLCHAIN_SSSE3 1
+#endif
+
+#ifdef __amd64__
+/* Define if host toolchain supports VAES */
+#define HAVE_TOOLCHAIN_VAES 1
+
+/* Define if host toolchain supports VPCLMULQDQ */
+#define HAVE_TOOLCHAIN_VPCLMULQDQ 1
+#endif
+
+/* Define if host toolchain supports XSAVE */
+#define HAVE_TOOLCHAIN_XSAVE 1
+
+/* Define if host toolchain supports XSAVEOPT */
+#define HAVE_TOOLCHAIN_XSAVEOPT 1
+
+/* Define if host toolchain supports XSAVES */
+#define HAVE_TOOLCHAIN_XSAVES 1
 
 /* totalhigh_pages() exists */
 /* #undef HAVE_TOTALHIGH_PAGES */
@@ -713,17 +724,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
-
-/* iops->getattr() takes struct user_namespace* */
-/* #undef HAVE_USERNS_IOPS_GETATTR */
-
-/* iops->setattr() takes struct user_namespace* */
-/* #undef HAVE_USERNS_IOPS_SETATTR */
-
-#ifdef __amd64__
-/* Define if host toolchain supports VAES */
-#define HAVE_VAES 1
-#endif
 
 /* fops->clone_file_range() is available */
 /* #undef HAVE_VFS_CLONE_FILE_RANGE */
@@ -742,6 +742,12 @@
 
 /* migrate_folio exists */
 /* #undef HAVE_VFS_MIGRATE_FOLIO */
+
+/* vfs_parse_fs_string() takes 3 args */
+/* #undef HAVE_VFS_PARSE_FS_STRING_3ARGS */
+ 
+/* vfs_path_lookup() is exported */
+/* #undef HAVE_VFS_PATH_LOOKUP_EXPORTED */
 
 /* address_space_operations->readpages exists */
 /* #undef HAVE_VFS_READPAGES */
@@ -764,11 +770,6 @@
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
 
-#ifdef __amd64__
-/* Define if host toolchain supports VPCLMULQDQ */
-#define HAVE_VPCLMULQDQ 1
-#endif
-
 /* int (*writepage_t)() takes struct folio* */
 /* #undef HAVE_WRITEPAGE_T_FOLIO */
 
@@ -777,24 +778,6 @@
 
 /* xattr_handler->get() wants dentry and inode and flags */
 /* #undef HAVE_XATTR_GET_DENTRY_INODE_FLAGS */
-
-/* xattr_handler->set() wants both dentry and inode */
-/* #undef HAVE_XATTR_SET_DENTRY_INODE */
-
-/* xattr_handler->set() takes mnt_idmap */
-/* #undef HAVE_XATTR_SET_IDMAP */
-
-/* xattr_handler->set() takes user_namespace */
-/* #undef HAVE_XATTR_SET_USERNS */
-
-/* Define if host toolchain supports XSAVE */
-#define HAVE_XSAVE 1
-
-/* Define if host toolchain supports XSAVEOPT */
-#define HAVE_XSAVEOPT 1
-
-/* Define if host toolchain supports XSAVES */
-#define HAVE_XSAVES 1
 
 /* ZERO_PAGE() is GPL-only */
 /* #undef HAVE_ZERO_PAGE_GPL_ONLY */
@@ -829,6 +812,13 @@
 /* make_request_fn() return type */
 /* #undef MAKE_REQUEST_FN_RET */
 
+/* metaslab tracing enabled */
+/* #undef METASLAB_TRACE */
+
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+/* #undef PTHREAD_CREATE_JOINABLE */
+
 /* The size of 'off_t', as computed by sizeof. */
 /* #undef SIZEOF_OFF_T */
 
@@ -862,7 +852,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-292-FreeBSD_g962e68865"
+#define ZFS_META_ALIAS "zfs-2.4.99-974-FreeBSD.g84aa7e7e09"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -871,7 +861,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.18"
+#define ZFS_META_KVER_MAX "7.2"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -892,7 +882,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "292-FreeBSD_g962e68865"
+#define ZFS_META_RELEASE "974-FreeBSD.g84aa7e7e09"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"

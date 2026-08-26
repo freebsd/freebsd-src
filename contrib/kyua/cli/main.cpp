@@ -49,6 +49,7 @@ extern "C" {
 #include "cli/cmd_debug.hpp"
 #include "cli/cmd_help.hpp"
 #include "cli/cmd_list.hpp"
+#include "cli/cmd_prepare.hpp"
 #include "cli/cmd_report.hpp"
 #include "cli/cmd_report_html.hpp"
 #include "cli/cmd_report_junit.hpp"
@@ -191,6 +192,7 @@ safe_main(cmdline::ui* ui, int argc, const char* const argv[],
 
     commands.insert(new cli::cmd_debug(), "Workspace");
     commands.insert(new cli::cmd_list(), "Workspace");
+    commands.insert(new cli::cmd_prepare(), "Workspace");
     commands.insert(new cli::cmd_test(), "Workspace");
 
     commands.insert(new cli::cmd_report(), "Reporting");

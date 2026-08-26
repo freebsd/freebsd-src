@@ -722,7 +722,7 @@ ipcomp6_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
 		return (0);
 	bzero(&src, sizeof(src));
 	bzero(&dst, sizeof(dst));
-	src.sa.sa_family = dst.sa.sa_family = AF_INET;
+	src.sa.sa_family = dst.sa.sa_family = AF_INET6;
 	src.sin6.sin6_len = dst.sin6.sin6_len = sizeof(struct sockaddr_in6);
 	ip6 = mtod(m, const struct ip6_hdr *);
 	src.sin6.sin6_addr = ip6->ip6_src;

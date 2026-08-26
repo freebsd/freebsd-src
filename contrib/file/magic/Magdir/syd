@@ -1,0 +1,37 @@
+
+#------------------------------------------------------------------------------
+# $File: syd,v 1.1 2025/09/11 01:49:40 christos Exp $
+# syd: file(1) magic for syd(1) encrypted files
+#
+# From: Ali Polatel <alip@chesswob.org>
+# Documentation: https://man.exherbo.org/syd.7.html#Crypt_Sandboxing
+# No defined extension yet; files are recognized by magic header only.
+#
+# Layout:
+#   0..3   : "\x7fSYD"
+#   4	   : version byte (current API: 3)
+#   5..36  : HMAC (32 bytes, SHA256)
+#   37..52 : IV (16 bytes)
+#   53..   : ciphertext (AES-256-CTR)
+#------------------------------------------------------------------------------
+
+# Header and version
+0		string		\x7fSYD		SYD encrypted file
+>4		ubyte		x		\b, version %u
+# Version 3: algorithm + HMAC/IV as hex blobs + ciphertext size
+>>4		ubyte		=3		\b, AES-256-CTR; HMAC-SHA256:
+>>>5		belong		 x		\b%08x
+>>>9		belong		 x		\b%08x
+>>>13		belong		 x		\b%08x
+>>>17		belong		 x		\b%08x
+>>>21		belong		 x		\b%08x
+>>>25		belong		 x		\b%08x
+>>>29		belong		 x		\b%08x
+>>>33		belong		 x		\b%08x
+>>>37		belong		 x		\b, IV:%08x
+>>>41		belong		 x		\b%08x
+>>>45		belong		 x		\b%08x
+>>>49		belong		 x		\b%08x
+>>>-0		offset-53	 x		\b, ciphertext %llu bytes
+
+# End of syd

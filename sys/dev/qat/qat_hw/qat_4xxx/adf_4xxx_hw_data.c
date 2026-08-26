@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <linux/iopoll.h>
 #include <adf_accel_devices.h>
 #include <adf_cfg.h>
@@ -86,17 +86,17 @@ struct adf_enabled_services {
 	u16 rng_to_svc_msk;
 };
 
-static struct adf_enabled_services adf_4xxx_svcs[] =
-    { { "dc", ADF_4XXX_DC },
-      { "sym", ADF_4XXX_SYM },
-      { "asym", ADF_4XXX_ASYM },
-      { "dc;asym", ADF_4XXX_ASYM_DC },
-      { "asym;dc", ADF_4XXX_ASYM_DC },
-      { "sym;dc", ADF_4XXX_SYM_DC },
-      { "dc;sym", ADF_4XXX_SYM_DC },
-      { "asym;sym", ADF_4XXX_ASYM_SYM },
-      { "sym;asym", ADF_4XXX_ASYM_SYM },
-      { "cy", ADF_4XXX_ASYM_SYM } };
+static struct adf_enabled_services adf_4xxx_svcs[] = {
+	{ "dc", ADF_4XXX_DC },
+	{ "sym", ADF_4XXX_SYM },
+	{ "asym", ADF_4XXX_ASYM },
+	{ "dc;asym", ADF_4XXX_ASYM_DC },
+	{ "asym;dc", ADF_4XXX_ASYM_DC },
+	{ "sym;dc", ADF_4XXX_SYM_DC },
+	{ "dc;sym", ADF_4XXX_SYM_DC },
+	{ "asym;sym", ADF_4XXX_ASYM_SYM },
+	{ "sym;asym", ADF_4XXX_ASYM_SYM }
+};
 
 static struct adf_hw_device_class adf_4xxx_class = {
 	.name = ADF_4XXX_DEVICE_NAME,
@@ -110,7 +110,7 @@ get_accel_mask(struct adf_accel_dev *accel_dev)
 	return ADF_4XXX_ACCELERATORS_MASK;
 }
 
-static u32
+static u64
 get_ae_mask(struct adf_accel_dev *accel_dev)
 {
 	u32 fusectl4 = accel_dev->hw_device->fuses;
@@ -164,7 +164,7 @@ get_num_aes(struct adf_hw_device_data *self)
 	if (!self || !self->ae_mask)
 		return 0;
 
-	return hweight32(self->ae_mask);
+	return hweight64(self->ae_mask);
 }
 
 static u32
@@ -577,11 +577,11 @@ get_objs_num(struct adf_accel_dev *accel_dev)
 	return ADF_4XXX_MAX_OBJ;
 }
 
-static uint32_t
+static uint64_t
 get_obj_cfg_ae_mask(struct adf_accel_dev *accel_dev,
 		    enum adf_accel_unit_services service)
 {
-	u32 ae_mask = 0;
+	u64 ae_mask = 0;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 num_au = hw_data->get_num_accel_units(hw_data);
 	struct adf_accel_unit *accel_unit = accel_dev->au_info->au;
@@ -654,7 +654,7 @@ adf_get_dc_extcapabilities(struct adf_accel_dev *accel_dev, u32 *capabilities)
 	u8 i;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u8 num_au = hw_data->get_num_accel_units(hw_data);
-	u32 first_dc_ae = 0;
+	u64 first_dc_ae = 0;
 
 	for (i = 0; i < num_au; i++) {
 		if (accel_dev->au_info->au[i].services &
@@ -683,13 +683,13 @@ adf_get_dc_extcapabilities(struct adf_accel_dev *accel_dev, u32 *capabilities)
 
 static int
 adf_get_fw_status(struct adf_accel_dev *accel_dev,
-		  u8 *major,
-		  u8 *minor,
-		  u8 *patch)
+		  u16 *major,
+		  u16 *minor,
+		  u32 *patch)
 {
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
-	u32 ae_mask = 1;
+	u64 ae_mask = 1;
 
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
@@ -712,8 +712,8 @@ adf_4xxx_send_admin_init(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	u32 ae_mask = hw_data->ae_mask;
-	u32 admin_ae_mask = hw_data->admin_ae_mask;
+	u64 ae_mask = hw_data->ae_mask;
+	u64 admin_ae_mask = hw_data->admin_ae_mask;
 	u8 num_au = hw_data->get_num_accel_units(hw_data);
 	u8 i;
 	u32 dc_capabilities = 0;
@@ -806,7 +806,7 @@ get_au_by_ae(struct adf_accel_dev *accel_dev, int ae_num)
 		return NULL;
 
 	for (i = 0; i < ADF_4XXX_MAX_ACCELUNITS; i++)
-		if (accel_unit[i].ae_mask & BIT(ae_num))
+		if (accel_unit[i].ae_mask & BIT_ULL(ae_num))
 			return &accel_unit[i];
 
 	return NULL;
@@ -889,7 +889,7 @@ adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
 
 	for (i = 1; i < ADF_4XXX_MAX_ACCELENGINES; i++) {
-		if (~hw_device->ae_mask & (1 << i))
+		if (~hw_device->ae_mask & (1ULL << i))
 			thrd_to_arb_map[i] = 0;
 	}
 	adf_4xxx_cfg_gen_dispatch_arbiter(accel_dev, thrd_to_arb_map_gen);

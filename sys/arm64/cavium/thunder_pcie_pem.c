@@ -760,8 +760,6 @@ thunder_pem_attach(device_t dev)
 {
 	struct resource_map_request req;
 	struct resource_map map;
-	devclass_t pci_class;
-	device_t parent;
 	struct thunder_pem_softc *sc;
 	int error;
 	int rid;
@@ -773,9 +771,7 @@ thunder_pem_attach(device_t dev)
 	sc->dev = dev;
 
 	/* Allocate memory for resource */
-	pci_class = devclass_find("pci");
-	parent = device_get_parent(dev);
-	if (device_get_devclass(parent) == pci_class)
+	if (is_pci_device(dev))
 		rid = PCIR_BAR(0);
 	else
 		rid = RID_PEM_SPACE;

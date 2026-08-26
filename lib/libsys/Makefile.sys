@@ -497,9 +497,11 @@ MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2 \
+	pdfork.2 pdopenpid.2 \
 	pdfork.2 pdkill.2 \
 	pdfork.2 pdrfork.2 \
-	pdfork.2 pdwait.2
+	pdfork.2 pdwait.2 \
+	pdfork.2 pddupfd.2
 MLINKS+=pipe.2 pipe2.2
 MLINKS+=poll.2 ppoll.2
 MLINKS+=rctl_add_rule.2 rctl_get_limits.2 \
@@ -513,7 +515,8 @@ MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 \
 	recv.2 recvmmsg.2 \
 	recv.2 recvmsg.2
-MLINKS+=rename.2 renameat.2
+MLINKS+=rename.2 renameat.2 \
+	rename.2 renameat2.2
 MLINKS+=rtprio.2 rtprio_thread.2
 MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2

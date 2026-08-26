@@ -168,15 +168,21 @@ usage(void)
 		strlcat(options, " ", sizeof(options));
 	}
 
+#ifdef	JAIL
+#define	JFLAG " [-j jail] "
+#else
+#define	JFLAG " "
+#endif
 	fprintf(stderr,
-	"usage: ifconfig [-j jail] [-f type:format] %sinterface address_family\n"
+	"usage: ifconfig" JFLAG "[-f type:format] %sinterface address_family\n"
 	"                [address [dest_address]] [parameters]\n"
-	"       ifconfig [-j jail] interface create\n"
-	"       ifconfig [-j jail] -a %s[-d] [-m] [-u] [-v] [address_family]\n"
-	"       ifconfig [-j jail] -l [-d] [-u] [address_family]\n"
-	"       ifconfig [-j jail] %s[-d] [-m] [-u] [-v]\n",
+	"       ifconfig" JFLAG "interface create\n"
+	"       ifconfig" JFLAG "-a %s[-d] [-m] [-u] [-v] [address_family]\n"
+	"       ifconfig" JFLAG "-l [-d] [-u] [address_family]\n"
+	"       ifconfig" JFLAG "%s[-d] [-m] [-u] [-v]\n",
 		options, options, options);
 	exit(1);
+#undef	JFLAG
 }
 
 static void
@@ -503,7 +509,7 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 			if (jail_attach(jid) != 0)
 				Perror("cannot attach to jail");
 #else
-			Perror("not built with jail support");
+			Perrorc("not built with jail support", EINVAL);
 #endif
 			break;
 		case 'k':

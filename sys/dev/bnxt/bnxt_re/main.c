@@ -52,6 +52,7 @@
 #include "ib_verbs.h"
 #include "bnxt_re-abi.h"
 #include "bnxt.h"
+#include "bnxt_log.h"
 
 static char drv_version[] =
 		"Broadcom NetXtreme-C/E RoCE Driver " ROCE_DRV_MODULE_NAME \
@@ -112,6 +113,7 @@ static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 static int bnxt_re_ib_init(struct bnxt_re_dev *rdev);
 static void bnxt_re_ib_init_2(struct bnxt_re_dev *rdev);
 void _bnxt_re_remove(struct auxiliary_device *adev);
+
 void writel_fbsd(struct bnxt_softc *bp, u32, u8, u32);
 u32 readl_fbsd(struct bnxt_softc *bp, u32, u8);
 static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev);
@@ -133,26 +135,6 @@ int bnxt_re_unregister_netdevice_notifier(struct notifier_block *nb)
 void bnxt_re_set_dma_device(struct ib_device *ibdev, struct bnxt_re_dev *rdev)
 {
 	ibdev->dma_device = &rdev->en_dev->pdev->dev;
-}
-
-void bnxt_re_init_resolve_wq(struct bnxt_re_dev *rdev)
-{
-	rdev->resolve_wq = create_singlethread_workqueue("bnxt_re_resolve_wq");
-	 INIT_LIST_HEAD(&rdev->mac_wq_list);
-}
-
-void bnxt_re_uninit_resolve_wq(struct bnxt_re_dev *rdev)
-{
-	struct bnxt_re_resolve_dmac_work *tmp_work = NULL, *tmp_st;
-	if (!rdev->resolve_wq)
-		return;
-	flush_workqueue(rdev->resolve_wq);
-	list_for_each_entry_safe(tmp_work, tmp_st, &rdev->mac_wq_list, list) {
-			list_del(&tmp_work->list);
-			kfree(tmp_work);
-	}
-	destroy_workqueue(rdev->resolve_wq);
-	rdev->resolve_wq = NULL;
 }
 
 u32 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
@@ -1327,6 +1309,68 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 }
 
 /*
+ * bnxt_re_create_snapdump_logs - Collect required debug data for snapdump.
+ * @rdev     -   rdma device instance
+ *
+ * This function will use bnxt_ulp_log_live API and dump all
+ * the required information for debugging.
+ *
+ * Returns: Nothing
+ */
+static void
+bnxt_re_create_snapdump_logs(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_re_ext_rstat *ext_s;
+
+	ext_s = &rdev->stats.dstat.ext_rstat[0];
+
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_atomic_req: %llu", ext_s->tx.atomic_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_atomic_req: %llu", ext_s->rx.atomic_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_read_req: %llu\n", ext_s->tx.read_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_read_resp: %llu\n", ext_s->tx.read_resp);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_read_req: %llu\n", ext_s->rx.read_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_read_resp: %llu\n", ext_s->rx.read_resp);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_write_req: %llu\n", ext_s->tx.write_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_write_req: %llu\n", ext_s->rx.write_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "tx_send_req: %llu\n", ext_s->tx.send_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_send_req: %llu\n", ext_s->rx.send_req);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_good_pkts: %llu\n", ext_s->grx.rx_pkts);
+	bnxt_ulp_log_live(rdev->en_dev, BNXT_LOGGER_ROCE,
+			  "rx_good_bytes: %llu\n", ext_s->grx.rx_bytes);
+}
+
+/*
+ * bnxt_re_ulp_log_live - Callback from L2 driver to collect snapdump
+ * @handle     -   en_dev information. L2 and RoCE device information
+ *
+ * This function is callback to support L2 and RoCE common API.
+ * bnxt_ulp_ops.ulp_log_live().
+ *
+ * Returns: Nothing
+ */
+static void
+bnxt_re_ulp_log_live(void *handle)
+{
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
+
+	if (!en_info || !en_info->rdev)
+		return;
+
+	bnxt_re_create_snapdump_logs(en_info->rdev);
+}
+
+/*
  * Except for ulp_async_notifier, the remaining ulp_ops
  * below are called with rtnl_lock held
  */
@@ -1337,6 +1381,7 @@ static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 	.ulp_shutdown = bnxt_re_shutdown,
 	.ulp_irq_stop = bnxt_re_stop_irq,
 	.ulp_irq_restart = bnxt_re_start_irq,
+	.ulp_log_live = bnxt_re_ulp_log_live,
 };
 
 static inline const char *bnxt_re_netevent(unsigned long event)
@@ -2134,7 +2179,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->modify_port		= bnxt_re_modify_port;
 	ibdev->get_port_immutable	= bnxt_re_get_port_immutable;
 	ibdev->query_pkey		= bnxt_re_query_pkey;
-	ibdev->query_gid		= bnxt_re_query_gid;
 	ibdev->get_netdev		= bnxt_re_get_netdev;
 	ibdev->add_gid			= bnxt_re_add_gid;
 	ibdev->del_gid			= bnxt_re_del_gid;
@@ -3469,7 +3513,6 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 		mutex_unlock(&bnxt_re_dev_lock);
 	}
 
-	bnxt_re_uninit_resolve_wq(rdev);
 	bnxt_re_uninit_dcb_wq(rdev);
 	bnxt_re_uninit_aer_wq(rdev);
 
@@ -3739,7 +3782,6 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 
 	bnxt_re_init_dcb_wq(rdev);
 	bnxt_re_init_aer_wq(rdev);
-	bnxt_re_init_resolve_wq(rdev);
 	mutex_lock(&bnxt_re_dev_lock);
 	list_add_tail_rcu(&rdev->list, &bnxt_re_dev_list);
 	/* Added to the list, not in progress anymore */

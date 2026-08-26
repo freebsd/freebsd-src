@@ -1,0 +1,6 @@
+Tool: spdxtool
+ToolArgs: --creation-time=test --agent-name='My Agent' test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/agent_name_space.json
+ExpectedExitCode: 0
+SkipPlatforms: windows

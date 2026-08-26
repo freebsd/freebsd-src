@@ -55,6 +55,7 @@
 #define	MVENDORID_UNIMPL	0x0
 #define	MVENDORID_SIFIVE	0x489
 #define	MVENDORID_THEAD		0x5b7
+#define	MVENDORID_SPACEMIT	0x710
 
 /*
  * Micro-architecture ID register, marchid.
@@ -81,6 +82,9 @@
 /* SiFive marchid values */
 #define	MARCHID_SIFIVE_U7	MARCHID_COMMERCIAL(7)
 #define	MARCHID_SIFIVE_P5	MARCHID_COMMERCIAL(8)
+
+/* SpacemiT marchid values */
+#define	MARCHID_SPACEMIT_K1	MARCHID_COMMERCIAL(0x58000001)
 
 /*
  * MMU virtual-addressing modes. Support for each level implies the previous,

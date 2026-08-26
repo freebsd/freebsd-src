@@ -61,16 +61,37 @@ class Op3CmdType(Enum):
 
 
 class IpFwTableLookupType(Enum):
-    LOOKUP_DST_IP = 0
-    LOOKUP_SRC_IP = 1
-    LOOKUP_DST_PORT = 2
-    LOOKUP_SRC_PORT = 3
-    LOOKUP_UID = 4
-    LOOKUP_JAIL = 5
-    LOOKUP_DSCP = 6
-    LOOKUP_DST_MAC = 7
-    LOOKUP_SRC_MAC = 8
-    LOOKUP_MARK = 9
+    LOOKUP_NONE = 0
+    LOOKUP_DST_IP = 1
+    LOOKUP_SRC_IP = 2
+    LOOKUP_DST_PORT = 3
+    LOOKUP_SRC_PORT = 4
+    LOOKUP_UID = 5
+    LOOKUP_JAIL = 6
+    LOOKUP_DSCP = 7
+    LOOKUP_DST_MAC = 8
+    LOOKUP_SRC_MAC = 9
+    LOOKUP_MARK = 10
+    LOOKUP_RULENUM = 11
+    LOOKUP_DST_IP4 = 12
+    LOOKUP_SRC_IP4 = 13
+    LOOKUP_DST_IP6 = 14
+    LOOKUP_SRC_IP6 = 15
+
+
+class IpFwTableValueType(Enum):
+    TVALUE_TAG = 0
+    TVALUE_PIPE = 1
+    TVALUE_DIVERT = 2
+    TVALUE_SKIPTO = 3
+    TVALUE_NETGRAPH = 4
+    TVALUE_FIB = 5
+    TVALUE_NAT = 6
+    TVALUE_NH4 = 8
+    TVALUE_DSCP = 9
+    TVALUE_LIMIT = 10
+    TVALUE_MARK = 11
+    TVALUE_NH6 = 12
 
 
 class IpFwTlvType(Enum):

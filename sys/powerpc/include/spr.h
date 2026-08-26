@@ -549,6 +549,9 @@
 #define	  TCR_FP_2_21		  0x03000000 /* 2**21 clocks */
 #define	  TCR_FIE		  0x00800000 /* FIT Interrupt Enable */
 #define	  TCR_ARE		  0x00400000 /* Auto Reload Enable */
+#define	  TCR_WPEXT_MASK	  0x003c0000
+#define	  TCR_FPEXT_MASK	  0x0003c000
+#define	  TCR_MAKE_WP(c)	  (((c & 0x3) << 30) | (c & 0x3c) << 15)
 
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
@@ -863,6 +866,13 @@
 #define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
 #define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
 #define	  BUCSR_BBFI		0x00000200	/* Branch Buffer Flash Invalidate */
+
+#define	SPR_MMUCFG		0x3f7	/* ..8 MMU Configuration Register */
+#define	  MMUCFG_LPIDSIZE_M	  0x0F000000
+#define	  MMUCFG_LPIDSIZE_S	  24
+#define	  MMUCFG_PIDSIZE_M	  0x000007c0
+#define	  MMUCFG_PIDSIZE_S	  6
+#define	  MMUCFG_MAVN_M		  0x00000003
 
 #endif /* BOOKE */
 #endif /* !_POWERPC_SPR_H_ */

@@ -69,6 +69,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	la_seek_stat_t st;
 	struct read_fd_data *mine;
 	void *b;
+	int r;
 
 	archive_clear_error(a);
 	if (la_seek_fstat(fd, &st) != 0) {
@@ -107,7 +108,9 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	archive_read_set_skip_callback(a, file_skip);
 	archive_read_set_seek_callback(a, file_seek);
 	archive_read_set_close_callback(a, file_close);
-	archive_read_set_callback_data(a, mine);
+	r = archive_read_set_callback_data(a, mine);
+	if (r < 0)
+		return (r);
 	return (archive_read_open1(a));
 }
 

@@ -1,4 +1,4 @@
-#	$OpenBSD: sshsig.sh,v 1.15 2023/10/12 03:51:08 djm Exp $
+#	$OpenBSD: sshsig.sh,v 1.17 2026/06/16 10:58:42 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="sshsig"
@@ -86,10 +86,10 @@ for t in $SIGNKEYS; do
 	 cat $pubkey) > $OBJ/allowed_signers
 	${SSHKEYGEN} -q -Y verify -s $sigfile -n $sig_namespace \
 		-I $sig_principal -f $OBJ/allowed_signers \
-		-O print-pubkey \
-		< $DATA | cut -d' ' -f1-2 > ${OBJ}/${keybase}-fromsig.pub || \
+		-O print-pubkey < $DATA | \
+		awk '{print $1" "$2}' >${OBJ}/${keybase}-fromsig.pub || \
 		fail "failed signature for $t key w/ print-pubkey"
-	cut -d' ' -f1-2 ${OBJ}/${keybase}.pub > ${OBJ}/${keybase}-strip.pub
+	awk '{print $1" "$2}' ${OBJ}/${keybase}.pub >${OBJ}/${keybase}-strip.pub
 	diff -r ${OBJ}/${keybase}-strip.pub ${OBJ}/${keybase}-fromsig.pub || \
 		fail "print-pubkey differs from signature key"
 
@@ -255,7 +255,7 @@ for t in $SIGNKEYS; do
 	# Check signing keys using ssh-agent.
 	trace "$tid: key type $t prepare agent"
 	${SSHADD} -D >/dev/null 2>&1 # Remove all previously-loaded keys.
-	${SSHADD} ${privkey} > /dev/null 2>&1 || fail "ssh-add failed"
+	${SSHADD} -N ${privkey} > /dev/null 2>&1 || fail "ssh-add failed"
 
 	# Move private key to ensure agent key is used
 	mv ${privkey} ${privkey}.tmp

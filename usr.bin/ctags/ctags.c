@@ -62,7 +62,6 @@ long	lineftell;		/* ftell after getc( inf ) == '\n' */
 int	lineno;			/* line number of current line */
 int	dflag;			/* -d: non-macro defines */
 int	tflag;			/* -t: create tags for typedefs */
-int	vflag;			/* -v: vgrind style index output */
 int	wflag;			/* -w: suppress warnings */
 int	xflag;			/* -x: cxref style output */
 
@@ -88,7 +87,7 @@ main(int argc, char **argv)
 
 	aflag = uflag = false;
 	tflag = true;
-	while ((ch = getopt(argc, argv, "BFTadf:tuwvx")) != -1)
+	while ((ch = getopt(argc, argv, "BFTadf:tuwx")) != -1)
 		switch(ch) {
 		case 'B':
 			searchar = '?';
@@ -117,8 +116,6 @@ main(int argc, char **argv)
 		case 'w':
 			wflag++;
 			break;
-		case 'v':
-			vflag++;
 		case 'x':
 			xflag++;
 			break;

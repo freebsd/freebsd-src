@@ -436,13 +436,10 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0026, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0029, 0) },
-
-	/*
-	 * Some Intel controllers are not yet supported by ng_ubt_intel and
-	 * should be ignored.
-	 */
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0032, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0033, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0035, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0036, 0) },
 
 	/* MediaTek MT7925 */
 	{ USB_VPI(USB_VENDOR_AZUREWAVE, 0x3602, 0) },

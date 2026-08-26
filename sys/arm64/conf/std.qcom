@@ -44,14 +44,6 @@ device		xhci
 device		dwc3
 device		qcom_dwc3			# Qualcomm DWC3 wrapper
 
-# -------- PCIe --------
-device		pci
-device		qcom_pcie			# Qualcomm PCIe (SM8450/8550)
-
-# -------- MMC/UFS --------
-# Snapdragon uses UFS (Universal Flash Storage), not eMMC
-device		mmc
-device		mmcsd
 device		sdhci
 # UFS support (via sdhci or dedicated driver)
 device		ufshci				# UFS Host Controller Interface

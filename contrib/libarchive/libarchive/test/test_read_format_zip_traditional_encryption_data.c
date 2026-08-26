@@ -92,7 +92,7 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 
@@ -161,7 +161,7 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

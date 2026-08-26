@@ -127,7 +127,7 @@ hdlr(DWORD ctrl)
 static void
 reportev(const char* str)
 {
-	char b[256];
+	char b[512];
 	char e[256];
 	HANDLE* s;
 	LPCTSTR msg = b;
@@ -369,7 +369,7 @@ service_init(int r, struct daemon** d, struct config_file** c)
 			cfg->tls_ciphers, cfg->tls_ciphersuites,
 			(cfg->tls_session_ticket_keys.first &&
 			cfg->tls_session_ticket_keys.first->str[0] != 0),
-			1, 0))) {
+			1, 0, cfg->tls_protocols))) {
 			fatal_exit("could not set up listen SSL_CTX");
 		}
 #ifdef HAVE_NGHTTP2_NGHTTP2_H
@@ -379,7 +379,7 @@ service_init(int r, struct daemon** d, struct config_file** c)
 				cfg->tls_ciphers, cfg->tls_ciphersuites,
 				(cfg->tls_session_ticket_keys.first &&
 				cfg->tls_session_ticket_keys.first->str[0] != 0),
-				0, 1))) {
+				0, 1, cfg->tls_protocols))) {
 				fatal_exit("could not set up listen doh SSL_CTX");
 			}
 		}

@@ -63,7 +63,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 #include "opt_sctp.h"
 
@@ -399,6 +398,7 @@ ip6_destroy(void *unused __unused)
 
 	frag6_destroy();
 	nd6_destroy();
+	addrsel_policy_destroy();
 	in6_ifattach_destroy();
 
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
@@ -422,24 +422,9 @@ ip6_input_hbh(struct mbuf **mp, uint32_t *rtalert, int *off,
 		goto out;	/* m have already been freed */
 	}
 
-	/* adjust pointer */
 	m = *mp;
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	/*
-	 * If the payload length field is 0 and the next header field indicates
-	 * Hop-by-Hop Options header, then a Jumbo Payload option MUST be
-	 * included. We no not support Jumbo Payloads so report an error.
-	 */
-	if (ip6->ip6_plen == 0) {
-		IP6STAT_INC(ip6s_badoptions);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
-		icmp6_error(m, ICMP6_PARAM_PROB,
-			    ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
-		goto out;
-	}
 	/* ip6_hopopts_input() ensures that mbuf is contiguous */
 	hbh = (struct ip6_hbh *)(ip6 + 1);
 	*nxt = hbh->ip6h_nxt;
@@ -683,21 +668,6 @@ ip6_input(struct mbuf *m)
 		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
-#if 0
-	/*
-	 * Reject packets with IPv4 compatible addresses (auto tunnel).
-	 *
-	 * The code forbids auto tunnel relay case in RFC1933 (the check is
-	 * stronger than RFC1933).  We may want to re-enable it if mech-xx
-	 * is revised to forbid relaying case.
-	 */
-	if (IN6_IS_ADDR_V4COMPAT(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_V4COMPAT(&ip6->ip6_dst)) {
-		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
-		goto bad;
-	}
-#endif
 	/*
 	 * Try to forward the packet, but if we fail continue.
 	 * ip6_tryforward() does not generate redirects, so fall
@@ -776,8 +746,11 @@ passin:
 	 * We don't support Jumbograms, reject packets with plen == 0 as early
 	 * as we can.
 	 */
-	if (plen == 0)
+	if (__predict_false(plen == 0)) {
+		IP6STAT_INC(ip6s_tooshort);
+		in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
 		goto bad;
+	}
 
 	/*
 	 * Disambiguate address scope zones (if there is ambiguity).

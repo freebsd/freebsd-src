@@ -542,7 +542,10 @@ static inline int
 arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
 {
 #if defined(__amd64__)
-	vm_offset_t va;
+	void *va;
+
+	if (!PHYS_IN_DMAP(start) || !PHYS_IN_DMAP(start + size))
+		return (-EINVAL);
 
 	va = PHYS_TO_DMAP(start);
 	return (-pmap_change_attr(va, size, VM_MEMATTR_WRITE_COMBINING));
@@ -555,10 +558,12 @@ static inline void
 arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 {
 #if defined(__amd64__)
-	vm_offset_t va;
+	void *va;
+
+	if (!PHYS_IN_DMAP(start) || !PHYS_IN_DMAP(start + size))
+		return;
 
 	va = PHYS_TO_DMAP(start);
-
 	pmap_change_attr(va, size, VM_MEMATTR_WRITE_BACK);
 #endif
 }

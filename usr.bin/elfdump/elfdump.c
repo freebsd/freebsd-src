@@ -354,6 +354,7 @@ sh_types(uint64_t machine, uint64_t sht) {
 	} else if (sht < 0x70000000) {
 		/* 0x60000000-0x6fffffff operating system-specific semantics */
 		switch (sht) {
+		case SHT_LLVM_ADDRSIG:	return "SHT_LLVM_ADDRSIG";
 		case 0x6ffffff0:	return "XXX:VERSYM";
 		case SHT_SUNW_dof:	return "SHT_SUNW_dof";
 		case SHT_GNU_HASH:	return "SHT_GNU_HASH";

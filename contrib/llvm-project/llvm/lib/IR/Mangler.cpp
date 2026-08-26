@@ -215,7 +215,7 @@ void llvm::emitLinkerFlagsForGlobalCOFF(raw_ostream &OS, const GlobalValue *GV,
                                         const Triple &TT, Mangler &Mangler) {
   if (GV->hasDLLExportStorageClass() && !GV->isDeclaration()) {
 
-    if (TT.isWindowsMSVCEnvironment())
+    if (TT.isWindowsMSVCEnvironment() || TT.isUEFI())
       OS << " /EXPORT:";
     else
       OS << " -export:";
@@ -249,7 +249,7 @@ void llvm::emitLinkerFlagsForGlobalCOFF(raw_ostream &OS, const GlobalValue *GV,
       OS << "\"";
 
     if (!GV->getValueType()->isFunctionTy()) {
-      if (TT.isWindowsMSVCEnvironment())
+      if (TT.isWindowsMSVCEnvironment() || TT.isUEFI())
         OS << ",DATA";
       else
         OS << ",data";
@@ -315,11 +315,13 @@ std::optional<std::string> llvm::getArm64ECMangledFunctionName(StringRef Name) {
 
 std::optional<std::string>
 llvm::getArm64ECDemangledFunctionName(StringRef Name) {
+  // For non-C++ names, drop the "#" prefix.
   if (Name[0] == '#')
     return std::optional<std::string>(Name.substr(1));
   if (Name[0] != '?')
     return std::nullopt;
 
+  // Drop the ARM64EC "$$h" tag.
   std::pair<StringRef, StringRef> Pair = Name.split("$$h");
   if (Pair.second.empty())
     return std::nullopt;

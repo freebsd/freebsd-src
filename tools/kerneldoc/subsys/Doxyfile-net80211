@@ -9,7 +9,8 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 #--------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = $(DOXYGEN_SRC_PATH)/net80211/ $(NOTREVIEWED)
+INPUT                  = $(DOXYGEN_SRC_PATH)/net80211/
+USE_MDFILE_AS_MAINPAGE = $(DOXYGEN_SRC_PATH)/net80211/README.md
 
 GENERATE_TAGFILE       = net80211/net80211.tag
 

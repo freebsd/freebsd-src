@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -1250,10 +1240,15 @@ sa_byteswap(sa_handle_t *hdl, sa_buf_type_t buftype)
 
 	db = SA_GET_DB(hdl, buftype);
 
-	if (buftype == SA_SPILL) {
+	/*
+	 * Acquire db_mtx to protect against concurrent access to the buffer
+	 * by dmu_objset_userquota_get_ids() while we perform byte-swapping.
+	 * We also need it for doing arc_release()/arc_buf_freeze().
+	 */
+	mutex_enter(&db->db_mtx);
+
+	if (buftype == SA_SPILL)
 		arc_release(db->db_buf, NULL);
-		arc_buf_thaw(db->db_buf);
-	}
 
 	sa_hdr_phys->sa_magic = BSWAP_32(sa_hdr_phys->sa_magic);
 	sa_hdr_phys->sa_layout_info = BSWAP_16(sa_hdr_phys->sa_layout_info);
@@ -1273,7 +1268,9 @@ sa_byteswap(sa_handle_t *hdl, sa_buf_type_t buftype)
 	    sa_byteswap_cb, NULL, hdl);
 
 	if (buftype == SA_SPILL)
-		arc_buf_freeze(((dmu_buf_impl_t *)hdl->sa_spill)->db_buf);
+		arc_buf_freeze(db->db_buf);
+
+	mutex_exit(&db->db_mtx);
 }
 
 static int
@@ -1598,8 +1595,8 @@ sa_add_projid(sa_handle_t *hdl, dmu_tx_t *tx, uint64_t projid)
 
 	bulk = kmem_zalloc(sizeof (sa_bulk_attr_t) * ZPL_END, KM_SLEEP);
 	attrs = kmem_zalloc(sizeof (sa_bulk_attr_t) * ZPL_END, KM_SLEEP);
-	mutex_enter(&hdl->sa_lock);
 	mutex_enter(&zp->z_lock);
+	mutex_enter(&hdl->sa_lock);
 
 	err = sa_lookup_locked(hdl, SA_ZPL_PROJID(zfsvfs), &projid,
 	    sizeof (uint64_t));
@@ -1743,8 +1740,8 @@ sa_add_projid(sa_handle_t *hdl, dmu_tx_t *tx, uint64_t projid)
 	zp->z_is_sa = B_TRUE;
 
 out:
-	mutex_exit(&zp->z_lock);
 	mutex_exit(&hdl->sa_lock);
+	mutex_exit(&zp->z_lock);
 	kmem_free(attrs, sizeof (sa_bulk_attr_t) * ZPL_END);
 	kmem_free(bulk, sizeof (sa_bulk_attr_t) * ZPL_END);
 	if (dxattr_obj)

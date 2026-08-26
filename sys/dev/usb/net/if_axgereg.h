@@ -197,7 +197,7 @@ struct axge_frame_rxhdr {
 
 #define	AXGE_RXBYTES(x)		(((x) & AXGE_RX_LEN_MASK) >> AXGE_RX_LEN_SHIFT)
 #define	AXGE_RX_ERR(x)		\
-	    ((x) & (AXGE_RX_CRC_ERR | AXGE_RX_MII_ERR | AXGE_RX_DROP_PKT))
+	    ((x) & (AXGE_RX_CRC_ERR | AXGE_RX_DROP_PKT))
 
 struct axge_softc {
 	struct usb_ether	sc_ue;

@@ -42,8 +42,6 @@ struct p9_trans_module {
 	void (*close) (void *handle);
 	/* member function to issue a request to the transport*/
 	int (*request) (void *handle, struct p9_req_t *req);
-	/* member function to cancel a request if it has been sent */
-	int (*cancel) (void *handle, struct p9_req_t *req);
 };
 
 void p9_register_trans(struct p9_trans_module *m);

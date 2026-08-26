@@ -28,8 +28,6 @@
 #define RTWN_USB_RXBUFSZ_MAX		(64)
 #define RTWN_USB_TXBUFSZ		(16 * 1024)
 
-#define RTWN_IFACE_INDEX		0
-
 #define RTWN_USB_RX_LIST_COUNT		16
 #define RTWN_USB_TX_LIST_COUNT		16
 
@@ -84,6 +82,10 @@ struct rtwn_usb_softc {
 	uint8_t			wme2qid[4];
 };
 #define RTWN_USB_SOFTC(sc)	((struct rtwn_usb_softc *)(sc))
+
+#define RTWN_USB_DEVINFO(c, i)		((c) | ((i) << 16))
+#define RTWN_USB_DEVINFO_GET_CHIP(did)	((USB_GET_DRIVER_INFO(did)) & 0xffff)
+#define RTWN_USB_DEVINFO_GET_IFACE(did)	((USB_GET_DRIVER_INFO(did)) >> 16)
 
 #define rtwn_usb_align_rx(_uc, _totlen, _len) \
 	(((_uc)->uc_align_rx)((_totlen), (_len)))

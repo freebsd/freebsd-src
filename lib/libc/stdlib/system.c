@@ -60,6 +60,8 @@ __libc_system(const char *command)
 	static struct sigaction ointact, oquitact;
 	struct sigaction ign;
 	sigset_t sigblock, osigblock;
+	char *argv[] = { "sh", "-c", __DECONST(char *, command), NULL };
+	extern char **environ;
 	int pstat = -1, serrno = 0;
 	pid_t pid;
 
@@ -101,7 +103,7 @@ __libc_system(const char *command)
 		/*
 		 * Exec the command.
 		 */
-		execl(_PATH_BSHELL, "sh", "-c", command, NULL);
+		_execve(_PATH_BSHELL, argv, environ);
 		_exit(127);
 	} else {				/* parent */
 		/*

@@ -42,6 +42,18 @@
 #include "int.h"
 
 uint64_t
+virtual_oss_timestamp(void)
+{
+	struct timespec ts;
+	uint64_t nsec;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+	return (nsec);
+}
+
+uint64_t
 virtual_oss_delay_ns(void)
 {
 	uint64_t delay;
@@ -56,32 +68,14 @@ virtual_oss_delay_ns(void)
 void
 virtual_oss_wait(void)
 {
-	struct timespec ts;
 	uint64_t delay;
 	uint64_t nsec;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	nsec = virtual_oss_timestamp();
 
-	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-
-	/* TODO use virtual_oss_delay_ns() */
-	delay = voss_dsp_samples;
-	delay *= 1000000000ULL;
-	delay /= voss_dsp_sample_rate;
+	delay = virtual_oss_delay_ns();
 
 	usleep((delay - (nsec % delay)) / 1000);
-}
-
-uint64_t
-virtual_oss_timestamp(void)
-{
-	struct timespec ts;
-	uint64_t nsec;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-
-	nsec = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-	return (nsec);
 }
 
 static size_t
@@ -789,8 +783,8 @@ virtual_oss_process(void *arg __unused)
 
 			    /* check if compressor should be applied */
 			    voss_compressor(buffer_temp, pvp->rx_compressor_gain,
-				&pvp->rx_compressor_param, samples,
-			        samples * src_chans, (1ULL << (pvp->bits - 1)) - 1ULL);
+				&pvp->rx_compressor_param, samples * src_chans,
+				src_chans, (1ULL << (pvp->bits - 1)) - 1ULL);
 
 			    TAILQ_FOREACH(pvc, &pvp->head, entry) {
 

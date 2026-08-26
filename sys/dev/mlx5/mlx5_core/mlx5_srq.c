@@ -166,7 +166,10 @@ static int create_rmp_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	set_wq(wq, in);
 	memcpy(MLX5_ADDR_OF(rmpc, rmpc, wq.pas), in->pas, pas_size);
 
+	MLX5_SET(create_rmp_in, create_in, uid, in->uid);
 	err = mlx5_core_create_rmp(dev, create_in, inlen, &srq->srqn);
+	if (!err)
+		srq->uid = in->uid;
 
 	kvfree(create_in);
 	return err;
@@ -175,7 +178,14 @@ static int create_rmp_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 static int destroy_rmp_cmd(struct mlx5_core_dev *dev,
 			    struct mlx5_core_srq *srq)
 {
-	return mlx5_core_destroy_rmp(dev, srq->srqn);
+	u32 in[MLX5_ST_SZ_DW(destroy_rmp_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_rmp_out)] = {0};
+
+	MLX5_SET(destroy_rmp_in, in, opcode, MLX5_CMD_OP_DESTROY_RMP);
+	MLX5_SET(destroy_rmp_in, in, rmpn, srq->srqn);
+	MLX5_SET(destroy_rmp_in, in, uid, srq->uid);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int query_rmp_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
@@ -232,7 +242,10 @@ static int create_xrc_srq_cmd(struct mlx5_core_dev *dev,
 	MLX5_SET(xrc_srqc, xrc_srqc, user_index, in->user_index);
 	memcpy(pas, in->pas, pas_size);
 
+	MLX5_SET(create_xrc_srq_in, create_in, uid, in->uid);
 	err = mlx5_core_create_xsrq(dev, create_in, inlen, &srq->srqn);
+	if (!err)
+		srq->uid = in->uid;
 	if (err)
 		goto out;
 
@@ -244,7 +257,14 @@ out:
 static int destroy_xrc_srq_cmd(struct mlx5_core_dev *dev,
 			       struct mlx5_core_srq *srq)
 {
-	return mlx5_core_destroy_xsrq(dev, srq->srqn);
+	u32 in[MLX5_ST_SZ_DW(destroy_xrc_srq_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_xrc_srq_out)] = {0};
+
+	MLX5_SET(destroy_xrc_srq_in, in, opcode, MLX5_CMD_OP_DESTROY_XRC_SRQ);
+	MLX5_SET(destroy_xrc_srq_in, in, xrc_srqn, srq->srqn);
+	MLX5_SET(destroy_xrc_srq_in, in, uid, srq->uid);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int query_xrc_srq_cmd(struct mlx5_core_dev *dev,
@@ -304,10 +324,13 @@ static int create_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	memcpy(pas, in->pas, pas_size);
 
 	MLX5_SET(create_srq_in, create_in, opcode, MLX5_CMD_OP_CREATE_SRQ);
+	MLX5_SET(create_srq_in, create_in, uid, in->uid);
 	err = mlx5_cmd_exec(dev, create_in, inlen, create_out, sizeof(create_out));
 	kvfree(create_in);
-	if (!err)
+	if (!err) {
 		srq->srqn = MLX5_GET(create_srq_out, create_out, srqn);
+		srq->uid = in->uid;
+	}
 
 	return err;
 }
@@ -320,6 +343,7 @@ static int destroy_srq_cmd(struct mlx5_core_dev *dev,
 
 	MLX5_SET(destroy_srq_in, srq_in, opcode, MLX5_CMD_OP_DESTROY_SRQ);
 	MLX5_SET(destroy_srq_in, srq_in, srqn, srq->srqn);
+	MLX5_SET(destroy_srq_in, srq_in, uid, srq->uid);
 
 	return mlx5_cmd_exec(dev, srq_in, sizeof(srq_in), srq_out, sizeof(srq_out));
 }

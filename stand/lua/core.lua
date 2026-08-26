@@ -255,7 +255,7 @@ function core.kernelList()
 		end
 
 		if ftype then
-			if ftype ~= lfs.DT_DIR then
+			if ftype ~= lfs.DT_DIR and ftype ~= (lfs.DT_LNK or 10) then
 				goto continue
 			end
 		elseif lfs.attributes(fname, "mode") ~= "directory" then
@@ -305,6 +305,30 @@ function core.bootenvDefault()
 	return loader.getenv("zfs_be_active")
 end
 
+function core.bootenvFilter(func)
+	local oldf = core.bootenv_filter
+
+	-- Filter contract: returns true if the BE should be kept, false if it
+	-- should be hidden.
+	core.bootenv_filter = func
+	return oldf
+end
+
+function core.bootenvIter()
+	local envs = core.bootenvList()
+
+	if #envs ~= 0 then
+		local root = "zfs:" .. loader.getenv("zfs_be_root") .. "/"
+
+		for idx, bespec in ipairs(envs) do
+			bespec = bespec:gsub("^" .. root, "")
+			envs[idx] = bespec
+		end
+	end
+
+	return next, envs, nil
+end
+
 function core.bootenvList()
 	local bootenv_count = tonumber(loader.getenv(bootenv_list .. "_count"))
 	local bootenvs = {}
@@ -332,11 +356,18 @@ function core.bootenvList()
 	for curenv_idx = 0, bootenv_count - 1 do
 		curenv = loader.getenv(bootenv_list .. "[" .. curenv_idx .. "]")
 		if curenv ~= nil and unique[curenv] == nil then
-			envcount = envcount + 1
-			bootenvs[envcount] = curenv
 			unique[curenv] = true
+
+			-- If we have a filter installed (by a local module), we
+			-- give it a chance to veto the BE.
+			if not core.bootenv_filter or
+			    core.bootenv_filter(curenv) then
+				envcount = envcount + 1
+				bootenvs[envcount] = curenv
+			end
 		end
 	end
+
 	return bootenvs
 end
 
@@ -548,6 +579,34 @@ function core.nextConsoleChoice()
 			loader.setenv("boot_multicons", "YES")
 			loader.setenv("boot_serial", "YES")
 		end
+	end
+end
+
+function core.switchBE(env)
+	-- This branch will most likely be taken by the switch-be CLI command,
+	-- not by the menu.  We could do some more validation that it's a valid
+	-- BE and let the user fully specify a zfs:be/dataset to avoid the
+	-- validation, but this isn't done at the moment.
+	if not env:match("^zfs:") then
+		local root = loader.getenv("zfs_be_root")
+
+		if not root then
+			print("ZFS BE root not available -- no action taken")
+			return
+		end
+
+		if not env:match("^" .. root) then
+			env = "zfs:" .. root .. "/" .. env
+		else
+			env = "zfs:" .. env
+		end
+	end
+
+	loader.setenv("vfs.root.mountfrom", env)
+	loader.setenv("currdev", env .. ":")
+	config.reload()
+	if loader.getenv("kernelname") ~= nil then
+		loader.perform("unload")
 	end
 end
 

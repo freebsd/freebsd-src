@@ -40,8 +40,8 @@
 /* CNTHCTL_EL2 - Counter-timer Hypervisor Control register */
 /* Valid if HCR_EL2.E2H == 0 */
 #define	CNTHCTL_EL1PCTEN_SHIFT		0
-#define	CNTHCTL_EL1PCTEN_MASK		(0x1ul << CNTHCTL_E2H_EL1PCTEN_SHIFT)
-#define	 CNTHCTL_EL1PCTEN_TRAP		(0x0ul << CNTHCTL_E2H_EL1PCTEN_SHIFT)
+#define	CNTHCTL_EL1PCTEN_MASK		(0x1ul << CNTHCTL_EL1PCTEN_SHIFT)
+#define	 CNTHCTL_EL1PCTEN_TRAP		(0x0ul << CNTHCTL_EL1PCTEN_SHIFT)
 #define	 CNTHCTL_EL1PCTEN_NOTRAP	(0x1ul << CNTHCTL_EL1PCTEN_SHIFT)
 #define	CNTHCTL_EL1PCEN_SHIFT		1
 #define	CNTHCTL_EL1PCEN_MASK		(0x1ul << CNTHCTL_EL1PCEN_SHIFT)
@@ -2062,6 +2062,16 @@
 #define	SCTLR_EL2_EIS		(0x1UL << SCTLR_EL2_EIS_SHIFT)
 #define	SCTLR_EL2_EE_SHIFT	25
 #define	SCTLR_EL2_EE		(0x1UL << SCTLR_EL2_EE_SHIFT)
+#define	SCTLR_EL2_ITFSB_SHIFT	37
+#define	SCTLR_EL2_ITFSB		(0x1UL << SCTLR_EL2_ITFSB_SHIFT)
+#define	SCTLR_EL2_TCF0_SHIFT	38
+#define	SCTLR_EL2_TCF0		(0x2UL << SCTLR_EL2_TCF0_SHIFT)
+#define	SCTLR_EL2_TCF_SHIFT	40
+#define	SCTLR_EL2_TCF		(0x2UL << SCTLR_EL2_TCF_SHIFT)
+#define	SCTLR_EL2_ATA0_SHIFT	42
+#define	SCTLR_EL2_ATA0		(0x1UL << SCTLR_EL2_ATA0_SHIFT)
+#define	SCTLR_EL2_ATA_SHIFT	43
+#define	SCTLR_EL2_ATA		(0x1UL << SCTLR_EL2_ATA_SHIFT)
 
 /* TCR_EL2 - Translation Control Register */
 #define	TCR_EL2_RES1		((0x1UL << 31) | (0x1UL << 23))
@@ -2104,11 +2114,33 @@
 #define	TCR_EL2_HWU62		(1UL << TCR_EL2_HWU62_SHIFT)
 #define	TCR_EL2_HWU		\
     (TCR_EL2_HWU59 | TCR_EL2_HWU60 | TCR_EL2_HWU61 | TCR_EL2_HWU62)
+#define	TCR_EL2_TCMA_SHIFT	30
+#define	TCR_EL2_TCMA		(1UL << TCR_EL2_TCMA_SHIFT)
+
+/* TFSR_EL2 - Tag Fault Status Register EL2 */
+#define	TFSR_EL2_REG		MRS_REG_ALT_NAME(TFSR_EL2)
+#define	TFSR_EL2_op0		3
+#define	TFSR_EL2_op1		4
+#define	TFSR_EL2_CRn		5
+#define	TFSR_EL2_CRm		6
+#define	TFSR_EL2_op2		0
+#define	TFSR_TF0_SHIFT		0
+#define	TFSR_TF0_MASK		(UL(0x1) << TFSR_TF0_SHIFT)
+#define	TFSR_TF1_SHIFT		1
+#define	TFSR_TF1_MASK		(UL(0x1) << TFSR_TF1_SHIFT)
 
 /* VMPDIR_EL2 - Virtualization Multiprocessor ID Register */
 #define	VMPIDR_EL2_U		0x0000000040000000
 #define	VMPIDR_EL2_MT		0x0000000001000000
 #define	VMPIDR_EL2_RES1		0x0000000080000000
+
+/* VNCR_EL2 - Virtual Nested Control Register */
+#define	VNCR_EL2_REG		MRS_REG_ALT_NAME(VNCR_EL2)
+#define	VNCR_EL2_op0		3
+#define	VNCR_EL2_op1		4
+#define	VNCR_EL2_CRn		2
+#define	VNCR_EL2_CRm		2
+#define	VNCR_EL2_op2		0
 
 /* VTCR_EL2 - Virtualization Translation Control Register */
 #define	VTCR_EL2_RES1		(0x1UL << 31)
@@ -2142,6 +2174,8 @@
 #define	 VTCR_EL2_PS_44BIT	(0x4UL << VTCR_EL2_PS_SHIFT)
 #define	 VTCR_EL2_PS_48BIT	(0x5UL << VTCR_EL2_PS_SHIFT)
 #define	 VTCR_EL2_PS_52BIT	(0x6UL << VTCR_EL2_PS_SHIFT)
+#define	VTCR_EL2_VS_SHIFT	19
+#define	 VTCR_EL2_VS		(1UL << VTCR_EL2_VS_SHIFT)
 #define	VTCR_EL2_DS_SHIFT	32
 #define	VTCR_EL2_DS		(0x1UL << VTCR_EL2_DS_SHIFT)
 
@@ -2150,5 +2184,100 @@
 #define	VTTBR_VMID_SHIFT	48
 /* Assumed to be 0 by locore.S */
 #define	VTTBR_HOST		0x0000000000000000
+
+/* Size of the memory page pointed to by VNCR_EL2 */
+#define VNCR_PAGE_SIZE		4096
+/*
+ * Memory offsets of registers redirected to memory by HCR_EL2.NV2
+ * relative to the base address stored in VNCR_EL2.
+ */
+#define	VNCR_VTTBR_EL2		0x20
+#define	VNCR_VSTTBR_EL2		0x30
+#define	VNCR_VTCR_EL2		0x40
+#define	VNCR_VSTCR_EL2		0x48
+#define	VNCR_VMPIDR_EL2		0x50
+#define	VNCR_CNTVOFF_EL2	0x60
+#define	VNCR_HCR_EL2		0x78
+#define	VNCR_HSTR_EL2		0x80
+#define	VNCR_VPIDR_EL2		0x88
+#define	VNCR_TPIDR_EL2		0x90
+#define	VNCR_HCRX_EL2		0xA0
+#define	VNCR_VNCR_EL2		0xB0
+#define	VNCR_CPACR_EL1		0x100	/* Architectural Feature Access Control Register */
+#define	VNCR_CONTEXTIDR_EL1	0x108	/* Current Process Identifier */
+#define	VNCR_SCTLR_EL1		0x110	/* System Control Register */
+#define	VNCR_ACTLR_EL1		0x118	/* Auxiliary Control Register */
+#define	VNCR_TCR_EL1		0x120	/* Translation Control Register */
+#define	VNCR_AFSR0_EL1		0x128	/* Auxiliary Fault Status Register 0 */
+#define	VNCR_AFSR1_EL1		0x130	/* Auxiliary Fault Status Register 1 */
+#define	VNCR_ESR_EL1		0x138	/* Exception Syndrome Register */
+#define	VNCR_MAIR_EL1		0x140	/* Memory Attribute Indirection Register */
+#define	VNCR_AMAIR_EL1		0x148	/* Auxiliary Memory Attribute Indirection Register */
+#define	VNCR_MDSCR_EL1		0x158	/* Monitor Debug System Control Register */
+#define	VNCR_SPSR_EL1		0x160	/* Saved Program Status Register */
+#define	VNCR_CNTV_CVAL_EL0	0x168
+#define	VNCR_CNTV_CTL_EL0	0x170
+#define	VNCR_CNTP_CVAL_EL0	0x178
+#define	VNCR_CNTP_CTL_EL0	0x180
+#define	VNCR_SCXTNUM_EL1	0x188
+#define	VNCR_TFSR_EL1		0x190
+#define	VNCR_HDFGRTR2_EL2	0x1A0
+#define	VNCR_CNTPOFF_EL2	0x1A8
+#define	VNCR_HDFGWTR2_EL2	0x1B0
+#define	VNCR_HFGRTR_EL2		0x1B8
+#define	VNCR_HFGWTR_EL2		0x1C0
+#define	VNCR_HFGITR_EL2		0x1C8
+#define	VNCR_HDFGRTR_EL2	0x1D0
+#define	VNCR_HDFGWTR_EL2	0x1D8
+#define	VNCR_ZCR_EL1		0x1E0
+#define	VNCR_HAFGRTR_EL2	0x1E8
+#define	VNCR_SMCR_EL1		0x1F0
+#define	VNCR_SMPRIMAP_EL2	0x1F8
+#define	VNCR_TTBR0_EL1		0x200	/* Translation Table Base Register 0 */
+#define	VNCR_TTBR1_EL1		0x210	/* Translation Table Base Register 1 */
+#define	VNCR_FAR_EL1		0x220	/* Fault Address Register */
+#define	VNCR_ELR_EL1		0x230	/* Exception Link Register */
+#define	VNCR_SP_EL1		0x240
+#define	VNCR_VBAR_EL1		0x250	/* Vector Base Address Register */
+#define	VNCR_TCR2_EL1		0x270	/* Translation Control Register 2 */
+#define	VNCR_SCTLR2_EL1		0x278
+#define	VNCR_MAIR2_EL1		0x280
+#define	VNCR_AMAIR2_EL1		0x288
+#define	VNCR_PIRE0_EL1		0x290
+#define	VNCR_PIRE0_EL2		0x298
+#define	VNCR_PIR_EL1		0x2A0
+#define	VNCR_POR_EL1		0x2A8
+#define	VNCR_S2PIR_EL2		0x2B0
+#define	VNCR_S2POR_EL1		0x2B8
+#define	VNCR_HFGRTR2_EL2	0x2C0
+#define	VNCR_HFGWTR2_EL2	0x2C8
+#define	VNCR_PFAR_EL1		0x2D0
+#define	VNCR_HFGITR2_EL2	0x310
+#define	VNCR_SCTLRMASK_EL1	0x318
+#define	VNCR_CPACRMASK_EL1	0x320
+#define	VNCR_SCTLR2MASK_EL1	0x328
+#define	VNCR_TCRMASK_EL1	0x330
+#define	VNCR_TCR2MASK_EL1	0x338
+#define	VNCR_ACTLRMASK_EL1	0x340
+#define	VNCR_ICH_HCR_EL2	0x4C0
+#define	VNCR_ICH_VMCR_EL2	0x4C8
+#define	VNCR_VDISR_EL2		0x500
+#define	VNCR_VSESR_EL2		0x508
+#define	VNCR_PMBLIMITR_EL1	0x800
+#define	VNCR_PMBPTR_EL1		0x810
+#define	VNCR_PMBSR_EL1		0x820
+#define	VNCR_PMSCR_EL1		0x828
+#define	VNCR_PMSEVFR_EL1	0x830
+#define	VNCR_PMSICR_EL1		0x838
+#define	VNCR_PMSIRR_EL1		0x840
+#define	VNCR_PMSLATFR_EL1	0x848
+#define	VNCR_PMSNEVFR_EL1	0x850
+#define	VNCR_PMSDSFR_EL1	0x858
+#define	VNCR_TRFCR_EL1		0x880
+#define	VNCR_TRCITECR_EL1	0x888
+#define	VNCR_GCSPR_EL1		0x8C0
+#define	VNCR_GCSCR_EL1		0x8D0
+#define	VNCR_BRBCR_EL1		0x8E0
+#define	VNCR_SPMACCESSR_EL1	0x8E8
 
 #endif /* !_MACHINE_HYPERVISOR_H_ */

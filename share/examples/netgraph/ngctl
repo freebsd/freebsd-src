@@ -36,7 +36,7 @@
     + mkpeer ksocket foo divert/raw/0
 
 # Note that ``foo'' is the hook name on the socket node, which can be
-# anything.  The ``inet/raw/divert'' is the hook name on the ksocket
+# anything.  The ``divert/raw/0'' is the hook name on the ksocket
 # node, which tells it what kind of socket to create.
 
 # Lets give our ksocket node a global name.  How about ``fred'':

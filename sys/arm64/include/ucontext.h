@@ -76,9 +76,11 @@ struct __mcontext {
 	struct fpregs	mc_fpregs;
 	int		mc_flags;
 #define	_MC_FP_VALID	0x1		/* Set when mc_fpregs has valid data */
+#define	_MC_ESR_VALID	0x2		/* Set when mc_esr has valid data */
 	int		mc_pad;		/* Padding */
 	__uint64_t	mc_ptr;		/* Address of extra_regs struct */
-	__uint64_t	mc_spare[7];	/* Space for expansion, set to zero */
+	__register_t	mc_esr;		/* Exception syndrome register */
+	__uint64_t	mc_spare[6];	/* Space for expansion, set to zero */
 };
 
 

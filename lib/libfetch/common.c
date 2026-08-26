@@ -301,17 +301,6 @@ fetch_reopen(int sd)
 
 
 /*
- * Bump a connection's reference count.
- */
-conn_t *
-fetch_ref(conn_t *conn)
-{
-	++conn->ref;
-	return (conn);
-}
-
-
-/*
  * Resolve an address
  */
 struct addrinfo *
@@ -593,10 +582,12 @@ fetch_socks5_getenv(char **host, int *port)
 conn_t *
 fetch_connect(const char *host, int port, int af, int verbose)
 {
+	struct timeval now, timeout, delta;
+	struct pollfd pfd;
 	struct addrinfo *cais = NULL, *sais = NULL, *cai, *sai;
 	const char *bindaddr;
 	conn_t *conn = NULL;
-	int err = 0, sd = -1;
+	int deltams, err = 0, serrno, sd = -1;
 	char *sockshost;
 	int socksport;
 
@@ -636,6 +627,12 @@ fetch_connect(const char *host, int port, int af, int verbose)
 
 	/* try each server address in turn */
 	for (err = 0, sai = sais; sai != NULL; sai = sai->ai_next) {
+		/* start the clock */
+		if (fetchTimeout > 0) {
+			gettimeofday(&timeout, NULL);
+			timeout.tv_sec += fetchTimeout;
+		}
+
 		/* open socket */
 		if ((sd = socket(sai->ai_family, SOCK_STREAM, 0)) < 0) {
 			err = -1;
@@ -643,6 +640,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 				continue;
 			goto syserr;
 		}
+
 		/* attempt to bind to client address */
 		for (err = 0, cai = cais; cai != NULL; cai = cai->ai_next) {
 			if (cai->ai_family != sai->ai_family)
@@ -654,39 +652,83 @@ fetch_connect(const char *host, int port, int af, int verbose)
 			fetch_verbose("failed to bind to %s", bindaddr);
 			goto syserr;
 		}
+
+		/* make the socket non-blocking */
+		(void)fcntl(sd, F_SETFL, O_NONBLOCK);
+
 		/* attempt to connect to server address */
-		while ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) < 0) {
-			if (errno == EINTR && fetchRestartCalls)
+		if ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) == 0)
+			break;
+		if (errno != EINPROGRESS)
+			goto next;
+
+		/* wait for connection */
+		for (;;) {
+			deltams = INFTIM;
+			pfd.fd = sd;
+			pfd.events = POLLOUT;
+
+			/* check the clock */
+			if (fetchTimeout > 0) {
+				gettimeofday(&now, NULL);
+				if (!timercmp(&timeout, &now, >)) {
+					errno = ETIMEDOUT;
+					err = -1;
+					goto next;
+				}
+				timersub(&timeout, &now, &delta);
+				deltams = delta.tv_sec * 1000 +
+				    delta.tv_usec / 1000;
+			}
+			/* wait for something to happen */
+			if ((err = poll(&pfd, 1, deltams)) > 0)
+				break;
+			if (err == 0)
 				continue;
-			break;
+			if (errno != EINTR)
+				goto syserr;
+			if (!fetchRestartCalls)
+				break;
 		}
-		/* success? */
-		if (err == 0)
-			break;
+
+		/* check the outcome */
+		if (err > 0) {
+			if (pfd.revents == POLLOUT) {
+				/* connection established */
+				err = 0;
+				break;
+			}
+			/* we don't know the actual reason */
+			errno = ECONNREFUSED;
+		}
+next:
 		/* clean up before next attempt */
+		serrno = errno;
 		close(sd);
 		sd = -1;
+		errno = serrno;
 	}
+
+	/* all attempts failed */
 	if (err != 0) {
-		if (verbose && sockshost == NULL) {
-			fetch_info("failed to connect to %s:%d", host, port);
-			goto syserr;
-		} else if (sockshost != NULL) {
+		if (sockshost != NULL) {
 			fetch_verbose("failed to connect to SOCKS5 server %s:%d",
 			    sockshost, socksport);
 			socks5_seterr(SOCKS5_ERR_CONN_REFUSED);
 			goto fail;
 		}
+		fetch_verbose("failed to connect to %s:%d", host, port);
 		goto syserr;
 	}
 
 	if ((conn = fetch_reopen(sd)) == NULL)
 		goto syserr;
 
-	if (sockshost)
+	if (sockshost != NULL) {
 		if (!fetch_socks5_init(conn, host, port, verbose))
 			goto fail;
-	free(sockshost);
+		free(sockshost);
+	}
 	if (cais != NULL)
 		freeaddrinfo(cais);
 	if (sais != NULL)
@@ -695,7 +737,8 @@ fetch_connect(const char *host, int port, int af, int verbose)
 syserr:
 	fetch_syserr();
 fail:
-	free(sockshost);
+	if (sockshost != NULL)
+		free(sockshost);
 	/* Fully close if it was opened; otherwise just don't leak the fd. */
 	if (conn != NULL)
 		fetch_close(conn);
@@ -1253,13 +1296,9 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 #endif
 }
 
-#define FETCH_READ_WAIT		-2
-#define FETCH_READ_ERROR	-1
-#define FETCH_READ_DONE		 0
-
 #ifdef WITH_SSL
 static ssize_t
-fetch_ssl_read(SSL *ssl, char *buf, size_t len)
+fetch_ssl_read(SSL *ssl, void *buf, size_t len)
 {
 	ssize_t rlen;
 	int ssl_err;
@@ -1267,43 +1306,57 @@ fetch_ssl_read(SSL *ssl, char *buf, size_t len)
 	rlen = SSL_read(ssl, buf, len);
 	if (rlen < 0) {
 		ssl_err = SSL_get_error(ssl, rlen);
-		if (ssl_err == SSL_ERROR_WANT_READ ||
-		    ssl_err == SSL_ERROR_WANT_WRITE) {
-			return (FETCH_READ_WAIT);
-		} else {
-			ERR_print_errors_fp(stderr);
-			return (FETCH_READ_ERROR);
+		switch (ssl_err) {
+		case SSL_ERROR_ZERO_RETURN:
+			return (0);
+		case SSL_ERROR_WANT_READ:
+			errno = EAGAIN;
+			return (-1);
+		case SSL_ERROR_SYSCALL:
+			return (-1);
+		default:
+			errno = EPROTO;
+			return (-1);
 		}
 	}
 	return (rlen);
+}
+
+static ssize_t
+fetch_ssl_write(SSL *ssl, void *buf, size_t len)
+{
+	ssize_t wlen;
+	int ssl_err;
+
+	wlen = SSL_write(ssl, buf, len);
+	if (wlen < 0) {
+		ssl_err = SSL_get_error(ssl, wlen);
+		switch (ssl_err) {
+		case SSL_ERROR_ZERO_RETURN:
+			return (0);
+		case SSL_ERROR_WANT_WRITE:
+			errno = EAGAIN;
+			return (-1);
+		case SSL_ERROR_SYSCALL:
+			return (-1);
+		default:
+			errno = EPROTO;
+			return (-1);
+		}
+	}
+	return (wlen);
 }
 #endif
 
-static ssize_t
-fetch_socket_read(int sd, char *buf, size_t len)
-{
-	ssize_t rlen;
-
-	rlen = read(sd, buf, len);
-	if (rlen < 0) {
-		if (errno == EAGAIN || (errno == EINTR && fetchRestartCalls)) {
-			return (FETCH_READ_WAIT);
-		} else {
-			return (FETCH_READ_ERROR);
-		}
-	}
-	return (rlen);
-}
-
 /*
- * Read a character from a connection w/ timeout
+ * Read from a connection w/ timeout
  */
 ssize_t
-fetch_read(conn_t *conn, char *buf, size_t len)
+fetch_read(conn_t *conn, void *buf, size_t len)
 {
 	struct timeval now, timeout, delta;
 	struct pollfd pfd;
-	ssize_t rlen;
+	ssize_t rlen, total;
 	int deltams;
 
 	if (fetchTimeout > 0) {
@@ -1312,10 +1365,10 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 	}
 
 	deltams = INFTIM;
-	memset(&pfd, 0, sizeof pfd);
 	pfd.fd = conn->sd;
-	pfd.events = POLLIN | POLLERR;
+	pfd.events = POLLIN;
 
+	total = 0;
 	for (;;) {
 		/*
 		 * The socket is non-blocking.  Instead of the canonical
@@ -1323,8 +1376,8 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 		 *
 		 * 1) call read() or SSL_read().
 		 * 2) if we received some data, return it.
-		 * 3) if an error occurred, return -1.
-		 * 4) if read() or SSL_read() signaled EOF, return.
+		 * 3) if read() or SSL_read() signaled EOF, return.
+		 * 4) if an error occurred, return -1.
 		 * 5) if we did not receive any data but we're not at EOF,
 		 *    call poll().
 		 *
@@ -1341,14 +1394,26 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			rlen = fetch_ssl_read(conn->ssl, buf, len);
 		else
 #endif
-			rlen = fetch_socket_read(conn->sd, buf, len);
-		if (rlen >= 0) {
+			rlen = read(conn->sd, buf, len);
+		if (rlen > 0) {
+			/* something was read */
+			total += rlen;
+			len -= rlen;
+			if (len == 0)
+				break;
+			/* a partial read is success */
 			break;
-		} else if (rlen == FETCH_READ_ERROR) {
+		} else if (rlen == 0) {
+			/* connection closed */
+			break;
+		} else if (errno != EAGAIN) {
+			/* error */
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
 			fetch_syserr();
-			return (-1);
+			break;
 		}
-		// assert(rlen == FETCH_READ_WAIT);
+		/* check what's left of our timeout */
 		if (fetchTimeout > 0) {
 			gettimeofday(&now, NULL);
 			if (!timercmp(&timeout, &now, >)) {
@@ -1360,16 +1425,19 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			deltams = delta.tv_sec * 1000 +
 			    delta.tv_usec / 1000;
 		}
-		errno = 0;
-		pfd.revents = 0;
+		/* wait for the socket to become readable */
 		if (poll(&pfd, 1, deltams) < 0) {
+			if (errno == EAGAIN)
+				continue;
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
-			fetch_syserr();
-			return (-1);
+			break;
 		}
 	}
-	return (rlen);
+	/* a partial read is success */
+	if (rlen < 0 && total == 0)
+		return (-1);
+	return (total);
 }
 
 
@@ -1378,47 +1446,125 @@ fetch_read(conn_t *conn, char *buf, size_t len)
  */
 #define MIN_BUF_SIZE 1024
 
-int
+ssize_t
 fetch_getln(conn_t *conn)
 {
 	char *tmp;
 	size_t tmpsize;
-	ssize_t len;
-	char c;
+	ssize_t rlen;
 
+	/* allocate initial buffer */
 	if (conn->buf == NULL) {
-		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
-			errno = ENOMEM;
-			return (-1);
-		}
+		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL)
+			goto fail;
+		conn->line = conn->buf;
 		conn->bufsize = MIN_BUF_SIZE;
+		conn->buflen = 0;
+		conn->pos = 0;
 	}
 
-	conn->buf[0] = '\0';
-	conn->buflen = 0;
+	/* look at the data we already have */
+	if (conn->pos < conn->buflen) {
+		conn->line = conn->buf + conn->pos;
+		while (conn->pos < conn->buflen)
+			if (conn->buf[conn->pos++] == '\n')
+				goto found;
+		/* reset for the upcoming memmove() */
+		conn->pos = conn->line - conn->buf;
+	}
 
-	do {
-		len = fetch_read(conn, &c, 1);
-		if (len == -1)
-			return (-1);
-		if (len == 0)
+	/* move residual data up */
+	if (conn->buflen > 0) {
+		if (conn->pos < conn->buflen) {
+			memmove(conn->buf, conn->buf + conn->pos,
+			    conn->buflen - conn->pos);
+		}
+		conn->buflen -= conn->pos;
+		conn->pos -= conn->pos;
+		conn->line = conn->buf;
+	}
+
+	for (;;) {
+		/* read as much as we can right now */
+		rlen = fetch_read(conn, conn->buf + conn->buflen,
+		    conn->bufsize - conn->buflen - 1);
+		/* error */
+		if (rlen < 0)
+			goto fail;
+		/* advance and terminate */
+		conn->buflen += rlen;
+		conn->buf[conn->buflen] = '\0';
+		/* connection closed */
+		if (rlen == 0)
 			break;
-		conn->buf[conn->buflen++] = c;
-		if (conn->buflen == conn->bufsize) {
+		/* look for a newline */
+		while (conn->pos < conn->buflen)
+			if (conn->buf[conn->pos++] == '\n')
+				goto found;
+		/* do we need a bigger buffer? */
+		if (conn->buflen > conn->bufsize / 2) {
 			tmp = conn->buf;
-			tmpsize = conn->bufsize * 2 + 1;
-			if ((tmp = realloc(tmp, tmpsize)) == NULL) {
-				errno = ENOMEM;
-				return (-1);
-			}
-			conn->buf = tmp;
+			tmpsize = conn->bufsize * 2;
+			if ((tmp = realloc(tmp, tmpsize)) == NULL)
+				goto fail;
+			conn->line = conn->buf = tmp;
 			conn->bufsize = tmpsize;
 		}
-	} while (c != '\n');
+	}
+	/* connection closed, return what's left */
+	conn->pos = conn->buflen;
+found:
+	conn->linelen = (conn->buf + conn->pos) - conn->line;
+	if (conn->linelen > 0 && conn->line[conn->linelen - 1] == '\n')
+		conn->line[--conn->linelen] = '\0';
+	if (conn->linelen > 0 && conn->line[conn->linelen - 1] == '\r')
+		conn->line[--conn->linelen] = '\0';
+	DEBUGF("<<< %.*s\n", (int)conn->linelen, conn->line);
+	return (conn->linelen);
+fail:
+	conn->line = NULL;
+	conn->linelen = 0;
+	return (-1);
+}
 
-	conn->buf[conn->buflen] = '\0';
-	DEBUGF("<<< %s", conn->buf);
-	return (0);
+
+/*
+ * Read from a connection, taking previously buffered data into account.
+ */
+ssize_t
+fetch_bufread(conn_t *conn, void *buf, size_t len)
+{
+	ssize_t rlen;
+
+	/* avoid overflow */
+	if (len > SSIZE_MAX)
+		len = SSIZE_MAX;
+
+	/* allocate initial buffer */
+	if (conn->buf == NULL) {
+		conn->bufsize = MIN_BUF_SIZE;
+		while (conn->bufsize < len)
+			conn->bufsize *= 2;
+		if ((conn->buf = malloc(conn->bufsize)) == NULL)
+			return (-1);
+		conn->buflen = 0;
+		conn->pos = 0;
+	}
+	conn->line = NULL;
+	conn->linelen = 0;
+
+	/* return residual data first */
+	if (conn->buflen > conn->pos) {
+		if (len > conn->buflen - conn->pos)
+			rlen = conn->buflen - conn->pos;
+		else
+			rlen = len;
+		memcpy(buf, conn->buf + conn->pos, rlen);
+		conn->pos += rlen;
+		return (rlen);
+	}
+
+	return (fetch_read(conn, buf, len));
 }
 
 
@@ -1426,7 +1572,7 @@ fetch_getln(conn_t *conn)
  * Write to a connection w/ timeout
  */
 ssize_t
-fetch_write(conn_t *conn, const char *buf, size_t len)
+fetch_write(conn_t *conn, const void *buf, size_t len)
 {
 	struct iovec iov;
 
@@ -1447,17 +1593,65 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 	ssize_t wlen, total;
 	int deltams;
 
-	memset(&pfd, 0, sizeof pfd);
-	if (fetchTimeout) {
-		pfd.fd = conn->sd;
-		pfd.events = POLLOUT | POLLERR;
+	if (fetchTimeout > 0) {
 		gettimeofday(&timeout, NULL);
 		timeout.tv_sec += fetchTimeout;
 	}
 
+	deltams = INFTIM;
+	pfd.fd = conn->sd;
+	pfd.events = POLLOUT;
+
 	total = 0;
-	while (iovcnt > 0) {
-		while (fetchTimeout && pfd.revents == 0) {
+	for (;;) {
+		/*
+		 * The socket is non-blocking.  Instead of the canonical
+		 * poll() -> write(), we do the following:
+		 *
+		 * 1) call write() or SSL_write().
+		 * 2) if we wrote everything, return success.
+		 * 3) if write() or SSL_write() signaled EOF before we
+		 *    wrote everything, return -1.
+		 * 4) if an error occurred, return -1.
+		 * 5) if we did not write everything but we're not at EOF,
+		 *    call poll().
+		 */
+#ifdef WITH_SSL
+		if (conn->ssl != NULL) {
+			wlen = fetch_ssl_write(conn->ssl,
+			    iov->iov_base, iov->iov_len);
+		} else
+#endif
+			wlen = writev(conn->sd, iov, iovcnt);
+		if (wlen > 0) {
+			/* something was written */
+			total += wlen;
+			/* skip iovs which were completely written */
+			while (iovcnt > 0 && wlen >= (ssize_t)iov->iov_len) {
+				wlen -= iov->iov_len;
+				iov++;
+				iovcnt--;
+			}
+			/* are we done? */
+			if (iovcnt == 0)
+				break;
+			/* skip written portion of current iov */
+			iov->iov_len -= wlen;
+			iov->iov_base = __DECONST(char *, iov->iov_base) + wlen;
+			/* a partial write is incomplete */
+			continue;
+		} else if (wlen == 0) {
+			/* connection closed */
+			break;
+		} else if (errno != EAGAIN) {
+			/* error */
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
+			fetch_syserr();
+			break;
+		}
+		/* check what's left of our timeout */
+		if (fetchTimeout > 0) {
 			gettimeofday(&now, NULL);
 			if (!timercmp(&timeout, &now, >)) {
 				errno = ETIMEDOUT;
@@ -1467,48 +1661,19 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			timersub(&timeout, &now, &delta);
 			deltams = delta.tv_sec * 1000 +
 			    delta.tv_usec / 1000;
-			errno = 0;
-			pfd.revents = 0;
-			if (poll(&pfd, 1, deltams) < 0) {
-				/* POSIX compliance */
-				if (errno == EAGAIN)
-					continue;
-				if (errno == EINTR && fetchRestartCalls)
-					continue;
-				return (-1);
-			}
 		}
-		errno = 0;
-#ifdef WITH_SSL
-		if (conn->ssl != NULL)
-			wlen = SSL_write(conn->ssl,
-			    iov->iov_base, iov->iov_len);
-		else
-#endif
-			wlen = writev(conn->sd, iov, iovcnt);
-		if (wlen == 0) {
-			/* we consider a short write a failure */
-			/* XXX perhaps we shouldn't in the SSL case */
-			errno = EPIPE;
-			fetch_syserr();
-			return (-1);
-		}
-		if (wlen < 0) {
+		/* wait for the socket to become writeable */
+		if (poll(&pfd, 1, deltams) < 0) {
+			if (errno == EAGAIN)
+				continue;
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
 			return (-1);
 		}
-		total += wlen;
-		while (iovcnt > 0 && wlen >= (ssize_t)iov->iov_len) {
-			wlen -= iov->iov_len;
-			iov++;
-			iovcnt--;
-		}
-		if (iovcnt > 0) {
-			iov->iov_len -= wlen;
-			iov->iov_base = __DECONST(char *, iov->iov_base) + wlen;
-		}
 	}
+	/* a partial write is failure */
+	if (iovcnt > 0)
+		return (-1);
 	return (total);
 }
 

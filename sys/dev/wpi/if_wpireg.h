@@ -466,7 +466,7 @@ struct wpi_node_info {
 	uint8_t		reserved4;
 	uint16_t	ttak[5];
 	uint16_t	reserved5;
-	uint8_t		key[IEEE80211_KEYBUF_SIZE];
+	uint8_t		key[IEEE80211_KEYBUF_128_SIZE]; /* XXX firmware */
 	uint32_t	action;
 #define WPI_ACTION_SET_RATE	(1 << 2)
 
@@ -514,7 +514,7 @@ struct wpi_cmd_data {
 #define WPI_CIPHER_TKIP		3
 #define WPI_CIPHER_WEP104	9
 
-	uint8_t		key[IEEE80211_KEYBUF_SIZE];
+	uint8_t		key[IEEE80211_KEYBUF_128_SIZE]; /* XXX firmware */
 	uint8_t		tkip[IEEE80211_WEP_MICLEN];
 	uint32_t	fnext;
 #define WPI_NEXT_STA_ID(id)	((id) << 8)

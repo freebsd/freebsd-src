@@ -363,8 +363,8 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 	}
 
 	if (*len < ctx->mac_len) {
-		crypto_hash_deinit(ctx);
 		*len = ctx->mac_len;
+		crypto_hash_deinit(ctx);
 		return -1;
 	}
 	*len = ctx->mac_len;
@@ -580,7 +580,6 @@ int rc4_skip(const u8 *key, size_t keylen, size_t skip,
 		linux_af_alg_skcipher_deinit(skcipher);
 		return -1;
 	}
-	os_free(skip_buf);
 
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
@@ -588,9 +587,11 @@ int rc4_skip(const u8 *key, size_t keylen, size_t skip,
 	if (ret < 0) {
 		wpa_printf(MSG_ERROR, "%s: recvmsg failed: %s",
 			   __func__, strerror(errno));
+		os_free(skip_buf);
 		linux_af_alg_skcipher_deinit(skcipher);
 		return -1;
 	}
+	os_free(skip_buf);
 	linux_af_alg_skcipher_deinit(skcipher);
 
 	if ((size_t) ret < skip + data_len) {

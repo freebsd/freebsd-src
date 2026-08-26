@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --silence-errors --cflags nonexistent 2>&1
+ExpectedStdout:
+MatchStdout: empty
+ExpectedExitCode: 1

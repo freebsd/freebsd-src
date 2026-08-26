@@ -586,3 +586,5 @@ ENTRY(cpu_sync_core)
 	pushl	%eax
 	iretl
 END(cpu_sync_core)
+
+	.section .note.GNU-stack,"",%progbits

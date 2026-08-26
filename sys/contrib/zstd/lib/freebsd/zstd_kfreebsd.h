@@ -39,6 +39,12 @@ extern "C" {
 #ifndef BUILDING_ZFS
 #include <sys/stddef.h>	/* ptrdiff_t */
 #endif
+/*
+ * sys/libkern.h defines abs64 returning int64_t; zstd_preSplit.c defines its
+ * own static abs64 returning U64.  Rename the zstd-internal version so both
+ * can coexist in the same translation unit without a conflicting-types error.
+ */
+#define	abs64	ZSTD_abs64
 #endif
 
 #ifdef __cplusplus

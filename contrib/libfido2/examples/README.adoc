@@ -64,7 +64,8 @@ The following examples are provided:
 	The -T option may be used to enforce a timeout of <seconds>. If the
 	option -b is specified, the credential's "largeBlob" key is stored in
 	<blobkey>. If the option -c is specified the the generated credential
-	will be bound by the specified protection policy.
+	will be bound by the specified protection policy. If the option -a is
+	specified, enterprise attestation will be requested.
 
 - assert [-t es256|es384|rs256|eddsa] [-a cred_id] [-h hmac_secret] [-P pin]
          [-s hmac_salt] [-T seconds] [-b blobkey] [-puv] <pubkey> <device>

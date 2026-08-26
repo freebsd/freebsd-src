@@ -35,6 +35,7 @@ create_head()
 {
 	atf_set "descr" "Create a lagg and assign an address"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 create_body()
 {
@@ -78,6 +79,7 @@ status_stress_head()
 {
 	atf_set "descr" "Simultaneously query a lagg while also creating or destroying it."
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 status_stress_body()
 {
@@ -133,6 +135,7 @@ create_destroy_stress_head()
 {
 	atf_set "descr" "Simultaneously create and destroy a lagg"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 create_destroy_stress_body()
 {
@@ -187,6 +190,7 @@ lacp_linkstate_destroy_stress_head()
 {
 	atf_set "descr" "Simultaneously destroy an LACP lagg and change its childrens link states"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 lacp_linkstate_destroy_stress_body()
 {
@@ -246,6 +250,7 @@ up_destroy_stress_head()
 {
 	atf_set "descr" "Simultaneously up and destroy a lagg"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 up_destroy_stress_body()
 {
@@ -303,6 +308,7 @@ set_ether_head()
 {
 	atf_set "descr" "Set a lagg's ethernet address"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 set_ether_body()
 {
@@ -341,6 +347,7 @@ updown_head()
 {
 	atf_set "descr" "upping or downing a lagg ups or downs its children"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" if_lagg
 }
 updown_body()
 {
@@ -418,35 +425,15 @@ atf_init_test_cases()
 # Creates a new tap(4) interface, registers it for cleanup, and echoes it
 get_tap()
 {
-	local TAPN=0
-	while ! ifconfig tap${TAPN} create > /dev/null 2>&1; do
-		if [ "$TAPN" -ge 8 ]; then
-			atf_skip "Could not create a tap(4) interface"
-		else
-			TAPN=$(($TAPN + 1))
-		fi
-	done
-	local TAPD=tap${TAPN}
-	# Record the TAP device so we can clean it up later
-	echo ${TAPD} >> "devices_to_cleanup"
-	echo ${TAPD}
+	ifconfig tap create > tap
+	cat tap | tee -a devices_to_cleanup
 }
 
 # Creates a new lagg(4) interface, registers it for cleanup, and echoes it
 get_lagg()
 {
-	local LAGGN=0
-	while ! ifconfig lagg${LAGGN} create > /dev/null 2>&1; do
-		if [ "$LAGGN" -ge 8 ]; then
-			atf_skip "Could not create a lagg(4) interface"
-		else
-			LAGGN=$(($LAGGN + 1))
-		fi
-	done
-	local LAGGD=lagg${LAGGN}
-	# Record the lagg device so we can clean it up later
-	echo ${LAGGD} >> "devices_to_cleanup"
-	echo ${LAGGD}
+	ifconfig lagg create > lagg
+	cat lagg | tee -a devices_to_cleanup
 }
 
 cleanup_tap_and_lagg()

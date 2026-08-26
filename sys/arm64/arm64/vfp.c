@@ -679,8 +679,7 @@ vfp_restore_state_common(struct thread *td, int flags)
 
 	KASSERT(td == curthread, ("%s: Called with non-current thread",
 	    __func__));
-
-	critical_enter();
+	CRITICAL_ASSERT(td);
 
 	cpu = PCPU_GET(cpuid);
 	curpcb = td->td_pcb;
@@ -728,8 +727,6 @@ vfp_restore_state_common(struct thread *td, int flags)
 		PCPU_SET(fpcurthread, td);
 		curpcb->pcb_vfpcpu = cpu;
 	}
-
-	critical_exit();
 }
 
 void
@@ -738,7 +735,9 @@ vfp_restore_state(void)
 	struct thread *td;
 
 	td = curthread;
+	critical_enter();
 	vfp_restore_state_common(td, td->td_pcb->pcb_fpflags);
+	critical_exit();
 }
 
 bool
@@ -797,15 +796,17 @@ sve_restore_state(struct thread *td)
 
 		critical_exit();
 	} else {
+		critical_enter();
+
 		vfp_restore_state_common(td, curpcb->pcb_fpflags);
 
 		/* Enable SVE if it wasn't previously enabled */
 		if ((curpcb->pcb_fpflags & PCB_FP_SVEVALID) == 0) {
-			critical_enter();
+			MPASS(PCPU_GET(fpcurthread) == td);
 			sve_enable();
 			curpcb->pcb_fpflags |= PCB_FP_SVEVALID;
-			critical_exit();
 		}
+		critical_exit();
 	}
 
 	return (true);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -261,11 +261,14 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 			->generic_service_info.capabilitiesMask;
 		if (LAC_CIPHER_IS_SPC(cipher, hash, capabilitiesMask) &&
 		    (LAC_CIPHER_SPC_IV_SIZE == pRequest->ivLenInBytes)) {
-			/* For CHACHA and AES_GCM single pass there is an AAD
-			 * buffer if aadLenInBytes is nonzero. AES_GMAC AAD is
-			 * stored in source buffer, therefore there is no
-			 * separate AAD buffer. */
-			if ((0 != pSessionDesc->aadLenInBytes) &&
+			/* For CHACHA and AES-GCM there is an AAD buffer if
+			 * aadLenInBytes is nonzero. For CCM there is always an
+			 * AAD buffer, even if aadLenInBytes is zero, as the
+			 * first 16 bytes are needed for B0. In case of
+			 * AES-GMAC, no AAD buffer is needed as the AAD is
+			 * passed in the src buffer.
+			 */
+			if ((0 < pSessionDesc->aadLenInBytes) &&
 			    (CPA_CY_SYM_HASH_AES_GMAC !=
 			     pSessionDesc->hashAlgorithm)) {
 				LAC_CHECK_NULL_PARAM(
@@ -593,8 +596,7 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 	    LAC_CIPHER_IS_SPC(cipher, hash, capabilitiesMask);
 
 	Cpa8U paddingLen = 0;
-	Cpa8U blockLen = 0;
-	Cpa32U aadDataLen = 0;
+	Cpa32U aadLenInBytes = 0;
 
 	pMsgDummy = (Cpa8U *)pCurrentQatMsg;
 	/* Write Request */
@@ -832,29 +834,35 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 				    (Cpa8U)pSessionDesc->hashResultSize;
 			}
 
-			/* For CHACHA and AES_GCM single pass AAD buffer needs
-			 * alignment if aadLenInBytes is nonzero. In case of
-			 * AES-GMAC, AAD buffer passed in the src buffer.
+			/* Pad the AAD buffer to a blocklen multiple.
+			 * For ChaChaPoly and AES-GCM there is an AAD buffer if
+			 * aadLenInBytes is nonzero. For CCM there is always an
+			 * AAD buffer, even if aadLenInBytes is zero, as the
+			 * first 16 bytes are needed for B0, but padding is only
+			 * needed if aadLen > 0. In case of AES-GMAC, there's no
+			 * AAD buffer as the AAD is passed in the src buffer, so
+			 * no padding needed.
 			 */
-			if (0 != pSessionDesc->aadLenInBytes &&
+			if (0 < pSessionDesc->aadLenInBytes &&
 			    CPA_CY_SYM_HASH_AES_GMAC !=
 				pSessionDesc->hashAlgorithm) {
-				blockLen = LacSymQat_CipherBlockSizeBytesGet(
-				    pSessionDesc->cipherAlgorithm);
-				aadDataLen = pSessionDesc->aadLenInBytes;
+				aadLenInBytes = pSessionDesc->aadLenInBytes;
 
-				/* In case of AES_CCM, B0 block size and 2 bytes
-				 * of AAD len
-				 * encoding need to be added to total AAD data
-				 * len */
+				/* In case of AES_CCM, start padding after B0
+				 * block size plus 2 bytes of AAD len encoding
+				 * plus AAD data len.
+				 */
 				if (isSpCcm)
-					aadDataLen += LAC_CIPHER_CCM_AAD_OFFSET;
+					aadLenInBytes +=
+					    LAC_CIPHER_CCM_AAD_OFFSET;
 
-				if ((aadDataLen % blockLen) != 0) {
-					paddingLen =
-					    blockLen - (aadDataLen % blockLen);
+				if (aadLenInBytes % LAC_SYM_CIPHER_AAD_PADLEN !=
+				    0) {
+					paddingLen = LAC_SYM_CIPHER_AAD_PADLEN -
+					    (aadLenInBytes %
+					     LAC_SYM_CIPHER_AAD_PADLEN);
 					memset(&pRequest->pAdditionalAuthData
-						    [aadDataLen],
+						    [aadLenInBytes],
 					       0,
 					       paddingLen);
 				}

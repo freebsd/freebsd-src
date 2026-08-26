@@ -145,7 +145,7 @@ static const char *rlimit_ident[] = {
 	"kqueues",
 	"umtx",
 	"pipebuf",
-	"vmm",
+	"vms",
 };
 #endif
 

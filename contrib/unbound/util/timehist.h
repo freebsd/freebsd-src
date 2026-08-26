@@ -42,6 +42,10 @@
 #ifndef UTIL_TIMEHIST_H
 #define UTIL_TIMEHIST_H
 
+#ifdef __QNX__
+/* For struct timeval */
+#include <sys/time.h>
+#endif /* __QNX__ */
 /** Number of buckets in a histogram */
 #define NUM_BUCKETS_HIST 40
 

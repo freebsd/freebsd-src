@@ -249,24 +249,15 @@ KerbExternalNameToMITPrinc(KERB_EXTERNAL_NAME *msprinc, WCHAR *realm, krb5_conte
     return FALSE;
 }
 
-static time_t
-FileTimeToUnixTime(LARGE_INTEGER *ltime)
+/*
+ * Convert a Windows file time (number of 100-nanosecond intervals since
+ * 1601-01-01 UTC) to a POSIX timestamp (number of seconds since 1970-01-01
+ * UTC).
+ */
+static inline time_t
+FileTimeToUnixTime(int64_t ft)
 {
-    FILETIME filetime, localfiletime;
-    SYSTEMTIME systime;
-    struct tm utime;
-    filetime.dwLowDateTime=ltime->LowPart;
-    filetime.dwHighDateTime=ltime->HighPart;
-    FileTimeToLocalFileTime(&filetime, &localfiletime);
-    FileTimeToSystemTime(&localfiletime, &systime);
-    utime.tm_sec=systime.wSecond;
-    utime.tm_min=systime.wMinute;
-    utime.tm_hour=systime.wHour;
-    utime.tm_mday=systime.wDay;
-    utime.tm_mon=systime.wMonth-1;
-    utime.tm_year=systime.wYear-1900;
-    utime.tm_isdst=-1;
-    return(mktime(&utime));
+    return ft / 10000000 - 11644473600;
 }
 
 static void
@@ -346,9 +337,9 @@ MSCredToMITCred(KERB_EXTERNAL_TICKET *msticket, UNICODE_STRING ClientRealm,
     MSSessionKeyToMITKeyblock(&msticket->SessionKey, context,
                               &creds->keyblock);
     MSFlagsToMITFlags(msticket->TicketFlags, &creds->ticket_flags);
-    creds->times.starttime=FileTimeToUnixTime(&msticket->StartTime);
-    creds->times.endtime=FileTimeToUnixTime(&msticket->EndTime);
-    creds->times.renew_till=FileTimeToUnixTime(&msticket->RenewUntil);
+    creds->times.starttime=FileTimeToUnixTime(msticket->StartTime.QuadPart);
+    creds->times.endtime=FileTimeToUnixTime(msticket->EndTime.QuadPart);
+    creds->times.renew_till=FileTimeToUnixTime(msticket->RenewUntil.QuadPart);
 
     creds->addresses = NULL;
 
@@ -377,9 +368,9 @@ CacheInfoEx2ToMITCred(KERB_TICKET_CACHE_INFO_EX2 *info,
     creds->keyblock.enctype = info->SessionKeyType;
     creds->ticket_flags = info->TicketFlags;
     MSFlagsToMITFlags(info->TicketFlags, &creds->ticket_flags);
-    creds->times.starttime=FileTimeToUnixTime(&info->StartTime);
-    creds->times.endtime=FileTimeToUnixTime(&info->EndTime);
-    creds->times.renew_till=FileTimeToUnixTime(&info->RenewTime);
+    creds->times.starttime=FileTimeToUnixTime(info->StartTime.QuadPart);
+    creds->times.endtime=FileTimeToUnixTime(info->EndTime.QuadPart);
+    creds->times.renew_till=FileTimeToUnixTime(info->RenewTime.QuadPart);
 
     /* MS Tickets are addressless.  MIT requires an empty address
      * not a NULL list of addresses.

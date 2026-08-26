@@ -432,7 +432,7 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 	    addr, size));
 }
 
-vm_offset_t
+void *
 pmap_quick_enter_page(vm_page_t m)
 {
 
@@ -440,7 +440,7 @@ pmap_quick_enter_page(vm_page_t m)
 }
 
 void
-pmap_quick_remove_page(vm_offset_t addr)
+pmap_quick_remove_page(void *addr)
 {
 
 	return (pmap_methods_ptr->pm_quick_remove_page(addr));
@@ -627,7 +627,7 @@ pmap_clear_modify(vm_page_t m)
 }
 
 int
-pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_attr(void *va, vm_size_t size, int mode)
 {
 
 	return (pmap_methods_ptr->pm_change_attr(va, size, mode));
@@ -836,7 +836,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return (pmap_methods_ptr->pm_extract_and_hold(pmap, va, prot));
 }
 
-vm_offset_t
+void *
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 
@@ -844,14 +844,14 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 }
 
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
+pmap_qenter(void *sva, vm_page_t *ma, int count)
 {
 
 	pmap_methods_ptr->pm_qenter(sva, ma, count);
 }
 
 void
-pmap_qremove(vm_offset_t sva, int count)
+pmap_qremove(void *sva, int count)
 {
 
 	pmap_methods_ptr->pm_qremove(sva, count);

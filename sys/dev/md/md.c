@@ -286,7 +286,7 @@ struct md_s {
 		struct {
 			struct vnode *vnode;
 			char file[PATH_MAX];
-			vm_offset_t kva;
+			char *kva;
 		} s_vnode;
 
 		/* MD_SWAP related fields */
@@ -983,8 +983,7 @@ unmapped_step:
 		    ("npages %d too large", npages));
 		pmap_qenter(sc->s_vnode.kva, &bp->bio_ma[atop(ma_offs)],
 		    npages);
-		aiov.iov_base = (void *)(sc->s_vnode.kva + (ma_offs &
-		    PAGE_MASK));
+		aiov.iov_base = sc->s_vnode.kva + (ma_offs & PAGE_MASK);
 		aiov.iov_len = iolen;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
@@ -1567,7 +1566,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 			    sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE),
 			    sc->cred, td);
 		}
-		if (sc->s_vnode.kva != 0)
+		if (sc->s_vnode.kva != NULL)
 			kva_free(sc->s_vnode.kva, maxphys + PAGE_SIZE);
 		break;
 	case MD_SWAP:
@@ -2132,7 +2131,7 @@ g_md_init(struct g_class *mp __unused)
 			(long *) &paddr) != 0 ||
 		    resource_int_value("md", i, "len", &len) != 0)
 		        break;
-		ptr = (char *)pmap_map(NULL, paddr, paddr + len, VM_PROT_READ);
+		ptr = pmap_map(NULL, paddr, paddr + len, VM_PROT_READ);
 		if (ptr != NULL && len != 0) {
 			sprintf(scratch, "preload%d 0x%016jx", i,
 			    (uintmax_t)paddr);

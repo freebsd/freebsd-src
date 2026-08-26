@@ -130,6 +130,8 @@ extern struct fs_ops nfs_fsops;
 extern struct fs_ops cd9660_fsops;
 extern struct fs_ops gzipfs_fsops;
 extern struct fs_ops bzipfs_fsops;
+extern struct fs_ops xzfs_fsops;
+extern struct fs_ops zstdfs_fsops;
 extern struct fs_ops dosfs_fsops;
 extern struct fs_ops ext2fs_fsops;
 extern struct fs_ops splitfs_fsops;
@@ -381,6 +383,9 @@ extern int		setenv(const char *name, const char *value,
 			       int overwrite);
 extern int		putenv(char *string);
 extern int		unsetenv(const char *name);
+extern bool		is_restricted_var(const char *name);
+extern void		set_check_restricted(bool);
+extern int		boot_setenv(const char *name, const char *value);
 
 extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */

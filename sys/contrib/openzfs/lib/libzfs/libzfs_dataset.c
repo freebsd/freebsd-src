@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -708,7 +698,7 @@ zfs_open(libzfs_handle_t *hdl, const char *path, int types)
 {
 	zfs_handle_t *zhp;
 	char errbuf[ERRBUFLEN];
-	char *bookp;
+	const char *bookp;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
 	    dgettext(TEXT_DOMAIN, "cannot open '%s'"), path);
@@ -804,190 +794,6 @@ zfs_close(zfs_handle_t *zhp)
 	nvlist_free(zhp->zfs_user_props);
 	nvlist_free(zhp->zfs_recvd_props);
 	free(zhp);
-}
-
-typedef struct mnttab_node {
-	struct mnttab mtn_mt;
-	avl_node_t mtn_node;
-} mnttab_node_t;
-
-static int
-libzfs_mnttab_cache_compare(const void *arg1, const void *arg2)
-{
-	const mnttab_node_t *mtn1 = (const mnttab_node_t *)arg1;
-	const mnttab_node_t *mtn2 = (const mnttab_node_t *)arg2;
-	int rv;
-
-	rv = strcmp(mtn1->mtn_mt.mnt_special, mtn2->mtn_mt.mnt_special);
-
-	return (TREE_ISIGN(rv));
-}
-
-void
-libzfs_mnttab_init(libzfs_handle_t *hdl)
-{
-	pthread_mutex_init(&hdl->libzfs_mnttab_cache_lock, NULL);
-	assert(avl_numnodes(&hdl->libzfs_mnttab_cache) == 0);
-	avl_create(&hdl->libzfs_mnttab_cache, libzfs_mnttab_cache_compare,
-	    sizeof (mnttab_node_t), offsetof(mnttab_node_t, mtn_node));
-}
-
-static int
-libzfs_mnttab_update(libzfs_handle_t *hdl)
-{
-	FILE *mnttab;
-	struct mnttab entry;
-
-	if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-		return (ENOENT);
-
-	while (getmntent(mnttab, &entry) == 0) {
-		mnttab_node_t *mtn;
-		avl_index_t where;
-
-		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
-			continue;
-
-		mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
-		mtn->mtn_mt.mnt_special = zfs_strdup(hdl, entry.mnt_special);
-		mtn->mtn_mt.mnt_mountp = zfs_strdup(hdl, entry.mnt_mountp);
-		mtn->mtn_mt.mnt_fstype = zfs_strdup(hdl, entry.mnt_fstype);
-		mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, entry.mnt_mntopts);
-
-		/* Exclude duplicate mounts */
-		if (avl_find(&hdl->libzfs_mnttab_cache, mtn, &where) != NULL) {
-			free(mtn->mtn_mt.mnt_special);
-			free(mtn->mtn_mt.mnt_mountp);
-			free(mtn->mtn_mt.mnt_fstype);
-			free(mtn->mtn_mt.mnt_mntopts);
-			free(mtn);
-			continue;
-		}
-
-		avl_add(&hdl->libzfs_mnttab_cache, mtn);
-	}
-
-	(void) fclose(mnttab);
-	return (0);
-}
-
-void
-libzfs_mnttab_fini(libzfs_handle_t *hdl)
-{
-	void *cookie = NULL;
-	mnttab_node_t *mtn;
-
-	while ((mtn = avl_destroy_nodes(&hdl->libzfs_mnttab_cache, &cookie))
-	    != NULL) {
-		free(mtn->mtn_mt.mnt_special);
-		free(mtn->mtn_mt.mnt_mountp);
-		free(mtn->mtn_mt.mnt_fstype);
-		free(mtn->mtn_mt.mnt_mntopts);
-		free(mtn);
-	}
-	avl_destroy(&hdl->libzfs_mnttab_cache);
-	(void) pthread_mutex_destroy(&hdl->libzfs_mnttab_cache_lock);
-}
-
-void
-libzfs_mnttab_cache(libzfs_handle_t *hdl, boolean_t enable)
-{
-	hdl->libzfs_mnttab_enable = enable;
-}
-
-int
-libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
-    struct mnttab *entry)
-{
-	FILE *mnttab;
-	mnttab_node_t find;
-	mnttab_node_t *mtn;
-	int ret = ENOENT;
-
-	if (!hdl->libzfs_mnttab_enable) {
-		struct mnttab srch = { 0 };
-
-		if (avl_numnodes(&hdl->libzfs_mnttab_cache))
-			libzfs_mnttab_fini(hdl);
-
-		if ((mnttab = fopen(MNTTAB, "re")) == NULL)
-			return (ENOENT);
-
-		srch.mnt_special = (char *)fsname;
-		srch.mnt_fstype = (char *)MNTTYPE_ZFS;
-		ret = getmntany(mnttab, entry, &srch) ? ENOENT : 0;
-		(void) fclose(mnttab);
-		return (ret);
-	}
-
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
-	if (avl_numnodes(&hdl->libzfs_mnttab_cache) == 0) {
-		int error;
-
-		if ((error = libzfs_mnttab_update(hdl)) != 0) {
-			pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-			return (error);
-		}
-	}
-
-	find.mtn_mt.mnt_special = (char *)fsname;
-	mtn = avl_find(&hdl->libzfs_mnttab_cache, &find, NULL);
-	if (mtn) {
-		*entry = mtn->mtn_mt;
-		ret = 0;
-	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-	return (ret);
-}
-
-void
-libzfs_mnttab_add(libzfs_handle_t *hdl, const char *special,
-    const char *mountp, const char *mntopts)
-{
-	mnttab_node_t *mtn;
-
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
-	if (avl_numnodes(&hdl->libzfs_mnttab_cache) != 0) {
-		mtn = zfs_alloc(hdl, sizeof (mnttab_node_t));
-		mtn->mtn_mt.mnt_special = zfs_strdup(hdl, special);
-		mtn->mtn_mt.mnt_mountp = zfs_strdup(hdl, mountp);
-		mtn->mtn_mt.mnt_fstype = zfs_strdup(hdl, MNTTYPE_ZFS);
-		mtn->mtn_mt.mnt_mntopts = zfs_strdup(hdl, mntopts);
-		/*
-		 * Another thread may have already added this entry
-		 * via libzfs_mnttab_update. If so we should skip it.
-		 */
-		if (avl_find(&hdl->libzfs_mnttab_cache, mtn, NULL) != NULL) {
-			free(mtn->mtn_mt.mnt_special);
-			free(mtn->mtn_mt.mnt_mountp);
-			free(mtn->mtn_mt.mnt_fstype);
-			free(mtn->mtn_mt.mnt_mntopts);
-			free(mtn);
-		} else {
-			avl_add(&hdl->libzfs_mnttab_cache, mtn);
-		}
-	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
-}
-
-void
-libzfs_mnttab_remove(libzfs_handle_t *hdl, const char *fsname)
-{
-	mnttab_node_t find;
-	mnttab_node_t *ret;
-
-	pthread_mutex_lock(&hdl->libzfs_mnttab_cache_lock);
-	find.mtn_mt.mnt_special = (char *)fsname;
-	if ((ret = avl_find(&hdl->libzfs_mnttab_cache, (void *)&find, NULL))
-	    != NULL) {
-		avl_remove(&hdl->libzfs_mnttab_cache, ret);
-		free(ret->mtn_mt.mnt_special);
-		free(ret->mtn_mt.mnt_mountp);
-		free(ret->mtn_mt.mnt_fstype);
-		free(ret->mtn_mt.mnt_mntopts);
-		free(ret);
-	}
-	pthread_mutex_unlock(&hdl->libzfs_mnttab_cache_lock);
 }
 
 int
@@ -1701,26 +1507,6 @@ zfs_fix_auto_resv(zfs_handle_t *zhp, nvlist_t *nvl)
 	return (1);
 }
 
-static boolean_t
-zfs_is_namespace_prop(zfs_prop_t prop)
-{
-	switch (prop) {
-
-	case ZFS_PROP_ATIME:
-	case ZFS_PROP_RELATIME:
-	case ZFS_PROP_DEVICES:
-	case ZFS_PROP_EXEC:
-	case ZFS_PROP_SETUID:
-	case ZFS_PROP_READONLY:
-	case ZFS_PROP_XATTR:
-	case ZFS_PROP_NBMAND:
-		return (B_TRUE);
-
-	default:
-		return (B_FALSE);
-	}
-}
-
 /*
  * Given a property name and value, set the property for the given dataset.
  */
@@ -1778,7 +1564,7 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 	int nvl_len = 0;
 	int added_resv = 0;
 	zfs_prop_t prop;
-	boolean_t nsprop = B_FALSE;
+	uint32_t nspflags = 0;
 	nvpair_t *elem;
 
 	(void) snprintf(errbuf, sizeof (errbuf),
@@ -1825,7 +1611,7 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 	    elem = nvlist_next_nvpair(nvl, elem)) {
 
 		prop = zfs_name_to_prop(nvpair_name(elem));
-		nsprop |= zfs_is_namespace_prop(prop);
+		nspflags |= zfs_namespace_prop_flag(prop);
 
 		assert(cl_idx < nvl_len);
 		/*
@@ -1926,8 +1712,8 @@ zfs_prop_set_list_flags(zfs_handle_t *zhp, nvlist_t *props, int flags)
 			 * if one of the options handled by the generic
 			 * Linux namespace layer has been modified.
 			 */
-			if (nsprop && zfs_is_mounted(zhp, NULL))
-				ret = zfs_mount(zhp, MNTOPT_REMOUNT, 0);
+			if (nspflags && zfs_is_mounted(zhp, NULL))
+				ret = zfs_mount_setattr(zhp, nspflags);
 		}
 	}
 
@@ -2049,7 +1835,8 @@ zfs_prop_inherit(zfs_handle_t *zhp, const char *propname, boolean_t received)
 		 */
 		if (zfs_is_namespace_prop(prop) &&
 		    zfs_is_mounted(zhp, NULL))
-			ret = zfs_mount(zhp, MNTOPT_REMOUNT, 0);
+			ret = zfs_mount_setattr(zhp,
+			    zfs_namespace_prop_flag(prop));
 	}
 
 error:
@@ -3001,6 +2788,19 @@ zfs_prop_get(zfs_handle_t *zhp, zfs_prop_t prop, char *propbuf, size_t proplen,
 		zcp_check(zhp, prop, val, NULL);
 		break;
 
+	case ZFS_PROP_SNAPSHOTS_CHANGED_NSECS:
+		{
+			if ((get_numeric_property(zhp, prop, src, &source,
+			    &val) != 0) || val == 0) {
+				return (-1);
+			}
+
+			(void) snprintf(propbuf, proplen, "%llu",
+			    (u_longlong_t)val);
+		}
+		zcp_check(zhp, prop, val, NULL);
+		break;
+
 	default:
 		switch (zfs_prop_get_type(prop)) {
 		case PROP_TYPE_NUMBER:
@@ -3148,7 +2948,7 @@ userquota_propname_decode(const char *propname, boolean_t zoned,
     zfs_userquota_prop_t *typep, char *domain, int domainlen, uint64_t *ridp)
 {
 	zfs_userquota_prop_t type;
-	char *cp;
+	const char *cp;
 	boolean_t isuser;
 	boolean_t isgroup;
 	boolean_t isproject;
@@ -3537,9 +3337,13 @@ check_parents(libzfs_handle_t *hdl, const char *path, uint64_t *zoned,
 
 	/* we are in a non-global zone, but parent is in the global zone */
 	if (getzoneid() != GLOBAL_ZONEID && !is_zoned) {
-		(void) zfs_standard_error(hdl, EPERM, errbuf);
-		zfs_close(zhp);
-		return (-1);
+		uint64_t zoned_uid = zfs_prop_get_int(zhp, ZFS_PROP_ZONED_UID);
+		if (zoned_uid == 0) {
+			(void) zfs_standard_error(hdl, EPERM, errbuf);
+			zfs_close(zhp);
+			return (-1);
+		}
+		/* zoned_uid set - let kernel decide */
 	}
 
 	/* make sure parent is a filesystem */
@@ -3587,7 +3391,8 @@ zfs_dataset_exists(libzfs_handle_t *hdl, const char *path, zfs_type_t types)
  * Fail if the initial prefixlen-ancestor does not already exist.
  */
 int
-create_parents(libzfs_handle_t *hdl, char *target, int prefixlen)
+create_parents(libzfs_handle_t *hdl, char *target, int prefixlen,
+    nvlist_t *props)
 {
 	zfs_handle_t *h;
 	char *cp;
@@ -3623,8 +3428,7 @@ create_parents(libzfs_handle_t *hdl, char *target, int prefixlen)
 			continue;
 		}
 
-		if (zfs_create(hdl, target, ZFS_TYPE_FILESYSTEM,
-		    NULL) != 0) {
+		if (zfs_create(hdl, target, ZFS_TYPE_FILESYSTEM, props) != 0) {
 			opname = dgettext(TEXT_DOMAIN, "create");
 			goto ancestorerr;
 		}
@@ -3663,6 +3467,17 @@ ancestorerr:
 int
 zfs_create_ancestors(libzfs_handle_t *hdl, const char *path)
 {
+	return (zfs_create_ancestors_props(hdl, path, NULL));
+}
+
+/*
+ * Creates non-existing ancestors of the given path, applying extra
+ * properties provided in an nvlist.
+ */
+int
+zfs_create_ancestors_props(libzfs_handle_t *hdl, const char *path,
+    nvlist_t *props)
+{
 	int prefix;
 	char *path_copy;
 	char errbuf[ERRBUFLEN];
@@ -3685,7 +3500,7 @@ zfs_create_ancestors(libzfs_handle_t *hdl, const char *path)
 		return (-1);
 
 	if ((path_copy = strdup(path)) != NULL) {
-		rc = create_parents(hdl, path_copy, prefix);
+		rc = create_parents(hdl, path_copy, prefix, props);
 		free(path_copy);
 	}
 	if (path_copy == NULL || rc != 0)
@@ -4489,12 +4304,13 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 {
 	int ret = 0;
 	zfs_cmd_t zc = {"\0"};
-	char *delim;
 	prop_changelist_t *cl = NULL;
 	char parent[ZFS_MAX_DATASET_NAME_LEN];
 	char property[ZFS_MAXPROPLEN];
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	char errbuf[ERRBUFLEN];
+	const char *delim;
+	char *delim2;
 
 	/* if we have the same exact name, just return success */
 	if (strcmp(zhp->zfs_name, target) == 0)
@@ -4519,11 +4335,11 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 			 */
 			(void) strlcpy(parent, zhp->zfs_name,
 			    sizeof (parent));
-			delim = strchr(parent, '@');
+			delim2 = strchr(parent, '@');
 			if (strchr(target, '@') == NULL)
-				*(++delim) = '\0';
+				*(++delim2) = '\0';
 			else
-				*delim = '\0';
+				*delim2 = '\0';
 			(void) strlcat(parent, target, sizeof (parent));
 			target = parent;
 		} else {
@@ -4544,6 +4360,7 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 		if (!zfs_validate_name(hdl, target, zhp->zfs_type, B_TRUE))
 			return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
 	} else {
+
 		if (flags.recursive) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "recursive rename must be a snapshot"));
@@ -4599,8 +4416,8 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 	}
 	if (flags.recursive) {
 		char *parentname = zfs_strdup(zhp->zfs_hdl, zhp->zfs_name);
-		delim = strchr(parentname, '@');
-		*delim = '\0';
+		delim2 = strchr(parentname, '@');
+		*delim2 = '\0';
 		zfs_handle_t *zhrp = zfs_open(zhp->zfs_hdl, parentname,
 		    ZFS_TYPE_DATASET);
 		free(parentname);
@@ -5313,7 +5130,7 @@ zfs_set_fsacl(zfs_handle_t *zhp, boolean_t un, nvlist_t *nvl)
 			err = zfs_error(hdl, EZFS_BADVERSION, errbuf);
 			break;
 		case EINVAL:
-			err = zfs_error(hdl, EZFS_BADTYPE, errbuf);
+			err = zfs_error(hdl, EZFS_BADPERM, errbuf);
 			break;
 		case ENOENT:
 			err = zfs_error(hdl, EZFS_NOENT, errbuf);

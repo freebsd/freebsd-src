@@ -22,9 +22,9 @@ status_cmd="${name}_status"
 
 required_modules="cuse"
 
-configs=
 pidpath="/var/run/${name}"
-default_unit=$(sysctl -n hw.snd.default_unit)
+
+default_unit=$(sysctl -n hw.snd.default_unit 2> /dev/null)
 virtual_oss_default_args="\
 	-S \
 	-C 2 \
@@ -35,13 +35,8 @@ virtual_oss_default_args="\
 	-i 8 \
 	-f /dev/dsp${default_unit} \
 	-d dsp \
-	-t vdsp.ctl"
-
-# Set to NO by default. Set it to "YES" to enable virtual_oss.
-: "${virtual_oss_enable:="NO"}"
-
-#  List of configurations to use. Default is "dsp".
-: "${virtual_oss_configs:="dsp"}"
+	-l dsp.loop \
+	-t ${virtual_oss_default_control_device}"
 
 # Default (dsp) virtual_oss config.
 : "${virtual_oss_dsp:="${virtual_oss_default_args}"}"
@@ -81,10 +76,17 @@ stop_instance()
 	if [ -z "${instance_args}" ]; then
 		warn "no such config: ${config}"
 	else
-		startmsg -n "Stopping virtual_oss config: ${config}: "
-		kill "$(cat "${pidpath}/${config}.pid")"
-		rm -f "${pidpath}/${config}.pid"
-		startmsg "done"
+		pidfile="${pidpath}/${config}.pid"
+		if [ ! -f "${pidfile}" ]; then
+			warn "not running: ${config}"
+		else
+			pid="$(cat "${pidfile}")"
+			startmsg -n "Stopping virtual_oss config: ${config}: "
+			kill "${pid}"
+			pwait "${pid}"
+			rm -f "${pidfile}"
+			startmsg "done"
+		fi
 	fi
 }
 

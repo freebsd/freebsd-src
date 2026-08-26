@@ -139,41 +139,42 @@ struct wtap_stats {
 /*
  * Radio capture format.
  */
-#define WTAP_RX_RADIOTAP_PRESENT (		\
+#define WTAP_RX_RADIOTAP_PRESENT (				\
+	(1 << IEEE80211_RADIOTAP_TSFT)		| 		\
+	(1 << IEEE80211_RADIOTAP_FLAGS)		| 		\
+	(1 << IEEE80211_RADIOTAP_RATE)		| 		\
+	(1 << IEEE80211_RADIOTAP_XCHANNEL)	| 		\
 	0)
 
 struct wtap_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
-#if 0
+
 	u_int64_t	wr_tsf;
 	u_int8_t	wr_flags;
 	u_int8_t	wr_rate;
-	int8_t		wr_antsignal;
-	int8_t		wr_antnoise;
-	u_int8_t	wr_antenna;
-	u_int8_t	wr_pad[3];
+	u_int8_t	wr_pad[2];
 	u_int32_t	wr_chan_flags;
 	u_int16_t	wr_chan_freq;
 	u_int8_t	wr_chan_ieee;
-	int8_t		wr_chan_maxpow;
-#endif
+	u_int8_t	wr_chan_maxpow;
 } __packed __aligned(8);
 
-#define WTAP_TX_RADIOTAP_PRESENT (		\
+#define WTAP_TX_RADIOTAP_PRESENT (				\
+	(1 << IEEE80211_RADIOTAP_FLAGS)		| 		\
+	(1 << IEEE80211_RADIOTAP_RATE)		| 		\
+	(1 << IEEE80211_RADIOTAP_XCHANNEL)	| 		\
 	0)
 
 struct wtap_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-#if 0
+
 	u_int8_t	wt_flags;
 	u_int8_t	wt_rate;
-	u_int8_t	wt_txpower;
-	u_int8_t	wt_antenna;
+	u_int8_t	wr_pad[2];
 	u_int32_t	wt_chan_flags;
 	u_int16_t	wt_chan_freq;
 	u_int8_t	wt_chan_ieee;
-	int8_t		wt_chan_maxpow;
-#endif
-} __packed;
+	u_int8_t	wt_chan_maxpow;
+} __packed __aligned(8);
 
 #endif

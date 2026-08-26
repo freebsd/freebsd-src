@@ -7,7 +7,7 @@ SSYYNNOOPPSSIISS
      bbmmaakkee [--BBeeiikkNNnnqqrrSSssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
            [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
            [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [--vv _v_a_r_i_a_b_l_e]
-           [_v_a_r_i_a_b_l_e==_v_a_l_u_e] [_t_a_r_g_e_t ...]
+           [_v_a_r_i_a_b_l_e==_v_a_l_u_e ...] [_t_a_r_g_e_t ...]
 
 DDEESSCCRRIIPPTTIIOONN
      bbmmaakkee is a program designed to simplify the maintenance of other
@@ -344,15 +344,17 @@ SSHHEELLLL CCOOMMMMAANNDDSS
            --       in compatibility mode causes any non-zero exit status of
                    the command line to be ignored.
 
-     When bbmmaakkee is run in jobs mode with --jj _m_a_x___j_o_b_s, the entire script for
-     the target is fed to a single instance of the shell.  In compatibility
-     (non-jobs) mode, each command is run in a separate process.  If the
-     command contains any shell meta characters (`#=|^(){};&<>*?[]:$`\\n'), it
-     is passed to the shell; otherwise bbmmaakkee attempts direct execution.  If a
-     line starts with `--' and the shell has ErrCtl enabled, failure of the
-     command line is ignored as in compatibility mode.  Otherwise `--' affects
-     the entire job; the script stops at the first command line that fails,
-     but the target is not deemed to have failed.
+                   When bbmmaakkee is run in jobs mode with --jj _m_a_x___j_o_b_s, the entire
+                   script for the target is fed to a single instance of the
+                   shell.  In compatibility (non-jobs) mode, each command is
+                   run in a separate process.  If the command contains any
+                   shell meta characters (`#=|^(){};&<>*?[]:$`\\n'), it is
+                   passed to the shell; otherwise bbmmaakkee attempts direct
+                   execution.  If a line starts with `--' and the shell has
+                   ErrCtl enabled, failure of the command line is ignored as
+                   in compatibility mode.  Otherwise `--' affects the entire
+                   job; the script stops at the first command line that fails,
+                   but the target is not deemed to have failed.
 
      Makefiles should be written so that the mode of bbmmaakkee operation does not
      change their behavior.  For example, any command which uses "cd" or
@@ -673,11 +675,21 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
              current target is considered out-of-date.
 
      _._M_A_K_E_._M_E_T_A_._C_M_P___F_I_L_T_E_R
-             In "meta" mode, it can (very rarely!) be useful to filter command
-             lines before comparison.  This variable can be set to a set of
-             modifiers that are applied to each line of the old and new
-             command that differ, if the filtered commands still differ, the
-             target is considered out-of-date.
+             In "meta" mode, it can sometimes be useful to filter command
+             lines before comparison.  This variable can contain a list of
+             modifiers that will be joined with `:' and applied to each line
+             of the old and new command that differ.  If the filtered commands
+             still differ, the target is considered out-of-date.
+
+     _._M_A_K_E_._M_E_T_A_._F_I_L_T_E_R
+             In "meta" mode, it can be useful to filter most of the data in a
+             meta file.  For example, when a pre-built tree is relocated or
+             cloned, all the targets would be considered out-of-date without a
+             filter to replace the old location with the new.  This variable
+             is similar to _._M_A_K_E_._M_E_T_A_._C_M_P___F_I_L_T_E_R but is appliled to commands,
+             cwd and the syscall records from filemon.  In the case of
+             commands, this is done prior to any _._M_A_K_E_._M_E_T_A_._C_M_P___F_I_L_T_E_R
+             modifiers are applied during comparison.
 
      _._M_A_K_E_._M_E_T_A_._C_R_E_A_T_E_D
              In "meta" mode, this variable contains a list of all the meta
@@ -976,11 +988,14 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::MM_p_a_t_t_e_r_n
           Selects only those words that match _p_a_t_t_e_r_n.  The standard shell
-          wildcard characters (`*', `?', and `[]') may be used.  The wildcard
-          characters may be escaped with a backslash (`\').  As a consequence
-          of the way values are split into words, matched, and then joined,
-          the construct `${VAR:M*}' removes all leading and trailing
-          whitespace and normalizes the inter-word spacing to a single space.
+          wildcard characters (`*', `?', and `[]') may be used.  Braces can be
+          used to list alternate patterns.  For example,
+          `${.ALLSRC:M*{Makefile*,.mk}}' could be used to match any
+          `*Makefile*' or `*.mk' in _._A_L_L_S_R_C.  The wildcard characters and
+          braces may be escaped with a backslash (`\').  As a consequence of
+          the way values are split into words, matched, and then joined, the
+          construct `${VAR:M*}' removes all leading and trailing whitespace
+          and normalizes the inter-word spacing to a single space.
 
      ::NN_p_a_t_t_e_r_n
           This is the opposite of `::MM', selecting all words which do _n_o_t match
@@ -1073,40 +1088,46 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::ttww  Causes the value to be treated as a list of words.  See also `::[[@@]]'.
 
-     ::SS/_o_l_d___s_t_r_i_n_g/_n_e_w___s_t_r_i_n_g/[11ggWW]
+     ::SS/[^^]_o_l_d___s_t_r_i_n_g[$$]/_n_e_w___s_t_r_i_n_g/[11ggWW]
           Modifies the first occurrence of _o_l_d___s_t_r_i_n_g in each word of the
-          value, replacing it with _n_e_w___s_t_r_i_n_g.  If a `g' is appended to the
-          last delimiter of the pattern, all occurrences in each word are
-          replaced.  If a `1' is appended to the last delimiter of the
-          pattern, only the first occurrence is affected.  If a `W' is
-          appended to the last delimiter of the pattern, the value is treated
-          as a single word.  If _o_l_d___s_t_r_i_n_g begins with a caret (`^'),
-          _o_l_d___s_t_r_i_n_g is anchored at the beginning of each word.  If _o_l_d___s_t_r_i_n_g
-          ends with a dollar sign (`$'), it is anchored at the end of each
-          word.  Inside _n_e_w___s_t_r_i_n_g, an ampersand (`&') is replaced by
-          _o_l_d___s_t_r_i_n_g (without the anchoring `^' or `$').  Any character may be
-          used as the delimiter for the parts of the modifier string.  The
-          anchoring, ampersand and delimiter characters can be escaped with a
-          backslash (`\').
+          value, replacing it with _n_e_w___s_t_r_i_n_g.
 
-          Both _o_l_d___s_t_r_i_n_g and _n_e_w___s_t_r_i_n_g may contain nested expressions.  To
-          prevent a dollar sign from starting a nested expression, escape it
-          with a backslash.
+          If _o_l_d___s_t_r_i_n_g is preceded by a caret (`^'), _o_l_d___s_t_r_i_n_g is anchored
+          at the beginning of each word.  If _o_l_d___s_t_r_i_n_g is followed by a
+          dollar sign (`$'), it is anchored at the end of each word.  Inside
+          _n_e_w___s_t_r_i_n_g, an ampersand (`&') is replaced by _o_l_d___s_t_r_i_n_g.  Both
+          _o_l_d___s_t_r_i_n_g and _n_e_w___s_t_r_i_n_g may contain nested expressions.
+
+          Further options:
+
+          11       Only the word of the first occurrence is affected.
+
+          gg       All occurrences in each affected word are replaced.
+
+          WW       The expression value is treated as a single word.
+
+          Any character may be used as the delimiter for the parts of the
+          modifier string.  The anchoring, ampersand, dollar and delimiter
+          characters can be escaped with a backslash (`\').
 
      ::CC/_p_a_t_t_e_r_n/_r_e_p_l_a_c_e_m_e_n_t/[11ggWW]
-          The ::CC modifier works like the ::SS modifier except that the old and
-          new strings, instead of being simple strings, are an extended
-          regular expression _p_a_t_t_e_r_n (see regex(3)) and an ed(1)-style
-          _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern _p_a_t_t_e_r_n
-          in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.  The `1'
-          modifier causes the substitution to apply to at most one word; the
-          `g' modifier causes the substitution to apply to as many instances
-          of the search pattern _p_a_t_t_e_r_n as occur in the word or words it is
-          found in; the `W' modifier causes the value to be treated as a
-          single word (possibly containing embedded whitespace).
+          Modifies the first occurrence of the extended regular expression
+          _p_a_t_t_e_r_n (see regex(3)) in each word of the value, replacing it with
+          an ed(1)-style _r_e_p_l_a_c_e_m_e_n_t.
 
-          As for the ::SS modifier, the _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t are subjected to
-          variable expansion before being parsed as regular expressions.
+          Both _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t may contain nested expressions.
+
+          Further options:
+
+          11       Only the word of the first occurrence is affected.
+
+          gg       All occurrences in each affected word are replaced.
+
+          WW       The expression value is treated as a single word.
+
+          Any character may be used as the delimiter for the parts of the
+          modifier string.  The anchoring, ampersand, dollar and delimiter
+          characters can be escaped with a backslash (`\').
 
      ::TT   Replaces each word with its last path component (basename).
 
@@ -1481,7 +1502,7 @@ SSPPEECCIIAALL SSOOUURRCCEESS ((AATTTTRRIIBBUUTTEESS))
      ..IIGGNNOORREE   Ignore any errors from the commands associated with this
                target, exactly as if they all were preceded by a dash (`-').
 
-     ..MMAADDEE     Mark all sources of this target as being up to date.
+     ..MMAADDEE     Mark the target(s) up to date.
 
      ..MMAAKKEE     Execute the commands associated with this target even if the --nn
                or --tt options were specified.  Normally used to mark recursive
@@ -1874,4 +1895,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.3-RELEASE-p3        November 11, 2025       FreeBSD 14.3-RELEASE-p3
+FreeBSD 14.4-RELEASE-p3          July 3, 2026                         BMAKE(1)

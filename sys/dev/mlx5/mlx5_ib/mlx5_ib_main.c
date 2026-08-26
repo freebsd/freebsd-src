@@ -47,6 +47,12 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/uverbs_types.h>
+#include <rdma/uverbs_std_types.h>
+#define UVERBS_MODULE_NAME mlx5_ib
+#include <rdma/uverbs_named_ioctl.h>
+#include <rdma/mlx5_user_ioctl_cmds.h>
+#include <rdma/mlx5_user_ioctl_verbs.h>
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include <dev/mlx5/fs.h>
@@ -155,7 +161,7 @@ static if_t mlx5_ib_get_netdev(struct ib_device *device,
 	return ndev;
 }
 
-static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+static int translate_eth_proto_oper(u32 eth_proto_oper, u16 *active_speed,
 				    u8 *active_width)
 {
 	switch (eth_proto_oper) {
@@ -216,7 +222,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	return 0;
 }
 
-static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u16 *active_speed,
 					u8 *active_width)
 {
 	switch (eth_proto_oper) {
@@ -272,6 +278,18 @@ static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	case MLX5E_PROT_MASK(MLX5E_400GAUI_4_400GBASE_CR4_KR4):
 		*active_width = IB_WIDTH_4X;
 		*active_speed = IB_SPEED_NDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_400GAUI_2_400GBASE_CR2_KR2):
+		*active_width = IB_WIDTH_2X;
+		*active_speed = IB_SPEED_XDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_800GAUI_8_800GBASE_CR8_KR8):
+		*active_width = IB_WIDTH_8X;
+		*active_speed = IB_SPEED_NDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_800GAUI_4_800GBASE_CR4_KR4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_XDR;
 		break;
 	default:
 		*active_width = IB_WIDTH_4X;
@@ -356,12 +374,16 @@ static void ib_gid_to_mlx5_roce_addr(const union ib_gid *gid,
 	void *mlx5_addr_mac	= MLX5_ADDR_OF(roce_addr_layout, mlx5_addr,
 					       source_mac_47_32);
 	u16 vlan_id;
+	int ret;
 
 	if (!gid)
 		return;
-	ether_addr_copy(mlx5_addr_mac, if_getlladdr(attr->ndev));
 
-	vlan_id = rdma_vlan_dev_vlan_id(attr->ndev);
+
+	ret = rdma_read_gid_l2_fields(attr, &vlan_id, mlx5_addr_mac);
+	if (ret != 0)
+		return;
+
 	if (vlan_id != 0xffff) {
 		MLX5_SET_RA(mlx5_addr, vlan_valid, 1);
 		MLX5_SET_RA(mlx5_addr, vlan_id, vlan_id);
@@ -416,59 +438,27 @@ static int set_roce_addr(struct ib_device *device, u8 port_num,
 	return mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 }
 
-static int mlx5_ib_add_gid(struct ib_device *device, u8 port_num,
-			   unsigned int index, const union ib_gid *gid,
-			   const struct ib_gid_attr *attr,
+static int mlx5_ib_add_gid(const struct ib_gid_attr *attr,
 			   __always_unused void **context)
 {
-	return set_roce_addr(device, port_num, index, gid, attr);
+	return set_roce_addr(attr->device, attr->port_num, attr->index,
+			     &attr->gid, attr);
 }
 
-static int mlx5_ib_del_gid(struct ib_device *device, u8 port_num,
-			   unsigned int index, __always_unused void **context)
+static int mlx5_ib_del_gid(const struct ib_gid_attr *attr,
+			   __always_unused void **context)
 {
-	return set_roce_addr(device, port_num, index, NULL, NULL);
+	return set_roce_addr(attr->device, attr->port_num, attr->index, NULL,
+			     NULL);
 }
 
-__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
-			       int index)
+__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev,
+			       const struct ib_gid_attr *attr)
 {
-	struct ib_gid_attr attr;
-	union ib_gid gid;
-
-	if (ib_get_cached_gid(&dev->ib_dev, port_num, index, &gid, &attr))
-		return 0;
-
-	if (!attr.ndev)
-		return 0;
-
-	if_rele(attr.ndev);
-
-	if (attr.gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP)
+	if (attr->gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP)
 		return 0;
 
 	return cpu_to_be16(MLX5_CAP_ROCE(dev->mdev, r_roce_min_src_udp_port));
-}
-
-int mlx5_get_roce_gid_type(struct mlx5_ib_dev *dev, u8 port_num,
-			   int index, enum ib_gid_type *gid_type)
-{
-	struct ib_gid_attr attr;
-	union ib_gid gid;
-	int ret;
-
-	ret = ib_get_cached_gid(&dev->ib_dev, port_num, index, &gid, &attr);
-	if (ret)
-		return ret;
-
-	if (!attr.ndev)
-		return -ENODEV;
-
-	if_rele(attr.ndev);
-
-	*gid_type = attr.gid_type;
-
-	return 0;
 }
 
 static int mlx5_use_mad_ifc(struct mlx5_ib_dev *dev)
@@ -969,7 +959,7 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	if (err)
 		goto out;
 
-	props->active_speed	= (u8)ptys->ib_proto_oper;
+	props->active_speed	= (u16)ptys->ib_proto_oper;
 
 	pmtu->local_port = port;
 	err = mlx5_core_access_pmtu(mdev, pmtu, 0);
@@ -1522,15 +1512,44 @@ static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
 	return -EOPNOTSUPP;
 }
 
+static int mlx5_cmd_uar_alloc(struct mlx5_core_dev *dev, u32 *uarn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(alloc_uar_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_uar_in)] = {};
+	int err;
+
+	MLX5_SET(alloc_uar_in, in, opcode, MLX5_CMD_OP_ALLOC_UAR);
+	MLX5_SET(alloc_uar_in, in, uid, uid);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*uarn = MLX5_GET(alloc_uar_out, out, uar);
+	return 0;
+}
+
+static int mlx5_cmd_uar_dealloc(struct mlx5_core_dev *dev, u32 uarn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(dealloc_uar_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(dealloc_uar_in)] = {};
+
+	MLX5_SET(dealloc_uar_in, in, opcode, MLX5_CMD_OP_DEALLOC_UAR);
+	MLX5_SET(dealloc_uar_in, in, uar, uarn);
+	MLX5_SET(dealloc_uar_in, in, uid, uid);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 static void mlx5_ib_mmap_free(struct rdma_user_mmap_entry *entry)
 {
 	struct mlx5_user_mmap_entry *mentry = to_mmmap(entry);
 	struct mlx5_ib_dev *dev = to_mdev(entry->ucontext->device);
+	struct mlx5_ib_ucontext *context = to_mucontext(entry->ucontext);
 
 	switch (mentry->mmap_flag) {
 	case MLX5_IB_MMAP_TYPE_UAR_WC:
 	case MLX5_IB_MMAP_TYPE_UAR_NC:
-		mlx5_cmd_free_uar(dev->mdev, mentry->page_idx);
+		mlx5_cmd_uar_dealloc(dev->mdev, mentry->page_idx,
+				     context->devx_uid);
 		kfree(mentry);
 		break;
 	default:
@@ -1654,6 +1673,25 @@ static unsigned long mlx5_vma_to_pgoff(struct vm_area_struct *vma)
 	idx = get_extended_index(vma->vm_pgoff);
 
 	return (command << 16 | idx);
+}
+
+static u64 mlx5_entry_to_mmap_offset(struct mlx5_user_mmap_entry *entry)
+{
+	u64 cmd = (entry->rdma_entry.start_pgoff >> 16) & 0xFFFF;
+	u64 index = entry->rdma_entry.start_pgoff & 0xFFFF;
+
+	return (((index >> 8) << 16) | (cmd << MLX5_IB_MMAP_CMD_SHIFT) |
+		(index & 0xFF)) << PAGE_SHIFT;
+}
+
+static int mlx5_rdma_user_mmap_entry_insert(struct mlx5_ib_ucontext *c,
+					    struct mlx5_user_mmap_entry *entry,
+					    size_t length)
+{
+	return rdma_user_mmap_entry_insert_range(
+		&c->ibucontext, &entry->rdma_entry, length,
+		(MLX5_IB_MMAP_OFFSET_START << 16),
+		((MLX5_IB_MMAP_OFFSET_END << 16) + (1UL << 16) - 1));
 }
 
 static int mlx5_ib_mmap_offset(struct mlx5_ib_dev *dev,
@@ -3204,9 +3242,17 @@ static void mlx5_disable_roce(struct mlx5_ib_dev *dev)
 
 static void mlx5_ib_dealloc_q_port_counter(struct mlx5_ib_dev *dev, u8 port_num)
 {
-	mlx5_vport_dealloc_q_counter(dev->mdev,
-				     MLX5_INTERFACE_PROTOCOL_IB,
-				     dev->port[port_num].q_cnt_id);
+	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(dealloc_q_counter_out)] = {};
+
+	if (!dev->port[port_num].q_cnt_id)
+		return;
+
+	MLX5_SET(dealloc_q_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
+	MLX5_SET(dealloc_q_counter_in, in, counter_set_id,
+		 dev->port[port_num].q_cnt_id);
+	mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 	dev->port[port_num].q_cnt_id = 0;
 }
 
@@ -3220,19 +3266,31 @@ static void mlx5_ib_dealloc_q_counters(struct mlx5_ib_dev *dev)
 
 static int mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev)
 {
+	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)] = {};
 	int i;
 	int ret;
 
+	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
+	/*
+	 * On devices that support user contexts, allocate the queue counters
+	 * as a shared resource so QPs owned by a user context (DEVX uid) can
+	 * reference them; otherwise RST2INIT_QP fails with a firmware "bad
+	 * resource state" error.
+	 */
+	if (MLX5_CAP_GEN(dev->mdev, log_max_uctx))
+		MLX5_SET(alloc_q_counter_in, in, uid, MLX5_SHARED_RESOURCE_UID);
+
 	for (i = 0; i < dev->num_ports; i++) {
-		ret = mlx5_vport_alloc_q_counter(dev->mdev,
-						 MLX5_INTERFACE_PROTOCOL_IB,
-						 &dev->port[i].q_cnt_id);
+		ret = mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 		if (ret) {
 			mlx5_ib_warn(dev,
 				     "couldn't allocate queue counter for port %d, err %d\n",
 				     i + 1, ret);
 			goto dealloc_counters;
 		}
+		dev->port[i].q_cnt_id = MLX5_GET(alloc_q_counter_out, out,
+						 counter_set_id);
 	}
 
 	return 0;
@@ -3316,6 +3374,136 @@ free:
 	return ARRAY_SIZE(names);
 }
 
+/*
+ * MLX5_IB_OBJECT_UAR: allocate a dedicated UAR for user space and expose it
+ * through an mmap entry.  Modern libmlx5 uses this (dynamic UAR) to obtain the
+ * UAR backing CQ/QP doorbells instead of the legacy static UAR pages.
+ */
+static int mmap_obj_cleanup(struct ib_uobject *uobject,
+			    enum rdma_remove_reason why,
+			    struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_user_mmap_entry *obj = uobject->object;
+
+	rdma_user_mmap_entry_remove(&obj->rdma_entry);
+	return 0;
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_UAR_OBJ_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
+		MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE);
+	enum mlx5_ib_uapi_uar_alloc_type alloc_type;
+	struct mlx5_user_mmap_entry *entry;
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_ib_dev *dev;
+	u32 uar_index;
+	u32 length = PAGE_SIZE;
+	u64 mmap_offset;
+	int err;
+
+	c = to_mucontext(ib_uverbs_get_ucontext(attrs));
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	dev = to_mdev(c->ibucontext.device);
+
+	err = uverbs_get_const(&alloc_type, attrs,
+			       MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE);
+	if (err)
+		return err;
+
+	if (alloc_type != MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF &&
+	    alloc_type != MLX5_IB_UAPI_UAR_ALLOC_TYPE_NC)
+		return -EOPNOTSUPP;
+
+	if (alloc_type == MLX5_IB_UAPI_UAR_ALLOC_TYPE_BF && !dev->wc_support)
+		return -EOPNOTSUPP;
+
+	err = mlx5_cmd_uar_alloc(dev->mdev, &uar_index, c->devx_uid);
+	if (err)
+		return err;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		err = -ENOMEM;
+		goto err_uar;
+	}
+
+	entry->mmap_flag = (alloc_type == MLX5_IB_UAPI_UAR_ALLOC_TYPE_NC) ?
+		MLX5_IB_MMAP_TYPE_UAR_NC : MLX5_IB_MMAP_TYPE_UAR_WC;
+	entry->page_idx = uar_index;
+	entry->address = uar_index2pfn(dev, uar_index) << PAGE_SHIFT;
+
+	err = mlx5_rdma_user_mmap_entry_insert(c, entry, length);
+	if (err)
+		goto err_entry;
+
+	mmap_offset = mlx5_entry_to_mmap_offset(entry);
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+			     &mmap_offset, sizeof(mmap_offset));
+	if (err)
+		goto err_insert;
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+			     &length, sizeof(length));
+	if (err)
+		goto err_insert;
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+			     &uar_index, sizeof(uar_index));
+	if (err)
+		goto err_insert;
+
+	uobj->object = entry;
+	return 0;
+
+err_insert:
+	/* Removing the entry frees the UAR and the entry itself. */
+	rdma_user_mmap_entry_remove(&entry->rdma_entry);
+	return err;
+err_entry:
+	kfree(entry);
+err_uar:
+	mlx5_cmd_uar_dealloc(dev->mdev, uar_index, c->devx_uid);
+	return err;
+}
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_UAR_OBJ_ALLOC,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE,
+			MLX5_IB_OBJECT_UAR,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_UAR_OBJ_ALLOC_TYPE,
+			     enum mlx5_ib_uapi_uar_alloc_type,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
+			    UVERBS_ATTR_TYPE(u64),
+			    UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	MLX5_IB_METHOD_UAR_OBJ_DESTROY,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_UAR_OBJ_DESTROY_HANDLE,
+			MLX5_IB_OBJECT_UAR,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_UAR,
+			    UVERBS_TYPE_ALLOC_IDR(mmap_obj_cleanup),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_UAR_OBJ_ALLOC),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_UAR_OBJ_DESTROY));
+
+static const struct uapi_definition mlx5_ib_defs[] = {
+	UAPI_DEF_CHAIN(mlx5_ib_devx_defs),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_UAR),
+	{}
+};
+
 static int mlx5_ib_stage_bfreg_init(struct mlx5_ib_dev *dev)
 {
 	int err;
@@ -3363,6 +3551,16 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	dev->mdev = mdev;
 
+	/*
+	 * Write-combining is required to expose BlueFlame (WC) UARs through the
+	 * dynamic MLX5_IB_OBJECT_UAR ioctl path.  The legacy static UAR path
+	 * already maps doorbell pages with pgprot_writecombine(), so advertise
+	 * WC support whenever the platform actually provides it.
+	 */
+#if defined(VM_MEMATTR_WRITE_COMBINING)
+	dev->wc_support = true;
+#endif
+
 	dev->port = kcalloc(MLX5_CAP_GEN(mdev, num_ports), sizeof(*dev->port),
 			    GFP_KERNEL);
 	if (!dev->port)
@@ -3390,6 +3588,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.num_comp_vectors    =
 		dev->mdev->priv.eq_table.num_comp_vectors;
 	dev->ib_dev.dma_device	= &mdev->pdev->dev;
+	dev->ib_dev.driver_def	= mlx5_ib_defs;
 
 	dev->ib_dev.uverbs_abi_ver	= MLX5_IB_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask	=
@@ -3555,9 +3754,18 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if (err)
 		goto err_q_cnt;
 
+	/*
+	 * Initialize the DEVX event table before ib_register_device().
+	 * Registration merges ib_dev.driver_def into the uverbs uapi, which
+	 * makes the DEVX object tree live immediately; initializing the event
+	 * table afterwards would leave a window where a DEVX ioctl could touch
+	 * an uninitialized dev->devx_event_table.
+	 */
+	mlx5_ib_devx_init_event_table(dev);
+
 	err = ib_register_device(&dev->ib_dev, NULL);
 	if (err)
-		goto err_bfreg;
+		goto err_devx;
 
 	err = create_umr_res(dev);
 	if (err)
@@ -3584,7 +3792,9 @@ err_umrc:
 err_dev:
 	ib_unregister_device(&dev->ib_dev);
 
-err_bfreg:
+err_devx:
+	mlx5_ib_devx_cleanup_event_table(dev);
+
 	mlx5_ib_stage_bfreg_cleanup(dev);
 
 err_q_cnt:
@@ -3616,6 +3826,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	struct mlx5_ib_dev *dev = context;
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(&dev->ib_dev, 1);
 
+	mlx5_ib_devx_cleanup_event_table(dev);
 	mlx5_ib_cleanup_congestion(dev);
 	mlx5_remove_roce_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);

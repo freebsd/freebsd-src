@@ -338,13 +338,13 @@ test_archive_string_normalization_nfc(const char *testdata)
 		nfd[sizeof(nfd)-1] = '\0';
 
 		/*
-		 * Get an NFC patterns.
+		 * Get an NFC pattern.
 		 */
 		scan_unicode_pattern(utf8_nfc, wc_nfc, utf16be_nfc, utf16le_nfc,
 		    nfc, 0);
 
 		/*
-		 * Get an NFD patterns.
+		 * Get an NFD pattern.
 		 */
 		scan_unicode_pattern(utf8_nfd, wc_nfd, utf16be_nfd, utf16le_nfd,
 		    nfd, 0);
@@ -550,7 +550,7 @@ test_archive_string_normalization_mac_nfd(const char *testdata)
 		nfd[sizeof(nfd)-1] = '\0';
 
 		/*
-		 * Get an NFC patterns.
+		 * Get an NFC pattern.
 		 */
 		should_be_nfc = scan_unicode_pattern(utf8_nfc, wc_nfc,
 			utf16be_nfc, utf16le_nfc, nfc, 1);
@@ -881,6 +881,149 @@ DEFINE_TEST(test_archive_string_conversion)
 	test_archive_string_normalization_mac_nfd(testdata);
 	test_archive_string_canonicalization();
 	test_archive_string_set_get();
+}
+
+static void
+test_archive_string_conversion_fail_charset(void)
+{
+	/* Conversion error message construction may use the charset name.  */
+	assertEqualString("current locale",
+	    archive_string_conversion_charset_name(NULL));
+}
+
+static void
+test_archive_string_conversion_fail_utf16_mbs(struct archive *a,
+    struct archive_string_conv *sconv)
+{
+	static const wchar_t wcs_string[] = L"\U0000043f\U00000440\U00000438";
+	int r;
+	const char* p;
+	size_t len;
+
+	/* WCS to MBS should fail.  */
+	{
+		struct archive_string str;
+		archive_string_init(&str);
+		r = archive_string_append_from_wcs(
+		    &str, wcs_string, sizeof(wcs_string) / sizeof(*wcs_string) - 1);
+		assertEqualInt(-1, r);
+		archive_string_free(&str);
+	}
+	{
+		struct archive_mstring mstr;
+		memset(&mstr, 0, sizeof(mstr));
+		assertEqualInt(ARCHIVE_OK,
+		    archive_mstring_copy_wcs(&mstr, wcs_string));
+		r = archive_mstring_get_mbs_l(a, &mstr, &p, &len, NULL);
+		assertEqualInt(-1, r);
+		assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
+		archive_mstring_clean(&mstr);
+	}
+	if (sconv) {
+		struct archive_mstring mstr;
+		memset(&mstr, 0, sizeof(mstr));
+		assertEqualInt(ARCHIVE_OK,
+		    archive_mstring_copy_wcs(&mstr, wcs_string));
+		r = archive_mstring_get_mbs_l(a, &mstr, &p, &len, sconv);
+		assertEqualInt(-1, r);
+		assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
+		archive_mstring_clean(&mstr);
+	}
+}
+
+static void
+test_archive_string_conversion_fail_utf8_mbs(struct archive *a,
+    struct archive_string_conv *sconv)
+{
+	static const char utf8_string[] = "\xD0\xBF\xD1\x80\xD0\xB8";
+	int r;
+	const char* p;
+	size_t len;
+
+	/* UTF-8 to MBS should fail.  */
+	{
+		struct archive_mstring mstr;
+		memset(&mstr, 0, sizeof(mstr));
+		assertEqualInt(6,
+		    archive_mstring_copy_utf8(&mstr, utf8_string));
+		r = archive_mstring_get_mbs_l(a, &mstr, &p, &len, NULL);
+		assertEqualInt(-1, r);
+		assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
+		archive_mstring_clean(&mstr);
+	}
+	if (sconv) {
+		struct archive_mstring mstr;
+		memset(&mstr, 0, sizeof(mstr));
+		assertEqualInt(6,
+		    archive_mstring_copy_utf8(&mstr, utf8_string));
+		r = archive_mstring_get_mbs_l(a, &mstr, &p, &len, sconv);
+		assertEqualInt(-1, r);
+		assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
+		archive_mstring_clean(&mstr);
+	}
+}
+
+DEFINE_TEST(test_archive_string_conversion_fail_c)
+{
+	struct archive *a;
+#if defined(__sun)
+	skipping("Solaris iconv substitutes unrepresentable UTF-8 characters");
+	return;
+#endif
+
+	/* Test the C locale by not calling setlocale.  */
+
+	test_archive_string_conversion_fail_charset();
+
+	assert((a = archive_write_new()) != NULL);
+
+	test_archive_string_conversion_fail_utf16_mbs(a, NULL);
+	test_archive_string_conversion_fail_utf8_mbs(a, NULL);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+DEFINE_TEST(test_archive_string_conversion_fail_latin1)
+{
+	struct archive *a;
+	struct archive_string_conv *sconv;
+#if defined(__sun)
+	skipping("Solaris iconv substitutes unrepresentable UTF-8 characters");
+	return;
+#endif
+
+	/* Test a Latin-1 locale.  */
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    /* Windows allows ".<code-page>" to change encoding.  */
+	    setlocale(LC_ALL, ".1252") == NULL
+#else
+	    setlocale(LC_ALL, "en_US.ISO8859-1") == NULL
+#endif
+	   ) {
+		skipping("No Latin-1 locale found on this system.");
+		return;
+	}
+
+	test_archive_string_conversion_fail_charset();
+
+	assert((a = archive_write_new()) != NULL);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "CP1252", 0)));
+	assertEqualString("CP1252",
+	    archive_string_conversion_charset_name(sconv));
+#else
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "ISO8859-1", 0)));
+	assertEqualString("ISO8859-1",
+	    archive_string_conversion_charset_name(sconv));
+#endif
+	test_archive_string_conversion_fail_utf16_mbs(a, sconv);
+	test_archive_string_conversion_fail_utf8_mbs(a, sconv);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
 
 DEFINE_TEST(test_archive_string_conversion_utf16_utf8)

@@ -58,7 +58,7 @@ DEFINE_TEST(test_compat_zip_1)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ZIP);
 
 finish:
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -89,7 +89,7 @@ DEFINE_TEST(test_compat_zip_2)
 	assertEqualString("file2", archive_entry_pathname(ae));
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -140,7 +140,7 @@ DEFINE_TEST(test_compat_zip_3)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 /**
@@ -188,7 +188,7 @@ DEFINE_TEST(test_compat_zip_4)
 	assertEqualInt(0644, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Try reading without seek support and watch it fail. */
 	assert((a = archive_read_new()) != NULL);
@@ -196,7 +196,7 @@ DEFINE_TEST(test_compat_zip_4)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_FATAL, read_open_memory(a, p, s, 3));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }
 /**
@@ -273,7 +273,7 @@ DEFINE_TEST(test_compat_zip_5)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Try reading without seek support. */
 	assert((a = archive_read_new()) != NULL);
@@ -332,7 +332,7 @@ DEFINE_TEST(test_compat_zip_5)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }
 
@@ -376,14 +376,14 @@ DEFINE_TEST(test_compat_zip_6)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 7));
 	compat_zip_6_verify(a);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 7));
 	compat_zip_6_verify(a);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }
 
@@ -417,7 +417,7 @@ DEFINE_TEST(test_compat_zip_7)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
 
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 	free(p);
 }
@@ -444,6 +444,6 @@ DEFINE_TEST(test_compat_zip_8)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	/* This file is in the archive as arc\test */
 	assertEqualString("arc/test", archive_entry_pathname(ae));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }

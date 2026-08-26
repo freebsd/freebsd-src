@@ -14,6 +14,7 @@ SUBDIR=	${_atf} \
 	${_makewhatis.local} \
 	${_mknetid} \
 	${_phttpget} \
+	${_pkgserve} \
 	${_pppoed} \
 	rc \
 	revnetgroup \
@@ -63,6 +64,10 @@ _dma=		dma
 
 .if ${MK_HYPERV} != "no"
 _hyperv+=	hyperv
+.endif
+
+.if ${MK_PKGSERVE} != "no"
+_pkgserve=	pkg-serve
 .endif
 
 .if ${MK_NIS} != "no"

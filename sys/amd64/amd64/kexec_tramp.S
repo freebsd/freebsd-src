@@ -89,3 +89,5 @@ CNAME(kexec_saved_image):
 CNAME(kexec_do_reboot_size):
 	.globl	kexec_do_reboot_size
 	.quad . - kexec_do_reboot
+
+	.section .note.GNU-stack,"",%progbits

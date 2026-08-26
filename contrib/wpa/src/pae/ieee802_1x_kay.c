@@ -1871,7 +1871,7 @@ ieee802_1x_mka_get_icv_length(struct ieee802_1x_mka_participant *participant)
 
 	/* Determine if we need space for the ICV Indicator */
 	if (mka_alg_tbl[participant->kay->mka_algindex].icv_len !=
-	    DEFAULT_ICV_LEN)
+	    DEFAULT_ICV_LEN || participant->kay->include_icv_indicator)
 		length = sizeof(struct ieee802_1x_mka_icv_body);
 	else
 		length = 0;
@@ -1894,7 +1894,7 @@ ieee802_1x_mka_encode_icv_body(struct ieee802_1x_mka_participant *participant,
 
 	length = ieee802_1x_mka_get_icv_length(participant);
 	if (mka_alg_tbl[participant->kay->mka_algindex].icv_len !=
-	    DEFAULT_ICV_LEN)  {
+	    DEFAULT_ICV_LEN || participant->kay->include_icv_indicator)  {
 		wpa_printf(MSG_DEBUG, "KaY: ICV Indicator");
 		body = wpabuf_put(buf, MKA_HDR_LEN);
 		body->type = MKA_ICV_INDICATOR;
@@ -3125,9 +3125,9 @@ static int ieee802_1x_kay_mkpdu_validity_check(struct ieee802_1x_kay *kay,
 		   be_to_host16(eth_hdr->ethertype));
 
 	/* the destination address shall not be an individual address */
-	if (!ether_addr_equal(eth_hdr->dest, pae_group_addr)) {
+	if (!is_multicast_ether_addr(eth_hdr->dest)) {
 		wpa_printf(MSG_DEBUG,
-			   "KaY: ethernet destination address is not PAE group address");
+			   "KaY: ethernet destination address is not a multicast adddress");
 		return -1;
 	}
 
@@ -3495,7 +3495,8 @@ struct ieee802_1x_kay *
 ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
 		    bool macsec_replay_protect, u32 macsec_replay_window,
 		    u8 macsec_offload, u16 port, u8 priority,
-		    u32 macsec_csindex, const char *ifname, const u8 *addr)
+		    u32 macsec_csindex, bool include_icv_indicator,
+		    const char *ifname, const u8 *addr)
 {
 	struct ieee802_1x_kay *kay;
 
@@ -3533,6 +3534,7 @@ ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
 
 	kay->pn_exhaustion = PENDING_PN_EXHAUSTION;
 	kay->macsec_csindex = macsec_csindex;
+	kay->include_icv_indicator = include_icv_indicator;
 	kay->mka_algindex = DEFAULT_MKA_ALG_INDEX;
 	kay->mka_version = MKA_VERSION_ID;
 
@@ -3858,33 +3860,28 @@ ieee802_1x_kay_delete_mka(struct ieee802_1x_kay *kay, struct mka_key_name *ckn)
 	dl_list_del(&participant->list);
 
 	/* remove live peer */
-	while (!dl_list_empty(&participant->live_peers)) {
-		peer = dl_list_entry(participant->live_peers.next,
-				     struct ieee802_1x_kay_peer, list);
+	while ((peer = dl_list_first(&participant->live_peers,
+				     struct ieee802_1x_kay_peer, list))) {
 		dl_list_del(&peer->list);
 		os_free(peer);
 	}
 
 	/* remove potential peer */
-	while (!dl_list_empty(&participant->potential_peers)) {
-		peer = dl_list_entry(participant->potential_peers.next,
-				     struct ieee802_1x_kay_peer, list);
+	while ((peer = dl_list_first(&participant->potential_peers,
+				     struct ieee802_1x_kay_peer, list))) {
 		dl_list_del(&peer->list);
 		os_free(peer);
 	}
 
 	/* remove sak */
-	while (!dl_list_empty(&participant->sak_list)) {
-		sak = dl_list_entry(participant->sak_list.next,
-				    struct data_key, list);
+	while ((sak = dl_list_first(&participant->sak_list,
+				    struct data_key, list))) {
 		dl_list_del(&sak->list);
 		ieee802_1x_kay_deinit_data_key(sak);
 	}
-	while (!dl_list_empty(&participant->rxsc_list)) {
-		rxsc = dl_list_entry(participant->rxsc_list.next,
-				     struct receive_sc, list);
+	while ((rxsc = dl_list_first(&participant->rxsc_list,
+				     struct receive_sc, list)))
 		ieee802_1x_kay_deinit_receive_sc(participant, rxsc);
-	}
 	ieee802_1x_kay_deinit_transmit_sc(participant, participant->txsc);
 
 	os_memset(&participant->cak, 0, sizeof(participant->cak));

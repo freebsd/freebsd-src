@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: music,v 1.2 2024/06/10 23:09:52 christos Exp $
+# $File: music,v 1.4 2026/02/07 21:56:41 rrt Exp $
 # music:  file(1) magic for music formats
 
 # BWW format used by Bagpipe Music Writer Gold by Robert MacNeil Musicworks
@@ -15,3 +15,46 @@
 >>>25	string		:
 >>>>26	string		>\0		(version %.3s)
 
+# Bars & Pipes Professional
+# https://wiki.amigaos.net/wiki/Bars_and_Pipes_Professional
+#
+0	string		BRPP		Bars & Pipes Professional
+
+# Sibelius music notation software (published by Sibelius Software, then Avid)
+# http://fileformats.archiveteam.org/wiki/Sibelius
+#
+# These patterns cover the Windows and macOS versions of the software, not
+# the older (confusingly-named) Sibelius 6 & 7 for Acorn RISC PC.
+0	string		\x0fSIBELIUS	Sibelius
+!:mime application/x-sibelius-score
+>10     string          \x00\x00\x00\x0e (version 1.2)
+>10     string          \x00\x08         (version 2.x)
+>10     string          \x00\x0a         (version 3.x)
+>10     string          \x00\x1b         (version 4.x)
+>10     string          \x00\x2d\x00\x03 (version 5.0)
+>10     string          \x00\x2d\x00\x0d (version 5.1)
+>10     string          \x00\x2d\x00\x10 (version 5.2)
+>10     string          \x00\x36\x00\x01 (version 6.0)
+>10     string          \x00\x36\x00\x17 (version 6.1)
+>10     string          \x00\x36\x00\x1e (version 6.2)
+>10     string          \x00\x39\x00\x0c (version 7.0)
+>10     string          \x00\x39\x00\x0e (version 7.0.1-7.0.2)
+>10     string          \x00\x39\x00\x13 (version 7.0.3)
+>10     string          \x00\x39\x00\x15 (version 7.1.0)
+>10     string          \x00\x39\x00\x16 (version 7.1.2-7.1.3)
+>10     string          \x00\x3d\x00\x0e (version 7.5)
+>10     string          \x00\x3d\x00\x10 (version 8.0)
+>10     string          \x00\x3e\x00\x00 (version 8.1)
+>10     string          \x00\x3e\x00\x01 (version 8.2)
+>10     string          \x00\x3e\x00\x02 (version 8.3)
+>10     string          \x00\x3e\x00\x06 (version 8.4)
+>10     string          \x00\x3e\x00\x07 (version 8.5)
+>10     string          \x00\x3f\x00\x00 (version 8.6-8.7.1)
+>10     string          \x00\x3f\x00\x01 (version 8.7.2)
+>10     string          \x00\x3f\x00     (version 8.8-2019.12)
+>10     string          \x00\x3f\x00\x0b (version 2020.1)
+>10     string          \x00\x40\x00     (version 2020.3-2022.5)
+>10     string          \x00\x41\x00     (version 2022.7-2022.11)
+>10     string          \x00\x42\x00     (version 2022.12-2023.3)
+>10     string          \x00\x43\x00     (version 2023.5-2023.8)
+>10     string          \x00\x44\x00     (version 2024)

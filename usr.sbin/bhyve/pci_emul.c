@@ -1152,6 +1152,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pdi->pi_slot = slot;
 	pdi->pi_func = func;
 	pthread_mutex_init(&pdi->pi_lintr.lock, NULL);
+	pthread_mutex_init(&pdi->pi_cfg_lock, NULL);
 	pdi->pi_lintr.pin = 0;
 	pdi->pi_lintr.state = IDLE;
 	pci_irq_init_irq(&pdi->pi_lintr.irq);
@@ -1169,8 +1170,11 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	err = (*pde->pe_init)(pdi, fi->fi_config);
 	if (err == 0)
 		fi->fi_devi = pdi;
-	else
+	else {
+		pthread_mutex_destroy(&pdi->pi_cfg_lock);
+		pthread_mutex_destroy(&pdi->pi_lintr.lock);
 		free(pdi);
+	}
 
 	return (err);
 }
@@ -2309,6 +2313,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 	}
 
 	pe = pi->pi_d;
+	pthread_mutex_lock(&pi->pi_cfg_lock);
 
 	/*
 	 * Config read
@@ -2329,7 +2334,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgwrite != NULL &&
 		    (*pe->pe_cfgwrite)(pi, coff, bytes, *valp) == 0)
-			return;
+			goto out;
 
 		/*
 		 * Special handling for write to BAR and ROM registers
@@ -2340,7 +2345,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 			 * 4-byte aligned.
 			 */
 			if (bytes != 4 || (coff & 0x3) != 0)
-				return;
+				goto out;
 
 			if (is_pcir_bar(coff)) {
 				idx = (coff - PCIR_BAR(0)) / 4;
@@ -2422,6 +2427,8 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 			CFGWRITE(pi, coff, *valp, bytes);
 		}
 	}
+out:
+	pthread_mutex_unlock(&pi->pi_cfg_lock);
 }
 
 #ifdef __amd64__

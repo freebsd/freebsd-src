@@ -38,6 +38,8 @@
 #include <signal.h>
 #include <string.h>
 
+#include "freebsd_test_suite/macros.h"
+
 static void*
 unmapped(void) {
 	void *unmapped;
@@ -84,6 +86,8 @@ ATF_TC_BODY(capsicum, tc)
 	int fdp = -1;
 	pid_t pid;
 	int status, r;
+
+	ATF_REQUIRE_FEATURE("security_capability_mode");
 
 	pid = pdfork(&fdp, 0);
 	if (pid == 0)
@@ -195,6 +199,9 @@ ATF_TC_BODY(enotcap, tc)
 	pid_t pid;
 	int status;
 
+	ATF_REQUIRE_FEATURE("security_capability_mode");
+	ATF_REQUIRE_FEATURE("security_capabilities");
+
 	/*cap_rights_init(&rights, CAP_RIGHTS_ALL);*/
 	CAP_ALL(&rights);
 	cap_rights_clear(&rights, CAP_PDWAIT);
@@ -216,8 +223,8 @@ ATF_TC_BODY(enotcap, tc)
 }
 
 /*
- * Even though the process descriptor is still open, there is no more process
- * to signal after pdwait() has returned.
+ * Zombie is reaped only after the last process descriptor closed.  So
+ * the child still can be signalled after pdwait().
  */
 ATF_TC_WITHOUT_HEAD(pdkill_after_pdwait);
 ATF_TC_BODY(pdkill_after_pdwait, tc)
@@ -226,7 +233,7 @@ ATF_TC_BODY(pdkill_after_pdwait, tc)
 	pid_t pid;
 	int r, status;
 
-	pid = pdfork(&fdp, 0);
+	pid = pdfork(&fdp, PD_NOWAITPID);
 	if (pid == 0)
 		_exit(42);
 	ATF_REQUIRE_MSG(pid >= 0, "pdfork failed: %s", strerror(errno));
@@ -236,13 +243,13 @@ ATF_TC_BODY(pdkill_after_pdwait, tc)
 	ATF_CHECK_EQ(r, 0);
 	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
 
-	ATF_REQUIRE_ERRNO(ESRCH, pdkill(fdp, SIGTERM) < 0);
+	ATF_REQUIRE_EQ(pdkill(fdp, SIGTERM), 0);
 
 	close(fdp);
 }
 
 /*
- * Even though the process descriptor is still open, there is no more status to
+ * While the process descriptor is still open, there is still the status to
  * return after a pid-based wait() function has already returned it.
  */
 ATF_TC_WITHOUT_HEAD(pdwait_after_waitpid);
@@ -263,12 +270,13 @@ ATF_TC_BODY(pdwait_after_waitpid, tc)
 	ATF_CHECK_EQ(pid, waited_pid);
 	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
 
-	ATF_REQUIRE_ERRNO(ESRCH, pdwait(fdp, NULL, WEXITED, NULL, NULL) < 0);
+	ATF_REQUIRE_EQ(pdwait(fdp, &status, WEXITED, NULL, NULL), 0);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
 
 	close(fdp);
 }
 
-/* Called twice, waitpid should return ESRCH the second time */
+/* Called twice, waitpid should work second time */
 ATF_TC_WITHOUT_HEAD(twice);
 ATF_TC_BODY(twice, tc)
 {
@@ -286,7 +294,9 @@ ATF_TC_BODY(twice, tc)
 	ATF_CHECK_EQ(r, 0);
 	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
 
-	ATF_REQUIRE_ERRNO(ESRCH, pdwait(fdp, NULL, WEXITED, NULL, NULL) < 0);
+	r = pdwait(fdp, &status, WEXITED, NULL, NULL);
+	ATF_CHECK_EQ(r, 0);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
 
 	close(fdp);
 }

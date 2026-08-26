@@ -75,7 +75,7 @@ A password or PIN may be supplied to the engine using the B<-passin> option.
 
 A DER-encoded file containing a PKCS#12 object.
 It might be necessary to provide a decryption password to retrieve
-the private key.
+the private key or certificate.
 
 =item B<PEM>
 
@@ -84,11 +84,11 @@ a block of base-64 encoding (defined in IETF RFC 4648), with specific
 lines used to mark the start and end:
 
  Text before the BEGIN line is ignored.
- ----- BEGIN object-type -----
+ -----BEGIN object-type-----
  OT43gQKBgQC/2OHZoko6iRlNOAQ/tMVFNq7fL81GivoQ9F1U0Qr+DH3ZfaH8eIkX
  xT0ToMPJUzWAn8pZv0snA0um6SIgvkCuxO84OkANCVbttzXImIsL7pFzfcwV/ERK
  UM6j0ZuSMFOCr/lGPAoOQU0fskidGEHi1/kW+suSr28TqsyYZpwBDQ==
- ----- END object-type -----
+ -----END object-type-----
  Text after the END line is also ignored
 
 The I<object-type> must match the type of object that is expected.
@@ -135,7 +135,7 @@ Note that the parsing is simple and might fail to parse some legal data.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

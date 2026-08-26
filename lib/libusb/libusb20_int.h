@@ -43,6 +43,21 @@ union libusb20_session_data {
 	uint32_t plugtime;
 };
 
+/*
+ * The backend context holds the file descriptors needed to reach the
+ * USB devices. It is immutable after allocation, so it can be shared
+ * between threads, backends and devices without any locking. Sharing
+ * it between backend allocations keeps enumeration working after the
+ * process has entered capability mode, see capsicum(4).
+ *
+ * The context must stay alive for as long as any backend or device
+ * allocated from it is in use.
+ */
+struct libusb20_be_ctx {
+	int	ctrl_fd;		/* /dev/usbctl */
+	int	usb_dfd;		/* /dev/usb directory */
+};
+
 /* USB backend specific */
 typedef const char *(libusb20_get_backend_name_t)(void);
 typedef int (libusb20_root_get_dev_quirk_t)(struct libusb20_backend *pbe, uint16_t index, struct libusb20_quirk *pq);
@@ -92,6 +107,7 @@ typedef void (libusb20_dummy_void_t)(void);
 
 /* USB device specific */
 typedef int (libusb20_detach_kernel_driver_t)(struct libusb20_device *pdev, uint8_t iface_index);
+typedef int (libusb20_attach_kernel_driver_t)(struct libusb20_device *pdev, uint8_t iface_index);
 typedef int (libusb20_do_request_sync_t)(struct libusb20_device *pdev, struct LIBUSB20_CONTROL_SETUP_DECODED *setup, void *data, uint16_t *pactlen, uint32_t timeout, uint8_t flags);
 typedef int (libusb20_get_config_desc_full_t)(struct libusb20_device *pdev, uint8_t **ppbuf, uint16_t *plen, uint8_t index);
 typedef int (libusb20_get_config_index_t)(struct libusb20_device *pdev, uint8_t *pindex);
@@ -116,6 +132,7 @@ typedef void (libusb20_tr_cancel_async_t)(struct libusb20_transfer *xfer);
 
 #define	LIBUSB20_DEVICE(m,n) \
   m(n, detach_kernel_driver) \
+  m(n, attach_kernel_driver) \
   m(n, do_request_sync) \
   m(n, get_config_desc_full) \
   m(n, get_config_index) \
@@ -142,6 +159,10 @@ struct libusb20_device_methods {
 struct libusb20_backend {
 	TAILQ_HEAD(, libusb20_device) usb_devs;
 	const struct libusb20_backend_methods *methods;
+
+	/* borrowed backend context, owned when "be_ctx_owner" is set */
+	struct libusb20_be_ctx *be_ctx;
+	uint8_t	be_ctx_owner;
 };
 
 struct libusb20_transfer {
@@ -192,6 +213,9 @@ struct libusb20_device {
 
 	/* backend methods */
 	const struct libusb20_backend_methods *beMethods;
+
+	/* borrowed backend context */
+	struct libusb20_be_ctx *be_ctx;
 
 	/* list of USB transfers */
 	struct libusb20_transfer *pTransfer;

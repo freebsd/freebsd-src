@@ -141,6 +141,7 @@
  */
 #define	PRIV_KENV_SET		120	/* Set kernel env. variables. */
 #define	PRIV_KENV_UNSET		121	/* Unset kernel env. variables. */
+#define	PRIV_KENV_READ		122	/* Get/dump kernel env. variables. */
 
 /*
  * Loadable kernel module privileges.
@@ -355,6 +356,7 @@
 #define	PRIV_NET_OVPN		422	/* Administer OpenVPN DCO. */
 #define	PRIV_NET_ME		423	/* Administer ME interface. */
 #define	PRIV_NET_WG		424	/* Administer WireGuard interface. */
+#define	PRIV_NET_GENEVE		425	/* Administer geneve. */
 
 /*
  * 802.11-related privileges.

@@ -33,12 +33,15 @@
 .Nm archive_errno ,
 .Nm archive_error_string ,
 .Nm archive_file_count ,
+.Nm archive_filter_bytes ,
 .Nm archive_filter_code ,
 .Nm archive_filter_count ,
 .Nm archive_filter_name ,
 .Nm archive_format ,
 .Nm archive_format_name ,
-.Nm archive_position ,
+.Nm archive_free ,
+.Nm archive_position_compressed ,
+.Nm archive_position_uncompressed ,
 .Nm archive_set_error
 .Nd libarchive utility functions
 .Sh LIBRARY
@@ -59,6 +62,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_error_string "struct archive *"
 .Ft int
 .Fn archive_file_count "struct archive *"
+.Ft int64_t
+.Fn archive_filter_bytes "struct archive *" "int"
 .Ft int
 .Fn archive_filter_code "struct archive *" "int"
 .Ft int
@@ -69,8 +74,12 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_format "struct archive *"
 .Ft const char *
 .Fn archive_format_name "struct archive *"
+.Ft int
+.Fn archive_free "struct archive *"
 .Ft int64_t
-.Fn archive_position "struct archive *" "int"
+.Fn archive_position_compressed "struct archive *"
+.Ft int64_t
+.Fn archive_position_uncompressed "struct archive *"
 .Ft void
 .Fo archive_set_error
 .Fa "struct archive *"
@@ -140,13 +149,13 @@ filter 0 is the gunzip filter,
 filter 1 is the uudecode filter,
 and filter 2 is the pseudo-filter that wraps the archive read functions.
 In this case, requesting
-.Fn archive_position a -1
+.Fn archive_filter_bytes a -1
 would be a synonym for
-.Fn archive_position a 2
+.Fn archive_filter_bytes a 2
 which would return the number of bytes currently read from the archive, while
-.Fn archive_position a 1
+.Fn archive_filter_bytes a 1
 would return the number of bytes after uudecoding, and
-.Fn archive_position a 0
+.Fn archive_filter_bytes a 0
 would return the number of bytes after decompression.
 .It Fn archive_filter_name
 Returns a textual name identifying the indicated filter.
@@ -165,16 +174,24 @@ utilize GNU tar extensions and several entries that do not.
 These entries will have different format codes.
 .It Fn archive_format_name
 A textual description of the format of the current entry.
-.It Fn archive_position
+.It Fn archive_free
+Closes the archive if necessary, then releases all resources.
+.It Fn archive_filter_bytes
 Returns the number of bytes read from or written to the indicated filter.
 In particular,
-.Fn archive_position a 0
+.Fn archive_filter_bytes a 0
 returns the number of bytes read or written by the format handler, while
-.Fn archive_position a -1
+.Fn archive_filter_bytes a -1
 returns the number of bytes read or written to the archive.
 See
 .Fn archive_filter_count
 for details of the numbering here.
+.It Fn archive_position_compressed
+Synonym for
+.Fn archive_filter_bytes a -1 .
+.It Fn archive_position_uncompressed
+Synonym for
+.Fn archive_filter_bytes a 0 .
 .It Fn archive_set_error
 Sets the numeric error code and error description that will be returned
 by

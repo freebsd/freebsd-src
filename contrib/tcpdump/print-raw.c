@@ -28,7 +28,7 @@
 #include "netdissect.h"
 
 /*
- * The DLT_RAW packet has no header. It contains a raw IP packet.
+ * The DLT_RAW packet has no header. It contains a raw IPv4 or IPv6 packet.
  */
 
 void

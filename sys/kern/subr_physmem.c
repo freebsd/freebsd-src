@@ -503,6 +503,12 @@ physmem_avail(vm_paddr_t *avail, size_t maxavail)
 	return (regions_to_avail(avail, EXFLAG_NOALLOC, maxavail, 0, NULL, NULL));
 }
 
+size_t
+physmem_all(vm_paddr_t *avail, size_t maxavail)
+{
+	return (regions_to_avail(avail, 0, maxavail, 0, NULL, NULL));
+}
+
 bool
 physmem_excluded(vm_paddr_t pa, vm_size_t sz)
 {

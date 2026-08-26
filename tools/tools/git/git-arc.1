@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 10, 2026
+.Dd August 20, 2026
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -33,11 +33,14 @@
 .Sh SYNOPSIS
 .Nm
 .Cm create
-.Op Fl l
+.Op Fl dl
 .Op Fl r Ar reviewer1 Ns Op Cm \&, Ns Ar reviewer2 ...
 .Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
+.Op Fl t Ar tag1 Ns Op Cm \&, Ns Ar tag2 ...
 .Op Fl p Ar parent
 .Ar commit-ref Op Ar commit-ref ...
+.Nm
+.Cm diff Ar commit-ref Op Ar commit-ref ...
 .Nm
 .Cm list Ar commit-ref Op Ar commit-ref ...
 .Nm
@@ -95,6 +98,12 @@ The available verbs are:
 Create new Differential Revisions from the specified commits.
 Accepts options:
 .Bl -tag -width "-s subscriber"
+.It Fl d
+Create the diff as a draft.
+In this mode, notifications are not sent to reviewers and subscribers
+until the review is published via the web UI.
+The draft is still visible to anyone with the URL (or able to guess it),
+but the review's visibility settings can be modified before publishing.
 .It Fl l
 Before processing commit(s) display list of commits to be processed
 and wait for confirmation.
@@ -106,11 +115,32 @@ hashtag (e.g. #jails for the "Jails" group).
 .It Fl s Ar subscriber
 Add one or more subscribers, separated by commas, to revision(s) being created.
 Each argument must be an existing Phabricator user or group.
+.It Fl t Ar tag
+Add one or more project tags, separated by commas, to revision(s) being created.
+Each argument must be an existing Phabricator project tag.
+Unlike group reviewers, a leading
+.Ql #
+is optional and is added if omitted.
+Spaces in tag names should be replaced with underscores
+.Pq e.g., Src_committers for the Do Src Committers Dc tag .
 .It Fl p Ar parent
 Specify the parent of the first commit in the list.
 This is useful when adding more commits on top of an already existing
 stack in Phabricator.
 .El
+.It Cm diff
+Show the differences between the specified commits and their associated
+Differential Revisions, that is, what
+.Cm update
+would upload.
+For each commit, the current raw diff of the associated revision is
+applied to the commit's parent, and the result is compared against the
+commit itself.
+An empty diff means the commit and the revision are in sync.
+.Pp
+Since the revision's diff is applied to the local commit's parent, the
+comparison may fail or show unrelated changes if the commit has been
+rebased since the revision was last updated.
 .It Cm list
 Print the associated Differential Revisions for the specified commits.
 .It Cm patch
@@ -242,6 +272,15 @@ Also, the
 .Dq Jails
 reviewer group is added using its hashtag.
 .Pp
+Create a review and assign project tags so it appears in the
+corresponding Differential queries.
+Spaces in tag names are written as underscores; a leading
+.Ql #
+is optional:
+.Bd -literal -offset indent
+$ git arc create -t linuxkpi,Src_committers HEAD
+.Ed
+.Pp
 Create a series of Phabricator reviews for each of HEAD~2, HEAD~ and
 HEAD:
 .Bd -literal -offset indent
@@ -264,6 +303,12 @@ $ git arc update b409afcfedcdda
 The title of the commit must be the same as it was when the review
 was created.
 Note that the review description is not automatically updated.
+.Pp
+Show what an update of the review corresponding to HEAD would upload,
+e.g., to check whether local amendments have diverged from the review:
+.Bd -literal -offset indent
+$ git arc diff HEAD
+.Ed
 .Pp
 Apply the patch in review D12345 to the currently checked-out tree,
 and stage it:

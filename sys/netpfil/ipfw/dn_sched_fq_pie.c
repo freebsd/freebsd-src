@@ -121,7 +121,7 @@ struct fq_pie_schk {
  * The purpose of separation this structure is to preserve number of active
  * sub-queues and the flows array pointer even after the scheduler instance
  * is destroyed.
- * Preserving these varaiables allows freeing the allocated memory by
+ * Preserving these variables allows freeing the allocated memory by
  * fqpie_callout_cleanup() independently from fq_pie_free_sched().
  */
 struct fq_pie_si_extra {

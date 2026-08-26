@@ -214,7 +214,8 @@ ipfw_nat64clat(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
 	    insntod(cmd, kidx)->kidx != V_nat64clat_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
-	    (cfg = NAT64_LOOKUP(chain, icmd)) == NULL)
+	    (cfg = NAT64_LOOKUP(chain, icmd)) == NULL ||
+	    cfg->no.etlv != IPFW_TLV_NAT64CLAT_NAME)
 		return (0);
 
 	switch (args->f_id.addr_type) {

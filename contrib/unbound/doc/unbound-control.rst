@@ -170,6 +170,8 @@ There are several commands that the server understands.
     :ref:`tcp-auth-query-timeout<unbound.conf.tcp-auth-query-timeout>`,
     :ref:`delay-close<unbound.conf.delay-close>`.
     :ref:`iter-scrub-promiscuous<unbound.conf.iter-scrub-promiscuous>`.
+    :ref:`tls-service-key<unbound.conf.tls-service-key>`.
+    :ref:`tls-service-pem<unbound.conf.tls-service-pem>`.
 
     It does not work with
     :ref:`interface<unbound.conf.interface>` and
@@ -345,6 +347,8 @@ There are several commands that the server understands.
     Often results in NXDOMAIN for the name (in a static zone), but if the name
     has become an empty nonterminal (there is still data in domain names below
     the removed name), NOERROR nodata answers are the result for that name.
+    With a specific RR instead of a domain name, that specific record is
+    removed from the local data, and not all the RR data.
 
 
 @@UAHL@unbound-control.commands@local_zones@@
@@ -815,6 +819,10 @@ number of statistic counters:
     number of queries removed due to discard-timeout by thread
 
 
+@@UAHL@unbound-control.stats@threadX.num.queries_replyaddr_limit@@
+    number of queries removed due to replyaddr limits by thread
+
+
 @@UAHL@unbound-control.stats@threadX.num.queries_wait_limit@@
     number of queries removed due to wait-limit by thread
 
@@ -893,12 +901,22 @@ number of statistic counters:
     entries.
     This happens if there is a flood of queries that recursive processing and
     the server has a hard time.
+    The counter is increased when during the flood the
+    :ref:`jostle-timeout<unbound.conf.jostle-timeout>`
+    allows a query to be removed in favor of a new incoming query.
+    The older query is then dropped to make space.
 
 
 @@UAHL@unbound-control.stats@threadX.requestlist.exceeded@@
     Queries that were dropped because the request list was full.
     This happens if a flood of queries need recursive processing, and the
     server can not keep up.
+    The counter is increased when during the flood there is no space
+    to be made with the jostle out of an older query, and the new query
+    is dropped.
+    Since no older queries are removed, see
+    :ref:`jostle-timeout<unbound.conf.jostle-timeout>` setting, there
+    is no space for the new query.
 
 
 @@UAHL@unbound-control.stats@threadX.requestlist.current.all@@
@@ -908,6 +926,12 @@ number of statistic counters:
 
 @@UAHL@unbound-control.stats@threadX.requestlist.current.user@@
     Current size of the request list, only the requests from client queries.
+
+
+@@UAHL@unbound-control.stats@threadX.requestlist.current.replies@@
+    Current count of the number of reply entries waiting on request list
+    entries. Because a request list entry can send results to multiple reply
+    addresses, this number may be larger than the size of the request list.
 
 
 @@UAHL@unbound-control.stats@threadX.recursion.time.avg@@
@@ -952,6 +976,10 @@ number of statistic counters:
 
 
 @@UAHL@unbound-control.stats@total.num.queries_discard_timeout@@
+    summed over threads.
+
+
+@@UAHL@unbound-control.stats@total.num.queries_replyaddr_limit@@
     summed over threads.
 
 
@@ -1024,6 +1052,14 @@ number of statistic counters:
 
 
 @@UAHL@unbound-control.stats@total.requestlist.current.all@@
+    summed over threads.
+
+
+@@UAHL@unbound-control.stats@total.requestlist.current.user@@
+    summed over threads.
+
+
+@@UAHL@unbound-control.stats@total.requestlist.current.replies@@
     summed over threads.
 
 

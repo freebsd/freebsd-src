@@ -133,3 +133,5 @@ szosigcode:
 sz_lcall_tramp:
 	.long	esigcode-lcall_tramp
 #endif
+
+	.section .note.GNU-stack,"",%progbits

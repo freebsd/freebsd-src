@@ -536,16 +536,24 @@ int gas_query_ap_rx(struct gas_query_ap *gas, const u8 *sa, u8 categ,
 	}
 
 	if (action == WLAN_PA_GAS_COMEBACK_RESP) {
-		if (pos + 1 > data + len)
+		if (pos + 1 > data + len) {
+			wpa_printf(MSG_DEBUG,
+				   "GAS: No room for frag_id in the response from "
+				   MACSTR, MAC2STR(sa));
 			return 0;
+		}
 		frag_id = *pos & 0x7f;
 		more_frags = (*pos & 0x80) >> 7;
 		pos++;
 	}
 
 	/* Comeback Delay */
-	if (pos + 2 > data + len)
+	if (pos + 2 > data + len) {
+		wpa_printf(MSG_DEBUG,
+			   "GAS: No room for Comeback Delay in the response from "
+			   MACSTR, MAC2STR(sa));
 		return 0;
+	}
 	comeback_delay = WPA_GET_LE16(pos);
 	if (comeback_delay > GAS_QUERY_MAX_COMEBACK_DELAY)
 		comeback_delay = GAS_QUERY_MAX_COMEBACK_DELAY;

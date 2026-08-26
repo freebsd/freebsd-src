@@ -87,17 +87,19 @@ enable_cpu_feat(uint32_t stage)
 		if (check_status == FEAT_ALWAYS_DISABLE)
 			goto next;
 
-		/* The user disabled the feature */
-		if ((feat->feat_flags & CPU_FEAT_USER_DISABLED) != 0)
-			goto next;
+		if (check_status != FEAT_ALWAYS_ENABLE) {
+			/* The user disabled the feature */
+			if ((feat->feat_flags & CPU_FEAT_USER_DISABLED) != 0)
+				goto next;
 
-		/*
-		 * The feature was disabled by default and the user
-		 * didn't enable it then skip.
-		 */
-		if (check_status == FEAT_DEFAULT_DISABLE &&
-		    (feat->feat_flags & CPU_FEAT_USER_ENABLED) == 0)
-			goto next;
+			/*
+			 * The feature was disabled by default and the user
+			 * didn't enable it then skip.
+			 */
+			if (check_status == FEAT_DEFAULT_DISABLE &&
+			    (feat->feat_flags & CPU_FEAT_USER_ENABLED) == 0)
+				goto next;
+		}
 
 		/*
 		 * Check if the feature has any errata that may need a

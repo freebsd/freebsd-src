@@ -11,7 +11,7 @@ MAN=		gptboot.efi.8
 CFLAGS+=	-I${SRCTOP}/stand/efi/boot1
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-DBOOTPROG=\"gptboot.efi\"
-CFLAGS+=	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+CFLAGS+=	${ZLIB_CFLAGS}
 SRCS+=		gpt.c
 CWARNFLAGS.gpt.c+=	-Wno-sign-compare -Wno-cast-align
 WARNS?=6

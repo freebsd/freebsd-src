@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -46,7 +36,7 @@
 #include <sys/unistd.h>
 #include <sys/atomic.h>
 #include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
+#include <sys/zfs_acl_impl.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/zfs_rlock.h>
 #include <sys/zfs_fuid.h>
@@ -151,6 +141,7 @@ zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 	zp->z_xattr_cached = NULL;
 	zp->z_xattr_parent = 0;
 	zp->z_vnode = NULL;
+	zp->z_has_seq = B_FALSE;
 
 	return (0);
 }
@@ -287,12 +278,13 @@ zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
 	ASSERT(!POINTER_IS_VALID(sharezp->z_zfsvfs));
 	sharezp->z_unlinked = 0;
 	sharezp->z_atime_dirty = 0;
+	sharezp->z_xattr_dir_absent = B_FALSE;
 	sharezp->z_zfsvfs = zfsvfs;
 	sharezp->z_is_sa = zfsvfs->z_use_sa;
 	sharezp->z_pflags = 0;
 
 	VERIFY0(zfs_acl_ids_create(sharezp, IS_ROOT_NODE, &vattr,
-	    kcred, NULL, &acl_ids, NULL));
+	    kcred, NULL, &acl_ids));
 	zfs_mknode(sharezp, &vattr, tx, kcred, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, sharezp);
 	POINTER_INVALIDATE(&sharezp->z_zfsvfs);
@@ -447,6 +439,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	zp->z_sa_hdl = NULL;
 	zp->z_unlinked = 0;
 	zp->z_atime_dirty = 0;
+	zp->z_xattr_dir_absent = B_FALSE;
 	zp->z_mapcnt = 0;
 	zp->z_id = db->db_object;
 	zp->z_blksz = blksz;
@@ -489,6 +482,18 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 		zfs_znode_free_kmem(zp);
 		return (NULL);
 	}
+
+	/*
+	 * Restore z_seq from SA_ZPL_SEQ when present, marking the file migrated
+	 * via the in-core z_has_seq (never persisted). Absence keeps the
+	 * default z_seq; FreeBSD's va_filerev never folded ctime in, so no
+	 * seed is needed across the upgrade.
+	 */
+	if (zp->z_is_sa && sa_lookup(zp->z_sa_hdl, SA_ZPL_SEQ(zfsvfs),
+	    &zp->z_seq, sizeof (zp->z_seq)) == 0)
+		zp->z_has_seq = B_TRUE;
+	else
+		zp->z_has_seq = B_FALSE;
 
 	zp->z_projid = projid;
 	zp->z_mode = mode;
@@ -667,22 +672,28 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	if (flag & IS_XATTR)
 		pflags |= ZFS_XATTR;
 
-	if (vap->va_type == VREG || vap->va_type == VDIR) {
-		/*
-		 * With ZFS_PROJID flag, we can easily know whether there is
-		 * project ID stored on disk or not. See zpl_get_file_info().
-		 */
-		if (obj_type != DMU_OT_ZNODE &&
-		    dmu_objset_projectquota_enabled(zfsvfs->z_os))
-			pflags |= ZFS_PROJID;
+	/*
+	 * With ZFS_PROJID flag, we can easily know whether there is
+	 * project ID stored on disk or not. See zpl_get_file_info().
+	 */
+	if (obj_type != DMU_OT_ZNODE &&
+	    dmu_objset_projectquota_enabled(zfsvfs->z_os))
+		pflags |= ZFS_PROJID;
 
-		/*
-		 * Inherit project ID from parent if required.
-		 */
-		projid = zfs_inherit_projid(dzp);
-		if (dzp_pflags & ZFS_PROJINHERIT)
-			pflags |= ZFS_PROJINHERIT;
-	}
+	/*
+	 * Inherit project ID from parent if required.  Every object type
+	 * takes part, as ext4 and XFS do: an object that carried no project
+	 * ID of its own would be treated as belonging to a different project
+	 * than the directory holding it, so zfs_rename() and zfs_link()
+	 * would refuse it with EXDEV even within its own project.
+	 *
+	 * The ZFS_PROJINHERIT flag itself keeps passing to regular files and
+	 * directories only, as before, so that lsattr(1) output is unchanged.
+	 */
+	projid = zfs_inherit_projid(dzp);
+	if ((vap->va_type == VREG || vap->va_type == VDIR) &&
+	    (dzp_pflags & ZFS_PROJINHERIT))
+		pflags |= ZFS_PROJINHERIT;
 
 	/*
 	 * No execs denied will be determined when zfs_mode_compute() is called.
@@ -990,18 +1001,14 @@ again:
 		 */
 		ASSERT3P(zp, !=, NULL);
 		ASSERT3U(zp->z_id, ==, obj_num);
-		if (zp->z_unlinked) {
-			err = SET_ERROR(ENOENT);
-		} else {
-			vp = ZTOV(zp);
-			/*
-			 * Don't let the vnode disappear after
-			 * ZFS_OBJ_HOLD_EXIT.
-			 */
-			VN_HOLD(vp);
-			*zpp = zp;
-			err = 0;
-		}
+		vp = ZTOV(zp);
+		/*
+		 * Don't let the vnode disappear after
+		 * ZFS_OBJ_HOLD_EXIT.
+		 */
+		VN_HOLD(vp);
+		*zpp = zp;
+		err = 0;
 
 		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
@@ -1130,6 +1137,7 @@ zfs_rezget(znode_t *zp)
 		nvlist_free(zp->z_xattr_cached);
 		zp->z_xattr_cached = NULL;
 	}
+	zp->z_xattr_dir_absent = B_FALSE;
 	rw_exit(&zp->z_xattr_lock);
 
 	ASSERT0P(zp->z_sa_hdl);
@@ -1187,6 +1195,17 @@ zfs_rezget(znode_t *zp)
 	}
 
 	zp->z_projid = projid;
+
+	/*
+	 * Reload z_has_seq and z_seq from disk so stale in-core state from
+	 * before rollback/recv does not survive. A stale TRUE marker would
+	 * make ZFS_SEQ_MAY_GROW() skip the grow reservation while SA_ZPL_SEQ
+	 * is gone on disk.
+	 */
+	zp->z_has_seq = (zp->z_is_sa &&
+	    sa_lookup(zp->z_sa_hdl, SA_ZPL_SEQ(zfsvfs),
+	    &zp->z_seq, sizeof (zp->z_seq)) == 0);
+
 	zp->z_mode = mode;
 
 	if (gen != zp->z_gen) {
@@ -1325,6 +1344,49 @@ zfs_znode_free(znode_t *zp)
 	zfs_znode_free_kmem(zp);
 }
 
+/*
+ * Determine whether the znode's atime must be updated.  The logic mostly
+ * duplicates the Linux kernel's relatime_need_update() functionality.
+ * This function is only called if the underlying filesystem actually has
+ * atime updates enabled.
+ */
+boolean_t
+zfs_relatime_need_update(const znode_t *zp)
+{
+	uint64_t mtime[2], ctime[2];
+	sa_bulk_attr_t bulk[2];
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
+	struct timespec now, tmp_atime, tmp_ts;
+	int count = 0;
+
+	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_MTIME(zfsvfs), NULL, mtime, 16);
+	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, ctime, 16);
+	if (sa_bulk_lookup(zp->z_sa_hdl, bulk, count) != 0)
+		return (B_TRUE);
+
+	ZFS_TIME_DECODE(&tmp_atime, zp->z_atime);
+	/*
+	 * In relatime mode, only update the atime if the previous atime
+	 * is earlier than either the ctime or mtime or if at least a day
+	 * has passed since the last update of atime.
+	 */
+	ZFS_TIME_DECODE(&tmp_ts, mtime);
+	/* CSTYLED */
+	if (timespeccmp(&tmp_ts, &tmp_atime, >=))
+		return (B_TRUE);
+
+	ZFS_TIME_DECODE(&tmp_ts, ctime);
+	/* CSTYLED */
+	if (timespeccmp(&tmp_ts, &tmp_atime, >=))
+		return (B_TRUE);
+
+	vfs_timestamp(&now);
+	if ((hrtime_t)now.tv_sec - (hrtime_t)tmp_atime.tv_sec >= 24*60*60)
+		return (B_TRUE);
+
+	return (B_FALSE);
+}
+
 void
 zfs_tstamp_update_setup_ext(znode_t *zp, uint_t flag, uint64_t mtime[2],
     uint64_t ctime[2], boolean_t have_tx)
@@ -1335,7 +1397,7 @@ zfs_tstamp_update_setup_ext(znode_t *zp, uint_t flag, uint64_t mtime[2],
 
 	if (have_tx) {	/* will sa_bulk_update happen really soon? */
 		zp->z_atime_dirty = 0;
-		zp->z_seq++;
+		atomic_inc_64(&zp->z_seq);
 	} else {
 		zp->z_atime_dirty = 1;
 	}
@@ -1625,7 +1687,7 @@ zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)
 	zilog_t *zilog = zfsvfs->z_log;
 	uint64_t mode;
 	uint64_t mtime[2], ctime[2];
-	sa_bulk_attr_t bulk[3];
+	sa_bulk_attr_t bulk[4];
 	int count = 0;
 	int error;
 
@@ -1652,7 +1714,7 @@ zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)
 		return (error);
 log:
 	tx = dmu_tx_create(zfsvfs->z_os);
-	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
+	dmu_tx_hold_sa(tx, zp->z_sa_hdl, ZFS_SEQ_MAY_GROW(zp));
 	zfs_sa_upgrade_txholds(tx, zp);
 	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
@@ -1665,6 +1727,8 @@ log:
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
 	    NULL, &zp->z_pflags, 8);
 	zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
+	ZFS_PERSIST_SEQ(zp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 
@@ -1767,6 +1831,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	ASSERT(!POINTER_IS_VALID(rootzp->z_zfsvfs));
 	rootzp->z_unlinked = 0;
 	rootzp->z_atime_dirty = 0;
+	rootzp->z_xattr_dir_absent = B_FALSE;
 	rootzp->z_is_sa = USE_SA(version, os);
 	rootzp->z_pflags = 0;
 
@@ -1798,7 +1863,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 
 	rootzp->z_zfsvfs = zfsvfs;
 	VERIFY0(zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr,
-	    cr, NULL, &acl_ids, NULL));
+	    cr, NULL, &acl_ids));
 	zfs_mknode(rootzp, &vattr, tx, cr, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, rootzp);
 	error = zap_add(os, moid, ZFS_ROOT_OBJ, 8, 1, &rootzp->z_id, tx);

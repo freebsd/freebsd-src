@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1168,7 +1168,7 @@ typedef struct bmic_sense_feature_page_header {
 	uint8_t page;
 	uint8_t sub_page;
 	uint16_t total_length; /** Total length of the page.
-	* The length is the same wheteher the request buffer is too short or not.
+	* The length is the same whether the request buffer is too short or not.
 	* When printing out the page, only print the buffer length. */
 } OS_ATTRIBUTE_PACKED bmic_sense_feature_page_header_t;
 

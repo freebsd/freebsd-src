@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 6, 2025
+.Dd August 13, 2026
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -38,13 +38,15 @@
 .Ft FTS *
 .Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTS *
+.Fn fts_openat "int dirfd" "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
+.Ft FTS *
 .Fn fts_open_b "char * const *path_argv" "int options" "int (^compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTSENT *
 .Fn fts_read "FTS *ftsp"
 .Ft FTSENT *
 .Fn fts_children "FTS *ftsp" "int options"
 .Ft int
-.Fn fts_set "FTS *ftsp" "FTSENT *f" "int options"
+.Fn fts_set "FTS *ftsp" "FTSENT *f" "int instr"
 .Ft void
 .Fn fts_set_clientptr "FTS *ftsp" "void *clientdata"
 .Ft void *
@@ -316,9 +318,10 @@ file is a member.
 A parent structure for the initial entry point is provided as well,
 however, only the
 .Fa fts_level ,
-.Fa fts_number
-and
+.Fa fts_number ,
 .Fa fts_pointer
+and
+.Fa fts_dirfd
 fields are guaranteed to be initialized.
 .It Fa fts_link
 Upon return from the
@@ -349,6 +352,27 @@ field are undefined.
 A pointer to
 .Xr stat 2
 information for the file.
+.It Fa fts_dirfd
+A file descriptor open on this directory entry.
+It is set only for directory entries
+.Pq Dv FTS_D
+and is \-1 for all other entry types.
+To access a file using fd-relative operations without relying
+on path-based syscalls, required in
+.Xr capsicum 4
+capability mode, use
+.Fa fts_parent->fts_dirfd
+with
+.Xr openat 2
+and
+.Fa fts_name .
+The descriptor is valid until the directory's post-order visit
+.Pq Dv FTS_DP
+and must not be closed by the caller.
+For root-level entries opened with
+.Fn fts_open ,
+.Fa fts_dirfd
+is \-1.
 .El
 .Pp
 A single buffer is used for all of the paths of all of the files in the
@@ -497,6 +521,13 @@ field to
 and leave the contents of the
 .Fa statp
 field undefined.
+The roots and any directories encountered during traversal
+.Po
+.Dv FTS_D ,
+.Dv FTS_DC ,
+.Dv FTS_DP
+.Pc
+are still fully populated.
 .It Dv FTS_NOSTAT_TYPE
 This option is similar to
 .Dv FTS_NOSTAT ,
@@ -592,6 +623,36 @@ except that it takes a block pointer instead of a function pointer.
 The block is copied before
 .Fn fts_open_b
 returns, so the original can safely go out of scope or be released.
+.Ss Fn fts_openat
+The
+.Fn fts_openat
+function is identical to
+.Fn fts_open
+except that it accepts a file descriptor
+.Fa dirfd
+as its first argument.
+If
+.Fa dirfd
+is
+.Dv AT_FDCWD ,
+the behaviour is identical to
+.Fn fts_open .
+Otherwise,
+.Fa dirfd
+must be an open file descriptor referring to a directory,
+and the traversal is rooted there.
+This allows
+.Fn fts_openat
+to be used inside Capsicum capability mode
+.Pq Xr capsicum 4 ,
+where path-based operations are not permitted.
+The
+.Fn fts_openat
+function duplicates
+.Fa dirfd
+internally, so the caller may close it after
+.Fn fts_openat
+returns.
 .Ss Fn fts_read
 The
 .Fn fts_read
@@ -738,8 +799,9 @@ The
 .Fn fts_set
 function
 returns 0 on success, and \-1 if an error occurs.
-.Em Option
-must be set to one of the following values:
+Its
+.Fa instr
+argument must have one of the following values:
 .Bl -tag -width FTS_PHYSICAL
 .It Dv FTS_AGAIN
 Re-visit the file; any file type may be re-visited.

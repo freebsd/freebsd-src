@@ -1,0 +1,6 @@
+prefix=/foo
+prefix=${prefix}
+
+Name: duplicate-tuple
+Version: 1.2.3
+Description: bla bla

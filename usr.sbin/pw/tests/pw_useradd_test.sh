@@ -402,7 +402,7 @@ user_add_bad_shell_body() {
 	populate_etc_skel
 
 	atf_check -s exit:0 ${PW} useradd foo -s sh
-	atf_check -s exit:78 -e ignore ${PW} useradd bar -s badshell
+	atf_check -s exit:72 -e inline:"pw: can't find shell \`badshell' in shell paths\n" ${PW} useradd bar -s badshell
 }
 
 atf_test_case user_add_already_exists

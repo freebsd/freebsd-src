@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.47 2024/08/27 18:50:57 christos Exp $
+# $File: python,v 1.49 2025/06/17 21:14:40 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -205,7 +205,7 @@
 2		string		\x0d\x0a
 # extra check: only two bits of flag field are currently used
 >4		ulelong		<0x4
-# \x0d as part of magic should suffice till Python 3.14 (magic 3600)
+# \x0d as part of magic suffices up to Python 3.13
 >>1		ubyte		0x0d		Byte-compiled Python module for
 !:mime application/x-bytecode.python
 # now look at the magic number to determine the version
@@ -220,10 +220,17 @@
 >>>>>>>0	uleshort	<3500		CPython 3.11
 >>>>>>>0	default		x
 >>>>>>>>0	uleshort	<3550		CPython 3.12
->>>>>>>>0	default		x
->>>>>>>>>0	uleshort	<3600		CPython 3.13
->>>>>>>>>0	default		x		CPython 3.14 or newer
+>>>>>>>>0	default		x		CPython 3.13
 >>>0		use		pyc-pep552
+# \x0e means Python 3.14 or newer
+>>1		ubyte		0x0e		Byte-compiled Python module for
+!:mime application/x-bytecode.python
+>>>0	uleshort	<3650		CPython 3.14
+>>>0	default		x
+>>>>0	uleshort	<3700		CPython 3.15
+>>>>0	default		x		CPython 3.16 or newer
+>>>0		use		pyc-pep552
+# PyPy magic numbers
 >>0		uleshort	240		Byte-compiled Python module for PyPy3.7
 !:mime application/x-bytecode.python
 >>>0		use		pyc-pep552
@@ -233,15 +240,21 @@
 >>0		uleshort	336		Byte-compiled Python module for PyPy3.9
 !:mime application/x-bytecode.python
 >>>0		use		pyc-pep552
+>>0		uleshort	384		Byte-compiled Python module for PyPy3.10
+!:mime application/x-bytecode.python
+>>>0		use		pyc-pep552
+>>0		uleshort	416		Byte-compiled Python module for PyPy3.11
+!:mime application/x-bytecode.python
+>>>0		use		pyc-pep552
 
 0	search/1/w	#!\040/usr/bin/python	Python script text executable
-!:strength + 15
+!:strength + 30
 !:mime text/x-script.python
 0	search/1/w	#!\040/usr/local/bin/python	Python script text executable
-!:strength + 15
+!:strength + 30
 !:mime text/x-script.python
 0	search/10/w	#!\040/usr/bin/env\040python	Python script text executable
-!:strength + 15
+!:strength + 30
 !:mime text/x-script.python
 
 

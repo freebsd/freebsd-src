@@ -74,7 +74,7 @@ struct sc_chinfo {
     struct snd_dbuf *buffer;
     struct pcm_channel *channel;
 
-    u_int32_t spd, fmt, bps, blksz;
+    uint32_t spd, fmt, bps, blksz;
 
     int dma_setup, dma_active, dma_chan;
 };
@@ -82,7 +82,7 @@ struct sc_chinfo {
 /* device private data */
 struct sc_info {
     device_t dev;
-    u_int32_t type;
+    uint32_t type;
 
     bus_space_tag_t st;
     bus_space_handle_t sh;
@@ -102,7 +102,7 @@ struct sc_info {
 /* prototypes */
 
 /* ADC/DAC control */
-static u_int32_t adcdac_go(struct sc_chinfo *ch, u_int32_t go);
+static uint32_t adcdac_go(struct sc_chinfo *ch, uint32_t go);
 static void      adcdac_prog(struct sc_chinfo *ch);
 
 /* power management and interrupt control */
@@ -111,18 +111,18 @@ static int       cs4281_power(struct sc_info *, int);
 static int       cs4281_init(struct sc_info *);
 
 /* talk to the card */
-static u_int32_t cs4281_rd(struct sc_info *, int);
-static void 	 cs4281_wr(struct sc_info *, int, u_int32_t);
+static uint32_t cs4281_rd(struct sc_info *, int);
+static void 	 cs4281_wr(struct sc_info *, int, uint32_t);
 
 /* misc */
-static u_int8_t  cs4281_rate_to_rv(u_int32_t);
-static u_int32_t cs4281_format_to_dmr(u_int32_t);
-static u_int32_t cs4281_format_to_bps(u_int32_t);
+static uint8_t  cs4281_rate_to_rv(uint32_t);
+static uint32_t cs4281_format_to_dmr(uint32_t);
+static uint32_t cs4281_format_to_bps(uint32_t);
 
 /* -------------------------------------------------------------------- */
 /* formats (do not add formats without editing cs_fmt_tab)              */
 
-static u_int32_t cs4281_fmts[] = {
+static uint32_t cs4281_fmts[] = {
     SND_FORMAT(AFMT_U8, 1, 0),
     SND_FORMAT(AFMT_U8, 2, 0),
     SND_FORMAT(AFMT_S8, 1, 0),
@@ -143,39 +143,39 @@ static struct pcmchan_caps cs4281_caps = {6024, 48000, cs4281_fmts, 0};
 /* -------------------------------------------------------------------- */
 /* Hardware */
 
-static inline u_int32_t
+static inline uint32_t
 cs4281_rd(struct sc_info *sc, int regno)
 {
     return bus_space_read_4(sc->st, sc->sh, regno);
 }
 
 static inline void
-cs4281_wr(struct sc_info *sc, int regno, u_int32_t data)
+cs4281_wr(struct sc_info *sc, int regno, uint32_t data)
 {
     bus_space_write_4(sc->st, sc->sh, regno, data);
     DELAY(100);
 }
 
 static inline void
-cs4281_clr4(struct sc_info *sc, int regno, u_int32_t mask)
+cs4281_clr4(struct sc_info *sc, int regno, uint32_t mask)
 {
-    u_int32_t r;
+    uint32_t r;
     r = cs4281_rd(sc, regno);
     cs4281_wr(sc, regno, r & ~mask);
 }
 
 static inline void
-cs4281_set4(struct sc_info *sc, int regno, u_int32_t mask)
+cs4281_set4(struct sc_info *sc, int regno, uint32_t mask)
 {
-    u_int32_t v;
+    uint32_t v;
     v = cs4281_rd(sc, regno);
     cs4281_wr(sc, regno, v | mask);
 }
 
 static int
-cs4281_waitset(struct sc_info *sc, int regno, u_int32_t mask, int tries)
+cs4281_waitset(struct sc_info *sc, int regno, uint32_t mask, int tries)
 {
-    u_int32_t v;
+    uint32_t v;
 
     while (tries > 0) {
 	DELAY(100);
@@ -187,9 +187,9 @@ cs4281_waitset(struct sc_info *sc, int regno, u_int32_t mask, int tries)
 }
 
 static int
-cs4281_waitclr(struct sc_info *sc, int regno, u_int32_t mask, int tries)
+cs4281_waitclr(struct sc_info *sc, int regno, uint32_t mask, int tries)
 {
-    u_int32_t v;
+    uint32_t v;
 
     while (tries > 0) {
 	DELAY(100);
@@ -203,13 +203,13 @@ cs4281_waitclr(struct sc_info *sc, int regno, u_int32_t mask, int tries)
 /* ------------------------------------------------------------------------- */
 /* Register value mapping functions */
 
-static u_int32_t cs4281_rates[] = {48000, 44100, 22050, 16000, 11025, 8000};
+static uint32_t cs4281_rates[] = {48000, 44100, 22050, 16000, 11025, 8000};
 #define CS4281_NUM_RATES sizeof(cs4281_rates)/sizeof(cs4281_rates[0])
 
-static u_int8_t
-cs4281_rate_to_rv(u_int32_t rate)
+static uint8_t
+cs4281_rate_to_rv(uint32_t rate)
 {
-    u_int32_t v;
+    uint32_t v;
 
     for (v = 0; v < CS4281_NUM_RATES; v++) {
 	if (rate == cs4281_rates[v]) return v;
@@ -220,20 +220,20 @@ cs4281_rate_to_rv(u_int32_t rate)
     return v;
 }
 
-static u_int32_t
-cs4281_rv_to_rate(u_int8_t rv)
+static uint32_t
+cs4281_rv_to_rate(uint8_t rv)
 {
-    u_int32_t r;
+    uint32_t r;
 
     if (rv < CS4281_NUM_RATES) return cs4281_rates[rv];
     r = 1536000 / rv;
     return r;
 }
 
-static inline u_int32_t
-cs4281_format_to_dmr(u_int32_t format)
+static inline uint32_t
+cs4281_format_to_dmr(uint32_t format)
 {
-    u_int32_t dmr = 0;
+    uint32_t dmr = 0;
     if (AFMT_8BIT & format)      dmr |= CS4281PCI_DMR_SIZE8;
     if (AFMT_CHANNEL(format) < 2) dmr |= CS4281PCI_DMR_MONO;
     if (AFMT_BIGENDIAN & format) dmr |= CS4281PCI_DMR_BEND;
@@ -241,8 +241,8 @@ cs4281_format_to_dmr(u_int32_t format)
     return dmr;
 }
 
-static inline u_int32_t
-cs4281_format_to_bps(u_int32_t format)
+static inline uint32_t
+cs4281_format_to_bps(uint32_t format)
 {
     return ((AFMT_8BIT & format) ? 1 : 2) *
 	((AFMT_CHANNEL(format) > 1) ? 2 : 1);
@@ -284,7 +284,7 @@ cs4281_rdcd(kobj_t obj, void *devinfo, int regno)
 }
 
 static int
-cs4281_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
+cs4281_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
 
@@ -339,12 +339,12 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     return ch;
 }
 
-static u_int32_t
-cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+cs4281chan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
     struct sc_chinfo *ch = data;
     struct sc_info *sc = ch->parent;
-    u_int32_t go;
+    uint32_t go;
 
     go = adcdac_go(ch, 0);
 
@@ -361,12 +361,12 @@ cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
     return ch->blksz;
 }
 
-static u_int32_t
-cs4281chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+cs4281chan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
     struct sc_chinfo *ch = data;
     struct sc_info *sc = ch->parent;
-    u_int32_t go, v, r;
+    uint32_t go, v, r;
 
     go = adcdac_go(ch, 0); /* pause */
     r = (ch->dma_chan == CS4281_DMA_PLAY) ? CS4281PCI_DACSR : CS4281PCI_ADCSR;
@@ -379,11 +379,11 @@ cs4281chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 }
 
 static int
-cs4281chan_setformat(kobj_t obj, void *data, u_int32_t format)
+cs4281chan_setformat(kobj_t obj, void *data, uint32_t format)
 {
     struct sc_chinfo *ch = data;
     struct sc_info *sc = ch->parent;
-    u_int32_t v, go;
+    uint32_t v, go;
 
     go = adcdac_go(ch, 0); /* pause */
 
@@ -404,12 +404,12 @@ cs4281chan_setformat(kobj_t obj, void *data, u_int32_t format)
     return 0;
 }
 
-static u_int32_t
+static uint32_t
 cs4281chan_getptr(kobj_t obj, void *data)
 {
     struct sc_chinfo *ch = data;
     struct sc_info *sc = ch->parent;
-    u_int32_t  dba, dca, ptr;
+    uint32_t  dba, dca, ptr;
     int sz;
 
     sz  = ch->buffer->bufsize;
@@ -466,11 +466,11 @@ CHANNEL_DECLARE(cs4281chan);
 /* adcdac_go enables/disable DMA channel, returns non-zero if DMA was
  * active before call */
 
-static u_int32_t
-adcdac_go(struct sc_chinfo *ch, u_int32_t go)
+static uint32_t
+adcdac_go(struct sc_chinfo *ch, uint32_t go)
 {
     struct sc_info *sc = ch->parent;
-    u_int32_t going;
+    uint32_t going;
 
     going = !(cs4281_rd(sc, CS4281PCI_DCR(ch->dma_chan)) & CS4281PCI_DCR_MSK);
 
@@ -488,7 +488,7 @@ static void
 adcdac_prog(struct sc_chinfo *ch)
 {
     struct sc_info *sc = ch->parent;
-    u_int32_t go;
+    uint32_t go;
 
     if (!ch->dma_setup) {
 	go = adcdac_go(ch, 0);
@@ -508,7 +508,7 @@ static void
 cs4281_intr(void *p)
 {
     struct sc_info *sc = (struct sc_info *)p;
-    u_int32_t hisr;
+    uint32_t hisr;
 
     hisr = cs4281_rd(sc, CS4281PCI_HISR);
 
@@ -558,7 +558,7 @@ cs4281_power(struct sc_info *sc, int state)
 static int
 cs4281_init(struct sc_info *sc)
 {
-    u_int32_t i, v;
+    uint32_t i, v;
 
     /* (0) Blast clock register and serial port */
     cs4281_wr(sc, CS4281PCI_CLKCR1, 0);

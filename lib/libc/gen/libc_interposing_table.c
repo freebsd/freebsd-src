@@ -43,6 +43,7 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(spinunlock, __libc_spinunlock_stub),
 	SLOT(map_stacks_exec, __libc_map_stacks_exec),
 	SLOT(uexterr_gettext, __libc_uexterr_gettext),
+	SLOT(uexterr_set, __libc_uexterr_set),
 };
 #undef SLOT
 

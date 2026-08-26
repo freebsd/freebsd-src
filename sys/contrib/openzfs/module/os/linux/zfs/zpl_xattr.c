@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2011, Lawrence Livermore National Security, LLC.
@@ -381,6 +371,12 @@ __zpl_xattr_get(struct inode *ip, const char *name, void *value, size_t size,
 			goto out;
 	}
 
+	/* Known to have no xattr directory; skip the directory lookup. */
+	if (zp->z_xattr_dir_absent) {
+		error = -ENOENT;
+		goto out;
+	}
+
 	error = zpl_xattr_get_dir(ip, name, value, size, cr);
 out:
 	if (error == -ENOENT)
@@ -502,7 +498,7 @@ zpl_xattr_set_dir(struct inode *ip, const char *name, const void *value,
 		vap->va_gid = crgetgid(cr);
 
 		error = -zfs_create(dxzp, (char *)name, vap, 0, 0644, &xzp,
-		    cr, ATTR_NOACLCHECK, NULL, zfs_init_idmap);
+		    cr, ATTR_NOACLCHECK, NULL);
 		if (error)
 			goto out;
 	}
@@ -517,6 +513,7 @@ zpl_xattr_set_dir(struct inode *ip, const char *name, const void *value,
 out:
 	if (error == 0) {
 		zpl_inode_set_ctime_to_ts(ip, current_time(ip));
+		atomic_inc_64(&ITOZ(ip)->z_seq);
 		zfs_mark_inode_dirty(ip);
 	}
 
@@ -701,6 +698,24 @@ out1:
  * ZFS allows extended user attributes to be disabled administratively
  * by setting the 'xattr=off' property on the dataset.
  */
+
+/*
+ * Concatenate prefix + name into a NUL-terminated stack buffer.
+ * Linux fs/xattr.c (import_xattr_name) caps the full xattr name at
+ * XATTR_NAME_MAX before any handler runs, so XATTR_NAME_MAX + 1
+ * bytes always fit.
+ */
+static inline void
+zpl_xattr_join_name(char *buf, size_t buflen, const char *prefix,
+    size_t prefix_len, const char *name, size_t name_len)
+{
+	ASSERT3U(prefix_len + name_len + 1, <=, buflen);
+
+	memcpy(buf, prefix, prefix_len);
+	memcpy(buf + prefix_len, name, name_len);
+	buf[prefix_len + name_len] = '\0';
+}
+
 static int
 __zpl_xattr_user_list(struct inode *ip, char *list, size_t list_size,
     const char *name, size_t name_len)
@@ -726,9 +741,13 @@ __zpl_xattr_user_get(struct inode *ip, const char *name,
 	 * try again without the namespace prefix for compatibility with
 	 * other platforms.
 	 */
-	char *xattr_name = kmem_asprintf("%s%s", XATTR_USER_PREFIX, name);
+	char xattr_name[XATTR_NAME_MAX + 1];
+
+	zpl_xattr_join_name(xattr_name, sizeof (xattr_name),
+	    XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN,
+	    name, strlen(name));
+
 	error = zpl_xattr_get(ip, xattr_name, value, size);
-	kmem_strfree(xattr_name);
 	if (error == -ENODATA)
 		error = zpl_xattr_get(ip, name, value, size);
 
@@ -737,11 +756,11 @@ __zpl_xattr_user_get(struct inode *ip, const char *name,
 ZPL_XATTR_GET_WRAPPER(zpl_xattr_user_get);
 
 static int
-__zpl_xattr_user_set(zidmap_t *user_ns,
+__zpl_xattr_user_set(zidmap_t *idmap,
     struct inode *ip, const char *name,
     const void *value, size_t size, int flags)
 {
-	(void) user_ns;
+	(void) idmap;
 	int error = 0;
 	/* xattr_resolve_name will do this for us if this is defined */
 	if (ZFS_XA_NS_PREFIX_FORBIDDEN(name))
@@ -758,8 +777,13 @@ __zpl_xattr_user_set(zidmap_t *user_ns,
 	 *   XATTR_CREATE: fail if xattr already exists
 	 *   XATTR_REPLACE: fail if xattr does not exist
 	 */
-	char *prefixed_name = kmem_asprintf("%s%s", XATTR_USER_PREFIX, name);
+	char prefixed_name[XATTR_NAME_MAX + 1];
 	const char *clear_name, *set_name;
+
+	zpl_xattr_join_name(prefixed_name, sizeof (prefixed_name),
+	    XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN,
+	    name, strlen(name));
+
 	if (zfs_xattr_compat) {
 		clear_name = prefixed_name;
 		set_name = name;
@@ -776,7 +800,7 @@ __zpl_xattr_user_set(zidmap_t *user_ns,
 	 * because it already exists.  Stop here.
 	 */
 	if (error == -EEXIST)
-		goto out;
+		return (error);
 	/*
 	 * If XATTR_REPLACE was specified and we succeeded to clear
 	 * an xattr, we don't need to replace anything when setting
@@ -788,10 +812,7 @@ __zpl_xattr_user_set(zidmap_t *user_ns,
 	/*
 	 * Set the new value with the configured name format.
 	 */
-	error = zpl_xattr_set(ip, set_name, value, size, flags);
-out:
-	kmem_strfree(prefixed_name);
-	return (error);
+	return (zpl_xattr_set(ip, set_name, value, size, flags));
 }
 ZPL_XATTR_SET_WRAPPER(zpl_xattr_user_set);
 
@@ -824,37 +845,35 @@ static int
 __zpl_xattr_trusted_get(struct inode *ip, const char *name,
     void *value, size_t size)
 {
-	char *xattr_name;
-	int error;
+	char xattr_name[XATTR_NAME_MAX + 1];
 
 	if (!capable(CAP_SYS_ADMIN))
 		return (-EACCES);
-	/* xattr_resolve_name will do this for us if this is defined */
-	xattr_name = kmem_asprintf("%s%s", XATTR_TRUSTED_PREFIX, name);
-	error = zpl_xattr_get(ip, xattr_name, value, size);
-	kmem_strfree(xattr_name);
 
-	return (error);
+	zpl_xattr_join_name(xattr_name, sizeof (xattr_name),
+	    XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN,
+	    name, strlen(name));
+
+	return (zpl_xattr_get(ip, xattr_name, value, size));
 }
 ZPL_XATTR_GET_WRAPPER(zpl_xattr_trusted_get);
 
 static int
-__zpl_xattr_trusted_set(zidmap_t *user_ns,
+__zpl_xattr_trusted_set(zidmap_t *idmap,
     struct inode *ip, const char *name,
     const void *value, size_t size, int flags)
 {
-	(void) user_ns;
-	char *xattr_name;
-	int error;
+	(void) idmap;
+	char xattr_name[XATTR_NAME_MAX + 1];
 
 	if (!capable(CAP_SYS_ADMIN))
 		return (-EACCES);
-	/* xattr_resolve_name will do this for us if this is defined */
-	xattr_name = kmem_asprintf("%s%s", XATTR_TRUSTED_PREFIX, name);
-	error = zpl_xattr_set(ip, xattr_name, value, size, flags);
-	kmem_strfree(xattr_name);
 
-	return (error);
+	zpl_xattr_join_name(xattr_name, sizeof (xattr_name),
+	    XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN,
+	    name, strlen(name));
+
+	return (zpl_xattr_set(ip, xattr_name, value, size, flags));
 }
 ZPL_XATTR_SET_WRAPPER(zpl_xattr_trusted_set);
 
@@ -889,31 +908,29 @@ static int
 __zpl_xattr_security_get(struct inode *ip, const char *name,
     void *value, size_t size)
 {
-	char *xattr_name;
-	int error;
-	/* xattr_resolve_name will do this for us if this is defined */
-	xattr_name = kmem_asprintf("%s%s", XATTR_SECURITY_PREFIX, name);
-	error = zpl_xattr_get(ip, xattr_name, value, size);
-	kmem_strfree(xattr_name);
+	char xattr_name[XATTR_NAME_MAX + 1];
 
-	return (error);
+	zpl_xattr_join_name(xattr_name, sizeof (xattr_name),
+	    XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN,
+	    name, strlen(name));
+
+	return (zpl_xattr_get(ip, xattr_name, value, size));
 }
 ZPL_XATTR_GET_WRAPPER(zpl_xattr_security_get);
 
 static int
-__zpl_xattr_security_set(zidmap_t *user_ns,
+__zpl_xattr_security_set(zidmap_t *idmap,
     struct inode *ip, const char *name,
     const void *value, size_t size, int flags)
 {
-	(void) user_ns;
-	char *xattr_name;
-	int error;
-	/* xattr_resolve_name will do this for us if this is defined */
-	xattr_name = kmem_asprintf("%s%s", XATTR_SECURITY_PREFIX, name);
-	error = zpl_xattr_set(ip, xattr_name, value, size, flags);
-	kmem_strfree(xattr_name);
+	(void) idmap;
+	char xattr_name[XATTR_NAME_MAX + 1];
 
-	return (error);
+	zpl_xattr_join_name(xattr_name, sizeof (xattr_name),
+	    XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN,
+	    name, strlen(name));
+
+	return (zpl_xattr_set(ip, xattr_name, value, size, flags));
 }
 ZPL_XATTR_SET_WRAPPER(zpl_xattr_security_set);
 
@@ -962,8 +979,8 @@ static xattr_handler_t zpl_xattr_security_handler = {
  * attribute implemented by filesystems in the kernel." - xattr(7)
  */
 #ifdef CONFIG_FS_POSIX_ACL
-static int
-zpl_set_acl_impl(struct inode *ip, struct posix_acl *acl, int type)
+int
+zpl_set_posix_acl(struct inode *ip, struct posix_acl *acl, int type)
 {
 	char *name, *value = NULL;
 	int error = 0;
@@ -992,6 +1009,7 @@ zpl_set_acl_impl(struct inode *ip, struct posix_acl *acl, int type)
 					ip->i_mode = ITOZ(ip)->z_mode = mode;
 					zpl_inode_set_ctime_to_ts(ip,
 					    current_time(ip));
+					atomic_inc_64(&ITOZ(ip)->z_seq);
 					zfs_mark_inode_dirty(ip);
 				}
 
@@ -1036,31 +1054,8 @@ zpl_set_acl_impl(struct inode *ip, struct posix_acl *acl, int type)
 	return (error);
 }
 
-int
-#ifdef HAVE_SET_ACL_USERNS
-zpl_set_acl(struct user_namespace *userns, struct inode *ip,
-    struct posix_acl *acl, int type)
-#elif defined(HAVE_SET_ACL_IDMAP_DENTRY)
-zpl_set_acl(struct mnt_idmap *userns, struct dentry *dentry,
-    struct posix_acl *acl, int type)
-#elif defined(HAVE_SET_ACL_USERNS_DENTRY_ARG2)
-zpl_set_acl(struct user_namespace *userns, struct dentry *dentry,
-    struct posix_acl *acl, int type)
-#else
-zpl_set_acl(struct inode *ip, struct posix_acl *acl, int type)
-#endif /* HAVE_SET_ACL_USERNS */
-{
-#ifdef HAVE_SET_ACL_USERNS_DENTRY_ARG2
-	return (zpl_set_acl_impl(d_inode(dentry), acl, type));
-#elif defined(HAVE_SET_ACL_IDMAP_DENTRY)
-	return (zpl_set_acl_impl(d_inode(dentry), acl, type));
-#else
-	return (zpl_set_acl_impl(ip, acl, type));
-#endif /* HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
-}
-
-static struct posix_acl *
-zpl_get_acl_impl(struct inode *ip, int type)
+struct posix_acl *
+zpl_get_posix_acl(struct inode *ip, int type)
 {
 	struct posix_acl *acl;
 	void *value = NULL;
@@ -1097,25 +1092,6 @@ zpl_get_acl_impl(struct inode *ip, int type)
 	return (acl);
 }
 
-#if defined(HAVE_GET_ACL_RCU) || defined(HAVE_GET_INODE_ACL)
-struct posix_acl *
-zpl_get_acl(struct inode *ip, int type, bool rcu)
-{
-	if (rcu)
-		return (ERR_PTR(-ECHILD));
-
-	return (zpl_get_acl_impl(ip, type));
-}
-#elif defined(HAVE_GET_ACL)
-struct posix_acl *
-zpl_get_acl(struct inode *ip, int type)
-{
-	return (zpl_get_acl_impl(ip, type));
-}
-#else
-#error "Unsupported iops->get_acl() implementation"
-#endif /* HAVE_GET_ACL_RCU */
-
 int
 zpl_init_acl(struct inode *ip, struct inode *dir)
 {
@@ -1126,12 +1102,13 @@ zpl_init_acl(struct inode *ip, struct inode *dir)
 		return (0);
 
 	if (!S_ISLNK(ip->i_mode)) {
-		acl = zpl_get_acl_impl(dir, ACL_TYPE_DEFAULT);
+		acl = zpl_get_posix_acl(dir, ACL_TYPE_DEFAULT);
 		if (IS_ERR(acl))
 			return (PTR_ERR(acl));
 		if (!acl) {
 			ITOZ(ip)->z_mode = (ip->i_mode &= ~current_umask());
 			zpl_inode_set_ctime_to_ts(ip, current_time(ip));
+			atomic_inc_64(&ITOZ(ip)->z_seq);
 			zfs_mark_inode_dirty(ip);
 			return (0);
 		}
@@ -1141,7 +1118,7 @@ zpl_init_acl(struct inode *ip, struct inode *dir)
 		umode_t mode;
 
 		if (S_ISDIR(ip->i_mode)) {
-			error = zpl_set_acl_impl(ip, acl, ACL_TYPE_DEFAULT);
+			error = zpl_set_posix_acl(ip, acl, ACL_TYPE_DEFAULT);
 			if (error)
 				goto out;
 		}
@@ -1150,9 +1127,10 @@ zpl_init_acl(struct inode *ip, struct inode *dir)
 		error = __posix_acl_create(&acl, GFP_KERNEL, &mode);
 		if (error >= 0) {
 			ip->i_mode = ITOZ(ip)->z_mode = mode;
+			atomic_inc_64(&ITOZ(ip)->z_seq);
 			zfs_mark_inode_dirty(ip);
 			if (error > 0) {
-				error = zpl_set_acl_impl(ip, acl,
+				error = zpl_set_posix_acl(ip, acl,
 				    ACL_TYPE_ACCESS);
 			}
 		}
@@ -1175,13 +1153,13 @@ zpl_chmod_acl(struct inode *ip)
 	if (S_ISLNK(ip->i_mode))
 		return (-EOPNOTSUPP);
 
-	acl = zpl_get_acl_impl(ip, ACL_TYPE_ACCESS);
+	acl = zpl_get_posix_acl(ip, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
 		return (PTR_ERR(acl));
 
 	error = __posix_acl_chmod(&acl, GFP_KERNEL, ip->i_mode);
 	if (!error)
-		error = zpl_set_acl_impl(ip, acl, ACL_TYPE_ACCESS);
+		error = zpl_set_posix_acl(ip, acl, ACL_TYPE_ACCESS);
 
 	zpl_posix_acl_release(acl);
 
@@ -1233,7 +1211,7 @@ __zpl_xattr_acl_get_access(struct inode *ip, const char *name,
 	if (ITOZSB(ip)->z_acl_type != ZFS_ACLTYPE_POSIX)
 		return (-EOPNOTSUPP);
 
-	acl = zpl_get_acl_impl(ip, type);
+	acl = zpl_get_posix_acl(ip, type);
 	if (IS_ERR(acl))
 		return (PTR_ERR(acl));
 	if (acl == NULL)
@@ -1257,7 +1235,7 @@ __zpl_xattr_acl_get_default(struct inode *ip, const char *name,
 	if (ITOZSB(ip)->z_acl_type != ZFS_ACLTYPE_POSIX)
 		return (-EOPNOTSUPP);
 
-	acl = zpl_get_acl_impl(ip, type);
+	acl = zpl_get_posix_acl(ip, type);
 	if (IS_ERR(acl))
 		return (PTR_ERR(acl));
 	if (acl == NULL)
@@ -1271,7 +1249,7 @@ __zpl_xattr_acl_get_default(struct inode *ip, const char *name,
 ZPL_XATTR_GET_WRAPPER(zpl_xattr_acl_get_default);
 
 static int
-__zpl_xattr_acl_set_access(zidmap_t *mnt_ns,
+__zpl_xattr_acl_set_access(zidmap_t *idmap,
     struct inode *ip, const char *name,
     const void *value, size_t size, int flags)
 {
@@ -1282,14 +1260,8 @@ __zpl_xattr_acl_set_access(zidmap_t *mnt_ns,
 	if (ITOZSB(ip)->z_acl_type != ZFS_ACLTYPE_POSIX)
 		return (-EOPNOTSUPP);
 
-#if defined(HAVE_XATTR_SET_USERNS) || defined(HAVE_XATTR_SET_IDMAP)
-	if (!zpl_inode_owner_or_capable(mnt_ns, ip))
+	if (!zpl_inode_owner_or_capable(idmap, ip))
 		return (-EPERM);
-#else
-	(void) mnt_ns;
-	if (!zpl_inode_owner_or_capable(zfs_init_idmap, ip))
-		return (-EPERM);
-#endif
 
 	if (value) {
 		acl = zpl_acl_from_xattr(value, size);
@@ -1305,7 +1277,7 @@ __zpl_xattr_acl_set_access(zidmap_t *mnt_ns,
 	} else {
 		acl = NULL;
 	}
-	error = zpl_set_acl_impl(ip, acl, type);
+	error = zpl_set_posix_acl(ip, acl, type);
 	zpl_posix_acl_release(acl);
 
 	return (error);
@@ -1313,7 +1285,7 @@ __zpl_xattr_acl_set_access(zidmap_t *mnt_ns,
 ZPL_XATTR_SET_WRAPPER(zpl_xattr_acl_set_access);
 
 static int
-__zpl_xattr_acl_set_default(zidmap_t *mnt_ns,
+__zpl_xattr_acl_set_default(zidmap_t *idmap,
     struct inode *ip, const char *name,
     const void *value, size_t size, int flags)
 {
@@ -1324,14 +1296,8 @@ __zpl_xattr_acl_set_default(zidmap_t *mnt_ns,
 	if (ITOZSB(ip)->z_acl_type != ZFS_ACLTYPE_POSIX)
 		return (-EOPNOTSUPP);
 
-#if defined(HAVE_XATTR_SET_USERNS) || defined(HAVE_XATTR_SET_IDMAP)
-	if (!zpl_inode_owner_or_capable(mnt_ns, ip))
+	if (!zpl_inode_owner_or_capable(idmap, ip))
 		return (-EPERM);
-#else
-	(void) mnt_ns;
-	if (!zpl_inode_owner_or_capable(zfs_init_idmap, ip))
-		return (-EPERM);
-#endif
 
 	if (value) {
 		acl = zpl_acl_from_xattr(value, size);
@@ -1348,7 +1314,7 @@ __zpl_xattr_acl_set_default(zidmap_t *mnt_ns,
 		acl = NULL;
 	}
 
-	error = zpl_set_acl_impl(ip, acl, type);
+	error = zpl_set_posix_acl(ip, acl, type);
 	zpl_posix_acl_release(acl);
 
 	return (error);

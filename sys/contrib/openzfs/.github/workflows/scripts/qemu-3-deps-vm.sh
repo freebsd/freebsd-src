@@ -3,12 +3,41 @@
 ######################################################################
 # 3) install dependencies for compiling and loading
 #
-# $1: OS name (like 'fedora41')
-# $2: (optional) Experimental Fedora kernel version, like "6.14" to
+# qemu-3-deps-vm.sh [--poweroff] OS_NAME [FEDORA_VERSION]
+#
+# --poweroff: Power off the VM after installing dependencies
+# OS_NAME: OS name (like 'fedora41')
+# FEDORA_VERSION: (optional) Experimental Fedora kernel version, like "6.14" to
 #     install instead of Fedora defaults.
 ######################################################################
 
 set -eu
+
+function alpine() {
+  echo "##[group]Install Development Tools"
+  sudo apk add \
+    acl alpine-sdk attr autoconf automake bash build-base clang22 coreutils \
+    cpio cryptsetup curl curl-dev dhcpcd eudev eudev-dev eudev-libs findutils \
+    fio gawk gdb gettext-dev git grep jq libaio libaio-dev libcurl \
+    libtirpc-dev libtool libunwind libunwind-dev linux-headers linux-tools \
+    linux-virt linux-virt-dev lsscsi m4 make nfs-utils openssl-dev parted \
+    pax procps py3-cffi py3-distlib py3-packaging py3-setuptools python3 \
+    python3-dev qemu-guest-agent rng-tools rsync samba samba-server sed \
+    strace sysstat util-linux util-linux-dev wget words xfsprogs xxhash \
+    zlib-dev pamtester@testing
+  echo "##[endgroup]"
+
+  echo "##[group]Switch to eudev"
+  sudo setup-devd udev
+  echo "##[endgroup]"
+
+  echo "##[group]Install ksh93 from Source"
+  git clone --depth 1 https://github.com/ksh93/ksh.git /tmp/ksh
+  cd /tmp/ksh
+  ./bin/package make
+  sudo ./bin/package install /
+  echo "##[endgroup]"
+}
 
 function archlinux() {
   echo "##[group]Running pacman -Syu"
@@ -26,6 +55,10 @@ function archlinux() {
 
 function debian() {
   export DEBIAN_FRONTEND="noninteractive"
+
+  echo "##[group]Wait for cloud-init to finish"
+  cloud-init status --wait
+  echo "##[endgroup]"
 
   echo "##[group]Running apt-get update+upgrade"
   sudo sed -i '/[[:alpha:]]-backports/d' /etc/apt/sources.list
@@ -90,6 +123,11 @@ function rhel() {
     kernel-devel python3-setuptools qemu-guest-agent rng-tools rpcgen \
     rpm-build rsync samba strace sysstat systemd watchdog wget xfsprogs-devel \
     xxhash zlib-devel
+
+  # These are needed for building Lustre.  We only install these on EL VMs since
+  # we don't plan to test build Lustre on other platforms.
+  sudo dnf install -y libnl3-devel libyaml-devel libmount-devel
+
   echo "##[endgroup]"
 }
 
@@ -118,6 +156,12 @@ function install_fedora_experimental_kernel {
   sudo dnf -y copr disable @kernel-vanilla/mainline
 }
 
+POWEROFF=""
+if [ "$1" == "--poweroff" ] ; then
+        POWEROFF=1
+        shift
+fi
+
 # Install dependencies
 case "$1" in
   almalinux8)
@@ -139,6 +183,9 @@ case "$1" in
     echo "##[group]Install kernel-abi-stablelists"
     sudo dnf install -y kernel-abi-stablelists
     echo "##[endgroup]"
+    ;;
+  alpine*)
+    alpine
     ;;
   archlinux)
     archlinux
@@ -168,12 +215,38 @@ case "$1" in
   tumbleweed)
     tumbleweed
     ;;
-  ubuntu*)
+  ubuntu22|ubuntu24)
     debian
     echo "##[group]Install Ubuntu specific"
     sudo apt-get install -yq linux-tools-common libtirpc-dev \
       linux-modules-extra-$(uname -r)
     sudo apt-get install -yq dh-sequence-dkms
+
+    # Need 'build-essential' explicitly for ARM builder
+    # https://github.com/actions/runner-images/issues/9946
+    sudo apt-get install -yq build-essential
+
+    echo "##[endgroup]"
+    echo "##[group]Delete Ubuntu OpenZFS modules"
+    for i in $(find /lib/modules -name zfs -type d); do sudo rm -rvf $i; done
+    echo "##[endgroup]"
+    ;;
+  ubuntu26)
+    debian
+    echo "##[group]Install Ubuntu specific"
+    # Skip linux-modules-extra which is already installed
+    sudo apt-get install -yq linux-tools-common
+    sudo apt-get install -yq libtirpc-dev
+    sudo apt-get install -yq dh-sequence-dkms
+
+    # Need 'build-essential' explicitly for ARM builder
+    # https://github.com/actions/runner-images/issues/9946
+    sudo apt-get install -yq build-essential
+
+    # Replace sudo-rs with sudo for now because the Rust version
+    # does not support -E to preserve the entire environment
+    sudo update-alternatives --set sudo /usr/bin/sudo.ws
+
     echo "##[endgroup]"
     echo "##[group]Delete Ubuntu OpenZFS modules"
     for i in $(find /lib/modules -name zfs -type d); do sudo rm -rvf $i; done
@@ -188,6 +261,16 @@ test -z "${ONLY_DEPS:-}" || exit 0
 # Start services
 echo "##[group]Enable services"
 case "$1" in
+  alpine*)
+    sudo -E rc-update add qemu-guest-agent
+    sudo -E rc-update add nfs
+    sudo -E rc-update add samba
+    sudo -E rc-update add dhcpcd
+    # Remove services related to cloud-init.
+    sudo -E rc-update del cloud-init default
+    sudo -E rc-update del cloud-final default
+    sudo -E rc-update del cloud-config default
+    ;;
   freebsd*)
     # add virtio things
     echo 'virtio_load="YES"' | sudo -E tee -a /boot/loader.conf
@@ -205,8 +288,19 @@ case "$1" in
     ;;
   debian*|ubuntu*)
     sudo -E systemctl enable nfs-kernel-server
-    sudo -E systemctl enable qemu-guest-agent
     sudo -E systemctl enable smbd
+
+    # enable usershares (disabled by default on ubuntu 26.04)
+    sudo -E sed -i '/usershare max shares/s/^#//' /etc/samba/smb.conf
+
+    # add systemd drop-in to allow the service to be enabled
+    sudo -E mkdir -p /etc/systemd/system/qemu-guest-agent.service.d/
+    sudo -E tee /etc/systemd/system/qemu-guest-agent.service.d/override.conf <<EOF
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo -E systemctl daemon-reload
+    sudo -E systemctl enable qemu-guest-agent
     ;;
   *)
     # All other linux distros
@@ -230,7 +324,7 @@ case "$1" in
     echo 'GRUB_SERIAL_COMMAND="serial --speed=115200"' \
       | sudo tee -a /etc/default/grub >/dev/null
     ;;
-  ubuntu24)
+  ubuntu24|ubuntu26)
     GRUB_CFG="/boot/grub/grub.cfg"
     GRUB_MKCONFIG="grub-mkconfig"
     echo 'GRUB_DISABLE_OS_PROBER="false"' \
@@ -243,7 +337,7 @@ case "$1" in
 esac
 
 case "$1" in
-  archlinux|freebsd*)
+  alpine*|archlinux|freebsd*)
     true
     ;;
   *)
@@ -258,5 +352,7 @@ esac
 
 # reset cloud-init configuration and poweroff
 sudo cloud-init clean --logs
-sleep 2 && sudo poweroff &
+if [ "$POWEROFF" == "1" ] ; then
+        sleep 2 && sudo poweroff &
+fi
 exit 0

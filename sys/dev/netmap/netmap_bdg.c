@@ -1043,6 +1043,10 @@ netmap_bdg_config(struct nm_ifreq *nr)
 	struct nm_bridge *b;
 	int error = EINVAL;
 
+	if (strnlen(nr->nifr_name, sizeof(nr->nifr_name)) >=
+	    sizeof(nr->nifr_name))
+		return error;
+
 	NMG_LOCK();
 	b = nm_find_bridge(nr->nifr_name, 0, NULL);
 	if (!b) {

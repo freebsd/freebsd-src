@@ -462,11 +462,19 @@ void vlan_newlink(const char *ifname, struct hostapd_data *hapd)
 {
 	char br_name[IFNAMSIZ];
 	struct hostapd_vlan *vlan;
+	struct hostapd_data *vlan_bss = hapd;
 	int untagged, *tagged, i, notempty;
 
 	wpa_printf(MSG_DEBUG, "VLAN: vlan_newlink(%s)", ifname);
 
-	for (vlan = hapd->conf->vlan; vlan; vlan = vlan->next) {
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap) {
+		vlan_bss = hostapd_mld_get_first_bss(hapd);
+		if (vlan_bss == NULL)
+			vlan_bss = hapd;
+	}
+#endif /* CONFIG_IEEE80211BE */
+	for (vlan = vlan_bss->conf->vlan; vlan; vlan = vlan->next) {
 		if (vlan->configured ||
 		    os_strcmp(ifname, vlan->ifname) != 0)
 			continue;
@@ -563,10 +571,20 @@ static void vlan_put_bridge(const char *br_name, struct hostapd_data *hapd,
 
 void vlan_dellink(const char *ifname, struct hostapd_data *hapd)
 {
-	struct hostapd_vlan *first, *prev, *vlan = hapd->conf->vlan;
+	struct hostapd_vlan *first, *prev, *vlan;
+	struct hostapd_data *vlan_bss = hapd;
 
 	wpa_printf(MSG_DEBUG, "VLAN: vlan_dellink(%s)", ifname);
 
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap) {
+		vlan_bss = hostapd_mld_get_first_bss(hapd);
+		if (!vlan_bss)
+			vlan_bss = hapd;
+	}
+#endif /* CONFIG_IEEE80211BE */
+
+	vlan = vlan_bss->conf->vlan;
 	first = prev = vlan;
 
 	while (vlan) {

@@ -71,6 +71,6 @@ DEFINE_TEST(test_read_filter_lzop_multiple_parts)
 	assertEqualString(archive_filter_name(a, 0), "lzop");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

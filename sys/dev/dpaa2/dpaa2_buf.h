@@ -33,6 +33,8 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
 
 #include <machine/bus.h>
 

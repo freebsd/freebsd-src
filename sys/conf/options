@@ -39,7 +39,7 @@ AHC_DEBUG_OPTS		opt_aic7xxx.h
 AHC_REG_PRETTY_PRINT	opt_aic7xxx.h
 AHD_DEBUG		opt_aic79xx.h
 AHD_DEBUG_OPTS		opt_aic79xx.h
-AHD_TMODE_ENABLE	opt_aic79xx.h	
+AHD_TMODE_ENABLE	opt_aic79xx.h
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 
 # Debugging options
@@ -100,11 +100,11 @@ COMPAT_FREEBSD11	opt_global.h
 COMPAT_FREEBSD12	opt_global.h
 COMPAT_FREEBSD13	opt_global.h
 COMPAT_FREEBSD14	opt_global.h
+COMPAT_FREEBSD15	opt_global.h
 COMPAT_LINUXKPI	opt_dontuse.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
-EXPERIMENTAL	opt_global.h
 DIRECTIO
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
@@ -387,6 +387,9 @@ CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 # Options used only in cam/scsi/scsi_da.c
 DA_TRACK_REFS		opt_da.h
 
+# Allow unsafe PA transactions
+PASS_UNSAFE_PADDR	opt_pass.h
+
 # Options used only in cam/scsi/scsi_sa.c
 SA_IO_TIMEOUT		opt_sa.h
 SA_SPACE_TIMEOUT	opt_sa.h
@@ -473,7 +476,6 @@ MROUTING		opt_mrouting.h
 NFSLOCKD
 NETLINK			opt_global.h
 PF_DEFAULT_TO_DROP	opt_pf.h
-ROUTE_MPATH		opt_route.h
 ROUTETABLES		opt_route.h
 FIB_ALGO		opt_route.h
 RSS			opt_rss.h
@@ -867,7 +869,7 @@ IWN_DEBUG		opt_iwn.h
 # Options for the Intel 3945ABG wireless driver
 WPI_DEBUG		opt_wpi.h
 
-# dcons options 
+# dcons options
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
 DCONS_FORCE_CONSOLE	opt_dcons.h
@@ -915,13 +917,9 @@ CFI_ARMEDANDDANGEROUS	opt_cfi.h
 CFI_HARDWAREBYTESWAP	opt_cfi.h
 
 # Sound options
-SND_DEBUG		opt_snd.h
 SND_DIAGNOSTIC		opt_snd.h
-SND_FEEDER_MULTIFORMAT	opt_snd.h
-SND_FEEDER_FULL_MULTIFORMAT	opt_snd.h
 SND_FEEDER_RATE_HP	opt_snd.h
 SND_PCM_64		opt_snd.h
-SND_OLDSTEREO		opt_snd.h
 
 X86BIOS
 

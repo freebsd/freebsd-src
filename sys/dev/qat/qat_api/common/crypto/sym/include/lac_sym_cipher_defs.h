@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -51,6 +51,12 @@
 #define LAC_CIPHER_CCM_ENCODED_AAD_LEN_SIZE 2
 #define LAC_CIPHER_CCM_AAD_OFFSET                                              \
 	(LAC_CIPHER_CCM_B0_SIZE + LAC_CIPHER_CCM_ENCODED_AAD_LEN_SIZE)
+
+/* The hardware requires the AAD buffer to be padded out to a multiple
+ * of 16 for these algorithms:
+ * AES_CCM, AES_GCM, CHACHA
+ */
+#define LAC_SYM_CIPHER_AAD_PADLEN 16
 
 #define LAC_SYM_SNOW3G_CIPHER_CONFIG_FOR_HASH_SZ 40
 /* Snow3g cipher config required for performing a Snow3g hash operation.

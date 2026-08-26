@@ -703,8 +703,8 @@ FORK_TEST(Capmode, NewThread) {
   close(thread_pipe[1]);
 }
 
-static volatile sig_atomic_t had_signal = 0;
-static void handle_signal(int) { had_signal = 1; }
+static volatile sig_atomic_t signal_cnt = 0;
+static void handle_signal(int) { signal_cnt++; }
 
 FORK_TEST(Capmode, SelfKill) {
   pid_t me = getpid();
@@ -722,7 +722,13 @@ FORK_TEST(Capmode, SelfKill) {
   // Can only kill(2) to own pid.
   EXPECT_CAPMODE(kill(child, SIGUSR1));
   EXPECT_OK(kill(me, SIGUSR1));
-  EXPECT_EQ(1, had_signal);
+  EXPECT_EQ(1, signal_cnt);
+
+  union sigval sv;
+  sv.sival_int = 0x1234;
+  EXPECT_CAPMODE(sigqueue(child, SIGUSR1, sv));
+  EXPECT_OK(sigqueue(me, SIGUSR1, sv));
+  EXPECT_EQ(2, signal_cnt);
 
   signal(SIGUSR1, original);
 }

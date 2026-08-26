@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -34,11 +24,16 @@
 #include <libzutil.h>
 
 static void
-dump_ddt_stat(const ddt_stat_t *dds, int h)
+dump_ddt_stat(const ddt_stat_t *dds, int h, boolean_t parsable)
 {
-	char refcnt[6];
-	char blocks[6], lsize[6], psize[6], dsize[6];
-	char ref_blocks[6], ref_lsize[6], ref_psize[6], ref_dsize[6];
+	char refcnt[32];
+	char blocks[32], lsize[32], psize[32], dsize[32];
+	char ref_blocks[32], ref_lsize[32], ref_psize[32], ref_dsize[32];
+
+	enum zfs_nicenum_format count_format = parsable ?
+	    ZFS_NICENUM_RAW : ZFS_NICENUM_1024;
+	enum zfs_nicenum_format byte_format = parsable ?
+	    ZFS_NICENUM_RAW : ZFS_NICENUM_BYTES;
 
 	if (dds == NULL || dds->dds_blocks == 0)
 		return;
@@ -46,16 +41,26 @@ dump_ddt_stat(const ddt_stat_t *dds, int h)
 	if (h == -1)
 		(void) strcpy(refcnt, "Total");
 	else
-		zfs_nicenum(1ULL << h, refcnt, sizeof (refcnt));
+		zfs_nicenum_format(1ULL << h, refcnt, sizeof (refcnt),
+		    count_format);
 
-	zfs_nicenum(dds->dds_blocks, blocks, sizeof (blocks));
-	zfs_nicebytes(dds->dds_lsize, lsize, sizeof (lsize));
-	zfs_nicebytes(dds->dds_psize, psize, sizeof (psize));
-	zfs_nicebytes(dds->dds_dsize, dsize, sizeof (dsize));
-	zfs_nicenum(dds->dds_ref_blocks, ref_blocks, sizeof (ref_blocks));
-	zfs_nicebytes(dds->dds_ref_lsize, ref_lsize, sizeof (ref_lsize));
-	zfs_nicebytes(dds->dds_ref_psize, ref_psize, sizeof (ref_psize));
-	zfs_nicebytes(dds->dds_ref_dsize, ref_dsize, sizeof (ref_dsize));
+
+	zfs_nicenum_format(dds->dds_blocks, blocks, sizeof (blocks),
+	    count_format);
+	zfs_nicenum_format(dds->dds_lsize, lsize, sizeof (lsize),
+	    byte_format);
+	zfs_nicenum_format(dds->dds_psize, psize, sizeof (psize),
+	    byte_format);
+	zfs_nicenum_format(dds->dds_dsize, dsize, sizeof (dsize),
+	    byte_format);
+	zfs_nicenum_format(dds->dds_ref_blocks, ref_blocks,
+	    sizeof (ref_blocks), count_format);
+	zfs_nicenum_format(dds->dds_ref_lsize, ref_lsize,
+	    sizeof (ref_lsize), byte_format);
+	zfs_nicenum_format(dds->dds_ref_psize, ref_psize,
+	    sizeof (ref_psize), byte_format);
+	zfs_nicenum_format(dds->dds_ref_dsize, ref_dsize,
+	    sizeof (ref_dsize), byte_format);
 
 	(void) printf("%6s   %6s   %5s   %5s   %5s   %6s   %5s   %5s   %5s\n",
 	    refcnt,
@@ -67,7 +72,8 @@ dump_ddt_stat(const ddt_stat_t *dds, int h)
  * Print the DDT histogram and the column totals.
  */
 void
-zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh)
+zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh,
+    boolean_t parsable)
 {
 	int h;
 
@@ -91,9 +97,9 @@ zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh)
 	    "------", "-----", "-----", "-----");
 
 	for (h = 0; h < 64; h++)
-		dump_ddt_stat(&ddh->ddh_stat[h], h);
+		dump_ddt_stat(&ddh->ddh_stat[h], h, parsable);
 
-	dump_ddt_stat(dds_total, -1);
+	dump_ddt_stat(dds_total, -1, parsable);
 
 	(void) printf("\n");
 }

@@ -97,3 +97,7 @@ cosl(long double x)
 	
 	RETURNI(hi);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(cosl, cosf128);
+#endif

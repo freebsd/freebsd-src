@@ -577,6 +577,11 @@ smbfs_rename(struct vop_rename_args *ap)
 		goto out;
 	}
 
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
 	if (tvp && vrefcnt(tvp) > 1) {
 		error = EBUSY;
 		goto out;

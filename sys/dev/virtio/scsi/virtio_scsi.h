@@ -162,6 +162,15 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
 #define VIRTIO_SCSI_T_PARAM_CHANGE             3
 
+/*
+ * SCSI ASC/ASCQ Sense Codes
+ * https://www.t10.org/lists/asc-num.txt
+ */
+#define VIRTIO_SCSI_ASC(x)			((x) & 0xff)
+#define VIRTIO_SCSI_ASCQ(x)			(((x) >> 8) & 0xff)
+#define VIRTIO_SCSI_CAPACITY_CHNG_ASC		0x2a
+#define VIRTIO_SCSI_CAPACITY_CHNG_ASCQ		0x09
+
 /* Reasons of transport reset event */
 #define VIRTIO_SCSI_EVT_RESET_HARD             0
 #define VIRTIO_SCSI_EVT_RESET_RESCAN           1

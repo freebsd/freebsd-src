@@ -1,0 +1,4 @@
+Name: CFlags Whitespace Bug
+Description: Demonstrates problems with -I with spaces and sysroot munging
+Version: 1
+Cflags: -I /opt/bad/include

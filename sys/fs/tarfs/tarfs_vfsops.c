@@ -1005,11 +1005,6 @@ tarfs_mount(struct mount *mp)
 		error = EOPNOTSUPP;
 		goto bad_open_locked;
 	}
-	error = priv_check(td, PRIV_VFS_MOUNT_PERM);
-	if (error != 0) {
-		TARFS_DPF(FS, "%s: not permitted to mount\n", __func__);
-		goto bad_open_locked;
-	}
 	if (flags & O_VERIFY) {
 		mp->mnt_flag |= MNT_VERIFIED;
 	}
@@ -1241,6 +1236,6 @@ static struct vfsops tarfs_vfsops = {
 	.vfs_unmount =	tarfs_unmount,
 	.vfs_vget =	tarfs_vget,
 };
-VFS_SET(tarfs_vfsops, tarfs, VFCF_READONLY);
+VFS_SET(tarfs_vfsops, tarfs, VFCF_JAIL | VFCF_READONLY);
 MODULE_VERSION(tarfs, 1);
 MODULE_DEPEND(tarfs, xz, 1, 1, 1);

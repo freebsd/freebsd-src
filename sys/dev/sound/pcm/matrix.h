@@ -29,11 +29,6 @@
 #ifndef _SND_MATRIX_H_
 #define _SND_MATRIX_H_
 
-#undef SND_MULTICHANNEL
-#ifndef SND_OLDSTEREO
-#define SND_MULTICHANNEL	1
-#endif
-
 /*
  * XXX = unused, but part of the definition (will be used someday, maybe).
  */
@@ -176,18 +171,12 @@
 #define SND_CHN_T_END		SND_CHN_T_TBR
 #define SND_CHN_T_STEP		1
 #define SND_CHN_MIN		1
-
-#ifdef SND_MULTICHANNEL
 #define SND_CHN_MAX		8
-#else
-#define SND_CHN_MAX		2
-#endif
 
 /*
  * Multichannel interleaved volume matrix. Each calculated value relative
  * to master and 0db will be stored in each CLASS + 1 as long as
- * chn_setvolume_matrix() or the equivalent CHN_SETVOLUME() macros is
- * used (see channel.c).
+ * chn_setvolume_matrix() is used (see channel.c).
  */
 #define SND_VOL_C_MASTER	0
 #define SND_VOL_C_PCM		1

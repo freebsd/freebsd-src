@@ -85,6 +85,13 @@ static struct usb_bus usb_global_bus = {
 
 static struct libusb20_backend *usb_backend = NULL;
 
+/*
+ * The backend context lives for the lifetime of the process, because
+ * opened devices are dequeued from the backend and survive backend
+ * rescans. The libusb v0.1 API has no exit function anyway.
+ */
+static struct libusb20_be_ctx *usb_be_ctx = NULL;
+
 struct usb_parse_state {
 
 	struct {
@@ -901,8 +908,14 @@ usb_find_devices(void)
 
 	libusb20_be_free(usb_backend);
 
+	if (usb_be_ctx == NULL) {
+		usb_be_ctx = libusb20_be_ctx_alloc();
+		if (usb_be_ctx == NULL) {
+			return (-1);
+		}
+	}
 	/* do a new backend device search */
-	usb_backend = libusb20_be_alloc_default();
+	usb_backend = libusb20_be_alloc_default(usb_be_ctx);
 	if (usb_backend == NULL) {
 		return (-1);
 	}
@@ -1018,6 +1031,24 @@ usb_detach_kernel_driver_np(usb_dev_handle * dev, int interface)
 		return (-1);
 
 	err = libusb20_dev_detach_kernel_driver(pdev, interface);
+	if (err != 0)
+		return (-1);
+
+	return (0);
+}
+
+int
+usb_attach_kernel_driver_np(usb_dev_handle *dev, int interface)
+{
+	struct libusb20_device *pdev;
+	int err;
+
+	pdev = (void *)dev;
+
+	if (pdev == NULL)
+		return (-1);
+
+	err = libusb20_dev_attach_kernel_driver(pdev, interface);
 	if (err != 0)
 		return (-1);
 

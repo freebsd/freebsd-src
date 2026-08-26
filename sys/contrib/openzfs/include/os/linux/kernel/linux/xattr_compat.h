@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -71,13 +61,7 @@ fn(const struct xattr_handler *handler, struct dentry *dentry,		\
 }
 #endif
 
-/*
- * 6.3 API change,
- * The xattr_handler->set() callback was changed to take the
- * struct mnt_idmap* as the first arg, to support idmapped
- * mounts.
- */
-#if defined(HAVE_XATTR_SET_IDMAP)
+#if defined(HAVE_IDMAP_MNTIDMAP)
 #define	ZPL_XATTR_SET_WRAPPER(fn)					\
 static int								\
 fn(const struct xattr_handler *handler, struct mnt_idmap *user_ns,	\
@@ -86,13 +70,7 @@ fn(const struct xattr_handler *handler, struct mnt_idmap *user_ns,	\
 {									\
 	return (__ ## fn(user_ns, inode, name, buffer, size, flags));	\
 }
-/*
- * 5.12 API change,
- * The xattr_handler->set() callback was changed to take the
- * struct user_namespace* as the first arg, to support idmapped
- * mounts.
- */
-#elif defined(HAVE_XATTR_SET_USERNS)
+#elif defined(HAVE_IDMAP_USERNS)
 #define	ZPL_XATTR_SET_WRAPPER(fn)					\
 static int								\
 fn(const struct xattr_handler *handler, struct user_namespace *user_ns, \
@@ -101,12 +79,7 @@ fn(const struct xattr_handler *handler, struct user_namespace *user_ns, \
 {									\
 	return (__ ## fn(user_ns, inode, name, buffer, size, flags));	\
 }
-/*
- * 4.7 API change,
- * The xattr_handler->set() callback was changed to take a both dentry and
- * inode, because the dentry might not be attached to an inode yet.
- */
-#elif defined(HAVE_XATTR_SET_DENTRY_INODE)
+#else
 #define	ZPL_XATTR_SET_WRAPPER(fn)					\
 static int								\
 fn(const struct xattr_handler *handler, struct dentry *dentry,		\
@@ -115,8 +88,6 @@ fn(const struct xattr_handler *handler, struct dentry *dentry,		\
 {									\
 	return (__ ## fn(kcred->user_ns, inode, name, buffer, size, flags));\
 }
-#else
-#error "Unsupported kernel"
 #endif
 
 /*
@@ -130,10 +101,27 @@ zpl_acl_from_xattr(const void *value, int size)
 	return (posix_acl_from_xattr(kcred->user_ns, value, size));
 }
 
+/*
+ * Linux 7.0 API change. posix_acl_to_xattr() changed from filling the
+ * caller-provided buffer to allocating a buffer with enough space and
+ * returning it. We wrap this up by copying the result into the provided
+ * buffer and freeing the allocated buffer.
+ */
 static inline int
 zpl_acl_to_xattr(struct posix_acl *acl, void *value, int size)
 {
+#ifdef HAVE_POSIX_ACL_TO_XATTR_ALLOC
+	size_t s = 0;
+	void *v = posix_acl_to_xattr(kcred->user_ns, acl, &s,
+	    kmem_flags_convert(KM_SLEEP));
+	if (v == NULL)
+		return (-ENOMEM);
+	memcpy(value, v, MIN(size, s));
+	kfree(v);
+	return (0);
+#else
 	return (posix_acl_to_xattr(kcred->user_ns, acl, value, size));
+#endif
 }
 
 #endif /* _ZFS_XATTR_H */

@@ -1,4 +1,4 @@
-/*	$OpenBSD: addrmatch.c,v 1.17 2021/04/03 06:18:40 djm Exp $ */
+/*	$OpenBSD: addrmatch.c,v 1.19 2026/02/14 00:18:34 jsg Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -19,11 +19,8 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 
-#include <netdb.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -128,7 +125,7 @@ addr_match_cidr_list(const char *addr, const char *_list)
 
 		/*
 		 * NB. This function is called in pre-auth with untrusted data,
-		 * so be extra paranoid about junk reaching getaddrino (via
+		 * so be extra paranoid about junk reaching getaddrinfo (via
 		 * addr_pton_cidr).
 		 */
 

@@ -1,0 +1,6 @@
+Tool: bomtool
+ToolArgs: --creation-time=test test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+Environment: SOURCE_DATE_EPOCH=1234567890
+ExpectedStdoutFile: ../../tests/lib-sbom-files/bomtool-basic.txt
+ExpectedExitCode: 0

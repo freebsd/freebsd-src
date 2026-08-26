@@ -619,16 +619,16 @@ pci_iov_setup_bars(struct pci_devinfo *dinfo)
 	return (0);
 }
 
-static void
+static int
 pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
     uint16_t first_rid, uint16_t rid_stride)
 {
 	char device_name[VF_MAX_NAME];
 	const nvlist_t *device, *driver_config, *iov_config;
-	device_t bus, dev, vf;
+	device_t bus, dev, vf, *vfs;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
-	int i, error;
+	int error, i, ncreated;
 	uint16_t vid, did, next_rid;
 
 	iov = dinfo->cfg.iov;
@@ -637,6 +637,9 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 	next_rid = first_rid;
 	vid = pci_get_vendor(dev);
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
+	vfs = mallocarray(iov->iov_num_vfs, sizeof(*vfs), M_SRIOV,
+	    M_WAITOK | M_ZERO);
+	ncreated = 0;
 
 	for (i = 0; i < iov->iov_num_vfs; i++, next_rid += rid_stride) {
 		snprintf(device_name, sizeof(device_name), VF_PREFIX"%d", i);
@@ -645,8 +648,11 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		driver_config = nvlist_get_nvlist(device, DRIVER_CONFIG_NAME);
 
 		vf = PCI_CREATE_IOV_CHILD(bus, dev, next_rid, vid, did);
-		if (vf == NULL)
-			break;
+		if (vf == NULL) {
+			error = ENXIO;
+			goto fail;
+		}
+		vfs[ncreated++] = vf;
 
 		/*
 		 * If we are creating passthrough devices then force the ppt
@@ -658,7 +664,6 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 
 		vfinfo = device_get_ivars(vf);
 
-		vfinfo->cfg.iov = iov;
 		vfinfo->cfg.vf.index = i;
 
 		pci_iov_add_bars(iov, vfinfo);
@@ -666,11 +671,19 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
-			device_delete_child(bus, vf);
+			goto fail;
 		}
 	}
 
 	bus_attach_children(bus);
+	free(vfs, M_SRIOV);
+	return (0);
+
+fail:
+	for (i = 0; i < ncreated; i++)
+		device_delete_child(bus, vfs[i]);
+	free(vfs, M_SRIOV);
+	return (error);
 }
 
 static int
@@ -759,9 +772,24 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 		}
 	}
 
-	if (!ari_enabled && PCI_RID2SLOT(last_rid) != 0) {
-		error = ENOSPC;
-		goto out;
+	if (!ari_enabled) {
+		uint16_t vf_rid;
+
+		/*
+		 * Without ARI, VFs on the PF's bus must use device 0.
+		 * VFs on another bus use the conventional device/function
+		 * encoding and may have a non-zero device number.  For
+		 * example, Intel 82576 and I350 VFs start at device 16 on
+		 * the next bus when ARI is unavailable.
+		 */
+		vf_rid = first_rid;
+		for (i = 0; i < num_vfs; i++, vf_rid += rid_stride) {
+			if (PCI_RID2BUS(vf_rid) == pci_get_bus(dev) &&
+			    PCI_RID2SLOT(vf_rid) != 0) {
+				error = ENOSPC;
+				goto out;
+			}
+		}
 	}
 
 	iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
@@ -784,7 +812,9 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	/* Per specification, we must wait 100ms before accessing VFs. */
 	pause("iov", roundup(hz, 10));
-	pci_iov_enumerate_vfs(dinfo, config, first_rid, rid_stride);
+	error = pci_iov_enumerate_vfs(dinfo, config, first_rid, rid_stride);
+	if (error != 0)
+		goto out;
 
 	nvlist_destroy(config);
 	iov->iov_flags &= ~IOV_BUSY;
@@ -792,8 +822,13 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	return (0);
 out:
-	if (iov_inited)
+	if (iov_inited) {
 		PCI_IOV_UNINIT(dev);
+		iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
+		iov_ctl &= ~(PCIM_SRIOV_VF_EN | PCIM_SRIOV_VF_MSE);
+		IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov_ctl, 2);
+		IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, 0, 2);
+	}
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		if (iov->iov_bar[i].res != NULL) {
@@ -856,6 +891,129 @@ pci_iov_is_child_vf(struct pcicfg_iov *pf, device_t child)
 		return (0);
 
 	return (pf == vfinfo->cfg.iov);
+}
+
+static int
+pci_iov_build_status(struct pci_devinfo *dinfo, nvlist_t **statusp)
+{
+	const char *driver;
+	device_t bus, child, dev, pcib, *devlist, *vfdevs;
+	nvlist_t *pf, *status, **vfs;
+	struct pcicfg_iov *iov;
+	struct pci_devinfo *vfinfo;
+	bool attached, passthrough;
+	int busno, devcount, error, func, i, slot;
+	uint16_t rid_off, rid_stride, vf_rid;
+
+	mtx_assert(&Giant, MA_OWNED);
+
+	iov = dinfo->cfg.iov;
+	dev = dinfo->cfg.dev;
+	bus = device_get_parent(dev);
+	pcib = device_get_parent(bus);
+	devlist = NULL;
+	vfdevs = NULL;
+	vfs = NULL;
+	status = NULL;
+	pf = NULL;
+	error = 0;
+
+	if (iov->iov_num_vfs != 0) {
+		vfdevs = mallocarray(iov->iov_num_vfs, sizeof(*vfdevs),
+		    M_SRIOV, M_WAITOK | M_ZERO);
+		error = device_get_children(bus, &devlist, &devcount);
+		if (error != 0)
+			goto out;
+		for (i = 0; i < devcount; i++) {
+			child = devlist[i];
+			if (!pci_iov_is_child_vf(iov, child))
+				continue;
+			vfinfo = device_get_ivars(child);
+			if (vfinfo->cfg.vf.index < iov->iov_num_vfs)
+				vfdevs[vfinfo->cfg.vf.index] = child;
+		}
+	}
+
+	status = nvlist_create(0);
+	pf = nvlist_create(0);
+	if (status == NULL || pf == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	nvlist_add_number(status, IOV_STATUS_VERSION_NAME, IOV_STATUS_VERSION);
+	nvlist_add_string(pf, IOV_STATUS_DEVICE_NAME, device_get_nameunit(dev));
+	nvlist_add_stringf(pf, IOV_STATUS_PCI_LOCATION_NAME, "pci%u:%u:%u:%u",
+	    (u_int)pci_get_domain(dev), (u_int)pci_get_bus(dev),
+	    (u_int)pci_get_slot(dev), (u_int)pci_get_function(dev));
+	nvlist_add_bool(pf, IOV_STATUS_ENABLED_NAME,
+	    (IOV_READ(dinfo, PCIR_SRIOV_CTL, 2) & PCIM_SRIOV_VF_EN) != 0);
+	nvlist_add_number(pf, IOV_STATUS_NUM_VFS_NAME, iov->iov_num_vfs);
+	nvlist_add_number(pf, IOV_STATUS_TOTAL_VFS_NAME,
+	    IOV_READ(dinfo, PCIR_SRIOV_TOTAL_VFS, 2));
+	error = nvlist_error(pf);
+	if (error != 0)
+		goto out;
+	nvlist_move_nvlist(status, IOV_STATUS_PF_NAME, pf);
+	pf = NULL;
+
+	if (iov->iov_num_vfs != 0)
+		vfs = mallocarray(iov->iov_num_vfs, sizeof(*vfs), M_SRIOV,
+		    M_WAITOK | M_ZERO);
+	rid_off = IOV_READ(dinfo, PCIR_SRIOV_VF_OFF, 2);
+	rid_stride = IOV_READ(dinfo, PCIR_SRIOV_VF_STRIDE, 2);
+	vf_rid = pci_get_rid(dev) + rid_off;
+	for (i = 0; i < iov->iov_num_vfs; i++, vf_rid += rid_stride) {
+		vfs[i] = nvlist_create(0);
+		if (vfs[i] == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
+		nvlist_add_number(vfs[i], IOV_STATUS_VF_INDEX_NAME, i);
+		child = vfdevs[i];
+		if (child != NULL) {
+			busno = pci_get_bus(child);
+			slot = pci_get_slot(child);
+			func = pci_get_function(child);
+		} else
+			PCIB_DECODE_RID(pcib, vf_rid, &busno, &slot, &func);
+		nvlist_add_stringf(vfs[i], IOV_STATUS_PCI_LOCATION_NAME,
+		    "pci%u:%u:%u:%u", (u_int)pci_get_domain(dev),
+		    (u_int)busno, (u_int)slot, (u_int)func);
+		attached = child != NULL && device_is_attached(child);
+		passthrough = child != NULL && device_get_name(child) != NULL &&
+		    strcmp(device_get_name(child), "ppt") == 0;
+		nvlist_add_bool(vfs[i], IOV_STATUS_ATTACHED_NAME, attached);
+		nvlist_add_bool(vfs[i], IOV_STATUS_PASSTHROUGH_NAME,
+		    passthrough);
+		if (attached) {
+			driver = device_get_nameunit(child);
+			if (driver != NULL)
+				nvlist_add_string(vfs[i],
+				    IOV_STATUS_BOUND_DRIVER_NAME, driver);
+		}
+		error = nvlist_error(vfs[i]);
+		if (error != 0)
+			goto out;
+	}
+	if (iov->iov_num_vfs != 0)
+		nvlist_add_nvlist_array(status, IOV_STATUS_VFS_NAME,
+		    (const nvlist_t * const *)vfs, iov->iov_num_vfs);
+	error = nvlist_error(status);
+	if (error != 0)
+		goto out;
+	*statusp = status;
+	status = NULL;
+out:
+	if (vfs != NULL) {
+		for (i = 0; i < iov->iov_num_vfs; i++)
+			nvlist_destroy(vfs[i]);
+		free(vfs, M_SRIOV);
+	}
+	nvlist_destroy(pf);
+	nvlist_destroy(status);
+	free(vfdevs, M_SRIOV);
+	free(devlist, M_TEMP);
+	return (error);
 }
 
 static int
@@ -1009,6 +1167,48 @@ fail:
 }
 
 static int
+pci_iov_get_status_ioctl(struct cdev *cdev, struct pci_iov_status *output)
+{
+	struct pci_devinfo *dinfo;
+	nvlist_t *status;
+	void *packed;
+	size_t output_len, size;
+	int error;
+
+	status = NULL;
+	packed = NULL;
+	mtx_lock(&Giant);
+	dinfo = cdev->si_drv1;
+	error = pci_iov_build_status(dinfo, &status);
+	mtx_unlock(&Giant);
+	if (error != 0)
+		goto out;
+
+	packed = nvlist_pack(status, &size);
+	if (packed == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	output_len = output->len;
+	output->len = size;
+	if (size <= output_len) {
+		error = copyout(packed, output->status, size);
+		if (error != 0)
+			goto out;
+		output->error = 0;
+	} else {
+		/* Keep the ioctl successful so the required size is copied out. */
+		output->error = EMSGSIZE;
+	}
+	error = 0;
+out:
+	free(packed, M_NVLIST);
+	nvlist_destroy(status);
+	return (error);
+}
+
+static int
 pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
@@ -1021,6 +1221,9 @@ pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	case IOV_GET_SCHEMA:
 		return (pci_iov_get_schema_ioctl(dev,
 		    (struct pci_iov_schema *)data));
+	case IOV_GET_STATUS:
+		return (pci_iov_get_status_ioctl(dev,
+		    (struct pci_iov_status *)data));
 	default:
 		return (EINVAL);
 	}

@@ -607,15 +607,6 @@ fields of
 .Fa infop
 must be checked against zero to determine if a process reported status.
 .Pp
-The
-.Fn wait
-family of functions will only return a child process created with
-.Xr pdfork 2
-if the calling process is not in
-.Xr capsicum 4
-capability mode, and
-.Nm
-has been explicitly given the child's process ID.
 .Sh ERRORS
 The
 .Fn wait

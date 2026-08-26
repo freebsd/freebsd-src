@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --cflags --libs foo
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: -fPIC -I/test/include/foo -L/test/lib -lfoo
+ExpectedExitCode: 0

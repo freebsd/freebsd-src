@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.91 2024/11/09 21:15:48 christos Exp $
+# $File: linux,v 1.95 2025/07/12 14:30:14 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -456,6 +456,8 @@
 ############################################################################
 # Linux S390 kernel image
 # Created by: Jan Kaluza <jkaluza@redhat.com>
+# Update: Jens Remus <jremus@linux.ibm.com> based on Vasily Gorbik <gor@linux.ibm.com>
+# Linux kernel: arch/s390/boot/head.S and arch/s390/include/asm/setup.h
 8 string \x02\x00\x00\x18\x60\x00\x00\x50\x02\x00\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40\x40\x40\x40\x40 Linux S390
 >0x00010000 search/b/4096 \x00\x0a\x00\x00\x8b\xad\xcc\xcc
 # 64bit
@@ -468,6 +470,12 @@
 >>&0 string \x81\x00\xc8\x80\x00\x00\x00\x00 Z9-109 32bit kernel
 >>&0 string \x80\x00\x20\x00\x00\x00\x00\x00 Z990 32bit kernel
 >>&0 string \x80\x00\x00\x00\x00\x00\x00\x00 Z900 32bit kernel
+# Linux kernel v3.2+
+>0x10008	string		S390EP
+# Linux kernel v5.3+
+>>0x10428	ubequad		>0
+>>>(0x10428.Q)	string		>\0	\b, version %s
+
 
 ############################################################################
 # Linux ARM compressed kernel image
@@ -520,6 +528,17 @@
 >0x18   lelong  &2          \b, 4K pages
 >0x18   lelong  &4          \b, 16K pages
 >0x18   lelong  &6          \b, 32K pages
+
+############################################################################
+# Linux kernel (arm64/riscv/loongarch) EFI executable (zstd/gzip) compressed zboot Image
+# from: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/firmware/efi/libstub/zboot-header.S
+0	string	MZ\0\0zimg
+>0x40   string	PE\0\0		Linux kernel
+>>&0	leshort	0xAA64		ARM64 EFI executable
+>>&0	leshort	0x5032          RISC-V32 EFI executable
+>>&0	leshort	0x5064          RISC-V64 EFI executable
+>>&0	leshort	0x6264          LoongArch64 EFI executable
+>>0x18 string	>0		%s compressed zboot Image
 
 ############################################################################
 # Linux RISC-V kernel image
@@ -968,3 +987,14 @@
 0	lequad		0x32454c4946524550	Linux perf recording, version 2. little endian
 
 0	bequad		0x32454c4946524550	Linux perf recording, version 2. big endian
+
+# perf(1) (Performance analysis tools) command
+#
+# For file format details, see:
+#
+# https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/\
+# tools/perf/Documentation/perf.data-file-format.txt
+
+# The file is normally called 'perf.data' but can take any name,
+# so only check the eye catcher value.
+0	string		PERFILE2	perf(1) data

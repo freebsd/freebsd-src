@@ -45,6 +45,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
+#include <dev/pci/pcivar.h>
+
 #include "nvme_private.h"
 #include "nvme_linux.h"
 
@@ -173,6 +175,10 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	num_entries = min(num_entries, mqes + 1);
 	num_entries = min(num_entries, max_entries);
 
+	/* SHARED_CID_SPACE: IO CIDs must fit within the shared CID table. */
+	if (ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE)
+		num_entries = min(num_entries, NVME_ADMIN_ENTRIES);
+
 	num_trackers = NVME_IO_TRACKERS;
 	TUNABLE_INT_FETCH("hw.nvme.io_trackers", &num_trackers);
 
@@ -185,13 +191,20 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	num_trackers = min(num_trackers, (num_entries-1));
 
+	if (ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE)
+		num_trackers = min(num_trackers,
+		    NVME_ADMIN_ENTRIES - ctrlr->adminq.num_trackers);
+	if (ctrlr->quirks & QUIRK_APPLE_S3X_SERIALIZE)
+		num_trackers = 1;
+
 	/*
 	 * Our best estimate for the maximum number of I/Os that we should
 	 * normally have in flight at one time. This should be viewed as a hint,
 	 * not a hard limit and will need to be revisited when the upper layers
 	 * of the storage system grows multi-queue support.
 	 */
-	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues * 3 / 4;
+	ctrlr->max_hw_pend_io = max(1,
+	    num_trackers * ctrlr->num_io_queues * 3 / 4);
 
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
@@ -383,7 +396,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc |= NVMEF(NVME_CC_REG_CSS, 0);
 	cc |= NVMEF(NVME_CC_REG_AMS, 0);
 	cc |= NVMEF(NVME_CC_REG_SHN, 0);
-	cc |= NVMEF(NVME_CC_REG_IOSQES, 6); /* SQ entry size == 64 == 2^6 */
+	cc |= NVMEF(NVME_CC_REG_IOSQES, ctrlr->io_sqes);
 	cc |= NVMEF(NVME_CC_REG_IOCQES, 4); /* CQ entry size == 16 == 2^4 */
 
 	/*
@@ -417,14 +430,41 @@ nvme_ctrlr_disable_qpairs(struct nvme_controller *ctrlr)
 }
 
 static int
+nvme_ctrlr_pcie_flr(struct nvme_controller *ctrlr, uint32_t csts)
+{
+	nvme_printf(ctrlr,
+	    "fatal status; attempting PCIe function level reset\n");
+	pci_save_state(ctrlr->dev);
+	if (!pcie_flr(ctrlr->dev, 1000, true)) {
+		pci_restore_state(ctrlr->dev);
+		nvme_printf(ctrlr, "PCIe function level reset failed\n");
+		nvme_ctrlr_devctl(ctrlr, "FLR_FAILED", "csts=0x%08x", csts);
+		return (ENXIO);
+	}
+	pci_restore_state(ctrlr->dev);
+	nvme_printf(ctrlr, "PCIe function level reset completed\n");
+	nvme_ctrlr_devctl(ctrlr, "FLR_COMPLETED", "csts=0x%08x", csts);
+	return (0);
+}
+
+static int
 nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
+	uint32_t csts;
 	int err;
 
 	TSENTER();
 
 	ctrlr->is_failed_admin = true;
 	nvme_ctrlr_disable_qpairs(ctrlr);
+
+	csts = nvme_mmio_read_4(ctrlr, csts);
+	if ((ctrlr->quirks & QUIRK_PCIE_FLR_ON_FATAL) != 0 &&
+	    csts != NVME_GONE && NVMEV(NVME_CSTS_REG_CFS, csts) != 0) {
+		err = nvme_ctrlr_pcie_flr(ctrlr, csts);
+		if (err != 0)
+			goto out;
+	}
 
 	err = nvme_ctrlr_disable(ctrlr);
 	if (err != 0)
@@ -482,6 +522,8 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size,
 		    1 << (ctrlr->cdata.mdts + NVME_MPS_SHIFT +
 			NVME_CAP_HI_MPSMIN(ctrlr->cap_hi)));
+	if (ctrlr->quirks & QUIRK_APPLE_S3X_SERIALIZE)
+		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size, 8192U);
 
 	return (0);
 }
@@ -591,7 +633,7 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 	struct nvme_namespace	*ns;
 	uint32_t 		i;
 
-	for (i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+	for (i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
 		ns = &ctrlr->ns[i];
 		nvme_ns_construct(ns, i+1, ctrlr);
 	}
@@ -748,6 +790,11 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	struct nvme_completion_poll_status	status;
 	struct nvme_async_event_request		*aer;
 	uint32_t				i;
+
+	if (ctrlr->quirks & QUIRK_APPLE_NO_ASYNC_EVENT) {
+		ctrlr->num_aers = 0;
+		return;
+	}
 
 	ctrlr->async_event_config = NVME_CRIT_WARN_ST_AVAILABLE_SPARE |
 	    NVME_CRIT_WARN_ST_DEVICE_RELIABILITY |
@@ -1125,6 +1172,12 @@ nvme_ctrlr_start_config_hook(void *arg)
 	if (!ctrlr->is_failed) {
 		device_t child;
 
+		if (bootverbose &&
+		    (ctrlr->quirks & QUIRK_APPLE_S3X_NS1_ONLY) != 0 &&
+		    ctrlr->cdata.nn > nvme_ctrlr_num_namespaces(ctrlr))
+			nvme_printf(ctrlr,
+			    "ignoring Apple-internal namespaces above NSID 1\n");
+
 		ctrlr->is_initialized = true;
 		child = device_add_child(ctrlr->dev, NULL, DEVICE_UNIT_ANY);
 		device_set_ivars(child, ctrlr);
@@ -1133,7 +1186,7 @@ nvme_ctrlr_start_config_hook(void *arg)
 		/*
 		 * Now notify the child of all the known namepsaces
 		 */
-		for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+		for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
 			struct nvme_namespace	*ns = &ctrlr->ns[i];
 
 			if (ns->data.nsze == 0)
@@ -1286,6 +1339,8 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		}
 		nsl = (struct nvme_ns_list *)aer->log_page_buffer;
 		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+			if (!nvme_ctrlr_nsid_visible(ctrlr, nsl->ns[i]))
+				continue;
 			/*
 			 * I think we need to query the name space here and see
 			 * if it went away, arrived, or changed in size and call
@@ -1294,6 +1349,11 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 			 */
 			for (int j = 0; j < n_children; j++)
 				NVME_NS_CHANGED(children[j], nsl->ns[i]);
+		}
+		if (nsl->ns[0] == 0 && ctrlr->quirks & QUIRK_EMPTY_NAMESPACE_CHANGED_LOG) {
+			for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++)
+				for (int j = 0; j < n_children; j++)
+					NVME_NS_CHANGED(children[j], i + 1);
 		}
 		free(children, M_TEMP);
 	}
@@ -1346,29 +1406,51 @@ nvme_ctrlr_shared_handler(void *arg)
 #define NVME_MAX_PAGES  (int)(1024 / sizeof(vm_page_t))
 
 static int
+nvme_page_count(vm_offset_t start, size_t len)
+{
+	return atop(round_page(start + len) - trunc_page(start));
+}
+
+static int
 nvme_user_ioctl_req(vm_offset_t addr, size_t len, bool is_read,
-    vm_page_t *upages, int max_pages, int *npagesp, struct nvme_request **req,
+    vm_page_t **upages, int max_pages, int *npagesp, struct nvme_request **req,
     nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	vm_prot_t prot = VM_PROT_READ;
-	int err;
+	int err, npages;
+	vm_page_t *upages_us;
+
+	upages_us = *upages;
+	npages = nvme_page_count(addr, len);
+	if (npages > atop(maxphys))
+		return (EINVAL);
+	if (npages > max_pages)
+		upages_us = malloc(npages * sizeof(vm_page_t), M_NVME,
+		    M_ZERO | M_WAITOK);
 
 	if (is_read)
 		prot |= VM_PROT_WRITE;	/* Device will write to host memory */
 	err = vm_fault_hold_pages(&curproc->p_vmspace->vm_map,
-	    addr, len, prot, upages, max_pages, npagesp);
-	if (err != 0)
+	    addr, len, prot, upages_us, npages, npagesp);
+	if (err != 0) {
+		if (*upages != upages_us)
+			free(upages_us, M_NVME);
 		return (err);
+	}
 	*req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
-	(*req)->payload = memdesc_vmpages(upages, len, addr & PAGE_MASK);
+	(*req)->payload = memdesc_vmpages(upages_us, len, addr & PAGE_MASK);
 	(*req)->payload_valid = true;
+	if (*upages != upages_us)
+		*upages = upages_us;
 	return (0);
 }
 
 static void
-nvme_user_ioctl_free(vm_page_t *pages, int npage)
+nvme_user_ioctl_free(vm_page_t *pages, int npage, bool freeit)
 {
 	vm_page_unhold_pages(pages, npage);
+	if (freeit)
+		free(pages, M_NVME);
 }
 
 static void
@@ -1400,7 +1482,8 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	struct mtx *mtx;
 	int ret = 0;
 	int npages = 0;
-	vm_page_t upages[NVME_MAX_PAGES];
+	vm_page_t upages_small[NVME_MAX_PAGES];
+	vm_page_t *upages = upages_small;
 
 	if (pt->len > 0) {
 		if (pt->len > ctrlr->max_xfer_size) {
@@ -1411,7 +1494,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		}
 		if (is_user) {
 			ret = nvme_user_ioctl_req((vm_offset_t)pt->buf, pt->len,
-			    pt->is_read, upages, nitems(upages), &npages, &req,
+			    pt->is_read, &upages, nitems(upages_small), &npages, &req,
 			    nvme_pt_done, pt);
 			if (ret != 0)
 				return (ret);
@@ -1449,7 +1532,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	mtx_unlock(mtx);
 
 	if (npages > 0)
-		nvme_user_ioctl_free(upages, npages);
+		nvme_user_ioctl_free(upages, npages, upages != upages_small);
 
 	return (ret);
 }
@@ -1477,7 +1560,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 	struct mtx		*mtx;
 	int			ret = 0;
 	int			npages = 0;
-	vm_page_t		upages[NVME_MAX_PAGES];
+	vm_page_t		upages_small[NVME_MAX_PAGES];
+	vm_page_t		*upages = upages_small;
 
 	/*
 	 * We don't support metadata.
@@ -1494,8 +1578,8 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 		}
 		if (is_user) {
 			ret = nvme_user_ioctl_req(npc->addr, npc->data_len,
-			    npc->opcode & 0x1, upages, nitems(upages), &npages,
-			    &req, nvme_npc_done, npc);
+			    npc->opcode & 0x1, &upages, nitems(upages_small),
+			    &npages, &req, nvme_npc_done, npc);
 			if (ret != 0)
 				return (ret);
 		} else
@@ -1533,7 +1617,7 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 	mtx_unlock(mtx);
 
 	if (npages > 0)
-		nvme_user_ioctl_free(upages, npages);
+		nvme_user_ioctl_free(upages, npages, upages != upages_small);
 
 	return (ret);
 }
@@ -1611,6 +1695,9 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	int		status, timeout_period;
 
 	ctrlr->dev = dev;
+	ctrlr->io_sqes =
+	    (ctrlr->quirks & QUIRK_APPLE_128_BYTE_SQES) != 0 ?
+	    NVME_IOSQES_128 : NVME_IOSQES_64;
 
 	mtx_init(&ctrlr->lock, "nvme ctrlr lock", NULL, MTX_DEF);
 	if (bus_get_domain(dev, &ctrlr->domain) != 0)

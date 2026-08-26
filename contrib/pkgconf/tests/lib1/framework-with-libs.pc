@@ -1,0 +1,4 @@
+Name: framework-with-libs
+Description: test fixture
+Version: 1
+Libs: -framework Security -lcrypto

@@ -87,18 +87,18 @@ struct i2s_softc {
 	phandle_t 		 node;
 	phandle_t		 soundnode;
 	struct resource 	*reg;
-	u_int 			 output_mask;
+	unsigned int 			 output_mask;
 	struct mtx 		 port_mtx;
 };
 
 static int 	i2s_probe(device_t);
 static int 	i2s_attach(device_t);
 static void 	i2s_postattach(void *);
-static int 	i2s_setup(struct i2s_softc *, u_int, u_int, u_int);
+static int 	i2s_setup(struct i2s_softc *, unsigned int, unsigned int, unsigned int);
 static void     i2s_mute_headphone (struct i2s_softc *, int);
 static void     i2s_mute_lineout   (struct i2s_softc *, int);
 static void     i2s_mute_speaker   (struct i2s_softc *, int);
-static void 	i2s_set_outputs(void *, u_int);
+static void 	i2s_set_outputs(void *, unsigned int);
 
 static struct intr_config_hook 	*i2s_delayed_attach = NULL;
 
@@ -425,8 +425,8 @@ aoagpio_attach(device_t gpio)
 /* Number of clock sources we can use. */
 #define NCLKS	   3
 static const struct i2s_clksrc {
-	u_int cs_clock;
-	u_int cs_reg;
+	unsigned int cs_clock;
+	unsigned int cs_reg;
 } clksrc[NCLKS] = {
 	{49152000, CLKSRC_49MHz},
 	{45158400, CLKSRC_45MHz},
@@ -440,11 +440,11 @@ static const struct i2s_clksrc {
    or greater to the number of bits per frame. */
 
 static int
-i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
+i2s_setup(struct i2s_softc *sc, unsigned int rate, unsigned int wordsize, unsigned int sclk_fs)
 {
-	u_int mclk, mdiv, sdiv;
-	u_int reg = 0, x, wordformat;
-	u_int i;
+	unsigned int mclk, mdiv, sdiv;
+	unsigned int reg = 0, x, wordformat;
+	unsigned int i;
 
 	/* Make sure the settings are consistent... */
 	if ((wordsize * 2) > sclk_fs)
@@ -592,7 +592,7 @@ of_find_firstchild_byname(phandle_t node, const char *req_name)
 	return (-1);
 }
 
-static u_int
+static unsigned int
 gpio_read(enum gpio_ctrl ctrl)
 {
 	struct aoagpio_softc *sc;
@@ -604,10 +604,10 @@ gpio_read(enum gpio_ctrl ctrl)
 }
 
 static void
-gpio_write(enum gpio_ctrl ctrl, u_int x)
+gpio_write(enum gpio_ctrl ctrl, unsigned int x)
 {
 	struct aoagpio_softc 	*sc;
-	u_int 			 reg;
+	unsigned int 			 reg;
 
 	if ((sc = gpio_ctrls[ctrl]) == NULL)
 		return;
@@ -622,7 +622,7 @@ gpio_write(enum gpio_ctrl ctrl, u_int x)
 static void 
 i2s_cint(struct i2s_softc *sc)
 {
-	u_int mask = 0;
+	unsigned int mask = 0;
 
 	if (gpio_ctrls[HEADPHONE_DETECT] && 
 	    gpio_ctrls[HEADPHONE_DETECT]->level)
@@ -691,7 +691,7 @@ MUTE_CONTROL(headphone, HEADPHONE)
 MUTE_CONTROL(lineout, LINEOUT)
 
 static void
-i2s_set_outputs(void *ptr, u_int mask)
+i2s_set_outputs(void *ptr, unsigned int mask)
 {
 	struct i2s_softc 	*sc = ptr;
 

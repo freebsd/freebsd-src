@@ -28,15 +28,15 @@ nextafter(double x, double y)
 	int32_t hx,hy,ix,iy;
 	u_int32_t lx,ly;
 
+	if(isnan(x) || isnan(y))     /* x or y is nan */
+	   return x+y;
+	if(x==y) return y;		/* x=y, return y */
+
 	EXTRACT_WORDS(hx,lx,x);
 	EXTRACT_WORDS(hy,ly,y);
 	ix = hx&0x7fffffff;		/* |x| */
 	iy = hy&0x7fffffff;		/* |y| */
 
-	if(((ix>=0x7ff00000)&&((ix-0x7ff00000)|lx)!=0) ||   /* x is nan */
-	   ((iy>=0x7ff00000)&&((iy-0x7ff00000)|ly)!=0))     /* y is nan */
-	   return x+y;
-	if(x==y) return y;		/* x=y, return y */
 	if((ix|lx)==0) {			/* x == 0 */
 	    INSERT_WORDS(x,hy&0x80000000,1);	/* return +-minsubnormal */
 	    t = x*x;

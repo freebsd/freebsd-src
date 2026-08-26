@@ -127,11 +127,6 @@ bpf_ifnet_write(void *arg, struct mbuf *m, struct mbuf *mc, int flags)
 		hlen = sizeof(uint32_t);
 		break;
 
-	/* DLT_PFLOG */
-	case IFT_PFLOG:
-		hlen = PFLOG_HDRLEN;
-		break;
-
 	/* DLT_PFSYNC */
 	case IFT_PFSYNC:
 		hlen = PFSYNC_HDRLEN;

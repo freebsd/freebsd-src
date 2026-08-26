@@ -235,9 +235,9 @@ acpi_lid_notify_status_changed(void *arg)
 		sc->lid_status ? "opened" : "closed");
 
     if (sc->lid_status == 0)
-	EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_stype);
+	acpi_invoke_sleep_eventhandler(&acpi_sc->acpi_lid_switch_stype);
     else
-	EVENTHANDLER_INVOKE(acpi_wakeup_event, acpi_sc->acpi_lid_switch_stype);
+	acpi_invoke_wake_eventhandler(&acpi_sc->acpi_lid_switch_stype);
 
 out:
     ACPI_SERIAL_END(lid);

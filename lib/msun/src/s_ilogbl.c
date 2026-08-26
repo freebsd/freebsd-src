@@ -47,3 +47,7 @@ ilogbl(long double x)
 	else
 		return (INT_MAX);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(ilogbl, ilogbf128);
+#endif

@@ -536,13 +536,14 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
 	if (!hapd->range_req_token) /* For wraparounds */
 		hapd->range_req_token++;
 
-	/* IEEE P802.11-REVmc/D5.0, 9.6.7.2 */
+	/* IEEE Std 802.11-2024, 9.6.6.2 (Radio Measurement Request frame
+	 * format) */
 	wpabuf_put_u8(buf, WLAN_ACTION_RADIO_MEASUREMENT);
 	wpabuf_put_u8(buf, WLAN_RRM_RADIO_MEASUREMENT_REQUEST);
 	wpabuf_put_u8(buf, hapd->range_req_token); /* Dialog Token */
 	wpabuf_put_le16(buf, 0); /* Number of Repetitions */
 
-	/* IEEE P802.11-REVmc/D5.0, 9.4.2.21 */
+	/* IEEE Std 802.11-2024, 9.4.2.19 (Measurement Request element) */
 	wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
 	len = wpabuf_put(buf, 1); /* Length will be set later */
 
@@ -554,7 +555,7 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
 	wpabuf_put_u8(buf, 0); /* Measurement Request Mode */
 	wpabuf_put_u8(buf, MEASURE_TYPE_FTM_RANGE); /* Measurement Type */
 
-	/* IEEE P802.11-REVmc/D5.0, 9.4.2.21.19 */
+	/* IEEE Std 802.11-2024, 9.4.2.19.19 (FTM Range request) */
 	wpabuf_put_le16(buf, random_interval); /* Randomization Interval */
 	wpabuf_put_u8(buf, min_ap); /* Minimum AP Count */
 

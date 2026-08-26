@@ -33,7 +33,7 @@ ossl_cipher_encrypt_t aes_p8_cbc_encrypt;
 /* vpaes-ppc.S */
 ossl_cipher_encrypt_t vpaes_cbc_encrypt;
 
-static void
+static inline void
 AES_CBC_ENCRYPT(const unsigned char *in, unsigned char *out,
     size_t length, const void *key, unsigned char *iv, int encrypt)
 {

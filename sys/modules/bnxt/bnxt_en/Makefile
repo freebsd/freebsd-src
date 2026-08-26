@@ -9,11 +9,15 @@ SRCS	+= bnxt_sysctl.c
 SRCS	+= bnxt_mgmt.c
 SRCS	+= bnxt_dcb.c bnxt_dcb.h
 SRCS	+= bnxt_auxbus_compat.c bnxt_auxbus_compat.h
+SRCS	+= bnxt_sriov.c bnxt_sriov.h
 SRCS	+= bnxt_ulp.c bnxt_ulp.h
+SRCS	+= bnxt_log.c bnxt_log.h
+SRCS	+= bnxt_log_data.c bnxt_log_data.h
+SRCS	+= bnxt_coredump.c bnxt_coredump.h
 SRCS	+= ${LINUXKPI_GENSRCS}
 
 CFLAGS+= -DIFLIB
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
-CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 
 .include <bsd.kmod.mk>

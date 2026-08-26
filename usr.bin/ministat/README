@@ -1,8 +1,7 @@
-
 A small tool to do the statistics legwork on benchmarks etc.
 
 Prepare your data into two files, one number per line
-run 
+run
 	./ministat data_before data_after
 
 and see what it says.
@@ -41,9 +40,7 @@ x   5         0.133         0.137         0.136        0.1354  0.0015165751
 +   5         0.139          0.14         0.139        0.1394 0.00054772256
 Difference at 95.0% confidence
         0.004 +/- 0.00166288
-        2.95421% +/- 1.22812%
+        2.95421% +/- 1.26027%
         (Student's t, pooled s = 0.00114018)
 
 Here we have a clearcut difference, not very big, but clear and unambiguous.
-
-

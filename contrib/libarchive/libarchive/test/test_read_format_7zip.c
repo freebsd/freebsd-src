@@ -82,7 +82,7 @@ test_copy(int use_open_fd)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	if (fd != -1)
 		close(fd);
@@ -115,7 +115,7 @@ test_empty_archive(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -156,7 +156,33 @@ test_empty_file(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_archive_properties)
+{
+	const char *refname = "test_read_format_7zip_archive_properties.7z";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("empty", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(1, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -199,7 +225,7 @@ test_plain_header(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -284,7 +310,7 @@ test_extract_all_files(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -369,7 +395,7 @@ test_extract_all_files_zstd(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -419,7 +445,7 @@ test_extract_file_zstd_bcj_nobjc(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -498,7 +524,7 @@ test_extract_last_file(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -629,7 +655,7 @@ test_extract_all_files2(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -685,7 +711,7 @@ test_delta_lzma(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -741,7 +767,7 @@ test_bcj(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -798,7 +824,7 @@ test_ppmd(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -847,7 +873,7 @@ test_symname(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1081,7 +1107,7 @@ test_arm_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1155,7 +1181,7 @@ test_arm64_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1383,6 +1409,73 @@ DEFINE_TEST(test_read_format_7zip_sfx_elf)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_sfx_boundary_empty_7z(const char *refname)
+{
+	struct archive_entry *ae = NULL;
+	struct archive *a;
+	const int bs = 10240;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, bs));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_file_count(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_sfx_boundary_pe)
+{
+	/*
+	 * The embedded empty 7z archive starts at the final exact
+	 * 32-byte scan window after the PE overlay offset.
+	 */
+	test_sfx_boundary_empty_7z(
+	    "test_read_format_7zip_sfx_boundary_pe.exe");
+}
+
+DEFINE_TEST(test_read_format_7zip_sfx_boundary_elf)
+{
+	/*
+	 * The ELF section string table contains "\0.data\0", so
+	 * ".data\0" starts at the final valid string-table position.
+	 */
+	test_sfx_boundary_empty_7z(
+	    "test_read_format_7zip_sfx_boundary_elf.elf");
+}
+
+/*
+ * A truncated ELF 64-bit MSB file.
+ */
+DEFINE_TEST(test_read_format_7zip_sfx_elf64trunc)
+{
+	const char *reffile = "test_read_format_7zip_sfx_elf64trunc.elf";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	extract_reference_file(reffile);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_filename(a, reffile, 10240));
+
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_extract_second)
 {
 	struct archive *a;
@@ -1450,8 +1543,8 @@ test_riscv_filter(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0775), archive_entry_mode(ae));
 	assertEqualString("hw-riscv64", archive_entry_pathname(ae));
-	assertEqualInt(sizeof(buff), archive_entry_size(ae));
-	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, sizeof(buff), archive_entry_size(ae));
+	assertEqualIntA(a, sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
 
 	computed_crc = bitcrc32(computed_crc, buff, sizeof(buff));
 	assertEqualInt(computed_crc, expected_crc);
@@ -1460,7 +1553,7 @@ test_riscv_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 #endif
@@ -1474,9 +1567,12 @@ DEFINE_TEST(test_read_format_7zip_lzma2_riscv)
 
 	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
 		skipping("7zip:lzma decoding is not supported on this platform");
+	} else if (!lzma_filter_decoder_is_supported(LZMA_FILTER_RISCV)) {
+		skipping("liblzma does not support RISC-V BCJ filter at runtime");
 	} else {
 		test_riscv_filter("test_read_format_7zip_lzma2_riscv.7z");
 	}
+	archive_read_free(a);
 #else
 	skipping("This version of liblzma does not support LZMA_FILTER_RISCV");
 #endif
@@ -1517,7 +1613,7 @@ test_sparc_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
@@ -1590,7 +1686,7 @@ test_powerpc_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);

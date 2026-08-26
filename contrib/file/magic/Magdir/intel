@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: intel,v 1.23 2022/10/31 13:22:26 christos Exp $
+# $File: intel,v 1.24 2025/01/30 19:02:08 christos Exp $
 # intel:  file(1) magic for x86 Unix
 #
 # Various flavors of x86 UNIX executable/object (other than Xenix, which
@@ -308,3 +308,7 @@
 # revision number of the ASL Compiler like: 20051117 20140724 20190703 20200110 ...
 >>>32	ulelong		x	%x
 
+# data that can be parsed by dmidecode(8) from a dump
+# or extracted from a bios image
+0	string		_SM3_
+>0x5	byte		<0x3	SMBIOS 3.x file

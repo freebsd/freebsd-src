@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=%TEST_FIXTURES_DIR%
+PackageSearchPath: lib1
+Query: sysroot-dir-4
+WantedFlags: cflags
+ExpectedStdout: -I%TEST_FIXTURES_DIR%/usr/include

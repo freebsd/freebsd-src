@@ -87,3 +87,7 @@ rintl(long double x)
 
 	return (x);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(rintl, rintf128);
+#endif

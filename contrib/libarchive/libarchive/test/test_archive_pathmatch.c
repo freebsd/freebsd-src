@@ -56,6 +56,10 @@ DEFINE_TEST(test_archive_pathmatch)
 	assertEqualInt(0, archive_pathmatch_w(L"a/b/c", NULL, 0));
 
 	/* Empty pattern only matches empty string. */
+	assertEqualInt(1, archive_pathmatch(NULL,NULL, 0));
+	assertEqualInt(1, archive_pathmatch(NULL,"", 0));
+	assertEqualInt(0, archive_pathmatch(NULL,"a", 0));
+	assertEqualInt(1, archive_pathmatch("",NULL, 0));
 	assertEqualInt(1, archive_pathmatch("","", 0));
 	assertEqualInt(0, archive_pathmatch("","a", 0));
 	assertEqualInt(1, archive_pathmatch("*","", 0));
@@ -76,11 +80,15 @@ DEFINE_TEST(test_archive_pathmatch)
 	assertEqualInt(0, archive_pathmatch("a", "ab", 0));
 	assertEqualInt(0, archive_pathmatch("a", "ab", 0));
 	assertEqualInt(1, archive_pathmatch("a?c", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("*a", "/a", 0));
+	assertEqualInt(1, archive_pathmatch("*a", "a", 0));
 	/* SUSv2: ? matches / */
 	assertEqualInt(1, archive_pathmatch("a?c", "a/c", 0));
 	assertEqualInt(1, archive_pathmatch("a?*c*", "a/c", 0));
 	assertEqualInt(1, archive_pathmatch("*a*", "a/c", 0));
 	assertEqualInt(1, archive_pathmatch("*a*", "/a/c", 0));
+	assertEqualInt(0, archive_pathmatch("*a", "/a/c", 0));
+	assertEqualInt(0, archive_pathmatch("*a", "a/c", 0));
 	assertEqualInt(1, archive_pathmatch("*a*", "defaaaaaaa", 0));
 	assertEqualInt(0, archive_pathmatch("a*", "defghi", 0));
 	assertEqualInt(0, archive_pathmatch("*a*", "defghi", 0));
@@ -201,6 +209,14 @@ DEFINE_TEST(test_archive_pathmatch)
 	failure("Trailing '/.' is still the same directory.");
 	assertEqualInt(1, archive_pathmatch("./abc*/./def", "abc/def/.", 0));
 
+	/* Anchor characters without flags not special. */
+	assertEqualInt(0, archive_pathmatch("^abc", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("^abc", "^abc", 0));
+	assertEqualInt(0, archive_pathmatch("abc$", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("abc$", "abc$", 0));
+	assertEqualInt(0, archive_pathmatch("^abc$", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("^abc$", "^abc$", 0));
+
 	/* Matches not anchored at beginning. */
 	assertEqualInt(0,
 	    archive_pathmatch("bcd", "abcd", PATHMATCH_NO_ANCHOR_START));
@@ -285,4 +301,22 @@ DEFINE_TEST(test_archive_pathmatch)
 	    archive_pathmatch("a/b/c$", "a/b/c/d", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
 	assertEqualInt(1,
 	    archive_pathmatch("b/c/d$", "a/b/c/d", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+
+	/* Anchor characters within pattern not special. */
+	assertEqualInt(0,
+	    archive_pathmatch("*^*", "a/b/c", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    archive_pathmatch("*^*", "a^b", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    archive_pathmatch("*$*", "a/b/c", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    archive_pathmatch("*$*", "a$b", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    archive_pathmatch("a*/^b/c", "a/b/c", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    archive_pathmatch("a*/^b/c", "a/^b/c", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(0,
+	    archive_pathmatch("a*/b$/c", "a/b/c", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
+	assertEqualInt(1,
+	    archive_pathmatch("a*/b$/c", "a/b$/c", PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
 }

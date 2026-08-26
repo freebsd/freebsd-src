@@ -318,7 +318,9 @@ ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 			 * it should match 1a2b3c4d.  Byte order is ignored,
 			 * deliberately, when printing out the error.
 			 */
-			len = MIN(8 - pptps->pptps_bytes, dlen);
+			if (pptps->pptps_bytes >= 8)
+				return (-1);
+			len = MIN((size_t)(8 - pptps->pptps_bytes), dlen);
 			COPYDATA(fin->fin_m, off, len, pptps->pptps_wptr);
 			pptps->pptps_bytes += len;
 			pptps->pptps_wptr += len;
@@ -361,7 +363,9 @@ ipf_p_pptp_nextmessage(fr_info_t *fin, nat_t *nat, pptp_pxy_t *pptp, int rev)
 			}
 		}
 
-		len = MIN(pptps->pptps_len - pptps->pptps_bytes, dlen);
+		if (pptps->pptps_len <= pptps->pptps_bytes)
+			return (-1);
+		len = MIN((size_t)(pptps->pptps_len - pptps->pptps_bytes), dlen);
 		COPYDATA(fin->fin_m, off, len, pptps->pptps_wptr);
 		pptps->pptps_bytes += len;
 		pptps->pptps_wptr += len;

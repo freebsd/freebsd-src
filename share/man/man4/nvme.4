@@ -31,38 +31,49 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd June 6, 2020
+.Dd August 23, 2026
 .Dt NVME 4
 .Os
 .Sh NAME
 .Nm nvme
 .Nd NVM Express core driver
 .Sh SYNOPSIS
-To compile this driver into your kernel,
-place the following line in your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device nvme"
-.Ed
+.Cd device nvme
+.Cd options NVME_USE_NVD=0
+.Cd options NVME_2X_RESET
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-nvme_load="YES"
-.Ed
+.Cd hw.nvme.per_cpu_io_queues= Ns Ar 0
+.Cd hw.nvme.min_cpus_per_ioq= Ns Aq Ar X
+.Cd hw.nvme.force_intx= Ns Ar 1
+.Cd hw.nvme.hmb_max
+.Cd hw.nvme.apst_enable= Ns Ar 1
+.Cd hw.nvme.apst_data
+.Cd hw.nvme.use_nvd= Ns Ar 0
+.Cd nvme_load="YES"
 .Pp
-Most users will also want to enable
-.Xr nvd 4
+In
+.Xr loader.conf 5
 or
-.Xr nda 4
-to expose NVM Express namespaces as disk devices which can be
-partitioned.
-Note that in NVM Express terms, a namespace is roughly equivalent to a
-SCSI LUN.
+.Xr sysctl.conf 5 :
+.Cd dev.nvme.0.num_cpus_per_ioq
+.Cd dev.nvme.0.int_coal_time
+.Cd dev.nvme.0.int_coal_threshold
+.Cd dev.nvme.0.ioq0.num_entries
+.Cd dev.nvme.0.ioq0.num_tr
+.Cd dev.nvme.0.ioq0.num_prp_list
+.Cd dev.nvme.0.ioq0.sq_head
+.Cd dev.nvme.0.ioq0.sq_tail
+.Cd dev.nvme.0.ioq0.cq_head
+.Cd dev.nvme.0.ioq0.num_cmds
+.Cd dev.nvme.0.ioq0.dump_debug
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for NVM Express (NVMe) controllers, such as:
-.Bl -bullet
+.Pp
+.Bl -bullet -compact
 .It
 Hardware initialization
 .It
@@ -87,6 +98,15 @@ the format
 .Pa /dev/nvmeXnsY .
 Note that the NVM Express specification starts numbering namespaces at 1,
 not 0, and this driver follows that convention.
+.Pp
+Most users will also want to enable
+.Xr nvd 4
+or
+.Xr nda 4
+to expose NVM Express namespaces as disk devices which can be
+partitioned.
+Note that in NVM Express terms, a namespace is roughly equivalent to a
+SCSI LUN.
 .Sh CONFIGURATION
 By default,
 .Nm

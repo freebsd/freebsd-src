@@ -43,6 +43,7 @@
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/stdarg.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
 
@@ -57,6 +58,7 @@ struct taskqueue_busy {
 	struct task		*tb_running;
 	u_int			 tb_seq;
 	bool			 tb_canceling;
+	bool			 tb_wanted;
 	LIST_ENTRY(taskqueue_busy) tb_link;
 };
 
@@ -77,6 +79,19 @@ struct taskqueue {
 	taskqueue_callback_fn	tq_callbacks[TASKQUEUE_NUM_CALLBACKS];
 	void			*tq_cb_contexts[TASKQUEUE_NUM_CALLBACKS];
 };
+
+static SYSCTL_NODE(_kern, OID_AUTO, taskqueue, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "taskqueue information");
+
+/*
+ * Limit on the number of tasks that may be run in a single epoch section.
+ * It's profitable to batch tasks together, but there must be a bound in order
+ * to maintain system liveness.
+ */
+unsigned int net_epoch_task_limit = 8;
+SYSCTL_UINT(_kern_taskqueue, OID_AUTO, net_epoch_task_limit, CTLFLAG_RWTUN,
+    &net_epoch_task_limit, 0,
+    "Maximum number of tasks to run in an epoch section");
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
@@ -121,6 +136,15 @@ TQ_SLEEP(struct taskqueue *tq, void *p, const char *wm)
 	if (tq->tq_spin)
 		return (msleep_spin(p, (struct mtx *)&tq->tq_mutex, wm, 0));
 	return (msleep(p, &tq->tq_mutex, 0, wm, 0));
+}
+
+static __inline int
+TQ_SLEEP_BUSY(struct taskqueue *tq, struct taskqueue_busy *tb, const char *wm)
+{
+
+	TQ_ASSERT_LOCKED(tq);
+	tb->tb_wanted = true;
+	return (TQ_SLEEP(tq, tb, wm));
 }
 
 static struct taskqueue_busy *
@@ -448,7 +472,7 @@ taskqueue_drain_tq_active(struct taskqueue *queue)
 restart:
 	LIST_FOREACH(tb, &queue->tq_active, tb_link) {
 		if ((int)(tb->tb_seq - seq) <= 0) {
-			TQ_SLEEP(queue, tb->tb_running, "tq_adrain");
+			TQ_SLEEP_BUSY(queue, tb, "tq_adrain");
 			goto restart;
 		}
 	}
@@ -486,15 +510,16 @@ taskqueue_run_locked(struct taskqueue *queue)
 	struct epoch_tracker et;
 	struct taskqueue_busy tb;
 	struct task *task;
-	bool in_net_epoch;
+	unsigned int epochtasks;
 	int pending;
 
 	KASSERT(queue != NULL, ("tq is NULL"));
 	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
+	tb.tb_wanted = false;
 	LIST_INSERT_HEAD(&queue->tq_active, &tb, tb_link);
-	in_net_epoch = false;
 
+	epochtasks = 0;
 	while ((task = STAILQ_FIRST(&queue->tq_queue)) != NULL) {
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		if (queue->tq_hint == task)
@@ -507,19 +532,28 @@ taskqueue_run_locked(struct taskqueue *queue)
 		TQ_UNLOCK(queue);
 
 		KASSERT(task->ta_func != NULL, ("task->ta_func is NULL"));
-		if (!in_net_epoch && TASK_IS_NET(task)) {
-			in_net_epoch = true;
-			NET_EPOCH_ENTER(et);
-		} else if (in_net_epoch && !TASK_IS_NET(task)) {
+		if (TASK_IS_NET(task)) {
+			if (epochtasks++ == 0)
+				NET_EPOCH_ENTER(et);
+		} else if (epochtasks > 0) {
 			NET_EPOCH_EXIT(et);
-			in_net_epoch = false;
+			epochtasks = 0;
 		}
 		task->ta_func(task->ta_context, pending);
+		if (epochtasks > net_epoch_task_limit) {
+			NET_EPOCH_EXIT(et);
+			epochtasks = 0;
+		}
+
+		wakeup(task);
 
 		TQ_LOCK(queue);
-		wakeup(task);
+		if (__predict_false(tb.tb_wanted)) {
+			tb.tb_wanted = false;
+			wakeup(&tb);
+		}
 	}
-	if (in_net_epoch)
+	if (epochtasks > 0)
 		NET_EPOCH_EXIT(et);
 	LIST_REMOVE(&tb, tb_link);
 }
@@ -610,13 +644,20 @@ taskqueue_cancel_timeout(struct taskqueue *queue,
 void
 taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
+	struct taskqueue_busy *tb;
 
 	if (!queue->tq_spin)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	TQ_LOCK(queue);
-	while (task->ta_pending != 0 || task_get_busy(queue, task) != NULL)
-		TQ_SLEEP(queue, task, "tq_drain");
+	for (;;) {
+		if (task->ta_pending != 0)
+			TQ_SLEEP(queue, task, "tq_drain");
+		else if ((tb = task_get_busy(queue, task)) != NULL)
+			TQ_SLEEP_BUSY(queue, tb, "tq_drain");
+		else
+			break;
+	}
 	TQ_UNLOCK(queue);
 }
 

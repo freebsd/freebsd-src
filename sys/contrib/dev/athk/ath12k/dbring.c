@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "core.h"
 #include "debug.h"
+#include "hal.h"
 
 static int ath12k_dbring_bufs_replenish(struct ath12k *ar,
 					struct ath12k_dbring *ring,
@@ -54,7 +55,7 @@ static int ath12k_dbring_bufs_replenish(struct ath12k *ar,
 	cookie = u32_encode_bits(ar->pdev_idx, DP_RXDMA_BUF_COOKIE_PDEV_ID) |
 		 u32_encode_bits(buf_id, DP_RXDMA_BUF_COOKIE_BUF_ID);
 
-	ath12k_hal_rx_buf_addr_info_set(desc, paddr, cookie, 0);
+	ath12k_hal_rx_buf_addr_info_set(&ab->hal, desc, paddr, cookie, 0);
 
 	ath12k_hal_srng_access_end(ab, srng);
 
@@ -117,7 +118,7 @@ int ath12k_dbring_wmi_cfg_setup(struct ath12k *ar,
 				struct ath12k_dbring *ring,
 				enum wmi_direct_buffer_module id)
 {
-	struct ath12k_wmi_pdev_dma_ring_cfg_arg arg = {0};
+	struct ath12k_wmi_pdev_dma_ring_cfg_arg arg = {};
 	int ret;
 
 	if (id >= WMI_DIRECT_BUF_MAX)
@@ -297,7 +298,7 @@ int ath12k_dbring_buffer_release_event(struct ath12k_base *ab,
 
 		num_buff_reaped++;
 
-		ath12k_hal_rx_buf_addr_info_get(&desc, &paddr, &cookie, &rbm);
+		ath12k_hal_rx_buf_addr_info_get(&ab->hal, &desc, &paddr, &cookie, &rbm);
 
 		buf_id = u32_get_bits(cookie, DP_RXDMA_BUF_COOKIE_BUF_ID);
 

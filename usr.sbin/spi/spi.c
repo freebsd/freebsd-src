@@ -30,6 +30,7 @@
 #include <sys/spigenio.h>
 #include <sys/sysctl.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -364,30 +365,24 @@ main(int argc, char *argv[], char *envp[] __unused)
 
 	/* do data transfer */
 
-	if (stream) {
-		while (!err && !feof(stdin)) {
-			if (fdir == DIR_READ) {
-				err = perform_read(hdev, &opt);
-			}
-			else if (fdir == DIR_WRITE) {
-				err = perform_write(hdev, &opt);
-			}
-			else if (fdir == DIR_READWRITE) {
-				err = perform_readwrite(hdev, &opt);
-			}
-		}
-	}
-	else {
-		if (fdir == DIR_READ) {
+	assert(fdir != DIR_NONE);
+	do {
+		switch (fdir) {
+		case DIR_READ:
 			err = perform_read(hdev, &opt);
-		}
-		else if (fdir == DIR_WRITE) {
+			break;
+		case DIR_WRITE:
 			err = perform_write(hdev, &opt);
-		}
-		else if (fdir == DIR_READWRITE) {
+			break;
+		case DIR_READWRITE:
 			err = perform_readwrite(hdev, &opt);
+			break;
+		default:
+			fprintf(stderr, "Invalid state (%d)\n", fdir);
+			err = EINVAL;
+			break;
 		}
-	}
+	} while (stream && !err && !feof(stdin));
 
 the_end:
 

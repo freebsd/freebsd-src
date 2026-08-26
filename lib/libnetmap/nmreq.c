@@ -615,7 +615,7 @@ nmreq_remove_option(struct nmreq_header *h, struct nmreq_option *o)
 	for (nmo = (struct nmreq_option **)&h->nr_options; *nmo != NULL;
 	    nmo = (struct nmreq_option **)&(*nmo)->nro_next) {
 		if (*nmo == o) {
-			*((uint64_t *)(*nmo)) = o->nro_next;
+			*((uint64_t *)nmo) = o->nro_next;
 			o->nro_next = (uint64_t)(uintptr_t)NULL;
 			break;
 		}

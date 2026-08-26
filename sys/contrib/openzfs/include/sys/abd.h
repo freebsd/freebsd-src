@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2014 by Chunwei Chen. All rights reserved.
@@ -81,8 +71,10 @@ __attribute__((malloc))
 abd_t *abd_alloc(size_t, boolean_t);
 __attribute__((malloc))
 abd_t *abd_alloc_linear(size_t, boolean_t);
+abd_t *abd_alloc_linear_struct(abd_t *, size_t, boolean_t);
 __attribute__((malloc))
 abd_t *abd_alloc_gang(void);
+abd_t *abd_alloc_gang_struct(abd_t *);
 __attribute__((malloc))
 abd_t *abd_alloc_for_io(size_t, boolean_t);
 __attribute__((malloc))
@@ -94,6 +86,7 @@ abd_t *abd_get_offset(abd_t *, size_t);
 abd_t *abd_get_offset_size(abd_t *, size_t, size_t);
 abd_t *abd_get_offset_struct(abd_t *, abd_t *, size_t, size_t);
 abd_t *abd_get_zeros(size_t);
+abd_t *abd_get_zeros_struct(abd_t *, size_t);
 abd_t *abd_get_from_buf(void *, size_t);
 abd_t *abd_get_from_buf_struct(abd_t *, void *, size_t);
 void abd_cache_reap_now(void);

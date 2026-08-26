@@ -1,11 +1,14 @@
 #!/bin/ksh
 # SPDX-License-Identifier: CDDL-1.0
-
 #
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
 # 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -31,7 +34,7 @@ verify_runnable "global"
 
 function cleanup
 {
-	zpool destroy $TESTPOOL
+	destroy_pool $TESTPOOL
 	rm $tmp
 }
 
@@ -58,7 +61,7 @@ log_must eval "zdb -m --allocated-map $TESTPOOL > $tmp"
 log_must zpool destroy $TESTPOOL
 
 log_must zpool create $TESTPOOL $DISKS
-log_must zpool export $TESTPOOL
+log_must_busy zpool export $TESTPOOL
 log_must eval "zhack metaslab leak $TESTPOOL < $tmp"
 log_must zpool import $TESTPOOL
 

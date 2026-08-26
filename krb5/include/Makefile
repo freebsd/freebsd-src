@@ -19,12 +19,15 @@ INCSDIR=	${INCLUDEDIR}
 
 .PATH:	${KRB5_DIR}/include
 
+SRCS=	${GEN}
+
 INCS=	gssapi.h \
 	kdb.h \
 	krad.h \
-	krb5.h
+	krb5.h \
+	profile.h
 
-CLEANFILES=	osconf.new
+CLEANFILES=	osconf.new profile.h
 
 # XXX The output of this needs to be verified against the osconf.h I created
 # It is only used to verify osconf.h has not changed
@@ -34,8 +37,13 @@ osconf.h:
 
 rebuild-error-tables: ${K5_ET_HEADERS}
 
+.include "${KRB5_SRCTOP}/util/profile/Makefile.profile"
+
 .PHONY: rebuild-error-tables osconf.h
 
-.PATH:	${KRB5_DIR}/include/krb5
+.SUFFIXES: .et
+
+.PATH:	${KRB5_DIR}/include/krb5 \
+	${KRB5_DIR}/util/profile
 
 .include <bsd.prog.mk>

@@ -1,0 +1,92 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for jail(2) management syscalls $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print jail management activity -- jail(2), jail_set(2), jail_get(2),
+# jail_attach(2), and jail_remove(2) -- naming the syscall, the jail id
+# operated on, and any errno returned. Answers "who is creating,
+# entering, or destroying jails?" Complements the dwatch `-j jail'
+# filter, which scopes any profile to processes inside one jail; this
+# profile watches the management plane itself, from any jail or none.
+# Use jail-attach, jail-get, jail-remove, or jail-set to watch a
+# single operation by name.
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+jail)
+	: ${PROBE:=$( echo \
+		syscall::jail:return, \
+		syscall::jail_set:return, \
+		syscall::jail_get:return, \
+		syscall::jail_attach:return, \
+		syscall::jail_remove:return )} ;;
+*)
+	: ${PROBE:=syscall::jail_${PROFILE#jail-}:return}
+esac
+
+#
+# Derive the matching entry probes from the return probes being watched
+#
+ENTRY_PROBE=$( echo "$PROBE" | awk 'gsub(/:return/, ":entry") || 1' )
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+self int	jail_arg;
+this int	jail_jid;
+
+$ENTRY_PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	self->jail_arg = -1;
+}
+
+syscall::jail_attach:entry,
+syscall::jail_remove:entry /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");}
+	/* arg0 is the jail id being attached-to or removed */
+	self->jail_arg = (int)arg0;
+}
+
+$PROBE /* probe ID $(( $ID + 2 )) */
+{${TRACE:+
+	printf("<$(( $ID + 2 ))>");
+}
+	/*
+	 * jail(2), jail_set(2), and jail_get(2) return the jail id;
+	 * jail_attach(2) and jail_remove(2) were given it at entry
+	 */
+	this->jail_jid = self->jail_arg >= 0 ?
+		self->jail_arg : (int)arg0;
+	self->jail_arg = 0;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 3 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print jail management details
+	 */
+	printf("%s(2) jid %d%s%s",
+		probefunc,
+		this->jail_jid,
+		errno > 0 ? " -- " : "",
+		errno > 0 ? strerror[errno] : "");
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

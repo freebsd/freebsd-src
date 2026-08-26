@@ -195,6 +195,18 @@ union msg_set_gpio_config {
 	} resp;
 };
 
+#define	BCM2835_FIRMWARE_TAG_GET_GPIOVIRTBUF		0x00040010
+#define	BCM2835_FIRMWARE_TAG_SET_GPIOVIRTBUF		0x00048020
+
+union msg_gpiovirtbuf {
+	struct {
+		uint32_t addr;
+	} req;
+	struct {
+		uint32_t addr;
+	} resp;
+};
+
 int bcm2835_firmware_property(device_t, uint32_t, void *, size_t);
 
 #endif

@@ -95,6 +95,15 @@ _Static_assert(sizeof(ucontext_t) == 880, "ucontext_t size incorrect");
 _Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
 
 /*
+ * Check that the value r is 16bit, i.e. fits into a segment register.
+ */
+static bool
+is_seg_val(register_t r)
+{
+	return ((uint64_t)r <= 0xffff);
+}
+
+/*
  * Send an interrupt to process.
  *
  * Stack is set up to allow sigcode stored at top to call routine,
@@ -134,7 +143,34 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
+	sf.sf_uc.uc_mcontext.mc_rdi = regs->tf_rdi;
+	sf.sf_uc.uc_mcontext.mc_rsi = regs->tf_rsi;
+	sf.sf_uc.uc_mcontext.mc_rdx = regs->tf_rdx;
+	sf.sf_uc.uc_mcontext.mc_rcx = regs->tf_rcx;
+	sf.sf_uc.uc_mcontext.mc_r8 = regs->tf_r8;
+	sf.sf_uc.uc_mcontext.mc_r9 = regs->tf_r9;
+	sf.sf_uc.uc_mcontext.mc_rax = regs->tf_rax;
+	sf.sf_uc.uc_mcontext.mc_rbx = regs->tf_rbx;
+	sf.sf_uc.uc_mcontext.mc_rbp = regs->tf_rbp;
+	sf.sf_uc.uc_mcontext.mc_r10 = regs->tf_r10;
+	sf.sf_uc.uc_mcontext.mc_r11 = regs->tf_r11;
+	sf.sf_uc.uc_mcontext.mc_r12 = regs->tf_r12;
+	sf.sf_uc.uc_mcontext.mc_r13 = regs->tf_r13;
+	sf.sf_uc.uc_mcontext.mc_r14 = regs->tf_r14;
+	sf.sf_uc.uc_mcontext.mc_r15 = regs->tf_r15;
+	sf.sf_uc.uc_mcontext.mc_trapno = regs->tf_trapno;
+	sf.sf_uc.uc_mcontext.mc_fs = regs->tf_fs;
+	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
+	sf.sf_uc.uc_mcontext.mc_addr = regs->tf_addr;
+	sf.sf_uc.uc_mcontext.mc_flags = regs->tf_flags;
+	sf.sf_uc.uc_mcontext.mc_es = regs->tf_es;
+	sf.sf_uc.uc_mcontext.mc_ds = regs->tf_ds;
+	sf.sf_uc.uc_mcontext.mc_err = regs->tf_err;
+	sf.sf_uc.uc_mcontext.mc_rip = regs->tf_rip;
+	sf.sf_uc.uc_mcontext.mc_cs = regs->tf_cs;
+	sf.sf_uc.uc_mcontext.mc_rflags = regs->tf_rflags;
+	sf.sf_uc.uc_mcontext.mc_rsp = regs->tf_rsp;
+	sf.sf_uc.uc_mcontext.mc_ss = regs->tf_ss;
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext, &xfpusave, &xfpusave_len);
 	update_pcb_bases(pcb);
@@ -259,6 +295,14 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (!EFL_SECURE(rflags, regs->tf_rflags)) {
 		uprintf("pid %d (%s): sigreturn rflags = 0x%lx\n", p->p_pid,
 		    td->td_name, rflags);
+		return (EINVAL);
+	}
+
+	if (!is_seg_val(ucp->uc_mcontext.mc_ss) ||
+	    !is_seg_val(ucp->uc_mcontext.mc_cs)) {
+		uprintf("pid %d (%s): sigreturn cs = %#lx ss = %#lx\n",
+		    p->p_pid, td->td_name, ucp->uc_mcontext.mc_cs,
+		    ucp->uc_mcontext.mc_ss);
 		return (EINVAL);
 	}
 
@@ -529,12 +573,15 @@ fill_fpregs_xmm(struct savefpu *sv_xmm, struct fpreg *fpregs)
 }
 
 /* internalize from fpregs into sv_xmm */
-static void
+static int
 set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 {
 	struct envxmm *penv_xmm = &sv_xmm->sv_env;
 	struct envxmm *penv_fpreg = (struct envxmm *)&fpregs->fpr_env;
 	int i;
+
+	if ((penv_fpreg->en_mxcsr & ~cpu_mxcsr_mask) != 0)
+		return (EINVAL);
 
 	/* fpregs -> pcb */
 	/* FPU control/status */
@@ -545,7 +592,7 @@ set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 	penv_xmm->en_rip = penv_fpreg->en_rip;
 	penv_xmm->en_rdp = penv_fpreg->en_rdp;
 	penv_xmm->en_mxcsr = penv_fpreg->en_mxcsr;
-	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask & cpu_mxcsr_mask;
+	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask;
 
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
@@ -554,6 +601,8 @@ set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 	/* SSE registers */
 	for (i = 0; i < 16; ++i)
 		bcopy(fpregs->fpr_xacc[i], sv_xmm->sv_xmm[i].xmm_bytes, 16);
+
+	return (0);
 }
 
 /* externalize from td->pcb */
@@ -573,12 +622,14 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	int error;
 
 	critical_enter();
-	set_fpregs_xmm(fpregs, get_pcb_user_save_td(td));
-	fpuuserinited(td);
+	error = set_fpregs_xmm(fpregs, get_pcb_user_save_td(td));
+	if (error == 0)
+		fpuuserinited(td);
 	critical_exit();
-	return (0);
+	return (error);
 }
 
 /*
@@ -658,6 +709,8 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tp = td->td_frame;
 	if (mcp->mc_len != sizeof(*mcp) ||
 	    (mcp->mc_flags & ~_MC_FLAG_MASK) != 0)
+		return (EINVAL);
+	if (!is_seg_val(mcp->mc_ss) || !is_seg_val(mcp->mc_cs))
 		return (EINVAL);
 	rflags = (mcp->mc_rflags & PSL_USERCHANGE) |
 	    (tp->tf_rflags & ~PSL_USERCHANGE);

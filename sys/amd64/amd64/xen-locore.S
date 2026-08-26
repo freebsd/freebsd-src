@@ -206,3 +206,5 @@ gdt32:
 	.long	0x0000ffff		# %ds, %es, %ss
 	.long	0x00cf9200
 gdt32end:
+
+	.section .note.GNU-stack,"",%progbits

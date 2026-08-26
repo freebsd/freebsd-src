@@ -30,7 +30,10 @@
 #ifndef _LINUXKPI_LINUX_DELAY_H_
 #define	_LINUXKPI_LINUX_DELAY_H_
 
+#include <linux/math.h>
+#include <linux/sched.h>
 #include <linux/jiffies.h>
+
 #include <sys/systm.h>
 
 static inline void
@@ -64,12 +67,21 @@ ndelay(unsigned long x)
 }
 
 static inline void
-usleep_range(unsigned long min, unsigned long max)
+usleep_range_state(unsigned long min, unsigned long max, unsigned int state)
 {
+	KASSERT(state == TASK_UNINTERRUPTIBLE, ("%s: state=%d unsupported\n",
+	    __func__, state));
+
 	/* guard against invalid values */
 	if (min == 0)
 		min = 1;
 	pause_sbt("lnxsleep", ustosbt(min), 0, C_HARDCLOCK);
+}
+
+static inline void
+usleep_range(unsigned long min, unsigned long max)
+{
+	usleep_range_state(min, max, TASK_UNINTERRUPTIBLE);
 }
 
 extern unsigned int linux_msleep_interruptible(unsigned int ms);

@@ -118,7 +118,6 @@ struct netconfig_vars {
 #define NC_INVALID	0
 
 
-static int *__nc_error(void);
 static int parse_ncp(char *, struct netconfig *);
 static struct netconfig *dup_ncp(struct netconfig *);
 
@@ -129,46 +128,10 @@ static mutex_t nc_file_lock = MUTEX_INITIALIZER;
 static struct netconfig_info	ni = { 0, 0, NULL, NULL};
 static mutex_t ni_lock = MUTEX_INITIALIZER;
 
-static thread_key_t nc_key;
-static once_t nc_once = ONCE_INITIALIZER;
-static int nc_key_error;
-
-static void
-nc_key_init(void)
-{
-
-	nc_key_error = thr_keycreate(&nc_key, free);
-}
+static _Thread_local int nc_error = 0;
 
 #define MAXNETCONFIGLINE    1000
 
-static int *
-__nc_error(void)
-{
-	static int nc_error = 0;
-	int *nc_addr;
-
-	/*
-	 * Use the static `nc_error' if we are the main thread
-	 * (including non-threaded programs), or if an allocation
-	 * fails.
-	 */
-	if (thr_main())
-		return (&nc_error);
-	if (thr_once(&nc_once, nc_key_init) != 0 || nc_key_error != 0)
-		return (&nc_error);
-	if ((nc_addr = (int *)thr_getspecific(nc_key)) == NULL) {
-		nc_addr = (int *)malloc(sizeof (int));
-		if (thr_setspecific(nc_key, (void *) nc_addr) != 0) {
-			free(nc_addr);
-			return (&nc_error);
-		}
-		*nc_addr = 0;
-	}
-	return (nc_addr);
-}
-
-#define nc_error        (*(__nc_error()))
 /*
  * A call to setnetconfig() establishes a /etc/netconfig "session".  A session
  * "handle" is returned on a successful call.  At the start of a session (after

@@ -199,9 +199,12 @@ struct nfsd_nfsd_args {
  * NFSDEV_MAXMIRRORS - Maximum level of mirroring for a DS.
  * (Most will only put files on two DSs, but this setting allows up to 4.)
  * NFSDEV_MAXVERS - maximum number of NFS versions supported by Flex File.
+ * NFSDEV_MAXSTRIPE - sanity limit for maximum number of DSs used to stripe a
+ * file, which is nfsrv_maxstripecnt set by the nfsd option.
  */
 #define	NFSDEV_MAXMIRRORS	4
 #define	NFSDEV_MAXVERS		4
+#define NFSDEV_MAXSTRIPE	1024
 
 struct nfsd_pnfsd_args {
 	int	op;		/* Which pNFSd op to perform. */
@@ -233,18 +236,6 @@ struct nfscbd_args {
 	caddr_t	name;		/* Client addr for connection based sockets */
 	int	namelen;	/* Length of name */
 	u_short	port;		/* Port# for callbacks */
-};
-
-struct nfsd_idargs {
-	int		nid_flag;	/* Flags (see below) */
-	uid_t		nid_uid;	/* user/group id */
-	gid_t		nid_gid;
-	int		nid_usermax;	/* Upper bound on user name cache */
-	int		nid_usertimeout;/* User name timeout (minutes) */
-	u_char		*nid_name;	/* Name */
-	int		nid_namelen;	/* and its length */
-	gid_t		*nid_grps;	/* and the list */
-	int		nid_ngroup;	/* Size of groups list */
 };
 
 struct nfsd_oidargs {
@@ -390,17 +381,6 @@ struct nfsreferral {
 #define	NFSLCK_WANTNODELEG	0x40000000
 #define	NFSLCK_WANTBITS							\
     (NFSLCK_WANTWDELEG | NFSLCK_WANTRDELEG | NFSLCK_WANTNODELEG)
-
-/* And bits for nid_flag */
-#define	NFSID_INITIALIZE	0x0001
-#define	NFSID_ADDUID		0x0002
-#define	NFSID_DELUID		0x0004
-#define	NFSID_ADDUSERNAME	0x0008
-#define	NFSID_DELUSERNAME	0x0010
-#define	NFSID_ADDGID		0x0020
-#define	NFSID_DELGID		0x0040
-#define	NFSID_ADDGROUPNAME	0x0080
-#define	NFSID_DELGROUPNAME	0x0100
 
 /*
  * fs.nfs sysctl(3) identifiers
@@ -766,6 +746,8 @@ struct nfsrv_descript {
 #define	ND_EXTLSCERTUSER	0x20000000000
 #define	ND_ERELOOKUP		0x40000000000
 #define	ND_MACHCRED		0x80000000000
+#define	ND_CANEXTPG		0x100000000000
+#define	ND_RDMA			0x200000000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.

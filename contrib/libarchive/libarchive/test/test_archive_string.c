@@ -388,6 +388,7 @@ test_archive_string_dirname(void)
 		archive_string_dirname(&s);
 		assertEqualString(pair->exp, s.s);
 	}
+	archive_string_free(&s);
 }
 
 DEFINE_TEST(test_archive_string)

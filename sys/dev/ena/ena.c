@@ -726,6 +726,8 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	snprintf(thread_name, sizeof(thread_name), "%s txeq %d",
 	    device_get_nameunit(adapter->pdev), que->cpu);
 #else
+	if (que->domain >= 0)
+		cpu_mask = &cpuset_domain[que->domain];
 	snprintf(thread_name, sizeof(thread_name), "%s txeq %d",
 	    device_get_nameunit(adapter->pdev), que->id);
 #endif
@@ -1671,6 +1673,9 @@ ena_create_io_queues(struct ena_adapter *adapter)
 
 #ifdef RSS
 		cpu_mask = &queue->cpu_mask;
+#else
+		if (queue->domain >= 0)
+			cpu_mask = &cpuset_domain[queue->domain];
 #endif
 		taskqueue_start_threads_cpuset(&queue->cleanup_tq, 1, PI_NET,
 		    cpu_mask, "%s queue %d cleanup",
@@ -1815,6 +1820,8 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 	static int last_bind = 0;
 	int cur_bind;
 	int idx;
+#else
+	int domain;
 #endif
 	int irq_idx;
 
@@ -1827,6 +1834,9 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		last_bind = (last_bind + adapter->num_io_queues) % num_buckets;
 	}
 	cur_bind = adapter->first_bind;
+#else
+	if (bus_get_domain(adapter->pdev, &domain))
+		domain = -1;
 #endif
 
 	for (int i = 0; i < adapter->num_io_queues; i++) {
@@ -1860,8 +1870,8 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		}
 		adapter->que[i].domain = idx;
 #else
-		adapter->que[i].domain = -1;
-#endif
+		adapter->que[i].domain = domain;
+#endif /* RSS */
 	}
 
 	return (0);
@@ -2671,11 +2681,11 @@ static int
 ena_enable_wc(device_t pdev, struct resource *res)
 {
 #if defined(__i386) || defined(__amd64) || defined(__aarch64__)
-	vm_offset_t va;
+	void *va;
 	vm_size_t len;
 	int rc;
 
-	va = (vm_offset_t)rman_get_virtual(res);
+	va = rman_get_virtual(res);
 	len = rman_get_size(res);
 	/* Enable write combining */
 	rc = pmap_change_attr(va, len, VM_MEMATTR_WRITE_COMBINING);
@@ -2766,8 +2776,7 @@ ena_set_llq_configurations(struct ena_llq_configurations *llq_config,
 	llq_config->llq_num_decs_before_header =
 	    ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
 
-	switch (ena_force_large_llq_header)
-	{
+	switch (ena_force_large_llq_header) {
 	case ENA_LLQ_HEADER_SIZE_POLICY_REGULAR:
 		use_large_llq = false;
 		break;
@@ -3091,15 +3100,19 @@ ena_keep_alive_wd(void *adapter_data, struct ena_admin_aenq_entry *aenq_e)
 	sbintime_t stime;
 	uint64_t rx_drops;
 	uint64_t tx_drops;
+	uint64_t rx_overruns;
 
 	desc = (struct ena_admin_aenq_keep_alive_desc *)aenq_e;
 
 	rx_drops = ((uint64_t)desc->rx_drops_high << 32) | desc->rx_drops_low;
 	tx_drops = ((uint64_t)desc->tx_drops_high << 32) | desc->tx_drops_low;
+	rx_overruns = ((uint64_t)desc->rx_overruns_high << 32) | desc->rx_overruns_low;
 	counter_u64_zero(adapter->hw_stats.rx_drops);
 	counter_u64_add(adapter->hw_stats.rx_drops, rx_drops);
 	counter_u64_zero(adapter->hw_stats.tx_drops);
 	counter_u64_add(adapter->hw_stats.tx_drops, tx_drops);
+	counter_u64_zero(adapter->hw_stats.rx_overruns);
+	counter_u64_add(adapter->hw_stats.rx_overruns, rx_overruns);
 
 	stime = getsbinuptime();
 	atomic_store_rel_64(&adapter->keep_alive_timestamp, stime);
@@ -3200,7 +3213,7 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 {
 	uint32_t missed_tx = 0, new_missed_tx = 0;
 	device_t pdev = adapter->pdev;
-	struct bintime curtime, time;
+	sbintime_t curtime;
 	struct ena_tx_buffer *tx_buf;
 	int time_since_last_cleanup;
 	int missing_tx_comp_to;
@@ -3209,17 +3222,18 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
 	bool cleanup_scheduled, cleanup_running;
 
-	getbinuptime(&curtime);
+	curtime = getsbinuptime();
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
+		sbintime_t ts;
+
 		tx_buf = &tx_ring->tx_buffer_info[i];
 
-		if (bintime_isset(&tx_buf->timestamp) == 0)
+		ts = atomic_load_64(&tx_buf->timestamp);
+		if (ts == 0)
 			continue;
 
-		time = curtime;
-		bintime_sub(&time, &tx_buf->timestamp);
-		time_offset = bttosbt(time);
+		time_offset = curtime - ts;
 
 		if (unlikely(!atomic_load_8(&tx_ring->first_interrupt) &&
 		    time_offset > 2 * adapter->missing_tx_timeout)) {

@@ -330,7 +330,7 @@ static struct tap_socket* tap_socket_new_tcpaccept(char* ip,
 /** create new socket (unconnected, not base-added), or NULL malloc fail */
 static struct tap_socket* tap_socket_new_tlsaccept(char* ip,
 	void (*ev_cb)(int, short, void*), void* data, char* server_key,
-	char* server_cert, char* verifypem)
+	char* server_cert, char* verifypem, char* tls_protocols)
 {
 	struct tap_socket* s = calloc(1, sizeof(*s));
 	if(!s) {
@@ -347,7 +347,7 @@ static struct tap_socket* tap_socket_new_tlsaccept(char* ip,
 	s->ev_cb = ev_cb;
 	s->data = data;
 	s->sslctx = listen_sslctx_create(server_key, server_cert, verifypem,
-		NULL, NULL, 0, 0, 0);
+		NULL, NULL, 0, 0, 0, tls_protocols);
 	if(!s->sslctx) {
 		log_err("could not create ssl context");
 		free(s->ip);
@@ -1261,13 +1261,13 @@ static void setup_tcp_list(struct main_tap_data* maindata,
 /** setup tls accept sockets */
 static void setup_tls_list(struct main_tap_data* maindata,
 	struct config_strlist_head* tls_list, char* server_key,
-	char* server_cert, char* verifypem)
+	char* server_cert, char* verifypem, char* tls_protocols)
 {
 	struct config_strlist* item;
 	for(item = tls_list->first; item; item = item->next) {
 		struct tap_socket* s;
 		s = tap_socket_new_tlsaccept(item->str, &dtio_mainfdcallback,
-			maindata, server_key, server_cert, verifypem);
+			maindata, server_key, server_cert, verifypem, tls_protocols);
 		if(!s) fatal_exit("out of memory");
 		if(!tap_socket_list_insert(&maindata->acceptlist, s))
 			fatal_exit("out of memory");
@@ -1300,7 +1300,7 @@ static void
 setup_and_run(struct config_strlist_head* local_list,
 	struct config_strlist_head* tcp_list,
 	struct config_strlist_head* tls_list, char* server_key,
-	char* server_cert, char* verifypem)
+	char* server_cert, char* verifypem, char* tls_protocols)
 {
 	time_t secs = 0;
 	struct timeval now;
@@ -1326,7 +1326,7 @@ setup_and_run(struct config_strlist_head* local_list,
 	setup_local_list(maindata, local_list);
 	setup_tcp_list(maindata, tcp_list);
 	setup_tls_list(maindata, tls_list, server_key, server_cert,
-		verifypem);
+		verifypem, tls_protocols);
 	if(!tap_socket_list_addevs(maindata->acceptlist, base))
 		fatal_exit("could not setup accept events");
 	if(verbosity) log_info("start of service");
@@ -1462,6 +1462,8 @@ int main(int argc, char** argv)
 	struct config_strlist_head tcp_list;
 	struct config_strlist_head tls_list;
 	char* server_key = NULL, *server_cert = NULL, *verifypem = NULL;
+
+	char* tls_protocols = "TLSv1.2 TLSv1.3";
 #ifdef USE_WINSOCK
 	WSADATA wsa_data;
 	if(WSAStartup(MAKEWORD(2,2), &wsa_data) != 0) {
@@ -1561,17 +1563,25 @@ int main(int argc, char** argv)
 #else
 		OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 			| OPENSSL_INIT_ADD_ALL_DIGESTS
-			| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+			| OPENSSL_INIT_LOAD_CRYPTO_STRINGS
+#  if defined(OPENSSL_INIT_NO_LOAD_CONFIG) && defined(UB_ON_WINDOWS)
+			| OPENSSL_INIT_NO_LOAD_CONFIG
+#  endif
+			, NULL);
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 		(void)SSL_library_init();
 #else
-		(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+		(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS
+#  if defined(OPENSSL_INIT_NO_LOAD_CONFIG) && defined(UB_ON_WINDOWS)
+			| OPENSSL_INIT_NO_LOAD_CONFIG
+#  endif
+			, NULL);
 #endif
 #endif /* HAVE_SSL */
 	}
 	setup_and_run(&local_list, &tcp_list, &tls_list, server_key,
-		server_cert, verifypem);
+		server_cert, verifypem, tls_protocols);
 	config_delstrlist(local_list.first);
 	config_delstrlist(tcp_list.first);
 	config_delstrlist(tls_list.first);
@@ -1649,7 +1659,8 @@ struct outbound_entry* worker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
-	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited))
+	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited),
+	int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;
@@ -1683,7 +1694,8 @@ struct outbound_entry* libworker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
-	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited))
+	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited),
+	int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;
@@ -1721,6 +1733,11 @@ void libworker_bg_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode),
 void libworker_event_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode), 
 	struct sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
 	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
+{
+	log_assert(0);
+}
+
+void libworker_alloc_cleanup(void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }

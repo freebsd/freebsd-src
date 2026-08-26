@@ -63,6 +63,10 @@ static int
 linux_mmap_check_fp(struct file *fp, int flags, int prot, int maxprot)
 {
 
+	/* Linux returns EBADF if mmap() is called on an O_PATH file descriptor */
+	if (fp->f_ops == &path_fileops)
+		return (EBADF);
+
 	/* Linux mmap() just fails for O_WRONLY files */
 	if ((fp->f_flag & FREAD) == 0)
 		return (EACCES);
@@ -241,6 +245,44 @@ linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 	linux_fixup_prot(td, &prot);
 #endif
 	return (kern_mprotect(td, addr, len, prot, flags));
+}
+
+/*
+ * x86 memory protection keys.  The common entry points perform the
+ * parameter validation Linux applies regardless of hardware support,
+ * then defer to the machine-dependent back end.
+ */
+
+int
+linux_pkey_alloc_common(struct thread *td, uint64_t flags, uint64_t init_val)
+{
+
+	if (flags != 0)
+		return (EINVAL);
+	if ((init_val & ~(uint64_t)LINUX_PKEY_ACCESS_MASK) != 0)
+		return (EINVAL);
+	return (linux_pkey_alloc_machdep(td, init_val));
+}
+
+int
+linux_pkey_free_common(struct thread *td, int pkey)
+{
+
+	if (pkey < 0 || pkey >= LINUX_PKEY_MAX)
+		return (EINVAL);
+	return (linux_pkey_free_machdep(td, pkey));
+}
+
+int
+linux_pkey_mprotect_common(struct thread *td, uintptr_t addr, size_t len,
+    int prot, int pkey)
+{
+
+	if (pkey < -1 || pkey >= LINUX_PKEY_MAX)
+		return (EINVAL);
+	if (pkey == -1)
+		return (linux_mprotect_common(td, addr, len, prot));
+	return (linux_pkey_mprotect_machdep(td, addr, len, prot, pkey));
 }
 
 /*

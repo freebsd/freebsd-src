@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.413 2025/03/03 06:53:09 dtucker Exp $
-.Dd $Mdocdate: March 3 2025 $
+.\" $OpenBSD: ssh_config.5,v 1.426 2026/07/01 00:52:31 djm Exp $
+.Dd $Mdocdate: July 1 2026 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -56,31 +56,36 @@ system-wide configuration file
 .Pq Pa /etc/ssh/ssh_config
 .El
 .Pp
-Unless noted otherwise, for each parameter, the first obtained value
-will be used.
-The configuration files contain sections separated by
-.Cm Host
-specifications, and that section is only applied for hosts that
-match one of the patterns given in the specification.
-The matched host name is usually the one given on the command line
-(see the
-.Cm CanonicalizeHostname
-option for exceptions).
+Unless noted otherwise, for each configuration directive, the first
+specified value will be used.
 .Pp
-Since the first obtained value for each parameter is used, more
+The configuration files may contain sections separated by conditional
+.Cm Host
+or
+.Cm Match
+directives.
+Configuration in these sections is only applied if the conditional directive
+that started the section matches.
+.Pp
+Since the first obtained value for each directive is used, more
 host-specific declarations should be given near the beginning of the
 file, and general defaults at the end.
 .Pp
-The file contains keyword-argument pairs, one per line.
+The file contains directive/values pairs, one per line.
 Lines starting with
 .Ql #
 and empty lines are interpreted as comments.
-Arguments may optionally be enclosed in double quotes
+.Ql #
+outside of a quoted string may be used to add a comment to the end of a line.
+Whitespace at the beginning or end of lines is ignored.
+Values may optionally be enclosed in double quotes
 .Pq \&"
 in order to represent arguments containing spaces.
-Configuration options may be separated by whitespace or
-optional whitespace and exactly one
-.Ql = ;
+.Pp
+Configuration directives are separated from their values by whitespace
+or exactly one
+.Ql =
+character (which may be surrounded by whitespace);
 the latter format is useful to avoid the need to quote whitespace
 when specifying configuration options using the
 .Nm ssh ,
@@ -280,6 +285,31 @@ for transport-only sessions, such as when
 is started with the
 .Fl N
 flag.
+.It Cm Include
+Include the specified configuration file(s).
+Multiple pathnames may be specified and each pathname may contain
+.Xr glob 7
+wildcards,
+tokens as described in the
+.Sx TOKENS
+section, environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
+section and, for user configurations, shell-like
+.Sq ~
+references to user home directories.
+Wildcards will be expanded and processed in lexical order.
+Files without absolute paths are assumed to be in
+.Pa ~/.ssh
+if included in a user configuration file or
+.Pa /etc/ssh
+if included from the system configuration file.
+.Cm Include
+directive may appear inside a
+.Cm Match
+or
+.Cm Host
+block
+to perform conditional inclusion.
 .It Cm AddKeysToAgent
 Specifies whether keys should be automatically added to a running
 .Xr ssh-agent 1 .
@@ -532,7 +562,7 @@ Open connections to
 .Xr ssh-agent 1 .
 .It Cm direct-tcpip , Cm direct-streamlocal@openssh.com
 Open TCP or Unix socket (respectively) connections that have
-been established from a
+been established from an
 .Xr ssh 1
 local forwarding, i.e.\&
 .Cm LocalForward
@@ -540,9 +570,9 @@ or
 .Cm DynamicForward .
 .It Cm forwarded-tcpip , Cm forwarded-streamlocal@openssh.com
 Open TCP or Unix socket (respectively) connections that have been
-established to a
+established to an
 .Xr sshd 8
-listening on behalf of a
+listening on behalf of an
 .Xr ssh 1
 remote forwarding, i.e.\&
 .Cm RemoteForward .
@@ -648,6 +678,13 @@ The argument must be
 or
 .Cm no
 (the default).
+.Pp
+Compression applies to all traffic that flows over the SSH connection.
+If untrusted traffic (such as an open port-forward) is permitted over the
+connection alongside trusted traffic, then compression may leak information
+about session contents.
+For this reason, it is not recommended to enable compression for connections
+that share trusted and untrusted traffic.
 .It Cm ConnectionAttempts
 Specifies the number of tries (one per second) to make before exiting.
 The argument must be an integer.
@@ -1020,12 +1057,14 @@ ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
+webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
 rsa-sha2-512,rsa-sha2-256
 .Ed
 .Pp
@@ -1066,11 +1105,13 @@ ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ecdsa-sha2-nistp256@openssh.com,
+webauthn-sk-ecdsa-sha2-nistp256@openssh.com
 sk-ssh-ed25519@openssh.com,
 rsa-sha2-512,rsa-sha2-256
 .Ed
@@ -1216,33 +1257,10 @@ It is recommended that
 .Cm IgnoreUnknown
 be listed early in the configuration file as it will not be applied
 to unknown options that appear before it.
-.It Cm Include
-Include the specified configuration file(s).
-Multiple pathnames may be specified and each pathname may contain
-.Xr glob 7
-wildcards,
-tokens as described in the
-.Sx TOKENS
-section, environment variables as described in the
-.Sx ENVIRONMENT VARIABLES
-section and, for user configurations, shell-like
-.Sq ~
-references to user home directories.
-Wildcards will be expanded and processed in lexical order.
-Files without absolute paths are assumed to be in
-.Pa ~/.ssh
-if included in a user configuration file or
-.Pa /etc/ssh
-if included from the system configuration file.
-.Cm Include
-directive may appear inside a
-.Cm Match
-or
-.Cm Host
-block
-to perform conditional inclusion.
 .It Cm IPQoS
-Specifies the IPv4 type-of-service or DSCP class for connections.
+Specifies the
+.Em Differentiated Services Field Codepoint Pq DSCP
+value for connections.
 Accepted values are
 .Cm af11 ,
 .Cm af12 ,
@@ -1266,9 +1284,6 @@ Accepted values are
 .Cm cs7 ,
 .Cm ef ,
 .Cm le ,
-.Cm lowdelay ,
-.Cm throughput ,
-.Cm reliability ,
 a numeric value, or
 .Cm none
 to use the operating system default.
@@ -1277,11 +1292,11 @@ If one argument is specified, it is used as the packet class unconditionally.
 If two values are specified, the first is automatically selected for
 interactive sessions and the second for non-interactive sessions.
 The default is
-.Cm af21
-(Low-Latency Data)
+.Cm ef
+(Expedited Forwarding)
 for interactive sessions and
-.Cm cs1
-(Lower Effort)
+.Cm none
+(the operating system default)
 for non-interactive sessions.
 .It Cm KbdInteractiveAuthentication
 Specifies whether to use keyboard-interactive authentication.
@@ -1639,7 +1654,7 @@ Multiple proxies may be separated by comma characters and will be visited
 sequentially.
 Setting this option will cause
 .Xr ssh 1
-to connect to the target host by first making a
+to connect to the target host by first making an
 .Xr ssh 1
 connection to the specified
 .Cm ProxyJump
@@ -1690,12 +1705,14 @@ ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
+webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
 rsa-sha2-512,rsa-sha2-256
 .Ed
 .Pp
@@ -1715,6 +1732,15 @@ disabling or enabling the OpenSSH host-bound authentication protocol
 extension required for restricted
 .Xr ssh-agent 1
 forwarding.
+.It Cm RefuseConnection
+Allows a connection to be refused by the configuration file.
+If this option is specified, then
+.Xr ssh 1
+will terminate immediately before attempting to connect to the remote
+host, display an error message that contains the argument to this keyword
+and return a non-zero exit status.
+This option may be useful to express reminders or warnings to the user via
+.Nm .
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted or received
 before the session key is renegotiated, optionally followed by a maximum
@@ -2221,6 +2247,20 @@ If this flag is set to
 (the default),
 no fingerprint strings are printed at login and
 only the fingerprint string will be printed for unknown host keys.
+.It Cm WarnWeakCrypto
+controls whether the user is warned when the cryptographic algorithms
+negotiated for the connection are weak or otherwise recommended against.
+Warnings may be disabled by turning off a specific warning or by disabling
+all warnings.
+Warnings about connections that don't use a post-quantum key exchange
+may be disabled using the
+.Cm no-pq-kex
+flag.
+.Cm no
+will disable all warnings.
+The default, equivalent to
+.Cm yes ,
+is to enable all warnings.
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1
@@ -2277,7 +2317,14 @@ such as a wildcard:
 .Dl from=\&"!host1,!host2,*\&"
 .Sh TOKENS
 Arguments to some keywords can make use of tokens,
-which are expanded at runtime:
+which are expanded at runtime.
+Tokens are expanded without quoting or escaping of shell characters.
+It is the user's responsibility to ensure they are safe in the
+context of their use.
+.Pp
+The supported tokens in
+.Nm
+are:
 .Pp
 .Bl -tag -width XXXX -offset indent -compact
 .It %%

@@ -1413,6 +1413,11 @@ unionfs_rename(struct vop_rename_args *ap)
 		goto unionfs_rename_abort;
 	}
 
+	if (ap->a_flags != 0) {
+		error = EOPNOTSUPP;
+		goto unionfs_rename_abort;
+	}
+
 	/* Renaming a file to itself has no effect. */
 	if (fvp == tvp)
 		goto unionfs_rename_abort;
@@ -1581,7 +1586,7 @@ unionfs_rename(struct vop_rename_args *ap)
 	if (rfvp == rtvp)
 		goto unionfs_rename_abort;
 
-	error = VOP_RENAME(rfdvp, rfvp, fcnp, rtdvp, rtvp, tcnp);
+	error = VOP_RENAME(rfdvp, rfvp, fcnp, rtdvp, rtvp, tcnp, ap->a_flags);
 
 	if (error == 0) {
 		if (rtvp != NULL && rtvp->v_type == VDIR)
@@ -2246,17 +2251,6 @@ unionfs_lock_restart:
 		tvp = unp->un_lowervp;
 		lvp_locked = true;
 	}
-
-	/*
-	 * During unmount, the root vnode lock may be taken recursively,
-	 * because it may share the same v_vnlock field as the vnode covered by
-	 * the unionfs mount.  The covered vnode is locked across VFS_UNMOUNT(),
-	 * and the same lock may be taken recursively here during vflush()
-	 * issued by unionfs_unmount().
-	 */
-	if ((flags & LK_TYPE_MASK) == LK_EXCLUSIVE &&
-	    (vp->v_vflag & VV_ROOT) != 0)
-		flags |= LK_CANRECURSE;
 
 	vholdnz(tvp);
 	VI_UNLOCK(vp);

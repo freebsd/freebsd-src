@@ -49,6 +49,7 @@
 #include <sys/param.h>
 
 #include <errno.h>
+#include <stdckdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -65,25 +66,19 @@ typedef int (*cmp_t)(const void *, const void *);
 static void setup(u_char *, u_char *, size_t, size_t, cmp_t);
 static void insertionsort(u_char *, size_t, size_t, cmp_t);
 
-#define ISIZE sizeof(int)
 #define PSIZE sizeof(u_char *)
-#define ICOPY_LIST(src, dst, last)				\
-	do							\
-	*(int*)dst = *(int*)src, src += ISIZE, dst += ISIZE;	\
-	while(src < last)
-#define ICOPY_ELT(src, dst, i)					\
-	do							\
-	*(int*) dst = *(int*) src, src += ISIZE, dst += ISIZE;	\
-	while (i -= ISIZE)
-
-#define CCOPY_LIST(src, dst, last)		\
-	do					\
-		*dst++ = *src++;		\
-	while (src < last)
-#define CCOPY_ELT(src, dst, i)			\
-	do					\
-		*dst++ = *src++;		\
-	while (i -= 1)
+#define COPY_LIST(src, dst, last)		\
+	do {					\
+		memcpy(dst, src, last - src);	\
+		dst += last - src;		\
+		src += last - src;		\
+	} while (0)
+#define COPY_ELT(src, dst, i)			\
+	do {					\
+		memcpy(dst, src, i);		\
+		src += i;			\
+		dst += i;			\
+	} while (0)
 
 /*
  * Find the next possible pointer head.  (Trickery for forcing an array
@@ -109,9 +104,9 @@ mergesort_b(void *base, size_t nmemb, size_t size, cmp_t cmp)
 mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 #endif
 {
-	size_t i;
+	size_t i, nbytes, asize;
 	int sense;
-	int big, iflag;
+	int big;
 	u_char *f1, *f2, *t, *b, *tp2, *q, *l1, *l2;
 	u_char *list2, *list1, *p2, *p, *last, **p1;
 
@@ -123,16 +118,17 @@ mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 	if (nmemb == 0)
 		return (0);
 
-	iflag = 0;
-	if (__is_aligned(size, ISIZE) && __is_aligned(base, ISIZE))
-		iflag = 1;
+	if (ckd_mul(&nbytes, nmemb, size) || ckd_add(&asize, nbytes, PSIZE)) {
+		errno = EINVAL;
+		return (-1);
+	}
 
-	if ((list2 = malloc(nmemb * size + PSIZE)) == NULL)
+	if ((list2 = malloc(asize)) == NULL)
 		return (-1);
 
 	list1 = base;
 	setup(list1, list2, nmemb, size, cmp);
-	last = list2 + nmemb * size;
+	last = list2 + nbytes;
 	i = big = 0;
 	while (*EVAL(list2) != last) {
 	    l2 = list1;
@@ -194,43 +190,26 @@ COPY:	    			b = t;
 	    		}
 	    		i = size;
 	    		if (q == f1) {
-	    			if (iflag) {
-	    				ICOPY_LIST(f2, tp2, b);
-	    				ICOPY_ELT(f1, tp2, i);
-	    			} else {
-	    				CCOPY_LIST(f2, tp2, b);
-	    				CCOPY_ELT(f1, tp2, i);
-	    			}
+	    			COPY_LIST(f2, tp2, b);
+	    			COPY_ELT(f1, tp2, i);
 	    		} else {
-	    			if (iflag) {
-	    				ICOPY_LIST(f1, tp2, b);
-	    				ICOPY_ELT(f2, tp2, i);
-	    			} else {
-	    				CCOPY_LIST(f1, tp2, b);
-	    				CCOPY_ELT(f2, tp2, i);
-	    			}
+	    			COPY_LIST(f1, tp2, b);
+	    			COPY_ELT(f2, tp2, i);
 	    		}
 	    	}
-	    	if (f2 < l2) {
-	    		if (iflag)
-	    			ICOPY_LIST(f2, tp2, l2);
-	    		else
-	    			CCOPY_LIST(f2, tp2, l2);
-	    	} else if (f1 < l1) {
-	    		if (iflag)
-	    			ICOPY_LIST(f1, tp2, l1);
-	    		else
-	    			CCOPY_LIST(f1, tp2, l1);
-	    	}
+	    	if (f2 < l2)
+	    		COPY_LIST(f2, tp2, l2);
+	    	else if (f1 < l1)
+	   		COPY_LIST(f1, tp2, l1);
 	    	*p1 = l2;
 	    }
 	    tp2 = list1;	/* swap list1, list2 */
 	    list1 = list2;
 	    list2 = tp2;
-	    last = list2 + nmemb*size;
+	    last = list2 + nbytes;
 	}
 	if (base == list2) {
-		memmove(list2, list1, nmemb*size);
+		memmove(list2, list1, nbytes);
 		list2 = list1;
 	}
 	free(list2);

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2016-2025 Microchip Technology, Inc. and/or its subsidiaries.
+ * Copyright 2016-2026 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -275,7 +275,7 @@ pqisrc_is_innocuous_error(pqisrc_softstate_t *softs, rcb_t *rcb, void *err_info)
 		if (raid_err->data_out_result == PQI_RAID_DATA_IN_OUT_UNDERFLOW)
 			return true;
 
-		/* We get these a alot: leave a tiny breadcrumb about the error,
+		/* We get these a lot: leave a tiny breadcrumb about the error,
 			but don't do full spew about it */
 		if (raid_err->status == PQI_AIO_STATUS_CHECK_CONDITION)
 		{

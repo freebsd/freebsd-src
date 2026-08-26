@@ -58,6 +58,7 @@ ENTRY(efi_rt_arch_call)
 	cmovbl	%eax, %ecx
 	shll	$3, %ecx
 	subq	%rcx, %rsp
+	andq	$~0xf, %rsp
 
 	cmpl	$0, %ebx
 	jz	1f
@@ -116,3 +117,5 @@ ENTRY(efi_rt_fault)
 END(efi_rt_fault)
 
 efi_rt_panic_str:	.asciz	"efi_rt_arch_call: too many args"
+
+	.section .note.GNU-stack,"",%progbits

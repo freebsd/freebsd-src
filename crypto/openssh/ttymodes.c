@@ -1,4 +1,4 @@
-/* $OpenBSD: ttymodes.c,v 1.36 2021/01/27 09:26:54 djm Exp $ */
+/* $OpenBSD: ttymodes.c,v 1.37 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -56,7 +56,6 @@
 #include "log.h"
 #include "compat.h"
 #include "sshbuf.h"
-#include "ssherr.h"
 
 #define TTY_OP_END		0
 /*

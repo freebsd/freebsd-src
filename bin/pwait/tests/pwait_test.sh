@@ -56,31 +56,29 @@ time_unit_head()
 
 time_unit_body()
 {
-	init=1
+	atf_check \
+		-o empty \
+		-e inline:"pwait: timeout unit\n" \
+		-s exit:65 \
+		timeout --preserve-status 2 pwait -t 1d $$
 
 	atf_check \
 		-o empty \
 		-e inline:"pwait: timeout unit\n" \
 		-s exit:65 \
-		timeout --preserve-status 2 pwait -t 1d $init
-
-	atf_check \
-		-o empty \
-		-e inline:"pwait: timeout unit\n" \
-		-s exit:65 \
-		timeout --preserve-status 2 pwait -t 1d $init
+		timeout --preserve-status 2 pwait -t 1d $$
 
 	atf_check \
 		-o empty \
 		-e inline:"pwait: timeout value\n" \
 		-s exit:65 \
-		timeout --preserve-status 2 pwait -t -1 $init
+		timeout --preserve-status 2 pwait -t -1 $$
 
 	atf_check \
 		-o empty \
 		-e inline:"pwait: timeout value\n" \
 		-s exit:65 \
-		timeout --preserve-status 2 pwait -t 100000001 $init
+		timeout --preserve-status 2 pwait -t 100000001 $$
 
 	# These long duration cases are expected to timeout from the
 	# timeout utility rather than pwait -t.
@@ -88,37 +86,37 @@ time_unit_body()
 		-o empty \
 		-e empty \
 		-s signal:15 \
-		timeout --preserve-status 2 pwait -t 100000000 $init
+		timeout --preserve-status 2 pwait -t 100000000 $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s signal:15 \
-		timeout --preserve-status 2 pwait -t 1h $init
+		timeout --preserve-status 2 pwait -t 1h $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s signal:15 \
-		timeout --preserve-status 2 pwait -t 1.5h $init
+		timeout --preserve-status 2 pwait -t 1.5h $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s signal:15 \
-		timeout --preserve-status 2 pwait -t 1m $init
+		timeout --preserve-status 2 pwait -t 1m $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s signal:15 \
-		timeout --preserve-status 2 pwait -t 1.5m $init
+		timeout --preserve-status 2 pwait -t 1.5m $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s signal:15 \
-		timeout --preserve-status 2 pwait -t 0 $init
+		timeout --preserve-status 2 pwait -t 0 $$
 
 	# The rest are fast enough that pwait -t is expected to trigger
 	# the timeout.
@@ -126,31 +124,31 @@ time_unit_body()
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		timeout --preserve-status 2 pwait -t 1s $init
+		timeout --preserve-status 2 pwait -t 1s $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		timeout --preserve-status 2 pwait -t 1.5s $init
+		timeout --preserve-status 2 pwait -t 1.5s $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		timeout --preserve-status 2 pwait -t 1 $init
+		timeout --preserve-status 2 pwait -t 1 $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		timeout --preserve-status 2 pwait -t 1.5 $init
+		timeout --preserve-status 2 pwait -t 1.5 $$
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		timeout --preserve-status 2 pwait -t 0.5 $init
+		timeout --preserve-status 2 pwait -t 0.5 $$
 }
 
 atf_test_case timeout_trigger_timeout

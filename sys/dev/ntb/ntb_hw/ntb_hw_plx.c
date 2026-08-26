@@ -860,7 +860,7 @@ ntb_plx_mw_set_wc(device_t dev, unsigned mw_idx, vm_memattr_t mode)
 
 	split = (mw->mw_bar == 2) ? sc->split : 0;
 	ss = (mw->mw_size - off) >> split;
-	rc = pmap_change_attr((vm_offset_t)mw->mw_vbase + off + ss * sp,
+	rc = pmap_change_attr(mw->mw_vbase + off + ss * sp,
 	    ss, mode);
 	if (rc == 0)
 		mw->splits[sp].mw_map_mode = mode;

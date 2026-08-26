@@ -165,4 +165,5 @@ void	mroutepr(void);
 void	mrt_stats(void);
 void	bpf_stats(char *);
 void	nhops_print(int fibnum, int af);
+void	nhops_stats(void);
 void	nhgrp_print(int fibnum, int af);

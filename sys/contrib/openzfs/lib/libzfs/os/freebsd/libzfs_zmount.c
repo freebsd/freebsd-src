@@ -111,9 +111,27 @@ int
 do_unmount(zfs_handle_t *zhp, const char *mntpt, int flags)
 {
 	(void) zhp;
+
+	/*
+	 * MS_CRYPT and MS_OVERLAY are libzfs-internal flags; keep them out of
+	 * the unmount(2) syscall. MS_FORCE/MS_DETACH are real flags and kept.
+	 */
+	flags &= ~(MS_CRYPT | MS_OVERLAY);
+
 	if (unmount(mntpt, flags) < 0)
 		return (errno);
 	return (0);
+}
+
+/*
+ * FreeBSD does not support mount_setattr(2).  Fall back to a full
+ * remount so that the updated namespace property takes effect.
+ */
+int
+zfs_mount_setattr(zfs_handle_t *zhp, uint32_t nspflags)
+{
+	(void) nspflags;
+	return (zfs_mount(zhp, MNTOPT_REMOUNT, 0));
 }
 
 int

@@ -764,19 +764,23 @@ main(int argc, char *argv[])
 {
 	FTS *ftsp;
 	FTSENT *p;
-	char *dot = NULL;
+	char *dot = NULL, *module = NULL;
 	int opt, fts_options;
 	struct stat sb;
 
 	fts_options = FTS_PHYSICAL;
 
-	while ((opt = getopt(argc, argv, "Rdf:v")) != -1) {
+	while ((opt = getopt(argc, argv, "Rdf:m:v")) != -1) {
 		switch (opt) {
 		case 'd':	/* no hint file, only print on stdout */
 			dflag = true;
 			break;
 		case 'f':	/* use this name instead of linker.hints */
 			xref_file = optarg;
+			break;
+		case 'm':
+			module = optarg;
+			dflag = true;
 			break;
 		case 'v':
 			verbose++;
@@ -789,10 +793,17 @@ main(int argc, char *argv[])
 			/* NOTREACHED */
 		}
 	}
-	if (argc - optind < 1)
+	if (argc - optind < (module ? 0 : 1))
 		usage();
 	argc -= optind;
 	argv += optind;
+
+	if (module) {
+		if (elf_version(EV_CURRENT) == EV_NONE)
+			errx(1, "unsupported libelf");
+		read_kld(module, module);
+		exit(0);
+	}
 
 	if (stat(argv[0], &sb) != 0)
 		err(1, "%s", argv[0]);

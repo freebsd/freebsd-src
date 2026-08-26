@@ -1,0 +1,11 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: Tilde version test
+Description: Test package for checking rpmvercmp ~ handling
+Version: 1.0.0~rc1
+Requires:
+Libs: -L${libdir} -ltilde
+Cflags: -I${includedir}

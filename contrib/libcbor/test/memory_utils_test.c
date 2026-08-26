@@ -9,7 +9,7 @@
 #include <string.h>
 #include "assertions.h"
 
-static void test_safe_multiply(void **_CBOR_UNUSED(_state)) {
+static void test_safe_multiply(void** _state _CBOR_UNUSED) {
   assert_true(_cbor_safe_to_multiply(1, 1));
   assert_true(_cbor_safe_to_multiply(SIZE_MAX, 0));
   assert_true(_cbor_safe_to_multiply(SIZE_MAX, 1));
@@ -17,7 +17,7 @@ static void test_safe_multiply(void **_CBOR_UNUSED(_state)) {
   assert_false(_cbor_safe_to_multiply(SIZE_MAX, SIZE_MAX));
 }
 
-static void test_safe_add(void **_CBOR_UNUSED(_state)) {
+static void test_safe_add(void** _state _CBOR_UNUSED) {
   assert_true(_cbor_safe_to_add(1, 1));
   assert_true(_cbor_safe_to_add(SIZE_MAX - 1, 1));
   assert_true(_cbor_safe_to_add(SIZE_MAX, 0));
@@ -28,7 +28,7 @@ static void test_safe_add(void **_CBOR_UNUSED(_state)) {
   assert_false(_cbor_safe_to_add(SIZE_MAX - 1, SIZE_MAX - 1));
 }
 
-static void test_safe_signalling_add(void **_CBOR_UNUSED(_state)) {
+static void test_safe_signalling_add(void** _state _CBOR_UNUSED) {
   assert_size_equal(_cbor_safe_signaling_add(1, 2), 3);
   assert_size_equal(_cbor_safe_signaling_add(0, 1), 0);
   assert_size_equal(_cbor_safe_signaling_add(0, SIZE_MAX), 0);
@@ -36,8 +36,8 @@ static void test_safe_signalling_add(void **_CBOR_UNUSED(_state)) {
   assert_size_equal(_cbor_safe_signaling_add(1, SIZE_MAX - 1), SIZE_MAX);
 }
 
-static void test_realloc_multiple(void **_CBOR_UNUSED(_state)) {
-  unsigned char *data = malloc(1);
+static void test_realloc_multiple(void** _state _CBOR_UNUSED) {
+  unsigned char* data = malloc(1);
   data[0] = 0x2a;
 
   data = _cbor_realloc_multiple(data, /*item_size=*/1, /*item_count=*/10);

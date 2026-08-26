@@ -428,7 +428,7 @@ match_iface(if_t ifp, void *_arg)
 
 	if (attrs->ifi_index != 0 && attrs->ifi_index != if_getindex(ifp))
 		return (false);
-	if (attrs->ifi_type != 0 && attrs->ifi_index != if_gettype(ifp))
+	if (attrs->ifi_type != 0 && attrs->ifi_type != if_gettype(ifp))
 		return (false);
 	if (attrs->ifla_ifname != NULL && strcmp(attrs->ifla_ifname, if_name(ifp)))
 		return (false);
@@ -556,10 +556,7 @@ rtnl_handle_dellink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 	}
 	NLP_LOG(LOG_DEBUG3, nlp, "mapped ifindex %u to %s", attrs.ifi_index, if_name(ifp));
 
-	sx_xlock(&ifnet_detach_sxlock);
 	error = if_clone_destroy(if_name(ifp));
-	sx_xunlock(&ifnet_detach_sxlock);
-
 	NLP_LOG(LOG_DEBUG2, nlp, "deleting interface %s returned %d", if_name(ifp), error);
 
 	if_rele(ifp);

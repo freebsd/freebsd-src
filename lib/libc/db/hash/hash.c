@@ -81,6 +81,10 @@ static void  swap_header_copy(HASHHDR *, HASHHDR *);
 #define	ERROR	(-1)
 #define	ABNORMAL (1)
 
+/* Cursor status */
+#define CURSOR_NOT_SET -1
+#define CURSOR_OVERFLOW -2
+
 #ifdef HASH_STATISTICS
 int hash_accesses, hash_collisions, hash_expansions, hash_overflows;
 #endif
@@ -180,7 +184,7 @@ __hash_open(const char *file, int flags, int mode,
 
 	hashp->new_file = new_table;
 	hashp->save_file = file && (flags & O_RDWR);
-	hashp->cbucket = -1;
+	hashp->cbucket = CURSOR_NOT_SET;
 	if (!(dbp = (DB *)malloc(sizeof(DB)))) {
 		save_errno = errno;
 		hdestroy(hashp);
@@ -711,11 +715,11 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 #ifdef HASH_STATISTICS
 	hash_accesses++;
 #endif
-	if (flag == R_FIRST) {
+	if (flag == R_FIRST || hashp->cbucket == CURSOR_NOT_SET) {
 		hashp->cbucket = 0;
 		hashp->cndx = 1;
 		hashp->cpage = NULL;
-	} else if (hashp->cbucket < 0) { /* R_NEXT */
+	} else if (hashp->cbucket <= CURSOR_OVERFLOW) {
 		return (ABNORMAL);
 	}
 next_bucket:
@@ -734,7 +738,7 @@ next_bucket:
 			}
 			hashp->cbucket = bucket;
 			if ((u_int32_t)hashp->cbucket > hashp->MAX_BUCKET) {
-				hashp->cbucket = -1;
+				hashp->cbucket = CURSOR_OVERFLOW;
 				return (ABNORMAL);
 			}
 		} else {

@@ -263,14 +263,19 @@ void schedinit(void);
  */
 void schedinit_ap(void);
 
-bool sched_do_timer_accounting(void);
-
 /*
  * Find an L2 neighbor of the given CPU or return -1 if none found.  This
  * does not distinguish among multiple L2 neighbors if the given CPU has
  * more than one (it will always return the same result in that case).
  */
 int sched_find_l2_neighbor(int cpu);
+
+/*
+ * The scheduler selection interface uses names that are reserved words in
+ * C++, causing problems for downstream projects that use C++ in the
+ * kernel.
+ */
+#ifndef __cplusplus
 
 struct sched_instance {
 	int	(*load)(void);
@@ -313,7 +318,6 @@ struct sched_instance {
 	int	(*sizeof_thread)(void);
 	char	*(*tdname)(struct thread *td);
 	void	(*clear_tdname)(struct thread *td);
-	bool	(*do_timer_accounting)(void);
 	int	(*find_l2_neighbor)(int cpuid);
 	void	(*init)(void);
 	void	(*init_ap)(void);
@@ -336,6 +340,8 @@ struct sched_selection {
 	DATA_SET(sched_instance_set, xsel_name);
 
 void sched_instance_select(void);
+
+#endif /* !__cplusplus */
 
 #endif /* _KERNEL */
 
@@ -363,7 +369,7 @@ struct sched_param {
 #ifndef _PID_T_DECLARED
 typedef __pid_t         pid_t;
 #define _PID_T_DECLARED
-#endif
+#endif /* !_PID_T_DECLARED */
 
 __BEGIN_DECLS
 int     sched_get_priority_max(int);
@@ -376,5 +382,6 @@ int     sched_setscheduler(pid_t, int, const struct sched_param *);
 int     sched_yield(void);
 __END_DECLS
 
-#endif
+#endif /* !_KERNEL */
+
 #endif /* !_SCHED_H_ */

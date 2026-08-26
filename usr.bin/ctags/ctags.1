@@ -110,21 +110,6 @@ Beware: this option is implemented in a way which is rather
 slow; it is usually faster to simply rebuild the
 .Pa tags
 file.
-.It Fl v
-An index of the form expected by
-.Xr vgrind 1
-is produced on the standard output.
-This listing
-contains the object name, file name, and page number (assuming 64
-line pages).
-Since the output will be sorted into lexicographic order,
-it may be desired to run the output through
-.Xr sort 1 .
-Sample use:
-.Bd -literal -offset indent
-ctags -v files | sort -f > index
-vgrind -x index
-.Ed
 .It Fl w
 Suppress warning diagnostics.
 .It Fl x

@@ -39,32 +39,32 @@
 #define	LEN_PATH_DEV	(sizeof(_PATH_DEV) - 1)
 
 char *
-__ssp_real(ctermid)(char *s)
+__ssp_real(ctermid)(char *buf)
 {
 	static char def[sizeof(_PATH_DEV) + SPECNAMELEN];
 	struct stat sb;
 	size_t dlen;
 	int sverrno;
 
-	if (s == NULL) {
-		s = def;
+	if (buf == NULL) {
+		buf = def;
 		dlen = sizeof(def) - LEN_PATH_DEV;
 	} else
 		dlen = L_ctermid - LEN_PATH_DEV;
-	strcpy(s, _PATH_TTY);
+	strcpy(buf, _PATH_TTY);
 
 	/* Attempt to perform a lookup of the actual TTY pathname. */
 	sverrno = errno;
 	if (stat(_PATH_TTY, &sb) == 0 && S_ISCHR(sb.st_mode))
-		(void)sysctlbyname("kern.devname", s + LEN_PATH_DEV,
+		(void)sysctlbyname("kern.devname", buf + LEN_PATH_DEV,
 		    &dlen, &sb.st_rdev, sizeof(sb.st_rdev));
 	errno = sverrno;
-	return (s);
+	return (buf);
 }
 
 char *
-__ssp_real(ctermid_r)(char *s)
+__ssp_real(ctermid_r)(char *buf)
 {
 
-	return (s != NULL ? ctermid(s) : NULL);
+	return (buf != NULL ? ctermid(buf) : NULL);
 }

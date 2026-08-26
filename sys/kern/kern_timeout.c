@@ -1485,7 +1485,9 @@ _show_callout(struct callout *c)
 	C_DB_PRINTF("%" PRId64,	c_time);
 	C_DB_PRINTF("%" PRId64,	c_precision);
 	C_DB_PRINTF("%p",	c_arg);
-	C_DB_PRINTF("%p",	c_func);
+	db_printf("   %s = %p (", "c_func", c->c_func);
+	db_printsym((db_addr_t)c->c_func, DB_STGY_ANY);
+	db_printf(")\n");
 	C_DB_PRINTF("%p",	c_lock);
 	C_DB_PRINTF("%#x",	c_flags);
 	C_DB_PRINTF("%#x",	c_iflags);

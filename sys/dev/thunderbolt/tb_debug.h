@@ -81,7 +81,7 @@ enum {
  */
 void tbdbg_dprintf(device_t dev, u_int debug, u_int val, const char *fmt, ...) __printflike(4, 5);
 
-#if defined(THUNDERBOLT_DEBUG) && (THUNDERBOLT_DEBUG > 0)
+#ifdef THUNDERBOLT_DEBUG
 #define tb_debug(sc, level, fmt...)	\
 	tbdbg_dprintf((sc)->dev, (sc)->debug, level, ##fmt)
 #else

@@ -85,6 +85,7 @@ struct ioapic_intsrc {
 	u_int io_activehi:1;
 	u_int io_edgetrigger:1;
 	u_int io_masked:1;
+	u_int io_valid:1;
 	int io_bus:4;
 	uint32_t io_lowreg;
 	u_int io_remap_cookie;
@@ -193,7 +194,7 @@ _ioapic_eoi_source(struct intsrc *isrc, int locked)
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
 		    low1);
 		low1 = src->io_lowreg;
-		if (src->io_masked != 0)
+		if (src->io_masked != 0 || src->io_valid == 0)
 			low1 |= IOART_INTMSET;
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(src->io_intpin),
 		    low1);
@@ -268,7 +269,9 @@ ioapic_enable_source(struct intsrc *isrc)
 
 	mtx_lock_spin(&icu_lock);
 	if (intpin->io_masked) {
-		flags = intpin->io_lowreg & ~IOART_INTMASK;
+		flags = intpin->io_lowreg;
+		if (intpin->io_valid)
+			flags &= ~IOART_INTMASK;
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
 		    flags);
 		intpin->io_masked = 0;
@@ -361,10 +364,27 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	/*
 	 * Set the destination.  Note that with Intel interrupt remapping,
 	 * the previously reserved bits 55:48 now have a purpose so ensure
-	 * these are zero.
+	 * these are zero.  If the CPU number (in fact, APIC ID) is too
+	 * large, mark the interrupt as invalid, and target CPU #0.
 	 */
-	low = IOART_DESTPHY;
-	high = intpin->io_cpu << APIC_ID_SHIFT;
+	if (intpin->io_cpu <= IOAPIC_MAX_ID) {
+		low = IOART_DESTPHY;
+		high = intpin->io_cpu << APIC_ID_SHIFT;
+		intpin->io_valid = 1;
+	} else if (intpin->io_cpu <= IOAPIC_MAX_EXT_ID &&
+	    apic_ext_dest_id == 1) {
+		low = IOART_DESTPHY;
+		high = intpin->io_cpu << APIC_ID_SHIFT & APIC_ID_MASK;
+		high |= (intpin->io_cpu >> 8) << APIC_EXT_ID_SHIFT
+		    & APIC_EXT_ID_MASK;
+		intpin->io_valid = 1;
+	} else {
+		printf("%s: unsupported destination APIC ID %u for pin %u\n",
+		    __func__, intpin->io_cpu, intpin->io_intpin);
+		low = IOART_DESTPHY;
+		high = 0 << APIC_ID_SHIFT;
+		intpin->io_valid = 0;
+	}
 
 	/* Program the rest of the low word. */
 	if (intpin->io_edgetrigger)
@@ -375,7 +395,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 		low |= IOART_INTAHI;
 	else
 		low |= IOART_INTALO;
-	if (intpin->io_masked)
+	if (intpin->io_masked || !intpin->io_valid)
 		low |= IOART_INTMSET;
 	switch (intpin->io_irq) {
 	case IRQ_EXTINT:
@@ -697,11 +717,13 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 			intpin->io_activehi = 1;
 			intpin->io_edgetrigger = 1;
 			intpin->io_masked = 1;
+			intpin->io_valid = 1;
 		} else {
 			intpin->io_bus = APIC_BUS_PCI;
 			intpin->io_activehi = 0;
 			intpin->io_edgetrigger = 0;
 			intpin->io_masked = 1;
+			intpin->io_valid = 1;
 		}
 
 		/*
@@ -796,6 +818,7 @@ ioapic_set_nmi(ioapic_drv_t io, u_int pin)
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_irq = IRQ_NMI;
 	io->io_pins[pin].io_masked = 0;
+	io->io_pins[pin].io_valid = 1;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
@@ -817,6 +840,7 @@ ioapic_set_smi(ioapic_drv_t io, u_int pin)
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_irq = IRQ_SMI;
 	io->io_pins[pin].io_masked = 0;
+	io->io_pins[pin].io_valid = 1;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
@@ -841,6 +865,7 @@ ioapic_set_extint(ioapic_drv_t io, u_int pin)
 		io->io_pins[pin].io_masked = 0;
 	else
 		io->io_pins[pin].io_masked = 1;
+	io->io_pins[pin].io_valid = 1;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)

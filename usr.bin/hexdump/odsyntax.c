@@ -139,7 +139,7 @@ oldsyntax(int argc, char ***argvp)
 				errx(1, "%s: invalid skip amount", optarg);
 			break;
 		case 'N':
-			if ((length = atoi(optarg)) <= 0)
+			if ((length = strtol(optarg, NULL, 0)) <= 0)
 				errx(1, "%s: invalid length", optarg);
 			break;
 		case 'O':

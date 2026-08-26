@@ -560,6 +560,10 @@ static void eap_ttls_process_phase2_chap(struct eap_sm *sm,
 					 const u8 *password,
 					 size_t password_len)
 {
+#ifdef CONFIG_FIPS
+	wpa_printf(MSG_ERROR, "EAP-TTLS: CHAP not supported in FIPS build");
+	eap_ttls_state(data, FAILURE);
+#else /* CONFIG_FIPS */
 	u8 *chal, hash[CHAP_MD5_LEN];
 
 	if (challenge == NULL || password == NULL ||
@@ -613,6 +617,7 @@ static void eap_ttls_process_phase2_chap(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/CHAP: Invalid user password");
 		eap_ttls_state(data, FAILURE);
 	}
+#endif /* CONFIG_FIPS */
 }
 
 

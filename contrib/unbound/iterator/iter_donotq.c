@@ -132,6 +132,18 @@ donotq_apply_cfg(struct iter_donotq* dq, struct config_file* cfg)
 		if(cfg->do_ip6) {
 			if(!donotq_str_cfg(dq, "::1"))
 				return 0;
+			if(!donotq_str_cfg(dq, "::ffff:127.0.0.0/104"))
+				return 0;
+		}
+		/* RFC 1122 3.2.1.3 / RFC 6890 / RFC 4291 2.5.2: not valid as
+		 * destination; on Linux these route to the local host. */
+		if(!donotq_str_cfg(dq, "0.0.0.0/8"))
+			return 0;
+		if(cfg->do_ip6) {
+			if(!donotq_str_cfg(dq, "::"))
+				return 0;
+			if(!donotq_str_cfg(dq, "::ffff:0:0/96"))
+				return 0;
 		}
 	}
 	addr_tree_init_parents(&dq->tree);

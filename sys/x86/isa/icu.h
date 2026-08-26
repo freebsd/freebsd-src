@@ -71,4 +71,6 @@
 void	atpic_handle_intr(u_int vector, struct trapframe *frame);
 void	atpic_startup(void);
 
+#define	NUM_ISA_IRQS		16
+
 #endif /* !_X86_ISA_ICU_H_ */

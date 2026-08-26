@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 9, 2025
+.Dd August 13, 2026
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -85,7 +85,9 @@ linkage.
 .It Sy __weak_symbol Ta Declare the symbol to be a weak symbol
 .It Sy __dead2 Ta Function will not return
 .It Sy __pure2 Ta Function has no side effects
-.It Sy __unused Ta To Variable may be unused (usually arguments), so do not
+.It Sy __unused Ta Variable may be unused (usually arguments), so do not
+warn about it
+.It Sy __maybe_unused Ta Variable may be unused (usually arguments), so do not
 warn about it
 .It Sy __used Ta Function really is used, so emit it even if it appears unused.
 .It Sy __deprecated Ta Function interface has been deprecated, and clients
@@ -119,6 +121,9 @@ family of functions.
 .Dq fastcall
 ABI to call and name mangle this function.
 .It Sy __result_use_check Ta Warn if function caller does not use its return value
+Obsolete, use
+.Sy __nodiscard
+instead.
 .It Sy __nodiscard Ta Equivalent to the standard
 .Dq [[nodiscard]]
 attribute.
@@ -132,6 +137,9 @@ If applied to a struct, C++ class or enum, this applies to all functions
 returning values of that type.
 If applied to a C++ constructor, this applies to creating instances of
 the class using that constructor.
+Note that
+.Sy __nodiscard
+must appear before the function declaration.
 .It Sy __returns_twice Ta Returns multiple times, like
 .Xr fork 2
 .It Sy __unreachable Ta This code is not reachable at runtime
@@ -197,6 +205,9 @@ except
 .Fa fmtarg
 may be
 .Dv NULL.
+.It Sy __nonstring Ta Specify that an array of
+.Vt char
+does not require a null terminator.
 .It Sy __strong_reference(sym,aliassym) Ta
 .It Sy __weak_reference(sym,alias) Ta
 .It Sy __warn_references(sym,msg) Ta

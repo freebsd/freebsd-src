@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.53 2024/05/17 00:30:23 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.57 2026/04/02 07:48:13 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -96,9 +96,10 @@ userauth_hostbased(struct ssh *ssh, const char *method)
 		error_f("cannot decode key: %s", pkalg);
 		goto done;
 	}
-	if (key->type != pktype) {
-		error_f("type mismatch for decoded key "
-		    "(received %d, expected %d)", key->type, pktype);
+	if (key->type != pktype || (sshkey_type_plain(pktype) == KEY_ECDSA &&
+	    sshkey_ecdsa_nid_from_name(pkalg) != key->ecdsa_nid)) {
+		error_f("key type mismatch for decoded key "
+		    "(received %s, expected %s)", sshkey_ssh_name(key), pkalg);
 		goto done;
 	}
 	if (match_pattern_list(pkalg, options.hostbased_accepted_algos, 0) != 1) {
@@ -211,10 +212,19 @@ hostbased_key_allowed(struct ssh *ssh, struct passwd *pw,
 	}
 	debug2_f("access allowed by auth_rhosts2");
 
-	if (sshkey_is_cert(key) &&
-	    sshkey_cert_check_authority_now(key, 1, 0, 0, lookup, &reason)) {
-		error("%s", reason);
-		auth_debug_add("%s", reason);
+	if (sshkey_is_cert(key) && sshkey_cert_check_host(key, lookup,
+	     options.ca_sign_algorithms, &reason) != 0) {
+		if ((fp = sshkey_fingerprint(key->cert->signature_key,
+		    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+			fatal_f("sshkey_fingerprint fail");
+		error("Refusing certificate ID \"%s\" serial=%llu signed by "
+		    "%s CA %s: %s", key->cert->key_id,
+		    (unsigned long long)key->cert->serial,
+		    sshkey_type(key->cert->signature_key), fp, reason);
+		auth_debug_add("Refused Certificate ID \"%s\" serial=%llu: %s",
+		    key->cert->key_id, (unsigned long long)key->cert->serial,
+		    reason);
+		free(fp);
 		return 0;
 	}
 

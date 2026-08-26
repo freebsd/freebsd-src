@@ -202,10 +202,17 @@ struct freebsd11_kevent32 {
 /*
  * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
  */
-#define	NOTE_EXIT	0x80000000		/* process exited */
-#define	NOTE_FORK	0x40000000		/* process forked */
-#define	NOTE_EXEC	0x20000000		/* process exec'd */
-#define	NOTE_PCTRLMASK	0xf0000000		/* mask for hint bits */
+#define	NOTE_EXIT	0x80000000		/* proc/procdesc: process
+						   exited */
+#define	NOTE_FORK	0x40000000		/* proc/procdesc: process
+						   forked */
+#define	NOTE_EXEC	0x20000000		/* proc: process exec'd */
+#define	NOTE_PDSIGCHLD	0x10000000		/* procdesc: pdwait() info
+						   available */
+#define	NOTE_SIGNAL	0x08000000		/* process received a signal,
+						   shared with EVFIL_SIGNAL */
+#define	NOTE_REAP	0x04000000		/* process reaped */
+#define	NOTE_PCTRLMASK	0xfc000000		/* mask for hint bits */
 #define	NOTE_PDATAMASK	0x000fffff		/* mask for pid */
 
 /* additional flags for EVFILT_PROC */
@@ -260,12 +267,6 @@ struct knlist {
 #define	KNLIST_EMPTY(list)		SLIST_EMPTY(&(list)->kl_list)
 
 /*
- * Flag indicating hint is a signal.  Used by EVFILT_SIGNAL, and also
- * shared by EVFILT_PROC  (all knotes attached to p->p_klist)
- */
-#define NOTE_SIGNAL	0x08000000
-
-/*
  * Hint values for the optional f_touch event filter.  If f_touch is not set 
  * to NULL and f_isfd is zero the f_touch filter will be called with the type
  * argument set to EVENT_REGISTER during a kevent() system call.  It is also
@@ -315,6 +316,7 @@ struct knote {
 #define KN_MARKER	0x20			/* ignore this knote */
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
 #define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
+#define	KN_CPONFORK	(KN_ACTIVE | KN_DISABLED) /* state preserved by fork */
 	int			kn_influx;
 	unsigned int		kn_sfflags;	/* saved filter flags */
 	int64_t			kn_sdata;	/* saved data field */

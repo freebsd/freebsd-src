@@ -58,6 +58,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netinet/sctp.h>
+#include <netlink/netlink.h>
 #include <arpa/inet.h>
 
 #include <assert.h>
@@ -1569,6 +1570,61 @@ user_ptr32_to_psaddr(int32_t user_pointer)
 }
 
 /*
+ * Check whether a file descriptor belongs to an AF_NETLINK socket
+ * for the current traced process.
+ */
+static int
+get_netlink_protocol(struct trussinfo *trussinfo, int num_fd)
+{
+	struct procinfo *p = trussinfo->curthread->proc;
+	struct fd_domain *f;
+
+	LIST_FOREACH(f, &p->fdlist, entries) {
+		if (f->fd == num_fd && f->domain == AF_NETLINK)
+			return (f->protocol);
+	}
+	return (-1);
+}
+
+#define NETLINK_MAX_DECODE 4096
+
+/*
+ * Copy a potential Netlink message buffer from the traced process
+ * and attempt to decode and print it.
+ */
+static bool
+print_netlink(FILE *fp, struct trussinfo *trussinfo, void *msg, size_t len,
+    int protocol)
+{
+	char *buf;
+	pid_t pid = trussinfo->curthread->proc->pid;
+	bool success = false;
+
+	if (msg == NULL || len == 0)
+		return (false);
+
+	size_t read_len = MIN(len, NETLINK_MAX_DECODE);
+	if (read_len == 0)
+		return (false);
+
+	buf = malloc(read_len);
+	if (buf == NULL)
+		return (false);
+
+	if (get_struct(pid, (uintptr_t)msg, buf, read_len) == -1) {
+		free(buf);
+		return (false);
+	}
+
+	if (sysdecode_netlink(fp, buf, read_len, protocol)) {
+		success = true;
+	}
+	free(buf);
+
+	return (success);
+}
+
+/*
  * Converts a syscall argument into a string.  Said string is
  * allocated via malloc(), so needs to be free()'d.  sc is
  * a pointer to the syscall description (see above); args is
@@ -1576,7 +1632,7 @@ user_ptr32_to_psaddr(int32_t user_pointer)
  */
 char *
 print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
-    struct trussinfo *trussinfo)
+    struct trussinfo *trussinfo, struct syscall_decode *decode)
 {
 	FILE *fp;
 	char *tmp;
@@ -1634,6 +1690,19 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		break;
 	}
 	case BinString: {
+		if ((strcmp(decode->name, "sendto") == 0 ||
+		    strcmp(decode->name, "recvfrom") == 0)) {
+
+			int protocol =
+			    get_netlink_protocol(trussinfo, (int)args[0]);
+
+			if ((protocol != -1) &&
+			    print_netlink(fp, trussinfo,
+			    (void *)args[sc->offset],
+			    (size_t)args[sc->offset + 1],
+			    protocol))
+				break;
+		}
 		/*
 		 * Binary block of data that might have printable characters.
 		 * XXX If type|OUT, assume that the length is the syscall's
@@ -2697,6 +2766,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 	}
 	case Msghdr: {
 		struct msghdr msghdr;
+		struct iovec iov;
 
 		if (get_struct(pid, args[sc->offset],
 		    &msghdr, sizeof(struct msghdr)) == -1) {
@@ -2706,7 +2776,16 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		fputs("{", fp);
 		print_sockaddr(fp, trussinfo, (uintptr_t)msghdr.msg_name, msghdr.msg_namelen);
 		fprintf(fp, ",%d,", msghdr.msg_namelen);
-		print_iovec(fp, trussinfo, (uintptr_t)msghdr.msg_iov, msghdr.msg_iovlen);
+		/* Attempt Netlink decode; fallback to standard iovec if it fails. */
+		int protocol = get_netlink_protocol(trussinfo, (int)args[0]);
+		if ((protocol == -1) ||
+		    (get_struct(pid, (uintptr_t)msghdr.msg_iov,
+		    &iov, sizeof(iov)) == -1) ||
+		    (!print_netlink(fp, trussinfo, (void *)iov.iov_base,
+		    (size_t)iov.iov_len, protocol))) {
+			print_iovec(fp, trussinfo, (uintptr_t)msghdr.msg_iov,
+			    msghdr.msg_iovlen);
+		}
 		fprintf(fp, ",%d,", msghdr.msg_iovlen);
 		print_cmsgs(fp, pid, sc->type & OUT, &msghdr);
 		fprintf(fp, ",%u,", msghdr.msg_controllen);

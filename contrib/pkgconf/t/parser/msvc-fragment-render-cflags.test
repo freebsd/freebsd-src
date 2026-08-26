@@ -1,0 +1,6 @@
+SkipPlatforms: lite
+PackageSearchPath: lib1
+WantedFlags: cflags static msvc-syntax
+Query: foo
+ExpectedStdout: /I/test/include/foo /DFOO_STATIC
+MatchStdout: partial

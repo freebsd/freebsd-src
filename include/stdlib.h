@@ -173,6 +173,12 @@ _Noreturn void
  */
 #if __ISO_C_VISIBLE >= 2023
 size_t	memalignment(const void *) __pure2;
+void	free_sized(void *, size_t) __noexcept;
+void	free_aligned_sized(void *, size_t, size_t) __noexcept;
+int	strfromd(char * __restrict, size_t, const char * __restrict, double);
+int	strfromf(char * __restrict, size_t, const char * __restrict, float);
+int	strfroml(char * __restrict, size_t,
+	    const char * __restrict, long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 /*
@@ -405,11 +411,33 @@ _Noreturn void abort_handler_s(const char * __restrict, void * __restrict,
 /* K3.6.1.3 */
 void ignore_handler_s(const char * __restrict, void * __restrict, errno_t);
 /* K.3.6.3.2 */
+void	*bsearch_s(const void *, const void *, rsize_t, rsize_t,
+    int (*)(const void *, const void *, void *), void *);
+/* K.3.6.3.3 */
 errno_t	 qsort_s(void *, rsize_t, rsize_t,
     int (*)(const void *, const void *, void *), void *);
 #endif /* __EXT1_VISIBLE */
 
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
+
+#if defined(__qualsel) && !defined(__cplusplus) && \
+    defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define	bsearch(key, base, nmemb, size, compar)		__qualsel((base),    \
+	(const void *)(bsearch)((key), (base), (nmemb), (size), (compar)),   \
+	(bsearch)((key), (base), (nmemb), (size), (compar)))
+#ifdef __BLOCKS__
+#define	bsearch_b(key, base, nmemb, size, compar)	__qualsel((base),    \
+	(const void *)(bsearch_b)((key), (base), (nmemb), (size), (compar)), \
+	(bsearch_b)((key), (base), (nmemb), (size), (compar)))
+#endif
+#if __EXT1_VISIBLE
+#define	bsearch_s(key, base, nmemb, size, compar, context)		\
+	__qualsel((base),						\
+	(const void *)(bsearch_s)((key), (base), (nmemb), (size),	\
+	    (compar), (context)),					\
+	(bsearch_s)((key), (base), (nmemb), (size), (compar), (context)))
+#endif
+#endif
 
 #endif /* !_STDLIB_H_ */

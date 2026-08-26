@@ -10,7 +10,9 @@
 
 #include "common.h"
 #include "crypto/crypto.h"
+#ifndef CONFIG_FIPS
 #include "crypto/md5.h"
+#endif /* CONFIG_FIPS */
 #include "crypto/sha1.h"
 #include "crypto/random.h"
 #include "ikev2_common.h"
@@ -18,7 +20,9 @@
 
 static const struct ikev2_integ_alg ikev2_integ_algs[] = {
 	{ AUTH_HMAC_SHA1_96, 20, 12 },
+#ifndef CONFIG_FIPS
 	{ AUTH_HMAC_MD5_96, 16, 12 }
+#endif /* CONFIG_FIPS */
 };
 
 #define NUM_INTEG_ALGS ARRAY_SIZE(ikev2_integ_algs)
@@ -26,7 +30,9 @@ static const struct ikev2_integ_alg ikev2_integ_algs[] = {
 
 static const struct ikev2_prf_alg ikev2_prf_algs[] = {
 	{ PRF_HMAC_SHA1, 20, 20 },
+#ifndef CONFIG_FIPS
 	{ PRF_HMAC_MD5, 16, 16 }
+#endif /* CONFIG_FIPS */
 };
 
 #define NUM_PRF_ALGS ARRAY_SIZE(ikev2_prf_algs)
@@ -34,7 +40,8 @@ static const struct ikev2_prf_alg ikev2_prf_algs[] = {
 
 static const struct ikev2_encr_alg ikev2_encr_algs[] = {
 	{ ENCR_AES_CBC, 16, 16 }, /* only 128-bit keys supported for now */
-	{ ENCR_3DES, 24, 8 }
+	{ ENCR_3DES, 24, 8 },
+	{ ENCR_NULL, 0, 0 }
 };
 
 #define NUM_ENCR_ALGS ARRAY_SIZE(ikev2_encr_algs)
@@ -66,6 +73,7 @@ int ikev2_integ_hash(int alg, const u8 *key, size_t key_len, const u8 *data,
 			return -1;
 		os_memcpy(hash, tmphash, 12);
 		break;
+#ifndef CONFIG_FIPS
 	case AUTH_HMAC_MD5_96:
 		if (key_len != 16)
 			return -1;
@@ -73,6 +81,7 @@ int ikev2_integ_hash(int alg, const u8 *key, size_t key_len, const u8 *data,
 			return -1;
 		os_memcpy(hash, tmphash, 12);
 		break;
+#endif /* CONFIG_FIPS */
 	default:
 		return -1;
 	}
@@ -102,8 +111,10 @@ int ikev2_prf_hash(int alg, const u8 *key, size_t key_len,
 	case PRF_HMAC_SHA1:
 		return hmac_sha1_vector(key, key_len, num_elem, addr, len,
 					hash);
+#ifndef CONFIG_FIPS
 	case PRF_HMAC_MD5:
 		return hmac_md5_vector(key, key_len, num_elem, addr, len, hash);
+#endif /* CONFIG_FIPS */
 	default:
 		return -1;
 	}
@@ -185,6 +196,9 @@ int ikev2_encr_encrypt(int alg, const u8 *key, size_t key_len, const u8 *iv,
 	case ENCR_AES_CBC:
 		encr_alg = CRYPTO_CIPHER_ALG_AES;
 		break;
+	case ENCR_NULL:
+		encr_alg = CRYPTO_CIPHER_NULL;
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "IKEV2: Unsupported encr alg %d", alg);
 		return -1;
@@ -219,6 +233,9 @@ int ikev2_encr_decrypt(int alg, const u8 *key, size_t key_len, const u8 *iv,
 		break;
 	case ENCR_AES_CBC:
 		encr_alg = CRYPTO_CIPHER_ALG_AES;
+		break;
+	case ENCR_NULL:
+		encr_alg = CRYPTO_CIPHER_NULL;
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "IKEV2: Unsupported encr alg %d", alg);
@@ -577,9 +594,15 @@ int ikev2_build_encrypted(int encr_id, int integ_id, struct ikev2_keys *keys,
 		return -1;
 	}
 
-	pad_len = iv_len - (wpabuf_len(plain) + 1) % iv_len;
-	if (pad_len == iv_len)
+	if (iv_len) {
+		pad_len = iv_len - (wpabuf_len(plain) + 1) % iv_len;
+		if (pad_len == iv_len)
+			pad_len = 0;
+	} else {
+		/* Avoid padding when not necessary */
 		pad_len = 0;
+	}
+
 	wpabuf_put(plain, pad_len);
 	wpabuf_put_u8(plain, pad_len);
 

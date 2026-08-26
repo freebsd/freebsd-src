@@ -125,9 +125,8 @@ update_etcupdate_pre() {
 }
 
 update_etcupdate() {
-	chroot ${BE_MNTPT} \
-		${ETCUPDATE_CMD} -s ${srcdir} ${ETCUPDATE_FLAGS} || return $?
-	chroot ${BE_MNTPT} ${ETCUPDATE_CMD} resolve
+	${ETCUPDATE_CMD} -s ${srcdir} ${ETCUPDATE_FLAGS} || return $?
+	${ETCUPDATE_CMD} resolve -D ${BE_MNTPT}
 }
 
 
@@ -216,7 +215,7 @@ mount -t nullfs "${srcdir}" "${BE_MNTPT}${srcdir}" || errx "Unable to mount src"
 mount -t nullfs "${objdir}" "${BE_MNTPT}${objdir}" || errx "Unable to mount obj"
 mount -t devfs devfs "${BE_MNTPT}/dev" || errx "Unable to mount devfs"
 
-chroot ${BE_MNTPT} make "$@" -C ${srcdir} installworld || \
+make "$@" DESTDIR=${BE_MNTPT} -DDB_FROM_SRC installworld || \
 	errx "Installworld failed!"
 
 if [ -n "${CONFIG_UPDATER}" ]; then

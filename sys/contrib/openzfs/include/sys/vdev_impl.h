@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -67,7 +57,7 @@ typedef int	vdev_init_func_t(spa_t *spa, nvlist_t *nv, void **tsd);
 typedef void	vdev_kobj_post_evt_func_t(vdev_t *vd);
 typedef void	vdev_fini_func_t(vdev_t *vd);
 typedef int	vdev_open_func_t(vdev_t *vd, uint64_t *size, uint64_t *max_size,
-    uint64_t *ashift, uint64_t *pshift);
+    uint64_t *ashift, uint64_t *pshift, cred_t *cr);
 typedef void	vdev_close_func_t(vdev_t *vd);
 typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize, uint64_t txg);
 typedef uint64_t vdev_min_asize_func_t(vdev_t *vd);
@@ -154,14 +144,6 @@ struct vdev_queue {
 	zio_t		vq_io_search; /* used as local for stack reduction */
 	kmutex_t	vq_lock;
 };
-
-typedef enum vdev_alloc_bias {
-	VDEV_BIAS_NONE,
-	VDEV_BIAS_LOG,		/* dedicated to ZIL data (SLOG) */
-	VDEV_BIAS_SPECIAL,	/* dedicated to ddt, metadata, and small blks */
-	VDEV_BIAS_DEDUP		/* dedicated to dedup metadata */
-} vdev_alloc_bias_t;
-
 
 /*
  * On-disk indirect vdev state.
@@ -299,6 +281,8 @@ struct vdev {
 	kcondvar_t	vdev_initialize_cv;
 	uint64_t	vdev_initialize_offset[TXG_SIZE];
 	uint64_t	vdev_initialize_last_offset;
+	/* value written to free space by the initializing thread */
+	uint64_t	vdev_initialize_value;
 	/* valid while initializing */
 	zfs_range_tree_t	*vdev_initialize_tree;
 	uint64_t	vdev_initialize_bytes_est;
@@ -425,6 +409,7 @@ struct vdev {
 	boolean_t	vdev_resilver_deferred;  /* resilver deferred */
 	boolean_t	vdev_kobj_flag; /* kobj event record */
 	boolean_t	vdev_attaching; /* vdev attach ashift handling */
+	boolean_t	vdev_is_blkdev; /* vdev is backed by block device */
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache and spares vdevs	*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
@@ -473,6 +458,7 @@ struct vdev {
 	boolean_t	vdev_slow_io_events;
 	uint64_t	vdev_slow_io_n;
 	uint64_t	vdev_slow_io_t;
+	uint64_t	vdev_scheduler; /* control how I/Os are submitted */
 };
 
 #define	VDEV_PAD_SIZE		(8 << 10)
@@ -598,6 +584,7 @@ extern boolean_t vdev_log_state_valid(vdev_t *vd);
 extern int vdev_load(vdev_t *vd);
 extern int vdev_dtl_load(vdev_t *vd);
 extern void vdev_sync(vdev_t *vd, uint64_t txg);
+extern void vdev_sync_dispatch(vdev_t *vd, uint64_t txg);
 extern void vdev_sync_done(vdev_t *vd, uint64_t txg);
 extern void vdev_dirty(vdev_t *vd, int flags, void *arg, uint64_t txg);
 extern void vdev_dirty_leaves(vdev_t *vd, int flags, uint64_t txg);

@@ -50,6 +50,7 @@
 #include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfskpiport.h>
 #include <fs/nfs/nfs.h>
+#include <fs/nfs/nfsid.h>
 
 #include <ctype.h>
 #include <err.h>

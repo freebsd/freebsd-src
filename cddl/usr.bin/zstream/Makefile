@@ -8,11 +8,23 @@ MLINKS=	zstream.8 zstreamdump.8
 INCS=	zstream.h
 SRCS= \
 	zstream.c \
+	zstream_backtrace.c \
+	zstream_byteswap.c \
+	zstream_chain.c \
 	zstream_decompress.c \
+	zstream_drop_record.c \
 	zstream_dump.c \
+	zstream_fletcher4.c \
+	zstream_io.c \
+	zstream_queue.c \
+	zstream_raw.c \
 	zstream_recompress.c  \
 	zstream_redup.c \
-	zstream_token.c
+	zstream_selftest.c \
+	zstream_selftest_queue.c \
+	zstream_token.c \
+	zstream_util.c \
+	zstream_validate.c
 
 SYMLINKS=	zstream ${BINDIR}/zstreamdump
 
@@ -27,6 +39,7 @@ CFLAGS+= \
 	-I${SRCTOP}/sys \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
+	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h

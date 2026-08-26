@@ -72,14 +72,14 @@ pgprot2cachemode(pgprot_t prot)
 		return (VM_MEMATTR_DEFAULT);
 }
 
-#define	page_to_virt(page)	linux_page_address(page)
 #define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys(x))
-#define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS(pp) >> PAGE_SHIFT)
-#define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
-#define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
+#define	page_to_pfn(pp)		atop(VM_PAGE_TO_PHYS(pp))
+#define	pfn_to_page(pfn)	PHYS_TO_VM_PAGE(ptoa(pfn))
 #define	page_to_phys(page)	VM_PAGE_TO_PHYS(page)
 
-#define	clear_page(page)		memset(page, 0, PAGE_SIZE)
+#define	page_to_virt(page)	linux_page_address(page)
+#define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
+
 #define	pgprot_noncached(prot)		\
 	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
 #ifdef VM_MEMATTR_WRITE_COMBINING
@@ -126,5 +126,14 @@ clflush_cache_range(void *addr, unsigned int size)
 	    (vm_offset_t)addr + size);
 }
 #endif
+
+int lkpi_set_pages_attr(struct page *page, int numpages, vm_memattr_t ma);
+
+/* -------------------------------------------------------------------------- */
+/*
+ * clear_page() is called on kmem allocated page addresses, thus zeros a page
+ * not a 'struct page'.  Really belongs into <asm/page.h>.
+ */
+#define	clear_page(_pa)		memset(_pa, 0, PAGE_SIZE)
 
 #endif	/* _LINUXKPI_LINUX_PAGE_H_ */

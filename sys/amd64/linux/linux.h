@@ -154,6 +154,8 @@ struct l_newstat {
 #define	LINUX_SA_NOCLDSTOP	0x00000001
 #define	LINUX_SA_NOCLDWAIT	0x00000002
 #define	LINUX_SA_SIGINFO	0x00000004
+#define	LINUX_SA_UNSUPPORTED	0x00000400
+#define	LINUX_SA_EXPOSE_TAGBITS	0x00000800
 #define	LINUX_SA_RESTORER	0x04000000
 #define	LINUX_SA_ONSTACK	0x08000000
 #define	LINUX_SA_RESTART	0x10000000
@@ -235,14 +237,32 @@ struct linux_pt_regset {
 	l_ulong gs;
 };
 
+/* This corresponds to 'user_i387_struct' in Linux. */
+struct linux_pt_fpregset {
+	l_ushort cwd;
+	l_ushort swd;
+	l_ushort twd;
+	l_ushort fop;
+	uint64_t rip;
+	uint64_t rdp;
+	uint32_t mxcsr;
+	uint32_t mxcsr_mask;
+	uint32_t st_space[32];
+	uint32_t xmm_space[64];
+	uint32_t padding[24];
+};
+
 #ifdef _KERNEL
 struct reg;
+struct fpreg;
 struct syscall_info;
 
 void	bsd_to_linux_regset(const struct reg *b_reg,
 	    struct linux_pt_regset *l_regset);
 void	linux_to_bsd_regset(struct reg *b_reg,
 	    const struct linux_pt_regset *l_regset);
+void	bsd_to_linux_fpregset(const struct fpreg *b_fpreg,
+	    struct linux_pt_fpregset *l_fpregset);
 void	linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
 	    struct syscall_info *si);
 int	linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,

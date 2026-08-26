@@ -48,6 +48,7 @@
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_ulp.h"
+#include "bnxt_log.h"
 
 void bnxt_destroy_irq(struct bnxt_softc *softc);
 
@@ -334,6 +335,40 @@ void bnxt_ulp_irq_stop(struct bnxt_softc *bp)
 		ops->ulp_irq_stop(ulp->handle);
 	}
 }
+
+void
+bnxt_logger_ulp_live_data(void *d)
+{
+	struct bnxt_en_dev *edev;
+	struct bnxt_softc *bp;
+
+	bp = d;
+	edev = bp->edev;
+
+	if (!edev)
+		return;
+
+	if (bnxt_ulp_registered(edev, BNXT_ROCE_ULP)) {
+		struct bnxt_ulp_ops *ops;
+		struct bnxt_ulp *ulp;
+
+		ulp = edev->ulp_tbl;
+		//ops = rtnl_dereference(ulp->ulp_ops);
+		ops = ulp->ulp_ops;
+		if (!ops || !ops->ulp_log_live)
+			return;
+
+		ops->ulp_log_live(ulp->handle);
+	}
+}
+
+void
+bnxt_ulp_log_live(struct bnxt_en_dev *edev, u16 logger_id,
+		       const char *format, ...)
+{
+	bnxt_log_live(if_getsoftc(edev->net), logger_id, format);
+}
+EXPORT_SYMBOL(bnxt_ulp_log_live);
 
 void bnxt_ulp_async_events(struct bnxt_softc *bp, struct hwrm_async_event_cmpl *cmpl)
 {

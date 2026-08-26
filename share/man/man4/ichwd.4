@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 20, 2008
+.Dd January 3, 2026
 .Dt ICHWD 4
 .Os
 .Sh NAME
@@ -54,6 +54,16 @@ all Intel ICH motherboard chipsets.
 The ICH WDT counts down in ticks of approximately 0.6 seconds; the
 exact value depends on hardware quality and environmental factors.
 Supported watchdog intervals range from 2 to 63 ticks.
+.Pp
+In QEMU, there is a dedicated watchdog implementation for x86
+systems based on the Intel 6300ESB controller hub.
+Support for this watchdog is provided by this kernel module.
+.Pp
+Optionally, set the
+.Va hw.i6300esbwd.x.locked=1
+.Xr sysctl 8
+to prevent users from disabling the watchdog timeout check
+after it has been enabled.
 .Pp
 Note that on some ICH-based systems, the WDT may be present but
 disabled, either in hardware or by the BIOS.

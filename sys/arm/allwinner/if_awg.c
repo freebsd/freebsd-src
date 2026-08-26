@@ -226,6 +226,9 @@ static uint32_t syscon_read_emac_clk_reg(device_t dev);
 static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
 static phandle_t awg_get_phy_node(device_t dev);
 static bool awg_has_internal_phy(device_t dev);
+#ifdef DEVICE_POLLING
+static int awg_poll(if_t ifp, enum poll_cmd cmd, int count);
+#endif
 
 /*
  * MII functions
@@ -651,13 +654,13 @@ awg_encap(struct awg_softc *sc, struct mbuf **mp)
 
 	flags = TX_FIR_DESC;
 	status = 0;
-	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
-		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0)
-			csum_flags = TX_CHECKSUM_CTL_FULL;
-		else
-			csum_flags = TX_CHECKSUM_CTL_IP;
-		flags |= (csum_flags << TX_CHECKSUM_CTL_SHIFT);
-	}
+	if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0)
+		csum_flags = TX_CHECKSUM_CTL_FULL;
+	else if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+		csum_flags = TX_CHECKSUM_CTL_IP;
+	else
+		csum_flags = 0;
+	flags |= (csum_flags << TX_CHECKSUM_CTL_SHIFT);
 
 	for (i = 0; i < nsegs; i++) {
 		sc->tx.segs++;

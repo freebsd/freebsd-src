@@ -4163,6 +4163,38 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 }
 
 /*
+ * Check whether the specified range partially overlaps a map entry with
+ * fixed boundaries, and return false if so.
+ *
+ * The map must be locked.
+ */
+bool
+vm_map_check_boundary(vm_map_t map, vm_offset_t start, vm_offset_t end)
+{
+	vm_map_entry_t entry;
+	int bdry_idx;
+
+	if (!vm_map_range_valid(map, start, end))
+		return (false);
+	if (start == end)
+		return (true);
+
+	if (vm_map_lookup_entry(map, start, &entry)) {
+		bdry_idx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
+		if (bdry_idx != 0 &&
+		    (start & (pagesizes[bdry_idx] - 1)) != 0)
+			return (false);
+	}
+	if (vm_map_lookup_entry(map, end - 1, &entry)) {
+		bdry_idx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
+		if (bdry_idx != 0 &&
+		    (end & (pagesizes[bdry_idx] - 1)) != 0)
+			return (false);
+	}
+	return (true);
+}
+
+/*
  *
  *	vm_map_copy_swap_object:
  *
@@ -4691,6 +4723,11 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	return (rv);
 }
 
+static bool report_stackoverflow = true;
+SYSCTL_BOOL(_vm, OID_AUTO, report_stackoverflow, CTLFLAG_RWTUN,
+    &report_stackoverflow, 0,
+    "uprintf() on stack overflow");
+
 /*
  * Attempts to grow a vm stack entry.  Returns KERN_SUCCESS if we
  * successfully grow the stack.
@@ -4699,6 +4736,7 @@ static int
 vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 {
 	vm_map_entry_t stack_entry;
+	struct thread *td;
 	struct proc *p;
 	struct vmspace *vm;
 	vm_offset_t gap_end, gap_start, grow_start;
@@ -4714,7 +4752,8 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	int error __diagused;
 #endif
 
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	vm = p->p_vmspace;
 
 	/*
@@ -4722,15 +4761,14 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	 * debugger or AIO daemon.  The reason is that the wrong
 	 * resource limits are applied.
 	 */
-	if (p != initproc && (map != &p->p_vmspace->vm_map ||
-	    p->p_textvp == NULL))
+	if (p != initproc && (map != &vm->vm_map || p->p_textvp == NULL))
 		return (KERN_FAILURE);
 
 	MPASS(!vm_map_is_system(map));
 
-	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
-	stacklim = lim_cur(curthread, RLIMIT_STACK);
-	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
+	lmemlim = lim_cur(td, RLIMIT_MEMLOCK);
+	stacklim = lim_cur(td, RLIMIT_STACK);
+	vmemlim = lim_cur(td, RLIMIT_VMEM);
 retry:
 	/* If addr is not in a hole for a stack grow area, no need to grow. */
 	if (gap_entry == NULL && !vm_map_lookup_entry(map, addr, &gap_entry))
@@ -4746,15 +4784,19 @@ retry:
 	} else {
 		return (KERN_FAILURE);
 	}
-	guard = ((curproc->p_flag2 & P2_STKGAP_DISABLE) != 0 ||
-	    (curproc->p_fctl0 & NT_FREEBSD_FCTL_STKGAP_DISABLE) != 0) ? 0 :
+	guard = ((p->p_flag2 & P2_STKGAP_DISABLE) != 0 ||
+	    (p->p_fctl0 & NT_FREEBSD_FCTL_STKGAP_DISABLE) != 0) ? 0 :
 	    gap_entry->next_read;
 	max_grow = gap_entry->end - gap_entry->start;
 	if (guard > max_grow)
 		return (KERN_NO_SPACE);
 	max_grow -= guard;
-	if (grow_amount > max_grow)
+	if (grow_amount > max_grow) {
+		if (report_stackoverflow)
+			uprintf("pid %d comm %s tid %d stack overflow\n",
+			    p->p_pid, p->p_comm, td->td_tid);
 		return (KERN_NO_SPACE);
+	}
 
 	/*
 	 * If this is the main process stack, see if we're over the stack
@@ -4762,8 +4804,12 @@ retry:
 	 */
 	is_procstack = addr >= (vm_offset_t)vm->vm_maxsaddr &&
 	    addr < (vm_offset_t)vm->vm_stacktop;
-	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim))
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {
+		if (report_stackoverflow)
+			uprintf("pid %d comm %s tid %d stack overflow\n",
+			    p->p_pid, p->p_comm, td->td_tid);
 		return (KERN_NO_SPACE);
+	}
 
 #ifdef RACCT
 	if (racct_enable) {

@@ -52,7 +52,7 @@ struct tb_cfg_read {
 	uint32_t			crc;
 };
 
-/* Config space read request, 6.4.2.4 */
+/* Config space read response, 6.4.2.4 */
 struct tb_cfg_read_resp {
 	tb_route_t			route;
 	uint32_t			addr_attrs;

@@ -214,7 +214,7 @@ int fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
 	int nocaps, int check_ratelimit, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen, int tcp_upstream,
 	int ssl_upstream, char* tls_auth_name, struct module_qstate* q,
-	int* was_ratelimited));
+	int* was_ratelimited, int* ratelimit_incremented));
 
 /**
  * Check function pointer whitelist for module_env detach_subs callback values.
@@ -233,7 +233,8 @@ int fptr_whitelist_modenv_detach_subs(void (*fptr)(
  */
 int fptr_whitelist_modenv_attach_sub(int (*fptr)(
 	struct module_qstate* qstate, struct query_info* qinfo, 
-	uint16_t qflags, int prime, int valrec, struct module_qstate** newq));
+	struct respip_client_info* cinfo, uint16_t qflags, int prime,
+	int valrec, struct module_qstate** newq));
 
 /**
  * Check function pointer whitelist for module_env add_sub callback values.
@@ -242,8 +243,9 @@ int fptr_whitelist_modenv_attach_sub(int (*fptr)(
  * @return false if not in whitelist.
  */
 int fptr_whitelist_modenv_add_sub(int (*fptr)(struct module_qstate* qstate,
-	struct query_info* qinfo, uint16_t qflags, int prime, int valrec,
-	struct module_qstate** newq, struct mesh_state** sub));
+	struct query_info* qinfo, struct respip_client_info* cinfo,
+	uint16_t qflags, int prime, int valrec, struct module_qstate** newq,
+	struct mesh_state** sub));
 /**
  * Check function pointer whitelist for module_env kill_sub callback values.
  *

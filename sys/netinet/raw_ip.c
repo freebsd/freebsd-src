@@ -33,7 +33,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -42,6 +41,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/hash.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
@@ -96,7 +96,7 @@ VNET_DEFINE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr) = NULL;
 
 int	(*ip_dn_ctl_ptr)(struct sockopt *);
 int	(*ip_dn_io_ptr)(struct mbuf **, struct ip_fw_args *);
-void	(*ip_divert_ptr)(struct mbuf *, bool);
+void	(*ip_divert_ptr)(struct mbuf *, uint64_t, bool);
 int	(*ng_ipfw_input_p)(struct mbuf **, struct ip_fw_args *, bool);
 
 #ifdef INET
@@ -119,8 +119,8 @@ void (*ip_mrouter_done)(struct socket *);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *);
 int (*mrt_ioctl)(u_long, caddr_t, int);
-int (*legal_vif_num)(int);
-u_long (*ip_mcast_src)(int);
+int (*legal_vif_num)(int, int);
+u_long (*ip_mcast_src)(int, int);
 
 int (*rsvp_input_p)(struct mbuf **, int *, int);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
@@ -141,54 +141,13 @@ u_long	rip_recvspace = 9216;
 SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
     &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
 
-/*
- * Hash functions
- */
-
-#define INP_PCBHASH_RAW_SIZE	256
-#define INP_PCBHASH_RAW(proto, laddr, faddr, mask) \
-        (((proto) + (laddr) + (faddr)) % (mask) + 1)
-
-#ifdef INET
-static void
-rip_inshash(struct inpcb *inp)
-{
-	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-	struct inpcbhead *pcbhash;
-	int hash;
-
-	INP_HASH_WLOCK_ASSERT(pcbinfo);
-	INP_WLOCK_ASSERT(inp);
-
-	if (inp->inp_ip_p != 0 &&
-	    inp->inp_laddr.s_addr != INADDR_ANY &&
-	    inp->inp_faddr.s_addr != INADDR_ANY) {
-		hash = INP_PCBHASH_RAW(inp->inp_ip_p, inp->inp_laddr.s_addr,
-		    inp->inp_faddr.s_addr, pcbinfo->ipi_hashmask);
-	} else
-		hash = 0;
-	pcbhash = &pcbinfo->ipi_hash_exact[hash];
-	CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash_exact);
-}
-
-static void
-rip_delhash(struct inpcb *inp)
-{
-
-	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_WLOCK_ASSERT(inp);
-
-	CK_LIST_REMOVE(inp, inp_hash_exact);
-}
-#endif /* INET */
-
-INPCBSTORAGE_DEFINE(ripcbstor, inpcb, "rawinp", "ripcb", "rip", "riphash");
+INPCBSTORAGE_DEFINE(ripcbstor, inpcb, "rawinp", "ripcb", "riphash");
 
 static void
 rip_init(void *arg __unused)
 {
-
-	in_pcbinfo_init(&V_ripcbinfo, &ripcbstor, INP_PCBHASH_RAW_SIZE, 1);
+#define	INP_PCBHASH_RAW_SIZE	256
+	in_pcbinfo_init(&V_ripcbinfo, &ripcbstor, INP_PCBHASH_RAW_SIZE, 0, 0);
 }
 VNET_SYSINIT(rip_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rip_init, NULL);
 
@@ -251,26 +210,7 @@ struct rip_inp_match_ctx {
 };
 
 static bool
-rip_inp_match1(const struct inpcb *inp, void *v)
-{
-	struct rip_inp_match_ctx *ctx = v;
-
-	if (inp->inp_ip_p != ctx->proto)
-		return (false);
-#ifdef INET6
-	/* XXX inp locking */
-	if ((inp->inp_vflag & INP_IPV4) == 0)
-		return (false);
-#endif
-	if (inp->inp_laddr.s_addr != ctx->ip->ip_dst.s_addr)
-		return (false);
-	if (inp->inp_faddr.s_addr != ctx->ip->ip_src.s_addr)
-		return (false);
-	return (true);
-}
-
-static bool
-rip_inp_match2(const struct inpcb *inp, void *v)
+rip_inp_match(const struct inpcb *inp, void *v)
 {
 	struct rip_inp_match_ctx *ctx = v;
 
@@ -302,7 +242,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		.proto = proto,
 	};
 	struct inpcb_iterator inpi = INP_ITERATOR(&V_ripcbinfo,
-	    INPLOOKUP_RLOCKPCB, rip_inp_match1, &ctx);
+	    INPLOOKUP_RLOCKPCB, rip_inp_match, &ctx);
 	struct ifnet *ifp;
 	struct mbuf *m = *mp;
 	struct inpcb *inp;
@@ -322,8 +262,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	fib = M_GETFIB(m);
 	ifp = m->m_pkthdr.rcvif;
 
-	inpi.hash = INP_PCBHASH_RAW(proto, ctx.ip->ip_src.s_addr,
-	    ctx.ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
+	inpi.mode = IN_ADDR_JHASH32(&ctx.ip->ip_src) & V_ripcbinfo.ipi_hashmask;
 	while ((inp = inp_next(&inpi)) != NULL) {
 		INP_RLOCK_ASSERT(inp);
 		if (jailed_without_vnet(inp->inp_cred) &&
@@ -343,8 +282,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		appended += rip_append(inp, ctx.ip, m, &ripsrc);
 	}
 
-	inpi.hash = 0;
-	inpi.match = rip_inp_match2;
+	inpi.mode = INP_UNCONN_LIST;
 	MPASS(inpi.inp == NULL);
 	while ((inp = inp_next(&inpi)) != NULL) {
 		INP_RLOCK_ASSERT(inp);
@@ -486,8 +424,7 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
 		ip->ip_len = htons(m->m_pkthdr.len);
 		ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = *dst;
-#ifdef ROUTE_MPATH
-		if (CALC_FLOWID_OUTBOUND) {
+		if (V_fib_hash_outbound) {
 			uint32_t hash_type, hash_val;
 
 			hash_val = fib4_calc_software_hash(ip->ip_src,
@@ -496,7 +433,6 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
 			M_HASHTYPE_SET(m, hash_type);
 			flags |= IP_NODEFAULTFLOWID;
 		}
-#endif
 		if (jailed(inp->inp_cred)) {
 			/*
 			 * prison_local_ip4() would be good enough but would
@@ -539,8 +475,7 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
 				return (EINVAL);
 			ip = mtod(m, struct ip *);
 		}
-#ifdef ROUTE_MPATH
-		if (CALC_FLOWID_OUTBOUND) {
+		if (V_fib_hash_outbound) {
 			uint32_t hash_type, hash_val;
 
 			hash_val = fib4_calc_software_hash(ip->ip_dst,
@@ -549,7 +484,6 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
 			M_HASHTYPE_SET(m, hash_type);
 			flags |= IP_NODEFAULTFLOWID;
 		}
-#endif
 		INP_RLOCK(inp);
 		/*
 		 * Don't allow both user specified and setsockopt options,
@@ -842,9 +776,6 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_ip_p = proto;
 	inp->inp_ip_ttl = V_ip_defttl;
-	INP_HASH_WLOCK(&V_ripcbinfo);
-	rip_inshash(inp);
-	INP_HASH_WUNLOCK(&V_ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -864,9 +795,6 @@ rip_detach(struct socket *so)
 		ip_mrouter_done(so);
 
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(&V_ripcbinfo);
-	rip_delhash(inp);
-	INP_HASH_WUNLOCK(&V_ripcbinfo);
 
 	if (ip_rsvp_force_done)
 		ip_rsvp_force_done(so);
@@ -876,20 +804,17 @@ rip_detach(struct socket *so)
 }
 
 static void
-rip_dodisconnect(struct socket *so, struct inpcb *inp)
+rip_dodisconnect(struct inpcb *inp, bool disconnect_socket)
 {
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = inp->inp_pcbinfo;
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(pcbinfo);
-	rip_delhash(inp);
 	inp->inp_faddr.s_addr = INADDR_ANY;
-	rip_inshash(inp);
-	INP_HASH_WUNLOCK(pcbinfo);
-	SOCK_LOCK(so);
-	so->so_state &= ~SS_ISCONNECTED;
-	SOCK_UNLOCK(so);
+	ripcb_disconnect(inp);
+	if (disconnect_socket) {
+		SOCK_LOCK(inp->inp_socket);
+		inp->inp_socket->so_state &= ~SS_ISCONNECTED;
+		SOCK_UNLOCK(inp->inp_socket);
+	}
 	INP_WUNLOCK(inp);
 }
 
@@ -901,7 +826,7 @@ rip_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_abort: inp == NULL"));
 
-	rip_dodisconnect(so, inp);
+	rip_dodisconnect(inp, true);
 }
 
 static void
@@ -912,7 +837,7 @@ rip_close(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_close: inp == NULL"));
 
-	rip_dodisconnect(so, inp);
+	rip_dodisconnect(inp, true);
 }
 
 static int
@@ -926,7 +851,7 @@ rip_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_disconnect: inp == NULL"));
 
-	rip_dodisconnect(so, inp);
+	rip_dodisconnect(inp, true);
 	return (0);
 }
 
@@ -935,7 +860,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 	struct inpcb *inp;
-	int error;
+	int fib, error;
 
 	if (nam->sa_family != AF_INET)
 		return (EAFNOSUPPORT);
@@ -949,19 +874,18 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_bind: inp == NULL"));
 
+	fib = V_rip_bind_all_fibs == 0 ? inp->inp_inc.inc_fibnum :
+	    RT_ALL_FIBS;
+
 	if (CK_STAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
 	     (inp->inp_flags & INP_BINDANY) == 0 &&
-	     ifa_ifwithaddr_check((struct sockaddr *)addr) == 0))
+	     ifa_ifwithaddr_fib_check((struct sockaddr *)addr, fib) == 0))
 		return (EADDRNOTAVAIL);
 
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(&V_ripcbinfo);
-	rip_delhash(inp);
 	inp->inp_laddr = addr->sin_addr;
-	rip_inshash(inp);
-	INP_HASH_WUNLOCK(&V_ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -983,11 +907,12 @@ rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	KASSERT(inp != NULL, ("rip_connect: inp == NULL"));
 
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(&V_ripcbinfo);
-	rip_delhash(inp);
-	inp->inp_faddr = addr->sin_addr;
-	rip_inshash(inp);
-	INP_HASH_WUNLOCK(&V_ripcbinfo);
+	if (__predict_false(inp->inp_faddr.s_addr != INADDR_ANY))
+		rip_dodisconnect(inp, false);
+	if (addr->sin_addr.s_addr != INADDR_ANY) {
+		inp->inp_faddr = addr->sin_addr;
+		ripcb_connect(inp);
+	}
 	soisconnected(so);
 	INP_WUNLOCK(inp);
 	return (0);

@@ -58,7 +58,7 @@ tegra_bo_destruct(struct tegra_bo *bo)
 
 	size = round_page(bo->gem_obj.size);
 	if (bo->vbase != 0)
-		pmap_qremove(bo->vbase, bo->npages);
+		pmap_qremove((void *)bo->vbase, bo->npages);
 
 	vm_page_iter_init(&pages, bo->cdev_pager);
 	VM_OBJECT_WLOCK(bo->cdev_pager);
@@ -166,7 +166,7 @@ tegra_bo_init_pager(struct tegra_bo *bo)
 	}
 	VM_OBJECT_WUNLOCK(bo->cdev_pager);
 
-	pmap_qenter(bo->vbase, bo->m, bo->npages);
+	pmap_qenter((void *)bo->vbase, bo->m, bo->npages);
 	return (0);
 }
 

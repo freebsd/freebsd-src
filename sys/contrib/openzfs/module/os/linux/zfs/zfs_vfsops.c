@@ -1,27 +1,18 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -64,53 +55,15 @@
 #include <linux/fs.h>
 #include "zfs_comutil.h"
 
-enum {
-	TOKEN_RO,
-	TOKEN_RW,
-	TOKEN_SETUID,
-	TOKEN_NOSETUID,
-	TOKEN_EXEC,
-	TOKEN_NOEXEC,
-	TOKEN_DEVICES,
-	TOKEN_NODEVICES,
-	TOKEN_DIRXATTR,
-	TOKEN_SAXATTR,
-	TOKEN_XATTR,
-	TOKEN_NOXATTR,
-	TOKEN_ATIME,
-	TOKEN_NOATIME,
-	TOKEN_RELATIME,
-	TOKEN_NORELATIME,
-	TOKEN_NBMAND,
-	TOKEN_NONBMAND,
-	TOKEN_MNTPOINT,
-	TOKEN_LAST,
-};
+vfs_t *
+zfsvfs_vfs_alloc(void)
+{
+	vfs_t *vfsp = kmem_zalloc(sizeof (vfs_t), KM_SLEEP);
+	mutex_init(&vfsp->vfs_mntpt_lock, NULL, MUTEX_DEFAULT, NULL);
+	return (vfsp);
+}
 
-static const match_table_t zpl_tokens = {
-	{ TOKEN_RO,		MNTOPT_RO },
-	{ TOKEN_RW,		MNTOPT_RW },
-	{ TOKEN_SETUID,		MNTOPT_SETUID },
-	{ TOKEN_NOSETUID,	MNTOPT_NOSETUID },
-	{ TOKEN_EXEC,		MNTOPT_EXEC },
-	{ TOKEN_NOEXEC,		MNTOPT_NOEXEC },
-	{ TOKEN_DEVICES,	MNTOPT_DEVICES },
-	{ TOKEN_NODEVICES,	MNTOPT_NODEVICES },
-	{ TOKEN_DIRXATTR,	MNTOPT_DIRXATTR },
-	{ TOKEN_SAXATTR,	MNTOPT_SAXATTR },
-	{ TOKEN_XATTR,		MNTOPT_XATTR },
-	{ TOKEN_NOXATTR,	MNTOPT_NOXATTR },
-	{ TOKEN_ATIME,		MNTOPT_ATIME },
-	{ TOKEN_NOATIME,	MNTOPT_NOATIME },
-	{ TOKEN_RELATIME,	MNTOPT_RELATIME },
-	{ TOKEN_NORELATIME,	MNTOPT_NORELATIME },
-	{ TOKEN_NBMAND,		MNTOPT_NBMAND },
-	{ TOKEN_NONBMAND,	MNTOPT_NONBMAND },
-	{ TOKEN_MNTPOINT,	MNTOPT_MNTPOINT "=%s" },
-	{ TOKEN_LAST,		NULL },
-};
-
-static void
+void
 zfsvfs_vfs_free(vfs_t *vfsp)
 {
 	if (vfsp != NULL) {
@@ -119,139 +72,6 @@ zfsvfs_vfs_free(vfs_t *vfsp)
 		mutex_destroy(&vfsp->vfs_mntpt_lock);
 		kmem_free(vfsp, sizeof (vfs_t));
 	}
-}
-
-static int
-zfsvfs_parse_option(char *option, int token, substring_t *args, vfs_t *vfsp)
-{
-	switch (token) {
-	case TOKEN_RO:
-		vfsp->vfs_readonly = B_TRUE;
-		vfsp->vfs_do_readonly = B_TRUE;
-		break;
-	case TOKEN_RW:
-		vfsp->vfs_readonly = B_FALSE;
-		vfsp->vfs_do_readonly = B_TRUE;
-		break;
-	case TOKEN_SETUID:
-		vfsp->vfs_setuid = B_TRUE;
-		vfsp->vfs_do_setuid = B_TRUE;
-		break;
-	case TOKEN_NOSETUID:
-		vfsp->vfs_setuid = B_FALSE;
-		vfsp->vfs_do_setuid = B_TRUE;
-		break;
-	case TOKEN_EXEC:
-		vfsp->vfs_exec = B_TRUE;
-		vfsp->vfs_do_exec = B_TRUE;
-		break;
-	case TOKEN_NOEXEC:
-		vfsp->vfs_exec = B_FALSE;
-		vfsp->vfs_do_exec = B_TRUE;
-		break;
-	case TOKEN_DEVICES:
-		vfsp->vfs_devices = B_TRUE;
-		vfsp->vfs_do_devices = B_TRUE;
-		break;
-	case TOKEN_NODEVICES:
-		vfsp->vfs_devices = B_FALSE;
-		vfsp->vfs_do_devices = B_TRUE;
-		break;
-	case TOKEN_DIRXATTR:
-		vfsp->vfs_xattr = ZFS_XATTR_DIR;
-		vfsp->vfs_do_xattr = B_TRUE;
-		break;
-	case TOKEN_SAXATTR:
-		vfsp->vfs_xattr = ZFS_XATTR_SA;
-		vfsp->vfs_do_xattr = B_TRUE;
-		break;
-	case TOKEN_XATTR:
-		vfsp->vfs_xattr = ZFS_XATTR_SA;
-		vfsp->vfs_do_xattr = B_TRUE;
-		break;
-	case TOKEN_NOXATTR:
-		vfsp->vfs_xattr = ZFS_XATTR_OFF;
-		vfsp->vfs_do_xattr = B_TRUE;
-		break;
-	case TOKEN_ATIME:
-		vfsp->vfs_atime = B_TRUE;
-		vfsp->vfs_do_atime = B_TRUE;
-		break;
-	case TOKEN_NOATIME:
-		vfsp->vfs_atime = B_FALSE;
-		vfsp->vfs_do_atime = B_TRUE;
-		break;
-	case TOKEN_RELATIME:
-		vfsp->vfs_relatime = B_TRUE;
-		vfsp->vfs_do_relatime = B_TRUE;
-		break;
-	case TOKEN_NORELATIME:
-		vfsp->vfs_relatime = B_FALSE;
-		vfsp->vfs_do_relatime = B_TRUE;
-		break;
-	case TOKEN_NBMAND:
-		vfsp->vfs_nbmand = B_TRUE;
-		vfsp->vfs_do_nbmand = B_TRUE;
-		break;
-	case TOKEN_NONBMAND:
-		vfsp->vfs_nbmand = B_FALSE;
-		vfsp->vfs_do_nbmand = B_TRUE;
-		break;
-	case TOKEN_MNTPOINT:
-		if (vfsp->vfs_mntpoint != NULL)
-			kmem_strfree(vfsp->vfs_mntpoint);
-		vfsp->vfs_mntpoint = match_strdup(&args[0]);
-		if (vfsp->vfs_mntpoint == NULL)
-			return (SET_ERROR(ENOMEM));
-		break;
-	default:
-		break;
-	}
-
-	return (0);
-}
-
-/*
- * Parse the raw mntopts and return a vfs_t describing the options.
- */
-static int
-zfsvfs_parse_options(char *mntopts, vfs_t **vfsp)
-{
-	vfs_t *tmp_vfsp;
-	int error;
-
-	tmp_vfsp = kmem_zalloc(sizeof (vfs_t), KM_SLEEP);
-	mutex_init(&tmp_vfsp->vfs_mntpt_lock, NULL, MUTEX_DEFAULT, NULL);
-
-	if (mntopts != NULL) {
-		substring_t args[MAX_OPT_ARGS];
-		char *tmp_mntopts, *p, *t;
-		int token;
-
-		tmp_mntopts = t = kmem_strdup(mntopts);
-		if (tmp_mntopts == NULL)
-			return (SET_ERROR(ENOMEM));
-
-		while ((p = strsep(&t, ",")) != NULL) {
-			if (!*p)
-				continue;
-
-			args[0].to = args[0].from = NULL;
-			token = match_token(p, zpl_tokens, args);
-			error = zfsvfs_parse_option(p, token, args, tmp_vfsp);
-			if (error) {
-				kmem_strfree(tmp_mntopts);
-				zfsvfs_vfs_free(tmp_vfsp);
-				return (error);
-			}
-		}
-
-		kmem_strfree(tmp_mntopts);
-	}
-
-	*vfsp = tmp_vfsp;
-
-	return (0);
 }
 
 boolean_t
@@ -792,6 +612,32 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 }
 
 int
+zfsvfs_create_hold(const char *osname, zfsvfs_t **zfvp)
+{
+	objset_t *os;
+	zfsvfs_t *zfsvfs;
+	int error;
+
+	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
+
+	error = dmu_objset_hold(osname, zfsvfs, &os);
+	if (error != 0) {
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		return (error);
+	}
+
+	if (dmu_objset_type(os) != DMU_OST_ZFS) {
+		dmu_objset_rele(os, zfsvfs);
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		return (EINVAL);
+	}
+
+	zfsvfs->z_use_hold = B_TRUE;
+	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
+	return (error);
+}
+
+int
 zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 {
 	objset_t *os;
@@ -848,7 +694,10 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
-		dmu_objset_disown(os, B_TRUE, zfsvfs);
+		if (zfsvfs->z_use_hold)
+			dmu_objset_rele(os, zfsvfs);
+		else
+			dmu_objset_disown(os, B_TRUE, zfsvfs);
 		*zfvp = NULL;
 		zfsvfs_free(zfsvfs);
 		return (error);
@@ -1123,11 +972,12 @@ objs:
 int
 zfs_statvfs(struct inode *ip, struct kstatfs *statp)
 {
+	znode_t *zp = ITOZ(ip);
 	zfsvfs_t *zfsvfs = ITOZSB(ip);
 	uint64_t refdbytes, availbytes, usedobjs, availobjs;
 	int err = 0;
 
-	if ((err = zfs_enter(zfsvfs, FTAG)) != 0)
+	if ((err = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (err);
 
 	dmu_objset_space(zfsvfs->z_os,
@@ -1183,8 +1033,6 @@ zfs_statvfs(struct inode *ip, struct kstatfs *statp)
 
 	if (dmu_objset_projectquota_enabled(zfsvfs->z_os) &&
 	    dmu_objset_projectquota_present(zfsvfs->z_os)) {
-		znode_t *zp = ITOZ(ip);
-
 		if (zp->z_pflags & ZFS_PROJINHERIT && zp->z_projid &&
 		    zpl_is_valid_projid(zp->z_projid))
 			err = zfs_statfs_project(zfsvfs, zp, statp, bshift);
@@ -1486,19 +1334,15 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 static atomic_long_t zfs_bdi_seq = ATOMIC_LONG_INIT(0);
 
 int
-zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
+zfs_domount(struct super_block *sb, const char *osname,
+    vfs_t *vfs, int silent)
 {
-	const char *osname = zm->mnt_osname;
 	struct inode *root_inode = NULL;
 	uint64_t recordsize;
 	int error = 0;
 	zfsvfs_t *zfsvfs = NULL;
-	vfs_t *vfs = NULL;
 	int canwrite;
 	int dataset_visible_zone;
-
-	ASSERT(zm);
-	ASSERT(osname);
 
 	dataset_visible_zone = zone_dataset_visible(osname, &canwrite);
 
@@ -1511,10 +1355,6 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 		return (SET_ERROR(EPERM));
 	}
 
-	error = zfsvfs_parse_options(zm->mnt_data, &vfs);
-	if (error)
-		return (error);
-
 	/*
 	 * If a non-writable filesystem is being mounted without the
 	 * read-only flag, pretend it was set, as done for snapshots.
@@ -1523,16 +1363,12 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 		vfs->vfs_readonly = B_TRUE;
 
 	error = zfsvfs_create(osname, vfs->vfs_readonly, &zfsvfs);
-	if (error) {
-		zfsvfs_vfs_free(vfs);
+	if (error)
 		goto out;
-	}
 
 	if ((error = dsl_prop_get_integer(osname, "recordsize",
-	    &recordsize, NULL))) {
-		zfsvfs_vfs_free(vfs);
+	    &recordsize, NULL)))
 		goto out;
-	}
 
 	vfs->vfs_data = zfsvfs;
 	zfsvfs->z_vfs = vfs;
@@ -1580,7 +1416,7 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 		acltype_changed_cb(zfsvfs, pval);
 		zfsvfs->z_issnap = B_TRUE;
 		zfsvfs->z_os->os_sync = ZFS_SYNC_DISABLED;
-		zfsvfs->z_snap_defer_time = jiffies;
+		zfsvfs->z_snap_atime = jiffies;
 
 		mutex_enter(&zfsvfs->z_os->os_user_ptr_lock);
 		dmu_objset_set_user(zfsvfs->z_os, zfsvfs);
@@ -1614,6 +1450,13 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 out:
 	if (error) {
 		if (zfsvfs != NULL) {
+			/*
+			 * We're returning error, so the caller still owns
+			 * the mount options vfs_t. Remove them from zfsvfs
+			 * so we don't try to free them.
+			 */
+			zfsvfs->z_vfs = NULL;
+
 			dmu_objset_disown(zfsvfs->z_os, B_TRUE, zfsvfs);
 			zfsvfs_free(zfsvfs);
 		}
@@ -1704,24 +1547,16 @@ zfs_umount(struct super_block *sb)
 }
 
 int
-zfs_remount(struct super_block *sb, int *flags, zfs_mnt_t *zm)
+zfs_remount(struct super_block *sb, vfs_t *vfsp, int flags)
 {
 	zfsvfs_t *zfsvfs = sb->s_fs_info;
-	vfs_t *vfsp;
 	boolean_t issnap = dmu_objset_is_snapshot(zfsvfs->z_os);
-	int error;
 
 	if ((issnap || !spa_writeable(dmu_objset_spa(zfsvfs->z_os))) &&
-	    !(*flags & SB_RDONLY)) {
-		*flags |= SB_RDONLY;
+	    !(flags & SB_RDONLY))
 		return (EROFS);
-	}
 
-	error = zfsvfs_parse_options(zm->mnt_data, &vfsp);
-	if (error)
-		return (error);
-
-	if (!zfs_is_readonly(zfsvfs) && (*flags & SB_RDONLY))
+	if (!zfs_is_readonly(zfsvfs) && (flags & SB_RDONLY))
 		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
 
 	zfs_unregister_callbacks(zfsvfs);
@@ -1732,7 +1567,7 @@ zfs_remount(struct super_block *sb, int *flags, zfs_mnt_t *zm)
 	if (!issnap)
 		(void) zfs_register_callbacks(vfsp);
 
-	return (error);
+	return (0);
 }
 
 int
@@ -1838,7 +1673,7 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 		zp_gen = 1;
 	if ((fid_gen == 0) && (zfsvfs->z_root == object))
 		fid_gen = zp_gen;
-	if (zp->z_unlinked || zp_gen != fid_gen) {
+	if (zp_gen != fid_gen) {
 		dprintf("znode gen (%llu) != fid gen (%llu)\n", zp_gen,
 		    fid_gen);
 		zrele(zp);
@@ -1871,6 +1706,24 @@ zfs_suspend_fs(zfsvfs_t *zfsvfs)
 		return (error);
 
 	return (0);
+}
+
+/*
+ * Return a referenced znode at or after zp.  The z_znodes_lock protects the
+ * list walk; the returned inode reference keeps the znode alive after the
+ * lock is dropped for zfs_rezget().
+ */
+static znode_t *
+zfs_resume_hold_next_znode(zfsvfs_t *zfsvfs, znode_t *zp)
+{
+	ASSERT(MUTEX_HELD(&zfsvfs->z_znodes_lock));
+
+	for (; zp != NULL; zp = list_next(&zfsvfs->z_all_znodes, zp)) {
+		if (igrab(ZTOI(zp)) != NULL)
+			return (zp);
+	}
+
+	return (NULL);
 }
 
 /*
@@ -1916,13 +1769,23 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 	 * dbufs.  If a zfs_rezget() fails, then we unhash the inode
 	 * and mark it stale.  This prevents a collision if a new
 	 * inode/object is created which must use the same inode
-	 * number.  The stale inode will be be released when the
-	 * VFS prunes the dentry holding the remaining references
-	 * on the stale inode.
+	 * number.  The stale inode will be released when the VFS
+	 * prunes the dentry holding the remaining references on
+	 * the stale inode.
+	 *
+	 * zfs_rezget() takes the per-object znode hold lock.  Pin each znode
+	 * while holding z_znodes_lock, then drop the list lock before calling
+	 * zfs_rezget() to preserve the normal zh_lock -> z_znodes_lock order.
 	 */
 	mutex_enter(&zfsvfs->z_znodes_lock);
-	for (zp = list_head(&zfsvfs->z_all_znodes); zp;
-	    zp = list_next(&zfsvfs->z_all_znodes, zp)) {
+	zp = zfs_resume_hold_next_znode(zfsvfs,
+	    list_head(&zfsvfs->z_all_znodes));
+	while (zp != NULL) {
+		znode_t *next = zfs_resume_hold_next_znode(zfsvfs,
+		    list_next(&zfsvfs->z_all_znodes, zp));
+
+		mutex_exit(&zfsvfs->z_znodes_lock);
+
 		err2 = zfs_rezget(zp);
 		if (err2) {
 			zpl_d_drop_aliases(ZTOI(zp));
@@ -1931,9 +1794,14 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 
 		/* see comment in zfs_suspend_fs() */
 		if (zp->z_suspended) {
-			zfs_zrele_async(zp);
 			zp->z_suspended = B_FALSE;
+			zfs_zrele_async(zp);
 		}
+
+		zfs_zrele_async(zp);
+
+		mutex_enter(&zfsvfs->z_znodes_lock);
+		zp = next;
 	}
 	mutex_exit(&zfsvfs->z_znodes_lock);
 
@@ -1963,15 +1831,6 @@ bail:
 	/* release the VFS ops */
 	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 	ZFS_TEARDOWN_EXIT(zfsvfs, FTAG);
-
-	if (err != 0) {
-		/*
-		 * Since we couldn't setup the sa framework, try to force
-		 * unmount this file system.
-		 */
-		if (zfsvfs->z_os)
-			(void) zfs_umount(zfsvfs->z_sb);
-	}
 	return (err);
 }
 
@@ -2010,23 +1869,16 @@ zfs_end_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 }
 
 /*
- * Automounted snapshots rely on periodic revalidation
- * to defer snapshots from being automatically unmounted.
+ * Bump data access time on automounted snapshots to stop them being expired
+ * out too early.
  */
-
 inline void
 zfs_exit_fs(zfsvfs_t *zfsvfs)
 {
 	if (!zfsvfs->z_issnap)
 		return;
 
-	if (time_after(jiffies, zfsvfs->z_snap_defer_time +
-	    MAX(zfs_expire_snapshot * HZ / 2, HZ))) {
-		zfsvfs->z_snap_defer_time = jiffies;
-		zfsctl_snapshot_unmount_delay(zfsvfs->z_os->os_spa,
-		    dmu_objset_id(zfsvfs->z_os),
-		    zfs_expire_snapshot);
-	}
+	atomic_store_64(&zfsvfs->z_snap_atime, jiffies);
 }
 
 int
@@ -2187,7 +2039,6 @@ zfsvfs_update_fromname(const char *oldname, const char *newname)
 void
 zfs_init(void)
 {
-	zfsctl_init();
 	zfs_znode_init();
 	dmu_objset_register_type(DMU_OST_ZFS, zpl_get_file_info);
 	register_filesystem(&zpl_fs_type);
@@ -2203,7 +2054,6 @@ zfs_fini(void)
 	taskq_wait(system_taskq);
 	unregister_filesystem(&zpl_fs_type);
 	zfs_znode_fini();
-	zfsctl_fini();
 }
 
 #if defined(_KERNEL)

@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1173 2025/11/12 22:14:07 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.1181 2026/07/03 15:31:35 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -93,7 +93,9 @@
  *	Var_Value	Return the unexpanded value of a variable, or NULL if
  *			the variable is undefined.
  *
- *	Var_Subst	Substitute all expressions in a string.
+ *	Var_Subst	Copy a string, expanding expressions on the way.
+ *
+ *	Var_Expand	Expand all expressions in a string, in-place.
  *
  *	Var_Parse	Parse an expression such as ${VAR:Mpattern}.
  *
@@ -143,7 +145,7 @@
 #endif
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1173 2025/11/12 22:14:07 sjg Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1181 2026/07/03 15:31:35 sjg Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -319,31 +321,26 @@ static char varUndefined[] = "";
  * Traditionally this make consumed $$ during := like any other expansion.
  * Other make's do not, and this make follows straight since 2016-01-09.
  *
- * This knob allows controlling the behavior:
+ * This knob (.MAKE.SAVE_DOLLARS) allows controlling the behavior:
  *	false to consume $$ during := assignment.
  *	true to preserve $$ during := assignment.
  */
-#define MAKE_SAVE_DOLLARS ".MAKE.SAVE_DOLLARS"
 static bool save_dollars = false;
 
 /*
  * A scope collects variable names and their values.
  *
- * The main scope is SCOPE_GLOBAL, which contains the variables that are set
- * in the makefiles.  SCOPE_INTERNAL acts as a fallback for SCOPE_GLOBAL and
- * contains some internal make variables.  These internal variables can thus
- * be overridden, they can also be restored by undefining the overriding
- * variable.
+ * Each target has its own scope, containing the 7 target-local variables
+ * .TARGET, .ALLSRC, etc.  Variables set on dependency lines also go in
+ * this scope.
  *
  * SCOPE_CMDLINE contains variables from the command line arguments.  These
  * override variables from SCOPE_GLOBAL.
  *
+ * SCOPE_GLOBAL contains the variables that are set in the makefiles.
+ *
  * There is no scope for environment variables, these are generated on-the-fly
  * whenever they are referenced.
- *
- * Each target has its own scope, containing the 7 target-local variables
- * .TARGET, .ALLSRC, etc.  Variables set on dependency lines also go in
- * this scope.
  */
 
 GNode *SCOPE_CMDLINE;
@@ -415,6 +412,7 @@ EvalStack_Details(Buffer *buf)
 		const char* value = elem->value != NULL
 		    && (kind == VSK_VARNAME || kind == VSK_EXPR)
 		    ? elem->value->str : NULL;
+		const GNode *gn;
 
 		Buf_AddStr(buf, "\t");
 		Buf_AddStr(buf, descr[kind]);
@@ -424,7 +422,16 @@ EvalStack_Details(Buffer *buf)
 			Buf_AddStr(buf, "\" with value \"");
 			Buf_AddStr(buf, value);
 		}
-		Buf_AddStr(buf, "\"\n");
+		if (kind == VSK_TARGET
+		    && (gn = Targ_FindNode(elem->str)) != NULL
+		    && gn->fname != NULL) {
+			Buf_AddStr(buf, "\" from ");
+			Buf_AddStr(buf, gn->fname);
+			Buf_AddStr(buf, ":");
+			Buf_AddInt(buf, (int)gn->lineno);
+			Buf_AddStr(buf, "\n");
+		} else
+			Buf_AddStr(buf, "\"\n");
 	}
 	return evalStack.len > 0;
 }
@@ -1282,12 +1289,8 @@ Var_Exists(GNode *scope, const char *name)
 }
 
 /*
- * See if the given variable exists, in the given scope or in other
- * fallback scopes.
- *
- * Input:
- *	scope		scope in which to start search
- *	name		name of the variable to find, is expanded once
+ * See if the given variable exists, in the given scope or in other fallback
+ * scopes.  The variable name is expanded once.
  */
 bool
 Var_ExistsExpand(GNode *scope, const char *name)
@@ -2138,12 +2141,12 @@ typedef enum ApplyModifierResult {
  * backslashes.
  */
 static bool
-IsEscapedModifierPart(const char *p, char end1, char end2,
+IsEscapedModifierPart(const char *p, char delim1, char delim2,
 		      struct ModifyWord_SubstArgs *subst)
 {
 	if (p[0] != '\\' || p[1] == '\0')
 		return false;
-	if (p[1] == end1 || p[1] == end2 || p[1] == '\\' || p[1] == '$')
+	if (p[1] == delim1 || p[1] == delim2 || p[1] == '\\' || p[1] == '$')
 		return true;
 	return p[1] == '&' && subst != NULL;
 }
@@ -2224,10 +2227,10 @@ ParseModifierPart(
      * For the first part of the ':S' modifier, set anchorEnd if the last
      * character of the pattern is a $.
      */
-    PatternFlags *out_pflags,
+    PatternFlags *pflags,
     /*
-     * For the second part of the ':S' modifier, allow ampersands to be
-     * escaped and replace unescaped ampersands with subst->lhs.
+     * For the second part of the ':S' modifier, allow '&' to be
+     * escaped and replace each unescaped '&' with subst->lhs.
      */
     struct ModifyWord_SubstArgs *subst
 )
@@ -2246,8 +2249,8 @@ ParseModifierPart(
 				LazyBuf_Add(part, *p);
 			p++;
 		} else if (p[1] == end2) {	/* Unescaped '$' at end */
-			if (out_pflags != NULL)
-				out_pflags->anchorEnd = true;
+			if (pflags != NULL)
+				pflags->anchorEnd = true;
 			else
 				LazyBuf_Add(part, *p);
 			p++;
@@ -2819,7 +2822,7 @@ ParseModifier_Match(const char **pp, const ModChain *ch)
 }
 
 struct ModifyWord_MatchArgs {
-	const char *pattern;
+	StringList patterns;
 	bool neg;
 	bool error_reported;
 };
@@ -2828,17 +2831,25 @@ static void
 ModifyWord_Match(Substring word, SepBuf *buf, void *data)
 {
 	struct ModifyWord_MatchArgs *args = data;
+	StringListNode *ln;
 	StrMatchResult res;
+	const char *pattern;
+
 	assert(word.end[0] == '\0');	/* assume null-terminated word */
-	res = Str_Match(word.start, args->pattern);
-	if (res.error != NULL && !args->error_reported) {
-		args->error_reported = true;
-		Parse_Error(PARSE_FATAL,
-		    "%s in pattern \"%s\" of modifier \"%s\"",
-		    res.error, args->pattern, args->neg ? ":N" : ":M");
+	for (ln = args->patterns.first; ln != NULL; ln = ln->next) {
+		pattern = ln->datum;
+		res = Str_Match(word.start, pattern);
+		if (res.error != NULL && !args->error_reported) {
+			args->error_reported = true;
+			Parse_Error(PARSE_FATAL,
+			    "%s in pattern \"%s\" of modifier \"%s\"",
+			    res.error, pattern, args->neg ? ":N" : ":M");
+		}
+		if (res.matched != args->neg) {
+			SepBuf_AddSubstring(buf, word);
+			break;
+		}
 	}
-	if (res.matched != args->neg)
-		SepBuf_AddSubstring(buf, word);
 }
 
 /* :Mpattern or :Npattern */
@@ -2852,10 +2863,30 @@ ApplyModifier_Match(const char **pp, ModChain *ch)
 
 	if (ModChain_ShouldEval(ch)) {
 		struct ModifyWord_MatchArgs args;
-		args.pattern = pattern;
+		const char *brace;
+		
+		Lst_Init(&args.patterns);
+		if (mod == 'N')
+			brace = NULL;	/* not supported */
+		else
+			for (brace = strchr(pattern, '{'); brace != NULL;
+			     brace = strchr(++brace, '{')) {
+				if (brace == pattern
+				    || (brace[-1] != '\\' && brace[-1] != '$'))
+					break;
+			}
+
+		if (brace)
+			ExpandCurly(pattern, brace, NULL, &args.patterns);
+		else
+			Lst_Append(&args.patterns, pattern);
 		args.neg = mod == 'N';
 		args.error_reported = false;
 		ModifyWords(ch, ModifyWord_Match, &args, ch->oneBigWord);
+		if (brace)
+			Lst_DoneFree(&args.patterns);
+		else
+			Lst_Done(&args.patterns);
 	}
 
 	free(pattern);
@@ -3044,9 +3075,16 @@ ApplyModifier_Regex(const char **pp, ModChain *ch)
 	if (!ModChain_ShouldEval(ch))
 		goto done;
 
+	if (re.str[0] == '\0') {
+	    /* not all regcomp() fail on this */
+	    Parse_Error(PARSE_FATAL, "Regex compilation error: empty");
+	    goto re_err;
+	}
+
 	error = regcomp(&args.re, re.str, REG_EXTENDED);
 	if (error != 0) {
 		RegexError(error, &args.re, "Regex compilation error");
+	re_err:
 		LazyBuf_Done(&replaceBuf);
 		FStr_Done(&re);
 		return AMR_CLEANUP;
@@ -3387,8 +3425,8 @@ SubNumAsc(const void *sa, const void *sb)
 {
 	NUM_TYPE a, b;
 
-	a = num_val(*((const Substring *)sa));
-	b = num_val(*((const Substring *)sb));
+	a = num_val(*(const Substring *)sa);
+	b = num_val(*(const Substring *)sb);
 	return a > b ? 1 : b > a ? -1 : 0;
 }
 
@@ -3829,7 +3867,7 @@ ApplyModifier_SunShell1(const char **pp, ModChain *ch)
 		v = VarFind(cache_varname, SCOPE_GLOBAL, false);
 		if (v == NULL) {
 			char *output, *error;
-			
+
 			output = Cmd_Exec(Expr_Str(expr), &error);
 			if (error != NULL) {
 				Parse_Error(PARSE_WARNING, "%s", error);
@@ -3846,7 +3884,7 @@ ApplyModifier_SunShell1(const char **pp, ModChain *ch)
 
 	return AMR_OK;
 }
-	
+
 
 /*
  * In cases where the evaluation mode and the definedness are the "standard"
@@ -4418,7 +4456,7 @@ CheckVarname(Substring name)
 		    ch_isprint(*p)
 		    ? "Invalid character \"%c\" in variable name \"%.*s\""
 		    : "Invalid character \"\\x%02x\" in variable name \"%.*s\"",
-		    (int)(*p),
+		    (int)*p,
 		    (int)Substring_Length(name), name.start);
 	}
 }
@@ -4899,8 +4937,7 @@ Var_Stats(void)
 static int
 StrAsc(const void *sa, const void *sb)
 {
-	return strcmp(
-	    *((const char *const *)sa), *((const char *const *)sb));
+	return strcmp(*(const char *const *)sa, *(const char *const *)sb);
 }
 
 

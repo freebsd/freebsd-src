@@ -1,0 +1,9 @@
+Name: comments-in-fields
+Description: Comments in fields test case
+URL: http://pkgconf.org/
+Version: 0
+Requires: # foo
+Requires.private: foo
+Libs: -lfoo # -lbar
+Libs.private:  -lbar
+Cflags: -I${includedir}

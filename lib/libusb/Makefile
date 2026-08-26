@@ -3,7 +3,7 @@
 #
 
 LIB=		usb
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 SHLIB_MINOR=	0
 SRCS=		libusb20.c
 SRCS+=		libusb20_desc.c
@@ -17,6 +17,9 @@ NOGCCERROR=
 PTHREAD_LIBS?=	-lpthread
 
 WARNS?=		2
+
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 LIBADD=		pthread
 
@@ -73,6 +76,8 @@ MLINKS += libusb.3 libusb_has_capability.3
 MLINKS += libusb.3 libusb_strerror.3
 MLINKS += libusb.3 libusb_error_name.3
 MLINKS += libusb.3 libusb_set_debug.3
+MLINKS += libusb.3 libusb_set_option.3
+MLINKS += libusb.3 libusb_set_log_cb.3
 MLINKS += libusb.3 libusb_get_device_list.3
 MLINKS += libusb.3 libusb_free_device_list.3
 MLINKS += libusb.3 libusb_get_bus_number.3
@@ -194,6 +199,7 @@ MLINKS += libusb20.3 libusb20_tr_get_actual_length.3
 MLINKS += libusb20.3 libusb20_tr_get_max_frames.3
 MLINKS += libusb20.3 libusb20_tr_get_max_packet_length.3
 MLINKS += libusb20.3 libusb20_tr_get_max_total_length.3
+MLINKS += libusb20.3 libusb20_tr_get_flags.3
 MLINKS += libusb20.3 libusb20_tr_get_status.3
 MLINKS += libusb20.3 libusb20_tr_pending.3
 MLINKS += libusb20.3 libusb20_tr_callback_wrapper.3
@@ -225,6 +231,7 @@ MLINKS += libusb20.3 libusb20_dev_get_desc.3
 MLINKS += libusb20.3 libusb20_dev_get_stats.3
 MLINKS += libusb20.3 libusb20_dev_close.3
 MLINKS += libusb20.3 libusb20_dev_detach_kernel_driver.3
+MLINKS += libusb20.3 libusb20_dev_attach_kernel_driver.3
 MLINKS += libusb20.3 libusb20_dev_set_config_index.3
 MLINKS += libusb20.3 libusb20_dev_get_debug.3
 MLINKS += libusb20.3 libusb20_dev_get_fd.3

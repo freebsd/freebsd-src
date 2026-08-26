@@ -144,6 +144,15 @@ IDTVEC(spuriousint)
 	KMSAN_LEAVE
 	jmp	doreti
 
+/*
+ * Local APIC thermal interrupt handler.
+ */
+	INTR_HANDLER thermalint
+	KMSAN_ENTER
+	call	lapic_handle_thermal
+	KMSAN_LEAVE
+	jmp	doreti
+
 #ifdef XENHVM
 /*
  * Xen event channel upcall interrupt handler.
@@ -179,6 +188,7 @@ IDTVEC(spuriousint)
 	INTR_HANDLER ipi_intr_bitmap_handler
 	call	as_lapic_eoi
 	KMSAN_ENTER
+	movq	%rsp,%rdi
 	call	ipi_bitmap_handler
 	KMSAN_LEAVE
 	jmp	doreti
@@ -220,6 +230,7 @@ IDTVEC(spuriousint)
 	INTR_HANDLER ipi_swi
 	call	as_lapic_eoi
 	KMSAN_ENTER
+	movq	%rsp,%rdi
 	call	ipi_swi_handler
 	KMSAN_LEAVE
 	jmp	doreti

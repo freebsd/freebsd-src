@@ -20,9 +20,9 @@ struct uexterror {
 	__uint32_t src_line;
 	__uint32_t flags;
 	__uint32_t rsrv0;
-	__uint64_t p1;
-	__uint64_t p2;
-	__uint64_t rsrv1[4];
+	__uint64ptr_t p1;
+	__uint64ptr_t p2;
+	__uint64ptr_t rsrv1[4];
 	char msg[128];
 };
 

@@ -1,14 +1,14 @@
-.\"-
+.\"
 .\" Copyright 2021 Intel Corp
 .\" Copyright 2021 Rubicon Communications, LLC (Netgate)
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\"
-.Dd January 9, 2023
+.Dd August 11, 2026
 .Dt IGC 4
 .Os
 .Sh NAME
 .Nm igc
-.Nd "Intel Ethernet Controller I225 driver"
+.Nd Intel Ethernet Controller I225 2.5GbE driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -39,10 +39,17 @@ utility
 configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 9216 bytes.
 .Pp
-This driver version supports VLAN hardware insertion / extraction, and
-VLAN checksum offload.
+This driver version supports VLAN hardware insertion / extraction,
+VLAN checksum offload, and VLAN hardware filtering.
 For information on enabling VLANs, see
 .Xr ifconfig 8 .
+.Pp
+The identification LED of an adapter supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+interface at
+.Pa /dev/led/igc* .
 The
 .Nm
 driver supports the following media types:
@@ -77,7 +84,7 @@ mode is supported at this speed.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following models:
+driver supports the following 2.5Gb Ethernet controllers:
 .Pp
 .Bl -bullet -compact
 .It
@@ -125,6 +132,20 @@ Default 1 (disabled).
 .It Va hw.igc.max_interrupt_rate
 Maximum device interrupts per second.
 The default is 8000.
+This is the rate used when adaptive interrupt moderation is disabled, and
+the fallback when it has no usable measurement.
+.It Va hw.igc.enable_aim
+Adaptive interrupt moderation.
+The interrupt rate is derived from the average size of the packets seen
+since the previous interrupt, so that bulk traffic is coalesced while small
+packet traffic keeps its latency.
+A value of 0 disables it and pins the rate to
+.Va hw.igc.max_interrupt_rate ,
+1 selects the normal range, and 2 selects the low-latency range.
+The default value is 1.
+Setting 2 raises the interrupt rate substantially on small packet workloads
+and is rarely a win; prefer the default unless latency has been measured to
+matter more than the additional interrupt load.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -140,6 +161,7 @@ address.
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,

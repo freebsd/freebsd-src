@@ -3,11 +3,17 @@
 ############################################################ IDENT(1)
 #
 # $Title: dwatch(8) module for dtrace_sched(4) $
-# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $Copyright: 2014-2026 Devin Teske. All rights reserved. $
 #
 ############################################################ DESCRIPTION
 #
-# Display CPU scheduling activity
+# Display CPU scheduling activity. The sched-latency profile instead
+# measures run-queue latency -- the time between a thread being made
+# runnable (enqueued) and actually running (on-cpu) -- printing any
+# wait that meets a threshold (default 10 ms; tunable via
+# DWATCH_SCHED_MS in the environment, 0 to show everything). Answers
+# "the system has idle CPU but feels sluggish -- who is waiting to
+# run, and for how long?"
 #
 ############################################################ PROBE
 
@@ -18,6 +24,8 @@ sched-cpu)
 	: ${PROBE:=sched:::off-cpu, sched:::on-cpu, sched:::remain-cpu} ;;
 sched-exec)
 	: ${PROBE:=sched:::sleep, sched:::wakeup} ;;
+sched-latency)
+	: ${PROBE:=sched:::on-cpu} ;;
 sched-pri)
 	: ${PROBE:=sched:::change-pri, sched:::lend-pri} ;;
 sched-queue)
@@ -26,8 +34,48 @@ sched-queue)
 	: ${PROBE:=sched:::${PROFILE#sched-}}
 esac
 
+############################################################ EVENT ACTION
+
+case "$PROFILE" in
+sched-latency)
+	: ${DWATCH_SCHED_MS:=10}
+
+	case "$DWATCH_SCHED_MS" in
+	""|*[!0-9]*) die "DWATCH_SCHED_MS must be a number" ;; # NOTREACHED
+	esac
+
+	[ "$CUSTOM_TEST" ] ||
+		EVENT_TEST="this->sched_ns >= (int64_t)$DWATCH_SCHED_MS * 1000000"
+	;;
+esac
+
 ############################################################ ACTIONS
 
+if [ "$PROFILE" = "sched-latency" ]; then
+exec 9<<EOF
+this int64_t	sched_ns;
+int64_t		sched_ts[int];
+
+sched:::enqueue /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	sched_ts[((struct thread *)args[0])->td_tid] = timestamp;
+}
+
+$PROBE /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/* NB: -1 if we did not see the enqueue (enabled mid-wait) */
+	this->sched_ns = sched_ts[curthread->td_tid] ?
+		timestamp - sched_ts[curthread->td_tid] : -1;
+	sched_ts[curthread->td_tid] = 0;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+else
 exec 9<<EOF
 this pid_t	pid;
 this string	args;
@@ -90,10 +138,21 @@ $PROBE /* probe ID $(( $ID + 5 )) */
 EOF
 ACTIONS=$( cat <&9 )
 ID=$(( $ID + 6 ))
+fi
 
 ############################################################ EVENT DETAILS
 
-if [ ! "$CUSTOM_DETAILS" ]; then
+if [ "$PROFILE" = "sched-latency" ] && [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print run-queue latency details
+	 */
+	printf("waited %d.%03d ms to run",
+		this->sched_ns / 1000000,
+		(this->sched_ns % 1000000) / 1000);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+elif [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print scheduling details

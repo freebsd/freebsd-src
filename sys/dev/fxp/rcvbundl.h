@@ -810,7 +810,7 @@ rcvbundl.h file given above).
 
 /*
     This version is a fix to TCO bug. This version can be loaded instead
-    the CPUSaver version by modifing the registry key "LoadTcoUCodeInsteadOfCpuSaver"
+    the CPUSaver version by modifying the registry key "LoadTcoUCodeInsteadOfCpuSaver"
     
 */
 

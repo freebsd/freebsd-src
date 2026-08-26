@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -1017,7 +1017,7 @@ qat_hal_init(struct adf_accel_dev *accel_dev)
 	unsigned int sram_offset = 0;
 	unsigned int max_en_ae_id = 0;
 	int ret = 0;
-	unsigned long ae_mask;
+	u64 ae_mask;
 	struct icp_qat_fw_loader_handle *handle;
 	if (!accel_dev) {
 		return EFAULT;
@@ -1066,8 +1066,8 @@ qat_hal_init(struct adf_accel_dev *accel_dev)
 	handle->hal_handle =
 	    malloc(sizeof(*handle->hal_handle), M_QAT, M_WAITOK | M_ZERO);
 	handle->hal_handle->revision_id = accel_dev->accel_pci_dev.revid;
-	handle->hal_handle->ae_mask = hw_data->ae_mask;
-	handle->hal_handle->admin_ae_mask = hw_data->admin_ae_mask;
+	handle->hal_handle->ae_mask = (u32)hw_data->ae_mask;
+	handle->hal_handle->admin_ae_mask = (u32)hw_data->admin_ae_mask;
 	handle->hal_handle->slice_mask = hw_data->accel_mask;
 	handle->cfg_ae_mask = 0xFFFFFFFF;
 	/* create AE objects */

@@ -95,6 +95,8 @@ struct sf_io {
 	vm_pindex_t	pindex0;
 #ifdef KERN_TLS
 	struct ktls_session *tls;
+	struct mbuf	*tls_m;
+	int		tls_enq_cnt;
 #endif
 	vm_page_t	pa[];
 };
@@ -338,7 +340,12 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		so->so_proto->pr_abort(so);
 		so->so_error = EIO;
 
-		mb_free_notready(sfio->m, sfio->npages);
+#ifdef KERN_TLS
+		if (sfio->tls_m != NULL)
+			mb_free_notready(sfio->tls_m, sfio->tls_enq_cnt);
+		else
+#endif
+			mb_free_notready(sfio->m, sfio->npages);
 #ifdef KERN_TLS
 	} else if (sfio->tls != NULL && sfio->tls->mode == TCP_TLS_MODE_SW) {
 		/*
@@ -350,7 +357,10 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		 * Donate the socket reference from sfio to rather
 		 * than explicitly invoking soref().
 		 */
-		ktls_enqueue(sfio->m, so, sfio->npages);
+		if (sfio->tls_m != NULL)
+			ktls_enqueue(sfio->tls_m, so, sfio->tls_enq_cnt);
+		else
+			ktls_enqueue(sfio->m, so, sfio->npages);
 		goto out_with_ref;
 #endif
 	} else
@@ -897,6 +907,8 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		 * for all of sfio's lifetime.
 		 */
 		sfio->tls = tls;
+		sfio->tls_m = NULL;
+		sfio->tls_enq_cnt = 0;
 #endif
 		vm_object_pip_add(obj, 1);
 		error = sendfile_swapin(obj, sfio, &nios, off, space, rhpages,
@@ -1030,7 +1042,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 			}
 
 			m0 = m_get(M_WAITOK, MT_DATA);
-			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
+			m0->m_ext.ext_buf = sf_buf_kva(sf);
 			m0->m_ext.ext_size = PAGE_SIZE;
 			m0->m_ext.ext_arg1 = sf;
 			m0->m_ext.ext_type = EXT_SFBUF;
@@ -1125,6 +1137,13 @@ prepend_header:
 		} else {
 			sfio->so = so;
 			sfio->m = m0;
+#ifdef KERN_TLS
+			if (hdrlen != 0 && tls != NULL &&
+			    tls->mode == TCP_TLS_MODE_SW) {
+				sfio->tls_m = m;
+				sfio->tls_enq_cnt = tls_enq_cnt;
+			}
+#endif
 			soref(so);
 			error = pr->pr_send(so, PRUS_NOTREADY, m, NULL, NULL,
 			    td);
@@ -1149,14 +1168,16 @@ prepend_header:
 	}
 
 	/*
-	 * Send trailers. Wimp out and use writev(2).
+	 * Send trailers.
 	 */
 	if (trl_uio != NULL) {
+		ssize_t cnt;
+
 		SOCK_IO_SEND_UNLOCK(so);
 		CURVNET_RESTORE();
-		error = kern_writev(td, sockfd, trl_uio);
+		error = kern_filewrite(td, sockfd, sock_fp, trl_uio, 0, &cnt);
 		if (error == 0)
-			sbytes += td->td_retval[0];
+			sbytes += cnt;
 		goto out;
 	}
 
@@ -1164,15 +1185,8 @@ done:
 	SOCK_IO_SEND_UNLOCK(so);
 	CURVNET_RESTORE();
 out:
-	/*
-	 * If there was no error we have to clear td->td_retval[0]
-	 * because it may have been set by writev.
-	 */
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		if (sbytes > 0 && vp != NULL)
-			INOTIFY(vp, IN_ACCESS);
-	}
+	if (error == 0 && sbytes > 0 && vp != NULL)
+		INOTIFY(vp, IN_ACCESS);
 	if (sent != NULL) {
 		(*sent) = sbytes;
 	}
@@ -1241,6 +1255,8 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			    &trl_uio);
 			if (error != 0)
 				goto out;
+			trl_uio->uio_rw = UIO_WRITE;
+			trl_uio->uio_td = td;
 		}
 	}
 

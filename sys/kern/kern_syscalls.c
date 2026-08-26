@@ -88,7 +88,7 @@ syscall_thread_drain(struct sysent *se)
 		pause("scdrn", hz/2);
 }
 
-int
+void
 syscall_thread_enter(struct thread *td, struct sysent **se)
 {
 	uint32_t cnt, oldcnt;
@@ -100,11 +100,10 @@ syscall_thread_enter(struct thread *td, struct sysent **se)
 		oldcnt = (*se)->sy_thrcnt;
 		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0) {
 			*se = &nosys_sysent;
-			return (0);
+			break;
 		}
 		cnt = oldcnt + SY_THR_INCR;
 	} while (atomic_cmpset_acq_32(&(*se)->sy_thrcnt, oldcnt, cnt) == 0);
-	return (0);
 }
 
 void

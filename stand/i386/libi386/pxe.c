@@ -149,6 +149,9 @@ pxe_init(void)
 	if (pxenv_p == NULL)
 		return (0);
 
+	/* RFC 4578 § 2.1: BIOS PXE is a 32-bit "Standard PC BIOS" client. */
+	bootp_client_arch = 0x0000;
+
 	/* look for "PXENV+" */
 	if (bcmp((void *)pxenv_p->Signature, S_SIZE("PXENV+"))) {
 		pxenv_p = NULL;
@@ -412,11 +415,6 @@ pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 	len = min(sizeof (desc->myea), undi_info_p->HwAddrLen);
 	for (i = 0; i < len; ++i)
 		desc->myea[i] = mac[i];
-
-	if (bootp_response != NULL)
-		desc->xid = bootp_response->bp_xid;
-	else
-		desc->xid = 0;
 
 	bio_free(undi_info_p, sizeof(*undi_info_p));
 	undi_open_p = bio_alloc(sizeof(*undi_open_p));

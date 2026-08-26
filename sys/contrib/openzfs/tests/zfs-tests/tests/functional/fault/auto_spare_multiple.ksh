@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: CDDL-1.0
 
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -11,9 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -84,8 +80,8 @@ for type in "mirror" "raidz" "raidz2" "raidz3" "draid2:1s"; do
 		log_must zpool create -f $TESTPOOL $type $SAFE_DEV1 \
 		    $SAFE_DEV2 $FAULT_DEV1 $FAULT_DEV2 $SAFE_DEV3 $SAFE_DEV4 \
 		    spare $SPARE_DEV1
-		SPARE1=$SPARE_DEV1
-		SPARE2="draid2-0-0"
+		SPARE1="draid2-0-0"
+		SPARE2=$SPARE_DEV1
 	elif [ "$type" = "mirror" ]; then
 		# 1. Create a 3-way mirror pool with two hot spares
 		truncate -s $MINVDEVSIZE $DATA_DEVS $SPARE_DEVS
@@ -167,8 +163,8 @@ for type in "mirror" "raidz2" "raidz3" "draid2:1s"; do
 		log_must zpool create -f $TESTPOOL $type $SAFE_DEV1 \
 		    $SAFE_DEV2 $FAULT_DEV1 $FAULT_DEV2 $SAFE_DEV3 $SAFE_DEV4 \
 		    spare $SPARE_DEV1
-		SPARE1=$SPARE_DEV1
-		SPARE2="draid2-0-0"
+		SPARE1="draid2-0-0"
+		SPARE2=$SPARE_DEV1
 	elif [ "$type" = "mirror" ]; then
 		# 1. Create a 3-way mirror pool with two hot spares
 		truncate -s $MINVDEVSIZE $DATA_DEVS $SPARE_DEVS

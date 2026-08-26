@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
  *
  * This software was developed by Aymeric Wibo <obiwac@freebsd.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -14,6 +14,13 @@
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
+#include "opt_acpi.h"
+
+#if defined(DEV_ACPI)
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
+
 #include <dev/pci/pcivar.h>
 #include <dev/amdsmu/amdsmu.h>
 
@@ -23,11 +30,21 @@ amdsmu_match(device_t dev, const struct amdsmu_product **product_out)
 	const uint16_t vendorid = pci_get_vendor(dev);
 	const uint16_t deviceid = pci_get_device(dev);
 
+	const uint32_t model = CPUID_TO_MODEL(cpu_id);
+
 	for (size_t i = 0; i < nitems(amdsmu_products); i++) {
 		const struct amdsmu_product *prod = &amdsmu_products[i];
 
 		if (vendorid == prod->amdsmu_vendorid &&
 		    deviceid == prod->amdsmu_deviceid) {
+
+			/*
+			 * Some Krackan Point devices have different ip blocks
+			 * based on CPU model.
+			 */
+			if (prod->model != 0x00 && model != prod->model)
+				continue;
+
 			if (product_out != NULL)
 				*product_out = prod;
 			return (true);
@@ -51,9 +68,12 @@ amdsmu_identify(driver_t *driver, device_t parent)
 static int
 amdsmu_probe(device_t dev)
 {
+	struct amdsmu_softc *sc;
+
 	if (resource_disabled("amdsmu", 0))
 		return (ENXIO);
-	if (!amdsmu_match(device_get_parent(dev), NULL))
+	sc = device_get_softc(dev);
+	if (!amdsmu_match(device_get_parent(dev), &sc->product))
 		return (ENXIO);
 	device_set_descf(dev, "AMD System Management Unit");
 
@@ -95,7 +115,7 @@ amdsmu_cmd(device_t dev, enum amdsmu_msg msg, uint32_t arg, uint32_t *ret)
 	amdsmu_write4(sc, SMU_REG_RESPONSE, SMU_RES_WAIT);
 
 	/* Write out command to registers. */
-	amdsmu_write4(sc, SMU_REG_MESSAGE, msg);
+	amdsmu_write4(sc, sc->product->amdsmu_msg, msg);
 	amdsmu_write4(sc, SMU_REG_ARGUMENT, arg);
 
 	/* Wait for SMU response and handle it. */
@@ -147,27 +167,10 @@ static int
 amdsmu_get_ip_blocks(device_t dev)
 {
 	struct amdsmu_softc *sc = device_get_softc(dev);
-	const uint16_t deviceid = pci_get_device(dev);
 	int err;
 	struct amdsmu_metrics *m = &sc->metrics;
 	bool active;
 	char sysctl_descr[32];
-
-	/* Get IP block count. */
-	switch (deviceid) {
-	case PCI_DEVICEID_AMD_REMBRANDT_ROOT:
-		sc->ip_block_count = 12;
-		break;
-	case PCI_DEVICEID_AMD_PHOENIX_ROOT:
-		sc->ip_block_count = 21;
-		break;
-	/* TODO How many IP blocks does Strix Point (and the others) have? */
-	case PCI_DEVICEID_AMD_STRIX_POINT_ROOT:
-	default:
-		sc->ip_block_count = nitems(amdsmu_ip_blocks_names);
-	}
-	KASSERT(sc->ip_block_count <= nitems(amdsmu_ip_blocks_names),
-	    ("too many IP blocks for array"));
 
 	/* Get and print out IP blocks. */
 	err = amdsmu_cmd(dev, SMU_MSG_GET_SUP_CONSTRAINTS, 0,
@@ -177,13 +180,13 @@ amdsmu_get_ip_blocks(device_t dev)
 		return (err);
 	}
 	device_printf(dev, "Active IP blocks: ");
-	for (size_t i = 0; i < sc->ip_block_count; i++) {
+	for (size_t i = 0; i < sc->product->ip_block_count; i++) {
 		active = (sc->active_ip_blocks & (1 << i)) != 0;
 		sc->ip_blocks_active[i] = active;
 		if (!active)
 			continue;
-		printf("%s%s", amdsmu_ip_blocks_names[i],
-		    i + 1 < sc->ip_block_count ? " " : "\n");
+		printf("%s%s", sc->product->ip_blocks_names[i],
+		    i + 1 < sc->product->ip_block_count ? " " : "\n");
 	}
 
 	/* Create a sysctl node for IP blocks. */
@@ -196,14 +199,14 @@ amdsmu_get_ip_blocks(device_t dev)
 	}
 
 	/* Create a sysctl node for each IP block. */
-	for (size_t i = 0; i < sc->ip_block_count; i++) {
+	for (size_t i = 0; i < sc->product->ip_block_count; i++) {
 		/* Create the sysctl node itself for the IP block. */
 		snprintf(sysctl_descr, sizeof sysctl_descr,
 		    "Metrics about the %s AMD IP block",
-		    amdsmu_ip_blocks_names[i]);
+		    sc->product->ip_blocks_names[i]);
 		sc->ip_block_sysctlnodes[i] = SYSCTL_ADD_NODE(sc->sysctlctx,
 		    SYSCTL_CHILDREN(sc->ip_blocks_sysctlnode), OID_AUTO,
-		    amdsmu_ip_blocks_names[i], CTLFLAG_RD, NULL, sysctl_descr);
+		    sc->product->ip_blocks_names[i], CTLFLAG_RD, NULL, sysctl_descr);
 		if (sc->ip_block_sysctlnodes[i] == NULL) {
 			device_printf(dev,
 			    "could not add sysctl node for \"%s\"\n", sysctl_descr);
@@ -286,7 +289,32 @@ amdsmu_fetch_idlemask(device_t dev)
 {
 	struct amdsmu_softc *sc = device_get_softc(dev);
 
-	sc->idlemask = amdsmu_read4(sc, SMU_REG_IDLEMASK);
+	sc->idlemask = amdsmu_read4(sc, sc->product->idlemask_reg);
+}
+
+static void
+amdsmu_suspend(device_t dev, enum power_stype stype)
+{
+	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
+		return;
+	/*
+	 * XXX It seems that Cezanne needs a special workaround here for
+	 * firmware versions < 64.53.  See amd_pmc_verify_czn_rtc() in Linux.
+	 */
+	if (amdsmu_cmd(dev, SMU_MSG_SLEEP_HINT, true, NULL) != 0)
+		device_printf(dev, "failed to hint to SMU to enter sleep");
+}
+
+static void
+amdsmu_resume(device_t dev, enum power_stype stype)
+{
+	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
+		return;
+	if (amdsmu_cmd(dev, SMU_MSG_SLEEP_HINT, false, NULL) != 0)
+		device_printf(dev, "failed to hint to SMU to exit sleep");
+	/* Update metrics after resume. */
+	amdsmu_dump_metrics(dev);
+	amdsmu_fetch_idlemask(dev);
 }
 
 static int
@@ -422,6 +450,19 @@ amdsmu_attach(device_t dev)
 	    "value is not documented - only used to help AMD internally debug "
 	    "issues");
 
+#if defined(DEV_ACPI)
+	/*
+	 * Register post device suspend/pre device resume eventhandlers.  We use
+	 * a lower priority for the suspend event as we want this to be called
+	 * after the SPMC suspend hook, and a higher priority for the resume
+	 * event as we want this to be called before the SPMC hook.
+	 */
+	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
+	    amdsmu_suspend, dev, EVENTHANDLER_PRI_LAST);
+	sc->eh_resume = EVENTHANDLER_REGISTER(acpi_pre_dev_resume,
+	    amdsmu_resume, dev, EVENTHANDLER_PRI_FIRST);
+#endif
+
 	return (0);
 err_dump:
 	bus_space_unmap(sc->bus_tag, sc->reg_space, SMU_MEM_SIZE);
@@ -437,6 +478,11 @@ amdsmu_detach(device_t dev)
 {
 	struct amdsmu_softc *sc = device_get_softc(dev);
 	int rid = 0;
+
+#if defined(DEV_ACPI)
+	EVENTHANDLER_DEREGISTER(acpi_post_dev_suspend, sc->eh_suspend);
+	EVENTHANDLER_DEREGISTER(acpi_pre_dev_resume, sc->eh_resume);
+#endif
 
 	bus_space_unmap(sc->bus_tag, sc->smu_space, SMU_MEM_SIZE);
 	bus_space_unmap(sc->bus_tag, sc->reg_space, SMU_MEM_SIZE);

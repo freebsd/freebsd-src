@@ -7,15 +7,18 @@
 
 #include "ufshci_private.h"
 
-void
+int
 ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
     ufshci_cb_fn_t cb_fn, void *cb_arg, uint8_t function, uint8_t lun,
     uint8_t task_tag, uint8_t iid)
 {
 	struct ufshci_request *req;
 	struct ufshci_task_mgmt_request_upiu *upiu;
+	int error;
 
 	req = ufshci_allocate_request_vaddr(NULL, 0, M_NOWAIT, cb_fn, cb_arg);
+	if (req == NULL)
+		return (ENOMEM);
 
 	req->request_size = sizeof(struct ufshci_task_mgmt_request_upiu);
 	req->response_size = sizeof(struct ufshci_task_mgmt_response_upiu);
@@ -26,19 +29,24 @@ ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
 	    UFSHCI_UPIU_TRANSACTION_CODE_TASK_MANAGEMENT_REQUEST;
 	upiu->header.lun = lun;
 	upiu->header.ext_iid_or_function = function;
-	upiu->input_param1 = lun;
-	upiu->input_param2 = task_tag;
-	upiu->input_param3 = iid;
+	upiu->input_param1 = htobe32(lun);
+	upiu->input_param2 = htobe32(task_tag);
+	upiu->input_param3 = htobe32(iid);
 
-	ufshci_ctrlr_submit_task_mgmt_request(ctrlr, req);
+	error = ufshci_ctrlr_submit_task_mgmt_request(ctrlr, req);
+	if (error)
+		ufshci_free_request(req);
+
+	return (error);
 }
 
-void
+int
 ufshci_ctrlr_cmd_send_nop(struct ufshci_controller *ctrlr, ufshci_cb_fn_t cb_fn,
     void *cb_arg)
 {
 	struct ufshci_request *req;
 	struct ufshci_nop_out_upiu *upiu;
+	int error;
 
 	req = ufshci_allocate_request_vaddr(NULL, 0, M_WAITOK, cb_fn, cb_arg);
 
@@ -50,15 +58,20 @@ ufshci_ctrlr_cmd_send_nop(struct ufshci_controller *ctrlr, ufshci_cb_fn_t cb_fn,
 	memset(upiu, 0, req->request_size);
 	upiu->header.trans_type = UFSHCI_UPIU_TRANSACTION_CODE_NOP_OUT;
 
-	ufshci_ctrlr_submit_transfer_request(ctrlr, req);
+	error = ufshci_ctrlr_submit_transfer_request(ctrlr, req);
+	if (error)
+		ufshci_free_request(req);
+
+	return (error);
 }
 
-void
+int
 ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
     ufshci_cb_fn_t cb_fn, void *cb_arg, struct ufshci_query_param param)
 {
 	struct ufshci_request *req;
 	struct ufshci_query_request_upiu *upiu;
+	int error;
 
 	req = ufshci_allocate_request_vaddr(NULL, 0, M_WAITOK, cb_fn, cb_arg);
 
@@ -74,8 +87,12 @@ ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
 	upiu->idn = param.type;
 	upiu->index = param.index;
 	upiu->selector = param.selector;
-	upiu->value_64 = param.value;
-	upiu->length = param.desc_size;
+	upiu->value_64 = htobe64(param.value);
+	upiu->length = htobe16(param.desc_size);
 
-	ufshci_ctrlr_submit_transfer_request(ctrlr, req);
+	error = ufshci_ctrlr_submit_transfer_request(ctrlr, req);
+	if (error)
+		ufshci_free_request(req);
+
+	return (error);
 }

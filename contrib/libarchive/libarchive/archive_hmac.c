@@ -74,7 +74,7 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 }
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
 
 #ifndef BCRYPT_HASH_REUSABLE_FLAG
 # define BCRYPT_HASH_REUSABLE_FLAG 0x00000020
@@ -198,6 +198,7 @@ static void __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 }
 
 #elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_HMAC_H)
+#include <nettle/version.h>
 
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
@@ -216,7 +217,12 @@ __hmac_sha1_update(archive_hmac_sha1_ctx *ctx, const uint8_t *data,
 static void
 __hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
 {
+#if NETTLE_VERSION_MAJOR < 4
 	hmac_sha1_digest(ctx, (unsigned)*out_len, out);
+#else
+	hmac_sha1_digest(ctx, out);
+	*out_len = SHA1_DIGEST_SIZE;
+#endif
 }
 
 static void

@@ -27,8 +27,8 @@
 
 #include "opt_platform.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
@@ -61,6 +61,8 @@
  */
 cpu_reset_hook_t cpu_reset_hook = psci_reset;
 
+static uma_zone_t pcb_zone;
+
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -89,24 +91,20 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 #endif
 	}
 
-	pcb2 = (struct pcb *)(td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE) - 1;
-
-	td2->td_pcb = pcb2;
+	pcb2 = td2->td_pcb;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	/* Clear the debug register state. */
 	bzero(&pcb2->pcb_dbg_regs, sizeof(pcb2->pcb_dbg_regs));
 
 	ptrauth_fork(td2, td1);
+	mte_fork(td2, td1);
 
-	tf = STACKALIGN((struct trapframe *)pcb2 - 1);
+	tf = td2->td_frame;
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 	tf->tf_x[0] = 0;
 	tf->tf_x[1] = 0;
 	tf->tf_spsr = td1->td_frame->tf_spsr & (PSR_M_32 | PSR_DAIF);
-
-	td2->td_frame = tf;
 
 	/* Set the return value registers for fork() */
 	td2->td_pcb->pcb_x[PCB_X19] = (uintptr_t)fork_return;
@@ -122,6 +120,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Copy the TCR_EL1 value */
 	td2->td_proc->p_md.md_tcr = td1->td_proc->p_md.md_tcr;
+
+	td2->td_md.md_sctlr = td1->td_md.md_sctlr;
 
 #if defined(PERTHREAD_SSP)
 	/* Set the new canary */
@@ -192,6 +192,8 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_daif = PSR_DAIF_DEFAULT;
 
+	td->td_md.md_sctlr = td0->td_md.md_sctlr;
+
 #if defined(PERTHREAD_SSP)
 	/* Set the new canary */
 	arc4random_buf(&td->td_md.md_canary, sizeof(td->td_md.md_canary));
@@ -199,6 +201,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	/* Generate new pointer authentication keys. */
 	ptrauth_copy_thread(td, td0);
+	mte_copy_thread(td, td0);
 }
 
 /*
@@ -261,17 +264,21 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
-
-	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
-	td->td_frame = (struct trapframe *)STACKALIGN(
-	    (struct trapframe *)td->td_pcb - 1);
+	td->td_pcb = uma_zalloc(pcb_zone, M_WAITOK);
 	ptrauth_thread_alloc(td);
+	mte_thread_alloc(td);
+}
+
+void
+cpu_thread_new_kstack(struct thread *td)
+{
+	td->td_frame = (struct trapframe *)td_kstack_top(td) - 1;
 }
 
 void
 cpu_thread_free(struct thread *td)
 {
+	uma_zfree(pcb_zone, td->td_pcb);
 }
 
 void
@@ -331,3 +338,11 @@ cpu_sync_core(void)
 	 * return from ELx is a context synchronization event.
 	 */
 }
+
+static void
+pcbinit(void *dummy __unused)
+{
+	pcb_zone = uma_zcreate("pcb", sizeof(struct pcb), NULL, NULL, NULL,
+	    NULL, UMA_ALIGNOF(struct pcb), 0);
+}
+SYSINIT(pcbinit, SI_SUB_INTRINSIC, SI_ORDER_ANY, pcbinit, NULL);

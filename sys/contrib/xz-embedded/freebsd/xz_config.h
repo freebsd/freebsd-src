@@ -27,10 +27,17 @@
 #ifndef __FREEBSD_XZ_CONFIG_H__
 #define __FREEBSD_XZ_CONFIG_H__
 
+#if defined(_KERNEL)
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#elif defined(_STANDALONE)
+#include "stand.h"
+#include <sys/param.h>
+#else
+/* nothing */
+#endif
 
 #include <contrib/xz-embedded/linux/include/linux/xz.h>
 #include "xz_malloc.h"
@@ -60,10 +67,6 @@
 
 #define	memeq(a, b, size)	(memcmp((a), (b), (size)) == 0)
 #define	memzero(buf, size)	bzero((buf), (size))
-
-#ifndef min
-#	define min(x, y)	MIN((x), (y))
-#endif
 
 #define	min_t(type, x, y)	min((x), (y))
 

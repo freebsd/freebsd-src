@@ -81,7 +81,7 @@ static struct keytab {
 	{0, 0}
 };
 
-int	verbose, debugonly;
+int	verbose, debugonly, nexthop;
 #ifdef JAIL
 char * jail_name;
 #endif
@@ -166,7 +166,7 @@ usage(const char *cp)
 {
 	if (cp != NULL)
 		warnx("bad keyword: %s", cp);
-	errx(EX_USAGE, "usage: route [-j jail] [-46dnqtv] command [[modifiers] args]");
+	errx(EX_USAGE, "usage: route [-j jail] [-46dnqtvo] command [[modifiers] args]");
 	/* NOTREACHED */
 }
 
@@ -182,7 +182,7 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage(NULL);
 
-	while ((ch = getopt(argc, argv, "46nqdtvj:")) != -1)
+	while ((ch = getopt(argc, argv, "46nqdtvoj:")) != -1)
 		switch(ch) {
 		case '4':
 #ifdef INET
@@ -214,6 +214,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			debugonly = 1;
+			break;
+		case 'o':
+			nexthop = 1;
 			break;
 		case 'j':
 #ifdef JAIL
@@ -810,6 +813,7 @@ set_metric(char *value, int key)
 	caseof(K_RTT, RTV_RTT, rmx_rtt);
 	caseof(K_RTTVAR, RTV_RTTVAR, rmx_rttvar);
 	caseof(K_WEIGHT, RTV_WEIGHT, rmx_weight);
+	caseof(K_METRIC, RTV_METRIC, rmx_metric);
 	}
 	rtm_inits |= flag;
 	if (lockrest || locking)
@@ -820,6 +824,8 @@ set_metric(char *value, int key)
 	*valp = strtol(value, &endptr, 0);
 	if (errno == 0 && *endptr != '\0')
 		errno = EINVAL;
+	if (flag & RTV_METRIC && *valp == RT_WILDCARD_METRIC)
+		err(EX_USAGE, "Metric can not be zero");
 	if (errno)
 		err(EX_USAGE, "%s", value);
 	if (flag & RTV_EXPIRE && (value[0] == '+' || value[0] == '-')) {
@@ -940,6 +946,7 @@ newroute(int argc, char **argv)
 					errx(EX_USAGE,
 					    "invalid fib number: %s", *argv);
 				break;
+			case K_PREFSRC:
 			case K_IFA:
 				if (!--argc)
 					usage(NULL);
@@ -996,6 +1003,7 @@ newroute(int argc, char **argv)
 			case K_RTT:
 			case K_RTTVAR:
 			case K_WEIGHT:
+			case K_METRIC:
 				if (!--argc)
 					usage(NULL);
 				set_metric(*++argv, key);

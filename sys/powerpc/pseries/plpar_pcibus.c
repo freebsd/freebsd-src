@@ -91,6 +91,7 @@ static bus_dma_tag_t
 plpar_pcibus_get_dma_tag(device_t dev, device_t child)
 {
 	struct ofw_pcibus_devinfo *dinfo;
+	int domain;
 
 	while (device_get_parent(child) != dev)
 		child = device_get_parent(child);
@@ -105,6 +106,8 @@ plpar_pcibus_get_dma_tag(device_t dev, device_t child)
 	    NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
 	    BUS_SPACE_MAXSIZE, 0, NULL, NULL, &dinfo->opd_dma_tag);
 	phyp_iommu_set_dma_tag(dev, child, dinfo->opd_dma_tag);
+	if (bus_get_domain(child, &domain) == 0)
+		(void)bus_dma_tag_set_domain(dinfo->opd_dma_tag, domain);
 
 	return (dinfo->opd_dma_tag);
 }

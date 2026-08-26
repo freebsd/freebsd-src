@@ -14,11 +14,14 @@ MAN=	arch.7 \
 	development.7 \
 	environ.7 \
 	firewall.7 \
+	groups.7 \
 	growfs.7 \
+	growfs_postboot.7 \
 	hier.7 \
 	hostname.7 \
 	intro.7 \
 	maclabel.7 \
+	memory_model.7 \
 	mitigations.7 \
 	named_attribute.7 \
 	operator.7 \
@@ -50,6 +53,7 @@ MLINKS+= c.7 c11.7
 MLINKS+= c.7 c17.7
 MLINKS+= c.7 c23.7
 MLINKS+= c.7 c2y.7
+MLINKS+= groups.7 wheel.7
 
 .if ${MK_INET} != "no"
 MAN+=	networking.7

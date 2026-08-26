@@ -79,6 +79,9 @@ def lldltocachepolicy : P<"lldltocachepolicy",
     "Pruning policy for the ThinLTO cache">;
 def lldsavetemps : F<"lldsavetemps">,
     HelpText<"Save intermediate LTO compilation results">;
+def lldsavetemps_colon : Joined<["/", "-", "/?", "-?"], "lldsavetemps:">,
+    HelpText<"Save select intermediate LTO compilation results">,
+    Values<"resolution,preopt,promote,internalize,import,opt,precodegen,prelink,combinedindex">;
 def lto_sample_profile: P<"lto-sample-profile", "Sample profile file path">;
 def machine : P<"machine", "Specify target platform">;
 def merge   : P<"merge", "Combine sections">;
@@ -137,6 +140,9 @@ def incl : Joined<["/", "-", "/?", "-?"], "include:">,
 def deffile : Joined<["/", "-", "/?", "-?"], "def:">,
     HelpText<"Use module-definition file">;
 
+def defarm64native
+    : P<"defarm64native",
+        "Use a module-definition file for the native view in a hybrid image.">;
 def debug : F<"debug">, HelpText<"Embed a symbol table in the image">;
 def debug_opt : P<"debug", "Embed a symbol table in the image with option">;
 def debugtype : P<"debugtype", "Debug Info Options">;
@@ -264,6 +270,17 @@ def thinlto_object_suffix_replace : P<
 def thinlto_prefix_replace: P<
     "thinlto-prefix-replace",
     "'old;new' replace old prefix with new prefix in ThinLTO outputs">;
+def thinlto_distributor : P<"thinlto-distributor",
+  "Distributor to use for ThinLTO backend compilations. If specified, ThinLTO "
+  "backend compilations will be distributed">;
+def thinlto_distributor_arg : P<"thinlto-distributor-arg",
+  "Arguments to pass to the ThinLTO distributor">;
+def thinlto_compiler : P<"thinlto-remote-compiler",
+  "Compiler for the ThinLTO distributor to invoke for ThinLTO backend "
+  "compilations">;
+def thinlto_compiler_arg : P<"thinlto-remote-compiler-arg",
+  "Compiler arguments for the ThinLTO distributor to pass for ThinLTO backend "
+  "compilations">;
 def lto_obj_path : P<
     "lto-obj-path",
     "output native object for merged LTO unit to this path">;
@@ -295,6 +312,8 @@ def wrap : P_priv<"wrap">;
 
 def vfsoverlay : P<"vfsoverlay", "Path to a vfsoverlay yaml file to optionally look for /defaultlib's in">;
 
+def show_timing : F<"time">,
+    HelpText<"Print the time spent in each phase of linking">;
 def time_trace_eq: Joined<["--"], "time-trace=">, MetaVarName<"<file>">,
   HelpText<"Record time trace to <file>">;
 def : Flag<["--"], "time-trace">, Alias<time_trace_eq>,
@@ -308,6 +327,9 @@ defm build_id: B<
      "Generate build ID (always on when generating PDB)",
      "Do not Generate build ID">;
 
+def incl_glob : Joined<["/", "-", "/?", "-?"], "includeglob:">,
+    HelpText<"Force symbol to be added to symbol table as undefined one using a glob pattern">;
+
 // Flags for debugging
 def lldmap : F<"lldmap">;
 def lldmap_file : P_priv<"lldmap">;
@@ -315,7 +337,6 @@ def map : F<"map">;
 def map_file : P_priv<"map">;
 def map_info : P<"mapinfo", "Include the specified information in a map file">;
 def print_search_paths : F<"print-search-paths">;
-def show_timing : F<"time">;
 def summary : F<"summary">;
 
 //==============================================================================
@@ -332,6 +353,7 @@ def fastfail : F<"fastfail">;
 def kernel : F<"kernel">;
 def pdbcompress : F<"pdbcompress">;
 def emitpogophaseinfo : F<"emitpogophaseinfo">;
+def noexp : F<"noexp">;
 
 def delay : P_priv<"delay">;
 def errorreport : P_priv<"errorreport">;
@@ -345,3 +367,4 @@ def tlbid : P_priv<"tlbid">;
 def tlbout : P_priv<"tlbout">;
 def verbose_all : P_priv<"verbose">;
 def guardsym : P_priv<"guardsym">;
+def arm64xsameaddress : P_priv<"arm64xsameaddress">;

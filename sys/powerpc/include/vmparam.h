@@ -96,7 +96,7 @@
 #define	VM_MAXUSER_ADDRESS	0x000fffffc0000000
 #define	VM_MAX_ADDRESS		0xc00fffffffffffff
 #define	VM_MIN_KERNEL_ADDRESS	0xc008000000000000
-#define	VM_MAX_KERNEL_ADDRESS	0xc0080007ffffffff
+#define	VM_MAX_KERNEL_ADDRESS	0xc00801ffffffffff
 #define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 #else
 #define	VM_MIN_ADDRESS		0
@@ -312,12 +312,13 @@ extern	int vm_level_0_order;
 #endif
 
 #define	PMAP_HAS_DMAP	(hw_direct_map)
-#define PHYS_TO_DMAP(x) ({						\
+#define PHYS_TO_DMAP_ADDR(x) ({						\
 	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
 	(x) | DMAP_BASE_ADDRESS; })
+#define	PHYS_TO_DMAP(x)	((void *)PHYS_TO_DMAP_ADDR(x))
 #define DMAP_TO_PHYS(x) ({						\
 	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
-	(x) &~ DMAP_BASE_ADDRESS; })
+	(uintptr_t)(x) &~ DMAP_BASE_ADDRESS; })
 
 /*
  * No non-transparent large page support in the pmap.

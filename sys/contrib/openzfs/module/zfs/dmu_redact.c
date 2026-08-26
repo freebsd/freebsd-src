@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2017, 2018 by Delphix. All rights reserved.
@@ -176,11 +166,7 @@ objnode_compare(const void *o1, const void *o2)
 {
 	const struct objnode *obj1 = o1;
 	const struct objnode *obj2 = o2;
-	if (obj1->obj < obj2->obj)
-		return (-1);
-	if (obj1->obj > obj2->obj)
-		return (1);
-	return (0);
+	return (TREE_CMP(obj1->obj, obj2->obj));
 }
 
 
@@ -425,11 +411,11 @@ redact_node_compare_start(const void *arg1, const void *arg2)
 	if (rr2->eos_marker)
 		return (-1);
 
-	int cmp = redact_range_compare(rr1->start_object, rr1->start_blkid,
-	    rr1->datablksz, rr2->start_object, rr2->start_blkid,
-	    rr2->datablksz);
+	int cmp = redact_range_compare(
+	    rr1->start_object, rr1->start_blkid, rr1->datablksz,
+	    rr2->start_object, rr2->start_blkid, rr2->datablksz);
 	if (cmp == 0)
-		cmp = (rn1->thread_num < rn2->thread_num ? -1 : 1);
+		cmp = TREE_CMP(rn1->thread_num, rn2->thread_num);
 	return (cmp);
 }
 
@@ -451,11 +437,11 @@ redact_node_compare_end(const void *arg1, const void *arg2)
 	if (srr2->eos_marker)
 		return (-1);
 
-	int cmp = redact_range_compare(srr1->end_object, srr1->end_blkid,
-	    srr1->datablksz, srr2->end_object, srr2->end_blkid,
-	    srr2->datablksz);
+	int cmp = redact_range_compare(
+	    srr1->end_object, srr1->end_blkid, srr1->datablksz,
+	    srr2->end_object, srr2->end_blkid, srr2->datablksz);
 	if (cmp == 0)
-		cmp = (rn1->thread_num < rn2->thread_num ? -1 : 1);
+		cmp = TREE_CMP(rn1->thread_num, rn2->thread_num);
 	return (cmp);
 }
 
@@ -1080,12 +1066,8 @@ dmu_redact_snap(const char *snapname, nvlist_t *redactnvl,
 	int n = snprintf(c, ZFS_MAX_DATASET_NAME_LEN - (c - newredactbook),
 	    "#%s", redactbook);
 	if (n >= ZFS_MAX_DATASET_NAME_LEN - (c - newredactbook)) {
-		dsl_pool_rele(dp, FTAG);
-		kmem_free(newredactbook,
-		    sizeof (char) * ZFS_MAX_DATASET_NAME_LEN);
-		if (args != NULL)
-			vmem_free(args, numsnaps * sizeof (*args));
-		return (SET_ERROR(ENAMETOOLONG));
+		err = ENAMETOOLONG;
+		goto out;
 	}
 	err = dsl_bookmark_lookup(dp, newredactbook, NULL, &bookmark);
 	if (err == 0) {

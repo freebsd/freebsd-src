@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --no-cache --libs foo
+ExpectedStdout: -L/test/lib -lfoo
+ExpectedExitCode: 0

@@ -79,8 +79,8 @@ struct csa_midi_softc {
 
 static struct kobj_class csamidi_mpu_class;
 
-static u_int32_t
-csamidi_readio(struct csa_midi_softc *scp, u_long offset)
+static uint32_t
+csamidi_readio(struct csa_midi_softc *scp, unsigned long offset)
 {
 	if (offset < BA0_AC97_RESET)
 		return bus_space_read_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset) & 0xffffffff;
@@ -89,7 +89,7 @@ csamidi_readio(struct csa_midi_softc *scp, u_long offset)
 }
 
 static void
-csamidi_writeio(struct csa_midi_softc *scp, u_long offset, u_int32_t data)
+csamidi_writeio(struct csa_midi_softc *scp, unsigned long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
 		bus_space_write_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset, data);
@@ -182,12 +182,9 @@ csamidi_muninit(struct mpu401 *arg __unused, void *cookie)
 static int
 midicsa_probe(device_t dev)
 {
-	struct sndcard_func *func;
-
 	/* The parent device has already been probed. */
 
-	func = device_get_ivars(dev);
-	if (func == NULL || func->func != SCF_MIDI)
+	if (device_get_ivars(dev) == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, "CS461x MIDI");

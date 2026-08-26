@@ -39,6 +39,7 @@
 #include <linux/spinlock.h>
 
 #include <rdma/ib_verbs.h>
+#include <rdma/opa_addr.h>
 
 #include <net/if_vlan_var.h>
 
@@ -69,6 +70,9 @@ int cma_get_default_gid_type(struct cma_device *cma_dev,
 int cma_set_default_gid_type(struct cma_device *cma_dev,
 			     unsigned int port,
 			     enum ib_gid_type default_gid_type);
+int cma_get_default_roce_tos(struct cma_device *cma_dev, unsigned int port);
+int cma_set_default_roce_tos(struct cma_device *a_dev, unsigned int port,
+			     u8 default_roce_tos);
 struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev);
 
 int  ib_device_register_sysfs(struct ib_device *device,
@@ -82,8 +86,8 @@ void ib_cache_cleanup(void);
 typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 	      if_t idev, void *cookie);
 
-typedef int (*roce_netdev_filter)(struct ib_device *device, u8 port,
-	     if_t idev, void *cookie);
+typedef bool (*roce_netdev_filter)(struct ib_device *device, u8 port,
+				   if_t idev, void *cookie);
 
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
@@ -178,6 +182,24 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 
 	return qp;
 }
+
+struct rdma_dev_addr;
+int rdma_resolve_ip_route(struct sockaddr *src_addr,
+			  const struct sockaddr *dst_addr,
+			  struct rdma_dev_addr *addr);
+
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *dmac, const struct ib_gid_attr *sgid_attr,
+				 int *hoplimit);
+void rdma_copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
+                           const if_t dev);
+
+struct sa_path_rec;
+int roce_resolve_route_from_path(struct sa_path_rec *rec,
+				 const struct ib_gid_attr *attr);
+
+if_t rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 
 struct rdma_umap_priv {
 	struct vm_area_struct *vma;

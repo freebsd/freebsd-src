@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match.mk,v 1.32 2025/06/29 09:40:13 rillig Exp $
+# $NetBSD: varmod-match.mk,v 1.33 2026/07/03 15:31:35 sjg Exp $
 #
 # Tests for the ':M' modifier, which keeps only those words that match the
 # given pattern.
@@ -387,4 +387,14 @@ WORDS=		[x- x x- y yyyyy
 # The pattern ':\' never matches.
 .if ${:U:${:UM\\\:\\}}
 .  error
+.endif
+
+# :M supports alternation
+.if ${/bin/sh ../Makefile.inc cat .../mk/sys.mk:L:M*{Makefile*,.mk}} != "../Makefile.inc .../mk/sys.mk"
+. error
+.endif
+
+# :M supports alternation
+.if ${{a} one and two {o} yes:L:M\{{a,e,i,o,u}\}} != "{a} {o}"
+. error
 .endif

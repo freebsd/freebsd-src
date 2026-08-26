@@ -10,7 +10,7 @@ increase_datafile_size 1200
 
 for cmd in put get; do
     verbose "$tid: ${cmd}"
-    for size in 0 1 1k 1m size-1 same; do
+    for size in 0 1 1k 1024k size-1 same; do
 	trace "$tid: test ${cmd} ${size}"
 	rm -rf ${COPY}.1 ${COPY}.2
 	cp ${DATA} ${COPY}.1
@@ -23,8 +23,6 @@ for cmd in put get; do
 		dd if=${DATA} of=${COPY}.2 bs=1023 count=1 >/dev/null 2>&1
 		;;
 	same)	cp ${DATA} ${COPY}.2
-		;;
-	1m)	dd if=${COPY}.1 of=${COPY}.2 bs=1k count=1k >/dev/null 2<&1
 		;;
 	*)	dd if=${COPY}.1 of=${COPY}.2 bs=${size} count=1 >/dev/null 2>&1
 		;;

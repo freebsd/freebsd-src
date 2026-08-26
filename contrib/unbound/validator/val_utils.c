@@ -157,7 +157,7 @@ val_classify_response(uint16_t query_flags, struct query_info* origqinf,
 }
 
 /** Get signer name from RRSIG */
-static void
+void
 rrsig_get_signer(uint8_t* data, size_t len, uint8_t** sname, size_t* slen)
 {
 	/* RRSIG rdata is not allowed to be compressed, it is stored
@@ -439,10 +439,15 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 	 * only improves security status 
 	 * and bogus is set only once, even if we rechecked the status */
 	if(sec > d->security) {
+		int wc_expanded = 0;
 		d->security = sec;
-		if(sec == sec_status_secure)
+		if(sec == sec_status_secure) {
+			uint8_t* wc = NULL;
+			size_t wclen = 0;
 			d->trust = rrset_trust_validated;
-		else if(sec == sec_status_bogus) {
+			if(val_rrset_wildcard(rrset, &wc, &wclen) && wc)
+				wc_expanded = 1;
+		} else if(sec == sec_status_bogus) {
 			size_t i;
 			/* update ttl for rrset to fixed value. */
 			d->ttl = ve->bogus_ttl;
@@ -455,7 +460,11 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 			lock_basic_unlock(&ve->bogus_lock);
 		}
 		/* if status updated - store in cache for reuse */
-		rrset_update_sec_status(env->rrset_cache, rrset, *env->now);
+		/* For a wildcard rrset, that is secure, do not store this
+		 * into the cache, because it changes proofs around the
+		 * item. */
+		if(!wc_expanded)
+			rrset_update_sec_status(env->rrset_cache, rrset, *env->now);
 	}
 
 	return sec;
@@ -1066,15 +1075,32 @@ val_fill_reply(struct reply_info* chase, struct reply_info* orig,
 			if(query_dname_compare(name, 
 				orig->rrsets[i]->rk.dname) == 0)
 			    chase->rrsets[chase->an_numrrsets
-				+orig->ns_numrrsets+chase->ar_numrrsets++] 
+				+chase->ns_numrrsets+chase->ar_numrrsets++]
 				= orig->rrsets[i];
 		} else if(rrset_has_signer(orig->rrsets[i], name, len)) {
-			chase->rrsets[chase->an_numrrsets+orig->ns_numrrsets+
+			chase->rrsets[chase->an_numrrsets+chase->ns_numrrsets+
 				chase->ar_numrrsets++] = orig->rrsets[i];
 		}
 	}
 	chase->rrset_count = chase->an_numrrsets + chase->ns_numrrsets + 
 		chase->ar_numrrsets;
+}
+
+void val_reply_remove_answers(struct reply_info* rep, size_t index,
+	size_t count)
+{
+	log_assert(index < rep->rrset_count);
+	log_assert(index < rep->an_numrrsets);
+	if(count == 0)
+		return; /* nothing to do */
+	log_assert(index+(count-1) < rep->rrset_count);
+	log_assert(index+(count-1) < rep->an_numrrsets);
+	if(rep->rrset_count - (count-1) - index - 1 > 0)
+	  memmove(rep->rrsets+index, rep->rrsets+index+(count-1)+1,
+		sizeof(struct ub_packed_rrset_key*)*
+		(rep->rrset_count - (count-1) - index - 1));
+	rep->an_numrrsets -= count;
+	rep->rrset_count -= count;
 }
 
 void val_reply_remove_auth(struct reply_info* rep, size_t index)
@@ -1310,15 +1336,18 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 		/* DS rrset exists. Return it to the validator immediately*/
 		struct ub_packed_rrset_key* copy = packed_rrset_copy_region(
 			rrset, region, *env->now);
+		struct packed_rrset_data* d;
 		lock_rw_unlock(&rrset->entry.lock);
 		if(!copy)
 			return NULL;
+		d = (struct packed_rrset_data*)copy->entry.data;
 		msg = dns_msg_create(nm, nmlen, LDNS_RR_TYPE_DS, c, region, 1);
 		if(!msg)
 			return NULL;
 		msg->rep->rrsets[0] = copy;
 		msg->rep->rrset_count++;
 		msg->rep->an_numrrsets++;
+		UPDATE_TTL_FROM_RRSET(msg->rep->ttl, d->ttl);
 		return msg;
 	}
 	/* lookup in rrset and negative cache for NSEC/NSEC3 */
@@ -1331,4 +1360,44 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 	msg = val_neg_getmsg(env->neg_cache, &qinfo, region, env->rrset_cache,
 		env->scratch_buffer, *env->now, 0, topname, env->cfg);
 	return msg;
+}
+
+int derive_cname_from_dname(struct ub_packed_rrset_key* cname,
+	struct ub_packed_rrset_key* dname, uint8_t* out, size_t outlen)
+{
+	size_t prefix_len;
+	uint8_t* dname_target = NULL;
+	size_t dname_target_len = 0;
+	if(!dname_strict_subdomain_c(cname->rk.dname, dname->rk.dname))
+		return 0; /* Invalid: CNAME owner must be subdomain */
+	get_cname_target(dname, &dname_target, &dname_target_len);
+	if(!dname_target || !dname_target_len)
+		return 0; /* DNAME malformed */
+	if(cname->rk.dname_len < dname->rk.dname_len)
+		return 0; /* Not possible, due to subdomain, but check */
+	if(cname->rk.dname_len == 0)
+		return 0; /* Not possible, but check */
+	prefix_len = cname->rk.dname_len - dname->rk.dname_len;
+	if(prefix_len + dname_target_len > outlen)
+		return 0; /* Buffer too small */
+	memmove(out, cname->rk.dname, prefix_len);
+	memmove(out+prefix_len, dname_target, dname_target_len);
+	return 1;
+}
+
+int nsec_nextowner_subdomain(struct ub_packed_rrset_key* rrset, uint8_t* name)
+{
+	struct packed_rrset_data* d;
+	uint8_t* next;
+	size_t nextlen;
+	if(ntohs(rrset->rk.type) != LDNS_RR_TYPE_NSEC)
+		return 0;
+	d = (struct packed_rrset_data*)rrset->entry.data;
+	if(!d || d->count == 0)
+		return 0;
+	next = d->rr_data[0]+2;
+	nextlen = dname_valid(next, d->rr_len[0]-2);
+	if(nextlen == 0)
+		return 0; /* malformed */
+	return dname_subdomain_c(next, name);
 }

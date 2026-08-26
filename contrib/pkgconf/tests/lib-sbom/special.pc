@@ -1,0 +1,7 @@
+Name: special
+Description: Package with special characters
+URL: https://example.com/special
+Version: 1.0.0
+License: MIT
+Copyright: Quote " backslash \ and	tab
+Maintainer: Special Maintainer

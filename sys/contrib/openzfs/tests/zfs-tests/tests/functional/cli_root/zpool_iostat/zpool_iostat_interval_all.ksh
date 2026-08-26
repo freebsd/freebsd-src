@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -60,8 +50,19 @@ expect_iostat "POOLBOTH"
 log_must zpool create pool2 $vdev2
 delay_iostat
 
+# Export the pools one at a time rather than with a single "zpool export -a".
+# iostat samples every 0.1s and "export -a" tears the pools down
+# sequentially, so it would sometimes catch the intermediate one-pool state
+# and emit an extra chunk that is not in the expected output. Exporting each
+# pool explicitly makes that transition deterministic, mirroring the
+# one-pool-at-a-time imports below.
+expect_iostat "HEADER"
+expect_iostat "POOL2"
+log_must zpool export pool1
+delay_iostat
+
 expect_iostat "NOPOOL"
-log_must zpool export -a
+log_must zpool export pool2
 delay_iostat
 
 expect_iostat "HEADER"

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: bytecode,v 1.5 2023/02/20 16:25:05 christos Exp $
+# $File: bytecode,v 1.6 2026/02/16 14:39:53 christos Exp $
 # magic for various bytecodes
 
 # From: Mikhail Gusarov <dottedmag@dottedmag.net>
@@ -34,8 +34,15 @@
 # https://racket-lang.org/
 # https://github.com/racket/racket/blob/master/racket/src/expander/compile/write-linklet.rkt
 0	string	#~
->&0	pstring	x
->>&0	pstring	racket
+>&0	pstring x
+>>&0	pstring racket
 >>>0	string	#~	Racket bytecode
->>>>&0	pstring	x       (version %s)
+>>>>&0	pstring x	(version %s)
+
+
+# From: Marc Chantreux <mc@unistra.fr>
+# [MoarVM](https://www.moarvm.org/) bytecode file
+0	string	MOARVM\x0d\x0a	MoarVM bytecode
+!:ext	mbc
+>0x9	short	>0	\b, version %u
 

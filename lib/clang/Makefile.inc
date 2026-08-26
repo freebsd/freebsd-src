@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	clang
+PACKAGE?=	clang
 MK_PIE:=	no	# Explicit libXXX.a references
 
 .if ${MK_LLVM_FULL_DEBUGINFO} == "no"

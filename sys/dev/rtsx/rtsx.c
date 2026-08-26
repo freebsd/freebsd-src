@@ -139,7 +139,7 @@ struct rtsx_softc {
 	uint64_t	rtsx_write_count;	/* count of write operations */
 	bool		rtsx_discovery_mode;	/* are we in discovery mode? */
 	bool		rtsx_tuning_mode;	/* are we tuning */
-	bool		rtsx_double_clk;	/* double clock freqency */
+	bool		rtsx_double_clk;	/* double clock frequency */
 	bool		rtsx_vpclk;		/* voltage at Pulse-width Modulation(PWM) clock? */
 	uint8_t		rtsx_ssc_depth;		/* Spread spectrum clocking depth */
 	uint8_t		rtsx_card_drive_sel;	/* value for RTSX_CARD_DRIVE_SEL */
@@ -2837,7 +2837,7 @@ rtsx_xfer_start(struct rtsx_softc *sc)
 	} else {
 		dma_dir = RTSX_DMA_DIR_TO_CARD;
 		/*
-		 * Use transfer mode AUTO_WRITE3, wich assumes we've already
+		 * Use transfer mode AUTO_WRITE3, which assumes we've already
 		 * sent the write command and gotten the response, and will
 		 * send CMD 12 manually after writing.
 		 */

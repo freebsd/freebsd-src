@@ -27,6 +27,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 #define	NMAX	65536
 #define	NMIN	-65536
@@ -51,3 +52,7 @@ scalblnl(long double x, long n)
 
 	return (scalbnl(x, (n > NMAX) ? NMAX : (n < NMIN) ? NMIN : (int)n));
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(scalblnl, scalblnf128);
+#endif

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.3 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_sshbuf_getput_crypto.c,v 1.5 2026/03/06 06:57:33 dtucker Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -11,9 +11,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +20,7 @@
 #ifdef OPENSSL_HAS_NISTP256
 # include <openssl/ec.h>
 #endif
+#include "openbsd-compat/openssl-compat.h"
 
 #include "../test_helper/test_helper.h"
 #include "ssherr.h"
@@ -83,7 +82,7 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_bignum2(p1, bn), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn1) + 4);
-	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (u_int32_t)BN_num_bytes(bn));
+	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (uint32_t)BN_num_bytes(bn));
 	ASSERT_MEM_EQ(sshbuf_ptr(p1) + 4, expbn1, sizeof(expbn1));
 	BN_free(bn);
 	sshbuf_free(p1);
@@ -107,7 +106,7 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_bignum2(p1, bn), 0);
 	ASSERT_SIZE_T_EQ(sshbuf_len(p1), sizeof(expbn2) + 4 + 1); /* MSB */
-	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (u_int32_t)BN_num_bytes(bn) + 1);
+	ASSERT_U32_EQ(PEEK_U32(sshbuf_ptr(p1)), (uint32_t)BN_num_bytes(bn) + 1);
 	ASSERT_U8_EQ(*(sshbuf_ptr(p1) + 4), 0x00);
 	ASSERT_MEM_EQ(sshbuf_ptr(p1) + 5, expbn2, sizeof(expbn2));
 	BN_free(bn);
@@ -230,7 +229,7 @@ sshbuf_getput_crypto_tests(void)
 	ASSERT_PTR_NE(ecp, NULL);
 	MKBN(ec256_x, bn_x);
 	MKBN(ec256_y, bn_y);
-	ASSERT_INT_EQ(EC_POINT_set_affine_coordinates_GFp(
+	ASSERT_INT_EQ(EC_POINT_set_affine_coordinates(
 	    EC_KEY_get0_group(eck), ecp, bn_x, bn_y, NULL), 1);
 	ASSERT_INT_EQ(EC_KEY_set_public_key(eck, ecp), 1);
 	BN_free(bn_x);
@@ -259,7 +258,7 @@ sshbuf_getput_crypto_tests(void)
 	bn_y = BN_new();
 	ASSERT_PTR_NE(bn_x, NULL);
 	ASSERT_PTR_NE(bn_y, NULL);
-	ASSERT_INT_EQ(EC_POINT_get_affine_coordinates_GFp(
+	ASSERT_INT_EQ(EC_POINT_get_affine_coordinates(
 	    EC_KEY_get0_group(eck), EC_KEY_get0_public_key(eck),
 	    bn_x, bn_y, NULL), 1);
 	MKBN(ec256_x, bn);

@@ -495,7 +495,9 @@ s32 ixgbe_stop_adapter(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_read_pba_string(struct ixgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
 {
-	return ixgbe_read_pba_string_generic(hw, pba_num, pba_num_size);
+	return ixgbe_call_func(hw, hw->eeprom.ops.read_pba_string,
+			       (hw, pba_num, pba_num_size),
+			       IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
@@ -1152,14 +1154,14 @@ s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 /**
  * ixgbe_toggle_txdctl - Toggle VF's queues
  * @hw: pointer to hardware structure
- * @vind: VMDq pool index
+ * @vf_number: VF number
  *
  * Enable and disable each queue in VF.
  */
-s32 ixgbe_toggle_txdctl(struct ixgbe_hw *hw, u32 vind)
+s32 ixgbe_toggle_txdctl(struct ixgbe_hw *hw, u32 vf_number)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.toggle_txdctl, (hw,
-			       vind), IXGBE_NOT_IMPLEMENTED);
+			       vf_number), IXGBE_NOT_IMPLEMENTED);
 }
 
 /**

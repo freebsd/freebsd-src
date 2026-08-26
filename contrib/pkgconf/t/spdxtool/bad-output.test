@@ -1,0 +1,4 @@
+Tool: spdxtool
+ToolArgs: --output /nonexistent-dir/out.json test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedExitCode: 1

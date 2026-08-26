@@ -12,8 +12,13 @@ DIRS?=
 .    if defined(${dir}) && !empty(${dir})
 # Set default permissions for a directory
 ${dir}_MODE?=	0755
+.if ${MK_INSTALL_AS_USER} == "yes"
+${dir}_OWN?=	${_uid}
+${dir}_GRP?=	${_gid}
+.else
 ${dir}_OWN?=	root
 ${dir}_GRP?=	wheel
+.endif
 .      if defined(${dir}_FLAGS) && !empty(${dir}_FLAGS)
 ${dir}_FLAG=	-f ${${dir}_FLAGS}
 .      endif

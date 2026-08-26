@@ -320,7 +320,7 @@ struct mtw_softc {
   struct mtw_txd_fw *txd_fw[4];
   int sc_sent;
   uint8_t sc_ivb_1[MTW_MCU_IVB_LEN];
-	struct mtw_endpoint_queue	sc_epq[MTW_BULK_RX];
+	struct mtw_endpoint_queue	sc_epq[MTW_EP_QUEUES];
 	uint8_t				rfswitch;
 	uint8_t				ext_2ghz_lna;
 	uint8_t				ext_5ghz_lna;

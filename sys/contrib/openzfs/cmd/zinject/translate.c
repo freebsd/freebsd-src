@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -85,7 +75,7 @@ static int
 parse_pathname(const char *inpath, char *dataset, char *relpath,
     struct stat64 *statbuf)
 {
-	struct extmnttab mp;
+	struct mnttab mp;
 	const char *rel;
 	char fullpath[MAXPATHLEN];
 
@@ -165,22 +155,28 @@ initialize_range(err_type_t type, int level, char *range,
 		record->zi_start = 0;
 		record->zi_end = -1ULL;
 	} else {
-		char *end;
+		char *comma;
+		int error;
 
-		/* XXX add support for suffixes */
-		record->zi_start = strtoull(range, &end, 10);
+		comma = strchr(range, ',');
+		if (comma != NULL)
+			*comma = '\0';
 
+		error = zfs_nicestrtonum(g_zfs, range,
+		    &record->zi_start);
 
-		if (*end == '\0')
+		if (comma != NULL)
+			*comma = ',';
+
+		if (error != 0)
+			goto bad_range;
+
+		if (comma != NULL) {
+			if (zfs_nicestrtonum(g_zfs, comma + 1,
+			    &record->zi_end) != 0)
+				goto bad_range;
+		} else {
 			record->zi_end = record->zi_start + 1;
-		else if (*end == ',')
-			record->zi_end = strtoull(end + 1, &end, 10);
-
-		if (*end != '\0') {
-			(void) fprintf(stderr, "invalid range '%s': must be "
-			    "a numeric range of the form 'start[,end]'\n",
-			    range);
-			return (-1);
 		}
 	}
 
@@ -213,6 +209,11 @@ initialize_range(err_type_t type, int level, char *range,
 	record->zi_level = level;
 
 	return (0);
+
+bad_range:
+	(void) fprintf(stderr, "invalid range '%s': must be of the form "
+	    "'start[,end]'\n", range);
+	return (-1);
 }
 
 int

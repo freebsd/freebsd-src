@@ -28,9 +28,11 @@
  */
 
 #include "namespace.h"
+#include <sys/param.h>
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdckdint.h>
 #ifdef DEBUG
 #include <stdint.h>
 #endif
@@ -46,6 +48,7 @@
 struct memstream {
 	char **bufp;
 	size_t *sizep;
+	size_t size;
 	ssize_t len;
 	fpos_t offset;
 };
@@ -54,26 +57,35 @@ static int
 memstream_grow(struct memstream *ms, fpos_t newoff)
 {
 	char *buf;
-	ssize_t newsize;
+	ssize_t newlen;
 
 	if (newoff < 0 || newoff >= SSIZE_MAX)
-		newsize = SSIZE_MAX - 1;
+		newlen = SSIZE_MAX - 1;
 	else
-		newsize = newoff;
-	if (newsize > ms->len) {
+		newlen = newoff;
+	if (newlen > ms->size) {
+		size_t newsize;
+
+		if (ckd_add(&newsize, ms->size, ms->size / 2))
+			newsize = SSIZE_MAX - 1;
+
+		newsize = MAX(newsize, newlen);
+
 		buf = realloc(*ms->bufp, newsize + 1);
-		if (buf != NULL) {
+		if (buf == NULL)
+			return (0);
+
 #ifdef DEBUG
-			fprintf(stderr, "MS: %p growing from %zd to %zd\n",
-			    ms, ms->len, newsize);
+		fprintf(stderr, "MS: %p growing from %zd to %zd\n",
+		    ms, ms->size, newsize);
 #endif
-			memset(buf + ms->len + 1, 0, newsize - ms->len);
-			*ms->bufp = buf;
-			ms->len = newsize;
-			return (1);
-		}
-		return (0);
+		memset(buf + ms->size + 1, 0, newsize - ms->size);
+		*ms->bufp = buf;
+		ms->size = newsize;
 	}
+
+	if (newlen > ms->len)
+		ms->len = newlen;
 	return (1);
 }
 
@@ -193,6 +205,7 @@ open_memstream(char **bufp, size_t *sizep)
 	}
 	ms->bufp = bufp;
 	ms->sizep = sizep;
+	ms->size = 0;
 	ms->len = 0;
 	ms->offset = 0;
 	memstream_update(ms);

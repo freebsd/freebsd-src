@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.67 2024/11/09 22:43:01 christos Exp $
+# $File: windows,v 1.69 2025/09/06 16:58:00 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -663,7 +663,7 @@
 # skip space at beginning
 >0     string		\040
 # name without extension and greater character or name with hlp extension
->>1	regex/c		\^([^\xd>]*|.*\\.hlp)	MS Windows help file Content, based "%s"
+>>1	regex		\^([^\xd>]*|.*\\.hlp)	MS Windows help file Content, based "%s"
 !:mime	text/plain
 !:apple	????TEXT
 !:ext	cnt
@@ -1106,7 +1106,7 @@
 # space after right bracket
 # or AutoRun.Amd64 for 64 bit systems
 # or only NL separator
->>&0	regex/c		\^autorun
+>>&0	regex		\^autorun
 # but sometimes total commander directory tree file "treeinfo.wc" with lines like
 # [AUTORUN]
 # [boot]
@@ -1120,56 +1120,56 @@
 !:ext	inf
 # https://msdn.microsoft.com/en-us/library/windows/hardware/ff549520(v=vs.85).aspx
 # version strings ASCII coded case-independent for Windows setup information script file
->>&0	regex/c		\^(version|strings)]				Windows setup INFormation
+>>&0	regex		\^(version|strings)]				Windows setup INFormation
 !:mime	application/x-setupscript
 #!:mime application/x-wine-extension-inf
 !:ext	inf
 # NETCRC.INF OEMCPL.INF
->>&0	regex/c		\^(WinsockCRCList|OEMCPL)]			Windows setup INFormation
+>>&0	regex		\^(WinsockCRCList|OEMCPL)]			Windows setup INFormation
 !:mime	application/x-setupscript
 !:ext	inf
 # http://www.winfaq.de/faq_html/Content/tip2500/onlinefaq.php?h=tip2653.htm
 # https://msdn.microsoft.com/en-us/library/windows/desktop/cc144102.aspx
 # .ShellClassInfo DeleteOnCopy LocalizedFileNames ASCII coded case-independent
->>&0	regex/1024c	\^(\\.ShellClassInfo|DeleteOnCopy|LocalizedFileNames)]	Windows desktop.ini
+>>&0	regex/1024	\^(\\.ShellClassInfo|DeleteOnCopy|LocalizedFileNames)]	Windows desktop.ini
 !:mime application/x-wine-extension-ini
 #!:mime text/plain
 # https://support.microsoft.com/kb/84709/
->>&0	regex/c		\^don't\ load]					Windows CONTROL.INI
+>>&0	regex		\^don't\ load]					Windows CONTROL.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
->>&0	regex/c		\^(ndishlp\\$|protman\\$|NETBEUI\\$)]		Windows PROTOCOL.INI
+>>&0	regex		\^(ndishlp\\$|protman\\$|NETBEUI\\$)]		Windows PROTOCOL.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # https://technet.microsoft.com/en-us/library/cc722567.aspx
 # http://www.winfaq.de/faq_html/Content/tip0000/onlinefaq.php?h=tip0137.htm
->>&0	regex/c		\^(windows|Compatibility|embedding)]		Windows WIN.INI
+>>&0	regex		\^(windows|Compatibility|embedding)]		Windows WIN.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # https://en.wikipedia.org/wiki/SYSTEM.INI
->>&0	regex/c		\^(boot|386enh|drivers)]			Windows SYSTEM.INI
+>>&0	regex		\^(boot|386enh|drivers)]			Windows SYSTEM.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # http://www.mdgx.com/newtip6.htm
->>&0	regex/c		\^SafeList]					Windows IOS.INI
+>>&0	regex		\^SafeList]					Windows IOS.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # https://en.wikipedia.org/wiki/NTLDR	Windows Boot Loader information
->>&0	regex/c		\^boot\x20loader]				Windows boot.ini
+>>&0	regex		\^boot\x20loader]				Windows boot.ini
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # https://en.wikipedia.org/wiki/CONFIG.SYS
->>&0	regex/c		\^menu]						MS-DOS CONFIG.SYS
+>>&0	regex		\^menu]						MS-DOS CONFIG.SYS
 # @CONFIG.UI configuration file of previous DOS version saved by Caldera OPENDOS INSTALL.EXE
 # CONFIG.PSS saved version of file CONFIG.SYS created by %WINDIR%\SYSTEM\MSCONFIG.EXE
 # CONFIG.TSH renamed file CONFIG.SYS.BAT by %WINDIR%\SYSTEM\MSCONFIG.EXE
 # dos and w40 used in dual booting scene
 !:ext	sys/dos/w40
 # https://support.microsoft.com/kb/118579/
->>&0	regex/c		\^Paths]\r\n					MS-DOS MSDOS.SYS
+>>&0	regex		\^Paths]\r\n					MS-DOS MSDOS.SYS
 !:ext	sys/dos
 # http://chmspec.nongnu.org/latest/INI.html#HHP
->>&0	regex/c		\^options]\r\n					Microsoft HTML Help Project
+>>&0	regex		\^options]\r\n					Microsoft HTML Help Project
 !:mime text/plain
 !:ext	hhp
 # From:		Joerg Jenderek
@@ -1178,7 +1178,7 @@
 #		http://mark0.net/download/triddefs_xml.7z/defs/c/cpx.trid.xml
 # Note:		stored in directory %WINDIR%\SysWOW64 or %WINDIR%\system
 #		second word often Latin but sometimes Cyrillic like in 12510866.CPX
->>&0	regex/c		\^Windows\ (Latin|Cyrillic)			Windows codepage translator
+>>&0	regex		\^Windows\ (Latin|Cyrillic)			Windows codepage translator
 #!:mime	text/plain
 !:mime	text/x-ms-cpx
 # like: 12510866.CPX 
@@ -1187,7 +1187,7 @@
 # URL:		https://en.wikipedia.org/wiki/File_Explorer
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/scf-exp.trid.xml,scf-exp-old.trid.xml
 # Note:		called "Windows Explorer Command Shell File" by TrID and "File Explorer Command" by Windows via SHCmdFile
->>&0	regex/c		\^Shell]\r\n					Windows Explorer Shell Command File
+>>&0	regex		\^Shell]\r\n					Windows Explorer Shell Command File
 #!:mime	text/plain
 !:mime	text/x-ms-scf
 # like: channels.scf desktop.scf explorer.scf "Desktop anzeigen.scf"
@@ -1199,7 +1199,7 @@
 # URL:		http://en.wikipedia.org/wiki/VIA_Technologies
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/scf-via.trid.xml
 # Note:		called "VIA setup configuration file" by TrID
->>&0	regex/c		\^SCF]\r\n					VIA setup configuration
+>>&0	regex		\^SCF]\r\n					VIA setup configuration
 #!:mime	text/plain
 !:mime	text/x-via-scf
 # like: SETUP.SCF
@@ -1208,7 +1208,7 @@
 # URL:		https://en.wikipedia.org/wiki/InstallShield
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lid-is.trid.xml
 # Note:		contain also 3 keywords like: count Default key0
->>&0	regex/c		\^Languages]					InstallShield Language Identifier
+>>&0	regex		\^Languages]					InstallShield Language Identifier
 #!:mime	text/plain
 !:mime	text/x-installshield-lid
 # like: SETUP.LID
@@ -1217,7 +1217,7 @@
 # URL:		https://www.file-extensions.org/tag-file-extension
 # Reference:	http://mark0.net/download/triddefs_xml.7z/defs/t/taginfo.trid.xml
 # Note:		contain also keywords like: Application Category Company Misc Version
->>&0	regex/c		\^TagInfo]					TagInfo
+>>&0	regex		\^TagInfo]					TagInfo
 #!:mime	text/plain
 #!:mime	text/prs.lines.tag
 !:mime	text/x-ms-tag
@@ -1260,7 +1260,7 @@
 >>>>>&0	ubyte				x
 # characters, digits, underscore and white space followed by right bracket
 # terminated by CR implies section line to skip BOOTLOG.TXT DETLOG.TXT
->>>>>>&-1	regex/T			\^([A-Za-z0-9_\(\)\ ]+)\]\r	Generic INItialization configuration [%-.40s
+>>>>>>&-1	regex/T			\^([A-Za-z0-9_\(\)\ ]+)\][\r\n]	Generic INItialization configuration [%-.40s
 # NETDEF.INF multiarc.ini 
 #!:mime	application/x-setupscript
 !:mime	application/x-wine-extension-ini

@@ -121,9 +121,9 @@ static device_method_t cpufreq_methods[] = {
 	DEVMETHOD(device_attach,	cpufreq_attach),
 	DEVMETHOD(device_detach,	cpufreq_detach),
 
-        DEVMETHOD(cpufreq_set,		cf_set_method),
-        DEVMETHOD(cpufreq_get,		cf_get_method),
-        DEVMETHOD(cpufreq_levels,	cf_levels_method),
+	DEVMETHOD(cpufreq_set,		cf_set_method),
+	DEVMETHOD(cpufreq_get,		cf_get_method),
+	DEVMETHOD(cpufreq_levels,	cf_levels_method),
 	{0, 0}
 };
 

@@ -1,4 +1,28 @@
 ----------------------------------------
+8 April 2026. Summary of changes for version 20260804:
+
+Major changes:
+
+• ACPI Table Enhancements:
+Updated IORT and MADT template compilations to add new IWB and GICv5 translator/router/ITS entries. Introduced full support for the new DTPR table, including compiler and disassembler handling, template fixes, and register structure refinements. — Jose Marinho and Michal Camacho Romero
+
+• Expanded IDs, GUIDs, and Methods:
+Added Framework Computer Hardware IDs, modern standby _DSM GUIDs, and TPM2 start methods. Updated _DSM Arg3 formatting and _CPC handling to align with newer ACPI specifications and avoid Linux compatibility warnings. — Daniel Schaefer and Saket Dumbre
+
+• Compiler, Disassembler, and Tooling Improvements:
+Enhanced the ASL compiler and disassembler with External() deduplication, alias node support, improved validation of malformed inputs, and comma-separated Package output. Updated acpisrc to recognize missing structures and improved parse tree walk termination logic. — ikaros and Pawel Chmielewski
+
+• Security and Stability Fixes:
+Fixed multiple critical issues, including heap-buffer-overflows, use-after-free, NULL pointer dereferences, integer overflows, and out-of-bounds accesses across AML parsing, interpretation, and table handling code paths. — ikaros and Weiming Shi
+
+• Resource and Register Refactoring:
+Corrected I2C LVR resource descriptor handling and refactored TPR Base/Limit registers to use compatible bitmask representations, with additional validation and cleanup across DTPR-related code. — Akhil R and Michal Camacho Romero
+
+• General Cleanup and Build Fixes:
+Fixed a syntax error caused by a stray character, corrected spelling issues, improved comment alignment and formatting, updated dummy compiler metadata, and disabled excessive MSVC bitfield warnings (C4214) to improve build clarity. — Colin Ian King and Saket Dumbre
+
+
+----------------------------------------
 12 December 2025. Summary of changes for version 20251212:
 
 Major changes:

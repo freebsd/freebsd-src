@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,6 +28,7 @@
 static OSSL_FUNC_keymgmt_new_fn ml_kem_512_new;
 static OSSL_FUNC_keymgmt_new_fn ml_kem_768_new;
 static OSSL_FUNC_keymgmt_new_fn ml_kem_1024_new;
+static OSSL_FUNC_keymgmt_free_fn ml_kem_free_key;
 static OSSL_FUNC_keymgmt_gen_fn ml_kem_gen;
 static OSSL_FUNC_keymgmt_gen_init_fn ml_kem_512_gen_init;
 static OSSL_FUNC_keymgmt_gen_init_fn ml_kem_768_gen_init;
@@ -799,7 +800,7 @@ static void ml_kem_gen_cleanup(void *vgctx)
         return;
 
     if (gctx->seed != NULL)
-        OPENSSL_cleanse(gctx->seed, ML_KEM_RANDOM_BYTES);
+        OPENSSL_cleanse(gctx->seed, ML_KEM_SEED_BYTES);
     OPENSSL_free(gctx->propq);
     OPENSSL_free(gctx);
 }
@@ -812,6 +813,11 @@ static void *ml_kem_dup(const void *vkey, int selection)
         return NULL;
 
     return ossl_ml_kem_key_dup(key, selection);
+}
+
+static void ml_kem_free_key(void *keydata)
+{
+    ossl_ml_kem_key_free((ML_KEM_KEY *)keydata);
 }
 
 #ifndef FIPS_MODULE
@@ -834,7 +840,7 @@ static void *ml_kem_dup(const void *vkey, int selection)
     }                                                                                     \
     const OSSL_DISPATCH ossl_ml_kem_##bits##_keymgmt_functions[] = {                      \
         { OSSL_FUNC_KEYMGMT_NEW, (OSSL_FUNC)ml_kem_##bits##_new },                        \
-        { OSSL_FUNC_KEYMGMT_FREE, (OSSL_FUNC)ossl_ml_kem_key_free },                      \
+        { OSSL_FUNC_KEYMGMT_FREE, (OSSL_FUNC)ml_kem_free_key },                           \
         { OSSL_FUNC_KEYMGMT_GET_PARAMS, (OSSL_FUNC)ml_kem_get_params },                   \
         { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (OSSL_FUNC)ml_kem_gettable_params },         \
         { OSSL_FUNC_KEYMGMT_SET_PARAMS, (OSSL_FUNC)ml_kem_set_params },                   \

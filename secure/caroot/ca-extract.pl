@@ -40,7 +40,6 @@ use Carp;
 use MIME::Base64;
 use Getopt::Long;
 use Time::Local qw( timegm_posix );
-use POSIX qw( strftime );
 
 my $generated = '@' . 'generated';
 my $inputfh = *STDIN;
@@ -79,7 +78,8 @@ sub print_header($$)
 ##
 ##  This is a single X.509 certificate for a public Certificate
 ##  Authority (CA). It was automatically extracted from Mozilla's
-##  root CA list (the file `certdata.txt' in security/nss).
+##  root CA list (the file `certdata.txt' in security/nss)
+##  licensed under the MPL 2.0, http://mozilla.org/MPL/2.0/.
 ##
 ##  $generated
 ##

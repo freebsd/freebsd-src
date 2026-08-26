@@ -79,6 +79,12 @@ ATF_TC_BODY(hwregion, tc)
 	ATF_CHECK_EQ(len, 2);
 	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, nitems(avail));
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
 }
 
 ATF_TC_WITHOUT_HEAD(hwregion_exclude);
@@ -106,6 +112,27 @@ ATF_TC_BODY(hwregion_exclude, tc)
 	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[2], 6 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[3], 7 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, 6);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
+
+	/* Check an excluded region out of the included memory works */
+	physmem_exclude_region(7 * PAGE_SIZE, PAGE_SIZE, EXFLAG_NOALLOC);
+	len = physmem_avail(avail, 6);
+	ATF_CHECK_EQ(len, 4);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[2], 6 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[3], 7 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, 6);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
 }
 
 ATF_TC_WITHOUT_HEAD(hwregion_unordered);
@@ -125,6 +152,53 @@ ATF_TC_BODY(hwregion_unordered, tc)
 	ATF_CHECK_EQ(len, 2);
 	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
 	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+
+	/* Check physmem_all */
+	len = physmem_all(avail, 4);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+}
+
+ATF_TC_WITHOUT_HEAD(hwregion_ignore_empty);
+ATF_TC_BODY(hwregion_ignore_empty, tc)
+{
+	vm_paddr_t avail[4];
+	size_t len;
+
+	/* Add a region. */
+	physmem_hardware_region(PAGE_SIZE, 2 * PAGE_SIZE);
+
+	/* Add full zero range (ignored) */
+	physmem_hardware_region(0, 0);
+
+	/* Add a zero-sized range (ignored) */
+	physmem_hardware_region(4 * PAGE_SIZE, 0);
+
+	len = physmem_avail(avail, nitems(avail));
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+}
+
+ATF_TC_WITHOUT_HEAD(hwregion_ignore_page0);
+ATF_TC_BODY(hwregion_ignore_page0, tc)
+{
+	vm_paddr_t avail[4];
+	size_t len;
+
+	/*
+	 * Physical addresses [0, PAGE_SIZE) are unusable in the VM layer.
+	 *
+	 * physmem will truncate this from the beginning of an otherwise valid
+	 * memory range; test that this is the case.
+	 */
+	physmem_hardware_region(0, 2 * PAGE_SIZE);
+
+	len = physmem_avail(avail, 4);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 2 * PAGE_SIZE);
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -133,5 +207,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, hwregion);
 	ATF_TP_ADD_TC(tp, hwregion_exclude);
 	ATF_TP_ADD_TC(tp, hwregion_unordered);
+	ATF_TP_ADD_TC(tp, hwregion_ignore_empty);
+	ATF_TP_ADD_TC(tp, hwregion_ignore_page0);
 	return (atf_no_error());
 }

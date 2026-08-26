@@ -44,7 +44,7 @@ gpart create -s bsd md$mdstart > /dev/null
 gpart add -t freebsd-ufs md$mdstart > /dev/null
 part=a
 newfs_msdos -F 32 -b 8192 /dev/md$mdstart$part > /dev/null
-mount -t msdosfs /dev/md$mdstart$part $mntpoint
+mount -t msdosfs -o "-u$testuser" /dev/md$mdstart$part $mntpoint
 mkdir $mntpoint/stressX
 chmod 0777 $mntpoint/stressX
 set +e

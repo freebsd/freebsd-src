@@ -94,14 +94,14 @@ extern kobj_class_t ac97_getmixerclass(void);
 
 struct ac97_info *ac97_create(device_t dev, void *devinfo, kobj_class_t cls);
 void ac97_destroy(struct ac97_info *codec);
-void ac97_setflags(struct ac97_info *codec, u_int32_t val);
-u_int32_t ac97_getflags(struct ac97_info *codec);
+void ac97_setflags(struct ac97_info *codec, uint32_t val);
+uint32_t ac97_getflags(struct ac97_info *codec);
 int ac97_setrate(struct ac97_info *codec, int which, int rate);
-int ac97_setextmode(struct ac97_info *codec, u_int16_t mode);
-u_int16_t ac97_getextmode(struct ac97_info *codec);
-u_int16_t ac97_getextcaps(struct ac97_info *codec);
-u_int16_t ac97_getcaps(struct ac97_info *codec);
-u_int32_t ac97_getsubvendor(struct ac97_info *codec);
+int ac97_setextmode(struct ac97_info *codec, uint16_t mode);
+uint16_t ac97_getextmode(struct ac97_info *codec);
+uint16_t ac97_getextcaps(struct ac97_info *codec);
+uint16_t ac97_getcaps(struct ac97_info *codec);
+uint32_t ac97_getsubvendor(struct ac97_info *codec);
 
-u_int16_t ac97_rdcd(struct ac97_info *codec, int reg);
-void	  ac97_wrcd(struct ac97_info *codec, int reg, u_int16_t val);
+uint16_t ac97_rdcd(struct ac97_info *codec, int reg);
+void	  ac97_wrcd(struct ac97_info *codec, int reg, uint16_t val);

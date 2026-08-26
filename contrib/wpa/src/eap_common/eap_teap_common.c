@@ -118,32 +118,7 @@ int eap_teap_derive_eap_emsk(u16 tls_cs, const u8 *simck, u8 *emsk)
 }
 
 
-int eap_teap_derive_cmk_basic_pw_auth(u16 tls_cs, const u8 *s_imck_msk, u8 *cmk)
-{
-	u8 imsk[32], imck[EAP_TEAP_IMCK_LEN];
-	int res;
-
-	/* FIX: The Basic-Password-Auth (i.e., no inner EAP) case is
-	 * not fully defined in RFC 7170, so this CMK derivation may
-	 * need to be changed if a fixed definition is eventually
-	 * published. For now, derive CMK[0] based on S-IMCK[0] and
-	 * IMSK of 32 octets of zeros. */
-	os_memset(imsk, 0, 32);
-	res = eap_teap_tls_prf(tls_cs, s_imck_msk, EAP_TEAP_SIMCK_LEN,
-			       "Inner Methods Compound Keys",
-			       imsk, 32, imck, sizeof(imck));
-	if (res < 0)
-		return -1;
-	os_memcpy(cmk, &imck[EAP_TEAP_SIMCK_LEN], EAP_TEAP_CMK_LEN);
-	wpa_hexdump_key(MSG_DEBUG, "EAP-TEAP: CMK[no-inner-EAP]",
-			cmk, EAP_TEAP_CMK_LEN);
-	forced_memzero(imck, sizeof(imck));
-	return 0;
-}
-
-
-int eap_teap_derive_imck(u16 tls_cs,
-			 const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
+int eap_teap_derive_imck(u16 tls_cs, const u8 *prev_s_imck,
 			 const u8 *msk, size_t msk_len,
 			 const u8 *emsk, size_t emsk_len,
 			 u8 *s_imck_msk, u8 *cmk_msk,
@@ -186,7 +161,7 @@ int eap_teap_derive_imck(u16 tls_cs,
 				imsk, 32);
 
 		res = eap_teap_tls_prf(tls_cs,
-				       prev_s_imck_emsk, EAP_TEAP_SIMCK_LEN,
+				       prev_s_imck, EAP_TEAP_SIMCK_LEN,
 				       "Inner Methods Compound Keys",
 				       imsk, 32, imck, EAP_TEAP_IMCK_LEN);
 		forced_memzero(imsk, sizeof(imsk));
@@ -216,7 +191,7 @@ int eap_teap_derive_imck(u16 tls_cs,
 		wpa_hexdump_key(MSG_DEBUG, "EAP-TEAP: Zero IMSK", imsk, 32);
 	}
 
-	res = eap_teap_tls_prf(tls_cs, prev_s_imck_msk, EAP_TEAP_SIMCK_LEN,
+	res = eap_teap_tls_prf(tls_cs, prev_s_imck, EAP_TEAP_SIMCK_LEN,
 			       "Inner Methods Compound Keys",
 			       imsk, 32, imck, EAP_TEAP_IMCK_LEN);
 	forced_memzero(imsk, sizeof(imsk));
@@ -342,10 +317,6 @@ static int eap_teap_tls_mac(u16 tls_cs, const u8 *cmk, size_t cmk_len,
 	if (res < 0)
 		return res;
 
-	/* FIX: RFC 7170 does not describe how to handle truncation of the
-	 * Compound MAC or if the fields are supposed to be of variable length
-	 * based on the negotiated TLS cipher suite (they are defined as having
-	 * fixed size of 20 octets in the TLV description) */
 	if (mac_len > sizeof(tmp))
 		mac_len = sizeof(tmp);
 	os_memcpy(mac, tmp, mac_len);
@@ -703,42 +674,4 @@ struct wpabuf * eap_teap_tlv_identity_type(enum teap_identity_types id)
 	wpabuf_put_be16(buf, 2);
 	wpabuf_put_be16(buf, id);
 	return buf;
-}
-
-
-int eap_teap_allowed_anon_prov_phase2_method(int vendor, enum eap_type type)
-{
-	/* RFC 7170, Section 3.8.3: MUST provide mutual authentication,
-	 * provide key generation, and be resistant to dictionary attack.
-	 * Section 3.8 also mentions requirement for using EMSK Compound MAC. */
-	return vendor == EAP_VENDOR_IETF &&
-		(type == EAP_TYPE_PWD || type == EAP_TYPE_EKE);
-}
-
-
-int eap_teap_allowed_anon_prov_cipher_suite(u16 cs)
-{
-	/* RFC 7170, Section 3.8.3: anonymous ciphersuites MAY be supported as
-	 * long as the TLS pre-master secret is generated form contribution from
-	 * both peers. Accept the recommended TLS_DH_anon_WITH_AES_128_CBC_SHA
-	 * cipher suite and other ciphersuites that use DH in some form, have
-	 * SHA-1 or stronger MAC function, and use reasonable strong cipher. */
-	static const u16 ok_cs[] = {
-		/* DH-anon */
-		0x0034, 0x003a, 0x006c, 0x006d, 0x00a6, 0x00a7,
-		/* DHE-RSA */
-		0x0033, 0x0039, 0x0067, 0x006b, 0x009e, 0x009f,
-		/* ECDH-anon */
-		0xc018, 0xc019,
-		/* ECDH-RSA */
-		0xc003, 0xc00f, 0xc029, 0xc02a, 0xc031, 0xc032,
-		/* ECDH-ECDSA */
-		0xc004, 0xc005, 0xc025, 0xc026, 0xc02d, 0xc02e,
-		/* ECDHE-RSA */
-		0xc013, 0xc014, 0xc027, 0xc028, 0xc02f, 0xc030,
-		/* ECDHE-ECDSA */
-		0xc009, 0xc00a, 0xc023, 0xc024, 0xc02b, 0xc02c,
-	};
-
-	return tls_cipher_suite_match(ok_cs, ARRAY_SIZE(ok_cs), cs);
 }

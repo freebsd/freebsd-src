@@ -46,7 +46,9 @@ vnet_mkepair()
 	# compute checksums, it just marks packets that this computation still
 	# needs to be done. However, some test cases verify the checksum.
 	# Therefore disable this for IPv4 and IPv6.
-	ifconfig ${ifname} -txcsum -txcsum6
+	# Also disable MEXTPG support, so the tests can verify that the network
+	# stack don't pass MEXTPG mbufs to interfaces that don't support it.
+	ifconfig ${ifname} -txcsum -txcsum6 -mextpg
 	list_interface $ifname
 	list_interface ${ifname%a}b
 	echo ${ifname%a}

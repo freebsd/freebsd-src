@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 . $STF_SUITE/tests/functional/pam/utilities.kshlib
@@ -30,6 +20,7 @@ DISK=${DISKS%% *}
 create_pool $TESTPOOL "$DISK"
 
 log_must zfs create -o mountpoint="$TESTDIR" "$TESTPOOL/pam"
+log_must zfs create -o mountpoint="$TESTDIR-multi-home" "$TESTPOOL/pam-multi-home"
 log_must add_group pamtestgroup
 log_must add_user pamtestgroup ${username}
 log_must mkdir -p "$runstatedir"
@@ -37,5 +28,15 @@ log_must mkdir -p "$runstatedir"
 echo "testpass" | zfs create -o encryption=aes-256-gcm -o keyformat=passphrase -o keylocation=prompt "$TESTPOOL/pam/${username}"
 log_must zfs unmount "$TESTPOOL/pam/${username}"
 log_must zfs unload-key "$TESTPOOL/pam/${username}"
+echo "testpass" | zfs create -o encryption=aes-256-gcm -o keyformat=passphrase -o keylocation=prompt "$TESTPOOL/pam-multi-home/${username}"
+log_must zfs unmount "$TESTPOOL/pam-multi-home/${username}"
+log_must zfs unload-key "$TESTPOOL/pam-multi-home/${username}"
+
+for i in {1..$PAM_MULTI_HOME_COUNT} ; do
+       log_must zfs create -o mountpoint="$TESTDIR-multi-home$i" "$TESTPOOL/pam-multi-home$i"
+       echo "testpass" | zfs create -o encryption=aes-256-gcm -o keyformat=passphrase -o keylocation=prompt "$TESTPOOL/pam-multi-home$i/${username}"
+       log_must zfs unmount "$TESTPOOL/pam-multi-home$i/${username}"
+       log_must zfs unload-key "$TESTPOOL/pam-multi-home$i/${username}"
+done
 
 log_pass

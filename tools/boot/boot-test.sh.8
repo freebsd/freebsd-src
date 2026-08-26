@@ -1,0 +1,303 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 5, 2026
+.Dt BOOT-TEST.SH 8
+.Os
+.Sh NAME
+.Nm boot-test.sh
+.Nd automated boot loader regression tests under QEMU
+.Sh SYNOPSIS
+.Nm
+.Op Fl A
+.Op Fl a Ar arch
+.Op Fl b | Fl B
+.Op Fl j Ar jobs
+.Op Fl o Ar dir
+.Op Fl t Ar regex
+.Op Fl T Ar seconds
+.Nm
+.Fl -netboot-teardown
+.Sh DESCRIPTION
+.Nm
+builds a minimal bootable tree, assembles disk, CD, and network boot images
+for every boot configuration a target architecture supports, boots each image
+under
+.Xr qemu 1 ,
+and checks that it reaches userland and prints a success marker.
+It runs almost entirely as an unprivileged user, with one exception: the
+.Ar netboot-bios
+and
+.Ar netboot-efi
+tests need a real
+.Xr vmnet 4
+interface and
+.Xr dnsmasq 8
+instead of QEMU's user-mode networking, so that DHCP can hand out a
+root-path.
+Creating the interface and giving it an address require root, so
+.Nm
+runs
+.Xr sudo 8
+once to set both up, then leaves them running; later runs detect the
+existing setup and do not prompt again.
+See
+.Sx Netboot networking
+below.
+.Pp
+.Nm
+must be run from the
+.Pa stand
+directory of a FreeBSD source tree and assumes that
+.Cm buildworld
+and
+.Cm buildkernel
+have already completed for each target architecture.
+Per-architecture parameters
+.Pq QEMU machine, boot capabilities, kernel config, and so on
+are read from
+.Pa boot-test.json
+in the same directory as the script.
+.Pp
+Each architecture is processed in five phases:
+extract a minimal userland from a release ISO
+.Pq 0 ,
+install the kernel and boot loaders into a tree
+.Pq 1 ,
+create the base filesystem images
+.Pq 2 ,
+assemble the per-configuration boot images and register a test for each
+.Pq 3 ,
+and run the registered tests
+.Pq 4 .
+Images are built one architecture at a time; the tests for all selected
+architectures then run in parallel so that a run costs roughly one timeout
+rather than one per test.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar arch
+Test
+.Ar arch .
+May be given more than once to test several.
+The default is the host architecture reported by
+.Nm uname Fl p .
+Supported values are
+.Ar amd64 ,
+.Ar aarch64 ,
+.Ar armv7 ,
+.Ar riscv64 ,
+.Ar powerpc ,
+.Ar powerpc64 ,
+and
+.Ar powerpc64le .
+.It Fl A
+Test every supported architecture.
+.It Fl b
+Skip the build and install phase and reuse the existing boot tree.
+.It Fl B
+Skip the build, install, and image-creation phases and reuse existing images.
+.It Fl j Ar jobs
+Run at most
+.Ar jobs
+QEMU instances at once.
+The default is unlimited.
+.It Fl o Ar dir
+Write images and logs to
+.Ar dir
+instead of the per-architecture object directory.
+May only be used with a single architecture.
+.It Fl t Ar regex
+Run only the tests whose name matches the extended regular expression
+.Ar regex .
+.It Fl T Ar seconds
+Set the per-test QEMU timeout.
+The default is 60 seconds, or 180 for the powerpc targets.
+.It Fl -netboot-teardown
+Destroy the
+.Xr vmnet 4
+interfaces and stop the
+.Xr dnsmasq 8
+instance created for the netboot tests
+.Pq Sx Netboot networking .
+Must be run with
+.Xr sudo 8 .
+Not needed in normal use; the setup is left running between runs on purpose.
+.El
+.Ss Tests per architecture
+The tests generated for an architecture are the applicable combinations of the
+boot interface, the on-disk layout, and the loader interpreter.
+The interpreters are
+.Ar lua ,
+.Ar 4th ,
+and
+.Ar simp ,
+plus the
+.Ar boot1
+chain loader for UEFI; the filesystems are UFS and, where the platform supports
+it, ZFS.
+Which of the following families are built is driven by each architecture's
+capabilities declared in
+.Pa boot-test.json :
+.Bl -tag -width "linuxboot" -compact
+.It Sy BIOS
+GPT (UFS, ZFS) and MBR (UFS) disks, once per interpreter.
+.It Sy UEFI
+GPT (UFS, ZFS) and MBR (UFS) disks, once per interpreter.
+.It Sy hybrid
+A single GPT or MBR image booted both as BIOS and as UEFI.
+.It Sy OFW
+Apple Partition Map disk (UFS, ZFS) on
+.Ar powerpc .
+.It Sy PReP
+MBR disk on
+.Ar powerpc64
+and
+.Ar powerpc64le .
+.It Sy CD
+El Torito for BIOS, a hybrid BIOS+UEFI ISO, and the OFW and CHRP variants.
+.It Sy linuxboot
+UFS and ZFS, booted through the Linux kexec loader.
+.It Sy netboot
+BIOS PXE, UEFI, and iPXE memory-disk boot of a RAM root.
+.El
+A full run
+.Pq Fl A
+currently yields on the order of 80 tests.
+.Ss Netboot networking
+QEMU's user-mode
+.Pq slirp
+networking can hand out an address and a TFTP bootfile, but it cannot send a
+DHCP root-path
+.Pq option 17 .
+Without one, the FreeBSD loader falls back to NFS for every file fetch after
+the initial bootfile and fails, since there is no NFS server to fall back to.
+Sending a root-path of
+.Dq Li tftp://<gw>/
+keeps the loader on TFTP instead, which is what
+.Ar netboot-bios
+and
+.Ar netboot-efi
+need.
+.Pp
+To get a real root-path,
+.Nm
+gives each of those tests its own
+.Xr vmnet 4
+interface and a private
+.Li /30
+carved out of
+.Cm netboot_subnet_base
+in
+.Pa boot-test.json ,
+and runs a single
+.Xr dnsmasq 8
+instance serving all of them.
+.Xr vmnet 4
+is used rather than the more familiar
+.Xr tap 4 ,
+even though QEMU treats them identically and both are clones of the same
+underlying driver: closing the control device automatically brings a
+.Xr tap 4
+interface down and deletes its address, which would undo the setup below
+every time QEMU exits, but
+.Xr vmnet 4
+interfaces keep their configuration across opens.
+Creating the interface and assigning it an address both require root even
+when
+.Va net.link.tap.user_open
+is set
+.Pq that only governs opening the cloning device itself ,
+so
+.Nm
+invokes
+.Xr sudo 8
+once to create the interfaces
+.Pq chowning the resulting device nodes back to the invoking user
+and start
+.Xr dnsmasq 8 .
+Because the interfaces persist until explicitly destroyed,
+.Nm
+leaves them and
+.Xr dnsmasq 8
+running afterward; subsequent runs detect the existing setup by comparing a
+hash of the intended configuration and skip
+.Xr sudo 8
+entirely, so the prompt is normally seen once per boot rather than once per
+run.
+Use
+.Fl -netboot-teardown
+to tear the setup down manually.
+.Pp
+The
+.Ar netboot-ramdisk
+and
+.Ar netboot-bios-memdisk
+tests boot entirely from an in-memory image and never need a root-path, so
+they stay on QEMU's user-mode networking.
+.Sh REQUIREMENTS
+.Nm
+uses
+.Xr makefs 8
+and
+.Xr mkimg 1
+from the base system, and the
+.Xr jq 1 ,
+.Xr expect 1 ,
+.Xr qemu 1 ,
+and
+.Xr dnsmasq 8
+packages
+.Pq Pa textproc/jq , Pa lang/expect , Pa emulators/qemu , Pa dns/dnsmasq .
+The network boot tests additionally require the
+.Pa sysutils/ipxe
+and
+.Pa sysutils/syslinux
+packages.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev HOME"
+.It Ev HOME
+Release ISO images and the optional custom
+.Pa openbios-ppc
+firmware are looked for in
+.Pa ~/iso .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa boot-test.json" -compact
+.It Pa boot-test.json
+Per-architecture configuration, parsed with
+.Xr jq 1 .
+.It Pa ~/iso/FreeBSD-*-RELEASE-*-disc1.iso.xz
+Release ISO supplying the minimal userland.
+.It Pa ~/iso/openbios-ppc
+Optional replacement OpenBIOS firmware for the powerpc targets.
+.El
+.Sh EXIT STATUS
+.Nm
+exits 0 if every test that ran passed, and non-zero if any test failed or
+timed out.
+.Sh EXAMPLES
+Test the host architecture:
+.Pp
+.Dl "sh ../tools/boot/boot-test.sh"
+.Pp
+Re-run only the ZFS tests for
+.Ar amd64
+against previously built images:
+.Pp
+.Dl "sh ../tools/boot/boot-test.sh -a amd64 -B -t zfs"
+.Pp
+Test every architecture:
+.Pp
+.Dl "sh ../tools/boot/boot-test.sh -A"
+.Sh SEE ALSO
+.Xr expect 1 ,
+.Xr jq 1 ,
+.Xr mkimg 1 ,
+.Xr gptboot 8 ,
+.Xr loader 8 ,
+.Xr makefs 8 ,
+.Xr pxeboot 8 ,
+.Xr uefi 8
+.Sh AUTHORS
+.An Warner Losh Aq Mt imp@FreeBSD.org

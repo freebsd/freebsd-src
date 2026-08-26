@@ -90,3 +90,7 @@ sinl(long double x)
 	
 	RETURNI(hi);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(sinl, sinf128);
+#endif

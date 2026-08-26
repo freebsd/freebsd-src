@@ -436,7 +436,7 @@ typedef int (__sys_kevent_t)(int, const struct kevent *, int, struct kevent *, i
 typedef int (__sys_cpuset_getdomain_t)(cpulevel_t, cpuwhich_t, id_t, size_t, domainset_t *, int *);
 typedef int (__sys_cpuset_setdomain_t)(cpulevel_t, cpuwhich_t, id_t, size_t, domainset_t *, int);
 typedef int (__sys_getrandom_t)(void *, size_t, unsigned int);
-typedef int (__sys_getfhat_t)(int, char *, struct fhandle *, int);
+typedef int (__sys_getfhat_t)(int, const char *, struct fhandle *, int);
 typedef int (__sys_fhlink_t)(struct fhandle *, const char *);
 typedef int (__sys_fhlinkat_t)(struct fhandle *, int, const char *);
 typedef int (__sys_fhreadlink_t)(struct fhandle *, char *, size_t);
@@ -474,6 +474,9 @@ typedef int (__sys_jail_remove_jd_t)(int);
 typedef int (__sys_kexec_load_t)(uint64_t, u_long, struct kexec_segment *, u_long);
 typedef int (__sys_pdrfork_t)(int *, int, int);
 typedef int (__sys_pdwait_t)(int, int *, int, struct __wrusage *, struct __siginfo *);
+typedef int (__sys_renameat2_t)(int, const char *, int, const char *, int);
+typedef int (__sys_pdopenpid_t)(pid_t, int);
+typedef int (__sys_pddupfd_t)(int, int, int);
 
 _Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
@@ -845,7 +848,7 @@ int __sys_kevent(int fd, const struct kevent * changelist, int nchanges, struct 
 int __sys_cpuset_getdomain(cpulevel_t level, cpuwhich_t which, id_t id, size_t domainsetsize, domainset_t * mask, int * policy);
 int __sys_cpuset_setdomain(cpulevel_t level, cpuwhich_t which, id_t id, size_t domainsetsize, domainset_t * mask, int policy);
 int __sys_getrandom(void * buf, size_t buflen, unsigned int flags);
-int __sys_getfhat(int fd, char * path, struct fhandle * fhp, int flags);
+int __sys_getfhat(int fd, const char * path, struct fhandle * fhp, int flags);
 int __sys_fhlink(struct fhandle * fhp, const char * to);
 int __sys_fhlinkat(struct fhandle * fhp, int tofd, const char * to);
 int __sys_fhreadlink(struct fhandle * fhp, char * buf, size_t bufsize);
@@ -883,6 +886,9 @@ int __sys_jail_remove_jd(int fd);
 int __sys_kexec_load(uint64_t entry, u_long nseg, struct kexec_segment * segments, u_long flags);
 int __sys_pdrfork(int * fdp, int pdflags, int rfflags);
 int __sys_pdwait(int fd, int * status, int options, struct __wrusage * wrusage, struct __siginfo * info);
+int __sys_renameat2(int oldfd, const char * old, int newfd, const char * new, int flags);
+int __sys_pdopenpid(pid_t pid, int flags);
+int __sys_pddupfd(int pd, int fd, int flags);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

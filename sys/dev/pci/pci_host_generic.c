@@ -250,15 +250,22 @@ err_resource:
 int
 pci_host_generic_core_detach(device_t dev)
 {
-	struct generic_pcie_core_softc *sc;
-	int error, rid, tuple;
-
-	sc = device_get_softc(dev);
+	int error;
 
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
 
+	return (pci_host_generic_core_free(dev));
+}
+
+int
+pci_host_generic_core_free(device_t dev)
+{
+	struct generic_pcie_core_softc *sc;
+	int rid, tuple;
+
+	sc = device_get_softc(dev);
 	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
 		rid = sc->ranges[tuple].rid;
 		if (sc->ranges[tuple].size == 0) {

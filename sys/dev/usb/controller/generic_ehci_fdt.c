@@ -232,7 +232,7 @@ static device_method_t ehci_fdt_methods[] = {
 };
 
 DEFINE_CLASS_1(ehci, ehci_fdt_driver, ehci_fdt_methods,
-    sizeof(ehci_softc_t), generic_ehci_driver);
+    sizeof(struct generic_ehci_fdt_softc), generic_ehci_driver);
 
 DRIVER_MODULE(generic_ehci, simplebus, ehci_fdt_driver, 0, 0);
 MODULE_DEPEND(generic_ehci, usb, 1, 1, 1);

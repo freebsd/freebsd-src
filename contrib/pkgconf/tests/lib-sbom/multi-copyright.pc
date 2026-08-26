@@ -1,0 +1,8 @@
+Name: multi-copyright
+Description: package with multiple copyright lines
+URL: https://example.com/mc
+Version: 1.0.0
+License: MIT
+Copyright: First copyright holder
+Copyright: Second copyright holder
+Maintainer: MC Maintainer

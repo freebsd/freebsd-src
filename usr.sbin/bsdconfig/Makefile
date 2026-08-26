@@ -3,6 +3,7 @@
 PACKAGE=	bsdconfig
 
 SUBDIR=	console \
+	datetime \
 	diskmgmt \
 	docsinstall \
 	dot \

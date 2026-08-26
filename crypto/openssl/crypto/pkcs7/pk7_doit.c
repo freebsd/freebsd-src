@@ -203,13 +203,6 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
     if (EVP_PKEY_decrypt_init(pctx) <= 0)
         goto err;
 
-    if (EVP_PKEY_is_a(pkey, "RSA"))
-        /* upper layer pkcs7 code incorrectly assumes that a successful RSA
-         * decryption means that the key matches ciphertext (which never
-         * was the case, implicit rejection or not), so to make it work
-         * disable implicit rejection for RSA keys */
-        EVP_PKEY_CTX_ctrl_str(pctx, "rsa_pkcs1_implicit_rejection", "0");
-
     ret = evp_pkey_decrypt_alloc(pctx, &ek, &eklen, fixlen,
         ri->enc_key->data, ri->enc_key->length);
     if (ret <= 0)
@@ -831,6 +824,10 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
         break;
     case NID_pkcs7_signed:
         si_sk = p7->d.sign->signer_info;
+        if (p7->d.sign->contents == NULL) {
+            ERR_raise(ERR_LIB_PKCS7, PKCS7_R_NO_CONTENT);
+            goto err;
+        }
         os = PKCS7_get_octet_string(p7->d.sign->contents);
         /* If detached data then the content is excluded */
         if (PKCS7_type_is_data(p7->d.sign->contents) && p7->detached) {
@@ -841,6 +838,10 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
         break;
 
     case NID_pkcs7_digest:
+        if (p7->d.digest->contents == NULL) {
+            ERR_raise(ERR_LIB_PKCS7, PKCS7_R_NO_CONTENT);
+            goto err;
+        }
         os = PKCS7_get_octet_string(p7->d.digest->contents);
         /* If detached data then the content is excluded */
         if (PKCS7_type_is_data(p7->d.digest->contents) && p7->detached) {

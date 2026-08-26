@@ -1755,6 +1755,8 @@ rt2860_tx_raw(struct rt2860_softc *sc, struct mbuf *m,
 		return EINVAL;
 	}
 
+	ieee80211_output_seqno_assign(ni, -1, m);
+
 	qid = params->ibp_pri & 3;
 	ring = &sc->txq[qid];
 

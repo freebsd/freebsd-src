@@ -83,6 +83,7 @@
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -289,10 +290,14 @@ static struct mtx	unp_defers_lock;
 
 static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
-static int	unp_connect(struct socket *, struct sockaddr *,
-		    struct thread *);
-static int	unp_connectat(int, struct socket *, struct sockaddr *,
-		    struct thread *, bool);
+static int	unp_connectat(int, struct socket *, const char *, int,
+		    struct thread *, struct socket **);
+static int	unp_connect_peer(struct socket *, struct unpcb *,
+		    struct sockaddr **, struct thread *, bool);
+static int	unp_connectat_peer(struct thread *, int, const char *,
+		    struct socket **);
+static int	unp_vnode_peer(struct vnode *, struct thread *,
+		    struct socket **);
 static void	unp_connect2(struct socket *, struct socket *, bool);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
@@ -302,9 +307,10 @@ static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
 static void	unp_discard(struct file *);
 static void	unp_freerights(struct filedescent **, int);
 static int	unp_internalize(struct mbuf *, struct mchain *,
-		    struct thread *);
+		    struct thread *, int *);
 static void	unp_internalize_fp(struct file *);
-static int	unp_externalize(struct mbuf *, struct mbuf **, int);
+static int	unp_externalize(const struct socket *, struct mbuf *,
+		    struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
 static void	unp_addsockcred(struct thread *, struct mchain *, int);
 static void	unp_process_defers(void * __unused, int);
@@ -526,6 +532,7 @@ common:
 	UNP_PCB_LOCK_INIT(unp);
 	unp->unp_socket = so;
 	so->so_pcb = unp;
+	so->so_options |= SO_PASSRIGHTS;
 	refcount_init(&unp->unp_refcount, 1);
 	unp->unp_mode = ACCESSPERMS;
 
@@ -558,10 +565,35 @@ common:
 	return (0);
 }
 
+/*
+ * Validate a bind/connect address as AF_UNIX and hand back its sun_path
+ * and the path length.
+ *
+ * Rejects a wrong family (EAFNOSUPPORT) or a malformed sa_len (EINVAL).
+ */
+static int
+unp_sun_path(const struct sockaddr *nam, const char **pathp, int *lenp)
+{
+	const struct sockaddr_un *soun;
+	int len;
+
+	if (nam->sa_family != AF_UNIX)
+		return (EAFNOSUPPORT);
+	if (nam->sa_len > sizeof(struct sockaddr_un))
+		return (EINVAL);
+	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
+	if (len < 0)
+		return (EINVAL);
+	soun = (const struct sockaddr_un *)nam;
+	*pathp = soun->sun_path;
+	*lenp = len;
+	return (0);
+}
+
 static int
 uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
+	struct sockaddr_un *soun;
 	struct vattr vattr;
 	int error, namelen;
 	struct nameidata nd;
@@ -569,20 +601,18 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct vnode *vp;
 	struct mount *mp;
 	cap_rights_t rights;
+	const char *path;
 	char *buf;
 	mode_t mode;
 
-	if (nam->sa_family != AF_UNIX)
-		return (EAFNOSUPPORT);
+	error = unp_sun_path(nam, &path, &namelen);
+	if (error != 0)
+		return (error);
+	if (namelen == 0)
+		return (EINVAL);
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
-
-	if (soun->sun_len > sizeof(struct sockaddr_un))
-		return (EINVAL);
-	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
-	if (namelen <= 0)
-		return (EINVAL);
 
 	/*
 	 * We don't allow simultaneous bind() calls on a single UNIX domain
@@ -607,7 +637,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
-	bcopy(soun->sun_path, buf, namelen);
+	bcopy(path, buf, namelen);
 	buf[namelen] = 0;
 
 restart:
@@ -696,22 +726,38 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int error;
+	const char *path;
+	int error, len;
 
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
-	error = unp_connect(so, nam, td);
-	return (error);
+
+	error = unp_sun_path(nam, &path, &len);
+	if (error != 0)
+		return (error);
+	/*
+	 * unp_connectat() does not early exit on empty paths, because that is
+	 * explicitly supported when naming the peer by file descriptor, but
+	 * connect(2) only ever passes AT_FDCWD, so reject it here. This
+	 * preserves historical behavior.
+	 */
+	if (len == 0)
+		return (EINVAL);
+	return (unp_connectat(AT_FDCWD, so, path, len, td, NULL));
 }
 
 static int
 uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
     struct thread *td)
 {
-	int error;
+	const char *path;
+	int error, len;
 
 	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
-	error = unp_connectat(fd, so, nam, td, false);
-	return (error);
+
+	error = unp_sun_path(nam, &path, &len);
+	if (error != 0)
+		return (error);
+	return (unp_connectat(fd, so, path, len, td, NULL));
 }
 
 static void
@@ -799,14 +845,9 @@ static void
 uipc_detach(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
-	struct mtx *vplock;
-	struct vnode *vp;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
-
-	vp = NULL;
-	vplock = NULL;
 
 	if (!SOLISTENING(so))
 		unp_dispose(so);
@@ -819,23 +860,9 @@ uipc_detach(struct socket *so)
 	--unp_count;
 	UNP_LINK_WUNLOCK();
 
-	UNP_PCB_UNLOCK_ASSERT(unp);
- restart:
-	if ((vp = unp->unp_vnode) != NULL) {
-		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
-		mtx_lock(vplock);
-	}
 	UNP_PCB_LOCK(unp);
-	if (unp->unp_vnode != vp && unp->unp_vnode != NULL) {
-		if (vplock)
-			mtx_unlock(vplock);
-		UNP_PCB_UNLOCK(unp);
-		goto restart;
-	}
-	if ((vp = unp->unp_vnode) != NULL) {
-		VOP_UNP_DETACH(vp);
-		unp->unp_vnode = NULL;
-	}
+	KASSERT(unp->unp_vnode == NULL,
+	    ("%s: unp %p has vnode", __func__, unp));
 	if ((unp2 = unp_pcb_lock_peer(unp)) != NULL)
 		unp_disconnect(unp, unp2);
 	else
@@ -862,10 +889,7 @@ uipc_detach(struct socket *so)
 	unp->unp_addr = NULL;
 	if (!unp_pcb_rele(unp))
 		UNP_PCB_UNLOCK(unp);
-	if (vp) {
-		mtx_unlock(vplock);
-		vrele(vp);
-	}
+
 	maybe_schedule_gc();
 
 	switch (so->so_type) {
@@ -927,14 +951,18 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 
 	/*
 	 * Synchronize with concurrent connection attempts.
+	 *
+	 * An unbound socket may listen: connectat(2) can name it by descriptor,
+	 * so it is reachable without a pathname.  It may also be bound
+	 * afterwards, which lets a listener be published only once it is ready
+	 * to accept, rather than leaving a window where the pathname exists but
+	 * connections are refused.
 	 */
 	error = 0;
 	unp = sotounpcb(so);
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_conn != NULL || (unp->unp_flags & UNP_CONNECTING) != 0)
 		error = EINVAL;
-	else if (unp->unp_vnode == NULL)
-		error = EDESTADDRREQ;
 	if (error != 0) {
 		UNP_PCB_UNLOCK(unp);
 		return (error);
@@ -1111,7 +1139,7 @@ uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
 	struct mchain mc, cmc;
 	size_t resid, sent;
 	bool nonblock, eor, aio;
-	int error;
+	int error, needsopts;
 
 	MPASS((uio0 != NULL && m == NULL) || (m != NULL && uio0 == NULL));
 	MPASS(m == NULL || c == NULL);
@@ -1127,9 +1155,11 @@ uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
 	cmc = MCHAIN_INITIALIZER(&cmc);
 	sent = 0;
 	aio = false;
+	needsopts = 0;
 
 	if (m == NULL) {
-		if (c != NULL && (error = unp_internalize(c, &cmc, td)))
+		if (c != NULL &&
+		    (error = unp_internalize(c, &cmc, td, &needsopts)))
 			goto out;
 		/*
 		 * This function may read more data from the uio than it would
@@ -1165,8 +1195,10 @@ uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
 		    eor ? M_EOR : 0);
 		if (__predict_false(error))
 			goto out2;
-	} else
+	} else {
+		uio = NULL;
 		uipc_reset_kernel_mbuf(m, &mc);
+	}
 
 	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
@@ -1174,6 +1206,14 @@ uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
 
 	if (__predict_false((error = uipc_lock_peer(so, &unp2)) != 0))
 		goto out3;
+
+	/* Check for SO_PASS* flags */
+	so2 = unp2->unp_socket;
+	if ((atomic_load_int(&so2->so_options) & needsopts) != needsopts) {
+		error = EPERM;
+		UNP_PCB_UNLOCK(unp2);
+		goto out3;
+	}
 
 	if (unp2->unp_flags & UNP_WANTCRED_MASK) {
 		/*
@@ -1192,7 +1232,6 @@ uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
 	 * observe the SBS_CANTRCVMORE and our sorele() will finalize peer's
 	 * socket destruction.
 	 */
-	so2 = unp2->unp_socket;
 	soref(so2);
 	UNP_PCB_UNLOCK(unp2);
 	sb = &so2->so_rcv;
@@ -1245,8 +1284,8 @@ restart:
 		if (space == 0) {
 			/* There is space only to send control. */
 			MPASS(!STAILQ_EMPTY(&cmc.mc_q));
-			mcnext = mc;
-			mc = MCHAIN_INITIALIZER(&mc);
+			mc_init(&mcnext);
+			mc_concat(&mcnext, &mc);
 		} else if (space < mc.mc_len) {
 			/* Not enough space. */
 			if (__predict_false(mc_split(&mc, &mcnext, space,
@@ -1459,14 +1498,26 @@ restart:
 	ctl = 0;
 	first = STAILQ_FIRST(&sb->uxst_mbq);
 	if (first->m_type == MT_CONTROL) {
+		struct mbuf *prev;
+
 		control = first;
+		prev = NULL;
+
+		/*
+		 * Unlink control messages from the socket buffer.  The head of
+		 * the socket buffer queue is updated below.
+		 */
 		STAILQ_FOREACH_FROM(first, &sb->uxst_mbq, m_stailq) {
-			if (first->m_type != MT_CONTROL)
+			if (first->m_type != MT_CONTROL) {
+				if (!peek && prev != NULL)
+					STAILQ_NEXT(prev, m_stailq) = NULL;
 				break;
+			}
 			ctl += first->m_len;
 			mbcnt += MSIZE;
 			if (first->m_flags & M_EXT)
 				mbcnt += first->m_ext.ext_size;
+			prev = first;
 		}
 	} else
 		control = NULL;
@@ -1559,12 +1610,27 @@ restart:
 			 * is fine that we need to perform pretty complex
 			 * operation here to reconstruct the buffer.
 			 */
-			error = unp_externalize(control, controlp, flags);
+			error = unp_externalize(so, control, controlp, flags);
 			control = m_free(control);
-			if (__predict_false(error && control != NULL)) {
+			if (__predict_false(error != 0)) {
 				struct mchain cmc;
 
-				mc_init_m(&cmc, control);
+				/*
+				 * Build an mbuf chain containing the remainder
+				 * of the control messages and the subsequent
+				 * data, to be prepended back to the socket
+				 * buffer.
+				 */
+				if (control != NULL)
+					mc_init_m(&cmc, control);
+				else
+					mc_init(&cmc);
+				for (m = first; datalen > 0 && m != part;
+				    m = next) {
+					datalen -= m->m_len;
+					next = STAILQ_NEXT(m, m_stailq);
+					mc_append(&cmc, m);
+				}
 
 				SOCK_RECVBUF_LOCK(so);
 				if (__predict_false(
@@ -1574,7 +1640,7 @@ restart:
 					/*
 					 * While the lock was dropped and we
 					 * were failing in unp_externalize(),
-					 * the peer could has a) disconnected,
+					 * the peer could have a) disconnected,
 					 * b) filled the buffer so that we
 					 * can't prepend data back.
 					 * These are two edge conditions that
@@ -1598,6 +1664,10 @@ restart:
 				    sb->sb_mbcnt = 0;
 				STAILQ_FOREACH(m, &sb->uxst_mbq, m_stailq) {
 					if (m->m_type == MT_DATA) {
+						if (m == part) {
+							m->m_len += partlen;
+							m->m_data -= partlen;
+						}
 						sb->sb_acc += m->m_len;
 						sb->sb_ccc += m->m_len;
 					} else {
@@ -1952,17 +2022,17 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 {
 	struct unpcb *unp, *unp2;
 	const struct sockaddr *from;
-	struct socket *so2;
+	struct socket *so2, *peer;
 	struct sockbuf *sb;
 	struct mchain cmc = MCHAIN_INITIALIZER(&cmc);
 	struct mbuf *f;
 	u_int cc, ctl, mbcnt;
 	u_int dcc __diagused, dctl __diagused, dmbcnt __diagused;
-	int error;
+	int error, needsopts;
 
 	MPASS((uio != NULL && m == NULL) || (m != NULL && uio == NULL));
 
-	error = 0;
+	error = needsopts = 0;
 	f = NULL;
 
 	if (__predict_false(flags & MSG_OOB)) {
@@ -1982,7 +2052,8 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		f = m_gethdr(M_WAITOK, MT_SONAME);
 		cc = m->m_pkthdr.len;
 		mbcnt = MSIZE + m->m_pkthdr.memlen;
-		if (c != NULL && (error = unp_internalize(c, &cmc, td)))
+		if (c != NULL &&
+		    (error = unp_internalize(c, &cmc, td, &needsopts)))
 			goto out;
 	} else {
 		struct mchain mc;
@@ -2033,7 +2104,12 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	SOCK_SENDBUF_UNLOCK(so);
 
 	if (addr != NULL) {
-		if ((error = unp_connectat(AT_FDCWD, so, addr, td, true)))
+		const char *path;
+		int len;
+
+		if ((error = unp_sun_path(addr, &path, &len)))
+			goto out3;
+		if ((error = unp_connectat(AT_FDCWD, so, path, len, td, &peer)))
 			goto out3;
 		UNP_PCB_LOCK_ASSERT(unp);
 		unp2 = unp->unp_conn;
@@ -2046,6 +2122,13 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 			error = ENOTCONN;
 			goto out3;
 		}
+	}
+
+	/* Check for SO_PASS* flags */
+	so2 = unp2->unp_socket;
+	if ((atomic_load_int(&so2->so_options) & needsopts) != needsopts) {
+		error = EPERM;
+		goto out4;
 	}
 
 	if (unp2->unp_flags & UNP_WANTCRED_MASK)
@@ -2116,7 +2199,6 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 * would accumulate counters from all connected buffers potentially
 	 * having sb_ccc > sb_hiwat or sb_mbcnt > sb_mbmax.
 	 */
-	so2 = unp2->unp_socket;
 	sb = (addr == NULL) ? &so->so_snd : &so2->so_rcv;
 	SOCK_RECVBUF_LOCK(so2);
 	if (uipc_dgram_sbspace(sb, cc + ctl, mbcnt)) {
@@ -2142,9 +2224,11 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		}
 	}
 
-	if (addr != NULL)
+out4:
+	if (addr != NULL) {
 		unp_disconnect(unp, unp2);
-	else
+		sorele(peer);
+	} else
 		unp_pcb_unlock_pair(unp, unp2);
 
 	td->td_ru.ru_msgsnd++;
@@ -2344,7 +2428,7 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * without MT_DATA mbufs.
 	 */
 	while (m != NULL && m->m_type == MT_CONTROL) {
-		error = unp_externalize(m, controlp, flags);
+		error = unp_externalize(so, m, controlp, flags);
 		m = m_free(m);
 		if (error != 0) {
 			SOCK_IO_RECV_UNLOCK(so);
@@ -2426,8 +2510,10 @@ uipc_sendfile_wait(struct socket *so, off_t need, int *space)
 			SOCK_RECVBUF_UNLOCK(so2);
 			return (EAGAIN);
 		}
-		if (!sockref)
+		if (!sockref) {
 			soref(so2);
+			sockref = true;
+		}
 		error = uipc_stream_sbwait(so2, so->so_snd.sb_timeo);
 		if (error == 0 &&
 		    __predict_false(sb->sb_state & SBS_CANTRCVMORE))
@@ -2752,8 +2838,26 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 					error = EINVAL;
 			}
 			UNP_PCB_UNLOCK(unp);
-			if (error == 0)
-				error = sooptcopyout(sopt, &xu, sizeof(xu));
+			if (error != 0)
+				break;
+#ifdef COMPAT_FREEBSD32
+			if (sopt->sopt_td &&
+			    SV_PROC_FLAG(sopt->sopt_td->td_proc, SV_ILP32))
+			{
+				struct xucred32 xu32 = {};
+				int i;
+
+				xu32.cr_version = xu.cr_version;
+				xu32.cr_uid = xu.cr_uid;
+				xu32.cr_ngroups = xu.cr_ngroups;
+				for (i = 0; i < XU_NGROUPS; i++)
+					xu32.cr_groups[i] = xu.cr_groups[i];
+				xu32.cr_pid = xu.cr_pid;
+				error = sooptcopyout(sopt, &xu32, sizeof(xu32));
+				break;
+			}
+#endif
+			error = sooptcopyout(sopt, &xu, sizeof(xu));
 			break;
 
 		case LOCAL_CREDS:
@@ -2824,40 +2928,39 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
+/*
+ * Connect socket 'so' to the unix-domain peer named by the 'len'-byte 'path'
+ * (an empty path names the peer directly by descriptor), resolved relative to
+ * descriptor 'fd' (AT_FDCWD for connect(2)).
+ *
+ * 'referenced_peerp' selects how the peer is returned.  If NULL, on exit the
+ * peer's PCB is unlocked and the peer is unreferenced, symmetrically releasing
+ * the resources acquired within the function.  If non-NULL, the peer's PCB is
+ * returned locked and '*referenced_peerp' receives the referenced peer socket;
+ * the caller is then responsible for first unlocking the peer's PCB and
+ * afterwards releasing the socket.
+ *
+ * The reference is handed back rather than released in the return-unlocked
+ * case, because releasing the last one under the PCB lock could cause
+ * uipc_close() to try to re-acquire that lock.
+ *
+ * Note: the referenced_peerp mechanism is here only for the datagram fast-send
+ * path, which enqueues under the peer's PCB lock.
+ */
 static int
-unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
+unp_connectat(int fd, struct socket *so, const char *path, int len,
+    struct thread *td, struct socket **referenced_peerp)
 {
-
-	return (unp_connectat(AT_FDCWD, so, nam, td, false));
-}
-
-static int
-unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
-    struct thread *td, bool return_locked)
-{
-	struct mtx *vplock;
-	struct sockaddr_un *soun;
-	struct vnode *vp;
 	struct socket *so2;
-	struct unpcb *unp, *unp2, *unp3;
-	struct nameidata nd;
+	struct unpcb *unp;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
-	cap_rights_t rights;
-	int error, len;
+	int error;
 	bool connreq;
 
 	CURVNET_ASSERT_SET();
 
-	if (nam->sa_family != AF_UNIX)
-		return (EAFNOSUPPORT);
-	if (nam->sa_len > sizeof(struct sockaddr_un))
-		return (EINVAL);
-	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
-	if (len <= 0)
-		return (EINVAL);
-	soun = (struct sockaddr_un *)nam;
-	bcopy(soun->sun_path, buf, len);
+	bcopy(path, buf, len);
 	buf[len] = 0;
 
 	error = 0;
@@ -2902,65 +3005,241 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	else
 		sa = NULL;
-	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
-	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_CONNECTAT));
-	error = namei(&nd);
-	if (error)
-		vp = NULL;
+
+	error = unp_connectat_peer(td, fd, buf, &so2);
+	if (error != 0)
+		goto out;
+	error = unp_connect_peer(so, sotounpcb(so2), &sa, td,
+	    referenced_peerp != NULL);
+	/* Transfer the reference; the caller releases it after unlocking. */
+	if (error == 0 && referenced_peerp != NULL)
+		*referenced_peerp = so2;
 	else
-		vp = nd.ni_vp;
-	ASSERT_VOP_LOCKED(vp, "unp_connect");
-	if (error)
-		goto bad;
+		sorele(so2);
+out:
+	free(sa, M_SONAME);
+	if (__predict_false(error)) {
+		UNP_PCB_LOCK(unp);
+		KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
+		    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
+		unp->unp_flags &= ~UNP_CONNECTING;
+		UNP_PCB_UNLOCK(unp);
+	}
+	return (error);
+}
+
+/*
+ * Resolve descriptor 'fd' to the referenced unix-domain socket it *is* (as
+ * opposed to one it names through the file system) in '*so2p'.  Returns
+ * ENOTSOCK if 'fd' is not a socket -- letting an empty-path caller fall back to
+ * a vnode lookup -- or EPROTOTYPE if it is a socket of another domain.  The
+ * caller must release the returned socket with sorele().
+ */
+static int
+unp_socket_fd_peer(struct thread *td, int fd, struct socket **so2p)
+{
+	struct socket *so2;
+	struct file *fp;
+	cap_rights_t rights;
+	int error;
+
+	error = getsock(td, fd, cap_rights_init_one(&rights, CAP_CONNECTAT),
+	    &fp);
+	if (error != 0)
+		return (error);
+	so2 = fp->f_data;
+	if (so2->so_proto->pr_domain->dom_family != AF_UNIX)
+		error = EPROTOTYPE;
+	else {
+		soref(so2);
+		*so2p = so2;
+	}
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Resolve a synthetic descriptor vnode -- as fdescfs fabricates for a /dev/fd/N
+ * path -- to the peer socket named by the descriptor it stands for.
+ *
+ * Such a node has no object of its own; VOP_OPEN reports the underlying
+ * descriptor in td_dupfd and fails with ENODEV, the same convention open(2)
+ * follows via dupfdopen() for /dev/fd.  We honour it here and resolve that
+ * descriptor as the peer, so a plain connect(2) to /dev/fd/N reaches the
+ * socket.  Does not consume 'vp'.
+ */
+static int
+unp_dupfd_peer(struct vnode *vp, struct thread *td, struct socket **so2p)
+{
+	int dupfd, error;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	td->td_dupfd = -1;
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
+	dupfd = td->td_dupfd;
+	td->td_dupfd = 0;
+	if (error == ENODEV && dupfd >= 0)
+		return (unp_socket_fd_peer(td, dupfd, so2p));
+	if (error == 0) {
+		/* Not the dupfd convention: an openable node is not a peer. */
+		(void)VOP_CLOSE(vp, FREAD, td->td_ucred, td);
+		error = ECONNREFUSED;
+	}
+	return (error);
+}
+
+/*
+ * Resolve a connectat(2) target -- descriptor 'fd' together with the pathname
+ * in 'buf' (null when len == 0) -- to a referenced peer unix socket in
+ * '*so2p', covering all four ways a peer can be named:
+ *
+ *	empty path + socket fd		the descriptor is the peer socket
+ *	empty path + O_PATH vnode	EMPTYPATH resolves the socket's vnode
+ *	/dev/fd/N pathname		fdescfs names a descriptor
+ *	ordinary pathname		a bound socket looked up by path
+ *
+ * The caller must release the returned socket with sorele().
+ */
+static int
+unp_connectat_peer(struct thread *td, int fd, const char *buf,
+    struct socket **so2p)
+{
+	struct nameidata nd;
+	cap_rights_t rights;
+	int error;
+
+	/*
+	 * An empty sun_path means 'fd' names the peer directly.  If it is a
+	 * socket, it is the peer, so return success (or its error) with no
+	 * fallback; if not, it may be an O_PATH handle for a bound socket's
+	 * vnode, so fall through to an EMPTYPATH lookup.
+	 */
+	if (*buf == '\0' && fd != AT_FDCWD) {
+		error = unp_socket_fd_peer(td, fd, so2p);
+		if (error != ENOTSOCK)
+			return (error);
+	}
+
+	/* Resolve the path to a vnode. */
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
+	    (fd == AT_FDCWD ? 0 : EMPTYPATH), UIO_SYSSPACE, buf, fd,
+	    cap_rights_init_one(&rights, CAP_CONNECTAT));
+	error = namei(&nd);
+	if (error != 0)
+		return (error);
 	NDFREE_PNBUF(&nd);
 
-	if (vp->v_type != VSOCK) {
-		error = ENOTSOCK;
-		goto bad;
-	}
+	/*
+	 * Dispatch on the resolved vnode, then drop it: for the socket cases
+	 * the returned reference keeps the peer stable, so the caller holds
+	 * no vnode lock across unp_connect_peer() (which matters for the
+	 * return_locked datagram fast path).
+	 *
+	 * A synthetic descriptor node -- as fdescfs fabricates for a /dev/fd/N
+	 * path -- carries no type of its own (VNON); opening it yields the
+	 * descriptor it stands for, which we resolve as the peer socket.
+	 * Otherwise the path must name a bound socket's vnode (VSOCK), which
+	 * unp_vnode_peer() connects to, rejecting any other type with ENOTSOCK.
+	 *
+	 * unp_dupfd_peer() resolves that descriptor exactly once: if it is not
+	 * a socket the connect fails, so this does *not* recur through a chain
+	 * of O_PATH handles of /dev/fd nodes, which could be arbitrarily long.
+	 */
+	if (nd.ni_vp->v_type == VNON)
+		error = unp_dupfd_peer(nd.ni_vp, td, so2p);
+	else
+		error = unp_vnode_peer(nd.ni_vp, td, so2p);
+	vput(nd.ni_vp);
+	return (error);
+}
+
+/*
+ * Resolve locked vnode 'vp' to the unix-domain socket it names and return a
+ * referenced peer socket in '*so2p'.  As the connect(2)-time resolution, this
+ * enforces the caller's authorization to reach the socket -- filesystem
+ * permission (VOP_ACCESS) and MAC (mac_vnode_check_open) -- which bare readers
+ * of the vnode->pcb binding, such as vfs_unp_reclaim(), deliberately skip.
+ *
+ * The returned reference keeps the peer stable for unp_connect_peer() once vp's
+ * per-vnode binding lock is dropped, so the caller must release it with
+ * sorele().  Does not consume 'vp'.
+ */
+static int
+unp_vnode_peer(struct vnode *vp, struct thread *td, struct socket **so2p)
+{
+	struct mtx *vplock;
+	struct unpcb *unp2;
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	if (vp->v_type != VSOCK)
+		return (ENOTSOCK);
 #ifdef MAC
 	error = mac_vnode_check_open(td->td_ucred, vp, VWRITE | VREAD);
-	if (error)
-		goto bad;
+	if (error != 0)
+		return (error);
 #endif
 	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
-	if (error)
-		goto bad;
-
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
+	if (error != 0)
+		return (error);
 
 	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp2);
-	if (unp2 == NULL) {
+	if (unp2 == NULL)
 		error = ECONNREFUSED;
-		goto bad2;
-	}
+	else
+		soref(*so2p = unp2->unp_socket);
+	mtx_unlock(vplock);
+	return (error);
+}
+
+/*
+ * Second half of connecting a unix socket: 'so' is our connecting socket,
+ * with UNP_CONNECTING set, and 'unp2' is the PCB of the peer named by the
+ * caller, which must guarantee its stability (by holding a reference on the
+ * peer socket, or the vnode lock plus unp_vp_mtxpool lock for a peer found
+ * via VOP_UNP_CONNECT()).
+ *
+ * For connection-oriented sockets '*sap' points to a buffer to hold the
+ * listener's address; it is consumed (set to NULL) if used.  On success
+ * UNP_CONNECTING is cleared; on error the caller must clear it.
+ */
+static int
+unp_connect_peer(struct socket *so, struct unpcb *unp2, struct sockaddr **sap,
+    struct thread *td, bool return_locked)
+{
+	struct socket *so2;
+	struct unpcb *unp, *unp3;
+	int error;
+	bool connreq;
+
+	unp = sotounpcb(so);
+	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
+	connreq = (so->so_proto->pr_flags & PR_CONNREQUIRED) != 0;
+
 	so2 = unp2->unp_socket;
-	if (so->so_type != so2->so_type) {
-		error = EPROTOTYPE;
-		goto bad2;
-	}
+	if (so->so_type != so2->so_type)
+		return (EPROTOTYPE);
 	if (connreq) {
 		if (SOLISTENING(so2))
 			so2 = solisten_clone(so2);
 		else
 			so2 = NULL;
-		if (so2 == NULL) {
-			error = ECONNREFUSED;
-			goto bad2;
-		}
+		if (so2 == NULL)
+			return (ECONNREFUSED);
 		if ((error = uipc_attach(so2, 0, NULL)) != 0) {
 			sodealloc(so2);
-			goto bad2;
+			return (error);
 		}
 		unp3 = sotounpcb(so2);
 		unp_pcb_lock_pair(unp2, unp3);
 		if (unp2->unp_addr != NULL) {
-			bcopy(unp2->unp_addr, sa, unp2->unp_addr->sun_len);
-			unp3->unp_addr = (struct sockaddr_un *) sa;
-			sa = NULL;
+			bcopy(unp2->unp_addr, *sap, unp2->unp_addr->sun_len);
+			unp3->unp_addr = (struct sockaddr_un *)*sap;
+			*sap = NULL;
 		}
 
 		unp_copy_peercred(td, unp3, unp, unp2);
@@ -2991,28 +3270,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	unp->unp_flags &= ~UNP_CONNECTING;
 	if (!return_locked)
 		unp_pcb_unlock_pair(unp, unp2);
-bad2:
-	mtx_unlock(vplock);
-bad:
-	if (vp != NULL) {
-		/*
-		 * If we are returning locked (called via uipc_sosend_dgram()),
-		 * we need to be sure that vput() won't sleep.  This is
-		 * guaranteed by VOP_UNP_CONNECT() call above and unp2 lock.
-		 * SOCK_STREAM/SEQPACKET can't request return_locked (yet).
-		 */
-		MPASS(!(return_locked && connreq));
-		vput(vp);
-	}
-	free(sa, M_SONAME);
-	if (__predict_false(error)) {
-		UNP_PCB_LOCK(unp);
-		KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
-		    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
-		unp->unp_flags &= ~UNP_CONNECTING;
-		UNP_PCB_UNLOCK(unp);
-	}
-	return (error);
+	return (0);
 }
 
 /*
@@ -3159,6 +3417,8 @@ unp_soisdisconnected(struct socket *so)
 	so->so_state |= SS_ISDISCONNECTED;
 	so->so_state &= ~SS_ISCONNECTED;
 	so->so_rcv.uxst_peer = NULL;
+	selwakeuppri(&so->so_wrsel, PSOCK);
+	KNOTE_LOCKED(&so->so_snd.sb_sel->si_note, 0);
 	socantrcvmore_locked(so);
 }
 
@@ -3461,19 +3721,30 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 	free(fdep[0], M_FILECAPS);
 }
 
-static bool
-restrict_rights(struct file *fp, struct thread *td)
+/*
+ * Flags to set on the receiving side when externalizing a file descriptor.
+ * When transferring fds between jails, ensure that the receiver cannot use
+ * a dirfd to escape the jail chroot.
+ */
+static int
+externalize_fdflags(struct filedescent *fde, struct thread *td)
 {
 	struct prison *prison1, *prison2;
 
-	prison1 = fp->f_cred->cr_prison;
+	if ((fde->fde_flags & UF_RESOLVE_BENEATH) != 0)
+		return (O_RESOLVE_BENEATH);
+	prison1 = fde->fde_file->f_cred->cr_prison;
 	prison2 = td->td_ucred->cr_prison;
-	return (prison1 != prison2 && prison1->pr_root != prison2->pr_root &&
-	    prison2 != &prison0);
+	if (prison1 != prison2 && prison1->pr_root != prison2->pr_root &&
+	    prison2 != &prison0)
+		return (O_RESOLVE_BENEATH);
+	else
+		return (0);
 }
 
 static int
-unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
+unp_externalize(const struct socket *so, struct mbuf *control,
+    struct mbuf **controlp, int flags)
 {
 	struct thread *td = curthread;		/* XXX */
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
@@ -3505,8 +3776,18 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				goto next;
 			fdep = data;
 
-			/* If we're not outputting the descriptors free them. */
-			if (error || controlp == NULL) {
+			/*
+			 * If we're not outputting the descriptors, free them.
+			 *
+			 * In the case of having revoked SCM_PASSRIGHTS, the
+			 * receiver must have toggled it before trying to
+			 * receive control messages- we'll take that as a signal
+			 * that they didn't want these, but they raced against
+			 * the sender trying to pass files anyways.
+			 */
+			if (error || controlp == NULL ||
+			    (atomic_load_int(&so->so_options) &
+			    SO_PASSRIGHTS) == 0) {
 				unp_freerights(fdep, newfds);
 				goto next;
 			}
@@ -3535,9 +3816,9 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				struct file *fp;
 
 				fp = fdep[i]->fde_file;
-				_finstall(fdesc, fp, *fdp, fdflags |
-				    (restrict_rights(fp, td) ?
-				    O_RESOLVE_BENEATH : 0), &fdep[i]->fde_caps);
+				_finstall(fdesc, fp, *fdp,
+				    fdflags | externalize_fdflags(fdep[i], td),
+				    &fdep[i]->fde_caps);
 				unp_externalize_fp(fp);
 			}
 
@@ -3651,7 +3932,8 @@ unp_internalize_cleanup_rights(struct mbuf *control)
 }
 
 static int
-unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td)
+unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td,
+    int *needsopts)
 {
 	struct proc *p;
 	struct filedesc *fdesc;
@@ -3707,6 +3989,7 @@ unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td)
 			break;
 
 		case SCM_RIGHTS:
+			*needsopts |= SO_PASSRIGHTS;
 			oldfds = datalen / sizeof (int);
 			if (oldfds == 0)
 				continue;
@@ -3773,6 +4056,7 @@ unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td)
 				fdep[i]->fde_file = fde->fde_file;
 				filecaps_copy(&fde->fde_caps,
 				    &fdep[i]->fde_caps, true);
+				fdep[i]->fde_flags = fde->fde_flags;
 				unp_internalize_fp(fdep[i]->fde_file);
 			}
 			FILEDESC_SUNLOCK(fdesc);

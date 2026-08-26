@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -226,10 +216,10 @@ vdev_queue_to_compare(const void *x1, const void *x2)
 	const zio_t *z1 = (const zio_t *)x1;
 	const zio_t *z2 = (const zio_t *)x2;
 
-	int tcmp = TREE_CMP(z1->io_timestamp >> VDQ_T_SHIFT,
+	int cmp = TREE_CMP(z1->io_timestamp >> VDQ_T_SHIFT,
 	    z2->io_timestamp >> VDQ_T_SHIFT);
-	int ocmp = TREE_CMP(z1->io_offset, z2->io_offset);
-	int cmp = tcmp ? tcmp : ocmp;
+	if (cmp == 0)
+		cmp = TREE_CMP(z1->io_offset, z2->io_offset);
 
 	if (likely(cmp | (z1->io_queue_state == ZIO_QS_NONE)))
 		return (cmp);
@@ -879,6 +869,38 @@ again:
 	return (zio);
 }
 
+static boolean_t
+vdev_should_queue_io(zio_t *zio)
+{
+	vdev_t *vd = zio->io_vd;
+	boolean_t should_queue = B_TRUE;
+
+	/*
+	 * Add zio with ZIO_FLAG_NODATA to queue as bypass code
+	 * currently does not handle certain cases (gang abd, raidz
+	 * write aggregation).
+	 */
+	if (zio->io_flags & ZIO_FLAG_NODATA)
+		return (B_TRUE);
+
+	switch (vd->vdev_scheduler) {
+	case VDEV_SCHEDULER_AUTO:
+		if (vd->vdev_nonrot && vd->vdev_is_blkdev)
+			should_queue = B_FALSE;
+		break;
+	case VDEV_SCHEDULER_ON:
+		should_queue = B_TRUE;
+		break;
+	case VDEV_SCHEDULER_OFF:
+		should_queue = B_FALSE;
+		break;
+	default:
+		should_queue = B_TRUE;
+		break;
+	}
+	return (should_queue);
+}
+
 zio_t *
 vdev_queue_io(zio_t *zio)
 {
@@ -922,6 +944,12 @@ vdev_queue_io(zio_t *zio)
 	zio->io_flags |= ZIO_FLAG_DONT_QUEUE;
 	zio->io_timestamp = gethrtime();
 
+	if (!vdev_should_queue_io(zio)) {
+		zio->io_queue_state = ZIO_QS_NONE;
+		zio->io_flags |= ZIO_FLAG_BYPASSED_QUEUE;
+		return (zio);
+	}
+
 	mutex_enter(&vq->vq_lock);
 	vdev_queue_io_add(vq, zio);
 	nio = vdev_queue_io_to_issue(vq);
@@ -953,6 +981,9 @@ vdev_queue_io_done(zio_t *zio)
 	hrtime_t now = gethrtime();
 	vq->vq_io_complete_ts = now;
 	vq->vq_io_delta_ts = zio->io_delta = now - zio->io_timestamp;
+
+	if (zio->io_queue_state == ZIO_QS_NONE)
+		return;
 
 	mutex_enter(&vq->vq_lock);
 	vdev_queue_pending_remove(vq, zio);

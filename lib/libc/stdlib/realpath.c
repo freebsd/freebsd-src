@@ -98,7 +98,6 @@ realpath1(const char *path, char *resolved)
 			left_len = 0;
 		}
 
-		prev_len = resolved_len;
 		if (resolved[resolved_len - 1] != '/') {
 			if (resolved_len + 1 >= PATH_MAX) {
 				errno = ENAMETOOLONG;
@@ -129,7 +128,9 @@ realpath1(const char *path, char *resolved)
 		/*
 		 * Append the next path component and lstat() it.
 		 */
-		resolved_len = strlcat(resolved, next_token, PATH_MAX);
+		prev_len = resolved_len;
+		resolved_len += strlcpy(resolved + prev_len, next_token,
+		    PATH_MAX - prev_len);
 		if (resolved_len >= PATH_MAX) {
 			errno = ENAMETOOLONG;
 			return (NULL);
@@ -141,8 +142,11 @@ realpath1(const char *path, char *resolved)
 			 * directory is not a directory.  Rewind the path
 			 * to correctly indicate where the error lies.
 			 */
-			if (errno == EACCES || errno == ENOTDIR)
+			if (errno == EACCES || errno == ENOTDIR) {
+				if (prev_len > 1)
+					prev_len--;
 				resolved[prev_len] = '\0';
+			}
 			return (NULL);
 		}
 		if (S_ISLNK(sb.st_mode)) {

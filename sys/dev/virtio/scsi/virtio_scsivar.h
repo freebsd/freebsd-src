@@ -139,6 +139,7 @@ struct vtscsi_request {
 /* Features desired/implemented by this driver. */
 #define VTSCSI_FEATURES \
     (VIRTIO_SCSI_F_HOTPLUG		| \
+     VIRTIO_SCSI_F_CHANGE		| \
      VIRTIO_RING_F_INDIRECT_DESC)
 
 #define VTSCSI_MTX(_sc)			&(_sc)->vtscsi_mtx

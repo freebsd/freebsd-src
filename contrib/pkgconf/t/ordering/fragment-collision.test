@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: fragment-collision
+ExpectedStdout: -D_BAZ -D_BAR -D_FOO -D_THREAD_SAFE -pthread

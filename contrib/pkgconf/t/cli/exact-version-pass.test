@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --exact-version=1.2.3 foo
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedExitCode: 0

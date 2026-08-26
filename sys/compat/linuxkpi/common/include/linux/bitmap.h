@@ -202,7 +202,7 @@ bitmap_release_region(unsigned long *bitmap, int pos, int order)
 }
 
 static inline unsigned int
-bitmap_weight(unsigned long *addr, const unsigned int size)
+bitmap_weight(const unsigned long *addr, const unsigned int size)
 {
 	const unsigned int end = BIT_WORD(size);
 	const unsigned int tail = size & (BITS_PER_LONG - 1);

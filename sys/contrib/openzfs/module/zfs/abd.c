@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2014 by Chunwei Chen. All rights reserved.
@@ -212,11 +202,9 @@ abd_alloc(size_t size, boolean_t is_metadata)
  * buffer. Only use this when it would be very annoying to write your ABD
  * consumer with a scattered ABD.
  */
-abd_t *
-abd_alloc_linear(size_t size, boolean_t is_metadata)
+static abd_t *
+abd_alloc_linear_impl(abd_t *abd, size_t size, boolean_t is_metadata)
 {
-	abd_t *abd = abd_alloc_struct(0);
-
 	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
 
 	abd->abd_flags |= ABD_FLAG_LINEAR | ABD_FLAG_OWNER;
@@ -234,6 +222,19 @@ abd_alloc_linear(size_t size, boolean_t is_metadata)
 	abd_update_linear_stats(abd, ABDSTAT_INCR);
 
 	return (abd);
+}
+
+abd_t *
+abd_alloc_linear(size_t size, boolean_t is_metadata)
+{
+	return (abd_alloc_linear_impl(abd_alloc_struct(0), size, is_metadata));
+}
+
+abd_t *
+abd_alloc_linear_struct(abd_t *abd, size_t size, boolean_t is_metadata)
+{
+	abd_init_struct(abd);
+	return (abd_alloc_linear_impl(abd, size, is_metadata));
 }
 
 static void
@@ -280,7 +281,8 @@ static void
 abd_free_scatter(abd_t *abd)
 {
 	abd_free_chunks(abd);
-	abd_update_scatter_stats(abd, ABDSTAT_DECR);
+	if (!abd_is_from_pages(abd))
+		abd_update_scatter_stats(abd, ABDSTAT_DECR);
 }
 
 /*
@@ -348,14 +350,26 @@ abd_alloc_sametype(abd_t *sabd, size_t size)
  * to "chain" scatter/gather lists together when constructing aggregated
  * IO's. To free this abd, abd_free() must be called.
  */
-abd_t *
-abd_alloc_gang(void)
+static abd_t *
+abd_alloc_gang_impl(abd_t *abd)
 {
-	abd_t *abd = abd_alloc_struct(0);
 	abd->abd_flags |= ABD_FLAG_GANG | ABD_FLAG_OWNER;
 	list_create(&ABD_GANG(abd).abd_gang_chain,
 	    sizeof (abd_t), offsetof(abd_t, abd_gang_link));
 	return (abd);
+}
+
+abd_t *
+abd_alloc_gang(void)
+{
+	return (abd_alloc_gang_impl(abd_alloc_struct(0)));
+}
+
+abd_t *
+abd_alloc_gang_struct(abd_t *abd)
+{
+	abd_init_struct(abd);
+	return (abd_alloc_gang_impl(abd));
 }
 
 /*
@@ -621,6 +635,14 @@ abd_get_zeros(size_t size)
 	ASSERT3P(abd_zero_scatter, !=, NULL);
 	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
 	return (abd_get_offset_size(abd_zero_scatter, 0, size));
+}
+
+abd_t *
+abd_get_zeros_struct(abd_t *abd, size_t size)
+{
+	ASSERT3P(abd_zero_scatter, !=, NULL);
+	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
+	return (abd_get_offset_struct(abd, abd_zero_scatter, 0, size));
 }
 
 /*

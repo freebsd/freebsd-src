@@ -67,9 +67,11 @@ struct fs_ops *file_system[] = {
 	&cd9660_fsops,
 #if defined(USERBOOT_ZFS_SUPPORT)
 	&zfs_fsops,
+	&zstdfs_fsops,
 #endif
 	&gzipfs_fsops,
 	&bzipfs_fsops,
+	&xzfs_fsops,
 	NULL
 };
 

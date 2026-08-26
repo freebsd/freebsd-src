@@ -247,7 +247,7 @@ const char *witness_file(struct lock_object *);
 void	witness_thread_exit(struct thread *);
 
 #ifdef	WITNESS
-int	witness_startup_count(void);
+u_long	witness_startup_count(u_long);
 void	witness_startup(void *);
 
 /* Flags for witness_warn(). */

@@ -423,8 +423,9 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 	uint64_t tsc1, tsc2;
-	uint64_t acnt, mcnt, perf;
+	uint64_t acnt_start, acnt_end, mcnt_start, mcnt_end, perf;
 	register_t reg;
+	int error = 0;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
@@ -452,15 +453,20 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	/* Calibrate by measuring a short delay. */
 	reg = intr_disable();
 	if (tsc_is_invariant) {
-		wrmsr(MSR_MPERF, 0);
-		wrmsr(MSR_APERF, 0);
+		mcnt_start = rdmsr(MSR_MPERF);
+		acnt_start = rdmsr(MSR_APERF);
 		tsc1 = rdtsc();
 		DELAY(1000);
-		mcnt = rdmsr(MSR_MPERF);
-		acnt = rdmsr(MSR_APERF);
+		mcnt_end = rdmsr(MSR_MPERF);
+		acnt_end = rdmsr(MSR_APERF);
 		tsc2 = rdtsc();
 		intr_restore(reg);
-		perf = 1000 * acnt / mcnt;
+		if (mcnt_end == mcnt_start) {
+			tsc_perf_stat = 0;
+			error = EOPNOTSUPP;
+			goto err;
+		}
+		perf = 1000 * (acnt_end - acnt_start) / (mcnt_end - mcnt_start);
 		*rate = (tsc2 - tsc1) * perf;
 	} else {
 		tsc1 = rdtsc();
@@ -470,6 +476,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 		*rate = (tsc2 - tsc1) * 1000;
 	}
 
+err:
 #ifdef SMP
 	if (smp_cpus > 1) {
 		thread_lock(curthread);
@@ -478,7 +485,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	}
 #endif
 
-	return (0);
+	return (error);
 }
 
 /*

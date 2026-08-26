@@ -25,11 +25,121 @@
 
 #include "test.h"
 
-#define should(__a, __code, __opts) \
+#define should_read_set_filter_option(__a, __code, __m, __o, __v) \
+assertEqualInt(__code, archive_read_set_filter_option(__a, __m, __o, __v))
+
+static void
+read_set_filter_option_test(int pristine)
+{
+	struct archive* a = archive_read_new();
+
+	if (!pristine)
+		archive_read_support_filter_all(a);
+
+	should_read_set_filter_option(a, ARCHIVE_OK, NULL, NULL, NULL);
+	should_read_set_filter_option(a, ARCHIVE_OK, "", "", "");
+
+	should_read_set_filter_option(a, ARCHIVE_FAILED, NULL, "fubar", NULL);
+	should_read_set_filter_option(a, ARCHIVE_FAILED, NULL, "fubar", "snafu");
+	should_read_set_filter_option(a, ARCHIVE_FAILED, "fubar", "snafu", NULL);
+	should_read_set_filter_option(a, ARCHIVE_FAILED, "fubar", "snafu", "betcha");
+
+	archive_read_free(a);
+}
+
+DEFINE_TEST(test_archive_read_set_filter_option)
+{
+	read_set_filter_option_test(1);
+	read_set_filter_option_test(0);
+}
+
+#define should_read_set_format_option(__a, __code, __m, __o, __v) \
+assertEqualInt(__code, archive_read_set_format_option(__a, __m, __o, __v))
+
+static void
+read_set_format_option_test(int pristine)
+{
+	struct archive* a = archive_read_new();
+	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
+
+	if (!pristine)
+		archive_read_support_format_all(a);
+
+	/* NULL and "" denote `no option', so they're ok no matter
+	 * what, if any, formats are registered */
+	should_read_set_format_option(a, ARCHIVE_OK, NULL, NULL, NULL);
+	should_read_set_format_option(a, ARCHIVE_OK, "", "", "");
+
+	/* unknown modules and options */
+	should_read_set_format_option(a, ARCHIVE_FAILED, "fubar", "snafu", NULL);
+	should_read_set_format_option(a, ARCHIVE_FAILED, "fubar", "snafu", "betcha");
+
+	/* unknown modules and options */
+	should_read_set_format_option(a, ARCHIVE_FAILED, NULL, "snafu", NULL);
+	should_read_set_format_option(a, ARCHIVE_FAILED, NULL, "snafu", "betcha");
+
+	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_WARN otherwise */
+	should_read_set_format_option(a, known_option_rv, "iso9660", "joliet", NULL);
+	should_read_set_format_option(a, known_option_rv, "iso9660", "joliet", NULL);
+	should_read_set_format_option(a, known_option_rv, NULL, "joliet", NULL);
+	should_read_set_format_option(a, known_option_rv, NULL, "joliet", NULL);
+
+	archive_read_free(a);
+}
+
+DEFINE_TEST(test_archive_read_set_format_option)
+{
+	read_set_format_option_test(1);
+	read_set_format_option_test(0);
+}
+
+#define should_read_set_option(__a, __code, __m, __o, __v) \
+assertEqualInt(__code, archive_read_set_option(__a, __m, __o, __v))
+
+static void
+read_set_option_test(int pristine)
+{
+	struct archive* a = archive_read_new();
+	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
+
+	if (!pristine) {
+		archive_read_support_filter_all(a);
+		archive_read_support_format_all(a);
+        }
+
+	/* NULL and "" denote `no option', so they're ok no matter
+	 * what, if any, formats are registered */
+	should_read_set_option(a, ARCHIVE_OK, NULL, NULL, NULL);
+	should_read_set_option(a, ARCHIVE_OK, "", "", "");
+
+	/* unknown modules and options */
+	should_read_set_option(a, ARCHIVE_FAILED, "fubar", "snafu", NULL);
+	should_read_set_option(a, ARCHIVE_FAILED, "fubar", "snafu", "betcha");
+
+	/* unknown modules and options */
+	should_read_set_option(a, ARCHIVE_FAILED, NULL, "snafu", NULL);
+	should_read_set_option(a, ARCHIVE_FAILED, NULL, "snafu", "betcha");
+
+	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_WARN otherwise */
+	should_read_set_option(a, known_option_rv, "iso9660", "joliet", NULL);
+	should_read_set_option(a, known_option_rv, "iso9660", "joliet", NULL);
+	should_read_set_option(a, known_option_rv, NULL, "joliet", NULL);
+	should_read_set_option(a, known_option_rv, NULL, "joliet", NULL);
+
+	archive_read_free(a);
+}
+
+DEFINE_TEST(test_archive_read_set_option)
+{
+	read_set_option_test(1);
+	read_set_option_test(0);
+}
+
+#define should_read_set_options(__a, __code, __opts) \
 assertEqualInt(__code, archive_read_set_options(__a, __opts))
 
 static void
-test(int pristine)
+read_set_options_test(int pristine)
 {
 	struct archive* a = archive_read_new();
 	int halfempty_options_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
@@ -42,62 +152,62 @@ test(int pristine)
 
 	/* NULL and "" denote `no option', so they're ok no matter
 	 * what, if any, formats are registered */
-	should(a, ARCHIVE_OK, NULL);
-	should(a, ARCHIVE_OK, "");
+	should_read_set_options(a, ARCHIVE_OK, NULL);
+	should_read_set_options(a, ARCHIVE_OK, "");
 
 	/* unknown modules and options */
-	should(a, ARCHIVE_FAILED, "fubar:snafu");
+	should_read_set_options(a, ARCHIVE_FAILED, "fubar:snafu");
 	assertEqualString("Unknown module name: `fubar'",
 	    archive_error_string(a));
-	should(a, ARCHIVE_FAILED, "fubar:snafu=betcha");
+	should_read_set_options(a, ARCHIVE_FAILED, "fubar:snafu=betcha");
 	assertEqualString("Unknown module name: `fubar'",
 	    archive_error_string(a));
 
 	/* unknown modules and options */
-	should(a, ARCHIVE_FAILED, "snafu");
+	should_read_set_options(a, ARCHIVE_FAILED, "snafu");
 	assertEqualString("Undefined option: `snafu'",
 	    archive_error_string(a));
-	should(a, ARCHIVE_FAILED, "snafu=betcha");
+	should_read_set_options(a, ARCHIVE_FAILED, "snafu=betcha");
 	assertEqualString("Undefined option: `snafu'",
 	    archive_error_string(a));
 
 	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_FAILED otherwise */
-	should(a, known_option_rv, "iso9660:joliet");
+	should_read_set_options(a, known_option_rv, "iso9660:joliet");
 	if (pristine) {
 		assertEqualString("Unknown module name: `iso9660'",
 		    archive_error_string(a));
 	}
-	should(a, known_option_rv, "iso9660:joliet");
+	should_read_set_options(a, known_option_rv, "iso9660:joliet");
 	if (pristine) {
 		assertEqualString("Unknown module name: `iso9660'",
 		    archive_error_string(a));
 	}
-	should(a, known_option_rv, "joliet");
+	should_read_set_options(a, known_option_rv, "joliet");
 	if (pristine) {
 		assertEqualString("Undefined option: `joliet'",
 		    archive_error_string(a));
 	}
-	should(a, known_option_rv, "!joliet");
-	if (pristine) {
-		assertEqualString("Undefined option: `joliet'",
-		    archive_error_string(a));
-	}
-
-	should(a, ARCHIVE_OK, ",");
-	should(a, ARCHIVE_OK, ",,");
-
-	should(a, halfempty_options_rv, ",joliet");
-	if (pristine) {
-		assertEqualString("Undefined option: `joliet'",
-		    archive_error_string(a));
-	}
-	should(a, halfempty_options_rv, "joliet,");
+	should_read_set_options(a, known_option_rv, "!joliet");
 	if (pristine) {
 		assertEqualString("Undefined option: `joliet'",
 		    archive_error_string(a));
 	}
 
-	should(a, ARCHIVE_FAILED, "joliet,snafu");
+	should_read_set_options(a, ARCHIVE_OK, ",");
+	should_read_set_options(a, ARCHIVE_OK, ",,");
+
+	should_read_set_options(a, halfempty_options_rv, ",joliet");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	}
+	should_read_set_options(a, halfempty_options_rv, "joliet,");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	}
+
+	should_read_set_options(a, ARCHIVE_FAILED, "joliet,snafu");
 	if (pristine) {
 		assertEqualString("Undefined option: `joliet'",
 		    archive_error_string(a));
@@ -106,7 +216,7 @@ test(int pristine)
 		    archive_error_string(a));
 	}
 
-	should(a, ARCHIVE_FAILED, "iso9660:snafu");
+	should_read_set_options(a, ARCHIVE_FAILED, "iso9660:snafu");
 	if (pristine) {
 		assertEqualString("Unknown module name: `iso9660'",
 		    archive_error_string(a));
@@ -120,6 +230,6 @@ test(int pristine)
 
 DEFINE_TEST(test_archive_read_set_options)
 {
-	test(1);
-	test(0);
+	read_set_options_test(1);
+	read_set_options_test(0);
 }

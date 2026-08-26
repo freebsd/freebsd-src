@@ -73,6 +73,19 @@ RE_forward_name="(${RE_dnsname}(@${RE_port})?)"
 RE_forward_tls="(${RE_forward_addr}(#${RE_dnsname})?)"
 
 #
+# Check if a kernel feature is available
+#
+has_feature() {
+	local name=$1 v
+	eval "v=\$kern_features_${name}"
+	if [ -z "$v" ] ; then
+		v="$(sysctl -qn "kern.features.${name}")"
+		eval "kern_features_${name}=$((v))"
+	fi
+	return $((!v))
+}
+
+#
 # Set default values for unset configuration variables.
 #
 set_defaults() {
@@ -136,13 +149,12 @@ get_nameservers() {
 
 #
 # Scan through /etc/resolv.conf looking for uncommented nameserver
-# lines.  Comment out any that don't point to localhost.  Finally,
-# append a nameserver line that points to localhost, if there wasn't
-# one already, and enable the edns0 option.
+# lines and comment out any that don't point to localhost.  Finally,
+# append the correct nameserver lines and enable the edns0 option.
 #
 gen_resolv_conf() {
-	local localhost=no
-	local edns0=no
+	local localhost4=false localhost6=false
+	local edns0=false
 	while read line ; do
 		local bareline=${line%%\#*}
 		local key=${bareline%%[[:space:]]*}
@@ -150,8 +162,17 @@ gen_resolv_conf() {
 		case ${key} in
 		nameserver)
 			case ${value} in
-			127.0.0.1|::1|localhost|localhost.*)
-				localhost=yes
+			127.0.0.1)
+				localhost4=true
+				if ! has_feature inet ; then
+					continue
+				fi
+				;;
+			::1)
+				localhost6=true
+				if ! has_feature inet6 ; then
+					continue
+				fi
 				;;
 			*)
 				echo -n "# "
@@ -161,17 +182,20 @@ gen_resolv_conf() {
 		options)
 			case ${value} in
 			*edns0*)
-				edns0=yes
+				edns0=true
 				;;
 			esac
 			;;
 		esac
 		echo "${line}"
 	done
-	if [ "${localhost}" = "no" ] ; then
+	if ! $localhost4 && has_feature inet ; then
 		echo "nameserver 127.0.0.1"
 	fi
-	if [ "${edns0}" = "no" ] ; then
+	if ! $localhost6 && has_feature inet6 ; then
+		echo "nameserver ::1"
+	fi
+	if ! $edns0 ; then
 		echo "options edns0"
 	fi
 }
@@ -260,6 +284,12 @@ gen_unbound_conf() {
 	echo "        auto-trust-anchor-file: ${anchor}"
 	if [ "${use_tls}" = "yes" ] ; then
 		echo "        tls-cert-bundle: /etc/ssl/cert.pem"
+	fi
+	if ! has_feature inet ; then
+		echo "        do-ip4: no"
+	fi
+	if ! has_feature inet6 ; then
+		echo "        do-ip6: no"
 	fi
 	echo "        so-sndbuf: 0"
 	echo ""

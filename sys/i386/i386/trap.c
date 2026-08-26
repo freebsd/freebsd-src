@@ -201,7 +201,7 @@ trap_check_kstack(void)
 	if (stk >= PMAP_TRM_MIN_ADDRESS)
 		panic("td %p stack %#x in trampoline", td, stk);
 	if (!kstack_contains(td, stk, 0))
-		panic("td %p stack %#x not in kstack VA %#x %d",
+		panic("td %p stack %#x not in kstack VA %p %d",
 		    td, stk, td->td_kstack, td->td_kstack_pages);
 }
 #endif

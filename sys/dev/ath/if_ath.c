@@ -179,7 +179,7 @@ static struct ieee80211_node *ath_node_alloc(struct ieee80211vap *,
 static void	ath_node_cleanup(struct ieee80211_node *);
 static void	ath_node_free(struct ieee80211_node *);
 static void	ath_node_getsignal(const struct ieee80211_node *,
-			int8_t *, int8_t *);
+			net80211_rssi_t *, int8_t *);
 static void	ath_txq_init(struct ath_softc *sc, struct ath_txq *, int);
 static struct ath_txq *ath_txq_setup(struct ath_softc*, int qtype, int subtype);
 static int	ath_tx_setup(struct ath_softc *, int, int);
@@ -3957,7 +3957,7 @@ ath_node_free(struct ieee80211_node *ni)
 }
 
 static void
-ath_node_getsignal(const struct ieee80211_node *ni, int8_t *rssi, int8_t *noise)
+ath_node_getsignal(const struct ieee80211_node *ni, net80211_rssi_t *rssi, int8_t *noise)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_softc;

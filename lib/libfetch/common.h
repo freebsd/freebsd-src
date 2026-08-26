@@ -49,8 +49,11 @@ typedef struct fetchconn conn_t;
 struct fetchconn {
 	int		 sd;		/* socket descriptor */
 	char		*buf;		/* buffer */
+	char		*line;		/* line (within buffer) */
 	size_t		 bufsize;	/* buffer size */
 	size_t		 buflen;	/* length of buffer contents */
+	size_t		 linelen;	/* length of line */
+	size_t		 pos;		/* current position in buffer */
 	int		 err;		/* last protocol reply code */
 #ifdef WITH_SSL
 	SSL		*ssl;		/* SSL handle */
@@ -59,6 +62,18 @@ struct fetchconn {
 #endif
 	int		 ref;		/* reference count */
 };
+
+static inline conn_t *fetch_ref(conn_t *conn)
+{
+	++conn->ref;
+	return (conn);
+}
+
+static inline conn_t *fetch_deref(conn_t *conn)
+{
+	--conn->ref;
+	return (conn);
+}
 
 /* Structure used for error message lists */
 struct fetcherr {
@@ -114,14 +129,14 @@ struct addrinfo *fetch_resolve(const char *, int, int);
 int		 fetch_bind(int, int, const char *);
 conn_t		*fetch_connect(const char *, int, int, int);
 conn_t		*fetch_reopen(int);
-conn_t		*fetch_ref(conn_t *);
 #ifdef WITH_SSL
 int		 fetch_ssl_cb_verify_crt(int, X509_STORE_CTX*);
 #endif
 int		 fetch_ssl(conn_t *, const struct url *, int);
-ssize_t		 fetch_read(conn_t *, char *, size_t);
-int		 fetch_getln(conn_t *);
-ssize_t		 fetch_write(conn_t *, const char *, size_t);
+ssize_t		 fetch_read(conn_t *, void *, size_t);
+ssize_t		 fetch_getln(conn_t *);
+ssize_t		 fetch_bufread(conn_t *, void *, size_t);
+ssize_t		 fetch_write(conn_t *, const void *, size_t);
 ssize_t		 fetch_writev(conn_t *, struct iovec *, int);
 int		 fetch_putln(conn_t *, const char *, size_t);
 int		 fetch_close(conn_t *);

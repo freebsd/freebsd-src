@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,22 +38,8 @@ static int test_skey_cipher(void)
     EVP_CIPHER *fake_cipher = NULL;
     EVP_CIPHER_CTX *ctx = NULL;
     const unsigned char import_key[KEY_SIZE] = {
-        0x53,
-        0x4B,
-        0x45,
-        0x59,
-        0x53,
-        0x4B,
-        0x45,
-        0x59,
-        0x53,
-        0x4B,
-        0x45,
-        0x59,
-        0x53,
-        0x4B,
-        0x45,
-        0x59,
+        0x53, 0x4B, 0x45, 0x59, 0x53, 0x4B, 0x45, 0x59, 0x53, 0x4B,
+        0x45, 0x59, 0x53, 0x4B, 0x45, 0x59
     };
     OSSL_PARAM params[3];
     OSSL_PARAM *export_params = NULL;

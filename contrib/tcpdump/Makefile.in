@@ -49,7 +49,7 @@ DEFS = @DEFS@ @CPPFLAGS@ @V_DEFS@
 
 # Standard CFLAGS
 CFLAGS = @CFLAGS@
-FULL_CFLAGS = $(CCOPT) $(DEFS) $(INCLS) $(CFLAGS)
+FULL_CFLAGS = $(INCLS) $(CCOPT) $(DEFS) $(CFLAGS)
 
 # Standard LDFLAGS
 LDFLAGS = @LDFLAGS@
@@ -192,7 +192,6 @@ LIBNETDISSECT_SRC=\
 	print-openflow.c \
 	print-ospf.c \
 	print-ospf6.c \
-	print-otv.c \
 	print-pflog.c \
 	print-pgm.c \
 	print-pim.c \
@@ -373,7 +372,6 @@ EXTRA_DIST = \
 	missing/getopt_long.h \
 	missing/getservent.c \
 	missing/pcap_dump_ftell.c \
-	missing/snprintf.c \
 	missing/strdup.c \
 	missing/strlcat.c \
 	missing/strlcpy.c \
@@ -409,8 +407,6 @@ getservent.o: $(srcdir)/missing/getservent.c
 	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/getservent.c
 getopt_long.o: $(srcdir)/missing/getopt_long.c
 	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/getopt_long.c
-snprintf.o: $(srcdir)/missing/snprintf.c
-	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/snprintf.c
 strdup.o: $(srcdir)/missing/strdup.c
 	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strdup.c
 strlcat.o: $(srcdir)/missing/strlcat.c
@@ -504,7 +500,7 @@ releasetar:
 	     tar xf -) && \
 	    echo "No $$TAG tag. Archive build from HEAD."; \
 	fi && \
-	(cd "$$TAG" && "$${AUTORECONF:-autoreconf}" && rm -rf autom4te.cache) && \
+	(cd "$$TAG" && ./autogen.sh && rm -rf autom4te.cache) && \
 	tar cf "$$DIR/$$TAG".tar "$$TAG" && \
 	rm -f "$$DIR/$$TAG".tar.gz && \
 	gzip --best "$$DIR/$$TAG".tar && \
@@ -516,6 +512,22 @@ releasecheck: releasetar
 	INSTALL_DIR=/tmp/install_"$$TAG"_$$$$ && \
 	DIR=`pwd` && \
 	cd /tmp && \
+	rm -rf libpcap && \
+	rm -rf install_libpcap && \
+	echo "[$@] $$ git clone [...] libpcap.git" && \
+	git clone --depth 3 --quiet https://github.com/the-tcpdump-group/libpcap.git && \
+	echo "[$@] $$ cd libpcap" && \
+	cd libpcap && \
+	echo "[$@] $$ ./autogen.sh" && \
+	./autogen.sh && \
+	echo "[$@] $$ ./configure --quiet --prefix=/tmp/install_libpcap" && \
+	./configure --quiet --prefix=/tmp/install_libpcap && \
+	echo "[$@] $$ make -s " && \
+	make -s && \
+	echo "[$@] $$ make -s install" && \
+	make -s install && \
+	echo "[$@] $$ cd .." && \
+	cd .. && \
 	rm -rf "$$TAG" && \
 	rm -rf "$$INSTALL_DIR" && \
 	tar xf "$$DIR"/"$$TAG".tar.gz && \
@@ -537,6 +549,8 @@ releasecheck: releasetar
 	touch .devel && \
 	mkdir build && \
 	cd build && \
+	echo "[$@] $$ export PKG_CONFIG_PATH=/tmp/install_libpcap/lib/pkgconfig" && \
+	export PKG_CONFIG_PATH=/tmp/install_libpcap/lib/pkgconfig && \
 	echo '[$@] $$ cmake -DENABLE_SMB=yes [...] ..' && \
 	cmake -DENABLE_SMB=yes \
 	    -DCMAKE_INSTALL_PREFIX="$$INSTALL_DIR" \
@@ -551,6 +565,8 @@ releasecheck: releasetar
 	cd ../.. && \
 	rm -rf "$$TAG" && \
 	rm -rf "$$INSTALL_DIR" && \
+	rm -rf install_libpcap && \
+	rm -rf libpcap && \
 	echo '[$@] Done.'
 
 whitespacecheck:

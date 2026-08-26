@@ -19,6 +19,7 @@
 #include <atf-c.h>
 #include <libutil.h>
 
+#if defined(TIOCSTI)
 enum stierr {
 	STIERR_CONFIG_FETCH,
 	STIERR_CONFIG,
@@ -325,13 +326,18 @@ ATF_TC_BODY(unprivileged_fail_noread, tc)
 
 	finalize_child(pid, -1);
 }
+#endif /* defined(TIOCSTI) */
 
 ATF_TP_ADD_TCS(tp)
 {
+#if !defined(TIOCSTI)
+	(void)tp;
+#else
 	ATF_TP_ADD_TC(tp, basic);
 	ATF_TP_ADD_TC(tp, root);
 	ATF_TP_ADD_TC(tp, unprivileged_fail_noctty);
 	ATF_TP_ADD_TC(tp, unprivileged_fail_noread);
+#endif
 
 	return (atf_no_error());
 }

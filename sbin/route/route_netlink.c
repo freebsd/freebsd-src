@@ -31,7 +31,7 @@ const char *routename(struct sockaddr *);
 const char *netname(struct sockaddr *);
 void printb(int, const char *);
 extern const char routeflags[];
-extern int verbose, debugonly;
+extern int verbose, debugonly, nexthop;
 
 int rtmsg_nl(int cmd, int rtm_flags, int fib, int rtm_addrs, struct sockaddr_storage *so,
     struct rt_metrics *rt_metrics);
@@ -42,8 +42,12 @@ struct nl_helper;
 struct snl_msg_info;
 static void print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr,
     struct sockaddr *dst);
+static void print_nhop_getmsg(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct sockaddr *dst);
 static void print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr,
     struct snl_msg_info *cinfo);
+static void print_nlmsg_route_nhop(struct nl_helper *, struct snl_parsed_route *,
+    struct rta_mpath_nh *, bool);
 
 #define s6_addr32 __u6_addr.__u6_addr32
 #define	bitcount32(x)	__bitcount32((uint32_t)(x))
@@ -170,6 +174,7 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 	struct sockaddr *dst = get_addr(so, rtm_addrs, RTAX_DST);
 	struct sockaddr *mask = get_addr(so, rtm_addrs, RTAX_NETMASK);
 	struct sockaddr *gw = get_addr(so, rtm_addrs, RTAX_GATEWAY);
+	struct sockaddr *prefsrc = get_addr(so, rtm_addrs, RTAX_IFA);
 
 	if (dst == NULL)
 		return (EINVAL);
@@ -221,6 +226,8 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		rtm->rtm_flags = RTM_F_PREFIX;
 
 	snl_add_msg_attr_ip(&nw, RTA_DST, dst);
+	if (prefsrc != NULL)
+		snl_add_msg_attr_ip(&nw, RTA_PREFSRC, prefsrc);
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
 	uint32_t rta_oif = 0;
@@ -263,6 +270,11 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		snl_end_attr_nested(&nw, off);
 	}
 
+	if (rt_metrics->rmx_expire > 0)
+		snl_add_msg_attr_u32(&nw, NL_RTA_EXPIRES, rt_metrics->rmx_expire);
+
+	if (rt_metrics->rmx_metric > 0)
+		snl_add_msg_attr_u32(&nw, NL_RTA_PRIORITY, rt_metrics->rmx_metric);
 	if (rt_metrics->rmx_weight > 0)
 		snl_add_msg_attr_u32(&nw, NL_RTA_WEIGHT, rt_metrics->rmx_weight);
 
@@ -272,7 +284,10 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		hdr = snl_read_reply(ss, hdr->nlmsg_seq);
 		if (nl_type == NL_RTM_GETROUTE) {
 			if (hdr->nlmsg_type == NL_RTM_NEWROUTE) {
-				print_getmsg(h, hdr, dst);
+				if (!nexthop)
+					print_getmsg(h, hdr, dst);
+				else
+					print_nhop_getmsg(h, hdr, dst);
 				return (0);
 			}
 		}
@@ -343,7 +358,6 @@ static void
 print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
 {
 	struct snl_state *ss = &h->ss_cmd;
-	struct timespec ts;
 	struct snl_parsed_route r = { .rtax_weight = RT_DEFAULT_WEIGHT };
 
 	if (!snl_parse_nlmsg(ss, hdr, &snl_rtm_route_parser, &r))
@@ -374,23 +388,68 @@ print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
 	struct rt_metrics rmx = {
 		.rmx_mtu = r.rtax_mtu,
 		.rmx_weight = r.rtax_weight,
+		.rmx_metric = r.rta_metric,
 		.rmx_expire = r.rta_expire,
 	};
 
-	printf("\n%9s %9s %9s %9s %9s %10s %9s\n", "recvpipe",
-	    "sendpipe", "ssthresh", "rtt,msec", "mtu   ", "weight", "expire");
+	printf("\n%9s %9s %9s %9s %9s %9s %9s %9s\n", "recvpipe", "sendpipe",
+	    "ssthresh", "rtt,msec", "mtu   ", "metric", "weight", "expire");
 	printf("%8lu  ", rmx.rmx_recvpipe);
 	printf("%8lu  ", rmx.rmx_sendpipe);
 	printf("%8lu  ", rmx.rmx_ssthresh);
 	printf("%8lu  ", 0UL);
 	printf("%8lu  ", rmx.rmx_mtu);
+	printf("%8lu  ", rmx.rmx_metric);
 	printf("%8lu  ", rmx.rmx_weight);
-	if (rmx.rmx_expire > 0)
-		clock_gettime(CLOCK_REALTIME_FAST, &ts);
-	else
-		ts.tv_sec = 0;
-	printf("%8ld \n", (long)(rmx.rmx_expire - ts.tv_sec));
+	printf("%8ld \n", rmx.rmx_expire);
 }
+
+static void
+print_nhop_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst)
+{
+	struct snl_state *ss = &h->ss_cmd;
+	struct snl_parsed_route r = { .rtax_weight = RT_DEFAULT_WEIGHT };
+	struct snl_parsed_link_simple link = {};
+	struct sockaddr *mask;
+
+	if (!snl_parse_nlmsg(ss, hdr, &snl_rtm_route_parser, &r))
+		return;
+
+	get_ifdata(h, r.rta_oif, &link);
+	r.rta_rtflags |= (RTF_UP | RTF_DONE);
+
+	printf("   route to: %s\n", routename(dst));
+
+	if (r.rta_dst)
+		printf("destination: %s\n", routename(r.rta_dst));
+	mask = get_netmask(ss, r.rtm_family, r.rtm_dst_len);
+	if (mask)
+		printf("       mask: %s\n", routename(mask));
+	printf("        fib: %u\n", (unsigned int)r.rta_table);
+	printf("      flags: ");
+	printb(r.rta_rtflags, routeflags);
+	printf("\n      nhops: %u\n", r.rta_multipath.count);
+	if (r.rta_multipath.count != 0) {
+		bool first = true;
+		for (uint32_t i = 0; i < r.rta_multipath.count; i++) {
+			struct rta_mpath_nh *nh = r.rta_multipath.items[i];
+
+			printf("\tvia ");
+			print_nlmsg_route_nhop(h, &r, nh, first);
+			first = false;
+		}
+	} else {
+		struct rta_mpath_nh nh = {
+			.gw = r.rta_gw,
+			.ifindex = r.rta_oif,
+			.rtax_mtu = link.ifla_mtu,
+			.rta_metric = r.rta_metric,
+		};
+		printf("\tvia ");
+		print_nlmsg_route_nhop(h, &r, &nh, true);
+	}
+}
+
 
 static void
 print_prefix(struct nl_helper *h, char *buf, int bufsize, struct sockaddr *sa, int plen)
@@ -474,7 +533,7 @@ static void
 print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
     struct rta_mpath_nh *nh, bool first)
 {
-	// gw 10.0.0.1 ifp vtnet0 mtu 1500 table inet.0
+	// gw 10.0.0.1 iface vtnet0 weight 100 mtu 1500 expire 3600 table inet.0
 	if (nh->gw != NULL) {
 		char gwbuf[128];
 		print_prefix(h, gwbuf, sizeof(gwbuf), nh->gw, -1);
@@ -488,8 +547,12 @@ print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
 		if (nh->rtax_mtu == 0)
 			nh->rtax_mtu = link.ifla_mtu;
 		printf("iface %s ", link.ifla_ifname);
+		printf("metric %d ", nh->rta_metric);
+		printf("weight %d ", nh->rtnh_weight);
 		if (nh->rtax_mtu != 0)
 			printf("mtu %d ", nh->rtax_mtu);
+		if (nh->rta_expire > 0)
+			printf("expire %u ", nh->rta_expire);
 	}
 
 	if (first) {
@@ -538,14 +601,14 @@ print_nlmsg_route(struct nl_helper *h, struct nlmsghdr *hdr,
 		return;
 	}
 
-	if (r.rta_multipath.num_nhops != 0) {
+	if (r.rta_multipath.count != 0) {
 		bool first = true;
 
 		memset(buf, ' ', sizeof(buf));
 		buf[len] = '\0';
 
-		for (uint32_t i = 0; i < r.rta_multipath.num_nhops; i++) {
-			struct rta_mpath_nh *nh = r.rta_multipath.nhops[i];
+		for (uint32_t i = 0; i < r.rta_multipath.count; i++) {
+			struct rta_mpath_nh *nh = r.rta_multipath.items[i];
 
 			if (!first)
 				printf("%s", buf);
@@ -840,9 +903,10 @@ flushroute_one(struct nl_helper *h, struct snl_parsed_route *r)
 		print_nlmsg(h, hdr, &attrs);
 	}
 	else {
-		if (r->rta_multipath.num_nhops != 0) {
-			for (uint32_t i = 0; i < r->rta_multipath.num_nhops; i++) {
-				struct rta_mpath_nh *nh = r->rta_multipath.nhops[i];
+		if (r->rta_multipath.count != 0) {
+			for (uint32_t i = 0; i < r->rta_multipath.count; i++) {
+				struct rta_mpath_nh *nh =
+				    r->rta_multipath.items[i];
 
 				print_flushed_route(r, nh->gw);
 			}
@@ -890,7 +954,8 @@ flushroutes_fib_nl(int fib, int af)
 			struct snl_msg_info attrs = {};
 			print_nlmsg(&h, hdr, &attrs);
 		}
-		if (r.rta_table != (uint32_t)fib || r.rtm_family != af)
+		if (r.rta_table != (uint32_t)fib ||
+		    (af != AF_UNSPEC && r.rtm_family != af))
 			continue;
 		if ((r.rta_rtflags & RTF_GATEWAY) == 0)
 			continue;
@@ -911,4 +976,3 @@ flushroutes_fib_nl(int fib, int af)
 
 	return (e.error);
 }
-

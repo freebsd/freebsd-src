@@ -1,23 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012, 2018 by Delphix. All rights reserved.
@@ -26,8 +16,10 @@
 .\" Copyright (c) 2018 George Melikov. All Rights Reserved.
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
+.\" Copyright (c) 2024-2026, Klara, Inc.
+.\" Copyright (c) 2026, TrueNAS.
 .\"
-.Dd May 20, 2025
+.Dd May 26, 2026
 .Dt ZPOOL-STATUS 8
 .Os
 .
@@ -63,6 +55,8 @@ If a scrub or resilver is in progress, this command reports the percentage done
 and the estimated time to completion.
 Both of these are only approximate, because the amount of data in the pool and
 the other workloads on the system can change.
+Due to concurrent writes on a live system, it is possible for both scrubs and
+resilvers to progress beyond 100% completion.
 .Bl -tag -width Ds
 .It Fl c Ar script1 Ns Oo , Ns Ar script2 Ns ,… Oc
 Run a script (or scripts) on each vdev and include the output as a new column
@@ -363,6 +357,7 @@ can be used to run a script on each VDEV.
 .Ed
 .
 .Sh SEE ALSO
+.Xr zpool-condense 8 ,
 .Xr zpool-events 8 ,
 .Xr zpool-history 8 ,
 .Xr zpool-iostat 8 ,

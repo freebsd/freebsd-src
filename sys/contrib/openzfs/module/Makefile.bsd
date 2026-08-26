@@ -38,6 +38,7 @@ CFLAGS+= -I${INCDIR}/os/freebsd
 CFLAGS+= -I${INCDIR}/os/freebsd/spl
 CFLAGS+= -I${INCDIR}/os/freebsd/zfs
 CFLAGS+= -I${SRCDIR}/zstd/include
+CFLAGS+= -include ${INCDIR}/sys/simd_config.h
 CFLAGS+= -include ${INCDIR}/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -I${.CURDIR}
 
@@ -46,8 +47,10 @@ CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS -D__BSD_VISIBLE=1 \
 	-D_SYS_VMEM_H_ -DKDTRACE_HOOKS -DCOMPAT_FREEBSD11
 
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+= -D__x86_64 -DHAVE_SSE2 -DHAVE_SSSE3 -DHAVE_SSE4_1 -DHAVE_SSE4_2 \
-	-DHAVE_AVX -DHAVE_AVX2 -DHAVE_AVX512F -DHAVE_AVX512VL -DHAVE_AVX512BW
+CFLAGS+= -D__x86_64 -DHAVE_TOOLCHAIN_SSE2 -DHAVE_TOOLCHAIN_SSSE3 \
+	-DHAVE_TOOLCHAIN_SSE4_1 -DHAVE_TOOLCHAIN_AVX -DHAVE_TOOLCHAIN_AVX2 \
+	-DHAVE_TOOLCHAIN_AVX512F -DHAVE_TOOLCHAIN_AVX512VL \
+	-DHAVE_TOOLCHAIN_AVX512BW -DHAVE_TOOLCHAIN_SHA512EXT
 .endif
 
 .if defined(WITH_DEBUG) && ${WITH_DEBUG} == "true"
@@ -62,10 +65,11 @@ CFLAGS+= -DZFS_DEBUG -g
 CFLAGS += -DNDEBUG
 .endif
 
-.if defined(WITH_VFS_DEBUG) && ${WITH_VFS_DEBUG} == "true"
-# kernel must also be built with this option for this to work
-CFLAGS+= -DDEBUG_VFS_LOCKS
+.for _SAN in KASAN KMSAN KUBSAN
+.if defined(WITH_${_SAN}) && ${WITH_${_SAN}} == "true"
+KERN_OPTS_EXTRA+= ${_SAN}
 .endif
+.endfor
 
 .if defined(WITH_GCOV) && ${WITH_GCOV} == "true"
 CFLAGS+=	 -fprofile-arcs -ftest-coverage
@@ -230,9 +234,6 @@ SRCS+=	abd_os.c \
 	zio_crypt.c \
 	zvol_os.c
 
-#unicode
-SRCS+= 	u8_textprep.c
-
 #zcommon
 SRCS+=	cityhash.c \
 	zfeature_common.c \
@@ -322,6 +323,7 @@ SRCS+=	abd.c \
 	spa_misc.c \
 	spa_stats.c \
 	txg.c \
+	u8_textprep.c \
 	uberblock.c \
 	unique.c \
 	vdev.c \
@@ -349,6 +351,8 @@ SRCS+=	abd.c \
 	vdev_root.c \
 	vdev_trim.c \
 	zap.c \
+	zap_fat.c \
+	zap_impl.c \
 	zap_leaf.c \
 	zap_micro.c \
 	zcp.c \
@@ -391,7 +395,6 @@ SRCS+=	entropy_common.c \
 	error_private.c \
 	fse_decompress.c \
 	pool.c \
-	xxhash.c \
 	zstd_common.c \
 
 #zstd/compress
@@ -406,7 +409,8 @@ SRCS+=	fse_compress.c \
 	zstd_fast.c \
 	zstd_lazy.c \
 	zstd_ldm.c \
-	zstd_opt.c
+	zstd_opt.c \
+	zstd_preSplit.c
 
 #zstd/decompress
 SRCS+=	huf_decompress.c \
@@ -479,8 +483,8 @@ CFLAGS.vdev_raidz_math_avx2.c= -Wno-cast-qual -Wno-duplicate-decl-specifier
 CFLAGS.vdev_raidz_math_avx512f.c= -Wno-cast-qual -Wno-duplicate-decl-specifier
 CFLAGS.vdev_raidz_math_scalar.c= -Wno-cast-qual
 CFLAGS.vdev_raidz_math_sse2.c= -Wno-cast-qual -Wno-duplicate-decl-specifier
+CFLAGS.zap_impl.c= -Wno-cast-qual
 CFLAGS.zap_leaf.c= -Wno-cast-qual
-CFLAGS.zap_micro.c= -Wno-cast-qual
 CFLAGS.zcp.c= -Wno-cast-qual
 CFLAGS.zfs_fletcher.c= -Wno-cast-qual -Wno-pointer-arith
 CFLAGS.zfs_fletcher_avx512.c= -Wno-cast-qual -Wno-pointer-arith

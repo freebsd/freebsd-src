@@ -123,7 +123,7 @@ mkdir_home_parents(int dfd, const char *dir)
 					    dirs);
 				if (fchownat(dfd, dirs, 0, 0, 0) != 0)
 					warn("chown(%s)", dirs);
-				metalog_emit(dir,
+				metalog_emit(dirs,
 				    (_DEF_DIRMODE | S_IFDIR) & ~pumask, 0, 0,
 				    0);
 			}
@@ -464,7 +464,7 @@ shell_path(char const * path, char *shells[], char *sh)
 						return shellpath;
 				}
 		}
-		if (sh == NULL)
+		if (sh != NULL)
 			errx(EX_OSFILE, "can't find shell `%s' in shell paths", sh);
 		errx(EX_CONFIG, "no default shell available or defined");
 		return NULL;

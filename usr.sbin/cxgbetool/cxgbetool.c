@@ -2169,85 +2169,102 @@ get_sge_context(int argc, const char *argv[])
 }
 
 static int
+real_load_file(unsigned long ioc, const char *iocname, const char *fname,
+    struct t4_bootrom *br)
+{
+	int rc, fd, n;
+	struct t4_data data = {0};
+	struct stat st = {0};
+	const int bufsz = 2 * 1024 * 1024;
+
+	if (strcmp(fname, "clear") == 0) {
+		if (br == NULL)
+			return (real_doit(ioc, &data, iocname));
+		else
+			return (real_doit(ioc, br, iocname));
+	}
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	if (fstat(fd, &st) < 0) {
+		warn("fstat");
+		close(fd);
+		return (errno);
+	}
+
+	if (st.st_mode & S_IFREG) {
+		data.len = st.st_size;
+		data.data = mmap(0, data.len, PROT_READ, MAP_PRIVATE, fd, 0);
+		if (data.data == MAP_FAILED) {
+			warn("mmap %u", data.len);
+			return (errno);
+		}
+	} else {
+		data.data = malloc(bufsz);
+		if (data.data == NULL) {
+			warnx("malloc failed.");
+			return (ENOMEM);
+		}
+		for (data.len = 0; data.len <= bufsz; data.len += n) {
+			n = read(fd, data.data + data.len, bufsz - data.len);
+			if (n == -1) {
+				warn("read(%s, %u)", fname, data.len);
+				free(data.data);
+				close(fd);
+				return (errno);
+			}
+			if (n == 0)
+				break;
+		}
+		if (data.len == bufsz)
+			warnx("file '%s' contents > %u ignored.", fname, bufsz);
+	}
+
+	if (br == NULL)
+		rc = real_doit(ioc, &data, iocname);
+	else {
+		br->len = data.len;
+		br->data = data.data;
+		rc = real_doit(ioc, br, iocname);
+	}
+	if (st.st_mode & S_IFREG)
+		munmap(data.data, data.len);
+	else
+		free(data.data);
+	close(fd);
+	return (rc);
+}
+#define load_file(ioc, fname) real_load_file(ioc, #ioc, fname, NULL)
+#define load_file_br(ioc, fname, br) real_load_file(ioc, #ioc, fname, br)
+
+static int
 loadfw(int argc, const char *argv[])
 {
-	int rc, fd;
-	struct t4_data data = {0};
 	const char *fname = argv[0];
-	struct stat st = {0};
 
 	if (argc != 1) {
 		warnx("loadfw: incorrect number of arguments.");
 		return (EINVAL);
 	}
 
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		warn("open(%s)", fname);
-		return (errno);
-	}
-
-	if (fstat(fd, &st) < 0) {
-		warn("fstat");
-		close(fd);
-		return (errno);
-	}
-
-	data.len = st.st_size;
-	data.data = mmap(0, data.len, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (data.data == MAP_FAILED) {
-		warn("mmap");
-		close(fd);
-		return (errno);
-	}
-
-	rc = doit(CHELSIO_T4_LOAD_FW, &data);
-	munmap(data.data, data.len);
-	close(fd);
-	return (rc);
+	return (load_file(CHELSIO_T4_LOAD_FW, fname));
 }
 
 static int
 loadcfg(int argc, const char *argv[])
 {
-	int rc, fd;
-	struct t4_data data = {0};
 	const char *fname = argv[0];
-	struct stat st = {0};
 
 	if (argc != 1) {
 		warnx("loadcfg: incorrect number of arguments.");
 		return (EINVAL);
 	}
 
-	if (strcmp(fname, "clear") == 0)
-		return (doit(CHELSIO_T4_LOAD_CFG, &data));
-
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		warn("open(%s)", fname);
-		return (errno);
-	}
-
-	if (fstat(fd, &st) < 0) {
-		warn("fstat");
-		close(fd);
-		return (errno);
-	}
-
-	data.len = st.st_size;
-	data.len &= ~3;		/* Clip off to make it a multiple of 4 */
-	data.data = mmap(0, data.len, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (data.data == MAP_FAILED) {
-		warn("mmap");
-		close(fd);
-		return (errno);
-	}
-
-	rc = doit(CHELSIO_T4_LOAD_CFG, &data);
-	munmap(data.data, data.len);
-	close(fd);
-	return (rc);
+	return (load_file(CHELSIO_T4_LOAD_CFG, fname));
 }
 
 static int
@@ -2317,12 +2334,10 @@ done:
 static int
 loadboot(int argc, const char *argv[])
 {
-	int rc, fd;
 	long l;
 	char *p;
 	struct t4_bootrom br = {0};
 	const char *fname = argv[0];
-	struct stat st = {0};
 
 	if (argc == 1) {
 		br.pf_offset = 0;
@@ -2344,75 +2359,20 @@ loadboot(int argc, const char *argv[])
 		return (EINVAL);
 	}
 
-	if (strcmp(fname, "clear") == 0)
-		return (doit(CHELSIO_T4_LOAD_BOOT, &br));
-
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		warn("open(%s)", fname);
-		return (errno);
-	}
-
-	if (fstat(fd, &st) < 0) {
-		warn("fstat");
-		close(fd);
-		return (errno);
-	}
-
-	br.len = st.st_size;
-	br.data = mmap(0, br.len, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (br.data == MAP_FAILED) {
-		warn("mmap");
-		close(fd);
-		return (errno);
-	}
-
-	rc = doit(CHELSIO_T4_LOAD_BOOT, &br);
-	munmap(br.data, br.len);
-	close(fd);
-	return (rc);
+	return (load_file_br(CHELSIO_T4_LOAD_BOOT, fname, &br));
 }
 
 static int
 loadbootcfg(int argc, const char *argv[])
 {
-	int rc, fd;
-	struct t4_data bc = {0};
 	const char *fname = argv[0];
-	struct stat st = {0};
 
 	if (argc != 1) {
 		warnx("loadbootcfg: incorrect number of arguments.");
 		return (EINVAL);
 	}
 
-	if (strcmp(fname, "clear") == 0)
-		return (doit(CHELSIO_T4_LOAD_BOOTCFG, &bc));
-
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		warn("open(%s)", fname);
-		return (errno);
-	}
-
-	if (fstat(fd, &st) < 0) {
-		warn("fstat");
-		close(fd);
-		return (errno);
-	}
-
-	bc.len = st.st_size;
-	bc.data = mmap(0, bc.len, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (bc.data == MAP_FAILED) {
-		warn("mmap");
-		close(fd);
-		return (errno);
-	}
-
-	rc = doit(CHELSIO_T4_LOAD_BOOTCFG, &bc);
-	munmap(bc.data, bc.len);
-	close(fd);
-	return (rc);
+	return (load_file(CHELSIO_T4_LOAD_BOOTCFG, fname));
 }
 
 /*

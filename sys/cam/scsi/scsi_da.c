@@ -5461,24 +5461,27 @@ dadone_probecache(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		if (sense_hdr->data_length + 1 <
 		    sense_hdr->blk_desc_len + sizeof(*cache_page)) {
-			xpt_print(done_ccb->ccb_h.path,
-		"CACHE PAGE TOO SHORT data len %d desc len %d\n",
-			    sense_hdr->data_length,
-			    sense_hdr->blk_desc_len);
+			if (bootverbose)
+				xpt_print(done_ccb->ccb_h.path,
+			    "CACHE PAGE TOO SHORT data len %d desc len %d\n",
+				    sense_hdr->data_length,
+				    sense_hdr->blk_desc_len);
 			goto bad;
 		}
 		if ((cache_page->page_code & ~SMS_PAGE_CTRL_MASK) !=
 		    SMS_CACHE_PAGE) {
-			xpt_print(done_ccb->ccb_h.path,
-			    "Bad cache page %#x\n",
-			    cache_page->page_code);
+			if (bootverbose)
+				xpt_print(done_ccb->ccb_h.path,
+				    "Bad cache page %#x\n",
+				    cache_page->page_code);
 			goto bad;
 		}
 		if (cache_page->page_length != sizeof(*cache_page) -
 			offsetof(struct scsi_caching_page, flags1)) {
-			xpt_print(done_ccb->ccb_h.path,
-			    "CACHE PAGE length bogus %#x\n",
-			    cache_page->page_length);
+			if (bootverbose)
+				xpt_print(done_ccb->ccb_h.path,
+				    "CACHE PAGE length bogus %#x\n",
+				    cache_page->page_length);
 			goto bad;
 		}
 		/*
@@ -5495,7 +5498,8 @@ dadone_probecache(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		if (softc->quirks & DA_Q_NO_SYNC_CACHE &&
 			cache_page->flags1 & SCP_WCE)
-			xpt_print(done_ccb->ccb_h.path,
+			if (bootverbose)
+				xpt_print(done_ccb->ccb_h.path,
     "Devices quirked NO_SYNC_CACHE, but WCE=1 enabling write cache.\n");
 	} else {
 		int error, error_code, sense_key, asc, ascq;
@@ -5536,8 +5540,9 @@ dadone_probecache(struct cam_periph *periph, union ccb *done_ccb)
 						 /*getcount_only*/0);
 			}
 		}
-		xpt_print(done_ccb->ccb_h.path,
-		    "MODE SENSE for CACHE page command failed.\n");
+		if (bootverbose)
+			xpt_print(done_ccb->ccb_h.path,
+			    "MODE SENSE for CACHE page command failed.\n");
 
 		/*
 		 * There's no cache page, the command wasn't
@@ -5549,10 +5554,12 @@ dadone_probecache(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		if (mark_bad) {
 bad:
-			xpt_print(done_ccb->ccb_h.path,
+			if (bootverbose)
+				xpt_print(done_ccb->ccb_h.path,
 			    "Mode page 8 missing, disabling SYNCHRONIZE CACHE\n");
 			if (softc->quirks & DA_Q_NO_SYNC_CACHE)
-				xpt_print(done_ccb->ccb_h.path,
+				if (bootverbose)
+					xpt_print(done_ccb->ccb_h.path,
     "Devices already quirked for NO_SYNC_CACHE, maybe remove quirk table\n");
 			softc->quirks |= DA_Q_NO_SYNC_CACHE;
 			softc->disk->d_flags &= ~DISKFLAG_CANFLUSHCACHE;

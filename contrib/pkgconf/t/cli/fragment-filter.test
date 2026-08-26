@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --fragment-filter=L --libs foo
+ExpectedStdout: -L/test/lib
+ExpectedExitCode: 0

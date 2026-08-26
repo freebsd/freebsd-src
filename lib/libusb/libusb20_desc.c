@@ -44,6 +44,7 @@ static const uint32_t libusb20_me_encode_empty[2];	/* dummy */
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_DEVICE_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_ENDPOINT_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_INTERFACE_DESC);
+LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_INTERFACE_ASSOCIATION_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_CONFIG_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_CONTROL_SETUP);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_SS_ENDPT_COMP_DESC);
@@ -67,12 +68,14 @@ libusb20_parse_config_desc(const void *config_desc)
 	struct libusb20_interface *last_if;
 	struct libusb20_endpoint *lub_endpoint;
 	struct libusb20_endpoint *last_ep;
+	struct libusb20_iad_desc *lub_iad;
 
 	struct libusb20_me_struct pcdesc;
 	const uint8_t *ptr;
 	uint32_t size;
 	uint16_t niface_no_alt;
 	uint16_t niface;
+	uint16_t niad;
 	uint16_t nendpoint;
 	uint16_t iface_no;
 
@@ -89,6 +92,7 @@ libusb20_parse_config_desc(const void *config_desc)
 	nendpoint = 0;
 	niface = 0;
 	iface_no = 0xFFFF;
+	niad = 0;
 	ptr = NULL;
 
 	/* get "wTotalLength" and setup "pcdesc" */
@@ -109,6 +113,8 @@ libusb20_parse_config_desc(const void *config_desc)
 				iface_no = ptr[2];
 				niface_no_alt++;
 			}
+		} else if (ptr[1] == LIBUSB20_DT_INTERFACE_ASSOCIATION) {
+			niad++;
 		}
 	}
 
@@ -119,10 +125,12 @@ libusb20_parse_config_desc(const void *config_desc)
 	if (nendpoint >= 256) {
 		return (NULL);		/* corrupt */
 	}
-	size = sizeof(*lub_config) +
-	    (niface * sizeof(*lub_interface)) +
+	if (niad >= 256)
+		return (NULL);
+
+	size = sizeof(*lub_config) + (niface * sizeof(*lub_interface)) +
 	    (nendpoint * sizeof(*lub_endpoint)) +
-	    pcdesc.len;
+	    (niad * sizeof(*lub_iad)) + pcdesc.len;
 
 	lub_config = malloc(size);
 	if (lub_config == NULL) {
@@ -134,14 +142,15 @@ libusb20_parse_config_desc(const void *config_desc)
 	lub_interface = (void *)(lub_config + 1);
 	lub_alt_interface = (void *)(lub_interface + niface_no_alt);
 	lub_endpoint = (void *)(lub_interface + niface);
+	lub_iad = (void *)(lub_endpoint + nendpoint);
 
 	/*
 	 * Make a copy of the config descriptor, so that the caller can free
 	 * the initial config descriptor pointer!
 	 */
-	memcpy((void *)(lub_endpoint + nendpoint), config_desc, pcdesc.len);
+	memcpy((void *)(lub_iad + niad), config_desc, pcdesc.len);
 
-	ptr = (const void *)(lub_endpoint + nendpoint);
+	ptr = (const void *)(lub_iad + niad);
 	pcdesc.ptr = LIBUSB20_ADD_BYTES(ptr, 0);
 
 	/* init config structure */
@@ -156,6 +165,8 @@ libusb20_parse_config_desc(const void *config_desc)
 	lub_config->extra.ptr = LIBUSB20_ADD_BYTES(ptr, ptr[0]);
 	lub_config->extra.len = -ptr[0];
 	lub_config->extra.type = LIBUSB20_ME_IS_RAW;
+	lub_config->niad = niad;
+	lub_config->iad_desc = lub_iad;
 
 	/* reset states */
 	niface = 0;
@@ -163,6 +174,7 @@ libusb20_parse_config_desc(const void *config_desc)
 	ptr = NULL;
 	lub_interface--;
 	lub_endpoint--;
+	lub_iad--;
 	last_if = NULL;
 	last_ep = NULL;
 
@@ -223,6 +235,14 @@ libusb20_parse_config_desc(const void *config_desc)
 			last_if->num_altsetting = 0;
 			last_if->num_endpoints = 0;
 			last_ep = NULL;
+		} else if (ptr[1] == LIBUSB20_DT_INTERFACE_ASSOCIATION) {
+			lub_iad++;
+			LIBUSB20_INIT(LIBUSB20_INTERFACE_ASSOCIATION_DESC,
+			    &lub_iad->desc);
+			libusb20_me_decode(ptr, ptr[0], &lub_iad->desc);
+			lub_iad->extra.ptr = LIBUSB20_ADD_BYTES(ptr, ptr[0]);
+			lub_iad->extra.len = 0;
+			lub_iad->extra.type = LIBUSB20_ME_IS_RAW;
 		} else {
 			/* unknown descriptor */
 			if (last_if) {

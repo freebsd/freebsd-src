@@ -24,7 +24,10 @@ FILES=	hostapd.conf hostapd.eap_user hostapd.wpa_psk
 
 CFLAGS+=-I${.CURDIR:H}/wpa_supplicant \
 	-I${WPA_DISTDIR}/src/eap_peer \
-	-DHOSTAPD
+	-DHOSTAPD \
+	-DCONFIG_L2_FREEBSD \
+	-DCONFIG_DNET_PCAP
+
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
 .endif
@@ -40,10 +43,6 @@ CFLAGS+=${HOSTAPD_CFLAGS}
 #DPADD+=${HOSTAPD_DPADD}
 LDADD+=${HOSTAPD_LDADD}
 #LDFLAGS+=${HOSTAPD_LDFLAGS}
-
-# For WPS, EAP modes, etc
-NEED_DH_GROUPS=y
-NEED_DH_GROUPS_ALL=y
 
 .if !empty(CFLAGS:M*-DCONFIG_WPS)
 NEED_SIM_COMMON=y

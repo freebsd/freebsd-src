@@ -114,7 +114,7 @@ static int devmem_create_cdev(struct vmmdev_softc *sc, int id, char *devmem);
 static void vmmdev_destroy(struct vmmdev_softc *sc);
 
 static int
-vmm_priv_check(struct ucred *ucred)
+vmm_jail_priv_check(struct ucred *ucred)
 {
 	if (jailed(ucred) &&
 	    (ucred->cr_prison->pr_allow & pr_allow_vmm_flag) == 0)
@@ -371,7 +371,7 @@ vmmdev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * A jail without vmm access shouldn't be able to access vmm device
 	 * files at all, but check here just to be thorough.
 	 */
-	error = vmm_priv_check(td->td_ucred);
+	error = vmm_jail_priv_check(td->td_ucred);
 	if (error != 0)
 		return (error);
 
@@ -940,7 +940,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	char *buf;
 	int error, buflen;
 
-	error = vmm_priv_check(req->td->td_ucred);
+	error = vmm_jail_priv_check(req->td->td_ucred);
 	if (error)
 		return (error);
 
@@ -1016,6 +1016,12 @@ vmmdev_create(const char *name, uint32_t flags, struct ucred *cred)
 		    "An unprivileged user must run VMs in monitor mode"));
 	}
 
+	if ((error = vmm_jail_priv_check(cred)) != 0) {
+		sx_xunlock(&vmmdev_mtx);
+		return (EXTERROR(error,
+		    "VMs cannot be created in the current jail"));
+	}
+
 	if (!chgvmmcnt(cred->cr_ruidinfo, 1, vm_maxvmms)) {
 		sx_xunlock(&vmmdev_mtx);
 		return (ENOMEM);
@@ -1061,7 +1067,7 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	if (!vmm_initialized)
 		return (ENXIO);
 
-	error = vmm_priv_check(req->td->td_ucred);
+	error = vmm_jail_priv_check(req->td->td_ucred);
 	if (error != 0)
 		return (error);
 
@@ -1126,7 +1132,7 @@ vmmctl_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
 	int error;
 	struct vmmctl_priv *priv;
 
-	error = vmm_priv_check(td->td_ucred);
+	error = vmm_jail_priv_check(td->td_ucred);
 	if (error != 0)
 		return (error);
 
@@ -1295,9 +1301,15 @@ static moduledata_t vmm_kmod = {
  *
  * - Initialization requires smp_rendezvous() and therefore must happen
  *   after SMP is fully functional (after SI_SUB_SMP).
- * - vmm device initialization requires an initialized devfs.
+ * - vmm device initialization requires an initialized devfs
+ *   (SI_SUB_DRIVERS is after SI_SUB_DEVFS).
+ * - On amd64, vmm.ko also contains device drivers such as ppt and AMD-Vi/IVHD.
+ *   Load this module handler after SI_SUB_DRIVERS so reverse-order unload runs
+ *   iommu_cleanup() before those drivers detach.  AMD-Vi disable still needs
+ *   the IVHD softcs, and ivhd_detach() refuses while the IOMMU is initialized.
  */
-DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
+DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_DRIVERS, SI_SUB_SMP) + 1,
+    SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
 static int

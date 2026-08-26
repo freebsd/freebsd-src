@@ -150,10 +150,10 @@ DEFINE_PMAP_IFUNC(bool, page_is_mapped, (vm_page_t));
 DEFINE_PMAP_IFUNC(int, page_wired_mappings, (vm_page_t));
 DEFINE_PMAP_IFUNC(void, protect, (pmap_t, vm_offset_t, vm_offset_t, vm_prot_t));
 DEFINE_PMAP_IFUNC(bool, ps_enabled, (pmap_t));
-DEFINE_PMAP_IFUNC(void, qenter, (vm_offset_t, vm_page_t *, int));
-DEFINE_PMAP_IFUNC(void, qremove, (vm_offset_t, int));
-DEFINE_PMAP_IFUNC(vm_offset_t, quick_enter_page, (vm_page_t));
-DEFINE_PMAP_IFUNC(void, quick_remove_page, (vm_offset_t));
+DEFINE_PMAP_IFUNC(void, qenter, (void *, vm_page_t *, int));
+DEFINE_PMAP_IFUNC(void, qremove, (void *, int));
+DEFINE_PMAP_IFUNC(void *, quick_enter_page, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, quick_remove_page, (void *));
 DEFINE_PMAP_IFUNC(int, ts_referenced, (vm_page_t));
 DEFINE_PMAP_IFUNC(void, release, (pmap_t));
 DEFINE_PMAP_IFUNC(void, remove, (pmap_t, vm_offset_t, vm_offset_t));
@@ -169,7 +169,7 @@ DEFINE_PMAP_IFUNC(void, copy_pages,
     vm_offset_t b_offset, int xfersize));
 DEFINE_PMAP_IFUNC(int, growkernel_nopanic, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, init, (void));
-DEFINE_PMAP_IFUNC(vm_offset_t, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
+DEFINE_PMAP_IFUNC(void *, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
 DEFINE_PMAP_IFUNC(int, pinit, (pmap_t));
 DEFINE_PMAP_IFUNC(void, pinit0, (pmap_t));
 DEFINE_PMAP_IFUNC(int, mincore, (pmap_t, vm_offset_t, vm_paddr_t *));
@@ -185,7 +185,7 @@ DEFINE_PMAP_IFUNC(int, map_user_ptr,
 DEFINE_PMAP_IFUNC(int, decode_kernel_ptr, (vm_offset_t, int *, vm_offset_t *));
 DEFINE_PMAP_IFUNC(int, dev_direct_mapped, (vm_paddr_t, vm_size_t));
 DEFINE_PMAP_IFUNC(void, sync_icache, (pmap_t, vm_offset_t, vm_size_t));
-DEFINE_PMAP_IFUNC(int, change_attr, (vm_offset_t, vm_size_t, vm_memattr_t));
+DEFINE_PMAP_IFUNC(int, change_attr, (void *, vm_size_t, vm_memattr_t));
 DEFINE_PMAP_IFUNC(void, page_array_startup, (long));
 DEFINE_PMAP_IFUNC(void, tlbie_all, (void));
 

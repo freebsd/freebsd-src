@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -370,9 +366,6 @@ zio_crypt_key_get_salt(zio_crypt_key_t *key, uint8_t *salt)
 error:
 	return (ret);
 }
-
-void *failed_decrypt_buf;
-int failed_decrypt_size;
 
 /*
  * This function handles all encryption and decryption in zfs. When
@@ -1665,9 +1658,6 @@ error:
 	return (ret);
 }
 
-void *failed_decrypt_buf;
-int faile_decrypt_size;
-
 /*
  * Primary encryption / decryption entrypoint for zio data.
  */
@@ -1760,13 +1750,6 @@ zio_do_crypt_data(boolean_t encrypt, zio_crypt_key_t *key,
 	return (0);
 
 error:
-	if (!encrypt) {
-		if (failed_decrypt_buf != NULL)
-			kmem_free(failed_decrypt_buf, failed_decrypt_size);
-		failed_decrypt_buf = kmem_alloc(datalen, KM_SLEEP);
-		failed_decrypt_size = datalen;
-		memcpy(failed_decrypt_buf, cipherbuf, datalen);
-	}
 	if (locked)
 		rw_exit(&key->zk_salt_lock);
 	if (authbuf != NULL)

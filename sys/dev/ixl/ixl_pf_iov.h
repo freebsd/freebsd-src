@@ -37,6 +37,7 @@
 
 #include "ixl_pf.h"
 
+#include <sys/iov.h>
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
 #include <dev/pci/pci_iov.h>

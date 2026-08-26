@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2023 Intel Corporation
+ * Copyright (c) 2017 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -83,6 +83,16 @@
 #define PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_2	0x001e31a8
 #define PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_3	0x001e31aC
 
+#define CNV_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_0	0x001e2180
+#define CNV_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_1	0x001e2184
+#define CNV_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_2	0x001e2188
+#define CNV_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_3	0x001e218c
+
+#define CNV_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_0	0x001e21a0
+#define CNV_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_1	0x001e21a4
+#define CNV_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_2	0x001e21a8
+#define CVN_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_3	0x001e21ac
+
 #define PRTMAC_HSEC_CTL_RX_ENABLE_GPP_0		0x001e34c0
 #define PRTMAC_HSEC_CTL_RX_ENABLE_GPP_1		0x001e34c4
 #define PRTMAC_HSEC_CTL_RX_ENABLE_GPP_2		0x001e34c8
@@ -120,8 +130,8 @@ enum icrdma_device_caps_const {
 	ICRDMA_MAX_SGE_RD			= 13,
 	ICRDMA_MAX_STATS_COUNT = 128,
 
-	ICRDMA_MAX_IRD_SIZE			= 32,
-	ICRDMA_MAX_ORD_SIZE			= 32,
+	ICRDMA_MAX_IRD_SIZE			= 8,
+	ICRDMA_MAX_ORD_SIZE			= 8,
 	ICRDMA_MIN_WQ_SIZE			= 8 /* WQEs */,
 	ICRDMA_MAX_PUSH_PAGE_COUNT		= 256,
 
@@ -130,6 +140,7 @@ enum icrdma_device_caps_const {
 void icrdma_init_hw(struct irdma_sc_dev *dev);
 void irdma_init_config_check(struct irdma_config_check *cc,
 			     u8 traffic_class,
+			     u8 prio,
 			     u16 qs_handle);
 bool irdma_is_config_ok(struct irdma_config_check *cc, struct irdma_sc_vsi *vsi);
 void irdma_check_fc_for_tc_update(struct irdma_sc_vsi *vsi,

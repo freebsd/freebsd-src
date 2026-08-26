@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 25, 2023
+.Dd June 27, 2026
 .Dt KLDXREF 8
 .Os
 .Sh NAME
@@ -35,6 +35,8 @@
 .Op Fl Rdv
 .Op Fl f Ar hintsfile
 .Ar path ...
+.Nm
+.Fl m Ar module
 .Sh DESCRIPTION
 The
 .Nm
@@ -67,6 +69,9 @@ output.
 .It Fl f Ar hintsfile
 Specify a different name for the hints files than
 .Pa linker.hints .
+.It Fl m Ar module
+Print information about the modules in the file
+.Ar module .
 .It Fl v
 Operate in verbose mode.
 .El

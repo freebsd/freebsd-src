@@ -407,7 +407,7 @@ struct route_in6 {
 #define IPV6_SOCKOPT_RESERVED1	3  /* reserved for future use */
 #define IPV6_UNICAST_HOPS	4  /* int; IP6 hops */
 #define IPV6_MULTICAST_IF	9  /* u_int; set/get IP6 multicast i/f  */
-#define IPV6_MULTICAST_HOPS	10 /* int; set/get IP6 multicast hops */
+#define IPV6_MULTICAST_HOPS	10 /* u_int; set/get IP6 multicast hops */
 #define IPV6_MULTICAST_LOOP	11 /* u_int; set/get IP6 multicast loopback */
 #define IPV6_JOIN_GROUP		12 /* ipv6_mreq; join a group membership */
 #define IPV6_LEAVE_GROUP	13 /* ipv6_mreq; leave a group membership */
@@ -430,7 +430,7 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
+#define IPV6_IPSEC_POLICY	28 /* struct sadb_x_policy; get/set security policy */
 				   /* 29; unused; was IPV6_FAITH */
 #if 1 /* IPV6FIREWALL */
 #define IPV6_FW_ADD		30 /* add a firewall rule to chain */
@@ -485,7 +485,7 @@ struct route_in6 {
 				    * the source address.
 				    */
 
-#define	IPV6_BINDANY		64 /* bool: allow bind to any address */
+#define	IPV6_BINDANY		64 /* bool; allow bind to any address */
 				   /* unused; was IPV6_BIND_MULTI */
 				   /* unused; was IPV6_RSS_LISTEN_BUCKET */
 #define	IPV6_FLOWID		67 /* int; flowid of given socket */
@@ -494,7 +494,7 @@ struct route_in6 {
 #define	IPV6_RECVFLOWID		70 /* bool; receive IP6 flowid/flowtype w/ datagram */
 #define	IPV6_RECVRSSBUCKETID	71 /* bool; receive IP6 RSS bucket id w/ datagram */
 
-#define	IPV6_ORIGDSTADDR	72 /* bool: allow getting dstaddr /port info */
+#define	IPV6_ORIGDSTADDR	72 /* bool; allow getting dstaddr /port info */
 #define	IPV6_RECVORIGDSTADDR	IPV6_ORIGDSTADDR
 
 /*
@@ -643,7 +643,8 @@ struct ip6_mtuinfo {
 					 * queue */
 #define	IPV6CTL_MAXFRAGSPERPACKET	53 /* Max fragments per packet */
 #define	IPV6CTL_MAXFRAGBUCKETSIZE	54 /* Max reassembly queues per bucket */
-#define	IPV6CTL_MAXID		55
+#define	IPV6CTL_GRAND_COUNT	55
+#define	IPV6CTL_MAXID		56
 #endif /* __BSD_VISIBLE */
 
 /*
@@ -689,6 +690,7 @@ void	in6_sin_2_v4mapsin6(const struct sockaddr_in *sin,
 	    struct sockaddr_in6 *sin6);
 void	in6_sin6_2_sin_in_sock(struct sockaddr *nam);
 extern void addrsel_policy_init(void);
+void	addrsel_policy_destroy(void);
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))

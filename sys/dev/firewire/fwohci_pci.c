@@ -60,6 +60,10 @@
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 
+#define FWOHCI_DMA_MAXSIZE	0x100000	/* 1MB */
+#define FWOHCI_DMA_NSEG		0x20		/* 32 segments */
+#define FWOHCI_DMA_MAXSEGSZ	0x8000		/* 32KB per segment */
+
 static int fwohci_pci_attach(device_t self);
 static int fwohci_pci_detach(device_t self);
 
@@ -206,9 +210,7 @@ fwohci_pci_init(device_t self)
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
-#if 1  /* for broken hardware */
-	cmd &= ~PCIM_CMD_MWRICEN;
-#endif
+	cmd &= ~PCIM_CMD_MWRICEN;	/* for broken hardware */
 	pci_write_config(self, PCIR_COMMAND, cmd, 2);
 
 	latency = olatency = pci_read_config(self, PCIR_LATTIMER, 1);
@@ -241,11 +243,6 @@ fwohci_pci_attach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-
-#if 0
-	if (bootverbose)
-		firewire_debug = bootverbose;
-#endif
 
 	mtx_init(FW_GMTX(&sc->fc), "firewire", NULL, MTX_DEF);
 	fwohci_pci_init(self);
@@ -291,9 +288,9 @@ fwohci_pci_attach(device_t self)
 #endif
 				/*highaddr*/BUS_SPACE_MAXADDR,
 				/*filter*/NULL, /*filterarg*/NULL,
-				/*maxsize*/0x100000,
-				/*nsegments*/0x20,
-				/*maxsegsz*/0x8000,
+				/*maxsize*/FWOHCI_DMA_MAXSIZE,
+				/*nsegments*/FWOHCI_DMA_NSEG,
+				/*maxsegsz*/FWOHCI_DMA_MAXSEGSZ,
 				/*flags*/BUS_DMA_ALLOCNOW,
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/FW_GMTX(&sc->fc),
@@ -324,9 +321,6 @@ static int
 fwohci_pci_detach(device_t self)
 {
 	fwohci_softc_t *sc = device_get_softc(self);
-	int s;
-
-	s = splfw();
 
 	if (sc->bsr)
 		fwohci_stop(sc, self);
@@ -360,7 +354,6 @@ fwohci_pci_detach(device_t self)
 
 	fwohci_detach(sc, self);
 	mtx_destroy(FW_GMTX(&sc->fc));
-	splx(s);
 
 	return 0;
 }
@@ -428,11 +421,8 @@ fwohci_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 	 * interrupt is disabled during the boot process.
 	 */
 	if (cold) {
-		int s;
 		DELAY(250); /* 2 cycles */
-		s = splfw();
 		fwohci_poll(&sc->fc, 0, -1);
-		splx(s);
 	}
 
 	return (child);

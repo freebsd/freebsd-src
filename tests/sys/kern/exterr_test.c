@@ -23,13 +23,35 @@
  * SUCH DAMAGE.
  */
 
+#define UEXTERR_CATEGORY "tests/sys/kern/exterr_test.c"
+
+#include <sys/param.h>
 #include <sys/exterrvar.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 
 #include <atf-c.h>
 #include <errno.h>
 #include <exterr.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <uexterror.h>
+#include <unistd.h>
+
+#include "freebsd_test_suite/macros.h"
+
+/*
+ * Pin the message format by clearing EXTERROR_VERBOSE, which would
+ * otherwise change the output shape.
+ */
+static void
+pin_exterror_format(void)
+{
+
+	unsetenv("EXTERROR_VERBOSE");
+}
 
 ATF_TC(gettext_extended);
 ATF_TC_HEAD(gettext_extended, tc)
@@ -41,6 +63,8 @@ ATF_TC_BODY(gettext_extended, tc)
 	char exterr[UEXTERROR_MAXLEN];
 	int r;
 
+	pin_exterror_format();
+
 	/*
 	 * Use an invalid call to mmap() because it supports extended error
 	 * messages, requires no special resources, and does not need root.
@@ -50,8 +74,103 @@ ATF_TC_BODY(gettext_extended, tc)
 	r = uexterr_gettext(exterr, sizeof(exterr));
 	ATF_CHECK_EQ(0, r);
 	printf("Extended error: %s\n", exterr);
+	ATF_REQUIRE_FEATURE("exterr_strings");
 	/* Note: error string may need to be updated due to kernel changes */
-	ATF_CHECK(strstr(exterr, " is not subset of ") != 0);
+	ATF_CHECK(strstr(exterr, " is not subset of ") != NULL);
+}
+
+ATF_TC(uexterr_set);
+ATF_TC_HEAD(uexterr_set, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Set extended error message from userspace");
+}
+ATF_TC_BODY(uexterr_set, tc)
+{
+	char exterr[UEXTERROR_MAXLEN];
+	int r;
+
+	errno = 0;
+	UEXTERROR(EINVAL, "pointer %p int %d", (uintptr_t)&r, UINTMAX_MAX);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	printf("Extended error: %s\n", exterr);
+	/* The pointer's value will change, but the rest should be stable. */
+	ATF_CHECK(strncmp("pointer 0x", exterr, strlen("pointer 0x")) == 0);
+	ATF_CHECK(strstr(exterr, " int -1") != 0);
+
+	errno = 0;
+	UEXTERROR(EINVAL, "long 0x%lx int %u", UINTMAX_MAX, UINTMAX_MAX);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ("long 0xffffffffffffffff int 4294967295", exterr);
+}
+
+static void
+check_bad_fmt(const char *fmt)
+{
+	char exterr[UEXTERROR_MAXLEN];
+	char expected[UEXTERROR_MAXLEN];
+	int r;
+
+	sprintf(expected, "<unsupported-format>:%s", fmt);
+
+	errno = 0;
+	UEXTERROR(EINVAL, fmt, 0xAAAAAAAAAAAAAAAA);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ(expected, exterr);
+}
+
+ATF_TC(uexterr_bad_fmt);
+ATF_TC_HEAD(uexterr_bad_fmt, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test invalid or unsupported formats");
+}
+ATF_TC_BODY(uexterr_bad_fmt, tc)
+{
+	char exterr[UEXTERROR_MAXLEN];
+	int r;
+	int target = 0;
+
+	/* Write gadget */
+	errno = 0;
+	UEXTERROR(EINVAL, "write to %n", (uintptr_t)&target);
+	ATF_CHECK_EQ_MSG(0, target, "Write via %%n happened");
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ("write to <illegal-format>:%n", exterr);
+
+	/* Too long */
+	errno = 0;
+	UEXTERROR(EINVAL, "%llllllllllllllllllllllllllllllllllllllllllllllld",
+	    0xAAAAAAAAAAAAAAAA);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ("<format-too-large>", exterr);
+
+	/* Incomplete */
+	check_bad_fmt("%");
+	check_bad_fmt("%l");
+
+	/* Obsolete or nonsensical */
+	check_bad_fmt("%D");
+	check_bad_fmt("%O");
+	check_bad_fmt("%U");
+	check_bad_fmt("%f");
+	check_bad_fmt("%F");
+	check_bad_fmt("%g");
+	check_bad_fmt("%G");
+	check_bad_fmt("%a");
+	check_bad_fmt("%A");
+	check_bad_fmt("%S");
+	check_bad_fmt("%s");
+	check_bad_fmt("%m");
 }
 
 ATF_TC(gettext_noextended);
@@ -64,6 +183,8 @@ ATF_TC_BODY(gettext_noextended, tc)
 {
 	char exterr[UEXTERROR_MAXLEN];
 	int r;
+
+	pin_exterror_format();
 
 	ATF_CHECK_ERRNO(EINVAL, exterrctl(EXTERRCTL_UD, 0, NULL));
 	r = uexterr_gettext(exterr, sizeof(exterr));
@@ -82,6 +203,8 @@ ATF_TC_BODY(gettext_noextended_after_extended, tc)
 	char exterr[UEXTERROR_MAXLEN];
 	int r;
 
+	pin_exterror_format();
+
 	/*
 	 * First do something that will create an extended error message, but
 	 * ignore it.
@@ -98,11 +221,38 @@ ATF_TC_BODY(gettext_noextended_after_extended, tc)
 	ATF_CHECK_STREQ(exterr, "");
 }
 
+ATF_TC(exterr_dynamic_categories);
+ATF_TC_HEAD(exterr_dynamic_categories, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "directly check there is at least one registered category");
+}
+ATF_TC_BODY(exterr_dynamic_categories, tc)
+{
+        int mib[4];
+        size_t len;
+        char filename_buf[128];
+
+        len = nitems(mib);
+        ATF_REQUIRE_EQ(sysctlnametomib("kern.exterr.categories", mib, &len),
+	     0);
+        mib[3] = 1;
+        len = sizeof(filename_buf);
+        ATF_REQUIRE_EQ(sysctl(mib, nitems(mib), filename_buf, &len, NULL, 0),
+	     0);
+        printf("%s\n", filename_buf);
+	/* We can't know what it is, but make sure it's non-empty */
+	ATF_REQUIRE(strlen(filename_buf) > 1);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, gettext_extended);
+	ATF_TP_ADD_TC(tp, uexterr_set);
+	ATF_TP_ADD_TC(tp, uexterr_bad_fmt);
 	ATF_TP_ADD_TC(tp, gettext_noextended);
 	ATF_TP_ADD_TC(tp, gettext_noextended_after_extended);
+	ATF_TP_ADD_TC(tp, exterr_dynamic_categories);
 
 	return (atf_no_error());
 }

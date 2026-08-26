@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --creation-time=test special
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/special.json
+ExpectedExitCode: 0

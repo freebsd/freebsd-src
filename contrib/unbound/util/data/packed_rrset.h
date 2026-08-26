@@ -70,6 +70,10 @@ typedef uint64_t rrset_id_type;
 #define PACKED_RRSET_RPZ 0x8
 /** this rrset is A/AAAA and is an unverified glue record */
 #define PACKED_RRSET_UNVERIFIED_GLUE 0x10
+/** this rrset has a 0TTL from upstream */
+#define PACKED_RRSET_UPSTREAM_0TTL 0x20
+/** this rrset has 0TTL from upstream and also has had grace TTL applied */
+#define PACKED_RRSET_0TTL_GRACE 0x40
 
 /** number of rrs and rrsets for integer overflow protection.  More than
  * this is not really possible (64K packet has much less RRs and RRsets) in
@@ -99,6 +103,7 @@ struct packed_rrset_key {
 	 * 	o PACKED_RRSET_FIXEDTTL (not supposed to be cached)
 	 * 	o PACKED_RRSET_RPZ
 	 * 	o PACKED_RRSET_UNVERIFIED_GLUE
+	 * 	o PACKED_RRSET_UPSTREAM_0TTL (not supposed to be cached)
 	 */
 	uint32_t flags;
 	/** the rrset type in network format */

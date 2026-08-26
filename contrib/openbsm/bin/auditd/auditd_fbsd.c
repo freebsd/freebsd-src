@@ -33,6 +33,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdarg.h>
 #include <signal.h>
 #include <string.h>
@@ -57,10 +58,7 @@ static int	auditing_state = AUD_STATE_INIT;
  */
 static int	max_idletime = 0;
 
-static int	sigchlds, sigchlds_handled;
-static int	sighups, sighups_handled;
-static int	sigterms, sigterms_handled;
-static int	sigalrms, sigalrms_handled;
+static volatile sig_atomic_t	signaled[NSIG];
 
 static int	triggerfd = 0;
 
@@ -83,7 +81,7 @@ auditd_openlog(int debug, gid_t __unused gid)
 }
 
 /*
- * Log messages at different priority levels. 
+ * Log messages at different priority levels.
  */
 void
 auditd_log_err(const char *fmt, ...)
@@ -154,7 +152,7 @@ auditd_set_state(int state)
 {
 	int old_auditing_state = auditing_state;
 
-	if (state == AUD_STATE_INIT) 
+	if (state == AUD_STATE_INIT)
 		init_audit_state();
 	else
 		auditing_state = state;
@@ -173,7 +171,6 @@ auditd_set_state(int state)
 int
 auditd_get_state(void)
 {
-
 	if (auditing_state == AUD_STATE_INIT)
 		init_audit_state();
 
@@ -186,8 +183,8 @@ auditd_get_state(void)
 int
 auditd_open_trigger(int __unused launchd_flag)
 {
-
-	return ((triggerfd = open(AUDIT_TRIGGER_FILE, O_RDONLY, 0)));
+	triggerfd = open(AUDIT_TRIGGER_FILE, O_RDONLY | O_CLOEXEC);
+	return (triggerfd);
 }
 
 /*
@@ -196,56 +193,66 @@ auditd_open_trigger(int __unused launchd_flag)
 int
 auditd_close_trigger(void)
 {
-	
 	return (close(triggerfd));
 }
 
-/* 
+/*
  * The main event loop.  Wait for trigger messages or signals and handle them.
  * It should not return unless there is a problem.
  */
 void
 auditd_wait_for_events(void)
 {
-	int num;
+	struct pollfd pfd;
+	ssize_t ret;
 	unsigned int trigger;
 
+	pfd.fd = triggerfd;
+	pfd.events = POLLIN;
+	pfd.revents = 0;
 	for (;;) {
-		num = read(triggerfd, &trigger, sizeof(trigger));
-		if ((num == -1) && (errno != EINTR)) {
-			auditd_log_err("%s: error %d", __FUNCTION__, errno);
-			return;
-		}
-		
 		/* Reset the idle time alarm, if used. */
-		if (max_idletime)
+		if (max_idletime != 0)
 			alarm(max_idletime);
 
-		if (sigterms != sigterms_handled) {
+		/* Check if any signals were caught. */
+		if (signaled[SIGTERM]) {
+			signaled[SIGTERM] = 0;
 			auditd_log_debug("%s: SIGTERM", __FUNCTION__);
 			auditd_terminate();
-			/* not reached */ 
+			/* not reached */
 		}
-		if (sigalrms != sigalrms_handled) {
+		if (signaled[SIGALRM]) {
+			signaled[SIGALRM] = 0;
 			auditd_log_debug("%s: SIGALRM", __FUNCTION__);
 			auditd_terminate();
-			/* not reached */ 
+			/* not reached */
 		}
- 		if (sigchlds != sigchlds_handled) {
-			sigchlds_handled = sigchlds;
+		if (signaled[SIGCHLD]) {
+			signaled[SIGCHLD] = 0;
 			auditd_reap_children();
 		}
-		if (sighups != sighups_handled) {
+		if (signaled[SIGHUP]) {
+			signaled[SIGHUP] = 0;
 			auditd_log_debug("%s: SIGHUP", __FUNCTION__);
-			sighups_handled = sighups;
 			auditd_config_controls();
 		}
 
-		if (num == -1)
+		/* Now wait for a trigger or signal. */
+		if ((ret = ppoll(&pfd, 1, NULL, &auditd_origmask)) < 0 &&
+		    errno != EINTR) {
+			auditd_log_err("%s: error %d", __FUNCTION__, errno);
+			break;
+		}
+		if (ret <= 0)
 			continue;
-		if (num == 0) {
+		if ((ret = read(triggerfd, &trigger, sizeof(trigger))) < 0) {
+			auditd_log_err("%s: error %d", __FUNCTION__, errno);
+			break;
+		}
+		if (ret == 0) {
 			auditd_log_err("%s: read EOF", __FUNCTION__);
-			return;
+			break;
 		}
 		auditd_handle_trigger(trigger);
 	}
@@ -258,15 +265,7 @@ auditd_wait_for_events(void)
  * context.
  */
 void
-auditd_relay_signal(int signal)
+auditd_relay_signal(int signo)
 {
-        if (signal == SIGHUP)
-                sighups++;
-        if (signal == SIGTERM)
-                sigterms++;
-        if (signal == SIGCHLD)
-                sigchlds++;
-	if (signal == SIGALRM)
-		sigalrms++;
+	signaled[signo] = 1;
 }
-

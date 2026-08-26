@@ -158,7 +158,7 @@ DEFINE_TEST(test_ustar_filename_encoding_CP1251_UTF8)
 
 	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
 	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
-		skipping("KOI8-R locale not available on this system.");
+		skipping("CP1251 locale not available on this system.");
 		return;
 	}
 
@@ -170,7 +170,7 @@ DEFINE_TEST(test_ustar_filename_encoding_CP1251_UTF8)
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_ustar(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
 		skipping("This system cannot convert character-set"
-		    " from KOI8-R to UTF-8.");
+		    " from CP1251 to UTF-8.");
 		archive_write_free(a);
 		return;
 	}
@@ -178,7 +178,7 @@ DEFINE_TEST(test_ustar_filename_encoding_CP1251_UTF8)
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
-	/* Set a KOI8-R filename. */
+	/* Set a CP1251 filename. */
 	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -202,7 +202,7 @@ DEFINE_TEST(test_ustar_filename_encoding_ru_RU_CP1251)
 	size_t used;
 
 	if (NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
-		skipping("KOI8-R locale not available on this system.");
+		skipping("CP1251 locale not available on this system.");
 		return;
 	}
 
@@ -216,7 +216,7 @@ DEFINE_TEST(test_ustar_filename_encoding_ru_RU_CP1251)
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
-	/* Set a KOI8-R filename. */
+	/* Set a CP1251 filename. */
 	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -490,5 +490,45 @@ DEFINE_TEST(test_ustar_filename_encoding_UTF16_win)
 
 	/* Check UTF-8 version. */
 	assertEqualMem(buff + 157, "\xE8\xA1\xA8.txt", 7);
+#endif
+}
+
+DEFINE_TEST(test_ustar_filename_encoding_fail_UTF16_win)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling"
+		" on Windows with UTF-16 names");
+	return;
+#else
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	/* Test the C locale by not calling setlocale.  */
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_ustar(a));
+	if (archive_write_set_options(a, "hdrcharset=CP437") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-16 to CP437.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set the filename using a UTF-16 string */
+	archive_entry_copy_pathname_w(entry, L"\u8868.txt");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, entry));
+	/* The pathname cannot even be represented in the current locale
+	   for inclusion in the error message.  */
+	assertEqualString("Can't translate pathname to CP437",
+	    archive_error_string(a));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 #endif
 }

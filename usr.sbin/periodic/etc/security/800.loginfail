@@ -65,6 +65,7 @@ then
 	echo ""
 	echo "${host} login failures:"
 	n=$(catmsgs | egrep -ia "${prefix}.*\b(fail(ures?|ed)?|invalid|bad|illegal|auth.*error)\b" |
+	    grep -Eva "${security_status_loginfail_ignore-^\$}" |
 	    tee /dev/stderr | wc -l)
 	[ $n -gt 0 ] && rc=1 || rc=0
 fi

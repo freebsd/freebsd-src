@@ -52,7 +52,6 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #include <netinet/udp.h>
-#include <netinet/udp_var.h>
 
 #include <machine/in_cksum.h>
 #include <machine/pcb.h>

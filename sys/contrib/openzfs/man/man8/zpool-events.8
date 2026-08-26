@@ -1,23 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012, 2018 by Delphix. All rights reserved.
@@ -458,12 +448,12 @@ ZIO_STAGE_CHECKSUM_GENERATE:0x00000080:-W----
 
 ZIO_STAGE_NOP_WRITE:0x00000100:-W----
 
-ZIO_STAGE_BRT_FREE:0x00000200:--F---
+ZIO_STAGE_DDT_READ_START:0x00000200:R-----
+ZIO_STAGE_DDT_READ_DONE:0x00000400:R-----
+ZIO_STAGE_DDT_WRITE:0x00000800:-W----
+ZIO_STAGE_DDT_FREE:0x00001000:--F---
 
-ZIO_STAGE_DDT_READ_START:0x00000400:R-----
-ZIO_STAGE_DDT_READ_DONE:0x00000800:R-----
-ZIO_STAGE_DDT_WRITE:0x00001000:-W----
-ZIO_STAGE_DDT_FREE:0x00002000:--F---
+ZIO_STAGE_BRT_FREE:0x00002000:--F---
 
 ZIO_STAGE_GANG_ASSEMBLE:0x00004000:RWFC--
 ZIO_STAGE_GANG_ISSUE:0x00008000:RWFC--
@@ -517,21 +507,24 @@ ZIO_FLAG_IO_RETRY:0x00008000
 ZIO_FLAG_PROBE:0x00010000
 ZIO_FLAG_TRYHARD:0x00020000
 ZIO_FLAG_OPTIONAL:0x00040000
+ZIO_FLAG_DIO_READ:0x00080000
+ZIO_FLAG_BYPASSED_QUEUE:0x00100000
 
-ZIO_FLAG_DONT_QUEUE:0x00080000
-ZIO_FLAG_DONT_PROPAGATE:0x00100000
-ZIO_FLAG_IO_BYPASS:0x00200000
-ZIO_FLAG_IO_REWRITE:0x00400000
-ZIO_FLAG_RAW_COMPRESS:0x00800000
-ZIO_FLAG_RAW_ENCRYPT:0x01000000
+ZIO_FLAG_DONT_QUEUE:0x00200000
+ZIO_FLAG_DONT_PROPAGATE:0x00400000
+ZIO_FLAG_IO_BYPASS:0x00800000
+ZIO_FLAG_IO_REWRITE:0x01000000
+ZIO_FLAG_RAW_COMPRESS:0x02000000
+ZIO_FLAG_RAW_ENCRYPT:0x04000000
 
-ZIO_FLAG_GANG_CHILD:0x02000000
-ZIO_FLAG_DDT_CHILD:0x04000000
-ZIO_FLAG_GODFATHER:0x08000000
-ZIO_FLAG_NOPWRITE:0x10000000
-ZIO_FLAG_REEXECUTED:0x20000000
-ZIO_FLAG_DELEGATED:0x40000000
-ZIO_FLAG_FASTWRITE:0x80000000
+ZIO_FLAG_GANG_CHILD:0x08000000
+ZIO_FLAG_DDT_CHILD:0x10000000
+ZIO_FLAG_GODFATHER:0x20000000
+ZIO_FLAG_NOPWRITE:0x40000000
+ZIO_FLAG_REEXECUTED:0x80000000
+ZIO_FLAG_DELEGATED:0x100000000
+ZIO_FLAG_PREALLOCATED:0x200000000
+ZIO_FLAG_POSTREAD:0x400000000
 .TE
 .
 .Sh I/O TYPES

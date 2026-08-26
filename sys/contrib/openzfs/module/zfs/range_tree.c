@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -34,6 +24,16 @@
 #include <sys/dnode.h>
 #include <sys/zio.h>
 #include <sys/range_tree.h>
+#include <sys/sysmacros.h>
+
+#ifndef _KERNEL
+/*
+ * Need the extra 'abort()' here since is possible for PANIC() to return, and
+ * our panic() usage in this file assumes it's NORETURN.
+ */
+#define	panic(...) do {PANIC(__VA_ARGS__); abort(); } while (0);
+#define	zfs_panic_recover(...) panic(__VA_ARGS__)
+#endif
 
 /*
  * Range trees are tree-based data structures that can be used to
@@ -116,12 +116,10 @@ zfs_range_tree_stat_verify(zfs_range_tree_t *rt)
 	}
 
 	for (i = 0; i < ZFS_RANGE_TREE_HISTOGRAM_SIZE; i++) {
-		if (hist[i] != rt->rt_histogram[i]) {
-			zfs_dbgmsg("i=%d, hist=%px, hist=%llu, rt_hist=%llu",
-			    i, hist, (u_longlong_t)hist[i],
-			    (u_longlong_t)rt->rt_histogram[i]);
-		}
-		VERIFY3U(hist[i], ==, rt->rt_histogram[i]);
+		VERIFY3UF(hist[i], ==, rt->rt_histogram[i],
+		    "i=%d, hist=%px, hist=%llu, rt_hist=%llu",
+		    i, hist, (u_longlong_t)hist[i],
+		    (u_longlong_t)rt->rt_histogram[i]);
 	}
 }
 
@@ -531,7 +529,7 @@ zfs_range_tree_remove_impl(zfs_range_tree_t *rt, uint64_t start, uint64_t size,
 	}
 
 	if (!(rstart <= start && rend >= end)) {
-		panic("zfs: rt=%s: removing segment "
+		zfs_panic_recover("zfs: rt=%s: removing segment "
 		    "(offset=%llx size=%llx) not completely overlapped by "
 		    "existing one (offset=%llx size=%llx)",
 		    ZFS_RT_NAME(rt),

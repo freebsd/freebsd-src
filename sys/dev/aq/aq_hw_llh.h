@@ -808,6 +808,10 @@ void rpo_rx_desc_vlan_stripping_set(struct aq_hw *aq_hw,
 void rpo_tcp_udp_crc_offload_en_set(struct aq_hw *aq_hw,
     uint32_t tcp_udp_crc_offload_en);
 
+/* set RX outer (S-VLAN) tag parse mode */
+void rpo_outer_vlan_tag_mode_set(struct aq_hw *aq_hw,
+    uint32_t outer_vlan_tag_mode);
+
 /* Set LRO Patch Optimization Enable. */
 void rpo_lro_patch_optimization_en_set(struct aq_hw *aq_hw,
     uint32_t lro_patch_optimization_en);

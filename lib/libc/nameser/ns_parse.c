@@ -38,12 +38,7 @@ static void	setsection(ns_msg *msg, ns_sect sect);
 
 /* Macros. */
 
-#if !defined(SOLARIS2) || defined(__COVERITY__)
 #define RETERR(err) do { errno = (err); return (-1); } while (0)
-#else
-#define RETERR(err) \
-	do { errno = (err); if (errno == errno) return (-1); } while (0)
-#endif
 
 #define PARSE_FMT_PRESO 0	/* Parse using presentation-format names */
 #define PARSE_FMT_WIRE 1	/* Parse using network-format names */

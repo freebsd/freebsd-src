@@ -237,3 +237,8 @@ lapic_mmio_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval, int size,
 	error = vlapic_read(vlapic, 1, off, rval, arg);
 	return (error);
 }
+
+void
+vmm_justreturn(struct trapframe *frame)
+{
+}

@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.142 2023/07/30 14:41:14 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.148 2026/01/10 16:18:18 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -99,8 +99,13 @@ file_checkfmt(char *msg, size_t mlen, const char *fmt)
 			continue;
 		if (*++p == '%')
 			continue;
+		if (*p == '\0') {
+			if (msg)
+				snprintf(msg, mlen, "incomplete %% format");
+			return -1;
+		}
 		// Skip uninteresting.
-		while (strchr("#0.'+- ", *p) != NULL)
+		while (*p != '\0' && strchr("#0.'+- ", *p) != NULL)
 			p++;
 		if (*p == '*') {
 			if (msg)
@@ -300,6 +305,7 @@ file_default(struct magic_set *ms, size_t nb)
 		return 1;
 	}
 	if (ms->flags & MAGIC_APPLE) {
+		// This is not a typo: Type: UNKN Creator: UNKN
 		if (file_printf(ms, "UNKNUNKN") == -1)
 			return -1;
 		return 1;
@@ -674,25 +680,31 @@ check_regex(struct magic_set *ms, const char *pat)
 	unsigned char oc = '\0';
 	const char *p;
 	unsigned long l;
+	static const char wild[] = "?*+{";
 
 	for (p = pat; *p; p++) {
 		unsigned char c = *p;
-		// Avoid repetition
-		if (c == oc && strchr("?*+{", c) != NULL) {
+		// Avoid repetition of wild characters
+		if (strchr(wild, oc) != NULL && strchr(wild, c) != NULL) {
 			size_t len = strlen(pat);
 			file_magwarn(ms,
-			    "repetition-operator operand `%c' "
-			    "invalid in regex `%s'", c,
+			    "repetition-operator operand `%c%c' "
+			    "invalid in regex `%s'", oc, c,
 			    file_printable(ms, sbuf, sizeof(sbuf), pat, len));
 			return -1;
 		}
 		if (c == '{') {
 			char *ep, *eep;
+
+			if (oc == '}') {
+				file_magwarn(ms, "cascading repetition "
+				    "operators in regex `%s'", pat);
+				return -1;
+			}
 			errno = 0;
 			l = strtoul(p + 1, &ep, 10);
 			if (ep != p + 1 && l > 1000)
 				goto bounds;
-
 			if (*ep == ',') {
 				l = strtoul(ep + 1, &eep, 10);
 				if (eep != ep + 1 && l > 1000)
@@ -858,29 +870,68 @@ struct guid {
 	uint8_t data4[8];
 };
 
+static char XDIGIT[]  = "0123456789abcdef";
+static int
+atox(const uint8_t c)
+{
+	uint8_t d = isupper(c) ? tolower(c) : c;
+	const char *q = d ? strchr(XDIGIT, isupper(c) ? tolower(c) : c) : NULL;
+	if (q == NULL)
+		return -1;
+	return q - XDIGIT;
+}
+
+static int
+getxvalue(void *p, const char *s, size_t n)
+{
+	uint64_t v = 0;
+	for (size_t i = 0; i < n; i++) {
+		int x = atox(s[i]);
+		if (x == -1)
+			return 0;
+		v = (v << 4) | x;
+	}
+	switch (n) {
+	case 8:
+		*(uint32_t *)p = v;
+		return 1;
+	case 4:
+		*(uint16_t *)p = v;
+		return 1;
+	case 2:
+		*(uint8_t *)p = v;
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 file_protected int
 file_parse_guid(const char *s, uint64_t *guid)
 {
 	struct guid *g = CAST(struct guid *, CAST(void *, guid));
-#ifndef WIN32
-	return sscanf(s,
-	    "%8x-%4hx-%4hx-%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
-	    &g->data1, &g->data2, &g->data3, &g->data4[0], &g->data4[1],
-	    &g->data4[2], &g->data4[3], &g->data4[4], &g->data4[5],
-	    &g->data4[6], &g->data4[7]) == 11 ? 0 : -1;
-#else
-	/* MS-Windows runtime doesn't support %hhx, except under
-	   non-default __USE_MINGW_ANSI_STDIO.  */
-	uint16_t data16[8];
-	int rv = sscanf(s, "%8x-%4hx-%4hx-%2hx%2hx-%2hx%2hx%2hx%2hx%2hx%2hx",
-	    &g->data1, &g->data2, &g->data3, &data16[0], &data16[1],
-	    &data16[2], &data16[3], &data16[4], &data16[5],
-	    &data16[6], &data16[7]) == 11 ? 0 : -1;
-	int i;
-	for (i = 0; i < 8; i++)
-	    g->data4[i] = data16[i];
-	return rv;
-#endif
+
+	if (!getxvalue(&g->data1, s, 8) || s[8] != '-')
+		return -1;
+	s += 9;
+	if (!getxvalue(&g->data2, s, 4) || s[4] != '-')
+		return -1;
+	s += 5;
+	if (!getxvalue(&g->data3, s, 4) || s[4] != '-')
+		return -1;
+	s += 5;
+	if (!getxvalue(&g->data4[0], s, 2) ||
+	    !getxvalue(&g->data4[1], s + 2, 2) || s[4] != '-')
+		return -1;
+	s += 5;
+	if (!getxvalue(&g->data4[2], s, 2) ||
+	    !getxvalue(&g->data4[3], s + 2, 2) ||
+	    !getxvalue(&g->data4[4], s + 4, 2) ||
+	    !getxvalue(&g->data4[5], s + 6, 2) ||
+	    !getxvalue(&g->data4[6], s + 8, 2) ||
+	    !getxvalue(&g->data4[7], s + 10, 2))
+		return -1;
+	return 0;
 }
 
 file_protected int

@@ -134,7 +134,7 @@ static const struct ig4_hw ig4iic_hw[] = {
 	},
 };
 
-static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset);
+static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset, bool force_restore);
 static driver_filter_t ig4iic_intr;
 static void ig4iic_dump(ig4iic_softc_t *sc);
 
@@ -661,7 +661,7 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			    ig4iic_xfer_abort(sc) != 0) {
 				device_printf(sc->dev, "Failed to abort "
 				    "transfer. Do the controller reset.\n");
-				ig4iic_set_config(sc, true);
+				ig4iic_set_config(sc, true, false);
 			} else {
 				while (reg_read(sc, IG4_REG_I2C_STA) &
 				    IG4_STATUS_RX_NOTEMPTY)
@@ -910,12 +910,23 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 }
 
 static int
-ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
+ig4iic_set_config(ig4iic_softc_t *sc, bool reset, bool force_restore)
 {
 	uint32_t v;
+	int i;
 
+	/*
+	 * Take the LPSS DesignWare core out of the "device idle" state.  While
+	 * idle the core is power-gated: its register bank reads back as zero and
+	 * writes are dropped.  Normally we perform this un-idle handshake only
+	 * when IG4_RESTORE_REQUIRED is observed in DEVIDLE_CTRL, but some
+	 * platforms (e.g. Intel Alder Lake-P) do not raise that status across
+	 * suspend-to-idle (S0ix).  Callers that know the core was idled (the
+	 * resume path) pass force_restore to perform the handshake regardless.
+	 */
 	v = reg_read(sc, IG4_REG_DEVIDLE_CTRL);
-	if (IG4_HAS_ADDREGS(sc->version) && (v & IG4_RESTORE_REQUIRED)) {
+	if (IG4_HAS_ADDREGS(sc->version) &&
+	    (force_restore || (v & IG4_RESTORE_REQUIRED))) {
 		reg_write(sc, IG4_REG_DEVIDLE_CTRL, IG4_DEVICE_IDLE | IG4_RESTORE_REQUIRED);
 		reg_write(sc, IG4_REG_DEVIDLE_CTRL, 0);
 		pause("i2crst", 1);
@@ -928,6 +939,23 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	} else if (IG4_HAS_ADDREGS(sc->version) && reset) {
 		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_ASSERT_SKL);
 		reg_write(sc, IG4_REG_RESETS_SKL, IG4_RESETS_DEASSERT_SKL);
+		/*
+		 * The DesignWare core's register bank is inaccessible (reads
+		 * back as zero) until it leaves reset.  Poll the fixed
+		 * component-type signature so we proceed exactly when the core
+		 * is ready, rather than waiting a fixed, guessed interval.
+		 */
+		for (i = 0; i < 100; i++) {
+			if (reg_read(sc, IG4_REG_COMP_TYPE) == IG4_COMP_TYPE)
+				break;
+			DELAY(10);
+		}
+		if (i == 100) {
+			device_printf(sc->dev, "WARNING: I2C controller core "
+			    "did not leave reset (COMP_TYPE 0x%08x); device "
+			    "may be unusable\n",
+			    reg_read(sc, IG4_REG_COMP_TYPE));
+		}
 	}
 
 	if (sc->version == IG4_ATOM)
@@ -1037,7 +1065,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 
 	ig4iic_get_config(sc);
 
-	error = ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version));
+	error = ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version), false);
 	if (error)
 		goto done;
 	ig4iic_get_fifo(sc);
@@ -1130,7 +1158,19 @@ int ig4iic_resume(ig4iic_softc_t *sc)
 	int error;
 
 	sx_xlock(&sc->call_lock);
-	if (ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version)))
+
+	/*
+	 * ig4iic_suspend() leaves the controller power-gated in the LPSS
+	 * "device idle" state.  Force the un-idle/restore handshake in
+	 * ig4iic_set_config() so the DesignWare core is reliably restored
+	 * before reconfiguration: some platforms (e.g. Intel Alder Lake-P) do
+	 * not raise IG4_RESTORE_REQUIRED across suspend-to-idle (S0ix), and
+	 * without the forced handshake the core stays gated, set_config()'s
+	 * writes are dropped, and every subsequent transfer fails with
+	 * IIC_ETIMEOUT, leaving child I2C-HID devices (touchpad, touchscreen)
+	 * dead after resume.
+	 */
+	if (ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version), true))
 		device_printf(sc->dev, "controller error during resume\n");
 	sx_xunlock(&sc->call_lock);
 

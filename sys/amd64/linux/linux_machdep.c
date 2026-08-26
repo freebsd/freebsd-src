@@ -282,6 +282,26 @@ linux_to_bsd_regset(struct reg *b_reg, const struct linux_pt_regset *l_regset)
 }
 
 void
+bsd_to_linux_fpregset(const struct fpreg *b_fpreg,
+    struct linux_pt_fpregset *l_fpregset)
+{
+	l_fpregset->cwd = b_fpreg->fpr_env[0];
+	l_fpregset->swd = b_fpreg->fpr_env[0] >> 16;
+	l_fpregset->twd = b_fpreg->fpr_env[0] >> 32;
+	l_fpregset->fop = b_fpreg->fpr_env[0] >> 48;
+	l_fpregset->rip = b_fpreg->fpr_env[1];
+	l_fpregset->rdp = b_fpreg->fpr_env[2];
+	l_fpregset->mxcsr = b_fpreg->fpr_env[3];
+	l_fpregset->mxcsr_mask = b_fpreg->fpr_env[3] >> 32;
+
+	memcpy(l_fpregset->st_space, b_fpreg->fpr_acc,
+	    sizeof(l_fpregset->st_space));
+	memcpy(l_fpregset->xmm_space, b_fpreg->fpr_xacc,
+	    sizeof(l_fpregset->xmm_space));
+	memset(l_fpregset->padding, 0, sizeof(l_fpregset->padding));
+}
+
+void
 linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
     struct syscall_info *si)
 {

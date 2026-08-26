@@ -553,3 +553,43 @@ fdt_get_chosen_bootargs(char *bootargs, size_t max_size)
 		return (ENXIO);
 	return (0);
 }
+
+/*
+ * fdt_ether_get_addr - Get ethernet MAC address using FDT properties.
+ * Order:
+ *   1. "mac-address"
+ *   2. "local-mac-address"
+ *   3. Keep pre-initialized value (if valid)
+ *   4. random ether_gen_addr() as last resort
+ */
+void
+fdt_ether_get_addr(phandle_t node, struct ifnet *ifp, uint8_t *eaddr)
+{
+	uint8_t tmp[ETHER_ADDR_LEN];
+	int len;
+
+	/* Firstly try "mac-address" */
+	len = OF_getprop(node, "mac-address", tmp, sizeof(tmp));
+	if (len == ETHER_ADDR_LEN && !ETHER_IS_ZERO(tmp) &&
+	    !ETHER_IS_MULTICAST(tmp)) {
+		bcopy(tmp, eaddr, ETHER_ADDR_LEN);
+		return;
+	}
+
+	/* Next use  "local-mac-address" */
+	len = OF_getprop(node, "local-mac-address", tmp, sizeof(tmp));
+	if (len == ETHER_ADDR_LEN && !ETHER_IS_ZERO(tmp) &&
+	    !ETHER_IS_MULTICAST(tmp)) {
+		bcopy(tmp, eaddr, ETHER_ADDR_LEN);
+		return;
+	}
+
+	/* Next use existing one if set */
+	if (!ETHER_IS_ZERO(eaddr) && !ETHER_IS_MULTICAST(eaddr))
+		return;
+
+	/* Last resort - generate random one */
+	ether_gen_addr(ifp, (struct ether_addr *)eaddr);
+
+	return;
+}

@@ -45,7 +45,7 @@ static inline caddr_t
 zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
 {
 	*sfp = sf_buf_alloc(pp, 0);
-	return ((caddr_t)sf_buf_kva(*sfp));
+	return (sf_buf_kva(*sfp));
 }
 
 static inline void

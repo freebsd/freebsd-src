@@ -1,5 +1,8 @@
 /* cmakeconfig.h.in */
 
+#ifndef TCPDUMP_CONFIG_H_
+#define TCPDUMP_CONFIG_H_
+
 /* Define to 1 if arpa/inet.h declares `ether_ntohost' */
 #cmakedefine ARPA_INET_H_DECLARES_ETHER_NTOHOST 1
 
@@ -288,3 +291,5 @@
 /* Define to the type of an unsigned integer type wide enough to hold a
    pointer, if such a type exists, and if the system does not define it. */
 #cmakedefine uintptr_t 1
+
+#endif // TCPDUMP_CONFIG_H_

@@ -448,6 +448,7 @@ typedef struct {
 #define	SHT_GROUP		17	/* Section group. */
 #define	SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
 #define	SHT_LOOS		0x60000000	/* First of OS specific semantics */
+#define	SHT_LLVM_ADDRSIG	0x6fff4c03	/* Address significance table */
 #define	SHT_LOSUNW		0x6ffffff4
 #define	SHT_SUNW_dof		0x6ffffff4
 #define	SHT_SUNW_cap		0x6ffffff5
@@ -470,6 +471,9 @@ typedef struct {
 #define	SHT_HISUNW		0x6fffffff
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
+
+#define	SHT_AARCH64_MEMTAG_GLOBALS_STATIC	0x70000007
+#define	SHT_AARCH64_MEMTAG_GLOBALS_DYNAMIC	0x70000008
 
 #define	SHT_ARM_EXIDX		0x70000001	/* Exception index table. */
 #define	SHT_ARM_PREEMPTMAP	0x70000002	/* BPABI DLL dynamic linking
@@ -637,7 +641,10 @@ typedef struct {
 				   pre-initialization functions. */
 #define	DT_PREINIT_ARRAYSZ 33	/* Size in bytes of the array of
 				   pre-initialization functions. */
-#define	DT_MAXPOSTAGS	34	/* number of positive tags */
+#define	DT_SYMTAB_SHNDX	34	/* Address of the SHT_SYMTAB_SHNDX section
+				   associated with the symbol table referenced
+				   by the DT_SYMTAB element. */
+#define	DT_MAXPOSTAGS	34	/* (obsolete) number of positive tags */
 #define	DT_RELRSZ	35	/* Total size of ElfNN_Relr relocations. */
 #define	DT_RELR		36	/* Address of ElfNN_Relr relocations. */
 #define	DT_RELRENT	37	/* Size of each ElfNN_Relr relocation. */
@@ -705,6 +712,11 @@ typedef struct {
 #define	DT_AARCH64_BTI_PLT		0x70000001
 #define	DT_AARCH64_PAC_PLT		0x70000003
 #define	DT_AARCH64_VARIANT_PCS		0x70000005
+#define	DT_AARCH64_MEMTAG_MODE		0x70000009
+#define	DT_AARCH64_MEMTAG_HEAP		0x7000000b
+#define	DT_AARCH64_MEMTAG_STACK		0x7000000c
+#define	DT_AARCH64_MEMTAG_GLOBALS	0x7000000d
+#define	DT_AARCH64_MEMTAG_GLOBALSSZ	0x7000000f
 
 #define	DT_ARM_SYMTABSZ			0x70000001
 #define	DT_ARM_PREEMPTMAP		0x70000002
@@ -853,6 +865,9 @@ typedef struct {
 #define	NT_ARM_TLS	0x401	/* ARM TLS register */
 #define	NT_ARM_SVE	0x405	/* ARM SVE registers */
 #define	NT_ARM_ADDR_MASK	0x406	/* arm64 address mask (e.g. for TBI) */
+
+/* FDO (freedesktop.org) note types. */
+#define	NT_FDO_PACKAGING_METADATA		0xcafe1a7e
 
 /* GNU note types. */
 #define	NT_GNU_ABI_TAG		1

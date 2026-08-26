@@ -1,5 +1,6 @@
 .git
 .gitattributes
+.github
 .gitignore
 .travis.yml
 CMakeLists.txt
@@ -34,8 +35,13 @@ libarchive/mtree.5
 libarchive/test/.cvsignore
 libarchive/test/CMakeLists.txt
 tar/CMakeLists.txt
+tar/bsdtar.exe.manifest
+tar/bsdtar.rc
 tar/bsdtar_windows.c
 tar/bsdtar_windows.h
 tar/config_freebsd.h
 tar/test/CMakeLists.txt
 tar/test/test_windows.c
+unzip/bsdunzip.exe.manifest
+unzip/bsdunzip.rc
+unzip/bsdunzip_windows.h

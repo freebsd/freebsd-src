@@ -49,7 +49,7 @@ struct udphdr {
 /*
  * User-settable options (used with setsockopt).
  */
-#define	UDP_ENCAP			1
+#define	UDP_ENCAP			1	/* int; UDP encapsulation type */
 
 /* Start of reserved space for third-party user-settable options. */
 #define	UDP_VENDOR			SO_VENDOR

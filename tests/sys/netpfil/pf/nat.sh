@@ -162,20 +162,26 @@ endpoint_independent_common()
 	pft_set_rules nat "${1}"
 
 	jexec server1 tcpdump -i ${epair_server1}a -w ${PWD}/server1.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server1tcppid="$!"
 	jexec server2 tcpdump -i ${epair_server2}a -w ${PWD}/server2.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server2tcppid="$!"
 
-	# send out multiple packets
-	for i in $(seq 1 10); do
-		echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242 -w 0
-		echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242 -w 0
+	# wait for tcpdumps to fully attach and block in bpfread()
+	for p in ${server1tcppid} ${server2tcppid}; do
+		while [ $(ps -o wchan ${p} | tr "\n" " " | cut -w -f 2) != "bpf" ]; do
+			sleep 0.01;
+		done
 	done
 
-	kill $server1tcppid
-	kill $server2tcppid
+	echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242
+	echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242
+
+	for p in ${server1tcppid} ${server2tcppid}; do
+		wait ${p}
+		atf_check_equal 0 $?
+	done
 
 	tuple_server1=$(tcpdump -r ${PWD}/server1.pcap | awk '{addr=$3} END {print addr}')
 	tuple_server2=$(tcpdump -r ${PWD}/server2.pcap | awk '{addr=$3} END {print addr}')
@@ -201,20 +207,26 @@ endpoint_independent_common()
 	pft_set_rules nat "${2}"
 
 	jexec server1 tcpdump -i ${epair_server1}a -w ${PWD}/server1.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server1tcppid="$!"
 	jexec server2 tcpdump -i ${epair_server2}a -w ${PWD}/server2.pcap \
-		--immediate-mode $filter &
+		--immediate-mode $filter -c 1 &
 	server2tcppid="$!"
 
-	# send out multiple packets,  sometimes one fails to go through
-	for i in $(seq 1 10); do
-		echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242 -w 0
-		echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242 -w 0
+	# wait for tcpdumps to fully attach and block in bpfread()
+	for p in ${server1tcppid} ${server2tcppid}; do
+		while [ $(ps -o wchan ${p} | tr "\n" " " | cut -w -f 2) != "bpf" ]; do
+			sleep 0.01;
+		done
 	done
 
-	kill $server1tcppid
-	kill $server2tcppid
+	echo "ping" | jexec client nc -u 198.51.100.32 1234 -p 4242
+	echo "ping" | jexec client nc -u 198.51.100.22 1234 -p 4242
+
+	for p in ${server1tcppid} ${server2tcppid}; do
+		wait ${p}
+		atf_check_equal 0 $?
+	done
 
 	tuple_server1=$(tcpdump -r ${PWD}/server1.pcap | awk '{addr=$3} END {print addr}')
 	tuple_server2=$(tcpdump -r ${PWD}/server2.pcap | awk '{addr=$3} END {print addr}')
@@ -953,6 +965,50 @@ dummynet_mask_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "first_match" "cleanup"
+first_match_head()
+{
+	atf_set descr 'Test that NAT rules are first match'
+	atf_set require.user root
+}
+
+first_match_body()
+{
+	pft_init
+
+	epair_nat=$(vnet_mkepair)
+	epair_echo=$(vnet_mkepair)
+
+	vnet_mkjail nat ${epair_nat}b ${epair_echo}a
+	vnet_mkjail echo ${epair_echo}b
+
+	ifconfig ${epair_nat}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+
+	jexec nat ifconfig ${epair_nat}b 192.0.2.1/24 up
+	jexec nat ifconfig ${epair_echo}a 198.51.100.1/24 up
+	jexec nat sysctl net.inet.ip.forwarding=1
+
+	jexec echo ifconfig ${epair_echo}b 198.51.100.2/24 up
+
+	# Enable pf!
+	jexec nat pfctl -e
+	pft_set_rules nat \
+		"table <foo> { 192.0.2.0/24 }" \
+		"nat on ${epair_echo}a inet from <foo> to any -> 198.51.100.1" \
+		"nat on ${epair_echo}a inet from 192.0.2.0/24 to any -> 198.51.100.3"
+
+	atf_check -s exit:0 -o ignore ping -c 3 198.51.100.2
+	atf_check -s exit:0 -e ignore \
+	    -o match:"all icmp 198.51.100.1:.*(192.0.2.2:.*) -> 198.51.100.2:8.*" \
+		jexec nat pfctl -ss
+}
+
+first_match_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "exhaust"
@@ -975,4 +1031,5 @@ atf_init_test_cases()
 	atf_add_test_case "binat_match"
 	atf_add_test_case "empty_pool"
 	atf_add_test_case "dummynet_mask"
+	atf_add_test_case "first_match"
 }

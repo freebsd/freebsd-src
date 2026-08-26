@@ -267,7 +267,7 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 	}
 	nvlist_destroy(nvl);
 	if (curai == NULL && nvlai != NULL) {
-		if (firstai == NULL)
+		if (firstai != NULL)
 			freeaddrinfo(firstai);
 		return (EAI_MEMORY);
 	}

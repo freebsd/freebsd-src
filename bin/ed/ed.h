@@ -36,6 +36,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define ERR		(-2)
 #define EMOD		(-3)

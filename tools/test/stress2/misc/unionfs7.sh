@@ -95,7 +95,7 @@ export TESTPROGS=`echo $TESTPROGS | sed 's/\n/ /g'`
 set +e
 chmod 777 $mp2
 su $testuser -c \
-	"(cd $mp2/stress2; ./testcases/run/run $TESTPROGS > /dev/null 2>&1)"
+	"(cd $mp2/stress2; ./testcases/run/run $TESTPROGS)"
 
 while mount | grep -Eq "on $mp2 .*unionfs"; do
 	umount $mp2 && break

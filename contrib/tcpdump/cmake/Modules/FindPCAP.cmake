@@ -61,6 +61,42 @@ if(WIN32)
   if(PCAP_FOUND)
     set(PCAP_LIBRARIES ${PCAP_LIBRARY})
     set(PCAP_INCLUDE_DIRS ${PCAP_INCLUDE_DIR})
+
+    #
+    # We need to look for wpcap.dll in \Windows\System32\Npcap first,
+    # as either:
+    #
+    #  1) WinPcap isn't installed and Npcap isn't installed in "WinPcap
+    #     API-compatible Mode", so there's no wpcap.dll in
+    #     \Windows\System32, only in \Windows\System32\Npcap;
+    #
+    #  2) WinPcap is installed and Npcap isn't installed in "WinPcap
+    #     API-compatible Mode", so the wpcap.dll in \Windows\System32
+    #     is a WinPcap DLL, but we'd prefer an Npcap DLL (we should
+    #     work with either one if we're configured against WinPcap,
+    #     and we'll probably require Npcap if we're configured against
+    #     it), and that's in \Windows\System32\Npcap;
+    #
+    #  3) Npcap is installed in "WinPcap API-compatible Mode", so both
+    #     \Windows\System32 and \Windows\System32\Npcap have an Npcap
+    #     wpcap.dll.
+    #
+    # Unfortunately, Windows has no notion of an rpath, so we can't
+    # set the rpath to include \Windows\System32\Npcap at link time;
+    # what we need to do is to link wpcap as a delay-load DLL and
+    # add \Windows\System32\Npcap to the DLL search path early in
+    # main() with a call to SetDllDirectory().
+    #
+    # We add /delayload:wpcap.dll to the linker options here.
+    #
+    # See https://npcap.com/guide/npcap-devguide.html#npcap-feature-native-dll-implicitly
+    #
+    set(PCAP_LINK_FLAGS /delayload:wpcap.dll)
+
+    #
+    # Delay-loading libraries means we need to link with delayimp.lib.
+    #
+    set(PCAP_LIBRARIES ${PCAP_LIBRARIES} delayimp.lib)
   endif()
 else(WIN32)
   #

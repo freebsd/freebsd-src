@@ -404,8 +404,8 @@ read_config(FILE *f)
 		if (ap != &pair[2])
 			goto parse_error;
 
-		tp = pair[1] + strlen(pair[1]);
-		while ((*tp == ' ' || *tp == '\t') && tp >= pair[1])
+		tp = pair[1] + strlen(pair[1]) - 1;
+		while (tp >= pair[1] && (*tp == ' ' || *tp == '\t'))
 			*tp-- = '\0';
 
 		if (strcasecmp(pair[0], "anchor") == 0) {

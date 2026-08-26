@@ -878,7 +878,21 @@ void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw), swfw_sync);
 
 	ixgbe_release_swfw_sync_semaphore(hw);
-	msec_delay(2);
+
+	/*
+	 * EEPROM / flash access requires a 2ms sleep or interacting with
+	 * them isn't stable.  However, a 2ms delay for all sync operations
+	 * is very expensive for MDIO access.
+	 *
+	 * So use a 10us delay for PHY0/PHY1 MDIO and management access and
+	 * 2ms for everything else.  This keep MDIO access (eg from a switch
+	 * driver) fast.
+	 */
+	if (mask &
+	    (IXGBE_GSSR_PHY0_SM | IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_SW_MNG_SM))
+		usec_delay(10);
+	else
+		usec_delay(2000);
 }
 
 /**

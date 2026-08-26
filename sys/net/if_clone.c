@@ -442,6 +442,14 @@ if_clone_destroyif_flags(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags
 	int err;
 
 	/*
+	 * XXXZL: To avoid racing with if_vmove() so that we will have
+	 * stable if_vnet.
+	 * This have a good effect, that is, the destroying of tightly
+	 * coupled cloned interfaces such as epair(4) is serialized,
+	 * although the driver is responsible to take care of that.
+	 */
+	sx_assert(&ifnet_detach_sxlock, SA_XLOCKED);
+	/*
 	 * Given that the cloned ifnet might be attached to a different
 	 * vnet from where its cloner was registered, we have to
 	 * switch to the vnet context of the target vnet.
@@ -467,7 +475,12 @@ if_clone_destroyif_flags(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags
 int
 if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 {
-	return (if_clone_destroyif_flags(ifc, ifp, 0));
+	int err;
+
+	sx_xlock(&ifnet_detach_sxlock);
+	err = if_clone_destroyif_flags(ifc, ifp, 0);
+	sx_xunlock(&ifnet_detach_sxlock);
+	return (err);
 }
 
 static struct if_clone *
@@ -670,9 +683,11 @@ if_clone_detach(struct if_clone *ifc)
 	V_if_cloners_count--;
 	IF_CLONERS_UNLOCK();
 
+	sx_xlock(&ifnet_detach_sxlock);
 	/* destroy all interfaces for this cloner */
 	while (!LIST_EMPTY(&ifc->ifc_iflist))
 		if_clone_destroyif_flags(ifc, LIST_FIRST(&ifc->ifc_iflist), IFC_F_FORCE);
+	sx_xunlock(&ifnet_detach_sxlock);
 
 	IF_CLONE_REMREF(ifc);
 }

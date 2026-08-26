@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.Dd December 15, 2025
+.Dd May 27, 2026
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -194,17 +194,18 @@ login environment.
 .It "cputime	time		CPU usage limit."
 .It "datasize	size		Maximum data size limit."
 .It "filesize	size		Maximum file size limit."
+.It "kqueues	number		Maximum number of kernel event queues."
 .It "maxproc	number		Maximum number of processes."
 .It "memorylocked	size		Maximum locked in core memory size limit."
 .It "memoryuse	size		Maximum of core memory use size limit."
 .It "openfiles	number		Maximum number of open files per process."
-.It "sbsize	size		Maximum permitted socketbuffer size."
-.It "vmemoryuse	size		Maximum permitted total VM usage per process."
-.It "stacksize	size		Maximum stack size limit."
+.It "pipebuf	size		Maximum size of pipe buffers."
 .It "pseudoterminals	number		Maximum number of pseudo-terminals."
+.It "sbsize	size		Maximum permitted socketbuffer size."
+.It "stacksize	size		Maximum stack size limit."
 .It "swapuse	size		Maximum swap space size limit."
 .It "umtxp	number		Maximum number of process-shared pthread locks."
-.It "pipebuf	size		Maximum size of pipe buffers."
+.It "vmemoryuse	size		Maximum permitted total VM usage per process."
 .El
 .Pp
 These resource limit entries actually specify both the maximum

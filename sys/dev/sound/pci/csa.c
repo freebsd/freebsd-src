@@ -81,7 +81,7 @@ static int csa_probe(device_t dev);
 static int csa_attach(device_t dev);
 static struct resource *csa_alloc_resource(device_t bus, device_t child, int type, int rid,
 					      rman_res_t start, rman_res_t end,
-					      rman_res_t count, u_int flags);
+					      rman_res_t count, unsigned int flags);
 static int csa_release_resource(device_t bus, device_t child, struct resource *r);
 static int csa_setup_intr(device_t bus, device_t child,
 			  struct resource *irq, int flags,
@@ -92,7 +92,8 @@ static int csa_teardown_intr(device_t bus, device_t child,
 static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
 static int csa_downloadimage(csa_res *resp);
-static int csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len);
+static int csa_transferimage(csa_res *resp, uint32_t *src, unsigned long dest,
+    unsigned long len);
 
 static void
 amp_none(void)
@@ -110,7 +111,7 @@ clkrun_hack(int run)
 #ifdef __i386__
 	device_t		child;
 	int			port;
-	u_int16_t		control;
+	uint16_t		control;
 	bus_space_tag_t		btag;
 
 	child = pci_find_device(0x8086, 0x7113);
@@ -153,7 +154,7 @@ static struct csa_card cards_4615[] = {
 static struct csa_card nocard = {0, 0, "unknown", NULL, NULL, NULL, 0};
 
 struct card_type {
-	u_int32_t devid;
+	uint32_t devid;
 	char *name;
 	struct csa_card *cards;
 };
@@ -219,7 +220,6 @@ csa_attach(device_t dev)
 {
 	sc_p scp;
 	csa_res *resp;
-	struct sndcard_func *func;
 	int error = ENXIO;
 
 	scp = device_get_softc(dev);
@@ -273,18 +273,12 @@ csa_attach(device_t dev)
 	/* Attach the children. */
 
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
-	func->varinfo = &scp->binfo;
-	func->func = SCF_PCM;
 	scp->pcm = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
-	device_set_ivars(scp->pcm, func);
+	device_set_ivars(scp->pcm, &scp->binfo);
 
 	/* Midi Interface */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
-	func->varinfo = &scp->binfo;
-	func->func = SCF_MIDI;
 	scp->midi = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
-	device_set_ivars(scp->midi, func);
+	device_set_ivars(scp->midi, &scp->binfo);
 
 	bus_attach_children(dev);
 
@@ -299,12 +293,6 @@ err_mem:
 err_io:
 	bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
 	return (error);
-}
-
-static void
-csa_child_deleted(device_t dev, device_t child)
-{
-	free(device_get_ivars(child), M_DEVBUF);
 }
 
 static int
@@ -354,7 +342,7 @@ csa_resume(device_t dev)
 
 static struct resource *
 csa_alloc_resource(device_t bus, device_t child, int type, int rid,
-		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, unsigned int flags)
 {
 	sc_p scp;
 	csa_res *resp;
@@ -410,7 +398,6 @@ csa_setup_intr(device_t bus, device_t child,
 {
 	sc_p scp;
 	csa_res *resp;
-	struct sndcard_func *func;
 
 	if (filter != NULL) {
 		printf("ata-csa.c: we cannot use a filter here\n");
@@ -419,28 +406,21 @@ csa_setup_intr(device_t bus, device_t child,
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 
-	/*
-	 * Look at the function code of the child to determine
-	 * the appropriate handler for it.
-	 */
-	func = device_get_ivars(child);
-	if (func == NULL || irq != resp->irq)
+	if (irq != resp->irq)
 		return (EINVAL);
 
-	switch (func->func) {
-	case SCF_PCM:
+	/*
+	 * Look at which child device this is to determine the
+	 * appropriate handler for it.
+	 */
+	if (child == scp->pcm) {
 		scp->pcmintr = intr;
 		scp->pcmintr_arg = arg;
-		break;
-
-	case SCF_MIDI:
+	} else if (child == scp->midi) {
 		scp->midiintr = intr;
 		scp->midiintr_arg = arg;
-		break;
-
-	default:
+	} else
 		return (EINVAL);
-	}
 	*cookiep = scp;
 	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
 		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
@@ -454,33 +434,25 @@ csa_teardown_intr(device_t bus, device_t child,
 {
 	sc_p scp;
 	csa_res *resp;
-	struct sndcard_func *func;
 
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 
-	/*
-	 * Look at the function code of the child to determine
-	 * the appropriate handler for it.
-	 */
-	func = device_get_ivars(child);
-	if (func == NULL || irq != resp->irq || cookie != scp)
+	if (irq != resp->irq || cookie != scp)
 		return (EINVAL);
 
-	switch (func->func) {
-	case SCF_PCM:
+	/*
+	 * Look at which child device this is to determine the
+	 * appropriate handler for it.
+	 */
+	if (child == scp->pcm) {
 		scp->pcmintr = NULL;
 		scp->pcmintr_arg = NULL;
-		break;
-
-	case SCF_MIDI:
+	} else if (child == scp->midi) {
 		scp->midiintr = NULL;
 		scp->midiintr_arg = NULL;
-		break;
-
-	default:
+	} else
 		return (EINVAL);
-	}
 
 	return (0);
 }
@@ -491,7 +463,7 @@ csa_intr(void *arg)
 {
 	sc_p scp = arg;
 	csa_res *resp;
-	u_int32_t hisr;
+	uint32_t hisr;
 
 	resp = &scp->res;
 
@@ -527,7 +499,7 @@ static int
 csa_initialize(sc_p scp)
 {
 	int i;
-	u_int32_t acsts, acisv;
+	uint32_t acsts, acisv;
 	csa_res *resp;
 
 	resp = &scp->res;
@@ -726,7 +698,7 @@ void
 csa_clearserialfifos(csa_res *resp)
 {
 	int i, j, pwr;
-	u_int8_t clkcr1, serbst;
+	uint8_t clkcr1, serbst;
 
 	/*
 	 * See if the devices are powered down.  If so, we must power them up first
@@ -807,7 +779,7 @@ static int
 csa_downloadimage(csa_res *resp)
 {
 	int ret;
-	u_long ul, offset;
+	unsigned long ul, offset;
 
 	for (ul = 0, offset = 0 ; ul < INKY_MEMORY_COUNT ; ul++) {
 	        /*
@@ -826,9 +798,10 @@ csa_downloadimage(csa_res *resp)
 }
 
 static int
-csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len)
+csa_transferimage(csa_res *resp, uint32_t *src, unsigned long dest,
+    unsigned long len)
 {
-	u_long ul;
+	unsigned long ul;
 
 	/*
 	 * We do not allow DMAs from host memory to host memory (although the DMA
@@ -850,10 +823,10 @@ csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len)
 }
 
 int
-csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data)
+csa_readcodec(csa_res *resp, unsigned long offset, uint32_t *data)
 {
 	int i;
-	u_int32_t acctl, acsts;
+	uint32_t acctl, acsts;
 
 	/*
 	 * Make sure that there is not data sitting around from a previous
@@ -944,10 +917,10 @@ csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data)
 }
 
 int
-csa_writecodec(csa_res *resp, u_long offset, u_int32_t data)
+csa_writecodec(csa_res *resp, unsigned long offset, uint32_t data)
 {
 	int i;
-	u_int32_t acctl;
+	uint32_t acctl;
 
 	/*
 	 * Setup the AC97 control registers on the CS461x to send the
@@ -996,10 +969,10 @@ csa_writecodec(csa_res *resp, u_long offset, u_int32_t data)
 	return (0);
 }
 
-u_int32_t
-csa_readio(csa_res *resp, u_long offset)
+uint32_t
+csa_readio(csa_res *resp, unsigned long offset)
 {
-	u_int32_t ul;
+	uint32_t ul;
 
 	if (offset < BA0_AC97_RESET)
 		return bus_space_read_4(rman_get_bustag(resp->io), rman_get_bushandle(resp->io), offset) & 0xffffffff;
@@ -1011,7 +984,7 @@ csa_readio(csa_res *resp, u_long offset)
 }
 
 void
-csa_writeio(csa_res *resp, u_long offset, u_int32_t data)
+csa_writeio(csa_res *resp, unsigned long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
 		bus_space_write_4(rman_get_bustag(resp->io), rman_get_bushandle(resp->io), offset, data);
@@ -1019,14 +992,14 @@ csa_writeio(csa_res *resp, u_long offset, u_int32_t data)
 		csa_writecodec(resp, offset, data);
 }
 
-u_int32_t
-csa_readmem(csa_res *resp, u_long offset)
+uint32_t
+csa_readmem(csa_res *resp, unsigned long offset)
 {
 	return bus_space_read_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset);
 }
 
 void
-csa_writemem(csa_res *resp, u_long offset, u_int32_t data)
+csa_writemem(csa_res *resp, unsigned long offset, uint32_t data)
 {
 	bus_space_write_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset, data);
 }
@@ -1041,7 +1014,6 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_resume,	csa_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_deleted,	csa_child_deleted),
 	DEVMETHOD(bus_alloc_resource,	csa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),

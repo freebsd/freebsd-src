@@ -64,6 +64,17 @@ static s32 e1000_null_mbx_transact(struct e1000_hw E1000_UNUSEDARG *hw,
 	return E1000_SUCCESS;
 }
 
+static s32 e1000_null_mbx_read(struct e1000_hw E1000_UNUSEDARG *hw,
+			       u32 E1000_UNUSEDARG *msg,
+			       u16 E1000_UNUSEDARG size,
+			       u16 E1000_UNUSEDARG mbx_id,
+			       bool E1000_UNUSEDARG unlock)
+{
+	DEBUGFUNC("e1000_null_mbx_read");
+
+	return E1000_SUCCESS;
+}
+
 /**
  *  e1000_read_mbx - Reads a message from the mailbox
  *  @hw: pointer to the HW structure
@@ -73,7 +84,8 @@ static s32 e1000_null_mbx_transact(struct e1000_hw E1000_UNUSEDARG *hw,
  *
  *  returns SUCCESS if it successfully read message from buffer
  **/
-s32 e1000_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+s32 e1000_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id,
+		   bool unlock)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	s32 ret_val = -E1000_ERR_MBX;
@@ -85,7 +97,7 @@ s32 e1000_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 		size = mbx->size;
 
 	if (mbx->ops.read)
-		ret_val = mbx->ops.read(hw, msg, size, mbx_id);
+		ret_val = mbx->ops.read(hw, msg, size, mbx_id, unlock);
 
 	return ret_val;
 }
@@ -176,6 +188,24 @@ s32 e1000_check_for_rst(struct e1000_hw *hw, u16 mbx_id)
 }
 
 /**
+ *  e1000_unlock_mbx - release mailbox ownership
+ *  @hw: pointer to the HW structure
+ *  @mbx_id: id of mailbox to unlock
+ **/
+s32 e1000_unlock_mbx(struct e1000_hw *hw, u16 mbx_id)
+{
+	struct e1000_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = -E1000_ERR_MBX;
+
+	DEBUGFUNC("e1000_unlock_mbx");
+
+	if (mbx->ops.unlock)
+		ret_val = mbx->ops.unlock(hw, mbx_id);
+
+	return (ret_val);
+}
+
+/**
  *  e1000_poll_for_msg - Wait for message notification
  *  @hw: pointer to the HW structure
  *  @mbx_id: id of mailbox to write
@@ -261,7 +291,7 @@ s32 e1000_read_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 
 	/* if ack received read message, otherwise we timed out */
 	if (!ret_val)
-		ret_val = mbx->ops.read(hw, msg, size, mbx_id);
+		ret_val = mbx->ops.read(hw, msg, size, mbx_id, true);
 out:
 	return ret_val;
 }
@@ -307,11 +337,12 @@ void e1000_init_mbx_ops_generic(struct e1000_hw *hw)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	mbx->ops.init_params = e1000_null_ops_generic;
-	mbx->ops.read = e1000_null_mbx_transact;
+	mbx->ops.read = e1000_null_mbx_read;
 	mbx->ops.write = e1000_null_mbx_transact;
 	mbx->ops.check_for_msg = e1000_null_mbx_check_for_flag;
 	mbx->ops.check_for_ack = e1000_null_mbx_check_for_flag;
 	mbx->ops.check_for_rst = e1000_null_mbx_check_for_flag;
+	mbx->ops.unlock = e1000_null_mbx_check_for_flag;
 	mbx->ops.read_posted = e1000_read_posted_mbx;
 	mbx->ops.write_posted = e1000_write_posted_mbx;
 }
@@ -500,7 +531,8 @@ out_no_write:
  *  returns SUCCESS if it successfully read message from buffer
  **/
 static s32 e1000_read_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size,
-			     u16 E1000_UNUSEDARG mbx_id)
+			     u16 E1000_UNUSEDARG mbx_id,
+			     bool E1000_UNUSEDARG unlock)
 {
 	s32 ret_val = E1000_SUCCESS;
 	u16 i;
@@ -649,26 +681,35 @@ static s32 e1000_obtain_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
 {
 	s32 ret_val = -E1000_ERR_MBX;
 	u32 p2v_mailbox;
-	int count = 10;
 
 	DEBUGFUNC("e1000_obtain_mbx_lock_pf");
 
-	do {
-		/* Take ownership of the buffer */
-		E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number),
-				E1000_P2VMAILBOX_PFU);
-
-		/* reserve mailbox for pf use */
-		p2v_mailbox = E1000_READ_REG(hw, E1000_P2VMAILBOX(vf_number));
-		if (p2v_mailbox & E1000_P2VMAILBOX_PFU) {
-			ret_val = E1000_SUCCESS;
-			break;
-		}
-		usec_delay(1000);
-	} while (count-- > 0);
+	/*
+	 * A VF request releases VFU as it raises REQ.  If the VF still owns
+	 * the buffer, leave the request for a later admin pass rather than
+	 * sleeping under the PF's context lock and delaying every other VF.
+	 */
+	E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number),
+	    E1000_P2VMAILBOX_PFU);
+	p2v_mailbox = E1000_READ_REG(hw, E1000_P2VMAILBOX(vf_number));
+	if (p2v_mailbox & E1000_P2VMAILBOX_PFU)
+		ret_val = E1000_SUCCESS;
 
 	return ret_val;
 
+}
+
+static s32
+e1000_release_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
+{
+	u32 p2v_mailbox;
+
+	p2v_mailbox = E1000_READ_REG(hw, E1000_P2VMAILBOX(vf_number));
+	if (p2v_mailbox & E1000_P2VMAILBOX_PFU)
+		E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number),
+		    p2v_mailbox & ~E1000_P2VMAILBOX_PFU);
+
+	return (E1000_SUCCESS);
 }
 
 /**
@@ -692,6 +733,17 @@ static s32 e1000_write_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
 	ret_val = e1000_obtain_mbx_lock_pf(hw, vf_number);
 	if (ret_val)
 		goto out_no_write;
+
+	/*
+	 * A VF request wins over an asynchronous PF message.  Do not clear
+	 * VFREQ here: the PF mailbox handler still needs to consume it.
+	 */
+	if (E1000_READ_REG(hw, E1000_MBVFICR) &
+	    (E1000_MBVFICR_VFREQ_VF1 << vf_number)) {
+		e1000_release_mbx_lock_pf(hw, vf_number);
+		ret_val = -E1000_ERR_MBX;
+		goto out_no_write;
+	}
 
 	/* flush msg and acks as we are overwriting the message buffer */
 	e1000_check_for_msg_pf(hw, vf_number);
@@ -724,7 +776,7 @@ out_no_write:
  *  a message due to a VF request so no polling for message is needed.
  **/
 static s32 e1000_read_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
-			     u16 vf_number)
+			     u16 vf_number, bool unlock)
 {
 	s32 ret_val;
 	u16 i;
@@ -736,12 +788,21 @@ static s32 e1000_read_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
 	if (ret_val)
 		goto out_no_read;
 
+	/*
+	 * A second VF request can arrive while the PF retries ownership.  PFU
+	 * now keeps VMBMEM stable, so consume any reasserted VFREQ before
+	 * reading the request that it describes.
+	 */
+	(void)e1000_check_for_msg_pf(hw, vf_number);
+
 	/* copy the message to the mailbox memory buffer */
 	for (i = 0; i < size; i++)
 		msg[i] = E1000_READ_REG_ARRAY(hw, E1000_VMBMEM(vf_number), i);
 
-	/* Acknowledge the message and release buffer */
-	E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_ACK);
+	/* Acknowledge the message and optionally retain PF ownership. */
+	E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number),
+	    E1000_P2VMAILBOX_ACK |
+	    (unlock ? 0 : E1000_P2VMAILBOX_PFU));
 
 	/* update stats */
 	hw->mbx.stats.msgs_rx++;
@@ -776,6 +837,7 @@ s32 e1000_init_mbx_params_pf(struct e1000_hw *hw)
 		mbx->ops.check_for_msg = e1000_check_for_msg_pf;
 		mbx->ops.check_for_ack = e1000_check_for_ack_pf;
 		mbx->ops.check_for_rst = e1000_check_for_rst_pf;
+		mbx->ops.unlock = e1000_release_mbx_lock_pf;
 
 		mbx->stats.msgs_tx = 0;
 		mbx->stats.msgs_rx = 0;
@@ -787,4 +849,3 @@ s32 e1000_init_mbx_params_pf(struct e1000_hw *hw)
 		return E1000_SUCCESS;
 	}
 }
-

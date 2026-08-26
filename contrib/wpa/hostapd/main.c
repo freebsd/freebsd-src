@@ -20,6 +20,7 @@
 #include "crypto/tls.h"
 #include "common/version.h"
 #include "common/dpp.h"
+#include "common/proc_coord.h"
 #include "drivers/driver.h"
 #include "eap_server/eap.h"
 #include "eap_server/tncs.h"
@@ -160,6 +161,7 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 	struct wpa_driver_capa capa;
 #ifdef CONFIG_IEEE80211BE
 	struct hostapd_data *h_hapd = NULL;
+	void *shared_hapd = NULL;
 #endif /* CONFIG_IEEE80211BE */
 
 	if (hapd->driver == NULL || hapd->driver->hapd_init == NULL) {
@@ -168,8 +170,16 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 	}
 
 #ifdef CONFIG_IEEE80211BE
-	if (conf->mld_ap)
+	if (conf->mld_ap) {
+		hostapd_bss_setup_multi_link(hapd, iface->interfaces);
+		if (!hapd->mld) {
+			wpa_printf(MSG_ERROR,
+				   "MLD: Failed to initialize context for %s",
+				   conf->iface);
+			return -1;
+		}
 		h_hapd = hostapd_mld_get_first_bss(hapd);
+	}
 
 	if (h_hapd) {
 		hapd->drv_priv = h_hapd->drv_priv;
@@ -191,7 +201,6 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 			os_memcpy(hapd->own_addr, b, ETH_ALEN);
 		}
 
-		hostapd_mld_add_link(hapd);
 		wpa_printf(MSG_DEBUG,
 			   "Setup of non first link (%d) BSS of MLD %s",
 			   hapd->mld_link_id, hapd->conf->iface);
@@ -254,6 +263,42 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 
 	params.own_addr = hapd->own_addr;
 
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->driver->can_share_drv &&
+	    hapd->driver->can_share_drv(hapd, &params, &shared_hapd)) {
+		char force_ifname[IFNAMSIZ];
+		const u8 *addr = params.bssid;
+		u8 if_addr[ETH_ALEN];
+
+		if (!shared_hapd) {
+			wpa_printf(MSG_ERROR, "Failed to get the shared drv");
+			os_free(params.bridge);
+			return -1;
+		}
+
+		/* Share an already initialized driver interface instance
+		 * using an AP mode BSS in it instead of adding a new driver
+		 * interface instance for the same driver. */
+		if (hostapd_if_add(shared_hapd, WPA_IF_AP_BSS,
+				   params.ifname, addr, hapd,
+				   &hapd->drv_priv, force_ifname, if_addr,
+				   params.num_bridge && params.bridge[0] ?
+				   params.bridge[0] : NULL,
+				   1)) {
+			wpa_printf(MSG_ERROR, "Failed to add BSS (BSSID="
+				   MACSTR ")", MAC2STR(hapd->own_addr));
+			os_free(params.bridge);
+			return -1;
+		}
+		os_free(params.bridge);
+
+		hapd->interface_added = 1;
+		os_memcpy(params.own_addr, addr ? addr : if_addr, ETH_ALEN);
+
+		goto pre_setup_mld;
+	}
+#endif /* CONFIG_IEEE80211BE */
+
 	hapd->drv_priv = hapd->driver->hapd_init(hapd, &params);
 	os_free(params.bridge);
 	if (hapd->drv_priv == NULL) {
@@ -264,6 +309,7 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 	}
 
 #ifdef CONFIG_IEEE80211BE
+pre_setup_mld:
 	/*
 	 * This is the first interface added to the AP MLD, so have the
 	 * interface hardware address be the MLD address, while the link address
@@ -278,7 +324,6 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 		else
 			os_memcpy(hapd->own_addr, b, ETH_ALEN);
 
-		hostapd_mld_add_link(hapd);
 		wpa_printf(MSG_DEBUG, "Setup of first link (%d) BSS of MLD %s",
 			   hapd->mld_link_id, hapd->conf->iface);
 	}
@@ -338,8 +383,14 @@ setup_mld:
 			   hapd->mld_link_id, MAC2STR(hapd->mld->mld_addr),
 			   MAC2STR(hapd->own_addr));
 
-		hostapd_drv_link_add(hapd, hapd->mld_link_id,
-				     hapd->own_addr);
+		if (hostapd_drv_link_add(hapd, hapd->mld_link_id,
+					 hapd->own_addr)) {
+			wpa_printf(MSG_ERROR,
+				   "MLD: Failed to add link %d in MLD %s",
+				   hapd->mld_link_id, hapd->conf->iface);
+			return -1;
+		}
+		hostapd_mld_add_link(hapd);
 	}
 #endif /* CONFIG_IEEE80211BE */
 
@@ -555,7 +606,7 @@ static void show_version(void)
 		"hostapd v%s\n"
 		"User space daemon for IEEE 802.11 AP management,\n"
 		"IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator\n"
-		"Copyright (c) 2002-2024, Jouni Malinen <j@w1.fi> "
+		"Copyright (c) 2002-2026, Jouni Malinen <j@w1.fi> "
 		"and contributors\n",
 		VERSION_STR);
 }
@@ -570,6 +621,9 @@ static void usage(void)
 		"\\\n"
 		"         [-g <global ctrl_iface>] [-G <group>]\\\n"
 		"         [-i <comma-separated list of interface names>]\\\n"
+#ifdef CONFIG_PROCESS_COORDINATION
+		"        [-z<process coordination directory>] \\\n"
+#endif /* CONFIG_PROCESS_COORDINATION */
 		"         <configuration file(s)>\n"
 		"\n"
 		"options:\n"
@@ -595,6 +649,9 @@ static void usage(void)
 		"   -S   start all the interfaces synchronously\n"
 		"   -t   include timestamps in some debug messages\n"
 		"   -v   show hostapd version\n"
+#ifdef CONFIG_PROCESS_COORDINATION
+		"   -z   process coordination directory\n"
+#endif /* CONFIG_PROCESS_COORDINATION */
 		"   -q   show less debug messages (-qq for even less)\n");
 
 	exit(1);
@@ -748,6 +805,7 @@ static void hostapd_global_cleanup_mld(struct hapd_interfaces *interfaces)
 		if (!interfaces->mld[i])
 			continue;
 
+		interfaces->mld_ctrl_iface_deinit(interfaces->mld[i]);
 		os_free(interfaces->mld[i]);
 		interfaces->mld[i] = NULL;
 	}
@@ -779,6 +837,9 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_DPP
 	struct dpp_global_config dpp_conf;
 #endif /* CONFIG_DPP */
+#ifdef CONFIG_PROCESS_COORDINATION
+	const char *proc_coord_dir = NULL;
+#endif /* CONFIG_PROCESS_COORDINATION */
 
 	if (os_program_init())
 		return -1;
@@ -793,6 +854,10 @@ int main(int argc, char *argv[])
 	interfaces.global_iface_path = NULL;
 	interfaces.global_iface_name = NULL;
 	interfaces.global_ctrl_sock = -1;
+#ifdef CONFIG_IEEE80211BE
+	interfaces.mld_ctrl_iface_init = hostapd_mld_ctrl_iface_init;
+	interfaces.mld_ctrl_iface_deinit = hostapd_mld_ctrl_iface_deinit;
+#endif /* CONFIG_IEEE80211BE */
 	dl_list_init(&interfaces.global_ctrl_dst);
 #ifdef CONFIG_ETH_P_OUI
 	dl_list_init(&interfaces.eth_p_oui);
@@ -809,7 +874,7 @@ int main(int argc, char *argv[])
 #endif /* CONFIG_DPP */
 
 	for (;;) {
-		c = getopt(argc, argv, "b:Bde:f:hi:KP:sSTtu:vg:G:q");
+		c = getopt(argc, argv, "b:Bde:f:hi:KP:sSTtu:vg:G:qz:");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -885,6 +950,11 @@ int main(int argc, char *argv[])
 		case 'q':
 			wpa_debug_level++;
 			break;
+#ifdef CONFIG_PROCESS_COORDINATION
+		case 'z':
+			proc_coord_dir = optarg;
+			break;
+#endif /* CONFIG_PROCESS_COORDINATION */
 		default:
 			usage();
 			break;
@@ -932,6 +1002,14 @@ int main(int argc, char *argv[])
 
 	eloop_register_timeout(HOSTAPD_CLEANUP_INTERVAL, 0,
 			       hostapd_periodic, &interfaces, NULL);
+
+#ifdef CONFIG_PROCESS_COORDINATION
+	if (proc_coord_dir) {
+		interfaces.pc = proc_coord_init(proc_coord_dir);
+		if (!interfaces.pc)
+			goto out;
+	}
+#endif /* CONFIG_PROCESS_COORDINATION */
 
 	if (fst_global_init()) {
 		wpa_printf(MSG_ERROR,
@@ -1044,6 +1122,10 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_DPP
 	dpp_global_deinit(interfaces.dpp);
 #endif /* CONFIG_DPP */
+
+#ifdef CONFIG_PROCESS_COORDINATION
+	proc_coord_deinit(interfaces.pc);
+#endif /* CONFIG_PROCESS_COORDINATION */
 
 	if (interfaces.eloop_initialized)
 		eloop_cancel_timeout(hostapd_periodic, &interfaces, NULL);

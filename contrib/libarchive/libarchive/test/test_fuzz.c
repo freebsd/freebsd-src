@@ -31,7 +31,7 @@
  *
  * This test simply reads each archive image into memory, pokes
  * random values into it and runs it through libarchive.  It tries
- * to damage about 1% of each file and repeats the exercise 100 times
+ * to damage about 1% of each file and repeats the exercise 1000 times
  * with each file.
  *
  * Unlike most other tests, this test does not verify libarchive's

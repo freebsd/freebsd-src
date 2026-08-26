@@ -31,6 +31,7 @@
 
 #include <linux/types.h>
 #include <linux/lockdep.h>
+#include <linux/preempt.h>
 
 #include <sys/param.h>
 #include <sys/bus.h>

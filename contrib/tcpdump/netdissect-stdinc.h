@@ -139,11 +139,6 @@
    * strtoint64_t().
    */
   #define strtoint64_t	strtoll
-
-  /*
-   * And we have LL as a suffix for constants, so use that.
-   */
-  #define INT64_T_CONSTANT(constant)	(constant##LL)
 #else
   /*
    * Non-Microsoft compiler.
@@ -151,11 +146,6 @@
    * XXX - should we use strtoll or should we use _strtoi64()?
    */
   #define strtoint64_t		strtoll
-
-  /*
-   * Assume LL works.
-   */
-  #define INT64_T_CONSTANT(constant)	(constant##LL)
 #endif
 
 #ifdef _MSC_VER
@@ -251,11 +241,6 @@ typedef char *caddr_t;
  * Assume all UN*Xes have strtoll(), and use it for strtoint64_t().
  */
 #define strtoint64_t	strtoll
-
-/*
- * Assume LL works.
- */
-#define INT64_T_CONSTANT(constant)	(constant##LL)
 #endif /* _WIN32 */
 
 /*

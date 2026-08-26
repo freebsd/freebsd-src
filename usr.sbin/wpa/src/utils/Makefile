@@ -22,8 +22,6 @@ SRCS=	base64.c \
 	wpa_debug.c \
 	wpabuf.c
 
-CFLAGS+=-DCONFIG_DEBUG_FILE
-
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
 .endif

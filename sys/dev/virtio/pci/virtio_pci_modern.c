@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/module.h>
 
 #include <machine/bus.h>
@@ -188,8 +189,12 @@ static void	vtpci_modern_write_device_8(struct vtpci_modern_softc *,
 		    bus_size_t, uint64_t);
 
 /* Tunables. */
-static int vtpci_modern_transitional = 0;
-TUNABLE_INT("hw.virtio.pci.transitional", &vtpci_modern_transitional);
+SYSCTL_DECL(_hw_virtio_pci);
+
+static int vtpci_modern_transitional = 1;
+SYSCTL_INT(_hw_virtio_pci, OID_AUTO, transitional, CTLFLAG_RDTUN,
+    &vtpci_modern_transitional, 0,
+    "If 0, a transitional VirtIO device is used in legacy mode; otherwise, in modern mode.");
 
 static device_method_t vtpci_modern_methods[] = {
 	/* Device interface. */
@@ -436,6 +441,14 @@ vtpci_modern_negotiate_features(device_t dev, uint64_t child_features)
 	 */
 	child_features |= VIRTIO_F_VERSION_1;
 
+	/*
+	 * Accept per-virtqueue reset if the device offers it: negotiating
+	 * the feature carries no obligation for a driver that never uses
+	 * it, while declining capability-only transport features can make
+	 * strict devices refuse the entire feature set.
+	 */
+	child_features |= host_features & VIRTIO_F_RING_RESET;
+
 	features = vtpci_negotiate_features(&sc->vtpci_common,
 	    child_features, host_features);
 	vtpci_modern_write_features(sc, features);
@@ -459,7 +472,10 @@ vtpci_modern_finalize_features(device_t dev)
 
 	status = vtpci_modern_get_status(sc);
 	if ((status & VIRTIO_CONFIG_S_FEATURES_OK) == 0) {
-		device_printf(dev, "desired features were not accepted\n");
+		device_printf(dev, "desired features were not accepted "
+		    "(host %#jx, written %#jx)\n",
+		    (uintmax_t)sc->vtpci_common.vtpci_host_features,
+		    (uintmax_t)sc->vtpci_common.vtpci_features);
 		return (ENOTSUP);
 	}
 
@@ -660,16 +676,13 @@ vtpci_modern_read_dev_config(device_t dev, bus_size_t offset, void *dst,
 		*(uint8_t *) dst = vtpci_modern_read_device_1(sc, offset);
 		break;
 	case 2:
-		*(uint16_t *) dst = virtio_htog16(true,
-		    vtpci_modern_read_device_2(sc, offset));
+		*(uint16_t *) dst = vtpci_modern_read_device_2(sc, offset);
 		break;
 	case 4:
-		*(uint32_t *) dst = virtio_htog32(true,
-		    vtpci_modern_read_device_4(sc, offset));
+		*(uint32_t *) dst = vtpci_modern_read_device_4(sc, offset);
 		break;
 	case 8:
-		*(uint64_t *) dst = virtio_htog64(true,
-		    vtpci_modern_read_device_8(sc, offset));
+		*(uint64_t *) dst = vtpci_modern_read_device_8(sc, offset);
 		break;
 	default:
 		panic("%s: device %s invalid device read length %d offset %d",
@@ -695,17 +708,17 @@ vtpci_modern_write_dev_config(device_t dev, bus_size_t offset, const void *src,
 		vtpci_modern_write_device_1(sc, offset, *(const uint8_t *) src);
 		break;
 	case 2: {
-		uint16_t val = virtio_gtoh16(true, *(const uint16_t *) src);
+		uint16_t val = *(const uint16_t *) src;
 		vtpci_modern_write_device_2(sc, offset, val);
 		break;
 	}
 	case 4: {
-		uint32_t val = virtio_gtoh32(true, *(const uint32_t *) src);
+		uint32_t val = *(const uint32_t *) src;
 		vtpci_modern_write_device_4(sc, offset, val);
 		break;
 	}
 	case 8: {
-		uint64_t val = virtio_gtoh64(true, *(const uint64_t *) src);
+		uint64_t val = *(const uint64_t *) src;
 		vtpci_modern_write_device_8(sc, offset, val);
 		break;
 	}
@@ -1307,15 +1320,13 @@ vtpci_modern_read_common_1(struct vtpci_modern_softc *sc, bus_size_t off)
 static uint16_t
 vtpci_modern_read_common_2(struct vtpci_modern_softc *sc, bus_size_t off)
 {
-	return virtio_htog16(true,
-			bus_read_2(&sc->vtpci_common_res_map.vtrm_map, off));
+	return bus_read_2(&sc->vtpci_common_res_map.vtrm_map, off);
 }
 
 static uint32_t
 vtpci_modern_read_common_4(struct vtpci_modern_softc *sc, bus_size_t off)
 {
-	return virtio_htog32(true,
-			bus_read_4(&sc->vtpci_common_res_map.vtrm_map, off));
+	return bus_read_4(&sc->vtpci_common_res_map.vtrm_map, off);
 }
 
 static void
@@ -1329,16 +1340,14 @@ static void
 vtpci_modern_write_common_2(struct vtpci_modern_softc *sc, bus_size_t off,
     uint16_t val)
 {
-	bus_write_2(&sc->vtpci_common_res_map.vtrm_map,
-			off, virtio_gtoh16(true, val));
+	bus_write_2(&sc->vtpci_common_res_map.vtrm_map, off, val);
 }
 
 static void
 vtpci_modern_write_common_4(struct vtpci_modern_softc *sc, bus_size_t off,
     uint32_t val)
 {
-	bus_write_4(&sc->vtpci_common_res_map.vtrm_map,
-			off, virtio_gtoh32(true, val));
+	bus_write_4(&sc->vtpci_common_res_map.vtrm_map, off, val);
 }
 
 static void

@@ -1,0 +1,8 @@
+a = 1;
+b = 2;
+.include() "${CURDIR}/23-json-with-braces.inc"
+.include() "${CURDIR}/23-json-without-braces.inc"
+.include() "${CURDIR}/23-ucl-with-braces.inc"
+.include() "${CURDIR}/23-ucl-without-braces.inc"
+c = 3;
+d = 4;

@@ -136,13 +136,15 @@ bflag_body()
 # Helper for stdout test case
 atf_check_stdout()
 {
-	(
+	mkfifo fifo
+	: <fifo &
+	{
+		wait
 		trap "" PIPE
-		sleep 1
 		cmp "$@" 2>stderr
-		echo $? >result
-	) | true
-	atf_check -o inline:"2\n" cat result
+		result=$?
+	} >fifo
+	atf_check_equal 2 "$result"
 	atf_check -o match:"stdout" cat stderr
 }
 

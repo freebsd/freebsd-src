@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -335,6 +335,13 @@ AcpiNsDetachObject (
 
 
     ObjDesc = Node->Object;
+
+    /* Alias nodes point directly to other namespace nodes; skip teardown */
+    if (Node->Flags & ANOBJ_IS_ALIAS)
+    {
+        Node->Object = NULL;
+        return_VOID;
+    }
 
     if (!ObjDesc ||
         (ObjDesc->Common.Type == ACPI_TYPE_LOCAL_DATA))

@@ -1,0 +1,7 @@
+Tool: bomtool
+ToolArgs: test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+Environment: SOURCE_DATE_EPOCH=1234567890
+ExpectedStdout: Created: 2009-02-13T23:31:30Z
+MatchStdout: Partial
+ExpectedExitCode: 0

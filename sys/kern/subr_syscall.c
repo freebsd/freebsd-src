@@ -66,10 +66,11 @@ syscallenter(struct thread *td)
 	if (__predict_false(td->td_cowgen != atomic_load_int(&p->p_cowgen)))
 		thread_cow_update(td);
 	traced = (p->p_flag & P_TRACED) != 0;
-	if (__predict_false(traced || td->td_dbgflags & TDB_USERWR)) {
+	if (__predict_false(traced || (td->td_dbgflags & (TDB_USERWR |
+	    TDB_SET_SC_RET)) != 0)) {
 		PROC_LOCK(p);
 		MPASS((td->td_dbgflags & TDB_BOUNDARY) == 0);
-		td->td_dbgflags &= ~TDB_USERWR;
+		td->td_dbgflags &= ~(TDB_USERWR | TDB_SET_SC_RET);
 		if (traced)
 			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
@@ -97,7 +98,10 @@ syscallenter(struct thread *td)
 			ptracestop((td), SIGTRAP, NULL);
 		PROC_UNLOCK(p);
 
-		if ((td->td_dbgflags & TDB_USERWR) != 0) {
+		if ((td->td_dbgflags & TDB_SET_SC_RET) != 0) {
+			error = td->td_errno;
+			goto retval;
+		} else if ((td->td_dbgflags & TDB_USERWR) != 0) {
 			/*
 			 * Reread syscall number and arguments if debugger
 			 * modified registers or memory.
@@ -146,12 +150,8 @@ syscallenter(struct thread *td)
 	if (__predict_false(AUDIT_SYSCALL_ENABLED() ||
 	    SYSTRACE_ENABLED() || !sy_thr_static)) {
 		if (!sy_thr_static) {
-			error = syscall_thread_enter(td, &se);
+			syscall_thread_enter(td, &se);
 			sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
-			if (error != 0) {
-				td->td_errno = error;
-				goto retval;
-			}
 		}
 
 #ifdef KDTRACE_HOOKS
@@ -205,7 +205,7 @@ syscallenter(struct thread *td)
 	    td->td_retval[1]);
 	if (__predict_false(traced)) {
 		PROC_LOCK(p);
-		td->td_dbgflags &= ~(TDB_SCE | TDB_BOUNDARY);
+		td->td_dbgflags &= ~(TDB_SCE | TDB_BOUNDARY | TDB_SET_SC_RET);
 		PROC_UNLOCK(p);
 	}
 	(p->p_sysent->sv_set_syscall_retval)(td, error);

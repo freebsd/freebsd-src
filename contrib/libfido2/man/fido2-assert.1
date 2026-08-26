@@ -89,6 +89,8 @@ where
 may be
 .Em es256
 (denoting ECDSA over NIST P-256 with SHA-256),
+.Em es384
+(denoting ECDSA over NIST P-384 with SHA-384),
 .Em rs256
 (denoting 2048-bit RSA with PKCS#1.5 padding and SHA-256), or
 .Em eddsa
@@ -224,7 +226,7 @@ client data hash (base64 blob);
 .It
 relying party id (UTF-8 string);
 .It
-authenticator data (base64 blob);
+CBOR encoded authenticator data (base64 blob);
 .It
 assertion signature (base64 blob);
 .El
@@ -248,7 +250,7 @@ client data hash (base64 blob);
 .It
 relying party id (UTF-8 string);
 .It
-authenticator data (base64 blob);
+CBOR encoded authenticator data (base64 blob);
 .It
 assertion signature (base64 blob);
 .It

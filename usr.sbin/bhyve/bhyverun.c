@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2026 Hans Rosenfeld
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,9 +54,7 @@
 #include <string.h>
 #include <err.h>
 #include <errno.h>
-#ifdef BHYVE_SNAPSHOT
 #include <fcntl.h>
-#endif
 #include <libgen.h>
 #include <libutil.h>
 #include <unistd.h>
@@ -83,6 +82,7 @@
 #ifdef BHYVE_GDB
 #include "gdb.h"
 #endif
+#include "ipc.h"
 #include "mem.h"
 #include "mevent.h"
 #include "pci_emul.h"
@@ -125,6 +125,29 @@ static struct vcpu_info {
 } *vcpu_info;
 
 static cpuset_t **vcpumap;
+
+static void
+monitor_pipe_handler(int fd __unused, enum ev_type type __unused,
+    void *param __unused)
+{
+
+	exit(BHYVE_EXIT_ERROR);
+}
+
+static void
+monitor_pipe_init(int fd)
+{
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+
+	cap_rights_init(&rights, CAP_EVENT);
+	if (caph_rights_limit(fd, &rights) == -1)
+		err(BHYVE_EXIT_ERROR, "Unable to apply rights to monitor pipe");
+#endif
+
+	if (mevent_add(fd, EVF_READ, monitor_pipe_handler, NULL) == NULL)
+		errx(BHYVE_EXIT_ERROR, "Unable to register parent exit event");
+}
 
 /*
  * XXX This parser is known to have the following issues:
@@ -239,6 +262,16 @@ bhyve_numa_parse(const char *opt)
 out:
 	free(tofree);
 	return (-1);
+}
+
+void
+bhyve_cfg_warn(const char *old, const char *new)
+{
+	if (get_config_value(old) != NULL &&
+	    get_config_value(new) == NULL) {
+		warnx("'%s' is deprecated, use '%s' instead", old, new);
+		set_config_value(new, get_config_value(old));
+	}
 }
 
 static void
@@ -356,18 +389,12 @@ calc_topology(void)
 		guest_ncpus = ncpus;
 }
 
-int
-bhyve_pincpu_parse(const char *opt)
+static int
+bhyve_pincpu(int vcpu, int pcpu)
 {
 	const char *value;
 	char *newval;
 	char key[16];
-	int vcpu, pcpu;
-
-	if (sscanf(opt, "%d:%d", &vcpu, &pcpu) != 2) {
-		fprintf(stderr, "invalid format: %s\n", opt);
-		return (-1);
-	}
 
 	if (vcpu < 0) {
 		fprintf(stderr, "invalid vcpu '%d'\n", vcpu);
@@ -392,6 +419,34 @@ bhyve_pincpu_parse(const char *opt)
 	set_config_value(key, newval);
 	free(newval);
 	return (0);
+}
+
+int
+bhyve_pincpu_parse(const char *opt)
+{
+	int vcpu_first, vcpu_last, pcpu_first, pcpu_last;
+	int vcpu, pcpu;
+
+	if (sscanf(opt, "%d-%d:%d-%d", &vcpu_first, &vcpu_last, &pcpu_first, &pcpu_last) == 4) {
+		if (vcpu_first > vcpu_last || pcpu_first > pcpu_last) {
+			fprintf(stderr, "invalid range (must be ascending): %s\n", opt);
+			return (-1);
+		}
+		if ((vcpu_last - vcpu_first) != (pcpu_last - pcpu_first)) {
+			fprintf(stderr, "range sizes do not match: %s\n", opt);
+			return (-1);
+		}
+		for (vcpu = vcpu_first, pcpu = pcpu_first; vcpu <= vcpu_last; vcpu++, pcpu++)
+			if (bhyve_pincpu(vcpu, pcpu) != 0)
+				return (-1);
+		return (0);
+	}
+
+	if (sscanf(opt, "%d:%d", &vcpu, &pcpu) == 2)
+		return (bhyve_pincpu(vcpu, pcpu));
+
+	fprintf(stderr, "invalid format: %s\n", opt);
+	return (-1);
 }
 
 static void
@@ -529,7 +584,7 @@ int
 fbsdrun_virtio_msix(void)
 {
 
-	return (get_config_bool_default("virtio_msix", true));
+	return (get_config_bool_default("virtio.msix", true));
 }
 
 struct vcpu *
@@ -543,15 +598,21 @@ fbsdrun_start_thread(void *param)
 {
 	char tname[MAXCOMLEN + 1];
 	struct vcpu_info *vi = param;
-	int error;
 
 	snprintf(tname, sizeof(tname), "vcpu %d", vi->vcpuid);
 	pthread_set_name_np(pthread_self(), tname);
 
 	if (vcpumap[vi->vcpuid] != NULL) {
-		error = pthread_setaffinity_np(pthread_self(),
-		    sizeof(cpuset_t), vcpumap[vi->vcpuid]);
-		assert(error == 0);
+		if (pthread_setaffinity_np(pthread_self(),
+		    sizeof(cpuset_t), vcpumap[vi->vcpuid]) != 0) {
+			int i;
+			warn("Error pinning vcpu %d to host cpuset@%p", vi->vcpuid,
+			    vcpumap[vi->vcpuid]);
+			CPU_FOREACH_ISSET(i, vcpumap[vi->vcpuid]) {
+				warnx("cpu %d enabled\n", i);
+			}
+			exit(BHYVE_EXIT_ERROR);
+		}
 	}
 
 #ifdef BHYVE_SNAPSHOT
@@ -883,17 +944,29 @@ main(int argc, char *argv[])
 	init_bootrom(ctx);
 
 	if (get_config_bool_default("monitor", false)) {
+		int monitor_pipe[2];
+		pid_t child;
+
 		while (1) {
-			pid_t child = fork();
+			if (pipe2(monitor_pipe, O_CLOEXEC) == -1)
+				err(BHYVE_EXIT_ERROR, "pipe2");
+
+			child = fork();
 			if (child == -1) {
 				EPRINTLN("Monitor mode fork failed: %s",
 				    strerror(errno));
 				exit(BHYVE_EXIT_ERROR);
 			}
-			if (child == 0)
+			if (child == 0) {
+				close(monitor_pipe[1]);
+				monitor_pipe_init(monitor_pipe[0]);
 				break;
+			}
+
+			close(monitor_pipe[0]);
 			while ((error = waitpid(child, &status, 0)) == -1 && errno == EINTR)
 			    ;
+			close(monitor_pipe[1]);
 			if (error == -1) {
 				EPRINTLN("Monitor mode wait failed: %s",
 				    strerror(errno));
@@ -917,6 +990,12 @@ main(int argc, char *argv[])
 	}
 
 	bsp = vm_vcpu_open(ctx, BSP);
+	if (bsp == NULL) {
+		fprintf(stderr, "Unable to open boot VCPU: %s",
+		    strerror(errno));
+		exit(BHYVE_EXIT_ERROR);
+	}
+
 	max_vcpus = num_vcpus_allowed(ctx, bsp);
 	if (guest_ncpus > max_vcpus) {
 		fprintf(stderr, "%d vCPUs requested but only %d available\n",
@@ -935,6 +1014,12 @@ main(int argc, char *argv[])
 			vcpu_info[vcpuid].vcpu = bsp;
 		else
 			vcpu_info[vcpuid].vcpu = vm_vcpu_open(ctx, vcpuid);
+
+		if (vcpu_info[vcpuid].vcpu == NULL) {
+			fprintf(stderr, "Unable to open VCPU %d: %s", vcpuid,
+			    strerror(errno));
+			exit(BHYVE_EXIT_ERROR);
+		}
 	}
 
 	if (bhyve_init_platform(ctx, bsp) != 0)
@@ -1023,13 +1108,11 @@ main(int argc, char *argv[])
 	 */
 	setproctitle("%s", vmname);
 
-#ifdef BHYVE_SNAPSHOT
 	/*
-	 * checkpointing thread for communication with bhyvectl
+	 * Thread for handling bhyvectl commands.
 	 */
-	if (init_checkpoint_thread(ctx) != 0)
-		errx(EX_OSERR, "Failed to start checkpoint thread");
-#endif
+	if (init_ipc_thread(ctx, get_config_value("rundir")) != 0)
+		errx(EX_OSERR, "Failed to start IPC thread");
 
 #ifndef WITHOUT_CAPSICUM
 	caph_cache_catpages();

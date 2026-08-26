@@ -65,4 +65,7 @@ extern int get_integer(void);
 extern uint8_t usb_ts_show_menu(uint8_t, const char *, const char *,...);
 extern int32_t usb_ts_rand_noise(void);
 
+struct libusb20_be_ctx;
+extern struct libusb20_be_ctx *usb_be_ctx;
+
 #endif				/* _USBTEST_H_ */

@@ -32,6 +32,7 @@ SRCS=	\
 	ctl_util.c		\
 	hda_codec.c		\
 	iov.c			\
+	ipc.c			\
 	mem.c			\
 	mevent.c		\
 	net_backend_netmap.c	\
@@ -53,6 +54,7 @@ SRCS=	\
 	pci_virtio_net.c	\
 	pci_virtio_rnd.c	\
 	pci_virtio_scsi.c	\
+	pci_virtio_scsi_ctl.c	\
 	pci_xhci.c		\
 	qemu_fwcfg.c		\
 	qemu_loader.c		\

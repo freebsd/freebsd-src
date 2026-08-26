@@ -13,7 +13,7 @@
 
 LIB=	apputils
 INTERNALLIB=
-LDFLAGS=-Wl,--no-undefined
+LDFLAGS+=-Wl,--no-undefined
 
 SRCS=	net-server.c \
 	udppktinfo.c \

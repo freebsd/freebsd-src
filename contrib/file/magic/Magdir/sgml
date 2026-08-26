@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.53 2024/11/10 14:48:55 christos Exp $
+# $File: sgml,v 1.55 2025/04/06 20:34:30 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string/bt	\<?xml\ version=
@@ -11,11 +11,17 @@
 !:ext   svg
 >>19	search/4096	\<gnc-v2		GnuCash file
 !:mime	application/x-gnucash
+>>19	search/4096	application/x-qtskin	QuickTime5 skinned movie
+!:mime	application/x-qtskin
+
 0	string/bt	\<svg			SVG Scalable Vector Graphics image
 !:mime	image/svg+xml
 !:ext   svg
 
+0	string/t		\<?xml\ version=
+!:strength +40
 >14	regex		['"\ \t]*[0-9.]+['"\ \t]*
+
 # Sitemap file
 >>19	search/4096	\<urlset		XML Sitemap document text
 !:mime	application/xml-sitemap
@@ -26,8 +32,8 @@
 # http://files.pef-format.org/specifications/pef-2008-1/pef-specification.html
 #
 # Simon Aittamaa <simon.aittamaa@gmail.com>
->>19    search/4096	\<pef           Portable Embosser Format
-!:mime  application/x-pef+xml
+>>19	search/4096	\<pef			Portable Embosser Format
+!:mime	application/x-pef+xml
 
 # OpenStreetMap XML (.osm)
 # https://wiki.openstreetmap.org/wiki/OSM_XML
@@ -37,9 +43,7 @@
 # xhtml
 >19	search/4096/cWbt	\<!doctype\ html	XHTML document text
 >>15	string		>\0	(version %.3s)
-!:strength + 15
 !:mime	application/xhtml+xml
-
 >19	search/4096/cWbt	\<html\ xmlns=		XHTML document text
 >>15	string		>\0	(version %.3s)
 !:mime	application/xhtml+xml
@@ -57,14 +61,11 @@
 # avoid misdetection as JavaScript
 0	string/cWt	\<!doctype\ html	HTML document text
 !:mime	text/html
-!:strength + 30
 0	string/ct	\<html>	HTML document text
 !:mime	text/html
-!:strength + 30
 0	string/ct	\<!--
 >&0	search/4096/cWt	\<!doctype\ html	HTML document text
 !:mime	text/html
-!:strength + 30
 >&0	search/4096/ct	\<html>	HTML document text
 !:mime	text/html
 
@@ -127,13 +128,21 @@
 0	search/1/cwt	\<?xml			XML document text
 !:mime	text/xml
 !:strength + 30
+0	string/t		\<?xml\ version\ "	XML
+!:mime	text/xml
+!:strength + 30
 0	string/t		\<?xml\ version="	XML
 !:mime	text/xml
 !:strength + 30
 >15	string/t	>\0			%.3s document text
 >>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
 >>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
-
+0	string/t	\<?xml\ version='	XML
+!:mime	text/xml
+!:strength + 30
+>15	string/t	>\0			%.3s document text
+>>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
+>>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
 0	search/1/wt	\<?XML			broken XML document text
 !:mime	text/xml
 !:strength - 10

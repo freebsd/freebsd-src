@@ -125,6 +125,11 @@ enum {
 #define MTW_MAX_TXSZ \
 	(sizeof(struct mtw_txd) + sizeof(struct mtw_txwi) + MCLBYTES + 11)
 
+#define	MTW_FW_READY_RETRIES	500
+#define	MTW_FW_READY_DELAY_MS	30
+#define	MTW_FWLOAD_TIMEOUT	\
+	(((MTW_FW_READY_RETRIES * MTW_FW_READY_DELAY_MS) / 1000 + 5) * hz)
+
 /*
  * Because of LOR in mtw_key_delete(), use atomic instead.
  * '& MTW_CMDQ_MASQ' is to loop cmdq[].
@@ -516,7 +521,7 @@ mtw_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t ver;
-	int i, ret;
+	int i;
 	uint32_t tmp;
 	uint8_t iface_index;
 	int ntries, error;
@@ -536,7 +541,7 @@ mtw_attach(device_t self)
 	DELAY(100000);	/* 100ms settle time */
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev),
-                 MTX_NETWORK_LOCK, MTX_DEF);
+	    MTX_NETWORK_LOCK, MTX_DEF);
 
 	iface_index = 0;
 
@@ -595,8 +600,10 @@ mtw_attach(device_t self)
 	sc->mac_rev = tmp & 0xffff;
 
 	mtw_load_microcode(sc);
-	ret = msleep(&sc->fwloading, &sc->sc_mtx, 0, "fwload", 10 * hz);
-	if (ret == EWOULDBLOCK || sc->fwloading != 1) {
+	if (sc->fwloading != 1)
+		(void)msleep(&sc->fwloading, &sc->sc_mtx, 0, "fwload",
+		    MTW_FWLOAD_TIMEOUT);
+	if (sc->fwloading != 1) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for MCU to initialize\n");
 		goto detach;
@@ -633,11 +640,11 @@ mtw_attach(device_t self)
 		IEEE80211_C_WME |             /* WME */
 		IEEE80211_C_WPA;	     /* WPA1|WPA2(RSN) */
 	    device_printf(sc->sc_dev, "[HT] Enabling 802.11n\n");
-	    ic->ic_htcaps =	  IEEE80211_HTC_HT
-            | IEEE80211_HTC_AMPDU
-            | IEEE80211_HTC_AMSDU
-            | IEEE80211_HTCAP_MAXAMSDU_3839
-            | IEEE80211_HTCAP_SMPS_OFF;
+	    ic->ic_htcaps = IEEE80211_HTC_HT
+		| IEEE80211_HTC_AMPDU
+		| IEEE80211_HTC_AMSDU
+		| IEEE80211_HTCAP_MAXAMSDU_3839
+		| IEEE80211_HTCAP_SMPS_OFF;
 
 	ic->ic_rxstream = sc->nrxchains;
 	ic->ic_txstream = sc->ntxchains;
@@ -1107,6 +1114,7 @@ mtw_load_microcode(void *arg)
 
 	struct mtw_softc *sc = (struct mtw_softc *)arg;
 	const struct mtw_ucode_hdr *hdr;
+	const struct firmware *firmware_rom = NULL, *firmware = NULL;
 	// onst struct mtw_ucode *fw = NULL;
 	const char *fwname;
 	size_t size;
@@ -1114,47 +1122,43 @@ mtw_load_microcode(void *arg)
 	uint32_t tmp, iofs = 0x40;
 	//	int ntries;
 	int dlen, ilen;
-	device_printf(sc->sc_dev, "version:0x%hx\n", sc->asic_ver);
-	/*
-	 * Firmware may still be running from a previous warm reboot.
-	 * Force a reset of the MCU to ensure a clean state.
-	 */
+	MTW_DPRINTF(sc, MTW_DEBUG_FIRMWARE, "version:0x%hx\n", sc->asic_ver);
+	/* Check if MCU is already initialized and skip firmware reload */
 	mtw_read_cfg(sc, MTW_MCU_DMA_ADDR, &tmp);
 	if (tmp == MTW_MCU_READY) {
-		device_printf(sc->sc_dev, "MCU already running, resetting\n");
-		mtw_write(sc, MTW_MCU_RESET_CTL, MTW_RESET);
-		DELAY(10000);
-		mtw_write(sc, MTW_MCU_RESET_CTL, 0);
-		DELAY(10000);
-		/* Clear ready flag */
-		mtw_write_cfg(sc, MTW_MCU_DMA_ADDR, 0);
-		DELAY(1000);
+		MTW_DPRINTF(sc, MTW_DEBUG_FIRMWARE,
+		    "MCU already running, skipping firmware reload\n");
+		sc->fwloading = 1;
+		wakeup(&sc->fwloading);
+		return;
 	}
 
 	if (sc->asic_ver == 0x7612) {
 		fwname = "mtw-mt7662u_rom_patch";
 
-		const struct firmware *firmware = firmware_get_flags(fwname,FIRMWARE_GET_NOWARN);
-		if (firmware == NULL) {
+		firmware_rom = firmware_get_flags(fwname, FIRMWARE_GET_NOWARN);
+		if (firmware_rom == NULL) {
 			device_printf(sc->sc_dev,
-			    "failed loadfirmware of file %s (error %d)\n",
-			    fwname, error);
+			    "failed to load firmware file %s\n",
+			    fwname);
 			return;
 		}
-		size = firmware->datasize;
+		size = firmware_rom->datasize;
 
 		const struct mtw_ucode *fw = (const struct mtw_ucode *)
-						 firmware->data;
+		    firmware_rom->data;
 		hdr = (const struct mtw_ucode_hdr *)&fw->hdr;
-		// memcpy(fw,(const unsigned char*)firmware->data +
-		// 0x1e,size-0x1e);
+		// memcpy(fw,(const unsigned char*)firmware_rom->data +
+		//    0x1e,size-0x1e);
 		ilen = size - 0x1e;
 
 		mtw_ucode_setup(sc);
 
-		if ((error = mtw_ucode_write(sc, firmware->data, fw->ivb, ilen,
-			 0x90000)) != 0) {
-			goto fail;
+		if ((error = mtw_ucode_write(sc, firmware_rom->data, fw->ivb,
+		    ilen, 0x90000)) != 0) {
+			device_printf(sc->sc_dev,
+			    "Could not write ROM patch\n");
+			goto fail_rom;
 		}
 		mtw_usb_dma_write(sc, 0x00e41814);
 	}
@@ -1171,13 +1175,15 @@ mtw_load_microcode(void *arg)
 		// dofs = 0x80000;
 	}
 	MTW_UNLOCK(sc);
-	const struct firmware *firmware = firmware_get_flags(fwname, FIRMWARE_GET_NOWARN);
+	firmware = firmware_get_flags(fwname, FIRMWARE_GET_NOWARN);
 
 	if (firmware == NULL) {
 		device_printf(sc->sc_dev,
-		    "failed loadfirmware of file %s (error %d)\n", fwname,
-		    error);
+		    "failed to load firmware file %s\n",
+		    fwname);
 		MTW_LOCK(sc);
+		if (firmware_rom != NULL)
+			firmware_put(firmware_rom, FIRMWARE_UNLOAD);
 		return;
 	}
 	MTW_LOCK(sc);
@@ -1214,11 +1220,21 @@ mtw_load_microcode(void *arg)
 		device_printf(sc->sc_dev, "Could not write ucode errro=%d\n",
 		    error);
 
-	device_printf(sc->sc_dev, "loaded firmware ver %.8x %.8x %s\n",
+	MTW_DPRINTF(sc, MTW_DEBUG_FIRMWARE,
+	    "loaded firmware ver %.8x %.8x %s\n",
 	    le32toh(hdr->fw_ver), le32toh(hdr->build_ver), hdr->build_time);
 
+	/* Release firmware objects */
+	firmware_put(firmware, FIRMWARE_UNLOAD);
+	if (firmware_rom != NULL)
+		firmware_put(firmware_rom, FIRMWARE_UNLOAD);
 	return;
+
 fail:
+	firmware_put(firmware, FIRMWARE_UNLOAD);
+fail_rom:
+	if (firmware_rom != NULL)
+		firmware_put(firmware_rom, FIRMWARE_UNLOAD);
 	return;
 }
 static usb_error_t
@@ -2877,12 +2893,13 @@ mtw_fw_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 
 			mtw_delay(sc, 10);
-			for (ntries = 0; ntries < 300; ntries++) {
+			for (ntries = 0; ntries < MTW_FW_READY_RETRIES;
+			    ntries++) {
 				if ((error = mtw_read_cfg(sc, MTW_MCU_DMA_ADDR,
-					 &tmp)) != 0) {
+				    &tmp)) != 0) {
 					device_printf(sc->sc_dev,
-				    "Could not read cfg error:  %d\n", error);
-
+					    "Could not read cfg error:  %d\n",
+					    error);
 				}
 				if (tmp == MTW_MCU_READY) {
 					MTW_DPRINTF(sc, MTW_DEBUG_FIRMWARE,
@@ -2891,9 +2908,9 @@ mtw_fw_callback(struct usb_xfer *xfer, usb_error_t error)
 					break;
 				}
 
-				mtw_delay(sc, 30);
+				mtw_delay(sc, MTW_FW_READY_DELAY_MS);
 			}
-			if (ntries == 300)
+			if (ntries == MTW_FW_READY_RETRIES)
 				sc->fwloading = 0;
 			wakeup(&sc->fwloading);
 			return;

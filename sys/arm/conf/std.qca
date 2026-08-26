@@ -50,7 +50,7 @@ device 		qcom_gcc
 
 # TLMM (gpio/pinmux)
 device 		gpio
-device 		qcom_tlmm_ipq4018
+device 		qcom_tlmm
 device 		fdt_pinctrl
 
 # TCSR (core top control and status registers)

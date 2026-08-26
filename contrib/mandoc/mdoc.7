@@ -196,8 +196,14 @@ and
 .Ic \&Nd .
 .It Em LIBRARY
 The name of the library containing the documented functions.
-Using this section is no longer recommended.
-If any
+The syntax for this is as follows:
+.Bd -literal -offset indent
+\&.Lb libm
+.Ed
+.Pp
+Using this section is no longer recommended outside
+.Fx .
+If writing for other operating systems, and any
 .Ic \&Lb
 macro is needed, put it at the beginning of the
 .Em SYNOPSIS
@@ -223,7 +229,7 @@ Commands should be ordered alphabetically.
 .Pp
 For the second, function calls (sections 2, 3, 9):
 .Bd -literal -offset indent
-\&.Lb libname \e" unless the functions are in libc
+\&.Lb libname \e" unless on FreeBSD or the functions are in libc
 \&.In header.h
 \&.Vt extern const char *global;
 \&.Ft char *
@@ -1183,11 +1189,18 @@ and
 .It Ic \&Cd Ar line
 Kernel configuration declaration.
 This denotes strings accepted by
-.Xr config 8 .
+.Xr config 8
+or, on
+.Fx ,
+device hints,
+loader tunables,
+and sysctl nodes in
+.Em SYNOPSIS.
 It is most often used in section 4 manual pages.
 .Pp
 Examples:
 .Dl \&.Cd device le0 at scode?
+.Dl \&.Cd kern.vty=vt
 .Pp
 .Em Remarks :
 this macro is commonly abused by using quoted literals to retain
@@ -1880,7 +1893,30 @@ See also
 .Tg Lb
 .It Ic \&Lb Cm lib Ns Ar name Op Cm lib Ns Ar name ...
 Specify one or more libraries to link against.
-Putting this macro at the beginning of the
+.Pp
+If used in the
+.Em LIBRARY
+section, the
+.Ar name
+parameter may be a system library, such as
+.Cm z
+or
+.Cm pam ,
+in which case a small library description is printed next to the linker
+invocation; or a custom library, in which case the library name is
+printed in quotes.
+This is most commonly used in the
+.Em LIBRARY
+or
+.Em SYNOPSIS
+sections, as described in
+.Sx MANUAL STRUCTURE.
+.Pp
+Examples:
+.Dl \&.Lb libz
+.Dl \&.Lb libmandoc
+.Pp
+In other operating systems, putting this macro at the beginning of the
 .Em SYNOPSIS
 section is recommended, in which case it prints this comment:
 .D1 /* Fl l Ns Ar name Oo Fl l Ns Ar name ... Oc */

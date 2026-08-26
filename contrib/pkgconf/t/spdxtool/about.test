@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --about
+ExpectedStdout: SPDX-License-Identifier: BSD-2-Clause
+MatchStdout: Partial
+ExpectedExitCode: 0

@@ -194,6 +194,7 @@ enum {
 	IHF_CLR_ALL_SET		= (1 << 5),	/* Clear all set bits */
 	IHF_CLR_ALL_UNIGNORED	= (1 << 6),	/* Clear all unignored bits */
 	IHF_RUN_ALL_ACTIONS	= (1 << 7),	/* As if all cause are set */
+	IHF_CLR_DELAYED		= (1 << 9),	/* Cleared in a delayed call */
 };
 
 #define IS_DETACHING(vi)	((vi)->flags & VI_DETACHING)

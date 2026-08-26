@@ -1,8 +1,6 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -10,9 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -43,7 +39,7 @@ verify_runnable "both"
 
 function cleanup
 {
-	default_cleanup_noexit
+	datasetexists $TESTPOOL && destroy_pool $TESTPOOL
 	log_must set_tunable64 MULTIHOST_INTERVAL $MMP_INTERVAL_DEFAULT
 	log_must set_tunable64 MULTIHOST_FAIL_INTERVALS \
 	    $MMP_FAIL_INTERVALS_DEFAULT
@@ -56,7 +52,7 @@ log_onexit cleanup
 log_must set_tunable64 MULTIHOST_INTERVAL $MMP_INTERVAL_HOUR
 log_must mmp_set_hostid $HOSTID1
 
-default_setup_noexit $DISK
+log_must zpool create -f $TESTPOOL $DISK
 log_must zpool set multihost=on $TESTPOOL
 
 clear_mmp_history
@@ -68,6 +64,7 @@ if [ $uber_count -eq 0 ]; then
 fi
 
 # 7. Verify mmp_write and mmp_fail are written
+log_note "Verify mmp_write and mmp_fail are written"
 for fails in $(seq $MMP_FAIL_INTERVALS_MIN $((MMP_FAIL_INTERVALS_MIN*2))); do
 	for interval in $(seq $MMP_INTERVAL_MIN 200 $MMP_INTERVAL_DEFAULT); do
 		log_must set_tunable64 MULTIHOST_FAIL_INTERVALS $fails
@@ -88,7 +85,8 @@ done
 
 
 # 8. Repeatedly change MULTIHOST_INTERVAL and fail_intervals
-for x in $(seq 10); do
+log_note "Repeatedly change MULTIHOST_INTERVAL and fail_intervals"
+for x in $(seq 3); do
 	typeset new_interval=$(( (RANDOM % 20 + 1) * $MMP_INTERVAL_MIN ))
 	log_must set_tunable64 MULTIHOST_INTERVAL $new_interval
 	typeset action=$((RANDOM %10))

@@ -83,7 +83,7 @@ static int
 n1sdp_init(struct generic_pcie_n1sdp_softc *sc)
 {
 	struct pcie_discovery_data *shared_data;
-	vm_offset_t vaddr;
+	void *vaddr;
 	vm_paddr_t paddr_rc;
 	vm_paddr_t paddr;
 	vm_page_t m[BDF_TABLE_SIZE / PAGE_SIZE];
@@ -101,7 +101,7 @@ n1sdp_init(struct generic_pcie_n1sdp_softc *sc)
 	}
 
 	vaddr = kva_alloc((vm_size_t)BDF_TABLE_SIZE);
-	if (vaddr == 0) {
+	if (vaddr == NULL) {
 		printf("%s: Can't allocate KVA memory.", __func__);
 		error = ENXIO;
 		goto out;

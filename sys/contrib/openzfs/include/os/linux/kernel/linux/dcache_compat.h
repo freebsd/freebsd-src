@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -32,7 +22,20 @@
 #define	dname(dentry)	((char *)((dentry)->d_name.name))
 #define	dlen(dentry)	((int)((dentry)->d_name.len))
 
+#ifdef HAVE_DENTRY_D_U_ALIASES
 #define	d_alias			d_u.d_alias
+#endif
+
+#ifdef HAVE_MM_PAGE_FLAGS_STRUCT
+/*
+ * Starting from Linux 6.18, the 'flags' field in 'struct page' is defined
+ * to a struct ('memdesc_flags_t' typedef) instead of an unsigned long for
+ * improved typesafety.
+ */
+#define	page_flags flags.f
+#else
+#define	page_flags flags
+#endif
 
 /*
  * Starting from Linux 5.13, flush_dcache_page() becomes an inline function
@@ -44,8 +47,8 @@
 #include <linux/simd_powerpc.h>
 #define	flush_dcache_page(page)	do {					\
 		if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&	\
-		    test_bit(PG_dcache_clean, &(page)->flags))		\
-			clear_bit(PG_dcache_clean, &(page)->flags);	\
+		    test_bit(PG_dcache_clean, &(page)->page_flags))	\
+			clear_bit(PG_dcache_clean, &(page)->page_flags);\
 	} while (0)
 #endif
 /*
@@ -55,8 +58,8 @@
  */
 #if defined __riscv && defined HAVE_FLUSH_DCACHE_PAGE_GPL_ONLY
 #define	flush_dcache_page(page)	do {					\
-		if (test_bit(PG_dcache_clean, &(page)->flags))		\
-			clear_bit(PG_dcache_clean, &(page)->flags);	\
+		if (test_bit(PG_dcache_clean, &(page)->page_flags))	\
+			clear_bit(PG_dcache_clean, &(page)->page_flags);\
 	} while (0)
 #endif
 

@@ -168,3 +168,7 @@ tanhl(long double x)
 	if (jx<0) s = -1;
 	RETURNI(s*z);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(tanhl, tanhf128);
+#endif

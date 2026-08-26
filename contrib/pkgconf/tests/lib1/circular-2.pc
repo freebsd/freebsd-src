@@ -1,0 +1,11 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: circular-2
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -lcircular-2
+Requires: circular-3
+Cflags:

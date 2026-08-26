@@ -233,7 +233,9 @@ acpi_panasonic_shutdown(device_t dev)
 	/* Mute the main audio during reboot to prevent static burst to speaker. */
 	sc = device_get_softc(dev);
 	mute = 1;
+	ACPI_SERIAL_BEGIN(panasonic);
 	hkey_sound_mute(sc->handle, HKEY_SET, &mute);
+	ACPI_SERIAL_END(panasonic);
 	return (0);
 }
 

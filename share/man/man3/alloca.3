@@ -1,5 +1,6 @@
 .\" Copyright (c) 1980, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2026 Aymeric Wibo <obiwac@freebsd.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 29, 2025
+.Dd February 19, 2026
 .Dt ALLOCA 3
 .Os
 .Sh NAME
@@ -38,16 +39,14 @@
 .Sh DESCRIPTION
 The
 .Fn alloca
-function
-allocates
+function or macro allocates
 .Fa size
 bytes of space in the stack frame of the caller.
 This temporary space is automatically freed on
 return.
 .Sh RETURN VALUES
-The
 .Fn alloca
-function returns a pointer to the beginning of the allocated space.
+returns a pointer to the beginning of the allocated space.
 .Sh SEE ALSO
 .Xr brk 2 ,
 .Xr calloc 3 ,
@@ -55,24 +54,20 @@ function returns a pointer to the beginning of the allocated space.
 .Xr malloc 3 ,
 .Xr realloc 3
 .Sh HISTORY
-The
 .Fn alloca
-function appeared in
+appeared in
 .At 32v .
 .\" .Bx ?? .
 .\" The function appeared in 32v, pwb and pwb.2 and in 3bsd 4bsd
 .\" The first man page (or link to a man page that I can find at the
 .\" moment is 4.3...
 .Sh BUGS
-The
 .Fn alloca
-function
 is machine and compiler dependent;
 its use is discouraged.
 .Pp
-The
 .Fn alloca
-function is slightly unsafe because it cannot ensure that the pointer
+is slightly unsafe because it cannot ensure that the pointer
 returned points to a valid and usable block of memory.
 The allocation made may exceed the bounds of the stack, or even go
 further into other objects in memory, and
@@ -81,3 +76,26 @@ cannot determine such an error.
 Avoid
 .Fn alloca
 with large unbounded allocations.
+.Pp
+The use of C99 variable-length arrays and
+.Fn alloca
+in the same function will cause the lifetime of
+.Fn alloca Ns 's
+storage to be limited to the block containing the
+.Fn alloca .
+For example, in the following snippet,
+.Va p Ns 's
+lifetime does not extend outside of the block, whereas it would've if
+.Va vla
+hadn't been defined or had been defined as a fixed-length array:
+.Bd -literal -offset indent
+char *p;
+{
+	const int n = 100;
+	int vla[n];
+	p = alloca(32);
+	strcpy(p, "Hello, world!");
+	printf("Inside: %s\\n", p); /* Valid. */
+}
+printf("Outside: %s\\n", p); /* Undefined. */
+.Ed

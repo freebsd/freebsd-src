@@ -1,4 +1,4 @@
-/*	$NetBSD: map.c,v 1.56 2025/01/03 00:40:08 rillig Exp $	*/
+/*	$NetBSD: map.c,v 1.59 2026/03/04 10:31:46 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: map.c,v 1.56 2025/01/03 00:40:08 rillig Exp $");
+__RCSID("$NetBSD: map.c,v 1.59 2026/03/04 10:31:46 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -933,6 +933,7 @@ map_init(EditLine *el)
 	memcpy(el->el_map.func, el_func, sizeof(*el->el_map.func)
 	    * EL_NUM_FCNS);
 	el->el_map.nfunc = EL_NUM_FCNS;
+	el->el_map.wordchars = NULL;
 
 #ifdef VIDEFAULT
 	map_init_vi(el);
@@ -954,12 +955,17 @@ map_end(EditLine *el)
 {
 
 	el_free(el->el_map.alt);
+	el_free(el->el_map.wordchars);
 	el->el_map.alt = NULL;
 	el_free(el->el_map.key);
 	el->el_map.key = NULL;
 	el->el_map.emacs = NULL;
 	el->el_map.vic = NULL;
 	el->el_map.vii = NULL;
+	for (size_t nf = EL_NUM_FCNS; nf < el->el_map.nfunc; nf++) {
+		el_free((void *)(intptr_t)el->el_map.help[nf].name);
+		el_free((void *)(intptr_t)el->el_map.help[nf].description);
+	}
 	el_free(el->el_map.help);
 	el->el_map.help = NULL;
 	el_free(el->el_map.func);
@@ -1051,6 +1057,8 @@ map_init_vi(EditLine *el)
 
 	tty_bind_char(el, 1);
 	terminal_bind_arrow(el);
+	el_free(el->el_map.wordchars);
+	el->el_map.wordchars = wcsdup(L"_");
 }
 
 
@@ -1085,6 +1093,8 @@ map_init_emacs(EditLine *el)
 
 	tty_bind_char(el, 1);
 	terminal_bind_arrow(el);
+	el_free(el->el_map.wordchars);
+	el->el_map.wordchars = wcsdup(L"*?_-.[]~=");
 }
 
 
@@ -1125,6 +1135,33 @@ map_get_editor(EditLine *el, const wchar_t **editor)
 		return 0;
 	}
 	return -1;
+}
+
+
+/* map_set_wordchars():
+ *	Set the wordchars
+ */
+libedit_private int
+map_set_wordchars(EditLine *el, wchar_t *wordchars)
+{
+
+	el_free(el->el_map.wordchars);
+	el->el_map.wordchars = wcsdup(wordchars);
+	return 0;
+}
+
+
+/* map_get_wordchars():
+ *	Retrieve the wordhars
+ */
+libedit_private int
+map_get_wordchars(EditLine *el, const wchar_t **wordchars)
+{
+
+	if (wordchars == NULL)
+		return -1;
+	*wordchars = el->el_map.wordchars;
+	return 0;
 }
 
 
@@ -1420,9 +1457,9 @@ map_addfunc(EditLine *el, const wchar_t *name, const wchar_t *help,
 	nf = (size_t)el->el_map.nfunc;
 	el->el_map.func[nf] = func;
 
-	el->el_map.help[nf].name = name;
+	el->el_map.help[nf].name = wcsdup(name);
 	el->el_map.help[nf].func = (int)nf;
-	el->el_map.help[nf].description = help;
+	el->el_map.help[nf].description = wcsdup(help);
 	el->el_map.nfunc++;
 
 	return 0;

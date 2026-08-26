@@ -1675,6 +1675,8 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
 		flags |= RT2560_TX_LONG_RETRY | RT2560_TX_IFS_SIFS;
 	}
 
+	ieee80211_output_seqno_assign(ni, -1, m0);
+
 	error = bus_dmamap_load_mbuf_sg(sc->prioq.data_dmat, data->map, m0,
 	    segs, &nsegs, 0);
 	if (error != 0) {

@@ -206,6 +206,7 @@ struct ieee802_1x_kay {
 	struct ieee802_1x_kay_ctx *ctx;
 	bool is_key_server;
 	bool is_obliged_key_server;
+	bool include_icv_indicator; /* Always include ICV Indicator */
 	char if_name[IFNAMSIZ];
 	u8 macsec_offload;
 
@@ -243,7 +244,8 @@ struct ieee802_1x_kay *
 ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
 		    bool macsec_replay_protect, u32 macsec_replay_window,
 		    u8 macsec_offload, u16 port, u8 priority,
-		    u32 macsec_csindex, const char *ifname, const u8 *addr);
+		    u32 macsec_csindex, bool include_icv_indicator,
+		    const char *ifname, const u8 *addr);
 void ieee802_1x_kay_deinit(struct ieee802_1x_kay *kay);
 
 struct ieee802_1x_mka_participant *

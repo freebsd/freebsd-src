@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -417,7 +407,7 @@ dsl_dir_namelen(dsl_dir_t *dd)
 static int
 getcomponent(const char *path, char *component, const char **nextp)
 {
-	char *p;
+	const char *p;
 
 	if ((path == NULL) || (path[0] == '\0'))
 		return (SET_ERROR(ENOENT));
@@ -1534,9 +1524,28 @@ dsl_dir_willuse_space(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx)
 }
 
 /* call from syncing context when we actually write/free space for this dd */
-void
-dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
-    int64_t used, int64_t compressed, int64_t uncompressed, dmu_tx_t *tx)
+static void dsl_dir_diduse_transfer_space_impl(dsl_dir_t *dd, int64_t used,
+    int64_t compressed, int64_t uncompressed, int64_t tonew,
+    dd_used_t oldtype, dd_used_t newtype, boolean_t nested, dmu_tx_t *tx);
+
+static void
+dsl_dir_lock_enter(dsl_dir_t *dd, boolean_t nested)
+{
+	/*
+	 * lockdep needs an explicit subclass when a child dd_lock
+	 * nests an ancestor.
+	 */
+	if (nested) {
+		mutex_enter_nested(&dd->dd_lock, NESTED_SINGLE);
+	} else {
+		mutex_enter(&dd->dd_lock);
+	}
+}
+
+static void
+dsl_dir_diduse_space_impl(dsl_dir_t *dd, dd_used_t type,
+    int64_t used, int64_t compressed, int64_t uncompressed,
+    boolean_t nested, dmu_tx_t *tx)
 {
 	int64_t accounted_delta;
 
@@ -1554,7 +1563,7 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 	 */
 	boolean_t needlock = !MUTEX_HELD(&dd->dd_lock);
 	if (needlock)
-		mutex_enter(&dd->dd_lock);
+		dsl_dir_lock_enter(dd, nested);
 	dsl_dir_phys_t *ddp = dsl_dir_phys(dd);
 	accounted_delta = parent_delta(dd, ddp->dd_used_bytes, used);
 	ASSERT(used >= 0 || ddp->dd_used_bytes >= -used);
@@ -1582,10 +1591,18 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 		mutex_exit(&dd->dd_lock);
 
 	if (dd->dd_parent != NULL) {
-		dsl_dir_diduse_transfer_space(dd->dd_parent,
+		dsl_dir_diduse_transfer_space_impl(dd->dd_parent,
 		    accounted_delta, compressed, uncompressed,
-		    used, DD_USED_CHILD_RSRV, DD_USED_CHILD, tx);
+		    used, DD_USED_CHILD_RSRV, DD_USED_CHILD, nested, tx);
 	}
+}
+
+void
+dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type, int64_t used,
+    int64_t compressed, int64_t uncompressed, dmu_tx_t *tx)
+{
+	dsl_dir_diduse_space_impl(dd, type, used, compressed, uncompressed,
+	    B_FALSE, tx);
 }
 
 void
@@ -1612,10 +1629,10 @@ dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
 	mutex_exit(&dd->dd_lock);
 }
 
-void
-dsl_dir_diduse_transfer_space(dsl_dir_t *dd, int64_t used,
+static void
+dsl_dir_diduse_transfer_space_impl(dsl_dir_t *dd, int64_t used,
     int64_t compressed, int64_t uncompressed, int64_t tonew,
-    dd_used_t oldtype, dd_used_t newtype, dmu_tx_t *tx)
+	dd_used_t oldtype, dd_used_t newtype, boolean_t nested, dmu_tx_t *tx)
 {
 	int64_t accounted_delta;
 
@@ -1625,7 +1642,7 @@ dsl_dir_diduse_transfer_space(dsl_dir_t *dd, int64_t used,
 
 	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 
-	mutex_enter(&dd->dd_lock);
+	dsl_dir_lock_enter(dd, nested);
 	dsl_dir_phys_t *ddp = dsl_dir_phys(dd);
 	accounted_delta = parent_delta(dd, ddp->dd_used_bytes, used);
 	ASSERT(used >= 0 || ddp->dd_used_bytes >= -used);
@@ -1656,10 +1673,19 @@ dsl_dir_diduse_transfer_space(dsl_dir_t *dd, int64_t used,
 	mutex_exit(&dd->dd_lock);
 
 	if (dd->dd_parent != NULL) {
-		dsl_dir_diduse_transfer_space(dd->dd_parent,
+		dsl_dir_diduse_transfer_space_impl(dd->dd_parent,
 		    accounted_delta, compressed, uncompressed,
-		    used, DD_USED_CHILD_RSRV, DD_USED_CHILD, tx);
+		    used, DD_USED_CHILD_RSRV, DD_USED_CHILD, nested, tx);
 	}
+}
+
+void
+dsl_dir_diduse_transfer_space(dsl_dir_t *dd, int64_t used,
+    int64_t compressed, int64_t uncompressed, int64_t tonew,
+    dd_used_t oldtype, dd_used_t newtype, dmu_tx_t *tx)
+{
+	dsl_dir_diduse_transfer_space_impl(dd, used, compressed,
+	    uncompressed, tonew, oldtype, newtype, B_FALSE, tx);
 }
 
 typedef struct dsl_dir_set_qr_arg {
@@ -1828,8 +1854,8 @@ dsl_dir_set_reservation_sync_impl(dsl_dir_t *dd, uint64_t value, dmu_tx_t *tx)
 
 	if (dd->dd_parent != NULL) {
 		/* Roll up this additional usage into our ancestors */
-		dsl_dir_diduse_space(dd->dd_parent, DD_USED_CHILD_RSRV,
-		    delta, 0, 0, tx);
+		dsl_dir_diduse_space_impl(dd->dd_parent, DD_USED_CHILD_RSRV,
+		    delta, 0, 0, B_TRUE, tx);
 	}
 	mutex_exit(&dd->dd_lock);
 }
@@ -2268,22 +2294,29 @@ dsl_dir_snap_cmtime_update(dsl_dir_t *dd, dmu_tx_t *tx)
 {
 	dsl_pool_t *dp = dmu_tx_pool(tx);
 	inode_timespec_t t;
+
+	ASSERT(dsl_pool_sync_context(dp));
 	gethrestime(&t);
 
 	mutex_enter(&dd->dd_lock);
 	dd->dd_snap_cmtime = t;
-	if (spa_feature_is_enabled(dp->dp_spa,
-	    SPA_FEATURE_EXTENSIBLE_DATASET)) {
-		objset_t *mos = dd->dd_pool->dp_meta_objset;
-		uint64_t ddobj = dd->dd_object;
-		dsl_dir_zapify(dd, tx);
-		VERIFY0(zap_update(mos, ddobj,
-		    DD_FIELD_SNAPSHOTS_CHANGED,
-		    sizeof (uint64_t),
-		    sizeof (inode_timespec_t) / sizeof (uint64_t),
-		    &t, tx));
-	}
 	mutex_exit(&dd->dd_lock);
+
+	if (!spa_feature_is_enabled(dp->dp_spa,
+	    SPA_FEATURE_EXTENSIBLE_DATASET)) {
+		return;
+	}
+
+	objset_t *mos = dd->dd_pool->dp_meta_objset;
+
+	/*
+	 * dsl_dir_zapify() and zap_update() may dirty buffers and recurse
+	 * into space accounting, so do not call them with dd_lock held.
+	 */
+	dsl_dir_zapify(dd, tx);
+	VERIFY0(zap_update(mos, dd->dd_object, DD_FIELD_SNAPSHOTS_CHANGED,
+	    sizeof (uint64_t),
+	    sizeof (inode_timespec_t) / sizeof (uint64_t), &t, tx));
 }
 
 void

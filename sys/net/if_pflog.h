@@ -63,6 +63,8 @@ struct pfloghdr {
 /* minus pad, also used as a signature */
 #define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad2)
 
+#define	PFLOG_MAX_DEVS		256
+
 #ifdef _KERNEL
 struct pf_rule;
 struct pf_ruleset;

@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
+ *
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
+ */
+/*
  * This file is part of the ZFS Event Daemon (ZED).
  *
  * Developed at Lawrence Livermore National Laboratory (LLNL-CODE-403049).
  * Copyright (C) 2013-2014 Lawrence Livermore National Security, LLC.
- * Refer to the OpenZFS git commit log for authoritative copyright attribution.
- *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License Version 1.0 (CDDL-1.0).
- * You can obtain a copy of the license from the top-level file
- * "OPENSOLARIS.LICENSE" or at <http://opensource.org/licenses/CDDL-1.0>.
- * You may not use this file except in compliance with the license.
  */
 
 #include <assert.h>
@@ -42,26 +45,10 @@ typedef struct zed_strings_node zed_strings_node_t;
 static int
 _zed_strings_node_compare(const void *x1, const void *x2)
 {
-	const char *s1;
-	const char *s2;
-	int rv;
+	const zed_strings_node_t *n1 = x1;
+	const zed_strings_node_t *n2 = x2;
 
-	assert(x1 != NULL);
-	assert(x2 != NULL);
-
-	s1 = ((const zed_strings_node_t *) x1)->key;
-	assert(s1 != NULL);
-	s2 = ((const zed_strings_node_t *) x2)->key;
-	assert(s2 != NULL);
-	rv = strcmp(s1, s2);
-
-	if (rv < 0)
-		return (-1);
-
-	if (rv > 0)
-		return (1);
-
-	return (0);
+	return (TREE_ISIGN(strcmp(n1->key, n2->key)));
 }
 
 /*
@@ -131,6 +118,7 @@ _zed_strings_node_create(const char *key, const char *val)
 	} else {
 		np->key = np->val;
 	}
+	/* cppcheck-suppress memleak */
 	return (np);
 
 nomem:

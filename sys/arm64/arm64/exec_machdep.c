@@ -445,6 +445,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	else
 		new_tcr = 0;
 	td->td_proc->p_md.md_tcr = new_tcr;
+	td->td_md.md_sctlr = 0;
 
 	/* TODO: should create a pmap function for this... */
 	tcr = READ_SPECIALREG(tcr_el1);
@@ -470,6 +471,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 
 	/* Generate new pointer authentication keys */
 	ptrauth_exec(td);
+	mte_exec(td);
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and from */
@@ -482,6 +484,7 @@ int
 get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	struct trapframe *tf = td->td_frame;
+	ksiginfo_t *ksi = td->td_proc->p_ksi;
 
 	if (clear_ret & GET_MC_CLEAR_RET) {
 		mcp->mc_gpregs.gp_x[0] = 0;
@@ -497,6 +500,10 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	mcp->mc_gpregs.gp_sp = tf->tf_sp;
 	mcp->mc_gpregs.gp_lr = tf->tf_lr;
 	mcp->mc_gpregs.gp_elr = tf->tf_elr;
+	if (ksi != NULL && (ksi->ksi_flags & KSI_EXCEPT) != 0) {
+		mcp->mc_esr = tf->tf_esr;
+		mcp->mc_flags |= _MC_ESR_VALID;
+	}
 	get_fpcontext(td, mcp);
 
 	return (0);

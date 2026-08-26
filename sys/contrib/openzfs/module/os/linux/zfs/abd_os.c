@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2014 by Chunwei Chen. All rights reserved.
@@ -981,7 +971,7 @@ abd_borrow_buf(abd_t *abd, size_t n)
 {
 	void *buf;
 	abd_verify(abd);
-	ASSERT3U(abd->abd_size, >=, 0);
+	ASSERT3U(abd->abd_size, >=, n);
 	/*
 	 * In the event the ABD is composed of a single user page from Direct
 	 * I/O we can not direclty return the raw buffer. This is a consequence
@@ -1208,154 +1198,6 @@ abd_iter_page(struct abd_iter *aiter)
 	aiter->iter_page = page;
 	aiter->iter_page_doff = doff;
 	aiter->iter_page_dsize = dsize;
-}
-
-/*
- * Note: ABD BIO functions only needed to support vdev_classic. See comments in
- * vdev_disk.c.
- */
-
-/*
- * bio_nr_pages for ABD.
- * @off is the offset in @abd
- */
-unsigned long
-abd_nr_pages_off(abd_t *abd, unsigned int size, size_t off)
-{
-	unsigned long pos;
-
-	if (abd_is_gang(abd)) {
-		unsigned long count = 0;
-
-		for (abd_t *cabd = abd_gang_get_offset(abd, &off);
-		    cabd != NULL && size != 0;
-		    cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd)) {
-			ASSERT3U(off, <, cabd->abd_size);
-			int mysize = MIN(size, cabd->abd_size - off);
-			count += abd_nr_pages_off(cabd, mysize, off);
-			size -= mysize;
-			off = 0;
-		}
-		return (count);
-	}
-
-	if (abd_is_linear(abd))
-		pos = (unsigned long)abd_to_buf(abd) + off;
-	else
-		pos = ABD_SCATTER(abd).abd_offset + off;
-
-	return (((pos + size + PAGESIZE - 1) >> PAGE_SHIFT) -
-	    (pos >> PAGE_SHIFT));
-}
-
-static unsigned int
-bio_map(struct bio *bio, void *buf_ptr, unsigned int bio_size)
-{
-	unsigned int offset, size, i;
-	struct page *page;
-
-	offset = offset_in_page(buf_ptr);
-	for (i = 0; i < bio->bi_max_vecs; i++) {
-		size = PAGE_SIZE - offset;
-
-		if (bio_size <= 0)
-			break;
-
-		if (size > bio_size)
-			size = bio_size;
-
-		if (is_vmalloc_addr(buf_ptr))
-			page = vmalloc_to_page(buf_ptr);
-		else
-			page = virt_to_page(buf_ptr);
-
-		/*
-		 * Some network related block device uses tcp_sendpage, which
-		 * doesn't behave well when using 0-count page, this is a
-		 * safety net to catch them.
-		 */
-		ASSERT3S(page_count(page), >, 0);
-
-		if (bio_add_page(bio, page, size, offset) != size)
-			break;
-
-		buf_ptr += size;
-		bio_size -= size;
-		offset = 0;
-	}
-
-	return (bio_size);
-}
-
-/*
- * bio_map for gang ABD.
- */
-static unsigned int
-abd_gang_bio_map_off(struct bio *bio, abd_t *abd,
-    unsigned int io_size, size_t off)
-{
-	ASSERT(abd_is_gang(abd));
-
-	for (abd_t *cabd = abd_gang_get_offset(abd, &off);
-	    cabd != NULL;
-	    cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd)) {
-		ASSERT3U(off, <, cabd->abd_size);
-		int size = MIN(io_size, cabd->abd_size - off);
-		int remainder = abd_bio_map_off(bio, cabd, size, off);
-		io_size -= (size - remainder);
-		if (io_size == 0 || remainder > 0)
-			return (io_size);
-		off = 0;
-	}
-	ASSERT0(io_size);
-	return (io_size);
-}
-
-/*
- * bio_map for ABD.
- * @off is the offset in @abd
- * Remaining IO size is returned
- */
-unsigned int
-abd_bio_map_off(struct bio *bio, abd_t *abd,
-    unsigned int io_size, size_t off)
-{
-	struct abd_iter aiter;
-
-	ASSERT3U(io_size, <=, abd->abd_size - off);
-	if (abd_is_linear(abd))
-		return (bio_map(bio, ((char *)abd_to_buf(abd)) + off, io_size));
-
-	ASSERT(!abd_is_linear(abd));
-	if (abd_is_gang(abd))
-		return (abd_gang_bio_map_off(bio, abd, io_size, off));
-
-	abd_iter_init(&aiter, abd);
-	abd_iter_advance(&aiter, off);
-
-	for (int i = 0; i < bio->bi_max_vecs; i++) {
-		struct page *pg;
-		size_t len, sgoff, pgoff;
-		struct scatterlist *sg;
-
-		if (io_size <= 0)
-			break;
-
-		sg = aiter.iter_sg;
-		sgoff = aiter.iter_offset;
-		pgoff = sgoff & (PAGESIZE - 1);
-		len = MIN(io_size, PAGESIZE - pgoff);
-		ASSERT(len > 0);
-
-		pg = nth_page(sg_page(sg), sgoff >> PAGE_SHIFT);
-		if (bio_add_page(bio, pg, len, pgoff) != len)
-			break;
-
-		io_size -= len;
-		abd_iter_advance(&aiter, len);
-	}
-
-	return (io_size);
 }
 
 EXPORT_SYMBOL(abd_alloc_from_pages);

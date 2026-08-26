@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.297 2025/06/12 18:51:05 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.299 2026/07/03 15:31:34 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -89,6 +89,9 @@
  *			Returns true if the name given it needs to
  *			be wildcard-expanded.
  *
+ *	ExpandCurly
+ *			Expand a pattern containing braces to a StringList.
+ *
  *	SearchPath_Expand
  *			Expand a filename pattern to find all matching files
  *			from the search path.
@@ -132,7 +135,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.297 2025/06/12 18:51:05 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.299 2026/07/03 15:31:34 sjg Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -752,8 +755,8 @@ concat3(const char *a, size_t a_len, const char *b, size_t b_len,
 /*
  * Expand curly braces like the C shell. Brace expansion by itself is purely
  * textual, the expansions are not looked up in the file system. But if an
- * expanded word contains wildcard characters, it is expanded further,
- * matching only the actually existing files.
+ * expanded word contains wildcard characters, and path is provided,
+ * it is expanded further, matching only the actually existing files.
  *
  * Example: "{a{b,c}}" expands to "ab" and "ac".
  * Example: "{a}" expands to "a".
@@ -762,11 +765,11 @@ concat3(const char *a, size_t a_len, const char *b, size_t b_len,
  * Input:
  *	word		Entire word to expand
  *	brace		First curly brace in it
- *	path		Search path to use
+ *	path		Search path to use (NULL to skip wildcard expansion)
  *	expansions	Place to store the expansions
  */
-static void
-DirExpandCurly(const char *word, const char *brace, SearchPath *path,
+void
+ExpandCurly(const char *word, const char *brace, SearchPath *path,
 	       StringList *expansions)
 {
 	const char *prefix, *middle, *piece, *middle_end, *suffix;
@@ -796,7 +799,7 @@ DirExpandCurly(const char *word, const char *brace, SearchPath *path,
 		char *file = concat3(prefix, prefix_len, piece, piece_len,
 		    suffix, suffix_len);
 
-		if (contains_wildcard(file)) {
+		if (path != NULL && contains_wildcard(file)) {
 			SearchPath_Expand(path, file, expansions);
 			free(file);
 		} else {
@@ -898,7 +901,7 @@ SearchPath_Expand(SearchPath *path, const char *pattern, StringList *expansions)
 
 	brace = strchr(pattern, '{');
 	if (brace != NULL) {
-		DirExpandCurly(pattern, brace, path, expansions);
+		ExpandCurly(pattern, brace, path, expansions);
 		goto done;
 	}
 
@@ -1123,7 +1126,7 @@ FindFileAbsolute(SearchPath *path, bool seenDotLast,
 	DEBUG0(DIR, "   Trying exact path matches...\n");
 
 	if (!seenDotLast && cur != NULL &&
-	    ((file = DirLookupAbs(cur, name, base)) != NULL))
+	    (file = DirLookupAbs(cur, name, base)) != NULL)
 		goto found;
 
 	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
@@ -1135,7 +1138,7 @@ FindFileAbsolute(SearchPath *path, bool seenDotLast,
 	}
 
 	if (seenDotLast && cur != NULL &&
-	    ((file = DirLookupAbs(cur, name, base)) != NULL))
+	    (file = DirLookupAbs(cur, name, base)) != NULL)
 		goto found;
 
 	return false;

@@ -95,6 +95,19 @@ class AsyncRead: public AioRead {
 	}
 };
 
+class AsyncReadNoAttrCache: public Read {
+virtual void SetUp() {
+	m_init_flags = FUSE_ASYNC_READ;
+	Read::SetUp();
+}
+public:
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	// Don't return size, and set attr_valid=0
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1, 0);
+}
+};
+
 class ReadAhead: public Read,
 		 public WithParamInterface<tuple<bool, int>>
 {
@@ -348,6 +361,185 @@ TEST_F(AsyncRead, async_read)
 	/* Wait for AIO activity to complete, but ignore errors */
 	(void)aio_waitcomplete(NULL, NULL);
 	
+	leak(fd);
+}
+
+/*
+ * Regression test for a VFS locking bug: as of
+ * 22bb70a6b3bb7799276ab480e40665b7d6e4ce25 (17-December-2024), fusefs did not
+ * obtain an exclusive vnode lock before attempting to clear the attr cache
+ * after an unexpected eof.  The vnode lock would already be exclusive except
+ * when FUSE_ASYNC_READ is set.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=283391
+ */
+ TEST_F(AsyncRead, eof)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	uint64_t offset = 100;
+	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t partbufsize = 3 * bufsize / 4;
+	ssize_t r;
+	uint8_t buf[bufsize];
+	struct stat sb;
+
+	expect_lookup(RELPATH, ino, offset + bufsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, offset + bufsize, offset + partbufsize, CONTENTS);
+	expect_getattr(ino, offset + partbufsize);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	r = pread(fd, buf, bufsize, offset);
+	ASSERT_LE(0, r) << strerror(errno);
+	EXPECT_EQ(partbufsize, r) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb));
+	EXPECT_EQ((off_t)(offset + partbufsize), sb.st_size);
+	leak(fd);
+}
+
+/*
+ * If the daemon disables the attribute cache (or if it has expired), then the
+ * kernel must fetch attributes during VOP_READ.  If async reads are enabled,
+ * then fuse_internal_cache_attrs will be called without the vnode exclusively
+ * locked.  Regression test for
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=291064
+ */
+TEST_F(AsyncReadNoAttrCache, read)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	mode_t mode = S_IFREG | 0644;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	uint8_t buf[bufsize];
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out)
+	{
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = bufsize;
+		out.body.attr.attr_valid = 0;
+	})));
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
+
+	leak(fd);
+}
+
+/*
+ * If the vnode's attr cache has expired before VOP_READ begins, the kernel
+ * will have to fetch the file's size from the server.  If it has changed since
+ * our last query, we'll need to update the vnode pager.  But we'll only have a
+ * shared vnode lock.
+ */
+TEST_F(AsyncReadNoAttrCache, read_sizechange)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	mode_t mode = S_IFREG | 0644;
+	int fd;
+	size_t bufsize = strlen(CONTENTS);
+	uint8_t buf[bufsize];
+	size_t size1 = bufsize - 1;
+	size_t size2 = bufsize;
+	Sequence seq;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.InSequence(seq)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out)
+	{
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = size1;
+		out.body.attr.attr_valid = 0;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.offset == 0 &&
+				in.body.read.size == size1);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(struct fuse_out_header) + size1;
+		memmove(out.body.bytes, CONTENTS, size1);
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out)
+	{
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = size2;
+		out.body.attr.attr_valid = 0;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.offset == 0 &&
+				in.body.read.size == size2);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(struct fuse_out_header) + size2;
+		memmove(out.body.bytes, CONTENTS, size2);
+	})));
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(static_cast<ssize_t>(size1), read(fd, buf, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(buf, CONTENTS, size1));
+
+	/* Read again, but this time the server has changed the file's size */
+	bzero(buf, size2);
+	ASSERT_EQ(static_cast<ssize_t>(size2), pread(fd, buf, bufsize, 0)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(buf, CONTENTS, size2));
+
 	leak(fd);
 }
 

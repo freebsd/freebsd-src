@@ -587,13 +587,12 @@ lspping_print(netdissect_options *ndo,
            GET_BE_U_4(lspping_com_header->sender_handle),
            GET_BE_U_4(lspping_com_header->seq_number));
 
-    ND_PRINT("\n\t  Sender Timestamp: ");
+    ND_PRINT("\n\t  TimeStamp Sent: ");
     p_ntp_time(ndo, &lspping_com_header->ts_sent);
-    ND_PRINT(" ");
 
     int_part=GET_BE_U_4(lspping_com_header->ts_rcvd.int_part);
     fraction=GET_BE_U_4(lspping_com_header->ts_rcvd.fraction);
-    ND_PRINT("Receiver Timestamp: ");
+    ND_PRINT("\n\t  TimeStamp Received: ");
     if (! (int_part == 0 && fraction == 0))
         p_ntp_time(ndo, &lspping_com_header->ts_rcvd);
     else

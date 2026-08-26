@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexc.c,v 1.38 2021/12/19 22:08:06 djm Exp $ */
+/* $OpenBSD: kexgexc.c,v 1.42 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -27,9 +27,11 @@
 #include "includes.h"
 
 #ifdef WITH_OPENSSL
+#include "openbsd-compat/openssl-compat.h"
 
 #include <sys/types.h>
 
+#include <openssl/bn.h>
 #include <openssl/dh.h>
 
 #include <stdarg.h>
@@ -37,10 +39,7 @@
 #include <string.h>
 #include <signal.h>
 
-#include "openbsd-compat/openssl-compat.h"
-
 #include "sshkey.h"
-#include "cipher.h"
 #include "digest.h"
 #include "kex.h"
 #include "log.h"
@@ -53,8 +52,8 @@
 #include "sshbuf.h"
 #include "misc.h"
 
-static int input_kex_dh_gex_group(int, u_int32_t, struct ssh *);
-static int input_kex_dh_gex_reply(int, u_int32_t, struct ssh *);
+static int input_kex_dh_gex_group(int, uint32_t, struct ssh *);
+static int input_kex_dh_gex_reply(int, uint32_t, struct ssh *);
 
 int
 kexgex_client(struct ssh *ssh)
@@ -92,7 +91,7 @@ kexgex_client(struct ssh *ssh)
 }
 
 static int
-input_kex_dh_gex_group(int type, u_int32_t seq, struct ssh *ssh)
+input_kex_dh_gex_group(int type, uint32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	BIGNUM *p = NULL, *g = NULL;
@@ -142,7 +141,7 @@ out:
 }
 
 static int
-input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
+input_kex_dh_gex_reply(int type, uint32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
 	BIGNUM *dh_server_pub = NULL;

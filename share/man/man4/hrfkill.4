@@ -1,0 +1,82 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 The FreeBSD Foundation
+.\"
+.\" Portions of this software were developed by Aymeric Wibo
+.\" <obiwac@freebsd.org> under sponsorship from the FreeBSD Foundation.
+.\"
+.Dd June 24, 2026
+.Dt HRFKILL 4
+.Os
+.Sh NAME
+.Nm hrfkill
+.Nd HID radio control driver
+.Sh SYNOPSIS
+.Cd device hrfkill
+.Cd device hid
+.Cd device hidbus
+.Cd device hidmap
+.Cd device evdev
+In
+.Xr loader.conf 5 :
+.Cd hrfkill_load="YES"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for HID wireless radio control buttons,
+most often found as an
+.Qq airplane mode
+or RFKILL toggle on laptop keyboards, and presents them to applications over the
+.Ar evdev
+interface.
+.Sh HARDWARE
+The
+.Nm
+driver supports HID radio control buttons and airplane mode keys
+on devices such as:
+.Pp
+.Bl -bullet -compact
+.It
+Framework Laptop Keyboard
+.El
+.Sh FILES
+.Bl -tag -width /dev/input/event* -compact
+.It Pa /dev/input/event*
+input event device node
+.El
+.Sh SEE ALSO
+.Xr hidbus 4 ,
+.Xr hsctrl 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Aymeric Wibo Aq Mt obiwac@freebsd.org
+under sponsorship from the FreeBSD Foundation and by
+.An Daniel Shaefer Aq Mt git@danielschaefer.me
+under sponsorship from Framework Computer Inc.
+.Sh CAVEATS
+Currently,
+.Nm
+only handles radio button reporting.
+The HID Generic Desktop radio control page also defines radio switches and
+status LEDs; support for these should be added in a future revision of the
+driver.
+.Pp
+.Fx
+does not yet have a generic RFKILL framework analogous to the one found in
+Linux.
+As a result,
+.Nm
+can only report radio button events to userspace via
+.Ar evdev ;
+the kernel itself has no mechanism to act on these events to block or unblock
+wireless devices.
+A future RFKILL framework would allow the driver to integrate directly with
+network interfaces and block transmitters in response to hardware events.

@@ -39,6 +39,7 @@
 
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <rdma/ib_cache.h>
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 static int mcast_debug_level = 1;
@@ -155,6 +156,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	struct ipoib_dev_priv *priv = mcast->priv;
 	if_t dev = priv->dev;
 	struct ipoib_ah *ah;
+	struct rdma_ah_attr av;
 	struct epoch_tracker et;
 	int ret;
 	int set_qkey = 0;
@@ -194,41 +196,37 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		}
 	}
 
-	{
-		struct ib_ah_attr av = {
-			.dlid	       = be16_to_cpu(mcast->mcmember.mlid),
-			.port_num      = priv->port,
-			.sl	       = mcast->mcmember.sl,
-			.ah_flags      = IB_AH_GRH,
-			.static_rate   = mcast->mcmember.rate,
-			.grh	       = {
-				.flow_label    = be32_to_cpu(mcast->mcmember.flow_label),
-				.hop_limit     = mcast->mcmember.hop_limit,
-				.sgid_index    = 0,
-				.traffic_class = mcast->mcmember.traffic_class
-			}
-		};
-		av.grh.dgid = mcast->mcmember.mgid;
+	memset(&av, 0, sizeof(av));
+	av.type = rdma_ah_find_type(priv->ca, priv->port);
+	rdma_ah_set_dlid(&av, be16_to_cpu(mcast->mcmember.mlid)),
+	rdma_ah_set_port_num(&av, priv->port);
+	rdma_ah_set_sl(&av, mcast->mcmember.sl);
+	rdma_ah_set_static_rate(&av, mcast->mcmember.rate);
 
-		ah = ipoib_create_ah(priv, priv->pd, &av);
-		if (!ah) {
-			ipoib_warn(priv, "ib_address_create failed\n");
-		} else {
-			spin_lock_irq(&priv->lock);
-			mcast->ah = ah;
-			spin_unlock_irq(&priv->lock);
+	rdma_ah_set_grh(&av, &mcast->mcmember.mgid,
+			be32_to_cpu(mcast->mcmember.flow_label),
+			0, mcast->mcmember.hop_limit,
+			mcast->mcmember.traffic_class);
 
-			ipoib_dbg_mcast(priv, "MGID %16D AV %p, LID 0x%04x, SL %d\n",
-					mcast->mcmember.mgid.raw, ":",
-					mcast->ah->ah,
-					be16_to_cpu(mcast->mcmember.mlid),
-					mcast->mcmember.sl);
-		}
-	}
+	ah = ipoib_create_ah(priv, priv->pd, &av);
+	if (IS_ERR(ah)) {
+		ipoib_warn(priv, "ib_address_create failed %ld\n",
+			   -PTR_ERR(ah));
+		/* use original error */
+		return PTR_ERR(ah);
+ 	}
+	spin_lock_irq(&priv->lock);
+	mcast->ah = ah;
+	spin_unlock_irq(&priv->lock);
 
-	NET_EPOCH_ENTER(et);
+	ipoib_dbg_mcast(priv, "MGID %pI6 AV %p, LID 0x%04x, SL %d\n",
+			mcast->mcmember.mgid.raw,
+			mcast->ah->ah,
+			be16_to_cpu(mcast->mcmember.mlid),
+			mcast->mcmember.sl);
 
 	/* actually send any queued packets */
+	NET_EPOCH_ENTER(et);
 	while (mcast->pkt_queue.ifq_len) {
 		struct mbuf *mb;
 		_IF_DEQUEUE(&mcast->pkt_queue, mb);
@@ -487,8 +485,8 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 	}
 
-	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid, NULL))
-		ipoib_warn(priv, "ib_query_gid() failed\n");
+	if (rdma_query_gid(priv->ca, priv->port, 0, &priv->local_gid))
+		ipoib_warn(priv, "rdma_query_gid() failed\n");
 	else
 		memcpy(if_getlladdr(dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
 

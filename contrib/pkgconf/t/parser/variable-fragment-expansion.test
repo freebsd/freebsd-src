@@ -1,0 +1,7 @@
+PackageSearchPath: lib1
+Query: variable-fragment-expansion
+WantedFlags: fragment-tree
+MatchStdout: partial
+ExpectedStdout: '-lfoo' [type l, 0 children]
+ExpectedStdout: '-pthread' [untyped, 0 children]
+ExpectedStdout: '-lm' [type l, 0 children]

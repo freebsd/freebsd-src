@@ -352,6 +352,48 @@ static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX
 		.subtype = IFM_400G_LR8,	/* XXX */
 		.baudrate = IF_Gbps(400ULL),
 	},
+
+	/**/
+	[MLX5E_400GAUI_2_400GBASE_CR2_KR2][MLX5E_PORT_UNKNOWN] = {
+		.subtype = IFM_400G_KR2_PAM4,
+		.baudrate = IF_Gbps(400ULL),
+	},
+	[MLX5E_400GAUI_2_400GBASE_CR2_KR2][MLX5E_PORT_DA] = {
+		.subtype = IFM_400G_CR2,
+		.baudrate = IF_Gbps(400ULL),
+	},
+	[MLX5E_400GAUI_2_400GBASE_CR2_KR2][MLX5E_PORT_FIBRE] = {
+		.subtype = IFM_400G_SR2,
+		.baudrate = IF_Gbps(400ULL),
+	},
+
+	/**/
+	[MLX5E_800GAUI_8_800GBASE_CR8_KR8][MLX5E_PORT_UNKNOWN] = {
+		.subtype = IFM_800G_KR8,	/* 800GAUI-8 / KR8a */
+		.baudrate = IF_Gbps(800ULL),
+	},
+	[MLX5E_800GAUI_8_800GBASE_CR8_KR8][MLX5E_PORT_DA] = {
+		.subtype = IFM_800G_CR8,	/* 800GBASE-CR8 */
+		.baudrate = IF_Gbps(800ULL),
+	},
+	[MLX5E_800GAUI_8_800GBASE_CR8_KR8][MLX5E_PORT_FIBRE] = {
+		.subtype = IFM_800G_SR8,
+		.baudrate = IF_Gbps(800ULL),
+	},
+
+	/**/
+	[MLX5E_800GAUI_4_800GBASE_CR4_KR4][MLX5E_PORT_UNKNOWN] = {
+		.subtype = IFM_800G_KR4_PAM4,	/* 800GAUI-4 / KR4 */
+		.baudrate = IF_Gbps(800ULL),
+	},
+	[MLX5E_800GAUI_4_800GBASE_CR4_KR4][MLX5E_PORT_DA] = {
+		.subtype = IFM_800G_CR4,	/* 800GBASE-CR4 */
+		.baudrate = IF_Gbps(800ULL),
+	},
+	[MLX5E_800GAUI_4_800GBASE_CR4_KR4][MLX5E_PORT_FIBRE] = {
+		.subtype = IFM_800G_SR4,
+		.baudrate = IF_Gbps(800ULL),
+	},
 };
 
 static const struct if_snd_tag_sw mlx5e_ul_snd_tag_sw = {
@@ -403,7 +445,16 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
 	eth_proto_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
 	    eth_proto_oper);
+	if (eth_proto_oper == 0) {
+		priv->media_active_last = IFM_ETHER;
+		if_setbaudrate(priv->ifp, 1);
+		mlx5_en_err(priv->ifp, "eth_proto_oper is 0\n");
+		return;
+	}
 	connector_type = MLX5_GET(ptys_reg, out, connector_type);
+	if (connector_type >= MLX5E_CONNECTOR_TYPE_NUMBER)
+		connector_type = MLX5E_PORT_UNKNOWN;
+
 	i = ilog2(eth_proto_oper);
 
 	if (ext) {
@@ -3728,6 +3779,8 @@ out:
 		break;
 
 	case SIOCGI2C:
+		/* fallthru */
+	case SIOCGI2CPB:
 		ifr = (struct ifreq *)data;
 
 		/*
@@ -3737,6 +3790,9 @@ out:
 		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error)
 			break;
+		/* ensure page and bank are 0 for legacy SIOCGI2C ioctls */
+		if (command == SIOCGI2C)
+			i2c.page = i2c.bank = 0;
 
 		if (i2c.len > sizeof(i2c.data)) {
 			error = EINVAL;
@@ -3778,8 +3834,17 @@ out:
 			error = EINVAL;
 			goto err_i2c;
 		}
+
+		if (i2c.bank != 0) {
+			mlx5_en_err(ifp,
+			    "Query eeprom failed, Invalid Bank: %X\n",
+			    i2c.bank);
+			error = EINVAL;
+			goto err_i2c;
+		}
+
 		error = mlx5_query_eeprom(priv->mdev,
-		    read_addr, MLX5_EEPROM_LOW_PAGE,
+		    read_addr, i2c.page,
 		    (uint32_t)i2c.offset, (uint32_t)i2c.len, module_num,
 		    (uint32_t *)i2c.data, &size_read);
 		if (error) {
@@ -3791,7 +3856,7 @@ out:
 
 		if (i2c.len > MLX5_EEPROM_MAX_BYTES) {
 			error = mlx5_query_eeprom(priv->mdev,
-			    read_addr, MLX5_EEPROM_LOW_PAGE,
+			    read_addr, i2c.page,
 			    (uint32_t)(i2c.offset + size_read),
 			    (uint32_t)(i2c.len - size_read), module_num,
 			    (uint32_t *)(i2c.data + size_read), &size_read);

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: static libs-only-libname
+Query: private-libs-duplication
+ExpectedStdout: -lprivate -lbaz -lzee -lbar -lfoo

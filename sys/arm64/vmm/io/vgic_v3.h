@@ -32,26 +32,4 @@
 #define VGIC_ICH_LR_NUM_MAX	16
 #define	VGIC_ICH_APR_NUM_MAX	4
 
-/* Registers accessed by EL2 */
-struct vgic_v3_regs {
-	uint32_t	ich_eisr_el2;	/* End of Interrupt Status Register */
-	uint32_t	ich_elrsr_el2;	/* Empty List register Status Register (ICH_ELRSR_EL2) */
-	uint32_t	ich_hcr_el2;	/* Hyp Control Register */
-	uint32_t	ich_misr_el2;	/* Maintenance Interrupt State Register */
-	uint32_t	ich_vmcr_el2;	/* Virtual Machine Control Register */
-
-	/*
-	 * The List Registers are part of the VM context and are modified on a
-	 * world switch. They need to be allocated statically so they are
-	 * mapped in the EL2 translation tables when struct hypctx is mapped.
-	 */
-	uint64_t	ich_lr_el2[VGIC_ICH_LR_NUM_MAX];
-	uint16_t	ich_lr_num;
-
-	/* Active Priorities Registers for Group 0 and 1 interrupts */
-	uint16_t	ich_apr_num;
-	uint32_t	ich_ap0r_el2[VGIC_ICH_APR_NUM_MAX];
-	uint32_t	ich_ap1r_el2[VGIC_ICH_APR_NUM_MAX];
-};
-
 #endif /* !_VMM_VGIC_V3_H_ */

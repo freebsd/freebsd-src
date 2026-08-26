@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -550,8 +540,8 @@ get_snapshot_names(differ_info_t *di, const char *fromsnap,
     const char *tosnap)
 {
 	libzfs_handle_t *hdl = di->zhp->zfs_hdl;
-	char *atptrf = NULL;
-	char *atptrt = NULL;
+	const char *atptrf = NULL;
+	const char *atptrt = NULL;
 	int fdslen, fsnlen;
 	int tdslen, tsnlen;
 
@@ -821,10 +811,10 @@ zfs_show_diffs(zfs_handle_t *zhp, int outfd, const char *fromsnap,
 	(void) close(pipefd[1]);
 	(void) pthread_join(tid, NULL);
 
+	teardown_differ_info(&di);
 	if (di.zerr != 0) {
 		zfs_error_aux(zhp->zfs_hdl, "%s", zfs_strerror(di.zerr));
 		return (zfs_error(zhp->zfs_hdl, EZFS_DIFF, di.errbuf));
 	}
-	teardown_differ_info(&di);
 	return (0);
 }

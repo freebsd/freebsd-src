@@ -28,10 +28,10 @@
 TUKLIB_DECLS_BEGIN
 
 /// One or more output lines exceeded right_margin.
-/// This only a warning; everything was still printed successfully.
+/// This is only a warning; everything was still printed successfully.
 #define TUKLIB_WRAP_WARN_OVERLONG   0x01
 
-/// Error writing to to the output FILE. The error flag in the FILE
+/// Error writing to the output FILE. The error flag in the FILE
 /// should have been set as well.
 #define TUKLIB_WRAP_ERR_IO          0x02
 

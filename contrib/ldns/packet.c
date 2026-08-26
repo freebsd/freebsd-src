@@ -27,7 +27,10 @@
  */
 
 #define LDNS_EDNS_MASK_DO_BIT 0x8000
-#define LDNS_EDNS_MASK_UNASSIGNED (0xFFFF & ~LDNS_EDNS_MASK_DO_BIT)
+#define LDNS_EDNS_MASK_CO_BIT 0x4000
+#define LDNS_EDNS_MASK_UNASSIGNED (0xFFFF & ~( LDNS_EDNS_MASK_DO_BIT \
+                                             | LDNS_EDNS_MASK_CO_BIT ))
+
 
 /* TODO defines for 3600 */
 /* convert to and from numerical flag values */
@@ -241,6 +244,22 @@ ldns_pkt_set_edns_do(ldns_pkt *packet, bool value)
 		packet->_edns_z = packet->_edns_z | LDNS_EDNS_MASK_DO_BIT;
 	} else {
 		packet->_edns_z = packet->_edns_z & ~LDNS_EDNS_MASK_DO_BIT;
+	}
+}
+
+bool
+ldns_pkt_edns_co(const ldns_pkt *packet)
+{
+	return (packet->_edns_z & LDNS_EDNS_MASK_CO_BIT);
+}
+
+void
+ldns_pkt_set_edns_co(ldns_pkt *packet, bool value)
+{
+	if (value) {
+		packet->_edns_z = packet->_edns_z | LDNS_EDNS_MASK_CO_BIT;
+	} else {
+		packet->_edns_z = packet->_edns_z & ~LDNS_EDNS_MASK_CO_BIT;
 	}
 }
 
@@ -754,11 +773,14 @@ ldns_pkt_edns(const ldns_pkt *pkt)
 		ldns_pkt_edns_extended_rcode(pkt) > 0 ||
 		ldns_pkt_edns_data(pkt) ||
 		ldns_pkt_edns_do(pkt) ||
+		ldns_pkt_edns_co(pkt) ||
 		pkt->_edns_list ||
                 pkt->_edns_present
 	       );
 }
 
+ldns_edns_option_list*
+pkt_edns_data2edns_option_list(const ldns_rdf *edns_data);
 ldns_edns_option_list*
 pkt_edns_data2edns_option_list(const ldns_rdf *edns_data)
 {
@@ -782,7 +804,7 @@ pkt_edns_data2edns_option_list(const ldns_rdf *edns_data)
 		ldns_edns_option* edns;
 		uint8_t *data;
 
-		if (pos + 4 > max) { /* make sure the header is  */
+		if (pos + 4 > max) { /* make sure the header fits */
 			ldns_edns_option_list_deep_free(edns_list);
 			return NULL;
 		}
@@ -1253,6 +1275,7 @@ ldns_pkt_clone(const ldns_pkt *pkt)
 		ldns_pkt_set_edns_data(new_pkt, 
 			ldns_rdf_clone(ldns_pkt_edns_data(pkt)));
 	ldns_pkt_set_edns_do(new_pkt, ldns_pkt_edns_do(pkt));
+	ldns_pkt_set_edns_co(new_pkt, ldns_pkt_edns_co(pkt));
 	if (pkt->_edns_list)
 		ldns_pkt_set_edns_option_list(new_pkt,
 			ldns_edns_option_list_clone(pkt->_edns_list));

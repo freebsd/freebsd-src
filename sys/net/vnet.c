@@ -172,10 +172,16 @@ static MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
 #define	VNET_SIZE	roundup2(VNET_BYTES, PAGE_SIZE)
 
 /*
+ * Ensure space allocated by vnet_data_alloc() is suitably aligned for any
+ * object.
+ */
+#define	VNET_DATAALIGN	_Alignof(__max_align_t)
+
+/*
  * Space to store virtualized global variables from loadable kernel modules,
  * and the free list to manage it.
  */
-VNET_DEFINE_STATIC(char, modspace[VNET_MODMIN] __aligned(__alignof(void *)));
+VNET_DEFINE_STATIC(char, modspace[VNET_MODMIN] __aligned(VNET_DATAALIGN));
 
 /*
  * A copy of the initial values of all virtualized global variables.
@@ -385,7 +391,7 @@ vnet_data_alloc(int size)
 	void *s;
 
 	s = NULL;
-	size = roundup2(size, sizeof(void *));
+	size = roundup2(size, VNET_DATAALIGN);
 	sx_xlock(&vnet_data_free_lock);
 	TAILQ_FOREACH(df, &vnet_data_free_head, vnd_link) {
 		if (df->vnd_len < size)
@@ -403,6 +409,8 @@ vnet_data_alloc(int size)
 	}
 	sx_xunlock(&vnet_data_free_lock);
 
+	KASSERT(((uintptr_t)s & (VNET_DATAALIGN - 1)) == 0,
+	    ("unaligned vnet alloc %p", s));
 	return (s);
 }
 
@@ -417,7 +425,7 @@ vnet_data_free(void *start_arg, int size)
 	uintptr_t start;
 	uintptr_t end;
 
-	size = roundup2(size, sizeof(void *));
+	size = roundup2(size, VNET_DATAALIGN);
 	start = (uintptr_t)start_arg;
 	end = start + size;
 	/*

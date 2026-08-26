@@ -510,7 +510,8 @@ ReadSet(FILE *f, const char *n, int column, const char *delim)
 
 		d = strtod(t, &p);
 		if (p != NULL && *p != '\0')
-			errx(2, "Invalid data on line %d in %s", line, n);
+			errx(2, "Invalid data \"%s\" on line %d in %s",
+			    t, line, n);
 		if (*buf != '\0')
 			AddPoint(s, d);
 	}

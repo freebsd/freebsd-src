@@ -4,21 +4,31 @@
 
 ZFS_MODULE_CFLAGS += -std=gnu11 -Wno-declaration-after-statement
 ZFS_MODULE_CFLAGS += -Wmissing-prototypes
-ZFS_MODULE_CFLAGS += @KERNEL_DEBUG_CFLAGS@ @KERNEL_NO_FORMAT_ZERO_LENGTH@
+ZFS_MODULE_CFLAGS += @KERNEL_NO_FORMAT_ZERO_LENGTH@
 
 ifneq ($(KBUILD_EXTMOD),)
+ZFS_MODULE_CFLAGS += @KERNEL_DEBUG_CFLAGS@
+ZFS_MODULE_CPPFLAGS += @KERNEL_DEBUG_CPPFLAGS@
 zfs_include = @abs_top_srcdir@/include
 icp_include = @abs_srcdir@/icp/include
 zstd_include = @abs_srcdir@/zstd/include
 ZFS_MODULE_CFLAGS += -include @abs_top_builddir@/zfs_config.h
+ZFS_MODULE_CFLAGS += -include $(zfs_include)/sys/simd_config.h
 ZFS_MODULE_CFLAGS += -I@abs_top_builddir@/include
 src = @abs_srcdir@
 obj = @abs_builddir@
 else
+ifeq ($(CONFIG_ZFS_DEBUG),y)
+ZFS_MODULE_CFLAGS += -Werror
+ZFS_MODULE_CPPFLAGS += -DDEBUG -UNDEBUG -DZFS_DEBUG
+else
+ZFS_MODULE_CPPFLAGS += -UDEBUG -DNDEBUG
+endif
 zfs_include = $(srctree)/include/zfs
 icp_include = $(src)/icp/include
 zstd_include = $(src)/zstd/include
 ZFS_MODULE_CFLAGS += -include $(zfs_include)/zfs_config.h
+ZFS_MODULE_CFLAGS += -include $(zfs_include)/sys/simd_config.h
 endif
 
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/kernel
@@ -26,7 +36,6 @@ ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/spl
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/zfs
 ZFS_MODULE_CFLAGS += -I$(zfs_include)
 ZFS_MODULE_CPPFLAGS += -D_KERNEL
-ZFS_MODULE_CPPFLAGS += @KERNEL_DEBUG_CPPFLAGS@
 
 # KASAN enables -Werror=frame-larger-than=1024, which
 # breaks oh so many parts of our build.
@@ -47,6 +56,13 @@ CFLAGS_zfs/range_tree.o += -mllvm -x86-cmov-converter=false
 CFLAGS_zfs/zap_micro.o += -mllvm -x86-cmov-converter=false
 endif
 endif
+
+# These are internal functions for 64-bit math on 32-bit platforms. The
+# compiler will generate references to them if necessary, to be resolved at
+# link time. We don't need or provide prototypes for them, so we disable
+# warnings that would complain about them.
+CFLAGS_REMOVE_os/linux/spl/spl-math-compat.o += -Wmissing-prototypes
+CFLAGS_REMOVE_os/linux/spl/spl-math-compat.o += -Wmissing-declarations
 
 ifneq ($(KBUILD_EXTMOD),)
 @CONFIG_QAT_TRUE@ZFS_MODULE_CFLAGS += -I@QAT_SRC@/include
@@ -69,7 +85,6 @@ ccflags-$(CONFIG_SPARC64) += -Wno-unused-value
 obj-$(CONFIG_ZFS) := spl.o zfs.o
 
 SPL_OBJS := \
-	spl-atomic.o \
 	spl-condvar.o \
 	spl-cred.o \
 	spl-err.o \
@@ -77,6 +92,7 @@ SPL_OBJS := \
 	spl-kmem-cache.o \
 	spl-kmem.o \
 	spl-kstat.o \
+	spl-math-compat.o \
 	spl-proc.o \
 	spl-procfs-list.o \
 	spl-shrinker.o \
@@ -177,34 +193,34 @@ $(addprefix $(obj)/icp/,$(ICP_OBJS) $(ICP_OBJS_X86) $(ICP_OBJS_X86_64) \
 $(addprefix $(obj)/icp/,$(ICP_OBJS) $(ICP_OBJS_X86) $(ICP_OBJS_X86_64) \
 	$(ICP_OBJS_ARM64) $(ICP_OBJS_PPC_PPC64)) : ccflags-y += -I$(icp_include) -I$(zfs_include)/os/linux/spl -I$(zfs_include)
 
-LUA_OBJS := \
-	lapi.o \
-	lauxlib.o \
-	lbaselib.o \
-	lcode.o \
-	lcompat.o \
-	lcorolib.o \
-	lctype.o \
-	ldebug.o \
-	ldo.o \
-	lfunc.o \
-	lgc.o \
-	llex.o \
-	lmem.o \
-	lobject.o \
-	lopcodes.o \
-	lparser.o \
-	lstate.o \
-	lstring.o \
-	lstrlib.o \
-	ltable.o \
-	ltablib.o \
-	ltm.o \
-	lvm.o \
-	lzio.o \
-	setjmp/setjmp.o
+@ZCP_ENABLED_TRUE@LUA_OBJS := \
+@ZCP_ENABLED_TRUE@	lapi.o \
+@ZCP_ENABLED_TRUE@	lauxlib.o \
+@ZCP_ENABLED_TRUE@	lbaselib.o \
+@ZCP_ENABLED_TRUE@	lcode.o \
+@ZCP_ENABLED_TRUE@	lcompat.o \
+@ZCP_ENABLED_TRUE@	lcorolib.o \
+@ZCP_ENABLED_TRUE@	lctype.o \
+@ZCP_ENABLED_TRUE@	ldebug.o \
+@ZCP_ENABLED_TRUE@	ldo.o \
+@ZCP_ENABLED_TRUE@	lfunc.o \
+@ZCP_ENABLED_TRUE@	lgc.o \
+@ZCP_ENABLED_TRUE@	llex.o \
+@ZCP_ENABLED_TRUE@	lmem.o \
+@ZCP_ENABLED_TRUE@	lobject.o \
+@ZCP_ENABLED_TRUE@	lopcodes.o \
+@ZCP_ENABLED_TRUE@	lparser.o \
+@ZCP_ENABLED_TRUE@	lstate.o \
+@ZCP_ENABLED_TRUE@	lstring.o \
+@ZCP_ENABLED_TRUE@	lstrlib.o \
+@ZCP_ENABLED_TRUE@	ltable.o \
+@ZCP_ENABLED_TRUE@	ltablib.o \
+@ZCP_ENABLED_TRUE@	ltm.o \
+@ZCP_ENABLED_TRUE@	lvm.o \
+@ZCP_ENABLED_TRUE@	lzio.o \
+@ZCP_ENABLED_TRUE@	setjmp/setjmp.o
 
-zfs-objs += $(addprefix lua/,$(LUA_OBJS))
+@ZCP_ENABLED_TRUE@zfs-objs += $(addprefix lua/,$(LUA_OBJS))
 
 
 NVPAIR_OBJS := \
@@ -214,12 +230,6 @@ NVPAIR_OBJS := \
 	nvpair_alloc_spl.o
 
 zfs-objs += $(addprefix nvpair/,$(NVPAIR_OBJS))
-
-
-UNICODE_OBJS := \
-	u8_textprep.o
-
-zfs-objs += $(addprefix unicode/,$(UNICODE_OBJS))
 
 
 ZCOMMON_OBJS := \
@@ -264,6 +274,15 @@ ZFS_ZSTD_FLAGS += -U__BMI__
 # Quiet warnings about frame size due to unused code in unmodified zstd lib
 ZFS_ZSTD_FLAGS += -Wframe-larger-than=20480
 
+# Disable assembly for kernel compatibility
+ZFS_ZSTD_FLAGS += -DZSTD_DISABLE_ASM
+
+# Disable intrinsics for EL10 x86_64-v3 baseline
+ZFS_ZSTD_FLAGS += -DZSTD_NO_INTRINSICS
+
+# Disable tracing for kernel builds
+ZFS_ZSTD_FLAGS += -DZSTD_TRACE=0
+
 ZSTD_OBJS := \
 	zfs_zstd.o \
 	zstd_sparc.o
@@ -286,6 +305,7 @@ ZSTD_UPSTREAM_OBJS := \
 	lib/compress/zstd_lazy.o \
 	lib/compress/zstd_ldm.o \
 	lib/compress/zstd_opt.o \
+	lib/compress/zstd_preSplit.o \
 	lib/decompress/huf_decompress.o \
 	lib/decompress/zstd_ddict.o \
 	lib/decompress/zstd_decompress.o \
@@ -298,6 +318,14 @@ $(addprefix $(obj)/zstd/,$(ZSTD_OBJS) $(ZSTD_UPSTREAM_OBJS)) : asflags-y += -I$(
 $(addprefix $(obj)/zstd/,$(ZSTD_UPSTREAM_OBJS)) : ccflags-y += -include $(zstd_include)/zstd_compat_wrapper.h -Wp,-w
 $(obj)/zstd/zfs_zstd.o : ccflags-y += -include $(zstd_include)/zstd_compat_wrapper.h
 
+
+@ZCP_ENABLED_TRUE@ZCP_OBJS := \
+@ZCP_ENABLED_TRUE@	zcp.o \
+@ZCP_ENABLED_TRUE@	zcp_get.o \
+@ZCP_ENABLED_TRUE@	zcp_global.o \
+@ZCP_ENABLED_TRUE@	zcp_iter.o \
+@ZCP_ENABLED_TRUE@	zcp_set.o \
+@ZCP_ENABLED_TRUE@	zcp_synctask.o
 
 ZFS_OBJS := \
 	abd.o \
@@ -372,6 +400,7 @@ ZFS_OBJS := \
 	space_map.o \
 	space_reftree.o \
 	txg.o \
+	u8_textprep.o \
 	uberblock.o \
 	unique.o \
 	vdev.o \
@@ -394,14 +423,10 @@ ZFS_OBJS := \
 	vdev_root.o \
 	vdev_trim.o \
 	zap.o \
+	zap_fat.o \
+	zap_impl.o \
 	zap_leaf.o \
 	zap_micro.o \
-	zcp.o \
-	zcp_get.o \
-	zcp_global.o \
-	zcp_iter.o \
-	zcp_set.o \
-	zcp_synctask.o \
 	zfeature.o \
 	zfs_byteswap.o \
 	zfs_chksum.o \
@@ -428,7 +453,8 @@ ZFS_OBJS := \
 	zle.o \
 	zrlock.o \
 	zthr.o \
-	zvol.o
+	zvol.o \
+	$(ZCP_OBJS)
 
 ZFS_OBJS_OS := \
 	abd_os.o \
@@ -504,11 +530,12 @@ zobjdirs = $(dir $(zfs-objs)) $(dir $(spl-objs))                                
   $(dir $(zfs-$(CONFIG_X86))) $(dir $(zfs-$(CONFIG_UML_X86))) $(dir $(zfs-$(CONFIG_ARM64)))  \
   $(dir $(zfs-$(CONFIG_PPC64))) $(dir $(zfs-$(CONFIG_PPC)))
 
-z_cdirs = $(sort $(filter-out lua/setjmp/ $(addprefix icp/asm-aarch64/, aes/ blake3/ modes/ sha2/) \
+@ZCP_ENABLED_TRUE@luajmp = lua/setjmp/
+z_cdirs = $(sort $(filter-out $(luajmp) $(addprefix icp/asm-aarch64/, aes/ blake3/ modes/ sha2/) \
   $(addprefix icp/asm-x86_64/, aes/ blake3/ modes/ sha2/)                                          \
   $(addprefix icp/asm-ppc/, aes/ blake3/ modes/ sha2/)                                             \
   $(addprefix icp/asm-ppc64/, aes/ blake3/ modes/ sha2/), $(zobjdirs)))
-z_sdirs = $(sort $(filter lua/setjmp/ $(addprefix icp/asm-aarch64/, aes/ blake3/ modes/ sha2/)     \
+z_sdirs = $(sort $(filter $(luajmp) $(addprefix icp/asm-aarch64/, aes/ blake3/ modes/ sha2/)     \
   $(addprefix icp/asm-x86_64/, aes/ blake3/ modes/ sha2/)                                          \
   $(addprefix icp/asm-ppc/, aes/ blake3/ modes/ sha2/)                                             \
   $(addprefix icp/asm-ppc64/, aes/ blake3/ modes/ sha2/), $(zobjdirs)))

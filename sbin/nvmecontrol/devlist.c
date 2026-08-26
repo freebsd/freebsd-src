@@ -117,7 +117,8 @@ scan_namespace(int fd, int ctrlr, uint32_t nsid)
 }
 
 static bool
-print_controller_info(const char *name, int fd)
+print_controller_info(const char *name, int fd,
+    struct nvme_controller_data *cdatap)
 {
 	static struct timespec		now;
 	struct nvme_controller_data	cdata;
@@ -150,6 +151,7 @@ print_controller_info(const char *name, int fd)
 		}
 	}
 
+	*cdatap = cdata;
 	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
 	printf("%6s: %s", name, mn);
 	if (connected) {
@@ -187,6 +189,7 @@ print_controller_info(const char *name, int fd)
 static bool
 scan_controller(int ctrlr)
 {
+	struct nvme_controller_data	cdata;
 	struct nvme_ns_list		nslist;
 	char				name[64];
 	uint32_t			nsid;
@@ -202,25 +205,34 @@ scan_controller(int ctrlr)
 	} else if (ret != 0)
 		return (false);
 
-	if (!print_controller_info(name, fd)) {
+	if (!print_controller_info(name, fd, &cdata)) {
 		close(fd);
 		return (true);
 	}
 
-	nsid = 0;
-	for (;;) {
-		if (read_active_namespaces(fd, nsid, &nslist) != 0)
-			break;
-		for (u_int i = 0; i < nitems(nslist.ns); i++) {
-			nsid = nslist.ns[i];
-			if (nsid == 0) {
-				break;
-			}
-
+	/*
+	 * Active Namespace ID List (CNS=2) was introduced in NVMe 1.1.
+	 * The cdata.ver field was added in NVMe 1.2; for older devices it
+	 * is reported as 0.  Use CNS=2 only when we know the device is at
+	 * least NVMe 1.1, and fall back to iterating cdata.nn otherwise.
+	 */
+	if (cdata.ver == 0) {
+		for (nsid = 1; nsid <= cdata.nn; nsid++)
 			scan_namespace(fd, ctrlr, nsid);
+	} else {
+		nsid = 0;
+		for (;;) {
+			if (read_active_namespaces(fd, nsid, &nslist) != 0)
+				break;
+			for (u_int i = 0; i < nitems(nslist.ns); i++) {
+				nsid = nslist.ns[i];
+				if (nsid == 0)
+					break;
+				scan_namespace(fd, ctrlr, nsid);
+			}
+			if (nsid == 0 || nsid >= NVME_GLOBAL_NAMESPACE_TAG - 1)
+				break;
 		}
-		if (nsid == 0 || nsid >= NVME_GLOBAL_NAMESPACE_TAG - 1)
-			break;
 	}
 
 	close(fd);

@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: dump-license
+Query: license-malformed
+ExpectedStdout: license-malformed: MIT ISC
+ExpectedExitCode: 0

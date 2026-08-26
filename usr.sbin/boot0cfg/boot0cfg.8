@@ -22,7 +22,7 @@
 .\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 1, 2013
+.Dd July 29, 2026
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Op Fl o Ar options
 .Op Fl s Ar slice
 .Op Fl t Ar ticks
-.Ar disk
+.Ar disk | file
 .Sh DESCRIPTION
 The
 .Fx
@@ -62,8 +62,14 @@ The
 utility optionally installs the
 .Sq boot0
 boot manager on the specified
-.Ar disk ;
+.Ar disk
+or
+.Ar file ;
 and allows various operational parameters to be configured.
+.Pp
+If a file is specified as the target argument, all operations are
+performed entirely in-place.
+This allows for offline payload preparation.
 .Pp
 On PCs, a boot manager typically occupies sector 0 of a disk, which is
 known as the Master Boot Record (MBR).
@@ -104,8 +110,10 @@ Specify that a backup copy of the preexisting MBR should be written to
 This file is created if it does not exist, and replaced if it does.
 .It Fl i Ar volume-id
 Specifies a volume-id (in the form XXXX-XXXX) to be saved at location
-0x1b8 in the MBR. This information is sometimes used by NT, XP and Vista
-to identify the disk drive. The option is only compatible with version 2.00
+0x1b8 in the MBR.
+This information is sometimes used by NT, XP and Vista to identify the
+disk drive.
+The option is only compatible with version 2.00
 of the 512-byte boot block.
 .It Fl m Ar mask
 Specify slices to be enabled/disabled, where
@@ -177,6 +185,17 @@ To enable just slices 1 and 3 in the menu:
 .Pp
 .Dl "boot0cfg -m 0x5 ada0"
 .Pp
+Create a copy of
+.Sq boot0
+with only slices 1 and 3 enabled in the menu and install that onto a disk using
+.Xr gpart 8 :
+.Pp
+.Bd -literal -offset indent -compact
+cp /boot/boot0 /boot/boot0.custom
+boot0cfg -m 0x5 /boot/boot0.custom
+gpart bootcode -b /boot/boot0.custom ada0
+.Ed
+.Pp
 To go back to non-interactive booting, use
 .Xr gpart 8
 to install the default MBR:
@@ -199,4 +218,5 @@ Use of the
 .Sq setdrv
 option with an incorrect -d operand may cause the boot0 code
 to write the MBR to the wrong disk, thus trashing its previous
-content.  Be careful.
+content.
+Be careful.

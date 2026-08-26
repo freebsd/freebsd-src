@@ -1,27 +1,19 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
  * Copyright (c) 2018, 2019 by Delphix. All rights reserved.
+ * Copyright (c) 2024-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef _SYS_SPA_LOG_SPACEMAP_H
@@ -42,6 +34,7 @@ typedef struct log_summary_entry {
 typedef struct spa_unflushed_stats  {
 	/* used for memory heuristic */
 	uint64_t sus_memused;	/* current memory used for unflushed trees */
+	uint64_t sus_nmetaslabs;	/* # metaslabs with unflushed trees */
 
 	/* used for block heuristic */
 	uint64_t sus_blocklimit;	/* max # of log blocks allowed */
@@ -57,6 +50,12 @@ typedef struct spa_log_sm {
 	space_map_t *sls_sm;	/* space map pointer, if open */
 } spa_log_sm_t;
 
+typedef enum spa_log_flushall_mode {
+	SPA_LOG_FLUSHALL_NONE = 0,	/* flushall inactive */
+	SPA_LOG_FLUSHALL_REQUEST,	/* flushall active by admin request */
+	SPA_LOG_FLUSHALL_EXPORT,	/* flushall active for pool export */
+} spa_log_flushall_mode_t;
+
 int spa_ld_log_spacemaps(spa_t *);
 
 void spa_generate_syncing_log_sm(spa_t *, dmu_tx_t *);
@@ -70,6 +69,10 @@ void spa_log_sm_set_blocklimit(spa_t *);
 uint64_t spa_log_sm_nblocks(spa_t *);
 uint64_t spa_log_sm_memused(spa_t *);
 
+uint64_t spa_log_sm_unflushed_metaslabs(spa_t *);
+void spa_log_sm_increment_unflushed_metaslabs(spa_t *);
+void spa_log_sm_decrement_unflushed_metaslabs(spa_t *);
+
 void spa_log_sm_decrement_mscount(spa_t *, uint64_t);
 void spa_log_sm_increment_current_mscount(spa_t *);
 
@@ -78,7 +81,11 @@ void spa_log_summary_dirty_flushed_metaslab(spa_t *, uint64_t);
 void spa_log_summary_decrement_mscount(spa_t *, uint64_t, boolean_t);
 void spa_log_summary_decrement_blkcount(spa_t *, uint64_t);
 
-boolean_t spa_flush_all_logs_requested(spa_t *);
+void spa_log_flushall_start(spa_t *spa, spa_log_flushall_mode_t mode,
+    uint64_t txg);
+void spa_log_flushall_done(spa_t *spa);
+void spa_log_flushall_cancel(spa_t *spa);
+boolean_t spa_log_flushall_active(spa_t *spa);
 
 extern int zfs_keep_log_spacemaps_at_export;
 

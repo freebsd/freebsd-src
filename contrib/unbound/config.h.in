@@ -31,6 +31,9 @@
 /* Whether daemon is deprecated */
 #undef DEPRECATED_DAEMON
 
+/* Whether X509_NAME_get_text_by_NID is deprecated */
+#undef DEPRECATED_X509_NAME_GET_TEXT_BY_NID
+
 /* Deprecate RSA 1024 bit length, makes that an unsupported key */
 #undef DEPRECATE_RSA_1024
 
@@ -60,11 +63,17 @@
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
+/* Define to 1 if you have the 'ASN1_STRING_get0_data' function. */
+#undef HAVE_ASN1_STRING_GET0_DATA
+
 /* Whether the C compiler accepts the "fallthrough" attribute */
 #undef HAVE_ATTR_FALLTHROUGH
 
 /* Whether the C compiler accepts the "format" attribute */
 #undef HAVE_ATTR_FORMAT
+
+/* Whether the C compiler accepts the "nonstring" attribute */
+#undef HAVE_ATTR_NONSTRING
 
 /* Whether the C compiler accepts the "noreturn" attribute */
 #undef HAVE_ATTR_NORETURN
@@ -137,6 +146,10 @@
    to 0 if you don't. */
 #undef HAVE_DECL_NGTCP2_CRYPTO_ENCRYPT_CB
 
+/* Define to 1 if you have the declaration of 'ngtcp2_crypto_ossl_ctx_new',
+   and to 0 if you don't. */
+#undef HAVE_DECL_NGTCP2_CRYPTO_OSSL_CTX_NEW
+
 /* Define to 1 if you have the declaration of 'NID_ED25519', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_ED25519
@@ -173,11 +186,11 @@
    0 if you don't. */
 #undef HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
 
-/* Define to 1 if you have the declaration of `SSL_CTX_set_tmp_ecdh', and to 0
+/* Define to 1 if you have the declaration of 'SSL_CTX_set_tmp_ecdh', and to 0
    if you don't. */
 #undef HAVE_DECL_SSL_CTX_SET_TMP_ECDH
 
-/* Define to 1 if you have the declaration of `strlcat', and to 0 if you
+/* Define to 1 if you have the declaration of 'strlcat', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRLCAT
 
@@ -285,6 +298,12 @@
 
 /* Define to 1 if you have the 'FIPS_mode' function. */
 #undef HAVE_FIPS_MODE
+
+/* Define to 1 if you have the 'fnmatch' function. */
+#undef HAVE_FNMATCH
+
+/* Define to 1 if you have the <fnmatch.h> header file. */
+#undef HAVE_FNMATCH_H
 
 /* Define to 1 if you have the 'fork' function. */
 #undef HAVE_FORK
@@ -481,10 +500,10 @@
    'ngtcp2_crypto_quictls_from_ossl_encryption_level' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_FROM_OSSL_ENCRYPTION_LEVEL
 
-/* Define to 1 if you have the `ngtcp2_crypto_quictls_init' function. */
+/* Define to 1 if you have the 'ngtcp2_crypto_quictls_init' function. */
 #undef HAVE_NGTCP2_CRYPTO_QUICTLS_INIT
 
-/* Define to 1 if the system has the type `ngtcp2_encryption_level'. */
+/* Define to 1 if the system has the type 'ngtcp2_encryption_level'. */
 #undef HAVE_NGTCP2_ENCRYPTION_LEVEL
 
 /* Define to 1 if you have the <ngtcp2/ngtcp2_crypto_openssl.h> header file.
@@ -509,6 +528,9 @@
 
 /* Define to 1 if you have the <openssl/bn.h> header file. */
 #undef HAVE_OPENSSL_BN_H
+
+/* Define to 1 if you have the 'OPENSSL_cleanup' function. */
+#undef HAVE_OPENSSL_CLEANUP
 
 /* Define to 1 if you have the 'OPENSSL_config' function. */
 #undef HAVE_OPENSSL_CONFIG
@@ -561,11 +583,26 @@
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
+/* Define to 1 if you have the <pthread_np.h> header file. */
+#undef HAVE_PTHREAD_NP_H
+
 /* Have PTHREAD_PRIO_INHERIT. */
 #undef HAVE_PTHREAD_PRIO_INHERIT
 
 /* Define to 1 if the system has the type 'pthread_rwlock_t'. */
 #undef HAVE_PTHREAD_RWLOCK_T
+
+/* Define if pthread_setname_np has the common 2 arguments. */
+#undef HAVE_PTHREAD_SETNAME_NP
+
+/* Define if pthread_setname_np has only 1 argument. */
+#undef HAVE_PTHREAD_SETNAME_NP1
+
+/* Define if pthread_setname_np has 3 arguments. */
+#undef HAVE_PTHREAD_SETNAME_NP3
+
+/* Define if pthread_setname_np exists as pthread_set_name_np instead. */
+#undef HAVE_PTHREAD_SET_NAME_NP
 
 /* Define to 1 if the system has the type 'pthread_spinlock_t'. */
 #undef HAVE_PTHREAD_SPINLOCK_T
@@ -655,7 +692,7 @@
    function. */
 #undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB
 
-/* Define to 1 if you have the `SSL_get0_alpn_selected' function. */
+/* Define to 1 if you have the 'SSL_get0_alpn_selected' function. */
 #undef HAVE_SSL_GET0_ALPN_SELECTED
 
 /* Define to 1 if you have the 'SSL_get0_peername' function. */
@@ -667,8 +704,15 @@
 /* Define to 1 if you have the 'SSL_is_quic' function. */
 #undef HAVE_SSL_IS_QUIC
 
+/* Define to 1 if you have the 'SSL_set1_dnsname' function. */
+#undef HAVE_SSL_SET1_DNSNAME
+
 /* Define to 1 if you have the 'SSL_set1_host' function. */
 #undef HAVE_SSL_SET1_HOST
+
+/* Define to 1 if you have the 'SSL_set_quic_tls_early_data_enabled' function.
+   */
+#undef HAVE_SSL_SET_QUIC_TLS_EARLY_DATA_ENABLED
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H
@@ -731,6 +775,12 @@
 
 /* Define to 1 if 'sun_len' is a member of 'struct sockaddr_un'. */
 #undef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
+
+/* Define to 1 if 'st_mtimensec' is a member of 'struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_MTIMENSEC
+
+/* Define to 1 if 'st_mtim.tv_nsec' is a member of 'struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
 
 /* Define if you have Swig libraries and header files. */
 #undef HAVE_SWIG
@@ -827,6 +877,12 @@
 
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
+
+/* Define to 1 if you have the 'X509_get_key_usage' function. */
+#undef HAVE_X509_GET_KEY_USAGE
+
+/* Define to 1 if you have the 'X509_NAME_get_text_by_NID' function. */
+#undef HAVE_X509_NAME_GET_TEXT_BY_NID
 
 /* Define to 1 if you have the 'X509_VERIFY_PARAM_set1_host' function. */
 #undef HAVE_X509_VERIFY_PARAM_SET1_HOST
@@ -1389,6 +1445,17 @@
 #else /* !HAVE_ATTR_UNUSED */
 #  define ATTR_UNUSED(x)  x
 #endif /* !HAVE_ATTR_UNUSED */
+
+
+#if defined(DOXYGEN)
+#  define ATTR_NONSTRING(x)  x
+#elif defined(__cplusplus)
+#  define ATTR_NONSTRING(x)  __attribute__((nonstring)) x
+#elif defined(HAVE_ATTR_NONSTRING)
+#  define ATTR_NONSTRING(x)  __attribute__((nonstring)) x
+#else /* !HAVE_ATTR_NONSTRING */
+#  define ATTR_NONSTRING(x)  x
+#endif /* !HAVE_ATTR_NONSTRING */
 
 
 #ifndef HAVE_FSEEKO

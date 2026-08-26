@@ -167,6 +167,8 @@ static int msix_disable = 0;
 TUNABLE_INT("hw.re.msix_disable", &msix_disable);
 static int prefer_iomap = 0;
 TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
+static int aspm_disable = 1;
+TUNABLE_INT("hw.re.aspm_disable", &aspm_disable);
 
 #define RE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
 
@@ -1369,8 +1371,14 @@ re_attach(device_t dev)
 		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 	}
 
-	/* Disable ASPM L0S/L1 and CLKREQ. */
-	if (sc->rl_expcap != 0) {
+	/*
+	 * Disable ASPM L0S/L1 and CLKREQ.  ASPM is implicated in Tx
+	 * stalls and watchdog timeouts on many chip revisions, so it
+	 * is turned off by default; set the hw.re.aspm_disable tunable
+	 * to 0 to keep the firmware-configured ASPM state and trade
+	 * reliability under sustained load for link power management.
+	 */
+	if (aspm_disable != 0 && sc->rl_expcap != 0) {
 		cap = pci_read_config(dev, sc->rl_expcap +
 		    PCIER_LINK_CAP, 2);
 		if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
@@ -2464,6 +2472,17 @@ re_txeof(struct rl_softc *sc)
 	/* No changes made to the TX ring, so no flush needed */
 
 	if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt) {
+		/*
+		 * Some descriptors are still owned by the controller.  On PCIe
+		 * parts a TxPoll request can be lost when Tx packets are queued
+		 * too close together, leaving a non-empty ring with no transfer
+		 * in progress.  Re-arm the transmitter here -- this routine is
+		 * reached from the interrupt handlers, re_tick() and
+		 * re_watchdog() -- so a lost poll cannot stall the ring until
+		 * the watchdog fires.
+		 */
+		if ((sc->rl_flags & RL_FLAG_PCIE) != 0)
+			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 #ifdef RE_TX_MODERATION
 		/*
 		 * If not all descriptors have been reaped yet, reload
@@ -2720,7 +2739,34 @@ re_intr_msi(void *xsc)
 	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		if (!if_sendq_empty(ifp))
 			re_start_locked(ifp);
+		/*
+		 * A Tx completion can set a Tx status bit between the ISR ack
+		 * near the top of this routine and re-enabling interrupts
+		 * below.  These controllers do not re-assert the MSI for a
+		 * status bit that is already set, so the completion would not
+		 * be serviced until the next interrupt or the 1 Hz re_tick()
+		 * reclaim (this is why hw.re.msi_disable is a known
+		 * workaround).  If a Tx bit is pending, clear just that bit and
+		 * reap the ring now; leave any Rx bits set so they re-arm the
+		 * interrupt normally and the Rx moderation state is untouched.
+		 */
+		status = CSR_READ_2(sc, RL_ISR);
+		if ((status & (RL_ISR_TX_OK | RL_ISR_TX_ERR |
+		    RL_ISR_TX_DESC_UNAVAIL)) != 0) {
+			CSR_WRITE_2(sc, RL_ISR, status & (RL_ISR_TX_OK |
+			    RL_ISR_TX_ERR | RL_ISR_TX_DESC_UNAVAIL));
+			if ((status & (RL_ISR_TX_OK |
+			    RL_ISR_TX_DESC_UNAVAIL)) != 0 &&
+			    (sc->rl_flags & RL_FLAG_PCIE) != 0)
+				CSR_WRITE_1(sc, sc->rl_txstart,
+				    RL_TXSTART_START);
+			re_txeof(sc);
+			if (!if_sendq_empty(ifp))
+				re_start_locked(ifp);
+		}
 		CSR_WRITE_2(sc, RL_IMR, intrs);
+		/* Flush the posted IMR write. */
+		(void)CSR_READ_2(sc, RL_ISR);
 	}
 	RL_UNLOCK(sc);
 }
@@ -3562,6 +3608,8 @@ re_watchdog(struct rl_softc *sc)
 {
 	struct epoch_tracker et;
 	if_t ifp;
+	const char *imode;
+	uint32_t isr, imr, txcfg;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -3569,17 +3617,71 @@ re_watchdog(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	/*
+	 * Snapshot the controller state before reclaim for the diagnostics
+	 * below.  Reading RL_ISR is side-effect free: the interrupt status
+	 * is cleared by writing ones, not by reading.
+	 */
+	imode = (sc->rl_flags & RL_FLAG_MSIX) ? "MSI-X" :
+	    (sc->rl_flags & RL_FLAG_MSI) ? "MSI" : "INTx";
+	isr = CSR_READ_2(sc, RL_ISR);
+	imr = CSR_READ_2(sc, RL_IMR);
 	re_txeof(sc);
 	if (sc->rl_ldata.rl_tx_free == sc->rl_ldata.rl_tx_desc_cnt) {
-		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
-		    "-- recovering\n");
+		/*
+		 * The retry reclaim drained the ring: a Tx completion interrupt
+		 * was lost.  Log the interrupt state so the lost-interrupt path
+		 * can be diagnosed without a debug build.
+		 */
+		if_printf(ifp, "watchdog timeout (missed Tx interrupts) -- "
+		    "recovering (ISR 0x%04x IMR 0x%04x %s)\n",
+		    isr, imr, imode);
 		if (!if_sendq_empty(ifp))
 			re_start_locked(ifp);
 		return;
 	}
 
-	if_printf(ifp, "watchdog timeout\n");
+	txcfg = CSR_READ_4(sc, RL_TXCFG);
+	/*
+	 * A genuine Tx stall.  Log the Tx ring position and controller
+	 * state in a single line -- enough to distinguish a lost doorbell,
+	 * a DMA stall, and a controller that has fallen off the bus.
+	 */
+	if_printf(ifp, "watchdog timeout -- resetting (tx %d/%d cons %d "
+	    "prod %d ISR 0x%04x IMR 0x%04x TXCFG 0x%08x %s)\n",
+	    sc->rl_ldata.rl_tx_free, sc->rl_ldata.rl_tx_desc_cnt,
+	    sc->rl_ldata.rl_tx_considx, sc->rl_ldata.rl_tx_prodidx,
+	    isr, imr, txcfg, imode);
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+
+	/*
+	 * If the controller reads back all-ones it has fallen off the bus;
+	 * re_init_locked() cannot recover it, so flag it and bail rather
+	 * than spinning through reset after reset.
+	 */
+	if (txcfg == 0xFFFFFFFF) {
+		if_printf(ifp,
+		    "controller not responding; not reinitializing\n");
+		return;
+	}
+
+	/*
+	 * ASPM is a common cause of these Tx timeouts.  Unless the
+	 * administrator has opted to keep ASPM enabled, make sure L0s/L1
+	 * and CLKREQ are still disabled on the link before reinitializing;
+	 * firmware or a power transition may have re-armed them.
+	 */
+	if (aspm_disable != 0 && sc->rl_expcap != 0) {
+		uint16_t ctl;
+
+		ctl = pci_read_config(sc->rl_dev,
+		    sc->rl_expcap + PCIER_LINK_CTL, 2);
+		if ((ctl & (PCIEM_LINK_CTL_ECPM | PCIEM_LINK_CTL_ASPMC)) != 0) {
+			ctl &= ~(PCIEM_LINK_CTL_ECPM | PCIEM_LINK_CTL_ASPMC);
+			pci_write_config(sc->rl_dev,
+			    sc->rl_expcap + PCIER_LINK_CTL, ctl, 2);
+		}
+	}
 
 	NET_EPOCH_ENTER(et);
 	re_rxeof(sc, NULL);
@@ -3630,7 +3732,37 @@ re_stop(struct rl_softc *sc)
 		    0x00080000);
 	}
 
-	if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
+	if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0) {
+		/*
+		 * RTL8168G and later.  The STOPREQ command is defined only for
+		 * earlier controllers; issuing it on these parts can leave the
+		 * MAC wedged.  With the RXDV gate enabled above, drain the TX
+		 * descriptor queue and the on-chip TX/RX FIFOs and clear the
+		 * TX/RX enable bits so the DMA engine is idle before the reset
+		 * and buffer free below.  All waits are bounded.
+		 */
+		DELAY(2000);
+		for (i = RL_TIMEOUT; i > 0; i--) {
+			if ((CSR_READ_4(sc, RL_TXCFG) &
+			    RL_TXCFG_QUEUE_EMPTY) != 0)
+				break;
+			DELAY(100);
+		}
+		if (i == 0)
+			device_printf(sc->rl_dev, "stopping TXQ timed out!\n");
+		CSR_WRITE_1(sc, RL_COMMAND, CSR_READ_1(sc, RL_COMMAND) &
+		    ~(RL_CMD_TX_ENB | RL_CMD_RX_ENB));
+		for (i = RL_TIMEOUT * 3; i > 0; i--) {
+			if ((CSR_READ_1(sc, RL_MCU_CMD) &
+			    (RL_MCU_TXFIFO_EMPTY | RL_MCU_RXFIFO_EMPTY)) ==
+			    (RL_MCU_TXFIFO_EMPTY | RL_MCU_RXFIFO_EMPTY))
+				break;
+			DELAY(20);
+		}
+		if (i == 0)
+			device_printf(sc->rl_dev,
+			    "TX/RX FIFO drain timed out!\n");
+	} else if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
 		for (i = RL_TIMEOUT; i > 0; i--) {
 			if ((CSR_READ_1(sc, sc->rl_txstart) &
 			    RL_TXSTART_START) == 0)
@@ -3660,6 +3792,15 @@ re_stop(struct rl_softc *sc)
 	DELAY(1000);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
 	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
+
+	/*
+	 * Reset the controller before freeing the DMA buffers below.  A
+	 * controller that has not fully quiesced can keep fetching stale,
+	 * still-owned descriptors that point at about-to-be-freed mbufs.
+	 * re_init_locked() resets again on the reinit path; the extra reset
+	 * is idempotent and cheap.
+	 */
+	re_reset(sc);
 
 	if (sc->rl_head != NULL) {
 		m_freem(sc->rl_head);

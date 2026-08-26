@@ -158,9 +158,10 @@ bzf_open(const char *fname, struct open_file *f)
     if (f->f_flags != F_READ)
 	return(EPERM);
 
-    /* If the name already ends in .gz or .bz2, ignore it */
+    /* If the name already ends in a known compressed suffix, ignore it */
     if ((cp = strrchr(fname, '.')) && (!strcmp(cp, ".gz")
-	    || !strcmp(cp, ".bz2") || !strcmp(cp, ".split")))
+	    || !strcmp(cp, ".bz2") || !strcmp(cp, ".xz")
+	    || !strcmp(cp, ".zst") || !strcmp(cp, ".split")))
 	return(ENOENT);
 
     /* Construct new name */

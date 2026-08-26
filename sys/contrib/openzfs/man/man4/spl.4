@@ -1,17 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" The contents of this file are subject to the terms of the Common Development
-.\" and Distribution License (the "License").  You may not use this file except
-.\" in compliance with the License. You can obtain a copy of the license at
-.\" usr/src/OPENSOLARIS.LICENSE or https://opensource.org/licenses/CDDL-1.0.
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" See the License for the specific language governing permissions and
-.\" limitations under the License. When distributing Covered Code, include this
-.\" CDDL HEADER in each file and include the License file at
-.\" usr/src/OPENSOLARIS.LICENSE.  If applicable, add the following below this
-.\" CDDL HEADER, with the fields enclosed by brackets "[]" replaced with your
-.\" own identifying information:
-.\" Portions Copyright [yyyy] [name of copyright owner]
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright 2013 Turbo Fredriksson <turbo@bayour.com>. All rights reserved.
 .\"
@@ -129,6 +125,19 @@ Cause a kernel panic on assertion failures.
 When not enabled, the thread is halted to facilitate further debugging.
 .Pp
 Set to a non-zero value to enable.
+.
+.It Sy spl_schedule_hrtimeout_slack_us Ns = Ns Sy 0 Pq uint
+Slack value in microseconds passed to
+.Fn schedule_hrtimeout_range
+when a condition variable times out.
+A non-zero value enforces the kernel coalesce the wakeup with other timers
+to reduce wakeup count, at the cost of some additional sleep duration.
+The maximum is
+.Sy 1000 ,
+as defined by
+.Sy MAX_HRTIMEOUT_SLACK_US .
+.Pp
+Linux-only.
 .
 .It Sy spl_taskq_kick Ns = Ns Sy 0 Pq uint
 Kick stuck taskq to spawn threads.

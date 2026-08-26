@@ -1,6 +1,6121 @@
-2021-08-29	Christos Zoulas	<christos@netbsd.org>
+2026-03-04 11:31  christos
 
-	Change default mappings:
-	    map ^W to ed-delete-prev-word and not kill-region
-	    map ^R to em-inc-search-next and not redisplay
+	* makelist, map.c, map.h: No need to keep an allocated field. We
+	  know that the first EL_NUM_FCNS are not allocated.
+
+2026-03-04 00:04  christos
+
+	* eln.c, makelist, map.c, map.h: PR/60054: Kristofer Peterson:
+	  adding user defined functions with narrow name/desription leaks
+	  memory
+
+2026-03-03 16:06  christos
+
+	* history.c: PR/60052: Kristofer Peterson: history_load() off by
+	  one memory access bug
+
+2026-03-03 16:05  christos
+
+	* chared.c, common.c, hist.c, hist.h: PR/60050: Kristofer Peterson:
+	  libedit doesn't handle long lines correctly Fix history resizing,
+	  and copying.
+
+2026-02-01 02:52  uwe
+
+	* editline.7: editline(7): Document vi-histedit command
+
+	  PR lib/59953 by Artem Bunichev
+
+2026-01-18 18:18  christos
+
+	* refresh.c: When trying to print a help message while editing a
+	  multiline entry, print move down enough so that the error message
+	  does not get printed on top of the newline from Yuishiro NAITO.
+	  Example program:
+
+	  #include <stdio.h> #include <histedit.h>
+
+	  char * prompt(EditLine *el) {   return "(config) "; }
+
+	  static unsigned char help(EditLine *el, int ch) {
+
+		  printf("\n");
+		  printf("aaa:\n");
+		  printf("bbb:\n");
+		  printf("ccc:\n");
+		  printf("ddd:\n");
+
+		  return CC_REDISPLAY;
+	  }
+
+	  int initialize(EditLine **ret) {	  EditLine *el;
+
+		  if ((el = el_init("sample", stdin, stdout, stderr)) ==
+	  NULL)
+			  goto error;
+
+		  el_set(el, EL_PROMPT, prompt);
+		  el_set(el, EL_EDITOR, "emacs");
+		  el_set(el, EL_ADDFN, "help", "", help);
+		  el_set(el, EL_BIND, "?", "help", NULL);
+
+		  *ret = el;
+		  return 0;
+
+	  error:  el_end(el);	  *ret = NULL;	  return -1; }
+
+	  int main(int argc, char *argv[]) {	  EditLine *el;   const
+	  wchar_t   *cmd;   int len;
+
+		  if (initialize(&el) < 0) {
+			  printf("initialize failed\n");
+			  return 1;
+		  }
+
+		  while ((cmd = el_wgets(el, &len)) != NULL) {
+			  printf("ok\n");
+		  }
+
+		  el_end(el);
+
+		  return 0;
+	  }
+
+2026-01-09 23:12  kre
+
+	* edit.expsym: Add rl_kill_full_line which was recently added
+
+	  Probably that addition also warranted a libedit minor bump.
+
+	  Hopefully unbreak the builds.
+
+2026-01-09 18:49  christos
+
+	* readline.c, readline/readline.h: PR/59883: nia: implement
+	  rl_kill_full_line
+
+2025-12-16 03:40  kre
+
+	* editline.3, el.c, el.h, histedit.h, terminal.c, vi.c: [Prereq for
+	  PR bin/58609] Add EL_GETENV to libedit
+
+	  When interacting with the shell, and perhaps other applications,
+	  editline needs to obtain the values of some environment
+	  variables.
+
+	  Normally getenv(3) does that - but that doesn't work when being
+	  used in sh(1) as getenv() simply accesses the environment as it
+	  was when sh(1) was invoked - after that, in sh anyway, that
+	  environment is simply abandoned (well, kind of) - but certainly
+	  no changes made by the shell will be reflected there.
+
+	  To allow editline to obtain current values of environment
+	  variables, add a new el_set()/el_get() "op" parameter value,
+	  which can be used to instruct editline which function to use for
+	  the purpose.	 That is EL_GETENV.
+
+	  This is part of a (long pending, awaiting testing) fix for PR
+	  bin/58609 - but I'm getting tired of having it sitting
+	  uncommitted in my source tree - and I think this part is self
+	  contained, and simple enough, to simply commit.
+
+2025-12-14 19:07  christos
+
+	* chared.c, chared.h, common.c, editline.3, el.c, eln.c, emacs.c,
+	  histedit.h, map.c, map.h, search.c, vi.c: PR/59737: Bernie
+	  Siegert: Add a method to set custom wordchars.
+
+2025-08-02 07:54  perseant
+
+	* edit.expsym, el.c, el.h, history.c, keymacro.c, literal.c, map.c,
+	  read.c, readline.c, refresh.c, sig.c: Sync with HEAD
+
+2025-06-14 15:43  christos
+
+	* readline.c, sig.c: Change kill(0, signo) -> raise(signo) so that
+	  we only signal the current process not the whole process group.
+	  Pointed out by geoff thomas. Related issues:
+	  https://www.postgresql.org/message-id/271520.1713052173%40sss.pgh.pa.us
+	  https://github.com/astral-sh/python-build-standalone/pull/652\
+	  #issuecomment-2972762033
+	  https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=159226
+
+2025-01-03 01:40  rillig
+
+	* el.c, el.h, keymacro.c, map.c, read.c: libedit: remove redundant
+	  break statements after EL_ABORT
+
+2024-12-18 16:38  christos
+
+	* sig.c: From tkoeppe@github: Specify SA_ONSTACK when setting up a
+	  signal handler.  This allows the handler to use the alternate
+	  signal stack if one is available in the handling thread, but has
+	  no effect otherwise.
+
+	  This change makes the signal handler respect existing choices
+	  better. Specifically, this allows signal handlers to be set when
+	  the process includes a Go runtime, since Go enforces that all
+	  signal handlers in the process use the SA_ONSTACK flag (e.g. see
+	  golang/go#20400).
+
+2024-12-05 23:21  christos
+
+	* literal.c, refresh.c: Don't eat 0 width characters, print them.
+
+2024-11-21 20:49  riastradh
+
+	* edit.expsym: libedit: Add expected symbols list.
+
+	  PR lib/58838: shared libraries in base should all have expsym
+	  lists
+
+2024-11-21 20:49  perseant
+
+	* edit.expsym: file edit.expsym was added on branch
+	  perseant-exfatfs on 2025-08-02 05:54:48 +0000
+
+2024-07-11 07:41  kre
+
+	* history.c: Don't fchmod(fileno(fp), ...) in history_save_fp().
+
+	  There are two reasons for this, first, the permissions of the
+	  history file should be able to be set by the user, not forced to
+	  0600 every time the history file is overwritten (or appended to).
+
+	  And more importantly, the fp used for fileno(fp) might have come
+	  from fmemopen() or funopen() (etc) - none of which put a file
+	  descriptor in the "fd" field (ie: fileno(fp) == -1).
+
+	  To compensate for that, when a history file is opened (in
+	  history_save()) set the default permissions then - if the file is
+	  actually created.  As fopen() cannot do that (it simply uses
+	  0666&~umask) create the (normal type) of fp using (approximately)
+	  fdopen(open(...), ...) where the open supplies the 0600 default
+	  permissions that are desired here (which might still be
+	  restricted even more by the umask).	Callers using
+	  history(...,H_SAVE_FP,...) or history(...,H_NSAVE_FP,...) now
+	  need to look after any permission setting required themselves
+	  (but as the doc says absolutely nothing about that, one way or
+	  the other, what happens in this area has always been unspecified,
+	  and still is)
+
+	  One "feature" of the fchmod() method is lost here - apart from
+	  forcing the 0600 permissions (which isn't really desirable) that
+	  fchmod() would also have failed if the current (effective) uid is
+	  not the owner of the history file (or root).	  If that is
+	  required, a test for it could be added later - the effect would
+	  be as it has always been, the file named must have been writable
+	  (or its directory writable if the file did not exist) the open
+	  would occur (potentially truncating the file) after which the
+	  fchmod() would be attempted, possibly failing, and if so, never
+	  writing anything.   Any new uid test would work the same way.
+
+	  OK christos@
+
+2024-07-01 03:01  perseant
+
+	* common.c, refresh.c, search.c: Sync with HEAD.
+
+2024-06-30 19:11  christos
+
+	* refresh.c: Handle the case where the cursor is on the first
+	  character.  set -o vi x ESC ~ (Robert Morris)
+	  https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=279545
+
+2024-06-30 18:29  christos
+
+	* common.c: Avoid moving the cursor before the buffer (Robert
+	  Morris) https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=279487
+
+2024-06-30 18:26  christos
+
+	* search.c: Prevent reading before the line buffer (try ^R^W in
+	  emacs mode at the beginning of the line) (Robert Morris)
+	  https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=279426
+
+2024-06-29 19:28  christos
+
+	* emacs.c: don't use oldc before it is set.
+
+2024-06-29 16:13  christos
+
+	* chared.c: Prevent testing out of bounds memory. From Robert
+	  Morris https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=279762
+
+2024-06-29 16:09  christos
+
+	* emacs.c: Retrieve the cursor position after calling c_insert,
+	  because c_insert could enlarge the line buffer making the old
+	  cursor position point to freed memory.  From Robert Morris
+	  https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=279772
+
+2024-05-17 04:59  christos
+
+	* el.h, eln.c: When calling el_line make sure that we call the
+	  resizing function callback because el_line updates the legacy
+	  LineInfo structure and we need to notify that the cached copy of
+	  the the buffer has changed.  Of course the resizing function can
+	  call el_line itself to update the buffer, so prevent recursion.
+	  Bug found by Peter Rufer at Arista.
+
+2024-04-06 15:36  christos
+
+	* editline.7: update em-toggle-overwrite binding (Xose Vazquez
+	  Perez)
+
+2024-03-26 19:02  christos
+
+	* readline.c: fix insert key (Xose Vazquez Perez)
+
+2024-02-04 19:47  andvar
+
+	* editline.3: s/interrrupt/interrupt/ in comment and editline(3)
+	  man page.
+
+2023-08-10 22:38  mrg
+
+	* chartype.c: avoid various use-after-free issues.
+
+	  create a ptrdiff_t offset between the start of an allocation
+	  region and some interesting pointer, so it can be adjusted with
+	  this offset after realloc() returns.
+
+	  found by GCC 12.
+
+2023-08-03 16:56  rin
+
+	* Makefile: Revert CC_WNO_USE_AFTER_FREE from Makefile's (thanks
+	  uwe@)
+
+2023-08-03 15:36  rin
+
+	* Makefile: Sprinkle CC_WNO_USE_AFTER_FREE for GCC 12
+
+	  All of them are blamed for idiom equivalent to:	  newbuf =
+	  realloc(buf, size);	 p = newbuf + (p - buf);
+
+2023-06-21 23:44  wiz
+
+	* libedit.pc: libedit: fix pkg-config to really provide readline
+	  directory as intended
+
+2023-06-21 01:09  wiz
+
+	* Makefile, libedit.pc: install pkg-config file for libedit
+
+	  version number matches portable libedit --cflags output matches
+	  portable libedit, since users probably want the readline
+	  interface
+
+2023-06-03 11:09  lukem
+
+	* Makefile: bsd.own.mk: rename GCC_NO_* to CC_WNO_*
+
+	  Rename compiler-warning-disable variables from  GCC_NO_warning to
+		CC_WNO_warning where warning is the full warning name as
+	  used by the compiler.
+
+	  GCC_NO_IMPLICIT_FALLTHRU is CC_WNO_IMPLICIT_FALLTHROUGH
+
+	  Using the convention CC_compilerflag, where compilerflag is based
+	  on the full compiler flag name.
+
+2023-05-30 13:53  christos
+
+	* tokenizer.c: Fix some const qual (Piotr Pawel Stefaniak)
+
+2023-04-25 19:51  christos
+
+	* filecomplete.c, filecomplete.h, readline.c, sys.h,
+	  readline/readline.h: pass lint.
+
+2023-04-24 22:02  christos
+
+	* readline.c: PR/57376: Jorge Giner: readline file completion does
+	  not quote; do the same.
+
+2023-04-21 16:56  christos
+
+	* readline.c, readline/readline.h: Align types with readline-8.2
+	  (wiz@)
+
+2023-02-04 15:34  christos
+
+	* config.h, sys.h, terminal.c: Remove unused stuff, and limit the
+	  scope of some of the used ones.  (from des@freebsd)
+
+2023-02-03 23:01  christos
+
+	* filecomplete.c, histedit.h: Add a entry point for the complete
+	  function for FreeBSD compatibility with sh.
+
+2023-02-03 20:47  christos
+
+	* sig.c: Don't clear the handle to el "sel" and set it earlier to
+	  prevent handling a signal before the handle is set. (From: des at
+	  FreeBSD)
+
+2022-12-06 01:59  uwe
+
+	* editrc.5: editrc(5): Markup fixes
+
+2022-12-02 20:23  christos
+
+	* readline.c: PR/57095: Yilei Yang: Change readline's
+	  replace_history_entry to not make a copy of the string to replace
+	  since H_REPLACE already makes a copy (fixes memory leak)
+
+2022-10-30 20:11  christos
+
+	* chared.c, chartype.c, el.c, filecomplete.c, map.c, read.c,
+	  read.h, readline.c, terminal.c: improvements in malloc/free
+	  handling.
+
+2022-09-21 03:33  christos
+
+	* readline.c: PR/57016: Ricky Zhou: declare lastidx
+
+2022-09-21 01:41  christos
+
+	* readline.c: PR/57016: Ricky Zhou: Revert to trimming the last
+	  newline instead of the first one so that multi-line commands work
+	  again.
+
+2022-04-11 21:37  tnn
+
+	* chartype.h: libedit/chartype.h: portability fix for OSF/1
+
+2022-04-08 22:11  christos
+
+	* readline.c: PR/56778: Detlev Casanova: Missing rl_initialize call
+	  in rl_copy_text
+
+2022-03-12 16:29  christos
+
+	* filecomplete.c: Fix filename autocompletion for strings like a\)b
+
+	  An escaped character should unconditionally be skipped together
+	  with the character that does the escaping. For example, in "a\)b"
+	  only the ")b" part was skipped but then the loop stopped at the
+	  "\" since it's one of the characters listed in word_break. (Piotr
+	  P. Stefaniak)
+
+2022-02-19 18:45  christos
+
+	* readline.c, readline/readline.h: PR/56695: Walter Lozano: Correct
+	  declaration of hook functions.
+
+2022-02-08 22:13  rillig
+
+	* chared.c, histedit.h: libedit: fix typos, apply KNF to newly
+	  imported code (PR/56693)
+
+	  No binary change.
+
+2022-02-08 16:05  christos
+
+	* chared.c, histedit.h, readline.c, readline/readline.h: PR/56693:
+	  Walter Lozano: Add support for rl_delete_text and rl_set_key
+
+2022-01-31 15:44  christos
+
+	* readline.c, readline/readline.h: PR/56622: Walter Lozano: Improve
+	  readline compatibility by adding rl_readline_state support.
+
+2022-01-29 21:52  christos
+
+	* readline.c: Add more refreshes from Walter Lozano. The readline
+	  example in
+	  http://www.mcld.co.uk/blog/2009/simple-gnu-readline-callback-style-example.html
+	  still does not work, but it is better.
+
+2022-01-14 14:31  christos
+
+	* readline/readline.h: Don't use __printflike, use the explicit
+	  attribute so that this works outside NetBSD.
+
+2022-01-14 13:48  tnn
+
+	* readline/readline.h: libedit: rl_message: annotate __printflike
+
+2022-01-11 19:30  christos
+
+	* chared.c, eln.c, histedit.h, readline.c, readline/readline.h:
+	  PR/56618: Walter Lozano: Improve libedit compatibility with
+	  readline by implementing:
+
+	      rl_copy_text, rl_erase_empty_line, rl_message,
+	  rl_on_new_line,
+	      rl_replace_line, rl_restore_prompt, rl_save_prompt
+
+2021-09-26 15:45  christos
+
+	* filecomplete.h: make flag unsigned to match prototype of the
+	  function used
+
+2021-09-26 15:45  christos
+
+	* filecomplete.c: - Completion should not add a quote at the end of
+	  the line to match an	 already quoted quote. (Piotr Stefaniak) -
+	  fix lint unconst warnings for strchr
+
+2021-09-10 20:51  rillig
+
+	* readline.c: libedit: fix indentation
+
+	  No change to the resulting object files.
+
+2021-09-10 15:33  christos
+
+	* TEST/fuzz1.c: Add an LLVM fuzzing wrapper for the portable
+	  libedit (Christian Holler)
+
+2021-09-10 15:29  christos
+
+	* readline.c: rl_startup_hook should be called each time. From
+	  Carlos Henrique Lima Melara
+
+2021-09-09 22:25  christos
+
+	* readline.c: fix memory issues found by fuzzing (double frees and
+	  buffer overflows)
+
+2021-09-09 22:24  christos
+
+	* refresh.c, terminal.c: Add casts to appease conversions between
+	  wchar_t and wint_t
+
+2021-09-03 14:20  christos
+
+	* readline.c: Try to refactor this in order to correct some of the
+	  memory issues reported by Christian Holler.
+
+2021-08-30 11:18  christos
+
+	* ChangeLog: Add a changes file
+
+2021-08-29 11:41  christos
+
+	* map.c: ^W is traditionally bound to ed-delete-prev-word and not
+	  kill-region ^R is traditionally bound to em-inc-search-next and
+	  not redisplay This is what mksh, zsh bash, readline do (Baptiste
+	  Daroussin)
+
+2021-08-28 19:17  christos
+
+	* vi.c: Respect $EDITOR when execution one (Baptiste Daroussin)
+
+2021-08-21 14:38  christos
+
+	* readline.c: PR/56370: mirabilos: libedit change from 2017 kills
+	  history in gdb
+
+2021-08-21 14:34  christos
+
+	* readline.c, readline/readline.h: Add more api to make gdb-11
+	  happy (but not gdbtui as usual)
+
+2021-08-16 00:22  rillig
+
+	* readline.c: libedit: simplify calls to macro ADD_STRING
+
+	  The lint comments CONSTCOND and LINTED were not necessary.  It is
+	  simpler to just specify what to free.  GCC optimizes free(NULL)
+	  to be a no-op.
+
+	  No functional change.
+
+2021-08-16 00:14  rillig
+
+	* readline.c: readline: fix lint warning about effective unconst
+	  cast
+
+	  Calling strchr to avoid the syntactical unconst cast is not
+	  necessary here.  A simple pointer assignment is enough.
+
+	  No functional change.
+
+2021-08-15 12:12  wiz
+
+	* editline.3: Add verb to sentence.
+
+2021-08-15 12:08  christos
+
+	* editline.3, el.c, el.h, eln.c, histedit.h, read.c: Disable
+	  attempts to handle EINTR and non-blocking I/O by default. It is
+	  confusing to other programs and unexpected behavior. Reported by
+	  Ingo Schwarze.  This behavior is now controlled with EL_SAFEREAD.
+
+2021-08-15 12:06  christos
+
+	* readline.c: Add a LINTED comment... Why doesn't NOTREACHED work?
+
+2021-07-31 22:51  andvar
+
+	* tty.h: s/dependend/dependent/
+
+2021-07-14 09:47  christos
+
+	* tty.c: Via Jess Thrysoee, from Adrian Bunk: Fix libedit build on
+	  Linux/Alpha Alpha is the only Linux architecture that has
+	  SIGINFO:
+	  https://sources.debian.org/src/manpages/5.10-1/man7/signal.7/#L522
+
+	  But even on Alpha Ctrl-T is not supported, and therefore no
+	  VSTATUS:
+	  https://sources.debian.org/src/manpages/5.10-1/man3/termios.3/#L603-L608
+
+	  For consistency check both signal existence and character
+	  existence
+
+2021-05-05 16:49  christos
+
+	* filecomplete.c: PR/56147: Miroslav Lichvar: Avoid memory leak if
+	  strdup fails.
+
+2021-03-28 15:39  christos
+
+	* filecomplete.c: Only unescape when we are quoting and don't add a
+	  space if we are quoting (we already did) (Piotr Stefaniak)
+
+2021-03-28 15:38  christos
+
+	* filecomplete.h: document the flag
+
+2021-03-28 15:33  christos
+
+	* filecomplete.c: Pass the unescaped filename the the append
+	  function so it has to do less work (for example it can call
+	  stat(2) directly (Piotr Stefaniak)
+
+2021-03-27 19:55  christos
+
+	* filecomplete.c, filecomplete.h: Add fn_complete2() that controls
+	  the quoting of the returned match.  Before it was based on the
+	  heuristic that we were not supplied an
+	  attempted_completion_function, which worked well because programs
+	  that supplied that function were not shells and did not
+	  want/understand shell quoting. Recently though Piotr Stefaniak
+	  wanted to enhance command completion for the Bourne Shell and
+	  this could benefit quoting the returned command. This function
+	  adds an extra flags argument that controls that quoting.
+
+2020-07-10 22:34  christos
+
+	* terminal.c: Fix numeric variable handling in settc (lyzliyuzhi at
+	  163 dot com)
+
+2020-06-01 01:24  christos
+
+	* terminal.c, tty.c: use strlcpy() instead of strncpy() for gcc
+	  happiness
+
+2020-04-13 10:03  martin
+
+	* Makefile, chared.c, chartype.c, chartype.h, el.c, el.h,
+	  filecomplete.c, hist.c, history.c, keymacro.c, literal.c, map.c,
+	  parse.c, read.c, readline.c, search.c, terminal.c, vi.c,
+	  TEST/test_filecompletion.c: Mostly merge changes from HEAD upto
+	  20200411
+
+2020-04-08 16:07  martin
+
+	* common.c, map.c, refresh.c, search.c: Merge changes from current
+	  as of 20200406
+
+2020-03-30 08:56  ryo
+
+	* search.c: patbuf must be updated if the length of patbuf is
+	  greater than or equal to 0. (that is always) fix of r1.7 was
+	  incorrect.
+
+2020-03-30 08:54  ryo
+
+	* common.c, map.c, refresh.c, search.c: fix build error with
+	  SDEBUG, MAP_DEBUG, DEBUG_REFRESH
+
+2020-01-05 08:12  abhinav
+
+	* filecomplete.c: PR lib/54510 - when user supplied completion
+	  function is there, don't unescape the string to be completed.
+
+2020-01-05 01:03  tih
+
+	* filecomplete.c: Summary: Remove over-simplified extraneous test
+
+	  The file name matching code in libedit tries to adjust to the
+	  presence of explicit " or ' characters in the input line, but
+	  tries too hard.  Remove a conditional that goes overboard, and
+	  causes the completion code to fail if a quoted string is seen
+	  before the filename to be expanded, as in
+
+		    grep 'foo' bar<TAB>
+
+	  Before this change, the above would not expand any possible
+	  completions, even if they existed, because it would choose to
+	  look for files whose names started with " bar".
+
+2019-12-10 20:42  christos
+
+	* filecomplete.c: When 'attempted_completion_function' non-NULL,
+	  with a 'single_match' match, the expected space is not being
+	  added. Problem observed with "chronyc" and "sqlite3" tab
+	  completion. That functionality got moved to escape_filename() for
+	  the !attempted_completion_function case, but the non-NULL
+	  'attempted_completion_function' case must also be handled.
+	  (Lonnie Abelbeck)
+
+2019-11-12 21:59  christos
+
+	* terminal.c: PR/54654: Soren Tempel: Make sure el_cursor.v <
+	  el_terminal.t_size.v when moving around.
+
+2019-10-13 09:28  mrg
+
+	* Makefile: introduce some common variables for use in GCC warning
+	  disables:
+
+	  GCC_NO_FORMAT_TRUNCATION    -Wno-format-truncation (GCC 7/8)
+	  GCC_NO_STRINGOP_TRUNCATION  -Wno-stringop-truncation (GCC 8)
+	  GCC_NO_STRINGOP_OVERFLOW    -Wno-stringop-overflow (GCC 8)
+	  GCC_NO_CAST_FUNCTION_TYPE   -Wno-cast-function-type (GCC 8)
+
+	  use these to turn off warnings for most GCC-8 complaints.  many
+	  of these are false positives, most of the real bugs are already
+	  commited, or are yet to come.
+
+	  we plan to introduce versions of (some?) of these that use the
+	  "-Wno-error=" form, which still displays the warnings but does
+	  not make it an error, and all of the above will be re-considered
+	  as either being "fix me" (warning still displayed) or "warning is
+	  wrong."
+
+2019-10-09 16:31  christos
+
+	* filecomplete.c, readline.c: add +1 to strlcpy's (Patrick Welche)
+
+2019-10-08 21:21  christos
+
+	* filecomplete.c: remore error(1) comment
+
+2019-10-08 21:17  christos
+
+	* filecomplete.c, history.c, readline.c: Change strncpy to either
+	  memcpy (when we know the len), or strlcpy (when we used to NUL
+	  terminate explicitly.
+
+2019-09-15 23:09  christos
+
+	* chartype.h, terminal.c: Fix type and remove cast (Yuichiro
+	  NAITO/FreeBSD).
+
+2019-09-08 07:50  abhinav
+
+	* filecomplete.c, TEST/test_filecompletion.c: PR lib/54510: Fix
+	  file completion inside quotes which broke in rev 1.53
+
+	  While there also fix handling character appending in the file
+	  completions when inside quotes. For example when inside a quote,
+	  if the completion is a directory then append a '/' but don't
+	  close the quote. On the other hand when inside a quote if the
+	  completion is a file name and it is the only match then we can
+	  close the quote.
+
+2019-08-21 13:11  christos
+
+	* readline.c: Increment offset when adding an element to history to
+	  keep it aligned with the last element entered (Sandy Li
+	  Changqing)
+
+2019-07-28 11:27  christos
+
+	* filecomplete.c: PR/54415: Ricky Zhou: libedit stats completions
+	  for non-file completions Use the proper completion function and
+	  account for the character appended by the function when computing
+	  the number of columns.
+
+2019-07-23 15:10  christos
+
+	* literal.c: remove stray brace
+
+2019-07-23 12:19  christos
+
+	* hist.c: put the NULL check immediately after the allocation
+
+2019-07-23 12:18  christos
+
+	* chared.c, chartype.c, el.c, el.h, filecomplete.c, hist.c,
+	  keymacro.c, literal.c, map.c, parse.c, read.c, readline.c,
+	  search.c, terminal.c, vi.c: PR/54399: Sören Tempel: Uninitialized
+	  memory access in libedit history.  Initialize the buffer using
+	  calloc. While here change all malloc(a * sizeof(b)) to calloc(a,
+	  sizeof(b)). XXX: should fix realloc similarly.
+
+2019-07-23 11:47  christos
+
+	* chared.c: PR/54400: Sören Tempel: out-of-bounds read in libedit
+	  c_delbefore
+
+2019-06-30 15:30  christos
+
+	* terminal.c: Add a comment explaining why we don't use DO here.
+	  Correct the attribution on the previous patch: The patch was from
+	  Jordan Lewis and the report from Raphael Poss.
+
+2019-06-29 23:35  christos
+
+	* terminal.c: PR/54329: Raphael Ross: According to
+	  https://www.gnu.org/software/termutils/\
+	  manual/termcap-1.3/html_chapter/termcap_4.html#SEC23 the cursor
+	  move multiple escapes have undefined results when moving out of
+	  the screen. Stop using DO to move down multiple lines and use a
+	  loop of newlines instead.
+
+2019-06-11 00:05  christos
+
+	* chartype.c, editline.3, el.c, el.h, eln.c, filecomplete.c,
+	  history.c, parse.c, read.c, readline.c, refresh.c, terminal.c,
+	  tty.c, tty.h, TEST/test_filecompletion.c, readline/readline.h:
+	  Sync with HEAD
+
+2019-06-07 17:21  christos
+
+	* readline.c: PR/54281: Jonathan Perkins: NUL terminate
+	  rl_line_buffer on modification to avoid completion leak.
+
+2019-06-07 17:19  christos
+
+	* readline.c, readline/readline.h: PR/54280:
+	  rl_completer_quote_characters should be const for readline compat
+
+2019-06-07 17:18  christos
+
+	* readline.c: PR/54279: Jonathan Perkins: Ignore adjacent start/end
+	  prompt ignore.
+
+2019-04-26 18:56  christos
+
+	* el.c, eln.c, readline.c: Follow the man page for EL_GETTC and not
+	  require a NULL terminated argument list:
+	  https://reviews.llvm.org/D61191
+
+2019-04-20 10:44  abhinav
+
+	* filecomplete.c: PR lib/54131 - declare the loop variable outside
+	  the for loop
+
+2019-04-12 19:30  christos
+
+	* terminal.c: PR/52359: Benjamin Lorenz: When resizing because of a
+	  signal save and restore the cursor position, since it does not
+	  change.
+
+2019-04-12 17:12  christos
+
+	* filecomplete.c: PR/54117: Paavo Helde: Fix memory overrun:
+	  Account for the closing quote in memory allocation if quoted.
+
+2019-03-31 05:04  abhinav
+
+	* filecomplete.c, TEST/test_filecompletion.c: Perform quoting of
+	  filename completions when there are multiple matches as well
+
+	  Quoting of special characters in filename completion was
+	  implemented for single match case, this enables it for multiple
+	  matches as well. For example:
+
+	  $ touch 'foo bar' $ touch 'foo baz' $ ls fo<TAB> autocompletes to
+	  => $ ls foo\ ba hitting <TAB> again shows: foo bar foo baz
+
+	  This required unescaping escape sequences generated during last
+	  completion in order to find the word to complete.
+
+	  While there, also update the test to include cases for multiple
+	  matches.
+
+	  Reviewed by christos
+
+2019-03-24 17:42  abhinav
+
+	* filecomplete.c: Only quote the completion matches if we are doing
+	  filename completion
+
+	  If the user supplies a value for the
+	  attempted_completion_function parameter then we cannot be sure if
+	  the completion is for filename or something else, in such a case
+	  don't attempt to quote the completion matches.
+
+	  Reviewed by christos
+
+	  This should address PR lib/54067
+
+2019-02-16 00:20  christos
+
+	* readline.c, terminal.c, readline/readline.h: PR/53983: Jonathan
+	  Perkins: Fix types for readline compatibility
+
+2019-02-14 21:09  christos
+
+	* readline.c: PR/53981: Jonathan Perkins: history_list should
+	  null-terminate
+
+2019-01-18 09:50  pgoyette
+
+	* readline.c, refresh.c: Synch with HEAD
+
+2019-01-10 19:41  christos
+
+	* readline.c: PR/53856: F. Aragon: editline/libedit not prompting
+	  colors in readline mode
+
+2019-01-04 04:03  uwe
+
+	* refresh.c: Fix mis-applied change in previous.  Don't increment
+	  r_oldcv twice.  PR lib/53803
+
+2018-12-26 15:01  pgoyette
+
+	* parse.c, readline.c, tty.c, tty.h, readline/readline.h: Sync with
+	  HEAD, resolve a few conflicts
+
+2018-12-02 17:58  christos
+
+	* readline.c, tty.c, tty.h, readline/readline.h: Add a couple more
+	  readline compat functions.
+
+2018-11-29 04:10  christos
+
+	* parse.c: Fix off by one <tsahara at iij>
+
+2018-11-26 02:52  pgoyette
+
+	* chartype.c, editline.3, el.c, el.h, read.c, refresh.c,
+	  terminal.c: Sync with HEAD, resolve a couple of conflicts
+
+2018-11-25 17:21  christos
+
+	* read.c: From Yuichiro Naito (FreeBSD):
+
+	  hrs@ says that (cbp >= MB_LEN_MAX) condition is necessary for
+	  checking invalid byte sequences.  If malicious input was given,
+	  libedit would read byte sequences forever.
+
+2018-11-25 17:20  christos
+
+	* chartype.c: From Yuichiro Naito (FreeBSD): hrs@ says that
+	  wctomb(3) has an internal shift state, if wctomb(3) is called
+	  outside of libedit, the internal state can be changed and causes
+	  miscalculate multibyte size.
+
+	  So in this part, wcrtomb(3) should be used.  wcrtomb(3) requires
+	  that shift state is given in the argument.  We always initialize
+	  the shift state in ct_enc_width() to keep independent from
+	  outside of libedit.
+
+2018-11-24 13:17  christos
+
+	* terminal.c: PR/53682: Jordan Lewis: use newlines instead of
+	  padded spaces when restoring multi-line histories.
+
+2018-11-18 18:15  christos
+
+	* chartype.c: fix compilation
+
+2018-11-18 18:09  christos
+
+	* chartype.c, editline.3, el.c, el.h, read.c: Remove utf-8
+	  requirement (Yuichiro NAITO)
+
+2018-10-23 18:49  christos
+
+	* refresh.c: Apply revisions 1.21, 1.22 from OpenBSD:
+
+	  In re_fastputc(), set lastline to the new line, not the previous
+	  line so it gets initialized properly.  Fixes a crash in bc with
+	  MALLOC_OPTIONS=UJ.  OK deraadt@, committing on behalf of yasuoka@
+
+	  Initialize "old" screen buffer lines before use; otherwise, they
+	  would never get NUL-terminated and cause read buffer overruns.
+	  This fixes for example segfaults in sftp(1) that could be
+	  triggered by typing in an extremely long string (more than one
+	  line - the longer, the likelier to crash), then hitting backspace
+	  once.  Problem reported and patch OK'ed by sthen@.
+
+	  XXX: pullup-8
+
+2018-09-30 03:45  pgoyette
+
+	* history.c: Ssync with HEAD
+
+2018-09-13 11:03  kre
+
+	* history.c:
+	  Fix editing mistake, remove ) from func call that is now gone.
+
+2018-09-13 03:26  christos
+
+	* history.c: more efficient to use decode_result :-) Pointed out by
+	  kre@
+
+2018-09-13 00:10  christos
+
+	* history.c: PR/53597: Yasuhiro Horimoto: Avoid segmentation fault
+	  in bad history file.
+
+2018-06-25 09:25  pgoyette
+
+	* readline.c, readline/readline.h: Sync with HEAD
+
+2018-06-09 19:41  christos
+
+	* readline.c, readline/readline.h: Provide more compatibility with
+	  readline headers; now python-3.6.5 works when changing 'readline'
+	  -> 'edit' in setup.py.  Revert previous conditional setting of
+	  unbuffered.
+
+2018-05-21 06:35  pgoyette
+
+	* filecomplete.c, TEST/test_filecompletion.c: Sync with HEAD
+
+2018-05-04 22:38  christos
+
+	* filecomplete.c: fix uninitialized
+
+2018-05-04 18:39  abhinav
+
+	* filecomplete.c, TEST/test_filecompletion.c: Handle filename
+	  autocompletion when the cursor is at a backslash or quote
+	  character
+
+	  For example, handle following case:	  $ touch 'foo bar'	  $
+	  ls foo\<TAB> --> $ ls foo\ bar
+
+	  Also add test cases for this.
+
+	  Thanks to Christos for review
+
+2018-05-02 10:45  abhinav
+
+	* filecomplete.c: Add '*' and '[' to the list of characters which
+	  need escaping during autocompletion
+
+2018-02-26 18:36  christos
+
+	* common.c, search.c: PR/53058: Nikhil Benesch: use correctly typed
+	  variables (wchar_t vs wint_t) as parameters.
+
+2018-01-01 23:32  christos
+
+	* el.c, readline.c, tty.c, tty.h: Only FLUSH if we are ending
+	  libedit; DRAIN if we suspend for readline.  This allows pasting
+	  multiline buffers (Gerry Swislow)
+
+2017-12-23 19:25  uwe
+
+	* history.c: The order in which the arguments to a function are
+	  evaluated is undefined, so don't use va_arg() twice.
+
+	  PR lib/52849
+
+2017-12-08 17:56  christos
+
+	* readline.c: For applications that don't issue their own prompt
+	  (like python) don't set unbuffered unless they've already printed
+	  the prompt.  This avoids printing the prompt before the
+	  application has a chance to process the input line.  From sjg@
+
+2017-10-27 20:16  abhinav
+
+	* filecomplete.c: Add NULL check after doing memory allocation at a
+	  couple of places
+
+	  ok christos@
+
+2017-10-15 21:17  abhinav
+
+	* TEST/test_filecompletion.c: Add copyright and rcs header to the
+	  test program.  Also, remove a test case which was not supposed to
+	  be there.  (While that test case works with the changes I
+	  committed, testing that  test case with the test program is not
+	  possible in its current form. I'm  working on that.)
+
+2017-10-15 20:59  abhinav
+
+	* filecomplete.c, TEST/Makefile, TEST/test_filecompletion.c: Add
+	  support for escaping special characters when doing filename
+	  completion.
+
+	  For instance if the file name is "foo bar": $ ls foo<TAB> should
+	  get autocompleted to: $ ls foo\ bar
+
+	  Works for similar other characters too, which need escaping.
+
+	  Also, add an accompanying test program to ensure the escaping is
+	  correct in various scenarios (within quotes, without quotes, with
+	  other special characeters)
+
+	  Thanks to Christos for reviews, help and feedback.
+
+2017-10-11 08:49  abhinav
+
+	* chared.c: Fix typo in comment
+
+2017-09-17 10:10  kre
+
+	* readline.c: PR lib/52547 - read_history (readline.c) should now
+	  sets history_length.
+
+	  Patch from Yen Chi Hsuan in the PR, extracted from Apple's
+	  version of readline.c, then modified by me to be consistent about
+	  what the return value really is.
+
+2017-09-16 22:40  abhinav
+
+	* filecomplete.c: Fix indentation (convert spaces to tab)
+
+2017-09-05 20:07  christos
+
+	* el.c, el.h, readline.c, tty.c: For readline emulation, don't
+	  reset the tty to "sane" (cooked) mode if we did not start this
+	  way. Also set and reset the tty on entry and exit from readline()
+	  since this is what readline does.
+
+2017-09-02 08:48  wiz
+
+	* editline.3: Remove trailing whitespace; convert Xr readline to Nm
+	  readline, since we won't get a readline man page in base.
+
+2017-09-01 12:19  christos
+
+	* editline.3, hist.h, histedit.h, history.c, readline.c,
+	  readline/readline.h: PR/51517: Jay West: Tty settings not
+	  restored on exit PR/51518: Jay West: prompt is interleaved with
+	  client output
+
+	  Both these issues are caused by rl_restore_handler not DTRT; fix
+	  it so that it kills the internal libedit state completely. This
+	  is inefficient, but it works.
+
+	  Also fix: 1. add append_history()/H_NSAVE_FP 2. call the
+	  rl_startup_hook before printing the first prompt as documented.
+	    callint it from rl_initialize breaks python, because the
+	  callback ends     up being invoked before the readline module is
+	  installed, and we end up     dereferencing a NULL pointer.  3.
+	  add el_resize_terminal.
+
+	  With those changes, s/lreadline/ledit/g in python works.
+
+2017-07-23 16:41  snj
+
+	* Makefile, editline.3, editrc.5, el.c, el.h, literal.c, literal.h,
+	  prompt.c, read.c, refresh.c, refresh.h, terminal.c: Pull up
+	  following revision(s) (requested by kre in ticket #102):
+	  lib/libedit/Makefile: 1.64-1.65	  lib/libedit/editline.3:
+	  1.94-1.96	  lib/libedit/editrc.5: 1.33	  lib/libedit/el.c:
+	  1.93-1.94	lib/libedit/el.h: 1.42	lib/libedit/literal.c:
+	  1.1-1.3  lib/libedit/literal.h: 1.1-1.2  lib/libedit/prompt.c:
+	  1.27	    lib/libedit/read.c: 1.103	    lib/libedit/refresh.c:
+	  1.52-1.54	   lib/libedit/refresh.h: 1.11
+	  lib/libedit/terminal.c: 1.33 Make the default editrc file be
+	  $EDITRC (from env) if set, falling back to $HOME/.editrc
+	  otherwise.	Better support for this in sh coming.  -- Include
+	  EDITRC in doc.  -- mention the limitation of the literal sequence
+	  delimiter.  -- - handle literal escape sequence printing.  -
+	  factor out common code in allocation and freeing of the display.
+	  -- - add literal sequence handling.  -- remove unused variable --
+	  add literal escape sequence support, patterned after the tcsh
+	  ones.  -- fix comment -- Fix an obvious, but almost invisible
+	  typo (avoid some core dumps).  -- Allow wide characters (properly
+	  encoded as byte strings according to LC_CTYPE) to be (perhaps
+	  part of) the "invisible" characters in a prompt, or the required
+	  prompt character which follows the literal sequence (this
+	  character must be one with a printing column width >= 1).  The
+	  literal indicator character (which is just a marker, and not
+	  printed anywhere) (the PSlit parameter in sh(1)) can also be a
+	  wide char (passed to libedit as a wchar_t, encoded as that by
+	  sh(1) or other applications that support this.) Note: this has
+	  currently only been tested with everything ascii (C locale).	--
+	  Remove workaround for ancient HTML generation code.
+
+2017-07-03 23:32  wiz
+
+	* editline.3: Remove workaround for ancient HTML generation code.
+
+2017-06-30 22:26  snj
+
+	* literal.c: file literal.c was added on branch netbsd-8 on
+	  2017-07-23 14:41:26 +0000
+
+2017-06-30 22:26  snj
+
+	* literal.h: file literal.h was added on branch netbsd-8 on
+	  2017-07-23 14:41:26 +0000
+
+2017-06-30 22:26  kre
+
+	* Makefile, literal.c, literal.h, refresh.c:
+	  Allow wide characters (properly encoded as byte strings according
+	  to LC_CTYPE) to be (perhaps part of) the "invisible" characters
+	  in a prompt, or the required prompt character which follows the
+	  literal sequence (this character must be one with a printing
+	  column width >= 1).  The literal indicator character (which is
+	  just a marker, and not printed anywhere) (the PSlit parameter in
+	  sh(1)) can also be a wide char (passed to libedit as a wchar_t,
+	  encoded as that by sh(1) or other applications that support
+	  this.)
+
+	  Note: this has currently only been tested with everything ascii
+	  (C locale).
+
+2017-06-29 04:54  kre
+
+	* literal.c:
+	  Fix an obvious, but almost invisible typo (avoid some core
+	  dumps).
+
+2017-06-28 01:29  christos
+
+	* refresh.c: fix comment
+
+2017-06-28 01:25  christos
+
+	* Makefile, el.c, el.h, literal.c, literal.h, prompt.c: add literal
+	  escape sequence support, patterned after the tcsh ones.
+
+2017-06-28 01:24  christos
+
+	* read.c: remove unused variable
+
+2017-06-28 01:23  christos
+
+	* refresh.c, refresh.h: - add literal sequence handling.
+
+2017-06-28 01:23  christos
+
+	* terminal.c: - handle literal escape sequence printing.  - factor
+	  out common code in allocation and freeing of the display.
+
+2017-06-28 01:22  christos
+
+	* editline.3: mention the limitation of the literal sequence
+	  delimiter.
+
+2017-06-27 03:22  kre
+
+	* editline.3, editrc.5:
+	  Include EDITRC in doc.
+
+2017-06-27 02:47  kre
+
+	* el.c:
+	  Make the default editrc file be $EDITRC (from env) if set,
+	  falling back to $HOME/.editrc otherwise.    Better support for
+	  this in sh coming.
+
+2017-05-22 21:16  christos
+
+	* chartype.h: Add DragonFly.
+
+2017-04-26 04:52  pgoyette
+
+	* editline.3, filecomplete.c, filecomplete.h, readline.c: Sync with
+	  HEAD
+
+2017-04-21 18:53  bouyer
+
+	* editline.3, filecomplete.c, filecomplete.h, hist.c, readline.c:
+	  Sync with HEAD
+
+2017-04-21 07:38  abhinav
+
+	* filecomplete.c, filecomplete.h, readline.c: When doing filename
+	  autocompletion, append a trailing slash at the end of directory
+	  names. We already do this when there is only one completion
+	  option but in case of of multiple completion options, it wasn't
+	  being done.
+
+	  ok christos@
+
+2017-04-10 17:02  abhinav
+
+	* editline.3: Add missing argument for H_SET.
+
+	  ok christos@
+
+2017-03-20 07:56  pgoyette
+
+	* chartype.c, hist.c, readline.c: Sync with HEAD
+
+2017-03-05 20:23  christos
+
+	* hist.c: one extra char for NUL.
+
+2017-03-05 18:30  christos
+
+	* hist.c: Grow the buffer for event search if there was not enough
+	  space.  From Gerry Swislow
+
+2017-01-09 04:09  christos
+
+	* readline.c: Make sure we take into account history_base when
+	  computing negative history offsets. (Gerry Swinslow)
+
+2017-01-09 03:54  christos
+
+	* chartype.c: Make sure that argv is NULL terminated since
+	  functions like tty_stty rely on it to be so (Gerry Swinslow)
+
+2017-01-07 09:56  pgoyette
+
+	* hist.c, read.c: Sync with HEAD.  (Note that most of these changes
+	  are simply $NetBSD$ tag issues.)
+
+2016-12-11 16:47  christos
+
+	* read.c: PR/51706: Amir Plivatsky: Fix memory leak
+
+2016-11-07 16:30  christos
+
+	* hist.c: Change the way the built-in history works; some programs
+	  enter history with the trailing newline, others don't so don't
+	  make any assumptions about it when printing. Also print the
+	  correct event number (generated), separate the event number from
+	  the event with a tab, and visually encode the string (don't
+	  encode tabs and spaces though).
+
+2016-11-04 15:48  pgoyette
+
+	* filecomplete.c, readline.c, readline/readline.h: Sync with HEAD
+
+2016-10-31 18:46  abhinav
+
+	* filecomplete.c: Fix file name auto completion in one specific
+	  case.
+
+	  For example if you do $mkdir -p /tmp/dir1/dir2
+
+	  Then: $ls /tmp/di <TAB> auto completes to $ls /tmp/dir1/
+
+	  Hitting <TAB> again auto completes to $ls /tmp/dir1/dir2
+
+	  Whereas it should auto complete to $ls /tmp/dir1/dir2/
+
+	  Essentially, in cases like above where you have to hit <TAB>
+	  twice to get to the match and there is only one match (because
+	  only one file/sub-directory) then auto complete doesn't work
+	  correctly. It doesn't append a trailing slash (in case of
+	  directory) or a space (in case of a file) to the match name.
+
+	  I have tested file name completion in sh(1) and symbol completion
+	  in gdb after this change.
+
+2016-10-28 20:32  christos
+
+	* readline/readline.h: export rl_done
+
+2016-10-28 20:32  christos
+
+	* readline.c: pass the stream to the getc function
+
+2016-09-01 15:23  mbalmer
+
+	* readline.c: fix typo
+
+2016-08-24 15:10  christos
+
+	* readline.c, readline/readline.h: more compatible with readline
+	  history functions.
+
+2016-06-02 23:40  christos
+
+	* readline.c: Fix previous to better match readline behavior (Ingo
+	  Schwarze)
+
+2016-06-02 17:11  christos
+
+	* readline.c: From Ingo Schwarze:
+
+	  In libedit, the only way how H_ENTER can fail is memory
+	  exhaustion, too, and of course it is handled gracefully,
+	  returning -1 from history().	So of course, we will continue to
+	  handle it gracefully in add_history() as well, but we are free to
+	  decide what to do with the library state in this case because GNU
+	  just dies...
+
+	  I think the most reasonable course of action is to simply not
+	  change the library state in any way when add_history() fails due
+	  to memory exhaustion, but just return.
+
+	  If H_ENTER does not fail, we know that the history now contains
+	  at least one entry, so there is no need any longer to check the
+	  H_GETSIZE return value.  And we can of course always set
+	  current_history_valid.
+
+	  While testing these changes, i noticed three problems so closely
+	  related that i'd like to fix them in the same diff.
+
+	   1. libedit has the wrong prototype for add_history().
+	      GNU readline-6.3 defines it as void add_history(const char
+	  *).
+	      Of course, that is very stupid - no way to report problems to
+	      the caller!  But the whole point of a compatibility mode is
+	      being compatible, so we should ultimately change this.
+	      Of course, changing the prototype of a public symbol requires
+	      a libedit major bump.  I don't want to do that casually.
+	      Rather, i will take a note and change the prototype the next
+	      time we need a libedit major bump for more important reasons.
+	      For now, let's just always return 0.
+
+	   2. While *implicitely* pushing an old entry off the history
+	      increments history_base in GNU readline, testing reveals that
+	      *explicitly* deleting one does not.  Again, this is not
+	      documented, but it applies to both remove_history() and
+	      stifle_history().  So delete history_base manipulation
+	      from stifle_history(), which also allows to simplify the
+	      code and delete two automatic variables.
+
+	   3. GNU readline add_history(NULL) crashes with a segfault.
+	      There is nothing wrong with having a public interface
+	      behave that way.	Many standard interfaces do, including
+	      strlen(3).  Such crashes can even be useful to catch
+	      buggy application programs.
+	      In libedit/readline.c rev. 1.104, Christos made add_history()
+	      silently ignore this coding error, according to the commit
+	      message to hide a bug in nslookup(1).  That change was never
+	      merged to OpenBSD.  I strongly disagree with this change.
+	      If nslookup(1) is still broken, that program needs to be
+	      fixed instead.  In any case, delete the bogus check; hiding
+	      bugs is dangerous.
+
+2016-05-31 21:25  christos
+
+	* readline.c: remove the right history entry (Ingo Schwarze)
+
+2016-05-25 15:01  christos
+
+	* read.c: abstract read code to a single function (Ingo Schwarze)
+
+2016-05-24 21:31  christos
+
+	* read.c: el_map.alt can't be NULL here (Ingo Schwarze)
+
+2016-05-24 19:42  christos
+
+	* Makefile, read.c: remove debug read (Ingo Schwarze)
+
+2016-05-24 17:00  christos
+
+	* el.h, keymacro.c, read.c: From Ingo Schwarze:
+
+	  Reduce obfuscation of errno handling. There is only one purpose
+	  non-local errno handling is needed for:  Inside el_wgets(),
+	  several functions call down indirectly to el_wgetc(), many of
+	  them via the dispatch table.	When el_wgetc() fails, it does
+	  properly report failure, but then various cleanup is done which
+	  may clobber errno.  But when returning due to failure, el_wgets()
+	  wants to have errno set to the reason of the original read
+	  failure, not to the reason of some subsequent failure of some
+	  cleanup operation.  So el_wgetc() needs to save errno, and if
+	  it's non-zero, el_wgets() needs to restore it on failure.
+
+	  This core logic is currently obscured by the fact that el_errno
+	  is set and inspected at some additional places where it isn't
+	  needed.  Besides, since el_wgetc() and and el_wgets() are both in
+	  read.c, el_errno does not need to be in struct editline, it can
+	  and should be local to read.c in struct el_read_t.
+
+	  Let's look at what can be simplified.
+
+	   1. keymacro_get() abuses el_errno instead of having a proper
+	      error return code.  Adding that error return code is easy
+	      because node_trav() already detects the condition and an
+	      adequate code is already defined.  Returning it, testing
+	      for it in read_getcmd(), and returning with error from there
+	      removes the need to inspect el_errno from el_wgets() after
+	      calling read_getcmd().
+	      Note that resetting lastchar and cursor and clearing
+	  buffer[0]
+	      is irrelevant.  The code returns from el_wgets() right
+	  afterwards.
+	      Outside el_wgets(), these variables are no longer relevant.
+	      When el_wgets() is called the next time, it will call
+	  ch_reset()
+	      anyway, resetting the two pointers.  And as long as lastchar
+	      points to the beginning of the buffer, the contents of the
+	      buffer won't be used for anything.
+
+	   2. read_getcmd() doesn't need to set el_errno again after
+	  el_wgetc()
+	      failure since el_wgetc() already did so.	While here, remove
+	      the silly "if EOF or error" comments from the el_wgetc()
+	      return value tests.  It's a public interface documented in a
+	      manual, so people working on the implementation can obviously
+	      be expected to know how it works.  It's a case of
+
+		count++;  /* Increment count. */
+
+	   3. In the two code paths of el_wgets() that lead up to "goto
+	  noedit",
+	      there is no need to save the errno because nothing that might
+	      change it happens before returning.
+
+	  For clarity, since el_wgets() is the function restoring the
+	  errno, also move initializing it to the same function.
+
+	  Finally, note that restoring errno when the saved value is zero
+	  is wrong.  No library code is ever allowed to clear a previously
+	  set value of errno.  Only application programs are allowed to do
+	  that, and even they usually don't need to do so, except when
+	  using certain ill-designed interfaces like strtol(3).
+
+	  I tested that the behaviour remains sane in the following cases,
+	  all during execution of el_wgets(3) and with a signal handler for
+	  USR1 installed without SA_RESTART.
+
+	   * Enter some text and maybe move around a bit.
+	     Then send a USR1 signal.
+	     The signal gets processed, then read_char() resumes reading.
+	     Send another USR1 signal.
+	     Now el_wgets() sets errno=EINTR and returns -1.
+
+	   * Press Ctrl-V to activate ed-quoted-insert.
+	     Then send a USR1 signal.
+	     The signal gets processed, then read_char() resumes reading.
+	     Send another USR1 signal.
+	     ed_quoted_insert() returns ed_end_of_file(), i.e. CC_EOF,
+	     and el_wgets() returns 0.
+
+	   * Press a key starting a keyboard macro.
+	     Then send a USR1 signal.
+	     The signal gets processed, then read_char() resumes reading.
+	     Send another USR1 signal.
+	     Now el_wgets() sets errno=EINTR and returns -1.
+
+	   * Press : to enter builtin command mode.
+	     Start typing a command.
+	     Then send a USR1 signal.
+	     The signal gets processed, then read_char() resumes reading.
+	     Send another USR1 signal.
+	     Now c_gets() returns -1, ed_command() beeps and returns
+	  CC_REFRESH,
+	     and el_wgets() resumes operation as it should.
+
+	  I also tested with "el_set(el, EL_EDITMODE, 0)", and it returns
+	  the right value and sets errno correctly.
+
+2016-05-23 01:54  christos
+
+	* editline.3, editrc.5: documentation improvements (Ingo Schwarze)
+
+2016-05-22 21:44  christos
+
+	* chared.c, chared.h, common.c, el.c, read.c, read.h: Stop the read
+	  module from poking the el_chared.c_macro data structure currently
+	  belonging to the chared module.  The read module does so from
+	  three of its functions, while no other module uses the macro
+	  data, not even the chared module itself.  That's quite logical
+	  because macros are a feature of input handling, all of which is
+	  done by the read module, and none by the chared module.  So move
+	  the data into the read modules's own opaque data structure,
+	  struct el_read_t.
+
+	  That simplifies internal interfaces in several respects: The
+	  semi-public chared.h has one fewer struct, one fewer #define, and
+	  one fewer member in struct el_chared_t; all three move to one
+	  single C file, read.c, and are now module-local.  And the
+	  internal interface function ch_reset() needs one fewer argument,
+	  making the code of many functions in various modules more
+	  readable.
+
+	  The price is one additional internal interface function,
+	  read_end(), 10 lines long including comments, called publicly
+	  from exactly one place: el_end() in el.c.  That's hardly an
+	  increase in complexity since most other modules already have
+	  their *_end() function, read.c was the odd one out not having
+	  one.
+
+	  From Ingo Schwarze
+
+2016-05-21 19:06  christos
+
+	* editline.3: Fix the prototype used by EL_GETCFN, mention the
+	  associated typedef name, document the return values, expand the
+	  list of affected functions, warn against using EL_GETCFN, and
+	  clarify some wording and notation. (Ingo Schwarze)
+
+2016-05-13 17:55  christos
+
+	* readline.c: From Bastian Maerkisch, via Igno Schwarze:
+
+	  Even though section "2.3.3 Information About the History List" of
+	  the history(3) info(1) manual only says
+
+	    -- Function: int where_history (void)
+	       Returns the offset of the current history element.
+
+	  which maybe isn't completely clear, a plausible implementation is
+	  that the offset returned is the same offset that can be used for
+	  history_set_pos(), i.e. that it is 0 for the oldest entry and
+	  increases with time, and that's how the GNU implementation
+	  behaves indeed.
+
+	  The libedit implementation, on the other hand, returns 1 for the
+	  newest entry and increases going back in time.
+
+2016-05-09 23:46  christos
+
+	* chared.c, chared.h, chartype.c, chartype.h, common.c, el.c, el.h,
+	  emacs.c, hist.c, hist.h, keymacro.c, keymacro.h, makelist, map.c,
+	  map.h, parse.c, parse.h, prompt.c, prompt.h, read.c, read.h,
+	  refresh.c, refresh.h, search.c, search.h, sig.c, sig.h, sys.h,
+	  terminal.c, terminal.h, tty.c, tty.h, vi.c:
+	  s/protected/libedit_private/g
+
+2016-05-09 23:38  christos
+
+	* Makefile, editline.c, sys.h: Instead of compiling all the source
+	  files together in one big file, use protected visibility to
+	  achieve the same effect.
+
+2016-05-09 23:37  christos
+
+	* eln.c: Elide gcc warning about intermediate const casts caused by
+	  visibility change.
+
+2016-05-09 23:27  christos
+
+	* editline.3, editline.7, readline.c: GNU readline(3) regards
+	  history chronologically, that is, from the perspective of the
+	  dawn of time, so "next" means "newer" and "previous" means
+	  "older".  Libedit, by contrast, uses reverse chronology and
+	  regards history from the perspective of the present, such that
+	  "next" means "longer ago" and "previous" means "not so long ago".
+
+	  The following patch fixes previous_history() and next_history()
+	  as proposed by Bastian Maerkisch.
+
+	  But there is a related problem demonstrated by Bastian's
+	  regression tests that his patch did not fix:	next_history() can
+	  advance not only to the newest entry, but beyond it, which core
+	  libedit cannot do.  So that feature must be implemented locally
+	  in readline.c.
+
+	  With that, the last of Bastians tests is fixed,
+	  test_movement_direction().
+
+	  This patch also improves libedit documentation to more clearly
+	  state what "previous" and "next" mean.  GNU readline
+	  documentation is just as unclear, but we can't easily fix that
+	  since libedit doesn't include its own readline.3 manual.
+
+	  (Ingo Schwarze)
+
+2016-05-09 23:25  christos
+
+	* readline.c: The libedit implementation of history_get() also
+	  differs from the GNU implementation:	libedit goes to the entry
+	  with the given number stored in the HistEvent structure, while
+	  GNU subtracts history_base, then advances that many entries from
+	  the oldest one.  If entries were removed in between, GNU advances
+	  further than libedit.
+
+	  The call sequence H_CURR, H_DELDATA, H_CURR, H_NEXT_EVDATA looks
+	  weird, as if part of that must somehow be redundant.	But
+	  actually, the user interface is so counter-intuitive that every
+	  single step is really required.
+
+	   - The first H_CURR is needed to be able to go back after an
+	  error.
+	   - The H_DELDATA is needed to move the cursor.  Even though it
+	  takes
+	     a pointer to ev, that structure is not filled in when the call
+	     succeeds.	H_DELDATA only moves the cursor, it doesn't tell us
+	     the new event number.
+	   - Consequently, the second H_CURR is required to get ev.num
+	  filled
+	     in.  But it doesn't return the data because ev has no field
+	  for
+	     that.
+	   - So even though the cursor is already positioned correctly,
+	     H_NEXT_EVDATA is needed as the final step merely to get the
+	  data.
+
+	  (Ingo Schwarze)
+
+2016-05-08 22:15  christos
+
+	* readline.c: In stiffle_history(), trim excessive entries from the
+	  history and advance history_base like the GNU implementation
+	  does. (from Bastian Maerkisch)
+
+2016-05-06 23:01  christos
+
+	* readline.c: fix logic (Ingo Schwarze)
+
+2016-05-02 18:48  christos
+
+	* chartype.c, chartype.h, el.c, el.h, terminal.c: eliminate static
+	  buffer with custom resizing code.
+
+2016-05-02 18:35  christos
+
+	* chartype.h, refresh.c: fix typos from Pedro Giffuni @FreeBSD
+
+2016-05-02 16:12  wiz
+
+	* Makefile: Add missing backslash that broke build.
+
+2016-05-02 15:01  christos
+
+	* Makefile: Add more MLINKS, sort
+
+2016-05-02 14:51  wiz
+
+	* editline.7: Fix Dd argument.
+
+2016-05-02 14:43  christos
+
+	* editline.7: Add more explicit xrefs
+
+2016-05-02 11:39  wiz
+
+	* editline.7: Fix Dd argument.
+
+2016-04-28 17:50  christos
+
+	* Makefile, editline.3, editline.7, editrc.5: new man page from
+	  Ingo Schwarze.
+
+2016-04-28 14:27  christos
+
+	* search.c: Initialize patbuf (Ingo Schwarze)
+
+2016-04-19 21:50  christos
+
+	* el.c, el.h, histedit.h, read.c, read.h: From Ingo Schwarze:  -
+	  Put the data type el_rfunc_t into the public header <histedit.h>.
+	  - Make el_read in struct editline an opaque pointer rather
+	  than an embedded struct.   - Do not include "read.h" everywhere,
+	  but only in the two files	needing access to el_read, read.c
+	  and el.c.   - To functions that don't need more, pass the struct
+	  el_read_t *	  rather than the full EditLine *.   - Of course,
+	  that means that read_init() can now fail from     memory
+	  exhaustion, but it's easy to clean up after that.
+
+2016-04-18 19:01  christos
+
+	* Makefile, chared.c, common.c, editline.c, el.h, emacs.c,
+	  historyn.c, keymacro.c, makelist, map.c, map.h, read.c,
+	  readline.c, search.c, terminal.c, tokenizern.c, tty.c, vi.c: From
+	  Ingo Schwarze:  * Replace fcns.c by a shorter and simpler func.h
+	  and include it only in the one file needing it, map.c.   *
+	  Combine help.h and help.c into a simplified help.h	 and
+	  include it only in the one file needing it, map.c.   * Check the
+	  very simple, static files editline.c, historyn.c, and
+	  tokenizern.c into CVS rather than needlessly generating them.   *
+	  So we no longer autogenerate any C files.  :-)   * Shorten and
+	  simplify makelist by deleting the options -n, -e, -bc,     and
+	  -m; the latter was unused and useless in the first place.   *
+	  Move the declaration of el_func_t from fcns.h to the header
+	  actually needing it, map.h.  Since that header is already
+	  included by el.h for unrelated reasons, that makes el_func_t
+	  just as globally available as before.   * No longer include the
+	  simplified fcns.h into el.h,	   include it directly into the *.c
+	  files needing it.
+
+2016-04-17 20:39  christos
+
+	* common.c, editrc.5, map.c: Remove empty callbacks (Ingo
+	  Schwartze)
+
+2016-04-12 13:15  christos
+
+	* read.c: FIONREAD takes int as an argument (Ingo Schwarze)
+
+2016-04-12 02:16  christos
+
+	* keymacro.c, keymacro.h, map.c, read.c: From Ingo Schwarze:
+
+	   * Delete the stubs of the XK_EXE mechanism that was never
+	  implemented.
+	     From a security, stability, and simplicity perspective, i
+	  would
+	     consider implementing it a truly terrible idea, so let's
+	  better
+	     get rid of it.
+
+	   * Do not use the local variable "num" in el_wgets() alternately
+	  for
+	     two completely different purposes.  Only use it for the number
+	     of characters read, as stated in the comment (or -1 as long as
+	     that number is still unknown), not for the (more or less
+	  boolean)
+	     return value of read_getcmd().  Actually, there is no need at
+	     all to save the latter return value after testing it once.
+
+	   * The function read_getcmd() has very unusual return values:
+	     It returns -1 for success and 0 for EOF/error.  Switch that
+	  around
+	     to 0 for success and -1 for EOF/error to be less confusing,
+	  and
+	     get rid of the OKCMD preprocessor macro.
+
+	   * Get rid of one #ifdef section in el_wgets() by using
+	     el->el_chared.c_macro directly at the only place
+	     where it is used.
+
+	   * Delete the unused MIN() macro.
+
+2016-04-12 00:30  christos
+
+	* parse.c: Fix indentation, Ingo Schwarze
+
+2016-04-11 20:56  christos
+
+	* chared.c, chartype.c, chartype.h, el.c, eln.c, history.c,
+	  keymacro.c, makelist, map.c, parse.c, prompt.c, read.c,
+	  refresh.c, search.c, sig.c, sys.h, terminal.c, tokenizer.c,
+	  tty.c, vi.c: Get rid of private/public; keep protected (Ingo
+	  Schwarze)
+
+2016-04-11 18:06  christos
+
+	* chartype.c, chartype.h, history.c, tokenizer.c: chartype cleanups
+	  from Ingo Schwarze:
+
+	   - The file tokenizer.c no longer uses chartype.h,
+	     so don't include the header.
+
+	   - The dummy definitions of ct_{de,en}code_string() for the
+	     NARROWCHAR case are only used in history.c, so move them
+	  there.
+
+	   - Now the whole content of chartype.h is for the wide character
+	     case only.  So remove the NARROWCHAR ifdef and include the
+	     header only in the wide character case.
+
+	   - In chartype.h, move ct_encode_char() below the comment
+	  explaining it.
+
+	   - No more need for underscores before ct_{de,en}code_string().
+
+	   - Make the conversion buffer resize functions private.
+	     They are only called from the decoding and encoding functions
+	     inside chartype.c, and no need can possibly arise to call them
+	     from anywhere else.
+
+2016-04-11 02:50  christos
+
+	* chared.c, chared.h, chartype.c, chartype.h, common.c, el.c, el.h,
+	  eln.c, emacs.c, filecomplete.c, filecomplete.h, hist.c, hist.h,
+	  history.c, keymacro.c, keymacro.h, map.c, map.h, parse.c,
+	  parse.h, prompt.c, prompt.h, read.c, refresh.c, search.c,
+	  search.h, terminal.c, terminal.h, tokenizer.c, tty.c, tty.h,
+	  vi.c: Char -> wchar_t from Ingo Schwarze.
+
+2016-04-11 02:22  christos
+
+	* chared.c, chartype.h, common.c, el.c, eln.c, filecomplete.c,
+	  hist.c, hist.h, history.c, keymacro.c, makelist, map.c, parse.c,
+	  read.c, refresh.c, search.c, terminal.c, tokenizer.c, tty.c,
+	  vi.c: more macro WIDECHAR undoing from Ingo Schwarze.
+
+2016-04-09 20:47  christos
+
+	* filecomplete.c, vi.c: Change some 0's to NULL's from Pedro
+	  Giffuni
+
+2016-04-09 20:43  christos
+
+	* chared.c, chartype.c, chartype.h, common.c, el.c, eln.c, emacs.c,
+	  hist.c, keymacro.c, map.c, read.c, refresh.c, search.c,
+	  terminal.c, tty.c, vi.c: More WIDECHAR elimination (Ingo
+	  Schwarze)
+
+2016-03-23 23:27  christos
+
+	* Makefile, chartype.c, chartype.h, config.h, el.c, el.h, eln.c,
+	  hist.c, hist.h, history.c, keymacro.c, makelist, read.c,
+	  readline.c, search.c, sys.h, terminal.c, TEST/Makefile: Start
+	  removing the WIDECHAR ifdefs; building without it has stopped
+	  working anyway. (Ingo Schwarze)
+
+2016-03-22 02:38  christos
+
+	* terminal.c: put back NUL check (Ingo Schwarze)
+
+2016-03-22 02:34  christos
+
+	* tty.c: Fix reversed condition in tty_end() (Ingo Schwarze) Also
+	  don't succeed if calling setup twice.
+
+2016-03-07 01:05  christos
+
+	* chartype.h: Remove advertising clause.
+
+2016-03-02 20:24  christos
+
+	* Makefile, chartype.h, common.c, read.c, refresh.c, terminal.c,
+	  vi.c: PR/50880: David Binderman: Remove redundant code.  While
+	  here, fix all debugging formats.
+
+2016-02-29 01:54  christos
+
+	* TEST/rl1.c: convert to 2 clause
+
+2016-02-29 00:02  christos
+
+	* chartype.c, eln.c: remove 4 clause licenses.
+
+2016-02-27 19:13  christos
+
+	* tty.c, tty.h: PR/50863: John Hein: libedit el_end() messes up
+	  term settings if piped Keep track if we initialized the tty, and
+	  only reset it if we did.
+
+2016-02-25 15:59  wiz
+
+	* editline.3: Use \- for minus sign, use Ev, use Er.
+
+2016-02-24 20:45  christos
+
+	* editline.3: Fix el_{w,}getc documentation (Ingo Schwarze)
+
+2016-02-24 19:28  christos
+
+	* editline.3: Fixes from OpenBSD via Ingo Schwarze: 1) Missing
+	  comma after tok_str in NAME.	   OpenBSD rev. 1.38 Sep 10, 2015
+	  (schwarze)  2) Style: void in argument list.	   OpenBSD rev.
+	  1.39 Sep 14, 2015 (schwarze)	3) English punctuation: stray
+	  comma.     OpenBSD rev. 1.37 Mar 13, 2015 (jmc)
+
+2016-02-24 18:20  christos
+
+	* chartype.c, chartype.h, read.c: Tuck in mbstate_t to the wide
+	  char version only to avoid exposing the zeroing hack and doing it
+	  in the narrow case.
+
+2016-02-24 18:13  christos
+
+	* chartype.c, chartype.h, el.c, el.h, eln.c, read.c, read.h,
+	  readline.c: Make the read_char function always take a wchar_t *
+	  argument (Ingo Schwarze)
+
+2016-02-24 15:29  christos
+
+	* chared.c: A very simple, non-intrusive patch to fix a segfault
+	  (and a functional error) in c_gets(), file chared.c.
+
+	  Run any program using libedit in the default way.  At the
+	  el_[w]gets() prompt, invoke ed-command (for example, in emacs
+	  mode, press the escape key, then type the letter 'x').  You
+	  should see a ": " prompt.  Type the letter 'x' again.  Now press
+	  the backspace key a few times, looking at the screen after each
+	  key press:
+
+	   - The 1st BS deletes the 'x'.
+	   - The 2nd BS deletes the blank after the prompt.
+	   - The 3rd BS deletes the colon of the prompt.
+	   - The 4th BS moves the cursor up one line.
+	   - The 5th BS gives me "Segmentation fault (core dumped)".
+
+	  Depending on your platform, it might take a few more or a few
+	  less backspaces for the buffer underrun to trigger the segfault,
+	  but you should be able to hit it sooner or later no matter what.
+
+	  Run the same program again, connect again and invoke ed-command
+	  again.  Now type: 'b', backspace, 'i', backspace, 'n', backspace,
+	  'd', enter.  The "bind" command gets executed, even though you
+	  deleted what you typed before hitting enter.
+
+	  From Ingo Schwatze.
+
+2016-02-24 15:25  christos
+
+	* Makefile, chared.c, chartype.c, common.c, eln.c, keymacro.c,
+	  read.c, search.c: Get split el_getc and el_wgetc completely and
+	  call el_wgetc internally.  Change some character constants to
+	  they wide versions. (Ingo Schwarze)
+
+2016-02-17 20:47  christos
+
+	* Makefile, chared.c, chartype.c, chartype.h, common.c, el.c, el.h,
+	  filecomplete.c, hist.h, histedit.h, history.c, keymacro.c,
+	  makelist, map.c, parse.c, prompt.h, read.c, read.h, readline.c,
+	  refresh.c, sys.h, terminal.c, tokenizer.c, tty.c, vi.c,
+	  TEST/tc1.c, TEST/wtc1.c, readline/Makefile, readline/readline.h:
+	  whitespace and header sorting changes (Ingo Schwarze). No
+	  functional changes.
+
+2016-02-16 23:53  christos
+
+	* chared.c, chared.h, chartype.c, common.c, el.h, emacs.c,
+	  filecomplete.c, hist.c, map.c, parse.c, read.c, refresh.c,
+	  search.c, tty.c, vi.c: More header cleanups from Ingo Schwarze.
+
+2016-02-16 20:29  christos
+
+	* config.h, histedit.h, sys.h: - don't set _GNU_SOURCE. We are not
+	  supposed to make decisions for others.  - don't special-case
+	  wcsdup() From Ingo Schwarze.
+
+2016-02-16 20:11  christos
+
+	* common.c, el.h: get rid of bool_t (Ingo Schwarze)
+
+2016-02-16 20:08  christos
+
+	* chared.c, chared.h, common.c, el.c, el.h, emacs.c,
+	  filecomplete.c, makelist, map.c, parse.c, readline.c, search.c,
+	  sig.c, tty.c, vi.c: more include file cleanup (Ingo Schwarze)
+
+2016-02-16 16:54  christos
+
+	* sig.c: include errno.h
+
+2016-02-16 16:53  christos
+
+	* chared.c, chared.h, chartype.c, common.c, el.c, el.h, eln.c,
+	  emacs.c, filecomplete.c, hist.c, hist.h, keymacro.c, makelist,
+	  map.c, parse.c, prompt.c, prompt.h, read.c, readline.c,
+	  refresh.c, refresh.h, search.c, search.h, sig.c, sig.h,
+	  terminal.c, terminal.h, tty.c, tty.h, vi.c: From Ingo Scharze:
+	  Let "el.h" include everything needed for struct editline, and
+	  don't include that stuff multiple times.  That also improves
+	  consistency, also avoids circular inclusions, and also makes it
+	  easier to follow what is going on, even though not quite as nice.
+	  But it seems like the best we can do...
+
+2016-02-16 15:08  christos
+
+	* chared.c, chartype.c, common.c, el.c, el.h, eln.c, emacs.c,
+	  filecomplete.c, hist.c, keymacro.c, makelist, map.c, parse.c,
+	  prompt.c, read.c, readline.c, refresh.c, search.c, sig.c,
+	  terminal.c, tty.c, vi.c: cleanup chartype.h includes (Ingo
+	  Schwarze)
+
+2016-02-16 15:07  christos
+
+	* sig.c: one more
+
+2016-02-16 15:06  christos
+
+	* chared.c, chared.h, chartype.c, common.c, el.c, el.h, emacs.c,
+	  filecomplete.c, hist.c, hist.h, keymacro.c, makelist, map.c,
+	  parse.c, prompt.c, prompt.h, read.c, readline.c, refresh.c,
+	  refresh.h, search.c, search.h, sig.h, terminal.c, terminal.h,
+	  tty.c, tty.h, vi.c: cleanup inclusion of histedit.h (Ingo
+	  Schwarze)
+
+2016-02-16 15:04  christos
+
+	* sig.c: include explicitly errno.h since we use it.
+
+2016-02-16 15:04  christos
+
+	* tty.h: No need to include "sys.h" from here; it is included from
+	  config.h
+
+2016-02-16 00:36  christos
+
+	* readline.c: attribute unused
+
+2016-02-15 23:53  christos
+
+	* terminal.c: OpenBSD term.c rev. 1.7 2002/11/29 20:13:39 deraadt
+	  spelling
+
+2016-02-15 23:48  christos
+
+	* config.h, readline.c, sys.h: OpenBSD readline.c rev. 1.14
+	  2015/02/06 23:21:58 millert use SIZE_MAX
+
+2016-02-15 22:58  christos
+
+	* readline.c, readline/readline.h: OpenBSD readline.c rev. 1.13
+	  2015/01/13 08:33:12 reyk rl_set_keyboard_input_timeout() for
+	  readline 4.2 compat
+
+2016-02-15 22:56  christos
+
+	* eln.c: OpenBSD eln.c rev. 1.3 2011/11/27 21:46:44 pascal kill a
+	  C++-style comment
+
+2016-02-15 22:38  christos
+
+	* TEST/Makefile: Compile with WIDECHAR the same way the main
+	  Makefile does (Ingo Schwarze)
+
+2016-02-15 22:35  christos
+
+	* history.c: Don't free getline memory (Ingo Schwarze).
+
+2016-02-15 18:35  christos
+
+	* sys.h: forgot one fgetln define
+
+2016-02-15 17:14  christos
+
+	* config.h, sys.h: change tests for fgetln.
+
+2016-02-15 16:53  christos
+
+	* el.c, history.c: Use getline for better portability.
+
+2016-02-15 16:37  christos
+
+	* tokenizer.c: OpenBSD tokenizer.c rev. 1.8 2003/08/11 18:21:40
+	  deraadt don't increase amax on realloc failure
+
+2016-02-15 16:35  christos
+
+	* terminal.c: OpenBSD term.c rev. 1.13 2009/12/11 18:58:59 jacekm
+	  fix two memory leaks
+
+2016-02-15 16:30  christos
+
+	* history.c: Change the test for the size of encoded buffer to
+	  include the NULL, from OpenBSD; no functional change.
+
+2016-02-15 16:29  christos
+
+	* sig.c: OpenBSD sig.c rev. 1.6 2001/12/06 04:26:00 deraadt save
+	  and restore errno in signal handler
+
+2016-02-15 16:26  christos
+
+	* history.c: Use fparseln to avoid newline hacks.
+
+2016-02-15 16:18  christos
+
+	* el.c: use fparseln() to avoid needing to deal with missing \n in
+	  the last line and also to handle comments automatically.
+
+2016-02-14 18:06  christos
+
+	* chartype.h, eln.c: From Ingo Schwarze:
+
+	  el_getc() for the WIDECHAR case, that is, the version in eln.c.
+	  For a UTF-8 locale, it is broken in four ways:
+
+	   1. If the character read is outside the ASCII range, the
+	  function
+	      does an undefined cast from wchar_t to char.  Even if wchar_t
+	      is internally represented as UCS-4, that is wrong and
+	  dangerous
+	      because characters beyond codepoint U+0255 get their high
+	  bits
+	      truncated, meaning that perfectly valid printable Unicode
+	      characters get mapped to arbitrary bytes, even the ASCII
+	  escape
+	      character for some Unicode characters.  But wchar_t need not
+	      be implemented in terms of UCS-4, so the outcome of this
+	  function
+	      is undefined for any and all input.
+
+	   2. If insufficient space is available for the result, the
+	  function
+	      fails to detect failure and returns garbage rather than -1 as
+	      specified in the documentation.
+
+	   3. The documentation says that errno will be set on failure, but
+	      that doesn't happen either in the above case.
+
+	   4. Even for ASCII characters, the results may be wrong if
+	  wchar_t
+	      is not using UCS-4.
+
+2016-02-14 15:49  christos
+
+	* chared.c, chared.h, chartype.h, common.c, emacs.c, keymacro.c,
+	  makelist, map.c, parse.c, refresh.c, refresh.h, search.c,
+	  search.h, terminal.c, terminal.h, tty.c, vi.c: From Ingo
+	  Schwarze:
+
+	  As we have seen before, "histedit.h" can never get rid of
+	  including the <wchar.h> header because using the data types
+	  defined there is deeply ingrained in the public interfaces of
+	  libedit.
+
+	  Now POSIX unconditionally requires that <wchar.h> defines the
+	  type wint_t.	Consequently, it can be used unconditionally, no
+	  matter whether WIDECHAR is active or not.  Consequently, the
+	  #define Int is pointless.
+
+	  Note that removing it is not gratuitious churn.  Auditing for
+	  integer signedness problems is already hard when only fundamental
+	  types like "int" and "unsigned" are involved.  It gets very hard
+	  when types come into the picture that have platform-dependent
+	  signedness, like "char" and "wint_t".  Adding yet another layer
+	  on top, changing both the signedness and the width in a platform-
+	  dependent way, makes auditing yet harder, which IMHO is really
+	  dangerous.  Note that while removing the #define, i already found
+	  one bug caused by this excessive complication - in the function
+	  re_putc() in refresh.c.  If WIDECHAR was defined, it printed an
+	  Int = wint_t value with %c.  Fortunately, that bug only affects
+	  debugging, not production.  The fix is contained in the patch.
+
+	  With WIDECHAR, this doesn't change anything.	For the case
+	  without WIDECHAR, i checked that none of the places wants to
+	  store values that might not fit in wint_t.
+
+	  This only changes internal interfaces; public ones remain
+	  unchanged.
+
+2016-02-14 15:47  christos
+
+	* chartype.c, chartype.h, read.c: From Ingo Schwartze:
+
+	  Next step:  Remove #ifdef'ing in read_char(), in the same style
+	  as we did for setlocale(3) in el.c.
+
+	  A few remarks are required to explain the choices made.
+
+	   * On first sight, handling mbrtowc(3) seems a bit less trivial
+	     than handling setlocale(3) because its prototype uses the data
+	     type mbstate_t from <wchar.h>.  However, it turns out that
+	     "histedit.h" already includes <wchar.h> unconditionally (i
+	  don't
+	     like headers including other headers, but that ship has
+	  sailed,
+	     people are by now certainly used to the fact that including
+	     "histedit.h" doesn't require including <wchar.h> before), and
+	     "histedit.h" is of course included all over the place.  So
+	  from
+	     that perspective, there is no problem with using mbrtowc(3)
+	     unconditionally ever for !WIDECHAR.
+
+	   * However, <wchar.h> also defines the mbrtowc(3) prototype,
+	     so we cannot just #define mbrtowc away, or including the
+	  header
+	     will break.  It would also be a bad idea to porovide a local
+	     implementation of mbrtowc() and hope that it overrides the one
+	     in libc.  Besides, the required prototype is subtly different:
+	     While mbrtowc(3) takes "wchar_t *" as its first argument, we
+	     need a function that takes "Char *".  So unfortunately, we
+	  have
+	     to keep a ct_mbrtowc #define, at least until we can maybe get
+	     rid of "Char *" in the more remote future.
+
+	   * After getting rid of the #else clause in read_char(), we can
+	     pull "return 1;" into the default: clause.  After that, we can
+	     get rid of the ugly "goto again_lastbyte;" and just "break;".
+	     As a bonus, that also gets rid of the ugly CONSTCOND.
+
+	   * While here, delete the unused ct_mbtowc() from chartype.h.
+
+2016-02-12 18:23  christos
+
+	* eln.c: Avoid c99 for now.
+
+2016-02-12 16:36  christos
+
+	* el.h, eln.c, read.c: GC IGNORE_EXTCHARS and simplify code (Ingo
+	  Schwarze)
+
+2016-02-12 16:11  christos
+
+	* read.c: From Ingo Schwarze:
+
+	  If CHARSET_IS_UTF8 is not set, read_char() is broken in a large
+	  number of ways:
+
+	   1. The isascii(3) check can yield false positives.  If a string
+	  in
+	      an arbitrary encoding contains a byte in the range 0..127,
+	      that does not at all imply that it forms a character all by
+	      itself, and even less that it represents the same character
+	      as in ASCII.  Consequently, read_char() may return characters
+	      the user never typed.
+	      Even if the encoding is not state dependent, the assumption
+	  that
+	      bytes in the range 0..127 represent ASCII characters is
+	  broken.
+	      Consider UTF-16, for example.
+
+	   2. The reverse problem can also occur.  In an arbitrary
+	  encoding,
+	      there is no guarantee that a character that can be
+	  represented
+	      by ASCII is represented by a seven-bit byte, and even less by
+	      the same byte as in ASCII.
+	      Even for single-byte encodings, these assumptions are broken.
+	      Consider the ISO 646 national variants, for example.
+	      Consequently, the current code is insufficient to keep ASCII
+	      characters working even for single-byte encodings.
+
+	   3. The condition "++cbp != 1" can never trigger (because
+	  initially,
+	      cbp is 0, and the code can only go back up via the final
+	  goto,
+	      which has another cbp = 0 right before it) and it has no
+	  effect
+	      (because cbp isn't used afterwards).
+
+	   4. bytes = ct_mbtowc(cp, cbuf, cbp) is broken.  If this returns
+	  -1,
+	      the code assumes that is can just call mbtowc(3) again for
+	  later
+	      input bytes.  In some implementations, that may even be
+	  broken
+	      for state-independent encodings, but trying again after
+	  mbtowc(3)
+	      failure certainly produces completely erratic and meaningless
+	      results in state-dependent encodings.
+
+	   5. The assignment "*cp = (Char)(unsigned char)cbuf[0]" is
+	      completely bogus.  Even if the byte cbuf[0] represents a
+	      character all by itself, which it usually will not, whether
+	      or not the cast produces the desired result depends on the
+	      internal representation of wchar_t in the C library, which
+	      the application program can know nothing about.  Even for
+	  ASCII
+	      in the C/POSIX locale, an ASCII character other than '\0' ==
+	      L'\0' == 0 need not have the same numeric value as a char and
+	      as a wchar_t.
+
+	  To summarize, this code only works if all of the following
+	  conditions hold:
+
+	   - The encoding is a single-byte encoding.
+	   - ASCII is a subset of the encoding.
+	   - The implementation of mbtowc(3) in the C library does not
+	     require re-initialization after encoding errors.
+	   - The implementation of wchar_t in the C library uses the
+	     same numerical values as ASCII.
+
+	  Otherwise, it silently produces wrong results.
+
+	  The simplest way to fix this is to just use the same code as for
+	  UTF-8 (right above).	Of course, that causes functional changes
+	  but that shouldn't matter since current behaviour is undefined.
+
+	  The patch below provides the following improvements:
+
+	   - It works for all stateless single-byte encodings, no matter
+	     whether they are somehow related to ASCII, no matter how
+	     mb[r]towc(3) are internally implemented, and no matter how
+	     wchar_t is internally represented.
+	   - Instead of producing unpredictable and definitely wrong
+	     results for non-UTF-8 multibyte characters, it behaves in
+	     a well-defined way: It aborts input processing, sets errno,
+	     and returns failure.
+	     Note that short of providing full support for arbitrary
+	  locales,
+	     it is impossible to do better.  We cannot know whether a given
+	     unsupported locale is state-dependent, and for a
+	  state-dependent
+	     locale, it makes no sense to retry parsing after an encoding
+	     error, so the best we can do is abort processing for *any*
+	     unsupported multi-byte character.
+	   - Note that single-byte characters in arbitrary
+	  state-independent
+	     locales still work, even in locales that may potentially also
+	     contain multibyte characters, as long as those don't occur in
+	     input.  I'm not sure whether any such locales exist in
+	  practice...
+
+	  Tested with UTF-8 and C/POSIX on OpenBSD.  Also tested that in
+	  the C/POSIX locale, non-ASCII bytes get through unmangled.  You
+	  may wish to test with ISO-LATIN on NetBSD if NetBSD supports
+	  that.
+
+	  ---- Also use a constant for meta to avoid warnings.
+
+2016-02-11 20:21  christos
+
+	* chartype.c, common.c, el.c, emacs.c, keymacro.c, map.c, parse.c,
+	  read.c, refresh.c, search.c, sys.h, terminal.c, tty.c: - Add some
+	  more Char casts - reduce ifdefs by providing empty defs for nls
+	  functions (Ingo Schwarze)
+
+2016-02-11 20:10  christos
+
+	* chartype.h: remove unused wrapper (Ingo Schwarze)
+
+2016-02-11 17:08  christos
+
+	* read.c: Remove utf8_islead() mbrtowc() handles this just fine
+	  (Ingo Schwarze)
+
+2016-02-08 18:18  christos
+
+	* chartype.h, read.c: UTF-8 fixes from Ingo Schwarze:
+
+	   1. Assume that errno is non-zero when entering read_char()
+	      and that read(2) returns 0 (indicating end of file).
+	      Then, the code will clear errno before returning.
+	      (Obviously, the statement "errno = 0" is almost always
+	       a bug unless there is save_errno = errno right before it
+	       and the previous value is properly restored later,
+	       in all reachable code paths.)
+
+	   2. When encountering an invalid byte sequence, the code discards
+	      all following bytes until MB_LEN_MAX overflows; consider, for
+	      example, 0xc2 immediately followed by a few valid ASCII
+	  bytes.
+	      Three of those ASCII bytes will be discarded.
+
+	   3. On a POSIX system, EILSEQ will always be set after reading a
+	      valid (yes, valid, not invalid!) UTF-8 character.  The reason
+	      is that mbtowc(3) will first be called with a length limit
+	      (third argument) of 1, which will fail, return -1, and - on
+	      a POSIX system - set errno to EILSEQ.
+	      This third bug is mitigated a bit because i couldn't find any
+	      system that actually conforms to POSIX in this respect:  None
+	      of OpenBSD, NetBSD, FreeBSD, Solaris 11, and glibc set errno
+	      when an incomplete character is passed to mbtowc(3), even
+	  though
+	      that is required by POSIX.
+	      Anyway, that mbtowc(3) bug will be fixed at least in OpenBSD
+	      after release unlock, so it would be good to fix this bug in
+	      libedit before fixing the bug in mbtowc(3).
+
+	  How can these three bugs be fixed?
+
+	   1. As far as i understand it, the intention of the bogus errno =
+	  0
+	      is to undo the effects of failing system calls in el_wset(),
+	      sig_set(), and read__fixio() if the subsequent read(2)
+	  indicates
+	      end of file.  So, restoring errno has to be moved right after
+	      read__fixio().  Of course, neither 0 nor e is the right value
+	      to restore: 0 is wrong if errno happened to be set on entry,
+	  e
+	      would be wrong because if one read(2) fails but a second
+	  attempt
+	      succeeds after read__fixio(), errno should not be touched.
+	  So,
+	      the errno to be restored in this case has to be saved before
+	      calling read(2) for the first time.
+
+	   2. Solving the second issue requires distinguishing invalid and
+	      incomplete characters, but that is impossible with the
+	  function
+	      mbtowc(3) because it returns -1 in both cases and sets errno
+	      to EILSEQ in both cases (once properly implemented).
+
+	      It is vital that each input character is processed right
+	  away.
+	      It is not acceptable to wait for the next input character
+	  before
+	      processing the previous one because this is an interactive
+	      library, not a batch system.  Consequently, the only
+	  situation
+	      where it is acceptable to wait for the next byte without
+	  first
+	      processing the previous one(s) is when the previous one(s)
+	  form
+	      an incomplete sequence that can be continued to form a valid
+	      character.
+
+	      Consequently, short of reimplementing a full UTF-8 state
+	  machine
+	      by hand, the only correct way forward is to use mbrtowc(3).
+	      Even then, care is needed to always have the state object
+	      properly initialized before using it, and to not discard a
+	  valid
+	      ASCII or UTF-8 lead byte if it happens to follow an invalid
+	      sequence.
+
+	   3. Fortunately, solution 2. also solves issue 3. as a side
+	  effect,
+	      by no longer using mbtowc(3) in the first place.
+
+2016-01-30 16:05  christos
+
+	* hist.h: Whitespace fix (Ingo Schwarze)
+
+2016-01-30 05:02  christos
+
+	* search.c, tokenizer.c: Fix misplaced parentheses (Ingo Schwarze)
+
+2016-01-29 20:59  christos
+
+	* keymacro.h: One macro is enough (Ingo Schwarze)
+
+2015-12-08 17:53  gson
+
+	* tty.c: unbreak the build
+
+2015-12-08 13:57  christos
+
+	* tty.c: If we did not setup the tty, don't reset it.
+
+2015-12-08 13:56  christos
+
+	* el.c: Only reset the terminal if we have a tty (Boris Ranto)
+
+2015-11-03 22:36  christos
+
+	* editline.3: Fix descriptions of el_set functions.  Americanise
+	  initialise :-)
+
+2015-10-21 23:45  christos
+
+	* vi.c: Use the full buffer for the conversion; ideally we should
+	  be dynamically allocating this. From Jilles Tjoelker
+
+2015-10-19 02:36  christos
+
+	* vi.c: make sure we have space for NUL and NUL terminate buffer
+	  array (Jilles Tjoelker)
+
+2015-06-02 17:36  christos
+
+	* readline/readline.h: remove duplicate declaration
+
+2015-06-02 17:35  christos
+
+	* readline.c, readline/readline.h: Adjust API to a more modern
+	  readline (Ryo Onodera)
+
+2015-05-26 21:59  christos
+
+	* readline.c, readline/readline.h: - fix types of
+	  rl_completion_entry_function and rl_add_defun - call update pos
+	  before completion to refresh the screen From Thomas Eriksson
+
+2015-05-18 17:07  christos
+
+	* eln.c: make el_gets() return the number of characters read in
+	  wide mode (not the number of wide characters) From khorben@ by
+	  FreeBSD:
+	  https://svnweb.freebsd.org/ports/head/devel/libedit/files/patch-src_eln.c?\
+	  revision=382458&view=markup XXX: Pullup-7
+
+2015-05-17 15:14  christos
+
+	* chartype.h: add FreeBSD
+
+2015-05-14 12:44  christos
+
+	* chartype.h, map.c, tty.c: fix warnings on ubuntu 32 bit (Miki
+	  Rozloznik)
+
+2015-05-13 15:33  martin
+
+	* Makefile, chartype.h, editline.3, editrc.5, eln.c,
+	  filecomplete.c, readline.c: Sync lib/libedit with head, requested
+	  by christos in #753:
+
+		  lib/libedit/Makefile 1.53
+		  lib/libedit/chartype.h 1.13
+		  lib/libedit/editline.3 1.83-1.84
+		  lib/libedit/editrc.5 1.28-1.29
+		  lib/libedit/eln.c 1.18
+		  lib/libedit/filecomplete.c 1.33-1.34
+		  lib/libedit/readline.c 1.112-1.115
+
+	  Man page improvements, fix overlapping strcpy, improve readline
+	  compatibility, clang build fix.
+
+2015-04-14 07:30  snj
+
+	* chartype.c, chartype.h: Pull up following revision(s) (requested
+	  by christos in ticket #679):	       lib/libedit/chartype.c:
+	  revisions 1.11, 1.12	  lib/libedit/chartype.h: revisions 1.12,
+	  1.13 PR/49683: Amir Plivatsky: Off-by-one comparison in
+	  ct_decode_string() leading to out of bounds referrence.  -- split
+	  the allocation functions, their mixed usage was too confusing.
+
+2015-04-01 17:23  christos
+
+	* readline.c: Fix overlapping strcpy (Gerry Swislow)
+
+2015-03-24 22:29  christos
+
+	* readline.c: set some readline compatibility default key settings.
+	  https://bugzilla.redhat.com/attachment.cgi?id=1001895
+
+2015-03-24 22:26  christos
+
+	* eln.c: save and restore IGNORE_EXTCHARS like we do in the getc
+	  case. From: https://bugzilla.redhat.com/attachment.cgi?id=1001894
+
+2015-02-22 03:16  christos
+
+	* chartype.c, chartype.h: split the allocation functions, their
+	  mixed usage was too confusing.
+
+2015-02-22 01:46  christos
+
+	* chartype.c, chartype.h: PR/49683: Amir Plivatsky: Off-by-one
+	  comparison in ct_decode_string() leading to out of bounds
+	  referrence.  XXX: pullup-7
+
+2015-02-17 23:49  christos
+
+	* chartype.h: OpenBSD is like us.
+
+2015-01-29 21:30  joerg
+
+	* Makefile: Disable -Wcast-qual for clang for now.
+
+2014-12-25 14:39  wiz
+
+	* editline.3, editrc.5: Bump date for previous.
+
+2014-12-25 14:39  wiz
+
+	* editline.3, editrc.5: From Ingo Schwarze, based on changes from
+	  Kaspars Bankovskis:  * Document error handling of el_init(),
+	  el_set(), el_source(),    and history_init().   * Fix a typo an
+	  improve punctuation below H_SETUNIQUE.   * The ellipsis already
+	  implies "optional", no need for [].	* Sort options in
+	  editrc(5).   * Prevent e.g. rom being misconstrued as the end of
+	  a sentence.	* Drop a useless duplicate .Ar macro.	* Put
+	  telltc in its proper place in the alphabetical order.   * A few
+	  typos in vi editor command names.   * Some missing vi editor
+	  command names.   * Some missing author macros.
+
+2014-10-18 17:07  riz
+
+	* filecomplete.c: callers's -> caller's
+
+2014-10-18 10:33  snj
+
+	* filecomplete.c, readline.c: src is too big these days to tolerate
+	  superfluous apostrophes.  It's "its", people!
+
+2014-08-20 02:02  tls
+
+	* Makefile, chared.c, chared.h, editline.3, el.c, eln.c,
+	  filecomplete.c, hist.h, histedit.h, history.c, map.c, map.h,
+	  parse.c, read.c, readline.c, tty.c, tty.h, vi.c, TEST/tc1.c,
+	  TEST/wtc1.c: Rebase to HEAD as of a few days ago.
+
+2014-08-15 15:32  christos
+
+	* readline.c: Fix typo in comment (Tobias Stoeckmann)
+
+2014-08-10 08:51  tls
+
+	* Makefile, chared.c, chared.h, editline.3, el.c, eln.c,
+	  filecomplete.c, hist.h, histedit.h, history.c, map.c, map.h,
+	  parse.c, read.c, readline.c, tty.c, tty.h, vi.c, TEST/tc1.c,
+	  TEST/wtc1.c: Rebase.
+
+2014-07-06 20:15  christos
+
+	* map.c, map.h, parse.c, read.c: Bounds search for reallocated
+	  index, from OpenBSD via Andreas Fett
+
+2014-07-06 20:09  christos
+
+	* readline.c: PR/48957: Federico G. Schwindt: Restore commented out
+	  code that broke rl_callback_handler.
+
+2014-06-18 22:12  christos
+
+	* TEST/: tc1.c, wtc1.c: cast gotsig because it is long on some
+	  systems.
+
+2014-06-18 20:52  christos
+
+	* tty.c: Add stdlib.h for abort() (Jess Thrysoee)
+
+2014-06-18 20:12  christos
+
+	* chared.c, chared.h, el.c, eln.c, histedit.h, vi.c: Don't depend
+	  on weak aliases to define the vi "alias" expansion function,
+	  provide an API instead to set it.
+
+2014-06-18 15:03  christos
+
+	* vi.c: accomodate FreeBSD's flavor of weak references.
+
+2014-06-14 22:49  mrg
+
+	* Makefile: remove remaining makefile support for GCC < 45 that i
+	  found.
+
+2014-06-06 00:07  christos
+
+	* filecomplete.c: PR/48876: Dmitriy Grigoryev: Core dump in
+	  readline lib on attempted expansion Make sure we have 2 matches
+	  before calling strcmp().
+
+2014-05-22 13:36  yamt
+
+	* chared.c, editline.3, el.c, eln.c, hist.h, histedit.h, history.c,
+	  read.c, readline.c, shlib_version, readline/readline.h: sync with
+	  head.
+
+	  for a reference, the tree before this commit was tagged as
+	  yamt-pagecache-tag8.
+
+	  this commit was splitted into small chunks to avoid a limitation
+	  of cvs.  ("Protocol error: too many arguments")
+
+2014-05-20 17:05  christos
+
+	* eln.c: Always NULL terminate the argv[] array. From OpenBSD.
+
+2014-05-19 23:01  christos
+
+	* tty.c: PR/48821: If called from tty_stty(), recalculate flags.
+
+2014-05-19 21:54  christos
+
+	* tty.c, tty.h: more tty modes refactoring, no functional change
+	  intended.
+
+2014-05-19 19:14  christos
+
+	* tty.c: Factor out some common code (more to be done) from
+	  PR/48821
+
+2014-05-11 11:01  wiz
+
+	* editline.3: Add An to authors. Wording.
+
+2014-05-11 03:05  christos
+
+	* editline.3, hist.h, histedit.h, history.c: Add a history function
+	  that takes a FILE pointer; needed for Capsicum.  From Eitan Adler
+
+2014-02-26 14:50  christos
+
+	* eln.c: Add missing EL_REFRESH
+
+2014-01-21 14:51  christos
+
+	* readline.c: ... if called prior to using_history().  This needed
+	  to be worked around in PHP:
+	  http://git.php.net/?p=php-src.git;a=commitdiff;h=31d67bd3
+
+	  Bug: https://bugzilla.redhat.com/show_bug.cgi?id=1055409
+
+2013-08-28 10:05  christos
+
+	* readline.c: get rid of PATH_MAX.
+
+2013-07-13 00:39  christos
+
+	* chared.c: cast to avoid warning.
+
+2013-07-12 19:48  christos
+
+	* chared.c, editline.3, histedit.h: Add a function to move the
+	  cursor.
+
+2013-06-23 08:21  tls
+
+	* read.c, readline.c, readline/readline.h: resync from head
+
+2013-05-28 02:10  christos
+
+	* readline.c, readline/readline.h: expose rl_catch_signals and
+	  explain what we are doing.
+
+2013-05-28 01:55  christos
+
+	* read.c: Test early for EOF to avoid infinite loop in the wide
+	  char case. From Linas Vepstas: linasvepstas at gmail dot com
+
+2013-04-02 08:38  agc
+
+	* Version.map: add symbol versioning info for:
+
+		  libcrypt
+		  libcurses
+		  libedit
+		  libmenu
+		  libossaudio
+		  libposix
+		  libskey
+
+2013-02-25 01:27  tls
+
+	* editline.3, editrc.5, el.c, histedit.h, map.c, readline.c,
+	  shlib_version: resync with head
+
+2013-01-23 01:05  yamt
+
+	* editline.3, editrc.5, map.c, readline.c: sync with head
+
+2013-01-22 21:23  christos
+
+	* editline.3, el.c, histedit.h, shlib_version: provide an
+	  el_init_fd function.
+
+2013-01-13 16:46  christos
+
+	* readline.c: explicitly pass (void *)0 instead of NULL.
+
+2013-01-10 17:03  wiz
+
+	* editrc.5: Add FILES section.	From jmc@OpenBSD.
+
+2013-01-10 17:03  wiz
+
+	* editline.3: In 2000, .editrc reading from $PWD was removed.
+	  Update the man page.	From LEVAI Daniel via jmc@OpenBSD.
+
+2013-01-01 16:34  christos
+
+	* map.c: remove dead assignment (Christoph Mallon)
+
+2013-01-01 16:33  christos
+
+	* map.c: Fix pasto that affected bind -k (Christoph Mallon)
+
+2012-11-20 04:00  tls
+
+	* readline.c: Resync to 2012-11-19 00:00:00 UTC
+
+2012-10-30 19:59  yamt
+
+	* Makefile, chared.c, editline.3, editrc.5, el.c, histedit.h,
+	  read.c, readline.c, terminal.c: sync with head
+
+2012-10-13 01:35  christos
+
+	* readline.c: Add trailing NULL's to the varargs functions as
+	  required. (John Spencer)
+
+2012-09-11 22:29  christos
+
+	* editline.3: PR/46945: Steffen Nurpmeso; el_getc() doesn't
+	  document it's setting errno
+
+2012-09-11 14:31  christos
+
+	* read.c: return !OKCMD on error.
+
+2012-09-11 13:58  christos
+
+	* el.c: PR/46942: Steffen Nurpmeso: editline(3): el_get(): fix
+	  UNBUFFERED return
+
+2012-09-11 13:57  christos
+
+	* editline.3: PR/46941: Steffen Nurpmeso: document EL_BUFFERED
+
+2012-09-10 22:53  christos
+
+	* read.c: PR/46935: Steffen Nurpmeso: editline(3) (libedit): faulty
+	  errno handling, faulty reuse of val in wrong context
+
+2012-08-10 14:20  joerg
+
+	* Makefile: Don't depend on HAVE_GCC being always defined.
+
+2012-07-18 19:12  christos
+
+	* chared.c: From Kamil Dudka: fix crash of el_insertstr() on
+	  incomplete multi-byte
+
+2012-07-12 20:46  christos
+
+	* readline.c: PR/46678: Ian Wienand: Add stub implementation for
+	  rl_free_line_state()
+
+2012-06-05 22:22  bouyer
+
+	* readline.c: Pull up following revision(s) (requested by christos
+	  in ticket #309):     lib/libedit/readline.c: revision 1.104 don't
+	  crash if add_history is called from an empty line. Called from
+	  nslookup in new bind.  XXX: pullup to 6
+
+2012-06-05 02:30  christos
+
+	* readline.c: don't crash if add_history is called from an empty
+	  line. Called from nslookup in new bind.  XXX: pullup to 6
+
+2012-06-02 16:19  njoly
+
+	* editrc.5: Switch from Op to Oo/Oc for nested block.
+
+2012-05-31 15:16  christos
+
+	* histedit.h: remove stdint.h; it is not used.
+
+2012-05-30 20:21  christos
+
+	* terminal.c: don't include both term.h and termcap.h
+
+2012-05-23 12:07  yamt
+
+	* readline.c, tty.c, tty.h, readline/readline.h: sync with head.
+
+2012-05-15 21:07  christos
+
+	* readline.c: define the new variable
+
+2012-05-15 19:30  christos
+
+	* readline.c, readline/readline.h: Add
+	  rl_completion_word_break_hook from:
+	  http://gitweb.dragonflybsd.org/dragonfly.git/commitdiff/\
+	  5ec6a45fa762b8cbd0305ca06acb8780335a486a
+
+2012-05-15 17:59  christos
+
+	* tty.c, tty.h: save and restore the tty settings on entry and exit
+	  respectively.  cleanup debugging printfs.
+
+2012-04-17 02:05  yamt
+
+	* Makefile, chartype.h, common.c, el.c, eln.c, history.c, makelist,
+	  map.c, readline.c, terminal.c, terminal.h, vi.c, TEST/wtc1.c:
+	  sync with head
+
+2012-03-24 21:09  christos
+
+	* terminal.c, terminal.h: From: Jilles Tjoelker: Add a mapping for
+	  the cursor delete key
+
+2012-03-24 21:08  christos
+
+	* common.c: From Jilles Tjoelker: Do not move the cursor for
+	  ed-delete-next-char in emacs mode.  This makes
+	  ed-delete-next-char suitable for mapping to the <Delete> key.
+	  Behaviour in vi mode is unchanged (for 'x').
+
+2012-03-21 06:37  matt
+
+	* Makefile: These directories default to WARNS?=5
+
+2012-03-21 06:34  matt
+
+	* makelist: Use C89 functions definitions.
+
+2012-03-21 06:33  matt
+
+	* readline.c: Use C89 functions definitions.  Remove use of __P
+
+2012-03-11 22:15  christos
+
+	* eln.c: include the NULL in the argv conversion
+
+2012-03-11 22:14  christos
+
+	* el.c: use arraycount
+
+2012-01-16 15:57  christos
+
+	* vi.c: PR/45843: Henning Petersen: Fix resource leak on error.
+
+2011-11-18 21:39  christos
+
+	* history.c, map.c: Add coverity annotations about unreachable code
+	  (Kamil Dudka)
+
+2011-11-18 21:38  christos
+
+	* readline.c: Add missing *
+
+2011-11-18 21:32  christos
+
+	* terminal.c: Initialize termbuf (Kamil Dudka)
+
+2011-11-18 21:30  christos
+
+	* TEST/wtc1.c: Initialize res (Kamil Dudka)
+
+2011-11-18 21:25  christos
+
+	* terminal.c: check for negative return of ct_visual_char (Kamil
+	  Dudka)
+
+2011-11-18 21:24  christos
+
+	* vi.c: Off by one in allocation could cause buffer overflow (Kamil
+	  Dudka)
+
+2011-11-18 21:22  christos
+
+	* el.c: remove unrecheable code (Kamil Dudka)
+
+2011-11-16 02:45  christos
+
+	* chartype.h: easier with an int for now.
+
+2011-11-16 00:54  christos
+
+	* chartype.h: Since Width() is used only for display purposes we
+	  don't want to pass -1 for unprintable characters.
+
+2011-10-23 19:37  christos
+
+	* chared.c: Fixed misplaced parenthesis (Nirbhay Choubey)
+
+2011-10-04 17:27  christos
+
+	* search.c, terminal.c, tty.c, vi.c:
+	  fixed warnings where wint_t is unsigned.
+
+2011-10-03 16:09  christos
+
+	* terminal.c: fix broken change (parenthesis in the wrong place).
+	  From Nirbhay Choubey
+
+2011-09-28 16:08  christos
+
+	* sys.h: include <wchar.h> if we don't have wcsdup()
+
+2011-09-16 18:13  plunky
+
+	* filecomplete.c: NULL does not need a cast, here
+
+2011-08-16 18:25  christos
+
+	* Makefile, chared.c, chartype.c, eln.c, filecomplete.c,
+	  keymacro.c, map.c, parse.c, read.c, readline.c, search.c,
+	  terminal.c, tokenizer.c, tty.c, tty.h, vi.c: re-enable
+	  -Wconversion
+
+2011-08-04 16:33  christos
+
+	* TEST/wtc1.c: need err.h now
+
+2011-08-02 19:22  joerg
+
+	* Makefile: Only use -Wconversion if GCC is actually the active
+	  compiler.
+
+2011-07-30 12:07  tron
+
+	* Makefile: Don't use "-Wconversion" with GCC 4.5 which will
+	  complain about all the expressions where signed variables are
+	  converted to unsigned in an expression e.g. "size_t foo =
+	  sizeof(something) * int_var;".
+
+2011-07-30 01:44  christos
+
+	* Makefile, chared.c, chartype.c, chartype.h, el.h, filecomplete.c,
+	  history.c, keymacro.c, read.c, readline.c, refresh.c, search.c,
+	  terminal.c, terminal.h, vi.c: pass -Wconversion
+
+2011-07-29 22:58  christos
+
+	* common.c, filecomplete.c, history.c, readline.c, vi.c: - fix
+	  unused params - unconditionalize vis.h
+
+2011-07-29 22:57  christos
+
+	* config.h: better autoconf results
+
+2011-07-29 22:56  christos
+
+	* Makefile: add -Wunused-parameter Is that the right way? Perhaps
+	  WARNS=5?
+
+2011-07-29 17:20  christos
+
+	* chared.c, common.c, sys.h, terminal.c, tty.c: kill ifdef notdef
+
+2011-07-29 17:16  christos
+
+	* chared.c, chartype.c, common.c, el.c, emacs.c, filecomplete.c,
+	  hist.c, history.c, keymacro.c, map.c, parse.c, prompt.c, read.c,
+	  readline.c, search.c, terminal.c, tokenizer.c, tty.c, vi.c: KNF
+	  return (\1); -> return \1;
+
+2011-07-28 22:50  christos
+
+	* chared.c, chartype.c, el.c, eln.c, filecomplete.c, hist.c,
+	  hist.h, histedit.h, history.c, keymacro.c, map.c, read.c,
+	  readline.c, search.c, sig.c, sys.h, terminal.c, tokenizer.c,
+	  vi.c: kill ptr_t and ioctl_t, add  * sizeof(*foo) to all
+	  allocations.
+
+2011-07-28 19:33  christos
+
+	* filecomplete.c: fix unused variable warnings on systems without
+	  _r functions
+
+2011-07-28 19:33  christos
+
+	* readline.c: handle systems without getpwent_r
+
+2011-07-28 07:18  joerg
+
+	* config.h: Sync compat defines to unbreak build.
+
+	  XXX Do a proper config.h update from configure
+
+2011-07-28 05:52  christos
+
+	* keymacro.c, terminal.c: whitespace
+
+2011-07-28 05:48  christos
+
+	* keymacro.c: whitespace
+
+2011-07-28 05:44  christos
+
+	* keymacro.h: whitespace and comments
+
+2011-07-28 03:56  christos
+
+	* Makefile, el.c, el.h, key.c, key.h, keymacro.c, keymacro.h,
+	  map.c, read.c, terminal.c, terminal.h, tty.c: Rename key to
+	  keymacro to avoid conflicts with term.h. The renaming of term to
+	  terminal was again to avoid conflicts with term.h. term.h is a
+	  moving namespace violation.
+
+2011-07-28 03:08  christos
+
+	* TEST/wtc1.c: - check and don't cast malloc return - more wide
+	  function use
+
+2011-07-28 03:05  christos
+
+	* Makefile, chared.c, common.c, el.h, eln.c, emacs.c, map.c,
+	  parse.c, prompt.c, refresh.c, term.c, term.h, terminal.c,
+	  terminal.h: term -> terminal XXX: need to rename key_ too.
+
+2011-07-28 03:05  christos
+
+	* config.h: regen
+
+2011-07-28 03:04  christos
+
+	* el.c: avoid shadowed variable
+
+2011-07-28 02:54  christos
+
+	* readline.c: use vis.h from .
+
+2011-07-28 02:50  christos
+
+	* filecomplete.c: eliminate alloca for portability portable
+	  getpw{nam,uid}
+
+2011-07-28 02:49  christos
+
+	* el.c: term -> terminal eliminate MAXPATHLEN
+
+2011-07-28 02:48  christos
+
+	* chartype.c: - fix memory allocation botch in wide strings - check
+	  mbstowcs return code
+
+2011-07-28 02:45  christos
+
+	* sys.h: more portability defines
+
+2011-07-28 02:45  christos
+
+	* vi.c, tty.c, sig.c, search.c: term -> terminal
+
+2011-07-28 02:44  christos
+
+	* read.c: term -> terminal fix wide function confusion
+
+2011-07-28 02:43  christos
+
+	* makelist: include config.h for all c files.
+
+2011-07-28 02:43  christos
+
+	* history.c: include vis.h from dot.
+
+2011-07-28 02:43  christos
+
+	* hist.c: fix confusion with wide functions.
+
+2011-07-27 15:18  christos
+
+	* history.c: fix narrow compilation
+
+2011-07-27 04:23  christos
+
+	* history.c: - don't leave cursor dangling on memory failure or
+	  after clearing the list - compute the string length to be
+	  strvis'ed after the string is encoded
+
+2011-07-27 04:18  christos
+
+	* chartype.c: fix buffer growing code.
+
+2011-07-27 04:18  christos
+
+	* TEST/wtc1.c: add history testing code.
+
+2011-07-26 23:03  christos
+
+	* el.c: don't stop reading after empty lines from: Nirbhay Choubey
+
+2011-07-10 01:54  christos
+
+	* read.c: make obvious what we are trying to do...
+
+2011-07-09 18:04  tron
+
+	* read.c: Try to fix build of port where "char" is unsigned.
+
+2011-07-08 17:54  christos
+
+	* read.c: Support other non-latin1 single byte character sets.
+	  From: Alexander Barkov and Nirbhay Choubey at oracle dot com
+
+2011-06-23 16:18  cherry
+
+	* Makefile, eln.c: Catchup with rmind-uvmplock merge.
+
+2011-06-21 04:32  mrg
+
+	* Makefile: add some XXX'd -Wno-foo if HAVE_GCC >= 45.
+
+	  XXX: someone should look at these.
+
+2011-06-20 11:11  mrg
+
+	* eln.c: various build fixes for gcc 4.5.  from chuq.  XXX i'm not
+	  sure all of these work properly wtf pointer aliasing, but there
+	  are no casts at least...
+
+	  the lib/libpuffs/puffs_priv.h is definately a real bug fix.
+
+	  from chuq.
+
+2011-04-26 00:47  wiz
+
+	* editrc.5: Markup consistency, from YOMURA Masanori. Add serial
+	  comma.
+
+2011-03-20 13:36  bouyer
+
+	* el.c: Fix use-after-free. Discovered by running tests with
+	  MALLOC_OPTIONS=J (should this be the default for tests ?),
+	  pointed out by njoly@
+
+2011-03-05 16:09  bouyer
+
+	* editline.3, read.c, vi.c: Sync with HEAD
+
+2011-02-27 02:51  christos
+
+	* editline.3: Fix argument for EL_EDITOR from Jess Thrysoee
+
+2011-02-22 06:45  joerg
+
+	* vi.c: Introduce __weakref_visible to handle the different
+	  required visibility for weak references. GCC 4.2+ and Clang
+	  require static, older GCC wants extern. Change __weak_reference
+	  to include sym. This requires changes the existing users to not
+	  reuse the name of the symbol, but avoids further differences
+	  between GCC 4.1 and GCC 4.2+/clang.
+
+2011-02-18 21:53  christos
+
+	* read.c: PR/44599: Steven Vernon: libedit acts as if no data read
+	  if editmode is turned off because nread is uninitialized in the
+	  edit disabled case.
+
+2011-02-17 17:44  joerg
+
+	* vi.c: Deal with changes in the weak_reference semantic in GCC 4.2
+	  and later.
+
+2011-02-08 17:19  bouyer
+
+	* el.c, el.h, tty.c: Sync with HEAD
+
+2011-01-28 04:41  christos
+
+	* tty.c: fix pasto
+
+2011-01-28 00:11  christos
+
+	* el.c, el.h, tty.c: don't turn on editing if stdout is not a tty.
+
+2011-01-16 04:05  christos
+
+	* history.c: off by one in fetching history data. From: Gerry
+	  Swislow
+
+2010-12-16 18:42  wiz
+
+	* chartype.h, editline.3: Observe the following spelling: - wide
+	  character (noun) - wide-character (adjective)
+
+	  Inspired by jmc@OpenBSD.
+
+2010-12-06 01:05  dholland
+
+	* filecomplete.c: Improve previous to avoid changing the interface
+	  of an externally exposed function. (But note that this function
+	  is neither documented nor declared in any installed header file,
+	  and it probably should not be externally exposed.) Related to PR
+	  44183, closes PR 44186.
+
+2010-12-02 05:42  dholland
+
+	* filecomplete.c: add const, from PR 44183.
+
+2010-12-02 05:35  dholland
+
+	* filecomplete.c: Fix up bodgy code for printing completion
+	  matches; it used to sometimes skip entries, print (null), run off
+	  the end of the array, or occasionally receive SIGSEGV, and now
+	  will, hopefully at least, do none of that.
+
+	  Based in part on the patch in PR 44183 from Sergio Acereda; I
+	  also did some tidyup and fixed it to print top-to-bottom first
+	  like ls(1).
+
+2010-11-15 22:24  christos
+
+	* filecomplete.c: don't increment i twice in the loop. From Michael
+	  Byrnes
+
+2010-11-04 14:53  christos
+
+	* eln.c: PR/43998, PR/44021: In narrow history emulation, don't
+	  treat UTF-8 character sets specially as far as history goes since
+	  we always need to do the conversion from narrow [history] to wide
+	  [editline].
+
+2010-10-24 01:27  christos
+
+	* vi.c: fix fd leak found by Igor Zinovik
+
+2010-09-16 22:08  christos
+
+	* readline.c, TEST/rl1.c, readline/readline.h: unbreak readline
+	  history.
+
+2010-08-28 17:44  christos
+
+	* chared.c, chared.h, el.c, eln.c, histedit.h, readline.c: setup a
+	  callback to be invoked on resize buffers so that readline can
+	  reset rl_line_buffer which unfortunately some applications use it
+	  directly.
+
+2010-08-04 22:29  christos
+
+	* readline.c, readline/readline.h: provide rl_on_newline
+
+2010-07-21 20:18  christos
+
+	* read.c: refresh only on SIGCONT not SIGWINCH from Edward
+	  Sheldrake
+
+2010-07-19 19:18  christos
+
+	* read.c: retry the read after sigwinch too, from Edward Sheldrake
+
+2010-06-01 20:20  christos
+
+	* filecomplete.c: tidy up memory allocation and don't unnecessarily
+	  print "./" before names.
+
+2010-04-21 07:28  matt
+
+	* common.c: sync to netbsd-5
+
+2010-04-20 04:01  christos
+
+	* chartype.h: Use the same hack for Solaris and MacOS/X. This is
+	  not right, we only really support UTF-8, but it will get us going
+	  until this is fixed properly.  From Jess Thrysoee
+
+2010-04-18 23:17  christos
+
+	* TEST/: tc1.c, wtc1.c: \033 is more portable than \e still.
+
+2010-04-18 23:17  christos
+
+	* tty.c: ffs needs strings.h
+
+2010-04-18 23:17  christos
+
+	* makelist: shame on solaris that is the last OS not supporting $()
+
+2010-04-15 02:57  christos
+
+	* chared.h, makelist, readline.c, search.c: From Jess Thrysoee
+	  - Fix wint_t to Int confusion
+
+2010-04-15 02:56  christos
+
+	* el.c: From Jess Thrysoee    - use nl_langinfo to test for UTF-8,
+	  because some locales are UTF-8 without      reflecting it in
+	  their names.
+
+2010-04-15 02:55  christos
+
+	* chartype.c, chartype.h: From Jess Thrysoee	expose
+	  ct_enc_width()
+
+2010-04-15 02:52  christos
+
+	* eln.c: From Jess Thrysoee - NARROW_HISTORY and IGNORE_EXTCHARS
+	  should not take effect if locale is UTF-8 - account for multi
+	  byte char length in
+
+2010-04-15 02:50  christos
+
+	* TEST/tc1.c: From Jess Thrysoee: call setlocale so we can test
+	  UTF-8
+
+2010-04-15 02:50  christos
+
+	* histedit.h: From Jess Thrysoee: add ifndef around def of
+	  _GNU_SOURCE
+
+2010-03-22 23:59  christos
+
+	* read.c: https://bugzilla.redhat.com/show_bug.cgi?id=575383 Handle
+	  EINTR properly.
+
+2010-02-03 16:34  roy
+
+	* Makefile, TEST/Makefile: Userland now builds and uses terminfo
+	  instead of termcap.
+
+	  OK: core@, jdc@
+
+2010-01-20 02:15  christos
+
+	* eln.c: PR/42646: Joachim Kuebart: Shell crashes in libedit when
+	  window size changes (SIGWINCH). Return NULL if el_gets() gets
+	  interrupted.
+
+2010-01-19 23:38  christos
+
+	* eln.c: Fix wrapper for EL_EDITOR, from Michael L. Hitch
+
+2010-01-18 20:17  christos
+
+	* filecomplete.c: PR/42637: Joachim Kuebart: Shell tab completion
+	  crashes due to libedit stack smashing
+
+2010-01-12 20:40  christos
+
+	* eln.c: - call the mapping function directly instead of el_wset().
+	  - save the strings passed to the mapping function so that they
+	  don't get   re-used. This leaks. To fix it properly we could
+	  either pass a flag to   free particular entries before re-using,
+	  or allocate all of them.    Allocating all of them wastes memory,
+	  allocating some of them makes    the code more complex.  This
+	  fixes compatibility binding (shell tab completion for example)
+
+2010-01-12 20:37  christos
+
+	* chartype.c: - in the argv conversion, handle NULL as NULL - when
+	  printing tab/nl print them, don't handle them specially.
+
+2010-01-03 20:05  wiz
+
+	* editline.3: Bump date for historyw -> history_w.
+
+2010-01-03 19:27  christos
+
+	* chartype.h, editline.3, histedit.h, history.c, readline.c,
+	  tokenizer.c, TEST/Makefile, TEST/wtc1.c: rename historyw ->
+	  history_w for consistency.  add wide tst code and make it the
+	  default.
+
+2009-12-31 19:32  christos
+
+	* chartype.c, chartype.h: expose the encode and decode string
+	  functions for the benefit of history and readline.
+
+2009-12-31 16:58  christos
+
+	* Makefile, editline.3, el.c, el.h, eln.c, histedit.h, prompt.c,
+	  read.c: - Document and enable wide character support.  - Fix read
+	  function compatibility.
+
+2009-12-31 00:54  christos
+
+	* Makefile, chartype.h, el.c, el.h, eln.c, hist.c, hist.h,
+	  histedit.h, history.c, makelist, readline.c, search.c,
+	  tokenizer.c: Fix wide build, test it, but don't turn it on yet.
+
+2009-12-30 23:37  christos
+
+	* Makefile, chared.c, chared.h, chartype.c, chartype.h, common.c,
+	  el.c, el.h, eln.c, emacs.c, filecomplete.c, filecomplete.h,
+	  hist.c, hist.h, histedit.h, history.c, key.c, key.h, makelist,
+	  map.c, map.h, parse.c, parse.h, prompt.c, prompt.h, read.c,
+	  read.h, readline.c, refresh.c, refresh.h, search.c, search.h,
+	  sys.h, term.c, term.h, tokenizer.c, tty.c, tty.h, vi.c: Wide
+	  character support (UTF-8) from Johny Mattsson; currently
+	  disabled.
+
+2009-12-28 23:15  christos
+
+	* refresh.c: reduce diff with tcsh
+
+2009-12-28 22:55  christos
+
+	* filecomplete.c: improve on the listing display by printing only
+	  one character after the filename not two, and no trailing blanks.
+	  I will revisit this when I write the ls-F code.
+
+2009-12-28 22:54  christos
+
+	* term.c: Reduce diff with tcsh's editor. No functional change
+	  intended.
+
+2009-12-28 22:52  christos
+
+	* refresh.c: Fix bug where tab completion on the second or > line
+	  that caused listing ended up corrupting the display by an extra
+	  space in the beginning. Reported by Mac Chan.
+
+2009-09-07 23:24  christos
+
+	* histedit.h, history.c, readline.c, readline/readline.h: apply
+	  apple patches from:
+	  http://opensource.apple.com/source/libedit/libedit-11/patches/
+
+2009-08-31 02:05  christos
+
+	* sys.h, term.c, readline/readline.h: delete defined(sun), it could
+	  be invaded in the user namespace. Suggested by mrg@
+
+2009-08-30 17:41  christos
+
+	* sys.h, term.c, readline/readline.h: use __sun || sun instead of
+	  _SunOS, from Jess Thrysoee
+
+2009-07-25 23:19  christos
+
+	* el.c: Ignore comment lines in .editrc from Jess Thrysoee
+
+2009-07-22 20:25  christos
+
+	* el.c: Only need path if we have issetugid... From Anon Ymous
+
+2009-07-22 17:58  christos
+
+	* tty.c: Don't depend on side effects inside an assert From Michael
+	  Cook mcook at bbn dot com
+
+2009-07-22 17:57  christos
+
+	* readline.c: Fix memory leaks in error paths.	From Michael Cook
+	  mcook at bbn dot com
+
+2009-07-22 17:57  christos
+
+	* read.c: Always initialize nread since it is an out param.  From
+	  Michael Cook mcook at bbn dot com
+
+2009-07-22 17:56  christos
+
+	* el.c: Move filename to the scope it is being used.  From Michael
+	  Cook mcook at bbn dot com
+
+2009-07-17 14:28  christos
+
+	* refresh.c: Simplify the code. No functional change.
+
+2009-07-17 14:27  christos
+
+	* term.c: - off by one in the term.h case.  - make code more
+	  similar to tcsh (if we want to handle wide chars, this is
+	  needed; for now it is a no-op)
+
+2009-07-17 14:26  christos
+
+	* prompt.c: handle prompt_esc properly.
+
+2009-07-17 14:25  christos
+
+	* TEST/tc1.c: Use the proper prompt printing function.
+
+2009-07-09 21:02  christos
+
+	* readline/readline.h: add stdio.h since we are using FILE. From
+	  Grant Erickson
+
+2009-07-05 23:55  perry
+
+	* editline.3: note that the return value of el_gets doesn't remain
+	  valid across calls.
+
+2009-06-09 15:04  christos
+
+	* read.c: decrement the number of levels after the loop (Julien
+	  Torres)
+
+2009-06-08 17:10  christos
+
+	* read.c: from Julien Torres, flip the order we pop in the macro
+	  array.
+
+2009-05-19 23:45  christos
+
+	* refresh.c: always scroll when we advance past bottom. From Caleb
+	  Welton cwelton at greenplum dot com
+
+2009-05-13 21:18  jym
+
+	* chared.c, chared.h, common.c, editline.3, editrc.5, el.c, el.h,
+	  emacs.c, filecomplete.c, filecomplete.h, histedit.h, key.c,
+	  key.h, makelist, prompt.c, prompt.h, read.c, readline.c,
+	  refresh.c, search.c, sig.c, sig.h, term.c, term.h, tokenizer.c,
+	  tty.c, vi.c, TEST/tc1.c, readline/readline.h: Sync with HEAD.
+
+	  Third (and last) commit. See
+	  http://mail-index.netbsd.org/source-changes/2009/05/13/msg221222.html
+
+2009-05-12 10:14  wiz
+
+	* editline.3: Punctuation nit.
+
+2009-05-11 20:33  christos
+
+	* editline.3, el.c, histedit.h: restore binary compatibility by
+	  providing new prompt functions that take an extra literal
+	  character.
+
+2009-05-04 00:53  snj
+
+	* common.c: Pull up following revision(s) (requested by msaitoh in
+	  ticket #703):        lib/libedit/common.c: revision 1.23 fix
+	  mis-evaluating whether a char is digit or not.
+
+2009-04-30 20:11  bouyer
+
+	* common.c: Pull up following revision(s) (requested by msaitoh in
+	  ticket #1307):       lib/libedit/common.c: revision 1.23 fix
+	  mis-evaluating whether a char is digit or not.
+
+2009-04-23 04:03  snj
+
+	* term.c: Apply patch (requested by msaitoh in ticket #2007):
+	  Coverity CID 1668: Plug memory leak when malloc() failed.
+
+2009-04-23 04:00  snj
+
+	* common.c: Pull up following revision(s) (requested by msaitoh in
+	  ticket #2006):       lib/libedit/common.c: revision 1.23 fix
+	  mis-evaluating whether a char is digit or not.
+
+2009-04-16 21:39  christos
+
+	* prompt.c: PR/41230: -current: sh(1) endlessly looping in
+	  interactive Fix proposed from Matthew Mondor
+
+2009-04-12 00:17  wiz
+
+	* editrc.5: Drop trailing whitespace.
+
+2009-04-11 22:53  joerg
+
+	* editrc.5: Don't use .Xo/.Xc to work around ancient macro argument
+	  limit in groff.
+
+2009-04-11 22:48  joerg
+
+	* editline.3: Don't use .Xo/.Xc to avoid ancient macro argument
+	  limit.
+
+2009-04-08 23:31  christos
+
+	* readline.c: Fix off by one error reported by:  Caleb Welton
+	  cwelton at greenplum dot com
+
+2009-04-01 10:58  wiz
+
+	* editline.3: Readability improvement. Whitespace nits.
+
+2009-03-31 23:33  christos
+
+	* term.c: cast to size_t to avoid sign / unsigned comparison
+	  warning.
+
+2009-03-31 19:53  christos
+
+	* readline.c, readline/readline.h: implement
+	  RL_PROMPT_{START,END}_IGNORE
+
+2009-03-31 19:38  christos
+
+	* editline.3, el.c, histedit.h, prompt.c, prompt.h, refresh.c,
+	  term.c, term.h, TEST/tc1.c: Implement literal prompt sequences.
+	  Now someone can implement
+	  RL_PROMPT_START_LITERAL/RL_PROMPT_END_LITERAL :-)
+
+2009-03-10 23:55  wiz
+
+	* editline.3: -1 is not a defined value, it is just a value.  On
+	  the other hand, minuses need backslashes, otherwise they become
+	  hyphens.
+
+2009-03-10 21:46  christos
+
+	* editline.3, read.c: make el_gets set the count to -1 on error to
+	  distinguish between EOF and error.
+
+2009-03-09 20:24  joerg
+
+	* editline.3, editrc.5: Fix preamble to match order set out by
+	  mdoc(7). Discussed with wiz.
+
+2009-02-27 05:18  msaitoh
+
+	* common.c: fix mis-evaluating whether a char is digit or not.
+
+2009-02-22 00:35  christos
+
+	* read.c: remove VEOF test. the tty is in cooked mode when we are
+	  not editing and the tty driver does the check for us.
+
+2009-02-22 00:31  christos
+
+	* key.c, key.h, readline.c, vi.c: more size_t stuff.
+
+2009-02-22 00:31  christos
+
+	* read.c: use the VEOF character from the terminal, instead of
+	  hard-coding 4.
+
+2009-02-21 08:58  wiz
+
+	* editline.3: Restore markup changes (probably accidentally)
+	  reverted in previous.
+
+2009-02-21 01:05  christos
+
+	* editline.3, el.c, histedit.h, prompt.c, prompt.h: back out all
+	  prompt changes. they are not needed.
+
+2009-02-19 21:27  cube
+
+	* el.c: Order of evaluation of arguments is undefined, so call
+	  va_arg() in an explicit order.  Fixes a segfault with bc reported
+	  by Patrick Welche on current-users.
+
+2009-02-19 16:20  christos
+
+	* read.c, sig.c, sig.h: reset and redraw on sigcont. From Anon
+	  Ymous.
+
+2009-02-19 10:48  wiz
+
+	* editline.3: Fix wordo, use more markup.
+
+2009-02-19 02:18  christos
+
+	* histedit.h: bump version for prompt arg.
+
+2009-02-19 02:18  christos
+
+	* editline.3: document extra argument.
+
+2009-02-18 16:04  christos
+
+	* sig.c: SA_RESTART for all signals but SIGINT. From Anon Ymous.
+
+2009-02-17 22:34  christos
+
+	* el.c, histedit.h, prompt.c, prompt.h: allow for a prompt
+	  argument.
+
+2009-02-16 01:15  christos
+
+	* filecomplete.c, filecomplete.h, key.c, tty.c: fix sign compare
+	  issues.
+
+2009-02-15 22:55  christos
+
+	* chared.c, chared.h, common.c, emacs.c, filecomplete.c,
+	  filecomplete.h, key.c, key.h, read.c, readline.c, refresh.c,
+	  search.c, term.c, tokenizer.c, tty.c, vi.c: pass lint on _LP64.
+
+2009-02-15 22:25  christos
+
+	* sig.c, sig.h: in order for read() to return EINTR we need to use
+	  sigaction, not signal, otherwise SA_RESTART is set.
+
+2009-02-15 22:24  christos
+
+	* el.h, read.c: don't restart on EINTR, instead return NULL
+	  immediately. From Anon Ymous
+
+2009-02-12 14:39  sketch
+
+	* makelist, readline.c, term.c, readline/readline.h: More fixes for
+	  existing portability stuff.
+
+2009-02-06 21:08  sketch
+
+	* sys.h, term.c: SUNOS is spelt __SunOS.  Add missing prototypes.
+
+2009-02-06 20:53  sketch
+
+	* tty.c: Needs errno.h
+
+2009-02-06 15:40  sketch
+
+	* history.c: Plug memory leak, from MySQL.
+
+2009-02-06 14:14  sketch
+
+	* vi.c: Portability fix.
+
+2009-02-06 13:45  sketch
+
+	* chared.c: de-__P()
+
+2009-02-05 20:15  christos
+
+	* histedit.h, read.c: match documentation in el_push
+
+2009-02-05 20:15  christos
+
+	* readline.c, readline/readline.h: add rl_set_prompt
+
+2009-01-26 18:32  apb
+
+	* config.h, filecomplete.c: Define HAVE_STRUCT_DIRENT_D_NAMLEN in
+	  config,h, and test it when deciding whether to use
+	  entry->d_namlen or strlen(entry->d_name).  Addresses PR 40477 by
+	  Robert Millan.
+
+2009-01-18 13:17  lukem
+
+	* Makefile: WARNS=4
+
+2009-01-18 13:17  lukem
+
+	* el.c, read.c, readline.c: fix -Wsign-compare issues
+
+2009-01-11 16:00  christos
+
+	* filecomplete.c, readline.c: - insert a space after the recognized
+	  string if it was an exact match - initialize properly the string
+	  used for completion.	From Alex Bligh alex at alex dot org dot uk
+	  - Make char constants consistent
+
+2009-01-11 04:07  christos
+
+	* shlib_version: bump shared libraries.
+
+2008-09-30 10:37  aymeric
+
+	* common.c: have '$' include the last character in the line when
+	  embedded in a command.  This fixes c$, d$, y$, and so on in vi
+	  mode.
+
+2008-09-24 18:35  wrstuden
+
+	* common.c, el.c, read.c, refresh.c, sig.c, term.c, term.h, tty.c:
+	  Merge in changes between wrstuden-revivesa-base-2 and
+	  wrstuden-revivesa-base-3.
+
+2008-09-18 06:39  wrstuden
+
+	* sig.h, tty.c: Sync with wrstuden-revivesa-base-2.
+
+2008-09-10 17:45  christos
+
+	* common.c, el.c, read.c, refresh.c, sig.c, term.c, term.h, tty.c:
+	  Allow a single process to control multiple ttys (for pthreads
+	  using _REENTRANT) using multiple EditLine objects. Mostly from
+	  Preston A. Elder.
+
+2008-07-30 15:00  christos
+
+	* tty.c: handle EINTR in the termios operations, reported by the
+	  GHC folks
+
+2008-07-12 17:27  christos
+
+	* sig.h: Don't bother with SIGSTOP it cannot be caught or ignored.
+	  From Jess Thrysoee
+
+2008-05-18 14:30  yamt
+
+	* editline.3, editrc.5, filecomplete.c, filecomplete.h, read.h,
+	  readline.c, readline/readline.h: sync with head.
+
+2008-04-30 15:10  martin
+
+	* editline.3, editrc.5: Convert TNF licenses to new 2 clause
+	  variant
+
+2008-04-29 08:53  martin
+
+	* filecomplete.c, filecomplete.h, read.h, readline.c,
+	  readline/readline.h: Convert to new 2 clause license
+
+2008-04-06 01:53  christos
+
+	* histedit.h, shlib_version: bump minor.
+
+2008-04-05 17:53  christos
+
+	* editline.3, el.c, histedit.h, readline.c: add EL_REFRESH for the
+	  benefit of readline
+
+2008-04-04 23:18  christos
+
+	* readline.c, readline/readline.h: Add rl_forced_update_display()
+	  from Gerry Swislow
+
+2007-08-12 09:41  christos
+
+	* readline.c, readline/readline.h: patches from Axel Thimm
+
+2007-06-10 22:20  christos
+
+	* histedit.h: Fix tab/space confusion; from Stefan Farfeleder
+
+2007-05-28 14:06  tls
+
+	* Makefile: Add new Makefile knob, USE_FORT, which extends USE_SSP
+	  by turning on the FORTIFY_SOURCE feature of libssp, thus checking
+	  the size of arguments to various string and memory copy and set
+	  functions (as well as a few system calls and other miscellany)
+	  where known at function entry.  RedHat has evidently built all
+	  "core system packages" with this option for some time.
+
+	  This option should be used at the top of Makefiles (or
+	  Makefile.inc where this is used for subdirectories) but after any
+	  setting of LIB.
+
+	  This is only useful for userland code, and cannot be used in libc
+	  or in any code which includes the libc internals, because it
+	  overrides certain libc functions with macros.  Some effort has
+	  been made to make USE_FORT=yes work correctly for a full-system
+	  build by having the bsd.sys.mk logic disable the feature where it
+	  should not be used (libc, libssp iteself, the kernel) but no
+	  attempt has been made to build the entire system with USE_FORT
+	  and doing so will doubtless expose numerous bugs and misfeatures.
+
+	  Adjust the system build so that all programs and libraries that
+	  are setuid, directly handle network data (including serial comm
+	  data), perform authentication, or appear likely to have (or have
+	  a history of having) data-driven bugs (e.g. file(1)) are built
+	  with USE_FORT=yes by default, with the exception of libc, which
+	  cannot use USE_FORT and thus uses only USE_SSP by default.
+	  Tested on i386 with no ill results; USE_FORT=no per-directory or
+	  in a system build will disable if desired.
+
+2007-05-27 21:45  christos
+
+	* readline.c, readline/readline.h: Add rl_completion_matches, fix
+	  remove_history
+
+2007-03-01 22:41  christos
+
+	* read.c: Fix bug with multiple pending el_pushes. Reported by
+	  Julien Torres.
+
+2007-01-12 17:31  christos
+
+	* editline.3: PR/35411: Matthew Wala: inconsistency in editline(3):
+	  rename "num" to the appropriate parameter names.
+
+2006-12-18 01:03  wiz
+
+	* editline.3: Fix xref section. Whitespace cleanups..
+
+2006-12-15 23:13  christos
+
+	* editline.3, el.c, el.h, histedit.h: add EL_GETFP, and EL_SETFP.
+
+2006-11-25 18:54  freza
+
+	* el.c: s/el->errfile/el->el_errfile/g in debug code, fixes
+	  MKDEBUGLIB build.
+
+2006-11-24 01:03  christos
+
+	* histedit.h: bump minor.
+
+2006-11-24 01:01  christos
+
+	* editline.3, el.c, histedit.h, readline.c, shlib_version, term.c,
+	  term.h, readline/readline.h: - Add more readline functions,
+	  enough for gdb-6.5 - Make el_get varyadic, and implement
+	  EL_GETTC.  - XXX: the EL_SETTC api will change in the future.
+
+2006-11-09 17:58  christos
+
+	* filecomplete.c: don't use alloca with ssp.
+
+2006-10-22 09:48  mrg
+
+	* vi.c: __weakref__ attribute can not be applied to anything when
+	  inside function scope, so, move the extern of get_alias_text
+	  outside vi_alias().
+
+	  fixes build problems with GCC 4.1-20061021.
+
+2006-09-28 15:52  christos
+
+	* history.c: Fix memory leak found by valgrind (Julien Torres)
+
+2006-08-31 22:20  rpaulo
+
+	* Makefile, TEST/Makefile, TEST/tc1.c, TEST/test.c: Rename
+	  TEST/test.c to avoid problems when doing a cleandir on
+	  case-insensitive file systems.  ok'ed christos.
+
+2006-08-21 14:45  christos
+
+	* editline.3, editrc.5, filecomplete.c, filecomplete.h, read.h,
+	  readline.c, readline/readline.h: Change to a 3 clause copyright
+	  after permission of the holders.
+
+2006-07-23 22:21  christos
+
+	* readline.c: PR/34062: Tanaka Akira: rl_deprep_term_function is
+	  NULL in libedit.  Default to rl_deprep_terminal as suggested; do
+	  the same for rl_prep_term_function
+
+2006-05-18 19:54  christos
+
+	* vi.c: change __weak_extern to __weak_reference so that gcc4
+	  works.
+
+2006-04-09 03:36  christos
+
+	* map.c: fix debugging printf format.
+
+2006-03-25 14:00  rtr
+
+	* readline.c: remove if/free block checking known condition
+
+	  coverity 2762 / run 11
+
+2006-03-23 21:22  christos
+
+	* key.c, key.h: move declaration to header file.
+
+2006-03-21 18:52  christos
+
+	* readline.c: Coverity CID 2743: Not really a memory leak, but make
+	  it obvious that we always free tmp.
+
+2006-03-18 20:23  christos
+
+	* term.c: Fix compilation.
+
+2006-03-18 20:22  christos
+
+	* readline.c: Lint comment.
+
+2006-03-18 10:31  christos
+
+	* term.c: Coverity CID 1668: Plug memory leak.
+
+2006-03-18 10:28  christos
+
+	* readline.c: Coverity CID 1666: Plug memory leak.
+
+2006-03-18 10:19  christos
+
+	* readline.c: Coverity CID 1667: Plug memory leak
+
+2006-03-18 10:15  christos
+
+	* readline.c: Coverity CID 1662: Memory leak.
+
+2006-03-18 10:09  christos
+
+	* tty.c: Coverity CID 597: remove dead code.
+
+2006-03-18 10:07  christos
+
+	* tty.c: Coverity CID 1216: Prevent negative index use.
+
+2006-03-18 10:02  christos
+
+	* term.c: Coverity CID 806: Prevent NULL deref
+
+2006-03-06 22:11  christos
+
+	* chared.h, common.c, emacs.c, key.c, key.h, map.c, term.c, term.h,
+	  vi.c: Print the actual eofc, instead of ^D\b\b.  Change internal
+	  character decoding to prevent buffer oveflows.
+
+2006-03-06 22:11  christos
+
+	* readline.c: use the tty chars for reprint and eof instead of
+	  hard-coded ^R and ^D
+
+2006-02-13 15:12  christos
+
+	* readline.c: PR/32817: Magnus Svensson: write_history and
+	  read_history returncode is not readline compatible.
+
+2006-02-12 17:15  christos
+
+	* readline.c: Partial rl_getc_function support from Jess Thrysoee.
+
+2005-11-09 23:11  christos
+
+	* refresh.c: Refresh bug reported by Julien Torres:
+
+	  going from:	  activate -verbose to:     reset -activation
+	  results in:	  reset -activationverbose" instead of:     reset
+	  -activation
+
+	  This is because we choose to insert "reset -" before the current
+	  line, and the delete "e -" and insert "ion" in the appropriate
+	  place. The cleareol code did not handle this case properly; we
+	  now cleareol to the maximum number of characters of the first
+	  difference, the second difference and the difference in line
+	  length.
+
+2005-10-22 18:45  christos
+
+	* makelist: change tr '[a-z]' '[A-Z]' to tr '[:lower:]' '[:upper:]'
+	  so that POSIX systems work properly regardless of environment
+	  variable settings.
+
+2005-10-12 11:29  wiz
+
+	* editline.3: Add el_get to SYNOPSIS. From jmc@openbsd.
+
+2005-09-10 00:32  wiz
+
+	* editline.3: Fix double if (from Alexey E. Suslikov via
+	  jmc@openbsd).  While here, re-word both H_[GS]ETUNIQUE
+	  descriptions so they make more sense. Bump date.
+
+2005-08-19 06:21  christos
+
+	* el.c: PR/31012: Barry Naujok: libedit el_get with EL_EDITOR op
+	  does not work Fixed as suggested.
+
+2005-08-10 14:46  christos
+
+	* vi.c: Don't save the el->el_line.cursor over a cv_insert call and
+	  use it later because it might change. From Stefan Farfedeler.
+
+2005-08-09 18:40  christos
+
+	* vi.c: Don't delete the current line in vi mode when typing 'yy'.
+	  From Stefan Farfeleder.
+
+2005-08-09 15:58  christos
+
+	* map.c: Fix two more help iterators. Thanks Stefan Farfeleder!
+
+2005-08-08 16:05  christos
+
+	* chared.h, common.c, emacs.c, key.c, term.c, vi.c: Spelling
+	  mistakes and comment errors (from FreeBSD via Stefan Farfeleder;
+	  many thanks)
+
+2005-08-08 16:04  christos
+
+	* makelist, map.c: Don't add an extra { NULL, 0, NULL } element to
+	  the help array. Instead keep it always the same size as the
+	  function array for consistency. Reported in FreeBSD PR 82381, but
+	  fixed differently.
+
+2005-08-08 03:41  christos
+
+	* chared.c: The previous commit removed too much and forgot to
+	  reset the history event number. From Kouichirou Hiratsuka, many
+	  thanks!
+
+2005-08-03 15:41  christos
+
+	* filecomplete.c: Fix reversed test; from Gerry Swislow
+
+2005-08-02 14:11  christos
+
+	* read.c: On a fatal error, we want to stop processing the macro
+	  buffers.
+
+2005-08-02 12:20  tron
+
+	* read.c: Add missing second argument to another call of
+	  ch_reset().
+
+2005-08-02 01:00  christos
+
+	* chared.c, chared.h, common.c, el.c, read.c: Don't reset the macro
+	  strings each time we enter el_gets(), otherwise el_push() is
+	  unusable programmatically.
+
+2005-08-01 16:34  christos
+
+	* history.c: Don't forget to initialize h_del; from  Julien Torres.
+
+2005-07-14 17:02  wiz
+
+	* editline.3: Drop trailing whitespace.
+
+2005-07-14 17:00  christos
+
+	* editline.3, histedit.h, history.c, readline.c,
+	  readline/readline.h: PR/30747: David N. Williams: libedit is
+	  missing remove_history() Added, please test.
+
+2005-07-12 13:35  tron
+
+	* readline.c: Pull up revision 1.52 (requested by lukem in ticket
+	  #542): check for pwd != NULL, fix a missed getpwnam.
+
+2005-07-12 13:33  tron
+
+	* readline.c: Pull up revision 1.50 (requested by lukem in ticket
+	  #542): use getpwent_r
+
+2005-07-06 23:13  christos
+
+	* history.c, key.c: Fix memory leaks found by valgrind. From Julien
+	  Torres
+
+2005-06-12 08:58  christos
+
+	* histedit.h: make this useable from c++.
+
+2005-06-11 20:18  christos
+
+	* filecomplete.c, filecomplete.h, readline.c, readline/readline.h:
+	  PR/30500: Paul Shupak: Inconsistent definition of tilde_expand().
+	  Provide a layer of indirection between the readline
+	  compatibility functions and our internal implementation, so that
+	  we have the freedom to change the function signature.
+
+2005-06-10 22:21  christos
+
+	* filecomplete.c, filecomplete.h, readline.c: Bug reported from
+	  Martin Dietze:
+
+	      The place to change the completion_append_character is
+	      usually somewhere in the `rl_completion_entry_function'
+	      callback which is where one usually can distinguish between
+	      file- or dir-like entries to append a slash for dirs etc.
+
+	      This does no longer work since `fn_complete()' takes the
+	      `append_character' as argument before the callback is
+	  executed,
+	      so that changes to the variable
+	  `rl_completion_append_character'
+	      have in fact no effect for the current completion.
+
+	  Fix by adding a function that returns the
+	  rl_completion_append_character, when it gets passed in a filename
+	  in readline emulation.
+
+2005-06-10 22:18  christos
+
+	* readline/readline.h: tilde expand should take a const argument.
+
+2005-06-01 13:37  lukem
+
+	* chared.c, read.c, tty.c, tty.h, TEST/test.c: Don't use
+	  non-standard uint or u_int.
+
+2005-05-29 06:58  lukem
+
+	* parse.c, parse.h: Update for recent parse__escape() prototype
+	  change
+
+2005-05-29 05:55  christos
+
+	* parse.c, tty.c: PR/25694: Luke Mewburn: Don't abuse
+	  unconstify'ing a string and writing to it, because you'll core
+	  dump. Also remove extra const that gives pain to the irix
+	  compiler.
+
+2005-05-28 16:03  tron
+
+	* readline.c: Pull up revision 1.55 (requested by agc in ticket
+	  #353): Use the correct type for the stored callback function
+
+2005-05-28 16:02  tron
+
+	* readline.c: Pull up revision 1.54 (requested by agc in ticket
+	  #353): Sync the alternative readline interface with reality: +
+	  the rl_callback_handler_install takes a pointer to a void
+	  function   which has one char * argument (it's called that way in
+	  the readline	 emulation source, otherwise there's no way to pass
+	  the line buffer   to the function which processes the line when
+	  EOL is encountered) + provide a prototype for that function
+	  signature and use it Makes the callback readline interface work
+	  now.
+
+2005-05-28 16:02  tron
+
+	* readline/readline.h: Pull up revision 1.14 (requested by agc in
+	  ticket #353): Sync the alternative readline interface with
+	  reality: + the rl_callback_handler_install takes a pointer to a
+	  void function   which has one char * argument (it's called that
+	  way in the readline	emulation source, otherwise there's no way
+	  to pass the line buffer   to the function which processes the
+	  line when EOL is encountered) + provide a prototype for that
+	  function signature and use it Makes the callback readline
+	  interface work now.
+
+2005-05-28 14:03  lukem
+
+	* TEST/test.c: fix for WARNS=3
+
+2005-05-28 14:02  lukem
+
+	* Makefile: clean up build of "test"
+
+2005-05-28 13:55  lukem
+
+	* Makefile: MAKEVERBOSE support
+
+2005-05-27 16:01  agc
+
+	* readline.c: Use the correct type for the stored callback function
+
+2005-05-27 13:35  agc
+
+	* readline.c, readline/readline.h: Sync the alternative readline
+	  interface with reality:
+
+	  + the rl_callback_handler_install takes a pointer to a void
+	  function   which has one char * argument (it's called that way in
+	  the readline	 emulation source, otherwise there's no way to pass
+	  the line buffer   to the function which processes the line when
+	  EOL is encountered)
+
+	  + provide a prototype for that function signature and use it
+
+	  Makes the callback readline interface work now.
+
+2005-05-19 00:36  christos
+
+	* Makefile: Libedit depends on libterm. From Patrick Welche
+
+2005-05-19 00:34  christos
+
+	* filecomplete.c: Make completion_matches non-static since readline
+	  wants it.
+
+2005-05-18 02:50  christos
+
+	* TEST/test.c: Make signal handler safe. From  Michael Knudsen,
+	  many thanks.
+
+2005-05-16 15:14  lukem
+
+	* makelist: Remove clause 3 from the UCB license.
+
+2005-05-12 17:48  christos
+
+	* filecomplete.c: PR/30215: Kouichirou Hiratsuka: /bin/sh dumps
+	  core with tabcomplete Don't core-dump when trying to complete an
+	  empty line; instead assume ./
+
+2005-05-09 22:10  dsl
+
+	* filecomplete.c: Use getpwuid_r(getuid(), ...) to expand ~/....
+	  Don't replace ~xyz with /home/xyz when expanding ~
+
+2005-05-07 18:28  dsl
+
+	* filecomplete.c, filecomplete.h: gdb directly calls
+	  filename_completion_function()
+
+2005-05-07 18:22  dsl
+
+	* Makefile: Make everything that uses makelist depend on Makefile -
+	  that way the created files pick up new entries.
+
+2005-05-07 18:01  dsl
+
+	* Makefile, filecomplete.c, filecomplete.h, histedit.h, readline.c:
+	  Separate out the filename completion functions from the
+	  readline() code.  Pass in loads of parameters instead of relying
+	  on shed-loads of global variables to modify the behaviour.  The
+	  filename completion code can now be enabled by code that uses
+	  el_gets().  (eg /bin/sh)
+
+2005-04-25 03:06  matt
+
+	* vi.c: Terminate the arglist with a NULL instead of 0.  (Shuts up
+	  gcc4.x)
+
+2005-04-19 05:29  christos
+
+	* readline.c: check for pwd != NULL, fix a missed getpwnam.
+
+2005-04-13 00:01  christos
+
+	* readline.c, readline/readline.h: PR/29958: Peter Bex: add
+	  rl_variable_bind and rl_attempted_completion_over
+
+2005-04-02 08:28  christos
+
+	* readline.c: use getpwent_r
+
+2005-03-19 18:36  christos
+
+	* editline.3: PR/29738: Rui Paulo: Incorrect tok_line and tok_str
+	  declarations.
+
+2005-03-15 01:10  christos
+
+	* term.h: Add missing define, needed for debugging (from Rob
+	  Rodgers)
+
+2005-03-10 20:34  christos
+
+	* readline.c: Always update the position variables before the map
+	  function is called.  From Rob Rodgers, thanks!
+
+2005-03-10 00:55  christos
+
+	* readline.c: set UNBUFFERED again after you do the line callback
+	  so that the new line gets refreshed.
+
+2005-03-10 00:55  christos
+
+	* read.c: Make sure we flush after we prepare when we are
+	  unbuffered otherwise the prompt will not appear immediately.
+
+2004-11-27 19:31  christos
+
+	* history.c: PR/26785: Jess Thrysoee: libedit - H_NEXT and H_PREV
+	  shifts cursor on failure
+
+2004-11-04 02:16  christos
+
+	* search.c: Make EM_DELETE_PREV_CHAR behave like
+	  ED_DELETE_PREV_CHAR in incremental search. From Gerry Swislow.
+
+2004-10-28 23:14  dsl
+
+	* emacs.c: Use (unsigned char) cast to sanitise arguments to ctype
+	  functions.
+
+2004-10-27 21:59  dsl
+
+	* emacs.c: Fix a load of international alphabet problems with
+	  isxxx() and toupper() Change isspace(*char_ptr) to
+	  isspace(*char_ptr & 0xff) so that the correct piece of memory is
+	  looked at for the bit mask.  gcc optimises out the '& 0xff' (on
+	  i386 at least).  Fixes problems found by gcc when the splurious
+	  (int) cast is removed from the #defines in ctype.h
+
+2004-09-08 20:15  christos
+
+	* readline.c: cut out the middle-man and use el_insertstr()
+	  directly.
+
+2004-09-08 20:15  christos
+
+	* readline/readline.h: make rl_inhibit_completion visible.
+
+2004-08-24 14:41  christos
+
+	* history.c: make sure that we round up to 1K.
+
+2004-08-20 14:54  christos
+
+	* history.c: PR/26725: Sergey S. Kostyliov: Typo in libedit,
+	  possible buffer overflow in
+	  src/lib/libedit/history.c:history_save()
+
+2004-08-13 14:10  mycroft
+
+	* chared.c, chared.h, emacs.c, map.c, tty.c, vi.c:
+	  Delete-previous-char and delete-next-char without an argument are
+	  not supposed to modify the yank buffer in Emacs.  Make it so.
+
+2004-07-10 11:28  tron
+
+	* el.c: Pull up revision 1.39 (requested by christos in ticket
+	  #620): PR/23486: Andreas Gustafsson: gdb no longer works with
+	  emacs - make sure that we keep previous contents of the buffer in
+	  unbuffered mode.  - when turning editing on and off keep tty
+	  consistent.
+
+2004-07-10 11:28  tron
+
+	* read.c: Pull up revision 1.34 (requested by christos in ticket
+	  #620): PR/23486: Andreas Gustafsson: gdb no longer works with
+	  emacs - make sure that we keep previous contents of the buffer in
+	  unbuffered mode.  - when turning editing on and off keep tty
+	  consistent.
+
+2004-07-08 02:51  christos
+
+	* el.c, read.c: PR/23486: Andreas Gustafsson: gdb no longer works
+	  with emacs - make sure that we keep previous contents of the
+	  buffer in unbuffered mode.  - when turning editing on and off
+	  keep tty consistent.
+
+2004-05-23 01:21  christos
+
+	* term.c: fix memory leak; thanks to Logan Gabriel
+
+2004-04-15 10:13  wiz
+
+	* editline.3: Remove duplicate word, from jfb@openbsd via
+	  jmc@openbsd.
+
+2004-02-27 15:52  christos
+
+	* el.c, read.c, read.h, readline.c: Better fix for
+	  rl_prep_terminal() from Gerry Swislow.
+
+2004-02-21 17:42  christos
+
+	* el.c, read.c, read.h: Separate tty separation from the prompt
+	  printing function. From Gerry Swislow.
+
+2004-01-17 18:57  christos
+
+	* read.c, readline.c, sys.h, term.c, readline/readline.h:
+	  portability fixes.
+
+2003-12-08 13:03  lukem
+
+	* TEST/test.c: update for function name change
+
+2003-12-05 14:46  wiz
+
+	* editline.3: Use Aq instead of <>, quote a minus, drop trailing
+	  space.
+
+2003-12-05 14:37  lukem
+
+	* Makefile, editline.3, histedit.h, parse.c, readline.c,
+	  shlib_version, tokenizer.c, tokenizer.h, TEST/Makefile,
+	  TEST/test.c: Tokenization function enhancements: * Make
+	  tok_init(), tok_end(), tok_reset(), tok_line() and tok_str()
+	  publically available in <histedit.h> * Documented the public
+	  functions in editline(3) * Renamed tok_line() -> tok_str() *
+	  Added new tok_line() which takes a "const LineInfo *" instead of
+	  "const char *" (the former has "cursor" information), and
+	  optionally   return the argv index ("int *cursorc") and offset
+	  within that index   ("int *cursorv").  This means that completion
+	  routines can use the	 tokenization code to crack the line and
+	  easily find which word the   cursor is at.  (mmm, context
+	  sensitive completion :) * Fixed TEST/test.c when using
+	  "continuation" lines (unmatched quote   or \ at EOL), and added
+	  some more DEBUG messages including highlighting   where the
+	  cursor is (with a `_').
+
+2003-11-04 14:22  christos
+
+	* editline.3: s/wth/with/
+
+2003-11-03 04:22  christos
+
+	* readline.c: Fix uninitialized variable.
+
+2003-11-02 21:08  christos
+
+	* chared.c: Always use el->el_buffer, because newbuffer could have
+	  moved. From Gerry Swislow gerry at certif dot com
+
+2003-11-02 21:07  christos
+
+	* emacs.c: If the kill buffer is empty return normal. From Gerry
+	  Swislow gerry at certif dot com
+
+2003-11-02 21:06  christos
+
+	* parse.c: Handle M- as escape. XXX: should probably select the
+	  meta-map instead.  From Gerry Swislow  gerry at certif com
+
+2003-11-02 02:45  christos
+
+	* readline.c: From: Gerry Swislow gerry at certif dot com
+
+	  1) File name completion should list the files in the current
+	  directory if no text is entered.  The previous version wouldn't
+	  list anything if the text to complete was empty.
+
+	  2) When listing directories, the entries "." and ".." shouldn't
+	  be shown.
+
+	  3) The filename completion should be used if the user's
+	  rl_attempted_completion_function doesn't return any matches.	The
+	  previous version didn't do that.
+
+2003-11-02 00:39  christos
+
+	* readline.c: initialize ptr.
+
+2003-11-02 00:37  christos
+
+	* editline.3: Explain H_ADD better. from Otto Moerbeek otto at
+	  drijf dot net
+
+2003-11-02 00:36  christos
+
+	* hist.c: Fixes from Otto Moerbeek otto at drijf dot net
+
+2003-11-02 00:35  christos
+
+	* editrc.5: Document history builtin commands.
+
+2003-10-27 23:26  christos
+
+	* readline.c, readline/readline.h: Make readline csh-like history
+	  work.  From Gerry Swislow <gerry at certif dot com>.
+
+2003-10-25 08:42  christos
+
+	* search.c: Another fix for incremental search prev.
+
+2003-10-19 08:28  christos
+
+	* readline.c: add rl_catch_signals
+
+2003-10-19 03:26  wiz
+
+	* editrc.5: Bump date for previous.
+
+2003-10-19 01:48  christos
+
+	* chared.c, chared.h, el.c, el.h, history.c, key.c, read.c,
+	  tokenizer.c: change allocation policy in el_push to allocate the
+	  string itself.  fix issues with strdup.
+
+2003-10-19 01:27  christos
+
+	* search.c, search.h: make forward incremental search work better.
+
+2003-10-19 00:37  christos
+
+	* tty.c: remove debugging printf.
+
+2003-10-19 00:24  christos
+
+	* editrc.5, tty.c: Allow setty to set chars using char=value
+
+2003-10-17 20:49  christos
+
+	* search.c: When searching backwards don't include the characters
+	  after the cursor in the search.
+
+2003-10-17 17:33  wiz
+
+	* editline.3: Bump date for previous. Replace > with \*[Gt].
+
+2003-10-17 00:26  christos
+
+	* editline.3, el.c, histedit.h, readline.c, readline/readline.h:
+	  More libedit readline emulation functions from: Gerry Swislow
+	  <gerry at certif dot com>
+
+2003-10-16 23:41  christos
+
+	* TEST/Makefile: I got tired of typing a cc line.
+
+2003-10-16 23:41  christos
+
+	* search.c: Fix incremental search which was badly busted.
+
+2003-10-15 20:08  christos
+
+	* parse.c, readline.c: don't limit ^c to alpha c, and add
+	  VIS_NOSLASH so that vis(3) does not produce \^c
+
+2003-10-09 02:42  christos
+
+	* read.c, readline.c: PR/23107: Nathan Williams: ^D as the first
+	  char on the command line does not DTRT in readline compatibility
+	  mode
+
+2003-09-26 23:09  wiz
+
+	* editline.3: New sentence, new line; bump date for previous.
+
+2003-09-26 19:44  christos
+
+	* editline.3, el.c, el.h, histedit.h, read.c, read.h, readline.c,
+	  shlib_version, readline/readline.h: Implement enough of
+	  readline's 4.0 async mode to make gdb happy. This is not complete
+	  yet, but it seems to work...	This required to introduce an
+	  unbuffered mode to el_gets(), but that was a minor change.
+
+2003-09-15 13:33  tron
+
+	* readline/readline.h: Include "sys/ttydefaults.h" to get standard
+	  definition of "CTRL" macro which avoids clash with custom one.
+
+2003-09-15 03:29  christos
+
+	* readline/readline.h: kludge around CTRL redef.
+
+2003-09-15 00:15  christos
+
+	* readline.c, readline/readline.h: Match the stupid function
+	  pointer declarations with actual readline's 4.0.  This is gross.
+
+2003-09-14 23:55  christos
+
+	* readline.c: make this compile.
+
+2003-09-14 23:55  christos
+
+	* readline/readline.h: Avoid pre-ansi warning.
+
+2003-09-14 23:48  christos
+
+	* el.c, readline.c, shlib_version, term.c, term.h,
+	  readline/readline.h: - provide enough hooks to compile gdb-5.3 -
+	  fix el_get(e, EL_TERMINAL, (char **))
+
+2003-09-13 06:18  mycroft
+
+	* read.c: Fix something that's been annoying me for a while...
+	  Pull in <fcntl.h>, so that the fcntl #defines are present, and we
+	  build in the automatic reset of non-blocking mode, rather than
+	  beeping like mad.
+
+2003-08-07 18:44  agc
+
+	* chared.c, chared.h, common.c, el.c, el.h, emacs.c, hist.c,
+	  hist.h, histedit.h, history.c, key.c, key.h, map.c, map.h,
+	  parse.c, parse.h, prompt.c, prompt.h, read.c, refresh.c,
+	  refresh.h, search.c, search.h, sig.c, sig.h, sys.h, term.c,
+	  term.h, tokenizer.c, tokenizer.h, tty.c, tty.h, vi.c,
+	  TEST/test.c: Move UCB-licensed code from 4-clause to 3-clause
+	  licence.
+
+	  Patches provided by Joel Baker in PR 22280, verified by myself.
+
+2003-08-03 11:23  lukem
+
+	* readline/Makefile: Add INCSYMLINKS to <bsd.inc.mk> and
+	  <bsd.kinc.mk>, and use that instead of SYMLINKS to install
+	  symlinked header files.  INCSYMLINKS are installed with 'make
+	  includes'.  This avoids using SYMLINKS and hacks with the
+	  'linkinstall' target in <bsd.links.mk>, as linksinstall occurs in
+	  'make install' and hacks to get it to occur in 'make includes'
+	  weren't robust, as seen in lib/libdes.
+
+	  Yet more improvements to bsd.README.
+
+2003-08-01 19:03  lukem
+
+	* Makefile: Rework how dependency generation is performed:
+
+	  * DPSRCS contains extra dependencies, but is _NOT_ added to
+	  CLEANFILES.	 This is a change of behaviour.  If a Makefile
+	  wants the clean semantics    it must specifically append to
+	  CLEANFILES.	 Resolves PR toolchain/5204.
+
+	  * To recap: .d (depend) files are generated for all files in SRCS
+	  and DPSRCS   that have a suffix of: .c .m .s .S .C .cc .cpp .cxx
+
+	  * If YHEADER is set, automatically add the .y->.h to DPSRCS &
+	  CLEANFILES
+
+	  * Ensure that ${OBJS} ${POBJS} ${LOBJS} ${SOBJS} *.d	depend upon
+	  ${DPSRCS}
+
+	  * Deprecate the (short lived) DEPENDSRCS
+
+	  Update the various Makefiles to these new semantics; generally
+	  either adding to CLEANFILES (because DPSRCS doesn't do that
+	  anymore), or replacing specific .o dependencies with DPSRCS
+	  entries.
+
+	  Tested with "make -j 8 distribution" and "make distribution".
+
+2003-07-31 14:46  lukem
+
+	* Makefile: tweak this unconventional (some might say "baroque")
+	  Makefile to work with the new <bsd.dep.mk> *.d semantics.  fixes
+	  problems highlighted by Martin Husemann <martin@>
+
+2003-07-16 13:54  wiz
+
+	* editline.3: Bump date for last.
+
+2003-07-15 00:36  jeremy
+
+	* editline.3: Documented the return values from el_get().
+
+2003-06-27 20:57  wiz
+
+	* editrc.5: Add Ns.
+
+2003-06-19 18:19  christos
+
+	* sys.h: provide a definition for __attribute__
+
+2003-06-19 18:04  christos
+
+	* readline.c: From michael@moria.de: Fix realloc case where we
+	  could be running out of space if too many matches.
+
+2003-06-19 17:55  christos
+
+	* common.c, el.c, emacs.c, hist.c, history.c, key.h, prompt.c,
+	  read.c, readline.c, refresh.c, term.c, tty.c, vi.c: From
+	  michael@moria.de: - use __attribute__((__unused__)) in arguments
+	  where appropriate.  - some int -> size_t and char * to const char
+	  * conversions.
+
+2003-06-06 15:33  wiz
+
+	* editline.3: Use Aq Pa instead of Fd \*[Lt]...\*[Gt]. From
+	  jmc@openbsd.
+
+2003-06-04 22:14  matt
+
+	* vi.c: Only return CC_EOF if ^D (VEOF) was the only thing on the
+	  line.  Otherwise beep and don't do anything else.  This mimics
+	  the behavor of ^D outside in normal terminal mode.  (^D in vi
+	  scrolls forwards and as such isn't appropriate to emulation)
+
+2003-05-14 09:24  wiz
+
+	* editrc.5: setup -> set up, from jmc@openbsd.
+
+2003-05-08 15:22  christos
+
+	* Makefile: add a missing dependency (John Gordon)
+
+2003-05-08 15:20  christos
+
+	* Makefile: Use ${HOST_SH}
+
+2003-04-16 15:35  wiz
+
+	* editline.3: Use .In header.h instead of .Fd #include
+	  \*[Lt]header.h\*[Gt] Much easier to read and write, and supported
+	  by groff for ages.  Okayed by ross.
+
+2003-03-31 18:52  perry
+
+	* editrc.5, emacs.c: em-gosmacs-traspose->em-gosmacs-transpose
+	  (Igor Sobrado, PR misc/19909)
+
+2003-03-29 23:48  wiz
+
+	* readline.c: Consistently spell occurrence with two rs.
+
+2003-03-15 21:52  he
+
+	* refresh.c: Pull up revision 1.19 (via patch, requested by msaitoh
+	  in ticket #14):   Since we have opost and onlcr set, we don't
+	  need to output \r;   \n is sufficient.  Fixes PR#17954.
+
+2003-03-10 22:21  christos
+
+	* makelist: don't use the path for awk
+
+2003-03-10 22:18  christos
+
+	* refresh.c: s/u_int32_t/unsigned int/
+
+2003-03-10 12:09  dsl
+
+	* vi.c: Put the __weak_extern() back inside vi_alias, but after the
+	  extern for get_alias_text().
+
+2003-03-10 10:55  he
+
+	* vi.c: Move the __weak_extern() (ifdef'ed) outside of the
+	  vi_alias() function, so that this compiles again.
+
+2003-03-10 02:14  christos
+
+	* readline.c: null is not 0
+
+2003-03-10 02:14  christos
+
+	* vi.c: if no __weak_extern, don't even try to do vi_alias.
+
+2003-03-10 02:05  christos
+
+	* vi.c: fix uninitialized variable.  grr, I want gcc-3.3
+
+2003-03-10 01:58  christos
+
+	* sig.c, sig.h: sig_t is non portable
+
+2003-03-10 01:57  christos
+
+	* sys.h: - include cdefs.h early in the game - ifdef notdef the
+	  sunos stuff - no need for sig_t
+
+2003-03-10 01:56  christos
+
+	* readline.c: include alloca.h for systems that need it.
+
+2003-02-25 11:34  wiz
+
+	* editline.3: .Nm does not need a dummy argument ("") before
+	  punctuation or for correct formatting of the SYNOPSIS any longer.
+
+2003-01-22 00:00  wiz
+
+	* editline.3: Replace -1 with \-1 for PostScript output; drop a
+	  trailing space and fix two typos.
+
+2003-01-21 19:40  christos
+
+	* editline.3, hist.c, hist.h, histedit.h, history.c, parse.c: Add a
+	  uniquefier for the history function.
+
+2003-01-21 18:41  christos
+
+	* readline.c: fix directory descriptor leak [from michael at moria
+	  dot de]
+
+2003-01-05 09:40  jmc
+
+	* refresh.c: Pull up revisions 1.18-1.19 (requested by masanobu in
+	  ticket #1048)  PR/17954: SAITOH Masanobu: since we have opost and
+	  onlcr set, we don't need  to output \r to go to the end of line;
+	  \n is enough. From David Laight.
+
+2002-11-20 17:50  christos
+
+	* chared.c, chared.h, common.c, read.c, search.c: Fix problem with
+	  previous patches that broke vi history.  - c_gets() was usually
+	  returning a length, but sometimes   one of the CC_xxx values
+	  (which are small +ve integers)! - fixed c_gets() by putting a ' '
+	  under the cursor.  From David Laight.
+
+2002-11-15 15:33  christos
+
+	* refresh.c: de-lint
+
+2002-11-15 15:32  christos
+
+	* chared.c, chared.h, common.c, el.h, emacs.c, hist.c, hist.h,
+	  histedit.h, map.c, read.c, refresh.c, search.c, search.h, vi.c:
+	  PR/18995: David Laight: libedit fixes for posix conformant sh
+
+	  The posix 'sh' specification defines vi-mode editing quite
+	  tightly.  The netbsd libedit code (used by sh to do this) was
+	  missing several features, there were also minor errors in others.
+
+	  Compare netbsd sh to the definition available from:
+	  http://www.opengroup.org/onlinepubs/007904975/utilities/sh.html
+	  In particular the following were not supported:     U - undo all
+	  changes to line    | - goto column	     Y - yank to end of
+	  line	       y - yank        # - comment out current line    @ -
+	  take input from shell alias [1]     G - goto numbered line in
+	  history buffer	v - edit history line with vi	_ - append
+	  word from last input line    . - redo last command Other minor
+	  changes have also been made.
+
+	  [1] This needs the shell to define an appropriate routine to
+	  return the text of the alias.  There is no requirement that such
+	  a function exist.
+
+2002-11-12 01:01  thorpej
+
+	* refresh.c: Fix signed/unsigned comparison warnings.
+
+2002-11-12 01:00  thorpej
+
+	* el.c: Avoid strict alias warning.
+
+2002-10-31 03:01  christos
+
+	* map.c, vi.c: support for % command [matching
+	  parens/brackets/braces] on vi modes.	From David Laight, thanks!
+
+2002-10-27 22:43  christos
+
+	* readline.c: remove unused  variables.
+
+2002-10-27 22:41  christos
+
+	* Makefile, chared.c, chared.h, common.c, el.h, emacs.c, map.c,
+	  read.c, readline.c, refresh.c, vi.c: vi mode and memory fixes
+	  from david laight.
+
+2002-10-27 21:24  christos
+
+	* history.c, readline.c, tokenizer.c: don't crash in memory
+	  shortage conditions.
+
+2002-10-27 21:04  christos
+
+	* refresh.c: PR/17954: SAITOH Masanobu: since we have opost and
+	  onlcr set, we don't need to output \r to go to the end of line;
+	  \n is enough. From David Laight.
+
+2002-10-13 19:15  christos
+
+	* history.c: write the vis(3) converted string into the file, not
+	  the original one.  Noted by Tim Robbins. Hi luke!
+
+2002-10-02 13:06  wiz
+
+	* editrc.5: empty, not emptry. By Adrian Mrva.
+
+2002-10-01 21:06  wiz
+
+	* editline.3: New sentence, new line. From Robert Elz.
+
+2002-08-19 16:55  lukem
+
+	* Makefile: Explicitly move setting of NOxxx and USE_SHLIBDIR to
+	  the top of the Makefile (before including <bsd.own.mk>)
+
+2002-08-19 15:35  lukem
+
+	* readline/Makefile: More use of ${NETBSDSRCDIR}/some/path instead
+	  of ${.CURDIR}/../../some/path
+
+2002-08-18 09:23  yamt
+
+	* editline.3: reflect reality.	(3rd arg of el_parse is const.)
+
+2002-08-09 12:03  soren
+
+	* TEST/test.c: Remove extraneous \n's in {err,warn}{,x}.
+
+2002-04-09 03:57  thorpej
+
+	* readline.c: _rl_qsort_string_compare(): Fix casts.  This makes
+	  gcc 3.2 happy, and also allows both LINTED comments to be
+	  removed.
+
+2002-03-24 00:39  christos
+
+	* TEST/test.c: make sure this compiles cleanly and works.
+
+2002-03-18 17:20  christos
+
+	* Makefile, readline.c: Add a couple linted comment and enable
+	  WARNS=3
+
+2002-03-18 17:19  christos
+
+	* config.h: oops, we need config.h now.
+
+2002-03-18 17:00  christos
+
+	* chared.c, chared.h, common.c, el.c, el.h, emacs.c, hist.c,
+	  hist.h, histedit.h, history.c, key.c, key.h, map.c, map.h,
+	  parse.c, prompt.c, read.c, readline.c, refresh.c, search.c,
+	  sig.c, sys.h, term.c, term.h, tokenizer.c, tokenizer.h, tty.c,
+	  tty.h, vi.c, TEST/test.c, readline/readline.h: - constify; passes
+	  all gcc and lint strict checks.  - add config.h [Jason Evans], to
+	  create a portable version of libedit that   can be easily
+	  compiled on other OS's.
+
+2002-02-20 12:54  wiz
+
+	* editline.3: Close quoting.
+
+2002-02-07 08:00  ross
+
+	* editline.3: Generate <>& symbolically.
+
+2002-02-04 00:37  christos
+
+	* chared.h: Fixed an __P remnant
+
+2002-02-04 00:37  christos
+
+	* el.c: Don't use HAVE_ yet.
+
+2002-02-04 00:30  christos
+
+	* el.c: Fix a warning.
+
+2002-01-31 03:27  christos
+
+	* tokenizer.c: don't forget to re-adjust the limit.
+
+2002-01-31 01:25  christos
+
+	* tokenizer.c: make pointer arithmetic more palatable.
+
+2002-01-15 03:46  wiz
+
+	* editrc.5: Punctuation nits.
+
+2002-01-15 03:46  wiz
+
+	* editline.3: Punctuation and whitespace nits, fix a typo.
+
+2001-12-28 02:32  lukem
+
+	* Makefile: * Add user-controlled mk.conf variables	- SHLIBDIR
+	      Location to install shared libraries if ${USE_SHLIBDIR}
+			    is "yes".  Defaults to "/usr/lib".
+
+		  - USE_SHLIBDIR  If "yes", install shared libraries in
+	  ${SHLIBDIR}
+				  instead of ${LIBDIR}.  Defaults to "no".
+				  Sets ${_LIBSODIR} to the appropriate
+	  value.
+				  This may be set by individual Makefiles
+	  as well.
+
+		  - SHLINKDIR	  Location of shared linker.  Defaults to
+	  "/usr/libexec".
+				  If != "/usr/libexec", change the
+	  dynamic-linker
+				  encoded in shared programs
+
+	  * Set USE_SHLIBDIR for libraries used by /bin and /sbin:
+	  libc libcrypt libcrypto libedit libipsec libkvm libm libmi387
+	  libtermcap libutil libz
+
+	  * If ${_LIBSODIR} != ${LIBDIR}, add symlinks from
+	  ${LIBDIR}/${LIB}.so*	 to ${_LIBSODIR}/${LIB}.so* for
+	  compatibility.
+
+	  * Always install /sbin/init statically (for now)
+
+	  The net effect of these changes depends on how the variables are
+	  set:
+
+	    1.)   If nothing is set or changed, there is no change from the
+		  current behaviour:
+			  - Static /bin, /sbin, and bits of /usr/*
+			  - Dynamic rest
+			  - Shared linker is /usr/libexec/ld*so
+
+	    2.)   If the following make variables are set:
+			  LDSTATIC=
+			  SHLINKDIR=/lib
+			  SHLIBDIR=/lib
+		  Then the behaviour becomes:
+			  - Dynamic tools
+			  - .so libraries used by /bin and /sbin are
+	  installed to /lib,
+			    with symlinks from /usr/lib/lib*so to ->
+	  /lib/lib*so
+			    where appropriate
+			  - Shared linker is /lib/ld*so
+
+	    3.)   As per 2.), but add the following variable:
+			  USE_SHLIBDIR=yes
+		  This forces all .so's to be instaleld in /lib (with
+	  compat
+		  symlinks), not just those tagged by their Makefiles to
+	  be.
+		  Again, compat symlinks are installed
+
+2001-12-12 01:51  tv
+
+	* readline/Makefile: Readability cleanups; MKfoo=no -> NOfoo.
+
+2001-11-08 20:39  mycroft
+
+	* term.c: In the `not what I asked for' department: Do NOT return
+	  an error from term_init() if term_set() fails.  Otherwise
+	  el_init() barfs and libedit fails to work.
+
+2001-11-08 20:34  mycroft
+
+	* el.c: Remove an unused variable.
+
+2001-11-02 05:47  christos
+
+	* el.c: If term_init() fails, cleanup and return NULL. This avoids
+	  other lossage.  Pointed by charles.
+
+2001-11-02 05:42  christos
+
+	* term.c: Finish initializing all the term data structures even if
+	  the terminal init fails. This makes editline work on dumb
+	  terminals again. Noted by mycroft.  Oops, too agressive error
+	  checking.
+
+2001-10-09 15:50  christos
+
+	* editline.3, el.c, el.h, histedit.h, shlib_version: PR/14188:
+	  Anthony Mallet: Provide an opaque data pointer to client
+	  programs.
+
+2001-10-04 02:45  lukem
+
+	* editline.3: a couple of minor fixes.	originally by Ruslan
+	  Ermilov <ru@FreeBSD.org>, highlighted to me by way of Mike
+	  Barcroft <mike@FreeBSD.org> (thanks!)
+
+2001-09-29 19:52  jdolecek
+
+	* history.c: history_def_enter: fix off-by-one mistake in delete
+	  condition (the behaviour to keep at least one entry on the
+	  history list is retained) This fixes lib/9704 by Phil Nelson.
+
+2001-09-27 21:29  christos
+
+	* editline.3, el.c, el.h, histedit.h, read.c, read.h: PR/14067:
+	  Anthony Mallet: Provide a programmatic way to set the read_char
+	  function via a new el_set() operation.  Thanks, nicely done :-)
+
+2001-09-24 15:22  wiz
+
+	* el.c: va_{start,end} audit: Make sure that each va_start has one
+	  and only one matching va_end, especially in error cases.  If the
+	  va_list is used multiple times, do multiple va_starts/va_ends.
+	  If a function gets va_list as argument, don't let it use va_end
+	  (since it's the callers responsibility).
+
+	  Improved by comments from enami and christos -- thanks!
+
+	  Heimdal/krb4/KAME changes already fed back, rest to follow.
+
+	  Inspired by, but not not based on, OpenBSD.
+
+2001-06-19 15:42  wiz
+
+	* editrc.5: `existent', not `existant'
+
+2001-05-17 03:02  christos
+
+	* chared.c, hist.c, key.c, tty.c: PR/12963:Jason Waterman: Fix
+	  signed cast problems.
+
+2001-05-16 09:09  enami
+
+	* readline/Makefile: Use relative path for symlink target so that
+	  it won't point outside of tree.
+
+2001-05-14 20:39  jdolecek
+
+	* readline/Makefile: Back off previous and do differently: Ensure
+	  that the <readline/history.h> link to <readline/readline.h> is
+	  installed too for 'make includes'. Also, avoid creating obj dir.
+	  This is finally real fix for lib/12929.  XXX Is this right?
+
+2001-05-14 09:41  jdolecek
+
+	* readline/Makefile: Use <bsd.inc.mk>, instead of <bsd.prog.mk>, so
+	  that the readline.h header is installed during the 'make
+	  includes'.  Fixes lib/12929 by Martin Husemann.
+
+2001-04-13 03:04  lukem
+
+	* chared.c: knf ch_enlargebufs(), to be *consistent* with the rest
+	  of this file...
+
+2001-04-13 02:53  lukem
+
+	* refresh.c: rename 3 arg ELRE_DEBUG to ELRE_ASSERT, add 2 arg
+	  ELRE_DEBUG, and change all occurences of ELRE_DEBUG(foo,bar,) ->
+	  ELRE_DEBUG(foo,bar).	some compilers (e.g, gcc on darwin) bitch
+	  about the former (`not enough args').
+
+2001-04-02 20:29  wiz
+
+	* editline.3: End sentence with a dot.
+
+2001-03-20 01:08  christos
+
+	* history.c: chmod the history file to 600 so that only the owner
+	  can read it.	[inspired by the openbsd fix to readline]
+
+2001-01-23 16:55  jdolecek
+
+	* key.c, key.h, parse.c, search.c, term.c: sprinkle couple const
+
+2001-01-10 23:42  jdolecek
+
+	* term.c: term_rebuffer_display(): set el->el_term.t_size.v to
+	  terminals height, not a magic value, so that e.g. el_display[]
+	  and el_vdisplay[] are not bigger than needed.  Discussed with
+	  Christos Zoulas.
+
+2001-01-10 09:10  jdolecek
+
+	* readline.c: fix partial completion - we failed to refresh screen
+	  in that case
+
+2001-01-10 08:45  jdolecek
+
+	* chared.c, chared.h, common.c, emacs.c, hist.c, hist.h, prompt.c,
+	  read.c, refresh.c, refresh.h: Enlarge editline buffers as needed
+	  to support arbitrary length lines.  This also addresses lib/9712
+	  by Phil Nelson.
+
+2001-01-09 20:43  jdolecek
+
+	* term.c: term_beep(): use ordinary bell, don't attempt to use
+	  visual bell - if user wants visual instead of ordinary bell, they
+	  should set their environment appropriately
+
+2001-01-09 20:22  jdolecek
+
+	* makelist: make array of functions and help array const
+
+2001-01-09 18:31  jdolecek
+
+	* sig.c, tty.c: make constant arrays a const
+
+2001-01-09 18:22  jdolecek
+
+	* map.c, map.h, term.c: make constant arrays a const
+
+2001-01-06 15:44  jdolecek
+
+	* el.h: el_line_t: make 'limit' const
+
+2001-01-05 23:45  christos
+
+	* el.c, readline.c: depoison the pure editline code from readline
+	  compatibility hacks.
+
+2001-01-05 22:15  jdolecek
+
+	* Makefile, readline.c, readline.h, readline/Makefile,
+	  readline/readline.h: Standard location of readline headers is
+	  /usr/include/readline/, so install them there.  readline.h of
+	  libedit had to move to subdirectory 'readline', due to the way
+	  BSD makefiles work; this is better than potentially fragile
+	  Makefile hacks
+
+2001-01-04 16:56  christos
+
+	* chared.c, hist.c, key.c, map.c, search.c, term.c, term.h,
+	  tokenizer.c: consistently check for allocation failures and
+	  return -1, if we could not get more memory.
+
+2001-01-04 16:55  christos
+
+	* readline.c: fix lint problems.
+
+2001-01-04 16:55  christos
+
+	* sig.c: fix dumb typo in signal setup [from OpenBSD] return -1 if
+	  alloc fails.
+
+2001-01-01 16:54  jdolecek
+
+	* shlib_version: bump libedit minor - addition of
+	  rl_special_prefixes and rl_completion_append_character
+
+2001-01-01 16:52  jdolecek
+
+	* readline.c, readline.h: Add support for
+	  rl_completion_append_character and rl_special_prefixes.  This
+	  addresses lib/10513 by Giles Lean. Tested with PostgreSQL 7.0.2
+	  psql.
+
+2001-01-01 12:03  jdolecek
+
+	* readline.c: history_tokenize(): fix one off-by-one bug
+	  rl_complete_internal(): only replace the completed string with
+	  common part	  of possible matches if there is a possible
+	  completion
+
+2000-12-31 10:50  jdolecek
+
+	* readline.c: rl_display_match_list():	* pad entries shorter than
+	  'max' by spaces correctly    * fix off-by-one error which caused
+	  extra newline to be printed		if the list fit exactly to
+	  a screen   * fix typo in _rl_qsort_string_compare, which caused
+	  the list to not      be sorted after all
+
+2000-12-30 23:46  jdolecek
+
+	* term.c: term_beep(): if terminal supports both visual and
+	  ordinary bell, 'ring' both
+
+2000-12-23 23:07  jdolecek
+
+	* shlib_version: bump libedit minor - added some public stuff for
+	  readline emulation
+
+2000-12-23 23:02  jdolecek
+
+	* readline.c, readline.h: completion_matches(): fix a off-by-one
+	  bug, fix variable name typo implement displaying of possible
+	  completions, add hook to display the list	    on second
+	  rl_complete() invocation in row (typically, double <TAB>)
+
+	  This addresses the completion part of lib/11581 by Richard
+	  Earnshaw.
+
+2000-11-28 23:37  jmc
+
+	* term.c: Alloc the keys structure with A_K_NKEYS as the multiplier
+	  rather than a hardcoded value of 4.
+
+	  A_K_NKEYS is currently 6 and this mismatch was stomping memory
+	  when initializing the keys. (specifically gdb lost the exec file
+	  name if it was a long path name).
+
+2000-11-11 23:18  christos
+
+	* chared.c, el.c, el.h, key.c, map.c, read.c, term.c, term.h: - add
+	  support for home and end keys.  - improve debugging support
+
+2000-11-08 01:09  lukem
+
+	* editrc.5: improve description of line syntax
+
+2000-10-04 18:21  sommerfeld
+
+	* key.c, term.c: format string audit (silence warnings, save space)
+
+2000-09-05 01:45  lukem
+
+	* makelist: - generate ansi prototypes instead of using __P().
+	  noted by christos - fix a couple of comments
+
+2000-09-05 01:36  lukem
+
+	* TEST/test.c: convert to new style guide
+
+2000-09-05 00:06  lukem
+
+	* chared.c, chared.h, common.c, el.c, el.h, emacs.c, hist.c,
+	  hist.h, histedit.h, history.c, key.c, key.h, map.c, map.h,
+	  parse.c, parse.h, prompt.c, prompt.h, read.c, readline.c,
+	  readline.h, refresh.c, refresh.h, search.c, search.h, sig.c,
+	  sig.h, sys.h, term.c, term.h, tokenizer.c, tokenizer.h, tty.c,
+	  tty.h, vi.c: convert to new style guide, which includes: - ansi
+	  prototypes & features (such as stdargs) - 8 space indents
+
+2000-08-29 09:04  lukem
+
+	* history.c: history_def_set has a `const int' as a third arg, not
+	  an `int'.  picked up by the ultrix compiler, reported by simonb@
+	  ...
+
+2000-08-15 14:01  mrg
+
+	* Makefile: use .tmp temporaries for generated files, to avoid
+	  having failed generated output being used.
+
+2000-08-02 15:45  chuck
+
+	* el.c: pull up 1.18 (approved by thorpej).   allows a gdb linked
+	  with libedit's readline emulation to work properly with xxgdb.
+
+2000-08-02 05:36  chuck
+
+	* el.c: make xxgdb and a gdb linked with libedit's readline
+	  emulation work properly together.   xxgdb communicates with a gdb
+	  running on a pty that it sets to -echo,-onlcr prior to forking
+	  the gdb process.  GNU readline preserves the -echo setting while
+	  libedit was undoing it (setting the tty to a sane state and
+	  totally confusing xxgdb's parser).
+
+	  this diff simply disables libedit if both readline emulation and
+	  "stty -echo" are used/set.   that is enough to make xxgdb work
+	  once again, but (XXX) this is not how GNU readline handles stty
+	  -echo (it does not echo anything, but editing commands like
+	  ^A,^K, etc.  still work), so the readline emulation isn't
+	  perfect.
+
+	  change reviewed by christos.
+
+2000-06-29 18:09  he
+
+	* el.c: Pull up revision 1.17 (via patch, requested by sommerfeld):
+	  Only read .editrc from home directory.
+
+2000-06-29 00:09  sommerfeld
+
+	* el.c: Pull up 1.17 (approved by thorpej): only look for .editrc
+	  in /d1/sommerfeld
+
+2000-06-28 22:37  sommerfeld
+
+	* el.c: Only look in home directory for .editrc.  (Discussed with
+	  Christos.)
+
+2000-06-23 18:16  minoura
+
+	* term.c: Sync w/ netbsd-1-5-base.
+
+2000-06-23 17:41  lukem
+
+	* editrc.5, makelist: Pull up editrc.5 revision 1.9 Pull up
+	  makelist revision 1.5     * add -m option to makelist, which
+	  generates an mdoc table with the key	     bindings and their
+	  descriptions	   * manually add the output of 'sh ./makelist -m
+	  vi.c ed.c common.c' to       a new section in editrc(5) called
+	  `EDITOR COMMANDS' requested/approved by thorpej
+
+2000-06-21 05:21  lukem
+
+	* editrc.5, makelist: * add -m option to makelist, which generates
+	  an mdoc table with the key   bindings and their descriptions *
+	  manually add the output of 'sh ./makelist -m vi.c ed.c common.c'
+	  to   a new section in editrc(5) called `EDITOR COMMANDS'
+
+2000-06-02 15:37  lukem
+
+	* term.c: use strtol() (instead of atoi()) for sane error detection
+
+2000-05-15 14:15  christos
+
+	* el.c: don't dump core on empty files.
+
+2000-03-13 23:59  soren
+
+	* refresh.c: Fix doubled 'the's.
+
+2000-03-10 14:06  jdolecek
+
+	* readline.c: Fix _rl_compat_sub() to really honour 'globally' flag
+	  instead     of making the substitution always globally - affects
+	    _history_expand_command() and in turn history_expand()
+
+	  All praise lint :)
+
+2000-03-10 13:55  jdolecek
+
+	* readline.c: readline(): don't dereference NULL pointer if prompt
+	  is NULL history_tokenize(): avoid stepping too far if backslash
+	  is last character    on the passed string update some comments
+
+	  This makes gdb \ escaping work reliably and fixes lib/9511 by
+	  Assar Westerlund.
+
+2000-03-10 13:25  jdolecek
+
+	* parse.c: include <stdlib.h> to get definition of malloc() and
+	  free(), so it's possible to compile this file separately when
+	  debugging
+
+2000-02-28 18:41  chopps
+
+	* chared.c, editline.3, histedit.h: el_insertstr takes a "const
+	  char *" not "char *" now as it doesn't modify the argument.
+
+2000-02-19 10:08  mycroft
+
+	* refresh.c, term.c: Fix refresh glitches when using auto-margin.
+
+2000-01-20 23:56  christos
+
+	* refresh.c, term.c, term.h: Add support for automatic and magic
+	  margins (from tcsh) This makes the rightmost column usable on all
+	  programs that use editline.
+
+2000-01-19 19:31  christos
+
+	* key.c: PR/9244: Kevin Schoedel: libedit dumps bindings
+	  inconsistently
+
+2000-01-19 19:30  christos
+
+	* read.c: PR/9243: Kevin Schoedel: libedit ignores repeat count
+
+1999-12-27 19:29  wrstuden
+
+	* editline.3, el.c, el.h, histedit.h, map.c, prompt.c, prompt.h,
+	  read.c, refresh.c, shlib_version, term.c, term.h, tty.h: Pull up
+	  to last week's -current.
+
+1999-11-26 19:38  lukem
+
+	* editline.3: missing ,
+
+1999-11-13 12:32  lukem
+
+	* refresh.c: instead of using a private coord_t global variable to
+	  store the size of the rprompt, use the previously unused coord_t
+	  el->el_rprompt.p_pos
+
+1999-11-12 02:05  lukem
+
+	* editline.3, el.c, el.h, histedit.h, prompt.c, prompt.h,
+	  refresh.c, shlib_version: - implement printing a right-side
+	  prompt. code derived from similar work   I wrote for tcsh(1)
+	  three years ago.  - implement EL_RPROMPT, which allows a
+	  setting/getting of a function which	returns a string to be used
+	  as the right-side prompt.  - improve HISTORY and AUTHORS sections
+	  in editline(3).  - bump shlib minor version for EL_RPROMPT.
+
+	  XXX: due to an implementation issue, the rprompt has a 1 space
+	  gap before the      edge of the logical screen. editline's
+	  logical screen is 1 space less      than the full screen width,
+	  so there's a 2 space gap between the rprompt	    and the right
+	  end of the physical screen. i'm not concerned about this.
+
+1999-10-24 06:04  lukem
+
+	* term.c: Fix pointer arithmatic (caused problems on LP64,
+	  including ftp dumping core when `edit' was turned off then on).
+	  Problem solved by David Huggins-Daines <dhd@eradicator.org>
+
+1999-10-15 19:01  jdolecek
+
+	* map.c, refresh.c: don't assume locales are not working - it may
+	  not be the case re_refresh(): cast the character passed to
+	  re_addc() to unsigned char,	      so we don't end up calling
+	  isprint() with negative value 	when chars are signed and
+	  character value is >= 128
+
+1999-10-05 01:24  lukem
+
+	* term.c, term.h: update post change to return value of tputs()
+	  third argument
+
+1999-10-05 01:23  lukem
+
+	* read.c: remove some lint
+
+1999-09-26 16:37  lukem
+
+	* tty.h: apparantly need <unistd.h> for portable way of getting
+	  _POSIX_VDISABLE
+
+1999-09-21 02:55  lukem
+
+	* el.c: * in el_source():	- don't reopen fp if it was
+	  successfully opened in a previous check     - use
+	  strlcpy()/strlcat() instead of snprintf() to build a pathname,
+	  since the former are more portable to other systems than the
+	  latter * whitespace fascism
+
+1999-09-21 02:07  lukem
+
+	* TEST/test.c: fix id header...
+
+1999-09-21 01:43  lukem
+
+	* histedit.h: more whitespace fascism
+
+1999-08-08 03:25  sommerfeld
+
+	* read.c: minor tweak to previous fix: don't spuriously truncate
+	  final newline under emacs.
+
+1999-08-02 03:01  sommerfeld
+
+	* read.c, term.c, tty.c: Fix PR7685 (gdb under emacs prints
+	  spurious ^M and messes up terminal) plus a few bogons noted along
+	  the way:  1) Set EDIT_DISABLED if terminal type is emacs.
+	  2) fix bug in NO_TTY mode which caused it to not notice CR or LF
+		3) implement EDIT_DISABLED within libedit to be somewhat
+	  like NO_TTY,		 except that a prompt is printed first.
+
+1999-07-06 16:10  christos
+
+	* Makefile: Use LIBEDITDIR instead of CURDIR so we can use that
+	  Makefile to compile libedit from another directory.
+
+1999-07-03 13:55  lukem
+
+	* readline.c: don't try to free() something allocated with alloca()
+	  in rl_complete_internal().  (noticed while using completion in
+	  gdb and getting inundated with warnings from the new free())
+
+1999-07-02 17:21  simonb
+
+	* Makefile, chared.c, chared.h, common.c, editline.3, editrc.5,
+	  el.c, emacs.c, hist.c, histedit.h, history.c, key.c, key.h,
+	  makelist, map.c, map.h, parse.c, parse.h, prompt.c, read.c,
+	  readline.c, refresh.c, search.c, search.h, sig.c, term.c, term.h,
+	  tokenizer.c, tokenizer.h, tty.c, tty.h, vi.c, TEST/test.c: More
+	  trailing white space.
+
+1999-06-12 20:58  christos
+
+	* readline.c, refresh.c: Make this compile under linux
+
+1999-03-22 20:45  garbled
+
+	* editline.3, editrc.5: Last of the .Os cleanups.  .Os is defined
+	  in the tmac.doc-common file, so we shouldn't override it with
+	  versions in the manpages.  Wheee!
+
+1999-03-06 01:17  mycroft
+
+	* history.c: Add missing , in he_errlist[] initializer.  Yay lint.
+
+1999-03-04 12:45  itohy
+
+	* Makefile: Add minimal dependency to make "make depend" optional
+	  after cleandir.
+
+1999-02-25 09:02  abs
+
+	* shlib_version: Add a note to update
+	  src/distrib/sets/lists/base/shl.*, and add a missing RCS Id.
+
+1999-02-07 15:34  christos
+
+	* tty.c: PR/6957: Wolfgang Helbig:  libedit swaps CR and LF control
+	  chars.
+
+1999-02-05 21:53  christos
+
+	* chared.c, refresh.c, search.c, vi.c: delint.
+
+1999-02-05 21:52  christos
+
+	* history.c: Encode the history lines using strvis() before saving
+	  it. Fixes gdb history problem with missing newlines.
+
+1999-02-05 21:38  christos
+
+	* parse.c: M-X:<enter> core-dumped.
+
+1999-01-11 23:40  kleink
+
+	* read.c: In userland, pull in <errno.h> instead of <sys/errno.h>
+	  for the declaration of errno.
+
+1999-01-05 23:46  lukem
+
+	* editline.3: fix history() prototype. (d@openbsd.org)
+
+1998-12-20 18:52  kleink
+
+	* histedit.h: Change multiple inclusion protection symbol name to
+	  NetBSD convention which doesn't violate namespace rules.
+
+1998-12-12 21:08  christos
+
+	* chared.c, chared.h, common.c, el.c, key.c, map.c, parse.c,
+	  read.c, refresh.c, search.h, term.c, tokenizer.c, vi.c: delint
+
+1998-12-12 20:54  christos
+
+	* readline.c: many problems; variables hidden by others, size_t <->
+	  confusion
+
+1998-12-12 20:52  christos
+
+	* history.c: - missing error message from array could cause core
+	  dump - delint
+
+1998-12-03 18:51  cgd
+
+	* history.c: per e-mail with christos: history_next_event() should
+	  return -1, not NULL, in case of error, just like
+	  history_prev_event() does.
+
+1998-09-28 13:00  christos
+
+	* el.c: fix core-dump caused by maps not being initialized before
+	  tty is called.
+
+1998-09-27 20:04  christos
+
+	* tty.c: Obey incoming tty char settings.
+
+1998-09-02 23:33  christos
+
+	* search.c: PR/6081: Wolfgang Helbig: search broken in vi mode.
+	  When patbuf was changed to be dynamically allocated, sizeof was
+	  not changed appropriately.
+
+1998-07-29 04:26  lukem
+
+	* Makefile, editline.3, editrc.5, el.c, el.h, histedit.h, map.c,
+	  map.h, parse.c, prompt.c, prompt.h, shlib_version: * add more
+	  checks for NULL pointers in passed arguments * implement
+	  el_get(EditLine *, int op, void *result), which does the
+	  inverse of el_set() * add EL_EDITMODE operation to el_set and
+	  el_get; if non zero editing	is enabled (the default).  * add
+	  "edit  on | off" editrc command, which modifies EL_EDITMODE.
+	  users can now add '*:edit off' in ~/.editrc as an advisory to
+	  disable editing.
+
+	  NOTE: at this time EL_EDITMODE is just an indication of the state
+	  of the 'edit' command. It's up to the application to check this
+	  after el_source() or el_parse() to determine if editing is still
+	  required.
+
+1998-06-08 12:56  lukem
+
+	* editline.3: documentation is always probably incomplete; don't
+	  make an issue of it
+
+1998-06-01 16:31  lukem
+
+	* editline.3, histedit.h, read.c, shlib_version: * implement
+	  CC_REFRESH_BEEP; as per CC_REFRESH but beep as well. this   is
+	  useful in completion when a partial completion is found * remove
+	  entry in BUGS about el_parse(); that was fixed a while ago
+
+1998-05-20 03:38  christos
+
+	* TEST/test.c: Show the simpler way.
+
+1998-05-20 03:37  christos
+
+	* editline.3, histedit.h, history.c: Add H_APPEND to simplify the
+	  interface.
+
+1998-05-20 03:12  christos
+
+	* TEST/test.c: Fix for api changes.
+
+1998-05-20 03:05  christos
+
+	* editline.3: Adjust for changes.
+
+1998-05-20 03:04  christos
+
+	* tty.c, tty.h: change M_* constants to MD_* to avoid clashes with
+	  <stream.h>
+
+1998-05-20 03:04  christos
+
+	* term.c, term.h: remove term_beep hack.
+
+1998-05-20 03:03  christos
+
+	* shlib_version: Bump!
+
+1998-05-20 03:03  christos
+
+	* readline.c: Adjust to the libedit api changes.
+
+1998-05-20 03:02  christos
+
+	* history.c: Add a function to be able to set the cursor to a given
+	  event number.
+
+1998-05-20 03:02  christos
+
+	* histedit.h: - add extra argument to el_init - fix history
+	  functions - add el_beep()
+
+1998-05-20 03:01  christos
+
+	* emacs.c, refresh.c: cast is*() arg to unsigned char
+
+1998-05-20 03:01  christos
+
+	* el.c: el_init takes a third stream argument and add el_beep.
+
+1998-05-20 03:00  christos
+
+	* common.c: Don't print to stderr, but to the editline error
+	  stream.
+
+1998-03-30 03:30  mrg
+
+	* map.c, tty.c: use int rather than char as an array index.
+
+1998-02-05 19:51  perry
+
+	* editline.3: add LIBRARY section to man page
+
+1998-02-03 20:12  perry
+
+	* chared.c, common.c, emacs.c, map.c, vi.c: remove obsolete
+	  register declarations
+
+1998-01-30 03:27  perry
+
+	* term.c: update to lite-2 (just an sccsid change)
+
+1998-01-30 03:18  perry
+
+	* term.c: import lite-2
+
+1998-01-21 12:12  lukem
+
+	* editline.3, parse.c: in el_parse(), use a temporary buffer to
+	  store the program name when comparing, preventing trashing of
+	  argv[0]. remove note in man page warning of former behaviour.
+
+1998-01-21 11:12  lukem
+
+	* read.c: fix compile errors if FIONREAD is defined.  noted by
+	  David Holland <dholland@bordeaux.eecs.harvard.edu> in [bin/4012].
+
+1998-01-05 08:41  perry
+
+	* shlib_version: RCSID Police.
+
+1997-12-20 20:15  christos
+
+	* el.c, el.h, read.c: Small optimization. Don't call isatty() on
+	  every invocation of el_gets, but remember if the tty setup
+	  failed... Also trim the input line of trailing \r's.
+
+1997-11-13 05:48  thorpej
+
+	* term.c, term.h: Un-"protect" term_beep() and rename it to
+	  __term_beep() to keep it out of the user's namespace.  We need to
+	  do this because the readline emulation functions call
+	  term_beep(), but readline isn't built using the same (funky)
+	  namespace-protection method as the rest of libedit (it's included
+	  like a normal library object).
+
+	  Without this (fairly disgusting) hack, any program linked against
+	  libedit will fail to link with an unresolved reference to
+	  term_beep() if using an Elf toolchain (e.g. on the Alpha).
+
+	  XXX Why this doesn't happen with NetBSD's a.out toolchain is a
+	  mystery XXX to me, and I'm not sure I really want to know (given
+	  that a.out XXX _should_ break the same way as Elf does in this
+	  case).
+
+1997-11-13 05:43  thorpej
+
+	* Makefile: Build readline.o into debugging versions of libedit,
+	  too.
+
+1997-11-12 22:56  thorpej
+
+	* readline.c: el_gets() takes an int *, not a size_t *.
+
+1997-11-09 01:53  lukem
+
+	* Makefile: sync trunk's CPPFLAGS fix (approved by thorpej)
+
+1997-11-09 01:13  lukem
+
+	* editline.3: move description of history() return value
+
+1997-10-26 21:19  christos
+
+	* read.c: Make el_gets() work when the input is not a tty.
+
+1997-10-26 21:17  christos
+
+	* Makefile: Make a link for history.h -> readline.h
+
+1997-10-24 00:51  christos
+
+	* readline.c, readline.h: Const de-poisoning :-( Unfortunately the
+	  default gnu readline does not have full prototypes... With those
+	  changes, and a single line change in gdb/top.c, gdb links with
+	  -ledit
+
+1997-10-24 00:24  christos
+
+	* Makefile, readline.c, readline.h, shlib_version: PR/4301: Jaromir
+	  Dolecek. Add gnu-readline wrapper for editline.
+
+1997-10-23 08:35  lukem
+
+	* TEST/test.c: make this compile with the new libedit history()
+
+1997-10-23 05:26  lukem
+
+	* Makefile: use CPPFLAGS instead of CFLAGS, fix building of test
+
+1997-10-20 10:07  scottr
+
+	* tty.c: Add support for DTR/CTS flow control, from Bill
+	  Studenmund.
+
+1997-10-14 17:05  christos
+
+	* editline.3, hist.c, hist.h, histedit.h, history.c, shlib_version:
+	  PR/4257: Jaromir Dolecek: history() has no generic error handling
+	  and isn't reentrant. This changes the interface of the history
+	  function, so we need a major number bump.
+
+1997-10-13 18:09  lukem
+
+	* term.c: use <termcap.h> instead of "termcap.h" (which was
+	  repository copied to libterm)
+
+1997-10-13 17:46  mrg
+
+	* termcap.h: termcap.h moves to libterm.
+
+1997-10-09 21:16  christos
+
+	* tty.c: PR/4211: Dave Huang: don't lose VSTATUS and VEOL and any
+	  other characters that are VDISABLED by default.
+
+1997-10-09 16:36  lukem
+
+	* Makefile: - define WARNS?=1 in the top-level Makefile.inc, and
+	  don't define	 anywhere else.  - for now, override WARNS=0 in
+	  librpcsvc and libwrap, until they're	 cleaned up - rcsid police
+
+	  lib is now clean (except for librpcsvc and libwrap) on the i386,
+	  and this should motivate the other ports to fix any other minor
+	  problems that their compilers pick up that the i386 version
+	  doesn't.
+
+1997-07-31 01:57  jtc
+
+	* editline.3, editrc.5: Fix files using old TNF copyright notice
+
+1997-07-06 20:25  christos
+
+	* Makefile, chared.c, common.c, el.c, emacs.c, hist.c, history.c,
+	  key.c, map.c, parse.c, prompt.c, read.c, refresh.c, search.c,
+	  sig.c, term.c, tokenizer.c, tty.c, vi.c: Fix compiler warnings.
+
+1997-05-09 09:50  mycroft
+
+	* Makefile: Eliminate bogus redefinitions of standard targets.
+
+1997-04-24 22:20  christos
+
+	* editrc.5: editrc -> editline
+
+1997-04-24 20:54  christos
+
+	* el.c: Handle properly the case where the last line in the sourced
+	  file does not have a trailing '\n'. From Jeffrey C Honig.
+
+1997-04-12 00:40  christos
+
+	* term.c: Return -1 if the terminal set operation resulted in dumb
+	  terminal settings.
+
+1997-04-11 23:38  christos
+
+	* tty.h: Don't allow CSWTCH to interfere with CSUSP on __SVR4
+	  systems.
+
+1997-04-11 19:52  christos
+
+	* el.c, histedit.h, history.c, read.c, sig.c, tty.c, tty.h:
+	  Portability fixes: __const	      -> const BADSIG	      ->
+	  SIG_ERR int flags    -> u_int flags #if __STDC__     -> #ifdef
+	  __STDC__
+
+1997-03-24 23:11  christos
+
+	* Makefile: Makefile cleanups: use INCS variable to install
+	  includes and FILES to install objects.
+
+1997-03-20 17:42  christos
+
+	* el.c: Fix potential stack overflow; from Keith Bostic.
+
+1997-01-23 15:02  mrg
+
+	* history.c, search.c, term.c: - convert unsafe strcpy(), strcat()
+	  and sprintf() to the `n' versions.  - some KNF.
+
+1997-01-17 02:03  lukem
+
+	* el.c: fix el_source() - a block needed braces around it (the
+	  indenting fooled me)
+
+1997-01-14 05:17  lukem
+
+	* common.c, editline.3, histedit.h, read.c: Implement CC_REDISPLAY,
+	  which (unlink CC_REFRESH) redraws the entire input line (a la
+	  ^R). This is useful if the binding outputs information and mucks
+	  up the input line. To be used in ``list-choices'' bindings (refer
+	  to the ^D binding in csh when filec is set)
+
+1997-01-11 10:57  lukem
+
+	* editrc.5, parse.c: * document ^char and \ escape sequences * when
+	  parsing ^char control chars, check the correct char when
+	  determining	validity (previously, ^char was a NOP interpreted
+	  as the literal string   because of this bug)
+
+1997-01-11 07:47  lukem
+
+	* Makefile, chared.c, chared.h, common.c, editline.3, editrc.5,
+	  el.c, el.h, emacs.c, hist.c, hist.h, histedit.h, history.c,
+	  key.c, key.h, makelist, map.c, map.h, parse.c, parse.h, prompt.c,
+	  prompt.h, read.c, refresh.c, refresh.h, search.c, search.h,
+	  sig.c, sig.h, sys.h, term.c, term.h, termcap.h, tokenizer.c,
+	  tokenizer.h, tty.c, tty.h, vi.c, TEST/test.c: RCSid police
+	  editline first appeared in 4.4BSD not NetBSD1.0
+
+1997-01-11 07:26  lukem
+
+	* editline.3, parse.c: * in el_parse(), don't reference argv[0] if
+	  argc < 1 (return -1 instead) * clarify return value of el_parse()
+
+1997-01-09 14:12  lukem
+
+	* Makefile, editline.3, editrc.5, parse.c: * add a man page for the
+	  editline routines * add a man page describing editrc * fix bugs
+	  in el_parse():      * didn't execute command when program name
+	  matched (test reversed)      * was checking against empty string
+	  instead of program name     * after checks, command to run also
+	  pointed to empty string
+
+	  [christos - the author of libedit - ok-ed the man pages in
+	  general (which I  wrote from scratch by RTFS) as well as the
+	  bugfix]
+
+1996-10-18 07:45  thorpej
+
+	* Makefile: Use ${INSTALL}.
+
+1996-06-01 21:59  jtk
+
+	* Makefile: merge bugfix from 1.2 branch: use includes target for
+	  include files
+
+1996-06-01 21:58  jtk
+
+	* Makefile: use includes target to install include files
+
+1995-10-15 20:42  christos
+
+	* hist.h, histedit.h, history.c, TEST/test.c: Added history load
+	  and save to file functions.
+
+1995-06-07 07:52  cgd
+
+	* makelist: be a bit more careful when splitting pathnames
+
+1995-04-29 22:44  christos
+
+	* term.c, term.h: Fixed the key mapping code and reverted Charles'
+	  changes.
+
+1995-04-27 06:49  mycroft
+
+	* term.c, term.h: Remove dead code that can't possibly work.
+
+1995-04-27 05:59  mycroft
+
+	* map.c: Trivial code ordering change.
+
+1994-10-07 12:41  mycroft
+
+	* search.c, sys.h, term.c: Update from trunk.
+
+1994-10-07 12:40  mycroft
+
+	* term.c: Fix typo.
+
+1994-10-02 05:27  mycroft
+
+	* term.c: Don't even *try* to print out the name of the termcap
+	  file; it's hidden in libtermcap, and it normally uses the DB file
+	  anyway.
+
+1994-10-02 05:23  mycroft
+
+	* term.c: Nuke bogus baud rate conversion code.
+
+1994-10-02 03:10  jtc
+
+	* search.c, sys.h: Added code so that POSIX.2 regular expresion
+	  functions  are used if REGEX is defined, V8 regular expresion
+	  functions are used if REGEXP is defined, and BSD regular
+	  expression functions are used if neither are defined.  And
+	  defined REGEX in sys.h so that programs using libedit don't have
+	  to link with libcompat.
+
+1994-08-30 18:33  cgd
+
+	* emacs.c: from trunk; pr 420
+
+1994-08-30 17:16  cgd
+
+	* emacs.c: fix for pr 420, from Christos.
+
+1994-05-06 08:17  cgd
+
+	* Makefile, shlib_version: local
+
+1994-05-06 08:01  cgd
+
+	* Makefile, termcap.h, tokenizer.c, tokenizer.h, tty.c, tty.h,
+	  vi.c, read.c, refresh.c, refresh.h, search.c, search.h, sig.c,
+	  sig.h, sys.h, term.c, term.h, history.c, key.c, key.h, map.c,
+	  map.h, parse.c, parse.h, prompt.c, prompt.h, chared.c, chared.h,
+	  common.c, el.c, el.h, emacs.c, hist.c, hist.h, histedit.h,
+	  makelist, TEST/test.c: libedit!
+
+1994-05-06 08:01  cgd
+
+	* Makefile, termcap.h, tokenizer.c, tokenizer.h, tty.c, tty.h,
+	  vi.c, read.c, refresh.c, refresh.h, search.c, search.h, sig.c,
+	  sig.h, sys.h, term.c, term.h, history.c, key.c, key.h, map.c,
+	  map.h, parse.c, parse.h, prompt.c, prompt.h, chared.c, chared.h,
+	  common.c, el.c, el.h, emacs.c, hist.c, hist.h, histedit.h,
+	  makelist, TEST/test.c: Initial revision
 

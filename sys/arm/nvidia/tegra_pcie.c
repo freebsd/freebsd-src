@@ -1468,7 +1468,7 @@ tegra_pcib_attach(device_t dev)
 	}
 	/*
 	 * XXX - FIXME
-	 * tag for config space is not filled when RF_ALLOCATED flag is used.
+	 * tag for config space is not filled when RF_ACTIVE flag is not used.
 	 */
 	sc->bus_tag = rman_get_bustag(sc->pads_mem_res);
 
@@ -1482,8 +1482,7 @@ tegra_pcib_attach(device_t dev)
 	}
 
 	rid = 2;
-	sc->cfg_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ALLOCATED);
+	sc->cfg_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 	if (sc->cfg_mem_res == NULL) {
 		device_printf(dev, "Cannot allocate config space memory\n");
 		rv = ENXIO;

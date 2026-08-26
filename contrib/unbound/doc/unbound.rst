@@ -42,7 +42,7 @@ unbound(8)
 Synopsis
 --------
 
-**unbound** [``-hdpv``] [``-c <cfgfile>``]
+**unbound** [``-hdpVv``] [``-c <cfgfile>``]
 
 Description
 -----------

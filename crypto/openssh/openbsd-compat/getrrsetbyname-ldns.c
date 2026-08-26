@@ -235,10 +235,11 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 	}
 
 	*res = rrset;
+	rrset = NULL; /* transferred */
 	result = ERRSET_SUCCESS;
 
 fail:
-	/* freerrset(rrset); */
+	freerrset(rrset);
 	ldns_rdf_deep_free(domain);
 	ldns_pkt_free(pkt);
 	ldns_rr_list_deep_free(rrsigs);

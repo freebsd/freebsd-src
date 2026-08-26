@@ -435,6 +435,10 @@ _init_tls(void)
 
 	for (i = 0; (unsigned) i < phnum; i++) {
 		if (phdr[i].p_type == PT_TLS) {
+			if (phdr[i].p_memsz < phdr[i].p_filesz) {
+				tls_msg("_init_tls: invalid PT_TLS segment.\n");
+				abort();
+			}
 			libc_tls_static_space = roundup2(phdr[i].p_memsz,
 			    phdr[i].p_align);
 			libc_tls_init_size = phdr[i].p_filesz;

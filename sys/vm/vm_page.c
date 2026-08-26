@@ -110,6 +110,10 @@
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+#if defined(__aarch64__)
+#include <machine/pmap.h>
+#include <machine/rsi.h>
+#endif
 
 struct vm_domain vm_dom[MAXMEMDOM];
 
@@ -580,8 +584,8 @@ vm_page_startup(vm_offset_t vaddr)
 #endif
 	int biggestone, i, segind;
 #ifdef WITNESS
-	vm_offset_t mapped;
-	int witness_size;
+	void *mapped;
+	u_long witness_size;
 #endif
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
@@ -606,12 +610,19 @@ vm_page_startup(vm_offset_t vaddr)
 
 	new_end = end;
 #ifdef WITNESS
-	witness_size = round_page(witness_startup_count());
+	/*
+	 * witness(4) support.  Allocate and map memory and initialize.
+	 * Advertised available memory is limited in order to avoid witness
+	 * misconfiguration consuming memory needed for subsequent essential
+	 * allocations.
+	 */
+	witness_size = round_page(witness_startup_count(
+	    trunc_page((new_end - phys_avail[biggestone]) / 2)));
 	new_end -= witness_size;
 	mapped = pmap_map(&vaddr, new_end, new_end + witness_size,
 	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((void *)mapped, witness_size);
-	witness_startup((void *)mapped);
+	bzero(mapped, witness_size);
+	witness_startup(mapped);
 #endif
 
 #if MINIDUMP_PAGE_TRACKING
@@ -636,7 +647,7 @@ vm_page_startup(vm_offset_t vaddr)
 	}
 	vm_page_dump_size = round_page(BITSET_SIZE(vm_page_dump_pages));
 	new_end -= vm_page_dump_size;
-	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
+	vm_page_dump = pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
 #if MINIDUMP_STARTUP_PAGE_TRACKING
@@ -658,7 +669,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * included in a crash dump.  Since the message buffer is accessed
 	 * through the direct map, they are not automatically included.
 	 */
-	pa = DMAP_TO_PHYS((vm_offset_t)msgbufp->msg_ptr);
+	pa = DMAP_TO_PHYS(msgbufp->msg_ptr);
 	last_pa = pa + round_page(msgbufsize);
 	while (pa < last_pa) {
 		dump_add_page(pa);
@@ -1290,6 +1301,10 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 	vm_page_t m;
 
 #ifdef VM_PHYSSEG_SPARSE
+#if defined(__aarch64__)
+	if (in_realm())
+		pa &= ~prot_ns_shared_pa; /* Mask off secure bit */
+#endif
 	m = vm_phys_paddr_to_vm_page(pa);
 	if (m == NULL)
 		m = vm_phys_fictitious_to_vm_page(pa);
@@ -1363,8 +1378,10 @@ vm_page_putfake(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0, ("managed %p", m));
 	KASSERT((m->flags & PG_FICTITIOUS) != 0,
 	    ("vm_page_putfake: bad page %p", m));
-	vm_page_assert_xbusied(m);
-	vm_page_busy_free(m);
+	if (m->object != NULL) {
+		vm_page_assert_xbusied(m);
+		vm_page_busy_free(m);
+	}
 	uma_zfree(fakepg_zone, m);
 }
 
@@ -3668,6 +3685,22 @@ vm_page_pqstate_fcmpset(vm_page_t m, vm_page_astate_t *old,
 	return (false);
 }
 
+static __always_inline bool
+vm_page_pqstate_fcmpset_rel(vm_page_t m, vm_page_astate_t *old,
+    vm_page_astate_t new)
+{
+	vm_page_astate_t tmp;
+
+	tmp = *old;
+	do {
+		if (__predict_true(vm_page_astate_fcmpset_rel(m, old, new)))
+			return (true);
+		counter_u64_add(pqstate_commit_retries, 1);
+	} while (old->_bits == tmp._bits);
+
+	return (false);
+}
+
 /*
  * Do the work of committing a queue state update that moves the page out of
  * its current queue.
@@ -3698,7 +3731,8 @@ _vm_page_pqstate_commit_dequeue(struct vm_pagequeue *pq, vm_page_t m,
 		next = TAILQ_NEXT(m, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_dec(pq);
-		if (!vm_page_pqstate_fcmpset(m, old, new)) {
+		/* See vm_page_dequeue(). */
+		if (!vm_page_pqstate_fcmpset_rel(m, old, new)) {
 			if (next == NULL)
 				TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 			else
@@ -4002,7 +4036,12 @@ vm_page_dequeue(vm_page_t m)
 {
 	vm_page_astate_t new, old;
 
-	old = vm_page_astate_load(m);
+	/*
+	 * Synchronize with _vm_page_pqstate_commit_dequeue(): make sure
+	 * that the page's queue linkage field updates are visible before
+	 * returning.
+	 */
+	old = vm_page_astate_load_acq(m);
 	do {
 		if (__predict_true(old.queue == PQ_NONE)) {
 			KASSERT((old.flags & PGA_QUEUE_STATE_MASK) == 0,
@@ -4270,6 +4309,9 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 {
 	u_int old;
 
+	KASSERT(nqueue < PQ_COUNT,
+	    ("vm_page_unwire: invalid queue %u request for page %p",
+	    nqueue, m));
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is unmanaged", __func__, m));
 
@@ -4328,17 +4370,15 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 void
 vm_page_unwire(vm_page_t m, uint8_t nqueue)
 {
-
-	KASSERT(nqueue < PQ_COUNT,
-	    ("vm_page_unwire: invalid queue %u request for page %p",
-	    nqueue, m));
+        KASSERT(nqueue < PQ_COUNT || nqueue == PQ_NONE,
+            ("%s: invalid queue %u request for page %p", __func__, nqueue, m));
 
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if (vm_page_unwire_noq(m) && m->ref_count == 0)
 			vm_page_free(m);
-		return;
+	} else {
+		vm_page_unwire_managed(m, nqueue, false);
 	}
-	vm_page_unwire_managed(m, nqueue, false);
 }
 
 /*
@@ -4512,13 +4552,15 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 void
 vm_page_release(vm_page_t m, int flags)
 {
-	vm_object_t object;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("vm_page_release: page %p is unmanaged", m));
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
+		vm_page_unwire(m, PQ_NONE);
+		return;
+	}
 
 	if ((flags & VPR_TRYFREE) != 0) {
 		for (;;) {
+			vm_object_t object;
+
 			object = atomic_load_ptr(&m->object);
 			if (object == NULL)
 				break;
@@ -5336,67 +5378,33 @@ vm_page_bits(int base, int size)
 void
 vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set)
 {
-
 #if PAGE_SIZE == 32768
 	atomic_set_64((uint64_t *)bits, set);
 #elif PAGE_SIZE == 16384
 	atomic_set_32((uint32_t *)bits, set);
-#elif (PAGE_SIZE == 8192) && defined(atomic_set_16)
+#elif PAGE_SIZE == 8192
 	atomic_set_16((uint16_t *)bits, set);
-#elif (PAGE_SIZE == 4096) && defined(atomic_set_8)
+#elif PAGE_SIZE == 4096
 	atomic_set_8((uint8_t *)bits, set);
-#else		/* PAGE_SIZE <= 8192 */
-	uintptr_t addr;
-	int shift;
-
-	addr = (uintptr_t)bits;
-	/*
-	 * Use a trick to perform a 32-bit atomic on the
-	 * containing aligned word, to not depend on the existence
-	 * of atomic_{set, clear}_{8, 16}.
-	 */
-	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
-	shift *= NBBY;
+#error unhandled page size
 #endif
-	addr &= ~(sizeof(uint32_t) - 1);
-	atomic_set_32((uint32_t *)addr, set << shift);
-#endif		/* PAGE_SIZE */
 }
 
 static inline void
 vm_page_bits_clear(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t clear)
 {
-
 #if PAGE_SIZE == 32768
 	atomic_clear_64((uint64_t *)bits, clear);
 #elif PAGE_SIZE == 16384
 	atomic_clear_32((uint32_t *)bits, clear);
-#elif (PAGE_SIZE == 8192) && defined(atomic_clear_16)
+#elif PAGE_SIZE == 8192
 	atomic_clear_16((uint16_t *)bits, clear);
-#elif (PAGE_SIZE == 4096) && defined(atomic_clear_8)
+#elif PAGE_SIZE == 4096
 	atomic_clear_8((uint8_t *)bits, clear);
-#else		/* PAGE_SIZE <= 8192 */
-	uintptr_t addr;
-	int shift;
-
-	addr = (uintptr_t)bits;
-	/*
-	 * Use a trick to perform a 32-bit atomic on the
-	 * containing aligned word, to not depend on the existence
-	 * of atomic_{set, clear}_{8, 16}.
-	 */
-	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
-	shift *= NBBY;
+#error unhandled page size
 #endif
-	addr &= ~(sizeof(uint32_t) - 1);
-	atomic_clear_32((uint32_t *)addr, clear << shift);
-#endif		/* PAGE_SIZE */
 }
 
 static inline vm_page_bits_t
@@ -5414,45 +5422,21 @@ vm_page_bits_swap(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t newbits)
 	old = *bits;
 	while (atomic_fcmpset_32(bits, &old, newbits) == 0);
 	return (old);
-#elif (PAGE_SIZE == 8192) && defined(atomic_fcmpset_16)
+#elif PAGE_SIZE == 8192
 	uint16_t old;
 
 	old = *bits;
 	while (atomic_fcmpset_16(bits, &old, newbits) == 0);
 	return (old);
-#elif (PAGE_SIZE == 4096) && defined(atomic_fcmpset_8)
+#elif PAGE_SIZE == 4096
 	uint8_t old;
 
 	old = *bits;
 	while (atomic_fcmpset_8(bits, &old, newbits) == 0);
 	return (old);
-#else		/* PAGE_SIZE <= 4096*/
-	uintptr_t addr;
-	uint32_t old, new, mask;
-	int shift;
-
-	addr = (uintptr_t)bits;
-	/*
-	 * Use a trick to perform a 32-bit atomic on the
-	 * containing aligned word, to not depend on the existence
-	 * of atomic_{set, swap, clear}_{8, 16}.
-	 */
-	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
-	shift *= NBBY;
+#error unhandled page size
 #endif
-	addr &= ~(sizeof(uint32_t) - 1);
-	mask = VM_PAGE_BITS_ALL << shift;
-
-	old = *bits;
-	do {
-		new = old & ~mask;
-		new |= newbits << shift;
-	} while (atomic_fcmpset_32((uint32_t *)addr, &old, new) == 0);
-	return (old >> shift);
-#endif		/* PAGE_SIZE */
 }
 
 /*

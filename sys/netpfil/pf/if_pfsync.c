@@ -873,6 +873,13 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	    (st->act.rtableid >= 0 && st->act.rtableid < rt_numfibs)))
 		goto cleanup;
 
+	if (sks->proto == IPPROTO_SCTP && st->src.scrub == NULL) {
+		if (V_pf_status.debug >= PF_DEBUG_MISC)
+			printf("%s: invalid SCTP state from creator id: %08x\n", __func__,
+			    ntohl(sp->pfs_1301.creatorid));
+		goto cleanup;
+	}
+
 	st->id = sp->pfs_1301.id;
 	st->creatorid = sp->pfs_1301.creatorid;
 	pf_state_peer_ntoh(&sp->pfs_1301.src, &st->src);
@@ -2032,7 +2039,7 @@ pfsync_sendout(int schedswi, int c)
 		return;
 	}
 
-	m = m_get2(max_linkhdr + b->b_len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_get3(max_linkhdr + b->b_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 		V_pfsyncstats.pfsyncs_onomem++;
@@ -2349,7 +2356,11 @@ pfsync_undefer_state_locked(struct pf_kstate *st, int drop)
 		}
 	}
 
-	panic("%s: unable to find deferred state", __func__);
+	/*
+	 * If we don't find this state in b_deferrals that might be because we
+	 * overflowed the list (see pfsync_defer()'s >= 128 check') or because
+	 * the deferral timed out already (see pfsync_defer_tomo()).
+	 */
 }
 
 static void

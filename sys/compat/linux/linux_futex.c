@@ -356,7 +356,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 static int
 linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 {
-	struct umtx_abs_timeout timo;
+	struct umtx_abs_timeout timo, *timop;
 	struct linux_emuldata *em;
 	struct umtx_pi *pi, *new_pi;
 	struct thread *td1;
@@ -370,8 +370,12 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 	    &uq->uq_key);
 	if (error != 0)
 		return (error);
-	if (args->ts != NULL)
-		linux_umtx_abs_timeout_init(&timo, args);
+	if (!try && args->ts != NULL) {
+		timop = &timo;
+		linux_umtx_abs_timeout_init(timop, args);
+	} else {
+		timop = NULL;
+	}
 
 	umtxq_lock(&uq->uq_key);
 	pi = umtx_pi_lookup(&uq->uq_key);
@@ -546,8 +550,7 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 
 		/* We set the contested bit, sleep. */
 		error = umtxq_sleep_pi(uq, pi, owner, "futexp",
-		    args->ts == NULL ? NULL : &timo,
-		    (args->flags & FUTEX_SHARED) != 0);
+		    timop, (args->flags & FUTEX_SHARED) != 0);
 		if (error != 0)
 			continue;
 

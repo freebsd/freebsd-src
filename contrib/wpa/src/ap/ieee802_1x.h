@@ -66,4 +66,6 @@ void ieee802_1x_encapsulate_radius(struct hostapd_data *hapd,
 struct eapol_state_machine *
 ieee802_1x_alloc_eapol_sm(struct hostapd_data *hapd, struct sta_info *sta);
 
+void ieee802_1x_eapol_sm_set_port_enabled(struct eapol_state_machine *sm,
+					  bool value);
 #endif /* IEEE802_1X_H */

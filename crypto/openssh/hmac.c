@@ -1,4 +1,4 @@
-/* $OpenBSD: hmac.c,v 1.14 2020/02/26 13:40:09 jsg Exp $ */
+/* $OpenBSD: hmac.c,v 1.16 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
  *
@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sshbuf.h"
 #include "digest.h"
 #include "hmac.h"
 

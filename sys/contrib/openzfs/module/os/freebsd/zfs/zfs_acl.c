@@ -1,28 +1,19 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #include <sys/types.h>
@@ -44,7 +35,7 @@
 #include <sys/policy.h>
 #include <sys/zfs_znode.h>
 #include <sys/zfs_fuid.h>
-#include <sys/zfs_acl.h>
+#include <sys/zfs_acl_impl.h>
 #include <sys/zfs_dir.h>
 #include <sys/zfs_quota.h>
 #include <sys/zfs_vfsops.h>
@@ -1170,7 +1161,7 @@ zfs_aclset_common(znode_t *zp, zfs_acl_t *aclp, cred_t *cr, dmu_tx_t *tx)
 	dmu_object_type_t	otype;
 	zfs_acl_locator_cb_t	locate = { 0 };
 	uint64_t		mode;
-	sa_bulk_attr_t		bulk[5];
+	sa_bulk_attr_t		bulk[6];
 	uint64_t		ctime[2];
 	int			count = 0;
 	zfs_acl_phys_t		acl_phys;
@@ -1316,6 +1307,8 @@ zfs_aclset_common(znode_t *zp, zfs_acl_t *aclp, cred_t *cr, dmu_tx_t *tx)
 		zp->z_pflags |= ZFS_ACL_TRIVIAL;
 
 	zfs_tstamp_update_setup(zp, STATE_CHANGED, NULL, ctime);
+	ZFS_PERSIST_SEQ(zp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	return (sa_bulk_update(zp->z_sa_hdl, bulk, count, tx));
 }
 
@@ -1619,7 +1612,7 @@ zfs_acl_inherit(zfsvfs_t *zfsvfs, vtype_t vtype, zfs_acl_t *paclp,
  */
 int
 zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
-    vsecattr_t *vsecp, zfs_acl_ids_t *acl_ids, zidmap_t *mnt_ns)
+    vsecattr_t *vsecp, zfs_acl_ids_t *acl_ids)
 {
 	int		error;
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
@@ -1789,7 +1782,7 @@ zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	if (mask == 0)
 		return (SET_ERROR(ENOSYS));
 
-	if ((error = zfs_zaccess(zp, ACE_READ_ACL, 0, skipaclchk, cr, NULL)))
+	if ((error = zfs_zaccess(zp, ACE_READ_ACL, 0, skipaclchk, cr)))
 		return (error);
 
 	mutex_enter(&zp->z_acl_lock);
@@ -1952,7 +1945,7 @@ zfs_setacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	if (zp->z_pflags & ZFS_IMMUTABLE)
 		return (SET_ERROR(EPERM));
 
-	if ((error = zfs_zaccess(zp, ACE_WRITE_ACL, 0, skipaclchk, cr, NULL)))
+	if ((error = zfs_zaccess(zp, ACE_WRITE_ACL, 0, skipaclchk, cr)))
 		return (error);
 
 	error = zfs_vsec_2_aclp(zfsvfs, ZTOV(zp)->v_type, vsecp, cr, &fuidp,
@@ -2218,24 +2211,6 @@ zfs_zaccess_aces_check(znode_t *zp, uint32_t *working_mode,
 	return (0);
 }
 
-/*
- * Return true if any access whatsoever granted, we don't actually
- * care what access is granted.
- */
-boolean_t
-zfs_has_access(znode_t *zp, cred_t *cr)
-{
-	uint32_t have = ACE_ALL_PERMS;
-
-	if (zfs_zaccess_aces_check(zp, &have, B_TRUE, cr) != 0) {
-		uid_t owner;
-
-		owner = zfs_fuid_map_id(zp->z_zfsvfs, zp->z_uid, cr, ZFS_OWNER);
-		return (secpolicy_vnode_any_access(cr, ZTOV(zp), owner) == 0);
-	}
-	return (B_TRUE);
-}
-
 static int
 zfs_zaccess_common(znode_t *zp, uint32_t v4_mode, uint32_t *working_mode,
     boolean_t *check_privs, boolean_t skipaclchk, cred_t *cr)
@@ -2340,8 +2315,7 @@ zfs_fastaccesschk_execute(znode_t *zdp, cred_t *cr)
  * can define any form of access.
  */
 int
-zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr,
-    zidmap_t *mnt_ns)
+zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 {
 	uint32_t	working_mode;
 	int		error;
@@ -2502,11 +2476,9 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr,
  * NFSv4-style ZFS ACL format and call zfs_zaccess()
  */
 int
-zfs_zaccess_rwx(znode_t *zp, mode_t mode, int flags, cred_t *cr,
-    zidmap_t *mnt_ns)
+zfs_zaccess_rwx(znode_t *zp, mode_t mode, int flags, cred_t *cr)
 {
-	return (zfs_zaccess(zp, zfs_unix_to_v4(mode >> 6), flags, B_FALSE, cr,
-	    mnt_ns));
+	return (zfs_zaccess(zp, zfs_unix_to_v4(mode >> 6), flags, B_FALSE, cr));
 }
 
 /*
@@ -2517,7 +2489,7 @@ zfs_zaccess_unix(void *zp, int mode, cred_t *cr)
 {
 	int v4_mode = zfs_unix_to_v4(mode >> 6);
 
-	return (zfs_zaccess(zp, v4_mode, 0, B_FALSE, cr, NULL));
+	return (zfs_zaccess(zp, v4_mode, 0, B_FALSE, cr));
 }
 
 static int
@@ -2573,7 +2545,7 @@ zfs_delete_final_check(znode_t *zp, znode_t *dzp,
  *
  */
 int
-zfs_zaccess_delete(znode_t *dzp, znode_t *zp, cred_t *cr, zidmap_t *mnt_ns)
+zfs_zaccess_delete(znode_t *dzp, znode_t *zp, cred_t *cr)
 {
 	uint32_t dzp_working_mode = 0;
 	uint32_t zp_working_mode = 0;
@@ -2660,7 +2632,7 @@ zfs_zaccess_delete(znode_t *dzp, znode_t *zp, cred_t *cr, zidmap_t *mnt_ns)
 
 int
 zfs_zaccess_rename(znode_t *sdzp, znode_t *szp, znode_t *tdzp,
-    znode_t *tzp, cred_t *cr, zidmap_t *mnt_ns)
+    znode_t *tzp, cred_t *cr)
 {
 	int add_perm;
 	int error;
@@ -2680,8 +2652,7 @@ zfs_zaccess_rename(znode_t *sdzp, znode_t *szp, znode_t *tdzp,
 	 * to another.
 	 */
 	if (ZTOV(szp)->v_type == VDIR && ZTOV(sdzp) != ZTOV(tdzp)) {
-		if ((error = zfs_zaccess(szp, ACE_WRITE_DATA, 0, B_FALSE, cr,
-		    mnt_ns)))
+		if ((error = zfs_zaccess(szp, ACE_WRITE_DATA, 0, B_FALSE, cr)))
 			return (error);
 	}
 
@@ -2691,19 +2662,19 @@ zfs_zaccess_rename(znode_t *sdzp, znode_t *szp, znode_t *tdzp,
 	 * If that succeeds then check for add_file/add_subdir permissions
 	 */
 
-	if ((error = zfs_zaccess_delete(sdzp, szp, cr, mnt_ns)))
+	if ((error = zfs_zaccess_delete(sdzp, szp, cr)))
 		return (error);
 
 	/*
 	 * If we have a tzp, see if we can delete it?
 	 */
-	if (tzp && (error = zfs_zaccess_delete(tdzp, tzp, cr, mnt_ns)))
+	if (tzp && (error = zfs_zaccess_delete(tdzp, tzp, cr)))
 		return (error);
 
 	/*
 	 * Now check for add permissions
 	 */
-	error = zfs_zaccess(tdzp, add_perm, 0, B_FALSE, cr, mnt_ns);
+	error = zfs_zaccess(tdzp, add_perm, 0, B_FALSE, cr);
 
 	return (error);
 }

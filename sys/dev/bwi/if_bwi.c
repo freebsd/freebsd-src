@@ -1364,7 +1364,6 @@ bwi_start_locked(struct bwi_softc *sc)
 	    (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		wh = mtod(m, struct ieee80211_frame *);
-		ieee80211_output_seqno_assign(ni, -1, m);
 		if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0 &&
 		    ieee80211_crypto_encap(ni, m) == NULL) {
 			if_inc_counter(ni->ni_vap->iv_ifp,
@@ -2903,6 +2902,12 @@ bwi_plcp_header(const struct ieee80211_rate_table *rt,
 		panic("unsupported modulation type %u\n", modtype);
 }
 
+/*
+ * @brief Encapsulate a frame for transmit.
+ *
+ * Note that this must be called inside the same lock / path
+ * as the crypto encap call in the transmit path.
+ */
 static int
 bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	  struct ieee80211_node *ni)
@@ -2936,6 +2941,12 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 
 	/* Get 802.11 frame len before prepending TX header */
 	pkt_len = m->m_pkthdr.len + IEEE80211_CRC_LEN;
+
+	/*
+	 * Assign sequence number - must be done in lock-step with
+	 * cipher encap.
+	 */
+	ieee80211_output_seqno_assign(ni, -1, m);
 
 	/*
 	 * Find TX rate
@@ -3116,6 +3127,9 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 
 	/* Get 802.11 frame len before prepending TX header */
 	pkt_len = m->m_pkthdr.len + IEEE80211_CRC_LEN;
+
+	/* Assign sequence number. */
+	ieee80211_output_seqno_assign(ni, -1, m);
 
 	/*
 	 * Find TX rate

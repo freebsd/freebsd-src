@@ -51,9 +51,17 @@ Description
 validation.
 The program fetches the trust anchor with the method from :rfc:`7958` when
 regular :rfc:`5011` update fails to bring it up to date.
-It can be run (as root) from the commandline, or run as part of startup
-scripts.
-Before you start the :doc:`unbound(8)</manpages/unbound>` DNS server.
+It can be run from the commandline, or run as part of startup scripts before
+you start the :doc:`unbound(8)</manpages/unbound>` DNS server.
+
+Note that if you want to use :rfc:`5011` with Unbound (i.e., the
+:ref:`auto-trust-anchor-file<unbound.conf.auto-trust-anchor-file>` option) so
+that trust anchor information is automatically tracked by Unbound during
+operation, the user that Unbound runs under (by default 'unbound') must have
+write permissions to the file and the directory the file lives in (for creating
+temporary files).
+In this case you would probably want to run this program as the designated
+Unbound user.
 
 Suggested usage:
 
@@ -62,6 +70,7 @@ Suggested usage:
    # in the init scripts.
    # provide or update the root anchor (if necessary)
    unbound-anchor -a "@UNBOUND_ROOTKEY_FILE@"
+
    # Please note usage of this root anchor is at your own risk
    # and under the terms of our LICENSE (see source).
    #

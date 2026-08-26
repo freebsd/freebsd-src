@@ -16,6 +16,8 @@
  * out?  Also, there are way more of these.  I couldn't find a centralized place
  * which lists them though.
  */
+#define PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT	0x1122
+#define PCI_DEVICEID_AMD_CEZANNE_ROOT		0x1630
 #define PCI_DEVICEID_AMD_REMBRANDT_ROOT		0x14B5
 #define PCI_DEVICEID_AMD_PHOENIX_ROOT		0x14E8
 #define PCI_DEVICEID_AMD_STRIX_POINT_ROOT	0x14A4
@@ -27,12 +29,18 @@
 #define SMU_PHYSBASE_ADDR_HI	0x13B102EC
 
 #define SMU_MEM_SIZE		0x1000
+
 #define SMU_REG_SPACE_OFF	0x10000
 
-#define SMU_REG_MESSAGE		0x538
 #define SMU_REG_RESPONSE	0x980
 #define SMU_REG_ARGUMENT	0x9BC
-#define SMU_REG_IDLEMASK	0xD14
+
+#define SMU_REG_IDLEMASK_CEZANNE	0x94
+#define SMU_REG_IDLEMASK_PHOENIX	0xD14
+#define SMU_REG_IDLEMASK_KRACKAN	0xF14
+
+#define	SMU_REG_MSG_CEZANNE		0x538
+#define	SMU_REG_MSG_KRACKAN		0x938
 
 enum amdsmu_res {
 	SMU_RES_WAIT		= 0x00,
@@ -45,6 +53,7 @@ enum amdsmu_res {
 
 enum amdsmu_msg {
 	SMU_MSG_GETSMUVERSION		= 0x02,
+	SMU_MSG_SLEEP_HINT		= 0x03,
 	SMU_MSG_LOG_GETDRAM_ADDR_HI	= 0x04,
 	SMU_MSG_LOG_GETDRAM_ADDR_LO	= 0x05,
 	SMU_MSG_LOG_START		= 0x06,

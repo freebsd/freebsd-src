@@ -5,7 +5,6 @@
  */
 FBSD_1.0 {
 	__mcount;
-	alloca;
 	brk;
 	sbrk;
 };

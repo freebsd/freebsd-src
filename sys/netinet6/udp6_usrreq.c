@@ -70,7 +70,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -833,14 +832,9 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 		laddr = &in6a;
 
 		if (inp->inp_lport == 0) {
-			struct inpcbinfo *pcbinfo;
-
 			INP_WLOCK_ASSERT(inp);
 
-			pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
-			INP_HASH_WLOCK(pcbinfo);
 			error = in6_pcbsetport(laddr, inp, td->td_ucred);
-			INP_HASH_WUNLOCK(pcbinfo);
 			if (error != 0) {
 				/* Undo an address bind that may have occurred. */
 				inp->in6p_laddr = in6addr_any;
@@ -868,11 +862,9 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	ulen = m->m_pkthdr.len;
 	plen = sizeof(struct udphdr) + ulen;
 	hlen = sizeof(struct ip6_hdr);
-
 	if (plen > IPV6_MAXPAYLOAD) {
-		m_freem(control);
-		m_freem(m);
-		return (EMSGSIZE);
+		error = EMSGSIZE;
+		goto release;
 	}
 
 	/*
@@ -940,7 +932,6 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	}
 
 	flags = 0;
-#if defined(ROUTE_MPATH) || defined(RSS)
 	if (CALC_FLOWID_OUTBOUND_SENDTO) {
 		uint32_t hash_type, hash_val;
 		uint8_t pr;
@@ -954,7 +945,6 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	}
 	/* do not use inp flowid */
 	flags |= IP_NODEFAULTFLOWID;
-#endif
 
 	UDPSTAT_INC(udps_opackets);
 	if (nxt == IPPROTO_UDPLITE)
@@ -989,9 +979,7 @@ static void
 udp6_abort(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_abort: inp == NULL"));
 
@@ -1005,9 +993,8 @@ udp6_abort(struct socket *so)
 #endif
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
-		INP_HASH_WLOCK(pcbinfo);
 		in6_pcbdisconnect(inp);
-		INP_HASH_WUNLOCK(pcbinfo);
+		memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1053,11 +1040,9 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct sockaddr_in6 *sin6_p;
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	int error;
 	u_char vflagsav;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_bind: inp == NULL"));
 
@@ -1069,7 +1054,6 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	sin6_p = (struct sockaddr_in6 *)nam;
 
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(pcbinfo);
 	vflagsav = inp->inp_vflag;
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
@@ -1098,7 +1082,6 @@ out:
 #endif
 	if (error != 0)
 		inp->inp_vflag = vflagsav;
-	INP_HASH_WUNLOCK(pcbinfo);
 	INP_WUNLOCK(inp);
 	return (error);
 }
@@ -1107,9 +1090,7 @@ static void
 udp6_close(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_close: inp == NULL"));
 
@@ -1122,9 +1103,8 @@ udp6_close(struct socket *so)
 	}
 #endif
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
-		INP_HASH_WLOCK(pcbinfo);
 		in6_pcbdisconnect(inp);
-		INP_HASH_WUNLOCK(pcbinfo);
+		memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1135,12 +1115,10 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct epoch_tracker et;
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in6 *sin6;
 	int error;
 	u_char vflagsav;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_connect: inp == NULL"));
 
@@ -1178,9 +1156,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
 		NET_EPOCH_ENTER(et);
-		INP_HASH_WLOCK(pcbinfo);
 		error = in_pcbconnect(inp, &sin, td->td_ucred);
-		INP_HASH_WUNLOCK(pcbinfo);
 		NET_EPOCH_EXIT(et);
 		/*
 		 * If connect succeeds, mark socket as connected. If
@@ -1211,9 +1187,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	NET_EPOCH_ENTER(et);
-	INP_HASH_WLOCK(pcbinfo);
 	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
-	INP_HASH_WUNLOCK(pcbinfo);
 	NET_EPOCH_EXIT(et);
 	/*
 	 * If connect succeeds, mark socket as connected. If
@@ -1246,9 +1220,7 @@ static int
 udp6_disconnect(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_disconnect: inp == NULL"));
 
@@ -1266,9 +1238,8 @@ udp6_disconnect(struct socket *so)
 		return (ENOTCONN);
 	}
 
-	INP_HASH_WLOCK(pcbinfo);
 	in6_pcbdisconnect(inp);
-	INP_HASH_WUNLOCK(pcbinfo);
+	memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	SOCK_UNLOCK(so);

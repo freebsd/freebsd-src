@@ -64,6 +64,13 @@ This output usually makes sense only if you know OpenSSL internals well.
 The value of this environment variable is a comma-separated list of names,
 with the following available:
 
+=item B<OPENSSL_RUNNING_UNIT_TESTS>
+
+This environment variable is used to flag the fact that unit tests are being run
+(i.e. `make test`).  It is used to detect when the OpenSSL should behave in a special
+manner during unit tests (i.e. when unit tests are being run on fuzzing builds).  It should
+generally not be set by users.
+
 =over 4
 
 =item B<TRACE>
@@ -161,6 +168,8 @@ See L<RAND_load_file(3)>.
 =item B<SSL_CERT_DIR>, B<SSL_CERT_FILE>
 
 Specify the default directory or file containing CA certificates.
+B<SSL_CERT_DIR> can contain multiple directories separated by colons
+(or semicolons on Windows).
 See L<SSL_CTX_load_verify_locations(3)>.
 
 =item B<TSGET>
@@ -205,7 +214,7 @@ Use of this feature should be restricted to test and debug environments only.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

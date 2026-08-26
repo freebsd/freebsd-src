@@ -8,7 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -40,10 +40,6 @@ function cleanup
 	poolexists $TESTPOOL && destroy_pool $TESTPOOL
 	[[ -d "$TESTDIR" ]] && log_must rm -r "$TESTDIR"
 }
-
-if is_freebsd; then
-	log_unsupported "FreeBSD has no hole punching mechanism for the time being."
-fi
 
 typeset trim12_pid trim3_pid
 typeset -r VDEV1="$TESTDIR/file_vdev1"

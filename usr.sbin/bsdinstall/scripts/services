@@ -71,6 +71,11 @@ if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/moused" ]; then
 	    moused \"PS/2 mouse pointer on console\" ${moused_enable:-off}"
 fi
 
+if [ -x "${BSDINSTALL_CHROOT}/etc/rc.d/virtual_oss" ]; then
+	DAEMON_OPTIONS="$DAEMON_OPTIONS \
+	    virtual_oss \"Sound server\" ${virtual_oss_enable:-off}"
+fi
+
 exec 5>&1
 DAEMONS=$(eval bsddialog --backtitle \"$OSNAME Installer\" \
     --title \"System Configuration\" --no-cancel --separate-output \

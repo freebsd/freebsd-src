@@ -50,7 +50,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 
 	iwl_pcie_apm_config(trans);
 
-	ret = iwl_finish_nic_init(trans);
+	ret = iwl_trans_activate_nic(trans);
 	if (ret)
 		return ret;
 
@@ -612,7 +612,11 @@ again:
 			goto out;
 		}
 
+#if defined(__linux__)
 		msleep(10);
+#elif defined(__FreeBSD__)
+		linux_msleep(10);
+#endif
 		IWL_INFO(trans, "TOP reset successful, reinit now\n");
 		/* now load the firmware again properly */
 		ret = _iwl_trans_pcie_start_hw(trans);

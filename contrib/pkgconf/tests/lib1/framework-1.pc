@@ -1,0 +1,9 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: framework-1
+Description: Another pkg-config test
+Version: 1.3
+Libs: -F${libdir} -framework framework-1

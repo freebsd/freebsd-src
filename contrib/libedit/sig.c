@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.c,v 1.28 2024/12/18 15:38:52 christos Exp $	*/
+/*	$NetBSD: sig.c,v 1.29 2025/06/14 13:43:50 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: sig.c,v 1.28 2024/12/18 15:38:52 christos Exp $");
+__RCSID("$NetBSD: sig.c,v 1.29 2025/06/14 13:43:50 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -107,7 +107,7 @@ sig_handler(int signo)
 	sel->el_signal->sig_action[i].sa_flags = 0;
 	sigemptyset(&sel->el_signal->sig_action[i].sa_mask);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
-	(void) kill(0, signo);
+	(void) raise(signo);
 	errno = save_errno;
 }
 

@@ -16,6 +16,7 @@ CFLAGS+= \
 	-I${ZFSTOP}/lib/libzpool/include \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
+	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h
@@ -27,7 +28,6 @@ CSTD=	c99
 # Since there are many asserts in this program, it makes no sense to compile
 # it without debugging.
 CFLAGS+= -g -DDEBUG=1 -Wno-format -DZFS_DEBUG=1
-CFLAGS.gcc+= -fms-extensions
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

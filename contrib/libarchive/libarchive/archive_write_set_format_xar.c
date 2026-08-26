@@ -111,7 +111,7 @@ static int xml_writer_start_element(struct xml_writer *ctx,
 static int xml_writer_write_attribute(struct xml_writer *ctx, const char *key,
     const char *value);
 static int xml_writer_write_attributef(struct xml_writer *ctx, const char *key,
-    const char *format, ...);
+    const char *format, ...) __LA_PRINTF(3, 4);
 static int xml_writer_write_string(struct xml_writer *ctx, const char *string);
 static int xml_writer_write_base64(struct xml_writer* ctx,
     const char *data, size_t start, size_t len);
@@ -129,14 +129,20 @@ static int xml_writer_destroy(struct xml_writer *ctx);
 enum sumalg {
 	CKSUM_NONE = 0,
 	CKSUM_SHA1 = 1,
-	CKSUM_MD5 = 2
+	CKSUM_MD5 = 2,
+	CKSUM_SHA256 = 3,
+	CKSUM_SHA512 = 4
 };
 
 #define MD5_SIZE	16
 #define SHA1_SIZE	20
-#define MAX_SUM_SIZE	20
+#define SHA256_SIZE	32
+#define SHA512_SIZE	64
+#define MAX_SUM_SIZE	64
 #define MD5_NAME	"md5"
 #define SHA1_NAME	"sha1"
+#define SHA256_NAME	"sha256"
+#define SHA512_NAME	"sha512"
 
 enum enctype {
 	NONE,
@@ -153,6 +159,12 @@ struct chksumwork {
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	archive_sha1_ctx	 sha1ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	archive_sha256_ctx	 sha256ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	archive_sha512_ctx	 sha512ctx;
 #endif
 };
 
@@ -366,8 +378,7 @@ archive_write_set_format_xar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_xar");
 
 	/* If another format was already registered, unregister it. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	xar = calloc(1, sizeof(*xar));
 	if (xar == NULL) {
@@ -380,22 +391,19 @@ archive_write_set_format_xar(struct archive *_a)
 	file_init_hardlinks(xar);
 	archive_string_init(&(xar->tstr));
 	archive_string_init(&(xar->vstr));
+	archive_string_init(&(xar->cur_dirstr));
 
 	/*
 	 * Create the root directory.
 	 */
 	xar->root = file_create_virtual_dir(a, xar, "");
-	if (xar->root == NULL) {
-		free(xar);
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate xar data");
-		return (ARCHIVE_FATAL);
-	}
+	if (xar->root == NULL)
+		goto memerr;
 	xar->root->parent = xar->root;
 	file_register(xar, xar->root);
 	xar->cur_dirent = xar->root;
-	archive_string_init(&(xar->cur_dirstr));
-	archive_string_ensure(&(xar->cur_dirstr), 1);
+	if (archive_string_ensure(&(xar->cur_dirstr), 1) == NULL)
+		goto memerr;
 	xar->cur_dirstr.s[0] = 0;
 
 	/*
@@ -422,14 +430,23 @@ archive_write_set_format_xar(struct archive *_a)
 	a->archive.archive_format_name = "xar";
 
 	return (ARCHIVE_OK);
+
+memerr:
+	archive_string_free(&(xar->cur_dirstr));
+	archive_string_free(&(xar->tstr));
+	archive_string_free(&(xar->vstr));
+	file_free_hardlinks(xar);
+	file_free_register(xar);
+	free(xar);
+	archive_set_error(&a->archive, ENOMEM,
+	    "Can't allocate xar data");
+	return (ARCHIVE_FATAL);
 }
 
 static int
 xar_options(struct archive_write *a, const char *key, const char *value)
 {
-	struct xar *xar;
-
-	xar = (struct xar *)a->format_data;
+	struct xar *xar = a->format_data;
 
 	if (strcmp(key, "checksum") == 0) {
 		if (value == NULL)
@@ -440,6 +457,14 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			xar->opt_sumalg = CKSUM_SHA1;
 		else if (strcmp(value, "md5") == 0)
 			xar->opt_sumalg = CKSUM_MD5;
+#ifdef ARCHIVE_HAS_SHA256
+		else if (strcmp(value, "sha256") == 0)
+			xar->opt_sumalg = CKSUM_SHA256;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+		else if (strcmp(value, "sha512") == 0)
+			xar->opt_sumalg = CKSUM_SHA512;
+#endif
 		else {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -515,6 +540,14 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			xar->opt_toc_sumalg = CKSUM_SHA1;
 		else if (strcmp(value, "md5") == 0)
 			xar->opt_toc_sumalg = CKSUM_MD5;
+#ifdef ARCHIVE_HAS_SHA256
+		else if (strcmp(value, "sha256") == 0)
+			xar->opt_toc_sumalg = CKSUM_SHA256;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+		else if (strcmp(value, "sha512") == 0)
+			xar->opt_toc_sumalg = CKSUM_SHA512;
+#endif
 		else {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -526,12 +559,13 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 	}
 	if (strcmp(key, "threads") == 0) {
 		char *endptr;
+		unsigned long val;
 
 		if (value == NULL)
 			return (ARCHIVE_FAILED);
 		errno = 0;
-		xar->opt_threads = (int)strtoul(value, &endptr, 10);
-		if (errno != 0 || *endptr != '\0') {
+		val = strtoul(value, &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || val > (unsigned)INT_MAX) {
 			xar->opt_threads = 1;
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -539,6 +573,7 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			    value);
 			return (ARCHIVE_FAILED);
 		}
+		xar->opt_threads = (int)val;
 		if (xar->opt_threads == 0) {
 #ifdef HAVE_LZMA_STREAM_ENCODER_MT
 			xar->opt_threads = lzma_cputhreads();
@@ -557,12 +592,11 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 static int
 xar_write_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	struct file *file;
 	struct archive_entry *file_entry;
 	int r, r2;
 
-	xar = (struct xar *)a->format_data;
 	xar->cur_file = NULL;
 	xar->bytes_remaining = 0;
 
@@ -580,8 +614,10 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	r2 = file_gen_utility_names(a, file);
-	if (r2 < ARCHIVE_WARN)
+	if (r2 < ARCHIVE_WARN) {
+		file_free(file);
 		return (r2);
+	}
 
 	/*
 	 * Ignore a path which looks like the top of directory name
@@ -670,20 +706,25 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 	checksum_init(&(xar->e_sumwrk), xar->opt_sumalg);
 	r = xar_compression_init_encoder(a);
 
-	if (r != ARCHIVE_OK)
+	if (r != ARCHIVE_OK) {
+		struct chksumval sumval;
+
+		checksum_final(&(xar->a_sumwrk), &sumval);
+		checksum_final(&(xar->e_sumwrk), &sumval);
+		xar->a_sumwrk.alg = CKSUM_NONE;
+		xar->e_sumwrk.alg = CKSUM_NONE;
 		return (r);
-	else
+	} else
 		return (r2);
 }
 
 static int
 write_to_temp(struct archive_write *a, const void *buff, size_t s)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	const unsigned char *p;
 	ssize_t ws;
 
-	xar = (struct xar *)a->format_data;
 	p = (const unsigned char *)buff;
 	while (s) {
 		ws = write(xar->temp_fd, p, s);
@@ -702,13 +743,11 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 static ssize_t
 xar_write_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	enum la_zaction run;
 	size_t size = 0;
 	size_t rsize;
 	int r;
-
-	xar = (struct xar *)a->format_data;
 
 	if (s > xar->bytes_remaining)
 		s = (size_t)xar->bytes_remaining;
@@ -803,12 +842,11 @@ xar_write_data(struct archive_write *a, const void *buff, size_t s)
 static int
 xar_finish_entry(struct archive_write *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	struct file *file;
 	size_t s;
 	ssize_t w;
 
-	xar = (struct xar *)a->format_data;
 	if (xar->cur_file == NULL)
 		return (ARCHIVE_OK);
 
@@ -817,9 +855,7 @@ xar_finish_entry(struct archive_write *a)
 		if (s > a->null_length)
 			s = a->null_length;
 		w = xar_write_data(a, a->nulls, s);
-		if (w > 0)
-			xar->bytes_remaining -= w;
-		else
+		if (w <= 0)
 			return ((int)w);
 	}
 	file = xar->cur_file;
@@ -907,14 +943,13 @@ xmlwrite_string(struct archive_write *a, struct xml_writer *writer,
 	return (ARCHIVE_OK);
 }
 
-static int
+static int __LA_PRINTF(4, 5)
 xmlwrite_fstring(struct archive_write *a, struct xml_writer *writer,
 	const char *key, const char *fmt, ...)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	va_list ap;
 
-	xar = (struct xar *)a->format_data;
 	va_start(ap, fmt);
 	archive_string_empty(&xar->vstr);
 	archive_string_vsprintf(&xar->vstr, fmt, ap);
@@ -1108,30 +1143,27 @@ make_fflags_entry(struct archive_write *a, struct xml_writer *writer,
 		{ NULL, NULL}
 	};
 	const struct flagentry *fe, *flagentry;
-#define FLAGENTRY_MAXSIZE ((sizeof(flagbsd)+sizeof(flagext2))/sizeof(flagbsd))
-	const struct flagentry *avail[FLAGENTRY_MAXSIZE];
 	const char *p;
-	int i, n, r;
+	int r, started;
 
 	if (strcmp(element, "ext2") == 0)
 		flagentry = flagext2;
 	else
 		flagentry = flagbsd;
-	n = 0;
 	p = fflags_text;
+	started = 0;
 	do {
-		const char *cp;
+		const char *cp, *name = NULL;
 
 		cp = strchr(p, ',');
 		if (cp == NULL)
 			cp = p + strlen(p);
 
 		for (fe = flagentry; fe->name != NULL; fe++) {
-			if (fe->name[cp - p] != '\0'
-			    || p[0] != fe->name[0])
-				continue;
 			if (strncmp(p, fe->name, cp - p) == 0) {
-				avail[n++] = fe;
+				if (fe->name[cp - p] != '\0')
+					continue;
+				name = fe->xarname;
 				break;
 			}
 		}
@@ -1139,23 +1171,26 @@ make_fflags_entry(struct archive_write *a, struct xml_writer *writer,
 			p = cp + 1;
 		else
 			p = NULL;
-	} while (p != NULL);
 
-	if (n > 0) {
-		r = xml_writer_start_element(writer, element);
-		if (r < 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "xml_writer_start_element() failed: %d", r);
-			return (ARCHIVE_FATAL);
-		}
-		for (i = 0; i < n; i++) {
-			r = xmlwrite_string(a, writer,
-			    avail[i]->xarname, NULL);
+		if (name != NULL) {
+			if (!started) {
+				r = xml_writer_start_element(writer, element);
+				if (r < 0) {
+					archive_set_error(&a->archive,
+						ARCHIVE_ERRNO_MISC,
+						"xml_writer_start_element()"
+						" failed: %d", r);
+					return (ARCHIVE_FATAL);
+				}
+				started = 1;
+			}
+			r = xmlwrite_string(a, writer, name, NULL);
 			if (r != ARCHIVE_OK)
 				return (r);
 		}
+	} while (p != NULL);
 
+	if (started) {
 		r = xml_writer_end_element(writer);
 		if (r < 0) {
 			archive_set_error(&a->archive,
@@ -1202,7 +1237,7 @@ static int
 make_file_entry(struct archive_write *a, struct xml_writer *writer,
     struct file *file)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	const char *filetype, *filelink, *fflags;
 	struct archive_string linkto;
 	struct heap_data *heap;
@@ -1210,7 +1245,6 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	size_t len;
 	int r, r2;
 
-	xar = (struct xar *)a->format_data;
 	r2 = ARCHIVE_OK;
 
 	/*
@@ -1333,11 +1367,11 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 			return (ARCHIVE_FATAL);
 		}
 		r = xmlwrite_fstring(a, writer, "major",
-		    "%d", archive_entry_rdevmajor(file->entry));
+		    "%ld", (long)archive_entry_rdevmajor(file->entry));
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 		r = xmlwrite_fstring(a, writer, "minor",
-		    "%d", archive_entry_rdevminor(file->entry));
+		    "%ld", (long)archive_entry_rdevminor(file->entry));
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 		r = xml_writer_end_element(writer);
@@ -1361,7 +1395,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 		return (ARCHIVE_FATAL);
 	if (archive_entry_dev(file->entry) != 0) {
 		r = xmlwrite_fstring(a, writer, "deviceno",
-		    "%d", archive_entry_dev(file->entry));
+		    "%ld", (long)archive_entry_dev(file->entry));
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 	}
@@ -1437,7 +1471,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	}
 
 	/*
-	 * Make a mtime entry, "<mtime>".
+	 * Make an mtime entry, "<mtime>".
 	 */
 	if (archive_entry_mtime_is_set(file->entry)) {
 		r = xmlwrite_time(a, writer, "mtime",
@@ -1572,15 +1606,13 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 static int
 make_toc(struct archive_write *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	struct file *np;
 	struct xml_writer *writer;
 	const char* content;
 	size_t use;
 	int algsize;
 	int r, ret;
-
-	xar = (struct xar *)a->format_data;
 
 	ret = ARCHIVE_FATAL;
 
@@ -1822,11 +1854,10 @@ exit_toc:
 static int
 flush_wbuff(struct archive_write *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	int r;
 	size_t s;
 
-	xar = (struct xar *)a->format_data;
 	s = sizeof(xar->wbuff) - xar->wbuff_remaining;
 	r = __archive_write_output(a, xar->wbuff, s);
 	if (r != ARCHIVE_OK)
@@ -1838,10 +1869,9 @@ flush_wbuff(struct archive_write *a)
 static int
 copy_out(struct archive_write *a, uint64_t offset, uint64_t length)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	int r;
 
-	xar = (struct xar *)a->format_data;
 	if (lseek(xar->temp_fd, offset, SEEK_SET) < 0) {
 		archive_set_error(&(a->archive), errno, "lseek failed");
 		return (ARCHIVE_FATAL);
@@ -1864,7 +1894,8 @@ copy_out(struct archive_write *a, uint64_t offset, uint64_t length)
 			return (ARCHIVE_FATAL);
 		}
 		if (rs == 0) {
-			archive_set_error(&(a->archive), 0,
+			archive_set_error(&(a->archive),
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated xar archive");
 			return (ARCHIVE_FATAL);
 		}
@@ -1882,12 +1913,10 @@ copy_out(struct archive_write *a, uint64_t offset, uint64_t length)
 static int
 xar_close(struct archive_write *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	unsigned char *wb;
 	uint64_t length;
 	int r;
-
-	xar = (struct xar *)a->format_data;
 
 	/* Empty! */
 	if (xar->root->children.first == NULL)
@@ -1948,9 +1977,7 @@ xar_close(struct archive_write *a)
 static int
 xar_free(struct archive_write *a)
 {
-	struct xar *xar;
-
-	xar = (struct xar *)a->format_data;
+	struct xar *xar = a->format_data;
 
 	/* Close the temporary file. */
 	if (xar->temp_fd >= 0)
@@ -2108,13 +2135,12 @@ cleanup_backslash(char *utf8, size_t len)
 static int
 file_gen_utility_names(struct archive_write *a, struct file *file)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	const char *pp;
 	char *p, *dirname, *slash;
 	size_t len;
 	int r = ARCHIVE_OK;
 
-	xar = (struct xar *)a->format_data;
 	archive_string_empty(&(file->parentdir));
 	archive_string_empty(&(file->basename));
 	archive_string_empty(&(file->symlink));
@@ -2203,20 +2229,29 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 				 *     --> 'dir/dir2/'
 				 */
 				char *rp = p -1;
+				size_t off;
+				for (off = 4; p[off] == '/'; off++)
+					;
 				while (rp >= dirname) {
 					if (*rp == '/')
 						break;
 					--rp;
 				}
 				if (rp > dirname) {
-					strcpy(rp, p+3);
+					memmove(rp + 1, p + off, strlen(p + off) + 1);
 					p = rp;
 				} else {
-					strcpy(dirname, p+4);
+					memmove(dirname, p + off, strlen(p + off) + 1);
 					p = dirname;
 				}
 			} else
 				p++;
+		} else if (p == dirname && p[0] == '.' && p[1] == '.' && p[2] == '/') {
+			size_t off;
+			for (off = 3; p[off] == '/'; off++)
+				;
+			memmove(dirname, p + off, strlen(p + off) + 1);
+			p = dirname;
 		} else
 			p++;
 	}
@@ -2270,7 +2305,7 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 static int
 get_path_component(char *name, int n, const char *fn)
 {
-	char *p;
+	const char *p;
 	int l;
 
 	p = strchr(fn, '/');
@@ -2293,6 +2328,7 @@ get_path_component(char *name, int n, const char *fn)
 static int
 file_tree(struct archive_write *a, struct file **filepp)
 {
+	struct xar *xar = a->format_data;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
 #elif defined(NAME_MAX) && NAME_MAX >= 255
@@ -2300,7 +2336,6 @@ file_tree(struct archive_write *a, struct file **filepp)
 #else
 	char name[256];
 #endif
-	struct xar *xar = (struct xar *)a->format_data;
 	struct file *dent, *file, *np;
 	struct archive_entry *ent;
 	const char *fn, *p;
@@ -2376,9 +2411,23 @@ file_tree(struct archive_write *a, struct file **filepp)
 
 			archive_string_init(&as);
 			archive_strncat(&as, p, fn - p + l);
-			if (as.s[as.length-1] == '/') {
+			if (as.length > 0 && as.s[as.length-1] == '/') {
 				as.s[as.length-1] = '\0';
 				as.length--;
+			}
+			if (as.length == 0) {
+				archive_string_free(&as);
+				fn += strspn(fn, "/");
+				l = get_path_component(name, sizeof(name), fn);
+				if (l < 0) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "A name buffer is too small");
+					file_free(file);
+					*filepp = NULL;
+					return (ARCHIVE_FATAL);
+				}
+				continue;
 			}
 			vp = file_create_virtual_dir(a, xar, as.s);
 			if (vp == NULL) {
@@ -2390,8 +2439,12 @@ file_tree(struct archive_write *a, struct file **filepp)
 				return (ARCHIVE_FATAL);
 			}
 			archive_string_free(&as);
-			if (file_gen_utility_names(a, vp) <= ARCHIVE_FAILED)
+			if (file_gen_utility_names(a, vp) <= ARCHIVE_FAILED) {
+				file_free(vp);
+				file_free(file);
+				*filepp = NULL;
 				return (ARCHIVE_FATAL);
+			}
 			file_add_child_tail(dent, vp);
 			file_register(xar, vp);
 			np = vp;
@@ -2502,7 +2555,7 @@ file_free_register(struct xar *xar)
 static int
 file_register_hardlink(struct archive_write *a, struct file *file)
 {
-	struct xar *xar = (struct xar *)a->format_data;
+	struct xar *xar = a->format_data;
 	struct hardlink *hl;
 	const char *pathname;
 
@@ -2624,6 +2677,16 @@ checksum_init(struct chksumwork *sumwrk, enum sumalg sum_alg)
 	case CKSUM_MD5:
 		archive_md5_init(&(sumwrk->md5ctx));
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_init(&(sumwrk->sha256ctx));
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_init(&(sumwrk->sha512ctx));
+		break;
+#endif
 	}
 }
 
@@ -2640,6 +2703,16 @@ checksum_update(struct chksumwork *sumwrk, const void *buff, size_t size)
 	case CKSUM_MD5:
 		archive_md5_update(&(sumwrk->md5ctx), buff, size);
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_update(&(sumwrk->sha256ctx), buff, size);
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_update(&(sumwrk->sha512ctx), buff, size);
+		break;
+#endif
 	}
 }
 
@@ -2659,6 +2732,18 @@ checksum_final(struct chksumwork *sumwrk, struct chksumval *sumval)
 		archive_md5_final(&(sumwrk->md5ctx), sumval->val);
 		sumval->len = MD5_SIZE;
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_final(&(sumwrk->sha256ctx), sumval->val);
+		sumval->len = SHA256_SIZE;
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_final(&(sumwrk->sha512ctx), sumval->val);
+		sumval->len = SHA512_SIZE;
+		break;
+#endif
 	}
 	sumval->alg = sumwrk->alg;
 }
@@ -3108,10 +3193,9 @@ compression_init_encoder_xz(struct archive *a,
 static int
 xar_compression_init_encoder(struct archive_write *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	int r;
 
-	xar = (struct xar *)a->format_data;
 	switch (xar->opt_compression) {
 	case GZIP:
 		r = compression_init_encoder_gzip(
@@ -3168,14 +3252,13 @@ compression_end(struct archive *a, struct la_zstream *lastrm)
 static int
 save_xattrs(struct archive_write *a, struct file *file)
 {
-	struct xar *xar;
+	struct xar *xar = a->format_data;
 	const char *name;
 	const void *value;
 	struct heap_data *heap;
 	size_t size;
 	int count, r;
 
-	xar = (struct xar *)a->format_data;
 	count = archive_entry_xattr_reset(file->entry);
 	if (count == 0)
 		return (ARCHIVE_OK);
@@ -3187,6 +3270,12 @@ save_xattrs(struct archive_write *a, struct file *file)
 
 		heap = calloc(1, sizeof(*heap));
 		if (heap == NULL) {
+			struct chksumval sumval;
+
+			checksum_final(&(xar->a_sumwrk), &sumval);
+			checksum_final(&(xar->e_sumwrk), &sumval);
+			xar->a_sumwrk.alg = CKSUM_NONE;
+			xar->e_sumwrk.alg = CKSUM_NONE;
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for xattr");
 			return (ARCHIVE_FATAL);
@@ -3224,6 +3313,10 @@ save_xattrs(struct archive_write *a, struct file *file)
 		 */
 		r = xar_compression_init_encoder(a);
 		if (r != ARCHIVE_OK) {
+			struct chksumval sumval;
+
+			checksum_final(&(xar->a_sumwrk), &sumval);
+			xar->a_sumwrk.alg = CKSUM_NONE;
 			free(heap);
 			return (ARCHIVE_FATAL);
 		}
@@ -3278,6 +3371,10 @@ getalgsize(enum sumalg sumalg)
 		return (SHA1_SIZE);
 	case CKSUM_MD5:
 		return (MD5_SIZE);
+	case CKSUM_SHA256:
+		return (SHA256_SIZE);
+	case CKSUM_SHA512:
+		return (SHA512_SIZE);
 	}
 }
 
@@ -3292,6 +3389,10 @@ getalgname(enum sumalg sumalg)
 		return (SHA1_NAME);
 	case CKSUM_MD5:
 		return (MD5_NAME);
+	case CKSUM_SHA256:
+		return (SHA256_NAME);
+	case CKSUM_SHA512:
+		return (SHA512_NAME);
 	}
 }
 

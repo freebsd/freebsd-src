@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -184,7 +183,7 @@ rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
 			continue;
 		}
 
-		for (int i = 1; i <= AF_MAX; i++)
+		for (int i = 1; i < AF_MAX; i++)
 			rib_walk_ext(fibnum, i, wlock, wa_f, hook_f, arg);
 	}
 }
@@ -206,7 +205,7 @@ rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg)
 			continue;
 		}
 
-		for (int i = 1; i <= AF_MAX; i++)
+		for (int i = 1; i < AF_MAX; i++)
 			rib_walk_del(fibnum, i, filter_f, arg, 0);
 	}
 }
@@ -257,7 +256,6 @@ rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	return (nh);
 }
 
-#ifdef ROUTE_MPATH
 static void
 notify_add(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
     route_notification_t *cb, void *cbdata)
@@ -410,7 +408,6 @@ rib_decompose_notification(const struct rib_cmd_info *rc, route_notification_t *
 		break;
 	}
 }
-#endif
 
 union sockaddr_union {
 	struct sockaddr		sa;
@@ -461,6 +458,7 @@ rib_add_default_route(uint32_t fibnum, int family, struct ifnet *ifp,
 	nhop_set_transmit_ifp(nh, ifp);
 	nhop_set_src(nh, ifa);
 	nhop_set_pxtype_flag(nh, NHF_DEFAULT);
+	nhop_set_metric(nh, RT_DEFAULT_METRIC);
 	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
 
 	if (error == 0)

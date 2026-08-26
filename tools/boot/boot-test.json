@@ -1,0 +1,97 @@
+{
+  "defaults": {
+    "byte_order": "little",
+    "kernconf": "GENERIC",
+    "timeout": 90,
+    "caps": [],
+    "freebsd_version": "15.1",
+    "netboot_nic": "e1000",
+    "netboot_subnet_base": "198.18.0.0",
+    "efi_loaders": ["loader_lua", "loader_4th", "loader_simp", "boot1"]
+  },
+  "arch": {
+    "amd64": {
+      "qemu_bin": "qemu-system-x86_64",
+      "efi_firmware": "/usr/local/share/qemu/edk2-x86_64-code.fd",
+      "efi_bootname": "bootx64",
+      "caps": ["bios", "efi", "linuxboot", "zfs", "mbr", "cd", "netboot"],
+      "bios_loaders": ["lua", "4th", "simp"],
+      "linux_console": "console=ttyS0,115200",
+      "target": "amd64",
+      "target_arch": "amd64",
+      "netboot_ipxe": "/usr/local/share/ipxe/ipxe.efi-x86_64.usb",
+      "netboot_efi_vars": "/usr/local/share/qemu/edk2-i386-vars.fd",
+      "netboot_memdisk": "/usr/local/share/syslinux/bios/memdisk/memdisk",
+      "hints": "sys/amd64/conf/GENERIC.hints"
+    },
+    "aarch64": {
+      "qemu_bin": "qemu-system-aarch64",
+      "qemu_machine": "-machine virt,gic-version=3",
+      "qemu_extra": "-cpu cortex-a57 -smp 4",
+      "efi_firmware": "/usr/local/share/qemu/edk2-aarch64-code.fd",
+      "efi_bootname": "bootaa64",
+      "caps": ["efi", "linuxboot", "zfs", "netboot"],
+      "netboot_nic": "virtio-net-device",
+      "target": "arm64",
+      "target_arch": "aarch64"
+    },
+    "armv7": {
+      "qemu_bin": "qemu-system-arm",
+      "qemu_machine": "-machine virt",
+      "qemu_extra": "-cpu cortex-a15",
+      "efi_firmware": "/usr/local/share/qemu/edk2-arm-code.fd",
+      "efi_bootname": "bootarm",
+      "caps": ["efi", "netboot"],
+      "netboot_nic": "virtio-net-device",
+      "target": "arm",
+      "target_arch": "armv7"
+    },
+    "riscv64": {
+      "qemu_bin": "qemu-system-riscv64",
+      "qemu_machine": "-machine virt",
+      "qemu_extra": "-bios /usr/local/share/opensbi/lp64/generic/firmware/fw_jump.elf -kernel /usr/local/share/u-boot/u-boot-qemu-riscv64/u-boot.bin",
+      "efi_bootname": "bootriscv64",
+      "caps": ["efi", "zfs", "netboot"],
+      "netboot_nic": "virtio-net-device",
+      "target": "riscv",
+      "target_arch": "riscv64"
+    },
+    "powerpc": {
+      "qemu_bin": "qemu-system-ppc",
+      "qemu_machine": "-machine mac99,via=pmu",
+      "qemu_extra": "-vga none -smp 1 -no-reboot",
+      "byte_order": "big",
+      "caps": ["ofw", "cd"],
+      "efi_loaders": [],
+      "target": "powerpc",
+      "target_arch": "powerpc",
+      "freebsd_version": "14.4",
+      "timeout": 180,
+      "disabled": true
+    },
+    "powerpc64": {
+      "qemu_bin": "qemu-system-ppc64",
+      "qemu_machine": "-machine pseries,cap-hpt-max-page-size=16M",
+      "qemu_extra": "-vga none -smp 1 -no-reboot",
+      "byte_order": "big",
+      "caps": ["prep", "cd"],
+      "efi_loaders": [],
+      "target": "powerpc",
+      "target_arch": "powerpc64",
+      "kernconf": "GENERIC64",
+      "timeout": 180
+    },
+    "powerpc64le": {
+      "qemu_bin": "qemu-system-ppc64",
+      "qemu_machine": "-machine pseries,cap-hpt-max-page-size=16M",
+      "qemu_extra": "-vga none -smp 1 -no-reboot",
+      "caps": ["prep", "cd", "linuxboot"],
+      "efi_loaders": [],
+      "linux_console": "console=hvc0",
+      "target": "powerpc",
+      "target_arch": "powerpc64le",
+      "kernconf": "GENERIC64LE",
+      "timeout": 180
+    }
+  }
+}

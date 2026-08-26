@@ -65,7 +65,6 @@
 #include "opt_ipsec.h"
 #include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 #include "opt_sctp.h"
 
@@ -1699,10 +1698,6 @@ do {									\
 						break;
 					}
 					INP_WLOCK(inp);
-					if (inp->inp_flags & INP_DROPPED) {
-						INP_WUNLOCK(inp);
-						return (ECONNRESET);
-					}
 					optp = &inp->in6p_outputopts;
 					error = ip6_pcbopt(IPV6_HOPLIMIT,
 					    (u_char *)&optval, sizeof(optval),
@@ -1828,10 +1823,6 @@ do {									\
 				{
 					struct ip6_pktopts **optp;
 					INP_WLOCK(inp);
-					if (inp->inp_flags & INP_DROPPED) {
-						INP_WUNLOCK(inp);
-						return (ECONNRESET);
-					}
 					optp = &inp->in6p_outputopts;
 					error = ip6_pcbopt(optname,
 					    (u_char *)&optval, sizeof(optval),
@@ -1920,10 +1911,6 @@ do {									\
 				optlen = sopt->sopt_valsize;
 				optbuf = optbuf_storage;
 				INP_WLOCK(inp);
-				if (inp->inp_flags & INP_DROPPED) {
-					INP_WUNLOCK(inp);
-					return (ECONNRESET);
-				}
 				optp = &inp->in6p_outputopts;
 				error = ip6_pcbopt(optname, optbuf, optlen,
 				    optp, (td != NULL) ? td->td_ucred : NULL,
@@ -2411,11 +2398,6 @@ ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
 		optdata = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK);	\
 		malloc_optdata = true;					\
 		INP_RLOCK(inp);						\
-		if (inp->inp_flags & INP_DROPPED) {			\
-			INP_RUNLOCK(inp);				\
-			free(optdata, M_TEMP);				\
-			return (ECONNRESET);				\
-		}							\
 		pktopt = inp->in6p_outputopts;				\
 		if (pktopt && pktopt->field) {				\
 			optdatalen = min(lenexpr, sopt->sopt_valsize);	\

@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -40,6 +30,40 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*
+ * We can feed L2ARC from two states of ARC buffers, mru and mfu,
+ * and each of the states has two types: data and metadata.
+ */
+#define	L2ARC_FEED_TYPES	4
+#define	L2ARC_MFU_META		0
+#define	L2ARC_MRU_META		1
+#define	L2ARC_MFU_DATA		2
+#define	L2ARC_MRU_DATA		3
+
+/*
+ * L2ARC state and statistics for persistent marker management.
+ */
+typedef struct l2arc_info {
+	arc_buf_hdr_t	**l2arc_markers[L2ARC_FEED_TYPES];
+	uint64_t	l2arc_total_writes;	/* total writes for reset */
+	uint64_t	l2arc_total_capacity;	/* total L2ARC capacity */
+	uint64_t	l2arc_smallest_capacity; /* smallest device capacity */
+	/*
+	 * Per-device thread coordination for sublist processing.
+	 * reset: flags sublist marker for lazy reset to tail.
+	 */
+	boolean_t	*l2arc_sublist_busy[L2ARC_FEED_TYPES];
+	boolean_t	*l2arc_sublist_reset[L2ARC_FEED_TYPES];
+	kmutex_t	l2arc_sublist_lock;	/* protects busy/reset flags */
+	/*
+	 * Cumulative bytes scanned per pass since marker reset.
+	 * Limits how far persistent markers advance from tail
+	 * before resetting, based on % of state size.
+	 */
+	uint64_t	l2arc_ext_scanned[L2ARC_FEED_TYPES];
+	int		l2arc_next_sublist[L2ARC_FEED_TYPES]; /* round-robin */
+} l2arc_info_t;
 
 /*
  * Note that buffers can be in one of 6 states:
@@ -421,6 +445,26 @@ typedef struct l2arc_dev {
 	 */
 	zfs_refcount_t		l2ad_lb_count;
 	boolean_t		l2ad_trim_all; /* TRIM whole device */
+	/*
+	 * DWPD tracking with daily reset
+	 */
+	uint64_t		l2ad_dwpd_writes;	/* 24h bytes written */
+	uint64_t		l2ad_dwpd_start;	/* 24h period start */
+	uint64_t		l2ad_dwpd_accumulated;	/* Accumulated */
+	uint64_t		l2ad_dwpd_bump;		/* Reset trigger */
+	/*
+	 * Per-device feed thread for parallel L2ARC writes
+	 */
+	kthread_t		*l2ad_feed_thread;	/* feed thread handle */
+	boolean_t		l2ad_thread_exit;	/* signal thread exit */
+	kmutex_t		l2ad_feed_thr_lock;	/* thread sleep/wake */
+	kcondvar_t		l2ad_feed_cv;		/* thread wakeup cv */
+	/*
+	 * Consecutive cycles where metadata filled write budget
+	 * while data passes got nothing written. Used to detect
+	 * monopolization and skip metadata to give data a chance.
+	 */
+	uint64_t		l2ad_meta_cycles;
 } l2arc_dev_t;
 
 /*
@@ -778,6 +822,8 @@ typedef struct arc_stats {
 	 * due to ARC_FLAG_UNCACHED being set.
 	 */
 	kstat_named_t arcstat_uncached_evictable_metadata;
+	/* Number of L2ARC devices currently attached across all pools. */
+	kstat_named_t arcstat_l2_ndev;
 	kstat_named_t arcstat_l2_hits;
 	kstat_named_t arcstat_l2_misses;
 	/*
@@ -1049,7 +1095,7 @@ extern arc_sums_t arc_sums;
 extern hrtime_t arc_growtime;
 extern boolean_t arc_warm;
 extern uint_t arc_grow_retry;
-extern uint_t arc_no_grow_shift;
+extern uint_t zfs_arc_no_grow_shift;
 extern uint_t arc_shrink_shift;
 extern kmutex_t arc_prune_mtx;
 extern list_t arc_prune_list;
@@ -1059,6 +1105,7 @@ extern uint_t zfs_arc_pc_percent;
 extern uint_t arc_lotsfree_percent;
 extern uint64_t zfs_arc_min;
 extern uint64_t zfs_arc_max;
+extern uint64_t l2arc_dwpd_limit;
 
 extern uint64_t arc_reduce_target_size(uint64_t to_free);
 extern boolean_t arc_reclaim_needed(void);
@@ -1078,6 +1125,9 @@ extern int param_set_arc_u64(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_arc_int(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_arc_min(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_arc_max(ZFS_MODULE_PARAM_ARGS);
+extern int param_set_l2arc_dwpd_limit(ZFS_MODULE_PARAM_ARGS);
+extern int param_set_arc_no_grow_shift(ZFS_MODULE_PARAM_ARGS);
+extern void l2arc_dwpd_bump_reset(void);
 
 /* used in zdb.c */
 boolean_t l2arc_log_blkptr_valid(l2arc_dev_t *dev,

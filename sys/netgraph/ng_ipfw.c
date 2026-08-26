@@ -93,14 +93,28 @@ MODULE_DEPEND(ng_ipfw, ipfw, 3, 3, 3);
 
 /* Information we store for each hook */
 struct ng_ipfw_hook_priv {
-        hook_p		hook;
+	RB_ENTRY(ng_ipfw_hook_priv) entry;
+	hook_p		hook;
 	uint32_t	cookie;
 };
 typedef struct ng_ipfw_hook_priv *hpriv_p;
 
+/* Per-node private data */
+struct ngipfw {
+	RB_HEAD(ngipfw_tree, ng_ipfw_hook_priv) hooks;
+};
+
+static inline int
+ng_ipfw_hook_compare(const hpriv_p a, const hpriv_p b)
+{
+	return ((a->cookie > b->cookie) - (a->cookie < b->cookie));
+}
+RB_GENERATE_STATIC(ngipfw_tree, ng_ipfw_hook_priv, entry, ng_ipfw_hook_compare);
+
 static int
 ng_ipfw_mod_event(module_t mod, int event, void *data)
 {
+	struct ngipfw *priv;
 	int error = 0;
 
 	switch (event) {
@@ -111,14 +125,16 @@ ng_ipfw_mod_event(module_t mod, int event, void *data)
 			break;
 		}
 
-		/* Setup node without any private data */
 		if ((error = ng_make_node_common(&ng_ipfw_typestruct, &fw_node))
 		    != 0) {
 			log(LOG_ERR, "%s: can't create ng_ipfw node", __func__);
                 	break;
 		}
 
-		/* Try to name node */
+		priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK);
+		RB_INIT(&priv->hooks);
+		NG_NODE_SET_PRIVATE(fw_node, priv);
+
 		if (ng_name_node(fw_node, "ipfw") != 0)
 			log(LOG_WARNING, "%s: failed to name node \"ipfw\"",
 			    __func__);
@@ -151,6 +167,7 @@ ng_ipfw_constructor(node_p node)
 static int
 ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 {
+	struct ngipfw *priv = NG_NODE_PRIVATE(node);
 	hpriv_p	hpriv;
 	uint32_t cookie;
 	const char *cp;
@@ -180,7 +197,10 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 
 	NG_HOOK_SET_PRIVATE(hook, hpriv);
 
-	return(0);
+	hpriv = RB_INSERT(ngipfw_tree, &priv->hooks, hpriv);
+	MPASS(hpriv == NULL);
+
+	return (0);
 }
 
 /*
@@ -211,14 +231,12 @@ ng_ipfw_findhook(node_p node, const char *name)
 static hook_p
 ng_ipfw_findhook1(node_p node, uint32_t cookie)
 {
-	hook_p	hook;
-	hpriv_p	hpriv;
+	struct ngipfw *priv = NG_NODE_PRIVATE(node);
+	struct ng_ipfw_hook_priv key = { .cookie = cookie }, *hpriv;
 
-	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
-		hpriv = NG_HOOK_PRIVATE(hook);
-		if (NG_HOOK_IS_VALID(hook) && (hpriv->cookie == cookie))
-                        return (hook);
-	}
+	hpriv = RB_FIND(ngipfw_tree, &priv->hooks, &key);
+	if (hpriv != NULL && NG_HOOK_IS_VALID(hpriv->hook))
+		return (hpriv->hook);
 
 	return (NULL);
 }
@@ -334,6 +352,7 @@ ng_ipfw_input(struct mbuf **m0, struct ip_fw_args *fwa, bool tee)
 static int
 ng_ipfw_shutdown(node_p node)
 {
+	struct ngipfw *priv = NG_NODE_PRIVATE(node);
 
 	/*
 	 * After our single node has been removed,
@@ -342,14 +361,20 @@ ng_ipfw_shutdown(node_p node)
 	 */
 	ng_ipfw_input_p = NULL;
 	NG_NODE_UNREF(node);
+
+	MPASS(RB_EMPTY(&priv->hooks));
+	free(priv, M_NETGRAPH);
+
 	return (0);
 }
 
 static int
 ng_ipfw_disconnect(hook_p hook)
 {
+	struct ngipfw *priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	const hpriv_p hpriv = NG_HOOK_PRIVATE(hook);
 
+	RB_REMOVE(ngipfw_tree, &priv->hooks, hpriv);
 	free(hpriv, M_NETGRAPH);
 	NG_HOOK_SET_PRIVATE(hook, NULL);
 

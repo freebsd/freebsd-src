@@ -1269,7 +1269,8 @@ int infra_wait_limit_allowed(struct infra_cache* infra, struct comm_reply* rep,
 	int cookie_valid, struct config_file* cfg)
 {
 	struct lruhash_entry* entry;
-	if(cfg->wait_limit == 0)
+	if(cfg->wait_limit == 0 ||
+		(cookie_valid && cfg->wait_limit_cookie == 0))
 		return 1;
 
 	entry = infra_find_ip_ratedata(infra, &rep->client_addr,

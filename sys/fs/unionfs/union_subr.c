@@ -491,7 +491,7 @@ unionfs_noderem(struct vnode *vp)
 	 * to synchronize against any unionfs_lock() operation which may still
 	 * hold the lower vnode lock.  We do not need to do this for the root
 	 * vnode, as the root vnode should always have both upper and lower
-	 * base vnodes for its entire lifecycled, so unionfs_lock() should
+	 * base vnodes for its entire lifecycle, so unionfs_lock() should
 	 * never attempt to lock its lower vnode in the first place.
 	 * Moreover, during unmount of a non-"below" unionfs mount, the lower
 	 * root vnode will already be locked as it is the covered vnode.

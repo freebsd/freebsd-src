@@ -1,3 +1,21 @@
+DEVELOPMENT VISION
+
+Note: ldns has been in maintenance mode since 2020, with no plans for major
+features. We welcome PRs from contributors who want to add new functionality. 
+We also actively fix bugs, so users can continue to rely on ldns if its 
+current features meet their needs.
+
+We will continue to make occasional use of ldns in an experimental
+setting, such as during an IETF Hackathon to build a proof of concept for an
+Internet Draft.
+
+The natural successor to the ldns library is the domain library for Rust:
+https://github.com/NLnetLabs/domain
+
+We offer drop-in replacements for commonly used ldns example tools in dnst:
+https://github.com/NLnetLabs/dnst
+
+---
 
 Contents: 
 	REQUIREMENTS
@@ -10,7 +28,6 @@ Contents:
 		Solaris
 	KNOWN ISSUES
 		pyldns
-        Your Support
 
 Project page:
 http://www.nlnetlabs.nl/ldns/
@@ -105,27 +122,4 @@ harmless and may safely be ignored.
 Also, when building with SWIG older than 2.0.4, compiling
 pyldns produces many ``missing initializer'' warnings. Those are harmless
 too.
-
-Your Support
-NLnet Labs offers all of its software products as open source, most
-published under a BSD license. You can download them, not only from the
-NLnet Labs website but also through the various OS distributions for
-which NSD, ldns, and Unbound are packaged. We therefore have little idea
-who uses our software in production environments and have no direct ties
-with 'our customers'.
-
-Therefore, we ask you to contact us at users@NLnetLabs.nl and tell us
-whether you use one of our products in your production environment,
-what that environment looks like, and maybe even share some praise.
-We would like to refer to the fact that your organization is using our
-products. We will only do that if you explicitly allow us. In all other
-cases we will keep the information you share with us to ourselves.
-
-In addition to the moral support you can also support us
-financially. NLnet Labs is a recognized not-for-profit charity foundation
-that is chartered to develop open-source software and open-standards
-for the Internet. If you use our software to satisfaction please express
-that by giving us a donation. For small donations PayPal can be used. For
-larger and regular donations please contact us at users@NLnetLabs.nl. Also
-see http://www.nlnetlabs.nl/labs/contributors/.
 

@@ -43,7 +43,7 @@
 #include "vis.h"
 #include "getrrsetbyname.h"
 #include "sha1.h"
-#include "sha2.h"
+#include "bsd-sha2.h"
 #include "md5.h"
 #include "blf.h"
 #include "fnmatch.h"

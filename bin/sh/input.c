@@ -81,6 +81,7 @@ struct parsefile {
 	int lleft;		/* number of lines left in this buffer */
 	const char *nextc;	/* next char in buffer */
 	char *buf;		/* input buffer */
+	size_t bufsize;		/* input buffer size */
 	struct strpush *strpush; /* for pushing strings at this level */
 	struct strpush basestrpush; /* so pushing one is fast */
 };
@@ -93,7 +94,8 @@ const char *parsenextc;		/* copy of parsefile->nextc */
 static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
 static struct parsefile basepf = {	/* top level input file */
 	.nextc = basebuf,
-	.buf = basebuf
+	.buf = basebuf,
+	.bufsize = sizeof(basebuf),
 };
 static struct parsefile *parsefile = &basepf;	/* current input file */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
@@ -127,52 +129,61 @@ static int
 preadfd(void)
 {
 	int nr;
-	parsenextc = parsefile->buf;
 
 retry:
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
-		static const char *rl_cp;
-		static int el_len;
+		const char *line;
 
-		if (rl_cp == NULL) {
-			el_resize(el);
-			rl_cp = el_gets(el, &el_len);
+		el_resize(el);
+		line = el_gets(el, &nr);
+		if (nr > 0 && parsefile->bufsize < (size_t)nr + 1) {
+			size_t bufsize;
+
+			INTOFF;
+			if (parsefile->buf != basebuf) {
+				ckfree(parsefile->buf);
+				parsefile->buf = NULL;
+				parsefile->bufsize = 0;
+			}
+			bufsize = (size_t)nr + BUFSIZ + 1;
+			bufsize -= bufsize % BUFSIZ;
+			parsefile->buf = ckmalloc(bufsize);
+			parsefile->bufsize = bufsize;
+			INTON;
 		}
-		if (rl_cp == NULL)
-			nr = el_len == 0 ? 0 : -1;
-		else {
-			nr = el_len;
-			if (nr > BUFSIZ)
-				nr = BUFSIZ;
-			memcpy(parsefile->buf, rl_cp, nr);
-			if (nr != el_len) {
-				el_len -= nr;
-				rl_cp += nr;
-			} else
-				rl_cp = NULL;
-		}
+		if (nr > 0 && line != NULL)
+			memcpy(parsefile->buf, line, nr);
+		else
+			nr = nr ? -1 : 0;
 	} else
 #endif
-		nr = read(parsefile->fd, parsefile->buf, BUFSIZ);
+	nr = read(parsefile->fd, parsefile->buf, parsefile->bufsize - 1);
 
-	if (nr <= 0) {
-                if (nr < 0) {
-                        if (errno == EINTR)
-                                goto retry;
-                        if (parsefile->fd == 0 && errno == EWOULDBLOCK) {
-                                int flags = fcntl(0, F_GETFL, 0);
-                                if (flags >= 0 && flags & O_NONBLOCK) {
-                                        flags &=~ O_NONBLOCK;
-                                        if (fcntl(0, F_SETFL, flags) >= 0) {
-						out2fmt_flush("sh: turning off NDELAY mode\n");
-                                                goto retry;
-                                        }
-                                }
-                        }
+	if (nr < 0)
+		switch (errno) {
+			int flags;
+
+		case EINTR:
+			goto retry;
+		case EWOULDBLOCK:
+			if (parsefile->fd != 0)
+				break;
+			if ((flags = fcntl(0, F_GETFL, 0)) < 0)
+				break;
+			if (!(flags & O_NONBLOCK))
+				break;
+			if (fcntl(0, F_SETFL, flags & ~O_NONBLOCK) < 0)
+				break;
+			out2fmt_flush("sh: turning off NDELAY mode\n");
+			goto retry;
                 }
-                nr = -1;
-	}
+	else if (nr > 0)
+		parsefile->buf[nr] = '\0';
+	else
+		nr = -1;
+
+	parsenextc = parsefile->buf;
 	return nr;
 }
 
@@ -189,7 +200,8 @@ retry:
 int
 preadbuffer(void)
 {
-	char *p, *q, *r, *end;
+	const char *end;
+	char *q, *r;
 	char savec;
 
 	while (parsefile->strpush) {
@@ -208,31 +220,22 @@ preadbuffer(void)
 		return PEOF;
 
 again:
-	if (parselleft <= 0) {
-		if ((parselleft = preadfd()) == -1) {
-			parselleft = parsenleft = EOF_NLEFT;
-			return PEOF;
-		}
+	if (parselleft <= 0 && (parselleft = preadfd()) == -1) {
+		parselleft = parsenleft = EOF_NLEFT;
+		return (PEOF);
 	}
-
-	p = parsefile->buf + (parsenextc - parsefile->buf);
-	end = p + parselleft;
-	*end = '\0';
-	q = strchrnul(p, '\n');
-	if (q != end && *q == '\0') {
+	end = parsenextc + parselleft;
+	q = strchrnul(parsenextc, '\n');
+	if (*q == '\0' && q != end) {
 		/* delete nul characters */
-		for (r = q; q != end; q++) {
+		for (r = q++; q != end; q++)
 			if (*q != '\0')
 				*r++ = *q;
-		}
-		parselleft -= end - r;
-		if (parselleft == 0)
-			goto again;
-		end = p + parselleft;
-		*end = '\0';
-		q = strchrnul(p, '\n');
+		*r = '\0';
+		parselleft = r - parsenextc;
+		goto again;
 	}
-	if (q == end) {
+	if (*q == '\0') {
 		parsenleft = parselleft;
 		parselleft = 0;
 	} else /* *q == '\n' */ {
@@ -307,7 +310,7 @@ pushstring(const char *s, int len, struct alias *ap)
 	INTOFF;
 /*out2fmt_flush("*** calling pushstring: %s, %d\n", s, len);*/
 	if (parsefile->strpush) {
-		sp = ckmalloc(sizeof (struct strpush));
+		sp = ckmalloc(sizeof(struct strpush));
 		sp->prev = parsefile->strpush;
 		parsefile->strpush = sp;
 	} else
@@ -391,15 +394,15 @@ setinputfile(const char *fname, int push, int verify)
 void
 setinputfd(int fd, int push)
 {
-	if (push) {
+	if (push)
 		pushfile();
-		parsefile->buf = ckmalloc(BUFSIZ + 1);
-	}
 	if (parsefile->fd > 0)
 		close(parsefile->fd);
 	parsefile->fd = fd;
-	if (parsefile->buf == NULL)
+	if (parsefile->buf == NULL) {
 		parsefile->buf = ckmalloc(BUFSIZ + 1);
+		parsefile->bufsize = BUFSIZ + 1;
+	}
 	parselleft = parsenleft = 0;
 	plinno = 1;
 }
@@ -410,14 +413,12 @@ setinputfd(int fd, int push)
  */
 
 void
-setinputstring(const char *string, int push)
+setinputstring(const char *string)
 {
 	INTOFF;
-	if (push)
-		pushfile();
+	pushfile();
 	parsenextc = string;
 	parselleft = parsenleft = strlen(string);
-	parsefile->buf = NULL;
 	plinno = 1;
 	INTON;
 }
@@ -434,15 +435,12 @@ pushfile(void)
 {
 	struct parsefile *pf;
 
+	pf = (struct parsefile *)ckmalloc(sizeof(struct parsefile));
+	*pf = (struct parsefile){ .prev = parsefile, .fd = -1 };
 	parsefile->nleft = parsenleft;
 	parsefile->lleft = parselleft;
 	parsefile->nextc = parsenextc;
 	parsefile->linno = plinno;
-	pf = (struct parsefile *)ckmalloc(sizeof (struct parsefile));
-	pf->prev = parsefile;
-	pf->fd = -1;
-	pf->strpush = NULL;
-	pf->basestrpush.prev = NULL;
 	parsefile = pf;
 }
 

@@ -1,0 +1,10 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: intermediary-1
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -lintermediary-1 -lfoo -lbar -lbaz
+Cflags:

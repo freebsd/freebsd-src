@@ -14,6 +14,9 @@
 #include <sys/_exterr.h>
 #include <sys/_uexterror.h>
 #include <sys/exterr_cat.h>
+#ifdef EXTERR_CATEGORY_DYNAMIC
+#include <sys/linker_set.h>
+#endif
 
 #define	UEXTERROR_MAXLEN	256
 
@@ -26,6 +29,23 @@
 #define	EXTERRCTLF_FORCE	0x00000001
 
 #ifdef _KERNEL
+
+struct exterr_cat {
+	unsigned int	cat;
+	const char	*file;
+};
+
+struct thread;
+
+#ifdef EXTERR_CATEGORY_DYNAMIC
+#ifdef EXTERR_STRINGS
+static struct exterr_cat __dynamic_cat = { .file = EXTERR_CATEGORY_DYNAMIC };
+DATA_WSET(exterr_cats, __dynamic_cat);
+#define	EXTERR_CATEGORY	(__dynamic_cat.cat | EXTERR_CAT_SRC_KERN_DYNAMIC)
+#else
+#define	EXTERR_CATEGORY	EXTERR_CAT_NONE
+#endif
+#endif
 
 #ifndef EXTERR_CATEGORY
 #error "Specify error category before including sys/exterrvar.h"
@@ -59,7 +79,7 @@
 
 #define	_SET_ERROR2(eerror, mmsg, pp1, pp2)				\
 	exterr_set(eerror, EXTERR_CATEGORY, SET_ERROR_MSG(mmsg),	\
-	    (uintptr_t)(pp1), (uintptr_t)(pp2), __LINE__)
+	    (uint64ptr_t)(pp1), (uint64ptr_t)(pp2), __LINE__)
 #define	_SET_ERROR0(eerror, mmsg)	_SET_ERROR2(eerror, mmsg, 0, 0)
 #define	_SET_ERROR1(eerror, mmsg, pp1)	_SET_ERROR2(eerror, mmsg, pp1, 0)
 
@@ -72,10 +92,14 @@
 void exterr_clear(struct kexterr *ke);
 void exterr_db_print(struct kexterr *ke);
 int exterr_set_from(const struct kexterr *ke);
-int exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
-    uintptr_t pp2, int line);
+int exterr_set(int eerror, int category, const char *mmsg, uint64ptr_t pp1,
+    uint64ptr_t pp2, int line);
 int exterr_to_ue(struct thread *td, struct uexterror *ue);
 void ktrexterr(struct thread *td);
+void exterr_cat_register_module(struct exterr_cat **start,
+    struct exterr_cat **stop);
+void exterr_cat_unregister_module(struct exterr_cat **start,
+    struct exterr_cat **stop);
 
 #else	/* !_KERNEL */
 

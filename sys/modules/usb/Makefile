@@ -52,6 +52,7 @@ SUBDIR += ulpt umb umct umcs umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += i2ctinyusb
 SUBDIR += cp2112
 SUBDIR += udl
+SUBDIR += uvideo
 SUBDIR += uether aue axe axge cdce cdceem cue ${_kue} mos rue smsc udav uhso \
 	  ipheth
 SUBDIR += muge

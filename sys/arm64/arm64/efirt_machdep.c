@@ -46,6 +46,7 @@
 #include <sys/vmmeter.h>
 
 #include <machine/pte.h>
+#include <machine/rsi.h>
 #include <machine/vmparam.h>
 
 #include <vm/vm.h>
@@ -112,7 +113,7 @@ efi_1t1_l3(vm_offset_t va)
 		mphys = PTE_TO_PHYS(*l0);
 	}
 
-	l1 = (pd_entry_t *)PHYS_TO_DMAP(mphys);
+	l1 = PHYS_TO_DMAP(mphys);
 	l1_idx = pmap_l1_index(va);
 	l1 += l1_idx;
 	if (*l1 == 0) {
@@ -124,7 +125,7 @@ efi_1t1_l3(vm_offset_t va)
 		mphys = PTE_TO_PHYS(*l1);
 	}
 
-	l2 = (pd_entry_t *)PHYS_TO_DMAP(mphys);
+	l2 = PHYS_TO_DMAP(mphys);
 	l2_idx = pmap_l2_index(va);
 	l2 += l2_idx;
 	if (*l2 == 0) {
@@ -136,7 +137,7 @@ efi_1t1_l3(vm_offset_t va)
 		mphys = PTE_TO_PHYS(*l2);
 	}
 
-	l3 = (pt_entry_t *)PHYS_TO_DMAP(mphys);
+	l3 = PHYS_TO_DMAP(mphys);
 	l3 += pmap_l3_index(va);
 	KASSERT(*l3 == 0, ("%s: Already mapped: va %#jx *pt %#jx", __func__,
 	    va, *l3));
@@ -148,7 +149,7 @@ efi_1t1_l3(vm_offset_t va)
  * Map a physical address from EFI runtime space into KVA space.  Returns 0 to
  * indicate a failed mapping so that the caller may handle error.
  */
-vm_offset_t
+void *
 efi_phys_to_kva(vm_paddr_t paddr)
 {
 	if (PHYS_IN_DMAP(paddr))
@@ -156,7 +157,7 @@ efi_phys_to_kva(vm_paddr_t paddr)
 
 	/* TODO: Map memory not in the DMAP */
 
-	return (0);
+	return (NULL);
 }
 
 /*
@@ -171,6 +172,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	vm_page_t efi_l0_page;
 	uint64_t idx;
 	int i, mode;
+	uint64_t pa;
 
 	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, L0_ENTRIES +
 	    L0_ENTRIES * Ln_ENTRIES + L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES +
@@ -179,7 +181,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_l0_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
-	efi_l0 = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_l0_page));
+	efi_l0 = VM_PAGE_TO_DMAP(efi_l0_page);
 	efi_ttbr0 = ASID_TO_OPERAND(ASID_RESERVED_FOR_EFI) |
 	    VM_PAGE_TO_PHYS(efi_l0_page);
 
@@ -231,7 +233,13 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		for (va = p->md_phys, idx = 0; idx < p->md_pages;
 		    idx += (PAGE_SIZE / EFI_PAGE_SIZE), va += PAGE_SIZE) {
 			l3 = efi_1t1_l3(va);
-			*l3 = va | l3_attr;
+
+			if (mode == VM_MEMATTR_DEVICE && in_realm())
+				pa = va | prot_ns_shared_pa;
+			else
+				pa = va;
+
+			*l3 = PHYS_TO_PTE(pa) | l3_attr;
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	}

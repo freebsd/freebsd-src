@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (C) 2011 Lawrence Livermore National Security, LLC.
@@ -26,6 +16,7 @@
  * Rewritten for Linux by:
  *   Rohan Puri <rohan.puri15@gmail.com>
  *   Brian Behlendorf <behlendorf1@llnl.gov>
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #include <sys/zfs_znode.h>
@@ -36,6 +27,7 @@
 #include <sys/dmu.h>
 #include <sys/dsl_dataset.h>
 #include <sys/zap.h>
+#include <linux/version.h>
 
 /*
  * Common open routine.  Disallow any write access.
@@ -92,41 +84,17 @@ out:
 /*
  * Get root directory attributes.
  */
-static int
-#ifdef HAVE_IDMAP_IOPS_GETATTR
-zpl_root_getattr_impl(struct mnt_idmap *user_ns,
-    const struct path *path, struct kstat *stat, u32 request_mask,
-    unsigned int query_flags)
-#elif defined(HAVE_USERNS_IOPS_GETATTR)
-zpl_root_getattr_impl(struct user_namespace *user_ns,
-    const struct path *path, struct kstat *stat, u32 request_mask,
-    unsigned int query_flags)
-#else
-zpl_root_getattr_impl(const struct path *path, struct kstat *stat,
-    u32 request_mask, unsigned int query_flags)
-#endif
+ZPL_IDMAP_IOP_DEFINE(int, zpl_root_getattr, 4,
+    const struct path *, path, struct kstat *, stat, u32, request_mask,
+    unsigned int, query_flags)
 {
 	(void) request_mask, (void) query_flags;
 	struct inode *ip = path->dentry->d_inode;
-
-#if (defined(HAVE_USERNS_IOPS_GETATTR) || defined(HAVE_IDMAP_IOPS_GETATTR))
-#ifdef HAVE_GENERIC_FILLATTR_USERNS
-	generic_fillattr(user_ns, ip, stat);
-#elif defined(HAVE_GENERIC_FILLATTR_IDMAP)
-	generic_fillattr(user_ns, ip, stat);
-#elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
-	generic_fillattr(user_ns, request_mask, ip, stat);
-#else
-	(void) user_ns;
-#endif
-#else
-	generic_fillattr(ip, stat);
-#endif
+	zpl_generic_fillattr(idmap, request_mask, ip, stat);
 	stat->atime = current_time(ip);
 
 	return (0);
 }
-ZPL_GETATTR_WRAPPER(zpl_root_getattr);
 
 static struct dentry *
 zpl_root_lookup(struct inode *dip, struct dentry *dentry, unsigned int flags)
@@ -165,30 +133,304 @@ const struct inode_operations zpl_ops_root = {
 	.getattr	= zpl_root_getattr,
 };
 
+/*
+ * Snapdir control nodes. The snapdir system is described in full at the top of
+ * zfs_ctldir.c.
+ *
+ * This file has the dentry operations that manage the kernel's path traversal
+ * into the snapshot mounts, and coordinate between the d_manage and
+ * d_automount handlers to get a snapshot online safely.
+ */
+
+/*
+ * Lookups (zpl_snapdir_lookup() or zpl_snapdir_revalidate()) with flags
+ * matching this criteria will result in an automount being triggered when
+ * walking a snapshot control dentry. They should roughly match the criteria
+ * laid out in the kernel's follow_automount() function. Read the grand theory
+ * for more on why this is necessary.
+ */
+static inline bool
+lookup_want_automount(unsigned int flags)
+{
+	if (!(flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY | LOOKUP_OPEN |
+	    LOOKUP_CREATE | LOOKUP_AUTOMOUNT)))
+		return (false);
+
+#ifdef LOOKUP_NO_XDEV
+	/* LOOKUP_NO_XDEV added in 5.6 to support openat2(RESOLVE_NO_XDEV). */
+	if (flags & LOOKUP_NO_XDEV)
+		return (false);
+#endif
+
+	return (true);
+}
+
+static int
+zpl_snapdir_manage(const struct path *path, bool rcu_walk)
+{
+	struct dentry *dentry = path->dentry;
+	zfs_snapentry_t *se = dentry->d_fsdata;
+
+	if (rcu_walk) {
+		/*
+		 * In RCU-walk mode, we are under the RCU lock and must not
+		 * block, and should not slow down if we can help it (eg take a
+		 * spinlock).
+		 *
+		 * Note that this is the only place it's safe to access flag
+		 * bits without se_mtx held, and that's only because of this
+		 * unique context. SE_BUSY will only ever change under lock,
+		 * as the last thing before the lock is released.
+		 *
+		 * If we catch SE_BUSY just before it's cleared, then we fall
+		 * back to REF-walk when we didn't need to, but that is always
+		 * safe.
+		 *
+		 * If we catch it just before it's set, then we will proceed,
+		 * however RCU-walk cannot trigger automount. If there's no
+		 * mount there, we will simply return as such; if there is
+		 * a mount, we will walk into it. In the worst cases, we miss
+		 * the the mount happening and can't walk into it, or we enter
+		 * a mount and prevent it being unmounted. Both these are
+		 * safe and defensible behaviour for a walk racing a mount or
+		 * unmount.
+		 */
+		if (SE_TEST(se, SE_BUSY))
+			return (-ECHILD);
+
+		/* dentry is stable, walk may proceed. */
+		return (0);
+	}
+
+	/*
+	 * REF-walk. Unlocked, and may block. Valid returns are:
+	 *   0        proceed, enter existing mount or start automount
+	 *   EISDIR   don't automount, caller is not entering
+	 *   ESTALE   restart the path walk (dentry invalidated, raced)
+	 */
+
+	mutex_enter(&se->se_mtx);
+	if (se->se_mount_task == current) {
+		/*
+		 * Caller is our own task, reentering through follow_down.
+		 * Allow it to proceed.
+		 */
+		mutex_exit(&se->se_mtx);
+		return (0);
+	}
+
+	/*
+	 * Localise the mount intent before the busy wait. At this point we
+	 * know we definitely want to mount, but we might sleep on BUSY below,
+	 * and then another mount completing under a different parent will
+	 * clear the bit while we wait.
+	 *
+	 * Note that there is a tiny gap here: if this thread is preempted
+	 * between d_revalidate() (which set the flag) and this read then
+	 * another walk could clear it. However, that's a few non-sleeping
+	 * instructions in the pathwalk fast-path and so vanishingly unlikely.
+	 */
+	bool want_mount = SE_TEST(se, SE_WANT_MOUNT);
+
+	/*
+	 * Wait for any mount/unmount to complete. This includes the mount
+	 * task that we just let through.
+	 */
+	while (SE_TEST(se, SE_BUSY))
+		cv_wait(&se->se_cv, &se->se_mtx);
+
+	/*
+	 * There can't be a mount task any longer, because otherwise we'd
+	 * be busy above.
+	 */
+	ASSERT0P(se->se_mount_task);
+
+	if (d_unhashed(dentry)) {
+		/*
+		 * dentry was invalidated while we were sleeping. That might be
+		 * expiry, but could also be the underlying dataset being
+		 * unmounted. Force pathwalk to start again from the beginning.
+		 */
+		mutex_exit(&se->se_mtx);
+		return (-ESTALE);
+	}
+
+	if (!dentry->d_inode) {
+		/*
+		 * dentry has no inode. Can happen when the snapshot is
+		 * destroyed by rmdir'ing the snapdir, but the dentry hasn't
+		 * been unhashed or invalidated yet. Returning EISDIR
+		 * disables automount for this walk.
+		 */
+		mutex_exit(&se->se_mtx);
+		return (-EISDIR);
+	}
+
+	/*
+	 * Check for an existing mount. We have to use follow_down_one() (ie
+	 * lookup_mnt()) here because mounts are keyed on path (parent mount +
+	 * dentry), so eg d_mountpoint() would find _any_ mount, not
+	 * necessarily _this_ mount.
+	 */
+	struct path check_path = *path;
+	path_get(&check_path);
+	bool mounted = follow_down_one(&check_path);
+	path_put(&check_path);
+
+	if (mounted) {
+		/*
+		 * Something mounted here, let the VFS have it and hope its
+		 * the right thing!
+		 */
+		SE_CLEAR(se, SE_WANT_MOUNT);
+		mutex_exit(&se->se_mtx);
+		return (0);
+	}
+
+	/* Nothing mounted under this parent, continue. */
+
+	if (!want_mount) {
+		/*
+		 * Whatever triggered this walk is not looking for anything
+		 * "inside" the mount, so tell the VFS not to attempt
+		 * automount.
+		 */
+		mutex_exit(&se->se_mtx);
+		return (-EISDIR);
+	}
+
+	/* We are the mount task now. */
+	se->se_mount_task = current;
+	SE_SET(se, SE_BUSY);
+	mutex_exit(&se->se_mtx);
+
+	struct path am_path = *path;
+	path_get(&am_path);
+	int err = zpl_follow_down(&am_path, LOOKUP_AUTOMOUNT);
+	if (err) {
+		/* Mount failed or some other internal error. */
+		path_put(&am_path);
+		err = -ESTALE;
+		goto out;
+	}
+
+	if (am_path.dentry != am_path.mnt->mnt_root ||
+	    am_path.mnt->mnt_sb->s_type != &zpl_fs_type) {
+		/*
+		 * follow_down() succeeded but ended up somewhere not the root
+		 * of a ZFS filesystem, nothing more we can do.
+		 */
+		path_put(&am_path);
+		err = -ESTALE;
+		goto out;
+	}
+
+	zfsvfs_t *zfsvfs = am_path.mnt->mnt_sb->s_fs_info;
+	if (dmu_objset_spa(zfsvfs->z_os) != se->se_spa ||
+	    dmu_objset_id(zfsvfs->z_os) != se->se_objsetid) {
+		/*
+		 * follow_down() ended up in a ZFS filesystem, but not the
+		 * snapshot we expected. Again, nothing more we can do.
+		 */
+		path_put(&am_path);
+		err = -ESTALE;
+		goto out;
+	}
+
+	/* Finalise and publish the mount. */
+	zfsctl_snapshot_finish_mount(se, am_path.mnt);
+
+	path_put(&am_path);
+
+out:
+	mutex_enter(&se->se_mtx);
+	ASSERT3P(se->se_mount_task, ==, current);
+	ASSERT(SE_TEST(se, SE_BUSY));
+
+	if (err == 0)
+		/* Something mounted, hopefully the thing we wanted! */
+		SE_CLEAR(se, SE_WANT_MOUNT);
+
+	se->se_mount_task = NULL;
+	SE_CLEAR(se, SE_BUSY);
+	cv_broadcast(&se->se_cv);
+	mutex_exit(&se->se_mtx);
+
+	return (err);
+}
+
 static struct vfsmount *
 zpl_snapdir_automount(struct path *path)
 {
-	int error;
+	struct dentry *dentry = path->dentry;
+	zfs_snapentry_t *se = dentry->d_fsdata;
 
-	error = -zfsctl_snapshot_mount(path, 0);
+	/*
+	 * Only the mounting task from zpl_snapdir_manage() can make it here.
+	 * However, before 5.5 it would enter twice, as the mount loop (in
+	 * follow_managed(), which is now __traverse_mounts()) would not reload
+	 * the dentry flags, so would not "see" the automount. This was ok
+	 * because nothing does the d_manage() double-entry thing we're doing,
+	 * and the filesystem itself would just return the mount it had already
+	 * created.
+	 *
+	 * So if anything arrives here when se_mount_task is NULL, we simply
+	 * return NULL here. On those older kernels, that should cause the path
+	 * to be reevaluated and enter the mount.
+	 */
+	if (se->se_mount_task == NULL)
+		return (NULL);
+
+	/*
+	 * This has better be the mounting task, or something very strange
+	 * has happened.
+	 */
+	ASSERT3P(se->se_mount_task, ==, current);
+	ASSERT(SE_TEST(se, SE_BUSY));
+	ASSERT3P(dentry->d_inode, !=, NULL);
+
+	struct vfsmount *mnt = NULL;
+	int error = -zfsctl_snapshot_mount(path, &mnt);
+
 	if (error)
 		return (ERR_PTR(error));
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
 	/*
-	 * Rather than returning the new vfsmount for the snapshot we must
-	 * return NULL to indicate a mount collision.  This is done because
-	 * the user space mount calls do_add_mount() which adds the vfsmount
-	 * to the name space.  If we returned the new mount here it would be
-	 * added again to the vfsmount list resulting in list corruption.
+	 * Before torvalds/linux@006ff7498fe89 (6.16), the kernel's internal
+	 * expiry machinery could expire any mount that had only a single
+	 * reference, reasoning that that reference must be the mountpoint
+	 * itself, and thus there are no users.
+	 *
+	 * To work around this, filesystems implementing d_automount were
+	 * expected to return a mount with two refs, the extra to cause expiry
+	 * to assume the mount is in use and skip it. finish_automount()
+	 * enforces this by calling BUG() if the count is <2, and will release
+	 * the extra once the graft is completed.
+	 *
+	 * 6.16 changes this to simply have the expiry task ignore mounts that
+	 * aren't mounted yet, making life much easier for filesystems.
+	 *
+	 * There's no test that can really detect this, so we go for a simple
+	 * version check, and take an extra reference on older kernels.
+	 *
+	 * This should be safe for RHEL too; at time of writing, EL8.10 (4.18+)
+	 * and EL9.8 (5.14) kernels have not backported this change.
 	 */
-	return (NULL);
+	mntget(mnt);
+#endif
+
+	return (mnt);
 }
 
 /*
- * Negative dentries must always be revalidated so newly created snapshots
- * can be detected and automounted.  Normal dentries should be kept because
- * as of the 3.18 kernel revaliding the mountpoint dentry will result in
- * the snapshot being immediately unmounted.
+ * Kernel will revalidate when the dentry may have changed state during
+ * RCU-walk (eg when the dentry is reused on splice, see zpl_snapdir_lookup()).
+ * If we have an inode, then update the flags and declare it good.
+ *
+ * For negative dentries, no revalidation necessary - they're either brand-new
+ * and not yet live (eg between lookup->mkdir) or they've been invalidated
+ * because the mount is dead and we want a new one on next lookup.
  */
 #ifdef HAVE_D_REVALIDATE_4ARGS
 static int
@@ -199,29 +441,83 @@ static int
 zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
 #endif
 {
-	return (!!dentry->d_inode);
+	zfs_snapentry_t *se = dentry->d_fsdata;
+
+	if (dentry->d_inode) {
+		if (lookup_want_automount(flags))
+			SE_SET(se, SE_WANT_MOUNT);
+		atomic_store_64(&se->se_atime, jiffies);
+		return (1);
+	}
+
+	return (0);
+}
+
+/* Kernel is done with the dentry, tear down the snapentry too. */
+static void
+zpl_snapdir_release(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	zfs_snapentry_t *se = dentry->d_fsdata;
+	dentry->d_fsdata = NULL;
+	spin_unlock(&dentry->d_lock);
+
+	/*
+	 * Release can be called more than once if part of the release was
+	 * deferred, so we might have already cleaned up. Do nothing if so.
+	 */
+	if (se == NULL)
+		return;
+
+	zfsctl_snapshot_timer_clear(se);
+
+	mutex_destroy(&se->se_mtx);
+	cv_destroy(&se->se_cv);
+
+	kmem_free(se, sizeof (zfs_snapentry_t));
 }
 
 static const struct dentry_operations zpl_dops_snapdirs = {
-/*
- * Auto mounting of snapshots is only supported for 2.6.37 and
- * newer kernels.  Prior to this kernel the ops->follow_link()
- * callback was used as a hack to trigger the mount.  The
- * resulting vfsmount was then explicitly grafted in to the
- * name space.  While it might be possible to add compatibility
- * code to accomplish this it would require considerable care.
- */
+	.d_manage	= zpl_snapdir_manage,
 	.d_automount	= zpl_snapdir_automount,
 	.d_revalidate	= zpl_snapdir_revalidate,
+	.d_release	= zpl_snapdir_release,
 };
 
 /*
- * For the .zfs control directory to work properly we must be able to override
- * the default operations table and register custom .d_automount and
- * .d_revalidate callbacks.
+ * Snapdir control dentries need a zfs_snapentry_t to track a possible mount
+ * and custom dentry operations to coordinate access against management of
+ * the mount. This sets all that up on the given dentry.
  */
 static void
-set_snapdir_dentry_ops(struct dentry *dentry, unsigned int extraflags) {
+zpl_snapdir_init_snapentry(struct dentry *dentry)
+{
+	/*
+	 * The snapentry starts off as an empty stub. It will be filled in
+	 * later if/when the mount actually happens.
+	 */
+	zfs_snapentry_t *se = kmem_zalloc(sizeof (zfs_snapentry_t), KM_SLEEP);
+
+	se->se_taskqid = TASKQID_INVALID;
+	mutex_init(&se->se_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&se->se_cv, NULL, CV_DEFAULT, NULL);
+	se->se_flags = 0;
+
+	/*
+	 * We have to take the lock here as the dentry might be about to be
+	 * reused and so on a cleanup list or similar.
+	 */
+	spin_lock(&dentry->d_lock);
+	ASSERT0P(dentry->d_fsdata);
+
+	se->se_dentry = dentry;
+	dentry->d_fsdata = se;
+
+	/*
+	 * Full set of "op" flags. The dentry may have other flags tracking
+	 * its state, so we want to mask these off instead of setting it to
+	 * NULL.
+	 */
 	static const unsigned int op_flags =
 	    DCACHE_OP_HASH | DCACHE_OP_COMPARE |
 	    DCACHE_OP_REVALIDATE | DCACHE_OP_DELETE |
@@ -239,25 +535,25 @@ set_snapdir_dentry_ops(struct dentry *dentry, unsigned int extraflags) {
 	dentry->d_op = NULL;
 	dentry->d_flags &= ~op_flags;
 	d_set_d_op(dentry, &zpl_dops_snapdirs);
-	dentry->d_flags |= extraflags;
+	dentry->d_flags |= DCACHE_MANAGE_TRANSIT | DCACHE_NEED_AUTOMOUNT;
 #else
 	/*
 	 * Since 6.17 there's no exported way to modify dentry ops, so we have
-	 * to reach in and do it ourselves. This should be safe for our very
-	 * narrow use case, which is to create or splice in an entry to give
-	 * access to a snapshot.
+	 * to reach in and do it ourselves. We have the lock, so this should
+	 * be safe.
 	 *
-	 * We need to set the op flags directly. We hardcode
-	 * DCACHE_OP_REVALIDATE because that's the only operation we have; if
-	 * we ever extend zpl_dops_snapdirs we will need to update the op flags
-	 * to match.
+	 * Note that the DCACHE_OP_ flags must match the associated ops in
+	 * zpl_dops_snapdirs.
 	 */
-	spin_lock(&dentry->d_lock);
 	dentry->d_op = &zpl_dops_snapdirs;
 	dentry->d_flags &= ~op_flags;
-	dentry->d_flags |= DCACHE_OP_REVALIDATE | extraflags;
-	spin_unlock(&dentry->d_lock);
+	dentry->d_flags |= DCACHE_OP_REVALIDATE |
+	    DCACHE_MANAGE_TRANSIT | DCACHE_NEED_AUTOMOUNT;
 #endif
+
+	se->se_dentry = dentry;
+
+	spin_unlock(&dentry->d_lock);
 }
 
 static struct dentry *
@@ -281,8 +577,43 @@ zpl_snapdir_lookup(struct inode *dip, struct dentry *dentry,
 		return (ERR_PTR(error));
 
 	ASSERT(error == 0 || ip == NULL);
-	set_snapdir_dentry_ops(dentry, DCACHE_NEED_AUTOMOUNT);
-	return (d_splice_alias(ip, dentry));
+
+	zpl_snapdir_init_snapentry(dentry);
+	zfs_snapentry_t *se = dentry->d_fsdata;
+
+	if (lookup_want_automount(flags))
+		SE_SET(se, SE_WANT_MOUNT);
+
+	struct dentry *old = d_splice_alias(ip, dentry);
+	if (old == NULL || IS_ERR(old))
+		return (old);
+
+	/*
+	 * Previous dentry was invalidated and waiting to be cleaned up, so
+	 * d_splice_alias() has re-lifed it and thrown our new one away. So we
+	 * have to get it back into shape.
+	 *
+	 * The dentry is already published and an RCU-walk lookup may already
+	 * be in progress, however it is also on a wait list until this call
+	 * returns, and REF-walk can't happen until that list is cleared. So
+	 * we're safe to make adjustments here provided the RCU-walk won't
+	 * see them. d_revalidate()->zpl_snapdir_revalidate() will be called
+	 * on our dentries on that list before the RCU-walk, which will
+	 * correctly set SE_WANT_MOUNT.
+	 *
+	 * However, there may not be a walk in progress, and so the VFS will
+	 * trust the dentry returned here. So we also need to correctly set
+	 * SE_WANT_MOUNT here too.
+	 *
+	 * Any other state from the previous version will be cleaned up
+	 * before actually repopulating it fully in
+	 * zpl_snapdir_automount()->zfsctl_snapshot_mount().
+	 */
+	se = old->d_fsdata;
+	if (lookup_want_automount(flags))
+		SE_SET(se, SE_WANT_MOUNT);
+
+	return (old);
 }
 
 static int
@@ -328,19 +659,9 @@ out:
 	return (error);
 }
 
-static int
-#ifdef HAVE_IOPS_RENAME_USERNS
-zpl_snapdir_rename2(struct user_namespace *user_ns, struct inode *sdip,
-    struct dentry *sdentry, struct inode *tdip, struct dentry *tdentry,
-    unsigned int flags)
-#elif defined(HAVE_IOPS_RENAME_IDMAP)
-zpl_snapdir_rename2(struct mnt_idmap *user_ns, struct inode *sdip,
-    struct dentry *sdentry, struct inode *tdip, struct dentry *tdentry,
-    unsigned int flags)
-#else
-zpl_snapdir_rename2(struct inode *sdip, struct dentry *sdentry,
-    struct inode *tdip, struct dentry *tdentry, unsigned int flags)
-#endif
+ZPL_IDMAP_IOP_DEFINE(int, zpl_snapdir_rename, 5,
+    struct inode *, sdip, struct dentry *, sdentry,
+    struct inode *, tdip, struct dentry *, tdentry, unsigned int, flags)
 {
 	cred_t *cr = CRED();
 	int error;
@@ -350,24 +671,12 @@ zpl_snapdir_rename2(struct inode *sdip, struct dentry *sdentry,
 		return (-EINVAL);
 
 	crhold(cr);
-	error = -zfsctl_snapdir_rename(sdip, dname(sdentry),
-	    tdip, dname(tdentry), cr, 0);
+	error = -zfsctl_snapdir_rename(sdip, sdentry, tdip, tdentry, cr);
 	ASSERT3S(error, <=, 0);
 	crfree(cr);
 
 	return (error);
 }
-
-#if (!defined(HAVE_RENAME_WANTS_FLAGS) && \
-	!defined(HAVE_IOPS_RENAME_USERNS) && \
-	!defined(HAVE_IOPS_RENAME_IDMAP))
-static int
-zpl_snapdir_rename(struct inode *sdip, struct dentry *sdentry,
-    struct inode *tdip, struct dentry *tdentry)
-{
-	return (zpl_snapdir_rename2(sdip, sdentry, tdip, tdentry, 0));
-}
-#endif
 
 static int
 zpl_snapdir_rmdir(struct inode *dip, struct dentry *dentry)
@@ -376,28 +685,19 @@ zpl_snapdir_rmdir(struct inode *dip, struct dentry *dentry)
 	int error;
 
 	crhold(cr);
-	error = -zfsctl_snapdir_remove(dip, dname(dentry), cr, 0);
+	error = -zfsctl_snapdir_remove(dip, dentry, cr);
 	ASSERT3S(error, <=, 0);
 	crfree(cr);
 
 	return (error);
 }
 
-#if defined(HAVE_IOPS_MKDIR_USERNS)
-static int
-zpl_snapdir_mkdir(struct user_namespace *user_ns, struct inode *dip,
-    struct dentry *dentry, umode_t mode)
-#elif defined(HAVE_IOPS_MKDIR_IDMAP)
-static int
-zpl_snapdir_mkdir(struct mnt_idmap *user_ns, struct inode *dip,
-    struct dentry *dentry, umode_t mode)
-#elif defined(HAVE_IOPS_MKDIR_DENTRY)
-static struct dentry *
-zpl_snapdir_mkdir(struct mnt_idmap *user_ns, struct inode *dip,
-    struct dentry *dentry, umode_t mode)
+#if defined(HAVE_MKDIR_DENTRY_RETURN)
+ZPL_IDMAP_IOP_DEFINE(struct dentry *, zpl_snapdir_mkdir, 3,
+    struct inode *, dip, struct dentry *, dentry, umode_t, mode)
 #else
-static int
-zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
+ZPL_IDMAP_IOP_DEFINE(int, zpl_snapdir_mkdir, 3,
+    struct inode *, dip, struct dentry *, dentry, umode_t, mode)
 #endif
 {
 	cred_t *cr = CRED();
@@ -407,23 +707,17 @@ zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
 
 	crhold(cr);
 	vap = kmem_zalloc(sizeof (vattr_t), KM_SLEEP);
-#if (defined(HAVE_IOPS_MKDIR_USERNS) || defined(HAVE_IOPS_MKDIR_IDMAP))
-	zpl_vap_init(vap, dip, mode | S_IFDIR, cr, user_ns);
-#else
-	zpl_vap_init(vap, dip, mode | S_IFDIR, cr, zfs_init_idmap);
-#endif
+	zpl_vap_init(vap, dip, mode | S_IFDIR, cr, idmap);
 
 	error = -zfsctl_snapdir_mkdir(dip, dname(dentry), vap, &ip, cr, 0);
-	if (error == 0) {
-		set_snapdir_dentry_ops(dentry, 0);
+	if (error == 0)
 		d_instantiate(dentry, ip);
-	}
 
 	kmem_free(vap, sizeof (vattr_t));
 	ASSERT3S(error, <=, 0);
 	crfree(cr);
 
-#if defined(HAVE_IOPS_MKDIR_DENTRY)
+#if defined(HAVE_MKDIR_DENTRY_RETURN)
 	return (ERR_PTR(error));
 #else
 	return (error);
@@ -433,19 +727,9 @@ zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
 /*
  * Get snapshot directory attributes.
  */
-static int
-#ifdef HAVE_IDMAP_IOPS_GETATTR
-zpl_snapdir_getattr_impl(struct mnt_idmap *user_ns,
-    const struct path *path, struct kstat *stat, u32 request_mask,
-    unsigned int query_flags)
-#elif defined(HAVE_USERNS_IOPS_GETATTR)
-zpl_snapdir_getattr_impl(struct user_namespace *user_ns,
-    const struct path *path, struct kstat *stat, u32 request_mask,
-    unsigned int query_flags)
-#else
-zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
-    u32 request_mask, unsigned int query_flags)
-#endif
+ZPL_IDMAP_IOP_DEFINE(int, zpl_snapdir_getattr, 4,
+    const struct path *, path, struct kstat *, stat, u32, request_mask,
+    unsigned int, query_flags)
 {
 	(void) request_mask, (void) query_flags;
 	struct inode *ip = path->dentry->d_inode;
@@ -454,20 +738,8 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
 
 	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
 		return (error);
-#if (defined(HAVE_USERNS_IOPS_GETATTR) || defined(HAVE_IDMAP_IOPS_GETATTR))
-#ifdef HAVE_GENERIC_FILLATTR_USERNS
-	generic_fillattr(user_ns, ip, stat);
-#elif defined(HAVE_GENERIC_FILLATTR_IDMAP)
-	generic_fillattr(user_ns, ip, stat);
-#elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
-	generic_fillattr(user_ns, request_mask, ip, stat);
-#else
-	(void) user_ns;
-#endif
-#else
-	generic_fillattr(ip, stat);
-#endif
 
+	zpl_generic_fillattr(idmap, request_mask, ip, stat);
 	stat->nlink = stat->size = 2;
 
 	dsl_dataset_t *ds = dmu_objset_ds(zfsvfs->z_os);
@@ -489,7 +761,6 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
 
 	return (0);
 }
-ZPL_GETATTR_WRAPPER(zpl_snapdir_getattr);
 
 /*
  * The '.zfs/snapshot' directory file operations.  These mainly control
@@ -512,13 +783,7 @@ const struct file_operations zpl_fops_snapdir = {
 const struct inode_operations zpl_ops_snapdir = {
 	.lookup		= zpl_snapdir_lookup,
 	.getattr	= zpl_snapdir_getattr,
-#if (defined(HAVE_RENAME_WANTS_FLAGS) || \
-	defined(HAVE_IOPS_RENAME_USERNS) || \
-	defined(HAVE_IOPS_RENAME_IDMAP))
-	.rename		= zpl_snapdir_rename2,
-#else
 	.rename		= zpl_snapdir_rename,
-#endif
 	.rmdir		= zpl_snapdir_rmdir,
 	.mkdir		= zpl_snapdir_mkdir,
 };
@@ -585,19 +850,9 @@ out:
 	return (error);
 }
 
-static int
-#ifdef HAVE_USERNS_IOPS_GETATTR
-zpl_shares_getattr_impl(struct user_namespace *user_ns,
-    const struct path *path, struct kstat *stat, u32 request_mask,
-    unsigned int query_flags)
-#elif defined(HAVE_IDMAP_IOPS_GETATTR)
-zpl_shares_getattr_impl(struct mnt_idmap *user_ns,
-    const struct path *path, struct kstat *stat, u32 request_mask,
-    unsigned int query_flags)
-#else
-zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
-    u32 request_mask, unsigned int query_flags)
-#endif
+ZPL_IDMAP_IOP_DEFINE(int, zpl_shares_getattr, 4,
+    const struct path *, path, struct kstat *, stat, u32, request_mask,
+    unsigned int, query_flags)
 {
 	(void) request_mask, (void) query_flags;
 	struct inode *ip = path->dentry->d_inode;
@@ -609,19 +864,7 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 		return (error);
 
 	if (zfsvfs->z_shares_dir == 0) {
-#if (defined(HAVE_USERNS_IOPS_GETATTR) || defined(HAVE_IDMAP_IOPS_GETATTR))
-#ifdef HAVE_GENERIC_FILLATTR_USERNS
-		generic_fillattr(user_ns, path->dentry->d_inode, stat);
-#elif defined(HAVE_GENERIC_FILLATTR_IDMAP)
-		generic_fillattr(user_ns, path->dentry->d_inode, stat);
-#elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
-	generic_fillattr(user_ns, request_mask, ip, stat);
-#else
-		(void) user_ns;
-#endif
-#else
-		generic_fillattr(path->dentry->d_inode, stat);
-#endif
+		zpl_generic_fillattr(idmap, request_mask, ip, stat);
 		stat->nlink = stat->size = 2;
 		stat->atime = current_time(ip);
 		zpl_exit(zfsvfs, FTAG);
@@ -630,14 +873,8 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 
 	error = -zfs_zget(zfsvfs, zfsvfs->z_shares_dir, &dzp);
 	if (error == 0) {
-#ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
-		error = -zfs_getattr_fast(user_ns, request_mask, ZTOI(dzp),
+		error = -zfs_getattr_fast(idmap, request_mask, ZTOI(dzp),
 		    stat);
-#elif (defined(HAVE_USERNS_IOPS_GETATTR) || defined(HAVE_IDMAP_IOPS_GETATTR))
-		error = -zfs_getattr_fast(user_ns, ZTOI(dzp), stat);
-#else
-		error = -zfs_getattr_fast(kcred->user_ns, ZTOI(dzp), stat);
-#endif
 		iput(ZTOI(dzp));
 	}
 
@@ -646,7 +883,6 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 
 	return (error);
 }
-ZPL_GETATTR_WRAPPER(zpl_shares_getattr);
 
 /*
  * The '.zfs/shares' directory file operations.

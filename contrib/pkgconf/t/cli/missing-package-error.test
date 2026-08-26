@@ -1,0 +1,6 @@
+Tool: pkgconf
+ToolArgs: --errors-to-stdout --cflags boguspkg
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: Package boguspkg was not found in the pkg-config search path.
+MatchStdout: Partial
+ExpectedExitCode: 1

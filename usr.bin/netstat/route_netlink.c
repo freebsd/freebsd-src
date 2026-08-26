@@ -177,8 +177,9 @@ p_path(struct snl_parsed_route *rt, bool is_mpath)
 	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:} ",
 	    wid.flags - protrusion);
 	p_flags(rt->rta_rtflags | RTF_UP, buffer);
-	/* Output path weight as non-visual property */
+	/* Output path weight and metric as non-visual property */
 	xo_emit("{e:weight/%u}", rt->rtax_weight);
+	xo_emit("{e:metric/%lu}", rt->rta_metric);
 	if (is_mpath)
 		xo_emit("{e:nhg-kidx/%u}", rt->rta_knh_id);
 	else
@@ -213,13 +214,14 @@ p_path(struct snl_parsed_route *rt, bool is_mpath)
 
 	}
 
-	if (Wflag)
+	if (Wflag) {
 		xo_emit("{t:interface-name/%*s}", wid.iface, prettyname);
-	else
+		xo_emit("{t:metric/%*lu} ", wid.metric, rt->rta_metric);
+	} else
 		xo_emit("{t:interface-name/%*.*s}", wid.iface, wid.iface,
 		    prettyname);
-	if (rt->rta_expires > 0) {
-		xo_emit(" {:expire-time/%*u}", wid.expire, rt->rta_expires);
+	if (rt->rta_expire > 0) {
+		xo_emit(" {:expire-time/%*u}", wid.expire, rt->rta_expire);
 	}
 }
 
@@ -233,17 +235,20 @@ p_rtentry_netlink(struct snl_state *ss, const char *name, struct nlmsghdr *hdr)
 	if (rt.rtax_weight == 0)
 		rt.rtax_weight = rt_default_weight;
 
-	if (rt.rta_multipath.num_nhops != 0) {
+	if (rt.rta_multipath.count != 0) {
 		uint32_t orig_rtflags = rt.rta_rtflags;
 		uint32_t orig_mtu = rt.rtax_mtu;
-		for (uint32_t i = 0; i < rt.rta_multipath.num_nhops; i++) {
-			struct rta_mpath_nh *nhop = rt.rta_multipath.nhops[i];
+		for (uint32_t i = 0; i < rt.rta_multipath.count; i++) {
+			struct rta_mpath_nh *nhop =
+			    rt.rta_multipath.items[i];
 
 			rt.rta_gw = nhop->gw;
 			rt.rta_oif = nhop->ifindex;
 			rt.rtax_weight = nhop->rtnh_weight;
+			rt.rta_metric = nhop->rta_metric;
 			rt.rta_rtflags = nhop->rta_rtflags ? nhop->rta_rtflags : orig_rtflags;
 			rt.rtax_mtu = nhop->rtax_mtu ? nhop->rtax_mtu : orig_mtu;
+			rt.rta_expire = nhop->rta_expire;
 
 			xo_open_instance(name);
 			p_path(&rt, true);
@@ -336,5 +341,4 @@ p_rtable_netlink(int fibnum, int af)
 	snl_free(&ss);
 	return (true);
 }
-
 

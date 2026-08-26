@@ -493,26 +493,6 @@ enic_attach_pre(if_ctx_t ctx)
 	ifmedia_add(softc->media, IFM_ETHER | IFM_40G_SR4, 0, NULL);
 	ifmedia_add(softc->media, IFM_ETHER | IFM_10_FL, 0, NULL);
 
-	/*
-	 * Allocate the CQ here since TX is called first before RX.
-	 */
-	if (softc->enic.cq == NULL)
-		softc->enic.cq = malloc(sizeof(struct vnic_cq) *
-		     softc->enic.wq_count + softc->enic.rq_count, M_DEVBUF,
-		     M_NOWAIT | M_ZERO);
-	if (softc->enic.cq == NULL)
-		return (ENOMEM);
-
-	/*
-	 * Allocate the consistent memory for stats and counters upfront so
-	 * both primary and secondary processes can access them.
-	 */
-	err = vnic_dev_alloc_stats_mem(enic->vdev);
-	if (err) {
-		dev_err(enic, "Failed to allocate cmd memory, aborting\n");
-		goto err_out_dev_close;
-	}
-
         err = enic_allocate_msix(softc);
         if (err) {
 		dev_err(enic, "Failed to allocate MSIX, aborting\n");
@@ -555,10 +535,13 @@ enic_msix_intr_assign(if_ctx_t ctx, int msix)
 	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_MSIX);
 	ENIC_UNLOCK(softc);
 
-	enic->intr_queues = malloc(sizeof(*enic->intr_queues) *
-	    enic->conf_intr_count, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (enic->intr_queues == NULL)
+		enic->intr_queues = malloc(sizeof(*enic->intr_queues) *
+		    enic->conf_intr_count, M_DEVBUF, M_NOWAIT | M_ZERO);
 	enic->intr = malloc(sizeof(*enic->intr) * msix, M_DEVBUF, M_NOWAIT
 	    | M_ZERO);
+	if (enic->intr_queues == NULL || enic->intr == NULL)
+		return (ENOMEM);
 	for (i = 0; i < scctx->isc_nrxqsets; i++) {
 		snprintf(irq_name, sizeof(irq_name), "erxq%d:%d", i,
 		    device_get_unit(softc->dev));
@@ -647,14 +630,19 @@ enic_free_irqs(struct enic_softc *softc)
 	scctx = softc->scctx;
 	enic = &softc->enic;
 
-	for (i = 0; i < scctx->isc_nrxqsets + scctx->isc_ntxqsets; i++) {
-		iflib_irq_free(softc->ctx, &enic->intr_queues[i].intr_irq);
+	if (enic->intr_queues != NULL) {
+		for (i = 0;
+		    i < scctx->isc_nrxqsets + scctx->isc_ntxqsets; i++)
+			iflib_irq_free(softc->ctx,
+			    &enic->intr_queues[i].intr_irq);
 	}
 
 	iflib_irq_free(softc->ctx, &softc->enic_event_intr_irq);
 	iflib_irq_free(softc->ctx, &softc->enic_err_intr_irq);
 	free(enic->intr_queues, M_DEVBUF);
+	enic->intr_queues = NULL;
 	free(enic->intr, M_DEVBUF);
+	enic->intr = NULL;
 }
 
 static int
@@ -697,9 +685,21 @@ enic_detach(if_ctx_t ctx)
 	vnic_dev_close(enic->vdev);
 	vnic_dev_deinit_devcmd2(enic->vdev);
 	free(softc->vdev.devcmd, M_DEVBUF);
+	softc->vdev.devcmd = NULL;
 	pci_disable_busmaster(softc->dev);
 	enic_pci_mapping_free(softc);
 	ENIC_UNLOCK(softc);
+	if (softc->vdev.stats_res.idi_size != 0) {
+		iflib_dma_free(&softc->vdev.stats_res);
+		softc->vdev.stats = NULL;
+	}
+	if (softc->vdev.flow_counters_res.idi_size != 0) {
+		iflib_dma_free(&softc->vdev.flow_counters_res);
+		softc->vdev.flow_counters = NULL;
+	}
+	free(softc->mta, M_DEVBUF);
+	softc->mta = NULL;
+	mtx_destroy(&softc->enic_lock);
 
 	return 0;
 }
@@ -712,11 +712,19 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 	int q;
 
 	softc = iflib_get_softc(ctx);
+	softc->enic.cq = malloc(sizeof(*softc->enic.cq) *
+	    (softc->enic.wq_count + softc->enic.rq_count), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (softc->enic.cq == NULL)
+		return (ENOMEM);
 	/* Allocate the array of transmit queues */
 	softc->enic.wq = malloc(sizeof(struct vnic_wq) *
 				ntxqsets, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (softc->enic.wq == NULL)
+	if (softc->enic.wq == NULL) {
+		free(softc->enic.cq, M_DEVBUF);
+		softc->enic.cq = NULL;
 		return (ENOMEM);
+	}
 
 	/* Initialize driver state for each transmit queue */
 
@@ -787,8 +795,13 @@ enic_rx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 	/* Allocate the array of receive queues */
 	softc->enic.rq = malloc(sizeof(struct vnic_rq) * nrxqsets, M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
-	if (softc->enic.rq == NULL)
+	if (softc->enic.rq == NULL) {
+		free(softc->enic.wq, M_DEVBUF);
+		softc->enic.wq = NULL;
+		free(softc->enic.cq, M_DEVBUF);
+		softc->enic.cq = NULL;
 		return (ENOMEM);
+	}
 
 	/* Initialize driver state for each receive queue */
 
@@ -851,8 +864,11 @@ enic_queues_free(if_ctx_t ctx)
 	softc = iflib_get_softc(ctx);
 
 	free(softc->enic.rq, M_DEVBUF);
+	softc->enic.rq = NULL;
 	free(softc->enic.wq, M_DEVBUF);
+	softc->enic.wq = NULL;
 	free(softc->enic.cq, M_DEVBUF);
+	softc->enic.cq = NULL;
 }
 
 static int

@@ -79,7 +79,7 @@
 #define MAXHOSTLEN 256
 #define	MIN_VERS	((u_long) 0)
 #define	MAX_VERS	((u_long) 4294967295UL)
-#define	UNKNOWN		"unknown"
+static char unknown[] = "unknown";
 
 /*
  * Functions to be performed.
@@ -103,7 +103,7 @@ struct netidlist {
 };
 
 struct verslist {
-	int vers;
+	rpcvers_t vers;
 	struct verslist *next;
 };
 
@@ -145,8 +145,8 @@ static void	print_getaddrstat(int, rpcb_stat *);
 static void	usage(void);
 static u_long	getprognum(char *);
 static u_long	getvers(char *);
-static char	*spaces(int);
-static bool_t	add_version(struct rpcbdump_short *, u_long);
+static const char *spaces(size_t);
+static bool_t	add_version(struct rpcbdump_short *, rpcvers_t);
 static bool_t	add_netid(struct rpcbdump_short *, char *);
 
 int
@@ -597,13 +597,13 @@ reply_proc(char *res __unused, const struct netbuf *who,
 	struct sockaddr *sa = (struct sockaddr *)who->buf;
 
 	if (getnameinfo(sa, sa->sa_len, hostbuf, NI_MAXHOST, NULL, 0, 0)) {
-		hostname = UNKNOWN;
+		hostname = unknown;
 	} else {
 		hostname = hostbuf;
 	}
 	uaddr = taddr2uaddr(nconf, who);
 	if (uaddr == NULL) {
-		printf("%s\t%s\n", UNKNOWN, hostname);
+		printf("%s\t%s\n", unknown, hostname);
 	} else {
 		printf("%s\t%s\n", uaddr, hostname);
 		free((char *)uaddr);
@@ -630,7 +630,7 @@ brdcst(int argc, char **argv)
 }
 
 static bool_t
-add_version(struct rpcbdump_short *rs, u_long vers)
+add_version(struct rpcbdump_short *rs, rpcvers_t vers)
 {
 	struct verslist *vl;
 
@@ -760,24 +760,22 @@ rpcbdump(int dumptype, char *netid, int argc, char **argv)
 			    list->rpcb_map.r_prog = pmaphead->pml_map.pm_prog;
 			    list->rpcb_map.r_vers = pmaphead->pml_map.pm_vers;
 			    if (pmaphead->pml_map.pm_prot == IPPROTO_UDP)
-				list->rpcb_map.r_netid = "udp";
+				list->rpcb_map.r_netid = strdup("udp");
 			    else if (pmaphead->pml_map.pm_prot == IPPROTO_TCP)
-				list->rpcb_map.r_netid = "tcp";
+				list->rpcb_map.r_netid = strdup("tcp");
 			    else {
-#define	MAXLONG_AS_STRING	"2147483648"
-				list->rpcb_map.r_netid =
-					malloc(strlen(MAXLONG_AS_STRING) + 1);
-				if (list->rpcb_map.r_netid == NULL)
-					goto error;
-				sprintf(list->rpcb_map.r_netid, "%6ld",
-					pmaphead->pml_map.pm_prot);
+				(void)asprintf(&list->rpcb_map.r_netid, "%6ld",
+				    pmaphead->pml_map.pm_prot);
 			    }
-			    list->rpcb_map.r_owner = UNKNOWN;
+			    if (list->rpcb_map.r_netid == NULL)
+				    goto error;
+			    list->rpcb_map.r_owner = unknown;
 			    low = pmaphead->pml_map.pm_port & 0xff;
 			    high = (pmaphead->pml_map.pm_port >> 8) & 0xff;
-			    list->rpcb_map.r_addr = strdup("0.0.0.0.XXX.XXX");
-			    sprintf(&list->rpcb_map.r_addr[8], "%d.%d",
-				high, low);
+			    (void)asprintf(&list->rpcb_map.r_addr,
+				"0.0.0.0.%d.%d", high, low);
+			    if (list->rpcb_map.r_addr == NULL)
+				    goto error;
 			    prev = list;
 			}
 		    }
@@ -840,10 +838,11 @@ failed:
 
 			printf("%10ld  ", rs->prog);
 			for (vl = rs->vlist; vl; vl = vl->next) {
-				sprintf(p, "%d", vl->vers);
+				if ((size_t)(p - buf) >= sizeof(buf))
+					break;
+				(void)snprintf(p, sizeof(buf) - (p - buf),
+				    "%d%s", vl->vers, vl->next ? "," : "");
 				p = p + strlen(p);
-				if (vl->next)
-					sprintf(p++, ",");
 			}
 			printf("%-10s", buf);
 			buf[0] = '\0';
@@ -949,11 +948,11 @@ rpcbaddrlist(char *netid, int argc, char **argv)
 			re = &head->rpcb_entry_map;
 			printf("%10u%3u    ",
 				parms.r_prog, parms.r_vers);
-			sprintf(buf, "%s/%s/%s ",
-				re->r_nc_protofmly, re->r_nc_proto,
-				re->r_nc_semantics == NC_TPI_CLTS ? "clts" :
-				re->r_nc_semantics == NC_TPI_COTS ? "cots" :
-						"cots_ord");
+			(void)snprintf(buf, sizeof(buf), "%s/%s/%s ",
+			    re->r_nc_protofmly, re->r_nc_proto,
+			    re->r_nc_semantics == NC_TPI_CLTS ? "clts" :
+			    re->r_nc_semantics == NC_TPI_COTS ? "cots" :
+			    "cots_ord");
 			printf("%-24s", buf);
 			printf("%-24s", re->r_maddr);
 			rpc = getrpcbynumber(parms.r_prog);
@@ -978,7 +977,8 @@ rpcbgetstat(int argc, char **argv)
 	struct timeval minutetimeout;
 	register CLIENT *client;
 	char *host;
-	int i, j;
+	unsigned int i;
+	int j;
 	rpcbs_addrlist *pa;
 	rpcbs_rmtcalllist *pr;
 	int cnt, flen;
@@ -1026,37 +1026,41 @@ rpcbgetstat(int argc, char **argv)
 		fieldbuf[0] = '\0';
 		switch (i) {
 		case PMAPPROC_SET:
-			sprintf(fieldbuf, "%d/", inf[RPCBVERS_2_STAT].setinfo);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/",
+			    inf[RPCBVERS_2_STAT].setinfo);
 			break;
 		case PMAPPROC_UNSET:
-			sprintf(fieldbuf, "%d/",
-				inf[RPCBVERS_2_STAT].unsetinfo);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/",
+			    inf[RPCBVERS_2_STAT].unsetinfo);
 			break;
 		case PMAPPROC_GETPORT:
 			cnt = 0;
 			for (pa = inf[RPCBVERS_2_STAT].addrinfo; pa;
 				pa = pa->next)
 				cnt += pa->success;
-			sprintf(fieldbuf, "%d/", cnt);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/", cnt);
 			break;
 		case PMAPPROC_CALLIT:
 			cnt = 0;
 			for (pr = inf[RPCBVERS_2_STAT].rmtinfo; pr;
 				pr = pr->next)
 				cnt += pr->success;
-			sprintf(fieldbuf, "%d/", cnt);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/", cnt);
 			break;
 		default: break;  /* For the remaining ones */
 		}
 		cp = &fieldbuf[0] + strlen(fieldbuf);
-		sprintf(cp, "%d", inf[RPCBVERS_2_STAT].info[i]);
+		(void)snprintf(cp, sizeof(fieldbuf) - (cp - fieldbuf), "%d",
+		    inf[RPCBVERS_2_STAT].info[i]);
 		flen = strlen(fieldbuf);
 		printf("%s%s", pmaphdr[i],
 			spaces((TABSTOP * (1 + flen / TABSTOP))
 			- strlen(pmaphdr[i])));
-		sprintf(lp, "%s%s", fieldbuf,
-			spaces(cnt = ((TABSTOP * (1 + flen / TABSTOP))
-			- flen)));
+		if ((size_t)(lp - linebuf) >= sizeof(linebuf))
+			break;
+		(void)snprintf(lp, sizeof(linebuf) - (lp - linebuf), "%s%s",
+		    fieldbuf, spaces(cnt = ((TABSTOP * (1 + flen / TABSTOP)) -
+		    flen)));
 		lp += (flen + cnt);
 	}
 	printf("\n%s\n\n", linebuf);
@@ -1079,37 +1083,41 @@ rpcbgetstat(int argc, char **argv)
 		fieldbuf[0] = '\0';
 		switch (i) {
 		case RPCBPROC_SET:
-			sprintf(fieldbuf, "%d/", inf[RPCBVERS_3_STAT].setinfo);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/",
+			    inf[RPCBVERS_3_STAT].setinfo);
 			break;
 		case RPCBPROC_UNSET:
-			sprintf(fieldbuf, "%d/",
-				inf[RPCBVERS_3_STAT].unsetinfo);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/",
+			    inf[RPCBVERS_3_STAT].unsetinfo);
 			break;
 		case RPCBPROC_GETADDR:
 			cnt = 0;
 			for (pa = inf[RPCBVERS_3_STAT].addrinfo; pa;
 				pa = pa->next)
 				cnt += pa->success;
-			sprintf(fieldbuf, "%d/", cnt);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/", cnt);
 			break;
 		case RPCBPROC_CALLIT:
 			cnt = 0;
 			for (pr = inf[RPCBVERS_3_STAT].rmtinfo; pr;
 				pr = pr->next)
 				cnt += pr->success;
-			sprintf(fieldbuf, "%d/", cnt);
+			(void)snprintf(fieldbuf, sizeof(fieldbuf), "%d/", cnt);
 			break;
 		default: break;  /* For the remaining ones */
 		}
 		cp = &fieldbuf[0] + strlen(fieldbuf);
-		sprintf(cp, "%d", inf[RPCBVERS_3_STAT].info[i]);
+		(void)snprintf(cp, sizeof(fieldbuf) - (cp - fieldbuf),
+		    "%d", inf[RPCBVERS_3_STAT].info[i]);
 		flen = strlen(fieldbuf);
 		printf("%s%s", rpcb3hdr[i],
 			spaces((TABSTOP * (1 + flen / TABSTOP))
 			- strlen(rpcb3hdr[i])));
-		sprintf(lp, "%s%s", fieldbuf,
-			spaces(cnt = ((TABSTOP * (1 + flen / TABSTOP))
-			- flen)));
+		if ((size_t)(lp - linebuf) >= sizeof(linebuf))
+			break;
+		(void)snprintf(lp, sizeof(linebuf) - (lp - linebuf), "%s%s",
+		    fieldbuf, spaces(cnt = ((TABSTOP * (1 + flen / TABSTOP)) -
+		    flen)));
 		lp += (flen + cnt);
 	}
 	printf("\n%s\n\n", linebuf);
@@ -1134,26 +1142,28 @@ rpcbgetstat(int argc, char **argv)
 			fieldbuf[0] = '\0';
 			switch (i) {
 			case RPCBPROC_SET:
-				sprintf(fieldbuf, "%d/",
-					inf[RPCBVERS_4_STAT].setinfo);
+				(void)snprintf(fieldbuf, sizeof(fieldbuf),
+				    "%d/", inf[RPCBVERS_4_STAT].setinfo);
 				break;
 			case RPCBPROC_UNSET:
-				sprintf(fieldbuf, "%d/",
-					inf[RPCBVERS_4_STAT].unsetinfo);
+				(void)snprintf(fieldbuf, sizeof(fieldbuf),
+				    "%d/", inf[RPCBVERS_4_STAT].unsetinfo);
 				break;
 			case RPCBPROC_GETADDR:
 				cnt = 0;
 				for (pa = inf[RPCBVERS_4_STAT].addrinfo; pa;
 					pa = pa->next)
 					cnt += pa->success;
-				sprintf(fieldbuf, "%d/", cnt);
+				(void)snprintf(fieldbuf, sizeof(fieldbuf),
+				    "%d/", cnt);
 				break;
 			case RPCBPROC_CALLIT:
 				cnt = 0;
 				for (pr = inf[RPCBVERS_4_STAT].rmtinfo; pr;
 					pr = pr->next)
 					cnt += pr->success;
-				sprintf(fieldbuf, "%d/", cnt);
+				(void)snprintf(fieldbuf, sizeof(fieldbuf),
+				    "%d/", cnt);
 				break;
 			default: break;  /* For the remaining ones */
 			}
@@ -1164,17 +1174,25 @@ rpcbgetstat(int argc, char **argv)
 			 * RPCB_GETADDRLIST successes in RPCB_GETADDR.
 			 */
 			if (i != RPCBPROC_GETADDR)
-			    sprintf(cp, "%d", inf[RPCBVERS_4_STAT].info[i]);
+				(void)snprintf(cp,
+				    sizeof(fieldbuf) - (cp - fieldbuf),
+				    "%d", inf[RPCBVERS_4_STAT].info[i]);
 			else
-			    sprintf(cp, "%d", inf[RPCBVERS_4_STAT].info[i] +
-			    inf[RPCBVERS_4_STAT].info[RPCBPROC_GETADDRLIST]);
+				(void)snprintf(cp,
+				    sizeof(fieldbuf) - (cp - fieldbuf),
+				    "%d", inf[RPCBVERS_4_STAT].info[i] +
+				    inf[RPCBVERS_4_STAT].
+				    info[RPCBPROC_GETADDRLIST]);
 			flen = strlen(fieldbuf);
 			printf("%s%s", rpcb4hdr[i],
 				spaces((TABSTOP * (1 + flen / TABSTOP))
 				- strlen(rpcb4hdr[i])));
-			sprintf(lp, "%s%s", fieldbuf,
-				spaces(cnt = ((TABSTOP * (1 + flen / TABSTOP))
-				- flen)));
+			if ((size_t)(lp - linebuf) >= sizeof(linebuf))
+				break;
+			(void)snprintf(lp, sizeof(linebuf) - (lp - linebuf),
+			    "%s%s", fieldbuf,
+			    spaces(cnt = ((TABSTOP * (1 + flen / TABSTOP)) -
+			    flen)));
 			lp += (flen + cnt);
 		}
 		printf("\n%s\n", linebuf);
@@ -1636,7 +1654,7 @@ print_rmtcallstat(int rtype, rpcb_stat *infp)
 }
 
 static void
-print_getaddrstat(int rtype, rpcb_stat *infp)
+print_getaddrstat(int rtype __unused, rpcb_stat *infp)
 {
 	rpcbs_addrlist_ptr al;
 	register struct rpcent *rpc;
@@ -1654,14 +1672,14 @@ print_getaddrstat(int rtype, rpcb_stat *infp)
 	}
 }
 
-static char *
-spaces(int howmany)
+static const char *
+spaces(size_t howmany)
 {
 	static char space_array[] =		/* 64 spaces */
 	"                                                                ";
 
-	if (howmany <= 0 || howmany > sizeof (space_array)) {
+	if (howmany >= sizeof(space_array)) {
 		return ("");
 	}
-	return (&space_array[sizeof (space_array) - howmany - 1]);
+	return (&space_array[sizeof(space_array) - howmany - 1]);
 }

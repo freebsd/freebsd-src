@@ -1,0 +1,73 @@
+.\"
+.\" Copyright (c) 2025 Netflix, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.Dd December 17, 2025
+.Dt EINJ 8
+.Os
+.Sh NAME
+.Nm einj
+.Nd ACPI Platform Error Interface error injection
+.Sh SYNOPSIS
+.Nm
+.Cm list
+.Nm
+.Cm inject
+.Op Fl a Ar address
+.Op Fl C Ar APIC ID
+.Oo Fl P Ar device
+.Sm off
+.Cm pci Oo Ar domain \&: Oc Ar bus \&: Ar slot \&: Ar function
+.Sm on
+.Oc
+.Ar type
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a command line interface to the ACPI Platform Error Interface
+.Pq APEI
+error injection facility provided by
+.Xr acpi_einj 4 .
+.Pp
+The
+.Cm list
+command outputs the set of platform errors that can be injected on the
+current host.
+.Pp
+The
+.Cm inject
+command injects a single platform error.
+The
+.Ar type
+argument specifies the type of error to inject,
+for example
+.Dq mem.cor
+to inject a correctable memory error.
+Vendor-specific errors are not supported.
+.Pp
+The
+.Ar address
+argument sets a specific address to use with memory errors.
+.Pp
+The
+.Ar APIC ID
+argument sets a physical processor ID for processor errors.
+.Pp
+The
+.Ar device
+argument sets the target for PCI device errors.
+The argument must follow the format
+.Sm off
+.Cm pci Oo Ar domain \&: Oc Ar bus \&: Ar slot \&: Ar function
+.Sm on .
+.Sh EXAMPLES
+Inject a fatal uncorrectable memory error for the physical address 0x12345678:
+.Pp
+.Dl einj inject -a 0x12345678 mem.fatal
+.Sh SEE ALSO
+.Xr acpi_einj 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 16.0 .

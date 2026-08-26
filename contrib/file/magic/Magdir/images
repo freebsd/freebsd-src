@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.263 2024/11/10 20:44:30 christos Exp $
+# $File: images,v 1.267 2025/11/24 14:22:31 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -644,7 +644,8 @@
 # GRR: with --keep-going option the line above gives duplicate messages
 0	search/1/ts	#FIG
 >&0	use		image-xfig
-# binary data variant with non ASCII text characters like Control-A or °C in thermostat.fig
+#                                                                     o
+# binary data variant with non ASCII text characters like Control-A or C in thermostat.fig
 0	search/1/bs	#FIG
 >&0	use		image-xfig
 #	display XFIG image describing text, mime type, file name extension and version
@@ -4565,6 +4566,7 @@
 >24		ulelong		0
 >>4		uleshort	0xA5E0	Aseprite asset file
 !:ext	aseprite
+!:mime	image/x-aseprite
 >>>0		ulelong		x	\b, size %u
 >>>6		uleshort	x	\b, frames %u
 >>>8		uleshort	x	\b, size %ux
@@ -4582,3 +4584,44 @@
 >>>38		leshort		x	\b%d)
 >>>40		uleshort	x	\b, grid size %dx
 >>>42		uleshort	x	\b%d
+
+# Type: CIS/COD Bitmaps
+# Documentation: https://cod.igada.de/ and http://fileformats.archiveteam.org/wiki/Lightning_Strike
+# From: Robert JÃ¤schke <robert.jaeschke at hu-berlin.de>
+0           string/b  CIS
+>4          ubyte     0x2e
+>>3         ubyte     >0x31
+>>>3        ubyte     <0x34     CIS/COD image data
+!:mime  image/cis-cod
+!:ext   cod
+
+# versions 2.3 to 2.5 are different to version 3.0
+>>>>3       regex/4   2\\.[345] \b, version %s
+>>>>>16     uleshort  x         \b, %u x
+>>>>>18     uleshort  x         %u
+
+# so far we know more about version 3.0
+>>>>3       string/3  3.0       \b, version %s
+# width and height
+>>>>>16     uleshort  x         \b, %u x
+>>>>>18     uleshort  x         %u x
+>>>>>20     ubyte     x         %u
+
+# gray vs. color
+>>>>>21     byte      0         \b, gray
+>>>>>21     byte      1         \b, color
+# encoder type
+>>>>>24     byte      1         \b, lossy arithmetic encoder
+>>>>>24     byte      2         \b, lossless arithmetic encoder
+# compression type
+>>>>>25     byte      1         \b, bi-wavelet compression
+# quantizer type
+>>>>>26     byte      1         \b, table quantization
+# scb
+>>>>>27     byte      1         \b, SISD
+# color space
+>>>>>28     byte      1         \b, YIQ RGB
+>>>>>28     byte      2         \b, YUV RGB
+>>>>>28     byte      3         \b, YCbCr RGB
+# wavelet levels
+>>>>>29     ubyte     x         \b, %u wavelet levels

@@ -112,6 +112,10 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
+#ifdef EXTERR_STRINGS
+FEATURE(exterr_strings, "Extended error reporting includes message strings");
+#endif
+
 static int	pollout(struct thread *, struct pollfd *, struct pollfd *,
 		    u_int);
 static int	pollscan(struct thread *, struct pollfd *, u_int);
@@ -549,26 +553,21 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 {
 	ssize_t cnt;
 	int error;
-#ifdef KTRACE
-	struct uio *ktruio = NULL;
-#endif
 
 	AUDIT_ARG_FD(fd);
+
 	auio->uio_rw = UIO_WRITE;
 	auio->uio_td = td;
 	auio->uio_offset = offset;
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO))
-		ktruio = cloneuio(auio);
-#endif
-	cnt = auio->uio_resid;
-	error = fo_write(fp, auio, td->td_ucred, flags, td);
+	error = kern_filewrite(td, fd, fp, auio, flags, &cnt);
+
 	/*
+	 * Handle short writes and generate SIGPIPE if needed.
 	 * Socket layer is responsible for special error handling,
 	 * see sousrsend().
 	 */
 	if (error != 0 && fp->f_type != DTYPE_SOCKET) {
-		if (auio->uio_resid != cnt && (error == ERESTART ||
+		if (cnt != 0 && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
@@ -577,6 +576,29 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
+
+	if (error == 0)
+		td->td_retval[0] = cnt;
+	return (error);
+}
+
+/*
+ * Write io request specified by auio into the file fp.  If fd != -1,
+ * might generate the ktrace io point.
+ */
+int
+kern_filewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
+    int flags, ssize_t *cntp)
+{
+	ssize_t cnt;
+	int error;
+#ifdef KTRACE
+	struct uio *ktruio;
+
+	ktruio = fd != -1 && KTRPOINT(td, KTR_GENIO) ? cloneuio(auio) : NULL;
+#endif
+	cnt = auio->uio_resid;
+	error = fo_write(fp, auio, td->td_ucred, flags, td);
 	cnt -= auio->uio_resid;
 #ifdef KTRACE
 	if (ktruio != NULL) {
@@ -585,7 +607,8 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 		ktrgenio(fd, UIO_WRITE, ktruio, error);
 	}
 #endif
-	td->td_retval[0] = cnt;
+
+	*cntp = cnt;
 	return (error);
 }
 
@@ -2185,9 +2208,9 @@ kern_kcmp(struct thread *td, pid_t pid1, pid_t pid2, int type,
 	switch (type) {
 	case KCMP_FILE:
 	case KCMP_FILEOBJ:
-		error = fget_remote(td, p1, idx1, &fp1);
+		error = fget_remote(td, p1, idx1, NULL, NULL, &fp1);
 		if (error == 0) {
-			error = fget_remote(td, p2, idx2, &fp2);
+			error = fget_remote(td, p2, idx2, NULL, NULL, &fp2);
 			if (error == 0) {
 				if (type == KCMP_FILEOBJ)
 					res = fo_cmp(fp1, fp2, td);
@@ -2292,24 +2315,30 @@ exterr_copyout(struct thread *td)
 int
 sys_exterrctl(struct thread *td, struct exterrctl_args *uap)
 {
+	return (kern_exterrctl(td, uap->op, uap->flags, uap->ptr));
+}
+
+int
+kern_exterrctl(struct thread *td, u_int op, u_int flags, void *ptr)
+{
 	uint32_t ver;
 	int error;
 
-	if ((uap->flags & ~(EXTERRCTLF_FORCE)) != 0)
+	if ((flags & ~(EXTERRCTLF_FORCE)) != 0)
 		return (EINVAL);
-	switch (uap->op) {
+	switch (op) {
 	case EXTERRCTL_ENABLE:
 		if ((td->td_pflags2 & TDP2_UEXTERR) != 0 &&
-		    (uap->flags & EXTERRCTLF_FORCE) == 0)
+		    (flags & EXTERRCTLF_FORCE) == 0)
 			return (EBUSY);
 		td->td_pflags2 &= ~TDP2_UEXTERR;
-		error = copyin(uap->ptr, &ver, sizeof(ver));
+		error = copyin(ptr, &ver, sizeof(ver));
 		if (error != 0)
 			return (error);
 		if (ver != UEXTERROR_VER)
 			return (EINVAL);
 		td->td_pflags2 |= TDP2_UEXTERR;
-		td->td_exterr_ptr = uap->ptr;
+		td->td_exterr_ptr = ptr;
 		return (0);
 	case EXTERRCTL_DISABLE:
 		if ((td->td_pflags2 & TDP2_UEXTERR) == 0)
@@ -2328,8 +2357,8 @@ sys_exterrctl(struct thread *td, struct exterrctl_args *uap)
 }
 
 int
-exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
-    uintptr_t pp2, int line)
+exterr_set(int eerror, int category, const char *mmsg, uint64ptr_t pp1,
+    uint64ptr_t pp2, int line)
 {
 	struct thread *td;
 

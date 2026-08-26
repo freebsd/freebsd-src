@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -573,6 +563,7 @@ typedef enum dmu_flags {
 	DMU_PARTIAL_FIRST	= 1 << 7, /* First partial access. */
 	DMU_PARTIAL_MORE	= 1 << 8, /* Following partial access. */
 	DMU_KEEP_CACHING	= 1 << 9, /* Don't affect caching. */
+	DMU_IS_PREFETCH		= 1 << 10, /* This read is a prefetch. */
 } dmu_flags_t;
 
 /*
@@ -957,11 +948,19 @@ extern uint_t zfs_max_recordsize;
  */
 void dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
 	uint64_t len, enum zio_priority pri);
+void dmu_prefetch_user(objset_t *os, uint64_t object, int64_t level,
+    uint64_t offset, uint64_t len, enum zio_priority pri);
 void dmu_prefetch_by_dnode(dnode_t *dn, int64_t level, uint64_t offset,
 	uint64_t len, enum zio_priority pri);
 void dmu_prefetch_dnode(objset_t *os, uint64_t object, enum zio_priority pri);
 int dmu_prefetch_wait(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t size);
+void dmu_prefetch_stream(objset_t *os, uint64_t object, uint64_t offset,
+    uint64_t len, boolean_t start_now);
+void dmu_prefetch_stream_by_dnode(dnode_t *dn, uint64_t offset,
+    uint64_t len, boolean_t start_now);
+void dmu_evict_range(objset_t *os, uint64_t object, uint64_t offset,
+    uint64_t len);
 
 typedef struct dmu_object_info {
 	/* All sizes are in bytes unless otherwise indicated. */

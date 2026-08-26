@@ -67,19 +67,28 @@ sldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
 	case LDNS_RSASHA512:
 #endif
 		if (len > 0) {
+			size_t nlen, offset;
 			if (keydata[0] == 0) {
 				/* big exponent */
 				if (len > 3) {
 					memmove(&int16, keydata + 1, 2);
 					exp = ntohs(int16);
-					return (len - exp - 3)*8;
+					offset = 3;
 				} else {
 					return 0;
 				}
 			} else {
 				exp = keydata[0];
-				return (len-exp-1)*8;
+				offset = 1;
 			}
+			if(exp+offset > len)
+				return 0;
+			nlen = len - exp - offset;
+			/* prefixed zeroes mean a smaller value */
+			while(nlen > 0 &&
+				keydata[len-nlen] == 0)
+				nlen--;
+			return nlen*8;
 		} else {
 			return 0;
 		}

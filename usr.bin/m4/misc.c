@@ -68,9 +68,9 @@ unsigned char *endpbb;			/* end of push-back buffer     */
  * find the index of second str in the first str.
  */
 ptrdiff_t
-indx(const char *s1, const char *s2)
+doindex(const char *s1, const char *s2)
 {
-	char *t;
+	const char *t;
 
 	t = strstr(s1, s2);
 	if (t == NULL)
@@ -135,8 +135,7 @@ pbnumbase(int n, int base, int d)
 	do {
 		pushback(digits[num % base]);
 		printed++;
-	}
-	while ((num /= base) > 0);
+	} while ((num /= base) > 0);
 
 	while (printed++ < d)
 		pushback('0');
@@ -153,8 +152,7 @@ pbunsigned(unsigned long n)
 {
 	do {
 		pushback(n % 10 + '0');
-	}
-	while ((n /= 10) > 0);
+	} while ((n /= 10) > 0);
 }
 
 void
@@ -186,9 +184,9 @@ enlarge_strspace(void)
 	memcpy(newstrspace, strspace, strsize/2);
 	for (i = 0; i <= sp; i++)
 		if (sstack[i] == STORAGE_STRSPACE)
-			mstack[i].sstr = (mstack[i].sstr - strspace)
-			    + newstrspace;
-	ep = (ep-strspace) + newstrspace;
+			mstack[i].sstr = (mstack[i].sstr - strspace) +
+			    newstrspace;
+	ep = (ep - strspace) + newstrspace;
 	free(strspace);
 	strspace = newstrspace;
 	endest = strspace + strsize;

@@ -87,6 +87,7 @@ machdep_ap_bootstrap(void)
 
 	/* Give platform code a chance to do anything else necessary */
 	platform_smp_ap_init();
+	PIC_AP_INIT(root_pic);
 
 	/* Initialize decrementer */
 	decr_ap_init();

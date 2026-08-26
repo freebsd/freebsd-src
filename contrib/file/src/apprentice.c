@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.356 2024/11/27 15:37:00 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.369 2025/10/08 16:40:52 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -58,7 +58,7 @@ FILE_RCSID("@(#)$File: apprentice.c,v 1.356 2024/11/27 15:37:00 christos Exp $")
 #endif
 
 
-#define	EATAB {while (isascii(CAST(unsigned char, *l)) && \
+#define	EATAB {while (*l && isascii(CAST(unsigned char, *l)) && \
 		      isspace(CAST(unsigned char, *l)))  ++l;}
 #define LOWCASE(l) (isupper(CAST(unsigned char, l)) ? \
 			tolower(CAST(unsigned char, l)) : (l))
@@ -341,7 +341,11 @@ get_standard_integer_type(const char *l, const char **t)
 {
 	int type;
 
-	if (isalpha(CAST(unsigned char, l[1]))) {
+	if (l[0] == '\0')
+		return FILE_INVALID;
+	if (l[1] == '\0')
+		return FILE_INVALID;
+	else if (isalpha(CAST(unsigned char, l[1]))) {
 		switch (l[1]) {
 		case 'C':
 			/* "dC" and "uC" */
@@ -749,6 +753,7 @@ file_apprentice(struct magic_set *ms, const char *fn, int action)
 	init_file_tables();
 
 	free(ms->fnamebuf);
+	ms->file = NULL;
 	if ((ms->fnamebuf = strdup(fn)) == NULL) {
 		file_oomem(ms, strlen(fn));
 		return -1;
@@ -1148,7 +1153,7 @@ apprentice_sort(const void *a, const void *b)
 				return 0;
 			file_magwarn1("Duplicate magic entry `%s'",
 			    ma->mp->desc);
-#ifndef	COMPILE_ONLY
+#ifndef COMPILE_ONLY
 			file_mdump(ma->mp);
 			file_mdump(mb->mp);
 #endif
@@ -1260,12 +1265,6 @@ set_test_type(struct magic *mstart, struct magic *m)
 	case FILE_PSTRING:
 	case FILE_BESTRING16:
 	case FILE_LESTRING16:
-		/* Allow text overrides */
-		if (mstart->str_flags & STRING_TEXTTEST)
-			mstart->flag |= TEXTTEST;
-		else
-			mstart->flag |= BINTEST;
-		break;
 	case FILE_REGEX:
 	case FILE_SEARCH:
 		/* Check for override */
@@ -1276,6 +1275,16 @@ set_test_type(struct magic *mstart, struct magic *m)
 
 		if (mstart->flag & (TEXTTEST|BINTEST))
 			break;
+
+		/*
+		 * XXX: Compatibility: For string types assume binary match
+		 * in reality it is better in the long term to change all
+		 * the magic to be string/b where appropriate
+		 */
+		if (m->type != FILE_REGEX && m->type != FILE_SEARCH) {
+			mstart->flag |= BINTEST;
+			break;
+		}
 
 		/* binary test if pattern is not text */
 		if (file_looks_utf8(m->value.us, CAST(size_t, m->vallen), NULL,
@@ -1778,6 +1787,16 @@ string_modifier_check(struct magic_set *ms, struct magic *m)
 		if ((m->str_flags & STRING_COMPACT_OPTIONAL_WHITESPACE) != 0) {
 			file_magwarn(ms, "'/%c' not allowed on regex\n",
 			    CHAR_COMPACT_OPTIONAL_WHITESPACE);
+			return -1;
+		}
+		if ((m->str_flags & STRING_IGNORE_LOWERCASE) != 0) {
+			file_magwarn(ms, "'/%c' not allowed on regex\n",
+			    CHAR_IGNORE_LOWERCASE);
+			return -1;
+		}
+		if ((m->str_flags & STRING_IGNORE_UPPERCASE) != 0) {
+			file_magwarn(ms, "'/%c' not allowed on regex\n",
+			    CHAR_IGNORE_UPPERCASE);
 			return -1;
 		}
 		break;
@@ -2393,11 +2412,19 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *file,
 		}
 		break;
 	}
+
+
 	/*
 	 * Grab the value part, except for an 'x' reln.
 	 */
-	if (m->reln != 'x' && getvalue(ms, m, &l, action))
+	if (m->reln != 'x') {
+		if (*l == '\0') {
+			file_magwarn(ms, "incomplete magic `%s'", line);
+			return -1;
+		}
+		if (getvalue(ms, m, &l, action))
 		return -1;
+	}
 
 	/*
 	 * TODO finish this macro and start using it!
@@ -2417,7 +2444,7 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *file,
 		++l;
 		m->flag |= NOSPACE;
 	}
-	for (i = 0; (m->desc[i++] = *l++) != '\0' && i < sizeof(m->desc); )
+	for (i = 0; i < sizeof(m->desc) && (m->desc[i++] = *l++) != '\0';)
 		continue;
 	if (m->desc[0] == '\0') {
 		// Tuck in the filename for debugging.
@@ -2649,7 +2676,7 @@ check_format_type(const char *ptr, int type, const char **estr)
 			}
 		} else
 			h = 0;
-		while (*ptr && strchr("-.#", *ptr) != NULL)
+		while (*ptr && strchr("+-.#", *ptr) != NULL)
 			ptr++;
 #define CHECKLEN() do { \
 	for (len = cnt = 0; isdigit(CAST(unsigned char, *ptr)); ptr++, cnt++) \
@@ -2858,7 +2885,7 @@ check_format(struct magic_set *ms, struct magic *m)
  * pointer, according to the magic type.  Update the string pointer to point
  * just after the number read.  Return 0 for success, non-zero for failure.
  */
-file_private int
+file_no_overflow file_private int
 getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 {
 	char *ep;
@@ -2921,8 +2948,10 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 			*p = ep;
 		return 0;
 	case FILE_GUID:
-		if (file_parse_guid(*p, m->value.guid) == -1)
+		if (file_parse_guid(*p, m->value.guid) == -1) {
+			file_magwarn(ms, "Error parsing guid `%s'", *p);
 			return -1;
+		}
 		*p += FILE_GUID_SIZE - 1;
 		return 0;
 	default:
@@ -3379,7 +3408,7 @@ check_buffer(struct magic_set *ms, struct magic_map *map, const char *dbname)
 	int i, needsbyteswap;
 
 	entries = CAST(uint32_t, map->len / sizeof(struct magic));
-	if (entries < MAGIC_SETS + 1) {
+	if (entries < MAGIC_SETS) {
 		file_error(ms, 0, "Too few magic entries %u in `%s'",
 		    entries, dbname);
 		return -1;

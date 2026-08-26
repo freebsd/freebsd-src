@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -78,10 +68,13 @@
  *
  * Traditionally, each ddt_phys_t slot in the entry represents a separate dedup
  * block for the same content/checksum. The slot is selected based on the
- * zp_copies parameter the block is written with, that is, the number of DVAs
- * in the block. The "ditto" slot (DDT_PHYS_DITTO) used to be used for
- * now-removed "dedupditto" feature. These are no longer written, and will be
- * freed if encountered on old pools.
+ * zp_copies parameter the block is written with. Note that the block may
+ * carry more DVAs than zp_copies (a gang header is stored in more copies
+ * than the data it gangs), so the slot cannot be inferred from the BP's DVA
+ * count; a stored phys is matched to a BP by block identity (see
+ * ddt_phys_select()). The "ditto" slot (DDT_PHYS_DITTO) used to be used for
+ * the now-removed "dedupditto" feature. These are no longer written, and
+ * will be freed if encountered on old pools.
  *
  * If the "fast_dedup" feature is enabled, new dedup tables will be created
  * with the "flat phys" option. In this mode, there is only one ddt_phys_t
@@ -426,7 +419,6 @@ ddt_object_destroy(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 {
 	spa_t *spa = ddt->ddt_spa;
 	objset_t *os = ddt->ddt_os;
-	uint64_t *objectp = &ddt->ddt_object[type][class];
 	uint64_t count;
 	char name[DDT_NAMELEN];
 
@@ -434,20 +426,24 @@ ddt_object_destroy(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 
 	ddt_object_name(ddt, type, class, name);
 
-	ASSERT3U(*objectp, !=, 0);
+	ASSERT(ddt->ddt_object[type][class] != 0);
 	ASSERT(ddt_histogram_empty(&ddt->ddt_histogram[type][class]));
 	VERIFY0(ddt_object_count(ddt, type, class, &count));
 	VERIFY0(count);
 	VERIFY0(zap_remove(os, ddt->ddt_dir_object, name, tx));
 	VERIFY0(zap_remove(os, spa->spa_ddt_stat_object, name, tx));
-	if (ddt->ddt_object_dnode[type][class] != NULL) {
-		dnode_rele(ddt->ddt_object_dnode[type][class], ddt);
-		ddt->ddt_object_dnode[type][class] = NULL;
-	}
-	VERIFY0(ddt_ops[type]->ddt_op_destroy(os, *objectp, tx));
-	memset(&ddt->ddt_object_stats[type][class], 0, sizeof (ddt_object_t));
 
-	*objectp = 0;
+	uint64_t object = ddt->ddt_object[type][class];
+	dnode_t *dn = ddt->ddt_object_dnode[type][class];
+	rw_enter(&ddt->ddt_objects_lock, RW_WRITER);
+	ddt->ddt_object[type][class] = 0;
+	ddt->ddt_object_dnode[type][class] = NULL;
+	rw_exit(&ddt->ddt_objects_lock);
+
+	if (dn != NULL)
+		dnode_rele(dn, ddt);
+	VERIFY0(ddt_ops[type]->ddt_op_destroy(os, object, tx));
+	memset(&ddt->ddt_object_stats[type][class], 0, sizeof (ddt_object_t));
 }
 
 static int
@@ -553,6 +549,20 @@ ddt_object_lookup(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 	    dde->dde_phys, DDT_PHYS_SIZE(ddt)));
 }
 
+/*
+ * Like ddt_object_lookup(), but for open context where we need protection
+ * against concurrent object destruction by sync context.
+ */
+static int
+ddt_object_lookup_open(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
+    ddt_entry_t *dde)
+{
+	rw_enter(&ddt->ddt_objects_lock, RW_READER);
+	int error = ddt_object_lookup(ddt, type, class, dde);
+	rw_exit(&ddt->ddt_objects_lock);
+	return (error);
+}
+
 static int
 ddt_object_contains(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     const ddt_key_t *ddk)
@@ -568,21 +578,33 @@ static void
 ddt_object_prefetch(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     const ddt_key_t *ddk)
 {
-	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	if (dn == NULL)
-		return;
+	/*
+	 * Called from open context, so protect against concurrent
+	 * object destruction by sync context.
+	 */
+	rw_enter(&ddt->ddt_objects_lock, RW_READER);
 
-	ddt_ops[type]->ddt_op_prefetch(dn, ddk);
+	dnode_t *dn = ddt->ddt_object_dnode[type][class];
+	if (dn != NULL)
+		ddt_ops[type]->ddt_op_prefetch(dn, ddk);
+
+	rw_exit(&ddt->ddt_objects_lock);
 }
 
 static void
 ddt_object_prefetch_all(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 {
-	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	if (dn == NULL)
-		return;
+	/*
+	 * Called from open context, so protect against concurrent
+	 * object destruction by sync context.
+	 */
+	rw_enter(&ddt->ddt_objects_lock, RW_READER);
 
-	ddt_ops[type]->ddt_op_prefetch_all(dn);
+	dnode_t *dn = ddt->ddt_object_dnode[type][class];
+	if (dn != NULL)
+		ddt_ops[type]->ddt_op_prefetch_all(dn);
+
+	rw_exit(&ddt->ddt_objects_lock);
 }
 
 static int
@@ -610,16 +632,26 @@ int
 ddt_object_walk(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     uint64_t *walk, ddt_lightweight_entry_t *ddlwe)
 {
+	/*
+	 * Can be called from open context, so protect against concurrent
+	 * object destruction by sync context.
+	 */
+	rw_enter(&ddt->ddt_objects_lock, RW_READER);
+
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	ASSERT(dn != NULL);
+	if (dn == NULL) {
+		rw_exit(&ddt->ddt_objects_lock);
+		return (SET_ERROR(ENOENT));
+	}
 
 	int error = ddt_ops[type]->ddt_op_walk(dn, walk, &ddlwe->ddlwe_key,
 	    &ddlwe->ddlwe_phys, DDT_PHYS_SIZE(ddt));
 	if (error == 0) {
 		ddlwe->ddlwe_type = type;
 		ddlwe->ddlwe_class = class;
-		return (0);
 	}
+
+	rw_exit(&ddt->ddt_objects_lock);
 	return (error);
 }
 
@@ -627,10 +659,22 @@ int
 ddt_object_count(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     uint64_t *count)
 {
-	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	ASSERT(dn != NULL);
+	/*
+	 * Can be called from open context, so protect against concurrent
+	 * object destruction by sync context.
+	 */
+	rw_enter(&ddt->ddt_objects_lock, RW_READER);
 
-	return (ddt_ops[type]->ddt_op_count(dn, count));
+	dnode_t *dn = ddt->ddt_object_dnode[type][class];
+	if (dn == NULL) {
+		rw_exit(&ddt->ddt_objects_lock);
+		return (SET_ERROR(ENOENT));
+	}
+
+	int error = ddt_ops[type]->ddt_op_count(dn, count);
+
+	rw_exit(&ddt->ddt_objects_lock);
+	return (error);
 }
 
 int
@@ -1136,44 +1180,31 @@ ddt_prefetch_all(spa_t *spa)
 static int ddt_configure(ddt_t *ddt, boolean_t new);
 
 /*
- * If the BP passed to ddt_lookup has valid DVAs, then we need to compare them
- * to the ones in the entry. If they're different, then the passed-in BP is
- * from a previous generation of this entry (ie was previously pruned) and we
+ * If the BP passed to ddt_lookup has valid DVAs, then we need to check that
+ * they match one of the phys in the entry. If not, then the passed-in BP is
+ * from a previous generation of this entry (eg was previously pruned) and we
  * have to act like the entry doesn't exist at all.
  *
- * This should only happen during a lookup to free the block (zio_ddt_free()).
+ * Callers that pass verify expect the entry they get back to hold a phys
+ * matching the BP in hand.
  *
- * XXX this is similar in spirit to ddt_phys_select(), maybe can combine
- *       -- robn, 2024-02-09
+ * The match is made on block identity (DVA[0] and physical birth) via
+ * ddt_phys_select(). The phys slot must not be inferred from the BP's DVA
+ * count: a gang header is stored in more copies than the data it gangs, so
+ * its BP carries more DVAs than the copies value the block was written with
+ * (eg a copies=1 dedup gang block has a two-DVA header BP but lives in the
+ * copies=1 slot). Slot-by-DVA-count would therefore check the wrong slot and
+ * misread a live entry as pruned, bypassing its refcount when the block is
+ * freed.
  */
 static boolean_t
 ddt_entry_lookup_is_valid(ddt_t *ddt, const blkptr_t *bp, ddt_entry_t *dde)
 {
 	/* If the BP has no DVAs, then this entry is good */
-	uint_t ndvas = BP_GET_NDVAS(bp);
-	if (ndvas == 0)
+	if (BP_GET_NDVAS(bp) == 0)
 		return (B_TRUE);
 
-	/*
-	 * Only checking the phys for the copies. For flat, there's only one;
-	 * for trad it'll be the one that has the matching set of DVAs.
-	 */
-	const dva_t *dvas = (ddt->ddt_flags & DDT_FLAG_FLAT) ?
-	    dde->dde_phys->ddp_flat.ddp_dva :
-	    dde->dde_phys->ddp_trad[ndvas].ddp_dva;
-
-	/*
-	 * Compare entry DVAs with the BP. They should all be there, but
-	 * there's not really anything we can do if its only partial anyway,
-	 * that's an error somewhere else, maybe long ago.
-	 */
-	uint_t d;
-	for (d = 0; d < ndvas; d++)
-		if (!DVA_EQUAL(&dvas[d], &bp->blk_dva[d]))
-			return (B_FALSE);
-	ASSERT3U(d, ==, ndvas);
-
-	return (B_TRUE);
+	return (ddt_phys_select(ddt, dde, bp) != DDT_PHYS_NONE);
 }
 
 ddt_entry_t *
@@ -1433,6 +1464,20 @@ ddt_key_compare(const void *x1, const void *x2)
 	return (0);
 }
 
+/*
+ * Estimate the worst-case amount of MOS data the sync thread may dirty
+ * to add, update or remove one DDT entry: one ZAP leaf block.  This is
+ * an underestimation for entries changing class (two leaves in two
+ * different ZAPs plus indirects), but sequential log flush usually
+ * combines many entries per leaf, erring the other way.
+ */
+uint64_t
+ddt_sync_dirty_est(spa_t *spa)
+{
+	(void) spa;
+	return (1ULL << ddt_zap_default_bs);
+}
+
 /* Create the containing dir for this DDT and bump the feature count */
 static void
 ddt_create_dir(ddt_t *ddt, dmu_tx_t *tx)
@@ -1535,7 +1580,7 @@ ddt_configure(ddt_t *ddt, boolean_t new)
 		    DMU_POOL_DIRECTORY_OBJECT, name, sizeof (uint64_t), 1,
 		    &ddt->ddt_dir_object);
 		if (error == 0) {
-			ASSERT3U(spa->spa_meta_objset, ==, ddt->ddt_os);
+			ASSERT3P(spa->spa_meta_objset, ==, ddt->ddt_os);
 
 			error = zap_lookup(ddt->ddt_os, ddt->ddt_dir_object,
 			    DDT_DIR_VERSION, sizeof (uint64_t), 1,
@@ -1698,6 +1743,7 @@ ddt_table_alloc(spa_t *spa, enum zio_checksum c)
 	    sizeof (ddt_entry_t), offsetof(ddt_entry_t, dde_node));
 	avl_create(&ddt->ddt_repair_tree, ddt_key_compare,
 	    sizeof (ddt_entry_t), offsetof(ddt_entry_t, dde_node));
+	rw_init(&ddt->ddt_objects_lock, NULL, RW_DEFAULT, NULL);
 
 	ddt->ddt_checksum = c;
 	ddt->ddt_spa = spa;
@@ -1744,6 +1790,7 @@ ddt_table_free(ddt_t *ddt)
 			}
 		}
 	}
+	rw_destroy(&ddt->ddt_objects_lock);
 	ASSERT0(avl_numnodes(&ddt->ddt_tree));
 	ASSERT0(avl_numnodes(&ddt->ddt_repair_tree));
 	avl_destroy(&ddt->ddt_tree);
@@ -1876,7 +1923,7 @@ ddt_repair_start(ddt_t *ddt, const blkptr_t *bp)
 			 * there's definitely only one copy, so don't even try.
 			 */
 			if (class != DDT_CLASS_UNIQUE &&
-			    ddt_object_lookup(ddt, type, class, dde) == 0)
+			    ddt_object_lookup_open(ddt, type, class, dde) == 0)
 				return (dde);
 		}
 	}
@@ -2641,10 +2688,15 @@ ddt_addref(spa_t *spa, const blkptr_t *bp)
 		 * This entry was either synced to a store object (dde_type is
 		 * real) or was logged. It must be properly on disk at this
 		 * point, so we can just bump its refcount.
+		 *
+		 * The verified lookup above guarantees a matching phys
+		 * exists for any BP that carries DVAs, and clone BPs always
+		 * do; the VERIFY keeps DDT_PHYS_NONE from reaching
+		 * ddt_phys_addref(), which would index out of bounds on
+		 * release builds.
 		 */
-		int p = DDT_PHYS_FOR_COPIES(ddt, BP_GET_NDVAS(bp));
-		ddt_phys_variant_t v = DDT_PHYS_VARIANT(ddt, p);
-
+		ddt_phys_variant_t v = ddt_phys_select(ddt, dde, bp);
+		VERIFY3U(v, !=, DDT_PHYS_NONE);
 		ddt_phys_addref(dde->dde_phys, v);
 		result = B_TRUE;
 	} else {
@@ -2767,8 +2819,8 @@ ddt_prune_walk(spa_t *spa, uint64_t cutoff, ddt_age_histo_t *histogram)
 	};
 	ddt_lightweight_entry_t ddlwe = {0};
 	int error;
-	int valid = 0;
-	int candidates = 0;
+	uint64_t valid = 0;
+	uint64_t candidates = 0;
 	uint64_t now = gethrestime_sec();
 	ddt_prune_info_t dpi;
 	boolean_t pruning = (cutoff != 0);
@@ -2798,13 +2850,6 @@ ddt_prune_walk(spa_t *spa, uint64_t cutoff, ddt_age_histo_t *histogram)
 		uint64_t class_start =
 		    ddlwe.ddlwe_phys.ddp_flat.ddp_class_start;
 
-		/*
-		 * If this entry is on the log, then the stored entry is stale
-		 * and we should skip it.
-		 */
-		if (ddt_log_find_key(ddt, &ddlwe.ddlwe_key, NULL, NULL))
-			continue;
-
 		/* prune older entries */
 		if (pruning && class_start < cutoff) {
 			if (candidates++ >= zfs_ddt_prunes_per_txg) {
@@ -2820,8 +2865,9 @@ ddt_prune_walk(spa_t *spa, uint64_t cutoff, ddt_age_histo_t *histogram)
 
 		/* build a histogram */
 		if (histogram != NULL) {
-			uint64_t age = MAX(1, (now - class_start) / 3600);
-			int bin = MIN(highbit64(age) - 1, HIST_BINS - 1);
+			uint64_t age = (class_start < now) ?
+			    (now - class_start) / 3600 : 0;
+			int bin = MIN(highbit64(age), HIST_BINS - 1);
 			histogram->dah_entries++;
 			histogram->dah_age_histo[bin]++;
 		}
@@ -2829,7 +2875,7 @@ ddt_prune_walk(spa_t *spa, uint64_t cutoff, ddt_age_histo_t *histogram)
 		valid++;
 	}
 
-	if (pruning && valid > 0) {
+	if (pruning) {
 		if (!list_is_empty(&dpi.dpi_candidates)) {
 			/* sync out final batch of prune candidates */
 			VERIFY0(dsl_sync_task(spa_name(spa), NULL,
@@ -2838,10 +2884,13 @@ ddt_prune_walk(spa_t *spa, uint64_t cutoff, ddt_age_histo_t *histogram)
 		}
 		list_destroy(&dpi.dpi_candidates);
 
-		zfs_dbgmsg("pruned %llu entries (%d%%) across %llu txg syncs",
-		    (u_longlong_t)dpi.dpi_pruned,
-		    (int)((dpi.dpi_pruned * 100) / valid),
-		    (u_longlong_t)dpi.dpi_txg_syncs);
+		if (valid > 0) {
+			zfs_dbgmsg("pruned %llu entries (%llu%%) across "
+			    "%llu txg syncs",
+			    (u_longlong_t)dpi.dpi_pruned,
+			    (u_longlong_t)((dpi.dpi_pruned * 100) / valid),
+			    (u_longlong_t)dpi.dpi_txg_syncs);
+		}
 	}
 }
 
@@ -2871,6 +2920,7 @@ ddt_prune_unique_entries(spa_t *spa, zpool_ddt_prune_unit_t unit,
 	zfs_dbgmsg("prune %llu %s", (u_longlong_t)amount,
 	    unit == ZPOOL_DDT_PRUNE_PERCENTAGE ? "%" : "seconds old or older");
 
+	uint64_t now = gethrestime_sec();
 	if (unit == ZPOOL_DDT_PRUNE_PERCENTAGE) {
 		ddt_age_histo_t histogram;
 		uint64_t oldest = 0;
@@ -2878,7 +2928,7 @@ ddt_prune_unique_entries(spa_t *spa, zpool_ddt_prune_unit_t unit,
 		/* Make a pass over DDT to build a histogram */
 		ddt_prune_walk(spa, 0, &histogram);
 
-		int target = (histogram.dah_entries * amount) / 100;
+		uint64_t target = (histogram.dah_entries * amount) / 100;
 
 		/*
 		 * Figure out our cutoff date
@@ -2886,23 +2936,25 @@ ddt_prune_unique_entries(spa_t *spa, zpool_ddt_prune_unit_t unit,
 		 */
 		for (int i = HIST_BINS - 1; i >= 0 && target > 0; i--) {
 			if (histogram.dah_age_histo[i] != 0) {
-				/* less than this bucket remaining */
-				if (target < histogram.dah_age_histo[i]) {
-					oldest = MAX(1, (1<<i) * 3600);
+				if (target <= histogram.dah_age_histo[i]) {
+					oldest = (i == 0) ? 0 :
+					    (1ULL << (i - 1)) * 3600;
 					target = 0;
 				} else {
 					target -= histogram.dah_age_histo[i];
 				}
 			}
 		}
-		cutoff = gethrestime_sec() - oldest;
+		cutoff = now - oldest;
 
 		if (ddt_dump_prune_histogram)
 			ddt_dump_age_histogram(&histogram, cutoff);
 	} else if (unit == ZPOOL_DDT_PRUNE_AGE) {
-		cutoff = gethrestime_sec() - amount;
+		if (amount >= now)
+			return (SET_ERROR(EINVAL));
+		cutoff = now - amount;
 	} else {
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
 	if (cutoff > 0 && !spa_shutting_down(spa) && !issig()) {

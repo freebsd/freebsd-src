@@ -1,0 +1,10 @@
+SkipPlatforms: windows
+SetupMkdir: tmp/child
+SetupCopy: lib1/pcfiledir.pc tmp/child/pcfiledir.pc
+SetupSymlink: %PWD%/tmp/child/pcfiledir.pc tmp/pcfiledir.pc
+SetupSymlink: tmp/pcfiledir.pc pcfiledir.pc
+Environment: PKG_CONFIG_PATH=tmp/child
+WantVariable: prefix
+WantedFlags: define-prefix
+Query: pcfiledir
+ExpectedStdout: tmp/child

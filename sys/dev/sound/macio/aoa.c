@@ -60,20 +60,20 @@ struct aoa_dma {
 	bus_dma_tag_t 		 tag; 		/* bus_dma tag */
 	struct pcm_channel 	*pcm;		/* PCM channel */
 	struct snd_dbuf		*buf; 		/* PCM buffer */
-	u_int 			 slots; 	/* # of slots */
-	u_int 			 slot;		/* current slot */
-	u_int 			 bufsz; 	/* buffer size */
-	u_int 			 blksz; 	/* block size */
+	unsigned int 			 slots; 	/* # of slots */
+	unsigned int 			 slot;		/* current slot */
+	unsigned int 			 bufsz; 	/* buffer size */
+	unsigned int 			 blksz; 	/* block size */
 	int 			 running;
 };
 
 static void
 aoa_dma_set_program(struct aoa_dma *dma)
 {
-	u_int32_t 		 addr;
+	uint32_t 		 addr;
 	int 			 i;
 
-	addr = (u_int32_t)dma->buf->buf_addr;
+	addr = (uint32_t)dma->buf->buf_addr;
 	KASSERT(dma->bufsz == dma->buf->bufsize, ("bad size"));
 
 	dma->slots = dma->bufsz / dma->blksz;
@@ -144,8 +144,8 @@ aoa_dma_delete(struct aoa_dma *dma)
 	free(dma, M_DEVBUF);
 }
 
-static u_int32_t
-aoa_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksz)
+static uint32_t
+aoa_chan_setblocksize(kobj_t obj, void *data, uint32_t blocksz)
 {
 	struct aoa_dma 		*dma = data;
 	int 			 err, lz;
@@ -188,7 +188,7 @@ aoa_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksz)
 }
 
 static int
-aoa_chan_setformat(kobj_t obj, void *data, u_int32_t format)
+aoa_chan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	DPRINTF(("aoa_chan_setformat: format = %u\n", format));
 
@@ -198,15 +198,15 @@ aoa_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return (0);
 }
 
-static u_int32_t
-aoa_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+aoa_chan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	DPRINTF(("aoa_chan_setspeed: speed = %u\n", speed));
 
 	return (44100);
 }
 
-static u_int32_t
+static uint32_t
 aoa_chan_getptr(kobj_t obj, void *data)
 {
 	struct aoa_dma 	 *dma = data;
@@ -336,7 +336,7 @@ aoa_interrupt(void *xsc)
 	mtx_unlock(&dma->mutex);
 }
 
-static u_int32_t sc_fmt[] = {
+static uint32_t sc_fmt[] = {
 	SND_FORMAT(AFMT_S16_BE, 2, 0),
 	0
 };

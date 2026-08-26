@@ -656,11 +656,7 @@ XX_VirtToPhys(void *addr)
 		return (XX_PInfo.portal_ci_pa[QM_PORTAL][cpu] +
 		    (vm_offset_t)addr - XX_PInfo.portal_ci_va[QM_PORTAL]);
 
-	if (PMAP_HAS_DMAP && (vm_offset_t)addr >= DMAP_BASE_ADDRESS &&
-	    (vm_offset_t)addr <= DMAP_MAX_ADDRESS)
-		return (DMAP_TO_PHYS((vm_offset_t)addr));
-	else
-		paddr = pmap_kextract((vm_offset_t)addr);
+	paddr = pmap_kextract((vm_offset_t)addr);
 
 	if (paddr == 0)
 		printf("NetCommSW: "
@@ -718,7 +714,7 @@ XX_PhysToVirt(physAddress_t addr)
 		return ((void *)(pv->pv_va + ((vm_offset_t)addr & PAGE_MASK)));
 
 	if (PMAP_HAS_DMAP)
-		return ((void *)(uintptr_t)PHYS_TO_DMAP(addr));
+		return (PHYS_TO_DMAP(addr));
 
 	printf("NetCommSW: "
 	    "Unable to translate physical address 0x%09jx!\n", (uintmax_t)addr);

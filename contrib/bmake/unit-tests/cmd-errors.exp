@@ -1,14 +1,14 @@
 : undefined--eol
 make: Unclosed variable "UNCLOSED"
 	in command ": $@-${UNCLOSED"
-	in target "unclosed-expression"
+	in target "unclosed-expression" from cmd-errors.mk:17
 make: Unclosed expression, expecting "}"
 	while evaluating variable "UNCLOSED" with value ""
 	in command ": $@-${UNCLOSED:"
-	in target "unclosed-modifier"
+	in target "unclosed-modifier" from cmd-errors.mk:22
 make: Unknown modifier ":Z"
 	while evaluating variable "UNKNOWN" with value ""
 	in command ": $@-${UNKNOWN:Z}-eol"
-	in target "unknown-modifier"
+	in target "unknown-modifier" from cmd-errors.mk:27
 : end-eol
 exit status 2

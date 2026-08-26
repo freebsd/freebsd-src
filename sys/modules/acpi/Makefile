@@ -9,6 +9,7 @@ SUBDIR=	\
 	acpi_panasonic \
 	acpi_sbl_wmi \
 	acpi_sony \
+	acpi_system76 \
 	acpi_toshiba \
 	acpi_video \
 	acpi_wmi \
@@ -16,6 +17,7 @@ SUBDIR=	\
 .endif
 
 SUBDIR+= \
+	acpi_einj \
 	acpi_ged
 
 .include <bsd.subdir.mk>

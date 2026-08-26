@@ -44,6 +44,7 @@
 #include <sys/socketvar.h>
 #include <sys/sockbuf.h>
 #include <sys/sysctl.h>
+#include <sys/hash.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -89,6 +90,7 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 long tcplro_stacks_wanting_mbufq;
 int	(*tcp_lro_flush_tcphpts)(struct lro_ctrl *lc, struct lro_entry *le);
+void	(*tcp_hpts_softclock)(void);
 
 counter_u64_t tcp_inp_lro_direct_queue;
 counter_u64_t tcp_inp_lro_wokeup_queue;
@@ -189,13 +191,19 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	LIST_INIT(&lc->lro_free);
 	LIST_INIT(&lc->lro_active);
 
-	/* create hash table to accelerate entry lookup */
-	lc->lro_hash = phashinit_flags(lro_entries, M_LRO, &lc->lro_hashsz,
-	    HASH_NOWAIT);
+	/* Create hash table to accelerate entry lookup. */
+	struct hashalloc_args ha = {
+		.size = lro_entries,
+		.mtype = M_LRO,
+		.mflags = M_NOWAIT,
+		.type = HASH_TYPE_PRIME,
+	};
+	lc->lro_hash = hashalloc(&ha);
 	if (lc->lro_hash == NULL) {
 		memset(lc, 0, sizeof(*lc));
 		return (ENOMEM);
 	}
+	lc->lro_hashsz = ha.size;
 
 	/* compute size to allocate */
 	size = (lro_mbufs * sizeof(struct lro_mbuf_sort)) +
@@ -205,7 +213,11 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 
 	/* check for out of memory */
 	if (lc->lro_mbuf_data == NULL) {
-		free(lc->lro_hash, M_LRO);
+		struct hashalloc_args ha = {
+			.size = lc->lro_hashsz,
+			.mtype = M_LRO,
+		};
+		hashfree(lc->lro_hash, &ha);
 		memset(lc, 0, sizeof(*lc));
 		return (ENOMEM);
 	}
@@ -502,8 +514,11 @@ tcp_lro_free(struct lro_ctrl *lc)
 		lro_free_mbuf_chain(le->m_head);
 	}
 
-	/* free hash table */
-	free(lc->lro_hash, M_LRO);
+	struct hashalloc_args ha = {
+		.size = lc->lro_hashsz,
+		.mtype = M_LRO,
+	};
+	hashfree(lc->lro_hash, &ha);
 	lc->lro_hash = NULL;
 	lc->lro_hashsz = 0;
 
@@ -1257,7 +1272,8 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 done:
 	/* flush active streams */
 	tcp_lro_rx_done(lc);
-	tcp_hpts_softclock();
+	if (tcp_hpts_softclock != NULL)
+		tcp_hpts_softclock();
 	lc->lro_mbuf_count = 0;
 }
 
@@ -1289,27 +1305,6 @@ tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, bool use_h
 	int error;
 	uint16_t tcp_data_sum;
 
-#ifdef INET
-	/* Quickly decide if packet cannot be LRO'ed */
-	if (__predict_false(V_ipforwarding != 0))
-		return (TCP_LRO_CANNOT);
-#endif
-#ifdef INET6
-	/* Quickly decide if packet cannot be LRO'ed */
-	if (__predict_false(V_ip6_forwarding != 0))
-		return (TCP_LRO_CANNOT);
-#endif
-	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
-	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
-	    (m->m_pkthdr.csum_data != 0xffff)) {
-		/*
-		 * The checksum either did not have hardware offload
-		 * or it was a bad checksum. We can't LRO such
-		 * a packet.
-		 */
-		counter_u64_add(tcp_bad_csums, 1);
-		return (TCP_LRO_CANNOT);
-	}
 	/* We expect a contiguous header [eh, ip, tcp]. */
 	pa = tcp_lro_parser(m, &po, &pi, true);
 	if (__predict_false(pa == NULL))
@@ -1427,9 +1422,37 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 {
 	int error;
 
+	CURVNET_SET(lc->ifp->if_vnet);
+#ifdef INET
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ipforwarding != 0)) {
+		CURVNET_RESTORE();
+		return (TCP_LRO_CANNOT);
+	}
+#endif
+#ifdef INET6
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ip6_forwarding != 0)) {
+		CURVNET_RESTORE();
+		return (TCP_LRO_CANNOT);
+	}
+#endif
+
+	if (((m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
+	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
+	    (m->m_pkthdr.csum_data != 0xffff)) {
+		/*
+		 * The checksum either did not have hardware offload
+		 * or it was a bad checksum. We can't LRO such
+		 * a packet.
+		 */
+		counter_u64_add(tcp_bad_csums, 1);
+		CURVNET_RESTORE();
+		return (TCP_LRO_CANNOT);
+	}
+
 	/* get current time */
 	binuptime(&lc->lro_last_queue_time);
-	CURVNET_SET(lc->ifp->if_vnet);
 	error = tcp_lro_rx_common(lc, m, csum, true);
 	if (__predict_false(error != 0)) {
 		/*
@@ -1456,9 +1479,42 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 		return;
 	}
 
+	CURVNET_SET(lc->ifp->if_vnet);
+#ifdef INET
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ipforwarding != 0)) {
+		/* input packet to network layer */
+		CURVNET_RESTORE();
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+#endif
+#ifdef INET6
+	/* Quickly decide if packet cannot be LRO'ed */
+	if (__predict_false(V_ip6_forwarding != 0)) {
+		/* input packet to network layer */
+		CURVNET_RESTORE();
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+#endif
+	CURVNET_RESTORE();
 	/* check if packet is not LRO capable */
 	if (__predict_false((lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
 		/* input packet to network layer */
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+
+	if (((mb->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) !=
+	     ((CSUM_DATA_VALID | CSUM_PSEUDO_HDR))) ||
+	    (mb->m_pkthdr.csum_data != 0xffff)) {
+		/*
+		 * The checksum either did not have hardware offload
+		 * or it was a bad checksum. We can't LRO such
+		 * a packet.
+		 */
+		counter_u64_add(tcp_bad_csums, 1);
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}

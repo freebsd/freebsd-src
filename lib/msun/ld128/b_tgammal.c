@@ -10,3 +10,5 @@
  */
 #define tgamma128 tgammal
 #include "tgamma128.c"
+
+__weak_reference(tgammal, tgammaf128);

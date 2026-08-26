@@ -327,7 +327,7 @@ static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
 static bool	bridge_same(const void *, const void *);
 static void	*bridge_get_softc(struct ifnet *);
-static void	bridge_stop(struct ifnet *, int);
+static void	bridge_stop(struct ifnet *);
 static int	bridge_transmit(struct ifnet *, struct mbuf *);
 #ifdef ALTQ
 static void	bridge_altq_start(if_t);
@@ -934,11 +934,10 @@ bridge_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct bridge_softc *sc = ifp->if_softc;
 	struct bridge_iflist *bif;
-	struct epoch_tracker et;
 
 	BRIDGE_LOCK(sc);
 
-	bridge_stop(ifp, 1);
+	bridge_stop(ifp);
 	ifp->if_flags &= ~IFF_UP;
 
 	while ((bif = CK_LIST_FIRST(&sc->sc_iflist)) != NULL)
@@ -953,8 +952,6 @@ bridge_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 
 	BRIDGE_UNLOCK(sc);
 
-	NET_EPOCH_ENTER(et);
-
 	callout_drain(&sc->sc_brcallout);
 
 	BRIDGE_LIST_LOCK();
@@ -965,8 +962,6 @@ bridge_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 #ifdef ALTQ
 	IFQ_PURGE(&ifp->if_snd);
 #endif
-	NET_EPOCH_EXIT(et);
-
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -1073,9 +1068,9 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/*
 			 * If interface is marked down and it is running,
-			 * then stop and disable it.
+			 * then stop it.
 			 */
-			bridge_stop(ifp, 1);
+			bridge_stop(ifp);
 		} else if ((ifp->if_flags & IFF_UP) &&
 		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/*
@@ -2351,7 +2346,7 @@ bridge_init(void *xsc)
  *	Stop the bridge interface.
  */
 static void
-bridge_stop(struct ifnet *ifp, int disable)
+bridge_stop(struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_softc;
 

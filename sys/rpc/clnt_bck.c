@@ -58,6 +58,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/ktls.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -81,6 +82,9 @@
 #include <rpc/rpc_com.h>
 #include <rpc/krpc.h>
 #include <rpc/rpcsec_tls.h>
+
+/* The RDMA module will set this function pointer non-NULL. */
+clnt_bck_rdma_send_ftype *clnt_bck_rdma_send = NULL;
 
 struct cmessage {
         struct cmsghdr cmsg;
@@ -268,12 +272,15 @@ call_again:
 	}
 	mreq->m_pkthdr.len = m_length(mreq, NULL);
 
-	/*
-	 * Prepend a record marker containing the packet length.
-	 */
-	M_PREPEND(mreq, sizeof(uint32_t), M_WAITOK);
-	*mtod(mreq, uint32_t *) =
-	    htonl(0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
+	/* RDMA doesn't need a record marker. */
+	if (xprt->xp_socket != NULL) {
+		/*
+		 * Prepend a record marker containing the packet length.
+		 */
+		M_PREPEND(mreq, sizeof(uint32_t), M_WAITOK);
+		*mtod(mreq, uint32_t *) =
+		    htonl(0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
+	}
 
 	cr->cr_xid = xid;
 	mtx_lock(&ct->ct_lock);
@@ -296,38 +303,47 @@ call_again:
 	TAILQ_INSERT_TAIL(&ct->ct_pending, cr, cr_link);
 	mtx_unlock(&ct->ct_lock);
 
-	/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
-	if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
-		/*
-		 * Copy the mbuf chain to a chain of
-		 * ext_pgs mbuf(s) as required by KERN_TLS.
-		 */
-		maxextsiz = TLS_MAX_MSG_SIZE_V10_2;
+	if (xprt->xp_socket != NULL) {
+		/* Handle TCP sockets. */
+		/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
+		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
+			/*
+			 * Copy the mbuf chain to a chain of
+			 * ext_pgs mbuf(s) as required by KERN_TLS.
+			 */
+			maxextsiz = TLS_MAX_MSG_SIZE_V10_2;
 #ifdef KERN_TLS
-		if (rpctls_getinfo(&maxlen, false, false))
-			maxextsiz = min(maxextsiz, maxlen);
+			if (rpctls_getinfo(&maxlen, false, false))
+				maxextsiz = min(maxextsiz, maxlen);
 #endif
-		mreq = _rpc_copym_into_ext_pgs(mreq, maxextsiz);
-	}
-	/*
-	 * sosend consumes mreq.
-	 */
-	sx_xlock(&xprt->xp_lock);
-	error = sosend(xprt->xp_socket, NULL, NULL, mreq, NULL, 0, curthread);
-if (error != 0) printf("sosend=%d\n", error);
-	mreq = NULL;
-	if (error == EMSGSIZE) {
-printf("emsgsize\n");
-		SOCK_SENDBUF_LOCK(xprt->xp_socket);
-		sbwait(xprt->xp_socket, SO_SND);
-		SOCK_SENDBUF_UNLOCK(xprt->xp_socket);
+			mreq = _rpc_copym_into_ext_pgs(mreq, maxextsiz);
+		}
+		/*
+		 * sosend consumes mreq.
+		 */
+		sx_xlock(&xprt->xp_lock);
+		error = sosend(xprt->xp_socket, NULL, NULL, mreq, NULL, 0,
+		    curthread);
+		mreq = NULL;
+		if (error == EMSGSIZE) {
+			SOCK_SENDBUF_LOCK(xprt->xp_socket);
+			sbwait(xprt->xp_socket, SO_SND);
+			SOCK_SENDBUF_UNLOCK(xprt->xp_socket);
+			sx_xunlock(&xprt->xp_lock);
+			AUTH_VALIDATE(auth, xid, NULL, NULL);
+			mtx_lock(&ct->ct_lock);
+			TAILQ_REMOVE(&ct->ct_pending, cr, cr_link);
+			goto call_again;
+		}
 		sx_xunlock(&xprt->xp_lock);
-		AUTH_VALIDATE(auth, xid, NULL, NULL);
-		mtx_lock(&ct->ct_lock);
-		TAILQ_REMOVE(&ct->ct_pending, cr, cr_link);
-		goto call_again;
+	} else {
+		/* Handle RDMA. */
+		if (clnt_bck_rdma_send != NULL) {
+			clnt_bck_rdma_send(xprt, mreq);
+			mreq = NULL;
+		} else
+			error = ENOTCONN;
 	}
-	sx_xunlock(&xprt->xp_lock);
 
 	reply_msg.acpted_rply.ar_verf.oa_flavor = AUTH_NULL;
 	reply_msg.acpted_rply.ar_verf.oa_base = cr->cr_verf;
@@ -442,15 +458,19 @@ got_reply:
 		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
-		else if (stat == RPC_AUTHERROR)
+		else if (stat == RPC_AUTHERROR) {
 			/* maybe our credentials need to be refreshed ... */
+			CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 			if (nrefreshes > 0 && AUTH_REFRESH(auth, &reply_msg)) {
+				CURVNET_RESTORE();
 				nrefreshes--;
 				XDR_DESTROY(&xdrs);
 				mtx_lock(&ct->ct_lock);
 				goto call_again;
 			}
+			CURVNET_RESTORE();
 			/* end of unsuccessful completion */
+		}
 		/* end of valid reply message */
 	} else
 		errp->re_status = stat = RPC_CANTDECODERES;

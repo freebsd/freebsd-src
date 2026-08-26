@@ -28,9 +28,9 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
@@ -91,6 +91,8 @@ static void fill_sdl_from_ifp(struct sockaddr_dl_short *sdl, const struct ifnet 
 
 static void destroy_nhop_epoch(epoch_context_t ctx);
 static void destroy_nhop(struct nhop_object *nh);
+static void nhops_ifnet_event(void *arg, struct ifnet *ifp, int state);
+static void nhops_ifnet_link_event(void *arg, struct ifnet *ifp, int state);
 
 _Static_assert(__offsetof(struct nhop_object, nh_ifp) == 32,
     "nhop_object: wrong nh_ifp offset");
@@ -110,12 +112,16 @@ nhops_init(void)
 	nhops_zone = uma_zcreate("routing nhops",
 	    NHOP_OBJECT_ALIGNED_SIZE + NHOP_PRIV_ALIGNED_SIZE,
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	EVENTHANDLER_REGISTER(ifnet_event, nhops_ifnet_event, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(ifnet_link_event, nhops_ifnet_link_event, NULL,
+	    EVENTHANDLER_PRI_ANY);
 }
 
 /*
  * Fetches the interface of source address used by the route.
- * In all cases except interface-address-route it would be the
- * same as the transmit interfaces.
+ * In all cases except interface-address-route and prefsrc it
+ * would be the same as the transmit interfaces.
  * However, for the interface address this function will return
  * this interface ifp instead of loopback. This is needed to support
  * link-local IPv6 loopback communications.
@@ -141,7 +147,8 @@ get_aifp(const struct nhop_object *nh)
 			FIB_NH_LOG(LOG_WARNING, nh, "unable to get aifp for %s index %d",
 				if_name(nh->nh_ifp), nh->gwl_sa.sdl_index);
 		}
-	}
+	} else if ((nh->nh_flags & NHF_PREFSRC) != 0)
+		aifp = nh->nh_ifa->ifa_ifp;
 
 	if (aifp == NULL)
 		aifp = nh->nh_ifp;
@@ -150,13 +157,17 @@ get_aifp(const struct nhop_object *nh)
 }
 
 int
-cmp_priv(const struct nhop_priv *_one, const struct nhop_priv *_two)
+cmp_priv(const struct nhop_priv *key, const struct nhop_priv *search)
 {
 
-	if (memcmp(_one->nh, _two->nh, NHOP_END_CMP) != 0)
+	if (memcmp(key->nh, search->nh, NHOP_END_CMP) != 0)
 		return (0);
 
-	if (memcmp(_one, _two, NH_PRIV_END_CMP) != 0)
+	if (memcmp(key, search, NH_PRIV_END_CMP) != 0)
+		return (0);
+
+	if (key->nh_metric != RT_WILDCARD_METRIC &&
+	    key->nh_metric != search->nh_metric)
 		return (0);
 
 	return (1);
@@ -170,6 +181,19 @@ set_nhop_mtu_from_info(struct nhop_object *nh, const struct rt_addrinfo *info)
 {
 	if (info->rti_mflags & RTV_MTU)
 		nhop_set_mtu(nh, info->rti_rmx->rmx_mtu, true);
+}
+
+static void
+set_nhop_metric_from_info(struct nhop_object *nh, const struct rt_addrinfo *info)
+{
+	uint32_t metric;
+
+	if (info->rti_mflags & RTV_METRIC)
+		metric = info->rti_rmx->rmx_metric;
+	else
+		metric = RT_DEFAULT_METRIC;
+
+	nhop_set_metric(nh, metric);
 }
 
 /*
@@ -289,6 +313,7 @@ nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
 	nhop_set_rtflags(nh, info->rti_flags);
 
 	set_nhop_mtu_from_info(nh, info);
+	set_nhop_metric_from_info(nh, info);
 	nhop_set_src(nh, info->rti_ifa);
 
 	/*
@@ -452,6 +477,7 @@ nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_orig,
 		nhop_free(nh);
 		return (error);
 	}
+	set_nhop_expire_from_info(nh, info);
 
 	*pnh = nhop_get_nhop(nh, &error);
 
@@ -492,17 +518,17 @@ finalize_nhop(struct nh_control *ctl, struct nhop_object *nh, bool link)
 	/* Allocate per-cpu packet counter */
 	nh->nh_pksent = counter_u64_alloc(M_NOWAIT);
 	if (nh->nh_pksent == NULL) {
+		FIB_NH_LOG(LOG_WARNING, nh, "counter_u64_alloc() failed");
 		nhop_free(nh);
 		RTSTAT_INC(rts_nh_alloc_failure);
-		FIB_NH_LOG(LOG_WARNING, nh, "counter_u64_alloc() failed");
 		return (ENOMEM);
 	}
 
 	if (!reference_nhop_deps(nh)) {
+		FIB_NH_LOG(LOG_WARNING, nh, "interface reference failed");
 		counter_u64_free(nh->nh_pksent);
 		nhop_free(nh);
 		RTSTAT_INC(rts_nh_alloc_failure);
-		FIB_NH_LOG(LOG_WARNING, nh, "interface reference failed");
 		return (EAGAIN);
 	}
 
@@ -644,28 +670,21 @@ nhop_free(struct nhop_object *nh)
 void
 nhop_ref_any(struct nhop_object *nh)
 {
-#ifdef ROUTE_MPATH
+
 	if (!NH_IS_NHGRP(nh))
 		nhop_ref_object(nh);
 	else
 		nhgrp_ref_object((struct nhgrp_object *)nh);
-#else
-	nhop_ref_object(nh);
-#endif
 }
 
 void
 nhop_free_any(struct nhop_object *nh)
 {
 
-#ifdef ROUTE_MPATH
 	if (!NH_IS_NHGRP(nh))
 		nhop_free(nh);
 	else
 		nhgrp_free((struct nhgrp_object *)nh);
-#else
-	nhop_free(nh);
-#endif
 }
 
 /* Nhop-related methods */
@@ -1051,6 +1070,21 @@ nhop_set_origin(struct nhop_object *nh, uint8_t origin)
 	nh->nh_priv->nh_origin = origin;
 }
 
+uint32_t
+nhop_get_metric(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_metric);
+}
+
+void
+nhop_set_metric(struct nhop_object *nh, uint32_t metric)
+{
+	if (metric != RT_WILDCARD_METRIC)
+		nh->nh_priv->nh_metric = metric;
+	else
+		nh->nh_priv->nh_metric = RT_DEFAULT_METRIC;
+}
+
 void
 nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 {
@@ -1083,7 +1117,10 @@ nhops_iter_start(struct nhop_iter *iter)
 	if (iter->rh != NULL) {
 		struct nh_control *ctl = iter->rh->nh_control;
 
-		NHOPS_RLOCK(ctl);
+		if (iter->wlock)
+			NHOPS_WLOCK(ctl);
+		else
+			NHOPS_RLOCK(ctl);
 
 		iter->_i = 0;
 		iter->_next = CHT_FIRST(&ctl->nh_head, iter->_i);
@@ -1121,7 +1158,10 @@ nhops_iter_stop(struct nhop_iter *iter)
 	if (iter->rh != NULL) {
 		struct nh_control *ctl = iter->rh->nh_control;
 
-		NHOPS_RUNLOCK(ctl);
+		if (iter->wlock)
+			NHOPS_WUNLOCK(ctl);
+		else
+			NHOPS_RUNLOCK(ctl);
 	}
 }
 
@@ -1169,12 +1209,11 @@ nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize)
 char *
 nhop_print_buf_any(const struct nhop_object *nh, char *buf, size_t bufsize)
 {
-#ifdef ROUTE_MPATH
+
 	if (NH_IS_NHGRP(nh))
 		return (nhgrp_print_buf((const struct nhgrp_object *)nh, buf, bufsize));
-	else
-#endif
-		return (nhop_print_buf(nh, buf, bufsize));
+
+	return (nhop_print_buf(nh, buf, bufsize));
 }
 
 /*
@@ -1291,4 +1330,67 @@ nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 	NHOPS_RUNLOCK(ctl);
 
 	return (0);
+}
+
+static void
+nhops_ifnet_state_changed(struct ifnet *ifp, bool status)
+{
+	struct nhop_object *nh;
+	struct nhop_iter iter = { .fibnum = ifp->if_fib, .wlock = true };
+	bool nhops_changed;
+
+	for (iter.family = 1; iter.family < AF_MAX; iter.family++) {
+		/*
+		 * By tracking nhop changes, we avoid redundant nhgrp
+		 * recompilation triggered by multiple events.
+		 */
+		nhops_changed = false;
+		iter.rh = rt_tables_get_rnh_safe(iter.fibnum, iter.family);
+		for (nh = nhops_iter_start(&iter); nh != NULL;
+		    nh = nhops_iter_next(&iter)) {
+			if (nh->nh_ifp != ifp)
+				continue;
+
+			if (status && !NH_IS_VALID(nh)) {
+				nh->nh_flags &= ~NHF_INVALID;
+				nhops_changed = true;
+			} else if (!status && NH_IS_VALID(nh)) {
+				nh->nh_flags |= NHF_INVALID;
+				nhops_changed = true;
+			}
+		}
+		if (iter.rh != NULL && nhops_changed)
+			nhgrp_recompile(iter.rh);
+		nhops_iter_stop(&iter);
+	}
+}
+
+static void
+nhops_ifnet_event(void *arg __unused, struct ifnet *ifp, int state)
+{
+
+	if ((ifp->if_flags & IFF_DYING) != 0 ||
+	    (state != IFNET_EVENT_UP && state != IFNET_EVENT_DOWN))
+		return;
+
+	nhops_ifnet_state_changed(ifp, state == IFNET_EVENT_UP);
+}
+
+static void
+nhops_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int state)
+{
+#ifdef VIMAGE
+	/*
+	 * rib_head will be calculated from V_tables in rt_tables_get_rnh
+	 * and the VNET is destroyed.
+	 */
+	if (VNET_IS_SHUTTING_DOWN(ifp->if_vnet))
+		return;
+#endif
+
+	if ((ifp->if_flags & IFF_DYING) != 0 ||
+	    (state != LINK_STATE_UP && state != LINK_STATE_DOWN))
+		return;
+
+	nhops_ifnet_state_changed(ifp, state == LINK_STATE_UP);
 }

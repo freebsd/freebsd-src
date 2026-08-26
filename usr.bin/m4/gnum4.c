@@ -1,4 +1,4 @@
-/* $OpenBSD: gnum4.c,v 1.52 2017/08/21 21:41:13 deraadt Exp $ */
+/* $OpenBSD: gnum4.c,v 1.55 2025/11/05 17:10:45 tb Exp $ */
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
@@ -267,7 +267,7 @@ m4_warnx(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	warnx(fmt, ap);
+	vwarnx(fmt, ap);
 	va_end(ap);
 
 	if (fatal_warns)

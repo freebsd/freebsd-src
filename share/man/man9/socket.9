@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 6, 2022
+.Dd July 1, 2026
 .Dt SOCKET 9
 .Os
 .Sh NAME
@@ -145,6 +145,8 @@
 .Fn sogetopt "struct socket *so" "struct sockopt *sopt"
 .Ft int
 .Fn sooptcopyin "struct sockopt *sopt" "void *buf" "size_t len" "size_t minlen"
+.Ft int
+.Fn sooptcopyinptr "struct sockopt *sopt" "void *buf" "size_t len" "size_t minlen"
 .Ft int
 .Fn sooptcopyout "struct sockopt *sopt" "const void *buf" "size_t len"
 .Sh DESCRIPTION
@@ -577,6 +579,15 @@ and
 are useful for transferring
 .Vt struct sockopt
 data between user and kernel code.
+They do not preserve the provenance of pointers in copied objects
+.Pq see Xr memory_model 7 for further information .
+If the object to be copied contains pointers, the
+.Fn sooptcopyinptr
+function must be used to preserve the provenance of those pointers.
+There is no corresponding
+.Fn sooptcopyoutptr
+as the kernel does not typically return pointers to userspace objects
+and instead would update objects previously passed via sooptcopyinptr.
 .Sh SEE ALSO
 .Xr bind 2 ,
 .Xr close 2 ,

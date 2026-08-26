@@ -190,6 +190,8 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_PTP_I219_V26		0x57B6
 #define E1000_DEV_ID_PCH_PTP_I219_LM27		0x57B7
 #define E1000_DEV_ID_PCH_PTP_I219_V27		0x57B8
+#define E1000_DEV_ID_PCH_NVL_I219_LM29		0x57B9
+#define E1000_DEV_ID_PCH_NVL_I219_V29		0x57BA
 #define E1000_DEV_ID_82576			0x10C9
 #define E1000_DEV_ID_82576_FIBER		0x10E6
 #define E1000_DEV_ID_82576_SERDES		0x10E7
@@ -282,6 +284,7 @@ enum e1000_mac_type {
 	e1000_pch_adp,
 	e1000_pch_mtp,
 	e1000_pch_ptp,
+	e1000_pch_nvp,
 	e1000_82575,
 	e1000_82576,
 	e1000_82580,
@@ -650,6 +653,8 @@ struct e1000_hw_stats {
 	u64 o2bspc;
 	u64 b2ospc;
 	u64 b2ogprc;
+	u64 tlpic;
+	u64 rlpic;
 };
 
 struct e1000_vf_stats {
@@ -883,6 +888,7 @@ struct e1000_phy_info {
 	u32 id;
 	u32 reset_delay_us; /* in usec */
 	u32 revision;
+	u32 current_retry_counter;
 
 	enum e1000_media_type media_type;
 
@@ -938,13 +944,14 @@ struct e1000_fc_info {
 
 struct e1000_mbx_operations {
 	s32 (*init_params)(struct e1000_hw *hw);
-	s32 (*read)(struct e1000_hw *, u32 *, u16,  u16);
+	s32 (*read)(struct e1000_hw *, u32 *, u16, u16, bool);
 	s32 (*write)(struct e1000_hw *, u32 *, u16, u16);
 	s32 (*read_posted)(struct e1000_hw *, u32 *, u16,  u16);
 	s32 (*write_posted)(struct e1000_hw *, u32 *, u16, u16);
 	s32 (*check_for_msg)(struct e1000_hw *, u16);
 	s32 (*check_for_ack)(struct e1000_hw *, u16);
 	s32 (*check_for_rst)(struct e1000_hw *, u16);
+	s32 (*unlock)(struct e1000_hw *, u16);
 };
 
 struct e1000_mbx_stats {

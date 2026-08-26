@@ -28,10 +28,12 @@ SUBDIR = \
 
 .if !empty(OPT_FDT)
 SUBDIR += hym8563 \
+	  rs5c372a \
 	  rv3032 \
 	  rx8803 \
 	  tca64xx \
-	  tmp461
+	  tmp461 \
+	  w83793g
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \

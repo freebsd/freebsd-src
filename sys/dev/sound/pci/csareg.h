@@ -1963,10 +1963,10 @@ struct cs461x_firmware_struct
 {
 	struct
 	{
-		u_int32_t ulDestAddr, ulSourceSize;
+		uint32_t ulDestAddr, ulSourceSize;
 	} MemoryStat[INKY_MEMORY_COUNT];
 
-	u_int32_t BA1Array[INKY_BA1_DWORD_SIZE];
+	uint32_t BA1Array[INKY_BA1_DWORD_SIZE];
 };
 
 #endif /* _CSA_REG_H */

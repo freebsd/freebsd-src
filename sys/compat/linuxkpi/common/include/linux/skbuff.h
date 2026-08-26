@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2025 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * Copyright (c) 2021-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -74,9 +74,9 @@ extern int linuxkpi_debug_skb;
     if (linuxkpi_debug_skb & DSKB_TRACE)				\
 	printf("SKB_TRACE %s:%d %p, %p\n", __func__, __LINE__, _s, _p)
 #define	SKB_TRACE_FMT(_s, _fmt, ...)					\
-   if (linuxkpi_debug_skb & DSKB_TRACE)					\
+    if ((linuxkpi_debug_skb & DSKB_TRACE) != 0)				\
 	printf("SKB_TRACE %s:%d %p " _fmt "\n", __func__, __LINE__, _s,	\
-	    __VA_ARGS__)
+	    ##__VA_ARGS__)
 #else
 #define	SKB_TODO()		do { } while(0)
 #define	SKB_IMPROVE(...)	do { } while(0)
@@ -182,6 +182,7 @@ struct sk_buff {
 	uint16_t		qmap;		/* queue mapping */
 	uint16_t		_flags;		/* Internal flags. */
 #define	_SKB_FLAGS_SKBEXTFRAG	0x0001
+#define	_SKB_PP_RECYCLE		0x0010
 	uint16_t		l3hdroff;	/* network header offset from *head */
 	uint16_t		l4hdroff;	/* transport header offset from *head */
 	uint16_t		mac_header;	/* offset of mac_header */
@@ -208,6 +209,8 @@ struct sk_buff *linuxkpi_build_skb(void *, size_t);
 void linuxkpi_kfree_skb(struct sk_buff *);
 
 struct sk_buff *linuxkpi_skb_copy(const struct sk_buff *, gfp_t);
+
+int lkpi___skb_linearize(struct sk_buff *);
 
 /* -------------------------------------------------------------------------- */
 
@@ -261,6 +264,7 @@ static inline void
 dev_kfree_skb(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
+	SKB_IMPROVE("Need to be able to deal with page_pool");
 	kfree_skb(skb);
 }
 
@@ -436,7 +440,7 @@ skb_put_data(struct sk_buff *skb, const void *buf, size_t len)
 
 /* skb_put() + filling with zeros. */
 static inline void *
-skb_put_zero(struct sk_buff *skb, size_t len)
+__skb_put_zero(struct sk_buff *skb, size_t len)
 {
 	void *s;
 
@@ -444,6 +448,12 @@ skb_put_zero(struct sk_buff *skb, size_t len)
 	s = skb_put(skb, len);
 	memset(s, '\0', len);
 	return (s);
+}
+
+static inline void *
+skb_put_zero(struct sk_buff *skb, size_t len)
+{
+	return (__skb_put_zero(skb, len));
 }
 
 /*
@@ -653,6 +663,8 @@ __skb_unlink(struct sk_buff *skb, struct sk_buff_head *q)
 	WRITE_ONCE(q->qlen, q->qlen - 1);
 	p = skb->prev;
 	n = skb->next;
+	KASSERT(p != NULL && n != NULL,
+	    ("%s: skb %p q %p p %p n %p\n", __func__, skb, q, p, n));
 	WRITE_ONCE(n->prev, p);
 	WRITE_ONCE(p->next, n);
 	skb->prev = skb->next = NULL;
@@ -970,9 +982,7 @@ skb_network_header(struct sk_buff *skb)
 static inline int
 __skb_linearize(struct sk_buff *skb)
 {
-	SKB_TRACE(skb);
-	SKB_TODO();
-	return (-ENXIO);
+	return (lkpi___skb_linearize(skb));
 }
 
 static inline int
@@ -1137,9 +1147,13 @@ napi_consume_skb(struct sk_buff *skb, int budget)
 static inline struct sk_buff *
 napi_build_skb(void *data, size_t len)
 {
+	struct sk_buff *skb;
 
-	SKB_TODO();
-	return (NULL);
+	SKB_IMPROVE("len and all needs fixing likely");
+
+	skb = linuxkpi_build_skb(data, len);
+	SKB_TRACE(skb);
+	return (skb);
 }
 
 static inline uint32_t
@@ -1154,8 +1168,7 @@ static inline void
 skb_mark_for_recycle(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
-	/* page_pool */
-	SKB_TODO();
+	skb->_flags |= _SKB_PP_RECYCLE;
 }
 
 static inline int

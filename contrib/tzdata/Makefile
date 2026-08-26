@@ -66,28 +66,6 @@ DATAFORM=		main
 
 LOCALTIME=	Factory
 
-# The POSIXRULES macro controls interpretation of POSIX-like TZ
-# settings like TZ='EET-2EEST' that lack DST transition rules.
-# If POSIXRULES is '-', no template is installed; this is the default.
-# Any other value for POSIXRULES is obsolete and should not be relied on, as:
-# * It does not work correctly in popular implementations such as GNU/Linux.
-# * It does not work even in tzcode, except for historical timestamps
-#   that precede the last explicit transition in the POSIXRULES file.
-#   Hence it typically does not work for current and future timestamps.
-# If, despite the above, you want a template for handling these settings,
-# you can change the line below (after finding the timezone you want in the
-# one of the $(TDATA) source files, or adding it to a source file).
-# Alternatively, if you discover you've got the wrong timezone, you can just
-# 'zic -p -' to remove it, or 'zic -p rightzone' to change it.
-# Use the command
-#	make zonenames
-# to get a list of the values you can use for POSIXRULES.
-
-POSIXRULES=	-
-
-# Also see TZDEFRULESTRING below, which takes effect only
-# if POSIXRULES is '-' or if the template file cannot be accessed.
-
 
 # Installation locations.
 #
@@ -136,7 +114,7 @@ ZDUMPDIR = $(BINDIR)
 # The "zic" command goes in:
 ZICDIR = $(TOPDIR)/$(USRDIR)/sbin
 
-# Manual pages go in subdirectories of. . .
+# Manual pages go in subdirectories of:
 MANDIR = $(TOPDIR)/$(USRSHAREDIR)/man
 
 # Library functions are put in an archive in LIBDIR.
@@ -167,10 +145,10 @@ TIME_T_ALTERNATIVES_TAIL = int_least32_t.ck uint_least32_t.ck \
 # nonnegative TZ_CHANGE_INTERVAL also assumes this, so to be compatible with
 # these, use "posix_only" or "posix_right".  Use POSIX time on systems with
 # leap smearing; this can work better than unsmeared "right" time with
-# applications that are not leap second aware, and is closer to unsmeared
+# applications that are not aware of leap seconds, and is closer to unsmeared
 # "right" time than unsmeared POSIX time is (e.g., 0.5 vs 1.0 s max error).
 
-REDO=		posix_right
+REDO=		posix_only
 
 # Whether to put an "Expires" line in the leapseconds file.
 # Use EXPIRES_LINE=1 to put the line in, 0 to omit it.
@@ -284,7 +262,10 @@ LDLIBS=
 #  -DHAVE_STRDUP=0 if your system lacks the strdup function
 #  -DHAVE_STRNLEN=0 if your system lacks the strnlen function+
 #  -DHAVE_STRTOLL=0 if your system lacks the strtoll function+
-#  -DHAVE_STRUCT_STAT_ST_CTIM=0 if struct stat lacks a member st_ctim+
+#  -DHAVE_STRUCT_STAT_ST_CTIM=0 if struct stat lacks a status-change member
+#	of type struct timespec, so code should use st_ctime instead;
+#	but if the status-change member name is st_ctimespec,
+#	use -Dst_ctim=st_ctimespec instead (default is guessed)+
 #  -DHAVE_STRUCT_TIMESPEC=0 if your system lacks struct timespec+
 #  -DHAVE_SYMLINK=0 if your system lacks the symlink function
 #  -DHAVE_SYS_STAT_H=0 if <sys/stat.h> does not work*
@@ -314,21 +295,21 @@ LDLIBS=
 #  -DTHREAD_SAFE to make localtime.c thread-safe, as POSIX requires;
 #	not needed by the main-program tz code, which is single-threaded.
 #	Append other compiler flags as needed, e.g., -pthread on GNU/Linux.
-#	The following options can also be used:
+#	With -DTHREAD_SAFE the following options can also be used:
 #	  -DTHREAD_PREFER_SINGLE to prefer speed in single-threaded apps,
 #	    at some cost in CPU time and energy in multi-threaded apps.
-#	    The following options can also be used:
+#	    With -DTHREAD_PREFER_SINGLE the following options can also be used:
 #	      -DHAVE___ISTHREADED=1 if there is an extern int __isthreaded
 #		variable, 0 otherwise (default is guessed)
 #	      -DHAVE_SYS_SINGLE_THREADED_H=0 if <sys/single_threaded.h> works,
 #		0 otherwise (default is guessed)
-#	  -DTHREAD_RWLOCK to use read-write locks intead of mutexes.
-#	    This can improve paralellism and thus save real time
+#	  -DTHREAD_RWLOCK to use read-write locks instead of mutexes.
+#	    This can improve parallelism and thus save real time
 #	    if many threads call tzcode functions simultaneously.
 #	    It also costs CPU time and thus energy.
 #	  -DTHREAD_TM_MULTI to have gmtime, localtime, and offtime
 #	    return different struct tm * addresses in different threads.
-#	    This supports unportable programs that call
+#	    This supports nonportable programs that call
 #	    gmtime/localtime/offtime when they should call
 #	    gmtime_r/localtime_r/offtime_r to avoid races.
 #	    Because the corresponding storage is freed on thread exit,
@@ -347,10 +328,13 @@ LDLIBS=
 #  -DTZ_DOMAIN=\"foo\" to use "foo" for gettext domain name; default is "tz"
 #  -DTZ_DOMAINDIR=\"/path\" to use "/path" for gettext directory;
 #	the default is system-supplied, typically "/usr/lib/locale"
+#  -DTZ_RUNTIME_LEAPS=0 to disable runtime support for leap seconds.
+#	This conforms to POSIX, shrinks tzcode's attack surface,
+#	and is more efficient.  However, it fails to support Internet
+#	RFC 9636's leap seconds.
 #  -DTZDEFRULESTRING=\",date/time,date/time\" to default to the specified
-#	DST transitions for proleptic format TZ strings lacking them,
-#	in the usual case where POSIXRULES is '-'.  If not specified,
-#	TZDEFRULESTRING defaults to US rules for future DST transitions.
+#	DST transitions for proleptic format TZ strings lacking them.
+#	If not specified, it defaults to US rules for future DST transitions.
 #	This mishandles some past timestamps, as US DST rules have changed.
 #	It also mishandles settings like TZ='EET-2EEST' for eastern Europe,
 #	as Europe and US DST rules differ.
@@ -393,19 +377,21 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 \
   -Wdeclaration-after-statement -Wdouble-promotion \
   -Wduplicated-branches -Wduplicated-cond -Wflex-array-member-not-at-end \
   -Wformat=2 -Wformat-overflow=2 -Wformat-signedness -Wformat-truncation \
-  -Wimplicit-fallthrough=5 -Winit-self -Wlogical-op \
+  -Wfree-labels -Wimplicit-fallthrough=5 -Winit-self \
+  -Wkeyword-macro -Wlogical-op \
   -Wmissing-declarations -Wmissing-prototypes \
   -Wmissing-variable-declarations -Wnested-externs \
   -Wnull-dereference \
   -Wold-style-definition -Woverlength-strings -Wpointer-arith \
-  -Wshadow -Wshift-overflow=2 -Wstrict-overflow \
+  -Wshadow -Wshift-overflow=2 \
   -Wstrict-prototypes -Wstringop-overflow=4 \
-  -Wstringop-truncation -Wsuggest-attribute=cold \
+  -Wsuggest-attribute=cold \
   -Wsuggest-attribute=const -Wsuggest-attribute=format \
   -Wsuggest-attribute=malloc \
   -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure \
   -Wtrampolines -Wundef -Wunused-macros -Wuse-after-free=3 \
   -Wvariadic-macros -Wvla -Wwrite-strings \
+  -Wzero-as-null-pointer-constant \
   -Wno-format-nonliteral -Wno-sign-compare -Wno-type-limits
 #
 # If your system has a "GMT offset" field in its "struct tm"s
@@ -548,7 +534,7 @@ ZIC_INSTALL=	$(ZIC) -d '$(DESTDIR)$(TZDIR)'
 # mawk 1.3.3 and Solaris 10 /usr/bin/awk do not work.
 # Also, it is better (though not essential) if 'awk' supports UTF-8,
 # and unfortunately mawk and busybox awk do not support UTF-8.
-# Try AWK=gawk or AWK=nawk if your awk has the abovementioned problems.
+# Try AWK=gawk or AWK=nawk if your awk has the problems mentioned above.
 AWK=		awk
 
 # The full path name of a POSIX-compliant shell, preferably one that supports
@@ -723,7 +709,6 @@ install:	all $(DATA) $(REDO) $(MANS)
 			'$(DESTDIR)$(MANDIR)/man3' '$(DESTDIR)$(MANDIR)/man5' \
 			'$(DESTDIR)$(MANDIR)/man8'
 		$(ZIC_INSTALL) -l $(LOCALTIME) \
-			-p $(POSIXRULES) \
 			-t '$(DESTDIR)$(TZDEFAULT)'
 		cp -f $(TABDATA) '$(DESTDIR)$(TZDIR)/.'
 		cp tzselect '$(DESTDIR)$(BINDIR)/.'
@@ -929,7 +914,7 @@ tzselect:	tzselect.ksh version
 check: check_mild back.ck now.ck
 check_mild: check_web check_zishrink \
   character-set.ck white-space.ck links.ck mainguard.ck \
-  name-lengths.ck slashed-abbrs.ck sorted.ck \
+  name-lengths.ck news.ck slashed-abbrs.ck sorted.ck \
   tables.ck ziguard.ck tzs.ck
 
 # True if UTF8_LOCALE does not work;
@@ -1099,6 +1084,12 @@ zishrink-posix.ck zishrink-right.ck: \
 		rm -fr $@d t-$@d shrunk-$@d
 		touch $@
 
+# Check that NEWS has data release versions and dates in reverse order.
+news.ck: NEWS
+		grep '^Release [0-9][0-9][0-9][0-9]' NEWS | LC_ALL=C sort -cru
+		sed -n '/ -0000$$/!s/^Release [^ ]*//p' NEWS|LC_ALL=C sort -cru
+		touch $@
+
 clean_misc:
 		rm -fr *.ckd *.dir
 		rm -f *.ck *.core *.o *.out *.t core core.* \
@@ -1155,7 +1146,8 @@ SET_TIMESTAMP_N = sh -c '\
 # If DEST depends on A B C ... in this Makefile, callers should use
 # $(SET_TIMESTAMP_DEP) DEST A B C ..., for the benefit of any
 # downstream 'make' that considers equal timestamps to be out of date.
-# POSIX allows this 'make' behavior, and HP-UX 'make' does it.
+# POSIX allows this 'make' behavior, although only HP-UX 'make'
+# (which is no longer supported) did things that way.
 # If all that matters is that the timestamp be reproducible
 # and plausible, use $(SET_TIMESTAMP).
 SET_TIMESTAMP = $(SET_TIMESTAMP_N) 0
@@ -1415,24 +1407,6 @@ $(ALL_ASC):
 		$(SET_TIMESTAMP) $(@:.t=) $(?:.t=)
 		touch $@
 
-TYPECHECK_CFLAGS = $(CFLAGS) -DTYPECHECK -D__time_t_defined -D_TIME_T
-typecheck: long-long.ck unsigned.ck
-long-long.ck unsigned.ck: $(VERSION_DEPS)
-		rm -fr $@d
-		mkdir $@d
-		ln $(VERSION_DEPS) $@d
-		cd $@d && \
-		  case $@ in \
-		    long-long.*) i="long long";; \
-		    unsigned.* ) i="unsigned" ;; \
-		  esac && \
-		  $(MAKE) \
-		    CFLAGS="$(TYPECHECK_CFLAGS) \"-Dtime_t=$$i\"" \
-		    TOPDIR="$$PWD" \
-		    install
-		$@d/zdump -i -c 1970,1971 Europe/Rome
-		touch $@
-
 zonenames:	tzdata.zi
 		@$(AWK) '/^Z/ { print $$2 } /^L/ { print $$3 }' tzdata.zi
 
@@ -1458,6 +1432,5 @@ zic.o:		private.h tzdir.h tzfile.h version.h
 .PHONY: traditional_signatures traditional_signatures_version
 .PHONY: traditional_tarballs traditional_tarballs_version
 .PHONY: tailored_tarballs tailored_tarballs_version
-.PHONY: typecheck
 .PHONY: zonenames zones
 .PHONY: $(ZDS)

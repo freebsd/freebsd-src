@@ -561,7 +561,9 @@ newnfs_disconnect(struct nfsmount *nmp, struct nfssockreq *nrp)
 			}
 		}
 		mtx_unlock(&nrp->nr_mtx);
+		CURVNET_SET_QUIET(CRED_TO_VNET(nrp->nr_cred));
 		rpc_gss_secpurge_call(client);
+		CURVNET_RESTORE();
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
 		if (nmp != NULL && nmp->nm_aconnect > 0) {
@@ -685,7 +687,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	struct nfsreq *rep = NULL;
 	char *srv_principal = NULL, *clnt_principal = NULL;
 	sigset_t oldset;
-	struct ucred *authcred;
+	struct ucred *authcred, *savcred;
 	struct nfsclsession *sep;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	bool nextconn_set;
@@ -832,6 +834,11 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		    ((nmp->nm_tprintf_delay)-(nmp->nm_tprintf_initial_delay));
 	}
 
+	/*
+	 * For Kerberos, the upcall needs to be done to the gssd daemon
+	 * running in the correct vnet.
+	 */
+	CURVNET_SET_QUIET(CRED_TO_VNET(authcred));
 	if (nd->nd_procnum == NFSPROC_NULL)
 		auth = authnone_create();
 	else if (usegssname) {
@@ -849,8 +856,9 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	} else
 		auth = nfs_getauth(nrp, secflavour, NULL,
 		    srv_principal, NULL, authcred);
-	crfree(authcred);
+	CURVNET_RESTORE();
 	if (auth == NULL) {
+		crfree(authcred);
 		m_freem(nd->nd_mreq);
 		if (set_sigset)
 			newnfs_restore_sigmask(td, &oldset);
@@ -967,6 +975,13 @@ tryagain:
 		}
 	}
 
+	/*
+	 * In case CLNT_CALL_MBUF()/clnt_bck_call() does an AUTH_REFRESH(),
+	 * the thread's credentials need to be set to authcred, so that the
+	 * correct vnet will be set.
+	 */
+	savcred = curthread->td_ucred;
+	curthread->td_ucred = authcred;
 	nd->nd_mrep = NULL;
 	if (clp != NULL && sep != NULL)
 		stat = clnt_bck_call(nrp->nr_client, &ext, procnum,
@@ -988,6 +1003,7 @@ tryagain:
 		stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum,
 		    nd->nd_mreq, &nd->nd_mrep, timo);
 	NFSCL_DEBUG(2, "clnt call=%d\n", stat);
+	curthread->td_ucred = savcred;
 
 	if (rep != NULL) {
 		/*
@@ -1069,6 +1085,7 @@ tryagain:
 		error = EACCES;
 	}
 	if (error) {
+		crfree(authcred);
 		m_freem(nd->nd_mreq);
 		if (usegssname == 0)
 			AUTH_DESTROY(auth);
@@ -1128,7 +1145,20 @@ tryagain:
 			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) ||
 			   (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0)) {
 				NFSCL_DEBUG(1, "failed seq=%d\n", j);
-				if (sep != NULL && i == NFSV4OP_SEQUENCE &&
+				KASSERT(slot == -1, ("newnfs_request: slot not"
+				    " -1"));
+				/*
+				 * RFC8881 (unlike RFC5661) specifies that a
+				 * NFSERR_DELAY reply to SEQUENCE is handled
+				 * by a retry with same slot/sequence#.
+				 * (Although not explicit, I will assume this
+				 *  applies to CB_SEQUENCE as well.)
+				 */
+				if (j == NFSERR_DELAY) {
+					nd->nd_repstat =
+					    NFSERR_RETRYUNCACHEDREP;
+				} else if (sep != NULL &&
+				    i == NFSV4OP_SEQUENCE &&
 				    j == NFSERR_SEQMISORDERED) {
 					mtx_lock(&sep->nfsess_mtx);
 					sep->nfsess_badslots |=
@@ -1248,19 +1278,29 @@ tryagain:
 					goto out;
 				}
 				sep = NFSMNT_MDSSESSION(nmp);
-				if (bcmp(sep->nfsess_sessionid, nd->nd_sequence,
-				    NFSX_V4SESSIONID) == 0) {
-					printf("Initiate recovery. If server "
-					    "has not rebooted, "
-					    "check NFS clients for unique "
-					    "/etc/hostid's\n");
-					/* Initiate recovery. */
+				if (bcmp(sep->nfsess_sessionid,
+				    nd->nd_sessionid, NFSX_V4SESSIONID) == 0) {
+					/*
+					 * Initiate recovery.  Even if
+					 * nfsess_defunct is already set,
+					 * another recovery may be needed.
+					 * NFSCLFLAGS_RECVRINPRG |
+					 * NFSCLFLAGS_RECOVER should avoid
+					 * recovery storms.
+					 */
 					sep->nfsess_defunct = 1;
 					NFSCL_DEBUG(1, "Marked defunct\n");
-					if (nmp->nm_clp != NULL) {
+					if (nmp->nm_clp != NULL &&
+					    (nmp->nm_clp->nfsc_flags &
+					     (NFSCLFLAGS_RECVRINPROG |
+					      NFSCLFLAGS_RECOVER)) == 0) {
 						nmp->nm_clp->nfsc_flags |=
 						    NFSCLFLAGS_RECOVER;
 						wakeup(nmp->nm_clp);
+						printf("Initiate recovery. If "
+						    "server has not rebooted, "
+						    "check NFS clients for "
+						    "unique /etc/hostid's\n");
 					}
 				}
 				NFSUNLOCKCLSTATE();
@@ -1429,6 +1469,7 @@ tryagain:
 		}
 	}
 out:
+	crfree(authcred);
 
 #ifdef KDTRACE_HOOKS
 	if (nmp != NULL && dtrace_nfscl_nfs234_done_probe != NULL) {
@@ -1460,6 +1501,7 @@ out:
 		newnfs_restore_sigmask(td, &oldset);
 	return (0);
 nfsmout:
+	crfree(authcred);
 	m_freem(nd->nd_mrep);
 	m_freem(nd->nd_mreq);
 	if (usegssname == 0)

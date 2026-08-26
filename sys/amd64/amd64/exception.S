@@ -1063,6 +1063,8 @@ ENTRY(fork_trampoline)
 	movq	%rbx,%rsi		/* arg1 */
 	movq	%rsp,%rdx		/* trapframe pointer */
 	call	fork_exit
+	cmpb	$0, fred
+	jne	fred_checkast
 	jmp	doreti			/* Handle any ASTs */
 
 /*
@@ -1161,12 +1163,15 @@ do_segs:
 	.globl	ld_fs
 ld_fs:
 	movw	%ax,%fs
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	after_ld_fsbase
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
 	.globl	ld_fsbase
 ld_fsbase:
 	wrmsr
+after_ld_fsbase:
 	/* Restore %gs and gsbase */
 	movw	TF_GS(%rsp),%si
 	pushfq
@@ -1179,6 +1184,8 @@ ld_fsbase:
 	.globl	ld_gs
 ld_gs:
 	movw	%si,%gs
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	ld_gsbase_32
 	/* Restore kernel %gs base */
 	movl	%r12d,%eax
 	movl	%r13d,%edx
@@ -1194,6 +1201,8 @@ ld_gs:
 	.globl	ld_gsbase
 ld_gsbase:
 	wrmsr	/* May trap if non-canonical, but only for TLS. */
+
+after_ld_gsbase:
 	.globl	ld_es
 ld_es:
 	movw	TF_ES(%rsp),%es
@@ -1240,6 +1249,30 @@ ld_regs:
 	.globl	doreti_iret
 doreti_iret:
 	iretq
+
+	/*
+	 * 32bit gsbase path.
+	 * The KGSBASE is not loaded from the pcb_gsbase, instead we move
+	 * the GSBASE value into KGSBASE right after loading user %gs, then
+	 * restore kernel gsbase.
+	 */
+ld_gsbase_32:
+	/* Read the user gsbase into %r14d:%r15d. */
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	movl	%eax,%r14d
+	movl	%edx,%r15d
+	/* Restore kernel %gs base */
+	movl	%r12d,%eax
+	movl	%r13d,%edx
+	wrmsr
+	popfq
+	/* Load the user gsbase into KGSBASE. */
+	movl	$MSR_KGSBASE,%ecx
+	movl	%r14d,%eax
+	movl	%r15d,%edx
+	wrmsr
+	jmp	after_ld_gsbase
 
 set_segs:
 	movw	$KUDSEL,%ax
@@ -1370,6 +1403,305 @@ gsbase_load_fault:
 	movq	$0,PCB_GSBASE(%r8)
 	jmp	doreti
 
+#if defined(__clang__) && (__clang_major__ <= 18)
+	.macro	lkgs	reg
+	.if	\reg != %ax
+	.err	"Only %ax is supported"
+	.endif
+	.byte	0xf2, 0x0f, 0x00, 0xf0
+	.endm
+
+	.macro	eretu
+	.byte	0xf3, 0x0f, 0x01, 0xca
+	.endm
+
+	.macro	erets
+	.byte	0xf2, 0x0f, 0x01, 0xca
+	.endm
+#endif
+
+/*
+ * FRED guarantees that on entry, %rflags is set to '2', which in
+ * particular means that interrupts are disabled, and DF/AC are clear.
+ * Interrupts are re-enabled by the C handler, if appropriate.
+ */
+	ALIGN_TEXT
+user_fred_syscall:
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	SAVE_SEGS
+	movq	PCPU(CURPCB),%r11
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
+	sti
+	movw	$KUDSEL,TF_SS(%rsp)
+	movw	$KUCSEL,TF_CS(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	andl	$TF_FRED_EVINFO2_INSTLENMASK,%eax
+	shrl	$TF_FRED_EVINFO2_INSTLENSHIFT,%eax
+	movq	%rax,TF_ERR(%rsp)
+	movq	PCPU(CURTHREAD),%rdi
+	movl	TF_RFLAGS(%rsp),%esi
+	andl	$PSL_T,%esi
+	call	amd64_syscall
+	movq	PCPU(CURPCB),%rax
+	cli
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
+	jnz	fred_checkast
+	movq	PCPU(CURTHREAD),%rax
+	cmpl	$0,TD_AST(%rax)
+	jnz	fred_checkast
+	movq	TF_RDI(%rsp),%rdi
+	movq	TF_RSI(%rsp),%rsi
+	movq	TF_RDX(%rsp),%rdx
+	movq	TF_RAX(%rsp),%rax
+	xorl	%r8d,%r8d
+	xorl	%r9d,%r9d
+	xorl	%r10d,%r10d
+	xorl	%r11d,%r11d
+	addq	$TF_ERR,%rsp
+	.globl	fred_syscall_eretu
+fred_syscall_eretu:
+	eretu
+
+	ALIGN_TEXT
+user_fred_non_syscall:
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	SAVE_SEGS
+	movq	PCPU(CURTHREAD),%r9
+	movq	TD_PCB(%r9),%r8
+	rdfsbase %rax
+	movq	%rax,PCB_FSBASE(%r8)
+	rdgsbase %rax
+	movq	%rax,PCB_GSBASE(%r8)
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	KMSAN_ENTER
+	movq	%rsp, %rdi
+	call	trap_fred_u
+	KMSAN_LEAVE
+fred_checkast:
+	cli
+	movq	PCPU(CURTHREAD),%rax
+	movq	TD_PCB(%rax),%r8
+	cmpl	$0,TD_AST(%rax)
+	je	fred_gouser
+	sti
+	movq	%rsp,%rdi	/* pass a pointer to the trapframe */
+	call	ast
+	jmp	fred_checkast
+fred_gouser:
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	jz	fred_u_regs
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r8)
+	testl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	jne	fred_do_segs
+	movw	$KUDSEL,%ax
+	movw	%ax,TF_DS(%rsp)
+	movw	%ax,TF_ES(%rsp)
+	movw	$KUF32SEL,TF_FS(%rsp)
+	movw	$KUG32SEL,TF_GS(%rsp)
+fred_do_segs:
+	/* Restore %fs and fsbase */
+	movw	TF_FS(%rsp),%ax
+	.globl	fred_ld_fs
+fred_ld_fs:
+	movw	%ax,%fs
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	after_fred_fs
+	movq	PCB_FSBASE(%r8),%rax
+	.globl	fred_ld_fsbase
+fred_ld_fsbase:
+	wrfsbase %rax
+after_fred_fs:
+	/* Restore %gs and kgsbase */
+	movw	TF_GS(%rsp),%ax
+	.globl	fred_lkgs
+fred_lkgs:
+	lkgs	%ax
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	after_fred_gs
+	movl	PCB_GSBASE(%r8),%eax
+	movl	PCB_GSBASE+4(%r8),%edx
+	movl	$MSR_KGSBASE,%ecx
+	.globl	fred_ld_kgsbase
+fred_ld_kgsbase:
+	wrmsr
+after_fred_gs:
+	.globl	fred_ld_es
+fred_ld_es:
+	movw	TF_ES(%rsp),%es
+	.globl	fred_ld_ds
+fred_ld_ds:
+	movw	TF_DS(%rsp),%ds
+fred_u_regs:
+	RESTORE_REGS
+	addq	$TF_ERR,%rsp
+	.globl	fred_eretu
+fred_eretu:
+	eretu
+
+	.globl	fred_ld_fs_fault
+fred_ld_fs_fault:
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_NP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp,%rdi
+	call	trap_fred_u
+	movw	$KUF32SEL,TF_FS(%rsp)
+	jmp	fred_checkast
+
+	.globl	fred_ld_fsbase_fault
+fred_ld_fsbase_fault:
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_NP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp,%rdi
+	call	trap_fred_u
+	movq	PCPU(CURTHREAD),%r9
+	movq	TD_PCB(%r9),%r8
+	movq	$0,PCB_FSBASE(%r8)
+	jmp	fred_checkast
+
+	.globl	fred_lkgs_fault
+fred_lkgs_fault:
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_NP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp,%rdi
+	call	trap_fred_u
+	movw	$KUG32SEL,TF_GS(%rsp)
+	jmp	fred_checkast
+
+	.globl	fred_ld_kgsbase_fault
+fred_ld_kgsbase_fault:
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_NP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp,%rdi
+	call	trap_fred_u
+	movq	PCPU(CURTHREAD),%r9
+	movq	TD_PCB(%r9),%r8
+	movq	$0,PCB_GSBASE(%r8)
+	jmp	fred_checkast
+
+	.globl	fred_ld_es_fault
+fred_ld_es_fault:
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_NP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp,%rdi
+	call	trap_fred_u
+	movw	$KUDSEL,TF_ES(%rsp)
+	jmp	fred_checkast
+
+	.globl	fred_ld_ds_fault
+fred_ld_ds_fault:
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_NP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp,%rdi
+	call	trap_fred_u
+	movw	$KUDSEL,TF_DS(%rsp)
+	jmp	fred_checkast
+
+	.globl	fred_eretu_fault
+fred_eretu_fault:
+	subq	$TF_ERR,%rsp
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	SAVE_SEGS
+	movl	$(TF_FRED_EVINFO2_TYPE_EXC | IDT_GP), TF_FRED_EVINFO2(%rsp)
+	movq	%rsp, %rdi
+	KMSAN_ENTER
+	call	trap_fred_u
+	KMSAN_LEAVE
+	jmp	fred_checkast
+
+/*
+ * Content for the FRED entries page.
+*/
+
+	.p2align 12,0x90
+	.globl	fred_events_handlers, fred_events_handlers_end
+fred_events_handlers:
+	subq	$TF_ERR,%rsp
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movl	TF_FRED_EVINFO2(%rsp),%edi
+	movl	%edi,%eax
+	andl	$TF_FRED_EVINFO2_TYPEMASK,%edi
+	cmpl	$TF_FRED_EVINFO2_TYPE_SYSCALL,%edi
+	je	user_fred_syscall
+	jmp	user_fred_non_syscall
+
+	. = fred_events_handlers + 256
+	subq	$TF_ERR,%rsp
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	movq	%rsp, %rdi
+	KMSAN_ENTER
+	call	trap_fred_k
+	KMSAN_LEAVE
+	RESTORE_REGS
+	addq	$TF_ERR,%rsp
+	erets
+fred_events_handlers_end:
+
+	.globl	fred_out_of_nmi
+fred_out_of_nmi:
+	pushq	%rbp
+	movq	%rsp,%rbp
+	xorl	%eax,%eax
+	pushq	$0
+	pushq	$0
+	movw	%ss,%ax
+	orl	$(1<<18),%eax	/* NMI block release for ERETS */
+	pushq	%rax
+	pushq	%rbp
+	pushfq
+	xorl	%eax,%eax
+	movw	%cs,%ax
+	pushq	%rax
+	pushq	$1f
+	pushq	$0
+	erets
+1:	popq	%rbp
+	retq
+
 #ifdef HWPMC_HOOKS
 	ENTRY(end_exceptions)
 #endif
+
+	.section .note.GNU-stack,"",%progbits

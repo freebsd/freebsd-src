@@ -29,10 +29,13 @@
 #include <sys/param.h>
 
 #include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <md5.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <uuid.h>
 
@@ -61,6 +64,7 @@
 #define	SMBIOS_TYPE_BOARD	2
 #define	SMBIOS_TYPE_CHASSIS	3
 #define	SMBIOS_TYPE_PROCESSOR	4
+#define	SMBIOS_TYPE_OEM		11
 #define	SMBIOS_TYPE_MEMARRAY	16
 #define	SMBIOS_TYPE_MEMDEVICE	17
 #define	SMBIOS_TYPE_MEMARRAYMAP	19
@@ -248,6 +252,13 @@ struct smbios_table_type4 {
 	uint8_t			threads;	/* threads per socket */
 	uint16_t		cflags;		/* processor characteristics */
 	uint16_t		family2;	/* processor family 2 */
+} __packed;
+
+#define SMBIOS_TYPE11_MAX_COUNT	255
+
+struct smbios_table_type11 {
+	struct smbios_structure header;
+	uint8_t                 nstrings;       /* number of oem strings to follow */
 } __packed;
 
 /*
@@ -479,6 +490,15 @@ static int smbios_type4_initializer(
     const struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n);
 
+static const struct smbios_table_type11 smbios_type11_template = {
+	{ SMBIOS_TYPE_OEM, sizeof(struct smbios_table_type11),  0 },
+	0               /* first string */
+};
+
+static int smbios_type11_initializer(const struct smbios_structure *template_entry,
+    const struct smbios_string *template_strings, char *curaddr, char **endaddr,
+    uint16_t *n);
+
 static const struct smbios_table_type16 smbios_type16_template = {
 	{ SMBIOS_TYPE_MEMARRAY, sizeof (struct smbios_table_type16),  0 },
 	SMBIOS_MAL_SYSMB,
@@ -582,6 +602,9 @@ static struct smbios_template_entry smbios_template[] = {
 	{ (const struct smbios_structure *)&smbios_type4_template,
 	  smbios_type4_strings,
 	  smbios_type4_initializer },
+	{ (const struct smbios_structure *)&smbios_type11_template,
+	  NULL,
+	  smbios_type11_initializer },
 	{ (const struct smbios_structure *)&smbios_type16_template,
 	  NULL,
 	  smbios_type16_initializer },
@@ -747,6 +770,107 @@ smbios_type4_initializer(const struct smbios_structure *template_entry,
 		curaddr = *endaddr;
 	}
 
+	return (0);
+}
+
+/*
+ * Gather oemstring values from oemstring node of config kvlist
+ *
+ * Notes: The keys must be numeric and greater than zero.
+ *
+ *        Any missing number keys will be added with a value
+ *        of "N/A"
+ *
+ *        The maximum number of strings allowed is 255
+ */
+
+static struct smbios_string *
+smbios_gather_type11_strings(void)
+{
+	const char *na = "N/A";
+	struct smbios_string *strings;
+	const char *name;
+	char *np;
+	void *cookie = NULL;
+	nvlist_t *node;
+	long maxnumber = 0;
+	long number;
+	char keystr[4];		/* SMBIOS_TYPE11_MAX_COUNT is a 3 digit number */
+	char canonical[4];
+	int key, type;
+
+	/* find any oemstrings */
+	node = find_config_node("oemstring");
+	/* nothing to do if none */
+	if (!node)
+		return NULL;
+
+	while ((name = nvlist_next(node, &type, &cookie)) != NULL) {
+		if (type != NV_TYPE_STRING)
+			errx(BHYVE_EXIT_ERROR, "Unexpected entry type for %s", name);
+
+		errno = 0;
+		number = strtol(name, &np, 10);
+		if ((*np != '\0') || (errno == EINVAL))
+			errx(BHYVE_EXIT_ERROR, "Invalid format: %s should be a decimal number", name);
+		if (number <= 0 || number > SMBIOS_TYPE11_MAX_COUNT)
+			errx(BHYVE_EXIT_ERROR, "Invalid range: %s should be in 1-%d", name,
+			    SMBIOS_TYPE11_MAX_COUNT);
+		/* strtol accepts leading zeros and signed values which will break search */
+		snprintf(canonical, sizeof(canonical), "%ld", number);
+		if (strcmp(name, canonical) != 0)
+			errx(BHYVE_EXIT_ERROR, "Invalid format: %s should be %s", name, canonical);
+		if (number > maxnumber)
+			maxnumber = number;
+	}
+	strings = calloc(maxnumber + 1, sizeof(struct smbios_string));
+	if (strings == NULL)
+		err(BHYVE_EXIT_ERROR, "oemstring allocation failed");
+
+	/*
+	 * The returned smbios_string should leave the node field as NULL to
+	 * avoid creating a new node in the config tree.
+	 */
+	for (key = 1; key <= maxnumber; key++) {
+		const char *vp;
+
+		snprintf(keystr, sizeof(keystr), "%d", key);
+		if (nvlist_exists(node, keystr))
+			vp = nvlist_get_string(node, keystr);
+		else
+			vp = na;
+		strings[key - 1].value = strdup(vp);
+		if (strings[key - 1].value == NULL)
+			err(BHYVE_EXIT_ERROR, "oemstring value allocation failed");
+	}
+
+	/* return data */
+	return (strings);
+}
+
+static int
+smbios_type11_initializer(const struct smbios_structure *template_entry,
+    const struct smbios_string *template_strings __unused, char *curaddr,
+    char **endaddr, uint16_t *n)
+{
+	struct smbios_table_type11 *type11;
+	struct smbios_string *type11_strings;
+	int i = 0;
+
+	type11_strings = smbios_gather_type11_strings();
+
+	smbios_generic_initializer(template_entry, type11_strings, curaddr,
+	    endaddr, n);
+
+	if (type11_strings != NULL) {
+		/* count up strings */
+		type11 = (struct smbios_table_type11 *)curaddr;
+		for (i = 0; type11_strings[i].value != NULL; i++) {
+			free(__DECONST(char *, type11_strings[i].value));
+		}
+		type11->nstrings = i;
+	}
+	free(type11_strings);
 	return (0);
 }
 

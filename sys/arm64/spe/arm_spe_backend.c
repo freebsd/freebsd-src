@@ -229,15 +229,15 @@ spe_backend_deinit(struct hwt_context *ctx)
 		CPU_FOREACH_ISSET(cpu_id, &ctx->cpu_map) {
 			info = &spe_info_cpu[cpu_id];
 			printf("CPU %u:\n", cpu_id);
-			hex_dump((void *)info->kvaddr, 128);
-			hex_dump((void *)(info->kvaddr + (info->buf_size/2)), 128);
+			hex_dump(info->kvaddr, 128);
+			hex_dump((char *)info->kvaddr + (info->buf_size/2), 128);
 		}
 	} else {
 		TAILQ_FOREACH(thr, &ctx->threads, next) {
 			info = (struct arm_spe_info *)thr->private;
 			printf("TID %u:\n", thr->thread_id);
-			hex_dump((void *)info->kvaddr, 128);
-			hex_dump((void *)(info->kvaddr + (info->buf_size/2)), 128);
+			hex_dump(info->kvaddr, 128);
+			hex_dump((char *)info->kvaddr + (info->buf_size/2), 128);
 		}
 	}
 #endif

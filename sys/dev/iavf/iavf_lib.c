@@ -184,6 +184,23 @@ iavf_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
 }
 
 /**
+ * iavf_reset_is_complete - Check whether a device reset is complete
+ * @hw: pointer to the hardware structure
+ *
+ * @returns true when reset is complete, or false otherwise.
+ */
+bool
+iavf_reset_is_complete(struct iavf_hw *hw)
+{
+	u32 reg;
+
+	reg = rd32(hw, IAVF_VFGEN_RSTAT) &
+	    IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
+	return (reg == VIRTCHNL_VFR_VFACTIVE ||
+	    reg == VIRTCHNL_VFR_COMPLETED);
+}
+
+/**
  * iavf_reset_complete - Wait for a device reset to complete
  * @hw: pointer to the hardware structure
  *
@@ -198,15 +215,10 @@ iavf_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
 int
 iavf_reset_complete(struct iavf_hw *hw)
 {
-	u32 reg;
 
 	/* Wait up to ~10 seconds */
 	for (int i = 0; i < 100; i++) {
-		reg = rd32(hw, IAVF_VFGEN_RSTAT) &
-		    IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
-
-                if ((reg == VIRTCHNL_VFR_VFACTIVE) ||
-		    (reg == VIRTCHNL_VFR_COMPLETED))
+		if (iavf_reset_is_complete(hw))
 			return (0);
 		iavf_msec_pause(100);
 	}
@@ -1460,13 +1472,16 @@ iavf_mark_del_vlan_filter(struct iavf_sc *sc, u16 vtag)
  * Send a virtual channel message to the PF to DISABLE_QUEUES, but resend it up
  * to IAVF_MAX_DIS_Q_RETRY times if the response says that it wasn't
  * successful. This is intended to workaround a bug that can appear on the PF.
+ *
+ * @returns zero on success, or an error code if the request could not be sent
+ * or acknowledged.
  */
-void
+int
 iavf_disable_queues_with_retries(struct iavf_sc *sc)
 {
 	bool in_detach = iavf_driver_is_detaching(sc);
 	int max_attempts = IAVF_MAX_DIS_Q_RETRY;
-	int msg_count = 0;
+	int error = 0, msg_count = 0;
 
 	/* While the driver is detaching, it doesn't care if the queue
 	 * disable finishes successfully or not. Just send one message
@@ -1478,7 +1493,10 @@ iavf_disable_queues_with_retries(struct iavf_sc *sc)
 	while ((msg_count < max_attempts) &&
 	    atomic_load_acq_32(&sc->queues_enabled)) {
 		msg_count++;
-		iavf_send_vc_msg_sleep(sc, IAVF_FLAG_AQ_DISABLE_QUEUES);
+		error = iavf_send_vc_msg_sleep(sc,
+		    IAVF_FLAG_AQ_DISABLE_QUEUES);
+		if (error != 0)
+			break;
 	}
 
 	/* Possibly print messages about retry attempts and issues */
@@ -1486,7 +1504,13 @@ iavf_disable_queues_with_retries(struct iavf_sc *sc)
 		iavf_dbg_vc(sc, "DISABLE_QUEUES messages sent: %d\n",
 		    msg_count);
 
-	if (!in_detach && msg_count >= max_attempts)
-		device_printf(sc->dev, "%s: DISABLE_QUEUES may have failed\n",
-		    __func__);
+	if (!in_detach && msg_count >= max_attempts &&
+	    atomic_load_acq_32(&sc->queues_enabled)) {
+		if (iavf_mbx_log_allowed(sc))
+			device_printf(sc->dev,
+			    "%s: DISABLE_QUEUES may have failed\n", __func__);
+		if (error == 0)
+			error = EIO;
+	}
+	return (error);
 }

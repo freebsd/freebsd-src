@@ -41,6 +41,7 @@ struct bus_dma_tag_common {
 	int		  flags;
 	bus_dma_lock_t	 *lockfunc;
 	void		 *lockfuncarg;
+	int		  domain;
 };
 
 struct bus_dma_impl {
@@ -52,6 +53,8 @@ struct bus_dma_impl {
 	int (*tag_destroy)(bus_dma_tag_t dmat);
 	int (*map_create)(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
 	int (*map_destroy)(bus_dma_tag_t dmat, bus_dmamap_t map);
+	int (*tag_set_domain)(bus_dma_tag_t);
+	bool (*id_mapped)(bus_dma_tag_t, vm_paddr_t, bus_size_t);
 	int (*mem_alloc)(bus_dma_tag_t dmat, void** vaddr, int flags,
 	    bus_dmamap_t *mapp);
 	void (*mem_free)(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);

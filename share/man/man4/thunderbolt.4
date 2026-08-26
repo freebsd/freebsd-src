@@ -1,22 +1,61 @@
 .\"
-.\" Copyright (c) 2025 Alexander Ziaee
-.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd October 2, 2025
+.\" Copyright (c) 2025 Alexander Ziaee
+.\" Copyright (c) 2026 The FreeBSD Foundation
+.\"
+.\" Portions of this software were developed by Aymeric Wibo
+.\" <obiwac@freebsd.org> under sponsorship from the FreeBSD Foundation.
+.\"
+.Dd June 19, 2026
 .Dt THUNDERBOLT 4
 .Os
 .Sh NAME
 .Nm thunderbolt
-.Nd USB4 controller driver
+.Nd Thunderbolt / USB4 Native Host Interface driver
 .Sh SYNOPSIS
 .Cd device thunderbolt
+.Sh DESCRIPTION
+The
+.Nm
+driver attaches to the Thunderbolt and Generic USB4 Native Host Interface
+.Pq NHI
+found on Intel and AMD platforms.
+The NHI is the host-side controller that manages communication with
+Thunderbolt and USB4 routers.
+.Pp
+The driver initializes the NHI hardware and can read from and write to its
+configuration space in order to suspend or resume it.
+.Pp
+.Em This driver does not provide working Thunderbolt or USB4 support .
+The primary purpose of loading this driver is to allow the system
+to assert ownership of the NHI device so that PCI power management
+can place it into a low-power state.
+On platforms that support S0ix
+.Pq such as S0i3 ,
+an unsuspended NHI will block entry into the deepest idle states, and the NHI
+is put in an active state by the pre-OS connection manager at boot.
+Loading
+.Nm
+prevents that blockage.
+Users who do not require S0ix idle states have no need to load this driver for
+the time being.
 .Sh HARDWARE
 The
 .Nm
-driver supports Thunderbolt 3 and USB4 controllers.
+driver only attaches to generic USB4 controllers, that is devices matching PCI
+class
+.Dv PCIC_SERIALBUS ,
+subclass
+.Dv PCIS_SERIALBUS_USB ,
+and programming interface
+.Dv PCIP_SERIALBUS_USB_USB4 .
 .Sh HISTORY
 The
 .Nm
 driver appeared in
-.Fx 15.0 .
+.Fx 16.0 .
+.Sh CAVEATS
+This driver is under active development and is not feature-complete.
+The interface and behaviour are subject to change without notice.
+Do not rely on this driver for Thunderbolt or USB4 device connectivity.

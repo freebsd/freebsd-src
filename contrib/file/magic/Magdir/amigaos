@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: amigaos,v 1.20 2021/09/20 00:42:19 christos Exp $
+# $File: amigaos,v 1.23 2026/02/05 18:49:06 christos Exp $
 # amigaos:  file(1) magic for AmigaOS binary formats:
 
 #
@@ -36,7 +36,6 @@
 0	string		COSO\0		Hippel-COSO Module sound file
 # Too simple (short, pure ASCII, deep), MPi
 #26	string		V.3		Brian Postma's Soundmon Module sound file v3
-#26	string		BPSM		Brian Postma's Soundmon Module sound file v3
 #26	string		V.2		Brian Postma's Soundmon Module sound file v2
 
 # The following are from: "Stefan A. Haubenthal" <polluks@web.de>
@@ -195,8 +194,7 @@
 0	string		LZX		LZX compressed archive (Amiga)
 
 # From: Przemek Kramarczyk <pkramarczyk@gmail.com>
-0	string 		.KEY		AmigaDOS script
-0	string 		.key		AmigaDOS script
+0	string/c	.key		AmigaDOS script
 
 # AMOS Basic file formats
 # https://www.exotica.org.uk/wiki/AMOS_file_formats
@@ -216,3 +214,7 @@
 >12	regex		.{8}			\b, type %s
 0	string		AmBs			AMOS Basic memory banks
 >4	beshort		x			\b, %d banks
+
+
+# https://github.com/alb42/Leu/blob/master/TCDReaderUnit.pas
+3	string		TURBOCALC		TurboCalc spreadsheet

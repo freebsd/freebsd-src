@@ -73,6 +73,9 @@ SYSCTL_INT(_debug, OID_AUTO, osd, CTLFLAG_RWTUN, &osd_debug, 0, "OSD debug level
 	}								\
 } while (0)
 
+#define	OSD_METHOD(osdm, slot, method)	\
+    ((osdm).osd_methods[((slot) - 1) * (osdm).osd_nmethods + (method)])
+
 static void do_osd_del(u_int type, struct osd *osd, u_int slot,
     int list_locked);
 
@@ -139,8 +142,8 @@ osd_register(u_int type, osd_destructor_t destructor, const osd_method_t *method
 	osdm[type].osd_destructors[i] = destructor;
 	if (osdm[type].osd_nmethods != 0) {
 		for (m = 0; m < osdm[type].osd_nmethods; m++)
-			osdm[type].osd_methods[i * osdm[type].osd_nmethods + m]
-			    = methods != NULL ? methods[m] : NULL;
+			OSD_METHOD(osdm[type], i + 1, m) =
+			    methods != NULL ? methods[m] : NULL;
 	}
 	sx_xunlock(&osdm[type].osd_module_lock);
 	return (i + 1);
@@ -176,6 +179,18 @@ osd_deregister(u_int type, u_int slot)
 	 */
 	osdm[type].osd_destructors[slot - 1] = NULL;
 	OSD_DEBUG("Slot deregistration (type=%u, slot=%u).", type, slot);
+
+#ifdef INVARIANTS
+	/*
+	 * We trash the slot's osd_methods upon deregistration so that we take
+	 * a fault if something calls them, rather than potentially
+	 * inadvertently executing some arbitrary function if another module's
+	 * been mapped over the one that deregistered.
+	 */
+	for (u_int method = 0; method < osdm[type].osd_nmethods; method++) {
+		OSD_METHOD(osdm[type], slot, method) = (void *)0xdeadc0de;
+	}
+#endif
 
 	rm_wunlock(&osdm[type].osd_object_lock);
 	sx_xunlock(&osdm[type].osd_module_lock);
@@ -391,8 +406,7 @@ osd_call(u_int type, u_int method, void *obj, void *data)
 		/* Hole in the slot map; avoid dereferencing. */
 		if (osdm[type].osd_destructors[i] == NULL)
 			continue;
-		methodfun = osdm[type].osd_methods[i * osdm[type].osd_nmethods +
-		    method];
+		methodfun = OSD_METHOD(osdm[type], i + 1, method);
 		if (methodfun != NULL && (error = methodfun(obj, data)) != 0)
 			break;
 	}

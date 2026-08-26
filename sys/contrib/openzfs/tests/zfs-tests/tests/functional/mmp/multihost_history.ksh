@@ -1,8 +1,6 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -10,9 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -49,6 +45,8 @@ function cleanup
 
 log_assert "zfs_multihost_history records writes and skipped writes"
 log_onexit cleanup
+
+MMP_INTERVAL_DEFAULT=1000
 
 mmp_pool_create_simple $MMP_POOL $MMP_DIR
 log_must zinject -d $MMP_DIR/vdev1 -D$((2*MMP_INTERVAL_DEFAULT)):10 $MMP_POOL

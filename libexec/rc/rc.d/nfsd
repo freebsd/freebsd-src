@@ -63,6 +63,13 @@ nfsd_precmd()
 	if [ -n "${nfs_server_vhost}" ]; then
 		command_args="-V \"${nfs_server_vhost}\""
 	fi
+
+	if checkyesno nfs_server_rdma_enable; then
+		load_kld nfsrdma || err 1 "Cannot load nfsrdma"
+		if ! sysctl vfs.nfsd.rdma_listen=${nfs_server_rdma_listen} >/dev/null; then
+			warn "Failed to set RDMA listen port#"
+		fi
+	fi
 }
 
 run_rc_command "$1"

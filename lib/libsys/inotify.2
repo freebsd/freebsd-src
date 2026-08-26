@@ -179,18 +179,18 @@ Some additional flags may be set in inotify event records:
 When a watch is removed from a file, for example because it was created with the
 .Dv IN_ONESHOT
 flag, the file was deleted, or the watch was explicitly removed with
-.Xr inotify_rm_watch 2 ,
+.Fn inotify_rm_watch ,
 an event with this mask is generated to indicate that the watch will not
 generate any more events.
 Once this event is generated, the watch is automatically removed, and in
 particular should not be removed manually with
-.Xr inotify_rm_watch 2 .
+.Fn inotify_rm_watch .
 .It Dv IN_ISDIR
 When the subject of an event is a directory, this flag is set in the
 .Ar mask
 .It Dv IN_Q_OVERFLOW
-One or more events were dropped, for example because of a kernel memory allocation
-failure or because the event queue size hit a limit.
+One or more events were dropped, for example because of a kernel memory
+allocation failure or because the event queue size hit a limit.
 .It Dv IN_UNMOUNT
 The filesystem containing the watched object was unmounted.
 .El
@@ -210,7 +210,7 @@ is a symbolic link, do not follow it.
 This currently has no effect, see the
 .Sx BUGS
 section.
-.In Dv IN_MASK_ADD
+.It Dv IN_MASK_ADD
 When adding a watch to an object, and that object is already watched by the
 same inotify descriptor, by default the mask of the existing watch is
 overwritten.
@@ -218,20 +218,20 @@ When
 .Dv IN_MASK_ADD
 is specified, the mask of the existing watch is instead logically ORed with
 the new mask.
-.In Dv IN_MASK_CREATE
+.It Dv IN_MASK_CREATE
 When
 .Fn inotify_add watch
 is used to add a watch to an object,
 .Dv IN_MASK_CREATE
 is specified, and that object is already watched by the same inotify descriptor,
 return an error instead of updating the existing watch.
-.In Dv IN_ONESHOT
+.It Dv IN_ONESHOT
 Monitor the object for a single event, after which the watch is automatically
 removed.
 As part of removal, a
 .Dv IN_IGNORED
 event is generated.
-.In Dv IN_ONLYDIR
+.It Dv IN_ONLYDIR
 When creating a watch, fail with
 .Er ENOTDIR
 if the path does not refer to a directory.

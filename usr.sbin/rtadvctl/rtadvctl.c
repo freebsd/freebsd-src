@@ -89,6 +89,7 @@ static int	action_show_prefix(struct prefix *);
 static int	action_show_rtinfo(struct rtinfo *);
 static int	action_show_rdnss(void *);
 static int	action_show_dnssl(void *);
+static void	action_show_pref64(void *);
 
 static int	csock_client_open(struct sockinfo *);
 static size_t	dname_labeldec(char *, size_t, const char *);
@@ -414,6 +415,7 @@ action_show(int argc, char **argv)
 	char argv_ifi_ra_timer[IFNAMSIZ + sizeof(":ifi_ra_timer=")];
 	char argv_rdnss[IFNAMSIZ + sizeof(":rdnss=")];
 	char argv_dnssl[IFNAMSIZ + sizeof(":dnssl=")];
+	char argv_pref64[IFNAMSIZ + sizeof(":pref64=")];
 	char ssbuf[SSBUFLEN];
 
 	struct timespec now, ts0, ts;
@@ -691,6 +693,21 @@ action_show(int argc, char **argv)
 			action_show_dnssl(cp.cp_val);
 		}
 
+		/* PREF64 information */
+		sprintf(argv_pref64, "%s:pref64=", ifi->ifi_ifname);
+		action_argv = argv_pref64;
+
+		error = action_propget(action_argv, &cp);
+		if (error)
+			continue;
+
+		len = *((uint16_t *)cp.cp_val);
+
+		if (len > 0) {
+			printf("\tPREF64:\n");
+			action_show_pref64(cp.cp_val);
+		}
+
 		if (vflag < LOG_NOTICE)
 			continue;
 
@@ -894,6 +911,35 @@ action_show_dnssl(void *msg)
 	}
 
 	return (0);
+}
+
+static void
+action_show_pref64(void *msg)
+{
+	struct pref64 *prf64;
+	uint16_t *prf64_cnt;
+	char ntopbuf[INET6_ADDRSTRLEN];
+	char ssbuf[SSBUFLEN];
+	char *p;
+	int i;
+	uint16_t prf64len;
+
+	p = msg;
+	prf64_cnt = (uint16_t *)p;
+	p += sizeof(*prf64_cnt);
+
+	for (i = 0; i < *prf64_cnt; i++) {
+		prf64 = (struct pref64 *)p;
+
+		/* RFC 8781 Section 4: Map PLC values to prefix lengths */
+		prf64len = (prf64->p64_plc == 0) ? 96 : 72 - (8 * prf64->p64_plc);
+		printf("\t  %s/%d (ltime: %s)\n",
+		    inet_ntop(AF_INET6, &prf64->p64_prefix,
+			ntopbuf, sizeof(ntopbuf)),
+		    prf64len, sec2str(prf64->p64_sl, ssbuf));
+
+		p += sizeof(*prf64);
+	}
 }
 
 /* Decode domain name label encoding in RFC 1035 Section 3.1 */

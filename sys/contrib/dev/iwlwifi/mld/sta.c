@@ -401,11 +401,9 @@ static u32 iwl_mld_get_htc_flags(struct ieee80211_link_sta *link_sta)
 static int iwl_mld_send_sta_cmd(struct iwl_mld *mld,
 				const struct iwl_sta_cfg_cmd *cmd)
 {
-	u32 cmd_id = WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD);
-	int cmd_len = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0) > 1 ?
-		      sizeof(*cmd) :
-		      sizeof(struct iwl_sta_cfg_cmd_v1);
-	int ret = iwl_mld_send_cmd_pdu(mld, cmd_id, cmd, cmd_len);
+	int ret = iwl_mld_send_cmd_pdu(mld,
+				       WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD),
+				       cmd);
 	if (ret)
 		IWL_ERR(mld, "STA_CONFIG_CMD send failed, ret=0x%x\n", ret);
 	return ret;
@@ -541,7 +539,7 @@ iwl_mld_add_link_sta(struct iwl_mld *mld, struct ieee80211_link_sta *link_sta)
 	if (link_sta == &link_sta->sta->deflink) {
 		mld_link_sta = &mld_sta->deflink;
 	} else {
-		mld_link_sta = kzalloc(sizeof(*mld_link_sta), GFP_KERNEL);
+		mld_link_sta = kzalloc_obj(*mld_link_sta);
 		if (!mld_link_sta)
 			return -ENOMEM;
 	}
@@ -662,8 +660,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	if (mld->fw_status.in_hw_restart)
 		return 0;
 
-	dup_data = kcalloc(mld->trans->info.num_rxqs, sizeof(*dup_data),
-			   GFP_KERNEL);
+	dup_data = kzalloc_objs(*dup_data, mld->trans->info.num_rxqs);
 	if (!dup_data)
 		return -ENOMEM;
 
@@ -697,9 +694,8 @@ static void iwl_mld_alloc_mpdu_counters(struct iwl_mld *mld,
 	    sta->tdls || !ieee80211_vif_is_mld(vif))
 		return;
 
-	mld_sta->mpdu_counters = kcalloc(mld->trans->info.num_rxqs,
-					 sizeof(*mld_sta->mpdu_counters),
-					 GFP_KERNEL);
+	mld_sta->mpdu_counters = kzalloc_objs(*mld_sta->mpdu_counters,
+				              mld->trans->info.num_rxqs);
 	if (!mld_sta->mpdu_counters)
 		return;
 
@@ -892,7 +888,7 @@ static void iwl_mld_count_mpdu(struct ieee80211_link_sta *link_sta, int queue,
 		       sizeof(queue_counter->per_link));
 		queue_counter->window_start_time = jiffies;
 
-		IWL_DEBUG_INFO(mld, "MPDU counters are cleared\n");
+		IWL_DEBUG_EHT(mld, "MPDU counters are cleared\n");
 	}
 
 	link_counter = &queue_counter->per_link[mld_link->fw_id];
@@ -1165,7 +1161,8 @@ void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
 	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE &&
-		    vif->type != NL80211_IFTYPE_STATION))
+		    vif->type != NL80211_IFTYPE_STATION &&
+		    vif->type != NL80211_IFTYPE_NAN))
 		return;
 
 	iwl_mld_remove_internal_sta(mld, &mld_vif->aux_sta, false,

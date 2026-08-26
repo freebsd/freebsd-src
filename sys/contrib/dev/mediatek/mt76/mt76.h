@@ -1026,6 +1026,9 @@ struct mt76_dev {
 	} test_mtd;
 #endif
 	struct workqueue_struct *wq;
+#if defined(__FreeBSD__)
+	struct completion drv_start_complete;
+#endif
 
 	union {
 		struct mt76_mmio mmio;

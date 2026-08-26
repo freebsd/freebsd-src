@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef ADF_GEN4VF_HW_CSR_DATA_H_
 #define ADF_GEN4VF_HW_CSR_DATA_H_
 
@@ -86,12 +86,12 @@ read_base_gen4vf(struct resource *csr_base_addr, u32 bank, u32 ring)
 	return addr;
 }
 
-#define WRITE_CSR_INT_SRCSEL_GEN4VF(csr_base_addr, bank)                       \
+#define WRITE_CSR_INT_SRCSEL_GEN4VF(csr_base_addr, bank, idx, value)           \
 	ADF_CSR_WR((csr_base_addr),                                            \
-		   ADF_RING_CSR_ADDR_OFFSET_GEN4VF +                           \
-		       ADF_RING_BUNDLE_SIZE_GEN4 * (bank) +                    \
-		       ADF_RING_CSR_INT_SRCSEL,                                \
-		   ADF_BANK_INT_SRC_SEL_MASK_GEN4)
+		   (ADF_RING_BUNDLE_SIZE_GEN4 * (bank)) +                      \
+		       (ADF_RING_CSR_INT_SRCSEL +                              \
+			((idx)*ADF_RING_CSR_NEXT_INT_SRCSEL)),                 \
+		   (value))
 
 #define READ_CSR_RING_BASE_GEN4VF(csr_base_addr, bank, ring)                   \
 	read_base_gen4vf((csr_base_addr), (bank), (ring))

@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -32,7 +22,7 @@
 #include "blake3_impl.h"
 
 #if !defined(OMIT_SIMD) && (defined(__aarch64__) ||  \
-	(defined(__x86_64) && defined(HAVE_SSE2)) || \
+	(defined(__x86_64) && HAVE_SIMD(SSE2)) || \
     (defined(__PPC64__) && defined(__LITTLE_ENDIAN__)))
 #define USE_SIMD
 #endif
@@ -164,7 +154,7 @@ const blake3_ops_t blake3_sse41_impl = {
 };
 #endif
 
-#if defined(__x86_64) && defined(HAVE_SSE4_1) && defined(HAVE_AVX2)
+#if defined(__x86_64) && HAVE_SIMD(SSE4_1) && HAVE_SIMD(AVX2)
 extern void ASMABI zfs_blake3_hash_many_avx2(const uint8_t * const *inputs,
     size_t num_inputs, size_t blocks, const uint32_t key[8],
     uint64_t counter, boolean_t increment_counter, uint8_t flags,
@@ -197,7 +187,7 @@ blake3_avx2_impl = {
 };
 #endif
 
-#if defined(__x86_64) && defined(HAVE_AVX512F) && defined(HAVE_AVX512VL)
+#if defined(__x86_64) && HAVE_SIMD(AVX512F) && HAVE_SIMD(AVX512VL)
 extern void ASMABI zfs_blake3_compress_in_place_avx512(uint32_t cv[8],
     const uint8_t block[BLAKE3_BLOCK_LEN], uint8_t block_len,
     uint64_t counter, uint8_t flags);
@@ -261,19 +251,19 @@ static const blake3_ops_t *const blake3_impls[] = {
 	&blake3_generic_impl,
 #ifdef USE_SIMD
 #if defined(__aarch64__) || \
-	(defined(__x86_64) && defined(HAVE_SSE2)) || \
+	(defined(__x86_64) && HAVE_SIMD(SSE2)) || \
 	(defined(__PPC64__) && defined(__LITTLE_ENDIAN__))
 	&blake3_sse2_impl,
 #endif
 #if defined(__aarch64__) || \
-	(defined(__x86_64) && defined(HAVE_SSE4_1)) || \
+	(defined(__x86_64) && HAVE_SIMD(SSE4_1)) || \
 	(defined(__PPC64__) && defined(__LITTLE_ENDIAN__))
 	&blake3_sse41_impl,
 #endif
-#if defined(__x86_64) && defined(HAVE_SSE4_1) && defined(HAVE_AVX2)
+#if defined(__x86_64) && HAVE_SIMD(SSE4_1) && HAVE_SIMD(AVX2)
 	&blake3_avx2_impl,
 #endif
-#if defined(__x86_64) && defined(HAVE_AVX512F) && defined(HAVE_AVX512VL)
+#if defined(__x86_64) && HAVE_SIMD(AVX512F) && HAVE_SIMD(AVX512VL)
 	&blake3_avx512_impl,
 #endif
 #endif

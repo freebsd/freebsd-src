@@ -145,6 +145,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_rf_write			= r88e_rf_write;
 	sc->sc_check_condition		= r92c_check_condition;
 	sc->sc_efuse_postread		= rtwn_nop_softc;
+	sc->sc_efuse_preread		= rtwn_nop_int_softc;
 	sc->sc_parse_rom		= r88e_parse_rom;
 	sc->sc_set_led			= r88e_set_led;
 	sc->sc_power_on			= r88eu_power_on;

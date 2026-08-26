@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,7 @@
 #define OCB_MIN_IV_LEN 1
 #define OCB_MAX_IV_LEN 15
 
-PROV_CIPHER_FUNC(int, ocb_cipher, (PROV_AES_OCB_CTX * ctx, const unsigned char *in, unsigned char *out, size_t nextblock));
+PROV_CIPHER_FUNC(int, ocb_cipher, (PROV_AES_OCB_CTX *ctx, const unsigned char *in, unsigned char *out, size_t nextblock));
 /* forward declarations */
 static OSSL_FUNC_cipher_encrypt_init_fn aes_ocb_einit;
 static OSSL_FUNC_cipher_decrypt_init_fn aes_ocb_dinit;
@@ -511,6 +511,19 @@ static int aes_ocb_cipher(void *vctx, unsigned char *out, size_t *outl,
 
     if (outsize < inl) {
         ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);
+        return 0;
+    }
+
+    /*
+     * Mirror the streaming handler: refuse if the key has not been set,
+     * and push the buffered IV into the OCB context before any data is
+     * processed.  Without this, CRYPTO_ocb128_encrypt/decrypt runs with
+     * Offset_0 = 0 regardless of the caller's IV -- catastrophic
+     * (key, nonce) reuse, and a subsequent EVP_*Final_ex() emits a tag
+     * that is a function of (key, iv) only.
+     */
+    if (!ctx->key_set || !update_iv(ctx)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_CIPHER_OPERATION_FAILED);
         return 0;
     }
 

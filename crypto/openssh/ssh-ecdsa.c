@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.27 2024/08/15 00:51:51 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.29 2026/02/14 00:18:34 jsg Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -27,6 +27,7 @@
 #include "includes.h"
 
 #if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
+#include "openbsd-compat/openssl-compat.h"
 
 #include <sys/types.h>
 
@@ -39,11 +40,8 @@
 
 #include "sshbuf.h"
 #include "ssherr.h"
-#include "digest.h"
 #define SSHKEY_INTERNAL
 #include "sshkey.h"
-
-#include "openbsd-compat/openssl-compat.h"
 
 int
 sshkey_ecdsa_fixup_group(EVP_PKEY *k)
@@ -328,8 +326,7 @@ ssh_ecdsa_sign(struct sshkey *key,
 	const BIGNUM *sig_r, *sig_s;
 	int hash_alg;
 	size_t slen = 0;
-	struct sshbuf *b = NULL, *bb = NULL;
-	int len = 0, ret = SSH_ERR_INTERNAL_ERROR;
+	int ret = SSH_ERR_INTERNAL_ERROR;
 
 	if (lenp != NULL)
 		*lenp = 0;
@@ -352,11 +349,37 @@ ssh_ecdsa_sign(struct sshkey *key,
 		ret = SSH_ERR_LIBCRYPTO_ERROR;
 		goto out;
 	}
+	ECDSA_SIG_get0(esig, &sig_r, &sig_s);
+
+	if ((ret = ssh_ecdsa_encode_store_sig(key, sig_r, sig_s,
+	    sigp, lenp)) != 0)
+		goto out;
+	/* success */
+	ret = 0;
+ out:
+	freezero(sigb, slen);
+	ECDSA_SIG_free(esig);
+	return ret;
+}
+
+int
+ssh_ecdsa_encode_store_sig(const struct sshkey *key,
+    const BIGNUM *sig_r, const BIGNUM *sig_s,
+    u_char **sigp, size_t *lenp)
+{
+	struct sshbuf *b = NULL, *bb = NULL;
+	int ret;
+	size_t len;
+
+	if (lenp != NULL)
+		*lenp = 0;
+	if (sigp != NULL)
+		*sigp = NULL;
+
 	if ((bb = sshbuf_new()) == NULL || (b = sshbuf_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	ECDSA_SIG_get0(esig, &sig_r, &sig_s);
 	if ((ret = sshbuf_put_bignum2(bb, sig_r)) != 0 ||
 	    (ret = sshbuf_put_bignum2(bb, sig_s)) != 0)
 		goto out;
@@ -375,10 +398,8 @@ ssh_ecdsa_sign(struct sshkey *key,
 		*lenp = len;
 	ret = 0;
  out:
-	freezero(sigb, slen);
 	sshbuf_free(b);
 	sshbuf_free(bb);
-	ECDSA_SIG_free(esig);
 	return ret;
 }
 

@@ -32,12 +32,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 22, 2021
+.Dd June 29, 2026
 .Dt STORE 9
 .Os
 .Sh NAME
 .Nm store ,
 .Nm subyte ,
+.Nm suptr ,
 .Nm suword
 .Nd store data to user-space
 .Sh SYNOPSIS
@@ -46,6 +47,8 @@
 .In sys/systm.h
 .Ft int
 .Fn subyte "volatile void *base" "int byte"
+.Ft int
+.Fn suptr "volatile void *base" "intptr_t ptr"
 .Ft int
 .Fn suword "volatile void *base" "long word"
 .Ft int
@@ -70,6 +73,11 @@ routines provide the following functionality:
 .It Fn subyte
 Stores a byte of data to the user-space address
 .Pa base .
+.It Fn suptr
+Stores a pointer to the user-space address
+.Pa base
+preserving the provenance of that pointer
+.Pq see Xr memory_model 7 for further information .
 .It Fn suword
 Stores a word of data to the user-space address
 .Pa base .

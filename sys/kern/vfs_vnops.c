@@ -1959,6 +1959,73 @@ _vn_lock_fallback(struct vnode *vp, int flags, const char *file, int line,
 	return (0);
 }
 
+static int
+vn_lock_delayed_setsize(struct vnode *vp, int flags, const char *file, int line)
+{
+	struct vop_lock1_args ap;
+	int error, lktype;
+	bool onfault;
+
+	ASSERT_VOP_LOCKED(vp, "vn_lock_delayed_setsize");
+	lktype = flags & LK_TYPE_MASK;
+	if (vp->v_op == &dead_vnodeops)
+		return (0);
+	VI_LOCK(vp);
+	if ((vp->v_iflag & VI_DELAYED_SETSIZE) == 0 || (lktype != LK_SHARED &&
+	    lktype != LK_EXCLUSIVE && lktype != LK_UPGRADE &&
+	    lktype != LK_TRYUPGRADE)) {
+		VI_UNLOCK(vp);
+		return (0);
+	}
+	onfault = (flags & LK_EATTR_MASK) == LK_NOWAIT &&
+	    (flags & LK_INIT_MASK) == LK_CANRECURSE &&
+	    (lktype == LK_SHARED || lktype == LK_EXCLUSIVE);
+	if (onfault && vp->v_vnlock->lk_recurse == 0) {
+		/*
+		 * Force retry in vm_fault(), to make the lock request
+		 * sleepable, which allows us to piggy-back the
+		 * sleepable call to vnode_pager_setsize().
+		 */
+		VI_UNLOCK(vp);
+		VOP_UNLOCK(vp);
+		return (EBUSY);
+	}
+	if ((flags & LK_NOWAIT) != 0 ||
+	    (lktype == LK_SHARED && vp->v_vnlock->lk_recurse > 0)) {
+		VI_UNLOCK(vp);
+		return (0);
+	}
+	if (lktype == LK_SHARED) {
+		VOP_UNLOCK(vp);
+		ap.a_gen.a_desc = &vop_lock1_desc;
+		ap.a_vp = vp;
+		ap.a_flags = (flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE |
+		    LK_INTERLOCK;
+		ap.a_file = file;
+		ap.a_line = line;
+		error = VOP_LOCK1_APV(&default_vnodeops, &ap);
+		if (error != 0 || vp->v_op == &dead_vnodeops)
+			return (error);
+		if (vp->v_data == NULL)
+			goto downgrade;
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_DELAYED_SETSIZE) == 0) {
+			VI_UNLOCK(vp);
+			goto downgrade;
+		}
+	}
+	vn_clear_delayed_setsize_locked(vp);
+	VI_UNLOCK(vp);
+	VOP_DELAYED_SETSIZE(vp);
+downgrade:
+	if (lktype == LK_SHARED) {
+		ap.a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
+		ap.a_flags |= LK_DOWNGRADE;
+		(void)VOP_LOCK1_APV(&default_vnodeops, &ap);
+	}
+	return (0);
+}
+
 int
 _vn_lock(struct vnode *vp, int flags, const char *file, int line)
 {
@@ -1969,8 +2036,11 @@ _vn_lock(struct vnode *vp, int flags, const char *file, int line)
 	VNPASS(vp->v_holdcnt > 0, vp);
 	error = VOP_LOCK1(vp, flags, file, line);
 	if (__predict_false(error != 0 || VN_IS_DOOMED(vp)))
-		return (_vn_lock_fallback(vp, flags, file, line, error));
-	return (0);
+		error = _vn_lock_fallback(vp, flags, file, line, error);
+	if (error != 0 || __predict_true((atomic_load_short(&vp->v_iflag) &
+	    VI_DELAYED_SETSIZE) == 0))
+		return (error);
+	return (vn_lock_delayed_setsize(vp, flags, file, line));
 }
 
 /*
@@ -2008,25 +2078,21 @@ vn_closefile(struct file *fp, struct thread *td)
  * suspension is over, and then proceed.
  */
 static int
-vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
+vn_start_write_refed(struct mount *mp, int flags)
 {
 	struct mount_pcpu *mpcpu;
 	int error, mflags;
 
-	if (__predict_true(!mplocked) && (flags & V_XSLEEP) == 0 &&
-	    vfs_op_thread_enter(mp, mpcpu)) {
+	if ((flags & V_XSLEEP) == 0 && vfs_op_thread_enter(mp, &mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_SUSPEND) == 0);
 		vfs_mp_count_add_pcpu(mpcpu, writeopcount, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return (0);
 	}
 
-	if (mplocked)
-		mtx_assert(MNT_MTX(mp), MA_OWNED);
-	else
-		MNT_ILOCK(mp);
-
 	error = 0;
+
+	MNT_ILOCK(mp);
 
 	/*
 	 * Check on status of suspension.
@@ -2095,7 +2161,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	if (vp == NULL)
 		vfs_ref(mp);
 
-	error = vn_start_write_refed(mp, flags, false);
+	error = vn_start_write_refed(mp, flags);
 	if (error != 0 && (flags & V_NOWAIT) == 0)
 		*mpp = NULL;
 	return (error);
@@ -2186,7 +2252,7 @@ vn_finished_write(struct mount *mp)
 	if (mp == NULL)
 		return;
 
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		vfs_mp_count_sub_pcpu(mpcpu, writeopcount, 1);
 		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
@@ -2303,10 +2369,12 @@ vfs_write_resume(struct mount *mp, int flags)
 		if ((flags & VR_NO_SUSPCLR) == 0)
 			VFS_SUSP_CLEAN(mp);
 		vfs_op_exit(mp);
-	} else if ((flags & VR_START_WRITE) != 0) {
-		MNT_REF(mp);
-		vn_start_write_refed(mp, 0, true);
 	} else {
+		if ((flags & VR_START_WRITE) != 0) {
+			MNT_REF(mp);
+			mp->mnt_writeopcount++;
+		}
+
 		MNT_IUNLOCK(mp);
 	}
 }
@@ -4286,9 +4354,16 @@ vn_lock_pair_pause(const char *wmesg)
  * Only one of LK_SHARED and LK_EXCLUSIVE must be specified.
  * LK_NODDLKTREAT can be optionally passed.
  *
- * If vp1 == vp2, only one, most exclusive, lock is obtained on it.
+ * If vp1->v_vnlock == vp2->v_vnlock, only one, most exclusive, lock
+ * is obtained on the vnode(s).  The function accounts for the
+ * possibility of vp1 or vp2' v_vnlock changing while the
+ * corresponding vnode is unlocked.
+ *
+ * Return values:
+ *    0       - locked, two unlocks are required
+ *    EDEADLK - locked, vnodes share the same lock, only one unlock is due.
  */
-void
+int
 vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
     struct vnode *vp2, bool vp2_locked, int lkflags2)
 {
@@ -4302,9 +4377,10 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 	MPASS((lkflags2 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
 
 	if (vp1 == NULL && vp2 == NULL)
-		return;
+		return (0);
 
-	if (vp1 == vp2) {
+recheck_same:
+	if (vp1 != NULL && vp2 != NULL && vp1->v_vnlock == vp2->v_vnlock) {
 		MPASS(vp1_locked == vp2_locked);
 
 		/* Select the most exclusive mode for lock. */
@@ -4317,20 +4393,26 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 			/* No need to relock if any lock is exclusive. */
 			if ((vp1->v_vnlock->lock_object.lo_flags &
 			    LK_NOSHARE) != 0)
-				return;
+				return (EDEADLK);
 
 			locked1 = VOP_ISLOCKED(vp1);
 			if (((lkflags1 & LK_SHARED) != 0 &&
 			    locked1 != LK_EXCLUSIVE) ||
 			    ((lkflags1 & LK_EXCLUSIVE) != 0 &&
 			    locked1 == LK_EXCLUSIVE))
-				return;
+				return (EDEADLK);
 			VOP_UNLOCK(vp1);
 		}
 
 		ASSERT_VOP_UNLOCKED(vp1, "vp1");
 		vn_lock(vp1, lkflags1 | LK_RETRY);
-		return;
+		if (vp1->v_vnlock == vp2->v_vnlock)
+			return (EDEADLK);
+		VOP_UNLOCK(vp1);
+		if (vp2_locked) {
+			VOP_UNLOCK(vp2);
+			vp2_locked = false;
+		}
 	}		
 
 	if (vp1 != NULL) {
@@ -4401,6 +4483,9 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 			vn_lock(vp1, lkflags1 | LK_RETRY);
 			vp1_locked = true;
 		}
+		if (vp1 != NULL && vp2 != NULL &&
+		    vp1->v_vnlock == vp2->v_vnlock)
+			goto recheck_same;
 	}
 	if (vp1 != NULL) {
 		if (lkflags1 == LK_EXCLUSIVE)
@@ -4414,6 +4499,7 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 		else
 			ASSERT_VOP_LOCKED(vp2, "vp2 ret");
 	}
+	return (0);
 }
 
 int

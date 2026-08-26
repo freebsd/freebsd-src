@@ -786,7 +786,7 @@ vnode_pager_input_old(vm_object_t object, vm_page_t m)
 		 */
 		sf = sf_buf_alloc(m, 0);
 
-		aiov.iov_base = (caddr_t)sf_buf_kva(sf);
+		aiov.iov_base = sf_buf_kva(sf);
 		aiov.iov_len = size;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
@@ -1094,7 +1094,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 		bp->b_offset = 0;
 	} else {
 		bp->b_data = bp->b_kvabase;
-		pmap_qenter((vm_offset_t)bp->b_data, bp->b_pages, bp->b_npages);
+		pmap_qenter(bp->b_data, bp->b_pages, bp->b_npages);
 	}
 
 	/* Build a minimal buffer header. */
@@ -1175,14 +1175,13 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 	if (error == 0 && bp->b_bcount != ptoa(bp->b_npages)) {
 		if (!buf_mapped(bp)) {
 			bp->b_data = bp->b_kvabase;
-			pmap_qenter((vm_offset_t)bp->b_data, bp->b_pages,
-			    bp->b_npages);
+			pmap_qenter(bp->b_data, bp->b_pages, bp->b_npages);
 		}
 		bzero(bp->b_data + bp->b_bcount,
 		    ptoa(bp->b_npages) - bp->b_bcount);
 	}
 	if (buf_mapped(bp)) {
-		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+		pmap_qremove(bp->b_data, bp->b_npages);
 		bp->b_data = unmapped_buf;
 	}
 

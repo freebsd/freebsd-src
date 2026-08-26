@@ -15,6 +15,7 @@ sshd:*:22:
 smmsp:*:25:
 mailnull:*:26:
 guest:*:31:
+audio:*:43:
 video:*:44:
 realtime:*:47:
 idletime:*:48:

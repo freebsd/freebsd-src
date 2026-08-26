@@ -256,6 +256,7 @@ ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2017/06/20"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
+kfv [label="Faraz Vahedi\nkfv@FreeBSD.org\n2026/08/03"]
 kgalazka [label="Krzysztof Galazka\nkgalazka@FreeBSD.org\n2025/04/07"]
 khng [label="Ka Ho Ng\nkhng@FreeBSD.org\n2021/03/15"]
 khorben [label="Pierre Pronchery\nkhorben@FreeBSD.org\n2025/05/06"]
@@ -280,6 +281,7 @@ markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
+mchoo [label="Minsoo Choo\nmchoo@FreeBSD.org\n2026/07/29"]
 mdf [label="Matthew Fleming\nmdf@FreeBSD.org\n2010/06/04"]
 mdodd [label="Matthew N. Dodd\nmdodd@FreeBSD.org\n1999/07/27"]
 melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
@@ -546,6 +548,8 @@ dg -> peter
 
 dim -> theraven
 
+dteske -> kfv
+
 dwmalone -> fanf
 dwmalone -> peadar
 dwmalone -> snb
@@ -581,6 +585,8 @@ erj -> jeb
 erj -> kgalazka
 
 fjoe -> versus
+
+fuz -> kfv
 
 gallatin -> ticso
 gallatin -> rajeshasp
@@ -676,6 +682,7 @@ jhb -> bnovkov
 jhb -> jch
 jhb -> jeff
 jhb -> kbyanc
+jhb -> mchoo
 jhb -> peterj
 jhb -> pfg
 jhb -> rnoland

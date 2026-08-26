@@ -71,8 +71,11 @@ struct json_event {
 	char *perpkg;
 	char *aggr_mode;
 	char *metric_expr;
+	char *metric_threshold;
 	char *metric_name;
 	char *metric_group;
+	char *metric_group_nogroup;
+	char *default_metric_group;
 	char *deprecated;
 	char *metric_constraint;
 };
@@ -242,27 +245,33 @@ static struct msrmap *lookup_msr(char *map, jsmntok_t *val)
 	return NULL;
 }
 
+/*
+ * Converts the unit names to add a prefix used to identify the counter class
+ * in other parts of libpmc.  The fallback path for unknown units prefixes the
+ * unit with "uncore_".
+ */
 static struct map {
 	const char *json;
 	const char *perf;
 } unit_to_pmu[] = {
+	/* Intel */
+	{ "cpu_core", "cpu_core" },
+	{ "cpu_atom", "cpu_atom" },
 	{ "CBO", "uncore_cbox" },
 	{ "QPI LL", "uncore_qpi" },
 	{ "SBO", "uncore_sbox" },
 	{ "iMPH-U", "uncore_arb" },
-	{ "CPU-M-CF", "cpum_cf" },
-	{ "CPU-M-SF", "cpum_sf" },
 	{ "UPI LL", "uncore_upi" },
+	/* AMD */
+	{ "L3PMC", "amd_l3" },
+	{ "DFPMC", "amd_df" },
+	/* ARM HiSilicon */
 	{ "hisi_sicl,cpa", "hisi_sicl,cpa"},
 	{ "hisi_sccl,ddrc", "hisi_sccl,ddrc" },
 	{ "hisi_sccl,hha", "hisi_sccl,hha" },
 	{ "hisi_sccl,l3c", "hisi_sccl,l3c" },
-	/* it's not realistic to keep adding these, we need something more scalable ... */
+	/* ARM FreeScale */
 	{ "imx8_ddr", "imx8_ddr" },
-	{ "L3PMC", "amd_l3" },
-	{ "DFPMC", "amd_df" },
-	{ "cpu_core", "cpu_core" },
-	{ "cpu_atom", "cpu_atom" },
 	{}
 };
 
@@ -373,10 +382,16 @@ static int print_events_table_entry(void *data, struct json_event *je)
 		fprintf(outfp, "\t.aggr_mode = \"%d\",\n", convert(je->aggr_mode));
 	if (je->metric_expr)
 		fprintf(outfp, "\t.metric_expr = \"%s\",\n", je->metric_expr);
+	if (je->metric_threshold)
+		fprintf(outfp, "\t.metric_threshold = \"%s\",\n", je->metric_threshold);
 	if (je->metric_name)
 		fprintf(outfp, "\t.metric_name = \"%s\",\n", je->metric_name);
 	if (je->metric_group)
 		fprintf(outfp, "\t.metric_group = \"%s\",\n", je->metric_group);
+	if (je->metric_group_nogroup)
+		fprintf(outfp, "\t.metric_group_nogroup = \"%s\",\n", je->metric_group_nogroup);
+	if (je->default_metric_group)
+		fprintf(outfp, "\t.default_metric_group = \"%s\",\n", je->default_metric_group);
 	if (je->deprecated)
 		fprintf(outfp, "\t.deprecated = \"%s\",\n", je->deprecated);
 	if (je->metric_constraint)
@@ -398,8 +413,11 @@ struct event_struct {
 	char *perpkg;
 	char *aggr_mode;
 	char *metric_expr;
+	char *metric_threshold;
 	char *metric_name;
 	char *metric_group;
+	char *metric_group_nogroup;
+	char *default_metric_group;
 	char *deprecated;
 	char *metric_constraint;
 };
@@ -428,8 +446,11 @@ struct event_struct {
 	op(perpkg);						\
 	op(aggr_mode);						\
 	op(metric_expr);					\
+	op(metric_threshold);					\
 	op(metric_name);					\
 	op(metric_group);					\
+	op(metric_group_nogroup);				\
+	op(default_metric_group);				\
 	op(deprecated);						\
 } while (0)
 
@@ -560,6 +581,10 @@ static int json_events(const char *fn,
 		jsmntok_t *obj = tok++;
 		bool configcode_present = false;
 		char *umask = NULL;
+		char *allcores = NULL;
+		char *allslices = NULL;
+		char *sliceid = NULL;
+		char *threadmask = NULL;
 		char *cmask = NULL;
 		char *inv = NULL;
 		char *any = NULL;
@@ -582,19 +607,60 @@ static int json_events(const char *fn,
 			       "Expected string value");
 
 			nz = !json_streq(map, val, "0");
-			/* match_field */
-			if (json_streq(map, field, "UMask") && nz) {
-				addfield(map, &umask, "", "umask=", val);
-			} else if (json_streq(map, field, "CounterMask") && nz) {
-				addfield(map, &cmask, "", "cmask=", val);
-			} else if (json_streq(map, field, "Invert") && nz) {
-				addfield(map, &inv, "", "inv=", val);
-			} else if (json_streq(map, field, "AnyThread") && nz) {
-				addfield(map, &any, "", "any=", val);
-			} else if (json_streq(map, field, "EdgeDetect") && nz) {
-				addfield(map, &edge, "", "edge=", val);
-			} else if (json_streq(map, field, "SampleAfterValue") && nz) {
-				addfield(map, &period, "", "period=", val);
+			/*
+			 * Match the field against known fields.  This list is
+			 * an explicit whitelist so that the build will break
+			 * if we add new json definitions with unimplemented
+			 * fields. If a field may contain a zero value that
+			 * results in ignoring the field, do not check nz in
+			 * the top level conditional statement as it will
+			 * result in executing the else clause that reports an
+			 * error.
+			 */
+			if (json_streq(map, field, "UMask")) {
+				if (nz)
+					addfield(map, &umask, "", "umask=", val);
+			} else if (json_streq(map, field, "EnAllCores")) {
+				addfield(map, &allcores, "", "allcores=", val);
+			} else if (json_streq(map, field, "EnAllSlices")) {
+				/*
+				 * We use the AMD PPR Family 1Ah Model 70h
+				 * naming scheme of allsources rather than
+				 * slices.  The symbol EnAllSlices is not used
+				 * anywhere except in Zen 4+ for the L3
+				 * counters.
+				 */
+				addfield(map, &allslices, "", "allsources=", val);
+			} else if (json_streq(map, field, "SliceId")) {
+				/*
+				 * We use sourceid because there's a
+				 * descripency where the JSON from linux calls
+				 * it a SliceId, which is not the name used by
+				 * AMD in the PPRs.  The field name from Family
+				 * 19h and below that calls it slicemask see
+				 * the references in hwpmc_amd.h.
+				 */
+				addfield(map, &sliceid, "", "sourceid=", val);
+			} else if (json_streq(map, field, "ThreadMask")) {
+				if (nz)
+					addfield(map, &threadmask, "", "l3_thread_mask=", val);
+			} else if (json_streq(map, field, "CounterMask")) {
+				if (nz)
+					addfield(map, &cmask, "", "cmask=", val);
+			} else if (json_streq(map, field, "RdWrMask")) {
+				/* AMD UMC */
+			} else if (json_streq(map, field, "Invert")) {
+				if (nz)
+					addfield(map, &inv, "", "inv=", val);
+			} else if (json_streq(map, field, "AnyThread")) {
+				if (nz)
+					addfield(map, &any, "", "any=", val);
+			} else if (json_streq(map, field, "EdgeDetect")) {
+				if (nz)
+					addfield(map, &edge, "", "edge=", val);
+			} else if (json_streq(map, field, "SampleAfterValue")) {
+				if (nz)
+					addfield(map, &period, "", "period=", val);
 			} else if (json_streq(map, field, "FCMask") && nz) {
 				addfield(map, &fc_mask, "", "fc_mask=", val);
 			} else if (json_streq(map, field, "PortMask") && nz) {
@@ -667,24 +733,83 @@ static int json_events(const char *fn,
 				addfield(map, &je.metric_name, "", "", val);
 			} else if (json_streq(map, field, "MetricGroup")) {
 				addfield(map, &je.metric_group, "", "", val);
+			} else if (json_streq(map, field, "MetricgroupNoGroup")) {
+				addfield(map, &je.metric_group_nogroup, "", "", val);
+			} else if (json_streq(map, field, "DefaultMetricgroupName")) {
+				addfield(map, &je.default_metric_group, "", "", val);
 			} else if (json_streq(map, field, "MetricConstraint")) {
 				addfield(map, &je.metric_constraint, "", "", val);
 			} else if (json_streq(map, field, "MetricExpr")) {
 				addfield(map, &je.metric_expr, "", "", val);
+			} else if (json_streq(map, field, "MetricThreshold")) {
+				addfield(map, &je.metric_threshold, "", "", val);
 			} else if (json_streq(map, field, "ArchStdEvent")) {
 				addfield(map, &arch_std, "", "", val);
 				for (s = arch_std; *s; s++)
 					*s = tolower(*s);
+			} else if (json_streq(map, field, "Offcore")) {
+				/* Check the relevant MSR has been set */
+			} else if (json_streq(map, field, "CounterType")) {
+				/* Unsupported Intel Offcore counters */
+			} else if (json_streq(map, field, "UMaskExt")) {
+				/* Unsupported Intel Offcore counters */
+			} else if (json_streq(map, field, "PDIR_COUNTER")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "CollectPEBSRecord")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "PEBScounters")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "Counter")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "CounterHTOff")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "PRECISE_STORE")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "L1_Hit_Indication")) {
+				/* Intel PEBS not supported */
+			} else if (json_streq(map, field, "RetirementLatencyMin")) {
+				/* Intel TPEBS not supported */
+			} else if (json_streq(map, field, "RetirementLatencyMax")) {
+				/* Intel TPEBS not supported */
+			} else if (json_streq(map, field, "RetirementLatencyMean")) {
+				/* Intel TPEBS not supported */
+			} else if (json_streq(map, field, "Speculative")) {
+				/* Intel informative */
+			} else if (json_streq(map, field, "Experimental")) {
+				/* Intel informative */
+			} else if (json_streq(map, field, "ELLC")) {
+				/* Intel informative */
+			} else if (json_streq(map, field, "TakenAlone")) {
+				/*
+				 * Do not measure with other counters, usually
+				 * this is because it uses an MSR to filter the
+				 * event in a way that affects other counters.
+				 */
+				if (json_streq(map, val, "1"))
+					addfield(map, &event, ",", "alone", NULL);
+			} else {
+				/*
+				 * We shouldn't ignore unknown fields that may
+				 * make the counter invalid!
+				 *
+				 * Often the JSON definitions are copied
+				 * without checking if any fields require
+				 * handling.
+				 */
+				json_copystr(map, field, buf, sizeof(buf));
+				fprintf(stderr, "Unknown event field '%s' in %s\n", buf, fn);
+				_Exit(1);
 			}
-			/* ignore unknown fields */
 		}
 		if (precise && je.desc && !strstr(je.desc, "(Precise Event)")) {
-			if (json_streq(map, precise, "2"))
+			if (json_streq(map, precise, "2")) {
 				addfield(map, &extra_desc, " ",
 						"(Must be precise)", NULL);
-			else
+				addfield(map, &event, ",", "pebs=", precise);
+			} else {
 				addfield(map, &extra_desc, " ",
 						"(Precise event)", NULL);
+			}
 		}
 		if (configcode_present)
 			snprintf(buf, sizeof buf, "config=%#llx", configcode);
@@ -707,6 +832,14 @@ static int json_events(const char *fn,
 			addfield(map, &event, ",", period, NULL);
 		if (umask)
 			addfield(map, &event, ",", umask, NULL);
+		if (allcores)
+			addfield(map, &event, ",", allcores, NULL);
+		if (allslices)
+			addfield(map, &event, ",", allslices, NULL);
+		if (sliceid)
+			addfield(map, &event, ",", sliceid, NULL);
+		if (threadmask)
+			addfield(map, &event, ",", threadmask, NULL);
 
 		if (je.desc && extra_desc)
 			addfield(map, &je.desc, " ", extra_desc, NULL);
@@ -737,6 +870,10 @@ static int json_events(const char *fn,
 		err = func(data, &je);
 free_strings:
 		free(umask);
+		free(allcores);
+		free(allslices);
+		free(sliceid);
+		free(threadmask);
 		free(cmask);
 		free(inv);
 		free(any);
@@ -757,8 +894,11 @@ free_strings:
 		free(je.deprecated);
 		free(je.unit);
 		free(je.metric_expr);
+		free(je.metric_threshold);
 		free(je.metric_name);
 		free(je.metric_group);
+		free(je.metric_group_nogroup);
+		free(je.default_metric_group);
 		free(je.metric_constraint);
 		free(arch_std);
 

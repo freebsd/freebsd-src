@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --env-only --libs foo
+Environment: PKG_CONFIG_LIBDIR=%TEST_FIXTURES_DIR%/lib1
+ExpectedExitCode: 1

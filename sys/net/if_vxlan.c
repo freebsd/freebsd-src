@@ -2309,7 +2309,8 @@ vxlan_ioctl_drvspec(struct vxlan_softc *sc, struct ifdrv *ifd, int get)
 	} args;
 	int out, error;
 
-	if (ifd->ifd_cmd >= vxlan_control_table_size)
+	if (ifd->ifd_cmd >= vxlan_control_table_size ||
+	    vxlan_control_table[ifd->ifd_cmd].vxlc_func == NULL)
 		return (EINVAL);
 
 	bzero(&args, sizeof(args));
@@ -2876,8 +2877,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 
 	ifp = sc->vxl_ifp;
 	if (m->m_len < ETHER_HDR_LEN &&
-	    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		*m0 = NULL;
+	    (m = *m0 = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
 		error = ENOBUFS;
 		goto out;
 	}

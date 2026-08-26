@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 15, 2025
+.Dd June 20, 2026
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -197,9 +197,6 @@ The Parametric Software Equalizer (EQ) enables the use of
 controls (bass and treble).
 Commonly used for ear-candy or frequency compensation due to the vast
 difference in hardware quality.
-EQ is disabled by default, but can be enabled with the
-.Va hint.pcm.%d.eq
-tunable.
 .Ss VCHANs
 Each device can optionally support more playback and recording channels
 than physical hardware provides by using
@@ -215,32 +212,6 @@ application, without touching the master
 .Nm
 volume.
 This is sometimes referred to as Volume Per Channel (VPC).
-The VPC feature is enabled by default.
-.Ss Loader Tunables
-The following loader tunables are used to set driver configuration at the
-.Xr loader 8
-prompt before booting the kernel, or they can be stored in
-.Pa /boot/loader.conf
-in order to automatically set them before booting the kernel.
-It is also possible to use
-.Xr kenv 1
-to change these tunables before loading the
-.Nm
-driver.
-The following tunables can not be changed during runtime using
-.Xr sysctl 8 .
-.Bl -tag -width indent
-.It Va hint.pcm.%d.eq
-Set to 1 or 0 to explicitly enable (1) or disable (0) the equalizer.
-Requires a driver reload if changed.
-Enabling this will make bass and treble controls appear in mixer applications.
-This tunable is undefined by default.
-Equalizing is disabled by default.
-.It Va hint.pcm.%d.vpc
-Set to 1 or 0 to explicitly enable (1) or disable (0) the VPC feature.
-This tunable is undefined by default.
-VPC is however enabled by default.
-.El
 .Ss Runtime Configuration
 There are a number of
 .Xr sysctl 8
@@ -254,21 +225,29 @@ are global settings and
 are device specific.
 .Bl -tag -width indent
 .It Va hw.snd.compat_linux_mmap
-Linux
+This
+.Xr sysctl 8
+variable is available only when Linux application support is compiled into the
+kernel, and affects Linux binaries only.
+It is a hack to get around the fact that, for i386 emulation,
+.Xr linux 4
+historically set PROT_EXEC automatically when PROT_READ or PROT_WRITE was set
+during an
 .Xr mmap 2
-compatibility.
-The following values are supported (default is 0):
+call, which
+.Fx
+does not.
+.Pp
+The following values are supported (default is -1):
 .Bl -tag -width 2n
 .It -1
-Force disabling/denying PROT_EXEC
+Force-disable PROT_EXEC
 .Xr mmap 2
-requests.
+requests, even for Linux applications.
 .It 0
-Auto detect proc/ABI type, allow
+Allow PROT_EXEC
 .Xr mmap 2
-for Linux applications, and deny for everything else.
-.It 1
-Always allow PROT_EXEC page mappings.
+requests for Linux applications only.
 .El
 .It Va hw.snd.default_auto
 Automatically assign the default sound unit.
@@ -408,15 +387,6 @@ When a channel is closed the channel volume will be reset to 0db.
 This means that any changes to the volume will be lost.
 Enabling this will preserve the volume, at the cost of possible confusion
 when applications tries to re-open the same device.
-.It Va hw.snd.vpc_mixer_bypass
-The recommended way to use the VPC feature is to teach applications to use the
-correct
-.Fn ioctl :
-.Dv SNDCTL_DSP_GETPLAYVOL , SNDCTL_DSP_SETPLAYVOL ,
-.Dv SNDCTL_DSP_SETRECVOL , SNDCTL_DSP_SETRECVOL .
-This is however not always possible.
-Enable this to allow applications to use their own existing mixer logic
-to control their own channel volume.
 .It Va hw.snd.vpc_reset
 Enable to restore all channel volumes back to the default value of 0db.
 .It Va dev.pcm.%d.bitperfect
@@ -431,6 +401,17 @@ the definitive format/rate target.
 The recommended way to use bitperfect mode is to disable VCHANs and enable this
 sysctl.
 Default is disabled.
+.It Va dev.pcm.%d.eq
+Set to 1 or 0 to enable (1) or disable (0) the equalizer.
+Default is disabled.
+When enabled, the mixer bass and treble controls can be used, as well as the
+.Va dev.pcm.%d.eq_preamp
+tunable.
+.It Va dev.pcm.%d.eq_preamp
+Equalizer preamp (in dB).
+.Va dev.pcm.%d.eq
+has to be enabled, in order for this tunable to take effect.
+Read the tunable's description to see the available range of values.
 .It Va dev.pcm.%d.[play|rec].vchans
 Enable (1) or disable (0) VCHANs.
 Default is enabled.
@@ -528,6 +509,82 @@ See
 for a complete list of the supported
 .Fn ioctl
 functions.
+.Ss kqueue Support
+The
+.Va kevent
+structure's fields are defined as follows:
+.Bl -tag -width "Fa filter"
+.It Fa ident
+The file descriptor for the device.
+.It Fa filter
+The kernel filter used to process the event.
+This is either
+.Dv EVFILT_READ
+for recording or
+.Dv EVFILT_WRITE
+for playback.
+.It Fa data
+The number of bytes available to be read or written.
+.It Fa ext
+.Bl -bullet -compact
+.It
+.Va ext[0]
+For devices that use
+.Xr mmap 2 ,
+it contains the
+.Va count_info.ptr
+field reported by
+.Va SNDCTL_DSP_GETIPTR
+for recording or
+.Va SNDCTL_DSP_GETOPTR
+for playback, whereas for devices that do not use
+.Xr mmap 2 ,
+it contains the
+.Va oss_count_t.fifo_samples
+field reported by
+.Va SNDCTL_DSP_CURRENT_IPTR
+for recording or
+.Va SNDCTL_DSP_CURRENT_OPTR
+for playback.
+.It
+.Va ext[1]
+contains the
+.Va audio_errinfo.rec_overruns
+field for recording events, or the
+.Va audio_errinfo.play_underruns
+field for playback events, as reported by
+.Va SNDCTL_DSP_GETERROR .
+.Pp
+This allows a single
+.Va kevent
+to report that data is ready, how many bytes can be read or written, the
+current buffer position, and the current error count.
+This is especially useful for scenarios that use
+.Xr mmap 2 ,
+because without
+.Xr kqueue 2
+the typical processing loop consists of:
+.Bl -bullet -compact
+.It
+Calculating the wait time and calling
+.Xr clock_nanosleep 2 .
+.It
+Calling
+.Xr ioctl 2
+for
+.Va SNDCTL_DSP_GETIPTR
+or
+.Va SNDCTL_DSP_GETOPTR
+to get the pointer into the memory-mapped buffer where new data starts.
+.It
+Calling
+.Xr ioctl 2
+for
+.Va SNDCTL_DSP_GETERROR
+to get over/underruns and handle them.
+.El
+.El
+.El
 .Sh FILES
 The
 .Nm
@@ -558,6 +615,12 @@ Additional messages are sometimes recorded when the
 device is probed and attached, these messages can be viewed with the
 .Xr dmesg 8
 utility.
+.Pp
+Users have to be part of the audio group in order to access any device node
+created by
+.Nm ,
+as well as the device drivers, and
+.Xr virtual_oss 8 .
 .Sh EXAMPLES
 Use the sound metadriver to load all
 .Nm
@@ -624,7 +687,8 @@ A device node is not created properly.
 .Xr dmesg 8 ,
 .Xr kldload 8 ,
 .Xr mixer 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr virtual_oss 8
 .Rs
 .%T "Cookbook formulae for audio EQ biquad filter coefficients (Audio-EQ-Cookbook.txt), by Robert Bristow-Johnson"
 .%U "https://www.musicdsp.org/en/latest/Filters/197-rbj-audio-eq-cookbook.html"

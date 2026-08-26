@@ -24,6 +24,7 @@
 #include "fw/api/rfi.h"
 #include "fw/dhc-utils.h"
 #include <linux/dmi.h>
+#include <linux/hex.h>
 
 #define MLD_DEBUGFS_READ_FILE_OPS(name, bufsz)				\
 	_MLD_DEBUGFS_READ_FILE_OPS(name, bufsz, struct iwl_mld)
@@ -86,7 +87,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mld *mld, char *buf,
 
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		mld->fw_status.do_not_dump_once = true;
-		iwl_trans_suppress_cmd_error_once(mld->trans);
+		mld->trans->suppress_cmd_error_once = true;
 	}
 
 	/* take the return value to make compiler happy - it will
@@ -244,7 +245,7 @@ static size_t iwl_mld_dump_tas_resp(struct iwl_dhc_tas_status_resp *resp,
 	}
 
 	pos += scnprintf(buf + pos, count - pos, "TAS Report\n");
-	switch (resp->tas_config_info.table_source) {
+	switch (resp->tas_config_info.hdr.table_source) {
 	case BIOS_SOURCE_NONE:
 		pos += scnprintf(buf + pos, count - pos,
 				 "BIOS SOURCE NONE ");
@@ -260,13 +261,13 @@ static size_t iwl_mld_dump_tas_resp(struct iwl_dhc_tas_status_resp *resp,
 	default:
 		pos += scnprintf(buf + pos, count - pos,
 				 "BIOS SOURCE UNKNOWN (%d) ",
-				 resp->tas_config_info.table_source);
+				 resp->tas_config_info.hdr.table_source);
 		break;
 	}
 
 	pos += scnprintf(buf + pos, count - pos,
 			 "revision is: %d data is: 0x%08x\n",
-			 resp->tas_config_info.table_revision,
+			 resp->tas_config_info.hdr.table_revision,
 			 resp->tas_config_info.value);
 	pos += scnprintf(buf + pos, count - pos, "Current MCC: 0x%x\n",
 			 le16_to_cpu(resp->curr_mcc));
@@ -1001,8 +1002,12 @@ void iwl_mld_add_link_debugfs(struct ieee80211_hw *hw,
 	 * If not, this is a per-link dir of a MLO vif, add in it the iwlmld
 	 * dir.
 	 */
-	if (!mld_link_dir)
+	if (!mld_link_dir) {
 		mld_link_dir = debugfs_create_dir("iwlmld", dir);
+	} else {
+		/* Release the reference from debugfs_lookup */
+		dput(mld_link_dir);
+	}
 }
 
 static ssize_t _iwl_dbgfs_fixed_rate_write(struct iwl_mld *mld, char *buf,

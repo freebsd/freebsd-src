@@ -282,6 +282,23 @@ static inline void WPA_PUT_LE32(u8 *a, u32 val)
 	a[0] = val & 0xff;
 }
 
+static inline u64 WPA_GET_LE48(const u8 *a)
+{
+	return (((u64) a[5]) << 40) | (((u64) a[4]) << 32) |
+		(((u64) a[3]) << 24) | (((u64) a[2]) << 16) |
+		(((u64) a[1]) << 8) | ((u64) a[0]);
+}
+
+static inline void WPA_PUT_LE48(u8 *a, u64 val)
+{
+	a[5] = val >> 40;
+	a[4] = val >> 32;
+	a[3] = val >> 24;
+	a[2] = val >> 16;
+	a[1] = val >> 8;
+	a[0] = val & 0xff;
+}
+
 static inline u64 WPA_GET_BE64(const u8 *a)
 {
 	return (((u64) a[0]) << 56) | (((u64) a[1]) << 48) |
@@ -441,6 +458,12 @@ void perror(const char *s);
 #define BIT(x) (1U << (x))
 #endif
 
+#ifndef BIT_ULL
+#define BIT_ULL(x) (1ULL << (x))
+#endif
+
+#define BITS(src, mask, pos) ((src & mask) >> pos)
+
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
@@ -577,7 +600,9 @@ size_t int_array_len(const int *a);
 void int_array_concat(int **res, const int *a);
 void int_array_sort_unique(int *a);
 void int_array_add_unique(int **res, int a);
-bool int_array_includes(int *arr, int val);
+bool int_array_includes(const int *arr, int val);
+bool int_array_equal(const int *a, const int *b);
+int * int_array_dup(const int *a);
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -607,7 +632,7 @@ char * get_param(const char *cmd, const char *param);
 /* Iterate all links, or, if no link is defined, iterate given index */
 #define for_each_link_default(_links, _i, _def_idx)	\
 	for ((_i) = (_links) ? 0 : (_def_idx);		\
-	     (_i) < MAX_NUM_MLD_LINKS ||		\
+	     ((_links) && (_i) < MAX_NUM_MLD_LINKS) ||	\
 		     (!(_links) && (_i) == (_def_idx));	\
 	     (_i)++)					\
 		if (!(_links) || (_links) & BIT(_i))

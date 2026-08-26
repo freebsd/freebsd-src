@@ -1,4 +1,4 @@
-/*	$OpenBSD: fmt_scaled.c,v 1.21 2022/03/11 07:29:53 dtucker Exp $	*/
+/*	$OpenBSD: fmt_scaled.c,v 1.25 2026/06/06 23:53:59 djm Exp $	*/
 
 /*
  * Copyright (c) 2001, 2002, 2003 Ian F. Darwin.  All rights reserved.
@@ -77,7 +77,7 @@ scan_scaled(char *scaled, long long *result)
 {
 	char *p = scaled;
 	int sign = 0;
-	unsigned int i, ndigits = 0, fract_digits = 0;
+	unsigned int i, ndigits = 0, fract_digits = 0, muls = 0, divs = 0;
 	long long scale_fact = 1, whole = 0, fpart = 0;
 
 	/* Skip leading whitespace */
@@ -186,18 +186,33 @@ scan_scaled(char *scaled, long long *result)
 			/* scale whole part */
 			whole *= scale_fact;
 
-			/* truncate fpart so it doesn't overflow.
-			 * then scale fractional part.
+			/*
+			 * Scale fractional part: compute
+			 *   fpart * scale_fact / 10^(fract_digits-1)
+			 * without intermediate overflow. scale_fact is 1024^i,
+			 * i.e. a power of 1024 = 2^10. Interleave
+			 * multiply-by-1024 with divide-by-10 so the running
+			 * value stays within long long range while preserving
+			 * precision.
 			 */
-			while (fpart >= LLONG_MAX / scale_fact ||
-			    fpart <= LLONG_MIN / scale_fact) {
-				fpart /= 10;
-				fract_digits--;
-			}
-			fpart *= scale_fact;
-			if (fract_digits > 0) {
-				for (i = 0; i < fract_digits -1; i++)
+			muls = i;
+			divs = fract_digits > 0 ?  fract_digits - 1 : 0;
+			while (muls > 0 && divs > 0) {
+				if (fpart <= LLONG_MAX / 1024) {
+					fpart *= 1024;
+					muls--;
+				} else {
 					fpart /= 10;
+					divs--;
+				}
+			}
+			while (muls > 0) {
+				fpart *= 1024;
+				muls--;
+			}
+			while (divs > 0) {
+				fpart /= 10;
+				divs--;
 			}
 			if (sign == -1)
 				whole -= fpart;

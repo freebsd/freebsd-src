@@ -1,0 +1,6 @@
+SkipPlatforms: lite
+PackageSearchPath: lib1
+WantedFlags: libs msvc-syntax
+Query: fragment-escaping-1
+ExpectedStdout: /libpath:"C:\D E" E.lib
+MatchStdout: partial

@@ -99,3 +99,7 @@ modfl(long double x, long double *iptr)
 		}
 	}
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(modfl, modff128);
+#endif

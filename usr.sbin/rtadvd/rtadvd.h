@@ -152,7 +152,6 @@ struct rdnss {
 
 struct pref64 {
 	TAILQ_ENTRY(pref64) p64_next;
-	bool		p64_enabled;
 	uint16_t	p64_plc;	/* prefix length code */
 	uint16_t	p64_sl;		/* scaled lifetime */
 	struct in6_addr	p64_prefix;
@@ -205,9 +204,6 @@ struct	rainfo {
 	uint16_t	rai_mininterval;	/* MinRtrAdvInterval */
 	int 	rai_managedflg;		/* AdvManagedFlag */
 	int	rai_otherflg;		/* AdvOtherConfigFlag */
-#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
-	int	rai_ipv6onlyflg;	/* AdvIPv6OnlyFlag */
-#endif
 
 	int	rai_rtpref;		/* router preference */
 	uint32_t	rai_linkmtu;		/* AdvLinkMTU */
@@ -227,7 +223,7 @@ struct	rainfo {
 	/* actual RA packet data and its length */
 	size_t	rai_ra_datalen;
 	char	*rai_ra_data;
-	struct pref64 rai_pref64;	/* PREF64 option */
+	TAILQ_HEAD(, pref64) rai_pref64; /* PREF64 option */
 
 	/* info about soliciter */
 	TAILQ_HEAD(, soliciter) rai_soliciter;	/* recent solication source */

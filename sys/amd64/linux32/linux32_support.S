@@ -227,3 +227,5 @@ ENTRY(futex_xorl_smap)
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
 END(futex_xorl_smap)
+
+	.section .note.GNU-stack,"",%progbits

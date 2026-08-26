@@ -41,7 +41,8 @@ cJSON* cbor_to_cjson(cbor_item_t* item) {
     case CBOR_TYPE_ARRAY: {
       cJSON* result = cJSON_CreateArray();
       for (size_t i = 0; i < cbor_array_size(item); i++) {
-        cJSON_AddItemToArray(result, cbor_to_cjson(cbor_array_get(item, i)));
+        cJSON_AddItemToArray(result,
+                             cbor_to_cjson(cbor_move(cbor_array_get(item, i))));
       }
       return result;
     }

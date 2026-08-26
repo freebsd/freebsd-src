@@ -1,0 +1,4 @@
+Tool: bomtool
+ToolArgs: --output /nonexistent-dir/out.txt test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedExitCode: 1

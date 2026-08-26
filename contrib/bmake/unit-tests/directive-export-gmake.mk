@@ -1,4 +1,4 @@
-# $NetBSD: directive-export-gmake.mk,v 1.10 2025/06/28 22:39:28 rillig Exp $
+# $NetBSD: directive-export-gmake.mk,v 1.11 2026/01/02 14:21:46 rillig Exp $
 #
 # Tests for the export directive (without leading dot), as in GNU make.
 
@@ -102,5 +102,14 @@ INDIRECT_NAME=	I_NAME
 INDIRECT_VALUE=	indirect value
 export ${INDIRECT_NAME}=${INDIRECT_VALUE}
 .if ${:!env!:MI_NAME=*}
+.  error
+.endif
+
+
+# Quotes and other special characters are preserved.
+export DQUOT="dquot"
+export SQUOT='squot'
+export PLAIN=plain
+.if ${:!echo "\$DQUOT \$SQUOT \$PLAIN"!} != "\"dquot\" 'squot' plain"
 .  error
 .endif

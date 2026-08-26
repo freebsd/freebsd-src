@@ -1250,3 +1250,49 @@ error:
 		free(blkbuf);
 	return (rc);
 }
+
+/*
+ * Predicate: is this a VirtualDisk as far as UEFI is concerned?
+ */
+static bool
+testmd(pdinfo_t *md)
+{
+	EFI_DEVICE_PATH *node;
+
+	node = efi_devpath_last_node(md->pd_devpath);
+	if (node == NULL)
+		return (false);
+	if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+	    DevicePathSubType(node) == MEDIA_RAM_DISK_DP)
+		return (true);
+
+	return (false);
+}
+
+/*
+ * Passes all the VirtualDisk instances to FreeBSD as a preloaded memory disk.
+ */
+void
+efiblk_memdisk_preload(void)
+{
+	MEDIA_RAM_DISK_DEVICE_PATH *ram;
+	uint64_t start, end;
+	pdinfo_t *md;
+	char key[32], value[32];
+	int i;
+
+	STAILQ_FOREACH(md, &pdinfo, pd_link) {
+		if (!testmd(md))
+			continue;
+		ram = (MEDIA_RAM_DISK_DEVICE_PATH *)efi_devpath_last_node(md->pd_devpath);
+		i = ram->Instance;
+		start = ((uint64_t)ram->StartingAddr[1] << 32) | ram->StartingAddr[0];
+		end = ((uint64_t)ram->EndingAddr[1] << 32) | ram->EndingAddr[0];
+		snprintf(key, sizeof(key), "hint.md.%d.physaddr", i);
+		snprintf(value, sizeof(value), "0x%016x", start);
+		setenv(key, value, 1);
+		snprintf(key, sizeof(key), "hint.md.%d.len", i);
+		snprintf(value, sizeof(value), "%d", end - start + 1);
+		setenv(key, value, 1);
+	}
+}

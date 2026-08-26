@@ -605,16 +605,13 @@ dmar_print_path(int busno, int depth, const ACPI_DMAR_PCI_PATH *path)
 int
 dmar_dev_depth(device_t child)
 {
-	devclass_t pci_class;
 	device_t bus, pcib;
 	int depth;
 
-	pci_class = devclass_find("pci");
 	for (depth = 1; ; depth++) {
 		bus = device_get_parent(child);
 		pcib = device_get_parent(bus);
-		if (device_get_devclass(device_get_parent(pcib)) !=
-		    pci_class)
+		if (!is_pci_device(pcib))
 			return (depth);
 		child = pcib;
 	}
@@ -623,19 +620,16 @@ dmar_dev_depth(device_t child)
 void
 dmar_dev_path(device_t child, int *busno, void *path1, int depth)
 {
-	devclass_t pci_class;
 	device_t bus, pcib;
 	ACPI_DMAR_PCI_PATH *path;
 
-	pci_class = devclass_find("pci");
 	path = path1;
 	for (depth--; depth != -1; depth--) {
 		path[depth].Device = pci_get_slot(child);
 		path[depth].Function = pci_get_function(child);
 		bus = device_get_parent(child);
 		pcib = device_get_parent(bus);
-		if (device_get_devclass(device_get_parent(pcib)) !=
-		    pci_class) {
+		if (!is_pci_device(pcib)) {
 			/* reached a host bridge */
 			*busno = pcib_get_bus(bus);
 			return;
@@ -765,8 +759,7 @@ dmar_find(device_t dev, bool verbose)
 	/*
 	 * This function can only handle PCI(e) devices.
 	 */
-	if (device_get_devclass(device_get_parent(dev)) !=
-	    devclass_find("pci"))
+	if (!is_pci_device(dev))
 		return (NULL);
 
 	dev_domain = pci_get_domain(dev);

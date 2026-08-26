@@ -23,7 +23,7 @@ SRCS+=	vmm.c			\
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm/io
-DPSRCS+=	assym.inc
+DPSRCS+=	assym.inc hyp_genassym.c hyp_assym.h
 
 # TODO: Add the new EL2 code
 SRCS+=	vmm_arm64.c \
@@ -47,12 +47,18 @@ CLEANFILES+=	vmm_nvhe_exception.o vmm_nvhe.o
 CLEANFILES+=	vmm_hyp_blob.elf.full
 CLEANFILES+=	vmm_hyp_blob.elf vmm_hyp_blob.bin
 
+hyp_assym.h:    hyp_genassym.o
+	sh ${SYSDIR}/kern/genassym.sh hyp_genassym.o > ${.TARGET}
+
+hyp_genassym.o: offset.inc
+	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon ${.IMPSRC}
+
 vmm_nvhe_exception.o: vmm_nvhe_exception.S vmm_hyp_exception.S
 	${CC} -c -x assembler-with-cpp -DLOCORE \
 	    ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} -o ${.TARGET} -fpie
 
 vmm_nvhe.o: vmm_nvhe.c vmm_hyp.c
-	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} \
+	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*:N-fstack-protector*} ${.IMPSRC} \
 	    -o ${.TARGET} -fpie
 
 vmm_hyp_blob.elf.full:	vmm_nvhe_exception.o vmm_nvhe.o
@@ -141,9 +147,6 @@ vmx_support.o:
 svm_support.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
-
-hyp_genassym.o: offset.inc
-	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon ${.IMPSRC}
 
 vmx_genassym.o: offset.inc
 	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon ${.IMPSRC}

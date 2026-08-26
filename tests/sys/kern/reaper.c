@@ -764,6 +764,7 @@ ATF_TC_BODY(reaper_pdfork, tc)
 	ATF_REQUIRE_EQ(pid, child);
 	r = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 	ATF_REQUIRE_EQ(r, 0);
+	close(pd);
 
 	r = procctl(P_PID, parent, PROC_REAP_STATUS, &st);
 	ATF_REQUIRE_EQ(r, 0);

@@ -132,8 +132,12 @@ FBSD_1.8 {
 };
 
 FBSD_1.9 {
+	bsearch_s;
 	memalignment;
 	recallocarray;
+	strfromd;
+	strfromf;
+	strfroml;
 	strtonumx;
 	tdestroy;
 };

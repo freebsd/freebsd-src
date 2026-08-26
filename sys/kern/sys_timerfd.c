@@ -118,6 +118,14 @@ timerfd_getboottime(struct timespec *ts)
 	TIMEVAL_TO_TIMESPEC(&tv, ts);
 }
 
+static void
+timerfd_wakeup(struct timerfd *tfd)
+{
+	wakeup(&tfd->tfd_count);
+	selwakeup(&tfd->tfd_sel);
+	KNOTE_LOCKED(&tfd->tfd_sel.si_note, 0);
+}
+
 /*
  * Call when a discontinuous jump has occured in CLOCK_REALTIME and
  * update timerfd's cached boottime. A jump can be triggered using
@@ -165,13 +173,15 @@ timerfd_jumped(void)
 				    &diff, &tfd->tfd_time.it_value);
 				if (callout_stop(&tfd->tfd_callout) == 1) {
 					callout_schedule_sbt(&tfd->tfd_callout,
-					    tstosbt(tfd->tfd_time.it_value),
+					    tstosbt_sat(tfd->tfd_time.it_value),
 					    0, C_ABSOLUTE);
 				}
 			}
 		}
 
 		tfd->tfd_boottim = boottime;
+		if ((tfd->tfd_jumped & TFD_JUMPED) != 0)
+			timerfd_wakeup(tfd);
 		mtx_unlock(&tfd->tfd_lock);
 	}
 	mtx_unlock(&timerfd_list_lock);
@@ -280,7 +290,7 @@ filt_timerfdread(struct knote *kn, long hint)
 
 	mtx_assert(&tfd->tfd_lock, MA_OWNED);
 	kn->kn_data = (int64_t)tfd->tfd_count;
-	return (tfd->tfd_count > 0);
+	return (tfd->tfd_count > 0 && tfd->tfd_jumped != TFD_READ);
 }
 
 static const struct filterops timerfd_rfiltops = {
@@ -393,32 +403,32 @@ static void
 timerfd_expire(void *arg)
 {
 	struct timerfd *tfd = (struct timerfd *)arg;
-	struct timespec uptime;
+	sbintime_t exp, interval, now, next, diff;
 
 	++tfd->tfd_count;
 	tfd->tfd_expired = true;
 	if (timespecisset(&tfd->tfd_time.it_interval)) {
+		exp = tstosbt_sat(tfd->tfd_time.it_value);
+		interval = tstosbt_sat(tfd->tfd_time.it_interval);
+		now = sbinuptime();
+		next = now > SBT_MAX - interval ? SBT_MAX : now + interval;
+
 		/* Count missed events. */
-		nanouptime(&uptime);
-		if (timespeccmp(&uptime, &tfd->tfd_time.it_value, >)) {
-			timespecsub(&uptime, &tfd->tfd_time.it_value, &uptime);
-			tfd->tfd_count += tstosbt(uptime) /
-			    tstosbt(tfd->tfd_time.it_interval);
+		if (now > exp) {
+			diff = now - exp;
+			tfd->tfd_count += diff / interval;
+			next -= diff % interval;
 		}
-		timespecadd(&tfd->tfd_time.it_value,
-		    &tfd->tfd_time.it_interval, &tfd->tfd_time.it_value);
-		callout_schedule_sbt(&tfd->tfd_callout,
-		    tstosbt(tfd->tfd_time.it_value),
-		    0, C_ABSOLUTE);
+
+		callout_schedule_sbt(&tfd->tfd_callout, next, 0, C_ABSOLUTE);
+		tfd->tfd_time.it_value = sbttots(next);
 	} else {
 		/* Single shot timer. */
 		callout_deactivate(&tfd->tfd_callout);
 		timespecclear(&tfd->tfd_time.it_value);
 	}
 
-	wakeup(&tfd->tfd_count);
-	selwakeup(&tfd->tfd_sel);
-	KNOTE_LOCKED(&tfd->tfd_sel.si_note, 0);
+	timerfd_wakeup(tfd);
 }
 
 int
@@ -486,7 +496,7 @@ kern_timerfd_gettime(struct thread *td, int fd, struct itimerspec *curr_value)
 	struct timerfd *tfd;
 	int error;
 
-	error = fget(td, fd, &cap_write_rights, &fp);
+	error = fget(td, fd, &cap_read_rights, &fp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_TIMERFD) {
@@ -551,7 +561,7 @@ kern_timerfd_settime(struct thread *td, int fd, int flags,
 			    &tfd->tfd_time.it_value);
 		}
 		callout_reset_sbt(&tfd->tfd_callout,
-		    tstosbt(tfd->tfd_time.it_value),
+		    tstosbt_sat(tfd->tfd_time.it_value),
 		    0, timerfd_expire, tfd, C_ABSOLUTE);
 	} else {
 		callout_stop(&tfd->tfd_callout);

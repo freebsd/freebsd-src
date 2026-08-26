@@ -28,9 +28,11 @@
  */
 
 #include "namespace.h"
+#include <sys/param.h>
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdckdint.h>
 #ifdef DEBUG
 #include <stdint.h>
 #endif
@@ -46,6 +48,7 @@
 struct wmemstream {
 	wchar_t **bufp;
 	size_t *sizep;
+	size_t size;
 	ssize_t len;
 	fpos_t offset;
 	mbstate_t mbstate;
@@ -55,26 +58,34 @@ static int
 wmemstream_grow(struct wmemstream *ms, fpos_t newoff)
 {
 	wchar_t *buf;
-	ssize_t newsize;
+	ssize_t newlen;
 
 	if (newoff < 0 || newoff >= SSIZE_MAX / sizeof(wchar_t))
-		newsize = SSIZE_MAX / sizeof(wchar_t) - 1;
+		newlen = SSIZE_MAX / sizeof(wchar_t) - 1;
 	else
-		newsize = newoff;
-	if (newsize > ms->len) {
+		newlen = newoff;
+	if (newlen > ms->size) {
+		size_t newsize;
+
+		if (ckd_add(&newsize, ms->size, ms->size / 2))
+			newsize = SSIZE_MAX - 1;
+
+		newsize = MAX(newsize, newlen);
+
 		buf = reallocarray(*ms->bufp, newsize + 1, sizeof(wchar_t));
-		if (buf != NULL) {
+		if (buf == NULL)
+			return (0);
 #ifdef DEBUG
-			fprintf(stderr, "WMS: %p growing from %zd to %zd\n",
-			    ms, ms->len, newsize);
+		fprintf(stderr, "WMS: %p growing from %zd to %zd\n",
+		    ms, ms->size, newsize);
 #endif
-			wmemset(buf + ms->len + 1, 0, newsize - ms->len);
-			*ms->bufp = buf;
-			ms->len = newsize;
-			return (1);
-		}
-		return (0);
+		wmemset(buf + ms->size + 1, 0, newsize - ms->size);
+		*ms->bufp = buf;
+		ms->size = newsize;
 	}
+
+	if (newlen > ms->len)
+		ms->len = newlen;
 	return (1);
 }
 
@@ -254,6 +265,7 @@ open_wmemstream(wchar_t **bufp, size_t *sizep)
 	}
 	ms->bufp = bufp;
 	ms->sizep = sizep;
+	ms->size = 0;
 	ms->len = 0;
 	ms->offset = 0;
 	memset(&ms->mbstate, 0, sizeof(mbstate_t));

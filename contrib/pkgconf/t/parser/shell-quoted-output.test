@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: quotes
+WantedFlags: cflags
+ExpectedStdout: -DQUOTED=\"bla\" -DA=\"escaped\ string\'\ literal\" -DB=\\1$ -DC=bla
+SkipPlatforms: windows

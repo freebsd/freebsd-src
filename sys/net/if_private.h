@@ -41,7 +41,7 @@ struct ifnet {
 	CK_STAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained (CK_) */
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	CK_STAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if (CK_) */
-					/* protected by if_addr_lock */
+					/* protected by ifnet_sxlock */
 	u_char	if_alloctype;		/* if_type at time of allocation */
 	uint8_t	if_numa_domain;		/* NUMA domain of device */
 	/* Driver and protocol specific information that remains stable. */

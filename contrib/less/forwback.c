@@ -19,8 +19,8 @@
 extern int less_is_more;
 
 public lbool squished;
-public int no_back_scroll = 0;
-public int forw_prompt;
+public lbool no_back_scroll = FALSE;
+public lbool forw_prompt;
 public lbool first_time = TRUE; /* We're printing the first screen of output */
 public int shell_lines = 1;
 /* soft_eof is set as end-of-file when a read attempt returns EOF. This can
@@ -39,8 +39,9 @@ extern int back_scroll;
 extern lbool ignore_eoi;
 extern int header_lines;
 extern int header_cols;
-extern int full_screen;
+extern lbool full_screen;
 extern int stop_on_form_feed;
+extern int past_eof;
 extern POSITION header_start_pos;
 extern lbool getting_one_screen;
 #if HILITE_SEARCH
@@ -140,7 +141,7 @@ static POSITION forw_line_pfx(POSITION pos, int pfx, int skipeol)
 	sc_width = pfx + line_pfx_width();
 	auto_wrap = 0;
 	hshift = 0;
-	pos = forw_line_seg(pos, skipeol, FALSE, FALSE, NULL, NULL);
+	pos = forw_line_seg(pos, skipeol, FALSE, FALSE, FALSE, TRUE, NULL, NULL);
 	sc_width = save_sc_width;
 	auto_wrap = save_auto_wrap;
 	hshift = save_hshift;
@@ -228,6 +229,8 @@ public void forw(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 
 	if (pos != NULL_POSITION)
 		pos = after_header_pos(pos);
+	if (past_eof)
+		force = TRUE;
 	squish_check();
 
 	/*
@@ -243,7 +246,7 @@ public void forw(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 		(forw_scroll >= 0 && n > forw_scroll && n != sc_height-1);
 	if (!do_repaint)
 	{
-		if (top_scroll && n >= sc_height - 1 && pos != ch_length())
+		if (top_scroll && n >= sc_height - 1 && pos != NULL_POSITION && pos != ch_length())
 		{
 			/*
 			 * Start a new screen.
@@ -305,18 +308,25 @@ public void forw(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 				/*
 				 * End of file: stop here unless the top line 
 				 * is still empty, or "force" is true.
-				 * Even if force is true, stop when the last
-				 * line in the file reaches the top of screen.
 				 */
 				soft_eof = opos;
-				linepos = opos;
-				if (ABORT_SIGS() ||
-				   (!force && position(TOP) != NULL_POSITION) ||
-				   (!empty_lines(0, 0) && !empty_lines(1, 1) && empty_lines(2, sc_height-1)))
+				linepos = (opos == ch_zero()) ? NULL_POSITION : opos;
+				if (ABORT_SIGS() || !force)
 				{
 					pos = opos;
 					break;
 				}
+				/*
+				 * Even if force is true, stop when the last
+				 * line in the file reaches the top of screen.
+				 * Check for 3 non-empty lines at top of screen.
+				 * The first will be shifted away by the add_forw_pos()
+				 * after this loop; the other two are the start and end of
+				 * the single line that we want to retain at top of screen.
+				 */
+				if (!first_line && sc_height >= 3 && empty_lines(3, sc_height-1) &&
+				    !empty_lines(0, 0) && !empty_lines(1, 1) && !empty_lines(2, 2))
+					break;
 			}
 		}
 		/*
@@ -358,7 +368,7 @@ public void forw(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 		put_line(TRUE);
 		if (do_stop_on_form_feed && !do_repaint && line_is_ff() && position(TOP) != NULL_POSITION)
 			break;
-		forw_prompt = 1;
+		forw_prompt = TRUE;
 	}
 	if (!first_line)
 		add_forw_pos(pos, FALSE);
@@ -385,6 +395,8 @@ public void back(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 	lbool newline;
 
 	squish_check();
+	if (past_eof)
+		force = TRUE;
 	do_repaint = (n > get_back_scroll() || (only_last && n > sc_height-1) || header_lines > 0);
 
 	while (--n >= 0)
@@ -400,7 +412,18 @@ public void back(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 			/*
 			 * Beginning of file: stop here unless "force" is true.
 			 */
-			if (!force)
+			if (ABORT_SIGS() || !force)
+				break;
+			/*
+			 * Even if force is true, stop when the first
+			 * line in the file reaches the bottom of the screen.
+			 * Check for 2 non-empty lines at bottom of screen.
+			 * These are the start and end of the single line that
+			 * we want to retain at bottom of screen.
+			 */
+			if (sc_height >= 3 && empty_lines(0, sc_height-3) &&
+			    !empty_lines(sc_height-1, sc_height-1) &&
+			    !empty_lines(sc_height-2, sc_height-2))
 				break;
 		}
 		if (pos != after_header_pos(pos))
@@ -456,6 +479,8 @@ public void forward(int n, lbool force, lbool only_last, lbool to_newline)
 		return;
 	}
 
+	if (past_eof)
+		force = TRUE;
 	pos = position(BOTTOM_PLUS_ONE);
 	if (pos == NULL_POSITION && (!force || empty_lines(2, sc_height-1)))
 	{
@@ -493,6 +518,8 @@ public void backward(int n, lbool force, lbool only_last, lbool to_newline)
 {
 	POSITION pos;
 
+	if (past_eof)
+		force = TRUE;
 	pos = position(TOP);
 	if (pos == NULL_POSITION && (!force || position(BOTTOM) == 0))
 	{

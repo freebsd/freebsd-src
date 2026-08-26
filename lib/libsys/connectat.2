@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 13, 2013
+.Dd July 25, 2026
 .Dt CONNECTAT 2
 .Os
 .Sh NAME
@@ -66,6 +66,48 @@ If the file path stored in the
 field of the sockaddr_un structure is a relative path, it is located relative
 to the directory associated with the file descriptor
 .Fa fd .
+.Pp
+.It
+If the
+.Fa sun_path
+field is empty, that is,
+.Fa namelen
+equals
+.Li offsetof(struct sockaddr_un, sun_path) ,
+then
+.Fa fd
+does not resolve a path but instead names the peer socket directly.
+.Pp
+The descriptor may be the peer socket itself, or a descriptor for a file, such
+as an
+.Dv O_PATH
+handle opened with
+.Xr open 2 .
+In the latter case, the
+.Dv O_PATH
+file description may point either to a traditional socket file bound to the
+peer, or to a
+.Pa /dev/fd/N
+node.
+The
+.Pa /dev/fd/N
+node must name the socket descriptor itself; the named descriptor is resolved a
+single level and not chased further.
+With a standard
+.Xr fdescfs 5
+mount this means a node naming a traditional socket file, or another
+.Pa /dev/fd/N
+node, does not resolve to a peer.
+.Pp
+In all cases,
+.Fa fd
+must carry the
+.Dv CAP_CONNECTAT
+capability right, and the target of a
+.Pa /dev/fd/N
+node must also carry that right; see
+.Xr unix 4
+for the details of this form.
 .El
 .Sh RETURN VALUES
 .Rv -std connectat
@@ -92,6 +134,14 @@ field is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er EINVAL
+The
+.Fa sun_path
+field is empty but
+.Fa fd
+is
+.Dv AT_FDCWD ,
+so no descriptor names the peer.
 .El
 .Sh SEE ALSO
 .Xr bindat 2 ,

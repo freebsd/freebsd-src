@@ -1,17 +1,18 @@
+.include <src.opts.mk>
+
+.include "${SRCTOP}/lib/libarchive/Makefile.inc"
+
 PACKAGE=	tests
 
 WARNS?=		3
-
-_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
 BINDIR=		${TESTSDIR}
 
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
-CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/tar/test
+CFLAGS+=	-I${.OBJDIR}
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar/test
 CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
 
 CFLAGS.test_utils.c+=	-Wno-cast-align
@@ -80,6 +81,7 @@ TESTS_SRCS=	\
 	test_option_r.c				\
 	test_option_s.c				\
 	test_option_safe_writes.c		\
+	test_option_stdout_size_exceeds_declared.c	\
 	test_option_uid_uname.c			\
 	test_option_uuencode.c			\
 	test_option_xattrs.c			\
@@ -126,6 +128,8 @@ ${PACKAGE}FILES+=	test_list_item.tar.uu
 ${PACKAGE}FILES+=	test_option_keep_newer_files.tar.Z.uu
 ${PACKAGE}FILES+=	test_option_passphrase.zip.uu
 ${PACKAGE}FILES+=	test_option_s.tar.Z.uu
+${PACKAGE}FILES+=	test_option_stdout_size_exceeds_declared_deflate.zip.uu
+${PACKAGE}FILES+=	test_option_stdout_size_exceeds_declared_stored.zip.uu
 ${PACKAGE}FILES+=	test_patterns_2.tar.uu
 ${PACKAGE}FILES+=	test_patterns_3.tar.uu
 ${PACKAGE}FILES+=	test_patterns_4.tar.uu

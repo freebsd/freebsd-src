@@ -129,7 +129,7 @@ typedef struct {
 #define _FUNCNAME(m)			_citrus_ISO2022_##m
 #define _ENCODING_INFO			_ISO2022EncodingInfo
 #define _ENCODING_STATE			_ISO2022State
-#define _ENCODING_MB_CUR_MAX(_ei_)	MB_LEN_MAX
+#define _ENCODING_MB_CUR_MAX(_ei_)	10
 #define _ENCODING_IS_STATE_DEPENDENT	1
 #define _STATE_NEEDS_EXPLICIT_INIT(_ps_)	\
     (!((_ps_)->flags & _ISO2022STATE_FLAG_INITIALIZED))
@@ -1012,7 +1012,7 @@ _ISO2022_sputwchar(_ISO2022EncodingInfo * __restrict ei, wchar_t wc,
 {
 	_ISO2022Charset cs;
 	char *p;
-	char tmp[MB_LEN_MAX];
+	char tmp[10];
 	size_t len;
 	int bit8, i = 0, target;
 	unsigned char mask;
@@ -1177,7 +1177,7 @@ _citrus_ISO2022_put_state_reset(_ISO2022EncodingInfo * __restrict ei,
     size_t * __restrict nresult)
 {
 	char *result;
-	char buf[MB_LEN_MAX];
+	char buf[10];
 	size_t len;
 	int ret;
 
@@ -1206,7 +1206,7 @@ _citrus_ISO2022_wcrtomb_priv(_ISO2022EncodingInfo * __restrict ei,
     _ISO2022State * __restrict psenc, size_t * __restrict nresult)
 {
 	char *result;
-	char buf[MB_LEN_MAX];
+	char buf[10];
 	size_t len;
 	int ret;
 

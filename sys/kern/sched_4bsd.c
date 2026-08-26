@@ -70,16 +70,12 @@
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
  */
-#ifdef SMP
-#define	INVERSE_ESTCPU_WEIGHT	(8 * smp_cpus)
-#else
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
-#endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 #define	ESTCPULIM(e)							\
 	min((e), INVERSE_ESTCPU_WEIGHT *				\
-	    (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) +			\
-	    PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)			\
+	    (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE -			\
+	    (PRIO_MAX - PRIO_MIN) * NICE_WEIGHT)			\
 	    + INVERSE_ESTCPU_WEIGHT - 1)
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
@@ -97,7 +93,7 @@ struct td_sched {
 	int		ts_slptime;	/* Seconds !RUNNING. */
 	int		ts_slice;	/* Remaining part of time slice. */
 	int		ts_flags;
-	struct runq	*ts_runq;	/* runq the thread is currently on */
+	int		ts_rqcpu;	/* That CPU's runq or NOCPU => global */
 #ifdef KTR
 	char		ts_name[TS_NAME_LEN];
 #endif
@@ -113,8 +109,12 @@ struct td_sched {
 /* flags kept in ts_flags */
 #define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
 
-#define SKE_RUNQ_PCPU(ts)						\
-    ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
+#ifdef SMP
+#define TS_RUNQ_PTR(ts)	((ts)->ts_rqcpu == NOCPU ?	\
+		(&runq_global) : (DPCPU_ID_PTR((ts)->ts_rqcpu, runq_pcpu)))
+#else
+#define TS_RUNQ_PTR(ts)	(&runq_global)
+#endif
 
 #define	THREAD_CAN_SCHED(td, cpu)	\
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
@@ -158,14 +158,14 @@ sched_4bsd_schedcpu(void)
 /*
  * Global run queue.
  */
-static struct runq runq;
+static struct runq runq_global;
 
 #ifdef SMP
 /*
  * Per-CPU run queues
  */
-static struct runq runq_pcpu[MAXCPU];
-long runq_length[MAXCPU];
+DPCPU_DEFINE_STATIC(struct runq, runq_pcpu);
+DPCPU_DEFINE_STATIC(long, runq_length);
 
 static cpuset_t idle_cpus_mask;
 #endif
@@ -180,13 +180,13 @@ static void
 setup_runqs(void)
 {
 #ifdef SMP
-	int i;
+	int cpu;
 
-	for (i = 0; i < MAXCPU; ++i)
-		runq_init(&runq_pcpu[i]);
+	CPU_FOREACH(cpu)
+		runq_init(DPCPU_ID_PTR(cpu, runq_pcpu));
 #endif
 
-	runq_init(&runq);
+	runq_init(&runq_global);
 }
 
 static int
@@ -596,11 +596,13 @@ resetpriority(struct thread *td)
 
 	if (td->td_pri_class != PRI_TIMESHARE)
 		return;
-	newpriority = PUSER +
+	newpriority = PRI_MIN_TIMESHARE +
 	    td_get_sched(td)->ts_estcpu / INVERSE_ESTCPU_WEIGHT +
 	    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
-	newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
-	    PRI_MAX_TIMESHARE);
+	KASSERT(PRI_MIN_TIMESHARE <= newpriority &&
+	    newpriority <= PRI_MAX_TIMESHARE,
+	    ("Out-of-bounds priority, probably 'ts_estcpu' not clamped "
+	    "correctly, see ESTCPULIM()"));
 	sched_user_prio(td, newpriority);
 }
 
@@ -684,10 +686,10 @@ static bool
 sched_4bsd_runnable(void)
 {
 #ifdef SMP
-	return (runq_not_empty(&runq) ||
-	    runq_not_empty(&runq_pcpu[PCPU_GET(cpuid)]));
+	return (runq_not_empty(&runq_global) ||
+	    runq_not_empty(DPCPU_PTR(runq_pcpu)));
 #else
-	return (runq_not_empty(&runq));
+	return (runq_not_empty(&runq_global));
 #endif
 }
 
@@ -1187,7 +1189,6 @@ forward_wakeup(int cpunum)
 
 	CPU_SETOF(me, &dontuse);
 	CPU_OR(&dontuse, &dontuse, &stopped_cpus);
-	CPU_OR(&dontuse, &dontuse, &hlt_cpus_mask);
 	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
@@ -1294,7 +1295,7 @@ sched_pickcpu(struct thread *td)
 
 		if (best == NOCPU)
 			best = cpu;
-		else if (runq_length[cpu] < runq_length[best])
+		else if (DPCPU_ID_GET(cpu, runq_length) < DPCPU_ID_GET(best, runq_length))
 			best = cpu;
 	}
 	KASSERT(best != NOCPU, ("no valid CPUs"));
@@ -1358,13 +1359,13 @@ sched_4bsd_add(struct thread *td, int flags)
 			cpu = td->td_lastcpu;
 		else if (td->td_flags & TDF_BOUND) {
 			/* Find CPU from bound runq. */
-			KASSERT(SKE_RUNQ_PCPU(ts),
+			KASSERT(ts->ts_rqcpu != NOCPU,
 			    ("sched_add: bound td_sched not on cpu runq"));
-			cpu = ts->ts_runq - &runq_pcpu[0];
+			cpu = ts->ts_rqcpu;
 		} else
 			/* Find a valid CPU for our cpuset */
 			cpu = sched_pickcpu(td);
-		ts->ts_runq = &runq_pcpu[cpu];
+		ts->ts_rqcpu = cpu;
 		single_cpu = 1;
 		CTR3(KTR_RUNQ,
 		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
@@ -1374,14 +1375,14 @@ sched_4bsd_add(struct thread *td, int flags)
 		    "sched_add: adding td_sched:%p (td:%p) to gbl runq", ts,
 		    td);
 		cpu = NOCPU;
-		ts->ts_runq = &runq;
+		ts->ts_rqcpu = NOCPU;
 	}
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
-	runq_add(ts->ts_runq, td, flags);
+	runq_add(TS_RUNQ_PTR(ts), td, flags);
 	if (cpu != NOCPU)
-		runq_length[cpu]++;
+		(*DPCPU_ID_PTR(cpu, runq_length))++;
 
 	cpuid = PCPU_GET(cpuid);
 	if (single_cpu && cpu != cpuid) {
@@ -1389,7 +1390,6 @@ sched_4bsd_add(struct thread *td, int flags)
 	} else {
 		if (!single_cpu) {
 			tidlemsk = idle_cpus_mask;
-			CPU_ANDNOT(&tidlemsk, &tidlemsk, &hlt_cpus_mask);
 			CPU_CLR(cpuid, &tidlemsk);
 
 			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
@@ -1439,11 +1439,11 @@ sched_4bsd_add(struct thread *td, int flags)
 	}
 	TD_SET_RUNQ(td);
 	CTR2(KTR_RUNQ, "sched_add: adding td_sched:%p (td:%p) to runq", ts, td);
-	ts->ts_runq = &runq;
+	ts->ts_rqcpu = NOCPU;
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
-	runq_add(ts->ts_runq, td, flags);
+	runq_add(TS_RUNQ_PTR(ts), td, flags);
 	if (!maybe_preempt(td))
 		maybe_resched(td);
 	if ((flags & SRQ_HOLDTD) == 0)
@@ -1470,10 +1470,10 @@ sched_4bsd_rem(struct thread *td)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 #ifdef SMP
-	if (ts->ts_runq != &runq)
-		runq_length[ts->ts_runq - runq_pcpu]--;
+	if (ts->ts_rqcpu != NOCPU)
+		(*DPCPU_ID_PTR(ts->ts_rqcpu, runq_length))--;
 #endif
-	runq_remove(ts->ts_runq, td);
+	runq_remove(TS_RUNQ_PTR(ts), td);
 	TD_SET_CAN_RUN(td);
 }
 
@@ -1485,15 +1485,15 @@ static struct thread *
 sched_4bsd_choose(void)
 {
 	struct thread *td;
-	struct runq *rq;
+	struct runq *runq;
 
 	mtx_assert(&sched_lock,  MA_OWNED);
 #ifdef SMP
 	struct thread *tdcpu;
 
-	rq = &runq;
-	td = runq_choose_fuzz(&runq, runq_fuzz);
-	tdcpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
+	runq = &runq_global;
+	td = runq_choose_fuzz(&runq_global, runq_fuzz);
+	tdcpu = runq_choose(DPCPU_PTR(runq_pcpu));
 
 	if (td == NULL ||
 	    (tdcpu != NULL &&
@@ -1501,22 +1501,22 @@ sched_4bsd_choose(void)
 		CTR2(KTR_RUNQ, "choosing td %p from pcpu runq %d", tdcpu,
 		     PCPU_GET(cpuid));
 		td = tdcpu;
-		rq = &runq_pcpu[PCPU_GET(cpuid)];
+		runq = DPCPU_PTR(runq_pcpu);
 	} else {
 		CTR1(KTR_RUNQ, "choosing td_sched %p from main runq", td);
 	}
 
 #else
-	rq = &runq;
-	td = runq_choose(&runq);
+	runq = &runq_global;
+	td = runq_choose(&runq_global);
 #endif
 
 	if (td) {
 #ifdef SMP
 		if (td == tdcpu)
-			runq_length[PCPU_GET(cpuid)]--;
+			(*DPCPU_PTR(runq_length))--;
 #endif
-		runq_remove(rq, td);
+		runq_remove(runq, td);
 		td->td_flags |= TDF_DIDRUN;
 
 		KASSERT(td->td_flags & TDF_INMEM,
@@ -1565,7 +1565,7 @@ sched_4bsd_bind(struct thread *td, int cpu)
 
 	td->td_flags |= TDF_BOUND;
 #ifdef SMP
-	ts->ts_runq = &runq_pcpu[cpu];
+	ts->ts_rqcpu = cpu;
 	if (PCPU_GET(cpuid) == cpu)
 		return;
 
@@ -1798,8 +1798,7 @@ sched_4bsd_affinity(struct thread *td)
 		 * If we are on a per-CPU runqueue that is in the set,
 		 * then nothing needs to be done.
 		 */
-		if (ts->ts_runq != &runq &&
-		    THREAD_CAN_SCHED(td, ts->ts_runq - runq_pcpu))
+		if (ts->ts_rqcpu != NOCPU && THREAD_CAN_SCHED(td, ts->ts_rqcpu))
 			return;
 
 		/* Put this thread on a valid per-CPU runqueue. */
@@ -1821,27 +1820,6 @@ sched_4bsd_affinity(struct thread *td)
 	default:
 		break;
 	}
-#endif
-}
-
-static bool
-sched_4bsd_do_timer_accounting(void)
-{
-#ifdef SMP
-	/*
-	 * Don't do any accounting for the disabled HTT cores, since it
-	 * will provide misleading numbers for the userland.
-	 *
-	 * No locking is necessary here, since even if we lose the race
-	 * when hlt_cpus_mask changes it is not a big deal, really.
-	 *
-	 * Don't do that for ULE, since ULE doesn't consider hlt_cpus_mask
-	 * and unlike other schedulers it actually schedules threads to
-	 * those CPUs.
-	 */
-	return (!CPU_ISSET(PCPU_GET(cpuid), &hlt_cpus_mask));
-#else
-	return (true);
 #endif
 }
 
@@ -1893,7 +1871,6 @@ struct sched_instance sched_4bsd_instance = {
 	SLOT(sizeof_thread),
 	SLOT(tdname),
 	SLOT(clear_tdname),
-	SLOT(do_timer_accounting),
 	SLOT(find_l2_neighbor),
 	SLOT(init),
 	SLOT(init_ap),

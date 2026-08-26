@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.182 2024/03/26 18:02:04 christos Exp $	*/
+/*	$NetBSD: readline.c,v 1.184 2026/01/09 17:49:12 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.182 2024/03/26 18:02:04 christos Exp $");
+__RCSID("$NetBSD: readline.c,v 1.184 2026/01/09 17:49:12 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -55,6 +55,7 @@ __RCSID("$NetBSD: readline.c,v 1.182 2024/03/26 18:02:04 christos Exp $");
 #include "readline/readline.h"
 #undef completion_matches
 #include "el.h"
+#include "emacs.h"
 #include "fcns.h"
 #include "filecomplete.h"
 
@@ -1922,7 +1923,7 @@ username_completion_function(const char *text, int state)
 static unsigned char
 _el_rl_tstp(EditLine *el __attribute__((__unused__)), int ch __attribute__((__unused__)))
 {
-	(void)kill(0, SIGTSTP);
+	(void)raise(SIGTSTP);
 	return CC_NORM;
 }
 
@@ -2486,6 +2487,15 @@ history_get_history_state(void)
 		return NULL;
 	hs->length = history_length;
 	return hs;
+}
+
+int
+/*ARGSUSED*/
+rl_kill_full_line(int count __attribute__((__unused__)),
+    int key __attribute__((__unused__)))
+{
+	em_kill_line(e, 0);
+	return 0;
 }
 
 int

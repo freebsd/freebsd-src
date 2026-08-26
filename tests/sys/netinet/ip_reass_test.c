@@ -55,24 +55,28 @@ struct lopacket {
 	char		payload[];
 };
 
+static uint16_t
+in_cksum(void *data, size_t len)
+{
+	uint16_t *cksump;
+	size_t i;
+	uint32_t cksum;
+
+	ATF_REQUIRE(len % 2 == 0);
+	cksump = (uint16_t *)data;
+	cksum = 0;
+	for (i = 0; i < len / sizeof(uint16_t); i++)
+		cksum += *cksump++;
+	while ((cksum >> 16) != 0)
+		cksum = (cksum & 0xffff) + (cksum >> 16);
+	return ((uint16_t)~cksum);
+}
+
 static void
 update_cksum(struct ip *ip)
 {
-	size_t i;
-	uint32_t cksum;
-	uint8_t  *cksump;
-	uint16_t tmp;
-
 	ip->ip_sum = 0;
-	cksump = (char *)ip;
-	for (cksum = 0, i = 0; i < sizeof(*ip) / sizeof(uint16_t); i++) {
-		tmp = *cksump++;
-		tmp = tmp << 8 | *cksump++;
-		cksum += ntohs(tmp);
-	}
-	cksum = (cksum >> 16) + (cksum & 0xffff);
-	cksum = ~(cksum + (cksum >> 16));
-	ip->ip_sum = htons((uint16_t)cksum);
+	ip->ip_sum = in_cksum(ip, sizeof(struct ip));
 }
 
 static struct lopacket *

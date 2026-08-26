@@ -54,6 +54,15 @@
 /** PROXYv2 version (protocol value) */
 #define PP2_VERSION 0x2
 
+/** PROXYv2 minimum header.len value for TCP/UDP over IPv4 */
+#define PP2_HEADER_LEN_INET 12
+
+/** PROXYv2 minimum header.len value for TCP/UDP over IPv6 */
+#define PP2_HEADER_LEN_INET6 36
+
+/** PROXYv2 minimum header.len value for TCP/UDP over AF_UNIX */
+#define PP2_HEADER_LEN_UNIX 216
+
 /**
  * PROXYv2 command (protocol value).
  */

@@ -66,6 +66,10 @@
 #include <sys/vnode.h>
 #include <vm/uma.h>
 
+#include <netinet/in.h>
+#include <net/radix.h>
+#include <sys/netexport.h>
+
 #include <geom/geom.h>
 
 #include <security/audit/audit.h>
@@ -77,6 +81,7 @@ static int	vfs_domount(struct thread *td, const char *fstype, char *fspath,
 		    uint64_t fsflags, bool only_export, bool jail_export,
 		    struct vfsoptlist **optlist);
 static void	free_mntarg(struct mntarg *ma);
+static void	pnfsd_waitreplenish(struct mount *mp);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -500,7 +505,7 @@ vfs_ref_from_vp(struct vnode *vp)
 	if (__predict_false(mp == NULL)) {
 		return (mp);
 	}
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		if (__predict_true(mp == vp->v_mount)) {
 			vfs_mp_count_add_pcpu(mpcpu, ref, 1);
 			vfs_op_thread_exit(mp, mpcpu);
@@ -527,7 +532,7 @@ vfs_ref(struct mount *mp)
 	struct mount_pcpu *mpcpu;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		vfs_mp_count_add_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return;
@@ -645,7 +650,7 @@ vfs_rel(struct mount *mp)
 	struct mount_pcpu *mpcpu;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	if (vfs_op_thread_enter(mp, mpcpu)) {
+	if (vfs_op_thread_enter(mp, &mpcpu)) {
 		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
 		vfs_op_thread_exit(mp, mpcpu);
 		return;
@@ -765,7 +770,7 @@ vfs_mount_destroy(struct mount *mp)
 	}
 	if (mp->mnt_export != NULL) {
 		vfs_free_addrlist(mp->mnt_export);
-		free(mp->mnt_export, M_MOUNT);
+		vfs_netexport_release(mp->mnt_export);
 	}
 	vfsconf_lock();
 	mp->mnt_vfc->vfc_refcount--;
@@ -1152,6 +1157,17 @@ vfs_domount_first(
 	error = VOP_GETATTR(vp, &va, td->td_ucred);
 	if (error == 0 && va.va_uid != td->td_ucred->cr_uid)
 		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN);
+#ifdef MAC
+	/*
+	 * XXX XNU also has a check_mount_late variant, which takes the
+	 * struct mount instead and gives MAC visibility into, e.g.,
+	 * f_mntfromname and other facts.
+	 */
+	if (error == 0) {
+		error = mac_mount_check_mount(td->td_ucred, vp, vfsp,
+		    optlist, fsflags);
+	}
+#endif
 	if (error == 0)
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (vfsp->vfc_flags & VFCF_FILEMOUNT) {
@@ -1281,7 +1297,8 @@ vfs_domount_first(
 	 * Use vn_lock_pair to avoid establishing an ordering between vnodes
 	 * from different filesystems.
 	 */
-	vn_lock_pair(vp, false, LK_EXCLUSIVE, newdp, false, LK_EXCLUSIVE);
+	error1 = vn_lock_pair(vp, false, LK_EXCLUSIVE, newdp, false,
+	    LK_EXCLUSIVE);
 
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
@@ -1291,7 +1308,10 @@ vfs_domount_first(
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
-	VOP_UNLOCK(vp);
+	if (error1 == 0)
+		VOP_UNLOCK(vp);
+	else
+		MPASS(error1 == EDEADLK);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp);
 	mount_devctl_event("MOUNT", mp, false);
@@ -1371,6 +1391,12 @@ vfs_domount_update(
 		error = 0;
 		vfs_suser_failed = true;
 	}
+#ifdef MAC
+	if (error == 0) {
+		error = mac_mount_check_update(td->td_ucred, mp, optlist,
+		    fsflags);
+	}
+#endif
 	if (error != 0) {
 		vput(vp);
 		return (error);
@@ -1750,7 +1776,6 @@ kern_unmount(struct thread *td, const char *path, uint64_t flags)
 		if (error)
 			return (error);
 	}
-
 	if (flags & MNT_BYFSID) {
 		fsidbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 		error = copyinstr(path, fsidbuf, MNAMELEN, NULL);
@@ -1818,6 +1843,13 @@ kern_unmount(struct thread *td, const char *path, uint64_t flags)
 		vfs_rel(mp);
 		return (EINVAL);
 	}
+#ifdef MAC
+	error = mac_mount_check_unmount(td->td_ucred, mp, flags);
+	if (error != 0) {
+		vfs_rel(mp);
+		return (error);
+	}
+#endif
 	error = dounmount(mp, flags, td);
 	return (error);
 }
@@ -1848,7 +1880,8 @@ vfs_check_usecounts(struct mount *mp)
 }
 
 static void
-dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
+dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags,
+    bool disablerec)
 {
 
 	mtx_assert(MNT_MTX(mp), MA_OWNED);
@@ -1860,6 +1893,8 @@ dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
 	vfs_op_exit_locked(mp);
 	MNT_IUNLOCK(mp);
 	if (coveredvp != NULL) {
+		if (disablerec)
+			VN_LOCK_DREC(coveredvp);
 		VOP_UNLOCK(coveredvp);
 		vdrop(coveredvp);
 	}
@@ -2161,6 +2196,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	uint64_t async_flag;
 	int mnt_gen_r;
 	unsigned int retries;
+	bool coveredrec;
 
 	KASSERT((flags & MNT_DEFERRED) == 0 ||
 	    (flags & (MNT_RECURSE | MNT_FORCE)) == (MNT_RECURSE | MNT_FORCE),
@@ -2269,6 +2305,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	if ((flags & MNT_DEFERRED) != 0)
 		vfs_ref(mp);
 
+	coveredrec = false;
 	if ((coveredvp = mp->mnt_vnodecovered) != NULL) {
 		mnt_gen_r = mp->mnt_gen;
 		VI_LOCK(coveredvp);
@@ -2285,6 +2322,20 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 			vfs_rel(mp);
 			return (EBUSY);
 		}
+
+		/*
+		 * For stacked filesystems such as nullfs and unionfs,
+		 * it is possible for the covered vnode lock for the
+		 * mount to be shared with one of the vnodes belonging
+		 * to the mount. At unmount time, vflush() will then
+		 * recurse on the covered vnode lock when reclaiming
+		 * the vnode.
+		 *
+		 * To work around it, temprorarily allow recursion for
+		 * the covered vnode lock.
+		 */
+		coveredrec = VN_LOCK_CANREC(coveredvp);
+		VN_LOCK_AREC(coveredvp);
 	}
 
 	vfs_op_enter(mp);
@@ -2294,7 +2345,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    (mp->mnt_flag & MNT_UPDATE) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
-		dounmount_cleanup(mp, coveredvp, 0);
+		dounmount_cleanup(mp, coveredvp, 0, !coveredrec);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
@@ -2307,7 +2358,8 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 		MNT_ILOCK(mp);
 		if (error != 0) {
 			vn_seqc_write_end(coveredvp);
-			dounmount_cleanup(mp, coveredvp, MNTK_UNMOUNT);
+			dounmount_cleanup(mp, coveredvp, MNTK_UNMOUNT,
+			    !coveredrec);
 			if (rootvp != NULL) {
 				vn_seqc_write_end(rootvp);
 				vrele(rootvp);
@@ -2359,6 +2411,10 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
+
+	/* Wait for any replenish kernel process to terminate. */
+	pnfsd_waitreplenish(mp);
+
 	vfs_deallocate_syncvnode(mp);
 	error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
@@ -2389,6 +2445,8 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 		MNT_IUNLOCK(mp);
 		if (coveredvp) {
 			vn_seqc_write_end(coveredvp);
+			if (!coveredrec)
+				VN_LOCK_DREC(coveredvp);
 			VOP_UNLOCK(coveredvp);
 			vdrop(coveredvp);
 		}
@@ -2409,6 +2467,8 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 		coveredvp->v_mountedhere = NULL;
 		vn_seqc_write_end_locked(coveredvp);
 		VI_UNLOCK(coveredvp);
+		if (!coveredrec)
+			VN_LOCK_DREC(coveredvp);
 		VOP_UNLOCK(coveredvp);
 		vdrop(coveredvp);
 	}
@@ -3212,4 +3272,29 @@ resume_all_fs(void)
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
+}
+
+static void
+pnfsd_waitreplenish(struct mount *mp)
+{
+	struct netexport *nep;
+
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL);
+	nep = mp->mnt_export;
+	if (nep != NULL) {
+		refcount_acquire(&nep->ne_ref);
+		lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+		MNTEXP_LOCK(nep);
+		if (nep->ne_pnfsnumfile != NULL &&
+		    nep->ne_pnfsnumfile != PNFSD_STOPPED) {
+			nep->ne_pnfsnumfile = PNFSD_STOP;
+			wakeup(&mp->mnt_export);
+			while (nep->ne_pnfsnumfile != PNFSD_STOPPED)
+				(void)msleep(&mp->mnt_explock, MNTEXP_MTX(nep),
+				    PVFS, "pnfsw", hz);
+		}
+		MNTEXP_UNLOCK(nep);
+		vfs_netexport_release(nep);
+	} else
+		lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
 }

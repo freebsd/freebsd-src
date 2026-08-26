@@ -28,6 +28,7 @@
 #ifdef LIBUSB_GLOBAL_INCLUDE_FILE
 #include LIBUSB_GLOBAL_INCLUDE_FILE
 #else
+#include <assert.h>
 #include <errno.h>
 #include <poll.h>
 #include <pthread.h>
@@ -472,6 +473,44 @@ done:
 
 /* Synchronous device I/O */
 
+static int
+libusb10_convert_libusb20_error(int err)
+{
+	/* LIBUSB20_ERROR_* values are always non-positive */
+	assert(err <= 0);
+
+	switch (err) {
+	case LIBUSB20_SUCCESS:
+		return (0);
+	case LIBUSB20_ERROR_IO:
+		return (LIBUSB_ERROR_IO);
+	case LIBUSB20_ERROR_INVALID_PARAM:
+		return (LIBUSB_ERROR_INVALID_PARAM);
+	case LIBUSB20_ERROR_ACCESS:
+		return (LIBUSB_ERROR_ACCESS);
+	case LIBUSB20_ERROR_NO_DEVICE:
+		return (LIBUSB_ERROR_NO_DEVICE);
+	case LIBUSB20_ERROR_NOT_FOUND:
+		return (LIBUSB_ERROR_NOT_FOUND);
+	case LIBUSB20_ERROR_BUSY:
+		return (LIBUSB_ERROR_BUSY);
+	case LIBUSB20_ERROR_TIMEOUT:
+		return (LIBUSB_ERROR_TIMEOUT);
+	case LIBUSB20_ERROR_OVERFLOW:
+		return (LIBUSB_ERROR_OVERFLOW);
+	case LIBUSB20_ERROR_PIPE:
+		return (LIBUSB_ERROR_PIPE);
+	case LIBUSB20_ERROR_INTERRUPTED:
+		return (LIBUSB_ERROR_INTERRUPTED);
+	case LIBUSB20_ERROR_NO_MEM:
+		return (LIBUSB_ERROR_NO_MEM);
+	case LIBUSB20_ERROR_NOT_SUPPORTED:
+		return (LIBUSB_ERROR_NOT_SUPPORTED);
+	default:
+		return (LIBUSB_ERROR_OTHER);
+	}
+}
+
 int
 libusb_control_transfer(libusb_device_handle *devh,
     uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex,
@@ -498,12 +537,8 @@ libusb_control_transfer(libusb_device_handle *devh,
 	err = libusb20_dev_request_sync(devh, &req, data,
 	    &actlen, timeout, 0);
 
-	if (err == LIBUSB20_ERROR_PIPE)
-		return (LIBUSB_ERROR_PIPE);
-	else if (err == LIBUSB20_ERROR_TIMEOUT)
-		return (LIBUSB_ERROR_TIMEOUT);
-	else if (err)
-		return (LIBUSB_ERROR_NO_DEVICE);
+	if (err)
+		return (libusb10_convert_libusb20_error(err));
 
 	return (actlen);
 }

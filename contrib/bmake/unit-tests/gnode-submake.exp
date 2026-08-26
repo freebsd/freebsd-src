@@ -1,11 +1,11 @@
-#*** Begin input graph for pass 1 in <curdir>:
-# all, unmade, type OP_DEPENDS, flags none
-# makeinfo, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
-# make-index, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
-# braces-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
-# braces-no-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
-# braces-no-dot-modifier, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
-# parentheses-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
-# parentheses-no-dot, unmade, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
-
+# .MAIN, made, type OP_DEPENDS|OP_PHONY, flags REMAKE|CHILDMADE|FORCE|DONE_WAIT|DONE_ALLSRC
+# all, made, type OP_DEPENDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|CHILDMADE|FORCE|DONE_WAIT|DONE_ALLSRC|DONECYCLE
+# makeinfo, made, type OP_DEPENDS|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# make-index, made, type OP_DEPENDS|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# braces-dot, made, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# braces-no-dot, made, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# braces-no-dot-modifier, made, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# parentheses-dot, made, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# parentheses-no-dot, made, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS|OP_DEPS_FOUND|OP_MARK, flags REMAKE|DONE_WAIT|DONE_ALLSRC|DONE_SUBMAKE
+# .END, unmade, type OP_SPECIAL, flags none
 exit status 0

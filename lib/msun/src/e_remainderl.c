@@ -27,6 +27,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 long double
 remainderl(long double x, long double y)
@@ -35,3 +36,7 @@ remainderl(long double x, long double y)
 
 	return (remquol(x, y, &quo));
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(remainderl, remainderf128);
+#endif

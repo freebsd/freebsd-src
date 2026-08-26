@@ -161,7 +161,6 @@ extern volatile cpuset_t started_cpus;	/* cpus to let out of stop pen */
 extern volatile cpuset_t stopped_cpus;	/* cpus in stop pen */
 extern volatile cpuset_t suspended_cpus; /* cpus [near] sleeping in susp pen */
 extern volatile cpuset_t toresume_cpus;	/* cpus to let out of suspend pen */
-extern cpuset_t hlt_cpus_mask;		/* XXX 'mask' is detail in old impl */
 extern cpuset_t logical_cpus_mask;
 #endif /* SMP */
 

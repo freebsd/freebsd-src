@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.98 2024/09/01 15:51:51 christos Exp $
+# $File: animation,v 1.101 2025/05/28 19:54:08 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -542,20 +542,23 @@
 >>2	byte&0xF0	!0xF0		MPEG ADTS, layer III, v1
 !:strength +20
 !:mime	audio/mpeg
->>>2	byte&0xF0	0x10		\b, 32 kbps
->>>2	byte&0xF0	0x20		\b, 40 kbps
->>>2	byte&0xF0	0x30		\b, 48 kbps
->>>2	byte&0xF0	0x40		\b, 56 kbps
->>>2	byte&0xF0	0x50		\b, 64 kbps
->>>2	byte&0xF0	0x60		\b, 80 kbps
->>>2	byte&0xF0	0x70		\b, 96 kbps
->>>2	byte&0xF0	0x80		\b, 112 kbps
->>>2	byte&0xF0	0x90		\b, 128 kbps
->>>2	byte&0xF0	0xA0		\b, 160 kbps
->>>2	byte&0xF0	0xB0		\b, 192 kbps
->>>2	byte&0xF0	0xC0		\b, 224 kbps
->>>2	byte&0xF0	0xD0		\b, 256 kbps
->>>2	byte&0xF0	0xE0		\b, 320 kbps
+>>>2	search/100	Xing		\b, variable bitrate
+>>>2	search/100	VBRI		\b, variable bitrate
+>>>2	default		x
+>>>>2	byte&0xF0	0x10		\b, 32 kbps
+>>>>2	byte&0xF0	0x20		\b, 40 kbps
+>>>>2	byte&0xF0	0x30		\b, 48 kbps
+>>>>2	byte&0xF0	0x40		\b, 56 kbps
+>>>>2	byte&0xF0	0x50		\b, 64 kbps
+>>>>2	byte&0xF0	0x60		\b, 80 kbps
+>>>>2	byte&0xF0	0x70		\b, 96 kbps
+>>>>2	byte&0xF0	0x80		\b, 112 kbps
+>>>>2	byte&0xF0	0x90		\b, 128 kbps
+>>>>2	byte&0xF0	0xA0		\b, 160 kbps
+>>>>2	byte&0xF0	0xB0		\b, 192 kbps
+>>>>2	byte&0xF0	0xC0		\b, 224 kbps
+>>>>2	byte&0xF0	0xD0		\b, 256 kbps
+>>>>2	byte&0xF0	0xE0		\b, 320 kbps
 # timing
 >>>2	byte&0x0C	0x00		\b, 44.1 kHz
 >>>2	byte&0x0C	0x04		\b, 48 kHz

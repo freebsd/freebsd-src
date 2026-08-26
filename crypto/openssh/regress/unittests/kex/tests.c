@@ -1,7 +1,11 @@
-/* 	$OpenBSD: tests.c,v 1.3 2023/03/06 12:15:47 dtucker Exp $ */
+/* 	$OpenBSD: tests.c,v 1.4 2025/04/15 04:00:42 djm Exp $ */
 /*
  * Placed in the public domain
  */
+
+#include "includes.h"
+
+#include <stdio.h>
 
 #include "../test_helper/test_helper.h"
 
@@ -15,4 +19,11 @@ tests(void)
 	kex_tests();
 	kex_proposal_tests();
 	kex_proposal_populate_tests();
+}
+
+void
+benchmarks(void)
+{
+	printf("\n");
+	kex_tests();
 }

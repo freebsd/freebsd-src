@@ -1391,9 +1391,10 @@ dpaa2_rc_ni_get_link_state(device_t dev, device_t child, struct dpaa2_cmd *cmd,
 {
 	struct __packed link_state_resp {
 		uint32_t	_reserved1;
-		uint32_t	flags;
+		uint8_t		flags;
+		uint8_t		_reserved2[3];
 		uint32_t	rate;
-		uint32_t	_reserved2;
+		uint32_t	_reserved3;
 		uint64_t	options;
 		uint64_t	supported;
 		uint64_t	advert;
@@ -1890,7 +1891,7 @@ dpaa2_rc_ni_get_statistics(device_t dev, device_t child, struct dpaa2_cmd *cmd,
 		uint16_t	param;
 	} *args;
 	struct __packed get_statistics_resp {
-		uint64_t	cnt[7];
+		uint64_t	cnt[DPAA2_NI_STAT_COUNTERS_PER_PAGE];
 	} *resp;
 	struct dpaa2_mcp *portal = dpaa2_rc_select_portal(dev, child);
 	int error;
@@ -1907,7 +1908,7 @@ dpaa2_rc_ni_get_statistics(device_t dev, device_t child, struct dpaa2_cmd *cmd,
 	error = dpaa2_rc_exec_cmd(portal, cmd, CMDID_NI_GET_STATISTICS);
 	if (!error) {
 		resp = (struct get_statistics_resp *) &cmd->params[0];
-		for (int i = 0; i < DPAA2_NI_STAT_COUNTERS; i++)
+		for (int i = 0; i < DPAA2_NI_STAT_COUNTERS_PER_PAGE; i++)
 			cnt[i] = resp->cnt[i];
 	}
 

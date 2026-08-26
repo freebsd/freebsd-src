@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -20,6 +20,7 @@
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2025      Berkay Eren Ürün <berkay.ueruen@siemens.com>
+   Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -40,19 +41,21 @@
    DAMAGES OR  OTHER LIABILITY, WHETHER  IN AN  ACTION OF CONTRACT,  TORT OR
    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
    USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+   SPDX-License-Identifier: MIT
 */
 
 #if defined(NDEBUG)
 #  undef NDEBUG /* because test suite relies on assert(...) at the moment */
 #endif
 
+#include "expat_config.h"
+
 #include <math.h> /* NAN, INFINITY */
 #include <stdbool.h>
 #include <stdint.h> /* for SIZE_MAX */
 #include <string.h>
 #include <assert.h>
-
-#include "expat_config.h"
 
 #include "expat.h"
 #include "internal.h"
@@ -2136,8 +2139,7 @@ START_TEST(test_alloc_tracker_pointer_alignment) {
   XML_Parser parser = XML_ParserCreate(NULL);
 #if XML_GE == 1
   assert_true(sizeof(long long) >= sizeof(size_t)); // self-test
-  long long *const ptr
-      = (long long *)expat_malloc(parser, 4 * sizeof(long long), -1);
+  long long *const ptr = expat_malloc(parser, 4 * sizeof(long long), -1);
   ptr[0] = 0LL;
   ptr[1] = 1LL;
   ptr[2] = 2LL;

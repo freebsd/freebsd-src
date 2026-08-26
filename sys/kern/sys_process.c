@@ -31,28 +31,28 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/caprights.h>
+#include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/reg.h>
+#include <sys/rwlock.h>
+#include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/ptrace.h>
-#include <sys/rwlock.h>
-#include <sys/sx.h>
-#include <sys/malloc.h>
-#include <sys/signalvar.h>
-#include <sys/caprights.h>
-#include <sys/filedesc.h>
 
 #include <security/audit/audit.h>
 
@@ -108,7 +108,12 @@ proc_read_regs(struct thread *td, struct reg *regs)
 int
 proc_write_regs(struct thread *td, struct reg *regs)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_regs(td, regs));
 }
 
@@ -122,7 +127,12 @@ proc_read_dbregs(struct thread *td, struct dbreg *dbregs)
 int
 proc_write_dbregs(struct thread *td, struct dbreg *dbregs)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_dbregs(td, dbregs));
 }
 
@@ -140,7 +150,12 @@ proc_read_fpregs(struct thread *td, struct fpreg *fpregs)
 int
 proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_fpregs(td, fpregs));
 }
 
@@ -261,6 +276,10 @@ proc_write_regset(struct thread *td, int note, struct iovec *iov)
 	if (regset->set == NULL)
 		return (EINVAL);
 
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
+
 	p = td->td_proc;
 
 	/* Drop the proc lock while allocating the temp buffer */
@@ -293,7 +312,12 @@ proc_read_regs32(struct thread *td, struct reg32 *regs32)
 int
 proc_write_regs32(struct thread *td, struct reg32 *regs32)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_regs32(td, regs32));
 }
 
@@ -307,7 +331,12 @@ proc_read_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
 int
 proc_write_dbregs32(struct thread *td, struct dbreg32 *dbregs32)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_dbregs32(td, dbregs32));
 }
 
@@ -321,7 +350,12 @@ proc_read_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 int
 proc_write_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+	if (error != 0)
+		return (error);
 	return (set_fpregs32(td, fpregs32));
 }
 #endif
@@ -333,25 +367,94 @@ proc_sstep(struct thread *td)
 	return (ptrace_single_step(td));
 }
 
+static int
+proc_vmspace_check_access(struct thread *td, struct proc *p, int flags)
+{
+	PROC_ASSERT_HELD(p);
+	if ((flags & PRVM_CHECK_DEBUG) != 0)
+		return (p_candebug(td, p));
+	if ((flags & PRVM_CHECK_VISIBILITY) != 0)
+		return (p_cansee(td, p));
+	return (0);
+}
+
 int
-proc_rwmem(struct proc *p, struct uio *uio)
+proc_vmspace_ref(struct thread *td, struct proc *p, int flags,
+    struct vmspace **vmp)
+{
+	struct vmspace *vm;
+	int error;
+
+	MPASS((flags & ~(PRVM_BLOCK_EXEC | PRVM_CHECK_VISIBILITY |
+	    PRVM_CHECK_DEBUG)) == 0);
+	MPASS((flags & (PRVM_CHECK_VISIBILITY | PRVM_CHECK_DEBUG)) !=
+	    (PRVM_CHECK_VISIBILITY | PRVM_CHECK_DEBUG));
+
+	PROC_LOCK(p);
+	if (p != td->td_proc) {
+		PROC_ASSERT_HELD(p);
+
+		/*
+		 * Make sure that the vmspace doesn't switch out from
+		 * under us.
+		 */
+		if ((flags & PRVM_BLOCK_EXEC) != 0) {
+			for (;;) {
+				if (!execve_block(td, p)) {
+					PROC_LOCK(p);
+					continue;
+				}
+				error = proc_vmspace_check_access(td, p, flags);
+				if (error != 0) {
+					execve_unblock(td, p);
+					PROC_UNLOCK(p);
+					return (error);
+				}
+				break;
+			}
+		} else {
+			error = proc_vmspace_check_access(td, p, flags);
+			if (error != 0) {
+				PROC_UNLOCK(p);
+				return (error);
+			}
+		}
+	}
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL) {
+		if (p != td->td_proc && (flags & PRVM_BLOCK_EXEC) != 0)
+			execve_unblock(td, p);
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	PROC_UNLOCK(p);
+	*vmp = vm;
+	return (0);
+}
+
+void
+proc_vmspace_unref(struct thread *td, struct proc *p, int flags,
+    struct vmspace *vm)
+{
+	vmspace_free(vm);
+	if (p != td->td_proc && (flags & PRVM_BLOCK_EXEC) != 0) {
+		PROC_LOCK(p);
+		PROC_ASSERT_HELD(p);
+		execve_unblock(td, p);
+		PROC_UNLOCK(p);
+	}
+}
+
+static int
+vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 {
 	vm_map_t map;
 	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
+	ssize_t orig_resid;
 	int error, fault_flags, page_offset, writing;
 
-	/*
-	 * Make sure that the process' vmspace remains live.
-	 */
-	if (p != curproc)
-		PROC_ASSERT_HELD(p);
-	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
-
-	/*
-	 * The map we want...
-	 */
-	map = &p->p_vmspace->vm_map;
+	map = &vm->vm_map;
 
 	/*
 	 * If we are writing, then we request vm_fault() to create a private
@@ -362,9 +465,11 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
 
+	orig_resid = uio->uio_resid;
+
 	if (writing) {
-		error = priv_check_cred(p->p_ucred, PRIV_PROC_MEM_WRITE);
-		if (error)
+		error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
+		if (error != 0)
 			return (error);
 	}
 
@@ -422,17 +527,33 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		vm_page_unwire(m, PQ_ACTIVE);
 
 	} while (error == 0 && uio->uio_resid > 0);
+	return (uio->uio_resid == orig_resid ? error : 0);
+}
 
+int
+proc_rwmem(struct proc *p, struct uio *uio, int flags)
+{
+	struct vmspace *vm;
+	struct thread *td;
+	int error;
+
+	td = curthread;
+	error = proc_vmspace_ref(td, p, flags, &vm);
+	if (error != 0)
+		return (error);
+	error = vmspace_rwmem(vm, uio);
+	proc_vmspace_unref(td, p, flags, vm);
 	return (error);
 }
 
-static ssize_t
-proc_iop(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
+ssize_t
+vmspace_iop(struct thread *td, struct vmspace *vm, vm_offset_t va, void *buf,
     size_t len, enum uio_rw rw)
 {
 	struct iovec iov;
 	struct uio uio;
 	ssize_t slen;
+	int error;
 
 	MPASS(len < SSIZE_MAX);
 	slen = (ssize_t)len;
@@ -446,8 +567,8 @@ proc_iop(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = rw;
 	uio.uio_td = td;
-	proc_rwmem(p, &uio);
-	if (uio.uio_resid == slen)
+	error = vmspace_rwmem(vm, &uio);
+	if (error != 0 || uio.uio_resid == slen)
 		return (-1);
 	return (slen - uio.uio_resid);
 }
@@ -457,7 +578,7 @@ proc_readmem(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
     size_t len)
 {
 
-	return (proc_iop(td, p, va, buf, len, UIO_READ));
+	return (vmspace_iop(td, p->p_vmspace, va, buf, len, UIO_READ));
 }
 
 ssize_t
@@ -465,7 +586,7 @@ proc_writemem(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
     size_t len)
 {
 
-	return (proc_iop(td, p, va, buf, len, UIO_WRITE));
+	return (vmspace_iop(td, p->p_vmspace, va, buf, len, UIO_WRITE));
 }
 
 static int
@@ -613,6 +734,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		syscallarg_t args[nitems(td->td_sa.args)];
 		struct ptrace_sc_ret psr;
 		int ptevents;
+		struct ptrace_child *children;
 	} r;
 	syscallarg_t pscr_args[nitems(td->td_sa.args)];
 	void *addr;
@@ -631,6 +753,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_LWPINFO:
 	case PT_GET_SC_ARGS:
 	case PT_GET_SC_RET:
+		break;
+	case PT_SET_SC_RET:
+		if (uap->data != sizeof(r.psr))
+			error = EINVAL;
+		else
+			error = copyin(uap->addr, &r.psr, sizeof(r.psr));
 		break;
 	case PT_GETREGS:
 		bzero(&r.reg, sizeof(r.reg));
@@ -690,6 +818,14 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 			break;
 		r.sr.pscr_args = pscr_args;
 		break;
+	case PT_GET_CHILDREN:
+		if (uap->addr == NULL)
+			addr = NULL;
+		else if (uap->data < 0)
+			error = EINVAL;
+		else
+			addr = &r.children;
+		break;
 	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
@@ -697,11 +833,11 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		addr = uap->addr;
 		break;
 	}
-	if (error)
+	if (error != 0)
 		return (error);
 
 	error = kern_ptrace(td, uap->req, uap->pid, addr, uap->data);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	switch (uap->req) {
@@ -743,6 +879,13 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyout(&r.sr.pscr_ret, uap->addr +
 		    offsetof(struct ptrace_sc_remote, pscr_ret),
 		    sizeof(r.sr.pscr_ret));
+		break;
+	case PT_GET_CHILDREN:
+		if (uap->addr != NULL) {
+			error = copyout(r.children, uap->addr,
+			    td->td_retval[0] * sizeof(struct ptrace_child));
+			free(r.children, M_TEMP);
+		}
 		break;
 	}
 
@@ -797,7 +940,7 @@ ptrace_unsuspend(struct proc *p)
 }
 
 static int
-proc_can_ptrace(struct thread *td, struct proc *p)
+proc_can_ptrace1(struct thread *td, struct proc *p)
 {
 	int error;
 
@@ -805,10 +948,21 @@ proc_can_ptrace(struct thread *td, struct proc *p)
 
 	if ((p->p_flag & P_WEXIT) != 0)
 		return (ESRCH);
-
 	if ((error = p_cansee(td, p)) != 0)
 		return (error);
 	if ((error = p_candebug(td, p)) != 0)
+		return (error);
+	return (0);
+}
+
+static int
+proc_can_ptrace(struct thread *td, struct proc *p)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((error = proc_can_ptrace1(td, p)) != 0)
 		return (error);
 
 	/* not being traced... */
@@ -826,6 +980,64 @@ proc_can_ptrace(struct thread *td, struct proc *p)
 		return (EBUSY);
 
 	return (0);
+}
+
+static int
+ptrace_count_children(struct thread *td, struct proc *p, bool count_everything)
+{
+	struct proc *pp;
+	int error, num;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	num = 0;
+	LIST_FOREACH(pp, &p->p_children, p_sibling) {
+		if (count_everything) {
+			error = 0;
+		} else {
+			PROC_LOCK(pp);
+			error = p_cansee(td, pp);
+			PROC_UNLOCK(pp);
+		}
+		if (error != 0)
+			continue;
+		num++;
+	}
+	LIST_FOREACH(pp, &p->p_orphans, p_orphan) {
+		if (count_everything) {
+			error = 0;
+		} else {
+			PROC_LOCK(pp);
+			error = p_cansee(td, pp);
+			PROC_UNLOCK(pp);
+		}
+		if (error != 0)
+			continue;
+		num++;
+	}
+	return (num);
+}
+
+static bool
+ptrace_report_child(struct thread *td, struct proc *p, struct proc *pp,
+    struct ptrace_child *ptc)
+{
+	sx_assert(&proctree_lock, SX_LOCKED);
+
+	PROC_LOCK(pp);
+	if (p_cansee(td, pp) != 0) {
+		PROC_UNLOCK(pp);
+		return (false);
+	}
+	ptc->pid = pp->p_pid;
+	if ((pp->p_flag & P_TRACED) != 0) {
+		ptc->flags |= PTCHLD_TRACED;
+		if (pp->p_pptr == td->td_proc)
+			ptc->flags |= PTCHLD_TRACED_BY_ME;
+	}
+	if ((pp->p_flag & P_WEXIT) != 0)
+		ptc->flags |= PTCHLD_EXITED;
+	PROC_UNLOCK(pp);
+	return (true);
 }
 
 static struct thread *
@@ -858,12 +1070,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct ptrace_coredump *pc;
 	struct thr_coredump_req *tcq;
 	struct thr_syscall_req *tsr;
-	int error, num, tmp;
+	struct ptrace_child *children, *ptc;
+	int error, num, num1, tmp;
 	lwpid_t tid = 0, *buf;
 #ifdef COMPAT_FREEBSD32
 	int wrap32 = 0, safe = 0;
 #endif
-	bool proctree_locked, p2_req_set;
+	bool need_can_ptrace, proctree_locked, p2_req_set;
 
 	curp = td->td_proc;
 	proctree_locked = false;
@@ -884,6 +1097,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_SET_EVENT_MASK:
 	case PT_DETACH:
 	case PT_GET_SC_ARGS:
+	case PT_GET_CHILDREN:
 		sx_xlock(&proctree_lock);
 		proctree_locked = true;
 		break;
@@ -915,14 +1129,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	}
 	AUDIT_ARG_PROCESS(p);
 
-	if ((p->p_flag & P_WEXIT) != 0) {
-		error = ESRCH;
-		goto fail;
-	}
-	if ((error = p_cansee(td, p)) != 0)
-		goto fail;
-
-	if ((error = p_candebug(td, p)) != 0)
+	error = proc_can_ptrace1(td, p);
+	if (error != 0)
 		goto fail;
 
 	/*
@@ -955,6 +1163,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	/*
 	 * Permissions check
 	 */
+	need_can_ptrace = true;
 	switch (req) {
 	case PT_TRACE_ME:
 		/*
@@ -997,20 +1206,24 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* OK */
 		break;
 
-	case PT_CLEARSTEP:
-		/* Allow thread to clear single step for itself */
-		if (td->td_tid == tid)
-			break;
-
-		/* FALLTHROUGH */
 	default:
+		/*
+		 * Allow thread to clear single step for itself.
+		 * PT_GET_CHILDREN on itself does not need P_TRACED.
+		 */
+		if ((req == PT_CLEARSTEP && td->td_tid == tid) ||
+		    (req == PT_GET_CHILDREN && p == curp))
+			need_can_ptrace = false;
+
 		/*
 		 * Check for ptrace eligibility before waiting for
 		 * holds to drain.
 		 */
-		error = proc_can_ptrace(td, p);
-		if (error != 0)
-			goto fail;
+		if (need_can_ptrace) {
+			error = proc_can_ptrace(td, p);
+			if (error != 0)
+				goto fail;
+		}
 
 		/*
 		 * Block parallel ptrace requests.  Most important, do
@@ -1028,7 +1241,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			}
 			if (error == 0 && td2->td_proc != p)
 				error = ESRCH;
-			if (error == 0)
+			if (error == 0 && need_can_ptrace)
 				error = proc_can_ptrace(td, p);
 			if (error != 0)
 				goto fail;
@@ -1199,7 +1412,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_GET_SC_RET:
-		if ((td2->td_dbgflags & (TDB_SCX)) == 0
+		if ((td2->td_dbgflags & TDB_SCX) == 0
 #ifdef COMPAT_FREEBSD32
 		    || (wrap32 && !safe)
 #endif
@@ -1220,6 +1433,24 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		    psr->sr_retval[1]);
 		break;
 
+	case PT_SET_SC_RET:
+		if ((td2->td_dbgflags & TDB_SCE) == 0
+#ifdef COMPAT_FREEBSD32
+		    || (wrap32 && !safe)
+#endif
+		    ) {
+			error = EINVAL;
+			break;
+		}
+		psr = addr;
+		td2->td_errno = psr->sr_error;
+		if (td2->td_errno == 0) {
+			td2->td_retval[0] = psr->sr_retval[0];
+			td2->td_retval[1] = psr->sr_retval[1];
+		}
+		td2->td_dbgflags |= TDB_SET_SC_RET;
+		break;
+
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_TO_SCE:
@@ -1237,7 +1468,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			CTR3(KTR_PTRACE, "PT_STEP: tid %d (pid %d), sig = %d",
 			    td2->td_tid, p->p_pid, data);
 			error = ptrace_single_step(td2);
-			if (error)
+			if (error != 0)
 				goto out;
 			break;
 		case PT_CONTINUE:
@@ -1247,7 +1478,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			if (addr != (void *)1) {
 				error = ptrace_set_pc(td2,
 				    (u_long)(uintfptr_t)addr);
-				if (error)
+				if (error != 0)
 					goto out;
 				td2->td_dbgflags |= TDB_USERWR;
 			}
@@ -1377,17 +1608,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * register file or specifying the pc, make the thread
 		 * xstopped by waking it up.
 		 */
-		if ((td2->td_dbgflags & TDB_USERWR) != 0) {
-			if (pt_attach_transparent) {
-				thread_lock(td2);
-				if (TD_ON_SLEEPQ(td2) &&
-				    (td2->td_flags & TDF_SINTR) != 0) {
-					sleepq_abort(td2, EINTR);
-				} else {
-					thread_unlock(td2);
-				}
+		if ((td2->td_dbgflags & TDB_USERWR) != 0 &&
+		    pt_attach_transparent) {
+			thread_lock(td2);
+			if (TD_ON_SLEEPQ(td2) &&
+			    (td2->td_flags & TDF_SINTR) != 0) {
+				td2->td_dbgflags &= ~TDB_USERWR;
+				sleepq_abort(td2, EINTR);
+			} else {
+				thread_unlock(td2);
 			}
-			td2->td_dbgflags &= ~TDB_USERWR;
 		}
 
 		/*
@@ -1459,7 +1689,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			goto out;
 		}
 		PROC_UNLOCK(p);
-		error = proc_rwmem(p, &uio);
+		error = proc_rwmem(p, &uio, 0);
 		piod->piod_len -= uio.uio_resid;
 		PROC_LOCK(p);
 		break;
@@ -1714,6 +1944,59 @@ coredump_cleanup_nofp:
 		error = 0;
 		memcpy(&pscr->pscr_ret, &tsr->ts_ret, sizeof(tsr->ts_ret));
 		free(tsr, M_TEMP);
+		break;
+
+	case PT_GET_CHILDREN:
+		PROC_UNLOCK(p);
+get_children_repeat:
+		/*
+		 * If addr != NULL, we should ignore p_cansee() to
+		 * allocate enough space for the children array,
+		 * because the process is allowed to change visibility
+		 * between loops.  But do not count children which
+		 * we cannot see when only returning the count, to
+		 * avoid a leak of information.
+		 */
+		num = ptrace_count_children(td, p, addr != NULL);
+
+		if (addr == NULL) {
+			td->td_retval[0] = num;
+			PROC_LOCK(p);
+			break;
+		}
+		if (data < num * sizeof(struct ptrace_child)) {
+			error = ENOMEM;
+			PROC_LOCK(p);
+			break;
+		}
+		sx_xunlock(&proctree_lock);
+		children = mallocarray(num, sizeof(struct ptrace_child),
+		    M_TEMP, M_WAITOK | M_ZERO);
+		sx_xlock(&proctree_lock);
+		num1 = ptrace_count_children(td, p, true);
+		if (num1 > num) {
+			free(children, M_TEMP);
+			goto get_children_repeat;
+		}
+		num = num1;
+		num1 = 0;
+		LIST_FOREACH(pp, &p->p_children, p_sibling) {
+			MPASS(num1 < num);
+			ptc = &children[num1];
+			if (ptrace_report_child(td, p, pp, ptc))
+				num1++;
+		}
+		LIST_FOREACH(pp, &p->p_orphans, p_orphan) {
+			MPASS(num1 < num);
+			ptc = &children[num1];
+			if (ptrace_report_child(td, p, pp, ptc)) {
+				num1++;
+				ptc->flags |= PTCHLD_ORPHAN;
+			}
+		}
+		*(struct ptrace_child **)addr = children;
+		td->td_retval[0] = num1;
+		PROC_LOCK(p);
 		break;
 
 	default:

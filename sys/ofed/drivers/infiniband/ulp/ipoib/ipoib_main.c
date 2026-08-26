@@ -469,9 +469,9 @@ ipoib_mark_paths_invalid(struct ipoib_dev_priv *priv)
 	spin_lock_irq(&priv->lock);
 
 	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
-		ipoib_dbg(priv, "mark path LID 0x%04x GID %16D invalid\n",
-			be16_to_cpu(path->pathrec.dlid),
-			path->pathrec.dgid.raw, ":");
+		ipoib_dbg(priv, "mark path LID 0x%08x GID %16D invalid\n",
+			  be32_to_cpu(sa_path_get_dlid(&path->pathrec)),
+			  path->pathrec.dgid.raw, ":");
 		path->valid =  0;
 	}
 
@@ -505,7 +505,7 @@ ipoib_flush_paths(struct ipoib_dev_priv *priv)
 }
 
 static void
-path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
+path_rec_completion(int status, struct sa_path_rec *pathrec, void *path_ptr)
 {
 	struct ipoib_path *path = path_ptr;
 	struct ipoib_dev_priv *priv = path->priv;
@@ -519,7 +519,8 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 
 	if (!status)
 		ipoib_dbg(priv, "PathRec LID 0x%04x for GID %16D\n",
-			  be16_to_cpu(pathrec->dlid), pathrec->dgid.raw, ":");
+			  be32_to_cpu(sa_path_get_dlid(pathrec)),
+			  pathrec->dgid.raw, ":");
 	else
 		ipoib_dbg(priv, "PathRec status %d for GID %16D\n",
 			  status, path->pathrec.dgid.raw, ":");
@@ -527,22 +528,26 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 	bzero(&mbqueue, sizeof(mbqueue));
 
 	if (!status) {
-		struct ib_ah_attr av;
+		struct rdma_ah_attr av;
 
-		if (!ib_init_ah_from_path(priv->ca, priv->port, pathrec, &av))
+		if (!ib_init_ah_attr_from_path(priv->ca, priv->port,
+					       pathrec, &av, NULL)) {
 			ah = ipoib_create_ah(priv, priv->pd, &av);
+			rdma_destroy_ah_attr(&av);
+		}
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (ah) {
+	if (!IS_ERR_OR_NULL(ah)) {
 		path->pathrec = *pathrec;
 
 		old_ah   = path->ah;
 		path->ah = ah;
 
 		ipoib_dbg(priv, "created address handle %p for LID 0x%04x, SL %d\n",
-			  ah, be16_to_cpu(pathrec->dlid), pathrec->sl);
+			  ah, be32_to_cpu(sa_path_get_dlid(pathrec)),
+			  pathrec->sl);
 
 		for (;;) {
 			_IF_DEQUEUE(&path->queue, mb);
@@ -599,6 +604,10 @@ path_rec_create(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	memcpy(&path->hwaddr, hwaddr, INFINIBAND_ALEN);
 #endif
+	if (rdma_cap_opa_ah(priv->ca, priv->port))
+		path->pathrec.rec_type = SA_PATH_REC_TYPE_OPA;
+	else
+		path->pathrec.rec_type = SA_PATH_REC_TYPE_IB;
 	memcpy(path->pathrec.dgid.raw, &hwaddr[4], sizeof (union ib_gid));
 	path->pathrec.sgid	    = priv->local_gid;
 	path->pathrec.pkey	    = cpu_to_be16(priv->pkey);
@@ -614,7 +623,7 @@ path_rec_start(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 	if_t dev = priv->dev;
 
 	ib_sa_comp_mask comp_mask = IB_SA_PATH_REC_MTU_SELECTOR | IB_SA_PATH_REC_MTU;
-	struct ib_sa_path_rec p_rec;
+	struct sa_path_rec p_rec;
 
 	p_rec = path->pathrec;
 	p_rec.mtu_selector = IB_SA_GT;
@@ -791,21 +800,19 @@ ipoib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int port)
 {
 
 	/* Allocate RX/TX "rings" to hold queued mbs */
-	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
-				GFP_KERNEL);
-	if (!priv->rx_ring) {
-		printk(KERN_WARNING "%s: failed to allocate RX ring (%d entries)\n",
-		       ca->name, ipoib_recvq_size);
+	priv->rx_ring =	kcalloc(ipoib_recvq_size,
+				       sizeof(*priv->rx_ring),
+				       GFP_KERNEL);
+	if (!priv->rx_ring)
 		goto out;
-	}
 
-	priv->tx_ring = kzalloc(ipoib_sendq_size * sizeof *priv->tx_ring, GFP_KERNEL);
+	priv->tx_ring = vzalloc(array_size(ipoib_sendq_size,
+					   sizeof(*priv->tx_ring)));
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
 		       ca->name, ipoib_sendq_size);
 		goto out_rx_ring_cleanup;
 	}
-	memset(priv->tx_ring, 0, ipoib_sendq_size * sizeof *priv->tx_ring);
 
 	/* priv->tx_head, tx_tail & tx_outstanding are already 0 */
 
@@ -815,7 +822,7 @@ ipoib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int port)
 	return 0;
 
 out_tx_ring_cleanup:
-	kfree(priv->tx_ring);
+	vfree(priv->tx_ring);
 
 out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
@@ -866,7 +873,7 @@ ipoib_dev_cleanup(struct ipoib_dev_priv *priv)
 	ipoib_ib_dev_cleanup(priv);
 
 	kfree(priv->rx_ring);
-	kfree(priv->tx_ring);
+	vfree(priv->tx_ring);
 
 	priv->rx_ring = NULL;
 	priv->tx_ring = NULL;
@@ -1007,9 +1014,9 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	priv->broadcastaddr[8] = priv->pkey >> 8;
 	priv->broadcastaddr[9] = priv->pkey & 0xff;
 
-	result = ib_query_gid(hca, port, 0, &priv->local_gid, NULL);
+	result = rdma_query_gid(hca, port, 0, &priv->local_gid);
 	if (result) {
-		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
+		printk(KERN_WARNING "%s: rdma_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
 	}
@@ -1026,21 +1033,12 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);
-	result = ib_register_event_handler(&priv->event_handler);
-	if (result < 0) {
-		printk(KERN_WARNING "%s: ib_register_event_handler failed for "
-		       "port %d (ret = %d)\n",
-		       hca->name, port, result);
-		goto event_failed;
-	}
+	ib_register_event_handler(&priv->event_handler);
 	if_printf(priv->dev, "Attached to %s port %d\n", hca->name, port);
 
 	priv->gone = 0;	/* ready */
 
 	return priv->dev;
-
-event_failed:
-	ipoib_dev_cleanup(priv);
 
 device_init_failed:
 	ipoib_ifdetach(priv);

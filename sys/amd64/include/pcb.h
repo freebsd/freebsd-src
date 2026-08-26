@@ -102,11 +102,17 @@ struct pcb {
 	register_t	pcb_lstar;
 	register_t	pcb_cstar;
 	register_t	pcb_sfmask;
+	/* FRED MSRs */
+	register_t	pcb_fred_rsp0;
+	register_t	pcb_fred_rsp1;
+	register_t	pcb_fred_rsp2;
+	register_t	pcb_fred_rsp3;
+	register_t	pcb_fred_stklvls;
+	register_t	pcb_fred_config;
 
 	struct savefpu	*pcb_save;
 
 	register_t	pcb_tlsbase;	/* not same as pcb_fsbase */
-	uint64_t	pcb_pad[4];
 };
 
 /* Per-CPU state saved during suspend and resume. */

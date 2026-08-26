@@ -38,7 +38,7 @@ struct inotify_event {
 #define	IN_MOVE_SELF		0x00000800
 #define	IN_ALL_EVENTS		0x00000fff
 
-/* Events report only for entries in a watched dir, not the dir itself. */
+/* Events reported only for entries in a watched dir, not the dir itself. */
 #define	_IN_DIR_EVENTS		(IN_CLOSE_WRITE | IN_DELETE | IN_MODIFY | \
 				 IN_MOVED_FROM | IN_MOVED_TO)
 

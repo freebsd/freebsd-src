@@ -29,7 +29,7 @@
 #ifndef _LINUXKPI_ACPI_ACPI_BUS_H_
 #define _LINUXKPI_ACPI_ACPI_BUS_H_
 
-/* Aliase struct acpi_device to device_t */
+/* Alias struct acpi_device to device_t; repeated in <acpi/video.h> */
 #define	acpi_device	_device
 
 typedef char acpi_device_class[20];

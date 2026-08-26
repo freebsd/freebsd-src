@@ -27,15 +27,16 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.29 2024/09/29 16:49:25 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.36 2026/02/06 14:04:20 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
 #include <seccomp.h> /* libseccomp */
 #include <sys/prctl.h> /* prctl */
-#include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <termios.h>
+// See: https://sourceware.org/bugzilla/show_bug.cgi?id=32806
+#include <asm/termbits.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -103,6 +104,11 @@ enable_sandbox(void)
 #ifdef __NR_getdents64
 	ALLOW_RULE(getdents64);
 #endif
+	ALLOW_RULE(getpid);	// Used by glibc in file_pipe2file()
+	ALLOW_RULE(getrandom);	// Used by glibc in file_pipe2file()
+#ifdef __NR_getcwd
+	ALLOW_RULE(getcwd);	// GCONV_PATH=
+#endif
 #ifdef FIONREAD
 	// called in src/compress.c under sread
 	ALLOW_IOCTL_RULE(FIONREAD);
@@ -114,6 +120,10 @@ enable_sandbox(void)
 #ifdef TCGETS
 	// glibc may call ioctl TCGETS on stdout on physical terminal
 	ALLOW_IOCTL_RULE(TCGETS);
+#endif
+#ifdef TCGETS2
+	// glibc may call ioctl TCGETS2 on stdout on physical terminal
+	ALLOW_IOCTL_RULE(TCGETS2);
 #endif
 	ALLOW_RULE(lseek);
  	ALLOW_RULE(_llseek);
@@ -136,6 +146,7 @@ enable_sandbox(void)
 #ifdef __NR_readlinkat
 	ALLOW_RULE(readlinkat);
 #endif
+	ALLOW_RULE(rseq);	// Used by glibc to randomize malloc
 	ALLOW_RULE(rt_sigaction);
 	ALLOW_RULE(rt_sigprocmask);
 	ALLOW_RULE(rt_sigreturn);
@@ -145,8 +156,6 @@ enable_sandbox(void)
 	ALLOW_RULE(stat64);
 	ALLOW_RULE(sysinfo);
 	ALLOW_RULE(umask);	// Used in file_pipe2file()
-	ALLOW_RULE(getpid);	// Used by glibc in file_pipe2file()
-	ALLOW_RULE(getrandom);	// Used by glibc in file_pipe2file()
 	ALLOW_RULE(unlink);
 	ALLOW_RULE(utimes);
 	ALLOW_RULE(write);

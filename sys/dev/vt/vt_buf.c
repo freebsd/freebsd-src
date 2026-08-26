@@ -45,6 +45,7 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 
 #define	VTBUF_LOCK(vb)		mtx_lock_spin(&(vb)->vb_lock)
 #define	VTBUF_UNLOCK(vb)	mtx_unlock_spin(&(vb)->vb_lock)
+#define	VTBUF_LOCK_OWNED(vb)	mtx_owned(&(vb)->vb_lock)
 
 #define POS_INDEX(c, r) (((r) << 12) + (c))
 #define	POS_COPY(d, s)	do {	\
@@ -201,6 +202,36 @@ vtbuf_in_this_range(int begin, int test, int end, int sz)
 		return (test >= begin || test < end);
 	else
 		return (test >= begin && test < end);
+}
+
+void
+vtbuf_unmark(struct vt_buf *vb)
+{
+
+	vtbuf_set_mark(vb, VTB_MARK_START, 0, 0);
+}
+
+void
+vtbuf_unmark_on_cross(struct vt_buf *vb, int target_begin, int target_end)
+{
+	int hsz, mb, me, tb, te;
+
+	tb = vtbuf_wth(vb, target_begin);
+	te = vtbuf_wth(vb, target_end);
+	mb = vb->vb_mark_start.tp_row;
+	me = vb->vb_mark_end.tp_row;
+	hsz = vb->vb_history_size;
+
+	/*
+	 * Test intersection with vtbuf_in_this_range due to use of
+	 * the circular buffer.
+	 */
+	if (vtbuf_in_this_range(tb, mb, te, hsz) ||
+	    vtbuf_in_this_range(tb, me, te, hsz) ||
+	    vtbuf_in_this_range(mb, tb, me, hsz) ||
+	    vtbuf_in_this_range(mb, te, me, hsz)) {
+		vtbuf_unmark(vb);
+	}
 }
 #endif
 
@@ -499,7 +530,6 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
 	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row, *oldrow;
 	unsigned int w, h, c, r, old_history_size;
-	size_t bufsize, rowssize;
 	int history_full;
 	const teken_attr_t *a;
 	term_char_t ch;
@@ -510,10 +540,10 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	history_size = MAX(history_size, p->tp_row);
 
 	/* Allocate new buffer. */
-	bufsize = history_size * p->tp_col * sizeof(term_char_t);
-	new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
-	rowssize = history_size * sizeof(term_pos_t *);
-	rows = malloc(rowssize, M_VTBUF, M_WAITOK | M_ZERO);
+	new = mallocarray(history_size, p->tp_col * sizeof(term_char_t),
+	    M_VTBUF, M_WAITOK | M_ZERO);
+	rows = mallocarray(history_size, sizeof(term_pos_t *), M_VTBUF,
+	    M_WAITOK | M_ZERO);
 
 	/* Toggle it. */
 	VTBUF_LOCK(vb);
@@ -711,9 +741,19 @@ vtbuf_flush_mark(struct vt_buf *vb)
 		area.tr_end.tp_col = vb->vb_scr_size.tp_col;
 		area.tr_end.tp_row = MAX(s, e) + 1;
 
-		VTBUF_LOCK(vb);
-		vtbuf_dirty(vb, &area);
-		VTBUF_UNLOCK(vb);
+		/* 
+		 * If the request originates from a keyboard, the vtbuf is
+		 * locked by teken for the entire duration of the request.
+		 * For all other sources, we avoid holding the spinlock for
+		 * extended periods.
+		 */
+		if (VTBUF_LOCK_OWNED(vb)) {
+			vtbuf_dirty(vb, &area);
+		} else {
+			VTBUF_LOCK(vb);
+			vtbuf_dirty(vb, &area);
+			VTBUF_UNLOCK(vb);
+		}
 	}
 }
 

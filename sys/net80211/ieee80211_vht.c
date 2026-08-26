@@ -235,10 +235,16 @@ ieee80211_vht_node_cleanup(struct ieee80211_node *ni)
 	bzero(&ni->ni_vht_mcsinfo, sizeof(struct ieee80211_vht_mcs_info));
 }
 
-/*
- * Parse an 802.11ac VHT operation IE.
+/**
+ * @brief Parse an 802.11ac VHT operation IE.
+ *
+ * This parses the VHT operation IE (channel width, basic MCS set)
+ * into the given ieee80211_node .
  *
  * 802.11-2020 9.4.2.158 (VHT Operation element)
+ *
+ * @param ni ieee80211_node to parse VHT operation IE into
+ * @param ie The VHT operation IE to parse, 802.11 endian
  */
 void
 ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
@@ -257,10 +263,16 @@ ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
 #endif
 }
 
-/*
- * Parse an 802.11ac VHT capability IE.
+/**
+ * @brief Parse an 802.11ac VHT capability IE.
+ *
+ * Parse the VHT capability IE into the node vht fields
+ * (ni->ni_vht_mcsinfo, ni->ni_vhtcap).
  *
  * 802.11-2020 9.4.2.157 (VHT Capabilities element)
+ *
+ * @param ni ieee80211_node to parse VHT info into
+ * @param ie VHT capability IE to parse, 802.11 endian
  */
 void
 ieee80211_parse_vhtcap(struct ieee80211_node *ni, const uint8_t *ie)
@@ -371,8 +383,8 @@ ieee80211_vht_node_leave(struct ieee80211_node *ni)
 	    "%s: called", __func__);
 }
 
-/*
- * Calculate the VHTCAP IE for a given node.
+/**
+ * @brief Calculate the VHTCAP IE for a given node.
  *
  * This includes calculating the capability intersection based on the
  * current operating mode and intersection of the TX/RX MCS maps.
@@ -390,7 +402,9 @@ ieee80211_vht_node_leave(struct ieee80211_node *ni)
  * TODO: investigate what we should negotiate for MU-MIMO beamforming
  *       options.
  *
- * opmode is '1' for "vhtcap as if I'm a STA", 0 otherwise.
+ * @param ni ieee80211_node to check
+ * @param vhtcap ieee80211_vht_cap to populate (in host order).
+ * @param opmode is '1' for "vhtcap as if I'm a STA", 0 otherwise.
  */
 void
 ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
@@ -715,14 +729,22 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 	}
 }
 
-/*
- * Add a VHTCAP field.
+/**
+ * @brief Add a VHTCAP field.
  *
  * If in station mode, we announce what we would like our
  * desired configuration to be.
  *
  * Else, we announce our capabilities based on our current
  * configuration.
+ *
+ * TODO: This assumes that the passed in buffer has enough space for
+ * the VHT capabilitity IE and that seems error prone.
+ *
+ * @param frm buffer to start populating the IE into
+ * @param ni ieee80211_node to fetch the VHT capability from
+ * @returns a pointer to the first byte in the buffer after the newly
+ *          populated IE
  */
 uint8_t *
 ieee80211_add_vhtcap(uint8_t *frm, struct ieee80211_node *ni)
@@ -932,8 +954,14 @@ ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
 	net80211_vap_printf(ni->ni_vap, "%s: called; TODO!\n", __func__);
 }
 
-/*
- * Return true if VHT rates can be used for the given node.
+/**
+ * @brief Check if VHT rates can be used for the given node.
+ *
+ * This returns true if any VHT rates can be used to transmit
+ * to the given node.
+ *
+ * @param ni ieee80211_node to check
+ * @returns True if any VHT rates can be transmitted to the given node
  */
 bool
 ieee80211_vht_check_tx_vht(const struct ieee80211_node *ni)
@@ -954,11 +982,14 @@ ieee80211_vht_check_tx_vht(const struct ieee80211_node *ni)
 	return (IEEE80211_IS_CHAN_VHT(ni->ni_chan));
 }
 
-/*
- * Return true if VHT40 rates can be transmitted to the given node.
+/**
+ * @brief Check if VHT40 rates can be transmitted to the given node.
  *
  * This verifies that the BSS is VHT40 capable and the current
  * node channel width is 40MHz.
+ *
+ * @param ni ieee80211_node to check
+ * @returns True if 40MHz VHT rates can be transmitted to the given node
  */
 static bool
 ieee80211_vht_check_tx_vht40(const struct ieee80211_node *ni)
@@ -977,11 +1008,14 @@ ieee80211_vht_check_tx_vht40(const struct ieee80211_node *ni)
 	    (ni->ni_chw == NET80211_STA_RX_BW_40));
 }
 
-/*
- * Return true if VHT80 rates can be transmitted to the given node.
+/**
+ * @brief Check if VHT80 rates can be transmitted to the given node.
  *
  * This verifies that the BSS is VHT80 capable and the current
  * node channel width is 80MHz.
+ *
+ * @param ni ieee80211_node to check
+ * @returns True if 80MHz VHT rates can be transmitted to the given node
  */
 static bool
 ieee80211_vht_check_tx_vht80(const struct ieee80211_node *ni)
@@ -1006,11 +1040,14 @@ ieee80211_vht_check_tx_vht80(const struct ieee80211_node *ni)
 	    (ni->ni_chw != NET80211_STA_RX_BW_20));
 }
 
-/*
- * Return true if VHT 160 rates can be transmitted to the given node.
+/**
+ * @brief Check if VHT 160 rates can be transmitted to the given node.
  *
  * This verifies that the BSS is VHT80+80 or VHT160 capable and the current
  * node channel width is 80+80MHz or 160MHz.
+ *
+ * @param ni ieee80211_node to check
+ * @returns True if 160MHz VHT rates can be transmitted to the given node
  */
 static bool
 ieee80211_vht_check_tx_vht160(const struct ieee80211_node *ni)

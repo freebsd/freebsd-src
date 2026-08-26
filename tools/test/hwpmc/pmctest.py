@@ -27,6 +27,7 @@ import argparse
 import tempfile
 from pathlib import Path
 import os
+import shlex
 
 def gather_counters():
     """Run program and return output as array of lines."""
@@ -58,7 +59,9 @@ def main():
         print("Choose one of --count OR --sample.")
         sys.exit()
 
-    program = Path(args.program).name
+    # Split program and arguments properly
+    program_parts = shlex.split(args.program)
+    program = Path(program_parts[0]).name
 
     if args.count == True:
         tmpdir = tempfile.mkdtemp(prefix=program + "-", suffix="-counting-pmc")
@@ -73,8 +76,7 @@ def main():
             continue
         if args.count == True:
             with open(tmpdir + "/" + program + "-" + counter + ".txt", 'w') as file:
-                p = subprocess.Popen(["pmcstat",
-                                      "-p", counter, args.program],
+                p = subprocess.Popen(["pmcstat", "-p", counter] + program_parts,
                                      text=True, stderr=file, stdout=file)
                 result = p.wait()
                 print(result)
@@ -82,7 +84,7 @@ def main():
             pmcout = tmpdir + "/" + program + "-" + counter + ".pmc"
             p = subprocess.Popen(["pmcstat",
                                   "-O", pmcout,
-                                  "-P", counter, args.program],
+                                  "-P", counter] + program_parts,
                                  text=True, stderr=PIPE)
             result = p.wait()
             resdir = tmpdir + "/" + program + "-" + counter + ".results"
@@ -97,7 +99,7 @@ def main():
             if Path(gmondir).is_dir():
                 with open(gmondir + "/" + "gprof.out", "w") as file:
                     p = subprocess.Popen(["gprof",
-                                          args.program,
+                                          program_parts[0],
                                           program + ".gmon"],
                                          cwd=gmondir,
                                          text=True,
@@ -109,7 +111,7 @@ def main():
             print(result)
 
         else:
-            p = subprocess.Popen(["pmcstat", "-p", counter, args.program],
+            p = subprocess.Popen(["pmcstat", "-p", counter] + program_parts,
                              text=True, stderr=PIPE)
             result = p.wait()
             print(result)

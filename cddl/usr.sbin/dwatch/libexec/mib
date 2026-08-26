@@ -1,0 +1,78 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for network stack counter probes $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print network stack statistics counters as they increment, via the
+# mib SDT probes (one probe per counter of the IP, ICMP, UDP, and TCP
+# MIBs). The tcp-retransmit profile watches the counters that signal
+# congestion or loss on the send path -- data packet retransmissions,
+# retransmit timer expirations, and connections dropped by retransmit
+# exhaustion -- answering "is this network slow because TCP is
+# resending?" as events with process context, not just netstat(1)
+# deltas. Use mib-NAME to watch a single counter by name (e.g.,
+# mib-tcps_sndrexmitpack). NB: the probes exist only in kernels built
+# with options KDTRACE_MIB_SDT (enabled by default in -CURRENT via
+# std.debug); elsewhere dtrace(1) will refuse the script. Counters
+# bumped outside syscall context (e.g., timers) are tagged with the
+# interrupted thread, commonly [clock] or [intr].
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+mib)
+	: ${PROBE:=mib:::} ;;
+tcp-retransmit)
+	: ${PROBE:=$( echo \
+		mib:tcp:count:tcps_sndrexmitpack, \
+		mib:tcp:count:tcps_sndrexmitbad, \
+		mib:tcp:count:tcps_rexmttimeo, \
+		mib:tcp:count:tcps_timeoutdrop )} ;;
+*)
+	: ${PROBE:=mib:::${PROFILE#mib-}}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this string	mib_desc;
+
+/*
+ * Counters that signal send-path congestion or loss, described
+ */
+inline string mib_tcp_desc[string name] =
+	name == "tcps_sndrexmitpack" ?	"data packet retransmitted" :
+	name == "tcps_sndrexmitbad" ?	"unnecessary retransmission" :
+	name == "tcps_rexmttimeo" ?	"retransmit timeout" :
+	name == "tcps_timeoutdrop" ?
+		"connection dropped by retransmit timeout" :
+	name;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	this->mib_desc = mib_tcp_desc[probename];
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print counter increment details
+	 */
+	printf("%s (+%d)", this->mib_desc, (int)arg0);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

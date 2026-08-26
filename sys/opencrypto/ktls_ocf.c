@@ -326,8 +326,7 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 	iov[0].iov_len = sizeof(*ad);
 	pgoff = m->m_epg_1st_off;
 	for (i = 0; i < m->m_epg_npgs; i++, pgoff = 0) {
-		iov[i + 1].iov_base = (void *)PHYS_TO_DMAP(m->m_epg_pa[i] +
-		    pgoff);
+		iov[i + 1].iov_base = PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff);
 		iov[i + 1].iov_len = m_epg_pagelen(m, i, pgoff);
 	}
 	iov[m->m_epg_npgs + 1].iov_base = m->m_epg_trail;
@@ -500,13 +499,14 @@ ktls_ocf_tls_cbc_decrypt(struct ktls_session *tls,
 	iov[0].iov_base = &ad;
 	iov[0].iov_len = sizeof(ad);
 	skip = sizeof(*hdr) + AES_BLOCK_LEN;
-	for (i = 1, n = m; n != NULL; i++, n = n->m_next) {
-		if (n->m_len < skip) {
+	for (i = 1, n = m; n != NULL; n = n->m_next) {
+		if (n->m_len <= skip) {
 			skip -= n->m_len;
 			continue;
 		}
 		iov[i].iov_base = mtod(n, char *) + skip;
 		iov[i].iov_len = n->m_len - skip;
+		i++;
 		skip = 0;
 	}
 	uio.uio_iov = iov;

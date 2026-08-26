@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --creation-time=test multi-copyright
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/multi_copyright.json
+ExpectedExitCode: 0

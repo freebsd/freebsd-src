@@ -142,7 +142,9 @@ These functions return
 .Cm ARCHIVE_OK
 if the compression is fully supported,
 .Cm ARCHIVE_WARN
-if the compression is supported only through an external program.
+if the compression is supported only through an external program, or
+.Cm ARCHIVE_FATAL
+on error.
 .Pp
 .Fn archive_read_support_filter_none
 always succeeds.
@@ -157,6 +159,5 @@ functions.
 .Sh SEE ALSO
 .Xr archive_read 3 ,
 .Xr archive_read_data 3 ,
-.Xr archive_read_format 3 ,
 .Xr archive_read_format 3 ,
 .Xr libarchive 3

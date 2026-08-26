@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (C) 2016 Romain Dolbeau. All rights reserved.
@@ -102,14 +92,14 @@
 
 #define	WVR(X) [w##X] "=w" (w##X)
 
-#define	UVR0_(REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR1_(_1, REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR2_(_1, _2, REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR3_(_1, _2, _3, REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR4_(_1, _2, _3, _4, REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR5_(_1, _2, _3, _4, _5, REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR6_(_1, _2, _3, _4, _5, _6, REG, ...) [w##REG] "+&w" (w##REG)
-#define	UVR7_(_1, _2, _3, _4, _5, _6, _7, REG, ...) [w##REG] "+&w" (w##REG)
+#define	UVR0_(REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR1_(_1, REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR2_(_1, _2, REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR3_(_1, _2, _3, REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR4_(_1, _2, _3, _4, REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR5_(_1, _2, _3, _4, _5, REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR6_(_1, _2, _3, _4, _5, _6, REG, ...) [w##REG] "+w" (w##REG)
+#define	UVR7_(_1, _2, _3, _4, _5, _6, _7, REG, ...) [w##REG] "+w" (w##REG)
 
 #define	UVR0(r...) UVR0_(r)
 #define	UVR1(r...) UVR1_(r)
@@ -120,7 +110,7 @@
 #define	UVR6(r...) UVR6_(r, 36, 35, 34, 33, 32, 31)
 #define	UVR7(r...) UVR7_(r, 36, 35, 34, 33, 32, 31, 30)
 
-#define	UVR(X) [w##X] "+&w" (w##X)
+#define	UVR(X) [w##X] "+w" (w##X)
 
 #define	R_01(REG1, REG2, ...) REG1, REG2
 #define	_R_23(_0, _1, REG2, REG3, ...) REG2, REG3

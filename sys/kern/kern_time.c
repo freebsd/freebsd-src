@@ -601,7 +601,9 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 	} while (error == 0 && is_abs_real && td->td_rtcgen == 0);
 	td->td_rtcgen = 0;
 	if (error != EWOULDBLOCK) {
-		if (TIMESEL(&sbtt, tmp))
+		if (precise)
+			sbtt = sbinuptime();
+		else if (TIMESEL(&sbtt, tmp))
 			sbtt += tc_tick_sbt;
 		if (sbtt >= sbt)
 			return (0);
@@ -1632,8 +1634,11 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 		timespecclear(&val.it_interval);
 	}
 
-	if (ovalue != NULL)
-		realtimer_gettime(it, ovalue);
+	if (ovalue != NULL) {
+		error = realtimer_gettime(it, ovalue);
+		if (error != 0)
+			return (error);
+	}
 
 	it->it_time = val;
 	if (timespecisset(&val.it_value)) {

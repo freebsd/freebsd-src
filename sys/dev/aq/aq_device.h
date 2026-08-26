@@ -35,6 +35,17 @@
 #ifndef _AQ_DEVICE_H_
 #define _AQ_DEVICE_H_
 
+#include <sys/bitstring.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
+#include <net/iflib.h>
+
 #include "aq_hw.h"
 
 enum aq_media_type {
@@ -44,16 +55,20 @@ enum aq_media_type {
 };
 
 #define	AQ_LINK_UNKNOWN	0x00000000
-#define	AQ_LINK_100M	0x00000001
-#define	AQ_LINK_1G		0x00000002
-#define	AQ_LINK_2G5		0x00000004
-#define	AQ_LINK_5G		0x00000008
-#define	AQ_LINK_10G		0x00000010
+#define	AQ_LINK_10M	0x00000001
+#define	AQ_LINK_100M	0x00000002
+#define	AQ_LINK_1G	0x00000004
+#define	AQ_LINK_2G5	0x00000008
+#define	AQ_LINK_5G	0x00000010
+#define	AQ_LINK_10G	0x00000020
 
-#define	AQ_LINK_ALL	(AQ_LINK_100M | AQ_LINK_1G | AQ_LINK_2G5 | AQ_LINK_5G | \
-					 AQ_LINK_10G )
+#define	AQ_LINK_ALL	(AQ_LINK_10M | AQ_LINK_100M | AQ_LINK_1G | \
+			 AQ_LINK_2G5 | AQ_LINK_5G | AQ_LINK_10G)
 
-struct aq_stats_s {
+/* Atlantic 1 has no 10BASE-T PHY. */
+#define	AQ_LINK_ALL_ATLANTIC1	(AQ_LINK_ALL & ~AQ_LINK_10M)
+
+struct aq_stats {
 	uint64_t prc;
 	uint64_t uprc;
 	uint64_t mprc;
@@ -75,24 +90,6 @@ struct aq_stats_s {
 	uint64_t ubtc;
 	uint64_t mbtc;
 	uint64_t bbtc;
-};
-
-enum aq_dev_state_e {
-	AQ_DEV_STATE_UNLOAD,
-	AQ_DEV_STATE_PCI_STOP,
-	AQ_DEV_STATE_DOWN,
-	AQ_DEV_STATE_UP,
-};
-
-struct aq_rx_filters {
-	unsigned int rule_cnt;
-	struct aq_rx_filter_vlan vlan_filters[AQ_HW_VLAN_MAX_FILTERS];
-	struct aq_rx_filter_l2 etype_filters[AQ_HW_ETYPE_MAX_FILTERS];
-};
-
-struct aq_vlan_tag {
-	SLIST_ENTRY(aq_vlan_tag) next;
-	uint16_t	tag;
 };
 
 struct aq_dev {
@@ -124,25 +121,44 @@ struct aq_dev {
 	uint32_t          tx_rings_count;
 	uint32_t          rx_rings_count;
 	bool              linkup;
+	uint32_t          link_speed;	/* Mbit/s last announced to the stack */
+	uint16_t          phy_fault_last;	/* last fault code reported */
+	bool              phy_hot_last;		/* last over-temperature warning */
+	bool              link_read_failed;	/* link state read is failing */
+	enum aq_thermal_state {
+		AQ_THERMAL_NORMAL = 0,	/* no thermal shutdown pending */
+		AQ_THERMAL_COOLING,	/* shut down; waiting to cool */
+		AQ_THERMAL_SETTLING,	/* PHY reset; waiting to re-init */
+	}                 thermal_state;
+	int               thermal_settle;
+	int               thermal_retry_ticks;	/* earliest tick to retry at */
+	int               thermal_temp_mc;	/* temp at the last shutdown/cool */
+	int               thermal_recover_mc;	/* recover once cooled to here */
+	bool              init_failed;		/* aq_hw_init() left the hw down */
+	int               init_retries;
+	bool              reset_pending;	/* a re-init is already queued */
 	int               media_active;
 
-	struct aq_hw_stats_s  last_stats;
-	struct aq_stats_s     curr_stats;
+	struct aq_hw_stats  last_stats;
+	struct aq_stats     curr_stats;
 
 	bitstr_t               *vlan_tags;
 	int                     mcnt;
 
 	uint8_t			rss_key[HW_ATL_RSS_HASHKEY_SIZE];
 	uint8_t			rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX];
+
+	int			dbg_level;
+	uint32_t		dbg_categories;
+
+	struct sysctl_ctx_list	aq_sysctl_ctx;
 };
 
-typedef struct aq_dev aq_dev_t;
-
-int aq_update_hw_stats(aq_dev_t *aq_dev);
-void aq_initmedia(aq_dev_t *aq_dev);
+int aq_update_hw_stats(struct aq_dev *aq_dev);
+void aq_initmedia(struct aq_dev *aq_dev);
 int aq_linkstat_isr(void *arg);
 int aq_isr_rx(void *arg);
-void aq_mediastatus_update(aq_dev_t *aq_dev, uint32_t link_speed, const struct aq_hw_fc_info *fc_neg);
+void aq_mediastatus_update(struct aq_dev *aq_dev, uint32_t link_speed, const struct aq_hw_fc_info *fc_neg);
 void aq_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 int aq_mediachange(struct ifnet *ifp);
 void aq_if_update_admin_status(if_ctx_t ctx);

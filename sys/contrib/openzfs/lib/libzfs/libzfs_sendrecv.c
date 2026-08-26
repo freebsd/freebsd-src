@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -258,7 +248,10 @@ typedef struct send_data {
 	boolean_t seento;
 	boolean_t holds;	/* were holds requested with send -h */
 	boolean_t props;
+	boolean_t no_preserve_encryption;
 
+	snapfilter_cb_t *filter_cb;
+	void *filter_cb_arg;
 	/*
 	 * The header nvlist is of the following format:
 	 * {
@@ -511,6 +504,10 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 	uint64_t fromsnap_txg_save = sd->fromsnap_txg;
 	uint64_t tosnap_txg_save = sd->tosnap_txg;
 
+	if (sd->filter_cb &&
+	    (sd->filter_cb(zhp, sd->filter_cb_arg) == 0))
+		return (0);
+
 	fromsnap_txg = get_snap_txg(zhp->zfs_hdl, zhp->zfs_name, sd->fromsnap);
 	if (fromsnap_txg != 0)
 		sd->fromsnap_txg = fromsnap_txg;
@@ -587,18 +584,30 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 			fnvlist_add_boolean(nvfs, "is_encroot");
 
 		/*
-		 * Encrypted datasets can only be sent with properties if
-		 * the raw flag is specified because the receive side doesn't
-		 * currently have a mechanism for recursively asking the user
-		 * for new encryption parameters.
+		 * Encrypted datasets can only be sent with properties if the
+		 * raw flag or the no-preserve-encryption flag are specified
+		 * because the receive side doesn't currently have a mechanism
+		 * for recursively asking the user for new encryption
+		 * parameters.
+		 * We allow sending the dataset unencrypted only if the user
+		 * explicitly sets the no-preserve-encryption flag.
 		 */
-		if (!sd->raw) {
+		if (!sd->raw && !sd->no_preserve_encryption) {
 			(void) fprintf(stderr, dgettext(TEXT_DOMAIN,
 			    "cannot send %s@%s: encrypted dataset %s may not "
-			    "be sent with properties without the raw flag\n"),
+			    "be sent with properties without the raw flag or "
+			    "no-preserve-encryption flag\n"),
 			    sd->fsname, sd->tosnap, zhp->zfs_name);
 			rv = -1;
 			goto out;
+		}
+
+		/* If no-preserve-encryption flag is set, warn the user again */
+		if (!sd->raw && sd->no_preserve_encryption) {
+			(void) fprintf(stderr, dgettext(TEXT_DOMAIN,
+			    "WARNING: no-preserve-encryption flag set, sending "
+			    "dataset %s without encryption\n"),
+			    zhp->zfs_name);
 		}
 
 	}
@@ -683,8 +692,9 @@ static int
 gather_nvlist(libzfs_handle_t *hdl, const char *fsname, const char *fromsnap,
     const char *tosnap, boolean_t recursive, boolean_t raw, boolean_t doall,
     boolean_t replicate, boolean_t skipmissing, boolean_t verbose,
-    boolean_t backup, boolean_t holds, boolean_t props, nvlist_t **nvlp,
-    avl_tree_t **avlp)
+    boolean_t backup, boolean_t holds, boolean_t props,
+    boolean_t no_preserve_encryption, nvlist_t **nvlp, avl_tree_t **avlp,
+    snapfilter_cb_t *filter_cb, void *filter_cb_arg)
 {
 	zfs_handle_t *zhp;
 	send_data_t sd = { 0 };
@@ -707,6 +717,9 @@ gather_nvlist(libzfs_handle_t *hdl, const char *fsname, const char *fromsnap,
 	sd.backup = backup;
 	sd.holds = holds;
 	sd.props = props;
+	sd.no_preserve_encryption = no_preserve_encryption;
+	sd.filter_cb = filter_cb;
+	sd.filter_cb_arg = filter_cb_arg;
 
 	if ((error = send_iterate_fs(zhp, &sd)) != 0) {
 		fnvlist_free(sd.fss);
@@ -913,21 +926,8 @@ int
 zfs_send_progress(zfs_handle_t *zhp, int fd, uint64_t *bytes_written,
     uint64_t *blocks_visited)
 {
-	zfs_cmd_t zc = {"\0"};
-
-	if (bytes_written != NULL)
-		*bytes_written = 0;
-	if (blocks_visited != NULL)
-		*blocks_visited = 0;
-	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
-	zc.zc_cookie = fd;
-	if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_SEND_PROGRESS, &zc) != 0)
-		return (errno);
-	if (bytes_written != NULL)
-		*bytes_written = zc.zc_cookie;
-	if (blocks_visited != NULL)
-		*blocks_visited = zc.zc_objset_type;
-	return (0);
+	return (lzc_send_progress(zhp->zfs_name, fd, bytes_written,
+	    blocks_visited));
 }
 
 static volatile boolean_t send_progress_thread_signal_duetotimer;
@@ -1240,14 +1240,16 @@ dump_snapshot(zfs_handle_t *zhp, void *arg)
 	if (sdd->verbosity != 0) {
 		uint64_t size = 0;
 		char fromds[ZFS_MAX_DATASET_NAME_LEN];
+		const char *from = NULL;
 
 		if (sdd->prevsnap[0] != '\0') {
 			(void) strlcpy(fromds, zhp->zfs_name, sizeof (fromds));
 			*(strchr(fromds, '@') + 1) = '\0';
 			(void) strlcat(fromds, sdd->prevsnap, sizeof (fromds));
+			from = fromds;
 		}
-		if (zfs_send_space(zhp, zhp->zfs_name,
-		    sdd->prevsnap[0] ? fromds : NULL, flags, &size) == 0) {
+		if (zfs_send_space(zhp, zhp->zfs_name, from, flags,
+		    &size) == 0) {
 			send_print_verbose(fout, zhp->zfs_name,
 			    sdd->prevsnap[0] ? sdd->prevsnap : NULL,
 			    size, sdd->parsable);
@@ -1976,8 +1978,10 @@ zfs_send_resume_impl_cb_impl(libzfs_handle_t *hdl, sendflags_t *flags,
 		}
 
 		char errbuf[ERRBUFLEN];
+		char sendname[ZFS_MAX_DATASET_NAME_LEN];
 		(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 		    "warning: cannot send '%s'"), zhp->zfs_name);
+		(void) strlcpy(sendname, zhp->zfs_name, sizeof (sendname));
 
 		zfs_close(zhp);
 
@@ -1989,7 +1993,7 @@ zfs_send_resume_impl_cb_impl(libzfs_handle_t *hdl, sendflags_t *flags,
 			    "source key must be loaded"));
 			return (zfs_error(hdl, EZFS_CRYPTOFAILED, errbuf));
 		case ESRCH:
-			if (lzc_exists(zhp->zfs_name)) {
+			if (lzc_exists(sendname)) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "incremental source could not be found"));
 			}
@@ -2199,7 +2203,8 @@ send_prelim_records(zfs_handle_t *zhp, const char *from, int fd,
     boolean_t gather_props, boolean_t recursive, boolean_t verbose,
     boolean_t dryrun, boolean_t raw, boolean_t replicate, boolean_t skipmissing,
     boolean_t backup, boolean_t holds, boolean_t props, boolean_t doall,
-    nvlist_t **fssp, avl_tree_t **fsavlp)
+    boolean_t no_preserve_encryption, nvlist_t **fssp, avl_tree_t **fsavlp,
+    snapfilter_cb_t filter_func, void *cb_arg)
 {
 	int err = 0;
 	char *packbuf = NULL;
@@ -2245,7 +2250,8 @@ send_prelim_records(zfs_handle_t *zhp, const char *from, int fd,
 
 		if (gather_nvlist(zhp->zfs_hdl, tofs,
 		    from, tosnap, recursive, raw, doall, replicate, skipmissing,
-		    verbose, backup, holds, props, &fss, fsavlp) != 0) {
+		    verbose, backup, holds, props, no_preserve_encryption,
+		    &fss, fsavlp, filter_func, cb_arg) != 0) {
 			return (zfs_error(zhp->zfs_hdl, EZFS_BADBACKUP,
 			    errbuf));
 		}
@@ -2392,7 +2398,8 @@ zfs_send_cb_impl(zfs_handle_t *zhp, const char *fromsnap, const char *tosnap,
 		    flags->replicate, flags->verbosity > 0, flags->dryrun,
 		    flags->raw, flags->replicate, flags->skipmissing,
 		    flags->backup, flags->holds, flags->props, flags->doall,
-		    &fss, &fsavl);
+		    flags->no_preserve_encryption, &fss, &fsavl,
+		    filter_func, cb_arg);
 		zfs_close(tosnap);
 		if (err != 0)
 			goto err_out;
@@ -2684,7 +2691,7 @@ zfs_send_one_cb_impl(zfs_handle_t *zhp, const char *from, int fd,
 		char bookname[ZFS_MAX_DATASET_NAME_LEN];
 		nvlist_t *redact_snaps;
 		zfs_handle_t *book_zhp;
-		char *at, *pound;
+		const char *at, *pound;
 		int dsnamelen;
 
 		pound = strchr(redactbook, '#');
@@ -2735,7 +2742,8 @@ zfs_send_one_cb_impl(zfs_handle_t *zhp, const char *from, int fd,
 		err = send_prelim_records(zhp, NULL, fd, B_TRUE, B_FALSE,
 		    flags->verbosity > 0, flags->dryrun, flags->raw,
 		    flags->replicate, B_FALSE, flags->backup, flags->holds,
-		    flags->props, flags->doall, NULL, NULL);
+		    flags->props, flags->doall, flags->no_preserve_encryption,
+		    NULL, NULL, NULL, NULL);
 		if (err != 0)
 			return (err);
 	}
@@ -3392,7 +3400,8 @@ recv_fix_encryption_hierarchy(libzfs_handle_t *hdl, const char *top_zfs,
 	/* Using top_zfs, gather the nvlists for all local filesystems. */
 	if ((err = gather_nvlist(hdl, top_zfs, NULL, NULL,
 	    recursive, B_TRUE, B_FALSE, recursive, B_FALSE, B_FALSE, B_FALSE,
-	    B_FALSE, B_TRUE, &local_nv, &local_avl)) != 0)
+	    B_FALSE, B_TRUE, B_FALSE, &local_nv, &local_avl,
+	    NULL, NULL)) != 0)
 		return (err);
 
 	/*
@@ -3447,7 +3456,15 @@ recv_fix_encryption_hierarchy(libzfs_handle_t *hdl, const char *top_zfs,
 		if (stream_nvfs == NULL)
 			continue;
 
-		stream_props = fnvlist_lookup_nvlist(stream_nvfs, "props");
+		/*
+		 * A "props" nvlist is only present when the send gathered
+		 * properties (-R, -p or -b).  A raw send carrying only holds
+		 * (zfs send -w -h) has none, so tolerate its absence rather
+		 * than asserting.
+		 */
+		stream_props = NULL;
+		(void) nvlist_lookup_nvlist(stream_nvfs, "props",
+		    &stream_props);
 		stream_encroot = nvlist_exists(stream_nvfs, "is_encroot");
 
 		/*
@@ -3465,29 +3482,40 @@ recv_fix_encryption_hierarchy(libzfs_handle_t *hdl, const char *top_zfs,
 				}
 			}
 
-			stream_keylocation = fnvlist_lookup_string(stream_props,
-			    zfs_prop_to_name(ZFS_PROP_KEYLOCATION));
-
 			/*
-			 * Refresh the properties in case the call to
-			 * lzc_change_key() changed the value.
+			 * Restore the keylocation only if the stream carried
+			 * properties.  A holds-only raw send has none, and the
+			 * raw receive has already established a usable
+			 * keylocation, so there is nothing to fix up.
 			 */
-			zfs_refresh_properties(zhp);
-			err = zfs_prop_get(zhp, ZFS_PROP_KEYLOCATION,
-			    keylocation, sizeof (keylocation), NULL, NULL,
-			    0, B_TRUE);
-			if (err != 0) {
-				zfs_close(zhp);
-				goto error;
-			}
+			if (stream_props != NULL) {
+				stream_keylocation = fnvlist_lookup_string(
+				    stream_props,
+				    zfs_prop_to_name(ZFS_PROP_KEYLOCATION));
 
-			if (strcmp(keylocation, stream_keylocation) != 0) {
-				err = zfs_prop_set(zhp,
-				    zfs_prop_to_name(ZFS_PROP_KEYLOCATION),
-				    stream_keylocation);
+				/*
+				 * Refresh the properties in case the call to
+				 * lzc_change_key() changed the value.
+				 */
+				zfs_refresh_properties(zhp);
+				err = zfs_prop_get(zhp, ZFS_PROP_KEYLOCATION,
+				    keylocation, sizeof (keylocation), NULL,
+				    NULL, 0, B_TRUE);
 				if (err != 0) {
 					zfs_close(zhp);
 					goto error;
+				}
+
+				if (strcmp(keylocation, stream_keylocation)
+				    != 0) {
+					err = zfs_prop_set(zhp,
+					    zfs_prop_to_name(
+					    ZFS_PROP_KEYLOCATION),
+					    stream_keylocation);
+					if (err != 0) {
+						zfs_close(zhp);
+						goto error;
+					}
 				}
 			}
 		}
@@ -3547,7 +3575,8 @@ again:
 
 	if ((error = gather_nvlist(hdl, tofs, fromsnap, NULL,
 	    recursive, B_TRUE, B_FALSE, recursive, B_FALSE, B_FALSE, B_FALSE,
-	    B_FALSE, B_TRUE, &local_nv, &local_avl)) != 0)
+	    B_FALSE, B_TRUE, B_FALSE, &local_nv, &local_avl,
+	    NULL, NULL)) != 0)
 		return (error);
 
 	/*
@@ -4321,7 +4350,7 @@ zfs_setup_cmdline_props(libzfs_handle_t *hdl, zfs_type_t type,
 				    newname);
 				if (nvlist_lookup_string(attrs,
 				    ZPROP_SOURCE, &source) == 0 &&
-				    strcmp(source, ZPROP_SOURCE_VAL_RECVD) != 0)
+				    strcmp(source, fsname) == 0)
 					continue;
 			}
 			/*
@@ -4944,7 +4973,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		*cp = '\0';
 
 		if (flags->isprefix && !flags->istail && !flags->dryrun &&
-		    create_parents(hdl, destsnap, strlen(tosnap)) != 0) {
+		    create_parents(hdl, destsnap, strlen(tosnap), NULL) != 0) {
 			err = zfs_error(hdl, EZFS_BADRESTORE, errbuf);
 			goto out;
 		}
@@ -5064,16 +5093,24 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 			char tbuf[1024];
 			zfs_prop_t prop;
 			int intval;
+			const char *pname = nvpair_name(prop_err);
 
-			prop = zfs_name_to_prop(nvpair_name(prop_err));
+			/*
+			 * errors may also carry non-property keys (e.g.
+			 * ZFS_RECV_ERR_STREAM).  Only int32 pairs are
+			 * property apply failures.
+			 */
+			if (nvpair_type(prop_err) != DATA_TYPE_INT32)
+				continue;
+
+			prop = zfs_name_to_prop(pname);
 			(void) nvpair_value_int32(prop_err, &intval);
-			if (strcmp(nvpair_name(prop_err),
-			    ZPROP_N_MORE_ERRORS) == 0) {
+			if (strcmp(pname, ZPROP_N_MORE_ERRORS) == 0) {
 				trunc_prop_errs(intval);
 				break;
 			} else if (snapname == NULL || finalsnap == NULL ||
 			    strcmp(finalsnap, snapname) == 0 ||
-			    strcmp(nvpair_name(prop_err),
+			    strcmp(pname,
 			    zfs_prop_to_name(ZFS_PROP_REFQUOTA)) != 0) {
 				/*
 				 * Skip the special case of, for example,
@@ -5089,7 +5126,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 				(void) snprintf(tbuf, sizeof (tbuf),
 				    dgettext(TEXT_DOMAIN,
 				    "cannot receive %s property on %s"),
-				    nvpair_name(prop_err), name);
+				    pname, name);
 				zfs_setprop_error(hdl, prop, intval, tbuf);
 			}
 		}
@@ -5138,7 +5175,8 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		*cp = '\0';
 		if (gather_nvlist(hdl, destsnap, NULL, NULL, B_FALSE, B_TRUE,
 		    B_FALSE, B_FALSE, B_FALSE, B_FALSE, B_FALSE, B_FALSE,
-		    B_TRUE, &local_nv, &local_avl) == 0) {
+		    B_TRUE, B_FALSE, &local_nv, &local_avl,
+		    NULL, NULL) == 0) {
 			*cp = '@';
 			fs = fsavl_find(local_avl, drrb->drr_toguid, NULL);
 			fsavl_destroy(local_avl);
@@ -5157,6 +5195,13 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	}
 
 	if (ioctl_err != 0) {
+		const char *stream_err = NULL;
+
+		if (prop_errors != NULL) {
+			(void) nvlist_lookup_string(prop_errors,
+			    ZFS_RECV_ERR_STREAM, &stream_err);
+		}
+
 		switch (ioctl_errno) {
 		case ENODEV:
 			cp = strchr(destsnap, '@');
@@ -5206,11 +5251,14 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 			*cp = '@';
 			break;
 		case EINVAL:
-			if (embedded && !raw) {
+		case ERANGE:
+			if (stream_err != NULL) {
+				zfs_error_aux(hdl, "%s", stream_err);
+			} else if (ioctl_errno == EINVAL && embedded && !raw) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "incompatible embedded data stream "
 				    "feature with encrypted receive."));
-			} else if (flags->resumable) {
+			} else if (ioctl_errno == EINVAL && flags->resumable) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "kernel modules must be upgraded to "
 				    "receive this stream."));
@@ -5267,9 +5315,17 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 			break;
 		case ZFS_ERR_FROM_IVSET_GUID_MISMATCH:
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-			    "IV set guid mismatch. See the 'zfs receive' "
-			    "man page section\n discussing the limitations "
-			    "of raw encrypted send streams."));
+			    "IV set guid mismatch. The incremental source "
+			    "snapshot on the\ndestination no longer has the "
+			    "IV set it was sent with, most commonly\nbecause "
+			    "it was received as a non-raw (plain) stream. Raw "
+			    "replication\ncan be resumed by rolling the "
+			    "destination back to the most recent\nsnapshot "
+			    "that was received raw and taking the raw "
+			    "incremental from\nthere, or by receiving a new "
+			    "full raw (zfs send -w) stream. See the\n'zfs "
+			    "receive' man page section discussing the "
+			    "limitations of raw\nencrypted send streams."));
 			(void) zfs_error(hdl, EZFS_BADSTREAM, errbuf);
 			break;
 		case ZFS_ERR_SPILL_BLOCK_FLAG_MISSING:
@@ -5337,6 +5393,16 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	if (prop_errflags & ZPROP_ERR_NORESTORE) {
 		(void) fprintf(stderr, dgettext(TEXT_DOMAIN, "Warning: "
 		    "failed to restore original properties on %s"), name);
+		(void) fprintf(stderr, "\n");
+	}
+	if (prop_errflags & ZPROP_ERR_IVSET_DIVERGED) {
+		(void) fprintf(stderr, dgettext(TEXT_DOMAIN, "Warning: "
+		    "the snapshot '%s' is based on was received as a raw "
+		    "stream, but\nthis incremental is not raw; it re-encrypts "
+		    "the data with a new IV set,\nso a later raw (zfs send -w) "
+		    "incremental based on it will fail with an\nIV set guid "
+		    "mismatch. Send this incremental raw as well to keep raw\n"
+		    "replication working."), destsnap);
 		(void) fprintf(stderr, "\n");
 	}
 

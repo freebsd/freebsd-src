@@ -78,6 +78,7 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	u_int atid = G_TID_TID(ntohl(cpl->tos_atid));
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
+	struct tcpcb *tp = intotcpcb(inp);
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == atid, ("%s: toep tid/atid mismatch", __func__));
@@ -95,7 +96,7 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 		toep->ctrlq = &sc->sge.ctrlq[toep->params.ctrlq_idx];
 	}
 
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 
 		/* socket closed by the kernel before hw told us it connected */
 

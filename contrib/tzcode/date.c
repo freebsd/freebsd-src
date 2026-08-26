@@ -31,11 +31,6 @@
 #include <locale.h>
 #include <stdio.h>
 
-#if !HAVE_POSIX_DECLS
-extern char *		optarg;
-extern int		optind;
-#endif
-
 static int		retval = EXIT_SUCCESS;
 
 static void		display(const char *, time_t);
@@ -64,7 +59,7 @@ main(const int argc, char *argv[])
 	textdomain(TZ_DOMAIN);
 #endif /* HAVE_GETTEXT */
 	t = time(NULL);
-	while ((ch = getopt(argc, argv, "ucr:")) != EOF && ch != -1) {
+	while ((ch = getopt(argc, argv, "ucr:")) != -1) {
 		switch (ch) {
 		default:
 			usage();

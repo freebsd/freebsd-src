@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2019 Roy Marples
+# Copyright (c) 2007-2023 Roy Marples
 # All rights reserved
 
 # dnsmasq subscriber for resolvconf
@@ -105,7 +105,7 @@ for d in $DOMAINS; do
 						empty=true
 						continue
 					fi
-					i=$(($i + 1))
+					i=$((i + 1))
 					while [ ${#addr} -lt 4 ]; do
 						addr="0${addr}"
 					done
@@ -118,7 +118,7 @@ for d in $DOMAINS; do
 					fi
 				done
 				while [ $i != 8 ]; do
-				i=$(($i + 1))
+				i=$((i + 1))
 					front="$front byte:0 byte:0"
 				done
 				front="${front}$back"
@@ -151,7 +151,7 @@ else
 fi
 
 # Try to ensure that config dirs exist
-if type config_mkdirs >/dev/null 2>&1; then
+if command -v config_mkdirs >/dev/null 2>&1; then
 	config_mkdirs "$dnsmasq_conf" "$dnsmasq_resolv"
 else
 	@SBINDIR@/resolvconf -D "$dnsmasq_conf" "$dnsmasq_resolv"

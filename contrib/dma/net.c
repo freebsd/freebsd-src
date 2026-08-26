@@ -390,7 +390,7 @@ int perform_server_greeting(int fd, struct smtp_features* features) {
 		Send EHLO
 		XXX allow HELO fallback
 	*/
-	send_remote_command(fd, "EHLO %s", hostname());
+	send_remote_command(fd, "%s %s", config.features & LMTP ? "LHLO" : "EHLO", hostname());
 
 	char buffer[EHLO_RESPONSE_SIZE];
 	memset(buffer, 0, sizeof(buffer));

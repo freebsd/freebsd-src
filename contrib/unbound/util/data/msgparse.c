@@ -53,6 +53,8 @@
 #include "sldns/parseutil.h"
 #include "sldns/wire2str.h"
 
+#define MAX_PARSED_EDNS_OPTIONS 100
+
 /** smart comparison of (compressed, valid) dnames from packet */
 static int
 smart_compare(sldns_buffer* pkt, uint8_t* dnow, 
@@ -685,6 +687,9 @@ calc_size(sldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 			}
 			rdf++;
 		}
+		/* rdata ended before all _dname_count names were seen */
+		if(count != 0)
+			return 0; /* the rdata is too short. */
 	}
 	/* remaining rdata */
 	rr->size += pkt_len;
@@ -950,6 +955,7 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 	struct comm_reply* repinfo, uint32_t now, struct regional* region,
 	struct cookie_secrets* cookie_secrets)
 {
+	int i = 0, nsid_seen = 0, cookie_seen = 0, padding_seen = 0;
 	/* To respond with a Keepalive option, the client connection must have
 	 * received one message with a TCP Keepalive EDNS option, and that
 	 * option must have 0 length data. Subsequent messages sent on that
@@ -969,7 +975,7 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 
 	/* while still more options, and have code+len to read */
 	/* ignores partial content (i.e. rdata len 3) */
-	while(rdata_len >= 4) {
+	while(rdata_len >= 4 && i < MAX_PARSED_EDNS_OPTIONS) {
 		uint16_t opt_code = sldns_read_uint16(rdata_ptr);
 		uint16_t opt_len = sldns_read_uint16(rdata_ptr+2);
 		uint8_t server_cookie[40];
@@ -984,8 +990,9 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 		/* handle parse time edns options here */
 		switch(opt_code) {
 		case LDNS_EDNS_NSID:
-			if (!cfg || !cfg->nsid)
+			if (!cfg || !cfg->nsid || nsid_seen)
 				break;
+			nsid_seen = 1;
 			if(!edns_opt_list_append(&edns->opt_list_out,
 						LDNS_EDNS_NSID, cfg->nsid_len,
 						cfg->nsid, region)) {
@@ -1026,9 +1033,13 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 			break;
 
 		case LDNS_EDNS_PADDING:
-			if(!cfg || !cfg->pad_responses ||
-					!c || c->type != comm_tcp ||!c->ssl)
+			if(!cfg || !cfg->pad_responses || !c || padding_seen)
 				break;
+			if(!((c->type == comm_tcp && c->ssl) ||
+				(c->type == comm_http && c->ssl) ||
+				c->type == comm_doq))
+				break;
+			padding_seen = 1;
 			if(!edns_opt_list_append(&edns->opt_list_out,
 						LDNS_EDNS_PADDING,
 						0, NULL, region)) {
@@ -1039,8 +1050,9 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 			break;
 
 		case LDNS_EDNS_COOKIE:
-			if(!cfg || !cfg->do_answer_cookie || !repinfo)
+			if(!cfg || !cfg->do_answer_cookie || !repinfo || cookie_seen)
 				break;
+			cookie_seen = 1;
 			if(opt_len != 8 && (opt_len < 16 || opt_len > 40)) {
 				verbose(VERB_ALGO, "worker request: "
 					"badly formatted cookie");
@@ -1062,13 +1074,13 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 			 * purposes. It will be overwritten if (re)creation
 			 * is needed.
 			 */
-			if(repinfo->remote_addr.ss_family == AF_INET) {
+			if(repinfo->client_addr.ss_family == AF_INET) {
 				memcpy(server_cookie + 16,
-					&((struct sockaddr_in*)&repinfo->remote_addr)->sin_addr, 4);
+					&((struct sockaddr_in*)&repinfo->client_addr)->sin_addr, 4);
 			} else {
 				cookie_is_v4 = 0;
 				memcpy(server_cookie + 16,
-					&((struct sockaddr_in6*)&repinfo->remote_addr)->sin6_addr, 16);
+					&((struct sockaddr_in6*)&repinfo->client_addr)->sin6_addr, 16);
 			}
 
 			if(cfg->cookie_secret_file &&
@@ -1146,6 +1158,7 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 		}
 		rdata_ptr += opt_len;
 		rdata_len -= opt_len;
+		i++;
 	}
 	return LDNS_RCODE_NOERROR;
 }
@@ -1160,6 +1173,7 @@ parse_extract_edns_from_response_msg(struct msg_parse* msg,
 	struct rrset_parse* found_prev = 0;
 	size_t rdata_len;
 	uint8_t* rdata_ptr;
+	int i = 0;
 	/* since the class encodes the UDP size, we cannot use hash table to
 	 * find the EDNS OPT record. Scan the packet. */
 	while(rrset) {
@@ -1219,7 +1233,7 @@ parse_extract_edns_from_response_msg(struct msg_parse* msg,
 
 	/* while still more options, and have code+len to read */
 	/* ignores partial content (i.e. rdata len 3) */
-	while(rdata_len >= 4) {
+	while(rdata_len >= 4 && i < MAX_PARSED_EDNS_OPTIONS) {
 		uint16_t opt_code = sldns_read_uint16(rdata_ptr);
 		uint16_t opt_len = sldns_read_uint16(rdata_ptr+2);
 		rdata_ptr += 4;
@@ -1234,6 +1248,7 @@ parse_extract_edns_from_response_msg(struct msg_parse* msg,
 		}
 		rdata_ptr += opt_len;
 		rdata_len -= opt_len;
+		i++;
 	}
 	/* ignore rrsigs */
 	return LDNS_RCODE_NOERROR;
@@ -1361,3 +1376,15 @@ msgparse_rrset_remove_rr(const char* str, sldns_buffer* pkt, struct rrset_parse*
 	 * the rr->next works fine to continue. */
 	return rrset->rr_count == 0;
 }
+
+#ifdef UNBOUND_DEBUG
+time_t debug_expired_reply_ttl_calc(time_t ttl, time_t ttl_add) {
+	/* Check that we are serving expired when this is called */
+	/* ttl (absolute) should be later than ttl_add */
+	/* It is also called during the grace period for type DNAME,
+	 * and then the 'SERVE_EXPIRED' boolean may not be on. */
+	log_assert(ttl_add <= ttl);
+	return (SERVE_EXPIRED_REPLY_TTL < (ttl) - (ttl_add) ?
+		SERVE_EXPIRED_REPLY_TTL : (ttl) - (ttl_add));
+}
+#endif

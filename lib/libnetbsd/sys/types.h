@@ -31,6 +31,6 @@
 
 #include_next <sys/types.h>
 
-#include <sys/param.h>	/* For NBBY */
+#define	NBBY	8
 
 #endif

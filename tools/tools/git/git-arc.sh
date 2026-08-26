@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2019-2021 Mark Johnston <markj@FreeBSD.org>
 # Copyright (c) 2021 John Baldwin <jhb@FreeBSD.org>
+# Copyright (c) 2026 Devin Teske <dteske@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -57,7 +58,8 @@ err_usage()
 Usage: git arc [-vy] <command> <arguments>
 
 Commands:
-  create [-l] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
+  create [-dl] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
+  diff <commit>|<commit range>
   list <commit>|<commit range>
   patch [-bcrs] <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
@@ -232,19 +234,57 @@ commit2diff()
     echo "$diff"
 }
 
+#
+# Convert a comma-separated tag list into Phabricator project hashtags.
+# Spaces become underscores; a leading '#' is added if missing.
+#
+tags2hashtags()
+{
+    local out rest tag
+
+    out=
+    rest=$1,
+    while [ -n "$rest" ]; do
+        tag=${rest%%,*}
+        rest=${rest#*,}
+        tag=$(printf '%s\n' "$tag" |
+            sed -e 's/^[[:space:]]*//' \
+                -e 's/[[:space:]]*$//' \
+                -e 's/[[:space:]]\{1,\}/_/g')
+        [ -n "$tag" ] || continue
+        case "$tag" in
+        \#*)
+            ;;
+        *)
+            tag="#$tag"
+            ;;
+        esac
+        out="$out, $tag"
+    done
+    printf '%s\n' "${out#, }"
+}
+
 create_one_review()
 {
-    local childphid commit doprompt msg parent parentphid reviewers
-    local subscribers
+    local childphid commit doprompt draft msg parent parentphid reviewers
+    local subscribers tags
 
     commit=$1
     reviewers=$2
     subscribers=$3
     parent=$4
     doprompt=$5
+    draft=$6
+    tags=$7
 
     if [ "$doprompt" ] && ! show_and_prompt "$commit"; then
         return 1
+    fi
+
+    if [ "$draft" -eq 1 ]; then
+        draft=--draft
+    else
+        unset draft
     fi
 
     msg=$(xmktemp)
@@ -254,10 +294,14 @@ create_one_review()
     printf "%s\n" "${reviewers}" >> "$msg"
     printf "\nSubscribers:\n" >> "$msg"
     printf "%s\n" "${subscribers}" >> "$msg"
+    if [ -n "$tags" ]; then
+        printf "\nTags:\n" >> "$msg"
+        printf "%s\n" "${tags}" >> "$msg"
+    fi
 
     yes | EDITOR=true \
         arc diff --message-file "$msg" --never-apply-patches --create \
-        --allow-untracked $BROWSE --head "$commit" "${commit}~"
+        --allow-untracked $draft $BROWSE --head "$commit" "${commit}~"
     [ $? -eq 0 ] || err "could not create Phabricator diff"
 
     if [ -n "$parent" ]; then
@@ -282,7 +326,7 @@ create_one_review()
 # Get a list of reviewers who accepted the specified diff.
 diff2reviewers()
 {
-    local diff reviewid userids
+    local diff reviewid userids tmp author username realname
 
     diff=$1
     reviewid=$(diff2phid "$diff")
@@ -294,11 +338,27 @@ diff2reviewers()
         arc_call_conduit -- differential.revision.search |
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
+        tmp=$(xmktemp)
         echo '{
         "constraints": {"phids": ['"$(echo $userids | tr '[:blank:]' ',')"']}
         }' |
         arc_call_conduit -- user.search |
-        jq -r '.response.data[].fields.username'
+        jq -r '.response.data[] | [.fields.username, .fields.realName] | @tsv' > "$tmp"
+
+        while IFS=$(printf '\t') read -r username realname; do
+            if is_freebsd_committer "$username"; then
+                # FreeBSD uses bare login names in Reviewed-by lines.
+                echo "$username"
+            else
+                # Resolve mangled phabricator usernames.
+                author=$(find_author "$username" "$realname" "" "")
+                if [ "$author" = "ABORT" ]; then
+                    warn "Skipping reviewer ${username}: uncertain author identity"
+                else
+                    echo "$author"
+                fi
+            fi
+        done < "$tmp"
     fi
 }
 
@@ -351,7 +411,8 @@ build_commit_list()
 
 gitarc__create()
 {
-    local commit commits doprompt list o prev reviewers subscribers
+    local commit commits doprompt draft list o prev reviewers subscribers
+    local tags
 
     list=
     prev=""
@@ -359,8 +420,12 @@ gitarc__create()
         list=1
     fi
     doprompt=1
-    while getopts lp:r:s: o; do
+    draft=0
+    while getopts dlp:r:s:t: o; do
         case "$o" in
+        d)
+            draft=1
+            ;;
         l)
             list=1
             ;;
@@ -372,6 +437,9 @@ gitarc__create()
             ;;
         s)
             subscribers="$OPTARG"
+            ;;
+        t)
+            tags=$(tags2hashtags "$OPTARG")
             ;;
         *)
             err_usage
@@ -394,11 +462,46 @@ gitarc__create()
 
     for commit in ${commits}; do
         if create_one_review "$commit" "$reviewers" "$subscribers" "$prev" \
-            "$doprompt"; then
+            "$doprompt" "$draft" "$tags"; then
             prev=$(commit2diff "$commit")
         else
             prev=""
         fi
+    done
+}
+
+#
+# Show the differences between local commits and their associated
+# Phabricator reviews, i.e., what "git arc update" would upload.  The
+# review's tree is reconstructed by applying its current raw diff to the
+# local commit's parent in a temporary index, and is then compared
+# against the local commit.
+#
+gitarc__diff()
+{
+    local commit commits diff rawdiff rtree
+
+    commits=$(build_commit_list "$@")
+
+    for commit in $commits; do
+        diff=$(commit2diff "$commit")
+
+        rawdiff=$(xmktemp)
+        fetch -q -o "$rawdiff" "https://reviews.freebsd.org/$diff.diff" ||
+            err "could not fetch ${diff}.diff"
+
+        rtree=$(
+            export GIT_INDEX_FILE="$(xmktemp)"
+            git read-tree --quiet "$commit~" &&
+                git -C "$(git rev-parse --show-toplevel)" apply \
+                    --cached "$rawdiff" &&
+                git write-tree
+        ) || err "cannot apply $diff to $commit~ (rebased since last update?)"
+
+        echo "Comparing $diff against" \
+            "$( git rev-parse --short "$commit" )..." >&2
+
+        git diff "$rtree" "$commit"
     done
 }
 
@@ -437,6 +540,20 @@ gitarc__list()
     done
 }
 
+# Return true if the Phabricator username looks like a FreeBSD committer login:
+# no '.' in the name and not a guest account.
+is_freebsd_committer()
+{
+    case "$1" in
+    *.* | guest-*)
+        return 1
+        ;;
+    *)
+        return 0
+        ;;
+    esac
+}
+
 # Try to guess our way to a good author name. The DWIM is strong in this
 # function, but these heuristics seem to generally produce the right results, in
 # the sample of src commits I checked out.
@@ -457,14 +574,10 @@ find_author()
     # these people having their local config pointing at something other than
     # freebsd.org (which isn't surprising for ports committers getting src
     # commits reviewed).
-    case "${addr}" in
-    *.*) ;;             # external user
-    guest-*) ;;		# Fake email address, not a FreeBSD user
-    *)
+    if is_freebsd_committer "${addr}"; then
         echo "${name} <${addr}@FreeBSD.org>"
         return
-        ;;
-    esac
+    fi
 
     # Choice 2: author_addr and author_name were set in the bundle, so use
     # that. We may need to filter some known bogus ones, should they crop up.
@@ -598,14 +711,15 @@ apply_rev()
         parents=$(diff2parents "$rev")
         for parent in $parents; do
             echo "Applying parent ${parent}..."
-            if ! apply_rev $parent $commit $raw $stack; then
-                return 1
-            fi
+            apply_rev $parent $commit $raw $stack
         done
     fi
 
+    # If a patch fails to apply, the corresponding command below will exit
+    # with a non-zero status and terminate the script.
     if $raw; then
-        fetch -o /dev/stdout "https://reviews.freebsd.org/${rev}.diff" | git apply --index
+        fetch -o /dev/stdout "https://reviews.freebsd.org/${rev}.diff" | \
+            git -C "$(git rev-parse --show-toplevel)" apply --index --reject
     else
         arc patch --skip-dependencies --nobranch --nocommit --force $rev
     fi
@@ -613,7 +727,6 @@ apply_rev()
     if ${commit}; then
         patch_commit $rev
     fi
-    return 0
 }
 
 gitarc__patch()
@@ -800,7 +913,7 @@ else
 fi
 
 case "$1" in
-create|list|patch|stage|update)
+create|diff|list|patch|stage|update)
     ;;
 *)
     err_usage
@@ -832,10 +945,10 @@ if [ -n "$GIT_PAGER" ]; then
     PAGER=$GIT_PAGER
 fi
 
-# Bail if the working tree is unclean, except for "list" and "patch"
-# operations.
+# Bail if the working tree is unclean, except for "diff", "list" and
+# "patch" operations.
 case $verb in
-list|patch)
+diff|list|patch)
     ;;
 *)
     require_clean_work_tree "$verb"

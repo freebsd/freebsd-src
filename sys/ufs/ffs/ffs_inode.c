@@ -100,7 +100,7 @@ ffs_update(struct vnode *vp, int waitfor)
 	int flags, error;
 
 	ASSERT_VOP_ELOCKED(vp, "ffs_update");
-	ufs_itimes(vp);
+	ufs_itimes(vp, NULL);
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
 		return (0);

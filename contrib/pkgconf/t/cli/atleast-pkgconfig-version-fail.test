@@ -1,0 +1,3 @@
+Tool: pkgconf
+ToolArgs: --atleast-pkgconfig-version=99999
+ExpectedExitCode: 1

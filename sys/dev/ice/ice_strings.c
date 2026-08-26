@@ -1046,6 +1046,8 @@ ice_state_to_str(enum ice_state state)
 		return "DO_FW_DEBUG_DUMP";
 	case ICE_STATE_LINK_ACTIVE_ON_DOWN:
 		return "LINK_ACTIVE_ON_DOWN";
+	case ICE_STATE_TOTAL_PORT_SHUTDOWN:
+		return "TOTAL_PORT_SHUTDOWN";
 	case ICE_STATE_FIRST_INIT_LINK:
 		return "FIRST_INIT_LINK";
 	case ICE_STATE_DO_CREATE_MIRR_INTFC:

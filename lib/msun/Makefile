@@ -27,6 +27,7 @@ CFLAGS+=	-I${.CURDIR}/ld80
 .elif ${LDBL_PREC} == 113
 .PATH:  ${.CURDIR}/ld128
 CFLAGS+=	-I${.CURDIR}/ld128 -I${SRCTOP}/contrib/arm-optimized-routines/math
+SYM_MAPS+=	${.CURDIR}/Symbol_f128.map
 .endif
 
 CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
@@ -75,15 +76,20 @@ COMMON_SRCS= b_tgamma.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
 	s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_fma.c s_fmaf.c \
-	s_fmax.c s_fmaxf.c s_fmin.c \
-	s_fminf.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
+	s_fmax.c s_fmaxf.c s_fmaximum.c s_fmaximumf.c \
+	s_fmaximum_mag.c s_fmaximum_magf.c s_fmaximum_mag_num.c \
+	s_fmaximum_mag_numf.c s_fmaximum_num.c s_fmaximum_numf.c \
+	s_fmin.c s_fminf.c s_fminimum.c s_fminimumf.c \
+	s_fminimum_mag.c s_fminimum_magf.c s_fminimum_mag_num.c \
+	s_fminimum_mag_numf.c s_fminimum_num.c s_fminimum_numf.c \
+	s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c s_llroundl.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
 	s_lround.c s_lroundf.c s_lroundl.c s_modff.c \
 	s_nan.c s_nearbyint.c s_nextafter.c s_nextafterf.c \
 	s_nexttowardf.c s_remquo.c s_remquof.c \
-	s_rint.c s_rintf.c s_round.c s_roundf.c \
+	s_rint.c s_rintf.c s_round.c s_roundf.c s_rsqrt.c s_rsqrtf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c \
 	s_sincos.c s_sincosf.c s_sinf.c \
@@ -91,9 +97,8 @@ COMMON_SRCS= b_tgamma.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # IEEE-754 2008 and ISO/IEC TS 18661-4 half-cycle trignometric functions
-COMMON_SRCS+= s_cospi.c s_cospif.c \
-	s_sinpi.c s_sinpif.c \
-	s_tanpi.c s_tanpif.c
+COMMON_SRCS+= s_asinpi.c s_asinpif.c s_atanpi.c s_atanpif.c \
+	s_cospi.c s_cospif.c s_sinpi.c s_sinpif.c s_tanpi.c s_tanpif.c
 
 # LIBCSRCDIR is defined lazily, so can't be used for exists() below
 LIBC_SRCTOP=${SRCTOP}/lib/libc
@@ -114,6 +119,7 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/src -I${LIBC_SRCTOP}/include \
 		-I${LIBC_SRCTOP}/${LIBC_ARCH}
 SYM_MAPS+=	${.CURDIR}/Symbol.map
+SYM_MAPS+=	${.CURDIR}/${ARCH_SUBDIR}/Symbol.map
 
 VERSION_DEF=	${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=	${SYM_MAPS}
@@ -128,12 +134,17 @@ COMMON_SRCS+=	b_tgammal.c catrigl.c \
 	e_lgammal.c e_lgammal_r.c e_powl.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cexpl.c \
+	s_asinhl.c s_asinpil.c s_atanl.c s_atanpil.c \
+	s_cbrtl.c s_ceill.c s_cexpl.c \
 	s_clogl.c s_cosl.c s_cospil.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
-	s_fmaxl.c s_fminl.c s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
+	s_fmaxl.c s_fmaximuml.c s_fmaximum_magl.c \
+	s_fmaximum_numl.c s_fmaximum_mag_numl.c \
+	s_fminl.c s_fminimuml.c s_fminimum_magl.c \
+	s_fminimum_numl.c s_fminimum_mag_numl.c \
+	s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
 	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
-	s_scalbnl.c s_sinl.c s_sincosl.c s_sinpil.c \
+	s_scalbnl.c s_sinl.c s_sincosl.c s_sinpil.c s_rsqrtl.c \
 	s_tanhl.c s_tanl.c s_tanpil.c s_truncl.c w_cabsl.c
 # Work around this warning from gcc:
 #     lib/msun/ld80/e_powl.c:275:1: error: floating constant exceeds range of
@@ -169,14 +180,17 @@ SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS+=	fenv.h math.h
 
-MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
+MAN=	acos.3 acosh.3 acospi.3 asin.3 asinh.3 asinpi.3 \
+	atan.3 atan2.3 atanh.3 atanpi.3 \
 	ceil.3 cacos.3 ccos.3 ccosh.3 cexp.3 \
 	cimag.3 clog.3 copysign.3 cos.3 cosh.3 cospi.3 \
 	cpow.3 csqrt.3 erf.3 \
 	exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
-	fegetround.3 fenv.3 floor.3 \
-	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
+	fegetround.3 fenv.3 floor.3 fma.3 \
+	fmax.3 fmaximum.3 fmaximum_mag.3 \
+	fmaximum_mag_num.3 fmaximum_num.3 fmod.3 \
+	hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
 	round.3 scalbn.3 signbit.3 sin.3 sincos.3 \
@@ -185,10 +199,13 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
 MLINKS+=acosh.3 acoshf.3 acosh.3 acoshl.3
+MLINKS+=acospi.3 acospif.3 acospi.3 acospil.3
 MLINKS+=asin.3 asinf.3 asin.3 asinl.3
 MLINKS+=asinh.3 asinhf.3 asinh.3 asinhl.3
+MLINKS+=asinpi.3 asinpif.3 asinpi.3 asinpil.3
 MLINKS+=atan.3 atanf.3 atan.3 atanl.3
 MLINKS+=atanh.3 atanhf.3 atanh.3 atanhl.3
+MLINKS+=atanpi.3 atanpif.3 atanpi.3 atanpil.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
 MLINKS+=cacos.3 cacosf.3 cacos.3 cacosl.3 \
@@ -229,6 +246,18 @@ MLINKS+=floor.3 floorf.3 floor.3 floorl.3
 MLINKS+=fma.3 fmaf.3 fma.3 fmal.3
 MLINKS+=fmax.3 fmaxf.3 fmax.3 fmaxl.3 \
 	fmax.3 fmin.3 fmax.3 fminf.3 fmax.3 fminl.3
+MLINKS+=fmaximum.3 fmaximumf.3 fmaximum.3 fmaximuml.3 \
+	fmaximum.3 fminimum.3 fmaximum.3 fminimumf.3 \
+	fmaximum.3 fminimuml.3
+MLINKS+=fmaximum_mag.3 fmaximum_magf.3 fmaximum_mag.3 fmaximum_magl.3 \
+	fmaximum_mag.3 fminimum_mag.3 fmaximum_mag.3 fminimum_magf.3 \
+	fmaximum_mag.3 fminimum_magl.3
+MLINKS+=fmaximum_mag_num.3 fmaximum_mag_numf.3 fmaximum_mag_num.3 fmaximum_mag_numl.3 \
+	fmaximum_mag_num.3 fminimum_mag_num.3 fmaximum_mag_num.3 fminimum_mag_numf.3 \
+	fmaximum_mag_num.3 fminimum_mag_numl.3
+MLINKS+=fmaximum_num.3 fmaximum_numf.3 fmaximum_num.3 fmaximum_numl.3 \
+	fmaximum_num.3 fminimum_num.3 fmaximum_num.3 fminimum_numf.3 \
+	fmaximum_num.3 fminimum_numl.3
 MLINKS+=fmod.3 fmodf.3 fmod.3 fmodl.3
 MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 cabsl.3 \
 	hypot.3 hypotf.3 hypot.3 hypotl.3
@@ -261,11 +290,11 @@ MLINKS+=round.3 roundf.3 round.3 roundl.3
 MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
 MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
 MLINKS+=sin.3 sinf.3 sin.3 sinl.3
-MLINKS+=sincos.3 sincosf.3 sin.3 sincosl.3
+MLINKS+=sincos.3 sincosf.3 sincos.3 sincosl.3
 MLINKS+=sinh.3 sinhf.3 sinh.3 sinhl.3
 MLINKS+=sinpi.3 sinpif.3 sinpi.3 sinpil.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 cbrtl.3 sqrt.3 sqrtf.3 \
-	sqrt.3 sqrtl.3
+	sqrt.3 sqrtl.3 sqrt.3 rsqrt.3 sqrt.3 rsqrtf.3 sqrt.3 rsqrtl.3
 MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3 tanh.3 tanhl.3
 MLINKS+=tanpi.3 tanpif.3 tanpi.3 tanpil.3

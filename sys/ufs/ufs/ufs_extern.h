@@ -73,7 +73,7 @@ int	 ufs_lookup_ino(struct vnode *, struct vnode **, struct componentname *,
 int	 ufs_getlbns(struct vnode *, ufs2_daddr_t, struct indir *, int *);
 int	 ufs_inactive(struct vop_inactive_args *);
 int	 ufs_init(struct vfsconf *);
-void	 ufs_itimes(struct vnode *vp);
+void	 ufs_itimes(struct vnode *vp, struct timespec *tsa);
 int	 ufs_lookup(struct vop_cachedlookup_args *);
 int	 ufs_need_inactive(struct vop_need_inactive_args *);
 int	 ufs_readdir(struct vop_readdir_args *);

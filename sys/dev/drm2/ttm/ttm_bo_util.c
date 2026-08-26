@@ -500,7 +500,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		map->bo_kmap_type = ttm_bo_map_kmap;
 		map->page = ttm->pages[start_page];
 		map->sf = sf_buf_alloc(map->page, 0);
-		map->virtual = (void *)sf_buf_kva(map->sf);
+		map->virtual = sf_buf_kva(map->sf);
 	} else {
 		/*
 		 * We need to use vmap to get the desired page protection
@@ -510,14 +510,14 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			VM_MEMATTR_DEFAULT : ttm_io_prot(mem->placement);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->num_pages = num_pages;
-		map->virtual = (void *)kva_alloc(num_pages * PAGE_SIZE);
+		map->virtual = kva_alloc(num_pages * PAGE_SIZE);
 		if (map->virtual != NULL) {
 			for (i = 0; i < num_pages; i++) {
 				/* XXXKIB hack */
 				pmap_page_set_memattr(ttm->pages[start_page +
 				    i], prot);
 			}
-			pmap_qenter((vm_offset_t)map->virtual,
+			pmap_qenter(map->virtual,
 			    &ttm->pages[start_page], num_pages);
 		}
 	}
@@ -571,9 +571,8 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 		pmap_unmapdev(map->virtual, map->size);
 		break;
 	case ttm_bo_map_vmap:
-		pmap_qremove((vm_offset_t)(map->virtual), map->num_pages);
-		kva_free((vm_offset_t)map->virtual,
-		    map->num_pages * PAGE_SIZE);
+		pmap_qremove(map->virtual, map->num_pages);
+		kva_free(map->virtual, map->num_pages * PAGE_SIZE);
 		break;
 	case ttm_bo_map_kmap:
 		sf_buf_free(map->sf);

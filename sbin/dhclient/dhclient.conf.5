@@ -349,16 +349,18 @@ predefined lease is used.
 .It Ic script Qq Ar script-name ;
 The
 .Ic script
-statement is used to specify the pathname of the DHCP client configuration
+statement is used to specify a pathname of a DHCP client configuration
 script.
 This script is used by the DHCP client to set each interface's initial
 configuration prior to requesting an address, to test the address once it
 has been offered, and to set the interface's final configuration once a
 lease has been acquired.
-If no lease is acquired, the script is used to test predefined leases, if
-any, and also called once if no valid lease can be identified.
-For more information, see
-.Xr dhclient.leases 5 .
+If no lease is acquired, the script is used to test predefined
+.Xr dhclient.leases 5 ,
+if any, and also called once if no valid lease can be identified.
+Additional information on using DHCP client configuration scripts is
+found in
+.Xr dhclient-script 8 .
 .It Ic medium Qq Ar "media setup" ;
 The
 .Ic medium
@@ -543,9 +545,8 @@ file - the defaults are usually fine.
 .Sh SEE ALSO
 .Xr dhclient.leases 5 ,
 .Xr dhcp-options 5 ,
-.Xr dhcpd.conf 5 ,
 .Xr dhclient 8 ,
-.Xr dhcpd 8
+.Xr dhclient-script 8
 .Rs
 .%R "RFC 2132, RFC 2131"
 .Re

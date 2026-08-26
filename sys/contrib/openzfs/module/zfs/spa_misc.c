@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -414,7 +404,7 @@ spa_load_failed(spa_t *spa, const char *fmt, ...)
 	(void) vsnprintf(buf, sizeof (buf), fmt, adx);
 	va_end(adx);
 
-	zfs_dbgmsg("spa_load(%s, config %s): FAILED: %s", spa->spa_name,
+	zfs_dbgmsg("spa_load(%s, config %s): FAILED: %s", spa_load_name(spa),
 	    spa->spa_trust_config ? "trusted" : "untrusted", buf);
 }
 
@@ -428,7 +418,7 @@ spa_load_note(spa_t *spa, const char *fmt, ...)
 	(void) vsnprintf(buf, sizeof (buf), fmt, adx);
 	va_end(adx);
 
-	zfs_dbgmsg("spa_load(%s, config %s): %s", spa->spa_name,
+	zfs_dbgmsg("spa_load(%s, config %s): %s", spa_load_name(spa),
 	    spa->spa_trust_config ? "trusted" : "untrusted", buf);
 
 	spa_import_progress_set_notes_nolog(spa, "%s", buf);
@@ -769,6 +759,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_init(&spa->spa_flushed_ms_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_activities_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_txg_log_time_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&spa->spa_condense_stats_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	cv_init(&spa->spa_async_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_evicting_os_cv, NULL, CV_DEFAULT, NULL);
@@ -902,6 +893,9 @@ spa_remove(spa_t *spa)
 	if (spa->spa_root)
 		spa_strfree(spa->spa_root);
 
+	if (spa->spa_load_name)
+		spa_strfree(spa->spa_load_name);
+
 	while ((dp = list_remove_head(&spa->spa_config_list)) != NULL) {
 		if (dp->scd_path != NULL)
 			spa_strfree(dp->scd_path);
@@ -958,6 +952,7 @@ spa_remove(spa_t *spa)
 	mutex_destroy(&spa->spa_feat_stats_lock);
 	mutex_destroy(&spa->spa_activities_lock);
 	mutex_destroy(&spa->spa_txg_log_time_lock);
+	mutex_destroy(&spa->spa_condense_stats_lock);
 
 	kmem_free(spa, sizeof (spa_t));
 }
@@ -1282,7 +1277,7 @@ spa_vdev_enter(spa_t *spa)
 	mutex_enter(&spa->spa_vdev_top_lock);
 	spa_namespace_enter(FTAG);
 
-	ASSERT0(spa->spa_export_thread);
+	ASSERT0P(spa->spa_export_thread);
 
 	vdev_autotrim_stop_all(spa);
 
@@ -1301,7 +1296,7 @@ spa_vdev_detach_enter(spa_t *spa, uint64_t guid)
 	mutex_enter(&spa->spa_vdev_top_lock);
 	spa_namespace_enter(FTAG);
 
-	ASSERT0(spa->spa_export_thread);
+	ASSERT0P(spa->spa_export_thread);
 
 	vdev_autotrim_stop_all(spa);
 
@@ -1818,6 +1813,19 @@ spa_name(spa_t *spa)
 	return (spa->spa_name);
 }
 
+char *
+spa_load_name(spa_t *spa)
+{
+	/*
+	 * During spa_tryimport() the pool name includes a unique prefix.
+	 * Returns the original name which can be used for log messages.
+	 */
+	if (spa->spa_load_name)
+		return (spa->spa_load_name);
+
+	return (spa->spa_name);
+}
+
 uint64_t
 spa_guid(spa_t *spa)
 {
@@ -1873,6 +1881,12 @@ uint64_t
 spa_syncing_txg(spa_t *spa)
 {
 	return (spa->spa_syncing_txg);
+}
+
+uint64_t
+spa_open_txg(spa_t *spa)
+{
+	return (spa->spa_dsl_pool->dp_tx.tx_open_txg);
 }
 
 /*
@@ -2015,7 +2029,10 @@ spa_update_dspace(spa_t *spa)
 		ASSERT3U(spa->spa_rdspace, >=, spa->spa_nonallocating_dspace);
 		spa->spa_rdspace -= spa->spa_nonallocating_dspace;
 	}
-	spa->spa_dspace = spa->spa_rdspace + ddt_get_dedup_dspace(spa) +
+	spa->spa_dspace = spa->spa_rdspace +
+	    metaslab_class_get_dalloc(spa_special_class(spa)) +
+	    metaslab_class_get_dalloc(spa_dedup_class(spa)) +
+	    ddt_get_dedup_dspace(spa) +
 	    brt_get_dspace(spa);
 }
 
@@ -2100,6 +2117,12 @@ spa_preferred_class(spa_t *spa, const zio_t *zio)
 	boolean_t tried_special = (mc == spa_special_class(spa));
 	const zio_prop_t *zp = &zio->io_prop;
 
+	/* Gang children should always use the class of their parents. */
+	if (zio->io_flags & ZIO_FLAG_GANG_CHILD) {
+		ASSERT(mc != NULL);
+		return (mc);
+	}
+
 	/*
 	 * Override object type for the purposes of selecting a storage class.
 	 * Primarily for DMU_OTN_ types where we can't explicitly control their
@@ -2124,39 +2147,23 @@ spa_preferred_class(spa_t *spa, const zio_t *zio)
 			return (spa_normal_class(spa));
 	}
 
-	/* Indirect blocks for user data can land in special if allowed */
-	if (zp->zp_level > 0 &&
-	    (DMU_OT_IS_FILE(objtype) || objtype == DMU_OT_ZVOL)) {
-		if (zfs_user_indirect_is_special && spa_has_special(spa) &&
-		    !tried_special)
-			return (spa_special_class(spa));
-		else
-			return (spa_normal_class(spa));
-	}
+	if (!spa_has_special(spa) || tried_special)
+		return (spa_normal_class(spa));
 
-	if (DMU_OT_IS_METADATA(objtype) || zp->zp_level > 0) {
-		if (spa_has_special(spa) && !tried_special)
-			return (spa_special_class(spa));
-		else
-			return (spa_normal_class(spa));
-	}
+	if (DMU_OT_IS_METADATA(objtype) ||
+	    (zfs_user_indirect_is_special && zp->zp_level > 0))
+		return (spa_special_class(spa));
 
 	/*
-	 * Allow small file or zvol blocks in special class if opted in by
-	 * the special_smallblk property. However, always leave a reserve of
+	 * Allow small blocks in special class.  However, leave a reserve of
 	 * zfs_special_class_metadata_reserve_pct exclusively for metadata.
 	 */
-	if ((DMU_OT_IS_FILE(objtype) || objtype == DMU_OT_ZVOL) &&
-	    spa_has_special(spa) && !tried_special &&
-	    zio->io_size <= zp->zp_zpl_smallblk) {
+	if (zio->io_size <= zp->zp_zpl_smallblk) {
 		metaslab_class_t *special = spa_special_class(spa);
-		uint64_t alloc = metaslab_class_get_alloc(special);
-		uint64_t space = metaslab_class_get_space(special);
-		uint64_t limit =
-		    (space * (100 - zfs_special_class_metadata_reserve_pct))
-		    / 100;
+		uint64_t limit = metaslab_class_get_space(special) *
+		    (100 - zfs_special_class_metadata_reserve_pct) / 100;
 
-		if (alloc < limit)
+		if (metaslab_class_get_alloc(special) < limit)
 			return (special);
 	}
 
@@ -2607,11 +2614,8 @@ spa_name_compare(const void *a1, const void *a2)
 {
 	const spa_t *s1 = a1;
 	const spa_t *s2 = a2;
-	int s;
 
-	s = strcmp(s1->spa_name, s2->spa_name);
-
-	return (TREE_ISIGN(s));
+	return (TREE_ISIGN(strcmp(s1->spa_name, s2->spa_name)));
 }
 
 void
@@ -2668,7 +2672,6 @@ spa_init(spa_mode_t mode)
 	zpool_prop_init();
 	zpool_feature_init();
 	vdev_prop_init();
-	l2arc_start();
 	scan_init();
 	qat_init();
 	spa_import_progress_init();
@@ -2678,8 +2681,6 @@ spa_init(spa_mode_t mode)
 void
 spa_fini(void)
 {
-	l2arc_stop();
-
 	spa_evict_all();
 
 	vdev_file_fini();
@@ -2876,6 +2877,9 @@ spa_scan_get_stats(spa_t *spa, pool_scan_stat_t *ps)
 
 	/* error scrub data not stored on disk */
 	ps->pss_pass_error_scrub_pause = spa->spa_scan_pass_errorscrub_pause;
+	ps->pss_pass_scrub_flags = 0;
+	if (scn->scn_phys.scn_flags & DSF_SCRUB_THOROUGH)
+		ps->pss_pass_scrub_flags |= POOL_SCRUB_THOROUGH;
 
 	return (0);
 }
@@ -3144,6 +3148,7 @@ EXPORT_SYMBOL(spa_set_rootblkptr);
 EXPORT_SYMBOL(spa_altroot);
 EXPORT_SYMBOL(spa_sync_pass);
 EXPORT_SYMBOL(spa_name);
+EXPORT_SYMBOL(spa_load_name);
 EXPORT_SYMBOL(spa_guid);
 EXPORT_SYMBOL(spa_last_synced_txg);
 EXPORT_SYMBOL(spa_first_txg);

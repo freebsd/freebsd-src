@@ -30,6 +30,7 @@
 #else
 #include <ctype.h>
 #include <poll.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,6 +81,7 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_get_stats (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
+#define	dummy_attach_kernel_driver (void *)dummy_int
 #define	dummy_do_request_sync (void *)dummy_int
 #define	dummy_tr_open (void *)dummy_int
 #define	dummy_tr_close (void *)dummy_int
@@ -369,6 +371,12 @@ libusb20_tr_set_flags(struct libusb20_transfer *xfer, uint8_t flags)
 	return;
 }
 
+uint8_t
+libusb20_tr_get_flags(struct libusb20_transfer *xfer)
+{
+	return (xfer->flags);
+}
+
 uint32_t
 libusb20_tr_get_length(struct libusb20_transfer *xfer, uint16_t frIndex)
 {
@@ -633,6 +641,16 @@ libusb20_dev_detach_kernel_driver(struct libusb20_device *pdev, uint8_t ifaceInd
 	int error;
 
 	error = pdev->methods->detach_kernel_driver(pdev, ifaceIndex);
+	return (error);
+}
+
+int
+libusb20_dev_attach_kernel_driver(struct libusb20_device *pdev,
+    uint8_t ifaceIndex)
+{
+	int error;
+
+	error = pdev->methods->attach_kernel_driver(pdev, ifaceIndex);
 	return (error);
 }
 
@@ -1256,7 +1274,8 @@ libusb20_be_device_foreach(struct libusb20_backend *pbe, struct libusb20_device 
 }
 
 struct libusb20_backend *
-libusb20_be_alloc(const struct libusb20_backend_methods *methods)
+libusb20_be_alloc(const struct libusb20_backend_methods *methods,
+    struct libusb20_be_ctx *pctx)
 {
 	struct libusb20_backend *pbe;
 
@@ -1265,6 +1284,17 @@ libusb20_be_alloc(const struct libusb20_backend_methods *methods)
 		return (NULL);
 	}
 	memset(pbe, 0, sizeof(*pbe));
+
+	if (pctx == NULL) {
+		/* the backend owns its own context */
+		pctx = libusb20_be_ctx_alloc();
+		if (pctx == NULL) {
+			free(pbe);
+			return (NULL);
+		}
+		pbe->be_ctx_owner = 1;
+	}
+	pbe->be_ctx = pctx;
 
 	TAILQ_INIT(&(pbe->usb_devs));
 
@@ -1278,29 +1308,29 @@ libusb20_be_alloc(const struct libusb20_backend_methods *methods)
 }
 
 struct libusb20_backend *
-libusb20_be_alloc_linux(void)
+libusb20_be_alloc_linux(struct libusb20_be_ctx *pctx)
 {
 	return (NULL);
 }
 
 struct libusb20_backend *
-libusb20_be_alloc_ugen20(void)
+libusb20_be_alloc_ugen20(struct libusb20_be_ctx *pctx)
 {
-	return (libusb20_be_alloc(&libusb20_ugen20_backend));
+	return (libusb20_be_alloc(&libusb20_ugen20_backend, pctx));
 }
 
 struct libusb20_backend *
-libusb20_be_alloc_default(void)
+libusb20_be_alloc_default(struct libusb20_be_ctx *pctx)
 {
 	struct libusb20_backend *pbe;
 
 #ifdef __linux__
-	pbe = libusb20_be_alloc_linux();
+	pbe = libusb20_be_alloc_linux(pctx);
 	if (pbe) {
 		return (pbe);
 	}
 #endif
-	pbe = libusb20_be_alloc_ugen20();
+	pbe = libusb20_be_alloc_ugen20(pctx);
 	if (pbe) {
 		return (pbe);
 	}
@@ -1323,6 +1353,8 @@ libusb20_be_free(struct libusb20_backend *pbe)
 	if (pbe->methods->exit_backend) {
 		pbe->methods->exit_backend(pbe);
 	}
+	if (pbe->be_ctx_owner)
+		libusb20_be_ctx_free(pbe->be_ctx);
 	/* free backend */
 	free(pbe);
 }

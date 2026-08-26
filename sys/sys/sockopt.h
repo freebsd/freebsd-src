@@ -59,6 +59,12 @@ int	sosetopt(struct socket *so, struct sockopt *sopt);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
 int __result_use_check sooptcopyin(struct sockopt *sopt, void *buf, size_t len,
     size_t minlen);
+#ifdef __CHERI__
+int __result_use_check sooptcopyinptr(struct sockopt *sopt, void *buf,
+    size_t len, size_t minlen);
+#else
+#define	sooptcopyinptr	sooptcopyin
+#endif
 int __result_use_check sooptcopyout(struct sockopt *sopt, const void *buf,
     size_t len);
 int	soopt_getm(struct sockopt *sopt, struct mbuf **mp);

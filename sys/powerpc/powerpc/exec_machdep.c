@@ -1080,10 +1080,15 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
+}
+
+void
+cpu_thread_new_kstack(struct thread *td)
+{
 	struct pcb *pcb;
 
-	pcb = (struct pcb *)__align_down(td->td_kstack + td->td_kstack_pages *
-	    PAGE_SIZE - sizeof(struct pcb), 0x40);
+	pcb = (struct pcb *)__align_down(td_kstack_top(td) - sizeof(struct pcb),
+	    0x40);
 	td->td_pcb = pcb;
 	td->td_frame = (struct trapframe *)pcb - 1;
 }

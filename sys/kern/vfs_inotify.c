@@ -563,7 +563,7 @@ inotify_overflow_event(struct inotify_event *evp)
 }
 
 /*
- * Put an event record on the queue for an inotify desscriptor.  Return false if
+ * Put an event record on the queue for an inotify descriptor.  Return false if
  * the record was not enqueued for some reason, true otherwise.
  */
 static bool
@@ -614,25 +614,36 @@ inotify_log_one(struct inotify_watch *watch, const char *name, size_t namelen,
 	struct inotify_watch key;
 	struct inotify_softc *sc;
 	struct inotify_record *rec;
-	bool allocfail;
+	bool allocfail, delete, notify, oneshot, unmount;
 
 	mtx_assert(&watch->vp->v_pollinfo->vpi_lock, MA_OWNED);
 
 	sc = watch->sc;
-	rec = inotify_alloc_record(watch->wd, name, namelen, event, cookie,
-	    M_NOWAIT);
-	if (rec == NULL) {
-		rec = &sc->overflow;
-		allocfail = true;
+
+	delete = (event & IN_DELETE_SELF) != 0;
+	notify = (watch->mask & event) != 0;
+	oneshot = (watch->mask & IN_ONESHOT) != 0;
+	unmount = (event & IN_UNMOUNT) != 0;
+	if (!notify && !delete && !unmount)
+		return;
+
+	allocfail = false;
+	if (notify || unmount) {
+		rec = inotify_alloc_record(watch->wd, name, namelen, event,
+		    cookie, M_NOWAIT);
+		if (rec == NULL) {
+			rec = &sc->overflow;
+			allocfail = true;
+		}
 	} else {
-		allocfail = false;
+		rec = NULL;
 	}
 
 	mtx_lock(&sc->lock);
-	if (!inotify_queue_record(sc, rec) && rec != &sc->overflow)
+	if (rec != NULL && !inotify_queue_record(sc, rec) &&
+	    rec != &sc->overflow)
 		free(rec, M_INOTIFY);
-	if ((watch->mask & IN_ONESHOT) != 0 ||
-	    (event & (IN_DELETE_SELF | IN_UNMOUNT)) != 0) {
+	if (oneshot || delete || unmount) {
 		if (!allocfail) {
 			rec = inotify_alloc_record(watch->wd, NULL, 0,
 			    IN_IGNORED, 0, M_NOWAIT);
@@ -676,8 +687,7 @@ inotify_log(struct vnode *vp, const char *name, size_t namelen, int event,
 	TAILQ_FOREACH_SAFE(watch, &vp->v_pollinfo->vpi_inotify, vlink, tmp) {
 		KASSERT(watch->vp == vp,
 		    ("inotify_log: watch %p vp != vp", watch));
-		if ((watch->mask & event) != 0 || event == IN_UNMOUNT)
-			inotify_log_one(watch, name, namelen, event, cookie);
+		inotify_log_one(watch, name, namelen, event, cookie);
 	}
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }
@@ -889,10 +899,6 @@ vn_inotify_add_watch(struct vnode *vp, struct inotify_softc *sc, uint32_t mask,
 void
 vn_inotify_revoke(struct vnode *vp)
 {
-	if (vp->v_pollinfo == NULL) {
-		/* This is a nullfs vnode which shadows a watched vnode. */
-		return;
-	}
 	inotify_log(vp, NULL, 0, IN_UNMOUNT, 0);
 }
 

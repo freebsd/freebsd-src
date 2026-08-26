@@ -51,4 +51,6 @@ struct s_fixedpt {
 	nd_uint16_t fraction;
 };
 
+void p_ntp_time_fmt(netdissect_options *, const char *fmt,
+                    const struct l_fixedpt *);
 void p_ntp_time(netdissect_options *, const struct l_fixedpt *);

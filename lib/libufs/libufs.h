@@ -29,6 +29,7 @@
 
 #ifndef	__LIBUFS_H__
 #define	__LIBUFS_H__
+
 #include <stdbool.h>
 
 /*
@@ -37,6 +38,8 @@
  * The alignment must be a power of 2.
  */
 #define LIBUFS_BUFALIGN	128
+
+#define LIBUFS_MAXBSIZE	65536
 
 /*
  * userland ufs disk.
@@ -48,11 +51,11 @@ struct uufsd {
 	} d_sbunion __aligned(LIBUFS_BUFALIGN);
 	union {
 		struct cg d_cg;		/* cylinder group */
-		char d_buf[MAXBSIZE];	/* cylinder group storage */
+		char d_buf[LIBUFS_MAXBSIZE]; /* cylinder group storage */
 	} d_cgunion __aligned(LIBUFS_BUFALIGN);
 	union {
 		union dinodep d_ino[1];	/* inode block */
-		char d_inos[MAXBSIZE];	/* inode block as buffer */
+		char d_inos[LIBUFS_MAXBSIZE]; /* inode block as buffer */
 	} d_inosunion __aligned(LIBUFS_BUFALIGN);
 	const char *d_name;		/* disk name */
 	const char *d_error;		/* human readable disk error */

@@ -1,3 +1,98 @@
+1.9.2	2026-06-10
+	* Fix to set VERSION_INFO to create .so.3 instead of .so.11 which will
+	  be reserved for a future 1.10.0 release
+
+1.9.1	2026-06-10
+	* Bugfix: Insufficient verification that responses belong to a
+	  query (CVE-2026-10846). Thanks Pablo Ruiz from 'codecome.ai'
+
+1.9.0	2025-12-04
+	* PR #246: Make ldns_calc_keytag() available for CDNSKEY RR
+	  Thanks tgreenx and pnax
+	* PR #247: Make ldns_key_rr2ds() available for CDNSKEY RR
+	  Thanks tgreenx
+	* PR #248: Make ldns_rr_compare_{ds,ds_dnskey}() available for
+	  CDS and CDNSKEY RRs. Thanks tgreenx
+	* PR #245: Make drill trace use IPv6 when used with -6
+	  Thanks Paul Radford 
+	* Fix #254: Unquoted "value" rdata for CAA records fail to validate.
+	  Follows the long string unquoted syntax from RFC8659, section 4.1.1.
+	* Fix #266: ldns-read-zone -u fails if a type is the only type in a
+	  window and the type modulo 256 is equal to zero.
+	* Fix #271: Intermittent build failure with multi-job
+	  builds (make -j).
+	* Add ldns-verify-zone -s option. It checks all signature results,
+	  instead of passing by when one RRSIG validates. That prints output
+	  for spurious RRSIGs, the failures for them.
+	* Fix RR types NSAP-PTR, GPOS and RESINFO to print unquoted strings.
+	* Fix memory leak when trying to read zones that have equal RRs.
+	  the ldns_dnssec_*_add_rr() functions now return LDNS_STATUS_EQUAL_RR
+	  when an already existing RR is tried to be added. This is a API
+	  change, hence this also bumps the version to 1.9.0
+	* PR #282: ensure returning pkt with LDNS_STATUS_OK. Thanks grobian.
+	* PR #286: Fix RR Type AMTRELAY type nogateway, to print relay '.',
+	  and memory leaks in parsing it.
+	* DSYNC is no longer a draft RR type and compiled by default
+	* RFC 9824 support: Compact Denial of Existence in DNSSEC
+	* The HHIT and BRID draft RR types
+	* PR #249: If RNG is already seeded, return early.
+	  Thanks crrodriguez
+	* PR #221: Improve error messages. Thanks jschauma
+	* PR #256: Use SWIG_AppendOutput to support swig 4.3
+	  Thanks pemensik
+	* PR #188: Homogenize paths for source files during compilation
+	  Thanks duthils
+	* Fix #283: ldns-walk fails after update from 1.8.3 to 1.8.4
+	  Thanks jschauma
+	* PR #200: Allow compiled tests to link to ldns statically via
+	  environment variable. Thanks FGasper and pemensik
+	* PR #220: Optionally exclude ZONEMD RRs in ldns-compare-zone
+	  Thanks gjherbiet
+	* Fix #285: A WALLET RR breaks TXT signing. Thanks bortzmeyer
+	* Fix #287: ldns-verify-zone hangs with missing NSEC3 RRs.
+	  Thanks Roy Arends
+
+1.8.4	2024-07-19
+	* Fix building documentation in build directory.
+	  Thanks Michael Tokarev
+	* Updated the configure script for split openssl directories.
+	* Fix for windows compile; asctime_r compat, search for inet_ntop
+	  in ws2_32, avoid double decl of inet_ntop, check for symlink call,
+	  include config.h in edns.c, have socket compare use correct
+	  signedness, add -u repo option to makewin.sh, fix quoting in
+	  makewin.sh and check return value of bind and connect in net.c
+	  for failure instead of a socket type. And fix to install .exe files.
+	* Fix to compile with OpenSSL 3.2. Update acx_nlnetlabs.m4 to 48.
+	* Fix to compile DLLs, and pick out of the lib64 dir, and include
+	  libssp-0.dll and ldns-config.
+	* bugfix #237: Resolver uses nameserver commented out in
+	  /etc/resolv.conf. Thanks grembo.
+	* Added RESINFO rrtype.
+	* Added WALLET rrtype.
+	* PR #241: Fix coverity cited problems. Thanks Enji Cooper.
+	* PR #233: Several Python SWIG issues. Thanks Florian Weimer.
+	* PR #231: const ldns_rdf * typemap fixes to support swig-4.2.0
+	  Thanks William S Fulton
+	* PR #227: keys.c: fix build with libressl >= 3.8.1
+	  Thanks Fabrice Fontaine
+	* PR #224: Portable executable progs don't underlink to libldns
+	  Thanks Ørjan Malde
+	* PR #216: Update declaration for function with no argument
+	  Thanks Ed Maste
+	* PR #214: fix the build in FreeBSD's base system
+	  Thanks Pierre Pronchery and Dag-Erling Smørgrav
+	* PR #206: improve 'next-label' algorithm in ldns-walk
+	  Thanks Jelte Jansen
+	* PR #205: Add functions to extract RFC 8914 extended errors
+	  Thanks Roland van Rijswijk-Deij
+	* PR #203: Expand CI: Cygwin, BSDs, musl libc, 32-bit, and big-endian
+	  Thanks Felipe Gasper
+	* PR #191: 16-unit-tests-edns: Fix leak & warnings
+	  Thanks Felipe Gasper
+	* Added NXNAME rrtype.
+	* PR #242: Openssl no engine improved support #242
+	  Thanks Petr Menšík
+
 1.8.3	2022-08-15
 	* bugfix #183: Assertion failure with OPT record without rdata.
 	  This caused packet creation with only a DO bit (for DNSSEC OK)

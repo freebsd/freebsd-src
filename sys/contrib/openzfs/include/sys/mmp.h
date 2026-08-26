@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (C) 2017 by Lawrence Livermore National Security, LLC.
@@ -33,6 +29,7 @@ extern "C" {
 #define	MMP_DEFAULT_IMPORT_INTERVALS	20
 #define	MMP_DEFAULT_FAIL_INTERVALS	10
 #define	MMP_MIN_FAIL_INTERVALS		2	/* min if != 0 */
+#define	MMP_IMPORT_VERIFY_ITERS		10
 #define	MMP_IMPORT_SAFETY_FACTOR	200	/* pct */
 #define	MMP_INTERVAL_OK(interval)	MAX(interval, MMP_MIN_INTERVAL)
 #define	MMP_FAIL_INTVS_OK(fails)	(fails == 0 ? 0 : MAX(fails, \
@@ -53,6 +50,9 @@ typedef struct mmp_thread {
 	vdev_t		*mmp_last_leaf;	/* last mmp write sent here */
 	uint64_t	mmp_leaf_last_gen;	/* last mmp write sent here */
 	uint32_t	mmp_seq;	/* intra-second update counter */
+	uint64_t	mmp_tryimport_ns; /* tryimport activity check time */
+	uint64_t	mmp_import_ns;	/* import activity check time */
+	uint64_t	mmp_claim_ns;	/* claim activity check time */
 } mmp_thread_t;
 
 
@@ -62,12 +62,18 @@ extern void mmp_thread_start(struct spa *spa);
 extern void mmp_thread_stop(struct spa *spa);
 extern void mmp_update_uberblock(struct spa *spa, struct uberblock *ub);
 extern void mmp_signal_all_threads(void);
+extern int mmp_claim_uberblock(spa_t *spa, vdev_t *vd, uberblock_t *ub);
 
 /* Global tuning */
 extern int param_set_multihost_interval(ZFS_MODULE_PARAM_ARGS);
 extern uint64_t zfs_multihost_interval;
 extern uint_t zfs_multihost_fail_intervals;
 extern uint_t zfs_multihost_import_intervals;
+
+#ifndef _KERNEL
+/* Manual recovery only, see the comment in mmp.c.  Never in the module. */
+extern boolean_t mmp_claim_relaxed;
+#endif
 
 #ifdef	__cplusplus
 }

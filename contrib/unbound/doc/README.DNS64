@@ -13,7 +13,7 @@ If you're not using DNSSEC then you may remove "validator".
 
 2. The "dns64-prefix" directive indicates your DNS64 prefix. For example:
 
-    dns64-prefix: 64:FF9B::/96
+    dns64-prefix: 64:ff9b::/96
 
 The prefix must be a /96 or shorter.
 
@@ -42,9 +42,9 @@ To enable NAT64 in Unbound, add to unbound.conf's "server" section:
     do-nat64: yes
 
 The NAT64 prefix defaults to the DNS64 prefix, which in turn defaults to the
-standard 64:FF9B::/96 prefix.  You can reconfigure it with:
+standard 64:ff9b::/96 prefix.  You can reconfigure it with:
 
-    nat64-prefix: 64:FF9B::/96
+    nat64-prefix: 64:ff9b::/96
 
 To test NAT64 operation, pick a domain that only has IPv4 reachability for its
 nameservers and try resolving any names in that domain.

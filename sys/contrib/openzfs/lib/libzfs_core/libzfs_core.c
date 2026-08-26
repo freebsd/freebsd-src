@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -27,6 +17,8 @@
  * Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
  * Copyright (c) 2019, 2020 by Christian Schwarz. All rights reserved.
  * Copyright (c) 2019 Datto Inc.
+ * Copyright (c) 2024-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 /*
@@ -538,6 +530,22 @@ lzc_sync(const char *pool_name, nvlist_t *innvl, nvlist_t **outnvl)
 	return (lzc_ioctl(ZFS_IOC_POOL_SYNC, pool_name, innvl, NULL));
 }
 
+int
+lzc_condense(const char *pool_name, const char *cmd, const char *type)
+{
+	int error;
+
+	nvlist_t *args = fnvlist_alloc();
+	fnvlist_add_string(args, ZPOOL_CONDENSE_COMMAND, cmd);
+	fnvlist_add_string(args, ZPOOL_CONDENSE_TYPE, type);
+
+	error = lzc_ioctl(ZFS_IOC_POOL_CONDENSE, pool_name, args, NULL);
+
+	fnvlist_free(args);
+
+	return (error);
+}
+
 /*
  * Create "user holds" on snapshots.  If there is a hold on a snapshot,
  * the snapshot can not be destroyed.  (However, it can be marked for deletion
@@ -1016,6 +1024,39 @@ lzc_send_space(const char *snapname, const char *from,
 	    NULL, -1, spacep));
 }
 
+/*
+ * Query the progress of a send stream identified by the snapshot name and
+ * the file descriptor the stream is being written to.
+ *
+ * snapname    name of the snapshot being sent
+ * fd          file descriptor of the active send stream
+ * bytes_written  on success, set to the number of bytes sent so far
+ * blocks_visited on success, set to the number of logical blocks traversed
+ *
+ * Returns 0 on success.  Returns ENOENT if no send stream matching the
+ * snapshot name and file descriptor was found in the current process.
+ */
+int
+lzc_send_progress(const char *snapname, int fd, uint64_t *bytes_written,
+    uint64_t *blocks_visited)
+{
+	zfs_cmd_t zc = {"\0"};
+
+	if (bytes_written != NULL)
+		*bytes_written = 0;
+	if (blocks_visited != NULL)
+		*blocks_visited = 0;
+	(void) strlcpy(zc.zc_name, snapname, sizeof (zc.zc_name));
+	zc.zc_cookie = fd;
+	if (lzc_ioctl_fd(g_fd, ZFS_IOC_SEND_PROGRESS, &zc) != 0)
+		return (errno);
+	if (bytes_written != NULL)
+		*bytes_written = zc.zc_cookie;
+	if (blocks_visited != NULL)
+		*blocks_visited = zc.zc_objset_type;
+	return (0);
+}
+
 static int
 recv_read(int fd, void *buf, int ilen)
 {
@@ -1154,11 +1195,22 @@ recv_impl(const char *snapname, nvlist_t *recvdprops, nvlist_t *localprops,
 			error = nvlist_lookup_uint64(outnvl, "error_flags",
 			    errflags);
 
-		if (error == 0 && errors != NULL) {
+		/*
+		 * Copy the kernel "errors" nvlist when present.  On success
+		 * this carries property apply failures; on failure it may
+		 * also include ZFS_RECV_ERR_STREAM.  Do not allocate an
+		 * empty nvlist when the key is absent — leave *errors
+		 * unchanged (callers must initialize it to NULL).  If the
+		 * caller requested errors and the ioctl succeeded but the
+		 * key is missing, treat that as ENOENT (incomplete output).
+		 */
+		if (errors != NULL && outnvl != NULL) {
 			nvlist_t *nvl;
-			error = nvlist_lookup_nvlist(outnvl, "errors", &nvl);
-			if (error == 0)
+
+			if (nvlist_lookup_nvlist(outnvl, "errors", &nvl) == 0)
 				*errors = fnvlist_dup(nvl);
+			else if (error == 0)
+				error = ENOENT;
 		}
 
 		fnvlist_free(innvl);
@@ -1210,11 +1262,19 @@ recv_impl(const char *snapname, nvlist_t *recvdprops, nvlist_t *localprops,
 
 			if (errflags != NULL)
 				*errflags = zc.zc_obj;
+		}
 
-			if (errors != NULL)
-				VERIFY0(nvlist_unpack(
-				    (void *)(uintptr_t)zc.zc_nvlist_dst,
-				    zc.zc_nvlist_dst_size, errors, KM_SLEEP));
+		/*
+		 * Unpack errors when the kernel filled the dst buffer, on
+		 * success or failure (stream/property details). The caller's
+		 * pointer is unchanged when the buffer was not filled.
+		 */
+		if (errors != NULL && zc.zc_nvlist_dst_filled) {
+			if (nvlist_unpack((void *)(uintptr_t)zc.zc_nvlist_dst,
+			    zc.zc_nvlist_dst_size, errors, KM_SLEEP) != 0 &&
+			    error == 0) {
+				error = EINVAL;
+			}
 		}
 
 		if (rp_packed != NULL)
@@ -1296,12 +1356,21 @@ lzc_receive_with_header(const char *snapname, nvlist_t *props,
  * The 'read_bytes' value will be set to the total number of bytes read.
  *
  * The 'errflags' value will contain zprop_errflags_t flags which are
- * used to describe any failures.
+ * used to describe any failures, including ZPROP_ERR_IVSET_DIVERGED which
+ * warns that a non-raw incremental diverged a raw-received IV set.
  *
  * The 'action_handle' and 'cleanup_fd' are no longer used, and are ignored.
  *
  * The 'errors' nvlist contains an entry for each unapplied received
- * property.  Callers are responsible for freeing this nvlist.
+ * property, and may also include ZFS_RECV_ERR_STREAM when the kernel
+ * rejected the stream.  It is set when the kernel returned an errors
+ * payload (including on ioctl failure); otherwise the caller's pointer
+ * is unchanged and must be initialized to NULL.  Callers are responsible
+ * for freeing this nvlist when it is set.
+ *
+ * Oversized stream records return ERANGE (libzfs maps this to
+ * EZFS_BADSTREAM along with EINVAL).  Older OpenZFS modules often
+ * returned EINVAL for the same condition.
  */
 int
 lzc_receive_one(const char *snapname, nvlist_t *props,
@@ -1827,13 +1896,16 @@ lzc_reopen(const char *pool_name, boolean_t scrub_restart)
  */
 int
 lzc_initialize(const char *poolname, pool_initialize_func_t cmd_type,
-    nvlist_t *vdevs, nvlist_t **errlist)
+    uint64_t value, boolean_t value_provided, nvlist_t *vdevs,
+    nvlist_t **errlist)
 {
 	int error;
 
 	nvlist_t *args = fnvlist_alloc();
 	fnvlist_add_uint64(args, ZPOOL_INITIALIZE_COMMAND, (uint64_t)cmd_type);
 	fnvlist_add_nvlist(args, ZPOOL_INITIALIZE_VDEVS, vdevs);
+	if (value_provided)
+		fnvlist_add_uint64(args, ZPOOL_INITIALIZE_VALUE, value);
 
 	error = lzc_ioctl(ZFS_IOC_POOL_INITIALIZE, poolname, args, errlist);
 

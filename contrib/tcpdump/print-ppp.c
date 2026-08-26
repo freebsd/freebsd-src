@@ -42,8 +42,6 @@
 #include <net/if_ppp.h>
 #endif
 
-#include <stdlib.h>
-
 #include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"

@@ -1,5 +1,5 @@
 #!/bin/sh
-#       $OpenBSD: ed25519.sh,v 1.2 2024/05/17 02:39:11 jsg Exp $
+#       $OpenBSD: ed25519.sh,v 1.6 2026/06/14 04:16:19 djm Exp $
 #       Placed in the Public Domain.
 #
 AUTHOR="supercop-20221122/crypto_sign/ed25519/ref/implementors"
@@ -16,11 +16,12 @@ FILES="
 	supercop-20221122/crypto_sign/ed25519/ref/open.c
 "
 ###
+PORTABLE=${PORTABLE:-0}
 
 DATA="supercop-20221122/crypto_sign/ed25519/ref/ge25519_base.data"
 
 set -e
-cd $1
+test -z "$1" || cd $1
 echo -n '/*  $'
 echo 'OpenBSD: $ */'
 echo
@@ -29,6 +30,12 @@ echo ' * Public Domain, Authors:'
 sed -e '/Alphabetical order:/d' -e 's/^/ * - /' < $AUTHOR
 echo ' */'
 echo
+if [ "$PORTABLE" -ne 0 ]; then
+	echo '#include "includes.h"'
+	echo
+	echo '#ifndef OPENSSL_HAS_ED25519'
+	echo
+fi
 echo '#include <string.h>'
 echo
 echo '#include "crypto_api.h"'
@@ -42,6 +49,32 @@ done
 echo
 for i in $FILES; do
 	echo "/* from $i */"
+
+	case "$i" in
+	*/crypto_sign/ed25519/ref/open.c)
+	# Include our malleability fix at the start if open.c
+	cat << _EOF
+
+/*
+ * Local OpenSSH addition: check that S < group order L
+ * Where L = 2^{252} + 27742317777372353535851937790883648493
+ * This can be variable time as the signature is public.
+ */
+static inline int sc25519_inrange(const unsigned char *s)
+{
+  int i;
+
+  for (i = 0; i < 32; i++) {
+    if (s[31 - i] > sc25519_m[31 - i]) return -1;
+    if (s[31 - i] < sc25519_m[31 - i]) return 0;
+  }
+  return -1;
+}
+_EOF
+	;;
+	esac
+
+	nl=`echo`
 	# Changes to all files:
 	#  - inline ge25519_base.data where it is included
 	#  - expand CRYPTO_NAMESPACE() namespacing define
@@ -66,12 +99,17 @@ for i in $FILES; do
 	    sed -e "s/crypto_sign/crypto_sign_ed25519/g"
 	    ;;
 	*/crypto_sign/ed25519/ref/keypair.c)
-	    # rename key generation function to the name OpenSSH expects
-	    sed -e "s/crypto_sign_keypair/crypto_sign_ed25519_keypair/g"
+	    # provide an explicit-seed key generation function and rename
+	    # it to the name OpenSSH expects
+	    sed -e "s/int crypto_sign_keypair(unsigned char \*pk,unsigned char \*sk)/int crypto_sign_ed25519_keypair_from_seed(unsigned char *pk,unsigned char *sk, const unsigned char *seed)/g" \
+	        -e "s/randombytes(sk,32);/memcpy(sk, seed, 32);/g"
 	    ;;
 	*/crypto_sign/ed25519/ref/open.c)
 	    # rename verification function to the name OpenSSH expects
-	    sed -e "s/crypto_sign_open/crypto_sign_ed25519_open/g"
+	    # Insert malleability checks
+	    sed -e "s/crypto_sign_open/crypto_sign_ed25519_open/g" | \
+	    perl -0777 -pe 's/(.*if.*ge25519_unpackneg_vartime.*get1,pk.*)/  if (sc25519_inrange(sm+32)) goto badsig;\n\1\n  if (ge25519_isneutral_vartime(&get1)) goto badsig;/'
+	    #perl -0777 -pe 's/^(.*ge25519_unpackneg_vartime.*,pk.*)$/  if (sc25519_inrange(sm+32)) goto badsig;\n$1\n  if (ge25519_isneutral_vartime(&get1)) goto badsig;/'
 	    ;;
 	*/crypto_sign/ed25519/ref/fe25519.*)
 	    # avoid a couple of name collisions with other files
@@ -116,4 +154,30 @@ for i in $FILES; do
 	    ;;
 	esac | \
 	sed -e 's/[	 ]*$//'
+
+	# Include implicit-seed keygen function used for ssh-ed25519
+	case "$i" in
+	*/crypto_sign/ed25519/ref/keypair.c)
+	cat << _EOF
+
+int
+crypto_sign_ed25519_keypair(unsigned char *pk, unsigned char *sk)
+{
+  unsigned char seed[32];
+  int r;
+
+  randombytes(seed, 32);
+  r = crypto_sign_ed25519_keypair_from_seed(pk, sk, seed);
+  explicit_bzero(seed, sizeof(seed));
+  return r;
+}
+_EOF
+	;;
+	esac
+
 done
+
+if [ "$PORTABLE" -ne 0 ]; then
+       echo
+       echo '#endif /* OPENSSL_HAS_ED25519 */'
+fi

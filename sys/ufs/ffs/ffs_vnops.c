@@ -2006,16 +2006,14 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	vpp = ap->a_vpp;
 	vp = vpp != NULL ? *vpp : NULL;
 
-	if ((dp->i_flag & (IN_NEEDSYNC | IN_ENDOFF)) == 0) {
-		vput(dvp);
-		if (vp != NULL && ap->a_unlock_vp)
-			vput(vp);
-		return (0);
-	}
+	if ((dp->i_flag & (IN_NEEDSYNC | IN_ENDOFF)) == 0)
+		return (vop_stdvput_pair(ap));
 
 	mp = dvp->v_mount;
 	if (vp != NULL) {
-		if (ap->a_unlock_vp) {
+		if (dvp == vp) {
+			vunref(vp);
+		} else if (ap->a_unlock_vp) {
 			vput(vp);
 		} else {
 			MPASS(vp->v_type != VNON);
@@ -2053,6 +2051,12 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 		do {
 			error = ffs_syncvnode(dvp, MNT_WAIT, 0);
 		} while (error == ERELOOKUP);
+	}
+
+	if (vp == dvp) {
+		if (ap->a_unlock_vp)
+			vput(dvp);
+		return (0);
 	}
 
 	vput(dvp);

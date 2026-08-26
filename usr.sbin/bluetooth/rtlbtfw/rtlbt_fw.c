@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -166,8 +167,7 @@ rtlbt_fw_read(struct rtlbt_firmware *fw, const char *fwname)
 {
 	int fd;
 	struct stat sb;
-	unsigned char *buf;
-	ssize_t r;
+	unsigned char *buf, *mmap_addr;
 
 	fd = open(fwname, O_RDONLY);
 	if (fd < 0) {
@@ -188,23 +188,16 @@ rtlbt_fw_read(struct rtlbt_firmware *fw, const char *fwname)
 		return (0);
 	}
 
-	/* XXX handle partial reads */
-	r = read(fd, buf, sb.st_size);
-	if (r < 0) {
-		warn("%s: read", __func__);
+	mmap_addr = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (mmap_addr == MAP_FAILED) {
+		warn("%s: mmap: %s", __func__, fwname);
 		free(buf);
 		close(fd);
 		return (0);
 	}
 
-	if (r != sb.st_size) {
-		rtlbt_err("read len %d != file size %d",
-		    (int) r,
-		    (int) sb.st_size);
-		free(buf);
-		close(fd);
-		return (0);
-	}
+	memcpy(buf, mmap_addr, sb.st_size);
+	munmap(mmap_addr, sb.st_size);
 
 	/* We have everything, so! */
 

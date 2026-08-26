@@ -69,7 +69,7 @@ EOF
 
 chmod 555 $dfilename
 
-userid=`ps -x -o pid,uid | grep "$$ " | awk '{print $2}' 2>/dev/null`
+userid=$(ps -p $$ -o uid= 2>/dev/null)
 if [ $? -ne 0 ]; then
 	print -u2 "unable to get uid of the current process with pid = $$"
 	exit 1

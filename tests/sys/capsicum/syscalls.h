@@ -119,6 +119,7 @@ inline long ptrace_(int request, pid_t pid, void *addr, void *data) {
 #define HAVE_F_DUP2FD
 #define HAVE_PSELECT
 #define HAVE_SCTP
+#define	HAVE_PDWAIT
 
 /* FreeBSD only allows root to call mlock[all]/munlock[all] */
 #define MLOCK_REQUIRES_ROOT 1

@@ -94,11 +94,8 @@ static int ib_device_check_mandatory(struct ib_device *device)
 		IB_MANDATORY_FUNC(query_device),
 		IB_MANDATORY_FUNC(query_port),
 		IB_MANDATORY_FUNC(query_pkey),
-		IB_MANDATORY_FUNC(query_gid),
 		IB_MANDATORY_FUNC(alloc_pd),
 		IB_MANDATORY_FUNC(dealloc_pd),
-		IB_MANDATORY_FUNC(create_ah),
-		IB_MANDATORY_FUNC(destroy_ah),
 		IB_MANDATORY_FUNC(create_qp),
 		IB_MANDATORY_FUNC(modify_qp),
 		IB_MANDATORY_FUNC(destroy_qp),
@@ -220,7 +217,7 @@ struct ib_device *ib_alloc_device(size_t size)
 
 	INIT_LIST_HEAD(&device->event_handler_list);
 	spin_lock_init(&device->event_handler_lock);
-	spin_lock_init(&device->client_data_lock);
+	rwlock_init(&device->client_data_lock);
 	INIT_LIST_HEAD(&device->client_data_list);
 	INIT_LIST_HEAD(&device->port_list);
 
@@ -236,6 +233,7 @@ EXPORT_SYMBOL(ib_alloc_device);
  */
 void ib_dealloc_device(struct ib_device *device)
 {
+	WARN_ON(!list_empty(&device->client_data_list));
 	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
 		device->reg_state != IB_DEV_UNINITIALIZED);
 	kobject_put(&device->dev.kobj);
@@ -245,23 +243,19 @@ EXPORT_SYMBOL(ib_dealloc_device);
 static int add_client_context(struct ib_device *device, struct ib_client *client)
 {
 	struct ib_client_data *context;
-	unsigned long flags;
 
-	context = kmalloc(sizeof *context, GFP_KERNEL);
-	if (!context) {
-		pr_warn("Couldn't allocate client context for %s/%s\n",
-			device->name, client->name);
+	context = kmalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
 		return -ENOMEM;
-	}
 
 	context->client = client;
 	context->data   = NULL;
 	context->going_down = false;
 
 	down_write(&lists_rwsem);
-	spin_lock_irqsave(&device->client_data_lock, flags);
+	write_lock_irq(&device->client_data_lock);
 	list_add(&context->list, &device->client_data_list);
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	write_unlock_irq(&device->client_data_lock);
 	up_write(&lists_rwsem);
 
 	return 0;
@@ -287,8 +281,8 @@ static int read_port_immutable(struct ib_device *device)
 	 * Therefore port_immutable is declared as a 1 based array with
 	 * potential empty slots at the beginning.
 	 */
-	device->port_immutable = kzalloc(sizeof(*device->port_immutable)
-					 * (end_port + 1),
+	device->port_immutable = kcalloc(end_port + 1,
+					 sizeof(*device->port_immutable),
 					 GFP_KERNEL);
 	if (!device->port_immutable)
 		return -ENOMEM;
@@ -409,29 +403,32 @@ void ib_unregister_device(struct ib_device *device)
 
 	down_write(&lists_rwsem);
 	list_del(&device->core_list);
-	spin_lock_irqsave(&device->client_data_lock, flags);
-	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+	write_lock_irq(&device->client_data_lock);
+	list_for_each_entry(context, &device->client_data_list, list)
 		context->going_down = true;
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	write_unlock_irq(&device->client_data_lock);
 	downgrade_write(&lists_rwsem);
 
-	list_for_each_entry_safe(context, tmp, &device->client_data_list,
-				 list) {
+	list_for_each_entry(context, &device->client_data_list, list) {
 		if (context->client->remove)
 			context->client->remove(device, context->data);
 	}
 	up_read(&lists_rwsem);
 
+	ib_device_unregister_sysfs(device);
+
 	mutex_unlock(&device_mutex);
 
-	ib_device_unregister_sysfs(device);
 	ib_cache_cleanup_one(device);
 
 	down_write(&lists_rwsem);
-	spin_lock_irqsave(&device->client_data_lock, flags);
-	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+	write_lock_irqsave(&device->client_data_lock, flags);
+	list_for_each_entry_safe(context, tmp, &device->client_data_list,
+				 list) {
+		list_del(&context->list);
 		kfree(context);
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	}
+	write_unlock_irqrestore(&device->client_data_lock, flags);
 	up_write(&lists_rwsem);
 
 	device->reg_state = IB_DEV_UNREGISTERED;
@@ -481,9 +478,8 @@ EXPORT_SYMBOL(ib_register_client);
  */
 void ib_unregister_client(struct ib_client *client)
 {
-	struct ib_client_data *context, *tmp;
+	struct ib_client_data *context;
 	struct ib_device *device;
-	unsigned long flags;
 
 	mutex_lock(&device_mutex);
 
@@ -495,14 +491,14 @@ void ib_unregister_client(struct ib_client *client)
 		struct ib_client_data *found_context = NULL;
 
 		down_write(&lists_rwsem);
-		spin_lock_irqsave(&device->client_data_lock, flags);
-		list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+		write_lock_irq(&device->client_data_lock);
+		list_for_each_entry(context, &device->client_data_list, list)
 			if (context->client == client) {
 				context->going_down = true;
 				found_context = context;
 				break;
 			}
-		spin_unlock_irqrestore(&device->client_data_lock, flags);
+		write_unlock_irq(&device->client_data_lock);
 		up_write(&lists_rwsem);
 
 		if (client->remove)
@@ -516,11 +512,11 @@ void ib_unregister_client(struct ib_client *client)
 		}
 
 		down_write(&lists_rwsem);
-		spin_lock_irqsave(&device->client_data_lock, flags);
+		write_lock_irq(&device->client_data_lock);
 		list_del(&found_context->list);
-		kfree(found_context);
-		spin_unlock_irqrestore(&device->client_data_lock, flags);
+		write_unlock_irq(&device->client_data_lock);
 		up_write(&lists_rwsem);
+		kfree(found_context);
 	}
 
 	mutex_unlock(&device_mutex);
@@ -541,13 +537,13 @@ void *ib_get_client_data(struct ib_device *device, struct ib_client *client)
 	void *ret = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&device->client_data_lock, flags);
+	read_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry(context, &device->client_data_list, list)
 		if (context->client == client) {
 			ret = context->data;
 			break;
 		}
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	read_unlock_irqrestore(&device->client_data_lock, flags);
 
 	return ret;
 }
@@ -568,7 +564,7 @@ void ib_set_client_data(struct ib_device *device, struct ib_client *client,
 	struct ib_client_data *context;
 	unsigned long flags;
 
-	spin_lock_irqsave(&device->client_data_lock, flags);
+	write_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry(context, &device->client_data_list, list)
 		if (context->client == client) {
 			context->data = data;
@@ -579,7 +575,7 @@ void ib_set_client_data(struct ib_device *device, struct ib_client *client,
 		device->name, client->name);
 
 out:
-	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	write_unlock_irqrestore(&device->client_data_lock, flags);
 }
 EXPORT_SYMBOL(ib_set_client_data);
 
@@ -592,7 +588,7 @@ EXPORT_SYMBOL(ib_set_client_data);
  * chapter 11 of the InfiniBand Architecture Specification).  This
  * callback may occur in interrupt context.
  */
-int ib_register_event_handler  (struct ib_event_handler *event_handler)
+void ib_register_event_handler(struct ib_event_handler *event_handler)
 {
 	unsigned long flags;
 
@@ -600,8 +596,6 @@ int ib_register_event_handler  (struct ib_event_handler *event_handler)
 	list_add_tail(&event_handler->list,
 		      &event_handler->device->event_handler_list);
 	spin_unlock_irqrestore(&event_handler->device->event_handler_lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL(ib_register_event_handler);
 
@@ -612,15 +606,13 @@ EXPORT_SYMBOL(ib_register_event_handler);
  * Unregister an event handler registered with
  * ib_register_event_handler().
  */
-int ib_unregister_event_handler(struct ib_event_handler *event_handler)
+void ib_unregister_event_handler(struct ib_event_handler *event_handler)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&event_handler->device->event_handler_lock, flags);
 	list_del(&event_handler->list);
 	spin_unlock_irqrestore(&event_handler->device->event_handler_lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL(ib_unregister_event_handler);
 
@@ -673,7 +665,7 @@ int ib_query_port(struct ib_device *device,
 	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
 		return 0;
 
-	err = ib_query_gid(device, port_num, 0, &gid, NULL);
+	err = device->query_gid(device, port_num, 0, &gid);
 	if (err)
 		return err;
 
@@ -681,31 +673,6 @@ int ib_query_port(struct ib_device *device,
 	return 0;
 }
 EXPORT_SYMBOL(ib_query_port);
-
-/**
- * ib_query_gid - Get GID table entry
- * @device:Device to query
- * @port_num:Port number to query
- * @index:GID table index to query
- * @gid:Returned GID
- * @attr: Returned GID attributes related to this GID index (only in RoCE).
- *   NULL means ignore.
- *
- * ib_query_gid() fetches the specified GID table entry.
- */
-int ib_query_gid(struct ib_device *device,
-		 u8 port_num, int index, union ib_gid *gid,
-		 struct ib_gid_attr *attr)
-{
-	if (rdma_cap_roce_gid_table(device, port_num))
-		return ib_get_cached_gid(device, port_num, index, gid, attr);
-
-	if (attr)
-		return -EINVAL;
-
-	return device->query_gid(device, port_num, index, gid);
-}
-EXPORT_SYMBOL(ib_query_gid);
 
 /**
  * ib_enum_roce_netdev - enumerate all RoCE ports
@@ -863,36 +830,25 @@ EXPORT_SYMBOL(ib_modify_port);
 
 /**
  * ib_find_gid - Returns the port number and GID table index where
- *   a specified GID value occurs.
+ *   a specified GID value occurs. Its searches only for IB link layer.
  * @device: The device to query.
  * @gid: The GID value to search for.
- * @gid_type: Type of GID.
- * @ndev: The ndev related to the GID to search for.
  * @port_num: The port number of the device where the GID value was found.
  * @index: The index into the GID table where the GID was found.  This
  *   parameter may be NULL.
  */
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		enum ib_gid_type gid_type, if_t ndev,
 		u8 *port_num, u16 *index)
 {
 	union ib_gid tmp_gid;
 	int ret, port, i;
 
 	for (port = rdma_start_port(device); port <= rdma_end_port(device); ++port) {
-		if (rdma_cap_roce_gid_table(device, port)) {
-			if (!ib_find_cached_gid_by_port(device, gid, gid_type, port,
-							ndev, index)) {
-				*port_num = port;
-				return 0;
-			}
-		}
-
-		if (gid_type != IB_GID_TYPE_IB)
+		if (!rdma_protocol_ib(device, port))
 			continue;
 
 		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
-			ret = ib_query_gid(device, port, i, &tmp_gid, NULL);
+			ret = rdma_query_gid(device, port, i, &tmp_gid);
 			if (ret)
 				return ret;
 			if (!memcmp(&tmp_gid, gid, sizeof *gid)) {

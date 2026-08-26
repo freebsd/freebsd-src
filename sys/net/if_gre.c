@@ -40,11 +40,13 @@
 #include "opt_rss.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/osd.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -208,14 +210,16 @@ vnet_gre_init(const void *unused __unused)
 	in6_gre_init();
 #endif
 }
-VNET_SYSINIT(vnet_gre_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-    vnet_gre_init, NULL);
+VNET_SYSINIT(vnet_gre_init, SI_SUB_PROTO_IF, SI_ORDER_ANY, vnet_gre_init, NULL);
 
 static void
 vnet_gre_uninit(const void *unused __unused)
 {
 
-	ifc_detach_cloner(V_gre_cloner);
+	if (V_gre_cloner != NULL) {
+		ifc_detach_cloner(V_gre_cloner);
+		V_gre_cloner = NULL;
+	}
 #ifdef INET
 	in_gre_uninit();
 #endif
@@ -224,8 +228,8 @@ vnet_gre_uninit(const void *unused __unused)
 #endif
 	/* XXX: epoch_call drain */
 }
-VNET_SYSUNINIT(vnet_gre_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-    vnet_gre_uninit, NULL);
+VNET_SYSUNINIT(vnet_gre_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY, vnet_gre_uninit,
+    NULL);
 
 static int
 gre_clone_create_nl(struct if_clone *ifc, char *name, size_t len,
@@ -248,7 +252,7 @@ gre_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
 	struct nl_parsed_gre params;
 	struct nlattr *attrs = lattrs->ifla_idata;
 	struct nlattr_bmask bm;
-	int error = 0;
+	int error;
 
 	if ((attrs == NULL) ||
 	    (nl_has_attr(ifd->bm, IFLA_LINKINFO) == 0)) {
@@ -266,6 +270,11 @@ gre_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
 	nl_get_attrs_bmask_raw(NLA_DATA(attrs), NLA_DATA_LEN(attrs), &bm);
 	if ((error = nl_parse_nested(attrs, &gre_modify_parser, npt, &params)) != 0)
 		return (error);
+
+	sx_xlock(&gre_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc == NULL)
+		goto generic;
 
 	if (nl_has_attr(&bm, IFLA_GRE_LOCAL) && nl_has_attr(&bm, IFLA_GRE_REMOTE))
 		error = gre_set_addr_nl(sc, npt, params.ifla_local, params.ifla_remote);
@@ -286,6 +295,9 @@ gre_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
 	if (error == 0 && nl_has_attr(&bm, IFLA_GRE_ENCAP_SPORT))
 		error = gre_set_udp_sport_nl(sc, npt, params.ifla_encap_sport);
 
+generic:
+	sx_xunlock(&gre_ioctl_sx);
+
 	if (error == 0)
 		error = nl_modify_ifp_generic(ifp, ifd->lattrs, ifd->bm, ifd->npt);
 
@@ -295,9 +307,7 @@ gre_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
 static void
 gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 {
-	GRE_RLOCK_TRACKER;
 	struct gre_softc *sc;
-	struct ifreq ifr;
 
 	nlattr_add_u32(nw, IFLA_LINK, ifp->if_index);
 	nlattr_add_string(nw, IFLA_IFNAME, ifp->if_xname);
@@ -313,26 +323,30 @@ gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 		return;
 	}
 
+	sx_slock(&gre_ioctl_sx);
 	sc = ifp->if_softc;
-	GRE_RLOCK();
+	if (sc == NULL)
+		goto ret;
 
 	if (sc->gre_family == AF_INET) {
 #ifdef INET
-		if (in_gre_ioctl(sc, SIOCGIFPSRCADDR, (caddr_t)&ifr) == 0)
+		struct in_aliasreq in;
+		if (in_gre_ioctl(sc, SIOCGIFPSRCADDR, (caddr_t)&in) == 0)
 			nlattr_add_in_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in_addr *)&ifr.ifr_addr);
-		if (in_gre_ioctl(sc, SIOCGIFPDSTADDR, (caddr_t)&ifr) == 0)
-			nlattr_add_in_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in_addr *)&ifr.ifr_dstaddr);
+			    &in.ifra_addr.sin_addr);
+		if (in_gre_ioctl(sc, SIOCGIFPDSTADDR, (caddr_t)&in) == 0)
+			nlattr_add_in_addr(nw, IFLA_GRE_REMOTE,
+			    &in.ifra_addr.sin_addr);
 #endif
 	} else if (sc->gre_family == AF_INET6) {
 #ifdef INET6
-		if (in_gre_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&ifr) == 0)
+		struct in6_aliasreq in6;
+		if (in6_gre_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6) == 0)
 			nlattr_add_in6_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in6_addr *)&ifr.ifr_addr);
-		if (in_gre_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&ifr) == 0)
-			nlattr_add_in6_addr(nw, IFLA_GRE_LOCAL,
-			    (const struct in6_addr *)&ifr.ifr_dstaddr);
+			    &in6.ifra_addr.sin6_addr);
+		if (in6_gre_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6) == 0)
+			nlattr_add_in6_addr(nw, IFLA_GRE_REMOTE,
+			    &in6.ifra_addr.sin6_addr);
 #endif
 	}
 
@@ -342,10 +356,11 @@ gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 	    sc->gre_options & GRE_UDPENCAP ? IFLA_TUNNEL_GRE_UDP : IFLA_TUNNEL_NONE);
 	nlattr_add_u16(nw, IFLA_GRE_ENCAP_SPORT, sc->gre_port);
 
+ret:
 	nlattr_set_len(nw, off2);
 	nlattr_set_len(nw, off);
 
-	GRE_RUNLOCK();
+	sx_sunlock(&gre_ioctl_sx);
 }
 
 static int
@@ -401,10 +416,10 @@ gre_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 	sx_xlock(&gre_ioctl_sx);
 	sc = ifp->if_softc;
 	gre_delete_tunnel(sc);
-	bpfdetach(ifp);
-	if_detach(ifp);
 	ifp->if_softc = NULL;
 	sx_xunlock(&gre_ioctl_sx);
+	bpfdetach(ifp);
+	if_detach(ifp);
 
 	GRE_WAIT();
 	if_free(ifp);
@@ -626,7 +641,7 @@ gre_delete_tunnel(struct gre_softc *sc)
 {
 	struct gre_socket *gs;
 
-	sx_assert(&gre_ioctl_sx, SA_XLOCKED);
+	GRE_LOCK_ASSERT();
 	if (sc->gre_family != 0) {
 		CK_LIST_REMOVE(sc, chain);
 		CK_LIST_REMOVE(sc, srchash);
@@ -910,7 +925,6 @@ gre_flowid(struct gre_softc *sc, struct mbuf *m, uint32_t af)
 static int
 gre_transmit(struct ifnet *ifp, struct mbuf *m)
 {
-	GRE_RLOCK_TRACKER;
 	struct gre_softc *sc;
 	struct grehdr *gh;
 	struct udphdr *uh;
@@ -918,8 +932,8 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	int error, len;
 	uint16_t proto;
 
+	NET_EPOCH_ASSERT();
 	len = 0;
-	GRE_RLOCK();
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -1027,7 +1041,6 @@ drop:
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
 	}
-	GRE_RUNLOCK();
 	return (error);
 }
 
@@ -1041,10 +1054,16 @@ static int
 gre_set_addr_nl(struct gre_softc *sc, struct nl_pstate *npt,
     struct sockaddr *src, struct sockaddr *dst)
 {
+#if defined(INET) || defined(INET6)
 	union {
+#ifdef INET
 		struct in_aliasreq in;
+#endif
+#ifdef INET6
 		struct in6_aliasreq in6;
+#endif
 	} aliasreq;
+#endif
 	int error;
 
 	/* XXX: this sanity check runs again in in[6]_gre_ioctl */
@@ -1054,19 +1073,17 @@ gre_set_addr_nl(struct gre_softc *sc, struct nl_pstate *npt,
 	else if (src->sa_family == AF_INET) {
 		memcpy(&aliasreq.in.ifra_addr, src, sizeof(struct sockaddr_in));
 		memcpy(&aliasreq.in.ifra_dstaddr, dst, sizeof(struct sockaddr_in));
-		sx_xlock(&gre_ioctl_sx);
 		error = in_gre_ioctl(sc, SIOCSIFPHYADDR, (caddr_t)&aliasreq.in);
-		sx_xunlock(&gre_ioctl_sx);
+	}
 #endif
 #ifdef INET6
-	} else if (src->sa_family == AF_INET6) {
+	else if (src->sa_family == AF_INET6) {
 		memcpy(&aliasreq.in6.ifra_addr, src, sizeof(struct sockaddr_in6));
 		memcpy(&aliasreq.in6.ifra_dstaddr, dst, sizeof(struct sockaddr_in6));
-		sx_xlock(&gre_ioctl_sx);
 		error = in6_gre_ioctl(sc, SIOCSIFPHYADDR_IN6, (caddr_t)&aliasreq.in6);
-		sx_xunlock(&gre_ioctl_sx);
+	}
 #endif
-	} else
+	else
 		error = EAFNOSUPPORT;
 
 	if (error == EADDRNOTAVAIL)
@@ -1082,11 +1099,9 @@ gre_set_addr_nl(struct gre_softc *sc, struct nl_pstate *npt,
 static int
 gre_set_flags_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t opt)
 {
-	int error = 0;
+	int error;
 
-	sx_xlock(&gre_ioctl_sx);
 	error = gre_set_flags(sc, opt);
-	sx_xunlock(&gre_ioctl_sx);
 
 	if (error == EINVAL)
 		nlmsg_report_err_msg(npt, "gre flags are invalid");
@@ -1097,11 +1112,9 @@ gre_set_flags_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t opt)
 static int
 gre_set_key_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t key)
 {
-	int error = 0;
+	int error;
 
-	sx_xlock(&gre_ioctl_sx);
 	error = gre_set_key(sc, key);
-	sx_xunlock(&gre_ioctl_sx);
 
 	if (error == EINVAL)
 		nlmsg_report_err_msg(npt, "gre key is invalid: %u", key);
@@ -1113,16 +1126,15 @@ static int
 gre_set_encap_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t type)
 {
 	uint32_t opt;
-	int error = 0;
+	int error;
 
-	sx_xlock(&gre_ioctl_sx);
 	opt = sc->gre_options;
 	if (type & IFLA_TUNNEL_GRE_UDP)
 		opt |= GRE_UDPENCAP;
 	else
 		opt &= ~GRE_UDPENCAP;
+
 	error = gre_set_flags(sc, opt);
-	sx_xunlock(&gre_ioctl_sx);
 
 	if (error == EEXIST)
 		nlmsg_report_err_msg(npt, "same gre tunnel exist");
@@ -1134,11 +1146,9 @@ gre_set_encap_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t type)
 static int
 gre_set_udp_sport_nl(struct gre_softc *sc, struct nl_pstate *npt, uint16_t port)
 {
-	int error = 0;
+	int error;
 
-	sx_xlock(&gre_ioctl_sx);
 	error = gre_set_udp_sport(sc, port);
-	sx_xunlock(&gre_ioctl_sx);
 
 	if (error == EINVAL)
 		nlmsg_report_err_msg(npt, "source port is invalid: %u", port);
@@ -1148,14 +1158,40 @@ gre_set_udp_sport_nl(struct gre_softc *sc, struct nl_pstate *npt, uint16_t port)
 
 
 static int
+gre_prison_remove(void *obj, void *data __unused)
+{
+#ifdef VIMAGE
+	struct prison *pr;
+
+	pr = obj;
+	if (prison_owns_vnet(pr)) {
+		CURVNET_SET(pr->pr_vnet);
+		if (V_gre_cloner != NULL)
+			vnet_gre_uninit(NULL);
+		CURVNET_RESTORE();
+	}
+#endif
+	return (0);
+}
+
+
+static int
 gremodevent(module_t mod, int type, void *data)
 {
+	static int gre_osd_jail_slot;
 
 	switch (type) {
-	case MOD_LOAD:
+	case MOD_LOAD: {
+		osd_method_t methods[PR_MAXMETHOD] = {
+			[PR_METHOD_REMOVE] = gre_prison_remove,
+		};
+		gre_osd_jail_slot = osd_jail_register(NULL, methods);
 		NL_VERIFY_PARSERS(all_parsers);
 		break;
+	}
 	case MOD_UNLOAD:
+		if (gre_osd_jail_slot != 0)
+			osd_jail_deregister(gre_osd_jail_slot);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -1169,5 +1205,5 @@ static moduledata_t gre_mod = {
 	0
 };
 
-DECLARE_MODULE(if_gre, gre_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(if_gre, gre_mod, SI_SUB_PROTO_IF, SI_ORDER_ANY);
 MODULE_VERSION(if_gre, 1);

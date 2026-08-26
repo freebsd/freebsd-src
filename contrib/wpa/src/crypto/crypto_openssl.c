@@ -186,8 +186,32 @@ static int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a,
 #endif /* OpenSSL version < 1.1.1 */
 
 
+static void openssl_disable_fips(void)
+{
+#ifndef CONFIG_FIPS
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	static bool done = false;
+
+	if (done)
+		return;
+	done = true;
+
+	if (!EVP_default_properties_is_fips_enabled(NULL))
+		return; /* FIPS mode is not enabled */
+
+	if (!EVP_default_properties_enable_fips(NULL, 0))
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: Failed to disable FIPS mode");
+	else
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Disabled FIPS mode to enable non-FIPS-compliant algorithms and parameters");
+#endif /* OpenSSL version >= 3.0 */
+#endif /* !CONFIG_FIPS */
+}
+
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 static OSSL_PROVIDER *openssl_legacy_provider = NULL;
+static OSSL_PROVIDER *openssl_default_provider = NULL;
 #endif /* OpenSSL version >= 3.0 */
 
 void openssl_load_legacy_provider(void)
@@ -207,6 +231,36 @@ static void openssl_unload_legacy_provider(void)
 	if (openssl_legacy_provider) {
 		OSSL_PROVIDER_unload(openssl_legacy_provider);
 		openssl_legacy_provider = NULL;
+	}
+#endif /* OpenSSL version >= 3.0 */
+}
+
+
+static void openssl_load_default_provider_if_fips(void)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	if (openssl_default_provider)
+		return;
+
+	if (!OSSL_PROVIDER_available(NULL, "fips"))
+		return;
+
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: Load default provider to replace fips provider when needed");
+	openssl_default_provider = OSSL_PROVIDER_try_load(NULL, "default", 1);
+	if (!openssl_default_provider)
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Failed to load default provider");
+#endif /* OpenSSL version >= 3.0 */
+}
+
+
+static void openssl_unload_default_provider(void)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	if (openssl_default_provider) {
+		OSSL_PROVIDER_unload(openssl_default_provider);
+		openssl_default_provider = NULL;
 	}
 #endif /* OpenSSL version >= 3.0 */
 }
@@ -319,8 +373,16 @@ static int openssl_digest_vector(const EVP_MD *type, size_t num_elem,
 
 #ifndef CONFIG_FIPS
 
+static void openssl_need_md5(void)
+{
+	openssl_disable_fips();
+	openssl_load_default_provider_if_fips();
+}
+
+
 int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
+	openssl_disable_fips();
 	openssl_load_legacy_provider();
 	return openssl_digest_vector(EVP_md4(), num_elem, addr, len, mac);
 }
@@ -369,7 +431,7 @@ int rc4_skip(const u8 *key, size_t keylen, size_t skip,
 	EVP_CIPHER_CTX *ctx;
 	int outl;
 	int res = -1;
-	unsigned char skip_buf[16];
+	unsigned char skip_buf[16] = { 0 };
 
 	openssl_load_legacy_provider();
 
@@ -404,6 +466,7 @@ out:
 
 int md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
+	openssl_need_md5();
 	return openssl_digest_vector(EVP_md5(), num_elem, addr, len, mac);
 }
 
@@ -898,11 +961,11 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 		cipher = EVP_des_cbc();
 		break;
 #endif /* OPENSSL_NO_DES */
-#ifndef OPENSSL_NO_RC2
-	case CRYPTO_CIPHER_ALG_RC2:
-		cipher = EVP_rc2_ecb();
+#ifndef OPENSSL_NO_NULL
+	case CRYPTO_CIPHER_NULL:
+		cipher = EVP_enc_null();
 		break;
-#endif /* OPENSSL_NO_RC2 */
+#endif /* OPENSSL_NO_NULL */
 	default:
 		os_free(ctx);
 		return NULL;
@@ -1023,16 +1086,23 @@ err:
 	struct wpabuf *pubkey = NULL, *privkey = NULL;
 	BIGNUM *priv_bn = NULL;
 	EVP_PKEY_CTX *gctx;
+	const char *propquery = NULL;
 
 	*priv = NULL;
 	wpabuf_free(*publ);
 	*publ = NULL;
 
+	if (OSSL_PROVIDER_available(NULL, "fips")) {
+		openssl_disable_fips();
+		openssl_load_default_provider_if_fips();
+		propquery = "provider!=fips";
+	}
+
 	params[0] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
 						     "modp_1536", 0);
 	params[1] = OSSL_PARAM_construct_end();
 
-	gctx = EVP_PKEY_CTX_new_from_name(NULL, "DH", NULL);
+	gctx = EVP_PKEY_CTX_new_from_name(NULL, "DH", propquery);
 	if (!gctx ||
 	    EVP_PKEY_keygen_init(gctx) != 1 ||
 	    EVP_PKEY_CTX_set_params(gctx, params) != 1 ||
@@ -1371,6 +1441,9 @@ struct crypto_hash * crypto_hash_init(enum crypto_hash_alg alg, const u8 *key,
 	}
 
 	if (EVP_MAC_init(ctx->ctx, key, key_len, params) != 1) {
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: EVP_MAC_init(hmac,digest=%s) failed: %s",
+			   a, ERR_error_string(ERR_get_error(), NULL));
 		EVP_MAC_CTX_free(ctx->ctx);
 		bin_clear_free(ctx, sizeof(*ctx));
 		ctx = NULL;
@@ -1527,13 +1600,30 @@ static int openssl_hmac_vector(char *digest, const u8 *key,
 	EVP_MAC_CTX *ctx;
 	size_t i, mlen;
 	int res;
+	const char *property_query = NULL;
 
 	if (TEST_FAIL())
 		return -1;
 
-	hmac = EVP_MAC_fetch(NULL, "HMAC", NULL);
-	if (!hmac)
+#ifndef CONFIG_FIPS
+	if (os_strcmp(digest, "MD5") == 0) {
+		openssl_need_md5();
+		property_query = "provider!=fips";
+	} else if (key_len < 14 && OSSL_PROVIDER_available(NULL, "fips")) {
+		/* Need to use non-FIPS provider in OpenSSL to handle cases
+		 * where HMAC is used with salt that is less than 112 bits
+		 * instead of the HMAC uses with an actual key. */
+		openssl_disable_fips();
+		openssl_load_default_provider_if_fips();
+		property_query = "provider!=fips";
+	}
+#endif /* CONFIG_FIPS */
+	hmac = EVP_MAC_fetch(NULL, "HMAC", property_query);
+	if (!hmac) {
+		wpa_printf(MSG_INFO, "OpenSSL: EVP_MAC_fetch(HMAC) failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		return -1;
+	}
 
 	params[0] = OSSL_PARAM_construct_utf8_string("digest", digest, 0);
 	params[1] = OSSL_PARAM_construct_end();
@@ -1543,8 +1633,13 @@ static int openssl_hmac_vector(char *digest, const u8 *key,
 	if (!ctx)
 		return -1;
 
-	if (EVP_MAC_init(ctx, key, key_len, params) != 1)
+	if (EVP_MAC_init(ctx, key, key_len, params) != 1) {
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: EVP_MAC_init(hmac,digest=%s,key_len=%zu) failed: %s",
+			   digest, key_len,
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
+	}
 
 	for (i = 0; i < num_elem; i++) {
 		if (EVP_MAC_update(ctx, addr[i], len[i]) != 1)
@@ -1786,6 +1881,32 @@ int pbkdf2_sha1(const char *passphrase, const u8 *ssid, size_t ssid_len,
 }
 
 
+#ifdef CONFIG_SHA256
+int pbkdf2_sha256(const char *passphrase, const u8 *salt, size_t salt_len,
+		  int iterations, u8 *buf, size_t buflen)
+{
+	if (PKCS5_PBKDF2_HMAC(passphrase, os_strlen(passphrase), salt,
+			      salt_len, iterations, EVP_sha256(), buflen,
+			      buf) != 1)
+		return -1;
+	return 0;
+}
+#endif /* CONFIG_SHA256 */
+
+
+#ifdef CONFIG_SHA384
+int pbkdf2_sha384(const char *passphrase, const u8 *salt, size_t salt_len,
+		  int iterations, u8 *buf, size_t buflen)
+{
+	if (PKCS5_PBKDF2_HMAC(passphrase, os_strlen(passphrase), salt,
+			      salt_len, iterations, EVP_sha384(), buflen,
+			      buf) != 1)
+		return -1;
+	return 0;
+}
+#endif /* CONFIG_SHA384 */
+
+
 int crypto_get_random(void *buf, size_t len)
 {
 	if (RAND_bytes(buf, len) != 1)
@@ -1822,8 +1943,12 @@ int omac1_aes_vector(const u8 *key, size_t key_len, size_t num_elem,
 
 	if (!emac || !cipher ||
 	    !(ctx = EVP_MAC_CTX_new(emac)) ||
-	    EVP_MAC_init(ctx, key, key_len, params) != 1)
+	    EVP_MAC_init(ctx, key, key_len, params) != 1) {
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: EVP_MAC_init(cmac,cipher=%s) failed: %s",
+			   cipher, ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
+	}
 
 	for (i = 0; i < num_elem; i++) {
 		if (!EVP_MAC_update(ctx, addr[i], len[i]))
@@ -2650,8 +2775,12 @@ struct crypto_ecdh * crypto_ecdh_init(int group)
 		goto fail;
 
 	ecdh->pkey = EVP_EC_gen(name);
-	if (!ecdh->pkey)
+	if (!ecdh->pkey) {
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: EVP_EC_gen(group=%d) failed: %s",
+			   group, ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
+	}
 
 done:
 	return ecdh;
@@ -3416,8 +3545,8 @@ struct crypto_ec_key * crypto_ec_key_gen(int group)
 	    EVP_PKEY_CTX_set_params(ctx, params) != 1 ||
 	    EVP_PKEY_generate(ctx, &pkey) != 1) {
 		wpa_printf(MSG_INFO,
-			   "OpenSSL: failed to generate EC keypair: %s",
-			   ERR_error_string(ERR_get_error(), NULL));
+			   "OpenSSL: Failed to generate EC keypair (group=%d): %s",
+			   group, ERR_error_string(ERR_get_error(), NULL));
 		pkey = NULL;
 	}
 
@@ -3680,6 +3809,8 @@ struct wpabuf * crypto_ec_key_get_ecprivate_key(struct crypto_ec_key *key,
 	ctx = OSSL_ENCODER_CTX_new_for_pkey(pkey, selection, "DER",
 					    "type-specific", NULL);
 	if (!ctx || OSSL_ENCODER_to_data(ctx, &pdata, &pdata_len) != 1) {
+		wpa_printf(MSG_INFO, "OpenSSL: OSSL_ENCODER failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		OSSL_ENCODER_CTX_free(ctx);
 		EVP_PKEY_free(copy);
 		return NULL;
@@ -4248,7 +4379,7 @@ fail:
 }
 
 
-struct crypto_csr * crypto_csr_init()
+struct crypto_csr * crypto_csr_init(void)
 {
 	return (struct crypto_csr *)X509_REQ_new();
 }
@@ -4271,8 +4402,10 @@ struct crypto_csr * crypto_csr_verify(const struct wpabuf *req)
 	if (X509_REQ_verify((X509_REQ *)csr, pkey) != 1)
 		goto fail;
 
+	EVP_PKEY_free(pkey);
 	return (struct crypto_csr *)csr;
 fail:
+	EVP_PKEY_free(pkey);
 	X509_REQ_free(csr);
 	return NULL;
 }
@@ -4298,6 +4431,7 @@ int crypto_csr_set_name(struct crypto_csr *csr, enum crypto_csr_name type,
 {
 	X509_NAME *n;
 	int nid;
+	int ret = -1;
 
 	switch (type) {
 	case CSR_NAME_CN:
@@ -4319,7 +4453,7 @@ int crypto_csr_set_name(struct crypto_csr *csr, enum crypto_csr_name type,
 		return -1;
 	}
 
-	n = X509_REQ_get_subject_name((X509_REQ *) csr);
+	n = X509_NAME_new();
 	if (!n)
 		return -1;
 
@@ -4327,15 +4461,21 @@ int crypto_csr_set_name(struct crypto_csr *csr, enum crypto_csr_name type,
 	if (!X509_NAME_add_entry_by_NID(n, nid, MBSTRING_UTF8,
 					(unsigned char *) name,
 					os_strlen(name), -1, 0))
-		return -1;
+		goto fail;
 #else
 	if (!X509_NAME_add_entry_by_NID(n, nid, MBSTRING_UTF8,
 					(const unsigned char *) name,
 					os_strlen(name), -1, 0))
-		return -1;
+		goto fail;
 #endif
 
-	return 0;
+	if (X509_REQ_set_subject_name((X509_REQ *) csr, n) != 1)
+		goto fail;
+
+	ret = 0;
+fail:
+	X509_NAME_free(n);
+	return ret;
 }
 
 
@@ -4365,8 +4505,8 @@ const u8 * crypto_csr_get_attribute(struct crypto_csr *csr,
 				    size_t *len, int *type)
 {
 	X509_ATTRIBUTE *attrib;
-	ASN1_TYPE *attrib_type;
-	ASN1_STRING *data;
+	const ASN1_TYPE *attrib_type;
+	const ASN1_STRING *data;
 	int loc;
 	int nid;
 
@@ -4793,8 +4933,12 @@ static int hpke_labeled_extract(struct hpke_context *ctx, bool kem,
 	if (!hctx)
 		return -1;
 
-	if (EVP_MAC_init(hctx, salt, salt_len, params) != 1)
+	if (EVP_MAC_init(hctx, salt, salt_len, params) != 1) {
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: EVP_MAC_init(hmac,digest/HPKE) failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
 		goto fail;
+	}
 
 	if (EVP_MAC_update(hctx, (const unsigned char *) "HPKE-v1", 7) != 1 ||
 	    EVP_MAC_update(hctx, suite_id, suite_id_len) != 1 ||
@@ -4902,8 +5046,12 @@ hpke_labeled_expand(struct hpke_context *ctx, bool kem, const u8 *prk,
 		if (!hctx)
 			goto fail;
 
-		if (EVP_MAC_init(hctx, prk, mdlen, params) != 1)
+		if (EVP_MAC_init(hctx, prk, mdlen, params) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: EVP_MAC_init(hmac,digest/HPKE) failed: %s",
+				   ERR_error_string(ERR_get_error(), NULL));
 			goto fail;
+		}
 
 		if (iter > 0 && EVP_MAC_update(hctx, hash, mdlen) != 1)
 			goto fail;
@@ -5581,4 +5729,5 @@ struct wpabuf * hpke_base_open(enum hpke_kem_id kem_id,
 void crypto_unload(void)
 {
 	openssl_unload_legacy_provider();
+	openssl_unload_default_provider();
 }

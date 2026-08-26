@@ -38,6 +38,13 @@ Write-Host "GPG: $GPG"
 New-Item -Type Directory "${Cygwin}" -Force
 New-Item -Type Directory "${Root}" -Force
 
+# Create GNUPGHOME with an empty common.conf to disable use-keyboxd.
+# Recent default is to enable keyboxd which in turn ignores --keyring
+# arguments.
+$GpgHome = "${Cygwin}\.gnupg"
+New-Item -Type Directory "${GpgHome}" -Force
+New-Item -Type File "${GpgHome}\common.conf" -Force
+
 # Fetch and verify Cygwin.
 try {
 	if (-Not (Test-Path ${Cygwin}\${Setup} -PathType leaf)) {
@@ -48,8 +55,8 @@ try {
 		Invoke-WebRequest ${URL}/${Setup}.sig `
 		    -OutFile ${Cygwin}\${Setup}.sig
 	}
-	& $GPG --list-keys
-	& $GPG --quiet --no-default-keyring `
+	& $GPG --homedir ${GpgHome} --list-keys
+	& $GPG --homedir ${GpgHome} --quiet --no-default-keyring `
 	    --keyring ${PSScriptRoot}/cygwin.gpg `
 	    --verify ${Cygwin}\${Setup}.sig ${Cygwin}\${Setup}
 	if ($LastExitCode -ne 0) {

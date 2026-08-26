@@ -35,6 +35,7 @@
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define open _open
 #define close _close
+#define ftruncate _chsize
 #endif
 
 static char buff1[11000000];
@@ -107,4 +108,95 @@ DEFINE_TEST(test_read_data_large)
 	assertEqualInt(sizeof(buff3), fread(buff3, 1, sizeof(buff3), f));
 	fclose(f);
 	assertEqualMem(buff2, buff3, sizeof(buff3));
+}
+
+#define	FILE_SIZE	0x90000		/* 576 KiB total logical size */
+
+static char sparse_buff[0x10000];	/* Holds the (small) stored archive. */
+static char sparse_data[FILE_SIZE];
+static char sparse_expected[FILE_SIZE];
+
+/*
+ * Regression test for archive_read_data_into_fd() extracting a sparse
+ * file that ends in a hole. For a sparse entry libarchive seeks the
+ * destination descriptor forward to recreate holes. The trailing hole
+ * is created from the EOF handling after the last data block.
+ */
+DEFINE_TEST(test_read_data_into_fd_sparse)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	size_t archive_size = 0;
+	const char *skip_sparse_tests;
+	int fd;
+
+	skip_sparse_tests = getenv("SKIP_TEST_SPARSE");
+	if (skip_sparse_tests != NULL) {
+		skipping("Skipping sparse tests due to SKIP_TEST_SPARSE "
+		"environment variable");
+		return;
+	}
+
+	/*
+	 * The logical file is all 'a', and the sparse map marks two data
+	 * regions, everything else (including the tail) is a hole that
+	 * must read back as zero. The last data region ends at 0x81000
+	 * while the file size is 0x90000, so the file ends in a hole.
+	 */
+	memset(sparse_data, 'a', sizeof(sparse_data));
+	memset(sparse_expected, 0, sizeof(sparse_expected));
+	memset(sparse_expected + 0x10000, 'a', 0x1000);
+	memset(sparse_expected + 0x80000, 'a', 0x1000);
+
+	/* Create a sparse pax archive in memory. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, sparse_buff,
+	    sizeof(sparse_buff), &archive_size));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, FILE_SIZE);
+	archive_entry_sparse_add_entry(ae, 0x10000, 0x1000);
+	archive_entry_sparse_add_entry(ae, 0x80000, 0x1000);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, FILE_SIZE,
+	    archive_write_data(a, sparse_data, sizeof(sparse_data)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Read it back and extract it into a real file descriptor. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, sparse_buff, archive_size));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(FILE_SIZE, archive_entry_size(ae));
+
+	fd = open("file", O_WRONLY | O_CREAT | O_BINARY, 0644);
+	assert(fd >= 0);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_data_into_fd(a, fd));
+
+	/*
+	 * archive_read_data_into_fd() seeks over the trailing hole but, like
+	 * a regular extraction, leaves the on-disk size short. Truncate up
+	 * to the full size to realize the final hole, as a consumer does.
+	 */
+	assert(ftruncate(fd, FILE_SIZE) != -1);
+	close(fd);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * The reconstructed file must match byte for byte: data regions
+	 * are 'a', every hole (including the trailing one) is zero.
+	 */
+	assertFileSize("file", FILE_SIZE);
+	assertFileContents(sparse_expected, FILE_SIZE, "file");
 }

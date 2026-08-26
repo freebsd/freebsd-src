@@ -49,13 +49,15 @@ post_debug() {
 		debug_statfs=$debug_new; }
 
 	debug_new=`vmstat -m | grep -w freework | awk '{print $2}'`
-	[ $((debug_new - debug_freework)) -gt 0 -a $debug_new -gt 100 ] &&
+	[ -n "$debug_new" ] &&
+        [ $((debug_new - debug_freework)) -gt 0 -a $debug_new -gt 100 ] &&
 	    { printf "stress2: freework leak: %d/%d.\r\n" \
 	        $((debug_new - debug_freework)) $debug_new > $console
 		debug_freework=$debug_new; }
 
 	debug_new=`vmstat -m | grep -w newblk | awk '{print $2}'`
-	[ $((debug_new - debug_newblk)) -gt 0 -a $debug_new -gt 100 ] &&
+	[ -n "$debug_new" ] &&
+        [ $((debug_new - debug_newblk)) -gt 0 -a $debug_new -gt 100 ] &&
 	    { printf "stress2: newblk leak: %d/%d.\r\n" \
 	        $((debug_new - debug_newblk)) $debug_new > $console
 		debug_newblk=$debug_new; }

@@ -1714,9 +1714,7 @@ fib_get_rtable_info(struct rib_head *rh, struct rib_rtable_info *rinfo)
 	bzero(rinfo, sizeof(struct rib_rtable_info));
 	rinfo->num_prefixes = rh->rnh_prefixes;
 	rinfo->num_nhops = nhops_get_count(rh);
-#ifdef ROUTE_MPATH
 	rinfo->num_nhgrp = nhgrp_get_count(rh);
-#endif
 }
 
 /*
@@ -1762,12 +1760,10 @@ fib_get_nhop_array(struct fib_data *fd)
 static uint32_t
 get_nhop_idx(struct nhop_object *nh)
 {
-#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh))
 		return (nhgrp_get_idx((struct nhgrp_object *)nh));
-	else
-#endif
-		return (nhop_get_idx(nh));
+
+	return (nhop_get_idx(nh));
 }
 
 uint32_t

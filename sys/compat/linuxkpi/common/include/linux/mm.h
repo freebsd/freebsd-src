@@ -42,6 +42,7 @@
 #include <linux/overflow.h>
 #include <linux/shrinker.h>
 #include <linux/page.h>
+#include <linux/page-flags.h>
 
 #include <asm/pgtable.h>
 
@@ -264,6 +265,7 @@ vma_pages(struct vm_area_struct *vma)
 }
 
 #define	offset_in_page(off)	((unsigned long)(off) & (PAGE_SIZE - 1))
+#define	offset_in_folio(folio, p) ((unsigned long)(p) & (folio_size(folio) - 1))
 
 static inline void
 set_page_dirty(struct page *page)

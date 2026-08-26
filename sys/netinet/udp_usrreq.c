@@ -39,7 +39,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -166,9 +165,9 @@ VNET_PCPUSTAT_SYSUNINIT(udpstat);
 static void	udp_detach(struct socket *so);
 #endif
 
-INPCBSTORAGE_DEFINE(udpcbstor, udpcb, "udpinp", "udp_inpcb", "udp", "udphash");
+INPCBSTORAGE_DEFINE(udpcbstor, udpcb, "udpinp", "udp_inpcb", "udphash");
 INPCBSTORAGE_DEFINE(udplitecbstor, udpcb, "udpliteinp", "udplite_inpcb",
-    "udplite", "udplitehash");
+    "udplitehash");
 
 static void
 udp_vnet_init(void *arg __unused)
@@ -181,10 +180,11 @@ udp_vnet_init(void *arg __unused)
 	 * Once we can calculate the flowid that way and re-establish
 	 * a 4-tuple, flip this to 4-tuple.
 	 */
-	in_pcbinfo_init(&V_udbinfo, &udpcbstor, UDBHASHSIZE, UDBHASHSIZE);
+	in_pcbinfo_init(&V_udbinfo, &udpcbstor, UDBHASHSIZE, UDBHASHSIZE,
+	    UDBHASHSIZE);
 	/* Additional pcbinfo for UDP-Lite */
 	in_pcbinfo_init(&V_ulitecbinfo, &udplitecbstor, UDBHASHSIZE,
-	    UDBHASHSIZE);
+	    UDBHASHSIZE, UDBHASHSIZE);
 }
 VNET_SYSINIT(udp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
     udp_vnet_init, NULL);
@@ -1118,7 +1118,6 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int len, error = 0;
 	struct in_addr faddr, laddr;
 	struct cmsghdr *cm;
-	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sin, src;
 	struct epoch_tracker et;
 	int cscov_partial = 0;
@@ -1127,7 +1126,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	u_char tos, vflagsav;
 	uint8_t pr;
 	uint16_t cscov = 0;
-	uint32_t flowid = 0;
+	uint32_t hash_val, hash_type, flowid = 0;
 	uint8_t flowtype = M_HASHTYPE_NONE;
 	bool use_cached_route;
 
@@ -1165,7 +1164,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * We will need network epoch in either case, to safely lookup into
 	 * pcb hash.
 	 */
-	use_cached_route = sin == NULL || (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0);
+	use_cached_route = sin == NULL ||
+	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0);
 	if (use_cached_route || (flags & PRUS_IPV6) != 0)
 		INP_WLOCK(inp);
 	else
@@ -1290,7 +1290,6 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto release;
 
 	pr = inp->inp_socket->so_proto->pr_protocol;
-	pcbinfo = udp_get_inpcbinfo(pr);
 
 	/*
 	 * If the IP_SENDSRCADDR control message was specified, override the
@@ -1311,10 +1310,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
 		}
-		INP_HASH_WLOCK(pcbinfo);
 		error = in_pcbbind_setup(inp, &src, &laddr.s_addr, &lport,
 		    V_udp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
-		INP_HASH_WUNLOCK(pcbinfo);
 		if ((flags & PRUS_IPV6) != 0)
 			inp->inp_vflag = vflagsav;
 		if (error)
@@ -1357,10 +1354,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 				.sin_len = sizeof(struct sockaddr_in),
 			};
 
-			INP_HASH_WLOCK(pcbinfo);
 			error = in_pcbbind(inp, &wild, V_udp_bind_all_fibs ?
 			    0 : INPBIND_FIB, td->td_ucred);
-			INP_HASH_WUNLOCK(pcbinfo);
 			if (error)
 				goto release;
 			lport = inp->inp_lport;
@@ -1487,11 +1482,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	if (flowtype != M_HASHTYPE_NONE) {
 		m->m_pkthdr.flowid = flowid;
 		M_HASHTYPE_SET(m, flowtype);
-	}
-#if defined(ROUTE_MPATH) || defined(RSS)
-	else if (CALC_FLOWID_OUTBOUND_SENDTO) {
-		uint32_t hash_val, hash_type;
-
+	} else if (CALC_FLOWID_OUTBOUND_SENDTO) {
 		hash_val = fib4_calc_packet_hash(laddr, faddr,
 		    lport, fport, pr, &hash_type);
 		m->m_pkthdr.flowid = hash_val;
@@ -1510,7 +1501,6 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * hash value based on the packet contents.
 	 */
 	ipflags |= IP_NODEFAULTFLOWID;
-#endif	/* RSS */
 
 	if (pr == IPPROTO_UDPLITE)
 		UDPLITE_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
@@ -1534,16 +1524,13 @@ void
 udp_abort(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_abort: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_faddr.s_addr != INADDR_ANY) {
-		INP_HASH_WLOCK(pcbinfo);
 		in_pcbdisconnect(inp);
-		INP_HASH_WUNLOCK(pcbinfo);
+		inp->inp_laddr.s_addr = INADDR_ANY;
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1609,11 +1596,9 @@ static int
 udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sinp;
 	int error;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_bind: inp == NULL"));
 
@@ -1632,10 +1617,8 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EINVAL);
 
 	INP_WLOCK(inp);
-	INP_HASH_WLOCK(pcbinfo);
 	error = in_pcbbind(inp, sinp, V_udp_bind_all_fibs ? 0 : INPBIND_FIB,
 	    td->td_ucred);
-	INP_HASH_WUNLOCK(pcbinfo);
 	INP_WUNLOCK(inp);
 	return (error);
 }
@@ -1644,16 +1627,13 @@ static void
 udp_close(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_close: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_faddr.s_addr != INADDR_ANY) {
-		INP_HASH_WLOCK(pcbinfo);
 		in_pcbdisconnect(inp);
-		INP_HASH_WUNLOCK(pcbinfo);
+		inp->inp_laddr.s_addr = INADDR_ANY;
 		soisdisconnected(so);
 	}
 	INP_WUNLOCK(inp);
@@ -1664,11 +1644,9 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct epoch_tracker et;
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sin;
 	int error;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_connect: inp == NULL"));
 
@@ -1689,9 +1667,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 	}
 	NET_EPOCH_ENTER(et);
-	INP_HASH_WLOCK(pcbinfo);
 	error = in_pcbconnect(inp, sin, td->td_ucred);
-	INP_HASH_WUNLOCK(pcbinfo);
 	NET_EPOCH_EXIT(et);
 	if (error == 0)
 		soisconnected(so);
@@ -1716,9 +1692,7 @@ int
 udp_disconnect(struct socket *so)
 {
 	struct inpcb *inp;
-	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_disconnect: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1726,9 +1700,8 @@ udp_disconnect(struct socket *so)
 		INP_WUNLOCK(inp);
 		return (ENOTCONN);
 	}
-	INP_HASH_WLOCK(pcbinfo);
 	in_pcbdisconnect(inp);
-	INP_HASH_WUNLOCK(pcbinfo);
+	inp->inp_laddr.s_addr = INADDR_ANY;
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	SOCK_UNLOCK(so);

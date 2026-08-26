@@ -156,11 +156,10 @@ rtwn_usb_setup_queues(struct rtwn_usb_softc *uc)
 }
 
 int
-rtwn_usb_setup_endpoints(struct rtwn_usb_softc *uc)
+rtwn_usb_setup_endpoints(struct rtwn_usb_softc *uc, const uint8_t iface_index)
 {
 	struct usb_config *rtwn_config;
 	struct rtwn_softc *sc = &uc->uc_sc;
-	const uint8_t iface_index = RTWN_IFACE_INDEX;
 	struct usb_endpoint *ep, *ep_end;
 	uint8_t addr[RTWN_MAX_EPOUT];
 	int error;

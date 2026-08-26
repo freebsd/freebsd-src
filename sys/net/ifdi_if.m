@@ -71,6 +71,12 @@ CODE {
 	{
 	}
 
+	static bool
+	null_led_supported(if_ctx_t _ctx __unused)
+	{
+		return (true);
+	}
+
 	static void
 	null_vlan_register_op(if_ctx_t _ctx __unused, uint16_t vtag __unused)
 	{
@@ -346,6 +352,10 @@ METHOD void led_func {
 	if_ctx_t _ctx;
 	int _onoff;
 } DEFAULT null_led_func;
+
+METHOD bool led_supported {
+	if_ctx_t _ctx;
+} DEFAULT null_led_supported;
 
 METHOD void vlan_register {
 	if_ctx_t _ctx;

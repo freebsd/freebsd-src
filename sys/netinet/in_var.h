@@ -152,21 +152,6 @@ do {									\
 }
 
 /*
- * Macro for finding the internet address structure (in_ifaddr) corresponding
- * to a given interface (ifnet structure).
- */
-#define IFP_TO_IA(ifp, ia)						\
-	/* struct ifnet *ifp; */					\
-	/* struct in_ifaddr *ia; */					\
-do {									\
-	NET_EPOCH_ASSERT();						\
-	for ((ia) = CK_STAILQ_FIRST(&V_in_ifaddrhead);			\
-	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\
-	    (ia) = CK_STAILQ_NEXT((ia), ia_link))			\
-		continue;						\
-} while (0)
-
-/*
  * Legacy IPv4 IGMP per-link structure.
  */
 struct router_info {
@@ -291,9 +276,7 @@ ip_mfilter_count(struct ip_mfilter_head *head)
  * and kept if retransmissions are necessary.
  *
  * FUTURE: inm_link is now only used when groups are being purged
- * on a detaching ifnet. It could be demoted to a SLIST_ENTRY, but
- * because it is at the very start of the struct, we can't do this
- * w/o breaking the ABI for ifmcstat.
+ * on a detaching ifnet. It could be demoted to a SLIST_ENTRY.
  */
 struct in_multi {
 	LIST_ENTRY(in_multi) inm_link;	/* to-be-released by in_ifdetach */
@@ -339,7 +322,6 @@ struct in_multi {
  *  A source is only excluded if all listeners exclude it.
  *  A source is only included if no listeners exclude it,
  *  and at least one listener includes it.
- * May be used by ifmcstat(8).
  */
 static __inline uint8_t
 ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
@@ -476,6 +458,11 @@ void	in_ifattach(void *, struct ifnet *);
 #ifdef VIMAGE
 void	in_detachhead(struct rib_head *rh);
 #endif
+
+struct sockopt;
+
+int	inp_join_group(struct inpcb *, struct sockopt *);
+int	inp_leave_group(struct inpcb *, struct sockopt *);
 
 #endif /* _KERNEL */
 

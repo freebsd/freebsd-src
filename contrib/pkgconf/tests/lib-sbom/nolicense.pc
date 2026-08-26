@@ -1,0 +1,7 @@
+Name: nolicense
+Description: Package without a license field
+URL: https://example.com/nolicense
+Version: 1.0.0
+Copyright: Nolicense copyright text
+Source: https://example.com/nolicense/nolicense-1.0.0.tar.gz
+Maintainer: Nolicense Maintainer

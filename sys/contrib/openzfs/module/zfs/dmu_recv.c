@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -70,10 +60,12 @@
 #endif
 #include <sys/zfs_file.h>
 #include <sys/cred.h>
+#include <sys/fs/zfs.h>
 
 static uint_t zfs_recv_queue_length = SPA_MAXBLOCKSIZE;
 static uint_t zfs_recv_queue_ff = 20;
 static uint_t zfs_recv_write_batch_size = 1024 * 1024;
+static uint_t zfs_recv_defer_batch_size = 32 * 1024 * 1024;
 static int zfs_recv_best_effort_corrective = 0;
 
 static const void *const dmu_recv_tag = "dmu_recv_tag";
@@ -102,6 +94,16 @@ struct receive_record_arg {
 	bqueue_node_t node;
 };
 
+/*
+ * A range of dnode slots that must not be touched until the deferred
+ * frees covering it have synced out; see receive_defer_park().
+ */
+typedef struct receive_defer_range {
+	avl_node_t rdr_node;
+	uint64_t rdr_first;	/* first slot in the range */
+	uint64_t rdr_last;	/* last slot in the range (inclusive) */
+} receive_defer_range_t;
+
 struct receive_writer_arg {
 	objset_t *os;
 	boolean_t byteswap;
@@ -122,6 +124,7 @@ struct receive_writer_arg {
 	boolean_t raw;   /* DMU_BACKUP_FEATURE_RAW set */
 	boolean_t spill; /* DRR_FLAG_SPILL_BLOCK set */
 	boolean_t full;  /* this is a full send stream */
+	uint64_t featureflags; /* from DRR_BEGIN */
 	uint64_t last_object;
 	uint64_t last_offset;
 	uint64_t max_object; /* highest object ID referenced in stream */
@@ -141,7 +144,26 @@ struct receive_writer_arg {
 
 	/* Keep track of DRR_FREEOBJECTS right after DRR_OBJECT_RANGE */
 	or_need_sync_t or_need_sync;
+
+	/*
+	 * Records whose application is deferred until the frees they
+	 * depend on have synced out, the dnode slot ranges they cover,
+	 * and the resume-state pin for the first deferred record.  See
+	 * receive_defer_park().
+	 */
+	list_t defer_records;
+	avl_tree_t defer_ranges;
+	uint64_t defer_bytes;
+	uint64_t defer_nrecords;
+	uint64_t defer_first_object;
+	uint64_t defer_first_bytes_read;
+	uint64_t defer_max_free_txg;
+	boolean_t defer_replaying;
 };
+
+static int receive_process_record(struct receive_writer_arg *rwa,
+    struct receive_record_arg *rrd);
+static int flush_write_batch(struct receive_writer_arg *rwa);
 
 typedef struct dmu_recv_begin_arg {
 	const char *drba_origin;
@@ -478,6 +500,22 @@ recv_begin_check_existing_impl(dmu_recv_begin_arg_t *drba, dsl_dataset_t *ds,
 		if (obj == 0)
 			return (SET_ERROR(ENODEV));
 
+		/*
+		 * A non-raw incremental onto a snapshot that was itself
+		 * received raw re-stamps the new snapshot's ivset guid, so it
+		 * no longer matches the sending lineage and a later raw
+		 * incremental would be rejected (#8758). Note it here so the
+		 * receive can warn about it as it happens.
+		 */
+		if (encrypted && !raw) {
+			uint64_t rawrecv = 0;
+			(void) zap_lookup(dp->dp_meta_objset, snap->ds_object,
+			    DS_FIELD_RAW_RECEIVED, sizeof (uint64_t), 1,
+			    &rawrecv);
+			if (rawrecv != 0)
+				drba->drba_cookie->drc_ivset_diverged = B_TRUE;
+		}
+
 		if (drba->drba_cookie->drc_force) {
 			drba->drba_cookie->drc_fromsnapobj = obj;
 		} else {
@@ -812,8 +850,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 				if (!redact_check(drba, origin)) {
 					dsl_dataset_rele_flags(origin, dsflags,
 					    FTAG);
-					dsl_dataset_rele_flags(ds, dsflags,
-					    FTAG);
+					dsl_dataset_rele(ds, FTAG);
 					return (SET_ERROR(EINVAL));
 				}
 			}
@@ -821,7 +858,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 			error = recv_check_large_blocks(ds, featureflags);
 			if (error != 0) {
 				dsl_dataset_rele_flags(origin, dsflags, FTAG);
-				dsl_dataset_rele_flags(ds, dsflags, FTAG);
+				dsl_dataset_rele(ds, FTAG);
 				return (error);
 			}
 
@@ -997,7 +1034,37 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 		    numredactsnaps, tx);
 	}
 
-	if (featureflags & DMU_BACKUP_FEATURE_LARGE_MICROZAP) {
+	dmu_buf_will_dirty(newds->ds_dbuf, tx);
+	dsl_dataset_phys(newds)->ds_flags |= DS_FLAG_INCONSISTENT;
+
+	/*
+	 * When receiving, we refuse to accept streams that are missing the
+	 * large block feature flag if the large block is already active
+	 * (see ZFS_ERR_STREAM_LARGE_BLOCK_MISMATCH). To prevent this
+	 * check from being spuriously triggered, we always activate
+	 * the large block feature if the feature flag is present in the
+	 * stream.  This covers the case where the sending side has the feature
+	 * active, but has since deleted the file containing large blocks.
+	 */
+	if (featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS &&
+	    !dsl_dataset_feature_is_active(newds, SPA_FEATURE_LARGE_BLOCKS)) {
+		dsl_dataset_activate_feature(newds->ds_object,
+		    SPA_FEATURE_LARGE_BLOCKS, (void *)B_TRUE, tx);
+		newds->ds_feature[SPA_FEATURE_LARGE_BLOCKS] = (void *)B_TRUE;
+	}
+
+	/*
+	 * Activate longname feature if received
+	 */
+	if (featureflags & DMU_BACKUP_FEATURE_LONGNAME &&
+	    !dsl_dataset_feature_is_active(newds, SPA_FEATURE_LONGNAME)) {
+		dsl_dataset_activate_feature(newds->ds_object,
+		    SPA_FEATURE_LONGNAME, (void *)B_TRUE, tx);
+		newds->ds_feature[SPA_FEATURE_LONGNAME] = (void *)B_TRUE;
+	}
+
+	if (featureflags & DMU_BACKUP_FEATURE_LARGE_MICROZAP &&
+	    !dsl_dataset_feature_is_active(newds, SPA_FEATURE_LARGE_MICROZAP)) {
 		/*
 		 * The source has seen a large microzap at least once in its
 		 * life, so we activate the feature here to match. It's not
@@ -1013,19 +1080,7 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 		 */
 		dsl_dataset_activate_feature(dsobj, SPA_FEATURE_LARGE_MICROZAP,
 		    (void *)B_TRUE, tx);
-	}
-
-	dmu_buf_will_dirty(newds->ds_dbuf, tx);
-	dsl_dataset_phys(newds)->ds_flags |= DS_FLAG_INCONSISTENT;
-
-	/*
-	 * Activate longname feature if received
-	 */
-	if (featureflags & DMU_BACKUP_FEATURE_LONGNAME &&
-	    !dsl_dataset_feature_is_active(newds, SPA_FEATURE_LONGNAME)) {
-		dsl_dataset_activate_feature(newds->ds_object,
-		    SPA_FEATURE_LONGNAME, (void *)B_TRUE, tx);
-		newds->ds_feature[SPA_FEATURE_LONGNAME] = (void *)B_TRUE;
+		newds->ds_feature[SPA_FEATURE_LARGE_MICROZAP] = (void *)B_TRUE;
 	}
 
 	/*
@@ -1160,8 +1215,24 @@ dmu_recv_resume_begin_check(void *arg, dmu_tx_t *tx)
 		return (SET_ERROR(EINVAL));
 	}
 
-	if (ds->ds_prev != NULL && drrb->drr_fromguid != 0)
+	if (ds->ds_prev != NULL && drrb->drr_fromguid != 0) {
 		drc->drc_fromsnapobj = ds->ds_prev->ds_object;
+
+		/*
+		 * As in recv_begin_check_existing_impl(): if this non-raw
+		 * incremental resumes onto a raw-received snapshot, note that
+		 * it is diverging the IV set so the receive can warn (#8758).
+		 */
+		if (ds->ds_dir->dd_crypto_obj != 0 &&
+		    !(drc->drc_featureflags & DMU_BACKUP_FEATURE_RAW)) {
+			uint64_t rawrecv = 0;
+			(void) zap_lookup(dp->dp_meta_objset,
+			    drc->drc_fromsnapobj, DS_FIELD_RAW_RECEIVED,
+			    sizeof (uint64_t), 1, &rawrecv);
+			if (rawrecv != 0)
+				drc->drc_ivset_diverged = B_TRUE;
+		}
+	}
 
 	/*
 	 * If we're resuming, and the send is redacted, then the original send
@@ -1604,14 +1675,20 @@ receive_read(dmu_recv_cookie_t *drc, int len, void *buf)
 }
 
 static inline uint8_t
-deduce_nblkptr(dmu_object_type_t bonus_type, uint64_t bonus_size)
+deduce_nblkptr(dmu_object_type_t bonus_type, uint64_t bonus_size,
+    uint8_t dn_slots)
 {
 	if (bonus_type == DMU_OT_SA) {
 		return (1);
 	} else {
-		return (1 +
-		    ((DN_OLD_MAX_BONUSLEN -
-		    MIN(DN_OLD_MAX_BONUSLEN, bonus_size)) >> SPA_BLKPTRSHIFT));
+		/*
+		 * Match dnode_allocate() / dnode_reallocate(): nblkptr is
+		 * derived from the dnode's bonus capacity for dn_slots.
+		 */
+		return (MIN(DN_MAX_NBLKPTR,
+		    1 + ((DN_SLOTS_TO_BONUSLEN(dn_slots) -
+		    MIN(DN_SLOTS_TO_BONUSLEN(dn_slots), bonus_size)) >>
+		    SPA_BLKPTRSHIFT)));
 	}
 }
 
@@ -1620,15 +1697,39 @@ save_resume_state(struct receive_writer_arg *rwa,
     uint64_t object, uint64_t offset, dmu_tx_t *tx)
 {
 	int txgoff = dmu_tx_get_txg(tx) & TXG_MASK;
+	uint64_t bytes = rwa->bytes_read;
 
 	if (!rwa->resumable)
 		return;
 
 	/*
+	 * While records are parked on the defer list (including while
+	 * they are being replayed), the resume point must not advance
+	 * past the first unapplied record.  Everything parked is at or
+	 * after that stream position, and re-receiving records that were
+	 * already applied is supported (see receive_object()), so pin
+	 * the saved state there until the defer list drains.
+	 *
+	 * A sender emits objects in ascending order, so the pin can only
+	 * sit at or above anything saved before it.  A malformed stream
+	 * that reorders objects could place it lower; keep the already
+	 * saved state in that case instead of moving resume backwards
+	 * past records this receive never parked.
+	 */
+	if (rwa->defer_replaying || !list_is_empty(&rwa->defer_records)) {
+		if (rwa->defer_first_object <
+		    rwa->os->os_dsl_dataset->ds_resume_object[txgoff])
+			return;
+		object = rwa->defer_first_object;
+		offset = 0;
+		bytes = rwa->defer_first_bytes_read;
+	}
+
+	/*
 	 * We use ds_resume_bytes[] != 0 to indicate that we need to
 	 * update this on disk, so it must not be 0.
 	 */
-	ASSERT(rwa->bytes_read != 0);
+	ASSERT(bytes != 0);
 
 	/*
 	 * We only resume from write records, which have a valid
@@ -1649,7 +1750,7 @@ save_resume_state(struct receive_writer_arg *rwa,
 
 	rwa->os->os_dsl_dataset->ds_resume_object[txgoff] = object;
 	rwa->os->os_dsl_dataset->ds_resume_offset[txgoff] = offset;
-	rwa->os->os_dsl_dataset->ds_resume_bytes[txgoff] = rwa->bytes_read;
+	rwa->os->os_dsl_dataset->ds_resume_bytes[txgoff] = bytes;
 }
 
 static int
@@ -1680,18 +1781,1276 @@ receive_object_is_same_generation(objset_t *os, uint64_t object,
 	return (0);
 }
 
+/*
+ * Return true if a + b would overflow uint64_t.
+ */
+static boolean_t
+recv_u64_add_overflow(uint64_t a, uint64_t b)
+{
+	return (a + b < a);
+}
+
+typedef struct recv_check_limits {
+	uint64_t rcl_maxblocksize;
+	uint64_t rcl_maxdnodesize;
+} recv_check_limits_t;
+
+static void
+recv_check_resolve_limits(spa_t *spa, recv_check_limits_t *limits)
+{
+	if (spa != NULL) {
+		limits->rcl_maxblocksize = spa_maxblocksize(spa);
+		limits->rcl_maxdnodesize = spa_maxdnodesize(spa);
+	} else {
+		limits->rcl_maxblocksize = SPA_MAXBLOCKSIZE;
+		limits->rcl_maxdnodesize = DNODE_MAX_SIZE;
+	}
+}
+
 static int
-receive_handle_existing_object(const struct receive_writer_arg *rwa,
+recv_check_fail(int error, char *errbuf, size_t errbuflen, const char *fmt, ...)
+{
+	if (errbuf != NULL && errbuflen > 0 && fmt != NULL) {
+		va_list ap;
+
+		va_start(ap, fmt);
+		(void) vsnprintf(errbuf, errbuflen, fmt, ap);
+		va_end(ap);
+	}
+	return (SET_ERROR(error));
+}
+
+/*
+ * Reject compression algorithms that require a feature flag the BEGIN
+ * record did not advertise.  Legacy algorithms (below LZ4) need no flag.
+ */
+static int
+recv_check_compress_feature(uint8_t compress, uint64_t featureflags,
+    char *errbuf, size_t errbuflen, const char *what)
+{
+	if (compress == ZIO_COMPRESS_ZSTD &&
+	    !(featureflags & DMU_BACKUP_FEATURE_ZSTD)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "%s compression type ZSTD requires "
+		    "DMU_BACKUP_FEATURE_ZSTD", what));
+	}
+	if (compress >= ZIO_COMPRESS_LEGACY_FUNCTIONS &&
+	    compress != ZIO_COMPRESS_ZSTD &&
+	    !(featureflags & DMU_BACKUP_FEATURE_LZ4)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "%s compression type %u requires DMU_BACKUP_FEATURE_LZ4",
+		    what, compress));
+	}
+	return (0);
+}
+
+/*
+ * Publish a stream rejection reason on the receive errors nvlist.
+ * Called only from the reader thread (receive_read_record): the writer
+ * thread shares no lock with the reader, so it must not mutate this nvlist.
+ */
+static void
+recv_report_stream_error(nvlist_t *errors, const char *msg)
+{
+	if (errors != NULL && msg != NULL && msg[0] != '\0' &&
+	    !nvlist_exists(errors, ZFS_RECV_ERR_STREAM))
+		fnvlist_add_string(errors, ZFS_RECV_ERR_STREAM, msg);
+}
+
+/*
+ * Record validators return ERANGE when a size field exceeds a pool or
+ * on-wire limit (previously often EINVAL on the apply path, with ERANGE
+ * only on a few read-path payload checks).  They return EINVAL when a
+ * field is below a minimum, malformed, or otherwise inconsistent.
+ * lzc_receive* callers may therefore see ERANGE where older OpenZFS
+ * modules returned EINVAL for the same oversized record.
+ */
+
+/*
+ * Reject object 0 (meta dnode) and object numbers outside the valid range.
+ */
+static int
+recv_check_drr_object_id(uint64_t object, char *errbuf, size_t errbuflen)
+{
+	if (object == 0 || object >= DN_MAX_OBJECT) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "object number %llu outside valid range 1-%llu",
+		    (u_longlong_t)object, (u_longlong_t)(DN_MAX_OBJECT - 1)));
+	}
+	return (0);
+}
+
+/*
+ * Reject sizes below a given minimum.
+ */
+static int
+recv_check_drr_size_min(uint64_t size, uint64_t minbs, char *errbuf,
+    size_t errbuflen, const char *what)
+{
+	if (size < minbs) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "%s %llu below minimum %llu", what, (u_longlong_t)size,
+		    (u_longlong_t)minbs));
+	}
+	return (0);
+}
+
+/*
+ * Reject sizes above a given maximum.
+ */
+static int
+recv_check_drr_size_max(uint64_t size, uint64_t maxbs, char *errbuf,
+    size_t errbuflen, const char *what)
+{
+	if (size > maxbs) {
+		return (recv_check_fail(ERANGE, errbuf, errbuflen,
+		    "%s %llu exceeds maximum %llu", what, (u_longlong_t)size,
+		    (u_longlong_t)maxbs));
+	}
+	return (0);
+}
+
+/*
+ * Validate a DRR_OBJECT record before reading its bonus payload or
+ * applying it.  Raw object-range membership is validated later in
+ * receive_object() once the preceding DRR_OBJECT_RANGE state is
+ * available.
+ */
+int
+recv_check_drr_object(const struct drr_object *drro, spa_t *spa,
+    boolean_t raw, boolean_t spill, uint64_t featureflags, char *errbuf,
+    size_t errbuflen)
+{
+	uint32_t psize = DRR_OBJECT_PAYLOAD_SIZE(drro);
+	recv_check_limits_t limits;
+	uint8_t dn_slots = drro->drr_dn_slots != 0 ?
+	    drro->drr_dn_slots : DNODE_MIN_SLOTS;
+
+	recv_check_resolve_limits(spa, &limits);
+
+	/* object number must be valid */
+	int err = recv_check_drr_object_id(drro->drr_object, errbuf, errbuflen);
+
+	if (err != 0)
+		return (err);
+
+	/* object type must not be DMU_OT_NONE */
+	if (drro->drr_type == DMU_OT_NONE) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT type is DMU_OT_NONE"));
+	}
+
+	/* object type must be a valid DMU object type */
+	if (!DMU_OT_IS_VALID(drro->drr_type)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT has invalid type %u", drro->drr_type));
+	}
+
+	/* bonus type must be a valid DMU object type */
+	if (!DMU_OT_IS_VALID(drro->drr_bonustype)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT has invalid bonus type %u",
+		    drro->drr_bonustype));
+	}
+
+	/*
+	 * Mirror dnode_allocate() bonus invariants so malformed
+	 * bonustype/bonuslen pairs are rejected before payload read/apply
+	 * instead of hitting ASSERTs in the allocator.
+	 */
+	if (!((drro->drr_bonustype == DMU_OT_NONE &&
+	    drro->drr_bonuslen == 0) ||
+	    (drro->drr_bonustype == DMU_OT_SA && drro->drr_bonuslen == 0) ||
+	    (drro->drr_bonustype == DMU_OTN_UINT64_METADATA &&
+	    drro->drr_bonuslen == 0) ||
+	    (drro->drr_bonustype != DMU_OT_NONE &&
+	    drro->drr_bonuslen != 0))) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT bonus type %u incompatible with bonus "
+		    "length %u", drro->drr_bonustype, drro->drr_bonuslen));
+	}
+
+	/* multi-slot dnodes require LARGE_DNODE in BEGIN */
+	if (dn_slots > DNODE_MIN_SLOTS &&
+	    !(featureflags & DMU_BACKUP_FEATURE_LARGE_DNODE)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT dnode slots %u require "
+		    "DMU_BACKUP_FEATURE_LARGE_DNODE", dn_slots));
+	}
+
+	/* blocks larger than SPA_OLD_MAXBLOCKSIZE require LARGE_BLOCKS */
+	if (drro->drr_blksz > SPA_OLD_MAXBLOCKSIZE &&
+	    !(featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT block size %u requires "
+		    "DMU_BACKUP_FEATURE_LARGE_BLOCKS", drro->drr_blksz));
+	}
+
+	/* checksum algorithm must be within ZIO_CHECKSUM_FUNCTIONS */
+	if (drro->drr_checksumtype >= ZIO_CHECKSUM_FUNCTIONS) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT has invalid checksum type %u",
+		    drro->drr_checksumtype));
+	}
+
+	/*
+	 * drr_compress is from the object, not a stream payload encoding
+	 */
+	if (drro->drr_compress >= ZIO_COMPRESS_FUNCTIONS) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT has invalid compression type %u",
+		    drro->drr_compress));
+	}
+
+	/* data block size must be a multiple of SPA_MINBLOCKSIZE */
+	if (P2PHASE(drro->drr_blksz, SPA_MINBLOCKSIZE)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT block size %u is not a multiple of %u",
+		    drro->drr_blksz, SPA_MINBLOCKSIZE));
+	}
+
+	/* data block size must be at least SPA_MINBLOCKSIZE */
+	err = recv_check_drr_size_min(drro->drr_blksz, SPA_MINBLOCKSIZE, errbuf,
+	    errbuflen, "DRR_OBJECT block size");
+	if (err != 0)
+		return (err);
+
+	/* data block size must not exceed pool maximum */
+	err = recv_check_drr_size_max(drro->drr_blksz, limits.rcl_maxblocksize,
+	    errbuf, errbuflen, "DRR_OBJECT block size");
+	if (err != 0)
+		return (err);
+
+	/* bonus length must fit in the pool's maximum dnode bonus area */
+	if (drro->drr_bonuslen > DN_BONUS_SIZE(limits.rcl_maxdnodesize)) {
+		return (recv_check_fail(ERANGE, errbuf, errbuflen,
+		    "DRR_OBJECT bonus length %u exceeds maximum %u",
+		    drro->drr_bonuslen,
+		    (uint32_t)DN_BONUS_SIZE(limits.rcl_maxdnodesize)));
+	}
+
+	/* dnode slot count must fit in the pool's maximum dnode size */
+	if (dn_slots > (limits.rcl_maxdnodesize >> DNODE_SHIFT)) {
+		return (recv_check_fail(ERANGE, errbuf, errbuflen,
+		    "DRR_OBJECT dnode slot count %u exceeds maximum %u",
+		    dn_slots,
+		    (uint8_t)(limits.rcl_maxdnodesize >> DNODE_SHIFT)));
+	}
+
+	/* bonus payload size must not exceed pool maximum block size */
+	err = recv_check_drr_size_max(psize, limits.rcl_maxblocksize, errbuf,
+	    errbuflen, "DRR_OBJECT bonus payload size");
+	if (err != 0)
+		return (err);
+
+	/* object + dn_slots must not overflow uint64_t */
+	if (recv_u64_add_overflow(drro->drr_object, dn_slots)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT object %llu + dn_slots %u overflows",
+		    (u_longlong_t)drro->drr_object, dn_slots));
+	}
+
+	/* multi-slot dnode must not extend past DN_MAX_OBJECT */
+	if (drro->drr_object + dn_slots > DN_MAX_OBJECT) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT object range %llu-%llu exceeds DN_MAX_OBJECT",
+		    (u_longlong_t)drro->drr_object,
+		    (u_longlong_t)(drro->drr_object + dn_slots - 1)));
+	}
+
+	if (raw) {
+		uint8_t nblkptr;
+		uint32_t max_raw_bonus;
+
+		/*
+		 * Raw OBJECT records may set DRR_OBJECT_SPILL and/or
+		 * DRR_RAW_BYTESWAP (see dump_dnode()).
+		 */
+		if ((drro->drr_flags &
+		    ~(DRR_OBJECT_SPILL | DRR_RAW_BYTESWAP)) != 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT has invalid flags 0x%x",
+			    drro->drr_flags));
+		}
+
+		/* spill flag requires DRR_FLAG_SPILL_BLOCK in BEGIN */
+		if (!spill && DRR_OBJECT_HAS_SPILL(drro->drr_flags)) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT spill flag set but stream BEGIN "
+			    "missing DRR_FLAG_SPILL_BLOCK"));
+		}
+
+		/* raw bonus payload must be at least as large as bonuslen */
+		if (drro->drr_raw_bonuslen < drro->drr_bonuslen) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT raw bonus length %u < bonus length %u",
+			    drro->drr_raw_bonuslen, drro->drr_bonuslen));
+		}
+
+		/*
+		 * 0 means "leave the post-allocate default"; otherwise the
+		 * shift must be a supported indirect block size.  Values
+		 * between 1 and DN_MIN_INDBLKSHIFT-1 or above
+		 * DN_MAX_INDBLKSHIFT would be stored by dnode_set_blksz()
+		 * and break later addressing math.
+		 */
+		if (drro->drr_indblkshift != 0 &&
+		    (drro->drr_indblkshift < DN_MIN_INDBLKSHIFT ||
+		    drro->drr_indblkshift > DN_MAX_INDBLKSHIFT)) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT indirect block shift %u outside "
+			    "valid range %u-%u", drro->drr_indblkshift,
+			    DN_MIN_INDBLKSHIFT, DN_MAX_INDBLKSHIFT));
+		}
+
+		/* tree depth must be in [1, DN_MAX_LEVELS] */
+		if (drro->drr_nlevels < 1 ||
+		    drro->drr_nlevels > DN_MAX_LEVELS) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT tree depth %u outside valid range "
+			    "1-%u", drro->drr_nlevels, DN_MAX_LEVELS));
+		}
+
+		/* blkptr count must be in [1, DN_MAX_NBLKPTR] */
+		if (drro->drr_nblkptr < 1 ||
+		    drro->drr_nblkptr > DN_MAX_NBLKPTR) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT blkptr count %u outside valid range "
+			    "1-%u", drro->drr_nblkptr, DN_MAX_NBLKPTR));
+		}
+
+		/*
+		 * nblkptr must match what dnode_allocate() / reclaim derive
+		 * from bonustype+bonuslen.  Otherwise the stream's
+		 * raw_bonuslen can be sized for a different layout than the
+		 * dnode we actually create (bonus dbuf overflow).
+		 */
+		nblkptr = deduce_nblkptr(drro->drr_bonustype,
+		    drro->drr_bonuslen, dn_slots);
+		if (drro->drr_nblkptr != nblkptr) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT blkptr count %u incompatible with "
+			    "bonus type %u length %u (expected %u)",
+			    drro->drr_nblkptr, drro->drr_bonustype,
+			    drro->drr_bonuslen, nblkptr));
+		}
+
+		/*
+		 * Raw bonus payload must fit the in-memory bonus dbuf, which
+		 * shrinks as nblkptr grows, and shrinks by one more blkptr_t
+		 * when a spill pointer occupies the tail (see
+		 * DN_MAX_BONUS_LEN() / dump_dnode()).
+		 */
+		max_raw_bonus = DN_SLOTS_TO_BONUSLEN(dn_slots) -
+		    (nblkptr - 1) * sizeof (blkptr_t);
+		if (DRR_OBJECT_HAS_SPILL(drro->drr_flags)) {
+			if (max_raw_bonus < sizeof (blkptr_t)) {
+				return (recv_check_fail(EINVAL, errbuf,
+				    errbuflen,
+				    "DRR_OBJECT spill flag incompatible with "
+				    "blkptr count %u", nblkptr));
+			}
+			max_raw_bonus -= sizeof (blkptr_t);
+		}
+		if (drro->drr_raw_bonuslen > max_raw_bonus) {
+			return (recv_check_fail(ERANGE, errbuf, errbuflen,
+			    "DRR_OBJECT raw bonus length %u exceeds dnode "
+			    "bonus capacity %u", drro->drr_raw_bonuslen,
+			    max_raw_bonus));
+		}
+	} else {
+		/* only DRR_OBJECT_SPILL is a permitted non-raw flag bit */
+		if ((drro->drr_flags & ~(DRR_OBJECT_SPILL)) != 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT has invalid flags 0x%x",
+			    drro->drr_flags));
+		}
+
+		/* spill flag requires DRR_FLAG_SPILL_BLOCK in BEGIN */
+		if (!spill && DRR_OBJECT_HAS_SPILL(drro->drr_flags)) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT spill flag set but stream BEGIN "
+			    "missing DRR_FLAG_SPILL_BLOCK"));
+		}
+
+		/* raw bonus length must be zero in non-raw streams */
+		if (drro->drr_raw_bonuslen != 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT raw bonus length must be zero in "
+			    "non-raw streams"));
+		}
+
+		/* bonus length must fit in the dnode bonus area */
+		if (drro->drr_bonuslen > DN_SLOTS_TO_BONUSLEN(dn_slots)) {
+			return (recv_check_fail(ERANGE, errbuf, errbuflen,
+			    "DRR_OBJECT bonus length %u exceeds dnode bonus "
+			    "capacity %u", drro->drr_bonuslen,
+			    (uint32_t)DN_SLOTS_TO_BONUSLEN(dn_slots)));
+		}
+
+		/* blkptr count must be zero in non-raw streams */
+		if (drro->drr_nblkptr != 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT blkptr count must be zero in non-raw "
+			    "streams"));
+		}
+
+		/* indirect block shift must be zero in non-raw streams */
+		if (drro->drr_indblkshift != 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT indirect block shift must be zero in "
+			    "non-raw streams"));
+		}
+
+		/* tree depth must be zero in non-raw streams */
+		if (drro->drr_nlevels != 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_OBJECT tree depth must be zero in non-raw "
+			    "streams"));
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Validate a DRR_FREE (or DRR_REDACT, which shares the same layout)
+ * record.  Target object existence is checked later in receive_free().
+ */
+int
+recv_check_drr_free(const struct drr_free *drrf, char *errbuf, size_t errbuflen)
+{
+	/* object number must be valid */
+	int err = recv_check_drr_object_id(drrf->drr_object, errbuf, errbuflen);
+
+	if (err != 0)
+		return (err);
+
+	/* offset + length must not overflow uint64_t (length == -1 is EOF) */
+	if (drrf->drr_length != -1ULL &&
+	    recv_u64_add_overflow(drrf->drr_offset, drrf->drr_length)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_FREE offset %llu + length %llu overflows",
+		    (u_longlong_t)drrf->drr_offset,
+		    (u_longlong_t)drrf->drr_length));
+	}
+
+	return (0);
+}
+
+/*
+ * Validate a DRR_FREEOBJECTS record before processing the object loop.
+ */
+int
+recv_check_drr_freeobjects(const struct drr_freeobjects *drrfo, char *errbuf,
+    size_t errbuflen)
+{
+	/* firstobj + numobjs must not overflow uint64_t */
+	if (recv_u64_add_overflow(drrfo->drr_firstobj, drrfo->drr_numobjs)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_FREEOBJECTS first object %llu + count %llu overflows",
+		    (u_longlong_t)drrfo->drr_firstobj,
+		    (u_longlong_t)drrfo->drr_numobjs));
+	}
+
+	return (0);
+}
+
+/*
+ * Validate a DRR_OBJECT_RANGE record.  Only sent on raw streams.
+ */
+int
+recv_check_drr_object_range(const struct drr_object_range *drror,
+    boolean_t raw, char *errbuf, size_t errbuflen)
+{
+	/* DRR_OBJECT_RANGE is only valid on raw receive streams */
+	if (!raw) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT_RANGE is only valid on raw streams"));
+	}
+
+	/* range must cover exactly one dnode block */
+	if (drror->drr_numslots != DNODES_PER_BLOCK) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT_RANGE numslots %llu != %u",
+		    (u_longlong_t)drror->drr_numslots, DNODES_PER_BLOCK));
+	}
+
+	/* first object must be aligned to a dnode block boundary */
+	if (P2PHASE(drror->drr_firstobj, DNODES_PER_BLOCK) != 0) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT_RANGE first object %llu is not dnode-block "
+		    "aligned", (u_longlong_t)drror->drr_firstobj));
+	}
+
+	/* firstobj + numslots must not overflow uint64_t */
+	if (recv_u64_add_overflow(drror->drr_firstobj, drror->drr_numslots)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT_RANGE first object %llu + numslots %llu "
+		    "overflows", (u_longlong_t)drror->drr_firstobj,
+		    (u_longlong_t)drror->drr_numslots));
+	}
+
+	/* object range must not extend past DN_MAX_OBJECT */
+	if (drror->drr_firstobj + drror->drr_numslots > DN_MAX_OBJECT) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_OBJECT_RANGE extends past DN_MAX_OBJECT"));
+	}
+
+	return (0);
+}
+
+/*
+ * Validate a DRR_SPILL record before reading spill payload or writing
+ * the spill block.
+ */
+int
+recv_check_drr_spill(const struct drr_spill *drrs, spa_t *spa, boolean_t raw,
+    uint64_t featureflags, char *errbuf, size_t errbuflen)
+{
+	uint64_t psize = DRR_SPILL_PAYLOAD_SIZE(drrs);
+	recv_check_limits_t limits;
+
+	recv_check_resolve_limits(spa, &limits);
+
+	/* object number must be valid */
+	int err = recv_check_drr_object_id(drrs->drr_object, errbuf, errbuflen);
+
+	if (err != 0)
+		return (err);
+
+	/*
+	 * receive_spill() indexes DMU_OT_* tables with drr_type for both
+	 * raw and non-raw paths (metadata bit, byteswap).  Non-raw dumps
+	 * leave type as DMU_OT_NONE, which is valid.
+	 */
+	if (!DMU_OT_IS_VALID(drrs->drr_type)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_SPILL has invalid type %u", drrs->drr_type));
+	}
+
+	/* logical spill size must be at least SPA_MINBLOCKSIZE */
+	err = recv_check_drr_size_min(drrs->drr_length, SPA_MINBLOCKSIZE,
+	    errbuf, errbuflen, "DRR_SPILL logical size");
+	if (err != 0)
+		return (err);
+
+	/* logical spill size must not exceed pool maximum */
+	err = recv_check_drr_size_max(drrs->drr_length, limits.rcl_maxblocksize,
+	    errbuf, errbuflen, "DRR_SPILL logical size");
+	if (err != 0)
+		return (err);
+
+	/* spill payload size must not exceed pool maximum */
+	err = recv_check_drr_size_max(psize, limits.rcl_maxblocksize, errbuf,
+	    errbuflen, "DRR_SPILL payload size");
+	if (err != 0)
+		return (err);
+
+	/*
+	 * On raw streams drr_compressed_size holds the on-disk payload size
+	 * (BP psize), not whether compression was used.  dump_spill() always
+	 * sets it from BP_GET_PSIZE(); uncompressed raw spill blocks still
+	 * have compressiontype == ZIO_COMPRESS_OFF and a non-zero psize.
+	 * Non-raw streams leave drr_compressed_size at zero and use drr_length
+	 * for the payload (see DRR_SPILL_PAYLOAD_SIZE).
+	 */
+	if (raw && drrs->drr_compressed_size == 0) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_SPILL payload size must be non-zero on raw "
+		    "streams"));
+	} else if (!raw && drrs->drr_compressed_size != 0) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_SPILL compressed payload size must be zero on non-raw "
+		    "streams"));
+	}
+
+	if (drrs->drr_compressed_size != 0) {
+		/* compression type must be within ZIO_COMPRESS_FUNCTIONS */
+		if (drrs->drr_compressiontype >= ZIO_COMPRESS_FUNCTIONS) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_SPILL has invalid compression type %u",
+			    drrs->drr_compressiontype));
+		}
+
+		err = recv_check_compress_feature(drrs->drr_compressiontype,
+		    featureflags, errbuf, errbuflen, "DRR_SPILL");
+		if (err != 0)
+			return (err);
+
+		/* length must be at least compressed payload size */
+		if (drrs->drr_length < drrs->drr_compressed_size) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_SPILL logical size %llu < "
+			    "compressed size %llu",
+			    (u_longlong_t)drrs->drr_length,
+			    (u_longlong_t)drrs->drr_compressed_size));
+		}
+	} else if (drrs->drr_compressiontype != 0) {
+		/* non-compressed spill must not claim a compression type */
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_SPILL compression type must be zero when "
+		    "uncompressed"));
+	}
+
+	return (0);
+}
+
+/*
+ * Validate a DRR_WRITE record before reading payload or batching the
+ * write.
+ */
+int
+recv_check_drr_write(const struct drr_write *drrw, spa_t *spa, boolean_t raw,
+    uint64_t featureflags, char *errbuf, size_t errbuflen)
+{
+	uint64_t psize = DRR_WRITE_PAYLOAD_SIZE(drrw);
+	recv_check_limits_t limits;
+
+	recv_check_resolve_limits(spa, &limits);
+
+	/* object number must be valid */
+	int err = recv_check_drr_object_id(drrw->drr_object, errbuf, errbuflen);
+
+	if (err != 0)
+		return (err);
+
+	/* logical write size must be at least SPA_MINBLOCKSIZE */
+	err = recv_check_drr_size_min(drrw->drr_logical_size, SPA_MINBLOCKSIZE,
+	    errbuf, errbuflen, "DRR_WRITE logical size");
+	if (err != 0)
+		return (err);
+
+	/* logical write size must not exceed pool maximum */
+	err = recv_check_drr_size_max(drrw->drr_logical_size,
+	    limits.rcl_maxblocksize, errbuf, errbuflen,
+	    "DRR_WRITE logical size");
+	if (err != 0)
+		return (err);
+
+	/* blocks larger than SPA_OLD_MAXBLOCKSIZE require LARGE_BLOCKS */
+	if (drrw->drr_logical_size > SPA_OLD_MAXBLOCKSIZE &&
+	    !(featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE logical size %llu requires "
+		    "DMU_BACKUP_FEATURE_LARGE_BLOCKS",
+		    (u_longlong_t)drrw->drr_logical_size));
+	}
+
+	/* on-wire payload size must not exceed pool maximum */
+	err = recv_check_drr_size_max(psize, limits.rcl_maxblocksize, errbuf,
+	    errbuflen, "DRR_WRITE payload size");
+	if (err != 0)
+		return (err);
+
+	if (raw) {
+		/*
+		 * Raw sends populate drr_compressed_size with the on-disk psize
+		 * even for ZIO_COMPRESS_OFF blocks.
+		 */
+		if (drrw->drr_compressed_size == 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE compressed size must be non-zero on "
+			    "raw streams"));
+		}
+
+		if (drrw->drr_compressiontype >= ZIO_COMPRESS_FUNCTIONS) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE has invalid compression type %u",
+			    drrw->drr_compressiontype));
+		}
+
+		err = recv_check_compress_feature(drrw->drr_compressiontype,
+		    featureflags, errbuf, errbuflen, "DRR_WRITE");
+		if (err != 0)
+			return (err);
+
+		if (drrw->drr_logical_size < drrw->drr_compressed_size) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE logical size %llu < "
+			    "compressed size %llu",
+			    (u_longlong_t)drrw->drr_logical_size,
+			    (u_longlong_t)drrw->drr_compressed_size));
+		}
+	} else if (DRR_WRITE_COMPRESSED(drrw)) {
+		if (!(featureflags & DMU_BACKUP_FEATURE_COMPRESSED)) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE compressed payload requires "
+			    "DMU_BACKUP_FEATURE_COMPRESSED"));
+		}
+
+		/* compression type must be within ZIO_COMPRESS_FUNCTIONS */
+		if (drrw->drr_compressiontype >= ZIO_COMPRESS_FUNCTIONS) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE has invalid compression type %u",
+			    drrw->drr_compressiontype));
+		}
+
+		err = recv_check_compress_feature(drrw->drr_compressiontype,
+		    featureflags, errbuf, errbuflen, "DRR_WRITE");
+		if (err != 0)
+			return (err);
+
+		/* compressed payload size must be non-zero */
+		if (drrw->drr_compressed_size == 0) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE compressed size must be non-zero"));
+		}
+
+		/* logical size must be at least the compressed payload size */
+		if (drrw->drr_logical_size < drrw->drr_compressed_size) {
+			return (recv_check_fail(EINVAL, errbuf, errbuflen,
+			    "DRR_WRITE logical size %llu < "
+			    "compressed size %llu",
+			    (u_longlong_t)drrw->drr_logical_size,
+			    (u_longlong_t)drrw->drr_compressed_size));
+		}
+	} else if (drrw->drr_compressed_size != 0) {
+		/* non-compressed write must not claim a compressed size */
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE compressed size must be zero when "
+		    "uncompressed"));
+	}
+
+	/* offset + logical_size must not overflow uint64_t */
+	if (recv_u64_add_overflow(drrw->drr_offset, drrw->drr_logical_size)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE offset %llu + logical size %llu overflows",
+		    (u_longlong_t)drrw->drr_offset,
+		    (u_longlong_t)drrw->drr_logical_size));
+	}
+
+	/* object type must be a valid DMU object type */
+	if (!DMU_OT_IS_VALID(drrw->drr_type)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE has invalid type %u", drrw->drr_type));
+	}
+
+	/* checksum algorithm must be within ZIO_CHECKSUM_FUNCTIONS */
+	if (drrw->drr_checksumtype >= ZIO_CHECKSUM_FUNCTIONS) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE has invalid checksum type %u",
+		    drrw->drr_checksumtype));
+	}
+
+	return (0);
+}
+
+/*
+ * Validate a DRR_WRITE_EMBEDDED record before reading payload or calling
+ * dmu_write_embedded().
+ */
+int
+recv_check_drr_write_embedded(const struct drr_write_embedded *drrwe,
+    spa_t *spa, boolean_t raw, uint64_t featureflags, char *errbuf,
+    size_t errbuflen)
+{
+	recv_check_limits_t limits;
+
+	recv_check_resolve_limits(spa, &limits);
+
+	if (raw) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED is invalid on raw streams"));
+	}
+
+	if (!(featureflags & DMU_BACKUP_FEATURE_EMBED_DATA)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED requires "
+		    "DMU_BACKUP_FEATURE_EMBED_DATA"));
+	}
+
+	/* object number must be valid */
+	int err = recv_check_drr_object_id(drrwe->drr_object,
+	    errbuf, errbuflen);
+
+	if (err != 0)
+		return (err);
+
+	/* logical block size must not exceed pool maximum */
+	err = recv_check_drr_size_max(drrwe->drr_length,
+	    limits.rcl_maxblocksize, errbuf, errbuflen,
+	    "DRR_WRITE_EMBEDDED length");
+	if (err != 0)
+		return (err);
+
+	/* blocks larger than SPA_OLD_MAXBLOCKSIZE require LARGE_BLOCKS */
+	if (drrwe->drr_length > SPA_OLD_MAXBLOCKSIZE &&
+	    !(featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED length %llu requires "
+		    "DMU_BACKUP_FEATURE_LARGE_BLOCKS",
+		    (u_longlong_t)drrwe->drr_length));
+	}
+
+	/* compressed logical size must not exceed pool maximum */
+	err = recv_check_drr_size_max(drrwe->drr_lsize, limits.rcl_maxblocksize,
+	    errbuf, errbuflen, "DRR_WRITE_EMBEDDED logical size");
+	if (err != 0)
+		return (err);
+
+	/* on-wire payload must fit in the blkptr_t embedded data area */
+	err = recv_check_drr_size_max(drrwe->drr_psize, BPE_PAYLOAD_SIZE,
+	    errbuf, errbuflen, "DRR_WRITE_EMBEDDED payload size");
+	if (err != 0)
+		return (err);
+
+	/* compression algorithm must be within ZIO_COMPRESS_FUNCTIONS */
+	if (drrwe->drr_compression >= ZIO_COMPRESS_FUNCTIONS) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED has invalid compression type %u",
+		    drrwe->drr_compression));
+	}
+
+	err = recv_check_compress_feature(drrwe->drr_compression, featureflags,
+	    errbuf, errbuflen, "DRR_WRITE_EMBEDDED");
+	if (err != 0)
+		return (err);
+
+	/* uncompressed embedded data has matching logical and payload sizes */
+	if (drrwe->drr_compression == ZIO_COMPRESS_OFF &&
+	    drrwe->drr_lsize != drrwe->drr_psize) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED logical size %u must equal payload "
+		    "size %u when compression is off",
+		    drrwe->drr_lsize, drrwe->drr_psize));
+	}
+
+	/* compressed lsize must be at least the on-wire compressed size */
+	if (drrwe->drr_compression != ZIO_COMPRESS_OFF &&
+	    drrwe->drr_lsize < drrwe->drr_psize) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED logical size %u < payload size %u",
+		    drrwe->drr_lsize, drrwe->drr_psize));
+	}
+
+	/* uncompressed payload must fit in the logical block */
+	if (drrwe->drr_lsize > drrwe->drr_length) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED logical size %u exceeds length %llu",
+		    drrwe->drr_lsize, (u_longlong_t)drrwe->drr_length));
+	}
+
+	/* offset + length must not overflow uint64_t */
+	if (recv_u64_add_overflow(drrwe->drr_offset, drrwe->drr_length)) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED offset %llu + length %llu overflows",
+		    (u_longlong_t)drrwe->drr_offset,
+		    (u_longlong_t)drrwe->drr_length));
+	}
+
+	/* embedded block type must be within NUM_BP_EMBEDDED_TYPES */
+	if (drrwe->drr_etype >= NUM_BP_EMBEDDED_TYPES) {
+		return (recv_check_fail(EINVAL, errbuf, errbuflen,
+		    "DRR_WRITE_EMBEDDED has invalid embedded type %u",
+		    drrwe->drr_etype));
+	}
+
+	return (0);
+}
+
+static int
+receive_defer_range_compare(const void *a, const void *b)
+{
+	const receive_defer_range_t *ra = a;
+	const receive_defer_range_t *rb = b;
+
+	return (TREE_CMP(ra->rdr_first, rb->rdr_first));
+}
+
+/*
+ * Reclaiming an object number at a different dnode slot count requires the
+ * old dnode's free to be synced out before the number can be claimed again
+ * (dnode_check_slots_free() only accepts slots whose final dirty txg has
+ * synced).  receive_object() historically enforced that with one
+ * txg_wait_synced() per reallocated object, which collapses receive
+ * throughput to a few forced txgs per object when an incremental stream
+ * reallocates many dnodes at a changed slot count (issue #11353).
+ *
+ * Instead of syncing per object, the receive writer defers such claims:
+ * the frees are issued immediately, the affected slot ranges are recorded
+ * in rwa->defer_ranges, and the whole record is parked on
+ * rwa->defer_records.  Any later record that touches a parked range is
+ * parked too, in stream order, while unrelated records keep flowing.  When
+ * the batch grows past zfs_recv_defer_batch_size (or the stream ends), a
+ * single txg_wait_synced() covers every deferred free and the parked
+ * records are replayed in order; the replayed DRR_OBJECT records then find
+ * their object numbers free on disk and take the ordinary allocation path.
+ *
+ * Raw streams are excluded: their DRR_OBJECT_RANGE encryption parameters
+ * are consumed by the first claim after each range record, so deferring
+ * claims would require snapshotting that state per record.  Raw receives
+ * take the historical sync-per-object path unchanged.
+ */
+static boolean_t
+receive_defer_enabled(const struct receive_writer_arg *rwa)
+{
+	return (!rwa->raw && !rwa->heal && !rwa->defer_replaying &&
+	    zfs_recv_defer_batch_size != 0);
+}
+
+static boolean_t
+receive_defer_active(struct receive_writer_arg *rwa)
+{
+	return (!list_is_empty(&rwa->defer_records));
+}
+
+/*
+ * dmu_free_long_object(), except the txg the dnode's free lands in is
+ * folded into rwa->defer_max_free_txg.  The frees a deferred claim
+ * depends on can never be in a later txg than that high-water mark
+ * (dmu_free_long_range() commits its transactions before the dnode
+ * free is assigned), so the defer flush can wait for exactly that txg
+ * instead of the full open-txg window.
+ */
+static int
+receive_defer_free_object(struct receive_writer_arg *rwa, uint64_t object)
+{
+	objset_t *os = rwa->os;
+	dmu_tx_t *tx;
+	int err;
+
+	err = dmu_free_long_range(os, object, 0, DMU_OBJECT_END);
+	if (err != 0)
+		return (err);
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_bonus(tx, object);
+	dmu_tx_hold_free(tx, object, 0, DMU_OBJECT_END);
+	dmu_tx_mark_netfree(tx);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (err == 0) {
+		err = dmu_object_free(os, object, tx);
+		rwa->defer_max_free_txg = MAX(rwa->defer_max_free_txg,
+		    dmu_tx_get_txg(tx));
+		dmu_tx_commit(tx);
+	} else {
+		dmu_tx_abort(tx);
+	}
+
+	return (err);
+}
+
+/*
+ * Ranges in the tree are kept disjoint: an insert that overlaps or abuts
+ * existing ranges merges them into one node.  receive_defer_overlaps()
+ * relies on this to give exact answers with one neighbor probe each way.
+ * A bare AVL tree fits better here than zfs_range_tree_t, which asserts
+ * on overlapping adds (the expansion loop inserts ranges that overlap
+ * the claim's) and carries segment accounting this tree, empty outside
+ * a realloc burst, has no use for.
+ */
+static void
+receive_defer_range_insert(struct receive_writer_arg *rwa, uint64_t first,
+    uint64_t last)
+{
+	receive_defer_range_t srch = { .rdr_first = first };
+	avl_index_t where;
+	receive_defer_range_t *rdr, *next;
+
+	rdr = avl_find(&rwa->defer_ranges, &srch, &where);
+	if (rdr == NULL) {
+		rdr = avl_nearest(&rwa->defer_ranges, where, AVL_BEFORE);
+		if (rdr != NULL && rdr->rdr_last + 1 < first)
+			rdr = NULL;
+	}
+	if (rdr == NULL) {
+		rdr = kmem_alloc(sizeof (*rdr), KM_SLEEP);
+		rdr->rdr_first = first;
+		rdr->rdr_last = last;
+		avl_insert(&rwa->defer_ranges, rdr, where);
+	} else {
+		rdr->rdr_last = MAX(rdr->rdr_last, last);
+	}
+
+	while ((next = AVL_NEXT(&rwa->defer_ranges, rdr)) != NULL &&
+	    next->rdr_first <= rdr->rdr_last + 1) {
+		rdr->rdr_last = MAX(rdr->rdr_last, next->rdr_last);
+		avl_remove(&rwa->defer_ranges, next);
+		kmem_free(next, sizeof (*next));
+	}
+}
+
+static boolean_t
+receive_defer_overlaps(struct receive_writer_arg *rwa, uint64_t first,
+    uint64_t last)
+{
+	receive_defer_range_t srch = { .rdr_first = first };
+	avl_index_t where;
+	receive_defer_range_t *rdr;
+
+	if (avl_find(&rwa->defer_ranges, &srch, &where) != NULL)
+		return (B_TRUE);
+
+	rdr = avl_nearest(&rwa->defer_ranges, where, AVL_BEFORE);
+	if (rdr != NULL && rdr->rdr_last >= first)
+		return (B_TRUE);
+
+	rdr = avl_nearest(&rwa->defer_ranges, where, AVL_AFTER);
+	if (rdr != NULL && rdr->rdr_first <= last)
+		return (B_TRUE);
+
+	return (B_FALSE);
+}
+
+static int receive_defer_flush(struct receive_writer_arg *rwa);
+
+/*
+ * Park a record for replay after the next defer flush.  The caller must
+ * return EAGAIN without touching the record again: once the batch cap is
+ * reached the flush below replays and frees it.  A flush failure is
+ * published through rwa->err (this always runs on the writer thread, the
+ * sole writer of that field).
+ */
+static void
+receive_defer_park(struct receive_writer_arg *rwa,
+    struct receive_record_arg *rrd, uint64_t object)
+{
+	/*
+	 * Nothing may defer during replay, or the list being drained
+	 * would grow and the record could be freed out from under the
+	 * replay loop.
+	 */
+	ASSERT(!rwa->defer_replaying);
+
+	if (!receive_defer_active(rwa)) {
+		/*
+		 * The resume pin depends on the first parked record being
+		 * an object record: resuming from (object, 0) is only a
+		 * valid stream position for a DRR_OBJECT.
+		 */
+		ASSERT3U(rrd->header.drr_type, ==, DRR_OBJECT);
+		rwa->defer_first_object = object;
+		rwa->defer_first_bytes_read = rrd->bytes_read;
+	}
+	list_insert_tail(&rwa->defer_records, rrd);
+	rwa->defer_nrecords++;
+	/* For WRITE and SPILL records the payload aliases the abd. */
+	rwa->defer_bytes += sizeof (*rrd) + (rrd->abd != NULL ?
+	    abd_get_size(rrd->abd) : rrd->payload_size);
+
+	if (rwa->defer_bytes >= zfs_recv_defer_batch_size) {
+		int err = receive_defer_flush(rwa);
+		if (err != 0 && rwa->err == 0)
+			rwa->err = err;
+	}
+}
+
+/*
+ * Sync out the deferred frees and replay the parked records in stream
+ * order.  Replay feeds each record back through receive_process_record();
+ * by now every deferred free has synced, so the replayed DRR_OBJECT
+ * records find their object numbers free and no longer defer.
+ */
+static int
+receive_defer_flush(struct receive_writer_arg *rwa)
+{
+	struct receive_record_arg *rrd;
+	receive_defer_range_t *rdr;
+	void *cookie = NULL;
+	int err;
+
+	if (!receive_defer_active(rwa))
+		return (0);
+
+	err = flush_write_batch(rwa);
+	if (err != 0)
+		return (err);
+
+	zfs_dbgmsg("recv defer flush: %llu records, %llu bytes, txg %llu",
+	    (u_longlong_t)rwa->defer_nrecords,
+	    (u_longlong_t)rwa->defer_bytes,
+	    (u_longlong_t)rwa->defer_max_free_txg);
+
+	/*
+	 * Every free a parked claim depends on was assigned no later
+	 * than defer_max_free_txg, so it is enough to wait for that txg
+	 * rather than for the whole open-txg window (typically one or
+	 * two txgs instead of up to five).
+	 */
+	txg_wait_synced(dmu_objset_pool(rwa->os), rwa->defer_max_free_txg);
+
+	while ((rdr = avl_destroy_nodes(&rwa->defer_ranges, &cookie)) != NULL)
+		kmem_free(rdr, sizeof (*rdr));
+
+	/*
+	 * Parked records are earlier in the stream than the writer's
+	 * current position, so drop the write-ordering cursor for the
+	 * replay; the parked records are in stream order among
+	 * themselves, and every record that follows the replay is at a
+	 * higher (object, offset) than anything replayed.  The
+	 * out-of-order check is correspondingly weakened until the
+	 * first replayed write raises the cursor again.
+	 */
+	rwa->last_object = 0;
+	rwa->last_offset = 0;
+	rwa->defer_replaying = B_TRUE;
+
+	while ((rrd = list_remove_head(&rwa->defer_records)) != NULL) {
+		if (err != 0) {
+			if (rrd->abd != NULL) {
+				abd_free(rrd->abd);
+				rrd->abd = NULL;
+				rrd->payload = NULL;
+			} else if (rrd->payload != NULL) {
+				vmem_free(rrd->payload, rrd->payload_size);
+				rrd->payload = NULL;
+			}
+			kmem_free(rrd, sizeof (*rrd));
+			continue;
+		}
+		int err2 = receive_process_record(rwa, rrd);
+		/*
+		 * As in receive_writer_thread(), EAGAIN means the record
+		 * was stashed on the write batch and must not be freed.
+		 */
+		if (err2 != EAGAIN) {
+			err = err2;
+			kmem_free(rrd, sizeof (*rrd));
+		}
+	}
+
+	if (err == 0)
+		err = flush_write_batch(rwa);
+
+	/*
+	 * Frees issued during the replay itself are not captured in
+	 * defer_max_free_txg once it resets below.  That stays safe:
+	 * any txg captured later is no earlier than theirs, and a batch
+	 * with nothing captured waits for everything (txg 0).
+	 */
+	rwa->defer_replaying = B_FALSE;
+	rwa->defer_bytes = 0;
+	rwa->defer_nrecords = 0;
+	rwa->defer_first_object = 0;
+	rwa->defer_first_bytes_read = 0;
+	rwa->defer_max_free_txg = 0;
+
+	return (err);
+}
+
+/*
+ * Free any records still parked after an error, along with the range
+ * tree.  No-op if a successful flush already drained both.
+ */
+static void
+receive_defer_cleanup(struct receive_writer_arg *rwa)
+{
+	struct receive_record_arg *rrd;
+	receive_defer_range_t *rdr;
+	void *cookie = NULL;
+
+	while ((rrd = list_remove_head(&rwa->defer_records)) != NULL) {
+		if (rrd->abd != NULL) {
+			abd_free(rrd->abd);
+			rrd->abd = NULL;
+			rrd->payload = NULL;
+		} else if (rrd->payload != NULL) {
+			vmem_free(rrd->payload, rrd->payload_size);
+			rrd->payload = NULL;
+		}
+		kmem_free(rrd, sizeof (*rrd));
+	}
+	while ((rdr = avl_destroy_nodes(&rwa->defer_ranges, &cookie)) != NULL)
+		kmem_free(rdr, sizeof (*rdr));
+	rwa->defer_bytes = 0;
+	rwa->defer_nrecords = 0;
+	rwa->defer_first_object = 0;
+	rwa->defer_first_bytes_read = 0;
+	rwa->defer_max_free_txg = 0;
+}
+
+/*
+ * If this record touches a dnode slot range with an unsynced free, park
+ * it for replay after the next defer flush.  Returns EAGAIN when the
+ * record was parked (the caller must not free or process it, and the
+ * park may already have flushed and freed it), or 0 when the record
+ * should be processed normally.
+ */
+static int
+receive_defer_check(struct receive_writer_arg *rwa,
+    struct receive_record_arg *rrd)
+{
+	uint64_t first, last;
+
+	switch (rrd->header.drr_type) {
+	case DRR_OBJECT:
+		/*
+		 * Object records are never parked here.  A multi-slot claim
+		 * can expand over a dnode that begins inside the claimed
+		 * range and ends past it, and only the expansion loop in
+		 * receive_object() finds that dnode, frees it and records
+		 * the extent it actually occupies.  Parking ahead of that
+		 * loop would leave the dnode allocated with its tail slots
+		 * outside the tree, and the DRR_FREEOBJECTS the sender
+		 * emits for those slots would then be applied against an
+		 * interior slot and fail the receive.  receive_object()
+		 * defers the claim itself, once the loop has run.
+		 */
+		return (0);
+	case DRR_WRITE:
+		first = last = rrd->header.drr_u.drr_write.drr_object;
+		break;
+	case DRR_WRITE_EMBEDDED:
+		first = last = rrd->header.drr_u.drr_write_embedded.drr_object;
+		break;
+	case DRR_FREE:
+		first = last = rrd->header.drr_u.drr_free.drr_object;
+		break;
+	case DRR_SPILL:
+		first = last = rrd->header.drr_u.drr_spill.drr_object;
+		break;
+	case DRR_REDACT:
+		first = last = rrd->header.drr_u.drr_redact.drr_object;
+		break;
+	case DRR_FREEOBJECTS:
+	{
+		struct drr_freeobjects *drrfo =
+		    &rrd->header.drr_u.drr_freeobjects;
+
+		/*
+		 * Senders routinely free the tail slots of an object
+		 * that was reallocated at a smaller dnode size, so these
+		 * ranges do overlap deferred ones.  Park the record; by
+		 * replay time the slots it covers were freed along with
+		 * the old dnode and the frees are no-ops.  The parked
+		 * range joins the tree so that anything a malformed
+		 * stream sends into it afterwards stays ordered behind
+		 * the free instead of racing it at replay.
+		 */
+		if (drrfo->drr_numobjs != 0 &&
+		    receive_defer_overlaps(rwa, drrfo->drr_firstobj,
+		    drrfo->drr_firstobj + drrfo->drr_numobjs - 1)) {
+			receive_defer_range_insert(rwa, drrfo->drr_firstobj,
+			    drrfo->drr_firstobj + drrfo->drr_numobjs - 1);
+			receive_defer_park(rwa, rrd, drrfo->drr_firstobj);
+			return (EAGAIN);
+		}
+		return (0);
+	}
+	default:
+		return (0);
+	}
+
+	if (receive_defer_overlaps(rwa, first, last)) {
+		receive_defer_park(rwa, rrd, first);
+		return (EAGAIN);
+	}
+	return (0);
+}
+
+static int
+receive_handle_existing_object(struct receive_writer_arg *rwa,
     const struct drr_object *drro, const dmu_object_info_t *doi,
     const void *bonus_data,
-    uint64_t *object_to_hold, uint32_t *new_blksz)
+    uint64_t *object_to_hold, uint32_t *new_blksz, boolean_t *deferp)
 {
 	uint32_t indblksz = drro->drr_indblkshift ?
 	    1ULL << drro->drr_indblkshift : 0;
-	int nblkptr = deduce_nblkptr(drro->drr_bonustype,
-	    drro->drr_bonuslen);
 	uint8_t dn_slots = drro->drr_dn_slots != 0 ?
 	    drro->drr_dn_slots : DNODE_MIN_SLOTS;
+	int nblkptr = deduce_nblkptr(drro->drr_bonustype,
+	    drro->drr_bonuslen, dn_slots);
 	boolean_t do_free_range = B_FALSE;
 	int err;
 
@@ -1860,9 +3219,23 @@ receive_handle_existing_object(const struct receive_writer_arg *rwa,
 	    indblksz != doi->doi_metadata_block_size) ||
 	    drro->drr_nlevels < doi->doi_indirection)) ||
 	    dn_slots != doi->doi_dnodesize >> DNODE_SHIFT) {
-		err = dmu_free_long_object(rwa->os, drro->drr_object);
+		uint8_t old_slots = doi->doi_dnodesize >> DNODE_SHIFT;
+
+		err = receive_defer_free_object(rwa, drro->drr_object);
 		if (err != 0)
 			return (SET_ERROR(EINVAL));
+
+		if (receive_defer_enabled(rwa)) {
+			/*
+			 * Defer the claim instead of syncing; the caller
+			 * parks this record for replay after the batched
+			 * sync (see receive_defer_park()).
+			 */
+			receive_defer_range_insert(rwa, drro->drr_object,
+			    drro->drr_object + MAX(old_slots, dn_slots) - 1);
+			*deferp = B_TRUE;
+			return (0);
+		}
 
 		txg_wait_synced(dmu_objset_pool(rwa->os), 0);
 		*object_to_hold = DMU_NEW_OBJECT;
@@ -1882,9 +3255,15 @@ receive_handle_existing_object(const struct receive_writer_arg *rwa,
 	 * above since it covers the entire object's contents.
 	 */
 	if (rwa->raw && *object_to_hold != DMU_NEW_OBJECT && !do_free_range) {
+		uint64_t nblocks = drro->drr_maxblkid + 1;
+
+		if (drro->drr_maxblkid == UINT64_MAX)
+			return (SET_ERROR(EINVAL));
+		if (doi->doi_data_block_size != 0 &&
+		    nblocks > UINT64_MAX / doi->doi_data_block_size)
+			return (SET_ERROR(EINVAL));
 		err = dmu_free_long_range(rwa->os, drro->drr_object,
-		    (drro->drr_maxblkid + 1) * doi->doi_data_block_size,
-		    DMU_OBJECT_END);
+		    nblocks * doi->doi_data_block_size, DMU_OBJECT_END);
 		if (err != 0)
 			return (SET_ERROR(EINVAL));
 	}
@@ -1897,54 +3276,35 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 {
 	dmu_object_info_t doi;
 	dmu_tx_t *tx;
-	int err;
 	uint32_t new_blksz = drro->drr_blksz;
 	uint8_t dn_slots = drro->drr_dn_slots != 0 ?
 	    drro->drr_dn_slots : DNODE_MIN_SLOTS;
 
-	if (drro->drr_type == DMU_OT_NONE ||
-	    !DMU_OT_IS_VALID(drro->drr_type) ||
-	    !DMU_OT_IS_VALID(drro->drr_bonustype) ||
-	    drro->drr_checksumtype >= ZIO_CHECKSUM_FUNCTIONS ||
-	    drro->drr_compress >= ZIO_COMPRESS_FUNCTIONS ||
-	    P2PHASE(drro->drr_blksz, SPA_MINBLOCKSIZE) ||
-	    drro->drr_blksz < SPA_MINBLOCKSIZE ||
-	    drro->drr_blksz > spa_maxblocksize(dmu_objset_spa(rwa->os)) ||
-	    drro->drr_bonuslen >
-	    DN_BONUS_SIZE(spa_maxdnodesize(dmu_objset_spa(rwa->os))) ||
-	    dn_slots >
-	    (spa_maxdnodesize(dmu_objset_spa(rwa->os)) >> DNODE_SHIFT)) {
-		return (SET_ERROR(EINVAL));
-	}
+	/*
+	 * Re-validate on the writer path (reader already checked).  Do not
+	 * publish ZFS_RECV_ERR_STREAM here - only the reader may mutate the
+	 * shared errors nvlist.
+	 */
+	int err = recv_check_drr_object(drro, dmu_objset_spa(rwa->os), rwa->raw,
+	    rwa->spill, rwa->featureflags, NULL, 0);
+
+	if (err != 0)
+		return (err);
 
 	if (rwa->raw) {
 		/*
 		 * We should have received a DRR_OBJECT_RANGE record
 		 * containing this block and stored it in rwa.
 		 */
-		if (drro->drr_object < rwa->or_firstobj ||
-		    drro->drr_object >= rwa->or_firstobj + rwa->or_numslots ||
-		    drro->drr_raw_bonuslen < drro->drr_bonuslen ||
-		    drro->drr_indblkshift > SPA_MAXBLOCKSHIFT ||
-		    drro->drr_nlevels > DN_MAX_LEVELS ||
-		    drro->drr_nblkptr > DN_MAX_NBLKPTR ||
-		    DN_SLOTS_TO_BONUSLEN(dn_slots) <
-		    drro->drr_raw_bonuslen)
+		if (drro->drr_object < rwa->or_firstobj)
 			return (SET_ERROR(EINVAL));
-	} else {
-		/*
-		 * The DRR_OBJECT_SPILL flag is valid when the DRR_BEGIN
-		 * record indicates this by setting DRR_FLAG_SPILL_BLOCK.
-		 */
-		if (((drro->drr_flags & ~(DRR_OBJECT_SPILL))) ||
-		    (!rwa->spill && DRR_OBJECT_HAS_SPILL(drro->drr_flags))) {
-			return (SET_ERROR(EINVAL));
-		}
 
-		if (drro->drr_raw_bonuslen != 0 || drro->drr_nblkptr != 0 ||
-		    drro->drr_indblkshift != 0 || drro->drr_nlevels != 0) {
+		/* or_firstobj + or_numslots must not overflow uint64_t */
+		if (recv_u64_add_overflow(rwa->or_firstobj, rwa->or_numslots))
 			return (SET_ERROR(EINVAL));
-		}
+
+		if (drro->drr_object >= rwa->or_firstobj + rwa->or_numslots)
+			return (SET_ERROR(EINVAL));
 	}
 
 	err = dmu_object_info(rwa->os, drro->drr_object, &doi);
@@ -1962,10 +3322,32 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	 * Raw receives will also check that the indirect structure of the
 	 * dnode hasn't changed.
 	 */
-	uint64_t object_to_hold;
+	uint64_t object_to_hold = DMU_NEW_OBJECT;
+	boolean_t defer = B_FALSE;
+
+	/*
+	 * Claiming slots that a parked record already covers has to wait
+	 * for the batch in any case, but the expansion loop below still
+	 * has to run first: it is what discovers a dnode reaching past
+	 * the end of this claim, frees it, and puts the slots it really
+	 * occupies in the tree.  Without that, the frees the sender sends
+	 * for those trailing slots would not be parked behind this claim.
+	 */
+	if (receive_defer_enabled(rwa) && receive_defer_overlaps(rwa,
+	    drro->drr_object, drro->drr_object + dn_slots - 1)) {
+		receive_defer_range_insert(rwa, drro->drr_object,
+		    drro->drr_object + dn_slots - 1);
+		defer = B_TRUE;
+	}
+
 	if (err == 0) {
+		/*
+		 * When the claim is deferred, still fall through to the
+		 * multi-slot expansion below so that neighbor frees are
+		 * issued now and share the batched sync.
+		 */
 		err = receive_handle_existing_object(rwa, drro, &doi, data,
-		    &object_to_hold, &new_blksz);
+		    &object_to_hold, &new_blksz, &defer);
 		if (err != 0)
 			return (err);
 	} else if (err == EEXIST) {
@@ -1976,10 +3358,17 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 		 * to free this slot when we freed the associated dnode
 		 * earlier in the stream.
 		 */
-		txg_wait_synced(dmu_objset_pool(rwa->os), 0);
+		if (receive_defer_enabled(rwa)) {
+			receive_defer_range_insert(rwa, drro->drr_object,
+			    drro->drr_object + dn_slots - 1);
+			defer = B_TRUE;
+		} else {
+			txg_wait_synced(dmu_objset_pool(rwa->os), 0);
 
-		if (dmu_object_info(rwa->os, drro->drr_object, NULL) != ENOENT)
-			return (SET_ERROR(EINVAL));
+			if (dmu_object_info(rwa->os, drro->drr_object,
+			    NULL) != ENOENT)
+				return (SET_ERROR(EINVAL));
+		}
 
 		/* object was freed and we are about to allocate a new one */
 		object_to_hold = DMU_NEW_OBJECT;
@@ -2020,16 +3409,39 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 			else if (err != 0)
 				return (err);
 
-			err = dmu_free_long_object(rwa->os, slot);
+			err = receive_defer_free_object(rwa, slot);
 			if (err != 0)
 				return (err);
+
+			if (receive_defer_enabled(rwa)) {
+				/*
+				 * The freed neighbor may itself have been
+				 * a multi-slot dnode extending past the
+				 * range being claimed here.
+				 */
+				uint8_t slot_slots =
+				    slot_doi.doi_dnodesize >> DNODE_SHIFT;
+				receive_defer_range_insert(rwa, slot,
+				    slot + slot_slots - 1);
+			}
 
 			need_sync = B_TRUE;
 		}
 
-		if (need_sync)
-			txg_wait_synced(dmu_objset_pool(rwa->os), 0);
+		if (need_sync) {
+			if (receive_defer_enabled(rwa)) {
+				receive_defer_range_insert(rwa,
+				    drro->drr_object,
+				    drro->drr_object + dn_slots - 1);
+				defer = B_TRUE;
+			} else {
+				txg_wait_synced(dmu_objset_pool(rwa->os), 0);
+			}
+		}
 	}
+
+	if (defer)
+		return (EAGAIN);
 
 	tx = dmu_tx_create(rwa->os);
 	dmu_tx_hold_bonus(tx, object_to_hold);
@@ -2183,8 +3595,11 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 	uint64_t obj;
 	int next_err = 0;
 
-	if (drrfo->drr_firstobj + drrfo->drr_numobjs < drrfo->drr_firstobj)
-		return (SET_ERROR(EINVAL));
+	/* Re-validate; stream errors are reported only by the reader. */
+	int err = recv_check_drr_freeobjects(drrfo, NULL, 0);
+
+	if (err != 0)
+		return (err);
 
 	for (obj = drrfo->drr_firstobj == 0 ? 1 : drrfo->drr_firstobj;
 	    obj < drrfo->drr_firstobj + drrfo->drr_numobjs &&
@@ -2199,7 +3614,7 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 		else if (err != 0)
 			return (err);
 
-		err = dmu_free_long_object(rwa->os, obj);
+		err = receive_defer_free_object(rwa, obj);
 
 		if (err != 0)
 			return (err);
@@ -2234,9 +3649,21 @@ flush_write_batch_impl(struct receive_writer_arg *rwa)
 	ASSERT3U(rwa->last_object, ==, last_drrw->drr_object);
 	ASSERT3U(rwa->last_offset, ==, last_drrw->drr_offset);
 
+	if (last_drrw->drr_offset < first_drrw->drr_offset) {
+		dnode_rele(dn, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
+	uint64_t hold_len = last_drrw->drr_offset - first_drrw->drr_offset;
+
+	/* hold length + last logical size must not overflow uint64_t */
+	if (recv_u64_add_overflow(hold_len, last_drrw->drr_logical_size)) {
+		dnode_rele(dn, FTAG);
+		return (SET_ERROR(EINVAL));
+	}
+
 	dmu_tx_t *tx = dmu_tx_create(rwa->os);
-	dmu_tx_hold_write_by_dnode(tx, dn, first_drrw->drr_offset,
-	    last_drrw->drr_offset - first_drrw->drr_offset +
+	dmu_tx_hold_write_by_dnode(tx, dn, first_drrw->drr_offset, hold_len +
 	    last_drrw->drr_logical_size);
 	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err != 0) {
@@ -2254,14 +3681,21 @@ flush_write_batch_impl(struct receive_writer_arg *rwa)
 
 		if (drrw->drr_logical_size != dn->dn_datablksz) {
 			/*
-			 * The WRITE record is larger than the object's block
-			 * size.  We must be receiving an incremental
-			 * large-block stream into a dataset that previously did
-			 * a non-large-block receive.  Lightweight writes must
-			 * be exactly one block, so we need to decompress the
-			 * data (if compressed) and do a normal dmu_write().
+			 * The WRITE record size does not match the
+			 * object's block size.  This happens when the
+			 * record is larger than the block size (an
+			 * incremental large-block stream received into a
+			 * dataset that previously did a non-large-block
+			 * receive), and also when it is a smaller trailing
+			 * chunk from splitting a large block for a stream
+			 * sent without large blocks: a single-block object
+			 * can have a non-power-of-2 block size, so its final
+			 * SPA_OLD_MAXBLOCKSIZE-sized chunk may be shorter
+			 * than the block size.  Either way a lightweight
+			 * write is not possible (those must cover exactly
+			 * one block), so we decompress the data (if
+			 * compressed) and do a normal dmu_write().
 			 */
-			ASSERT3U(drrw->drr_logical_size, >, dn->dn_datablksz);
 			if (DRR_WRITE_COMPRESSED(drrw)) {
 				abd_t *decomp_abd =
 				    abd_alloc_linear(drrw->drr_logical_size,
@@ -2399,14 +3833,15 @@ noinline static int
 receive_process_write_record(struct receive_writer_arg *rwa,
     struct receive_record_arg *rrd)
 {
-	int err = 0;
-
 	ASSERT3U(rrd->header.drr_type, ==, DRR_WRITE);
 	struct drr_write *drrw = &rrd->header.drr_u.drr_write;
 
-	if (drrw->drr_offset + drrw->drr_logical_size < drrw->drr_offset ||
-	    !DMU_OT_IS_VALID(drrw->drr_type))
-		return (SET_ERROR(EINVAL));
+	/* Re-validate; stream errors are reported only by the reader. */
+	int err = recv_check_drr_write(drrw, dmu_objset_spa(rwa->os), rwa->raw,
+	    rwa->featureflags, NULL, 0);
+
+	if (err != 0)
+		return (err);
 
 	if (rwa->heal) {
 		blkptr_t *bp;
@@ -2466,7 +3901,9 @@ receive_process_write_record(struct receive_writer_arg *rwa,
 	}
 
 	struct receive_record_arg *first_rrd = list_head(&rwa->write_batch);
-	struct drr_write *first_drrw = &first_rrd->header.drr_u.drr_write;
+	struct drr_write *first_drrw = NULL;
+	if (first_rrd != NULL)
+		first_drrw = &first_rrd->header.drr_u.drr_write;
 	uint64_t batch_size =
 	    MIN(zfs_recv_write_batch_size, DMU_MAX_ACCESS / 2);
 	if (first_rrd != NULL &&
@@ -2496,20 +3933,12 @@ receive_write_embedded(struct receive_writer_arg *rwa,
     struct drr_write_embedded *drrwe, void *data)
 {
 	dmu_tx_t *tx;
-	int err;
 
-	if (drrwe->drr_offset + drrwe->drr_length < drrwe->drr_offset)
-		return (SET_ERROR(EINVAL));
-
-	if (drrwe->drr_psize > BPE_PAYLOAD_SIZE)
-		return (SET_ERROR(EINVAL));
-
-	if (drrwe->drr_etype >= NUM_BP_EMBEDDED_TYPES)
-		return (SET_ERROR(EINVAL));
-	if (drrwe->drr_compression >= ZIO_COMPRESS_FUNCTIONS)
-		return (SET_ERROR(EINVAL));
-	if (rwa->raw)
-		return (SET_ERROR(EINVAL));
+	/* Re-validate; stream errors are reported only by the reader. */
+	int err = recv_check_drr_write_embedded(drrwe, dmu_objset_spa(rwa->os),
+	    rwa->raw, rwa->featureflags, NULL, 0);
+	if (err != 0)
+		return (err);
 
 	if (drrwe->drr_object > rwa->max_object)
 		rwa->max_object = drrwe->drr_object;
@@ -2540,11 +3969,12 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
     abd_t *abd)
 {
 	dmu_buf_t *db, *db_spill;
-	int err;
 
-	if (drrs->drr_length < SPA_MINBLOCKSIZE ||
-	    drrs->drr_length > spa_maxblocksize(dmu_objset_spa(rwa->os)))
-		return (SET_ERROR(EINVAL));
+	/* Re-validate; stream errors are reported only by the reader. */
+	int err = recv_check_drr_spill(drrs, dmu_objset_spa(rwa->os), rwa->raw,
+	    rwa->featureflags, NULL, 0);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * This is an unmodified spill block which was added to the stream
@@ -2555,13 +3985,6 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
 	if (rwa->spill && DRR_SPILL_IS_UNMODIFIED(drrs->drr_flags)) {
 		abd_free(abd);
 		return (0);
-	}
-
-	if (rwa->raw) {
-		if (!DMU_OT_IS_VALID(drrs->drr_type) ||
-		    drrs->drr_compressiontype >= ZIO_COMPRESS_FUNCTIONS ||
-		    drrs->drr_compressed_size == 0)
-			return (SET_ERROR(EINVAL));
 	}
 
 	if (dmu_object_info(rwa->os, drrs->drr_object, NULL) != 0)
@@ -2638,11 +4061,11 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
 noinline static int
 receive_free(struct receive_writer_arg *rwa, struct drr_free *drrf)
 {
-	int err;
+	/* Re-validate; stream errors are reported only by the reader. */
+	int err = recv_check_drr_free(drrf, NULL, 0);
 
-	if (drrf->drr_length != -1ULL &&
-	    drrf->drr_offset + drrf->drr_length < drrf->drr_offset)
-		return (SET_ERROR(EINVAL));
+	if (err != 0)
+		return (err);
 
 	if (dmu_object_info(rwa->os, drrf->drr_object, NULL) != 0)
 		return (SET_ERROR(EINVAL));
@@ -2660,6 +4083,12 @@ static int
 receive_object_range(struct receive_writer_arg *rwa,
     struct drr_object_range *drror)
 {
+	/* Re-validate; stream errors are reported only by the reader. */
+	int err = recv_check_drr_object_range(drror, rwa->raw, NULL, 0);
+
+	if (err != 0)
+		return (err);
+
 	/*
 	 * By default, we assume this block is in our native format
 	 * (ZFS_HOST_BYTEORDER). We then take into account whether
@@ -2681,10 +4110,6 @@ receive_object_range(struct receive_writer_arg *rwa,
 	 * handling will need to be added to ensure that dnode block sizes
 	 * match on the sending and receiving side.
 	 */
-	if (drror->drr_numslots != DNODES_PER_BLOCK ||
-	    P2PHASE(drror->drr_firstobj, DNODES_PER_BLOCK) != 0 ||
-	    !rwa->raw)
-		return (SET_ERROR(EINVAL));
 
 	if (drror->drr_firstobj > rwa->max_object)
 		rwa->max_object = drror->drr_firstobj;
@@ -2876,23 +4301,35 @@ receive_read_prefetch(dmu_recv_cookie_t *drc, uint64_t object, uint64_t offset,
 static int
 receive_read_record(dmu_recv_cookie_t *drc)
 {
-	int err;
+	char errbuf[RECV_CHECK_ERRBUFLEN];
 
 	switch (drc->drc_rrd->header.drr_type) {
 	case DRR_OBJECT:
 	{
 		struct drr_object *drro =
 		    &drc->drc_rrd->header.drr_u.drr_object;
-		uint32_t size = DRR_OBJECT_PAYLOAD_SIZE(drro);
+		uint32_t size;
 		void *buf = NULL;
 		dmu_object_info_t doi;
 
+		/* Reject malformed DRR_OBJECT before reading bonus payload. */
+		int err = recv_check_drr_object(drro, drc->drc_os->os_spa,
+		    drc->drc_raw, drc->drc_spill, drc->drc_featureflags,
+		    errbuf, sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
+		size = DRR_OBJECT_PAYLOAD_SIZE(drro);
+
 		if (size != 0)
-			buf = kmem_zalloc(size, KM_SLEEP);
+			buf = vmem_zalloc(size, KM_SLEEP);
 
 		err = receive_read_payload_and_next_header(drc, size, buf);
 		if (err != 0) {
-			kmem_free(buf, size);
+			vmem_free(buf, size);
 			return (err);
 		}
 		err = dmu_object_info(drc->drc_os, drro->drr_object, &doi);
@@ -2910,13 +4347,37 @@ receive_read_record(dmu_recv_cookie_t *drc)
 	}
 	case DRR_FREEOBJECTS:
 	{
+		struct drr_freeobjects *drrfo =
+		    &drc->drc_rrd->header.drr_u.drr_freeobjects;
+
+		/* Reject malformed DRR_FREEOBJECTS before advancing stream. */
+		int err = recv_check_drr_freeobjects(drrfo, errbuf,
+		    sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
 		err = receive_read_payload_and_next_header(drc, 0, NULL);
 		return (err);
 	}
 	case DRR_WRITE:
 	{
 		struct drr_write *drrw = &drc->drc_rrd->header.drr_u.drr_write;
-		int size = DRR_WRITE_PAYLOAD_SIZE(drrw);
+
+		/* Reject malformed DRR_WRITE before reading payload. */
+		int err = recv_check_drr_write(drrw, drc->drc_os->os_spa,
+		    drc->drc_raw, drc->drc_featureflags, errbuf,
+		    sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
+		uint64_t size = DRR_WRITE_PAYLOAD_SIZE(drrw);
+
 		abd_t *abd = abd_alloc_linear(size, B_FALSE);
 		err = receive_read_payload_and_next_header(drc, size,
 		    abd_to_buf(abd));
@@ -2933,12 +4394,24 @@ receive_read_record(dmu_recv_cookie_t *drc)
 	{
 		struct drr_write_embedded *drrwe =
 		    &drc->drc_rrd->header.drr_u.drr_write_embedded;
+
+		/* Reject malformed DRR_WRITE_EMBEDDED before reading. */
+		int err = recv_check_drr_write_embedded(drrwe,
+		    drc->drc_os->os_spa, drc->drc_raw, drc->drc_featureflags,
+		    errbuf, sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
 		uint32_t size = P2ROUNDUP(drrwe->drr_psize, 8);
-		void *buf = kmem_zalloc(size, KM_SLEEP);
+
+		void *buf = vmem_zalloc(size, KM_SLEEP);
 
 		err = receive_read_payload_and_next_header(drc, size, buf);
 		if (err != 0) {
-			kmem_free(buf, size);
+			vmem_free(buf, size);
 			return (err);
 		}
 
@@ -2949,6 +4422,16 @@ receive_read_record(dmu_recv_cookie_t *drc)
 	case DRR_FREE:
 	case DRR_REDACT:
 	{
+		struct drr_free *drrf = &drc->drc_rrd->header.drr_u.drr_free;
+
+		/* Reject malformed DRR_FREE before advancing stream. */
+		int err = recv_check_drr_free(drrf, errbuf, sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
 		/*
 		 * It might be beneficial to prefetch indirect blocks here, but
 		 * we don't really have the data to decide for sure.
@@ -2967,7 +4450,19 @@ receive_read_record(dmu_recv_cookie_t *drc)
 	case DRR_SPILL:
 	{
 		struct drr_spill *drrs = &drc->drc_rrd->header.drr_u.drr_spill;
-		int size = DRR_SPILL_PAYLOAD_SIZE(drrs);
+
+		/* Reject malformed DRR_SPILL before reading payload. */
+		int err = recv_check_drr_spill(drrs, drc->drc_os->os_spa,
+		    drc->drc_raw, drc->drc_featureflags, errbuf,
+		    sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
+		uint64_t size = DRR_SPILL_PAYLOAD_SIZE(drrs);
+
 		abd_t *abd = abd_alloc_linear(size, B_FALSE);
 		err = receive_read_payload_and_next_header(drc, size,
 		    abd_to_buf(abd));
@@ -2979,6 +4474,18 @@ receive_read_record(dmu_recv_cookie_t *drc)
 	}
 	case DRR_OBJECT_RANGE:
 	{
+		struct drr_object_range *drror =
+		    &drc->drc_rrd->header.drr_u.drr_object_range;
+
+		/* Reject malformed DRR_OBJECT_RANGE before advancing. */
+		int err = recv_check_drr_object_range(drror, drc->drc_raw,
+		    errbuf, sizeof (errbuf));
+
+		if (err != 0) {
+			recv_report_stream_error(drc->drc_errors, errbuf);
+			return (err);
+		}
+
 		err = receive_read_payload_and_next_header(drc, 0, NULL);
 		return (err);
 
@@ -3108,9 +4615,15 @@ receive_process_record(struct receive_writer_arg *rwa,
 {
 	int err;
 
-	/* Processing in order, therefore bytes_read should be increasing. */
-	ASSERT3U(rrd->bytes_read, >=, rwa->bytes_read);
-	rwa->bytes_read = rrd->bytes_read;
+	/*
+	 * Processing in order, therefore bytes_read should be increasing.
+	 * Replayed records are earlier in the stream than the writer's
+	 * current position, so leave the high-water mark alone for them.
+	 */
+	if (!rwa->defer_replaying) {
+		ASSERT3U(rrd->bytes_read, >=, rwa->bytes_read);
+		rwa->bytes_read = rrd->bytes_read;
+	}
 
 	/* We can only heal write records; other ones get ignored */
 	if (rwa->heal && rrd->header.drr_type != DRR_WRITE) {
@@ -3118,10 +4631,20 @@ receive_process_record(struct receive_writer_arg *rwa,
 			abd_free(rrd->abd);
 			rrd->abd = NULL;
 		} else if (rrd->payload != NULL) {
-			kmem_free(rrd->payload, rrd->payload_size);
+			vmem_free(rrd->payload, rrd->payload_size);
 			rrd->payload = NULL;
 		}
 		return (0);
+	}
+
+	/*
+	 * Records that depend on a deferred object claim are parked in
+	 * stream order behind it; everything else keeps flowing.
+	 */
+	if (!rwa->heal && !rwa->defer_replaying && receive_defer_active(rwa)) {
+		err = receive_defer_check(rwa, rrd);
+		if (err != 0)
+			return (err);
 	}
 
 	if (!rwa->heal && rrd->header.drr_type != DRR_WRITE) {
@@ -3132,7 +4655,7 @@ receive_process_record(struct receive_writer_arg *rwa,
 				rrd->abd = NULL;
 				rrd->payload = NULL;
 			} else if (rrd->payload != NULL) {
-				kmem_free(rrd->payload, rrd->payload_size);
+				vmem_free(rrd->payload, rrd->payload_size);
 				rrd->payload = NULL;
 			}
 
@@ -3145,7 +4668,17 @@ receive_process_record(struct receive_writer_arg *rwa,
 	{
 		struct drr_object *drro = &rrd->header.drr_u.drr_object;
 		err = receive_object(rwa, drro, rrd->payload);
-		kmem_free(rrd->payload, rrd->payload_size);
+		if (err == EAGAIN) {
+			/*
+			 * The object's claim was deferred behind a batched
+			 * txg sync; keep the record (and its bonus payload)
+			 * parked for replay.  The park may flush and free
+			 * the record, so it must not be touched again.
+			 */
+			receive_defer_park(rwa, rrd, drro->drr_object);
+			return (EAGAIN);
+		}
+		vmem_free(rrd->payload, rrd->payload_size);
 		rrd->payload = NULL;
 		break;
 	}
@@ -3183,7 +4716,7 @@ receive_process_record(struct receive_writer_arg *rwa,
 		struct drr_write_embedded *drrwe =
 		    &rrd->header.drr_u.drr_write_embedded;
 		err = receive_write_embedded(rwa, drrwe, rrd->payload);
-		kmem_free(rrd->payload, rrd->payload_size);
+		vmem_free(rrd->payload, rrd->payload_size);
 		rrd->payload = NULL;
 		break;
 	}
@@ -3252,13 +4785,15 @@ receive_writer_thread(void *arg)
 			rrd->abd = NULL;
 			rrd->payload = NULL;
 		} else if (rrd->payload != NULL) {
-			kmem_free(rrd->payload, rrd->payload_size);
+			vmem_free(rrd->payload, rrd->payload_size);
 			rrd->payload = NULL;
 		}
 		/*
-		 * EAGAIN indicates that this record has been saved (on
-		 * raw->write_batch), and will be used again, so we don't
-		 * free it.
+		 * EAGAIN indicates that ownership of this record has
+		 * moved: it was either saved on rwa->write_batch, or
+		 * parked on the defer list to be replayed and freed by
+		 * the defer flush (or by the defer cleanup on error).
+		 * Either way we don't free it here.
 		 * When healing data we always need to free the record.
 		 */
 		if (err != EAGAIN || rwa->heal) {
@@ -3272,10 +4807,16 @@ receive_writer_thread(void *arg)
 	if (rwa->heal) {
 		zio_wait(rwa->heal_pio);
 	} else {
-		int err = flush_write_batch(rwa);
+		int err = 0;
+		if (rwa->err == 0)
+			err = receive_defer_flush(rwa);
+		if (rwa->err == 0)
+			rwa->err = err;
+		err = flush_write_batch(rwa);
 		if (rwa->err == 0)
 			rwa->err = err;
 	}
+	receive_defer_cleanup(rwa);
 	mutex_enter(&rwa->mutex);
 	rwa->done = B_TRUE;
 	cv_signal(&rwa->cv);
@@ -3418,6 +4959,7 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, offset_t *voffp)
 	rwa->resumable = drc->drc_resumable;
 	rwa->raw = drc->drc_raw;
 	rwa->spill = drc->drc_spill;
+	rwa->featureflags = drc->drc_featureflags;
 	rwa->full = (drc->drc_drr_begin->drr_u.drr_begin.drr_fromguid == 0);
 	rwa->os->os_raw_receive = drc->drc_raw;
 	if (drc->drc_heal) {
@@ -3426,6 +4968,11 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, offset_t *voffp)
 	}
 	list_create(&rwa->write_batch, sizeof (struct receive_record_arg),
 	    offsetof(struct receive_record_arg, node.bqn_node));
+	list_create(&rwa->defer_records, sizeof (struct receive_record_arg),
+	    offsetof(struct receive_record_arg, node.bqn_node));
+	avl_create(&rwa->defer_ranges, receive_defer_range_compare,
+	    sizeof (receive_defer_range_t),
+	    offsetof(receive_defer_range_t, rdr_node));
 
 	(void) thread_create(NULL, 0, receive_writer_thread, rwa, 0, curproc,
 	    TS_RUN, minclsyspri);
@@ -3513,6 +5060,8 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, offset_t *voffp)
 	mutex_destroy(&rwa->mutex);
 	bqueue_destroy(&rwa->q);
 	list_destroy(&rwa->write_batch);
+	list_destroy(&rwa->defer_records);
+	avl_destroy(&rwa->defer_ranges);
 	if (err == 0)
 		err = rwa->err;
 
@@ -3693,12 +5242,10 @@ dmu_recv_end_sync(void *arg, dmu_tx_t *tx)
 		drc->drc_os = NULL;
 
 		dsl_dataset_snapshot_sync_impl(origin_head,
-		    drc->drc_tosnap, tx);
+		    drc->drc_tosnap, drc->drc_drrb->drr_creation_time, tx);
 
-		/* set snapshot's creation time and guid */
+		/* set snapshot's guid */
 		dmu_buf_will_dirty(origin_head->ds_prev->ds_dbuf, tx);
-		dsl_dataset_phys(origin_head->ds_prev)->ds_creation_time =
-		    drc->drc_drrb->drr_creation_time;
 		dsl_dataset_phys(origin_head->ds_prev)->ds_guid =
 		    drc->drc_drrb->drr_toguid;
 		dsl_dataset_phys(origin_head->ds_prev)->ds_flags &=
@@ -3719,12 +5266,11 @@ dmu_recv_end_sync(void *arg, dmu_tx_t *tx)
 	} else {
 		dsl_dataset_t *ds = drc->drc_ds;
 
-		dsl_dataset_snapshot_sync_impl(ds, drc->drc_tosnap, tx);
+		dsl_dataset_snapshot_sync_impl(ds, drc->drc_tosnap,
+		    drc->drc_drrb->drr_creation_time, tx);
 
-		/* set snapshot's creation time and guid */
+		/* set snapshot's guid */
 		dmu_buf_will_dirty(ds->ds_prev->ds_dbuf, tx);
-		dsl_dataset_phys(ds->ds_prev)->ds_creation_time =
-		    drc->drc_drrb->drr_creation_time;
 		dsl_dataset_phys(ds->ds_prev)->ds_guid =
 		    drc->drc_drrb->drr_toguid;
 		dsl_dataset_phys(ds->ds_prev)->ds_flags &=
@@ -3768,6 +5314,22 @@ dmu_recv_end_sync(void *arg, dmu_tx_t *tx)
 		VERIFY0(zap_update(dp->dp_meta_objset, newsnapobj,
 		    DS_FIELD_IVSET_GUID, sizeof (uint64_t), 1,
 		    &drc->drc_ivset_guid, tx));
+	}
+
+	/*
+	 * Mark a raw-received snapshot so a later non-raw incremental onto it
+	 * can warn that it is diverging the IV set (see #8758). This is not
+	 * gated on drc_ivset_guid, so streams from older senders that omit it
+	 * (received under zfs_disable_ivset_guid_check) are still marked.
+	 * Snapshots on pools written before this change simply lack the key
+	 * and receive no warning.
+	 */
+	if (!drc->drc_heal && drc->drc_raw) {
+		uint64_t one = 1;
+		dmu_object_zapify(dp->dp_meta_objset, newsnapobj,
+		    DMU_OT_DSL_DATASET, tx);
+		VERIFY0(zap_update(dp->dp_meta_objset, newsnapobj,
+		    DS_FIELD_RAW_RECEIVED, sizeof (uint64_t), 1, &one, tx));
 	}
 
 	/*
@@ -3863,6 +5425,10 @@ ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_ff, UINT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, write_batch_size, UINT, ZMOD_RW,
 	"Maximum amount of writes to batch into one transaction");
+
+ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, defer_batch_size, UINT, ZMOD_RW,
+	"Maximum bytes of records parked behind one txg sync while "
+	"receiving reallocated dnodes (0 to sync per object)");
 
 ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, best_effort_corrective, INT, ZMOD_RW,
 	"Ignore errors during corrective receive");

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.50 2024/04/13 16:40:48 christos Exp $
+# $File: riff,v 1.52 2025/09/08 12:48:15 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -171,8 +171,13 @@
 >>>8		byte		&0x20	\b, ICC profile
 # TODO: These two values are off-by-one, for a 64x64 WebP they contain
 # 63x63 as there can be no 0x0 file.
->>>12		lelong&0xffffff	x	\b, %d+1
->>>15		lelong&0xffffff	x	\bx%d+1
+# we only handle < 65536 so we don't have do print %d+1:
+#>>>12		ulelong&0xffffff	x	\b, %d+1
+#>>>15		ulelong&0xffffff	x	\bx%d+1
+>>>12		ulelong&0xffffff <65536
+>>>>15		ulelong&0xffffff <65536
+>>>>>12		uleshort+1 x		\b, %u
+>>>>>15		uleshort+1 x		\bx%u 
 #>0  string  x		we got %s
 #>>&(4.l+4)  use riff-walk
 
@@ -237,6 +242,7 @@
 # AVI section extended by Patrik Radman <patrik+file-magic@iki.fi>
 #
 0	string		RIFF		RIFF (little-endian) data
+!:strength +50
 # RIFF Palette format
 # Update: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format

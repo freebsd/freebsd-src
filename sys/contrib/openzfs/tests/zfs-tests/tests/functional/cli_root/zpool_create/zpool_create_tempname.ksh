@@ -8,7 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -60,6 +60,8 @@ for poolprop in "${poolprops[@]}"; do
 		log_must test "$(get_prop $propname $TEMPPOOL)" == "$propval"
 		IFS='=' read -r propname propval <<<"$poolprop"
 		log_must test "$(get_pool_prop $propname $TEMPPOOL)" == "$propval"
+		# 3. Verify the `zpool create` command is logged to the pool history
+		log_must eval "zpool history $TEMPPOOL | grep -q 'zpool create -t'"
 		# Cleanup
 		destroy_pool $TEMPPOOL
 	done

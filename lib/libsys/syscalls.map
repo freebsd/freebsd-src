@@ -823,4 +823,10 @@ FBSDprivate_1.0 {
 	__sys_pdrfork;
 	_pdwait;
 	__sys_pdwait;
+	_renameat2;
+	__sys_renameat2;
+	_pdopenpid;
+	__sys_pdopenpid;
+	_pddupfd;
+	__sys_pddupfd;
 };

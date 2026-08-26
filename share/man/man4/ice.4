@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd November 5, 2025
+.Dd August 11, 2026
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -154,6 +154,12 @@ be set and unset.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Pp
+The identification LED for each port is controlled through the
+.Xr led 4
+interface at its
+.Pa /dev/led/ice*
+device node.
 .Pp
 The associated Virtual Function (VF) driver for this driver is
 .Xr iavf 4 .
@@ -1156,6 +1162,7 @@ email all the specific information related to the issue to
 .Aq Mt freebsd@intel.com .
 .Sh SEE ALSO
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8

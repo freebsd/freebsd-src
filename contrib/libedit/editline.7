@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.7,v 1.6 2024/04/06 13:36:11 christos Exp $
+.\"	$NetBSD: editline.7,v 1.7 2026/02/01 01:52:58 uwe Exp $
 .\"	$OpenBSD: editline.7,v 1.1 2016/04/20 01:11:45 schwarze Exp $
 .\"
 .\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd April 6, 2024
+.Dd January 31, 2026
 .Dt EDITLINE 7
 .Os
 .Sh NAME
@@ -637,6 +637,12 @@ cursor, move the cursor after to the character after the inserted
 word, and switch to vi insert mode.
 It is an error if there is no history entry or the most recent
 history entry is empty.
+.It Ic vi-histedit Pq vi command: v
+Edit the buffer with the editor and return the edit buffer to the program.
+The editor specified by the
+.Ev EDITOR
+environment variable will be invoked instead of the default editor
+.Xr vi 1 .
 .It Ic vi-insert Pq vi command: i
 Enter insert mode.
 .It Ic vi-insert-at-bol Pq vi command: I

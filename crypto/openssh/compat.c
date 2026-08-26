@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.126 2023/03/06 12:14:48 dtucker Exp $ */
+/* $OpenBSD: compat.c,v 1.128 2026/03/02 02:40:15 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -27,8 +27,8 @@
 
 #include <sys/types.h>
 
+#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdarg.h>
 
 #include "xmalloc.h"
@@ -44,7 +44,7 @@ compat_banner(struct ssh *ssh, const char *version)
 	int i;
 	static struct {
 		char	*pat;
-		int	bugs;
+		uint32_t bugs;
 	} check[] = {
 		{ "OpenSSH_2.*,"
 		  "OpenSSH_3.0*,"

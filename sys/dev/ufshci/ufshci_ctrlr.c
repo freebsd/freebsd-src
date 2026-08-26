@@ -21,6 +21,50 @@ ufshci_ctrlr_fail(struct ufshci_controller *ctrlr)
 	ufshci_req_queue_fail(ctrlr, &ctrlr->transfer_req_queue);
 }
 
+/* Some controllers require a reinit after switching to the max gear. */
+static int
+ufshci_ctrlr_reinit_after_max_gear_switch(struct ufshci_controller *ctrlr)
+{
+	int error;
+
+	/* Reset device */
+	ufshci_utmr_req_queue_disable(ctrlr);
+	ufshci_utr_req_queue_disable(ctrlr);
+
+	error = ufshci_ctrlr_disable(ctrlr);
+	if (error != 0)
+		return (error);
+
+	error = ufshci_ctrlr_enable(ctrlr);
+	if (error != 0)
+		return (error);
+
+	error = ufshci_utmr_req_queue_enable(ctrlr);
+	if (error != 0)
+		return (error);
+
+	error = ufshci_utr_req_queue_enable(ctrlr);
+	if (error != 0)
+		return (error);
+
+	error = ufshci_ctrlr_send_nop(ctrlr);
+	if (error != 0)
+		return (error);
+
+	/* Reinit the target device. */
+	error = ufshci_dev_init(ctrlr);
+	if (error != 0)
+		return (error);
+
+	/* Initialize Reference Clock */
+	error = ufshci_dev_init_reference_clock(ctrlr);
+	if (error != 0)
+		return (error);
+
+	/* Initialize unipro */
+	return (ufshci_dev_init_unipro(ctrlr));
+}
+
 static void
 ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 {
@@ -76,6 +120,12 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 	}
 
 	ufshci_dev_init_uic_link_state(ctrlr);
+
+	if ((ctrlr->quirks & UFSHCI_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH) &&
+	    ufshci_ctrlr_reinit_after_max_gear_switch(ctrlr) != 0) {
+		ufshci_ctrlr_fail(ctrlr);
+		return;
+	}
 
 	/* Read Controller Descriptor (Device, Geometry) */
 	if (ufshci_dev_get_descriptor(ctrlr) != 0) {
@@ -199,7 +249,7 @@ ufshci_ctrlr_disable(struct ufshci_controller *ctrlr)
 	return (error);
 }
 
-static int
+int
 ufshci_ctrlr_enable(struct ufshci_controller *ctrlr)
 {
 	uint32_t ie, hcs;
@@ -302,15 +352,18 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 
 	/* Read Device Capabilities */
 	ctrlr->cap = cap = ufshci_mmio_read_4(ctrlr, cap);
-	ctrlr->is_single_db_supported = UFSHCIV(UFSHCI_CAP_REG_LSDBS, cap);
-	/*
-	 * TODO: This driver does not yet support multi-queue.
-	 * Check the UFSHCI_CAP_REG_MCQS bit in the future to determine if
-	 * multi-queue support is available.
-	 */
-	ctrlr->is_mcq_supported = false;
-	if (!(ctrlr->is_single_db_supported == 0 || ctrlr->is_mcq_supported))
+	if (ctrlr->quirks & UFSHCI_QUIRK_BROKEN_LSDBS_MCQS_CAP) {
+		ctrlr->is_single_db_supported = true;
+		ctrlr->is_mcq_supported = true;
+	} else {
+		ctrlr->is_single_db_supported = (UFSHCIV(UFSHCI_CAP_REG_LSDBS,
+						     cap) == 0);
+		ctrlr->is_mcq_supported = (UFSHCIV(UFSHCI_CAP_REG_MCQS, cap) ==
+		    1);
+	}
+	if (!(ctrlr->is_single_db_supported || ctrlr->is_mcq_supported))
 		return (ENXIO);
+
 	/*
 	 * The maximum transfer size supported by UFSHCI spec is 65535 * 256 KiB
 	 * However, we limit the maximum transfer size to 1MiB(256 * 4KiB) for
@@ -344,7 +397,7 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	/* Read the UECPA register to clear */
 	ufshci_mmio_read_4(ctrlr, uecpa);
 
-	/* Diable Auto-hibernate */
+	/* Disable Auto-hibernate */
 	ahit = 0;
 	ufshci_mmio_write_4(ctrlr, ahit, ahit);
 
@@ -395,6 +448,17 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
+	/*
+	 * The interrupt and the timers are gone, so nothing enqueues new
+	 * tasks. Free the taskqueue before the SIM teardown below.
+	 */
+	if (ctrlr->taskqueue != NULL) {
+		taskqueue_free(ctrlr->taskqueue);
+		ctrlr->taskqueue = NULL;
+	}
+
+	ufshci_sim_release_wlun_periph(ctrlr);
+
 	mtx_lock(&ctrlr->sc_mtx);
 
 	ufshci_sim_detach(ctrlr);
@@ -441,9 +505,14 @@ int
 ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr)
 {
 	struct ufshci_completion_poll_status status;
+	int error;
 
 	status.done = 0;
-	ufshci_ctrlr_cmd_send_nop(ctrlr, ufshci_completion_poll_cb, &status);
+	error = ufshci_ctrlr_cmd_send_nop(ctrlr, ufshci_completion_poll_cb,
+	    &status);
+	if (error)
+		return (error);
+
 	ufshci_completion_poll(&status);
 	if (status.error) {
 		ufshci_printf(ctrlr, "ufshci_ctrlr_send_nop failed!\n");

@@ -1,0 +1,58 @@
+.\"
+.\" Copyright (c) 2025-2026 Netflix, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.Dd July 7, 2026
+.Dt ACPI_EINJ 4
+.Os
+.Sh NAME
+.Nm acpi_einj
+.Nd ACPI platform error injection module
+.Sh SYNOPSIS
+.In dev/acpica/acpiio.h
+.Sh DESCRIPTION
+The
+.Nm
+modules provides support for the error injection facility from the ACPI
+Platform Error Interface
+.Pq APEI .
+This module parses the EINJ table to construct a list of instructions
+associated with actions.
+The module provides several
+.Xr ioctl 2
+commands on the
+.Fa /dev/acpi
+character device used by the
+.Xr einj 8
+utility.
+.Sh IOCTLS
+The following commands are supported:
+.Bl -tag -width indent
+.It Dv ACPIIO_EINJ_GET_INFO
+Returns a
+.Vt struct acpi_einj_info
+object to the caller.
+.It Dv ACPIIO_EINJ_GET_VENDOR
+If the host supports the
+.Cm SET_ERROR_TYPE_WITH_ADDRESS
+command that includes a vendor extension structure,
+this command stores a copy of the vendor extension structure in the buffer
+described by the caller-provided
+.Vt struct acpi_einj_vendor_info .
+.It Dv ACPIIO_EINJ_SET_ERROR
+Injects a platform error described by a
+.Vt struct acpi_einj_error
+object provided by the caller.
+.El
+.Sh FILES
+.Bl -tag -width "/boot/kernel/acpi_einj.ko" -compact
+.It Pa /boot/kernel/acpi_einj.ko
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr einj 8
+.El
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 16.0 .

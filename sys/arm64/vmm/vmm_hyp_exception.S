@@ -35,6 +35,7 @@
 #include <machine/hypervisor.h>
 
 #include "assym.inc"
+#include "hyp_assym.h"
 #include "hyp.h"
 
 .macro	save_host_registers
@@ -86,26 +87,26 @@
 	/* Restore the hypctx pointer */
 	mrs	x0, tpidr_el2
 
-	stp	x2,  x3,  [x0, #(TF_X + 2  * 8)]
-	stp	x4,  x5,  [x0, #(TF_X + 4  * 8)]
-	stp	x6,  x7,  [x0, #(TF_X + 6  * 8)]
-	stp	x8,  x9,  [x0, #(TF_X + 8  * 8)]
-	stp	x10, x11, [x0, #(TF_X + 10 * 8)]
-	stp	x12, x13, [x0, #(TF_X + 12 * 8)]
-	stp	x14, x15, [x0, #(TF_X + 14 * 8)]
-	stp	x16, x17, [x0, #(TF_X + 16 * 8)]
-	stp	x18, x19, [x0, #(TF_X + 18 * 8)]
-	stp	x20, x21, [x0, #(TF_X + 20 * 8)]
-	stp	x22, x23, [x0, #(TF_X + 22 * 8)]
-	stp	x24, x25, [x0, #(TF_X + 24 * 8)]
-	stp	x26, x27, [x0, #(TF_X + 26 * 8)]
-	stp	x28, x29, [x0, #(TF_X + 28 * 8)]
+	stp	x2,  x3,  [x0, #(HYPCTX_GPR_X0 + (2 * 8))]
+	stp	x4,  x5,  [x0, #(HYPCTX_GPR_X0 + (4 * 8))]
+	stp	x6,  x7,  [x0, #(HYPCTX_GPR_X0 + (6 * 8))]
+	stp	x8,  x9,  [x0, #(HYPCTX_GPR_X0 + (8 * 8))]
+	stp	x10, x11, [x0, #(HYPCTX_GPR_X0 + (10 * 8))]
+	stp	x12, x13, [x0, #(HYPCTX_GPR_X0 + (12 * 8))]
+	stp	x14, x15, [x0, #(HYPCTX_GPR_X0 + (14 * 8))]
+	stp	x16, x17, [x0, #(HYPCTX_GPR_X0 + (16 * 8))]
+	stp	x18, x19, [x0, #(HYPCTX_GPR_X0 + (18 * 8))]
+	stp	x20, x21, [x0, #(HYPCTX_GPR_X0 + (20 * 8))]
+	stp	x22, x23, [x0, #(HYPCTX_GPR_X0 + (22 * 8))]
+	stp	x24, x25, [x0, #(HYPCTX_GPR_X0 + (24 * 8))]
+	stp	x26, x27, [x0, #(HYPCTX_GPR_X0 + (26 * 8))]
+	stp	x28, x29, [x0, #(HYPCTX_GPR_X0 + (28 * 8))]
 
-	str	lr, [x0, #(TF_LR)]
+	str	lr, [x0, #(HYPCTX_GPR_LR * 8)]
 
 	/* Restore the saved x0 & x1 and save them */
 	ldp	x2,  x3,  [sp], #(2 * 8)
-	stp	x2,  x3,  [x0, #(TF_X + 0  * 8)]
+	stp	x2,  x3,  [x0, #(HYPCTX_GPR_X0 + (0 * 8))]
 .endm
 
 .macro	restore_guest_registers
@@ -113,25 +114,25 @@
 	 * Copy the guest x0 and x1 to the stack so we can restore them
 	 * after loading the other registers.
 	 */
-	ldp	x2,  x3,  [x0, #(TF_X + 0  * 8)]
+	ldp	x2,  x3,  [x0, #(HYPCTX_GPR_X0 + (0 * 8))]
 	stp	x2,  x3,  [sp, #-(2 * 8)]!
 
-	ldr	lr, [x0, #(TF_LR)]
+	ldr	lr, [x0, #(HYPCTX_GPR_LR * 8)]
 
-	ldp	x28, x29, [x0, #(TF_X + 28 * 8)]
-	ldp	x26, x27, [x0, #(TF_X + 26 * 8)]
-	ldp	x24, x25, [x0, #(TF_X + 24 * 8)]
-	ldp	x22, x23, [x0, #(TF_X + 22 * 8)]
-	ldp	x20, x21, [x0, #(TF_X + 20 * 8)]
-	ldp	x18, x19, [x0, #(TF_X + 18 * 8)]
-	ldp	x16, x17, [x0, #(TF_X + 16 * 8)]
-	ldp	x14, x15, [x0, #(TF_X + 14 * 8)]
-	ldp	x12, x13, [x0, #(TF_X + 12 * 8)]
-	ldp	x10, x11, [x0, #(TF_X + 10 * 8)]
-	ldp	x8,  x9,  [x0, #(TF_X + 8  * 8)]
-	ldp	x6,  x7,  [x0, #(TF_X + 6  * 8)]
-	ldp	x4,  x5,  [x0, #(TF_X + 4  * 8)]
-	ldp	x2,  x3,  [x0, #(TF_X + 2  * 8)]
+	ldp	x28, x29, [x0, #(HYPCTX_GPR_X0 + (28 * 8))]
+	ldp	x26, x27, [x0, #(HYPCTX_GPR_X0 + (26 * 8))]
+	ldp	x24, x25, [x0, #(HYPCTX_GPR_X0 + (24 * 8))]
+	ldp	x22, x23, [x0, #(HYPCTX_GPR_X0 + (22 * 8))]
+	ldp	x20, x21, [x0, #(HYPCTX_GPR_X0 + (20 * 8))]
+	ldp	x18, x19, [x0, #(HYPCTX_GPR_X0 + (18 * 8))]
+	ldp	x16, x17, [x0, #(HYPCTX_GPR_X0 + (16 * 8))]
+	ldp	x14, x15, [x0, #(HYPCTX_GPR_X0 + (14 * 8))]
+	ldp	x12, x13, [x0, #(HYPCTX_GPR_X0 + (12 * 8))]
+	ldp	x10, x11, [x0, #(HYPCTX_GPR_X0 + (10 * 8))]
+	ldp	x8,  x9,  [x0, #(HYPCTX_GPR_X0 + (8 * 8))]
+	ldp	x6,  x7,  [x0, #(HYPCTX_GPR_X0 + (6 * 8))]
+	ldp	x4,  x5,  [x0, #(HYPCTX_GPR_X0 + (4 * 8))]
+	ldp	x2,  x3,  [x0, #(HYPCTX_GPR_X0 + (2 * 8))]
 
 	ldp	x0,  x1,  [sp], #(2 * 8)
 .endm

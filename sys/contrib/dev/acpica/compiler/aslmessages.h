@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -414,6 +414,7 @@ typedef enum
     ASL_MSG_RESERVED_VALUE,
     ASL_MSG_TWO_ZERO_VALUES,
     ASL_MSG_BAD_PARSE_TREE,
+    ASL_MSG_MALFORMED_HEADER,
 
     /* These messages are used by the Preprocessor only */
 

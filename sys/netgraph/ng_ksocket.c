@@ -165,7 +165,6 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 	{ "ah6",	IPPROTO_AH,		PF_INET6	},
 	{ "swipe6",	IPPROTO_SWIPE,		PF_INET6	},
 	{ "encap6",	IPPROTO_ENCAP,		PF_INET6	},
-	{ "divert6",	IPPROTO_DIVERT,		PF_INET6	},
 	{ "pim6",	IPPROTO_PIM,		PF_INET6	},
 	{ NULL,		-1					},
 };

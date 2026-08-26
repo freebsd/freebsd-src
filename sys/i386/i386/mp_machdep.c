@@ -736,3 +736,17 @@ invlcache_handler(void)
 	wbinvd();
 	PCPU_SET(smp_tlb_done, generation);
 }
+
+void ipi_bitmap_handler_i386(struct trapframe frame);
+void
+ipi_bitmap_handler_i386(struct trapframe frame)
+{
+	ipi_bitmap_handler(&frame);
+}
+
+void ipi_swi_handler_i386(struct trapframe frame);
+void
+ipi_swi_handler_i386(struct trapframe frame)
+{
+	ipi_swi_handler(&frame);
+}

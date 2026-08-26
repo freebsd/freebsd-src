@@ -1956,6 +1956,7 @@ int
 sys_pdkill(struct thread *td, struct pdkill_args *uap)
 {
 	struct proc *p;
+	struct file *fp;
 	int error;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
@@ -1963,14 +1964,20 @@ sys_pdkill(struct thread *td, struct pdkill_args *uap)
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
-	error = procdesc_find(td, uap->fd, &cap_pdkill_rights, &p);
-	if (error)
-		return (error);
+	sx_slock(&proctree_lock);
+	error = fget_procdesc(td, uap->fd, &cap_pdkill_rights, EBADF, &fp,
+	    NULL, &p);
+	sx_sunlock(&proctree_lock);
+	if (error != 0)
+		goto out;
 	AUDIT_ARG_PROCESS(p);
 	error = p_cansignal(td, p, uap->signum);
-	if (error == 0 && uap->signum)
+	if (error == 0 && uap->signum != 0)
 		kern_psignal(p, uap->signum);
 	PROC_UNLOCK(p);
+out:
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 
@@ -2037,6 +2044,16 @@ kern_sigqueue(struct thread *td, pid_t pid, int signumf, union sigval *value)
 	 */
 	if (pid <= 0)
 		return (EINVAL);
+
+	/*
+	 * A process in capability mode can send signals only to itself.
+	 */
+	if (pid != td->td_proc->p_pid) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SIGNAL, &signum);
+		if (IN_CAPABILITY_MODE(td))
+			return (ECAPMODE);
+	}
 
 	if ((signumf & __SIGQUEUE_TID) == 0) {
 		if ((p = pfind_any(pid)) == NULL)
@@ -2305,6 +2322,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 
 	ps = p->p_sigacts;
 	KNOTE_LOCKED(p->p_klist, NOTE_SIGNAL | sig);
+	procdesc_jobstate(p);
 	prop = sigprop(sig);
 
 	if (td == NULL) {
@@ -2679,23 +2697,26 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	struct sysentvec *sv;
 	struct sysent *se;
 	register_t rv_saved[2];
-	int error, nerror;
-	int sc;
+	unsigned int sc;
+	int nerror;
 	bool audited, sy_thr_static;
-
-	sv = p->p_sysent;
-	if (sv->sv_table == NULL || sv->sv_size < tsr->ts_sa.code) {
-		tsr->ts_ret.sr_error = ENOSYS;
-		return;
-	}
 
 	sc = tsr->ts_sa.code;
 	if (sc == SYS_syscall || sc == SYS___syscall) {
+		if (tsr->ts_nargs == 0) {
+			tsr->ts_ret.sr_error = EINVAL;
+			return;
+		}
 		sc = tsr->ts_sa.args[0];
 		memmove(&tsr->ts_sa.args[0], &tsr->ts_sa.args[1],
 		    sizeof(register_t) * (tsr->ts_nargs - 1));
 	}
 
+	sv = p->p_sysent;
+	if (sv->sv_table == NULL || sc >= sv->sv_size) {
+		tsr->ts_ret.sr_error = ENOSYS;
+		return;
+	}
 	tsr->ts_sa.callp = se = &sv->sv_table[sc];
 
 	VM_CNT_INC(v_syscall);
@@ -2721,12 +2742,8 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	audited = AUDIT_SYSCALL_ENTER(sc, td) != 0;
 
 	if (!sy_thr_static) {
-		error = syscall_thread_enter(td, &se);
+		syscall_thread_enter(td, &se);
 		sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
-		if (error != 0) {
-			tsr->ts_ret.sr_error = error;
-			return;
-		}
 	}
 
 	rv_saved[0] = td->td_retval[0];
@@ -2753,7 +2770,7 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	td->td_errno = nerror;
 
 	if (audited)
-		AUDIT_SYSCALL_EXIT(error, td);
+		AUDIT_SYSCALL_EXIT(tsr->ts_ret.sr_error, td);
 	if (!sy_thr_static)
 		syscall_thread_exit(td, se);
 }
@@ -3406,12 +3423,12 @@ thread_stopped(struct proc *p)
 	n = p->p_suspcount;
 	if (p == curproc)
 		n++;
-	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
+	if ((p->p_flag & P_STOPPED_SIG) != 0 && n == p->p_numthreads) {
 		PROC_SUNLOCK(p);
 		p->p_flag &= ~P_WAITED;
 		PROC_LOCK(p->p_pptr);
 		childproc_stopped(p, (p->p_flag & P_TRACED) ?
-			CLD_TRAPPED : CLD_STOPPED);
+		    CLD_TRAPPED : CLD_STOPPED);
 		PROC_UNLOCK(p->p_pptr);
 		PROC_SLOCK(p);
 	}
@@ -3673,6 +3690,7 @@ childproc_jobstate(struct proc *p, int reason, int sig)
 	 */
 	p->p_pptr->p_flag |= P_STATCHILD;
 	wakeup(p->p_pptr);
+	procdesc_jobstate(p);
 
 	ps = p->p_pptr->p_sigacts;
 	mtx_lock(&ps->ps_mtx);

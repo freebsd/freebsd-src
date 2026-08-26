@@ -1,4 +1,4 @@
-#	$OpenBSD: limit-keytype.sh,v 1.10 2021/02/25 03:27:34 djm Exp $
+#	$OpenBSD: limit-keytype.sh,v 1.11 2025/05/06 06:05:48 djm Exp $
 #	Placed in the Public Domain.
 
 tid="restrict pubkey type"
@@ -17,7 +17,6 @@ for t in $SSH_KEYTYPES ; do
 	case "$t" in
 		ssh-rsa)	ktype2=rsa ;;
 		ecdsa*)		ktype3=ecdsa ;;  # unused
-		ssh-dss)	ktype4=dsa ;;
 		sk-ssh-ed25519@openssh.com)		ktype5=ed25519-sk ;;
 		sk-ecdsa-sha2-nistp256@openssh.com)	ktype6=ecdsa-sk ;;
 	esac
@@ -75,7 +74,6 @@ keytype() {
 	case "$1" in
 		ecdsa)		printf "ecdsa-sha2-*" ;;
 		ed25519)	printf "ssh-ed25519" ;;
-		dsa)		printf "ssh-dss" ;;
 		rsa)		printf "rsa-sha2-256,rsa-sha2-512,ssh-rsa" ;;
 		sk-ecdsa)	printf "sk-ecdsa-*" ;;
 		sk-ssh-ed25519)	printf "sk-ssh-ed25519-*" ;;
@@ -123,7 +121,7 @@ if [ "$ktype1" != "$ktype2" ]; then
 fi
 ${SSH} $opts -i $OBJ/user_key2 proxy true || fatal "key2 failed"
 
-# Allow only DSA in main config, Ed25519 for user.
+# Allow only Ed25519 in main config, Ed25519 for user.
 verbose "match w/ matching"
 prepare_config "PubkeyAcceptedAlgorithms `keytype $ktype4`" \
 	"Match user $USER" "PubkeyAcceptedAlgorithms +`keytype $ktype1`"

@@ -781,6 +781,20 @@ The same as
 but for
 .Xr bzip2 1 Ns -compressed
 files.
+.It Va xzfs_fsops
+The same as
+.Va gzipfs_fsops ,
+but for
+.Xr xz 1 Ns -compressed
+files.
+.It Va zstdfs_fsops
+The same as
+.Va gzipfs_fsops ,
+but for
+.Xr zstd 1 Ns -compressed
+files.
+Only available when built with ZFS support, since that is the only
+source of the zstd decompressor in the boot loader environment.
 .It Va pkgfs_fsops
 File access from a tar file typically streamed via TFTP.
 The order of files in the tar file must match the order they are

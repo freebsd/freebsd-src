@@ -7,6 +7,9 @@
 -- "MFC from" branch and do not have a corresponding "cherry picked from"
 -- commit in the "MFC to" branch.
 
+-- Global state
+local verbose = 0
+
 -- Execute a command and return its output.  A final newline is stripped,
 -- similar to sh.
 local function exec_command(command)
@@ -102,9 +105,6 @@ local function set_difference(set1, set2)
 	return result
 end
 
--- Global state
-verbose = 0
-
 local function params(from_branch, to_branch, author)
 	print("from:             " .. from_branch)
 	print("to:               " .. to_branch)
@@ -125,14 +125,14 @@ end
 -- Main function
 local function main()
 	local from_branch = "freebsd/main"
-	local to_branch = ""
+	local to_branch
 	local author = os.getenv("USER") or ""
-	local dirspec = nil
+	local dirspec
 
 	local url = exec_command("git remote get-url freebsd 2>/dev/null")
 	local freebsd_repo
 	if url and url ~= "" then
-		freebsd_repo = string.match(url, "[^/]+$")
+		freebsd_repo = string.match(url, "[^:/]+$")
 		freebsd_repo = string.gsub(freebsd_repo, "%.git$", "")
 	end
 	if freebsd_repo == "ports" or freebsd_repo == "freebsd-ports" then
@@ -215,7 +215,7 @@ local function main()
 	local result_hashes = set_difference(from_hashes, to_hashes)
 
 	if exclude_file then
-		exclude_hashes = read_exclude(exclude_file)
+		local exclude_hashes = read_exclude(exclude_file)
 		result_hashes = set_difference(result_hashes, exclude_hashes)
 	end
 

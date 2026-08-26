@@ -133,7 +133,8 @@ lua_fb_setpixel(lua_State *L)
 
 	x = luaL_checknumber(L, 1);
 	y = luaL_checknumber(L, 2);
-        gfx_fb_setpixel(x, y);
+	gfx_fb_setpixel(x, y);
+	gfx_fb_flush();
 	return 0;
 }
 

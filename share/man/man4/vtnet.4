@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 19, 2025
+.Dd April 26, 2026
 .Dt VTNET 4
 .Os
 .Sh NAME
@@ -87,19 +87,6 @@ UDP.
 This also implies that TCP segmentation offloading and large receive offload
 are disabled.
 The default value is 0.
-.It Va hw.vtnet.fixup_needs_csum
-.It Va hw.vtnet. Ns Ar X Ns Va .fixup_needs_csum
-This tunable enforces the calculation of a valid TCP or UDP checksum for
-packets received with 
-.Dv VIRTIO_NET_HDR_F_NEEDS_CSUM
-being set in the
-.Va flags
-field of the structure
-.Vt struct virtio_net_hdr .
-It also marks the checksum as being correct in the mbuf packet header.
-The default value is 0.
-This tunable is deprecated and will be removed in
-.Fx 16 .
 .It Va hw.vtnet.tso_disable
 .It Va hw.vtnet. Ns Ar X Ns Va .tso_disable
 This tunable disables TCP segmentation offloading.
@@ -174,9 +161,8 @@ offloading was received and this request failed.
 The different reasons for the failure are counted by
 .Va dev.vtnet. Ns Ar X Ns Va .rx_csum_inaccessible_ipproto ,
 .Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_ipproto ,
-.Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_ethtype ,
 and
-.Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_offset .
+.Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_ethtype .
 .It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .csum
 The number of times receive checksum offloading for UDP or TCP was performed.
 .It Va dev.vtnet. Ns Ar X Ns Va .rxq Ns Ar Y Ns Va .ierrors
@@ -239,12 +225,6 @@ over all receive queues of the interface.
 .It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_inaccessible_ipproto
 The number of times a packet with a request for receive or transmit checksum
 offloading was received where the IP protocol was not accessible.
-.It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_offset
-The number of times fixing the checksum required by
-.Va hw.vtnet.fixup_needs_csum
-or
-.Va hw.vtnet. Ns Ar X Ns Va .fixup_needs_csum
-was attempted for a packet where the csum is not located in the first mbuf.
 .It Va dev.vtnet. Ns Ar X Ns Va .rx_csum_bad_ipproto
 The number of times a packet with a request for receive or transmit checksum
 offloading was received where the IP protocol was neither TCP nor UDP.

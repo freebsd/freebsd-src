@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 4, 2025
+.Dd August 13, 2026
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -683,7 +683,7 @@ to
 in the
 .Xr rc.conf 5
 file outside of the jails.
-Similarily, if the
+Similarly, if the
 .Xr gssd 8
 is to be run in a jail, either the kernel
 .Sy KGSSAPI
@@ -807,6 +807,14 @@ This permission is effective only together with
 and only when
 .Va enforce_statfs
 is set to a value lower than 2.
+.It Va allow.mount.tarfs
+privileged users inside the jail will be able to mount and unmount the
+tarfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
 .It Va allow.mount.tmpfs
 privileged users inside the jail will be able to mount and unmount the
 tmpfs file system.
@@ -834,7 +842,7 @@ This flag is only available when the
 .Xr vmm 4
 kernel module is loaded.
 .It Va allow.vmm_ppt
-The jail may configure PCI passtrough devices for use by
+The jail may configure PCI passthrough devices for use by
 .Xr vmm 4
 virtual machine guests.
 This allows privileged users inside the jail to manipulate physical devices

@@ -29,6 +29,7 @@ lockd_precmd()
 
 load_rc_config $name
 
-rc_flags=${rpc_lockd_flags}
+: ${lockd_flags:="${rpc_lockd_flags}"}
+export lockd_flags
 
 run_rc_command $1

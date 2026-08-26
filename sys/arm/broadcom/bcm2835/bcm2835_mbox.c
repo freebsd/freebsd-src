@@ -161,9 +161,8 @@ bcm_mbox_attach(device_t dev)
 {
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
 	int i;
-	int rid = 0;
 
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 0, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
@@ -172,19 +171,17 @@ bcm_mbox_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->mem_res);
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
-	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 0, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "could not allocate interrupt resource\n");
-		return (ENXIO);
+		goto fail_mem;
 	}
 
 	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC, 
+	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC,
 	    NULL, bcm_mbox_intr, sc, &sc->intr_hl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
 		device_printf(dev, "Unable to setup the clock irq handler.\n");
-		return (ENXIO);
+		goto fail_irq;
 	}
 
 	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
@@ -202,6 +199,14 @@ bcm_mbox_attach(device_t dev)
 	mbox_write_4(sc, REG_CONFIG, CONFIG_DATA_IRQ);
 
 	return (0);
+
+fail_irq:
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	sc->irq_res = NULL;
+fail_mem:
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
+	sc->mem_res = NULL;
+	return (ENXIO);
 }
 
 /* 

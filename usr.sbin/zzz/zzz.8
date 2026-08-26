@@ -1,63 +1,59 @@
-.\" Copyright (c) 2003 Nate Lawson
-.\" All rights reserved.
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
+.\" Copyright (c) 2026 The FreeBSD Foundation
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
+.\" This documentation was written by Aymeric Wibo <obiwac@freebsd.org> under
+.\" sponsorship from the FreeBSD Foundation.
 .\"
-.Dd July 13, 2003
+.Dd May 26, 2026
 .Dt ZZZ 8
 .Os
 .Sh NAME
 .Nm zzz
-.Nd suspend an ACPI or APM system
+.Nd suspend the system
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
 The
 .Nm
-utility
-checks for
-.Tn ACPI
-or
-.Tn APM
-support and then suspends the system appropriately.
-For
-.Tn APM ,
+utility suspends the system by writing a suspend transition request to
+.Pa /dev/power .
 .Pp
-.Dl apm -z
-.Pp
-will be issued.
-For
-.Tn ACPI,
-the configured suspend state will be looked up, checked to see
-if it is supported and,
-.Pp
-.Dl acpiconf -s <state>
-.Pp
-will be issued.
+The specific sleep method used
+.Pq e.g.\& suspend-to-idle or firmware suspend
+is determined by the
+.Va kern.power.suspend
+sysctl.
 .Sh SEE ALSO
 .Xr acpi 4 ,
-.Xr apm 4 ,
-.Xr acpiconf 8 ,
+.Xr acpiconf 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared as a shell script in
+.Fx 5.1 .
+It suspended the system by invoking
+.Xr acpiconf 8
+with the suspend state configured via
+.Va hw.acpi.suspend_state ,
+or
 .Xr apm 8
+on systems without ACPI support.
+.Pp
+It was rewritten in C in
+.Fx 16.0
+to use the generic power management interface provided by
+.Pa /dev/power .
 .Sh AUTHORS
-This manual page was written by
+The original
+.Nm
+script was written by
+.An Mark Santcroos Aq Mt marks@ripe.net .
+This manual page was originally written by
 .An Nate Lawson Aq Mt njl@FreeBSD.org .
+Both the current program and manual page were written by
+.An Aymeric Wibo Aq Mt obiwac@FreeBSD.org ,
+under sponsorship from the
+.Fx
+Foundation.

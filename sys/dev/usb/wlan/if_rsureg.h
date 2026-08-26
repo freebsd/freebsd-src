@@ -478,14 +478,14 @@ struct r92s_fw_cmd_set_key {
 
 	uint8_t	cam_id;
 	uint8_t	grpkey;
-	uint8_t	key[IEEE80211_KEYBUF_SIZE];
+	uint8_t	key[IEEE80211_KEYBUF_128_SIZE]; /* XXX firmware */
 } __packed;
 
 /* Structure for R92S_CMD_SET_STA_KEY. */
 struct r92s_fw_cmd_set_key_mac {
 	uint8_t	macaddr[IEEE80211_ADDR_LEN];
 	uint8_t	algo;
-	uint8_t	key[IEEE80211_KEYBUF_SIZE];
+	uint8_t	key[IEEE80211_KEYBUF_128_SIZE]; /* XXX firmware */
 } __packed;
 
 /* Structures for R92S_EVENT_SURVEY/R92S_CMD_JOIN_BSS. */

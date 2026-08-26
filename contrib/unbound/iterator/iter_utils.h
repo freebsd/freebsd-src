@@ -84,6 +84,7 @@ int iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg);
 /**
  * Select a valid, nice target to send query to.
  * Sorting and removing unsuitable targets is combined.
+ * Adds records to the infra cache if not already there.
  *
  * @param iter_env: iterator module global state, with ip6 enabled and 
  *	do-not-query-addresses.
@@ -481,5 +482,8 @@ void limit_nsec_ttl(struct dns_msg* msg);
  * @param rep: reply to modify.
  */
 void iter_make_minimal(struct reply_info* rep);
+
+/** See if we need a different port number */
+int deleg_port_number(struct module_env* env);
 
 #endif /* ITERATOR_ITER_UTILS_H */

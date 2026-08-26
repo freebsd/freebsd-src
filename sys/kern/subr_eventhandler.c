@@ -198,7 +198,10 @@ _eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag,
 	} else {
 	    CTR3(KTR_EVH, "%s: marking item %p from \"%s\" as dead", __func__,
 		ep, list->el_name);
+	    KASSERT(ep->ee_priority != EHE_DEAD_PRIORITY,
+		("%s: handler for %s is dead", __func__, list->el_name));
 	    ep->ee_priority = EHE_DEAD_PRIORITY;
+	    list->el_deadcount++;
 	}
     } else {
 	/* remove entire list */
@@ -213,11 +216,15 @@ _eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag,
 	} else {
 	    CTR2(KTR_EVH, "%s: marking all items from \"%s\" as dead",
 		__func__, list->el_name);
-	    TAILQ_FOREACH(ep, &list->el_entries, ee_link)
+	    TAILQ_FOREACH(ep, &list->el_entries, ee_link) {
+		KASSERT(ep->ee_priority != EHE_DEAD_PRIORITY,
+		    ("%s: handler for %s is dead", __func__, list->el_name));
 		ep->ee_priority = EHE_DEAD_PRIORITY;
+		list->el_deadcount++;
+	    }
 	}
     }
-    while (wait && list->el_runcount > 0)
+    while (wait && list->el_deadcount > 0)
 	    mtx_sleep(list, &list->el_lock, 0, "evhrm", 0);
     EHL_UNLOCK(list);
 }
@@ -281,10 +288,12 @@ void
 eventhandler_prune_list(struct eventhandler_list *list)
 {
     struct eventhandler_entry *ep, *en;
-    int pruned = 0;
+    int pruned __diagused;
 
     CTR2(KTR_EVH, "%s: pruning list \"%s\"", __func__, list->el_name);
     EHL_LOCK_ASSERT(list, MA_OWNED);
+
+    pruned = 0;
     TAILQ_FOREACH_SAFE(ep, &list->el_entries, ee_link, en) {
 	if (ep->ee_priority == EHE_DEAD_PRIORITY) {
 	    TAILQ_REMOVE(&list->el_entries, ep, ee_link);
@@ -292,8 +301,11 @@ eventhandler_prune_list(struct eventhandler_list *list)
 	    pruned++;
 	}
     }
-    if (pruned > 0)
-	    wakeup(list);
+    KASSERT(pruned == list->el_deadcount,
+	("%s: pruned %u entries from \"%s\" but expected %u",
+	__func__, pruned, list->el_name, list->el_deadcount));
+    list->el_deadcount = 0;
+    wakeup(list);
 }
 
 /*

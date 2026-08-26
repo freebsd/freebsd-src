@@ -65,11 +65,6 @@ struct _snl_genl_ctrl_mcast_group {
 	const char *mcast_grp_name;
 };
 
-struct _snl_genl_ctrl_mcast_groups {
-	uint32_t num_groups;
-	struct _snl_genl_ctrl_mcast_group **groups;
-};
-
 #define	_OUT(_field)	offsetof(struct _snl_genl_ctrl_mcast_group, _field)
 static struct snl_attr_parser _nla_p_getmc[] = {
 	{
@@ -90,7 +85,7 @@ SNL_DECLARE_ATTR_PARSER_EXT(_genl_ctrl_mc_parser,
 struct _getfamily_attrs {
 	uint16_t family_id;
 	const char *family_name;
-	struct _snl_genl_ctrl_mcast_groups mcast_groups;
+	struct snl_parray mcast_groups;
 };
 
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
@@ -165,10 +160,13 @@ snl_get_genl_mcast_group(struct snl_state *ss, const char *family_name,
 		return (0);
 	if (family_id != NULL)
 		*family_id = attrs.family_id;
-	for (u_int i = 0; i < attrs.mcast_groups.num_groups; i++)
-		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
-                    group_name) == 0)
-			return (attrs.mcast_groups.groups[i]->mcast_grp_id);
+	for (u_int i = 0; i < attrs.mcast_groups.count; i++) {
+		struct _snl_genl_ctrl_mcast_group *group;
+
+		group = attrs.mcast_groups.items[i];
+		if (strcmp(group->mcast_grp_name, group_name) == 0)
+			return (group->mcast_grp_id);
+	}
 	return (0);
 }
 

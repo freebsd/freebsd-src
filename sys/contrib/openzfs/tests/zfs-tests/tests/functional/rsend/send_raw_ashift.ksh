@@ -9,7 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -38,9 +38,6 @@ verify_runnable "both"
 
 log_assert "Verify raw sending to pools with greater ashift succeeds"
 
-if is_freebsd; then
-	log_unsupported "Runs too long on FreeBSD 14 (Issue #14961)"
-fi
 
 function cleanup
 {

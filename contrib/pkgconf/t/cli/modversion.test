@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --modversion foo
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: 1.2.3
+ExpectedExitCode: 0
