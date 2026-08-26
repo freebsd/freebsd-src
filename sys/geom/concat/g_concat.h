@@ -59,6 +59,7 @@ struct g_concat_disk {
 	off_t			 d_start;
 	off_t			 d_end;
 	int			 d_candelete;
+	uint16_t		 d_rotation_rate;
 	int			 d_removed;
 	bool			 d_hardcoded;
 };

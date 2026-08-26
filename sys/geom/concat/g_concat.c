@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
+#include <geom/geom_disk.h>
 #include <geom/concat/g_concat.h>
 
 FEATURE(geom_concat, "GEOM concatenation support");
@@ -229,6 +230,30 @@ g_concat_candelete(struct bio *bp)
 }
 
 static void
+g_concat_rotation_rate(struct bio *bp)
+{
+	struct g_concat_softc *sc;
+	struct g_concat_disk *disk;
+	uint16_t rr = DISK_RR_UNKNOWN;
+	bool first = true;
+
+	sc = bp->bio_to->geom->softc;
+	sx_assert(&sc->sc_disks_lock, SX_LOCKED);
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_removed)
+			continue;
+		if (first)
+			rr = disk->d_rotation_rate;
+		else if (rr != disk->d_rotation_rate) {
+			rr = DISK_RR_UNKNOWN;
+			break;
+		}
+		first = false;
+	}
+	g_handleattr(bp, "GEOM::rotation_rate", &rr, sizeof(rr));
+}
+
+static void
 g_concat_kernel_dump(struct bio *bp)
 {
 	struct g_concat_softc *sc;
@@ -360,6 +385,10 @@ g_concat_start(struct bio *bp)
 		} else if (strcmp("GEOM::candelete", bp->bio_attribute) == 0) {
 			g_concat_candelete(bp);
 			goto end;
+		} else if (strcmp("GEOM::rotation_rate",
+		    bp->bio_attribute) == 0) {
+			g_concat_rotation_rate(bp);
+			goto end;
 		}
 		/* To which provider it should be delivered? */
 		/* FALLTHROUGH */
@@ -465,6 +494,10 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 			    &disk->d_candelete);
 			if (error != 0)
 				disk->d_candelete = 0;
+			error = g_getattr("GEOM::rotation_rate",
+			    disk->d_consumer, &disk->d_rotation_rate);
+			if (error != 0)
+				disk->d_rotation_rate = DISK_RR_UNKNOWN;
 			(void)g_access(disk->d_consumer, -1, 0, 0);
 		} else
 			G_CONCAT_DEBUG(1, "Failed to access disk %s, error %d.",
@@ -1060,7 +1093,8 @@ g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
 	struct g_concat_disk *disk;
 	int *nargs, *hardcode;
 	int error;
-	int disk_candelete;
+	int disk_candelete = 0;
+	uint16_t disk_rotation_rate = DISK_RR_UNKNOWN;
 
 	g_topology_assert();
 
@@ -1141,6 +1175,10 @@ g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
 		error = g_getattr("GEOM::candelete", cp, &disk_candelete);
 		if (error != 0)
 			disk_candelete = 0;
+		error = g_getattr("GEOM::rotation_rate", cp,
+		    &disk_rotation_rate);
+		if (error != 0)
+			disk_rotation_rate = DISK_RR_UNKNOWN;
 		(void)g_access(cp, -1, 0, 0);
 	} else
 		G_CONCAT_DEBUG(1, "Failed to access disk %s, error %d.", name, error);
@@ -1162,6 +1200,7 @@ g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
 	disk->d_start = TAILQ_LAST(&sc->sc_disks, g_concat_disks)->d_end;
 	disk->d_end = disk->d_start + cp->provider->mediasize;
 	disk->d_candelete = disk_candelete;
+	disk->d_rotation_rate = disk_rotation_rate;
 	disk->d_removed = 0;
 	disk->d_hardcoded = *hardcode;
 	cp->private = disk;
