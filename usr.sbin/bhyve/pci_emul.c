@@ -918,8 +918,7 @@ pci_emul_assign_bar(struct pci_devinst *const pdi, const int idx,
 			baseptr = &pci_emul_membase64;
 			limit = pci_emul_memlim64;
 			mask = PCIM_BAR_MEM_BASE;
-			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64 |
-				 PCIM_BAR_MEM_PREFETCH;
+			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64;
 		} else {
 			baseptr = &pci_emul_membase32;
 			limit = PCI_EMUL_MEMLIMIT32;
