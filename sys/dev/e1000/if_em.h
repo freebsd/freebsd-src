@@ -757,6 +757,7 @@ void	igbv_queue_retry_prepare(struct e1000_softc *);
 void	igbv_queue_retry_stop(struct e1000_softc *);
 void	igbv_reconcile_mac(struct e1000_softc *, if_t);
 bool	igbv_reset(if_ctx_t);
+bool	igbv_sanitize_queues(struct e1000_softc *);
 void	igbv_log_reset_failure(struct e1000_softc *, s32, bool);
 void	igbv_update_uc_addr_list(struct e1000_softc *, if_t);
 void	igbv_vlan_retry_add(struct e1000_softc *, u16);

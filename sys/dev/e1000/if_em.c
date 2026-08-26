@@ -429,6 +429,8 @@ static uint64_t	em_if_get_vf_counter(if_ctx_t, ift_counter);
 static uint64_t	em_if_get_counter(if_ctx_t, ift_counter);
 static void	em_if_init(if_ctx_t);
 static void	em_if_stop(if_ctx_t);
+static void	em_fence_pci_busmaster(struct e1000_softc *);
+static int	em_enable_pci_busmaster(struct e1000_softc *);
 static void	em_if_media_status(if_ctx_t, struct ifmediareq *);
 static int	em_if_media_change(if_ctx_t);
 static int	em_if_mtu_set(if_ctx_t, uint32_t);
@@ -1433,6 +1435,13 @@ em_if_attach_pre(if_ctx_t ctx)
 		goto err_pci;
 	}
 	/*
+	 * A VF can retain queue enable bits and DMA addresses across VFLR.
+	 * Fence bus mastering before the first mailbox reset so state left by
+	 * a previous owner cannot issue DMA while the driver attaches.
+	 */
+	if (sc->vf_ifp)
+		em_fence_pci_busmaster(sc);
+	/*
 	 * 82579 can lose a host CSR write while the Management Engine owns
 	 * the PCIm2PCI arbiter.  Enable the OS register write interlock before
 	 * shared code initialization performs any MAC writes.
@@ -1602,6 +1611,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		    error == E1000_SUCCESS);
 		if (error != E1000_SUCCESS)
 			igbv_log_reset_failure(sc, error, true);
+		sc->vf_queues_sanitized = igbv_sanitize_queues(sc);
 	} else if (error != E1000_SUCCESS) {
 		device_printf(dev, "Hardware reset failed: %d\n", error);
 		error = EIO;
@@ -1952,12 +1962,23 @@ em_if_init(if_ctx_t ctx)
 		 * bounded callout retries initialization after iflib leaves the
 		 * failed initialization stopped.
 		 */
+		em_fence_pci_busmaster(sc);
 		igbv_queue_retry_failed(ctx);
 		return;
 	}
 	if (sc->vf_ifp &&
 	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
 		igbv_mbx_retry_failed(ctx);
+		return;
+	}
+	/*
+	 * Keep a fail-closed device fenced until reset and VF queue
+	 * sanitization have removed every stale DMA address.
+	 */
+	if (sc->vf_ifp && em_enable_pci_busmaster(sc) != 0) {
+		device_printf(sc->dev,
+		    "Unable to enable PCI bus mastering\n");
+		iflib_init_failed(ctx);
 		return;
 	}
 	if (sc->vf_ifp)
@@ -4028,6 +4049,65 @@ em_if_update_admin_status(if_ctx_t ctx)
 		lem_smartspeed(sc);
 }
 
+/*
+ * Last-resort DMA fence.  iflib releases DMA mappings after the driver's
+ * stop callback, so continuing with bus mastering still enabled would turn
+ * a recoverable NIC failure into memory corruption.  Treat failure of the
+ * PCI command bit as a fail-stop invariant violation.
+ */
+static void
+em_fence_pci_busmaster(struct e1000_softc *sc)
+{
+	device_t dev;
+	u_int timeout;
+	u16 command;
+	int error;
+
+	dev = sc->dev;
+	error = pci_disable_busmaster(dev);
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command != 0xffff && (command & PCIM_CMD_BUSMASTEREN) != 0)
+		panic("%s: unable to fence device DMA (error %d)",
+		    device_get_nameunit(dev), error);
+	if (error != 0 && command != 0xffff)
+		device_printf(dev,
+		    "PCI bus-master disable returned %d; readback is disabled\n",
+		    error);
+
+	timeout = max(pcie_get_max_completion_timeout(dev) / 1000, 10);
+	if (command != 0xffff &&
+	    !pcie_wait_for_pending_transactions(dev, timeout)) {
+		/* A function removed during the wait can no longer issue DMA. */
+		command = pci_read_config(dev, PCIR_COMMAND, 2);
+		if (command != 0xffff)
+			panic("%s: DMA transactions remain pending after fencing",
+			    device_get_nameunit(dev));
+	}
+}
+
+static int
+em_enable_pci_busmaster(struct e1000_softc *sc)
+{
+	device_t dev;
+	u16 command;
+	int error;
+
+	dev = sc->dev;
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command == 0xffff)
+		return (ENXIO);
+	if ((command & PCIM_CMD_BUSMASTEREN) != 0)
+		return (0);
+
+	error = pci_enable_busmaster(dev);
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command == 0xffff)
+		return (ENXIO);
+	if ((command & PCIM_CMD_BUSMASTEREN) == 0)
+		return (error != 0 ? error : EIO);
+	return (0);
+}
+
 /*********************************************************************
  *
  *  This routine disables all traffic on the adapter by issuing a
@@ -4063,8 +4143,12 @@ em_if_stop(if_ctx_t ctx)
 			return;
 		}
 	}
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
+		sc->vf_queues_sanitized = igbv_sanitize_queues(sc);
 		atomic_store_rel_32(&sc->vf_mbx_ready, 0);
+		if (!sc->vf_queues_sanitized)
+			em_fence_pci_busmaster(sc);
+	}
 	if (sc->hw.mac.type >= e1000_82544 && !sc->vf_ifp)
 		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
 

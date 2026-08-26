@@ -531,7 +531,7 @@ igbv_tx_pending(struct e1000_softc *sc)
 	return (false);
 }
 
-static bool
+bool
 igbv_sanitize_queues(struct e1000_softc *sc)
 {
 	struct e1000_hw *hw;
