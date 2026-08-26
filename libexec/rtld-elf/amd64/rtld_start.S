@@ -184,15 +184,55 @@ rtld_tlsdesc_undef:
 	.globl	rtld_tlsdesc_undef
 	.type	rtld_tlsdesc_undef,@function
 	.cfi_startproc
+	movq	8(%rax), %rax
+	subq	%fs:0, %rax
 	ret
 	.cfi_endproc
 	.size	rtld_tlsdesc_undef, . - rtld_tlsdesc_undef
 
 rtld_tlsdesc_dynamic:
-	.globl	rtld_tlsdesc_static
+	.globl	rtld_tlsdesc_dynamic
 	.type	rtld_tlsdesc_dynamic,@function
 	.cfi_startproc
+	pushq	%rbp
+	/* XXXKIB cfi */
+	movq	%rsp,%rbp
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%rsi
+	pushq	%rdi
+	movq	8(%rax), %rdi			/* arg->arg */
+	movq	%fs:0, %rsi			/* tcb */
+
+	movq	8(%rsi), %rcx			/* dtv */
+	movq	(%rcx), %rdx			/* dtv_gen */
+	cmpq	%rdx, tls_dtv_generation(%rip)
+	jne	2f
+	movq	(%rdi), %rax			/* arg->tlsinfo.ti_module */
+	dec	%rax
+	movq	16(%rcx, %rax, 8), %rax		/* dtv_tls */
+	testq	%rax, %rax
+	je	2f
+	addq	8(%rdi), %rax			/* arg->offset */
+	subq	%rsi, %rax
+1:
+	popq	%rdi
+	popq	%rsi
+	popq	%rcx
+	popq	%rdx
+	popq	%rbp
 	ret
+2:
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
+	call	rtld_tlsdesc_dynamic_impl
+	popq	%r11
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	jmp	1b
 	.cfi_endproc
 	.size	rtld_tlsdesc_dynamic, . - rtld_tlsdesc_dynamic
 
