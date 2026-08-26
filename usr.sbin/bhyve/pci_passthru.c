@@ -678,12 +678,14 @@ cfginitbar(struct passthru_softc *sc)
 		sc->psc_bar[i].type = bartype;
 		sc->psc_bar[i].size = size;
 		sc->psc_bar[i].addr = base;
-		sc->psc_bar[i].lobits = 0;
 
 		/* Allocate the BAR in the guest I/O or MMIO space */
 		pci_emul_alloc_bar(pi, i, bartype, size);
 
-		/* Use same lobits as physical bar */
+		/*
+		 * Use same lobits as physical BAR to preserve
+		 * prefetch flag.
+		 */
 		lobits = (uint8_t)passthru_read_config(&sc->psc_sel,
 		    PCIR_BAR(i), 0x01);
 		if (bartype == PCIBAR_MEM32 || bartype == PCIBAR_MEM64) {
@@ -691,7 +693,6 @@ cfginitbar(struct passthru_softc *sc)
 		} else {
 			lobits &= ~PCIM_BAR_IO_BASE;
 		}
-		sc->psc_bar[i].lobits = lobits;
 		pi->pi_bar[i].lobits = lobits;
 
 		/*
