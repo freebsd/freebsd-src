@@ -20,6 +20,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -45,6 +46,14 @@
 #define TPM_HDRSIZE	10
 
 #define TPM_PARAM_SIZE	0x0001
+
+#define	TPM_TAG_RQU_COMMAND	0x00c1
+#define	TPM_TAG_RSP_COMMAND	0x00c4
+#define	TPM_ORD_SAVESTATE	0x00000098
+#define	TPM_WARN_RETRY		0x00000800
+
+#define	TPM_SAVESTATE_RETRIES	50
+#define	TPM_SAVESTATE_RETRY_MS	100
 
 #define IRQUNK	-1
 
@@ -184,6 +193,8 @@ int tpm_legacy_start(struct tpm_softc *, int);
 int tpm_legacy_read(struct tpm_softc *, void *, int, size_t *, int);
 int tpm_legacy_write(struct tpm_softc *, void *, int);
 int tpm_legacy_end(struct tpm_softc *, int, int);
+
+static int tpm_transmit_header(struct tpm_softc *, uint32_t, uint32_t *);
 
 
 /*
@@ -492,29 +503,85 @@ tpm_tmotohz(int tmo)
 	return tvtohz(&tv);
 }
 
+/*
+ * Transmit a command with no parameters and consume its header-only reply.
+ */
+static int
+tpm_transmit_header(struct tpm_softc *sc, uint32_t ordinal, uint32_t *tpm_rc)
+{
+	uint8_t buf[TPM_HDRSIZE];
+	size_t count;
+	int end_error, error;
+
+	be16enc(buf, TPM_TAG_RQU_COMMAND);
+	be32enc(buf + 2, sizeof(buf));
+	be32enc(buf + 6, ordinal);
+
+	error = sc->sc_start(sc, UIO_WRITE);
+	if (error != 0)
+		return (error);
+	error = sc->sc_write(sc, buf, sizeof(buf));
+	end_error = sc->sc_end(sc, UIO_WRITE, error);
+	if (error == 0)
+		error = end_error;
+	if (error != 0)
+		return (error);
+
+	error = sc->sc_start(sc, UIO_READ);
+	if (error != 0)
+		return (error);
+	count = 0;
+	error = sc->sc_read(sc, buf, sizeof(buf), &count, TPM_PARAM_SIZE);
+	end_error = sc->sc_end(sc, UIO_READ, error);
+	if (error == 0)
+		error = end_error;
+	if (error != 0)
+		return (error);
+
+	if (count != sizeof(buf) || be16dec(buf) != TPM_TAG_RSP_COMMAND ||
+	    be32dec(buf + 2) != sizeof(buf))
+		return (EPROTO);
+	*tpm_rc = be32dec(buf + 6);
+	return (0);
+}
+
 /* Save TPM state on suspend. */
 int
 tpm_suspend(device_t dev)
 {
-	struct tpm_softc *sc = device_get_softc(dev);
-	int why = 1;
-	u_int8_t command[] = {
-	    0, 193,		/* TPM_TAG_RQU_COMMAND */
-	    0, 0, 0, 10,	/* Length in bytes */
-	    0, 0, 0, 156	/* TPM_ORD_SaveStates */
-	};
+	struct tpm_softc *sc;
+	uint32_t tpm_rc;
+	int error, tries;
 
 	/*
-	 * Power down:  We have to issue the SaveStates command.
+	 * A TPM may report RETRY for several seconds when firmware issued
+	 * SaveState before the driver loaded.  Any subsequent command can
+	 * invalidate that saved state, so retry SaveState before entering S3.
 	 */
-	sc->sc_write(sc, &command, sizeof(command));
-	sc->sc_read(sc, &command, sizeof(command), NULL, TPM_HDRSIZE);
+	sc = device_get_softc(dev);
+	for (tries = 0; tries < TPM_SAVESTATE_RETRIES; tries++) {
+		error = tpm_transmit_header(sc, TPM_ORD_SAVESTATE, &tpm_rc);
+		if (error != 0 || tpm_rc != TPM_WARN_RETRY)
+			break;
+		pause("tpmsave", MAX(hz * TPM_SAVESTATE_RETRY_MS / 1000, 1));
+	}
+	if (error != 0) {
+		device_printf(dev, "failed to save state: %d\n", error);
+		return (error);
+	}
+	if (tpm_rc != 0) {
+		device_printf(dev, "SaveState failed: TPM error 0x%x\n",
+		    tpm_rc);
+		return (EIO);
+	}
+	if (tries != 0)
+		device_printf(dev, "SaveState required %d retries\n", tries);
 #ifdef TPM_DEBUG
-	printf("tpm_suspend: power down: %d -> %d\n", sc->sc_suspend, why);
+	device_printf(dev, "suspend: %d -> 1\n", sc->sc_suspend);
 #endif
-	sc->sc_suspend = why;
+	sc->sc_suspend = 1;
 
-	return 0;
+	return (0);
 }
 
 /*
