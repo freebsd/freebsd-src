@@ -195,6 +195,8 @@ int tpm_legacy_write(struct tpm_softc *, void *, int);
 int tpm_legacy_end(struct tpm_softc *, int, int);
 
 static int tpm_transmit_header(struct tpm_softc *, uint32_t, uint32_t *);
+static int tpm_tis12_devid_index(uint32_t);
+static int tpm_tis12_resume(struct tpm_softc *);
 
 
 /*
@@ -329,18 +331,13 @@ tpm_tis12_probe(bus_space_tag_t bt, bus_space_handle_t bh)
 }
 
 /*
- * Setup interrupt vector if one is provided and interrupts are know to
- * work on that particular chip.
+ * Setup the interrupt vector if one is provided and interrupts are known
+ * to work on that particular chip.  The caller must hold locality zero.
  */
 int
 tpm_tis12_irqinit(struct tpm_softc *sc, int irq, int idx)
 {
 	u_int32_t r;
-
-	if ((irq == IRQUNK) || (tpm_devs[idx].flags & TPM_DEV_NOINTS)) {
-		sc->sc_vector = IRQUNK;
-		return 0;
-	}
 
 	/* Ack and disable all interrupts. */
 	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE,
@@ -348,6 +345,11 @@ tpm_tis12_irqinit(struct tpm_softc *sc, int irq, int idx)
 	    ~TPM_GLOBAL_INT_ENABLE);
 	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS,
 	    bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS));
+
+	if ((irq == IRQUNK) || (tpm_devs[idx].flags & TPM_DEV_NOINTS)) {
+		sc->sc_vector = IRQUNK;
+		return 0;
+	}
 
 	/* Program interrupt vector. */
 	bus_space_write_1(sc->sc_bt, sc->sc_bh, TPM_INT_VECTOR, irq);
@@ -363,6 +365,17 @@ tpm_tis12_irqinit(struct tpm_softc *sc, int irq, int idx)
 	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE, r);
 
 	return 0;
+}
+
+static int
+tpm_tis12_devid_index(uint32_t devid)
+{
+	int i;
+
+	for (i = 0; tpm_devs[i].devid != 0; i++)
+		if (tpm_devs[i].devid == devid)
+			break;
+	return (i);
 }
 
 /* Setup TPM using TIS 1.2 interface. */
@@ -386,25 +399,57 @@ tpm_tis12_init(struct tpm_softc *sc, int irq, const char *name)
 	sc->sc_devid = bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_ID);
 	sc->sc_rev = bus_space_read_1(sc->sc_bt, sc->sc_bh, TPM_REV);
 
-	for (i = 0; tpm_devs[i].devid; i++)
-		if (tpm_devs[i].devid == sc->sc_devid)
-			break;
+	i = tpm_tis12_devid_index(sc->sc_devid);
 
 	if (tpm_devs[i].devid)
 		printf(": %s rev 0x%x\n", tpm_devs[i].name, sc->sc_rev);
 	else
 		printf(": device 0x%08x rev 0x%x\n", sc->sc_devid, sc->sc_rev);
 
-	if (tpm_tis12_irqinit(sc, irq, i))
+	if (tpm_request_locality(sc, 0))
 		return 1;
 
-	if (tpm_request_locality(sc, 0))
+	if (tpm_tis12_irqinit(sc, irq, i))
 		return 1;
 
 	/* Abort whatever it thought it was doing. */
 	bus_space_write_1(sc->sc_bt, sc->sc_bh, TPM_STS, TPM_STS_CMD_READY);
 
 	return 0;
+}
+
+/* Restore TIS state which is not guaranteed to survive S3. */
+static int
+tpm_tis12_resume(struct tpm_softc *sc)
+{
+	uint32_t capabilities, devid;
+	int error, i, irq;
+
+	capabilities = bus_space_read_4(sc->sc_bt, sc->sc_bh,
+	    TPM_INTF_CAPABILITIES);
+	if ((capabilities & TPM_CAPSREQ) != TPM_CAPSREQ ||
+	    (capabilities & (TPM_INTF_INT_EDGE_RISING |
+	    TPM_INTF_INT_LEVEL_LOW)) == 0)
+		return (ENXIO);
+	devid = bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_ID);
+	if (devid == UINT32_MAX || devid != sc->sc_devid)
+		return (ENXIO);
+
+	sc->sc_capabilities = capabilities;
+	i = tpm_tis12_devid_index(devid);
+	irq = sc->sc_vector;
+	error = tpm_request_locality(sc, 0);
+	if (error != 0)
+		return (error);
+	error = tpm_tis12_irqinit(sc, irq, i);
+	if (error != 0)
+		return (error);
+
+	/* Abort firmware residue and leave the command FIFO ready. */
+	bus_space_write_1(sc->sc_bt, sc->sc_bh, TPM_STS,
+	    TPM_STS_CMD_READY);
+	return (tpm_waitfor(sc, TPM_STS_CMD_READY, TPM_READY_TMO,
+	    sc->sc_write));
 }
 
 int
@@ -584,21 +629,25 @@ tpm_suspend(device_t dev)
 	return (0);
 }
 
-/*
- * Handle resume event.  Actually nothing to do as the BIOS is supposed
- * to restore the previously saved state.
- */
+/* Handle resume after firmware has restored the saved TPM state. */
 int
 tpm_resume(device_t dev)
 {
-	struct tpm_softc *sc = device_get_softc(dev);
-	int why = 0;
-#ifdef TPM_DEBUG
-	printf("tpm_resume: resume: %d -> %d\n", sc->sc_suspend, why);
-#endif
-	sc->sc_suspend = why;
+	struct tpm_softc *sc;
+	int error;
 
-	return 0;
+	sc = device_get_softc(dev);
+	error = 0;
+	if (sc->sc_init == tpm_tis12_init)
+		error = tpm_tis12_resume(sc);
+#ifdef TPM_DEBUG
+	device_printf(dev, "resume: %d -> 0\n", sc->sc_suspend);
+#endif
+	sc->sc_suspend = 0;
+	if (error != 0)
+		device_printf(dev, "failed to restore TIS state: %d\n", error);
+
+	return (error);
 }
 
 /* Dispatch suspend and resume events. */
