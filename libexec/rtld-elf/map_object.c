@@ -482,6 +482,7 @@ obj_free(Obj_Entry *obj)
 		free(obj->path);
 	if (obj->phdr_alloc)
 		free(__DECONST(void *, obj->phdr));
+	MD_OBJ_ENTRY_FINI(obj);
 	free(obj);
 }
 
@@ -494,6 +495,7 @@ obj_new(void)
 	STAILQ_INIT(&obj->dldags);
 	STAILQ_INIT(&obj->dagmembers);
 	STAILQ_INIT(&obj->names);
+	MD_OBJ_ENTRY_INIT(obj);
 	return (obj);
 }
 
