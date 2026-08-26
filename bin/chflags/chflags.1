@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 21, 2026
+.Dd August 26, 2026
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -130,6 +130,8 @@ The following keywords are currently defined:
 .Bl -tag -offset indent -width ".Cm opaque"
 .It Cm arch , archived
 set the archived flag (super-user only)
+.It Cm nocache
+set the nocache flag (owner or super-user only)
 .It Cm nodump
 set the nodump flag (owner or super-user only)
 .It Cm opaque
@@ -148,8 +150,6 @@ set the user append-only flag (owner or super-user only)
 set the archive flag (owner or super-user only)
 .It Cm uchg , uchange , uimmutable
 set the user immutable flag (owner or super-user only)
-.It Cm udontcache , dontcache
-set the dont cache flag (owner or super-user only)
 .It Cm uhidden , hidden
 set the hidden file attribute (owner or super-user only)
 .It Cm uoffline , offline
