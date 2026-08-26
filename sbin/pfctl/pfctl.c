@@ -2876,6 +2876,7 @@ main(int argc, char *argv[])
 	int	 opts = 0;
 	int	 optimize = PF_OPTIMIZE_BASIC;
 	char	 anchorname[MAXPATHLEN];
+	int	 anchor_wildcard = 0;
 	char	*path;
 
 	if (argc < 2)
@@ -3043,9 +3044,10 @@ main(int argc, char *argv[])
 		int len = strlen(anchoropt);
 
 		if (len >= 1 && anchoropt[len - 1] == '*') {
-			if (len >= 2 && anchoropt[len - 2] == '/')
+			if (len >= 2 && anchoropt[len - 2] == '/') {
 				anchoropt[len - 2] = '\0';
-			else
+				anchor_wildcard = 1;
+			} else
 				anchoropt[len - 1] = '\0';
 			opts |= PF_OPT_RECURSE;
 		}
@@ -3090,12 +3092,12 @@ main(int argc, char *argv[])
 		case 'r':
 			pfctl_load_fingerprints(dev, opts);
 			pfctl_show_rules(dev, path, opts, PFCTL_SHOW_RULES,
-			    anchorname, 0, 0);
+			    anchorname, 0, anchor_wildcard);
 			break;
 		case 'l':
 			pfctl_load_fingerprints(dev, opts);
 			pfctl_show_rules(dev, path, opts, PFCTL_SHOW_LABELS,
-			    anchorname, 0, 0);
+			    anchorname, 0, anchor_wildcard);
 			break;
 		case 'n':
 			pfctl_load_fingerprints(dev, opts);
