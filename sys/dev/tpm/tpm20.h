@@ -127,6 +127,7 @@ struct tpm_sc {
 
 	void 		*intr_cookie;
 	int 		intr_type;	/* Current event type */
+	uint32_t	intr_mask;	/* Saved TIS interrupt configuration */
 	bool 		interrupts;
 	bool		common_initialized;
 
