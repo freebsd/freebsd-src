@@ -414,6 +414,7 @@ struct igc_softc {
 	unsigned long	dropped_pkts;
 	unsigned long	link_irq;
 	unsigned long	rx_overruns;
+	unsigned long	watchdog_events;
 
 	u32		fatal_error_state;
 	u32		fatal_error_peind;
