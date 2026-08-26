@@ -3342,11 +3342,7 @@ pci_nvme_init(struct pci_devinst *pi, nvlist_t *nvl)
 
 	DPRINTF("nvme membar size: %u", pci_membar_sz);
 
-	error = pci_emul_alloc_bar(pi, 0, PCIBAR_MEM64, pci_membar_sz);
-	if (error) {
-		WPRINTF("%s pci alloc mem bar failed", __func__);
-		goto done;
-	}
+	pci_emul_alloc_bar(pi, 0, PCIBAR_MEM64, pci_membar_sz);
 
 	error = pci_emul_add_msixcap(pi, sc->max_queues + 1, NVME_MSIX_BAR);
 	if (error) {

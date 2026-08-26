@@ -409,11 +409,8 @@ pci_fbuf_init(struct pci_devinst *pi, nvlist_t *nvl)
 		goto done;
 	}
 
-	error = pci_emul_alloc_bar(pi, 0, PCIBAR_MEM32, DMEMSZ);
-	assert(error == 0);
-
-	error = pci_emul_alloc_bar(pi, 1, PCIBAR_MEM32, FB_SIZE);
-	assert(error == 0);
+	pci_emul_alloc_bar(pi, 0, PCIBAR_MEM32, DMEMSZ);
+	pci_emul_alloc_bar(pi, 1, PCIBAR_MEM32, FB_SIZE);
 
 	error = pci_emul_add_msicap(pi, PCI_FBUF_MSI_MSGS);
 	assert(error == 0);
