@@ -3378,7 +3378,7 @@ ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req)
  * Deinitializes the driver and clears HW resources in preparation for
  * suspend or an FLR.
  *
- * @returns 0; this return value is ignored
+ * @returns 0 on success, or an error code on failure
  */
 static int
 ice_if_suspend(if_ctx_t ctx)
@@ -3402,7 +3402,7 @@ ice_if_suspend(if_ctx_t ctx)
  * Reinitializes the driver and the HW after PCI resume or after
  * an FLR. An init is performed by iflib after this function is finished.
  *
- * @returns 0; this return value is ignored
+ * @returns 0 on success, or an error code on failure
  */
 static int
 ice_if_resume(if_ctx_t ctx)

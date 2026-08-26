@@ -1,4 +1,4 @@
-.Dd August 8, 2026
+.Dd September 11, 2026
 .Dt IFLIBDD 9
 .Os
 .Sh NAME
@@ -65,7 +65,16 @@
 .Fa "uint16_t vtag"
 .Fc
 .Ft int
+.Fo ifdi_power_prepare
+.Fa "if_ctx_t ctx"
+.Fa "enum iflib_power_event event"
+.Fc
+.Ft int
 .Fo ifdi_suspend
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo ifdi_shutdown
 .Fa "if_ctx_t ctx"
 .Fc
 .Ft int
@@ -235,10 +244,37 @@ Optional function called by the VLAN config eventhandler.
 is the new VLAN tag.
 .It Fn ifdi_vlan_unregister
 Optional function called by the VLAN unconfig eventhandler.
+.It Fn ifdi_power_prepare
+Optional function called before iflib performs the terminal stop used for
+detach, suspend, or shutdown.
+The
+.Fa event
+argument is one of
+.Dv IFLIB_POWER_DETACH ,
+.Dv IFLIB_POWER_SUSPEND ,
+or
+.Dv IFLIB_POWER_SHUTDOWN .
+Drivers should use this hook only to establish policy which must precede the
+stop and must not start, stop, or alter queue DMA; the default implementation
+does nothing.
+If it returns an error, it must undo any partial policy change before
+returning.
 .It Fn ifdi_suspend
-Optional function that suspends the driver.
+Optional function called after iflib has stopped queue DMA and drained its
+private configuration taskqueue.
+It performs suspend-specific firmware, wake, PHY, and low-power work.
+An error is returned to the bus, and iflib attempts to resume the stopped
+interface.
+.It Fn ifdi_shutdown
+Optional function called after the same terminal stop and taskqueue drain as
+.Fn ifdi_suspend .
+Shutdown errors are returned without attempting rollback.
 .It Fn ifdi_resume
-Optional function that resumes a driver.
+Optional function that restores suspend-specific device state while the
+datapath remains stopped.
+After it succeeds, iflib initializes the datapath exactly once when the
+interface is administratively up and leaves an administratively-down interface
+stopped.
 .El
 .Ss Device Configuration Functions
 .Bl -ohang -offset indent
