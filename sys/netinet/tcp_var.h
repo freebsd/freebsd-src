@@ -1233,7 +1233,10 @@ struct xtcpcb {
 	uint32_t	t_dsack_pack;		/* (n) */
 	uint16_t	xt_encaps_port;		/* (s) */
 	int16_t		spare16;
-	int32_t		spare32[22];
+	int32_t		t_lognum;		/* (s) */
+	int32_t		t_loglimit;		/* (s) */
+	uint32_t	t_logsn;		/* (s) */
+	int32_t		spare32[19];
 } __aligned(8);
 
 #ifdef _KERNEL

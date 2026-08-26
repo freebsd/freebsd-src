@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 8, 2026
+.Dd August 26, 2026
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -67,7 +67,7 @@ Show
 Show the address of a protocol control block (PCB) associated with a socket;
 used for debugging.
 .It Fl b
-Show the BBLog state of the socket.
+Show BBLog related information for the socket.
 This is currently only implemented for TCP.
 .It Fl C
 Display the congestion control module, if applicable.
@@ -226,6 +226,19 @@ The connection state if
 is specified (only for SCTP or TCP).
 .It Li BBLOG STATE
 The BBLog state if
+.Fl b
+is specified (only for TCP).
+.It Li BBLOG NUM
+The number of BBLog entries currently being stored at the endpoint if
+.Fl b
+is specified (only for TCP).
+.It Li BBLOG LIM
+The maximum number of BBLog entries which can be stored at the endpoint
+if
+.Fl b
+is specified (only for TCP).
+.It Li BBLOG SN
+The next BBLog sequence number to be assigned if
 .Fl b
 is specified (only for TCP).
 .It Li STACK
