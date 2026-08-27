@@ -28,7 +28,6 @@
 
 #include <sys/cdefs.h>
 #include "opt_acpi.h"
-#include "opt_iommu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,8 +50,6 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
-#include <dev/iommu/iommu.h>
-
 /* Hooks for the ACPI CA debugging infrastructure. */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("PCI")
@@ -60,6 +57,7 @@ ACPI_MODULE_NAME("PCI")
 struct acpi_pci_devinfo {
 	struct pci_devinfo	ap_dinfo;
 	ACPI_HANDLE		ap_handle;
+	bus_dma_tag_t		ap_dma_tag;
 	int			ap_flags;
 	int			ap_domain;
 };
@@ -179,6 +177,8 @@ acpi_pci_child_deleted(device_t dev, device_t child)
 {
 	struct acpi_pci_devinfo *dinfo = device_get_ivars(child);
 
+	if (dinfo->ap_dma_tag != NULL)
+		bus_dma_tag_destroy(dinfo->ap_dma_tag);
 	if (acpi_get_device(dinfo->ap_handle) == child)
 		AcpiDetachData(dinfo->ap_handle, acpi_fake_objhandler);
 	pci_child_deleted(dev, child);
@@ -560,26 +560,42 @@ acpi_pci_detach(device_t dev)
 	return (pci_detach(dev));
 }
 
-#ifdef IOMMU
 static bus_dma_tag_t
 acpi_pci_get_dma_tag(device_t bus, device_t child)
 {
-	bus_dma_tag_t tag;
+	struct acpi_pci_devinfo *dinfo;
+	bus_dma_tag_t parent, tag;
+	int domain, error;
 
-	if (device_get_parent(child) == bus) {
-		/* try iommu and return if it works */
-		tag = iommu_get_dma_tag(bus, child);
-	} else
-		tag = NULL;
-	if (tag == NULL)
-		tag = pci_get_dma_tag(bus, child);
+	if (device_get_parent(child) != bus)
+		return (pci_get_dma_tag(bus, child));
+	dinfo = device_get_ivars(child);
+	if (dinfo->ap_dma_tag != NULL)
+		return (dinfo->ap_dma_tag);
+
+	/*
+	 * The parent tag already carries the upstream bridge's proximity
+	 * domain.  Only create a private tag when this function (or its PF,
+	 * for a VF) supplies a more specific _PXM.  In particular, do not
+	 * change the shared PCI or IOMMU tag in place.
+	 */
+	domain = acpi_pci_get_locality_domain(child);
+	if (domain < 0)
+		return (pci_get_dma_tag(bus, child));
+
+	parent = pci_get_dma_tag(bus, child);
+	if (parent == NULL)
+		return (NULL);
+	error = bus_dma_tag_create(parent, 1, 0, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
+	    BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE, 0, NULL, NULL, &tag);
+	if (error != 0)
+		return (parent);
+	error = bus_dma_tag_set_domain(tag, domain);
+	if (error != 0) {
+		bus_dma_tag_destroy(tag);
+		return (parent);
+	}
+	dinfo->ap_dma_tag = tag;
 	return (tag);
 }
-#else
-static bus_dma_tag_t
-acpi_pci_get_dma_tag(device_t bus, device_t child)
-{
-
-	return (pci_get_dma_tag(bus, child));
-}
-#endif
