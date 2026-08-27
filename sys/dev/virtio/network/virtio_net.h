@@ -31,6 +31,11 @@
 #ifndef _VIRTIO_NET_H
 #define _VIRTIO_NET_H
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
+#include <sys/endian.h>
+
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM		 (1ULL <<  0) /* Host handles pkts w/ partial csum */
 #define VIRTIO_NET_F_GUEST_CSUM		 (1ULL <<  1) /* Guest handles pkts w/ partial csum*/
@@ -260,161 +265,149 @@ struct virtio_net_ctrl_mq {
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS		5
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET	0
 
-/*
- * Use the checksum offset in the VirtIO header to set the
- * correct CSUM_* flags.
- */
-static inline int
-virtio_net_rx_csum_by_offset(struct mbuf *m, uint16_t eth_type, int ip_start,
-			struct virtio_net_hdr *hdr)
-{
 #if defined(INET) || defined(INET6)
-	int offset = hdr->csum_start + hdr->csum_offset;
-#endif
+static inline void
+virtio_net_rx_csum_needs_csum(struct mbuf *m, bool isipv6, int protocol,
+    struct virtio_net_hdr *hdr)
+{
+	/*
+	 * The packet is likely from another VM on the same host or from the
+	 * host that itself performed checksum offloading so Tx/Rx is basically
+	 * a memcpy and the checksum has little value so far.
+	 */
 
-	/* Only do a basic sanity check on the offset. */
-	switch (eth_type) {
-#if defined(INET)
-	case ETHERTYPE_IP:
-		if (__predict_false(offset < ip_start + sizeof(struct ip)))
-			return (1);
-		break;
-#endif
-#if defined(INET6)
-	case ETHERTYPE_IPV6:
-		if (__predict_false(offset < ip_start + sizeof(struct ip6_hdr)))
-			return (1);
-		break;
-#endif
-	default:
-		/* Here we should increment the rx_csum_bad_ethtype counter. */
-		return (1);
-	}
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
 
 	/*
-	 * Use the offset to determine the appropriate CSUM_* flags. This is
-	 * a bit dirty, but we can get by with it since the checksum offsets
-	 * happen to be different. We assume the host host does not do IPv4
-	 * header checksum offloading.
+	 * Just forward the order to compute the checksum by setting
+	 * the corresponding mbuf flag (e.g., CSUM_TCP).
 	 */
-	switch (hdr->csum_offset) {
-	case offsetof(struct udphdr, uh_sum):
-	case offsetof(struct tcphdr, th_sum):
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	default:
-		/* Here we should increment the rx_csum_bad_offset counter. */
-		return (1);
-	}
-
-	return (0);
-}
-
-static inline int
-virtio_net_rx_csum_by_parse(struct mbuf *m, uint16_t eth_type, int ip_start,
-		       struct virtio_net_hdr *hdr)
-{
-	int offset, proto;
-
-	switch (eth_type) {
-#if defined(INET)
-	case ETHERTYPE_IP: {
-		struct ip *ip;
-		if (__predict_false(m->m_len < ip_start + sizeof(struct ip)))
-			return (1);
-		ip = (struct ip *)(m->m_data + ip_start);
-		proto = ip->ip_p;
-		offset = ip_start + (ip->ip_hl << 2);
-		break;
-	}
-#endif
-#if defined(INET6)
-	case ETHERTYPE_IPV6:
-		if (__predict_false(m->m_len < ip_start +
-		    sizeof(struct ip6_hdr)))
-			return (1);
-		offset = ip6_lasthdr(m, ip_start, IPPROTO_IPV6, &proto);
-		if (__predict_false(offset < 0))
-			return (1);
-		break;
-#endif
-	default:
-		/* Here we should increment the rx_csum_bad_ethtype counter. */
-		return (1);
-	}
-
-	switch (proto) {
+	switch (protocol) {
 	case IPPROTO_TCP:
-		if (__predict_false(m->m_len < offset + sizeof(struct tcphdr)))
-			return (1);
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
+		m->m_pkthdr.csum_flags |= (isipv6 ? CSUM_TCP_IPV6 : CSUM_TCP);
 		break;
 	case IPPROTO_UDP:
-		if (__predict_false(m->m_len < offset + sizeof(struct udphdr)))
-			return (1);
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	default:
-		/*
-		 * For the remaining protocols, FreeBSD does not support
-		 * checksum offloading, so the checksum will be recomputed.
-		 */
-#if 0
-		if_printf(ifp, "cksum offload of unsupported "
-		    "protocol eth_type=%#x proto=%d csum_start=%d "
-		    "csum_offset=%d\n", __func__, eth_type, proto,
-		    hdr->csum_start, hdr->csum_offset);
-#endif
+		m->m_pkthdr.csum_flags |= (isipv6 ? CSUM_UDP_IPV6 : CSUM_UDP);
 		break;
 	}
-
-	return (0);
+	m->m_pkthdr.csum_data = hdr->csum_offset;
 }
 
+static inline void
+virtio_net_rx_csum_data_valid(struct mbuf *m, int protocol)
+{
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
+
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+	m->m_pkthdr.csum_data = 0xFFFF;
+}
+
+#define VIRTIO_NET_RX_CSUM_INACCESSIBLE_IPPROTO 1
+#define VIRTIO_NET_RX_CSUM_BAD_ETHTYPE 2
+#define VIRTIO_NET_RX_CSUM_BAD_IPPROTO 3
+
 /*
- * Set the appropriate CSUM_* flags. Unfortunately, the information
- * provided is not directly useful to us. The VirtIO header gives the
- * offset of the checksum, which is all Linux needs, but this is not
- * how FreeBSD does things. We are forced to peek inside the packet
+ * For a packet received over the VirtIO channel, it checks the given
+ * VirtIO header and sets the appropriate CSUM_* flags in the given mbuf.
+ *
+ * Unfortunately, the information provided is not directly useful to us. The
+ * VirtIO header gives the offset of the checksum, which is all Linux needs, but
+ * this is not how FreeBSD does things. We are forced to peek inside the packet
  * a bit.
  *
  * It would be nice if VirtIO gave us the L4 protocol or if FreeBSD
  * could accept the offsets and let the stack figure it out.
+ *
+ * @param m	mbuf of the packet where CSUM_* flags might need to be set.
+ * @param hdr	VirtIO header of the received packet that needs to be checked
+ *              with its field values stored in the byte order this machine
+ *              uses (i.e., readable without a byte swap).
+ *
+ * @return 0 on success, or one of the VIRTIO_NET_RX_CSUM_* error codes.
  */
 static inline int
 virtio_net_rx_csum(struct mbuf *m, struct virtio_net_hdr *hdr)
 {
-	struct ether_header *eh;
-	struct ether_vlan_header *evh;
-	uint16_t eth_type;
-	int offset, error;
+	const struct ether_header *eh;
+	int hoff, protocol;
+	uint16_t etype;
+	bool isipv6;
 
-	if ((hdr->flags & (VIRTIO_NET_HDR_F_NEEDS_CSUM |
-	    VIRTIO_NET_HDR_F_DATA_VALID)) == 0) {
-		return (0);
+	KASSERT(hdr->flags &
+	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID),
+	    ("%s: missing checksum offloading flag %x", __func__, hdr->flags));
+
+	eh = mtod(m, const struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (etype == ETHERTYPE_VLAN) {
+		/* TODO BMV: Handle QinQ. */
+		const struct ether_vlan_header *evh =
+		    mtod(m, const struct ether_vlan_header *);
+		etype = ntohs(evh->evl_proto);
+		hoff = sizeof(struct ether_vlan_header);
+	} else
+		hoff = sizeof(struct ether_header);
+
+	/* Check whether ethernet type is IP or IPv6, and get protocol. */
+	switch (etype) {
+#if defined(INET)
+	case ETHERTYPE_IP:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip))) {
+			return (VIRTIO_NET_RX_CSUM_INACCESSIBLE_IPPROTO);
+		} else {
+			struct ip *ip = (struct ip *)(m->m_data + hoff);
+			protocol = ip->ip_p;
+		}
+		isipv6 = false;
+		break;
+#endif
+#if defined(INET6)
+	case ETHERTYPE_IPV6:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
+		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0) {
+			return (VIRTIO_NET_RX_CSUM_INACCESSIBLE_IPPROTO);
+		}
+		isipv6 = true;
+		break;
+#endif
+	default:
+		return (VIRTIO_NET_RX_CSUM_BAD_ETHTYPE);
 	}
 
-	eh = mtod(m, struct ether_header *);
-	eth_type = ntohs(eh->ether_type);
-	if (eth_type == ETHERTYPE_VLAN) {
-		/* BMV: We should handle nested VLAN tags too. */
-		evh = mtod(m, struct ether_vlan_header *);
-		eth_type = ntohs(evh->evl_proto);
-		offset = sizeof(struct ether_vlan_header);
-	} else
-		offset = sizeof(struct ether_header);
+	/* Check whether protocol is TCP or UDP. */
+	switch (protocol) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		break;
+	default:
+		/*
+		 * FreeBSD does not support checksum offloading of this
+		 * protocol here.
+		 */
+		return (VIRTIO_NET_RX_CSUM_BAD_IPPROTO);
+	}
 
 	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)
-		error = virtio_net_rx_csum_by_offset(m, eth_type, offset, hdr);
-	else
-		error = virtio_net_rx_csum_by_parse(m, eth_type, offset, hdr);
+		virtio_net_rx_csum_needs_csum(m, isipv6, protocol, hdr);
+	else /* VIRTIO_NET_HDR_F_DATA_VALID */
+		virtio_net_rx_csum_data_valid(m, protocol);
 
-	return (error);
+	return (0);
 }
 
+#define VIRTIO_NET_TX_OFFLOAD_UNKNOWN_ETHTYPE 1
+#define VIRTIO_NET_TX_OFFLOAD_PROTO_MISMATCH 2
+#define VIRTIO_NET_TX_OFFLOAD_TSO_NOT_TCP 3
+#define VIRTIO_NET_TX_OFFLOAD_TSO_WITHOUT_CSUM 4
+#define VIRTIO_NET_TX_OFFLOAD_TSO_ECN_UNEXPECTED 5
+
+#define VIRTIO_NET_TX_MODERN_LE(modern, val) (modern ? htole16(val) : val)
+
+/*
+ * BMV: This can go away once we finally have offsets in the mbuf header.
+ */
 static inline int
 virtio_net_tx_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 {
@@ -463,16 +456,15 @@ virtio_net_tx_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 		break;
 #endif
 	default:
-		/* Here we should increment the tx_csum_bad_ethtype counter. */
-		return (EINVAL);
+		return (VIRTIO_NET_TX_OFFLOAD_UNKNOWN_ETHTYPE);
 	}
 
 	return (0);
 }
 
 static inline int
-virtio_net_tx_offload_tso(if_t ifp, struct mbuf *m, int eth_type,
-		     int offset, bool allow_ecn, struct virtio_net_hdr *hdr)
+virtio_net_tx_offload_tso(struct ifnet *ifp, struct mbuf *m, int eth_type,
+    int offset, struct virtio_net_hdr *hdr, bool tso_ecn, bool modern)
 {
 	static struct timeval lastecn;
 	static int curecn;
@@ -484,79 +476,114 @@ virtio_net_tx_offload_tso(if_t ifp, struct mbuf *m, int eth_type,
 	} else
 		tcp = (struct tcphdr *)(m->m_data + offset);
 
-	hdr->hdr_len = offset + (tcp->th_off << 2);
-	hdr->gso_size = m->m_pkthdr.tso_segsz;
+	/*
+	 * Set VirtIO header fields with the correct byte order.
+	 * In modern mode, this is little endian (LE).
+	 * In legacy mode, this is the endianness of the guest, which means a
+	 * FreeBSD guest can use its native endianness and a host must use the
+	 * guests endianness. However, since a FreeBSD host with bhyve runs only
+	 * on LE systems and supports only LE guests, no conversion is required.
+	 */
+	hdr->hdr_len = VIRTIO_NET_TX_MODERN_LE(modern,
+	    offset + (tcp->th_off << 2));
+	hdr->gso_size = VIRTIO_NET_TX_MODERN_LE(modern, m->m_pkthdr.tso_segsz);
 	hdr->gso_type = eth_type == ETHERTYPE_IP ? VIRTIO_NET_HDR_GSO_TCPV4 :
 	    VIRTIO_NET_HDR_GSO_TCPV6;
 
-	if (tcp_get_flags(tcp) & TH_CWR) {
+	if (__predict_false(tcp_get_flags(tcp) & TH_CWR)) {
 		/*
-		 * Drop if VIRTIO_NET_F_HOST_ECN was not negotiated. In FreeBSD,
-		 * ECN support is not on a per-interface basis, but globally via
-		 * the net.inet.tcp.ecn.enable sysctl knob. The default is off.
+		 * Drop if VIRTIO_NET_F_HOST_ECN was not negotiated. In
+		 * FreeBSD, ECN support is not on a per-interface basis,
+		 * but globally via the net.inet.tcp.ecn.enable sysctl
+		 * knob. The default is off.
 		 */
-		if (!allow_ecn) {
+		if (!tso_ecn) {
 			if (ppsratecheck(&lastecn, &curecn, 1))
 				if_printf(ifp,
 				    "TSO with ECN not negotiated with host\n");
-			return (ENOTSUP);
+			return (VIRTIO_NET_TX_OFFLOAD_TSO_ECN_UNEXPECTED);
 		}
 		hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
 	}
 
-	/* Here we should increment tx_tso counter. */
-
 	return (0);
 }
 
-static inline struct mbuf *
-virtio_net_tx_offload(if_t ifp, struct mbuf *m, bool allow_ecn,
-		 struct virtio_net_hdr *hdr)
+/*
+ * For a packet to be transmitted over the VirtIO channel, it checks the
+ * CSUM_* flags in the mbuf and sets the appropriate flags in the VirtIO header.
+ * In case of an error, it frees the mbuf and sets the pointer referenced by mp
+ * to NULL.
+ *
+ * @param ifp		ifnet struct of outgoing interface.
+ * @param mp		mbuf on which the CSUM_* flags needs to be checked.
+ * @param hdr		VirtIO header to be filled for the outgoing packet.
+ * @param tso_ecn	true if ECN has been negotiated between host and guest.
+ * @param modern	true if VirtIO modern mode is used.
+ *
+ * @return 0 on success, or one of the VIRTIO_NET_TX_OFFLOAD_* error codes.
+ */
+static inline int
+virtio_net_tx_offload(struct ifnet *ifp, struct mbuf **mp,
+    struct virtio_net_hdr *hdr, bool tso_ecn, bool modern)
 {
 	int flags, etype, csum_start, proto, error;
+	struct mbuf *m;
 
+	m = *mp;
 	flags = m->m_pkthdr.csum_flags;
 
 	error = virtio_net_tx_offload_ctx(m, &etype, &proto, &csum_start);
-	if (error)
+	if (error != 0)
 		goto drop;
 
-	if ((etype == ETHERTYPE_IP && (flags & (CSUM_TCP | CSUM_UDP))) ||
-	    (etype == ETHERTYPE_IPV6 &&
-	        (flags & (CSUM_TCP_IPV6 | CSUM_UDP_IPV6)))) {
-		/*
-		 * We could compare the IP protocol vs the CSUM_ flag too,
-		 * but that really should not be necessary.
-		 */
-		hdr->flags |= VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		hdr->csum_start = csum_start;
-		hdr->csum_offset = m->m_pkthdr.csum_data;
-		/* Here we should increment the tx_csum counter. */
-	}
-
-	if (flags & CSUM_TSO) {
-		if (__predict_false(proto != IPPROTO_TCP)) {
-			/* Likely failed to correctly parse the mbuf.
-			 * Here we should increment the tx_tso_not_tcp
-			 * counter. */
+	if (flags & (CSUM_TCP | CSUM_UDP | CSUM_TCP_IPV6 | CSUM_UDP_IPV6)) {
+		/* Sanity check the parsed mbuf matches the offload flags. */
+		if (__predict_false((flags & (CSUM_TCP | CSUM_UDP) &&
+		    etype != ETHERTYPE_IP) ||
+		    (flags & (CSUM_TCP_IPV6 | CSUM_UDP_IPV6) &&
+		    etype != ETHERTYPE_IPV6))) {
+			error = VIRTIO_NET_TX_OFFLOAD_PROTO_MISMATCH;
 			goto drop;
 		}
 
-		KASSERT(hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM,
-		    ("%s: mbuf %p TSO without checksum offload %#x",
-		    __func__, m, flags));
+		/*
+		 * Set VirtIO header fields with the correct byte order.
+		 * See comment in virtio_net_tx_offload_tso()
+		 */
+		hdr->flags |= VIRTIO_NET_HDR_F_NEEDS_CSUM;
+		hdr->csum_start = VIRTIO_NET_TX_MODERN_LE(modern, csum_start);
+		hdr->csum_offset = VIRTIO_NET_TX_MODERN_LE(modern,
+		    m->m_pkthdr.csum_data);
+	}
+
+	if (flags & (CSUM_IP_TSO | CSUM_IP6_TSO)) {
+		/*
+		 * Sanity check the parsed mbuf IP protocol is TCP, and
+		 * VirtIO TSO reqires the checksum offloading above.
+		 */
+		if (__predict_false(proto != IPPROTO_TCP)) {
+			error = VIRTIO_NET_TX_OFFLOAD_TSO_NOT_TCP;
+			goto drop;
+		} else if (__predict_false((hdr->flags &
+		    VIRTIO_NET_HDR_F_NEEDS_CSUM) == 0)) {
+			error = VIRTIO_NET_TX_OFFLOAD_TSO_WITHOUT_CSUM;
+			goto drop;
+		}
 
 		error = virtio_net_tx_offload_tso(ifp, m, etype, csum_start,
-					     allow_ecn, hdr);
-		if (error)
+		    hdr, tso_ecn, modern);
+		if (error != 0)
 			goto drop;
 	}
 
-	return (m);
+	return (error);
 
 drop:
 	m_freem(m);
-	return (NULL);
+	*mp = NULL;
+	return (error);
 }
+#endif /* defined(INET) || defined(INET6) */
 
 #endif /* _VIRTIO_NET_H */
