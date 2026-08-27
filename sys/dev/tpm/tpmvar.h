@@ -20,6 +20,8 @@
 #define _TPMVAR_H
 
 #ifdef __FreeBSD__
+#include "opt_tpm.h"
+
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -77,6 +79,10 @@ struct tpm_softc {
 	bool sc_dying;
 	bool sc_locality;
 	bool sc_command_pending;
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	struct timeout_task sc_harvest_task;
+	bool sc_harvest_registered;
+#endif
 #endif
 
 #ifndef __FreeBSD__

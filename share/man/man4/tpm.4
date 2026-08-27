@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd October 31, 2018
+.Dd August 27, 2026
 .Dt TPM 4
 .Os
 .Sh NAME
@@ -21,6 +21,7 @@
 .Nd Trusted Platform Module
 .Sh SYNOPSIS
 .Cd device tpm
+.Cd options RANDOM_ENABLE_TPM
 .Pp
 In
 .Xr device.hints 5 :
@@ -43,6 +44,12 @@ store cryptographic keys.
 The driver can be configured to use an IRQ by providing a free ISA
 interrupt vector in
 .Pa /boot/device.hints .
+.Pp
+When the kernel is configured with
+.Cd "options RANDOM_ENABLE_TPM" ,
+the driver periodically obtains random bytes from the TPM and supplies them
+to
+.Xr random 4 .
 .Sh HARDWARE
 The
 .Nm
@@ -66,6 +73,7 @@ Winbond WEC WPCT200
 .El
 .Sh SEE ALSO
 .Xr intro 4 ,
+.Xr random 4 ,
 .Xr device.hints 5 ,
 .Xr config 8
 .Pp
