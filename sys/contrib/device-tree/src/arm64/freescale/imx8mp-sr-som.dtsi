@@ -174,7 +174,7 @@
 		pinctrl-0 = <&pmic_pins>;
 		pinctrl-names = "default";
 		interrupt-parent = <&gpio1>;
-		interrupts = <3 GPIO_ACTIVE_LOW>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 		nxp,i2c-lt-enable;
 
 		regulators {
@@ -417,7 +417,7 @@
 
 	pmic_pins: pinctrl-pmic-grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_GPIO1_IO03__GPIO1_IO03		0x41
+			MX8MP_IOMUXC_GPIO1_IO03__GPIO1_IO03		0x1c0
 		>;
 	};
 

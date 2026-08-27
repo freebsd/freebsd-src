@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/fsl,imx25-tsadc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale MX25 ADC/TSC MultiFunction Device (MFD)
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  This device combines two general purpose conversion queues one used for general
+  ADC and the other used for touchscreens.
+
+properties:
+  compatible:
+    const: fsl,imx25-tsadc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: ipg
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
+patternProperties:
+  '^touchscreen@[0-9a-f]+$':
+    type: object
+    $ref: /schemas/input/touchscreen/fsl,imx25-tcq.yaml
+    unevaluatedProperties: false
+
+  '^adc@[0-9a-f]+$':
+    type: object
+    $ref: /schemas/iio/adc/fsl,imx25-gcq.yaml
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - '#interrupt-cells'
+  - '#address-cells'
+  - '#size-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    tscadc@50030000 {
+        compatible = "fsl,imx25-tsadc";
+        reg = <0x50030000 0xc>;
+        interrupts = <46>;
+        clocks = <&clks 119>;
+        clock-names = "ipg";
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        touchscreen@50030400 {
+            compatible = "fsl,imx25-tcq";
+            reg = <0x50030400 0x60>;
+            interrupts = <0>;
+            fsl,wires = <4>;
+        };
+
+        adc@50030800 {
+            compatible = "fsl,imx25-gcq";
+            reg = <0x50030800 0x60>;
+            interrupts = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2022 - 2025 Texas Instruments Incorporated
+# Copyright (C) 2022 - 2026 Texas Instruments Incorporated
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/sound/ti,tas2781.yaml#
@@ -107,6 +107,9 @@ properties:
 
       ti,tas5830: 65-W Stereo, Digital Input, High Efficiency Closed-Loop
       Class-D Amplifier with Class-H Algorithm
+
+      ti,tas5832: 81-W Stereo, Digital Input, High Efficiency Closed-Loop
+      Class-D Amplifier with Class-H Algorithm
     oneOf:
       - items:
           - enum:
@@ -128,6 +131,7 @@ properties:
               - ti,tas5827
               - ti,tas5828
               - ti,tas5830
+              - ti,tas5832
           - const: ti,tas2781
       - enum:
           - ti,tas2781
@@ -264,6 +268,7 @@ allOf:
               - ti,tas5827
               - ti,tas5828
               - ti,tas5830
+              - ti,tas5832
     then:
       properties:
         reg:

@@ -1,0 +1,444 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/maxim,max77620.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MAX77620 Power management IC from Maxim Semiconductor
+
+maintainers:
+  - Svyatoslav Ryhel <clamor95@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - maxim,max20024
+      - maxim,max77620
+      - maxim,max77663
+
+  reg:
+    description:
+      Can contain an optional second I2C address pointing to the PMIC's
+      RTC device. If no RTC address is provided, a default address specific
+      to this PMIC will be used.
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: pmic
+      - const: rtc
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+    description:
+      Device has 8 GPIO pins which can be configured as GPIO as well as
+      the special IO functions. The first cell is the pin number, and the
+      second cell is used to specify the gpio polarity (GPIO_ACTIVE_HIGH or
+      GPIO_ACTIVE_LOW).
+
+  system-power-controller: true
+
+  "#thermal-sensor-cells":
+    const: 0
+    description:
+      Maxim Semiconductor MAX77620 supports alarm interrupts when its
+      die temperature crosses 120C and 140C. These threshold temperatures
+      are not configurable. Device does not provide the real temperature
+      of die other than just indicating whether temperature is above or
+      below threshold level.
+
+  fps:
+    type: object
+    additionalProperties: false
+    description: |
+      The Flexible Power Sequencer (FPS) allows each regulator to power up
+      under hardware or software control. Additionally, each regulator can
+      power on independently or among a group of other regulators with an
+      adjustable power-up and power-down delays (sequencing). GPIO1, GPIO2,
+      and GPIO3 can be programmed to be part of a sequence allowing external
+      regulators to be sequenced along with internal regulators. 32KHz clock
+      can be programmed to be part of a sequence.
+
+      The flexible sequencing structure consists of two hardware enable inputs
+      (EN0, EN1), and 3 master sequencing timers called FPS0, FPS1 and FPS2.
+      Each master sequencing timer is programmable through its configuration
+      register to have a hardware enable source (EN1 or EN2) or a software enable
+      source (SW). When enabled/disabled, the master sequencing timer generates
+      eight sequencing events on different time periods called slots. The time
+      period between each event is programmable within the configuration register.
+      Each regulator, GPIO1, GPIO2, GPIO3, and 32KHz clock has a flexible power
+      sequence slave register which allows its enable source to be specified as
+      a flexible power sequencer timer or a software bit. When a FPS source of
+      regulators, GPIOs and clocks specifies the enable source to be a flexible
+      power sequencer, the power up and power down delays can be specified in
+      the regulators, GPIOs and clocks flexible power sequencer configuration
+      registers.
+
+      When FPS event cleared (set to LOW), regulators, GPIOs and 32KHz clock
+      are set into following state at the sequencing event that corresponds
+      to its flexible sequencer configuration register.
+
+      Sleep state: In this state, regulators, GPIOs and 32KHz clock get disabled
+                   at the sequencing event.
+      Global Low Power Mode (GLPM): In this state, regulators are set in low
+                                    power mode at the sequencing event.
+
+      The configuration parameters of FPS is provided through sub-node "fps"
+      and their child for FPS specific. The child node name for FPS are "fps0",
+      "fps1", and "fps2" for FPS0, FPS1 and FPS2 respectively.
+
+      The FPS configurations like FPS source, power up and power down slots for
+      regulators, GPIOs and 32kHz clocks are provided in their respective
+      configuration nodes which is explained in respective sub-system DT
+      binding document.
+
+      There is need for different FPS configuration parameters based on system
+      state like when system state changed from active to suspend or active to
+      power off (shutdown).
+
+    patternProperties:
+      "^fps[0-2]$":
+        type: object
+        additionalProperties: false
+
+        properties:
+          maxim,fps-event-source:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: |
+              FPS event source like external hardware input to PMIC i.e. EN0, EN1
+              or software (SW).
+
+              The macros are defined on dt-bindings/mfd/max77620.h for different
+              control source.
+                - MAX77620_FPS_EVENT_SRC_EN0 for hardware input pin EN0.
+                - MAX77620_FPS_EVENT_SRC_EN1 for hardware input pin EN1.
+                - MAX77620_FPS_EVENT_SRC_SW for software control.
+
+          maxim,shutdown-fps-time-period-us:
+            description:
+              FPS time period in microseconds when system enters in to shutdown state.
+
+          maxim,suspend-fps-time-period-us:
+            description:
+              FPS time period in microseconds when system enters in to suspend state.
+
+          maxim,device-state-on-disabled-event:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: |
+              Describe the PMIC state when FPS event cleared (set to LOW) whether it
+              should go to sleep state or low-power state. Following are valid values:
+                - MAX77620_FPS_INACTIVE_STATE_SLEEP to set the PMIC state to sleep.
+                - MAX77620_FPS_INACTIVE_STATE_LOW_POWER to set the PMIC state to low
+                  power.
+              Absence of this property or other value will not change device state
+              when FPS event get cleared.
+
+          maxim,power-ok-control:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: |
+              Configure map power ok bit
+
+              1: Enables POK(Power OK) to control nRST_IO and GPIO1 POK function.
+              0: Disables POK control.
+
+              If property missing, do not configure MPOK bit. If POK mapping is
+              enabled for GPIO1/nRST_IO then, GPIO1/nRST_IO pins are HIGH only if
+              all rails that have POK control enabled are HIGH. If any of the rails
+              goes down (which are enabled for POK control) then, GPIO1/nRST_IO
+              goes LOW.
+            enum: [0, 1]
+
+  pinmux:
+    $ref: /schemas/pinctrl/maxim,max77620-pinctrl.yaml
+
+  regulators:
+    $ref: /schemas/regulator/maxim,max77620-regulator.yaml
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - maxim,max20024
+              - maxim,max77663
+    then:
+      properties:
+        "#thermal-sensor-cells": false
+        fps:
+          patternProperties:
+            "^fps[0-2]$":
+              properties:
+                maxim,shutdown-fps-time-period-us:
+                  enum: [20, 40, 80, 160, 320, 640, 1280, 2540]
+                maxim,suspend-fps-time-period-us:
+                  enum: [20, 40, 80, 160, 320, 640, 1280, 2540]
+                maxim,power-ok-control: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: maxim,max77620
+    then:
+      properties:
+        fps:
+          patternProperties:
+            "^fps[0-2]$":
+              properties:
+                maxim,shutdown-fps-time-period-us:
+                  enum: [40, 80, 160, 320, 640, 1280, 2560, 5120]
+                maxim,suspend-fps-time-period-us:
+                  enum: [40, 80, 160, 320, 640, 1280, 2560, 5120]
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: maxim,max77663
+    then:
+      properties:
+        reg-names: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/mfd/max77620.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@3c {
+            compatible = "maxim,max77620";
+            reg = <0x3c>;
+
+            interrupt-parent = <&gpio>;
+            interrupts = <86 IRQ_TYPE_LEVEL_HIGH>;
+
+            interrupt-controller;
+            #interrupt-cells = <2>;
+
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            #thermal-sensor-cells = <0>;
+
+            system-power-controller;
+
+            pinctrl-names = "default";
+            pinctrl-0 = <&max77620_default>;
+
+            max77620_default: pinmux {
+                gpio0 {
+                    pins = "gpio0";
+                    function = "gpio";
+                };
+
+                gpio1 {
+                    pins = "gpio1";
+                    function = "fps-out";
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+                };
+
+                gpio2 {
+                    pins = "gpio2";
+                    function = "fps-out";
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+                };
+
+                gpio3 {
+                    pins = "gpio3";
+                    function = "gpio";
+                };
+
+                gpio4 {
+                    pins = "gpio4";
+                    function = "32k-out1";
+                };
+
+                gpio5-6 {
+                    pins = "gpio5", "gpio6";
+                    function = "gpio";
+                    drive-push-pull = <1>;
+                };
+
+                gpio7 {
+                    pins = "gpio7";
+                    function = "gpio";
+                };
+            };
+
+            fps {
+                fps0 {
+                    maxim,shutdown-fps-time-period-us = <1280>;
+                    maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+                };
+
+                fps1 {
+                    maxim,shutdown-fps-time-period-us = <1280>;
+                    maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+                };
+
+                fps2 {
+                    maxim,shutdown-fps-time-period-us = <1280>;
+                    maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_SW>;
+                };
+            };
+
+            regulators {
+                in-sd0-supply = <&vdd_5v0_vbus>;
+                in-sd1-supply = <&vdd_5v0_vbus>;
+                in-sd2-supply = <&vdd_5v0_vbus>;
+                in-sd3-supply = <&vdd_5v0_vbus>;
+
+                in-ldo0-1-supply = <&vdd_1v8_vio>;
+                in-ldo2-supply   = <&vdd_3v3_vbat>;
+                in-ldo3-5-supply = <&vdd_3v3_vbat>;
+                in-ldo4-6-supply = <&vdd_3v3_vbat>;
+                in-ldo7-8-supply = <&vdd_1v8_vio>;
+
+                sd0 {
+                    regulator-name = "vdd_cpu";
+                    regulator-min-microvolt = <800000>;
+                    regulator-max-microvolt = <1250000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                sd1 {
+                    regulator-name = "vdd_core";
+                    regulator-min-microvolt = <950000>;
+                    regulator-max-microvolt = <1350000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+                };
+
+                vdd_1v8_vio: sd2 {
+                    regulator-name = "vdd_1v8_gen";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                sd3 {
+                    regulator-name = "vddio_ddr";
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <1200000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                ldo0 {
+                    regulator-name = "avdd_pll";
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <1200000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+                };
+
+                ldo1 {
+                    regulator-name = "vdd_ddr_hs";
+                    regulator-min-microvolt = <1000000>;
+                    regulator-max-microvolt = <1000000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                ldo2 {
+                    regulator-name = "avdd_usb";
+                    regulator-min-microvolt = <3300000>;
+                    regulator-max-microvolt = <3300000>;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                ldo3 {
+                    regulator-name = "vdd_sdmmc3";
+                    regulator-min-microvolt = <3000000>;
+                    regulator-max-microvolt = <3000000>;
+                    regulator-always-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                ldo4 {
+                    regulator-name = "vdd_rtc";
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <1200000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+                };
+
+                ldo5 {
+                    regulator-name = "vdd_ddr_rx";
+                    regulator-min-microvolt = <2850000>;
+                    regulator-max-microvolt = <2850000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+                };
+
+                ldo6 {
+                    regulator-name = "avdd_osc";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                ldo7 {
+                    regulator-name = "vdd_1v2_mhl";
+                    regulator-min-microvolt = <1050000>;
+                    regulator-max-microvolt = <1250000>;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+
+                ldo8 {
+                    regulator-name = "avdd_dsi_csi";
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <1200000>;
+
+                    maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+                };
+            };
+        };
+    };
+...

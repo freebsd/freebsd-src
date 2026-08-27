@@ -34,6 +34,13 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    items:
+      - description: aggre UFS PHY AXI clock
+      - description: aggre USB2 SEC AXI clock
+      - description: aggre USB3 PRIM AXI clock
+      - description: RPMH CC IPA clock
+
 required:
   - compatible
 
@@ -52,6 +59,22 @@ allOf:
     else:
       required:
         - reg
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs615-camnoc-virt
+              - qcom,qcs615-config-noc
+              - qcom,qcs615-dc-noc
+              - qcom,qcs615-gem-noc
+              - qcom,qcs615-mc-virt
+              - qcom,qcs615-mmss-noc
+              - qcom,qcs615-system-noc
+    then:
+      properties:
+        clocks: false
 
 unevaluatedProperties: false
 

@@ -78,7 +78,6 @@
 	bus-width = <8>;
 	mmc-ddr-1_8v;
 	mmc-hs400-1_8v;
-	marvell,xenon-emmc;
 	marvell,xenon-tun-count = <9>;
 	marvell,pad-type = "fixed-1-8v";
 

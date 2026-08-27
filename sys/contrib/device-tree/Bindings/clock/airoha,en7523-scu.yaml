@@ -32,6 +32,7 @@ properties:
       - enum:
           - airoha,en7523-scu
           - airoha,en7581-scu
+          - econet,en751221-scu
 
   reg:
     items:
@@ -67,7 +68,9 @@ allOf:
   - if:
       properties:
         compatible:
-          const: airoha,en7581-scu
+          enum:
+            - airoha,en7581-scu
+            - econet,en751221-scu
     then:
       properties:
         reg:
@@ -98,3 +101,4 @@ examples:
               #reset-cells = <1>;
       };
     };
+

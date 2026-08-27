@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/input/matrix-keymap.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Common Key Matrices on Matrix-connected Key Boards
+title: Common Key Matrices on Matrix-connected Keyboards
 
 maintainers:
   - Olof Johansson <olof@lixom.net>
 
 description: |
-  A simple common binding for matrix-connected key boards. Currently targeted at
+  A simple common binding for matrix-connected keyboards. Currently targeted at
   defining the keys in the scope of linux key codes since that is a stable and
   standardized interface at this time.
 

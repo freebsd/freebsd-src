@@ -47,6 +47,9 @@ properties:
       - const: rtc
       - const: rtcref
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg

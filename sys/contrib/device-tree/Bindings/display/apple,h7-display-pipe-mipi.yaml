@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Apple pre-DCP display controller MIPI interface
 
 maintainers:
-  - Sasha Finkelstein <fnkl.kernel@gmail.com>
+  - Sasha Finkelstein <k@chaosmail.tech>
 
 description:
   The MIPI controller part of the pre-DCP Apple display controller

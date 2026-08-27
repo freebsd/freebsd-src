@@ -14,6 +14,9 @@ properties:
     enum:
       - rockchip,px30-otp
       - rockchip,rk3308-otp
+      - rockchip,rk3528-otp
+      - rockchip,rk3562-otp
+      - rockchip,rk3568-otp
       - rockchip,rk3576-otp
       - rockchip,rk3588-otp
 
@@ -26,19 +29,15 @@ properties:
 
   clock-names:
     minItems: 3
-    items:
-      - const: otp
-      - const: apb_pclk
-      - const: phy
-      - const: arb
+    maxItems: 4
 
   resets:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   reset-names:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
 required:
   - compatible
@@ -64,12 +63,67 @@ allOf:
         clocks:
           maxItems: 3
         clock-names:
-          maxItems: 3
+          items:
+            - const: otp
+            - const: apb_pclk
+            - const: phy
         resets:
           maxItems: 1
         reset-names:
           items:
             - const: phy
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,rk3528-otp
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+        clock-names:
+          items:
+            - const: otp
+            - const: apb_pclk
+            - const: sbpi
+        resets:
+          minItems: 3
+          maxItems: 3
+        reset-names:
+          items:
+            - const: otp
+            - const: apb
+            - const: sbpi
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,rk3562-otp
+              - rockchip,rk3568-otp
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: otp
+            - const: apb_pclk
+            - const: phy
+            - const: sbpi
+        resets:
+          minItems: 4
+          maxItems: 4
+        reset-names:
+          items:
+            - const: otp
+            - const: apb
+            - const: phy
+            - const: sbpi
 
   - if:
       properties:
@@ -82,7 +136,10 @@ allOf:
         clocks:
           maxItems: 3
         clock-names:
-          maxItems: 3
+          items:
+            - const: otp
+            - const: apb_pclk
+            - const: phy
         resets:
           minItems: 2
           maxItems: 2
@@ -101,10 +158,16 @@ allOf:
       properties:
         clocks:
           minItems: 4
+          maxItems: 4
         clock-names:
-          minItems: 4
+          items:
+            - const: otp
+            - const: apb_pclk
+            - const: phy
+            - const: arb
         resets:
           minItems: 3
+          maxItems: 3
         reset-names:
           items:
             - const: otp

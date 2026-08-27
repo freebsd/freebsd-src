@@ -3,14 +3,16 @@
  * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  */
 
-#include "msm8996.dtsi"
+
 #include "pm8994.dtsi"
 #include "pmi8994.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
+#include <dt-bindings/sound/qcom,wcd9335.h>
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
@@ -44,49 +46,44 @@
 		serial0 = &blsp2_uart2;
 		serial1 = &blsp2_uart3;
 		serial2 = &blsp1_uart2;
-		i2c0	= &blsp1_i2c3;
-		i2c1	= &blsp2_i2c1;
-		i2c2	= &blsp2_i2c1;
-		spi0	= &blsp1_spi1;
-		spi1	= &blsp2_spi6;
+		i2c0 = &blsp1_i2c3;
+		i2c1 = &blsp2_i2c1;
+		i2c2 = &blsp2_i2c1;
+		spi0 = &blsp1_spi1;
+		spi1 = &blsp2_spi6;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		divclk4: divclk4 {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-			clock-output-names = "divclk4";
-
-			pinctrl-names = "default";
-			pinctrl-0 = <&divclk4_pin_a>;
-		};
-
-		div1_mclk: divclk1 {
-			compatible = "gpio-gate-clock";
-			pinctrl-0 = <&audio_mclk>;
-			pinctrl-names = "default";
-			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
-			#clock-cells = <0>;
-			enable-gpios = <&pm8994_gpios 15 0>;
-		};
+	div1_mclk: divclk1 {
+		compatible = "gpio-gate-clock";
+		pinctrl-0 = <&audio_mclk>;
+		pinctrl-names = "default";
+		clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
+		#clock-cells = <0>;
+		enable-gpios = <&pm8994_gpios 15 0>;
 	};
 
-	gpio_keys {
+	divclk4: divclk4 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "divclk4";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&divclk4_pin_a>;
+	};
+
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&volume_up_gpio>;
 
-		button@0 {
+		button {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8994_gpios 2 GPIO_ACTIVE_LOW>;
@@ -95,14 +92,14 @@
 
 	usb2_id: usb2-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pmi8994_gpios 6 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pmi8994_gpios 6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb2_vbus_det_gpio>;
 	};
 
 	usb3_id: usb3-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pm8994_gpios 22 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pm8994_gpios 22 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb3_vbus_det_gpio>;
 	};
@@ -134,23 +131,18 @@
 };
 
 &blsp1_i2c3 {
-	/* On Low speed expansion */
-	label = "LS-I2C0";
+	/* On Low speed expansion: LS-I2C0 */
 	status = "okay";
 };
 
 &blsp1_spi1 {
 	/* On Low speed expansion */
-	label = "LS-SPI0";
 	status = "okay";
 };
 
 &blsp1_uart2 {
 	label = "BT-UART";
 	status = "okay";
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart2_default>;
-	pinctrl-1 = <&blsp1_uart2_sleep>;
 
 	bluetooth {
 		compatible = "qcom,qca6174-bt";
@@ -164,23 +156,21 @@
 
 &adsp_pil {
 	status = "okay";
+	firmware-name = "qcom/apq8096/adsp.mbn";
 };
 
 &blsp2_i2c1 {
-	/* On High speed expansion */
-	label = "HS-I2C2";
+	/* On High speed expansion: HS-I2C2 */
 	status = "okay";
 };
 
 &blsp2_i2c1 {
-	/* On Low speed expansion */
-	label = "LS-I2C1";
+	/* On Low speed expansion: LS-I2C1 */
 	status = "okay";
 };
 
 &blsp2_spi6 {
 	/* On High speed expansion */
-	label = "HS-SPI1";
 	status = "okay";
 };
 
@@ -208,28 +198,14 @@
 	status = "okay";
 };
 
-&hdmi {
-	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&hdmi_hpd_active &hdmi_ddc_active>;
-	pinctrl-1 = <&hdmi_hpd_suspend &hdmi_ddc_suspend>;
-
-	core-vdda-supply = <&vreg_l12a_1p8>;
-	core-vcc-supply = <&vreg_s4a_1p8>;
-};
-
-&hdmi_phy {
-	status = "okay";
-
-	vddio-supply = <&vreg_l12a_1p8>;
-	vcca-supply = <&vreg_l28a_0p925>;
-	#phy-cells = <0>;
+&gpu_zap_shader {
+	firmware-name = "qcom/apq8096/a530_zap.mbn";
 };
 
 &hsusb_phy1 {
 	status = "okay";
 
+	vdd-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l24a_3p075>;
 };
@@ -237,6 +213,7 @@
 &hsusb_phy2 {
 	status = "okay";
 
+	vdd-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l24a_3p075>;
 };
@@ -249,8 +226,33 @@
 	status = "okay";
 };
 
+&mdss_hdmi {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&hdmi_hpd_active &hdmi_ddc_active>;
+	pinctrl-1 = <&hdmi_hpd_suspend &hdmi_ddc_suspend>;
+
+	core-vdda-supply = <&vreg_l12a_1p8>;
+	core-vcc-supply = <&vreg_s4a_1p8>;
+};
+
+&mdss_hdmi_phy {
+	status = "okay";
+
+	vddio-supply = <&vreg_l12a_1p8>;
+	vcca-supply = <&vreg_l28a_0p925>;
+	#phy-cells = <0>;
+};
+
 &mmcc {
 	vdd-gfx-supply = <&vdd_gfx>;
+};
+
+&mss_pil {
+	status = "okay";
+	pll-supply = <&vreg_l12a_1p8>;
+	firmware-name = "qcom/apq8096/mba.mbn", "qcom/apq8096/modem.mbn";
 };
 
 &pm8994_resin {
@@ -411,127 +413,65 @@
 		"NC", /* GPIO_148 */
 		"NC"; /* GPIO_149 */
 
-	sdc2_cd_on: sdc2_cd_on {
-		mux {
-			pins = "gpio38";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio38";
-			bias-pull-up;		/* pull up */
-			drive-strength = <16>;	/* 16 MA */
-		};
+	sdc2_cd_on: sdc2-cd-on-state {
+		pins = "gpio38";
+		function = "gpio";
+		bias-pull-up;
+		drive-strength = <16>;
 	};
 
-	sdc2_cd_off: sdc2_cd_off {
-		mux {
-			pins = "gpio38";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio38";
-			bias-pull-up;		/* pull up */
-			drive-strength = <2>;	/* 2 MA */
-		};
+	sdc2_cd_off: sdc2-cd-off-state {
+		pins = "gpio38";
+		function = "gpio";
+		bias-pull-up;
+		drive-strength = <2>;
 	};
 
-	blsp1_uart2_default: blsp1_uart2_default {
-		mux {
-			pins = "gpio41", "gpio42", "gpio43", "gpio44";
-			function = "blsp_uart2";
-		};
-
-		config {
-			pins = "gpio41", "gpio42", "gpio43", "gpio44";
-			drive-strength = <16>;
-			bias-disable;
-		};
+	hdmi_hpd_active: hdmi-hpd-active-state {
+		pins = "gpio34";
+		function = "hdmi_hot";
+		bias-pull-down;
+		drive-strength = <16>;
 	};
 
-	blsp1_uart2_sleep: blsp1_uart2_sleep {
-		mux {
-			pins = "gpio41", "gpio42", "gpio43", "gpio44";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio41", "gpio42", "gpio43", "gpio44";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	hdmi_hpd_suspend: hdmi-hpd-suspend-state {
+		pins = "gpio34";
+		function = "hdmi_hot";
+		bias-pull-down;
+		drive-strength = <2>;
 	};
 
-	hdmi_hpd_active: hdmi_hpd_active {
-		mux {
-			pins = "gpio34";
-			function = "hdmi_hot";
-		};
-
-		config {
-			pins = "gpio34";
-			bias-pull-down;
-			drive-strength = <16>;
-		};
+	hdmi_ddc_active: hdmi-ddc-active-state {
+		pins = "gpio32", "gpio33";
+		function = "hdmi_ddc";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
-	hdmi_hpd_suspend: hdmi_hpd_suspend {
-		mux {
-			pins = "gpio34";
-			function = "hdmi_hot";
-		};
-
-		config {
-			pins = "gpio34";
-			bias-pull-down;
-			drive-strength = <2>;
-		};
-	};
-
-	hdmi_ddc_active: hdmi_ddc_active {
-		mux {
-			pins = "gpio32", "gpio33";
-			function = "hdmi_ddc";
-		};
-
-		config {
-			pins = "gpio32", "gpio33";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-	};
-
-	hdmi_ddc_suspend: hdmi_ddc_suspend {
-		mux {
-			pins = "gpio32", "gpio33";
-			function = "hdmi_ddc";
-		};
-
-		config {
-			pins = "gpio32", "gpio33";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	hdmi_ddc_suspend: hdmi-ddc-suspend-state {
+		pins = "gpio32", "gpio33";
+		function = "hdmi_ddc";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 };
 
 &pcie0 {
 	status = "okay";
-	perst-gpio = <&tlmm 35 GPIO_ACTIVE_LOW>;
+	perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&wlan_en>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
 &pcie1 {
 	status = "okay";
-	perst-gpio = <&tlmm 130 GPIO_ACTIVE_LOW>;
+	perst-gpios = <&tlmm 130 GPIO_ACTIVE_LOW>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
 &pcie2 {
 	status = "okay";
-	perst-gpio = <&tlmm 114 GPIO_ACTIVE_LOW>;
+	perst-gpios = <&tlmm 114 GPIO_ACTIVE_LOW>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
@@ -570,45 +510,46 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ls_exp_gpio_f &bt_en_gpios>;
 
-	ls_exp_gpio_f: pm8994_gpio5 {
+	ls_exp_gpio_f: pm8994-gpio5-state {
 		pinconf {
 			pins = "gpio5";
+			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
-			power-source = <2>; // PM8994_GPIO_S4, 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 
-	bt_en_gpios: bt_en_gpios {
+	bt_en_gpios: bt-en-pios-state {
 		pinconf {
 			pins = "gpio19";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 			bias-pull-down;
 		};
 	};
 
-	wlan_en_gpios: wlan_en_gpios {
+	wlan_en_gpios: wlan-en-gpios-state {
 		pinconf {
 			pins = "gpio8";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 			bias-pull-down;
 		};
 	};
 
-	audio_mclk: clk_div1 {
+	audio_mclk: clk-div1-state {
 		pinconf {
 			pins = "gpio15";
 			function = "func1";
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 
-	volume_up_gpio: pm8996_gpio2 {
+	volume_up_gpio: pm8996-gpio2-state {
 		pinconf {
 			pins = "gpio2";
 			function = "normal";
@@ -616,11 +557,11 @@
 			drive-push-pull;
 			bias-pull-up;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 
-	divclk4_pin_a: divclk4 {
+	divclk4_pin_a: divclk4-state {
 		pinconf {
 			pins = "gpio18";
 			function = PMIC_GPIO_FUNC_FUNC2;
@@ -630,14 +571,14 @@
 		};
 	};
 
-	usb3_vbus_det_gpio: pm8996_gpio22 {
+	usb3_vbus_det_gpio: pm8996-gpio22-state {
 		pinconf {
 			pins = "gpio22";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			input-enable;
 			bias-pull-down;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 };
@@ -656,6 +597,8 @@
 
 &pm8994_spmi_regulators {
 	qcom,saw-reg = <&saw3>;
+	vdd_s11-supply = <&vph_pwr>;
+
 	s9 {
 		qcom,saw-slave;
 	};
@@ -664,6 +607,7 @@
 	};
 	s11 {
 		qcom,saw-leader;
+		regulator-name = "VDD_APCC";
 		regulator-always-on;
 		regulator-min-microvolt = <980000>;
 		regulator-max-microvolt = <980000>;
@@ -683,21 +627,77 @@
 		"NC",
 		"NC";
 
-	usb2_vbus_det_gpio: pmi8996_gpio6 {
+	usb2_vbus_det_gpio: pmi8996-gpio6-state {
 		pinconf {
 			pins = "gpio6";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			input-enable;
 			bias-pull-down;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 };
 
+&pmi8994_lpg {
+	qcom,power-source = <1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmi8994_mpp2_userled4>;
+
+	qcom,dtest = <0 0>,
+		     <0 0>,
+		     <0 0>,
+		     <4 1>;
+
+	status = "okay";
+
+	led@1 {
+		reg = <1>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <1>;
+
+		linux,default-trigger = "heartbeat";
+		default-state = "on";
+	};
+
+	led@2 {
+		reg = <2>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <0>;
+	};
+
+	led@3 {
+		reg = <3>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <2>;
+	};
+
+	led@4 {
+		reg = <4>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <3>;
+	};
+};
+
+&pmi8994_mpps {
+	pmi8994_mpp2_userled4: mpp2-userled4-state {
+		pins = "mpp2";
+		function = "sink";
+
+		output-low;
+		qcom,dtest = <4>;
+	};
+};
+
 &pmi8994_spmi_regulators {
-	vdd_gfx: s2@1700 {
-		reg = <0x1700 0x100>;
+	vdd_s2-supply = <&vph_pwr>;
+
+	vdd_gfx: s2 {
 		regulator-name = "VDD_GFX";
 		regulator-min-microvolt = <980000>;
 		regulator-max-microvolt = <980000>;
@@ -705,7 +705,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -733,7 +733,7 @@
 		vdd_l17_l29-supply = <&vph_pwr_bbyp>;
 		vdd_l20_l21-supply = <&vph_pwr_bbyp>;
 		vdd_l25-supply = <&vreg_s3a_1p3>;
-		vdd_lvs1_lvs2-supply = <&vreg_s4a_1p8>;
+		vdd_lvs1_2-supply = <&vreg_s4a_1p8>;
 
 		vreg_s3a_1p3: s3 {
 			regulator-name = "vreg_s3a_1p3";
@@ -917,7 +917,7 @@
 		};
 	};
 
-	pmi8994-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pmi8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -952,25 +952,66 @@
 
 &q6asmdai {
 	dai@0 {
-		reg = <0>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
 	};
 
 	dai@1 {
-		reg = <1>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA2>;
 	};
 
 	dai@2 {
-		reg = <2>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA3>;
+	};
+};
+
+&slim_msm {
+	status = "okay";
+
+	slim@1 {
+		reg = <1>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		tasha_ifd: tas-ifd@0,0 {
+			compatible = "slim217,1a0";
+			reg = <0 0>;
+		};
+
+		wcd9335: codec@1,0 {
+			compatible = "slim217,1a0";
+			reg = <1 0>;
+
+			clock-names = "mclk", "slimbus";
+			clocks = <&div1_mclk>,
+				 <&rpmcc RPM_SMD_BB_CLK1>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
+				     <53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "intr1", "intr2";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			pinctrl-0 = <&cdc_reset_active &wcd_intr_default>;
+			pinctrl-names = "default";
+
+			reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+			slim-ifc-dev = <&tasha_ifd>;
+
+			#sound-dai-cells = <1>;
+
+			vdd-buck-supply = <&vreg_s4a_1p8>;
+			vdd-buck-sido-supply = <&vreg_s4a_1p8>;
+			vdd-tx-supply = <&vreg_s4a_1p8>;
+			vdd-rx-supply = <&vreg_s4a_1p8>;
+			vdd-io-supply = <&vreg_s4a_1p8>;
+		};
 	};
 };
 
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "DB820c";
-	audio-routing =	"RX_BIAS", "MCLK",
-		"MM_DL1",  "MultiMedia1 Playback",
-		"MM_DL2",  "MultiMedia2 Playback",
-		"MultiMedia3 Capture", "MM_UL3";
+	audio-routing = "RX_BIAS", "MCLK";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";
@@ -1004,7 +1045,7 @@
 		};
 
 		codec {
-			sound-dai = <&hdmi 0>;
+			sound-dai = <&mdss_hdmi 0>;
 		};
 	};
 
@@ -1016,10 +1057,10 @@
 
 		platform {
 			sound-dai = <&q6routing>;
-	};
+		};
 
 		codec {
-			sound-dai = <&wcd9335 6>;
+			sound-dai = <&wcd9335 AIF4_PB>;
 		};
 	};
 
@@ -1034,7 +1075,7 @@
 		};
 
 		codec {
-			sound-dai = <&wcd9335 1>;
+			sound-dai = <&wcd9335 AIF1_CAP>;
 		};
 	};
 };
@@ -1044,7 +1085,6 @@
 
 	vdda-phy-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
-	vddp-ref-clk-supply = <&vreg_l25a_1p2>;
 };
 
 &ufshc {
@@ -1053,6 +1093,7 @@
 	vcc-supply = <&vreg_l20a_2p95>;
 	vccq-supply = <&vreg_l25a_1p2>;
 	vccq2-supply = <&vreg_s4a_1p8>;
+	vdd-hba-supply = <&vreg_l25a_1p2>;
 
 	vcc-max-microamp = <600000>;
 	vccq-max-microamp = <450000>;
@@ -1062,22 +1103,22 @@
 &usb2 {
 	status = "okay";
 	extcon = <&usb2_id>;
+};
 
-	dwc3@7600000 {
-		extcon = <&usb2_id>;
-		dr_mode = "otg";
-		maximum-speed = "high-speed";
-	};
+&usb2_dwc3 {
+	extcon = <&usb2_id>;
+	dr_mode = "otg";
+	maximum-speed = "high-speed";
 };
 
 &usb3 {
 	status = "okay";
 	extcon = <&usb3_id>;
+};
 
-	dwc3@6a00000 {
-		extcon = <&usb3_id>;
-		dr_mode = "otg";
-	};
+&usb3_dwc3 {
+	extcon = <&usb3_id>;
+	dr_mode = "otg";
 };
 
 &usb3phy {
@@ -1085,21 +1126,8 @@
 
 	vdda-phy-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
-
 };
 
 &venus {
 	status = "okay";
-};
-
-&wcd9335 {
-	clock-names = "mclk", "slimbus";
-	clocks = <&div1_mclk>,
-		 <&rpmcc RPM_SMD_BB_CLK1>;
-
-	vdd-buck-supply = <&vreg_s4a_1p8>;
-	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
-	vdd-tx-supply = <&vreg_s4a_1p8>;
-	vdd-rx-supply = <&vreg_s4a_1p8>;
-	vdd-io-supply = <&vreg_s4a_1p8>;
 };

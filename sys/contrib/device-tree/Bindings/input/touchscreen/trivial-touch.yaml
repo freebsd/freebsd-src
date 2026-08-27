@@ -53,13 +53,13 @@ properties:
 
   wakeup-source: true
 
-allOf:
-  - $ref: touchscreen.yaml
-
 required:
   - compatible
   - reg
   - interrupts
+
+allOf:
+  - $ref: touchscreen.yaml
 
 unevaluatedProperties: false
 

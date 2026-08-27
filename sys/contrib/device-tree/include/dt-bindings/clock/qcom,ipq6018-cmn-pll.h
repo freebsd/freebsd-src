@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/*
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#ifndef _DT_BINDINGS_CLK_QCOM_IPQ6018_CMN_PLL_H
+#define _DT_BINDINGS_CLK_QCOM_IPQ6018_CMN_PLL_H
+
+/* CMN PLL core clock. */
+#define IPQ6018_CMN_PLL_CLK			0
+
+/* The output clocks from CMN PLL of IPQ6018. */
+#define IPQ6018_BIAS_PLL_CC_CLK			1
+#define IPQ6018_BIAS_PLL_NSS_NOC_CLK		2
+#endif
