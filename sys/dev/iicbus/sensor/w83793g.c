@@ -154,11 +154,13 @@ w83793g_readreg(device_t dev, int reg, uint8_t *output)
 	return (iicdev_readfrom(dev, reg, output, sizeof(*output), IIC_WAIT));
 }
 
+#if 0
 static int
 w83793g_writereg(device_t dev, int reg, uint8_t *output)
 {
 	return (iicdev_writeto(dev, reg, output, sizeof(*output), IIC_WAIT));
 }
+#endif
 
 static bool
 temp_enabled(struct w83793g_softc *sc, int sensor)
