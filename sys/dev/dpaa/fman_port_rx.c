@@ -150,20 +150,31 @@ fman_port_rx_config(device_t dev, struct fman_port_params *params)
 	fman_port_config_common(base, params);
 
 	base->sc_tasks.extra = 0;
+	base->sc_open_dmas.extra = 0;
 	switch (base->sc_port_speed) {
 	case 10000:
 		if (base->sc_revision_major < 6) {
 			base->sc_tasks.num = 16;
-			base->sc_tasks.extra = 8;
-		} else
+			base->sc_open_dmas.num = 8;
+			base->sc_open_dmas.extra = 8;
+			base->sc_fifo_bufs.num = 48;
+		} else {
 			base->sc_tasks.num = 14;
+			base->sc_open_dmas.num = 8;
+			base->sc_fifo_bufs.num = 96;
+		}
 		break;
 	case 1000:
-		if (base->sc_revision_major >= 6)
-			base->sc_tasks.num = 4;
-		else {
+		if (base->sc_revision_major < 6) {
 			base->sc_tasks.num = 3;
 			base->sc_tasks.extra = 2;
+			base->sc_open_dmas.num = 1;
+			base->sc_open_dmas.extra = 1;
+			base->sc_fifo_bufs.num = 45;
+		} else {
+			base->sc_tasks.num = 4;
+			base->sc_open_dmas.num = 2;
+			base->sc_fifo_bufs.num = 50;
 		}
 		break;
 	default:
@@ -171,24 +182,6 @@ fman_port_rx_config(device_t dev, struct fman_port_params *params)
 		break;
 	}
 
-	if (base->sc_revision_major >= 6) {
-		base->sc_open_dmas.extra = 0;
-		base->sc_open_dmas.num =
-		    (base->sc_port_speed == 10000) ? 8 : 2;
-	} else if (base->sc_port_speed == 10000) {
-		base->sc_open_dmas.num = 8;
-		base->sc_open_dmas.extra = 8;
-	} else {
-		base->sc_open_dmas.num = 1;
-		base->sc_open_dmas.extra = 1;
-	}
-
-	if (base->sc_revision_major >= 6)
-		base->sc_fifo_bufs.num =
-		    (base->sc_port_speed == 10000) ? 96 : 50;
-	else
-		base->sc_fifo_bufs.num =
-		    (base->sc_port_speed == 10000) ? 48 : 45;
 	base->sc_fifo_bufs.extra = 0;
 	base->sc_fifo_bufs.num *= FMAN_BMI_FIFO_UNITS;
 
