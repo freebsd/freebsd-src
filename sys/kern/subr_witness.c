@@ -148,7 +148,13 @@
  * probably be safe for the most part, but it's still a SWAG.
  */
 #define	LOCK_NCHILDREN	5
-#define	LOCK_CHILDCOUNT	2048
+#ifndef WITNESS_LOCK_CHILDCOUNT
+#define	WITNESS_LOCK_CHILDCOUNT	2048
+#endif
+
+#if WITNESS_LOCK_CHILDCOUNT < 1
+  #error "WITNESS_LOCK_CHILDCOUNT must be greater than zero"
+#endif
 
 #define	MAX_W_NAME	64
 
@@ -484,7 +490,7 @@ SYSCTL_INT(_debug_witness, OID_AUTO, sleep_cnt, CTLFLAG_RD, &w_sleep_cnt, 0,
 
 static struct witness *w_data;
 static uint8_t **w_rmatrix;
-static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
+static struct lock_list_entry w_locklistdata[WITNESS_LOCK_CHILDCOUNT];
 static struct witness_hash w_hash;	/* The witness hash table. */
 static u_long w_sz;	/* Witness startup memory allocation size */
 
@@ -928,7 +934,7 @@ witness_startup(void *mem)
 		    (witness_count + 1));
 	}
 
-	for (i = 0; i < LOCK_CHILDCOUNT; i++)
+	for (i = 0; i < WITNESS_LOCK_CHILDCOUNT; i++)
 		witness_lock_list_free(&w_locklistdata[i]);
 	witness_init_hash_tables();
 
@@ -1611,7 +1617,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			int trace;
 			bool pstackv;
 
-			MPASS(j < LOCK_CHILDCOUNT * LOCK_NCHILDREN);
+			MPASS(j < WITNESS_LOCK_CHILDCOUNT * LOCK_NCHILDREN);
 			lock1 = &lle->ll_children[i];
 
 			/*

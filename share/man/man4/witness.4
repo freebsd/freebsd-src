@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 26, 2026
+.Dd September 1, 2026
 .Dt WITNESS 4
 .Os
 .Sh NAME
@@ -30,6 +30,7 @@
 .Sh SYNOPSIS
 .Cd options WITNESS
 .Cd options WITNESS_COUNT
+.Cd options WITNESS_LOCK_CHILDCOUNT=number
 .Cd options WITNESS_KDB
 .Cd options WITNESS_NO_VNODE
 .Cd options WITNESS_SKIPSPIN
@@ -69,6 +70,17 @@ It can also be set from the
 via the
 .Va debug.witness.witness_count
 environment variable.
+.Pp
+The
+.Dv WITNESS_LOCK_CHILDCOUNT
+kernel option specifies the number of entries in the statically allocated
+pool used by
+.Nm
+to record lock-order relationships.
+The value must be greater than zero.
+The default is 2048.
+Increasing this value permits more relationships to be tracked at the cost
+of additional kernel memory.
 .Pp
 The
 .Dv WITNESS_NO_VNODE
