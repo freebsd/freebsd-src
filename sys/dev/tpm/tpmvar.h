@@ -19,6 +19,13 @@
 #ifndef _TPMVAR_H
 #define _TPMVAR_H
 
+#ifdef __FreeBSD__
+#include <sys/condvar.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
+#endif
+
 struct tpm_softc {
 #ifndef __FreeBSD__
 	struct device sc_dev;
@@ -48,6 +55,11 @@ struct tpm_softc {
 	int mem_rid, irq_rid;
 	struct resource *mem_res, *irq_res;
 	struct cdev *sc_cdev;
+	/* Serialize commands and lifecycle; sc_intr_lock nests inside. */
+	struct sx sc_lock;
+	struct mtx sc_intr_lock;
+	struct cv sc_intr_cv;
+	bool sc_dying;
 #endif
 
 #ifndef __FreeBSD__
