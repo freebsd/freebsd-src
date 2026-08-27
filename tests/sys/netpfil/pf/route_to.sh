@@ -1981,6 +1981,87 @@ mcast_v6_local_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "divert_to" "cleanup"
+divert_to_head()
+{
+	atf_set descr 'Test that route-to is applied to divert-injected packets'
+	atf_set require.user root
+	atf_set require.kmods ipdivert
+}
+divert_to_body()
+{
+	pft_init
+
+	# Set up our topology:
+	#
+	# client <--> firewall <--> gateway <--> server
+	#
+	# The firewall has no default route.  route-to forces TCP port 8080
+	# traffic via epair_wan to the gateway; without it the firewall has no
+	# route to 10.4.4.2 and drops the packet.
+
+	epair_cl=$(vnet_mkepair)
+	epair_wan=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	vnet_mkjail client ${epair_cl}a
+	vnet_mkjail firewall ${epair_cl}b ${epair_wan}a
+	vnet_mkjail gateway ${epair_wan}b ${epair_srv}a
+	vnet_mkjail server ${epair_srv}b
+
+	# Client
+	atf_check jexec client ifconfig ${epair_cl}a 10.1.1.2/24 up
+	atf_check -o ignore jexec client route add default 10.1.1.1
+
+	# Firewall: no default route; route-to sends traffic out via epair_wan
+	atf_check jexec firewall ifconfig ${epair_cl}b 10.1.1.1/24 up
+	atf_check jexec firewall ifconfig ${epair_wan}a 10.3.3.1/30 up
+	atf_check -o ignore jexec firewall sysctl net.inet.ip.forwarding=1
+
+	# Gateway: routes between firewall and server
+	atf_check jexec gateway ifconfig ${epair_wan}b 10.3.3.2/30 up
+	atf_check jexec gateway ifconfig ${epair_srv}a 10.4.4.1/24 up
+	atf_check -o ignore jexec gateway sysctl net.inet.ip.forwarding=1
+	atf_check -o ignore jexec gateway route add -net 10.1.1.0/24 10.3.3.1
+
+	# Server
+	atf_check jexec server ifconfig ${epair_srv}b 10.4.4.2/24 up
+	atf_check -o ignore jexec server route add default 10.4.4.1
+
+	atf_check -o ignore jexec client ping -c 1 10.1.1.1
+
+	jexec server nc -l 8080 > $(pwd)/out &
+	server_pid=$!
+
+	# Firewall pf: divert the flow and route-to via wan
+	jexec firewall pfctl -e
+	pft_set_rules firewall \
+	    "pass in quick on ${epair_cl}b \
+	        route-to (${epair_wan}a 10.3.3.2) \
+	        inet proto tcp from 10.1.1.0/24 to 10.4.4.2 port 8080 \
+	        keep state divert-to 8000" \
+	    "pass in all" \
+	    "pass out all"
+
+	# Divert daemon: receives the SYN and re-injects it
+	jexec firewall ${common_dir}/divapp 8000 divert-back &
+	divapp_pid=$!
+	sleep 1
+
+	# The connection must succeed: route-to must be applied to the
+	# re-injected packet for it to reach the server.
+	echo "hello there" >$(pwd)/in
+	atf_check jexec client nc -N -w 3 10.4.4.2 8080 < $(pwd)/in
+
+	wait $divapp_pid
+	wait $server_pid
+	atf_check -o match:"hello there" cat $(pwd)/out
+}
+divert_to_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -2008,6 +2089,7 @@ atf_init_test_cases()
 	atf_add_test_case "mcast_v4_local"
 	atf_add_test_case "mcast_v6_forwarded"
 	atf_add_test_case "mcast_v6_local"
+	atf_add_test_case "divert_to"
 	# Tests for pf_map_addr() without prefer-ipv6-nexthop
 	atf_add_test_case "table_loop"
 	atf_add_test_case "roundrobin"
