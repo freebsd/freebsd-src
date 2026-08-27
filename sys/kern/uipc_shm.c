@@ -742,7 +742,7 @@ shm_dotruncate_locked(struct shmfd *shmfd, off_t length, void *rl_cookie)
 	KASSERT(length >= 0, ("shm_dotruncate: length < 0"));
 	object = shmfd->shm_object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	rangelock_cookie_assert(rl_cookie, RA_WLOCKED);
+	rangelock_cookie_assert(rl_cookie, RCA_WLOCKED);
 	if (length == shmfd->shm_size)
 		return (0);
 	nobjsize = OFF_TO_IDX(length + PAGE_MASK);
@@ -807,7 +807,7 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 	KASSERT(length >= 0, ("shm_dotruncate_largepage: length < 0"));
 	object = shmfd->shm_object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	rangelock_cookie_assert(rl_cookie, RA_WLOCKED);
+	rangelock_cookie_assert(rl_cookie, RCA_WLOCKED);
 
 	oldobjsz = object->size;
 	newobjsz = OFF_TO_IDX(length);
@@ -1584,7 +1584,7 @@ shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
 	int docow, error, rv, try;
 	bool curmap;
 
-	rangelock_cookie_assert(rl_cookie, RA_LOCKED);
+	rangelock_cookie_assert(rl_cookie, RCA_LOCKED);
 
 	if (shmfd->shm_lp_psind == 0)
 		return (EINVAL);
