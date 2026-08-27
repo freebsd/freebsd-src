@@ -270,8 +270,8 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 	error = ufshci_req_queue_response_is_error(req_queue, ocs,
 	    &cpl.response_upiu);
 
-	/* Retry for admin commands */
-	retriable = req->is_admin;
+	/* Retry for admin commands. A failed controller must not retry. */
+	retriable = req->is_admin && !req_queue->ctrlr->is_failed;
 	retry = error && retriable &&
 	    req->retries < req_queue->ctrlr->retry_count;
 	if (retry)
@@ -764,6 +764,9 @@ _ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
 	int error;
 
 	mtx_assert(&req_queue->qops.get_hw_queue(req_queue)->qlock, MA_OWNED);
+
+	if (req_queue->ctrlr->is_failed)
+		return (ENXIO);
 
 	error = req_queue->qops.reserve_slot(req_queue, &tr);
 	if (error != 0) {
