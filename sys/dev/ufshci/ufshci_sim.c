@@ -454,6 +454,10 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 	uint64_t scsi_lun;
 	uint64_t timeout;
 
+	/* The reset path can get here before the SIM is attached. */
+	if (ctrlr->ufshci_sim == NULL)
+		return (NULL);
+
 	scsi_lun = ufshci_sim_translate_ufs_to_scsi_lun(wlun);
 
 	if (xpt_create_path(&path, /*periph*/ NULL,

@@ -151,10 +151,11 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 	/* TODO: Configure Background Operations */
 
 	/*
-	 * If the reset is due to a timeout, it is already attached to the SIM
-	 * and does not need to be attached again.
+	 * A reset normally arrives after the SIM is attached. But if the
+	 * first start attempt failed early, the reset path runs without a
+	 * SIM. Attach it whenever it does not exist yet.
 	 */
-	if (!resetting && ufshci_sim_attach(ctrlr) != 0) {
+	if (ctrlr->ufshci_sim == NULL && ufshci_sim_attach(ctrlr) != 0) {
 		ufshci_ctrlr_fail(ctrlr);
 		return;
 	}
