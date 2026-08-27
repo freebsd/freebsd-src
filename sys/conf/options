@@ -702,6 +702,7 @@ WITNESS_KDB		opt_witness.h
 WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
 WITNESS_COUNT		opt_witness.h
+WITNESS_LOCK_CHILDCOUNT		opt_witness.h
 OPENSOLARIS_WITNESS	opt_global.h
 
 EPOCH_TRACE		opt_global.h
