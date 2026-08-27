@@ -40,8 +40,10 @@
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/conf.h>
+#include <sys/condvar.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
@@ -123,10 +125,14 @@ struct tpm_sc {
 
 	struct cdev	*sc_cdev;
 
+	/* Serialize commands and lifecycle; intr_lock nests inside. */
 	struct sx 	dev_lock;
+	struct mtx	intr_lock;
+	struct cv	intr_cv;
 
 	void 		*intr_cookie;
 	int 		intr_type;	/* Current event type */
+	uint32_t	intr_generation;
 	uint32_t	intr_mask;	/* Saved TIS interrupt configuration */
 	bool 		interrupts;
 	bool		common_initialized;
