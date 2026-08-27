@@ -40,6 +40,7 @@
 #include <isa/isavar.h>
 #include <dev/tpm/tpmvar.h>
 
+MALLOC_DEFINE(M_TPM, "tpm12_buffer", "buffer for TPM 1.2 responses");
 
 #define	TPM_BUFSIZ	1024
 
@@ -1473,13 +1474,14 @@ int
 tpmread(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct tpm_softc *sc;
-	u_int8_t buf[TPM_BUFSIZ], *p;
-	size_t cnt;
-	int end_error, len, n, rv;
+	u_int8_t header[TPM_HDRSIZE], *buf;
+	size_t cnt, len;
+	int end_error, rv;
 
 	sc = TPMSOFTC(dev);
 	if (sc == NULL)
 		return (ENXIO);
+	buf = NULL;
 
 	sx_xlock(&sc->sc_lock);
 	if (sc->sc_dying) {
@@ -1497,39 +1499,42 @@ tpmread(struct cdev *dev, struct uio *uio, int flags)
 #ifdef TPM_DEBUG
 	printf("tpmread: getting header\n");
 #endif
-	rv = sc->sc_read(sc, buf, TPM_HDRSIZE, &cnt, 0);
+	rv = sc->sc_read(sc, header, sizeof(header), &cnt,
+	    TPM_PARAM_SIZE);
 	if (rv != 0)
 		goto end;
+	if (cnt != sizeof(header)) {
+		rv = EIO;
+		goto end;
+	}
 
-	len = (buf[2] << 24) | (buf[3] << 16) | (buf[4] << 8) | buf[5];
+	len = be32dec(header + 2);
 #ifdef TPM_DEBUG
-	printf("tpmread: len %d, io count %d\n", len, uio->uio_resid);
+	printf("tpmread: len %zu, io count %zd\n", len, uio->uio_resid);
 #endif
-	if (len > uio->uio_resid) {
+	if (len < sizeof(header) || len > uio->uio_resid || len > INT_MAX) {
 		rv = EIO;
 #ifdef TPM_DEBUG
-		printf("tpmread: bad residual io count 0x%x\n", uio->uio_resid);
+		printf("tpmread: invalid response length %zu\n", len);
 #endif
 		goto end;
 	}
 
-	/* Copy out header. */
-	rv = uiomove((caddr_t)buf, cnt, uio);
-	if (rv != 0)
+	/*
+	 * Finish the device transaction before touching user memory.  Use a
+	 * non-blocking allocation so lifecycle operations are not held up by
+	 * memory pressure while waiting for the transaction lock.
+	 */
+	buf = malloc(len, M_TPM, M_NOWAIT);
+	if (buf == NULL) {
+		rv = ENOMEM;
 		goto end;
+	}
+	memcpy(buf, header, sizeof(header));
 
-	/* Get remaining part of the answer (if anything is left). */
-	for (len -= cnt, p = buf, n = sizeof(buf); len > 0; p = buf, len -= n,
-	    n = sizeof(buf)) {
-		n = MIN(n, len);
-#ifdef TPM_DEBUG
-		printf("tpmread: n %d len %d\n", n, len);
-#endif
-		rv = sc->sc_read(sc, p, n, NULL, TPM_PARAM_SIZE);
-		if (rv != 0)
-			goto end;
-		p += n;
-		rv = uiomove((caddr_t)buf, p - buf, uio);
+	if (len > sizeof(header)) {
+		rv = sc->sc_read(sc, buf + sizeof(header),
+		    (int)(len - sizeof(header)), NULL, TPM_PARAM_SIZE);
 		if (rv != 0)
 			goto end;
 	}
@@ -1540,6 +1545,9 @@ end:
 		rv = end_error;
 out:
 	sx_xunlock(&sc->sc_lock);
+	if (rv == 0)
+		rv = uiomove(buf, (int)len, uio);
+	free(buf, M_TPM);
 	return (rv);
 }
 
@@ -1548,11 +1556,19 @@ tpmwrite(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct tpm_softc *sc;
 	u_int8_t buf[TPM_BUFSIZ];
+	ssize_t resid;
 	int end_error, n, rv;
 
 	sc = TPMSOFTC(dev);
 	if (sc == NULL)
 		return (ENXIO);
+
+	resid = uio->uio_resid;
+	n = MIN(sizeof(buf), resid);
+	rv = uiomove(buf, n, uio);
+	if (rv != 0)
+		return (rv);
+
 	sx_xlock(&sc->sc_lock);
 	if (sc->sc_dying) {
 		rv = ENXIO;
@@ -1564,13 +1580,8 @@ tpmwrite(struct cdev *dev, struct uio *uio, int flags)
 	}
 
 #ifdef TPM_DEBUG
-	printf("tpmwrite: io count %d\n", uio->uio_resid);
+	printf("tpmwrite: io count %d\n", n);
 #endif
-
-	n = MIN(sizeof(buf), uio->uio_resid);
-	rv = uiomove((caddr_t)buf, n, uio);
-	if (rv != 0)
-		goto out;
 
 	rv = sc->sc_start(sc, UIO_WRITE);
 	if (rv != 0)
@@ -1583,6 +1594,8 @@ tpmwrite(struct cdev *dev, struct uio *uio, int flags)
 
 out:
 	sx_xunlock(&sc->sc_lock);
+	if (rv != 0)
+		uio->uio_resid = resid;
 	return (rv);
 }
 
