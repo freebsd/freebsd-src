@@ -34,15 +34,10 @@
 
 . ../default.cfg
 [ `id -u` -ne 0 ] && echo "Must be root!" && exit 1
-[ -r /usr/src/tools/regression/fsx/fsx.c ] || exit 0
-
+[ -z "`which fsx`" ] &&
+    { echo "fsx is not installed"; exit 0; }
 [ -x /sbin/mount_msdosfs ] || exit 0
-dir=/tmp
-odir=`pwd`
-cd $dir
-cc -o fsx -Wall -Wextra -O2 -g /usr/src/tools/regression/fsx/fsx.c || exit 1
-rm -f fsx.c
-cd $odir
+
 log=/tmp/fsx.sh.log
 mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
@@ -56,20 +51,19 @@ newfs_msdos -b 1024 /dev/md${mdstart}$part > /dev/null
 mount -t msdosfs /dev/md${mdstart}$part $mntpoint
 set +e
 
-cp /tmp/fsx $mntpoint
-
+cp `which fsx` $mntpoint
 cd $mntpoint
 
 NUM_OPS=2000
 SEED=2016
 (
-./fsx -S ${SEED} -N ${NUM_OPS}                       ./TEST_FILE0 &
-./fsx -S ${SEED} -l 5234123 -o 5156343 -N ${NUM_OPS} ./TEST_FILE1 &
-./fsx -S ${SEED} -l 2311244 -o 2311200 -N ${NUM_OPS} ./TEST_FILE2 &
-./fsx -S ${SEED} -l 8773121 -o  863672 -N ${NUM_OPS} ./TEST_FILE3 &
-./fsx -S ${SEED} -l  234521 -o  234521 -N ${NUM_OPS} ./TEST_FILE4 &
-./fsx -S ${SEED} -l  454321 -o      33 -N ${NUM_OPS} ./TEST_FILE5 &
-./fsx -S ${SEED} -l 7234125 -o 7876728 -N ${NUM_OPS} ./TEST_FILE6 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE0 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE1 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE2 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE3 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE4 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE5 &
+./fsx -S ${SEED} -N ${NUM_OPS} ./TEST_FILE6 &
 wait
 ) > /dev/null
 cd /
@@ -87,5 +81,5 @@ if egrep -q "BAD|INCONSISTENCY|MODIFIED" $log; then
 	umount $mntpoint
 fi
 mdconfig -d -u $mdstart
-rm /tmp/fsx $log
+rm $log
 exit $s

@@ -56,6 +56,7 @@ fi
 [ -z "`type mke2fs 2>/dev/null`" ] && echo "Consider installing e2fsprogs"
 [ -z "`type mkisofs 2>/dev/null`" ] && echo "Consider installing cdrtools"
 [ -z "`type mDNSNetMonitor 2>/dev/null`" ] && echo "Consider installing mDNSResponder"
+[ -z "`type fsx 2>/dev/null`" ] && echo "Consider installing fsx"
 [ ! -x /usr/local/lib/libmill.so ] && echo "Consider installing libmill"
 
 # Random sanity checks

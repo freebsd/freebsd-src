@@ -29,25 +29,21 @@
 # tmpfs + fsx test scenario.
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
+[ -z "`which fsx`" ] &&
+    { echo "fsx is not installed"; exit 0; }
 
 . ../default.cfg
-
-here=`pwd`
-cd /tmp
-sed '1,/^EOF/d' < $here/umountf2.sh > /tmp/fsx.c
-mycc -o /tmp/fsx -O2 /tmp/fsx.c || exit 1
-rm -f fsx.c
 
 mount | grep "$mntpoint" | grep -q tmpfs && umount $mntpoint
 mount -t tmpfs tmpfs  $mntpoint
 
 (
-	/tmp/fsx -q -N 100000 $mntpoint/file.1 &
-	/tmp/fsx -q -N 100000 $mntpoint/file.2 &
+	fsx -q -N 100000 $mntpoint/file.1 &
+	fsx -q -N 100000 $mntpoint/file.2 &
 ) | grep -v A-OK
-wait;wait
+wait
 
 while mount | grep "$mntpoint" | grep -q tmpfs; do
 	umount $mntpoint || sleep 1
 done
-rm -f /tmp/fsx
+exit 0

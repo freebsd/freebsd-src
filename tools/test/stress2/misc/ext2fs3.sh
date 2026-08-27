@@ -31,20 +31,14 @@
 # "Fatal trap 12: page fault while in kernel mode" seen.
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
-[ -r /usr/src/tools/regression/fsx/fsx.c ] || exit 0
 
 . ../default.cfg
 
 # Uses mke2fs from filesystems/e2fsprogs
 [ -z "`type mke2fs 2>/dev/null`" ] &&
     echo "Skipping test as mke2fs not installed" && exit 0
-
-dir=/tmp
-odir=`pwd`
-cd $dir
-cc -o fsx -Wall -Wextra -O2 -g /usr/src/tools/regression/fsx/fsx.c || exit 1
-rm -f fsx.c
-cd $odir
+[ -z "`which fsx`" ] &&
+    { echo "fsx is not installed"; exit 0; }
 
 mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
@@ -55,7 +49,7 @@ mke2fs -m 0 -b 1024 /dev/md$mdstart > /dev/null
 mount -t ext2fs /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
-cp /tmp/fsx $mntpoint
+cp `which fsx` $mntpoint
 cd $mntpoint
 ./fsx -S 2016 -N 2000 ./TEST_FILE
 cd $here

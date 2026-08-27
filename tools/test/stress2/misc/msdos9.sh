@@ -34,15 +34,9 @@
 
 . ../default.cfg
 [ `id -u` -ne 0 ] && echo "Must be root!" && exit 1
-[ -r /usr/src/tools/regression/fsx/fsx.c ] || exit 0
 
-[ -x /sbin/mount_msdosfs ] || exit 0
-dir=/tmp
-odir=`pwd`
-cd $dir
-cc -o fsx -Wall -Wextra -O2 -g /usr/src/tools/regression/fsx/fsx.c || exit 1
-rm -f fsx.c
-cd $odir
+[ -z "`which fsx`" ] &&
+    { echo "fsx is not installed"; exit 0; }
 log=/tmp/fsx.sh.log
 mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
@@ -56,7 +50,7 @@ newfs_msdos -b 1024 /dev/md${mdstart}$part > /dev/null
 mount -t msdosfs /dev/md${mdstart}$part $mntpoint
 set +e
 
-cp /tmp/fsx $mntpoint
+cp `which fsx` $mntpoint
 
 cd $mntpoint
 ./fsx -S 2016 -N 2000 ./TEST_FILE > /dev/null
@@ -75,5 +69,5 @@ if egrep -q "BAD|INCONSISTENCY|MODIFIED" $log; then
 	umount $mntpoint
 fi
 mdconfig -d -u $mdstart
-rm /tmp/fsx $log
+rm $log
 exit $s
