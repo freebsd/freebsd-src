@@ -409,7 +409,7 @@ struct ufshci_controller {
 	uint32_t max_tx_lanes;
 	uint32_t max_rx_lanes;
 
-	bool is_failed;
+	uint32_t is_failed;
 };
 
 #define ufshci_mmio_offsetof(reg) offsetof(struct ufshci_registers, reg)

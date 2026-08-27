@@ -15,7 +15,13 @@
 static void
 ufshci_ctrlr_fail(struct ufshci_controller *ctrlr)
 {
-	ctrlr->is_failed = true;
+	/*
+	 * The attach thread and the reset task can both fail the
+	 * controller. A second queue walk would complete the same
+	 * trackers again.
+	 */
+	if (atomic_swap_32(&ctrlr->is_failed, 1) != 0)
+		return;
 
 	ufshci_req_queue_fail(ctrlr, &ctrlr->task_mgmt_req_queue);
 	ufshci_req_queue_fail(ctrlr, &ctrlr->transfer_req_queue);
@@ -311,6 +317,10 @@ ufshci_ctrlr_reset_task(void *arg, int pending)
 {
 	struct ufshci_controller *ctrlr = arg;
 	int error;
+
+	/* A failed controller must not be re-enabled. */
+	if (ctrlr->is_failed)
+		return;
 
 	/* Release resources */
 	ufshci_utmr_req_queue_disable(ctrlr);
