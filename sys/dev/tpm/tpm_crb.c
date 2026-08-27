@@ -484,12 +484,15 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	struct tpmcrb_sc *crb_sc;
 	struct tpm_sc *sc;
 	uint32_t mask, curr_cmd;
-	int timeout, bytes_available;
+	int bytes_available, error, timeout;
+	bool command_started, locality;
 
 	crb_sc = device_get_softc(dev);
 	sc = &crb_sc->base;
 
 	sx_assert(&sc->dev_lock, SA_XLOCKED);
+	command_started = false;
+	locality = false;
 
 	if (length > crb_sc->cmd_buf_size) {
 		device_printf(dev,
@@ -507,6 +510,7 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		    "Failed to obtain locality\n");
 		return (EIO);
 	}
+	locality = true;
 	/* Clear cancellation bit */
 	TPM_WRITE_4(dev, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CLEAR);
 
@@ -515,7 +519,8 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		if (!tpmcrb_state_idle(crb_sc, true)) {
 			device_printf(dev,
 			    "Failed to transition to idle state\n");
-			return (EIO);
+			error = EIO;
+			goto out;
 		}
 	}
 
@@ -523,7 +528,8 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	if (!tpmcrb_state_ready(crb_sc, true)) {
 		device_printf(dev,
 		    "Failed to transition to ready state\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 
 	/*
@@ -540,20 +546,25 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 
 	TPM_WRITE_4(dev, TPM_CRB_CTRL_START, TPM_CRB_CTRL_START_CMD);
 	TPM_WRITE_BARRIER(dev, TPM_CRB_CTRL_START, 4);
+	command_started = true;
 
 	if (!tpmcrb_notify_cmdready(crb_sc, timeout)) {
 		device_printf(dev,
 		    "Timeout while waiting for device to ready\n");
-		if (!tpmcrb_cancel_cmd(sc))
-			return (EIO);
+		if (!tpmcrb_cancel_cmd(sc)) {
+			error = EIO;
+			goto out;
+		}
 	}
 
 	mask = ~0;
 	if (!tpm_wait_for_u32(sc, TPM_CRB_CTRL_START, mask, ~mask, timeout)) {
 		device_printf(dev,
 		    "Timeout while waiting for device to process cmd\n");
-		if (!tpmcrb_cancel_cmd(sc))
-			return (EIO);
+		if (!tpmcrb_cancel_cmd(sc)) {
+			error = EIO;
+			goto out;
+		}
 	}
 
 	/* Read response header. Length is passed in bytes 2 - 6. */
@@ -565,27 +576,33 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		device_printf(dev,
 		    "Incorrect response size: %d\n",
 		    bytes_available);
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 
 	bus_read_region_stream_1(sc->mem_res, crb_sc->rsp_off + TPM_HEADER_SIZE,
 	      &priv->buf[TPM_HEADER_SIZE], bytes_available - TPM_HEADER_SIZE);
 
-	/*
-	 * No need to wait for the transition to idle on the way out, we can
-	 * relinquish locality right away.
-	 */
-	if (!tpmcrb_state_idle(crb_sc, false)) {
-		device_printf(dev,
-		    "Failed to transition to idle state post-send\n");
-		return (EIO);
-	}
-
-	tpmcrb_relinquish_locality(sc);
 	priv->offset = 0;
 	priv->len = bytes_available;
+	error = 0;
 
-	return (0);
+out:
+	if (locality) {
+		if (error != 0 && command_started &&
+		    (TPM_READ_4(dev, TPM_CRB_CTRL_START) &
+		    TPM_CRB_CTRL_START_CMD) != 0)
+			(void)tpmcrb_cancel_cmd(sc);
+		if (!tpmcrb_state_idle(crb_sc, false)) {
+			device_printf(dev,
+			    "Failed to transition to idle state post-send\n");
+			if (error == 0)
+				error = EIO;
+		}
+		tpmcrb_relinquish_locality(sc);
+	}
+
+	return (error);
 }
 
 /* StartMethod Implementation Details */
