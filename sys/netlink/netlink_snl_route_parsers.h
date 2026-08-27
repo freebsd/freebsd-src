@@ -174,6 +174,11 @@ SNL_DECLARE_PARSER_EXT(snl_rtm_route_parser, sizeof(struct rtmsg),
 		sizeof(struct snl_parsed_route), _fp_p_route, _nla_p_route,
 		_cb_p_route);
 
+static const struct snl_attr_parser _nla_p_ifgroups[] = {
+	{ .type = IFLAF_GROUP, .cb = snl_attr_copy_string, .arg_u32 = sizeof(char[IFNAMSIZ]) },
+};
+SNL_DECLARE_ATTR_PARSER_EXT(_ifgroups_parser, sizeof(char[IFNAMSIZ]), _nla_p_ifgroups, NULL);
+
 /* RTM_<NEW|DEL|GET>LINK message parser */
 struct snl_parsed_link {
 	uint32_t			ifi_index;
@@ -191,6 +196,7 @@ struct snl_parsed_link {
 	struct rtnl_link_stats64	*ifla_stats64;
 	struct nlattr			*iflaf_orig_hwaddr;
 	struct snl_attr_bitset		iflaf_caps;
+	struct snl_parray		iflaf_groups;
 };
 
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
@@ -198,6 +204,8 @@ struct snl_parsed_link {
 static const struct snl_attr_parser _nla_p_link_fbsd[] = {
 	{ .type = IFLAF_ORIG_HWADDR, .off = _OUT(iflaf_orig_hwaddr), .cb = snl_attr_dup_nla },
 	{ .type = IFLAF_CAPS, .off = _OUT(iflaf_caps), .cb = snl_attr_get_bitset_c },
+	{ .type = IFLAF_GROUP, .off = _OUT(iflaf_groups), .cb = snl_attr_get_parray,
+		.arg = &_ifgroups_parser },
 };
 SNL_DECLARE_ATTR_PARSER(_link_fbsd_parser, _nla_p_link_fbsd);
 

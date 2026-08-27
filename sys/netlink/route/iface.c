@@ -204,6 +204,38 @@ get_hwaddr(struct nl_writer *nw, if_t ifp)
 	}
 }
 
+static int
+dump_group_cb(struct ifg_group *ifg, void *_arg)
+{
+	struct nl_writer *nw = (struct nl_writer *)_arg;
+	int off, ret = 0;
+
+	off = nlattr_add_nested(nw, IFLAF_GROUP);
+	if (off == 0)
+		return (ENOMEM);
+
+	if (!nlattr_add_string(nw, IFLAF_GROUP, ifg->ifg_group))
+		ret = ENOMEM;
+
+	nlattr_set_len(nw, off);
+	return (ret);
+}
+
+static int
+dump_group(struct nl_writer *nw, if_t ifp)
+{
+	int off, ret;
+
+	off = nlattr_add_nested(nw, IFLAF_GROUP);
+	if (off == 0)
+		return (ENOMEM);
+
+	ret = if_foreach_group(ifp, dump_group_cb, nw);
+	nlattr_set_len(nw, off);
+
+	return (ret);
+}
+
 static unsigned
 ifp_flags_to_netlink(const if_t ifp)
 {
@@ -344,7 +376,6 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 /*
         nlattr_add_u32(nw, IFLA_MIN_MTU, 60);
         nlattr_add_u32(nw, IFLA_MAX_MTU, 9000);
-        nlattr_add_u32(nw, IFLA_GROUP, 0);
 */
 
 	if (if_getdescr(ifp) != NULL)
@@ -355,6 +386,8 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 	if (off != 0) {
 		get_hwaddr(nw, ifp);
 		dump_iface_caps(nw, ifp);
+		if (dump_group(nw, ifp) != 0)
+			goto enomem;
 
 		nlattr_set_len(nw, off);
 	}

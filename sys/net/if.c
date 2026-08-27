@@ -1469,6 +1469,30 @@ if_delgroups(struct ifnet *ifp)
 }
 
 /*
+ * XXX: This KPI should not expose ifg_group. therefore the current
+ * implementation is questionable and may change in the future.
+ */
+int
+if_foreach_group(struct ifnet *ifp, if_foreach_group_cb_t cb, void *cb_arg)
+{
+	struct ifg_list *ifgl;
+	int error;
+
+	MPASS(cb);
+
+	error = 0;
+	IFNET_RLOCK();
+	CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
+		error = cb(ifgl->ifgl_group, cb_arg);
+		if (error != 0)
+			break;
+	}
+	IFNET_RUNLOCK();
+
+	return (error);
+}
+
+/*
  * Stores all groups from an interface in memory pointed to by ifgr.
  */
 static int
