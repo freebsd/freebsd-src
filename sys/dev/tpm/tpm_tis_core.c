@@ -89,8 +89,9 @@ static bool tpmtis_request_locality(struct tpm_sc *sc, int locality);
 static void tpmtis_relinquish_locality(struct tpm_sc *sc);
 static bool tpmtis_go_ready(struct tpm_sc *sc);
 
-static bool tpm_wait_for_u32(struct tpm_sc *sc, bus_size_t off,
-    uint32_t mask, uint32_t val, int32_t timeout);
+static bool tpm_wait_for_reg(struct tpm_sc *sc, bus_size_t off,
+    uint32_t mask, uint32_t val, int32_t timeout, int intr_type,
+    bool reg32);
 
 static uint16_t tpmtis_wait_for_burst(struct tpm_sc *sc);
 
@@ -104,8 +105,11 @@ tpmtis_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->intr_type = -1;
+	sc->intr_generation = 0;
 
 	sx_init(&sc->dev_lock, "TPM driver lock");
+	mtx_init(&sc->intr_lock, "TPM interrupt lock", NULL, MTX_DEF);
+	cv_init(&sc->intr_cv, "tpmtis_intr");
 
 	resource_int_value("tpm", device_get_unit(dev), "use_polling", &poll);
 	if (poll != 0) {
@@ -148,6 +152,8 @@ tpmtis_detach(device_t dev)
 
 	if (sc->intr_cookie != NULL)
 		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
+	cv_destroy(&sc->intr_cv);
+	mtx_destroy(&sc->intr_lock);
 
 	if (sc->irq_res != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ,
@@ -240,9 +246,12 @@ tpmtis_setup_intr(struct tpm_sc *sc)
 {
 	bool configured, enable;
 
-	sc->interrupts = false;
 	enable = sc->intr_cookie != NULL;
 	sx_xlock(&sc->dev_lock);
+	mtx_lock(&sc->intr_lock);
+	sc->interrupts = false;
+	sc->intr_type = -1;
+	mtx_unlock(&sc->intr_lock);
 	configured = tpmtis_program_intr(sc, enable);
 	sx_xunlock(&sc->dev_lock);
 	if (!configured || !enable)
@@ -258,6 +267,7 @@ tpmtis_resume(device_t dev)
 
 	sc = device_get_softc(dev);
 	sx_xlock(&sc->dev_lock);
+	mtx_lock(&sc->intr_lock);
 	restore_intr = sc->interrupts;
 
 	/*
@@ -266,6 +276,8 @@ tpmtis_resume(device_t dev)
 	 * observed by the handler.
 	 */
 	sc->interrupts = false;
+	sc->intr_type = -1;
+	mtx_unlock(&sc->intr_lock);
 	if (!tpmtis_program_intr(sc, restore_intr))
 		device_printf(dev,
 		    "failed to %s interrupts; using polling\n",
@@ -286,40 +298,74 @@ tpmtis_intr_handler(void *arg)
 
 	TPM_WRITE_4(sc->dev, TPM_INT_STS, status);
 
+	mtx_lock(&sc->intr_lock);
 	/* Check for stray interrupts. */
-	if (sc->intr_type == -1 || (sc->intr_type & status) == 0)
-		return;
+	if (sc->intr_type != -1 && (sc->intr_type & status) != 0) {
+		sc->interrupts = true;
+		sc->intr_generation++;
+		cv_broadcast(&sc->intr_cv);
+	}
+	mtx_unlock(&sc->intr_lock);
+}
 
-	sc->interrupts = true;
-	wakeup(sc);
+static uint32_t
+tpmtis_read_wait_reg(struct tpm_sc *sc, bus_size_t off, bool reg32)
+{
+
+	if (reg32)
+		return (TPM_READ_4(sc->dev, off));
+	return (TPM_READ_1(sc->dev, off));
 }
 
 static bool
-tpm_wait_for_u32(struct tpm_sc *sc, bus_size_t off, uint32_t mask, uint32_t val,
-    int32_t timeout)
+tpm_wait_for_reg(struct tpm_sc *sc, bus_size_t off, uint32_t mask,
+    uint32_t val, int32_t timeout, int intr_type, bool reg32)
 {
+	sbintime_t deadline;
+	uint32_t generation;
+	bool interrupts, result;
 
-	/* Check for condition */
-	if ((TPM_READ_4(sc->dev, off) & mask) == val)
-		return (true);
+	sx_assert(&sc->dev_lock, SA_XLOCKED);
+	deadline = sbinuptime() + ustosbt(timeout);
+	mtx_lock(&sc->intr_lock);
+	sc->intr_type = intr_type;
+	generation = sc->intr_generation;
+	interrupts = sc->interrupts;
+	mtx_unlock(&sc->intr_lock);
 
-	/* If interrupts are enabled sleep for timeout duration */
-	if(sc->interrupts && sc->intr_type != -1) {
-		tsleep(sc, PWAIT, "TPM WITH INTERRUPTS", timeout / tick);
+	for (;;) {
+		result = (tpmtis_read_wait_reg(sc, off, reg32) & mask) == val;
+		if (result)
+			break;
+		if (sbinuptime() >= deadline)
+			break;
+		if (!interrupts) {
+			pause("TPM POLLING", 1);
+			mtx_lock(&sc->intr_lock);
+			generation = sc->intr_generation;
+			interrupts = sc->interrupts;
+			mtx_unlock(&sc->intr_lock);
+			continue;
+		}
 
-		sc->intr_type = -1;
-		return ((TPM_READ_4(sc->dev, off) & mask) == val);
+		/*
+		 * Register access may sleep for a SPI TPM, so evaluate the
+		 * predicate without intr_lock.  The generation check closes the
+		 * resulting window before cv_timedwait_sbt() atomically sleeps.
+		 */
+		mtx_lock(&sc->intr_lock);
+		if (generation == sc->intr_generation)
+			(void)cv_timedwait_sbt(&sc->intr_cv, &sc->intr_lock,
+			    deadline, 0, C_ABSOLUTE | C_HARDCLOCK);
+		generation = sc->intr_generation;
+		interrupts = sc->interrupts;
+		mtx_unlock(&sc->intr_lock);
 	}
 
-	/* If we don't have interrupts poll the device every tick */
-	while (timeout > 0) {
-		if ((TPM_READ_4(sc->dev, off) & mask) == val)
-			return (true);
-
-		pause("TPM POLLING", 1);
-		timeout -= tick;
-	}
-	return (false);
+	mtx_lock(&sc->intr_lock);
+	sc->intr_type = -1;
+	mtx_unlock(&sc->intr_lock);
+	return (result);
 }
 
 static uint16_t
@@ -385,44 +431,36 @@ static bool
 tpmtis_request_locality(struct tpm_sc *sc, int locality)
 {
 	uint8_t mask;
-	int timeout;
 
+	sx_assert(&sc->dev_lock, SA_XLOCKED);
 	/* Currently we only support Locality 0 */
 	if (locality != 0)
 		return (false);
 
 	mask = TPM_ACCESS_LOC_ACTIVE | TPM_ACCESS_VALID;
-	timeout = TPM_TIMEOUT_A;
-	sc->intr_type = TPM_INT_STS_LOC_CHANGE;
 
 	TPM_WRITE_1(sc->dev, TPM_ACCESS, TPM_ACCESS_LOC_REQ);
 	TPM_WRITE_BARRIER(sc->dev, TPM_ACCESS, 1);
-	if(sc->interrupts) {
-		tsleep(sc, PWAIT, "TPMLOCREQUEST with INTR", timeout / tick);
-		return ((TPM_READ_1(sc->dev, TPM_ACCESS) & mask) == mask);
-	} else  {
-		while(timeout > 0) {
-			if ((TPM_READ_1(sc->dev, TPM_ACCESS) & mask) == mask)
-				return (true);
-
-			pause("TPMLOCREQUEST POLLING", 1);
-			timeout -= tick;
-		}
-	}
-
-	return (false);
+	return (tpm_wait_for_reg(sc, TPM_ACCESS, mask, mask, TPM_TIMEOUT_A,
+	    TPM_INT_STS_LOC_CHANGE, false));
 }
 
 static void
 tpmtis_relinquish_locality(struct tpm_sc *sc)
 {
+	bool interrupts;
 
+	sx_assert(&sc->dev_lock, SA_XLOCKED);
 	/*
 	 * Interrupts can only be cleared when a locality is active.
 	 * Clear them now in case interrupt handler didn't make it in time.
 	 */
-	if(sc->interrupts)
-		AND4(sc, TPM_INT_STS, TPM_READ_4(sc->dev, TPM_INT_STS));
+	mtx_lock(&sc->intr_lock);
+	interrupts = sc->interrupts;
+	mtx_unlock(&sc->intr_lock);
+	if (interrupts)
+		TPM_WRITE_4(sc->dev, TPM_INT_STS,
+		    TPM_READ_4(sc->dev, TPM_INT_STS));
 
 	OR1(sc, TPM_ACCESS, TPM_ACCESS_LOC_RELINQUISH);
 }
@@ -433,11 +471,11 @@ tpmtis_go_ready(struct tpm_sc *sc)
 	uint32_t mask;
 
 	mask = TPM_STS_CMD_RDY;
-	sc->intr_type = TPM_INT_STS_CMD_RDY;
 
 	TPM_WRITE_4(sc->dev, TPM_STS, TPM_STS_CMD_RDY);
 	TPM_WRITE_BARRIER(sc->dev, TPM_STS, 4);
-	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, TPM_TIMEOUT_B))
+	if (!tpm_wait_for_reg(sc, TPM_STS, mask, mask, TPM_TIMEOUT_B,
+	    TPM_INT_STS_CMD_RDY, true))
 		return (false);
 
 	return (true);
@@ -471,8 +509,8 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	}
 
 	mask = TPM_STS_VALID;
-	sc->intr_type = TPM_INT_STS_VALID;
-	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, TPM_TIMEOUT_C)) {
+	if (!tpm_wait_for_reg(sc, TPM_STS, mask, mask, TPM_TIMEOUT_C,
+	    TPM_INT_STS_VALID, true)) {
 		device_printf(dev,
 		    "Timeout while waiting for valid bit\n");
 		return (EIO);
@@ -495,8 +533,8 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	TPM_WRITE_BARRIER(dev, TPM_STS, 4);
 
 	mask = TPM_STS_DATA_AVAIL | TPM_STS_VALID;
-	sc->intr_type = TPM_INT_STS_DATA_AVAIL;
-	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, timeout)) {
+	if (!tpm_wait_for_reg(sc, TPM_STS, mask, mask, timeout,
+	    TPM_INT_STS_DATA_AVAIL, true)) {
 		device_printf(dev,
 		    "Timeout while waiting for device to process cmd\n");
 		/*
@@ -510,8 +548,8 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		 * After canceling a command we should get a response,
 		 * check if there is one.
 		 */
-		sc->intr_type = TPM_INT_STS_DATA_AVAIL;
-		if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, TPM_TIMEOUT_C))
+		if (!tpm_wait_for_reg(sc, TPM_STS, mask, mask, TPM_TIMEOUT_C,
+		    TPM_INT_STS_DATA_AVAIL, true))
 			return (EIO);
 	}
 	/* Read response header. Length is passed in bytes 2 - 6. */
