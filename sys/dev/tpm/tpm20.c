@@ -86,6 +86,7 @@ tpm20_read(struct cdev *dev, struct uio *uio, int flags)
 	struct tpm_priv *priv;
 	size_t bytes_to_transfer;
 	size_t offset;
+	ssize_t resid;
 	int result;
 
 	sc = (struct tpm_sc *)dev->si_drv1;
@@ -93,27 +94,36 @@ tpm20_read(struct cdev *dev, struct uio *uio, int flags)
 	if (result != 0)
 		return (result);
 
+	sx_xlock(&priv->io_lock);
 	sx_xlock(&sc->dev_lock);
 	if (atomic_load_bool(&sc->dying)) {
 		result = ENXIO;
-		goto out;
+		goto out_locked;
 	}
 	if (sc->suspended) {
 		result = EBUSY;
-		goto out;
+		goto out_locked;
 	}
 	offset = priv->offset;
 	bytes_to_transfer = MIN(priv->len, uio->uio_resid);
+	sx_xunlock(&sc->dev_lock);
+
 	if (bytes_to_transfer > 0) {
-		result = uiomove((caddr_t) priv->buf + offset, bytes_to_transfer, uio);
+		resid = uio->uio_resid;
+		result = uiomove((caddr_t)priv->buf + offset,
+		    (int)bytes_to_transfer, uio);
+		bytes_to_transfer = resid - uio->uio_resid;
 		priv->offset += bytes_to_transfer;
 		priv->len -= bytes_to_transfer;
 	} else {
 		result = 0;
 	}
+	sx_xunlock(&priv->io_lock);
+	return (result);
 
-out:
+out_locked:
 	sx_xunlock(&sc->dev_lock);
+	sx_xunlock(&priv->io_lock);
 	return (result);
 }
 
@@ -122,6 +132,7 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct tpm_sc *sc;
 	struct tpm_priv *priv;
+	uint8_t *command;
 	size_t byte_count;
 	int result;
 
@@ -143,6 +154,12 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 		return (E2BIG);
 	}
 
+	command = malloc(byte_count, M_TPM20, M_WAITOK);
+	sx_xlock(&priv->io_lock);
+	result = uiomove(command, byte_count, uio);
+	if (result != 0)
+		goto out_priv;
+
 	sx_xlock(&sc->dev_lock);
 	if (atomic_load_bool(&sc->dying)) {
 		result = ENXIO;
@@ -153,14 +170,16 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 		goto out;
 	}
 
-	result = uiomove(priv->buf, byte_count, uio);
-	if (result != 0)
-		goto out;
-
+	memcpy(priv->buf, command, byte_count);
 	result = TPM_TRANSMIT(sc->dev, priv, byte_count);
 
 out:
 	sx_xunlock(&sc->dev_lock);
+	if (result != 0)
+		uio->uio_resid = byte_count;
+out_priv:
+	sx_xunlock(&priv->io_lock);
+	free(command, M_TPM20);
 	return (result);
 }
 
@@ -170,6 +189,7 @@ tpm20_priv_alloc(void)
 	struct tpm_priv *priv;
 
 	priv = malloc(sizeof (*priv), M_TPM20, M_WAITOK | M_ZERO);
+	sx_init(&priv->io_lock, "TPM per-open I/O lock");
 	return (priv);
 }
 
@@ -178,6 +198,7 @@ tpm20_priv_dtor(void *data)
 {
 	struct tpm_priv *priv = data;
 
+	sx_destroy(&priv->io_lock);
 	free(priv, M_TPM20);
 }
 

@@ -110,6 +110,7 @@
 MALLOC_DECLARE(M_TPM20);
 
 struct tpm_priv {
+	struct sx	io_lock;
 	uint8_t 	buf[TPM_BUFSIZE];
 	size_t		offset;
 	size_t		len;
