@@ -487,25 +487,30 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	struct tpm_sc *sc;
 	size_t bytes_available;
 	uint32_t mask, curr_cmd;
-	int timeout;
+	int error, timeout;
+	bool locality;
 
 	sc = device_get_softc(dev);
 	sx_assert(&sc->dev_lock, SA_XLOCKED);
+	locality = false;
 
 	if (!tpmtis_request_locality(sc, 0)) {
 		device_printf(dev,
 		    "Failed to obtain locality\n");
 		return (EIO);
 	}
+	locality = true;
 	if (!tpmtis_go_ready(sc)) {
 		device_printf(dev,
 		    "Failed to switch to ready state\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 	if (!tpmtis_write_bytes(sc, length, priv->buf)) {
 		device_printf(dev,
 		    "Failed to write cmd to device\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 
 	mask = TPM_STS_VALID;
@@ -513,13 +518,15 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	    TPM_INT_STS_VALID, true)) {
 		device_printf(dev,
 		    "Timeout while waiting for valid bit\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 	if (TPM_READ_4(dev, TPM_STS) & TPM_STS_DATA_EXPECTED) {
 		device_printf(dev,
 		    "Device expects more data even though we already"
 		    " sent everything we had\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 
 	/*
@@ -541,22 +548,27 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		 * Switching to ready state also cancels processing
 		 * current command
 		 */
-		if (!tpmtis_go_ready(sc))
-			return (EIO);
+		if (!tpmtis_go_ready(sc)) {
+			error = EIO;
+			goto out;
+		}
 
 		/*
 		 * After canceling a command we should get a response,
 		 * check if there is one.
 		 */
 		if (!tpm_wait_for_reg(sc, TPM_STS, mask, mask, TPM_TIMEOUT_C,
-		    TPM_INT_STS_DATA_AVAIL, true))
-			return (EIO);
+		    TPM_INT_STS_DATA_AVAIL, true)) {
+			error = EIO;
+			goto out;
+		}
 	}
 	/* Read response header. Length is passed in bytes 2 - 6. */
 	if (!tpmtis_read_bytes(sc, TPM_HEADER_SIZE, priv->buf)) {
 		device_printf(dev,
 		    "Failed to read response header\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 	bytes_available = be32toh(*(uint32_t *) (&priv->buf[2]));
 
@@ -564,29 +576,34 @@ tpmtis_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		device_printf(dev,
 		    "Incorrect response size: %zu\n",
 		    bytes_available);
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
 	if (!tpmtis_read_bytes(sc, bytes_available - TPM_HEADER_SIZE,
 	    &priv->buf[TPM_HEADER_SIZE])) {
 		device_printf(dev,
 		    "Failed to read response\n");
-		return (EIO);
+		error = EIO;
+		goto out;
 	}
-
-	/*
-	 * Per TIS 1.3 section 5.6.12, write commandReady after reading the
-	 * response so the TPM can free the ReadFIFO and other internal
-	 * resources. The next tpmtis_go_ready() provides the second
-	 * write the spec mentions, and waits for the state transition,
-	 * so no wait is needed here.
-	 */
-	TPM_WRITE_4(sc->dev, TPM_STS, TPM_STS_CMD_RDY);
-	TPM_WRITE_BARRIER(sc->dev, TPM_STS, 4);
-	tpmtis_relinquish_locality(sc);
 	priv->offset = 0;
 	priv->len = bytes_available;
+	error = 0;
 
-	return (0);
+out:
+	/*
+	 * Per TIS 1.3 section 5.6.12, write commandReady after every command
+	 * attempt so the TPM can discard a partial FIFO transaction and free
+	 * its internal resources.  The next tpmtis_go_ready() provides the
+	 * second write the spec mentions and waits for the state transition.
+	 */
+	if (locality) {
+		TPM_WRITE_4(sc->dev, TPM_STS, TPM_STS_CMD_RDY);
+		TPM_WRITE_BARRIER(sc->dev, TPM_STS, 4);
+		tpmtis_relinquish_locality(sc);
+	}
+
+	return (error);
 }
 
 /* ACPI Driver */
