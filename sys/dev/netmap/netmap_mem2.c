@@ -38,6 +38,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/types.h>
+#include <sys/ckdint.h>
 #include <sys/domainset.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -2013,16 +2014,11 @@ netmap_mem2_rings_create(struct netmap_mem_d *nmd, struct netmap_adapter *na)
 			if (netmap_debug & NM_DEBUG_MEM)
 				nm_prinf("creating %s", kring->name);
 			ndesc = kring->nkr_num_slots;
-			if (ndesc >= UINT_MAX / sizeof(struct netmap_slot)) {
+			if (ckd_mul(&len, ndesc, sizeof(struct netmap_slot)) ||
+			    ckd_add(&len, len, sizeof(struct netmap_ring))) {
 				error = EINVAL;
 				goto cleanup;
 			}
-			len = ndesc * sizeof(struct netmap_slot);
-			if (len + sizeof(struct netmap_ring) < len) {
-				error = EINVAL;
-				goto cleanup;
-			}
-			len += sizeof(struct netmap_ring);
 			ring = netmap_ring_malloc(nmd, len);
 			if (ring == NULL) {
 				nm_prerr("Cannot allocate %s_ring", nm_txrx2str(t));
