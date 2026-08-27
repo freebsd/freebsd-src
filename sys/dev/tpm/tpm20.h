@@ -130,6 +130,8 @@ struct tpm_sc {
 	uint32_t	intr_mask;	/* Saved TIS interrupt configuration */
 	bool 		interrupts;
 	bool		common_initialized;
+	bool		dying;
+	bool		suspended;
 
 	struct tpm_priv *internal_priv;
 
