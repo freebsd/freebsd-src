@@ -224,10 +224,12 @@ and/or ports.
 	require libmilter, you can now remove it.
 
 20250815:
-	The [gs]etgroups(2)syscalls have changed. To maintain backwards
-	compatibility with existing programs, you need COMPAT_FREEBSD14 in
-	your kernel config until all applications which use this are
-	rebuild/reinstalled.
+	The behavior of the getgroups(2), setgroups(2), and initgroups(3)
+	interfaces has changed, and their version numbers have been incremented.
+	To keep existing binaries and libraries working, ensure that
+	COMPAT_FREEBSD14 is included in your kernel configuration.
+	Alternatively, rebuild and reinstall applications that use these
+	interfaces.
 
 20250815:
 	jemalloc 5.3.0 has been committed to the tree.
