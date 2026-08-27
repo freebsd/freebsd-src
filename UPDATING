@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260827:
+	<sys/videoio.h> now provides the V4L2 cropping, control menu and
+	overlay definitions.  __FreeBSD_version has been bumped to 1600021
+	for ports that need to detect them.
+
 20260826:
 	bhyve(8) users who explicitly set the eui64 option for an NVMe
 	device may need to update their configuration.  Due to an incorrect
