@@ -309,6 +309,12 @@ key_detach(struct socket *so)
 }
 
 static int
+key_disconnect(struct socket *so)
+{
+	return (ENOTCONN);
+}
+
+static int
 key_shutdown(struct socket *so, enum shutdown_how how)
 {
 	/*
@@ -340,6 +346,7 @@ static struct protosw keysw = {
 	.pr_abort =		key_close,
 	.pr_attach =		key_attach,
 	.pr_detach =		key_detach,
+	.pr_disconnect =	key_disconnect,
 	.pr_send =		key_send,
 	.pr_shutdown =		key_shutdown,
 	.pr_close =		key_close,
