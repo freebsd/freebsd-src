@@ -27,7 +27,11 @@ properties:
               - amlogic,meson-gxm-saradc
               - amlogic,meson-axg-saradc
               - amlogic,meson-g12a-saradc
+          # Usage of this generic fallback is not allowed for new devices
           - const: amlogic,meson-saradc
+      - items:
+          - const: amlogic,meson-s4-saradc
+          - const: amlogic,meson-g12a-saradc
 
   reg:
     maxItems: 1

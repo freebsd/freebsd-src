@@ -27,10 +27,13 @@ properties:
     enum:
       - adi,ad4080
       - adi,ad4081
+      - adi,ad4082
       - adi,ad4083
       - adi,ad4084
+      - adi,ad4085
       - adi,ad4086
       - adi,ad4087
+      - adi,ad4088
 
   reg:
     maxItems: 1

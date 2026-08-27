@@ -9,7 +9,7 @@ title: Apple SPMI NVMEM
 description: Exports a series of SPMI registers as NVMEM cells
 
 maintainers:
-  - Sasha Finkelstein <fnkl.kernel@gmail.com>
+  - Sasha Finkelstein <k@chaosmail.tech>
 
 allOf:
   - $ref: nvmem.yaml#

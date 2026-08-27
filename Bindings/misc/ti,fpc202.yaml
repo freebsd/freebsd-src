@@ -53,6 +53,22 @@ patternProperties:
 
     unevaluatedProperties: false
 
+  "^led@1[4-b]$":
+    $ref: /schemas/leds/common.yaml#
+    description: Output GPIO line with advanced LED features enabled.
+
+    properties:
+      reg:
+        minimum: 0x14
+        maximum: 0x1b
+        description:
+          GPIO line ID
+
+    required:
+      - reg
+
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg
@@ -88,6 +104,11 @@ examples:
                 #address-cells = <1>;
                 #size-cells = <0>;
                 reg = <1>;
+            };
+
+            led@14 {
+                reg = <0x14>;
+                label = "phy0:green:indicator";
             };
         };
     };

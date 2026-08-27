@@ -18,7 +18,12 @@ description: |
 
 properties:
   compatible:
-    const: sprd,sc2731-bltc
+    oneOf:
+      - items:
+          - enum:
+              - sprd,sc2730-bltc
+          - const: sprd,sc2731-bltc
+      - const: sprd,sc2731-bltc
 
   reg:
     maxItems: 1

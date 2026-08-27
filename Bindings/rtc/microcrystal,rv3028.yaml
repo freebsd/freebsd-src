@@ -32,6 +32,8 @@ properties:
       - 9000
       - 15000
 
+  vdd-supply: true
+
 required:
   - compatible
   - reg

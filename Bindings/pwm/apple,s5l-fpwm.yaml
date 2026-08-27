@@ -8,7 +8,7 @@ title: Apple FPWM controller
 
 maintainers:
   - asahi@lists.linux.dev
-  - Sasha Finkelstein <fnkl.kernel@gmail.com>
+  - Sasha Finkelstein <k@chaosmail.tech>
 
 description: PWM controller used for keyboard backlight on ARM Macs
 

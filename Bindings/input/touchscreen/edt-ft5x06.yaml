@@ -33,19 +33,23 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - edt,edt-ft5206
-      - edt,edt-ft5306
-      - edt,edt-ft5406
-      - edt,edt-ft5506
-      - evervision,ev-ft5726
-      - focaltech,ft3518
-      - focaltech,ft5426
-      - focaltech,ft5452
-      - focaltech,ft6236
-      - focaltech,ft8201
-      - focaltech,ft8716
-      - focaltech,ft8719
+    oneOf:
+      - enum:
+          - edt,edt-ft5206
+          - edt,edt-ft5306
+          - edt,edt-ft5406
+          - edt,edt-ft5506
+          - evervision,ev-ft5726
+          - focaltech,ft3518
+          - focaltech,ft5426
+          - focaltech,ft5452
+          - focaltech,ft6236
+          - focaltech,ft8201
+          - focaltech,ft8716
+          - focaltech,ft8719
+      - items:
+          - const: focaltech,ft3519
+          - const: focaltech,ft3518
 
   reg:
     maxItems: 1

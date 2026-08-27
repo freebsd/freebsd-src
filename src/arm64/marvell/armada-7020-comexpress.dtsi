@@ -70,7 +70,7 @@
 
 &cp0_eth1 {
 	status = "okay";
-	phy = <&phy0>;
+	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
 };
 

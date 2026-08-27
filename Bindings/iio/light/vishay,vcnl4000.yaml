@@ -18,15 +18,31 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - vishay,vcnl4000
-      - vishay,vcnl4010
-      - vishay,vcnl4020
-      - vishay,vcnl4040
-      - vishay,vcnl4200
+    oneOf:
+      - enum:
+          - capella,cm36672p
+          - vishay,vcnl4000
+          - vishay,vcnl4010
+          - vishay,vcnl4020
+          - vishay,vcnl4040
+          - vishay,vcnl4200
+      - items:
+          - const: capella,cm36686
+          - const: vishay,vcnl4040
 
   interrupts:
     maxItems: 1
+
+  vdd-supply:
+    description: Regulator providing power to the "VDD" pin.
+
+  vio-supply:
+    description: Regulator providing power for pull-up of the I/O lines.
+      Does not connect to the sensor directly, but is needed for the
+      correct operation of the I2C and interrupt lines.
+
+  vled-supply:
+    description: Regulator providing power to the IR anode pin.
 
   reg:
     maxItems: 1
@@ -49,6 +65,9 @@ examples:
             compatible = "vishay,vcnl4200";
             reg = <0x51>;
             proximity-near-level = <220>;
+            vdd-supply = <&reg_vdd>;
+            vio-supply = <&reg_vio>;
+            vled-supply = <&reg_vled>;
         };
     };
 ...

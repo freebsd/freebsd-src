@@ -2,7 +2,7 @@
 //
 // Devicetree include for common spi-nor nvram flash.
 //
-// Apple uses a consistent configiguration for the nvram on all known M1* and
+// Apple uses a consistent configuration for the nvram on all known M1* and
 // M2* devices.
 //
 // Copyright The Asahi Linux Contributors

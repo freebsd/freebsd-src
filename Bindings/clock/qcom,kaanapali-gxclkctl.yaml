@@ -20,7 +20,9 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,glymur-gxclkctl
       - qcom,kaanapali-gxclkctl
+      - qcom,sm8750-gxclkctl
 
   power-domains:
     description:
