@@ -62,7 +62,7 @@
 #include "opt_tpm.h"
 #include "tpm_if.h"
 
-#define	BIT(x) (1 << (x))
+#define	BIT(x) (1U << (x))
 
 /* Timeouts in us */
 #define	TPM_TIMEOUT_A			750000
@@ -183,7 +183,7 @@ OR1(struct tpm_sc *sc, bus_size_t off, uint8_t val)
 static inline void
 OR4(struct tpm_sc *sc, bus_size_t off, uint32_t val)
 {
-	uint32_t v = TPM_READ_1(sc->dev, off);
+	uint32_t v = TPM_READ_4(sc->dev, off);
 
 	TPM_WRITE_4(sc->dev, off, v | val);
 }
