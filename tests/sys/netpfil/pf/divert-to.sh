@@ -88,7 +88,7 @@ in_div_body()
 	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000" \
 	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2000"
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -98,7 +98,7 @@ in_div_body()
 
 	wait $divapp_pid
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -141,7 +141,7 @@ in_div_in_body()
 	    "pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000 no state" \
 	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2000 no state"
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -151,7 +151,7 @@ in_div_in_body()
 
 	wait $divapp_pid
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -196,7 +196,7 @@ out_div_body()
 	    "pass in inet6 proto icmp6 icmp6-type echoreq no state" \
 	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 2000 no state"
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -206,7 +206,7 @@ out_div_body()
 
 	wait $divapp_pid
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -251,7 +251,7 @@ out_div_out_body()
 	    "pass in inet6 proto icmp6 icmp6-type echoreq no state" \
 	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 2000 no state"
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -261,7 +261,7 @@ out_div_out_body()
 
 	wait $divapp_pid
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -326,9 +326,9 @@ in_div_in_fwd_out_div_out_body()
 	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2001 no state" \
 	    "pass out inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2002 no state"
 
-	jexec router $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec router $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divapps to be ready
 	sleep 1
@@ -338,9 +338,9 @@ in_div_in_fwd_out_div_out_body()
 
 	wait $indivapp_pid && wait $outdivapp_pid
 
-	jexec router $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec router $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divapps to be ready
 	sleep 1
@@ -393,9 +393,9 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 1001 no state" \
 	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 1002 no state"
 
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divapps to be ready
 	sleep 1
@@ -407,9 +407,9 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 	wait $outdivapp_pid
 	atf_check_not_equal 0 $?
 
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divapps to be ready
 	sleep 1
@@ -438,9 +438,9 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 	    "pass in inet6 proto icmp6 icmp6-type echoreq divert-to ::1 port 2001 no state" \
 	    "pass out inet6 proto icmp6 icmp6-type echorep divert-to ::1 port 2002 no state"
 
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divapps to be ready
 	sleep 1
@@ -452,9 +452,9 @@ in_dn_in_div_in_out_div_out_dn_out_body()
 	wait $outdivapp_pid
 	atf_check_equal 0 $?
 
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divapps to be ready
 	sleep 1
@@ -498,7 +498,7 @@ pr260867_body()
 	atf_check -o ignore ping -c3 2001:db8::2
 
 	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
-	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 expect-single-pkt divert-back &
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz \

@@ -88,7 +88,7 @@ in_div_body()
 
 	jexec div ipfw add 100 divert 2000 icmp from any to any in icmptypes 8
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -125,7 +125,7 @@ in_div_in_body()
 
 	jexec div ipfw add 100 divert 2000 icmp from any to any in icmptypes 8
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -162,7 +162,7 @@ out_div_body()
 
 	jexec div ipfw add 100 divert 2000 icmp from any to any out icmptypes 0
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -199,7 +199,7 @@ out_div_out_body()
 
 	jexec div ipfw add 100 divert 2000 icmp from any to any out icmptypes 0
 
-	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 expect-single-pkt divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -252,9 +252,9 @@ in_div_in_fwd_out_div_out_body()
 	jexec router ipfw add 100 divert 2001 icmp from any to any in icmptypes 8
 	jexec router ipfw add 200 divert 2002 icmp from any to any out icmptypes 8
 
-	jexec router $(atf_get_srcdir)/../common/divapp 2001 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2001 expect-single-pkt divert-back &
 	indivapp_pid=$!
-	jexec router $(atf_get_srcdir)/../common/divapp 2002 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2002 expect-single-pkt divert-back &
 	outdivapp_pid=$!
 	# Wait for the divappS to be ready
 	sleep 1

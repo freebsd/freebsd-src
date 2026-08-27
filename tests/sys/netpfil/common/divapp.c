@@ -43,6 +43,7 @@
 struct context {
 	unsigned short divert_port;
 	bool divert_back;
+	bool expect_single_pkt;
 
 	int fd;
 	struct sockaddr_in sin;
@@ -116,7 +117,8 @@ main(int argc, char *argv[])
 
 	if (argc < 2)
 		errx(EX_USAGE,
-		    "Usage: %s <divert-port> [divert-back]", argv[0]);
+		    "Usage: %s <divert-port> [expect-single-pkt] [divert-back]",
+		    argv[0]);
 
 	memset(&c, 0, sizeof(struct context));
 
@@ -124,8 +126,12 @@ main(int argc, char *argv[])
 	if (c.divert_port == 0)
 		errx(EX_USAGE, "divert port is not defined.");
 
-	if (argc >= 3 && strcmp(argv[2], "divert-back") == 0)
-		c.divert_back = true;
+	for (int i = 2; i < argc; i++) {
+		if (strcmp(argv[i], "expect-single-pkt") == 0)
+			c.expect_single_pkt = true;
+		if (strcmp(argv[i], "divert-back") == 0)
+			c.divert_back = true;
+	}
 
 
 	init(&c);
@@ -135,12 +141,20 @@ main(int argc, char *argv[])
 		if (c.divert_back)
 			send_pkt(&c);
 		npkt++;
-		if (npkt >= 20)
+		if (c.expect_single_pkt && npkt >= 20) {
+			/*
+			 * Single-packet expectation detects potential packet
+			 * loops, so break the loop eventually.
+			 */
 			break;
+		}
 	}
 
-	if (npkt != 1)
-		errx(EXIT_FAILURE, "%d: npkt=%d.", c.divert_port, npkt);
+	if (npkt == 0)
+		errx(EXIT_FAILURE, "%d: no packets received.", c.divert_port);
+	if (c.expect_single_pkt && npkt != 1)
+		errx(EXIT_FAILURE, "%d: more than one received, npkt=%d.",
+		    c.divert_port, npkt);
 
 	return (EXIT_SUCCESS);
 }
