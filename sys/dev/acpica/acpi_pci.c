@@ -222,6 +222,9 @@ acpi_pci_get_cpus(device_t dev, device_t child, enum cpu_sets op,
     size_t setsize, cpuset_t *cpuset)
 {
 
+	/* BUS_GET_CPUS may preserve a descendant below the PCI function. */
+	if (device_get_parent(child) != dev)
+		return (acpi_get_cpus(dev, child, op, setsize, cpuset));
 	child = acpi_pci_get_locality_device(child);
 	return (acpi_get_cpus(dev, child, op, setsize, cpuset));
 }
