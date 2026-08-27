@@ -64,7 +64,7 @@ struct amd_descr {
 };
 
 static int amd_npmcs;
-static int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs;
+static int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs, amd_umc_npmcs;
 static struct amd_descr amd_pmcdesc[AMD_NPMCS_MAX];
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
@@ -190,6 +190,8 @@ static uint64_t amd_df_allowed_mask;
 static uint64_t amd_core_extra_mask;
 static uint64_t amd_l3_extra_mask;
 static uint64_t amd_df_extra_mask;
+static uint64_t amd_umc_allowed_mask;
+static uint64_t amd_umc_extra_mask;
 
 SYSCTL_DECL(_kern_hwpmc);
 
@@ -205,6 +207,10 @@ SYSCTL_U64(_kern_hwpmc, OID_AUTO, amd_df_extra_mask, CTLFLAG_RDTUN,
     &amd_df_extra_mask, 0,
     "Extra allowed bits in AMD DF PMU control (override; default 0)");
 
+SYSCTL_U64(_kern_hwpmc, OID_AUTO, amd_umc_extra_mask, CTLFLAG_RDTUN,
+    &amd_umc_extra_mask, 0,
+    "Extra allowed bits in AMD UMC PMU control (override; default 0)");
+
 static void
 amd_init_policy(void)
 {
@@ -219,6 +225,8 @@ amd_init_policy(void)
 
 	amd_df_allowed_mask = (family <= 0x19) ?
 	    AMD_PMC_DF_FAMILY17_MASK : AMD_PMC_DF_FAMILY1A_MASK;
+
+	amd_umc_allowed_mask = AMD_PMC_UMC_MASK;
 }
 
 static uint64_t
@@ -234,6 +242,8 @@ amd_config_mask(enum sub_class subclass, uint64_t caps)
 		return (amd_l3_allowed_mask | amd_l3_extra_mask);
 	case PMC_AMD_SUB_CLASS_DATA_FABRIC:
 		return (amd_df_allowed_mask | amd_df_extra_mask);
+	case PMC_AMD_SUB_CLASS_UMC:
+		return (amd_umc_allowed_mask | amd_umc_extra_mask);
 	default:
 		return (0);
 	}
@@ -529,13 +539,20 @@ amd_start_pmc(int cpu __diagused, int ri, struct pmc *pm)
 	 * Triggered by DF counters because all DF MSRs are shared.  We need to
 	 * change the code to honor the per-package flag in the JSON event
 	 * definitions.
+	 *
+	 * UMC counters use a different stopped check (enable bit at bit 31).
 	 */
-	KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
-	    ("[amd,%d] pmc%d,cpu%d: Starting active PMC \"%s\"", __LINE__,
-	    ri, cpu, pd->pm_descr.pd_name));
-
-	/* turn on the PMC ENABLE bit */
-	config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_ENABLE;
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC) {
+		KASSERT(AMD_PMC_UMC_IS_STOPPED(pd->pm_evsel),
+		    ("[amd,%d] pmc%d,cpu%d: Starting active UMC PMC \"%s\"",
+		    __LINE__, ri, cpu, pd->pm_descr.pd_name));
+		config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_UMC_ENABLE;
+	} else {
+		KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
+		    ("[amd,%d] pmc%d,cpu%d: Starting active PMC \"%s\"",
+		    __LINE__, ri, cpu, pd->pm_descr.pd_name));
+		config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_ENABLE;
+	}
 
 	PMCDBG1(MDP, STA, 2, "amd-start config=0x%x", config);
 
@@ -560,11 +577,21 @@ amd_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 
 	pd = &amd_pmcdesc[ri];
 
+	PMCDBG1(MDP, STO, 1, "amd-stop ri=%d", ri);
+
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC) {
+		KASSERT(!AMD_PMC_UMC_IS_STOPPED(pd->pm_evsel),
+		    ("[amd,%d] UMC PMC%d, CPU%d \"%s\" already stopped",
+		    __LINE__, ri, cpu, pd->pm_descr.pd_name));
+		/* UMC counters have no overflow NMI; stop is immediate. */
+		config = pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_UMC_ENABLE;
+		wrmsr(pd->pm_evsel, config);
+		return (0);
+	}
+
 	KASSERT(!AMD_PMC_IS_STOPPED(pd->pm_evsel),
 	    ("[amd,%d] PMC%d, CPU%d \"%s\" already stopped",
 		__LINE__, ri, cpu, pd->pm_descr.pd_name));
-
-	PMCDBG1(MDP, STO, 1, "amd-stop ri=%d", ri);
 
 	/* turn off the PMC ENABLE bit */
 	config = pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE;
@@ -758,7 +785,7 @@ amd_get_msr(int ri, uint32_t *msr)
 	} else if (ri < amd_core_npmcs + amd_l3_npmcs) {
 		/* ECX 10-15: L3 Cache counters */
 		*msr = 10 + (ri - amd_core_npmcs);
-	} else {
+	} else if (ri < amd_core_npmcs + amd_l3_npmcs + amd_df_npmcs) {
 		/* ECX 6-9: DF counters 0-3
 		 * ECX 16-27: DF counters 4-15 */
 		df_idx = ri - amd_core_npmcs - amd_l3_npmcs;
@@ -768,6 +795,9 @@ amd_get_msr(int ri, uint32_t *msr)
 			*msr = 16 + (df_idx - 4);
 		else
 			return (EINVAL);
+	} else {
+		/* UMC counters are not accessible via RDPMC. */
+		return (EINVAL);
 	}
 	return (0);
 }
@@ -952,6 +982,7 @@ pmc_amd_initialize(void)
 	enum pmc_cputype cputype;
 	int ncpus, nclasses, i;
 	int family, model, stepping;
+	int amd_umc_nodes, amd_umc_per_node;
 	int error;
 
 	/*
@@ -1002,6 +1033,7 @@ pmc_amd_initialize(void)
 		if (regs[1] != 0) {
 			amd_core_npmcs = EXTPERFMON_CORE_PMCS(regs[1]);
 			amd_df_npmcs = EXTPERFMON_DF_PMCS(regs[1]);
+			amd_umc_npmcs = EXTPERFMON_UMC_PMCS(regs[1]);
 		}
 	}
 
@@ -1062,6 +1094,31 @@ pmc_amd_initialize(void)
 			d->pm_subclass = PMC_AMD_SUB_CLASS_DATA_FABRIC;
 		}
 		amd_npmcs += amd_df_npmcs;
+	}
+
+	if (amd_umc_npmcs > 0) {
+		/*
+		 * UMC counters are per Data Fabric node. regs[2] (ECX of
+		 * CPUID 0x80000022) is a bitmask of nodes present; popcntq()
+		 * gives the node count.  Divide total PMCs evenly per node.
+		 */
+		amd_umc_nodes = (regs[2] != 0) ? popcntq(regs[2]) : 1;
+		amd_umc_per_node = amd_umc_npmcs / amd_umc_nodes;
+		if (amd_umc_per_node == 0)
+			amd_umc_per_node = amd_umc_npmcs;
+		for (i = 0; i < amd_umc_npmcs; i++) {
+			d = &amd_pmcdesc[amd_npmcs + i];
+			snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
+			    "K8-UMC%d-%d", i / amd_umc_per_node,
+			    i % amd_umc_per_node);
+			d->pm_descr.pd_class = PMC_CLASS_K8;
+			d->pm_descr.pd_caps = AMD_PMC_UMC_CAPS;
+			d->pm_descr.pd_width = 48;
+			d->pm_evsel = AMD_PMC_UMC_BASE + 2 * i;
+			d->pm_perfctr = AMD_PMC_UMC_BASE + 2 * i + 1;
+			d->pm_subclass = PMC_AMD_SUB_CLASS_UMC;
+		}
+		amd_npmcs += amd_umc_npmcs;
 	}
 
 	/*
