@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <fnmatch.h>
 #include <err.h>
 #include <errno.h>
 #include <netdb.h>
@@ -252,6 +253,41 @@ prepare_ifaddrs(struct snl_state *ss, struct ifmap *ifmap)
 	}
 }
 
+/*
+ * Returns true if an interface should be listed because any its groups
+ * matches shell pattern "match" and none of groups matches pattern "nomatch".
+ * If any pattern is NULL, corresponding condition is skipped.
+ */
+static bool
+group_member_nl(if_link_t *link, const char *match, const char *nomatch)
+{
+	bool	matched, nomatched;
+
+	/* Sanity checks. */
+	if (match == NULL && nomatch == NULL)
+		return (true);
+	if (link == NULL)
+		return (false);
+
+	/* Perform matching. */
+	matched = false;
+	nomatched = true;
+	for (uint32_t i = 0; i < link->iflaf_groups.count; i++) {
+		char *ifgroup = link->iflaf_groups.items[i];
+
+		if (match && !matched)
+			matched = !fnmatch(match, ifgroup, 0);
+		if (nomatch && nomatched)
+			nomatched = fnmatch(nomatch, ifgroup, 0);
+	}
+
+	if (match && !nomatch)
+		return (matched);
+	if (!match && nomatch)
+		return (nomatched);
+	return (matched && nomatched);
+}
+
 static bool
 match_iface(struct ifconfig_args *args, struct iface *iface)
 {
@@ -263,7 +299,7 @@ match_iface(struct ifconfig_args *args, struct iface *iface)
 	if (!match_if_flags(args, link->ifi_flags))
 		return (false);
 
-	if (!group_member(link->ifla_ifname, args->matchgroup, args->nogroup))
+	if (!group_member_nl(link, args->matchgroup, args->nogroup))
 		return (false);
 
 	if (args->afp == NULL)
