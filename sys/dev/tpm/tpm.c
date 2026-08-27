@@ -24,6 +24,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 
 #include <sys/module.h>
 #include <sys/conf.h>
@@ -43,7 +44,19 @@
 
 #include "tpm_if.h"
 
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+#include <dev/random/randomdev.h>
+#include <dev/random/random_harvestq.h>
+#endif
+
 MALLOC_DEFINE(M_TPM, "tpm12_buffer", "buffer for TPM 1.2 responses");
+
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+static const struct random_source random_tpm12 = {
+	.rs_ident = "TPM",
+	.rs_source = RANDOM_PURE_TPM,
+};
+#endif
 
 #define	TPM_BUFSIZ	1024
 
@@ -54,10 +67,14 @@ MALLOC_DEFINE(M_TPM, "tpm12_buffer", "buffer for TPM 1.2 responses");
 #define	TPM_TAG_RQU_COMMAND	0x00c1
 #define	TPM_TAG_RSP_COMMAND	0x00c4
 #define	TPM_ORD_SAVESTATE	0x00000098
+#define	TPM_ORD_GETRANDOM	0x00000046
 #define	TPM_WARN_RETRY		0x00000800
 
 #define	TPM_SAVESTATE_RETRIES	50
 #define	TPM_SAVESTATE_RETRY_MS	100
+
+#define	TPM_HARVEST_SIZE	16
+#define	TPM_HARVEST_INTERVAL	10
 
 #define	TPM_ACCESS			0x0000	/* access register */
 #define	TPM_ACCESS_ESTABLISHMENT	0x01	/* establishment */
@@ -196,6 +213,11 @@ int tpm_legacy_end(struct tpm_softc *, int, int);
 static int tpm_attach_finish(struct tpm_softc *);
 static void tpm_delayed_attach(void *);
 static int tpm_transmit_header(struct tpm_softc *, uint32_t, uint32_t *);
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+static int tpm_get_random(struct tpm_softc *, uint8_t *, size_t *);
+static void tpm_harvest(void *, int);
+static void tpm_harvest_enqueue(const uint8_t *, size_t);
+#endif
 static void tpm_tis12_abort(struct tpm_softc *);
 static int tpm_tis12_devid_index(uint32_t);
 static int tpm_tis12_quiesce(struct tpm_softc *);
@@ -254,6 +276,9 @@ tpm_attach(device_t dev)
 	sc->sc_intr_received = false;
 	sc->sc_irq_config.valid = false;
 	TASK_INIT(&sc->sc_intr_task, 0, tpm_tis12_intr_task, sc);
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	sc->sc_harvest_registered = false;
+#endif
 
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
@@ -366,7 +391,19 @@ tpm_attach_finish(struct tpm_softc *sc)
 	args.mda_gid = GID_WHEEL;
 	args.mda_mode = 0600;
 	args.mda_si_drv1 = sc;
-	return (make_dev_s(&args, &sc->sc_cdev, "tpm"));
+	error = make_dev_s(&args, &sc->sc_cdev, "tpm");
+	if (error != 0)
+		return (error);
+
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->sc_harvest_task, 0,
+	    tpm_harvest, sc);
+	random_source_register(&random_tpm12);
+	sc->sc_harvest_registered = true;
+	taskqueue_enqueue_timeout(taskqueue_thread, &sc->sc_harvest_task, 0);
+#endif
+
+	return (0);
 }
 
 static void
@@ -400,6 +437,15 @@ tpm_detach(device_t dev)
 	mtx_unlock(&sc->sc_intr_lock);
 	sx_xunlock(&sc->sc_lock);
 	taskqueue_drain(taskqueue_thread, &sc->sc_intr_task);
+
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	if (sc->sc_harvest_registered) {
+		taskqueue_drain_timeout(taskqueue_thread,
+		    &sc->sc_harvest_task);
+		random_source_deregister(&random_tpm12);
+		sc->sc_harvest_registered = false;
+	}
+#endif
 
 	/*
 	 * Prevent new methods from touching the transport.  Do not hold the
@@ -1039,6 +1085,142 @@ tpm_transmit_header(struct tpm_softc *sc, uint32_t ordinal, uint32_t *tpm_rc)
 	return (0);
 }
 
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+/*
+ * Fetch random bytes as one command/response transaction.  The caller owns
+ * sc_lock so a character-device request cannot be interposed between the
+ * write and read phases.
+ */
+static int
+tpm_get_random(struct tpm_softc *sc, uint8_t *entropy, size_t *entropy_size)
+{
+	uint8_t command[TPM_HDRSIZE + sizeof(uint32_t)];
+	uint8_t response[TPM_HDRSIZE + sizeof(uint32_t) + TPM_HARVEST_SIZE];
+	size_t count, response_size;
+	uint32_t random_size, tpm_rc;
+	int end_error, error;
+
+	sx_assert(&sc->sc_lock, SA_XLOCKED);
+	*entropy_size = 0;
+	random_size = 0;
+
+	be16enc(command, TPM_TAG_RQU_COMMAND);
+	be32enc(command + 2, sizeof(command));
+	be32enc(command + 6, TPM_ORD_GETRANDOM);
+	be32enc(command + TPM_HDRSIZE, TPM_HARVEST_SIZE);
+
+	error = sc->sc_start(sc, UIO_WRITE);
+	if (error != 0)
+		return (error);
+	error = sc->sc_write(sc, command, sizeof(command));
+	end_error = sc->sc_end(sc, UIO_WRITE, error);
+	if (error == 0)
+		error = end_error;
+	if (error != 0)
+		return (error);
+
+	error = sc->sc_start(sc, UIO_READ);
+	if (error != 0)
+		return (error);
+	count = 0;
+	error = sc->sc_read(sc, response, TPM_HDRSIZE, &count,
+	    TPM_PARAM_SIZE);
+	if (error != 0)
+		goto end;
+	if (count != TPM_HDRSIZE ||
+	    be16dec(response) != TPM_TAG_RSP_COMMAND) {
+		error = EPROTO;
+		goto end;
+	}
+
+	response_size = be32dec(response + 2);
+	if (response_size < TPM_HDRSIZE || response_size > sizeof(response)) {
+		error = EPROTO;
+		goto end;
+	}
+	if (response_size > TPM_HDRSIZE) {
+		count = 0;
+		error = sc->sc_read(sc, response + TPM_HDRSIZE,
+		    (int)(response_size - TPM_HDRSIZE), &count,
+		    TPM_PARAM_SIZE);
+		if (error != 0)
+			goto end;
+		if (count != response_size - TPM_HDRSIZE) {
+			error = EIO;
+			goto end;
+		}
+	}
+
+	tpm_rc = be32dec(response + 6);
+	if (tpm_rc != 0) {
+		error = EIO;
+		goto end;
+	}
+	if (response_size < TPM_HDRSIZE + sizeof(uint32_t)) {
+		error = EPROTO;
+		goto end;
+	}
+	random_size = be32dec(response + TPM_HDRSIZE);
+	if (random_size > response_size - TPM_HDRSIZE - sizeof(uint32_t)) {
+		error = EPROTO;
+		goto end;
+	}
+	random_size = MIN(random_size, TPM_HARVEST_SIZE);
+
+end:
+	end_error = sc->sc_end(sc, UIO_READ, error);
+	if (error == 0)
+		error = end_error;
+	if (error == 0) {
+		memcpy(entropy, response + TPM_HDRSIZE + sizeof(uint32_t),
+		    random_size);
+		*entropy_size = random_size;
+	}
+	return (error);
+}
+
+static void
+tpm_harvest_enqueue(const uint8_t *entropy, size_t entropy_size)
+{
+	size_t chunk_size;
+
+	/* Preserve all RNG bytes rather than squashing an oversized event. */
+	chunk_size = sizeof(((struct harvest_event *)0)->he_entropy);
+	while (entropy_size != 0) {
+		size_t size;
+
+		size = MIN(entropy_size, chunk_size);
+		random_harvest_queue(entropy, (u_int)size, RANDOM_PURE_TPM);
+		entropy += size;
+		entropy_size -= size;
+	}
+}
+
+static void
+tpm_harvest(void *arg, int pending)
+{
+	struct tpm_softc *sc;
+	uint8_t entropy[TPM_HARVEST_SIZE];
+	size_t entropy_size;
+
+	sc = arg;
+	entropy_size = 0;
+	sx_xlock(&sc->sc_lock);
+	if (sc->sc_dying || sc->sc_suspend != 0)
+		goto out;
+
+	/* Do not interpose between a user's command and response. */
+	if ((sc->sc_flags & TPM_OPEN) == 0 && !sc->sc_command_pending)
+		(void)tpm_get_random(sc, entropy, &entropy_size);
+	taskqueue_enqueue_timeout(taskqueue_thread, &sc->sc_harvest_task,
+	    hz * TPM_HARVEST_INTERVAL);
+out:
+	sx_xunlock(&sc->sc_lock);
+	if (entropy_size != 0)
+		tpm_harvest_enqueue(entropy, entropy_size);
+}
+#endif
+
 /* Save TPM state on suspend. */
 int
 tpm_suspend(device_t dev)
@@ -1053,6 +1235,11 @@ tpm_suspend(device_t dev)
 	 * invalidate that saved state, so retry SaveState before entering S3.
 	 */
 	sc = device_get_softc(dev);
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	if (sc->sc_harvest_registered)
+		taskqueue_drain_timeout(taskqueue_thread,
+		    &sc->sc_harvest_task);
+#endif
 	sx_xlock(&sc->sc_lock);
 	if (sc->sc_dying) {
 		error = ENXIO;
@@ -1088,6 +1275,11 @@ tpm_suspend(device_t dev)
 
 out:
 	sx_xunlock(&sc->sc_lock);
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	if (error != 0 && sc->sc_harvest_registered)
+		taskqueue_enqueue_timeout(taskqueue_thread,
+		    &sc->sc_harvest_task, hz * TPM_HARVEST_INTERVAL);
+#endif
 	return (error);
 }
 
@@ -1117,6 +1309,11 @@ tpm_resume(device_t dev)
 
 out:
 	sx_xunlock(&sc->sc_lock);
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	if (error == 0 && sc->sc_harvest_registered)
+		taskqueue_enqueue_timeout(taskqueue_thread,
+		    &sc->sc_harvest_task, hz * TPM_HARVEST_INTERVAL);
+#endif
 	return (error);
 }
 
