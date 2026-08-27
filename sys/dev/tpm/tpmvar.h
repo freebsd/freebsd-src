@@ -60,6 +60,8 @@ struct tpm_softc {
 	struct mtx sc_intr_lock;
 	struct cv sc_intr_cv;
 	bool sc_dying;
+	bool sc_locality;
+	bool sc_command_pending;
 #endif
 
 #ifndef __FreeBSD__
