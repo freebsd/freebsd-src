@@ -135,8 +135,12 @@ static int
 cb_getc(void *arg __unused)
 {
 	char c;
+	ssize_t nread;
 
-	if (read(consin_fd, &c, 1) == 1)
+	nread = read(consin_fd, &c, 1);
+	if (nread == 0)
+		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+	if (nread == 1)
 		return (c);
 	return (-1);
 }
