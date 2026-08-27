@@ -1,4 +1,4 @@
-.Dd August 8, 2026
+.Dd August 26, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -131,10 +131,14 @@ Setting this to a non-zero value will disable the use of this feature.
 .It Va net.iflib.tx_watchdog_periods
 Number of consecutive
 .Va net.iflib.timer_default
-intervals for which a transmit queue must stay frozen,
-that is, hold descriptors the hardware has not reported as completed
-while none are reclaimed,
-before iflib asks the hardware whether it has completions pending.
+intervals for which a transmit queue must remain frozen under demand before
+.Nm
+asks the hardware whether it has completions pending.
+A queue is frozen when it holds descriptors the hardware has not reported as
+completed while none are reclaimed.
+Demand persists while the outstanding descriptor count grows, the software
+queue is stalled, or the hardware descriptor ring is at its backpressure
+threshold.
 If it reports none, the interface is reset.
 Setting this to zero disables the check.
 .El
