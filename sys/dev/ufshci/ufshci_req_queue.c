@@ -168,16 +168,30 @@ static void
 ufshci_req_queue_manual_complete_tracker(struct ufshci_tracker *tr, uint8_t ocs,
     uint8_t rc)
 {
-	struct ufshci_utp_xfer_req_desc *desc;
+	struct ufshci_req_queue *req_queue = tr->req_queue;
+	struct ufshci_hw_queue *hwq = tr->hwq;
 	struct ufshci_upiu_header *resp_header;
 
-	mtx_assert(&tr->hwq->qlock, MA_NOTOWNED);
+	mtx_assert(&hwq->qlock, MA_NOTOWNED);
 
-	resp_header = (struct ufshci_upiu_header *)tr->ucd->response_upiu;
+	/*
+	 * Write the fake response where the completion path reads it.
+	 */
+	if (req_queue->is_task_mgmt) {
+		resp_header = (struct ufshci_upiu_header *)
+		    hwq->utmrd[tr->slot_num].response_upiu;
+		hwq->utmrd[tr->slot_num].overall_command_status = ocs;
+	} else {
+		resp_header = (struct ufshci_upiu_header *)
+		    tr->ucd->response_upiu;
+		hwq->utrd[tr->slot_num].overall_command_status = ocs;
+	}
 	resp_header->response = rc;
-
-	desc = &tr->hwq->utrd[tr->slot_num];
-	desc->overall_command_status = ocs;
+	/*
+	 * The hardware never wrote a response. Copy the task tag from
+	 * the request so the completion checks pass.
+	 */
+	resp_header->task_tag = tr->req->request_upiu.header.task_tag;
 
 	ufshci_req_queue_complete_tracker(tr);
 }
