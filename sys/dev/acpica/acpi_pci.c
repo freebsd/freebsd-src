@@ -61,7 +61,11 @@ struct acpi_pci_devinfo {
 	struct pci_devinfo	ap_dinfo;
 	ACPI_HANDLE		ap_handle;
 	int			ap_flags;
+	int			ap_domain;
 };
+
+/* acpi_pxm_parse() returns -2, -1, or a non-negative domain. */
+#define	ACPI_PCI_DOMAIN_UNSET	(-3)
 
 ACPI_SERIAL_DECL(pci_powerstate, "ACPI PCI power methods");
 
@@ -132,6 +136,7 @@ acpi_pci_alloc_devinfo(device_t dev)
 	struct acpi_pci_devinfo *dinfo;
 
 	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	dinfo->ap_domain = ACPI_PCI_DOMAIN_UNSET;
 	return (&dinfo->ap_dinfo);
 }
 
@@ -217,16 +222,38 @@ acpi_pci_get_locality_device(device_t child)
 	return (pf != NULL ? pf : child);
 }
 
+/* Cache locality on its source device; all of a PF's VFs share its result. */
+static int
+acpi_pci_get_locality_domain(device_t child)
+{
+	struct acpi_pci_devinfo *dinfo;
+	device_t locality;
+	int domain;
+
+	locality = acpi_pci_get_locality_device(child);
+	dinfo = device_get_ivars(locality);
+	domain = dinfo->ap_domain;
+	if (domain == ACPI_PCI_DOMAIN_UNSET) {
+		domain = acpi_pxm_parse(locality);
+		/* Do not make a generic evaluation or mapping error permanent. */
+		if (domain != -1)
+			dinfo->ap_domain = domain;
+	}
+	return (domain);
+}
+
 static int
 acpi_pci_get_cpus(device_t dev, device_t child, enum cpu_sets op,
     size_t setsize, cpuset_t *cpuset)
 {
+	device_t locality;
 
 	/* BUS_GET_CPUS may preserve a descendant below the PCI function. */
 	if (device_get_parent(child) != dev)
 		return (acpi_get_cpus(dev, child, op, setsize, cpuset));
-	child = acpi_pci_get_locality_device(child);
-	return (acpi_get_cpus(dev, child, op, setsize, cpuset));
+	locality = acpi_pci_get_locality_device(child);
+	return (acpi_get_cpus_for_domain(dev, locality,
+	    acpi_pci_get_locality_domain(locality), op, setsize, cpuset));
 }
 
 /*
@@ -242,8 +269,7 @@ acpi_pci_get_domain(device_t dev, device_t child, int *domain)
 {
 	int d;
 
-	child = acpi_pci_get_locality_device(child);
-	d = acpi_pxm_parse(child);
+	d = acpi_pci_get_locality_domain(child);
 	if (d >= 0) {
 		*domain = d;
 		return (0);
@@ -252,7 +278,8 @@ acpi_pci_get_domain(device_t dev, device_t child, int *domain)
 		return (ENOENT);
 
 	/* No _PXM node; go up a level */
-	return (bus_generic_get_domain(dev, child, domain));
+	return (bus_generic_get_domain(dev,
+	    acpi_pci_get_locality_device(child), domain));
 }
 
 /*
