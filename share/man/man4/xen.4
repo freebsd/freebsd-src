@@ -33,15 +33,18 @@
 .Nm xen
 .Nd Xen Hypervisor Support
 .Sh SYNOPSIS
-FreeBSD supports running both as a Xen guest and host on amd64 hardware.
-Guest support is limited to HVM and PVH modes, while host support is limited to
-PVH mode only.
-.Pp
-Xen support is built by default in the i386 and amd64 GENERIC kernels; note
-however that host mode is only available on amd64.
+.Cd device xenefi
+.Cd device xenpci
+.Cd device xentimer
+.Cd options XENHVM
 .Sh DESCRIPTION
 The Xen Hypervisor allows multiple virtual machines to be run on a single
 computer system.
+.Fx
+supports running both as a Xen guest and host on amd64 hardware.
+Guest support is limited to HVM and PVH modes, while host support is limited to
+PVH mode only.
+.Pp
 When first released, Xen required that i386 kernels be compiled
 "para-virtualized" as the x86 instruction set was not fully virtualizable.
 Primarily, para-virtualization modifies the virtual memory system to use
