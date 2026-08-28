@@ -199,7 +199,7 @@ ATF_TC_BODY(enotcap, tc)
 	CAP_ALL(&rights);
 	cap_rights_clear(&rights, CAP_PDWAIT);
 
-	pid = pdfork(&fdp, 0);
+	pid = pdfork(&fdp, PD_PTRACE_CAP);
 	if (pid == 0)
 		_exit(42);
 	ATF_REQUIRE_MSG(pid >= 0, "pdfork failed: %s", strerror(errno));
