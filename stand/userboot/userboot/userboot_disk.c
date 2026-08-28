@@ -82,25 +82,29 @@ userdisk_init(void)
 	off_t mediasize;
 	u_int sectorsize;
 	int i;
+	int userdisk_usable = 0;
 
 	userdisk_maxunit = userboot_disk_maxunit;
 	if (userdisk_maxunit > 0) {
-		ud_info = malloc(sizeof(*ud_info) * userdisk_maxunit);
-		if (ud_info == NULL)
+		ud_info = calloc(userdisk_maxunit, sizeof(*ud_info));
+		if (ud_info == NULL) {
+			userdisk_maxunit = 0;
+			userboot_disk_maxunit = 0;
 			return (ENOMEM);
+		}
 		for (i = 0; i < userdisk_maxunit; i++) {
 			if (CALLBACK(diskioctl, i, DIOCGSECTORSIZE,
-			    &sectorsize) != 0 || CALLBACK(diskioctl, i,
-			    DIOCGMEDIASIZE, &mediasize) != 0)
-				return (ENXIO);
-			ud_info[i].mediasize = mediasize;
-			ud_info[i].sectorsize = sectorsize;
-			ud_info[i].ud_open = 0;
-			ud_info[i].ud_bcache = NULL;
+			    &sectorsize) == 0 && CALLBACK(diskioctl, i,
+			    DIOCGMEDIASIZE, &mediasize) == 0 && mediasize > 0) {
+				ud_info[i].mediasize = mediasize;
+				ud_info[i].sectorsize = sectorsize;
+				userdisk_usable++;
+			}
 		}
 	}
-	bcache_add_dev(userdisk_maxunit);
-	return(0);
+	bcache_add_dev(userdisk_usable);
+
+	return (0);
 }
 
 static void
@@ -109,6 +113,18 @@ userdisk_cleanup(void)
 
 	if (userdisk_maxunit > 0)
 		free(ud_info);
+}
+
+int
+userboot_disk_firstunit(void)
+{
+	int i;
+
+	for (i = 0; i < userdisk_maxunit; i++) {
+		if (ud_info[i].mediasize != 0)
+			return (i);
+	}
+	return (-1);
 }
 
 /*
@@ -121,7 +137,7 @@ userdisk_print(int verbose)
 	char line[80];
 	int i, ret = 0;
 
-	if (userdisk_maxunit == 0)
+	if (userboot_disk_firstunit() < 0)
 		return (0);
 
 	printf("%s devices:", userboot_disk.dv_name);
@@ -129,6 +145,8 @@ userdisk_print(int verbose)
 		return (ret);
 
 	for (i = 0; i < userdisk_maxunit; i++) {
+		if (ud_info[i].mediasize == 0)
+			continue;
 		snprintf(line, sizeof(line),
 		    "    disk%d:   Guest drive image\n", i);
 		ret = pager_output(line);
@@ -163,7 +181,8 @@ userdisk_open(struct open_file *f, ...)
 	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
 
-	if (dev->dd.d_unit < 0 || dev->dd.d_unit >= userdisk_maxunit)
+	if (dev->dd.d_unit < 0 || dev->dd.d_unit >= userdisk_maxunit ||
+	    ud_info[dev->dd.d_unit].mediasize == 0)
 		return (EIO);
 	ud_info[dev->dd.d_unit].ud_open++;
 	if (ud_info[dev->dd.d_unit].ud_bcache == NULL)
