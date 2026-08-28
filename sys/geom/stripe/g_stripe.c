@@ -33,12 +33,17 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_page.h>
 #include <vm/uma.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
+#include <geom/geom_disk.h>
 #include <geom/stripe/g_stripe.h>
 
 FEATURE(geom_stripe, "GEOM striping support");
@@ -288,12 +293,206 @@ g_stripe_done(struct bio *bp)
 		mtx_unlock(&sc->sc_lock);
 		if (pbp->bio_driver1 != NULL)
 			uma_zfree(g_stripe_zone, pbp->bio_driver1);
+		if (pbp->bio_driver2 != NULL)
+			free(pbp->bio_driver2, M_STRIPE);
 		if (bp->bio_cmd == BIO_SPEEDUP)
 			pbp->bio_completed = pbp->bio_length;
 		g_io_deliver(pbp, pbp->bio_error);
 	} else
 		mtx_unlock(&sc->sc_lock);
 	g_destroy_bio(bp);
+}
+
+/*
+ * Delete requests have no data buffer, and the stripes of each disk are
+ * contiguous on it, so any such request can be represented with only one
+ * request per disk it touches.
+ */
+static void
+g_stripe_start_delete(struct g_stripe_softc *sc, struct bio *bp)
+{
+	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
+	struct bio *cbp;
+	off_t nstripe, start, end, soff, ns, nsd;
+	u_int first, last, p, rem;
+
+	nstripe = bp->bio_offset >> (off_t)sc->sc_stripebits;
+	start = bp->bio_offset & (sc->sc_stripesize - 1);
+	end = start + bp->bio_length;
+	/* First disk and stripe offset on it. */
+	first = nstripe % sc->sc_ndisks;
+	soff = (nstripe / sc->sc_ndisks) << sc->sc_stripebits;
+	ns = (end + sc->sc_stripesize - 1) >> sc->sc_stripebits;
+	nsd = ns / sc->sc_ndisks;	/* Number of stripes per disk. */
+	rem = ns % sc->sc_ndisks;	/* Number of disks having one more. */
+	last = (rem > 0 ? rem : sc->sc_ndisks) - 1; /* Disk of the last one. */
+	for (p = 0; p < sc->sc_ndisks && p < ns; p++) {
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL)
+			goto failure;
+		TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+		cbp->bio_done = g_stripe_done;
+		cbp->bio_offset = soff + (first + p < sc->sc_ndisks ? 0 :
+		    sc->sc_stripesize) + start;
+		cbp->bio_length = ((nsd + (p < rem)) << sc->sc_stripebits) -
+		    start;
+		if (p == last)
+			cbp->bio_length -= (ns << sc->sc_stripebits) - end;
+		cbp->bio_caller2 = sc->sc_disks[(first + p) % sc->sc_ndisks];
+		start = 0;
+	}
+	/*
+	 * Fire off all allocated requests!
+	 */
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		struct g_consumer *cp;
+
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		cp = cbp->bio_caller2;
+		cbp->bio_caller2 = NULL;
+		cbp->bio_to = cp->provider;
+		G_STRIPE_LOGREQ(cbp, "Sending request.");
+		g_io_request(cbp, cp);
+	}
+	return;
+failure:
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		bp->bio_children--;
+		g_destroy_bio(cbp);
+	}
+	if (bp->bio_error == 0)
+		bp->bio_error = ENOMEM;
+	g_io_deliver(bp, bp->bio_error);
+}
+
+/*
+ * Send one request per disk, representing their non-contiguous data buffers
+ * as arrays of physical pages.  It gives the same reduction of the number of
+ * requests as the "fast" mode, but without copying the data.  Applicability
+ * conditions are verified by the caller.
+ */
+static int
+g_stripe_start_pages(struct bio *bp, u_int no, off_t offset)
+{
+	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
+	struct g_stripe_softc *sc;
+	struct bio *cbp;
+	vm_page_t *ma, m;
+	vm_offset_t va;
+	vm_paddr_t pa;
+	off_t stripesize, start, end, soff, boff, b, bs, be, poff, o, ns, nsd;
+	u_int i, n, npages, p, rem, last;
+	bool unmapped;
+	int error;
+
+	sc = bp->bio_to->geom->softc;
+	stripesize = sc->sc_stripesize;
+
+	unmapped = (bp->bio_flags & BIO_UNMAPPED) != 0;
+	if (unmapped) {
+		va = 0;
+		poff = bp->bio_ma_offset;
+	} else {
+		va = trunc_page((vm_offset_t)bp->bio_data);
+		poff = (uintptr_t)bp->bio_data & PAGE_MASK;
+	}
+	npages = round_page(poff + bp->bio_length) / PAGE_SIZE;
+	ma = malloc(npages * sizeof(*ma), M_STRIPE, M_NOWAIT);
+	if (ma == NULL)
+		return (ENOMEM);
+
+	/*
+	 * Shift the buffer offsets by the start position in the stripe, so
+	 * that the stripe i of the request covers exactly [i * stripesize,
+	 * (i + 1) * stripesize) of the shifted buffer.  Then stripes of the
+	 * disk p are p, p + ndisks, p + 2 * ndisks, ..., contiguous on the
+	 * disk.  Only the first stripe may start and only the last one may
+	 * end not on a stripe boundary, so with page-aligned stripesize and
+	 * matching page phase of the buffer no page is shared by two disks
+	 * and the pages of all the child requests are exactly the pages of
+	 * the original one, each used once.
+	 */
+	start = bp->bio_offset & (stripesize - 1);
+	end = start + bp->bio_length;
+	soff = offset - start;		/* Stripe offset on the disk. */
+	boff = poff - start;		/* Buffer offset of the shifted origin. */
+	ns = (end + stripesize - 1) >> sc->sc_stripebits;
+	nsd = ns / sc->sc_ndisks;	/* Number of stripes per disk. */
+	rem = ns % sc->sc_ndisks;	/* Number of disks having one more. */
+	last = (rem > 0 ? rem : sc->sc_ndisks) - 1; /* Disk of the last one. */
+	n = 0;
+	for (p = 0; p < sc->sc_ndisks; p++) {
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL) {
+			error = ENOMEM;
+			goto failure;
+		}
+		TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+		cbp->bio_done = g_stripe_done;
+		cbp->bio_offset = soff + (no + p < sc->sc_ndisks ? 0 :
+		    stripesize) + start;
+		cbp->bio_length = ((nsd + (p < rem)) << sc->sc_stripebits) -
+		    start;
+		if (p == last)
+			cbp->bio_length -= (ns << sc->sc_stripebits) - end;
+		cbp->bio_caller2 = sc->sc_disks[(no + p) % sc->sc_ndisks];
+		cbp->bio_data = unmapped_buf;
+		cbp->bio_flags |= BIO_UNMAPPED;
+		cbp->bio_ma = &ma[n];
+		cbp->bio_ma_offset = poff;
+		cbp->bio_ma_n = round_page(poff + cbp->bio_length) / PAGE_SIZE;
+		for (b = (off_t)p * stripesize; b < end;
+		    b += (off_t)sc->sc_ndisks * stripesize) {
+			bs = MAX(b, start);
+			be = MIN(b + stripesize, end);
+			o = boff + bs;
+			KASSERT(bs == start || (o & PAGE_MASK) == 0,
+			    ("Unaligned stripe (offset=%jd, length=%jd).",
+			    (intmax_t)bp->bio_offset,
+			    (intmax_t)bp->bio_length));
+			for (i = howmany((o & PAGE_MASK) + be - bs, PAGE_SIZE);
+			    i > 0; i--, o += PAGE_SIZE, n++) {
+				if (unmapped) {
+					ma[n] = bp->bio_ma[o / PAGE_SIZE];
+					continue;
+				}
+				pa = pmap_kextract(va + trunc_page(o));
+				m = PHYS_TO_VM_PAGE(pa);
+				if (m == NULL || VM_PAGE_TO_PHYS(m) != pa) {
+					error = EOPNOTSUPP;
+					goto failure;
+				}
+				ma[n] = m;
+			}
+		}
+		start = 0;
+		poff = 0;
+	}
+	KASSERT(n == npages, ("Page count mismatch (%u != %u).", n, npages));
+	bp->bio_driver2 = ma;
+	/*
+	 * Fire off all allocated requests!
+	 */
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		struct g_consumer *cp;
+
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		cp = cbp->bio_caller2;
+		cbp->bio_caller2 = NULL;
+		cbp->bio_to = cp->provider;
+		G_STRIPE_LOGREQ(cbp, "Sending request.");
+		g_io_request(cbp, cp);
+	}
+	return (0);
+failure:
+	free(ma, M_STRIPE);
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		bp->bio_children--;
+		g_destroy_bio(cbp);
+	}
+	return (error);
 }
 
 static int
@@ -462,8 +661,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 
 	/* offset -= offset % stripesize; */
 	offset -= offset & (stripesize - 1);
-	if (bp->bio_cmd != BIO_DELETE)
-		addr += length;
+	addr += length;
 	length = bp->bio_length - length;
 	for (no++; length > 0; no++, length -= stripesize) {
 		if (no > sc->sc_ndisks - 1) {
@@ -498,8 +696,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 
 		cbp->bio_caller2 = sc->sc_disks[no];
 
-		if (bp->bio_cmd != BIO_DELETE)
-			addr += stripesize;
+		addr += stripesize;
 	}
 	/*
 	 * Fire off all allocated requests!
@@ -566,7 +763,7 @@ g_stripe_start(struct bio *bp)
 	off_t offset, start, length, nstripe, stripesize;
 	struct g_stripe_softc *sc;
 	u_int no;
-	int error, fast = 0;
+	int error;
 
 	sc = bp->bio_to->geom->softc;
 	/*
@@ -582,8 +779,14 @@ g_stripe_start(struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
-	case BIO_DELETE:
 		break;
+	case BIO_DELETE:
+		/*
+		 * Delete requests need no data buffer, so they are always
+		 * split into only one request per disk.
+		 */
+		g_stripe_start_delete(sc, bp);
+		return;
 	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		g_stripe_pushdown(sc, bp);
@@ -592,6 +795,11 @@ g_stripe_start(struct bio *bp)
 		if (!strcmp(bp->bio_attribute, "GEOM::candelete")) {
 			int val = (sc->sc_flags & G_STRIPE_FLAG_CANDELETE) != 0;
 			g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
+			return;
+		} else if (!strcmp(bp->bio_attribute, "GEOM::rotation_rate")) {
+			g_handleattr(bp, "GEOM::rotation_rate",
+			    &sc->sc_rotation_rate,
+			    sizeof(sc->sc_rotation_rate));
 			return;
 		}
 		/* otherwise: To which provider it should be delivered? */
@@ -621,40 +829,56 @@ g_stripe_start(struct bio *bp)
 	length = MIN(bp->bio_length, stripesize - start);
 
 	/*
+	 * Do use "pages" mode when:
+	 * 1. Unmapped I/O is allowed and supported by all the providers
+	 *    underneath us, since we are going to use it for the children.
+	 * and
+	 * 2. Request needs more stripes than there are disks.  If it doesn't,
+	 *    there will be no need to send more than one I/O request to
+	 *    a provider, so there is nothing to optimize.
+	 * and
+	 * 3. Stripes are page-aligned and the buffer has the same page phase
+	 *    as the request offset, so that all the stripes but the first one
+	 *    start on a page boundary in the buffer.  It allows to describe
+	 *    the buffer of each child with an array of physical pages.
+	 * and
+	 * 4. The buffer is not a list of DMA segments.
+	 */
+	if (unmapped_buf_allowed &&
+	    (sc->sc_flags & G_STRIPE_FLAG_UNMAPPED) != 0 &&
+	    bp->bio_length + start > stripesize * sc->sc_ndisks &&
+	    (stripesize & PAGE_MASK) == 0 &&
+	    ((((bp->bio_flags & BIO_UNMAPPED) != 0 ? bp->bio_ma_offset :
+	    (uintptr_t)bp->bio_data) + length) & PAGE_MASK) == 0 &&
+	    (bp->bio_flags & BIO_VLIST) == 0) {
+		if (g_stripe_start_pages(bp, no, offset) == 0)
+			return;
+	}
+
+	/*
 	 * Do use "fast" mode when:
 	 * 1. "Fast" mode is ON.
 	 * and
 	 * 2. Request size is less than or equal to maxphys,
 	 *    which should always be true.
 	 * and
-	 * 3. Request size is bigger than stripesize * ndisks. If it isn't,
+	 * 3. Request needs more stripes than there are disks.  If it doesn't,
 	 *    there will be no need to send more than one I/O request to
-	 *    a provider, so there is nothing to optmize.
+	 *    a provider, so there is nothing to optimize.
 	 * and
 	 * 4. Request is not unmapped.
-	 * and
-	 * 5. It is not a BIO_DELETE.
 	 */
 	if (g_stripe_fast && bp->bio_length <= maxphys &&
-	    bp->bio_length >= stripesize * sc->sc_ndisks &&
-	    (bp->bio_flags & BIO_UNMAPPED) == 0 &&
-	    bp->bio_cmd != BIO_DELETE) {
-		fast = 1;
-	}
-	error = 0;
-	if (fast) {
-		error = g_stripe_start_fast(bp, no, offset, length);
-		if (error != 0)
-			g_stripe_fast_failed++;
+	    bp->bio_length + start > stripesize * sc->sc_ndisks &&
+	    (bp->bio_flags & BIO_UNMAPPED) == 0) {
+		if (g_stripe_start_fast(bp, no, offset, length) == 0)
+			return;
+		g_stripe_fast_failed++;
 	}
 	/*
-	 * Do use "economic" when:
-	 * 1. "Economic" mode is ON.
-	 * or
-	 * 2. "Fast" mode failed. It can only fail if there is no memory.
+	 * Use "economic" mode if none of the above was used or has failed.
 	 */
-	if (!fast || error != 0)
-		error = g_stripe_start_economic(bp, no, offset, length);
+	error = g_stripe_start_economic(bp, no, offset, length);
 	if (error != 0) {
 		if (bp->bio_error == 0)
 			bp->bio_error = error;
@@ -676,7 +900,24 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	sc->sc_provider = g_new_providerf(sc->sc_geom, "stripe/%s",
 	    sc->sc_name);
 	sc->sc_provider->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	if (g_stripe_fast == 0)
+	sc->sc_flags |= G_STRIPE_FLAG_UNMAPPED;
+	for (no = 0; no < sc->sc_ndisks; no++) {
+		dp = sc->sc_disks[no]->provider;
+
+		/* A provider underneath us doesn't support unmapped */
+		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+			G_STRIPE_DEBUG(1, "Cancelling unmapped "
+			    "because of %s.", dp->name);
+			sc->sc_flags &= ~G_STRIPE_FLAG_UNMAPPED;
+			break;
+		}
+	}
+	/*
+	 * Accept unmapped requests only if the disks below accept them too,
+	 * to not depend on the limited transient mapping, and if "fast" mode
+	 * is disabled, since it can not copy from an unmapped buffer.
+	 */
+	if (g_stripe_fast == 0 && (sc->sc_flags & G_STRIPE_FLAG_UNMAPPED) != 0)
 		sc->sc_provider->flags |= G_PF_ACCEPT_UNMAPPED;
 	/*
 	 * Find the smallest disk.
@@ -695,13 +936,6 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 		if (ms < mediasize)
 			mediasize = ms;
 		sectorsize = lcm(sectorsize, dp->sectorsize);
-
-		/* A provider underneath us doesn't support unmapped */
-		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
-			G_STRIPE_DEBUG(1, "Cancelling unmapped "
-			    "because of %s.", dp->name);
-			sc->sc_provider->flags &= ~G_PF_ACCEPT_UNMAPPED;
-		}
 	}
 	sc->sc_provider->sectorsize = sectorsize;
 	sc->sc_provider->mediasize = mediasize * sc->sc_ndisks;
@@ -798,16 +1032,26 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 
 	sc->sc_disks[no] = cp;
 
-	/* cascade candelete */
+	/* Cascade candelete and rotation rate. */
 	error = g_access(cp, 1, 0, 0);
 	if (error == 0) {
-		int can_delete;
+		int can_delete = 0;
+		uint16_t rr;
 
 		error = g_getattr("GEOM::candelete", cp, &can_delete);
 		if (error == 0 && can_delete != 0)
 			sc->sc_flags |= G_STRIPE_FLAG_CANDELETE;
 		G_STRIPE_DEBUG(1, "Provider %s candelete %i.", pp->name,
 		    can_delete);
+		error = g_getattr("GEOM::rotation_rate", cp, &rr);
+		if (error != 0)
+			rr = DISK_RR_UNKNOWN;
+		if (g_stripe_nvalid(sc) == 1)
+			sc->sc_rotation_rate = rr;
+		else if (sc->sc_rotation_rate != rr)
+			sc->sc_rotation_rate = DISK_RR_UNKNOWN;
+		G_STRIPE_DEBUG(1, "Provider %s rotation rate %u.", pp->name,
+		    rr);
 		g_access(cp, -1, 0, 0);
 	}
 

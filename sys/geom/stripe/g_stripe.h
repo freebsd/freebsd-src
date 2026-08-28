@@ -48,6 +48,7 @@
 #define	G_STRIPE_TYPE_AUTOMATIC	1
 
 #define	G_STRIPE_FLAG_CANDELETE	0x00000001UL
+#define	G_STRIPE_FLAG_UNMAPPED	0x00000002UL	/* All disks accept unmapped. */
 
 #define	G_STRIPE_DEBUG(lvl, ...) \
     _GEOM_DEBUG("GEOM_STRIPE", g_stripe_debug, (lvl), NULL, __VA_ARGS__)
@@ -63,6 +64,7 @@ struct g_stripe_softc {
 	uint16_t	 sc_ndisks;
 	off_t		 sc_stripesize;
 	uint32_t	 sc_stripebits;
+	uint16_t	 sc_rotation_rate;
 	struct mtx	 sc_lock;
 	int		 sc_flags;
 };
