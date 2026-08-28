@@ -2614,6 +2614,12 @@ em_update_i350_i354_ecc_stats(struct e1000_softc *sc)
 		sc->corrected_error_dma_count += bitcount32(status);
 		E1000_WRITE_REG(hw, E1000_DDECCS, status);
 	}
+	status = E1000_READ_REG(hw, E1000_LANPERRSTS) &
+	    E1000_LANPERRSTS_MNG_FIFO_CORR;
+	if (status != 0) {
+		sc->corrected_error_lan_mng_fifo_count++;
+		E1000_WRITE_REG(hw, E1000_LANPERRSTS, status);
+	}
 
 	pbeccsts = E1000_READ_REG(hw, E1000_RPBECCSTS);
 	status = pbeccsts & E1000_PBECCSTS_I350_I354_CORR_MASK;
@@ -2799,7 +2805,8 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 			    E1000_READ_REG(&sc->hw, E1000_RPBECCSTS),
 			    E1000_READ_REG(&sc->hw, E1000_TPBECCSTS),
 			    pcieecc);
-		}
+		} else if (em_has_i350_i354_memory_errors(&sc->hw))
+			em_update_i350_i354_ecc_stats(sc);
 		if (peind & E1000_PEIND_LANPORT_PARITY_FATAL)
 			sc->fatal_error_lan_count++;
 		if (peind & E1000_PEIND_MNG_PARITY_FATAL)
@@ -7179,6 +7186,11 @@ em_add_hw_stats(struct e1000_softc *sc)
 				    "corrected_packet_buffer", CTLFLAG_RD,
 				    &sc->corrected_error_packet_buffer_count,
 				    "Corrected packet-buffer memory indications");
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_lan_mng_fifo", CTLFLAG_RD,
+				    &sc->corrected_error_lan_mng_fifo_count,
+				    "Corrected LAN management transmit-FIFO ECC "
+				    "indications");
 				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 				    "corrected_pcie_tx_data", CTLFLAG_RD,
 				    &sc->corrected_error_pcie_tx_data_count,
