@@ -974,10 +974,9 @@ am335x_lcd_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Fixme: Cant find any reference in DTS for dpll_disp_ck@498 for now. */
-	err = clk_get_by_name(dev, "dpll_disp_ck@498", &sc->sc_clk_dpll_disp_ck);
+	err = clk_get_by_name(dev, "dpll_disp_ck", &sc->sc_clk_dpll_disp_ck);
 	if (err != 0) {
-		device_printf(dev, "Cant get dpll_disp_ck@49\n");
+		device_printf(dev, "Cant get dpll_disp_ck\n");
 		return (ENXIO);
 	}
 

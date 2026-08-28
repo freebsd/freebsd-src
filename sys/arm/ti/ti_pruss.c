@@ -556,9 +556,9 @@ ti_pruss_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	err = clk_get_by_name(dev, "pruss_ocp_gclk@530", &pruss_ocp_gclk);
+	err = clk_get_by_name(dev, "pruss_ocp_gclk", &pruss_ocp_gclk);
 	if (err) {
-		device_printf(dev, "Cant get pruss_ocp_gclk@530 err %d\n", err);
+		device_printf(dev, "Cant get pruss_ocp_gclk err %d\n", err);
 		return (ENXIO);
 	}
 
