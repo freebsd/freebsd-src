@@ -36,23 +36,16 @@
 .Nm wpi
 .Nd Intel PRO/Wireless 3945ABG IEEE 802.11a/b/g network driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device wpi"
-.Cd "device wpifw"
-.Cd "device pci"
-.Cd "device wlan"
-.Cd "device wlan_amrr"
-.Cd "device firmware"
-.Ed
+.Cd device wpi
+.Cd device wpifw
+.Cd device pci
+.Cd device wlan
+.Cd device wlan_amrr
+.Cd device firmware
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Pp
-.Dl if_wpi_load="YES"
+.Cd if_wpi_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
