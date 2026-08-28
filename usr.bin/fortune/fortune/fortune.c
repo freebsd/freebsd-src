@@ -85,7 +85,6 @@ typedef struct fd {
 
 static bool	Found_one;		/* did we find a match? */
 static bool	Find_files = FALSE;	/* just find a list of proper fortune files */
-static bool	Fortunes_only = FALSE;	/* check only "fortunes" files */
 static bool	Wait = FALSE;		/* wait desired after fortune */
 static bool	Short_only = FALSE;	/* short fortune desired */
 static bool	Long_only = FALSE;	/* long fortune desired */
@@ -352,33 +351,32 @@ form_file_list(char **files, int file_cnt)
 	char	**pstr;
 
 	if (file_cnt == 0) {
-		if (Find_files) {
-			Fortunes_only = TRUE;
+		/*
+		 * Prefer a database named "fortunes" so a port that
+		 * restores that file keeps the historic default.  If
+		 * it is absent (the base system has shipped only
+		 * freebsd-tips since the other datfiles left src),
+		 * use every database in the search path.  LOCALBASE
+		 * stays on that path; port cookies are not moved.
+		 */
+		pstr = Fortune_path_arr;
+		i = 0;
+		while (*pstr) {
+			i += add_file(NO_PROB, "fortunes", *pstr++,
+				      &File_list, &File_tail, NULL);
+		}
+		if (!i) {
 			pstr = Fortune_path_arr;
-			i = 0;
 			while (*pstr) {
 				i += add_file(NO_PROB, *pstr++, NULL,
 					      &File_list, &File_tail, NULL);
 			}
-			Fortunes_only = FALSE;
-			if (!i) {
-				fprintf(stderr, "No fortunes found in %s.\n",
-				    Fortune_path);
-			}
-			return (i != 0);
-		} else {
-			pstr = Fortune_path_arr;
-			i = 0;
-			while (*pstr) {
-				i += add_file(NO_PROB, "fortunes", *pstr++,
-					      &File_list, &File_tail, NULL);
-			}
-			if (!i) {
-				fprintf(stderr, "No fortunes found in %s.\n",
-				    Fortune_path);
-			}
-			return (i != 0);
 		}
+		if (!i) {
+			fprintf(stderr, "No fortunes found in %s.\n",
+			    Fortune_path);
+		}
+		return (i != 0);
 	}
 	for (i = 0; i < file_cnt; i++) {
 		percent = NO_PROB;
@@ -774,10 +772,6 @@ is_fortfile(const char *file, char **datp, char **posp, int check_for_offend)
 		sp++;
 	if (*sp == '.') {
 		DPRINTF(2, (stderr, "FALSE (file starts with '.')\n"));
-		return (FALSE);
-	}
-	if (Fortunes_only && strncmp(sp, "fortunes", 8) != 0) {
-		DPRINTF(2, (stderr, "FALSE (check fortunes only)\n"));
 		return (FALSE);
 	}
 	if ((sp = strrchr(sp, '.')) != NULL) {
