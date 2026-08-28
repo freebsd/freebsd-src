@@ -365,7 +365,14 @@ cb_diskioctl(void *arg __unused, int unit, u_long cmd, void *data)
 
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
-		*(u_int *)data = 512;
+		if (fstat(disk_fd[unit], &sb) != 0)
+			return (ENOTTY);
+		if (S_ISCHR(sb.st_mode)) {
+			if (ioctl(disk_fd[unit], DIOCGSECTORSIZE, data) != 0)
+				return (ENOTTY);
+		} else {
+			*(u_int *)data = 512;
+		}
 		break;
 	case DIOCGMEDIASIZE:
 		if (fstat(disk_fd[unit], &sb) != 0)
@@ -732,7 +739,9 @@ altcons_open(char *path)
 static int
 disk_open(char *path)
 {
-	int fd;
+	struct stat sbuf;
+	off_t size;
+	int fd, ret, sectsz;
 
 	if (ndisks >= NDISKS)
 		return (ERANGE);
@@ -742,11 +751,30 @@ disk_open(char *path)
 		fd = open(path, O_RDONLY);
 	if (fd < 0)
 		return (errno);
+	if (fstat(fd, &sbuf) < 0) {
+		ret = errno;
+		goto err;
+	}
+
+	size = sbuf.st_size;
+	sectsz = DEV_BSIZE;
+	if (S_ISCHR(sbuf.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
+		    ioctl(fd, DIOCGSECTORSIZE, &sectsz) < 0) {
+			ret = errno;
+			goto err;
+		}
+		assert(size != 0);
+		assert(sectsz != 0);
+	}
 
 	disk_fd[ndisks] = fd;
 	ndisks++;
 
 	return (0);
+err:
+	close(fd);
+	return (ret);
 }
 
 static void
@@ -829,7 +857,7 @@ main(int argc, char** argv)
 		case 'd':
 			error = disk_open(optarg);
 			if (error != 0)
-				errx(EX_USAGE, "Could not open '%s'", optarg);
+				errc(EX_USAGE, error, "Could not open '%s'", optarg);
 			break;
 
 		case 'e':
