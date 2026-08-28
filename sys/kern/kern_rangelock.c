@@ -835,8 +835,8 @@ _rangelock_cookie_assert(void *cookie, int what, const char *file, int line)
 		if (c == RL_RET_CHEAT_RLOCKED)
 			break;
 		if (c == RL_RET_CHEAT_WLOCKED)
-			panic("rangelock not rlocked (%#lx) @ %s:%d\n",
-			    c, file, line);
+			panic("rangelock not rlocked (%#jx) @ %s:%d\n",
+			    (uintmax_t)c, file, line);
 		entry = cookie;
 		if ((entry->rl_q_flags & RL_LOCK_TYPE_MASK) != RL_LOCK_READ)
 			panic("rangelock not rlocked (%#x) @ %s:%d\n",
@@ -850,8 +850,8 @@ _rangelock_cookie_assert(void *cookie, int what, const char *file, int line)
 		if (c == RL_RET_CHEAT_WLOCKED)
 			break;
 		if (c == RL_RET_CHEAT_RLOCKED)
-			panic("rangelock not wlocked (%#lx) @ %s:%d\n",
-			    c, file, line);
+			panic("rangelock not wlocked (%#jx) @ %s:%d\n",
+			    (uintmax_t)c, file, line);
 		entry = cookie;
 		if ((entry->rl_q_flags & RL_LOCK_TYPE_MASK) != RL_LOCK_WRITE)
 			panic("rangelock not wlocked (%#x) @ %s:%d\n",
