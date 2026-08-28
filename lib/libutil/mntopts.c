@@ -138,7 +138,7 @@ checkpath_allow_file(const char *path, char *resolved)
 
 	if (realpath(path, resolved) == NULL || stat(resolved, &sb) != 0)
 		return (1);
-	if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode)) {
+	if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode) && !S_ISSOCK(sb.st_mode)) {
 		errno = ENOTDIR;
 		return (1);
 	}
