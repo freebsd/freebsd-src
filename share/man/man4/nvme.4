@@ -31,7 +31,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd August 23, 2026
+.Dd August 27, 2026
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -107,74 +107,18 @@ to expose NVM Express namespaces as disk devices which can be
 partitioned.
 Note that in NVM Express terms, a namespace is roughly equivalent to a
 SCSI LUN.
-.Sh CONFIGURATION
-By default,
-.Nm
-will create an I/O queue pair for each CPU, provided enough MSI-X vectors
-and NVMe queue pairs can be allocated.
-If not enough vectors or queue
-pairs are available, nvme(4) will use a smaller number of queue pairs and
-assign multiple CPUs per queue pair.
-.Pp
-To force a single I/O queue pair shared by all CPUs, set the following
-tunable value in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-hw.nvme.per_cpu_io_queues=0
-.Ed
-.Pp
-To assign more than one CPU per I/O queue pair, thereby reducing the number
-of MSI-X vectors consumed by the device, set the following tunable value in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-hw.nvme.min_cpus_per_ioq=X
-.Ed
-.Pp
-To force legacy interrupts for all
-.Nm
-driver instances, set the following tunable value in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-hw.nvme.force_intx=1
-.Ed
-.Pp
-Note that use of INTx implies disabling of per-CPU I/O queue pairs.
-.Pp
-To control maximum amount of system RAM in bytes to use as Host Memory
-Buffer for capable devices, set the following tunable:
-.Bd -literal -offset indent
-hw.nvme.hmb_max
-.Ed
-.Pp
-The default value is 5% of physical memory size per device.
-.Pp
-To enable Autonomous Power State Transition (APST), set the following
-tunable value in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-hw.nvme.apst_enable=1
-.Ed
-.Pp
-The default vendor-provided settings, if any, will be applied.
-To override this, set the following tunable:
-.Bd -literal -offset indent
-hw.nvme.apst_data
-.Ed
-.Pp
-The string must contain up to 32 encoded integers, e.g. "0x6418 0
-0 0x3e820".
-Each value corresponds to a specific available power state starting
-from the lowest, and defines the target state (bits 3..7) to
-transition to, as well as the idle time in milliseconds (bits 8..31)
-to wait before that transition.
-Bits 0..2 must be zero.
-.Pp
-The
-.Xr nvd 4
-driver is used to provide a disk driver to the system by default.
-The
+.Sh KERNEL CONFIGURATION
+The following settings can be configured at kernel compile time, see
+.Xr build 7 :
+.Bl -tag -width indent
+.It Cd options NVME_2X_RESET
+Reset controller twice upon boot.
+This should not be necessary.
+.It Cd options NVME_USE_NVD=0
+Use the
 .Xr nda 4
-driver can also be used instead.
+driver to provide a disk device instead of the default
+.Xr nvd 4 .
 The
 .Xr nvd 4
 driver performs better with smaller transactions and few TRIM
@@ -188,36 +132,69 @@ It can queue commands to the drive; combine
 .Dv BIO_DELETE
 commands into a single trip; and
 use the CAM I/O scheduler to bias one type of operation over another.
-To select the
+.Pp
+This value can also be set at boot time with the
+.Va hw.nvme.use_nvd=0
+tunable.
+.El
+.Sh LOADER TUNABLES
+The following settings can be configured in
+.Xr loader.conf 5
+or at the boot
+.Xr loader 8
+prompt during runtime:
+.Pp
+.Bl -tag -width indent
+.It Va hw.nvme.per_cpu_io_queues=0
+Force a single I/O queue pair shared by all CPUs.
+By default,
+.Nm
+will create an I/O queue pair for each CPU, provided enough MSI-X vectors
+and NVMe queue pairs can be allocated.
+If not enough vectors or queue
+pairs are available, nvme(4) will use a smaller number of queue pairs and
+assign multiple CPUs per queue pair.
+.It Va hw.nvme.min_cpus_per_ioq=X
+Assign more than one CPU per I/O queue pair,
+thereby reducing the number of MSI-X vectors consumed by the device.
+.It Va hw.nvme.force_intx=1
+Force legacy interrupts for all
+.Nm
+driver instances.
+Note that use of INTx implies disabling of per-CPU I/O queue pairs.
+.It Va hw.nvme.hmb_max
+Control maximum amount of system RAM in bytes
+to use as Host Memory Buffer for capable devices.
+The default value is 5% of physical memory size per device.
+.It Va hw.nvme.apst_enable=1
+Enable Autonomous Power State Transition
+.Pq APST .
+.It Va hw.nvme.apst_data
+Override default APST settings.
+If unset, the default vendor-provided settings, if any, will be applied.
+The string must contain up to 32 encoded integers, e.g.
+.Dq 0x6418 0 0 0x3e820 .
+Each value corresponds to a specific available power state starting
+from the lowest, and defines the target state (bits 3..7) to
+transition to, as well as the idle time in milliseconds (bits 8..31)
+to wait before that transition.
+Bits 0..2 must be zero.
+.It Va hw.nvme.use_nvd=0
+The
+.Xr nvd 4
+driver is used to provide a disk driver to the system by default.
+The
 .Xr nda 4
-driver, set the following tunable value in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-hw.nvme.use_nvd=0
-.Ed
+driver can also be used instead.
 .Pp
 This value may also be set in the kernel config file with
-.Bd -literal -offset indent
-.Cd options NVME_USE_NVD=0
-.Ed
-.Pp
+.Cd options NVME_USE_NVD=0 .
+.It Va hw.nvme.verbose_cmd_dump=1
+Enable verbose error messages.
 When there is an error,
 .Nm
 prints only the most relevant information about the command by default.
-To enable dumping of all information about the command, set the following tunable
-value in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-hw.nvme.verbose_cmd_dump=1
-.Ed
-.Pp
-Prior versions of the driver reset the card twice on boot.
-This proved to be unnecessary and inefficient, so the driver now resets drive
-controller only once.
-The old behavior may be restored in the kernel config file with
-.Bd -literal -offset indent
-.Cd options NVME_2X_RESET
-.Ed
+.El
 .Sh SYSCTL VARIABLES
 The following controller-level sysctls are currently implemented:
 .Bl -tag -width indent
