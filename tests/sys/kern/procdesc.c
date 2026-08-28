@@ -341,10 +341,10 @@ ATF_TC_BODY(pdopenpid_esrch, tc)
 }
 
 /*
- * pdopenpid should fail in capability mode.
+ * pdopenpid works for children in capability mode.
  */
-ATF_TC_WITHOUT_HEAD(pdopenpid_capmode);
-ATF_TC_BODY(pdopenpid_capmode, tc)
+ATF_TC_WITHOUT_HEAD(pdopenpid_child);
+ATF_TC_BODY(pdopenpid_child, tc)
 {
 	pid_t child, parent;
 
@@ -358,7 +358,36 @@ ATF_TC_BODY(pdopenpid_capmode, tc)
 	}
 
 	ATF_REQUIRE_MSG(cap_enter() == 0, "cap_enter: %s", strerror(errno));
-	ATF_REQUIRE_ERRNO(ECAPMODE, pdopenpid(child, 0) < 0);
+	ATF_REQUIRE_MSG(pdopenpid(child, 0) >= 0, "pdopenpid: %s",
+	    strerror(errno));
+}
+
+/*
+ * pdopenpid should fail in capability mode.
+ */
+ATF_TC_WITHOUT_HEAD(pdopenpid_capmode);
+ATF_TC_BODY(pdopenpid_capmode, tc)
+{
+	pid_t child, grandchild;
+
+	ATF_REQUIRE_FEATURE("security_capability_mode");
+
+	child = vfork();
+	ATF_REQUIRE_MSG(child >= 0, "fork: %s", strerror(errno));
+	if (child == 0) {
+		grandchild = fork();
+		ATF_REQUIRE_MSG(grandchild >= 0, "fork: %s", strerror(errno));
+		if (grandchild == 0) {
+			for (;;)
+				sleep(1);
+		} else {
+			_exit(0);
+		}
+	}
+
+	ATF_REQUIRE_MSG(cap_enter() == 0, "cap_enter: %s", strerror(errno));
+	ATF_REQUIRE_ERRNO(ECAPMODE, pdopenpid(grandchild, 0) < 0);
+	kill(grandchild, SIGKILL);
 }
 
 /*
@@ -755,6 +784,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pdopenpid_einval);
 	ATF_TP_ADD_TC(tp, pdopenpid_emfile);
 	ATF_TP_ADD_TC(tp, pdopenpid_esrch);
+	ATF_TP_ADD_TC(tp, pdopenpid_child);
 	ATF_TP_ADD_TC(tp, pdopenpid_capmode);
 	ATF_TP_ADD_TC(tp, pdopenpid_pdfork_then_open);
 	ATF_TP_ADD_TC(tp, pdopenpid_fork_then_open);
