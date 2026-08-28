@@ -32,6 +32,10 @@
 
 #include "tpm20.h"
 
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+#include <dev/random/random_harvestq.h>
+#endif
+
 #define TPM_HARVEST_SIZE     16
 
 #define	TPM2_ST_NO_SESSIONS	0x8001
@@ -57,6 +61,7 @@ MALLOC_DEFINE(M_TPM20, "tpm_buffer", "buffer for tpm 2.0 driver");
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 static void tpm20_harvest(void *arg, int unused);
+static void tpm20_harvest_enqueue(const uint8_t *, size_t);
 #endif
 static int  tpm20_command(device_t, uint32_t, uint16_t, uint32_t,
     const char *);
@@ -388,6 +393,23 @@ tpm20_shutdown(device_t dev)
 }
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+static void
+tpm20_harvest_enqueue(const uint8_t *entropy, size_t entropy_size)
+{
+	size_t chunk_size;
+
+	/* Preserve all RNG bytes rather than squashing an oversized event. */
+	chunk_size = sizeof(((struct harvest_event *)0)->he_entropy);
+	while (entropy_size != 0) {
+		size_t size;
+
+		size = MIN(entropy_size, chunk_size);
+		random_harvest_queue(entropy, (u_int)size, RANDOM_PURE_TPM);
+		entropy += size;
+		entropy_size -= size;
+	}
+}
+
 /*
  * Get TPM_HARVEST_SIZE random bytes and add them
  * into system entropy pool.
@@ -434,7 +456,7 @@ tpm20_harvest(void *arg, int unused)
 
 	sx_xunlock(&sc->dev_lock);
 	if (entropy_size > 0)
-		random_harvest_queue(entropy, entropy_size, RANDOM_PURE_TPM);
+		tpm20_harvest_enqueue(entropy, entropy_size);
 }
 #endif	/* TPM_HARVEST */
 
