@@ -19,7 +19,6 @@ arm/ti/ti_sdhci.c	 			optional	sdhci
 arm/ti/ti_spi.c		 			optional	ti_spi
 arm/ti/ti_sysc.c	 			standard
 
-arm/ti/clk/clock_common.c			standard
 arm/ti/clk/ti_clk_clkctrl.c			standard
 arm/ti/clk/ti_clkctrl.c				standard
 arm/ti/clk/ti_clk_dpll.c			standard
