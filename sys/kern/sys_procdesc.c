@@ -728,7 +728,10 @@ kern_pdopenpid(struct thread *td, pid_t pid, int flags)
 			fp->f_pdflags |= F_PD_NOKILL | F_PD_NOFINSTALL;
 			filecaps_free(&fcaps);
 		}
+	} else if (IN_CAPABILITY_MODE(td)) {
+		error = ECAPMODE;
 	}
+
 	fdrop(fp, td);
 
 	if (pdf != NULL) {
