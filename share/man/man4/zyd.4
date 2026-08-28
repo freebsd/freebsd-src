@@ -38,25 +38,17 @@
 .Nm zyd
 .Nd ZyDAS ZD1211/ZD1211B USB IEEE 802.11b/g wireless network driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ehci"
-.Cd "device uhci"
-.Cd "device ohci"
-.Cd "device usb"
-.Cd "device zyd"
-.Cd "device wlan"
-.Cd "device wlan_amrr"
-.Ed
+.Cd device ehci
+.Cd device uhci
+.Cd device ohci
+.Cd device usb
+.Cd device zyd
+.Cd device wlan
+.Cd device wlan_amrr
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_zyd_load="YES"
-.Ed
+.Cd if_zyd_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -73,9 +65,10 @@ Only one virtual interface may be configured at any time.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
-The following devices are known to be supported by the
+The
 .Nm
-driver:
+driver supports the following USB 802.11b/g wireless network devices
+based on ZyDAS ZD1211/ZD1211B controllers:
 .Pp
 .Bl -bullet -offset indent -compact
 .It
