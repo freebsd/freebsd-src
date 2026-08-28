@@ -299,6 +299,8 @@ main(
 	char *argv[]
 	)
 {
+	msyslog(LOG_NOTICE,"ntpdate is deprecated and "
+	    "scheduled for removal in ntp 4.4, use ntpd -q instead");
 	return ntpdatemain (argc, argv);
 }
 #endif /* NO_MAIN_ALLOWED */
