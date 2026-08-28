@@ -31,6 +31,7 @@ options 	DDB
 options 	DEVICE_POLLING
 #options 	DIAGNOSTIC
 options 	FDT
+options 	RANDOM_ENABLE_TPM
 #makeoptions	FDT_DTS_FILE=mpc8555cds.dts
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
@@ -105,6 +106,7 @@ device		scc
 device  	sdhci
 device  	spibus
 device  	spigen
+device		tpm
 device		tuntap
 device		uart
 options 	USB_DEBUG	# enable debug msgs

@@ -28,6 +28,7 @@ options 	DDB
 options 	DEVICE_POLLING
 #options 	DIAGNOSTIC
 options 	FDT
+options 	RANDOM_ENABLE_TPM
 #makeoptions	FDT_DTS_FILE=mpc8555cds.dts
 options 	FFS
 options 	GDB
@@ -103,6 +104,7 @@ device  	sdhci
 device		sec
 device  	spibus
 device  	spigen
+device		tpm
 device		tsec
 device		tuntap
 device		uart
