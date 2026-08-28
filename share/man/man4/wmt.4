@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2014-2017 Vladimir Kondratyev <wulf@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -29,21 +32,14 @@
 .Nm wmt
 .Nd MS Windows 7/8/10 - compatible USB HID multi-touch device driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines into
-your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device wmt"
-.Cd "device usb"
-.Cd "device hid"
-.Cd "device evdev"
-.Ed
+.Cd device wmt
+.Cd device usb
+.Cd device hid
+.Cd device evdev
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-wmt_load="YES"
-.Ed
+.Cd wmt_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
