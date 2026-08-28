@@ -237,9 +237,13 @@ extract_currdev(void)
 {
 	struct disk_devdesc dev;
 	struct devdesc *dd;
+	int diskunit;
 #if defined(USERBOOT_ZFS_SUPPORT)
 	struct zfs_devdesc zdev;
+#endif
 
+	diskunit = userboot_disk_firstunit();
+#if defined(USERBOOT_ZFS_SUPPORT)
 	if (userboot_zfs_found) {
 	
 		/* Leave the pool/root guid's unassigned */
@@ -250,10 +254,9 @@ extract_currdev(void)
 		dd = &zdev.dd;
 	} else
 #endif
-
-	if (userboot_disk_maxunit > 0) {
+	if (diskunit >= 0) {
 		dev.dd.d_dev = &userboot_disk;
-		dev.dd.d_unit = 0;
+		dev.dd.d_unit = diskunit;
 		dev.d_slice = D_SLICEWILD;
 		dev.d_partition = D_PARTWILD;
 		/*

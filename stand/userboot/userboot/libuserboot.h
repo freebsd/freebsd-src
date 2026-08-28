@@ -39,6 +39,7 @@ typedef unsigned long physaddr_t;
 /* exported devices */
 extern struct devsw userboot_disk;
 extern int userboot_disk_maxunit;
+int userboot_disk_firstunit(void);
 extern struct devsw host_dev;
 
 /* access to host filesystem */
