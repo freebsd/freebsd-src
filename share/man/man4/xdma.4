@@ -33,16 +33,8 @@
 .Nm xdma
 .Nd DMA abstraction layer
 .Sh SYNOPSIS
-To compile xDMA device support into the kernel, place the following line
-in your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device xdma"
-.Ed
-.Pp
-To compile xDMA FDT-based test driver, place the following line as well:
-.Bd -literal -offset indent
-.Cd "device xdma_test"
-.Ed
+.Cd device xdma
+.Cd device xdma_test
 .Sh DESCRIPTION
 xDMA is a DMA framework designed to abstract the interaction between device
 drivers and DMA engines.
@@ -63,6 +55,10 @@ A non-stop periodic transfer designed for applications like audio.
 .It Nm Memcpy
 A memory-to-memory transfer.
 .El
+.Pp
+If the kernel is compiled with the
+.Cd device xdma_test
+option, then the optional xDMA FDT-based test driver will be included.
 .Sh SEE ALSO
 .Xr bus_dma 9
 .Sh HISTORY
