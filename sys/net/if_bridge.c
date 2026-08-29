@@ -2857,11 +2857,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	/* We need the Ethernet header later, so make sure we have it now. */
 	if (m->m_len < ETHER_HDR_LEN) {
 		m = m_pullup(m, ETHER_HDR_LEN);
-		if (m == NULL) {
-			if_inc_counter(sc->sc_ifp, IFCOUNTER_IERRORS, 1);
-			m_freem(m);
+		if (m == NULL)
 			return (NULL);
-		}
 	}
 
 	eh = mtod(m, struct ether_header *);
