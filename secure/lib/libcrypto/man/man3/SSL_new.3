@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_NEW 3ossl"
-.TH SSL_NEW 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH SSL_NEW 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,6 +148,14 @@ The subset of settings in \fIs\fR that are duplicated are:
 .IX Item "any configured custom extensions"
 .IP "any client certificate types configured via SSL_set1_client_certificate_types" 4
 .IX Item "any client certificate types configured via SSL_set1_client_certificate_types"
+.IP "type of server certificate set via \fBSSL_set1_server_cert_type\fR\|(3)." 4
+.IX Item "type of server certificate set via SSL_set1_server_cert_type."
+.IP "type of client certificate set via \fBSSL_set1_client_cert_type\fR\|(3)." 4
+.IX Item "type of client certificate set via SSL_set1_client_cert_type."
+.IP "certificate transparency validation callback set via \fBSSL_set_ct_validation_callback\fR\|(3)," 4
+.IX Item "certificate transparency validation callback set via SSL_set_ct_validation_callback,"
+.IP "OCSP validation set via \fBSSL_set_tlsext_status_type\fR\|(3)." 4
+.IX Item "OCSP validation set via SSL_set_tlsext_status_type."
 .PD
 .PP
 \&\fBSSL_dup()\fR is not supported on QUIC SSL objects and returns NULL if called on
@@ -172,7 +180,7 @@ The return value points to an allocated SSL structure.
 \&\fBssl\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

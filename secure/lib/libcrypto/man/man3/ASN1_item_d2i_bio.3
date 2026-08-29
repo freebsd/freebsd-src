@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_ITEM_D2I_BIO 3ossl"
-.TH ASN1_ITEM_D2I_BIO 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH ASN1_ITEM_D2I_BIO 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -121,6 +121,16 @@ algorithm fetches are required during the process then they will use the
 string in \fIpropq\fR. See "ALGORITHM FETCHING" in \fBcrypto\fR\|(7) for more information
 about algorithm fetching.
 .PP
+When reading from \fIin\fR, decoding consumes one complete DER\-encoded structure
+and leaves any following bytes in the BIO, so concatenated structures can be
+read with successive calls. Reaching the end of the input cleanly, at a
+structure boundary, is not treated as an error: the function returns NULL
+without adding to the error queue. If the end of the input is reached in the
+middle of a structure, or an indefinite\-length value is missing its
+end\-of\-contents octets (that is, the input is truncated), an error is queued
+with reason code \fBASN1_R_NOT_ENOUGH_DATA\fR. The same applies to
+\&\fBASN1_item_d2i_fp_ex()\fR.
+.PP
 \&\fBASN1_item_d2i_bio()\fR is the same as \fBASN1_item_d2i_bio_ex()\fR except that the
 default \fBOSSL_LIB_CTX\fR is used (i.e. NULL) and with a NULL property query
 string.
@@ -153,6 +163,12 @@ that the \fIlibctx\fR and \fIpropq\fR can be used when doing algorithm fetching.
 \&\fBASN1_item_d2i_bio()\fR, \fBASN1_item_unpack_ex()\fR and \fBASN1_item_unpack()\fR return a pointer to
 an \fBASN1_VALUE\fR or NULL on error.
 .PP
+The \fBASN1_item_d2i_bio()\fR and \fBASN1_item_d2i_fp()\fR functions, including their
+\&\fB_ex\fR variants, also return NULL at a clean end of input. In that case the
+error queue is left unchanged, so a caller reading concatenated structures in
+a loop can distinguish a clean end of input from a decoding error by
+inspecting the error queue, for example with \fBERR_peek_error\fR\|(3).
+.PP
 \&\fBASN1_item_i2d_mem_bio()\fR returns a pointer to a memory BIO or NULL on error.
 .PP
 \&\fBASN1_item_pack()\fR returns a pointer to an \fBASN1_STRING\fR or NULL on error.
@@ -164,7 +180,7 @@ and \fBASN1_item_i2d_mem_bio()\fR were added in OpenSSL 3.0.
 The function \fBASN1_item_unpack_ex()\fR was added in OpenSSL 3.2.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2021\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

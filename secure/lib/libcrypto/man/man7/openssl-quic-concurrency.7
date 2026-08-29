@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-QUIC-CONCURRENCY 7ossl"
-.TH OPENSSL-QUIC-CONCURRENCY 7ossl 2026-06-09 3.5.7 OpenSSL
+.TH OPENSSL-QUIC-CONCURRENCY 7ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -178,6 +178,28 @@ For compatibility reasons, this functionality is also available under the
 default concurrency model if the application does not explicitly specify a
 concurrency model or disable it. This is known as Legacy Blocking Compatibility
 Mode, and its usage is not recommended for multi\-threaded applications.
+.SH "THREAD CANCELLATION"
+.IX Header "THREAD CANCELLATION"
+The restrictions in "THREAD CANCELLATION" in \fBopenssl\-threads\fR\|(7) also apply to
+OpenSSL QUIC APIs, including calls used in nonblocking mode.
+.PP
+CCM and TACM use domain\-wide synchronisation during API processing. Event
+processing may perform network I/O while it is held, which can be a POSIX
+cancellation point. Interruption can leave later use or teardown of the domain
+unsafe.
+.PP
+TACM and CCM with \fBSSL_DOMAIN_FLAG_BLOCKING\fR also maintain internal wait state
+for blocking calls. If interruption prevents cleanup of this state, later calls
+on the affected domain can block indefinitely. \fBSSL_poll\fR\|(3) can maintain such
+state in multiple domains in one call.
+.PP
+Because most blocking QUIC functions do not provide a per\-call timeout,
+applications requiring prompt cooperative cancellation should use nonblocking
+mode and an application\-driven event loop as described in
+"APPLICATION\-DRIVEN EVENT LOOPS" in \fBopenssl\-quic\fR\|(7), waiting for the application
+cancellation event alongside QUIC events. Alternatively, an application can
+call \fBSSL_poll\fR\|(3) with a finite timeout and check a cancellation condition
+between calls.
 .SH "RECOMMENDED USAGE"
 .IX Header "RECOMMENDED USAGE"
 New applications are advised to choose a concurrency model as follows:
@@ -306,12 +328,14 @@ In all other cases, a QUIC SSL object has blocking mode disabled by default. The
 blocking mode can be changed explicitly using \fBSSL_set_blocking_mode\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBopenssl\-quic\fR\|(7), \fBSSL_handle_events\fR\|(3), \fBSSL_get_event_timeout\fR\|(3),
+\&\fBopenssl\-quic\fR\|(7), \fBopenssl\-threads\fR\|(7), \fBSSL_handle_events\fR\|(3),
+\&\fBSSL_get_event_timeout\fR\|(3), \fBSSL_get_rpoll_descriptor\fR\|(3),
+\&\fBSSL_get_wpoll_descriptor\fR\|(3), \fBSSL_poll\fR\|(3),
 \&\fBOSSL_QUIC_client_thread_method\fR\|(3), \fBSSL_CTX_set_domain_flags\fR\|(3),
 \&\fBSSL_new_domain\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2024\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2024\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

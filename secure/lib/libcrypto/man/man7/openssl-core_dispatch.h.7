@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-CORE_DISPATCH.H 7ossl"
-.TH OPENSSL-CORE_DISPATCH.H 7ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-CORE_DISPATCH.H 7ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -82,8 +82,8 @@ are named as follows:
 .IP "operation numbers" 4
 .IX Item "operation numbers"
 These macros have the form \f(CW\*(C`OSSL_OP_\fR\f(CIopname\fR\f(CW\*(C'\fR.
-.IP "dipatch numbers" 4
-.IX Item "dipatch numbers"
+.IP "dispatch numbers" 4
+.IX Item "dispatch numbers"
 These macros have the form \f(CW\*(C`OSSL_FUNC_\fR\f(CIopname\fR\f(CW_\fR\f(CIfuncname\fR\f(CW\*(C'\fR, where
 \&\f(CW\*(C`\fR\f(CIopname\fR\f(CW\*(C'\fR is the same as in the macro for the operation this
 function belongs to.
@@ -99,7 +99,7 @@ For further information, please see the \fBprovider\fR\|(7)
 The types and macros described here were added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
