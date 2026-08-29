@@ -457,6 +457,11 @@ static int	igb_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
 static int	igb_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
 static void	em_handle_fatal_error_intr(struct e1000_softc *, u32);
 static bool	em_handle_fatal_error_admin(struct e1000_softc *);
+static u32	igb_device_reset_intr_mask(struct e1000_softc *);
+static bool	igb_device_reset_pending(struct e1000_softc *);
+static bool	igb_handle_device_reset(struct e1000_softc *, u32);
+static void	igb_prepare_device_reset(struct e1000_softc *);
+static bool	igb_finish_device_reset(struct e1000_softc *, u32);
 static void	em_prepare_fatal_error_reset(struct e1000_softc *);
 static void	em_finish_fatal_error_reset(struct e1000_softc *);
 static void	em_configure_peind_memory_errors(struct e1000_softc *);
@@ -515,6 +520,15 @@ enum em_fatal_error_state {
 	EM_FATAL_ERROR_RESET_REQUESTED,
 	EM_FATAL_ERROR_RESET_PREPARED,
 };
+
+enum igb_device_reset_state {
+	IGB_DEVICE_RESET_NONE,
+	IGB_DEVICE_RESET_DETECTED,
+	IGB_DEVICE_RESET_REQUESTED,
+	IGB_DEVICE_RESET_PREPARED,
+};
+
+#define IGB_DEVICE_RESET_TIMEOUT_MS	100
 
 /* MSI-X handlers */
 static int	em_if_msix_intr_assign(if_ctx_t, int);
@@ -1990,12 +2004,6 @@ em_if_init(if_ctx_t ctx)
 	if (sc->hw.mac.type >= igb_mac_min)
 		igb_initialize_interrupt_rate(sc);
 
-	if (!sc->vf_ifp) {
-		/* Clear pending PF interrupts and request a link check. */
-		E1000_READ_REG(&sc->hw, E1000_ICR);
-		E1000_WRITE_REG(&sc->hw, E1000_ICS, E1000_ICS_LSC);
-	}
-
 	/* AMT based hardware can now take control from firmware */
 	if (sc->has_manage && sc->has_amt)
 		em_get_hw_control(sc);
@@ -2011,8 +2019,24 @@ em_if_init(if_ctx_t ctx)
 	em_configure_peind_memory_errors(sc);
 	em_configure_82575_memory_errors(sc);
 	em_configure_82580_memory_errors(sc);
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
 		sc->vf_reset_pending = false;
+	} else {
+		u32 icr;
+
+		/*
+		 * Drain stale causes only after register reconstruction is
+		 * complete.  DRSTA and DEV_RST_SET together close the window in
+		 * which another device reset can arrive while interrupts are
+		 * masked.
+		 */
+		icr = E1000_READ_REG(&sc->hw, E1000_ICR);
+		if (igb_finish_device_reset(sc, icr)) {
+			iflib_init_failed(ctx);
+			return;
+		}
+		E1000_WRITE_REG(&sc->hw, E1000_ICS, E1000_ICS_LSC);
+	}
 }
 
 /*
@@ -2884,6 +2908,202 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 }
 
 /*
+ * ICR bit 30 is reserved on 82575 and is the TCP timer on 82576.  It becomes
+ * the Device Reset Asserted interrupt starting with 82580.
+ */
+static u32
+igb_device_reset_intr_mask(struct e1000_softc *sc)
+{
+
+	return (sc->hw.mac.type >= e1000_82580 ? E1000_IMS_DRSTA : 0);
+}
+
+/* Keep interrupt-side work quiesced until device-reset recovery completes. */
+static bool
+igb_device_reset_pending(struct e1000_softc *sc)
+{
+
+	return (!sc->vf_ifp && igb_device_reset_intr_mask(sc) != 0 &&
+	    atomic_load_acq_32(&sc->device_reset_state) !=
+	    IGB_DEVICE_RESET_NONE);
+}
+
+/*
+ * CTRL.DEV_RST resets every port in the device.  ICR.DRSTA tells the other
+ * ports that their registers and descriptor rings must be reinitialized.
+ */
+static bool
+igb_handle_device_reset(struct e1000_softc *sc, u32 icr)
+{
+	u32 state;
+
+	if (sc->vf_ifp || igb_device_reset_intr_mask(sc) == 0 ||
+	    (icr & E1000_ICR_DRSTA) == 0)
+		return (false);
+	state = atomic_swap_32(&sc->device_reset_state,
+	    IGB_DEVICE_RESET_DETECTED);
+	if (state == IGB_DEVICE_RESET_DETECTED)
+		return (true);
+
+	iflib_admin_intr_deferred(sc->ctx);
+	return (true);
+}
+
+/*
+ * A device reset can leave a sibling port accessible before its internal
+ * reset and PCIe transactions have completed.  For 82580 and newer parts,
+ * wait for that device-wide reset to finish and acknowledge it before any
+ * ordinary port register programming.  I350 and newer parts also publish
+ * explicit EEPROM autoload and PF-reset completion indications.
+ *
+ * The wait is bounded because the only useful fallback for a controller
+ * that never completes the device reset is the port reset already requested
+ * by the interrupt handler.
+ */
+static void
+igb_prepare_device_reset(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 state;
+	u32 eecd, gcr, status;
+	int i;
+
+	hw = &sc->hw;
+	state = atomic_load_acq_32(&sc->device_reset_state);
+	if (state != IGB_DEVICE_RESET_DETECTED &&
+	    state != IGB_DEVICE_RESET_REQUESTED &&
+	    hw->mac.type >= e1000_82580) {
+		/*
+		 * A reset can start while this interface has interrupts disabled.
+		 * GCR is the documented gate before ordinary port accesses.  STATUS
+		 * also detects a reset that completed while this interface was down
+		 * or after an earlier preparation pass.
+		 */
+		gcr = E1000_READ_REG(hw, E1000_GCR);
+		if (gcr != 0xffffffff &&
+		    (gcr & E1000_GCR_DEV_RST_IN_PROGRESS) != 0) {
+			atomic_store_rel_32(&sc->device_reset_state,
+			    IGB_DEVICE_RESET_DETECTED);
+			state = IGB_DEVICE_RESET_DETECTED;
+		} else if (gcr != 0xffffffff) {
+			status = E1000_READ_REG(hw, E1000_STATUS);
+			if (status != 0xffffffff &&
+			    (status & E1000_STAT_DEV_RST_SET) != 0) {
+				atomic_store_rel_32(&sc->device_reset_state,
+				    IGB_DEVICE_RESET_DETECTED);
+				state = IGB_DEVICE_RESET_DETECTED;
+			}
+		}
+	}
+	if (state != IGB_DEVICE_RESET_DETECTED &&
+	    state != IGB_DEVICE_RESET_REQUESTED)
+		return;
+
+	if (hw->mac.type >= e1000_82580) {
+		for (i = 0; i < IGB_DEVICE_RESET_TIMEOUT_MS; i++) {
+			gcr = E1000_READ_REG(hw, E1000_GCR);
+			if (gcr != 0xffffffff &&
+			    (gcr & E1000_GCR_DEV_RST_IN_PROGRESS) == 0)
+				break;
+			msec_delay(1);
+		}
+		if (i == IGB_DEVICE_RESET_TIMEOUT_MS) {
+			device_printf(sc->dev,
+			    "device-wide reset did not complete; "
+			    "attempting port reset\n");
+			goto prepared;
+		}
+
+		/* STATUS.DEV_RST_SET is write-one-to-clear. */
+		E1000_WRITE_REG(hw, E1000_STATUS, E1000_STAT_DEV_RST_SET);
+
+		if (hw->mac.type >= e1000_i350) {
+			for (i = 0; i < IGB_DEVICE_RESET_TIMEOUT_MS; i++) {
+				eecd = E1000_READ_REG(hw, E1000_EECD);
+				status = E1000_READ_REG(hw, E1000_STATUS);
+				if (eecd != 0xffffffff && status != 0xffffffff &&
+				    (eecd & E1000_EECD_AUTO_RD) != 0 &&
+				    (status & E1000_STATUS_RST_DONE) != 0)
+					break;
+				msec_delay(1);
+			}
+			if (i == IGB_DEVICE_RESET_TIMEOUT_MS)
+				device_printf(sc->dev,
+				    "device-wide reset did not finish EEPROM "
+				    "autoload or port reset; attempting port "
+				    "reset\n");
+		}
+	}
+
+prepared:
+	atomic_store_rel_32(&sc->device_reset_state,
+	    IGB_DEVICE_RESET_PREPARED);
+}
+
+/*
+ * A second device reset can arrive while the port is being initialized.
+ * Leave its status latched for the next preparation pass and do not let
+ * iflib publish this incomplete initialization as a running datapath.
+ */
+static bool
+igb_finish_device_reset(struct e1000_softc *sc, u32 icr)
+{
+	bool reset_again;
+	u32 gcr, state, status;
+
+	if (igb_device_reset_intr_mask(sc) == 0)
+		return (false);
+
+	state = atomic_load_acq_32(&sc->device_reset_state);
+	reset_again = icr != 0xffffffff &&
+	    (icr & E1000_ICR_DRSTA) != 0;
+	if (sc->hw.mac.type >= e1000_82580) {
+		gcr = E1000_READ_REG(&sc->hw, E1000_GCR);
+		if (gcr != 0xffffffff &&
+		    (gcr & E1000_GCR_DEV_RST_IN_PROGRESS) != 0)
+			reset_again = true;
+		status = E1000_READ_REG(&sc->hw, E1000_STATUS);
+		if (status == 0xffffffff &&
+		    state != IGB_DEVICE_RESET_NONE) {
+			/*
+			 * MMIO can disappear briefly while SR-IOV is changing, but
+			 * config space remains readable.  If both are gone, retain the
+			 * stopped state without queueing an endless reset loop.
+			 */
+			if (pci_read_config(sc->dev, PCIR_VENDOR, 2) == 0xffff) {
+				atomic_store_rel_32(&sc->device_reset_state,
+				    IGB_DEVICE_RESET_DETECTED);
+				device_printf(sc->dev,
+				    "device unavailable after device-wide reset; "
+				    "leaving interface stopped\n");
+				return (true);
+			}
+			reset_again = true;
+		} else if (status != 0xffffffff &&
+		    (status & E1000_STAT_DEV_RST_SET) != 0)
+			reset_again = true;
+	}
+	if (state == IGB_DEVICE_RESET_DETECTED ||
+	    state == IGB_DEVICE_RESET_REQUESTED)
+		reset_again = true;
+	if (!reset_again) {
+		if (state == IGB_DEVICE_RESET_PREPARED &&
+		    !atomic_cmpset_rel_32(&sc->device_reset_state,
+		    IGB_DEVICE_RESET_PREPARED, IGB_DEVICE_RESET_NONE))
+			return (true);
+		return (false);
+	}
+
+	state = atomic_swap_32(&sc->device_reset_state,
+	    IGB_DEVICE_RESET_DETECTED);
+	if (state != IGB_DEVICE_RESET_DETECTED) {
+		iflib_request_reset_if_up(sc->ctx);
+		iflib_admin_intr_deferred(sc->ctx);
+	}
+	return (true);
+}
+
+/*
  * A PCIe-region parity failure stops PCIe and DMA traffic.  I350, I354,
  * I210, and I211 require a port reset before master disable in this case.
  * 82580 stops PCIe traffic for a fatal error in any host-owned region, so use
@@ -3086,14 +3306,18 @@ em_intr(void *arg)
 	if (hw->mac.type >= e1000_82571 &&
 	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
 		return FILTER_STRAY;
+	if (igb_handle_device_reset(sc, reg_icr))
+		return (FILTER_HANDLED);
+	if (igb_device_reset_pending(sc))
+		return (FILTER_HANDLED);
 
 	/*
-	 * Only MSI-X interrupts have one-shot behavior by taking advantage
-	 * of the EIAC register.  Thus, explicitly disable interrupts.  This
-	 * also works around the MSI message reordering errata on certain
-	 * systems.
+	 * IAM auto-masks igb shared interrupts when ICR is read.  Older em
+	 * hardware still needs an explicit disable, which also works around
+	 * MSI message reordering errata on certain systems.
 	 */
-	IFDI_INTR_DISABLE(ctx);
+	if (sc->vf_ifp || hw->mac.type < igb_mac_min)
+		IFDI_INTR_DISABLE(ctx);
 
 	/* Link status change */
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
@@ -3136,6 +3360,8 @@ igb_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct em_rx_queue *rxq = &sc->rx_queues[rxqid];
 
+	if (igb_device_reset_pending(sc))
+		return (0);
 	E1000_WRITE_REG(&sc->hw, E1000_EIMS, rxq->eims);
 	return (0);
 }
@@ -3146,6 +3372,8 @@ igb_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct em_tx_queue *txq = &sc->tx_queues[txqid];
 
+	if (igb_device_reset_pending(sc))
+		return (0);
 	E1000_WRITE_REG(&sc->hw, E1000_EIMS, txq->eims);
 	return (0);
 }
@@ -3164,6 +3392,8 @@ em_msix_que(void *arg)
 
 	++que->irqs;
 
+	if (igb_device_reset_pending(sc))
+		return (FILTER_HANDLED);
 	em_newitr(sc, que, rxr);
 
 	return (FILTER_SCHEDULE_THREAD);
@@ -3195,6 +3425,8 @@ em_msix_link(void *arg)
 	}
 
 	reg_icr = E1000_READ_REG(&sc->hw, E1000_ICR);
+	if (igb_device_reset_pending(sc))
+		return (FILTER_HANDLED);
 
 	/*
 	 * Enabling or disabling SR-IOV can briefly make PF MMIO reads return
@@ -3203,6 +3435,8 @@ em_msix_link(void *arg)
 	 */
 	if (__predict_false(reg_icr == 0xffffffff))
 		goto rearm;
+	if (igb_handle_device_reset(sc, reg_icr))
+		return (FILTER_HANDLED);
 
 	if (reg_icr & E1000_ICR_RXO)
 		sc->rx_overruns++;
@@ -3219,7 +3453,8 @@ rearm:
 	/* Re-arm unconditionally */
 	if (sc->hw.mac.type >= igb_mac_min) {
 		E1000_WRITE_REG(&sc->hw, E1000_IMS,
-		    E1000_IMS_LSC | igb_iov_intr_mask(sc) |
+		    E1000_IMS_LSC | igb_device_reset_intr_mask(sc) |
+		    igb_iov_intr_mask(sc) |
 		    em_fatal_error_intr_mask(sc));
 		E1000_WRITE_REG(&sc->hw, E1000_EIMS, sc->link_mask);
 	} else if (sc->hw.mac.type == e1000_82574) {
@@ -3564,6 +3799,23 @@ em_if_update_admin_status(if_ctx_t ctx)
 
 	KASSERT(!sc->vf_ifp, ("%s called for a VF", __func__));
 	if (em_handle_fatal_error_admin(sc))
+		return;
+	/* A sibling-port reset invalidated the registers and VF mailboxes. */
+	if (atomic_cmpset_acq_32(&sc->device_reset_state,
+	    IGB_DEVICE_RESET_DETECTED, IGB_DEVICE_RESET_REQUESTED)) {
+		if (sc->link_state == EM_LINK_STATE_UP)
+			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		sc->link_speed = 0;
+		sc->link_duplex = 0;
+		sc->link_state = EM_LINK_STATE_DOWN_RESET_PENDING;
+		/* Request the reset here; interrupt filters cannot take STATE_LOCK. */
+		iflib_request_reset_if_up(ctx);
+		/* Re-enter the admin task so it observes the reset request. */
+		iflib_admin_intr_deferred(ctx);
+		return;
+	}
+	if (atomic_load_acq_32(&sc->device_reset_state) !=
+	    IGB_DEVICE_RESET_NONE)
 		return;
 
 	if (atomic_readandclear_32(&sc->promisc_pending) != 0)
@@ -6007,6 +6259,8 @@ igb_if_intr_enable(if_ctx_t ctx)
 	struct e1000_hw *hw = &sc->hw;
 	u32 mask, reg;
 
+	if (igb_device_reset_pending(sc))
+		return;
 	if (__predict_true(sc->intr_type == IFLIB_INTR_MSIX)) {
 		mask = (sc->que_mask | sc->link_mask);
 		/*
@@ -6020,11 +6274,16 @@ igb_if_intr_enable(if_ctx_t ctx)
 		igb_iov_intr_drain_stale(sc);
 		E1000_WRITE_REG(hw, E1000_EIMS, mask);
 		E1000_WRITE_REG(hw, E1000_IMS,
-		    E1000_IMS_LSC | igb_iov_intr_mask(sc) |
+		    E1000_IMS_LSC | igb_device_reset_intr_mask(sc) |
+		    igb_iov_intr_mask(sc) |
 		    em_fatal_error_intr_mask(sc));
-	} else
-		E1000_WRITE_REG(hw, E1000_IMS,
-		    IMS_ENABLE_MASK | em_fatal_error_intr_mask(sc));
+	} else {
+		mask = IMS_ENABLE_MASK | igb_device_reset_intr_mask(sc) |
+		    em_fatal_error_intr_mask(sc);
+		/* Reading ICR masks every shared interrupt before the filter runs. */
+		E1000_WRITE_REG(hw, E1000_IAM, mask);
+		E1000_WRITE_REG(hw, E1000_IMS, mask);
+	}
 	E1000_WRITE_FLUSH(hw);
 }
 
@@ -6034,6 +6293,9 @@ igb_if_intr_disable(if_ctx_t ctx)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
 	u32 mask, reg;
+
+	/* This is the first CTX-owned register access after ICR.DRSTA. */
+	igb_prepare_device_reset(sc);
 
 	if (__predict_true(sc->intr_type == IFLIB_INTR_MSIX)) {
 		/*
@@ -6049,7 +6311,8 @@ igb_if_intr_disable(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_EIMC, mask);
 		reg = E1000_READ_REG(hw, E1000_EIAC);
 		E1000_WRITE_REG(hw, E1000_EIAC, reg & ~mask);
-	}
+	} else
+		E1000_WRITE_REG(hw, E1000_IAM, 0);
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
 	E1000_WRITE_FLUSH(hw);
 }
