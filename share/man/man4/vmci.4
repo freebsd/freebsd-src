@@ -8,19 +8,11 @@
 .Nm vmci
 .Nd VMware Virtual Machine Communication Interface
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device vmci"
-.Ed
+.Cd device vmci
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_vmci_load="YES"
-.Ed
+.Cd if_vmci_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
