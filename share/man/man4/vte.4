@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2010 Pyun YongHyeon
 .\" All rights reserved.
 .\"
@@ -29,20 +32,21 @@
 .Nm vte
 .Nd Vortex86 RDC R6040 Fast Ethernet driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device miibus"
-.Cd "device vte"
-.Ed
+.Cd device miibus
+.Cd device vte
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_vte_load="YES"
-.Ed
+.Cd hw.vte.tx_deep_copy
+.Cd if_vte_load="YES"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.vte.%d.rx_mod
+.Cd dev.vte.%d.tx_mod
+.Cd dev.vte.%d.stats
 .Sh DESCRIPTION
 The
 .Nm
