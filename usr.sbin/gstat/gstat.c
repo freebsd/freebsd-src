@@ -440,7 +440,7 @@ main(int argc, char **argv)
 			use_gb();
 			break;
 		case 'I':
-			p = NULL;
+			errno = 0;
 			i = strtoul(optarg, &p, 0);
 			if (p == optarg || errno == EINVAL ||
 			    errno == ERANGE) {
