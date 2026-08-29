@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2011 Bryan Venteicher
 .\" All rights reserved.
 .\"
@@ -29,19 +32,30 @@
 .Nm vtnet
 .Nd VirtIO Ethernet driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device vtnet"
-.Ed
+.Cd device vtnet
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_vtnet_load="YES"
-.Ed
+.Cd hw.vtnet.csum_disable
+.Cd hw.vtnet. Ns Ar X Ns Va .csum_disable
+.Cd hw.vtnet.tso_disable
+.Cd hw.vtnet. Ns Ar X Ns Va .tso_disable
+.Cd hw.vtnet.lro_disable
+.Cd hw.vtnet. Ns Ar X Ns Va .lro_disable
+.Cd hw.vtnet.mq_disable
+.Cd hw.vtnet. Ns Ar X Ns Va .mq_disable
+.Cd hw.vtnet.mq_max_pairs
+.Cd hw.vtnet. Ns Ar X Ns Va .mq_max_pairs
+.Cd hw.vtnet.tso_maxlen
+.Cd hw.vtnet. Ns Ar X Ns Va .tso_maxlen
+.Cd hw.vtnet.rx_process_limit
+.Cd hw.vtnet. Ns Ar X Ns Va .rx_process_limit
+.Cd hw.vtnet.lro_entry_count
+.Cd hw.vtnet. Ns Ar X Ns Va .lro_entry_count
+.Cd hw.vtnet.lro_mbufq_depth
+.Cd hw.vtnet. Ns Ar X Ns Va .lro_mbufq_depth
+.Cd hw.vtnet.altq_disable
+.Cd if_vtnet_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
