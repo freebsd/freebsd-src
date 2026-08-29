@@ -24,20 +24,20 @@
 .Nm vmx
 .Nd VMware VMXNET3 Virtual Interface Controller device
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device iflib"
-.Cd "device vmx"
-.Ed
+.Cd device iflib
+.Cd device vmx
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_vmx_load="YES"
-.Ed
+.Cd hw.vmx.txnqueue
+.Cd hw.vmx. Ns Ar X Ns Va .txnqueue
+.Cd hw.vmx.rxnqueue
+.Cd hw.vmx. Ns Ar X Ns Va .rxnqueue
+.Cd hw.vmx.txndesc
+.Cd hw.vmx. Ns Ar X Ns Va .txndesc
+.Cd hw.vmx.rxndesc
+.Cd hw.vmx. Ns Ar X Ns Va .rxndesc
+.Cd if_vmx_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
