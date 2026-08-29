@@ -47,6 +47,7 @@
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
+#include <geom/geom_disk.h>
 #include <geom/raid3/g_raid3.h>
 
 FEATURE(geom_raid3, "GEOM RAID-3 functionality");
@@ -564,6 +565,10 @@ g_raid3_init_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 	}
 	disk->d_state = G_RAID3_DISK_STATE_NONE;
 	disk->d_flags = md->md_dflags;
+	error = g_getattr("GEOM::rotation_rate", disk->d_consumer,
+	    &disk->d_rotation_rate);
+	if (error != 0)
+		disk->d_rotation_rate = DISK_RR_UNKNOWN;
 	if (md->md_provider[0] != '\0')
 		disk->d_flags |= G_RAID3_DISK_FLAG_HARDCODED;
 	disk->d_sync.ds_consumer = NULL;
@@ -1452,6 +1457,29 @@ g_raid3_flush(struct g_raid3_softc *sc, struct bio *bp)
 }
 
 static void
+g_raid3_rotation_rate(struct g_raid3_softc *sc, struct bio *bp)
+{
+	struct g_raid3_disk *disk;
+	bool first = true;
+	uint16_t rr = DISK_RR_UNKNOWN;
+	u_int n;
+
+	for (n = 0; n < sc->sc_ndisks; n++) {
+		disk = &sc->sc_disks[n];
+		if (disk->d_state == G_RAID3_DISK_STATE_NODISK)
+			continue;
+		if (first)
+			rr = disk->d_rotation_rate;
+		else if (rr != disk->d_rotation_rate) {
+			rr = DISK_RR_UNKNOWN;
+			break;
+		}
+		first = false;
+	}
+	g_handleattr(bp, "GEOM::rotation_rate", &rr, sizeof(rr));
+}
+
+static void
 g_raid3_start(struct bio *bp)
 {
 	struct g_raid3_softc *sc;
@@ -1477,6 +1505,11 @@ g_raid3_start(struct bio *bp)
 		g_raid3_flush(sc, bp);
 		return;
 	case BIO_GETATTR:
+		if (!strcmp(bp->bio_attribute, "GEOM::rotation_rate")) {
+			g_raid3_rotation_rate(sc, bp);
+			return;
+		}
+		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;

@@ -124,6 +124,7 @@ struct g_raid3_disk {
 	struct g_consumer *d_consumer;	/* Consumer. */
 	struct g_raid3_softc *d_softc;	/* Back-pointer to softc. */
 	int		 d_state;	/* Disk state. */
+	uint16_t	 d_rotation_rate;/* Disk's rotation rate. */
 	uint64_t	 d_flags;	/* Additional flags. */
 	u_int		 d_genid;	/* Disk's generation ID. */
 	struct g_raid3_disk_sync d_sync; /* Sync information. */
