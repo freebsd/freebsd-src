@@ -32,18 +32,14 @@
 .Nm vmd
 .Nd Intel Volume Management Device driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device vmd"
-.Ed
+.Cd device vmd
 .Pp
-Alternatively, to load the driver as a module at boot time, place the following
-line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-vmd_load="YES"
-.Ed
+.Cd hw.vmd.bypass_msi
+.Cd hw.vmd.max_msi
+.Cd hw.vmd.max_msix
+.Cd vmd_load="YES"
 .Sh DESCRIPTION
 This driver attaches to Intel VMD devices, representing them as PCI-to-PCI
 bridges and providing access to children PCI devices via new PCI domains.
@@ -57,8 +53,10 @@ or
 .Bl -tag -width indent
 .It Va hw.vmd.bypass_msi
 By default all VMD devices remap children MSI/MSI-X interrupts into their
-own.  It creates additional isolation, but also complicates things due to
-sharing, etc.  Fortunately some VMD devices can bypass the remapping.
+own.
+It creates additional isolation, but also complicates things due to
+sharing, etc.
+Fortunately some VMD devices can bypass the remapping.
 Defaults to 1.
 .It Va hw.vmd.max_msi
 Limits number of Message Signaled Interrupt (MSI) vectors allowed to each
