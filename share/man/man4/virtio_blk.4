@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2011 Bryan Venteicher
 .\" All rights reserved.
 .\"
@@ -29,20 +32,22 @@
 .Nm virtio_blk
 .Nd VirtIO Block driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device virtio_blk"
-.Ed
+.Cd device virtio_blk
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-virtio_blk_load="YES"
-.Ed
-.Sh DESCRIPTION
+.Cd hw.vtblk.no_ident
+.Cd hw.vtblk. Ns Ar %d Ns Va .no_ident
+.Cd hw.vtblk.writecache_mode
+.Cd hw.vtblk. Ns Ar %d Ns Va .writecache_mode
+.Cd virtio_blk_load="YES"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.vtblk. Ns Ar %d Ns Va .writecache_mode
+.Sh HARDWARE
 The
 .Nm
 device driver provides support for VirtIO block devices.
@@ -53,13 +58,13 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
 .It Va hw.vtblk.no_ident
-.It Va hw.vtblk. Ns Ar X Ns Va .no_ident
+.It Va hw.vtblk. Ns Ar %d Ns Va .no_ident
 .Pp
 These tunables disable retrieving the device identification string
 from the hypervisor either globally or per-device.
 The default value is 0.
 .It Va hw.vtblk.writecache_mode
-.It Va hw.vtblk. Ns Ar X Ns Va .writecache_mode
+.It Va hw.vtblk. Ns Ar %d Ns Va .writecache_mode
 .Pp
 These tunables determine the write cache mode globally or per-device.
 The mode can changed only if the ConfigWCE feature is negotiated.
@@ -72,7 +77,7 @@ The following variables are available as
 .Xr sysctl 8
 variables.
 .Bl -tag -width indent
-.It Va dev.vtblk. Ns Ar X Ns Va .writecache_mode
+.It Va dev.vtblk. Ns Ar %d Ns Va .writecache_mode
 .Pp
 The write cache mode of the device can be either writethrough (0) or
 writeback (1).
