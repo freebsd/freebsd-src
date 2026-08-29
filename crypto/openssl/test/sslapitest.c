@@ -10821,12 +10821,29 @@ end:
 #endif
 
 #ifndef OPENSSL_NO_TLS1_2
+
+#define CERT_TYPE_C "\x0" /* TLSEXT_cert_type_x509 */
+#define CERT_TYPE_S "\x2" /* TLSEXT_cert_type_rpk */
+
+#ifndef OPENSSL_NO_CT
+#define CB_ARG "callback arg"
+
+/* ARGSUSED */
+static int validation_cbk(const CT_POLICY_EVAL_CTX *ctx,
+    const STACK_OF(SCT) *scts, void *arg)
+{
+    return 1;
+}
+#endif
+
 static int test_ssl_dup(void)
 {
     SSL_CTX *cctx = NULL, *sctx = NULL;
     SSL *clientssl = NULL, *serverssl = NULL, *client2ssl = NULL;
     int testresult = 0;
     BIO *rbio = NULL, *wbio = NULL;
+    unsigned char *ctype;
+    size_t ctype_len;
 
     if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
             TLS_client_method(),
@@ -10842,6 +10859,27 @@ static int test_ssl_dup(void)
     if (!TEST_true(SSL_set_min_proto_version(clientssl, TLS1_2_VERSION))
         || !TEST_true(SSL_set_max_proto_version(clientssl, TLS1_2_VERSION)))
         goto end;
+
+    if (!TEST_true(
+            SSL_set1_client_cert_type(clientssl,
+                (const unsigned char *)CERT_TYPE_C, sizeof(CERT_TYPE_C) - 1)))
+        goto end;
+
+    if (!TEST_true(
+            SSL_set1_server_cert_type(clientssl,
+                (const unsigned char *)CERT_TYPE_S, sizeof(CERT_TYPE_S) - 1)))
+        goto end;
+
+#ifndef OPENSSL_NO_CT
+    if (!TEST_true(SSL_set_ct_validation_callback(clientssl, validation_cbk, CB_ARG)))
+        goto end;
+#endif
+
+#ifndef OPENSSL_NO_OCSP
+    if (!TEST_true(
+            SSL_set_tlsext_status_type(clientssl, TLSEXT_STATUSTYPE_ocsp)))
+        goto end;
+#endif
 
     client2ssl = SSL_dup(clientssl);
     rbio = SSL_get_rbio(clientssl);
@@ -10868,6 +10906,28 @@ static int test_ssl_dup(void)
 
     if (!TEST_true(create_ssl_connection(serverssl, client2ssl, SSL_ERROR_NONE)))
         goto end;
+
+    if (!TEST_true(SSL_get0_client_cert_type(client2ssl, &ctype, &ctype_len)))
+        goto end;
+
+    if (!TEST_mem_eq(ctype, ctype_len, CERT_TYPE_C, sizeof(CERT_TYPE_C) - 1))
+        goto end;
+
+    if (!TEST_true(SSL_get0_server_cert_type(client2ssl, &ctype, &ctype_len)))
+        goto end;
+
+    if (!TEST_mem_eq(ctype, ctype_len, CERT_TYPE_S, sizeof(CERT_TYPE_S) - 1))
+        goto end;
+
+#ifndef OPENSSL_NO_CT
+    if (!TEST_true(SSL_ct_is_enabled(client2ssl)))
+        goto end;
+#endif
+
+#ifndef OPENSSL_NO_OCSP
+    if (!TEST_long_eq(SSL_get_tlsext_status_type(client2ssl), TLSEXT_STATUSTYPE_ocsp))
+        goto end;
+#endif
 
     SSL_free(clientssl);
     clientssl = SSL_dup(client2ssl);
@@ -11965,6 +12025,51 @@ end:
     SSL_CTX_free(cctx);
     return testresult;
 }
+
+static int un_ext_add_cb(SSL *s, unsigned int ext_type,
+    unsigned int context, const unsigned char **out, size_t *outlen, X509 *x,
+    size_t chainidx, int *al, void *add_arg)
+{
+    static const unsigned char data[] = { 0xaa };
+    *out = data;
+    *outlen = sizeof(data);
+    return 1;
+}
+
+static int un_ext_parse_cb(SSL *s, unsigned int ext_type,
+    unsigned int context, const unsigned char *in, size_t inlen, X509 *x,
+    size_t chainidx, int *al, void *parse_arg)
+{
+    return 1;
+}
+
+/*
+ * Test that a handshake succeeds when the peer sends an extension type we do
+ * not recognise. The client registers a custom extension in its ClientHello
+ * that the server knows nothing about, so on the server tls_collect_extensions()
+ * takes the "unknown extension" branch.
+ */
+static int test_tls13_unknown_extension(void)
+{
+    SSL_CTX *s = NULL, *c = NULL;
+    SSL *s_ssl = NULL, *c_ssl = NULL;
+    int test;
+
+    test = TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
+               TLS_client_method(), TLS1_3_VERSION, TLS1_3_VERSION, &s, &c, cert, privkey))
+        && TEST_true(SSL_CTX_add_custom_ext(c, 0xfefe, SSL_EXT_CLIENT_HELLO,
+            un_ext_add_cb, NULL, NULL, un_ext_parse_cb, NULL))
+        && TEST_true(create_ssl_objects(s, c, &s_ssl, &c_ssl, NULL, NULL))
+        /* The server must tolerate the unknown extension and complete. */
+        && TEST_true(create_ssl_connection(s_ssl, c_ssl, SSL_ERROR_NONE));
+
+    SSL_free(s_ssl);
+    SSL_free(c_ssl);
+    SSL_CTX_free(s);
+    SSL_CTX_free(c);
+    return test;
+}
+
 #endif /* OSSL_NO_USABLE_TLS1_3 */
 
 #if !defined(OPENSSL_NO_TLS1_2) && !defined(OPENSSL_NO_DYNAMIC_ENGINE)
@@ -12573,6 +12678,70 @@ end:
     SSL_CTX_free(cctx);
     BIO_free_all(bretry);
     BIO_free(tmp);
+    return testresult;
+}
+
+/*
+ * Test that a BIO returning 0 without a retry flag for a write with a positive
+ * length is not treated as a successful write.
+ */
+static int test_data_write_zero_no_retry(int tst)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    BIO *bzero = BIO_new(bio_s_no_retry_zero());
+    const SSL_METHOD *smeth = TLS_server_method();
+    const SSL_METHOD *cmeth = TLS_client_method();
+    unsigned char inbuf[1] = { 0 };
+    size_t written;
+    unsigned long errcode;
+    int err, min_version = 0, max_version = 0, testresult = 0;
+
+    if (tst == 1) {
+#if !defined(OPENSSL_NO_DTLS) && !defined(OPENSSL_NO_DTLS1_2)
+        smeth = DTLS_server_method();
+        cmeth = DTLS_client_method();
+        min_version = max_version = DTLS1_2_VERSION;
+#else
+        BIO_free(bzero);
+        return TEST_skip("DTLS 1.2 not supported");
+#endif
+    }
+
+    if (!TEST_ptr(bzero))
+        goto end;
+
+    if (!TEST_true(create_ssl_ctx_pair(libctx, smeth, cmeth, min_version,
+            max_version, &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl, NULL,
+            NULL)))
+        goto end;
+
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+        goto end;
+
+    SSL_set0_wbio(clientssl, bzero);
+    bzero = NULL;
+
+    ERR_clear_error();
+    if (!TEST_false(SSL_write_ex(clientssl, inbuf, sizeof(inbuf), &written)))
+        goto end;
+
+    err = SSL_get_error(clientssl, 0);
+    errcode = ERR_get_error();
+    if (!TEST_int_eq(err, SSL_ERROR_SYSCALL)
+        || !TEST_ulong_eq(errcode, 0))
+        goto end;
+
+    testresult = 1;
+end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    BIO_free_all(bzero);
     return testresult;
 }
 
@@ -14312,6 +14481,7 @@ int setup_tests(void)
 #ifndef OSSL_NO_USABLE_TLS1_3
     ADD_TEST(test_read_ahead_key_change);
     ADD_ALL_TESTS(test_tls13_record_padding, 6);
+    ADD_TEST(test_tls13_unknown_extension);
 #endif
 #if !defined(OPENSSL_NO_TLS1_2) && !defined(OSSL_NO_USABLE_TLS1_3)
     ADD_ALL_TESTS(test_serverinfo_custom, 4);
@@ -14323,6 +14493,7 @@ int setup_tests(void)
     ADD_TEST(test_rstate_string);
     ADD_ALL_TESTS(test_handshake_retry, 16);
     ADD_TEST(test_data_retry);
+    ADD_ALL_TESTS(test_data_write_zero_no_retry, 2);
     ADD_ALL_TESTS(test_multi_resume, 5);
     ADD_ALL_TESTS(test_select_next_proto, OSSL_NELEM(next_proto_tests));
 #if !defined(OPENSSL_NO_TLS1_2) && !defined(OPENSSL_NO_NEXTPROTONEG)
@@ -14370,6 +14541,7 @@ void cleanup_tests(void)
     bio_s_mempacket_test_free();
     bio_s_always_retry_free();
     bio_s_maybe_retry_free();
+    bio_s_no_retry_zero_free();
     OSSL_PROVIDER_unload(defctxnull);
     OSSL_LIB_CTX_free(libctx);
 }

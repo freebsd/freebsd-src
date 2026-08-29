@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -58,6 +58,9 @@ void set_always_retry_err_val(int err);
 
 const BIO_METHOD *bio_s_maybe_retry(void);
 void bio_s_maybe_retry_free(void);
+
+const BIO_METHOD *bio_s_no_retry_zero(void);
+void bio_s_no_retry_zero_free(void);
 
 /* Packet types - value 0 is reserved */
 #define INJECT_PACKET 1
