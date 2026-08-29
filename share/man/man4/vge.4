@@ -33,22 +33,23 @@
 .Os
 .Sh NAME
 .Nm vge
-.Nd "VIA Networking Technologies Velocity Gigabit Ethernet adapter driver"
+.Nd VIA Networking Technologies Velocity Gigabit Ethernet adapter driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device miibus"
-.Cd "device vge"
-.Ed
+.Cd device miibus
+.Cd device vge
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_vge_load="YES"
-.Ed
+.Cd if_vge_load="YES"
+.Cd hw.vge.msi_disable
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.vge.%d.int_holdoff
+.Cd dev.vge.%d.rx_coal_pkt
+.Cd dev.vge.%d.tx_coal_pkt
 .Sh DESCRIPTION
 The
 .Nm
