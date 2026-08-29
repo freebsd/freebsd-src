@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-ENV 7ossl"
-.TH OPENSSL-ENV 7ossl 2026-06-09 3.5.7 OpenSSL
+.TH OPENSSL-ENV 7ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -209,8 +209,8 @@ OpenSSL supports a number of different algorithm implementations for
 various machines and, by default, it determines which to use based on the
 processor capabilities and run time feature enquiry.  These environment
 variables can be used to exert more control over this selection process.
-See \fBOPENSSL_ia32cap\fR\|(3), \fBOPENSSL_ppccap\fR\|(3), \fBOPENSSL_riscvcap\fR\|(3),
-and \fBOPENSSL_s390xcap\fR\|(3).
+See \fBOPENSSL_armcap\fR\|(3), \fBOPENSSL_ia32cap\fR\|(3), \fBOPENSSL_ppccap\fR\|(3),
+\&\fBOPENSSL_riscvcap\fR\|(3) and \fBOPENSSL_s390xcap\fR\|(3).
 .IP "\fBNO_PROXY\fR, \fBHTTPS_PROXY\fR, \fBHTTP_PROXY\fR" 4
 .IX Item "NO_PROXY, HTTPS_PROXY, HTTP_PROXY"
 Specify a proxy hostname.

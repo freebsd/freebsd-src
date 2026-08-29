@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-THREADS 7ossl"
-.TH OPENSSL-THREADS 7ossl 2026-06-09 3.5.7 OpenSSL
+.TH OPENSSL-THREADS 7ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,16 +144,41 @@ to create per\-connection \fBSSL\fR objects by calling \fBSSL_new\fR\|(3).
 In this specific case, and probably for factory methods in general, it is
 not safe to modify the factory object after it has been used to create
 other objects.
+.SH "THREAD CANCELLATION"
+.IX Header "THREAD CANCELLATION"
+Thread safety does not imply cancellation safety.
+Unless a specific function documents otherwise, OpenSSL does not guarantee
+that an in\-progress call can be abandoned safely by thread cancellation or
+forced termination. An interruption can leave locks held, resources unreleased,
+or shared state inconsistent, making later use or cleanup unsafe.
+.PP
+Deferred cancellation can take effect at a cancellation point reached directly
+or through a callback, BIO, provider, or other pluggable implementation.
+Automatic thread\-local cleanup and \fBOPENSSL_thread_stop\fR\|(3), when they run, do
+not unwind the interrupted call.
+.PP
+Applications should act on cancellation only between OpenSSL calls. On POSIX
+systems, applications using pthread cancellation should disable cancellation
+with \fBpthread_setcancelstate\fR() before entering OpenSSL and restore it only
+after OpenSSL returns at a point safe for cancellation. Callbacks invoked by
+OpenSSL must not re\-enable it. Disabling cancellation does not make a blocking
+call return on a cancellation request; applications requiring prompt
+cancellation should use nonblocking operation where available.
+.PP
+The same restriction applies to other non\-local exits which abandon an OpenSSL
+call in progress, including direct thread exit, long jumps, and language
+exceptions.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBCRYPTO_THREAD_run_once\fR\|(3),
+\&\fBCRYPTO_THREAD_run_once\fR\|(3), \fBOPENSSL_thread_stop\fR\|(3),
+\&\fBopenssl\-quic\-concurrency\fR\|(7),
 local system threads documentation.
 .SH BUGS
 .IX Header "BUGS"
 This page is admittedly very incomplete.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

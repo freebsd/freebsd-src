@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PROVIDER-SIGNATURE 7ossl"
-.TH PROVIDER-SIGNATURE 7ossl 2026-06-09 3.5.7 OpenSSL
+.TH PROVIDER-SIGNATURE 7ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -599,8 +599,8 @@ The following parameters are used by the OpenSSL FIPS provider:
 A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
 This may be used after calling either the sign or verify final functions. It may
 return 0 if either the "digest\-check", "key\-check", or "sign\-check" are set to 0.
-.IP """verify\-message"" (\fBOSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE\fR <integer>" 4
-.IX Item """verify-message"" (OSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE <integer>"
+.IP """verify\-message"" (\fBOSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE\fR) <integer>" 4
+.IX Item """verify-message"" (OSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE) <integer>"
 A getter that returns 1 if a signature verification operation acted on
 a raw message, or 0 if it verified a predigested message.  A value of 0
 indicates likely non\-approved usage of the FIPS provider.  This flag is

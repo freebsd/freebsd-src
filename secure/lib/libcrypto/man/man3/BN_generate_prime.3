@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_GENERATE_PRIME 3ossl"
-.TH BN_GENERATE_PRIME 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH BN_GENERATE_PRIME 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -254,6 +254,8 @@ can similarly be compared to \fBBN_is_prime_ex()\fR and
 \&\-1 on error.
 .PP
 \&\fBBN_generate_prime()\fR returns the prime number on success, \fBNULL\fR otherwise.
+Please note that the \fBret\fR BIGNUM is freed on failure and must not be
+used or freed by the caller in such case.
 .PP
 BN_GENCB_new returns a pointer to a BN_GENCB structure on success, or \fBNULL\fR
 otherwise.
@@ -299,7 +301,7 @@ and \fBBN_GENCB_get_arg()\fR functions were added in OpenSSL 1.1.0.
 \&\fBBN_check_prime()\fR was added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

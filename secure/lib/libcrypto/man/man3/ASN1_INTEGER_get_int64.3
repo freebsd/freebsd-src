@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_INTEGER_GET_INT64 3ossl"
-.TH ASN1_INTEGER_GET_INT64 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH ASN1_INTEGER_GET_INT64 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -167,7 +167,7 @@ of an \fBint64_t\fR type.
 only fail due to a memory allocation error.
 .PP
 \&\fBASN1_INTEGER_to_BN()\fR and \fBASN1_ENUMERATED_to_BN()\fR return a \fBBIGNUM\fR structure
-of NULL if an error occurs. They can fail if the passed type is incorrect
+or NULL if an error occurs. They can fail if the passed type is incorrect
 (due to programming error) or due to a memory allocation failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
@@ -179,7 +179,7 @@ of NULL if an error occurs. They can fail if the passed type is incorrect
 were added in OpenSSL 1.1.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

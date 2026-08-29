@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CIPHER-SM4 7ossl"
-.TH EVP_CIPHER-SM4 7ossl 2026-06-09 3.5.7 OpenSSL
+.TH EVP_CIPHER-SM4 7ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -95,6 +95,13 @@ This implementation supports the parameters described in
 "PARAMETERS" in \fBEVP_EncryptInit\fR\|(3).
 .SH NOTES
 .IX Header "NOTES"
+SM4 implementations in OpenSSL may use secret\-dependent table lookups and
+are not guaranteed to be constant\-time. In particular, the portable C
+implementation uses S\-box and T\-table lookups and may be vulnerable to
+cache\-timing side\-channel attacks. Which code path is used depends on CPU
+capabilities; see \fBOPENSSL_armcap\fR\|(3), \fBOPENSSL_ia32cap\fR\|(3) and
+\&\fBOPENSSL_riscvcap\fR\|(3).
+.PP
 The SM4\-XTS implementation allows streaming to be performed, but each
 \&\fBEVP_EncryptUpdate\fR\|(3) or \fBEVP_DecryptUpdate\fR\|(3) call requires each input
 to be a multiple of the blocksize. Only the final \fBEVP_EncryptUpdate()\fR or
@@ -103,10 +110,11 @@ of the blocksize but is larger than one block. In that case ciphertext
 stealing (CTS) is used to fill the block.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBprovider\-cipher\fR\|(7), \fBOSSL_PROVIDER\-default\fR\|(7)
+\&\fBOPENSSL_armcap\fR\|(3), \fBOPENSSL_ia32cap\fR\|(3), \fBOPENSSL_riscvcap\fR\|(3),
+\&\fBOSSL_PROVIDER\-default\fR\|(7), \fBprovider\-cipher\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

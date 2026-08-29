@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET1_CURVES 3ossl"
-.TH SSL_CTX_SET1_CURVES 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH SSL_CTX_SET1_CURVES 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -177,7 +177,7 @@ levels, and can specify which predicted key shares should be sent by a client.
 Group tuples are used by OpenSSL TLS servers to decide whether to request a
 stronger keyshare than those predicted by sending a Hello Retry Request
 (\fBHRR\fR) even if some of the predicted groups are supported.
-OpenSSL clients ignore tuple boundaries, and pay attenion only to the overall
+OpenSSL clients ignore tuple boundaries, and pay attention only to the overall
 order of \fIlist\fR elements and which groups are selected as predicted keyshares
 as described below.
 .PP
@@ -439,6 +439,10 @@ Support for ignoring unknown groups in \fBSSL_CTX_set1_groups_list()\fR and
 \&\fBSSL_set1_groups_list()\fR was added in OpenSSL 3.3.
 .PP
 Support for \fBML\-KEM\fR was added in OpenSSL 3.5.
+.PP
+OpenSSL 3.5 also introduced support for group tuples, the \f(CW\*(C`*\*(C'\fR keyshare
+prediction prefix, the \f(CW\*(C`/\*(C'\fR tuple separator, the \f(CW\*(C`DEFAULT\*(C'\fR pseudo\-group,
+and the \f(CW\*(C`\-\*(C'\fR prefix.
 .PP
 OpenSSL 3.5 also introduces support for three \fIhybrid\fR ECDH PQ key exchange
 TLS groups: \fBX25519MLKEM768\fR, \fBSecP256r1MLKEM768\fR and

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-PKEYUTL 1ossl"
-.TH OPENSSL-PKEYUTL 1ossl 2026-06-09 3.5.7 OpenSSL
+.TH OPENSSL-PKEYUTL 1ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -411,7 +411,7 @@ explicitly set in PSS mode then the signing digest is used.
 .IP \fBrsa_oaep_md:\fR\fIdigest\fR 4
 .IX Item "rsa_oaep_md:digest"
 Sets the digest used for the OAEP hash function. If not explicitly set then
-SHA256 is used.
+SHA1 is used.
 .IP \fBrsa_pkcs1_implicit_rejection:\fR\fIflag\fR 4
 .IX Item "rsa_pkcs1_implicit_rejection:flag"
 Disables (when set to 0) or enables (when set to 1) the use of implicit
@@ -723,8 +723,10 @@ Verify a signature using SLH\-DSA:
 .SH HISTORY
 .IX Header "HISTORY"
 Since OpenSSL 3.5,
-the \fB\-digest\fR option implies \fB\-rawin\fR, and these two options are
-no longer required when signing or verifying with an Ed25519 or Ed448 key.
+the \fB\-digest\fR option implies \fB\-rawin\fR. The \fB\-rawin\fR option is no longer
+required when signing or verifying with a key type that does not support a
+prehash digest, such as Ed25519, Ed448, ML\-DSA, or SLH\-DSA. For these key
+types, \fB\-digest\fR is not supported.
 .PP
 Also since OpenSSL 3.5, the \fB\-kemop\fR option is no longer required for any of
 the supported algorithms, the only supported \fBmode\fR is now the default.
