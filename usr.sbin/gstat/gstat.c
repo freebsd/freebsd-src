@@ -142,7 +142,7 @@ main(int argc, char **argv)
 			strlcpy(f_s, optarg, sizeof(f_s));
 			break;
 		case 'I':
-			p = NULL;
+			errno = 0;
 			i = strtoul(optarg, &p, 0);
 			if (p == optarg || errno == EINVAL ||
 			    errno == ERANGE) {
