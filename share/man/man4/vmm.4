@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2013 Peter Grehan
 .\" All rights reserved.
 .\"
@@ -22,31 +25,25 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 30, 2024
+.Dd August 29, 2026
 .Dt VMM 4
 .Os
 .Sh NAME
 .Nm vmm.ko
-.Nd "bhyve virtual machine monitor"
+.Nd bhyve virtual machine monitor
 .Sh SYNOPSIS
-To load the driver as a module at boot, add this line to
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
+.Cd hw.vmm.maxcpu
 .Cd vmm_load="YES"
-.Ed
-.Pp
-The module can also be loaded manually with
-.Xr kldload 8 :
-.Bd -literal -offset indent
-kldload vmm
-.Ed
 .Sh DESCRIPTION
+The
 .Nm
-provides the kernel portion of the
+module provides the kernel portion of the
 .Xr bhyve 4
 hypervisor.
 The following platforms are supported:
-.Bl -bullet -compat
+.Bl -bullet
 .It
 amd64: An Intel CPU with VT-x/EPT or AMD CPU with SVM support is required.
 .It
@@ -146,6 +143,7 @@ control interface for creating and destroying virtual machines.
 device interface for individual virtual machines.
 .It Pa /dev/vmm.io/*
 device interface for device memory mapped into virtual machines.
+.El
 .Sh EXAMPLES
 Reserve three PCI devices for use by the hypervisor: bus 10 slot 0 function 0,
 bus 6 slot 5 function 0, and bus 6 slot 5 function 1.
