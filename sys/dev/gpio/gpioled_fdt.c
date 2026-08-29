@@ -36,6 +36,9 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
+
+#include <machine/atomic.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -50,6 +53,8 @@ struct gpioled
 	struct gpioleds_softc	*parent_sc;
 	gpio_pin_t		pin;
 	struct cdev		*leddev;
+	struct task		task;
+	int			state;
 };
 
 struct gpioleds_softc
@@ -65,14 +70,28 @@ static int gpioled_probe(device_t);
 static int gpioled_attach(device_t);
 static int gpioled_detach(device_t);
 
+/* Writes the most recently requested state, not every state update. */
+static void
+gpioled_update(void *arg, int pending __unused)
+{
+	struct gpioled *led;
+
+	led = arg;
+	gpio_pin_set_active(led->pin, atomic_load_int(&led->state) != 0);
+}
+
 static void
 gpioled_control(void *priv, int onoff)
 {
 	struct gpioled *led;
 
 	led = (struct gpioled *)priv;
-	if (led->pin)
-		gpio_pin_set_active(led->pin, onoff);
+	if (led->pin == NULL)
+		return;
+
+	/* Runs under the led(4) mutex, so the pin write is deferred. */
+	atomic_store_int(&led->state, onoff);
+	taskqueue_enqueue(taskqueue_thread, &led->task);
 }
 
 static void
@@ -121,6 +140,8 @@ gpioleds_attach_led(struct gpioleds_softc *sc, phandle_t node,
 	}
 	gpio_pin_setflags(led->pin, GPIO_PIN_OUTPUT);
 
+	TASK_INIT(&led->task, 0, gpioled_update, led);
+
 	led->leddev = led_create_state(gpioled_control, led, name,
 	    state);
 
@@ -132,8 +153,10 @@ static void
 gpioleds_detach_led(struct gpioled *led)
 {
 
-	if (led->leddev != NULL)
+	if (led->leddev != NULL) {
 		led_destroy(led->leddev);
+		taskqueue_drain(taskqueue_thread, &led->task);
+	}
 
 	if (led->pin)
 		gpio_pin_release(led->pin);
