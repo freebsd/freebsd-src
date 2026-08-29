@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2014 Bryan Venteicher
 .\" All rights reserved.
 .\"
@@ -27,21 +30,13 @@
 .Os
 .Sh NAME
 .Nm vxlan
-.Nd "Virtual eXtensible LAN interface"
+.Nd Virtual eXtensible LAN interface
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device vxlan"
-.Ed
+.Cd device vxlan
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_vxlan_load="YES"
-.Ed
+.Cd if_vxlan_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -285,8 +280,8 @@ create_args_vxlan0="vxlanid 108 vxlanlocal 192.168.100.1 vxlanremote 192.168.100
 The
 .Nm
 driver was written by
-.An Bryan Venteicher Aq bryanv@freebsd.org .
+.An Bryan Venteicher Aq Mt bryanv@freebsd.org .
 Support for stateless hardware offloads was added by
-.An Navdeep Parhar Aq np@freebsd.org
+.An Navdeep Parhar Aq Mt np@freebsd.org
 in
 .Fx 13.0 .
