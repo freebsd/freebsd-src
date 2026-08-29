@@ -1929,8 +1929,6 @@ igb_iov_initialize(struct e1000_softc *sc)
 	rctl = E1000_READ_REG(hw, E1000_RCTL);
 	E1000_WRITE_REG(hw, E1000_RCTL, rctl | E1000_RCTL_VFE);
 	E1000_WRITE_REG(hw, E1000_MBVFIMR, igb_iov_active_mask(sc));
-	if (hw->mac.type == e1000_i350)
-		E1000_WRITE_REG(hw, E1000_DMACR, 0);
 
 	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	E1000_WRITE_REG(hw, E1000_CTRL_EXT,

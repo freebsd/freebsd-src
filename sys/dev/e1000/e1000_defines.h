@@ -1546,6 +1546,8 @@
 #define E1000_DMACR_DMAC_LX_MASK	0x30000000
 #define E1000_DMACR_DMAC_LX_SHIFT	28
 #define E1000_DMACR_DMAC_EN		0x80000000 /* Enable DMA Coalescing */
+/* DMA Coalescing VM-to-VM Loopback Watchdog Enable */
+#define E1000_DMACR_DC_LPBKW_EN		0x00004000
 /* DMA Coalescing BMC-to-OS Watchdog Enable */
 #define E1000_DMACR_DC_BMC2OSW_EN	0x00008000
 

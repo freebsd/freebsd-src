@@ -1208,7 +1208,7 @@ em_add_device_sysctls(struct e1000_softc *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    em_get_regs, "A", "Dump Registers");
 
-	if (hw->mac.type >= e1000_i350) {
+	if (hw->mac.type >= e1000_i350 && hw->mac.type != e1000_i211) {
 		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "dmac",
 		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    igb_sysctl_dmac, "I", "DMA Coalesce");
@@ -4268,6 +4268,18 @@ lem_smartspeed(struct e1000_softc *sc)
 		sc->smartspeed = 0;
 }
 
+static void
+igb_disable_dmac(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	reg = E1000_READ_REG(hw, E1000_DMACR);
+	reg &= ~E1000_DMACR_DMAC_EN;
+	/* Retain the documented Lx policy and I210 reserved encoding. */
+	reg |= E1000_DMACR_DMAC_LX_MASK;
+	E1000_WRITE_REG(hw, E1000_DMACR, reg);
+}
+
 /*********************************************************************
  *
  *  Initialize the DMA Coalescing feature
@@ -4278,7 +4290,7 @@ igb_init_dmac(struct e1000_softc *sc, u32 pba)
 {
 	device_t	dev = sc->dev;
 	struct e1000_hw *hw = &sc->hw;
-	u32 		dmac, reg = ~E1000_DMACR_DMAC_EN;
+	u32		dmac, dmacwt, reg, ttlx;
 	u16		hwm;
 	u16		max_frame_size;
 
@@ -4294,7 +4306,7 @@ igb_init_dmac(struct e1000_softc *sc, u32 pba)
 	 */
 	if (igb_iov_enabled(sc)) {
 		if (hw->mac.type > e1000_82580)
-			E1000_WRITE_REG(hw, E1000_DMACR, 0);
+			igb_disable_dmac(hw);
 		return;
 	}
 
@@ -4302,7 +4314,7 @@ igb_init_dmac(struct e1000_softc *sc, u32 pba)
 	if (hw->mac.type > e1000_82580) {
 
 		if (sc->dmac == 0) { /* Disabling it */
-			E1000_WRITE_REG(hw, E1000_DMACR, reg);
+			igb_disable_dmac(hw);
 			return;
 		} else
 			device_printf(dev, "DMA Coalescing enabled\n");
@@ -4324,52 +4336,64 @@ igb_init_dmac(struct e1000_softc *sc, u32 pba)
 		if (dmac < pba - 10)
 			dmac = pba - 10;
 		reg = E1000_READ_REG(hw, E1000_DMACR);
-		reg &= ~E1000_DMACR_DMACTHR_MASK;
+		reg &= ~(E1000_DMACR_DMACWT_MASK |
+		    E1000_DMACR_DMACTHR_MASK | E1000_DMACR_DMAC_LX_MASK |
+		    E1000_DMACR_DMAC_EN | E1000_DMACR_DC_LPBKW_EN |
+		    E1000_DMACR_DC_BMC2OSW_EN);
 		reg |= ((dmac << E1000_DMACR_DMACTHR_SHIFT)
 		    & E1000_DMACR_DMACTHR_MASK);
 
-		/* transition to L0x or L1 if available..*/
+		/* Transition to L0s or L1 if available. */
 		reg |= (E1000_DMACR_DMAC_EN | E1000_DMACR_DMAC_LX_MASK);
 
-		/* Check if status is 2.5Gb backplane connection
-		* before configuration of watchdog timer, which is
-		* in msec values in 12.8usec intervals
-		* watchdog timer= msec values in 32usec intervals
-		* for non 2.5Gb connection
-		*/
+		/*
+		 * The watchdog uses 12.8 usec units on an I354 2.5 Gb/s
+		 * backplane connection and 32 usec units otherwise.
+		 */
 		if (hw->mac.type == e1000_i354) {
 			int status = E1000_READ_REG(hw, E1000_STATUS);
 			if ((status & E1000_STATUS_2P5_SKU) &&
 			    (!(status & E1000_STATUS_2P5_SKU_OVER)))
-				reg |= ((sc->dmac * 5) >> 6);
+				dmacwt = (sc->dmac * 5) >> 6;
 			else
-				reg |= (sc->dmac >> 5);
+				dmacwt = sc->dmac >> 5;
 		} else {
-			reg |= (sc->dmac >> 5);
+			dmacwt = sc->dmac >> 5;
 		}
+		reg |= dmacwt & E1000_DMACR_DMACWT_MASK;
+		if (hw->mac.type == e1000_i350 ||
+		    hw->mac.type == e1000_i354)
+			reg |= E1000_DMACR_DC_LPBKW_EN;
+		if (hw->mac.type == e1000_i354)
+			reg |= E1000_DMACR_DC_BMC2OSW_EN;
 
 		E1000_WRITE_REG(hw, E1000_DMACR, reg);
 
 		E1000_WRITE_REG(hw, E1000_DMCRTRH, 0);
 
-		/* Set the interval before transition */
+		/* Set the interval before transition. */
 		reg = E1000_READ_REG(hw, E1000_DMCTLX);
+		reg &= ~E1000_DMCTLX_TTLX_MASK;
 		if (hw->mac.type == e1000_i350)
 			reg |= IGB_DMCTLX_DCFLUSH_DIS;
 		/*
-		** in 2.5Gb connection, TTLX unit is 0.4 usec
-		** which is 0x4*2 = 0xA. But delay is still 4 usec
-		*/
-		if (hw->mac.type == e1000_i354) {
+		 * I210 documents TTLX as reserved with a required value of 0x20.
+		 * At 2.5 Gb/s the I354 unit is 0.4 usec, so ten ticks retain
+		 * the four usec interval used at other speeds.
+		 */
+		if (hw->mac.type == e1000_i210) {
+			ttlx = 0x20;
+		} else if (hw->mac.type == e1000_i354) {
 			int status = E1000_READ_REG(hw, E1000_STATUS);
 			if ((status & E1000_STATUS_2P5_SKU) &&
 			    (!(status & E1000_STATUS_2P5_SKU_OVER)))
-				reg |= 0xA;
+				ttlx = 0xA;
 			else
-				reg |= 0x4;
+				ttlx = 0x4;
 		} else {
-			reg |= 0x4;
+			ttlx = 0x4;
 		}
+		reg |= ttlx & E1000_DMCTLX_TTLX_MASK;
 
 		E1000_WRITE_REG(hw, E1000_DMCTLX, reg);
 
@@ -4379,7 +4403,7 @@ igb_init_dmac(struct e1000_softc *sc, u32 pba)
 
 		/* make low power state decision controlled by DMA coal */
 		reg = E1000_READ_REG(hw, E1000_PCIEMISC);
-		reg &= ~E1000_PCIEMISC_LX_DECISION;
+		reg |= E1000_PCIEMISC_LX_DECISION;
 		E1000_WRITE_REG(hw, E1000_PCIEMISC, reg);
 
 	} else if (hw->mac.type == e1000_82580) {
