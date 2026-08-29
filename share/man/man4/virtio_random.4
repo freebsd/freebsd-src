@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2013 Bryan Venteicher
 .\" All rights reserved.
 .\"
@@ -29,19 +32,11 @@
 .Nm virtio_random
 .Nd VirtIO Entropy driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device virtio_random"
-.Ed
+.Cd device virtio_random
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-virtio_random_load="YES"
-.Ed
+.Cd virtio_random_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,8 +47,5 @@ hypervisor to the guest.
 .Sh SEE ALSO
 .Xr random 4 ,
 .Xr virtio 4
-.Sh HISTORY
-The
-.Nm
-driver was written by
-.An Bryan Venteicher Aq Mt bryanv@FreeBSD.org .
+.Sh AUTHORS
+.An Bryan Venteicher Aq Mt bryanv@FreeBSD.org
