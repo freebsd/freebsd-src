@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -208,7 +208,12 @@ sub run_tests
     $proxy_start_success = $proxy->start();
 
     if ($run_test_as_dtls == 1) {
-        ok($proxy_start_success == 0, "Unrecognised record type in DTLS1.2");
+        # DTLS alerts are best-effort (RFC 6347 section 4.2.7): the client's
+        # fatal alert may be lost, so we cannot rely on observing it. What we
+        # verify is that the client rejected the connection, i.e. exited with a
+        # failure. Whether we happened to see the alert is only diagnostic.
+        ok($proxy->clientexit != 0, "Unrecognised record type in DTLS1.2");
+        note("client fatal alert observed") if $fatal_alert;
     } else {
         ok($fatal_alert, "Unrecognised record type in TLS1.2");
     }
@@ -228,7 +233,8 @@ sub run_tests
         $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
         $proxy_start_success = $proxy->start();
         if ($run_test_as_dtls == 1) {
-            ok($proxy_start_success == 0, "Unrecognised record type in DTLSv1");
+            ok($proxy->clientexit != 0, "Unrecognised record type in DTLSv1");
+            note("client fatal alert observed") if $fatal_alert;
         } else {
             ok($fatal_alert, "Unrecognised record type in TLSv1.1");
         }
