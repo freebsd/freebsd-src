@@ -1003,6 +1003,7 @@ static void ackm_on_pkts_acked(OSSL_ACKM *ackm, const OSSL_ACKM_TX_PKT *apkt)
     const OSSL_ACKM_TX_PKT *anext;
     QUIC_PN last_pn_acked = 0;
     OSSL_CC_ACK_INFO ainfo = { 0 };
+    unsigned int is_inflight;
 
     for (; apkt != NULL; apkt = anext) {
         if (apkt->is_inflight) {
@@ -1027,10 +1028,11 @@ static void ackm_on_pkts_acked(OSSL_ACKM *ackm, const OSSL_ACKM_TX_PKT *apkt)
         ainfo.tx_time = apkt->time;
         ainfo.tx_size = apkt->num_bytes;
 
+        is_inflight = apkt->is_inflight;
         anext = apkt->anext;
         apkt->on_acked(apkt->cb_arg); /* may free apkt */
 
-        if (apkt->is_inflight)
+        if (is_inflight)
             ackm->cc_method->on_data_acked(ackm->cc_data, &ainfo);
     }
 }
@@ -1199,7 +1201,20 @@ int ossl_ackm_on_rx_ack_frame(OSSL_ACKM *ackm, const OSSL_QUIC_FRAME_ACK *ack,
     int pkt_space, OSSL_TIME rx_time)
 {
     OSSL_ACKM_TX_PKT *na_pkts, *lost_pkts;
+    struct tx_pkt_history_st *h = get_tx_history(ackm, pkt_space);
     int must_set_timer = 0;
+
+    /*
+     * RFC 9000 s. 13.1 recommends treating an acknowledgment for a packet we
+     * did not send as a PROTOCOL_VIOLATION, where detectable. The largest
+     * acknowledged PN is ack_ranges[0].end; if it exceeds the highest PN we have
+     * sent in this space, reject the ACK. Otherwise the peer-controlled value is
+     * stored into largest_acked_pkt below, which only ever increases and drives
+     * loss detection, so a single such ACK would permanently force every
+     * in-flight and subsequently-sent packet to be declared lost.
+     */
+    if (ack->ack_ranges[0].end > h->highest_sent)
+        return 0;
 
     if (ackm->largest_acked_pkt[pkt_space] == QUIC_PN_INVALID)
         ackm->largest_acked_pkt[pkt_space] = ack->ack_ranges[0].end;

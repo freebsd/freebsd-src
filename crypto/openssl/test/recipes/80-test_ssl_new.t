@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -42,7 +42,7 @@ if (defined $ENV{SSL_TESTS}) {
     @conf_srcs = glob(srctop_file("test", "ssl-tests", "*.cnf.in"));
     # We hard-code the number of tests to double-check that the globbing above
     # finds all files as expected.
-    plan tests => 31;
+    plan tests => 32;
 }
 map { s/;.*// } @conf_srcs if $^O eq "VMS";
 my @conf_files = map { basename($_, ".in") } @conf_srcs;
@@ -96,6 +96,7 @@ my %conf_dependent_tests = (
   "28-seclevel.cnf" => disabled("tls1_2") || $no_ecx,
   "30-extended-master-secret.cnf" => disabled("tls1_2"),
   "32-compressed-certificate.cnf" => disabled("comp") || disabled("tls1_3"),
+  "33-compressed-spki.cnf" => disabled("tls1_2") || disabled("tls1_3") || $no_ec,
 );
 
 # Add your test here if it should be skipped for some compile-time
@@ -131,6 +132,7 @@ my %skip = (
   "26-tls13_client_auth.cnf" => disabled("tls1_3") || ($no_ec && $no_dh),
   "29-dtls-sctp-label-bug.cnf" => disabled("sctp") || disabled("sock"),
   "32-compressed-certificate.cnf" => disabled("comp") || disabled("tls1_3"),
+  "33-compressed-spki.cnf" => disabled("tls1_2") || disabled("tls1_3") || $no_ec,
 );
 
 foreach my $conf (@conf_files) {
