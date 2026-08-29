@@ -620,6 +620,7 @@ struct e1000_softc {
 	int			tso_automasked;
 	u32			phy_hang_count;
 	u32			stats_pending;
+	u32			device_reset_state;
 	u32			fatal_error_state;
 	u32			fatal_error_icr;
 	u32			fatal_error_pbeccsts;

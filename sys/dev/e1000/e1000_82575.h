@@ -55,6 +55,7 @@
 #define E1000_RAR_ENTRIES_I350	32
 #define E1000_SW_SYNCH_MB	0x00000100
 #define E1000_STAT_DEV_RST_SET	0x00100000
+#define E1000_GCR_DEV_RST_IN_PROGRESS	0x80000000
 
 struct e1000_adv_data_desc {
 	__le64 buffer_addr;    /* Address of the descriptor's data buffer */
