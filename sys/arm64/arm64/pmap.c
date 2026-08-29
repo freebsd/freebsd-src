@@ -5686,7 +5686,7 @@ validate:
 		*/
 		if ((prot & VM_PROT_EXECUTE) &&  pmap != kernel_pmap &&
 		    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK &&
-		    (opa != pa || (orig_l3 & ATTR_S1_XN))) {
+		    (opa != pa || (orig_l3 & ATTR_S1_UXN) != 0)) {
 			PMAP_ASSERT_STAGE1(pmap);
 			cpu_icache_sync_range((void *)PHYS_TO_DMAP(pa),
 			    PAGE_SIZE);
@@ -5996,8 +5996,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	/*
 	 * Conditionally sync the icache.  See pmap_enter() for details.
 	 */
-	if ((new_l2 & ATTR_S1_XN) == 0 && (PTE_TO_PHYS(new_l2) !=
-	    PTE_TO_PHYS(old_l2) || (old_l2 & ATTR_S1_XN) != 0) &&
+	if ((new_l2 & ATTR_S1_UXN) == 0 && (PTE_TO_PHYS(new_l2) !=
+	    PTE_TO_PHYS(old_l2) || (old_l2 & ATTR_S1_UXN) != 0) &&
 	    pmap != kernel_pmap && m->md.pv_memattr == VM_MEMATTR_WRITE_BACK) {
 		cpu_icache_sync_range((void *)PHYS_TO_DMAP(PTE_TO_PHYS(new_l2)),
 		    L2_SIZE);
@@ -6225,7 +6225,7 @@ have_l3p:
 	/*
 	 * Sync the icache before the mapping is stored.
 	 */
-	if ((l3e & ATTR_S1_XN) == 0 && pmap != kernel_pmap &&
+	if ((l3e & ATTR_S1_UXN) == 0 && pmap != kernel_pmap &&
 	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK)
 		cpu_icache_sync_range((void *)PHYS_TO_DMAP(pa), L3C_SIZE);
 
