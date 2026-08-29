@@ -128,6 +128,7 @@ struct g_raid_disk {
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
 	int			 d_candelete;	/* BIO_DELETE supported. */
+	uint16_t		 d_rotation_rate;/* Disk's rotation rate. */
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_state;	/* Disk state. */
 	u_int			 d_load;	/* Disk average load. */
