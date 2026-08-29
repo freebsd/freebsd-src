@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" Copyright (c) 2006,2013 Reyk Floeter <reyk@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +17,7 @@
 .\"
 .\" $OpenBSD: src/share/man/man4/vmx.4,v 1.1 2013/05/31 20:18:44 reyk Exp $
 .\"
-.Dd December 26, 2020
+.Dd August 29, 2026
 .Dt VMX 4
 .Os
 .Sh NAME
@@ -61,6 +63,9 @@ driver supports features like multiqueue support, IPv6
 checksum offloading, MSI/MSI-X support and hardware VLAN tagging in
 VMware's VLAN Guest Tagging (VGT) mode.
 .Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
 The
 .Nm
 driver supports VMXNET3 VMware virtual NICs provided by the virtual
@@ -77,9 +82,6 @@ VMware Workstation 6.5 and newer
 .It
 VMware Fusion 2.0 and newer
 .El
-.Pp
-For more information on configuring this device, see
-.Xr ifconfig 8 .
 .Sh MULTIPLE QUEUES
 The
 .Nm
