@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_S_DATAGRAM 3ossl"
-.TH BIO_S_DATAGRAM 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH BIO_S_DATAGRAM 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -119,7 +119,7 @@ neither \fBBIO_ctrl_dgram_connect()\fR nor \fBBIO_ctrl_set_connected()\fR cause 
 to become connected. These controls are provided to indicate to the BIO how
 the underlying socket is configured and how it is to be used; see below.
 .IP \(bu 4
-Use of \fBBIO_s_datagram()\fR with an unconnected network socket is hazardous hecause
+Use of \fBBIO_s_datagram()\fR with an unconnected network socket is hazardous because
 any successful call to \fBBIO_read()\fR results in the peer address used for any
 subsequent call to \fBBIO_write()\fR being set to the source address of the datagram
 received by that call to \fBBIO_read()\fR. Thus, unless the caller calls
@@ -284,7 +284,7 @@ on the circumstance; see discussion above.
 \&\fBBIO_sendmmsg\fR\|(3), \fBBIO_s_dgram_pair\fR\|(3), \fBDTLSv1_listen\fR\|(3), \fBbio\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2022\-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2022\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

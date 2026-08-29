@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_POLL 3ossl"
-.TH SSL_POLL 3ossl 2026-06-09 3.5.7 OpenSSL
+.TH SSL_POLL 3ossl 2026-08-25 3.5.8 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -351,6 +351,19 @@ Only \fBBIO_POLL_DESCRIPTOR\fR structures with type
 stream SSL objects, are supported.
 .PP
 This limitation may be revised in a future release of OpenSSL.
+.SH "THREAD CANCELLATION"
+.IX Header "THREAD CANCELLATION"
+A finite \fItimeout\fR limits ordinary waiting by \fBSSL_poll()\fR, but does not make the
+call safe against thread cancellation; see \fBopenssl\-threads\fR\|(7).
+.PP
+Cancellation can prevent \fBSSL_poll()\fR from removing internal wait state. Because
+an \fIitems\fR array can span multiple QUIC domains, one interrupted call can leave
+stale state in several domains and cause later calls on those domains, including
+\&\fBSSL_poll()\fR with a finite timeout, to block indefinitely.
+.PP
+For cooperative cancellation, use a finite timeout and check a cancellation
+condition between calls; see "THREAD CANCELLATION" in \fBopenssl\-quic\-concurrency\fR\|(7)
+for the nonblocking alternative.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBSSL_poll()\fR returns 1 on success and 0 on failure.
@@ -407,7 +420,9 @@ events may or may not have been output, both of which which will be reflected in
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBBIO_get_rpoll_descriptor\fR\|(3), \fBBIO_get_wpoll_descriptor\fR\|(3),
-\&\fBSSL_get_rpoll_descriptor\fR\|(3), \fBSSL_get_wpoll_descriptor\fR\|(3)
+\&\fBSSL_get_rpoll_descriptor\fR\|(3), \fBSSL_get_wpoll_descriptor\fR\|(3),
+\&\fBopenssl\-threads\fR\|(7), \fBopenssl\-quic\fR\|(7),
+\&\fBopenssl\-quic\-concurrency\fR\|(7)
 .SH HISTORY
 .IX Header "HISTORY"
 \&\fBSSL_poll()\fR was added in OpenSSL 3.3.
@@ -420,7 +435,7 @@ Before 3.5, the \fBSSL_POLL_EVENT_EL\fR and \fBSSL_POLL_EVENT_IC\fR
 event types were not present.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2024\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2024\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
