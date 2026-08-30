@@ -32,6 +32,9 @@ nfsclient_start()
 			warn "failed to set vfs.nfs.bufpackets"
 		fi
 	fi
+	if checkyesno nfs_client_rdma_enable; then
+		load_kld nfsclrdma || err 1 "Cannot load nfsclrdma"
+	fi
 
 	unmount_all
 }
