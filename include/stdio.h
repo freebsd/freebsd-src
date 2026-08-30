@@ -35,11 +35,13 @@
 #ifndef	_STDIO_H_
 #define	_STDIO_H_
 
-#define __STDC_VERSION_STDIO_H__	202311L
-
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+
+#if __ISO_C_VISIBLE >= 2023 || __BSD_VISIBLE
+#define __STDC_VERSION_STDIO_H__	202311L
+#endif
 
 __NULLABILITY_PRAGMA_PUSH
 
