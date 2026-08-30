@@ -2728,6 +2728,10 @@ iflib_media_change(if_t ifp)
 	int err;
 
 	CTX_LOCK(ctx);
+	if (ctx->ifc_pm_state != IFLIB_PM_ACTIVE) {
+		CTX_UNLOCK(ctx);
+		return (EBUSY);
+	}
 	restart = (if_getflags(ifp) & IFF_UP) != 0 ||
 	    ctx->ifc_datapath_state == IFLIB_DP_RUNNING;
 	if ((err = IFDI_MEDIA_CHANGE(ctx)) == 0 && restart)
