@@ -5081,6 +5081,14 @@ is enabled in the kernel.
 
 All non-network options can be combined with all other options.
 From the SysV options only one option can be specified.
+.Pp
+A negative
+.Ao Ar name Ac Ns Va _nice
+has no effect on a service in a service jail.
+Raising the priority of a process is not permitted inside a jail, and
+.Xr nice 1
+starts the service at the priority of its login class instead of
+failing.
 
 If the
 .Ao Ar name Ac Ns Va _svcj
