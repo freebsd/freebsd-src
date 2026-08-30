@@ -1574,6 +1574,10 @@ $command $rc_flags $command_args"
 
 		stop)
 			if [ -z "$rc_pid" ]; then
+				if checkyesno ${name}_svcj &&
+				    /usr/sbin/jls -j svcj-${name} jid >/dev/null 2>&1; then
+					$JAIL_CMD -r svcj-${name} 2>/dev/null
+				fi
 				[ -n "$rc_fast" ] && return 0
 				_run_rc_notrunning
 				return 1
