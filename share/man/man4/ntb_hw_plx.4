@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2017-2019 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -30,32 +32,14 @@
 .Nm ntb_hw_plx
 .Nd PLX/Avago/Broadcom Non-Transparent Bridge driver
 .Sh SYNOPSIS
-To compile this driver into your kernel,
-place the following lines in your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ntb"
-.Cd "device ntb_hw_plx"
-.Ed
+.Cd device ntb
+.Cd device ntb_hw_plx
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ntb_hw_plx_load="YES"
-.Ed
-.Pp
-The following tunables are settable from the
-.Xr loader 8 :
-.Bl -ohang
-.It Va hint.ntb_hw. Ns Ar X Ns Va .b2b
-Being set to 1 (default) tells the driver attached to Virtual Interface of the
-NTB that it works in NTB-to-NTB (back-to-back) mode, 0 -- NTB-to-Root Port.
-Driver attached to Link Interface (visible from Root Port side) switches to
-NTB-to-Root Port mode automatically, but one attached to Virtual Interface
-can't detect what is on the other side and require external knowledge.
-.It Va hint.ntb_hw. Ns Ar X Ns Va .split
-Being set above zero splits BAR2 into 2^x memory windows using Address
-Lookup Table (A-LUT).
-.El
+.Cd hint.ntb_hw.%d.b2b
+.Cd hint.ntb_hw.%d.split
+.Cd ntb_hw_plx_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -77,9 +61,10 @@ In NTB-to-NTB mode one of memory windows (or half of it, if bigger then 1MB)
 is consumed by the driver itself to access scratchpad and doorbell registers
 of the other side.
 .Sh HARDWARE
-The following PLX/Avago/Broadcom chips are supported by the
+The
 .Nm
-driver:
+driver supports the following
+PLX/Avago/Broadcom Non-transparent Bridge controllers:
 .Pp
 .Bl -bullet -compact
 .It
@@ -93,8 +78,6 @@ PEX 8733
 .It
 PEX 8749
 .El
-.Pp
-, but it may also work with other compatible ones.
 .Sh CONFIGURATION
 The basic chip configuration should be done by serial EEPROM or via i2c.
 It includes enabling NTB on one or both sides (choosing between NTB-to-NTB
@@ -103,6 +86,20 @@ It includes enabling NTB on one or both sides (choosing between NTB-to-NTB
 The recommended mode is NTB-to-NTB mode, since while NTB-to-Root Port is
 generally supported by the driver, it require PCI hotplug handling on the
 Root Port, that may be difficult or cause different kinds of problems.
+.Sh LOADER TUNABLES
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.ntb_hw. Ns Ar %d Ns Va .b2b
+Being set to 1 (default) tells the driver attached to Virtual Interface of the
+NTB that it works in NTB-to-NTB (back-to-back) mode, 0 -- NTB-to-Root Port.
+Driver attached to Link Interface (visible from Root Port side) switches to
+NTB-to-Root Port mode automatically, but one attached to Virtual Interface
+can't detect what is on the other side and require external knowledge.
+.It Va hint.ntb_hw. Ns Ar %d Ns Va .split
+Being set above zero splits BAR2 into 2^x memory windows using Address
+Lookup Table (A-LUT).
+.El
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
 .Xr ntb 4 ,
