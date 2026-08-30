@@ -517,7 +517,7 @@
 #define E1000_VFQA1	0x0B200  /* VLAN Filter Queue Array 1 - RW Array */
 #define E1000_WUC	0x05800  /* Wakeup Control - RW */
 #define E1000_WUFC	0x05808  /* Wakeup Filter Control - RW */
-#define E1000_WUS	0x05810  /* Wakeup Status - RO */
+#define E1000_WUS	0x05810  /* Wakeup Status - RW1C */
 /* Management registers */
 #define E1000_MANC	0x05820  /* Management Control - RW */
 #define E1000_IPAV	0x05838  /* IP Address Valid - RW */

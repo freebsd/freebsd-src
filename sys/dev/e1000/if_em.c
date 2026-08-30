@@ -507,8 +507,12 @@ static void	em_release_manageability(struct e1000_softc *);
 static void	em_get_hw_control(struct e1000_softc *);
 static void	em_release_hw_control(struct e1000_softc *);
 static void	em_get_wakeup(if_ctx_t);
-static void	em_enable_wakeup(if_ctx_t);
-static int	em_enable_phy_wakeup(struct e1000_softc *);
+static void	em_fill_wakeup_mta(struct e1000_hw *);
+static int	em_enable_wakeup(if_ctx_t);
+static int	em_enable_phy_wakeup(struct e1000_softc *, u32);
+static int	em_disable_phy_wakeup(struct e1000_softc *, u16 *);
+static void	em_power_up_wakeup_link(struct e1000_softc *);
+static void	em_power_down_wakeup_link(struct e1000_softc *);
 static void	em_disable_aspm(struct e1000_softc *);
 
 int		em_intr(void *);
@@ -1651,11 +1655,6 @@ em_if_attach_pre(if_ctx_t ctx)
 	 */
 	if (!sc->vf_ifp) {
 		em_get_wakeup(ctx);
-
-		/* Enable only WOL MAGIC by default. */
-		scctx->isc_capenable &= ~IFCAP_WOL;
-		if (sc->wol != 0)
-			scctx->isc_capenable |= IFCAP_WOL_MAGIC;
 	}
 
 	iflib_set_mac(ctx, hw->mac.addr);
@@ -1766,7 +1765,13 @@ em_if_detach(if_ctx_t ctx)
 static int
 em_if_shutdown(if_ctx_t ctx)
 {
-	return em_if_suspend(ctx);
+	int error;
+
+	error = em_if_suspend(ctx);
+	if (error != 0)
+		device_printf(iflib_get_dev(ctx),
+		    "Wake configuration failed during shutdown: %d\n", error);
+	return (0);
 }
 
 /*
@@ -1776,26 +1781,57 @@ static int
 em_if_suspend(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
+	int error;
 
 	if (sc->vf_ifp) {
 		igbv_queue_retry_stop(sc);
 		igbv_mbx_retry_stop(sc);
 	}
+	error = em_enable_wakeup(ctx);
 	em_release_manageability(sc);
 	em_release_hw_control(sc);
-	em_enable_wakeup(ctx);
-	return (0);
+	return (error);
 }
 
 static int
 em_if_resume(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
+	u32 wus;
+	u16 phy_wus;
+	int error;
 
-	if (sc->hw.mac.type == e1000_pch2lan)
+	if (sc->hw.mac.type >= e1000_pch2lan &&
+	    sc->hw.mac.type < igb_mac_min)
 		e1000_resume_workarounds_pchlan(&sc->hw);
 
-	return(0);
+	if (sc->wol_phy_armed) {
+		/*
+		 * The PHY wake sequence requires an LCD reset before host wake
+		 * ownership is cleared.  Wake registers survive this reset.
+		 */
+		(void)e1000_phy_hw_reset(&sc->hw);
+		error = em_disable_phy_wakeup(sc, &phy_wus);
+		if (error != E1000_SUCCESS)
+			device_printf(sc->dev,
+			    "Could not clear PHY wakeup state: %d\n", error);
+		else if (phy_wus != 0)
+			device_printf(sc->dev, "PHY wakeup status: %#06x\n",
+			    phy_wus);
+	}
+	if (!sc->vf_ifp && sc->hw.mac.type >= e1000_82544) {
+		wus = E1000_READ_REG(&sc->hw, E1000_WUS);
+		if (!sc->wol_phy_wakeup && wus != 0)
+			device_printf(sc->dev, "MAC wakeup status: %#010x\n",
+			    wus);
+		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
+		E1000_WRITE_REG(&sc->hw, E1000_WUC, 0);
+		E1000_WRITE_REG(&sc->hw, E1000_WUS, ~0U);
+	}
+	/* Clear PME after its MAC or PHY wake source has been removed. */
+	pci_clear_pme(sc->dev);
+
+	return (0);
 }
 
 static int
@@ -1874,6 +1910,8 @@ em_if_init(if_ctx_t ctx)
 		igbv_mbx_retry_prepare(sc);
 		sc->vf_reset_pending = true;
 	}
+	if (sc->suspend_link_powered_down)
+		em_power_up_wakeup_link(sc);
 
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr, ETHER_ADDR_LEN);
@@ -3697,6 +3735,19 @@ em_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int idx)
 	bcopy(LLADDR(sdl), &mta[idx * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
 
 	return (1);
+}
+
+/* Make every multicast hash eligible on parts whose wake matcher needs MTA. */
+static void
+em_fill_wakeup_mta(struct e1000_hw *hw)
+{
+	int i;
+
+	memset(hw->mac.mta_shadow, 0xff, sizeof(hw->mac.mta_shadow));
+	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
+		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i,
+		    hw->mac.mta_shadow[i]);
+	E1000_WRITE_FLUSH(hw);
 }
 
 /*********************************************************************
@@ -6479,29 +6530,41 @@ static void
 em_get_wakeup(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
+	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	u16 eeprom_data = 0, device_id, apme_mask;
+	bool apme;
+	int error, wol_capabilities;
 
 	sc->has_manage = e1000_enable_mng_pass_thru(&sc->hw);
-	apme_mask = EM_EEPROM_APME;
+	apme_mask = EM_EEPROM_APME_HIGH;
+	error = E1000_SUCCESS;
 
 	switch (sc->hw.mac.type) {
 	case e1000_82542:
 	case e1000_82543:
 		break;
 	case e1000_82544:
-		e1000_read_nvm(&sc->hw,
+		error = e1000_read_nvm(&sc->hw,
 		    NVM_INIT_CONTROL2_REG, 1, &eeprom_data);
-		apme_mask = EM_82544_APME;
+		apme_mask = EM_EEPROM_APME_LOW;
+		break;
+	case e1000_82541:
+	case e1000_82547:
+		error = e1000_read_nvm(&sc->hw,
+		    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+		/* The EI parts place APM Enable in the low byte. */
+		if (sc->hw.device_id != E1000_DEV_ID_82541ER_LOM)
+			apme_mask = EM_EEPROM_APME_LOW;
 		break;
 	case e1000_82546:
 	case e1000_82546_rev_3:
 		if (sc->hw.bus.func == 1) {
-			e1000_read_nvm(&sc->hw,
+			error = e1000_read_nvm(&sc->hw,
 			    NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
 			break;
 		} else
-			e1000_read_nvm(&sc->hw,
+			error = e1000_read_nvm(&sc->hw,
 			    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
 		break;
 	case e1000_82573:
@@ -6512,11 +6575,11 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_82572:
 	case e1000_80003es2lan:
 		if (sc->hw.bus.func == 1) {
-			e1000_read_nvm(&sc->hw,
+			error = e1000_read_nvm(&sc->hw,
 			    NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
 			break;
 		} else
-			e1000_read_nvm(&sc->hw,
+			error = e1000_read_nvm(&sc->hw,
 			    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
 		break;
 	case e1000_ich8lan:
@@ -6526,172 +6589,406 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
-	case e1000_82575:	/* listing all igb devices */
+	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
+	case e1000_pch_ptp:
+	case e1000_pch_nvp:
+		apme_mask = E1000_WUC_APME;
+		sc->has_amt = true;
+		eeprom_data = E1000_READ_REG(&sc->hw, E1000_WUC);
+		if (sc->hw.mac.type > e1000_ich10lan &&
+		    (eeprom_data & E1000_WUC_PHY_WAKE) != 0)
+			sc->wol_phy_wakeup = true;
+		break;
+	case e1000_82575:
 	case e1000_82576:
+		if (sc->hw.bus.func == 1)
+			error = e1000_read_nvm(&sc->hw,
+			    NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
+		else
+			error = e1000_read_nvm(&sc->hw,
+			    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+		sc->has_amt = true;
+		break;
 	case e1000_82580:
 	case e1000_i350:
 	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
-		apme_mask = E1000_WUC_APME;
+		error = e1000_read_nvm(&sc->hw,
+		    NVM_INIT_CONTROL3_PORT_A +
+		    NVM_82580_LAN_FUNC_OFFSET(sc->hw.bus.func), 1,
+		    &eeprom_data);
 		sc->has_amt = true;
-		eeprom_data = E1000_READ_REG(&sc->hw, E1000_WUC);
 		break;
 	default:
-		e1000_read_nvm(&sc->hw,
+		error = e1000_read_nvm(&sc->hw,
 		    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
 		break;
 	}
-	if (eeprom_data & apme_mask)
-		sc->wol = (E1000_WUFC_MAG | E1000_WUFC_MC);
-	/*
-	 * We have the eeprom settings, now apply the special cases
-	 * where the eeprom may be wrong or the board won't support
-	 * wake on lan on a particular port
-	 */
+	if (error != E1000_SUCCESS && bootverbose)
+		device_printf(dev, "NVM read failed while checking WoL: %d\n",
+		    error);
+	if ((sc->hw.mac.type == e1000_i210 ||
+	    sc->hw.mac.type == e1000_i211) &&
+	    sc->hw.nvm.type == e1000_nvm_invm) {
+		/* The shared reader does not expose the optional iNVM word. */
+		apme = (E1000_READ_REG(&sc->hw, E1000_WUC) &
+		    E1000_WUC_APME) != 0;
+	} else {
+		apme = error == E1000_SUCCESS &&
+		    (eeprom_data & apme_mask) != 0;
+	}
+	wol_capabilities = pci_has_pme(dev, PCI_POWERSTATE_D3_HOT) ?
+	    IFCAP_WOL : 0;
+	if (sc->hw.mac.type == e1000_82542 ||
+	    sc->hw.mac.type == e1000_82543)
+		wol_capabilities = 0;
+
+	/* APME selects the default; board and port restrictions select support. */
 	device_id = pci_get_device(dev);
 	switch (device_id) {
+	case E1000_DEV_ID_82542:
+	case E1000_DEV_ID_82543GC_FIBER:
+	case E1000_DEV_ID_82543GC_COPPER:
+	case E1000_DEV_ID_82541ER:
+	case E1000_DEV_ID_82541ER_LOM:
+	case E1000_DEV_ID_82544EI_FIBER:
+	case E1000_DEV_ID_82545EM_COPPER:
+	case E1000_DEV_ID_82545EM_FIBER:
+	case E1000_DEV_ID_82546EB_QUAD_COPPER:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER:
 	case E1000_DEV_ID_82546GB_PCIE:
-		sc->wol = 0;
+		wol_capabilities = 0;
 		break;
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
-		/* Wake events only supported on port A for dual fiber
-		 * regardless of eeprom setting */
-		if (E1000_READ_REG(&sc->hw, E1000_STATUS) &
-		    E1000_STATUS_FUNC_1)
-			sc->wol = 0;
+		/*
+		 * Wake events are supported only on port A for dual fiber,
+		 * regardless of the NVM setting.
+		 */
+		if (sc->hw.bus.func == 1)
+			wol_capabilities = 0;
 		break;
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
 		/* if quad port adapter, disable WoL on all but port A */
 		if (global_quad_port_a != 0)
-			sc->wol = 0;
+			wol_capabilities = 0;
+		else
+			wol_capabilities &= ~IFCAP_WOL_UCAST;
 		/* Reset for multiple quad port adapters */
 		if (++global_quad_port_a == 4)
 			global_quad_port_a = 0;
 		break;
+	case E1000_DEV_ID_82571EB_COPPER:
 	case E1000_DEV_ID_82571EB_FIBER:
-		/* Wake events only supported on port A for dual fiber
-		 * regardless of eeprom setting */
-		if (E1000_READ_REG(&sc->hw, E1000_STATUS) &
-		    E1000_STATUS_FUNC_1)
-			sc->wol = 0;
+	case E1000_DEV_ID_82571EB_SERDES:
+		/* These dual-port adapters support wake only on port A. */
+		if (sc->hw.bus.func == 1)
+			wol_capabilities = 0;
+		break;
+	case E1000_DEV_ID_82571EB_SERDES_QUAD:
+		wol_capabilities = 0;
 		break;
 	case E1000_DEV_ID_82571EB_QUAD_COPPER:
 	case E1000_DEV_ID_82571EB_QUAD_FIBER:
 	case E1000_DEV_ID_82571EB_QUAD_COPPER_LP:
+	case E1000_DEV_ID_82571PT_QUAD_COPPER:
 		/* if quad port adapter, disable WoL on all but port A */
 		if (global_quad_port_a != 0)
-			sc->wol = 0;
+			wol_capabilities = 0;
 		/* Reset for multiple quad port adapters */
 		if (++global_quad_port_a == 4)
 			global_quad_port_a = 0;
 		break;
+	case E1000_DEV_ID_82575GB_QUAD_COPPER:
+		wol_capabilities = 0;
+		break;
+	case E1000_DEV_ID_82575EB_FIBER_SERDES:
+	case E1000_DEV_ID_82576_FIBER:
+	case E1000_DEV_ID_82576_SERDES:
+		if (sc->hw.bus.func == 1)
+			wol_capabilities = 0;
+		break;
+	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER_ET2:
+		if (global_quad_port_a != 0)
+			wol_capabilities = 0;
+		if (++global_quad_port_a == 4)
+			global_quad_port_a = 0;
+		break;
+	default:
+		break;
 	}
+	/* Legacy and igb non-primary ports require an explicit NVM setting. */
+	if ((sc->hw.mac.type < e1000_82571 ||
+	    sc->hw.mac.type >= igb_mac_min) && sc->hw.bus.func != 0 &&
+	    !apme)
+		wol_capabilities = 0;
+
+	/* Some I350-family systems expose wake support but default it off. */
+	if ((sc->hw.mac.type == e1000_i350 &&
+	    pci_get_subvendor(dev) == EM_SUBVENDOR_HP) ||
+	    ((sc->hw.mac.type == e1000_i350 ||
+	    sc->hw.mac.type == e1000_i354) &&
+	    pci_get_subvendor(dev) == EM_SUBVENDOR_DELL) ||
+	    (sc->hw.mac.type == e1000_i350 &&
+	    ((pci_get_subdevice(dev) == EM_I350_SUBDEVICE_WOL_2 ||
+	    pci_get_subdevice(dev) == EM_I350_SUBDEVICE_WOL_3) &&
+	    sc->hw.bus.func == 0))) {
+		wol_capabilities = pci_has_pme(dev, PCI_POWERSTATE_D3_HOT) ?
+		    IFCAP_WOL : 0;
+		apme = false;
+	}
+	if (sc->hw.mac.type == e1000_i350 &&
+	    pci_get_subdevice(dev) == EM_I350_SUBDEVICE_WOL_1)
+		wol_capabilities = pci_has_pme(dev, PCI_POWERSTATE_D3_HOT) ?
+		    IFCAP_WOL : 0;
+
+	scctx->isc_capabilities &= ~IFCAP_WOL;
+	scctx->isc_capabilities |= wol_capabilities;
+	scctx->isc_capenable &= ~IFCAP_WOL;
+	if (wol_capabilities != 0 && apme)
+		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
 }
 
-
-/*
- * Enable PCI Wake On Lan capability
- */
-static void
+/* Configure the requested PCI Wake-on-LAN filters for suspend. */
+static int
 em_enable_wakeup(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	int error = 0;
-	u32 ctrl, ctrl_ext, rctl;
+	int enabled, error = 0, master_error, mcnt;
+	u32 ctrl, ctrl_ext, rctl, saved_rctl, wuc, wufc;
+	bool manage, rctl_modified;
 
 	if (sc->vf_ifp)
-		return;
-	if (!pci_has_pm(dev))
-		return;
+		return (0);
+	if (!pci_has_pme(dev, PCI_POWERSTATE_D3_HOT))
+		return (0);
 
-	/*
-	 * Determine type of Wakeup: note that wol
-	 * is set with all bits on by default.
-	 */
-	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) == 0)
-		sc->wol &= ~E1000_WUFC_MAG;
-
-	if ((if_getcapenable(ifp) & IFCAP_WOL_UCAST) == 0)
-		sc->wol &= ~E1000_WUFC_EX;
-
-	if ((if_getcapenable(ifp) & IFCAP_WOL_MCAST) == 0)
-		sc->wol &= ~E1000_WUFC_MC;
-	else {
-		rctl = E1000_READ_REG(&sc->hw, E1000_RCTL);
-		rctl |= E1000_RCTL_MPE;
-		E1000_WRITE_REG(&sc->hw, E1000_RCTL, rctl);
+	enabled = if_getcapenable(ifp) & if_getcapabilities(ifp) & IFCAP_WOL;
+	manage = e1000_enable_mng_pass_thru(&sc->hw);
+	rctl_modified = false;
+	wuc = 0;
+	/* Early 82545EM/82546EB need APM clocks for D3 manageability. */
+	if (manage && (sc->hw.mac.type == e1000_82545 ||
+	    sc->hw.mac.type == e1000_82546))
+		wuc = E1000_WUC_APME;
+	wufc = 0;
+	if ((enabled & IFCAP_WOL_MAGIC) != 0)
+		wufc |= E1000_WUFC_MAG;
+	if ((enabled & IFCAP_WOL_UCAST) != 0)
+		wufc |= E1000_WUFC_EX;
+	if ((enabled & IFCAP_WOL_MCAST) != 0) {
+		wufc |= E1000_WUFC_MC;
+		bzero(sc->mta, ETHER_ADDR_LEN *
+		    MAX_NUM_MULTICAST_ADDRESSES);
+		mcnt = if_foreach_llmaddr(ifp, em_copy_maddr, sc->mta);
+		if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
+			e1000_update_mc_addr_list(&sc->hw, sc->mta, mcnt);
+		} else {
+			switch (sc->hw.mac.type) {
+			case e1000_82544:
+			case e1000_82540:
+			case e1000_82545:
+			case e1000_82545_rev_3:
+			case e1000_82546:
+			case e1000_82546_rev_3:
+			case e1000_82541:
+			case e1000_82541_rev_2:
+			case e1000_82547:
+			case e1000_82547_rev_2:
+			case e1000_82575:
+			case e1000_82576:
+			case e1000_82580:
+				/* These parts require an MTA hit for WUFC_MC. */
+				em_fill_wakeup_mta(&sc->hw);
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
-	if (!(sc->wol & (E1000_WUFC_EX | E1000_WUFC_MAG | E1000_WUFC_MC)))
+	if (wufc == 0) {
+		if (sc->hw.mac.type >= e1000_82544) {
+			E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
+			E1000_WRITE_REG(&sc->hw, E1000_WUC, wuc);
+			E1000_WRITE_REG(&sc->hw, E1000_WUS, ~0U);
+		}
+		if (sc->wol_phy_wakeup && sc->wol_phy_armed)
+			(void)em_disable_phy_wakeup(sc, NULL);
+		if (manage) {
+			if (sc->suspend_link_powered_down)
+				em_power_up_wakeup_link(sc);
+			pci_enable_pme(dev);
+		} else {
+			em_power_down_wakeup_link(sc);
+			pci_clear_pme(dev);
+		}
+		goto master_disable;
+	}
+	bcopy(if_getlladdr(ifp), sc->hw.mac.addr, ETHER_ADDR_LEN);
+	error = e1000_rar_set(&sc->hw, sc->hw.mac.addr, 0);
+	if (error != E1000_SUCCESS) {
+		device_printf(dev,
+		    "Could not restore unicast wake address: %d\n", error);
 		goto pme;
+	}
+	saved_rctl = E1000_READ_REG(&sc->hw, E1000_RCTL);
+	rctl = saved_rctl;
+	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_MO_3);
+	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM |
+	    (sc->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+	if ((wufc & E1000_WUFC_MC) != 0)
+		rctl |= E1000_RCTL_MPE;
+	E1000_WRITE_REG(&sc->hw, E1000_RCTL, rctl);
+	rctl_modified = true;
 
 	/* Advertise the wakeup capability */
-	ctrl = E1000_READ_REG(&sc->hw, E1000_CTRL);
-	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
-	E1000_WRITE_REG(&sc->hw, E1000_CTRL, ctrl);
+	if (sc->hw.mac.type >= e1000_82540) {
+		ctrl = E1000_READ_REG(&sc->hw, E1000_CTRL);
+		ctrl |= E1000_CTRL_ADVD3WUC;
+		if (sc->hw.mac.type < igb_mac_min && !sc->wol_phy_wakeup)
+			ctrl |= E1000_CTRL_EN_PHY_PWR_MGMT;
+		E1000_WRITE_REG(&sc->hw, E1000_CTRL, ctrl);
+	}
 
-	/* Keep the laser running on Fiber adapters */
-	if (sc->hw.phy.media_type == e1000_media_type_fiber ||
-	    sc->hw.phy.media_type == e1000_media_type_internal_serdes) {
+	/* Keep the laser running on legacy fiber and SerDes adapters. */
+	if (sc->hw.mac.type < igb_mac_min &&
+	    (sc->hw.phy.media_type == e1000_media_type_fiber ||
+	    sc->hw.phy.media_type == e1000_media_type_internal_serdes)) {
 		ctrl_ext = E1000_READ_REG(&sc->hw, E1000_CTRL_EXT);
 		ctrl_ext |= E1000_CTRL_EXT_SDP3_DATA;
 		E1000_WRITE_REG(&sc->hw, E1000_CTRL_EXT, ctrl_ext);
 	}
+	E1000_WRITE_REG(&sc->hw, E1000_WUS, ~0U);
+	em_power_up_wakeup_link(sc);
 
-	if ((sc->hw.mac.type == e1000_ich8lan) ||
-	    (sc->hw.mac.type == e1000_pchlan) ||
-	    (sc->hw.mac.type == e1000_ich9lan) ||
-	    (sc->hw.mac.type == e1000_ich10lan))
+	if (sc->hw.mac.type >= e1000_ich8lan &&
+	    sc->hw.mac.type < igb_mac_min)
 		e1000_suspend_workarounds_ich8lan(&sc->hw);
 
-	if ( sc->hw.mac.type >= e1000_pchlan) {
-		error = em_enable_phy_wakeup(sc);
+	if (sc->wol_phy_wakeup) {
+		error = em_enable_phy_wakeup(sc, wufc);
 		if (error)
 			goto pme;
 	} else {
 		/* Enable wakeup by the MAC */
-		E1000_WRITE_REG(&sc->hw, E1000_WUC, E1000_WUC_PME_EN);
-		E1000_WRITE_REG(&sc->hw, E1000_WUFC, sc->wol);
+		E1000_WRITE_REG(&sc->hw, E1000_WUC,
+		    wuc | E1000_WUC_PME_EN);
+		E1000_WRITE_REG(&sc->hw, E1000_WUFC, wufc);
 	}
 
-	if (sc->hw.phy.type == e1000_phy_igp_3)
+	/* The IGP3 D3 power-down workaround is specific to the em family. */
+	if (sc->hw.mac.type < igb_mac_min &&
+	    sc->hw.phy.type == e1000_phy_igp_3)
 		e1000_igp3_phy_powerdown_workaround_ich8lan(&sc->hw);
 
 pme:
-	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
+	if (!error)
 		pci_enable_pme(dev);
+	else {
+		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
+		E1000_WRITE_REG(&sc->hw, E1000_WUC, wuc);
+		if (rctl_modified)
+			E1000_WRITE_REG(&sc->hw, E1000_RCTL, saved_rctl);
+		pci_clear_pme(dev);
+	}
 
-	return;
+master_disable:
+	master_error = e1000_disable_pcie_master(&sc->hw);
+	if (master_error != E1000_SUCCESS)
+		device_printf(dev, "PCIe master disable timed out: %d\n",
+		    master_error);
+	master_error = pci_disable_busmaster(dev);
+	if (master_error != 0)
+		device_printf(dev, "PCI bus-master disable failed: %d\n",
+		    master_error);
+
+	return (error == E1000_SUCCESS ? 0 : EIO);
 }
 
-/*
- * WOL in the newer chipset interfaces (pchlan)
- * require thing to be copied into the phy
- */
-static int
-em_enable_phy_wakeup(struct e1000_softc *sc)
+static void
+em_power_up_wakeup_link(struct e1000_softc *sc)
 {
 	struct e1000_hw *hw = &sc->hw;
-	u32 mreg, ret = 0;
-	u16 preg;
 
-	/* copy MAC RARs to PHY RARs */
-	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
+	if (hw->mac.type < igb_mac_min)
+		e1000_power_up_phy(hw);
+	else if (hw->phy.media_type == e1000_media_type_copper)
+		e1000_power_up_phy(hw);
+	else {
+		e1000_power_up_fiber_serdes_link(hw);
+		(void)e1000_setup_link(hw);
+	}
+	sc->suspend_link_powered_down = false;
+}
+
+/* Drop the unused suspend link through the controller's shared-code hook. */
+static void
+em_power_down_wakeup_link(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw = &sc->hw;
+
+	if (hw->mac.type >= igb_mac_min &&
+	    hw->phy.media_type != e1000_media_type_copper)
+		e1000_shutdown_fiber_serdes_link(hw);
+	else
+		e1000_power_down_phy(hw);
+	sc->suspend_link_powered_down = true;
+}
+
+/* PCH PHY wake requires the MAC receive state on the BM wake page. */
+static int
+em_enable_phy_wakeup(struct e1000_softc *sc, u32 wufc)
+{
+	struct e1000_hw *hw = &sc->hw;
+	u32 mreg, wuc;
+	u16 preg, wuc_enable;
+	s32 error, restore_error;
+
+	/* Copy MAC RARs to PHY RARs before selecting the BM wake page. */
+	error = e1000_copy_rx_addrs_to_phy_ich8lan(hw);
+	if (error != E1000_SUCCESS)
+		goto out;
+
+	error = hw->phy.ops.acquire(hw);
+	if (error != E1000_SUCCESS) {
+		device_printf(sc->dev, "Could not acquire PHY for wakeup\n");
+		goto out;
+	}
+
+	error = e1000_enable_phy_wakeup_reg_access_bm(hw, &wuc_enable);
+	if (error != E1000_SUCCESS)
+		goto release;
+
+	/* Wake status is RW1C and survives controller reset. */
+	error = hw->phy.ops.write_reg_page(hw, BM_WUS, 0xffff);
+	if (error != E1000_SUCCESS)
+		goto restore;
 
 	/* copy MAC MTA to PHY MTA */
 	for (int i = 0; i < hw->mac.mta_reg_count; i++) {
 		mreg = E1000_READ_REG_ARRAY(hw, E1000_MTA, i);
-		e1000_write_phy_reg(hw, BM_MTA(i), (u16)(mreg & 0xFFFF));
-		e1000_write_phy_reg(hw, BM_MTA(i) + 1,
-		    (u16)((mreg >> 16) & 0xFFFF));
+		error = hw->phy.ops.write_reg_page(hw, BM_MTA(i),
+		    (u16)(mreg & 0xffff));
+		if (error != E1000_SUCCESS)
+			goto restore;
+		error = hw->phy.ops.write_reg_page(hw, BM_MTA(i) + 1,
+		    (u16)(mreg >> 16));
+		if (error != E1000_SUCCESS)
+			goto restore;
 	}
 
 	/* configure PHY Rx Control register */
-	e1000_read_phy_reg(hw, BM_RCTL, &preg);
+	error = hw->phy.ops.read_reg_page(hw, BM_RCTL, &preg);
+	if (error != E1000_SUCCESS)
+		goto restore;
 	mreg = E1000_READ_REG(hw, E1000_RCTL);
 	if (mreg & E1000_RCTL_UPE)
 		preg |= BM_RCTL_UPE;
@@ -6708,38 +7005,79 @@ em_enable_phy_wakeup(struct e1000_softc *sc)
 	mreg = E1000_READ_REG(hw, E1000_CTRL);
 	if (mreg & E1000_CTRL_RFCE)
 		preg |= BM_RCTL_RFCE;
-	e1000_write_phy_reg(hw, BM_RCTL, preg);
+	error = hw->phy.ops.write_reg_page(hw, BM_RCTL, preg);
+	if (error != E1000_SUCCESS)
+		goto restore;
+
+	wuc = E1000_WUC_PME_EN;
+	if ((wufc & (E1000_WUFC_MAG | E1000_WUFC_LNKC)) != 0)
+		wuc |= E1000_WUC_APME;
 
 	/* enable PHY wakeup in MAC register */
-	E1000_WRITE_REG(hw, E1000_WUC,
-	    E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN | E1000_WUC_APME);
-	E1000_WRITE_REG(hw, E1000_WUFC, sc->wol);
+	E1000_WRITE_REG(hw, E1000_WUFC, wufc);
+	E1000_WRITE_REG(hw, E1000_WUC, E1000_WUC_PHY_WAKE |
+	    E1000_WUC_APMPME | E1000_WUC_PME_STATUS | wuc);
 
 	/* configure and enable PHY wakeup in PHY registers */
-	e1000_write_phy_reg(hw, BM_WUFC, sc->wol);
-	e1000_write_phy_reg(hw, BM_WUC, E1000_WUC_PME_EN);
+	error = hw->phy.ops.write_reg_page(hw, BM_WUFC, wufc);
+	if (error != E1000_SUCCESS)
+		goto restore;
+	error = hw->phy.ops.write_reg_page(hw, BM_WUC, wuc);
+	if (error != E1000_SUCCESS)
+		goto restore;
 
-	/* activate PHY wakeup */
-	ret = hw->phy.ops.acquire(hw);
-	if (ret) {
-		printf("Could not acquire PHY\n");
-		return ret;
-	}
-	e1000_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
-	                         (BM_WUC_ENABLE_PAGE << IGP_PAGE_SHIFT));
-	ret = e1000_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &preg);
-	if (ret) {
-		printf("Could not read PHY page 769\n");
-		goto out;
-	}
-	preg |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
-	ret = e1000_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, preg);
-	if (ret)
-		printf("Could not set PHY Host Wakeup bit\n");
-out:
+restore:
+	/* Restore the page selector and expose only a complete setup. */
+	if (error == E1000_SUCCESS)
+		wuc_enable |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
+	else
+		wuc_enable &= ~BM_WUC_HOST_WU_BIT;
+	restore_error = e1000_disable_phy_wakeup_reg_access_bm(hw,
+	    &wuc_enable);
+	if (error == E1000_SUCCESS)
+		error = restore_error;
+release:
 	hw->phy.ops.release(hw);
+out:
+	sc->wol_phy_armed = error == E1000_SUCCESS;
+	if (error != E1000_SUCCESS)
+		device_printf(sc->dev, "Could not configure PHY wakeup: %d\n",
+		    error);
 
-	return ret;
+	return (error);
+}
+
+/* Clear host ownership and sticky status without disturbing ME wake. */
+static int
+em_disable_phy_wakeup(struct e1000_softc *sc, u16 *wus)
+{
+	struct e1000_hw *hw = &sc->hw;
+	s32 error, restore_error;
+	u16 phy_wus, wuc_enable;
+
+	error = hw->phy.ops.acquire(hw);
+	if (error != E1000_SUCCESS)
+		return (error);
+	error = e1000_enable_phy_wakeup_reg_access_bm(hw, &wuc_enable);
+	if (error != E1000_SUCCESS)
+		goto release;
+
+	error = hw->phy.ops.read_reg_page(hw, BM_WUS, &phy_wus);
+	if (error == E1000_SUCCESS)
+		error = hw->phy.ops.write_reg_page(hw, BM_WUS, 0xffff);
+	wuc_enable &= ~BM_WUC_HOST_WU_BIT;
+	restore_error = e1000_disable_phy_wakeup_reg_access_bm(hw,
+	    &wuc_enable);
+	if (error == E1000_SUCCESS)
+		error = restore_error;
+release:
+	hw->phy.ops.release(hw);
+	if (error == E1000_SUCCESS) {
+		sc->wol_phy_armed = false;
+		if (wus != NULL)
+			*wus = phy_wus;
+	}
+	return (error);
 }
 
 static void

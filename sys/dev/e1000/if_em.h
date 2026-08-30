@@ -230,6 +230,11 @@ struct igb_vf_mac_filter;
  */
 #define EM_VENDOR_ID			0x8086
 #define EM_FLASH			0x0014
+#define EM_SUBVENDOR_DELL		0x1028
+#define EM_SUBVENDOR_HP			0x103c
+#define EM_I350_SUBDEVICE_WOL_1		0x1f52
+#define EM_I350_SUBDEVICE_WOL_2		0x5001
+#define EM_I350_SUBDEVICE_WOL_3		0x5002
 
 #define EM_JUMBO_PBA			0x00000028
 #define EM_DEFAULT_PBA			0x00000030
@@ -241,8 +246,8 @@ struct igb_vf_mac_filter;
 #define PCI_ANY_ID			(~0U)
 #define ETHER_ALIGN			2
 #define EM_FC_PAUSE_TIME		0x0680
-#define EM_EEPROM_APME			0x400;
-#define EM_82544_APME			0x0004;
+#define EM_EEPROM_APME_HIGH		0x0400
+#define EM_EEPROM_APME_LOW		0x0004
 
 /* Support AutoMediaDetect for Marvell M88 PHY in i354 */
 #define IGB_MEDIA_RESET		(1 << 0)
@@ -593,7 +598,9 @@ struct e1000_softc {
 
 	int			enable_aim;
 	/* Management and WOL features */
-	u32			wol;
+	bool			wol_phy_wakeup;
+	bool			wol_phy_armed;
+	bool			suspend_link_powered_down;
 	bool			has_manage;
 	bool			has_amt;
 

@@ -2815,18 +2815,20 @@ release:
 /**
  *  e1000_copy_rx_addrs_to_phy_ich8lan - Copy Rx addresses from MAC to PHY
  *  @hw:   pointer to the HW structure
+ *
+ *  Returns E1000_SUCCESS when every PHY receive address was programmed.
  **/
-void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
+s32 e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 {
 	u32 mac_reg;
 	u16 i, phy_reg = 0;
-	s32 ret_val;
+	s32 ret_val, restore_val;
 
 	DEBUGFUNC("e1000_copy_rx_addrs_to_phy_ich8lan");
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
-		return;
+		return ret_val;
 	ret_val = e1000_enable_phy_wakeup_reg_access_bm(hw, &phy_reg);
 	if (ret_val)
 		goto release;
@@ -2834,23 +2836,34 @@ void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 	/* Copy both RAL/H (rar_entry_count) and SHRAL/H to PHY */
 	for (i = 0; i < (hw->mac.rar_entry_count); i++) {
 		mac_reg = E1000_READ_REG(hw, E1000_RAL(i));
-		hw->phy.ops.write_reg_page(hw, BM_RAR_L(i),
-					   (u16)(mac_reg & 0xFFFF));
-		hw->phy.ops.write_reg_page(hw, BM_RAR_M(i),
-					   (u16)((mac_reg >> 16) & 0xFFFF));
+		ret_val = hw->phy.ops.write_reg_page(hw, BM_RAR_L(i),
+		    (u16)(mac_reg & 0xFFFF));
+		if (ret_val)
+			goto restore;
+		ret_val = hw->phy.ops.write_reg_page(hw, BM_RAR_M(i),
+		    (u16)((mac_reg >> 16) & 0xFFFF));
+		if (ret_val)
+			goto restore;
 
 		mac_reg = E1000_READ_REG(hw, E1000_RAH(i));
-		hw->phy.ops.write_reg_page(hw, BM_RAR_H(i),
-					   (u16)(mac_reg & 0xFFFF));
-		hw->phy.ops.write_reg_page(hw, BM_RAR_CTRL(i),
-					   (u16)((mac_reg & E1000_RAH_AV)
-						 >> 16));
+		ret_val = hw->phy.ops.write_reg_page(hw, BM_RAR_H(i),
+		    (u16)(mac_reg & 0xFFFF));
+		if (ret_val)
+			goto restore;
+		ret_val = hw->phy.ops.write_reg_page(hw, BM_RAR_CTRL(i),
+		    (u16)((mac_reg & E1000_RAH_AV) >> 16));
+		if (ret_val)
+			goto restore;
 	}
 
-	e1000_disable_phy_wakeup_reg_access_bm(hw, &phy_reg);
+restore:
+	restore_val = e1000_disable_phy_wakeup_reg_access_bm(hw, &phy_reg);
+	if (ret_val == E1000_SUCCESS)
+		ret_val = restore_val;
 
 release:
 	hw->phy.ops.release(hw);
+	return ret_val;
 }
 
 static u32 e1000_calc_rx_da_crc(u8 mac[])
@@ -2920,7 +2933,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		}
 
 		/* Write Rx addresses to the PHY */
-		e1000_copy_rx_addrs_to_phy_ich8lan(hw);
+		(void)e1000_copy_rx_addrs_to_phy_ich8lan(hw);
 
 		/* Enable jumbo frame workaround in the MAC */
 		mac_reg = E1000_READ_REG(hw, E1000_FFLT_DBG);
