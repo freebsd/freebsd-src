@@ -75,8 +75,7 @@ static void	xicp_mask(device_t, u_int, void *priv);
 static void	xicp_unmask(device_t, u_int, void *priv);
 
 #ifdef POWERNV
-extern void (*powernv_smp_ap_extra_init)(void);
-static void	xicp_smp_cpu_startup(void);
+static void	xicp_ap_init(device_t);
 #endif
 
 static device_method_t  xicp_methods[] = {
@@ -92,6 +91,9 @@ static device_method_t  xicp_methods[] = {
 	DEVMETHOD(pic_ipi,		xicp_ipi),
 	DEVMETHOD(pic_mask,		xicp_mask),
 	DEVMETHOD(pic_unmask,		xicp_unmask),
+#ifdef POWERNV
+	DEVMETHOD(pic_ap_init,		xicp_ap_init),
+#endif
 
 	DEVMETHOD_END
 };
@@ -274,11 +276,6 @@ xicp_attach(device_t dev)
 	powerpc_register_pic(dev, OF_xref_from_node(phandle), MAX_XICP_IRQS,
 	    1 /* Number of IPIs */, FALSE);
 	root_pic = dev;
-
-#ifdef POWERNV
-	if (sc->xics_emu)
-		powernv_smp_ap_extra_init = xicp_smp_cpu_startup;
-#endif
 
 	return (0);
 }
@@ -554,14 +551,14 @@ xicp_unmask(device_t dev, u_int irq, void *priv)
 }
 
 #ifdef POWERNV
-/* This is only used on POWER9 systems with the XIVE's XICS emulation. */
+/* Only meaningful on POWER9 systems using the XIVE's XICS-emulation mode. */
 static void
-xicp_smp_cpu_startup(void)
+xicp_ap_init(device_t dev)
 {
 	struct xicp_softc *sc;
 
 	if (mfmsr() & PSL_HV) {
-		sc = device_get_softc(root_pic);
+		sc = device_get_softc(dev);
 
 		if (sc->xics_emu)
 			opal_call(OPAL_INT_SET_CPPR, 0xff);
