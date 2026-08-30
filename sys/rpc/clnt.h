@@ -321,6 +321,10 @@ struct rpc_reconupcall {
 	void	*arg;
 };
 #define	CLSET_RECONUPCALL	33	/* Reconnect upcall */
+#define	CLSET_RDMASMALL_REPLY	34	/* Max. size of a small reply */
+#define	CLSET_RDMAMAX_IO	35	/* Max. size of any reducible I/O */
+#define	CLGET_RDMAMAX_IO	36	/* Max. size of any reducible I/O */
+#define	CLSET_RDMA_CBSLOTS	37	/* Max. number of callbacks */
 
 /*
  * void

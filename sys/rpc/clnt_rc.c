@@ -49,6 +49,10 @@
 #include <rpc/krpc.h>
 #include <rpc/rpcsec_tls.h>
 
+xprt_rdma_check_route_ftype *rdma_check_route = NULL;
+clnt_rdma_create_ftype *clnt_rdma_create_call = NULL;
+clnt_rdma_bcksend_ftype *clnt_rdma_bcksend_call = NULL;
+
 static enum clnt_stat clnt_reconnect_call(CLIENT *, struct rpc_callextra *,
     rpcproc_t, struct mbuf *, struct mbuf **, struct timeval);
 static void clnt_reconnect_geterr(CLIENT *, struct rpc_err *);
@@ -134,7 +138,9 @@ clnt_reconnect_connect(CLIENT *cl)
 	struct ucred *oldcred;
 	CLIENT *newclient = NULL;
 	uint32_t reterr;
+	bool dordma;
 
+	dordma = false;
 	mtx_lock(&rc->rc_lock);
 	while (rc->rc_connecting) {
 		error = msleep(rc, &rc->rc_lock,
@@ -164,81 +170,110 @@ clnt_reconnect_connect(CLIENT *cl)
 
 	oldcred = td->td_ucred;
 	td->td_ucred = rc->rc_ucred;
-	so = __rpc_nconf2socket(rc->rc_nconf);
-	if (!so) {
-		stat = rpc_createerr.cf_stat = RPC_TLIERROR;
-		rpc_createerr.cf_error.re_errno = 0;
-		td->td_ucred = oldcred;
-		goto out;
-	}
 
-	if (rc->rc_privport)
-		bindresvport(so, NULL);
+	/* Handle RDMA. */
+	if (strcmp("rdma", rc->rc_nconf->nc_netid) == 0 ||
+	    strcmp("rdma6", rc->rc_nconf->nc_netid) == 0)
+		dordma = true;
+	if (dordma) {
+		if (clnt_rdma_create_call != NULL) {
+			/* Set up the QP. */
+			stat = RPC_SUCCESS;
+			newclient = clnt_rdma_create_call(
+			    (struct sockaddr *)&rc->rc_addr, rc->rc_prog,
+			    rc->rc_vers, rc->rc_intr, rc->rc_rdmasmall_reply,
+			    rc->rc_rdmamax_io, rc->rc_rdma_cbslots,
+			    &rc->rc_err);
+		} else {
+			stat = RPC_FAILED;
+			newclient = NULL;
+		}
+	} else {
+		so = __rpc_nconf2socket(rc->rc_nconf);
+		if (!so) {
+			stat = rpc_createerr.cf_stat = RPC_TLIERROR;
+			rpc_createerr.cf_error.re_errno = 0;
+			td->td_ucred = oldcred;
+			goto out;
+		}
 
-	if (rc->rc_nconf->nc_semantics == NC_TPI_CLTS)
-		newclient = clnt_dg_create(so,
-		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
-		    rc->rc_sendsz, rc->rc_recvsz);
-	else {
-		/*
-		 * I do not believe a timeout of less than 1sec would make
-		 * sense here since short delays can occur when a server is
-		 * temporarily overloaded.
-		 */
-		if (rc->rc_timeout.tv_sec > 0 && rc->rc_timeout.tv_usec >= 0) {
-			error = so_setsockopt(so, SOL_SOCKET, SO_SNDTIMEO,
-			    &rc->rc_timeout, sizeof(struct timeval));
-			if (error != 0) {
-				stat = rpc_createerr.cf_stat = RPC_CANTSEND;
-				rpc_createerr.cf_error.re_errno = error;
-				td->td_ucred = oldcred;
-				goto out;
+		if (rc->rc_privport)
+			bindresvport(so, NULL);
+
+		if (rc->rc_nconf->nc_semantics == NC_TPI_CLTS)
+			newclient = clnt_dg_create(so,
+			    (struct sockaddr *) &rc->rc_addr, rc->rc_prog,
+			    rc->rc_vers, rc->rc_sendsz, rc->rc_recvsz);
+		else {
+			/*
+			 * I do not believe a timeout of less than 1sec would
+			 * make sense here since short delays can occur when a
+			 * server is temporarily overloaded.
+			 */
+			if (rc->rc_timeout.tv_sec > 0 &&
+			    rc->rc_timeout.tv_usec >= 0) {
+				error = so_setsockopt(so, SOL_SOCKET,
+				    SO_SNDTIMEO, &rc->rc_timeout,
+				    sizeof(struct timeval));
+				if (error != 0) {
+					stat = rpc_createerr.cf_stat =
+					    RPC_CANTSEND;
+					rpc_createerr.cf_error.re_errno = error;
+					td->td_ucred = oldcred;
+					goto out;
+				}
+			}
+			newclient = clnt_vc_create(so,
+			    (struct sockaddr *) &rc->rc_addr, rc->rc_prog,
+			    rc->rc_vers, rc->rc_sendsz, rc->rc_recvsz,
+			    rc->rc_intr);
+			/*
+			 * CLSET_FD_CLOSE must be done now, in case
+			 * rpctls_connect() fails just below.
+			 */
+			if (newclient != NULL)
+				CLNT_CONTROL(newclient, CLSET_FD_CLOSE, 0);
+			if (rc->rc_tls && newclient != NULL) {
+				CURVNET_SET(so->so_vnet);
+				stat = rpctls_connect(newclient,
+				    rc->rc_tlscertname, so, &reterr);
+				CURVNET_RESTORE();
+				if (stat != RPC_SUCCESS ||
+				    reterr != RPCTLSERR_OK) {
+					if (stat == RPC_SUCCESS)
+						stat = RPC_FAILED;
+					stat = rpc_createerr.cf_stat = stat;
+					rpc_createerr.cf_error.re_errno = 0;
+					CLNT_CLOSE(newclient);
+					CLNT_RELEASE(newclient);
+					newclient = NULL;
+					td->td_ucred = oldcred;
+					goto out;
+				}
+				CLNT_CONTROL(newclient, CLSET_TLS,
+				    &(int){RPCTLS_COMPLETE});
+			}
+			if (newclient != NULL) {
+				int optval = 1;
+
+				(void)so_setsockopt(so, IPPROTO_TCP,
+				    TCP_USE_DDP, &optval, sizeof(optval));
 			}
 		}
-		newclient = clnt_vc_create(so,
-		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
-		    rc->rc_sendsz, rc->rc_recvsz, rc->rc_intr);
-		/*
-		 * CLSET_FD_CLOSE must be done now, in case rpctls_connect()
-		 * fails just below.
-		 */
-		if (newclient != NULL)
-			CLNT_CONTROL(newclient, CLSET_FD_CLOSE, 0);
-		if (rc->rc_tls && newclient != NULL) {
-			CURVNET_SET(so->so_vnet);
-			stat = rpctls_connect(newclient, rc->rc_tlscertname, so,
-			    &reterr);
-			CURVNET_RESTORE();
-			if (stat != RPC_SUCCESS || reterr != RPCTLSERR_OK) {
-				if (stat == RPC_SUCCESS)
-					stat = RPC_FAILED;
-				stat = rpc_createerr.cf_stat = stat;
-				rpc_createerr.cf_error.re_errno = 0;
-				CLNT_CLOSE(newclient);
-				CLNT_RELEASE(newclient);
-				newclient = NULL;
-				td->td_ucred = oldcred;
-				goto out;
-			}
-			CLNT_CONTROL(newclient, CLSET_TLS,
-			    &(int){RPCTLS_COMPLETE});
-		}
-		if (newclient != NULL) {
-			int optval = 1;
-
-			(void)so_setsockopt(so, IPPROTO_TCP, TCP_USE_DDP,
-			    &optval, sizeof(optval));
-		}
-		if (newclient != NULL && rc->rc_reconcall != NULL)
-			(*rc->rc_reconcall)(newclient, rc->rc_reconarg,
-			    rc->rc_ucred);
 	}
+	if (newclient != NULL && rc->rc_reconcall != NULL)
+		(*rc->rc_reconcall)(newclient, rc->rc_reconarg,
+		    rc->rc_ucred);
 	td->td_ucred = oldcred;
 
 	if (!newclient) {
-		soclose(so);
-		rc->rc_err = rpc_createerr.cf_error;
-		stat = rpc_createerr.cf_stat;
+		if (!dordma) {
+			soclose(so);
+			rc->rc_err = rpc_createerr.cf_error;
+			stat = rpc_createerr.cf_stat;
+		} else {
+			stat = rc->rc_err.re_status;
+		}
 		goto out;
 	}
 
@@ -534,6 +569,26 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 		upcp = (struct rpc_reconupcall *)info;
 		rc->rc_reconcall = upcp->call;
 		rc->rc_reconarg = upcp->arg;
+		break;
+
+	case CLSET_RDMASMALL_REPLY:
+		rc->rc_rdmasmall_reply = *(int *)info;
+		break;
+
+	case CLSET_RDMA_CBSLOTS:
+		rc->rc_rdma_cbslots = *(int *)info;
+		break;
+
+
+	case CLSET_RDMAMAX_IO:
+		rc->rc_rdmamax_io = *(int *)info;
+		if (rc->rc_client)
+			CLNT_CONTROL(rc->rc_client, request, info);
+		break;
+
+	case CLGET_RDMAMAX_IO:
+		if (rc->rc_client)
+			CLNT_CONTROL(rc->rc_client, request, info);
 		break;
 
 	default:

@@ -1063,6 +1063,7 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
     struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
 {
 	struct ct_data *ct;
+	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
 	XDR xdrs;
 	struct mbuf *mrep;
 	bool_t stat = TRUE;
@@ -1075,7 +1076,8 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	 * Leave space for record mark.
 	 */
 	mrep = m_gethdr(M_WAITOK, MT_DATA);
-	mrep->m_data += sizeof(uint32_t);
+	if (!cd->rdma)
+		mrep->m_data += sizeof(uint32_t);
 
 	xdrmbuf_create(&xdrs, mrep, XDR_ENCODE);
 
@@ -1089,7 +1091,13 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		stat = xdr_replymsg(&xdrs, msg);
 	}
 
-	if (stat) {
+	if (stat && cd->rdma) {
+		KASSERT(clnt_rdma_bcksend_call != NULL,
+		    ("svc_vc_backchannel_reply: RDMA set, but "
+		    "clnt_rdma_bcksend_call NULL"));
+
+		stat = clnt_rdma_bcksend_call(xprt, mrep);
+	} else if (stat) {
 		m_fixhdr(mrep);
 
 		/*

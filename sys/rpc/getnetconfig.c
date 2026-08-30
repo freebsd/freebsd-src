@@ -55,6 +55,13 @@ static struct netconfig netconfigs[] = {
 		.nc_protofmly =	"inet6",
 		.nc_proto =	"tcp",
 	},
+	{
+		.nc_netid =	"rdma6",
+		.nc_semantics =	NC_TPI_COTS_ORD,
+		.nc_flag =	NC_VISIBLE,
+		.nc_protofmly =	"inet6",
+		.nc_proto =	"rdma",
+	},
 #endif	
 	{
 		.nc_netid =	"udp",
@@ -69,6 +76,13 @@ static struct netconfig netconfigs[] = {
 		.nc_flag =	NC_VISIBLE,
 		.nc_protofmly =	"inet",
 		.nc_proto =	"tcp",
+	},
+	{
+		.nc_netid =	"rdma",
+		.nc_semantics =	NC_TPI_COTS_ORD,
+		.nc_flag =	NC_VISIBLE,
+		.nc_protofmly =	"inet",
+		.nc_proto =	"rdma",
 	},
 	{
 		.nc_netid =	"local",

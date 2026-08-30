@@ -115,6 +115,21 @@ int __rpc_fd2sockinfo(int, struct __rpc_sockinfo *);
 struct socket *__rpc_nconf2socket(const struct netconfig *);
 int __rpc_nconf2sockinfo(const struct netconfig *, struct __rpc_sockinfo *);
 int __rpc_socket2sockinfo(struct socket *, struct __rpc_sockinfo *);
+
+/* Largest small RDMA message is 1Kbytes per RFC-8166. */
+#define	RPCRDMA_MAX_SMALL_MSG	1024
+
+CLIENT *
+clnt_rdma_create(
+	struct sockaddr *raddr,		/* servers address */
+	const rpcprog_t prog,		/* program number */
+	const rpcvers_t vers,		/* version number */
+	int intrflag,			/* interruptible */
+	uint32_t small_reply,		/* Max. small reply */
+	uint32_t max_io,		/* size of largest RPC I/O */
+	uint32_t cbslots,		/* Max. # of callbacks */
+	struct rpc_err *err);		/* Return error and stat */
+
 #endif
 u_int __rpc_get_t_size(int, int, int);
 __END_DECLS

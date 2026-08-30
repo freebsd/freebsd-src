@@ -42,9 +42,23 @@ enum clnt_stat clnt_bck_call(CLIENT *, struct rpc_callextra *, rpcproc_t,
     struct mbuf *, struct mbuf **, struct timeval, SVCXPRT *);
 struct mbuf *_rpc_copym_into_ext_pgs(struct mbuf *, int);
 
-/* Callback function for server side RDMA. */
+/* Callback functions for server side RDMA. */
 typedef int	clnt_bck_rdma_send_ftype(SVCXPRT *xprt, struct mbuf *m);
 extern clnt_bck_rdma_send_ftype *clnt_bck_rdma_send;
+
+/* Functions for client side RDMA. */
+typedef int	xprt_rdma_check_route_ftype(struct vnet *vnet,
+		    struct sockaddr *dstaddr, uint32_t cbslots);
+extern xprt_rdma_check_route_ftype *rdma_check_route;
+
+typedef bool_t	clnt_rdma_bcksend_ftype(SVCXPRT *xprt, struct mbuf *m);
+extern clnt_rdma_bcksend_ftype *clnt_rdma_bcksend_call;
+
+typedef CLIENT	*clnt_rdma_create_ftype(struct sockaddr *raddr,
+		    const rpcprog_t prog, const rpcvers_t vers, int intrflag,
+		    uint32_t small_reply, uint32_t max_io, uint32_t cblots,
+		    struct rpc_err *err);
+extern clnt_rdma_create_ftype *clnt_rdma_create_call;
 
 /*
  * A pending RPC request which awaits a reply. Requests which have
@@ -89,6 +103,9 @@ struct rc_data {
 	void			(*rc_reconcall)(CLIENT *, void *,
 				    struct ucred *); /* reconection upcall */
 	void			*rc_reconarg;	/* upcall arg */
+	uint32_t		rc_rdmasmall_reply; /* size of small reply */
+	uint32_t		rc_rdmamax_io;	/* size of largest I/O */
+	uint32_t		rc_rdma_cbslots; /* Max. # of callbacks */
 };
 
 /* Bits for ct_rcvstate. */
@@ -136,6 +153,7 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 	struct mbuf *mreq;	/* current record being built from mpending */
 	uint32_t resid;		/* number of bytes needed for fragment */
 	bool_t eor;		/* reading last fragment of current record */
+	bool_t rdma;		/* On an RDMA connection. */
 };
 
 void rpcnl_init(void);

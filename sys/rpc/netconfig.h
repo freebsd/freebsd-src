@@ -76,6 +76,7 @@ typedef struct {
 #define NC_TCP		"tcp"
 #define NC_UDP		"udp"
 #define NC_ICMP		"icmp"
+#define NC_RDMA		"rdma"
 
 __BEGIN_DECLS
 void *setnetconfig(void);

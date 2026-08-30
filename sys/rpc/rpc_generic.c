@@ -53,6 +53,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/uio.h>
 
 #include <net/vnet.h>
 
@@ -60,6 +61,7 @@
 #include <rpc/nettype.h>
 #include <rpc/rpcsec_gss.h>
 #include <rpc/rpcsec_tls.h>
+#include <rpc/clntrdma.h>
 
 #include <rpc/rpc_com.h>
 #include <rpc/krpc.h>
@@ -67,6 +69,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/vm_page.h>
 
 extern	u_long sb_max_adj;	/* not defined in socketvar.h */
 
@@ -937,6 +940,139 @@ _rpc_copym_into_ext_pgs(struct mbuf *mp, int maxextsiz)
 		}
 	}
 	return (mhead);
+}
+
+/*
+ * Create an mr mbuf and associated pages.
+ */
+struct mbuf *
+rpc_reduce_pg(int len, int pos, bool to_mem)
+{
+	struct mbuf *mr;
+	struct rpcrdma_reduce_pg *rb;
+	int i;
+
+	i = howmany(len, PAGE_SIZE);
+	mr = m_get2(sizeof(*rb) + sizeof(vm_page_t) * i, M_WAITOK, MT_DATA, 0);
+	mr->m_flags |= M_PROTO10;
+	mr->m_len = sizeof(*rb) + sizeof(vm_page_t) * i;
+	rb = mtod(mr, struct rpcrdma_reduce_pg *);
+	rb->len = len;
+	rb->npg = i;
+	rb->pos = pos;
+	for (i = 0; i < rb->npg; i++)
+		rb->pg[i] = vm_page_alloc_noobj(VM_ALLOC_WAITOK |
+		    VM_ALLOC_NODUMP | VM_ALLOC_WIRED);
+	rb->into_mem = (to_mem) ? 1 : 0;
+	return (mr);
+}
+
+void
+rpc_free_rdma_reduction(struct mbuf *mr)
+{
+	struct rpcrdma_reduce_pg *rb;
+	int i;
+
+	rb = mtod(mr, struct rpcrdma_reduce_pg *);
+	for (i = 0; i < rb->npg; i++) {
+		vm_page_unwire_noq(rb->pg[i]);
+		vm_page_free(rb->pg[i]);
+	}
+	m_free(mr);
+}
+
+/*
+ * Copy data between anonymous pages and uiop.
+ */
+int
+rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int len, bool from_pages)
+{
+	struct rpcrdma_reduce_pg *rb;
+	struct iovec *iov;
+	int cplen, error, lastlen, i, xfer;
+	char *cp;
+
+	rb = mtod(mr, struct rpcrdma_reduce_pg *);
+	iov = uiop->uio_iov;
+	lastlen = rb->len % PAGE_SIZE;
+	if (lastlen == 0)
+		lastlen = PAGE_SIZE;
+	for (i = 0; i < rb->npg && len > 0; i++) {
+		xfer = (i == rb->npg - 1) ? lastlen : PAGE_SIZE;
+		xfer = MIN(xfer, len);
+		cp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(rb->pg[i]));
+		while (xfer > 0) {
+			while (iov->iov_len == 0) {
+				if (uiop->uio_iovcnt > 0) {
+					iov++;
+					uiop->uio_iovcnt--;
+				} else {
+					return (ENOMEM);
+				}
+			}
+			cplen = MIN(iov->iov_len, xfer);
+			if (from_pages) {
+				if (uiop->uio_segflg == UIO_SYSSPACE) {
+					memcpy(iov->iov_base, cp, cplen);
+				} else {
+					error = copyout(cp, iov->iov_base,
+					    cplen);
+					if (error != 0)
+						return (error);
+				}
+			} else {
+				if (uiop->uio_segflg == UIO_SYSSPACE) {
+					memcpy(cp, iov->iov_base, cplen);
+				} else {
+					error = copyin(iov->iov_base, cp,
+					    cplen);
+					if (error != 0)
+						return (error);
+				}
+			}
+			iov->iov_len -= cplen;
+			iov->iov_base = (char *)iov->iov_base + cplen;
+			uiop->uio_offset += cplen;
+			uiop->uio_resid -= cplen;
+			xfer -= cplen;
+			cp += cplen;
+			len -= xfer;
+		}
+	}
+	return (0);
+}
+
+/*
+ * Copy data from an mbuf list into a list of pages in an rb.
+ */
+void
+rpc_copy_mbuf_to_rb(struct mbuf *m, struct rpcrdma_reduce_pg *rb)
+{
+	int i, j, k, plen;
+	char *cp, *pgp;
+
+	j = m->m_len;
+	cp = mtod(m, char *);
+	for (i = 0; i < rb->npg && m != NULL; i++) {
+		pgp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(rb->pg[i]));
+		for (plen = PAGE_SIZE; plen > 0; ) {
+			k = MIN(j, plen);
+			memcpy(pgp, cp, k);
+			j -= k;
+			plen -= k;
+			pgp += k;
+			cp += k;
+			if (j == 0) {
+				m = m->m_next;
+				while (m != NULL && m->m_len == 0)
+					m = m->m_next;
+				if (m == NULL)
+					break;
+				cp = mtod(m, char *);
+				j = m->m_len;
+			}
+		}
+	}
 }
 
 /*
