@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2019 Rajesh Kumar <rajesh1.kumar@amd.com>
 .\" All rights reserved.
 .\"
@@ -30,28 +32,12 @@
 .Nm ntb_hw_amd
 .Nd AMD Non-Transparent Bridge driver
 .Sh SYNOPSIS
-To compile this driver into your kernel,
-place the following lines in your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ntb"
-.Cd "device ntb_hw_amd"
-.Ed
+.Cd device ntb
+.Cd device ntb_hw_amd
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ntb_hw_amd_load="YES"
-.Ed
-.Pp
-The following sysctls are supported in this driver
-.Bl -ohang
-.It Va dev.ntb_hw.X.info
-Reading this sysctl will give the basic details like the number of memory
-windows, scratchpads and doorbells exposed by the NTB on the local host to
-access the devices beyond the bridge.
-It also provides details about the masked doorbells, translation address and
-size limit of each exposed memory window and link status information.
-.El
+.Cd ntb_hw_amd_load="YES"
 .Sh DESCRIPTION
 The
 .Nm ntb_hw_amd
@@ -75,6 +61,17 @@ mode is supported now), role of the host in the topology.
 This needs to be done on both systems.
 .Pp
 The BAR size for memory windows is configured to 1 MiB by default.
+.Sh SYSCTL VARIABLES
+The following read-only variable is available via
+.Xr sysctl 8 :
+.Bl -tag -width indent
+.It Va dev.ntb_hw.%d.info
+Reading this sysctl will give the basic details like the number of memory
+windows, scratchpads and doorbells exposed by the NTB on the local host to
+access the devices beyond the bridge.
+It also provides details about the masked doorbells, translation address and
+size limit of each exposed memory window and link status information.
+.El
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
 .Xr ntb 4 ,
