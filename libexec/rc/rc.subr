@@ -1419,7 +1419,23 @@ run_rc_command()
 						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
 					;;
-				restart|status) ;; # no special case needed for svcj or handled somewhere else
+				restart)
+					if [ "${_rc_svcj}" = jailing ]; then
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
+					elif /usr/sbin/jls -j svcj-${name} jid >/dev/null 2>&1; then
+						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${rc_service##*/} ${_rc_prefix}restart $rc_extra_args || _return=1
+					else
+						# nothing to restart, so start it
+						( run_rc_command ${_rc_prefix}start $rc_extra_args ) || _return=1
+					fi
+					;;
+				status)
+					if [ "${_rc_svcj}" != jailing ]; then
+						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${rc_service##*/} ${_rc_prefix}status $rc_extra_args || _return=1
+					else
+						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
+					fi
+					;;
 				*)
 					eval _rc_svcj_extra_cmd=\$${name}_${rc_arg}_svcj_enable
 					: ${_rc_svcj_extra_cmd:=NO}
