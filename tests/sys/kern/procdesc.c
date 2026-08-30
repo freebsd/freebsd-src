@@ -372,7 +372,8 @@ ATF_TC_BODY(pdopenpid_child, tc)
 ATF_TC_WITHOUT_HEAD(pdopenpid_capmode);
 ATF_TC_BODY(pdopenpid_capmode, tc)
 {
-	pid_t child, grandchild;
+	pid_t child;
+	volatile pid_t grandchild;
 
 	ATF_REQUIRE_FEATURE("security_capability_mode");
 
