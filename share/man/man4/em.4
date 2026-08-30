@@ -42,25 +42,24 @@
 .Nm igbv
 .Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device iflib"
-.Cd "device em"
-.Ed
+.Cd device iflib
+.Cd device em
+.Cd options PCI_IOV
 .Pp
-PF SR-IOV support additionally requires:
-.Bd -ragged -offset indent
-.Cd "options PCI_IOV"
-.Ed
-.Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_em_load="YES"
-.Ed
+.Cd hw.em.disable_crc_stripping
+.Cd hw.em.eee_setting
+.Cd hw.em.smart_pwr_down
+.Cd hw.em.sbp
+.Cd hw.em.rx_int_delay
+.Cd hw.em.rx_abs_int_delay
+.Cd hw.em.tx_int_delay
+.Cd hw.em.tx_abs_int_delay
+.Cd hw.em.max_interrupt_rate
+.Cd hw.em.enable_aim
+.Cd hw.em.rx_process_limit
+.Cd if_em_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -172,7 +171,7 @@ For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh SR-IOV
 When the kernel is built with
-.Dv PCI_IOV ,
+.Cd PCI_IOV ,
 the
 .Nm igb
 PF driver supports SR-IOV on 82576 and I350 controllers.
