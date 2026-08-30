@@ -311,6 +311,9 @@ Sets the mtu interface to the value of the second function parameter mtu.
 Function is called when the user changes speed/duplex using the media/mediaopt
 option with
 .Xr ifconfig 8 .
+It is not called while the device is suspending or suspended; iflib rejects
+such a media change with
+.Er EBUSY .
 .It Fn ifdi_promisc_set
 Enables or disables promisc settings depending upon the flags value.
 .Va flags
