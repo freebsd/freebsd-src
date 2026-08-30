@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2016 The FreeBSD Foundation
 .\"
 .\" This documentation was written by
@@ -50,7 +53,7 @@ The
 when called with the
 .Fa mutex
 argument, which points to the initialized robust mutex in an
-inconsistent state, marks the by mutex as consistent again.
+inconsistent state, marks the mutex as consistent again.
 The consequent unlock of the mutex, by either
 .Fn pthread_mutex_unlock
 or other methods, allows other contenders to lock the mutex.
