@@ -71,7 +71,9 @@
 #ifndef _ASSERT_H_
 #define _ASSERT_H_
 
+#if __ISO_C_VISIBLE >= 2023 || __BSD_VISIBLE
 #define __STDC_VERSION_ASSERT_H__	202311L
+#endif
 
 /*
  * Static assertions.  In principle we could define static_assert for
