@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -30,25 +32,30 @@
 .Nm ntb
 .Nd Non-Transparent Bridge subsystem
 .Sh SYNOPSIS
-To compile it into your kernel,
-place the following lines in your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ntb"
-.Ed
+.Cd device ntb
 .Pp
-Or, to load it as a module at boot, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ntb_load="YES"
-.Ed
-.Pp
+.Cd hw.ntb.debug_level
+.Cd hint.ntb_hw.%d.config
+.Cd ntb_load="YES"
+.Sh DESCRIPTION
+Non-Transparent Bridges connect two computer systems with PCIe
+link(s), providing each of them limited access to others memory space,
+scratchpad registers and interrupts.
+The
+.Nm
+subsystem uses those resources provided in generic way by hardware drivers
+and splits them between several functions, according to specified
+configuration.
+.Sh LOADER TUNABLES
 The following tunables are settable from the
 .Xr loader 8 :
-.Bl -ohang
+.Bl -tag -width indent
 .It Va hw.ntb.debug_level
 Driver debug level.
 The default value is 0, higher means more verbose.
-.It Va hint.ntb_hw. Ns Ar X Ns Va .config
+.It Va hint.ntb_hw. Ns Ar %d Ns Va .config
 Configures a set of NTB functions, separated by commas,
 and their resource allocation.
 Each function can be configured as: "[<name>][:<mw>[:<spad>[:<db>]]]", where:
@@ -63,15 +70,6 @@ is a number of doorbells to allocate (empty means all available).
 The default configuration is empty string, which means single function
 with all available resources, allowing any driver to attach.
 .El
-.Sh DESCRIPTION
-Non-Transparent Bridges connect two computer systems with PCIe
-link(s), providing each of them limited access to others memory space,
-scratchpad registers and interrupts.
-The
-.Nm
-subsystem uses those resources provided in generic way by hardware drivers
-and splits them between several functions, according to specified
-configuration.
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
 .Xr ntb_hw_amd 4 ,
