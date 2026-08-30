@@ -1290,6 +1290,9 @@ run_rc_command()
 			routing)
 				_opts="allow.routing"
 				;;
+			setaudit)
+				_opts="allow.setaudit"
+				;;
 			settime)
 				_opts="allow.settime"
 				;;

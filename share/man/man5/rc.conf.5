@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 2, 2026
+.Dd August 30, 2026
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -5059,6 +5059,10 @@ have not had jail functionality added to them.
 Allows to run nfsd and affiliated daemons.
 .It routing
 Allows to modify the system routing table.
+.It setaudit
+Allows to set the audit properties of the service, which
+.Ao Ar name Ac Ns Va _audit_user
+needs.
 .It settime
 Allows to set and slew the system time.
 .It sysvipc
