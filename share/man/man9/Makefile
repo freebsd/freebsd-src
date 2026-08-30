@@ -1838,6 +1838,7 @@ MLINKS+=pci.9 is_pci_device.9 \
 	pci.9 pci_get_vpd_ident.9 \
 	pci.9 pci_get_vpd_readonly.9 \
 	pci.9 pci_has_pm.9 \
+	pci.9 pci_has_pme.9 \
 	pci.9 pci_iov_attach.9 \
 	pci.9 pci_iov_attach_name.9 \
 	pci.9 pci_iov_detach.9 \

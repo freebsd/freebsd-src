@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 15, 2026
+.Dd August 30, 2026
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -54,6 +54,7 @@
 .Nm pci_get_vpd_ident ,
 .Nm pci_get_vpd_readonly ,
 .Nm pci_has_pm ,
+.Nm pci_has_pme ,
 .Nm pci_iov_attach ,
 .Nm pci_iov_attach_name ,
 .Nm pci_iov_detach ,
@@ -134,6 +135,8 @@
 .Fn pci_get_vpd_readonly "device_t dev" "const char *kw" "const char **vptr"
 .Ft bool
 .Fn pci_has_pm "device_t dev"
+.Ft bool
+.Fn pci_has_pme "device_t dev" "int state"
 .Ft int
 .Fn pci_msi_count "device_t dev"
 .Ft int
@@ -389,6 +392,20 @@ The
 function returns true if
 .Fa dev
 supports power management.
+.Pp
+The
+.Fn pci_has_pme
+function returns true if
+.Fa dev
+can generate a power management event from the PCI power state
+.Fa state .
+The state must be one of
+.Dv PCI_POWERSTATE_D0 ,
+.Dv PCI_POWERSTATE_D1 ,
+.Dv PCI_POWERSTATE_D2 ,
+.Dv PCI_POWERSTATE_D3_HOT ,
+or
+.Dv PCI_POWERSTATE_D3_COLD .
 .Pp
 The
 .Fn pci_find_extcap

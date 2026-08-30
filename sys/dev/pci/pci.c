@@ -3030,6 +3030,25 @@ pci_has_pm(device_t dev)
 	return (cfg->pp.pp_location != 0);
 }
 
+bool
+pci_has_pme(device_t dev, int state)
+{
+	static const uint16_t pme_mask[PCI_POWERSTATE_COUNT] = {
+		[PCI_POWERSTATE_D0] = PCIM_PCAP_D0PME,
+		[PCI_POWERSTATE_D1] = PCIM_PCAP_D1PME,
+		[PCI_POWERSTATE_D2] = PCIM_PCAP_D2PME,
+		[PCI_POWERSTATE_D3_HOT] = PCIM_PCAP_D3PME_HOT,
+		[PCI_POWERSTATE_D3_COLD] = PCIM_PCAP_D3PME_COLD,
+	};
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (state < PCI_POWERSTATE_D0 || state > PCI_POWERSTATE_MAX)
+		return (false);
+	return (cfg->pp.pp_location != 0 &&
+	    (cfg->pp.pp_cap & pme_mask[state]) != 0);
+}
+
 /*
  * Some convenience functions for PCI device drivers.
  */
