@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 29, 2026
+.Dd August 30, 2026
 .Dt EM 4
 .Os
 .Sh NAME
@@ -116,6 +116,9 @@ The
 .Xr ifconfig 8
 wake capabilities select the controller packet filters; they do not enable
 the ACPI wake source.
+On supported PCH controllers, suspend uses the PHY ultra-low-power mode when
+the selected wake filters permit it and preserves negotiated Energy Efficient
+Ethernet operation while the wake link remains active.
 .Pp
 Furthermore it supports TCP segmentation offload (TSO) on all adapters but
 those based on the 82542, 82543, 82544 and 82547 controller chips.

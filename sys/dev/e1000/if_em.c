@@ -509,6 +509,7 @@ static void	em_release_hw_control(struct e1000_softc *);
 static void	em_get_wakeup(if_ctx_t);
 static void	em_fill_wakeup_mta(struct e1000_hw *);
 static int	em_enable_wakeup(if_ctx_t);
+static void	em_configure_sx_low_power(struct e1000_softc *, u32);
 static int	em_enable_phy_wakeup(struct e1000_softc *, u32);
 static int	em_disable_phy_wakeup(struct e1000_softc *, u16 *);
 static void	em_power_up_wakeup_link(struct e1000_softc *);
@@ -6825,6 +6826,7 @@ em_enable_wakeup(if_ctx_t ctx)
 		if (manage) {
 			if (sc->suspend_link_powered_down)
 				em_power_up_wakeup_link(sc);
+			em_configure_sx_low_power(sc, 0);
 			pci_enable_pme(dev);
 		} else {
 			em_power_down_wakeup_link(sc);
@@ -6888,6 +6890,7 @@ em_enable_wakeup(if_ctx_t ctx)
 	if (sc->hw.mac.type < igb_mac_min &&
 	    sc->hw.phy.type == e1000_phy_igp_3)
 		e1000_igp3_phy_powerdown_workaround_ich8lan(&sc->hw);
+	em_configure_sx_low_power(sc, wufc);
 
 pme:
 	if (!error)
@@ -6911,6 +6914,63 @@ master_disable:
 		    master_error);
 
 	return (error == E1000_SUCCESS ? 0 : EIO);
+}
+
+/* Configure the PCH low-power link modes used while the system sleeps. */
+static void
+em_configure_sx_low_power(struct e1000_softc *sc, u32 wufc)
+{
+	struct e1000_hw *hw = &sc->hw;
+	struct e1000_dev_spec_ich8lan *dev_spec;
+	s32 error;
+	u16 eee_advert, lpi_ctrl;
+
+	if (hw->mac.type < e1000_pch_lpt || hw->mac.type >= igb_mac_min ||
+	    sc->suspend_link_powered_down)
+		return;
+
+	if (wufc != 0 &&
+	    (wufc & (E1000_WUFC_EX | E1000_WUFC_MC | E1000_WUFC_BC)) == 0) {
+		/* ULP cannot preserve directed or broad multicast wake. */
+		error = e1000_enable_ulp_lpt_lp(hw, true);
+		if (error != E1000_SUCCESS) {
+			device_printf(sc->dev,
+			    "Could not enter PHY ultra-low-power mode: %d\n",
+			    error);
+			return;
+		}
+	}
+
+	dev_spec = &hw->dev_spec.ich8lan;
+	if (hw->phy.type != e1000_phy_i217 || dev_spec->eee_disable ||
+	    dev_spec->eee_lp_ability == 0)
+		return;
+
+	error = hw->phy.ops.acquire(hw);
+	if (error != E1000_SUCCESS)
+		goto out;
+	error = hw->phy.ops.read_reg_locked(hw, I82579_LPI_CTRL, &lpi_ctrl);
+	if (error != E1000_SUCCESS)
+		goto release;
+	error = e1000_read_emi_reg_locked(hw, I217_EEE_ADVERTISEMENT,
+	    &eee_advert);
+	if (error != E1000_SUCCESS)
+		goto release;
+
+	if ((eee_advert & dev_spec->eee_lp_ability &
+	    I82579_EEE_100_SUPPORTED) != 0)
+		lpi_ctrl |= I82579_LPI_CTRL_100_ENABLE;
+	if ((eee_advert & dev_spec->eee_lp_ability &
+	    I82579_EEE_1000_SUPPORTED) != 0)
+		lpi_ctrl |= I82579_LPI_CTRL_1000_ENABLE;
+	error = hw->phy.ops.write_reg_locked(hw, I82579_LPI_CTRL, lpi_ctrl);
+release:
+	hw->phy.ops.release(hw);
+out:
+	if (error != E1000_SUCCESS)
+		device_printf(sc->dev,
+		    "Could not configure Energy Efficient Ethernet for sleep: %d\n",
+		    error);
 }
 
 static void
