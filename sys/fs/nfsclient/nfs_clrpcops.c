@@ -49,6 +49,7 @@
 #include <sys/extattr.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <rpc/clntrdma.h>
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -236,6 +237,8 @@ static int nfsrpc_seekrpc(vnode_t, off_t *, nfsv4stateid_t *, bool *,
     int, struct nfsvattr *, int *, struct ucred *);
 static struct mbuf *nfsm_split(struct mbuf *, uint64_t);
 static void nfscl_statfs(struct vnode *, struct ucred *, NFSPROC_T *);
+static struct mbuf *nfsm_build_rdma_reduction(struct nfsrv_descript *nd,
+    int len, int pos, bool to_mem);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -1692,11 +1695,16 @@ nfsrpc_readlink(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nfsnode *np = VTONFS(vp);
+	struct nfsmount *nmp;
 	nfsattrbit_t attrbits;
 	int error, len, cangetattr = 1;
 
 	*attrflagp = 0;
+	nmp = VFSTONFS(vp->v_mount);
 	NFSCL_REQSTART(nd, NFSPROC_READLINK, vp, cred);
+	/* For RDMA, mark that a one page rdma_reply is required. */
+	if (NFSHASRDMA(nmp))
+		nd->nd_mreq->m_flags |= M_PROTO7;
 	if (nd->nd_flag & ND_NFSV4) {
 		/*
 		 * And do a Getattr op.
@@ -1817,13 +1825,18 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	u_int32_t *tl;
 	int error = 0, len, retlen, tsiz, eof = 0;
 	struct nfsrv_descript nfsd;
+	struct mbuf *mr;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsrv_descript *nd = &nfsd;
 	int rsize;
 	off_t tmp_off;
+	bool did_rdma;
 
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
+	did_rdma = false;
+	if (NFSHASRDMA(nmp) && tsiz > RPCRDMA_MAX_SMALL_MSG / 2)
+		did_rdma = true;
 	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
 	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
@@ -1848,6 +1861,9 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			txdr_hyper(uiop->uio_offset, tl);
 			*(tl + 2) = txdr_unsigned(len);
 		}
+		/* For RDMA, make the data a separate chunk. */
+		if (did_rdma)
+			mr = nfsm_build_rdma_reduction(nd, len, 0, true);
 		/*
 		 * Since I can't do a Getattr for NFSv4 for Write, there
 		 * doesn't seem any point in doing one here, either.
@@ -1876,7 +1892,12 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			eof = fxdr_unsigned(int, *tl);
 		}
 		NFSM_STRSIZ(retlen, len);
-		error = nfsm_mbufuio(nd, uiop, retlen);
+		if (!did_rdma) {
+			error = nfsm_mbufuio(nd, uiop, retlen);
+		} else {
+			error = rpc_copy_uio_pages(mr, uiop, retlen, true);
+			rpc_free_rdma_reduction(mr);
+		}
 		if (error)
 			goto nfsmout;
 		m_freem(nd->nd_mrep);
@@ -1998,14 +2019,18 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	int wccflag = 0;
 	int32_t backup;
 	struct nfsrv_descript *nd;
+	struct mbuf *mr;
 	nfsattrbit_t attrbits;
 	uint64_t tmp_off;
 	ssize_t tsiz, wsize;
-	bool do_append;
+	bool do_append, did_rdma;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
+	did_rdma = false;
+	if (NFSHASRDMA(nmp) && tsiz > RPCRDMA_MAX_SMALL_MSG / 2)
+		did_rdma = true;
 	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
 	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
@@ -2069,7 +2094,16 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 			*tl++ = x;      /* total to this offset */
 			*tl = x;        /* size of this write */
 		}
-		error = nfsm_uiombuf(nd, uiop, len);
+		/* For RDMA, make the data a separate chunk. */
+		if (did_rdma && !NFSHASNOWRITEREDUCE(nmp)) {
+			rlen = m_length(nd->nd_mreq, NULL);
+			mr = nfsm_build_rdma_reduction(nd, len, rlen, false);
+			error = rpc_copy_uio_pages(mr, uiop, len, false);
+			if (error)
+				rpc_free_rdma_reduction(mr);
+		} else {
+			error = nfsm_uiombuf(nd, uiop, len);
+		}
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
 			free(nd, M_TEMP);
@@ -2106,6 +2140,8 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 			free(nd, M_TEMP);
 			return (error);
 		}
+		if (did_rdma && !NFSHASNOWRITEREDUCE(nmp))
+			rpc_free_rdma_reduction(mr);
 		if (nd->nd_repstat) {
 			/*
 			 * In case the rpc gets retried, roll
@@ -3631,6 +3667,9 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	while (more_dirs && bigenough) {
 		*attrflagp = 0;
 		NFSCL_REQSTART(nd, NFSPROC_READDIR, vp, cred);
+		/* For RDMA, mark that a rdma_reply is needed. */
+		if (NFSHASRDMA(nmp))
+			nd->nd_mreq->m_flags |= M_PROTO8;
 		if (nd->nd_flag & ND_NFSV2) {
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = cookie.lval[1];
@@ -4122,6 +4161,9 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	while (more_dirs && bigenough) {
 		*attrflagp = 0;
 		NFSCL_REQSTART(nd, NFSPROC_READDIRPLUS, vp, cred);
+		/* For RDMA, mark that a small rdma_reply is needed. */
+		if (NFSHASRDMA(nmp))
+			nd->nd_mreq->m_flags |= M_PROTO8;
  		NFSM_BUILD(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 		*tl++ = cookie.lval[0];
 		*tl++ = cookie.lval[1];
@@ -5372,6 +5414,9 @@ nfsrpc_getacl(struct vnode *vp, acl_type_t acltype, struct ucred *cred,
 	    (acltype == ACL_TYPE_ACCESS || acltype == ACL_TYPE_DEFAULT))
 		return (EOPNOTSUPP);
 	NFSCL_REQSTART(nd, NFSPROC_GETACL, vp, cred);
+	/* For RDMA, mark that a large rdma_reply is required. */
+	if (NFSHASRDMA(nmp))
+		nd->nd_mreq->m_flags |= M_PROTO9;
 	NFSZERO_ATTRBIT(&attrbits);
 	if (acltype == ACL_TYPE_NFS4)
 		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
@@ -9581,6 +9626,9 @@ nfsrpc_getextattr(vnode_t vp, const char *name, struct uio *uiop, ssize_t *lenp,
 
 	*attrflagp = 0;
 	NFSCL_REQSTART(nd, NFSPROC_GETEXTATTR, vp, cred);
+	/* For RDMA, mark that a large rdma_reply is required. */
+	if (NFSHASRDMA(VFSTONFS(vp->v_mount)))
+		nd->nd_mreq->m_flags |= M_PROTO9;
 	nfsm_strtom(nd, name, strlen(name));
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
@@ -10046,4 +10094,25 @@ nfscl_statfs(struct vnode *vp, struct ucred *cred, NFSPROC_T *td)
 		mp->mnt_stat.f_iosize = newnfs_iosize(nmp);
 		mtx_unlock(&nmp->nm_mtx);
 	}
+}
+
+/*
+ * Set up the RDMA reduction mbuf in the build list.
+ */
+static struct mbuf *
+nfsm_build_rdma_reduction(struct nfsrv_descript *nd, int len, int pos,
+    bool to_mem)
+{
+	struct mbuf *m, *mr;
+
+	mr = rpc_reduce_pg(len, pos, to_mem);
+	nd->nd_mb->m_next = mr;
+	nd->nd_mb = mr;
+	NFSMCLGET(m, M_NOWAIT);
+	m->m_len = 0;
+	nd->nd_bpos = mtod(m, char *);
+	nd->nd_mb->m_next = m;
+	nd->nd_mb = m;
+	nd->nd_mreq->m_flags |= M_PROTO11;
+	return (mr);
 }

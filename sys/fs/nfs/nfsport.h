@@ -1065,6 +1065,8 @@ void ncl_copy_vattr(struct vnode *vp, struct vattr *dst, struct vattr *src);
 				    (n)->nm_minorvers > 0)
 #define	NFSHASTLS(n)		(((n)->nm_newflag & NFSMNT_TLS) != 0)
 #define	NFSHASSYSKRB5(n)	(((n)->nm_newflag & NFSMNT_SYSKRB5) != 0)
+#define	NFSHASRDMA(n)		(((n)->nm_newflag & NFSMNT_RDMA) != 0)
+#define	NFSHASNOWRITEREDUCE(n)	(((n)->nm_newflag & NFSMNT_NOWRITEREDUCE) != 0)
 
 /*
  * Set boottime.
