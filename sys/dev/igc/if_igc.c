@@ -162,8 +162,10 @@ static int	igc_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 /* Management and WOL Support */
 static void	igc_get_hw_control(struct igc_softc *);
 static void	igc_release_hw_control(struct igc_softc *);
-static void	igc_get_wakeup(if_ctx_t);
-static void	igc_enable_wakeup(if_ctx_t);
+static int	igc_enable_pci_busmaster(struct igc_softc *);
+static void	igc_configure_wakeup(if_ctx_t);
+static int	igc_enable_wakeup(if_ctx_t);
+static void	igc_power_up_wakeup_link(struct igc_softc *);
 
 int		igc_intr(void *);
 
@@ -719,12 +721,7 @@ igc_if_attach_pre(if_ctx_t ctx)
 	/*
 	 * Get Wake-on-Lan and Management info for later use
 	 */
-	igc_get_wakeup(ctx);
-
-	/* Enable only WOL MAGIC by default */
-	scctx->isc_capenable &= ~IFCAP_WOL;
-	if (sc->wol != 0)
-		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
+	igc_configure_wakeup(ctx);
 
 	iflib_set_mac(ctx, hw->mac.addr);
 
@@ -801,7 +798,13 @@ igc_if_detach(if_ctx_t ctx)
 static int
 igc_if_shutdown(if_ctx_t ctx)
 {
-	return igc_if_suspend(ctx);
+	int error;
+
+	error = igc_if_suspend(ctx);
+	if (error != 0)
+		device_printf(iflib_get_dev(ctx),
+		    "Wake configuration failed during shutdown: %d\n", error);
+	return (0);
 }
 
 /*
@@ -811,22 +814,38 @@ static int
 igc_if_suspend(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
+	int error;
 
+	error = igc_enable_wakeup(ctx);
 	igc_release_hw_control(sc);
-	igc_enable_wakeup(ctx);
-	return (0);
+	return (error);
 }
 
 static int
 igc_if_resume(if_ctx_t ctx)
 {
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	u32 wus, wus_ext;
+
 	/*
 	 * PCIe config space, and with it L1.2, may have been reset
 	 * across the suspend/resume cycle.
 	 */
 	igc_disable_broken_l1_2(ctx);
+	wus = IGC_READ_REG(&sc->hw, IGC_WUS);
+	wus_ext = IGC_READ_REG(&sc->hw, IGC_WUS_EXT);
+	if (wus != 0 || wus_ext != 0)
+		device_printf(sc->dev,
+		    "Wakeup status: %#010x, extended %#010x\n", wus, wus_ext);
+	IGC_WRITE_REG(&sc->hw, IGC_WUFC, 0);
+	IGC_WRITE_REG(&sc->hw, IGC_WUFC_EXT, 0);
+	IGC_WRITE_REG(&sc->hw, IGC_WUC, 0);
+	IGC_WRITE_REG(&sc->hw, IGC_WUS, ~0U);
+	IGC_WRITE_REG(&sc->hw, IGC_WUS_EXT, ~0U);
+	/* Clear PME after its MAC wake source has been removed. */
+	pci_clear_pme(sc->dev);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -869,6 +888,14 @@ igc_if_init(if_ctx_t ctx)
 	int i;
 
 	INIT_DEBUGOUT("igc_if_init: begin");
+
+	if (igc_enable_pci_busmaster(sc) != 0) {
+		device_printf(sc->dev, "Could not enable PCI bus mastering\n");
+		iflib_init_failed(ctx);
+		return;
+	}
+	if (sc->suspend_link_powered_down)
+		igc_power_up_wakeup_link(sc);
 
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr,
@@ -2837,6 +2864,29 @@ igc_release_hw_control(struct igc_softc *sc)
 }
 
 static int
+igc_enable_pci_busmaster(struct igc_softc *sc)
+{
+	device_t dev;
+	u16 command;
+	int error;
+
+	dev = sc->dev;
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command == 0xffff)
+		return (ENXIO);
+	if ((command & PCIM_CMD_BUSMASTEREN) != 0)
+		return (0);
+
+	error = pci_enable_busmaster(dev);
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command == 0xffff)
+		return (ENXIO);
+	if ((command & PCIM_CMD_BUSMASTEREN) == 0)
+		return (error != 0 ? error : EIO);
+	return (0);
+}
+
+static int
 igc_is_valid_ether_addr(u8 *addr)
 {
 	char zero_addr[6] = { 0, 0, 0, 0, 0, 0 };
@@ -2848,75 +2898,124 @@ igc_is_valid_ether_addr(u8 *addr)
 	return (true);
 }
 
-/*
-** Parse the interface capabilities with regard
-** to both system management and wake-on-lan for
-** later use.
-*/
+/* Advertise the wake modes supported by I225/I226 physical functions. */
 static void
-igc_get_wakeup(if_ctx_t ctx)
+igc_configure_wakeup(if_ctx_t ctx)
 {
-	struct igc_softc *sc = iflib_get_softc(ctx);
-	u16 eeprom_data = 0, apme_mask;
+	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
+	device_t dev = iflib_get_dev(ctx);
+	int capabilities;
 
-	apme_mask = IGC_WUC_APME;
-	eeprom_data = IGC_READ_REG(&sc->hw, IGC_WUC);
-
-	if (eeprom_data & apme_mask)
-		sc->wol = IGC_WUFC_LNKC;
+	capabilities = pci_has_pme(dev, PCI_POWERSTATE_D3_HOT) ?
+	    IFCAP_WOL : 0;
+	scctx->isc_capabilities &= ~IFCAP_WOL;
+	scctx->isc_capabilities |= capabilities;
+	scctx->isc_capenable &= ~IFCAP_WOL;
+	if (capabilities != 0)
+		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
 }
 
-
-/*
- * Enable PCI Wake On Lan capability
- */
-static void
+/* Configure the requested PCI Wake-on-LAN filters for suspend. */
+static int
 igc_enable_wakeup(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	int error = 0;
-	u32 ctrl, rctl;
+	int enabled, error = 0, master_error, mcnt;
+	u32 ctrl, rctl, wufc;
+	bool manage;
 
-	if (!pci_has_pm(dev))
-		return;
+	if (!pci_has_pme(dev, PCI_POWERSTATE_D3_HOT))
+		return (0);
 
-	/*
-	 * Determine type of Wakeup: note that wol
-	 * is set with all bits on by default.
-	 */
-	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) == 0)
-		sc->wol &= ~IGC_WUFC_MAG;
-
-	if ((if_getcapenable(ifp) & IFCAP_WOL_UCAST) == 0)
-		sc->wol &= ~IGC_WUFC_EX;
-
-	if ((if_getcapenable(ifp) & IFCAP_WOL_MCAST) == 0)
-		sc->wol &= ~IGC_WUFC_MC;
-	else {
-		rctl = IGC_READ_REG(&sc->hw, IGC_RCTL);
-		rctl |= IGC_RCTL_MPE;
-		IGC_WRITE_REG(&sc->hw, IGC_RCTL, rctl);
+	enabled = if_getcapenable(ifp) & if_getcapabilities(ifp) & IFCAP_WOL;
+	manage = igc_enable_mng_pass_thru(&sc->hw);
+	wufc = 0;
+	if ((enabled & IFCAP_WOL_MAGIC) != 0)
+		wufc |= IGC_WUFC_MAG;
+	if ((enabled & IFCAP_WOL_UCAST) != 0)
+		wufc |= IGC_WUFC_EX;
+	if ((enabled & IFCAP_WOL_MCAST) != 0) {
+		wufc |= IGC_WUFC_MC;
+		bzero(sc->mta, ETHER_ADDR_LEN *
+		    MAX_NUM_MULTICAST_ADDRESSES);
+		mcnt = if_foreach_llmaddr(ifp, igc_copy_maddr, sc->mta);
+		if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+			igc_update_mc_addr_list(&sc->hw, sc->mta, mcnt);
 	}
 
-	if (!(sc->wol & (IGC_WUFC_EX | IGC_WUFC_MAG | IGC_WUFC_MC)))
+	IGC_WRITE_REG(&sc->hw, IGC_WUFC, 0);
+	IGC_WRITE_REG(&sc->hw, IGC_WUFC_EXT, 0);
+	IGC_WRITE_REG(&sc->hw, IGC_WUC, 0);
+	IGC_WRITE_REG(&sc->hw, IGC_WUS, ~0U);
+	IGC_WRITE_REG(&sc->hw, IGC_WUS_EXT, ~0U);
+
+	if (wufc == 0) {
+		if (manage) {
+			if (sc->suspend_link_powered_down)
+				igc_power_up_wakeup_link(sc);
+			pci_enable_pme(dev);
+		} else {
+			igc_power_down_phy(&sc->hw);
+			sc->suspend_link_powered_down = true;
+			pci_clear_pme(dev);
+		}
+		goto master_disable;
+	}
+	bcopy(if_getlladdr(ifp), sc->hw.mac.addr, ETHER_ADDR_LEN);
+	error = igc_rar_set(&sc->hw, sc->hw.mac.addr, 0);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev,
+		    "Could not restore unicast wake address: %d\n", error);
 		goto pme;
+	}
+	rctl = IGC_READ_REG(&sc->hw, IGC_RCTL);
+	rctl &= ~(IGC_RCTL_UPE | IGC_RCTL_MPE | IGC_RCTL_MO_3);
+	rctl |= IGC_RCTL_EN | IGC_RCTL_BAM |
+	    (sc->hw.mac.mc_filter_type << IGC_RCTL_MO_SHIFT);
+	if ((wufc & IGC_WUFC_MC) != 0)
+		rctl |= IGC_RCTL_MPE;
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, rctl);
 
 	/* Advertise the wakeup capability */
 	ctrl = IGC_READ_REG(&sc->hw, IGC_CTRL);
 	ctrl |= IGC_CTRL_ADVD3WUC;
 	IGC_WRITE_REG(&sc->hw, IGC_CTRL, ctrl);
+	igc_power_up_wakeup_link(sc);
 
 	/* Enable wakeup by the MAC */
 	IGC_WRITE_REG(&sc->hw, IGC_WUC, IGC_WUC_PME_EN);
-	IGC_WRITE_REG(&sc->hw, IGC_WUFC, sc->wol);
+	IGC_WRITE_REG(&sc->hw, IGC_WUFC, wufc);
 
 pme:
-	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
+	if (error == IGC_SUCCESS)
 		pci_enable_pme(dev);
+	else {
+		IGC_WRITE_REG(&sc->hw, IGC_WUFC, 0);
+		IGC_WRITE_REG(&sc->hw, IGC_WUFC_EXT, 0);
+		IGC_WRITE_REG(&sc->hw, IGC_WUC, 0);
+		pci_clear_pme(dev);
+	}
 
-	return;
+master_disable:
+	master_error = igc_disable_pcie_master(&sc->hw);
+	if (master_error != IGC_SUCCESS)
+		device_printf(dev, "PCIe master disable timed out: %d\n",
+		    master_error);
+	master_error = pci_disable_busmaster(dev);
+	if (master_error != 0)
+		device_printf(dev, "PCI bus-master disable failed: %d\n",
+		    master_error);
+
+	return (error == IGC_SUCCESS ? 0 : EIO);
+}
+
+static void
+igc_power_up_wakeup_link(struct igc_softc *sc)
+{
+	igc_power_up_phy(&sc->hw);
+	sc->suspend_link_powered_down = false;
 }
 
 /**********************************************************************

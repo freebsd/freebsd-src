@@ -100,11 +100,10 @@ void igc_power_down_phy_copper_base(struct igc_hw *hw)
 	if (!(phy->ops.check_reset_block))
 		return;
 
-	/* If the management interface is not enabled, then power down */
-	if (phy->ops.check_reset_block(hw))
+	/* If the management interface is not enabled, then power down. */
+	if (!(igc_enable_mng_pass_thru(hw) ||
+	    phy->ops.check_reset_block(hw)))
 		igc_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**

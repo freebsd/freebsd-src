@@ -124,16 +124,15 @@
 #define IGC_RXDPS_HDRSTAT_HDRSP		0x00008000
 
 /* Management Control */
-#define IGC_MANC_SMBUS_EN	0x00000001 /* SMBus Enabled - RO */
-#define IGC_MANC_ASF_EN	0x00000002 /* ASF Enabled - RO */
+#define IGC_MANC_FC_DISCARD	0x00000001 /* Discard flow control */
+#define IGC_MANC_NCSI_DISCARD	0x00000002 /* Discard NC-SI */
 #define IGC_MANC_ARP_EN	0x00002000 /* Enable ARP Request Filtering */
 #define IGC_MANC_RCV_TCO_EN	0x00020000 /* Receive TCO Packets Enabled */
-#define IGC_MANC_BLK_PHY_RST_ON_IDE	0x00040000 /* Block phy resets */
+#define IGC_MANC_BLK_PHY_RST_ON_IDE	0x00040000 /* Keep PHY link up */
 /* Enable MAC address filtering */
 #define IGC_MANC_EN_MAC_ADDR_FILTER	0x00100000
 /* Enable MNG packets to host memory */
 #define IGC_MANC_EN_MNG2HOST		0x00200000
-
 #define IGC_MANC2H_PORT_623		0x00000020 /* Port 0x26f */
 #define IGC_MANC2H_PORT_664		0x00000040 /* Port 0x298 */
 #define IGC_MDEF_PORT_623		0x00000800 /* Port 0x26f */

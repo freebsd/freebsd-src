@@ -3,7 +3,7 @@
 .\" Copyright 2021 Rubicon Communications, LLC (Netgate)
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\"
-.Dd August 11, 2026
+.Dd August 30, 2026
 .Dt IGC 4
 .Os
 .Sh NAME
@@ -31,6 +31,24 @@ driver provides support for any PCI Express adapter or LOM (LAN
 On Motherboard) based on the Intel I225 Multi Gigabit Controller.
 The driver supports Transmit/Receive checksum offload, Jumbo Frames,
 MSI/MSI-X, TSO, and RSS.
+.Pp
+On systems that expose PCI power-management wake, the driver supports the
+.Cm wol_magic ,
+.Cm wol_ucast ,
+and
+.Cm wol_mcast
+capabilities shown by
+.Xr ifconfig 8 .
+Magic-packet wake is enabled by default and any advertised wake mode can be
+enabled or disabled with
+.Xr ifconfig 8 .
+Waking the system from an ACPI sleep state also requires enabling the
+corresponding device wake source when it is exposed, for example:
+.Bd -literal -offset indent
+sysctl dev.igc.0.wake=1
+.Ed
+The interface wake capabilities select the controller packet filters; they do
+not enable the ACPI wake source.
 .Pp
 Support for Jumbo Frames is provided via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
@@ -154,8 +172,8 @@ A fatal initialization error has occurred.
 .It "igc%d: Unable to allocate bus resource: memory"
 A fatal initialization error has occurred.
 .It "igc%d: Invalid MAC address"
-The MAC address programmed into the EEPROM is either empty or a multicast/broadcast
-address.
+The MAC address programmed into the EEPROM is either empty or a multicast or
+broadcast address.
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,

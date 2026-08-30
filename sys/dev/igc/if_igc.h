@@ -380,9 +380,7 @@ struct igc_softc {
 	u32		rx_mbuf_sz;
 
 	int		enable_aim;
-
-	/* Management and WOL features */
-	u32		wol;
+	bool		suspend_link_powered_down;
 
 	/* Multicast array memory */
 	u8		*mta;

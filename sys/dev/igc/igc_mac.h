@@ -12,6 +12,7 @@ void igc_null_mac_generic(struct igc_hw *hw);
 s32  igc_null_ops_generic(struct igc_hw *hw);
 s32  igc_null_link_info(struct igc_hw *hw, u16 *s, u16 *d);
 bool igc_null_mng_mode(struct igc_hw *hw);
+bool igc_enable_mng_pass_thru(struct igc_hw *hw);
 void igc_null_update_mc(struct igc_hw *hw, u8 *h, u32 a);
 void igc_null_write_vfta(struct igc_hw *hw, u32 a, u32 b);
 int  igc_null_rar_set(struct igc_hw *hw, u8 *h, u32 a);

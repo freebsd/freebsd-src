@@ -70,6 +70,26 @@ bool igc_null_mng_mode(struct igc_hw IGC_UNUSEDARG *hw)
 }
 
 /**
+ *  igc_enable_mng_pass_thru - Check if management passthrough is needed
+ *  @hw: pointer to the HW structure
+ *
+ *  Verify that the I225/I226 management engine needs the external link.
+ **/
+bool
+igc_enable_mng_pass_thru(struct igc_hw *hw)
+{
+	u32 manc;
+
+	DEBUGFUNC("igc_enable_mng_pass_thru");
+
+	if (!hw->mac.asf_firmware_present)
+		return (false);
+
+	manc = IGC_READ_REG(hw, IGC_MANC);
+	return ((manc & IGC_MANC_RCV_TCO_EN) != 0);
+}
+
+/**
  *  igc_null_update_mc - No-op function, return void
  *  @hw: pointer to the HW structure
  *  @h: dummy variable

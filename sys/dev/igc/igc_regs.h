@@ -231,7 +231,7 @@
 #define IGC_VFTA		0x05600  /* VLAN Filter Table Array - RW Array */
 #define IGC_WUC			0x05800  /* Wakeup Control - RW */
 #define IGC_WUFC		0x05808  /* Wakeup Filter Control - RW */
-#define IGC_WUS			0x05810  /* Wakeup Status - RO */
+#define IGC_WUS			0x05810  /* Wakeup Status - RW1C */
 /* Management registers */
 #define IGC_MANC		0x05820  /* Management Control - RW */
 #define IGC_IPAV		0x05838  /* IP Address Valid - RW */
