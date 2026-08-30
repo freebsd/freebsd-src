@@ -1172,8 +1172,9 @@ run_rc_command()
 	if [ -z "$_svcj" ]; then
 		_svcj=${svcj_all_enable}
 		if [ -z "$_svcj" ]; then
-			eval ${name}_svcj=NO
+			_svcj=NO
 		fi
+		eval ${name}_svcj=$_svcj
 	fi
 
 					# setup pid check command
