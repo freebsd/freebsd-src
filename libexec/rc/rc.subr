@@ -1832,6 +1832,9 @@ _run_rc_killcmd()
 	if [ -n "$_user" ]; then
 		_cmd="su -m ${_user} -c 'sh -c \"${_cmd}\"'"
 	fi
+	if checkyesno ${name}_svcj && [ "${_rc_svcj}" != jailing ]; then
+	    _cmd="/usr/sbin/jexec svcj-${name} ${_cmd}"
+	fi
 	echo "$_cmd"
 }
 
