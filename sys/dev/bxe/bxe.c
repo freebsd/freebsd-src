@@ -5899,6 +5899,11 @@ bxe_ilt_set_info(struct bxe_softc *sc)
               ilt_client->start, ilt_client->end,
               ilt_client->page_size, ilt_client->flags,
               ilog2(ilt_client->page_size >> 12));
+    } else {
+        ilt->clients[ILT_CLIENT_SRC].flags =
+            (ILT_CLIENT_SKIP_INIT | ILT_CLIENT_SKIP_MEM);
+        ilt->clients[ILT_CLIENT_TM].flags =
+            (ILT_CLIENT_SKIP_INIT | ILT_CLIENT_SKIP_MEM);
     }
 
     KASSERT((line <= ILT_MAX_LINES), ("Invalid number of ILT lines!"));
