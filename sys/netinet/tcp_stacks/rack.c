@@ -16401,6 +16401,11 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		 */
 		to.to_flags &= ~TOF_SACK;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if ((tp->t_flags & TF_SIGNATURE) == 0 &&
+	    (to.to_flags & TOF_SIGNATURE) != 0)
+		KMOD_TCPSTAT_INC(tcps_sig_err_sigopt);
+#endif
 	if ((tp->t_state >= TCPS_FIN_WAIT_1) &&
 	    (tp->t_flags & TF_GPUTINPROG)) {
 		/*

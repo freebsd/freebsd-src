@@ -11349,6 +11349,11 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		 */
 		to.to_flags &= ~TOF_SACK;
 	}
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+	if ((tp->t_flags & TF_SIGNATURE) == 0 &&
+	    (to.to_flags & TOF_SIGNATURE) != 0)
+		KMOD_TCPSTAT_INC(tcps_sig_err_sigopt);
+#endif
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
