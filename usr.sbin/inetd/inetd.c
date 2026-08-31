@@ -1315,11 +1315,13 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
         if (sep->se_rpc) {
 		u_int i;
 		socklen_t len = sep->se_ctrladdr_size;
-		struct netconfig *netid, *netid2 = NULL;
+		struct netconfig *netid;
+		struct netbuf nbuf;
 #ifdef INET6
+		struct netconfig *netid2 = NULL;
 		struct sockaddr_in sock;
+		struct netbuf nbuf2;
 #endif
-		struct netbuf nbuf, nbuf2;
 
                 if (getsockname(sep->se_fd,
 				(struct sockaddr*)&sep->se_ctrladdr, &len) < 0){
@@ -1360,10 +1362,12 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
                 for (i = sep->se_rpc_lowvers; i <= sep->se_rpc_highvers; i++) {
 			rpcb_unset(sep->se_rpc_prog, i, netid);
 			rpcb_set(sep->se_rpc_prog, i, netid, &nbuf);
+#ifdef INET6
 			if (netid2) {
 				rpcb_unset(sep->se_rpc_prog, i, netid2);
 				rpcb_set(sep->se_rpc_prog, i, netid2, &nbuf2);
 			}
+#endif
                 }
         }
 	if (sep->se_socktype == SOCK_STREAM)
