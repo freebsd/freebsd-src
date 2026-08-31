@@ -9128,7 +9128,15 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 		IMPROVE("only update rate if needed but that requires us to get a proper rate from mo_sta_statistics");
 		ieee80211_ratectl_tx_complete(ni, &txs);
-		ieee80211_ratectl_rate(ni->ni_vap->iv_bss, NULL, 0);
+		/*
+		 * A tx completion can land here after the vap has been torn
+		 * down (iv_bss cleared on the way to INIT) while frames were
+		 * still in flight; there is no bss node left to rate-adjust.
+		 * This is another case of !lvif->lvif_bss_synched but checking
+		 * that seems too cumbersome.
+		 */
+		if (ni->ni_vap->iv_bss != NULL)
+			ieee80211_ratectl_rate(ni->ni_vap->iv_bss, NULL, 0);
 
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_TX) {
