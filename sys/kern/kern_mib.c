@@ -777,9 +777,3 @@ SYSCTL_SIZEOF_STRUCT(kinfo_proc);
 const int pcb_size = sizeof(struct pcb);
 SYSCTL_SIZEOF_STRUCT(pcb);
 
-/* XXX compatibility, remove for 6.0 */
-#include <sys/imgact.h>
-#include <sys/imgact_elf.h>
-SYSCTL_INT(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
-    &__elfN(fallback_brand), sizeof(__elfN(fallback_brand)),
-    "compatibility for kern.fallback_elf_brand");

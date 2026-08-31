@@ -131,7 +131,6 @@ bool	__elfN(parse_notes)(const struct image_params *, const Elf_Note *,
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);
 
-extern int __elfN(fallback_brand);
 extern const Elf_Brandnote __elfN(freebsd_brandnote);
 extern const Elf_Brandnote __elfN(kfreebsd_brandnote);
 #endif /* _KERNEL */

@@ -116,7 +116,7 @@ SYSCTL_NODE(_kern, OID_AUTO, ELF_ABI_ID, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 #define	ELF_NODE_OID	__CONCAT(_kern_, ELF_ABI_ID)
 
-int __elfN(fallback_brand) = -1;
+static int __elfN(fallback_brand) = -1;
 SYSCTL_INT(ELF_NODE_OID, OID_AUTO,
     fallback_brand, CTLFLAG_RWTUN, &__elfN(fallback_brand), 0,
     ELF_ABI_NAME " brand of last resort");
