@@ -113,7 +113,7 @@
 			  (td)->td_user_pri <= PRI_MAX_TIMESHARE) ?\
 			 PRI_MAX_TIMESHARE : (td)->td_user_pri)
 
-#define	GOLDEN_RATIO_PRIME	2654404609U
+#define	GOLDEN_RATIO_32		1640531527U
 #ifndef	UMTX_CHAINS
 #define	UMTX_CHAINS		512
 #endif
@@ -380,7 +380,7 @@ umtxq_hash(struct umtx_key *key)
 	unsigned n;
 
 	n = (uintptr_t)key->info.both.a + key->info.both.b;
-	key->hash = ((n * GOLDEN_RATIO_PRIME) >> UMTX_SHIFTS) % UMTX_CHAINS;
+	key->hash = ((n * GOLDEN_RATIO_32) >> UMTX_SHIFTS) % UMTX_CHAINS;
 }
 
 struct umtxq_chain *
