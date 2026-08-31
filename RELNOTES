@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7144a1d58c5c, a311bd18a6fb, 884ee8d6c9b4:
+	These three patches add the required "glue" so that the
+	nfsrdma.ko and nfsclrdma.ko modules can be loaded.
+	These modules provide server and client support for
+	NFS over RDMA.
+
 34bb38445b07:
     libusb has been updated to upstream 1.0.27 compatible.
     All missing part is implemented and version tag is bumped.
