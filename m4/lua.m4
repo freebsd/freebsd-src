@@ -33,37 +33,28 @@ dnl Helper macro to detect Lua in a variety of systems.
 dnl
 AC_DEFUN([KYUA_LUA], [
     lua_found=no
-
-    for lua_release in 5.2 5.1; do
-        if test "${lua_found}" = no; then
-            PKG_CHECK_MODULES([LUA], [lua${lua_release} >= ${lua_release}],
-                              [lua_found=yes], [true])
+    for lua_release in ${LUA_VERSION:-5.4 5.3}; do
+        PKG_CHECK_MODULES([LUA], [lua-${lua_release} >= ${lua_release}],
+            [lua_found="lua-${lua_release}"],[
+        PKG_CHECK_MODULES([LUA], [lua${lua_release} >= ${lua_release}],
+            [lua_found="lua${lua_release}"],[
+        PKG_CHECK_MODULES([LUA], [lua >= ${lua_release}],
+            [lua_found="lua"],[])
+        ])])
+        if test "${lua_found}" != no; then
+            break
         fi
-        if test "${lua_found}" = no; then
-            PKG_CHECK_MODULES([LUA], [lua-${lua_release} >= ${lua_release}],
-                              [lua_found=yes], [true])
-        fi
-        if test "${lua_found}" = no; then
-            PKG_CHECK_MODULES([LUA], [lua >= ${lua_release}],
-                              [lua_found=yes], [true])
-        fi
-
-        test "${lua_found}" = no || break
     done
 
-    if test "${lua_found}" = no; then
-        AC_PATH_PROGS([LUA_CONFIG], [lua-config], [unset])
-        if test "${LUA_CONFIG}" != unset; then
-            AC_SUBST([LUA_CFLAGS], [$(${LUA_CONFIG} --include)])
-            AC_SUBST([LUA_LIBS], [$(${LUA_CONFIG} --libs)])
-            lua_found=yes
-        fi
-    fi
+    AS_IF([test "${lua_found}" = no],[],[
+        AC_SUBST([LUA_CFLAGS], [$(${PKG_CONFIG} --cflags ${lua_found})])
+        AC_SUBST([LUA_LIBS], [$(${PKG_CONFIG} --libs ${lua_found})])
+        ])
 
-    if test "${lua_found}" = no; then
-        AC_MSG_ERROR([lua (5.1 or newer) is required])
-    else
-        AC_MSG_NOTICE([using LUA_CFLAGS = ${LUA_CFLAGS}])
-        AC_MSG_NOTICE([using LUA_LIBS = ${LUA_LIBS}])
-    fi
+    AS_IF([test "${lua_found}" = no],
+        [AC_MSG_ERROR([lua (5.3 or newer) is required])],
+        [
+AC_MSG_NOTICE([using LUA_CFLAGS = ${LUA_CFLAGS}])
+AC_MSG_NOTICE([using LUA_LIBS = ${LUA_LIBS}])
+    ])
 ])

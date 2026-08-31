@@ -26,10 +26,10 @@ dnl THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 dnl (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 dnl OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-AC_INIT([Lutok], [0.4],
-        [lutok-discuss@googlegroups.com], [lutok],
-        [https://github.com/jmmv/lutok/])
-AC_PREREQ([2.65])
+AC_INIT([Lutok], [0.6.2],
+        [testing@FreeBSD.org], [lutok],
+        [https://github.com/freebsd/lutok/])
+AC_PREREQ([2.68])
 
 
 AC_COPYRIGHT([Copyright 2011 Google Inc.])
@@ -41,30 +41,44 @@ AC_CONFIG_SRCDIR([state.hpp])
 
 
 AM_INIT_AUTOMAKE([1.9 check-news foreign subdir-objects -Wall])
-m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+
+AM_PROG_AR
 LT_INIT
 
 
 AC_LANG([C++])
 AC_PROG_CXX
-KYUA_REQUIRE_CXX
+AX_CXX_COMPILE_STDCXX(20, noext, mandatory)
 KYUA_DEVELOPER_MODE([C++])
 
+# Check for ATF and add --enable-atf flag
+AC_ARG_ENABLE([atf],
+  [AS_HELP_STRING([--enable-atf], [Enable ATF tests (default: no)])],
+  [enable_atf=$enableval],
+  [enable_atf=no])
+AM_CONDITIONAL([WITH_ATF], [test "x$enable_atf" = "xyes"])
 
-ATF_CHECK_CXX([>= 0.15])
-ATF_CHECK_SH([>= 0.15])
-ATF_ARG_WITH
+# ATF dependencies
+m4_ifdef([ATF_CHECK_CXX],[
+AS_IF([test "x$enable_atf" = "xyes"],[
+  ATF_CHECK_CXX([>= 0.21])
+  ATF_CHECK_SH([>= 0.21])
+],[AC_MSG_NOTICE([ATF support disabled])])
+])
+
 KYUA_DOXYGEN
 KYUA_LUA
 
-
+# Check for Kyua
 AC_PATH_PROG([KYUA], [kyua])
 AM_CONDITIONAL([HAVE_KYUA], [test -n "${KYUA}"])
+
+# Check for Git
 AC_PATH_PROG([GIT], [git])
 
-
+# Define pkg-config and tests directory
 AC_SUBST(pkgconfigdir, \${libdir}/pkgconfig)
 AC_SUBST(testsdir, \${exec_prefix}/tests/lutok)
 
-
+# Output configuration
 AC_OUTPUT
