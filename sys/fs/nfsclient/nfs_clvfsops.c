@@ -958,7 +958,7 @@ nfs_mount(struct mount *mp)
 	    krbnamelen, srvkrbnamelen;
 	size_t hstlen;
 	uint32_t newflag;
-	int aconn = 0, rdma_port;
+	int aconn = 0, rdma_port = 0;	/* To shut up compiler. */
 
 	has_nfs_args_opt = 0;
 	has_nfs_from_opt = 0;
