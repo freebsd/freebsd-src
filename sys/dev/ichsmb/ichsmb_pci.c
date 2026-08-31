@@ -251,6 +251,7 @@ static const struct pci_device_table ichsmb_devices[] = {
 	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
 	  PCI_DESCR("Intel Tiger Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_ELKHARTLAKE),
+	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
 	  PCI_DESCR("Intel Elkhart Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_GEMINILAKE),
 	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
