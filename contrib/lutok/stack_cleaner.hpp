@@ -75,10 +75,10 @@ class stack_cleaner {
     std::unique_ptr< impl > _pimpl;
 
     /// Disallow copies.
-    stack_cleaner(const stack_cleaner&);
+    stack_cleaner(const stack_cleaner&) = delete;
 
     /// Disallow assignment.
-    stack_cleaner& operator=(const stack_cleaner&);
+    stack_cleaner& operator=(const stack_cleaner&) = delete;
 
 public:
     stack_cleaner(state&);
