@@ -113,6 +113,8 @@ static int g_part_gpt_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_gpt_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_gpt_dumpto(struct g_part_table *, struct g_part_entry *);
+static int g_part_gpt_getmdrange(struct g_part_table *, struct g_provider *,
+    int, quad_t *, quad_t *, int *);
 static int g_part_gpt_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_gpt_name(struct g_part_table *, struct g_part_entry *,
@@ -135,6 +137,7 @@ static kobj_method_t g_part_gpt_methods[] = {
 	KOBJMETHOD(g_part_destroy,	g_part_gpt_destroy),
 	KOBJMETHOD(g_part_dumpconf,	g_part_gpt_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_gpt_dumpto),
+	KOBJMETHOD(g_part_getmdrange,	g_part_gpt_getmdrange),
 	KOBJMETHOD(g_part_modify,	g_part_gpt_modify),
 	KOBJMETHOD(g_part_resize,	g_part_gpt_resize),
 	KOBJMETHOD(g_part_name,		g_part_gpt_name),
@@ -811,6 +814,29 @@ g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 }
 
 static int
+g_part_gpt_getmdrange(struct g_part_table *basetable, struct g_provider *pp,
+    int idx, quad_t *start, quad_t *length, int *flags)
+{
+	switch (idx) {
+	case 0:
+		/* PMBR, primary header and primary table. */
+		*start = 0;
+		*length = basetable->gpt_first;
+		*flags = 0;
+		return (0);
+	case 1:
+		/* Backup table and backup header. */
+		*start = basetable->gpt_last + 1;
+		*length = pp->mediasize / pp->sectorsize -
+		    (basetable->gpt_last + 1);
+		*flags = G_PART_MDR_OPTIONAL;
+		return (0);
+	default:
+		return (ENOENT);
+	}
+}
+
+static int
 g_part_gpt_modify(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
@@ -928,6 +954,16 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	return ((res == 0) ? pri : ENXIO);
 }
 
+static bool
+gpt_seczone_unwritable(struct g_consumer *cp, uint64_t last)
+{
+	bool writable;
+
+	return (g_zone_host_managed(cp) &&
+	    g_zone_range_random_writable(cp, last, 1, &writable) == 0 &&
+	    !writable);
+}
+
 static int
 g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 {
@@ -1031,11 +1067,17 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 		g_free(pritbl);
 	} else {
 		if (table->state[GPT_ELT_SECTBL] != GPT_STATE_OK) {
-			printf("GEOM: %s: the secondary GPT table is corrupt "
-			    "or invalid.\n", pp->name);
-			printf("GEOM: %s: using the primary only -- recovery "
-			    "suggested.\n", pp->name);
-			basetable->gpt_corrupt = 1;
+			if (gpt_seczone_unwritable(cp, last)) {
+				printf("GEOM: %s: no secondary GPT: its "
+				    "location is not randomly writable on "
+				    "this zoned provider.\n", pp->name);
+			} else {
+				printf("GEOM: %s: the secondary GPT table is "
+				    "corrupt or invalid.\n", pp->name);
+				printf("GEOM: %s: using the primary only -- "
+				    "recovery suggested.\n", pp->name);
+				basetable->gpt_corrupt = 1;
+			}
 		} else if (table->lba[GPT_ELT_SECHDR] != last) {
 			printf( "GEOM: %s: the secondary GPT header is not in "
 			    "the last LBA.\n", pp->name);
@@ -1291,6 +1333,10 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	error = g_write_data(cp, table->lba[GPT_ELT_PRIHDR] * pp->sectorsize,
 	    buf, pp->sectorsize);
 	if (error)
+		goto out;
+
+	/* Skip the secondary if its location cannot be written. */
+	if (basetable->gpt_primary_only)
 		goto out;
 
 	/* Write secondary meta-data. */
