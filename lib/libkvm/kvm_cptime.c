@@ -43,7 +43,7 @@
 #include "kvm_private.h"
 
 static struct nlist kvm_cp_time_nl[] = {
-	{ .n_name = "_cp_time" },		/* (deprecated) */
+	{ .n_name = "cp_time" },		/* (deprecated) */
 	{ .n_name = NULL },
 };
 

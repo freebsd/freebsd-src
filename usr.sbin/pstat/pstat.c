@@ -72,10 +72,10 @@ static struct {
 	int order;
 	const char *name;
 } namelist[] = {
-	{ NL_CONSTTY, "_constty" },
-	{ NL_MAXFILES, "_maxfiles" },
-	{ NL_NFILES, "_openfiles" },
-	{ NL_TTY_LIST, "_tty_list" },
+	{ NL_CONSTTY, "constty" },
+	{ NL_MAXFILES, "maxfiles" },
+	{ NL_NFILES, "openfiles" },
+	{ NL_TTY_LIST, "tty_list" },
 	{ NL_MARKER, "" },
 };
 #define NNAMES	(sizeof(namelist) / sizeof(*namelist))
