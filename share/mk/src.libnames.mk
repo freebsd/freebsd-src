@@ -12,6 +12,7 @@ __<src.libnames.mk>__:	.NOTMAIN
 .include <src.opts.mk>
 
 _PRIVATELIBS=	\
+		9p \
 		atf_c \
 		atf_cxx \
 		auditd \
@@ -109,7 +110,6 @@ _LIBRARIES=	\
 		${_INTERNALLIBS} \
 		${LOCAL_LIBRARIES} \
 		80211 \
-		9p \
 		alias \
 		archive \
 		asn1 \

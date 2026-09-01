@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260813: lib9p.so becomes a private library
+OLD_LIBS+=usr/lib/lib9p.so.1
+
 # 20260811: libusb symbol versioning, shared library bumped to version 4
 OLD_LIBS+=usr/lib/libusb.so.3
 

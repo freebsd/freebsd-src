@@ -12,6 +12,7 @@ LIBADD+=	casper cap_pwd cap_grp
 .endif
 
 LIB=		9p
+PRIVATELIB=
 PACKAGE=	lib${LIB}
 SHLIB_MAJOR=	1
 SRCS=		connection.c \
