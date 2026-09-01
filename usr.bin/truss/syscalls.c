@@ -919,6 +919,8 @@ get_syscall(struct threadinfo *t, u_int number, u_int nargs)
 	    name, strlen(procabi->compat_prefix)) == 0)
 		lookup_name += strlen(procabi->compat_prefix);
 
+	sc->trace = syscall_filter_match(name, number);
+
 	for (i = 0; i < nitems(decoded_syscalls); i++) {
 		if (strcmp(lookup_name, decoded_syscalls[i].name) == 0) {
 			sc->decode = decoded_syscalls[i];
@@ -2844,6 +2846,8 @@ print_syscall_ret(struct trussinfo *trussinfo, int error, syscallarg_t *retval)
 
 	t = trussinfo->curthread;
 	sc = t->cs.sc;
+	if (!sc->trace)
+		return;
 	if (trussinfo->flags & COUNTONLY) {
 		timespecsub(&t->after, &t->before, &timediff);
 		timespecadd(&sc->time, &timediff, &sc->time);

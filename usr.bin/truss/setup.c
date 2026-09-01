@@ -472,7 +472,7 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 	}
 
 	sc = get_syscall(t, t->cs.number, narg);
-	if (sc->unknown)
+	if (sc->unknown && sc->trace)
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
 
@@ -480,6 +480,15 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 	assert(sc->decode.nargs <= nitems(t->cs.s_args));
 
 	t->cs.sc = sc;
+
+	/*
+	 * A system call excluded by -t is never printed, so there is no
+	 * point in formatting its arguments.
+	 */
+	if (!sc->trace) {
+		clock_gettime(CLOCK_REALTIME, &t->before);
+		return;
+	}
 
 	/*
 	 * At this point, we set up the system call arguments.
@@ -554,9 +563,10 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	sc = t->cs.sc;
 	/*
 	 * Here, we only look for arguments that have OUT masked in --
-	 * otherwise, they were handled in enter_syscall().
+	 * otherwise, they were handled in enter_syscall().  A system call
+	 * excluded by -t is never printed, so none of them are needed.
 	 */
-	for (i = 0; i < sc->decode.nargs; i++) {
+	for (i = 0; i < sc->decode.nargs && sc->trace; i++) {
 		char *temp;
 
 		if (sc->decode.args[i].type & OUT) {

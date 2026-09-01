@@ -31,6 +31,9 @@
  * SUCH DAMAGE.
  */
 
+extern void add_syscall_filter(const char *);
+extern void list_syscall_groups(void);
+extern bool syscall_filter_match(const char *, u_int);
 extern int print_line_prefix(struct trussinfo *);
 extern void setup_and_wait(struct trussinfo *, char **);
 extern void start_tracing(struct trussinfo *, pid_t);

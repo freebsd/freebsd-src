@@ -56,9 +56,11 @@
 static __dead2 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n",
-	    "usage: truss [-cfaedDHS] [-o file] [-s strsize] -p pid",
-	    "       truss [-cfaedDHS] [-o file] [-s strsize] command [args]");
+	fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: truss [-cfaedDHS] [-o file] [-s strsize] [-t expr] -p pid",
+	    "       truss [-cfaedDHS] [-o file] [-s strsize] [-t expr] "
+	    "command [args]",
+	    "       truss -t");
 	exit(1);
 }
 
@@ -85,7 +87,13 @@ main(int ac, char **av)
 	trussinfo->strsize = 32;
 	trussinfo->curthread = NULL;
 	LIST_INIT(&trussinfo->proclist);
-	while ((c = getopt(ac, av, "p:o:facedDs:SH")) != -1) {
+	/*
+	 * The leading ':' asks getopt() to report a missing option
+	 * argument as ':' rather than '?' so that a bare -t, which lists
+	 * the system call groups, can be told from a malformed option.
+	 * Diagnosing the other two cases then falls to us.
+	 */
+	while ((c = getopt(ac, av, ":p:o:facedDs:t:SH")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
 			pid = atoi(optarg);
@@ -121,13 +129,25 @@ main(int ac, char **av)
 			if (errstr)
 				errx(1, "maximum string size is %s: %s", errstr, optarg);
 			break;
+		case 't':	/* Select the system calls to trace */
+			add_syscall_filter(optarg);
+			break;
 		case 'S':	/* Don't trace signals */
 			trussinfo->flags |= NOSIGS;
 			break;
 		case 'H':
 			trussinfo->flags |= DISPLAYTIDS;
 			break;
+		case ':':
+			if (optopt == 't') {
+				/* A bare -t lists the system call groups. */
+				list_syscall_groups();
+				return (2);
+			}
+			warnx("option requires an argument -- %c", optopt);
+			usage();
 		default:
+			warnx("illegal option -- %c", optopt);
 			usage();
 		}
 	}

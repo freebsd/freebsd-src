@@ -1,5 +1,5 @@
 .\"
-.Dd June 18, 2025
+.Dd August 31, 2026
 .Dt TRUSS 1
 .Os
 .Sh NAME
@@ -10,12 +10,16 @@
 .Op Fl facedDHS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
+.Op Fl t Ar expr
 .Fl p Ar pid
 .Nm
 .Op Fl facedDHS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
+.Op Fl t Ar expr
 .Ar command Op Ar args
+.Nm
+.Fl t
 .Sh DESCRIPTION
 The
 .Nm
@@ -76,6 +80,163 @@ will be displayed at the end of the string.
 The default
 .Ar strsize
 is 32.
+.It Fl t Ar expr
+Report only the system calls selected by
+.Ar expr ,
+a comma-separated list of terms.
+Whatever follows
+.Fl t
+is taken to be the
+.Ar expr ,
+so one must be given;
+the sole exception is the third form shown above,
+.Ql truss -t
+with nothing after it,
+which prints the groups described below and exits.
+That is not the same as giving an empty
+.Ar expr :
+.Ql truss -t \(dq\(dq
+is an expression with no terms in it,
+and so filters nothing.
+.Pp
+Each term takes one of three forms:
+.Bl -tag -width "@group" -offset indent
+.It Ar name
+The name of a system call,
+as
+.Nm
+prints it,
+for example
+.Ql read .
+A name may also contain the wildcards
+.Ql * ,
+.Ql \&?
+and
+.Ql []
+described in
+.Xr fnmatch 3 ,
+in which case it selects every system call whose name it matches:
+.Ql read*
+selects
+.Xr read 2 ,
+.Xr readv 2
+and
+.Xr readlink 2
+alike.
+.It Ar number
+A system call number in decimal,
+for example
+.Ql 3 .
+The number is the one the ABI of the traced process uses,
+so
+.Ql 3
+selects
+.Xr read 2
+from a native process but
+.Fn close
+from a Linux one.
+.It Cm @ Ns Ar group
+One of the groups of related system calls listed below,
+for example
+.Ql @file .
+.El
+.Pp
+A term prefixed with
+.Ql \&!
+excludes the system calls it matches instead of including them.
+The
+.Ql \&!
+applies only to the term it prefixes,
+not to the terms that follow it.
+.Pp
+An expression whose terms are all negated subtracts from the set of
+every system call;
+any other expression selects from an empty set.
+Terms are applied in the order they are given,
+and the last one to match a system call decides whether it is reported.
+Repeating
+.Fl t
+appends to the expression rather than replacing it,
+so that
+.Fl t Ar a Fl t Ar b
+and
+.Fl t Ar a , Ns Ar b
+are equivalent.
+An empty term is ignored,
+which is why an empty
+.Ar expr
+filters nothing,
+and why a stray comma is not an error.
+.Pp
+The groups are:
+.Bl -tag -width ".Cm @signal" -compact -offset indent
+.It Cm @all
+every system call
+.It Cm @creds
+get or set process credentials
+.It Cm @desc
+operate on a file descriptor
+.It Cm @file
+operate on a pathname
+.It Cm @ipc
+System V and POSIX IPC
+.It Cm @memory
+memory mapping and locking
+.It Cm @net
+network and socket operations
+.It Cm @none
+no system call
+.It Cm @proc
+process and thread lifecycle
+.It Cm @read
+read data from a descriptor
+.It Cm @signal
+signal delivery and handling
+.It Cm @time
+clocks, timers and sleeping
+.It Cm @write
+write data to a descriptor
+.El
+.Pp
+A group is itself defined by an expression of the same form as
+.Ar expr ,
+so a group may name other groups and may exclude as well as include:
+.Cm @desc
+is defined to include
+.Cm @read
+and
+.Cm @write ,
+and
+.Cm @none
+is defined as
+.Ql \&!* .
+.Pp
+A system call is matched both under the name
+.Nm
+displays for it and under that name with any prefix naming a
+compatibility layer or a non-native ABI removed,
+so that
+.Fl t Cm @file
+selects
+.Ql compat11.stat
+and
+.Ql linux_newstat
+as well as
+.Ql stat .
+.Pp
+A name or pattern that matches no system call of any ABI that
+.Nm
+understands is reported with a warning,
+since it is almost always a typo,
+but it is not an error:
+the term is kept and simply never matches.
+A number is not checked against any table,
+as a process may issue any system call number the kernel can hold and
+.Nm
+reports the attempt whether or not a system call is implemented behind
+it;
+only a number too large to be one at all is rejected.
+An unknown group is an error.
 .It Fl p Ar pid
 Follow the process specified by
 .Ar pid
@@ -99,12 +260,35 @@ Do the same, but put the output into a file:
 .Pp
 Follow an already-running process:
 .Dl $ truss -p 34
+.Pp
+List the groups that
+.Fl t
+understands:
+.Dl $ truss -t
+.Pp
+Show only the file and network activity of a command:
+.Dl $ truss -t @file,@net fetch https://www.freebsd.org/
+.Pp
+Show everything a command does except its memory management:
+.Dl $ truss -t '!@memory' make buildworld
+.Pp
+Show the descriptor activity of a running process apart from the
+data transfers themselves:
+.Dl $ truss -t '@desc,!@read,!@write' -p 34
+.Pp
+Count the
+.Xr readlink 2
+and
+.Xr readlinkat 2
+calls made while starting a program:
+.Dl $ truss -c -t 'readlink*' /bin/ls
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
 .Xr ptrace 2 ,
 .Xr utrace 2 ,
+.Xr fnmatch 3 ,
 .Xr sysdecode 3
 .Sh HISTORY
 The

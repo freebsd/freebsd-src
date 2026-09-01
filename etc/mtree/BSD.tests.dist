@@ -1251,6 +1251,8 @@
         ..
         truncate
         ..
+        truss
+        ..
         tsort
         ..
         unifdef
