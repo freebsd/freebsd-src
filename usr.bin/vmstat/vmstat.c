@@ -294,21 +294,10 @@ main(int argc, char *argv[])
 			xo_errx(1, "kvm_openfiles: %s", errbuf);
 	}
 
-retry_nlist:
 	if (kd != NULL && (c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
 			bufsize = 0;
 			len = 0;
-
-			/*
-			 * 'cnt' was renamed to 'vm_cnt'.  If 'vm_cnt' is not
-			 * found try looking up older 'cnt' symbol.
-			 * */
-			if (namelist[X_SUM].n_type == 0 &&
-			    strcmp(namelist[X_SUM].n_name, "vm_cnt") == 0) {
-				namelist[X_SUM].n_name = "cnt";
-				goto retry_nlist;
-			}
 
 			/*
 			 * 'nintrcnt' doesn't exist in older kernels, but
