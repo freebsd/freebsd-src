@@ -720,6 +720,8 @@ ptrace_check_allowed(struct thread *td, int req, bool pd_mode, pid_t pid)
 		return (ECAPMODE);
 	if (pd_mode)
 		return (0);
+	if (req == PT_TRACE_ME)
+		return (0);
 	if (req == PT_GET_CHILDREN && pid == td->td_proc->p_pid)
 		return (0);
 	if (req == PT_CLEARSTEP && pid == td->td_tid)
