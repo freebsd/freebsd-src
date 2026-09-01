@@ -87,15 +87,15 @@ enum x_stats { X_SUM, X_HZ, X_STATHZ, X_NCHSTATS, X_INTRNAMES, X_SINTRNAMES,
     X_INTRCNT, X_SINTRCNT, X_NINTRCNT };
 
 static struct nlist namelist[] = {
-	[X_SUM] = { .n_name = "_vm_cnt", },
-	[X_HZ] = { .n_name = "_hz", },
-	[X_STATHZ] = { .n_name = "_stathz", },
-	[X_NCHSTATS] = { .n_name = "_nchstats", },
-	[X_INTRNAMES] = { .n_name = "_intrnames", },
-	[X_SINTRNAMES] = { .n_name = "_sintrnames", },
-	[X_INTRCNT] = { .n_name = "_intrcnt", },
-	[X_SINTRCNT] = { .n_name = "_sintrcnt", },
-	[X_NINTRCNT] = { .n_name = "_nintrcnt", },
+	[X_SUM] = { .n_name = "vm_cnt", },
+	[X_HZ] = { .n_name = "hz", },
+	[X_STATHZ] = { .n_name = "stathz", },
+	[X_NCHSTATS] = { .n_name = "nchstats", },
+	[X_INTRNAMES] = { .n_name = "intrnames", },
+	[X_SINTRNAMES] = { .n_name = "sintrnames", },
+	[X_INTRCNT] = { .n_name = "intrcnt", },
+	[X_SINTRCNT] = { .n_name = "sintrcnt", },
+	[X_NINTRCNT] = { .n_name = "nintrcnt", },
 	{ .n_name = NULL, },
 };
 
@@ -318,8 +318,8 @@ retry_nlist:
 			 * found try looking up older 'cnt' symbol.
 			 * */
 			if (namelist[X_SUM].n_type == 0 &&
-			    strcmp(namelist[X_SUM].n_name, "_vm_cnt") == 0) {
-				namelist[X_SUM].n_name = "_cnt";
+			    strcmp(namelist[X_SUM].n_name, "vm_cnt") == 0) {
+				namelist[X_SUM].n_name = "cnt";
 				goto retry_nlist;
 			}
 

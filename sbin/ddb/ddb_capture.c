@@ -55,16 +55,16 @@
 
 static struct nlist namelist[] = {
 #define X_DB_CAPTURE_BUF	0
-	{ .n_name = "_db_capture_buf" },
+	{ .n_name = "db_capture_buf" },
 #define X_DB_CAPTURE_BUFSIZE	1
-	{ .n_name = "_db_capture_bufsize" },
+	{ .n_name = "db_capture_bufsize" },
 #define X_DB_CAPTURE_MAXBUFSIZE	2
-	{ .n_name = "_db_capture_maxbufsize" },
+	{ .n_name = "db_capture_maxbufsize" },
 #define X_DB_CAPTURE_BUFOFF	3
-	{ .n_name = "_db_capture_bufoff" },
+	{ .n_name = "db_capture_bufoff" },
 #define	X_DB_CAPTURE_INPROGRESS	4
-	{ .n_name = "_db_capture_inprogress" },
-	{ .n_name = "" },
+	{ .n_name = "db_capture_inprogress" },
+	{ .n_name = NULL },
 };
 
 static int

@@ -44,11 +44,11 @@ __SCCSID("@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93");
 #include "kvm_private.h"
 
 static struct nlist nl[] = {
-	{ .n_name = "_averunnable" },
+	{ .n_name = "averunnable" },
 #define	X_AVERUNNABLE	0
-	{ .n_name = "_fscale" },
+	{ .n_name = "fscale" },
 #define	X_FSCALE	1
-	{ .n_name = "" },
+	{ .n_name = NULL },
 };
 
 /*

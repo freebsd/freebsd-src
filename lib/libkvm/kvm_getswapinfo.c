@@ -52,8 +52,8 @@
 #include "kvm_private.h"
 
 static struct nlist kvm_swap_nl[] = {
-	{ .n_name = "_swtailq" },	/* list of swap devices and sizes */
-	{ .n_name = "_dmmax" },		/* maximum size of a swap block */
+	{ .n_name = "swtailq" },	/* list of swap devices and sizes */
+	{ .n_name = "dmmax" },		/* maximum size of a swap block */
 	{ .n_name = NULL }
 };
 

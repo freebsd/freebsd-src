@@ -51,14 +51,14 @@
 
 static struct nlist namelist[] = {
 #define	X_UMA_KEGS	0
-	{ .n_name = "_uma_kegs" },
+	{ .n_name = "uma_kegs" },
 #define	X_MP_MAXID	1
-	{ .n_name = "_mp_maxid" },
+	{ .n_name = "mp_maxid" },
 #define	X_ALL_CPUS	2
-	{ .n_name = "_all_cpus" },
+	{ .n_name = "all_cpus" },
 #define	X_VM_NDOMAINS	3
-	{ .n_name = "_vm_ndomains" },
-	{ .n_name = "" },
+	{ .n_name = "vm_ndomains" },
+	{ .n_name = NULL },
 };
 
 /*

@@ -24,7 +24,7 @@ nl_defs.h: nlist_symbols
 		print "extern struct nlist nl[];"; \
 		i = 0; \
 	    } \
-	    !/^\#/ { printf("\#define\tN%s\t%s\n", toupper($$2), i++); }' \
+	    !/^\#/ { printf("\#define\tN_%s\t%s\n", toupper($$2), i++); }' \
 	    < ${.ALLSRC} > ${.TARGET} || rm -f ${.TARGET}
 CLEANFILES+=	nl_symbols.c nl_defs.h
 CFLAGS+=	-I${.OBJDIR}

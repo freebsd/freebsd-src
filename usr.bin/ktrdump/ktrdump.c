@@ -54,10 +54,10 @@
 static void usage(void) __dead2;
 
 static struct nlist nl[] = {
-	{ .n_name = "_ktr_version" },
-	{ .n_name = "_ktr_entries" },
-	{ .n_name = "_ktr_idx" },
-	{ .n_name = "_ktr_buf" },
+	{ .n_name = "ktr_version" },
+	{ .n_name = "ktr_entries" },
+	{ .n_name = "ktr_idx" },
+	{ .n_name = "ktr_buf" },
 	{ .n_name = NULL }
 };
 
