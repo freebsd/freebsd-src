@@ -1389,6 +1389,10 @@ linux_sched_getattr(struct thread *td,
 			break;
 		case SCHED_FIFO:
 		case SCHED_RR:
+			/*
+			 * Map [0, RTP_PRIO_MAX - RTP_PRIO_MIN] to
+			 * [1, LINUX_MAX_RT_PRIO - 1] (rounding up).
+			 */
 			sched_param.sched_priority =
 				(sched_param.sched_priority *
 				(LINUX_MAX_RT_PRIO - 1) +
