@@ -609,15 +609,15 @@ liveout:
 		struct nlist nl[6], *p;
 		struct nlist nlz[2];
 
-		nl[0].n_name = "_nprocs";
-		nl[1].n_name = "_allproc";
-		nl[2].n_name = "_ticks";
-		nl[3].n_name = "_hz";
-		nl[4].n_name = "_cpu_tick_frequency";
-		nl[5].n_name = 0;
+		nl[0].n_name = "nprocs";
+		nl[1].n_name = "allproc";
+		nl[2].n_name = "ticks";
+		nl[3].n_name = "hz";
+		nl[4].n_name = "cpu_tick_frequency";
+		nl[5].n_name = NULL;
 
-		nlz[0].n_name = "_zombproc";
-		nlz[1].n_name = 0;
+		nlz[0].n_name = "zombproc";
+		nlz[1].n_name = NULL;
 
 		if (!kd->arch->ka_native(kd)) {
 			_kvm_err(kd, kd->program,

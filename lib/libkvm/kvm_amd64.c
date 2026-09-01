@@ -140,7 +140,7 @@ _amd64_initvtop(kvm_t *kd)
 
 	if (found == 0) {
 		nl[0].n_name = "kernbase";
-		nl[1].n_name = 0;
+		nl[1].n_name = NULL;
 
 		if (kvm_nlist2(kd, nl) != 0) {
 			_kvm_err(kd, kd->program, "bad namelist - no kernbase");
@@ -148,7 +148,7 @@ _amd64_initvtop(kvm_t *kd)
 		}
 
 		nl[0].n_name = "kernphys";
-		nl[1].n_name = 0;
+		nl[1].n_name = NULL;
 
 		/* XXX
 		 * Relocatable kernels can still be loaded at 2M.
@@ -163,7 +163,7 @@ _amd64_initvtop(kvm_t *kd)
 	}
 
 	nl[0].n_name = "KPML4phys";
-	nl[1].n_name = 0;
+	nl[1].n_name = NULL;
 
 	if (kvm_nlist2(kd, nl) != 0) {
 		_kvm_err(kd, kd->program, "bad namelist - no KPML4phys");

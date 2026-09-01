@@ -52,11 +52,11 @@
 #endif
 
 static struct nlist kvm_pcpu_nl[] = {
-	{ .n_name = "_cpuid_to_pcpu" },
-	{ .n_name = "_mp_maxcpus" },
-	{ .n_name = "_mp_ncpus" },
+	{ .n_name = "cpuid_to_pcpu" },
+	{ .n_name = "mp_maxcpus" },
+	{ .n_name = "mp_ncpus" },
 #ifdef __OFFSET_BY_PCPU
-	{ .n_name = "___pcpu" },
+	{ .n_name = "__pcpu" },
 #endif
 	{ .n_name = NULL },
 };
@@ -239,13 +239,13 @@ _kvm_dpcpu_init(kvm_t *kd)
 {
 	struct kvm_nlist nl[] = {
 #define	NLIST_START_SET_PCPU	0
-		{ .n_name = "___start_" DPCPU_SETNAME },
+		{ .n_name = "__start_" DPCPU_SETNAME },
 #define	NLIST_STOP_SET_PCPU	1
-		{ .n_name = "___stop_" DPCPU_SETNAME },
+		{ .n_name = "__stop_" DPCPU_SETNAME },
 #define	NLIST_DPCPU_OFF		2
-		{ .n_name = "_dpcpu_off" },
+		{ .n_name = "dpcpu_off" },
 #define	NLIST_MP_MAXCPUS	3
-		{ .n_name = "_mp_maxcpus" },
+		{ .n_name = "mp_maxcpus" },
 		{ .n_name = NULL },
 	};
 	uintptr_t *dpcpu_off_buf;

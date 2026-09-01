@@ -119,13 +119,13 @@
 
 static struct nlist namelist[] = {
 #define X_TTY_NIN	0
-	{ .n_name = "_tty_nin",
+	{ .n_name = "tty_nin",
 	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_TTY_NOUT	1
-	{ .n_name = "_tty_nout",
+	{ .n_name = "tty_nout",
 	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_BOOTTIME	2
-	{ .n_name = "_boottime",
+	{ .n_name = "boottime",
 	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_END		2
 	{ .n_name = NULL,

@@ -49,16 +49,16 @@ static int	memstat_malloc_zone_init_kvm(kvm_t *kvm);
 
 static struct nlist namelist[] = {
 #define	X_KMEMSTATISTICS	0
-	{ .n_name = "_kmemstatistics" },
+	{ .n_name = "kmemstatistics" },
 #define	X_KMEMZONES		1
-	{ .n_name = "_kmemzones" },
+	{ .n_name = "kmemzones" },
 #define	X_NUMZONES		2
-	{ .n_name = "_numzones" },
+	{ .n_name = "numzones" },
 #define	X_VM_MALLOC_ZONE_COUNT	3
-	{ .n_name = "_vm_malloc_zone_count" },
+	{ .n_name = "vm_malloc_zone_count" },
 #define	X_MP_MAXCPUS		4
-	{ .n_name = "_mp_maxcpus" },
-	{ .n_name = "" },
+	{ .n_name = "mp_maxcpus" },
+	{ .n_name = NULL },
 };
 
 /*
