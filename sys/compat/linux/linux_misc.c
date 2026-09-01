@@ -117,7 +117,6 @@ struct l_pselect6arg {
 };
 
 #define LINUX_SCHED_ATTR_SIZE_VER0 48
-#define LINUX_SCHED_ATTR_SIZE_VER1 56
 /**
  * Linux struct sched_attr
  */
