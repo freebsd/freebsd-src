@@ -1090,16 +1090,19 @@ nfsaddr_match(int family, union nethostaddr *haddr, NFSSOCKADDR_T nam)
 }
 
 /*
- * Similar to the above, but takes to NFSSOCKADDR_T args.
+ * Similar to the above, but takes two NFSSOCKADDR_T args.
  */
 int
 nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 {
+#ifdef INET
 	struct sockaddr_in *addr1, *addr2;
+#endif
 	struct sockaddr *inaddr;
 
 	inaddr = NFSSOCKADDR(nam1, struct sockaddr *);
 	switch (inaddr->sa_family) {
+#ifdef INET
 	case AF_INET:
 		addr1 = NFSSOCKADDR(nam1, struct sockaddr_in *);
 		addr2 = NFSSOCKADDR(nam2, struct sockaddr_in *);
@@ -1107,6 +1110,7 @@ nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 		    addr1->sin_addr.s_addr == addr2->sin_addr.s_addr)
 			return (1);
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		{
