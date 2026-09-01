@@ -2,23 +2,6 @@
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  */
 
-/*
-<1>	Fixed a conflict with ioctl usage.  There were two different
-	functions using code #25.  Made file formatting consistent.
-	Added two new ioctl codes: door closing and audio pitch playback.
-	Added a STEREO union called STEREO.
-	5-Mar-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
-
-<2>	Added a new ioctl that allows you to find out what capabilities
-	a drive has and what commands it will accept.  This allows a
-	user application to only offer controls (buttons, sliders, etc)
-	for functions that drive can actually do.   Things it can't do
-	can disappear or be greyed-out (like some other system).
-	If the driver doesn't respond to this call, well, handle it the
-	way you used to do it.
-	2-Apr-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
-*/
-
 /* Shared between kernel & process */
 
 #ifndef	_SYS_CDIO_H_
@@ -214,52 +197,6 @@ struct ioc_play_msf {
 
 #define	CDIOCPREVENT	_IO('c',27)
 
-				/*<1>For drives that support it, this*/
-				/*<1>causes the drive to close its door*/
-				/*<1>and make the media (if any) ready*/
-#define CDIOCCLOSE	_IO('c',28)	/*<1>*/
-
-struct ioc_pitch {		/*<1>For drives that support it, this*/
-				/*<1>call instructs the drive to play the*/
-	short	speed;		/*<1>audio at a faster or slower-than-normal*/
-};				/*<1>rate. -32767 to -1 is slower, 0==normal,*/
-				/*<1>and 1 to 32767 is faster.  LSB bits are*/
-				/*<1>discarded first by drives with less res.*/
-#define	CDIOCPITCH	_IOW('c',29,struct ioc_pitch)	/*<1>*/
-
-struct ioc_capability {			/*<2>*/
-	u_long	play_function;		/*<2>*/
-#define CDDOPLAYTRK	0x00000001	/*<2>Can Play tracks/index*/
-#define	CDDOPLAYMSF	0x00000002	/*<2>Can Play msf to msf*/
-#define	CDDOPLAYBLOCKS	0x00000004	/*<2>Can Play range of blocks*/
-#define	CDDOPAUSE	0x00000100	/*<2>Output can be paused*/
-#define	CDDORESUME	0x00000200	/*<2>Output can be resumed*/
-#define	CDDORESET	0x00000400	/*<2>Drive can be completely reset*/
-#define	CDDOSTART	0x00000800	/*<2>Audio can be started*/
-#define CDDOSTOP	0x00001000	/*<2>Audio can be stopped*/
-#define CDDOPITCH	0x00002000	/*<2>Audio pitch */
-
-	u_long	routing_function;	/*<2>*/
-#define CDREADVOLUME	0x00000001	/*<2>Volume settings can be read*/
-#define CDSETVOLUME	0x00000002	/*<2>Volume settings can be set*/
-#define	CDSETMONO	0x00000100	/*<2>Output can be set to mono*/
-#define CDSETSTEREO	0x00000200	/*<2>Output can be set to stereo (def)*/
-#define	CDSETLEFT	0x00000400	/*<2>Output can be set to left only*/
-#define	CDSETRIGHT	0x00000800	/*<2>Output can be set to right only*/
-#define	CDSETMUTE	0x00001000	/*<2>Output can be muted*/
-#define CDSETPATCH	0x00008000	/*<2>Direct routing control allowed*/
-
-	u_long	special_function;	/*<2>*/
-#define	CDDOEJECT	0x00000001	/*<2>The tray can be opened*/
-#define	CDDOCLOSE	0x00000002	/*<2>The tray can be closed*/
-#define	CDDOLOCK	0x00000004	/*<2>The tray can be locked*/
-#define CDREADHEADER	0x00000100	/*<2>Can read Table of Contents*/
-#define	CDREADENTRIES	0x00000200	/*<2>Can read TOC Entries*/
-#define	CDREADSUBQ	0x00000200	/*<2>Can read Subchannel info*/
-#define CDREADRW	0x00000400	/*<2>Can read subcodes R-W*/
-#define	CDHASDEBUG	0x00004000	/*<2>The tray has dynamic debugging*/
-};					/*<2>*/
-
-#define	CDIOCCAPABILITY	_IOR('c',30,struct ioc_capability)	/*<2>*/
+#define CDIOCCLOSE	_IO('c',28)
 
 #endif /* !_SYS_CDIO_H_ */
