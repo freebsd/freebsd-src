@@ -478,7 +478,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
 				      hw-stamped on port (useful for IEEE 1588
 				      and 802.1AS) */
-#define M_TSTMP_LRO	0x00001000 /* Time LRO pushed in pkt is valid in (PH_loc) */
+#define	M_TSTMP_LRO	0x00001000 /* Time LRO pushed in pkt is valid in (PH_loc) */
 
 #define	M_PROTO1	0x00002000 /* protocol-specific */
 #define	M_PROTO2	0x00004000 /* protocol-specific */
@@ -521,7 +521,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	M_FLAG_PROTOBITS \
     "\16M_PROTO1\17M_PROTO2\20M_PROTO3\21M_PROTO4" \
     "\22M_PROTO5\23M_PROTO6\24M_PROTO7\25M_PROTO8\26M_PROTO9" \
-    "\27M_PROTO10\28M_PROTO11"
+    "\27M_PROTO10\30M_PROTO11"
 #define	M_FLAG_PRINTF (M_FLAG_BITS M_FLAG_PROTOBITS)
 
 /*
