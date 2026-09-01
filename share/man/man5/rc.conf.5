@@ -703,6 +703,12 @@ basic protection for a LAN.
 .Pp
 If a filename is specified, the full path
 must be given.
+If a directory is specified, then the
+directory should contain files containing headers compatible with
+.Xr rcorder 8
+as they will be sorted in this order, and then
+.Xr ipfw 8
+will be run on each, as though each were a singular rules file.
 .Pp
 Most of the predefined rulesets define additional configuration variables.
 These are documented in
