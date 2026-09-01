@@ -537,6 +537,7 @@ packages update-packages: .PHONY
 # Don't build rarely used, semi-supported architectures unless requested.
 #
 .if defined(EXTRA_TARGETS)
+EXTRA_ARCHES_i386=	i386
 EXTRA_ARCHES_powerpc=	powerpc
 .endif
 TARGETS?= ${TARGET_MACHINE_LIST}
