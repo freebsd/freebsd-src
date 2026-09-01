@@ -26,4 +26,4 @@ ci-buildkernel-armv7: ci-buildkernel .PHONY
 
 ci-buildimage-armv7: ci-buildimage .PHONY
 
-ci-runtest-armv7: ci-runtest .PHONY
+ci-runtest-armv7: ci-runtest-qemu .PHONY
