@@ -253,15 +253,15 @@ musbotg_attach(device_t dev)
 	/* FIXME: The devicetree needs to be updated to get a handle to the gate
 	 * usbotg_fck@47c. see TRM 8.1.12.2 CM_WKUP CM_CLKDCOLDO_DPLL_PER.
 	 */
-	err = clk_get_by_name(dev, "usbotg_fck@47c", &clk_usbotg_fck);
+	err = clk_get_by_name(dev, "usbotg_fck", &clk_usbotg_fck);
 	if (err) {
-		device_printf(dev, "Can not find usbotg_fck@47c\n");
+		device_printf(dev, "Can not find usbotg_fck\n");
 		return (ENXIO);
 	}
 
 	err = clk_enable(clk_usbotg_fck);
 	if (err) {
-		device_printf(dev, "Can not enable usbotg_fck@47c\n");
+		device_printf(dev, "Can not enable usbotg_fck\n");
 		return (ENXIO);
 	}
 
