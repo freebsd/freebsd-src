@@ -1382,7 +1382,7 @@ linux_sched_getattr(struct thread *td,
 
 	attr.size = MIN(args->size, sizeof(attr));
 
-	if (linux_map_sched_prio){
+	if (linux_map_sched_prio) {
 		switch (policy) {
 			case SCHED_OTHER:
 				sched_param.sched_priority = 0;
