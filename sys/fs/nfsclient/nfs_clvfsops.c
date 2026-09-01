@@ -1544,7 +1544,11 @@ nfs_mount(struct mount *mp)
 			error = EINVAL;
 			goto out;
 		}
+#ifdef VIMAGE
 		error = rdma_check_route(vnet0, nam, NFSV4_CBSLOTS);
+#else
+		error = rdma_check_route(NULL, nam, NFSV4_CBSLOTS);
+#endif
 		if (error != 0) {
 			vfs_mount_error(mp, "rdma is not configured");
 			error = EINVAL;
