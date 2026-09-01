@@ -38,6 +38,9 @@ exec "${sed}" -i.bak \
         -e '# convert DOS line endings to Unix without resorting to dos2unix' \
         -e $'s/\r//' \
         \
+        -e '# Filter out "unhandled instruction" lines from AddressSanitizer' \
+        -e '/^==[0-9]\+==interception_win: unhandled instruction at /d' \
+        \
         -e 's/^wine: Call .* msvcrt\.dll\._wperror, aborting$/ibm49i02.dtd: No such file or directory/' \
         \
         -e '/^wine: /d' \
