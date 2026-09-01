@@ -16,6 +16,71 @@
 !!                                   Sebastian Pipping -- Berlin, 2026-08-03 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+Release 2.8.4 Mon August 31 2026
+        Security fixes:
+     #1321 #1331  CVE-2026-66046, CVE-2026-76641 -- Fix quadratic runtime from
+                    "attribute isCdata lookups" that allowed denial of service
+                    attacks through moderately sized crafted XML input
+                    (CWE-407).
+                    The vulnerability is closely related to past CVE-2026-45186
+                    that was fixed with Expat 2.8.1.
+                    Please note that a layer of compression around XML can
+                    significantly reduce the minimum attack payload size.
+                    Upstream CVSS 3.1 vector:
+                    AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (CVSS score: 7.5)
+                    (Note the "AV:N" for network/remote.)
+           #1322  CVE-2026-76957 -- Protect custom encoding callbacks from
+                    parser re-entry. The vulnerability is closely related to
+                    past issues CVE-2026-50219, CVE-2026-56131 and
+                    CVE-2026-56412 that were all fixed with Expat 2.8.2.
+           #1326  CVE-2026-76956 -- Fix inverted getentropy() return handling
+                    Allows for hash flooding denial of services in
+                    configurations where getentropy is configured or detected
+                    as the only high quality entropy extractor.
+                    Upstream CVSS 3.1 vector:
+                    AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H (CVSS score: 5.9)
+                    (Note the "AV:N" for network/remote.)
+
+        Other changes:
+     #1332 #1333  CMake: Only add `/source-charset:utf-8` when `/utf-8` is not
+                    present
+           #1315  lib: Resolve (currently unreachable) undefined behavior from
+                    overshifting a signed int to the left
+     #1325 #1334  lib: Support read-only hash table lookup with keys that are
+                    not zero-terminated
+           #1340  lib: Use a C99 bool for `ENTITY.open`
+           #1319  Fix typo in comment
+           #1320  Sync file headers
+     #1328 #1329  Version info bumped from 13:3:12 (libexpat*.so.1.12.3)
+                    to 13:4:12 (libexpat*.so.1.12.4); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+     #1317 #1335  CI: Cover compilation and execution with Fil-C
+           #1337  CI: Cover compilation and execution on riscv64
+           #1338  CI: Cover compilation and execution with Clang-based MinGW
+           #1339  CI: Cover compilation and execution on (big-endian) s390x
+           #1316  CI: Run test suite with musl, also
+           #1336  CI: Bump WASI SDK from 33 to 34
+           #1345  CI: Bump Clang from 22 to 23
+
+        Special thanks to:
+            Alberto Maschietto
+            Alexander Bluhm
+            Berkay Eren Ürün
+            Darren Carreras
+            Fabian Wahle (Hap Security)
+            Matteo Forzan
+            Matthew Fernandez
+            Sorrashut Kaewtaworn
+            Wade Sparks III
+            Zeyou Liu
+                 and
+            City of Munich Open Source Sabbatical
+            Moonshot AI
+            VulnCheck
+            Z.ai
+
 Release 2.8.3 Mon August 10 2026
         Security fixes:
            #1296  CVE-2026-72522 -- Fix an out-of-bounds read and the resulting
