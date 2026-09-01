@@ -23,6 +23,7 @@
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Copyright (c) 2026      Kartik Kenchi <netliomax25@gmail.com>
    Copyright (c) 2026      Evgeny Kotkov <kotkov@apache.org>
+   Copyright (c) 2026      Darren Carreras <carrerasdarren@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -217,7 +218,7 @@ START_TEST(test_misc_version) {
   if (! versions_equal(&read_version, &parsed_version))
     fail("Version mismatch");
 
-  if (xcstrcmp(version_text, XCS("expat_2.8.3"))
+  if (xcstrcmp(version_text, XCS("expat_2.8.4"))
       != 0) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 }
@@ -839,6 +840,60 @@ START_TEST(test_misc_resume_parser_forbidden_from_handler) {
 }
 END_TEST
 
+typedef struct {
+  XML_Parser parser;
+  int converterCallCount;
+  int releaseCallCount;
+} EncodingCallbackData;
+
+static int XMLCALL
+reentrant_encoding_converter(void *userData, const char *s) {
+  EncodingCallbackData *const data = userData;
+  UNUSED_P(s);
+  data->converterCallCount++;
+  forbidden_calls_character_handler(data->parser, NULL, 0);
+  return 'A';
+}
+
+static void XMLCALL
+reentrant_encoding_release(void *userData) {
+  EncodingCallbackData *const data = userData;
+  data->releaseCallCount++;
+  forbidden_calls_character_handler(data->parser, NULL, 0);
+}
+
+static int XMLCALL
+reentrant_encoding_handler(void *userData, const XML_Char *name,
+                           XML_Encoding *info) {
+  EncodingCallbackData *const data = userData;
+  UNUSED_P(name);
+
+  for (int i = 0; i < 256; i++)
+    info->map[i] = i;
+  info->map[0x80] = -2; // Route byte 0x80 through the custom converter.
+  info->data = data;
+  info->convert = reentrant_encoding_converter;
+  info->release = reentrant_encoding_release;
+  return XML_STATUS_OK;
+}
+
+START_TEST(test_misc_unknown_encoding_callbacks_protected) {
+  const char *const doc
+      = "<?xml version='1.0' encoding='reentrant-conv'?><doc>\x80\x80</doc>";
+  XML_Parser parser = XML_ParserCreate(NULL);
+  EncodingCallbackData data = {parser, 0, 0};
+  XML_SetUnknownEncodingHandler(parser, reentrant_encoding_handler, &data);
+
+  assert_true(XML_Parse(parser, doc, (int)strlen(doc), /*isFinal=*/XML_TRUE)
+              == XML_STATUS_OK);
+  assert_true(data.converterCallCount > 0);
+  assert_true(data.releaseCallCount == 0); // Released by XML_ParserFree below.
+
+  XML_ParserFree(parser);
+  assert_true(data.releaseCallCount == 1);
+}
+END_TEST
+
 // General attack payload idea by Jason Kratzer of Mozilla
 START_TEST(test_misc_low_surrogate_mozilla_bug_2053153) {
   const char doc_before[] = "<\0!\0D\0O\0C\0T\0Y\0P\0E\0 \0d\0 \0[\0\n\0"
@@ -936,6 +991,7 @@ make_miscellaneous_test_case(Suite *s) {
   tcase_add_test(tc_misc, test_misc_no_infinite_loop_issue_1161);
   tcase_add_test(tc_misc, test_misc_calls_forbidden_from_handlers);
   tcase_add_test(tc_misc, test_misc_resume_parser_forbidden_from_handler);
+  tcase_add_test(tc_misc, test_misc_unknown_encoding_callbacks_protected);
   tcase_add_test(tc_misc, test_misc_input_2gb);
   tcase_add_test(tc_misc, test_misc_low_surrogate_mozilla_bug_2053153);
 }
