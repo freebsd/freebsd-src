@@ -1,0 +1,162 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 The FreeBSD Foundation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 1, 2026
+.Dt LOADER.KBOOT 8
+.Os
+.Sh NAME
+.Nm loader.kboot
+.Nd LinuxBoot kernel loader
+.Sh DESCRIPTION
+.Nm
+loads
+.Fx
+under
+.Dq LinuxBoot :
+a Linux kernel is used as the platform firmware, and
+.Nm
+runs as an ordinary Linux userland program on top of it to load the
+.Fx
+kernel.
+It is linked statically to minimize dependencies.
+.Pp
+.Nm
+can run at any time during the boot process as a normal program.
+When running as
+.Pa init
+.Pq PID 1 ,
+.Nm
+mounts
+.Pa /proc , /sys , /dev
+and
+.Pa /tmp ;
+creates the usual compatibility symlinks
+.Po Pa /dev/fd , /dev/stdin , /dev/stdout , /dev/stderr Pc ;
+and switches its own stdio to
+.Pa /dev/console
+before doing anything else.
+.Nm
+implements all the usual
+.Fx
+.Xr 8 loader
+and
+.Xr 8 loader_lua
+features.
+.Pp
+.Ss Devices
+Disks are accessed through their Linux
+.Pa /dev
+names, not the
+.Fx
+names:
+.Pp
+.Dl Ic /dev/sda:
+.Dl Ic /dev/nvme0n1p3:
+.Pp
+The environment variable
+.Va hostdisk_override
+may be set, before disk probing runs, to the path of a regular file.
+When unset,
+.Pa /sys/block
+is scanned for all available devices.
+.Pp
+The
+.Ic host
+filesystem gives access to files on the Linux host's own root filesystem,
+rooted at the value of the
+.Va hostfs_root
+environment variable
+.Pq default Dq Pa / .
+Paths beginning with
+.Pa /sys/
+or
+.Pa /proc/
+bypass this rooting and are passed to the host unchanged, since those
+are kernel-provided filesystems rather than part of any disk image.
+A path starting with two slashes has one slash stripped and is otherwise
+unchanged.
+.Pp
+.Va bootdev
+selects the boot device, using the same naming as
+.Va currdev .
+If unset, disks and their partitions found under
+.Pa /sys/block
+are tried in turn, followed by any ZFS pools found on them; failing
+all of that,
+.Dq host:/
+is used.
+.Ss Firmware tables
+Since there is no direct firmware access, ACPI's RSDP and the SMBIOS
+entry point are recovered from the Linux EFI system table exposed at
+.Pa /sys/firmware/efi/systab ,
+if present.
+SMBIOS data itself is read from
+.Pa /sys/firmware/dmi/tables/DMI .
+When those are unavailable,
+.Nm
+attempts to use
+.Pa /dev/mem ,
+though that often is also unavailable.
+.Ss Kernel hand-off
+.Nm
+uses the kexec_load feature to stage the kernel, kernel modules,
+tuneables and other metadata in an intermediate buffer.
+.Nm
+then calls
+.Fn reboot
+with special arguments and he Linux kernel will then move these to the requested
+location
+.Pq if necessary
+and jumps to the new kernel.
+.Sh FILES
+.Bl -tag -width /boot/loader.kboot -compact
+.It Pa /boot/loader.kboot
+.Nm
+itself.
+.It Pa /boot/lua/loader.lua
+The script run by
+.Nm
+on startup; see
+.Xr loader_lua 8 .
+.El
+.Sh SEE ALSO
+.Xr loader 8
+.Xr loader_lua 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 11.0
+as part of the PS3 port, and later generalized to several
+members of the PowerPC family.
+Support for aarch64 and amd64 was added in
+.Fx 14.0 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org .
+Support was generalized by
+.An Warner Losh Aq Mt imp@FreeBSD.org .
