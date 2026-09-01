@@ -1403,8 +1403,7 @@ linux_sched_getattr(struct thread *td,
 				sched_param.sched_priority;
 		}
 
-	return (copyout(&attr, args->attr,
-	    MIN(args->size, sizeof(attr))));
+	return (copyout(&attr, args->attr, MIN(args->size, sizeof(attr))));
 }
 
 int
