@@ -1708,6 +1708,50 @@ usb_bulk_msg(struct usb_device *udev, struct usb_host_endpoint *uhe,
 
 	return (err);
 }
+
+/* Endpoint accessors */
+int
+usb_endpoint_num(struct usb_endpoint_descriptor *endpoint)
+{
+	return UE_GET_ADDR(endpoint->bEndpointAddress);
+}
+
+int
+usb_endpoint_dir_in(struct usb_endpoint_descriptor *endpoint)
+{
+	return (endpoint->bEndpointAddress & UE_DIR_IN) != 0;
+}
+
+int
+usb_endpoint_dir_out(struct usb_endpoint_descriptor *endpoint)
+{
+	return (endpoint->bEndpointAddress & UE_DIR_IN) == 0;
+}
+
+int
+usb_endpoint_xfer_bulk(struct usb_endpoint_descriptor *endpoint)
+{
+	return (endpoint->bmAttributes & UE_XFERTYPE) == UE_BULK;
+}
+
+int
+usb_endpoint_xfer_control(struct usb_endpoint_descriptor *endpoint)
+{
+	return (endpoint->bmAttributes & UE_XFERTYPE) == UE_CONTROL;
+}
+
+int
+usb_endpoint_xfer_int(struct usb_endpoint_descriptor *endpoint)
+{
+	return (endpoint->bmAttributes & UE_XFERTYPE) == UE_INTERRUPT;
+}
+
+int
+usb_endpoint_xfer_isoc(struct usb_endpoint_descriptor *endpoint)
+{
+	return (endpoint->bmAttributes & UE_XFERTYPE) == UE_ISOCHRONOUS;
+}
+
 MODULE_DEPEND(linuxkpi, usb, 1, 1, 1);
 
 static void
