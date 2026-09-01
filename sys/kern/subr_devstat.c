@@ -431,6 +431,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 			struct devstat32 ds32;
 			unsigned int i;
 
+			memset(&ds32, 0, sizeof(ds32));
 			CP(*nds, ds32, sequence0);
 			CP(*nds, ds32, allocated);
 			CP(*nds, ds32, start_count);
