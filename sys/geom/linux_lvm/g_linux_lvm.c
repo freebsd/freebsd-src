@@ -188,6 +188,48 @@ g_llvm_done(struct bio *b)
 	g_destroy_bio(b);
 }
 
+/*
+ * Called for both BIO_FLUSH and BIO_SPEEDUP.  Walk the PVs of the volume
+ * group rather than the segments of the logical volume, so that a PV holding
+ * more than one segment of this LV gets only a single request.
+ */
+static void
+g_llvm_passdown(struct g_llvm_vg *vg, struct g_llvm_lv *lv, struct bio *bp)
+{
+	struct bio_queue_head bq;
+	struct g_llvm_segment *sg;
+	struct g_llvm_pv *pv;
+	struct bio *cb;
+
+	bioq_init(&bq);
+	LIST_FOREACH(pv, &vg->vg_pvs, pv_next) {
+		LIST_FOREACH(sg, &lv->lv_segs, sg_next) {
+			if (sg->sg_pv == pv)
+				break;
+		}
+		if (sg == NULL)
+			continue;
+		cb = g_clone_bio(bp);
+		if (cb == NULL) {
+			bioq_dismantle(&bq);
+			if (bp->bio_error == 0)
+				bp->bio_error = ENOMEM;
+			g_io_deliver(bp, bp->bio_error);
+			return;
+		}
+		cb->bio_done = g_llvm_done;
+		cb->bio_caller1 = pv;
+		bioq_insert_tail(&bq, cb);
+	}
+
+	while ((cb = bioq_takefirst(&bq)) != NULL) {
+		pv = cb->bio_caller1;
+		cb->bio_caller1 = NULL;
+		G_LLVM_DEBUG(6, "firing bio to %s", pv->pv_gprov->name);
+		g_io_request(cb, pv->pv_gcons);
+	}
+}
+
 static void
 g_llvm_start(struct bio *bp)
 {
@@ -213,11 +255,11 @@ g_llvm_start(struct bio *bp)
 	case BIO_DELETE:
 	/* XXX BIO_GETATTR allowed? */
 		break;
+	case BIO_SPEEDUP:
+	case BIO_FLUSH:
+		g_llvm_passdown(vg, lv, bp);
+		return;
 	default:
-		/*
-		 * BIO_SPEEDUP and BIO_FLUSH should pass through to all sg
-		 * elements, but aren't.
-		 */
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
