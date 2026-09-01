@@ -796,6 +796,7 @@ dt_symtab_lookup(Elf_Data *data_sym, int start, int end, uintptr_t addr,
 #if defined(__aarch64__)
 #define	DT_OP_NOP		0xd503201f
 #define	DT_OP_RET		0xd65f03c0
+#define DT_OP_MOV_W0_WZR	0x2a1f03e0
 #define	DT_OP_CALL26		0x94000000
 #define	DT_OP_JUMP26		0x14000000
 #define	DT_REL_NONE		R_AARCH64_NONE
@@ -829,7 +830,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * invocation. Check to see if the present instruction sequence matches
 	 * the one we would install below.
 	 */
-	if (ip[0] == DT_OP_NOP || ip[0] == DT_OP_RET)
+	if (ip[0] == DT_OP_NOP || ip[0] == DT_OP_MOV_W0_WZR || ip[0] == DT_OP_RET)
 		return (0);
 
 	/*
@@ -846,11 +847,11 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * On arm64, we do not have to differentiate between regular probes and
 	 * is-enabled probes.  Both cases are encoded as a regular branch for
 	 * non-tail call locations, and a jump for tail call locations.  Calls
-	 * are to be converted into a no-op whereas jumps should become a
-	 * return.
+	 * are to be converted into a zero-clear op for is-enabled probes
+	 * whereas jumps should become a return.
 	 */
 	if (ip[0] == DT_OP_CALL26)
-		ip[0] = DT_OP_NOP;
+		ip[0] = DT_OP_MOV_W0_WZR;
 	else
 		ip[0] = DT_OP_RET;
 
