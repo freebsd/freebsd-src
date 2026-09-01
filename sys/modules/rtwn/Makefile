@@ -27,6 +27,11 @@ SRCS	+= r92e_chan.c r92e_fw.c r92e_init.c r92e_led.c r92e_rf.c \
 	   r92e_rom.c r92e_rx.c r92e.h r92e_priv.h r92e_reg.h \
 	   r92e_rom_image.h r92e_rom_defs.h
 
+.PATH:	   ${SRCTOP}/sys/dev/rtwn/rtl8723b
+SRCS	+= r23b_calib.c r23b_fw.c r23b_init.c r23b_led.c r23b_rf.c \
+	   r23b_rom.c r23b_rx.c r23b.h r23b_priv.h r23b_reg.h \
+	   r23b_var.h r23b_rom_defs.h r23b_rom_image.h r23b_fw_cmd.h
+
 .PATH:	   ${SRCTOP}/sys/dev/rtwn/rtl8812a
 SRCS	+= r12a_beacon.c r12a_calib.c r12a_caps.c r12a_chan.c r12a_fw.c \
 	   r12a_init.c r12a_led.c r12a_rf.c r12a_rom.c r12a_rx.c r12a_tx.c \

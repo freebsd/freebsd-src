@@ -2990,6 +2990,17 @@ dev/rtwn/rtl8192e/r92e_rom.c	optional rtwn
 dev/rtwn/rtl8192e/r92e_rx.c	optional rtwn
 dev/rtwn/rtl8192e/usb/r92eu_attach.c	optional rtwn_usb
 dev/rtwn/rtl8192e/usb/r92eu_init.c	optional rtwn_usb
+# RTL8723B
+dev/rtwn/rtl8723b/r23b_calib.c	optional rtwn
+dev/rtwn/rtl8723b/r23b_fw.c	optional rtwn
+dev/rtwn/rtl8723b/r23b_init.c	optional rtwn
+dev/rtwn/rtl8723b/r23b_led.c	optional rtwn
+dev/rtwn/rtl8723b/r23b_rf.c	optional rtwn
+dev/rtwn/rtl8723b/r23b_rom.c	optional rtwn
+dev/rtwn/rtl8723b/r23b_rx.c	optional rtwn
+dev/rtwn/rtl8723b/usb/r23bu_attach.c	optional rtwn_usb
+dev/rtwn/rtl8723b/usb/r23bu_init.c	optional rtwn_usb
+dev/rtwn/rtl8723b/usb/r23bu_rom.c	optional rtwn_usb
 # RTL8812A
 dev/rtwn/rtl8812a/r12a_beacon.c	optional rtwn
 dev/rtwn/rtl8812a/r12a_calib.c	optional rtwn

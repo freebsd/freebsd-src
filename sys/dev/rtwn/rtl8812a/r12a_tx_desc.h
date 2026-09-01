@@ -115,6 +115,12 @@ struct r12a_tx_desc {
 #define R12A_TXDW5_RTS_PRIM_CHAN_M	0x0001e000
 #define R12A_TXDW5_RTS_PRIM_CHAN_S	13
 
+	/*
+	 * TODO: some chips (at least the 23bu)
+	 * let us pass arbitrary data in the first
+	 * 12 bits that is persisted through to the
+	 * TX report.
+	 */
 	uint32_t	txdw6;
 #define R21A_TXDW6_MBSSID_M	0x0000f000
 #define R21A_TXDW6_MBSSID_S	12

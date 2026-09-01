@@ -19,7 +19,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd November 10, 2024
+.Dd September 1, 2026
 .Dt RTWN 4
 .Os
 .Sh NAME
@@ -93,6 +93,8 @@ Realtek 802.11n wireless 8192c (RTL8192C)
 .It
 Realtek 802.11n wireless 8192e (RTL8192E)
 .It
+Realtek 802.11n wireless 8723b (RTL8723B)
+.It
 Realtek 802.11ac wireless 8812a (RTL8812A)
 .It
 Realtek 802.11ac wireless 8821a (RTL8821A)
@@ -122,6 +124,7 @@ which are loaded when an interface is brought up:
 .It Pa /boot/kernel/rtwn-rtl8192cfwT.ko
 .It Pa /boot/kernel/rtwn-rtl8192cfwU.ko
 .It Pa /boot/kernel/rtwn-rtl8192eufw.ko
+.It Pa /boot/kernel/rtwn-rtl8723bufw.ko
 .It Pa /boot/kernel/rtwn-rtl8812aufw.ko
 .It Pa /boot/kernel/rtwn-rtl8821aufw.ko
 .El
@@ -266,3 +269,6 @@ driver written by
 The
 .Nm
 driver currently does not implement firmware-based rate control.
+The RTL8723BU seems to depend on some firmware commands for antenna
+setup.
+Hence, it does not work without firmware.

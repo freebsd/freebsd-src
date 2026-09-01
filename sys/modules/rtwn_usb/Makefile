@@ -19,6 +19,9 @@ SRCS	+= r92cu_attach.c r92cu_init.c r92cu_led.c r92cu_rx.c r92cu_tx.c \
 .PATH: ${SRCTOP}/sys/dev/rtwn/rtl8192e/usb
 SRCS	+= r92eu_attach.c r92eu_init.c r92eu.h r92eu_reg.h
 
+.PATH: ${SRCTOP}/sys/dev/rtwn/rtl8723b/usb
+SRCS	+= r23bu_attach.c r23bu_init.c r23bu_rom.c r23bu.h
+
 .PATH: ${SRCTOP}/sys/dev/rtwn/rtl8812a/usb
 SRCS	+= r12au_attach.c r12au_init.c r12au_rx.c r12au_tx.c \
 	   r12au.h r12au_reg.h r12au_tx_desc.h
