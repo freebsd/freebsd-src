@@ -137,6 +137,25 @@ SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms,
     uaudio_buffer_ms_sysctl, "I",
     "uaudio buffering delay in milliseconds, from 1 to 8");
 
+#define	UAUDIO_CLOCK_SETTLE_MS_MAX	2000
+
+static unsigned uaudio_clock_settle_ms = 100;
+SYSCTL_UINT(_hw_usb_uaudio, OID_AUTO, clock_settle_ms, CTLFLAG_RWTUN,
+    &uaudio_clock_settle_ms, 0,
+    "delay after programming a new UAC2 sample-clock rate, in milliseconds");
+
+static int uaudio_clock_readback = 1;
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, clock_readback, CTLFLAG_RWTUN,
+    &uaudio_clock_readback, 0,
+    "read the UAC2 sample clock back with GET_CUR and skip a write that would "
+    "not change it; set to 0 for devices that misreport their rate");
+
+static int uaudio_prefer_feedback = 1;
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, prefer_feedback, CTLFLAG_RWTUN,
+    &uaudio_prefer_feedback, 0,
+    "use an asynchronous playback stream's explicit feedback endpoint instead "
+    "of borrowing the capture stream for jitter information");
+
 #ifdef USB_DEBUG
 static int uaudio_debug;
 
@@ -224,6 +243,7 @@ struct uaudio_chan_alt {
 	uint16_t sample_size;
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
+	uint8_t	sync_ep;		/* explicit feedback endpoint, or 0 */
 	uint8_t channels;
 };
 
@@ -385,6 +405,14 @@ struct uaudio_softc {
 	uint16_t sc_audio_rev;
 	uint16_t sc_mixer_count;
 
+	/*
+	 * Last rate successfully programmed into the UAC2 sample
+	 * clock(s), or 0 if never programmed.  Used to detect a rate
+	 * change so the clock can be given time to settle before the
+	 * streaming alternate setting is selected.
+	 */
+	uint32_t sc_clock_rate;
+
 	uint8_t	sc_mixer_iface_index;
 	uint8_t	sc_mixer_iface_no;
 	uint8_t	sc_mixer_chan;
@@ -529,6 +557,8 @@ static void	uaudio20_mixer_find_inputs_sub(struct uaudio_terminal_node *,
 static const void *uaudio20_mixer_verify_desc(const void *, uint32_t);
 static usb_error_t uaudio20_set_speed(struct usb_device *, uint8_t,
 		    uint8_t, uint32_t);
+static usb_error_t uaudio20_get_speed(struct usb_device *, uint8_t,
+		    uint8_t, uint32_t *);
 
 /* USB audio v1.0 and v2.0 */
 
@@ -1465,24 +1495,39 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 	chan_alt = chan->usb_alt + next_alt;
 
-	err = usbd_set_alt_interface_index(sc->sc_udev,
-	    chan_alt->iface_index, chan_alt->iface_alt_index);
-	if (err) {
-		DPRINTF("setting of alternate index failed: %s!\n",
-		    usbd_errstr(err));
-		goto error;
-	}
-
 	/*
-	 * Only set the sample rate if the channel reports that it
-	 * supports the frequency control.
+	 * For UAC2 the sample clock lives on the AudioControl
+	 * interface and can be programmed at any time, so program it
+	 * BEFORE selecting the streaming alternate setting, with the
+	 * streaming interface parked at alternate setting zero.  Some
+	 * devices (e.g. Thesycon-based DACs such as the OKTO RESEARCH
+	 * DAC8 STEREO) latch their internal stream configuration when
+	 * SET_INTERFACE selects the streaming alternate setting;
+	 * changing the clock underneath an already-armed streaming
+	 * interface makes them render the whole stream silent until
+	 * the interface is bounced.  This is also the ordering Linux's
+	 * snd-usb-audio uses.  A rate *change* is additionally given
+	 * uaudio_clock_settle_ms to lock (a 44.1 kHz <-> 48 kHz family
+	 * switch changes the master crystal on many DACs) before the
+	 * streaming alternate setting arms the stream.
 	 */
-
 	if (sc->sc_audio_rev >= UAUDIO_VERSION_30) {
-		/* FALLTHROUGH */
+		/* No standard sample-rate control. */
 	} else if (sc->sc_audio_rev >= UAUDIO_VERSION_20) {
 		unsigned int x;
-	  
+		unsigned int last_clock_id = 0;
+		uint32_t cur_rate;
+		uint8_t settle_this;
+		uint8_t rate_changed = 0;
+
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    chan_alt->iface_index, 0);
+		if (err) {
+			DPRINTF("parking interface at alternate index 0 "
+			    "failed: %s! (continuing anyway)\n",
+			    usbd_errstr(err));
+		}
+
 		for (x = 0; x != 256; x++) {
 			if (dir == PCMDIR_PLAY) {
 				if (!(sc->sc_mixer_clocks.bit_output[x / 8] &
@@ -1498,31 +1543,71 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 			/*
 			 * Shared-clock guard.  If this clock entity is
-			 * shared between the playback and capture paths,
-			 * and the OTHER direction is already streaming at
-			 * a different rate, do not reprogram the clock --
-			 * the rate that is already locked wins.  This
-			 * stops an idle or secondary stream from yanking
-			 * the shared clock out from under an active
-			 * stream and dropping USB stream lock.  The first
-			 * active stream owns the clock; a later one
-			 * follows it (see uaudio_chan_start(), which
-			 * re-aligns the jitter-info record stream to the
-			 * playback rate before it is started).
+			 * shared between the playback and capture paths
+			 * and the OTHER direction is already streaming,
+			 * that direction owns the clock: leave it alone.
+			 *
+			 * Skipping the write is required even when the
+			 * two directions agree on the rate.  A SET_CUR
+			 * issued by the secondary stream lands *after*
+			 * the primary stream's alternate setting has
+			 * already armed the device and its isochronous
+			 * transfers are running, and several UAC2
+			 * implementations (Thesycon/XMOS firmware among
+			 * them) reload their sample-clock PLL on every
+			 * SET_CUR regardless of the value written.  That
+			 * re-creates, from the capture pass, exactly the
+			 * clock-under-an-armed-interface hazard that
+			 * programming the clock before SET_INTERFACE is
+			 * meant to avoid.  Linux's snd-usb-audio does not
+			 * issue the redundant write either: set_sample_rate_v2v3()
+			 * reads the rate back with GET_CUR first and returns
+			 * early when it already matches.
 			 */
 			if (uaudio20_clock_is_shared(sc, x)) {
 				uint32_t other = (dir == PCMDIR_PLAY) ?
 				    uaudio_dir_running_rate(sc->sc_rec_chan) :
 				    uaudio_dir_running_rate(sc->sc_play_chan);
 
-				if (other != 0 &&
-				    other != chan_alt->sample_rate) {
-					DPRINTF("shared clock ID=%u busy at "
-					    "%u Hz; not reprogramming to "
-					    "%u Hz\n", x, other,
+				if (other != 0) {
+					DPRINTF("shared clock ID=%u owned by "
+					    "the other direction at %u Hz; "
+					    "not writing %u Hz\n", x, other,
 					    chan_alt->sample_rate);
 					continue;
 				}
+			}
+
+			/*
+			 * Read the clock back before writing it.  A device
+			 * that already runs at the wanted rate must not be
+			 * written again (see above), and a successful
+			 * read-back is also the only evidence that the
+			 * clock really took the rate: a completed SET_CUR
+			 * only proves the request was accepted.
+			 *
+			 * A write is only ever skipped on the strength of
+			 * a successful read-back.  When the device cannot
+			 * report its rate the write goes out as before,
+			 * and sc_clock_rate -- which this driver's own
+			 * bookkeeping, not the device's -- decides only
+			 * whether the change is worth settling for.
+			 */
+			if (uaudio_clock_readback != 0 &&
+			    uaudio20_get_speed(sc->sc_udev,
+			    sc->sc_mixer_iface_no, x, &cur_rate) == 0) {
+				if (cur_rate == chan_alt->sample_rate) {
+					DPRINTF("clock ID=%u already at "
+					    "%u Hz\n", x, cur_rate);
+					continue;
+				}
+				settle_this = 1;
+			} else {
+				DPRINTF("clock ID=%u frequency not read back; "
+				    "writing %u Hz unverified\n",
+				    x, chan_alt->sample_rate);
+				settle_this = (sc->sc_clock_rate !=
+				    chan_alt->sample_rate);
 			}
 
 			if (uaudio20_set_speed(sc->sc_udev,
@@ -1533,8 +1618,66 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 				 */
 				DPRINTF("setting of sample rate failed! "
 				    "(continuing anyway)\n");
+			} else if (settle_this) {
+				rate_changed = 1;
+				last_clock_id = x;
 			}
 		}
+
+		if (rate_changed) {
+			unsigned settle_ms = uaudio_clock_settle_ms;
+
+			if (settle_ms > UAUDIO_CLOCK_SETTLE_MS_MAX)
+				settle_ms = UAUDIO_CLOCK_SETTLE_MS_MAX;
+
+			sc->sc_clock_rate = chan_alt->sample_rate;
+
+			DPRINTF("clock rate changed to %u Hz; settling "
+			    "%u ms\n", chan_alt->sample_rate, settle_ms);
+
+			if (settle_ms != 0) {
+				usb_pause_mtx(NULL,
+				    USB_MS_TO_TICKS(settle_ms));
+			}
+			/*
+			 * Confirm the clock actually took the rate before
+			 * the streaming alternate setting arms it.  A
+			 * completed SET_CUR only proves the request was
+			 * accepted.  The stream is armed either way --
+			 * some devices do not implement the read-back
+			 * faithfully -- but a mismatch here is the
+			 * signature of a device that silently refused the
+			 * rate, and it is worth having in a trace.
+			 */
+			if (uaudio_clock_readback != 0 &&
+			    uaudio20_get_speed(sc->sc_udev,
+			    sc->sc_mixer_iface_no, last_clock_id,
+			    &cur_rate) == 0 &&
+			    cur_rate != chan_alt->sample_rate) {
+				DPRINTF("clock ID=%u reads back %u Hz after "
+				    "programming %u Hz!\n", last_clock_id,
+				    cur_rate, chan_alt->sample_rate);
+			}
+		}
+	}
+
+	err = usbd_set_alt_interface_index(sc->sc_udev,
+	    chan_alt->iface_index, chan_alt->iface_alt_index);
+	if (err) {
+		DPRINTF("setting of alternate index failed: %s!\n",
+		    usbd_errstr(err));
+		goto error;
+	}
+
+	/*
+	 * UAC1 only: the sample-frequency control lives on the
+	 * streaming endpoint, so the alternate setting had to be
+	 * selected first.  Only set the sample rate if the channel
+	 * reports that it supports the frequency control.
+	 */
+
+	if (sc->sc_audio_rev >= UAUDIO_VERSION_20) {
+		/* Sample clock already programmed above. */
 	} else if (chan_alt->p_sed.v1->bmAttributes & UA_SED_FREQ_CONTROL) {
 		if (uaudio_set_speed(sc->sc_udev,
 		    chan_alt->p_ed1->bEndpointAddress, chan_alt->sample_rate)) {
@@ -1803,6 +1946,38 @@ uaudio_get_chan(struct uaudio_softc *sc, struct uaudio_chan *chan,
 			return (chan);
 	}
 	return (NULL);
+}
+
+/*
+ * Find the explicit feedback (synch) endpoint that belongs to the same
+ * alternate setting as the data endpoint "ed1", if the device has one.
+ * It is an isochronous endpoint in the opposite direction, marked with
+ * the "feedback" isochronous usage type, and it always follows the data
+ * endpoint inside the alternate setting.  Returns its address, or zero.
+ */
+static uint8_t
+uaudio_chan_find_sync_ep(struct usb_config_descriptor *cd,
+    struct usb_descriptor *desc, const usb_endpoint_descriptor_audio_t *ed1)
+{
+	const usb_endpoint_descriptor_audio_t *ed;
+	uint8_t data_dir = UE_GET_DIR(ed1->bEndpointAddress);
+
+	while ((desc = usb_desc_foreach(cd, desc)) != NULL) {
+		if (desc->bDescriptorType == UDESC_INTERFACE)
+			break;
+		if (desc->bDescriptorType != UDESC_ENDPOINT ||
+		    desc->bLength < UEP_MINSIZE)
+			continue;
+		ed = (const void *)desc;
+		if (UE_GET_XFERTYPE(ed->bmAttributes) != UE_ISOCHRONOUS)
+			continue;
+		if (UE_GET_DIR(ed->bEndpointAddress) == data_dir)
+			continue;
+		if (UE_GET_ISO_USAGE(ed->bmAttributes) != UE_ISO_USAGE_FEEDBACK)
+			continue;
+		return (ed->bEndpointAddress);
+	}
+	return (0);
 }
 
 static void
@@ -2141,6 +2316,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->p_sed = sed;
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
+		chan_alt->sync_ep = uaudio_chan_find_sync_ep(cd, desc, ed1);
 
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
@@ -2379,10 +2555,19 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		    (int)temp, (int)sample_rate);
 
 		/*
-		 * Use feedback value as fallback when there is no
-		 * recording channel:
+		 * Use the feedback value unless a recording stream is
+		 * really configured and streaming, in which case its
+		 * packet lengths are the jitter source -- this is the
+		 * exact complement of the condition guarding the jitter
+		 * translation in uaudio_chan_play_callback().  Testing
+		 * cur_alt rather than num_alt also covers the cases
+		 * where the recording stream exists but was never
+		 * started (see uaudio_chan_need_both()) or failed to
+		 * configure; previously playback then free-ran with no
+		 * rate feedback at all.
 		 */
-		if (ch->priv_sc->sc_rec_chan[i].num_alt == 0) {
+		if (ch->priv_sc->sc_rec_chan[i].cur_alt >=
+		    ch->priv_sc->sc_rec_chan[i].num_alt) {
 			int32_t jitter_max = howmany(sample_rate, 16000);
 
 			/*
@@ -2423,6 +2608,12 @@ uaudio_chan_is_async(struct uaudio_chan *ch, uint8_t alt)
 {
 	uint8_t attr = ch->usb_alt[alt].p_ed1->bmAttributes;
 	return (UE_GET_ISO_TYPE(attr) == UE_ISO_ASYNC);
+}
+
+static int
+uaudio_chan_has_sync_ep(struct uaudio_chan *ch, uint8_t alt)
+{
+	return (alt < ch->num_alt && ch->usb_alt[alt].sync_ep != 0);
 }
 
 static void
@@ -2908,9 +3099,23 @@ uaudio_chan_reconfigure(struct uaudio_chan *ch, uint8_t operation)
 static int
 uaudio_chan_need_both(struct uaudio_chan *pchan, struct uaudio_chan *rchan)
 {
+	/*
+	 * The capture stream is borrowed as a source of jitter
+	 * information only when the playback stream has no explicit
+	 * feedback endpoint of its own.  Starting it otherwise costs a
+	 * second isochronous stream, arms a streaming interface right
+	 * after playback was armed, and -- on a device with a shared
+	 * sample clock -- brings a second clock programming pass with
+	 * it, all to recompute what the feedback endpoint already
+	 * reports.  Devices whose capture interface is vestigial (D/A
+	 * converters that expose a UAC2 input terminal they cannot
+	 * source) suffer this for nothing.
+	 */
 	return (pchan->num_alt > 0 &&
 	    pchan->running != 0 &&
 	    uaudio_chan_is_async(pchan, pchan->set_alt) != 0 &&
+	    !(uaudio_prefer_feedback != 0 &&
+	    uaudio_chan_has_sync_ep(pchan, pchan->set_alt) != 0) &&
 	    rchan->num_alt > 0 &&
 	    rchan->running == 0);
 }
@@ -2969,15 +3174,32 @@ uaudio_chan_start(struct uaudio_chan *ch)
 			 */
 			if (uaudio_chan_match_rate(ch_rec,
 			    ch_play->usb_alt[ch_play->set_alt].sample_rate,
-			    &rec_alt))
+			    &rec_alt)) {
 				ch_rec->set_alt = rec_alt;
 
-			/*
-			 * Start both endpoints because of need for
-			 * jitter information:
-			 */
-			uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
-			uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+				/*
+				 * Start both endpoints because of need for
+				 * jitter information:
+				 */
+				uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			} else {
+				/*
+				 * No capture alternate setting matches the
+				 * playback rate.  Starting the capture
+				 * stream anyway would arm it at some other
+				 * rate, so that it either fights the
+				 * playback stream for a shared clock or
+				 * feeds the playback path jitter derived
+				 * from frame sizes that do not belong to
+				 * it.  Run playback on its own instead.
+				 */
+				DPRINTF("no capture alt matches %u Hz; "
+				    "starting playback alone\n",
+				    ch_play->usb_alt[ch_play->set_alt].
+				    sample_rate);
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			}
 		} else {
 			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
@@ -5450,6 +5672,30 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
 	USETDW(data, speed);
 
 	return (usbd_do_request(udev, NULL, &req, data));
+}
+
+static usb_error_t
+uaudio20_get_speed(struct usb_device *udev, uint8_t iface_no,
+    uint8_t clockid, uint32_t *p_speed)
+{
+	struct usb_device_request req;
+	uint8_t data[4];
+	usb_error_t err;
+
+	req.bmRequestType = UT_READ_CLASS_INTERFACE;
+	req.bRequest = UA20_CS_CUR;
+	USETW2(req.wValue, UA20_CS_SAM_FREQ_CONTROL, 0);
+	USETW2(req.wIndex, clockid, iface_no);
+	USETW(req.wLength, 4);
+
+	err = usbd_do_request(udev, NULL, &req, data);
+	if (err == 0)
+		*p_speed = UGETDW(data);
+
+	DPRINTFN(6, "ifaceno=%d clockid=%d speed=%u err=%d\n",
+	    iface_no, clockid, err ? 0 : *p_speed, err);
+
+	return (err);
 }
 
 static int
