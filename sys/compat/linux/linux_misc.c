@@ -1384,19 +1384,19 @@ linux_sched_getattr(struct thread *td,
 
 	if (linux_map_sched_prio) {
 		switch (policy) {
-			case SCHED_OTHER:
-				sched_param.sched_priority = 0;
-				break;
-			case SCHED_FIFO:
-			case SCHED_RR:
-				sched_param.sched_priority =
-					(sched_param.sched_priority *
-					(LINUX_MAX_RT_PRIO - 1) +
-					(RTP_PRIO_MAX - RTP_PRIO_MIN - 1)) /
-					(RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
-				break;
-			}
-			attr.sched_priority = sched_param.sched_priority;
+		case SCHED_OTHER:
+			sched_param.sched_priority = 0;
+			break;
+		case SCHED_FIFO:
+		case SCHED_RR:
+			sched_param.sched_priority =
+				(sched_param.sched_priority *
+				(LINUX_MAX_RT_PRIO - 1) +
+				(RTP_PRIO_MAX - RTP_PRIO_MIN - 1)) /
+				(RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
+			break;
+		}
+		attr.sched_priority = sched_param.sched_priority;
 		} else {
 			attr.sched_priority =
 				sched_param.sched_priority;
