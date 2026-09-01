@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -118,6 +119,10 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	struct smbus_softc *sc = device_get_softc(bus);
 	device_t parent;
 	int error;
+	int timo = (hz / 1000) == 0 ? 1 : hz / 1000;
+	int retries = 0;
+	/* 200 ms (200 * timo) */
+	int max_retries = 200;
 
 	/* first, ask the underlying layers if the request is ok */
 	parent = device_get_parent(bus);
@@ -127,8 +132,24 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 		error = SMBUS_CALLBACK(parent, SMB_REQUEST_BUS, &how);
 		mtx_lock(&sc->lock);
 
-		if (error)
-			error = smbus_poll(sc, how);
+		/* Check if we've successfully got bus access. */
+		if (error == 0)
+			break;
+		/* Check for timeout.*/
+		if (retries++ > max_retries)
+			return (EBUSY);
+
+		switch (how) {
+		case SMB_WAIT | SMB_INTR:
+			error = msleep(sc, &sc->lock, SMBPRI|PCATCH, "smbreq", timo);
+			break;
+		case SMB_WAIT | SMB_NOINTR:
+			error = msleep(sc, &sc->lock, SMBPRI, "smbreq", timo);
+			break;
+		default:
+			/* We're in non blocking mode, so exit early. */
+			return (EWOULDBLOCK);
+		}
 	} while (error == EWOULDBLOCK);
 
 	while (error == 0) {
