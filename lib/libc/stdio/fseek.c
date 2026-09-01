@@ -52,10 +52,6 @@ fseek(FILE *fp, long offset, int whence)
 	int ret;
 	int serrno = errno;
 
-	/* make sure stdio is set up */
-	if (!__sdidinit)
-		__sinit();
-
 	FLOCKFILE_CANCELSAFE(fp);
 	ret = _fseeko(fp, (off_t)offset, whence, 1);
 	FUNLOCKFILE_CANCELSAFE();
@@ -69,10 +65,6 @@ fseeko(FILE *fp, off_t offset, int whence)
 {
 	int ret;
 	int serrno = errno;
-
-	/* make sure stdio is set up */
-	if (!__sdidinit)
-		__sinit();
 
 	FLOCKFILE_CANCELSAFE(fp);
 	ret = _fseeko(fp, offset, whence, 0);
@@ -93,7 +85,7 @@ _fseeko(FILE *fp, off_t offset, int whence, int ltest)
 	fpos_t target, curoff, ret;
 	size_t n;
 	struct stat st;
-	int havepos;
+	int fd, havepos;
 
 	/*
 	 * Have to be able to seek.
@@ -166,9 +158,10 @@ _fseeko(FILE *fp, off_t offset, int whence, int ltest)
 		__smakebuf(fp);
 	if (fp->_flags & (__SWR | __SRW | __SNBF | __SNPT))
 		goto dumb;
+	fd = __sfileno(fp);
 	if ((fp->_flags & __SOPT) == 0) {
 		if (seekfn != __sseek ||
-		    fp->_file < 0 || _fstat(fp->_file, &st) ||
+		    fd < 0 || _fstat(fd, &st) ||
 		    (st.st_mode & S_IFMT) != S_IFREG) {
 			fp->_flags |= __SNPT;
 			goto dumb;
@@ -184,7 +177,7 @@ _fseeko(FILE *fp, off_t offset, int whence, int ltest)
 	if (whence == SEEK_SET)
 		target = offset;
 	else {
-		if (_fstat(fp->_file, &st))
+		if (_fstat(fd, &st))
 			goto dumb;
 		if (offset > 0 && st.st_size > OFF_MAX - offset) {
 			errno = EOVERFLOW;

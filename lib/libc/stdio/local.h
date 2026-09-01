@@ -41,51 +41,53 @@
 #define	_STDIO_LOCAL_H
 
 #include <sys/types.h>	/* for off_t */
+#include <limits.h>
+#include <locale.h>
 #include <pthread.h>
 #include <string.h>
+#include <stdbool.h>
 #include <wchar.h>
-#include <locale.h>
 
 /*
  * Information local to this implementation of stdio,
  * in particular, macros and private variables.
  */
 
-extern int	_sread(FILE *, char *, int);
-extern int	_swrite(FILE *, char const *, int);
-extern fpos_t	_sseek(FILE *, fpos_t, int);
-extern int	_ftello(FILE *, fpos_t *);
-extern int	_fseeko(FILE *, off_t, int, int);
-extern int	__fflush(FILE *fp);
-extern void	__fcloseall(void);
-extern wint_t	__fgetwc_mbs(FILE *, mbstate_t *, int *, locale_t);
-extern wint_t	__fputwc(wchar_t, FILE *, locale_t);
-extern int	__sflush(FILE *);
+extern void	 __fcloseall(void);
+extern int	 __fflush(FILE *fp);
+extern wint_t	 __fgetwc_mbs(FILE *, mbstate_t *, int *, locale_t);
+extern wint_t	 __fputwc(wchar_t, FILE *, locale_t);
+extern size_t	 __fread(void * __restrict buf, size_t size, size_t count,
+		    FILE * __restrict fp);
+extern int	 __sclose(void *);
+extern int	 __sflags(const char *, int *);
+extern int	 __sflush(FILE *);
 extern FILE	*__sfp(void);
-extern int	__slbexpand(FILE *, size_t);
-extern int	__srefill(FILE *);
-extern int	__sread(void *, char *, int);
-extern int	__swrite(void *, char const *, int);
-extern fpos_t	__sseek(void *, fpos_t, int);
-extern int	__sclose(void *);
-extern void	__sinit(void);
-extern void	_cleanup(void);
-extern void	__smakebuf(FILE *);
-extern int	__swhatbuf(FILE *, size_t *, int *);
-extern int	_fwalk(int (*)(FILE *));
-extern int	__svfscanf(FILE *, locale_t, const char *, __va_list);
-extern int	__swsetup(FILE *);
-extern int	__sflags(const char *, int *);
-extern int	__ungetc(int, FILE *);
-extern wint_t	__ungetwc(wint_t, FILE *, locale_t);
-extern int	__vfprintf(FILE *, locale_t, int, const char *, __va_list);
-extern int	__vfscanf(FILE *, const char *, __va_list);
-extern int	__vfwprintf(FILE *, locale_t, const wchar_t *, __va_list);
-extern int	__vfwscanf(FILE * __restrict, locale_t, const wchar_t * __restrict,
-		    __va_list);
-extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
-		FILE * __restrict fp);
-extern int	__sdidinit;
+extern int	 __slbexpand(FILE *, size_t);
+extern void	 __smakebuf(FILE *);
+extern int	 __sread(void *, char *, int);
+extern int	 __srefill(FILE *);
+extern fpos_t	 __sseek(void *, fpos_t, int);
+extern int	 __svfscanf(FILE *, locale_t, const char *, __va_list);
+extern int	 __swhatbuf(FILE *, size_t *, int *);
+extern int	 __swrite(void *, char const *, int);
+extern int	 __swsetup(FILE *);
+extern int	 __ungetc(int, FILE *);
+extern wint_t	 __ungetwc(wint_t, FILE *, locale_t);
+extern int	 __vfprintf(FILE *, locale_t, int, const char *, __va_list);
+extern int	 __vfscanf(FILE *, const char *, __va_list);
+extern int	 __vfwprintf(FILE *, locale_t, const wchar_t *, __va_list);
+extern int	 __vfwscanf(FILE * __restrict, locale_t,
+		    const wchar_t * __restrict, __va_list);
+extern void	 _cleanup(void);
+extern int	 _fseeko(FILE *, off_t, int, int);
+extern int	 _ftello(FILE *, fpos_t *);
+extern int	 _fwalk(int (*)(FILE *));
+extern int	 _sread(FILE *, char *, int);
+extern fpos_t	 _sseek(FILE *, fpos_t, int);
+extern int	 _swrite(FILE *, char const *, int);
+
+extern bool	 __stdio_force_short_fildes;
 
 static inline wint_t
 __fgetwc(FILE *fp, locale_t locale)
@@ -93,6 +95,99 @@ __fgetwc(FILE *fp, locale_t locale)
 	int nread;
 
 	return (__fgetwc_mbs(fp, &fp->_mbstate, &nread, locale));
+}
+
+static inline bool
+__sforce_short_fildes(bool short_only)
+{
+	return (short_only || __stdio_force_short_fildes);
+}
+
+/*
+ * The following macros and functions support encoding 32-bit
+ * file descriptors in a backward compatible way in FILE objects
+ * using the existing 16-bit _file field as well as a 16-bit
+ * slice of the _flags2 field.
+ *
+ * A signed 32-bit file descriptor 'F' is encoded into two 16-bit
+ * parts 'L' and 'H' as follows:
+ *
+ * 'L' is simply the lower sixteen bits of 'F':
+ *
+ *     short L = (short)F
+ *
+ * 'H' is the upper sixteen bits of 'F' exclusive or'd with the fifteenth
+ * bit of 'F' (i.e. the sign bit of 'L'), or equivalently, the upper
+ * sixteen bits of the result of exclusive or'ing 'F' with the lower
+ * sixteen bits of 'F' sign extended to thirty two bits.
+ *
+ *     short H = (short)((F ^ (int)(short)F) >> 16)
+ *
+ * 'L' is stored in FILE->_file and 'H' is stored in a new 16-bit slice
+ * in FILE->_flags2. Note that for values of 'F' between SHRT_MIN and
+ * SHRT_MAX, 'H' will be zero and thus this encoding has the advantage
+ * of preserving binary encodings of FILE->_file and FILE->_flags2 for
+ * file descriptors in this range.
+ */
+#define __S2FDX_SHFT			(1)
+#define __S2FDX_EXTRACT(_flags2)	\
+	    ((int)((unsigned)((_flags2) & __S2FDX) >> __S2FDX_SHFT))
+
+#define __S2FDX_INSERT(_flags2, val)	\
+	    ((_flags2) & (~__S2FDX) | (__S2FDX & ((val) << __S2FDX_SHFT)))
+
+#define __SFD_TO_LOW(fd)		((short)(fd))
+#define __SFD_TO_HSX(fd)		\
+	    ((unsigned)((fd) ^ (int)(short)(fd)) >> 16)
+
+#define __SLOW_HSX_TO_FD(low, hsx)	((int)(short)(low) ^ ((int)(hsx) << 16))
+
+_Static_assert(USHRT_MAX << __S2FDX_SHFT	== __S2FDX,	 "__S2FDX");
+_Static_assert(__S2FDX_EXTRACT(__S2FDX)		== USHRT_MAX,	 "__S2FDX");
+_Static_assert(__S2FDX_INSERT(~0, 0)		== ~__S2FDX,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MIN - 1)	== SHRT_MAX,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MIN)		== SHRT_MIN,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(-1)			== -1,		 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(0)			== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MAX)		== SHRT_MAX,	 "__S2FDX");
+_Static_assert(__SFD_TO_LOW(SHRT_MAX + 1)	== SHRT_MIN,	 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MIN - 1)	== USHRT_MAX,	 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MIN)		== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(-1)			== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(0)			== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MAX)		== 0,		 "__S2FDX");
+_Static_assert(__SFD_TO_HSX(SHRT_MAX + 1)	== USHRT_MAX,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(0, SHRT_MIN)	== INT_MIN,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(SHRT_MIN, 0)	== SHRT_MIN,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(-1, 0)		== -1,		 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(0, 0)		== 0,		 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(SHRT_MAX, 0)	== SHRT_MAX,	 "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(SHRT_MIN, -1)	== SHRT_MAX + 1, "__S2FDX");
+_Static_assert(__SLOW_HSX_TO_FD(-1, SHRT_MIN)	== INT_MAX,	 "__S2FDX");
+
+static inline int
+__sfileno(const FILE *fp)
+{
+	int fd;
+
+	if (__stdio_force_short_fildes)
+		fd = fp->_file;
+	else {
+		fd = __S2FDX_EXTRACT(fp->_flags2);
+		fd = __SLOW_HSX_TO_FD(fp->_file, fd);
+	}
+	return (fd);
+}
+
+static inline void
+__sfileno_set(FILE *fp, int fd)
+{
+	if (__stdio_force_short_fildes)
+		fp->_file = (unsigned)fd > SHRT_MAX ? -1 : (short)fd;
+	else {
+		fp->_file = __SFD_TO_LOW(fd);
+		fp->_flags2 = __S2FDX_INSERT(fp->_flags2, __SFD_TO_HSX(fd));
+	}
 }
 
 /*

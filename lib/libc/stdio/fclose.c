@@ -54,13 +54,15 @@ cleanfile(FILE *fp, bool c)
 			r = EOF;
 	}
 
-	if (fp->_flags & __SMBF)
+	if (fp->_flags & __SMBF) {
 		free((char *)fp->_bf._base);
+		fp->_bf._base = NULL;
+	}
 	if (HASUB(fp))
 		FREEUB(fp);
 	if (HASLB(fp))
 		FREELB(fp);
-	fp->_file = -1;
+	__sfileno_set(fp, -1);
 	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */
 
 	/*
@@ -83,7 +85,7 @@ cleanfile(FILE *fp, bool c)
 int
 fdclose(FILE *fp, int *fdp)
 {
-	int r, err;
+	int err, fd, r;
 
 	if (fdp != NULL)
 		*fdp = -1;
@@ -98,7 +100,7 @@ fdclose(FILE *fp, int *fdp)
 	if (fp->_close != __sclose) {
 		r = EOF;
 		errno = EOPNOTSUPP;
-	} else if (fp->_file < 0) {
+	} else if ((fd = __sfileno(fp)) < 0) {
 		r = EOF;
 		errno = EBADF;
 	}
@@ -108,7 +110,7 @@ fdclose(FILE *fp, int *fdp)
 		errno = err;
 	} else {
 		if (fdp != NULL)
-			*fdp = fp->_file;
+			*fdp = fd;
 		r = cleanfile(fp, false);
 	}
 	FUNLOCKFILE_CANCELSAFE();

@@ -780,10 +780,18 @@ system call, the
 .Fn printf
 family of functions may fail if:
 .Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument to
+.Fn dprintf
+or
+.Fn vdprintf
+was not a valid file descriptor.
 .It Bq Er EILSEQ
 An invalid wide character code was encountered.
 .It Bq Er ENOMEM
-Insufficient storage space is available.
+Insufficient storage space was available.
 .It Bq Er EOVERFLOW
 The
 .Fa size
