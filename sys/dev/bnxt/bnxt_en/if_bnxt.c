@@ -392,7 +392,11 @@ static struct if_shared_ctx bnxt_sctx_template = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_driver = &bnxt_iflib_driver,
 	.isc_nfl = 2,
+#ifdef IFLIB_I2C_PAGE_BANK
+	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD | IFLIB_I2C_PAGE_BANK,
+#else
 	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD,
+#endif
 	.isc_q_align = PAGE_SIZE,
 	.isc_tx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_tx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
@@ -421,7 +425,11 @@ static struct if_shared_ctx bnxt_sctx_template_p7 = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_driver = &bnxt_iflib_driver,
 	.isc_nfl = 2,
+#ifdef IFLIB_I2C_PAGE_BANK
+	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD | IFLIB_I2C_PAGE_BANK,
+#else
 	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD,
+#endif
 	.isc_q_align = PAGE_SIZE,
 	.isc_tx_maxsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
 	.isc_tx_maxsegsize = BNXT_TSO_SIZE + sizeof(struct ether_vlan_header),
@@ -5139,16 +5147,26 @@ bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c)
 	 */
 	if (softc->link_info.module_status >
 		HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_WARNINGMSG)
-		return -EOPNOTSUPP;
+		return EOPNOTSUPP;
 
 	/* This feature is not supported in older firmware versions */
 	if (!BNXT_CHIP_P5_PLUS(softc) ||
 	    (softc->hwrm_spec_code < 0x10202))
-		return -EOPNOTSUPP;
+		return EOPNOTSUPP;
 
 
-	rc = bnxt_read_sfp_module_eeprom_info(softc, i2c->dev_addr, 0, 0, 0,
-		i2c->offset, i2c->len, data);
+#ifdef IFLIB_I2C_PAGE_BANK
+	/* linux/page.h #defines page to vm_page; i2c->page has no such member. */
+#undef page
+	rc = bnxt_read_sfp_module_eeprom_info(softc, i2c->dev_addr,
+	    i2c->page, i2c->bank, i2c->bank != 0,
+	    i2c->offset, i2c->len, data);
+#define page	vm_page
+#else
+	rc = bnxt_read_sfp_module_eeprom_info(softc, i2c->dev_addr,
+	    0, 0, 0,
+	    i2c->offset, i2c->len, data);
+#endif
 
 	return rc;
 }
