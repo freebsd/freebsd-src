@@ -5978,6 +5978,7 @@ mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	if (__predict_false(pm == NULL))
 		pm = &curthread->td_proc->p_vmspace->vm_pmap;
 
+	PMAP_LOCK(pm);
 	while (sz > 0) {
 		pa = pmap_extract(pm, va);
 		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
@@ -5989,6 +5990,7 @@ mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 		va += sync_sz;
 		sz -= sync_sz;
 	}
+	PMAP_UNLOCK(pm);
 }
 
 static __inline void
