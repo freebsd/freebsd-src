@@ -375,7 +375,7 @@ vioapic_write(struct vioapic *vioapic, struct vcpu *vcpu, uint32_t addr,
 		 * to update their vlapic trigger-mode registers.
 		 */
 		changed = last ^ vioapic->rtbl[pin].reg;
-		if (changed & ~(IOART_INTMASK | IOART_INTPOL)) {
+		if (changed & IOART_TRGRMOD) {
 			VIOAPIC_CTR1(vioapic, "ioapic pin%d: recalculate "
 			    "vlapic trigger-mode register", pin);
 			VIOAPIC_UNLOCK(vioapic);
