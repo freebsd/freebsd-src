@@ -974,7 +974,7 @@ retry:
 					char *dst, *src = ft_p->ft_buf;
 					size_t copy_len = ft_p->ft_len, dst_len = copy_len;
 					uintptr_t src_cb;
-					uint64_t dstoff, dstoff_cb;
+					uint64_t dstoff = 0, dstoff_cb = 0;
 					int src_co, dst_co;
 					const uintptr_t mask = NM_BUF_ALIGN - 1;
 
@@ -985,7 +985,7 @@ retry:
 					src_cb = ((uintptr_t)src) & ~mask;
 					src_co = ((uintptr_t)src) & mask;
 					dst_co = ((uintptr_t)(dst + dstoff)) & mask;
-					if (dst_co < src_co) {
+					if (src_co < dst_co) {
 						dstoff_cb += NM_BUF_ALIGN;
 					}
 					dstoff = dstoff_cb + src_co;
@@ -1008,13 +1008,14 @@ retry:
 							// invalid user pointer, pretend len is 0
 							dst_len = 0;
 						}
-					} else {
-						//memcpy(dst, src, copy_len);
+					} else if (!src_co || kring->offset_mask) {
 						pkt_copy((char *)src_cb, dst + dstoff_cb, (int)copy_len);
+						nm_write_offset(kring, slot, dstoff);
+					} else {
+						memcpy(dst, src, copy_len);
 					}
 					slot->len = dst_len;
 					slot->flags = (cnt << 8)| NS_MOREFRAG;
-					nm_write_offset(kring, slot, dstoff);
 					j = nm_next(j, lim);
 					needed--;
 					ft_p++;
