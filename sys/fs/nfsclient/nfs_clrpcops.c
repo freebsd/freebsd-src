@@ -1822,7 +1822,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
     nfsv4stateid_t *stateidp, NFSPROC_T *p, struct nfsvattr *nap,
     int *attrflagp)
 {
-	u_int32_t *tl;
+	uint32_t *tl, mbflag;
 	int error = 0, len, retlen, tsiz, eof = 0;
 	struct nfsrv_descript nfsd;
 	struct mbuf *mr;
@@ -1830,13 +1830,23 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	struct nfsrv_descript *nd = &nfsd;
 	int rsize;
 	off_t tmp_off;
-	bool did_rdma;
+	bool did_rdma, reduced;
 
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
 	did_rdma = false;
-	if (NFSHASRDMA(nmp) && tsiz > RPCRDMA_MAX_SMALL_MSG / 2)
-		did_rdma = true;
+	mbflag = 0;
+	if (NFSHASRDMA(nmp) && tsiz > 0) {
+		/* Assume the rest of the RPC without data is <= 1024 bytes. */
+		if ((uiop->uio_offset & PAGE_MASK) == 0)
+			did_rdma = true;
+		else if (tsiz <= PAGE_SIZE - 1024)
+			mbflag = M_PROTO7;
+		else if (tsiz <= NFS_DIRBLKSIZ + PAGE_SIZE - 1024)
+			mbflag = M_PROTO8;
+		else
+			mbflag = M_PROTO9;
+	}
 	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
 	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
@@ -1846,10 +1856,12 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	rsize = nmp->nm_rsize;
 	NFSUNLOCKMNT(nmp);
 	nd->nd_mrep = NULL;
+	mr = NULL;
 	while (tsiz > 0) {
 		*attrflagp = 0;
 		len = (tsiz > rsize) ? rsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_READ, vp, cred);
+		nd->nd_mreq->m_flags |= mbflag;
 		if (nd->nd_flag & ND_NFSV4)
 			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
 		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED * 3);
@@ -1870,8 +1882,14 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 		 * (See the comment in nfsrpc_writerpc() for more info.)
 		 */
 		error = nfscl_request(nd, vp, p, cred);
-		if (error)
+		if (error) {
+			if (mr != NULL)
+				rpc_free_rdma_reduction(mr);
 			return (error);
+		}
+		reduced = false;
+		if ((nd->nd_mrep->m_flags & M_PROTO6) != 0)
+			reduced = true;
 		if (nd->nd_flag & ND_NFSV3) {
 			error = nfscl_postop_attr(nd, nap, attrflagp);
 		} else if (!nd->nd_repstat && (nd->nd_flag & ND_NFSV2)) {
@@ -1892,11 +1910,16 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			eof = fxdr_unsigned(int, *tl);
 		}
 		NFSM_STRSIZ(retlen, len);
-		if (!did_rdma) {
-			error = nfsm_mbufuio(nd, uiop, retlen);
-		} else {
-			error = rpc_copy_uio_pages(mr, uiop, retlen, true);
+		if (retlen > 0) {
+			if (!did_rdma || !reduced)
+				error = nfsm_mbufuio(nd, uiop, retlen);
+			else
+				error = rpc_copy_uio_pages(mr, uiop, retlen,
+				    true);
+		}
+		if (mr != NULL) {
 			rpc_free_rdma_reduction(mr);
+			mr = NULL;
 		}
 		if (error)
 			goto nfsmout;
@@ -1911,6 +1934,8 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	}
 	return (0);
 nfsmout:
+	if (mr != NULL)
+		rpc_free_rdma_reduction(mr);
 	if (nd->nd_mrep != NULL)
 		m_freem(nd->nd_mrep);
 	return (error);
@@ -2029,7 +2054,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
 	did_rdma = false;
-	if (NFSHASRDMA(nmp) && tsiz > RPCRDMA_MAX_SMALL_MSG / 2)
+	if (NFSHASRDMA(nmp) && (uiop->uio_offset & PAGE_MASK) == 0)
 		did_rdma = true;
 	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
@@ -2045,6 +2070,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK);
 	nd->nd_mrep = NULL;	/* NFSv2 sometimes does a write with */
 	nd->nd_repstat = 0;	/* uio_resid == 0, so the while is not done */
+	mr = NULL;
 	while (tsiz > 0) {
 		*attrflagp = 0;
 		len = (tsiz > wsize) ? wsize : tsiz;
@@ -2099,8 +2125,10 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 			rlen = m_length(nd->nd_mreq, NULL);
 			mr = nfsm_build_rdma_reduction(nd, len, rlen, false);
 			error = rpc_copy_uio_pages(mr, uiop, len, false);
-			if (error)
+			if (error != 0) {
 				rpc_free_rdma_reduction(mr);
+				mr = NULL;
+			}
 		} else {
 			error = nfsm_uiombuf(nd, uiop, len);
 		}
@@ -2137,11 +2165,17 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 		}
 		error = nfscl_request(nd, vp, p, cred);
 		if (error) {
+			if (mr != NULL)
+				rpc_free_rdma_reduction(mr);
 			free(nd, M_TEMP);
 			return (error);
 		}
-		if (did_rdma && !NFSHASNOWRITEREDUCE(nmp))
+		if (did_rdma && !NFSHASNOWRITEREDUCE(nmp)) {
+			KASSERT(mr != NULL, ("nfsrpc_writerpc: Null mr"));
+
 			rpc_free_rdma_reduction(mr);
+			mr = NULL;
+		}
 		if (nd->nd_repstat) {
 			/*
 			 * In case the rpc gets retried, roll

@@ -985,59 +985,73 @@ rpc_free_rdma_reduction(struct mbuf *mr)
  * Copy data between anonymous pages and uiop.
  */
 int
-rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int len, bool from_pages)
+rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int siz, bool from_pages)
 {
 	struct rpcrdma_reduce_pg *rb;
-	struct iovec *iov;
-	int cplen, error, lastlen, i, xfer;
-	char *cp;
+	char *cp, *uiocp;
+	int error, left, len, i, uiosiz, xfer;
 
 	rb = mtod(mr, struct rpcrdma_reduce_pg *);
-	iov = uiop->uio_iov;
-	lastlen = rb->len % PAGE_SIZE;
-	if (lastlen == 0)
-		lastlen = PAGE_SIZE;
-	for (i = 0; i < rb->npg && len > 0; i++) {
-		xfer = (i == rb->npg - 1) ? lastlen : PAGE_SIZE;
-		xfer = MIN(xfer, len);
-		cp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(rb->pg[i]));
-		while (xfer > 0) {
-			while (iov->iov_len == 0) {
-				if (uiop->uio_iovcnt > 0) {
-					iov++;
-					uiop->uio_iovcnt--;
-				} else {
-					return (ENOMEM);
-				}
+	if (siz > rb->len)
+		return (EBADRPC);
+	i = 0;
+	cp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(rb->pg[i]));
+	len = PAGE_SIZE;
+	if (i == rb->npg - 1 && siz < PAGE_SIZE)
+		len = siz;
+	while (siz > 0) {
+		if (uiop->uio_iovcnt <= 0 || uiop->uio_iov == NULL)
+			return (EBADRPC);
+		left = uiop->uio_iov->iov_len;
+		uiocp = uiop->uio_iov->iov_base;
+		if (left > siz)
+			left = siz;
+		uiosiz = left;
+		while (left > 0) {
+			if (len == 0) {
+				if (i == rb->npg - 1)
+					return (EBADRPC);
+				i++;
+				cp = PHYS_TO_DMAP(
+				    VM_PAGE_TO_PHYS(rb->pg[i]));
+				len = PAGE_SIZE;
+				if (i == rb->npg - 1 && siz < PAGE_SIZE)
+					len = siz;
 			}
-			cplen = MIN(iov->iov_len, xfer);
+			xfer = (left > len) ? len : left;
 			if (from_pages) {
 				if (uiop->uio_segflg == UIO_SYSSPACE) {
-					memcpy(iov->iov_base, cp, cplen);
+					memcpy(uiocp, cp, xfer);
 				} else {
-					error = copyout(cp, iov->iov_base,
-					    cplen);
+					error = copyout(cp, uiocp, xfer);
 					if (error != 0)
-						return (error);
+						return (EBADRPC);
 				}
 			} else {
 				if (uiop->uio_segflg == UIO_SYSSPACE) {
-					memcpy(cp, iov->iov_base, cplen);
+					memcpy(cp, uiocp, xfer);
 				} else {
-					error = copyin(iov->iov_base, cp,
-					    cplen);
+					error = copyout(uiocp, cp, xfer);
 					if (error != 0)
-						return (error);
+						return (EBADRPC);
 				}
 			}
-			iov->iov_len -= cplen;
-			iov->iov_base = (char *)iov->iov_base + cplen;
-			uiop->uio_offset += cplen;
-			uiop->uio_resid -= cplen;
-			xfer -= cplen;
-			cp += cplen;
+			left -= xfer;
 			len -= xfer;
+			cp += xfer;
+			uiocp += xfer;
+			uiop->uio_offset += xfer;
+			uiop->uio_resid -= xfer;
 		}
+		if (uiop->uio_iov->iov_len <= siz) {
+			uiop->uio_iovcnt--;
+			uiop->uio_iov++;
+		} else {
+			uiop->uio_iov->iov_base = (void *)
+				((char *)uiop->uio_iov->iov_base + uiosiz);
+			uiop->uio_iov->iov_len -= uiosiz;
+		}
+		siz -= uiosiz;
 	}
 	return (0);
 }
