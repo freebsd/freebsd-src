@@ -460,6 +460,17 @@ void (*pmap_stage2_invalidate_all)(uint64_t);
 #define	TLBI_VA_MASK			((1ul << 44) - 1)
 #define	TLBI_VA(addr)			(((addr) >> TLBI_VA_SHIFT) & TLBI_VA_MASK)
 
+#define TLBI_VA_TTL_SHIFT		44
+#if PAGE_SIZE == PAGE_SIZE_4K
+#define TLBI_VA_TTL(ttl)		((((ttl) != TLBI_TTL_UNKNOWN) ? \
+					    (0x4ul | (ttl)) : 0) << \
+					    TLBI_VA_TTL_SHIFT)
+#elif PAGE_SIZE == PAGE_SIZE_16K
+#define TLBI_VA_TTL(ttl)		((((ttl) != TLBI_TTL_UNKNOWN) ? \
+					    (0x8ul | (ttl)) : 0) << \
+					    TLBI_VA_TTL_SHIFT)
+#endif
+
 /*
  * The operand to a range-based TLBI instruction has the following fields:
  *
@@ -491,6 +502,8 @@ void (*pmap_stage2_invalidate_all)(uint64_t);
 #define	TLBI_RANGE_VA_SHIFT()		(pmap_lpa_enabled ? 16 : PAGE_SHIFT)
 
 #define	TLBI_RANGE_BADDR_MASK		((1ul << 37) - 1)
+#define	TLBI_RANGE_TTL_SHIFT		37
+#define TLBI_RANGE_TTL(ttl)		((u_long)(ttl) << TLBI_RANGE_TTL_SHIFT)
 #define	TLBI_RANGE_NUM_SHIFT		39
 #define	TLBI_RANGE_SCALE_SHIFT		44
 #define	TLBI_RANGE_TG_SHIFT		46
@@ -500,6 +513,12 @@ void (*pmap_stage2_invalidate_all)(uint64_t);
 
 #define	TLBI_RANGE_UNIT_SHIFT(scale)	(5 * (scale) + 1)
 #define	TLBI_RANGE_UNIT(scale)		(1ul << TLBI_RANGE_UNIT_SHIFT(scale))
+
+/* Will need modifying when LPA2 support added (L0) */
+#define TLBI_TTL_UNKNOWN		(0ul)
+#define TLBI_TTL_L1			(1ul)
+#define TLBI_TTL_L2			(2ul)
+#define TLBI_TTL_L3			(3ul)
 
 /*
  * The largest scale such that a unit fits within the given number of pages,
@@ -517,9 +536,10 @@ void (*pmap_stage2_invalidate_all)(uint64_t);
 #error Unsupported page size
 #endif
 
-#define	TLBI_RANGE_FIELDS(va, va_shift, num, scale)			\
+#define	TLBI_RANGE_FIELDS(va, va_shift, num, scale, ttl)		\
 	(TLBI_RANGE_TG | ((u_long)(scale) << TLBI_RANGE_SCALE_SHIFT) |	\
 	((u_long)(num) << TLBI_RANGE_NUM_SHIFT) |			\
+	(pmap_ttl_support ? TLBI_RANGE_TTL(ttl) : 0) |			\
 	(((va) >> (va_shift)) & TLBI_RANGE_BADDR_MASK))
 
 static bool __read_frequently pmap_tlbi_range_support = false;
@@ -534,6 +554,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
  * allows pmap to mark pages as guarded with ATTR_S1_GP.
  */
 __read_mostly static bool pmap_bti_support = false;
+
+__read_mostly static bool pmap_ttl_support = false;
 
 /*
  * Internal flags for pmap_enter()'s helper functions.
@@ -2123,7 +2145,7 @@ pmap_s1_invalidate_range_user(uint64_t r, bool final_only)
  * for the specified virtual address in the given virtual address space.
  */
 static __inline void
-pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
+pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only, int ttl)
 {
 	uint64_t r;
 
@@ -2131,6 +2153,8 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 
 	dsb(ishst);
 	r = TLBI_VA(va);
+	if (pmap_ttl_support)
+		r |= TLBI_VA_TTL(ttl);
 	if (pmap == kernel_pmap) {
 		pmap_s1_invalidate_kernel(r, final_only);
 	} else {
@@ -2153,13 +2177,15 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
  * The pmap_multiple_tlbi errata only affect broadcast invalidations.
  */
 static __inline void
-pmap_s1_invalidate_page_local(pmap_t pmap, vm_offset_t va)
+pmap_s1_invalidate_page_local(pmap_t pmap, vm_offset_t va, int ttl)
 {
 	uint64_t r;
 
 	PMAP_ASSERT_STAGE1(pmap);
 	dsb(nshst);
 	r = TLBI_VA(va);
+	if (pmap_ttl_support)
+		r |= TLBI_VA_TTL(ttl);
 	if (pmap == kernel_pmap) {
 		__asm __volatile("tlbi vaale1, %0" : : "r" (r));
 	} else {
@@ -2180,10 +2206,10 @@ pmap_s2_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 }
 
 static __inline void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only, int ttl)
 {
 	if (pmap->pm_stage == PM_STAGE1)
-		pmap_s1_invalidate_page(pmap, va, final_only);
+		pmap_s1_invalidate_page(pmap, va, final_only, ttl);
 	else
 		pmap_s2_invalidate_page(pmap, va, final_only);
 }
@@ -2202,7 +2228,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 static __always_inline void
 pmap_s1_invalidate_loop(vm_offset_t sva, vm_offset_t eva, vm_offset_t stride,
     int va_shift, vm_offset_t va_mask, uint64_t asid, bool kernel,
-    bool final_only)
+    bool final_only, int ttl)
 {
 	uint64_t units;
 	vm_size_t pages;
@@ -2219,11 +2245,11 @@ pmap_s1_invalidate_loop(vm_offset_t sva, vm_offset_t eva, vm_offset_t stride,
 				if (kernel)
 					pmap_s1_invalidate_range_kernel(asid |
 					    TLBI_RANGE_FIELDS(va, va_shift,
-					    units - 1, scale), final_only);
+					    units - 1, scale, ttl), final_only);
 				else
 					pmap_s1_invalidate_range_user(asid |
 					    TLBI_RANGE_FIELDS(va, va_shift,
-					    units - 1, scale), final_only);
+					    units - 1, scale, ttl), final_only);
 				va += ptoa(units << unit_shift);
 				continue;
 			}
@@ -2244,7 +2270,7 @@ pmap_s1_invalidate_loop(vm_offset_t sva, vm_offset_t eva, vm_offset_t stride,
  */
 static __inline void
 pmap_s1_invalidate_strided(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
-    vm_offset_t stride, bool final_only)
+    vm_offset_t stride, bool final_only, int ttl)
 {
 	uint64_t asid;
 	vm_offset_t va_mask;
@@ -2257,11 +2283,11 @@ pmap_s1_invalidate_strided(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		pmap_s1_invalidate_loop(sva, eva, stride, va_shift, va_mask,
-		    0, true, final_only);
+		    0, true, final_only, ttl);
 	} else {
 		asid = ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
 		pmap_s1_invalidate_loop(sva, eva, stride, va_shift, va_mask,
-		    asid, false, final_only);
+		    asid, false, final_only, ttl);
 	}
 	if (pmap_multiple_tlbi) {
 		dsb(ish);
@@ -2279,7 +2305,7 @@ static __inline void
 pmap_s1_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
     bool final_only)
 {
-	pmap_s1_invalidate_strided(pmap, sva, eva, L3_SIZE, final_only);
+	pmap_s1_invalidate_strided(pmap, sva, eva, L3_SIZE, final_only, TLBI_TTL_UNKNOWN);
 }
 
 static __inline void
@@ -2732,7 +2758,7 @@ pmap_kremove(vm_offset_t va)
 	KASSERT((pmap_load(pte) & ATTR_CONTIGUOUS) == 0,
 	    ("pmap_kremove: unexpected ATTR_CONTIGUOUS"));
 	pmap_clear(pte);
-	pmap_s1_invalidate_page(kernel_pmap, va, true);
+	pmap_s1_invalidate_page(kernel_pmap, va, true, TLBI_TTL_L3);
 }
 
 /*
@@ -2769,7 +2795,7 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 				    true);
 			}
 			pmap_clear(ptep);
-			pmap_s1_invalidate_page(kernel_pmap, va, true);
+			pmap_s1_invalidate_page(kernel_pmap, va, true, TLBI_TTL_L2);
 			PMAP_LOCK(kernel_pmap);
 			pmap_remove_kernel_l2(kernel_pmap, ptep, va);
 			PMAP_UNLOCK(kernel_pmap);
@@ -2984,7 +3010,7 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		l1pg = PTE_TO_VM_PAGE(tl0);
 		pmap_unwire_l3(pmap, va, l1pg, free);
 	}
-	pmap_invalidate_page(pmap, va, false);
+	pmap_invalidate_page(pmap, va, false, TLBI_TTL_UNKNOWN);
 
 	/*
 	 * Put page on a list so that it is released after
@@ -3683,7 +3709,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				if (pmap_pte_dirty(pmap, tpte))
 					vm_page_dirty(m);
 				if ((tpte & ATTR_AF) != 0) {
-					pmap_s1_invalidate_page(pmap, va, true);
+					pmap_s1_invalidate_page(pmap, va, true, TLBI_TTL_L3);
 					vm_page_aflag_set(m, PGA_REFERENCED);
 				}
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
@@ -4247,7 +4273,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pd_entry_t l1e,
 	 * Since a promotion must break the 4KB page mappings before making
 	 * the 2MB page mapping, a pmap_s1_invalidate_page() suffices.
 	 */
-	pmap_s1_invalidate_page(pmap, sva, true);
+	pmap_s1_invalidate_page(pmap, sva, true, TLBI_TTL_L2);
 
 	if (old_l2 & ATTR_SW_WIRED)
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
@@ -4306,7 +4332,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 	if ((old_l3 & ATTR_CONTIGUOUS) != 0)
 		(void)pmap_demote_l3c(pmap, l3, va);
 	old_l3 = pmap_load_clear(l3);
-	pmap_s1_invalidate_page(pmap, va, true);
+	pmap_s1_invalidate_page(pmap, va, true, TLBI_TTL_L3);
 	if (old_l3 & ATTR_SW_WIRED)
 		pmap->pm_stats.wired_count -= 1;
 	pmap_resident_count_dec(pmap, 1);
@@ -4573,7 +4599,7 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 			MPASS(pmap != kernel_pmap);
 			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
 			pmap_clear(l1);
-			pmap_s1_invalidate_page(pmap, sva, true);
+			pmap_s1_invalidate_page(pmap, sva, true, TLBI_TTL_L1);
 			pmap_resident_count_dec(pmap, L1_SIZE / PAGE_SIZE);
 			pmap_unuse_pt(pmap, sva, pmap_load(l0), &free);
 			continue;
@@ -4727,7 +4753,7 @@ retry:
 		if (tpte & ATTR_SW_WIRED)
 			pmap->pm_stats.wired_count--;
 		if ((tpte & ATTR_AF) != 0) {
-			pmap_invalidate_page(pmap, pv->pv_va, true);
+			pmap_invalidate_page(pmap, pv->pv_va, true, TLBI_TTL_L3);
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		}
 
@@ -4792,7 +4818,7 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
 	 * Since a promotion must break the 4KB page mappings before making
 	 * the 2MB page mapping, a pmap_s1_invalidate_page() suffices.
 	 */
-	pmap_s1_invalidate_page(pmap, sva, true);
+	pmap_s1_invalidate_page(pmap, sva, true, TLBI_TTL_L2);
 }
 
 /*
@@ -4881,7 +4907,7 @@ pmap_mask_set_locked(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t m
 			if ((pmap_load(l1) & mask) != nbits) {
 				pmap_store(l1, (pmap_load(l1) & ~mask) | nbits);
 				if (invalidate)
-					pmap_s1_invalidate_page(pmap, sva, true);
+					pmap_s1_invalidate_page(pmap, sva, true, TLBI_TTL_L1);
 			}
 			continue;
 		}
@@ -5142,7 +5168,8 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *ptep, pd_entry_t newpte,
  */
 static void __nosanitizecoverage
 pmap_update_strided(pmap_t pmap, pd_entry_t *ptep, pd_entry_t *ptep_end,
-    pd_entry_t newpte, vm_offset_t va, vm_offset_t stride, vm_size_t size)
+    pd_entry_t newpte, vm_offset_t va, vm_offset_t stride, vm_size_t size,
+    int ttl)
 {
 	pd_entry_t *lip;
 	register_t intr;
@@ -5167,7 +5194,7 @@ pmap_update_strided(pmap_t pmap, pd_entry_t *ptep, pd_entry_t *ptep_end,
 		pmap_clear_bits(lip, ATTR_DESCR_VALID);
 
 	/* Only final entries are changing. */
-	pmap_s1_invalidate_strided(pmap, va, va + size, stride, true);
+	pmap_s1_invalidate_strided(pmap, va, va + size, stride, true, ttl);
 
 	/* Create the new mapping. */
 	for (lip = ptep; lip < ptep_end; lip++) {
@@ -5488,7 +5515,8 @@ set_l3:
 	 * Remake the mappings with the contiguous bit set.
 	 */
 	pmap_update_strided(pmap, l3p, l3p + L3C_ENTRIES, firstl3c |
-	    ATTR_CONTIGUOUS, va & ~L3C_OFFSET, L3_SIZE, L3C_SIZE);
+	    ATTR_CONTIGUOUS, va & ~L3C_OFFSET, L3_SIZE, L3C_SIZE,
+	    TLBI_TTL_L3);
 
 	counter_u64_add(pmap_l3c_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l3c: success for va %#lx in pmap %p", va,
@@ -5979,7 +6007,7 @@ havel3:
 			if (pmap_pte_dirty(pmap, orig_l3))
 				vm_page_dirty(om);
 			if ((orig_l3 & ATTR_AF) != 0) {
-				pmap_invalidate_page(pmap, va, true);
+				pmap_invalidate_page(pmap, va, true, TLBI_TTL_L3);
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			}
 			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
@@ -5998,7 +6026,7 @@ havel3:
 		} else {
 			KASSERT((orig_l3 & ATTR_AF) != 0,
 			    ("pmap_enter: unmanaged mapping lacks ATTR_AF"));
-			pmap_invalidate_page(pmap, va, true);
+			pmap_invalidate_page(pmap, va, true, TLBI_TTL_L3);
 		}
 		orig_l3 = 0;
 	} else {
@@ -6069,7 +6097,7 @@ validate:
 			if ((orig_l3 & ATTR_CONTIGUOUS) != 0)
 				(void)pmap_demote_l3c(pmap, l3, va);
 			orig_l3 = pmap_load_store(l3, new_l3);
-			pmap_invalidate_page(pmap, va, true);
+			pmap_invalidate_page(pmap, va, true, TLBI_TTL_L3);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
 			    pmap_pte_dirty(pmap, orig_l3))
 				vm_page_dirty(m);
@@ -6287,7 +6315,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				 * L2_TABLE entry.
 				 */
 				pmap_clear(l2);
-				pmap_s1_invalidate_page(pmap, va, false);
+				pmap_s1_invalidate_page(pmap, va, false, TLBI_TTL_UNKNOWN);
 			}
 		}
 		KASSERT(pmap_load(l2) == 0,
@@ -7970,7 +7998,7 @@ retry:
 
 			if ((oldpte & mask) == val)
 				vm_page_dirty(m);
-			pmap_invalidate_page(pmap, pv->pv_va, true);
+			pmap_invalidate_page(pmap, pv->pv_va, true, TLBI_TTL_L3);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -8069,7 +8097,7 @@ retry:
 			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
 			    (tpte & ATTR_SW_WIRED) == 0) {
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_invalidate_page(pmap, va, true);
+				pmap_invalidate_page(pmap, va, true, TLBI_TTL_L2);
 				cleared++;
 			} else
 				not_cleared++;
@@ -8114,7 +8142,7 @@ small_mappings:
 				 * regardless of the contiguous bit.
 				 */
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_invalidate_page(pmap, pv->pv_va, true);
+				pmap_invalidate_page(pmap, pv->pv_va, true, TLBI_TTL_L3);
 				cleared++;
 			} else
 				not_cleared++;
@@ -8376,7 +8404,7 @@ restart:
 			    (oldl3 & ~ATTR_SW_DBM) | ATTR_S1_AP(ATTR_S1_AP_RO)))
 				cpu_spinwait();
 			vm_page_dirty(m);
-			pmap_s1_invalidate_page(pmap, va, true);
+			pmap_s1_invalidate_page(pmap, va, true, TLBI_TTL_L3);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -8405,7 +8433,7 @@ restart:
 			if ((oldl3 & ATTR_CONTIGUOUS) != 0)
 				(void)pmap_demote_l3c(pmap, l3, pv->pv_va);
 			pmap_set_bits(l3, ATTR_S1_AP(ATTR_S1_AP_RO));
-			pmap_s1_invalidate_page(pmap, pv->pv_va, true);
+			pmap_s1_invalidate_page(pmap, pv->pv_va, true, TLBI_TTL_L3);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -8877,11 +8905,13 @@ pmap_change_props_locked(void *addr, vm_size_t size, vm_prot_t prot,
 			switch (pte_size) {
 			case L2C_SIZE:
 				pmap_update_strided(kernel_pmap, ptep, ptep +
-				    L2C_ENTRIES, pte, tmpva, L2_SIZE, L2C_SIZE);
+				    L2C_ENTRIES, pte, tmpva, L2_SIZE, L2C_SIZE,
+				    TLBI_TTL_L2);
 				break;
 			case L3C_SIZE:
 				pmap_update_strided(kernel_pmap, ptep, ptep +
-				    L3C_ENTRIES, pte, tmpva, L3_SIZE, L3C_SIZE);
+				    L3C_ENTRIES, pte, tmpva, L3_SIZE, L3C_SIZE,
+				    TLBI_TTL_L3);
 				break;
 			default:
 				/*
@@ -8898,7 +8928,7 @@ pmap_change_props_locked(void *addr, vm_size_t size, vm_prot_t prot,
 			if (tmpptep != 0) {
 				pmap_clear(cmap1_pte);
 				pmap_s1_invalidate_page(kernel_pmap,
-				    (vm_offset_t)tmpptep, true);
+				    (vm_offset_t)tmpptep, true, TLBI_TTL_L3);
 				mtx_unlock(&cmap_lock);
 			}
 
@@ -9314,7 +9344,7 @@ pmap_demote_l2c(pmap_t pmap, pt_entry_t *l2p, vm_offset_t va)
 	}
 	if ((nbits & ATTR_AF) != 0) {
 		pmap_s1_invalidate_strided(pmap, va & ~L2C_OFFSET, (va +
-		    L2C_SIZE) & ~L2C_OFFSET, L2_SIZE, true);
+		    L2C_SIZE) & ~L2C_OFFSET, L2_SIZE, true, TLBI_TTL_L2);
 	}
 
 	/*
@@ -9710,6 +9740,25 @@ pmap_init_cnp(void *dummy __unused)
 }
 SYSINIT(pmap_init_cnp, SI_SUB_SMP, SI_ORDER_ANY, pmap_init_cnp, NULL);
 
+/*
+ * Defer enabling TTL until we have read the ID registers to know if it's
+ * supported on all CPUs.
+ */
+static void
+pmap_init_ttl(void *dummy __unused)
+{
+	uint64_t reg;
+
+	get_kernel_reg(ID_AA64MMFR2_EL1, &reg);
+	if (ID_AA64MMFR2_TTL_VAL(reg) != ID_AA64MMFR2_TTL_NONE) {
+		if (bootverbose)
+			printf("Enabling TTL\n");
+		pmap_ttl_support = true;
+	}
+
+}
+SYSINIT(pmap_init_ttl, SI_SUB_SMP, SI_ORDER_ANY, pmap_init_ttl, NULL);
+
 static bool
 pmap_activate_int(struct thread *td, pmap_t pmap)
 {
@@ -9994,7 +10043,7 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 			if ((pte & ATTR_S1_AP_RW_BIT) ==
 			    ATTR_S1_AP(ATTR_S1_AP_RO))
 				pmap_clear_bits(ptep, ATTR_S1_AP_RW_BIT);
-			pmap_s1_invalidate_page_local(pmap, far);
+			pmap_s1_invalidate_page_local(pmap, far, TLBI_TTL_UNKNOWN);
 			rv = KERN_SUCCESS;
 		}
 		PMAP_UNLOCK(pmap);
