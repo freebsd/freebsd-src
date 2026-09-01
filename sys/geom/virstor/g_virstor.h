@@ -76,6 +76,8 @@ struct g_virstor_component {
 	unsigned int		 chunk_next;
 	unsigned int		 chunk_reserved;
 	unsigned int		 flags;
+	int			 candelete;
+	uint16_t		 rotation_rate;
 };
 
 /* Internal geom instance data */
@@ -96,6 +98,7 @@ struct g_virstor_softc {
 	size_t			 me_per_sector;	/* # map entries in a sector */
 	STAILQ_HEAD(, g_virstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
 	struct mtx		 delayed_bio_q_mtx;
+	struct mtx		 completion_mtx; /* Synchronizes completions */
 };
 
 /* "delayed BIOs" Queue element */

@@ -46,9 +46,13 @@
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/mutex.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_page.h>
 #include <vm/uma.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
+#include <geom/geom_disk.h>
 
 #include <geom/virstor/g_virstor.h>
 #include <geom/virstor/g_virstor_md.h>
@@ -131,6 +135,9 @@ static void fill_metadata(struct g_virstor_softc *, struct g_virstor_metadata *,
 
 static void g_virstor_orphan(struct g_consumer *);
 static int g_virstor_access(struct g_provider *, int, int, int);
+static void g_virstor_passdown(struct g_virstor_softc *, struct bio *);
+static void g_virstor_candelete(struct g_virstor_softc *, struct bio *);
+static void g_virstor_rotation_rate(struct g_virstor_softc *, struct bio *);
 static void g_virstor_start(struct bio *);
 static void g_virstor_dumpconf(struct sbuf *, const char *, struct g_geom *,
     struct g_consumer *, struct g_provider *);
@@ -303,6 +310,10 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Virstor %s is incomplete", sc->geom->name);
 		return;
 	}
+	if (sc->provider == NULL) {
+		gctl_error(req, "Virstor %s is not running", sc->geom->name);
+		return;
+	}
 
 	fcp = sc->components[0].gcons;
 	added = 0;
@@ -312,6 +323,8 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		char aname[8];
 		struct g_provider *pp;
 		struct g_consumer *cp;
+		uint16_t rr;
+		int cd;
 		u_int nc;
 		u_int j;
 
@@ -327,34 +340,14 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 			g_topology_unlock();
 			return;
 		}
-		cp = g_new_consumer(sc->geom);
-		if (cp == NULL) {
-			gctl_error(req, "Cannot create consumer");
-			g_topology_unlock();
-			return;
-		}
-		error = g_attach(cp, pp);
-		if (error != 0) {
-			gctl_error(req, "Cannot attach a consumer to %s",
-			    pp->name);
-			g_destroy_consumer(cp);
-			g_topology_unlock();
-			return;
-		}
-		if (fcp->acr != 0 || fcp->acw != 0 || fcp->ace != 0) {
-			error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
-			if (error != 0) {
-				gctl_error(req, "Access request failed for %s",
-				    pp->name);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				return;
-			}
-		}
 		if (fcp->provider->sectorsize != pp->sectorsize) {
 			gctl_error(req, "Sector size doesn't fit for %s",
 			    pp->name);
-			g_destroy_consumer(cp);
+			g_topology_unlock();
+			return;
+		}
+		if (pp->mediasize / sc->chunk_size < 4) {
+			gctl_error(req, "Provider too small: %s", pp->name);
 			g_topology_unlock();
 			return;
 		}
@@ -363,6 +356,41 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 			    pp->name) == 0) {
 				gctl_error(req, "Component %s already in %s",
 				    pp->name, sc->geom->name);
+				g_topology_unlock();
+				return;
+			}
+		}
+		cp = g_new_consumer(sc->geom);
+		if (cp == NULL) {
+			gctl_error(req, "Cannot create consumer");
+			g_topology_unlock();
+			return;
+		}
+		cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+		error = g_attach(cp, pp);
+		if (error != 0) {
+			gctl_error(req, "Cannot attach a consumer to %s",
+			    pp->name);
+			g_destroy_consumer(cp);
+			g_topology_unlock();
+			return;
+		}
+		/* Cascade candelete and rotation rate. */
+		cd = 0;
+		rr = DISK_RR_UNKNOWN;
+		if (g_access(cp, 1, 0, 0) == 0) {
+			if (g_getattr("GEOM::candelete", cp, &cd) != 0)
+				cd = 0;
+			if (g_getattr("GEOM::rotation_rate", cp, &rr) != 0)
+				rr = DISK_RR_UNKNOWN;
+			g_access(cp, -1, 0, 0);
+		}
+		if (fcp->acr != 0 || fcp->acw != 0 || fcp->ace != 0) {
+			error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
+			if (error != 0) {
+				gctl_error(req, "Access request failed for %s",
+				    pp->name);
+				g_detach(cp);
 				g_destroy_consumer(cp);
 				g_topology_unlock();
 				return;
@@ -380,13 +408,15 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		    sc->chunk_size;
 		sc->components[nc].chunk_next = 0;
 		sc->components[nc].chunk_reserved = 0;
+		sc->components[nc].flags = 0;
+		sc->components[nc].candelete = cd;
+		sc->components[nc].rotation_rate = rr;
 
-		if (sc->components[nc].chunk_count < 4) {
-			gctl_error(req, "Provider too small: %s",
-			    cp->provider->name);
-			g_destroy_consumer(cp);
-			g_topology_unlock();
-			return;
+		/* A provider underneath us doesn't support unmapped. */
+		if ((pp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+			LOG_MSG(LVL_INFO, "Cancelling unmapped because of %s",
+			    pp->name);
+			sc->provider->flags &= ~G_PF_ACCEPT_UNMAPPED;
 		}
 		fill_metadata(sc, &md, nc, *hardcode);
 		write_metadata(cp, &md);
@@ -697,7 +727,7 @@ g_virstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
 		    "table for %s", sc->geom->name);
 		count = 0;
 		for (n = 0; n < sc->chunk_count; n++) {
-			if (sc->map[n].flags || VIRSTOR_MAP_ALLOCATED != 0)
+			if ((sc->map[n].flags & VIRSTOR_MAP_ALLOCATED) != 0)
 				count++;
 		}
 		LOG_MSG(LVL_INFO, "Device %s has %d allocated chunks",
@@ -956,6 +986,7 @@ virstor_geom_destroy(struct g_virstor_softc *sc, boolean_t force,
 	}
 	mtx_unlock(&sc->delayed_bio_q_mtx);
 	mtx_destroy(&sc->delayed_bio_q_mtx);
+	mtx_destroy(&sc->completion_mtx);
 
 	free(sc->map, M_GVIRSTOR);
 	free(sc->components, M_GVIRSTOR);
@@ -1104,6 +1135,8 @@ create_virstor_geom(struct g_class *mp, struct g_virstor_metadata *md)
 	STAILQ_INIT(&sc->delayed_bio_q);
 	mtx_init(&sc->delayed_bio_q_mtx, "gvirstor_delayed_bio_q_mtx",
 	    "gvirstor", MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->completion_mtx, "gvirstor_completion_mtx", "gvirstor",
+	    MTX_DEF);
 
 	sc->geom = gp;
 	sc->provider = NULL; /* virstor_check_and_run will create it */
@@ -1138,11 +1171,25 @@ add_provider_to_geom(struct g_virstor_softc *sc, struct g_provider *pp,
 	fcp = LIST_FIRST(&gp->consumer);
 
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 
 	if (error != 0) {
 		g_destroy_consumer(cp);
 		return (error);
+	}
+
+	/* Cascade candelete and rotation rate. */
+	component->candelete = 0;
+	component->rotation_rate = DISK_RR_UNKNOWN;
+	if (g_access(cp, 1, 0, 0) == 0) {
+		if (g_getattr("GEOM::candelete", cp,
+		    &component->candelete) != 0)
+			component->candelete = 0;
+		if (g_getattr("GEOM::rotation_rate", cp,
+		    &component->rotation_rate) != 0)
+			component->rotation_rate = DISK_RR_UNKNOWN;
+		g_access(cp, -1, 0, 0);
 	}
 
 	if (fcp != NULL) {
@@ -1151,6 +1198,8 @@ add_provider_to_geom(struct g_virstor_softc *sc, struct g_provider *pp,
 			LOG_MSG(LVL_ERROR, "Provider %s of %s has invalid "
 			    "sector size (%d)", pp->name, sc->geom->name,
 			    pp->sectorsize);
+			g_detach(cp);
+			g_destroy_consumer(cp);
 			return (EINVAL);
 		}
 		if (fcp->acr > 0 || fcp->acw || fcp->ace > 0) {
@@ -1193,6 +1242,7 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 	size_t n, count;
 	int index;
 	int error;
+	bool unmapped;
 
 	if (virstor_valid_components(sc) != sc->n_components)
 		return;
@@ -1221,8 +1271,19 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 	sc->map_sectors = sc->map_size / sc->sectorsize;
 
 	count = 0;
-	for (n = 0; n < sc->n_components; n++)
+	unmapped = true;
+	for (n = 0; n < sc->n_components; n++) {
+		struct g_provider *cpp;
+
 		count += sc->components[n].chunk_count;
+		/* A provider underneath us doesn't support unmapped. */
+		cpp = sc->components[n].gcons->provider;
+		if ((cpp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+			LOG_MSG(LVL_INFO, "Cancelling unmapped because of %s",
+			    cpp->name);
+			unmapped = false;
+		}
+	}
 	LOG_MSG(LVL_INFO, "Device %s has %zu physical chunks and %zu virtual "
 	    "(%zu KB chunks)",
 	    sc->geom->name, count, sc->chunk_count, sc->chunk_size / 1024);
@@ -1340,6 +1401,9 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 	sc->provider = g_new_providerf(sc->geom, "virstor/%s",
 	    sc->geom->name);
 
+	sc->provider->flags |= G_PF_DIRECT_SEND;
+	if (unmapped)
+		sc->provider->flags |= G_PF_ACCEPT_UNMAPPED;
 	sc->provider->sectorsize = sc->sectorsize;
 	sc->provider->mediasize = sc->virsize;
 	g_error_provider(sc->provider, 0);
@@ -1476,41 +1540,39 @@ g_virstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    indent, comp->chunk_reserved);
 		sbuf_printf(sb, "%s<StorageFree>%u%%</StorageFree>\n",
 		    indent,
-		    comp->chunk_next > 0 ? 100 -
-		    ((comp->chunk_next + comp->chunk_reserved) * 100) /
-		    comp->chunk_count : 100);
+		    100 - (u_int)((uint64_t)comp->chunk_next * 100 /
+		    comp->chunk_count));
 	} else {
 		/* For the whole thing */
-		u_int count, used, i;
-		off_t size;
+		off_t count, used, size;
+		u_int pfree, i;
 
 		count = used = size = 0;
 		for (i = 0; i < sc->n_components; i++) {
 			if (sc->components[i].gcons != NULL) {
 				count += sc->components[i].chunk_count;
-				used += sc->components[i].chunk_next +
-				    sc->components[i].chunk_reserved;
+				used += sc->components[i].chunk_next;
 				size += sc->components[i].gcons->
 				    provider->mediasize;
 			}
 		}
+		pfree = count > 0 ? 100 - (u_int)(used * 100 / count) : 100;
 
 		sbuf_printf(sb, "%s<Status>"
 		    "Components=%u, Online=%u</Status>\n", indent,
 		    sc->n_components, virstor_valid_components(sc));
 		sbuf_printf(sb, "%s<State>%u%% physical free</State>\n",
-		    indent, 100-(used * 100) / count);
+		    indent, pfree);
 		sbuf_printf(sb, "%s<ChunkSize>%zu</ChunkSize>\n", indent,
 		    sc->chunk_size);
 		sbuf_printf(sb, "%s<PhysicalFree>%u%%</PhysicalFree>\n",
-		    indent, used > 0 ? 100 - (used * 100) / count : 100);
-		sbuf_printf(sb, "%s<ChunkPhysicalCount>%u</ChunkPhysicalCount>\n",
+		    indent, pfree);
+		sbuf_printf(sb, "%s<ChunkPhysicalCount>%jd</ChunkPhysicalCount>\n",
 		    indent, count);
 		sbuf_printf(sb, "%s<ChunkVirtualCount>%zu</ChunkVirtualCount>\n",
 		    indent, sc->chunk_count);
-		sbuf_printf(sb, "%s<PhysicalBacking>%zu%%</PhysicalBacking>\n",
-		    indent,
-		    (count * 100) / sc->chunk_count);
+		sbuf_printf(sb, "%s<PhysicalBacking>%jd%%</PhysicalBacking>\n",
+		    indent, count * 100 / (off_t)sc->chunk_count);
 		sbuf_printf(sb, "%s<PhysicalBackingSize>%jd</PhysicalBackingSize>\n",
 		    indent, size);
 		sbuf_printf(sb, "%s<VirtualSize>%jd</VirtualSize>\n", indent,
@@ -1526,26 +1588,140 @@ g_virstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 static void
 g_virstor_done(struct bio *b)
 {
+	struct g_virstor_softc *sc;
 	struct bio *parent_b;
 
 	parent_b = b->bio_parent;
+	sc = parent_b->bio_to->geom->softc;
 
 	if (b->bio_error != 0) {
 		LOG_MSG(LVL_ERROR, "Error %d for offset=%ju, length=%ju, %s",
 		    b->bio_error, b->bio_offset, b->bio_length,
 		    b->bio_to->name);
-		if (parent_b->bio_error == 0)
-			parent_b->bio_error = b->bio_error;
 	}
 
+	mtx_lock(&sc->completion_mtx);
+	if (parent_b->bio_error == 0)
+		parent_b->bio_error = b->bio_error;
 	parent_b->bio_inbed++;
 	parent_b->bio_completed += b->bio_completed;
-
 	if (parent_b->bio_children == parent_b->bio_inbed) {
+		mtx_unlock(&sc->completion_mtx);
 		parent_b->bio_completed = parent_b->bio_length;
 		g_io_deliver(parent_b, parent_b->bio_error);
-	}
+	} else
+		mtx_unlock(&sc->completion_mtx);
 	g_destroy_bio(b);
+}
+
+/*
+ * Pass the request down to every allocated component.  A chunk may be
+ * allocated on any of them, so all have to be covered.  Components without
+ * any allocated chunks never received a data write, so they are skipped.
+ */
+static void
+g_virstor_passdown(struct g_virstor_softc *sc, struct bio *b)
+{
+	struct bio_queue_head bq;
+	struct g_virstor_component *comp;
+	struct bio *cb;
+	u_int n;
+
+	bioq_init(&bq);
+	for (n = 0; n < sc->n_components; n++) {
+		comp = &sc->components[n];
+		if (comp->gcons == NULL ||
+		    (comp->flags & VIRSTOR_PROVIDER_ALLOCATED) == 0)
+			continue;
+		cb = g_clone_bio(b);
+		if (cb == NULL) {
+			bioq_dismantle(&bq);
+			if (b->bio_error == 0)
+				b->bio_error = ENOMEM;
+			g_io_deliver(b, b->bio_error);
+			return;
+		}
+		cb->bio_done = g_virstor_done;
+		cb->bio_to = comp->gcons->provider;
+		cb->bio_caller1 = comp;
+		bioq_insert_tail(&bq, cb);
+	}
+	KASSERT(bioq_first(&bq) != NULL,
+	    ("%s: No allocated components in %s", __func__, sc->geom->name));
+	while ((cb = bioq_takefirst(&bq)) != NULL) {
+		comp = cb->bio_caller1;
+		cb->bio_caller1 = NULL;
+		LOG_REQ(LVL_MOREDEBUG, cb, "Firing request");
+		g_io_request(cb, comp->gcons);
+	}
+}
+
+/*
+ * Report BIO_DELETE support if any of the components supports it.
+ */
+static void
+g_virstor_candelete(struct g_virstor_softc *sc, struct bio *b)
+{
+	int val;
+	u_int n;
+
+	for (n = 0; n < sc->n_components; n++) {
+		if (sc->components[n].gcons != NULL &&
+		    sc->components[n].candelete)
+			break;
+	}
+	val = n < sc->n_components;
+	g_handleattr(b, "GEOM::candelete", &val, sizeof(val));
+}
+
+/*
+ * Report the rotation rate of the components, if they all agree on it.
+ */
+static void
+g_virstor_rotation_rate(struct g_virstor_softc *sc, struct bio *b)
+{
+	uint16_t rr = DISK_RR_UNKNOWN;
+	bool first = true;
+	u_int n;
+
+	for (n = 0; n < sc->n_components; n++) {
+		if (sc->components[n].gcons == NULL)
+			continue;
+		if (first)
+			rr = sc->components[n].rotation_rate;
+		else if (rr != sc->components[n].rotation_rate) {
+			rr = DISK_RR_UNKNOWN;
+			break;
+		}
+		first = false;
+	}
+	g_handleattr(b, "GEOM::rotation_rate", &rr, sizeof(rr));
+}
+
+/*
+ * Zero a part of the request's buffer.  For unmapped requests addr is not a
+ * pointer, but an offset from the beginning of the buffer.
+ */
+static void
+g_virstor_zero(struct bio *b, char *addr, size_t length)
+{
+	vm_page_t *ma;
+	size_t moff, len;
+
+	if ((b->bio_flags & BIO_UNMAPPED) == 0) {
+		bzero(addr, length);
+		return;
+	}
+	moff = b->bio_ma_offset + (uintptr_t)addr;
+	ma = b->bio_ma + moff / PAGE_SIZE;
+	moff %= PAGE_SIZE;
+	while (length > 0) {
+		len = MIN(PAGE_SIZE - moff, length);
+		pmap_zero_page_area(*ma, moff, len);
+		ma++;
+		moff = 0;
+		length -= len;
+	}
 }
 
 /*
@@ -1577,6 +1753,20 @@ g_virstor_start(struct bio *b)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
+	case BIO_FLUSH:
+		g_virstor_passdown(sc, b);
+		return;
+	case BIO_GETATTR:
+		if (strcmp(b->bio_attribute, "GEOM::candelete") == 0) {
+			g_virstor_candelete(sc, b);
+			return;
+		}
+		if (strcmp(b->bio_attribute, "GEOM::rotation_rate") == 0) {
+			g_virstor_rotation_rate(sc, b);
+			return;
+		}
+		/* To which component should it be delivered? */
+		/* FALLTHROUGH */
 	default:
 		g_io_deliver(b, EOPNOTSUPP);
 		return;
@@ -1586,7 +1776,10 @@ g_virstor_start(struct bio *b)
 	bioq_init(&bq);
 
 	chunk_size = sc->chunk_size;
-	addr = b->bio_data;
+	if ((b->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = b->bio_data;
 	offset = b->bio_offset;	/* virtual offset and length */
 	length = b->bio_length;
 
@@ -1608,7 +1801,8 @@ g_virstor_start(struct bio *b)
 				/* Reads from unallocated chunks return zeroed
 				 * buffers */
 				if (b->bio_cmd == BIO_READ)
-					bzero(addr, in_chunk_length);
+					g_virstor_zero(b, addr,
+					    in_chunk_length);
 			} else {
 				comp = &sc->components[me->provider_no];
 
@@ -1626,7 +1820,16 @@ g_virstor_start(struct bio *b)
 				    (off_t)me->provider_chunk * (off_t)chunk_size
 				    + in_chunk_offset;
 				cb->bio_length = in_chunk_length;
-				cb->bio_data = addr;
+				if ((b->bio_flags & BIO_UNMAPPED) != 0) {
+					cb->bio_ma_offset += (uintptr_t)addr;
+					cb->bio_ma += cb->bio_ma_offset /
+					    PAGE_SIZE;
+					cb->bio_ma_offset %= PAGE_SIZE;
+					cb->bio_ma_n = round_page(
+					    cb->bio_ma_offset +
+					    cb->bio_length) / PAGE_SIZE;
+				} else
+					cb->bio_data = addr;
 				cb->bio_caller1 = comp;
 				bioq_disksort(&bq, cb);
 			}
@@ -1716,6 +1919,7 @@ g_virstor_start(struct bio *b)
 				cb->bio_done = g_virstor_done;
 				cb->bio_offset = s_offset;
 				cb->bio_data = (char *)data_me;
+				cb->bio_flags &= ~BIO_UNMAPPED;
 				cb->bio_length = sc->sectorsize;
 				cb->bio_caller1 = &sc->components[0];
 				bioq_disksort(&bq, cb);
@@ -1736,11 +1940,19 @@ g_virstor_start(struct bio *b)
 			cb->bio_offset = (off_t)me->provider_chunk*(off_t)chunk_size +
 			    in_chunk_offset;
 			cb->bio_length = in_chunk_length;
-			cb->bio_data = addr;
+			if ((b->bio_flags & BIO_UNMAPPED) != 0) {
+				cb->bio_ma_offset += (uintptr_t)addr;
+				cb->bio_ma += cb->bio_ma_offset / PAGE_SIZE;
+				cb->bio_ma_offset %= PAGE_SIZE;
+				cb->bio_ma_n = round_page(cb->bio_ma_offset +
+				    cb->bio_length) / PAGE_SIZE;
+			} else
+				cb->bio_data = addr;
 			cb->bio_caller1 = comp;
 			bioq_disksort(&bq, cb);
 		}
-		addr += in_chunk_length;
+		if (b->bio_cmd != BIO_DELETE)
+			addr += in_chunk_length;
 		length -= in_chunk_length;
 		offset += in_chunk_length;
 	}
