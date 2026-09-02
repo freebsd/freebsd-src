@@ -107,7 +107,8 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 		return (n);
 
 	for (; n < nframes;) {
-		if (pc == 0 || !PMC_IN_USERSPACE(pc))
+		/* fp == 0 is the ABI frame-chain sentinel below _start. */
+		if (pc == 0 || !PMC_IN_USERSPACE(pc) || fp == 0)
 			break;
 
 		*cc++ = pc; n++;
