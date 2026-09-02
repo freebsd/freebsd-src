@@ -1448,7 +1448,8 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			goto err;
 		}
 
-		MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FUNC_TOEPLITZ);
+		MLX5_SET(tirc, tirc, rx_hash_fn,
+			 MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ);
 		memcpy(rss_key, ucmd.rx_hash_key, len);
 		break;
 	}
