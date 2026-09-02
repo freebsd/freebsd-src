@@ -11085,9 +11085,17 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 				 * local source address.  If either one is
 				 * missing then MLD message is invalid and
 				 * should be discarded.
+				 * RFC 3590 clarifies that during initial
+				 * duplicate address detection nodes may not
+				 * have an address, so are permitted to use
+				 * the unspecified address, but only for Report
+				 * and Done messages.
 				 */
 				if ((h->ip6_hlim != 1) ||
-				    !IN6_IS_ADDR_LINKLOCAL(&h->ip6_src)) {
+				    (!IN6_IS_ADDR_LINKLOCAL(&h->ip6_src) &&
+				     icmp6.icmp6_type == MLD_LISTENER_QUERY) ||
+				    (!IN6_IS_ADDR_LINKLOCAL(&h->ip6_src) &&
+				    !IN6_IS_ADDR_UNSPECIFIED(&h->ip6_src))) {
 					DPFPRINTF(PF_DEBUG_MISC, "Invalid MLD");
 					REASON_SET(reason, PFRES_IPOPTIONS);
 					return (PF_DROP);

@@ -25,6 +25,7 @@
 # SUCH DAMAGE.
 
 import pytest
+import time
 from utils import DelayedSend
 from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
@@ -44,6 +45,11 @@ class TestMLD(VnetTestTemplate):
             "pass",
             ])
         ToolsHelper.print_output("/sbin/pfctl -x loud")
+
+        while True:
+            cmd = self.wait_object(vnet.pipe)
+            result = ToolsHelper.get_output(cmd)
+            vnet.pipe.send(result)
 
     def find_mld_reply(self, pkt, ifname):
         pkt.show()
@@ -88,3 +94,54 @@ class TestMLD(VnetTestTemplate):
         # Check if we logged dropping the MLD paacket
         dmesg = ToolsHelper.get_output("/sbin/dmesg")
         assert dmesg.find("Invalid MLD") != -1
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_unspec(self):
+        """Verify that we allow MLD packets from the unspecifed address"""
+        pf_pipe = self.vnet_map["vnet2"].pipe
+        ifname = self.vnet.iface_alias_map["if1"].name
+        ToolsHelper.print_output("/sbin/ifconfig")
+
+        # Import in the correct vnet, so at to not confuse Scapy
+        import scapy.all as sp
+        import scapy.contrib as sc
+        import scapy.contrib.igmp
+        self.sp = sp
+        self.sc = sc
+
+        # MLD packets with an incorrect hop limit get dropped.
+        pkt = sp.Ether() \
+            / sp.IPv6(src="::", dst="ff02::1", hlim=1) \
+            / sp.IPv6ExtHdrHopByHop(options=[ \
+                sp.RouterAlert(value=0) \
+                ]) \
+            / sp.ICMPv6MLReport()
+        # Send the packet, there's no reply to a report
+        pkt.show()
+        sp.sendp(pkt, iface=ifname)
+
+        time.sleep(1)
+
+        # We should not have logged a drop of an MLD packet
+        pf_pipe.send("/sbin/pfctl -sa")
+        out = self.wait_object(pf_pipe)
+        print("out %s" % out)
+        assert out.find("ip-option                              0") != -1
+
+        # However, we do still drop queries from the unspecified address
+        pkt = sp.Ether() \
+            / sp.IPv6(src="::", dst="ff02::1", hlim=1) \
+            / sp.IPv6ExtHdrHopByHop(options=[ \
+                sp.RouterAlert(value=0) \
+                ]) \
+            / sp.ICMPv6MLQuery()
+        # Send the packet, there's no reply to a report
+        sp.sendp(pkt, iface=ifname)
+
+        time.sleep(1)
+
+        pf_pipe.send("/sbin/pfctl -sa")
+        out = self.wait_object(pf_pipe)
+        print("out %s" % out)
+        assert out.find("ip-option                              1") != -1
