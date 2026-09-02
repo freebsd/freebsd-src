@@ -205,7 +205,7 @@
 
 /* CLIDR_EL1 - Cache level ID register */
 #define	CLIDR_EL1_REG		MRS_REG_ALT_NAME(CLIDR_EL1)
-#define	CLIDR_EL1_op0		2
+#define	CLIDR_EL1_op0		3
 #define	CLIDR_EL1_op1		1
 #define	CLIDR_EL1_CRn		0
 #define	CLIDR_EL1_CRm		0
