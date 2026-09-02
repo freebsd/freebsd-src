@@ -45,8 +45,10 @@ ATF_TC_BODY(implied_connect, tc)
 	socklen_t len;
 	int s, c, a;
 
-	ATF_REQUIRE(s = socket(PF_INET, SOCK_STREAM, 0));
-	ATF_REQUIRE(c = socket(PF_INET, SOCK_STREAM, 0));
+	s = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_REQUIRE(s != -1);
+	c = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_REQUIRE(c != -1);
 
 	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	len = sizeof(sin);
@@ -86,8 +88,10 @@ ATF_TC_BODY(getsockname_disconnected, tc)
 	socklen_t len;
 	int s, c, a;
 
-	ATF_REQUIRE(s = socket(PF_INET, SOCK_STREAM, 0));
-	ATF_REQUIRE(c = socket(PF_INET, SOCK_STREAM, 0));
+	s = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_REQUIRE(s != -1);
+	c = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_REQUIRE(c != -1);
 
 	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	len = sizeof(sin);
