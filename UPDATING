@@ -12,6 +12,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20261029:
+	struct if_rxd_info now carries a receive timestamp.  iflib drivers
+	must be rebuilt.  __FreeBSD_version has been bumped to 1501506.
+
 20260925:
 	less(1) has been updated to version 710, which removes the obsolete
 	lesskey(1) utility.  It is no longer built or installed, and the
