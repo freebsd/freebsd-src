@@ -37,6 +37,8 @@
     ..
 /set mode=0755
     db
+        backlight       tags=package=rc
+        ..
         entropy         uname=operator gname=operator mode=0700
         ..
         freebsd-update  mode=0700
