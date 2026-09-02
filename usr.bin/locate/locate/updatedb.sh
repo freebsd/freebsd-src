@@ -43,6 +43,8 @@ fi
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
 : ${TMPDIR:=/tmp}; export TMPDIR
 if ! TMPDIR=$(mktemp -d $TMPDIR/locateXXXXXXXXXX); then
+	echo "updatedb: unable to create temporary directory in $TMPDIR" >&2
+	echo "updatedb: please check available disk space and permissions" >&2
 	exit 1
 fi
 tmp=$TMPDIR/_updatedb$$
@@ -77,7 +79,7 @@ done
 excludes="$excludes ) -prune"
 
 if [ -n "$PRUNEPATHS" ]; then
-	for path in $PRUNEPATHS; do 
+	for path in $PRUNEPATHS; do
 		excludes="$excludes -or -path $path -prune"
 	done
 fi
