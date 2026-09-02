@@ -828,6 +828,8 @@
         file
         ..
         fs
+            fdescfs
+            ..
             fusefs
             ..
             pjdfstest

@@ -248,6 +248,7 @@ struct fdesc_get_ino_args {
 	struct file *fp;
 	struct thread *td;
 	bool fdropped;
+	bool traverse;
 };
 
 static int
@@ -261,7 +262,8 @@ fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
 
 	a = arg;
 	fdm = VFSTOFDESC(mp);
-	if ((fdm->flags & FMNT_NODUP) != 0 && a->fp->f_type == DTYPE_VNODE) {
+	if ((a->traverse || (fdm->flags & FMNT_NODUP) != 0) &&
+	    a->fp->f_type == DTYPE_VNODE) {
 		vp = a->fp->f_vnode;
 		vget(vp, lkflags | LK_RETRY);
 		*rvp = vp;
@@ -292,6 +294,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	u_int fd, fd1;
 	int error;
 	struct vnode *fvp;
+	bool traverse;
 
 	if ((cnp->cn_flags & ISLASTCN) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
@@ -335,6 +338,16 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	if ((error = fget(td, fd, &cap_no_rights, &fp)) != 0)
 		goto bad;
 
+	/* A component below /dev/fd/N resolves in the directory N names. */
+	traverse = ((cnp->cn_flags & ISLASTCN) == 0 ||
+	    (cnp->cn_flags & TRAILINGSLASH) != 0) &&
+	    (VFSTOFDESC(dvp->v_mount)->flags & FMNT_LINRDLNKF) != 0;
+	if (traverse && fp->f_type != DTYPE_VNODE) {
+		fdrop(fp, td);
+		error = ENOTDIR;
+		goto bad;
+	}
+
 	/*
 	 * Make sure we do not deadlock looking up the dvp itself.
 	 *
@@ -350,6 +363,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	arg.fp = fp;
 	arg.td = td;
 	arg.fdropped = false;
+	arg.traverse = traverse;
 	error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
 	    LK_EXCLUSIVE, &fvp);
 
