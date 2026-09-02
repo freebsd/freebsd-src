@@ -90,11 +90,26 @@ typedef struct {
 } fenv_t;
 #endif /* __i386__ */
 
+/*
+ * Control modes: x87 control word plus MXCSR bits other than the
+ * exception flags.  fesetmode() restores those bits without changing
+ * the raised exception flags.
+ */
+typedef struct {
+	__uint16_t	__control;
+	__uint16_t	__reserved;
+	__uint32_t	__mxcsr;
+} femode_t;
+
 __BEGIN_DECLS
 
 /* Default floating-point environment */
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
+
+/* Default floating-point control modes */
+extern const femode_t	__fe_dfl_mode;
+#define	FE_DFL_MODE	(&__fe_dfl_mode)
 
 #define	__fldenvx(__env)	__asm __volatile("fldenv %0" : : "m" (__env)  \
 				: "st", "st(1)", "st(2)", "st(3)", "st(4)",   \
@@ -148,6 +163,8 @@ int fegetexceptflag(fexcept_t *, int);
 int fetestexcept(int);
 int fesetround(int);
 int fegetround(void);
+int fegetmode(femode_t *);
+int fesetmode(const femode_t *);
 int fesetenv(const fenv_t *);
 
 /*
@@ -164,6 +181,8 @@ int fesetenv(const fenv_t *);
 #define	fetestexcept(a)		__fetestexcept_int(a)
 #define	fesetround(a)		__fesetround_int(a)
 #define	fegetround()		__fegetround_int()
+#define	fegetmode(m)		__fegetmode_int(m)
+#define	fesetmode(m)		__fesetmode_int(m)
 #define	fesetenv(a)		__fesetenv_int(a)
 #endif /* !__cplusplus */
 
@@ -262,6 +281,38 @@ __fesetround_int(int __round)
 }
 
 __fenv_static inline int
+__fegetmode_int(femode_t *__modep)
+{
+
+	__fnstcw(&__modep->__control);
+	__modep->__reserved = 0;
+	if (__HAS_SSE()) {
+		__stmxcsr(&__modep->__mxcsr);
+		__modep->__mxcsr &= ~FE_ALL_EXCEPT;
+	} else
+		__modep->__mxcsr = 0;
+
+	return (0);
+}
+
+__fenv_static inline int
+__fesetmode_int(const femode_t *__modep)
+{
+	__uint32_t __mxcsr;
+
+	__fldcw(&__modep->__control);
+
+	if (__HAS_SSE()) {
+		__stmxcsr(&__mxcsr);
+		__mxcsr &= FE_ALL_EXCEPT;
+		__mxcsr |= __modep->__mxcsr & ~FE_ALL_EXCEPT;
+		__ldmxcsr(&__mxcsr);
+	}
+
+	return (0);
+}
+
+__fenv_static inline int
 __fesetenv_int(const fenv_t *__envp)
 {
 	fenv_t __env = *__envp;
@@ -343,6 +394,33 @@ __fesetround_int(int __round)
 	__stmxcsr(&__mxcsr);
 	__mxcsr &= ~(_ROUND_MASK << _SSE_ROUND_SHIFT);
 	__mxcsr |= __round << _SSE_ROUND_SHIFT;
+	__ldmxcsr(&__mxcsr);
+
+	return (0);
+}
+
+__fenv_static inline int
+__fegetmode_int(femode_t *__modep)
+{
+
+	__fnstcw(&__modep->__control);
+	__modep->__reserved = 0;
+	__stmxcsr(&__modep->__mxcsr);
+	__modep->__mxcsr &= ~FE_ALL_EXCEPT;
+
+	return (0);
+}
+
+__fenv_static inline int
+__fesetmode_int(const femode_t *__modep)
+{
+	__uint32_t __mxcsr;
+
+	__fldcw(&__modep->__control);
+
+	__stmxcsr(&__mxcsr);
+	__mxcsr &= FE_ALL_EXCEPT;
+	__mxcsr |= __modep->__mxcsr & ~FE_ALL_EXCEPT;
 	__ldmxcsr(&__mxcsr);
 
 	return (0);

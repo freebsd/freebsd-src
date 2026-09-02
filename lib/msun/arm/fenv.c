@@ -43,6 +43,7 @@
  * this as a default environment.
  */
 const fenv_t __fe_dfl_env = 0;
+const femode_t __fe_dfl_mode = 0;
 #endif
 
 
@@ -108,6 +109,18 @@ int
 }
 
 int
+(fegetmode)(femode_t *modep)
+{
+	return (__fegetmode_int(modep));
+}
+
+int
+(fesetmode)(const femode_t *modep)
+{
+	return (__fesetmode_int(modep));
+}
+
+int
 (fegetenv)(fenv_t *envp)
 {
 	return (__fegetenv_int(envp));
@@ -160,6 +173,8 @@ int __softfp_feraiseexcept(int __excepts);
 int __softfp_fetestexcept(int __excepts);
 int __softfp_fegetround(void);
 int __softfp_fesetround(int __round);
+int __softfp_fegetmode(femode_t *__modep);
+int __softfp_fesetmode(const femode_t *__modep);
 int __softfp_fegetenv(fenv_t *__envp);
 int __softfp_feholdexcept(fenv_t *__envp);
 int __softfp_fesetenv(const fenv_t *__envp);
@@ -175,6 +190,8 @@ int __vfp_feraiseexcept(int __excepts);
 int __vfp_fetestexcept(int __excepts);
 int __vfp_fegetround(void);
 int __vfp_fesetround(int __round);
+int __vfp_fegetmode(femode_t *__modep);
+int __vfp_fesetmode(const femode_t *__modep);
 int __vfp_fegetenv(fenv_t *__envp);
 int __vfp_feholdexcept(fenv_t *__envp);
 int __vfp_fesetenv(const fenv_t *__envp);
@@ -294,6 +311,31 @@ int
 	if (_libc_arm_fpu_present)
 		__vfp_fesetround(__softfp_round_to_vfp(__round));
 	__softfp_fesetround(__round);
+
+	return (0);
+}
+
+int
+(fegetmode)(femode_t *__modep)
+{
+	femode_t __vfp_modep;
+
+	__vfp_modep = 0;
+	if (_libc_arm_fpu_present)
+		__vfp_fegetmode(&__vfp_modep);
+	__softfp_fegetmode(__modep);
+	*__modep |= __vfp_modep;
+
+	return (0);
+}
+
+int
+(fesetmode)(const femode_t *__modep)
+{
+
+	if (_libc_arm_fpu_present)
+		__vfp_fesetmode(__modep);
+	__softfp_fesetmode(__modep);
 
 	return (0);
 }

@@ -41,6 +41,12 @@ const fenv_t __fe_dfl_env = {
 	__INITIAL_MXCSR__
 };
 
+const femode_t __fe_dfl_mode = {
+	.__control = __INITIAL_FPUCW__,
+	.__reserved = 0,
+	.__mxcsr = __INITIAL_MXCSR__
+};
+
 int
 (feclearexcept)(int excepts)
 {
@@ -97,6 +103,18 @@ int
 (fesetround)(int round)
 {
 	return (__fesetround_int(round));
+}
+
+int
+(fegetmode)(femode_t *modep)
+{
+	return (__fegetmode_int(modep));
+}
+
+int
+(fesetmode)(const femode_t *modep)
+{
+	return (__fesetmode_int(modep));
 }
 
 int

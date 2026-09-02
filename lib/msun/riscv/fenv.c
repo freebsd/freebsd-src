@@ -31,6 +31,7 @@
  * this as a default environment.
  */
 const fenv_t __fe_dfl_env = 0;
+const femode_t __fe_dfl_mode = 0;
 
 int
 (feclearexcept)(int excepts)
@@ -72,6 +73,18 @@ int
 (fesetround)(int round)
 {
 	return (__fesetround_int(round));
+}
+
+int
+(fegetmode)(femode_t *modep)
+{
+	return (__fegetmode_int(modep));
+}
+
+int
+(fesetmode)(const femode_t *modep)
+{
+	return (__fesetmode_int(modep));
 }
 
 int

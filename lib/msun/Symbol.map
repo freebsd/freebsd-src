@@ -329,6 +329,9 @@ FBSD_1.9 {
 	atanpi;
 	atanpif;
 	atanpil;
+	__fe_dfl_mode;
+	fegetmode;
+	fesetmode;
 	fmaximum;
 	fmaximumf;
 	fmaximuml;

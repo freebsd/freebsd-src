@@ -29,6 +29,7 @@
 #include "fenv.h"
 
 const fenv_t __fe_dfl_env = 0x00000000;
+const femode_t __fe_dfl_mode = 0x00000000;
 
 int
 (feclearexcept)(int excepts)
@@ -70,6 +71,18 @@ int
 (fesetround)(int round)
 {
 	return (__fesetround_int(round));
+}
+
+int
+(fegetmode)(femode_t *modep)
+{
+	return (__fegetmode_int(modep));
+}
+
+int
+(fesetmode)(const femode_t *modep)
+{
+	return (__fesetmode_int(modep));
 }
 
 int

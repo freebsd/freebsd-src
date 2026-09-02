@@ -37,6 +37,7 @@
 #endif
 
 typedef	__uint32_t	fenv_t;
+typedef	__uint32_t	femode_t;
 typedef	__uint32_t	fexcept_t;
 
 /* Exception flags */
@@ -84,6 +85,10 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
+/* Default floating-point control modes */
+extern const femode_t	__fe_dfl_mode;
+#define	FE_DFL_MODE	(&__fe_dfl_mode)
+
 /* We need to be able to map status flag positions to mask flag positions */
 #define	_ENABLE_MASK	((FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
 			 FE_OVERFLOW | FE_UNDERFLOW) >> _FPUSW_SHIFT)
@@ -118,6 +123,8 @@ int feraiseexcept(int);
 int fetestexcept(int);
 int fegetround(void);
 int fesetround(int);
+int fegetmode(femode_t *);
+int fesetmode(const femode_t *);
 int fegetenv(fenv_t *);
 int feholdexcept(fenv_t *);
 int fesetenv(const fenv_t *);
@@ -139,6 +146,8 @@ int feupdateenv(const fenv_t *);
 #define	fetestexcept(a)		__fetestexcept_int(a)
 #define	fegetround()		__fegetround_int()
 #define	fesetround(a)		__fesetround_int(a)
+#define	fegetmode(m)		__fegetmode_int(m)
+#define	fesetmode(m)		__fesetmode_int(m)
 #define	fegetenv(e)		__fegetenv_int(e)
 #define	feholdexcept(e)		__feholdexcept_int(e)
 #define	fesetenv(e)		__fesetenv_int(e)
@@ -223,6 +232,28 @@ __fesetround_int(int __round)
 	__mffs(&__r);
 	__r.__bits.__reg &= ~_ROUND_MASK;
 	__r.__bits.__reg |= __round;
+	__mtfsf(__r);
+	return (0);
+}
+
+__fenv_static inline int
+__fegetmode_int(femode_t *__modep)
+{
+	union __fpscr __r;
+
+	__mffs(&__r);
+	*__modep = __r.__bits.__reg & ~FE_ALL_EXCEPT;
+	return (0);
+}
+
+__fenv_static inline int
+__fesetmode_int(const femode_t *__modep)
+{
+	union __fpscr __r;
+
+	__mffs(&__r);
+	__r.__bits.__reg &= FE_ALL_EXCEPT;
+	__r.__bits.__reg |= *__modep & ~FE_ALL_EXCEPT;
 	__mtfsf(__r);
 	return (0);
 }
