@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.BaseTooLarge.d  \
      err.BaseTooSmall.d  \
      tst.strtoll.d  \
@@ -15,6 +15,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

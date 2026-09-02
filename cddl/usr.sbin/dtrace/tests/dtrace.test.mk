@@ -17,20 +17,22 @@ TEST_METADATA.t_dtrace_contrib+= required_user="root"
 
 GENTEST?=	${.CURDIR:H:H}/tools/gentest.sh
 EXCLUDE=	${.CURDIR:H:H}/tools/exclude.sh
-${TESTWRAPPER}.sh: ${GENTEST} ${EXCLUDE} ${${PACKAGE}FILES}
+${TESTWRAPPER}.sh: ${GENTEST} ${EXCLUDE} ${TFILES}
 	env TESTBASE=${TESTBASE:Q} \
-	    sh ${GENTEST} -e ${EXCLUDE} ${TESTGROUP} ${${PACKAGE}FILES:S/ */ /} > ${.TARGET}
+	    sh ${GENTEST} -e ${EXCLUDE} ${TESTGROUP} ${TFILES:S/ */ /} > ${.TARGET}
 
 CLEANFILES+=	${TESTWRAPPER}.sh
 
 .PATH:	${TESTSRC}
 
-PROGS=		${CFILES:T:S/.c$/.exe/g}
-.for prog in ${PROGS}
-SRCS.${prog}+= ${prog:S/.exe$/.c/}
-
-.if exists(${prog:S/^tst.//:S/.exe$/.d/})
-SRCS.${prog}+=	${prog:S/^tst.//:S/.exe$/.d/}
+# Only precompile C files if they don't have a
+# corresponding D source. This prevents compiling
+# the D source for the host architecture in cross
+# builds.
+.for prog in ${CFILES:T:S/.c$/.exe/g}
+.if !exists(${prog:S/^tst.//:S/.exe$/.d/})
+PROGS+=		${prog}
+SRCS.${prog}+=	${prog:S/.exe$/.c/}
 .endif
 .endfor
 

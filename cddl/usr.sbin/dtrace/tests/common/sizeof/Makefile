@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_IDENT_BADREF.SizeofAssoc.d  \
      err.D_IDENT_UNDEF.UnknownSymbol.d  \
      err.D_SIZEOF_TYPE.badstruct.d  \
@@ -26,6 +26,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

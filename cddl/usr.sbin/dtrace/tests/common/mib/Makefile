@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.icmp.ksh  \
      tst.tcp.ksh  \
      tst.udp.ksh  \
@@ -14,6 +14,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

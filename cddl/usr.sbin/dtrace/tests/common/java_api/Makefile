@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.Abort.ksh  \
      tst.Abort.ksh.out  \
      tst.Bean.ksh  \
@@ -39,6 +39,8 @@ TESTEXES= \
 CFILES= \
      tst.FunctionLookup.c  \
      tst.ProbeData.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

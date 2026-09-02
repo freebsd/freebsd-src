@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_FUNC_UNDEF.progenyofbad1.d  \
      err.D_OP_VFPTR.badop.d  \
      err.D_PROTO_ARG.chillbadarg.d  \
@@ -108,6 +108,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

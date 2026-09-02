@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PRAGMA_OPTSET.setfromscript.d  \
      err.D_PRAGMA_OPTSET.unsetfromscript.d  \
      tst.ld_nolazyload.ksh  \
@@ -25,6 +25,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_ADDROF_BITFIELD.BitfieldAddress.d  \
      err.D_DECL_BFCONST.NegBitField.d  \
      err.D_DECL_BFCONST.ZeroBitField.d  \
@@ -21,6 +21,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

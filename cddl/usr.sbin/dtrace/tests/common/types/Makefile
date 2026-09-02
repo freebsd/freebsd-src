@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_CAST_INVAL.badcast.d  \
      err.D_CG_DYN.ResultDynType.d  \
      err.D_CHR_OFLOW.charconst.d  \
@@ -64,6 +64,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

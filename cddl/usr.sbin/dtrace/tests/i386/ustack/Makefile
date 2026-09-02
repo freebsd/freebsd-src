@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      annotated_helper.d  \
      helper_helper.d  \
      tst.annotated.d  \
@@ -19,6 +19,8 @@ TESTEXES= \
 CFILES= \
      tst.annotated.c  \
      tst.helper.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

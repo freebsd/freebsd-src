@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_LLQUANT_FACTOREVEN.nodivide.d  \
      err.D_LLQUANT_FACTOREVEN.notfactor.d  \
      err.D_LLQUANT_FACTORMATCH.d  \
@@ -46,6 +46,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

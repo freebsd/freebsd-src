@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_STACK_PROTO.bad.d  \
      err.D_STACK_SIZE.d  \
      err.D_USTACK_FRAMES.bad.d  \
@@ -17,6 +17,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

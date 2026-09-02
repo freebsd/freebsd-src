@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.bigstack.d  \
      tst.depth.ksh  \
      tst.spin.ksh  \
@@ -15,6 +15,8 @@ TESTEXES= \
 CFILES= \
      tst.bigstack.c  \
      tst.spin.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

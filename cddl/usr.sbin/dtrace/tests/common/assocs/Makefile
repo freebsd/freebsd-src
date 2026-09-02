@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_OP_INCOMPAT.dupgtype.d  \
      err.D_OP_INCOMPAT.dupttype.d  \
      err.D_OP_INCOMPAT.this.d  \
@@ -27,6 +27,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"
