@@ -152,9 +152,9 @@ setup()
 # the devel/arcanist-port, which installs a symlink in ${LOCALBASE}/bin
 # but conflicts with the archivers/arc port.
 #
-: ${LOCALBASE:=$(sysctl -n user.localbase)}
-: ${LOCALBASE:=/usr/local}
-: ${ARC_CMD:=${LOCALBASE}/lib/php/arcanist/bin/arc}
+: "${LOCALBASE:=$(sysctl -n user.localbase)}"
+: "${LOCALBASE:=/usr/local}"
+: "${ARC_CMD:=${LOCALBASE}/lib/php/arcanist/bin/arc}"
 arc()
 {
     ${ARC_CMD} "$@"
