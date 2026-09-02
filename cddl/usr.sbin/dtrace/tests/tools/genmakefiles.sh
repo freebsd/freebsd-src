@@ -65,7 +65,7 @@ WITH_CTF=YES
 
 PACKAGE=	tests
 
-\${PACKAGE}FILES= \\
+TFILES= \\
 $tfiles
 
 TESTEXES= \\
@@ -73,6 +73,8 @@ $texes
 
 CFILES= \\
 $tcfiles
+
+\${PACKAGE}FILES= \${TFILES} \${CFILES}
 
 $special
 .include "../../dtrace.test.mk"

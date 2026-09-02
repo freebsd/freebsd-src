@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_DECL_IDRED.EnumSameName.d  \
      err.D_UNKNOWN.RepeatIdentifiers.d  \
      tst.EnumEquality.d  \
@@ -16,6 +16,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

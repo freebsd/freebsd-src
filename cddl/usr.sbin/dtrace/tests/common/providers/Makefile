@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PDESC_INVAL.wrongdec4.d  \
      err.D_PDESC_ZERO.nonprofile.d  \
      err.D_PDESC_ZERO.wrongdec1.d  \
@@ -39,6 +39,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

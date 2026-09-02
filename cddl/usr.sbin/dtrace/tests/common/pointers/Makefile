@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.BadAlign.d  \
      err.D_ADDROF_VAR.ArrayVar.d  \
      err.D_ADDROF_VAR.DynamicVar.d  \
@@ -43,6 +43,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

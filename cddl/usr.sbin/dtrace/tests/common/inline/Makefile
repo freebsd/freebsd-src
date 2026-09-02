@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_DECL_IDRED.redef1.d  \
      err.D_DECL_IDRED.redef2.d  \
      err.D_IDENT_UNDEF.recur.d  \
@@ -23,6 +23,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

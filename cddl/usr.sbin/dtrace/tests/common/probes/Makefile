@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PDESC_ZERO.probeqtn.d  \
      err.D_PDESC_ZERO.probestar.d  \
      err.D_PDESC_ZERO.tickstar.d  \
@@ -31,6 +31,8 @@ TESTEXES= \
 
 CFILES= \
      tst.probestar.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

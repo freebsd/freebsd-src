@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_ADDROF_VAR.StructPointer.d  \
      err.D_DECL_COMBO.StructWithoutColon.d  \
      err.D_DECL_COMBO.StructWithoutColon1.d  \
@@ -26,6 +26,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

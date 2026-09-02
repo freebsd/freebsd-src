@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_DECL_LOCASSC.NonLocalAssoc.d  \
      err.D_DECL_LONGINT.LongStruct.d  \
      err.D_DECL_PARMCLASS.BadStorageClass.d  \
@@ -25,6 +25,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

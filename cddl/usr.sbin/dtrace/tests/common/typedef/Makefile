@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_DECL_IDRED.DupTypeDef.d  \
      err.D_SYNTAX.BadExistingTypedef.d  \
      err.D_SYNTAX.TypedefInClause.d  \
@@ -16,6 +16,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

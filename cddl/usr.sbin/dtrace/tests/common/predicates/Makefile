@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PRED_SCALAR.NonScalarPred.d  \
      err.D_SYNTAX.invalid.d  \
      err.D_SYNTAX.operr.d  \
@@ -20,6 +20,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

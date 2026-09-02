@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PDESC_ZERO.badlib.d  \
      err.D_PDESC_ZERO.badproc1.d  \
      err.D_PROC_BADPID.badproc2.d  \
@@ -64,6 +64,8 @@ CFILES= \
      tst.vfork.c  \
      tst.weak1.c  \
      tst.weak2.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

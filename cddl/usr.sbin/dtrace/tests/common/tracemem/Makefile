@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PROTO_ARG.badsize.d  \
      err.D_PROTO_LEN.toofew.d  \
      err.D_TRACEMEM_ADDR.badaddr.d  \
@@ -21,6 +21,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      bug.1001148.SpecSizeVariations.d  \
      err.BufSizeVariations1.d  \
      err.BufSizeVariations2.d  \
@@ -70,6 +70,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

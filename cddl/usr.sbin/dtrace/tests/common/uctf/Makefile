@@ -4,7 +4,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.invalidpid.d  \
      err.invalidpid2.d  \
      err.invalidpid3.d  \
@@ -34,6 +34,8 @@ CFILES= \
      tst.chasestrings.c  \
      tst.libtype.c  \
      tst.printtype.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 WITH_CTF=YES
