@@ -268,7 +268,7 @@ vm_create_disk() {
 		WITH_UNIFIED_OBJDIR=yes \
 		make -C ${WORLDDIR}/stand -V .OBJDIR)"
 	BOOTFILES="$(realpath ${BOOTFILES})"
-	MAKEFSARGS="-s ${VMSIZE}"
+	MAKEFSARGS="-s ${VMSIZE} -N ${DESTDIR}/etc"
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
