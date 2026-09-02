@@ -3829,9 +3829,10 @@ p_open(const char *prog, int *rpd)
 		    "behaviour.", pid);
 	}
 
-	if (cap_rights_limit(pd,
-	    cap_rights_init(&rights, CAP_PDKILL, CAP_EVENT)) == -1)
-		err(1, "cap_rights_limit");
+	if (caph_rights_limit(pd,
+	    cap_rights_init(&rights, CAP_PDKILL, CAP_EVENT, CAP_PDGETPID)) ==
+	    -1)
+		err(1, "caph_rights_limit");
 	*rpd = pd;
 	return (pfd[1]);
 }
