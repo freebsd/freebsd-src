@@ -34,8 +34,10 @@
 
 #ifdef __SPE__
 const fenv_t __fe_dfl_env = SPEFSCR_DFLT;
+const femode_t __fe_dfl_mode = SPEFSCR_DFLT;
 #else
 const fenv_t __fe_dfl_env = 0x00000000;
+const femode_t __fe_dfl_mode = 0x00000000;
 #endif
 
 int
@@ -102,6 +104,18 @@ int
 (fesetround)(int round)
 {
 	return (__fesetround_int(round));
+}
+
+int
+(fegetmode)(femode_t *modep)
+{
+	return (__fegetmode_int(modep));
+}
+
+int
+(fesetmode)(const femode_t *modep)
+{
+	return (__fesetmode_int(modep));
 }
 
 int

@@ -36,11 +36,13 @@
  * you must write an <fenv.h> that provides the following:
  *
  *   - a typedef for fenv_t, which may be an integer or struct type
+ *   - a typedef for femode_t, which may be an integer or struct type
  *   - a typedef for fexcept_t (XXX This file assumes fexcept_t is a
  *     simple integer type containing the exception mask.)
  *   - definitions of FE_* constants for the five exceptions and four
  *     rounding modes in IEEE 754, as described in fenv(3)
  *   - a definition, and the corresponding external symbol, for FE_DFL_ENV
+ *   - a definition, and the corresponding external symbol, for FE_DFL_MODE
  *   - a macro __set_env(env, flags, mask, rnd), which sets the given fenv_t
  *     from the exception flags, mask, and rounding mode
  *   - macros __env_flags(env), __env_mask(env), and __env_round(env), which
@@ -109,6 +111,24 @@ fesetround(int __round)
 {
 
 	__softfloat_float_rounding_mode = __round;
+	return (0);
+}
+
+__fenv_static inline int
+__fegetmode_int(femode_t *__modep)
+{
+
+	__set_env(*__modep, 0, __softfloat_float_exception_mask,
+	    __softfloat_float_rounding_mode);
+	return (0);
+}
+
+__fenv_static inline int
+__fesetmode_int(const femode_t *__modep)
+{
+
+	__softfloat_float_exception_mask = __env_mask(*__modep);
+	__softfloat_float_rounding_mode = __env_round(*__modep);
 	return (0);
 }
 

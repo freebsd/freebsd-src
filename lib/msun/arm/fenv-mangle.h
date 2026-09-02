@@ -41,6 +41,8 @@
 #define	fetestexcept	FENV_MANGLE(fetestexcept)
 #define	fegetround	FENV_MANGLE(fegetround)
 #define	fesetround	FENV_MANGLE(fesetround)
+#define	fegetmode	FENV_MANGLE(fegetmode)
+#define	fesetmode	FENV_MANGLE(fesetmode)
 #define	fegetenv	FENV_MANGLE(fegetenv)
 #define	feholdexcept	FENV_MANGLE(feholdexcept)
 #define	fesetenv	FENV_MANGLE(fesetenv)

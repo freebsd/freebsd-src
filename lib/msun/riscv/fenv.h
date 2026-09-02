@@ -44,6 +44,7 @@
 #endif
 
 typedef	__uint64_t	fenv_t;
+typedef	__uint64_t	femode_t;
 typedef	__uint64_t	fexcept_t;
 
 /* Exception flags */
@@ -72,6 +73,10 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
+/* Default floating-point control modes */
+extern const femode_t	__fe_dfl_mode;
+#define	FE_DFL_MODE	(&__fe_dfl_mode)
+
 #ifndef __riscv_float_abi_double
 #error only double hard float ABI supported
 #endif
@@ -86,6 +91,8 @@ int feraiseexcept(int);
 int fetestexcept(int);
 int fegetround(void);
 int fesetround(int);
+int fegetmode(femode_t *);
+int fesetmode(const femode_t *);
 int fegetenv(fenv_t *);
 int feholdexcept(fenv_t *);
 int fesetenv(const fenv_t *);
@@ -107,6 +114,8 @@ int feupdateenv(const fenv_t *);
 #define	fetestexcept(a)		__fetestexcept_int(a)
 #define	fegetround()		__fegetround_int()
 #define	fesetround(a)		__fesetround_int(a)
+#define	fegetmode(m)		__fegetmode_int(m)
+#define	fesetmode(m)		__fesetmode_int(m)
 #define	fegetenv(e)		__fegetenv_int(e)
 #define	feholdexcept(e)		__feholdexcept_int(e)
 #define	fesetenv(e)		__fesetenv_int(e)
@@ -185,6 +194,30 @@ __fesetround_int(int __round)
 	__rfs(__fcsr);
 	__fcsr &= ~_ROUND_MASK;
 	__fcsr |= __round;
+	__wfs(__fcsr);
+
+	return (0);
+}
+
+__fenv_static inline int
+__fegetmode_int(femode_t *__modep)
+{
+	fexcept_t __fcsr;
+
+	__rfs(__fcsr);
+	*__modep = __fcsr & ~FE_ALL_EXCEPT;
+
+	return (0);
+}
+
+__fenv_static inline int
+__fesetmode_int(const femode_t *__modep)
+{
+	fexcept_t __fcsr;
+
+	__rfs(__fcsr);
+	__fcsr &= FE_ALL_EXCEPT;
+	__fcsr |= *__modep & ~FE_ALL_EXCEPT;
 	__wfs(__fcsr);
 
 	return (0);

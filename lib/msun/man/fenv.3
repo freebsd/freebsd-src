@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 16, 2005
+.Dd August 31, 2026
 .Dt FENV 3
 .Os
 .Sh NAME
@@ -31,6 +31,8 @@
 .Nm feraiseexcept ,
 .Nm fesetexceptflag ,
 .Nm fetestexcept ,
+.Nm fegetmode ,
+.Nm fesetmode ,
 .Nm fegetround ,
 .Nm fesetround ,
 .Nm fegetenv ,
@@ -56,6 +58,10 @@
 .Fn fesetexceptflag "const fexcept_t *flagp" "int excepts"
 .Ft int
 .Fn fetestexcept "int excepts"
+.Ft int
+.Fn fegetmode "femode_t *modep"
+.Ft int
+.Fn fesetmode "const femode_t *modep"
 .Ft int
 .Fn fegetround void
 .Ft int
@@ -170,6 +176,29 @@ The
 and
 .Fn fesetround
 functions query and set the rounding mode.
+.Ss Control Modes
+The
+.Vt femode_t
+type represents the collection of dynamic floating-point control modes,
+including the rounding direction and, where supported, exception masks
+and other implementation-defined modes.
+The
+.Fn fegetmode
+and
+.Fn fesetmode
+functions save and restore all the implementation's dynamic
+floating-point control modes, respectively.
+Passing
+.Dv FE_DFL_MODE
+to
+.Fn fesetmode
+restores the default control modes as installed at program startup.
+.Pp
+The macro
+.Dv FE_DFL_MODE
+expands to a pointer to the constant variable of type
+.Vt femode_t
+that is initialized with the default control modes.
 .Ss Environment Control
 The
 .Fn fegetenv
@@ -241,11 +270,13 @@ double sqrt(double n) {
 .Xr fegetenv 3 ,
 .Xr fegetexcept 3 ,
 .Xr fegetexceptflag 3 ,
+.Xr fegetmode 3 ,
 .Xr fegetround 3 ,
 .Xr feholdexcept 3 ,
 .Xr feraiseexcept 3 ,
 .Xr fesetenv 3 ,
 .Xr fesetexceptflag 3 ,
+.Xr fesetmode 3 ,
 .Xr fesetround 3 ,
 .Xr fetestexcept 3 ,
 .Xr feupdateenv 3 ,
@@ -256,6 +287,16 @@ Except as noted below,
 .In fenv.h
 conforms to
 .St -isoC-99 .
+The
+.Vt femode_t
+type, the
+.Dv FE_DFL_MODE
+macro, and the
+.Fn fegetmode
+and
+.Fn fesetmode
+functions conform to
+.St -isoC-2023 .
 The
 .Fn feenableexcept ,
 .Fn fedisableexcept ,
@@ -271,6 +312,12 @@ It supersedes the non-standard routines defined in
 .In ieeefp.h
 and documented in
 .Xr fpgetround 3 .
+The
+.Fn fegetmode
+and
+.Fn fesetmode
+functions first appeared in
+.Fx 16.0 .
 .Sh CAVEATS
 The FENV_ACCESS pragma can be enabled with
 .Dl "#pragma STDC FENV_ACCESS ON"

@@ -37,6 +37,7 @@
 #endif
 
 typedef	__uint32_t	fenv_t;
+typedef	__uint32_t	femode_t;
 typedef	__uint32_t	fexcept_t;
 
 /* Exception flags */
@@ -79,6 +80,10 @@ __BEGIN_DECLS
 extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
+/* Default floating-point control modes */
+extern const femode_t	__fe_dfl_mode;
+#define	FE_DFL_MODE	(&__fe_dfl_mode)
+
 /* We need to be able to map status flag positions to mask flag positions */
 #ifndef __ARM_PCS_VFP
 #define	_FPUSW_SHIFT	16
@@ -94,6 +99,8 @@ int feraiseexcept(int __excepts);
 int fetestexcept(int __excepts);
 int fegetround(void);
 int fesetround(int __round);
+int fegetmode(femode_t *__modep);
+int fesetmode(const femode_t *__modep);
 int fegetenv(fenv_t *__envp);
 int feholdexcept(fenv_t *__envp);
 int fesetenv(const fenv_t *__envp);
@@ -118,6 +125,8 @@ int feraiseexcept(int);
 int fetestexcept(int);
 int fegetround(void);
 int fesetround(int);
+int fegetmode(femode_t *);
+int fesetmode(const femode_t *);
 int fegetenv(fenv_t *);
 int feholdexcept(fenv_t *);
 int fesetenv(const fenv_t *);
@@ -145,6 +154,8 @@ int fegetexcept(void);
 #define	fetestexcept(a)		__fetestexcept_int(a)
 #define	fegetround()		__fegetround_int()
 #define	fesetround(a)		__fesetround_int(a)
+#define	fegetmode(m)		__fegetmode_int(m)
+#define	fesetmode(m)		__fesetmode_int(m)
 #define	fegetenv(e)		__fegetenv_int(e)
 #define	feholdexcept(e)		__feholdexcept_int(e)
 #define	fesetenv(e)		__fesetenv_int(e)
@@ -224,6 +235,28 @@ __fesetround_int(int __round)
 	vmrs_fpscr(__fpsr);
 	__fpsr &= ~(_ROUND_MASK);
 	__fpsr |= __round;
+	vmsr_fpscr(__fpsr);
+	return (0);
+}
+
+__fenv_static inline int
+__fegetmode_int(femode_t *__modep)
+{
+	fenv_t __fpsr;
+
+	vmrs_fpscr(__fpsr);
+	*__modep = __fpsr & ~FE_ALL_EXCEPT;
+	return (0);
+}
+
+__fenv_static inline int
+__fesetmode_int(const femode_t *__modep)
+{
+	fenv_t __fpsr;
+
+	vmrs_fpscr(__fpsr);
+	__fpsr &= FE_ALL_EXCEPT;
+	__fpsr |= *__modep & ~FE_ALL_EXCEPT;
 	vmsr_fpscr(__fpsr);
 	return (0);
 }

@@ -41,6 +41,12 @@ const fenv_t __fe_dfl_env = {
 	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff }
 };
 
+const femode_t __fe_dfl_mode = {
+	.__control = __INITIAL_NPXCW__,
+	.__reserved = 0,
+	.__mxcsr = __INITIAL_MXCSR__
+};
+
 enum __sse_support __has_sse =
 #ifdef __SSE__
 	__SSE_YES;
@@ -142,6 +148,18 @@ int
 (fesetround)(int round)
 {
 	return (__fesetround_int(round));
+}
+
+int
+(fegetmode)(femode_t *modep)
+{
+	return (__fegetmode_int(modep));
+}
+
+int
+(fesetmode)(const femode_t *modep)
+{
+	return (__fesetmode_int(modep));
 }
 
 int

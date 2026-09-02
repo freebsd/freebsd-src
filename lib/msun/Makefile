@@ -187,7 +187,7 @@ MAN=	acos.3 acosh.3 acospi.3 asin.3 asinh.3 asinpi.3 \
 	cpow.3 csqrt.3 erf.3 \
 	exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
-	fegetround.3 fenv.3 floor.3 fma.3 \
+	fegetmode.3 fegetround.3 fenv.3 floor.3 fma.3 \
 	fmax.3 fmaximum.3 fmaximum_mag.3 \
 	fmaximum_mag_num.3 fmaximum_num.3 fmod.3 \
 	hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
@@ -241,6 +241,7 @@ MLINKS+=feclearexcept.3 fegetexceptflag.3 feclearexcept.3 feraiseexcept.3 \
 MLINKS+=feenableexcept.3 fedisableexcept.3 feenableexcept.3 fegetexcept.3
 MLINKS+=fegetenv.3 feholdexcept.3 fegetenv.3 fesetenv.3 \
 	fegetenv.3 feupdateenv.3
+MLINKS+=fegetmode.3 fesetmode.3
 MLINKS+=fegetround.3 fesetround.3
 MLINKS+=floor.3 floorf.3 floor.3 floorl.3
 MLINKS+=fma.3 fmaf.3 fma.3 fmal.3

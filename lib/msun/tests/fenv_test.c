@@ -333,6 +333,68 @@ ATF_TC_BODY(fegsetround, tc)
 }
 
 /*
+ * Test fegetmode() and fesetmode().
+ *
+ * Prerequisites: fetestexcept(), feclearexcept(), fegetround(), fesetround()
+ */
+ATF_TC_WITHOUT_HEAD(fegsetmode);
+ATF_TC_BODY(fegsetmode, tc)
+{
+	femode_t mode_dfl, mode_down, mode_nomask, mode_mask;
+	int excepts;
+
+	ATF_CHECK(FE_DFL_MODE != NULL);
+	ATF_CHECK_EQ(0, fegetmode(&mode_dfl));
+	ATF_CHECK_EQ(FE_TONEAREST, fegetround());
+
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+	raiseexcept(FE_INVALID | FE_DIVBYZERO);
+	excepts = fetestexcept(ALL_STD_EXCEPT);
+	ATF_CHECK(excepts != 0);
+
+	ATF_CHECK_EQ(0, fesetround(FE_DOWNWARD));
+	ATF_CHECK_EQ(0, fegetmode(&mode_down));
+
+	ATF_CHECK_EQ(0, fesetmode(FE_DFL_MODE));
+	ATF_CHECK_EQ(FE_TONEAREST, fegetround());
+	ATF_CHECK_EQ(excepts, fetestexcept(ALL_STD_EXCEPT));
+
+	ATF_CHECK_EQ(0, fesetmode(&mode_down));
+	ATF_CHECK_EQ(FE_DOWNWARD, fegetround());
+	ATF_CHECK_EQ(FE_DOWNWARD, getround());
+	ATF_CHECK_EQ(excepts, fetestexcept(ALL_STD_EXCEPT));
+
+	ATF_CHECK_EQ(0, fesetmode(&mode_dfl));
+	ATF_CHECK_EQ(FE_TONEAREST, fegetround());
+	ATF_CHECK_EQ(excepts, fetestexcept(ALL_STD_EXCEPT));
+
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+	ATF_CHECK_EQ(0, fesetround(FE_TONEAREST));
+
+	/*
+	 * Exception masks are control modes.  Skip the restore check
+	 * when the CPU ignores trap-enable bits, as on some AArch64
+	 * implementations.
+	 */
+	ATF_CHECK_EQ(0, fedisableexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT);
+	ATF_CHECK_EQ(0, fegetexcept() & ALL_STD_EXCEPT);
+	ATF_CHECK_EQ(0, fegetmode(&mode_nomask));
+	(void)feenableexcept(FE_INVALID);
+	if ((fegetexcept() & FE_INVALID) != 0) {
+		ATF_CHECK_EQ(0, fegetmode(&mode_mask));
+		ATF_CHECK_EQ(0, fesetmode(&mode_nomask));
+		ATF_CHECK_EQ(0, fegetexcept() & ALL_STD_EXCEPT);
+		ATF_CHECK_EQ(0, fesetmode(&mode_mask));
+		ATF_CHECK_EQ(FE_INVALID, fegetexcept() & ALL_STD_EXCEPT);
+		ATF_CHECK_EQ(0, fesetmode(FE_DFL_MODE));
+		ATF_CHECK_EQ(0, fegetexcept() & ALL_STD_EXCEPT);
+	}
+	(void)fedisableexcept(FE_ALL_EXCEPT);
+	ATF_CHECK_EQ(0, fesetround(FE_TONEAREST));
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+}
+
+/*
  * Test fegetenv() and fesetenv().
  *
  * Prerequisites: fetestexcept(), feclearexcept(), fegetround(), fesetround()
@@ -556,6 +618,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fegsetexceptflag);
 	ATF_TP_ADD_TC(tp, feraiseexcept);
 	ATF_TP_ADD_TC(tp, fegsetround);
+	ATF_TP_ADD_TC(tp, fegsetmode);
 	ATF_TP_ADD_TC(tp, fegsetenv);
 	ATF_TP_ADD_TC(tp, masking);
 	ATF_TP_ADD_TC(tp, feholdupdate);

@@ -1,0 +1,70 @@
+.\"
+.\" Copyright (c) 2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 31, 2026
+.Dt FEGETMODE 3
+.Os
+.Sh NAME
+.Nm fegetmode ,
+.Nm fesetmode
+.Nd save and restore floating-point control modes
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In fenv.h
+.Fd "#pragma STDC FENV_ACCESS ON"
+.Ft int
+.Fn fegetmode "femode_t *modep"
+.Ft int
+.Fn fesetmode "const femode_t *modep"
+.Sh DESCRIPTION
+The
+.Vt femode_t
+type represents the dynamic floating-point control modes,
+including the rounding direction and, where supported, exception
+masks and other implementation-defined modes.
+.Pp
+The
+.Fn fegetmode
+function stores the current control modes in the object
+pointed to by
+.Fa modep .
+.Pp
+The
+.Fn fesetmode
+function establishes the control modes represented by
+.Fa modep .
+The argument
+.Fa modep
+must point to an object set by a prior call to
+.Fn fegetmode ,
+or equal
+.Dv FE_DFL_MODE .
+.Dv FE_DFL_MODE
+expands to a pointer to the default control modes
+.Po
+installed at program startup
+.Pc .
+.Sh RETURN VALUES
+The
+.Fn fegetmode
+and
+.Fn fesetmode
+functions return 0 if they succeed, and non-zero otherwise;
+however, the present implementation always succeeds.
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr fegetround 3 ,
+.Xr fesetround 3
+.Sh STANDARDS
+The
+.Fn fegetmode
+and
+.Fn fesetmode
+functions conform to
+.St -isoC-2023 .
+.Sh HISTORY
+These routines first appeared in
+.Fx 16.0 .
