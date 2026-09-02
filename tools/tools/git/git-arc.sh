@@ -228,7 +228,7 @@ diff2status()
 
 diff2parents()
 {
-    local dep dependencies diff parents phid
+    local dep diff phid
 
     diff=$1
     phid=$(diff2phid "$diff")
@@ -326,7 +326,7 @@ tags2hashtags()
 
 create_one_review()
 {
-    local childphid commit doprompt draft msg parent parentphid reviewers
+    local childphid commit diff doprompt draft msg parent parentphid reviewers
     local subscribers tags
 
     commit=$1
@@ -659,7 +659,7 @@ is_freebsd_committer()
 # the sample of src commits I checked out.
 find_author()
 {
-    local addr name email author_addr author_name
+    local a addr name email author_addr author_name
 
     addr="$1"
     name="$2"
@@ -744,7 +744,7 @@ patch_branch()
 patch_commit()
 {
     local diff reviewid review_data authorid user_data user_addr user_name
-    local diff_data author_addr author_name author tmp
+    local diff_data author_addr author_name author tmp reviewers
 
     diff=$1
     reviewid=$(diff2phid "$diff")
