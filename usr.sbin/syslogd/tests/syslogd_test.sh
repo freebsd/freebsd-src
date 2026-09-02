@@ -335,6 +335,7 @@ pipe_action_reload_head()
 pipe_action_reload_body()
 {
     local pipecmd="${PWD}/pipe_cmd.sh"
+    local pid
 
     cat <<__EOF__ > "${pipecmd}"
 #!/bin/sh
@@ -351,14 +352,20 @@ __EOF__
     syslogd_start
 
     syslogd_log -p user.debug -t "pipe" -h "${SYSLOGD_LOCAL_SOCKET}" "MSG"
+    sleep 0.1
+
+    pid=$(cat "${SYSLOGD_PIDFILE}")
     atf_check pkill -HUP -F "${1:-${SYSLOGD_PIDFILE}}"
     sleep 0.1
     syslogd_check_log_nopoll "END"
+
+    atf_check -o not-match:"[[:space:]]P[[:space:]]" procstat files "${pid}"
 }
 pipe_action_reload_cleanup()
 {
     syslogd_stop
 }
+
 
 atf_test_case "jail_noinet" "cleanup"
 jail_noinet_head()
