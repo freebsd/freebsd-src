@@ -2547,6 +2547,7 @@ void
 closelogfiles(void)
 {
 	struct filed *f;
+	bool defer_free;
 
 	while (!STAILQ_EMPTY(&fhead)) {
 		f = STAILQ_FIRST(&fhead);
@@ -2555,6 +2556,13 @@ closelogfiles(void)
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog_successive(f, 0);
+
+		/*
+		 * If a piped process is running, then defer the filed
+		 * cleanup until it exits.  close_filed() below sets
+		 * f_type to F_UNUSED, so capture this before calling it.
+		 */
+		defer_free = (f->f_type == F_PIPE && f->f_procdesc != -1);
 
 		switch (f->f_type) {
 		case F_FILE:
@@ -2583,11 +2591,7 @@ closelogfiles(void)
 			free(f->f_prop_filter);
 		}
 
-		/*
-		 * If a piped process is running, then defer the filed
-		 * cleanup until it exits.
-		 */
-		if (f->f_type != F_PIPE || f->f_procdesc == -1)
+		if (!defer_free)
 			free(f);
 	}
 }
