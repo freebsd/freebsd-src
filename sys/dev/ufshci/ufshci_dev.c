@@ -242,9 +242,26 @@ ufshci_dev_init_reference_clock(struct ufshci_controller *ctrlr)
 {
 	int error;
 	uint8_t index, selector;
+	uint64_t value;
 
 	index = 0;    /* bRefClkFreq is device type attribute */
 	selector = 0; /* bRefClkFreq is device type attribute */
+
+	/*
+	 * bRefClkFreq is a persistent attribute. Skip the write when
+	 * the device already holds the wanted value.
+	 */
+	error = ufshci_dev_read_attribute(ctrlr, UFSHCI_ATTR_B_REF_CLK_FREQ,
+	    index, selector, &value);
+	if (error != 0) {
+		ufshci_printf(ctrlr, "bRefClkFreq read failed, writing %u\n",
+		    ctrlr->ref_clk);
+	} else if ((uint32_t)value == ctrlr->ref_clk) {
+		return (0);
+	} else {
+		ufshci_printf(ctrlr, "changing bRefClkFreq from %u to %u\n",
+		    (uint32_t)value, ctrlr->ref_clk);
+	}
 
 	error = ufshci_dev_write_attribute(ctrlr, UFSHCI_ATTR_B_REF_CLK_FREQ,
 	    index, selector, ctrlr->ref_clk);

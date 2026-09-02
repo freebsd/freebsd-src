@@ -51,8 +51,12 @@ static struct ufshci_acpi_device {
 	uint32_t ref_clk;
 	uint32_t quirks;
 } ufshci_acpi_devices[] = {
+	/*
+	 * The SoC feeds the device 38.4 MHz from its CXO. The firmware
+	 * has no property for it. Verified on the Galaxy Book 4 Edge.
+	 */
 	{ "QCOM24A5", "Qualcomm Snapdragon X Elite UFS Host Controller",
-	    UFSHCI_REF_CLK_19_2MHz,
+	    UFSHCI_REF_CLK_38_4MHz,
 	    UFSHCI_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH |
 			UFSHCI_QUIRK_BROKEN_LSDBS_MCQS_CAP },
 	{ 0x00000000, NULL, 0, 0 }
