@@ -2462,8 +2462,7 @@ iflib_timer(void *arg)
 		 * (ift_processed) nor reclaimed (ift_cleaned accounts
 		 * the difference to ift_in_use).  The tail whose
 		 * report-status request is still deferred is never
-		 * reported and must not count (ift_rs_pending
-		 * over-counts it by one per packet).
+		 * reported and must not count.
 		 */
 		in_use = txq->ift_in_use;
 		outstanding = in_use -
@@ -3756,11 +3755,9 @@ defrag:
 	 * However, this also means that the driver will need to keep track
 	 * of the descriptors that RS was set on to check them for the DD bit.
 	 */
-	txq->ift_rs_pending += nsegs + 1;
-	if (txq->ift_rs_pending > TXQ_MAX_RS_DEFERRED(txq) ||
+	if (txq->ift_rs_pending + nsegs + 1 > TXQ_MAX_RS_DEFERRED(txq) ||
 	    iflib_no_tx_batch || (TXQ_AVAIL(txq) - nsegs) <= MAX_TX_DESC(ctx)) {
 		pi.ipi_flags |= IPI_TX_INTR;
-		txq->ift_rs_pending = 0;
 	}
 
 	pi.ipi_segs = segs;
@@ -3780,6 +3777,11 @@ defrag:
 			ndesc += txq->ift_size;
 			txq->ift_gen = 1;
 		}
+
+		if (pi.ipi_flags & IPI_TX_INTR)
+			txq->ift_rs_pending = 0;
+		else
+			txq->ift_rs_pending += ndesc;
 		/*
 		 * drivers can need up to ift_pad sentinels
 		 */
