@@ -1,0 +1,88 @@
+#!/bin/sh -
+#
+# Copyright (c) 2026 Kyle Evans <kevans@FreeBSD.org>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+# PROVIDE: backlight
+# REQUIRE: FILESYSTEMS kld
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="backlight"
+desc="Save and restore backlight values"
+rcvar="backlight_enable"
+stop_cmd="backlight_stop"
+start_cmd="backlight_start"
+reload_cmd="backlight_start"
+extra_commands="reload"
+
+backlightdb="/var/db/backlight"
+
+#
+# List current backlight devices to stdout.
+#
+list_backlights()
+{
+	( cd /dev/backlight ; ls backlight* 2>/dev/null )
+}
+
+#
+# Save state of an individual backlight specified as $1
+#
+backlight_save()
+{
+	local dev
+
+	dev="/dev/backlight/$1"
+	if [ -r "$dev" ]; then
+		/usr/bin/backlight -f "$dev" -q > "$backlightdb/$1-state" 2>/dev/null
+	fi
+}
+
+#
+# Restore the state of an individual backlight specified as $1
+#
+backlight_restore()
+{
+	local file dev
+
+	dev="/dev/backlight/$1"
+	file="$backlightdb/$1-state"
+	if [ -r "$dev" -a -r "$file" ]; then
+		/usr/bin/backlight -f "$dev" $(cat "$file") > /dev/null
+	fi
+}
+
+#
+# Restore state of all backlights
+#
+backlight_start()
+{
+	local backlight
+
+	for backlight in $(list_backlights); do
+		backlight_restore "$backlight"
+	done
+}
+
+#
+# Save the state of all backlights
+#
+backlight_stop()
+{
+	local backlight
+
+	for backlight in $(list_backlights); do
+		backlight_save "$backlight"
+	done
+}
+
+load_rc_config $name
+
+# doesn't make sense to run in a svcj: config setting
+backlight_svcj="NO"
+
+run_rc_command "$1"
