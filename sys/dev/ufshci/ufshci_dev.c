@@ -320,8 +320,6 @@ ufshci_dev_init_unipro(struct ufshci_controller *ctrlr)
 int
 ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 {
-	/* HSSerise: A = 1, B = 2 */
-	const uint32_t hs_series = 2;
 	/*
 	 * TX/RX PWRMode:
 	 * - TX[3:0], RX[7:4]
@@ -386,8 +384,13 @@ ufshci_dev_init_uic_power_mode(struct ufshci_controller *ctrlr)
 	if (ufshci_uic_send_dme_set(ctrlr, PA_RxTermination, true))
 		return (ENXIO);
 
-	/* Set HSSerise (A = 1, B = 2) */
-	if (ufshci_uic_send_dme_set(ctrlr, PA_HSSeries, hs_series))
+	/* Set HSSeries */
+	if (ufshci_uic_send_dme_set(ctrlr, PA_HSSeries, ctrlr->hs_series))
+		return (ENXIO);
+
+	/* HS-G4 and above need initial adaptation. */
+	if (ctrlr->hs_gear >= 4 &&
+	    ufshci_uic_send_dme_set(ctrlr, PA_TxHsAdaptType, PA_INITIAL_ADAPT))
 		return (ENXIO);
 
 	/* Set Timeout values */

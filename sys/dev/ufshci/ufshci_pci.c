@@ -49,20 +49,23 @@ static struct _pcsid {
 	uint32_t devid;
 	const char *desc;
 	uint32_t ref_clk;
+	uint32_t hs_series;
 	uint32_t quirks;
 } pci_ids[] = { { 0x131b36, "QEMU UFS Host Controller", UFSHCI_REF_CLK_19_2MHz,
+		    UFSHCI_HS_SERIES_B,
 		    UFSHCI_QUIRK_IGNORE_UIC_POWER_MODE |
 			UFSHCI_QUIRK_NOT_SUPPORT_ABORT_TASK |
 			UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS },
 	{ 0x98fa8086, "Intel Lakefield UFS Host Controller",
-	    UFSHCI_REF_CLK_19_2MHz,
+	    UFSHCI_REF_CLK_19_2MHz, UFSHCI_HS_SERIES_B,
 	    UFSHCI_QUIRK_LONG_PEER_PA_TACTIVATE |
 		UFSHCI_QUIRK_WAIT_AFTER_POWER_MODE_CHANGE |
 		UFSHCI_QUIRK_CHANGE_LANE_AND_GEAR_SEPARATELY |
 		UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE },
 	{ 0x54ff8086, "Intel Alder Lake-N UFS Host Controller",
-	    UFSHCI_REF_CLK_19_2MHz, UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE },
-	{ 0x00000000, NULL } };
+	    UFSHCI_REF_CLK_19_2MHz, UFSHCI_HS_SERIES_B,
+	    UFSHCI_QUIRK_BROKEN_AUTO_HIBERNATE },
+	{ 0x00000000, NULL, 0, 0, 0 } };
 
 static int
 ufshci_pci_probe(device_t device)
@@ -77,6 +80,7 @@ ufshci_pci_probe(device_t device)
 	if (ep->devid) {
 		ctrlr->quirks = ep->quirks;
 		ctrlr->ref_clk = ep->ref_clk;
+		ctrlr->hs_series = ep->hs_series;
 	}
 
 	if (ep->desc) {
