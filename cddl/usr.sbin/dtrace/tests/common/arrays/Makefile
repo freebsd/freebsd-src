@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_ARR_BADREF.bad.d  \
      err.D_DECL_ARRBIG.toobig.d  \
      err.D_DECL_ARRNULL.bad.d  \
@@ -25,6 +25,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

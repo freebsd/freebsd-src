@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.ipv4localicmp.ksh  \
      tst.ipv4localicmp.ksh.out  \
      tst.ipv4localsctp.ksh  \
@@ -44,6 +44,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_DIV_ZERO.divby0.d  \
      err.D_DIV_ZERO.divby0_1.d  \
      err.D_DIV_ZERO.divby0_2.d  \
@@ -28,6 +28,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

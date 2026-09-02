@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PDESC_ZERO.lowfrequency.d  \
      err.D_PDESC_ZERO.malformedoverflow.d  \
      err.D_PDESC_ZERO.nonexistentevent.d  \
@@ -23,6 +23,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.fds.d  \
      tst.fds.d.out  \
 
@@ -14,6 +14,8 @@ TESTEXES= \
 
 CFILES= \
      tst.fds.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_MACRO_UNDEF.invalidargs.d  \
      err.D_OP_LVAL.rdonly.d  \
      err.D_OP_WRITE.usepidmacro.d  \
@@ -45,6 +45,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_XLATE_NOCONV.cpuusage.d  \
      err.D_XLATE_NOCONV.nice.d  \
      err.D_XLATE_NOCONV.priority.d  \
@@ -44,6 +44,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

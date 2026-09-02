@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PRAGERR.d  \
      err.D_PRAGMA_DEPEND.main.d  \
      err.D_PRAGMA_INVAL.d  \
@@ -26,6 +26,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.basename.d  \
      tst.caller.d  \
      tst.cleanpath.d  \
@@ -52,6 +52,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 TEST_METADATA.t_dtrace_contrib+=	required_memory="4g"

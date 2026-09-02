@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.sdtargs.d  \
 
 TESTEXES= \
@@ -13,6 +13,8 @@ TESTEXES= \
 
 CFILES= \
      tst.sdtargs.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

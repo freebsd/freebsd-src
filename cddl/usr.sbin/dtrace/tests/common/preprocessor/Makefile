@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_IDENT_UNDEF.afterprobe.d  \
      err.D_PRAGCTL_INVAL.tabdefine.d  \
      err.D_SYNTAX.withoutpound.d  \
@@ -49,6 +49,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

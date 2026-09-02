@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.general.d  \
      tst.general.d.out  \
      tst.strsize.d  \
@@ -19,6 +19,8 @@ TESTEXES= \
 
 CFILES= \
      tst.usdt.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

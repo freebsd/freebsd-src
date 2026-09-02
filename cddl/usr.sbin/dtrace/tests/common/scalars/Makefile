@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_ARR_LOCAL.thisarray.d  \
      err.D_DECL_CLASS.selfthis.d  \
      err.D_DECL_CLASS.thisself.d  \
@@ -35,6 +35,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

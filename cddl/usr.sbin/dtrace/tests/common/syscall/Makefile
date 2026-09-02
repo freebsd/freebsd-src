@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.args.d  \
      tst.openret.ksh  \
 
@@ -14,6 +14,8 @@ TESTEXES= \
 
 CFILES= \
      tst.args.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

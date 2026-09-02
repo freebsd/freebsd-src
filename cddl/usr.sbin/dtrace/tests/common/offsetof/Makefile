@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_OFFSETOF_BITFIELD.bitfield.d  \
      err.D_OFFSETOF_TYPE.badtype.d  \
      err.D_OFFSETOF_TYPE.notsou.d  \
@@ -24,6 +24,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

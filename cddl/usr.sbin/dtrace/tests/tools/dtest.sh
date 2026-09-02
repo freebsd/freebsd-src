@@ -22,7 +22,7 @@ gettag()
 
 runtest()
 {
-    local dflags exe exstatus pid retval status
+    local cfile ofile ddep odep dflags exe exstatus pid retval status
 
     exstatus=0
     retval=0
@@ -45,6 +45,28 @@ runtest()
         esac
 
         exe=${TFILE%.*}.exe
+        cfile=${TFILE%.*}.c
+        ddep=${TFILE%.*}.d
+        ddep=${ddep#tst.}
+        if [ -r "$cfile" -a -r "$ddep" ]; then
+            # The tst.xxx.c corresponding to the tst.xxx.d is usually
+            # (cross-)compiled on the build host and installed in the target
+            # system as an executable. However, when there is an associated
+            # xxx.d file to be included in that executable, we must compile
+            # xxx.d in the target system at runtime because DTrace currently
+            # doesn't support cross-compilation and will always use the build
+            # host's ELF format when calling `dtrace -G`.
+            # TODO add support for cross-compilation in DTrace and move it back
+            #      to dtrace.test.mk.
+            ofile="${cfile%.c}.o"
+            odep="${ddep%.d}.o"
+            dtrace -C -x nolibs -h -s "$ddep"
+            cc -O0 -g -I. -o "$ofile" -c "$cfile"
+            dtrace -C -x nolibs -G -s "$ddep" "$ofile"
+            cc -O0 -g -I. -o "$exe" "$ofile" "$odep"
+            rm -f "${ddep%.d}.h" "$ofile" "$odep"
+        fi
+
         if [ -f "$exe" -a -x "$exe" ]; then
             ./$exe &
             pid=$!

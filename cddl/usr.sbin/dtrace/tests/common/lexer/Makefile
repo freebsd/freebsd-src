@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_CHR_NL.char.d  \
      err.D_CHR_NULL.char.d  \
      err.D_INT_DIGIT.InvalidDigit.d  \
@@ -26,6 +26,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

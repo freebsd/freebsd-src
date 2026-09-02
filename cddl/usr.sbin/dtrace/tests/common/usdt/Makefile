@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      argmap.d  \
      args.d  \
      forker.d  \
@@ -63,6 +63,8 @@ CFILES= \
      tst.argmap.c  \
      tst.args.c  \
      tst.forker.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

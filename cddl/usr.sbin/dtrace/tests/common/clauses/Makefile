@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_IDENT_UNDEF.aggfun.d  \
      err.D_IDENT_UNDEF.aggtup.d  \
      err.D_IDENT_UNDEF.arrtup.d  \
@@ -22,6 +22,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      drp.DTRACEDROP_AGGREGATION.d  \
      drp.DTRACEDROP_DBLERROR.d  \
      drp.DTRACEDROP_DYNAMIC.d  \
@@ -20,6 +20,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

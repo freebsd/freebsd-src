@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.create.ksh  \
      tst.discard.ksh  \
      tst.exec.ksh  \
@@ -24,6 +24,8 @@ TESTEXES= \
 CFILES= \
      tst.exitcore.c  \
      tst.sigwait.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 LIBADD.tst.sigwait.exe+= rt

@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.raise1.d  \
      tst.raise2.d  \
      tst.raise3.d  \
@@ -17,6 +17,8 @@ CFILES= \
      tst.raise1.c  \
      tst.raise2.c  \
      tst.raise3.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 TEST_METADATA.t_dtrace_contrib+=	required_memory="4g"

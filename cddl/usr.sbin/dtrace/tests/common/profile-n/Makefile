@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_PDESC_ZERO.profile.d  \
      err.D_PDESC_ZEROonens.d  \
      err.D_PDESC_ZEROonensec.d  \
@@ -50,6 +50,8 @@ TESTEXES= \
 
 CFILES= \
      tst.ufuncsort.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

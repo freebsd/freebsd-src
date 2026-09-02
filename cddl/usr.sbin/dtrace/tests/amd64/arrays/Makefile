@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.rax.d  \
      tst.uregsarray.d  \
 
@@ -14,6 +14,8 @@ TESTEXES= \
 
 CFILES= \
      tst.rax.c  \
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

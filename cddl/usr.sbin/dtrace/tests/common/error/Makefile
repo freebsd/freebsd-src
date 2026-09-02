@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      tst.DTRACEFLT_BADADDR.d  \
      tst.DTRACEFLT_DIVZERO.d  \
      tst.DTRACEFLT_UNKNOWN.d  \
@@ -17,6 +17,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"

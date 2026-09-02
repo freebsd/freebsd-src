@@ -5,7 +5,7 @@
 
 PACKAGE=	tests
 
-${PACKAGE}FILES= \
+TFILES= \
      err.D_DECL_TYPERED.BadTransDecl.d  \
      err.D_OP_INCOMPLETE.NonExistentInput1.d  \
      err.D_SYNTAX.BadTransDecl1.d  \
@@ -47,6 +47,8 @@ TESTEXES= \
 
 CFILES= \
 
+
+${PACKAGE}FILES= ${TFILES} ${CFILES}
 
 
 .include "../../dtrace.test.mk"
