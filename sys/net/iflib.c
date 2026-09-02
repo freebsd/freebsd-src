@@ -3002,7 +3002,7 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 	}
 	m->m_pkthdr.len = ri->iri_len;
 	m->m_pkthdr.rcvif = ri->iri_ifp;
-	m->m_flags |= ri->iri_flags;
+	m->m_flags |= ri->iri_flags & IFLIB_IRI_VALID_FLAGS;
 	m->m_pkthdr.ether_vtag = ri->iri_vtag;
 	m->m_pkthdr.flowid = ri->iri_flowid;
 #ifdef NUMA
@@ -3011,6 +3011,7 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 	M_HASHTYPE_SET(m, ri->iri_rsstype);
 	m->m_pkthdr.csum_flags = ri->iri_csum_flags;
 	m->m_pkthdr.csum_data = ri->iri_csum_data;
+	m->m_pkthdr.rcv_tstmp = ri->iri_rcv_tstmp;
 	return (m);
 }
 

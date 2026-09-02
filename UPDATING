@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260902:
+	struct if_rxd_info now carries a receive timestamp.  iflib drivers
+	must be rebuilt.  __FreeBSD_version has been bumped to 1600022.
+
 20260827:
 	<sys/videoio.h> now provides the V4L2 cropping, control menu and
 	overlay definitions.  __FreeBSD_version has been bumped to 1600021

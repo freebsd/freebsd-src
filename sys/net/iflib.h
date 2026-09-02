@@ -66,6 +66,13 @@ typedef struct if_rxd_frag {
 /* bnxt supports 64 with hardware LRO enabled */
 #define IFLIB_MAX_RX_SEGS		64
 
+/*
+ * iri_flags bits an isc_rxd_pkt_get() driver callback is permitted to
+ * set.  iflib masks iri_flags against this set before copying the flags
+ * into an mbuf.
+ */
+#define IFLIB_IRI_VALID_FLAGS	(M_VLANTAG | M_TSTMP | M_TSTMP_HPREC)
+
 typedef struct if_rxd_info {
 	/* set by iflib */
 	uint16_t iri_qsidx;		/* qset index */
@@ -77,11 +84,12 @@ typedef struct if_rxd_info {
 
 	/* updated by driver */
 	if_rxd_frag_t iri_frags;
+	uint64_t iri_rcv_tstmp;		/* nanoseconds since boot */
 	uint32_t iri_flowid;		/* RSS hash for packet */
 	uint32_t iri_csum_flags;	/* m_pkthdr csum flags */
 
 	uint32_t iri_csum_data;		/* m_pkthdr csum data */
-	uint8_t iri_flags;		/* mbuf flags for packet */
+	uint32_t iri_flags;		/* see IFLIB_IRI_VALID_FLAGS */
 	uint8_t	 iri_nfrags;		/* number of fragments in packet */
 	uint8_t	 iri_rsstype;		/* RSS hash type */
 	uint8_t	 iri_pad;		/* any padding in the received data */

@@ -1,4 +1,4 @@
-.Dd December 17, 2020
+.Dd September 2, 2026
 .Dt IFLIBTXTX 9
 .Os
 .Sh NAME
@@ -154,10 +154,24 @@ consumer queue.
 .It Va iri_flowid
 .Pq Vt "uint32_t"
 Value of the RSS hash for the packet.
+.It Va iri_rcv_tstmp
+.Pq Vt "uint64_t"
+Receive timestamp in nanoseconds since boot.
+The driver must set
+.Dv M_TSTMP
+in
+.Va iri_flags
+when the timestamp is valid, and may additionally set
+.Dv M_TSTMP_HPREC
+when the timestamp was taken by hardware at the port.
 .It Va iri_flags
-.Pq Vt "uint"
- Flags describing the operational parameters of the mbuf contained in the
- receive packet.
+.Pq Vt "uint32_t"
+Flags to copy to the received mbuf.
+Drivers may set only
+.Dv M_VLANTAG ,
+.Dv M_TSTMP ,
+and
+.Dv M_TSTMP_HPREC .
 .It Va iri_csum_flags
 .Pq Vt "uint32_t"
 Flags describing the checksum value contained in the receive packet.
