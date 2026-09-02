@@ -383,7 +383,12 @@ TESTS_SRCS= \
 
 # Deterministic failures:
 # Fails with `test_read_disk_directory_traversals.c:1094: File at has atime 886622, 1443306049 seconds ago`
-BROKEN_TESTS+=			test_read_disk_directory_traversals
+BROKEN_TESTS+=		test_read_disk_directory_traversals
+
+# Bug 273732: test fails with:
+#     `Error 26 : LZ4F frame decoding could not complete: invalid frame`
+BROKEN_TESTS+=		test_read_filter_lz4_raw_skip
+
 
 .if 0
 # test_fuzz.c is not a real test, but rather a simple fuzz-test using random().
