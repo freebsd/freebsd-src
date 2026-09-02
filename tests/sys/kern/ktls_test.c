@@ -3011,7 +3011,7 @@ ATF_TC_BODY(ktls_receive_loopback_sendfile, tc)
 	debug_hexdump(tc, p, payload_len, "shm buffer before");
 	ATF_REQUIRE_INTEQ(0, sendfile(shm, sockets[1], 0, payload_len, &hdtr,
 	    &sbytes, 0));
-	ATF_REQUIRE_INTEQ(sbytes, len);
+	ATF_REQUIRE_INTEQ(sbytes, (off_t)len);
 
 	outbuf = calloc(payload_len, 1);
 
