@@ -81,6 +81,8 @@ local_redirect_head()
 local_redirect_body()
 {
 	firewall=$1
+	[ "$firewall" = "ipfnat" ] && atf_expect_fail "https://bugs.freebsd.org/296944"
+
 	firewall_init $firewall
 	nat_init $firewall
 	vnet_init_bridge
