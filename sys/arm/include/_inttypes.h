@@ -132,6 +132,36 @@
 #define	PRIXMAX		"jX"	/* uintmax_t */
 #define	PRIXPTR		"X"	/* uintptr_t */
 
+#define	PRIb8		"b"	/* uint8_t */
+#define	PRIb16		"b"	/* uint16_t */
+#define	PRIb32		"b"	/* uint32_t */
+#define	PRIb64		"llb"	/* uint64_t */
+#define	PRIbLEAST8	"b"	/* uint_least8_t */
+#define	PRIbLEAST16	"b"	/* uint_least16_t */
+#define	PRIbLEAST32	"b"	/* uint_least32_t */
+#define	PRIbLEAST64	"llb"	/* uint_least64_t */
+#define	PRIbFAST8	"b"	/* uint_fast8_t */
+#define	PRIbFAST16	"b"	/* uint_fast16_t */
+#define	PRIbFAST32	"b"	/* uint_fast32_t */
+#define	PRIbFAST64	"llb"	/* uint_fast64_t */
+#define	PRIbMAX		"jb"	/* uintmax_t */
+#define	PRIbPTR		"b"	/* uintptr_t */
+
+#define	PRIB8		"B"	/* uint8_t */
+#define	PRIB16		"B"	/* uint16_t */
+#define	PRIB32		"B"	/* uint32_t */
+#define	PRIB64		"llB"	/* uint64_t */
+#define	PRIBLEAST8	"B"	/* uint_least8_t */
+#define	PRIBLEAST16	"B"	/* uint_least16_t */
+#define	PRIBLEAST32	"B"	/* uint_least32_t */
+#define	PRIBLEAST64	"llB"	/* uint_least64_t */
+#define	PRIBFAST8	"B"	/* uint_fast8_t */
+#define	PRIBFAST16	"B"	/* uint_fast16_t */
+#define	PRIBFAST32	"B"	/* uint_fast32_t */
+#define	PRIBFAST64	"llB"	/* uint_fast64_t */
+#define	PRIBMAX		"jB"	/* uintmax_t */
+#define	PRIBPTR		"B"	/* uintptr_t */
+
 /* fscanf(3) macros for signed integers. */
 
 #define	SCNd8		"hhd"	/* int8_t */
@@ -210,5 +240,20 @@
 #define	SCNxFAST64	"llx"	/* uint_fast64_t */
 #define	SCNxMAX		"jx"	/* uintmax_t */
 #define	SCNxPTR		"x"	/* uintptr_t */
+
+#define	SCNb8		"hhb"	/* uint8_t */
+#define	SCNb16		"hb"	/* uint16_t */
+#define	SCNb32		"b"	/* uint32_t */
+#define	SCNb64		"llb"	/* uint64_t */
+#define	SCNbLEAST8	"hhb"	/* uint_least8_t */
+#define	SCNbLEAST16	"hb"	/* uint_least16_t */
+#define	SCNbLEAST32	"b"	/* uint_least32_t */
+#define	SCNbLEAST64	"llb"	/* uint_least64_t */
+#define	SCNbFAST8	"b"	/* uint_fast8_t */
+#define	SCNbFAST16	"b"	/* uint_fast16_t */
+#define	SCNbFAST32	"b"	/* uint_fast32_t */
+#define	SCNbFAST64	"llb"	/* uint_fast64_t */
+#define	SCNbMAX		"jb"	/* uintmax_t */
+#define	SCNbPTR		"b"	/* uintptr_t */
 
 #endif /* !_MACHINE_INTTYPES_H_ */
