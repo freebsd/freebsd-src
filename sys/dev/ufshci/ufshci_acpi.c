@@ -49,17 +49,21 @@ static struct ufshci_acpi_device {
 	const char *hid;
 	const char *desc;
 	uint32_t ref_clk;
+	uint32_t hs_series;
 	uint32_t quirks;
 } ufshci_acpi_devices[] = {
 	/*
 	 * The SoC feeds the device 38.4 MHz from its CXO. The firmware
 	 * has no property for it. Verified on the Galaxy Book 4 Edge.
+	 *
+	 * The firmware calibrates the PHY for Rate-A. A Rate-B link
+	 * comes up dead at every gear.
 	 */
 	{ "QCOM24A5", "Qualcomm Snapdragon X Elite UFS Host Controller",
-	    UFSHCI_REF_CLK_38_4MHz,
+	    UFSHCI_REF_CLK_38_4MHz, UFSHCI_HS_SERIES_A,
 	    UFSHCI_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH |
 			UFSHCI_QUIRK_BROKEN_LSDBS_MCQS_CAP },
-	{ 0x00000000, NULL, 0, 0 }
+	{ 0x00000000, NULL, 0, 0, 0 }
 };
 
 static char *ufshci_acpi_ids[] = { "QCOM24A5", NULL };
@@ -97,6 +101,7 @@ ufshci_acpi_probe(device_t dev)
 	if (acpi_dev->hid) {
 		ctrlr->quirks = acpi_dev->quirks;
 		ctrlr->ref_clk = acpi_dev->ref_clk;
+		ctrlr->hs_series = acpi_dev->hs_series;
 	}
 
 	if (acpi_dev->desc) {

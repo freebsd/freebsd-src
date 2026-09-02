@@ -41,6 +41,8 @@
 #define PA_TxTermination		 0x1569
 #define PA_RxTermination		 0x1584
 #define PA_HSSeries			 0x156A
+#define   UFSHCI_HS_SERIES_A		 1
+#define   UFSHCI_HS_SERIES_B		 2
 #define PA_PWRModeUserData0		 0x15B0
 #define PA_PWRModeUserData1		 0x15B1
 #define PA_PWRModeUserData2		 0x15B2
@@ -49,6 +51,8 @@
 #define PA_PWRModeUserData5		 0x15B5
 
 #define PA_TxHsAdaptType		 0x15D4
+#define   PA_INITIAL_ADAPT		 1
+#define   PA_NO_ADAPT			 3
 #define PA_PWRMode			 0x1571
 
 #define DME_LocalFC0ProtectionTimeOutVal 0xD041

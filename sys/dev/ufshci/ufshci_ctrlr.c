@@ -375,6 +375,13 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	if (!(ctrlr->is_single_db_supported || ctrlr->is_mcq_supported))
 		return (ENXIO);
 
+	/* Every device table entry must name the HS series. */
+	if (ctrlr->hs_series == 0) {
+		ufshci_printf(ctrlr,
+		    "hs_series is missing from the device table\n");
+		return (ENXIO);
+	}
+
 	/*
 	 * The maximum transfer size supported by UFSHCI spec is 65535 * 256 KiB
 	 * However, we limit the maximum transfer size to 1MiB(256 * 4KiB) for
