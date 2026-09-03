@@ -24,14 +24,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd July 24, 2001
+.Dd September 3, 2026
 .Dt VM_PAGE_FREE 9
 .Os
 .Sh NAME
 .Nm vm_page_free ,
 .Nm vm_page_free_toq ,
 .Nm vm_page_free_zero ,
-.Nm vm_page_try_to_free
 .Nd "free a page"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -43,8 +42,6 @@
 .Fn vm_page_free_toq "vm_page_t m"
 .Ft void
 .Fn vm_page_free_zero "vm_page_t m"
-.Ft int
-.Fn vm_page_try_to_free "vm_page_t m"
 .Sh DESCRIPTION
 The
 .Fn vm_page_free_toq
@@ -78,15 +75,6 @@ clears the
 .Dv PG_ZERO
 flag prior to the call to
 .Fn vm_page_free_toq .
-.Pp
-The
-.Fn vm_page_try_to_free
-function verifies that the page is not held, wired, busy or dirty, and
-if so, marks the page as busy, drops any protection that may be set on
-the page, and frees it.
-.Sh RETURN VALUES
-.Fn vm_page_try_to_free
-returns 1 if it is able to free the page; otherwise, 0 is returned.
 .Sh SEE ALSO
 .Xr vm_page_busy 9 ,
 .Xr vm_page_hold 9 ,
