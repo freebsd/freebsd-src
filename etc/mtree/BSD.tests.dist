@@ -455,9 +455,11 @@
     sbin
         bectl
         ..
+        devd
+        ..
         dhclient
         ..
-        devd
+        fsck_msdosfs
         ..
         growfs
         ..
