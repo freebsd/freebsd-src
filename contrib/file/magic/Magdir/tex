@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: tex,v 1.24 2026/02/01 16:17:53 christos Exp $
+# $File: tex,v 1.25 2026/06/02 18:16:34 christos Exp $
 # tex:  file(1) magic for TeX files
 #
 # XXX - needs byte-endian stuff (big-endian and little-endian DVI?)
@@ -44,9 +44,13 @@
 >33	string		>\0		(%s)
 
 # Texinfo and GNU Info, from Daniel Quinlan (quinlan@yggdrasil.com)
-0	search/1	\\input\ texinfo	Texinfo source text
+0	search/b/1	\\input\ texinfo	Texinfo source text
 !:mime	text/x-texinfo
-0	search/1	This\ is\ Info\ file	GNU Info text
+0	search/b/1	This\ is\ Info\ file	GNU Info text
+!:mime	text/x-info
+0	search/b/10	INFO-DIR-SECTION	GNU Info text
+!:mime	text/x-info
+0	search/b/10	START-INFO-DIR-ENTRY	GNU Info text
 !:mime	text/x-info
 
 0	string		%!TEX\040root	TeX Document text

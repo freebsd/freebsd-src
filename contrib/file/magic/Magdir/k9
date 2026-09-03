@@ -1,0 +1,31 @@
+
+#------------------------------------------------------------------------------
+# $File: k9,v 1.1 2026/03/20 13:59:12 christos Exp $
+# k9:  file(1) magic for K9 Self-Validating Components
+# URL:  https://github.com/hyperpolymath/k9-svc
+# From: Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+
+# K9 files are self-validating components using the must-just-nickel triad.
+# They begin with the ASCII magic number "K9!" (0x4B 0x39 0x21) and use a
+# tiered security model: Kennel (data only), Yard (validation), Hunt (full
+# execution with cryptographic signature).
+# Specification: https://github.com/hyperpolymath/standards/blob/main/k9-svc/SPEC.adoc
+# MIME type: application/vnd.k9+nickel
+
+# K9 magic number: "K9!" at byte offset 0
+0	string	K9!	K9 Self-Validating Component
+!:mime	application/vnd.k9+nickel
+!:ext	k9
+
+# Detect security level from content following the magic number
+>&0	search/1024	security_level:\ 'Kennel	K9 Self-Validating Component (Kennel level, data only)
+
+>&0	search/1024	security_level:\ 'Yard	K9 Self-Validating Component (Yard level, validation)
+
+>&0	search/1024	security_level:\ 'Hunt	K9 Self-Validating Component (Hunt level, executable)
+
+# K9 Nickel contract files (.k9.ncl) -- pedigree definition
+0	search/256	K9Pedigree	K9 Nickel contract (pedigree definition)
+!:mime	application/vnd.k9+nickel
+!:ext	k9.ncl/ncl
+!:strength -10

@@ -1,0 +1,233 @@
+
+#------------------------------------------------------------------------------
+# $File: atari,v 1.2 2026/04/30 18:40:15 christos Exp $
+# atari:  file(1) magic for Atari formats:
+
+# Operating system ROMs for the Atari ST series of computers, including a
+# GPLv2+ implementation called EmuTOS.
+# Teemu Hukkanen <tjhukkan@iki.fi>
+#
+# OSHEADER https://freemint.github.io/tos.hyp/en/OSHEADER.html
+# The first byte is a bra.s instruction, an unconditional short jump
+0		byte	0x60
+# The second byte is the offset for the jump target address,
+# jumping past the OS header
+# TOS 1.00 uses 0x1E
+>0x01		byte	0x1E
+>>0		use	atari-tos-rom
+# TOS >1.00 and EmuTOS uses 0x2E
+>0x01		byte	0x2E
+>>0		use	atari-tos-rom
+
+# EmuTOS for Amiga
+0		beshort	0x1111
+>0x02		beshort	0x4EF9
+>>0xD2		beshort	0x602E
+>>>0xD2		use	atari-tos-versions
+
+0		name	atari-tos-versions
+# Enumerate all known versions
+>0x02		beshort	0x0100		Atari TOS ROM 1.00
+>>0		use	atari-tos-rom
+# EmuTOS uses 1.04 for 192kB ROMs, and 2.06 for >=256kB ROMs
+>0x02		beshort	0x0102		Atari TOS ROM 1.02
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0104		Atari TOS ROM 1.04
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0106		Atari TOS ROM 1.06
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0162		Atari TOS ROM 1.62
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0205		Atari TOS ROM 2.05
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0206
+# ST-Book TOS 2.08 header says 2.06, identify it by release date
+>>0x18		belong	0x03101992	Atari TOS ROM 2.08
+>>>0		use	atari-tos-rom
+>>0x18		belong	!0x03101992	Atari TOS ROM 2.06
+>>>0		use	atari-tos-rom
+>0x02		beshort	0x0207		Atari TOS ROM 2.07
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0208		Atari TOS ROM 2.08
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0300		Atari TOS ROM 3.00
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0301		Atari TOS ROM 3.01
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0305		Atari TOS ROM 3.05
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0306		Atari TOS ROM 3.06
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0400		Atari TOS ROM 4.00
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0401		Atari TOS ROM 4.01
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0402		Atari TOS ROM 4.02
+>>0		use	atari-tos-rom
+>0x02		beshort	0x0404		Atari TOS ROM 4.04
+>>0		use	atari-tos-rom
+
+0		name	atari-tos-rom
+# Release date, display using ISO 8601 date
+# Year
+>0x1A		beshort	x		%.4x
+# Month
+>0x18		byte	x		\b-%.2x
+# Day
+>0x19		byte	x		\b-%.2x
+# os_conf: Video sync mode and language/country
+#>0x1C		beshort	x		(os_conf: %u)
+# Video mode is not relevant for multilingual variants
+>0x1C		beshort	!255
+>>0x1C		beshort	^1		Video: NTSC
+>>0x1C		beshort	&1		Video: PAL
+# Language / Country
+# https://github.com/emutos/emutos/blob/master/include/ctrycodes.h
+# TOS uses a country to indicate locale, use IETF language tags instead.
+>0x1C		beshort	x		Locale:
+>0x1C		beshort	0		en-US
+# PAL 1.04 and 1.06 TEX variants
+>0x1C		beshort	1
+>>0x2A85C	string	AUSWAHL:	de-DE
+# NTSC with de-DE
+>0x1C		beshort	2
+# NTSC Kaos TOS de-CH
+>>0x26806	string	Auswahl:	de-CH
+# NTSC Kaos TOS en-GB
+>>0x26806	string	Select:		en-GB
+# NTSC 1.06 TEX variant
+>>0x2A4FC	string	AUSWAHL:	de-DE
+# NTSC 2.06 TEX variant
+>>0x32C3E	string	AUSWAHL:	de-DE
+# PAL de-DE
+# Several translations are based on de-DE, detect all known variants.
+>0x1C		beshort	3
+# 1.00 de-DE
+>>0x15097	string	AUSWAHL		de-DE
+# 1.00 fi-FI
+>>0x15092	string	VALINTA		fi-FI
+# 1.00 dk-DK
+>>0x15090	string	FIL\ V		dk-DK
+# 1.02 de-DE
+>>0x16691	string	AUSWAHL		de-DE
+# 1.04 de-DE
+>>0x2BAE2	string	AUSWAHL:	de-DE
+# 1.04 cs-CZ
+>>0x2BAE4	string	Soubor:		cs-CZ
+# 1.04 de-DE
+>>0x2BAEC	string	AUSWAHL:	de-DE
+# 1.06 de-DE
+>>0x2DA56	string	AUSWAHL:	de-DE
+# 1.62 de-DE
+>>0x2DB4A	string	AUSWAHL:	de-DE
+# 1.62 cs-CZ
+>>0x2DB4C	string	Soubor:		cs-CZ
+# 2.05 is-IS
+>>0x34E80	string	Drif:		is-IS
+# 2.05 de-DE
+>>0x34E5A	string	AUSWAHL:	de-DE
+# 2.06 de-DE
+>>0x36B68	string	AUSWAHL:	de-DE
+# 2.06 cs-CZ
+>>0x36B68	string	Soubor:		cs-CZ
+# 2.06 sr-Latn
+>>0x36B68	string	IZBOR:		sr-Latn
+# 2.06 sr-Cyrl
+>>0x36B68	belong	0xC8C7C1CE	sr-Cyrl
+# 2.08 de-DE
+>>0x36B18	string	AUSWAHL:	de-DE
+# 3.01 de-DE
+>>0x395F0	string	AUSWAHL:	de-DE
+# 3.06 de-DE
+>>0x3EDD2	string	AUSWAHL:	de-DE
+# EmuTOS uses the de-DE language code correctly
+>>0x2C		string	ETOS		de-DE
+>0x1C		beshort	5		fr-FR
+>0x1C		beshort	7		en-GB
+>0x1C		beshort	9		es-ES
+>0x1C		beshort	11		it-IT
+# PAL sv-SE
+>0x1C		beshort	13
+# 1.02 sv-SE
+>>0x1979F	string	PAPPERSKORG	sv-SE
+# 1.04 sv-SE
+>>0x2FC9F	string	PAPPERSKORG	sv-SE
+# 1.04 no-NO
+>>0x2FCA0	string	Papirkurv	no-NO
+# 1.06 sv-SE
+>>0x31C13	string	PAPPERSKORG	sv-SE
+# 1.62 sv-SE
+>>0x31D07	string	PAPPERSKORG	sv-SE
+# 2.05 sv-SE
+>>0x3C309	string	PAPPERSKORG	sv-SE
+# 2.06 sv-SE
+>>0x3E00D	string	PAPPERSKORG	sv-SE
+# 3.06 sv-SE
+>>0x46277	string	PAPPERSKORG	sv-SE
+# EmuTOS uses the sv-SE language code correctly
+>>0x2C		string	ETOS		sv-SE
+# 2.06 NTSC ru-RU (2004)
+>0x1C		beshort	14		ru-RU
+>0x1C		beshort	15		fr-CH
+# Kaos TOS NTSC de-CH
+>0x1C		beshort	16		de-CH
+>0x1C		beshort	17		de-CH
+>0x1C		beshort	19		tr-TR
+>0x1C		beshort	21		fi-FI
+>0x1C		beshort	23		no-NO
+>0x1C		beshort	25		dk-DK
+# Dutch TOS 1.04 (1989-04-06) uses Saudi-Arabia as country code.
+>0x1C		beshort	27
+>>0x2BAB0	string	Selectie:	nl-NL
+>0x1C		beshort	29		nl-NL
+>0x1C		beshort	31		cs-CZ
+>0x1C		beshort	33		hu-HU
+>0x1C		beshort	35		pl-PL
+>0x1C		beshort	39		ru-RU
+>0x1C		beshort	49		ro-RO
+>0x1C		beshort	63		el-GR
+>0x1C		beshort	109		cat
+# Multilingual TOS, either TOS 4.x, or 1024kB EmuTOS, which contain multiple
+# languages, and select the language and video mode based on settings in
+# NVRAM.
+>0x1C		beshort	255		Multilingual
+# Kaos TOS, a modified version of TOS 1.04
+>0x5FFC		string	KAOS		Kaos TOS
+>0x2CDB0	string	1.4.3		Kaos TOS 1.4.3
+# EmuTOS
+>0x2C		string	ETOS		EmuTOS
+# Extended OS header, EmuTOS >= 1.0.0
+# https://github.com/emutos/emutos/blob/master/doc/version.txt
+>0x34		string	OSXH
+# Length of extended OS header
+>>0x38		belong	25
+# Major version
+>>>0x3C		byte	x		v%d
+# Minor version
+>>>0x3D		byte	x		\b.%d
+# Fix version
+>>>0x3E		byte	x		\b.%d
+# Zero means official release, Non-zero means snapshot
+>>>0x3F		byte	!0		Snapshot
+# Display version string for snapshots
+>>>>(0x40.L)	string	x		(%s)
+>>>0x48		beshort	x		Machine:
+>>>0x48		beshort	&1		ST
+>>>0x48		beshort	&2		STe
+>>>0x48		beshort	&4		TT
+>>>0x48		beshort	&8		Falcon
+>>>0x48		beshort	&16		FireBee
+>>>0x48		beshort	&32		M548X
+>>>0x48		beshort	&64		Amiga
+>>>0x48		beshort &256		ARAnyM
+>>>0x4A		beshort	x		CPU:
+>>>0x4A		beshort	&1		68000
+>>>0x4A		beshort	&2		68010
+>>>0x4A		beshort	&4		68020
+>>>0x4A		beshort	&8		68030
+>>>0x4A		beshort	&16		68040
+>>>0x4A		beshort	&32		68060
+>>>0x4A		beshort	&64		68080
+>>>0x4A		beshort	&256		ColdFire-V4e
+# Adjustable cold boot delay in seconds when > 0.
+>>>0x4C		byte	>0		Boot-Delay: %is

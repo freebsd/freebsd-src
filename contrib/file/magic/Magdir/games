@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.38 2025/05/31 15:42:06 christos Exp $
+# $File: games,v 1.40 2026/04/16 20:25:40 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -245,14 +245,14 @@
 # Type:	SGF Smart Game Format
 # URL:	https://www.red-bean.com/sgf/
 # From:	Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
-2	regex	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
->2	regex	GM\\[1\\]			- Go Game
->2	regex	GM\\[6\\]			- BackGammon Game
->2	regex	GM\\[11\\]			- Hex Game
->2	regex	GM\\[18\\]			- Amazons Game
->2	regex	GM\\[19\\]			- Octi Game
->2	regex	GM\\[20\\]			- Gess Game
->2	regex	GM\\[21\\]			- twix Game
+2	regex/c	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	regex/c	GM\\[1\\]			- Go Game
+>2	regex/c	GM\\[6\\]			- BackGammon Game
+>2	regex/c	GM\\[11\\]			- Hex Game
+>2	regex/c	GM\\[18\\]			- Amazons Game
+>2	regex/c	GM\\[19\\]			- Octi Game
+>2	regex/c	GM\\[20\\]			- Gess Game
+>2	regex/c	GM\\[21\\]			- twix Game
 
 # Epic Games/Unreal Engine Package
 # URL: https://docs.unrealengine.com/udk/Three/ContentCooking.html
@@ -436,7 +436,7 @@
 0	uleshort	0x0469    	GTA2 binary mission script (SCR), Industrial area (bil)
 
 0	string   	v9.6\0\0 	GTA2 replay file (REP),
->8	regex/30	[a-z0-9:\ ]+\0\0	created on %s
+>8	regex/30c	[a-z0-9:\ ]+\0\0	created on %s
 
 # GTA 3D-Era (III/VC/SA/LCS/VCS) - used by the RenderWare engine by Criterion Games
 
@@ -708,3 +708,28 @@
 >>14	uledate	=0	\b, unknown creation date
 >>14	uledate	!0	\b, created: %s
 >6	uleshort	<1	\b, unknown creation date
+
+
+# osu! replay file
+# https://osu.ppy.sh/wiki/en/Client/File_formats/osr_%28file_format%29
+# Weak magic
+#1	lelong	>20070000
+## osu lazer, why 90 C3 C9 01?
+#>1	lelong	<30000017
+#>>0	byte	<4
+#>>>5 byte	0x0b
+#>>>>0 byte	0	osu! standard
+#>>>>0 byte	1	osu! taiko
+#>>>>0 byte	2	osu! catch
+#>>>>0 byte	3	osu! mania
+#>>>>1 lelong	x	\b replay, version %u
+#!:ext osr
+#!:mime application/x-osu-replay
+
+# osu! beatmap file
+# https://osu.ppy.sh/wiki/en/Client/File_formats/osu_%28file_format%29
+
+0	string	osu\040file\040format\040v	osu! beatmap file
+>17	string	x				\b, version %s
+!:ext osu
+!:mime application/x-osu-beatmap

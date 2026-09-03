@@ -1,0 +1,47 @@
+
+#------------------------------------------------------------------------------
+# $File: a2ml,v 1.1 2026/03/20 13:59:12 christos Exp $
+# a2ml:  file(1) magic for A2ML (Attested Markup Language) files
+# URL:   https://github.com/hyperpolymath/a2ml
+# From:  Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+
+# A2ML is a lightweight attested markup format with a typed, formally
+# verified core.  Files use the .a2ml extension.
+# Specification: https://github.com/hyperpolymath/standards/blob/main/a2ml/SPEC-v1.0.adoc
+# MIME type: application/vnd.a2ml
+
+# Document starts with @abstract directive (canonical A2ML opening)
+0	string	@abstract:	A2ML Attested Markup Language document
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+
+# AI manifest files starting with agent-id or manifest block
+0	string	agent-id:	A2ML Attested Markup Language document (AI manifest)
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+
+0	string	manifest:	A2ML Attested Markup Language document (AI manifest)
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+
+0	string	pedigree:	A2ML Attested Markup Language document (AI manifest)
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+
+# Heading line followed by @abstract deeper in the file
+0	string	#\\
+>&0	search/512	\n@abstract:	A2ML Attested Markup Language document
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+
+# @opaque directive with language annotation (A2ML code block)
+0	search/512	@opaque(lang=	A2ML Attested Markup Language document
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+!:strength -10
+
+# @refs block (A2ML reference list)
+0	search/512	\n@refs:\n	A2ML Attested Markup Language document
+!:mime	application/vnd.a2ml
+!:ext	a2ml
+!:strength -10

@@ -115,6 +115,12 @@
 /* Define to 1 if you have the 'zstd' library (-lzstd). */
 /* #undef HAVE_LIBZSTD */
 
+/* Define to 1 if you have the <limits.h> header file. */
+#define HAVE_LIMITS_H 1
+
+/* Define to 1 if you have the <linux/landlock.h> header file. */
+/* #undef HAVE_LINUX_LANDLOCK_H */
+
 /* Define to 1 if you have the 'localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
 
@@ -336,7 +342,7 @@
 #define PACKAGE_NAME "file"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "file 5.47"
+#define PACKAGE_STRING "file 5.48"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "file"
@@ -345,7 +351,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.47"
+#define PACKAGE_VERSION "5.48"
 
 /* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
@@ -448,7 +454,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.47"
+#define VERSION "5.48"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

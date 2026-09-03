@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.201 2026/02/01 16:25:09 christos Exp $
+# $File: Makefile.am,v 1.206 2026/06/02 19:41:27 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -10,6 +10,7 @@ pkgdata_DATA = magic.mgc
 MAGIC_FRAGMENTS = \
 $(MAGIC_DIR)/Header \
 $(MAGIC_DIR)/Localstuff \
+$(MAGIC_FRAGMENT_DIR)/a2ml \
 $(MAGIC_FRAGMENT_DIR)/acorn \
 $(MAGIC_FRAGMENT_DIR)/adi \
 $(MAGIC_FRAGMENT_DIR)/adventure \
@@ -19,6 +20,7 @@ $(MAGIC_FRAGMENT_DIR)/allegro \
 $(MAGIC_FRAGMENT_DIR)/alliant \
 $(MAGIC_FRAGMENT_DIR)/amanda \
 $(MAGIC_FRAGMENT_DIR)/amigaos \
+$(MAGIC_FRAGMENT_DIR)/andrew \
 $(MAGIC_FRAGMENT_DIR)/android \
 $(MAGIC_FRAGMENT_DIR)/animation \
 $(MAGIC_FRAGMENT_DIR)/aout \
@@ -34,6 +36,7 @@ $(MAGIC_FRAGMENT_DIR)/arm \
 $(MAGIC_FRAGMENT_DIR)/asf \
 $(MAGIC_FRAGMENT_DIR)/assembler \
 $(MAGIC_FRAGMENT_DIR)/asterix \
+$(MAGIC_FRAGMENT_DIR)/atari \
 $(MAGIC_FRAGMENT_DIR)/att3b \
 $(MAGIC_FRAGMENT_DIR)/audio \
 $(MAGIC_FRAGMENT_DIR)/avm \
@@ -156,6 +159,7 @@ $(MAGIC_FRAGMENT_DIR)/isz \
 $(MAGIC_FRAGMENT_DIR)/java \
 $(MAGIC_FRAGMENT_DIR)/javascript \
 $(MAGIC_FRAGMENT_DIR)/jpeg \
+$(MAGIC_FRAGMENT_DIR)/k9 \
 $(MAGIC_FRAGMENT_DIR)/karma \
 $(MAGIC_FRAGMENT_DIR)/kde \
 $(MAGIC_FRAGMENT_DIR)/keepass \
@@ -220,6 +224,7 @@ $(MAGIC_FRAGMENT_DIR)/news \
 $(MAGIC_FRAGMENT_DIR)/nifty \
 $(MAGIC_FRAGMENT_DIR)/nim-lang \
 $(MAGIC_FRAGMENT_DIR)/nitpicker \
+$(MAGIC_FRAGMENT_DIR)/nix \
 $(MAGIC_FRAGMENT_DIR)/numpy \
 $(MAGIC_FRAGMENT_DIR)/oasis \
 $(MAGIC_FRAGMENT_DIR)/ocaml \
@@ -237,6 +242,7 @@ $(MAGIC_FRAGMENT_DIR)/pack \
 $(MAGIC_FRAGMENT_DIR)/palm \
 $(MAGIC_FRAGMENT_DIR)/parix \
 $(MAGIC_FRAGMENT_DIR)/parrot \
+$(MAGIC_FRAGMENT_DIR)/partclone \
 $(MAGIC_FRAGMENT_DIR)/pascal \
 $(MAGIC_FRAGMENT_DIR)/pbf \
 $(MAGIC_FRAGMENT_DIR)/pbm \
@@ -267,13 +273,13 @@ $(MAGIC_FRAGMENT_DIR)/python \
 $(MAGIC_FRAGMENT_DIR)/qt \
 $(MAGIC_FRAGMENT_DIR)/r \
 $(MAGIC_FRAGMENT_DIR)/revision \
-$(MAGIC_FRAGMENT_DIR)/ringdove \
 $(MAGIC_FRAGMENT_DIR)/riff \
+$(MAGIC_FRAGMENT_DIR)/ringdove \
 $(MAGIC_FRAGMENT_DIR)/rpi \
 $(MAGIC_FRAGMENT_DIR)/rpm \
 $(MAGIC_FRAGMENT_DIR)/rpmsg \
-$(MAGIC_FRAGMENT_DIR)/rtf \
 $(MAGIC_FRAGMENT_DIR)/rst \
+$(MAGIC_FRAGMENT_DIR)/rtf \
 $(MAGIC_FRAGMENT_DIR)/ruby \
 $(MAGIC_FRAGMENT_DIR)/rust \
 $(MAGIC_FRAGMENT_DIR)/sc \
@@ -342,8 +348,8 @@ $(MAGIC_FRAGMENT_DIR)/vmware \
 $(MAGIC_FRAGMENT_DIR)/vorbis \
 $(MAGIC_FRAGMENT_DIR)/vxl \
 $(MAGIC_FRAGMENT_DIR)/warc \
-$(MAGIC_FRAGMENT_DIR)/web \
 $(MAGIC_FRAGMENT_DIR)/weak \
+$(MAGIC_FRAGMENT_DIR)/web \
 $(MAGIC_FRAGMENT_DIR)/webassembly \
 $(MAGIC_FRAGMENT_DIR)/windows \
 $(MAGIC_FRAGMENT_DIR)/wireless \

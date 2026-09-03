@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.214 2025/09/06 17:00:32 christos Exp $
+# $File: msdos,v 1.216 2026/03/11 20:05:18 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -24,9 +24,9 @@
 # OS/2 batch files are REXX. the second regex is a bit generic, oh well
 # the matched commands seem to be common in REXX and uncommon elsewhere
 100	search/0xffff   rxfuncadd
->100	regex	=^[\ \t]{0,10}call[\ \t]{1,10}rxfunc	OS/2 REXX batch file text
+>100	regex/c	=^[\ \t]{0,10}call[\ \t]{1,10}rxfunc	OS/2 REXX batch file text
 100	search/0xffff   say
->100	regex/	=^[\ \t]{0,10}say\ ['"]			OS/2 REXX batch file text
+>100	regex/c	=^[\ \t]{0,10}say\ ['"]			OS/2 REXX batch file text
 
 
 # Tests for various EXE types.
@@ -1506,7 +1506,7 @@
 >1		leshort	<-259
 # that offset must be accessible
 # add 10000h to jump at end of 64 KiB segment, add 1 for jump instruction and 2 for 16-bit offset
->>(1,s+65539)   byte    x
+>>(1.s+65539)   byte    x
 # after jump next instruction for DEBUGGING!
 #>>>&-1		ubelong	x	\b, NEXT instruction %#8.8x
 >>>0        use msdos-com

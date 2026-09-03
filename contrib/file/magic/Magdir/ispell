@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ispell,v 1.10 2023/10/23 19:49:58 christos Exp $
+# $File: ispell,v 1.11 2026/04/16 18:06:17 christos Exp $
 # ispell:  file(1) magic for ispell, MySpell, Hunspell and aspell
 #
 # Ispell 3.0 has a magic of 0x9601 and ispell 3.1 has 0x9602.  This magic
@@ -110,10 +110,11 @@
 #>>>>&1		string		x		DECLARATION=%s
 >>>>0		use				spell-aff
 # ispell variant without declaration like in: /usr/lib/ispell/bulgarian.aff /usr/lib/ispell/russian.aff
->>>0		default		x
+# XXX: too weak
+#>>>0		default		x
 # skip /etc/nilfs_cleanerd.conf by looking for ispell suffix section
->>>>0		search/3233	suffixes\n
->>>>>0		use				spell-aff
+#>>>>0		search/3233	suffixes\n
+#>>>>>0		use				spell-aff
 # variant starting with empty line and comment character at the beginning of 2nd line like in: /usr/lib/ispell/polish.aff
 0		ubeshort	0x0a23
 # skip /etc/discover-modprobe.conf by looking for ispell declaration
