@@ -1129,8 +1129,8 @@ reconnect(struct fat_descriptor *fat, cl_t head, size_t length)
 			lfcl = (lostDir->head < boot->NumClusters) ? lostDir->head : 0;
 			return FSERROR;
 		}
-		lfoff = (lfcl - CLUST_FIRST) * boot->ClusterSize
-		    + boot->FirstCluster * boot->bpbBytesPerSec;
+		lfoff = (off_t)(lfcl - CLUST_FIRST) * boot->ClusterSize +
+		    (off_t)boot->FirstCluster * boot->bpbBytesPerSec;
 
 		if (lseek(dosfs, lfoff, SEEK_SET) != lfoff
 		    || (size_t)read(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
