@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <pjdlog.h>
@@ -50,11 +50,11 @@ struct ebuf {
 	/* Magic to assert the caller uses valid structure. */
 	int		 eb_magic;
 	/* Address where we did the allocation. */
-	unsigned char	*eb_start;
+	unsigned char	*eb_buf;
 	/* Allocation end address. */
 	unsigned char	*eb_end;
 	/* Start of real data. */
-	unsigned char	*eb_used;
+	unsigned char	*eb_start;
 	/* Size of real data. */
 	size_t		 eb_size;
 };
@@ -62,6 +62,10 @@ struct ebuf {
 static int ebuf_head_extend(struct ebuf *eb, size_t size);
 static int ebuf_tail_extend(struct ebuf *eb, size_t size);
 
+/*
+ * Allocate an empty ebuf with the expectation that it will later need to
+ * hold at least `size` bytes.
+ */
 struct ebuf *
 ebuf_alloc(size_t size)
 {
@@ -74,25 +78,28 @@ ebuf_alloc(size_t size)
 		return (NULL);
 	page_size = getpagesize();
 	size += page_size;
-	eb->eb_start = malloc(size);
-	if (eb->eb_start == NULL) {
+	eb->eb_buf = malloc(size);
+	if (eb->eb_buf == NULL) {
 		rerrno = errno;
 		free(eb);
 		errno = rerrno;
 		return (NULL);
 	}
-	eb->eb_end = eb->eb_start + size;
+	eb->eb_end = eb->eb_buf + size;
 	/*
 	 * We set start address for real data not at the first entry, because
 	 * we want to be able to add data at the front.
 	 */
-	eb->eb_used = eb->eb_start + page_size / 4;
+	eb->eb_start = eb->eb_buf + page_size / 4;
 	eb->eb_size = 0;
 	eb->eb_magic = EBUF_MAGIC;
 
 	return (eb);
 }
 
+/*
+ * Free `eb`.
+ */
 void
 ebuf_free(struct ebuf *eb)
 {
@@ -101,17 +108,21 @@ ebuf_free(struct ebuf *eb)
 
 	eb->eb_magic = 0;
 
-	free(eb->eb_start);
+	free(eb->eb_buf);
 	free(eb);
 }
 
+/*
+ * Add `size` bytes to the front of `eb`, copied from `data` if not null
+ * and otherwise left uninitialized.
+ */
 int
 ebuf_add_head(struct ebuf *eb, const void *data, size_t size)
 {
 
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
-	if (size > (size_t)(eb->eb_used - eb->eb_start)) {
+	if (size > (size_t)(eb->eb_start - eb->eb_buf)) {
 		/*
 		 * We can't add more entries at the front, so we have to extend
 		 * our buffer.
@@ -119,26 +130,30 @@ ebuf_add_head(struct ebuf *eb, const void *data, size_t size)
 		if (ebuf_head_extend(eb, size) == -1)
 			return (-1);
 	}
-	PJDLOG_ASSERT(size <= (size_t)(eb->eb_used - eb->eb_start));
+	PJDLOG_ASSERT(size <= (size_t)(eb->eb_start - eb->eb_buf));
 
 	eb->eb_size += size;
-	eb->eb_used -= size;
+	eb->eb_start -= size;
 	/*
 	 * If data is NULL the caller just wants to reserve place.
 	 */
 	if (data != NULL)
-		bcopy(data, eb->eb_used, size);
+		memcpy(eb->eb_start, data, size);
 
 	return (0);
 }
 
+/*
+ * Add `size` bytes to the back of `eb`, copied from `data` if not null
+ * and otherwise left uninitialized.
+ */
 int
 ebuf_add_tail(struct ebuf *eb, const void *data, size_t size)
 {
 
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
-	if (size > (size_t)(eb->eb_end - (eb->eb_used + eb->eb_size))) {
+	if (size > (size_t)(eb->eb_end - (eb->eb_start + eb->eb_size))) {
 		/*
 		 * We can't add more entries at the back, so we have to extend
 		 * our buffer.
@@ -147,18 +162,21 @@ ebuf_add_tail(struct ebuf *eb, const void *data, size_t size)
 			return (-1);
 	}
 	PJDLOG_ASSERT(size <=
-	    (size_t)(eb->eb_end - (eb->eb_used + eb->eb_size)));
+	    (size_t)(eb->eb_end - (eb->eb_start + eb->eb_size)));
 
 	/*
 	 * If data is NULL the caller just wants to reserve space.
 	 */
 	if (data != NULL)
-		bcopy(data, eb->eb_used + eb->eb_size, size);
+		memcpy(eb->eb_start + eb->eb_size, data, size);
 	eb->eb_size += size;
 
 	return (0);
 }
 
+/*
+ * Trim `size` bytes from the front of `eb`.
+ */
 void
 ebuf_del_head(struct ebuf *eb, size_t size)
 {
@@ -166,10 +184,13 @@ ebuf_del_head(struct ebuf *eb, size_t size)
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 	PJDLOG_ASSERT(size <= eb->eb_size);
 
-	eb->eb_used += size;
+	eb->eb_start += size;
 	eb->eb_size -= size;
 }
 
+/*
+ * Trim size bytes from the back of `eb`.
+ */
 void
 ebuf_del_tail(struct ebuf *eb, size_t size)
 {
@@ -181,7 +202,8 @@ ebuf_del_tail(struct ebuf *eb, size_t size)
 }
 
 /*
- * Return pointer to the data and data size.
+ * Return a pointer to the data contained by `eb`.  The size of the data
+ * is returned in `sizep` if not null.
  */
 void *
 ebuf_data(struct ebuf *eb, size_t *sizep)
@@ -191,11 +213,11 @@ ebuf_data(struct ebuf *eb, size_t *sizep)
 
 	if (sizep != NULL)
 		*sizep = eb->eb_size;
-	return (eb->eb_size > 0 ? eb->eb_used : NULL);
+	return (eb->eb_size > 0 ? eb->eb_start : NULL);
 }
 
 /*
- * Return data size.
+ * Return the size of the data contained in `eb`.
  */
 size_t
 ebuf_size(struct ebuf *eb)
@@ -212,25 +234,25 @@ ebuf_size(struct ebuf *eb)
 static int
 ebuf_head_extend(struct ebuf *eb, size_t size)
 {
-	unsigned char *newstart, *newused;
+	unsigned char *newbuf, *newstart;
 	size_t newsize, page_size;
 
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	page_size = getpagesize();
-	newsize = eb->eb_end - eb->eb_start + (page_size / 4) + size;
+	newsize = eb->eb_end - eb->eb_buf + (page_size / 4) + size;
 
-	newstart = malloc(newsize);
-	if (newstart == NULL)
+	newbuf = malloc(newsize);
+	if (newbuf == NULL)
 		return (-1);
-	newused =
-	    newstart + (page_size / 4) + size + (eb->eb_used - eb->eb_start);
+	newstart =
+	    newbuf + (page_size / 4) + size + (eb->eb_start - eb->eb_buf);
 
-	bcopy(eb->eb_used, newused, eb->eb_size);
+	bcopy(eb->eb_start, newstart, eb->eb_size);
 
+	eb->eb_buf = newbuf;
 	eb->eb_start = newstart;
-	eb->eb_used = newused;
-	eb->eb_end = newstart + newsize;
+	eb->eb_end = newbuf + newsize;
 
 	return (0);
 }
@@ -241,21 +263,21 @@ ebuf_head_extend(struct ebuf *eb, size_t size)
 static int
 ebuf_tail_extend(struct ebuf *eb, size_t size)
 {
-	unsigned char *newstart;
+	unsigned char *newbuf;
 	size_t newsize, page_size;
 
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
 	page_size = getpagesize();
-	newsize = eb->eb_end - eb->eb_start + size + ((3 * page_size) / 4);
+	newsize = eb->eb_end - eb->eb_buf + size + ((3 * page_size) / 4);
 
-	newstart = realloc(eb->eb_start, newsize);
-	if (newstart == NULL)
+	newbuf = realloc(eb->eb_buf, newsize);
+	if (newbuf == NULL)
 		return (-1);
 
-	eb->eb_used = newstart + (eb->eb_used - eb->eb_start);
-	eb->eb_start = newstart;
-	eb->eb_end = newstart + newsize;
+	eb->eb_start = newbuf + (eb->eb_start - eb->eb_buf);
+	eb->eb_buf = newbuf;
+	eb->eb_end = newbuf + newsize;
 
 	return (0);
 }
