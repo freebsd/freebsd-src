@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.51 2024/09/04 19:06:12 christos Exp $
+# $File: apple,v 1.54 2026/06/02 17:32:17 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -775,5 +775,31 @@
 >>>0x1ec	beshort 0xffd8		(JPEG)
 
 # MacPaint image
-65		string	PNTGMPNT	MacPaint image data
-#0		belong	2		MacPaint image data
+65		string	PNTGMPNT	MacPaint image data, MacBinary-wrapped
+!:mime	image/x-macpaint
+!:ext	mac/macp/pntg
+0		belong	0x00000002
+>4		belong	0xFFFFFFFF	MacPaint image data, version 2
+!:mime	image/x-macpaint
+!:ext	mac/macp/pntg
+0		belong	0x00000003
+>4		belong	0xFFFFFFFF	MacPaint image data, version 3
+!:mime	image/x-macpaint
+!:ext	mac/macp/pntg
+
+# Apple Sparse Disk Image
+# Located at the start of the file
+0	string		sprs		Apple Sparse Disk Image
+>4	belong		>0		\b, version %d
+>8	belong		&0x01		\b, growable
+>8	belong		&0x02		\b, layout-fixed
+>8	belong		&0x04		\b, encrypted
+>8	belong		&0x08		\b, kernel-managed
+>8	belong		>0		\b, (flags %#x)
+>12	belong		>0		\b, block size: %d
+>24	bequad		>0		\b, capacity: %lld bytes
+
+# DMG image
+-512	string	koly
+>-504	belong	512	Apple DMG
+>>-508	belong	x	\b, version %d

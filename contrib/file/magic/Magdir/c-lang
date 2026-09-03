@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.38 2025/05/30 13:36:08 christos Exp $
+# $File: c-lang,v 1.39 2026/04/16 18:17:04 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
 # The strength is to beat standard HTML
@@ -79,15 +79,15 @@
 !:strength + 13
 !:mime	text/x-c++
 0	search/8192	public
->0	regex	\^[[:space:]]*public:		C++ source text
+>0	regex	\^[[:space:]]*public:[[:space:]]*$		C++ source text
 !:strength + 45
 !:mime	text/x-c++
 0	search/8192	private
->0	regex	\^[[:space:]]*private:		C++ source text
+>0	regex	\^[[:space:]]*private:[[:space:]]*$		C++ source text
 !:strength + 45
 !:mime	text/x-c++
 0	search/8192	protected
->0	regex	\^[[:space:]]*protected:	C++ source text
+>0	regex	\^[[:space:]]*protected:[[:space:]]*$	C++ source text
 !:strength + 45
 !:mime	text/x-c++
 

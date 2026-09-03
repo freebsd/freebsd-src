@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.54 2025/02/10 22:01:36 rrt Exp $
+# $File: fonts,v 1.55 2026/03/24 22:28:58 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -266,7 +266,7 @@
 >0	use		sfnt-names
 # GRR: below test is too general
 # sfnt version often 0x00010000
-0	string	\000\001\000\000
+0	string		\000\001\000\000
 >0	use		sfnt-font
 >0	use		sfnt-names
 #	validate and display sfnt font data like number of tables
@@ -280,16 +280,18 @@
 # skip bad examples with garbage table names like in a5.show HYPERC MAC
 # tag names consist of up to four characters padded with spaces at end like
 # BASE C2PA DSIG OS/2 Zapf acnt glyf cvt vmtx xref ...
->>12	regex/4l	\^[A-Za-z][A-Za-z2][A-Za-z/][A-Za-z2\ ]	
-#>>>0	ubelong	x	\b, sfnt version %#x
->>>0	ubelong	!0x4f54544f	TrueType
+>>12	regex/4l	\^[A-Za-z][A-Za-z2][A-Za-z/\ ][A-Za-z2\ ]	
+#>>>0	ubelong		x	\b, sfnt version %#x
+>>>0	ubelong		!0x4f54544f	TrueType
+# fontkit FK
+>>>>12	ubelong		0x464b2020	(FontKit)
 !:mime	font/ttf
 !:apple	????tfil
 # .ttf for TrueType font
 # EUDC.tte created by privat character editor %WINDIR%\system32\eudcedit.exe
 !:ext	ttf/tte
 # sfnt version 4F54544Fh~OTTO
->>>0	ubelong	=0x4f54544f	OpenType
+>>>0	ubelong		=0x4f54544f	OpenType
 !:mime	font/otf
 !:apple	????OTTO
 !:ext	otf
@@ -302,7 +304,8 @@
 #>>>4	ubeshort	<10		TMIN
 #>>>4	ubeshort	>24		TBIG
 # table directory entries
->>>12	string		x		\b, 1st "%4.4s"
+>>>12	ubelong		!0x464b2020	(FontKit)
+>>>>12	string		x		\b, 1st "%4.4s"
 
 #	search and display 1st name in sfnt font which is often copyright text
 #	does not work inside font collections

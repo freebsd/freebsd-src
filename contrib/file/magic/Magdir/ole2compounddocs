@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.29 2024/06/18 17:07:48 christos Exp $
+# $File: ole2compounddocs,v 1.30 2026/04/17 14:43:18 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -268,7 +268,7 @@
 # Second directory entry name FileHeader hint for Thinkfree Office document
 >>>>128 	lestring16	FileHeader		: Hancom HWP (Hangul Word Processor) file, version 5.0
 #!:mime	application/haansofthwp
-!:mime	application/x-hwp
+!:mime	application/hwp+zip
 # https://example-files.online-convert.com/document/hwp/example.hwp
 !:ext	hwp
 #

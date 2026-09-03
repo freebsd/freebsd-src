@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.52 2025/09/08 12:48:15 christos Exp $
+# $File: riff,v 1.53 2026/04/16 17:09:52 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -695,7 +695,7 @@
 !:ext	amv
 #!:ext	amv/mtv
 # URL:	http://fileformats.archiveteam.org/wiki/WebP
->8      string          WEBP            \b, Web/P image
+>8      string          WEBP            \b, WebP image
 !:mime	image/webp
 !:ext	webp
 >>12	use		riff-walk

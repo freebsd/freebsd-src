@@ -1,65 +1,65 @@
 
 #------------------------------------------------------------------------------
-# $File: javascript,v 1.7 2024/11/10 14:48:55 christos Exp $
+# $File: javascript,v 1.8 2026/04/15 17:29:21 christos Exp $
 # javascript:  magic for javascript and node.js scripts.
 #
 0	string/tw	#!/bin/node		Node.js script executable
-!:mime application/javascript
+!:mime text/javascript
 0	string/tw	#!/usr/bin/node		Node.js script executable
-!:mime application/javascript
+!:mime text/javascript
 0	string/tw	#!/bin/nodejs		Node.js script executable
-!:mime application/javascript
+!:mime text/javascript
 0	string/tw	#!/usr/bin/nodejs	Node.js script executable
-!:mime application/javascript
+!:mime text/javascript
 0	string/t		#!/usr/bin/env\ node	Node.js script executable
-!:mime application/javascript
+!:mime text/javascript
 0	string/t		#!/usr/bin/env\ nodejs	Node.js script executable
-!:mime application/javascript
+!:mime text/javascript
 
 # JavaScript
 # The strength is increased to beat the C++ but lose to HTML rules,
 # because javascript is embedded in hmtl files typically
 0	search	"use\x20strict"	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	search	'use\x20strict'	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	module(\\.|\\[["'])exports.*=	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	\^(const|var|let).*=.*require\\(	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	\^export\x20(function|class|default|const|var|let|async)\x20	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	\\((async\x20)?function[(\x20]	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	\^(import|export).*\x20from\x20	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	\^(import|export)\x20["']\\./	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 0	regex	typeof.*[!=]==	JavaScript source
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext 	js
 
 # React Native minified JavaScript
 0	search/128	__BUNDLE_START_TIME__=	React Native minified JavaScript
 !:strength +20
-!:mime	application/javascript
+!:mime	text/javascript
 !:ext	bundle/jsbundle
 
 # Hermes by Facebook https://hermesengine.dev/

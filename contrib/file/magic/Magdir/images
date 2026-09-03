@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.267 2025/11/24 14:22:31 christos Exp $
+# $File: images,v 1.276 2026/06/02 17:44:28 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -490,6 +490,7 @@
 #
 
 # IHDR parser
+# https://www.w3.org/TR/png-3/#11IHDR
 0	name		png-ihdr
 >0	ubelong		x		\b, %d x
 >4	ubelong		x		%d,
@@ -499,29 +500,49 @@
 >9	ubyte		3		colormap,
 >9	ubyte		4		gray+alpha,
 >9	ubyte		6		\b/color RGBA,
+>9	default		x		invalid color type,
 #>10	ubyte		0		deflate/32K,
+>10	ubyte		!0		invalid compression,
+#>11	ubyte		0		adaptive,
+>11	ubyte		!0		invalid filter method,
 >12	ubyte		0		non-interlaced
 >12	ubyte		1		interlaced
+>12	ubyte		>1		invalid interlace method
+
+# APNG acTL parser
+# https://www.w3.org/TR/png-3/#acTL-chunk
+0	name		apng-actl
+>0	ubelong		1			\b, %d frame
+>0	ubelong		>1			\b, %d frames
+>4	ubelong		0			\b, play indefinitely
+>4	ubelong		1			\b, %d play
+>4	ubelong		>1			\b, %d plays
+
+# PNG image.
+0	string		\x89PNG\x0d\x0a\x1a\x0a
+!:strength +10
+>8	clear		x
+
+# Mozilla APNG image.
+>33	search/16384		\x00\x00\x00\x08acTL	Animated PNG image data
+!:mime	image/apng
+!:ext	apng/png
+>>8	string		\x00\x00\x00\x0DIHDR
+>>>16	use		png-ihdr
+>>&0	use		apng-actl
 
 # Standard PNG image.
-0	string		\x89PNG\x0d\x0a\x1a\x0a\x00\x00\x00\x0DIHDR	PNG image data
+>8	default		x
+>>8	string		\x00\x00\x00\x0DIHDR	PNG image data
 !:mime	image/png
-!:ext   png
-!:strength +10
->16	use		png-ihdr
->33	string		\x00\x00\x00\x08acTL	\b, animated
->>41	ubelong		1			(%d frame
->>41	ubelong		>1			(%d frames
->>45	ubelong		0			\b, infinite repetitions)
->>45	ubelong		1			\b, %d repetition)
->>45	ubelong		>1			\b, %d repetitions)
+!:ext	png
+>>>16	use		png-ihdr
 
 # Apple CgBI PNG image.
-0	string		\x89PNG\x0d\x0a\x1a\x0a\x00\x00\x00\x04CgBI
+>8	string		\x00\x00\x00\x04CgBI
 >24	string  	\x00\x00\x00\x0DIHDR	PNG image data (CgBI)
 !:mime	image/png
-!:ext   png
-!:strength +10
+!:ext	png
 >>32	use		png-ihdr
 
 # possible GIF replacements; none yet released!
@@ -1734,10 +1755,14 @@
 >>>-0		offset	=32066
 # like: spider.pi1 pinkgirl.pi1 frog3.pi1
 >>>>0		use		degas-bitmap
-# about 55 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 32128
+# file size 32128 is always Atari NEOchrome, not DEGAS.
+# NEOchrome files have a 128-byte header (vs DEGAS 34-byte header)
+# and are always exactly 32128 bytes (128 + 32000 pixel data).
+# DEGAS uncompressed is 32034, DEGAS Elite uncompressed is 32066.
+# URL:		http://fileformats.archiveteam.org/wiki/NEOchrome
+# Reference:	https://wiki.multimedia.cx/index.php?title=Neochrome
 >>>-0		offset	=32128
-# like: mountain.pi1 bigspid.pi1 alf33.pi1
->>>>0		use		degas-bitmap
+>>>>0		use		neochrome-bitmap
 # 1 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 44834
 >>>-0		offset	=44834
 # like: kenshin.pi1
@@ -1768,25 +1793,30 @@
 #    http://www.atari-wiki.com/?title=IMG_file (XIMG, STTT)
 #    http://www.fileformat.info/format/gemraster/spec/index.htm (XIMG, STTT)
 #    http://sylvana.net/1stguide/1STGUIDE.ENG (TIMG)
+# Note: GEM v1 checks must be a separate top-level entry from DEGAS mid-res
+# above, because the >>-0 offset (end-of-file) tests for DEGAS file sizes
+# corrupt the offset context for sibling > checks at level 1.
 # header_size
->2      beshort     0x0008
->>0     use gem_info
->2      beshort     0x0009
->>0     use gem_info
-# no example for NOSIG
->2      beshort     24
->>0     use gem_info
-# no example for HYPERPAINT
->2      beshort     25
->>0     use gem_info
-16      string      XIMG\0
->0      use gem_info
-# no example
+# commented out, dup warning should be fixed differently
+#0	beshort		0x0001
+#>2      beshort     0x0008
+#>>0     use gem_info
+#>2      beshort     0x0009
+#>>0     use gem_info
+## no example for NOSIG
+#>2      beshort     24
+#>>0     use gem_info
+## no example for HYPERPAINT
+#>2      beshort     25
+#>>0     use gem_info
+#16      string      XIMG\0
+#>0      use gem_info
+## no example
 16      string      STTT\0\x10
->0      use gem_info
-# no example or description
-16      string      TIMG\0
->0      use gem_info
+#>0      use gem_info
+## no example or description
+#16      string      TIMG\0
+#>0      use gem_info
 
 # DEGAS high-res uncompressed bitmap *.pi3
 0	beshort		0x0002
@@ -1841,6 +1871,13 @@
 # skip some (36/212) Python Pickle (factor_cache.pickle environment.pickle) with invalid 1st atari color entry (2863 6363 7d71)
 >2		ubeshort&0xF000		0
 >>0		use		degas-bitmap
+# display information of Atari NEOchrome bitmap images
+# NEOchrome files are always 32128 bytes (128-byte header + 32000 pixel data)
+# and always 320x200 at 16 colours (low-res only)
+0	name		neochrome-bitmap
+>0	ubyte		x		Atari NEOchrome bitmap 320 x 200 x 16
+!:mime	image/x-neo
+!:ext	neo
 # display information of Atari DEGAS and DEGAS Elite bitmap images
 0	name		degas-bitmap
 >0	ubyte		x		Atari DEGAS
@@ -4625,3 +4662,58 @@
 >>>>>28     byte      3         \b, YCbCr RGB
 # wavelet levels
 >>>>>29     ubyte     x         \b, %u wavelet levels
+
+# Usenix FaceSaver - grayscale face image format
+# Created by Metron Computerware Ltd., used at USENIX conferences from 1987.
+# ASCII format: header lines (FirstName:, LastName:, PicData:, Image:, etc.)
+# followed by hex-encoded pixel data.
+# Spec: https://www.fileformat.info/format/facesaver/egff.htm
+# Netpbm: fstopgm, pgmtofs
+
+0	string	FirstName:	Usenix FaceSaver image data
+!:mime	image/x-facesaver
+!:ext	face/fs
+
+# CompuServe RLE (CIS) - monochrome bitmap, predecessor to GIF
+# Created by CompuServe Inc., specified October 1986 by Chris Hopkins.
+# Spec: https://www.brutman.com/RLE/RLESTND.TXT
+# ESC G H = high-res (256x192), ESC G M = medium-res (128x96)
+# Files use .rle extension (clashes with Utah RLE and others)
+
+0	string	\x1bGH	CompuServe RLE image data, 256 x 192
+!:mime	image/x-compuserve-rle
+!:ext	rle/cis
+
+0	string	\x1bGM	CompuServe RLE image data, 128 x 96
+!:mime	image/x-compuserve-rle
+!:ext	rle/cis
+
+# Created by Russell Marks in 1997 for zgv (https://en.wikipedia.org/wiki/Zgv)
+0	string	MRF1	MRF image data,
+!:mime	image/x-mrf
+!:ext	mrf
+>4	belong	x		%d x
+>8	belong	x		%d
+
+# FIASCO - Fractal Image And Sequence Codec
+# Author: Ullrich Hafner, Univ. Würzburg (1999)
+# Source: https://github.com/l-tamas/Fiasco codec/wfa.h
+0	string	FIASCO\n	FIASCO fractal compressed image data
+!:ext	wfa/fco
+
+0	string	Fiasco		FIASCO basis (dictionary) file
+!:ext	fco
+
+0	string	Jasc\040Paint\040Shop\040Pro\040Browser\040Cache\040File	Jasc Paint Shop Pro Browser Cache
+>40	string  %s	(version %s)
+# Magic file for older Jasc Paint Shop Pro Browser Cache files (.jbf)
+0	string	JASC\040BROWS\040FILE	Jasc Paint Shop Pro Browser Cache (old format)
+
+# SBIG CCDOPS - CCD astronomical camera image format.
+# Created by Santa Barbara Instrument Group (SBIG), 1988.
+# Header line 1 is always "ST-N Image" where N is the camera model
+# number (4, 5, 6, 7, 8, 9, 10, 237, 402, etc.)
+# Spec formerly at sbig.com. Netpbm: sbigtopgm, pgmtosbig
+0	string	ST-
+>&0	regex	[0-9]+\040Image	SBIG CCDOPS camera image
+!:mime image/x-sbig

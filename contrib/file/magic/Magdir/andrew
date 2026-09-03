@@ -1,0 +1,32 @@
+#------------------------------------------------------------------------------
+# $File: andrew,v 1.1 2026/04/16 15:13:19 christos Exp $
+# andrew:  file(1) magic for Andrew Project files:
+# https://en.wikipedia.org/wiki/Andrew_Project
+
+# Andrew Toolkit (ATK / AUIS) data stream
+# From Carnegie Mellon University's Andrew User Interface System (c. 1988)
+
+0	string	\\begindata{raster,	Andrew Toolkit raster image data
+!:mime	application/andrew-inset
+!:ext	raster
+
+0	string	\\begindata{text,	Andrew Toolkit text document
+!:mime	application/andrew-inset
+!:ext	ez
+
+0	string	\\begindata{table,	Andrew Toolkit table
+!:mime	application/andrew-inset
+!:ext	ez
+
+0	string	\\begindata{figure,	Andrew Toolkit figure
+!:mime	application/andrew-inset
+!:ext	ez
+
+0	string	\\begindata{zip,	Andrew Toolkit zip (compound document)
+!:mime	application/andrew-inset
+!:ext	ez
+
+# Generic fallback for any other ATK data type
+0	regex/s	\\\\begindata\\{[a-z]	Andrew Toolkit data
+!:mime	application/andrew-inset
+!:ext	ez

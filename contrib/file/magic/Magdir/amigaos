@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: amigaos,v 1.23 2026/02/05 18:49:06 christos Exp $
+# $File: amigaos,v 1.26 2026/04/17 15:13:18 christos Exp $
 # amigaos:  file(1) magic for AmigaOS binary formats:
 
 #
@@ -11,6 +11,7 @@
 0	belong		0x000003e7	AmigaOS object/library data
 #
 0	beshort		0xe310		Amiga Workbench
+!:mime image/x-amiga-icon
 >2	beshort		1
 >>48	byte		1		disk icon
 >>48	byte		2		drawer icon
@@ -218,3 +219,56 @@
 
 # https://github.com/alb42/Leu/blob/master/TCDReaderUnit.pas
 3	string		TURBOCALC		TurboCalc spreadsheet
+
+# MOST was a text/image viewer for AmigaOS, CFF is its compressed file format
+
+# Text format (CFF\x00)
+0	string	CFF\0	MOST compressed text data
+!:ext cff
+>0x30	beshort	x	\b, %u bytes compressed
+>0x34	beshort	x	\b, %u bytes uncompressed
+
+# Image format (CFF\x01)
+0	string	CFF\1	MOST compressed image data
+!:ext cff
+>0x32	beshort	x	\b, %u wide
+>0x34	beshort	x	\b, %u tall
+
+#------------------------------------------------------------------------------
+# Crunch-Mania: file(1) magic for Amiga Crunch-Mania compressed files
+# https://www.amiga-stuff.com/crunchers-id.html
+
+# Standard mode
+0	string		CrM!		Crunch-Mania data, standard
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+0	string		Crm!		Crunch-Mania data, standard, sampled
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+# LZH mode
+0	string		CrM2		Crunch-Mania data, LZH
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+0	string		Crm2		Crunch-Mania data, LZH, sampled
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+# Encrypted variants
+0	string		crM!		Crunch-Mania data, standard, encrypted
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+0	string		crm!		Crunch-Mania data, standard, sampled, encrypted
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+0	string		crM2		Crunch-Mania data, LZH, encrypted
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed
+
+0	string		crm2		Crunch-Mania data, LZH, sampled, encrypted
+!:ext	crm
+>6	belong		x		\b, %u bytes uncompressed

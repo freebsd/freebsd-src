@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.218 2026/01/10 16:16:27 christos Exp $
+# $File: archive,v 1.223 2026/05/10 01:23:57 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -2570,6 +2570,30 @@
 12	string	BB02		Bacula volume
 >20	bedate	x		\b, started %s
 
+# Bareos volume format.
+# URL:
+# https://docs.bareos.org/DeveloperGuide/mediaformat.html#volume-label-format
+# From: Bruno Fiedmann <bruno.friedmann@bareos.com>
+# Note: label_btime (local time) is stored as 8-byte big-endian microseconds;
+# must divide by 1000000 for Unix seconds
+# Note: MediaType detected using search; ProgVersion start at 142
+# (typically after LabelProg field)
+# Note: ProgVersion start at 142, but we want to remove 'Ver. ' anyways
+12	string			BB02		Bareos Volume
+>36	string			Bareos		2.0 immortal
+>93	string  		x		\b, Volume Name: %s
+>100	search/100		File\0		\b, Media Type: File
+>100	search/100		Tape\0		\b, Media Type: Tape
+>100	search/100		VTape\0		\b, Media Type: VTape
+>100	search/100		Fifo\0		\b, Media Type: Fifo
+>61	beqldate/1000000	x		\b, Label Date: %s
+>147	string			x		\b, Version: %s
+
+# Bareos Disaster Recovery Image
+# URL: https://doc.bareos.org/
+# From: Bruno Friedmann <bruno.friedmann@bareos.com>
+0	string			barrifil	Bareos Disaster Recovery Image
+
 # ePub is XHTML + XML inside a ZIP archive.  The first member of the
 #   archive must be an uncompressed file called 'mimetype' with contents
 #   'application/epub+zip'
@@ -2879,3 +2903,25 @@
 
 0	string	\xd2\x4e\x4a\x19\xc2\x68\x4c\x83\x10 Proxmox File Archive Format payload stream / ppxar
 
+
+# ZIM (Zeno IMproved) file - Archive format used by Kiwix for offline browsing
+# Reference: https://wiki.openzim.org/wiki/ZIM_file_format
+0	ulelong		0x044D495A	ZIM archive data
+!:mime	application/x-zim
+!:ext	zim
+>4	uleshort	x		\b, version %u
+>6	uleshort	x		\b.%u
+>8	beguid		x		\b, UUID %s
+>24	ulelong		x		\b, %u entries
+>28	ulelong		x		\b, %u clusters
+
+# FAR Archive magic
+#
+# The Fuchsia archive format (FAR) is a specific container format used by the 
+# Fuchsia operating system to store directory trees, typically for software packages.
+#
+# https://fuchsia.dev/fuchsia-src/development/source_code/archive_format
+#
+# From <ysaxenax@gmail.com> "Yuvraj Saxena"
+#
+0	ubequad	0xc8bf0b48adabc511	 Fuchsia OS FAR Archive
