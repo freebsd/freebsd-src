@@ -187,6 +187,9 @@ static device_method_t ax_methods[] = {
 	DEVMETHOD(device_probe, iflib_device_probe),
 	DEVMETHOD(device_attach, iflib_device_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
+	DEVMETHOD(device_shutdown, iflib_device_shutdown),
+	DEVMETHOD(device_suspend, iflib_device_suspend),
+	DEVMETHOD(device_resume, iflib_device_resume),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, axgbe_miibus_readreg),
