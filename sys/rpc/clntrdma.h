@@ -27,8 +27,6 @@ struct rpcrdma_xprt {
 	uint32_t	maxbck;
 	uint32_t	maxio;
 	uint32_t	maxsge;
-	struct mbuf	*reply_small[RPCRDMA_IO_NUMBUFS];
-	struct mbuf	*reply_large[RPCRDMA_IO_NUMBUFS];
 	void		*ep;
 };
 
@@ -89,7 +87,7 @@ int xprt_rdma_disconnected(struct rpcrdma_xprt *xp);
 
 int xprt_rdma_acquire_buf(struct rpcrdma_xprt *xp, int start, int end);
 
-int xprt_rdma_rekey_chunk(struct rpcrdma_xprt *xp, struct rpcrdma_chunk *chp);
+void xprt_rdma_unmap_chunk(struct rpcrdma_xprt *xp, struct rpcrdma_chunk *chp);
 
 struct mbuf *rpc_reduce_pg(int len, int pos, bool to_mem);
 

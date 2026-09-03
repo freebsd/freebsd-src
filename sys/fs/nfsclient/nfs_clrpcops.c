@@ -4197,7 +4197,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		NFSCL_REQSTART(nd, NFSPROC_READDIRPLUS, vp, cred);
 		/* For RDMA, mark that a small rdma_reply is needed. */
 		if (NFSHASRDMA(nmp))
-			nd->nd_mreq->m_flags |= M_PROTO8;
+			nd->nd_mreq->m_flags |= M_PROTO9;
  		NFSM_BUILD(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 		*tl++ = cookie.lval[0];
 		*tl++ = cookie.lval[1];
