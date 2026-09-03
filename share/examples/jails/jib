@@ -7,7 +7,7 @@
 ############################################################ IDENT(1)
 #
 # $Title: if_bridge(4) management script for vnet jails $
-# $Version: 9.1 $
+# $Version: 9.2 $
 #
 ############################################################ INFORMATION
 #
@@ -111,7 +111,7 @@
 #
 ############################################################ GLOBALS
 
-VERSION='$Version: 9.1 $'
+VERSION='$Version: 9.2 $'
 
 pgm="${0##*/}" # Program basename
 
@@ -157,6 +157,25 @@ action_usage()
 	exit $FAILURE
 }
 
+iface_encode()
+{
+	LC_ALL=C iface="$1" awk 'BEGIN {
+		for (n = 0; n < 256; n++)
+			pack[sprintf("%c", n)] = sprintf("_%02x", n)
+		numbers = "0123456789"
+		uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		lowercase = "abcdefghijklmnopqrstuvwxyz"
+		valid = "[" numbers uppercase lowercase "]"
+		iface = ENVIRON["iface"]
+		len = length(iface)
+		for (n = 1; n <= len; n++) {
+			let = substr(iface, n, 1)
+			_iface = _iface (let ~ valid ? let : pack[let])
+		}
+		print _iface
+	}'
+}
+
 derive_mac()
 {
 	local OPTIND=1 OPTARG __flag
@@ -169,13 +188,16 @@ derive_mac()
 	done
 	shift $(( $OPTIND - 1 ))
 
+	local __iface="$1"
 	if [ ! "$__mac_num" ]; then
-		eval __mac_num=\${_${iface}_num:--1}
+		local __iface_encoded
+		__iface_encoded=$( iface_encode "$__iface" )
+		eval __mac_num=\${_${__iface_encoded}_num:--1}
 		__mac_num=$(( $__mac_num + 1 ))
-		eval _${iface}_num=\$__mac_num
+		eval _${__iface_encoded}_num=\$__mac_num
 	fi
 
-	local __iface="$1" __name="$2" __var_to_set="$3" __var_to_set_b="$4"
+	local __name="$2" __var_to_set="$3" __var_to_set_b="$4"
 	local __iface_devid __new_devid __num __new_devid_b
 	#
 	# Calculate MAC address derived from given iface.

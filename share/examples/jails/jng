@@ -7,7 +7,7 @@
 ############################################################ IDENT(1)
 #
 # $Title: netgraph(4) management script for vnet jails $
-# $Version: 9.3 $
+# $Version: 9.4 $
 #
 ############################################################ INFORMATION
 #
@@ -138,7 +138,7 @@ NG_BRIDGE_MAX_STALENESS=4294967295
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 9.3 $'
+VERSION='$Version: 9.4 $'
 
 pgm="${0##*/}" # Program basename
 
@@ -214,6 +214,25 @@ action_usage()
 	die
 }
 
+iface_encode()
+{
+	LC_ALL=C iface="$1" awk 'BEGIN {
+		for (n = 0; n < 256; n++)
+			pack[sprintf("%c", n)] = sprintf("_%02x", n)
+		numbers = "0123456789"
+		uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		lowercase = "abcdefghijklmnopqrstuvwxyz"
+		valid = "[" numbers uppercase lowercase "]"
+		iface = ENVIRON["iface"]
+		len = length(iface)
+		for (n = 1; n <= len; n++) {
+			let = substr(iface, n, 1)
+			_iface = _iface (let ~ valid ? let : pack[let])
+		}
+		print _iface
+	}'
+}
+
 derive_mac()
 {
 	local OPTIND=1 OPTARG __flag
@@ -226,13 +245,16 @@ derive_mac()
 	done
 	shift $(( $OPTIND - 1 ))
 
+	local __iface="$1"
 	if [ ! "$__mac_num" ]; then
-		eval __mac_num=\${_${iface}_num:--1}
+		local __iface_encoded
+		__iface_encoded=$( iface_encode "$__iface" )
+		eval __mac_num=\${_${__iface_encoded}_num:--1}
 		__mac_num=$(( $__mac_num + 1 ))
-		eval _${iface}_num=\$__mac_num
+		eval _${__iface_encoded}_num=\$__mac_num
 	fi
 
-	local __iface="$1" __name="$2" __var_to_set="$3" __var_to_set_b="$4"
+	local __name="$2" __var_to_set="$3" __var_to_set_b="$4"
 	local __iface_devid __new_devid __num __new_devid_b
 	#
 	# Calculate MAC address derived from given iface.
@@ -391,6 +413,16 @@ jng_pin_jiface()
 	jng_bridge_persist_hosts "$pbridge" || : persist optional
 }
 
+ng_ether_sanitize_ifname()
+{
+	# NB: Emulates function of same name in sys/netgraph/ng_ether.c
+	ifname="$1" awk 'BEGIN {
+		_ifname = ENVIRON["ifname"]
+		gsub(/[.:]/, "_", _ifname)
+		print _ifname
+	}'
+}
+
 jng_bridge_usage="bridge [-h] [-b BRIDGE_NAME] NAME [!|=]iface0 [[!|=]iface1 ...]"
 jng_bridge_descr="Create ng0_NAME [ng1_NAME ...]"
 jng_bridge()
@@ -417,7 +449,7 @@ jng_bridge()
 
 	mustberoot_to_continue
 
-	local iface parent jiface jiface_devid
+	local iface node parent jiface jiface_devid
 	local new clone_mac no_derive num quad mtu i=0
 	for iface in $*; do
 
@@ -427,6 +459,10 @@ jng_bridge()
 		=*) iface=${iface#=} clone_mac=1 ;;
 		!*) iface=${iface#!} no_derive=1 ;;
 		esac
+
+		# ngctl(8) treats `.' and `:' as control characters, so
+		# ng_ether(4) names its node after the sanitized ifname
+		node=$( ng_ether_sanitize_ifname "$iface" )
 
 		# Make sure the interface doesn't exist already
 		jiface=ng${i}_$name
@@ -439,18 +475,18 @@ jng_bridge()
 		ifconfig $iface up || return
 
 		# Set promiscuous mode and don't overwrite src addr
-		ngctl msg $iface: setpromisc 1 || return
-		ngctl msg $iface: setautosrc 0 || return
+		ngctl msg $node: setpromisc 1 || return
+		ngctl msg $node: setautosrc 0 || return
 
 		# Make sure the interface has been bridged
 		# NB: You must connect uplinkX before linkX
 		# NB: see ng_bridge(4) for policy on first connected hook
-		if ! quietly ngctl info ${iface}bridge:; then
-			ngctl mkpeer $iface: bridge lower uplink1 || return
-			ngctl connect $iface: $iface:lower upper link0 ||
+		if ! quietly ngctl info ${node}bridge:; then
+			ngctl mkpeer $node: bridge lower uplink1 || return
+			ngctl connect $node: $node:lower upper link0 ||
 				return
-			ngctl name $iface:lower ${iface}bridge || return
-			jng_bridge_persist_hosts ${iface}bridge ||
+			ngctl name $node:lower ${node}bridge || return
+			jng_bridge_persist_hosts ${node}bridge ||
 				: persist optional
 		fi
 
@@ -459,33 +495,33 @@ jng_bridge()
 		# Optionally create a secondary bridge
 		# NB: This time, you want to only connect linkX (no uplinkX)
 		if [ "$bridge" != "bridge" ] &&
-		   ! quietly ngctl info "$iface$bridge:"
+		   ! quietly ngctl info "$node$bridge:"
 		then
 			num=1
-			while quietly ngctl msg ${iface}bridge: getstats $num
+			while quietly ngctl msg ${node}bridge: getstats $num
 			do
 				num=$(( $num + 1 ))
 			done
-			ngctl mkpeer $iface:lower bridge link$num link0 ||
+			ngctl mkpeer $node:lower bridge link$num link0 ||
 				return
-			ngctl name ${iface}bridge:link$num "$iface$bridge" ||
+			ngctl name ${node}bridge:link$num "$node$bridge" ||
 				return
 		fi
 
 		# Create a new interface to the bridge
 		num=1
-		while quietly ngctl msg "$iface$bridge:" getstats $num; do
+		while quietly ngctl msg "$node$bridge:" getstats $num; do
 			num=$(( $num + 1 ))
 		done
-		ngctl mkpeer "$iface$bridge:" eiface link$num ether || return
+		ngctl mkpeer "$node$bridge:" eiface link$num ether || return
 
 		# Rename the new interface
 		while [ ${#jiface} -gt 15 ]; do # OS limitation
 			jiface=${jiface%?}
 		done
-		new=$( ngctl show -n "$iface$bridge:link$num" ) || return
+		new=$( ngctl show -n "$node$bridge:link$num" ) || return
 		new=$( set -- $new; echo $2 )
-		ngctl name "$iface$bridge:link$num" $jiface || return
+		ngctl name "$node$bridge:link$num" $jiface || return
 		ifconfig $new name $jiface || return
 		ifconfig $jiface mtu $mtu || return
 		ifconfig $jiface up || return
@@ -515,7 +551,7 @@ jng_pin()
 {
 	local OPTIND=1 OPTARG flag
 	local show_all= err=$SUCCESS
-	local name iface jiface
+	local name iface node jiface
 
 	while getopts ah flag; do
 		case "$flag" in
@@ -528,8 +564,9 @@ jng_pin()
 		[ $# -eq 0 ] ||
 			action_usage pin "too many arguments" # NOTREACHED
 		for iface in $( ifconfig -l ); do
-			quietly ngctl info ${iface}bridge: || continue
-			jng_bridge_persist_hosts ${iface}bridge ||
+			node=$( ng_ether_sanitize_ifname "$iface" )
+			quietly ngctl info ${node}bridge: || continue
+			jng_bridge_persist_hosts ${node}bridge ||
 				: persist optional
 		done
 		set -- $( jls -q name 2> /dev/null )
@@ -663,7 +700,7 @@ jng_stats()
 {
 	local OPTIND=1 OPTARG flag
 	local show_all=
-	local name iface ether=
+	local name iface node ether=
 	while getopts ahj flag; do
 		case "$flag" in
 		a) show_all=1 ;;
@@ -682,7 +719,8 @@ jng_stats()
 
 		# Get a list of bridged ng_ether(4) devices
 		for iface in $( ifconfig -l ); do
-			quietly ngctl info ${iface}bridge: || continue
+			node=$( ng_ether_sanitize_ifname "$iface" )
+			quietly ngctl info ${node}bridge: || continue
 			ether="$ether $iface"
 		done
 		set -- $ether $( "$0" show )
@@ -702,14 +740,15 @@ jng_stats()
 			# NOTREACHED
 		if ifconfig -l | xargs -n1 2> /dev/null | fgrep -qw "$name"
 		then
+			node=$( ng_ether_sanitize_ifname "$name" )
 			[ "$STATS_FMT" != "text" ] ||
-				echo "${name}bridge:uplink1 [lower]"
-			ngctl msg ${name}bridge: getstats -1 |
+				echo "${node}bridge:uplink1 [lower]"
+			ngctl msg ${node}bridge: getstats -1 |
 				fmt_stats -n "${name}.lower" -t "$now"
 
 			[ "$STATS_FMT" != "text" ] ||
-				echo "${name}bridge:link0 [upper]"
-			ngctl msg ${name}bridge: getstats 0 |
+				echo "${node}bridge:link0 [upper]"
+			ngctl msg ${node}bridge: getstats 0 |
 				fmt_stats -n "${name}.upper" -t "$now"
 		fi
 		local jiface
