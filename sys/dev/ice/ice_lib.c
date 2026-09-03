@@ -1929,7 +1929,7 @@ ice_control_rx_queue(struct ice_vsi *vsi, u16 qidx, bool enable)
 int
 ice_control_all_rx_queues(struct ice_vsi *vsi, bool enable)
 {
-	int i, err;
+	int i, err = 0;
 
 	/* TODO: amortize waits by changing all queues up front and then
 	 * checking their status afterwards. This will become more necessary
@@ -1941,7 +1941,7 @@ ice_control_all_rx_queues(struct ice_vsi *vsi, bool enable)
 			break;
 	}
 
-	return (0);
+	return (err);
 }
 
 /**

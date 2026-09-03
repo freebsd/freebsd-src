@@ -2121,7 +2121,7 @@ ice_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to configure the main VSI for Tx: %s\n",
 			      ice_err_str(err));
-		goto err_init_failed;
+		goto err_cleanup_tx;
 	}
 
 	err = ice_cfg_vsi_for_rx(&sc->pf_vsi);
@@ -2135,9 +2135,9 @@ ice_if_init(if_ctx_t ctx)
 	err = ice_control_all_rx_queues(&sc->pf_vsi, true);
 	if (err) {
 		device_printf(dev,
-			      "Unable to enable Rx rings for transmit: %s\n",
+			      "Unable to enable Rx rings for receive: %s\n",
 			      ice_err_str(err));
-		goto err_cleanup_tx;
+		goto err_stop_rx;
 	}
 
 	err = ice_cfg_pf_default_mac_filters(sc);
@@ -4519,7 +4519,7 @@ ice_subif_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to configure subif VSI for Tx: %s\n",
 			      ice_err_str(err));
-		goto err_init_failed;
+		goto err_cleanup_tx;
 	}
 
 	err = ice_cfg_vsi_for_rx(vsi);
@@ -4535,7 +4535,7 @@ ice_subif_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to enable subif Rx rings for receive: %s\n",
 			      ice_err_str(err));
-		goto err_cleanup_tx;
+		goto err_stop_rx;
 	}
 
 	ice_configure_all_rxq_interrupts(vsi);
@@ -4544,6 +4544,8 @@ ice_subif_if_init(if_ctx_t ctx)
 	ice_set_state(&mif->state, ICE_STATE_DRIVER_INITIALIZED);
 	return;
 
+err_stop_rx:
+	ice_control_all_rx_queues(vsi, false);
 err_cleanup_tx:
 	ice_vsi_disable_tx(vsi);
 err_init_failed:
