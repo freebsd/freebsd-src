@@ -1012,6 +1012,8 @@ ice_state_to_str(enum ice_state state)
 		return "VFLR_PENDING";
 	case ICE_STATE_MDD_PENDING:
 		return "MDD_PENDING";
+	case ICE_STATE_RDMA_PE_INTR_PENDING:
+		return "RDMA_PE_INTR_PENDING";
 	case ICE_STATE_RESET_OICR_RECV:
 		return "RESET_OICR_RECV";
 	case ICE_STATE_RESET_PFR_REQ:
