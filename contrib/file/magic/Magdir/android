@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.26 2024/09/04 19:06:11 christos Exp $
+# $File: android,v 1.27 2026/04/12 21:11:22 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -183,6 +183,13 @@
 # The strength is increased to avoid misidentifying as Targa image data
 0	lelong	0x00080003	Android binary XML
 !:strength +1
+
+# Android binary XML magic
+# Used by Android Package Mangaer to encode files in an efficient format.
+# Some known file using this format: /data/system/packages.xml, /data/system/packages-backup.xml
+# https://cs.android.com/android/platform/superproject/+/master:frameworks/base/core/java/com/android/internal/util/BinaryXmlSerializer.java;l=72
+# From <ysaxenax@gmail.com> "Yuvraj Saxena"
+0	string	ABX	 Android binary XML
 
 # Android cryptfs footer
 # From https://android.googlesource.com/\

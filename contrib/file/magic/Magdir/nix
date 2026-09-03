@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: nix,v 1.1 2026/06/02 19:41:27 christos Exp $
+# nix: Nix Expression Language (.nix)
+#------------------------------------------------------------------------------
+
+# Detect via common function arguments or structural patterns at the start
+0	string	    {		    
+>1	search/500  stdenv	    Nix package definition
+#>1	search/500  mkDerivation    Nix expression (mkDerivation)
+
+# Fallback: Detect if it's a generic Nix attribute set or function layout
+#0	search/100  stdenv.mkDerivation	 Nix expression (mkDerivation)
+#	search/100  import <nixpkgs>	 Nix expression (script/default)

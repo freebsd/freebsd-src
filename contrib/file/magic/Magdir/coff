@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: coff,v 1.15 2024/11/10 18:54:33 christos Exp $
+# $File: coff,v 1.16 2026/04/20 14:53:18 christos Exp $
 # coff: file(1) magic for Common Object Files not specific to known cpu types or manufactures
 #
 # COFF
@@ -68,7 +68,8 @@
 >0	uleshort		0xa64e	ARM64 (classic + x86-64 ABI)
 # PE/COFF ARM64 classic ABI, ARM COFF (./arm)
 >0	uleshort		0xaa64	ARM64
->0	uleshort		0xace1	OMNI VM (omniprox.dll)
+# Processor type OMNI is for OMNI VM, for example used by omniprox.dll and can be created by MSVC6.0 CVTRES.EXE with /MACHINE:OMNI flag
+>0	uleshort		0xace1	OMNI VM
 # Processor type CEE can be only in object files (created by older ilasm.exe with /OBJECT flag), not in PE executables
 >0	uleshort		0xc0ee	COM+ Execution Engine
 >0	default			x	Unknown processor

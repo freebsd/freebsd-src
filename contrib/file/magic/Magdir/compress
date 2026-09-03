@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.96 2024/11/09 23:47:04 christos Exp $
+# $File: compress,v 1.99 2026/04/17 12:52:29 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -443,6 +443,15 @@
 0	string/b	BZ3v1	bzip3 compressed data
 >5	ulelong		x	\b, blocksize %u
 
+#------------------------------------------------------------------------------
+# ZXC:  ZXC compressed data
+# From: Bertrand Lebonnois <zxc.codec@gmail.com>
+# https://github.com/hellobertrand/zxc
+0       lelong      0x9CB02EF5  ZXC compressed data
+!:mime  application/x-zxc
+!:ext   zxc
+>4      byte        x           \b (v%u)
+>6      byte        &0x80       \b, checksum enabled
 
 # https://support-docs.illumina.com/SW/ORA_Format_Specification/Content/\
 # SW/ORA/ORAFormatSpecification.htm
@@ -456,3 +465,24 @@
 # https://github.com/xamarin/xamarin-android/pull/4686
 0	string	XALZ	Xamarin LZ4-compressed assembly
 >8	ulelong	x	\b, uncompressed size %u
+
+#------------------------------------------------------------------------------
+# Kanzi:  Kanzi compressed data
+# From: Frederic Langlet <flanglet@gmail.com>
+# https://github.com/flanglet/kanzi-cpp/wiki/Bitstream-Format
+0       belong      0x4B414E5A  kanzi compressed data
+!:mime  application/x-knz
+!:ext   knz
+>4  byte/16     x       \b, version %u
+
+# Branch for Version > 5 (Uses Bits 3 and 2 for checksum)
+>4      byte/16         >5
+>>4     byte&0x0C       0x04            \b, 32-bit checksum
+>>4     byte&0x0C       0x08            \b, 64-bit checksum
+
+# DTSZ (Data Transformer Standard Zip)
+# Maintainer: Arie Abraham Benichou
+0	belong&0xFFFF8000	0x020208000	DTSZ compressed data
+>2	byte&0x7F		x		\b, version %d
+!:mime	application/x-dtsz
+!:ext	dtsz

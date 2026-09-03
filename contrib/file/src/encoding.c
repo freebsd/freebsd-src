@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: encoding.c,v 1.44 2024/12/26 18:41:27 christos Exp $")
+FILE_RCSID("@(#)$File: encoding.c,v 1.45 2026/06/02 17:19:02 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -83,6 +83,8 @@ file_encoding(struct magic_set *ms, const struct buffer *b,
 	file_unichar_t *udefbuf;
 	size_t udeflen;
 
+	if (buf == NULL)
+		return 0;
 	if (ubuf == NULL)
 		ubuf = &udefbuf;
 	if (ulen == NULL)

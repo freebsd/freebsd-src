@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: mips,v 1.15 2024/09/01 13:49:15 christos Exp $
+# $File: mips,v 1.16 2026/04/19 20:17:41 christos Exp $
 # mips:  file(1) magic for MIPS ECOFF and Ucode, as used in SGI IRIX
 # and DEC Ultrix
 #
@@ -54,6 +54,8 @@
 0	leshort	0x0166
 >16	leshort	56		MIPSEL MIPS-II ECOFF executable
 >>0	use			display-mips-ecoff
+>16	leshort	0
+>>0	use			display-coff
 #
 # MIPS 3 additions
 #

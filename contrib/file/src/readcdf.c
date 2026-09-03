@@ -26,7 +26,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.81 2026/02/04 14:56:28 christos Exp $")
+FILE_RCSID("@(#)$File: readcdf.c,v 1.82 2026/06/02 17:33:48 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -77,7 +77,7 @@ static const struct cv {
 } clsid2mime[] = {
 	{
 		{ 0x00000000000c1084ULL, 0x46000000000000c0ULL  },
-		"x-msi",
+		"vnd.ms-msi",
 	},
 	{	{ 0,			 0			},
 		NULL,
@@ -85,7 +85,7 @@ static const struct cv {
 }, clsid2desc[] = {
 	{
 		{ 0x00000000000c1084ULL, 0x46000000000000c0ULL  },
-		"MSI Installer",
+		"Microsoft Installer",
 	},
 	{	{ 0,			 0			},
 		NULL,

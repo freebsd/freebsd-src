@@ -107,6 +107,12 @@
 /* Define to 1 if you have the 'zstd' library (-lzstd). */
 #undef HAVE_LIBZSTD
 
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the <linux/landlock.h> header file. */
+#undef HAVE_LINUX_LANDLOCK_H
+
 /* Define to 1 if you have the 'localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 

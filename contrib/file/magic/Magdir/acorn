@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: acorn,v 1.9 2024/08/30 17:29:28 christos Exp $
+# $File: acorn,v 1.10 2026/06/02 16:53:30 christos Exp $
 # acorn:  file(1) magic for files found on Acorn systems
 #
 
@@ -67,3 +67,27 @@
 >>8	byte	x	version %d,
 >>10	leshort	=1	1 pattern
 >>10	leshort	!1	%d patterns
+
+# BBC Micro ROM image type magic
+# 16KB 6502 sideways ROMs — name string at offset 9 (Acorn convention)
+#
+
+# Language+Service ROMs: JMP at +0 AND +3, target high byte $80-$BF
+0	ubyte	0x4c
+>2	ubyte	>0x7f
+>>2	ubyte	<0xc0
+>>>3	ubyte	0x4c
+>>>>5	ubyte	>0x7f
+>>>>>5	ubyte	<0xc0
+>>>>>>9	string	>\0	BBC Micro ROM (%s)
+
+# Service-only ROMs: $00 at +0..+2, JMP at +3, target high byte $80-$BF
+0	lelong	0x4c000000
+>5	ubyte	>0x7f
+>>5	ubyte	<0xc0
+>>>9	string	>\0	BBC Micro ROM (%s)
+
+# Language-only ROMs: BASIC II pattern (CMP #$01; BEQ)
+0	leshort	0x01c9
+>2	leshort	0x1ff0
+>>9	string	>\0	BBC Micro ROM (%s)

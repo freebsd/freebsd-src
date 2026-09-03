@@ -159,6 +159,7 @@ int magic_errno(magic_t);
 
 int magic_setparam(magic_t, int, const void *);
 int magic_getparam(magic_t, int, void *);
+ssize_t magic_getmaxparam(int);
 
 #ifdef __cplusplus
 };

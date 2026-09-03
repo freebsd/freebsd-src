@@ -27,10 +27,11 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.36 2026/02/06 14:04:20 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.37 2026/05/11 16:06:03 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
+#include "magic.h"
 #include <seccomp.h> /* libseccomp */
 #include <sys/prctl.h> /* prctl */
 #include <sys/socket.h>
@@ -40,6 +41,7 @@ FILE_RCSID("@(#)$File: seccomp.c,v 1.36 2026/02/06 14:04:20 christos Exp $")
 #include <fcntl.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define DENY_RULE(call) \
     do \
@@ -50,6 +52,12 @@ FILE_RCSID("@(#)$File: seccomp.c,v 1.36 2026/02/06 14:04:20 christos Exp $")
     do \
 	if (seccomp_rule_add (ctx, SCMP_ACT_ALLOW, SCMP_SYS(call), 0) == -1) \
 	    goto out; \
+    while (/*CONSTCOND*/0)
+/* ENOSYS makes glibc try an older syscall instead of dying. */
+#define ERRNO_RULE(call) \
+    do \
+	if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOSYS), SCMP_SYS(call), 0) \
+	    == -1) goto out; \
     while (/*CONSTCOND*/0)
 
 #define ALLOW_IOCTL_RULE(param) \
@@ -63,11 +71,19 @@ FILE_RCSID("@(#)$File: seccomp.c,v 1.36 2026/02/06 14:04:20 christos Exp $")
 static scmp_filter_ctx ctx;
 
 int
-enable_sandbox(void)
+enable_sandbox(int flags, int action)
 {
+	struct stat sb;
+	int needs_write;
 
-	// prevent child processes from getting more priv e.g. via setuid,
-	// capabilities, ...
+	/* Writes are needed when building the magic file (-C, -c, -l)
+	   or when stdin is a pipe and we copy it to a tempfile. */
+	needs_write = (action == FILE_COMPILE || action == FILE_CHECK ||
+	    action == FILE_LIST);
+	if (!needs_write && fstat(STDIN_FILENO, &sb) == 0 &&
+	    S_ISFIFO(sb.st_mode))
+		needs_write = 1;
+
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1)
 		return -1;
 
@@ -76,7 +92,6 @@ enable_sandbox(void)
 		return -1;
 #endif
 
-	// initialize the filter
 	ctx = seccomp_init(SCMP_ACT_KILL);
 	if (ctx == NULL)
 		return -1;
@@ -138,8 +153,31 @@ enable_sandbox(void)
 #ifdef __NR_newfstatat
 	ALLOW_RULE(newfstatat);
 #endif
-	ALLOW_RULE(open);
-	ALLOW_RULE(openat);
+
+	/* Read-only opens are always fine. Writes are allowed when we
+	   need them, otherwise return EACCES instead of killing. */
+	if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+	    SCMP_CMP(1, SCMP_CMP_MASKED_EQ, O_WRONLY | O_RDWR, 0)) == -1)
+		goto out;
+	if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 1,
+	    SCMP_CMP(2, SCMP_CMP_MASKED_EQ, O_WRONLY | O_RDWR, 0)) == -1)
+		goto out;
+	{
+		uint32_t act = needs_write ? SCMP_ACT_ALLOW
+		                           : SCMP_ACT_ERRNO(EACCES);
+		if (seccomp_rule_add(ctx, act, SCMP_SYS(open), 1,
+		    SCMP_CMP(1, SCMP_CMP_MASKED_EQ, O_WRONLY, O_WRONLY)) == -1)
+			goto out;
+		if (seccomp_rule_add(ctx, act, SCMP_SYS(open), 1,
+		    SCMP_CMP(1, SCMP_CMP_MASKED_EQ, O_RDWR, O_RDWR)) == -1)
+			goto out;
+		if (seccomp_rule_add(ctx, act, SCMP_SYS(openat), 1,
+		    SCMP_CMP(2, SCMP_CMP_MASKED_EQ, O_WRONLY, O_WRONLY)) == -1)
+			goto out;
+		if (seccomp_rule_add(ctx, act, SCMP_SYS(openat), 1,
+		    SCMP_CMP(2, SCMP_CMP_MASKED_EQ, O_RDWR, O_RDWR)) == -1)
+			goto out;
+	}
 	ALLOW_RULE(pread64);
 	ALLOW_RULE(read);
 	ALLOW_RULE(readlink);
@@ -155,11 +193,29 @@ enable_sandbox(void)
 	ALLOW_RULE(statx);
 	ALLOW_RULE(stat64);
 	ALLOW_RULE(sysinfo);
-	ALLOW_RULE(umask);	// Used in file_pipe2file()
-	ALLOW_RULE(unlink);
-	ALLOW_RULE(utimes);
+	if (needs_write) {
+		ALLOW_RULE(umask);	/* used in file_pipe2file() */
+		ALLOW_RULE(unlinkat);	/* used in file_pipe2file() */
+#ifdef __NR_unlink
+		ALLOW_RULE(unlink);
+#endif
+	}
+	if (flags & MAGIC_PRESERVE_ATIME) {
+		/* glibc 2.28+ uses utimes() via utimensat. */
+		ALLOW_RULE(utimensat);
+#ifdef __NR_utimes
+		ALLOW_RULE(utimes);
+#endif
+	}
+	/* Always allow writes. The kernel checks the fd, and restricting
+	   here would just break stdout/stderr and the tempfile. */
 	ALLOW_RULE(write);
 	ALLOW_RULE(writev);
+
+	/* Newer variants we don't use. ENOSYS lets glibc fall back. */
+	ERRNO_RULE(openat2);
+	ERRNO_RULE(faccessat2);
+	ERRNO_RULE(close_range);
 
 
 #if 0
