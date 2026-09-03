@@ -28,12 +28,14 @@
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #endif
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
 #endif
+#include <fcntl.h>
 #include <err.h>
 #include <netgraph.h>
 #include <string.h>
