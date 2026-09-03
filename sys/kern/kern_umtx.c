@@ -1423,19 +1423,23 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 			}
 
 			/*
-			 * If no one owns it but it is contested try
-			 * to acquire it.
+			 * If no one owns it, but it is contested or
+			 * the CAS above failed spuriously (possible
+			 * on ll/sc architectures), try to acquire it.
+			 * Sleeping would be forever in the spurious
+			 * case: no owner exists to wake us.
 			 */
 			MPASS(rv == 1);
-			if (owner == UMUTEX_CONTESTED) {
-				rv = casueword32(&m->m_owner,
-				    UMUTEX_CONTESTED, &owner,
-				    id | UMUTEX_CONTESTED);
+			if (owner == UMUTEX_CONTESTED ||
+			    owner == UMUTEX_UNOWNED) {
+				rv = casueword32(&m->m_owner, owner,
+				    &owner, id | UMUTEX_CONTESTED);
 				/* The address was invalid. */
 				if (rv == -1)
 					return (EFAULT);
 				if (rv == 0) {
-					MPASS(owner == UMUTEX_CONTESTED);
+					MPASS(owner == UMUTEX_CONTESTED ||
+					    owner == UMUTEX_UNOWNED);
 					return (0);
 				}
 				if (rv == 1) {
@@ -1451,7 +1455,7 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 				continue;
 			}
 
-			/* rv == 1 but not contested, likely store failure */
+			/* rv == 1 with a real owner, fall through to sleep. */
 			rv = thread_check_susp(td, false);
 			if (rv != 0)
 				return (rv);
