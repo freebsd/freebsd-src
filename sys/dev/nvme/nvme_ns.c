@@ -602,8 +602,10 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 * cdev may have already been created, if we are reconstructing the
 	 *  namespace after a controller-level reset.
 	 */
-	if (ns->cdev != NULL)
+	if (ns->cdev != NULL) {
+		ns->cdev->si_iosize_max = ctrlr->max_xfer_size;
 		return (0);
+	}
 
 	/*
 	 * Namespace IDs start at 1, so we need to subtract 1 to create a
@@ -623,6 +625,11 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	ns->cdev->si_drv2 = make_dev_alias(ns->cdev, "%sns%d",
 	    device_get_nameunit(ctrlr->dev), ns->id);
 	ns->cdev->si_flags |= SI_UNMAPPED;
+	/*
+	 * Limit physio requests to the controller's maximum transfer size.
+	 * The qpair payload DMA tag is constructed with the same limit.
+	 */
+	ns->cdev->si_iosize_max = ctrlr->max_xfer_size;
 	ns->flags |= NVME_NS_ALIVE;
 
 	return (0);
