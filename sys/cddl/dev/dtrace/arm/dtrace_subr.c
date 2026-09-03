@@ -166,7 +166,7 @@ dtrace_gethrestime(void)
 	return (current_time.tv_sec * 1000000000UL + current_time.tv_nsec);
 }
 
-/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
+/* Function to handle DTrace traps during probes. See arm/arm/trap-v6.c */
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
@@ -187,8 +187,12 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 */
 		switch (type) {
 		/* Page fault. */
-		case FAULT_ALIGN:
+		case FAULT_PERM_L1:
+		case FAULT_PERM_L2:
+		case FAULT_TRAN_L1:
+		case FAULT_TRAN_L2:
 			/* Flag a bad address. */
+			/* XXX FAR is missing from the trapframe */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
 			cpu_core[curcpu].cpuc_dtrace_illval = 0;
 
