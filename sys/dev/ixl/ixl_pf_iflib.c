@@ -500,7 +500,13 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 		ctxt.info.queueing_opt_flags |= I40E_AQ_VSI_QUE_OPT_TCP_ENA;
 	}
 #endif
-	/* Save VSI number and info for use later */
+	/*
+	 * Save the VSI number and info for later.  A changed counter index
+	 * begins a new statistics epoch.
+	 */
+	if (vsi->stat_offsets_loaded &&
+	    vsi->info.stat_counter_idx != ctxt.info.stat_counter_idx)
+		ixl_vsi_reset_stats(vsi);
 	vsi->vsi_num = ctxt.vsi_number;
 	bcopy(&ctxt.info, &vsi->info, sizeof(vsi->info));
 
@@ -1030,6 +1036,9 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 		error = EIO;
 		goto ixl_rebuild_hw_structs_after_reset_err;
 	}
+	/* Firmware has rebuilt the port and VSI counter resources. */
+	ixl_pf_reset_stats(pf);
+	ixl_vsi_reset_stats(vsi);
 
 	error = i40e_aq_set_phy_int_mask(hw, IXL_DEFAULT_PHY_INT_MASK,
 	    NULL);
