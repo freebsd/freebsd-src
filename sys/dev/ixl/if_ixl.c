@@ -796,6 +796,7 @@ ixl_if_attach_post(if_ctx_t ctx)
 	ixl_pf_reset_stats(pf);
 	ixl_update_stats_counters(pf);
 	ixl_add_hw_stats(pf);
+	ixl_vsi_reset_stats(vsi);
 
 	/*
 	 * Driver may have been reloaded. Ensure that the link state
