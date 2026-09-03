@@ -1,5 +1,7 @@
 #	$NetBSD: Makefile,v 1.6 1997/05/08 21:11:11 gwr Exp $
 
+.include <src.opts.mk>
+
 FSCK=	${.CURDIR:H}/fsck
 .PATH: ${FSCK}
 
@@ -10,5 +12,8 @@ SRCS=	main.c check.c boot.c fat.c dir.c fsutil.c
 
 CFLAGS+= -I${FSCK} -DHAVE_LIBUTIL_H
 LIBADD=	util
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

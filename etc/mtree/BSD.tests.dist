@@ -491,6 +491,8 @@
         ..
         dhclient
         ..
+        fsck_msdosfs
+        ..
         growfs
         ..
         ifconfig
