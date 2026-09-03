@@ -1053,7 +1053,6 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	mtx_assert(&qpair->lock, MA_OWNED);
 
 	req = tr->req;
-	req->cmd.cid = qpair->cid_base + tr->cid;
 	qpair->act_tr[tr->cid] = tr;
 	ctrlr = qpair->ctrlr;
 
@@ -1089,16 +1088,16 @@ static void
 nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	struct nvme_tracker 	*tr = arg;
+	struct nvme_qpair	*qpair = tr->qpair;
 	uint32_t		cur_nseg;
 
-	/*
-	 * If the mapping operation failed, return immediately.  The caller
-	 *  is responsible for detecting the error status and failing the
-	 *  tracker manually.
-	 */
 	if (error != 0) {
-		nvme_printf(tr->qpair->ctrlr,
-		    "nvme_payload_map err %d\n", error);
+		nvme_printf(qpair->ctrlr,
+		    "payload DMA mapping failed with error %d\n", error);
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
+		    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
+		mtx_lock(&qpair->lock);
 		return;
 	}
 
@@ -1137,7 +1136,6 @@ static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
-	int			err = 0;
 	bool			is_admin = qpair == &qpair->ctrlr->adminq;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
@@ -1180,6 +1178,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	TAILQ_INSERT_TAIL(&qpair->outstanding_tr, tr, tailq);
 	tr->deadline = SBT_MAX;
 	tr->req = req;
+	req->cmd.cid = qpair->cid_base + tr->cid;
 
 	if (!req->payload_valid) {
 		nvme_qpair_submit_tracker(tr->qpair, tr);
@@ -1191,23 +1190,9 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	 * nvme_qpair_submit_tracker (we call it above directly
 	 * when there's no map to load).
 	 */
-	err = bus_dmamap_load_mem(tr->qpair->dma_tag_payload,
-	    tr->payload_dma_map, &req->payload, nvme_payload_map, tr, 0);
-	if (err != 0) {
-		/*
-		 * The dmamap operation failed, so we manually fail the
-		 *  tracker here with DATA_TRANSFER_ERROR status.
-		 *
-		 * nvme_qpair_manual_complete_tracker must not be called
-		 *  with the qpair lock held.
-		 */
-		nvme_printf(qpair->ctrlr,
-		    "bus_dmamap_load_mem returned 0x%x!\n", err);
-		mtx_unlock(&qpair->lock);
-		nvme_qpair_manual_complete_tracker(tr, NVME_SCT_GENERIC,
-		    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
-		mtx_lock(&qpair->lock);
-	}
+	(void)bus_dmamap_load_mem(tr->qpair->dma_tag_payload,
+	    tr->payload_dma_map, &req->payload, nvme_payload_map, tr,
+	    BUS_DMA_NOWAIT);
 }
 
 void
