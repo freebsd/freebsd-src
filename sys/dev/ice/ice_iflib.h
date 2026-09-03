@@ -253,6 +253,7 @@ struct ice_mirr_if {
  * @pf_imap: interrupt mapping for PF LAN interrupts
  * @lan_vectors: # of vectors used by LAN driver (length of pf_imap)
  * @ldo_tlv: LAN Default Override settings from NVM
+ * @rdma_oicr: pending PE/HMC interrupt causes for the RDMA client
  *
  * ice_iov.c requires the following parameters (when PCI_IOV is defined):
  * @vfs: array of VF context structures
@@ -333,6 +334,8 @@ struct ice_softc {
 
 	/* driver state flags, only access using atomic functions */
 	u32 state;
+	/* pending RDMA OICR causes, only access using atomic functions */
+	u32 rdma_oicr;
 
 	/* NVM link override settings */
 	struct ice_link_default_override_tlv ldo_tlv;

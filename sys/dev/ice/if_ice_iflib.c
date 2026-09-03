@@ -131,6 +131,7 @@ static void ice_free_pci_mapping(struct ice_softc *sc);
 static void ice_update_link_status(struct ice_softc *sc, bool update_media);
 static void ice_init_device_features(struct ice_softc *sc);
 static void ice_init_tx_tracking(struct ice_vsi *vsi);
+static void ice_handle_rdma_pe_intr(struct ice_softc *sc);
 static void ice_handle_reset_event(struct ice_softc *sc);
 static void ice_handle_pf_reset_request(struct ice_softc *sc);
 static void ice_prepare_for_reset(struct ice_softc *sc);
@@ -1382,7 +1383,8 @@ ice_msix_admin(void *arg)
 		if (oicr & PFINT_OICR_HMC_ERR_M)
 			/* Log the HMC errors */
 			ice_log_hmc_error(hw, dev);
-		ice_rdma_notify_pe_intr(sc, oicr);
+		atomic_set_32(&sc->rdma_oicr, oicr);
+		ice_set_state(&sc->state, ICE_STATE_RDMA_PE_INTR_PENDING);
 	}
 
 	if (oicr & PFINT_OICR_PCI_EXCEPTION_M) {
@@ -2406,6 +2408,28 @@ ice_transition_safe_mode(struct ice_softc *sc)
 }
 
 /**
+ * ice_handle_rdma_pe_intr - Notify RDMA of deferred PE/HMC errors
+ * @sc: device private softc
+ *
+ * Deliver PE and HMC error notifications from the admin task because the
+ * RDMA notification path takes a sleepable lock. Multiple OICR causes which
+ * arrive before the task runs are accumulated by the interrupt filter.
+ */
+static void
+ice_handle_rdma_pe_intr(struct ice_softc *sc)
+{
+	u32 oicr;
+
+	if (!ice_testandclear_state(&sc->state,
+	    ICE_STATE_RDMA_PE_INTR_PENDING))
+		return;
+
+	oicr = atomic_readandclear_32(&sc->rdma_oicr);
+	if (oicr != 0)
+		ice_rdma_notify_pe_intr(sc, oicr);
+}
+
+/**
  * ice_if_update_admin_status - update admin status
  * @ctx: iflib ctx structure
  *
@@ -2443,6 +2467,9 @@ ice_if_update_admin_status(if_ctx_t ctx)
 			ice_print_rollback_msg(&sc->hw);
 		}
 	}
+
+	/* Notify RDMA before handling a reset it may request. */
+	ice_handle_rdma_pe_intr(sc);
 
 	/* Handle global reset events */
 	ice_handle_reset_event(sc);
