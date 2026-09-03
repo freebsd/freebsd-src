@@ -60,7 +60,7 @@
  * The patch version is incremented for every bug fix.
  */
 #define	PMC_VERSION_MAJOR	0x0A
-#define	PMC_VERSION_MINOR	0x02
+#define	PMC_VERSION_MINOR	0x03
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -157,7 +157,8 @@ enum pmc_cputype {
     __PMC_CLASS(DMC620_PMU_CD2,	0x16,	"ARM DMC620 Memory Controller PMU CLKDIV2") \
     __PMC_CLASS(DMC620_PMU_C,	0x17,	"ARM DMC620 Memory Controller PMU CLK")	\
     __PMC_CLASS(CMN600_PMU,	0x18,	"Arm CoreLink CMN600 Coherent Mesh Network PMU") \
-    __PMC_CLASS(RAPL,		0x19,	"AMD/Intel RAPL energy counters")
+    __PMC_CLASS(RAPL,		0x19,	"AMD/Intel RAPL energy counters")	\
+    __PMC_CLASS(PERF,		0x1A,	"AMD/Intel PERF MSRs")
 
 enum pmc_class {
 #undef  __PMC_CLASS

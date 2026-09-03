@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 2026 Advanced Micro Devices, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 5, 2026
+.Dt PMC.PERF 3
+.Os
+.Sh NAME
+.Nm pmc.perf
+.Nd measurements using the MPERF/APERF effective frequency counters
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+AMD/Intel processors that implement the EffFreq
+.Pq Dq Effective Frequency Interface
+feature report two fixed-counters machine specific registers,
+.Va MPERF
+.Pq Dq Max Performance Frequency Clock Count
+and
+.Va APERF
+.Pq Dq Actual Performance Frequency Clock Count ,
+that together allow the average effective CPU frequency over an
+interval to be computed.
+.Va MPERF
+is incremented by hardware at the P0 frequency.
+The
+.Va APERF
+register increments in proportion to the actual number of core
+clock cycles.
+Both registers only increment while the core is in C0.
+The ratio of
+.Va APERF
+to
+.Va MPERF
+scaled by the processor's nominal frequency, yields the
+average effective frequency.
+.Pp
+The
+.Dv PMC_CLASS_PERF
+class exposes these two MSRs as read-only 64-bit counters that may
+only be allocated in system-wide counting mode
+.Pq Dv PMC_MODE_SC.
+Both counters expose the unmodified contents of the underlying MSRs.
+.Pp
+It reflects the free-running count of the underlying MSR since the
+processor was last reset, and continues to accumulate across
+allocate/release cycles.
+.Ss PMC Features
+AMD/Intel PERF supports the following capabilities.
+.Bl -column "PMC_CAP_THRESHOLD" "Support"
+.It Sy Capability Ta Sy Support
+.It Dv PMC_CAP_CASCADE Ta \&No
+.It Dv PMC_CAP_EDGE Ta \&No
+.It Dv PMC_CAP_INTERRUPT Ta \&No
+.It Dv PMC_CAP_INVERT Ta \&No
+.It Dv PMC_CAP_PRECISE Ta \&No
+.It Dv PMC_CAP_READ Ta Yes
+.It Dv PMC_CAP_SYSTEM Ta \&No
+.It Dv PMC_CAP_TAGGING Ta \&No
+.It Dv PMC_CAP_THRESHOLD Ta \&No
+.It Dv PMC_CAP_USER Ta \&No
+.It Dv PMC_CAP_WRITE Ta \&No
+.El
+.Pp
+By default AMD/Intel PERF enables the read flag.
+.Pp
+PERF events do not support further event qualifiers.
+.Ss Event Specifiers
+The following event names are supported:
+.Bl -tag -width "perf-mperf / mperf"
+.It Cm perf-mperf , Cm mperf
+The Max Performance Frequency Clock Count
+MSR of the core the counter is bound to.
+.It Cm perf-aperf , Cm aperf
+The Actual Performance Frequency Clock Count
+MSR of the core the counter is bound to.
+.El
+.Ss Counter Scope
+.Va MPERF
+and
+.Va APERF
+are per-core registers: each core has its own independent pair of
+MSRs, and a PMC of this class always reads the value local to the
+CPU it is bound to.
+Readings from different cores must not be combined or averaged
+without accounting for each core's independent P-state history.
+.Ss Availability
+Availability of the
+.Dv PMC_CLASS_PERF
+class depends on both of the following being true:
+.Bl -enum
+.It
+The processor advertises EffFreq
+.Pq Dq Effective Frequency Interface
+support in CPUID 6 leaf 0000_0006H bit 0 ECX.
+.It
+The kernel verified, at boot time, that the MSRs actually increment.
+Some virtualized environments advertise the CPUID bit without
+functional MSR support.
+.El
+.Pp
+If either condition does not hold, the
+.Dv PMC_CLASS_PERF
+class is not registered and does not appear in the output of
+.Xr pmccontrol 8
+or
+.Xr pmcstat 8 .
+.Sh EXAMPLES
+Sample both counters on CPU 0 for five seconds:
+.Bd -literal -offset indent
+pmcstat -c 0 -s perf-mperf -s perf-aperf -w 5
+.Ed
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_allocate 3 ,
+.Xr pmc_read 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4 ,
+.Xr pmcstat 8
+.Sh HISTORY
+The
+.Dv PMC_CLASS_PERF
+class first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+AMD/Intel PERF support and this manual page were written by
+.An Anderson Nascimento Aq Mt anascime@amd.com
+and sponsored by AMD, Inc.

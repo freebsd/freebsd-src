@@ -60,6 +60,8 @@ static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int rapl_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
+static int perf_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
 #endif
 #if defined(__arm__)
 static int armv7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
@@ -139,6 +141,7 @@ struct pmc_class_descr {
 PMC_CLASSDEP_TABLE(iaf, IAF);
 PMC_CLASSDEP_TABLE(k8, K8);
 PMC_CLASSDEP_TABLE(ibs, IBS);
+PMC_CLASSDEP_TABLE(perf, PERF);
 PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(armv8, ARMV8);
 PMC_CLASSDEP_TABLE(cmn600_pmu, CMN600_PMU);
@@ -216,6 +219,7 @@ PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
 PMC_CLASS_TABLE_DESC(ibs, IBS, ibs, ibs);
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 PMC_CLASS_TABLE_DESC(rapl, RAPL, rapl, rapl);
+PMC_CLASS_TABLE_DESC(perf, PERF, perf, perf);
 #endif
 #if	defined(__arm__)
 PMC_CLASS_TABLE_DESC(cortex_a8, ARMV7, cortex_a8, armv7);
@@ -903,6 +907,22 @@ rapl_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	return (0);
 }
+
+static int
+perf_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	if (pe < PMC_EV_PERF_FIRST || pe > PMC_EV_PERF_LAST)
+		return (-1);
+
+	/* PERF events must be unqualified. */
+	if (ctrspec != NULL && *ctrspec != '\0')
+		return (-1);
+
+	pmc_config->pm_caps |= PMC_CAP_READ;
+
+	return (0);
+}
 #endif
 
 static struct pmc_event_alias generic_aliases[] = {
@@ -1463,6 +1483,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = rapl_event_table;
 		count = PMC_EVENT_TABLE_SIZE(rapl);
 		break;
+	case PMC_CLASS_PERF:
+		ev = perf_event_table;
+		count = PMC_EVENT_TABLE_SIZE(perf);
+		break;
 	case PMC_CLASS_K8:
 		ev = k8_event_table;
 		count = PMC_EVENT_TABLE_SIZE(k8);
@@ -1673,6 +1697,10 @@ pmc_init(void)
 
 		case PMC_CLASS_RAPL:
 			pmc_class_table[n++] = &rapl_class_table_descr;
+			break;
+
+		case PMC_CLASS_PERF:
+			pmc_class_table[n++] = &perf_class_table_descr;
 			break;
 
 		case PMC_CLASS_K8:
@@ -1950,6 +1978,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_RAPL_FIRST && pe <= PMC_EV_RAPL_LAST) {
 		ev = rapl_event_table;
 		evfence = rapl_event_table + PMC_EVENT_TABLE_SIZE(rapl);
+	} else if (pe >= PMC_EV_PERF_FIRST && pe <= PMC_EV_PERF_LAST) {
+		ev = perf_event_table;
+		evfence = perf_event_table + PMC_EVENT_TABLE_SIZE(perf);
 	} else if ((int)pe >= PMC_EV_SOFT_FIRST && (int)pe <= PMC_EV_SOFT_LAST) {
 		ev = soft_event_table;
 		evfence = soft_event_table + soft_event_info.pm_nevent;

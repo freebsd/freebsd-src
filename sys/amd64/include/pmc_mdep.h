@@ -42,6 +42,7 @@ struct pmc_mdep;
 #include <dev/hwpmc/hwpmc_amd.h>
 #include <dev/hwpmc/hwpmc_core.h>
 #include <dev/hwpmc/hwpmc_ibs.h>
+#include <dev/hwpmc/hwpmc_perf.h>
 #include <dev/hwpmc/hwpmc_rapl.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
 #include <dev/hwpmc/hwpmc_uncore.h>
@@ -66,6 +67,7 @@ struct pmc_mdep;
  * TSC		The timestamp counter
  * K8		AMD Athlon64 and Opteron PMCs in 64 bit mode.
  * IBS		AMD IBS
+ * PERF		AMD/Intel MPERF and APERF
  * IAP		Intel Core/Core2/Atom CPUs in 64 bits mode.
  * IAF		Intel fixed-function PMCs in Core2 and later CPUs.
  * UCP		Intel Uncore programmable PMCs.
