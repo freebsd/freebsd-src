@@ -130,13 +130,14 @@ dtrace_copy(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 ENTRY(dtrace_copy)
 	stmfd	sp!, {r4-r5}			/* stack is 8 byte aligned */
 	teq	r2, #0x00000000
-	mov	r5, #0x00000000
 	beq	2f
 
-1:	ldrb	r4, [r0], #0x0001
-	add	r5, r5, #0x00000001
-	strb	r4, [r1], #0x0001
-	teqne	r5, r2
+1:	mov	r4, r0
+	ldrbt	r3, [r0], #1
+	teq	r0, r4				/* Check if the load was trapped */
+	beq	2f				/* Yes, quit now */
+	strb	r3, [r1], #1
+	subs	r2, r2, #1
 	bne	1b
 
 2:	ldmfd	sp!, {r4-r5}			/* stack is 8 byte aligned */
