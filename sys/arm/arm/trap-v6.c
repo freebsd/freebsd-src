@@ -328,6 +328,14 @@ abort_handler(struct trapframe *tf, int prefetch)
 		return;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (!usermode) {
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, idx)) {
+			return;
+		}
+	}
+#endif
+
 	/*
 	 * ARM has a set of unprivileged load and store instructions
 	 * (LDRT/LDRBT/STRT/STRBT ...) which are supposed to be used in other
@@ -550,13 +558,6 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 #endif
 
 	usermode = TRAPF_USERMODE(tf);
-#ifdef KDTRACE_HOOKS
-	if (!usermode) {
-		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, far))
-			return (0);
-	}
-#endif
-
 	mode = usermode ? "user" : "kernel";
 	rw_mode  = fsr & FSR_WNR ? "write" : "read";
 	disable_interrupts(PSR_I);

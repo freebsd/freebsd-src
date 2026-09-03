@@ -106,9 +106,9 @@ _C_LABEL(dtrace_invop_jump_addr):
 /*
  * PUSHFRAMEINSVC - macro to push a trap frame on the stack in SVC32 mode
  * This should only be used if the processor is not currently in SVC32
- * mode. The processor mode is switched to SVC mode and the trap frame is
- * stored. The SVC lr field is used to store the previous value of
- * lr in SVC mode.
+ * mode, except for data abort generated and handled by DTrace.
+ * The processor mode is switched to SVC mode and the trap frame is stored.
+ * The SVC lr field is used to store the previous value of lr in SVC mode.
  */
 #define PUSHFRAMEINSVC							   \
 	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
