@@ -141,6 +141,8 @@ static device_method_t iavf_methods[] = {
 	DEVMETHOD(device_attach, iflib_device_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
+	DEVMETHOD(device_suspend, iflib_device_suspend),
+	DEVMETHOD(device_resume, iflib_device_resume),
 	DEVMETHOD_END
 };
 
