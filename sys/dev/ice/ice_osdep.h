@@ -47,6 +47,7 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/bus_dma.h>
@@ -408,7 +409,7 @@ void ice_free_dma_mem(struct ice_hw __unused *hw, struct ice_dma_mem *mem);
  * Contains a simple lock implementation used to lock various resources.
  */
 struct ice_lock {
-	struct mtx mutex;
+	struct sx sx;
 	char name[ICE_STR_BUF_LEN];
 };
 
@@ -418,8 +419,9 @@ extern u16 ice_lock_count;
  * ice_init_lock - Initialize a lock for use
  * @lock: the lock memory to initialize
  *
- * OS compatibility layer to provide a simple locking mechanism. We use
- * a mutex for this purpose.
+ * OS compatibility layer to provide a simple locking mechanism.  Shared-code
+ * operations can wait for firmware while holding these locks, so use a
+ * sleepable exclusive lock.
  */
 static inline void
 ice_init_lock(struct ice_lock *lock)
@@ -431,45 +433,45 @@ ice_init_lock(struct ice_lock *lock)
 	 */
 	memset(lock->name, 0, sizeof(lock->name));
 	snprintf(lock->name, ICE_STR_BUF_LEN, "ice_lock_%u", ice_lock_count++);
-	mtx_init(&lock->mutex, lock->name, NULL, MTX_DEF);
+	sx_init(&lock->sx, lock->name);
 }
 
 /**
  * ice_acquire_lock - Acquire the lock
  * @lock: the lock to acquire
  *
- * Acquires the mutex specified by the lock pointer.
+ * Acquires the exclusive lock specified by the lock pointer.
  */
 static inline void
 ice_acquire_lock(struct ice_lock *lock)
 {
-	mtx_lock(&lock->mutex);
+	sx_xlock(&lock->sx);
 }
 
 /**
  * ice_release_lock - Release the lock
  * @lock: the lock to release
  *
- * Releases the mutex specified by the lock pointer.
+ * Releases the exclusive lock specified by the lock pointer.
  */
 static inline void
 ice_release_lock(struct ice_lock *lock)
 {
-	mtx_unlock(&lock->mutex);
+	sx_xunlock(&lock->sx);
 }
 
 /**
  * ice_destroy_lock - Destroy the lock to de-allocate it
  * @lock: the lock to destroy
  *
- * Destroys a previously initialized lock. We only do this if the mutex was
+ * Destroys a previously initialized lock. We only do this if the lock was
  * previously initialized.
  */
 static inline void
 ice_destroy_lock(struct ice_lock *lock)
 {
-	if (mtx_initialized(&lock->mutex))
-		mtx_destroy(&lock->mutex);
+	if (lock_initialized(&lock->sx.lock_object))
+		sx_destroy(&lock->sx);
 	memset(lock->name, 0, sizeof(lock->name));
 }
 
