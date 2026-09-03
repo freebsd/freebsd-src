@@ -114,6 +114,17 @@ Set close-on-exec on process descriptor.
 .It Dv PD_NOWAITPID
 The parent cannot obtain the child's status with
 .Xr waitpid 2 .
+.Pp
+A consequence of not setting the flag is that the child' zombie is
+not reaped until the
+.Xr waitpid 2
+call is performed on the child' PID.
+Setting the
+.Dv
+kern.pdfork_implicit_nowaitpid
+sysctl MIB to
+.Dv true
+makes the system behave as if the flag is always passed.
 .It Dv PD_PTRACE_CAP
 Enable
 .Xr pdptrace 2
