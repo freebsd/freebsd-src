@@ -248,7 +248,7 @@ ebuf_head_extend(struct ebuf *eb, size_t size)
 	newstart =
 	    newbuf + (page_size / 4) + size + (eb->eb_start - eb->eb_buf);
 
-	bcopy(eb->eb_start, newstart, eb->eb_size);
+	memcpy(newstart, eb->eb_start, eb->eb_size);
 
 	eb->eb_buf = newbuf;
 	eb->eb_start = newstart;
