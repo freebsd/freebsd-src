@@ -7290,7 +7290,7 @@ pf_tcp_track_full(struct pf_kstate *state, struct pf_pdesc *pd,
 {
 	struct tcphdr		*th = &pd->hdr.tcp;
 	u_int16_t		 win = ntohs(th->th_win);
-	u_int32_t		 ack, end, data_end, seq, orig_seq;
+	u_int32_t		 ack, orig_ack, end, data_end, seq, orig_seq;
 	u_int8_t		 sws, dws;
 	int			 ackskew;
 
@@ -7389,6 +7389,7 @@ pf_tcp_track_full(struct pf_kstate *state, struct pf_pdesc *pd,
 		if (tcp_get_flags(th) & TH_FIN)
 			end++;
 	}
+	orig_ack = ack;
 
 	if ((tcp_get_flags(th) & TH_ACK) == 0) {
 		/* Let it pass through the ack skew check */
@@ -7442,7 +7443,7 @@ pf_tcp_track_full(struct pf_kstate *state, struct pf_pdesc *pd,
 	    (orig_seq == src->seqlo + 1) || (orig_seq + 1 == src->seqlo) ||
 	    /* Require an exact/+1 sequence match on resets when possible */
 	    (SEQ_GEQ(orig_seq, src->seqlo - (dst->max_win << dws)) &&
-	    SEQ_LEQ(orig_seq, src->seqlo + 1) && ackskew == 0 &&
+	    SEQ_LEQ(orig_seq, src->seqlo + 1) && orig_ack == dst->seqlo &&
 	    (th->th_flags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)))) {
 		/* Allow resets to match sequence window if ack is perfect match */
 
