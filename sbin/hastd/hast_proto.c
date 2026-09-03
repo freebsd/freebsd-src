@@ -150,12 +150,14 @@ hast_proto_recv_hdr(const struct proto_conn *conn, struct nv **nvp)
 	eb = ebuf_alloc(hdr.size);
 	if (eb == NULL)
 		goto fail;
-	if (ebuf_add_tail(eb, NULL, hdr.size) == -1)
-		goto fail;
-	hptr = ebuf_data(eb, NULL);
-	PJDLOG_ASSERT(hptr != NULL);
-	if (proto_recv(conn, hptr, hdr.size) == -1)
-		goto fail;
+	if (hdr.size > 0) {
+		if (ebuf_add_tail(eb, NULL, hdr.size) == -1)
+			goto fail;
+		hptr = ebuf_data(eb, NULL);
+		PJDLOG_ASSERT(hptr != NULL);
+		if (proto_recv(conn, hptr, hdr.size) == -1)
+			goto fail;
+	}
 	nv = nv_ntoh(eb);
 	if (nv == NULL)
 		goto fail;
