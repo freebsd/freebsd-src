@@ -680,31 +680,30 @@ pw_checkname(char *name, int gecos)
 static void
 rmat(uid_t uid)
 {
-	DIR            *d = opendir("/var/at/jobs");
+	DIR            *d;
 	struct dirent  *e;
-	const char *argv[] = { "/usr/sbin/atrm", NULL, NULL };
+	int             atfd;
 
-	if (d == NULL)
+	atfd = openat(conf.rootfd, "var/at/jobs", O_DIRECTORY | O_CLOEXEC);
+	if (atfd == -1)
 		return;
+	d = fdopendir(atfd);
+	if (d == NULL) {
+		close(atfd);
+		return;
+	}
 
 	while ((e = readdir(d)) != NULL) {
 		struct stat     st;
-		pid_t		pid;
 
 		if (strncmp(e->d_name, ".lock", 5) == 0)
 			continue;
-		if (stat(e->d_name, &st) != 0)
+		if (fstatat(atfd, e->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0)
 			continue;
 		if (S_ISDIR(st.st_mode) || st.st_uid != uid)
 			continue;
-		argv[1] = e->d_name;
-		if (posix_spawn(&pid, argv[0], NULL, NULL,
-		    (char *const *) argv, environ)) {
-			warn("Failed to execute '%s %s'",
-			    argv[0], argv[1]);
-		} else
-			(void) waitpid(pid, NULL, 0);
-		}
+		if (unlinkat(atfd, e->d_name, 0) != 0)
+			warn("Failed to remove at job '%s'", e->d_name);
 	}
 	closedir(d);
 }
@@ -1008,7 +1007,7 @@ pw_user_del(int argc, char **argv, char *arg1)
 		unlinkat(conf.rootfd, file + 1, 0);
 
 	/* Remove at jobs */
-	if (!PWALTDIR() && getpwuid(id) == NULL)
+	if (PWALTDIR() != PWF_ALT && GETPWUID(id) == NULL)
 		rmat(id);
 
 	/* Remove home directory and contents */

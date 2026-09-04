@@ -82,6 +82,34 @@ home_regular_dir_body() {
 	[ ! -d ${HOME}/foo ] || atf_fail "Home has not been removed"
 }
 
+atf_test_case delete_at_jobs cleanup
+delete_at_jobs_body() {
+	populate_root_etc_skel
+
+	mkdir -p ${HOME}/var/at/jobs
+
+	atf_check -s exit:0 ${RPW} useradd foo
+
+	uid=$(awk -F: '/^foo:/ {print $3}' ${HOME}/etc/master.passwd)
+
+	job="c00001000000000"
+	atf_check -s exit:0 touch ${HOME}/var/at/jobs/${job}
+	atf_check -s exit:0 chown ${uid} ${HOME}/var/at/jobs/${job}
+
+	# A job owned by root must not be removed
+	otherjob="c00002000000000"
+	atf_check -s exit:0 touch ${HOME}/var/at/jobs/${otherjob}
+	atf_check -s exit:0 chown 0 ${HOME}/var/at/jobs/${otherjob}
+
+	atf_check -s exit:0 ${RPW} userdel foo
+
+	[ ! -e ${HOME}/var/at/jobs/${job} ] || atf_fail "at job not removed"
+	[ -e ${HOME}/var/at/jobs/${otherjob} ] || atf_fail "at job of another user was removed"
+}
+delete_at_jobs_cleanup() {
+	rm -rf ${HOME}/var/at/jobs
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case user_do_not_try_to_delete_root_if_user_unknown
@@ -90,4 +118,5 @@ atf_init_test_cases() {
 	atf_add_test_case home_not_a_dir
 	atf_add_test_case home_shared
 	atf_add_test_case home_regular_dir
+	atf_add_test_case delete_at_jobs
 }
