@@ -314,13 +314,23 @@
 
 /*
  *
+ * sprg_sp - SPRG{1-3} reg free to use as a scratch once r1 is restored
+ * savearea - temp save area (pc_{tempsave, critsave, mchksave, dbsave})
  * isrr0-1 - save restore registers to restore CPU state to (may be
  *           SRR0-1, CSRR0-1, MCSRR0-1
  *
  * Notes:
  *  - potential TLB miss: YES. The deref'd kstack may be not covered
+ *
+ *  - xSRR0-1 are staged in the savearea rather than written to the SPRs up
+ *    front.  A DTLB miss on the kstack below is not maskable by wrteei, and
+ *    the hardware overwrites SRR0-1 on entry to the miss handler, which then
+ *    restores its own values -- so anything parked in SRR0-1 across the
+ *    register reload is lost, and the rfi returns into the middle of this
+ *    macro instead of to the interrupted context.  Everything after the last
+ *    kstack access touches only pcpu and SPRs, which cannot fault.
  */
-#define	FRAME_LEAVE(isrr0, isrr1)					\
+#define	FRAME_LEAVE(sprg_sp, savearea, isrr0, isrr1)			\
 	wrteei 0;							\
 	/* restore CTR, XER, LR, CR */					\
 	LOAD	%r4, FRAME_CTR+CALLSIZE(%r1);				\
@@ -334,16 +344,26 @@
 	/* restore DBCR0 */						\
 	LOAD	%r4, FRAME_BOOKE_DBCR0+CALLSIZE(%r1);			\
 	mtspr	SPR_DBCR0, %r4;						\
-	/* restore xSRR0-1 */						\
+	/* stage xSRR0-1 where a TLB miss cannot reach them */		\
 	LOAD	%r30, FRAME_SRR0+CALLSIZE(%r1);				\
 	LOAD	%r31, FRAME_SRR1+CALLSIZE(%r1);				\
-	mtspr	isrr0, %r30;						\
-	mtspr	isrr1, %r31;						\
+	GET_CPUINFO(%r4);						\
+	STORE	%r30, (savearea+CPUSAVE_SRR0)(%r4);			\
+	STORE	%r31, (savearea+CPUSAVE_SRR1)(%r4);			\
 	/* restore R2-31, SP */						\
 	LD_REGS(%r1);							\
 	LOAD	%r2, FRAME_2+CALLSIZE(%r1);				\
 	LOAD	%r0, FRAME_0+CALLSIZE(%r1);				\
 	LOAD	%r1, FRAME_1+CALLSIZE(%r1);				\
+	/* no kstack references past here; park r3 to free a scratch */	\
+	mtspr	sprg_sp, %r3;						\
+	GET_CPUINFO(%r3);						\
+	LOAD	%r3, (savearea+CPUSAVE_SRR0)(%r3);			\
+	mtspr	isrr0, %r3;						\
+	GET_CPUINFO(%r3);						\
+	LOAD	%r3, (savearea+CPUSAVE_SRR1)(%r3);			\
+	mtspr	isrr1, %r3;						\
+	mfspr	%r3, sprg_sp;						\
 	isync
 
 /*
@@ -541,7 +561,7 @@ INTERRUPT(int_critical_input)
 	bl	CNAME(powerpc_interrupt)
 	TOC_RESTORE
 	CRIT_SRR_RESTORE
-	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
+	FRAME_LEAVE(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	rfci
 
 
@@ -555,7 +575,7 @@ INTERRUPT(int_machine_check)
 	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(powerpc_interrupt)
 	TOC_RESTORE
-	FRAME_LEAVE(SPR_MCSRR0, SPR_MCSRR1)
+	FRAME_LEAVE(SPR_SPRG3, PC_BOOKE_MCHKSAVE, SPR_MCSRR0, SPR_MCSRR1)
 	rfmci
 
 
@@ -642,7 +662,7 @@ INTERRUPT(int_watchdog)
 	bl	CNAME(powerpc_interrupt)
 	TOC_RESTORE
 	CRIT_SRR_RESTORE
-	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
+	FRAME_LEAVE(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	rfci
 
 
@@ -964,14 +984,14 @@ INTERRUPT(int_debug)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
 	bl	int_debug_int
-	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
+	FRAME_LEAVE(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	rfci
 
 INTERRUPT(int_debug_ed)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_DSRR0, SPR_DSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
 	bl	int_debug_int
-	FRAME_LEAVE(SPR_DSRR0, SPR_DSRR1)
+	FRAME_LEAVE(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_DSRR0, SPR_DSRR1)
 	rfdi
 	/* .long 0x4c00004e */
 
@@ -1043,7 +1063,7 @@ CNAME(trapexit):
 CNAME(asttrapexit):
 	b	trapexit		/* test ast ret value ? */
 1:
-	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
+	FRAME_LEAVE(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	rfi
 
 
@@ -1097,7 +1117,7 @@ dbtrap:
 	b	trap_common
 
 dbleave:
-	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
+	FRAME_LEAVE(SPR_SPRG1, PC_DBSAVE, SPR_SRR0, SPR_SRR1)
 	rfi
 ASEND(breakpoint)
 #endif /* KDB */
