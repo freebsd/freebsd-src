@@ -2385,8 +2385,10 @@ syncookie_expand(struct in_conninfo *inc, const struct syncache_head *sch,
 		sc->sc_tsoff = tcp_new_ts_offset(inc);
 	}
 
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to->to_flags & TOF_SIGNATURE)
 		sc->sc_flags |= SCF_SIGNATURE;
+#endif
 
 	sc->sc_rxmits = 0;
 
