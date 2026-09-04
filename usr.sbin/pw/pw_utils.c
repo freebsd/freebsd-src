@@ -42,7 +42,7 @@ pw_checkfd(char *nptr)
 	int fd = -1;
 
 	if (strcmp(nptr, "-") == 0)
-		return '-';
+		return (_PWDASH);
 	fd = strtonum(nptr, 0, INT_MAX, &errstr);
 	if (errstr != NULL)
 		errx(EX_USAGE, "Bad file descriptor '%s': %s",

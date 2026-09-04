@@ -528,6 +528,38 @@ user_add_already_in_group_body()
 		grep testuser ${HOME}/group
 }
 
+atf_test_case user_add_fd_dash
+user_add_fd_dash_body()
+{
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd fdtest -h -
+	atf_check -s exit:0 -o match:"^fdtest:\*:" \
+		grep "^fdtest:" ${HOME}/master.passwd
+}
+
+atf_test_case user_add_fd_numeric
+user_add_fd_numeric_body()
+{
+	populate_etc_skel
+
+	echo "testpass123" > ${HOME}/pwfile
+	fd=$(echo ${HOME}/pwfile)
+	echo "stdinpass" | atf_check -s exit:0 \
+		${PW} useradd fdstdin -h 0
+	atf_check -s exit:0 -o not-match:"^fdstdin:\*:" \
+		grep "^fdstdin:" ${HOME}/master.passwd
+}
+
+atf_test_case user_add_H_dash_rejected
+user_add_H_dash_rejected_body()
+{
+	populate_etc_skel
+
+	atf_check -s exit:64 -e inline:"pw: -H expects a file descriptor\n" \
+		${PW} useradd htest -H -
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -572,4 +604,7 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_conf_defaultpasswd
 	atf_add_test_case user_add_existing_login_group
 	atf_add_test_case user_add_already_in_group
+	atf_add_test_case user_add_fd_dash
+	atf_add_test_case user_add_fd_numeric
+	atf_add_test_case user_add_H_dash_rejected
 }

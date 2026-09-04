@@ -171,7 +171,7 @@ pw_set_passwd(struct passwd *pwd, int fd, bool precrypted, bool update)
 	char		line[_PASSWORD_LEN+1];
 	char		*p;
 
-	if (fd == '-') {
+	if (fd == _PWDASH) {
 		if (!pwd->pw_passwd || *pwd->pw_passwd != '*') {
 			pwd->pw_passwd = "*";	/* No access */
 			return (1);
@@ -1306,7 +1306,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 				    "exclusive options");
 			fd = pw_checkfd(optarg);
 			precrypted = true;
-			if (fd == '-')
+			if (fd == _PWDASH)
 				errx(EX_USAGE, "-H expects a file descriptor");
 			break;
 		case 'h':
@@ -1629,7 +1629,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 				    "exclusive options");
 			fd = pw_checkfd(optarg);
 			precrypted = true;
-			if (fd == '-')
+			if (fd == _PWDASH)
 				errx(EX_USAGE, "-H expects a file descriptor");
 			break;
 		case 'h':
