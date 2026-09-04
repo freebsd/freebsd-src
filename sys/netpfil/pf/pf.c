@@ -11405,6 +11405,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		case ND_ROUTER_ADVERT:
 		case ND_REDIRECT:
 			if (pd->ttl != 255) {
+				*action = PF_DROP;
 				REASON_SET(reason, PFRES_NORM);
 				return (PF_DROP);
 			}
