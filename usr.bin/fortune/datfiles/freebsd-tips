@@ -872,3 +872,7 @@ To write a device driver, you do not actually need a drivers license.
 
 		-- Aymeric Wibo <obiwac@FreeBSD.org>
 %
+Note: there may on occasion be documentation hidden inside the bugs.
+
+		-- Robert Clausecker <fuz@FreeBSD.org>
+%
