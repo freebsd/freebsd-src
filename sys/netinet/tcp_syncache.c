@@ -1528,8 +1528,10 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    TCPMD5_INPUT(m, NULL, NULL) != ENOENT)
 				goto done;
 		}
-	} else if (to->to_flags & TOF_SIGNATURE)
+	} else if (to->to_flags & TOF_SIGNATURE) {
+		TCPSTAT_INC(tcps_sig_err_sigopt);
 		goto done;
+	}
 #endif	/* TCP_SIGNATURE */
 	/*
 	 * See if we already have an entry for this connection.
