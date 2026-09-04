@@ -837,7 +837,6 @@ pw_user_del(int argc, char **argv, char *arg1)
 	char *name = NULL;
 	char grname[MAXLOGNAME];
 	char *nispasswd = NULL;
-	char file[MAXPATHLEN];
 	char home[MAXPATHLEN];
 	const char *cfg = NULL;
 	struct stat st;
@@ -936,7 +935,6 @@ pw_user_del(int argc, char **argv, char *arg1)
 	 * Save these for later, since contents of pwd may be
 	 * invalidated by deletion
 	 */
-	snprintf(file, sizeof(file), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 	strlcpy(home, pwd->pw_dir, sizeof(home));
 	gr = GETGRGID(pwd->pw_gid);
 	if (gr != NULL)
@@ -987,8 +985,13 @@ pw_user_del(int argc, char **argv, char *arg1)
 	    (uintmax_t)id);
 
 	/* Remove mail file */
-	if (PWALTDIR() != PWF_ALT)
-		unlinkat(conf.rootfd, file + 1, 0);
+	if (PWALTDIR() != PWF_ALT) {
+		int mfd = openat(conf.rootfd, &_PATH_MAILDIR[1], O_DIRECTORY | O_CLOEXEC);
+		if (mfd != -1) {
+			unlinkat(mfd, pwd->pw_name, 0);
+			close(mfd);
+		}
+	}
 
 	/* Remove at jobs */
 	if (PWALTDIR() != PWF_ALT && GETPWUID(id) == NULL)
