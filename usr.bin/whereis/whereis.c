@@ -253,6 +253,7 @@ defaults(void)
 {
 	size_t s;
 	char *b, buf[BUFSIZ], *cp;
+	const char *path_ports;
 	int nele;
 	FILE *p;
 	DIR *dir;
@@ -305,7 +306,8 @@ defaults(void)
 		decolonify(b, &mandirs, &nele);
 	}
 
-	/* -s defaults to precompiled list, plus subdirs of /usr/ports */
+	/* -s defaults to precompiled list, plus subdirs of
+	 * $PORTSDIR. If not set, it defaults to /usr/ports */
 	if (!sourcedirs) {
 		b = strdup(sourcepath);
 		if (b == NULL)
@@ -313,32 +315,34 @@ defaults(void)
 		nele = 0;
 		decolonify(b, &sourcedirs, &nele);
 
-		if (stat(PATH_PORTS, &sb) == -1) {
+		path_ports = getenv("PORTSDIR");
+		if (!path_ports)
+			path_ports = PATH_PORTS;
+
+		if (stat(path_ports, &sb) == -1) {
 			if (errno == ENOENT)
-				/* no /usr/ports, we are done */
+				/* no ports directory, we are done */
 				return;
-			err(EX_OSERR, "stat(" PATH_PORTS ")");
+			err(EX_OSERR, "stat(%s)", path_ports);
 		}
 		if ((sb.st_mode & S_IFMT) != S_IFDIR)
-			/* /usr/ports is not a directory, ignore */
+			/* path_ports is not a directory, ignore */
 			return;
-		if (access(PATH_PORTS, R_OK | X_OK) != 0)
+		if (access(path_ports, R_OK | X_OK) != 0)
 			return;
-		if ((dir = opendir(PATH_PORTS)) == NULL)
-			err(EX_OSERR, "opendir" PATH_PORTS ")");
+		if ((dir = opendir(path_ports)) == NULL)
+			err(EX_OSERR, "opendir(%s)", path_ports);
 		while ((dirp = readdir(dir)) != NULL) {
 			/*
-			 * Not everything below PATH_PORTS is of
+			 * Not everything below path_ports is of
 			 * interest.  First, all dot files and
 			 * directories (e. g. .snap) can be ignored.
 			 * Also, all subdirectories starting with a
-			 * capital letter are not going to be
+			 * capital letter are not going to
 			 * examined, as they are used for internal
-			 * purposes (Mk, Tools, ...).  This also
-			 * matches a possible CVS subdirectory.
-			 * Finally, the distfiles subdirectory is also
-			 * special, and should not be considered to
-			 * avoid false matches.
+			 * purposes (Mk, Tools, ...).  Finally, the distfiles
+			 * subdirectory is also special, and should not be
+			 * considered to avoid false matches.
 			 */
 			if (dirp->d_name[0] == '.' ||
 			    /*
@@ -350,10 +354,10 @@ defaults(void)
 			    (dirp->d_name[0] >= 'A' && dirp->d_name[0] <= 'Z') ||
 			    strcmp(dirp->d_name, "distfiles") == 0)
 				continue;
-			if ((b = malloc(sizeof PATH_PORTS + 1 + dirp->d_namlen))
+			if ((b = malloc(strlen(path_ports) + 1 + dirp->d_namlen + 1))
 			    == NULL)
 				abort();
-			strcpy(b, PATH_PORTS);
+			strcpy(b, path_ports);
 			strcat(b, "/");
 			strcat(b, dirp->d_name);
 			if (stat(b, &sb) == -1 ||
