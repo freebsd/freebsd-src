@@ -13,7 +13,8 @@ SRCS.pw_unit_test=	pw_unit_test.c \
 LIBADD.pw_unit_test=	util
 CFLAGS.pw_unit_test=	-I${SRCTOP}/usr.sbin/pw
 
-ATF_TESTS_SH=	pw_etcdir_test \
+ATF_TESTS_SH=	pw_test\
+		pw_etcdir_test \
 		pw_lock_test \
 		pw_config_test \
 		pw_groupadd_test \
