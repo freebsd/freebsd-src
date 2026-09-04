@@ -88,7 +88,7 @@ grp_set_passwd(struct group *grp, bool update, int fd, bool precrypted)
 		*p = '\0';
 	if (!*line)
 		errx(EX_DATAERR, "empty password read on file descriptor %d",
-		    conf.fd);
+		    fd);
 	if (precrypted) {
 		if (strchr(line, ':') != 0)
 			errx(EX_DATAERR, "wrong encrypted passwrd");
