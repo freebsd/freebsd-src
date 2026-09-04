@@ -2032,16 +2032,13 @@ bd_flushall(struct bufdomain *bd)
 static void
 bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 {
-	struct bufdomain *bd;
-
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bq_insert: free buffer %p onto another queue?", bp);
 
-	bd = bufdomain(bp);
 	if (bp->b_flags & B_AGE) {
 		/* Place this buf directly on the real queue. */
 		if (bq->bq_index == QUEUE_CLEAN)
-			bq = bd->bd_cleanq;
+			bq = bufdomain(bp)->bd_cleanq;
 		BQ_LOCK(bq);
 		TAILQ_INSERT_HEAD(&bq->bq_queue, bp, b_freelist);
 	} else {
@@ -2054,12 +2051,15 @@ bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 	bp->b_subqueue = bq->bq_subqueue;
 
 	if (bp->b_qindex == QUEUE_CLEAN) {
+		struct bufdomain *bd;
+
 		/*
 		 * Flush the per-cpu queue and notify any waiters.
 		 *
 		 * Unlock before we notify so that we don't wakeup a waiter
 		 * that fails a trylock on the buf and sleeps again.
 		 */
+		bd = bufdomain(bp);
 		if (bd->bd_wanted || (bq != bd->bd_cleanq &&
 		    bq->bq_len >= bd->bd_lim)) {
 			if (unlock) {
