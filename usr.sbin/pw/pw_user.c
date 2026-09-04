@@ -1701,9 +1701,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	}
 
 	if (grname && pwd->pw_uid != 0) {
-		grp = GETGRNAM(grname);
-		if (grp == NULL)
-			grp = GETGRGID(pw_checkid(grname, GID_MAX));
+		grp = group_from_name_or_id(grname);
 		if (grp->gr_gid != pwd->pw_gid) {
 			pwd->pw_gid = grp->gr_gid;
 			edited = true;
