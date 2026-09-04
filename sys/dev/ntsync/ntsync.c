@@ -1263,6 +1263,8 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 			for (j = i + 1; j < state->obj_count; j++) {
 				if (obj == state->objs[j]) {
 					i = state->obj_count;
+					if (state->alert_event != NULL)
+						i--;
 					error = EINVAL;
 					goto error_out;
 				}
