@@ -47,6 +47,13 @@
 #define	USERBOOT_VERSION_5      5
 
 /*
+ * Version 6 added a callback for indicating that the guest
+ * is OK with the existing interpreter, so the host can close associated
+ * resources.  The callback structure is still backward compatible.
+ */
+#define	USERBOOT_VERSION_6      6
+
+/*
  * Exit codes from the loader
  */
 #define	USERBOOT_EXIT_QUIT      1
@@ -225,4 +232,9 @@ struct loader_callbacks {
 	 * Version 5 addition.
 	 */
 	void	(*swap_interpreter)(void *arg, const char *interp);
+
+	/*
+	 * Version 6 addition.
+	 */
+	void	(*accept_interpreter)(void *arg);
 };

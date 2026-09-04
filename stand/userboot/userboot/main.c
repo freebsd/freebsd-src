@@ -217,6 +217,8 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	 */
 	if (version >= USERBOOT_VERSION_5)
 		check_interpreter();
+	if (version >= USERBOOT_VERSION_6)
+		CALLBACK(accept_interpreter);
 
 	if (setjmp(jb))
 		return;
