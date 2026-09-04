@@ -110,6 +110,23 @@ delete_at_jobs_cleanup() {
 	rm -rf ${HOME}/var/at/jobs
 }
 
+atf_test_case delete_crontab cleanup
+delete_crontab_body() {
+	populate_root_etc_skel
+
+	mkdir -p ${HOME}/var/cron/tabs
+
+	atf_check -s exit:0 ${RPW} useradd foo
+
+	atf_check -s exit:0 touch ${HOME}/var/cron/tabs/foo
+	atf_check -s exit:0 ${RPW} userdel foo
+
+	[ ! -e ${HOME}/var/cron/tabs/foo ] || atf_fail "crontab not removed"
+}
+delete_crontab_cleanup() {
+	rm -rf ${HOME}/var/cron/tabs
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case user_do_not_try_to_delete_root_if_user_unknown
@@ -119,4 +136,5 @@ atf_init_test_cases() {
 	atf_add_test_case home_shared
 	atf_add_test_case home_regular_dir
 	atf_add_test_case delete_at_jobs
+	atf_add_test_case delete_crontab
 }

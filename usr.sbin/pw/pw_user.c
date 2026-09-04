@@ -28,7 +28,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/wait.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -45,7 +44,6 @@
 #include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
-#include <spawn.h>
 
 #include "pw.h"
 #include "bitmap.h"
@@ -53,7 +51,6 @@
 
 #define LOGNAMESIZE (MAXLOGNAME-1)
 
-extern char **environ;
 static		char locked_str[] = "*LOCKED*";
 
 static struct passwd fakeuser = {
@@ -926,25 +923,12 @@ pw_user_del(int argc, char **argv, char *arg1)
 	if (strcmp(pwd->pw_name, "root") == 0)
 		errx(EX_DATAERR, "cannot remove user 'root'");
 
-	if (!PWALTDIR()) {
+	if (PWALTDIR() != PWF_ALT) {
 		/* Remove crontabs */
-		snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
-		if (access(file, F_OK) == 0) {
-			const char *argv[] = {
-				"crontab",
-				"-u",
-				pwd->pw_name,
-				"-r",
-				NULL
-			};
-			pid_t pid;
-
-			if (posix_spawnp(&pid, argv[0], NULL, NULL,
-						(char *const *) argv, environ)) {
-				warn("Failed to execute '%s %s'",
-						argv[0], argv[1]);
-			} else
-				(void) waitpid(pid, NULL, 0);
+		int cfd = openat(conf.rootfd, "var/cron/tabs", O_DIRECTORY | O_CLOEXEC);
+		if (cfd != -1) {
+			unlinkat(cfd, pwd->pw_name, 0);
+			close(cfd);
 		}
 	}
 
