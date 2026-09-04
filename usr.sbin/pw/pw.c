@@ -146,6 +146,10 @@ main(int argc, char *argv[])
 				relocated = true;
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
+					if (argc < 3)
+						errx(EX_USAGE,
+						    "-%c requires a directory "
+						    "argument", arg);
 					if (stat(argv[2], &st) != 0)
 						errx(EX_OSFILE,
 						    "no such directory `%s'",
@@ -173,6 +177,10 @@ main(int argc, char *argv[])
 
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
+					if (argc < 3)
+						errx(EX_USAGE,
+						    "-M requires a file "
+						    "argument");
 					optarg = argv[2];
 					++argv;
 					--argc;
