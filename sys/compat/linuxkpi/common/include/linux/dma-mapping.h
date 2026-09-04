@@ -262,9 +262,7 @@ dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma, size_t size,
 
 	switch (direction) {
 	case DMA_BIDIRECTIONAL:
-		op = BUS_DMASYNC_POSTREAD;
-		linuxkpi_dma_sync(dev, dma, size, op);
-		op = BUS_DMASYNC_PREREAD;
+		op = BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE;
 		break;
 	case DMA_TO_DEVICE:
 		op = BUS_DMASYNC_POSTWRITE;
@@ -294,13 +292,13 @@ dma_sync_single_for_device(struct device *dev, dma_addr_t dma,
 
 	switch (direction) {
 	case DMA_BIDIRECTIONAL:
-		op = BUS_DMASYNC_PREWRITE;
+		op = BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD;
 		break;
 	case DMA_TO_DEVICE:
-		op = BUS_DMASYNC_PREREAD;
+		op = BUS_DMASYNC_PREWRITE;
 		break;
 	case DMA_FROM_DEVICE:
-		op = BUS_DMASYNC_PREWRITE;
+		op = BUS_DMASYNC_PREREAD;
 		break;
 	default:
 		return;
