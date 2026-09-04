@@ -3943,6 +3943,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 #ifdef INET
 	struct ip *ip = NULL;
 	int hlen = 0;
+	struct ifnet *errifp = (bifp != NULL) ? bifp : ifp;
 #endif
 
 	snap = 0;
@@ -4117,6 +4118,9 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			if (i > ifp->if_mtu) {
 				error = bridge_fragment(ifp, mp, &eh2, snap,
 					    &llc1);
+				if (error != 0)
+					if_inc_counter(errifp,
+					    IFCOUNTER_OERRORS, 1);
 				return (error);
 			}
 		}
@@ -4370,8 +4374,10 @@ bridge_fragment(struct ifnet *ifp, struct mbuf **mp, struct ether_header *eh,
 	int error = -1;
 
 	if (m->m_len < sizeof(struct ip) &&
-	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL) {
+		KMOD_IPSTAT_INC(ips_odropped);
 		goto dropit;
+	}
 	ip = mtod(m, struct ip *);
 
 	m->m_pkthdr.csum_flags |= CSUM_IP;
@@ -4390,6 +4396,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf **mp, struct ether_header *eh,
 			M_PREPEND(mcur, sizeof(struct llc), M_NOWAIT);
 			if (mcur == NULL) {
 				error = ENOBUFS;
+				KMOD_IPSTAT_INC(ips_odropped);
 				if (mprev != NULL)
 					mprev->m_nextpkt = nextpkt;
 				goto dropit;
@@ -4400,6 +4407,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf **mp, struct ether_header *eh,
 		M_PREPEND(mcur, ETHER_HDR_LEN, M_NOWAIT);
 		if (mcur == NULL) {
 			error = ENOBUFS;
+			KMOD_IPSTAT_INC(ips_odropped);
 			if (mprev != NULL)
 				mprev->m_nextpkt = nextpkt;
 			goto dropit;
