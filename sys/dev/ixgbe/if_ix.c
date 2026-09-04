@@ -254,6 +254,8 @@ static void ixgbe_update_stats_counters(struct ixgbe_softc *);
 static void ixgbe_config_link(if_ctx_t);
 static void ixgbe_get_slot_info(struct ixgbe_softc *);
 static void ixgbe_fw_mode_timer(void *);
+static void ixgbe_fw_mode_timer_pause(struct ixgbe_softc *);
+static void ixgbe_fw_mode_timer_resume(struct ixgbe_softc *);
 static void ixgbe_configure_wakeup(if_ctx_t);
 static void ixgbe_configure_wakeup_mta(if_ctx_t);
 static void ixgbe_prepare_wakeup(if_ctx_t, bool);
@@ -1408,6 +1410,7 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 
 		/* Set up the timer callout */
 		callout_init(&sc->fw_mode_timer, true);
+		sc->fw_mode_timer_initialized = true;
 
 		/* Start the task */
 		callout_reset(&sc->fw_mode_timer, hz, ixgbe_fw_mode_timer, sc);
@@ -3916,6 +3919,7 @@ ixgbe_if_detach(if_ctx_t ctx)
 	INIT_DEBUGOUT("ixgbe_detach: begin");
 
 	sc->iov_recovery_stop = true;
+	ixgbe_fw_mode_timer_pause(sc);
 
 	ixgbe_setup_low_power_mode(ctx);
 
@@ -3923,8 +3927,6 @@ ixgbe_if_detach(if_ctx_t ctx)
 	ctrl_ext = IXGBE_READ_REG(&sc->hw, IXGBE_CTRL_EXT);
 	ctrl_ext &= ~IXGBE_CTRL_EXT_DRV_LOAD;
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_CTRL_EXT, ctrl_ext);
-
-	callout_drain(&sc->fw_mode_timer);
 
 	if (sc->hw.mac.type == ixgbe_mac_E610) {
 		ixgbe_disable_lse(sc);
@@ -4004,7 +4006,9 @@ ixgbe_configure_wakeup_mta(if_ctx_t ctx)
 static int
 ixgbe_if_power_prepare(if_ctx_t ctx, enum iflib_power_event event)
 {
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 
+	ixgbe_fw_mode_timer_pause(sc);
 	ixgbe_prepare_wakeup(ctx, event != IFLIB_POWER_DETACH);
 	return (0);
 }
@@ -4154,6 +4158,7 @@ ixgbe_if_resume(if_ctx_t ctx)
 	pci_clear_pme(dev);
 	hw->wol_enabled = false;
 	sc->wol_filters = 0;
+	ixgbe_fw_mode_timer_resume(sc);
 
 	return (0);
 } /* ixgbe_if_resume */
@@ -4796,6 +4801,9 @@ ixgbe_fw_mode_timer(void *arg)
 	struct ixgbe_softc *sc = arg;
 	struct ixgbe_hw *hw = &sc->hw;
 
+	if (atomic_load_acq_int(&sc->fw_mode_timer_paused) != 0)
+		return;
+
 	if (ixgbe_fw_recovery_mode(hw)) {
 		if (atomic_cmpset_acq_int(&sc->recovery_mode, 0, 1)) {
 			/* Firmware error detected, entering recovery mode */
@@ -4815,10 +4823,30 @@ ixgbe_fw_mode_timer(void *arg)
 		iflib_admin_intr_deferred(sc->ctx);
 	}
 
-
-	callout_reset(&sc->fw_mode_timer, hz,
-	    ixgbe_fw_mode_timer, sc);
+	if (atomic_load_acq_int(&sc->fw_mode_timer_paused) == 0)
+		callout_reset(&sc->fw_mode_timer, hz,
+		    ixgbe_fw_mode_timer, sc);
 } /* ixgbe_fw_mode_timer */
+
+static void
+ixgbe_fw_mode_timer_pause(struct ixgbe_softc *sc)
+{
+
+	if (!sc->fw_mode_timer_initialized ||
+	    atomic_swap_int(&sc->fw_mode_timer_paused, 1) != 0)
+		return;
+	callout_drain(&sc->fw_mode_timer);
+}
+
+static void
+ixgbe_fw_mode_timer_resume(struct ixgbe_softc *sc)
+{
+
+	if (!sc->fw_mode_timer_initialized ||
+	    atomic_swap_int(&sc->fw_mode_timer_paused, 0) == 0)
+		return;
+	callout_reset(&sc->fw_mode_timer, hz, ixgbe_fw_mode_timer, sc);
+}
 
 /************************************************************************
  * ixgbe_sfp_probe

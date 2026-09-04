@@ -505,6 +505,8 @@ struct ixgbe_softc {
 
 	/* Firmware error check */
 	int			recovery_mode;
+	u_int			fw_mode_timer_paused;
+	bool			fw_mode_timer_initialized;
 	bool			overtemp_shutdown_pending;
 	struct callout		fw_mode_timer;
 
