@@ -492,15 +492,19 @@ mkimg(void)
 					offset = NULL;
 				}
 			}
-			if (offset != NULL) {
-				if (*offset != '+')
-					abs_offset = true;
-				else
-					offset++;
-				if (expand_number(offset, &byteoffset) == -1)
-					error = errno;
-			}
 			break;
+		default:
+			offset = NULL;
+			break;
+		}
+
+		if (offset != NULL) {
+			if (*offset != '+')
+				abs_offset = true;
+			else
+				offset++;
+			if (expand_number(offset, &byteoffset) == -1)
+				error = errno;
 		}
 
 		/* Work out exactly where the partition starts. */
