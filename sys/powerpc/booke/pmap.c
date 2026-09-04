@@ -1121,11 +1121,7 @@ mmu_booke_init(void)
 	/* Pre-fill pvzone with initial number of pv entries. */
 	uma_prealloc(pvzone, PV_ENTRY_ZONE_MIN);
 
-	/* Create a UMA zone for page table roots. */
-	ptbl_root_zone = uma_zcreate("pmap root", PMAP_ROOT_SIZE,
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_VM);
-
-	/* Initialize ptbl allocation. */
+	/* Initialize ptbl allocation, including the page table root zone. */
 	ptbl_init();
 }
 

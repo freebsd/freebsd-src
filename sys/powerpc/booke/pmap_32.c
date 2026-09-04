@@ -165,6 +165,10 @@ ptbl_init(void)
 {
 	int i;
 
+	/* Create the UMA zone for page table roots. */
+	ptbl_root_zone = uma_zcreate("pmap root", PMAP_ROOT_SIZE,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_VM);
+
 	CTR3(KTR_PMAP, "%s: s (ptbl_bufs = 0x%08x size 0x%08x)", __func__,
 	    (uint32_t)ptbl_bufs, sizeof(struct ptbl_buf) * PTBL_BUFS);
 	CTR3(KTR_PMAP, "%s: s (ptbl_buf_pool_vabase = 0x%08x size = 0x%08x)",

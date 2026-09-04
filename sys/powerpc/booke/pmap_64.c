@@ -177,10 +177,55 @@ mmu_booke_alloc_page(pmap_t pmap, unsigned int idx, bool nosleep)
 	return (VM_PAGE_TO_DMAP(m));
 }
 
+/*
+ * Allocate PMAP roots from the DMAP, as mmu_radix does on AIM.  Since DMAP is
+ * statically mapped in TLB1, and all other PMAP pages are taken from DMAP, we
+ * can avoid all TLB misses when doing page table lookups.
+ */
+static int
+ptbl_root_import(void *arg __unused, void **store, int count,
+    int domain __unused, int flags)
+{
+	vm_page_t m;
+	int i, req;
+
+	req = VM_ALLOC_WIRED | malloc2vm_flags(flags);
+	for (i = 0; i < count; i++) {
+		m = vm_page_alloc_noobj_contig(req, PMAP_ROOT_SIZE / PAGE_SIZE,
+		    0, ~(vm_paddr_t)0, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+		if (m == NULL)
+			break;
+		store[i] = VM_PAGE_TO_DMAP(m);
+	}
+	return (i);
+}
+
+static void
+ptbl_root_release(void *arg __unused, void **store, int count)
+{
+	struct spglist free;
+	vm_page_t m;
+	int i, j;
+
+	for (i = 0; i < count; i++) {
+		SLIST_INIT(&free);
+		m = DMAP_TO_VM_PAGE(store[i]);
+		for (j = PMAP_ROOT_SIZE / PAGE_SIZE - 1; j >= 0; j--) {
+			vm_page_unwire_noq(&m[j]);
+			SLIST_INSERT_HEAD(&free, &m[j], plinks.s.ss);
+		}
+		vm_page_free_pages_toq(&free, false);
+	}
+}
+
 /* Initialize pool of kva ptbl buffers. */
 static void
 ptbl_init(void)
 {
+
+	ptbl_root_zone = uma_zcache_create("pmap root", PMAP_ROOT_SIZE,
+	    NULL, NULL, NULL, NULL, ptbl_root_import, ptbl_root_release,
+	    NULL, UMA_ZONE_NOBUCKET);
 }
 
 /* Get a pointer to a PTE in a page table. */
