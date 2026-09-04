@@ -97,6 +97,7 @@
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
@@ -390,12 +391,29 @@ booke_init(u_long arg1, u_long arg2)
 #define RES_GRANULE cacheline_size
 extern uintptr_t tlb0_miss_locks[];
 
+/*
+ * Stack for critical-class interrupts taken in kernel mode on the boot CPU.
+ * It is static because the boot CPU is initialised long before the VM is
+ * running; APs reach cpu_pcpu_init() at SI_SUB_CPU and can allocate.  Sizing a
+ * MAXCPU array here would reserve megabytes for CPUs that do not exist.
+ */
+static char booke_boot_critstack[BOOKE_CRITSTACK_SIZE] __aligned(16);
+static bool booke_boot_critstack_used;
+
 /* Initialise a struct pcpu. */
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
+	char *critstack;
 
 	pcpu->pc_booke.tid_next = TID_MIN;
+
+	if (!booke_boot_critstack_used) {
+		booke_boot_critstack_used = true;
+		critstack = booke_boot_critstack;
+	} else
+		critstack = malloc(BOOKE_CRITSTACK_SIZE, M_DEVBUF, M_WAITOK);
+	pcpu->pc_booke.critstack = critstack + BOOKE_CRITSTACK_SIZE;
 
 #ifdef SMP
 	uintptr_t *ptr;

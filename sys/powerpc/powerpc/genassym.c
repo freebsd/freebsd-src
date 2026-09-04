@@ -69,6 +69,7 @@ ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke.mchksave));
 ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke.tlbsave));
 ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke.tlb_level));
 ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke.tlb_lock));
+ASSYM(PC_BOOKE_CRITSTACK, offsetof(struct pcpu, pc_booke.critstack));
 #endif
 
 ASSYM(CPUSAVE_R27, CPUSAVE_R27*sizeof(register_t));

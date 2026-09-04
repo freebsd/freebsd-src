@@ -145,23 +145,44 @@
 	mfspr	%r31, SPR_ESR;						\
 	STORE	%r30, (savearea+CPUSAVE_BOOKE_DEAR)(%r1);		\
 	STORE	%r31, (savearea+CPUSAVE_BOOKE_ESR)(%r1);		\
+	mfspr	%r30, SPR_SRR0;						\
+	mfspr	%r31, SPR_SRR1;						\
+	STORE	%r30, (savearea+BOOKE_CRITSAVE_SRR0)(%r1);		\
+	STORE	%r31, (savearea+BOOKE_CRITSAVE_SRR1)(%r1);		\
 	mfspr	%r30, isrr0;						\
 	mfspr	%r31, isrr1;		/* MSR at interrupt time */	\
 	STORE	%r30, (savearea+CPUSAVE_SRR0)(%r1);			\
 	STORE	%r31, (savearea+CPUSAVE_SRR1)(%r1);			\
-	mfspr	%r30, SPR_SRR0;						\
-	mfspr	%r31, SPR_SRR1;		/* MSR at interrupt time */	\
-	STORE	%r30, (savearea+BOOKE_CRITSAVE_SRR0)(%r1);		\
-	STORE	%r31, (savearea+BOOKE_CRITSAVE_SRR1)(%r1);		\
 	isync;								\
-	mfspr	%r1, sprg_sp;		/* Restore SP */		\
 	mfcr	%r30;			/* Save CR */			\
-	/* switch to per-thread kstack if intr taken in user mode */	\
 	mtcr	%r31;			/* MSR at interrupt time  */	\
-	bf	17, 1f;							\
+	/*								\
+	 * Never inherit the interrupted r1.  A critical interrupt can	\
+	 * land partway through a non-critical prolog, where r1 holds	\
+	 * the pcpu pointer rather than a stack, and laying a frame	\
+	 * there walks straight into the adjacent CPU's pcpu.		\
+	 */								\
 	GET_CPUINFO(%r1);		/* Per-cpu structure */		\
+	bf	17, 1f;							\
 	LOAD	%r1, PC_CURPCB(%r1);	/* Per-thread kernel stack */	\
-1:
+	b	2f;							\
+1:	LOAD	%r1, PC_BOOKE_CRITSTACK(%r1);				\
+2:
+
+/*
+ * Put back the SRR0-1 saved by STANDARD_CRIT_PROLOG.
+ *
+ * A critical interrupt can land in the middle of a non-critical prolog,
+ * before it has stashed SRR0-1, or between the mtsrr0/mtsrr1 and the rfi of
+ * a TLB miss return.  Nested exceptions taken by the C dispatcher clobber
+ * them either way, so restore before returning.
+ */
+#define	CRIT_SRR_RESTORE						\
+	GET_CPUINFO(%r3);						\
+	LOAD	%r4, (PC_BOOKE_CRITSAVE+BOOKE_CRITSAVE_SRR0)(%r3);	\
+	LOAD	%r5, (PC_BOOKE_CRITSAVE+BOOKE_CRITSAVE_SRR1)(%r3);	\
+	mtspr	SPR_SRR0, %r4;						\
+	mtspr	SPR_SRR1, %r5
 
 /*
  * FRAME_SETUP assumes:
@@ -519,6 +540,7 @@ INTERRUPT(int_critical_input)
 	addi	%r3, %r1, CALLSIZE
 	bl	CNAME(powerpc_interrupt)
 	TOC_RESTORE
+	CRIT_SRR_RESTORE
 	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
 	rfci
 
@@ -613,9 +635,15 @@ INTERRUPT(int_fixed_interval_timer)
  * Watchdog interrupt
  ****************************************************************************/
 INTERRUPT(int_watchdog)
-	STANDARD_CRIT_PROLOG(SPR_SPRG1, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
-	FRAME_SETUP(SPR_SPRG1, PC_BOOKE_CRITSAVE, EXC_WDOG)
-	b	trap_common
+	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
+	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_WDOG)
+	GET_TOCBASE(%r2)
+	addi	%r3, %r1, CALLSIZE
+	bl	CNAME(powerpc_interrupt)
+	TOC_RESTORE
+	CRIT_SRR_RESTORE
+	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
+	rfci
 
 
 /*****************************************************************************
