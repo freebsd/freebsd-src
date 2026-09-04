@@ -1169,7 +1169,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    s, __func__);
 				free(s, M_TCPLOG);
 			}
-			TCPSTAT_INC(tcps_sig_err_sigopt);
 			return (-1); /* Do not send RST */
 		}
 #endif /* TCP_SIGNATURE */
