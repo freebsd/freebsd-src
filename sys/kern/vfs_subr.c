@@ -5127,8 +5127,16 @@ void
 vfs_unmountall(void)
 {
 	struct mount *mp, *tmp;
+	int nmountpoints = 0;
+	int n = 0;
 
 	CTR1(KTR_VFS, "%s: unmounting all filesystems", __func__);
+
+	if (bootverbose) {
+		TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+			nmountpoints++;
+		}
+	}
 
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
@@ -5143,11 +5151,20 @@ vfs_unmountall(void)
 		if (mp == rootdevmp)
 			continue;
 
+		if (bootverbose) {
+			printf("\tUnmounting %d/%d %s\n", ++n, nmountpoints,
+				mp->mnt_stat.f_mntonname);
+		}
 		unmount_or_warn(mp);
 	}
 
-	if (rootdevmp != NULL)
+	if (rootdevmp != NULL) {
+		if (bootverbose) {
+			printf("\tUnmounting %d/%d %s\n", ++n, nmountpoints,
+				rootdevmp->mnt_stat.f_mntonname);
+		}
 		unmount_or_warn(rootdevmp);
+	}
 }
 
 static void
