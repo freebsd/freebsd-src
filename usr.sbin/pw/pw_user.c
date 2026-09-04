@@ -681,33 +681,32 @@ static void
 rmat(uid_t uid)
 {
 	DIR            *d = opendir("/var/at/jobs");
+	struct dirent  *e;
+	const char *argv[] = { "/usr/sbin/atrm", NULL, NULL };
 
-	if (d != NULL) {
-		struct dirent  *e;
+	if (d == NULL)
+		return;
 
-		while ((e = readdir(d)) != NULL) {
-			struct stat     st;
-			pid_t		pid;
+	while ((e = readdir(d)) != NULL) {
+		struct stat     st;
+		pid_t		pid;
 
-			if (strncmp(e->d_name, ".lock", 5) != 0 &&
-			    stat(e->d_name, &st) == 0 &&
-			    !S_ISDIR(st.st_mode) &&
-			    st.st_uid == uid) {
-				const char *argv[] = {
-					"/usr/sbin/atrm",
-					e->d_name,
-					NULL
-				};
-				if (posix_spawn(&pid, argv[0], NULL, NULL,
-				    (char *const *) argv, environ)) {
-					warn("Failed to execute '%s %s'",
-					    argv[0], argv[1]);
-				} else
-					(void) waitpid(pid, NULL, 0);
-			}
+		if (strncmp(e->d_name, ".lock", 5) == 0)
+			continue;
+		if (stat(e->d_name, &st) != 0)
+			continue;
+		if (S_ISDIR(st.st_mode) || st.st_uid != uid)
+			continue;
+		argv[1] = e->d_name;
+		if (posix_spawn(&pid, argv[0], NULL, NULL,
+		    (char *const *) argv, environ)) {
+			warn("Failed to execute '%s %s'",
+			    argv[0], argv[1]);
+		} else
+			(void) waitpid(pid, NULL, 0);
 		}
-		closedir(d);
 	}
+	closedir(d);
 }
 
 int
