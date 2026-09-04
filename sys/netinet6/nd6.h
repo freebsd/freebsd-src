@@ -177,7 +177,7 @@ struct	in6_ndifreq {
 #define ND_COMPUTE_RTIME(x) \
 		(((MIN_RANDOM_FACTOR * (x >> 10)) + (arc4random() & \
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
-#define MAX_NEIGHBOR_ADVERTISEMENT	3	/* RFC4891 Section 10 */
+#define MAX_NEIGHBOR_ADVERTISEMENT	3	/* RFC4861 Section 10 */
 
 struct nd_defrouter {
 	TAILQ_ENTRY(nd_defrouter) dr_entry;
