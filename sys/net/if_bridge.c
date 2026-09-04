@@ -3956,9 +3956,8 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	if (V_pfil_bridge == 0 && V_pfil_member == 0 && V_pfil_ipfw == 0)
 		return (0); /* filtering is disabled */
 
-	i = min((*mp)->m_pkthdr.len, max_protohdr);
-	if ((*mp)->m_len < i) {
-	    *mp = m_pullup(*mp, i);
+	if ((*mp)->m_len < ETHER_HDR_LEN) {
+	    *mp = m_pullup(*mp, ETHER_HDR_LEN);
 	    if (*mp == NULL) {
 		printf("%s: m_pullup failed\n", __func__);
 		return (-1);
@@ -3972,14 +3971,28 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	 * Check for SNAP/LLC.
 	 */
 	if (ether_type < ETHERMTU) {
-		struct llc *llc2 = (struct llc *)(eh1 + 1);
+		struct llc *llc2;
 
-		if ((*mp)->m_len >= ETHER_HDR_LEN + 8 &&
-		    llc2->llc_dsap == LLC_SNAP_LSAP &&
-		    llc2->llc_ssap == LLC_SNAP_LSAP &&
-		    llc2->llc_control == LLC_UI) {
-			ether_type = htons(llc2->llc_un.type_snap.ether_type);
-			snap = 1;
+		i = min((*mp)->m_pkthdr.len,
+		    ETHER_HDR_LEN + sizeof(struct llc));
+		if ((*mp)->m_len < i) {
+			*mp = m_pullup(*mp, i);
+			if (*mp == NULL) {
+				printf("%s: m_pullup failed\n", __func__);
+				return (-1);
+			}
+			eh1 = mtod(*mp, struct ether_header *);
+		}
+
+		if ((*mp)->m_len >= ETHER_HDR_LEN + sizeof(struct llc)) {
+			llc2 = (struct llc *)(eh1 + 1);
+			if (llc2->llc_dsap == LLC_SNAP_LSAP &&
+			    llc2->llc_ssap == LLC_SNAP_LSAP &&
+			    llc2->llc_control == LLC_UI) {
+				ether_type =
+				    htons(llc2->llc_un.type_snap.ether_type);
+				snap = 1;
+			}
 		}
 	}
 
