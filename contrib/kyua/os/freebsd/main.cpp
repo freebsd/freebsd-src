@@ -63,9 +63,6 @@ freebsd::main(const int, const char* const* const)
 
     prepare::register_handler(
         std::make_shared<freebsd::prepare_kmods>());
-
-    prepare::register_handler(
-        std::shared_ptr< prepare::handler >(new freebsd::prepare_kmods()));
 #endif
 
     return 0;
