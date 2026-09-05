@@ -35,4 +35,7 @@ YFLAGS+=-v
 
 CLEANFILES=y.tab.c y.tab.h y.output
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}=	tests
+
 .include <bsd.prog.mk>
