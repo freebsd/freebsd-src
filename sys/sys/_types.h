@@ -108,6 +108,8 @@ typedef	__int32_t	__ptrdiff_t;	/* ptr1 - ptr2 */
  */
 #include <machine/_types.h>
 
+#define	__WCHAR_WIDTH	32		/* number of bits in a wchar_t */
+
 /*
  * Standard type definitions.
  */

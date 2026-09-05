@@ -168,7 +168,6 @@
 #define PTRDIFF_WIDTH           INT64_WIDTH
 #define SIG_ATOMIC_WIDTH        INT64_WIDTH
 #define SIZE_WIDTH              INT64_WIDTH
-#define WCHAR_WIDTH             INT32_WIDTH
 #define WINT_WIDTH              INT32_WIDTH
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
