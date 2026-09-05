@@ -1076,17 +1076,10 @@ swi_sched(void *cookie, int flags)
 {
 	struct intr_handler *ih = (struct intr_handler *)cookie;
 	struct intr_event *ie = ih->ih_event;
-	struct intr_entropy entropy;
 	int error __unused;
 
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
-
-	if ((flags & SWI_FROMNMI) == 0) {
-		entropy.event = (uintptr_t)ih;
-		entropy.td = curthread;
-		random_harvest_queue(&entropy, sizeof(entropy), RANDOM_SWI);
-	}
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already
