@@ -431,7 +431,7 @@ dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 {
 	int nents;
 
-	nents = dma_map_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs);
+	nents = dma_map_sg_attrs(dev, sgt->sgl, sgt->orig_nents, dir, attrs);
 	if (nents < 0)
 		return (nents);
 	sgt->nents = nents;
@@ -444,7 +444,7 @@ dma_unmap_sgtable(struct device *dev, struct sg_table *sgt,
     unsigned long attrs)
 {
 
-	dma_unmap_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs);
+	dma_unmap_sg_attrs(dev, sgt->sgl, sgt->orig_nents, dir, attrs);
 }
 
 
