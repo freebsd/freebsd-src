@@ -177,12 +177,12 @@ int
 pmcview::process_cpuidinfo(int logfd, const pmchdr_infohdr &infohdr)
 {
 	int status;
-	pmchdr_cpuidinfo *cpuidinfo;
+	uint32_t *cpuidinfo;
 	int offset, len;
 	uint32_t root, maxleaf, count;
 
 	len = infohdr.length / 4;
-	cpuidinfo = (pmchdr_cpuidinfo *)new uint32_t[len];
+	cpuidinfo = new uint32_t[len];
 
 	status = readlog(logfd, cpuidinfo, infohdr.length);
 	if (status < 0 || status != infohdr.length)
@@ -191,7 +191,7 @@ pmcview::process_cpuidinfo(int logfd, const pmchdr_infohdr &infohdr)
 	offset = 0;
 
 	while (offset < len) {
-		maxleaf = cpuidinfo->cpuid[offset];
+		maxleaf = cpuidinfo[offset];
 
 		/*
 		 * In x86 the roots contains the maximum leaf number present.
@@ -200,10 +200,10 @@ pmcview::process_cpuidinfo(int logfd, const pmchdr_infohdr &infohdr)
 		count = maxleaf & 0x0000FFFF;
 
 		for (uint32_t i = 0; i <= count; i++) {
-			cpuid[root + i] = { cpuidinfo->cpuid[4 * i + offset],
-			    cpuidinfo->cpuid[4 * i + 1 + offset],
-			    cpuidinfo->cpuid[4 * i + 2 + offset],
-			    cpuidinfo->cpuid[4 * i + 3 + offset] };
+			cpuid[root + i] = { cpuidinfo[4 * i + offset],
+			    cpuidinfo[4 * i + 1 + offset],
+			    cpuidinfo[4 * i + 2 + offset],
+			    cpuidinfo[4 * i + 3 + offset] };
 		}
 
 		offset += 4 * (count + 1);

@@ -74,10 +74,5 @@ struct pmchdr_pmcinfo
 	char		pmc[];
 };
 
-struct pmchdr_cpuidinfo
-{
-	uint32_t	cpuid[];
-};
-
 #endif
 
