@@ -129,6 +129,8 @@ typedef	__size_t	__vm_size_t;
  */
 #include <machine/_types.h>
 
+#define	__WCHAR_WIDTH	32		/* number of bits in a wchar_t */
+
 /*
  * Standard type definitions.
  */
