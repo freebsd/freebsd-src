@@ -86,8 +86,15 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 void
 db_show_mdpcpu(struct pcpu *pc)
 {
+	struct thread *td;
 
 	db_printf("PPC: hwref   = %#zx\n", pc->pc_hwref);
 	db_printf("PPC: ipimask = %#x\n", pc->pc_ipimask);
 	db_printf("PPC: flags   = %#x\n", pc->pc_flags);
+	td = pc->pc_curthread;
+	if (td != NULL)
+		db_printf("PPC: spinlocks = %d saved_msr = %#jx\n",
+		    td->td_md.md_spinlock_count,
+		    (uintmax_t)td->td_md.md_saved_msr);
+	cpu_db_show_mdpcpu(pc);
 }

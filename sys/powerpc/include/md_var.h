@@ -68,4 +68,9 @@ void	cpu_setup(u_int);
 struct	trapframe;
 void	powerpc_interrupt(struct trapframe *);
 
+/* Platform half of DDB 'show pcpu' (db_show_mdpcpu) */
+struct	pcpu;
+void	cpu_db_show_mdpcpu(struct pcpu *);
+
+
 #endif /* !_MACHINE_MD_VAR_H_ */

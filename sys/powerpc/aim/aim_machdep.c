@@ -541,6 +541,13 @@ memcpy(pcpu->pc_aim.slb, PCPU_GET(aim.slb), sizeof(pcpu->pc_aim.slb));
 #endif
 }
 
+#ifdef DDB
+void
+cpu_db_show_mdpcpu(struct pcpu *pc)
+{
+}
+#endif
+
 /* Return 0 on handled success, otherwise signal number. */
 int
 cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)

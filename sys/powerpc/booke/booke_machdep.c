@@ -426,6 +426,54 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 #endif
 }
 
+#ifdef DDB
+/*
+ * Dump an exception save area.  In a nested save, R31 holds the DEAR of the
+ * outer exception.
+ */
+static void
+db_show_booke_save(const char *name, register_t *sv)
+{
+
+	db_printf("%s r30 %#jx r31 %#jx dear %#jx esr %#jx\n", name,
+	    (uintmax_t)sv[CPUSAVE_R30], (uintmax_t)sv[CPUSAVE_R31],
+	    (uintmax_t)sv[CPUSAVE_BOOKE_DEAR],
+	    (uintmax_t)sv[CPUSAVE_BOOKE_ESR]);
+	db_printf("%s srr0 %#jx srr1 %#jx\n", name,
+	    (uintmax_t)sv[CPUSAVE_SRR0], (uintmax_t)sv[CPUSAVE_SRR1]);
+}
+
+void
+cpu_db_show_mdpcpu(struct pcpu *pc)
+{
+	register_t *tlbsave;
+	int i;
+
+	db_printf("tid_next = %d tlb_level = %#jx critstack = %p\n",
+	    pc->pc_booke.tid_next, (uintmax_t)pc->pc_booke.tlb_level,
+	    pc->pc_booke.critstack);
+	db_show_booke_save("tempsave", pc->pc_tempsave);
+	db_show_booke_save("disisave", pc->pc_disisave);
+	db_show_booke_save("critsave", pc->pc_booke.critsave);
+	/*
+	 * In critsave, CPUSAVE_SRR0-1 hold the interrupt's own CSRR0-1 (DSRR0-1
+	 * for the enhanced-debug vector); the non-critical SRR0-1 that were
+	 * live at the time are kept separately.
+	 */
+	db_printf("critsave held srr0 %#jx srr1 %#jx\n",
+	    (uintmax_t)pc->pc_booke.critsave[BOOKE_CRITSAVE_SRR0],
+	    (uintmax_t)pc->pc_booke.critsave[BOOKE_CRITSAVE_SRR1]);
+	db_show_booke_save("mchksave", pc->pc_booke.mchksave);
+	for (i = 0; i < BOOKE_TLB_MAXNEST &&
+	    i < (int)pc->pc_booke.tlb_level; i++) {
+		tlbsave = &pc->pc_booke.tlbsave[i * BOOKE_TLB_SAVELEN];
+		db_printf("tlbsave%d srr0 %#jx srr1 %#jx\n", i,
+		    (uintmax_t)tlbsave[TLBSAVE_BOOKE_SRR0],
+		    (uintmax_t)tlbsave[TLBSAVE_BOOKE_SRR1]);
+	}
+}
+#endif /* DDB */
+
 /* Shutdown the CPU as much as possible. */
 void
 cpu_halt(void)
