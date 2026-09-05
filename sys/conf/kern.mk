@@ -305,6 +305,26 @@ SAN_CFLAGS+=	${MSAN_CFLAGS}
 .endif # !empty(KMSAN_ENABLED)
 
 #
+# Kernel Undefined Behavior SANitizer array bounds support.  Trap mode avoids
+# linking a runtime and produces a platform dependent trap instruction. Keep
+# each trap location distinct by default so that the faulting PC identifies
+# its source check.
+#
+# The array bounds sanitizer can be purposed into a light weight, effective
+# exploit mitigation tool by preventing out of bounds fixed size array
+# accesses.
+#
+.if !empty(KUBSAN_BOUNDS_ENABLED)
+.if ${COMPILER_TYPE} != "clang" || ${COMPILER_VERSION} < 210000
+.error KUBSAN_BOUNDS requires Clang 21 or newer
+.endif
+SAN_CFLAGS+=	-fsanitize=array-bounds -fsanitize-trap=array-bounds
+.if !empty(KUBSAN_BOUNDS_NO_MERGE_ENABLED)
+SAN_CFLAGS+=	-fno-sanitize-merge=array-bounds
+.endif
+.endif
+
+#
 # Kernel Undefined Behavior SANitizer support
 #
 .if !empty(KUBSAN_ENABLED)

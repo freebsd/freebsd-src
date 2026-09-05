@@ -98,7 +98,9 @@ COMPAT_FREEBSD32_ENABLED!= grep COMPAT_FREEBSD32 opt_global.h || true ; echo
 KASAN_ENABLED!=	grep KASAN opt_global.h || true ; echo
 KCSAN_ENABLED!= grep KCSAN opt_global.h || true ; echo
 KMSAN_ENABLED!= grep KMSAN opt_global.h || true ; echo
-KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
+KUBSAN_ENABLED!=	grep -w KUBSAN opt_global.h || true ; echo
+KUBSAN_BOUNDS_ENABLED!= grep -w KUBSAN_BOUNDS opt_global.h || true ; echo
+KUBSAN_BOUNDS_NO_MERGE_ENABLED!= grep -w KUBSAN_BOUNDS_NO_MERGE opt_global.h || true ; echo
 COVERAGE_ENABLED!=	grep COVERAGE opt_global.h || true ; echo
 
 GCOV_ENABLED!=	grep GCOV opt_global.h || true ; echo
