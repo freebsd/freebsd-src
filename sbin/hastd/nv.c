@@ -500,7 +500,7 @@ nv_get_##type(struct nv *nv, const char *namefmt, ...)			\
 		return (0);						\
 	PJDLOG_ASSERT((nvh->nvh_type & NV_ORDER_MASK) == NV_ORDER_HOST);\
 	PJDLOG_ASSERT(sizeof(value) == nvh->nvh_dsize);			\
-	bcopy(NVH_DATA(nvh), &value, sizeof(value));			\
+	memcpy(&value, NVH_DATA(nvh), sizeof(value));			\
 									\
 	return (value);							\
 }
@@ -767,7 +767,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 
 	namesize = strlen(name) + 1;
 
-	nvh = malloc(sizeof(*nvh) + roundup2(namesize, 8));
+	nvh = calloc(1, sizeof(*nvh) + roundup2(namesize, 8));
 	if (nvh == NULL) {
 		if (nv->nv_error == 0)
 			nv->nv_error = ENOMEM;
@@ -776,7 +776,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	nvh->nvh_type = NV_ORDER_HOST | type;
 	nvh->nvh_namesize = (uint8_t)namesize;
 	nvh->nvh_dsize = (uint32_t)vsize;
-	bcopy(name, nvh->nvh_name, namesize);
+	memcpy(nvh->nvh_name, name, namesize);
 
 	/* Add header first. */
 	if (ebuf_add_tail(nv->nv_ebuf, nvh, NVH_HSIZE(nvh)) == -1) {
