@@ -463,14 +463,15 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	    ctxt.uplink_seid, ctxt.vsi_number,
 	    ctxt.vsis_allocated, ctxt.vsis_unallocated,
 	    ctxt.flags, ctxt.pf_num, ctxt.vf_num,
-	    ctxt.info.stat_counter_idx, ctxt.info.up_enable_bits);
+	    le16toh(ctxt.info.stat_counter_idx), ctxt.info.up_enable_bits);
 	/*
 	** Set the queue and traffic class bits
 	**  - when multiple traffic classes are supported
 	**    this will need to be more robust.
 	*/
-	ctxt.info.valid_sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
-	ctxt.info.mapping_flags |= I40E_AQ_VSI_QUE_MAP_CONTIG;
+	ctxt.info.valid_sections =
+	    htole16(I40E_AQ_VSI_PROP_QUEUE_MAP_VALID);
+	ctxt.info.mapping_flags = htole16(I40E_AQ_VSI_QUE_MAP_CONTIG);
 	/* In contig mode, que_mapping[0] is first queue index used by this VSI */
 	ctxt.info.queue_mapping[0] = 0;
 	/*
@@ -479,13 +480,14 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	 * the driver may not use all of them).
 	 */
 	tc_queues = fls(pf->qtag.num_allocated) - 1;
-	ctxt.info.tc_mapping[0] = ((pf->qtag.first_qidx << I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT)
+	ctxt.info.tc_mapping[0] = htole16(
+	    ((pf->qtag.first_qidx << I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT)
 	    & I40E_AQ_VSI_TC_QUE_OFFSET_MASK) |
 	    ((tc_queues << I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
-	    & I40E_AQ_VSI_TC_QUE_NUMBER_MASK);
+	    & I40E_AQ_VSI_TC_QUE_NUMBER_MASK));
 
 	/* Set VLAN receive stripping mode */
-	ctxt.info.valid_sections |= I40E_AQ_VSI_PROP_VLAN_VALID;
+	ctxt.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_VLAN_VALID);
 	ctxt.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL;
 	if (if_getcapenable(vsi->ifp) & IFCAP_VLAN_HWTAGGING)
 		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH;
@@ -504,7 +506,7 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	vsi->vsi_num = ctxt.vsi_number;
 	bcopy(&ctxt.info, &vsi->info, sizeof(vsi->info));
 
-	ctxt.flags = htole16(I40E_AQ_VSI_TYPE_PF);
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
 
 	err = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
 	if (err) {
@@ -528,7 +530,7 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 		 * This value needs to pulled from the VSI that this queue
 		 * is assigned to. Index into array is traffic class.
 		 */
-		tctx.rdylist = vsi->info.qs_handle[0];
+		tctx.rdylist = le16toh(vsi->info.qs_handle[0]);
 		/*
 		 * Set these to enable Head Writeback
 		 * - Address is last entry in TX ring (reserved for HWB index)
