@@ -598,7 +598,7 @@ invl_scoreboard_init(void *arg __unused)
 		invl_op_pg = INVL_OP_PG;
 	}
 }
-SYSINIT(invl_ops, SI_SUB_SMP - 1, SI_ORDER_ANY, invl_scoreboard_init, NULL);
+SYSINIT(invl_ops, SI_SUB_KMEM, SI_ORDER_ANY, invl_scoreboard_init, NULL);
 
 static uint32_t *
 invl_scoreboard_getcpu(u_int cpu)
