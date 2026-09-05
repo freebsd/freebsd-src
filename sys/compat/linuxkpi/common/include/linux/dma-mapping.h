@@ -121,6 +121,7 @@ void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
     int nents __unused, enum dma_data_direction direction,
     unsigned long attrs);
 void linuxkpi_dma_sync(struct device *, dma_addr_t, size_t, bus_dmasync_op_t);
+void lkpi_dma_sync_sg(struct device *, struct scatterlist *, bus_dmasync_op_t);
 
 static inline int
 dma_supported(struct device *dev, u64 dma_mask)
@@ -307,21 +308,65 @@ dma_sync_single_for_device(struct device *dev, dma_addr_t dma,
 	linuxkpi_dma_sync(dev, dma, size, op);
 }
 
-/* (20250329) These four seem to be unused code. */
 static inline void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
     enum dma_data_direction direction)
 {
-	pr_debug("%s:%d: TODO dir %d\n", __func__, __LINE__, direction);
+	bus_dmasync_op_t op;
+
+	switch (direction) {
+	case DMA_BIDIRECTIONAL:
+		op = BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE;
+		break;
+	case DMA_TO_DEVICE:
+		op = BUS_DMASYNC_POSTWRITE;
+		break;
+	case DMA_FROM_DEVICE:
+		op = BUS_DMASYNC_POSTREAD;
+		break;
+	default:
+		return;
+	}
+
+	lkpi_dma_sync_sg(dev, sg, op);
+}
+
+static inline void dma_sync_sgtable_for_cpu(struct device *dev,
+		struct sg_table *sgt, enum dma_data_direction dir)
+{
+	dma_sync_sg_for_cpu(dev, sgt->sgl, sgt->orig_nents, dir);
 }
 
 static inline void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
     enum dma_data_direction direction)
 {
-	pr_debug("%s:%d: TODO dir %d\n", __func__, __LINE__, direction);
+	bus_dmasync_op_t op;
+
+	switch (direction) {
+	case DMA_BIDIRECTIONAL:
+		op = BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD;
+		break;
+	case DMA_TO_DEVICE:
+		op = BUS_DMASYNC_PREWRITE;
+		break;
+	case DMA_FROM_DEVICE:
+		op = BUS_DMASYNC_PREREAD;
+		break;
+	default:
+		return;
+	}
+
+	lkpi_dma_sync_sg(dev, sg, op);
 }
 
+static inline void dma_sync_sgtable_for_device(struct device *dev,
+		struct sg_table *sgt, enum dma_data_direction dir)
+{
+	dma_sync_sg_for_device(dev, sgt->sgl, sgt->orig_nents, dir);
+}
+
+/* (20250329) These two seem to be unused code. */
 static inline void
 dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
     unsigned long offset, size_t size, enum dma_data_direction direction)
