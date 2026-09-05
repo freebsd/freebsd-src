@@ -80,6 +80,10 @@
 
 #include "loader_efi.h"
 
+#ifdef LOADER_VERIEXEC_ELEVATED
+#include <verify_file.h>
+#endif
+
 struct arch_switch archsw = {	/* MI/MD interface boundary */
 	.arch_autoload = efi_autoload,
 	.arch_getdev = efi_getdev,
@@ -1322,6 +1326,15 @@ main(int argc, CHAR16 *argv[])
 		setenv("console", "comconsole", 1);
 #endif
 	cons_probe();
+
+#ifdef LOADER_VERIEXEC_ELEVATED
+	/*
+	 * Establish veriexec's strict mode now, before any file or unverified
+	 * input is read, rather than as a side effect of the first verified
+	 * open.  Fail-closed: panics if the trust base does not come up.
+	 */
+	ve_verifying_set();
+#endif
 
 	/* Set print_delay variable to have hooks in place. */
 	env_setenv("print_delay", EV_VOLATILE, "", setprint_delay, env_nounset);
