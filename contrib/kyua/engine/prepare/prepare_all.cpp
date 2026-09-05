@@ -53,11 +53,11 @@ prepare::prepare_all::exec(cmdline::ui* ui,
                            const cmdline::parsed_cmdline& cmdline,
                            const config::tree& user_config) const
 {
-    for (auto& handler : prepare::handlers()) {
-        if (handler->name() == this->name())
+    for (auto& h : prepare::handlers()) {
+        if (h->name() == this->name())
             continue;
 
-        int error = handler->exec(ui, cmdline, user_config);
+        int error = h->exec(ui, cmdline, user_config);
         if (error != EXIT_SUCCESS)
             return error;
     }
