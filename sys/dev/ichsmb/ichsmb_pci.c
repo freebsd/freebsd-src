@@ -314,6 +314,7 @@ static device_method_t ichsmb_pci_methods[] = {
         DEVMETHOD(smbus_pcall, ichsmb_pcall),
         DEVMETHOD(smbus_bwrite, ichsmb_bwrite),
         DEVMETHOD(smbus_bread, ichsmb_bread),
+        DEVMETHOD(smbus_bpcall, ichsmb_bpcall),
 
 	DEVMETHOD_END
 };
