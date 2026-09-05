@@ -59,6 +59,7 @@ enum {
 	CMD_ROLE,
 	CMD_STATUS,
 	CMD_DUMP,
+	CMD_STOP,
 	CMD_LIST
 };
 
@@ -430,6 +431,9 @@ main(int argc, char *argv[])
 	} else if (strcmp(argv[1], "dump") == 0) {
 		cmd = CMD_DUMP;
 		optstr = "c:dh";
+	} else if (strcmp(argv[1], "stop") == 0) {
+		cmd = CMD_STOP;
+		optstr = "c:dh";
 	} else
 		usage();
 
@@ -524,6 +528,13 @@ main(int argc, char *argv[])
 				nv_add_string(nv, argv[ii], "resource%d", ii);
 		}
 		break;
+	case CMD_STOP:
+		/* Stop hastd. */
+		if (argc > 0)
+			usage();
+		nv = nv_alloc();
+		nv_add_uint8(nv, HASTCTL_CMD_STOP, "cmd");
+		break;
 	default:
 		PJDLOG_ABORT("Impossible command!");
 	}
@@ -573,6 +584,9 @@ main(int argc, char *argv[])
 		break;
 	case CMD_STATUS:
 		error = control_status(nv);
+		break;
+	case CMD_STOP:
+		error = 0;
 		break;
 	default:
 		PJDLOG_ABORT("Impossible command!");

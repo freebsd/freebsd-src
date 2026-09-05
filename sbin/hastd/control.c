@@ -300,6 +300,15 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 	control_status_worker(res, nvout, no);
 }
 
+static void
+control_stop(struct hastd_config *cfg, struct nv *nvout)
+{
+	pjdlog_info("Stop message received.");
+	(void)cfg;
+	(void)nvout;
+	sigexit_received = true;
+}
+
 void
 control_handle(struct hastd_config *cfg)
 {
@@ -340,6 +349,14 @@ control_handle(struct hastd_config *cfg)
 	}
 
 	error = 0;
+
+	/* The stop command does not expect any arguments. */
+	if (cmd == HASTCTL_CMD_STOP) {
+		control_stop(cfg, nvout);
+		if (nv_error(nvout) != 0)
+			goto close;
+		goto fail;
+	}
 
 	str = nv_get_string(nvin, "resource0");
 	if (str == NULL) {
