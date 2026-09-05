@@ -3347,7 +3347,7 @@ sched_ule_clear_tdname(struct thread *td)
 }
 
 static void
-sched_ule_schedcpu(void)
+sched_ule_sysinit(void)
 {
 }
 
@@ -3465,7 +3465,7 @@ struct sched_instance sched_ule_instance = {
 	SLOT(init_ap),
 	SLOT(setup),
 	SLOT(initticks),
-	SLOT(schedcpu),
+	SLOT(sysinit),
 #undef SLOT
 };
 DECLARE_SCHEDULER(ule_sched_selector, "ULE", &sched_ule_instance);
