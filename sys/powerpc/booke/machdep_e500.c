@@ -148,6 +148,10 @@ cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
  *
  * With all PowerPC numbering, 0 is the MSB, and 63 is LSB.
  */
+/* Default watchdog_mode to chip reset (2). */
+static int watchdog_mode = (TCR_WRC_CHIP >> TCR_WRC_SHIFT);
+
+TUNABLE_INT("machdep.watchdog_mode", &watchdog_mode);
 /* Arg is the timebase bit number 1-based (flsll result) */
 static void
 booke_watchdog_cpu(void *arg)
@@ -162,7 +166,8 @@ booke_watchdog_cpu(void *arg)
 	tcr &= ~(TCR_WP_MASK | TCR_WPEXT_MASK);
 	tcr |= TCR_MAKE_WP(bitno);
 
-	tcr |= TCR_WRC_CHIP | TCR_WIE;
+	tcr |= ((watchdog_mode << TCR_WRC_SHIFT) & TCR_WRC_MASK);
+	tcr |= TCR_WIE;
 
 	mtspr(SPR_TCR, tcr);
 }
@@ -190,7 +195,7 @@ booke_watchdog_fn(void *priv, sbintime_t sbt, sbintime_t *esbt, int *err)
 	 * count, using only a mask of the current timebase matching the tick
 	 * size.  This will give us the next rollover bit *beyond* the timeout.
 	 */
-	tb = mftb() & ((1 << flsll(ticks)) - 1);
+	tb = mftb() & ((1ULL << flsll(ticks)) - 1);
 	tb += ticks;
 
 	tb_bit = 64 - flsll(tb);
