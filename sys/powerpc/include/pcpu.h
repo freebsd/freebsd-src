@@ -93,17 +93,18 @@ struct pvo_entry;
 #define	BOOKE_CRITSTACK_SIZE	16384
 
 #ifdef __powerpc64__
-#define	BOOKE_PCPU_PAD	893
+#define	BOOKE_PCPU_PAD	869
 #else
-#define	BOOKE_PCPU_PAD	361
+#define	BOOKE_PCPU_PAD	349
 #endif
 #define PCPU_MD_BOOKE_FIELDS						\
 	register_t	critsave[BOOKE_CRITSAVE_LEN];		\
-	register_t	mchksave[CPUSAVE_LEN];			\
+	register_t	mchksave[BOOKE_CRITSAVE_LEN];		\
 	register_t	tlbsave[BOOKE_TLBSAVE_LEN];		\
 	register_t	tlb_level;				\
 	uintptr_t	*tlb_lock;				\
 	void		*critstack;				\
+	void		*mchkstack;				\
 	int		tid_next;					\
 	char		__pad[BOOKE_PCPU_PAD];
 
