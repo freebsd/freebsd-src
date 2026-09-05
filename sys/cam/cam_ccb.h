@@ -341,7 +341,7 @@ typedef union {
 } ccb_spriv_area;
 
 typedef struct {
-	struct timeval	*etime;
+	uintptr_t	sched_data;
 	uintptr_t	sim_data;
 	uintptr_t	periph_data;
 } ccb_qos_area;
