@@ -181,11 +181,11 @@ SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
     NULL);
 
 static void
-sched_schedcpu(void)
+sched_sysinit(void)
 {
-	active_sched->schedcpu();
+	active_sched->sysinit();
 }
-SYSINIT(schedcpu, SI_SUB_LAST, SI_ORDER_FIRST, sched_schedcpu, NULL);
+SYSINIT(sched_sysinit, SI_SUB_LAST, SI_ORDER_FIRST, sched_sysinit, NULL);
 
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Scheduler");

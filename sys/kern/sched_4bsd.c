@@ -161,7 +161,7 @@ static struct kproc_desc sched_kp = {
 };
 
 static void
-sched_4bsd_schedcpu(void)
+sched_4bsd_sysinit(void)
 {
 	kproc_start(&sched_kp);
 }
@@ -1889,7 +1889,7 @@ struct sched_instance sched_4bsd_instance = {
 	SLOT(init_ap),
 	SLOT(setup),
 	SLOT(initticks),
-	SLOT(schedcpu),
+	SLOT(sysinit),
 #undef SLOT
 };
 DECLARE_SCHEDULER(fourbsd_sched_selector, "4BSD", &sched_4bsd_instance);
