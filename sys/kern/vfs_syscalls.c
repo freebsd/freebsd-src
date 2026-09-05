@@ -3751,14 +3751,14 @@ sys_renameat2(struct thread *td, struct renameat2_args *uap)
 
 #ifdef MAC
 static int
-kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
-    const char *new, enum uio_seg pathseg, struct nameidata *fromnd, int op,
+kern_renameat_mac(struct thread *td, int fromfd, const char *from, int tofd,
+    const char *to, enum uio_seg pathseg, struct nameidata *fromnd, int op,
     int ndflags)
 {
 	int error;
 
 	NDINIT_ATRIGHTS(fromnd, op, LOCKPARENT | LOCKLEAF | AUDITVNODE1 |
-	    ndflags, pathseg, old, oldfd, &cap_renameat_source_rights);
+	    ndflags, pathseg, from, fromfd, &cap_renameat_source_rights);
 	if ((error = namei(fromnd)) != 0)
 		return (error);
 	error = mac_vnode_check_rename_from(td->td_ucred, fromnd->ni_dvp,
@@ -3776,8 +3776,8 @@ kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
 #endif
 
 int
-kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
-    const char *new, enum uio_seg pathseg, u_int flags)
+kern_renameat(struct thread *td, int fromfd, const char *from, int tofd,
+    const char *to, enum uio_seg pathseg, u_int flags)
 {
 	struct mount *mp, *tmp;
 	struct vnode *tvp, *fvp, *tdvp;
@@ -3805,14 +3805,14 @@ again:
 	bwillwrite();
 #ifdef MAC
 	if (mac_vnode_check_rename_from_enabled()) {
-		error = kern_renameat_mac(td, oldfd, old, newfd, new, pathseg,
+		error = kern_renameat_mac(td, fromfd, from, tofd, to, pathseg,
 		    &fromnd, op, fndflags);
 		if (error != 0)
 			return (error);
 	} else {
 #endif
 	NDINIT_ATRIGHTS(&fromnd, op, WANTPARENT | AUDITVNODE1 | fndflags,
-	    pathseg, old, oldfd, &cap_renameat_source_rights);
+	    pathseg, from, fromfd, &cap_renameat_source_rights);
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
 #ifdef MAC
@@ -3834,7 +3834,7 @@ again:
 	tondflags = LOCKPARENT | LOCKLEAF | NOCACHE | AUDITVNODE2;
 	if (fromnd.ni_vp->v_type == VDIR)
 		tondflags |= WILLBEDIR;
-	NDINIT_ATRIGHTS(&tond, RENAME, tondflags, pathseg, new, newfd,
+	NDINIT_ATRIGHTS(&tond, RENAME, tondflags, pathseg, to, tofd,
 	    &cap_renameat_target_rights);
 	if ((error = namei(&tond)) != 0) {
 		/* Translate error code for rename("dir1", "dir2/."). */
@@ -3945,10 +3945,10 @@ again1:
 			}
 		}
 #ifdef CAPABILITIES
-		if (newfd != AT_FDCWD && (tond.ni_resflags & NIRES_ABS) == 0) {
+		if (tofd != AT_FDCWD && (tond.ni_resflags & NIRES_ABS) == 0) {
 			/*
 			 * If the target already exists we require CAP_UNLINKAT
-			 * from 'newfd', when newfd was used for the lookup.
+			 * from 'tofd', when tofd was used for the lookup.
 			 */
 			error = cap_check(&tond.ni_filecaps.fc_rights,
 			    &cap_unlinkat_rights);

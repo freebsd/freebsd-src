@@ -1040,7 +1040,7 @@ getmaxfd(struct thread *td)
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
 int
-kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
+kern_dup(struct thread *td, u_int mode, int flags, int oldd, int newd)
 {
 	struct filedesc *fdp;
 	struct filedescent *oldfde, *newfde;
@@ -1056,34 +1056,34 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC | FDDUP_FLAG_CLOFORK)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
 
-	AUDIT_ARG_FD(old);
-	/* XXXRW: if (flags & FDDUP_FIXED) AUDIT_ARG_FD2(new); */
+	AUDIT_ARG_FD(oldd);
+	/* XXXRW: if (flags & FDDUP_FIXED) AUDIT_ARG_FD2(newd); */
 
 	/*
 	 * Verify we have a valid descriptor to dup from and possibly to
 	 * dup to. Unlike dup() and dup2(), fcntl()'s F_DUPFD should
 	 * return EINVAL when the new descriptor is out of bounds.
 	 */
-	if (old < 0)
+	if (oldd < 0)
 		return (EBADF);
-	if (new < 0)
+	if (newd < 0)
 		return (mode == FDDUP_FCNTL ? EINVAL : EBADF);
 	maxfd = getmaxfd(td);
-	if (new >= maxfd)
+	if (newd >= maxfd)
 		return (mode == FDDUP_FCNTL ? EINVAL : EBADF);
 
 	error = EBADF;
 	FILEDESC_XLOCK(fdp);
-	if (fget_noref(fdp, old) == NULL)
+	if (fget_noref(fdp, oldd) == NULL)
 		goto unlock;
-	if (mode == FDDUP_FIXED && old == new) {
-		td->td_retval[0] = new;
-		fdp->fd_ofiles[new].fde_flags |= fddup_to_fde_flags(flags);
+	if (mode == FDDUP_FIXED && oldd == newd) {
+		td->td_retval[0] = newd;
+		fdp->fd_ofiles[newd].fde_flags |= fddup_to_fde_flags(flags);
 		error = 0;
 		goto unlock;
 	}
 
-	oldfde = &fdp->fd_ofiles[old];
+	oldfde = &fdp->fd_ofiles[oldd];
 	oldfp = oldfde->fde_file;
 	if (!fhold(oldfp))
 		goto unlock;
@@ -1096,13 +1096,13 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	switch (mode) {
 	case FDDUP_NORMAL:
 	case FDDUP_FCNTL:
-		if ((error = fdalloc(td, new, &new)) != 0) {
+		if ((error = fdalloc(td, newd, &newd)) != 0) {
 			fdrop(oldfp, td);
 			goto unlock;
 		}
 		break;
 	case FDDUP_FIXED:
-		if (new >= fdp->fd_nfiles) {
+		if (newd >= fdp->fd_nfiles) {
 			/*
 			 * The resource limits are here instead of e.g.
 			 * fdalloc(), because the file descriptor table may be
@@ -1113,7 +1113,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 			 */
 #ifdef RACCT
 			if (RACCT_ENABLED()) {
-				error = racct_set_unlocked(p, RACCT_NOFILE, new + 1);
+				error = racct_set_unlocked(p, RACCT_NOFILE, newd + 1);
 				if (error != 0) {
 					error = EMFILE;
 					fdrop(oldfp, td);
@@ -1121,24 +1121,24 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 				}
 			}
 #endif
-			fdgrowtable_exp(fdp, new + 1);
+			fdgrowtable_exp(fdp, newd + 1);
 		}
-		if (!fdisused(fdp, new))
-			fdused(fdp, new);
+		if (!fdisused(fdp, newd))
+			fdused(fdp, newd);
 		break;
 	default:
 		KASSERT(0, ("%s unsupported mode %d", __func__, mode));
 	}
 
-	KASSERT(old != new, ("new fd is same as old"));
+	KASSERT(oldd != newd, ("new fd is same as old"));
 
 	/* Refetch oldfde because the table may have grown and old one freed. */
-	oldfde = &fdp->fd_ofiles[old];
+	oldfde = &fdp->fd_ofiles[oldd];
 	KASSERT(oldfp == oldfde->fde_file,
 	    ("fdt_ofiles shift from growth observed at fd %d",
-	    old));
+	    oldd));
 
-	newfde = &fdp->fd_ofiles[new];
+	newfde = &fdp->fd_ofiles[newd];
 	delfp = newfde->fde_file;
 
 	nioctls = filecaps_copy_prep(&oldfde->fde_caps);
@@ -1158,12 +1158,12 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #ifdef CAPABILITIES
 	seqc_write_end(&newfde->fde_seqc);
 #endif
-	td->td_retval[0] = new;
+	td->td_retval[0] = newd;
 
 	error = 0;
 
 	if (delfp != NULL) {
-		(void) closefp(fdp, new, delfp, td, true, false);
+		(void) closefp(fdp, newd, delfp, td, true, false);
 		FILEDESC_UNLOCK_ASSERT(fdp);
 	} else {
 unlock:
