@@ -207,6 +207,7 @@ extern int elf32_nxstack;
 
 /* Translation ID busy table (dynamically allocated) */
 static __inline void tid_set_busy(int cpu, int tid, pmap_t pmap);
+static __inline pmap_t tid_get_busy(int cpu, int tid);
 static volatile pmap_t *tidbusy;
 uint32_t tid_max;
 
@@ -1649,7 +1650,12 @@ mmu_booke_activate(struct thread *td)
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 
-	if (pmap->pm_tid[cpuid] == TID_NONE)
+	/*
+	 * pm_tid is only a hint: another pmap may have stolen the TID since we
+	 * last ran here, in which case tidbusy[] no longer names us.
+	 */
+	if (pmap->pm_tid[cpuid] == TID_NONE ||
+	    tid_get_busy(cpuid, pmap->pm_tid[cpuid]) != pmap)
 		tid_alloc(pmap);
 
 	/* Load PID0 register with pmap tid value. */
@@ -2493,17 +2499,15 @@ mmu_booke_page_array_startup(long pages)
 /* TID handling */
 /**************************************************************************/
 
+/*
+ * tidbusy[] is the authoritative record of TID ownership; pm_tid is only a
+ * hint, validated against it by mmu_booke_activate().  Only the pointer
+ * matters, it's never dereferenced.
+ */
 static __inline void
 tid_set_busy(int cpu, int tid, pmap_t pmap)
 {
-	volatile pmap_t *pm = &tidbusy[cpu * (tid_max + 1) + tid];
-
-	if (pmap == NULL) {
-		if (*pm != NULL)
-			(*pm)->pm_tid[cpu] = TID_NONE;
-	} else
-		pmap->pm_tid[cpu] = tid;
-	*pm = pmap;
+	tidbusy[cpu * (tid_max + 1) + tid] = pmap;
 }
 
 static __inline pmap_t
@@ -2534,11 +2538,11 @@ tid_alloc(pmap_t pmap)
 		tid = TID_MIN;
 	PCPU_SET(booke.tid_next, tid + 1);
 
-	/* If we are stealing TID then clear the relevant pmap's field */
+	/*
+	 * If we are stealing the TID, drop the previous owner's translations.
+	 */
 	if (tid_get_busy(thiscpu, tid) != NULL) {
 		CTR2(KTR_PMAP, "%s: warning: stealing tid %d", __func__, tid);
-
-		tid_set_busy(thiscpu, tid, NULL);
 
 		/* Flush all entries from TLB0 matching this TID. */
 		tid_flush(tid);
