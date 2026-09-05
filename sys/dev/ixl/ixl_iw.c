@@ -170,7 +170,7 @@ ixl_iw_pf_init(struct ixl_pf *pf)
 	pf_info->iw_msix.base	= IXL_IW_VEC_BASE(pf);
 
 	for (int i = 0; i < IXL_IW_MAX_USER_PRIORITY; i++)
-		pf_info->qs_handle[i] = le16_to_cpu(pf->vsi.info.qs_handle[0]);
+		pf_info->qs_handle[i] = le16toh(pf->vsi.info.qs_handle[0]);
 
 	pf_entry->state.pf = IXL_IW_PF_STATE_ON;
 	if (ixl_iw.registered) {
