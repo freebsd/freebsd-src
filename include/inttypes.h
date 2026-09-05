@@ -29,6 +29,12 @@
 #ifndef _INTTYPES_H_
 #define	_INTTYPES_H_
 
+#include <sys/cdefs.h>
+
+#if __ISO_C_VISIBLE >= 2023 || __BSD_VISIBLE
+#define __STDC_VERSION_INTTYPES_H__	202311L
+#endif
+
 #include <machine/_inttypes.h>
 #include <sys/stdint.h>
 
