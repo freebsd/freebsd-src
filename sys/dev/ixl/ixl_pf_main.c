@@ -1524,12 +1524,13 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, struct ixl_ftl_head *to_add, int cnt)
 		bcopy(f->macaddr, b->mac_addr, ETHER_ADDR_LEN);
 		if (f->vlan == IXL_VLAN_ANY) {
 			b->vlan_tag = 0;
-			b->flags = I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
+			b->flags =
+			    htole16(I40E_AQC_MACVLAN_ADD_IGNORE_VLAN);
 		} else {
-			b->vlan_tag = f->vlan;
+			b->vlan_tag = htole16(f->vlan);
 			b->flags = 0;
 		}
-		b->flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
+		b->flags |= htole16(I40E_AQC_MACVLAN_ADD_PERFECT_MATCH);
 		/* Some FW versions do not set match method
 		 * when adding filters fails. Initialize it with
 		 * expected error value to allow detection which
@@ -1622,7 +1623,7 @@ ixl_del_hw_filters(struct ixl_vsi *vsi, struct ixl_ftl_head *to_del, int cnt)
 			e->vlan_tag = 0;
 			e->flags |= I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 		} else {
-			e->vlan_tag = f->vlan;
+			e->vlan_tag = htole16(f->vlan);
 		}
 
 		ixl_dbg_filter(pf, "DEL: " MAC_FORMAT "\n",
@@ -1654,7 +1655,7 @@ ixl_del_hw_filters(struct ixl_vsi *vsi, struct ixl_ftl_head *to_del, int cnt)
 			device_printf(dev,
 			    "%s Filter does not exist " MAC_FORMAT " VTAG: %d\n",
 			    __func__, MAC_FORMAT_ARGS(d[i].mac_addr),
-			    d[i].vlan_tag);
+			    le16toh(d[i].vlan_tag));
 		}
 	}
 
@@ -2278,7 +2279,7 @@ ixl_update_eth_stats(struct ixl_vsi *vsi)
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_eth_stats *es;
 	struct i40e_eth_stats *oes;
-	u16 stat_idx = vsi->info.stat_counter_idx;
+	u16 stat_idx = le16toh(vsi->info.stat_counter_idx);
 
 	es = &vsi->eth_stats;
 	oes = &vsi->eth_stats_offsets;
