@@ -19,7 +19,9 @@ SRCS=	apprentice.c apptype.c ascmagic.c buffer.c cdf.c cdf_time.c \
 	compress.c der.c encoding.c fsmagic.c funcs.c is_json.c \
 	is_csv.c \
 	is_simh.c \
-	is_tar.c magic.c print.c readcdf.c readelf.c seccomp.c softmagic.c
+	is_tar.c magic.c print.c readcdf.c readelf.c seccomp.c softmagic.c \
+	swap.c
+SRCS+=	magic.h
 INCS=	magic.h
 
 MAGICPATH?=	/usr/share/misc
@@ -62,7 +64,7 @@ CLEANFILES+=	mkmagic
 DEPENDOBJS+=	mkmagic
 build-tools: mkmagic
 # For the non-dirdeps build, HOST_CC is CC by default
-mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c ${INCS} ${BUILD_TOOLS_META}
+mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c swap.c ${INCS} ${BUILD_TOOLS_META}
 	${HOST_CC:N${CCACHE_BIN}} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} \
 	    ${.ALLSRC:N*.h:O:u} ${LDADD}
 
