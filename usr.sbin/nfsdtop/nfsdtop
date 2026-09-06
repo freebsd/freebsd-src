@@ -1,0 +1,1565 @@
+#!/bin/sh
+############################################################ LICENSE
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2020 Devin Teske
+#
+############################################################ IDENT(1)
+#
+# $Title: Script to generate top-like statistics for nfsd I/O $
+#
+############################################################ INFORMATION
+#
+# In nfsdtop, a ``view'' is the user's choice between -c, -g, -s, or -u.
+# For example, `-u' asks nfsdtop to display the ``user view'' where statistics
+# displayed are on a per-user basis.
+#
+# The code is broken down into:
+# 	- View selection (user choice)
+# 	- Filter selection (user choice)
+# 	- dtrace execution
+# 	- awk to process dtrace output
+#
+# Code navigating Search Terms/ST:
+# 	DTRACE		Start of dtrace
+# 	FILTERS		Data filters
+# 	JSONDATA	JSON data generation
+# 	OPS		Data operations (read vs write)
+# 	POST		dtrace post-processor (awk)
+# 	PRE		Start of pre-processor (sh)
+# 	SORTING		Sort routines
+# 	TRACEDATA	dtrace data generation and processing
+# 	VIEWDATA	View data generation
+# 	VIEWS		View processing
+#
+############################################################ DEFAULTS
+
+DEFAULT_INTERVAL=2.0 # seconds
+
+#
+# User/Group map files
+#
+DEFAULT_PASSWD_MAP=.nfsd.passwd
+DEFAULT_GROUP_MAP=.nfsd.group
+
+#
+# Network IP map file
+#
+DEFAULT_IP_MAP=.nfsd.hosts
+
+############################################################ GLOBALS
+
+VERSION='$Version: 6.1.3 $'
+
+pgm="${0##*/}" # Program basename
+
+#
+# Global exit status
+#
+SUCCESS=0
+FAILURE=1
+
+#
+# Command-line options
+#
+COLOR=1					# -a
+DEBUG=					# -d
+DEBUGGER=				# -D
+FILTER_CLIENT=				# -C ip
+FILTER_GROUP=				# -G group
+FILTER_USER=				# -U user
+GROUP_MAP="$DEFAULT_GROUP_MAP"		# -P file
+INTERVAL=$DEFAULT_INTERVAL		# -i sec
+IP_MAP="$DEFAULT_IP_MAP"		# -I file
+NO_NAMES=				# -n
+NSAMPLES=				# -N num
+OUTPUT_JSON=				# -j
+PASSWD_MAP="$DEFAULT_PASSWD_MAP"	# -p file
+QUIET=					# -q
+RAW_VIEW=				# -r
+REDACT=${NFSDTOP_REDACT:+1}		# -R
+SHOW_BYTES=				# -b
+VIEW_CLIENT=				# -c
+VIEW_GROUP=				# -g
+VIEW_USER=				# -u (default)
+WIDE_VIEW=				# -w
+
+#
+# Miscellaneous
+#
+CONS=1
+[ -t 1 ] || CONS= COLOR= # stdout is not a tty
+_FILTER_CLIENT=
+_FILTER_GROUP=
+_FILTER_USER=
+INTERVAL_PROBE= # Calculated
+INTERVAL_SECONDS= # Raw value for awk
+VIEW=
+
+############################################################ FUNCTIONS
+
+die()
+{
+	local fmt="$1"
+	if [ "$fmt" ]; then
+		shift 1 # fmt
+		printf "%s: $fmt\n" "$pgm" "$@" >&2
+	fi
+	exit $FAILURE
+}
+
+usage()
+{
+	local fmt="$1"
+	local optfmt="\t%-11s %s\n"
+
+	exec >&2
+	if [ "$fmt" ]; then
+		shift 1 # fmt
+		printf "%s: $fmt\n" "$pgm" "$@"
+	fi
+
+	printf "Usage: %s [OPTIONS]\n" "$pgm"
+	printf "Options:\n"
+	printf "$optfmt" "-a" "Always enable color."
+	printf "$optfmt" "-b" "Show bytes instead of bandwidth."
+	printf "$optfmt" "-C ip" "Client filter (IPv4 only)."
+	printf "$optfmt" "-c" "View read/write activity by client."
+	printf "$optfmt" "-D" "Enable debugger."
+	printf "$optfmt" "-d" "Debug. Print dtrace script and exit."
+	printf "$optfmt" "-G group" "Group filter (name or id)."
+	printf "$optfmt" "-g" "View read/write activity by group."
+	printf "$optfmt" "-h" "Print usage statement and exit."
+	printf "$optfmt" "-I file" "IP map file. Default \`$DEFAULT_IP_MAP'."
+	printf "$optfmt" "-i sec" \
+		"Set interval seconds. Default \`$DEFAULT_INTERVAL'."
+	printf "$optfmt" "-J" "Output most JSON data. Same as \`-jcgu'."
+	printf "$optfmt" "-j" "Output JSON formatted data."
+	printf "$optfmt" "-N num" "Perform num samples and exit."
+	printf "$optfmt" "-n" "Do not attempt to map uid/gid/ip to names."
+	printf "$optfmt" "-o" "Force non-console output."
+	printf "$optfmt" "-P file" \
+		"Group map file. Default \`$DEFAULT_GROUP_MAP'."
+	printf "$optfmt" "-p file" \
+		"User map file. Default \`$DEFAULT_PASSWD_MAP'."
+	printf "$optfmt" "-q" "Quiet. Hide informational messages."
+	printf "$optfmt" "-R" "Redact potentially sensitive information."
+	printf "$optfmt" "-r" "Raw view. Do not format output of dtrace."
+	printf "$optfmt" "-U user" "User filter (name or id)."
+	printf "$optfmt" "-u" "View read/write activity by user (default)."
+	printf "$optfmt" "-v" "Print version and exit."
+	printf "$optfmt" "-w" "Wide view. Maximize width of first column."
+
+	die
+}
+
+run_dtrace()
+{
+	if [ "$DEBUG" ]; then
+		cat
+		return
+	fi
+
+	dtrace -s /dev/stdin "$@"
+}
+
+isint()
+{
+	local arg="${1#-}"
+	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
+}
+
+isip()
+{
+        local IFS=. noctets=0 octet
+        for octet in $1; do
+                [ "$octet" ] || return 2
+                isint "$octet" || return 3
+                [ $octet -ge 0 ] || return 4
+                [ $octet -gt 255 ] && return 5
+                noctets=$(( $noctets + 1 ))
+        done
+        [ $noctets -eq 4 ]
+}
+
+checkip()
+{
+	isip "$1"
+	case $? in
+	1) die "-C argument \`%s' too many dots" "$1" ;;
+	2) die "-C argument \`%s' missing octet" "$1" ;;
+	3) die "-C argument \`%s' bad octet" "$1" ;;
+	4) die "-C argument \`%s' negative octet" "$1" ;;
+	5) die "-C argument \`%s' too big octet" "$1" ;;
+	esac
+}
+
+#
+# ST: CALLS
+#
+
+send_user()
+{
+	local type="$1"
+	shift 1 # type
+	printf "%s|%s\n" "$type" "$*"
+}
+
+info() { send_user info "$*"; }
+
+resize()
+{
+	local size
+	if [ -e /dev/tty ]; then
+		size=$( { stty size < /dev/tty; } 2> /dev/null )
+	else
+		size=$( stty size 2> /dev/null )
+	fi
+	send_user resize "${size:-24 80}"
+}
+
+############################################################ MAIN
+
+#
+# Process command-line options
+#
+while getopts abC:cDdG:ghI:i:JjN:noP:p:qRrU:uvw flag; do
+	case "$flag" in
+	a) COLOR=1 ;;
+	b) SHOW_BYTES=1 ;;
+	C) FILTER_CLIENT="$OPTARG" ;;
+	c) VIEW=CLIENT VIEW_CLIENT=1 ;;
+	D) DEBUGGER=1 RAW_VIEW=1 ;;
+	d) DEBUG=1 RAW_VIEW=1 ;;
+	G) FILTER_GROUP="$OPTARG" ;;
+	g) VIEW=GROUP VIEW_GROUP=1 ;;
+	I) IP_MAP="$OPTARG" ;;
+	i) INTERVAL="$OPTARG" ;;
+	J) VIEW=JSON OUTPUT_JSON=1 \
+		VIEW_CLIENT=1 VIEW_GROUP=1 VIEW_USER=1 ;;
+	j) OUTPUT_JSON=1 ;;
+	N) [ "$OPTARG" ] || usage "-N option requires an argument" # NOTREACHED
+		NSAMPLES="$OPTARG" ;;
+	n) NO_NAMES=1 ;;
+	o) CONS= COLOR= ;;
+	P) GROUP_MAP="$OPTARG" ;;
+	p) PASSWD_MAP="$OPTARG" ;;
+	q) QUIET=1 ;;
+	R) REDACT=1 ;;
+	r) RAW_VIEW=1 ;;
+	U) FILTER_USER="$OPTARG" ;;
+	u) VIEW=USER VIEW_USER=1 ;;
+	v) VERSION="${VERSION#*: }"
+		echo "${VERSION% $}"
+		exit $SUCCESS ;;
+	w) WIDE_VIEW=1 ;;
+	*) usage # NOTREACHED
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Process command-line arguments
+#
+[ $# -eq 0 ] || usage "Too many arguments" # NOTREACHED
+
+#
+# Prevent non-functional option combinations
+#
+if [ "$SHOW_BYTES" ]; then
+	[ "$VIEW" != "JSON" ] || die "-b cannot be combined with -J"
+	[ ! "$OUTPUT_JSON" ] || die "-b cannot be combined with -j"
+fi
+
+#
+# Silently ignore previous view options unless JSON output
+#
+[ "$VIEW" ] || VIEW=USER VIEW_USER=1
+if [ ! "$OUTPUT_JSON" ]; then
+	case "$VIEW" in # ST: VIEWS
+	CLIENT) VIEW_GROUP= VIEW_USER= ;;
+	GROUP) VIEW_CLIENT= VIEW_USER= ;;
+	USER) VIEW_CLIENT= VIEW_GROUP= ;;
+	esac
+fi
+
+#
+# Validate `-i sec' option
+#
+case "$INTERVAL" in
+"") usage "missing -i argument" ;; # NOTREACHED
+0) die "-i sec must be non-zero" ;;
+*[!0-9.]*|*.*.*|.) die "-i sec must be a number" ;;
+*.*)
+	INTERVAL_SECONDS=$INTERVAL
+	ms=$( echo "$INTERVAL * 1000" | bc )
+	ms="${ms%%.*}"
+
+	#
+	# If, after multiplying by 1000 to convert sec to msec,
+	# the leading [non-decimal] digit is either missing or zero,
+	# the input was too small to produce timing of at least 1 msec
+	#
+	case "$ms" in
+	""|0) die "-i sec must be at least 0.001" ;;
+	esac
+
+	INTERVAL_PROBE=profile:::tick-${ms}ms
+	;;
+*)
+	INTERVAL_SECONDS=$INTERVAL
+	INTERVAL_PROBE=profile:::tick-${INTERVAL_SECONDS}s
+esac
+
+#
+# Validate `-N num' option
+#
+case "$NSAMPLES" in
+0) die "-N num must be non-zero" ;;
+*[!0-9]*) die "-N num must be a positive integer" ;;
+esac
+
+#
+# Process `-G group'/`-U user' option
+#
+case "$FILTER_GROUP" in
+"") : leave-empty ;;
+*[!0-9]*) # Translate from name to GID
+	_FILTER_GROUP=$( awk \
+		-v sq="'" \
+		-v group_map="$GROUP_MAP" \
+		-v name="$FILTER_GROUP" \
+	'BEGIN {
+		delete name2gid
+		while (getline < group_map > 0) {
+			n = split($0, fields, /:/)
+			name2gid[fields[1]] = fields[3]
+		}
+		close(group_map)
+		if (name in name2gid) {
+			print name2gid[name]
+			exit 0
+		}
+		gsub(sq, "&\\\\&&", name)
+		cmd = sprintf("getent group %s%s%s", sq, name, sq)
+		cmd | getline group
+		close(cmd)
+		if (split(group, fields, /:/) >= 3) {
+			print fields[3]
+			exit 0
+		}
+		exit 1
+	}' 2> /dev/null ) || die "Unknown group %s" "$FILTER_GROUP"
+	FILTER_GROUP="$_FILTER_GROUP"
+	;;
+esac
+case "$FILTER_USER" in
+"") : leave-empty ;;
+*[!0-9]*) # Translate from name to UID
+	_FILTER_USER=$( awk \
+		-v sq="'" \
+		-v user_map="$PASSWD_MAP" \
+		-v name="$FILTER_USER" \
+	'BEGIN {
+		delete uid2name
+		while (getline < user_map > 0) {
+			n = split($0, fields, /:/)
+			name2uid[fields[1]] = fields[3]
+		}
+		close(user_map)
+		if (name in name2uid) {
+			print name2uid[name]
+			exit 0
+		}
+		gsub(sq, "&\\\\&&", name)
+		cmd = sprintf("getent passwd %s%s%s", sq, name, sq)
+		cmd | getline passwd
+		close(cmd)
+		if (split(passwd, fields, /:/) >= 3) {
+			print fields[3]
+			exit 0
+		}
+		exit 1
+	}' ) || die "Unknown user %s" "$FILTER_USER"
+	FILTER_USER="$_FILTER_USER"
+	;;
+esac
+
+#
+# Process `-C ip' option
+#
+case "$FILTER_CLIENT" in
+"") : ok ;;
+*[a-zA-Z]*)
+	_FILTER_CLIENT=$( awk \
+		-v sq="'" \
+		-v ip_map="$IP_MAP" \
+		-v host="$FILTER_CLIENT" \
+	'BEGIN {
+		delete host2ip
+		while (getline < ip_map > 0) {
+			if (/^[[:space:]]*(#|$)/) continue
+			n = split($0, fields, /[[:space:]]+/)
+			host2ip[fields[2]] = fields[1]
+		}
+		close(ip_map)
+		if (host in host2ip) {
+			print host2ip[host]
+			exit 0
+		} else if (host !~ /\.$/ && (host ".") in host2ip) {
+			print host2ip[host "."]
+			exit 0
+		}
+		gsub(sq, "&\\\\&&", host)
+		cmd = sprintf("host -t A %s%s%s", sq, host, sq)
+		cmd | getline
+		close(cmd)
+		if ($NF !~ /NXDOMAIN/) {
+			print $NF
+			exit 0
+		}
+		exit 1
+	}' 2> /dev/null ) || die "Unknown host %s" "$FILTER_CLIENT"
+	FILTER_CLIENT="$_FILTER_CLIENT"
+	checkip "$FILTER_CLIENT" # NOTREACHED if non-ip
+	;;
+*)
+	checkip "$FILTER_CLIENT" # NOTREACHED if non-ip
+	;;
+esac
+
+#
+# Get terminal size
+#
+size=$( resize )
+size="${size#*|}"
+if [ "$size" ]; then
+	cols="${size#*[$IFS]}"
+	rows="${size%%[$IFS]*}"
+fi
+case "$rows$cols" in
+""|*[!0-9]*)
+	cols=80
+	rows=24
+	;;
+esac
+
+#
+# Run script
+# ST: PRE
+#
+{
+	trap resize WINCH # ST: SIGWINCH
+
+	#
+	# Start background dtrace
+	# NB: M-x package-install [RET] dtrace-script-mode [RET]
+	# ST: DTRACE
+	#
+	run_dtrace <<EOF &
+	${DEBUG:+#!/usr/sbin/dtrace -s}
+	/* -*- mode: dtrace-script; tab-width: 4 -*- ;; Emacs
+	 * vi: set ft=dtrace noet ts=4 sw=4 :: Vi/ViM
+	 */
+	/**************************** PRAGMAS ****************************/
+
+	#pragma D option quiet
+
+	/***************************** TYPES *****************************/
+
+	typedef struct sainfo {
+		string addr;
+	} sainfo_t;
+
+	/**************************** GLOBALS ****************************/
+
+	inline int sa_data_size = 14;
+	inline char *sa_dummy_data = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+	this sainfo_t	sainfo;
+
+	/************************* MAP FUNCTIONS *************************/
+
+	inline string sa_data_addr[sa_family_t af, char data[sa_data_size]] =
+		af == AF_INET ? strjoin(
+			strjoin(strjoin(lltostr(data[2] & 0xFF), "."),
+				strjoin(lltostr(data[3] & 0xFF), ".")
+			),
+			strjoin(strjoin(lltostr(data[4] & 0xFF), "."),
+				lltostr(data[5] & 0xFF))
+		) : "";
+
+	/* ST: OPS */
+
+	inline string opfunc[string func] =
+		func == "nfsrvd_read" ?		"read" :
+		func == "nfsrvd_write" ?	"write" :
+		"";
+
+	/************************** TRANSLATORS **************************/
+
+	translator sainfo_t < struct sockaddr *SA > {
+		addr = SA == NULL ?
+			sa_data_addr[0, sa_dummy_data] :
+			sa_data_addr[SA->sa_family, SA->sa_data];
+	};
+
+	/***************************** BEGIN *****************************/
+
+	BEGIN
+	{
+		printf("time|%d\n", walltimestamp / 1000000000);
+		printf("init|"); /* Initialize post-processor */
+		printf("===\n"); /* Clear screen and draw header */
+		printf("info|Sampling data for ${INTERVAL}s (\`-i sec')...\n");
+	}
+
+	/************************** READ PROBES **************************/
+
+	fbt:kernel:nfsrvd_read:entry
+	{
+		this->nfsd_read_nd = (struct nfsrv_descript *)args[0];
+		this->nfsd_read_cred = this->nfsd_read_nd == NULL ? NULL :
+			this->nfsd_read_nd->nd_cred;
+		this->nfsd_read_nam = this->nfsd_read_nd == NULL ? NULL :
+			this->nfsd_read_nd->nd_nam;
+		this->nfsd_read_info = xlate <sainfo_t>
+			((struct sockaddr *)this->nfsd_read_nam);
+	}
+
+	fbt:kernel:nfsvno_read:entry
+	/this->nfsd_read_nd != NULL/
+	{
+		this->uid = this->nfsd_read_cred->cr_ruid;
+		this->gid = this->nfsd_read_cred->cr_rgid;
+		this->bytes = args[2];
+
+		this->client_ip4 = this->nfsd_read_info.addr;
+
+		/* ST: FILTERS */
+
+		this->nfsd_read_unfiltered = ${FILTER_CLIENT:+
+			this->client_ip4 == "$FILTER_CLIENT" ?
+			}${FILTER_GROUP:+
+			this->gid == $FILTER_GROUP ?
+			}${FILTER_USER:+
+			this->uid == $FILTER_USER ?
+			}
+			1${FILTER_CLIENT:+
+			: 0}${FILTER_GROUP:+
+			: 0}${FILTER_USER:+
+			: 0};
+	}
+
+	fbt:kernel:nfsvno_read:entry
+	/this->nfsd_read_nd != NULL && this->nfsd_read_unfiltered/
+	{
+		/* ST: VIEWS TRACEDATA */
+${VIEW_CLIENT:+
+		@rd_client["@rd_client", this->client_ip4] =
+			sum(this->bytes);
+}
+
+${VIEW_GROUP:+
+		@rd_group["@rd_group", this->gid] = sum(this->bytes);
+}
+
+${VIEW_USER:+
+		@rd_user["@rd_user", this->uid] = sum(this->bytes);
+}
+	}
+
+	/************************* WRITE  PROBES *************************/
+
+	fbt:kernel:nfsrvd_write:entry
+	{
+		this->nfsd_write_nd = (struct nfsrv_descript *)args[0];
+		this->nfsd_write_cred = this->nfsd_write_nd == NULL ? NULL :
+			this->nfsd_write_nd->nd_cred;
+		this->nfsd_write_nam = this->nfsd_write_nd == NULL ? NULL :
+			this->nfsd_write_nd->nd_nam;
+		this->nfsd_write_info = xlate <sainfo_t>
+			((struct sockaddr *)this->nfsd_write_nam);
+	}
+
+	fbt:kernel:nfsvno_write:entry
+	/this->nfsd_write_nd != NULL/
+	{
+		this->uid = this->nfsd_write_cred->cr_ruid;
+		this->gid = this->nfsd_write_cred->cr_rgid;
+		this->bytes = args[2];
+
+		this->client_ip4 = this->nfsd_write_info.addr;
+
+		this->filtered = 0;
+
+		/* ST: FILTERS */
+
+		this->nfsd_write_unfiltered = ${FILTER_CLIENT:+
+			this->client_ip4 == "$FILTER_CLIENT" ?
+			}${FILTER_GROUP:+
+			this->gid == $FILTER_GROUP ?
+			}${FILTER_USER:+
+			this->uid == $FILTER_USER ?
+			}
+			1${FILTER_CLIENT:+
+			: 0}${FILTER_GROUP:+
+			: 0}${FILTER_USER:+
+			: 0};
+	}
+
+	fbt:kernel:nfsvno_write:entry
+	/this->nfsd_write_nd != NULL && this->nfsd_write_unfiltered/
+	{
+		/* ST: VIEWS TRACEDATA */
+${VIEW_CLIENT:+
+		@wr_client["@wr_client", this->client_ip4] =
+			sum(this->bytes);
+}
+
+${VIEW_GROUP:+
+		@wr_group["@wr_group", this->gid] = sum(this->bytes);
+}
+
+${VIEW_USER:+
+		@wr_user["@wr_user", this->uid] = sum(this->bytes);
+}
+	}
+
+	/************************ INTERVAL  PROBE ************************/
+
+	$INTERVAL_PROBE
+	{
+		printf("time|%d\n", walltimestamp / 1000000000);
+		printf("===\n");
+
+${VIEW_CLIENT:+
+		printa(@rd_client);
+		printa(@wr_client);
+		trunc(@rd_client);
+		trunc(@wr_client);
+}
+${VIEW_GROUP:+
+		printa(@rd_group);
+		printa(@wr_group);
+		trunc(@rd_group);
+		trunc(@wr_group);
+}
+${VIEW_USER:+
+		printa(@rd_user);
+		printa(@wr_user);
+		trunc(@rd_user);
+		trunc(@wr_user);
+}
+
+		printf("---\n");
+	}
+
+	/****************************** END ******************************/
+
+	END
+	{
+${VIEW_CLIENT:+
+		trunc(@rd_client);
+		trunc(@wr_client);
+}
+${VIEW_GROUP:+
+		trunc(@rd_group);
+		trunc(@wr_group);
+}
+${VIEW_USER:+
+		trunc(@rd_user);
+		trunc(@wr_user);
+}
+	}
+
+	/********************************************************************\
+	 * END
+	 ********************************************************************/
+EOF
+	pid=$!
+
+	#
+	# Identify child dtrace
+	#
+	if [ ! "$DEBUG" ]; then
+		info "Waiting for dtrace to initialize..."
+		while kill -0 $pid 2> /dev/null; do
+			bpid=$( pgrep -P $pid dtrace ) && break
+			sleep 1
+		done
+		if ! kill -0 $pid 2> /dev/null; then
+			wait $pid > /dev/null 2>&1 # Collect exit status
+			echo EXIT:$? # Send status to post-processor
+			exit
+		fi
+	fi
+
+	#
+	# Wait on background (dtrace) child
+	#
+	status_collected=
+	while kill -0 $bpid > /dev/null 2>&1; do
+		wait > /dev/null 2>&1 # Collect exit status
+		[ "$status_collected" ] || status_collected=$?
+	done
+	echo EXIT:$status_collected # Send status to post-processor
+
+} | awk -v color=${COLOR:-0} \
+	-v cols=$cols \
+	-v cons=${CONS:-0} \
+	-v debug=${DEBUG:-0} \
+	-v debugger=${DEBUGGER:-0} \
+	-v group_map="$GROUP_MAP" \
+	-v interval=$INTERVAL_SECONDS \
+	-v ip_map="$IP_MAP" \
+	-v no_names=${NO_NAMES:-0} \
+	-v nsamples=${NSAMPLES:-0} \
+	-v output_json=${OUTPUT_JSON:-0} \
+	-v quiet=${QUIET:-0} \
+	-v passwd_map="$PASSWD_MAP" \
+	-v raw_view=${RAW_VIEW:-0} \
+	-v redact=${REDACT:-0} \
+	-v rows=$rows \
+	-v show_bytes=${SHOW_BYTES:-0} \
+	-v stderr=/dev/stderr \
+	-v tm=$( date +%s ) \
+	-v view="$VIEW" \
+	-v wide_view=${WIDE_VIEW:-0} \
+	'####################################### BEGIN
+
+	# ST: POST
+
+	BEGIN {
+		debug2("Terminal size (rows, cols) = (%d, %d)", rows, cols)
+
+		exit_status = 0 # SUCCESS
+		time_delta = 0 # Calculated
+		samples_left = nsamples
+
+		inv	= "\033[7m"
+		noinv	= "\033[27m"
+		bold    = "\033[1m"
+		nobold  = "\033[22m"
+		red     = "\033[31m"
+		green   = "\033[32m"
+		yellow  = "\033[33m"
+		magenta = "\033[35m"
+		cyan    = "\033[36m"
+		fgreset = "\033[39m"
+
+		# Obtain current process (awk) pid
+		(cmd = "echo $PPID") | getline apid
+		close(cmd)
+
+		# Obtain parent process (sh) pid
+		getline stat < (file = sprintf("/proc/%d/stat", apid))
+		close(file)
+		split(stat, st)
+		spid = st[4]
+
+		# Obtain parent process (sh) name
+		getline stat < (file = sprintf("/proc/%d/stat", spid))
+		close(file)
+		split(stat, st)
+		comm = st[2]
+		if (match(comm, /^\(.*\)$/))
+			comm = substr(comm, 2, length(comm) - 2)
+
+		# Obtain child (sh) pid
+		(cmd = sprintf("pgrep -P %d %s", spid, comm)) | getline cpid
+		close(cmd)
+
+		if (!raw_view) {
+			clear_data()
+			resize()
+			if (!no_names) load_files()
+		}
+
+		# Declare arrays
+		delete times
+
+		if (redact) {
+			m = "^(USER|total|"
+			if ((u = ENVIRON["USER"]) != "")
+				m = m u "|"
+			if ((s = ENVIRON["SUDO_USER"]) != "" && s != u)
+				m = m s "|"
+			cmd = "getent passwd 2> /dev/null"
+			while (cmd | getline > 0) {
+				if (split($0, f, /:/) < 3) continue
+				if (f[3] > 1024 && f[3] !~ /^6553[456]$/)
+					continue
+				m = m f[1] "|"
+			}
+			close(cmd)
+			m = m "\\*)$"
+			unredacted_users = m
+
+			m = "^(GROUP|total|"
+			cmd = "getent group 2> /dev/null"
+			while (cmd | getline > 0) {
+				if (split($0, f, /:/) < 3) continue
+				if (f[3] > 1024 && f[3] !~ /^6553[456]$/)
+					continue
+				m = m f[1] "|"
+			}
+			close(cmd)
+			m = m "\\*)$"
+			unredacted_groups = m
+
+			unredacted_clients = "^(CLIENT|total|\\*)$"
+		}
+	}
+
+	######################################## FUNCTIONS
+
+	function dtrace_init()
+	{
+		# Obtain handler (sh) pid
+		(cmd = sprintf("pgrep -P %d %s", cpid, comm)) | getline wpid
+
+		# Obtain dtrace pid
+		cmd = sprintf("pgrep -P %d dtrace", wpid)
+		cmd | getline bpid
+		close(cmd)
+	}
+
+	function debug1(fmt,a1) { if (debugger) printf fmt "\n", a1 }
+	function debug2(fmt,a1,a2) { if (debugger) printf fmt "\n", a1, a2 }
+	function debug3(fmt,a1,a2,a3) {
+		if (debugger) printf fmt "\n", a1, a2, a3
+	}
+	function buffer_add(text) { BUFFER = BUFFER text }
+
+	function print_buffer()
+	{
+		if (!cons && !output_json) buffer_add("\n")
+		printf "%s", BUFFER
+		fflush()
+	}
+
+	function info(str)
+	{
+		if (quiet) return
+		printf "%sINFO%s %s\n", color ? magenta : "",
+			color ? fgreset : "", str > stderr
+		fflush(stderr)
+	}
+
+	function get_random(len,        c, n, r, rdata, rfile, rlen)
+	{
+		if (len < 1) return ""
+		rlen = 0
+		rdata = ""
+		rfile = "/dev/urandom"
+		while (length(rdata) < len && getline r < rfile > 0) {
+			for (n = split(r, c, ""); n >= 1; n--) {
+				if (c[n] !~ /[\x41-\x5a]/) continue
+				rdata = rdata c[n]
+				if (++rlen == len) break
+			}
+		}
+		close(rfile)
+		return rdata
+	}
+
+	function resize(        dsz, vsz, vsz_fixed, bar_size_fixed,
+		bar_size_fixed_max, bar_size_fixed_min, bar_min1, bar_min2,
+		vsz_cols1, vsz_cols2, vsz_max, vsz_min, wv)
+	{
+		if (output_json) return
+
+		#
+		# Calculate columns and column widths
+		# ST: VIEWS
+		#
+		# NB: bar_size = size of bar column (if shown)
+		# NB: dsz = size of TOTAL, READ(OUT), WRITE(IN) data columns
+		# NB: vsz = size of VIEW column ("view size")
+		#
+		# If given -w (wide view) make bar_size fixed-width and
+		# vsz variable-width.
+		#
+		# Without -w, make vsz fixed-width and bar_size variable.
+		#
+
+		wv = wide_view
+
+		show_bar_column = 1
+		show_rw_columns = 1
+
+		vsz_min = length(view)
+		vsz_max = 15
+
+		dsz = show_bytes ? 10 : 12
+		bar_size_fixed_max = 21
+		bar_size_fixed_min = 11
+
+		#
+		# Calculate minimum terminal width required (bar_min1)
+		# to display small bar (bar_size_fixed_min) and also
+		# minimum terminal width required (bar_min2) to display
+		# larger bar (bar_size_fixed_max).
+		#
+		bar_min1 = 0
+		bar_min1 += vsz_min + 1 # VIEW + space
+		bar_min1 += dsz + 1 # TOTAL + space
+		vsz_cols2 = bar_min1
+		bar_min1 += dsz + 1 # WRITE(IN) + space
+		vsz_cols1 = bar_min2 = bar_min1
+		bar_min1 += bar_size_fixed_min + 1 # small bar + space
+		bar_min2 += bar_size_fixed_max + 1 # bigger bar + space
+		bar_min1 += dsz # READ(OUT)
+		bar_min2 += dsz # READ(OUT)
+		vsz_cols1 += dsz # READ(OUT)
+
+		#
+		# Calculate fixed bar width based on terminal width
+		# NB: Only used in wide-view (-w)
+		# NB: If terminal is too narrow, disable bar/columns
+		#
+		if (cols >= bar_min2) {
+			bar_size_fixed = bar_size_fixed_max
+		} else if (cols >= bar_min1) {
+			bar_size_fixed = bar_size_fixed_min
+		} else {
+			show_bar_column = 0
+			bar_size_fixed = 0
+		}
+
+		#
+		# Calculate fixed-size "VIEW" column width
+		# NB: Unused in wide-view (-w)
+		#
+		vsz_fixed = vsz_min
+		if (cols >= bar_min2) {
+			vsz_fixed += cols - bar_min2
+			if (vsz_fixed > vsz_max)
+				vsz_fixed = vsz_max
+		} else if (cols >= bar_min1) {
+			vsz_fixed += cols - bar_min1
+			if (vsz_fixed > vsz_max)
+				vsz_fixed = vsz_max
+		} else if (cols >= vsz_cols1) {
+			vsz_fixed += cols - vsz_cols1
+		} else if (cols >= vsz_cols2) {
+			show_rw_columns = 0
+			wv = 1
+		} else {
+			show_rw_columns = 0
+		}
+
+		if (wv) {
+			# Fixed-width
+			bar_size = bar_size_fixed
+
+			# Variable-width (%-*s)
+			vsz = cols
+			vsz -= 0 + 1 # %-*s VIEW + space
+			vsz -= dsz # TOTAL
+			if (show_rw_columns) {
+				# space + WRITE(IN) + space
+				vsz -= 1 + dsz + 1
+				if (bar_size > 0) {
+					vsz -= bar_size + 1 # bar + space
+				}
+				vsz -= dsz # READ(OUT)
+			}
+		} else if (show_bar_column) {
+			# Fixed-width
+			vsz = vsz_fixed
+
+			# Variable-width (%-*s)
+			bar_size = cols
+			bar_size -= vsz + 1 # %[-]*s VIEW + space
+			bar_size -= dsz + 1 # TOTAL + space
+			bar_size -= dsz + 1 # WRITE(IN) + space
+			bar_size -= 0 + 1 # variable-width bar + space
+			bar_size -= dsz # READ(OUT)
+		} else {
+			# Fixed-width
+			vsz = vsz_fixed
+		}
+
+		#
+		# Calculate format and line width
+		# ST: VIEWS
+		#
+
+		fmt = ""
+		fmtsz = 0
+
+		fmt = fmt " %-" vsz "s" # VIEW
+		fmtsz += 1 + vsz
+		fmt = fmt " %" dsz "s" # TOTAL
+		fmtsz += 1 + dsz
+		# WRITE(IN)
+		if (color) {
+			fmt = fmt " " red "%" dsz "s"
+		} else {
+			fmt = fmt " %" dsz "s"
+		}
+		fmtsz += 1 + dsz
+
+		if (show_bar_column) {
+			full_bar = bar_size
+			bar_size = int(bar_size / 2)
+			if (bar_size * 2 == full_bar) bar_size--
+			fmt = fmt " %*s" # write bar
+			# read bar
+			if (color) {
+				fmt = fmt fgreset "|" cyan "%-*s"
+			} else {
+				fmt = fmt "|%-*s"
+			}
+			fmtsz += 1 + bar_size + 1 + bar_size
+			fmt = fmt " %-" dsz "s" # READ(OUT)
+			fmtsz += 1 + dsz
+		} else if (show_rw_columns) {
+			# READ(OUT)
+			if (color) {
+				fmt = fmt " " cyan "%" dsz "s"
+			} else {
+				fmt = fmt " %" dsz "s"
+			}
+			fmtsz += 1 + dsz
+		}
+
+		fmt = substr(fmt, 2) # Trim leading space
+		fmtsz -= 1
+		fmt = fmt (color ? fgreset : "") "\n"
+
+		#
+		# Export calculated column sizes for things we truncate
+		#
+		delete csz
+		csz["view"] = vsz
+
+		#
+		# Redraw console
+		#
+		if (cons) {
+			clear_buffer()
+			buffer_add_data()
+			print_buffer()
+		}
+	}
+
+	function clear_data()
+	{
+		# ST: VIEWS
+		delete client_keys
+		delete group_keys
+		delete user_keys
+
+		nviews = 0
+		delete map_views
+		delete view_list
+
+		delete map_key_read
+		delete map_key_write
+		delete map_view_read
+		delete map_view_write
+	}
+
+	function clear_buffer()
+	{
+		BUFFER = ""
+		if (output_json) return
+		if (!debugger && cons)
+			buffer_add(sprintf("\033[H\033[J"))
+		buffer_add_header()
+	}
+
+	function buffer_add1(arg1, total, value1, bar1, bar2,
+		value2, prefix, suffix,        str)
+	{
+		if (redact && view == "USER") {
+			if (arg1 !~ unredacted_users)
+				arg1 = get_random(length(arg1))
+		} else if (redact && view == "GROUP") {
+			if (arg1 !~ unredacted_groups)
+				arg1 = get_random(length(arg1))
+		} else if (redact && view == "CLIENT") {
+			if (arg1 !~ unredacted_clients)
+				arg1 = get_random(length(arg1))
+		}
+		if (length(arg1) > csz["view"]) {
+			arg1 = substr(arg1, 1, csz["view"])
+		}
+
+		if (show_bar_column) {
+			str = sprintf(fmt, arg1, total, value2, bar_size,
+				bar2, bar_size, bar1, value1)
+		} else {
+			str = sprintf(fmt, arg1, total, value2, value1)
+		}
+		if (cols < fmtsz) {
+			str = substr(str, 1, cols) (str ~ /\n$/ ? "\n" : "")
+		}
+		buffer_add(prefix str suffix)
+	}
+
+	function _strftime(fmt, tm,        cmd)
+	{
+		if (tm == _strftime_tm && fmt == _strftime_fmt)
+			return _strftime_dt
+		(cmd = sprintf("date -r %u +\"%s\"", _strftime_tm = tm,
+			_strftime_fmt = fmt)) | getline _strftime_dt
+		close(cmd)
+		return _strftime_dt
+	}
+
+	function buffer_add_header(        prefix, suffix,
+		presz, n, fmt, dtfmt, dtsz, ifmt, sz, str)
+	{
+		if (output_json) return
+		ifmt = "%.3fs"
+		presz = 9 + 1 + length(sprintf(ifmt, interval))
+			#  9 = "Interval:"
+			#  1 = number of spaces
+		sz = cols < fmtsz ? cols : fmtsz
+		for (n = split("|%T|%F %T|%c", fmt, /\|/); n > 0; n--) {
+			dtfmt = fmt[n]
+			dtsz = dtfmt == "" ? 0 : length(_strftime(dtfmt, tm))
+			if (sz >= presz + 1 + dtsz) break
+		}
+		if (dtfmt == "") {
+			str = sprintf("Interval: " ifmt, interval)
+			if (length(str) > sz) {
+				str = substr(str, 1, sz)
+			}
+			buffer_add(str "\n")
+		} else {
+			buffer_add(sprintf("Interval: %-*s %*s\n",
+				sz - 9 - 2 - dtsz, sprintf(ifmt, interval),
+				dtsz, _strftime(dtfmt, tm)))
+					#  9 = "Interval:"
+					#  2 = number of spaces
+		}
+		prefix = color ? inv green : ""
+		suffix = color ? fgreset noinv : ""
+		empty_bar = ""
+		# ST: VIEWS
+		buffer_add1(view, "TOTAL",
+			"READ(OUT)", empty_bar, empty_bar, "WRITE(IN)",
+			prefix, suffix)
+	}
+
+	function buffer_add_data()
+	{
+		#
+		# Process each requested view
+		#
+		for (v = 1; v <= nviews; v++)
+			process_view(view_list[v])
+	}
+
+	function load_files()
+	{
+		delete uid2name
+		while (getline < passwd_map > 0) {
+			n = split($0, fields, /:/)
+			uid2name[fields[3]] = fields[1]
+		}
+		close(passwd_map)
+
+		delete gid2name
+		while (getline < group_map > 0) {
+			n = split($0, fields, /:/)
+			gid2name[fields[3]] = fields[1]
+		}
+		close(group_map)
+
+		delete ip2name
+		while (getline < ip_map > 0) {
+			if (/^[[:space:]]*(#|$)/) continue
+			n = split($0, fields, /[[:space:]]+/)
+			ip2name[fields[1]] = fields[2]
+		}
+		close(ip_map)
+	}
+
+	function load_keys(map_view,        map_key)
+	{
+		delete _keys
+		# ST: VIEWS
+		if (map_view == "client") for (map_key in client_keys)
+			_keys[map_key] = client_keys[map_key]
+		else if (map_view == "group") for (map_key in group_keys)
+			_keys[map_key] = group_keys[map_key]
+		else if (map_view == "user") for (map_key in user_keys)
+			_keys[map_key] = user_keys[map_key]
+	}
+
+	function parse_map()
+	{
+		# ST: TRACEDATA
+		map_name = substr($1, 2)
+		map_view = substr(map_name, 4)
+		map_op = substr(map_name, 1, 2) # rd/wr
+
+		map_key = $2
+		map_value = $NF
+
+		#
+		# ST: VIEWS
+		#
+
+		if (!(map_view in map_views)) {
+			map_views[map_view]
+			view_list[++nviews] = map_view
+		}
+		if (map_view == "client") client_keys[map_key]
+		else if (map_view == "group") group_keys[map_key]
+		else if (map_view == "user") user_keys[map_key]
+
+		#
+		# ST: OPS
+		#
+
+		if (map_op == "rd") {
+			debug2("++ map_view_read[%s] += %d",
+				map_view, map_value)
+			map_view_read[map_view] += map_value
+
+			debug3("++ map_key_read[%s, %s] += %d",
+				map_view, map_key, map_value)
+			map_key_read[map_view, map_key] = map_value
+		} else { # wr
+			debug2("++ map_view_write[%s] += %d",
+				map_view, map_value)
+			map_view_write[map_view] += map_value
+
+			debug3("++ map_key_write[%s, %s] += %d",
+				map_view, map_key, map_value)
+			map_key_write[map_view, map_key] = map_value
+		}
+
+		return 1
+	}
+
+	function humanize(value,
+		raw, n, suffix, suffixes)
+	{
+		raw = value
+		n = split(",K,M,G,T,E", suffixes, /,/)
+		for (suffix = 1; suffix <= n; suffix++) {
+			if (int(value) < 1024) break
+			value /= 1024
+		}
+		if (v ~ /\./) sub(/\.?0+$/, "", v)
+		value = sprintf("%'"'"'.2f%s%s", value, suffixes[suffix],
+			show_bytes ? "B" : "B/s")
+		return value
+	}
+
+	function _asort(src, dest,        k, nitems, i, val)
+	{
+		k = nitems = 0
+		for (i in src) dest[++nitems] = src[i]
+		for (i = 1; i <= nitems; k = i++) {
+			val = dest[i]
+			while ((k > 0) && (dest[k] > val)) {
+				dest[k+1] = dest[k]; k--
+			}
+			dest[k+1] = val
+		}
+		return nitems
+	}
+
+	function json_add(json, key, format, value)
+	{
+		return json (length(json) < 2 ? "" : ",") \
+			sprintf("\"%s\":" format, key, value)
+	}
+
+	function json_add_str(json, key, value)
+	{
+		return json_add(json, key, "\"%s\"", value)
+	}
+
+	function json_add_uint(json, key, value)
+	{
+		return json_add(json, key, "%u", value)
+	}
+
+	function json_add_prec(json, key, precision, value,        x)
+	{
+		x = sprintf("%.*f", precision, value)
+		if (x ~ /\./) sub(/\.?0+$/, "", x)
+		return json_add(json, key, "%s", x)
+	}
+
+	function json_add_float(json, key, value)
+	{
+		return json_add_prec(json, key, 12, value)
+	}
+
+	function sample_check()
+	{
+		if (nsamples > 0 && --samples_left < 1) {
+			if (bpid == "") {
+				cmd = sprintf("pgrep -P %d dtrace", cpid)
+				cmd | getline bpid
+				close(cmd)
+			}
+			if (bpid != "") {
+				system(sprintf("kill %d > /dev/null 2>&1",
+					bpid))
+			}
+			if (more) printf "\n"
+			exit
+		}
+	}
+
+	function process_view(curview,
+		read_bar, read_rate, read_total,
+		write_bar, write_rate, write_total,
+		rw_rate, rw_total,
+		_keys_sorted, cred, i, v, r, n, table_rows)
+	{
+		time_delta = times[2] - times[1]
+		if (time_delta < 1) time_delta = 1 # prevent division-by-0
+		debug1("Time delta is %d seconds", time_delta)
+
+		read_total = map_view_read[curview]
+		read_rate = read_total / time_delta
+		read_bar = ""
+
+		write_total = map_view_write[curview]
+		write_rate = write_total / time_delta
+		write_bar = ""
+
+		rw_total = read_total + write_total
+		rw_rate = rw_total / time_delta
+
+		if (output_json) {
+			json_out = ""
+			json_out = json_add_uint(json_out, "time", tm)
+			json_out = json_add_str(json_out,
+				"ident", "total_" curview)
+			json_out = json_add_uint(json_out,
+				"total_bytes", rw_total)
+			json_out = json_add_float(json_out,
+				"total_rate", rw_rate)
+			json_out = json_add_uint(json_out,
+				"read_bytes", read_total)
+			json_out = json_add_float(json_out,
+				"read_rate", read_rate)
+			json_out = json_add_uint(json_out,
+				"write_bytes", write_total)
+			json_out = json_add_float(json_out,
+				"write_rate", write_rate)
+			buffer_add("{" json_out "}\n")
+		} else if (show_bytes) {
+			# ST: VIEWS
+			buffer_add1("total",
+				humanize(rw_total),
+				humanize(read_total), read_bar,
+				write_bar, humanize(write_total))
+		} else {
+			# ST: VIEWS
+			buffer_add1("total",
+				humanize(rw_rate),
+				humanize(read_rate),
+				read_bar, write_bar,
+				humanize(write_rate))
+		}
+
+		#
+		# Decorate combined read/write values
+		# ST: SORTING
+		#
+		load_keys(curview)
+		for (cred in _keys) {
+			v = int(map_key_read[curview, cred]) + \
+				int(map_key_write[curview, cred])
+			_keys[cred] = sprintf("%99d %s", v, cred)
+		}
+
+		#
+		# Print subtotals
+		#
+		r = 1
+		n = _asort(_keys, _keys_sorted)
+		table_rows = output_json || !cons ? n : rows - 4
+		for (i = n; i >= 1 && r <= table_rows; i--) {
+			debug2("r=[%d] table_rows=[%d]", r, table_rows)
+			cred = _keys_sorted[i]
+			sub(/^ *[^ ]+ +/, "", cred) # Undecorate
+			r += process_cred(curview, cred,
+				read_total, write_total)
+		}
+		if (more = i > 0) buffer_add(sprintf("%s(%d more) ... %s",
+			color ? inv bold yellow : "", i,
+			color ? noinv nobold fgreset : ""))
+	}
+
+	function process_cred(curview, cred,
+		read_total, write_total,
+		cred_read, read_bar, read_bar_pct, read_bar_size, read_rate,
+		cred_write, write_bar, write_bar_pct, write_bar_size,
+		write_rate, cred_rw, rw_rate, pch, _cred)
+	{
+		pch = "="
+		debug1("-> process_cred(curview = %s, ...)", curview)
+		debug1("+ cred=[%s]", cred)
+
+		cred_read = map_key_read[curview, cred]
+		cred_write = map_key_write[curview, cred]
+		cred_rw = cred_read + cred_write
+
+		read_rate = cred_read / time_delta
+		if (read_total > 0)
+			read_bar_pct = cred_read / read_total
+		else
+			read_bar_pct = 0
+		read_bar_size = bar_size * read_bar_pct
+		read_bar = sprintf("%*s", read_bar_size, "")
+		gsub(/ /, pch, read_bar)
+		sub(/.$/, ">", read_bar)
+
+		write_rate = cred_write / time_delta
+		if (write_total > 0)
+			write_bar_pct = cred_write / write_total
+		else
+			write_bar_pct = 0
+		write_bar_size = bar_size * write_bar_pct
+		write_bar = sprintf("%*s", write_bar_size, "")
+		gsub(/ /, pch, write_bar)
+		sub(/^./, "<", write_bar)
+
+		if (!no_names) {
+			_cred = cred
+			if (curview == "client") {
+				if (cred in ip2name) cred = ip2name[cred]
+			} else if (curview == "group") {
+				if (cred in gid2name) cred = gid2name[cred]
+			} else if (curview == "user") {
+				if (cred in uid2name) cred = uid2name[cred]
+			}
+			if (cred != _cred) debug1("+ cred=[%s]", cred)
+		}
+
+		rw_rate = cred_rw / time_delta
+		if (output_json) {
+			# ST: JSONDATA
+			json_out = ""
+			json_out = json_add_uint(json_out, "time", tm)
+			json_out = json_add_str(json_out, "ident", curview)
+			if (redact && curview == "user") {
+				if (cred !~ unredacted_users)
+					cred = get_random(length(cred))
+			} else if (redact && curview == "group") {
+				if (cred !~ unredacted_groups)
+					cred = get_random(length(cred))
+			} else if (redact && curview == "client") {
+				if (cred !~ unredacted_clients)
+					cred = get_random(length(cred))
+			}
+			json_out = json_add_str(json_out, curview, cred)
+			json_out = json_add_uint(json_out,
+				"total_bytes", cred_rw)
+			json_out = json_add_float(json_out,
+				"total_rate", rw_rate)
+			json_out = json_add_uint(json_out,
+				"read_bytes", cred_read)
+			json_out = json_add_float(json_out,
+				"read_rate", read_rate)
+			json_out = json_add_uint(json_out,
+				"write_bytes", cred_write)
+			json_out = json_add_float(json_out,
+				"write_rate", write_rate)
+			buffer_add("{" json_out "}\n")
+		} else if (show_bytes) {
+			# ST: VIEWDATA
+			buffer_add1(cred,
+				humanize(cred_rw),
+				humanize(cred_read), read_bar,
+				write_bar, humanize(cred_write))
+		} else {
+			# ST: VIEWDATA
+			buffer_add1(cred,
+				humanize(rw_rate),
+				humanize(read_rate), read_bar,
+				write_bar, humanize(write_rate))
+		}
+
+		return 1
+	}
+
+	######################################## MAIN
+
+	sub(/^EXIT:/, "") { exit_status = $0; next }
+	debug { sub(/^\t/, ""); print; next }
+
+	raw_view {
+		print
+
+		# Exit if no more samples desired
+		if (/^---$/) sample_check()
+
+		if (!debugger) next
+	}
+
+	#
+	# ST: TRACEDATA
+	#
+
+	/^===/ { # Data start
+		read_total = write_total = 0
+		clear_data()
+		clear_buffer()
+		next
+	}
+
+	$1 ~ /^@/ { parse_map(); next } # Data
+
+	/^---$/ { # Data end
+		buffer_add_data()
+
+		#
+		# Dump information
+		#
+		print_buffer()
+		sample_check() # Exit if no more samples desired
+		next
+	}
+
+	#
+	# ST: CALLS
+	#
+
+	{ call = "" }
+
+	match($0, /^[_a-z]+(-[_a-z]+)?\|/) {
+		call = substr($0, 1, RLENGTH - 1)
+		$0 = substr($0, RSTART + RLENGTH)
+	}
+
+	call == "info" { if (!output_json) info($0) }
+	call == "init" { dtrace_init() }
+
+	call == "resize" {
+		if (output_json) next
+		rows = $1
+		cols = $2
+		resize()
+	}
+
+	call == "time" {
+		times[1] = times[2]
+		times[2] = tm = $0
+	}
+
+	################################################## END
+
+	END { exit exit_status }
+' # END-QUOTE
+
+################################################################################
+# END
+################################################################################

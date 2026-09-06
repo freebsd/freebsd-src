@@ -1,0 +1,310 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020, 2026 Devin Teske <dteske@FreeBSD.org>
+.\"
+.Dd September 4, 2026
+.Dt NFSDTOP 8
+.Os
+.Sh NAME
+.Nm nfsdtop
+.Nd display top-like NFS server I/O statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl aDdhnoqRrvw
+.Op Fl b | Fl j | Fl J
+.Op Fl C Ar ip
+.Op Fl c | Fl g | Fl u
+.Op Fl G Ar group
+.Op Fl I Ar file
+.Op Fl i Ar sec
+.Op Fl N Ar num
+.Op Fl P Ar file
+.Op Fl p Ar file
+.Op Fl U Ar user
+.Sh DESCRIPTION
+The
+.Nm
+utility uses
+.Xr dtrace 1
+to display a periodically updated table of NFS
+server read and write activity.
+Statistics are taken from the
+.Xr nfsd 8
+read and write paths
+.Pq Fn nfsrvd_read , Fn nfsvno_read , Fn nfsrvd_write , and Fn nfsvno_write
+and coalesced by a chosen
+.Em view .
+.Pp
+Only the root user or users with
+.Xr dtrace 1
+privileges can run this command.
+.Pp
+A view selects the first column of the display.
+The default is the user view
+.Pq Ql Fl u ,
+where each row is a UID
+.Pq or user name .
+The group view
+.Pq Ql Fl g
+and client view
+.Pq Ql Fl c
+instead coalesce by GID or IPv4 client address.
+Without
+.Ql Fl j ,
+the last of
+.Ql Fl c ,
+.Ql Fl g ,
+or
+.Ql Fl u
+wins.
+.Pp
+UIDs, GIDs, and IPv4 addresses shown in a view are taken from NFS client
+credentials and addresses on the
+.Xr nfsd 8
+paths.
+They often cannot be resolved on the nfsd host, so
+.Nm
+does not use
+.Xr getent 1
+to name them as traffic is sampled; that lookup would likely be useless.
+The map files described in
+.Sx FILES
+supply those names.
+Command-line filters are different.
+A name given to
+.Ql Fl U ,
+.Ql Fl G ,
+or
+.Ql Fl C
+is resolved once, first from the same map files and then via
+.Xr getent 1
+or
+.Xr host 1 ,
+so the resulting UID, GID, or address can be compiled into the
+.Xr dtrace 1
+predicates.
+.Pp
+Each interval prints a header followed by a
+.Ql total
+row and per-key rows sorted by combined read and write volume.
+Columns are the view key,
+combined TOTAL,
+WRITE(IN),
+an optional bar,
+and READ(OUT).
+Values are humanized bandwidth
+.Pq bytes per second
+unless
+.Ql Fl b
+is given.
+When standard output is a terminal,
+the screen is redrawn in place and
+.Dv SIGWINCH
+resizes the layout.
+.Sh OPTIONS
+.Bl -tag -width "-I file"
+.It Fl a
+Always enable color,
+even when standard output is not a terminal.
+.It Fl b
+Show bytes transferred during the interval instead of bandwidth.
+Cannot be combined with
+.Ql Fl j
+or
+.Ql Fl J .
+.It Fl C Ar ip
+Client filter.
+Only count I/O for the given IPv4 address or hostname
+.Pq IPv4 only .
+A hostname given here is resolved once from the IP map
+.Pq see Fl I
+or
+.Xr host 1 .
+.It Fl c
+View read/write activity by client.
+.It Fl D
+Enable debugger.
+Print raw
+.Xr dtrace 1
+output and additional post-processor diagnostics.
+.It Fl d
+Debug.
+Print the generated
+.Xr dtrace 1
+script to standard output and exit.
+.It Fl G Ar group
+Group filter.
+Only count I/O for the given group name or GID.
+A name given here is resolved once from the group map
+.Pq see Fl P
+or
+.Xr getent 1 .
+.It Fl g
+View read/write activity by group.
+.It Fl h
+Print usage statement and exit.
+.It Fl I Ar file
+IP map file for naming observed client addresses
+.Pq see DESCRIPTION .
+Default
+.Pa .nfsd.hosts
+in the current directory.
+Each non-comment line is an IPv4 address followed by a hostname.
+.It Fl i Ar sec
+Set interval seconds.
+Default
+.Ql 2.0 .
+Must be at least 0.001.
+.It Fl J
+Output JSON for the client, group, and user views.
+Same as
+.Ql Fl jcgu .
+.It Fl j
+Output JSON formatted data.
+Each interval emits one object for the view total and one object per key.
+Objects contain
+.Li time ,
+.Li ident ,
+.Li total_bytes ,
+.Li total_rate ,
+.Li read_bytes ,
+.Li read_rate ,
+.Li write_bytes ,
+and
+.Li write_rate .
+.It Fl N Ar num
+Perform
+.Ar num
+samples and exit.
+.It Fl n
+Do not map observed UIDs, GIDs, or IPs through the map files.
+.It Fl o
+Force non-console output.
+Disable screen redraw and color.
+.It Fl P Ar file
+Group map file for naming observed GIDs
+.Pq see DESCRIPTION .
+Default
+.Pa .nfsd.group
+in the current directory.
+Format is
+.Xr group 5 .
+.It Fl p Ar file
+User map file for naming observed UIDs
+.Pq see DESCRIPTION .
+Default
+.Pa .nfsd.passwd
+in the current directory.
+Format is
+.Xr passwd 5 .
+.It Fl q
+Quiet.
+Hide informational messages.
+.It Fl R
+Redact potentially sensitive information.
+User, group, and client names that are not well-known system accounts are
+replaced with random strings of the same length.
+May also be enabled by setting
+.Ev NFSDTOP_REDACT
+in the environment.
+.It Fl r
+Raw view.
+Do not format output of
+.Xr dtrace 1 .
+.It Fl U Ar user
+User filter.
+Only count I/O for the given user name or UID.
+A name given here is resolved once from the user map
+.Pq see Fl p
+or
+.Xr getent 1 .
+.It Fl u
+View read/write activity by user
+.Pq default .
+.It Fl v
+Print version and exit.
+.It Fl w
+Wide view.
+Maximize width of the first column.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width NFSDTOP_REDACT
+.It Ev NFSDTOP_REDACT
+If set to a non-empty value, enable redaction as with
+.Ql Fl R .
+.El
+.Sh FILES
+These files map identifiers from observed NFS traffic to names.
+.Xr getent 1
+on the nfsd host is not used for that translation.
+.Pp
+.Bl -tag -width ".nfsd.passwd" -compact
+.It Pa .nfsd.passwd
+Default user map
+.Pq Ql Fl p ,
+looked up in the current directory.
+.It Pa .nfsd.group
+Default group map
+.Pq Ql Fl P ,
+looked up in the current directory.
+.It Pa .nfsd.hosts
+Default IP map
+.Pq Ql Fl I ,
+looked up in the current directory.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Display per-user NFS
+server I/O, updated every two seconds:
+.Bd -literal -offset indent
+nfsdtop
+.Ed
+.Pp
+View activity by NFS client:
+.Bd -literal -offset indent
+nfsdtop -c
+.Ed
+.Pp
+Restrict the group view to
+.Ql wheel :
+.Bd -literal -offset indent
+nfsdtop -g -G wheel
+.Ed
+.Pp
+Count only I/O from one client and show bytes instead of bandwidth:
+.Bd -literal -offset indent
+nfsdtop -c -C 192.0.2.10 -b
+.Ed
+.Pp
+Emit one JSON sample for all views and exit:
+.Bd -literal -offset indent
+nfsdtop -J -N 1
+.Ed
+.Pp
+Print the generated DTrace script without running it:
+.Bd -literal -offset indent
+nfsdtop -d
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dwatch 1 ,
+.Xr getent 1 ,
+.Xr nfsstat 1 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr gstat 8 ,
+.Xr iostat 8 ,
+.Xr nfsd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.Sh BUGS
+The client view and
+.Ql Fl C
+filter support IPv4 only.

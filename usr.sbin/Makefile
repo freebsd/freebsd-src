@@ -51,6 +51,7 @@ SUBDIR=	adduser \
 	nfscbd \
 	nfsd \
 	nfsdumpstate \
+	nfsdtop \
 	nfsrevoke \
 	nfsuserd \
 	nmtree \
