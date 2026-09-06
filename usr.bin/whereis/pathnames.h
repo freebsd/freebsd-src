@@ -25,20 +25,36 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+
 /* Where to look for libexec */
 #define PATH_LIBEXEC "/usr/libexec"
 
 /* Where to look for sources. */
-#define PATH_SOURCES					\
-"/usr/src/bin:/usr/src/usr.bin:/usr/src/sbin:"		\
-"/usr/src/usr.sbin:/usr/src/libexec:"			\
-"/usr/src/gnu/bin:/usr/src/gnu/usr.bin:"		\
-"/usr/src/gnu/sbin:/usr/src/gnu/usr.sbin:"		\
-"/usr/src/contrib:"					\
-"/usr/src/secure/bin:/usr/src/secure/usr.bin:"		\
-"/usr/src/secure/sbin:/usr/src/secure/usr.sbin:"	\
-"/usr/src/secure/libexec:/usr/src/crypto:"		\
-"/usr/src/games"
+static const char *sourcepaths[] = {
+	"/usr/src/bin",
+	"/usr/src/cddl/usr.bin",
+	"/usr/src/cddl/usr.sbin",
+	"/usr/src/contrib",
+	"/usr/src/crypto",
+	"/usr/src/games",
+	"/usr/src/kerberos5/libexec",
+	"/usr/src/kerberos5/usr.bin",
+	"/usr/src/kerberos5/usr.sbin",
+	"/usr/src/krb5/libexec",
+	"/usr/src/krb5/usr.bin",
+	"/usr/src/krb5/usr.sbin",
+	"/usr/src/libexec",
+	"/usr/src/sbin",
+	"/usr/src/secure/bin",
+	"/usr/src/secure/libexec",
+	"/usr/src/secure/sbin",
+	"/usr/src/secure/usr.bin",
+	"/usr/src/secure/usr.sbin",
+	"/usr/src/usr.bin",
+	"/usr/src/usr.sbin",
+	NULL
+};
 
 /* Each subdirectory of PATH_PORTS will be appended to PATH_SOURCES. */
 #define PATH_PORTS "/usr/ports"
