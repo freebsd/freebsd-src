@@ -2998,7 +2998,7 @@ The following case-insensitive parameters can be configured for a
 scheduler:
 .Pp
 .Bl -tag -width indent -compact
-.It Cm type Ar {fifo | wf2q+ | rr | qfq | fq_codel | fq_pie}
+.It Cm type Ar {fifo | wf2q+ | prio | rr | qfq | fq_codel | fq_pie}
 specifies the scheduling algorithm to use.
 .Bl -tag -width indent -compact
 .It Cm fifo
@@ -3016,6 +3016,12 @@ with a minuscule weight will never starve.
 WF2Q+ has O(log N) per-packet processing cost, where N is the number
 of flows, and is the default algorithm used by previous versions
 dummynet's queues.
+.It Cm prio
+implements a priority-based packet scheduler, with O(1) processing cost.
+The queue weight is used as the priority, with lower weight meaning
+higher priority. The priority is absolute and unconditional: packets
+from a lower priority queue are only sent when all higher priority
+queues are empty.
 .It Cm rr
 implements the Deficit Round Robin algorithm, which has O(1) processing
 costs (roughly, 100-150ns per packet)
