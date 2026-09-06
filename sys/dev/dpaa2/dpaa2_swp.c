@@ -179,15 +179,15 @@ static int dpaa2_swp_wait_for_mgmt_response(struct dpaa2_swp *,
 static int dpaa2_swp_cyc_diff(uint8_t, uint8_t, uint8_t);
 
 int
-dpaa2_swp_init_portal(struct dpaa2_swp **swp, struct dpaa2_swp_desc *desc,
-    uint16_t flags)
+dpaa2_swp_init_portal(struct dpaa2_io_softc *sc, uint16_t flags)
 {
 	struct dpaa2_swp *p;
+	struct dpaa2_swp_desc *desc;
 	uint32_t reg, mask_size, eqcr_pi; /* EQCR producer index */
 
-	if (!swp || !desc)
+	if (!sc)
 		return (DPAA2_SWP_STAT_EINVAL);
-
+	desc = &sc->swp_desc;
 	p = malloc(sizeof(struct dpaa2_swp), M_DPAA2_SWP,
 	    flags & DPAA2_SWP_NOWAIT_ALLOC
 	    ? (M_NOWAIT | M_ZERO)
@@ -297,11 +297,13 @@ dpaa2_swp_init_portal(struct dpaa2_swp **swp, struct dpaa2_swp_desc *desc,
 	    & p->eqcr.pi_ci_mask;
 	p->eqcr.available = p->eqcr.pi_ring_size;
 
-	/* TODO: sysctl(9) for the IRQ timeout? */
-	/* Initialize the portal with an IRQ threshold and timeout of 120us. */
-	dpaa2_swp_set_irq_coalescing(p, p->dqrr.ring_size - 1, 120);
+	/*
+	 * Initialize the portal with an IRQ threshold and timeout from the
+	 * device context.
+	 */
+	dpaa2_swp_set_irq_coalescing(p, p->dqrr.ring_size - 1, sc->irq_holdoff);
 
-	*swp = p;
+	sc->swp = p;
 
 	return (0);
 }

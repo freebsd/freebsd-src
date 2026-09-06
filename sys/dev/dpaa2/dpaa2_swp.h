@@ -233,6 +233,11 @@ enum dpaa2_fd_format {
 };
 
 /**
+ * Forward declaration to avoid circular include.
+ */
+struct dpaa2_io_softc;
+
+/**
  * @brief Enqueue command descriptor.
  */
 struct dpaa2_eq_desc {
@@ -441,8 +446,7 @@ struct dpaa2_swp {
 };
 
 /* Management routines. */
-int dpaa2_swp_init_portal(struct dpaa2_swp **swp, struct dpaa2_swp_desc *desc,
-    uint16_t flags);
+int dpaa2_swp_init_portal(struct dpaa2_io_softc *softc, uint16_t flags);
 void dpaa2_swp_free_portal(struct dpaa2_swp *swp);
 uint32_t dpaa2_swp_set_cfg(uint8_t max_fill, uint8_t wn, uint8_t est,
     uint8_t rpm, uint8_t dcm, uint8_t epm, int sd, int sp, int se, int dp,

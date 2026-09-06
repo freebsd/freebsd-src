@@ -100,6 +100,9 @@ struct dpaa2_io_softc {
 
 	int			 cpu;
 	cpuset_t		 cpu_mask;
+
+	/* sysctl(9) */
+	uint32_t		 irq_holdoff; /* ms */
 };
 
 extern struct resource_spec dpaa2_io_spec[];

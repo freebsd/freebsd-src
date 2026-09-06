@@ -50,6 +50,7 @@
 #include <sys/mutex.h>
 #include <sys/_cpuset.h>
 #include <sys/cpuset.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/smp.h>
 
@@ -78,6 +79,9 @@
 
 #define DPIO_IRQ_INDEX		0 /* index of the only DPIO IRQ */
 #define DPIO_POLL_MAX		32
+
+#define SWP_HOLDOFF_MS_MIN	100
+#define SWP_HOLDOFF_MS_MAX	10000
 
 /*
  * Memory:
@@ -197,6 +201,51 @@ err_exit:
 }
 
 static int
+dpaa2_io_collect_irq_holdoff(SYSCTL_HANDLER_ARGS)
+{
+	struct dpaa2_io_softc *sc;
+	struct dpaa2_swp *swp;
+	uint32_t error, new_value;
+
+	sc = (struct dpaa2_io_softc *)arg1;
+	swp = sc->swp;
+	error = SYSCTL_OUT(req, &sc->irq_holdoff,
+	    sizeof(sc->irq_holdoff));
+	if (error || req->newptr == NULL)
+		return error;
+	error = SYSCTL_IN(req, &new_value, sizeof(new_value));
+	if (error)
+		return error;
+	if ((new_value < SWP_HOLDOFF_MS_MIN) || (new_value > SWP_HOLDOFF_MS_MAX))
+		return EINVAL;
+	error = dpaa2_swp_set_irq_coalescing(swp, swp->dqrr.ring_size - 1,
+	    new_value);
+	if (error)
+		return error;
+	sc->irq_holdoff = new_value;
+	return 0;
+}
+
+static void
+dpaa2_io_setup_sysctls(struct dpaa2_io_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *node;
+	struct sysctl_oid_list *parent;
+
+	ctx = device_get_sysctl_ctx(sc->dev);
+	parent = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
+
+	node = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "io",
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "io control");
+	parent = SYSCTL_CHILDREN(node);
+
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "irq_holdoff",
+	    CTLTYPE_U32 | CTLFLAG_RW, sc, 0, dpaa2_io_collect_irq_holdoff, "IU",
+	    "SWP holdoff time in ms");
+}
+
+static int
 dpaa2_io_attach(device_t dev)
 {
 	device_t pdev = device_get_parent(dev);
@@ -223,6 +272,7 @@ dpaa2_io_attach(device_t dev)
 	sc->swp = NULL;
 	sc->intr = NULL;
 	sc->irq_resource = NULL;
+	sc->irq_holdoff = 120;
 
 	/* Allocate resources. */
 	error = bus_alloc_resources(sc->dev, dpaa2_io_spec, sc->res);
@@ -308,8 +358,10 @@ dpaa2_io_attach(device_t dev)
 	sc->swp_desc.swp_cycles_ratio = 256000 /
 	    (sc->swp_desc.swp_clk / 1000000);
 
+	dpaa2_io_setup_sysctls(sc);
+
 	/* Initialize QBMan software portal. */
-	error = dpaa2_swp_init_portal(&sc->swp, &sc->swp_desc, DPAA2_SWP_DEF);
+	error = dpaa2_swp_init_portal(sc, DPAA2_SWP_DEF);
 	if (error) {
 		device_printf(dev, "%s: failed to initialize dpaa2_swp: "
 		    "error=%d\n", __func__, error);
