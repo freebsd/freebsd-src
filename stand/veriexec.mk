@@ -9,4 +9,12 @@ CFLAGS+= -DLOADER_VERIEXEC_VECTX
 .if ${MK_LOADER_VERIEXEC_PASS_MANIFEST} != "no"
 CFLAGS+= -DLOADER_VERIEXEC_PASS_MANIFEST
 .endif
+# ELEVATED implies the strict threshold (the ACCEPT_NO_FP_DEFAULT cascade keys
+# off either), and additionally turns verification on early and fail-closed.
+.if ${MK_LOADER_VERIEXEC_STRICT} != "no" || ${MK_LOADER_VERIEXEC_ELEVATED} != "no"
+CFLAGS+= -DLOADER_VERIEXEC_STRICT
+.endif
+.if ${MK_LOADER_VERIEXEC_ELEVATED} != "no"
+CFLAGS+= -DLOADER_VERIEXEC_ELEVATED
+.endif
 .endif
