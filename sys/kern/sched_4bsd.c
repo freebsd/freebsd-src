@@ -134,6 +134,13 @@ static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
 static int	sched_slice = 12; /* Thread run time before rescheduling. */
 
+static inline void
+sched_update_hogticks(void)
+{
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
+}
+
 static void	setup_runqs(void);
 static void	schedcpu(void);
 static void	schedcpu_thread(void);
@@ -209,8 +216,7 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 	return (0);
 }
 
@@ -226,8 +232,7 @@ sysctl_kern_slice(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = new_val;
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 	return (0);
 }
 
@@ -664,8 +669,7 @@ sched_initticks(void *dummy)
 
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / 10;	/* ~100ms */
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 }
 
 /* External interfaces start here */
