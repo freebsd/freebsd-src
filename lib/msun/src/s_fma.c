@@ -163,6 +163,10 @@ dd_mul(double a, double b)
 	return (ret);
 }
 
+#ifdef _RENAME_FMA
+double fma_sw(double, double, double);
+#endif
+
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
@@ -181,7 +185,12 @@ dd_mul(double a, double b)
  * since this implementation will likely be several times slower.
  */
 double
-fma(double x, double y, double z)
+#ifdef _RENAME_FMA
+fma_sw
+#else
+fma
+#endif
+(double x, double y, double z)
 {
 	double xs, ys, zs, adj;
 	struct dd xy, r;
