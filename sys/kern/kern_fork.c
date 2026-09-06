@@ -972,7 +972,7 @@ fork1(struct thread *td, struct fork_req *fr)
 
 		if ((fr->fr_pd_flags & ~PD_ALLOWED_AT_FORK) != 0)
 			return (EXTERROR(EINVAL,
-			    "Invallid pdflags at fork %#jx", fr->fr_pd_flags));
+			    "Invalid pdflags at fork %#jx", fr->fr_pd_flags));
 	}
 
 	p1 = td->td_proc;
