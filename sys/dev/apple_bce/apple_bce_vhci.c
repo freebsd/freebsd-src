@@ -1007,7 +1007,11 @@ bce_vhci_port_chg_task(void *arg, int pending __unused)
 
 		USB_BUS_LOCK(&vhci->sc_bus);
 		if (error == 0) {
+			uint16_t changed, old_status;
+
 			port_status = (uint32_t)reply.param2;
+
+			old_status = vhci->sc_port_status[port];
 
 			vhci->sc_port_status[port] = 0;
 			if (vhci->sc_port_power[port])
@@ -1025,8 +1029,24 @@ bce_vhci_port_chg_task(void *arg, int pending __unused)
 			if (port_status & BCE_VHCI_PORT_OVERCURRENT)
 				vhci->sc_port_status[port] |=
 				    UPS_OVERCURRENT_INDICATOR;
+
+			changed = old_status ^ vhci->sc_port_status[port];
+
+			if (changed & UPS_CURRENT_CONNECT_STATUS)
+				vhci->sc_port_change[port] |=
+				    UPS_C_CONNECT_STATUS;
+			if (changed & UPS_PORT_ENABLED)
+				vhci->sc_port_change[port] |=
+				    UPS_C_PORT_ENABLED;
+			if (changed & UPS_SUSPEND)
+				vhci->sc_port_change[port] |=
+				    UPS_C_SUSPEND;
+			if (changed & UPS_OVERCURRENT_INDICATOR)
+				vhci->sc_port_change[port] |=
+				    UPS_C_OVERCURRENT_INDICATOR;
+		} else {
+			vhci->sc_port_change[port] |= UPS_C_CONNECT_STATUS;
 		}
-		vhci->sc_port_change[port] |= UPS_C_CONNECT_STATUS;
 		USB_BUS_UNLOCK(&vhci->sc_bus);
 	}
 
@@ -4107,6 +4127,8 @@ bce_vhci_roothub_exec(struct usb_device *udev,
 					    UPS_HIGH_SPEED;
 					vhci->sc_port_change[index - 1] |=
 					    UPS_C_PORT_RESET;
+					vhci->sc_port_change[index - 1] &=
+					    ~UPS_C_CONNECT_STATUS;
 				} else {
 					device_printf(vhci->sc_dev,
 					    "port %d reset failed: %d\n",
