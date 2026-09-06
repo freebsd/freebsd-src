@@ -36,6 +36,16 @@ qemu-system-aarch64 -m 1024 -cpu cortex-a57 -M virt \
 	-monitor telnet::4444,server,nowait -serial stdio \
 	-append "console=ttyAMA0"
 
+HTTP client test build
+
+KBOOT_HTTP_TEST=yes builds loader.kboot as a standalone HTTP client:
+
+	loader.kboot --http-test-get URL
+	loader.kboot --http-test-get --progress URL
+
+For the HTTP/HTTPS pytest harness, see tests/README.md.
+For the HTTP client interface and its current limitations, see HTTP.md.
+
 General
 
 Add -g -G to have gdb stop and wait for the debugger. This is useful for
