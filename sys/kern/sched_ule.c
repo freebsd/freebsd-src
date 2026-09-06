@@ -232,6 +232,14 @@ static int __read_mostly tickincr = 8 << SCHED_TICK_SHIFT;
 static int __read_mostly realstathz = 127;	/* reset during boot. */
 static int __read_mostly sched_slice = 10;	/* reset during boot. */
 static int __read_mostly sched_slice_min = 1;	/* reset during boot. */
+
+static inline void
+sched_update_hogticks(void)
+{
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
+}
+
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
 static int __read_mostly preempt_thresh = PRI_MAX_IDLE + 1;
@@ -1659,8 +1667,7 @@ sched_ule_initticks(void)
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / SCHED_SLICE_DEFAULT_DIVISOR;
 	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 
 	/*
 	 * tickincr is shifted out by 10 to avoid rounding errors due to
@@ -3477,8 +3484,7 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
 	sched_slice_min = imax(1, sched_slice / SCHED_SLICE_MIN_DIVISOR);
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 	return (0);
 }
 
@@ -3495,8 +3501,7 @@ sysctl_kern_slice(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	sched_slice = new_val;
 	sched_slice_min = imax(1, sched_slice / SCHED_SLICE_MIN_DIVISOR);
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 	return (0);
 }
 
