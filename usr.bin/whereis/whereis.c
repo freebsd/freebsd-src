@@ -316,7 +316,7 @@ defaults(void)
 		decolonify(b, &sourcedirs, &nele);
 
 		path_ports = getenv("PORTSDIR");
-		if (!path_ports)
+		if (path_ports == NULL)
 			path_ports = PATH_PORTS;
 
 		if (stat(path_ports, &sb) == -1) {
