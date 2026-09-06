@@ -133,7 +133,7 @@ crossmp_vop_lock1(struct vop_lock1_args *ap)
 	lk = vp->v_vnlock;
 	flags = ap->a_flags;
 
-	KASSERT((flags & (LK_SHARED | LK_NOWAIT)) == (LK_SHARED | LK_NOWAIT),
+	KASSERT((flags & LK_TYPE_MASK) == LK_SHARED,
 	    ("%s: invalid lock request 0x%x for crossmp", __func__, flags));
 
 	if ((flags & LK_INTERLOCK) != 0)
