@@ -75,6 +75,7 @@
 #define   ICH_HST_CNT_SMB_CMD_PROC_CALL	0x10	/*   command: process call */
 #define   ICH_HST_CNT_SMB_CMD_BLOCK	0x14	/*   command: block */
 #define   ICH_HST_CNT_SMB_CMD_I2C_READ	0x18	/*   command: i2c read */
+#define   ICH_HST_CNT_SMB_CMD_BLOCK_PROC 0x1c	/*   command: block process call */
 #define   ICH_HST_CNT_KILL		0x02	/*   kill current transaction */
 #define   ICH_HST_CNT_INTREN		0x01	/*   enable interrupt */
 #define ICH_HST_CMD			0x03	/* host command */
