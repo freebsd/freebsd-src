@@ -273,9 +273,9 @@ pcifront_connect(struct pcifront_device *pdev)
 
 	printf("pcifront: connected to %s\n", pdev->xdev->nodename);
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	device_probe_and_attach(pdev->ndev);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return 0;
 }
