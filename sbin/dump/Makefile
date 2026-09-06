@@ -10,6 +10,8 @@
 #	DEBUG			use local directory to find ddate and dumpdates
 #	TDEBUG			trace out the process forking
 
+.include <src.opts.mk>
+
 PACKAGE=ufs
 PROG=	dump
 CONFS=	/dev/null
@@ -23,5 +25,8 @@ MAN=	dump.8
 LIBADD=	ufs
 MLINKS=	dump.8 rdump.8
 WARNS?=	2
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.prog.mk>
