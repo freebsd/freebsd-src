@@ -440,7 +440,8 @@ link, or is actively passing packets.
 means that the PF isolated the VF because of a detected fault or abusive
 behavior.
 It does not include ordinary unconfigured, reset, or link-down states.
-The driver namespace describes the particular cause and recovery policy.
+When present, a driver namespace may describe the particular cause and
+recovery policy.
 When both fields are present, a fault block implies that traffic is not
 allowed.
 .Dv IFLAF_VF_QUARANTINED
@@ -471,8 +472,9 @@ These attributes do not describe the VF's trunk filters.
 Trunk mode means that no access VLAN is imposed and does not promise unlimited
 filter capacity.
 .Dv IFLAF_VF_VLAN_COUNT
-counts explicit filters recorded by the PF and excludes implicit untagged and
-priority-tag membership.
+counts explicit filters recorded by the PF.
+It excludes untagged or priority-tag membership installed implicitly by the
+PF.
 The permission attributes describe requests the VF may make, not requests it
 has made.
 The top-level PF link state and speed are values normally advertised to VFs,
