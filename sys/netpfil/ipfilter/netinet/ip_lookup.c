@@ -663,7 +663,7 @@ ipf_lookup_iterate(ipf_main_softc_t *softc, void *data, int uid, void *ctx)
 	if (err != 0)
 		return (err);
 
-	if (iter.ili_unit < IPL_LOGALL && iter.ili_unit > IPL_LOGMAX) {
+	if (iter.ili_unit < IPL_LOGALL || iter.ili_unit > IPL_LOGMAX) {
 		IPFERROR(50038);
 		return (EINVAL);
 	}
