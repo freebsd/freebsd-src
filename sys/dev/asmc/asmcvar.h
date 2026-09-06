@@ -175,9 +175,20 @@ struct asmc_softc {
 #define ASMC_KEY_FANSAFESPEED0	"F0Sf"	/* RO; 2 bytes */
 
 /*
- * Clamshell.
+ * Sleep Indicator LED (SIL).
+ *
+ * MSLD controls the duty cycle of the front-panel sleep indicator LED.
+ *   0x00 = LED at idle brightness, 0xff = LED fully off.
+ * MSLS is the SIL state latch — must be written to 0x01 before MSLD
+ *   can re-enable the LED after it has been turned off.
+ *
+ * Protocol:   OFF = write MSLD 0xff
+ *             ON  = write MSLS 0x01, then write MSLD 0x01
+ *
+ * Present on all Intel Macs with a sleep indicator (laptops + Mac Mini).
  */
-#define ASMC_KEY_CLAMSHELL	"MSLD"	/* RO; 1 byte */
+#define ASMC_KEY_MSLD		"MSLD"	/* RW; 1 byte, SIL duty */
+#define ASMC_KEY_MSLS		"MSLS"	/* RW; 1 byte, SIL state latch */
 
 /*
  * Auto power-on after AC power loss (AUPO).
