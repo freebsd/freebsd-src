@@ -38,6 +38,10 @@ fmaf(float x, float y, float z)
 	return (__builtin_fmaf(x, y, z));
 }
 #else
+#ifdef _RENAME_FMAF
+float fmaf_sw(float, float, float);
+#endif
+
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
@@ -46,7 +50,12 @@ fmaf(float x, float y, float z)
  * rounding occurs.
  */
 float
-fmaf(float x, float y, float z)
+#ifdef _RENAME_FMAF
+fmaf_sw
+#else
+fmaf
+#endif
+(float x, float y, float z)
 {
 	double xy, result;
 	uint32_t hr, lr;
