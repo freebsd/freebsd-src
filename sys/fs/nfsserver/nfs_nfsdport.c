@@ -43,6 +43,7 @@
  */
 
 #include <fs/nfs/nfsport.h>
+#include <fs/nfs/nfs_extern.h>
 #include <security/mac/mac_framework.h>
 #include <sys/callout.h>
 #include <sys/filio.h>
@@ -59,7 +60,6 @@ FEATURE(nfsd, "NFSv4 server");
 
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsrv_useacl;
-extern int newnfs_numnfsd;
 extern int nfsrv_sessionhashsize;
 extern struct nfslayouthash *nfslayouthash;
 extern int nfsrv_layouthashsize;
