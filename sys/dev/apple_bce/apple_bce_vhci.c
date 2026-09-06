@@ -4689,6 +4689,12 @@ bce_vhci_attach_dev(device_t dev)
 
 	device_printf(dev, "BCE VHCI attached, %d ports\n",
 	    vhci->sc_port_count);
+
+	/* Kick the USB explore thread to enumerate initially connected ports */
+	USB_BUS_LOCK(&vhci->sc_bus);
+	usb_needs_explore(&vhci->sc_bus, 0);
+	USB_BUS_UNLOCK(&vhci->sc_bus);
+
 	return (0);
 
 fail_child:
