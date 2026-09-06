@@ -71,7 +71,7 @@ enum ice_vf_flags {
 	VF_FLAG_PROMISC_CAP		= BIT(3),
 	VF_FLAG_MAC_ANTI_SPOOF		= BIT(4),
 	VF_FLAG_INITIALIZED		= BIT(5),
-	VF_FLAG_REBUILD_FAILED		= BIT(6),
+	VF_FLAG_REBUILD_REQUIRED	= BIT(6),
 	VF_FLAG_RESET_FAILED		= BIT(7),
 	VF_FLAG_MDD_BLOCKED		= BIT(8),
 	VF_FLAG_MBX_BLOCKED		= BIT(9),
@@ -139,6 +139,8 @@ int ice_iov_detach(struct ice_softc *sc);
 int ice_iov_init(struct ice_softc *sc, uint16_t num_vfs, const nvlist_t *params);
 int ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params);
 int ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi);
+struct if_vf_status;
+int ice_iov_vf_status(struct ice_softc *sc, struct if_vf_status **statusp);
 void ice_iov_uninit(struct ice_softc *sc);
 
 void ice_iov_handle_vflr(struct ice_softc *sc);
