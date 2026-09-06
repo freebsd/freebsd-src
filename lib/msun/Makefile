@@ -10,6 +10,11 @@
 #
 
 PACKAGE=	clibs
+
+# LIBCSRCDIR is defined lazily, so can't be used for exists() below
+LIBC_SRCTOP=${SRCTOP}/lib/libc
+# Location of fpmath.h and _fpmath.h
+
 ARCH_SUBDIR=	${MACHINE_CPUARCH:S/i386/i387/}
 
 .include "${ARCH_SUBDIR}/Makefile.inc"
@@ -99,10 +104,6 @@ COMMON_SRCS= b_tgamma.c \
 # IEEE-754 2008 and ISO/IEC TS 18661-4 half-cycle trignometric functions
 COMMON_SRCS+= s_asinpi.c s_asinpif.c s_atanpi.c s_atanpif.c \
 	s_cospi.c s_cospif.c s_sinpi.c s_sinpif.c s_tanpi.c s_tanpif.c
-
-# LIBCSRCDIR is defined lazily, so can't be used for exists() below
-LIBC_SRCTOP=${SRCTOP}/lib/libc
-# Location of fpmath.h and _fpmath.h
 
 # Pick the current architecture directory for libc. In general, this is named
 # MACHINE_CPUARCH, but some ABIs are different enough to require their own libc,
