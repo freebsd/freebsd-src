@@ -2888,6 +2888,11 @@ bce_vhci_handle_transfer_request(struct bce_vhci_softc *vhci,
 		break;
 	}
 
+	case BCE_VHCI_CTRL_STATUS:
+		if (bus_locked == 0)
+			USB_BUS_UNLOCK(&vhci->sc_bus);
+		break;
+
 	default:
 		device_printf(vhci->sc_dev,
 		    "unexpected TRANSFER_REQUEST in state %d\n",
