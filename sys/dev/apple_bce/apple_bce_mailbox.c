@@ -7,6 +7,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/sema.h>
@@ -62,20 +63,41 @@ bce_mailbox_send(struct bce_mailbox *mb, uint64_t msg, uint64_t *recv,
 		return (0);
 	}
 
-	/* Wait for interrupt-driven reply */
-	if (sema_timedwait(&mb->mb_cmpl, hz * timeout_ms / 1000) != 0) {
-		/* Timeout -- reset to idle */
-		atomic_store_int(&mb->status, 0);
-		return (ETIMEDOUT);
+	if (cold) {
+		/*
+		 * During early boot, timer-backed sleeps are not available.
+		 * Poll the hardware directly, but account for an installed
+		 * interrupt handler consuming the reply first.
+		 */
+		unsigned int waited = 0;
+
+		while (waited < timeout_ms * 1000) {
+			if (atomic_load_int(&mb->status) == 2)
+				break;
+			(void)bce_mailbox_handle_interrupt(mb);
+			if (atomic_load_int(&mb->status) == 2)
+				break;
+			DELAY(100);
+			waited += 100;
+		}
+		if (atomic_load_int(&mb->status) != 2) {
+			atomic_store_int(&mb->status, 0);
+			return (ETIMEDOUT);
+		}
+	} else {
+		/* Wait for interrupt-driven reply */
+		if (sema_timedwait(&mb->mb_cmpl,
+		    hz * timeout_ms / 1000) != 0) {
+			atomic_store_int(&mb->status, 0);
+			return (ETIMEDOUT);
+		}
+		if (atomic_load_int(&mb->status) != 2) {
+			atomic_store_int(&mb->status, 0);
+			return (ETIMEDOUT);
+		}
 	}
 
-	if (atomic_load_int(&mb->status) != 2) {
-		atomic_store_int(&mb->status, 0);
-		return (ETIMEDOUT);
-	}
-
-	if (recv != NULL)
-		*recv = mb->mb_result;
+	*recv = mb->mb_result;
 
 	atomic_store_int(&mb->status, 0);
 	return (0);
@@ -106,7 +128,9 @@ bce_mailbox_handle_interrupt(struct bce_mailbox *mb)
 
 	if (atomic_load_int(&mb->status) == 1) {
 		atomic_store_int(&mb->status, 2);
-		sema_post(&mb->mb_cmpl);
+		/* A cold sender polls status and must not leave a token. */
+		if (!cold)
+			sema_post(&mb->mb_cmpl);
 	}
 
 	return (0);
