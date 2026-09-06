@@ -40,6 +40,43 @@
 #include "ice_iov.h"
 #include "ice_fault.h"
 
+#include <net/if_vf_status.h>
+
+/* Version 1 driver.ice extension schema; documented in ice(4). */
+#define	ICE_VF_STATUS_NAMESPACE			"driver.ice"
+#define	ICE_VF_STATUS_VERSION			1
+#define	ICE_VF_STATUS_MIRROR_CONFIGURED		"mirror-configured"
+#define	ICE_VF_STATUS_MIRROR_SOURCE_VSI		"mirror-source-vsi"
+#define	ICE_VF_STATUS_MIRROR_INGRESS_ACTIVE	"mirror-ingress-active"
+#define	ICE_VF_STATUS_MIRROR_EGRESS_ACTIVE	"mirror-egress-active"
+#define	ICE_VF_STATUS_MDD_BLOCKED		"mdd-blocked"
+#define	ICE_VF_STATUS_MDD_TX_EVENTS		"mdd-tx-events"
+#define	ICE_VF_STATUS_MDD_RX_EVENTS		"mdd-rx-events"
+#define	ICE_VF_STATUS_MBX_BLOCKED		"mailbox-blocked"
+#define	ICE_VF_STATUS_MBX_OVERFLOW_EVENTS	"mailbox-overflow-events"
+#define	ICE_VF_STATUS_MAC_FILTER_COUNT		"mac-filter-count"
+#define	ICE_VF_STATUS_MAC_FILTER_LIMIT		"mac-filter-limit"
+#define	ICE_VF_STATUS_RESET_FAILED		"reset-failed"
+#define	ICE_VF_STATUS_REBUILD_REQUIRED		"rebuild-required"
+
+/* Optional fields are compacted when absent; values define schema order. */
+enum ice_vf_status_field {
+	ICE_VF_STATUS_FIELD_MIRROR_CONFIGURED,
+	ICE_VF_STATUS_FIELD_MIRROR_SOURCE_VSI,
+	ICE_VF_STATUS_FIELD_MIRROR_INGRESS_ACTIVE,
+	ICE_VF_STATUS_FIELD_MIRROR_EGRESS_ACTIVE,
+	ICE_VF_STATUS_FIELD_MDD_BLOCKED,
+	ICE_VF_STATUS_FIELD_MDD_TX_EVENTS,
+	ICE_VF_STATUS_FIELD_MDD_RX_EVENTS,
+	ICE_VF_STATUS_FIELD_MBX_BLOCKED,
+	ICE_VF_STATUS_FIELD_MBX_OVERFLOW_EVENTS,
+	ICE_VF_STATUS_FIELD_MAC_FILTER_COUNT,
+	ICE_VF_STATUS_FIELD_MAC_FILTER_LIMIT,
+	ICE_VF_STATUS_FIELD_RESET_FAILED,
+	ICE_VF_STATUS_FIELD_REBUILD_REQUIRED,
+	ICE_VF_STATUS_NUM_FIELDS,
+};
+
 #define	ICE_VC_MAX_RX_BUFFER			\
 	((16 * 1024) - BIT(ICE_RLAN_CTX_DBUF_S))
 #define	ICE_VIRTCHNL_QUEUE_MAP_SIZE		16
@@ -632,6 +669,144 @@ release_vsi:
 }
 
 /**
+ * ice_iov_vf_status - report configured VF state
+ * @sc: device private structure
+ * @statusp: returned status snapshot
+ *
+ * The iflib context lock protects VF state and VSI lifetime while this
+ * method constructs the report.
+ */
+int
+ice_iov_vf_status(struct ice_softc *sc, struct if_vf_status **statusp)
+{
+	struct ice_vf *vf;
+	struct ice_vsi *vsi;
+	struct if_vf_extension *extension;
+	struct if_vf_info *info;
+	struct if_vf_status *status;
+	u32 vf_flags;
+	bool mirror_configured, software_mbx_limit;
+	uint32_t field, num_fields;
+	int i;
+
+	if (!ice_is_bit_set(sc->feat_en, ICE_FEATURE_SRIOV))
+		return (EOPNOTSUPP);
+	status = if_vf_status_alloc(sc->num_vfs);
+	if (status == NULL)
+		return (ENOMEM);
+	for (i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		vsi = vf->vsi;
+		vf_flags = atomic_load_acq_32(&vf->vf_flags);
+		info = &status->vfs[i];
+		info->fields = IFVF_F_CONFIGURED | IFVF_F_INITIALIZED |
+		    IFVF_F_TRAFFIC_ALLOWED | IFVF_F_FAULT_BLOCKED |
+		    IFVF_F_LINK_STATE_POLICY |
+		    IFVF_F_VLAN_MODE | IFVF_F_VLAN_COUNT |
+		    IFVF_F_ALLOW_SET_MAC | IFVF_F_ALLOW_SET_VLAN |
+		    IFVF_F_MAC_ANTI_SPOOF | IFVF_F_ALLOW_PROMISC;
+		info->index = i;
+		info->configured =
+		    (vf_flags & VF_FLAG_ENABLED) != 0 && vsi != NULL;
+		info->initialized = info->configured &&
+		    (vf_flags & VF_FLAG_INITIALIZED) != 0;
+		info->traffic_allowed = info->configured &&
+		    (vf_flags & (VF_FLAG_MDD_BLOCKED |
+		    VF_FLAG_MBX_BLOCKED)) == 0;
+		info->fault_blocked = (vf_flags & (VF_FLAG_MDD_BLOCKED |
+		    VF_FLAG_MBX_BLOCKED)) != 0;
+		info->link_state_policy = IFVF_LINK_AUTO;
+		if (info->initialized) {
+			snprintf(info->api_version, sizeof(info->api_version),
+			    "%u.%u", vf->version.major, vf->version.minor);
+			info->fields |= IFVF_F_API_VERSION;
+		}
+		if (!ETHER_IS_ZERO(vf->mac)) {
+			memcpy(info->mac, vf->mac, sizeof(info->mac));
+			info->fields |= IFVF_F_MAC;
+		}
+		/* The ICE IOV schema exposes only VF-managed trunk membership. */
+		info->vlan_mode = IFVF_VLAN_TRUNK;
+		info->vlan_count = vf->vlan_cnt;
+		if (info->configured) {
+			info->vlan_limit = vf->vlan_limit;
+			info->fields |= IFVF_F_VLAN_LIMIT;
+		}
+		if (vsi != NULL) {
+			info->tx_queue_count = vsi->num_tx_queues;
+			info->rx_queue_count = vsi->num_rx_queues;
+			info->fields |= IFVF_F_NUM_TX_QUEUES |
+			    IFVF_F_NUM_RX_QUEUES;
+		}
+
+		mirror_configured = vsi != NULL && vsi->mirror_src_vsi !=
+		    ICE_INVALID_MIRROR_VSI;
+		software_mbx_limit = !ice_is_e830(&sc->hw);
+		num_fields = ICE_VF_STATUS_NUM_FIELDS -
+		    (mirror_configured ? 0 : 1) -
+		    (software_mbx_limit ? 0 : 2) -
+		    (info->configured ? 0 : 1);
+		extension = if_vf_status_add_extension(info,
+		    ICE_VF_STATUS_NAMESPACE, ICE_VF_STATUS_VERSION,
+		    num_fields);
+		if (extension == NULL) {
+			if_vf_status_free(status);
+			return (ENOMEM);
+		}
+		field = ICE_VF_STATUS_FIELD_MIRROR_CONFIGURED;
+		if_vf_extension_set_bool(extension, field++,
+		    ICE_VF_STATUS_MIRROR_CONFIGURED, mirror_configured);
+		if (mirror_configured)
+			if_vf_extension_set_number(extension, field++,
+			    ICE_VF_STATUS_MIRROR_SOURCE_VSI,
+			    vsi->mirror_src_vsi);
+		if_vf_extension_set_bool(extension, field++,
+		    ICE_VF_STATUS_MIRROR_INGRESS_ACTIVE,
+		    vsi != NULL &&
+		    vsi->rule_mir_ingress != ICE_INVAL_MIRROR_RULE_ID);
+		if_vf_extension_set_bool(extension, field++,
+		    ICE_VF_STATUS_MIRROR_EGRESS_ACTIVE,
+		    vsi != NULL &&
+		    vsi->rule_mir_egress != ICE_INVAL_MIRROR_RULE_ID);
+		if_vf_extension_set_bool(extension, field++,
+		    ICE_VF_STATUS_MDD_BLOCKED,
+		    (vf_flags & VF_FLAG_MDD_BLOCKED) != 0);
+		if_vf_extension_set_number(extension, field++,
+		    ICE_VF_STATUS_MDD_TX_EVENTS, vf->mdd_tx_events);
+		if_vf_extension_set_number(extension, field++,
+		    ICE_VF_STATUS_MDD_RX_EVENTS, vf->mdd_rx_events);
+		if (software_mbx_limit) {
+			if_vf_extension_set_bool(extension, field++,
+			    ICE_VF_STATUS_MBX_BLOCKED,
+			    (vf_flags & VF_FLAG_MBX_BLOCKED) != 0);
+			if_vf_extension_set_number(extension, field++,
+			    ICE_VF_STATUS_MBX_OVERFLOW_EVENTS,
+			    vf->mbx_overflow_events);
+		}
+		if_vf_extension_set_number(extension, field++,
+		    ICE_VF_STATUS_MAC_FILTER_COUNT, vf->mac_filter_cnt);
+		if (info->configured)
+			if_vf_extension_set_number(extension, field++,
+			    ICE_VF_STATUS_MAC_FILTER_LIMIT, vf->mac_filter_limit);
+		if_vf_extension_set_bool(extension, field++,
+		    ICE_VF_STATUS_RESET_FAILED,
+		    (vf_flags & VF_FLAG_RESET_FAILED) != 0);
+		if_vf_extension_set_bool(extension, field++,
+		    ICE_VF_STATUS_REBUILD_REQUIRED,
+		    (vf_flags & VF_FLAG_REBUILD_REQUIRED) != 0);
+		KASSERT(field == num_fields,
+		    ("ICE VF status field count %u != %u", field, num_fields));
+		info->allow_set_mac = (vf_flags & VF_FLAG_SET_MAC_CAP) != 0;
+		info->allow_set_vlan = (vf_flags & VF_FLAG_VLAN_CAP) != 0;
+		info->mac_anti_spoof =
+		    (vf_flags & VF_FLAG_MAC_ANTI_SPOOF) != 0;
+		info->allow_promisc = (vf_flags & VF_FLAG_PROMISC_CAP) != 0;
+	}
+	*statusp = status;
+	return (0);
+}
+
+/**
  * ice_iov_uninit - Called by the OS when VFs are destroyed
  * @sc: device softc structure
  */
@@ -722,7 +897,7 @@ ice_iov_handle_vflr(struct ice_softc *sc)
 			continue;
 		vf_flags = atomic_load_acq_32(&vf->vf_flags);
 		if ((vf_flags & VF_FLAG_ENABLED) != 0 && vf->vsi != NULL) {
-			if ((vf_flags & VF_FLAG_REBUILD_FAILED) != 0) {
+			if ((vf_flags & VF_FLAG_REBUILD_REQUIRED) != 0) {
 				/* Consume the event but leave the invalid VF held. */
 				wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 				ice_flush(hw);
@@ -996,7 +1171,7 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 	MPASS(vsi->type == ICE_VSI_VF);
 	vf = ice_iov_get_vf(sc, vsi->vf_num);
 	atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
-	atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+	atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_REQUIRED);
 	ice_iov_clear_vf_queue_state(vf);
 	ICE_IOV_FAIL_POINT(sc, vf->vf_num, rebuild_before_initialize, error,
 	    fail);
@@ -1025,7 +1200,7 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 	}
 
 	atomic_clear_32(&vf->vf_flags,
-	    VF_FLAG_REBUILD_FAILED | VF_FLAG_RESET_FAILED);
+	    VF_FLAG_REBUILD_REQUIRED | VF_FLAG_RESET_FAILED);
 	ice_iov_ready_vf(sc, vf);
 	return (0);
 
@@ -1064,7 +1239,7 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 
 	/* A VFR cannot recover PF-owned VSI state lost during PF rebuild. */
 	if (release_vf && (atomic_load_acq_32(&vf->vf_flags) &
-	    VF_FLAG_REBUILD_FAILED) != 0)
+	    VF_FLAG_REBUILD_REQUIRED) != 0)
 		return (EIO);
 
 	global_vf_num = vf->vf_num + hw->func_caps.vf_base_id;
@@ -1234,7 +1409,7 @@ ice_iov_quiesce_vfs_for_reset(struct ice_softc *sc)
 
 		/* Block mailbox reconfiguration before asserting reset. */
 		atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
-		atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+		atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_REQUIRED);
 		reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
 		reg |= VPGEN_VFRTRIG_VFSWR_M;
 		wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
@@ -2889,9 +3064,9 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event,
 
 	/*
 	 * Permit only reset negotiation while VF hardware state is unsafe.
-	 * A VFR can retry RESET_FAILED; REBUILD_FAILED requires a PF rebuild.
+	 * A VFR can retry RESET_FAILED; REBUILD_REQUIRED needs a PF rebuild.
 	 */
-	if ((vf_flags & (VF_FLAG_REBUILD_FAILED | VF_FLAG_RESET_FAILED)) != 0 &&
+	if ((vf_flags & (VF_FLAG_REBUILD_REQUIRED | VF_FLAG_RESET_FAILED)) != 0 &&
 	    v_opcode != VIRTCHNL_OP_VERSION &&
 	    v_opcode != VIRTCHNL_OP_RESET_VF) {
 		ice_aq_send_msg_to_vf(hw, v_id, v_opcode,

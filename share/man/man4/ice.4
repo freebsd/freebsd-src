@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd September 5, 2026
+.Dd September 17, 2026
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -1195,6 +1195,76 @@ and discards its requests so that other VFs can continue to use the mailbox.
 An externally initiated VF function-level reset, PF reset, or SR-IOV
 configuration recreation releases the VF.
 .Pp
+For each VF in an active SR-IOV configuration,
+.Xr ifconfig 8
+with the
+.Fl v
+option displays cached PF state, including its MAC address, allocated transmit
+and receive queues, exact trunk VLAN-filter count and capacity, negotiated
+virtual-channel API, and configured MAC, VLAN, anti-spoof, and promiscuous-mode
+policy.
+The VF link-state policy is automatic: each VF follows the PF link state.
+The API version is present only after the VF completes its resource handshake
+following the last reset.
+The generic traffic-permission and fault-containment fields indicate whether
+PF policy currently permits the VF to issue traffic and whether MDD or
+software mailbox protection has isolated it.
+They do not indicate link state or observed traffic.
+.Pp
+Structured status consumers also receive mirroring, malicious-driver,
+mailbox, MAC-filter, and reset diagnostics in the version 1
+.Cm driver.ice
+namespace of the
+.Xr rtnetlink 4
+VF status response:
+.Bl -tag -width "mailbox-overflow-events"
+.It Cm version
+Namespace version number, currently 1.
+.It Cm mirror-configured
+Boolean indicating whether a mirror source VSI is configured.
+.It Cm mirror-source-vsi
+The source VSI number; omitted when no mirror is configured.
+.It Cm mirror-ingress-active
+Boolean indicating whether the ingress hardware mirror rule is installed.
+.It Cm mirror-egress-active
+Boolean indicating whether the egress hardware mirror rule is installed.
+.It Cm mdd-blocked
+Boolean indicating that malicious-driver detection has isolated the VF.
+.It Cm mdd-tx-events
+Cumulative number of transmit malicious-driver latches attributed to the VF.
+.It Cm mdd-rx-events
+Cumulative number of receive malicious-driver latches attributed to the VF.
+.It Cm mailbox-blocked
+Boolean indicating that software mailbox-overflow detection has isolated the
+VF.
+This field is omitted on E830 controllers, which enforce the mailbox limit in
+hardware without persistent software isolation.
+.It Cm mailbox-overflow-events
+Cumulative number of times software mailbox-overflow detection has isolated
+the VF.
+This field is omitted on E830 controllers.
+.It Cm mac-filter-count
+Number of VF-owned explicit MAC filters recorded by the PF, including unicast
+and multicast addresses.
+The administrator-assigned MAC and implicit broadcast filter do not count
+toward this quota.
+.It Cm mac-filter-limit
+Maximum number of VF-owned explicit MAC filters permitted by PF policy.
+This field is omitted until the PF has accepted the VF configuration.
+.It Cm reset-failed
+Boolean indicating that a VF reset or restoration of its PF-owned policy
+failed.
+The VF remains held until reset recovery succeeds.
+.It Cm rebuild-required
+Boolean indicating that the VF's PF-owned VSI state needs rebuilding.
+This includes a pending rebuild during PF or device reset as well as a failed
+rebuild; it does not by itself indicate failure.
+A VF reset cannot recover this state.
+.El
+.Pp
+The status query uses driver-cached state and does not issue AdminQ commands
+or read device registers.
+.Pp
 An up to date list of parameters and their defaults can be found by using
 .Xr iovctl 8
 with the
@@ -1252,6 +1322,7 @@ email all the specific information related to the issue to
 .Sh SEE ALSO
 .Xr iflib 4 ,
 .Xr led 4 ,
+.Xr rtnetlink 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8 ,

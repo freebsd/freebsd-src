@@ -93,6 +93,7 @@ static void ice_init_link(struct ice_softc *sc);
 static int ice_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params);
 static void ice_if_iov_uninit(if_ctx_t ctx);
 static int ice_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params);
+static int ice_if_vf_status(if_ctx_t ctx, struct if_vf_status **statusp);
 static void ice_if_vflr_handle(if_ctx_t ctx);
 #endif
 static int ice_setup_mirror_vsi(struct ice_mirr_if *mif);
@@ -220,6 +221,7 @@ static device_method_t ice_iflib_methods[] = {
 	DEVMETHOD(ifdi_iov_vf_add, ice_if_iov_vf_add),
 	DEVMETHOD(ifdi_iov_init, ice_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ice_if_iov_uninit),
+	DEVMETHOD(ifdi_vf_status, ice_if_vf_status),
 	DEVMETHOD(ifdi_vflr_handle, ice_if_vflr_handle),
 #endif
 	DEVMETHOD_END
@@ -2613,6 +2615,21 @@ ice_prepare_for_reset(struct ice_softc *sc)
 		if (error != 0)
 			device_printf(sc->dev,
 			    "Failed to quiesce one or more VFs: %d\n", error);
+	} else {
+		/*
+		 * Hardware has already gated the VFs. Invalidate their cached
+		 * handshake before dropping CTX_LOCK to wait for reset, even if
+		 * rebuilding later fails before reaching the VF VSIs.
+		 */
+		for (int i = 0; i < sc->num_vfs; i++) {
+			struct ice_vf *vf = &sc->vfs[i];
+
+			if ((atomic_load_acq_32(&vf->vf_flags) &
+			    VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
+				continue;
+			atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
+			atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_REQUIRED);
+		}
 	}
 #endif
 
@@ -3633,6 +3650,19 @@ ice_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 
 	return ice_iov_add_vf(sc, vfnum, params);
+}
+
+/**
+ * ice_if_vf_status - report configured VF state
+ * @ctx: iflib context pointer
+ * @statusp: returned VF status snapshot
+ */
+static int
+ice_if_vf_status(if_ctx_t ctx, struct if_vf_status **statusp)
+{
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+
+	return (ice_iov_vf_status(sc, statusp));
 }
 
 /**
