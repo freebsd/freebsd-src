@@ -33,33 +33,40 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <err.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 static char *
 getcwd_logical(void)
 {
 	struct stat log, phy;
-	char *pwd, *p, *q;
+	char *pwd, *s, *e;
 
 	/* $PWD is set and absolute */
 	if ((pwd = getenv("PWD")) == NULL || *pwd != '/')
 		return (NULL);
+
 	/* $PWD does not contain /./ or /../ */
-	for (p = pwd; *p; p = q) {
-		for (q = ++p; *q && *q != '/'; q++)
-			/* nothing */;
-		if ((*p == '.' && q == ++p) ||
-		    (*p == '.' && q == ++p))
+	e = pwd;
+	do {
+		assert(*e == '/');
+		s = e + 1; /* Beginning of next component (may point to NUL). */
+		/* Search for the component's end. */
+		e = strchrnul(s, '/');
+		if (s[0] == '.' && (s + 1 == e || (s[1] == '.' && s + 2 == e)))
 			return (NULL);
-	}
+	} while (*e != '\0');
+
 	/* $PWD refers to the current directory */
 	if (stat(pwd, &log) != 0 || stat(".", &phy) != 0 ||
 	    log.st_dev != phy.st_dev || log.st_ino != phy.st_ino)
 		return (NULL);
+
 	return (pwd);
 }
 
