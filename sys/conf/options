@@ -249,6 +249,8 @@ KCOV
 KCSAN		opt_global.h
 KMSAN		opt_global.h
 KUBSAN		opt_global.h
+KUBSAN_BOUNDS  opt_global.h
+KUBSAN_BOUNDS_NO_MERGE opt_global.h
 
 # POSIX kernel options
 P1003_1B_MQUEUE			opt_posix.h
