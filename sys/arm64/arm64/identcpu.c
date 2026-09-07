@@ -1295,8 +1295,8 @@ static const struct mrs_field_value id_aa64mmfr1_ecbhb[] = {
 	MRS_FIELD_VALUE_END,
 };
 
-static const struct mrs_field_value id_aa64mmfr1_cmovw[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, CMOVW, NONE, IMPL),
+static const struct mrs_field_value id_aa64mmfr1_cmow[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, CMOW, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1386,7 +1386,7 @@ static const struct mrs_field_value id_aa64mmfr1_hafdbs[] = {
 
 static const struct mrs_field id_aa64mmfr1_fields[] = {
 	MRS_FIELD(ID_AA64MMFR1, ECBHB, false, MRS_LOWER, 0, id_aa64mmfr1_ecbhb),
-	MRS_FIELD(ID_AA64MMFR1, CMOVW, false, MRS_LOWER, 0, id_aa64mmfr1_cmovw),
+	MRS_FIELD(ID_AA64MMFR1, CMOW, false, MRS_LOWER, 0, id_aa64mmfr1_cmow),
 	MRS_FIELD(ID_AA64MMFR1, TIDCP1, false, MRS_LOWER, 0,
 	    id_aa64mmfr1_tidcp1),
 	MRS_FIELD(ID_AA64MMFR1, nTLBPA, false, MRS_LOWER, 0,
