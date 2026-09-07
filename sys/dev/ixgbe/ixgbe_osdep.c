@@ -39,10 +39,16 @@ ixgbe_dev_from_hw(struct ixgbe_hw *hw)
 	return ((struct ixgbe_softc *)hw->back)->dev;
 }
 
+inline u8
+ixgbe_read_pci_cfg_byte(struct ixgbe_hw *hw, u32 reg)
+{
+	return (pci_read_config(ixgbe_dev_from_hw(hw), reg, 1));
+}
+
 inline u16
 ixgbe_read_pci_cfg(struct ixgbe_hw *hw, u32 reg)
 {
-	return pci_read_config(((struct ixgbe_softc *)hw->back)->dev, reg, 2);
+	return (pci_read_config(ixgbe_dev_from_hw(hw), reg, 2));
 }
 
 inline void
