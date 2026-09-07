@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 19, 2026
+.Dd September 6, 2026
 .Dt PW 8
 .Os
 .Sh NAME
@@ -75,14 +75,14 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm userdel
-.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Bro Oo Fl n Oc Ar name | Oo Fl u Oc Ar uid Brc
 .Op Fl r
 .Op Fl Y Op Fl y Ar nispasswd
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm usermod
-.Oo Fl n Oc Ar name Ns | Ns Ar uid Oo Fl u Ar newuid Oc | Fl u Ar uid
+.Bro Oo Fl n Oc Ar name Oo Fl u Ar newuid Oc | Oo Fl u Oc Ar uid Brc
 .Op Fl mNPq
 .Op Fl C Ar config
 .Op Fl c Ar comment
@@ -104,7 +104,7 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm usershow
-.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Bro Oo Fl n Oc Ar name | Oo Fl u Oc Ar uid Brc
 .Op Fl 7aFP
 .Nm
 .Op Fl R Ar rootdir
@@ -127,13 +127,13 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupdel
-.Oo Fl n Oc Ar name Ns | Ns Oo Fl g Oc Ar gid
+.Bro Oo Fl n Oc Ar name | Oo Fl g Oc Ar gid Brc
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupmod
-.Oo Fl n Oc Ar name Ns | Ns Ar gid Oo Fl g Ar newgid Oc | Fl g Ar gid
+.Bro Oo Fl n Oc Ar name Oo Fl g Ar newgid Oc | Oo Fl g Oc Ar gid Brc
 .Op Fl NPqY
 .Op Fl C Ar config
 .Op Fl d Ar oldmembers
@@ -146,7 +146,7 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupshow
-.Oo Fl n Oc Ar name Ns | Ns Oo Fl g Oc Ar gid
+.Bro Oo Fl n Oc Ar name | Oo Fl g Oc Ar gid Brc
 .Op Fl aFP
 .Nm
 .Op Fl R Ar rootdir
@@ -158,14 +158,14 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm lock
-.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Bro Oo Fl n Oc Ar name | Oo Fl u Oc Ar uid Brc
 .Op Fl q
 .Op Fl C Ar config
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm unlock
-.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Bro Oo Fl n Oc Ar name | Oo Fl u Oc Ar uid Brc
 .Op Fl q
 .Op Fl C Ar config
 .Sh DESCRIPTION
@@ -322,10 +322,6 @@ Required unless
 .Fl u Ar uid
 is given.
 Specify the user/account name.
-In the case of
-.Cm usermod
-can be a
-.Ar uid .
 .It Fl u Ar uid
 Required if
 .Ar name
@@ -835,9 +831,6 @@ Required unless
 .Fl g Ar gid
 is given.
 Specify the group name.
-In the case of
-.Cm groupmod
-can be a gid.
 .It Fl g Ar gid
 Required if
 .Ar name
