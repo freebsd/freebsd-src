@@ -1,0 +1,58 @@
+#!/bin/sh
+
+# KEYWORD: firstboot
+# PROVIDE: ec2_setpass
+# REQUIRE: ec2_fetchkey
+# BEFORE: LOGIN
+
+# Define ec2_setpass_enable=YES in /etc/rc.conf to enable setting the
+# account password and printing in encrypted format to the console.
+: ${ec2_setpass_enable=NO}
+
+# We reuse the user name from ec2_fetchkey since that creates the user
+# and fetches the SSH key which is used to encrypt the password.
+: ${ec2_fetchkey_user=ec2-user}
+
+. /etc/rc.subr
+
+name="ec2_setpass"
+rcvar=ec2_setpass_enable
+start_cmd="ec2_setpass_run"
+stop_cmd=":"
+
+ec2_setpass_run()
+{
+
+	# If the user does not exist or has no SSH key, return.
+	HOMEDIR=$(pw user show ${ec2_fetchkey_user} 2>/dev/null | awk -F: '{print $9}')
+	SSHKEYFILE="${HOMEDIR}/.ssh/authorized_keys"
+	if [ -z "${HOMEDIR}" ] || ! [ -f "${SSHKEYFILE}" ]; then
+		return
+	fi
+
+	# Print the RDP certificate fingerprint
+	echo "HOSTNAME: freebsd"
+	echo "RDPCERTIFICATE-SUBJECTNAME: freebsd"
+	FINGERSHA1=$(openssl x509 -in /usr/local/etc/xrdp/cert.pem \
+	    -noout -fingerprint -sha1 | cut -f 2- -d = | tr -d :)
+	FINGERSHA256=$(openssl x509 -in /usr/local/etc/xrdp/cert.pem \
+	    -noout -fingerprint -sha256 | cut -f 2- -d = | tr A-F a-f)
+	echo "RDPCERTIFICATE-THUMBPRINT: ${FINGERSHA1}"
+	echo "RDPCERTIFICATE-THUMBPRINT256: ${FINGERSHA256}"
+
+	# Set a random password, and print it in encrypted format
+	PUBKEY=$(mktemp -t ec2_setpass)
+	ssh-keygen -e -m PKCS8 -f ${SSHKEYFILE} > ${PUBKEY}
+	PASSWD=`jot -cr 16 / z | tr '\\`' '-+' | rs -g 0`
+	echo "${PASSWD}" | pw usermod ${ec2_fetchkey_user} -h 0
+	echo "Username: ${ec2_fetchkey_user}"
+	echo "Password: <Password>"
+	printf "%s" "${PASSWD}" |
+	    openssl pkeyutl -encrypt -pubin -inkey ${PUBKEY} -pkeyopt rsa_padding_mode:pkcs1 |
+	    base64 -w 0
+	echo "</Password>"
+	echo 'Message: Windows is Ready to use'
+}
+
+load_rc_config $name
+run_rc_command "$1"
