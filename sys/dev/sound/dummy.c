@@ -45,8 +45,8 @@
 #include <mixer_if.h>
 #include <mpufoi_if.h>
 
-#define DUMMY_NPCHAN	1
-#define DUMMY_NRCHAN	1
+#define DUMMY_NPCHAN	2
+#define DUMMY_NRCHAN	2
 #define DUMMY_NCHAN	(DUMMY_NPCHAN + DUMMY_NRCHAN)
 
 struct dummy_chan {
