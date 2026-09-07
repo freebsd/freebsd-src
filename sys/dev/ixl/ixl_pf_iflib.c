@@ -201,8 +201,8 @@ ixl_msix_adminq(void *arg)
 	/* Checks against the conditions above */
 	if (reg & IXL_ICR0_CRIT_ERR_MASK) {
 		mask &= ~IXL_ICR0_CRIT_ERR_MASK;
-		ixl_set_state(&pf->state,
-		    IXL_STATE_PF_RESET_REQ | IXL_STATE_PF_CRIT_ERR);
+		ixl_set_state(&pf->state, IXL_STATE_PF_RESET_REQ);
+		ixl_set_state(&pf->state, IXL_STATE_PF_CRIT_ERR);
 		do_task = TRUE;
 	}
 
