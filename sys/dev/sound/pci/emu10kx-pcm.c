@@ -768,13 +768,30 @@ emupchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 {
 	struct emu_pcm_pchinfo *ch = c_devinfo;
 	struct emu_pcm_info *sc = ch->pcm;
+	uint32_t blkcnt;
 
-	if (blocksize > ch->pcm->bufsz)
-		blocksize = ch->pcm->bufsz;
+	/*
+	 * The channel always plays the whole EMU_PLAY_BUFSZ buffer, so the
+	 * blocks have to cover it exactly, or the part they do not cover is
+	 * "played" without ever being written to.
+	 *
+	 * sndbuf_resize() needs at least two blocks, so a block can be at most
+	 * half the buffer's size. The block count has to be a power of two as
+	 * well, because only then does the division come out exact.
+	 */
+	if (blocksize == 0 || blocksize > EMU_PLAY_BUFSZ / 2)
+		blocksize = EMU_PLAY_BUFSZ / 2;
+	blkcnt = 1 << (fls(EMU_PLAY_BUFSZ / blocksize) - 1);
+	blocksize = EMU_PLAY_BUFSZ / blkcnt;
+
+	if (sndbuf_resize(ch->buffer, blkcnt, blocksize) != 0)
+		return (ch->blksz);
+
 	mtx_lock(&sc->lock);
 	ch->blksz = blocksize;
 	emu_timer_set(sc->card, ch->timer, ch->blksz / ch->buffer->align);
 	mtx_unlock(&sc->lock);
+
 	return (ch->blksz);
 }
 
