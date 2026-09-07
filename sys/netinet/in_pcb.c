@@ -1227,7 +1227,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 			struct inpcblbgroup *g __diagused;
 
 			i = in_pcblookup_wild_locked(ipictx.pcbinfo,
-			    inp->inp_laddr, inp->inp_lport, RT_ALL_FIBS,
+			    laddr, inp->inp_lport, RT_ALL_FIBS,
 			    &ipictx.wbucket);
 			MPASS(i);
 			if (inp->inp_flags & INP_INLBGROUP) {
