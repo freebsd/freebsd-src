@@ -1367,6 +1367,7 @@ static void pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va,
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static vm_page_t pmap_large_map_getptp_unlocked(void);
 static vm_paddr_t pmap_large_map_kextract(vm_offset_t va);
+static bool pmap_page_is_mapped_locked(vm_page_t m);
 #if VM_NRESERVLEVEL > 0
 static bool pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     vm_page_t mpte, struct rwlock **lockp);
@@ -5199,7 +5200,6 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	struct pv_chunks_list *pvc;
 	struct pv_chunk *pc, *pc_marker, *pc_marker_end;
 	struct pv_chunk_header pc_marker_b, pc_marker_end_b;
-	struct md_page *pvh;
 	pd_entry_t *pde;
 	pmap_t next_pmap, pmap;
 	pt_entry_t *pte, tpte;
@@ -5319,14 +5319,8 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 				m->md.pv_gen++;
-				if (TAILQ_EMPTY(&m->md.pv_list) &&
-				    (m->flags & PG_FICTITIOUS) == 0) {
-					pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-					if (TAILQ_EMPTY(&pvh->pv_list)) {
-						vm_page_aflag_clear(m,
-						    PGA_WRITEABLE);
-					}
-				}
+				if (!pmap_page_is_mapped_locked(m))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pmap_delayed_invl_page(m);
 				pc->pc_map[field] |= 1UL << bit;
 				pmap_unuse_pt(pmap, va, *pde, &free);
@@ -6212,7 +6206,6 @@ static int
 pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp)
 {
-	struct md_page *pvh;
 	pt_entry_t oldpte, PG_A, PG_M, PG_RW;
 	vm_page_t m;
 
@@ -6233,12 +6226,8 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		pmap_pvh_free(&m->md, pmap, va);
-		if (TAILQ_EMPTY(&m->md.pv_list) &&
-		    (m->flags & PG_FICTITIOUS) == 0) {
-			pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-			if (TAILQ_EMPTY(&pvh->pv_list))
-				vm_page_aflag_clear(m, PGA_WRITEABLE);
-		}
+		if (!pmap_page_is_mapped_locked(m))
+			vm_page_aflag_clear(m, PGA_WRITEABLE);
 		pmap_delayed_invl_page(m);
 	}
 	return (pmap_unuse_pt(pmap, va, ptepde, free));
@@ -7287,10 +7276,13 @@ retry:
 			    ("pmap_enter: no PV entry for %#lx", va));
 			if ((newpte & PG_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
+
+			/*
+			 * The old page is likely COW, so check "writeable"
+			 * first.
+			 */
 			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
-			    TAILQ_EMPTY(&om->md.pv_list) &&
-			    ((om->flags & PG_FICTITIOUS) != 0 ||
-			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+			    !pmap_page_is_mapped_locked(om))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
 		} else {
 			/*
@@ -8451,11 +8443,20 @@ pmap_page_is_mapped(vm_page_t m)
 		return (false);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(lock);
-	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
-	    ((m->flags & PG_FICTITIOUS) == 0 &&
-	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list));
+	rv = pmap_page_is_mapped_locked(m);
 	rw_runlock(lock);
 	return (rv);
+}
+
+/*
+ * The page's PV list lock must be held.
+ */
+static __always_inline bool
+pmap_page_is_mapped_locked(vm_page_t m)
+{
+	return (!TAILQ_EMPTY(&m->md.pv_list) ||
+	    ((m->flags & PG_FICTITIOUS) == 0 &&
+	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list)));
 }
 
 /*
@@ -8649,12 +8650,8 @@ pmap_remove_pages(pmap_t pmap)
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 					m->md.pv_gen++;
 					if ((m->a.flags & PGA_WRITEABLE) != 0 &&
-					    TAILQ_EMPTY(&m->md.pv_list) &&
-					    (m->flags & PG_FICTITIOUS) == 0) {
-						pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-						if (TAILQ_EMPTY(&pvh->pv_list))
-							vm_page_aflag_clear(m, PGA_WRITEABLE);
-					}
+					    !pmap_page_is_mapped_locked(m))
+						vm_page_aflag_clear(m, PGA_WRITEABLE);
 				}
 				pmap_unuse_pt(pmap, pv->pv_va, ptepde, &free);
 #ifdef PV_STATS
