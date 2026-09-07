@@ -770,9 +770,7 @@ aq_if_init(if_ctx_t ctx)
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != 0) {
 		device_printf(softc->dev, "aq_hw_init: %d\n", err);
-		softc->init_failed = true;
-		AQ_DBG_EXIT(err);
-		return;
+		goto fail;
 	}
 	softc->init_failed = false;
 	softc->init_retries = 0;
@@ -787,11 +785,13 @@ aq_if_init(if_ctx_t ctx)
 		if (err) {
 			device_printf(softc->dev,
 			    "aq_ring_tx_init: %d\n", err);
+			goto fail;
 		}
 		err = aq_ring_tx_start(hw, ring);
 		if (err != 0) {
 			device_printf(softc->dev,
 			    "aq_ring_tx_start: %d\n", err);
+			goto fail;
 		}
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
@@ -801,19 +801,23 @@ aq_if_init(if_ctx_t ctx)
 		if (err) {
 			device_printf(softc->dev,
 			    "aq_ring_rx_init: %d\n", err);
+			goto fail;
 		}
 		err = aq_ring_rx_start(hw, ring);
 		if (err != 0) {
 			device_printf(softc->dev,
 			    "aq_ring_rx_start: %d\n", err);
+			goto fail;
 		}
 		aq_if_rx_queue_intr_enable(ctx, i);
 	}
 
 	err = aq_hw_start(hw);
-	if (err != 0)
+	if (err != 0) {
 		device_printf(softc->dev, "could not start the datapath: %d\n",
 		    err);
+		goto fail;
+	}
 	aq_if_enable_intr(ctx);
 	err = aq_hw_rss_hash_set(&softc->hw, softc->rss_key);
 	if (err != 0)
@@ -842,6 +846,13 @@ aq_if_init(if_ctx_t ctx)
 		device_printf(softc->dev, "could not restore promiscuous mode\n");
 
 	AQ_DBG_EXIT(0);
+	return;
+
+fail:
+	aq_if_stop(ctx);
+	softc->init_failed = true;
+	iflib_init_failed(ctx);
+	AQ_DBG_EXIT(err);
 }
 
 
