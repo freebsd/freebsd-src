@@ -704,7 +704,8 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 		if (pwd != NULL) {
 			nid.nid_usertimeout = defusertimeout;
 			nid.nid_uid = pwd->pw_uid;
-			nid.nid_name = pwd->pw_name;
+			/* NSS may canonicalize the name used for the lookup. */
+			nid.nid_name = info.name;
 		} else {
 			nid.nid_usertimeout = 5;
 			nid.nid_uid = defaultuid;
@@ -737,7 +738,8 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 		if (grp != NULL) {
 			nid.nid_usertimeout = defusertimeout;
 			nid.nid_gid = grp->gr_gid;
-			nid.nid_name = grp->gr_name;
+			/* NSS may canonicalize the name used for the lookup. */
+			nid.nid_name = info.name;
 		} else {
 			nid.nid_usertimeout = 5;
 			nid.nid_gid = defaultgid;
