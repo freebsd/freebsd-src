@@ -4254,6 +4254,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	u32 ctrl_ext;
 
 	int i, j, err;
+	s32 status;
 
 	INIT_DEBUGOUT("ixgbe_if_init: begin");
 	if (atomic_load_acq_int(&sc->recovery_mode)) {
@@ -4282,7 +4283,13 @@ ixgbe_if_init(if_ctx_t ctx)
 	ixgbe_set_rar(hw, 0, hw->mac.addr, sc->pool, 1);
 	hw->addr_ctrl.rar_used_count = 1;
 
-	ixgbe_init_hw(hw);
+	status = ixgbe_init_hw(hw);
+	if (status != IXGBE_SUCCESS) {
+		device_printf(dev, "Hardware initialization failed: %d\n",
+		    status);
+		iflib_init_failed(ctx);
+		return;
+	}
 	sc->iov_mta_valid = false;
 	sc->iov_vfta_valid = false;
 
