@@ -215,6 +215,36 @@ ATF_TC_BODY(gethostname_jailed, tc)
 	close(s);
 }
 
+ATF_TC_WITHOUT_HEAD(connect_bound_socket_from_2address_jail);
+ATF_TC_BODY(connect_bound_socket_from_2address_jail, tc)
+{
+	struct in_addr addrs[] = {
+	    { htonl(0xc0000202) }, { htonl(0xc0000203) }
+	};
+	struct jail jconf = {
+	    .version = JAIL_API_VERSION,
+	    .path = __DECONST(char *, "/"),
+	    .hostname = __DECONST(char *,"test"),
+	    .ip4s = nitems(addrs),
+	    .ip4 = addrs,
+	};
+	struct sockaddr_in sin = { .sin_family = AF_INET };
+	socklen_t slen = sizeof(sin);
+	int s;
+
+	ATF_REQUIRE(jail(&jconf) > 0);
+	ATF_REQUIRE((s = socket(PF_INET, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	ATF_REQUIRE(getsockname(s, (struct sockaddr *)&sin, &slen) == 0);
+	ATF_REQUIRE_MSG(sin.sin_addr.s_addr == INADDR_ANY && sin.sin_port != 0,
+	    "jailed unconnected socket name %s:%u", inet_ntoa(sin.sin_addr),
+	    ntohs(sin.sin_port));
+	sin.sin_addr.s_addr = htonl(0xc0000204);
+	sin.sin_port = htons(6666);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	close(s);
+}
+
 /*
  * See bug 274009.
  */
@@ -243,6 +273,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, v4mapped);
 	ATF_TP_ADD_TC(tp, gethostname);
 	ATF_TP_ADD_TC(tp, gethostname_jailed);
+	ATF_TP_ADD_TC(tp, connect_bound_socket_from_2address_jail);
 	ATF_TP_ADD_TC(tp, IP_SENDSRCADDR);
 
 	return (atf_no_error());
