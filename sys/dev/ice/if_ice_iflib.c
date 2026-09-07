@@ -2069,12 +2069,13 @@ ice_update_rx_mbuf_sz(struct ice_softc *sc)
 static void
 ice_if_init(if_ctx_t ctx)
 {
-	struct ice_mirr_if *mif = (struct ice_mirr_if *)iflib_get_softc(ctx);
+	struct ice_mirr_if *mif;
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 	device_t dev = sc->dev;
 	int err;
 
 	ASSERT_CTX_LOCKED(sc);
+	mif = sc->mirr_if;
 
 	/*
 	 * We've seen an issue with 11.3/12.1 where sideband routines are
@@ -2163,10 +2164,11 @@ ice_if_init(if_ctx_t ctx)
 
 	ice_set_state(&sc->state, ICE_STATE_DRIVER_INITIALIZED);
 
-	if (sc->mirr_if && ice_testandclear_state(&mif->state, ICE_STATE_SUBIF_NEEDS_REINIT)) {
+	if (mif != NULL && ice_testandclear_state(&mif->state,
+	    ICE_STATE_SUBIF_NEEDS_REINIT)) {
 		ice_clear_state(&mif->state, ICE_STATE_DRIVER_INITIALIZED);
-		iflib_request_reset(sc->mirr_if->subctx);
-		iflib_admin_intr_deferred(sc->mirr_if->subctx);
+		iflib_request_reset(mif->subctx);
+		iflib_admin_intr_deferred(mif->subctx);
 	}
 
 	return;
@@ -3144,10 +3146,11 @@ ice_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 static void
 ice_if_stop(if_ctx_t ctx)
 {
-	struct ice_mirr_if *mif = (struct ice_mirr_if *)iflib_get_softc(ctx);
+	struct ice_mirr_if *mif;
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 
 	ASSERT_CTX_LOCKED(sc);
+	mif = sc->mirr_if;
 	ice_led_restore(sc);
 
 	/*
@@ -3196,8 +3199,9 @@ ice_if_stop(if_ctx_t ctx)
 		 !(if_getflags(sc->ifp) & IFF_UP) && sc->link_up)
 		ice_set_link(sc, false);
 
-	if (sc->mirr_if && ice_test_state(&mif->state, ICE_STATE_SUBIF_NEEDS_REINIT)) {
-		ice_subif_if_stop(sc->mirr_if->subctx);
+	if (mif != NULL && ice_test_state(&mif->state,
+	    ICE_STATE_SUBIF_NEEDS_REINIT)) {
+		ice_subif_if_stop(mif->subctx);
 		device_printf(sc->dev, "The subinterface also comes down and up after reset\n");
 	}
 }
@@ -4038,7 +4042,7 @@ fail:
 static int
 ice_subif_rebuild(struct ice_softc *sc)
 {
-	struct ice_mirr_if *mif = (struct ice_mirr_if *)iflib_get_softc(sc->ctx);
+	struct ice_mirr_if *mif = sc->mirr_if;
 	struct ice_vsi *vsi = sc->mirr_if->vsi;
 	int err;
 
