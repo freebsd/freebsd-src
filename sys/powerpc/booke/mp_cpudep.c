@@ -83,7 +83,7 @@ cpudep_ap_bootstrap(void)
 #endif
 	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
 	sp = pcpup->pc_curpcb->pcb_sp;
-	schedinit_ap();
+	sched_init_ap();
 
 	/* XXX shouldn't the pcb_sp be checked/forced for alignment here?? */
 

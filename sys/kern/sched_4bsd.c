@@ -1010,7 +1010,7 @@ sched_4bsd_sleep(struct thread *td, int pri)
 }
 
 static void
-sched_4bsd_sswitch(struct thread *td, int flags)
+sched_4bsd_switch(struct thread *td, int flags)
 {
 	struct thread *newtd;
 	struct mtx *tmtx;
@@ -1842,54 +1842,4 @@ sched_4bsd_find_l2_neighbor(int cpu)
 	return (-1);
 }
 
-struct sched_instance sched_4bsd_instance = {
-#define	SLOT(name) .name = sched_4bsd_##name
-	SLOT(load),
-	SLOT(rr_interval),
-	SLOT(runnable),
-	SLOT(exit),
-	SLOT(fork),
-	SLOT(fork_exit),
-	SLOT(class),
-	SLOT(nice),
-	SLOT(ap_entry),
-	SLOT(exit_thread),
-	SLOT(estcpu),
-	SLOT(fork_thread),
-	SLOT(ithread_prio),
-	SLOT(lend_prio),
-	SLOT(lend_user_prio),
-	SLOT(lend_user_prio_cond),
-	SLOT(pctcpu),
-	SLOT(prio),
-	SLOT(sleep),
-	SLOT(sswitch),
-	SLOT(throw),
-	SLOT(unlend_prio),
-	SLOT(user_prio),
-	SLOT(userret_slowpath),
-	SLOT(add),
-	SLOT(choose),
-	SLOT(clock),
-	SLOT(idletd),
-	SLOT(preempt),
-	SLOT(relinquish),
-	SLOT(rem),
-	SLOT(wakeup),
-	SLOT(bind),
-	SLOT(unbind),
-	SLOT(is_bound),
-	SLOT(affinity),
-	SLOT(sizeof_proc),
-	SLOT(sizeof_thread),
-	SLOT(tdname),
-	SLOT(clear_tdname),
-	SLOT(find_l2_neighbor),
-	SLOT(init),
-	SLOT(init_ap),
-	SLOT(setup),
-	SLOT(initticks),
-	SLOT(sysinit),
-#undef SLOT
-};
-DECLARE_SCHEDULER(fourbsd_sched_selector, "4BSD", &sched_4bsd_instance);
+DECLARE_SCHEDULER(4bsd, "4BSD");

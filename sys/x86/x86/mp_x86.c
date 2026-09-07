@@ -1085,7 +1085,7 @@ init_secondary_tail(void)
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
-	schedinit_ap();
+	sched_init_ap();
 
 	mca_init();
 
