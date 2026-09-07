@@ -1,0 +1,60 @@
+#!/bin/sh
+
+# KEYWORD: firstboot
+# PROVIDE: ec2_desktop_extras
+# REQUIRE: ldconfig
+# BEFORE: ec2_setpass
+# BEFORE: xrdp
+
+# Forcibly enabled; this script will not be included (in fact will be
+# deleted entirely) once its functionality is included elsewhere.
+ec2_desktop_extras_enable=YES
+
+. /etc/rc.subr
+
+name="ec2_desktop_extras"
+rcvar=ec2_desktop_extras_enable
+start_cmd="ec2_desktop_extras_run"
+stop_cmd=":"
+
+ec2_desktop_extras_run()
+{
+
+	# These should run at first boot from pkg triggers, but those
+	# aren't included in VM images yet.
+	/usr/bin/makewhatis /usr/share/man
+	/usr/bin/makewhatis /usr/share/openssl/man
+	/usr/local/bin/fc-cache -s
+	/usr/local/bin/glib-compile-schemas /usr/local/share/glib-2.0/schemas
+	/usr/local/bin/gio-querymodules /usr/local/lib/gio/modules
+	/usr/local/bin/gdk-pixbuf-query-loaders --update-cache
+	/usr/local/bin/update-desktop-database -q
+	/usr/local/bin/update-mime-database /usr/local/share/mime
+	for d in /usr/local/share/icons/*/; do
+		[ -d "$d" ] || continue
+		/usr/local/bin/gtk-update-icon-cache -q -t -f "${d%/}"
+	done
+
+	# This should from from an rc.d script in xrdp.
+	RSAKEYS=/usr/local/etc/xrdp/rsakeys.ini
+	PRIVATEKEY=/usr/local/etc/xrdp/key.pem
+	CERTIFICATE=/usr/local/etc/xrdp/cert.pem
+	# make sure rsakeys and certificates are private
+	umask 077
+	# generate rsakeys.ini
+	[ -e "$RSAKEYS" ] || /usr/local/bin/xrdp-keygen xrdp "$RSAKEYS" && \
+	# generate self-signed certificate
+	[ -e "$PRIVATEKEY" -a -e "$CERTIFICATE" ] || \
+	    /usr/bin/openssl req \
+		 -x509 \
+		 -newkey rsa:4096 \
+		 -keyout "$PRIVATEKEY" \
+		 -sha256 \
+		 -nodes \
+		 -out "$CERTIFICATE" \
+		 -days 365 \
+		 -subj "/CN=$(hostname)"
+}
+
+load_rc_config $name
+run_rc_command "$1"
