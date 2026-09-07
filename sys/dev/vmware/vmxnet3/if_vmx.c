@@ -1943,7 +1943,10 @@ vmxnet3_init(if_ctx_t ctx)
 	vmxnet3_reinit_shared_data(sc);
 	vmxnet3_reinit_queues(sc);
 
-	vmxnet3_enable_device(sc);
+	if (vmxnet3_enable_device(sc) != 0) {
+		iflib_init_failed(ctx);
+		return;
+	}
 
 	vmxnet3_reinit_rxfilters(sc);
 	vmxnet3_link_status(sc);
