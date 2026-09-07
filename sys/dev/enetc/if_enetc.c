@@ -972,7 +972,7 @@ enetc_disable_txq(struct enetc_softc *sc, int qid)
 		cidx = ENETC_TXQ_RD4(sc, qid, ENETC_TBCIR);
 	}
 
-	if (timeout == 0)
+	if (pidx != cidx)
 		device_printf(sc->dev,
 		    "Timeout while waiting for txq%d to stop transmitting packets\n",
 		    qid);
