@@ -126,6 +126,7 @@ enum {
 #define UNREFERENCED_2PARAMETER(_p, _q)
 #define UNREFERENCED_3PARAMETER(_p, _q, _r)
 #define UNREFERENCED_4PARAMETER(_p, _q, _r, _s)
+#define UNREFERENCED_5PARAMETER(_p, _q, _r, _s, _t)
 
 #define IXGBE_NTOHL(_i)	ntohl(_i)
 #define IXGBE_NTOHS(_i)	ntohs(_i)
@@ -208,6 +209,9 @@ struct ixgbe_hw;
 device_t ixgbe_dev_from_hw(struct ixgbe_hw *hw);
 
 /* These routines are needed by the shared code */
+extern u8 ixgbe_read_pci_cfg_byte(struct ixgbe_hw *, u32);
+#define IXGBE_READ_PCIE_BYTE ixgbe_read_pci_cfg_byte
+
 extern u16 ixgbe_read_pci_cfg(struct ixgbe_hw *, u32);
 #define IXGBE_READ_PCIE_WORD ixgbe_read_pci_cfg
 
