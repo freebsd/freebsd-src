@@ -69,6 +69,8 @@ const char iavf_driver_version[] = "3.0.26-k";
 static const pci_vendor_info_t iavf_vendor_info_array[] = {
 	PVIDV(IAVF_INTEL_VENDOR_ID, IAVF_DEV_ID_VF,
 	    "Intel(R) Ethernet Virtual Function 700 Series"),
+	PVIDV(IAVF_INTEL_VENDOR_ID, IAVF_DEV_ID_VF_HV,
+	    "Intel(R) Ethernet Hyper-V Adaptive Virtual Function"),
 	PVIDV(IAVF_INTEL_VENDOR_ID, IAVF_DEV_ID_X722_VF,
 	    "Intel(R) Ethernet Virtual Function 700 Series (X722)"),
 	PVIDV(IAVF_INTEL_VENDOR_ID, IAVF_DEV_ID_ADAPTIVE_VF,
