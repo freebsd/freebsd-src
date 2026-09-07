@@ -1624,19 +1624,20 @@ vgic_v3_icc_sgi1r_write(struct vcpu *vcpu, uint64_t rval, void *arg)
 	active_cpus = vm_active_cpus(vm);
 	vcpuid = vcpu_vcpuid(vcpu);
 
-	irqid = ICC_SGI1R_EL1_SGIID_VAL(rval) >> ICC_SGI1R_EL1_SGIID_SHIFT;
-	if ((rval & ICC_SGI1R_EL1_IRM) == 0) {
+	irqid = ICC_SGI1R_INTID_VAL(rval) >> ICC_SGI1R_INTID_SHIFT;
+	if ((rval & ICC_SGI1R_IRM) == 0) {
 		/* Non-zero points at no vcpus */
-		if (ICC_SGI1R_EL1_RS_VAL(rval) != 0)
+		if (ICC_SGI1R_RS_VAL(rval) != 0)
 			return (0);
 
-		aff1 = ICC_SGI1R_EL1_AFF1_VAL(rval) >> ICC_SGI1R_EL1_AFF1_SHIFT;
-		aff2 = ICC_SGI1R_EL1_AFF2_VAL(rval) >> ICC_SGI1R_EL1_AFF2_SHIFT;
-		aff3 = ICC_SGI1R_EL1_AFF3_VAL(rval) >> ICC_SGI1R_EL1_AFF3_SHIFT;
+		aff1 = ICC_SGI1R_Aff1_VAL(rval) >> ICC_SGI1R_Aff1_SHIFT;
+		aff2 = ICC_SGI1R_Aff2_VAL(rval) >> ICC_SGI1R_Aff2_SHIFT;
+		aff3 = ICC_SGI1R_Aff3_VAL(rval) >> ICC_SGI1R_Aff3_SHIFT;
 		mpidr = aff3 << MPIDR_AFF3_SHIFT |
 		    aff2 << MPIDR_AFF2_SHIFT | aff1 << MPIDR_AFF1_SHIFT;
 
-		cpus = ICC_SGI1R_EL1_TL_VAL(rval) >> ICC_SGI1R_EL1_TL_SHIFT;
+		cpus = ICC_SGI1R_TargetList_VAL(rval) >>
+		    ICC_SGI1R_TargetList_SHIFT;
 		cpu_off = 0;
 		while (cpus > 0) {
 			if (cpus & 1) {

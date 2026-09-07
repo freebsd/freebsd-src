@@ -1177,13 +1177,13 @@ gic_v3_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 		/* Send the IPI to this cpu */
 		if (CPU_ISSET(i, &cpus)) {
 #define	ICC_SGI1R_AFFINITY(aff)					\
-    (((uint64_t)CPU_AFF3(aff) << ICC_SGI1R_EL1_AFF3_SHIFT) |	\
-     ((uint64_t)CPU_AFF2(aff) << ICC_SGI1R_EL1_AFF2_SHIFT) |	\
-     ((uint64_t)CPU_AFF1(aff) << ICC_SGI1R_EL1_AFF1_SHIFT))
+    (((uint64_t)CPU_AFF3(aff) << ICC_SGI1R_Aff3_SHIFT) |	\
+     ((uint64_t)CPU_AFF2(aff) << ICC_SGI1R_Aff2_SHIFT) |	\
+     ((uint64_t)CPU_AFF1(aff) << ICC_SGI1R_Aff1_SHIFT))
 			/* Set the affinity when the first at this level */
 			if (val == 0)
 				val = ICC_SGI1R_AFFINITY(aff) |
-				    irq << ICC_SGI1R_EL1_SGIID_SHIFT;
+				    irq << ICC_SGI1R_INTID_SHIFT;
 			/* Set the bit to send the IPI to te CPU */
 			val |= 1 << CPU_AFF0(CPU_AFFINITY(i));
 		}
