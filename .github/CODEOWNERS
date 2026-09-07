@@ -111,6 +111,11 @@
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling
 /sys/fs/pseudofs/	@dag-erling
+/sys/kern/kern_switch.c	@OlCe2
+/sys/kern/kern_synch.c	@OlCe2
+/sys/kern/sched_4bsd.c	@OlCe2
+/sys/kern/sched_shim.c	@OlCe2
+/sys/kern/sched_ule.c	@OlCe2
 /sys/kern/syscalls.master	@brooksdavis
 /sys/kern/vfs_aio.c	@asomers
 /sys/netinet/ip_carp.c	@glebius
@@ -119,6 +124,8 @@
 /sys/opencrypto/	@jmgurney
 /sys/security/mac_veriexec/	@stephane-rochoy-stormshield
 /sys/security/mac_veriexec_parser/	@stephane-rochoy-stormshield
+sys/sys/sched.h		@OlCe2
+sys/sys/runq.h		@OlCe2
 /sys/tools/syscalls/	@brooksdavis
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign
