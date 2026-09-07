@@ -209,6 +209,7 @@ tcp_usr_detach(struct socket *so)
 	    tp->t_state < TCPS_SYN_SENT,
 	    ("%s: inp %p not disconnected or embryonic", __func__, inp));
 
+	TCPSTATES_DEC(tp->t_state);
 	tcp_discardcb(tp);
 	in_pcbfree(inp);
 }

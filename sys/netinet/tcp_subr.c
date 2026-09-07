@@ -2455,7 +2455,6 @@ tcp_discardcb(struct tcpcb *tp)
 		STAILQ_FOREACH_FROM_SAFE(m, &tp->t_inqueue, m_stailqpkt, prev)
 			m_freem(m);
 	}
-	TCPSTATES_DEC(tp->t_state);
 
 	if (tp->t_fb->tfb_tcp_fb_fini)
 		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
