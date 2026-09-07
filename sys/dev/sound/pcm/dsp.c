@@ -186,17 +186,27 @@ dsp_chn_alloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
 	    (direction == PCMDIR_REC && d->flags & SD_F_RVCHANS);
 
 	*ch = NULL;
+
+	/*
+	 * Prefer an idle primary channel, so that devices which provide more
+	 * than one of them use them all, instead of stacking every client on
+	 * the first one.
+	 */
 	CHN_FOREACH(c, d, channels.pcm.primary) {
 		CHN_LOCK(c);
-		if (c->direction != direction) {
-			CHN_UNLOCK(c);
-			continue;
-		}
-		/* Find an available primary channel to use. */
-		if ((c->flags & CHN_F_BUSY) == 0 ||
-		    (vdir_enabled && (c->flags & CHN_F_HAS_VCHAN)))
+		if (c->direction == direction && (c->flags & CHN_F_BUSY) == 0)
 			break;
 		CHN_UNLOCK(c);
+	}
+	/* Fall back to sharing a primary channel that already has vchans. */
+	if (c == NULL && vdir_enabled) {
+		CHN_FOREACH(c, d, channels.pcm.primary) {
+			CHN_LOCK(c);
+			if (c->direction == direction &&
+			    (c->flags & CHN_F_HAS_VCHAN))
+				break;
+			CHN_UNLOCK(c);
+		}
 	}
 	if (c == NULL)
 		return (EBUSY);
