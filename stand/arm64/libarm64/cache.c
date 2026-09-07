@@ -68,7 +68,7 @@ get_dcache_line_size(uint64_t ctr)
 	 * Relevant field [19:16] is LOG2
 	 * of the number of words in DCache line
 	 */
-	dcl_size = CTR_DLINE_SIZE(ctr);
+	dcl_size = CTR_DminLine_SIZE(ctr);
 
 	/* Size of word shifted by cache line size */
 	return (sizeof(int) << dcl_size);

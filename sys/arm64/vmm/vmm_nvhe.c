@@ -55,7 +55,7 @@ vmm_dc_civac(uint64_t start, uint64_t len)
 	uint64_t ctr;
 
 	ctr = READ_SPECIALREG(ctr_el0);
-	line_size = sizeof(int) << CTR_DLINE_SIZE(ctr);
+	line_size = sizeof(int) << CTR_DminLine_SIZE(ctr);
 	end = start + len;
 	dsb(ishst);
 	/* Clean and Invalidate the D-cache */

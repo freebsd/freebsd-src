@@ -475,19 +475,19 @@ static const struct mrs_field_value ctr_erg[] = {
 };
 
 static const struct mrs_field_value ctr_dline[] = {
-	MRS_FIELD_VALUE_CACHE(CTR, DLINE, "4 byte D-cacheline",
+	MRS_FIELD_VALUE_CACHE(CTR, DminLine, "4 byte D-cacheline",
 	    "byte D-cacheline"),
 	MRS_FIELD_VALUE_END,
 };
 
 static const struct mrs_field_value ctr_l1ip[] = {
-	MRS_FIELD_VALUE(CTR_L1IP_VIPT, "VIPT I-cache"),
-	MRS_FIELD_VALUE(CTR_L1IP_PIPT, "PIPT I-cache"),
+	MRS_FIELD_VALUE(CTR_L1Ip_VIPT, "VIPT I-cache"),
+	MRS_FIELD_VALUE(CTR_L1Ip_PIPT, "PIPT I-cache"),
 	MRS_FIELD_VALUE_END,
 };
 
 static const struct mrs_field_value ctr_iline[] = {
-	MRS_FIELD_VALUE_CACHE(CTR, ILINE, "4 byte I-cacheline",
+	MRS_FIELD_VALUE_CACHE(CTR, IminLine, "4 byte I-cacheline",
 	    "byte I-cacheline"),
 	MRS_FIELD_VALUE_END,
 };
@@ -499,12 +499,12 @@ static const struct mrs_field ctr_fields[] = {
 	MRS_FIELD(CTR, IDC, false, MRS_LOWER, MRS_USERSPACE, ctr_idc),
 	MRS_FIELD(CTR, CWG, false, MRS_HIGHER_OR_ZERO, MRS_USERSPACE, ctr_cwg),
 	MRS_FIELD(CTR, ERG, false, MRS_HIGHER_OR_ZERO, MRS_USERSPACE, ctr_erg),
-	MRS_FIELD(CTR, DLINE, false, MRS_LOWER, MRS_USERSPACE, ctr_dline),
+	MRS_FIELD(CTR, DminLine, false, MRS_LOWER, MRS_USERSPACE, ctr_dline),
 	/* If the ICache types are different report the safe option */
-	MRS_FIELD(CTR, L1IP, false, MRS_EXACT_IF_DIFFERENT |
-	    MRS_SAFE(CTR_L1IP_VIPT >> CTR_L1IP_SHIFT), MRS_USERSPACE,
+	MRS_FIELD(CTR, L1Ip, false, MRS_EXACT_IF_DIFFERENT |
+	    MRS_SAFE(CTR_L1Ip_VIPT >> CTR_L1Ip_SHIFT), MRS_USERSPACE,
 	    ctr_l1ip),
-	MRS_FIELD(CTR, ILINE, false, MRS_LOWER, MRS_USERSPACE, ctr_iline),
+	MRS_FIELD(CTR, IminLine, false, MRS_LOWER, MRS_USERSPACE, ctr_iline),
 	MRS_FIELD_END,
 };
 
@@ -2332,7 +2332,7 @@ user_ctr_enable(const struct cpu_feat *feat __unused,
 	if (errata_status != ERRATA_NONE && PCPU_GET(cpuid) == 0 &&
 	    cpu_feat_has_erratum(errata_list, errata_count, 1542419)) {
 		/* Clear fields we will change */
-		user_cpu_desc.ctr &= ~(CTR_DIC_MASK | CTR_ILINE_WIDTH);
+		user_cpu_desc.ctr &= ~(CTR_DIC_MASK | CTR_IminLine_WIDTH);
 
 		/*
 		 * Set DIC to none so userspace will execute an 'ic ivau'
@@ -2346,7 +2346,7 @@ user_ctr_enable(const struct cpu_feat *feat __unused,
 		 * 4-byte words the instruction covers. As PAGE_SHIFT is log2
 		 * of the number of bytes in a page we need to subtract 2.
 		 */
-		user_cpu_desc.ctr |= (PAGE_SHIFT - 2) << CTR_ILINE_SHIFT;
+		user_cpu_desc.ctr |= (PAGE_SHIFT - 2) << CTR_IminLine_SHIFT;
 
 		l_user_cpu_desc.ctr = user_cpu_desc.ctr;
 	}
@@ -3301,11 +3301,11 @@ identify_cache(uint64_t ctr)
 {
 
 	/* Identify the L1 cache type */
-	switch (CTR_L1IP_VAL(ctr)) {
-	case CTR_L1IP_PIPT:
+	switch (CTR_L1Ip_VAL(ctr)) {
+	case CTR_L1Ip_PIPT:
 		break;
 	default:
-	case CTR_L1IP_VIPT:
+	case CTR_L1Ip_VIPT:
 		icache_aliasing = true;
 		break;
 	}
@@ -3315,21 +3315,21 @@ identify_cache(uint64_t ctr)
 		    __func__, icache_line_size));
 
 		/* Get the D cache line size */
-		dcache_line_size = CTR_DLINE_SIZE(ctr);
+		dcache_line_size = CTR_DminLine_SIZE(ctr);
 		/* And the same for the I cache */
-		icache_line_size = CTR_ILINE_SIZE(ctr);
+		icache_line_size = CTR_IminLine_SIZE(ctr);
 
 		idcache_line_size = MIN(dcache_line_size, icache_line_size);
 	}
 
-	if (dcache_line_size != CTR_DLINE_SIZE(ctr)) {
+	if (dcache_line_size != CTR_DminLine_SIZE(ctr)) {
 		printf("WARNING: D-cacheline size mismatch %ld != %d\n",
-		    dcache_line_size, CTR_DLINE_SIZE(ctr));
+		    dcache_line_size, CTR_DminLine_SIZE(ctr));
 	}
 
-	if (icache_line_size != CTR_ILINE_SIZE(ctr)) {
+	if (icache_line_size != CTR_IminLine_SIZE(ctr)) {
 		printf("WARNING: I-cacheline size mismatch %ld != %d\n",
-		    icache_line_size, CTR_ILINE_SIZE(ctr));
+		    icache_line_size, CTR_IminLine_SIZE(ctr));
 	}
 }
 
