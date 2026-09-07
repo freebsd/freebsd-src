@@ -984,6 +984,7 @@ enic_init(if_ctx_t ctx)
 	struct enic *enic;
 	if_softc_ctx_t scctx;
 	unsigned int index;
+	int error;
 
 	softc = iflib_get_softc(ctx);
 	scctx = softc->scctx;
@@ -1005,11 +1006,17 @@ enic_init(if_ctx_t ctx)
 	bcopy(if_getlladdr(softc->ifp), softc->lladdr, ETHER_ADDR_LEN);
 	enic_set_lladdr(softc);
 
-	ENIC_LOCK(softc);
-	vnic_dev_enable_wait(enic->vdev);
-	ENIC_UNLOCK(softc);
-
+	/* Queue setup above needs normal stop cleanup even if enable fails. */
 	softc->stopped = 0;
+	ENIC_LOCK(softc);
+	error = vnic_dev_enable_wait(enic->vdev);
+	ENIC_UNLOCK(softc);
+	if (error != 0) {
+		device_printf(softc->dev, "Device enable failed: %d\n", error);
+		enic_stop(ctx);
+		iflib_init_failed(ctx);
+		return;
+	}
 
 	enic_link_status(softc);
 }
