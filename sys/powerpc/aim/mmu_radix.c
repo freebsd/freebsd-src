@@ -882,12 +882,22 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 	pmap->pm_stats.resident_count -= count;
 }
 
+/*
+ * dcbz establishes a zeroed cache line without fetching it from memory,
+ * but raises an alignment interrupt on caching-inhibited mappings, so it
+ * may only be used on write-back memory.  The internal callers only zero
+ * freshly allocated page table pages, which are always write-back; the
+ * vm_page facing entry point guards on the page's memattr.
+ */
 static void
 pagezero(void *va)
 {
-	va = trunc_page(va);
+	vm_offset_t off;
 
-	bzero(va, PAGE_SIZE);
+	va = trunc_page(va);
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbz 0,%0" ::
+		    "r"((char *)va + off) : "memory");
 }
 
 static uint64_t
@@ -5791,7 +5801,10 @@ mmu_radix_zero_page(vm_page_t m)
 
 	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 	addr = VM_PAGE_TO_DMAP(m);
-	pagezero(addr);
+	if (__predict_true(m->md.mdpg_cache_attrs == VM_MEMATTR_DEFAULT))
+		pagezero(addr);
+	else
+		bzero(addr, PAGE_SIZE);
 }
 
 void
