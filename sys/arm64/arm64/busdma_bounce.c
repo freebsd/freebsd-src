@@ -589,7 +589,7 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	if (bufzone &&
 	    dmat->alloc_size <= PAGE_SIZE &&
-	    dmat->alloc_alignment <= PAGE_SIZE &&
+	    dmat->alloc_alignment <= bufzone->size &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = uma_zalloc(bufzone->umazone, mflags);
