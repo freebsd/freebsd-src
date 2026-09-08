@@ -314,6 +314,9 @@
 #define	CNTV_CTL_EL0_CRn	14
 #define	CNTV_CTL_EL0_CRm	3
 #define	CNTV_CTL_EL0_op2	1
+#define	CNTV_CTL_ENABLE		(1 << 0)
+#define	CNTV_CTL_IMASK		(1 << 1)
+#define	CNTV_CTL_ISTATUS	(1 << 2)
 
 /* CNTV_CTL_EL02 - Counter-timer Virtual Timer Control register */
 #define	CNTV_CTL_EL02_op0	3
