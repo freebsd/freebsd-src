@@ -281,7 +281,6 @@ proto_recv(const struct proto_conn *conn, void *data, size_t size)
 int
 proto_connection_send(const struct proto_conn *conn, struct proto_conn *mconn)
 {
-	const char *protoname;
 	int ret, fd;
 
 	PJDLOG_ASSERT(conn != NULL);
@@ -293,11 +292,9 @@ proto_connection_send(const struct proto_conn *conn, struct proto_conn *mconn)
 	PJDLOG_ASSERT(mconn->pc_proto != NULL);
 	fd = proto_descriptor(mconn);
 	PJDLOG_ASSERT(fd >= 0);
-	protoname = mconn->pc_proto->prt_name;
-	PJDLOG_ASSERT(protoname != NULL);
 
 	ret = conn->pc_proto->prt_send(conn->pc_ctx,
-	    (const unsigned char *)protoname, strlen(protoname) + 1, fd);
+	    mconn->pc_proto->prt_name, sizeof(mconn->pc_proto->prt_name), fd);
 	proto_close(mconn);
 	if (ret != 0) {
 		errno = ret;
@@ -310,7 +307,7 @@ int
 proto_connection_recv(const struct proto_conn *conn, bool client,
     struct proto_conn **newconnp)
 {
-	char protoname[128];
+	char protoname[sizeof(conn->pc_proto->prt_name)];
 	struct proto *proto;
 	struct proto_conn *newconn;
 	int ret, fd;
@@ -321,10 +318,8 @@ proto_connection_recv(const struct proto_conn *conn, bool client,
 	PJDLOG_ASSERT(conn->pc_proto->prt_recv != NULL);
 	PJDLOG_ASSERT(newconnp != NULL);
 
-	bzero(protoname, sizeof(protoname));
-
-	ret = conn->pc_proto->prt_recv(conn->pc_ctx, (unsigned char *)protoname,
-	    sizeof(protoname) - 1, &fd);
+	ret = conn->pc_proto->prt_recv(conn->pc_ctx, protoname,
+	    sizeof(protoname), &fd);
 	if (ret != 0) {
 		errno = ret;
 		return (-1);
@@ -333,7 +328,7 @@ proto_connection_recv(const struct proto_conn *conn, bool client,
 	PJDLOG_ASSERT(fd >= 0);
 
 	TAILQ_FOREACH(proto, &protos, prt_next) {
-		if (strcmp(proto->prt_name, protoname) == 0)
+		if (memcmp(proto->prt_name, protoname, sizeof(protoname)) == 0)
 			break;
 	}
 	if (proto == NULL) {
