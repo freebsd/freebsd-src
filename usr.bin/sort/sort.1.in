@@ -101,7 +101,7 @@ for the maximum size of the memory buffer.
 Size modifiers %,b,K,M,G,T,P,E,Z,Y can be used.
 If a memory limit is not explicitly specified,
 .Nm
-takes up to about 90% of available memory.
+takes up to 50% of available memory.
 If the file size is too big to fit into the memory buffer,
 the temporary disk files are used to perform the sorting.
 .It Fl T Ar dir , Fl Fl temporary-directory Ns = Ns Ar dir
