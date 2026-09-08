@@ -53,7 +53,7 @@ typedef void prt_remote_address_t(const void *, char *, size_t);
 typedef void prt_close_t(void *);
 
 struct proto {
-	const char		*prt_name;
+	char			prt_name[4];
 	prt_client_t		*prt_client;
 	prt_connect_t		*prt_connect;
 	prt_connect_wait_t	*prt_connect_wait;
