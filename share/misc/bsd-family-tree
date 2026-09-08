@@ -454,43 +454,45 @@ FreeBSD 5.2           |      |                   |                     |
  *--FreeBSD   |       |      |    |      |          |                  |
  |   14.0     |       |      |    |      |          |                  |
  |     |      |       |      |    |      |          |                  |
- |     |   FreeBSD    |      |  NetBSD   |          |                  |
- |     |     13.3     |      |   9.4     |          |                  |
- |     |      |       |      |           |          |                  |
- |     |      |       |      *--NetBSD   |          |                  |
- |     |      |       |      |   10.0    |          |                  |
- |     |      |       |      |    |      |          |                  |
- |     |      |       |      |    |      |      OpenBSD 7.5            |
- |     |      |       |      |    |    NetBSD       |                  |
- |     |      |       |      |    |     8.3         |                  |
- |  FreeBSD   |       |      |    |                 |                  |
- |   14.1     |       |      |    |                 |                  |
- |     |      |     macOS    |    |                 |                  |
- |     |      |      15      |    |                 |                  |
- |     |   FreeBSD    |      |    |                 |                  |
- |     |     13.4     |      |    |             OpenBSD 7.6            |
- |  FreeBSD   |       |      |    |                 |                  |
- |   14.2     |       |      |    |                 |                  |
- |     |      |       |      |  NetBSD              |                  |
- |     |      |       |      |   10.1               |                  |
- |     |   FreeBSD    |      |                      |                  |
- |     |     13.5     |      |                      |                  |
- |     |              |      |                  OpenBSD 7.7            |
- |     |              |      |                      |          DragonFly 6.4.1
- |     |              |      |                      |          DragonFly 6.4.2
- |  FreeBSD           |      |                      |                  |
- |   14.3             |      |                      |                  |
- |     |            macOS    |                      |                  |
- |     `------.      26      |                      |                  |
- |            |       |      |                  OpenBSD 7.8            |
- *--FreeBSD   |       |      |                      |                  |
- |   15.0     |       |      |                      |                  |
- |     |   FreeBSD    |      |                      |                  |
- |     |     14.4     |      |                      |                  |
- |     |              |      |                  OpenBSD 7.9            |
- |  FreeBSD           |      |                      |                  |
- |   15.1             |      |                      |                  |
- |                    |  NetBSD 11.0                |                  |
+ |     |   FreeBSD    |      |  NetBSD   `-.        |                  |
+ |     |     13.3     |      |   9.4       |        |                  |
+ |     |      |       |      |      `--.   |        |                  |
+ |     |      |       |      *--NetBSD |   |        |                  |
+ |     |      |       |      |   10.0  |   |        |                  |
+ |     |      |       |      |    |    |   |        |                  |
+ |     |      |       |      |    |    |   |   OpenBSD 7.5            |
+ |     |      |       |      |    |    | NetBSD     |                  |
+ |     |      |       |      |    |    |  8.3       |                  |
+ |  FreeBSD   |       |      |    |    |            |                  |
+ |   14.1     |       |      |    |    |            |                  |
+ |     |      |     macOS    |    |    |            |                  |
+ |     |      |      15      |    |    |            |                  |
+ |     |   FreeBSD    |      |    |    |            |                  |
+ |     |     13.4     |      |    |    |        OpenBSD 7.6            |
+ |  FreeBSD   |       |      |    |    |            |                  |
+ |   14.2     |       |      |    |    |            |                  |
+ |     |      |       |      |  NetBSD |            |                  |
+ |     |      |       |      |   10.1  |            |                  |
+ |     |   FreeBSD    |      |         |            |                  |
+ |     |     13.5     |      |         |            |                  |
+ |     |              |      |         |        OpenBSD 7.7            |
+ |     |              |      |         |            |          DragonFly 6.4.1
+ |     |              |      |         |            |          DragonFly 6.4.2
+ |  FreeBSD           |      |         |            |                  |
+ |   14.3             |      |         |            |                  |
+ |     |            macOS    |         |            |                  |
+ |     `------.      26      |         |            |                  |
+ |            |       |      |         |        OpenBSD 7.8            |
+ *--FreeBSD   |       |      |         |            |                  |
+ |   15.0     |       |      |         |            |                  |
+ |     |   FreeBSD    |      |         |            |                  |
+ |     |     14.4     |      |         |            |                  |
+ |     |      |       |      |         |        OpenBSD 7.9            |
+ |  FreeBSD   |       |      |         |            |                  |
+ |   15.1     |       |      |         |            |                  |
+ |            |       |  NetBSD 11.0   |            |                  |
+ |         FreeBSD    |      |      NetBSD          |                  |
+ |           14.5     |      |        9.5           |                  |
  |                    |      |                      |                  |
 FreeBSD 16 -current   |  NetBSD -current    OpenBSD -current   DragonFly -current
  |                    |      |                      |                  |
@@ -943,6 +945,8 @@ FreeBSD 14.4		2026-03-10 [FBD]
 OpenBSD 7.9		2026-05-19 [OBD]
 FreeBSD 15.1		2026-06-16 [FBD]
 NetBSD 11.0		2026-07-30 [NBD]
+NetBSD 9.5		2026-08-31 [NBD]
+FreeBSD 14.5		2026-09-08 [FBD]
 
 Bibliography
 ------------------------
