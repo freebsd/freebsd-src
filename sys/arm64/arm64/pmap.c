@@ -9761,7 +9761,7 @@ fault_exec:
 			 * of Coherency.
 			 */
 			if ((pte & ATTR_S2_XN_MASK) !=
-			    ATTR_S2_XN(ATTR_S2_XN_NONE)) {
+			    ATTR_S2_XN(ATTR_S2_XN_ALL)) {
 				invalidate_icache();
 			}
 			pmap_set_bits(ptep, ATTR_AF | ATTR_DESCR_VALID);
