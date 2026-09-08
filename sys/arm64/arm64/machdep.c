@@ -252,15 +252,15 @@ CPU_FEAT(feat_mops, "MOPS",
 bool
 has_hyp(void)
 {
-	return (boot_el == CURRENTEL_EL_EL2);
+	return (boot_el == CurrentEL_EL_EL2);
 }
 
 bool
 in_vhe(void)
 {
 	/* If we are currently in EL2 then must be in VHE */
-	return ((READ_SPECIALREG(CurrentEL) & CURRENTEL_EL_MASK) ==
-	    CURRENTEL_EL_EL2);
+	return ((READ_SPECIALREG(CurrentEL) & CurrentEL_EL_MASK) ==
+	    CurrentEL_EL_EL2);
 }
 
 static void

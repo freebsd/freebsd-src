@@ -349,8 +349,8 @@ END(mp_cpu_spinloop)
  */
 LENTRY(enter_kernel_el)
 	mrs	x23, CurrentEL
-	and	x23, x23, #(CURRENTEL_EL_MASK)
-	cmp	x23, #(CURRENTEL_EL_EL2)
+	and	x23, x23, #(CurrentEL_EL_MASK)
+	cmp	x23, #(CurrentEL_EL_EL2)
 	b.eq	1f
 
 	/*

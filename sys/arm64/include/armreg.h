@@ -463,12 +463,12 @@
 #define	CTR_IminLine_SIZE(reg)	(4 << (CTR_IminLine_VAL(reg) >> CTR_IminLine_SHIFT))
 
 /* CurrentEL - Current Exception Level */
-#define	CURRENTEL_EL_SHIFT	2
-#define	CURRENTEL_EL_MASK	(0x3 << CURRENTEL_EL_SHIFT)
-#define	 CURRENTEL_EL_EL0	(0x0 << CURRENTEL_EL_SHIFT)
-#define	 CURRENTEL_EL_EL1	(0x1 << CURRENTEL_EL_SHIFT)
-#define	 CURRENTEL_EL_EL2	(0x2 << CURRENTEL_EL_SHIFT)
-#define	 CURRENTEL_EL_EL3	(0x3 << CURRENTEL_EL_SHIFT)
+#define	CurrentEL_EL_SHIFT	2
+#define	CurrentEL_EL_MASK	(0x3 << CurrentEL_EL_SHIFT)
+#define	 CurrentEL_EL_EL0	(0x0 << CurrentEL_EL_SHIFT)
+#define	 CurrentEL_EL_EL1	(0x1 << CurrentEL_EL_SHIFT)
+#define	 CurrentEL_EL_EL2	(0x2 << CurrentEL_EL_SHIFT)
+#define	 CurrentEL_EL_EL3	(0x3 << CurrentEL_EL_SHIFT)
 
 /* DAIFSet/DAIFClear */
 #define	DAIF_D			(1 << 3)
