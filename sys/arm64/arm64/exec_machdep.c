@@ -214,8 +214,8 @@ fill_dbregs(struct thread *td, struct dbreg *regs)
 	} else {
 		debug_ver = ID_AA64DFR0_DebugVer_VAL(dfr0) >>
 		    ID_AA64DFR0_DebugVer_SHIFT;
-		nbkpts = ID_AA64DFR0_BRPs_VAL(dfr0) >> ID_AA64DFR0_BRPs_SHIFT;
-		nwtpts = ID_AA64DFR0_WRPs_VAL(dfr0) >> ID_AA64DFR0_WRPs_SHIFT;
+		nbkpts = ID_AA64DFR0_BRPs_NUM(dfr0);
+		nwtpts = ID_AA64DFR0_WRPs_NUM(dfr0);
 	}
 
 	/*

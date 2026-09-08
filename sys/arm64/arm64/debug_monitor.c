@@ -634,8 +634,8 @@ dbg_monitor_init(void)
 
 	/* Find out many breakpoints and watchpoints we can use */
 	aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	dbg_watchpoint_num = ID_AA64DFR0_WRPs_VAL(aa64dfr0);
-	dbg_breakpoint_num = ID_AA64DFR0_BRPs_VAL(aa64dfr0);
+	dbg_watchpoint_num = ID_AA64DFR0_WRPs_NUM(aa64dfr0);
+	dbg_breakpoint_num = ID_AA64DFR0_BRPs_NUM(aa64dfr0);
 
 	if (bootverbose && PCPU_GET(cpuid) == 0) {
 		printf("%d watchpoints and %d breakpoints supported\n",

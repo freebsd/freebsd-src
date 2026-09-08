@@ -48,7 +48,7 @@ vmm_hyp_reg_store_pmu_debug(struct hypctx *hypctx, bool guest)
 	    READ_SPECIALREG(dbgclaimset_el1));
 
 	dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	switch (ID_AA64DFR0_BRPs_VAL(dfr0) - 1) {
+	switch (ID_AA64DFR0_BRPs_NUM(dfr0) - 1) {
 #define	STORE_DBG_BRP(x)					\
 	case x:							\
 		hypctx_write_sys_reg(hypctx, DBGBCR_EL1(x),	\
@@ -75,7 +75,7 @@ vmm_hyp_reg_store_pmu_debug(struct hypctx *hypctx, bool guest)
 #undef STORE_DBG_BRP
 	}
 
-	switch (ID_AA64DFR0_WRPs_VAL(dfr0) - 1) {
+	switch (ID_AA64DFR0_WRPs_NUM(dfr0) - 1) {
 #define	STORE_DBG_WRP(x)					\
 	case x:							\
 		hypctx_write_sys_reg(hypctx, DBGWCR_EL1(x),	\
@@ -529,7 +529,7 @@ vmm_hyp_reg_restore_pmu_debug(struct hypctx *hypctx)
 	    hypctx_read_sys_reg(hypctx, DBGCLAIMSET_EL1));
 
 	dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	switch (ID_AA64DFR0_BRPs_VAL(dfr0) - 1) {
+	switch (ID_AA64DFR0_BRPs_NUM(dfr0) - 1) {
 #define	LOAD_DBG_BRP(x)							\
 	case x:								\
 		WRITE_SPECIALREG(dbgbcr ## x ## _el1,			\
@@ -556,7 +556,7 @@ vmm_hyp_reg_restore_pmu_debug(struct hypctx *hypctx)
 #undef LOAD_DBG_BRP
 	}
 
-	switch (ID_AA64DFR0_WRPs_VAL(dfr0) - 1) {
+	switch (ID_AA64DFR0_WRPs_NUM(dfr0) - 1) {
 #define	LOAD_DBG_WRP(x)							\
 	case x:								\
 		WRITE_SPECIALREG(dbgwcr ## x ## _el1,			\
