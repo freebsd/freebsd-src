@@ -217,7 +217,7 @@ ATF_TC_BODY(release_running_attached, tc)
 
 	/* Run a little, so the PMC is actually loaded on a CPU. */
 	{
-		volatile unsigned long s = 0;
+		volatile unsigned long s __unused = 0;
 		int i;
 
 		for (i = 0; i < 5000000; i++)
@@ -364,7 +364,7 @@ ATF_TC_BODY(descendants_inherit_and_release, tc)
 	child = fork();
 	ATF_REQUIRE(child >= 0);
 	if (child == 0) {
-		volatile unsigned long s = 0;
+		volatile unsigned long s __unused = 0;
 		int i;
 
 		for (i = 0; i < 2000000; i++)
@@ -404,7 +404,7 @@ ATF_TC_BODY(descendants_fork_storm, tc)
 		pid_t c = fork();
 
 		if (c == 0) {
-			volatile unsigned long s = 0;
+			volatile unsigned long s __unused = 0;
 			int j;
 
 			for (j = 0; j < 200000; j++)

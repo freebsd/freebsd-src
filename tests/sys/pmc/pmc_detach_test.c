@@ -73,7 +73,7 @@ static volatile int spin_stop;
 static void *
 spinner(void *arg __unused)
 {
-	volatile unsigned long s = 0;
+	volatile unsigned long s __unused = 0;
 
 	while (spin_stop == 0)
 		s += 1;
@@ -83,7 +83,7 @@ spinner(void *arg __unused)
 static void
 burn_cpu(void)
 {
-	volatile unsigned long s = 0;
+	volatile unsigned long s __unused = 0;
 	int i;
 
 	for (i = 0; i < 1000000; i++)
