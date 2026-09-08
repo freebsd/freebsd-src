@@ -191,6 +191,13 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	num_trackers = min(num_trackers, (num_entries-1));
 
+	if (ctrlr->cdata.maxcmd != 0 && num_trackers > ctrlr->cdata.maxcmd) {
+		nvme_printf(ctrlr,
+		    "limiting trackers per I/O queue to MAXCMD (%u -> %u)\n",
+		    num_trackers, ctrlr->cdata.maxcmd);
+		num_trackers = ctrlr->cdata.maxcmd;
+	}
+
 	if (ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE)
 		num_trackers = min(num_trackers,
 		    NVME_ADMIN_ENTRIES - ctrlr->adminq.num_trackers);
