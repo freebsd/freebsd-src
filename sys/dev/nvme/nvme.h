@@ -234,6 +234,20 @@ enum nvme_psdt {
 #define	NVME_CMD_PSDT_SHIFT				(6)
 #define	NVME_CMD_PSDT_MASK				(0x3)
 
+/* Create I/O Submission Queue, cdw11 */
+#define NVME_CREATE_IO_SQ_PC				(0x1)
+#define NVME_CREATE_IO_SQ_QPRIO_SHIFT			(1)
+#define NVME_CREATE_IO_SQ_QPRIO_MASK			(0x3)
+
+/* Create I/O Completion Queue, cdw11 */
+#define NVME_CREATE_IO_CQ_PC				(0x1)
+#define NVME_CREATE_IO_CQ_IEN				(0x2)
+
+/* Queue priority classes, used with weighted round robin arbitration. */
+#define NVME_QPRIO_URGENT				(0)
+#define NVME_QPRIO_HIGH					(1)
+#define NVME_QPRIO_MEDIUM				(2)
+#define NVME_QPRIO_LOW					(3)
 
 #define NVME_STATUS_P_SHIFT				(0)
 #define NVME_STATUS_P_MASK				(0x1)
