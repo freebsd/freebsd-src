@@ -219,7 +219,7 @@ sp_close(void *ctx)
 }
 
 static struct proto sp_proto = {
-	.prt_name = "socketpair",
+	.prt_name = "skp",
 	.prt_client = sp_client,
 	.prt_send = sp_send,
 	.prt_recv = sp_recv,
