@@ -182,7 +182,7 @@ void FuseTest::SetUp() {
 			_)
 		).Times(AnyNumber())
 		.WillRepeatedly(Invoke(ReturnErrno(ENOSYS)));
-	} catch (std::system_error err) {
+	} catch (std::system_error const& err) {
 		FAIL() << err.what();
 	}
 }

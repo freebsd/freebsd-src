@@ -99,6 +99,13 @@ CXXWARNFLAGS+=	-Wno-vla-cxx-extension
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 160000
+# gcc 16's aggressive inlining hits max-inline-insns-* limits and
+# fails on these sources. Use a lower optimization setting to
+# fix the build.
+CXXFLAGS+= -O1
+.endif
+
 LIBADD+=	pthread
 LIBADD+=	gmock gtest
 LIBADD+=	util
