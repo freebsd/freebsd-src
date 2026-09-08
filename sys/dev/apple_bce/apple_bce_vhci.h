@@ -207,6 +207,8 @@ struct bce_vhci_transfer_queue {
 	int			create_pending;	/* Deferred ep create */
 	struct usb_endpoint_descriptor *create_edesc;
 	struct usb_xfer		*create_xfer;	/* Deferred xfer */
+	struct timeval		create_fail_lastprint;
+	int			create_fail_pps;
 
 	/* DMA buffer for data transfer */
 	bus_dma_tag_t		dma_tag;

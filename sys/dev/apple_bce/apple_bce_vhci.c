@@ -31,6 +31,7 @@
 
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 #include <sys/endian.h>
 #include <machine/bus.h>
 #include <machine/atomic.h>
@@ -195,12 +196,7 @@ static int bce_vhci_cmd_execute(struct bce_vhci_softc *vhci,
     struct bce_vhci_message *req, struct bce_vhci_message *reply,
     int timeout_ticks);
 
-/*
- * Convert USB endpoint address to tq[] index.
- * ep0 (0x00) maps to index 0.  For other endpoints, IN and OUT get
- * separate slots: OUT 0x01 -> 1, IN 0x81 -> 2, OUT 0x02 -> 3, etc.
- * Maximum index is 30 (ep 0x8F), fits in BCE_VHCI_MAX_ENDPOINTS (32).
- */
+/* Convert USB endpoint address to tq[] index -- EP0 shared, others per-direction. */
 static inline uint8_t
 bce_vhci_ep_index(uint8_t ep_addr)
 {
@@ -1185,12 +1181,12 @@ bce_vhci_create_task(void *arg, int pending __unused)
 					usbd_transfer_done(xfer,
 					    USB_ERR_STALLED);
 				USB_BUS_UNLOCK(&vhci->sc_bus);
-				device_printf(vhci->sc_dev,
-				    "create_task: ep create "
-				    "failed: dev=%d ep=0x%02x "
-				    "err=%d\n",
-				    dev->fw_dev_id, ep_addr,
-				    ep_err);
+				if (ppsratecheck(&tq->create_fail_lastprint,
+				    &tq->create_fail_pps, 1))
+					device_printf(vhci->sc_dev,
+					    "endpoint create failed: "
+					    "dev=%d ep=0x%02x err=%d\n",
+					    dev->fw_dev_id, ep_addr, ep_err);
 				continue;
 			}
 
@@ -1980,11 +1976,19 @@ bce_vhci_endpoint_create(struct bce_vhci_softc *vhci,
 	char name[0x20];
 	uint32_t status;
 	int error, cq_qid, out_qid, in_qid, i;
-	uint8_t ep_idx;
+	uint8_t ep_idx, ep_num;
+	int want_out, want_in;
 
 	ep_idx = bce_vhci_ep_index(ep_addr);
 	if (ep_idx >= BCE_VHCI_MAX_ENDPOINTS)
 		return (EINVAL);
+
+	/* EP0 needs both SQs; other endpoints only need their own direction's. */
+	ep_num = ep_addr & 0x0F;
+	want_out = (ep_num == 0) || ((ep_addr & 0x80) == 0);
+	want_in = (ep_num == 0) || ((ep_addr & 0x80) != 0);
+	out_qid = -1;
+	in_qid = -1;
 
 	tq = &dev->tq[ep_idx];
 	if (tq->active)
@@ -2069,6 +2073,12 @@ bce_vhci_endpoint_create(struct bce_vhci_softc *vhci,
 	cfg.vector_or_cq = 4;
 	status = bce_cmd_register_queue(sc->sc_cmd_cmdq, sc, &cfg, NULL, 0);
 	if (status != 0) {
+		if (ppsratecheck(&tq->create_fail_lastprint,
+		    &tq->create_fail_pps, 1))
+			device_printf(vhci->sc_dev,
+			    "failed to register CQ dev=%d ep=0x%02x "
+			    "qid=%d: %u\n",
+			    dev->fw_dev_id, ep_addr, cq_qid, status);
 		error = EIO;
 		goto fail_cq;
 	}
@@ -2088,73 +2098,91 @@ bce_vhci_endpoint_create(struct bce_vhci_softc *vhci,
 		if (inserted == 0) {
 			sc->sc_queues[cq_qid] = NULL;
 			mtx_unlock(&sc->sc_queues_lock);
-			device_printf(vhci->sc_dev,
-			    "CQ list full, cannot add endpoint CQ\n");
+			if (ppsratecheck(&tq->create_fail_lastprint,
+			    &tq->create_fail_pps, 1))
+				device_printf(vhci->sc_dev,
+				    "CQ list full, cannot add endpoint "
+				    "CQ\n");
 			error = ENOSPC;
 			goto fail_cq_reg;
 		}
 	}
 	mtx_unlock(&sc->sc_queues_lock);
 
-	/* Allocate OUT SQ (host -> device) */
-	out_qid = bce_vhci_alloc_qid(vhci);
-	if (out_qid < 0) {
-		error = ENOSPC;
-		goto fail_cq_reg;
-	}
-	tq->sq_out = bce_alloc_sq(sc, out_qid,
-	    sizeof(struct bce_qe_submission), BCE_VHCI_TQ_EL,
-	    bce_vhci_tq_completion, tq);
-	if (tq->sq_out == NULL) {
-		error = ENOMEM;
-		goto fail_sq_out_alloc;
+	/* Allocate OUT SQ (host -> device), only if this direction needs it */
+	if (want_out) {
+		out_qid = bce_vhci_alloc_qid(vhci);
+		if (out_qid < 0) {
+			error = ENOSPC;
+			goto fail_cq_reg;
+		}
+		tq->sq_out = bce_alloc_sq(sc, out_qid,
+		    sizeof(struct bce_qe_submission), BCE_VHCI_TQ_EL,
+		    bce_vhci_tq_completion, tq);
+		if (tq->sq_out == NULL) {
+			error = ENOMEM;
+			goto fail_sq_out_alloc;
+		}
+
+		snprintf(name, sizeof(name), "VHC1-%d-%02x",
+		    dev->fw_dev_id, ep_addr & 0x0F);
+		bce_get_sq_memcfg(tq->sq_out, tq->cq, &cfg);
+		status = bce_cmd_register_queue(sc->sc_cmd_cmdq, sc, &cfg,
+		    name, 1);
+		if (status != 0) {
+			if (ppsratecheck(&tq->create_fail_lastprint,
+			    &tq->create_fail_pps, 1))
+				device_printf(vhci->sc_dev,
+				    "failed to register OUT SQ '%s' "
+				    "qid=%d cq_qid=%d: %u\n", name,
+				    out_qid, cq_qid, status);
+			error = EIO;
+			goto fail_sq_out;
+		}
+
+		mtx_lock(&sc->sc_queues_lock);
+		sc->sc_queues[out_qid] = tq->sq_out;
+		sc->sc_int_sq_list[out_qid] = tq->sq_out;
+		mtx_unlock(&sc->sc_queues_lock);
 	}
 
-	snprintf(name, sizeof(name), "VHC1-%d-%02x",
-	    dev->fw_dev_id, ep_addr & 0x0F);
-	bce_get_sq_memcfg(tq->sq_out, tq->cq, &cfg);
-	status = bce_cmd_register_queue(sc->sc_cmd_cmdq, sc, &cfg, name, 1);
-	if (status != 0) {
-		device_printf(vhci->sc_dev,
-		    "failed to register OUT SQ '%s': %u\n", name, status);
-		error = EIO;
-		goto fail_sq_out;
-	}
+	/* Allocate IN SQ (device -> host), only if this direction needs it */
+	if (want_in) {
+		in_qid = bce_vhci_alloc_qid(vhci);
+		if (in_qid < 0) {
+			error = ENOSPC;
+			goto fail_sq_out_reg;
+		}
+		tq->sq_in = bce_alloc_sq(sc, in_qid,
+		    sizeof(struct bce_qe_submission), BCE_VHCI_TQ_EL,
+		    bce_vhci_tq_completion, tq);
+		if (tq->sq_in == NULL) {
+			error = ENOMEM;
+			goto fail_sq_in_alloc;
+		}
 
-	mtx_lock(&sc->sc_queues_lock);
-	sc->sc_queues[out_qid] = tq->sq_out;
-	sc->sc_int_sq_list[out_qid] = tq->sq_out;
-	mtx_unlock(&sc->sc_queues_lock);
+		snprintf(name, sizeof(name), "VHC1-%d-%02x",
+		    dev->fw_dev_id, ep_addr | 0x80);
+		bce_get_sq_memcfg(tq->sq_in, tq->cq, &cfg);
+		status = bce_cmd_register_queue(sc->sc_cmd_cmdq, sc, &cfg,
+		    name, 0);
+		if (status != 0) {
+			if (ppsratecheck(&tq->create_fail_lastprint,
+			    &tq->create_fail_pps, 1))
+				device_printf(vhci->sc_dev,
+				    "failed to register IN SQ '%s' "
+				    "qid=%d cq_qid=%d out_qid=%d: %u\n",
+				    name, in_qid, cq_qid, out_qid,
+				    status);
+			error = EIO;
+			goto fail_sq_in;
+		}
 
-	/* Allocate IN SQ (device -> host) */
-	in_qid = bce_vhci_alloc_qid(vhci);
-	if (in_qid < 0) {
-		error = ENOSPC;
-		goto fail_sq_out_reg;
+		mtx_lock(&sc->sc_queues_lock);
+		sc->sc_queues[in_qid] = tq->sq_in;
+		sc->sc_int_sq_list[in_qid] = tq->sq_in;
+		mtx_unlock(&sc->sc_queues_lock);
 	}
-	tq->sq_in = bce_alloc_sq(sc, in_qid,
-	    sizeof(struct bce_qe_submission), BCE_VHCI_TQ_EL,
-	    bce_vhci_tq_completion, tq);
-	if (tq->sq_in == NULL) {
-		error = ENOMEM;
-		goto fail_sq_in_alloc;
-	}
-
-	snprintf(name, sizeof(name), "VHC1-%d-%02x",
-	    dev->fw_dev_id, ep_addr | 0x80);
-	bce_get_sq_memcfg(tq->sq_in, tq->cq, &cfg);
-	status = bce_cmd_register_queue(sc->sc_cmd_cmdq, sc, &cfg, name, 0);
-	if (status != 0) {
-		device_printf(vhci->sc_dev,
-		    "failed to register IN SQ '%s': %u\n", name, status);
-		error = EIO;
-		goto fail_sq_in;
-	}
-
-	mtx_lock(&sc->sc_queues_lock);
-	sc->sc_queues[in_qid] = tq->sq_in;
-	sc->sc_int_sq_list[in_qid] = tq->sq_in;
-	mtx_unlock(&sc->sc_queues_lock);
 
 	/* Tell firmware to create the endpoint */
 	memset(&cmd, 0, sizeof(cmd));
@@ -2183,9 +2211,12 @@ bce_vhci_endpoint_create(struct bce_vhci_softc *vhci,
 	error = bce_vhci_cmd_execute(vhci, &cmd, &reply,
 	    BCE_VHCI_CMD_TIMEOUT_SHORT);
 	if (error != 0) {
-		device_printf(vhci->sc_dev,
-		    "ENDPOINT_CREATE(dev=%d, ep=0x%02x) failed: %d\n",
-		    dev->fw_dev_id, ep_addr, error);
+		if (ppsratecheck(&tq->create_fail_lastprint,
+		    &tq->create_fail_pps, 1))
+			device_printf(vhci->sc_dev,
+			    "ENDPOINT_CREATE(dev=%d, ep=0x%02x) "
+			    "failed: %d\n",
+			    dev->fw_dev_id, ep_addr, error);
 		goto fail_sq_in_reg;
 	}
 
@@ -2199,27 +2230,37 @@ bce_vhci_endpoint_create(struct bce_vhci_softc *vhci,
 	return (0);
 
 fail_sq_in_reg:
-	bce_cmd_unregister_queue(sc->sc_cmd_cmdq, sc, in_qid);
-	mtx_lock(&sc->sc_queues_lock);
-	sc->sc_queues[in_qid] = NULL;
-	sc->sc_int_sq_list[in_qid] = NULL;
-	mtx_unlock(&sc->sc_queues_lock);
+	if (want_in) {
+		bce_cmd_unregister_queue(sc->sc_cmd_cmdq, sc, in_qid);
+		mtx_lock(&sc->sc_queues_lock);
+		sc->sc_queues[in_qid] = NULL;
+		sc->sc_int_sq_list[in_qid] = NULL;
+		mtx_unlock(&sc->sc_queues_lock);
+	}
 fail_sq_in:
-	bce_free_sq(sc, tq->sq_in);
-	tq->sq_in = NULL;
+	if (want_in) {
+		bce_free_sq(sc, tq->sq_in);
+		tq->sq_in = NULL;
+	}
 fail_sq_in_alloc:
-	bce_vhci_free_qid(vhci, in_qid);
+	if (in_qid >= 0)
+		bce_vhci_free_qid(vhci, in_qid);
 fail_sq_out_reg:
-	bce_cmd_unregister_queue(sc->sc_cmd_cmdq, sc, out_qid);
-	mtx_lock(&sc->sc_queues_lock);
-	sc->sc_queues[out_qid] = NULL;
-	sc->sc_int_sq_list[out_qid] = NULL;
-	mtx_unlock(&sc->sc_queues_lock);
+	if (want_out) {
+		bce_cmd_unregister_queue(sc->sc_cmd_cmdq, sc, out_qid);
+		mtx_lock(&sc->sc_queues_lock);
+		sc->sc_queues[out_qid] = NULL;
+		sc->sc_int_sq_list[out_qid] = NULL;
+		mtx_unlock(&sc->sc_queues_lock);
+	}
 fail_sq_out:
-	bce_free_sq(sc, tq->sq_out);
-	tq->sq_out = NULL;
+	if (want_out) {
+		bce_free_sq(sc, tq->sq_out);
+		tq->sq_out = NULL;
+	}
 fail_sq_out_alloc:
-	bce_vhci_free_qid(vhci, out_qid);
+	if (out_qid >= 0)
+		bce_vhci_free_qid(vhci, out_qid);
 fail_cq_reg:
 	bce_cmd_unregister_queue(sc->sc_cmd_cmdq, sc, cq_qid);
 	mtx_lock(&sc->sc_queues_lock);
@@ -2436,6 +2477,11 @@ bce_vhci_device_create(struct bce_vhci_softc *vhci, uint8_t port)
 	    "device created: port=%d fw_dev_id=%d\n", port, fw_dev_id);
 
 	dev = &vhci->sc_devs[fw_dev_id];
+	if (dev->allocated != 0)
+		device_printf(vhci->sc_dev,
+		    "device created: fw_dev_id=%d reused while still "
+		    "marked allocated (old port=%d, new port=%d)\n",
+		    fw_dev_id, dev->port, port);
 	memset(dev, 0, sizeof(*dev));
 	dev->allocated = 1;
 	dev->fw_dev_id = fw_dev_id;
