@@ -1625,7 +1625,7 @@ vgic_v3_icc_sgi1r_write(struct vcpu *vcpu, uint64_t rval, void *arg)
 	vcpuid = vcpu_vcpuid(vcpu);
 
 	irqid = ICC_SGI1R_INTID_VAL(rval) >> ICC_SGI1R_INTID_SHIFT;
-	if ((rval & ICC_SGI1R_IRM) == 0) {
+	if (ICC_SGI1R_IRM_VAL(rval) == 0) {
 		/* Non-zero points at no vcpus */
 		if (ICC_SGI1R_RS_VAL(rval) != 0)
 			return (0);

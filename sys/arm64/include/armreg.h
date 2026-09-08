@@ -842,7 +842,10 @@
 #define	ICC_SGI1R_Aff2_SHIFT		32
 #define	ICC_SGI1R_Aff2_MASK		(0xfful << ICC_SGI1R_Aff2_SHIFT)
 #define	ICC_SGI1R_Aff2_VAL(x)		((x) & ICC_SGI1R_Aff2_MASK)
-#define	ICC_SGI1R_IRM			(0x1UL << 40)
+#define	ICC_SGI1R_IRM_SHIFT		40
+#define	ICC_SGI1R_IRM_WIDTH		1
+#define	ICC_SGI1R_IRM_MASK		(UL(0x1) << ICC_SGI1R_IRM_SHIFT)
+#define	ICC_SGI1R_IRM_VAL(x)		((x) & ICC_SGI1R_IRM_MASK)
 #define	ICC_SGI1R_RS_SHIFT		44
 #define	ICC_SGI1R_RS_MASK		(0xful << ICC_SGI1R_RS_SHIFT)
 #define	ICC_SGI1R_RS_VAL(x)		((x) & ICC_SGI1R_RS_MASK)
