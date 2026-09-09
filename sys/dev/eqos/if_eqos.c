@@ -702,8 +702,16 @@ eqos_rxintr(struct eqos_softc *sc)
 		if ((rdes3 & EQOS_RDES3_OWN))
 			break;
 
-		if (rdes3 & (EQOS_RDES3_OE | EQOS_RDES3_RE))
+		if (rdes3 & EQOS_RDES3_RE) {
 			printf("Receive error rdes3=%08x\n", rdes3);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		}
+		if (rdes3 & EQOS_RDES3_OE) {
+			if (rdes3 & EQOS_RDES3_LENGTH_MASK) {
+				printf("Receive overflow error rdes3=%08x\n", rdes3);
+			}
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		}
 
 		bus_dmamap_sync(sc->rx.buf_tag,
 		    sc->rx.buf_map[sc->rx.head].map, BUS_DMASYNC_POSTREAD);
