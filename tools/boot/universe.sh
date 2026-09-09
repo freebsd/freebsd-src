@@ -109,3 +109,15 @@ for i in \
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.no_zfs.log "MK_LOADER_BIOS_TEXTONLY=no"
 done
+
+# Build w/ BEARSSL
+for i in \
+	amd64/amd64 \
+	arm/armv7 \
+	arm64/aarch64 \
+	i386/i386 \
+	riscv/riscv64 \
+	; do
+    ta=${i##*/}
+    dobuild $ta _.boot.${ta}.bearssl.log "MK_BEARSSL=yes"
+done
