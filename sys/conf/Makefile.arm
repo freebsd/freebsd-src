@@ -72,6 +72,8 @@ SYSTEM_LD= \
 
 %FILES.s
 
+%FILES.rs
+
 %FILES.m
 
 %CLEAN

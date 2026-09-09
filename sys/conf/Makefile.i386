@@ -37,6 +37,8 @@ INCLUDES+= -I$S/contrib/libfdt
 
 %FILES.s
 
+%FILES.rs
+
 %FILES.m
 
 %CLEAN
