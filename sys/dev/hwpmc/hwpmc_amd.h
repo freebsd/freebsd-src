@@ -197,7 +197,8 @@
 #define	AMD_PMC_UMC_TO_RDWRMASK(x)	(((x) << 8) & AMD_PMC_UMC_RDWRMASK)
 
 #define	AMD_NPMCS_K8		4
-#define AMD_NPMCS_MAX		(AMD_PMC_CORE_MAX + AMD_PMC_L3_MAX + \
+/* Compile-time upper bound; npmcs_total must not exceed this. */
+#define	AMD_NPMCS_MAX		(AMD_PMC_CORE_MAX + AMD_PMC_L3_MAX + \
 				 AMD_PMC_DF_MAX + AMD_PMC_UMC_MAX)
 
 #define AMD_PMC_IS_STOPPED(evsel) ((rdmsr((evsel)) & AMD_PMC_ENABLE) == 0)

@@ -65,7 +65,7 @@ struct amd_descr {
 
 static int amd_npmcs;
 static int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs, amd_umc_npmcs;
-static struct amd_descr amd_pmcdesc[AMD_NPMCS_MAX];
+static struct amd_descr *amd_pmcdesc;
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
 	uint16_t	pe_code; /* encoded event mask */
@@ -178,7 +178,7 @@ const int amd_event_codes_size = nitems(amd_event_codes);
  * Per-processor information
  */
 struct amd_cpu {
-	struct pmc_hw	pc_amdpmcs[AMD_NPMCS_MAX];
+	struct pmc_hw	*pc_amdpmcs;
 };
 static struct amd_cpu **amd_pcpu;
 
@@ -840,6 +840,8 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	amd_pcpu[cpu] = pac = malloc(sizeof(struct amd_cpu), M_PMC,
 	    M_WAITOK | M_ZERO);
+	pac->pc_amdpmcs = mallocarray(amd_npmcs, sizeof(*pac->pc_amdpmcs),
+	    M_PMC, M_WAITOK | M_ZERO);
 
 	/*
 	 * Set the content of the hardware descriptors to a known
@@ -903,6 +905,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	for (i = 0; i < amd_npmcs; i++)
 		pc->pc_hwpmcs[i + first_ri] = NULL;
 
+	free(pac->pc_amdpmcs, M_PMC);
 	free(pac, M_PMC);
 	return (0);
 }
@@ -988,6 +991,7 @@ pmc_amd_initialize(void)
 	enum pmc_cputype cputype;
 	int ncpus, nclasses, i;
 	int family, model, stepping;
+	int npmcs_total;
 	int error;
 	int pmcs_per_umc;
 
@@ -1045,6 +1049,24 @@ pmc_amd_initialize(void)
 			pmcs_per_umc = amd_umc_npmcs / popcntq(regs[2]);
 		}
 	}
+
+	/*
+	 * Normalize per-class counts against feature bits so that allocation,
+	 * registration, and amd_get_msr() row offsets all use the same values.
+	 * UMC counters have no CPUID feature flag; amd_umc_npmcs is 0 when
+	 * the CPUID leaf is absent.
+	 */
+	if ((amd_feature2 & AMDID2_PTSCEL2I) == 0)
+		amd_l3_npmcs = 0;
+	if ((amd_feature2 & AMDID2_PNXC) == 0)
+		amd_df_npmcs = 0;
+	npmcs_total = amd_core_npmcs + amd_l3_npmcs + amd_df_npmcs +
+	    amd_umc_npmcs;
+	KASSERT(npmcs_total <= AMD_NPMCS_MAX,
+	    ("%s: npmcs_total %d exceeds AMD_NPMCS_MAX %d",
+	    __func__, npmcs_total, AMD_NPMCS_MAX));
+	amd_pmcdesc = mallocarray(npmcs_total, sizeof(*amd_pmcdesc),
+	    M_PMC, M_WAITOK | M_ZERO);
 
 	/* Enable the newer core counters */
 	for (i = 0; i < amd_core_npmcs; i++) {
@@ -1105,6 +1127,9 @@ pmc_amd_initialize(void)
 		amd_npmcs += amd_df_npmcs;
 	}
 
+	KASSERT(amd_npmcs == npmcs_total - amd_umc_npmcs,
+	    ("%s: UMC cursor wrong: got %d expected %d",
+	    __func__, amd_npmcs, npmcs_total - amd_umc_npmcs));
 	for (i = 0; i < amd_umc_npmcs; i++) {
 		d = &amd_pmcdesc[amd_npmcs + i];
 		snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
@@ -1118,11 +1143,17 @@ pmc_amd_initialize(void)
 	}
 	amd_npmcs += amd_umc_npmcs;
 
+	KASSERT(amd_npmcs == npmcs_total,
+	    ("%s: descriptor cursor %d != npmcs_total %d",
+	    __func__, amd_npmcs, npmcs_total));
+
 	/*
 	 * Sanity check that the hardware is safe to use.  Do not read or write
 	 * any of the PMC MSRs until after this check passes.
 	 */
 	if (amd_hwcheck() < 0) {
+		free(amd_pmcdesc, M_PMC);
+		amd_pmcdesc = NULL;
 		return (NULL);
 	}
 
@@ -1202,6 +1233,11 @@ pmc_amd_initialize(void)
 
 error:
 	free(pmc_mdep, M_PMC);
+	free(amd_pcpu, M_PMC);
+	amd_pcpu = NULL;
+	free(amd_pmcdesc, M_PMC);
+	amd_pmcdesc = NULL;
+	amd_npmcs = 0;
 	return (NULL);
 }
 
@@ -1224,4 +1260,7 @@ pmc_amd_finalize(struct pmc_mdep *md)
 
 	free(amd_pcpu, M_PMC);
 	amd_pcpu = NULL;
+
+	free(amd_pmcdesc, M_PMC);
+	amd_pmcdesc = NULL;
 }
