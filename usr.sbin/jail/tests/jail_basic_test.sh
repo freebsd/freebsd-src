@@ -35,6 +35,9 @@ basic_body()
 {
 	# Create the jail
 	atf_check -s exit:0 -o ignore jail -c name=basejail persist ip4.addr=192.0.1.1
+	# Create a second jail to test `jls -n` in the process for breakage when
+	# handling some of the non-trivial parameter types.
+	atf_check -s exit:0 -o ignore jail -c name=basejail2 persist ip4.addr=192.0.1.2
 	# Check output of jls
 	atf_check -s exit:0 -o ignore jls
 	atf_check -s exit:0 -o ignore jls -v
@@ -52,7 +55,7 @@ basic_body()
 
 basic_cleanup()
 {
-	jail -r basejail
+	jail -r basejail basejail2
 }
 
 atf_test_case "list" "cleanup"

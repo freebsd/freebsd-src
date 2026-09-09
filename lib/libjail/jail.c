@@ -746,13 +746,23 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 			jiov[i].iov_base = jp[j].jp_name;
 			jiov[i].iov_len = strlen(jp[j].jp_name) + 1;
 			i++;
-			if (jp[j].jp_value == NULL &&
-			    !(jp[j].jp_flags & JP_RAWVALUE)) {
-				jp[j].jp_value = malloc(jp[j].jp_valuelen);
+
+			/*
+			 * We give structured types' jps_get() implementations
+			 * a chance to initialize the value.  We'll guarantee
+			 * that the initial value is zeroed out, but they should
+			 * assume on every call that the value may be populated
+			 * by a subsequent jailparam_get().
+			 */
+			if (!(jp[j].jp_flags & JP_RAWVALUE)) {
 				if (jp[j].jp_value == NULL) {
-					strerror_r(errno, jail_errmsg,
-					    JAIL_ERRMSGLEN);
-					return (-1);
+					jp[j].jp_value = calloc(1,
+					    jp[j].jp_valuelen);
+					if (jp[j].jp_value == NULL) {
+						strerror_r(errno, jail_errmsg,
+						    JAIL_ERRMSGLEN);
+						return (-1);
+					}
 				}
 
 				/*
@@ -1434,6 +1444,15 @@ jps_get_mac_label(struct jailparam *jp, struct iovec *jiov)
 {
 	mac_t *pmac = jp->jp_value;
 	int error;
+
+	/*
+	 * Our value is only allocated once and may be reused for many
+	 * jailparam_get() calls; avoid leaking.
+	 */
+	if (*pmac != NULL) {
+		mac_free(*pmac);
+		*pmac = NULL;
+	}
 
 	error = mac_prepare_type(pmac, "jail");
 	if (error != 0 && errno == ENOENT) {
