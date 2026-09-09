@@ -135,6 +135,16 @@ SYSCTL_INT(_kern_cam_iosched, OID_AUTO, buckets, CTLFLAG_RD,
     "Total number of latency buckets published");
 
 /*
+ * Number of queue depth buckets.  Powers of 2 starting with QD1.
+ */
+#define QD_BUCKETS  8
+/*
+ * Setting alphabits to 3 helps with having fewer samples, and as a bonus it 
+ * compiles to just three instructions on x86 using lea.
+ */
+#define QD_ALPHABITS 3
+
+/*
  * Read bias: how many reads do we favor before scheduling a write
  * when we have a choice.
  */
@@ -280,6 +290,9 @@ struct iop_stats {
 #define IOP_RATE_LIMITED		1u
 
 	uint64_t	latencies[LAT_BUCKETS];
+
+	uint64_t	qdcount[QD_BUCKETS];
+	uint64_t	qdlatency[QD_BUCKETS];
 
 	struct cam_iosched_softc *softc;
 };
@@ -970,18 +983,39 @@ cam_iosched_sbintime_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-cam_iosched_sysctl_latencies(SYSCTL_HANDLER_ARGS)
+cam_iosched_sysctl_sbintimearray(SYSCTL_HANDLER_ARGS)
 {
-	int i, error;
+	int i, len, error;
 	struct sbuf sb;
-	uint64_t *latencies;
+	uint64_t *arr;
 
-	latencies = arg1;
-	sbuf_new_for_sysctl(&sb, NULL, LAT_BUCKETS * 16, req);
+	arr = arg1;
+	len = arg2;
+	sbuf_new_for_sysctl(&sb, NULL, len * 16, req);
 
-	for (i = 0; i < LAT_BUCKETS - 1; i++)
-		sbuf_printf(&sb, "%jd,", (intmax_t)latencies[i]);
-	sbuf_printf(&sb, "%jd", (intmax_t)latencies[LAT_BUCKETS - 1]);
+	for (i = 0; i < len - 1; i++)
+		sbuf_printf(&sb, "%jd,", (intmax_t)(arr[i] / SBT_1US));
+	sbuf_printf(&sb, "%jd", (intmax_t)(arr[len - 1] / SBT_1US));
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	return (error);
+}
+
+static int
+cam_iosched_sysctl_u64array(SYSCTL_HANDLER_ARGS)
+{
+	int i, len, error;
+	struct sbuf sb;
+	uint64_t *arr;
+
+	arr = arg1;
+	len = arg2;
+	sbuf_new_for_sysctl(&sb, NULL, len * 16, req);
+
+	for (i = 0; i < len - 1; i++)
+		sbuf_printf(&sb, "%jd,", (intmax_t)arr[i]);
+	sbuf_printf(&sb, "%jd", (intmax_t)arr[len - 1]);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 
@@ -1085,13 +1119,27 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "latencies",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    &ios->latencies, 0,
-	    cam_iosched_sysctl_latencies, "A",
+	    &ios->latencies, LAT_BUCKETS,
+	    cam_iosched_sysctl_u64array, "A",
 	    "Array of latencies, a geometric progresson from\n"
 	    "kern.cam.iosched.bucket_base_us with a ratio of\n"
 	    "kern.cam.iosched.bucket_ration / 100 from one to\n"
 	    "the next. By default 20 steps from 20us to 10.485s\n"
 	    "by doubling.");
+
+	SYSCTL_ADD_PROC(ctx, n,
+	    OID_AUTO, "qd_counts",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &ios->qdcount, QD_BUCKETS,
+	    cam_iosched_sysctl_u64array, "A",
+	    "Array of I/Os at a given queue depth (powers of 2 from QD1)");
+
+	SYSCTL_ADD_PROC(ctx, n,
+	    OID_AUTO, "qd_latencies",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    &ios->qdlatency, QD_BUCKETS,
+	    cam_iosched_sysctl_sbintimearray, "A",
+	    "Array of average latencies in microseconds by queue depth (powers of 2 from QD1)");
 
 }
 
@@ -1961,7 +2009,7 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency,
     const struct bio *bp)
 {
 	sbintime_t y, deltasq, delta;
-	int i;
+	int i, qd;
 
 	/*
 	 * Simple threshold: count the number of events that excede the
@@ -1984,6 +2032,16 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency,
 	}
 	if (i == LAT_BUCKETS - 1)
 		iop->latencies[i]++; 	 /* Put all > 8192ms values into the last bucket. */
+
+	/*
+	 * Per-queue depth statistics.  We add one to pending to include this 
+	 * I/O so the first bucket is QD1.
+	 */
+	qd = ilog2(iop->pending + 1);
+	qd = (qd >= QD_BUCKETS) ? (QD_BUCKETS - 1) : qd;
+	iop->qdcount[qd]++;
+	delta = (sim_latency - iop->qdlatency[qd]);
+	iop->qdlatency[qd] = ((iop->qdlatency[qd] << QD_ALPHABITS) + delta) >> QD_ALPHABITS;
 
 	/*
 	 * Classic exponentially decaying average with a tiny alpha
