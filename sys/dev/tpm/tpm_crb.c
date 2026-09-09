@@ -76,18 +76,21 @@
 #define	TPM_CRB_INT_ENABLE_BIT		BIT(31)
 
 struct tpmcrb_sc;
-/* Attach */
+/* Attach/detach callbacks */
 typedef bool (sm_attach_t)(struct tpmcrb_sc *, void *, size_t);
+typedef void (sm_detach_t)(struct tpmcrb_sc *);
 /* State change notification (timeout == 0 for 'no timeout') */
 typedef bool (sm_statechange_t)(struct tpmcrb_sc *, int);
 
 struct tpmcrb_sm_cfg {
 	sm_attach_t		*sm_attach;
+	sm_detach_t		*sm_detach;
 	sm_statechange_t	*sm_statechange;
 	sm_statechange_t	*sm_cmdready;
 };
 
 static sm_attach_t		pluton_attach;
+static sm_detach_t		pluton_detach;
 static sm_statechange_t		pluton_doorbell;
 
 static const struct tpmcrb_sm_cfg_map {
@@ -105,6 +108,7 @@ static const struct tpmcrb_sm_cfg_map {
 		.desc = "Trusted Platform Module 2.0, CRB mode (Pluton)",
 		.sm_cfg = {
 			.sm_attach = &pluton_attach,
+			.sm_detach = &pluton_detach,
 			.sm_statechange = &pluton_doorbell,
 			.sm_cmdready = &pluton_doorbell,
 		},
@@ -115,10 +119,15 @@ struct tpmcrb_sc {
 	struct tpm_sc	base;
 	const struct tpmcrb_sm_cfg	*sm_cfg;
 	union {
-		/* StartMethod data */
+		/*
+		 * StartMethod data.  The Pluton start/reply mailbox
+		 * registers may live outside of the _CRS window, so they get
+		 * their own bus_space mapping.
+		 */
 		struct {
-			uint64_t	 start_reg;
-			uint64_t	 reply_reg;
+			bus_space_tag_t		bst;
+			bus_space_handle_t	start_bsh;
+			bus_space_handle_t	reply_bsh;
 		} pluton;
 	};
 	bus_size_t	cmd_off;
@@ -333,10 +342,15 @@ tpmcrb_attach(device_t dev)
 static int
 tpmcrb_detach(device_t dev)
 {
+	struct tpmcrb_sc *crb_sc;
 	struct tpm_sc *sc;
 
-	sc = device_get_softc(dev);
+	crb_sc = device_get_softc(dev);
+	sc = &crb_sc->base;
 	tpm20_release(sc);
+
+	if (crb_sc->sm_cfg != NULL && crb_sc->sm_cfg->sm_detach != NULL)
+		(*crb_sc->sm_cfg->sm_detach)(crb_sc);
 
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -618,7 +632,7 @@ pluton_attach(struct tpmcrb_sc *crb_sc, void *smdataregion, size_t datasz)
 {
 	struct tpmcrb_startmethod_pluton *smdata;
 	struct tpm_sc *sc;
-	rman_res_t base_addr, end_addr;
+	bus_space_tag_t bst;
 
 	if (datasz < sizeof(*smdata))
 		return (false);
@@ -626,38 +640,83 @@ pluton_attach(struct tpmcrb_sc *crb_sc, void *smdataregion, size_t datasz)
 	smdata = smdataregion;
 	sc = &crb_sc->base;
 
-	base_addr = rman_get_start(sc->mem_res);
-	end_addr = rman_get_end(sc->mem_res);
-	/* Sanity check */
-	if (smdata->sm_startaddr < base_addr ||
-	    smdata->sm_startaddr > end_addr ||
-	    smdata->sm_replyaddr < base_addr ||
-	    smdata->sm_replyaddr > end_addr)
+	/*
+	 * The start/reply mailbox registers are not necessarily part of
+	 * the CRB register window described by _CRS, so we map them
+	 * independently.
+	 */
+	bst = rman_get_bustag(sc->mem_res);
+	if (bus_space_map(bst, smdata->sm_startaddr, sizeof(uint32_t), 0,
+	    &crb_sc->pluton.start_bsh) != 0) {
+		device_printf(sc->dev,
+		    "Failed to map Pluton start register at %#jx\n",
+		    (uintmax_t)smdata->sm_startaddr);
 		return (false);
+	}
 
-	crb_sc->pluton.start_reg = smdata->sm_startaddr - base_addr;
-	crb_sc->pluton.reply_reg = smdata->sm_replyaddr - base_addr;
+	if (bus_space_map(bst, smdata->sm_replyaddr, sizeof(uint32_t), 0,
+	    &crb_sc->pluton.reply_bsh) != 0) {
+		device_printf(sc->dev,
+		    "Failed to map Pluton reply register at %#jx\n",
+		    (uintmax_t)smdata->sm_replyaddr);
+		bus_space_unmap(bst, crb_sc->pluton.start_bsh,
+		    sizeof(uint32_t));
+		return (false);
+	}
+
+	crb_sc->pluton.bst = bst;
 	return (true);
+}
+
+static void
+pluton_detach(struct tpmcrb_sc *crb_sc)
+{
+
+	if (crb_sc->pluton.bst == 0)
+		return;
+
+	bus_space_unmap(crb_sc->pluton.bst, crb_sc->pluton.start_bsh,
+	    sizeof(uint32_t));
+	bus_space_unmap(crb_sc->pluton.bst, crb_sc->pluton.reply_bsh,
+	    sizeof(uint32_t));
+}
+
+static bool
+pluton_wait_reply(struct tpmcrb_sc *crb_sc, int32_t timeout)
+{
+	for (;;) {
+		/*
+		 * Always read at least once, and try one more time after we hit
+		 * the timeout.
+		 */
+		if (bus_space_read_4(crb_sc->pluton.bst,
+		    crb_sc->pluton.reply_bsh, 0) == 1)
+			return (true);
+		else if (timeout <= 0)
+			break;
+
+		pause("TPM in polling mode", 1);
+		timeout -= tick;
+	}
+
+	return (false);
 }
 
 static bool
 pluton_doorbell(struct tpmcrb_sc *crb_sc, int timeout)
 {
-	struct tpm_sc *sc;
-	device_t dev;
+	bus_space_write_4(crb_sc->pluton.bst, crb_sc->pluton.start_bsh, 0, 1);
+	bus_space_barrier(crb_sc->pluton.bst, crb_sc->pluton.start_bsh, 0,
+	    sizeof(uint32_t), BUS_SPACE_BARRIER_WRITE);
 
-	sc = &crb_sc->base;
-	dev = sc->dev;
-	TPM_WRITE_4(dev, crb_sc->pluton.start_reg, 1);
-	TPM_WRITE_BARRIER(dev, crb_sc->pluton.start_reg, 4);
-
-	if (timeout > 0) {
-		if (!tpm_wait_for_u32(sc, crb_sc->pluton.reply_reg, ~0U, 1,
-		    timeout))
-			return (false);
-	}
-
-	return (true);
+	/*
+	 * We assume at timeout == 0 that they're not really interested in a
+	 * reply immediately.  Otherwise, we poll for a reply at least once,
+	 * even with low timeouts.
+	 */
+	if (timeout <= 0)
+		return (true);
+	return (pluton_wait_reply(crb_sc, timeout));
 }
 
 /* ACPI Driver */
