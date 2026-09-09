@@ -109,8 +109,11 @@ dtrace_copy(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 ENTRY(dtrace_copy)
 	cbz	x2, 2f		/* If len == 0 then skip loop */
 1:
-	ldtrb	w4, [x0]	/* Load from uaddr */
+	mvn	x4, xzr		/* Set all bits */
+	ldtrb	w4, [x0]	/* Load from uaddr or raise data abort */
 	add	x0, x0, #1
+	lsr	x3, x4, #32	/* Extract zero-extended high bits */
+	cbnz	x3, 2f		/* If high bits != 0 then break */
 	strb	w4, [x1], #1	/* Store in kaddr */
 	sub	x2, x2, #1	/* len-- */
 	cbnz	x2, 1b
@@ -120,15 +123,16 @@ END(dtrace_copy)
 
 /*
 void
-dtrace_copystr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
-    volatile uint16_t *flags)
-XXX: Check for flags?
+dtrace_copystr(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 */
 ENTRY(dtrace_copystr)
 	cbz     x2, 2f          /* If len == 0 then skip loop */
 1:
-	ldtrb	w4, [x0]	/* Load from uaddr */
+	mvn	x4, xzr		/* Set all bits */
+	ldtrb	w4, [x0]	/* Load from uaddr or raise data abort */
 	add	x0, x0, #1
+	lsr	x3, x4, #32	/* Extract zero-extended high bits */
+	cbnz	x3, 2f		/* If high bits != 0 then break */
 	strb    w4, [x1], #1    /* Store in kaddr */
 	cbz     w4, 2f          /* If == 0 then break */
 	sub     x2, x2, #1      /* len-- */
