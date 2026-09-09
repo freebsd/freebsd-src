@@ -790,7 +790,7 @@ I.e. A packet matching a rule with
 syslog,bpf ...
 .Ed
 .Pp
-will log upto 50 packets.
+will log up to 50 packets.
 .It Cm tag Ar number
 When a packet matches a rule with the
 .Cm tag
@@ -1452,7 +1452,7 @@ Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
 .Ar number
 and 32-bit unsigned
 .Ar value
-specified matchess entry value.
+specified matches entry value.
 .It table Ns Pq Ar name , Ns Ar value-type Ns = Ns Ar value
 Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
 .Ar number
@@ -1961,7 +1961,7 @@ As a 32-bit number, e.g. 0xf00baa1 or 255.
 This form can be used for IPv4 lookups as well as for all numeric lookup
 types.
 .It
-As an IPv6 address when specified alongwith
+As an IPv6 address when specified along with
 .Cm dst-ip6
 or
 .Cm src-ip6
@@ -1969,7 +1969,7 @@ field.
 If used, the rule will match IPv6 packets only.
 Example: src-ip6:afff:ff00:ffff:ffff:0:0:0:0f0f.
 .It
-As a Ethernet mac address when specified alongwith
+As an Ethernet mac address when specified along with
 .Cm dst-mac
 or
 .Cm src-mac
@@ -2216,7 +2216,7 @@ TCP packets only.
 Match if the TCP header sequence number field is set to
 .Ar seq .
 .It Cm tcpwin Ar tcpwin-list
-Matches TCP packets whose  header window field is set to
+Matches TCP packets whose header  window field is set to
 .Ar tcpwin-list ,
 which is either a single value or a list of values or ranges
 specified in the same way as
@@ -3830,7 +3830,7 @@ If corresponding addresses was not found in the lookup tables, the packet
 will not be dropped and the search continues.
 .Ss XLAT464 CLAT translation
 XLAT464 CLAT NAT64 translator implements client-side stateless translation as
-defined in RFC6877 and is very similar to statless NAT64 translator
+defined in RFC6877 and is very similar to stateless NAT64 translator
 explained above.
 Instead of lookup tables it uses one-to-one mapping between IPv4 and IPv6
 addresses using configured prefixes.
@@ -3885,7 +3885,7 @@ supports in-kernel IPv6-to-IPv6 network prefix translation as described
 in RFC6296.
 The kernel module
 .Cm ipfw_nptv6
-should be loaded or kernel should has
+should be loaded or kernel should have
 .Cm options IPFIREWALL_NPTV6
 to be able use NPTv6 translator.
 .Pp
@@ -4340,7 +4340,7 @@ The firewall enforces that.
 .It Va net.inet.ip.fw.dyn_keep_states : No 0
 Keep dynamic states on rule/set deletion.
 States are relinked to default rule (65535).
-This can be handly for ruleset reload.
+This can be handy for ruleset reload.
 Turned off by default.
 .It Va net.inet.ip.fw.one_pass : No 1
 When set, the packet exiting from the
