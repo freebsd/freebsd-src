@@ -35,7 +35,7 @@ dobuild()
 	echo "Fail (cleanup)"
 	continue
     fi
-    if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make ${opt} -j 40 all"  \
+    if ! make buildenv TARGET_ARCH=$ta BUILDENV_SHELL="make ${opt} -j 1.5 all"  \
 	 >> $lf 2>&1; then
 	echo "Fail (build)"
 	continue
