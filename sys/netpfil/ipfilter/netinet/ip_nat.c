@@ -5807,14 +5807,13 @@ ipf_nat_expire(ipf_main_softc_t *softc)
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	ipftq_t *ifq, *ifqnext;
 	ipftqent_t *tqe, *tqn;
-	int i;
 	SPL_INT(s);
 
 	SPL_NET(s);
 	WRITE_ENTER(&softc->ipf_nat);
-	for (ifq = softn->ipf_nat_tcptq, i = 0; ifq != NULL;
+	for (ifq = softn->ipf_nat_tcptq; ifq != NULL;
 	     ifq = ifq->ifq_next) {
-		for (tqn = ifq->ifq_head; ((tqe = tqn) != NULL); i++) {
+		for (tqn = ifq->ifq_head; (tqe = tqn) != NULL;) {
 			if (tqe->tqe_die > softc->ipf_ticks)
 				break;
 			tqn = tqe->tqe_next;
@@ -5823,7 +5822,7 @@ ipf_nat_expire(ipf_main_softc_t *softc)
 	}
 
 	for (ifq = softn->ipf_nat_utqe; ifq != NULL; ifq = ifq->ifq_next) {
-		for (tqn = ifq->ifq_head; ((tqe = tqn) != NULL); i++) {
+		for (tqn = ifq->ifq_head; (tqe = tqn) != NULL;) {
 			if (tqe->tqe_die > softc->ipf_ticks)
 				break;
 			tqn = tqe->tqe_next;
