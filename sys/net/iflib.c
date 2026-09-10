@@ -6110,7 +6110,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
 	iflib_fl_t fl = NULL;
-	int i, j, cpu, err, txconf, rxconf;
+	int i, j, cpu, err;
 	iflib_dma_info_t ifdip;
 	uint32_t *rxqsizes = scctx->isc_rxqsizes;
 	uint32_t *txqsizes = scctx->isc_txqsizes;
@@ -6150,7 +6150,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 	/*
 	 * XXX handle allocation failure
 	 */
-	for (txconf = i = 0, cpu = CPU_FIRST(); i < ntxqsets; i++, txconf++, txq++, cpu = CPU_NEXT(cpu)) {
+	for (i = 0, cpu = CPU_FIRST(); i < ntxqsets; i++, txq++, cpu = CPU_NEXT(cpu)) {
 		/* Set up some basics */
 
 		if ((ifdip = malloc(sizeof(struct iflib_dma_info) * ntxqs,
@@ -6206,7 +6206,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 		txq->ift_reclaim_thresh = ctx->ifc_sysctl_tx_reclaim_thresh;
 	}
 
-	for (rxconf = i = 0; i < nrxqsets; i++, rxconf++, rxq++) {
+	for (i = 0; i < nrxqsets; i++, rxq++) {
 		/* Set up some basics */
 		callout_init(&rxq->ifr_watchdog, 1);
 
