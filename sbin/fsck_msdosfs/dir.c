@@ -449,10 +449,10 @@ checksize(struct fat_descriptor *fat, u_char *p, struct dosDirEntry *dir)
 		      fullpath(dir));
 		if (ask(1, "Drop superfluous clusters")) {
 			cl_t cl;
-			u_int32_t sz, len;
+			u_int32_t sz;
 
-			for (cl = dir->head, len = sz = 0;
-			    (sz += boot->ClusterSize) < dir->size; len++)
+			for (cl = dir->head, sz = 0;
+			    (sz += boot->ClusterSize) < dir->size;)
 				cl = fat_get_cl_next(fat, cl);
 			clearchain(fat, fat_get_cl_next(fat, cl));
 			ret = fat_set_cl_next(fat, cl, CLUST_EOF);
