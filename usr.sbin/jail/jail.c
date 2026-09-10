@@ -151,10 +151,10 @@ static const struct {
 	enum intparam param;
 } listparams[] = {
 #ifdef INET
-	{ "ip4.addr", KP_IP4_ADDR },
+	{ JAIL_PARAM_IP4_ADDR, KP_IP4_ADDR },
 #endif
 #ifdef INET6
-	{ "ip6.addr", KP_IP6_ADDR },
+	{ JAIL_PARAM_IP6_ADDR, KP_IP6_ADDR },
 #endif
 	{ "vnet.interface", IP_VNET_INTERFACE },
 	{ "zfs.dataset", IP_ZFS_DATASET },
@@ -701,12 +701,12 @@ create_jail(struct cfjail *j)
 	     j->intparams[IP_EXEC_POSTSTART]);
 	sjp = setparams =
 	    alloca((j->njp + dopersist) * sizeof(struct jailparam));
-	if (dopersist && jailparam_init(sjp++, "persist") < 0) {
+	if (dopersist && jailparam_init(sjp++, JAIL_PARAM_PERSIST) < 0) {
 		jail_warnx(j, "%s", jail_errmsg);
 		return -1;
 	}
 	for (jp = j->jp; jp < j->jp + j->njp; jp++)
-		if (!dopersist || !equalopts(jp->jp_name, "persist"))
+		if (!dopersist || !equalopts(jp->jp_name, JAIL_PARAM_PERSIST))
 			*sjp++ = *jp;
 	ns = sjp - setparams;
 
@@ -735,12 +735,12 @@ clear_persist(struct cfjail *j)
 	if (!(j->flags & JF_PERSIST))
 		return;
 	j->flags &= ~JF_PERSIST;
-	jiov[0].iov_base = __DECONST(char *, "jid");
-	jiov[0].iov_len = sizeof("jid");
+	jiov[0].iov_base = __DECONST(char *, JAIL_PARAM_JID);
+	jiov[0].iov_len = sizeof(JAIL_PARAM_JID);
 	jiov[1].iov_base = &j->jid;
 	jiov[1].iov_len = sizeof(j->jid);
-	jiov[2].iov_base = __DECONST(char *, "nopersist");
-	jiov[2].iov_len = sizeof("nopersist");
+	jiov[2].iov_base = __DECONST(char *, JAIL_PARAM_NOPERSIST);
+	jiov[2].iov_len = sizeof(JAIL_PARAM_NOPERSIST);
 	jiov[3].iov_base = NULL;
 	jiov[3].iov_len = 0;
 	jid = jail_set(jiov, 4, JAIL_UPDATE);
@@ -766,7 +766,7 @@ update_jail(struct cfjail *j)
 	if (ns == 0)
 		return 0;
 	sjp = setparams = alloca(++ns * sizeof(struct jailparam));
-	if (jailparam_init(sjp, "jid") < 0 ||
+	if (jailparam_init(sjp, JAIL_PARAM_JID) < 0 ||
 	    jailparam_import_raw(sjp, &j->jid, sizeof j->jid) < 0) {
 		jail_warnx(j, "%s", jail_errmsg);
 		failed(j);
@@ -801,18 +801,18 @@ rdtun_params(struct cfjail *j, int dofail)
 	j->flags |= JF_RDTUN;
 	nrt = 0;
 	for (jp = j->jp; jp < j->jp + j->njp; jp++)
-		if (JP_RDTUN(jp) && strcmp(jp->jp_name, "jid"))
+		if (JP_RDTUN(jp) && strcmp(jp->jp_name, JAIL_PARAM_JID))
 			nrt++;
 	if (nrt == 0)
 		return 0;
 	rtjp = rtparams = alloca(++nrt * sizeof(struct jailparam));
-	if (jailparam_init(rtjp, "jid") < 0 ||
+	if (jailparam_init(rtjp, JAIL_PARAM_JID) < 0 ||
 	    jailparam_import_raw(rtjp, &j->jid, sizeof j->jid) < 0) {
 		jail_warnx(j, "%s", jail_errmsg);
 		exit(1);
 	}
 	for (jp = j->jp; jp < j->jp + j->njp; jp++)
-		if (JP_RDTUN(jp) && strcmp(jp->jp_name, "jid")) {
+		if (JP_RDTUN(jp) && strcmp(jp->jp_name, JAIL_PARAM_JID)) {
 			*++rtjp = *jp;
 			rtjp->jp_value = NULL;
 		}
@@ -820,7 +820,8 @@ rdtun_params(struct cfjail *j, int dofail)
 	if (jailparam_get(rtparams, nrt, 0) > 0) {
 		rtjp = rtparams + 1;
 		for (jp = j->jp; rtjp < rtparams + nrt; jp++) {
-			if (JP_RDTUN(jp) && strcmp(jp->jp_name, "jid")) {
+			if (JP_RDTUN(jp) &&
+			    strcmp(jp->jp_name, JAIL_PARAM_JID)) {
 				jp_value = jp->jp_value;
 				jp_valuelen = jp->jp_valuelen;
 				if (jp_value == NULL && jp_valuelen > 0) {
@@ -876,13 +877,13 @@ running_jid(struct cfjail *j)
 			j->jid = -1;
 			return;
 		}
-		jiov[0].iov_base = __DECONST(char *, "jid");
-		jiov[0].iov_len = sizeof("jid");
+		jiov[0].iov_base = __DECONST(char *, JAIL_PARAM_JID);
+		jiov[0].iov_len = sizeof(JAIL_PARAM_JID);
 		jiov[1].iov_base = &jid;
 		jiov[1].iov_len = sizeof(jid);
 	} else if ((pval = string_param(j->intparams[KP_NAME]))) {
-		jiov[0].iov_base = __DECONST(char *, "name");
-		jiov[0].iov_len = sizeof("name");
+		jiov[0].iov_base = __DECONST(char *, JAIL_PARAM_NAME);
+		jiov[0].iov_len = sizeof(JAIL_PARAM_NAME);
 		jiov[1].iov_len = strlen(pval) + 1;
 		jiov[1].iov_base = alloca(jiov[1].iov_len);
 		strcpy(jiov[1].iov_base, pval);
@@ -985,7 +986,7 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl, int running)
 			printsep = 1;
 		}
 		TAILQ_FOREACH(p, &j->params, tq)
-			if (strcmp(p->name, "jid")) {
+			if (strcmp(p->name, JAIL_PARAM_JID)) {
 				if (printsep)
 					fputs(separator, fp);
 				else

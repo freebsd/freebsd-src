@@ -95,33 +95,35 @@ static const struct ipspec intparams[] = {
     [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},
     [IP_ZFS_DATASET] =		{"zfs.dataset",		PF_INTERNAL},
 #ifdef INET
-    [IP__IP4_IFADDR] =		{"ip4.addr",	PF_INTERNAL | PF_CONV | PF_REV},
+    [IP__IP4_IFADDR] =		{JAIL_PARAM_IP4_ADDR,
+				    PF_INTERNAL | PF_CONV | PF_REV},
 #endif
 #ifdef INET6
-    [IP__IP6_IFADDR] =		{"ip6.addr",	PF_INTERNAL | PF_CONV | PF_REV},
+    [IP__IP6_IFADDR] =		{JAIL_PARAM_IP6_ADDR,
+				    PF_INTERNAL | PF_CONV | PF_REV},
 #endif
     [IP__MOUNT_FROM_FSTAB] =	{"mount.fstab",	PF_INTERNAL | PF_CONV | PF_REV},
     [IP__OP] =			{NULL,			PF_CONV},
-    [KP_ALLOW_CHFLAGS] =	{"allow.chflags",	0},
-    [KP_ALLOW_MOUNT] =		{"allow.mount",		0},
-    [KP_ALLOW_RAW_SOCKETS] =	{"allow.raw_sockets",	0},
-    [KP_ALLOW_SET_HOSTNAME]=	{"allow.set_hostname",	0},
-    [KP_ALLOW_SOCKET_AF] =	{"allow.socket_af",	0},
-    [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
-    [KP_DEVFS_RULESET] =	{"devfs_ruleset",	0},
-    [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
+    [KP_ALLOW_CHFLAGS] =	{JAIL_PARAM_ALLOW_CHFLAGS,	0},
+    [KP_ALLOW_MOUNT] =		{JAIL_PARAM_ALLOW_MOUNT,	0},
+    [KP_ALLOW_RAW_SOCKETS] =	{JAIL_PARAM_ALLOW_RAW_SOCKETS,	0},
+    [KP_ALLOW_SET_HOSTNAME]=	{JAIL_PARAM_ALLOW_SET_HOSTNAME,	0},
+    [KP_ALLOW_SOCKET_AF] =	{JAIL_PARAM_ALLOW_SOCKET_AF,	0},
+    [KP_ALLOW_SYSVIPC] =	{JAIL_PARAM_ALLOW_SYSVIPC,	0},
+    [KP_DEVFS_RULESET] =	{JAIL_PARAM_DEVFS_RULESET,	0},
+    [KP_HOST_HOSTNAME] =	{JAIL_PARAM_HOST_HOSTNAME,	0},
 #ifdef INET
-    [KP_IP4_ADDR] =		{"ip4.addr",		0},
+    [KP_IP4_ADDR] =		{JAIL_PARAM_IP4_ADDR,		0},
 #endif
 #ifdef INET6
-    [KP_IP6_ADDR] =		{"ip6.addr",		0},
+    [KP_IP6_ADDR] =		{JAIL_PARAM_IP6_ADDR,		0},
 #endif
-    [KP_JID] =			{"jid",			PF_IMMUTABLE},
-    [KP_NAME] =			{"name",		PF_IMMUTABLE},
-    [KP_PATH] =			{"path",		0},
-    [KP_PERSIST] =		{"persist",		0},
-    [KP_SECURELEVEL] =		{"securelevel",		0},
-    [KP_VNET] =			{"vnet",		0},
+    [KP_JID] =			{JAIL_PARAM_JID,		PF_IMMUTABLE},
+    [KP_NAME] =			{JAIL_PARAM_NAME,		PF_IMMUTABLE},
+    [KP_PATH] =			{JAIL_PARAM_PATH,		0},
+    [KP_PERSIST] =		{JAIL_PARAM_PERSIST,		0},
+    [KP_SECURELEVEL] =		{JAIL_PARAM_SECURELEVEL,	0},
+    [KP_VNET] =			{JAIL_PARAM_VNET,		0},
 };
 
 /*

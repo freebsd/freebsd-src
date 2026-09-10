@@ -174,7 +174,7 @@ jail_setv(int flags, ...)
 			goto error;
 		if (jailparam_import(jp + njp, value) < 0)
 			goto error;
-		if (!strcmp(name, "desc") &&
+		if (!strcmp(name, JAIL_PARAM_DESC) &&
 		    (flags & (JAIL_GET_DESC | JAIL_OWN_DESC))) {
 			jp_desc = jp + njp;
 			desc_value = value;
@@ -224,17 +224,17 @@ jail_getv(int flags, ...)
 			va_end(tap);
 			goto error;
 		}
-		if (!strcmp(jp[njp].jp_name, "desc") &&
+		if (!strcmp(jp[njp].jp_name, JAIL_PARAM_DESC) &&
 		    (flags & (JAIL_USE_DESC | JAIL_AT_DESC))) {
 			jp_desc = jp + njp;
 			desc_value = value;
-		} else if (!strcmp(jp[njp].jp_name, "lastjid")) {
+		} else if (!strcmp(jp[njp].jp_name, JAIL_PARAM_LASTJID)) {
 			jp_lastjid = jp + njp;
 			lastjid_value = value;
-		} else if (!strcmp(jp[njp].jp_name, "jid")) {
+		} else if (!strcmp(jp[njp].jp_name, JAIL_PARAM_JID)) {
 			jp_jid = jp + njp;
 			jid_value = value;
-		} if (!strcmp(jp[njp].jp_name, "name")) {
+		} if (!strcmp(jp[njp].jp_name, JAIL_PARAM_NAME)) {
 			jp_name = jp + njp;
 			name_value = value;
 		}
@@ -625,8 +625,8 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 		}
 		i++;
 	}
-	jiov[i].iov_base = __DECONST(char *, "errmsg");
-	jiov[i].iov_len = sizeof("errmsg");
+	jiov[i].iov_base = __DECONST(char *, JAIL_PARAM_ERRMSG);
+	jiov[i].iov_len = sizeof(JAIL_PARAM_ERRMSG);
 	i++;
 	jiov[i].iov_base = jail_errmsg;
 	jiov[i].iov_len = JAIL_ERRMSGLEN;
@@ -663,14 +663,14 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	jp_desc = jp_lastjid = jp_jid = jp_name = NULL;
 	arrays = 0;
 	for (ai = j = 0; j < njp; j++) {
-		if (!strcmp(jp[j].jp_name, "desc") &&
+		if (!strcmp(jp[j].jp_name, JAIL_PARAM_DESC) &&
 		    (flags & (JAIL_USE_DESC | JAIL_AT_DESC)))
 			jp_desc = jp + j;
-		else if (!strcmp(jp[j].jp_name, "lastjid"))
+		else if (!strcmp(jp[j].jp_name, JAIL_PARAM_LASTJID))
 			jp_lastjid = jp + j;
-		else if (!strcmp(jp[j].jp_name, "jid"))
+		else if (!strcmp(jp[j].jp_name, JAIL_PARAM_JID))
 			jp_jid = jp + j;
-		else if (!strcmp(jp[j].jp_name, "name"))
+		else if (!strcmp(jp[j].jp_name, JAIL_PARAM_NAME))
 			jp_name = jp + j;
 		else if (jp[j].jp_elemlen && !(jp[j].jp_flags & JP_RAWVALUE)) {
 			arrays = 1;
@@ -700,8 +700,8 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	jiov[ki].iov_len = (jp_key->jp_ctltype & CTLTYPE) == CTLTYPE_STRING
 	    ? strlen(jp_key->jp_value) + 1 : jp_key->jp_valuelen;
 	ki++;
-	jiov[ki].iov_base = __DECONST(char *, "errmsg");
-	jiov[ki].iov_len = sizeof("errmsg");
+	jiov[ki].iov_base = __DECONST(char *, JAIL_PARAM_ERRMSG);
+	jiov[ki].iov_len = sizeof(JAIL_PARAM_ERRMSG);
 	ki++;
 	jiov[ki].iov_base = jail_errmsg;
 	jiov[ki].iov_len = JAIL_ERRMSGLEN;
@@ -1014,12 +1014,12 @@ jailparam_type(struct jailparam *jp)
 	 * parameter list.
 	 */
 	name = jp->jp_name;
-	if (!strcmp(name, "lastjid")) {
+	if (!strcmp(name, JAIL_PARAM_LASTJID)) {
 		jp->jp_valuelen = sizeof(int);
 		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_WR;
 		return (0);
 	}
-	if (!strcmp(name, "desc")) {
+	if (!strcmp(name, JAIL_PARAM_DESC)) {
 		jp->jp_valuelen = sizeof(int);
 		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_RW;
 		return (0);
