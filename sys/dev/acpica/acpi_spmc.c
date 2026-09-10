@@ -632,9 +632,9 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 	 * iterate until object->Package.Count so we actually go over all
 	 * elements in the package.
 	 */
-	for (size_t i = 0; i < object->Package.Count; i++) {
+	for (size_t i = 0, j = 0; i < object->Package.Count; i++) {
 		constraint_obj = &object->Package.Elements[i];
-		constraint = &sc->constraints[i];
+		constraint = &sc->constraints[j];
 
 		constraint->enabled =
 		    constraint_obj->Package.Elements[1].Integer.Value;
@@ -668,6 +668,8 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 		    constraint_package->Package.Elements[1].Integer.Value;
 		constraint->min_dev_specific_state =
 		    constraint_package->Package.Elements[2].Integer.Value;
+
+		j++;
 	}
 
 	return (0);
