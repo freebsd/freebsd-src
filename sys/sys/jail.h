@@ -110,6 +110,99 @@ enum prison_state {
 #define	JAIL_SYS_NEW		1
 #define	JAIL_SYS_INHERIT	2
 
+/*
+ * Names of the static jail parameters registered by the base kernel.
+ * Runtime-registered parameters (allow.mount.*, modules) are only
+ * discoverable via the security.jail.param sysctl tree.
+ */
+#define	JAIL_PARAM_JID			"jid"
+#define	JAIL_PARAM_LASTJID		"lastjid"
+#define	JAIL_PARAM_NAME			"name"
+#define	JAIL_PARAM_PARENT		"parent"
+#define	JAIL_PARAM_PATH			"path"
+#define	JAIL_PARAM_DESC			"desc"
+#define	JAIL_PARAM_ERRMSG		"errmsg"
+#define	JAIL_PARAM_PERSIST		"persist"
+#define	JAIL_PARAM_NOPERSIST		"nopersist"
+#define	JAIL_PARAM_DYING		"dying"
+#define	JAIL_PARAM_NODYING		"nodying"
+#define	JAIL_PARAM_SECURELEVEL		"securelevel"
+#define	JAIL_PARAM_DEVFS_RULESET	"devfs_ruleset"
+#define	JAIL_PARAM_ENFORCE_STATFS	"enforce_statfs"
+#define	JAIL_PARAM_CHILDREN_CUR		"children.cur"
+#define	JAIL_PARAM_CHILDREN_MAX		"children.max"
+#define	JAIL_PARAM_CPUSET_ID		"cpuset.id"
+#define	JAIL_PARAM_OSRELDATE		"osreldate"
+#define	JAIL_PARAM_OSRELEASE		"osrelease"
+
+#define	JAIL_PARAM_HOST			"host"
+#define	JAIL_PARAM_HOST_HOSTNAME	"host.hostname"
+#define	JAIL_PARAM_HOST_DOMAINNAME	"host.domainname"
+#define	JAIL_PARAM_HOST_HOSTUUID	"host.hostuuid"
+#define	JAIL_PARAM_HOST_HOSTID		"host.hostid"
+
+#if !defined(_KERNEL) || defined(INET)
+#define	JAIL_PARAM_IP4			"ip4"
+#define	JAIL_PARAM_IP4_ADDR		"ip4.addr"
+#define	JAIL_PARAM_IP4_SADDRSEL		"ip4.saddrsel"
+#define	JAIL_PARAM_IP4_NOSADDRSEL	"ip4.nosaddrsel"
+#endif
+#if !defined(_KERNEL) || defined(INET6)
+#define	JAIL_PARAM_IP6			"ip6"
+#define	JAIL_PARAM_IP6_ADDR		"ip6.addr"
+#define	JAIL_PARAM_IP6_SADDRSEL		"ip6.saddrsel"
+#define	JAIL_PARAM_IP6_NOSADDRSEL	"ip6.nosaddrsel"
+#endif
+#if !defined(_KERNEL) || defined(VIMAGE)
+#define	JAIL_PARAM_VNET			"vnet"
+#endif
+
+#define	JAIL_PARAM_ALLOW_SET_HOSTNAME	"allow.set_hostname"
+#define	JAIL_PARAM_ALLOW_NOSET_HOSTNAME	"allow.noset_hostname"
+#define	JAIL_PARAM_ALLOW_SYSVIPC	"allow.sysvipc"
+#define	JAIL_PARAM_ALLOW_NOSYSVIPC	"allow.nosysvipc"
+#define	JAIL_PARAM_ALLOW_RAW_SOCKETS	"allow.raw_sockets"
+#define	JAIL_PARAM_ALLOW_NORAW_SOCKETS	"allow.noraw_sockets"
+#define	JAIL_PARAM_ALLOW_CHFLAGS	"allow.chflags"
+#define	JAIL_PARAM_ALLOW_NOCHFLAGS	"allow.nochflags"
+#define	JAIL_PARAM_ALLOW_MOUNT		"allow.mount"
+#define	JAIL_PARAM_ALLOW_NOMOUNT	"allow.nomount"
+#define	JAIL_PARAM_ALLOW_QUOTAS		"allow.quotas"
+#define	JAIL_PARAM_ALLOW_NOQUOTAS	"allow.noquotas"
+#define	JAIL_PARAM_ALLOW_SOCKET_AF	"allow.socket_af"
+#define	JAIL_PARAM_ALLOW_NOSOCKET_AF	"allow.nosocket_af"
+#define	JAIL_PARAM_ALLOW_MLOCK		"allow.mlock"
+#define	JAIL_PARAM_ALLOW_NOMLOCK	"allow.nomlock"
+#define	JAIL_PARAM_ALLOW_RESERVED_PORTS	"allow.reserved_ports"
+#define	JAIL_PARAM_ALLOW_NORESERVED_PORTS \
+					"allow.noreserved_ports"
+#define	JAIL_PARAM_ALLOW_READ_MSGBUF	"allow.read_msgbuf"
+#define	JAIL_PARAM_ALLOW_NOREAD_MSGBUF	"allow.noread_msgbuf"
+#define	JAIL_PARAM_ALLOW_UNPRIV_DEBUG	"allow.unprivileged_proc_debug"
+#define	JAIL_PARAM_ALLOW_NOUNPRIV_DEBUG	"allow.nounprivileged_proc_debug"
+#define	JAIL_PARAM_ALLOW_SUSER		"allow.suser"
+#define	JAIL_PARAM_ALLOW_NOSUSER	"allow.nosuser"
+#if !defined(_KERNEL) || defined(VIMAGE)
+#define	JAIL_PARAM_ALLOW_NFSD		"allow.nfsd"
+#define	JAIL_PARAM_ALLOW_NONFSD		"allow.nonfsd"
+#endif
+#define	JAIL_PARAM_ALLOW_EXTATTR	"allow.extattr"
+#define	JAIL_PARAM_ALLOW_NOEXTATTR	"allow.noextattr"
+#define	JAIL_PARAM_ALLOW_ADJTIME	"allow.adjtime"
+#define	JAIL_PARAM_ALLOW_NOADJTIME	"allow.noadjtime"
+#define	JAIL_PARAM_ALLOW_SETTIME	"allow.settime"
+#define	JAIL_PARAM_ALLOW_NOSETTIME	"allow.nosettime"
+#define	JAIL_PARAM_ALLOW_ROUTING	"allow.routing"
+#define	JAIL_PARAM_ALLOW_NOROUTING	"allow.norouting"
+#define	JAIL_PARAM_ALLOW_UNPRIV_PARENT_TAMPER \
+					"allow.unprivileged_parent_tampering"
+#define	JAIL_PARAM_ALLOW_NOUNPRIV_PARENT_TAMPER \
+					"allow.nounprivileged_parent_tampering"
+#if !defined(_KERNEL) || defined(AUDIT)
+#define	JAIL_PARAM_ALLOW_SETAUDIT	"allow.setaudit"
+#define	JAIL_PARAM_ALLOW_NOSETAUDIT	"allow.nosetaudit"
+#endif
+
 #ifndef _KERNEL
 
 struct iovec;

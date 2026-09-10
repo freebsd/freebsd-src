@@ -196,26 +196,26 @@ static void prison_knote(struct prison *pr, long hint);
  * terminating entry.
  */
 static struct bool_flags pr_flag_bool[] = {
-	{"persist", "nopersist", PR_PERSIST},
+	{JAIL_PARAM_PERSIST, JAIL_PARAM_NOPERSIST, PR_PERSIST},
 #ifdef INET
-	{"ip4.saddrsel", "ip4.nosaddrsel", PR_IP4_SADDRSEL},
+	{JAIL_PARAM_IP4_SADDRSEL, JAIL_PARAM_IP4_NOSADDRSEL, PR_IP4_SADDRSEL},
 #endif
 #ifdef INET6
-	{"ip6.saddrsel", "ip6.nosaddrsel", PR_IP6_SADDRSEL},
+	{JAIL_PARAM_IP6_SADDRSEL, JAIL_PARAM_IP6_NOSADDRSEL, PR_IP6_SADDRSEL},
 #endif
 };
 const size_t pr_flag_bool_size = sizeof(pr_flag_bool);
 
 static struct jailsys_flags pr_flag_jailsys[] = {
-	{"host", 0, PR_HOST},
+	{JAIL_PARAM_HOST, 0, PR_HOST},
 #ifdef VIMAGE
-	{"vnet", 0, PR_VNET},
+	{JAIL_PARAM_VNET, 0, PR_VNET},
 #endif
 #ifdef INET
-	{"ip4", PR_IP4_USER, PR_IP4_USER},
+	{JAIL_PARAM_IP4, PR_IP4_USER, PR_IP4_USER},
 #endif
 #ifdef INET6
-	{"ip6", PR_IP6_USER, PR_IP6_USER},
+	{JAIL_PARAM_IP6, PR_IP6_USER, PR_IP6_USER},
 #endif
 };
 const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
@@ -226,32 +226,43 @@ const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
  * with an atomic check of the flag values.
  */
 static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
-	{"allow.set_hostname", "allow.noset_hostname", PR_ALLOW_SET_HOSTNAME},
-	{"allow.sysvipc", "allow.nosysvipc", PR_ALLOW_SYSVIPC},
-	{"allow.raw_sockets", "allow.noraw_sockets", PR_ALLOW_RAW_SOCKETS},
-	{"allow.chflags", "allow.nochflags", PR_ALLOW_CHFLAGS},
-	{"allow.mount", "allow.nomount", PR_ALLOW_MOUNT},
-	{"allow.quotas", "allow.noquotas", PR_ALLOW_QUOTAS},
-	{"allow.socket_af", "allow.nosocket_af", PR_ALLOW_SOCKET_AF},
-	{"allow.mlock", "allow.nomlock", PR_ALLOW_MLOCK},
-	{"allow.reserved_ports", "allow.noreserved_ports",
+	{JAIL_PARAM_ALLOW_SET_HOSTNAME, JAIL_PARAM_ALLOW_NOSET_HOSTNAME,
+	 PR_ALLOW_SET_HOSTNAME},
+	{JAIL_PARAM_ALLOW_SYSVIPC, JAIL_PARAM_ALLOW_NOSYSVIPC,
+	 PR_ALLOW_SYSVIPC},
+	{JAIL_PARAM_ALLOW_RAW_SOCKETS, JAIL_PARAM_ALLOW_NORAW_SOCKETS,
+	 PR_ALLOW_RAW_SOCKETS},
+	{JAIL_PARAM_ALLOW_CHFLAGS, JAIL_PARAM_ALLOW_NOCHFLAGS,
+	 PR_ALLOW_CHFLAGS},
+	{JAIL_PARAM_ALLOW_MOUNT, JAIL_PARAM_ALLOW_NOMOUNT, PR_ALLOW_MOUNT},
+	{JAIL_PARAM_ALLOW_QUOTAS, JAIL_PARAM_ALLOW_NOQUOTAS, PR_ALLOW_QUOTAS},
+	{JAIL_PARAM_ALLOW_SOCKET_AF, JAIL_PARAM_ALLOW_NOSOCKET_AF,
+	 PR_ALLOW_SOCKET_AF},
+	{JAIL_PARAM_ALLOW_MLOCK, JAIL_PARAM_ALLOW_NOMLOCK, PR_ALLOW_MLOCK},
+	{JAIL_PARAM_ALLOW_RESERVED_PORTS, JAIL_PARAM_ALLOW_NORESERVED_PORTS,
 	 PR_ALLOW_RESERVED_PORTS},
-	{"allow.read_msgbuf", "allow.noread_msgbuf", PR_ALLOW_READ_MSGBUF},
-	{"allow.unprivileged_proc_debug", "allow.nounprivileged_proc_debug",
+	{JAIL_PARAM_ALLOW_READ_MSGBUF, JAIL_PARAM_ALLOW_NOREAD_MSGBUF,
+	 PR_ALLOW_READ_MSGBUF},
+	{JAIL_PARAM_ALLOW_UNPRIV_DEBUG, JAIL_PARAM_ALLOW_NOUNPRIV_DEBUG,
 	 PR_ALLOW_UNPRIV_DEBUG},
-	{"allow.suser", "allow.nosuser", PR_ALLOW_SUSER},
+	{JAIL_PARAM_ALLOW_SUSER, JAIL_PARAM_ALLOW_NOSUSER, PR_ALLOW_SUSER},
 #ifdef VIMAGE
-	{"allow.nfsd", "allow.nonfsd", PR_ALLOW_NFSD},
+	{JAIL_PARAM_ALLOW_NFSD, JAIL_PARAM_ALLOW_NONFSD, PR_ALLOW_NFSD},
 #endif
-	{"allow.extattr", "allow.noextattr", PR_ALLOW_EXTATTR},
-	{"allow.adjtime", "allow.noadjtime", PR_ALLOW_ADJTIME},
-	{"allow.settime", "allow.nosettime", PR_ALLOW_SETTIME},
-	{"allow.routing", "allow.norouting", PR_ALLOW_ROUTING},
-	{"allow.unprivileged_parent_tampering",
-	    "allow.nounprivileged_parent_tampering",
+	{JAIL_PARAM_ALLOW_EXTATTR, JAIL_PARAM_ALLOW_NOEXTATTR,
+	 PR_ALLOW_EXTATTR},
+	{JAIL_PARAM_ALLOW_ADJTIME, JAIL_PARAM_ALLOW_NOADJTIME,
+	 PR_ALLOW_ADJTIME},
+	{JAIL_PARAM_ALLOW_SETTIME, JAIL_PARAM_ALLOW_NOSETTIME,
+	 PR_ALLOW_SETTIME},
+	{JAIL_PARAM_ALLOW_ROUTING, JAIL_PARAM_ALLOW_NOROUTING,
+	 PR_ALLOW_ROUTING},
+	{JAIL_PARAM_ALLOW_UNPRIV_PARENT_TAMPER,
+	    JAIL_PARAM_ALLOW_NOUNPRIV_PARENT_TAMPER,
 	    PR_ALLOW_UNPRIV_PARENT_TAMPER},
 #ifdef AUDIT
-	{"allow.setaudit", "allow.nosetaudit", PR_ALLOW_SETAUDIT},
+	{JAIL_PARAM_ALLOW_SETAUDIT, JAIL_PARAM_ALLOW_NOSETAUDIT,
+	 PR_ALLOW_SETAUDIT},
 #endif
 };
 static unsigned pr_allow_all = PR_ALLOW_ALL_STATIC;
@@ -443,8 +454,8 @@ kern_jail(struct thread *td, struct jail *j)
 			    strlen(optiov[opt.uio_iovcnt].iov_base) + 1;
 			opt.uio_iovcnt += 2;
 		}
-		optiov[opt.uio_iovcnt].iov_base = "enforce_statfs";
-		optiov[opt.uio_iovcnt].iov_len = sizeof("enforce_statfs");
+		optiov[opt.uio_iovcnt].iov_base = JAIL_PARAM_ENFORCE_STATFS;
+		optiov[opt.uio_iovcnt].iov_len = sizeof(JAIL_PARAM_ENFORCE_STATFS);
 		opt.uio_iovcnt++;
 		enforce_statfs = jail_default_enforce_statfs;
 		optiov[opt.uio_iovcnt].iov_base = &enforce_statfs;
@@ -483,8 +494,8 @@ kern_jail(struct thread *td, struct jail *j)
 	u_ip6 = (struct in6_addr *)(u_name + MAXHOSTNAMELEN);
 #endif
 #endif
-	optiov[opt.uio_iovcnt].iov_base = "path";
-	optiov[opt.uio_iovcnt].iov_len = sizeof("path");
+	optiov[opt.uio_iovcnt].iov_base = JAIL_PARAM_PATH;
+	optiov[opt.uio_iovcnt].iov_len = sizeof(JAIL_PARAM_PATH);
 	opt.uio_iovcnt++;
 	optiov[opt.uio_iovcnt].iov_base = u_path;
 	error = copyinstr(j->path, u_path, MAXPATHLEN,
@@ -494,8 +505,8 @@ kern_jail(struct thread *td, struct jail *j)
 		return (error);
 	}
 	opt.uio_iovcnt++;
-	optiov[opt.uio_iovcnt].iov_base = "host.hostname";
-	optiov[opt.uio_iovcnt].iov_len = sizeof("host.hostname");
+	optiov[opt.uio_iovcnt].iov_base = JAIL_PARAM_HOST_HOSTNAME;
+	optiov[opt.uio_iovcnt].iov_len = sizeof(JAIL_PARAM_HOST_HOSTNAME);
 	opt.uio_iovcnt++;
 	optiov[opt.uio_iovcnt].iov_base = u_hostname;
 	error = copyinstr(j->hostname, u_hostname, MAXHOSTNAMELEN,
@@ -506,8 +517,8 @@ kern_jail(struct thread *td, struct jail *j)
 	}
 	opt.uio_iovcnt++;
 	if (j->jailname != NULL) {
-		optiov[opt.uio_iovcnt].iov_base = "name";
-		optiov[opt.uio_iovcnt].iov_len = sizeof("name");
+		optiov[opt.uio_iovcnt].iov_base = JAIL_PARAM_NAME;
+		optiov[opt.uio_iovcnt].iov_len = sizeof(JAIL_PARAM_NAME);
 		opt.uio_iovcnt++;
 		optiov[opt.uio_iovcnt].iov_base = u_name;
 		error = copyinstr(j->jailname, u_name, MAXHOSTNAMELEN,
@@ -519,8 +530,8 @@ kern_jail(struct thread *td, struct jail *j)
 		opt.uio_iovcnt++;
 	}
 #ifdef INET
-	optiov[opt.uio_iovcnt].iov_base = "ip4.addr";
-	optiov[opt.uio_iovcnt].iov_len = sizeof("ip4.addr");
+	optiov[opt.uio_iovcnt].iov_base = JAIL_PARAM_IP4_ADDR;
+	optiov[opt.uio_iovcnt].iov_len = sizeof(JAIL_PARAM_IP4_ADDR);
 	opt.uio_iovcnt++;
 	optiov[opt.uio_iovcnt].iov_base = u_ip4;
 	optiov[opt.uio_iovcnt].iov_len = ip4s * sizeof(struct in_addr);
@@ -536,8 +547,8 @@ kern_jail(struct thread *td, struct jail *j)
 	opt.uio_iovcnt++;
 #endif
 #ifdef INET6
-	optiov[opt.uio_iovcnt].iov_base = "ip6.addr";
-	optiov[opt.uio_iovcnt].iov_len = sizeof("ip6.addr");
+	optiov[opt.uio_iovcnt].iov_base = JAIL_PARAM_IP6_ADDR;
+	optiov[opt.uio_iovcnt].iov_len = sizeof(JAIL_PARAM_IP6_ADDR);
 	opt.uio_iovcnt++;
 	optiov[opt.uio_iovcnt].iov_base = u_ip6;
 	optiov[opt.uio_iovcnt].iov_len = j->ip6s * sizeof(struct in6_addr);
@@ -1104,7 +1115,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		goto done_errmsg;
 	}
 
-	error = vfs_copyopt(opts, "desc", &jfd_in, sizeof(jfd_in));
+	error = vfs_copyopt(opts, JAIL_PARAM_DESC, &jfd_in, sizeof(jfd_in));
 	if (error == ENOENT) {
 		if (flags & (JAIL_USE_DESC | JAIL_AT_DESC | JAIL_GET_DESC |
 		    JAIL_OWN_DESC)) {
@@ -1163,13 +1174,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			goto done_free;
 	}
 
-	error = vfs_copyopt(opts, "jid", &jid, sizeof(jid));
+	error = vfs_copyopt(opts, JAIL_PARAM_JID, &jid, sizeof(jid));
 	if (error == ENOENT)
 		jid = 0;
 	else if (error != 0)
 		goto done_free;
 
-	error = vfs_copyopt(opts, "securelevel", &slevel, sizeof(slevel));
+	error = vfs_copyopt(opts, JAIL_PARAM_SECURELEVEL, &slevel, sizeof(slevel));
 	if (error == ENOENT)
 		gotslevel = 0;
 	else if (error != 0)
@@ -1178,7 +1189,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		gotslevel = 1;
 
 	error =
-	    vfs_copyopt(opts, "children.max", &childmax, sizeof(childmax));
+	    vfs_copyopt(opts, JAIL_PARAM_CHILDREN_MAX, &childmax, sizeof(childmax));
 	if (error == ENOENT)
 		gotchildmax = 0;
 	else if (error != 0)
@@ -1186,7 +1197,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	else
 		gotchildmax = 1;
 
-	error = vfs_copyopt(opts, "enforce_statfs", &enforce, sizeof(enforce));
+	error = vfs_copyopt(opts, JAIL_PARAM_ENFORCE_STATFS, &enforce,
+	    sizeof(enforce));
 	if (error == ENOENT)
 		gotenforce = 0;
 	else if (error != 0)
@@ -1197,7 +1209,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	} else
 		gotenforce = 1;
 
-	error = vfs_copyopt(opts, "devfs_ruleset", &rsnum, sizeof(rsnum));
+	error = vfs_copyopt(opts, JAIL_PARAM_DEVFS_RULESET, &rsnum, sizeof(rsnum));
 	if (error == ENOENT)
 		gotrsnum = 0;
 	else if (error != 0)
@@ -1278,7 +1290,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 	ch_allow |= pr_allow;
 
-	error = vfs_getopt(opts, "name", (void **)&name, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_NAME, (void **)&name, &len);
 	if (error == ENOENT)
 		name = NULL;
 	else if (error != 0)
@@ -1294,7 +1306,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
-	error = vfs_getopt(opts, "host.hostname", (void **)&host, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_HOST_HOSTNAME, (void **)&host, &len);
 	if (error == ENOENT)
 		host = NULL;
 	else if (error != 0)
@@ -1312,7 +1324,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
-	error = vfs_getopt(opts, "host.domainname", (void **)&domain, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_HOST_DOMAINNAME, (void **)&domain, &len);
 	if (error == ENOENT)
 		domain = NULL;
 	else if (error != 0)
@@ -1330,7 +1342,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
-	error = vfs_getopt(opts, "host.hostuuid", (void **)&uuid, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_HOST_HOSTUUID, (void **)&uuid, &len);
 	if (error == ENOENT)
 		uuid = NULL;
 	else if (error != 0)
@@ -1352,11 +1364,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		uint32_t hid32;
 
-		error = vfs_copyopt(opts, "host.hostid", &hid32, sizeof(hid32));
+		error = vfs_copyopt(opts, JAIL_PARAM_HOST_HOSTID, &hid32, sizeof(hid32));
 		hid = hid32;
 	} else
 #endif
-		error = vfs_copyopt(opts, "host.hostid", &hid, sizeof(hid));
+		error = vfs_copyopt(opts, JAIL_PARAM_HOST_HOSTID, &hid, sizeof(hid));
 	if (error == ENOENT)
 		gothid = 0;
 	else if (error != 0)
@@ -1379,7 +1391,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 
 #ifdef INET
-	error = vfs_getopt(opts, "ip4.addr", &op, &ip4s);
+	error = vfs_getopt(opts, JAIL_PARAM_IP4_ADDR, &op, &ip4s);
 	if (error == ENOENT)
 		ip4s = 0;
 	else if (error != 0)
@@ -1407,7 +1419,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 
 #ifdef INET6
-	error = vfs_getopt(opts, "ip6.addr", &op, &ip6s);
+	error = vfs_getopt(opts, JAIL_PARAM_IP6_ADDR, &op, &ip6s);
 	if (error == ENOENT)
 		ip6s = 0;
 	else if (error != 0)
@@ -1443,7 +1455,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
-	error = vfs_getopt(opts, "osrelease", (void **)&osrelstr, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_OSRELEASE, (void **)&osrelstr, &len);
 	if (error == ENOENT)
 		osrelstr = NULL;
 	else if (error != 0)
@@ -1468,7 +1480,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
-	error = vfs_copyopt(opts, "osreldate", &osreldt, sizeof(osreldt));
+	error = vfs_copyopt(opts, JAIL_PARAM_OSRELDATE, &osreldt, sizeof(osreldt));
 	if (error == ENOENT)
 		osreldt = 0;
 	else if (error != 0)
@@ -1488,7 +1500,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 
 	root = NULL;
-	error = vfs_getopt(opts, "path", (void **)&path, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_PATH, (void **)&path, &len);
 	if (error == ENOENT)
 		path = NULL;
 	else if (error != 0)
@@ -2359,7 +2371,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			mtx_lock(&pr->pr_mtx);
 			drflags |= PD_LOCKED;
 		}
-		jfd_pos = 2 * vfs_getopt_pos(opts, "desc") + 1;
+		jfd_pos = 2 * vfs_getopt_pos(opts, JAIL_PARAM_DESC) + 1;
 		if (optuio->uio_segflg == UIO_SYSSPACE)
 			*(int*)optuio->uio_iov[jfd_pos].iov_base = jfd_out;
 		else
@@ -2391,9 +2403,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
  done_errmsg:
 	if (error) {
 		/* Write the error message back to userspace. */
-		if (vfs_getopt(opts, "errmsg", (void **)&errmsg,
+		if (vfs_getopt(opts, JAIL_PARAM_ERRMSG, (void **)&errmsg,
 		    &errmsg_len) == 0 && errmsg_len > 0) {
-			errmsg_pos = 2 * vfs_getopt_pos(opts, "errmsg") + 1;
+			errmsg_pos = 2 * vfs_getopt_pos(opts, JAIL_PARAM_ERRMSG) + 1;
 			if (optuio->uio_segflg == UIO_SYSSPACE)
 				bcopy(errmsg,
 				    optuio->uio_iov[errmsg_pos].iov_base,
@@ -2591,7 +2603,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	error = vfs_buildopts(optuio, &opts);
 	if (error)
 		return (error);
-	errmsg_pos = vfs_getopt_pos(opts, "errmsg");
+	errmsg_pos = vfs_getopt_pos(opts, JAIL_PARAM_ERRMSG);
 	mypr = td->td_ucred->cr_prison;
 	prison_hold(mypr);
 	pr = NULL;
@@ -2604,7 +2616,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	sx_slock(&allprison_lock);
 	drflags = PD_LIST_SLOCKED;
 
-	error = vfs_copyopt(opts, "desc", &jfd_in, sizeof(jfd_in));
+	error = vfs_copyopt(opts, JAIL_PARAM_DESC, &jfd_in, sizeof(jfd_in));
 	if (error == ENOENT) {
 		if (flags & (JAIL_AT_DESC | JAIL_GET_DESC | JAIL_OWN_DESC)) {
 			vfs_opterror(opts, "missing desc");
@@ -2655,7 +2667,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	} else
 		goto done;
 
-	error = vfs_copyopt(opts, "lastjid", &jid, sizeof(jid));
+	error = vfs_copyopt(opts, JAIL_PARAM_LASTJID, &jid, sizeof(jid));
 	if (error == 0) {
 		TAILQ_FOREACH(pr, &allprison, pr_list) {
 			if (pr->pr_id > jid &&
@@ -2694,7 +2706,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	} else if (error != ENOENT)
 		goto done;
 
-	error = vfs_copyopt(opts, "jid", &jid, sizeof(jid));
+	error = vfs_copyopt(opts, JAIL_PARAM_JID, &jid, sizeof(jid));
 	if (error == 0) {
 		if (jid != 0) {
 			pr = prison_find_child(mypr, jid);
@@ -2709,7 +2721,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	} else if (error != ENOENT)
 		goto done;
 
-	error = vfs_getopt(opts, "name", (void **)&name, &len);
+	error = vfs_getopt(opts, JAIL_PARAM_NAME, (void **)&name, &len);
 	if (error == 0) {
 		if (len == 0 || name[len - 1] != '\0') {
 			error = EINVAL;
@@ -2757,79 +2769,81 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	}
 	td->td_retval[0] = pr->pr_id;
 	if (jfd_out >= 0) {
-		error = vfs_setopt(opts, "desc", &jfd_out, sizeof(jfd_out));
+		error = vfs_setopt(opts, JAIL_PARAM_DESC, &jfd_out, sizeof(jfd_out));
 		if (error != 0 && error != ENOENT)
 			goto done;
 		jaildesc_set_prison(jfp_out, pr);
 	}
-	error = vfs_setopt(opts, "jid", &pr->pr_id, sizeof(pr->pr_id));
+	error = vfs_setopt(opts, JAIL_PARAM_JID, &pr->pr_id, sizeof(pr->pr_id));
 	if (error != 0 && error != ENOENT)
 		goto done;
 	i = (pr->pr_parent == mypr) ? 0 : pr->pr_parent->pr_id;
-	error = vfs_setopt(opts, "parent", &i, sizeof(i));
+	error = vfs_setopt(opts, JAIL_PARAM_PARENT, &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "name", prison_name(mypr, pr));
+	error = vfs_setopts(opts, JAIL_PARAM_NAME, prison_name(mypr, pr));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopt(opts, "cpuset.id", &pr->pr_cpuset->cs_id,
+	error = vfs_setopt(opts, JAIL_PARAM_CPUSET_ID, &pr->pr_cpuset->cs_id,
 	    sizeof(pr->pr_cpuset->cs_id));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "path", prison_path(mypr, pr));
+	error = vfs_setopts(opts, JAIL_PARAM_PATH, prison_path(mypr, pr));
 	if (error != 0 && error != ENOENT)
 		goto done;
 #ifdef INET
-	error = vfs_setopt_part(opts, "ip4.addr", pr->pr_addrs[PR_INET]->pr_ip,
+	error = vfs_setopt_part(opts, JAIL_PARAM_IP4_ADDR,
+	    pr->pr_addrs[PR_INET]->pr_ip,
 	    pr->pr_addrs[PR_INET] ? pr->pr_addrs[PR_INET]->ips *
 	    pr_families[PR_INET].size : 0 );
 	if (error != 0 && error != ENOENT)
 		goto done;
 #endif
 #ifdef INET6
-	error = vfs_setopt_part(opts, "ip6.addr", pr->pr_addrs[PR_INET6]->pr_ip,
+	error = vfs_setopt_part(opts, JAIL_PARAM_IP6_ADDR,
+	    pr->pr_addrs[PR_INET6]->pr_ip,
 	    pr->pr_addrs[PR_INET6] ? pr->pr_addrs[PR_INET6]->ips *
 	    pr_families[PR_INET6].size : 0 );
 	if (error != 0 && error != ENOENT)
 		goto done;
 #endif
-	error = vfs_setopt(opts, "securelevel", &pr->pr_securelevel,
+	error = vfs_setopt(opts, JAIL_PARAM_SECURELEVEL, &pr->pr_securelevel,
 	    sizeof(pr->pr_securelevel));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopt(opts, "children.cur", &pr->pr_childcount,
+	error = vfs_setopt(opts, JAIL_PARAM_CHILDREN_CUR, &pr->pr_childcount,
 	    sizeof(pr->pr_childcount));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopt(opts, "children.max", &pr->pr_childmax,
+	error = vfs_setopt(opts, JAIL_PARAM_CHILDREN_MAX, &pr->pr_childmax,
 	    sizeof(pr->pr_childmax));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "host.hostname", pr->pr_hostname);
+	error = vfs_setopts(opts, JAIL_PARAM_HOST_HOSTNAME, pr->pr_hostname);
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "host.domainname", pr->pr_domainname);
+	error = vfs_setopts(opts, JAIL_PARAM_HOST_DOMAINNAME, pr->pr_domainname);
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "host.hostuuid", pr->pr_hostuuid);
+	error = vfs_setopts(opts, JAIL_PARAM_HOST_HOSTUUID, pr->pr_hostuuid);
 	if (error != 0 && error != ENOENT)
 		goto done;
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		uint32_t hid32 = pr->pr_hostid;
 
-		error = vfs_setopt(opts, "host.hostid", &hid32, sizeof(hid32));
+		error = vfs_setopt(opts, JAIL_PARAM_HOST_HOSTID, &hid32, sizeof(hid32));
 	} else
 #endif
-	error = vfs_setopt(opts, "host.hostid", &pr->pr_hostid,
+	error = vfs_setopt(opts, JAIL_PARAM_HOST_HOSTID, &pr->pr_hostid,
 	    sizeof(pr->pr_hostid));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopt(opts, "enforce_statfs", &pr->pr_enforce_statfs,
+	error = vfs_setopt(opts, JAIL_PARAM_ENFORCE_STATFS, &pr->pr_enforce_statfs,
 	    sizeof(pr->pr_enforce_statfs));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopt(opts, "devfs_ruleset", &pr->pr_devfs_rsnum,
+	error = vfs_setopt(opts, JAIL_PARAM_DEVFS_RULESET, &pr->pr_devfs_rsnum,
 	    sizeof(pr->pr_devfs_rsnum));
 	if (error != 0 && error != ENOENT)
 		goto done;
@@ -2870,18 +2884,18 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 			goto done;
 	}
 	i = !prison_isalive(pr);
-	error = vfs_setopt(opts, "dying", &i, sizeof(i));
+	error = vfs_setopt(opts, JAIL_PARAM_DYING, &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done;
 	i = !i;
-	error = vfs_setopt(opts, "nodying", &i, sizeof(i));
+	error = vfs_setopt(opts, JAIL_PARAM_NODYING, &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopt(opts, "osreldate", &pr->pr_osreldate,
+	error = vfs_setopt(opts, JAIL_PARAM_OSRELDATE, &pr->pr_osreldate,
 	    sizeof(pr->pr_osreldate));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	error = vfs_setopts(opts, "osrelease", pr->pr_osrelease);
+	error = vfs_setopts(opts, JAIL_PARAM_OSRELEASE, pr->pr_osrelease);
 	if (error != 0 && error != ENOENT)
 		goto done;
 
@@ -2963,7 +2977,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		(void)kern_close(td, jfd_out);
 	if (error && errmsg_pos >= 0) {
 		/* Write the error message back to userspace. */
-		vfs_getopt(opts, "errmsg", (void **)&errmsg, &errmsg_len);
+		vfs_getopt(opts, JAIL_PARAM_ERRMSG, (void **)&errmsg, &errmsg_len);
 		errmsg_pos = 2 * errmsg_pos + 1;
 		if (errmsg_len > 0) {
 			if (optuio->uio_segflg == UIO_SYSSPACE)
