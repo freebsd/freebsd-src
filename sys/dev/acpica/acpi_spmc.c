@@ -636,13 +636,38 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 		constraint_obj = &object->Package.Elements[i];
 		constraint = &sc->constraints[j];
 
-		constraint->enabled =
-		    constraint_obj->Package.Elements[1].Integer.Value;
+		if (constraint_obj->Type != ACPI_TYPE_PACKAGE) {
+			device_printf(sc->dev, "Intel: Wrong element type for "
+			    "constraint %zu.\n", i);
+			goto skip;
+		}
+		if (constraint_obj->Package.Count != 3) {
+			device_printf(sc->dev, "Intel: Wrong package length "
+			    "for constraint %zu's package.\n", i);
+			goto skip;
+		}
 
 		name_obj = &constraint_obj->Package.Elements[0];
-		constraint->name = strdup(name_obj->String.Pointer, M_TEMP);
-
+		constraint->enabled =
+		    constraint_obj->Package.Elements[1].Integer.Value;
 		detail = &constraint_obj->Package.Elements[2];
+
+		if (name_obj->Type != ACPI_TYPE_STRING) {
+			device_printf(sc->dev,
+			    "Intel: Constraint %zu's name is not string.\n", i);
+			goto skip;
+		}
+		if (detail->Type != ACPI_TYPE_PACKAGE) {
+			device_printf(sc->dev, "Intel: Wrong element type for "
+			    "constraint %zu's detail package.\n", i);
+			goto skip;
+		}
+		if (detail->Package.Count != 2) {
+			device_printf(sc->dev, "Intel: Wrong package length "
+			    "for constraint %zu's detail package.\n", i);
+			goto skip;
+		}
+
 		/*
 		 * The first element in the device constraint detail package is
 		 * the revision, and should always be zero.
@@ -656,11 +681,23 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 				    "Intel: Unknown revision %d for "
 				    "constraint %zu's detail package\n",
 				    revision, i);
-			sc->constraint_count--;
-			continue;
+			goto skip;
 		}
 
 		constraint_package = &detail->Package.Elements[1];
+
+		if (constraint_package->Type != ACPI_TYPE_PACKAGE) {
+			device_printf(sc->dev, "Intel: Wrong element type for "
+			    "constraint %zu's constraint package.\n", i);
+			goto skip;
+		}
+		if (constraint_package->Package.Count != 3) {
+			device_printf(sc->dev, "Intel: Wrong package length "
+			    "for constraint %zu's constraint package.\n", i);
+			goto skip;
+		}
+
+		constraint->name = strdup(name_obj->String.Pointer, M_TEMP);
 
 		constraint->lpi_uid =
 		    constraint_package->Package.Elements[0].Integer.Value;
@@ -670,6 +707,9 @@ acpi_spmc_parse_constraints_intel(struct acpi_spmc_softc *sc, ACPI_OBJECT *objec
 		    constraint_package->Package.Elements[2].Integer.Value;
 
 		j++;
+		continue;
+skip:
+		sc->constraint_count--;
 	}
 
 	return (0);
