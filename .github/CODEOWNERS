@@ -111,8 +111,12 @@
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling
 /sys/fs/pseudofs/	@dag-erling
+/sys/kern/kern_resource.c	@OlCe2
 /sys/kern/kern_switch.c	@OlCe2
 /sys/kern/kern_synch.c	@OlCe2
+/sys/kern/kern_thr.c	@OlCe2
+/sys/kern/ksched.c	@OlCe2
+/sys/kern/p1003_1b.c	@OlCe2
 /sys/kern/sched_4bsd.c	@OlCe2
 /sys/kern/sched_shim.c	@OlCe2
 /sys/kern/sched_ule.c	@OlCe2
