@@ -110,6 +110,7 @@ SUBDIR=	\
 	${_dwwdt} \
 	e6000sw \
 	${_efirt} \
+	${_ehlgpio} \
 	${_em} \
 	${_ena} \
 	${_enic} \
@@ -819,6 +820,7 @@ _ciss=		ciss
 _chromebook_platform=	chromebook_platform
 _coreboot=	coreboot
 _coretemp=	coretemp
+_ehlgpio=	ehlgpio
 .if ${MK_SOURCELESS_HOST} != "no" && empty(KCSAN_ENABLED)
 _hpt27xx=	hpt27xx
 .endif
