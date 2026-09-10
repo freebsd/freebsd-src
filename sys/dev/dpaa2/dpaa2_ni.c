@@ -129,13 +129,10 @@
 MALLOC_DEFINE(M_DPAA2_TXB, "dpaa2_txb", "DPAA2 DMA-mapped buffer (Tx)");
 
 /*
- * How many times channel cleanup routine will be repeated if the RX or TX
- * budget was depleted.
+ * Minimum and maximum valid values for the cleanup sysctls.
  */
-#define DPAA2_CLEAN_BUDGET	128 /* sysctl(9)? */
-/* TX/RX budget for the channel cleanup task */
-#define DPAA2_TX_BUDGET		256 /* sysctl(9)? */
-#define DPAA2_RX_BUDGET		512 /* sysctl(9)? */
+#define DPAA2_CLEAN_BUDGET_MIN 8
+#define DPAA2_CLEAN_BUDGET_MAX 2048
 
 #define DPNI_IRQ_INDEX		0 /* Index of the only DPNI IRQ. */
 #define DPNI_IRQ_LINK_CHANGED	1 /* Link state changed */
@@ -461,8 +458,8 @@ static void dpaa2_ni_media_status(if_t , struct ifmediareq *);
 static void dpaa2_ni_media_tick(void *);
 
 /* Tx/Rx routines. */
-static int dpaa2_ni_rx_cleanup(struct dpaa2_channel *);
-static int dpaa2_ni_tx_cleanup(struct dpaa2_channel *);
+static int dpaa2_ni_rx_cleanup(struct dpaa2_channel *, const int budget);
+static int dpaa2_ni_tx_cleanup(struct dpaa2_channel *, const int budget);
 static void dpaa2_ni_tx(struct dpaa2_ni_softc *, struct dpaa2_channel *,
     struct dpaa2_ni_tx_ring *, struct mbuf *);
 static void dpaa2_ni_cleanup_task(void *, int);
@@ -482,6 +479,11 @@ static int dpaa2_ni_collect_stats(SYSCTL_HANDLER_ARGS);
 static int dpaa2_ni_collect_buf_num(SYSCTL_HANDLER_ARGS);
 static int dpaa2_ni_collect_buf_free(SYSCTL_HANDLER_ARGS);
 static int dpaa2_ni_sysctl_link_state(SYSCTL_HANDLER_ARGS);
+static int dpaa2_ni_sysctl_handle_int(struct sysctl_req *req,
+    struct dpaa2_atomic *value);
+static int dpaa2_ni_sysctl_handle_clean_budget(SYSCTL_HANDLER_ARGS);
+static int dpaa2_ni_sysctl_handle_tx_budget(SYSCTL_HANDLER_ARGS);
+static int dpaa2_ni_sysctl_handle_rx_budget(SYSCTL_HANDLER_ARGS);
 
 static int
 dpaa2_ni_probe(device_t dev)
@@ -528,6 +530,9 @@ dpaa2_ni_attach(device_t dev)
 
 	DPAA2_ATOMIC_XCHG(&sc->buf_num, 0);
 	DPAA2_ATOMIC_XCHG(&sc->buf_free, 0);
+	DPAA2_ATOMIC_XCHG(&sc->clean_budget, 128);
+	DPAA2_ATOMIC_XCHG(&sc->tx_budget, 256);
+	DPAA2_ATOMIC_XCHG(&sc->rx_budget, 512);
 
 	sc->rxd_dmat = NULL;
 	sc->qos_dmat = NULL;
@@ -1814,6 +1819,23 @@ dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *sc)
 	    sc, 0, dpaa2_ni_sysctl_link_state,
 	    "A", "DPNI link state information");
 
+	/* Add configuration tunables */
+	parent = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
+	node = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "config",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "configuration tunables");
+	parent = SYSCTL_CHILDREN(node);
+
+	/* Add cleanup budget tunables. */
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "clean_budget",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    dpaa2_ni_sysctl_handle_clean_budget, "d", "clean budget");
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "tx_budget",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    dpaa2_ni_sysctl_handle_tx_budget, "d", "tx budget");
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "rx_budget",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    dpaa2_ni_sysctl_handle_rx_budget, "d", "rx budget");
+
 	return (0);
 }
 
@@ -2878,18 +2900,21 @@ dpaa2_ni_cleanup_task(void *arg, int count)
 {
 	struct dpaa2_channel *ch = (struct dpaa2_channel *)arg;
 	struct dpaa2_ni_softc *sc = device_get_softc(ch->ni_dev);
+	const int clean_budget = DPAA2_ATOMIC_READ(&sc->clean_budget);
+	const int tx_budget = DPAA2_ATOMIC_READ(&sc->tx_budget);
+	const int rx_budget = DPAA2_ATOMIC_READ(&sc->rx_budget);
 	int error, rxc, txc;
 
-	for (int i = 0; i < DPAA2_CLEAN_BUDGET; i++) {
-		rxc  = dpaa2_ni_rx_cleanup(ch);
-		txc  = dpaa2_ni_tx_cleanup(ch);
+	for (int i = 0; i < clean_budget; i++) {
+		rxc = dpaa2_ni_rx_cleanup(ch, rx_budget);
+		txc = dpaa2_ni_tx_cleanup(ch, tx_budget);
 
 		if (__predict_false((if_getdrvflags(sc->ifp) &
 		    IFF_DRV_RUNNING) == 0)) {
 			return;
 		}
 
-		if ((txc != DPAA2_TX_BUDGET) && (rxc != DPAA2_RX_BUDGET)) {
+		if ((txc != tx_budget) && (rxc != rx_budget)) {
 			break;
 		}
 	}
@@ -2906,13 +2931,13 @@ dpaa2_ni_cleanup_task(void *arg, int count)
  * @brief Poll frames from a specific channel when CDAN is received.
  */
 static int
-dpaa2_ni_rx_cleanup(struct dpaa2_channel *ch)
+dpaa2_ni_rx_cleanup(struct dpaa2_channel *ch, const int budget)
 {
 	struct dpaa2_io_softc *iosc = device_get_softc(ch->io_dev);
 	struct dpaa2_swp *swp = iosc->swp;
 	struct dpaa2_ni_fq *fq;
 	struct dpaa2_buf *buf = &ch->store;
-	int budget = DPAA2_RX_BUDGET;
+	int budget_remaining = budget;
 	int error, consumed = 0;
 
 	do {
@@ -2930,18 +2955,18 @@ dpaa2_ni_rx_cleanup(struct dpaa2_channel *ch)
 			device_printf(ch->ni_dev, "%s: timeout to consume "
 			    "frames: chan_id=%d\n", __func__, ch->id);
 		}
-	} while (--budget);
+	} while (--budget_remaining );
 
-	return (DPAA2_RX_BUDGET - budget);
+	return (budget - budget_remaining);
 }
 
 static int
-dpaa2_ni_tx_cleanup(struct dpaa2_channel *ch)
+dpaa2_ni_tx_cleanup(struct dpaa2_channel *ch, const int budget)
 {
 	struct dpaa2_ni_softc *sc = device_get_softc(ch->ni_dev);
 	struct dpaa2_ni_tx_ring *tx = &ch->txc_queue.tx_rings[0];
 	struct mbuf *m = NULL;
-	int budget = DPAA2_TX_BUDGET;
+	int budget_remaining = budget;
 
 	do {
 		mtx_assert(&ch->xmit_mtx, MA_NOTOWNED);
@@ -2955,9 +2980,9 @@ dpaa2_ni_tx_cleanup(struct dpaa2_channel *ch)
 		} else {
 			dpaa2_ni_tx(sc, ch, tx, m);
 		}
-	} while (--budget);
+	} while (--budget_remaining);
 
-	return (DPAA2_TX_BUDGET - budget);
+	return (budget - budget_remaining);
 }
 
 static void
@@ -3587,6 +3612,53 @@ dpaa2_ni_collect_buf_free(SYSCTL_HANDLER_ARGS)
 	uint32_t buf_free = DPAA2_ATOMIC_READ(&sc->buf_free);
 
 	return (sysctl_handle_32(oidp, &buf_free, 0, req));
+}
+
+/*
+ * Common sysctl handler function for integer values stored as dpaa2_atomic.
+ * Reads the current value from the atomic object and writes the new one to it.
+ */
+static inline int
+dpaa2_ni_sysctl_handle_int(struct sysctl_req *req, struct dpaa2_atomic *value)
+{
+	int error, tmp;
+
+	tmp = DPAA2_ATOMIC_READ(value);
+	error = SYSCTL_OUT(req, &tmp, sizeof(tmp));
+	if (error || req->newptr == NULL)
+		return error;
+	error = SYSCTL_IN(req, &tmp, sizeof(tmp));
+	if (error)
+		return error;
+	if ((tmp < DPAA2_CLEAN_BUDGET_MIN) || (tmp > DPAA2_CLEAN_BUDGET_MAX))
+		return EINVAL;
+	DPAA2_ATOMIC_XCHG(value, tmp);
+
+	return 0;
+}
+
+static int
+dpaa2_ni_sysctl_handle_clean_budget(SYSCTL_HANDLER_ARGS)
+{
+	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *)arg1;
+
+	return dpaa2_ni_sysctl_handle_int(req, &sc->clean_budget);
+}
+
+static int
+dpaa2_ni_sysctl_handle_tx_budget(SYSCTL_HANDLER_ARGS)
+{
+	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *)arg1;
+
+	return dpaa2_ni_sysctl_handle_int(req, &sc->tx_budget);
+}
+
+static int
+dpaa2_ni_sysctl_handle_rx_budget(SYSCTL_HANDLER_ARGS)
+{
+	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *)arg1;
+
+	return dpaa2_ni_sysctl_handle_int(req, &sc->rx_budget);
 }
 
 static int
