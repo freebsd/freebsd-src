@@ -50,6 +50,7 @@
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#include <machine/smp.h>
 
 #define	OVERFLOW_WAIT_COUNT	50
 
@@ -65,6 +66,11 @@ struct amd_descr {
 
 static int amd_npmcs;
 static int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs, amd_umc_npmcs;
+static u_int amd_umc_nchannels;
+static u_int *amd_umc_gate_evsel; /* [amd_umc_nchannels], one per UMC channel */
+static u_int amd_umc_pkg_shift;   /* APIC-ID shift to isolate package number */
+static u_int amd_umc_npkgs;
+static volatile u_int *amd_umc_gate_refcnt; /* [amd_umc_npkgs], atomic per-socket refcount */
 static struct amd_descr *amd_pmcdesc;
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
@@ -822,6 +828,15 @@ amd_get_caps(int ri, uint32_t *caps)
 	return (0);
 }
 
+static u_int
+amd_umc_pkg_of(int cpu)
+{
+	/* Single-socket or undetected topology: all CPUs map to package 0. */
+	if (amd_umc_pkg_shift == 0)
+		return (0);
+	return ((u_int)cpu_apic_ids[cpu] >> amd_umc_pkg_shift);
+}
+
 /*
  * Processor-dependent initialization.
  */
@@ -832,6 +847,7 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 	struct pmc_cpu *pc;
 	struct pmc_hw  *phw;
 	int first_ri, n;
+	u_int ch, pkg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] insane cpu number %d", __LINE__, cpu));
@@ -842,6 +858,14 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 	    M_WAITOK | M_ZERO);
 	pac->pc_amdpmcs = mallocarray(amd_npmcs, sizeof(*pac->pc_amdpmcs),
 	    M_PMC, M_WAITOK | M_ZERO);
+
+	if (amd_umc_gate_evsel != NULL) {
+		pkg = amd_umc_pkg_of(cpu);
+		if (atomic_fetchadd_int(&amd_umc_gate_refcnt[pkg], 1) == 0) {
+			for (ch = 0; ch < amd_umc_nchannels; ch++)
+				wrmsr(amd_umc_gate_evsel[ch], AMD_PMC_UMC_ENABLE);
+		}
+	}
 
 	/*
 	 * Set the content of the hardware descriptors to a known
@@ -871,6 +895,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	struct amd_cpu *pac;
 	struct pmc_cpu *pc;
 	int first_ri, i;
+	u_int ch, pkg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] insane cpu number (%d)", __LINE__, cpu));
@@ -905,6 +930,17 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	for (i = 0; i < amd_npmcs; i++)
 		pc->pc_hwpmcs[i + first_ri] = NULL;
 
+	if (amd_umc_gate_evsel != NULL) {
+		pkg = amd_umc_pkg_of(cpu);
+		KASSERT(atomic_load_acq_int(
+		    &amd_umc_gate_refcnt[pkg]) >= 1,
+		    ("[amd,%d] UMC gate refcnt underflow pkg %u",
+		    __LINE__, pkg));
+		if (atomic_fetchadd_int(&amd_umc_gate_refcnt[pkg], -1) == 1) {
+			for (ch = 0; ch < amd_umc_nchannels; ch++)
+				wrmsr(amd_umc_gate_evsel[ch], 0);
+		}
+	}
 	free(pac->pc_amdpmcs, M_PMC);
 	free(pac, M_PMC);
 	return (0);
@@ -1060,6 +1096,66 @@ pmc_amd_initialize(void)
 		amd_l3_npmcs = 0;
 	if ((amd_feature2 & AMDID2_PNXC) == 0)
 		amd_df_npmcs = 0;
+	/*
+	 * UMC perfmon registers are clock-gated when no counters are enabled.
+	 * Reserve the last counter slot of each UMC channel to hold the
+	 * block active with a non-counting event (EventSelect=0, Enable=1),
+	 * ensuring counter register writes to any slot in that channel
+	 * complete as expected.  Reserved slots are not exposed to MI code.
+	 *
+	 * amd_umc_nchannels is derived from a single CPUID call on the boot
+	 * CPU's socket and assumes all sockets have an identical UMC channel
+	 * count — valid for all current AMD multi-socket products (Genoa,
+	 * Turin).  Supporting asymmetric topologies would require per-socket
+	 * pmcs_per_umc and nchannels values in addition to a per-socket
+	 * gate_evsel table, since the UMC MSR layout is derived from
+	 * pmcs_per_umc.
+	 */
+	if (amd_umc_npmcs > 0 && pmcs_per_umc >= 2) {
+		u_int max_pkg, c;
+
+		amd_umc_nchannels = amd_umc_npmcs / pmcs_per_umc;
+		if (amd_umc_nchannels == 0)
+			goto skip_umc_gate;
+
+		/* Compute package-ID shift from CoreIdSize CPUID field. */
+		amd_umc_pkg_shift = (cpu_procinfo2 & AMDID_COREID_SIZE) >>
+		    AMDID_COREID_SIZE_SHIFT;
+
+		/* Find the highest valid package ID across online CPUs.
+		 * cpu_apic_ids[c] == (u_int)-1 is the not-present sentinel
+		 * set by mp_x86.c for offline or absent logical CPUs.
+		 */
+		max_pkg = 0;
+		for (c = 0; c < (u_int)mp_ncpus; c++) {
+			u_int pkg;
+
+			if (cpu_apic_ids[c] == (u_int)-1)
+				continue;
+			pkg = amd_umc_pkg_of(c);
+			if (pkg > max_pkg)
+				max_pkg = pkg;
+		}
+		amd_umc_npkgs = max_pkg + 1;
+
+		amd_umc_gate_evsel = mallocarray(amd_umc_nchannels,
+		    sizeof(*amd_umc_gate_evsel), M_PMC, M_WAITOK | M_ZERO);
+		amd_umc_gate_refcnt = mallocarray(amd_umc_npkgs,
+		    sizeof(*amd_umc_gate_refcnt), M_PMC, M_WAITOK | M_ZERO);
+
+		/*
+		 * CTL/CTR pairs are interleaved with stride 2.  Channel c starts
+		 * at index c*pmcs_per_umc; its last slot's CTL is at
+		 * base + 2*(c*pmcs_per_umc + (pmcs_per_umc-1)).
+		 */
+		for (c = 0; c < amd_umc_nchannels; c++)
+			amd_umc_gate_evsel[c] = AMD_PMC_UMC_BASE +
+			    2 * (c * pmcs_per_umc + (pmcs_per_umc - 1));
+
+		/* One gate slot reserved per channel; remove from exposed count. */
+		amd_umc_npmcs -= amd_umc_nchannels;
+	}
+skip_umc_gate:
 	npmcs_total = amd_core_npmcs + amd_l3_npmcs + amd_df_npmcs +
 	    amd_umc_npmcs;
 	KASSERT(npmcs_total <= AMD_NPMCS_MAX,
@@ -1235,10 +1331,32 @@ error:
 	free(pmc_mdep, M_PMC);
 	free(amd_pcpu, M_PMC);
 	amd_pcpu = NULL;
+	free(__DEVOLATILE(void *, amd_umc_gate_refcnt), M_PMC);
+	amd_umc_gate_refcnt = NULL;
+	free(amd_umc_gate_evsel, M_PMC);
+	amd_umc_gate_evsel = NULL;
+	amd_umc_nchannels = 0;
+	amd_umc_npkgs = 0;
+	amd_umc_pkg_shift = 0;
+	amd_umc_npmcs = 0;
+	amd_npmcs = 0;
+	amd_core_npmcs = 0;
+	amd_l3_npmcs = 0;
+	amd_df_npmcs = 0;
 	free(amd_pmcdesc, M_PMC);
 	amd_pmcdesc = NULL;
-	amd_npmcs = 0;
 	return (NULL);
+}
+
+static void
+amd_umc_gate_clear_one(void *arg __unused)
+{
+	u_int ch;
+
+	if (amd_umc_gate_evsel == NULL)
+		return;
+	for (ch = 0; ch < amd_umc_nchannels; ch++)
+		wrmsr(amd_umc_gate_evsel[ch], 0);
 }
 
 /*
@@ -1260,6 +1378,33 @@ pmc_amd_finalize(struct pmc_mdep *md)
 
 	free(amd_pcpu, M_PMC);
 	amd_pcpu = NULL;
+
+	/*
+	 * Synchronous sweep: disable the UMC gate MSRs on every online CPU.
+	 * Unconditional (bypasses refcnt) so all sockets are cleared
+	 * regardless of refcount state.  Must precede zeroing gate_evsel
+	 * so the helper can still read the channel addresses.  UMC MSRs
+	 * are socket-local; each CPU's writes reach its own socket's
+	 * hardware, so writes from multiple CPUs on the same socket
+	 * to the same MSR are idempotent.
+	 */
+	if (amd_umc_gate_evsel != NULL)
+		smp_rendezvous(smp_no_rendezvous_barrier,
+		    amd_umc_gate_clear_one,
+		    smp_no_rendezvous_barrier, NULL);
+
+	free(__DEVOLATILE(void *, amd_umc_gate_refcnt), M_PMC);
+	amd_umc_gate_refcnt = NULL;
+	free(amd_umc_gate_evsel, M_PMC);
+	amd_umc_gate_evsel = NULL;
+	amd_umc_nchannels = 0;
+	amd_umc_npkgs = 0;
+	amd_umc_pkg_shift = 0;
+	amd_umc_npmcs = 0;
+	amd_npmcs = 0;
+	amd_core_npmcs = 0;
+	amd_l3_npmcs = 0;
+	amd_df_npmcs = 0;
 
 	free(amd_pmcdesc, M_PMC);
 	amd_pmcdesc = NULL;
