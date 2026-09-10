@@ -362,7 +362,7 @@ g_io_speedup(off_t shortage, u_int flags, size_t *resid, struct g_consumer *cp)
 	bp->bio_done = NULL;
 	bp->bio_flags |= flags;
 	g_io_request(bp, cp);
-	error = biowait(bp, "gflush");
+	error = biowait(bp, "gspdup");
 	*resid = bp->bio_resid;
 	g_destroy_bio(bp);
 	return (error);
