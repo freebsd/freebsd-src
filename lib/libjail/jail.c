@@ -402,8 +402,8 @@ jailparam_init(struct jailparam *jp, const char *name)
 int
 jailparam_import(struct jailparam *jp, const char *value)
 {
-	char *p, *ep, *tvalue;
-	const char *avalue;
+	char *ep, *tvalue;
+	const char *avalue, *p;
 	const struct jp_structdef *jpsdef;
 	int i, nval, fw;
 
@@ -1247,7 +1247,8 @@ kldload_param(const char *name)
 static char *
 noname(const char *name)
 {
-	char *nname, *p;
+	char *nname;
+	const char *p;
 
 	nname = malloc(strlen(name) + 3);
 	if (nname == NULL) {
@@ -1265,7 +1266,8 @@ noname(const char *name)
 static char *
 nononame(const char *name)
 {
-	char *p, *nname;
+	char *nname;
+	const char *p;
 
 	p = strrchr(name, '.');
 	if (strncmp(p ? p + 1 : name, "no", 2)) {
