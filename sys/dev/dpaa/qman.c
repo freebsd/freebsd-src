@@ -504,7 +504,8 @@ qman_fq_create(uint32_t fqids_num, int channel, uint8_t wq,
     bool hold_active, bool prefer_in_cache, bool congst_avoid_ena,
     void *congst_group, int8_t overhead_accounting_len,
     uint32_t tail_drop_threshold,
-    uint8_t annotation_cl, uint8_t data_cl)
+    uint8_t annotation_cl, uint8_t data_cl,
+    uint64_t context_a_opaque, uint32_t context_b_opaque)
 {
 	union qman_mc_command cmd;
 	struct qman_softc *sc;
@@ -567,6 +568,20 @@ qman_fq_create(uint32_t fqids_num, int channel, uint8_t wq,
 		cmd.init_fq.context_a = (excl << 56) | (cl << 48);
 		cmd.init_fq.fq_ctrl |= QM_FQCTRL_CTXASTASH;
 		cmd.init_fq.we_mask |= QCSP_INIT_FQ_WE_CONTEXT_A;
+	} else if (context_a_opaque != 0) {
+		/*
+		 * Opaque ContextA: caller (e.g. SEC in QI mode) needs the
+		 * FQ's ContextA read literally by the consumer.  CTXASTASH
+		 * stays off so QMan doesn't reinterpret it as stashing
+		 * config.
+		 */
+		cmd.init_fq.context_a = context_a_opaque;
+		cmd.init_fq.we_mask |= QCSP_INIT_FQ_WE_CONTEXT_A;
+	}
+
+	if (context_b_opaque != 0) {
+		cmd.init_fq.context_b = context_b_opaque;
+		cmd.init_fq.we_mask |= QCSP_INIT_FQ_WE_CONTEXT_B;
 	}
 
 	critical_enter();

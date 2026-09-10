@@ -249,6 +249,30 @@ void qman_set_sdest(uint16_t, int);
  * @param tail_drop_threshold		If not 0 - enable tail drop on this
  * 					FQR.
  *
+ * @param annotation_cl			Number of words of frame annotation to
+ * 					stash in cache.
+ *
+ * @param data_cl			Number of words of frame data to stash
+ * 					in cache.
+ *
+ * @param context_a_opaque		Raw 64-bit value written into the FQ's
+ *					ContextA field.  Used when the FQ's
+ *					consumer (e.g. SEC in QI mode) reads
+ *					ContextA as an opaque cookie — for SEC
+ *					this is the physical address of the
+ *					session preheader.  Mutually exclusive
+ *					with the hardware stashing config
+ *					driven by @annotation_cl / @data_cl:
+ *					if either stash count is non-zero,
+ *					this argument is ignored.  Pass 0 when
+ *					unused.
+ *
+ * @param context_b_opaque		Raw 32-bit value written into the FQ's
+ *					ContextB field.  For SEC in QI mode
+ *					this is the FQID of the FQ where
+ *					responses should be enqueued.  Pass 0
+ *					when unused.
+ *
  * @return				A handle to newly created FQR object.
  */
 struct qman_fq *qman_fq_create(uint32_t fqids_num, int channel,
@@ -256,7 +280,8 @@ struct qman_fq *qman_fq_create(uint32_t fqids_num, int channel,
     bool hold_active, bool prefer_in_cache, bool congst_avoid_ena,
     void *congst_group, int8_t overhead_accounting_len,
     uint32_t tail_drop_threshold,
-    uint8_t annotation_cl, uint8_t data_cl);
+    uint8_t annotation_cl, uint8_t data_cl,
+    uint64_t context_a_opaque, uint32_t context_b_opaque);
 
 /**
  * Free Frame Queue Range.
