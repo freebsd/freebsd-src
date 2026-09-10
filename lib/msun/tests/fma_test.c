@@ -538,6 +538,30 @@ ATF_TC_BODY(double_rounding, tc) {
 	test_double_rounding();
 }
 
+ATF_TC_WITHOUT_HEAD(fmaf_subnormals);
+ATF_TC_BODY(fmaf_subnormals, tc) {
+	float x, y, z;
+	float f1, f2;
+
+	x = -0x1.001p-81f, y = 0x1.ffe002p-70f, z = 0x1.0002p-133f;
+	f1 = fmaf(x, y, z);
+	f2 = 0x1.0001p-133;
+	printf("fmaf: %a %s\n", f1, "  expecting 0x1.0001p-133");
+	ATF_CHECK_MSG(f1 == f2, "%a %a", f1, f2);
+
+	x = -0x1.26524ep-54f, y = -0x1.cb7868p+11f, z = 0x1.d10f5ep-29f;
+	f1 = fmaf(x, y, z);
+	f2 = 0x1.d1179ep-29;
+	printf("fmaf: %a, %s\n", f1, "expecting 0x1.d1179ep-29");
+	ATF_CHECK_MSG(f1 == f2, "%a %a", f1, f2);
+
+	x = 0x1p-120f, y = 0x1p-120f, z = 0x1p-149f;
+	f1 = fmaf(x, y, z);
+	f2 = 0x1p-149;
+	printf("fmaf: %a, %s\n", f1, "      expecting 0x1p-149");
+	ATF_CHECK_MSG(f1 == f2, "%a %a", f1, f2);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, zeroes);
@@ -547,9 +571,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, big_z);
 	ATF_TP_ADD_TC(tp, accuracy);
 	ATF_TP_ADD_TC(tp, double_rounding);
+	ATF_TP_ADD_TC(tp, fmaf_subnormals);
+
 	/*
 	 * TODO:
-	 * - Tests for subnormals
+	 * - Tests for subnormals for fma
 	 * - Cancellation tests (e.g., z = (double)x*y, but x*y is inexact)
 	 */
 	return (atf_no_error());
