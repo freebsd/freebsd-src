@@ -1406,7 +1406,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 
 	if (m0->m_nextpkt != NULL) {
 		struct cpl_tx_pkt_batch *cpl_batch = (struct cpl_tx_pkt_batch *)txd;
-		int i, fidx;
+		int i;
 
 		if (nsegs > 7)
 			panic("trying to coalesce %d packets in to one WR", nsegs);
@@ -1414,7 +1414,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		wrp = (struct work_request_hdr *)txd;
 		flits = nsegs*2 + 1;
 
-		for (fidx = 1, i = 0; i < nsegs; i++, fidx += 2) {
+		for (i = 0; i < nsegs; i++) {
 			struct cpl_tx_pkt_batch_entry *cbe;
 			uint64_t flit;
 			uint32_t *hflit = (uint32_t *)&flit;
