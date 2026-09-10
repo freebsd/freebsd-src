@@ -633,7 +633,6 @@ test_update_timing(void)
 #define	MAX_SLEEP 1500
     const char *test_id = "kevent(EVFILT_TIMER (UPDATE TIMING), EV_ADD | EV_ONESHOT)";
     struct kevent kev;
-    int iteration;
     int sleeptime;
     long elapsed;
     uint64_t start, stop;
@@ -647,10 +646,7 @@ test_update_timing(void)
      * is to show that in all cases the only timer event that is
      * received is from the update and not the original timer add.
      */
-    for (sleeptime = MIN_SLEEP, iteration = 1;
-         sleeptime < MAX_SLEEP;
-         ++sleeptime, ++iteration) {
-
+    for (sleeptime = MIN_SLEEP; sleeptime < MAX_SLEEP; ++sleeptime) {
         /* First set the timer to 1 ms */
         EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
             NOTE_USECONDS, MS_TO_US(1), NULL);
