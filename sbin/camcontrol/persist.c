@@ -373,7 +373,6 @@ persist_print_full(struct scsi_per_res_in_header *hdr, uint32_t valid_len)
 	uint32_t length, len_to_go = 0;
 	struct scsi_per_res_in_full_desc *desc;
 	uint8_t *cur_pos;
-	int i;
 
 	length = scsi_4btoul(hdr->length);
 	length = MIN(length, valid_len);
@@ -389,10 +388,10 @@ persist_print_full(struct scsi_per_res_in_header *hdr, uint32_t valid_len)
 
 	fprintf(stdout, "PRgeneration: %#x\n", scsi_4btoul(hdr->generation));
 	cur_pos = (uint8_t *)&hdr[1];
-	for (len_to_go = length, i = 0,
+	for (len_to_go = length,
 	     desc = (struct scsi_per_res_in_full_desc *)cur_pos;
 	     len_to_go >= sizeof(*desc);
-	     desc = (struct scsi_per_res_in_full_desc *)cur_pos, i++) {
+	     desc = (struct scsi_per_res_in_full_desc *)cur_pos) {
 		uint32_t additional_length, cur_length;
 
 
