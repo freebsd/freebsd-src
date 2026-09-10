@@ -491,8 +491,7 @@ validate_vf_extension(const struct if_vf_extension *extension,
 static int
 validate_vf_entry(const struct if_vf_info *vf, size_t *encoded_size)
 {
-	const uint64_t access_fields = IFVF_F_VLAN | IFVF_F_VLAN_PCP |
-	    IFVF_F_VLAN_PROTO;
+	const uint64_t access_fields = IFVF_F_VLAN | IFVF_F_VLAN_PROTO;
 	const uint64_t rate_fields = IFVF_F_MIN_TX_RATE |
 	    IFVF_F_MAX_TX_RATE;
 	const uint64_t bool_fields = IFVF_F_CONFIGURED | IFVF_F_INITIALIZED |
@@ -513,6 +512,11 @@ validate_vf_entry(const struct if_vf_info *vf, size_t *encoded_size)
 	if ((vf->fields & access_fields) != 0 &&
 	    ((vf->fields & IFVF_F_VLAN_MODE) == 0 ||
 	    vf->vlan_mode != IFVF_VLAN_ACCESS))
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_PCP) != 0 &&
+	    ((vf->fields & IFVF_F_VLAN_MODE) == 0 ||
+	    (vf->vlan_mode != IFVF_VLAN_ACCESS &&
+	    vf->vlan_mode != IFVF_VLAN_TRUNK)))
 		return (EINVAL);
 	if ((vf->fields & rate_fields) == rate_fields &&
 	    vf->max_tx_rate_bps != 0 &&
@@ -695,8 +699,7 @@ dump_vf_extensions(struct nl_writer *nw, const struct if_vf_info *vf)
 static int
 dump_vf_entry(struct nl_writer *nw, const struct if_vf_info *vf)
 {
-	const uint64_t access_fields = IFVF_F_VLAN | IFVF_F_VLAN_PCP |
-	    IFVF_F_VLAN_PROTO;
+	const uint64_t access_fields = IFVF_F_VLAN | IFVF_F_VLAN_PROTO;
 	const uint64_t rate_fields = IFVF_F_MIN_TX_RATE |
 	    IFVF_F_MAX_TX_RATE;
 	int error, off;
@@ -711,6 +714,11 @@ dump_vf_entry(struct nl_writer *nw, const struct if_vf_info *vf)
 	if ((vf->fields & access_fields) != 0 &&
 	    ((vf->fields & IFVF_F_VLAN_MODE) == 0 ||
 	     vf->vlan_mode != IFVF_VLAN_ACCESS))
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_PCP) != 0 &&
+	    ((vf->fields & IFVF_F_VLAN_MODE) == 0 ||
+	    (vf->vlan_mode != IFVF_VLAN_ACCESS &&
+	    vf->vlan_mode != IFVF_VLAN_TRUNK)))
 		return (EINVAL);
 	if ((vf->fields & rate_fields) == rate_fields &&
 	    vf->max_tx_rate_bps != 0 &&

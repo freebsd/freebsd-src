@@ -297,6 +297,62 @@ ATF_TC_BODY(snl_parse_vf_status, tc)
 	ATF_CHECK_EQ(vf->index, 15);
 }
 
+ATF_TC(snl_parse_vf_trunk_pcp);
+ATF_TC_HEAD(snl_parse_vf_trunk_pcp, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Tests snl(3) parsing trunk PCP values and omitted priority");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
+
+ATF_TC_BODY(snl_parse_vf_trunk_pcp, tc)
+{
+	struct snl_parsed_link link = {};
+	struct snl_parsed_vf *vf;
+	struct snl_state ss;
+	struct snl_writer nw;
+	struct nlmsghdr *hdr;
+	uint32_t i;
+	int entry_off;
+
+	ATF_REQUIRE(snl_init(&ss, NETLINK_ROUTE));
+	snl_init_writer(&ss, &nw);
+	hdr = snl_create_msg_request(&nw, RTM_NEWLINK);
+	ATF_REQUIRE(hdr != NULL);
+	ATF_REQUIRE(snl_reserve_msg_object(&nw, struct ifinfomsg) != NULL);
+	ATF_REQUIRE(snl_add_msg_attr_u32(&nw, IFLA_NUM_VF, 9));
+	for (i = 0; i < 9; i++) {
+		entry_off = snl_add_msg_attr_nested(&nw, IFLA_FREEBSD_VF);
+		ATF_REQUIRE(entry_off != 0);
+		ATF_REQUIRE(snl_add_msg_attr_u32(&nw, IFLAF_VF_INDEX, i));
+		ATF_REQUIRE(snl_add_msg_attr_u8(&nw, IFLAF_VF_VLAN_MODE,
+		    IFLAF_VF_VLAN_TRUNK));
+		/* Cover PCP 0..7 and absence, without an imposed VLAN. */
+		if (i < 8)
+			ATF_REQUIRE(snl_add_msg_attr_u8(&nw, IFLAF_VF_VLAN_PCP,
+			    i));
+		snl_end_attr_nested(&nw, entry_off);
+	}
+	hdr = snl_finalize_msg(&nw);
+	ATF_REQUIRE(hdr != NULL);
+	ATF_REQUIRE(snl_parse_nlmsg(&ss, hdr, &snl_rtm_link_parser, &link));
+	ATF_CHECK_EQ(link.ifla_num_vf, 9);
+	ATF_REQUIRE_EQ(link.iflaf_vf_status.vfs.count, 9);
+	for (i = 0; i < 9; i++) {
+		vf = link.iflaf_vf_status.vfs.items[i];
+		ATF_CHECK_EQ(vf->index, i);
+		ATF_CHECK((vf->attrs & (1ULL << IFLAF_VF_VLAN_MODE)) != 0);
+		ATF_CHECK_EQ(vf->vlan_mode, IFLAF_VF_VLAN_TRUNK);
+		ATF_CHECK((vf->attrs & ((1ULL << IFLAF_VF_VLAN) |
+		    (1ULL << IFLAF_VF_VLAN_PROTO))) == 0);
+		ATF_CHECK_EQ((vf->attrs & (1ULL << IFLAF_VF_VLAN_PCP)) != 0,
+		    i < 8);
+		if (i < 8)
+			ATF_CHECK_EQ(vf->vlan_pcp, i);
+	}
+	snl_free(&ss);
+}
+
 ATF_TC(snl_parse_large_vf_status);
 ATF_TC_HEAD(snl_parse_large_vf_status, tc)
 {
@@ -706,6 +762,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, snl_parse_bitset_array);
 	ATF_TP_ADD_TC(tp, snl_verify_route_parsers);
 	ATF_TP_ADD_TC(tp, snl_parse_vf_status);
+	ATF_TP_ADD_TC(tp, snl_parse_vf_trunk_pcp);
 	ATF_TP_ADD_TC(tp, snl_parse_large_vf_status);
 	ATF_TP_ADD_TC(tp, snl_parse_empty_vf_status);
 	ATF_TP_ADD_TC(tp, snl_parse_vf_status_error);

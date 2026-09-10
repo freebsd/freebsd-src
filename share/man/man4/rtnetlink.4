@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 6, 2026
+.Dd September 9, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -401,7 +401,7 @@ IFLAF_VF_INITIALIZED		(bool) VF handshake completed
 IFLAF_VF_MAC			(binary) PF-known primary MAC address
 IFLAF_VF_VLAN_MODE		(uint8_t) IFLAF_VF_VLAN_*
 IFLAF_VF_VLAN			(uint16_t) access VLAN identifier
-IFLAF_VF_VLAN_PCP		(uint8_t) access VLAN priority code point
+IFLAF_VF_VLAN_PCP		(uint8_t) PF-administered priority code point
 IFLAF_VF_VLAN_PROTO		(uint16_t) host-order access VLAN EtherType
 IFLAF_VF_VLAN_COUNT		(uint32_t) explicit VLAN filters
 IFLAF_VF_VLAN_LIMIT		(uint32_t) explicit VLAN-filter limit
@@ -460,17 +460,21 @@ When both are present and the maximum is nonzero, the minimum does not exceed
 the maximum.
 Access VLAN mode means that the PF imposes a single port VLAN policy.
 The optional
-.Dv IFLAF_VF_VLAN ,
-.Dv IFLAF_VF_VLAN_PCP ,
+.Dv IFLAF_VF_VLAN
 and
 .Dv IFLAF_VF_VLAN_PROTO
-attributes describe its VLAN identifier, IEEE 802.1p priority code point, and
-host-order tag EtherType, respectively.
-A present zero VLAN identifier can represent a priority-only access tag, and a
-present zero priority is distinct from an omitted priority.
-These attributes do not describe the VF's trunk filters.
+attributes describe its VLAN identifier and host-order tag EtherType,
+respectively, and are present only in access mode.
+A present zero VLAN identifier can represent a priority-only access tag.
 Trunk mode means that no access VLAN is imposed and does not promise unlimited
 filter capacity.
+.Dv IFLAF_VF_VLAN_PCP
+describes the PF-administered IEEE 802.1p priority code point (0 through 7).
+It may be present in access or trunk mode, including priority-only tagging
+with VID 0.
+A present zero priority is distinct from an omitted priority.
+These attributes do not describe individual trunk filters or priorities
+selected by the VF.
 .Dv IFLAF_VF_VLAN_COUNT
 counts explicit filters recorded by the PF.
 It excludes untagged or priority-tag membership installed implicitly by the
