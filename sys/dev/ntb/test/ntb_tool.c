@@ -458,7 +458,7 @@ parse_mw_buf(char *buf, char *cmd, ssize_t *offset, ssize_t *buf_size,
 	int rc = 0;
 
 	vs1 = vs2 = vs3 = false;
-	sscanf(buf, "%c %s %jx %s %jx %s %jx",
+	sscanf(buf, "%c %7s %jx %7s %jx %7s %jx",
 	    cmd, op1, &val1, op2, &val2, op3, &val3);
 
 	if (*cmd != 'W' && *cmd != 'R')
