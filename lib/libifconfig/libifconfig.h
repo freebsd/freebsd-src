@@ -214,8 +214,10 @@ int ifconfig_get_ifstatus(ifconfig_handle_t *h, const char *name,
  * the returned status object and is released by ifconfig_free_vf_status().
  * VF records are returned through a pointer vector so append-only growth of
  * struct ifconfig_vf_info does not change the array stride seen by existing
- * consumers.  VLAN PCP and protocol describe the PF-administered access VLAN;
- * they do not describe trunk-filter entries.
+ * consumers.  VLAN identifier and protocol describe the PF-administered
+ * access VLAN.  VLAN PCP describes PF-administered priority in access or
+ * trunk mode, including priority-only tagging with VID 0.  These fields do
+ * not describe individual trunk filters or VF-selected priorities.
  */
 
 enum ifconfig_vf_vlan_mode {

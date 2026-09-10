@@ -241,7 +241,8 @@ vf_status(if_ctx *ctx)
 			if (vf->vlan_mode == IFCONFIG_VF_VLAN_ACCESS &&
 			    (vf->fields & (1ULL << IFLAF_VF_VLAN)) != 0)
 				printf(" vid=%u", vf->vlan);
-			if (vf->vlan_mode == IFCONFIG_VF_VLAN_ACCESS &&
+			if ((vf->vlan_mode == IFCONFIG_VF_VLAN_ACCESS ||
+			    vf->vlan_mode == IFCONFIG_VF_VLAN_TRUNK) &&
 			    (vf->fields & (1ULL << IFLAF_VF_VLAN_PCP)) != 0)
 				printf(" pcp=%u", vf->vlan_pcp);
 			if (vf->vlan_mode == IFCONFIG_VF_VLAN_ACCESS &&

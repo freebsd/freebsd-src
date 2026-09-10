@@ -19,11 +19,14 @@
  * identifying which other members contain valid data.  This distinguishes a
  * missing value from a value of false or zero.  Drivers set bits only for
  * information they can report, and each transport converts the snapshot to
- * its own ABI.  VLAN PCP and protocol describe the PF-administered access
- * VLAN, not the VF's trunk filters.  Transmit rates describe an aggregate VF
- * policy.  When both are present and the maximum is nonzero, the minimum must
- * not exceed it.  A successful snapshot may contain zero VFs, allowing a
- * provider to report that SR-IOV is available but is not currently configured.
+ * its own ABI.  VLAN identifier and protocol describe the PF-administered
+ * access VLAN.  VLAN PCP describes PF-administered priority in access or
+ * trunk mode, including priority-only tagging with VID 0.  These fields do
+ * not describe individual trunk filters or VF-selected priorities.
+ * Transmit rates describe an aggregate VF policy.  When both are present and
+ * the maximum is nonzero, the minimum must not exceed it.  A successful
+ * snapshot may contain zero VFs, allowing a provider to report that SR-IOV is
+ * available but is not currently configured.
  */
 #define	IFVF_MAX_VFS			UINT16_MAX
 #define	IFVF_MAX_EXTENSIONS		16
