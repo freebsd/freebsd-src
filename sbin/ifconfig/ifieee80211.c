@@ -3374,7 +3374,7 @@ printrsnie(if_ctx *ctx, const char *tag, const u_int8_t *ie, size_t ielen)
 }
 
 static void
-printrsnxe(if_ctx *ctx, const char *tag, const u_int8_t *ie, size_t ielen)
+printrsnxe(if_ctx *ctx, const char *tag, const u_int8_t *ie)
 {
 	size_t n;
 
@@ -3382,7 +3382,7 @@ printrsnxe(if_ctx *ctx, const char *tag, const u_int8_t *ie, size_t ielen)
 	if (!ctx->args->verbose)
 		return;
 
-	ie += 2, ielen -= 2;
+	ie += 2;
 
 	n = (*ie & 0x0f);
 	printf("<%zu", n + 1);
@@ -3942,7 +3942,7 @@ printies(if_ctx *ctx, const u_int8_t *vp, int ielen, unsigned int maxcols)
 			printapchanrep(ctx, " APCHANREP", vp, 2+vp[1]);
 			break;
 		case IEEE80211_ELEMID_RSN_EXT:
-			printrsnxe(ctx, " RSNXE", vp, 2+vp[1]);
+			printrsnxe(ctx, " RSNXE", vp);
 			break;
 		case IEEE80211_ELEMID_EXTFIELD:
 			printexties(ctx, vp, maxcols);
