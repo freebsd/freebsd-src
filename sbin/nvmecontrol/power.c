@@ -28,7 +28,6 @@
 #include <sys/param.h>
 #include <sys/ioccom.h>
 
-#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -158,7 +157,8 @@ power_apst_data_generate(struct nvme_controller_data *cdata,
 {
 	int i, itpt, latency;
 
-	assert(cdata->npss < num);
+	if (cdata->npss >= num)
+		errx(EX_UNAVAILABLE, "controller reports too many power states");
 
 	for (i = cdata->npss; i > 0; --i) {
 		if (!NVMEV(NVME_PWR_ST_NOPS,
@@ -207,7 +207,8 @@ power_apst_data_parse(struct nvme_controller_data *cdata,
 static void
 power_apst_show(uint64_t *data, int num, bool enabled)
 {
-	int entry, i;
+	uint32_t entry;
+	int i;
 
 	while (num > 0 && data[num - 1] == 0)
 		--num;
