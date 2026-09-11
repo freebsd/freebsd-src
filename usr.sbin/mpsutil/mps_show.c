@@ -641,7 +641,7 @@ static const struct {
 	{ MPI2_SASIOUNIT0_DS_DOWNSTREAM_INITIATOR,	 "DownstreamInitiator" },
 	{ MPI2_SASIOUNIT0_DS_MULTI_SUBTRACTIVE_SUBTRACTIVE, "MultiSubtractiveToSubtractive" },
 	{ MPI2_SASIOUNIT0_DS_EXP_MULTI_SUBTRACTIVE,	 "ExpMultiSubtractive" },
-	{ MPI2_SASIOUNIT0_DS_MULTI_PORT_DOMAIN,	 "MultiPortDomain" },
+	{ MPI2_SASIOUNIT0_DS_MULTI_PORT_DOMAIN,		 "MultiPortDomain" },
 	{ MPI2_SASIOUNIT0_DS_TABLE_TO_SUBTRACTIVE_LINK, "TableToSubtractiveLink" },
 	{ MPI2_SASIOUNIT0_DS_UNSUPPORTED_DEVICE,	 "UnsupportedDevice" },
 	{ MPI2_SASIOUNIT0_DS_TABLE_LINK,		 "TableLink" },
@@ -649,32 +649,36 @@ static const struct {
 	{ MPI2_SASIOUNIT0_DS_SMP_CRC_ERROR,		 "SmpCrcError" },
 	{ MPI2_SASIOUNIT0_DS_SMP_FUNCTION_FAILED,	 "SmpFunctionFailed" },
 	{ MPI2_SASIOUNIT0_DS_INDEX_NOT_EXIST,		 "RouteIndexNotExist" },
-	{ MPI2_SASIOUNIT0_DS_OUT_ROUTE_ENTRIES,	 "RouteTableFull" },
+	{ MPI2_SASIOUNIT0_DS_OUT_ROUTE_ENTRIES,		 "RouteTableFull" },
 	{ MPI2_SASIOUNIT0_DS_SMP_TIMEOUT,		 "SmpTimeout" },
 	{ MPI2_SASIOUNIT0_DS_MULTIPLE_PORTS,		 "MultiplePortsSameAddress" },
 	{ MPI2_SASIOUNIT0_DS_UNADDRESSABLE_DEVICE,	 "UnaddressableDevice" },
 	{ MPI2_SASIOUNIT0_DS_LOOP_DETECTED,		 "LoopDetected" },
 };
 
-static void
-snprint_discovery_status(char *buf, size_t buflen, uint32_t ds)
+static char *
+discovery_status_str(uint32_t ds)
 {
-	unsigned i;
-	int first = 1;
+	FILE *fp;
+	char *str;
+	size_t len, i;
+	int first;
 
-	buf[0] = '\0';
-	if (ds == 0) {
-		strlcpy(buf, "-", buflen);
-		return;
-	}
+	if (ds == 0)
+		return (strdup("-"));
+
+	fp = open_memstream(&str, &len);
+	first = 1;
 	for (i = 0; i < nitems(discovery_status_bits); i++) {
 		if ((ds & discovery_status_bits[i].mask) == 0)
 			continue;
-		if (!first)
-			strlcat(buf, ",", buflen);
-		strlcat(buf, discovery_status_bits[i].name, buflen);
+		fprintf(fp, "%s%s", first ? "" : ",",
+		    discovery_status_bits[i].name);
 		first = 0;
 	}
+	fclose(fp);
+
+	return (str);
 }
 
 static const char *
@@ -738,7 +742,7 @@ show_discovery(int ac, char **av)
 	uint32_t ds;
 	uint16_t flags;
 	uint8_t astatus;
-	char dsbuf[256];
+	char *dsstr;
 	int fd, error, i, nsuspect, in_progress, disabled, suspect;
 
 	fd = mps_open(mps_unit);
@@ -771,13 +775,14 @@ show_discovery(int ac, char **av)
 		disabled = (phy->PhyFlags &
 		    MPI2_SASIOUNIT0_PHYFLAGS_PHY_DISABLED) != 0;
 
-		snprint_discovery_status(dsbuf, sizeof(dsbuf), ds);
+		dsstr = discovery_status_str(ds);
 		printf("%-4d%-5u%-11s%-9s%-6s0x%-8x0x%-8x%s%s\n",
 		    i, phy->Port, in_progress ? "InProgress" : "Idle",
 		    disabled ? "Y" : "N", get_device_speed(phy->NegotiatedLinkRate),
 		    le16toh(phy->AttachedDevHandle),
-		    le16toh(phy->ControllerDevHandle), dsbuf,
+		    le16toh(phy->ControllerDevHandle), dsstr,
 		    (ds != 0 || in_progress) ? "  <== SUSPECT" : "");
+		free(dsstr);
 		if (ds != 0 || in_progress)
 			nsuspect++;
 	}
