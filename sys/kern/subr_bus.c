@@ -804,6 +804,12 @@ devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 			    dev->parent->devclass == busclass) {
 				if ((error = device_detach(dev)) != 0)
 					return (error);
+				/*
+				 * Clear driver associated with this device, if
+				 * any remain from non-fully attached devices.
+				 */
+				if (dev->driver == driver)
+					(void)device_set_driver(dev, NULL);
 				if (device_frozen) {
 					dev->flags &= ~DF_DONENOMATCH;
 					dev->flags |= DF_NEEDNOMATCH;
