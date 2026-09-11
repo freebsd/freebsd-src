@@ -6571,7 +6571,6 @@ em_automask_tso(if_ctx_t ctx)
 	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
 	bool reset_needed;
-	int drvflags;
 
 	if (!em_unsupported_tso && sc->link_speed &&
 	    sc->link_speed != SPEED_1000 &&
@@ -6591,16 +6590,13 @@ em_automask_tso(if_ctx_t ctx)
 	}
 
 	/*
-	 * Reset a running interface, or one being initialized while
-	 * administratively up.  OACTIVE remains set after iflib_stop(), so
-	 * it alone cannot distinguish initialization from an interface that
-	 * is down.  In other states, the next initialization will apply the
-	 * updated capabilities.
+	 * Apply the new capabilities to a running or administratively-up
+	 * interface, including one whose initialization has not completed.
+	 * A stopped, administratively-down interface will apply them at the
+	 * next initialization; driver flags do not describe that intent.
 	 */
-	drvflags = if_getdrvflags(ifp);
-	reset_needed = (drvflags & IFF_DRV_RUNNING) != 0 ||
-	    ((drvflags & IFF_DRV_OACTIVE) != 0 &&
-	    (if_getflags(ifp) & IFF_UP) != 0);
+	reset_needed = iflib_is_running(ctx) ||
+	    (if_getflags(ifp) & IFF_UP) != 0;
 	if (!reset_needed)
 		return (false);
 
