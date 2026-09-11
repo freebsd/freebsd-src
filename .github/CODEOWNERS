@@ -117,9 +117,7 @@
 /sys/kern/kern_thr.c	@OlCe2
 /sys/kern/ksched.c	@OlCe2
 /sys/kern/p1003_1b.c	@OlCe2
-/sys/kern/sched_4bsd.c	@OlCe2
-/sys/kern/sched_shim.c	@OlCe2
-/sys/kern/sched_ule.c	@OlCe2
+/sys/kern/sched_*.c	@OlCe2
 /sys/kern/syscalls.master	@brooksdavis
 /sys/kern/vfs_aio.c	@asomers
 /sys/netinet/ip_carp.c	@glebius
