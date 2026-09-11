@@ -10,6 +10,7 @@
 
 #include "loader_efi.h"
 #include <bootstrap.h>
+#include <dev_net.h>
 #include <efilib.h>
 #include <Protocol/RamDisk.h>
 #include "decompress.h"
@@ -195,6 +196,36 @@ out_free:
 out_close:
 	close(fd);
 	return (error);
+}
+
+void
+maybe_download_initmd(void)
+{
+	struct devdesc dev;
+	const char *url;
+	int error;
+
+	if (efi_find_handle(&efinet_dev, 0) == NULL)
+		return;
+
+	memset(&dev, 0, sizeof(dev));
+	dev.d_dev = &efinet_dev;
+	dev.d_unit = 0;
+	error = net_configure(&dev);
+	if (error != 0) {
+		printf("Could not configure net0 for initmd: %s\n",
+		    strerror(error));
+		return;
+	}
+
+	url = getenv("dhcp.initmd");
+	if (url == NULL || *url == '\0')
+		return;
+
+	printf("Downloading initmd from %s\n", url);
+	error = download_md_image(url);
+	if (error != 0)
+		printf("Could not download initmd: %s\n", strerror(error));
 }
 
 static void
