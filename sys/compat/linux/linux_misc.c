@@ -1876,10 +1876,9 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		break;
 	case LINUX_PR_SET_THP_DISABLE:
 		/*
-		 * Accept anything that's valid.
+		 * Accept anything that's valid: Linux treats any nonzero
+		 * arg2 as "disable", so there's nothing to reject here.
 		 */
-		if (args->arg2 != 0 && args->arg2 != 1)
-			return (EINVAL);
 		td->td_retval[0] = 0;
 		break;
 	default:
