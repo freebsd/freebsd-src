@@ -1864,6 +1864,24 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 			error = EINVAL;
 		}
 		break;
+	case LINUX_PR_GET_THP_DISABLE:
+		/*
+		 * THP not in play, since FreeBSD doesn't have THP. Although
+		 * similar, superpages don't have the crazy issues THP does, so
+		 * tell the best lie possible: there's no problems with crazy
+		 * latency spikes: this feature is disabled.
+		 */
+
+		td->td_retval[0] = 1;
+		break;
+	case LINUX_PR_SET_THP_DISABLE:
+		/*
+		 * Accept anything that's valid.
+		 */
+		if (args->arg2 != 0 && args->arg2 != 1)
+			return (EINVAL);
+		td->td_retval[0] = 0;
+		break;
 	default:
 		linux_msg(td, "unsupported prctl option %d", args->option);
 		error = EINVAL;
