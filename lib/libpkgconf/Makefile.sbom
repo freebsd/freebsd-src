@@ -1,0 +1,4 @@
+SBOM_DESC=	Package compiler and linker metadata toolkit
+SBOM_VERSION=	2.9.93
+SBOM_SOURCE=	https://github.com/pkgconf/pkgconf
+SBOM_URL=	https://pkgconf.org
