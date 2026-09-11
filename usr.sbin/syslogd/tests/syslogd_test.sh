@@ -20,6 +20,7 @@ atf_test_case "unix" "cleanup"
 unix_head()
 {
     atf_set descr "Messages are logged over UNIX transport"
+    atf_set "require.progs" syslogd
 }
 unix_body()
 {
@@ -39,6 +40,7 @@ atf_test_case "inet" "cleanup"
 inet_head()
 {
     atf_set descr "Messages are logged over INET transport"
+    atf_set "require.progs" syslogd
 }
 inet_body()
 {
@@ -62,6 +64,7 @@ atf_test_case "inet6" "cleanup"
 inet6_head()
 {
     atf_set descr "Messages are logged over INET6 transport"
+    atf_set "require.progs" syslogd
 }
 inet6_body()
 {
@@ -85,6 +88,7 @@ atf_test_case "reload" "cleanup"
 reload_head()
 {
     atf_set descr "SIGHUP correctly refreshes configuration"
+    atf_set "require.progs" syslogd
 }
 reload_body()
 {
@@ -116,6 +120,7 @@ atf_test_case "prog_filter" "cleanup"
 prog_filter_head()
 {
     atf_set descr "Messages are only received from programs in the filter"
+    atf_set "require.progs" syslogd
 }
 prog_filter_body()
 {
@@ -159,6 +164,7 @@ atf_test_case "host_filter" "cleanup"
 host_filter_head()
 {
     atf_set descr "Messages are only received from hostnames in the filter"
+    atf_set "require.progs" syslogd
 }
 host_filter_body()
 {
@@ -198,6 +204,7 @@ atf_test_case "prop_filter" "cleanup"
 prop_filter_head()
 {
     atf_set descr "Messages are received based on conditions in the propery based filter"
+    atf_set "require.progs" syslogd
 }
 prop_filter_body()
 {
@@ -270,6 +277,7 @@ atf_test_case "host_action" "cleanup"
 host_action_head()
 {
     atf_set descr "Sends a message to a specified host"
+    atf_set "require.progs" syslogd
 }
 host_action_body()
 {
@@ -307,6 +315,7 @@ atf_test_case "pipe_action" "cleanup"
 pipe_action_head()
 {
     atf_set descr "The pipe action evaluates provided command in sh(1)"
+    atf_set "require.progs" syslogd
 }
 pipe_action_body()
 {
@@ -331,6 +340,7 @@ atf_test_case "pipe_action_reload" "cleanup"
 pipe_action_reload_head()
 {
     atf_set descr "Pipe processes terminate gracefully on reload"
+    atf_set "require.progs" syslogd
 }
 pipe_action_reload_body()
 {
@@ -372,6 +382,7 @@ jail_noinet_head()
 {
     atf_set descr "syslogd -ss can be run in a jail without INET support"
     atf_set require.user root
+    atf_set "require.progs" syslogd
 }
 jail_noinet_body()
 {
@@ -423,6 +434,7 @@ allowed_peer_head()
 {
     atf_set descr "syslogd -a works"
     atf_set require.user root
+    atf_set "require.progs" syslogd
 }
 allowed_peer_body()
 {
@@ -470,6 +482,7 @@ allowed_peer_forwarding_head()
 {
     atf_set descr "syslogd forwards messages from its listening port"
     atf_set require.user root
+    atf_set "require.progs" syslogd
 }
 allowed_peer_forwarding_body()
 {
@@ -503,6 +516,7 @@ allowed_peer_wildcard_head()
 {
     atf_set descr "syslogd -a works with port wildcards"
     atf_set require.user root
+    atf_set "require.progs" syslogd
 }
 allowed_peer_wildcard_body()
 {
@@ -541,6 +555,7 @@ forward_head()
 {
     atf_set descr "syslogd forwards messages to a remote host"
     atf_set require.user root
+    atf_set "require.progs" syslogd
 }
 forward_body()
 {
@@ -600,6 +615,7 @@ forward_reload_head()
 {
     atf_set descr "syslogd might start before routes are configured"
     atf_set require.user root
+    atf_set "require.progs" syslogd
 }
 forward_reload_body()
 {

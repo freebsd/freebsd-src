@@ -7,6 +7,7 @@
 atf_test_case hash_comment
 hash_comment_head() {
 	atf_set descr "multiline comment follows directive"
+	atf_set "require.progs" unifdef
 }
 hash_comment_body() {
 	cat >f <<EOF
@@ -21,6 +22,7 @@ EOF
 atf_test_case redefine
 redefine_head() {
 	atf_set descr "redefine the same symbol"
+	atf_set "require.progs" unifdef
 }
 redefine_body() {
 	cat >file <<EOF
@@ -41,6 +43,7 @@ EOF
 atf_test_case sDU
 sDU_head() {
 	atf_set descr "simultaneous use of -s and -D or -U"
+	atf_set "require.progs" unifdef
 }
 sDU_body() {
 	atf_check unifdef -s -DFOO -UFOO /dev/null

@@ -181,6 +181,7 @@ atf_test_case rehash
 rehash_head()
 {
 	atf_set "descr" "Test the rehash command"
+	atf_set "require.progs" certctl
 }
 rehash_body()
 {
@@ -218,6 +219,7 @@ atf_test_case list
 list_head()
 {
 	atf_set "descr" "Test the list and untrusted commands"
+	atf_set "require.progs" certctl
 }
 list_body()
 {
@@ -243,6 +245,7 @@ atf_test_case trust
 trust_head()
 {
 	atf_set "descr" "Test the trust command"
+	atf_set "require.progs" certctl
 }
 trust_body()
 {
@@ -262,6 +265,7 @@ atf_test_case untrust
 untrust_head()
 {
 	atf_set "descr" "Test the untrust command"
+	atf_set "require.progs" certctl
 }
 untrust_body()
 {
@@ -281,6 +285,7 @@ atf_test_case metalog
 metalog_head()
 {
 	atf_set "descr" "Verify the metalog"
+	atf_set "require.progs" certctl
 }
 metalog_body()
 {
@@ -312,6 +317,7 @@ atf_test_case misc
 misc_head()
 {
 	atf_set "descr" "Test miscellaneous edge cases"
+	atf_set "require.progs" certctl
 }
 misc_body()
 {

@@ -53,6 +53,7 @@ normal_head()
 {
 	atf_set descr 'test dhclient against a server'
 	atf_set require.user root
+	atf_set "require.progs" dhclient
 }
 
 normal_body()
@@ -107,6 +108,7 @@ pcp_head()
 {
 	atf_set descr 'test dhclient on pcp interface'
 	atf_set require.user root
+	atf_set "require.progs" dhclient
 }
 
 pcp_body()

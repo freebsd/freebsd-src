@@ -44,6 +44,7 @@ fake_lib_head()
 {
 	atf_set "descr" "check loading of a library from /lib"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 fake_lib_body()
 {
@@ -67,6 +68,7 @@ fake_local_lib_head()
 {
 	atf_set "descr" "check loading of a library from /usr/local/lib"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 fake_local_lib_body()
 {
@@ -90,6 +92,7 @@ admin_passthru_head()
 {
 	atf_set "descr" "check the admin-passthru command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 admin_passthru_body()
 {
@@ -106,6 +109,7 @@ devlist_head()
 {
 	atf_set "descr" "check the devlist command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 devlist_body()
 {
@@ -122,6 +126,7 @@ identify_head()
 {
 	atf_set "descr" "check the identify command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 identify_body()
 {
@@ -138,6 +143,7 @@ io_passthru_head()
 {
 	atf_set "descr" "check the io-passthru command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 io_passthru_body()
 {
@@ -154,6 +160,7 @@ logpage_head()
 {
 	atf_set "descr" "check the logpage command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 logpage_body()
 {
@@ -170,6 +177,7 @@ nsid_head()
 {
 	atf_set "descr" "check the nsid command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 nsid_body()
 {
@@ -186,6 +194,7 @@ power_head()
 {
 	atf_set "descr" "check the power command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 power_body()
 {
@@ -202,6 +211,7 @@ reset_head()
 {
 	atf_set "descr" "check the reset command"
 	atf_set "require.user" "root"
+	atf_set "require.progs" nvmecontrol
 }
 reset_body()
 {

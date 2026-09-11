@@ -272,6 +272,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 	{							\
 		atf_tc_set_md_var(tc, "descr", descr);		\
 		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
+		atf_tc_set_md_var(tc, "require.progs", "pfctl");	\
 	}							\
 	ATF_TC_BODY(pf##number, tc)				\
 	{							\
@@ -282,6 +283,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 	{							\
 		atf_tc_set_md_var(tc, "descr", "Self " descr);	\
 		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
+		atf_tc_set_md_var(tc, "require.progs", "pfctl");	\
 	}							\
 	ATF_TC_BODY(selfpf##number, tc)				\
 	{							\
@@ -294,6 +296,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 	{							\
 		atf_tc_set_md_var(tc, "descr", descr);		\
 		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
+		atf_tc_set_md_var(tc, "require.progs", "pfctl");	\
 	}							\
 	ATF_TC_BODY(pf##number, tc)				\
 	{							\
@@ -308,6 +311,7 @@ do_selfpf_test(const char *number, const atf_tc_t *tc)
 		atf_tc_set_md_var(tc, "execenv", "jail");	\
 		atf_tc_set_md_var(tc, "execenv.jail.params", "vnet");	\
 		atf_tc_set_md_var(tc, "require.kmods", "pf");	\
+		atf_tc_set_md_var(tc, "require.progs", "pfctl");	\
 	}							\
 	ATF_TC_BODY(pf##number, tc)				\
 	{							\

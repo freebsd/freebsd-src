@@ -4,6 +4,7 @@ space_head()
 {
 	atf_set descr "Test macros with spaces"
 	atf_set require.kmods "pf"
+	atf_set require.progs "pfctl"
 }
 
 space_body()

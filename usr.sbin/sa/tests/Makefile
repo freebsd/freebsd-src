@@ -2,6 +2,7 @@ PACKAGE=	tests
 
 TAP_TESTS_SH=	legacy_test
 TEST_METADATA.legacy_test+=	allowed_architectures="amd64 i386"
+TEST_METADATA.legacy_test+=	required_programs="sa"
 
 ${PACKAGE}FILES+=		v1-amd64-sav.in
 ${PACKAGE}FILES+=		v1-amd64-sav.out

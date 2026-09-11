@@ -43,6 +43,7 @@ basic_body() {
 atf_test_case lastline
 lastline_head() {
 	atf_set "descr" "Checks with directive on last line (PR bin/47068)"
+	atf_set "require.progs" "unifdef"
 }
 
 lastline_body() {
