@@ -78,7 +78,7 @@ md_export_to_kernel(uint64_t start, uint64_t len)
 	snprintf(value, sizeof(value), "0x%016jx", (uintmax_t)start);
 	setenv(key, value, 1);
 	snprintf(key, sizeof(key), "hint.md.%d.len", unit);
-	snprintf(value, sizeof(value), "%jd", (uintmax_t)len);
+	snprintf(value, sizeof(value), "%ju", (uintmax_t)len);
 	setenv(key, value, 1);
 	unit++;
 }
