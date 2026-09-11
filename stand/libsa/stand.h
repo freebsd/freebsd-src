@@ -196,6 +196,8 @@ struct devdesc {
 
 char *devformat(struct devdesc *d);
 int devparse(struct devdesc **, const char *, const char **);
+int default_parsedev(struct devdesc **, const char *, const char **);
+int parse_uri(const char *, int *, char **, int *, const char **);
 int devinit(void);
 void	dev_cleanup(void);
 

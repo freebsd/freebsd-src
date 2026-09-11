@@ -64,7 +64,7 @@ devformat(struct devdesc *d)
 }
 
 /* NB: devspec points to the remainder of the device name after dv_name */
-static int
+int
 default_parsedev(struct devdesc **dev, const char *devspec,
     const char **path)
 {
@@ -100,6 +100,69 @@ default_parsedev(struct devdesc **dev, const char *devspec,
 fail:
 	free(idev);
 	return (err);
+}
+
+/*
+ * Helper for URI-syntax devices. NB: like default_parsedev(), devspec is
+ * the remainder after dv_name. Parses "[N]://host[:port][/path]"; EINVAL
+ * if devspec doesn't match that pattern.
+ */
+int
+parse_uri(const char *devspec, int *unitp, char **hostp, int *portp,
+    const char **pathp)
+{
+	const char *cp, *p;
+	char *end;
+	int unit;
+
+	cp = devspec;
+	unit = 0;
+	if (*cp != '\0' && *cp != ':') {
+		errno = 0;
+		unit = strtol(cp, &end, 0);
+		if (errno != 0 || end == cp)
+			return (EINVAL);
+		cp = end;
+	}
+	if (strncmp(cp, "://", 3) != 0)
+		return (EINVAL);
+	cp += 3;
+
+	p = cp;
+	while (*p != '\0' && *p != '/' && *p != ':')
+		p++;
+	if (p == cp)
+		return (EINVAL);		/* empty host */
+
+	*hostp = malloc(p - cp + 1);
+	if (*hostp == NULL)
+		return (ENOMEM);
+	memcpy(*hostp, cp, p - cp);
+	(*hostp)[p - cp] = '\0';
+
+	*portp = 0;
+	if (*p == ':') {
+		p++;
+		errno = 0;
+		*portp = strtol(p, &end, 10);
+		if (errno != 0 || end == p) {
+			free(*hostp);
+			*hostp = NULL;
+			return (EINVAL);
+		}
+		p = end;
+	}
+
+	if (*p != '\0' && *p != '/') {
+		free(*hostp);
+		*hostp = NULL;
+		return (EINVAL);
+	}
+
+	*unitp = unit;
+	if (pathp != NULL)
+		*pathp = p;
+	return (0);
 }
 
 /* NB: devspec points to the whole device spec, and possible trailing path */
