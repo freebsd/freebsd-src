@@ -649,12 +649,12 @@ static int
 efihttp_dev_close(struct open_file *f)
 {
 	EFI_SERVICE_BINDING_PROTOCOL *sb;
-	struct devdesc *dev;
+	struct http_devdesc *hd;
 	struct open_efihttp *oh;
 	EFI_STATUS status;
 
-	dev = (struct devdesc *)f->f_devdata;
-	oh = (struct open_efihttp *)dev->d_opendata;
+	hd = (struct http_devdesc *)f->f_devdata;
+	oh = (struct open_efihttp *)hd->dd.d_opendata;
 	status = BS->OpenProtocol(oh->dev_handle, &httpsb_guid, (void **)&sb,
 	    IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
 	if (EFI_ERROR(status))
@@ -662,7 +662,9 @@ efihttp_dev_close(struct open_file *f)
 	sb->DestroyChild(sb, oh->http_handle);
 	free(oh->uri_base);
 	free(oh);
-	dev->d_opendata = NULL;
+	hd->dd.d_opendata = NULL;
+	free(hd->host);
+	hd->host = NULL;
 	return (0);
 }
 
