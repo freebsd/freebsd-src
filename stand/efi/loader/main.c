@@ -324,12 +324,10 @@ probe_zfs_currdev(uint64_t guid)
 }
 #endif
 
-#ifdef MD_IMAGE_SIZE
-extern struct devsw md_dev;
-
 static bool
 probe_md_currdev(void)
 {
+#ifdef LOADER_MD_SUPPORT
 	bool rv;
 
 	set_currdev_devsw(&md_dev, 0);
@@ -337,8 +335,10 @@ probe_md_currdev(void)
 	if (!rv)
 		printf("MD not present\n");
 	return (rv);
-}
+#else
+	return (false);
 #endif
+}
 
 /*
  * Try the passed in partition or entire disk to see if we can find a bootable
@@ -646,7 +646,13 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 	} while (0);
 
 	/*
-	 * Third choice: If we can find out image boot_info, and there's
+	 * Third choice: If there is an MD device, try to use that.
+	 */
+	if (probe_md_currdev())
+		return (0);
+
+	/*
+	 * Forth choice: If we can find out image boot_info, and there's
 	 * a follow-on boot image in that boot_info, use that. In this
 	 * case root will be the partition specified in that image and
 	 * we'll load the kernel specified by the file path. Should there
@@ -663,15 +669,6 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 			return (ENOENT);
 		} /* Nothing specified, try normal match */
 	}
-
-#ifdef MD_IMAGE_SIZE
-	/*
-	 * Forth choice: If there is an embedded MD, try to use that.
-	 */
-	printf("Trying configured MD\n");
-	if (probe_md_currdev())
-		return (0);
-#endif /* MD_IMAGE_SIZE */
 
 	/*
 	 * Fifth choice: try all the partitions on the boot device.
