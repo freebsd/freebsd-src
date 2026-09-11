@@ -5106,7 +5106,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			if ((have_sense)
 			 && (asc != 0x25) && (asc != 0x44)
-			 && (asc != 0x04 && ascq != 0x02)
+			 && (asc != 0x04 || ascq != 0x02)
 			 && (error_code == SSD_CURRENT_ERROR
 			  || error_code == SSD_DESC_CURRENT_ERROR)) {
 				const char *sense_key_desc;
