@@ -33,6 +33,7 @@
 #include <sys/taskqueue.h>
 
 #include <linux/llist.h>
+#include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 
 #define	LKPI_IRQ_WORK_STD_TQ	system_wq->taskqueue
@@ -85,6 +86,7 @@ static inline void
 irq_work_sync(struct irq_work *irqw)
 {
 	taskqueue_drain(LKPI_IRQ_WORK_TQ, &irqw->irq_task);
+	synchronize_rcu();
 }
 
 #endif /* _LINUXKPI_LINUX_IRQ_WORK_H_ */

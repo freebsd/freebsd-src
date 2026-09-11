@@ -757,7 +757,9 @@ linux_irq_work_fn(void *context, int pending)
 {
 	struct irq_work *irqw = context;
 
+	rcu_read_lock();
 	irqw->func(irqw);
+	rcu_read_unlock();
 }
 
 static void
@@ -791,6 +793,7 @@ SYSINIT(linux_irq_work_init, SI_SUB_TASKQ, SI_ORDER_SECOND,
 static void
 linux_irq_work_uninit(void *arg)
 {
+	/* taskqueue_drain_all() executes synchronize_rcu() implicitly */
 	taskqueue_drain_all(linux_irq_work_tq);
 	taskqueue_free(linux_irq_work_tq);
 }
