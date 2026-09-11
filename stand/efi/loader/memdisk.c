@@ -55,7 +55,7 @@ download_chunk(dl_state *ctx, void *buffer, size_t length, size_t offset)
 	enum step_return sr;
 
 	if (offset == 0 && length == 0) {
-		printf("Staritng the download\n");
+		printf("Starting the download\n");
 		return (EFI_SUCCESS);
 	}
 
