@@ -178,6 +178,35 @@ aq_thermal_report_hot(struct aq_dev *aq_dev)
 		device_printf(aq_dev->dev, "PHY over-temperature warning\n");
 }
 
+/* reconcile thermal arm with knob value */
+static void
+aq_thermal_apply(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	bool enable;
+	int err;
+
+	/* A queued re-init would undo the write; the poll after it applies. */
+	if (hw->fw_ops->thermal_arm == NULL || aq_dev->reset_pending)
+		return;
+
+	enable = aq_dev->thermal_shutdown_enabled;
+	err = hw->fw_ops->thermal_arm(hw, enable);
+	/* No sensor to arm against; the knob is absent on such an adapter. */
+	if (err == ENOTSUP)
+		return;
+	/* Print only on a change, so a lasting failure is reported once. */
+	if (err == aq_dev->thermal_arm_err)
+		return;
+	aq_dev->thermal_arm_err = err;
+	if (err != 0)
+		device_printf(aq_dev->dev, "could not %s PHY thermal shutdown, "
+		    "error %d\n", enable ? "arm" : "disarm", err);
+	else
+		device_printf(aq_dev->dev, "PHY thermal shutdown %s\n",
+		    enable ? "armed" : "disarmed");
+}
+
 /* Recover after cooldown: A1 needs a PHY reset then re-init, A2 re-inits alone. */
 static void
 aq_thermal_poll(struct aq_dev *aq_dev)
@@ -188,6 +217,7 @@ aq_thermal_poll(struct aq_dev *aq_dev)
 
 	switch (aq_dev->thermal_state) {
 	case AQ_THERMAL_NORMAL:
+		aq_thermal_apply(aq_dev);
 		aq_thermal_report_hot(aq_dev);
 		if (aq_dev->linkup)
 			return;
