@@ -191,7 +191,7 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
 
 	/*
 	 * Treat set CTLFLAG_NEEDGIANT and unset CTLFLAG_MPSAFE flags the same,
-	 * untill we're ready to remove all traces of Giant from sysctl(9).
+	 * until we're ready to remove all traces of Giant from sysctl(9).
 	 */
 	if ((oid->oid_kind & CTLFLAG_NEEDGIANT) ||
 	    (!(oid->oid_kind & CTLFLAG_MPSAFE)))
