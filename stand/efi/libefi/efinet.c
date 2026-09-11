@@ -267,13 +267,10 @@ efi_pxe_snapshot(EFI_HANDLE h, struct pxe_cache_entry *pce)
 
 /*
  * Walk a device path looking for the first MSG_MAC_ADDR_DP node and
- * copy its 6-byte Ethernet MAC into out.  Returns true on success.
- * Used to correlate a PXE Base Code Protocol handle back to an SNP
- * unit when the two protocols live on different handles (typical for
- * UEFI: PXE Base Code is installed on a child handle whose device
- * path ends in Ipv4()/Ipv6(), extending the SNP's MAC-terminated path).
+ * copy its 6-byte Ethernet MAC into out.  Returns true on success,
+ * e.g. false if dp has no NIC node at all.
  */
-static bool
+bool
 efi_devpath_get_mac(EFI_DEVICE_PATH *dp, uint8_t out[6])
 {
 	MAC_ADDR_DEVICE_PATH *mac;
