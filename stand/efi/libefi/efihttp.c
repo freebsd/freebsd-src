@@ -49,11 +49,16 @@ static EFI_GUID ip4config2_guid = EFI_IP4_CONFIG2_PROTOCOL_GUID;
 
 static bool efihttp_init_done = false;
 
+struct http_devdesc;
+
 static int efihttp_dev_init(void);
 static int efihttp_dev_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     char *buf, size_t *rsize);
 static int efihttp_dev_open(struct open_file *f, ...);
+static int efihttp_dev_open_legacy(struct open_file *f);
+static int efihttp_dev_open_url(struct open_file *f, struct http_devdesc *hd);
 static int efihttp_dev_close(struct open_file *f);
+static int efihttp_parsedev(struct devdesc **, const char *, const char **);
 
 static int efihttp_fs_open(const char *path, struct open_file *f);
 static int efihttp_fs_close(struct open_file *f);
@@ -79,6 +84,16 @@ struct file_efihttp {
 	bool		is_dir;
 };
 
+/*
+ * host == NULL for the legacy "httpN:" EFI HTTP Boot form; non-NULL for
+ * the "httpN://host/path" URL form.
+ */
+struct http_devdesc {
+	struct devdesc	dd;
+	char		*host;
+	int		port;
+};
+
 struct devsw efihttp_dev = {
 	.dv_name =	"http",
 	.dv_type =	DEVT_NET,
@@ -89,6 +104,7 @@ struct devsw efihttp_dev = {
 	.dv_ioctl =	noioctl,
 	.dv_print =	NULL,
 	.dv_cleanup =	nullsys,
+	.dv_parsedev =	efihttp_parsedev,
 };
 
 struct fs_ops efihttp_fsops = {
@@ -175,6 +191,135 @@ setup_ipv4_config2(EFI_HANDLE handle, MAC_ADDR_DEVICE_PATH *mac,
 	return (0);
 }
 
+/*
+ * Like setup_ipv4_config2()'s static branch, but sourced from the
+ * loader-wide myip/netmask/gateip/nameip globals instead of boot-path
+ * device nodes.
+ */
+static int
+setup_ipv4_config2_static(EFI_HANDLE handle, struct in_addr ip, n_long mask,
+    struct in_addr gw, struct in_addr dns)
+{
+	EFI_IP4_CONFIG2_PROTOCOL *ip4config2;
+	EFI_IP4_CONFIG2_MANUAL_ADDRESS manual;
+	EFI_IPv4_ADDRESS addr;
+	EFI_STATUS status;
+
+	status = BS->OpenProtocol(handle, &ip4config2_guid,
+	    (void **)&ip4config2, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	status = ip4config2->SetData(ip4config2,
+	    Ip4Config2DataTypePolicy, sizeof(EFI_IP4_CONFIG2_POLICY),
+	    &(EFI_IP4_CONFIG2_POLICY) { Ip4Config2PolicyStatic });
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	memset(&manual, 0, sizeof(manual));
+	memcpy(manual.Address.Addr, &ip, sizeof(manual.Address.Addr));
+	memcpy(manual.SubnetMask.Addr, &mask, sizeof(manual.SubnetMask.Addr));
+	status = ip4config2->SetData(ip4config2,
+	    Ip4Config2DataTypeManualAddress, sizeof(manual), &manual);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	if (gw.s_addr != 0) {
+		memcpy(addr.Addr, &gw, sizeof(addr.Addr));
+		status = ip4config2->SetData(ip4config2,
+		    Ip4Config2DataTypeGateway, sizeof(addr), &addr);
+		if (EFI_ERROR(status))
+			return (efi_status_to_errno(status));
+	}
+
+	if (dns.s_addr != 0) {
+		memcpy(addr.Addr, &dns, sizeof(addr.Addr));
+		status = ip4config2->SetData(ip4config2,
+		    Ip4Config2DataTypeDnsServer, sizeof(addr), &addr);
+		if (EFI_ERROR(status))
+			return (efi_status_to_errno(status));
+	}
+
+	return (0);
+}
+
+/*
+ * DHCPs via IP4Config2 directly, not netdev's net_open(): net_open()
+ * opens the NIC's SNP EFI_OPEN_PROTOCOL_EXCLUSIVE (efinet_probe()),
+ * which disconnects the MNP/IP4/HttpDxe chain this handle needs.
+ */
+static int
+efi_ip4_dhcp(EFI_HANDLE handle, struct in_addr *ip, n_long *mask,
+    struct in_addr *gw, struct in_addr *dns)
+{
+	EFI_IP4_CONFIG2_PROTOCOL *ip4config2;
+	EFI_IP4_CONFIG2_INTERFACE_INFO *info;
+	EFI_IPv4_ADDRESS dnsaddr;
+	EFI_STATUS status;
+	UINTN sz, i, nroutes;
+	int polltime;
+
+	status = BS->OpenProtocol(handle, &ip4config2_guid,
+	    (void **)&ip4config2, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	status = ip4config2->SetData(ip4config2,
+	    Ip4Config2DataTypePolicy, sizeof(EFI_IP4_CONFIG2_POLICY),
+	    &(EFI_IP4_CONFIG2_POLICY) { Ip4Config2PolicyDhcp });
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	info = NULL;
+	polltime = 0;
+	for (;;) {
+		free(info);
+		info = NULL;
+		sz = 0;
+		status = ip4config2->GetData(ip4config2,
+		    Ip4Config2DataTypeInterfaceInfo, &sz, NULL);
+		if (status == EFI_BUFFER_TOO_SMALL) {
+			info = malloc(sz);
+			if (info == NULL)
+				return (ENOMEM);
+			status = ip4config2->GetData(ip4config2,
+			    Ip4Config2DataTypeInterfaceInfo, &sz, info);
+		}
+		if (!EFI_ERROR(status) &&
+		    *(uint32_t *)info->StationAddress.Addr != 0)
+			break;
+		if (polltime >= EFIHTTP_POLL_TIMEOUT) {
+			free(info);
+			return (ENXIO);
+		}
+		delay(100 * 1000);
+		polltime += 100;
+	}
+
+	memcpy(ip, info->StationAddress.Addr, sizeof(*ip));
+	memcpy(mask, info->SubnetMask.Addr, sizeof(*mask));
+	gw->s_addr = 0;
+	nroutes = info->RouteTableSize / sizeof(EFI_IP4_ROUTE_TABLE);
+	for (i = 0; i < nroutes; i++) {
+		if (*(uint32_t *)info->RouteTable[i].SubnetAddress.Addr == 0 &&
+		    *(uint32_t *)info->RouteTable[i].SubnetMask.Addr == 0) {
+			memcpy(gw, info->RouteTable[i].GatewayAddress.Addr,
+			    sizeof(*gw));
+			break;
+		}
+	}
+	free(info);
+
+	dns->s_addr = 0;
+	sz = sizeof(dnsaddr);
+	status = ip4config2->GetData(ip4config2, Ip4Config2DataTypeDnsServer,
+	    &sz, &dnsaddr);
+	if (!EFI_ERROR(status) && sz >= sizeof(dnsaddr))
+		memcpy(dns, &dnsaddr, sizeof(*dns));
+
+	return (0);
+}
+
 static int
 efihttp_dev_init(void)
 {
@@ -223,6 +368,21 @@ efihttp_dev_strategy(void *devdata __unused, int rw __unused,
 
 static int
 efihttp_dev_open(struct open_file *f, ...)
+{
+	struct http_devdesc *hd;
+
+	hd = (struct http_devdesc *)f->f_devdata;
+	if (hd->host == NULL)
+		return (efihttp_dev_open_legacy(f));
+	return (efihttp_dev_open_url(f, hd));
+}
+
+/*
+ * EFI HTTP Boot path: handles http_devdesc with host == NULL, usable only
+ * when the boot image's own device path has a URI node.
+ */
+static int
+efihttp_dev_open_legacy(struct open_file *f)
 {
 	EFI_HTTP_CONFIG_DATA config;
 	EFI_HTTPv4_ACCESS_POINT config_access;
@@ -358,6 +518,133 @@ end:
 	return (err);
 }
 
+/*
+ * EFI HTTP URL form: handles http_devdesc with host != NULL, using the
+ * shared myip/netmask/gateip/nameip globals for network config -- reused
+ * if already set, otherwise populated via efi_ip4_dhcp(). No network at
+ * all is an error; nothing here retries.
+ */
+static int
+efihttp_dev_open_url(struct open_file *f, struct http_devdesc *hd)
+{
+	EFI_HTTP_CONFIG_DATA config;
+	EFI_HTTPv4_ACCESS_POINT config_access;
+	EFI_DEVICE_PATH *devpath, *trimmed;
+	EFI_HANDLE nic, handle;
+	EFI_SERVICE_BINDING_PROTOCOL *sb;
+	struct devdesc *dev;
+	struct open_efihttp *oh;
+	EFI_STATUS status;
+	struct in_addr ip, gw, dns;
+	n_long mask;
+	int err;
+
+	nic = efi_find_handle(&efinet_dev, hd->dd.d_unit);
+	if (nic == NULL)
+		return (ENXIO);
+	devpath = efi_lookup_devpath(nic);
+	if (devpath == NULL)
+		return (ENXIO);
+	trimmed = devpath;
+	status = BS->LocateDevicePath(&httpsb_guid, &trimmed, &handle);
+	if (EFI_ERROR(status)) {
+		/*
+		 * Whatever chained us here (e.g. iPXE) commonly excludes and
+		 * then exclusively opens the NIC's SNP for its own raw I/O
+		 * -- the same thing our own efinet_probe() does -- which
+		 * disconnects the Mnp/Ip4/.../HttpDxe chain. Nothing
+		 * reconnects it automatically; ask explicitly.
+		 */
+		BS->ConnectController(nic, NULL, NULL, TRUE);
+		trimmed = devpath;
+		status = BS->LocateDevicePath(&httpsb_guid, &trimmed, &handle);
+	}
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	if (myip.s_addr != 0) {
+		err = setup_ipv4_config2_static(handle, myip, netmask,
+		    gateip, nameip);
+	} else {
+		err = efi_ip4_dhcp(handle, &ip, &mask, &gw, &dns);
+		if (err == 0) {
+			myip = ip;
+			netmask = mask;
+			gateip = gw;
+			nameip = dns;
+			setenv("boot.netif.ip", inet_ntoa(myip), 1);
+			setenv("boot.netif.netmask", intoa(netmask), 1);
+			setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+		}
+	}
+	if (err != 0)
+		return (err);
+
+	oh = calloc(1, sizeof(struct open_efihttp));
+	if (oh == NULL)
+		return (ENOMEM);
+	oh->dev_handle = handle;
+	dev = (struct devdesc *)f->f_devdata;
+	dev->d_opendata = oh;
+
+	status = BS->OpenProtocol(handle, &httpsb_guid, (void **)&sb, IH, NULL,
+	    EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (EFI_ERROR(status)) {
+		err = efi_status_to_errno(status);
+		goto end;
+	}
+
+	status = sb->CreateChild(sb, &oh->http_handle);
+	if (EFI_ERROR(status)) {
+		err = efi_status_to_errno(status);
+		goto end;
+	}
+
+	status = BS->OpenProtocol(oh->http_handle, &http_guid,
+	    (void **)&oh->http, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (EFI_ERROR(status)) {
+		sb->DestroyChild(sb, oh->http_handle);
+		err = efi_status_to_errno(status);
+		goto end;
+	}
+
+	config.HttpVersion = HttpVersion11;
+	config.TimeOutMillisec = 0;
+	config.LocalAddressIsIPv6 = FALSE;
+	config.AccessPoint.IPv4Node = &config_access;
+	config_access.UseDefaultAddress = TRUE;
+	config_access.LocalPort = 0;
+	status = oh->http->Configure(oh->http, &config);
+	if (EFI_ERROR(status)) {
+		sb->DestroyChild(sb, oh->http_handle);
+		err = efi_status_to_errno(status);
+		goto end;
+	}
+
+	/*
+	 * No trailing slash: every path here is already absolute, and a
+	 * double slash makes EDK2's HttpDxe reject the request outright
+	 * (EFI_HTTP_ERROR, not a clean 404).
+	 */
+	if (hd->port != 0)
+		asprintf(&oh->uri_base, "http://%s:%d", hd->host, hd->port);
+	else
+		asprintf(&oh->uri_base, "http://%s", hd->host);
+	if (oh->uri_base == NULL) {
+		sb->DestroyChild(sb, oh->http_handle);
+		err = ENOMEM;
+		goto end;
+	}
+
+	err = 0;
+end:
+	if (err != 0) {
+		free(dev->d_opendata);
+		dev->d_opendata = NULL;
+	}
+	return (err);
+}
+
 static int
 efihttp_dev_close(struct open_file *f)
 {
@@ -376,6 +663,56 @@ efihttp_dev_close(struct open_file *f)
 	free(oh->uri_base);
 	free(oh);
 	dev->d_opendata = NULL;
+	return (0);
+}
+
+/*
+ * Recognizes both "httpN:[/path]" (legacy EFI HTTP Boot) and
+ * "httpN://host[:port][/path]" (see efihttp_dev_open_url()). Falls back
+ * to default_parsedev() for the legacy form so existing "http0:"
+ * currdev strings keep parsing the same way.
+ */
+static int
+efihttp_parsedev(struct devdesc **idev, const char *devspec,
+    const char **path)
+{
+	struct http_devdesc *dev;
+	struct devdesc *ldev;
+	const char *np, *p;
+	char *host;
+	int unit, port, err;
+
+	np = devspec + strlen(efihttp_dev.dv_name);
+	err = parse_uri(np, &unit, &host, &port, &p);
+	if (err == EINVAL) {
+		err = default_parsedev(&ldev, np, path);
+		if (err != 0)
+			return (err);
+		dev = malloc(sizeof(*dev));
+		if (dev == NULL) {
+			free(ldev);
+			return (ENOMEM);
+		}
+		dev->dd = *ldev;
+		free(ldev);
+		dev->host = NULL;
+		dev->port = 0;
+	} else if (err != 0) {
+		return (err);
+	} else {
+		dev = malloc(sizeof(*dev));
+		if (dev == NULL) {
+			free(host);
+			return (ENOMEM);
+		}
+		dev->dd.d_unit = unit;
+		dev->host = host;
+		dev->port = port;
+		if (path != NULL)
+			*path = p;
+	}
+	dev->dd.d_dev = &efihttp_dev;
+	*idev = &dev->dd;
 	return (0);
 }
 
@@ -562,8 +899,11 @@ efihttp_fs_open(const char *path, struct open_file *f)
 	char *path_slash;
 	int err;
 
-	if (!efihttp_init_done)
-		return (ENXIO);
+	/*
+	 * efihttp_init_done is irrelevant here: efihttp_dev_open_legacy()
+	 * already gates on it before a legacy-form open can reach this
+	 * point, and the URL form never touches it at all.
+	 */
 	if (f->f_dev != &efihttp_dev)
 		return (EINVAL);
 	/*
