@@ -28,6 +28,7 @@
 #include <sys/param.h>
 #include <sys/ioccom.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -44,17 +45,23 @@
 _Static_assert(sizeof(struct nvme_power_state) == 256 / NBBY,
 	       "nvme_power_state size wrong");
 
-#define POWER_NONE 0xffffffffu
+#define NONE 0xffffffffu
 
 static struct options {
 	bool		list;
+	uint32_t	apst;
+	uint32_t	apst_limit;
 	uint32_t	power;
 	uint32_t	workload;
+	const char	*apst_data;
 	const char	*dev;
 } opt = {
 	.list = false,
-	.power = POWER_NONE,
+	.apst = NONE,
+	.apst_limit = NONE,
+	.power = NONE,
 	.workload = 0,
+	.apst_data = NULL,
 	.dev = NULL,
 };
 
@@ -117,10 +124,132 @@ power_set(int fd, int power_val, int workload, int perm)
 		errx(EX_IOERR, "set feature power mgmt request returned error");
 }
 
+enum feat_opc { GET, SET };
+
+static int
+power_apst_cmd(int fd, enum feat_opc opc, bool enable, uint64_t *data,
+    int size)
+{
+	struct nvme_pt_command pt;
+
+	memset(&pt, 0, sizeof(pt));
+	pt.cmd.opc = (opc == SET) ?
+	    NVME_OPC_SET_FEATURES : NVME_OPC_GET_FEATURES;
+	pt.cmd.cdw10 = htole32(NVME_FEAT_AUTONOMOUS_POWER_STATE_TRANSITION);
+	pt.cmd.cdw11 = htole32(enable);
+	pt.buf = data;
+	pt.len = size;
+	pt.is_read = (opc == GET) ? 1 : 0;
+
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) == -1)
+		err(EX_IOERR, "APST %s command failed",
+		    (opc == SET) ? "set" : "get");
+
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(EX_IOERR, "APST %s command returned error",
+		    (opc == SET) ? "set" : "get");
+
+	return (pt.cpl.cdw0);
+}
+
 static void
-power_show(int fd)
+power_apst_data_generate(struct nvme_controller_data *cdata,
+    uint64_t *data, int num, int limit)
+{
+	int i, itpt, latency;
+
+	assert(cdata->npss < num);
+
+	for (i = cdata->npss; i > 0; --i) {
+		if (!NVMEV(NVME_PWR_ST_NOPS,
+		    cdata->power_state[i].mps_nops)) {
+			data[i - 1] = data[i];
+			continue;
+		}
+
+		latency = (cdata->power_state[i].enlat +
+		    cdata->power_state[i].exlat) / 1000;
+		if (latency > limit)
+			continue;
+
+		/* Wait 50x the latency before each transition. */
+		itpt = MIN(latency * 50, (1 << 24) - 1);
+		data[i - 1] = htole64(itpt << 8 | i << 3);
+	}
+}
+
+static void
+power_apst_data_parse(struct nvme_controller_data *cdata,
+    uint64_t *data, int num, const char *dstr)
+{
+	int i, itps, itpt;
+	char *str, *token;
+
+	str = strdup(dstr);
+
+	for (i = 0; (token = strsep(&str, " ,")) != NULL && i < num; ++i) {
+		if (sscanf(token, "%i:%i", &itps, &itpt) != 2)
+			errx(EX_USAGE, "cannot parse provided configuration");
+
+		if (itps < 0 || itps >= cdata->npss)
+			errx(EX_USAGE, "invalid ITPS=%d (must be 0..%d)",
+			    itps, cdata->npss);
+		if (itpt < 0 || itpt >= 1 << 24)
+			errx(EX_USAGE, "invalid ITPT=%d (must be 0..%d)",
+			    itpt, 1 << 24);
+
+		data[i] = htole64(itpt << 8 | itps << 3);
+	}
+}
+
+static void
+power_apst_show(uint64_t *data, int num, bool enabled)
+{
+	int entry, i;
+
+	while (num > 0 && data[num - 1] == 0)
+		--num;
+
+	printf("APST %s\n", enabled ? "enabled" : "disabled");
+	printf("\n #  ITPS    ITPT       Hex\n");
+	printf("--  ----  ------  --------\n");
+	for (i = 0; i < num || i == 0; ++i) {
+		entry = letoh(data[i]);
+		printf("%2d: %4d  %4dms  %#8x\n",
+		    i, (entry & 0xF8) >> 3, entry >> 8, entry);
+	}
+}
+
+static void
+power_apst(int fd, struct nvme_controller_data *cdata,
+    uint32_t enable, const char *dstr, uint32_t limit)
+{
+	uint64_t data[32];
+
+	if (cdata->apsta == 0)
+		errx(EX_UNAVAILABLE, "Not supported by the controller");
+
+	if (enable == NONE)
+		enable = power_apst_cmd(fd, GET, 0, NULL, 0);
+
+	memset(&data, 0, sizeof(data));
+
+	if (dstr != NULL)
+		power_apst_data_parse(cdata, data, nitems(data), dstr);
+	else if (limit != NONE)
+		power_apst_data_generate(cdata, data, nitems(data), limit);
+	else
+		power_apst_cmd(fd, GET, 0, data, sizeof(data));
+
+	power_apst_cmd(fd, SET, enable, data, sizeof(data));
+}
+
+static void
+power_show(int fd, struct nvme_controller_data *cdata)
 {
 	struct nvme_pt_command	pt;
+	uint64_t data[32];
+	int status;
 
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_GET_FEATURES;
@@ -134,6 +263,11 @@ power_show(int fd)
 
 	printf("Current Power State is %d\n", pt.cpl.cdw0 & 0x1F);
 	printf("Current Workload Hint is %d\n", pt.cpl.cdw0 >> 5);
+
+	if (cdata->apsta != 0) {
+		status = power_apst_cmd(fd, GET, 0, data, sizeof(data));
+		power_apst_show(data, nitems(data), status);
+	}
 }
 
 static void
@@ -147,7 +281,7 @@ power(const struct cmd *f, int argc, char *argv[])
 	if (arg_parse(argc, argv, f))
 		return;
 
-	if (opt.list && opt.power != POWER_NONE) {
+	if (opt.list && opt.power != NONE) {
 		fprintf(stderr, "Can't set power and list power states\n");
 		arg_help(argc, argv, f);
 	}
@@ -160,18 +294,27 @@ power(const struct cmd *f, int argc, char *argv[])
 	}
 	free(path);
 
+	if (opt.power != NONE) {
+		power_set(fd, opt.power, opt.workload, 0);
+		goto out;
+	}
+
+	if (read_controller_data(fd, &cdata))
+		errx(EX_IOERR, "Identify request failed");
+
 	if (opt.list) {
-		if (read_controller_data(fd, &cdata))
-			errx(EX_IOERR, "Identify request failed");
 		power_list(&cdata);
 		goto out;
 	}
 
-	if (opt.power != POWER_NONE) {
-		power_set(fd, opt.power, opt.workload, 0);
+	if (opt.apst != NONE || opt.apst_limit != NONE ||
+	    opt.apst_data != NULL) {
+		power_apst(fd, &cdata, opt.apst,
+		    opt.apst_data, opt.apst_limit);
 		goto out;
 	}
-	power_show(fd);
+
+	power_show(fd, &cdata);
 
 out:
 	close(fd);
@@ -180,8 +323,14 @@ out:
 
 static const struct opts power_opts[] = {
 #define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
+	OPT("apst", 'a', arg_uint32, opt, apst,
+	    "Enable or disable APST"),
+	OPT("data", 'd', arg_string, opt, apst_data,
+	    "Set the APST configuration"),
 	OPT("list", 'l', arg_none, opt, list,
 	    "List the valid power states"),
+	OPT("limit", 'm', arg_uint32, opt, apst_limit,
+	    "Set the APST latency limit"),
 	OPT("power", 'p', arg_uint32, opt, power,
 	    "Set the power state"),
 	OPT("workload", 'w', arg_uint32, opt, workload,

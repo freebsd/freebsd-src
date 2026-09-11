@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd July 31, 2026
+.Dd September 10, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -172,7 +172,10 @@
 .Aq Ar device-id
 .Nm
 .Ic power
+.Op Fl a Ar apst_state
+.Op Fl d Ar apst_data
 .Op Fl l
+.Op Fl m Ar apst_limit
 .Op Fl p power_state
 .Op Fl w workload_hint
 .Aq Ar device-id | Ar namespace-id
@@ -628,11 +631,27 @@ This will report status on a sanitize that is already running on the drive.
 .Ss power
 Manage the power modes of the NVMe controller.
 .Bl -tag -width 6n
+.It Fl a Ar state
+Enable (1) or disable (0) Autonomous Power State Transition (APST).
+When enabled, the controller will autonomously switch power states
+according to configuration data.
+.It Fl d Ar target:idle[,target:idle ...]
+Set the APST data.
+Each target:idle pair corresponds to a specific available power
+state starting from the lowest, and defines the target state to
+transition to, as well as the idle time in milliseconds to wait
+before that transition.
+Setting both parameters to zero disables switching from that state.
 .It Fl l
 List all supported power modes.
 Modes marked with an asterisk
 .Pq Dq *
 are non-operational power modes.
+.It Fl m Ar limit
+Configure APST to use all available non-operational power states
+with total latency below the specified
+.Ar limit
+(in milliseconds).
 .It Fl p Ar mode
 Set the power mode to
 .Ar mode .
