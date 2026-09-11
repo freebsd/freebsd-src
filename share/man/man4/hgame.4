@@ -38,13 +38,15 @@
 .Cd device evdev
 .Pp
 In
-.Xr sysctl.conf 5 :
-.Cd dev.hgame.X.debug
-.Pp
-In
 .Xr loader.conf 5 :
 .Cd hw.hid.hgame.debug
-.Cd hgame_load
+.Cd hgame_load="YES"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.hgame.X.debug
 .Sh DESCRIPTION
 The
 .Nm
