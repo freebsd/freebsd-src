@@ -94,6 +94,35 @@ kobj_error_method(void)
 	return ENXIO;
 }
 
+static inline size_t
+kobj_data_size_roundup(size_t size)
+{
+
+	return (roundup2((size), _Alignof(__max_align_t)));
+}
+
+static void
+kobj_class_init_total_size(kobj_class_t cls)
+{
+	kobj_class_t *bases;
+	size_t size;
+	int i;
+
+	MPASS(!cls->total_size_inited);
+	bases = cls->baseclasses;
+
+	size = kobj_data_size_roundup(cls->size);
+	if (bases != NULL) {
+		for (i = 0; bases[i] != NULL; i++) {
+			if (!bases[i]->total_size_inited)
+				kobj_class_init_total_size(bases[i]);
+			size += bases[i]->total_size;
+		}
+	}
+	cls->total_size_inited = true;
+	cls->total_size = size;
+}
+
 static void
 kobj_class_compile_common(kobj_class_t cls, kobj_ops_t ops)
 {
@@ -121,6 +150,12 @@ kobj_class_compile_common(kobj_class_t cls, kobj_ops_t ops)
 		ops->cache[i] = &null_method;
 	ops->cls = cls;
 	cls->ops = ops;
+
+	/*
+	 * Then compute total object data size.
+	 */
+	if (!cls->total_size_inited)
+		kobj_class_init_total_size(cls);
 }
 
 static int
@@ -348,4 +383,69 @@ kobj_delete(kobj_t obj, struct malloc_type *mtype)
 	obj->ops = NULL;
 	if (mtype)
 		free(obj, mtype);
+}
+
+static inline bool
+kobj_get_instance_offset(kobj_class_t cls, kobj_class_t subclass, size_t *offs)
+{
+	kobj_class_t *bases;
+	size_t tmp;
+	int i;
+
+	if (cls == subclass)
+		return (true);
+
+	bases = cls->baseclasses;
+	*offs += kobj_data_size_roundup(cls->size);
+
+	if (bases == NULL || bases[0] == NULL)
+		return (false);
+
+	/* Try most common cases (offset of direct subclass) first. */
+	tmp = *offs;
+	for (i = 0; bases[i] != NULL; i++) {
+		if (bases[i] == subclass) {
+			*offs = tmp;
+			return (true);
+		}
+		tmp += bases[i]->total_size;
+	}
+
+	/* Then do recursion for nested classes. */
+	for (i = 0; bases[i] != NULL; i++) {
+		if (kobj_get_instance_offset(bases[i], subclass, offs))
+			return (true);
+	}
+	return (false);
+}
+
+/*
+ * Get the data offset for the given class.
+ * layout is:  [main | base0 | base1 | ... ]
+ */
+size_t
+kobj_instance_offset(kobj_class_t cls, kobj_class_t subclass)
+{
+	size_t offs;
+
+	if (cls == subclass)
+		return (0);
+
+	offs = 0;
+	if (!kobj_get_instance_offset(cls, subclass, &offs))
+		panic("%s: class %s not found in hierarchy of %s", __func__,
+		    subclass->name, cls->name);
+	return (offs);
+}
+
+/*
+ * Get the total data size of this class and all its subclasses.
+ */
+size_t
+kobj_total_data_size(kobj_class_t cls)
+{
+
+	MPASS(cls->total_size_inited);
+
+	return (cls->total_size);
 }

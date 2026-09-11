@@ -724,6 +724,7 @@ void	device_set_ivars(device_t dev, void *ivars);
 const	char *device_get_name(device_t dev);
 const	char *device_get_nameunit(device_t dev);
 void	*device_get_softc(device_t dev);
+void	*device_get_softc_class(device_t dev, kobj_class_t cls);
 device_state_t	device_get_state(device_t dev);
 int	device_get_unit(device_t dev);
 struct sysctl_ctx_list *device_get_sysctl_ctx(device_t dev);
