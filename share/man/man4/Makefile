@@ -1009,7 +1009,7 @@ MLINKS+=cgem.4 if_cgem.4
 .endif
 
 .if empty(MAN_ARCH) || ${MAN_ARCH} == "all"
-__arches=	${:!/bin/sh -c "/bin/ls -d ${.CURDIR}/man4.*"!:E}
+__arches=	${:!/bin/sh -c "echo ${.CURDIR}/man4.*"!:E}
 .else
 __arches=	${MAN_ARCH}
 .endif
