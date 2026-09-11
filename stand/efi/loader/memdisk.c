@@ -237,11 +237,6 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 	IPXE_DOWNLOAD_FILE token;
 	dl_state *ctx = &dl;
 
-	Status = BS->LocateProtocol(&ipxeGuid, NULL, (void**)&ipxe_download);
-	if (EFI_ERROR(Status)) {
-		printf("No ipxe download\n");
-		return; /* most uses won't have this, don't whine */
-	}
 	printf("Downloading %s as a %s\n", url, is_disk ? "disk" : "cd");
 	ctx->in_progress = true;
 	Status = ipxe_download->Start(ipxe_download, url, download_data, download_finish,
@@ -317,28 +312,36 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 
 /*
  * Scan the command line for memdisk=url or memcd=url. Do nothing if that's not
- * present, otherwise try to download that image.
+ * present, otherwise try to download that image. Returns true when we've tried
+ * to download an image, whether successful or not.
  *
  * Open Question: Do we want some way to chain boot into the /boot/loader.efi or
  * \efi\boot\bootXXXXX.efi inside the ram disk we load? If so, how do we keep
  * from infinite chainbooting? Also, I don't understand the load it but don't save
  * it option...
  */
-void
+bool
 maybe_download_ramdisk(int argc, CHAR16 **argv)
 {
 	char var[256];
+	EFI_STATUS status;
+
+	status = BS->LocateProtocol(&ipxeGuid, NULL, (void **)&ipxe_download);
+	if (EFI_ERROR(status)) {
+		ipxe_download = NULL;
+		return (false);
+	}
 
 	for (int i = 0; i < argc; i++) {
 		cpy16to8(argv[i], var, sizeof(var));
 		if (strncmp(var, "memdisk=", 8) == 0) {
 			do_download_ramdisk(var + 8, true);
-			return;
+			return (true);
 		}
 		if (strncmp(var, "memcd=", 6) == 0) {
 			do_download_ramdisk(var + 6, false);
-			return;
+			return (true);
 		}
 	}
-	return;
+	return (false);
 }

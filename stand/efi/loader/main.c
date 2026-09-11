@@ -1275,7 +1275,7 @@ EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	int howto, i, uhowto;
-	bool has_kbd;
+	bool has_ipxe, has_kbd;
 	char *s;
 	EFI_DEVICE_PATH *imgpath;
 	CHAR16 *text;
@@ -1340,7 +1340,7 @@ main(int argc, CHAR16 *argv[])
 	 * handles because it installs a handle and creates the right ACPI
 	 * tables for the kernel to find it.
 	 */
-	maybe_download_ramdisk(argc, argv);
+	has_ipxe = maybe_download_ramdisk(argc, argv);
 
 	/*
 	 * Scan the BLOCK IO MEDIA handles then
@@ -1358,6 +1358,8 @@ main(int argc, CHAR16 *argv[])
 	efiblk_memdisk_preload();
 
 	devinit();
+	if (!has_ipxe)
+		maybe_download_initmd();
 
 	/*
 	 * Detect console settings two different ways: one via the command
