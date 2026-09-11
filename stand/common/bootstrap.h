@@ -382,6 +382,10 @@ int mount_currdev(struct env_var *, int, const void *);
 void set_currdev(const char *devname);
 
 /* md.c */
+#define MD_FLAG_KERNEL	0x01
+
+extern struct devsw md_dev;
+int md_register(void *image, size_t size, unsigned int flags);
 void md_export_to_kernel(uint64_t start, uint64_t len);
 
 #endif /* !_BOOTSTRAP_H_ */
