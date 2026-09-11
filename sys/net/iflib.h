@@ -436,6 +436,13 @@ device_t iflib_get_dev(if_ctx_t ctx);
 
 if_t iflib_get_ifp(if_ctx_t ctx);
 
+/*
+ * Lockless software admission snapshot.  This neither pins the context nor
+ * establishes that queue DMA has stopped; callers retain their usual lifetime
+ * and queue synchronization requirements.
+ */
+bool iflib_is_running(if_ctx_t ctx);
+
 struct ifmedia *iflib_get_media(if_ctx_t ctx);
 
 if_softc_ctx_t iflib_get_softc_ctx(if_ctx_t ctx);
