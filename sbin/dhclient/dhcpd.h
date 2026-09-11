@@ -54,6 +54,10 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 
+#ifndef WITHOUT_NETLINK
+#include <netlink/netlink_snl.h>
+#endif
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -357,6 +361,9 @@ struct iaddr broadcast_addr(struct iaddr, struct iaddr);
 int addr_eq(struct iaddr, struct iaddr);
 char *piaddr(struct iaddr);
 
+/* inet6.c */
+bool check_ipv6_connectivity(uint16_t ifindex);
+
 /* dhclient.c */
 extern cap_channel_t *capsyslog;
 extern const char *path_dhclient_conf;
@@ -371,6 +378,10 @@ extern struct client_config top_level_config;
 extern struct pidfh *pidfile;
 
 extern struct interface_info *ifi;
+
+#ifndef WITHOUT_NETLINK
+extern struct snl_state nl_ss;
+#endif
 
 void dhcpoffer(struct packet *);
 void dhcpack(struct packet *);

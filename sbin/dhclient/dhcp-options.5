@@ -372,6 +372,12 @@ The default route (0.0.0.0) is an illegal destination for a static route.
 To specify the default route, use the
 .Ic routers
 option.
+.It Ic option ipv6only Ar uint32 ;
+This option specifies the number of seconds for which the client should disable
+DHCPv4 configuration provided by the DHCP server.
+The IPv6-Only Preferred option will check if the host is IPv6-Only capable or
+not.
+The time is specified as a 32-bit unsigned integer.
 .El
 .Ss Link Layer Parameters per Interface
 .Bl -tag -width indent
@@ -596,7 +602,7 @@ boot from a HTTP server.
 .Xr dhclient 8 ,
 .Xr dhcpd 8
 .Rs
-.%R "RFC 2131, RFC 2132, RFC 3769"
+.%R "RFC 2131, RFC 2132, RFC 3769, RFC 8925"
 .Re
 .Sh AUTHORS
 .An -nosplit

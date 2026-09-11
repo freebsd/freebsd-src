@@ -52,6 +52,27 @@ static struct interface_info *dummy_interfaces;
 static char client_script_name[] = "/sbin/dhclient-script";
 
 /*
+ * Options the user ignores must not be asked for either.
+ * This matters for the IPv6-Only Preferred option.
+ */
+static void
+unrequest_ignored_options(struct client_config *config)
+{
+	bool ignored[256] = {};
+	int i, n;
+
+	for (i = 0; config->ignored_options[i] != 0; i++)
+		ignored[config->ignored_options[i]] = true;
+
+	for (i = n = 0; i < config->requested_option_count; i++) {
+		if (ignored[config->requested_options[i]])
+			continue;
+		config->requested_options[n++] = config->requested_options[i];
+	}
+	config->requested_option_count = n;
+}
+
+/*
  * client-conf-file :== client-declarations EOF
  * client-declarations :== <nil>
  *			 | client-declaration
@@ -104,6 +125,15 @@ read_client_conf(void)
 	    [top_level_config.requested_option_count++] = DHO_DOMAIN_SEARCH;
 	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_INTERFACE_MTU;
+#ifdef INET6
+	/*
+	 * RFC 8925 sec 3.2: The DHCPv4 client on an IPv4-requiring host MUST
+	 * NOT include the IPv6-Only Preferred option code in the Parameter
+	 * Request List.
+	 */
+	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] = DHO_IPV6_ONLY;
+#endif
 
 	if ((cfile = fopen(path_dhclient_conf, "r")) != NULL) {
 		do {
@@ -137,6 +167,7 @@ read_client_conf(void)
 		}
 		ifi->client->config = config;
 	}
+	unrequest_ignored_options(ifi->client->config);
 
 	return (!warnings_occurred);
 }

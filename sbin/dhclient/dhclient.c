@@ -128,6 +128,10 @@ static int		no_daemon;
 static int		unknown_ok = 1;
 static int		routefd;
 
+#ifndef WITHOUT_NETLINK
+struct snl_state	nl_ss;
+#endif
+
 struct interface_info	*ifi;
 
 int		 findproto(char *, int);
@@ -141,6 +145,10 @@ int		 res_hnok(const char *dn);
 int		 check_search(const char *srch);
 const char	*option_as_string(unsigned int code, unsigned char *data, int len);
 int		 fork_privchld(int, int);
+static bool	 ipv6_only_preferred(struct interface_info *, struct packet *);
+static void	 v6only_wait_expired(void *);
+static void	 make_release(struct interface_info *, struct client_lease *);
+static void	 send_release(struct interface_info *, struct client_lease *);
 
 #define	ROUNDUP(a) \
 	    ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
@@ -534,6 +542,14 @@ main(int argc, char *argv[])
 	if (caph_rights_limit(routefd, &rights) < 0)
 		error("can't limit route socket: %m");
 
+#ifndef WITHOUT_NETLINK
+	if (!snl_init(&nl_ss, NETLINK_ROUTE))
+		error("can't open netlink socket");
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
+	if (caph_rights_limit(nl_ss.fd, &rights) < 0)
+		error("can't limit netlink route socket: %m");
+#endif
+
 	endpwent();
 
 	setproctitle("%s", ifi->name);
@@ -619,6 +635,8 @@ state_reboot(void *ipp)
 {
 	struct interface_info *ip = ipp;
 
+	cancel_timeout(v6only_wait_expired, ip);
+
 	/* If we don't remember an active lease, go straight to INIT. */
 	if (!ip->client->active || ip->client->active->is_bootp) {
 		state_init(ip);
@@ -657,6 +675,8 @@ state_init(void *ipp)
 	struct interface_info *ip = ipp;
 
 	ASSERT_STATE(state, S_INIT);
+
+	cancel_timeout(v6only_wait_expired, ip);
 
 	/* Make a DHCPDISCOVER packet, and set appropriate per-interface
 	   flags. */
@@ -762,8 +782,74 @@ freeit:
 	send_request(ip);
 }
 
-/* state_requesting is called when we receive a DHCPACK message after
-   having sent out one or more DHCPREQUEST packets. */
+/*
+ * state_requesting is called when we receive a DHCPACK message after
+ * RFC 8925, sec 3.2: if the packet carries a valid IPv6-Only Preferred
+ * option and we have IPv6 connectivity, stop DHCPv4 for V6ONLY_WAIT
+ * seconds or until a network attachment event, whichever comes first.
+ * Returns true if DHCPv4 was stopped.
+ */
+static bool
+ipv6_only_preferred(struct interface_info *ip, struct packet *packet)
+{
+	struct client_lease *lp, *next;
+	uint32_t v6wait;
+
+	if (packet->options[DHO_IPV6_ONLY].data == NULL)
+		return (false);
+
+	if (!check_ipv6_connectivity(ip->index)) {
+		note("IPv6-Only Preferred option received, "
+		     "but we can't verify IPv6 connectivity, ignore");
+		return (false);
+	}
+
+	v6wait = getULong(packet->options[DHO_IPV6_ONLY].data);
+	note("IPv6-Only Preferred option received (%u seconds), abort", v6wait);
+
+	cancel_timeout(send_discover, ip);
+	cancel_timeout(send_request, ip);
+	cancel_timeout(state_selecting, ip);
+	for (lp = ip->client->offered_leases; lp != NULL; lp = next) {
+		next = lp->next;
+		free_client_lease(lp);
+	}
+	ip->client->offered_leases = NULL;
+
+	/*
+	 * In INIT-REBOOT the DHCPACK just re-confirmed our old lease.
+	 * Release it so the server doesn't keep the address committed,
+	 * and forget it so the next attempt starts with a DHCPDISCOVER.
+	 */
+	if (ip->client->state == S_REBOOTING && ip->client->active != NULL) {
+		make_release(ip, ip->client->active);
+		send_release(ip, ip->client->active);
+		disassoc(ip);
+		free_client_lease(ip->client->active);
+		ip->client->active = NULL;
+		rewrite_client_leases();
+	}
+
+	ip->client->state = S_INIT;
+	if (v6wait < UINT32_MAX) {
+		struct timespec stop_time, v6wait_left = {
+			.tv_sec = (time_t)v6wait
+		};
+		timespecadd(&time_now, &v6wait_left, &stop_time);
+		add_timeout_timespec(stop_time, v6only_wait_expired, ip);
+	}
+	go_daemon();
+	return (true);
+}
+
+static void
+v6only_wait_expired(void *ipp)
+{
+	struct interface_info *ip = ipp;
+
+	note("V6ONLY_WAIT expired, restarting DHCPv4");
+	state_reboot(ip);
+}
 
 void
 dhcpack(struct packet *packet)
@@ -786,6 +872,11 @@ dhcpack(struct packet *packet)
 		return;
 
 	note("DHCPACK from %s", piaddr(packet->client_addr));
+
+	/* RFC 8925, sec 3.2: only INIT-REBOOT stops, other states keep the lease. */
+	if (ip->client->state == S_REBOOTING &&
+	    ipv6_only_preferred(ip, packet))
+		return;
 
 	lease = packet_to_lease(packet);
 	if (!lease) {
@@ -1068,6 +1159,10 @@ dhcpoffer(struct packet *packet)
 			return;
 		}
 	}
+
+	/* RFC 8925, sec 3.2: with v6only, don't request the offered address. */
+	if (ipv6_only_preferred(ip, packet))
+		return;
 
 	lease = packet_to_lease(packet);
 	if (!lease) {
@@ -1663,6 +1758,23 @@ send_decline(void *ipp)
 	    ip->client->packet_length, inaddr_any, inaddr_broadcast);
 }
 
+static void
+send_release(struct interface_info *ip, struct client_lease *lease)
+{
+	struct in_addr from, to;
+
+	/* RFC 2131, sec 4.4.4: DHCPRELEASE is unicast to the server. */
+	memcpy(&from, lease->address.iabuf, sizeof(from));
+	if (lease->options[DHO_DHCP_SERVER_IDENTIFIER].len == sizeof(to))
+		memcpy(&to, lease->options[DHO_DHCP_SERVER_IDENTIFIER].data, sizeof(to));
+	else
+		to = inaddr_broadcast;
+
+	note("DHCPRELEASE on %s to %s port %d", ip->name, inet_ntoa(to), REMOTE_PORT);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, from, to);
+}
+
 void
 make_discover(struct interface_info *ip, struct client_lease *lease)
 {
@@ -1909,24 +2021,26 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 	    ip->hw_address.haddr, ip->hw_address.hlen);
 }
 
-void
-make_decline(struct interface_info *ip, struct client_lease *lease)
+/*
+ * Build the packet DHCPDECLINE and DHCPRELEASE share: message type,
+ * server and client identifiers, plus any options already in options[].
+ */
+static void
+make_decline_or_release(struct interface_info *ip,
+    struct client_lease *lease, unsigned char type,
+    struct tree_cache **options)
 {
-	struct tree_cache *options[256], message_type_tree;
-	struct tree_cache requested_address_tree;
-	struct tree_cache server_id_tree, client_id_tree;
-	unsigned char decline = DHCPDECLINE;
+	struct tree_cache message_type_tree, server_id_tree, client_id_tree;
 	int i;
 
-	memset(options, 0, sizeof(options));
 	memset(&ip->client->packet, 0, sizeof(ip->client->packet));
 
-	/* Set DHCP_MESSAGE_TYPE to DHCPDECLINE */
+	/* Set DHCP_MESSAGE_TYPE */
 	i = DHO_DHCP_MESSAGE_TYPE;
 	options[i] = &message_type_tree;
-	options[i]->value = &decline;
-	options[i]->len = sizeof(decline);
-	options[i]->buf_size = sizeof(decline);
+	options[i]->value = &type;
+	options[i]->len = sizeof(type);
+	options[i]->buf_size = sizeof(type);
 	options[i]->timeout = 0xFFFFFFFF;
 
 	/* Send back the server identifier... */
@@ -1935,14 +2049,6 @@ make_decline(struct interface_info *ip, struct client_lease *lease)
 	options[i]->value = lease->options[i].data;
 	options[i]->len = lease->options[i].len;
 	options[i]->buf_size = lease->options[i].len;
-	options[i]->timeout = 0xFFFFFFFF;
-
-	/* Send back the address we're declining. */
-	i = DHO_DHCP_REQUESTED_ADDRESS;
-	options[i] = &requested_address_tree;
-	options[i]->value = lease->address.iabuf;
-	options[i]->len = lease->address.len;
-	options[i]->buf_size = lease->address.len;
 	options[i]->timeout = 0xFFFFFFFF;
 
 	/* Send the uid if the user supplied one. */
@@ -1954,7 +2060,6 @@ make_decline(struct interface_info *ip, struct client_lease *lease)
 		options[i]->buf_size = ip->client->config->send_options[i].len;
 		options[i]->timeout = 0xFFFFFFFF;
 	}
-
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
@@ -1981,6 +2086,38 @@ make_decline(struct interface_info *ip, struct client_lease *lease)
 	    sizeof(ip->client->packet.giaddr));
 	memcpy(ip->client->packet.chaddr,
 	    ip->hw_address.haddr, ip->hw_address.hlen);
+}
+
+void
+make_decline(struct interface_info *ip, struct client_lease *lease)
+{
+	struct tree_cache *options[256], requested_address_tree;
+	int i;
+
+	memset(options, 0, sizeof(options));
+
+	/* Send back the address we're declining. */
+	i = DHO_DHCP_REQUESTED_ADDRESS;
+	options[i] = &requested_address_tree;
+	options[i]->value = lease->address.iabuf;
+	options[i]->len = lease->address.len;
+	options[i]->buf_size = lease->address.len;
+	options[i]->timeout = 0xFFFFFFFF;
+
+	make_decline_or_release(ip, lease, DHCPDECLINE, options);
+}
+
+static void
+make_release(struct interface_info *ip, struct client_lease *lease)
+{
+	struct tree_cache *options[256];
+
+	memset(options, 0, sizeof(options));
+	make_decline_or_release(ip, lease, DHCPRELEASE, options);
+
+	/* RFC 2131, sec 4.4.4: ciaddr carries the address being released. */
+	memcpy(&ip->client->packet.ciaddr, lease->address.iabuf,
+	    sizeof(ip->client->packet.ciaddr));
 }
 
 void
@@ -2682,6 +2819,7 @@ check_option(struct client_lease *l, int option)
 	case DHO_SIP_SERVERS:
 	case DHO_V_I_VENDOR_CLASS:
 	case DHO_V_I_VENDOR_OPTS:
+	case DHO_IPV6_ONLY:
 	case DHO_END:
 		return (1);
 	case DHO_CLASSLESS_ROUTES:

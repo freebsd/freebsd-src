@@ -59,6 +59,7 @@ void	expand_domain_search(struct packet *packet);
 int	find_search_domain_name_len(struct option_data *option, size_t *offset);
 void	expand_search_domain_name(struct option_data *option, size_t *offset,
 	    unsigned char **domain_search);
+void	ipv6_only_option(struct packet *packet);
 
 
 /*
@@ -99,10 +100,12 @@ parse_options(struct packet *packet)
 			    sizeof(packet->raw->sname));
 	}
 
-	/* Expand DHCP Domain Search option. */
+	/* Process options */
 	if (packet->options_valid) {
 		expand_domain_search(packet);
+		ipv6_only_option(packet);
 	}
+
 }
 
 /*
@@ -370,6 +373,69 @@ expand_search_domain_name(struct option_data *option, size_t *offset,
 		i += label_len + 1;
 		cursor += label_len + 1;
 	}
+}
+
+/*
+ * process ipv6_only option.
+ * See: RFC 8925
+ */
+void
+ipv6_only_option(struct packet *packet)
+{
+	struct option_data *option;
+	struct client_config *config;
+	uint32_t val;
+	bool requested;
+
+	if (packet->options[DHO_IPV6_ONLY].data == NULL)
+		return;
+
+	option = &packet->options[DHO_IPV6_ONLY];
+	config = packet->interface->client->config;
+
+	/*
+	 * RFC 8925, sec 3.1: The client MUST ignore the IPv6-Only Preferred
+	 * option if the length field value is not 4.
+	 */
+	if (option->len != 4) {
+		warning("IPv6-Only preferred option length is invalid");
+		goto bad;
+	}
+	val = getULong(option->data);
+
+	/*
+	 * RFC 8925, sec 3.2: If the client did not include the IPv6-Only Preferred
+	 * option code in the Parameter Request List in the DHCPDISCOVER or
+	 * DHCPREQUEST message, it MUST ignore the IPv6-Only Preferred option
+	 * in any messages received from the server.
+	 */
+	requested = false;
+	for (int i = 0; i < config->requested_option_count; i++) {
+		if (config->requested_options[i] == DHO_IPV6_ONLY) {
+			requested = true;
+			break;
+		}
+	}
+	if (!requested) {
+		note("Unwanted IPv6-Only Preferred option received, ignore it");
+		goto bad;
+	}
+
+	/*
+	 * If the IPv6-Only Preferred option returned by the server contains
+	 * a value greater than or equal to MIN_V6ONLY_WAIT, the client SHOULD
+	 * set the V6ONLY_WAIT timer to that value.
+	 * Otherwise, the client SHOULD set the V6ONLY_WAIT timer
+	 * to MIN_V6ONLY_WAIT.
+	 */
+	if (val < MIN_V6ONLY_WAIT)
+		putULong(option->data, MIN_V6ONLY_WAIT);
+
+	return;
+bad:
+	free(option->data);
+	option->len = 0;
+	option->data = NULL;
 }
 
 /*
