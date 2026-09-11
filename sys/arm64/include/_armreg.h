@@ -80,6 +80,13 @@
 	_val;								\
 })
 
+/* TODO: Use CNTPCTSS when FEAT_ECV is available */
+#define	READ_CNTPCT()							\
+({	uint64_t _val;							\
+	__asm __volatile("isb\nmrs	%0, cntpct_el0" : "=&r" (_val));\
+	_val;								\
+})
+
 #define	UL(x)	UINT64_C(x)
 
 #endif /* !_MACHINE__ARMREG_H_ */
