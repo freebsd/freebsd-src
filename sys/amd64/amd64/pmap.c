@@ -443,7 +443,19 @@ pmap_is_la57(pmap_t pmap)
 {
 	if (pmap->pm_type == PT_X86)
 		return (la57);
-	return (false);		/* XXXKIB handle EPT */
+	if (pmap->pm_type == PT_RVI) {
+		/*
+		 * AMD nested paging has no field to specify the nested
+		 * page table walk length; the hardware derives it from
+		 * the host CR4.LA57 setting (see svm.c, where nCR3 is
+		 * loaded directly from pm_pmltop with no level encoding).
+		 * The NPT must therefore have the same number of levels
+		 * as the host page tables, otherwise guest-physical
+		 * translations are walked at the wrong depth.
+		 */
+		return (la57);
+	}
+	return (false);		/* Intel EPT encodes its own walk length. */
 }
 
 #define	PAT_INDEX_SIZE	8
