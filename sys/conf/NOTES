@@ -2441,6 +2441,7 @@ device		hpen		# Generic pen driver
 device		hrfkill		# RFKILL driver
 device		hsctrl		# System controls
 device		ps4dshock	# Sony PS4 DualShock 4 gamepad driver
+device		ps5dsense	# Sony PS5 DualSense gamepad driver
 device		u2f		# FIDO/U2F authenticator
 options 	U2F_DROP_UHID_ALIAS	# Do not install /dev/uhid alias for
 				# /dev/u2f/ and rename driver from uhid to u2f

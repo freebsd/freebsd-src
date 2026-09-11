@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (c) 2026 Christos Longros <chris.longros@gmail.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 29, 2026
+.Dt PS5DSENSE 4
+.Os
+.Sh NAME
+.Nm ps5dsense
+.Nd Sony PlayStation 5 DualSense gamepad driver
+.Sh SYNOPSIS
+.Cd device ps5dsense
+.Cd device hid
+.Cd device hidbus
+.Cd device hidmap
+.Cd device evdev
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd dev.ps5dsense.%d.led_state
+.Cd dev.ps5dsense.%d.led_color_r
+.Cd dev.ps5dsense.%d.led_color_g
+.Cd dev.ps5dsense.%d.led_color_b
+.Cd dev.ps5dsense.%d.player_leds
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd hw.hid.ps5dsense.debug
+.Cd ps5dsense_load
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Sony PlayStation 5 DualSense gamepad
+connected over USB,
+and presents it to applications over the
+.Sy evdev
+interface.
+.Pp
+If the appropriate hardware is detected,
+the driver will be loaded automatically by
+.Xr devmatch 8 .
+To load the driver manually at boot time, set the
+.Va ps5dsense_load
+variable to
+.Ar YES
+at the
+.Xr loader 8
+prompt, or add it to
+.Xr loader.conf 5 .
+.Pp
+To give user applications access to the game controller,
+allow user access to the
+.Pa /dev/input/event*
+nodes with inclusion of user in the
+.Em games
+group,
+or with a
+.Xr devfs.rules 5
+ruleset.
+.Pp
+The microphone mute button is reported as
+.Dv KEY_MICMUTE ;
+unlike the vendor driver on other systems,
+.Nm
+does not mute the built-in microphone itself.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following devices:
+.Pp
+.Bl -bullet -compact
+.It
+Sony DualSense wireless controller
+.Pq USB product ID 0x0ce6
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as
+.Xr sysctl 8
+variables:
+.Bl -tag -width indent
+.It Va dev.ps5dsense.%d.led_state
+Lightbar state,
+where 0 is off and
+1 is on.
+.It Va dev.ps5dsense.%d.led_color_r
+Lightbar color,
+red component.
+.It Va dev.ps5dsense.%d.led_color_g
+Lightbar color,
+green component.
+.It Va dev.ps5dsense.%d.led_color_b
+Lightbar color,
+blue component.
+.It Va dev.ps5dsense.%d.player_leds
+Player indicator LEDs,
+where -1 is off and
+0 to 4 select the player number.
+.El
+.Pp
+The following variable is available as both
+.Xr sysctl 8
+variable and
+.Xr loader 8
+tunable:
+.Bl -tag -width indent
+.It Va hw.hid.ps5dsense.debug
+Debug output level,
+where 0 is debugging disabled and
+larger values increase debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/input/event*" -compact
+.It Pa /dev/input/event*
+input event device
+.Pq Sy evdev
+node
+.El
+.Sh SEE ALSO
+.Xr hgame 4 ,
+.Xr ps4dshock 4 ,
+.Xr usbhid 4 ,
+.Xr devfs.rules 5
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Christos Longros Aq Mt chris.longros@gmail.com .
+.Sh BUGS
+The
+.Nm
+driver does not support force-feedback events, haptic feedback or the
+adaptive triggers.
+.Pp
+The touchpad and the motion sensors are not decoded.
+The touchpad click is therefore not reported at all.
+.Pp
+Bluetooth operation is not supported.

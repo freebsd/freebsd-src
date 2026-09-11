@@ -20,6 +20,7 @@ SUBDIR += \
 	hsctrl \
 	ietp \
 	ps4dshock \
+	ps5dsense \
 	u2f \
 	xb360gp
 

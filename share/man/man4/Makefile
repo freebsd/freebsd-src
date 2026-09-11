@@ -496,6 +496,7 @@ MAN=	aac.4 \
 	procfs.4 \
 	proto.4 \
 	ps4dshock.4 \
+	ps5dsense.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
