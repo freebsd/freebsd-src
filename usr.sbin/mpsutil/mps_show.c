@@ -630,6 +630,211 @@ show_devices(int ac, char **av)
 }
 MPS_COMMAND(show, devices, show_devices, "", "Show attached devices");
 
+static const struct {
+	uint32_t	 mask;
+	const char	*name;
+} discovery_status_bits[] = {
+	{ MPI2_SASIOUNIT0_DS_MAX_ENCLOSURES_EXCEED,	 "MaxEnclosuresExceeded" },
+	{ MPI2_SASIOUNIT0_DS_MAX_EXPANDERS_EXCEED,	 "MaxExpandersExceeded" },
+	{ MPI2_SASIOUNIT0_DS_MAX_DEVICES_EXCEED,	 "MaxDevicesExceeded" },
+	{ MPI2_SASIOUNIT0_DS_MAX_TOPO_PHYS_EXCEED,	 "MaxTopoPhysExceeded" },
+	{ MPI2_SASIOUNIT0_DS_DOWNSTREAM_INITIATOR,	 "DownstreamInitiator" },
+	{ MPI2_SASIOUNIT0_DS_MULTI_SUBTRACTIVE_SUBTRACTIVE, "MultiSubtractiveToSubtractive" },
+	{ MPI2_SASIOUNIT0_DS_EXP_MULTI_SUBTRACTIVE,	 "ExpMultiSubtractive" },
+	{ MPI2_SASIOUNIT0_DS_MULTI_PORT_DOMAIN,	 "MultiPortDomain" },
+	{ MPI2_SASIOUNIT0_DS_TABLE_TO_SUBTRACTIVE_LINK, "TableToSubtractiveLink" },
+	{ MPI2_SASIOUNIT0_DS_UNSUPPORTED_DEVICE,	 "UnsupportedDevice" },
+	{ MPI2_SASIOUNIT0_DS_TABLE_LINK,		 "TableLink" },
+	{ MPI2_SASIOUNIT0_DS_SUBTRACTIVE_LINK,		 "SubtractiveLink" },
+	{ MPI2_SASIOUNIT0_DS_SMP_CRC_ERROR,		 "SmpCrcError" },
+	{ MPI2_SASIOUNIT0_DS_SMP_FUNCTION_FAILED,	 "SmpFunctionFailed" },
+	{ MPI2_SASIOUNIT0_DS_INDEX_NOT_EXIST,		 "RouteIndexNotExist" },
+	{ MPI2_SASIOUNIT0_DS_OUT_ROUTE_ENTRIES,	 "RouteTableFull" },
+	{ MPI2_SASIOUNIT0_DS_SMP_TIMEOUT,		 "SmpTimeout" },
+	{ MPI2_SASIOUNIT0_DS_MULTIPLE_PORTS,		 "MultiplePortsSameAddress" },
+	{ MPI2_SASIOUNIT0_DS_UNADDRESSABLE_DEVICE,	 "UnaddressableDevice" },
+	{ MPI2_SASIOUNIT0_DS_LOOP_DETECTED,		 "LoopDetected" },
+};
+
+static void
+snprint_discovery_status(char *buf, size_t buflen, uint32_t ds)
+{
+	unsigned i;
+	int first = 1;
+
+	buf[0] = '\0';
+	if (ds == 0) {
+		strlcpy(buf, "-", buflen);
+		return;
+	}
+	for (i = 0; i < nitems(discovery_status_bits); i++) {
+		if ((ds & discovery_status_bits[i].mask) == 0)
+			continue;
+		if (!first)
+			strlcat(buf, ",", buflen);
+		strlcat(buf, discovery_status_bits[i].name, buflen);
+		first = 0;
+	}
+}
+
+static const char *
+get_access_status(uint8_t status)
+{
+
+	switch (status) {
+	case MPI2_SAS_DEVICE0_ASTATUS_NO_ERRORS:
+		return ("Ok");
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED:
+		return ("SATAInitFailed");
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_CAPABILITY_FAILED:
+		return ("SATACapabilityFailed");
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_AFFILIATION_CONFLICT:
+		return ("SATAAffiliationConflict");
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_NEEDS_INITIALIZATION:
+		return ("SATANeedsInit");
+	case MPI2_SAS_DEVICE0_ASTATUS_ROUTE_NOT_ADDRESSABLE:
+		return ("RouteNotAddressable");
+	case MPI2_SAS_DEVICE0_ASTATUS_SMP_ERROR_NOT_ADDRESSABLE:
+		return ("SmpErrorNotAddressable");
+	case MPI2_SAS_DEVICE0_ASTATUS_DEVICE_BLOCKED:
+		return ("DeviceBlocked");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_UNKNOWN:
+		return ("SATAInitFailUnknown");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_AFFILIATION_CONFLICT:
+		return ("SATAInitFailAffiliation");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_DIAG:
+		return ("SATAInitFailDiag");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_IDENTIFICATION:
+		return ("SATAInitFailID");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_CHECK_POWER:
+		return ("SATAInitFailPower");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_PIO_SN:
+		return ("SATAInitFailPIO");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_MDMA_SN:
+		return ("SATAInitFailMDMA");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_UDMA_SN:
+		return ("SATAInitFailUDMA");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_ZONING_VIOLATION:
+		return ("SATAInitFailZoning");
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_NOT_ADDRESSABLE:
+		return ("SATAInitFailNotAddressable");
+	default:
+		return ("Reserved");
+	}
+}
+
+/*
+ * Dump firmware-maintained DiscoveryStatus (SAS IO Unit Page 0, per PHY) and
+ * AccessStatus (SAS Device Page 0, per device) fields used by mpr(4)/mps(4)
+ * during discovery.
+ */
+static int
+show_discovery(int ac, char **av)
+{
+	MPI2_CONFIG_PAGE_SASIOUNIT_0 *sas0;
+	MPI2_SAS_IO_UNIT0_PHY_DATA *phy;
+	MPI2_CONFIG_PAGE_SAS_DEV_0 *device;
+	uint16_t IOCStatus, handle;
+	uint32_t ds;
+	uint16_t flags;
+	uint8_t astatus;
+	char dsbuf[256];
+	int fd, error, i, nsuspect, in_progress, disabled, suspect;
+
+	fd = mps_open(mps_unit);
+	if (fd < 0) {
+		error = errno;
+		warn("mps_open");
+		return (error);
+	}
+
+	sas0 = mps_read_extended_config_page(fd,
+	    MPI2_CONFIG_EXTPAGETYPE_SAS_IO_UNIT,
+	    MPI2_SASIOUNITPAGE0_PAGEVERSION, 0, 0, &IOCStatus);
+	if (sas0 == NULL) {
+		error = errno;
+		warn("Error retrieving SAS IO Unit page 0: %s",
+		    mps_ioc_status(IOCStatus));
+		close(fd);
+		return (error);
+	}
+
+	nsuspect = 0;
+	printf("%-4s%-5s%-11s%-9s%-6s%-10s%-10s%s\n",
+	    "Phy", "Port", "PortStatus", "Disabled", "Rate", "AttHandle",
+	    "CtlHandle", "DiscoveryStatus");
+	for (i = 0; i < sas0->NumPhys; i++) {
+		phy = &sas0->PhyData[i];
+		ds = le32toh(phy->DiscoveryStatus);
+		in_progress = (phy->PortFlags &
+		    MPI2_SASIOUNIT0_PORTFLAGS_DISCOVERY_IN_PROGRESS) != 0;
+		disabled = (phy->PhyFlags &
+		    MPI2_SASIOUNIT0_PHYFLAGS_PHY_DISABLED) != 0;
+
+		snprint_discovery_status(dsbuf, sizeof(dsbuf), ds);
+		printf("%-4d%-5u%-11s%-9s%-6s0x%-8x0x%-8x%s%s\n",
+		    i, phy->Port, in_progress ? "InProgress" : "Idle",
+		    disabled ? "Y" : "N", get_device_speed(phy->NegotiatedLinkRate),
+		    le16toh(phy->AttachedDevHandle),
+		    le16toh(phy->ControllerDevHandle), dsbuf,
+		    (ds != 0 || in_progress) ? "  <== SUSPECT" : "");
+		if (ds != 0 || in_progress)
+			nsuspect++;
+	}
+	printf("\n");
+
+	printf("%-8s%-10s%-17s%-6s%-6s%-8s%s\n",
+	    "Handle", "Parent", "SAS Address", "Enc", "Slot", "Flags",
+	    "AccessStatus");
+	handle = 0xffff;
+	for (;;) {
+		device = mps_read_extended_config_page(fd,
+		    MPI2_CONFIG_EXTPAGETYPE_SAS_DEVICE,
+		    MPI2_SASDEVICE0_PAGEVERSION, 0,
+		    MPI2_SAS_DEVICE_PGAD_FORM_GET_NEXT_HANDLE | handle,
+		    &IOCStatus);
+		if (device == NULL) {
+			if (IOCStatus == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
+				break;
+			error = errno;
+			warn("Error retrieving device page: %s",
+			    mps_ioc_status(IOCStatus));
+			free(sas0);
+			close(fd);
+			return (error);
+		}
+		handle = le16toh(device->DevHandle);
+
+		flags = le16toh(device->Flags);
+		astatus = device->AccessStatus;
+		suspect = (astatus != MPI2_SAS_DEVICE0_ASTATUS_NO_ERRORS) ||
+		    (flags & MPI2_SAS_DEVICE0_FLAGS_UNSUPPORTED_DEVICE) ||
+		    !(flags & MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT);
+
+		printf("0x%-6x0x%-8x%08x%08x %-6u%-6u0x%-6x%s%s\n",
+		    handle, le16toh(device->ParentDevHandle),
+		    le32toh(device->SASAddress.High),
+		    le32toh(device->SASAddress.Low),
+		    le16toh(device->EnclosureHandle), le16toh(device->Slot),
+		    flags, get_access_status(astatus),
+		    suspect ? "  <== SUSPECT" : "");
+
+		if (suspect)
+			nsuspect++;
+		free(device);
+	}
+	printf("\n");
+
+	if (nsuspect != 0)
+		printf("*** %d suspect PHY/device entries found ***\n", nsuspect);
+
+	free(sas0);
+	close(fd);
+	return (0);
+}
+MPS_COMMAND(show, discovery, show_discovery, "",
+    "Show firmware DiscoveryStatus/AccessStatus per PHY and device");
+
 static int
 show_enclosures(int ac, char **av)
 {
