@@ -432,4 +432,13 @@ ssize_t simple_attr_write(struct file *filp, const char __user *buf,
 ssize_t simple_attr_write_signed(struct file *filp, const char __user *buf,
 	    size_t write_size, loff_t *ppos);
 
+static inline long
+compat_ptr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	if (file->f_op->unlocked_ioctl == NULL) {
+		return (-ENOIOCTLCMD);
+	}
+	return (file->f_op->unlocked_ioctl(file, cmd, arg));
+}
+
 #endif /* _LINUXKPI_LINUX_FS_H_ */
