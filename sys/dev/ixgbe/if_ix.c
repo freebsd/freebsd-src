@@ -5665,10 +5665,16 @@ ixgbe_set_flowcntl(struct ixgbe_softc *sc, int fc)
 		return (EINVAL);
 	}
 
+	sc->hw.fc.requested_mode = fc;
+	/* Don't autoneg if forcing a value. */
+	sc->hw.fc.disable_fc_autoneg = true;
+	/* Init replays the policy; closed admission does not prove DMA stopped. */
+	if (!iflib_is_running(sc->ctx))
+		return (0);
+
 	/* Updating SRRCTL on a live queue is itself an MDD violation. */
 	mdd_active = sc->num_rx_queues > 1 &&
-	    (sc->feat_en & IXGBE_FEATURE_SRIOV) != 0 &&
-	    iflib_is_running(sc->ctx);
+	    (sc->feat_en & IXGBE_FEATURE_SRIOV) != 0;
 	if (mdd_active)
 		ixgbe_disable_mdd(&sc->hw);
 	if (sc->num_rx_queues > 1) {
@@ -5687,10 +5693,6 @@ ixgbe_set_flowcntl(struct ixgbe_softc *sc, int fc)
 		}
 	}
 
-	sc->hw.fc.requested_mode = fc;
-
-	/* Don't autoneg if forcing a value */
-	sc->hw.fc.disable_fc_autoneg = true;
 	ixgbe_fc_enable(&sc->hw);
 
 	return (0);
