@@ -272,6 +272,10 @@ Shutdown errors are returned without attempting rollback.
 .It Fn ifdi_resume
 Optional function that restores suspend-specific device state while the
 datapath remains stopped.
+This function is also called to roll back a failed suspend.
+It must not assume that a PCI power-state transition or configuration-space
+restore has occurred since
+.Fn ifdi_suspend .
 After it succeeds, iflib initializes the datapath exactly once when the
 interface is administratively up and leaves an administratively-down interface
 stopped.
