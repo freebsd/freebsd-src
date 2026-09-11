@@ -536,11 +536,15 @@ static void
 efinet_end(struct netif *nif)
 {
 	EFI_SIMPLE_NETWORK *net = nif->nif_devdata;
+	EFI_HANDLE h;
 
 	if (net == NULL)
 		return;
 
 	net->Shutdown(net);
+	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
+	BS->CloseProtocol(h, &sn_guid, IH, NULL);
+	nif->nif_devdata = NULL;
 }
 
 static int efinet_dev_init(void);
