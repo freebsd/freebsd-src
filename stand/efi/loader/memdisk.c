@@ -9,6 +9,7 @@
  */
 
 #include "loader_efi.h"
+#include <bootstrap.h>
 #include <efilib.h>
 #include <Protocol/RamDisk.h>
 #include "decompress.h"
@@ -111,6 +112,20 @@ download_finish(IN VOID *Context, IN EFI_STATUS Status)
 }
 
 static void
+fallback_to_md(EFI_PHYSICAL_ADDRESS pa, size_t len)
+{
+	int unit;
+
+	unit = md_register((void *)(uintptr_t)pa, len, MD_FLAG_KERNEL);
+	if (unit < 0) {
+		printf("Could not register downloaded image as an md: %s\n",
+		    strerror(errno));
+		return;
+	}
+	setenv("uefi_ignore_boot_mgr", "true", 1);
+}
+
+static void
 do_download_ramdisk(CHAR8 *url, bool is_disk)
 {
 	EFI_STATUS Status;
@@ -120,12 +135,10 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 	dl_state *ctx = &dl;
 
 	Status = BS->LocateProtocol(&ipxeGuid, NULL, (void**)&ipxe_download);
-	if (EFI_ERROR(Status))
+	if (EFI_ERROR(Status)) {
+		printf("No ipxe download\n");
 		return; /* most uses won't have this, don't whine */
-	Status = BS->LocateProtocol(&ramdiskGuid, NULL, (void**)&ram_disk);
-	if (EFI_ERROR(Status))
-		return; /* XXX whine about it? */
-
+	}
 	printf("Downloading %s as a %s\n", url, is_disk ? "disk" : "cd");
 	ctx->in_progress = true;
 	Status = ipxe_download->Start(ipxe_download, url, download_data, download_finish,
@@ -152,6 +165,23 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 	printf("\nDownloaded %llu bytes, actual size %llu -- registering ramdisk\n",
 	    ULL(ctx->size), ULL(decomp_buffer_length(ctx->dctx)));
 
+	/* ram_disk will be NULL if this fails */
+	BS->LocateProtocol(&ramdiskGuid, NULL, (void**)&ram_disk);
+
+	/*
+	 * If there's no ram_disk protocol installed in this firmware, do the
+	 * next best thing by saving a pointer and using that later.
+	 */
+	if (ram_disk == NULL) {
+		printf("No RamDisk protocol, falling back to md image\n");
+		error = fallback_to_md(decomp_buffer(ctx->dctx), decomp_buffer_length(ctx->dctx));
+		if (error) {
+			printf("Failed to register as an MD device\n");
+			download_cleanup(ctx);
+		}
+		return;
+	}
+
 	/*
 	 * Register the RamDisk with UEFI. This registers it so the rest of the
 	 * boot loader can see it as a block device.
@@ -159,8 +189,12 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 	Status = ram_disk->Register(decomp_buffer(ctx->dctx), decomp_buffer_length(ctx->dctx),
 	    &disk_type, NULL, &ram_disk_path);
 	if (EFI_ERROR(Status)) {
-		printf("failed to register ram disk %u\n", (unsigned)Status);
-		download_cleanup(ctx);
+		printf("failed to register ram disk %u, falling back to md image\n", (unsigned)Status);
+		error = fallback_to_md(decomp_buffer(ctx->dctx), decomp_buffer_length(ctx->dctx));
+		if (error) {
+			printf("Failed to register as an MD device\n");
+			download_cleanup(ctx);
+		}
 		return;
 	}
 
