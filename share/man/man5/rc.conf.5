@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1995
 .\"	Jordan K. Hubbard
 .\"
@@ -22,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 1, 2026
+.Dd September 10, 2026
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1676,13 +1679,15 @@ If the
 .Va ifconfig_ Ns Aq Ar interface
 contains the keyword
 .Dq Li NOAUTO
-then the interface will not be configured
-at boot or by
+then the interface will not be created but not started at boot or by
 .Pa /etc/pccard_ether
 when
 .Va network_interfaces
 is set to
 .Dq Li AUTO .
+Start the interface by issuing the following command:
+.Pp
+.Dl service netif start Ar interface
 .Pp
 It is possible to bring up an interface with DHCP by adding
 .Dq Li DHCP
