@@ -34,9 +34,8 @@
 
 #define	MD_BLOCK_SIZE	512
 
-#ifndef MD_IMAGE_SIZE
-#error Must be compiled with MD_IMAGE_SIZE defined
-#endif
+#ifdef MD_IMAGE_SIZE
+
 #if (MD_IMAGE_SIZE == 0 || MD_IMAGE_SIZE % MD_BLOCK_SIZE)
 #error Image size must be a multiple of 512.
 #endif
@@ -152,3 +151,4 @@ md_print(int verbose)
 	printf("MD (%u bytes)", MD_IMAGE_SIZE);
 	return (pager_output("\n"));
 }
+#endif
