@@ -69,6 +69,7 @@ static	char vm_cmu[4] = VM_CMU;
 static	ssize_t bootpsend(struct iodesc *, void *, size_t);
 static	ssize_t bootprecv(struct iodesc *, void **, void **, time_t, void *);
 static	int vend_rfc1048(u_char *, u_int);
+static	void vend_vivso(const u_char *, size_t);
 #ifdef BOOTP_VEND_CMU
 static	void vend_cmu(u_char *);
 #endif
@@ -122,6 +123,15 @@ bootp_fill_request(unsigned char *bp_vend)
 	bcopy("FreeBSD", &bp_vend[off], 7);
 	off += 7;
 
+	/* Vendor-Identifying Vendor Class, RFC 3925. */
+	bp_vend[off++] = TAG_VI_VENDOR_CLASS;
+	bp_vend[off++] = 12;
+	be32enc(&bp_vend[off], FREEBSD_ENTERPRISE_NUMBER);
+	off += 4;
+	bp_vend[off++] = 7;
+	bcopy("FreeBSD", &bp_vend[off], 7);
+	off += 7;
+
 	/*
 	 * Client architecture (RFC 4578).  Value is 2 bytes big-endian.
 	 * Omit entirely for loaders that don't have a spec-defined value.
@@ -146,7 +156,7 @@ bootp_fill_request(unsigned char *bp_vend)
 	bp_vend[off++] = 1472 & 0xff;
 
 	bp_vend[off++] = TAG_PARAM_REQ;
-	bp_vend[off++] = 7;
+	bp_vend[off++] = 8;
 	bp_vend[off++] = TAG_ROOTPATH;
 	bp_vend[off++] = TAG_HOSTNAME;
 	bp_vend[off++] = TAG_SWAPSERVER;
@@ -154,6 +164,7 @@ bootp_fill_request(unsigned char *bp_vend)
 	bp_vend[off++] = TAG_SUBNET_MASK;
 	bp_vend[off++] = TAG_INTF_MTU;
 	bp_vend[off++] = TAG_SERVERID;
+	bp_vend[off++] = TAG_VI_VENDOR_OPTS;
 	bp_vend[off] = TAG_END;
 }
 
@@ -497,6 +508,8 @@ vend_rfc1048(u_char *cp, u_int len)
 			if (intf_mtu <= 0)
 				intf_mtu = be16dec(cp);
 		}
+		if (tag == TAG_VI_VENDOR_OPTS)
+			vend_vivso(cp, size);
 #ifdef SUPPORT_DHCP
 		if (tag == TAG_DHCP_MSGTYPE) {
 			if(*cp != expected_dhcpmsgtype)
@@ -511,6 +524,49 @@ vend_rfc1048(u_char *cp, u_int len)
 		cp += size;
 	}
 	return(0);
+}
+
+static void
+vend_freebsd(const u_char *cp, size_t len)
+{
+	char value[256];
+	size_t size;
+	u_char tag;
+
+	while (len >= 2) {
+		tag = *cp++;
+		size = *cp++;
+		len -= 2;
+		if (size > len)
+			return;
+		if (tag == FREEBSD_VI_INITMD && size < sizeof(value)) {
+			bcopy(cp, value, size);
+			value[size] = '\0';
+			setenv("dhcp.initmd", value, 0);
+		}
+		cp += size;
+		len -= size;
+	}
+}
+
+static void
+vend_vivso(const u_char *cp, size_t len)
+{
+	uint32_t enterprise;
+	size_t size;
+
+	while (len >= 5) {
+		enterprise = be32dec(cp);
+		cp += 4;
+		size = *cp++;
+		len -= 5;
+		if (size > len)
+			return;
+		if (enterprise == FREEBSD_ENTERPRISE_NUMBER)
+			vend_freebsd(cp, size);
+		cp += size;
+		len -= size;
+	}
 }
 
 #ifdef BOOTP_VEND_CMU
@@ -687,6 +743,7 @@ static struct dhcp_opt dhcp_opt[] = {
 	{86,	__TXT,	"nds-tree-name"},
 	{87,	__TXT,	"nds-context"},
 	{210,	__TXT,	"authenticate"},
+	{125,	__NONE, "vendor-identifying-vendor-options"},
 
 	/* use the following entries for arbitrary variables */
 	{246,	__ILIST, ""},
