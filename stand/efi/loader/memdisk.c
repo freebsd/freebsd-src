@@ -17,6 +17,7 @@
 #include <sys/_param.h>
 
 #define ULL(x) ((unsigned long long)(x))
+#define DOWNLOAD_BUFSIZE	(64 * 1024)
 
 static EFI_GUID ipxeGuid = IPXE_DOWNLOAD_PROTOCOL_GUID;
 static EFI_GUID ramdiskGuid = EFI_RAM_DISK_PROTOCOL_GUID;
@@ -35,6 +36,7 @@ static struct dl_state
 	size_t size;
 	EFI_STATUS status;
 	decomp_state *dctx;
+	bool complete;
 } dl;
 
 static void
@@ -45,13 +47,13 @@ download_cleanup(dl_state *ctx)
 	ctx->in_progress = false;
 }
 
-static EFI_STATUS EFIAPI
-download_data(IN VOID *Context, IN VOID *Buffer, IN UINTN BufferLength, IN UINTN FileOffset)
+static EFI_STATUS
+download_chunk(dl_state *ctx, void *buffer, size_t length, size_t offset)
 {
-	dl_state *ctx = Context;
 	decomp_state *dctx = ctx->dctx;
+	enum step_return sr;
 
-	if (FileOffset == 0 && BufferLength == 0) {
+	if (offset == 0 && length == 0) {
 		printf("Staritng the download\n");
 		return (EFI_SUCCESS);
 	}
@@ -59,9 +61,9 @@ download_data(IN VOID *Context, IN VOID *Buffer, IN UINTN BufferLength, IN UINTN
 	/*
 	 * Make a note of the size when we're hinted about it.
 	 */
-	if (BufferLength == 0) {
-		printf("We know we will download %llu bytes\n", ULL(FileOffset));
-		ctx->size = FileOffset;
+	if (length == 0) {
+		printf("We know we will download %llu bytes\n", ULL(offset));
+		ctx->size = offset;
 		ctx->status = EFI_SUCCESS;
 		return (EFI_SUCCESS);
 	}
@@ -69,8 +71,8 @@ download_data(IN VOID *Context, IN VOID *Buffer, IN UINTN BufferLength, IN UINTN
 	/*
 	 * Peek into the first chunk to see the format of the data.
 	 */
-	if (FileOffset == 0) {
-		dctx = decomp_init((uint8_t *)Buffer, (size_t)BufferLength, ctx->size);
+	if (offset == 0) {
+		dctx = decomp_init(buffer, length, ctx->size);
 		if (dctx == NULL) {
 			ctx->in_progress = false;
 			ctx->status = EFI_VOLUME_CORRUPTED;
@@ -79,16 +81,16 @@ download_data(IN VOID *Context, IN VOID *Buffer, IN UINTN BufferLength, IN UINTN
 		ctx->dctx = dctx;
 	}
 
-	enum step_return sr = decomp_step(dctx, Buffer, BufferLength, FileOffset);
+	sr = decomp_step(dctx, buffer, length, offset);
 	if (sr == err) {
 		printf("Error on download\n");
-		decomp_fini(dctx, true);
 		return (EFI_VOLUME_CORRUPTED);
 	}
+	ctx->complete = (sr == done);
 
-	unsigned long long sofar = FileOffset + BufferLength;
+	unsigned long long sofar = offset + length;
 #define MB  1000000
-	if (sofar / MB != FileOffset / MB) {
+	if (sofar / MB != offset / MB) {
 		if (ctx->size)
 			printf("%dMB / %dMB (%d%%)\r",
 			    (int)(sofar / MB),
@@ -98,6 +100,14 @@ download_data(IN VOID *Context, IN VOID *Buffer, IN UINTN BufferLength, IN UINTN
 			printf("%dMB\r", (int)(sofar / MB));
 	}
 	return (EFI_SUCCESS);
+}
+
+static EFI_STATUS EFIAPI
+download_data(IN VOID *Context, IN VOID *Buffer, IN UINTN BufferLength,
+    IN UINTN FileOffset)
+{
+
+	return (download_chunk(Context, Buffer, BufferLength, FileOffset));
 }
 
 static void EFIAPI
@@ -111,7 +121,7 @@ download_finish(IN VOID *Context, IN EFI_STATUS Status)
 		decomp_fini(ctx->dctx, EFI_ERROR(Status));
 }
 
-static void
+static int
 fallback_to_md(EFI_PHYSICAL_ADDRESS pa, size_t len)
 {
 	int unit;
@@ -120,9 +130,71 @@ fallback_to_md(EFI_PHYSICAL_ADDRESS pa, size_t len)
 	if (unit < 0) {
 		printf("Could not register downloaded image as an md: %s\n",
 		    strerror(errno));
-		return;
+		return (errno);
 	}
 	setenv("uefi_ignore_boot_mgr", "true", 1);
+	return (0);
+}
+
+int
+download_md_image(const char *url)
+{
+	struct stat sb;
+	dl_state ctx;
+	uint8_t *buf;
+	size_t offset;
+	ssize_t nread;
+	int error, fd;
+
+	fd = open(url, O_RDONLY);
+	if (fd < 0)
+		return (errno);
+	if (fstat(fd, &sb) != 0) {
+		error = errno;
+		goto out_close;
+	}
+	if (sb.st_size <= 0 || (uintmax_t)sb.st_size > SIZE_MAX) {
+		error = EINVAL;
+		goto out_close;
+	}
+
+	buf = malloc(DOWNLOAD_BUFSIZE);
+	if (buf == NULL) {
+		error = ENOMEM;
+		goto out_close;
+	}
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.size = sb.st_size;
+	offset = 0;
+	while ((nread = read(fd, buf, DOWNLOAD_BUFSIZE)) > 0) {
+		if (EFI_ERROR(download_chunk(&ctx, buf, nread, offset))) {
+			error = EIO;
+			goto out_decomp;
+		}
+		offset += nread;
+	}
+	if (nread < 0) {
+		error = errno;
+		goto out_decomp;
+	}
+	if (offset != ctx.size || !ctx.complete) {
+		error = EIO;
+		goto out_decomp;
+	}
+
+	decomp_fini(ctx.dctx, false);
+	error = fallback_to_md(decomp_buffer(ctx.dctx),
+	    decomp_buffer_length(ctx.dctx));
+	goto out_free;
+
+out_decomp:
+	if (ctx.dctx != NULL)
+		decomp_fini(ctx.dctx, true);
+out_free:
+	free(buf);
+out_close:
+	close(fd);
+	return (error);
 }
 
 static void
