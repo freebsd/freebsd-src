@@ -65,6 +65,10 @@
 
 #include <cam/nvme/nvme_all.h>
 
+/* SDT Probes */
+SDT_PROBE_DEFINE3(cam, , nda, error, "union ccb *", "uint32_t", "uint32_t");
+SDT_PROBE_DEFINE2(cam, , nda, recovery, "union ccb *", "int");
+
 typedef enum {
 	NDA_STATE_NORMAL
 } nda_state;
@@ -1371,6 +1375,10 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 ndaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
+	int error;
+
+	CAM_PROBE3(nda, error, ccb, cam_flags, sense_flags);
+
 #ifdef CAM_IO_STATS
 	struct nda_softc *softc;
 	struct cam_periph *periph;
@@ -1395,7 +1403,9 @@ ndaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 		break;
 	}
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags));
+	error = cam_periph_error(ccb, cam_flags, sense_flags);
+	CAM_PROBE2(nda, recovery, ccb, error);
+	return (error);
 }
 
 /*

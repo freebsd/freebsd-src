@@ -72,6 +72,10 @@
 #include <cam/scsi/scsi_da.h>
 
 #ifdef _KERNEL
+/* SDT Probes */
+SDT_PROBE_DEFINE3(cam, , da, error, "union ccb *", "uint32_t", "uint32_t");
+SDT_PROBE_DEFINE2(cam, , da, recovery, "union ccb *", "int");
+
 /*
  * Note that there are probe ordering dependencies here.  The order isn't
  * controlled by this enumeration, but by explicit state transitions in
@@ -6255,6 +6259,8 @@ daerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 	struct cam_periph *periph;
 	int error, error_code, sense_key, asc, ascq;
 
+	CAM_PROBE3(da, error, ccb, cam_flags, sense_flags);
+
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 	if (ccb->csio.bio != NULL)
 		biotrack(ccb->csio.bio, __func__);
@@ -6320,8 +6326,10 @@ daerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}
 	}
-	if (error == ERESTART)
+	if (error == ERESTART) {
+		CAM_PROBE2(da, recovery, ccb, error);
 		return (ERESTART);
+	}
 
 #ifdef CAM_IO_STATS
 	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
@@ -6351,7 +6359,9 @@ daerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 
 	if (softc->quirks & DA_Q_RETRY_BUSY)
 		sense_flags |= SF_RETRY_BUSY;
-	return(cam_periph_error(ccb, cam_flags, sense_flags));
+	error = cam_periph_error(ccb, cam_flags, sense_flags);
+	CAM_PROBE2(da, recovery, ccb, error);
+	return (error);
 }
 
 static void

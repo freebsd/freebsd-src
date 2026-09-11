@@ -61,6 +61,14 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
 
+/* SDT Probes */
+SDT_PROBE_DEFINE3(cam, , periph, error, "union ccb *", "cam_flags",
+    "uint32_t");
+SDT_PROBE_DEFINE2(cam, , periph, recovery, "union ccb *", "int");
+SDT_PROBE_DEFINE1(cam, , periph, invalidate, "struct cam_periph *");
+SDT_PROBE_DEFINE1(cam, , periph, hold__boot, "struct cam_periph *");
+SDT_PROBE_DEFINE1(cam, , periph, release__boot, "struct cam_periph *");
+
 static	u_int		camperiphnextunit(struct periph_driver *p_drv,
 					  u_int newunit, bool wired,
 					  path_id_t pathid, target_id_t target,
@@ -536,6 +544,7 @@ void
 cam_periph_hold_boot(struct cam_periph *periph)
 {
 
+	CAM_PROBE1(periph, hold__boot, periph);
 	root_mount_hold_token(periph->periph_name, &periph->periph_rootmount);
 }
 
@@ -543,6 +552,7 @@ void
 cam_periph_release_boot(struct cam_periph *periph)
 {
 
+	CAM_PROBE1(periph, release__boot, periph);
 	root_mount_rel(&periph->periph_rootmount);
 }
 
@@ -690,6 +700,7 @@ cam_periph_invalidate(struct cam_periph *periph)
 	if ((periph->flags & CAM_PERIPH_INVALID) != 0)
 		return;
 
+	CAM_PROBE1(periph, invalidate, periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	if (!rebooting)
 		cam_periph_invalidate_devctl(periph);
@@ -1893,6 +1904,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	int	    error, openings, devctl_err;
 	uint32_t   action, relsim_flags, timeout;
 
+	CAM_PROBE3(periph, error, ccb, camflags, sense_flags);
+
 	action = SSQ_PRINT_SENSE;
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	action_string = NULL;
@@ -2122,6 +2135,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 					 /*getcount_only*/0);
 	}
 
+	CAM_PROBE2(periph, recovery, ccb, error);
 	return (error);
 }
 
