@@ -66,6 +66,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEPEND(bnxt_re, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(bnxt_re, ibcore, 1, 1, 1);
 MODULE_DEPEND(bnxt_re, if_bnxt, 1, 1, 1);
+MODULE_DEPEND(bnxt_re, iflib, 1, 1, 1);
 MODULE_VERSION(bnxt_re, 1);
 
 

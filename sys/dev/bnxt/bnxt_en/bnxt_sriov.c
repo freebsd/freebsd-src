@@ -899,7 +899,7 @@ bnxt_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 	if_t ifp = iflib_get_ifp(ctx);
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	bool admin_up = !!(if_getflags(ifp) & IFF_UP);
-	bool running  = !!(if_getdrvflags(ifp) & IFF_DRV_RUNNING);
+	bool running = iflib_is_running(ctx);
 
 	if (!admin_up || !running) {
 		device_printf(softc->dev, "PF is down, rejecting VF creation\n");
