@@ -667,6 +667,17 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	return (unit);
 }
 
+static void
+cam_periph_invalidate_devctl(struct cam_periph *periph)
+{
+	struct sbuf sb;
+	char *sbmsg;
+
+	sbmsg = cam_periph_devctl_sb_init(&sb, periph);
+	if (sbmsg != NULL)
+		cam_periph_devctl_sb_fini(&sb, sbmsg, "invalidate");
+}
+
 void
 cam_periph_invalidate(struct cam_periph *periph)
 {
@@ -680,6 +691,8 @@ cam_periph_invalidate(struct cam_periph *periph)
 		return;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
+	if (!rebooting)
+		cam_periph_invalidate_devctl(periph);
 	if ((periph->flags & CAM_PERIPH_ANNOUNCED) && !rebooting) {
 		struct sbuf sb;
 		char buffer[160];
@@ -2135,14 +2148,20 @@ cam_periph_devctl_sb_init(struct sbuf *sb, struct cam_periph *periph)
 	sbuf_printf(sb, "device=%s%d ", periph->periph_name,
 	    periph->unit_number);
 
-	sbuf_cat(sb, "serial=\"");
 	if ((cgd = (struct ccb_getdev *)xpt_alloc_ccb_nowait()) != NULL) {
 		xpt_gdev_type(cgd, periph->path);
-		if (cgd->ccb_h.status == CAM_REQ_CMP)
+		if (cgd->ccb_h.status == CAM_REQ_CMP &&
+		    cgd->serial_num_len > 0) {
+			sbuf_cat(sb, "serial=\"");
 			sbuf_bcat(sb, cgd->serial_num, cgd->serial_num_len);
+			sbuf_cat(sb, "\" ");
+		} else {
+			sbuf_cat(sb, "path=\"");
+			xpt_path_sbuf(periph->path, sb);
+			sbuf_cat(sb, "\" ");
+		}
 		xpt_free_ccb((union ccb *)cgd);
 	}
-	sbuf_cat(sb, "\" ");
 
 	return (sbmsg);
 }
