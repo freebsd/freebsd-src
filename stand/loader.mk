@@ -48,6 +48,7 @@ SRCS+=	metadata.c
 # LOADER_GZIP_SUPPORT	Add support for gzip compressed files
 # LOADER_INSTALL_SUPPORT Add support for booting off of installl ISOs
 # LOADER_MBR_SUPPORT	Add support for MBR partitions
+# LOADER_MD_SUPPORT	Add support for Memory disks
 # LOADER_MSDOS_SUPPORT	Add support for FAT filesystems
 # LOADER_NET_SUPPORT	Adds networking support (useless w/o net drivers sometimes)
 # LOADER_NFS_SUPPORT	Add NFS support
@@ -70,10 +71,12 @@ SRCS+= dev_net.c
 SRCS+=  bcache.c
 .endif
 
+.if ${LOADER_MD_SUPPORT:Uno} == "yes"
 .if defined(MD_IMAGE_SIZE)
 CFLAGS+= -DMD_IMAGE_SIZE=${MD_IMAGE_SIZE}
+.endif
+CFLAGS+= -DLOADER_MD_SUPPORT
 SRCS+=	md.c
-.else
 CLEANFILES+=	md.o
 .endif
 
