@@ -53,6 +53,9 @@ struct devsw *devsw[] = {
     &pxedisk,
 #endif
     &vdisk_dev,
+#if defined(LOADER_MD_SUPPORT)
+    &md_dev,
+#endif
 #if defined(LOADER_ZFS_SUPPORT)
     &zfs_dev,
 #endif
