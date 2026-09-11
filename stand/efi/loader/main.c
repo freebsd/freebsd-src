@@ -1273,6 +1273,16 @@ set_boot_policy(void)
 	    policy, policy_map[boot_policy]);
 }
 
+static bool
+is_efi_netboot(void)
+{
+	EFI_DEVICE_PATH *devpath;
+	uint8_t mac[6];
+
+	devpath = efi_lookup_devpath(boot_img->DeviceHandle);
+	return (efi_devpath_get_mac(devpath, mac));
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -1360,7 +1370,12 @@ main(int argc, CHAR16 *argv[])
 	efiblk_memdisk_preload();
 
 	devinit();
-	if (!has_ipxe)
+
+	/*
+	 * If we didn't find a ipxe image, and we're netbooting, try to
+	 * download an initmd that the dhcp server tells us about.
+	 */
+	if (!has_ipxe && is_efi_netboot())
 		maybe_download_initmd();
 
 	/*
