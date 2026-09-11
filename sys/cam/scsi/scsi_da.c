@@ -5140,6 +5140,12 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 		}
 	}
 	free(csio->data_ptr, M_SCSIDA);
+
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
+		daprobedone(periph, done_ccb);
+		return;
+	}
+
 	if (announce_buf != NULL &&
 	    ((softc->flags & DA_FLAG_ANNOUNCED) == 0)) {
 		struct sbuf sb;
