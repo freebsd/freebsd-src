@@ -174,7 +174,8 @@ power_apst_data_generate(struct nvme_controller_data *cdata,
 
 		/* Wait 50x the latency before each transition. */
 		itpt = MIN(latency * 50, (1 << 24) - 1);
-		data[i - 1] = htole64(itpt << 8 | i << 3);
+		data[i - 1] = htole64((uint64_t)itpt << 8 |
+		    (uint64_t)i << 3);
 	}
 }
 
@@ -191,14 +192,15 @@ power_apst_data_parse(struct nvme_controller_data *cdata,
 		if (sscanf(token, "%i:%i", &itps, &itpt) != 2)
 			errx(EX_USAGE, "cannot parse provided configuration");
 
-		if (itps < 0 || itps >= cdata->npss)
+		if (itps < 0 || itps > cdata->npss)
 			errx(EX_USAGE, "invalid ITPS=%d (must be 0..%d)",
 			    itps, cdata->npss);
 		if (itpt < 0 || itpt >= 1 << 24)
 			errx(EX_USAGE, "invalid ITPT=%d (must be 0..%d)",
-			    itpt, 1 << 24);
+			    itpt, (1 << 24) - 1);
 
-		data[i] = htole64(itpt << 8 | itps << 3);
+		data[i] = htole64((uint64_t)itpt << 8 |
+		    (uint64_t)itps << 3);
 	}
 }
 
