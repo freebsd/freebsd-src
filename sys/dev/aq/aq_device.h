@@ -134,6 +134,8 @@ struct aq_dev {
 	int               thermal_retry_ticks;	/* earliest tick to retry at */
 	int               thermal_temp_mc;	/* temp at the last shutdown/cool */
 	int               thermal_recover_mc;	/* recover once cooled to here */
+	bool              thermal_shutdown_enabled;	/* arm the shutdown */
+	int               thermal_arm_err;	/* last result returned */
 	bool              init_failed;		/* aq_hw_init() left the hw down */
 	int               init_retries;
 	bool              reset_pending;	/* a re-init is already queued */

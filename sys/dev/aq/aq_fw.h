@@ -86,8 +86,8 @@ struct aq_firmware_ops
 	/* Resets the PHY (clears a latched thermal shutdown). */
 	int (*phy_reset)(struct aq_hw* hw);
 
-	/* Arms the firmware autonomous thermal shutdown (A2 ships armed). */
-	int (*thermal_arm)(struct aq_hw* hw);
+	/* Arms or disarms the firmware autonomous thermal shutdown. */
+	int (*thermal_arm)(struct aq_hw* hw, bool enable);
 
 	/* Reports the PHY high-temperature shutdown threshold (millidegrees C). */
 	int (*get_thermal_limit)(struct aq_hw* hw, int* limit_mc);

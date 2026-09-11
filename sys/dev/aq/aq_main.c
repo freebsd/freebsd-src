@@ -378,6 +378,7 @@ aq_if_attach_pre(if_ctx_t ctx)
 	hw->fc.fc_rx = 1;
 	hw->fc.fc_tx = 1;
 	softc->linkup = 0U;
+	softc->thermal_shutdown_enabled = true;
 	/* Set here, not in aq_if_init(): a recovery re-init must not reset it. */
 	softc->thermal_retry_ticks = ticks;
 
@@ -777,14 +778,6 @@ aq_if_init(if_ctx_t ctx)
 	}
 	softc->init_failed = false;
 	softc->init_retries = 0;
-
-	/* aq_hw_init reloads the PHY, resetting the thermal-shutdown arming. */
-	if (hw->fw_ops->thermal_arm != NULL) {
-		err = hw->fw_ops->thermal_arm(hw);
-		if (err != 0 && err != ENOTSUP)
-			device_printf(softc->dev,
-			    "could not arm PHY thermal shutdown\n");
-	}
 
 	aq_if_media_status(ctx, &ifmr);
 
@@ -1459,7 +1452,7 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 	struct sysctl_oid       *tree = device_get_sysctl_tree(dev);
 	struct sysctl_oid_list  *child = SYSCTL_CHILDREN(tree);
 	struct aq_stats *stats = &softc->curr_stats;
-	struct sysctl_oid       *stat_node, *queue_node;
+	struct sysctl_oid       *stat_node, *queue_node, *thermal_node;
 	struct sysctl_oid_list  *stat_list, *queue_list;
 	uint32_t                link_up, link_down;
 	int                     temp_mc;
@@ -1481,10 +1474,21 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 
 	/* ENOTSUP means no sensor; other errors may just be a cold PHY. */
 	if (softc->hw.fw_ops != NULL && softc->hw.fw_ops->get_temp != NULL &&
-	    softc->hw.fw_ops->get_temp(&softc->hw, &temp_mc) != ENOTSUP)
+	    softc->hw.fw_ops->get_temp(&softc->hw, &temp_mc) != ENOTSUP) {
 		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "temperature",
 		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 0,
 		    aq_sysctl_temperature, "IK", "PHY temperature");
+		/* Without the sensor there is no shutdown to arm. */
+		if (softc->hw.fw_ops->thermal_arm != NULL) {
+			thermal_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
+			    "thermal_shutdown", CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    NULL, "PHY thermal shutdown");
+			SYSCTL_ADD_BOOL(ctx, SYSCTL_CHILDREN(thermal_node),
+			    OID_AUTO, "enabled", CTLFLAG_RWTUN,
+			    &softc->thermal_shutdown_enabled, 0,
+			    "Arm the PHY's autonomous thermal shutdown");
+		}
+	}
 
 	/* Only some firmware interface versions count link transitions. */
 	if (softc->hw.fw_ops != NULL &&

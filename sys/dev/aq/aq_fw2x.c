@@ -650,11 +650,11 @@ aq_fw2x_phy_reset(struct aq_hw* hw)
 	return (err);
 }
 
-/* Arm autonomous thermal shutdown (1E.C478.A), cleared by any PHY reset. */
+/* Arm/disarm thermal shutdown, cleared by any PHY reset. */
 static int
-aq_fw2x_thermal_arm(struct aq_hw* hw)
+aq_fw2x_thermal_arm(struct aq_hw* hw, bool enable)
 {
-	uint16_t ctrl;
+	uint16_t ctrl, want;
 	int err;
 
 	if ((hw->fw_caps & FW2X_CAP_TEMPERATURE) == 0)
@@ -664,11 +664,21 @@ aq_fw2x_thermal_arm(struct aq_hw* hw)
 	aq_fw2x_phy_id_probe(hw);
 	err = aq_fw2x_phy_read(hw, AQ_PHY_MMD_GLOBAL, AQ_PHY_THERMAL_CTRL_REG,
 	    &ctrl);
-	if (err == 0 && ctrl == 0xffff)
+	if (err != 0)
+		goto out;
+	/* All ones is no PHY answering, not a control word. */
+	if (ctrl == 0xffff) {
 		err = ENXIO;
-	if (err == 0 && (ctrl & AQ_PHY_THERMAL_SD_EN) == 0)
+		goto out;
+	}
+	if (enable)
+		want = ctrl | AQ_PHY_THERMAL_SD_EN;
+	else
+		want = ctrl & ~AQ_PHY_THERMAL_SD_EN;
+	if (want != ctrl)
 		err = aq_fw2x_phy_write(hw, AQ_PHY_MMD_GLOBAL,
-		    AQ_PHY_THERMAL_CTRL_REG, ctrl | AQ_PHY_THERMAL_SD_EN);
+		    AQ_PHY_THERMAL_CTRL_REG, want);
+out:
 	mtx_unlock(&hw->fw_mtx);
 
 	return (err);
