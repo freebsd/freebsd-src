@@ -28,6 +28,17 @@ static EFI_GUID virtual_cd_guid = EFI_VIRTUAL_CD_GUID;
 static IPXE_DOWNLOAD_PROTOCOL *ipxe_download;
 static EFI_RAM_DISK_PROTOCOL *ram_disk;
 
+static bool
+download_cancel_requested(void)
+{
+	int c;
+
+	if (!ischar())
+		return (false);
+	c = getchar();
+	return (c == '\033');
+}
+
 struct dl_state;
 typedef struct dl_state dl_state;
 
@@ -118,8 +129,8 @@ download_finish(IN VOID *Context, IN EFI_STATUS Status)
 
 	ctx->in_progress = false;
 	ctx->status = Status;
-	if (ctx->dctx)
-		decomp_fini(ctx->dctx, EFI_ERROR(Status));
+	if (ctx->dctx != NULL && !EFI_ERROR(Status))
+		decomp_fini(ctx->dctx, false);
 }
 
 static int
@@ -167,7 +178,13 @@ download_md_image(const char *url)
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.size = sb.st_size;
 	offset = 0;
+	printf("Press Esc to cancel.\n");
 	while ((nread = read(fd, buf, DOWNLOAD_BUFSIZE)) > 0) {
+		if (download_cancel_requested()) {
+			printf("\nDownload cancelled.\n");
+			error = ECANCELED;
+			goto out_decomp;
+		}
 		if (EFI_ERROR(download_chunk(&ctx, buf, nread, offset))) {
 			error = EIO;
 			goto out_decomp;
@@ -224,7 +241,7 @@ maybe_download_initmd(void)
 
 	printf("Downloading initmd from %s\n", url);
 	error = download_md_image(url);
-	if (error != 0)
+	if (error != 0 && error != ECANCELED)
 		printf("Could not download initmd: %s\n", strerror(error));
 }
 
@@ -236,8 +253,11 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 	EFI_DEVICE_PATH_PROTOCOL *ram_disk_path;
 	IPXE_DOWNLOAD_FILE token;
 	dl_state *ctx = &dl;
+	int error;
 
 	printf("Downloading %s as a %s\n", url, is_disk ? "disk" : "cd");
+	printf("Press Esc to cancel.\n");
+	memset(ctx, 0, sizeof(*ctx));
 	ctx->in_progress = true;
 	Status = ipxe_download->Start(ipxe_download, url, download_data, download_finish,
 	    &dl, &token);
@@ -248,6 +268,22 @@ do_download_ramdisk(CHAR8 *url, bool is_disk)
 	}
 	while (ctx->in_progress) {
 		ipxe_download->Poll(ipxe_download);
+		if (!ctx->in_progress)
+			break;
+		if (download_cancel_requested()) {
+			printf("\nCancelling download...\n");
+			Status = ipxe_download->Abort(ipxe_download, token,
+			    EFI_ABORTED);
+			if (EFI_ERROR(Status)) {
+				printf("Could not cancel download %u\n",
+				    (unsigned)Status);
+			}
+		}
+	}
+	if (ctx->status == EFI_ABORTED) {
+		printf("Download cancelled.\n");
+		download_cleanup(ctx);
+		return;
 	}
 	if (EFI_ERROR(ctx->status)) {
 		printf("Download had error %u\n", (unsigned)ctx->status);
