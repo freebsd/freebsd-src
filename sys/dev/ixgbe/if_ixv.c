@@ -1187,11 +1187,9 @@ static int
 ixv_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct ixgbe_softc *sc;
-	if_t ifp;
 
 	sc = iflib_get_softc(ctx);
-	ifp = iflib_get_ifp(ctx);
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+	if (!iflib_is_running(ctx))
 		return (0);
 	if (ixv_update_xcast_mode(sc, flags) != IXGBE_SUCCESS)
 		return (EOPNOTSUPP);
@@ -1306,12 +1304,11 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
-	if_t ifp = iflib_get_ifp(ctx);
 	bool check_link, reset_seen;
 	s32 status;
 	uint64_t baudrate;
 
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	if (!iflib_is_running(ctx) ||
 	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
 		if (sc->link_active) {
 			sc->link_active = false;
@@ -1391,8 +1388,8 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 		}
 	}
 
-	/* iflib clears RUNNING before stop; do not replay after VF reset. */
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+	/* iflib closes admission before stop; do not replay after VF reset. */
+	if (iflib_is_running(ctx) &&
 	    atomic_readandclear_32(&sc->vf_vlan_retry_tick) != 0)
 		ixv_vlan_retry_tick(sc);
 

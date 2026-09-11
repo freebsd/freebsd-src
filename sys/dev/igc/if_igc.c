@@ -3887,17 +3887,9 @@ static void
 igc_print_debug_info(struct igc_softc *sc)
 {
 	device_t dev = iflib_get_dev(sc->ctx);
-	if_t ifp = iflib_get_ifp(sc->ctx);
 
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
-		printf("Interface is RUNNING ");
-	else
-		printf("Interface is NOT RUNNING\n");
-
-	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE)
-		printf("and INACTIVE\n");
-	else
-		printf("and ACTIVE\n");
+	device_printf(dev, "iflib software admission: %s\n",
+	    iflib_is_running(sc->ctx) ? "open" : "closed");
 
 	for (int i = 0; i < sc->tx_num_queues; i++) {
 		device_printf(dev, "TX Queue %d ------\n", i);

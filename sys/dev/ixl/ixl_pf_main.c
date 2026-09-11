@@ -2054,7 +2054,7 @@ void
 ixl_handle_empr_reset(struct ixl_pf *pf)
 {
 	struct ixl_vsi	*vsi = &pf->vsi;
-	bool is_up = !!(if_getdrvflags(vsi->ifp) & IFF_DRV_RUNNING);
+	bool is_up = iflib_is_running(vsi->ctx);
 
 	ixl_prepare_for_reset(pf, is_up);
 	/*

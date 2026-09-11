@@ -2610,7 +2610,7 @@ err_release_tx_queues:
 }
 
 /* determine if the iflib context is active */
-#define CTX_ACTIVE(ctx) ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING))
+#define CTX_ACTIVE(ctx) iflib_is_running(ctx)
 
 /**
  * ice_rebuild_recovery_mode - Rebuild driver state while in recovery mode

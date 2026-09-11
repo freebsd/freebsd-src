@@ -877,11 +877,9 @@ static int
 enic_rxq_intr(void *rxq)
 {
 	struct vnic_rq *rq;
-	if_t ifp;
 
 	rq = (struct vnic_rq *)rxq;
-	ifp = iflib_get_ifp(rq->vdev->softc->ctx);
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+	if (!iflib_is_running(rq->vdev->softc->ctx))
 		return (FILTER_HANDLED);
 
 	return (FILTER_SCHEDULE_THREAD);

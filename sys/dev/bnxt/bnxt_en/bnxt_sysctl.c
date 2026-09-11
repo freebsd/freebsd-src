@@ -1283,7 +1283,7 @@ bnxt_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 		p += 2;
 	}
 
-	if (if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)
+	if (iflib_is_running(softc->ctx))
 		bnxt_hwrm_rss_cfg(softc, &softc->vnic_info,
 		    softc->vnic_info.rss_hash_type);
 
@@ -1338,7 +1338,7 @@ bnxt_rss_type_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	if (type != softc->vnic_info.rss_hash_type) {
 		softc->vnic_info.rss_hash_type = type;
-		if (if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)
+		if (iflib_is_running(softc->ctx))
 			bnxt_hwrm_rss_cfg(softc, &softc->vnic_info,
 			    softc->vnic_info.rss_hash_type);
 	}
@@ -1365,7 +1365,7 @@ bnxt_rx_stall_sysctl(SYSCTL_HANDLER_ARGS) {
 	else
 		softc->vnic_info.flags &= ~BNXT_VNIC_FLAG_BD_STALL;
 
-	if (if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)
+	if (iflib_is_running(softc->ctx))
 		rc = bnxt_hwrm_vnic_cfg(softc, &softc->vnic_info);
 
 	return rc;
@@ -1390,7 +1390,7 @@ bnxt_vlan_strip_sysctl(SYSCTL_HANDLER_ARGS) {
 	else
 		softc->vnic_info.flags &= ~BNXT_VNIC_FLAG_VLAN_STRIP;
 
-	if (if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)
+	if (iflib_is_running(softc->ctx))
 		rc = bnxt_hwrm_vnic_cfg(softc, &softc->vnic_info);
 
 	return rc;
@@ -1675,7 +1675,7 @@ fn_name(SYSCTL_HANDLER_ARGS) {				                   \
 	if (rc || !req->newptr)				                   \
 		return rc;				                   \
 							                   \
-	if ((if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)) \
+	if (iflib_is_running(softc->ctx)) \
 		return EBUSY;				                   \
 							                   \
 	if (!(softc->flags & BNXT_FLAG_TPA))				   \

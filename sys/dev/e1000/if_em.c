@@ -8631,7 +8631,6 @@ static void
 em_print_debug_info(struct e1000_softc *sc)
 {
 	device_t dev = iflib_get_dev(sc->ctx);
-	if_t ifp = iflib_get_ifp(sc->ctx);
 	struct tx_ring *txr;
 	struct rx_ring *rxr;
 
@@ -8639,15 +8638,8 @@ em_print_debug_info(struct e1000_softc *sc)
 		device_printf(dev, "queue state is unavailable\n");
 		return;
 	}
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
-		printf("Interface is RUNNING ");
-	else
-		printf("Interface is NOT RUNNING\n");
-
-	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE)
-		printf("and INACTIVE\n");
-	else
-		printf("and ACTIVE\n");
+	device_printf(dev, "iflib software admission: %s\n",
+	    iflib_is_running(sc->ctx) ? "open" : "closed");
 
 	for (int i = 0; i < sc->tx_num_queues; i++) {
 		txr = &sc->tx_queues[i].txr;

@@ -2973,10 +2973,9 @@ ixgbe_msix_que(void *arg)
 {
 	struct ix_rx_queue *que = arg;
 	struct ixgbe_softc *sc = que->sc;
-	if_t ifp = iflib_get_ifp(que->sc->ctx);
 
 	/* Protect against spurious interrupts */
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+	if (!iflib_is_running(sc->ctx))
 		return (FILTER_HANDLED);
 
 	ixgbe_disable_queue(sc, que->msix);
@@ -5226,7 +5225,7 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 	 * MOD and firmware events can produce dependent requests.  Fold those
 	 * into the claimed batch so link state is sampled after any link setup.
 	 */
-	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0 &&
+	if (iflib_is_running(ctx) &&
 	    (sc->iov_mbx_cleanup_pending || ixgbe_mbx_pending(sc)))
 		atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_MBX);
 	for (pass = 0; pass < IXGBE_ADMIN_TASK_BUDGET; pass++) {
@@ -5245,7 +5244,7 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 			ixgbe_handle_msf(ctx);
 		/* A reset request can re-enable VF traffic; skip it while stopped. */
 		if ((requests & IXGBE_REQUEST_TASK_MBX) != 0 &&
-		    (if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0)
+		    iflib_is_running(ctx))
 			ixgbe_handle_mbx(ctx);
 		if (requests & IXGBE_REQUEST_TASK_FDIR)
 			ixgbe_reinit_fdir(ctx);
@@ -5683,7 +5682,7 @@ ixgbe_set_flowcntl(struct ixgbe_softc *sc, int fc)
 	/* Updating SRRCTL on a live queue is itself an MDD violation. */
 	mdd_active = sc->num_rx_queues > 1 &&
 	    (sc->feat_en & IXGBE_FEATURE_SRIOV) != 0 &&
-	    (if_getdrvflags(iflib_get_ifp(sc->ctx)) & IFF_DRV_RUNNING) != 0;
+	    iflib_is_running(sc->ctx);
 	if (mdd_active)
 		ixgbe_disable_mdd(&sc->hw);
 	if (sc->num_rx_queues > 1) {
@@ -6004,7 +6003,7 @@ ixgbe_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Re-initialize hardware if it's already running */
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+	if (iflib_is_running(sc->ctx))
 		if_init(ifp, ifp);
 
 	return (0);

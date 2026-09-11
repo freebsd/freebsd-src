@@ -446,7 +446,7 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	dev = iflib_get_dev(ctx);
 	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
 
-	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) == 0 ||
+	if (!iflib_is_running(ctx) ||
 	    !sc->vf_queues_sanitized ||
 	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
 		if (sc->link_state != EM_LINK_STATE_DOWN) {
@@ -508,9 +508,8 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	    atomic_readandclear_32(&sc->stats_pending) != 0;
 	if (timer_tick) {
 		em_update_stats_counters(sc);
-		/* iflib clears RUNNING before stop; do not replay after reset. */
-		if ((if_getdrvflags(iflib_get_ifp(ctx)) &
-		    IFF_DRV_RUNNING) != 0)
+		/* iflib closes admission before stop; do not replay after reset. */
+		if (iflib_is_running(ctx))
 			igbv_vlan_retry_tick(sc);
 	}
 }

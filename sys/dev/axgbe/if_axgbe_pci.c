@@ -357,7 +357,7 @@ axgbe_miibus_statchg(device_t dev)
 	    pdata->phy_link);
 
 	if (mii == NULL || ifp == NULL ||
-	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+	    !iflib_is_running(sc->ctx))
 		return;
 
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
@@ -2357,11 +2357,9 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct axgbe_if_softc *sc = iflib_get_softc(ctx);
 	struct xgbe_prv_data *pdata = &sc->pdata;
-	if_t ifp = pdata->netdev;
 
-	axgbe_printf(1, "%s: MAC_PFR 0x%x drv_flags 0x%x if_flags 0x%x\n",
-	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), if_getdrvflags(ifp),
-	    flags);
+	axgbe_printf(1, "%s: MAC_PFR 0x%x if_flags 0x%x\n",
+	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), flags);
 
 	if (flags & IFF_PROMISC) {
 
