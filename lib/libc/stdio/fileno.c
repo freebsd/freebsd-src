@@ -37,16 +37,17 @@
 #include <stdio.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
 #undef fileno
 #undef fileno_unlocked
 
-static int
+static inline int
 __fileno_impl(FILE *fp)
 {
 	int fd;
 
-	fd = fp->_file;
+	fd = __sfileno(fp);
 	if (fd == -1)
 		errno = EBADF;
 	return (fd);
