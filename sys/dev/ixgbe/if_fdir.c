@@ -53,7 +53,6 @@ ixgbe_reinit_fdir(void *context)
 {
 	if_ctx_t ctx = context;
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	if_t ifp = iflib_get_ifp(ctx);
 
 	if (!(sc->feat_en & IXGBE_FEATURE_FDIR))
 		return;
@@ -63,8 +62,6 @@ ixgbe_reinit_fdir(void *context)
 	sc->fdir_reinit = 0;
 	/* re-enable flow director interrupts */
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
-	/* Restart the interface */
-	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 } /* ixgbe_reinit_fdir */
 
 /************************************************************************
