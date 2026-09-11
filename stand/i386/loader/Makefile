@@ -10,6 +10,7 @@ LOADER_UFS_SUPPORT?=	yes
 LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	yes
 LOADER_XZ_SUPPORT?=	yes
+LOADER_MD_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 

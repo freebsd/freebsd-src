@@ -34,6 +34,25 @@
 
 #define	MD_BLOCK_SIZE	512
 
+/*
+ * The kernel can accept a MD inline in the metadata, or out-of-line via
+ * hints, like when memory disks are passed to us in, for example, UEFI.
+ */
+void
+md_export_to_kernel(uint64_t start, uint64_t len)
+{
+	char key[32], value[32];
+	static int unit = 0;	/* Note: loader unit and kernel unit may differ */
+
+	snprintf(key, sizeof(key), "hint.md.%d.physaddr", unit);
+	snprintf(value, sizeof(value), "0x%016jx", (uintmax_t)start);
+	setenv(key, value, 1);
+	snprintf(key, sizeof(key), "hint.md.%d.len", unit);
+	snprintf(value, sizeof(value), "%jd", (uintmax_t)len);
+	setenv(key, value, 1);
+	unit++;
+}
+
 #ifdef MD_IMAGE_SIZE
 
 #if (MD_IMAGE_SIZE == 0 || MD_IMAGE_SIZE % MD_BLOCK_SIZE)
