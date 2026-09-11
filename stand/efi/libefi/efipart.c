@@ -1275,6 +1275,7 @@ testmd(pdinfo_t *md)
 void
 efiblk_memdisk_preload(void)
 {
+#ifdef LOADER_MD_SUPPORT
 	MEDIA_RAM_DISK_DEVICE_PATH *ram;
 	uint64_t start, end;
 	pdinfo_t *md;
@@ -1289,4 +1290,5 @@ efiblk_memdisk_preload(void)
 		end = ((uint64_t)ram->EndingAddr[1] << 32) | ram->EndingAddr[0];
 		md_export_to_kernel(start, end - start + 1);
 	}
+#endif
 }

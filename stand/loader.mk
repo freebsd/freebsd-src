@@ -75,7 +75,6 @@ SRCS+=  bcache.c
 .if defined(MD_IMAGE_SIZE)
 CFLAGS+= -DMD_IMAGE_SIZE=${MD_IMAGE_SIZE}
 .endif
-CFLAGS+= -DLOADER_MD_SUPPORT
 SRCS+=	md.c
 CLEANFILES+=	md.o
 .endif
@@ -138,10 +137,7 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 CFLAGS+=	-DLOADER_XZ_SUPPORT
 .endif
 
-# Network related things
-.if ${LOADER_NET_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_NET_SUPPORT
-.endif
+# Network related things (LOADER_NET_SUPPORT itself: see defs.mk)
 .if ${LOADER_NFS_SUPPORT:Uno} == "yes"
 CFLAGS+=	-DLOADER_NFS_SUPPORT
 .endif

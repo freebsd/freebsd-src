@@ -136,6 +136,7 @@ download_finish(IN VOID *Context, IN EFI_STATUS Status)
 static int
 fallback_to_md(EFI_PHYSICAL_ADDRESS pa, size_t len)
 {
+#ifdef LOADER_MD_SUPPORT
 	int unit;
 
 	unit = md_register((void *)(uintptr_t)pa, len, MD_FLAG_KERNEL);
@@ -146,6 +147,10 @@ fallback_to_md(EFI_PHYSICAL_ADDRESS pa, size_t len)
 	}
 	setenv("uefi_ignore_boot_mgr", "true", 1);
 	return (0);
+#else
+	printf("No memory disk support in this loader\n");
+	return (EOPNOTSUPP);
+#endif
 }
 
 int
@@ -218,6 +223,7 @@ out_close:
 void
 maybe_download_initmd(void)
 {
+#ifdef LOADER_NET_SUPPORT
 	struct devdesc dev;
 	const char *url;
 	int error;
@@ -243,6 +249,7 @@ maybe_download_initmd(void)
 	error = download_md_image(url);
 	if (error != 0 && error != ECANCELED)
 		printf("Could not download initmd: %s\n", strerror(error));
+#endif
 }
 
 static void

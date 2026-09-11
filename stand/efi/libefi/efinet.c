@@ -452,9 +452,13 @@ efi_env_net_params(struct iodesc *desc)
 	 * There must be a rootpath. It may be ip:/path or it may be just the
 	 * path in which case the ip needs to be serverip.
 	 */
+#ifdef LOADER_NET_SUPPORT
 	rootaddr = net_parse_rootpath();
 	if (rootaddr == INADDR_NONE)
 		rootaddr = serveraddr;
+#else
+	rootaddr = serveraddr;
+#endif
 	rootip.s_addr = rootaddr;
 
 #ifdef EFINET_DEBUG
@@ -662,10 +666,12 @@ efinet_dev_init(void)
 	 */
 	efi_pxe_snapshot_all(nifs);
 
+#ifdef LOADER_NET_SUPPORT
 	efinet_dev.dv_cleanup = netdev.dv_cleanup;
 	efinet_dev.dv_open = netdev.dv_open;
 	efinet_dev.dv_close = netdev.dv_close;
 	efinet_dev.dv_strategy = netdev.dv_strategy;
+#endif
 
 done:
 	free(handles2);
