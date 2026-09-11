@@ -779,8 +779,10 @@ interactive_interrupt(const char *msg)
 		}
 
 		/* XXX no pause or timeout wait for char */
-		if (ischar())
+		if (ischar()) {
+			(void)getchar();
 			return (true);
+		}
 		now = getsecs();
 	} while (now - then < fail_timeout);
 	return (false);
