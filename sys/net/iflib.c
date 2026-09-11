@@ -600,6 +600,20 @@ typedef struct if_rxsd {
 #define CALLOUT_LOCK(txq)	mtx_lock(&txq->ift_mtx)
 #define CALLOUT_UNLOCK(txq)	mtx_unlock(&txq->ift_mtx)
 
+static bool
+iflib_admin_enabled(if_ctx_t ctx)
+{
+
+	sx_assert(&ctx->ifc_ctx_sx, SA_XLOCKED);
+	/*
+	 * Before the first stop/init, only drivers with an always-running
+	 * admin path need deferred updates.  Stopped and failed datapaths
+	 * still need link, mailbox and recovery work after that point.
+	 */
+	return (ctx->ifc_datapath_state != IFLIB_DP_UNKNOWN ||
+	    (ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN) != 0);
+}
+
 /* Our boot-time initialization hook */
 static int	iflib_module_event_handler(module_t, int, void *);
 
@@ -952,7 +966,7 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 
 	iflib_init_locked(ctx);
 	IFDI_CRCSTRIP_SET(ctx, onoff, iflib_crcstrip); // XXX why twice ?
-	status = if_getdrvflags(ifp) & IFF_DRV_RUNNING ? 0 : 1;
+	status = ctx->ifc_datapath_state == IFLIB_DP_RUNNING ? 0 : 1;
 	if (status)
 		nm_clear_native_flags(na);
 	CTX_UNLOCK(ctx);
@@ -2843,12 +2857,6 @@ static void
 iflib_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	if_ctx_t ctx = if_getsoftc(ifp);
-	bool oactive, running;
-
-	STATE_LOCK(ctx);
-	running = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING);
-	oactive = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE);
-	STATE_UNLOCK(ctx);
 
 	CTX_LOCK(ctx);
 	if (ctx->ifc_pm_state != IFLIB_PM_ACTIVE) {
@@ -2862,8 +2870,7 @@ iflib_media_status(if_t ifp, struct ifmediareq *ifmr)
 	 * _task_fn_admin(), so only do it if that's not running. That can be quite
 	 * expensive on some drivers.
 	 */
-	if ((!running && !oactive) &&
-	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN)) {
+	if (!iflib_admin_enabled(ctx)) {
 		IFDI_UPDATE_ADMIN_STATUS(ctx);
 	}
 	IFDI_MEDIA_STATUS(ctx, ifmr);
@@ -4441,12 +4448,10 @@ _task_fn_admin(void *context, int pending)
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 	iflib_txq_t txq;
 	int i;
-	bool oactive, running, do_reset, do_reset_if_up, do_watchdog;
+	bool do_reset, do_reset_if_up, do_watchdog;
 	bool in_detach;
 
 	STATE_LOCK(ctx);
-	running = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING);
-	oactive = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE);
 	do_reset = (ctx->ifc_flags & IFC_DO_RESET);
 	do_reset_if_up = (ctx->ifc_flags & IFC_DO_RESET_IF_UP);
 	do_watchdog = (ctx->ifc_flags & IFC_DO_WATCHDOG);
@@ -4455,8 +4460,6 @@ _task_fn_admin(void *context, int pending)
 	    IFC_DO_WATCHDOG);
 	STATE_UNLOCK(ctx);
 
-	if ((!running && !oactive) && !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
-		return;
 	if (in_detach)
 		return;
 	KFAIL_POINT_CODE_COND(_debug_fail_point_iflib,
@@ -4466,7 +4469,8 @@ _task_fn_admin(void *context, int pending)
 	    iflib_admin_task_fail_device) == 0, FAIL_POINT_NONSLEEPABLE, {});
 
 	CTX_LOCK(ctx);
-	if (ctx->ifc_pm_state != IFLIB_PM_ACTIVE) {
+	if (ctx->ifc_pm_state != IFLIB_PM_ACTIVE ||
+	    !iflib_admin_enabled(ctx)) {
 		CTX_UNLOCK(ctx);
 		return;
 	}
@@ -6147,7 +6151,7 @@ iflib_device_resume(device_t dev)
 
 	CTX_LOCK(ctx);
 	error = iflib_device_resume_locked(ctx);
-	running = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) != 0;
+	running = ctx->ifc_datapath_state == IFLIB_DP_RUNNING;
 	CTX_UNLOCK(ctx);
 	if (running) {
 		for (int i = 0; i < NTXQSETS(ctx); i++, txq++)
@@ -6177,7 +6181,7 @@ iflib_device_iov_init_restart(device_t dev, uint16_t num_vfs,
 {
 	if_ctx_t ctx;
 	if_t ifp;
-	bool restart, running;
+	bool restart;
 	int error;
 
 	ctx = device_get_softc(dev);
@@ -6186,15 +6190,14 @@ iflib_device_iov_init_restart(device_t dev, uint16_t num_vfs,
 	CTX_LOCK(ctx);
 	/*
 	 * Drivers which change the PF queue layout need the complete iflib
-	 * stop/init sequence around their IOV callback when the interface is
-	 * active.  An administratively-down interface has no live queues to
-	 * quiesce, and must remain down after the new layout is installed.
-	 * Keep the transition within one context-lock critical section.
+	 * stop/init sequence around their IOV callback.  Administrative state
+	 * and IFF_DRV_RUNNING do not establish that the queues are stopped:
+	 * failed initialization or a pending watchdog reset can leave DMA
+	 * active.  Let iflib_stop() decide whether hardware needs quiescing,
+	 * and preserve administrative state across the layout change.
 	 */
 	restart = (if_getflags(ifp) & IFF_UP) != 0;
-	running = (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0;
-	if (restart || running)
-		iflib_stop(ctx);
+	iflib_stop(ctx);
 	error = IFDI_IOV_INIT(ctx, num_vfs, params);
 	if (restart)
 		iflib_init_locked(ctx);
