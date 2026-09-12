@@ -52,6 +52,9 @@
 #define PUC_ILR_DIGI		1
 #define PUC_ILR_QUATECH		2
 
+/* Configuration flags. */
+#define	PUC_FLAGS_NO_MSI	0x01
+
 /* Configuration queries. */
 enum puc_cfg_cmd {
 	PUC_CFG_GET_CLOCK,
@@ -80,6 +83,7 @@ struct puc_cfg {
 	int8_t		rid;		/* Rid of first port */
 	int8_t		d_rid;		/* Delta rid of next ports */
 	int8_t		d_ofs;		/* Delta offset of next ports */
+	uint8_t		flags;		/* PUC_FLAGS_* */
 	puc_config_f 	*config_function;
 };
 
