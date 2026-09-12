@@ -148,7 +148,10 @@ ixl_debug_core(device_t dev, u32 enabled_mask, u32 mask, char *fmt, ...)
 static bool
 ixl_is_tx_desc_done(struct tx_ring *txr, int idx)
 {
-	return (((txr->tx_base[idx].cmd_type_offset_bsz >> I40E_TXD_QW1_DTYPE_SHIFT)
+	u64 descriptor;
+
+	descriptor = le64toh(txr->tx_base[idx].cmd_type_offset_bsz);
+	return (((descriptor >> I40E_TXD_QW1_DTYPE_SHIFT)
 	    & I40E_TXD_QW1_DTYPE_MASK) == I40E_TX_DESC_DTYPE_DESC_DONE);
 }
 
@@ -390,7 +393,7 @@ ixl_isc_txd_encap(void *arg, if_pkt_info_t pi)
 		    | ((u64)cmd  << I40E_TXD_QW1_CMD_SHIFT)
 		    | ((u64)off << I40E_TXD_QW1_OFFSET_SHIFT)
 		    | ((u64)seglen  << I40E_TXD_QW1_TX_BUF_SZ_SHIFT)
-	            | ((u64)htole16(pi->ipi_vtag) << I40E_TXD_QW1_L2TAG1_SHIFT));
+	            | ((u64)pi->ipi_vtag << I40E_TXD_QW1_L2TAG1_SHIFT));
 
 		txr->tx_bytes += seglen;
 		pidx_last = i;

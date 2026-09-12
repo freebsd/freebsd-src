@@ -969,7 +969,7 @@ static void i40e_read_byte(u8 *hmc_bits,
 
 	i40e_memcpy(&dest_byte, src, sizeof(dest_byte), I40E_DMA_TO_NONDMA);
 
-	dest_byte &= ~(mask);
+	dest_byte &= mask;
 
 	dest_byte >>= shift_width;
 
@@ -1010,7 +1010,7 @@ static void i40e_read_word(u8 *hmc_bits,
 	/* the data in the memory is stored as little endian so mask it
 	 * correctly
 	 */
-	src_word &= ~(CPU_TO_LE16(mask));
+	src_word &= CPU_TO_LE16(mask);
 
 	/* get the data back into host order before shifting */
 	dest_word = LE16_TO_CPU(src_word);
@@ -1062,7 +1062,7 @@ static void i40e_read_dword(u8 *hmc_bits,
 	/* the data in the memory is stored as little endian so mask it
 	 * correctly
 	 */
-	src_dword &= ~(CPU_TO_LE32(mask));
+	src_dword &= CPU_TO_LE32(mask);
 
 	/* get the data back into host order before shifting */
 	dest_dword = LE32_TO_CPU(src_dword);
@@ -1115,7 +1115,7 @@ static void i40e_read_qword(u8 *hmc_bits,
 	/* the data in the memory is stored as little endian so mask it
 	 * correctly
 	 */
-	src_qword &= ~(CPU_TO_LE64(mask));
+	src_qword &= CPU_TO_LE64(mask);
 
 	/* get the data back into host order before shifting */
 	dest_qword = LE64_TO_CPU(src_qword);

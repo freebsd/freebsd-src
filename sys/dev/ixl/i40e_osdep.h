@@ -133,8 +133,6 @@ struct i40e_spinlock {
         struct mtx mutex;
 };
 
-#define le16_to_cpu 
-
 #if defined(__amd64__) || defined(i386)
 static __inline
 void prefetch(void *x)
