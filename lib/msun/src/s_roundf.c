@@ -32,22 +32,29 @@
 float
 roundf(float x)
 {
-	float t;
-	uint32_t hx;
+	uint32_t hx, mask, round_bit;
+	int biased_e, shift;
 
 	GET_FLOAT_WORD(hx, x);
-	if ((hx & 0x7fffffff) == 0x7f800000)
-		return (x + x);
+	biased_e = (int)((hx >> 23) & 0xff);
 
-	if (!(hx & 0x80000000)) {
-		t = floorf(x);
-		if (t - x <= -0.5F)
-			t += 1;
-		return (t);
-	} else {
-		t = floorf(-x);
-		if (t + x <= -0.5F)
-			t += 1;
-		return (-t);
+	/* Hot path: 1 <= |x| < 2**23. */
+	if (biased_e > 126 && biased_e < 150) {
+		shift = 150 - biased_e;
+		round_bit = 1u << (shift - 1);
+		mask = ~((1u << shift) - 1);
+		hx = (hx + round_bit) & mask;
+		SET_FLOAT_WORD(x, hx);
+		return (x);
 	}
+
+	/* |x| < 1: round to signed 0 or signed 1. */
+	if (biased_e <= 126) {
+		hx = (hx & 0x80000000u) | (biased_e == 126 ? 0x3f800000u : 0u);
+		SET_FLOAT_WORD(x, hx);
+		return (x);
+	}
+
+	/* |x| >= 2**23 is already integral.  Propagate NaNs. */
+	return (biased_e == 255 ? x + x : x);
 }
