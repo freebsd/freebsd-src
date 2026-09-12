@@ -67,6 +67,7 @@ static puc_config_f puc_config_sunix;
 static puc_config_f puc_config_systembase;
 static puc_config_f puc_config_timedia;
 static puc_config_f puc_config_titan;
+static puc_config_f puc_config_wch_ch38x;
 
 const struct puc_cfg puc_pci_devices[] = {
 	{   0x0009, 0x7168, 0xffff, 0,
@@ -1504,6 +1505,14 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
+	{   0x1c00, 0x3253, 0xffff, 0,
+	    "WCH CH382 2S PCIe Dual Port Serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x10, 0, -1,
+	    .flags = PUC_FLAGS_NO_MSI,
+	    .config_function = puc_config_wch_ch38x
+	},
+
 	{   0x1fd4, 0x1999, 0x1fd4, 0x0002,
 	    "Sunix SER5xxxx 2-port serial",
 	    DEFAULT_RCLK * 8,
@@ -2334,6 +2343,17 @@ puc_config_systembase(struct puc_softc *sc __unused,
 		return (0);
 	default:
 		break;
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_wch_ch38x(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd,
+    int port, intptr_t *res)
+{
+	if (cmd == PUC_CFG_GET_OFS) {
+		*res = 0xc0 + (port * 8);
+		return (0);
 	}
 	return (ENXIO);
 }
