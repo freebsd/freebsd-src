@@ -303,6 +303,7 @@ video_buf_done(struct video_buf *vb, size_t bytesused, uint32_t sequence)
 	vb->state = VB_DONE;
 	STAILQ_INSERT_TAIL(&vd->done, vb, entry);
 	selwakeup(&vd->sel);
+	KNOTE_LOCKED(&vd->sel.si_note, 0);
 	wakeup(&vd->done);
 	mtx_unlock(&vd->mtx);
 }
@@ -323,6 +324,7 @@ video_buf_error(struct video_buf *vb)
 	vb->state = VB_ERROR;
 	STAILQ_INSERT_TAIL(&vd->done, vb, entry);
 	selwakeup(&vd->sel);
+	KNOTE_LOCKED(&vd->sel.si_note, 0);
 	wakeup(&vd->done);
 	mtx_unlock(&vd->mtx);
 }
