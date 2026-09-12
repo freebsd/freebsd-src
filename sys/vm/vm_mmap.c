@@ -1352,6 +1352,25 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	error = mac_vnode_check_mmap(cred, vp, (int)prot, flags);
 	if (error != 0)
 		goto done;
+
+	/*
+	 * Give MAC policies a chance to further restrict max_prot for
+	 * vnode-backed mappings while the vnode is still available.  This
+	 * lets a policy remove VM_PROT_EXECUTE from max_prot and prevent
+	 * a later mprotect(2) upgrade from making the mapping executable
+	 * without an equivalent vnode MAC check.
+	 */
+	if ((*maxprotp & VM_PROT_EXECUTE) != 0) {
+		int mac_maxprot;
+
+		mac_maxprot = (int)*maxprotp;
+		mac_vnode_check_mmap_downgrade(cred, vp, &mac_maxprot);
+		if ((mac_maxprot & (int)prot) != (int)prot) {
+			error = EACCES;
+			goto done;
+		}
+		*maxprotp = (vm_prot_t)mac_maxprot;
+	}
 #endif
 	if ((flags & MAP_SHARED) != 0) {
 		if ((va.va_flags & (SF_SNAPSHOT|IMMUTABLE|APPEND)) != 0) {
