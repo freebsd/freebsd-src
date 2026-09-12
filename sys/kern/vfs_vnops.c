@@ -1520,8 +1520,21 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 		goto out;
 
 	atomic_add_long(&vn_io_faults_cnt, 1);
+	/*
+	 * Advance the clone to the redo point.  uiomove(9) takes an int
+	 * byte count, so the advance has to be split when the first attempt
+	 * transferred INT_MAX bytes or more before faulting; passing the
+	 * size_t difference directly truncates it, the clone is then not
+	 * (or not fully) advanced, and the retry loop below re-does I/O
+	 * that was already accounted in uio, which ends with a negative
+	 * uio_resid and a read(2)/write(2) return value larger than the
+	 * request.
+	 */
 	uio_clone->uio_segflg = UIO_NOCOPY;
-	uiomove(NULL, resid - uio->uio_resid, uio_clone);
+	for (adv = resid - uio->uio_resid; adv > 0; adv -= cnt) {
+		cnt = adv > INT_MAX ? INT_MAX : (int)adv;
+		uiomove(NULL, cnt, uio_clone);
+	}
 	uio_clone->uio_segflg = uio->uio_segflg;
 
 	saveheld = curthread_pflags_set(TDP_UIOHELD);
