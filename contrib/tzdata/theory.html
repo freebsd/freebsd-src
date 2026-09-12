@@ -12,6 +12,7 @@
 </head>
 
 <body>
+<main>
 <h1>Theory and pragmatics of the <code><abbr>tz</abbr></code> code and data</h1>
   <nav>
     <ul>
@@ -26,10 +27,10 @@
       <li><a href="#leapsec">Leap seconds</a></li>
       <li><a href="#calendar">Calendrical issues</a></li>
       <li><a href="#planets">Time and time zones off earth</a></li>
+      <li><a href="#see-also">See also</a></li>
     </ul>
   </nav>
 
-<section>
   <h2 id="scope">Scope of the <code><abbr>tz</abbr></code> database</h2>
 <p>
 The <a
@@ -112,9 +113,6 @@ It does not always make sense to talk about a timezone’s
 “base offset”, which is not necessarily a single number.
 </p>
 
-</section>
-
-<section>
   <h2 id="naming">Timezone identifiers</h2>
 <p>
 Each timezone has a name that uniquely identifies the timezone.
@@ -345,8 +343,7 @@ These legacy names are mostly defined in the file
 "<code>etcetera</code>".
 Also, the file "<code>backward</code>" defines the legacy names
 <code>Etc/GMT0</code>, <code>Etc/GMT-0</code>, <code>Etc/GMT+0</code>,
-<code>GMT0</code>, <code>GMT-0</code> and <code>GMT+0</code>,
-and the file "<code>northamerica</code>" defines the legacy names
+<code>GMT0</code>, <code>GMT-0</code>, <code>GMT+0</code>,
 <code>EST5EDT</code>, <code>CST6CDT</code>,
 <code>MST7MDT</code>, and <code>PST8PDT</code>.
 </li>
@@ -387,11 +384,11 @@ and <code>zone.tab</code>.
 
 <p>
 The database defines each timezone name to be a zone, or a link to a zone.
-The source file <code>backward</code> defines links for backward
-compatibility; it does not define zones.
+The source file <code>backward</code> defines links
+and a few zones for backward compatibility.
 Although <code>backward</code> was originally designed to be optional,
 nowadays distributions typically use it
-and no great weight should be attached to whether a link
+and no great weight should be attached to whether a link or zone
 is defined in <code>backward</code> or in some other file.
 The source file <code>etcetera</code> defines names that may be useful
 on platforms that do not support proleptic <code>TZ</code> strings
@@ -404,9 +401,7 @@ second information on platforms that support leap seconds.
 Another <code>etcetera</code> name, <code>GMT</code>,
 is used by older code releases.
 </p>
-</section>
 
-<section>
   <h2 id="abbreviations">Time zone abbreviations</h2>
 <p>
 When this package is installed, it generates time zone abbreviations
@@ -610,9 +605,7 @@ Israel.
 To avoid ambiguity, use numeric <abbr>UT</abbr> offsets like
 <code>-</code>0600 instead of time zone abbreviations like CST.
 </p>
-</section>
 
-<section>
   <h2 id="accuracy">Accuracy of the <code><abbr>tz</abbr></code> database</h2>
 <p>
 The <code><abbr>tz</abbr></code> database is not authoritative, and it
@@ -876,9 +869,7 @@ merely because two locations
 differ in <abbr>LMT</abbr> or transitioned to standard time at
 different dates.
 </p>
-</section>
 
-<section>
   <h2 id="functions">Time and date functions</h2>
 <p>
 The <code><abbr>tz</abbr></code> code contains time and date functions
@@ -1284,9 +1275,7 @@ The vestigial <abbr>API</abbr>s are:
     much the better.
   </li>
 </ul>
-</section>
 
-<section>
   <h2 id="stability">Interface stability</h2>
 <p>
 The <code><abbr>tz</abbr></code> code and data supply the following interfaces:
@@ -1353,9 +1342,7 @@ than Bangkok by putting <samp>Asia/Bangkok</samp> in the event’s record,
 the application should be robust in the presence of timezone splits
 between now and the future time.
 </p>
-</section>
 
-<section>
   <h2 id="leapsec">Leap seconds</h2>
 <p>
 Leap seconds were introduced in 1972 to accommodate the
@@ -1430,9 +1417,7 @@ Alternatively, you can install just one set of <abbr>TZif</abbr> files
 in the first place; see the <code>REDO</code> variable in this package’s
 <a href="https://en.wikipedia.org/wiki/Makefile">makefile</a>.
 </p>
-</section>
 
-<section>
   <h2 id="calendar">Calendrical issues</h2>
 <p>
 Calendrical issues are a bit out of scope for a time zone database,
@@ -1446,22 +1431,30 @@ Other information and sources are given in the file "<code>calendars</code>"
 in the <code><abbr>tz</abbr></code> distribution.
 They sometimes disagree.
 </p>
-</section>
 
-<section>
   <h2 id="planets">Time and time zones off Earth</h2>
 <p>
-The European Space Agency is <a
-href="https://www.esa.int/Applications/Satellite_navigation/Telling_time_on_the_Moon">considering</a>
-the establishment of a reference timescale for the Moon, which has
+Efforts are underway to establish a reference timescale for the Moon, which has
 days roughly equivalent to 29.5 Earth days, and where relativistic
 effects cause clocks to tick slightly faster than on Earth.
-Also, <abbr title="National Aeronautics and Space Administration">NASA</abbr>
-has been <a
+The European Space Agency <a
+href="https://www.esa.int/Applications/Satellite_navigation/Telling_time_on_the_Moon">began
+considering</a> the problem in 2023, and in 2024
+<abbr title="National Aeronautics and Space Administration">NASA</abbr>
+was <a
 href="https://bidenwhitehouse.archives.gov/wp-content/uploads/2024/04/Celestial-Time-Standardization-Policy.pdf">ordered</a>
 to consider the establishment of Coordinated Lunar Time (<abbr>LTC</abbr>).
-It is not yet known whether the US and European efforts will result in
-multiple timescales on the Moon.
+In 2025 a team at China’s
+<a href="https://en.wikipedia.org/wiki/Purple_Mountain_Observatory">Purple
+Mountain Observatory</a> published
+<a href="https://doi.org/10.1051/0004-6361/202557345">Lunar Time Ephemeris
+440</a>, the first formal proposal for a standard
+for Temps Coordonné Lunaire (<abbr>TCL</abbr>).
+A <a href="https://www.bipm.org/documents/20126/284836054/CGPM-2026-Draft-Resolutions.pdf">draft
+resolution of the 13–15 October 2026 General Conference on Weights
+and Measures</a> recommends that the <a href="https://www.bipm.org/en/">Bureau
+International des Poids et Mesures</a> collaborate with space agencies
+and other organizations on this matter.
 </p>
 
 <p>
@@ -1583,7 +1576,15 @@ Sources for time on other planets:
     (2016-01-20).
   </li>
 </ul>
-</section>
+</main>
+
+<aside>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="tz-link.html">Time zone and daylight saving time data</a></li>
+<li><a href="tz-art.html">Time and the arts</a></li>
+</ul>
+</aside>
 
 <footer>
 <hr>
