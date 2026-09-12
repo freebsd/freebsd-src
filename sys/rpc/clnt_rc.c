@@ -185,7 +185,7 @@ clnt_reconnect_connect(CLIENT *cl)
 			    rc->rc_rdmamax_io, rc->rc_rdma_cbslots,
 			    &rc->rc_err);
 		} else {
-			stat = RPC_FAILED;
+			rc->rc_err.re_status = stat = RPC_FAILED;
 			newclient = NULL;
 		}
 	} else {

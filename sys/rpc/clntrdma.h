@@ -27,13 +27,27 @@ struct rpcrdma_xprt {
 	uint32_t	maxbck;
 	uint32_t	maxio;
 	uint32_t	maxsge;
+	uint32_t	use_bounce;
 	void		*ep;
 };
 
 #define	RPCRDMA_MAX_SEGMENTS	16	/* Limit from RFC8267. */
 #define	RPCRDMA_MAX_INLINE	1024	/* Limit from RFC8267. */
 
-#define	RPCRDMA_MAX_SGE		(16 + 2)
+/*
+ * Since I/O sizes are always a power of 2 and RPCRDMA_MAX_SEGMENTS is a
+ * power of 2, RPCRDMA_MAX_SGE must be a power of 2 plus 1.
+ * The +1 is for the rest of the RPC message that goes along with the data.
+ * This value sets the size of the arrays and, as such, is the upper bound
+ * for xp->maxsge, which is set to a power of 2 + 1 by xprt_rdma_connect().
+ * At this time, the power of 2 is 16 for Mellanox, 8 for Intel and ?? for
+ * Chelsio.  If future NICs support larger powers of 2, based on their
+ * max_sge, max_sge_rd and max_qp_rd_atom values, this constant can be
+ * increased.  The only effect is making the array sizes in
+ * "struct _rpcrdma_chunk_priv" larger.
+ */
+#define	RPCRDMA_MAX_SGE		(16 + 1)
+
 struct rpcrdma_chunk {
 	int			ind;
 	unsigned int		first_off;
@@ -83,7 +97,9 @@ struct rpcrdma_chunk *xprt_rdma_create_chunk(struct rpcrdma_xprt *xp,
     uint32_t num_pg, struct rpcrdma_reduce_pg *rb, struct mbuf *mextpg,
     bool into_mem, int ind);
 
-int xprt_rdma_disconnected(struct rpcrdma_xprt *xp);
+int xprt_rdma_isdisconnected(struct rpcrdma_xprt *xp);
+
+void xprt_rdma_mark_disconnected(struct rpcrdma_xprt *xp);
 
 int xprt_rdma_acquire_buf(struct rpcrdma_xprt *xp, int start, int end);
 
@@ -97,6 +113,8 @@ int rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int len,
     bool from_pages);
 
 void rpc_copy_mbuf_to_rb(struct mbuf *m, struct rpcrdma_reduce_pg *rb);
+
+void rpc_remove_mreduce(struct mbuf *m, bool free_it);
 #endif	/* _KERNEL */
 
 #endif	/* _RPC_CLNTRDMA_H_ */

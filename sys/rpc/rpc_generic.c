@@ -1090,6 +1090,27 @@ rpc_copy_mbuf_to_rb(struct mbuf *m, struct rpcrdma_reduce_pg *rb)
 }
 
 /*
+ * Remove the reduce mbuf from the list and, optionally, free it.
+ */
+void
+rpc_remove_mreduce(struct mbuf *m, bool free_it)
+{
+	struct mbuf *mreduce, **mreduce_prev;
+
+	mreduce_prev = &m;
+	for (mreduce = m; mreduce != NULL &&
+	    (mreduce->m_flags & M_PROTO10) == 0;
+	    mreduce = mreduce->m_next)
+		mreduce_prev = &mreduce->m_next;
+	if (mreduce != NULL) {
+		*mreduce_prev = mreduce->m_next;
+		mreduce->m_next = NULL;
+		if (free_it)
+			m_free(mreduce);
+	}
+}
+
+/*
  * Kernel module glue
  */
 static int

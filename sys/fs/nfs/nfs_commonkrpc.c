@@ -59,6 +59,7 @@
 
 #include <rpc/rpc.h>
 #include <rpc/krpc.h>
+#include <rpc/clntrdma.h>
 
 #include <kgssapi/krb5/kcrypto.h>
 
@@ -1535,6 +1536,7 @@ out:
 	}
 #endif
 
+	rpc_remove_mreduce(nd->nd_mreq, false);	/* Will be free'd by caller. */
 	m_freem(nd->nd_mreq);
 	if (usegssname == 0)
 		AUTH_DESTROY(auth);
