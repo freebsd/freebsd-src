@@ -790,7 +790,8 @@ MLINKS+=me.4 if_me.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mfi.4 mfi_linux.4 \
 	mfi.4 mfip.4
-MLINKS+=mlx5en.4 mce.4
+MLINKS+=mlx5en.4 mce.4 \
+	mlx5en.4 if_mce.4
 MLINKS+=mos.4 if_mos.4
 MLINKS+=msdosfs.4 msdos.4
 MLINKS+=msk.4 if_msk.4
