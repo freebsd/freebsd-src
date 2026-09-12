@@ -343,8 +343,9 @@ video_querycap(struct video_device *vd, struct v4l2_capability *cap)
 	strlcpy((char *)cap->card, vc.card, sizeof(cap->card));
 	strlcpy((char *)cap->bus_info, vc.bus_info, sizeof(cap->bus_info));
 	cap->version = vc.version;
-	cap->device_caps = vc.capabilities;
-	cap->capabilities = vc.capabilities | V4L2_CAP_DEVICE_CAPS;
+	cap->device_caps = vc.capabilities | V4L2_CAP_EXT_PIX_FORMAT;
+	cap->capabilities = vc.capabilities | V4L2_CAP_DEVICE_CAPS |
+	    V4L2_CAP_EXT_PIX_FORMAT;
 	return (0);
 }
 
