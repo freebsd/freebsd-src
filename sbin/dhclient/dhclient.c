@@ -783,7 +783,6 @@ freeit:
 }
 
 /*
- * state_requesting is called when we receive a DHCPACK message after
  * RFC 8925, sec 3.2: if the packet carries a valid IPv6-Only Preferred
  * option and we have IPv6 connectivity, stop DHCPv4 for V6ONLY_WAIT
  * seconds or until a network attachment event, whichever comes first.
@@ -851,6 +850,8 @@ v6only_wait_expired(void *ipp)
 	state_reboot(ip);
 }
 
+/* state_requesting is called when we receive a DHCPACK message after
+   having sent out one or more DHCPREQUEST packets. */
 void
 dhcpack(struct packet *packet)
 {
