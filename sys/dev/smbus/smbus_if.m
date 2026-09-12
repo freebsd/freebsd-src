@@ -148,3 +148,16 @@ METHOD int bread {
 	u_char *count;
 	char *buf;
 };
+
+#
+# Block Process Call command
+#
+METHOD int bpcall {
+	device_t dev;
+	u_char slave;
+	char cmd;
+	u_char wcount;
+	char *wbuf;
+	u_char *rcount;
+	char *rbuf;
+};

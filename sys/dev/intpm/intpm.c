@@ -887,6 +887,14 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	return (error);
 }
 
+static int
+intsmb_bpcall(device_t dev, u_char slave, char cmd, u_char wcount, char *wbuf,
+    u_char *rcount, char *rbuf)
+{
+
+	return (SMB_ENOTSUPP);
+}
+
 static device_method_t intsmb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		intsmb_probe),
@@ -905,6 +913,7 @@ static device_method_t intsmb_methods[] = {
 	DEVMETHOD(smbus_pcall,		intsmb_pcall),
 	DEVMETHOD(smbus_bwrite,		intsmb_bwrite),
 	DEVMETHOD(smbus_bread,		intsmb_bread),
+	DEVMETHOD(smbus_bpcall,		intsmb_bpcall),
 
 	DEVMETHOD_END
 };
