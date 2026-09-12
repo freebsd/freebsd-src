@@ -180,6 +180,7 @@ int host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
     struct host_timeval *timeout);
 int host_stat(const char *path, struct host_kstat *sb);
 int host_symlink(const char *path1, const char *path2);
+int host_unlink(const char *path);
 int host_uname(struct old_utsname *);
 ssize_t host_write(int fd, const void *buf, size_t nbyte);
 
