@@ -1,5 +1,87 @@
 News for the tz database
 
+Release 2026d - 2026-09-11 15:21:07 -0700
+
+  Briefly:
+    Canada’s Northwest Territories moved to permanent -06 on 2026-08-21.
+    Obsolescent settings like TZ="EST5EDT" now conform better to POSIX.
+    Fix security, performance and porting bugs in zic and localtime.
+
+  Changes to future timestamps
+
+    Canada’s Northwest Territories will not fall back on 2026-11-01
+    and will stay on -06 year-round, matching Alberta’s recent change.
+    Model this with its traditional abbreviation CST.  Although the
+    change to permanent -06 legally took place on 2026-08-21,
+    temporarily model the change to occur on 2026-11-01 at 02:00
+    for the same reason as other recent temporary hacks.  (Caution:
+    see “NOTE FOR 2026b TEMPORARY HACK FOR CLDR AND CANADA” below.)
+    This affects only America/Inuvik as the rest of the territory is
+    covered by America/Edmonton, for which the equivalent change was
+    released in 2026c.
+
+  Changes to past timestamps
+
+    Colombia’s 1992-05-02 spring forward was at 00:00, not 24:00.
+
+    Iran’s 1979-05-26 spring forward was at 00:00, not 24:00.
+    (Thanks to N.F. Hase.)
+
+    The backward-compatibility names EST5EDT, CST6CDT, MST7MDT, and
+    PST8PDT now conform better to POSIX.  For example, EST5EDT now
+    always uses the abbreviation "EST" for standard time (now always 5
+    hours behind UT) and "EDT" for daylight saving time, whereas it
+    formerly had different UT offsets before standard time was
+    introduced and sometimes used abbreviations like "LMT", "EWT" and
+    "EPT", all contrary to POSIX.  Also, though not required by POSIX
+    these names now use US federal rules rather than rules of places
+    like New York, reverting to 2024a behavior.  This change affects
+    only timestamps before 1966-10-30 at 01:00 standard time.
+
+  Other data changes
+
+    The temporary hacks used for North American timekeeping changes
+    now work around a libstdc++ std::chrono bug in GCC 14.1-14.4,
+    15.1-15.2, and 16.1; see GCC bug 124851.  This data change does
+    not affect TZif files or timestamps.  The change does not work
+    around the related but less serious GCC bugs 116110 and 124513.
+    These GCC bugs are all fixed in GCC 16.2.
+
+  Changes to code
+
+    zic now rejects Link targets that would have invalid names, and
+    more efficiently processes Expires, Leap and Rule lines with years
+    far in the past or future.  (Thanks to Darren Carreras.)
+
+    zic now ports to systems that report lack of link support via
+    EINVAL, ENOSYS or EPERM errno values. (Thanks to Tom Lane.)
+
+    When tzset and related functions encounter a TZif file that is too
+    large for them, they now consistently fail instead of sometimes
+    silently ignoring excess parts of the file.
+
+    localtime-related functions no longer mishandle extreme timestamps
+    when given TZif files holding some unlikely timezone histories.
+    (Problem reported by David Sarkisyan.)
+
+    localtime-related functions no longer check the values of TZif
+    files’ standard/wall and UT/local indicators, which these
+    functions have not used since 2026a’s removal of the old
+    posixrules feature.
+
+    tzcode has been ported to Haiku.
+
+    localtime.c now works again by default on AIX and DragonFly BSD.
+
+    zic now rejects ‘:’ and ‘\’ in Zone and Link names when running on
+    Microsoft Windows.  (Problem reported by David Diaz.)
+
+  Changes to documentation
+
+    URLs for release tarballs in tz-link.html have been updated to
+    reflect their new canonical URLs on data.iana.org.
+
+
 Release 2026c - 2026-07-08 10:23:58 -0700
 
   Briefly:
@@ -15,7 +97,13 @@ Release 2026c - 2026-07-08 10:23:58 -0700
     CST.  Although the change to permanent -06 legally took place on
     2026-06-18, temporarily model the change to occur on 2026-11-01 at
     02:00 instead, for the same reason we introduced a similarly
-    temporary hack for British Columbia in 2026b.
+    temporary hack for British Columbia in 2026b.  (Caution: see
+    “NOTE FOR 2026b TEMPORARY HACK FOR CLDR AND CANADA” below.)
+
+      As the change affects both America/Edmonton and its backward
+      compatibility link, the obsolescent setting TZ="Canada/Mountain"
+      will now use the abbreviation CST for affected timestamps,
+      akin to TZ="Canada/Pacific" behavior introduced in 2026b.
 
       Although another TZDB release will likely be needed soon because
       Northwest Territories will likely follow Alberta, the legal
@@ -67,6 +155,7 @@ Release 2026b - 2026-04-22 23:06:43 -0700
 
   Briefly:
     British Columbia moved to permanent -07 on 2026-03-09.
+    zic no longer mishandles a last transition to a new time type.
     Some more overflow bugs have been fixed in zic.
 
   Changes to future timestamps
@@ -79,9 +168,33 @@ Release 2026b - 2026-04-22 23:06:43 -0700
     limitation in CLDR 48.1 (2026-01-08).  This temporary hack is
     planned to be removed after CLDR is fixed.
 
+      To match longstanding practice for -07 standard time in North
+      America, such as for America/Dawson, America/Dawson_Creek,
+      America/Fort_Nelson and America/Whitehorse, affected BC
+      timestamps use the abbreviation MST.  As the change affects both
+      America/Vancouver and its backward compatibility link, the
+      obsolescent setting TZ="Canada/Pacific" will now use the
+      abbreviation MST.  Future TZDB releases may change the
+      abbreviation if something else becomes popular across areas
+      observing -07, and may change it to "-07" if no alphabetic
+      consensus emerges.
+
   Changes to code
 
     zic no longer mishandles a last transition to a new time type.
+    NOTE FOR 2026b TEMPORARY HACK FOR CLDR AND CANADA:
+    This zic fix is needed for the temporary hack (mentioned above)
+    that works around the Canadian timekeeping bug in Unicode CLDR.
+    Without the fix, the temporary hack causes zic versions 2023d
+    through 2026a, in their default mode that generates slim output,
+    to generate a TZif file that violates Internet RFC 9636 §3.3.
+    The buggy file in turn causes some TZif readers, including tzcode
+    itself, to ignore America/Vancouver’s 2026-11-01 02:00 transition
+    from PDT (tm_isdst=1) to MST (tm_isdst=0).  Although the buggy
+    file does not cause any known TZif reader to mishandle UT offsets,
+    caution is advised when using zic 2023d through 2026a to compile
+    data from more-recent tz releases.  To work around this problem
+    when using these older zic versions, use ‘zic -b fat’.
 
     zic no longer overflows a buffer when generating a TZ string like
     "PST-167:59:58PDT-167:59:59,M11.5.6/-167:59:59,M12.5.6/-167:59:59",
