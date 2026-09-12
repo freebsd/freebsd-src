@@ -34,6 +34,8 @@ ATF_TESTS_C+=	ssl_sendfile
 ATF_TESTS_C+=	ktrace_test
 ATF_TESTS_C+=	listener_wakeup
 ATF_TESTS_C+=	module_test
+ATF_TESTS_C+=	ntsync_test
+TEST_METADATA.ntsync_test+=	require.user="root"
 ATF_TESTS_C+=	pdrfork
 ATF_TESTS_C+=	pdwait
 ATF_TESTS_C+=	prace
