@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\"
 .\" Copyright (c) 1991, 1993
@@ -41,7 +41,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"     http://www.opengroup.org/unix/online.html.
 .\"
-.Dd July 19, 2026
+.Dd September 11, 2026
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1077,12 +1077,15 @@ The syntax of the
 command is:
 .Bd -unfilled -offset indent -compact
 .Ic case Ar word Ic in
-.Ar pattern ) Ar list Li ;;
+.Oo Cm ( Oc Ar pattern Cm ) Oo Ar list Oc Cm ;&
+.Oo Cm ( Oc Ar pattern Cm ) Oo Ar list Oc Cm ;;
 .Ar ...
 .Ic esac
 .Ed
 .Pp
-The pattern can actually be one or more patterns
+The
+.Ar pattern
+can be one or more patterns
 (see
 .Sx Shell Patterns
 described later),
@@ -1090,23 +1093,40 @@ separated by
 .Ql \&|
 characters.
 Tilde expansion, parameter expansion, command substitution,
-arithmetic expansion and quote removal are applied to the word.
-Then, each pattern is expanded in turn using tilde expansion,
-parameter expansion, command substitution and arithmetic expansion and
-the expanded form of the word is checked against it.
-If a match is found, the corresponding list is executed.
-If the selected list is terminated by the control operator
-.Ql ;&
+arithmetic expansion and quote removal are applied to the
+.Ar word .
+Then, each
+.Ar pattern
+is expanded in turn using tilde expansion, parameter expansion,
+command substitution, and arithmetic expansion and
+the expanded form of the
+.Ar word
+is checked against it.
+.Pp
+If a match is found, the corresponding
+.Ar list ,
+if any, is executed.
+If the selected
+.Ar list
+is terminated by the control operator
+.Ql Cm ;&
 instead of
-.Ql ;; ,
-execution continues with the next list,
-continuing until a list terminated with
-.Ql ;;
+.Ql Cm ;; ,
+execution continues with the next
+.Ar list ,
+continuing until a
+.Ar list
+terminated with
+.Ql Cm ;;
 or the end of the
 .Ic case
 command.
-.Ic case
-fallthrough is specified by POSIX, but in practice is not entirely portable.
+The control operator
+.Ql Cm ;&
+is specified by POSIX, but in practice is not entirely portable.
+.Pp
+The exit status is that of the last command executed
+from the last list evaluated, if any, or zero otherwise.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Sm off
