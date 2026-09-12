@@ -22,7 +22,7 @@ To email small changes, please run a POSIX shell command like
 For more-elaborate or possibly controversial changes,
 such as renaming, adding or removing zones, please read
 “Theory and pragmatics of the tz code and data”
-<https://www.iana.org/time-zones/repository/theory.html>.
+<https://data.iana.org/time-zones/theory.html>
 It is also good to browse the mailing list archives
 <https://lists.iana.org/hyperkitty/list/tz@iana.org/>
 for examples of patches that tend to work well.
