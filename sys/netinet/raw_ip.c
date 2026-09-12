@@ -876,7 +876,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	fib = V_rip_bind_all_fibs == 0 ? inp->inp_inc.inc_fibnum :
 	    RT_ALL_FIBS;
-
+	addr->sin_port = 0;
 	if (CK_STAILQ_EMPTY(&V_ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
