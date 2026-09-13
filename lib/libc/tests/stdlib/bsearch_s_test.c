@@ -45,7 +45,7 @@ expect_viol(const void *key, const void *base, rsize_t nmemb, rsize_t size,
 	ATF_CHECK_EQ(compar_calls, 0);
 }
 
-static void *
+static const void *
 do_bsearch_s(const int *key, const int *base, size_t n, void *ctx)
 {
 	return (bsearch_s(key, base, n, sizeof(int), searchhelp_s, ctx));

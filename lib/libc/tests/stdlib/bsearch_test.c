@@ -37,7 +37,7 @@ searchhelp_never(const void *a __unused, const void *b __unused)
 	return (0);
 }
 
-static void *
+static const void *
 do_bsearch(const int *key, const int *base, size_t n, void *ctx __unused)
 {
 	expected_key = key;

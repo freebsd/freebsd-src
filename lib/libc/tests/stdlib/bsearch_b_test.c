@@ -14,7 +14,7 @@
 
 #define	THUNK 42
 
-static void *
+static const void *
 do_bsearch_b(const int *key, const int *base, size_t n, void *ctx)
 {
 	int thunk = *(int *)ctx;
