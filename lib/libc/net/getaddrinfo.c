@@ -272,7 +272,7 @@ static int is_ifdisabled(char *);
 static void set_source(struct ai_order *, struct policyhead *);
 static int comp_dst(const void *, const void *);
 #ifdef INET6
-static int ip6_str2scopeid(char *, struct sockaddr_in6 *, u_int32_t *);
+static int ip6_str2scopeid(const char *, struct sockaddr_in6 *, u_int32_t *);
 #endif
 static int gai_addr2scopetype(struct sockaddr *);
 
@@ -1338,7 +1338,8 @@ explore_numeric_scope(const struct addrinfo *pai, const char *hostname,
 	const struct afd *afd;
 	struct addrinfo *cur;
 	int error;
-	char *cp, *hostname2 = NULL, *scope, *addr;
+	char *hostname2 = NULL, *addr;
+	const char *cp, *scope;
 	struct sockaddr_in6 *sin6;
 
 	afd = find_afd(pai->ai_family);
@@ -1682,7 +1683,7 @@ is_ifdisabled(char *name)
 
 /* convert a string to a scope identifier. XXX: IPv6 specific */
 static int
-ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
+ip6_str2scopeid(const char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
 {
 	u_long lscopeid;
 	struct in6_addr *a6;

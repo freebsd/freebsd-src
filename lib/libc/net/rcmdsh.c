@@ -62,7 +62,7 @@ rcmdsh(char **ahost, int rport, const char *locuser, const char *remuser,
 	struct addrinfo hints, *res;
 	int sp[2], error;
 	pid_t cpid;
-	char *p;
+	const char *p;
 	struct passwd *pw;
 	char num[8];
 	static char hbuf[NI_MAXHOST];

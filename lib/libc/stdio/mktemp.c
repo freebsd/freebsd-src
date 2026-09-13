@@ -113,7 +113,7 @@ static int
 _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 {
 	char *start, *trv, *suffp, *carryp;
-	char *pad;
+	const char *pad;
 	struct stat sbuf;
 	uint32_t rand;
 	char carrybuf[MAXPATHLEN];

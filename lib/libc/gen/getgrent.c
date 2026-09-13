@@ -1313,10 +1313,10 @@ compat_group(void *retval, void *mdata, va_list ap)
 	};
 	struct compat_state	*st;
 	enum nss_lookup_type	 how;
-	const char		*name, *line;
+	const char		*name, *line, *p;
 	struct group		*grp;
 	gid_t			 gid;
-	char			*buffer, *p;
+	char			*buffer;
 	void			*discard;
 	size_t			 bufsize, linesize;
 	off_t			 pos;
