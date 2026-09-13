@@ -26,7 +26,7 @@ dd if=${src} of=/dev/raid3/${name} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 #
 graid3 remove -n 1 $name
 dd if=/dev/zero of=/dev/${us1} bs=512 count=`expr $nblocks1 + 1` >/dev/null 2>&1
-graid3 insert -n 1 $name md${us1}
+graid3 insert -n 1 $name ${us1}
 sleep 1
 
 dd if=/dev/raid3/${name} of=${dst} bs=$ddbs count=$nblocks2 >/dev/null 2>&1

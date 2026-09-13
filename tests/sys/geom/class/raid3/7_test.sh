@@ -26,7 +26,7 @@ dd if=${src} of=/dev/raid3/${name} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 #
 graid3 remove -n 2 $name
 dd if=/dev/zero of=/dev/${us2} bs=512 count=`expr $nblocks1 + 1` >/dev/null 2>&1
-graid3 insert -n 2 $name md${us2}
+graid3 insert -n 2 $name ${us2}
 sleep 1
 # Remove DATA component, so PARITY component can be used while reading.
 graid3 remove -n 1 $name
