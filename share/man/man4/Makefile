@@ -262,6 +262,7 @@ MAN=	aac.4 \
 	${_imcsmb.4} \
 	inet.4 \
 	inet6.4 \
+	intel_pmc.4 \
 	intpm.4 \
 	intro.4 \
 	${_io.4} \

@@ -159,6 +159,7 @@ dev/ichwd/i6300esbwd.c		optional	ichwd
 dev/ichwd/ichwd.c		optional	ichwd
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
+dev/intel/intel_pmc.c	optional	intel_pmc pci
 dev/intel/pchtherm.c		optional	pchtherm
 dev/intel/spi.c			optional	intelspi
 dev/intel/spi_pci.c			optional	intelspi pci
