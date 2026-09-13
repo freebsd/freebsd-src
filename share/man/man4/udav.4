@@ -30,36 +30,28 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 24, 2015
+.Dd September 13, 2026
 .Dt UDAV 4
 .Os
 .Sh NAME
 .Nm udav
-.Nd "Davicom DM9601 USB Ethernet driver"
+.Nd Davicom DM9601 USB Fast Ethernet driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ehci"
-.Cd "device uhci"
-.Cd "device ohci"
-.Cd "device usb"
-.Cd "device miibus"
-.Cd "device uether"
-.Cd "device udav"
-.Ed
+.Cd device ehci
+.Cd device uhci
+.Cd device ohci
+.Cd device usb
+.Cd device miibus
+.Cd device uether
+.Cd device udav
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_udav_load="YES"
-.Ed
+.Cd if_udav_load="YES"
 .Sh HARDWARE
 The
 .Nm
-driver supports the following adapters:
+driver supports the following USB Fast Ethernet adapters:
 .Pp
 .Bl -bullet -compact
 .It
