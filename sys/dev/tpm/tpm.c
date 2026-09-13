@@ -197,7 +197,10 @@ int tpm_legacy_end(struct tpm_softc *, int, int);
 static int tpm_transmit_header(struct tpm_softc *, uint32_t, uint32_t *);
 static void tpm_tis12_abort(struct tpm_softc *);
 static int tpm_tis12_devid_index(uint32_t);
+static int tpm_tis12_quiesce(struct tpm_softc *);
+static void tpm_tis12_release_locality_hw(bus_space_tag_t, bus_space_handle_t);
 static void tpm_tis12_relinquish_locality(struct tpm_softc *);
+static int tpm_tis12_request_locality(struct tpm_softc *, int);
 static int tpm_tis12_resume(struct tpm_softc *);
 
 
@@ -217,6 +220,8 @@ tpm_attach(device_t dev)
 {
 	struct make_dev_args args;
 	struct tpm_softc *sc;
+	rman_res_t irq_start;
+	void *intr_cookie;
 	int error, irq;
 
 	sc = device_get_softc(dev);
@@ -224,7 +229,10 @@ tpm_attach(device_t dev)
 	mtx_init(&sc->sc_intr_lock, "TPM interrupt lock", NULL, MTX_DEF);
 	cv_init(&sc->sc_intr_cv, "tpm_intr");
 	sc->intr_cookie = NULL;
+	sc->irq_res = NULL;
 	sc->sc_cdev = NULL;
+	sc->sc_vector = IRQUNK;
+	sc->sc_capabilities = 0;
 	sc->sc_flags = 0;
 	sc->sc_suspend = 0;
 	sc->sc_dying = false;
@@ -245,11 +253,6 @@ tpm_attach(device_t dev)
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
-	if (sc->irq_res != NULL)
-		irq = rman_get_start(sc->irq_res);
-	else
-		irq = IRQUNK;
-
 	if (tpm_legacy_probe(sc->sc_bt, sc->sc_bh)) {
 		sc->sc_init = tpm_legacy_init;
 		sc->sc_start = tpm_legacy_start;
@@ -264,6 +267,24 @@ tpm_attach(device_t dev)
 		sc->sc_end = tpm_tis12_end;
 	}
 
+	irq = IRQUNK;
+	if (sc->irq_res != NULL) {
+		irq_start = rman_get_start(sc->irq_res);
+		/*
+		 * The TIS path uses the resource IRQ as the LPC SIRQ selector.
+		 * Parent IRQ numbers need not map directly to SIRQ channels.
+		 * Validate the full resource value before narrowing and use
+		 * polling for routes outside the supported range.
+		 */
+		if (sc->sc_init == tpm_tis12_init &&
+		    (irq_start == 0 || irq_start > 15))
+			device_printf(dev,
+			    "cannot use IRQ %ju; using polling\n",
+			    (uintmax_t)irq_start);
+		else
+			irq = irq_start;
+	}
+
 	printf("%s", device_get_name(dev));
 	sx_xlock(&sc->sc_lock);
 	error = sc->sc_init(sc, irq, "tpm");
@@ -273,12 +294,24 @@ tpm_attach(device_t dev)
 		goto fail;
 	}
 
-	if (sc->sc_init == tpm_tis12_init && sc->irq_res != NULL &&
-	    bus_setup_intr(dev, sc->irq_res, INTR_TYPE_TTY | INTR_MPSAFE, NULL,
-	    tpm_intr, sc, &sc->intr_cookie) != 0) {
-		printf(": cannot establish interrupt\n");
-		error = ENXIO;
-		goto fail;
+	if (sc->sc_init == tpm_tis12_init && sc->irq_res != NULL) {
+		if (sc->sc_vector == IRQUNK) {
+			if (bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
+			    sc->irq_res) == 0)
+				sc->irq_res = NULL;
+		} else {
+			/* Failed setup may leave a stale output cookie. */
+			intr_cookie = NULL;
+			error = bus_setup_intr(dev, sc->irq_res,
+			    INTR_TYPE_TTY | INTR_MPSAFE, NULL, tpm_intr, sc,
+			    &intr_cookie);
+			if (error != 0) {
+				printf(": cannot establish interrupt\n");
+				error = ENXIO;
+				goto fail;
+			}
+			sc->intr_cookie = intr_cookie;
+		}
 	}
 
 	make_dev_args_init(&args);
@@ -318,8 +351,13 @@ tpm_detach(device_t dev)
 		sc->sc_cdev = NULL;
 	}
 	sx_xlock(&sc->sc_lock);
-	if (sc->mem_res != NULL && sc->sc_init == tpm_tis12_init)
+	if (sc->mem_res != NULL && sc->sc_init == tpm_tis12_init) {
+		/* Identified TIS devices may enable delivery while polling. */
+		if (sc->sc_capabilities != 0 && tpm_tis12_quiesce(sc) != 0)
+			device_printf(dev,
+			    "failed to quiesce TPM interrupts during detach\n");
 		tpm_tis12_abort(sc);
+	}
 	sx_xunlock(&sc->sc_lock);
 	if (sc->intr_cookie != NULL) {
 		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
@@ -348,7 +386,7 @@ tpm_tis12_probe(bus_space_tag_t bt, bus_space_handle_t bh)
 {
 	u_int32_t r;
 	u_int8_t reg;
-	bool acquired;
+	bool requested;
 	int to;
 
 	r = bus_space_read_4(bt, bh, TPM_INTF_CAPABILITIES);
@@ -367,20 +405,21 @@ tpm_tis12_probe(bus_space_tag_t bt, bus_space_handle_t bh)
 	}
 
 	reg = bus_space_read_1(bt, bh, TPM_ACCESS);
-	acquired = false;
+	requested = false;
 	if ((reg & (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY)) !=
 	    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY)) {
+		requested = true;
 		bus_space_write_1(bt, bh, TPM_ACCESS,
 		    TPM_ACCESS_REQUEST_USE);
+		bus_space_barrier(bt, bh, TPM_ACCESS, 1,
+		    BUS_SPACE_BARRIER_WRITE);
 		to = TPM_ACCESS_TMO;	/* Steps of one millisecond. */
 		do {
 			reg = bus_space_read_1(bt, bh, TPM_ACCESS);
 			if ((reg & (TPM_ACCESS_VALID |
 			    TPM_ACCESS_ACTIVE_LOCALITY)) ==
-			    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY)) {
-				acquired = true;
+			    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY))
 				break;
-			}
 			DELAY(1000);
 		} while (--to != 0);
 	}
@@ -390,10 +429,47 @@ tpm_tis12_probe(bus_space_tag_t bt, bus_space_handle_t bh)
 		r = bus_space_read_4(bt, bh, TPM_ID);
 	else
 		r = UINT32_MAX;
-	if (acquired)
-		bus_space_write_1(bt, bh, TPM_ACCESS,
-		    TPM_ACCESS_ACTIVE_LOCALITY);
+	if (requested)
+		tpm_tis12_release_locality_hw(bt, bh);
 	return (r != UINT32_MAX);
+}
+
+/* Leave delivery disabled, preserving any locality owned by the caller. */
+static int
+tpm_tis12_quiesce(struct tpm_softc *sc)
+{
+	uint32_t reg;
+	bool release;
+	int error;
+
+	sx_assert(&sc->sc_lock, SA_XLOCKED);
+	release = !sc->sc_locality;
+	if (release) {
+		error = tpm_tis12_request_locality(sc, 0);
+		if (error != 0) {
+			/* This register can be read without owning locality. */
+			reg = bus_space_read_4(sc->sc_bt, sc->sc_bh,
+			    TPM_INTERRUPT_ENABLE);
+			return ((reg & TPM_GLOBAL_INT_ENABLE) == 0 ? 0 : error);
+		}
+	}
+
+	mtx_lock(&sc->sc_intr_lock);
+	reg = bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE);
+	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE,
+	    reg & ~TPM_GLOBAL_INT_ENABLE);
+	bus_space_barrier(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE, 4,
+	    BUS_SPACE_BARRIER_WRITE);
+	reg = bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE);
+	error = (reg & TPM_GLOBAL_INT_ENABLE) != 0 ? EIO : 0;
+	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS,
+	    bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS));
+	bus_space_barrier(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS, 4,
+	    BUS_SPACE_BARRIER_WRITE);
+	mtx_unlock(&sc->sc_intr_lock);
+	if (release)
+		tpm_tis12_relinquish_locality(sc);
+	return (error);
 }
 
 /*
@@ -404,18 +480,16 @@ int
 tpm_tis12_irqinit(struct tpm_softc *sc, int irq, int idx)
 {
 	u_int32_t r;
+	int error;
 
 	sx_assert(&sc->sc_lock, SA_XLOCKED);
+	KASSERT(sc->sc_locality, ("%s: locality not owned", __func__));
+	error = tpm_tis12_quiesce(sc);
+	if (error != 0)
+		return (error);
+
 	mtx_lock(&sc->sc_intr_lock);
-
-	/* Ack and disable all interrupts. */
-	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE,
-	    bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_INTERRUPT_ENABLE) &
-	    ~TPM_GLOBAL_INT_ENABLE);
-	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS,
-	    bus_space_read_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS));
-
-	if ((irq == IRQUNK) || (tpm_devs[idx].flags & TPM_DEV_NOINTS)) {
+	if (irq < 1 || irq > 15 || (tpm_devs[idx].flags & TPM_DEV_NOINTS)) {
 		sc->sc_vector = IRQUNK;
 		mtx_unlock(&sc->sc_intr_lock);
 		return (0);
@@ -478,13 +552,16 @@ tpm_tis12_init(struct tpm_softc *sc, int irq, const char *name)
 	else
 		printf(": device 0x%08x rev 0x%x\n", sc->sc_devid, sc->sc_rev);
 
-	error = tpm_request_locality(sc, 0);
+	error = tpm_tis12_request_locality(sc, 0);
 	if (error != 0)
 		return 1;
 
 	error = tpm_tis12_irqinit(sc, irq, i);
-	if (error != 0)
+	if (error != 0) {
+		printf("%s: failed to quiesce interrupts during attach: %d\n",
+		    name, error);
 		goto out;
+	}
 
 	/* Abort whatever it thought it was doing. */
 	bus_space_write_1(sc->sc_bt, sc->sc_bh, TPM_STS, TPM_STS_CMD_READY);
@@ -517,7 +594,7 @@ tpm_tis12_resume(struct tpm_softc *sc)
 	sc->sc_capabilities = capabilities;
 	i = tpm_tis12_devid_index(devid);
 	irq = sc->sc_vector;
-	error = tpm_request_locality(sc, 0);
+	error = tpm_tis12_request_locality(sc, 0);
 	if (error != 0)
 		return (error);
 	error = tpm_tis12_irqinit(sc, irq, i);
@@ -537,12 +614,21 @@ out:
 int
 tpm_request_locality(struct tpm_softc *sc, int l)
 {
-	u_int32_t r;
-	int to, rv;
 
 	sx_assert(&sc->sc_lock, SA_XLOCKED);
 	if (l != 0)
 		return EINVAL;
+	return (tpm_tis12_request_locality(sc, PCATCH));
+}
+
+/* Lifecycle callers wait through signals; command callers pass PCATCH. */
+static int
+tpm_tis12_request_locality(struct tpm_softc *sc, int flags)
+{
+	u_int32_t r;
+	int to, rv;
+
+	sx_assert(&sc->sc_lock, SA_XLOCKED);
 	KASSERT(!sc->sc_locality, ("%s: locality already owned", __func__));
 
 	if ((bus_space_read_1(sc->sc_bt, sc->sc_bh, TPM_ACCESS) &
@@ -555,25 +641,21 @@ tpm_request_locality(struct tpm_softc *sc, int l)
 
 	bus_space_write_1(sc->sc_bt, sc->sc_bh, TPM_ACCESS,
 	    TPM_ACCESS_REQUEST_USE);
+	bus_space_barrier(sc->sc_bt, sc->sc_bh, TPM_ACCESS, 1,
+	    BUS_SPACE_BARRIER_WRITE);
 
 	to = tpm_tmotohz(TPM_ACCESS_TMO);
 
 	while ((r = bus_space_read_1(sc->sc_bt, sc->sc_bh, TPM_ACCESS) &
 	    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY)) !=
 	    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY) && to--) {
-		rv = pause_sig("tpm_locality", 1);
+		rv = pause_sbt("tpm_locality", tick_sbt, 0,
+		    C_HARDCLOCK | ((flags & PCATCH) != 0 ? C_CATCH : 0));
 		if (rv &&  rv != EWOULDBLOCK) {
 #ifdef TPM_DEBUG
 			printf("tpm_request_locality: interrupted %d\n", rv);
 #endif
-			r = bus_space_read_1(sc->sc_bt, sc->sc_bh,
-			    TPM_ACCESS);
-			if ((r & (TPM_ACCESS_VALID |
-			    TPM_ACCESS_ACTIVE_LOCALITY)) ==
-			    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY)) {
-				sc->sc_locality = true;
-				tpm_tis12_relinquish_locality(sc);
-			}
+			tpm_tis12_release_locality_hw(sc->sc_bt, sc->sc_bh);
 			return rv;
 		}
 	}
@@ -583,6 +665,7 @@ tpm_request_locality(struct tpm_softc *sc, int l)
 #ifdef TPM_DEBUG
 		printf("tpm_request_locality: access %b\n", r, TPM_ACCESS_BITS);
 #endif
+		tpm_tis12_release_locality_hw(sc->sc_bt, sc->sc_bh);
 		return EBUSY;
 	}
 
@@ -590,6 +673,16 @@ tpm_request_locality(struct tpm_softc *sc, int l)
 	return 0;
 }
 
+/* Release an active locality or cancel a request that has not been granted. */
+static void
+tpm_tis12_release_locality_hw(bus_space_tag_t bt, bus_space_handle_t bh)
+{
+
+	bus_space_write_1(bt, bh, TPM_ACCESS, TPM_ACCESS_ACTIVE_LOCALITY);
+	bus_space_barrier(bt, bh, TPM_ACCESS, 1, BUS_SPACE_BARRIER_WRITE);
+}
+
+/* Release the driver's locality and clear its associated command state. */
 static void
 tpm_tis12_relinquish_locality(struct tpm_softc *sc)
 {
@@ -598,8 +691,7 @@ tpm_tis12_relinquish_locality(struct tpm_softc *sc)
 	sc->sc_command_pending = false;
 	if (!sc->sc_locality)
 		return;
-	bus_space_write_1(sc->sc_bt, sc->sc_bh, TPM_ACCESS,
-	    TPM_ACCESS_ACTIVE_LOCALITY);
+	tpm_tis12_release_locality_hw(sc->sc_bt, sc->sc_bh);
 	sc->sc_locality = false;
 }
 
@@ -912,7 +1004,7 @@ tpm_waitfor(struct tpm_softc *sc, u_int8_t b0, int tmo, void *c)
 	 * really long.  The other TPM_STS* are not needed very often
 	 * so we do not support them.
 	 */
-	if (sc->sc_vector != IRQUNK) {
+	if (sc->sc_vector != IRQUNK && sc->intr_cookie != NULL) {
 		b = b0;
 
 		/*
