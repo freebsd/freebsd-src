@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifer: BSD-2-Clause
+.\"
 .\" Copyright (c) 2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -33,21 +35,13 @@
 .Nm ubsa
 .Nd USB support for Belkin serial adapters
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device usb"
-.Cd "device ucom"
-.Cd "device ubsa"
-.Ed
+.Cd device usb
+.Cd device ucom
+.Cd device ubsa
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ubsa_load="YES"
-.Ed
+.Cd ubsa_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
