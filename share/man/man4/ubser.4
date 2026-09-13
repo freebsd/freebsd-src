@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifer: BSD-2-Clause
+.\"
 .\" Copyright (c) 2004 Bernd Walter <ticso@FreeBSD.org>
 .\"
 .\" $URL: https://devel.bwct.de/svn/projects/ubser/ubser.4 $
@@ -33,21 +36,13 @@
 .Nm ubser
 .Nd USB support for BWCT console serial adapters
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device usb"
-.Cd "device ucom"
-.Cd "device ubser"
-.Ed
+.Cd device usb
+.Cd device ucom
+.Cd device ubser
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ubser_load="YES"
-.Ed
+.Cd ubser_load="YES"
 .Sh HARDWARE
 The
 .Nm
