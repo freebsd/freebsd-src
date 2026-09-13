@@ -23,24 +23,16 @@
 .Nm uath
 .Nd Atheros USB IEEE 802.11a/b/g wireless network driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ehci"
-.Cd "device uhci"
-.Cd "device ohci"
-.Cd "device usb"
-.Cd "device uath"
-.Cd "device wlan"
-.Ed
+.Cd device ehci
+.Cd device uhci
+.Cd device ohci
+.Cd device usb
+.Cd device uath
+.Cd device wlan
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+.In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_uath_load="YES"
-.Ed
+.Cd if_uath_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
