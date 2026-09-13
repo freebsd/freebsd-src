@@ -237,8 +237,12 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 			}
 		};
 
-		return_if_error(lzma_next_filter_init(&coder->lzma_decoder,
-				allocator, filters));
+		const lzma_ret ret = lzma_next_filter_init(
+				&coder->lzma_decoder, allocator, filters);
+		if (ret != LZMA_OK) {
+			lzma_next_end(&coder->lzma_decoder, allocator);
+			return ret;
+		}
 
 		coder->crc32 = 0;
 		coder->sequence = SEQ_LZMA_STREAM;

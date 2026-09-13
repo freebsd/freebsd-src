@@ -165,11 +165,32 @@ lzma2_decode(void *coder_ptr, lzma_dict *restrict dict,
 		// coder->compressed_size later.
 		const size_t in_start = *in_pos;
 
+		// LZMA2 stream ends with the end marker (0x00), so there
+		// must be at least one byte after this chunk. Let the
+		// decoder read at most one byte past the end of the chunk.
+		// If the decoder reads the extra byte, then the input is
+		// corrupt. This way we won't produce (much) junk output
+		// from the input bytes that are past the end of this chunk.
+		// The extra byte makes things simpler, because we can ignore
+		// uncompressed size and not think about some corner cases.
+		//
+		// NOTE: It's not a security issue (information leak) to
+		// pass more input to the decoder than the chunk size.
+		// If an attacker can modify the compressed input, then the
+		// attacker can modify a chunk header so that it specifies
+		// a too large compressed size. liblzma <= 5.8.3 didn't
+		// have in_limit; in_size was passed to the decoder as is.
+		const size_t in_limit = *in_pos + my_min(in_size - *in_pos,
+				coder->compressed_size + 1);
+
 		// Decode from in[] to *dict.
 		const lzma_ret ret = coder->lzma.code(coder->lzma.coder,
-				dict, in, in_pos, in_size);
+				dict, in, in_pos, in_limit);
 
-		// Validate and update coder->compressed_size.
+		// Validate and update coder->compressed_size. If the input
+		// is corrupt, let the caller still see the newly-decoded
+		// output even if it is (partially) corrupt. It might allow
+		// users to recover a small amount of useful data.
 		const size_t in_used = *in_pos - in_start;
 		if (in_used > coder->compressed_size)
 			return LZMA_DATA_ERROR;

@@ -75,7 +75,8 @@ parse_block_list(const char *str_const)
 
 	// It must be non-empty and not begin with a comma.
 	if (str[0] == '\0' || str[0] == ',')
-		message_fatal(_("%s: Invalid argument to --block-list"), str);
+		message_fatal(_("%s: Invalid argument to --block-list"),
+				tuklib_mask_nonprint(str));
 
 	// Count the number of comma-separated strings.
 	size_t count = 1;
@@ -86,7 +87,7 @@ parse_block_list(const char *str_const)
 	// Prevent an unlikely integer overflow.
 	if (count > SIZE_MAX / sizeof(block_list_entry) - 1)
 		message_fatal(_("%s: Too many arguments to --block-list"),
-				str);
+				tuklib_mask_nonprint(str));
 
 	// Allocate memory to hold all the sizes specified.
 	// If --block-list was specified already, its value is forgotten.
@@ -562,7 +563,8 @@ parse_real(args_info *args, int argc, char **argv)
 				if (++i == ARRAY_SIZE(types))
 					message_fatal(_("%s: Unknown file "
 							"format type"),
-							optarg);
+							tuklib_mask_nonprint(
+								optarg));
 
 			opt_format = types[i].format;
 			break;
@@ -584,15 +586,16 @@ parse_real(args_info *args, int argc, char **argv)
 			while (strcmp(types[i].str, optarg) != 0) {
 				if (++i == ARRAY_SIZE(types))
 					message_fatal(_("%s: Unsupported "
-							"integrity "
-							"check type"), optarg);
+						"integrity check type"),
+						tuklib_mask_nonprint(optarg));
 			}
 
 			// Use a separate check in case we are using different
 			// liblzma than what was used to compile us.
 			if (!lzma_check_is_supported(types[i].check))
-				message_fatal(_("%s: Unsupported integrity "
-						"check type"), optarg);
+				message_fatal(_("%s: Unsupported "
+						"integrity check type"),
+						tuklib_mask_nonprint(optarg));
 
 			coder_set_check(types[i].check);
 			break;
@@ -635,18 +638,24 @@ parse_real(args_info *args, int argc, char **argv)
 						"or '--files0'."));
 
 			if (optarg == NULL) {
-				args->files_name = stdin_filename;
+				args->files_name = (char *)stdin_filename;
 				args->files_file = stdin;
 			} else {
-				args->files_name = optarg;
-				args->files_file = fopen(optarg,
+				// If we are called from parse_environment(),
+				// the memory pointed by optarg will be freed
+				// after we return to parse_environment().
+				// We need to duplicate the string.
+				args->files_name = xstrdup(optarg);
+				args->files_file = fopen(args->files_name,
 						c == OPT_FILES ? "r" : "rb");
 				if (args->files_file == NULL)
 					// TRANSLATORS: This is a translatable
 					// string because French needs a space
 					// before the colon ("%s : %s").
-					message_fatal(_("%s: %s"), optarg,
-							strerror(errno));
+					message_fatal(_("%s: %s"),
+						tuklib_mask_nonprint(
+							args->files_name),
+						strerror(errno));
 			}
 
 			break;
