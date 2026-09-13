@@ -386,9 +386,7 @@ label:
 						int	bot;
 						int	top;
 
-						len = isleap_sum(year, base) ?
-							DAYSPERLYEAR :
-							DAYSPERNYEAR;
+						len = year_sum_days(year, base);
 						/*
 						 * What yday (-3 ... 3) does
 						 * the ISO year begin on?
@@ -415,9 +413,7 @@ label:
 							break;
 						}
 						--base;
-						yday += isleap_sum(year, base) ?
-							DAYSPERLYEAR :
-							DAYSPERNYEAR;
+						yday += year_sum_days(year, base);
 					}
 #ifdef XPG4_1994_04_09
 					if ((w == 52 &&
