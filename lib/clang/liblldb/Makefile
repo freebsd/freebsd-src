@@ -398,6 +398,7 @@ SRCS+=		Plugins/ExpressionParser/Clang/NameSearchContext.cpp
 SRCS+=		Plugins/Instruction/ARM/EmulateInstructionARM.cpp
 SRCS+=		Plugins/Instruction/ARM/EmulationStateARM.cpp
 SRCS+=		Plugins/Instruction/ARM64/EmulateInstructionARM64.cpp
+SRCS+=          Plugins/Instruction/LoongArch/EmulateInstructionLoongArch.cpp
 SRCS+=		Plugins/Instruction/MIPS/EmulateInstructionMIPS.cpp
 SRCS+=		Plugins/Instruction/MIPS64/EmulateInstructionMIPS64.cpp
 SRCS+=		Plugins/Instruction/PPC64/EmulateInstructionPPC64.cpp
