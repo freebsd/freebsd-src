@@ -26,6 +26,10 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/param.h>
+
+#include <machine/atomic.h>
+
 #include "tpm20.h"
 #include "tpm_if.h"
 
@@ -99,6 +103,9 @@ int
 tpmtis_attach(device_t dev)
 {
 	struct tpm_sc *sc;
+	rman_res_t irq;
+	void *intr_cookie;
+	bool configured;
 	int result;
 	int poll = 0;
 
@@ -106,15 +113,33 @@ tpmtis_attach(device_t dev)
 	sc->dev = dev;
 	sc->intr_type = -1;
 	sc->intr_generation = 0;
+	sc->interrupts = false;
+	sc->intr_cookie = NULL;
+	sc->irq_res = NULL;
 
 	sx_init(&sc->dev_lock, "TPM driver lock");
 	mtx_init(&sc->intr_lock, "TPM interrupt lock", NULL, MTX_DEF);
 	cv_init(&sc->intr_cv, "tpmtis_intr");
 
+	/*
+	 * Firmware may have left interrupt delivery enabled.  Quiesce the TPM
+	 * before installing a handler or starting the entropy harvester, even
+	 * when we will use polling or cannot use the advertised IRQ.
+	 */
+	sx_xlock(&sc->dev_lock);
+	configured = tpmtis_program_intr(sc, false);
+	sx_xunlock(&sc->dev_lock);
+	if (!configured) {
+		device_printf(dev, "failed to quiesce TPM interrupts\n");
+		tpmtis_detach(dev);
+		return (ENXIO);
+	}
+
 	resource_int_value("tpm", device_get_unit(dev), "use_polling", &poll);
 	if (poll != 0) {
-	    device_printf(dev, "Using poll method to get TPM operation status \n");
-	    goto skip_irq;
+		device_printf(dev,
+		    "Using poll method to get TPM operation status\n");
+		goto skip_irq;
 	}
 
 	sc->irq_rid = 0;
@@ -123,21 +148,39 @@ tpmtis_attach(device_t dev)
 	if (sc->irq_res == NULL)
 		goto skip_irq;
 
+	/*
+	 * This driver uses the resource IRQ directly as the LPC SIRQ selector.
+	 * Parent IRQ numbers need not map directly to SIRQ channels.  Preserve
+	 * the existing 1..15 limit and use polling for other routes without
+	 * installing a handler.
+	 */
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, sc->irq_rid);
+	if (irq == 0 || irq > 0xf) {
+		device_printf(dev, "cannot use IRQ %ju; using polling\n",
+		    (uintmax_t)irq);
+		goto release_irq;
+	}
+
+	/* Failed setup may leave a stale cookie after removing its handler. */
+	intr_cookie = NULL;
 	result = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-		    NULL, tpmtis_intr_handler, sc, &sc->intr_cookie);
-	if (result != 0) {
-		if (bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
-		    sc->irq_res) == 0)
-			sc->irq_res = NULL;
+		    NULL, tpmtis_intr_handler, sc, &intr_cookie);
+	if (result == 0) {
+		sc->intr_cookie = intr_cookie;
 		goto skip_irq;
 	}
+release_irq:
+	if (bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
+	    sc->irq_res) == 0)
+		sc->irq_res = NULL;
 skip_irq:
 	result = tpm20_init(sc);
 	if (result != 0) {
 		tpmtis_detach(dev);
 		return (result);
 	}
-	tpmtis_setup_intr(sc);
+	if (sc->intr_cookie != NULL)
+		tpmtis_setup_intr(sc);
 
 	return (0);
 }
@@ -148,6 +191,19 @@ tpmtis_detach(device_t dev)
 	struct tpm_sc *sc;
 
 	sc = device_get_softc(dev);
+	/*
+	 * Stop new commands before quiescing hardware with the lock still live.
+	 */
+	atomic_store_bool(&sc->dying, true);
+	sx_xlock(&sc->dev_lock);
+	mtx_lock(&sc->intr_lock);
+	sc->interrupts = false;
+	sc->intr_type = -1;
+	mtx_unlock(&sc->intr_lock);
+	if (!tpmtis_program_intr(sc, false))
+		device_printf(dev,
+		    "failed to quiesce TPM interrupts during detach\n");
+	sx_xunlock(&sc->dev_lock);
 	tpm20_release(sc);
 
 	if (sc->intr_cookie != NULL)
@@ -197,31 +253,36 @@ tpmtis_program_intr(struct tpm_sc *sc, bool enable)
 
 	sx_assert(&sc->dev_lock, SA_XLOCKED);
 
-	if (enable) {
-		irq = bus_get_resource_start(sc->dev, SYS_RES_IRQ,
-		    sc->irq_rid);
-
-		/*
-		 * SIRQ has to be between 1 - 15.  A system reporting 0x2d
-		 * produced an interrupt storm when that value was used.
-		 */
-		if (irq == 0 || irq > 0xF)
-			return (false);
+	if (!tpmtis_request_locality(sc, 0)) {
+		/* Interrupt enable can be read without owning locality. */
+		return (!enable && (TPM_READ_4(sc->dev, TPM_INT_ENABLE) &
+		    TPM_INT_ENABLE_GLOBAL_ENABLE) == 0);
 	}
-
-	if (!tpmtis_request_locality(sc, 0))
-		return (false);
 
 	/* Disable delivery before acknowledging or reconfiguring interrupts. */
 	reg = TPM_READ_4(sc->dev, TPM_INT_ENABLE);
 	reg &= ~TPM_INT_ENABLE_GLOBAL_ENABLE;
 	TPM_WRITE_4(sc->dev, TPM_INT_ENABLE, reg);
+	TPM_WRITE_BARRIER(sc->dev, TPM_INT_ENABLE, 4);
+	if ((TPM_READ_4(sc->dev, TPM_INT_ENABLE) &
+	    TPM_INT_ENABLE_GLOBAL_ENABLE) != 0) {
+		tpmtis_relinquish_locality(sc);
+		return (false);
+	}
 
 	/* Clear all pending interrupts. */
 	reg = TPM_READ_4(sc->dev, TPM_INT_STS);
 	TPM_WRITE_4(sc->dev, TPM_INT_STS, reg);
 
 	if (enable) {
+		KASSERT(sc->intr_cookie != NULL,
+		    ("TPM interrupts enabled without a handler"));
+		irq = bus_get_resource_start(sc->dev, SYS_RES_IRQ,
+		    sc->irq_rid);
+		if (irq == 0 || irq > 0xf) {
+			tpmtis_relinquish_locality(sc);
+			return (false);
+		}
 		TPM_WRITE_1(sc->dev, TPM_INT_VECTOR, (uint8_t)irq);
 
 		if (sc->intr_mask == 0) {
@@ -441,8 +502,14 @@ tpmtis_request_locality(struct tpm_sc *sc, int locality)
 
 	TPM_WRITE_1(sc->dev, TPM_ACCESS, TPM_ACCESS_LOC_REQ);
 	TPM_WRITE_BARRIER(sc->dev, TPM_ACCESS, 1);
-	return (tpm_wait_for_reg(sc, TPM_ACCESS, mask, mask, TPM_TIMEOUT_A,
-	    TPM_INT_STS_LOC_CHANGE, false));
+	if (tpm_wait_for_reg(sc, TPM_ACCESS, mask, mask, TPM_TIMEOUT_A,
+	    TPM_INT_STS_LOC_CHANGE, false))
+		return (true);
+
+	/* Cancel the request so a later grant cannot leave locality owned. */
+	TPM_WRITE_1(sc->dev, TPM_ACCESS, TPM_ACCESS_LOC_RELINQUISH);
+	TPM_WRITE_BARRIER(sc->dev, TPM_ACCESS, 1);
+	return (false);
 }
 
 static void
