@@ -2084,6 +2084,7 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 		    ("More than one segment (nseg=%d)", nseg + 1));
 
 		sg_dma_address(sg) = seg.ds_addr;
+		sg->dma_length = sg->length;
 	}
 
 	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) != 0)
