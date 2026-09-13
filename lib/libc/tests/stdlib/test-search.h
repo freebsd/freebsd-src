@@ -15,7 +15,7 @@
 
 #define	SVEC_LEN	1024
 
-typedef void *search_int_t(const int *, const int *, size_t, void *);
+typedef const void *search_int_t(const int *, const int *, size_t, void *);
 
 static int
 searchhelp(const void *a, const void *b)
