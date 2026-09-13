@@ -24,20 +24,12 @@
 .Nm udl
 .Nd DisplayLink DL-120 / DL-160 USB display device driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device udl"
-.Cd "device videomode"
-.Ed
+.Cd device udl
+.Cd device videomode
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-udl_load="YES"
-.Ed
+.Cd udl_load="YES"
 .Sh HARDWARE
 The
 .Nm
