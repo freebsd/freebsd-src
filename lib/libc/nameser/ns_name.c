@@ -216,7 +216,7 @@ int
 ns_name_pton2(const char *src, u_char *dst, size_t dstsiz, size_t *dstlen) {
 	u_char *label, *bp, *eom;
 	int c, n, escaped, e = 0;
-	char *cp;
+	const char *cp;
 
 	escaped = 0;
 	bp = dst;

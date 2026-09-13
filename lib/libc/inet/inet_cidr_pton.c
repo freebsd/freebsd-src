@@ -251,7 +251,8 @@ inet_cidr_pton_ipv6(const char *src, u_char *dst, int *pbits) {
 static int
 getbits(const char *src, int ipv6) {
 	int bits = 0;
-	char *cp, ch;
+	const char *cp;
+	char ch;
 	
 	if (*src == '\0')			/*%< syntax */
 		return (-2);

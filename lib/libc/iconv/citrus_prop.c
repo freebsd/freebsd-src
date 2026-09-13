@@ -81,7 +81,7 @@ _citrus_prop_read_##_func_##_common(struct _memstream * __restrict ms,	\
 {									\
 	_type_ acc, cutoff;						\
 	int ch, cutlim, n;						\
-	char *p;							\
+	const char *p;							\
 									\
 	acc = (_type_)0;						\
 	cutoff = _max_ / base;						\

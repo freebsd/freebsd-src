@@ -250,8 +250,7 @@ __bsd_iconvctl(iconv_t cd, int request, void *argument)
 {
 	struct _citrus_iconv *cv;
 	struct iconv_hooks *hooks;
-	const char *convname;
-	char *dst;
+	const char *convname, *dst;
 	int *i;
 	size_t srclen;
 
