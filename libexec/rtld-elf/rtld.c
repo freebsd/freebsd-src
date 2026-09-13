@@ -1785,14 +1785,19 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 void
 digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 {
-	const Elf_Note *note;
+	const Elf_Note *note, *next_note;
 	const char *note_name;
 	uintptr_t p;
 
-	for (note = (const Elf_Note *)note_start; (Elf_Addr)note < note_end;
-	    note = (const Elf_Note *)((const char *)(note + 1) +
-		roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
-		roundup2(note->n_descsz, sizeof(Elf32_Addr)))) {
+	for (note = (const Elf_Note *)note_start;; note = next_note) {
+		if ((Elf_Addr)note + sizeof(Elf_Note) > note_end)
+			break;
+		next_note = (const Elf_Note *)((const char *)(note + 1) +
+		    roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
+		    roundup2(note->n_descsz, sizeof(Elf32_Addr)));
+		if ((Elf_Addr)next_note > note_end)
+			break;
+
 		if (arch_digest_note(obj, note))
 			continue;
 
