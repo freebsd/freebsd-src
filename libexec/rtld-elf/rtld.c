@@ -1805,7 +1805,7 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 			continue;
 		note_name = (const char *)(note + 1);
 		if (strncmp(NOTE_FREEBSD_VENDOR, note_name,
-			sizeof(NOTE_FREEBSD_VENDOR)) != 0)
+		    sizeof(NOTE_FREEBSD_VENDOR)) != 0)
 			continue;
 		switch (note->n_type) {
 		case NT_FREEBSD_ABI_TAG:
