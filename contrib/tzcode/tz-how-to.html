@@ -15,6 +15,7 @@ ul {padding-left: 1.3rem;}
 </style>
 </head>
 <body>
+<main>
 <h1>How to Read the <a href="https://en.wikipedia.org/wiki/Tz_database">tz
 Database</a> Source Files</h1>
 <h2>by Bill Seymour</h2>
@@ -415,17 +416,19 @@ Line.  For example:</p>
 
 <pre>
 #Zone NAME          STDOFF   RULES FORMAT [UNTIL]
-Zone America/Juneau 15:02:19 -     LMT    1867 Oct 18
+Zone America/Juneau 15:02:19 -     LMT    1867 Oct 19  0:31:13u
                     -8:57:41 -     LMT    ...
 </pre>
 
 <p>When Alaska was purchased from Russia in 1867, the Date Line moved
 from the Alaska/Canada border to the Bering Strait; and the time in
 Alaska was then 24 hours earlier than it had
-been. <code>&lt;aside&gt;</code>(6 October in the Julian calendar,
-which Russia was still using then for religious reasons, was followed
-by <i>a second instance of the same day with a different name</i>, 18
-October in the Gregorian calendar. Isn’t civil time
+been. <code>&lt;aside&gt;</code>(This also means that, although the sun had set
+on Friday 6 October and risen on Saturday 7 October in the Julian calendar,
+which Russia was still using then for religious reasons, upon the transfer
+Saturday afternoon became Friday afternoon, and then the sun set and rose once
+more on <i>second instances of the same days with different names</i>,
+Friday 18 and Saturday 19 October in the Gregorian calendar. Isn’t civil time
 wonderful? <code>8-)</code>)<code>&lt;/aside&gt;</code></p>
 
 <p>The abbreviation, “LMT” stands for “local mean
@@ -660,14 +663,15 @@ Zone Pacific/Honolulu -10:31:26 -     LMT    1896 Jan 13 12:00
 </table>
 
 <p>There will be a short quiz later. <code>8-)</code></p>
+</main>
 
+<footer>
 <hr>
-<address>
 This web page is in the public domain, so clarified as of
 2015-10-20 by Bill Seymour.
 <br>
 All suggestions and corrections will be welcome; all flames will be amusing.
 Mail to was at pobox dot com.
-</address>
+</footer>
 </body>
 </html>
