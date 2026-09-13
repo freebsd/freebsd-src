@@ -37,7 +37,7 @@ __RCSID("$NetBSD: wmemchr.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
 #include <wchar.h>
 
 wchar_t	*
-wmemchr(const wchar_t *s, wchar_t c, size_t n)
+(wmemchr)(const wchar_t *s, wchar_t c, size_t n)
 {
 	size_t i;
 

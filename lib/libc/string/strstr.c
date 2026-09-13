@@ -192,7 +192,7 @@ twoway_strstr(const unsigned char *h, const unsigned char *n)
 }
 
 char *
-strstr(const char *h, const char *n)
+(strstr)(const char *h, const char *n)
 {
 	/* Return immediately on empty needle */
 	if (!n[0])
