@@ -523,6 +523,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	struct nvme_completion_poll_status	status;
 	int                                     res;
 	int					unit;
+	uint32_t				ms;
 	uint8_t					flbas_fmt;
 	uint8_t					vwc_present;
 
@@ -571,6 +572,14 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	if (flbas_fmt > ns->data.nlbaf) {
 		nvme_printf(ctrlr, "nsid %d lba format %d invalid (> %d)\n",
 		    id, flbas_fmt, ns->data.nlbaf + 1);
+		return (ENXIO);
+	}
+
+	ms = NVMEV(NVME_NS_DATA_LBAF_MS, ns->data.lbaf[flbas_fmt]);
+	if (ms != 0) {
+		nvme_printf(ctrlr,
+		    "nsid %d lba format %d has %u-byte metadata, unsupported\n",
+		    id, flbas_fmt, ms);
 		return (ENXIO);
 	}
 

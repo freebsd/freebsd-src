@@ -954,11 +954,20 @@ ndaregister(struct cam_periph *periph, void *arg)
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	char   announce_buf[80];
+	uint32_t ms;
 	u_int maxio;
 	int quirks;
 
 	nsd = nvme_get_identify_ns(periph);
 	cd = nvme_get_identify_cntrl(periph);
+
+	ms = NVMEV(NVME_NS_DATA_LBAF_MS,
+	    nsd->lbaf[NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas)]);
+	if (ms != 0) {
+		xpt_print(periph->path,
+		    "lba format has %u-byte metadata, unsupported\n", ms);
+		return (CAM_REQ_CMP_ERR);
+	}
 
 	softc = (struct nda_softc *)malloc(sizeof(*softc), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
