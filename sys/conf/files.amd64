@@ -218,6 +218,8 @@ ice_ddp.fw			optional ice_ddp	\
 	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.41.0.pkg ice_ddp.fw" \
 	no-obj no-implicit-rule				\
 	clean		"ice_ddp.fw"
+dev/intel/hfsts.c	optional	hfsts pci
+dev/intel/hfsts_isa.c	optional	hfsts isa pci
 dev/ioat/ioat.c			optional	ioat pci
 dev/ioat/ioat_test.c		optional	ioat pci
 dev/ixl/if_ixl.c		optional	ixl pci \

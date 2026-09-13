@@ -138,6 +138,7 @@ SUBDIR=	\
 	${_glxsb} \
 	gpio \
 	${_gve} \
+	${_hfsts} \
 	hid \
 	${_hpt27xx} \
 	${_hptiop} \
@@ -877,6 +878,7 @@ _apple_bce=	apple_bce
 _asmc=		asmc
 _ccp=		ccp
 _enic=		enic
+_hfsts=		hfsts
 _iavf=		iavf
 _ioat=		ioat
 _iwx=		iwx

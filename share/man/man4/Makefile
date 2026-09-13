@@ -211,6 +211,7 @@ MAN=	aac.4 \
 	h_ertt.4 \
 	hconf.4 \
 	hcons.4 \
+	hfsts.4 \
 	hgame.4 \
 	hidbus.4 \
 	hidquirk.4 \
@@ -758,6 +759,7 @@ MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gpioths.4 dht11.4
 MLINKS+=gpioths.4 dht22.4
 MLINKS+=gre.4 if_gre.4
+MLINKS+=hfsts.4 hfstsfd.4
 MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hv_netvsc.4} ${_hn.4} \
 	${_hv_netvsc.4} ${_if_hn.4}

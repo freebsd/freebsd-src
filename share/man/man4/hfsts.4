@@ -1,0 +1,219 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <seuros@FreeBSD.org>
+.\"
+.Dd September 6, 2026
+.Dt HFSTS 4 amd64
+.Os
+.Sh NAME
+.Nm hfsts ,
+.Nm hfstsfd
+.Nd Intel Management Engine Host Firmware Status debug probe
+.Sh SYNOPSIS
+.Cd "device pci"
+.Cd "device isa"
+.Cd "device hfsts"
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hfsts_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm hfsts
+driver is a debug probe that decodes the Intel Management Engine's
+Host Firmware Status (HFSTS) registers.
+It is deliberately
+.Em not
+a full MEI host-client driver: it attaches only to the PCI function
+and decodes the Host Firmware Status registers available on that generation
+.Pq Dv HFSTS1 Ns \(en Ns Dv HFSTS6 ,
+which live entirely in PCI configuration space.
+BAR0, the circular-buffer messaging ring used for actual host-ME
+communication, is never mapped.
+.Pp
+The number of Host Firmware Status registers available depends on the
+PCH generation: ICH10 provides HFSTS1 only, PCH5 through PCH7 provide
+HFSTS1 and HFSTS2, and PCH8 and later provide all six.
+Older ICH devices without a defined Host Firmware Status register are
+not matched.
+.Pp
+On attach, the driver decodes the Current Working State, Operation
+State, Operation Mode, and Error Code fields into named strings and
+derives a one-word summary, one of
+.Dq Normal ,
+.Dq Active ,
+.Dq Disabled ,
+or
+.Dq Absent ,
+for consumers that do not want to parse the raw fields.
+.Ss hfstsfd
+.Nm hfstsfd
+.Pq Function Disable
+is a companion probe that reports whether the MEI function exists in
+silicon but has been hidden by firmware.
+The MEI PCI function never enumerates when firmware has disabled it
+via the PCH Function Disable mechanism, so there is no PCI device
+instance for
+.Nm hfsts
+to attach to.
+Instead,
+.Nm hfstsfd
+attaches below the PCI-ISA bridge device
+and reads the Function Disable register in the chipset's RCBA space
+to check whether HECI1/HECI2 are present but hidden.
+If the MEI function is visible on the PCI bus,
+.Nm hfstsfd
+is not needed and does not attach; the two drivers are mutually
+exclusive, so a system exposes either
+.Va dev.hfsts.0
+or
+.Va dev.hfstsfd.0 ,
+never both.
+.Nm hfstsfd
+only attaches on the following PCH generations:
+.Pp
+.Bl -bullet -compact
+.It
+Ibex Peak
+.It
+Cougar Point
+.It
+Panther Point
+.It
+Lynx Point
+.It
+Wildcat Point
+.El
+.Pp
+On any other chipset
+.Nm hfstsfd
+does not attach at all.
+When it does attach, its
+.Va status
+sysctl is one of:
+.Bl -tag -width "rcba-disabled"
+.It Cm rcba-disabled
+RCBA is present but not enabled, so the Function Disable register
+cannot be read.
+.It Cm checked
+FD2 was read successfully; the
+.Va mei1_disabled
+and
+.Va mei2_disabled
+sysctls reflect its bits.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables are available under
+.Va dev.hfsts.N
+when the driver is attached to a PCI MEI/HECI function.
+Each is read live from PCI configuration space on every access, not
+cached at attach time, since the ME's firmware status can change while
+the system is running
+.Pq CWS resets, HAP toggles, M0/M3 power transitions :
+.Bl -tag -width "update_in_progress"
+.It Va hfs1
+Raw Host Firmware Status 1 register value.
+.It Va hfs2
+Raw Host Firmware Status 2 register value, on PCH5 and later.
+.It Va hfs3 , hfs4 , hfs5 , hfs6
+Raw Host Firmware Status 3 through 6 register values, on PCH8 and later.
+.It Va d0i3_supported
+ME D0i3 capability, from HFS1, on PCH8 and later.
+.It Va opmode
+ME operation mode, from HFS1, as a numeric value.
+.It Va pm_event
+ME power management event, from HFS2, on PCH5 and later.
+.It Va fw_sku
+ME firmware SKU, from HFS3, on PCH8 and later.
+.It Va mfg_mode
+Non-zero if the ME is running in Manufacturing Mode, from HFS1.
+.It Va update_in_progress
+Non-zero if an ME firmware update is in progress, from HFS1.
+.It Va state
+ME Current Working State, decoded to a string such as
+.Dq Normal
+or
+.Dq Disabled .
+.It Va opstate
+ME Current Operation State, decoded to a string.
+.It Va opmode_str
+ME Current Operation Mode, decoded to a string.
+.It Va error
+ME Error Code, decoded to a string.
+.It Va summary
+One-word ME state summary; one of
+.Dq Normal ,
+.Dq Active ,
+.Dq Disabled ,
+or
+.Dq Absent .
+.El
+.Pp
+The
+.Va status
+.Xr sysctl 8
+variable is available under
+.Va dev.hfstsfd.N
+when the
+.Nm hfstsfd
+identify driver has attached.
+It contains the
+function-disable check result; one of the states listed in
+.Sx hfstsfd
+above.
+.Pp
+When
+.Va status
+is
+.Cm checked ,
+the following additional variables are available:
+.Bl -tag -width "mei1_disabled"
+.It Va fd2
+Raw Function Disable 2 register value.
+.It Va mei1_disabled
+Non-zero if HECI1 is disabled via the Function Disable register.
+.It Va mei2_disabled
+Non-zero if HECI2 is disabled via the Function Disable register.
+.El
+.Sh EXAMPLES
+Show the decoded ME state on a system where MEI enumerates normally:
+.Pp
+.Dl sysctl dev.hfsts.0
+.Pp
+Check whether HECI has been hidden via PCH Function Disable on a
+system where no MEI PCI function is present:
+.Pp
+.Dl sysctl dev.hfstsfd.0
+.Sh SEE ALSO
+.Xr ichwd 4 ,
+.Xr pci 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm hfsts
+and
+.Nm hfstsfd
+drivers first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt seuros@FreeBSD.org .
+.Sh CAVEATS
+.Nm hfsts
+only decodes PCI-configuration-space firmware status registers; it
+provides no access to the MEI messaging ring and cannot be used to
+communicate with the ME.
+.Pp
+.Nm hfstsfd
+identifies HECI Function Disable state on a known set of PCH
+generations only; chipsets that moved ME-disable to a P2SB-sideband
+mechanism
+.Pq Skylake/Sunrise Point and later
+are not probed, so
+.Nm hfstsfd
+never attaches on them.
