@@ -528,10 +528,6 @@ static const int	len_months[2][MONSPERYEAR] = {
 	{ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 };
 
-static const int	len_years[2] = {
-	DAYSPERNYEAR, DAYSPERLYEAR
-};
-
 static struct attype {
 	zic_t		at;
 	bool		dontmerge;
@@ -783,6 +779,7 @@ arg2num(char const *arg, int base, unsigned long maxval, char const *msgid)
 
 #ifndef HAVE_SETMODE
 # if (defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ \
+      || defined __DragonFly__ \
       || (defined __APPLE__ && defined __MACH__))
 #  define HAVE_SETMODE 1
 # else
@@ -1467,6 +1464,12 @@ namecheck(const char *name)
 	register char const *component = name;
 	for (cp = name; *cp; cp++) {
 		unsigned char c = *cp;
+#if defined _WIN32 || defined __CYGWIN__
+		if (c == ':' || c == '\\') {
+		  error(N_("file name '%s' contains '%c'"), name, c);
+		  return false;
+		}
+#endif
 		if (noise && !strchr(benign, c)) {
 			warning((strchr(printable_and_not_benign, c)
 				 ? N_("file name '%s' contains byte '%c'")
@@ -1781,8 +1784,20 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 	      break;
 	    }
 	    link_errno = errno;
+	    /* When hard links are not supported, some MS-Windows file system
+	       drivers fail with EINVAL, contrary to the intent of
+	       MS-FSA 42.0 (2025) section 2.1.5.15.7.  */
+	    if (link_errno == EINVAL)
+	      link_errno = ENOTSUP;
 	  }
 #endif
+	  /* On platforms like AIX, the Linux kernel, macOS, and Solaris,
+	     link/linkat can fail with ENOSYS or EPERM if the file system
+	     does not support hard links, or if other problems occur.
+	     It is too much trouble to suss out the other problems.  */
+	  if (link_errno == ENOSYS || link_errno == EPERM)
+	    link_errno = ENOTSUP;
+
 	  if (link_errno == EXDEV || link_errno == ENOTSUP)
 	    break;
 
@@ -1849,7 +1864,8 @@ dolink(char const *target, char const *linkname, bool staysymlink)
 		      strerror(link_errno));
 	    else if (symlink_errno < 0)
 	      warning(N_("copy used because symbolic link not obvious"));
-	    else if (symlink_errno != ENOTSUP)
+	    else if (symlink_errno != ENOSYS && symlink_errno != ENOTSUP
+		     && symlink_errno != EPERM)
 	      warning(N_("copy used because symbolic link failed: %s"),
 		      strerror(symlink_errno));
 	  }
@@ -2307,18 +2323,13 @@ inzsub(char **fields, int nfields, bool iscont)
 static zic_t
 getleapdatetime(char **fields, bool expire_line)
 {
-	register const char *		cp;
 	register const struct lookup *	lp;
-	register zic_t			i, j;
 	zic_t				year;
-	int				month, day;
-	zic_t				dayoff, tod;
 	zic_t				t;
 	char xs;
+	struct rule r;
 
-	dayoff = 0;
-	cp = fields[LP_YEAR];
-	if (sscanf(cp, "%"SCNdZIC"%c", &year, &xs) != 1) {
+	if (sscanf(fields[LP_YEAR], "%"SCNdZIC"%c", &year, &xs) != 1) {
 		/*
 		** Leapin' Lizards!
 		*/
@@ -2332,38 +2343,20 @@ getleapdatetime(char **fields, bool expire_line)
 		leapminyear = year;
 	    leapseen = true;
 	}
-	j = EPOCH_YEAR;
-	while (j != year) {
-		if (year > j) {
-			i = len_years[isleap(j)];
-			++j;
-		} else {
-			--j;
-			i = -len_years[isleap(j)];
-		}
-		dayoff = oadd(dayoff, i);
-	}
 	if ((lp = byword(fields[LP_MONTH], mon_names)) == NULL) {
 		error(N_("invalid month name"));
 		return -1;
 	}
-	month = lp->l_value;
-	j = TM_JANUARY;
-	while (j != month) {
-		i = len_months[isleap(year)][j];
-		dayoff = oadd(dayoff, i);
-		++j;
-	}
-	cp = fields[LP_DAY];
-	if (sscanf(cp, "%d%c", &day, &xs) != 1 ||
-		day <= 0 || day > len_months[isleap(year)][month]) {
+	r.r_month = lp->l_value;
+	if (! (sscanf(fields[LP_DAY], "%d%c", &r.r_dayofmonth, &xs) == 1
+	       && 0 < r.r_dayofmonth
+	       && r.r_dayofmonth <= len_months[isleap(year)][r.r_month])) {
 			error(N_("invalid day of month"));
 			return -1;
 	}
-	dayoff = oadd(dayoff, day - 1);
-	t = omul(dayoff, SECSPERDAY);
-	tod = gethms(fields[LP_TIME], N_("invalid time of day"));
-	t = tadd(t, tod);
+	r.r_dycode = DC_DOM;
+	r.r_tod = gethms(fields[LP_TIME], N_("invalid time of day"));
+	t = rpytime(&r, year);
 	if (t < 0)
 	  error(N_("leap second precedes Epoch"));
 	return t;
@@ -2419,6 +2412,8 @@ inlink(char **fields, int nfields)
 		error(N_("blank TARGET field on Link line"));
 		return;
 	}
+	if (! namecheck(fields[LF_TARGET]))
+	  return;
 	if (! namecheck(fields[LF_LINKNAME]))
 	  return;
 	l.l_filenum = filenum;
@@ -3552,10 +3547,13 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 			} else
 				defaulttype = type;
 		} else {
-		  zic_t year;
-		  for (year = min_year; year <= max_year; ++year) {
+		  zic_t year, next_year;
+		  bool try_next_year = true;
+		  for (year = min_year; try_next_year; year = next_year) {
 			if (useuntil && year > zp->z_untilrule.r_hiyear)
 				break;
+			try_next_year = false;
+			next_year = max_year;
 			/*
 			** Mark which rules to do in the current year.
 			** For those to do, calculate rpytime(rp, year);
@@ -3567,6 +3565,17 @@ outzone(const struct zone *zpfirst, ptrdiff_t zonecount)
 				struct rule *rp = &zp->z_rules[j];
 				eats(zp->z_filenum, zp->z_linenum,
 				     rp->r_filenum, rp->r_linenum);
+
+				/* Keep track of the earliest year after YEAR
+				   in which some rule <= J applies.  */
+				if (year < rp->r_hiyear) {
+				  zic_t next = max(year + 1, rp->r_loyear);
+				  if (next <= next_year) {
+				    next_year = next;
+				    try_next_year = true;
+				  }
+				}
+
 				rp->r_todo = year >= rp->r_loyear &&
 						year <= rp->r_hiyear;
 				if (rp->r_todo) {
@@ -4147,7 +4156,7 @@ rpytime(const struct rule *rp, zic_t wantedy)
 	wantedy = y + (yrem + 2 * YEARSPERREPEAT) % YEARSPERREPEAT;
 
 	while (wantedy != y) {
-		i = len_years[isleap(y)];
+		i = year_days(y);
 		dayoff = oadd(dayoff, i);
 		y++;
 	}

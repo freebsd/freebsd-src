@@ -330,12 +330,8 @@ for the
 POSIX Portable Character Set (PPCS)
 .UE
 and the encoding's non-unibyte characters should consist entirely of
-non-PPCS bytes.  Non-PPCS characters typically occur only in comments:
-although output file names and time zone abbreviations can contain
-nearly any character, other software will work better if these are
-limited to the restricted syntax described under the
-.B \-v
-option.
+non-PPCS bytes.
+Non-PPCS characters typically occur only in comments.
 .PP
 Input lines are made up of fields.
 Fields are separated from one another by one or more white space characters.
@@ -350,15 +346,16 @@ Any line that is blank (after comment stripping) is ignored.
 Nonblank lines are expected to be of one of three types:
 rule lines, zone lines, and link lines.
 .PP
-Names must be in English and are case insensitive.
+Keywords are in English and are case insensitive.
+They are not reserved words.
 They appear in several contexts, and include month and weekday names
-and keywords such as
+and other words such as
 .BR "maximum" ,
 .BR "only" ,
 .BR "Rolling" ,
 and
 .BR "Zone" .
-A name can be abbreviated by omitting all but an initial prefix; any
+A keyword can be abbreviated by omitting all but an initial prefix; any
 abbreviation must be unambiguous in context.
 .PP
 A rule line has the form
@@ -586,11 +583,26 @@ The name of the timezone.
 This is the name used in creating the time conversion information file for the
 timezone.
 It should not contain a file name component
+that is empty or is
 .q ".\&"
 or
 .q ".." ;
 a file name component is a maximal substring that does not contain
 .q "/" .
+Names can be further restricted by the operating system or file system.
+Most systems reject a name
+.IB A / B
+if there is another name
+.IR A ,
+some reject names differing only in case,
+and some reject names containing special characters like
+.q ":"
+and
+.q "\e" .
+Other software will work better if names are
+limited to the restricted syntax described under the
+.B \-v
+option.
 .TP
 .B STDOFF
 The amount of time to add to UT to get standard time,
@@ -737,8 +749,16 @@ A link line has the form
 .ta \w'Link\0\0'u +\w'Europe/Istanbul\0\0'u
 Link	TARGET	LINK-NAME
 .sp
+.fi
+where
+.B TARGET
+and
+.B LINK-NAME
+both have the same syntax as a zone line's
+.BR NAME .
 For example:
 .sp
+.nf
 .ti +2
 Link	Europe/Istanbul	Asia/Istanbul
 .sp
@@ -752,10 +772,7 @@ field in some zone line or as the
 field in some link line.
 The
 .B LINK-NAME
-field is used as an alternative name for that zone;
-it has the same syntax as a zone line's
-.B NAME
-field.
+field is an alternative name for that zone.
 Links can chain together, although the behavior is unspecified if a
 chain of one or more links does not terminate in a Zone name.
 A link line can appear before the line that defines the link target.

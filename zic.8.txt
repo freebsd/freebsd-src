@@ -186,13 +186,9 @@ FILES
        zero or more lines, each ending in a newline byte and containing at
        most 2048 bytes counting the newline, and without any NUL bytes.  The
        input text's encoding is typically UTF-8 or ASCII; it should have a
-       unibyte representation for the POSIX Portable Character Set (PPCS)
-       ⟨https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap06
-       .html⟩ and the encoding's non-unibyte characters should consist
-       entirely of non-PPCS bytes.  Non-PPCS characters typically occur only
-       in comments: although output file names and time zone abbreviations can
-       contain nearly any character, other software will work better if these
-       are limited to the restricted syntax described under the -v option.
+       unibyte representation for the POSIX Portable Character Set (PPCS) and
+       the encoding's non-unibyte characters should consist entirely of non-
+       PPCS bytes.  Non-PPCS characters typically occur only in comments.
 
        Input lines are made up of fields.  Fields are separated from one
        another by one or more white space characters.  The white space
@@ -206,11 +202,11 @@ FILES
        lines are expected to be of one of three types: rule lines, zone lines,
        and link lines.
 
-       Names must be in English and are case insensitive.  They appear in
-       several contexts, and include month and weekday names and keywords such
-       as maximum, only, Rolling, and Zone.  A name can be abbreviated by
-       omitting all but an initial prefix; any abbreviation must be
-       unambiguous in context.
+       Keywords are in English and are case insensitive.  They are not
+       reserved words.  They appear in several contexts, and include month and
+       weekday names and other words such as maximum, only, Rolling, and Zone.
+       A keyword can be abbreviated by omitting all but an initial prefix; any
+       abbreviation must be unambiguous in context.
 
        A rule line has the form
 
@@ -330,8 +326,14 @@ FILES
 
        NAME   The name of the timezone.  This is the name used in creating the
               time conversion information file for the timezone.  It should
-              not contain a file name component “.” or “..”; a file name
-              component is a maximal substring that does not contain “/”.
+              not contain a file name component that is empty or is “.” or
+              “..”; a file name component is a maximal substring that does not
+              contain “/”.  Names can be further restricted by the operating
+              system or file system.  Most systems reject a name A/B if there
+              is another name A, some reject names differing only in case, and
+              some reject names containing special characters like “:” and
+              “\”.  Other software will work better if names are limited to
+              the restricted syntax described under the -v option.
 
        STDOFF The amount of time to add to UT to get standard time, without
               any adjustment for daylight saving.  This field has the same
@@ -418,17 +420,17 @@ FILES
 
          Link  TARGET           LINK-NAME
 
-       For example:
+       where TARGET and LINK-NAME both have the same syntax as a zone line's
+       NAME.  For example:
 
          Link  Europe/Istanbul  Asia/Istanbul
 
        The TARGET field should appear as the NAME field in some zone line or
-       as the LINK-NAME field in some link line.  The LINK-NAME field is used
-       as an alternative name for that zone; it has the same syntax as a zone
-       line's NAME field.  Links can chain together, although the behavior is
-       unspecified if a chain of one or more links does not terminate in a
-       Zone name.  A link line can appear before the line that defines the
-       link target.  For example:
+       as the LINK-NAME field in some link line.  The LINK-NAME field is an
+       alternative name for that zone.  Links can chain together, although the
+       behavior is unspecified if a chain of one or more links does not
+       terminate in a Zone name.  A link line can appear before the line that
+       defines the link target.  For example:
 
          Link  Greenwich  G_M_T
          Link  Etc/GMT    Greenwich

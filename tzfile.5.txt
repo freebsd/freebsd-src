@@ -402,7 +402,6 @@ SEE ALSO
        time(2), localtime(3), tzset(3), tzselect(8), zdump(8), zic(8).
 
        Olson A, Eggert P, Murchison K. The Time Zone Information Format
-       (TZif).  October 2024.  Internet RFC 9636 ⟨https://www.rfc-editor.org/
-       rfc/rfc9636⟩ doi:10.17487/RFC9636 ⟨https://doi.org/10.17487/RFC9636⟩.
+       (TZif).  October 2024.  Internet RFC 9636 doi:10.17487/RFC9636.
 
 Time Zone Database                                                   tzfile(5)
