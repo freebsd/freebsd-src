@@ -27,6 +27,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260916:
+	mfiutil(8)/mrsasutil(8) now display and parse the Exx:Syy drive
+	location notation using the controller's enclosure device ID (EID)
+	instead of its firmware-internal enclosure position index, aligning
+	with Broadcom's storcli/MegaCli tooling.  This changes the numeric
+	value of "xx" for enclosures where the two differ; scripts relying
+	on the previous numbering should be updated to use "show drives"
+	output or storcli's EID column.
+
 20260914:
 	The size of multiple embedded structs have changed and may lead to
 	problems (pci_error_handlers in pci_driver, dev_pm_info in struct device).

@@ -108,10 +108,10 @@ mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id, uint32_t def)
 			    pinfo->slot_number);
 		else if (pinfo->encl_device_id == pinfo->ref.v.device_id)
 			sbuf_printf(&sb, "E%u",
-			    pinfo->encl_index);
+			    pinfo->encl_device_id);
 		else
 			sbuf_printf(&sb, "E%u:S%u",
-			    pinfo->encl_index, pinfo->slot_number);
+			    pinfo->encl_device_id, pinfo->slot_number);
 	}
 	sbuf_finish(&sb);
 
@@ -156,7 +156,8 @@ mfi_lookup_drive(int fd, char *drive, uint16_t *device_id)
 	int error;
 	u_int i;
 	char *cp;
-	uint8_t encl, slot;
+	uint16_t encl;
+	uint8_t slot;
 
 	/* Look for a raw device id first. */
 	val = strtol(drive, &cp, 0);
@@ -175,14 +176,14 @@ mfi_lookup_drive(int fd, char *drive, uint16_t *device_id)
 		if (toupper(drive[0]) == 'E') {
 			cp++;			/* Eat 'E' */
 			val = strtol(cp, &cp, 0);
-			if (val < 0 || val > 0xff || *cp != ':')
+			if (val < 0 || val >= 0xffff || *cp != ':')
 				goto bad;
 			encl = val;
 			cp++;			/* Eat ':' */
 			if (toupper(*cp) != 'S')
 				goto bad;
 		} else
-			encl = 0xff;
+			encl = 0xffff;
 		cp++;				/* Eat 'S' */
 		if (*cp == '\0')
 			goto bad;
@@ -201,9 +202,7 @@ mfi_lookup_drive(int fd, char *drive, uint16_t *device_id)
 			if (list->addr[i].scsi_dev_type != 0)
 				continue;
 
-			if (((encl == 0xff &&
-			    list->addr[i].encl_device_id == 0xffff) ||
-			    list->addr[i].encl_index == encl) &&
+			if (list->addr[i].encl_device_id == encl &&
 			    list->addr[i].slot_number == slot) {
 				*device_id = list->addr[i].device_id;
 				free(list);
