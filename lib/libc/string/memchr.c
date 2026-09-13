@@ -33,7 +33,7 @@
 #define HASZERO(x) (((x)-ONES) & ~(x)&HIGHS)
 
 void *
-memchr(const void *src, int c, size_t n)
+(memchr)(const void *src, int c, size_t n)
 {
 	const unsigned char *s = src;
 	c = (unsigned char)c;

@@ -66,15 +66,15 @@ typedef DECLARE_BLOCK(int, compar_block, const void *, const void *);
  */
 #ifdef I_AM_BSEARCH_B
 void *
-bsearch_b(const void *key, const void *base0, size_t nmemb, size_t size,
+(bsearch_b)(const void *key, const void *base0, size_t nmemb, size_t size,
     compar_block compar)
 #elif defined(I_AM_BSEARCH_S)
 void *
-bsearch_s(const void *key, const void *base0, rsize_t nmemb, rsize_t size,
+(bsearch_s)(const void *key, const void *base0, rsize_t nmemb, rsize_t size,
     int (*compar)(const void *, const void *, void *), void *context)
 #else
 void *
-bsearch(const void *key, const void *base0, size_t nmemb, size_t size,
+(bsearch)(const void *key, const void *base0, size_t nmemb, size_t size,
     int (*compar)(const void *, const void *))
 #endif
 {

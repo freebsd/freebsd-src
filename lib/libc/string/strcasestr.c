@@ -65,7 +65,7 @@ strcasestr_l(const char *s, const char *find, locale_t locale)
 	return ((char *)s);
 }
 char *
-strcasestr(const char *s, const char *find)
+(strcasestr)(const char *s, const char *find)
 {
 	return strcasestr_l(s, find, __get_locale());
 }

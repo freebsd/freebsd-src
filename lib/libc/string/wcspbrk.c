@@ -37,7 +37,7 @@ __RCSID("$NetBSD: wcspbrk.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
 #include <wchar.h>
 
 wchar_t *
-wcspbrk(const wchar_t *s, const wchar_t *set)
+(wcspbrk)(const wchar_t *s, const wchar_t *set)
 {
 	const wchar_t *p;
 	const wchar_t *q;
