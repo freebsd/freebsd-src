@@ -116,7 +116,7 @@ typedef int (copyinuio_t)(const void *iovp, unsigned int iovcnt,
  * copyinuio_t and a pointer to the corresponding iovec in userspace.
  * It updates all lengths in userspace to match those in the uio.
  */
-typedef int(updateiov_t)(const struct uio *uiop, struct iovec *iovp);
+typedef int(updateiov_t)(const struct uio *uiop, void *iovp);
 
 /*
  * A updateiov_t takes a pointer to a struct uio previously created with
