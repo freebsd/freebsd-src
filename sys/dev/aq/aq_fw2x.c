@@ -35,9 +35,6 @@
  * Firmware v2.x specific functions.
  * @date 2017.12.11  @author roman.agafonov@aquantia.com
  */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/errno.h>
 
 #include "aq_common.h"

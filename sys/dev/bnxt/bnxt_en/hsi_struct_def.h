@@ -27,9 +27,6 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Copyright(c) 2001-2026, Broadcom. All rights reserved. The
  * term Broadcom refers to Broadcom Inc. and/or its subsidiaries.

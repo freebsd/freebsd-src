@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Thunderbolt Variables
- *
- * $FreeBSD$
  */
 
 #ifndef _TB_REG_H

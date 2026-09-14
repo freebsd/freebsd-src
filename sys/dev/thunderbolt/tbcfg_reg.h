@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Thunderbolt3/USB4 config space register definitions
- *
- * $FreeBSD$
  */
 
 #ifndef _TBCFG_REG_H

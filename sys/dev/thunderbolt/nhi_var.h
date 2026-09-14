@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Thunderbolt 3 / Native Host Interface driver variables
- *
- * $FreeBSD$
  */
 
 #ifndef _NHI_VAR

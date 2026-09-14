@@ -30,9 +30,6 @@
 #include "opt_inet6.h"
 #include "opt_kern_tls.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/ktr.h>
 #include <sys/ktls.h>
