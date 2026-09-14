@@ -40,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <machine/atomic.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -741,14 +742,49 @@ hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
 	    sndc, gpa, gpa_cnt);
 }
 
-void
+int
 hn_nvs_set_datapath(struct hn_softc *sc, uint32_t path)
 {
-	struct hn_nvs_datapath dp;
+	struct hn_nvs_datapath *dp;
+	struct hn_nvs_sendctx sndc;
+	struct vmbus_xact *xact;
+	size_t resplen;
+	int error;
 
-	memset(&dp, 0, sizeof(dp));
-	dp.nvs_type = HN_NVS_TYPE_SET_DATAPATH;
-	dp.nvs_active_path = path;
+	if (path == HN_NVS_DATAPATH_VF &&
+	    !(atomic_load_acq_int(&sc->hn_vf_assoc) & HN_VF_ASSOC_ALLOCATED))
+		return (EAGAIN);
 
-	hn_nvs_req_send(sc, &dp, sizeof(dp));
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*dp));
+	if (xact == NULL) {
+		error = ENXIO;
+		goto failed;
+	}
+	dp = vmbus_xact_req_data(xact);
+	memset(dp, 0, sizeof(*dp));
+	dp->nvs_type = HN_NVS_TYPE_SET_DATAPATH;
+	dp->nvs_active_path = path;
+	hn_nvs_sendctx_init(&sndc, hn_nvs_sent_xact, xact);
+	vmbus_xact_activate(xact);
+	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    dp, sizeof(*dp), &sndc);
+	if (error) {
+		vmbus_xact_deactivate(xact);
+	} else {
+		/* No NVS response: the empty VMBus completion confirms the switch. */
+		vmbus_chan_xact_wait(sc->hn_prichan, xact, &resplen,
+		    HN_CAN_SLEEP(sc));
+		if (vmbus_chan_is_revoked(sc->hn_prichan))
+			error = ENXIO;
+		else if (resplen != 0)
+			error = EIO;
+	}
+	vmbus_xact_put(xact);
+	if (error == 0)
+		return (0);
+
+failed:
+	if_printf(sc->hn_ifp, "datapath switch to %s failed: %d\n",
+	    path == HN_NVS_DATAPATH_VF ? "VF" : "synthetic", error);
+	return (error);
 }

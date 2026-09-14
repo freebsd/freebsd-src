@@ -140,7 +140,13 @@ CTASSERT(sizeof(struct hn_nvs_ndis_init) >= HN_NVS_REQSIZE_MIN);
 #define HN_NVS_DATAPATH_SYNTH		0
 #define HN_NVS_DATAPATH_VF		1
 
-/* No response */
+struct hn_nvs_vfassoc {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_VFASSOC_NOTE */
+	uint32_t	nvs_alloc;
+	uint32_t	nvs_serial;
+} __packed;
+
+/* Empty VMBus completion, no NVS response. */
 struct hn_nvs_datapath {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_SET_DATAPATH */
 	uint32_t	nvs_active_path;/* HN_NVS_DATAPATH_* */
