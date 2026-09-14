@@ -1788,6 +1788,12 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	}
 
 	/*
+	 * Some VF drivers initialize hwassist only when brought up.  Refresh
+	 * the offload state before allowing transmit through the VF.
+	 */
+	hn_xpnt_vf_iocsetcaps(sc, NULL);
+
+	/*
 	 * NOTE:
 	 * Datapath setting must happen _after_ bringing the VF up.
 	 */
