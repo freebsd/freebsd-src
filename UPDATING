@@ -13,6 +13,12 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20260919:
+	The size of multiple embedded structs have changed and may lead to
+	problems (pci_error_handlers in pci_driver, dev_pm_info in struct device).
+	Bump __FreeBSD_version to 1501503 to allow these LinuxKPI changes to
+	be detcted.
+
+20260919:
 	bhyve(8) users who explicitly set the eui64 option for an NVMe
 	device may need to update their configuration.  Due to an incorrect
 	byte-order conversion, bhyve previously presented manually
