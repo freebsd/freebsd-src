@@ -28,6 +28,7 @@
 
 #include <sys/cdefs.h>
 #include "tpm20.h"
+#include "tpm_irq.h"
 #include "tpm_if.h"
 
 static int tpmtis_acpi_probe(device_t dev);
@@ -77,6 +78,7 @@ tpmtis_acpi_attach(device_t dev)
 static device_method_t tpmtis_methods[] = {
 	DEVMETHOD(device_attach,	tpmtis_acpi_attach),
 	DEVMETHOD(device_probe,		tpmtis_acpi_probe),
+	DEVMETHOD(tpm_configure_irq,	tpm_acpi_configure_irq),
 	DEVMETHOD_END
 };
 

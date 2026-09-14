@@ -48,6 +48,23 @@
 #include <dev/isa/isavar.h>
 #endif
 #include "tpmvar.h"
+#include "tpm_irq.h"
+#include "tpm_if.h"
+
+static int
+tpm_isa_configure_irq(device_t dev, struct resource *irq,
+    struct tpm_irq_config *config, bool program)
+{
+	rman_res_t sirq;
+
+	sirq = rman_get_start(irq);
+	if (sirq < 1 || sirq > 15)
+		return (ENXIO);
+	config->sirq = sirq;
+	config->mode = TPM_IRQ_EDGE_RISING;
+	config->valid = true;
+	return (0);
+}
 
 static int
 tpm_isa_probe(device_t dev)
@@ -81,6 +98,7 @@ static device_method_t tpm_methods[] = {
 	DEVMETHOD(device_detach,	tpm_detach),
 	DEVMETHOD(device_suspend,	tpm_suspend),
 	DEVMETHOD(device_resume,	tpm_resume),
+	DEVMETHOD(tpm_configure_irq,	tpm_isa_configure_irq),
 	DEVMETHOD_END
 };
 
