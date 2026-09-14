@@ -353,7 +353,7 @@ the command name (for example,
 .B unxz
 implies
 .BR \-\-decompress ).
-.IP ""
+.IP
 .\" The DESCRIPTION section already says this but it's good to repeat it
 .\" here because the default behavior is a bit dangerous and new users
 .\" in a hurry may skip reading the DESCRIPTION section.
@@ -389,7 +389,7 @@ and no files are created or removed.
 In list mode, the program cannot read
 the compressed data from standard
 input or from other unseekable sources.
-.IP ""
+.IP
 The default listing shows basic information about
 .IR files ,
 one file per line.
@@ -404,7 +404,7 @@ The width of verbose output exceeds
 80 characters, so piping the output to, for example,
 .B "less\ \-S"
 may be convenient if the terminal isn't wide enough.
-.IP ""
+.IP
 The exact output may vary between
 .B xz
 versions and different locales.
@@ -416,7 +416,7 @@ should be used.
 .TP
 .BR \-k ", " \-\-keep
 Don't delete the input files.
-.IP ""
+.IP
 Since
 .B xz
 5.2.6,
@@ -485,7 +485,7 @@ silently ignore possible remaining input data following the stream.
 Normally such trailing garbage makes
 .B xz
 display an error.
-.IP ""
+.IP
 .B xz
 never decompresses more than one stream from
 .B .lzma
@@ -494,12 +494,12 @@ files or raw streams, but this option still makes
 ignore the possible trailing data after the
 .B .lzma
 file or raw stream.
-.IP ""
+.IP
 This option has no effect if the operation mode is not
 .B \-\-decompress
 or
 .BR \-\-test .
-.IP ""
+.IP
 Since
 .B xz
 5.7.1alpha,
@@ -530,7 +530,7 @@ If not writing to standard output and
 the source file already has the suffix
 .IR .suf ,
 a warning is displayed and the file is skipped.
-.IP ""
+.IP
 When decompressing, recognize files with the suffix
 .I .suf
 in addition to files with the
@@ -544,7 +544,7 @@ suffix.
 If the source file has the suffix
 .IR .suf ,
 the suffix is removed to get the target filename.
-.IP ""
+.IP
 When compressing or decompressing raw streams
 .RB ( \-\-format=raw ),
 the suffix must always be specified unless
@@ -612,7 +612,7 @@ Accept only
 .B .lz
 files when decompressing.
 Compression is not supported.
-.IP ""
+.IP
 The
 .B .lz
 format versions 0 and 1 are supported.
@@ -651,7 +651,7 @@ format doesn't support integrity checks.
 The integrity check (if any) is verified when the
 .B .xz
 file is decompressed.
-.IP ""
+.IP
 Supported
 .I check
 types:
@@ -678,7 +678,7 @@ at detecting damaged files and the speed difference is negligible.
 Calculate SHA-256.
 This is somewhat slower than CRC32 and CRC64.
 .RE
-.IP ""
+.IP
 Integrity of the
 .B .xz
 headers is always verified with CRC32.
@@ -689,7 +689,7 @@ Don't verify the integrity check of the compressed data when decompressing.
 The CRC32 values in the
 .B .xz
 headers will still be verified normally.
-.IP ""
+.IP
 .B "Do not use this option unless you know what you are doing."
 Possible reasons to use this option:
 .RS
@@ -711,7 +711,7 @@ If multiple preset levels are specified,
 the last one takes effect.
 If a custom filter chain was already specified, setting
 a compression preset level clears the custom filter chain.
-.IP ""
+.IP
 The differences between the presets are more significant than with
 .BR gzip (1)
 and
@@ -761,16 +761,15 @@ but with higher compressor and decompressor memory requirements.
 These are useful only when compressing files bigger than
 8\ MiB, 16\ MiB, and 32\ MiB, respectively.
 .RE
-.IP ""
+.IP
 On the same hardware, the decompression speed is approximately
 a constant number of bytes of compressed data per second.
 In other words, the better the compression,
 the faster the decompression will usually be.
 This also means that the amount of uncompressed output
 produced per second can vary a lot.
-.IP ""
+.IP
 The following table summarises the features of the presets:
-.RS
 .RS
 .PP
 .TS
@@ -790,8 +789,7 @@ Preset;DictSize;CompCPU;CompMem;DecMem
 \-9;64 MiB;6;674 MiB;65 MiB
 .TE
 .RE
-.RE
-.IP ""
+.IP
 Column descriptions:
 .RS
 .IP \(bu 3
@@ -828,7 +826,7 @@ The exact decompressor memory usage is slightly more than
 the LZMA2 dictionary size, but the values in the table
 have been rounded up to the next full MiB.
 .RE
-.IP ""
+.IP
 Memory requirements of the multi-threaded mode are
 significantly higher than that of the single-threaded mode.
 With the default value of
@@ -846,7 +844,7 @@ but with bad luck this can also make it worse.
 Decompressor memory usage is not affected,
 but compressor memory usage increases a little at preset levels
 .BR \-0 " ... " \-3 .
-.IP ""
+.IP
 Since there are two presets with dictionary sizes
 4\ MiB and 8\ MiB, the presets
 .B \-3e
@@ -858,7 +856,6 @@ and
 .BR \-6e ,
 respectively.
 That way no two presets are identical.
-.RS
 .RS
 .PP
 .TS
@@ -878,8 +875,7 @@ Preset;DictSize;CompCPU;CompMem;DecMem
 \-9e;64 MiB;8;674 MiB;65 MiB
 .TE
 .RE
-.RE
-.IP ""
+.IP
 For example, there are a total of four presets that use
 8\ MiB dictionary, whose order from the fastest to the slowest is
 .BR \-5 ,
@@ -914,7 +910,7 @@ makes limited random-access decompression possible.
 This option is typically used to override the default
 block size in multi-threaded mode,
 but this option can be used in single-threaded mode too.
-.IP ""
+.IP
 In multi-threaded mode about three times
 .I size
 bytes will be allocated in each thread for buffering input and output.
@@ -931,7 +927,7 @@ because then the LZMA2 dictionary buffer will never get fully used.
 In multi-threaded mode,
 the sizes of the blocks are stored in the block headers.
 This size information is required for multi-threaded decompression.
-.IP ""
+.IP
 In single-threaded mode no block splitting is done by default.
 Setting this option doesn't affect memory usage.
 No size information is stored in block headers,
@@ -946,7 +942,7 @@ When compressing to the
 .B .xz
 format, start a new block with an optional custom filter chain after
 the given intervals of uncompressed data.
-.IP ""
+.IP
 The
 .I items
 are a comma-separated list.
@@ -956,7 +952,7 @@ between 0 and 9 followed by a colon
 and a required size of uncompressed data.
 Omitting an item (two or more consecutive commas) is a
 shorthand to use the size and filters of the previous item.
-.IP ""
+.IP
 If the input file is bigger than the sum of
 the sizes in
 .IR items ,
@@ -965,7 +961,7 @@ A special value of
 .B 0
 may be used as the last size to indicate that
 the rest of the file should be encoded as a single block.
-.IP ""
+.IP
 An alternative filter chain for each block can be
 specified in combination with the
 .BI \-\-filters1= filters
@@ -1005,7 +1001,7 @@ The default filter chain and 2 MiB input
 The default filter chain and 4 MiB input for every block until
 end of input.
 .RE
-.IP ""
+.IP
 If one specifies a size that exceeds the encoder's block size
 (either the default value in threaded mode or
 the value specified with \fB\-\-block\-size=\fIsize\fR),
@@ -1018,7 +1014,7 @@ For example, if one specifies
 and the input file is 80 MiB,
 one will get 11 blocks:
 5, 10, 8, 10, 2, 10, 10, 4, 10, 10, and 1 MiB.
-.IP ""
+.IP
 In multi-threaded mode the sizes of the blocks
 are stored in the block headers.
 This isn't done in single-threaded mode,
@@ -1041,7 +1037,7 @@ values make the data available at the receiving end
 with a small delay, but large
 .I timeout
 values give better compression ratio.
-.IP ""
+.IP
 This feature is disabled by default.
 If this option is specified more than once, the last one takes effect.
 The special
@@ -1049,9 +1045,9 @@ The special
 value of
 .B 0
 can be used to explicitly disable this feature.
-.IP ""
+.IP
 This feature is not available on non-POSIX systems.
-.IP ""
+.IP
 .\" FIXME
 .B "This feature is still experimental."
 Currently
@@ -1070,12 +1066,12 @@ it is possible that the target file was not written
 to the storage device but the delete operation was.
 In that case neither the original source file
 nor the target file is available.
-.IP ""
+.IP
 This option has an effect only when
 .B xz
 is going to remove the source file.
 In other cases synchronization is never done.
-.IP ""
+.IP
 The synchronization and
 .B \-\-no\-sync
 were added in
@@ -1086,7 +1082,7 @@ were added in
 Set a memory usage limit for compression.
 If this option is specified multiple times,
 the last one takes effect.
-.IP ""
+.IP
 If the compression settings exceed the
 .IR limit ,
 .B xz
@@ -1099,7 +1095,7 @@ switching to single-threaded mode
 if even one thread in multi-threaded mode exceeds the
 .IR limit ,
 and finally reducing the LZMA2 dictionary size.
-.IP ""
+.IP
 When compressing with
 .B \-\-format=raw
 or if
@@ -1107,14 +1103,14 @@ or if
 has been specified,
 only the number of threads may be reduced
 since it can be done without affecting the compressed output.
-.IP ""
+.IP
 If the
 .I limit
 cannot be met even with the adjustments described above,
 an error is displayed and
 .B xz
 will exit with exit status 1.
-.IP ""
+.IP
 The
 .I limit
 can be specified in multiple ways:
@@ -1151,7 +1147,7 @@ to
 .B max
 (no memory usage limit).
 .RE
-.IP ""
+.IP
 For 32-bit
 .B xz
 there is a special case: if the
@@ -1174,7 +1170,7 @@ A similar feature doesn't exist for decompression.)
 This can be helpful when a 32-bit executable has access
 to 4\ GiB address space (2 GiB on MIPS32)
 while hopefully doing no harm in other situations.
-.IP ""
+.IP
 See also the section
 .BR "Memory usage" .
 .TP
@@ -1213,14 +1209,14 @@ and so the effective
 .I limit
 for multi-threading will never be higher than the limit set with
 .BR \-\-memlimit\-decompress .
-.IP ""
+.IP
 In contrast to the other memory usage limit options,
 .BI \-\-memlimit\-mt\-decompress= limit
 has a system-specific default
 .IR limit .
 .B "xz \-\-info\-memory"
 can be used to see the current value.
-.IP ""
+.IP
 This option and its default value exist
 because without any limit the threaded decompressor
 could end up allocating an insane amount of memory with some input files.
@@ -1236,7 +1232,7 @@ will attempt to use that amount of memory
 even with a low number of threads.
 Running out of memory or swapping
 will not improve decompression performance.
-.IP ""
+.IP
 See
 .BI \-\-memlimit\-compress= limit
 for possible ways to specify the
@@ -1264,7 +1260,7 @@ from switching the encoder from multi-threaded mode to single-threaded mode
 and from reducing the LZMA2 dictionary size.
 Even when this option is used the number of threads may be reduced
 to meet the memory usage limit as that won't affect the compressed output.
-.IP ""
+.IP
 Automatic adjusting is always disabled when creating raw streams
 .RB ( \-\-format=raw ).
 .TP
@@ -1282,7 +1278,7 @@ The actual number of threads can be fewer than
 if the input file is not big enough
 for threading with the given settings or
 if using more threads would exceed the memory usage limit.
-.IP ""
+.IP
 The single-threaded and multi-threaded compressors produce different output.
 Single-threaded compressor will give the smallest file size but
 only the output from the multi-threaded compressor can be decompressed
@@ -1301,7 +1297,7 @@ even if the system supports only one hardware thread.
 .RB ( xz
 5.2.x
 used single-threaded mode in this situation.)
-.IP ""
+.IP
 To use multi-threaded mode with only one thread, set
 .I threads
 to
@@ -1320,7 +1316,7 @@ Support for the
 prefix was added in
 .B xz
 5.4.0.
-.IP ""
+.IP
 If an automatic number of threads has been requested and
 no memory usage limit has been specified,
 then a system-specific default soft limit will be used to possibly
@@ -1335,14 +1331,14 @@ This default soft limit will not make
 switch from multi-threaded mode to single-threaded mode.
 The active limits can be seen with
 .BR "xz \-\-info\-memory" .
-.IP ""
+.IP
 Currently the only threading method is to split the input into
 blocks and compress them independently from each other.
 The default block size depends on the compression level and
 can be overridden with the
 .BI \-\-block\-size= size
 option.
-.IP ""
+.IP
 Threaded decompression only works on files that contain
 multiple blocks with size information in block headers.
 All large enough files compressed in multi-threaded mode
@@ -1350,7 +1346,7 @@ meet this condition,
 but files compressed in single-threaded mode don't even if
 .BI \-\-block\-size= size
 has been used.
-.IP ""
+.IP
 The default value for
 .I threads
 is
@@ -1457,7 +1453,7 @@ to apply the same options as
 \fB\-\-filters1\fR=\fIfilters\fR ... \fB\-\-filters9\fR=\fIfilters
 Specify up to nine additional filter chains that can be used with
 .BR \-\-block\-list .
-.IP ""
+.IP
 For example, when compressing an archive with executable files
 followed by text files, the executable part could use a filter
 chain with a BCJ filter and the text part only the LZMA2 filter.
@@ -1479,7 +1475,7 @@ options, and exit successfully.
 .PD
 Add LZMA1 or LZMA2 filter to the filter chain.
 These filters can be used only as the last filter in the chain.
-.IP ""
+.IP
 LZMA1 is a legacy filter,
 which is supported almost solely due to the legacy
 .B .lzma
@@ -1491,7 +1487,7 @@ The
 format uses LZMA2 and doesn't support LZMA1 at all.
 Compression speed and ratios of LZMA1 and LZMA2
 are practically the same.
-.IP ""
+.IP
 LZMA1 and LZMA2 share the same set of
 .IR options :
 .RS
@@ -1542,7 +1538,7 @@ Thus, increasing dictionary
 .I size
 usually improves compression ratio, but
 a dictionary bigger than the uncompressed file is waste of memory.
-.IP ""
+.IP
 Typical dictionary
 .I size
 is from 64\ KiB to 64\ MiB.
@@ -1551,7 +1547,7 @@ The maximum for compression is currently 1.5\ GiB (1536\ MiB).
 The decompressor already supports dictionaries up to
 one byte less than 4\ GiB, which is the maximum for
 the LZMA1 and LZMA2 stream formats.
-.IP ""
+.IP
 Dictionary
 .I size
 and match finder
@@ -1587,12 +1583,12 @@ In addition, the sum of
 and
 .I lp
 must not exceed 4.
-.IP ""
+.IP
 All bytes that cannot be encoded as matches
 are encoded as literals.
 That is, literals are simply 8-bit bytes
 that are encoded one at a time.
-.IP ""
+.IP
 The literal coding makes an assumption that the highest
 .I lc
 bits of the previous uncompressed byte correlate
@@ -1606,7 +1602,7 @@ When
 .I lc
 is at least 3, the literal coding can take advantage of
 this property in the uncompressed data.
-.IP ""
+.IP
 The default value (3) is usually good.
 If you want maximum compression, test
 .BR lc=4 .
@@ -1619,7 +1615,7 @@ too.
 .BI lp= lp
 Specify the number of literal position bits.
 The minimum is 0 and the maximum is 4; the default is 0.
-.IP ""
+.IP
 .I Lp
 affects what kind of alignment in the uncompressed data is
 assumed when encoding literals.
@@ -1630,14 +1626,14 @@ below for more information about alignment.
 .BI pb= pb
 Specify the number of position bits.
 The minimum is 0 and the maximum is 4; the default is 2.
-.IP ""
+.IP
 .I Pb
 affects what kind of alignment in the uncompressed data is
 assumed in general.
 The default means four-byte alignment
 .RI (2^ pb =2^2=4),
 which is often a good choice when there's no better guess.
-.IP ""
+.IP
 When the alignment is known, setting
 .I pb
 accordingly may reduce the file size a little.
@@ -1651,7 +1647,7 @@ is a good choice.
 If the alignment is an odd number like 3 bytes,
 .B pb=0
 might be the best choice.
-.IP ""
+.IP
 Even though the assumed alignment can be adjusted with
 .I pb
 and
@@ -1674,7 +1670,7 @@ use
 .BR hc4 ,
 and the rest use
 .BR bt4 .
-.IP ""
+.IP
 The following match finders are supported.
 The memory usage formulas below are rough approximations,
 which are closest to the reality when
@@ -1790,7 +1786,7 @@ for
 for
 .I presets
 4\(en9.
-.IP ""
+.IP
 Usually
 .B fast
 is used with Hash Chain match finders and
@@ -1806,7 +1802,7 @@ Once a match of at least
 .I nice
 bytes is found, the algorithm stops
 looking for possibly better matches.
-.IP ""
+.IP
 .I Nice
 can be 2\(en273 bytes.
 Higher values tend to give better compression ratio
@@ -1823,7 +1819,7 @@ from
 .I mf
 and
 .IR nice .
-.IP ""
+.IP
 Reasonable
 .I depth
 for Hash Chains is 4\(en100 and 16\(en1000 for Binary Trees.
@@ -1835,7 +1831,7 @@ Avoid setting the
 over 1000 unless you are prepared to interrupt
 the compression in case it is taking far too long.
 .RE
-.IP ""
+.IP
 When decoding raw streams
 .RB ( \-\-format=raw ),
 LZMA2 needs only the dictionary
@@ -1866,7 +1862,7 @@ and
 Add a branch/call/jump (BCJ) filter to the filter chain.
 These filters can be used only as a non-last filter
 in the filter chain.
-.IP ""
+.IP
 A BCJ filter converts relative addresses in
 the machine code to their absolute counterparts.
 This doesn't change the size of the data
@@ -1880,7 +1876,7 @@ doesn't cause any data loss, although it may make
 the compression ratio slightly worse.
 The BCJ filters are very fast and
 use an insignificant amount of memory.
-.IP ""
+.IP
 These BCJ filters have known problems related to
 the compression ratio:
 .RS
@@ -1901,11 +1897,10 @@ The contents of non-executable files in the same archive can matter too.
 In practice one has to try with and without a BCJ filter to see
 which is better in each situation.
 .RE
-.IP ""
+.IP
 Different instruction sets have different alignment:
 the executable file must be aligned to a multiple of
 this value in the input data to make the filter work.
-.RS
 .RS
 .PP
 .TS
@@ -1923,8 +1918,7 @@ SPARC;4;
 RISC-V;2;
 .TE
 .RE
-.RE
-.IP ""
+.IP
 Since the BCJ-filtered data is usually compressed with LZMA2,
 the compression ratio may be improved slightly if
 the LZMA2 options are set to match the
@@ -1961,7 +1955,7 @@ It's usually good to stick to LZMA2's defaults
 .RB ( pb=2,lp=0,lc=3 )
 when compressing x86 executables.
 .RE
-.IP ""
+.IP
 All BCJ filters support the same
 .IR options :
 .RS
@@ -1985,7 +1979,7 @@ is almost never useful.
 Add the Delta filter to the filter chain.
 The Delta filter can be only used as a non-last filter
 in the filter chain.
-.IP ""
+.IP
 Currently only simple byte-wise delta calculation is supported.
 It can be useful when compressing, for example, uncompressed bitmap images
 or uncompressed PCM audio.
@@ -1994,7 +1988,7 @@ results than Delta + LZMA2.
 This is true especially with audio,
 which compresses faster and better, for example, with
 .BR flac (1).
-.IP ""
+.IP
 Supported
 .IR options :
 .RS
@@ -2006,7 +2000,7 @@ of the delta calculation in bytes.
 .I distance
 must be 1\(en256.
 The default is 1.
-.IP ""
+.IP
 For example, with
 .B dist=2
 and eight-byte input A1 B1 A2 B3 A3 B5 A4 B7, the output will be
@@ -2030,7 +2024,7 @@ will display a progress indicator.
 Specifying
 .B \-\-verbose
 twice will give even more verbose output.
-.IP ""
+.IP
 The progress indicator shows the following information:
 .RS
 .IP \(bu 3
@@ -2065,7 +2059,7 @@ started processing the file.
 The time is shown in a less precise format which
 never has any colons, for example, 2 min 30 s.
 .RE
-.IP ""
+.IP
 When standard error is not a terminal,
 .B \-\-verbose
 will make
@@ -2641,7 +2635,7 @@ XZ_OPT=\-2v tar caf foo.tar.xz foo
 .fi
 .RE
 .RE
-.IP ""
+.IP
 Scripts may use
 .BR XZ_OPT ,
 for example, to set script-specific default compression options.

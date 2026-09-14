@@ -438,7 +438,8 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
 		return_if_error(lzma_index_decoder_init(
 				&coder->index_decoder, allocator,
 				&coder->this_index,
-				coder->memlimit - memused));
+				coder->memlimit - memused,
+				coder->footer_flags.backward_size));
 
 		coder->index_remaining = coder->footer_flags.backward_size;
 		coder->sequence = SEQ_INDEX_DECODE;
@@ -716,6 +717,13 @@ file_info_decoder_memconfig(void *coder_ptr, uint64_t *memusage,
 			return LZMA_PROG_ERROR;
 		}
 	}
+
+	// combined_index_memusage + this_index_memusage shouldn't overflow
+	// because combined_index_memusage is limited by how much can be
+	// successfully allocated, and this_index_memusage is limited by the
+	// input_size_max check in index_decoder.c. Check for overflow anyway.
+	if (UINT64_MAX - combined_index_memusage < this_index_memusage)
+		return LZMA_PROG_ERROR;
 
 	// Now we know the total memory usage/requirement. If we had neither
 	// old Indexes nor a new Index, this will be zero which isn't
