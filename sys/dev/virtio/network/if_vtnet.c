@@ -1456,11 +1456,12 @@ static int
 vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 {
 	if_t ifp;
-	int mask, reinit, update;
+	int mask;
+	bool reinit, update;
 
 	ifp = sc->vtnet_ifp;
 	mask = (ifr->ifr_reqcap & if_getcapabilities(ifp)) ^ if_getcapenable(ifp);
-	reinit = update = 0;
+	reinit = update = false;
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
@@ -1500,52 +1501,44 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 			if_togglehwassist(ifp, CSUM_IP6_TSO);
 		}
 	}
-
-	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) {
-		/*
-		 * These Rx features require the negotiated features to
-		 * be updated. Avoid a full reinit if possible.
-		 */
-		if (sc->vtnet_features & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)
-			update = 1;
-		else
-			reinit = 1;
-
-		/* BMV: Avoid needless renegotiation for just software LRO. */
-		if ((mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) ==
-		    IFCAP_LRO && vtnet_software_lro(sc))
-			reinit = update = 0;
-		/*
-		 * VirtIO does not distinguish between receive checksum offload
-		 * for IPv4 and IPv6 packets, so treat them as a pair.
-		 */
-		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-			if_togglecapenable(ifp, IFCAP_RXCSUM);
-			if_togglecapenable(ifp, IFCAP_RXCSUM_IPV6);
-		}
-		if (mask & IFCAP_LRO)
-			if_togglecapenable(ifp, IFCAP_LRO);
-		/* Both SW and HW TCP LRO require receive checksum offload. */
-		if ((if_getcapenable(ifp) &
-		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) == 0)
+	/*
+	 * VirtIO does not distinguish between receive checksum offload
+	 * for IPv4 and IPv6 packets, so treat them as a pair.
+	 */
+	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+		if (if_getcapenable(ifp) & IFCAP_RXCSUM &&
+		    if_getcapenable(ifp) & IFCAP_LRO) {
+			/* Disable lro, because rxcsum will be disabled. */
 			if_setcapenablebit(ifp, 0, IFCAP_LRO);
+			/* Changing hardware LRO requires an update. */
+			update = !vtnet_software_lro(sc);
+			mask &= ~IFCAP_LRO;
+		}
+		if_togglecapenable(ifp, IFCAP_RXCSUM);
+		if_togglecapenable(ifp, IFCAP_RXCSUM_IPV6);
 	}
-
+	if (mask & IFCAP_LRO) {
+		if (if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_LRO)) {
+			if_togglecapenable(ifp, IFCAP_LRO);
+			/* Changing hardware LRO requires an update. */
+			update = !vtnet_software_lro(sc);
+		}
+	}
 	if (mask & IFCAP_VLAN_HWFILTER) {
-		/* These Rx features require renegotiation. */
-		reinit = 1;
+		/* This Rx feature requires renegotiation. */
+		reinit = true;
 
 		if (mask & IFCAP_VLAN_HWFILTER)
 			if_togglecapenable(ifp, IFCAP_VLAN_HWFILTER);
 	}
-
 	if (mask & IFCAP_VLAN_HWTSO)
 		if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
 	if (mask & IFCAP_VLAN_HWTAGGING)
 		if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
 
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-		if (reinit) {
+		if (reinit || (update && (sc->vtnet_features &
+		    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) == 0)) {
 			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			vtnet_init_locked(sc, 0);
 		} else if (update)
@@ -2084,8 +2077,20 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 
-	if (hdr->flags &
-	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID)) {
+	/*
+	 * Check if VirtIO header flags are set that need to be translated to
+	 * mbuf flags.
+	 *
+	 * Translate VIRTIO_NET_HDR_F_DATA_VALID flag only if IFCAP_RXCSUM is
+	 * enabled. If it is disabled, meaning the user does not want to use the
+	 * result of a previous validation, this flag is ignored.
+	 *
+	 * Note that IFCAP_RXCSUM and IFCAP_RXCSUM_IPV6 are treated as pair:
+	 * Either both are enabled, or neither of them is.
+	 */
+	if ((hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) ||
+	    ((hdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) &&
+	     (if_getcapenable(ifp) & IFCAP_RXCSUM))) {
 #if defined(INET) || defined(INET6)
 		int ret;
 
@@ -3318,9 +3323,6 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	 * via if_capenable and if_hwassist.
 	 */
 
-	if ((if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) == 0)
-		features &= ~(VIRTIO_NET_F_GUEST_CSUM | VTNET_LRO_FEATURES);
-
 	if ((if_getcapenable(ifp) & IFCAP_LRO) == 0)
 		features &= ~VTNET_LRO_FEATURES;
 
@@ -3464,13 +3466,6 @@ vtnet_update_rx_offloads(struct vtnet_softc *sc)
 	features = sc->vtnet_features;
 
 	VTNET_CORE_LOCK_ASSERT(sc);
-
-	if (if_getcapabilities(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-		if (if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
-			features |= VIRTIO_NET_F_GUEST_CSUM;
-		else
-			features &= ~VIRTIO_NET_F_GUEST_CSUM;
-	}
 
 	if (if_getcapabilities(ifp) & IFCAP_LRO && !vtnet_software_lro(sc)) {
 		if (if_getcapenable(ifp) & IFCAP_LRO)
