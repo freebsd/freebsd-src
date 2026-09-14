@@ -9,10 +9,7 @@
  * ways to limit the resource usage. Applications linking against liblzma
  * need to do the actual decisions how much resources to let liblzma to use.
  * To ease making these decisions, liblzma provides functions to find out
- * the relevant capabilities of the underlying hardware. Currently there
- * is only a function to find out the amount of RAM, but in the future there
- * will be also a function to detect how many concurrent threads the system
- * can run.
+ * the relevant capabilities of the underlying hardware.
  *
  * \note        On some operating systems, these function may temporarily
  *              load a shared library or open file descriptor(s) to find out

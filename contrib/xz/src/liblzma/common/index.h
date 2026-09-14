@@ -38,7 +38,9 @@ extern uint32_t lzma_index_padding_size(const lzma_index *i);
 /// Set for how many Records to allocate memory the next time
 /// lzma_index_append() needs to allocate space for a new Record.
 /// This is used only by the Index decoder.
-extern void lzma_index_prealloc(lzma_index *i, lzma_vli records);
+///
+/// \return     false on success, true if records is too large (SIZE_MAX issue)
+extern bool lzma_index_prealloc(lzma_index *i, lzma_vli records);
 
 
 /// Round the variable-length integer to the next multiple of four.

@@ -24,6 +24,29 @@
 #include <sys/utsname.h>
 
 
+// In case we are being compiled against an old <linux/landlock.h>,
+// provide fallbacks for handled_access_fs flags that were added in
+// Landlock ABI versions 2, 3, 5, and 9. This way we need fewer #ifdefs
+// later on and, more importantly, these flags are then supported if
+// the program is run under a kernel that supports a newer Landlock ABI
+// than the current <linux/landlock.h>.
+//
+// NOTE: There are no fallbacks for ABI 4 and 6 features because they
+// require an extended struct landlock_ruleset_attr.
+#ifndef LANDLOCK_ACCESS_FS_REFER
+#	define LANDLOCK_ACCESS_FS_REFER         (1ULL << 13)
+#endif
+#ifndef LANDLOCK_ACCESS_FS_TRUNCATE
+#	define LANDLOCK_ACCESS_FS_TRUNCATE      (1ULL << 14)
+#endif
+#ifndef LANDLOCK_ACCESS_FS_IOCTL_DEV
+#	define LANDLOCK_ACCESS_FS_IOCTL_DEV     (1ULL << 15)
+#endif
+#ifndef LANDLOCK_ACCESS_FS_RESOLVE_UNIX
+#	define LANDLOCK_ACCESS_FS_RESOLVE_UNIX  (1ULL << 16)
+#endif
+
+
 /// \brief      Initialize Landlock ruleset attributes to forbid everything
 ///
 /// The supported Landlock ABI is checked at runtime and only the supported
@@ -87,15 +110,10 @@ my_landlock_ruleset_attr_forbid_all(struct landlock_ruleset_attr *attr)
 			| LANDLOCK_ACCESS_FS_MAKE_FIFO
 			| LANDLOCK_ACCESS_FS_MAKE_BLOCK
 			| LANDLOCK_ACCESS_FS_MAKE_SYM
-#ifdef LANDLOCK_ACCESS_FS_REFER
 			| LANDLOCK_ACCESS_FS_REFER // ABI 2
-#endif
-#ifdef LANDLOCK_ACCESS_FS_TRUNCATE
 			| LANDLOCK_ACCESS_FS_TRUNCATE // ABI 3
-#endif
-#ifdef LANDLOCK_ACCESS_FS_IOCTL_DEV
 			| LANDLOCK_ACCESS_FS_IOCTL_DEV // ABI 5
-#endif
+			| LANDLOCK_ACCESS_FS_RESOLVE_UNIX // ABI 9
 			;
 
 #ifdef LANDLOCK_ACCESS_NET_BIND_TCP
@@ -115,15 +133,11 @@ my_landlock_ruleset_attr_forbid_all(struct landlock_ruleset_attr *attr)
 	// Disable flags that require a new ABI version.
 	switch (abi_version) {
 	case 1:
-#ifdef LANDLOCK_ACCESS_FS_REFER
 		attr->handled_access_fs &= ~LANDLOCK_ACCESS_FS_REFER;
-#endif
 		FALLTHROUGH;
 
 	case 2:
-#ifdef LANDLOCK_ACCESS_FS_TRUNCATE
 		attr->handled_access_fs &= ~LANDLOCK_ACCESS_FS_TRUNCATE;
-#endif
 		FALLTHROUGH;
 
 	case 3:
@@ -133,9 +147,7 @@ my_landlock_ruleset_attr_forbid_all(struct landlock_ruleset_attr *attr)
 		FALLTHROUGH;
 
 	case 4:
-#ifdef LANDLOCK_ACCESS_FS_IOCTL_DEV
 		attr->handled_access_fs &= ~LANDLOCK_ACCESS_FS_IOCTL_DEV;
-#endif
 		FALLTHROUGH;
 
 	case 5:
@@ -150,6 +162,11 @@ my_landlock_ruleset_attr_forbid_all(struct landlock_ruleset_attr *attr)
 			attr->scoped &= ~LANDLOCK_SCOPE_SIGNAL;
 #endif
 
+		FALLTHROUGH;
+
+	case 7:
+	case 8:
+		attr->handled_access_fs &= ~LANDLOCK_ACCESS_FS_RESOLVE_UNIX;
 		FALLTHROUGH;
 
 	default:

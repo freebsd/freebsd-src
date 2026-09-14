@@ -50,9 +50,15 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
 {
 	crc = ~crc;
 
-	if (size >= 8) {
-		// Align the input buffer because this was shown to be
-		// significantly faster than unaligned accesses.
+	if (size < 8) {
+		while (size > 0) {
+			crc = __crc32b(crc, *buf++);
+			--size;
+		}
+	} else {
+		// We have at least 8 bytes of input. Align the input buffer.
+		// Aligned is faster than unaligned access and works also on
+		// strict-align targets.
 		const size_t align = (0 - (uintptr_t)buf) & 7;
 
 		if (align & 1)
@@ -79,22 +85,20 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
 				buf < limit; buf += 8)
 			crc = __crc32d(crc, aligned_read64le(buf));
 
-		size &= 7;
-	}
+		// Process the remaining 0-7 bytes.
+		if (size & 4) {
+			crc = __crc32w(crc, aligned_read32le(buf));
+			buf += 4;
+		}
 
-	// Process the remaining bytes that are not 8 byte aligned.
-	if (size & 4) {
-		crc = __crc32w(crc, aligned_read32le(buf));
-		buf += 4;
-	}
+		if (size & 2) {
+			crc = __crc32h(crc, aligned_read16le(buf));
+			buf += 2;
+		}
 
-	if (size & 2) {
-		crc = __crc32h(crc, aligned_read16le(buf));
-		buf += 2;
+		if (size & 1)
+			crc = __crc32b(crc, *buf);
 	}
-
-	if (size & 1)
-		crc = __crc32b(crc, *buf);
 
 	return ~crc;
 }

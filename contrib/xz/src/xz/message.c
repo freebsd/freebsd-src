@@ -650,7 +650,14 @@ progress_flush(bool finished)
 				cols[4]);
 	} else {
 		// The filename is always printed.
-		fprintf(stderr, _("%s: "), tuklib_mask_nonprint(filename));
+		//
+		// NOTE: This function is called from vmessage() whose
+		// caller may have used tuklib_mask_nonprint(). Thus,
+		// we must use the _r variant here.
+		char *mem = NULL;
+		fprintf(stderr, _("%s: "),
+				tuklib_mask_nonprint_r(filename, &mem));
+		free(mem);
 
 		// Percentage is printed only if we didn't finish yet.
 		if (!finished) {
