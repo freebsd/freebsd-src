@@ -64,9 +64,9 @@ static int _tb_router_attach(struct router_softc *);
 static void router_prepare_cmd(struct router_softc *, struct router_command *,
     size_t, uint16_t);
 static void router_prepare_read(struct router_softc *, struct router_command *,
-    int);
+    size_t);
 static void router_prepare_write(struct router_softc *, struct router_command *,
-    int);
+    size_t);
 static int _tb_config_read(struct router_softc *, u_int, u_int, u_int, u_int,
     uint32_t *, void *, struct router_command **);
 static int _tb_config_write(struct router_softc *, u_int, u_int, u_int, u_int,
@@ -639,7 +639,7 @@ router_prepare_cmd(struct router_softc *sc, struct router_command *cmd,
 
 static void
 router_prepare_read(struct router_softc *sc, struct router_command *cmd,
-    int len)
+    size_t len)
 {
 	router_prepare_cmd(sc, cmd, len, PDF_READ);
 
@@ -649,7 +649,7 @@ router_prepare_read(struct router_softc *sc, struct router_command *cmd,
 
 static void
 router_prepare_write(struct router_softc *sc, struct router_command *cmd,
-    int len)
+    size_t len)
 {
 	router_prepare_cmd(sc, cmd, len, PDF_WRITE);
 
