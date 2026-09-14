@@ -3668,8 +3668,8 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		ASSERT(zfs_refcount_is_zero(&hdr->b_l1hdr.b_refcnt));
 		ASSERT3P(hdr->b_l1hdr.b_state, ==, arc_anon);
 	}
-	ASSERT(!HDR_IO_IN_PROGRESS(hdr));
-	ASSERT(!HDR_IN_HASH_TABLE(hdr));
+	VERIFY(!HDR_IO_IN_PROGRESS(hdr));
+	VERIFY(!HDR_IN_HASH_TABLE(hdr));
 	boolean_t l1hdr_destroyed = B_FALSE;
 
 	/*
@@ -6645,7 +6645,7 @@ arc_release(arc_buf_t *buf, const void *tag)
 	 * linked into the hash table.
 	 */
 	if (hdr->b_l1hdr.b_state == arc_anon) {
-		ASSERT(!HDR_IO_IN_PROGRESS(hdr));
+		VERIFY(!HDR_IO_IN_PROGRESS(hdr));
 		ASSERT(!HDR_IN_HASH_TABLE(hdr));
 		ASSERT(!HDR_HAS_L2HDR(hdr));
 
@@ -6882,8 +6882,8 @@ arc_write_ready(zio_t *zio)
 	if (HDR_IO_IN_PROGRESS(hdr)) {
 		ASSERT(zio->io_flags & ZIO_FLAG_REEXECUTED);
 	} else {
-		arc_hdr_set_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
 		add_reference(hdr, hdr); /* For IO_IN_PROGRESS. */
+		arc_hdr_set_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
 	}
 
 	if (BP_IS_PROTECTED(bp)) {
@@ -7078,11 +7078,11 @@ arc_write_done(zio_t *zio)
 				ASSERT0(BP_GET_LEVEL(zio->io_bp));
 			}
 		}
-		arc_hdr_clear_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
-		VERIFY3S(remove_reference(hdr, hdr), >, 0);
 		/* if it's not anon, we are doing a scrub */
 		if (exists == NULL && hdr->b_l1hdr.b_state == arc_anon)
 			arc_access(hdr, 0, B_FALSE);
+		arc_hdr_clear_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
+		VERIFY3S(remove_reference(hdr, hdr), >, 0);
 		mutex_exit(hash_lock);
 	} else {
 		arc_hdr_clear_flags(hdr, ARC_FLAG_IO_IN_PROGRESS);
@@ -7623,6 +7623,9 @@ void
 arc_tuning_update(boolean_t verbose)
 {
 	uint64_t allmem = arc_all_memory();
+
+	if (arc_c_max == 0)
+		return;
 
 	/* Valid range: 32M - <arc_c_max> */
 	if ((zfs_arc_min) && (zfs_arc_min != arc_c_min) &&
@@ -10246,6 +10249,11 @@ l2arc_feed_thread(void *arg)
 		ASSERT3P(spa, !=, NULL);
 		if (!spa_config_tryenter(spa, SCL_L2ARC, dev, RW_READER))
 			continue;
+
+		if (dev->l2ad_rebuild || dev->l2ad_trim_all) {
+			spa_config_exit(spa, SCL_L2ARC, dev);
+			continue;
+		}
 
 		/*
 		 * Avoid contributing to memory pressure.

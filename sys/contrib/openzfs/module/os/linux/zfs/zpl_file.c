@@ -38,6 +38,31 @@
 #endif
 
 /*
+ * Per-open-file state, hung off file->private_data.  Allocated lazily the
+ * first time a Direct I/O read on this handle hits a benign checksum verify
+ * failure -- a recycled O_DIRECT buffer whose buffered re-read then succeeded.
+ * Its presence makes zpl_iter_read route subsequent reads through the uncached
+ * buffered path for the remaining lifetime of the handle, which stops the
+ * verify-failure / re-read storm without disabling the verify itself (so
+ * mirror/raidz self-heal for genuine corruption is unaffected).
+ */
+typedef struct zpl_file_data {
+	boolean_t	zfd_dio_read_declined;
+} zpl_file_data_t;
+
+static void
+zpl_dio_read_decline(struct file *filp)
+{
+	if (atomic_load_ptr(&filp->private_data) != NULL)
+		return;
+
+	zpl_file_data_t *zfd = kmem_zalloc(sizeof (*zfd), KM_SLEEP);
+	zfd->zfd_dio_read_declined = B_TRUE;
+	if (atomic_cas_ptr(&filp->private_data, NULL, zfd) != NULL)
+		kmem_free(zfd, sizeof (*zfd));
+}
+
+/*
  * When using fallocate(2) to preallocate space, inflate the requested
  * capacity check by 10% to account for the required metadata blocks.
  */
@@ -80,6 +105,12 @@ zpl_release(struct inode *ip, struct file *filp)
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 	ASSERT3S(error, <=, 0);
+
+	zpl_file_data_t *zfd = filp->private_data;
+	if (zfd != NULL) {
+		filp->private_data = NULL;
+		kmem_free(zfd, sizeof (*zfd));
+	}
 
 	return (error);
 }
@@ -181,6 +212,26 @@ zfs_io_flags(struct kiocb *kiocb)
 	return (flags);
 }
 
+static inline uint16_t
+zfs_uio_flags(struct kiocb *kiocb)
+{
+	uint16_t flags = 0;
+
+	/*
+	 * Both RWF_DONTCACHE and POSIX_FADV_NOREUSE say the caller does not
+	 * intend to read the data after this.
+	 */
+#if defined(IOCB_DONTCACHE)
+	if (kiocb->ki_flags & IOCB_DONTCACHE)
+		flags |= UIO_UNCACHED;
+#endif
+#if defined(FMODE_NOREUSE)
+	if (kiocb->ki_filp->f_mode & FMODE_NOREUSE)
+		flags |= UIO_UNCACHED;
+#endif
+	return (flags);
+}
+
 /*
  * If relatime is enabled, call file_accessed() if zfs_relatime_need_update()
  * is true.  This is needed since datasets with inherited "relatime" property
@@ -211,6 +262,15 @@ zpl_iter_read(struct kiocb *kiocb, struct iov_iter *to)
 	zfs_uio_t uio;
 
 	zfs_uio_iov_iter_init(&uio, to, kiocb->ki_pos, count);
+	uio.uio_extflg |= zfs_uio_flags(kiocb);
+
+	/*
+	 * This handle previously declined Direct I/O after a benign read
+	 * verify failure; keep taking the uncached buffered path.
+	 */
+	zpl_file_data_t *zfd = atomic_load_ptr(&filp->private_data);
+	if (zfd != NULL && zfd->zfd_dio_read_declined)
+		uio.uio_extflg |= UIO_DIO_DENY;
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
@@ -220,6 +280,14 @@ zpl_iter_read(struct kiocb *kiocb, struct iov_iter *to)
 
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
+
+	/*
+	 * A Direct I/O read verify failed benignly (recycled O_DIRECT buffer)
+	 * and the buffered re-read succeeded; decline Direct I/O reads on this
+	 * handle from here on.
+	 */
+	if (uio.uio_extflg & UIO_DIO_CKSUM_RETRIED)
+		zpl_dio_read_decline(filp);
 
 	if (ret < 0)
 		return (ret);
@@ -261,6 +329,7 @@ zpl_iter_write(struct kiocb *kiocb, struct iov_iter *from)
 		return (ret);
 
 	zfs_uio_iov_iter_init(&uio, from, kiocb->ki_pos, count);
+	uio.uio_extflg |= zfs_uio_flags(kiocb);
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
@@ -1275,6 +1344,21 @@ const struct file_operations zpl_file_operations = {
 	.dedupe_file_range	= zpl_dedupe_file_range,
 #endif
 	.fadvise	= zpl_fadvise,
+#ifdef HAVE_VFS_FOP_FLAGS
+	.fop_flags	=
+#ifdef FOP_DIO_PARALLEL_WRITE
+	/*
+	 * Writes are serialized by the znode's own per-range lock rather
+	 * than by i_rwsem, so non-overlapping O_DIRECT writes need no
+	 * further serialization from the VFS or from io_uring.
+	 */
+	    FOP_DIO_PARALLEL_WRITE |
+#endif
+#ifdef FOP_DONTCACHE
+	    FOP_DONTCACHE |
+#endif
+	    0,
+#endif
 	.unlocked_ioctl	= zpl_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= zpl_compat_ioctl,
