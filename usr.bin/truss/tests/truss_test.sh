@@ -209,18 +209,41 @@ unknown_syscall_body()
 	    -e match:'matches no known system call' \
 	    truss -o out2 -t 'raed*' cat input
 
-	# Names of every ABI truss knows are accepted without complaint,
-	# whether or not that ABI is the one being traced here.
-	for name in read openat linux_write linux_newstat compat11.stat; do
-		atf_check -s exit:0 -o inline:"hello\n" -e empty \
-		    truss -o out3 -t "$name" cat input
-	done
-
 	# A number is the way to name a system call by number; '#' is not
 	# a prefix truss accepts, so it is diagnosed like any other typo.
 	atf_check -s exit:0 -o inline:"hello\n" \
 	    -e match:'matches no known system call' \
 	    truss -o out4 -t '#237' cat input
+}
+
+atf_test_case accepted_abis
+accepted_abis_head()
+{
+	atf_set descr "all ABIs known to truss are accepted by -t filter"
+}
+accepted_abis_body()
+{
+	require_truss
+	printf 'hello\n' > input
+
+	# Names of every ABI truss knows are accepted without complaint,
+	# whether or not that ABI is the one being traced here.
+	for name in read openat compat11.stat; do
+		atf_check -s exit:0 -o inline:"hello\n" -e empty \
+		    truss -o out3 -t "$name" cat input
+	done
+
+	# sysdecode(3) has Linux names only on amd64, i386, and aarch64
+	arch="$(uname -p)"
+	case "$arch" in
+		i386|amd64|aarch64) ;;
+		*) atf_expect_fail "linux(4) support not available on $arch" ;;
+	esac
+
+	for name in linux_write linux_newstat; do
+		atf_check -s exit:0 -o inline:"hello\n" -e empty \
+		    truss -o out3 -t "$name" cat input
+	done
 }
 
 atf_test_case by_name
@@ -391,6 +414,7 @@ atf_init_test_cases()
 	atf_add_test_case by_number
 	atf_add_test_case bad_number
 	atf_add_test_case unknown_syscall
+	atf_add_test_case accepted_abis
 	atf_add_test_case by_name
 	atf_add_test_case by_pattern
 	atf_add_test_case group
