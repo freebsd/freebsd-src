@@ -514,17 +514,25 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 		return (E2BIG);
 	}
 
-	if (TPM_READ_4(dev, TPM_CRB_CTRL_STS) & TPM_CRB_CTRL_STS_ERR_BIT) {
-		device_printf(dev,
-		    "Device has Error bit set\n");
-		return (EIO);
-	}
 	if (!tpmcrb_request_locality(sc, 0)) {
 		device_printf(dev,
 		    "Failed to obtain locality\n");
 		return (EIO);
 	}
 	locality = true;
+
+	/*
+	 * Only check for the error once we own the locality: some
+	 * implementations do not return meaningful values in the control area
+	 * before then.  An AMD Pluton fTPM using the plain CRB start method
+	 * reads all-ones, which looks like a permanently stuck tpmSts.
+	 */
+	if (TPM_READ_4(dev, TPM_CRB_CTRL_STS) & TPM_CRB_CTRL_STS_ERR_BIT) {
+		device_printf(dev,
+		    "Device has Error bit set\n");
+		error = EIO;
+		goto out;
+	}
 	/* Clear cancellation bit */
 	TPM_WRITE_4(dev, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CLEAR);
 
