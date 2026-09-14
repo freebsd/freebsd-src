@@ -36,6 +36,8 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #include "tpmvar.h"
+#include "tpm_irq.h"
+#include "tpm_if.h"
 
 #include "opt_acpi.h"
 #include <contrib/dev/acpica/include/acpi.h>
@@ -68,6 +70,7 @@ static device_method_t tpm_acpi_methods[] = {
 	DEVMETHOD(device_detach,	tpm_detach),
 	DEVMETHOD(device_suspend,	tpm_suspend),
 	DEVMETHOD(device_resume,	tpm_resume),
+	DEVMETHOD(tpm_configure_irq,	tpm_acpi_configure_irq),
 	DEVMETHOD_END
 };
 

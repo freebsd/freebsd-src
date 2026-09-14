@@ -21,18 +21,23 @@
 
 #ifdef __FreeBSD__
 #include <sys/condvar.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
+#include <dev/tpm/tpm_irq.h>
 #endif
 
 struct tpm_softc {
-#ifndef __FreeBSD__
+#ifdef __FreeBSD__
+	device_t sc_dev;
+#else
 	struct device sc_dev;
 #endif
 	void *sc_ih;
 
-	int	(*sc_init)(struct tpm_softc *, int, const char *);
+	int	(*sc_init)(struct tpm_softc *, const char *);
 	int	(*sc_start)(struct tpm_softc *, int);
 	int	(*sc_read)(struct tpm_softc *, void *, int, size_t *, int);
 	int	(*sc_write)(struct tpm_softc *, void *, int);
@@ -49,7 +54,6 @@ struct tpm_softc {
 	int sc_flags;
 #define	TPM_OPEN	0x0001
 
-	int	 sc_vector;
 #ifdef __FreeBSD__
 	void	*intr_cookie;
 	int mem_rid, irq_rid;
@@ -59,6 +63,17 @@ struct tpm_softc {
 	struct sx sc_lock;
 	struct mtx sc_intr_lock;
 	struct cv sc_intr_cv;
+	struct task sc_intr_task;
+	struct intr_config_hook sc_intr_hook;
+	uint32_t sc_intr_mode;
+	struct tpm_irq_config sc_irq_config;
+	bool sc_irq_usable;
+	bool sc_interrupts;
+	bool sc_intr_testing;
+	bool sc_intr_configuring;
+	bool sc_intr_fault;
+	bool sc_intr_armed;
+	bool sc_intr_received;
 	bool sc_dying;
 	bool sc_locality;
 	bool sc_command_pending;
