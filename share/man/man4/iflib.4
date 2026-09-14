@@ -1,4 +1,4 @@
-.Dd August 26, 2026
+.Dd September 14, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -65,7 +65,11 @@ core.
 When set to a non-zero value, TX queues are assigned to cores following the
 last RX queue.
 .It Va simple_tx
-When set to one, iflib uses a simple transmit routine with no queuing at all.
+When set to one, iflib uses a simple transmit routine that sends packets
+directly while the transmit queue mutex is available.
+During contention, packets are deferred through a multi-producer
+.Xr buf_ring 9
+and drained by the mutex holder.
 By default, iflib uses a highly optimized, lockless, transmit queue called
 mp_ring.
 This performs well when there are more CPU cores than NIC
@@ -116,8 +120,20 @@ Zero (the default) indicates the default (currently 16) should be used.
 .El
 .Pp
 There are also some global sysctls which can change behaviour for all drivers,
-and may be changed at any time.
+and, unless noted otherwise, may be changed at any time.
 .Bl -tag -width indent
+.It Va net.iflib.max_producers
+Limits the number of callers that may concurrently enqueue packets to a
+simple transmit deferral ring without taking the transmit queue mutex.
+The limit is applied separately to each transmit queue.
+If lockless producers from one last-level cache are active, a producer from
+another last-level cache waits for the transmit queue mutex regardless of the
+limit.
+Setting this to zero forces all contending producers to wait for the mutex.
+The default is 8.
+This setting applies only when
+.Va simple_tx
+is enabled.
 .It Va net.iflib.min_tx_latency
 If this is set to a non-zero value, iflib will avoid any attempt to combine
 multiple transmits, and notify the hardware as quickly as possible of
@@ -128,6 +144,35 @@ Some NICs allow processing completed transmit descriptors in batches.
 Doing so usually increases the transmit throughput by reducing the number of
 transmit interrupts.
 Setting this to a non-zero value will disable the use of this feature.
+.It Va net.iflib.simple_drain_quota
+Sets the maximum number of packets that the transmit task may remove from a
+simple transmit deferral ring in one drain operation.
+The default is 8.
+This setting applies only when
+.Va simple_tx
+is enabled.
+.It Va net.iflib.simple_drain_quota_thread
+Sets the maximum number of packets that a transmitting thread holding the
+transmit queue mutex may remove from a simple transmit deferral ring in one
+drain operation.
+A smaller value bounds the time for which a transmitting thread can hold the
+mutex while other producers replenish the ring.
+The default is 65536.
+This setting applies only when
+.Va simple_tx
+is enabled.
+.It Va net.iflib.simple_txbr_size
+Sets the number of entries in each
+.Xr buf_ring 9
+used by the simple transmit path to defer packets.
+The value must be a power of two and at least 64.
+Invalid values are replaced with the default of 1024.
+This is a read-only tunable that must be set before
+.Nm
+is loaded.
+This setting applies only when
+.Va simple_tx
+is enabled.
 .It Va net.iflib.tx_watchdog_periods
 Number of consecutive
 .Va net.iflib.timer_default
