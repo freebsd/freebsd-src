@@ -3087,6 +3087,7 @@ linux_compat_uninit(void *arg)
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 
+#if defined(__i386__) || defined(__amd64__)
 const struct x86_cpu_id *
 linuxkpi_x86_match_cpu(const struct x86_cpu_id *match_array)
 {
@@ -3120,6 +3121,7 @@ linuxkpi_x86_match_cpu(const struct x86_cpu_id *match_array)
 
 	return (NULL);
 }
+#endif
 
 /*
  * NOTE: Linux frequently uses "unsigned long" for pointer to integer
