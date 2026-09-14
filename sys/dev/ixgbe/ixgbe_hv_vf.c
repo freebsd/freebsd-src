@@ -148,6 +148,23 @@ ixgbevf_hv_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		goto out;
 
 	links_reg = ixgbevf_hv_read_links(hw);
+	if (hw->mac.type == ixgbe_mac_E610_vf) {
+		*speed = IXGBE_LINK_SPEED_UNKNOWN;
+		if (links_reg == UINT32_MAX)
+			goto out;
+		if (links_reg == 0) {
+			/*
+			 * Some hosts do not emulate the PCI link-status query.
+			 * VFLINKS still reports carrier, but its speed is not the
+			 * negotiated line rate.  Do not report its default 10 Gb/s.
+			 */
+			links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
+			if (links_reg != UINT32_MAX &&
+			    (links_reg & IXGBE_LINKS_UP) != 0)
+				mac->get_link_status = false;
+			goto out;
+		}
+	}
 	if (!(links_reg & IXGBE_LINKS_UP))
 		goto out;
 
