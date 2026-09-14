@@ -5973,6 +5973,11 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.srq.size = val[3] - val[2] + 1;
 		sc->params.max_ordird_qp = val[4];
 		sc->params.max_ird_adapter = val[5];
+
+		param[0] = FW_PARAM_DEV(RDMA_WRITE_WITH_IMM);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+		if (rc == 0 && val[0] != 0)
+			sc->params.write_w_imm_support = true;
 	}
 	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
