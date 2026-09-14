@@ -836,7 +836,7 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 int mlx4_en_process_rx_cq(if_t dev,
 			  struct mlx4_en_cq *cq,
 			  int budget);
-void mlx4_en_poll_tx_cq(unsigned long data);
+void mlx4_en_poll_tx_cq(struct timer_list *t);
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		int is_tx, int rss, int qpn, int cqn, int user_prio,
 		struct mlx4_qp_context *context);

@@ -433,9 +433,9 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 	spin_unlock(&ring->comp_lock);
 }
 
-void mlx4_en_poll_tx_cq(unsigned long data)
+void mlx4_en_poll_tx_cq(struct timer_list *t)
 {
-	struct mlx4_en_cq *cq = (struct mlx4_en_cq *) data;
+	struct mlx4_en_cq *cq = timer_container_of(cq, t, timer);
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(cq->dev);
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
 	u32 inflight;

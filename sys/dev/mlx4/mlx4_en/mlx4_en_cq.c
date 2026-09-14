@@ -164,9 +164,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	cq->mcq.event = mlx4_en_cq_event;
 
         if (cq->is_tx) {
-                init_timer(&cq->timer);
-                cq->timer.function = mlx4_en_poll_tx_cq;
-                cq->timer.data = (unsigned long) cq;
+		timer_setup(&cq->timer, mlx4_en_poll_tx_cq, 0);
         }
 
 
