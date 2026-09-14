@@ -61,6 +61,8 @@
 static int router_alloc_cmd(struct router_softc *, struct router_command **);
 static void router_free_cmd(struct router_softc *, struct router_command *);
 static int _tb_router_attach(struct router_softc *);
+static void router_prepare_cmd(struct router_softc *, struct router_command *,
+    size_t, uint16_t);
 static void router_prepare_read(struct router_softc *, struct router_command *,
     int);
 static void router_prepare_write(struct router_softc *, struct router_command *,
@@ -604,8 +606,8 @@ router_free_cmd(struct router_softc *sc, struct router_command *cmd)
 }
 
 static void
-router_prepare_read(struct router_softc *sc, struct router_command *cmd,
-    int len)
+router_prepare_cmd(struct router_softc *sc, struct router_command *cmd,
+    size_t len, uint16_t pdf)
 {
 	struct nhi_cmd_frame *nhicmd;
 	uint32_t *msg;
@@ -621,56 +623,38 @@ router_prepare_read(struct router_softc *sc, struct router_command *cmd,
 		nhicmd->data[i] = htobe32(nhicmd->data[i]);
 
 	msg = (uint32_t *)nhicmd->data;
-	msg[msglen] = htobe32(tb_calc_crc(nhicmd->data, len-4));
+	/* The last 4 bytes of data is the CRC. Compute CRC for just data. */
+	msg[msglen] = htobe32(tb_calc_crc(nhicmd->data, len - 4));
 
-	nhicmd->pdf = PDF_READ;
+	nhicmd->pdf = pdf;
 	nhicmd->req_len = len;
 
 	nhicmd->timeout = NHI_CMD_TIMEOUT;
 	nhicmd->retries = 0;
-	nhicmd->resp_buffer = (uint32_t *)cmd->resp_buffer;
-	nhicmd->resp_len = (cmd->dwlen + 3) * 4;
 	nhicmd->context = cmd;
 
 	cmd->retries = CFG_DEFAULT_RETRIES;
 	cmd->timeout = CFG_DEFAULT_TIMEOUT;
+}
 
-	return;
+static void
+router_prepare_read(struct router_softc *sc, struct router_command *cmd,
+    int len)
+{
+	router_prepare_cmd(sc, cmd, len, PDF_READ);
+
+	cmd->nhicmd->resp_buffer = (uint32_t *)cmd->resp_buffer;
+	cmd->nhicmd->resp_len = (cmd->dwlen + 3) * 4;
 }
 
 static void
 router_prepare_write(struct router_softc *sc, struct router_command *cmd,
     int len)
 {
-	struct nhi_cmd_frame *nhicmd;
-	uint32_t *msg;
-	int msglen, i;
+	router_prepare_cmd(sc, cmd, len, PDF_WRITE);
 
-	KASSERT(cmd != NULL, ("cmd cannot be NULL\n"));
-	KASSERT(len != 0, ("Invalid zero-length command\n"));
-	KASSERT(len % 4 == 0, ("Message must be 32bit padded\n"));
-
-	nhicmd = cmd->nhicmd;
-	msglen = (len - 4) / 4;
-	for (i = 0; i < msglen; i++)
-		nhicmd->data[i] = htobe32(nhicmd->data[i]);
-
-	msg = (uint32_t *)nhicmd->data;
-	msg[msglen] = htobe32(tb_calc_crc(nhicmd->data, len - 4));
-
-	nhicmd->pdf = PDF_WRITE;
-	nhicmd->req_len = len;
-
-	nhicmd->timeout = NHI_CMD_TIMEOUT;
-	nhicmd->retries = 0;
-	nhicmd->resp_buffer = (uint32_t *)cmd->resp_buffer;
-	nhicmd->resp_len = (cmd->dwlen + 3) * 4;
-	nhicmd->context = cmd;
-
-	cmd->retries = CFG_DEFAULT_RETRIES;
-	cmd->timeout = CFG_DEFAULT_TIMEOUT;
-
-	return;
+	cmd->nhicmd->resp_buffer = (uint32_t *)cmd->resp_buffer;
+	cmd->nhicmd->resp_len = (cmd->dwlen + 3) * 4;
 }
 
 static int
