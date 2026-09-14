@@ -5978,6 +5978,11 @@ get_params__post_init(struct adapter *sc)
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
 		if (rc == 0 && val[0] != 0)
 			sc->params.write_w_imm_support = true;
+
+		param[0] = FW_PARAM_DEV(RI_WRITE_CMPL_WR);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+		if (rc == 0 && val[0] != 0)
+			sc->params.write_cmpl_support = true;
 	}
 	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
