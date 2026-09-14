@@ -2890,6 +2890,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		execve_unblock(ctd, p);
 		_PRELE(p);
 		PROC_UNLOCK(p);
+		stack_destroy(st);
+		free(kkstp, M_TEMP);
 		return (error);
 	}
 	do {
