@@ -264,7 +264,11 @@ struct hn_softc {
 	/*
 	 * Transparent VF delayed initialization.
 	 */
-	int			hn_vf_rdytick;	/* ticks, 0 == ready */
+	int			hn_vf_rdytick;	/* end of VF attach delay */
+	bool			hn_vf_ready;	/* saved synthetic settings */
+	bool			hn_detaching;	/* hn_lock */
+	u_int			hn_vf_assoc;	/* atomic generation + allocated */
+	u_int			hn_vf_active_assoc; /* confirmed VF generation */
 	struct taskqueue	*hn_vf_taskq;
 	struct timeout_task	hn_vf_init;
 
@@ -300,6 +304,10 @@ struct hn_softc {
 
 #define HN_XVFFLAG_ENABLED		0x0001
 #define HN_XVFFLAG_ACCBPF		0x0002
+#define HN_XVFFLAG_SWITCHING		0x0004
+
+#define HN_VF_ASSOC_ALLOCATED		0x0001
+#define HN_VF_ASSOC_GENINC		0x0002
 
 #define HN_NO_SLEEPING(sc)			\
 do {						\

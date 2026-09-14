@@ -289,8 +289,10 @@ static void			hn_ifnet_lnkevent(void *, if_t, int);
 static bool			hn_ismyvf(const struct hn_softc *,
 				    const if_t);
 static void			hn_rxvf_change(struct hn_softc *,
-				    if_t, bool);
+				    if_t);
 static void			hn_rxvf_set(struct hn_softc *, if_t);
+static void			hn_rxvf_change_locked(struct hn_softc *, if_t,
+				    bool);
 static void			hn_rxvf_set_task(void *, int);
 static void			hn_xpnt_vf_input(if_t, struct mbuf *);
 static int			hn_xpnt_vf_iocsetflags(struct hn_softc *);
@@ -298,10 +300,13 @@ static int			hn_xpnt_vf_iocsetcaps(struct hn_softc *,
 				    struct ifreq *);
 static void			hn_xpnt_vf_saveifflags(struct hn_softc *);
 static bool			hn_xpnt_vf_isready(struct hn_softc *);
+static bool			hn_xpnt_vf_caninit(struct hn_softc *);
 static void			hn_xpnt_vf_setready(struct hn_softc *);
+static void			hn_xpnt_vf_restore(struct hn_softc *);
+static void			hn_xpnt_vf_deactivate(struct hn_softc *);
 static void			hn_xpnt_vf_init_taskfunc(void *, int);
 static void			hn_xpnt_vf_init(struct hn_softc *);
-static void			hn_xpnt_vf_setenable(struct hn_softc *);
+static bool			hn_xpnt_vf_setenable(struct hn_softc *);
 static void			hn_xpnt_vf_setdisable(struct hn_softc *, bool);
 static void			hn_vf_rss_fixup(struct hn_softc *, bool);
 static void			hn_vf_rss_restore(struct hn_softc *);
@@ -1175,11 +1180,25 @@ hn_ismyvf(const struct hn_softc *sc, const if_t ifp)
 }
 
 static void
-hn_rxvf_change(struct hn_softc *sc, if_t ifp, bool rxvf)
+hn_rxvf_change(struct hn_softc *sc, if_t ifp)
+{
+	struct rm_priotracker pt;
+
+	/* Address events can run on the channel that delivers completions. */
+	rm_rlock(&sc->hn_vf_lock, &pt);
+	if (sc->hn_vf_ifp == ifp)
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, 0);
+	rm_runlock(&sc->hn_vf_lock, &pt);
+}
+
+static void
+hn_rxvf_change_locked(struct hn_softc *sc, if_t ifp, bool rxvf)
 {
 	if_t hn_ifp;
+	u_int assoc, old_flags;
+	int error;
 
-	HN_LOCK(sc);
+	HN_LOCK_ASSERT(sc);
 
 	if (!(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED))
 		goto out;
@@ -1187,6 +1206,10 @@ hn_rxvf_change(struct hn_softc *sc, if_t ifp, bool rxvf)
 	if (!hn_ismyvf(sc, ifp))
 		goto out;
 	hn_ifp = sc->hn_ifp;
+	assoc = atomic_load_acq_int(&sc->hn_vf_assoc);
+	if (rxvf && !(assoc & HN_VF_ASSOC_ALLOCATED))
+		goto out;
+	old_flags = sc->hn_flags;
 
 	if (rxvf) {
 		if (sc->hn_flags & HN_FLAG_RXVF)
@@ -1205,10 +1228,33 @@ hn_rxvf_change(struct hn_softc *sc, if_t ifp, bool rxvf)
 			hn_set_rxfilter(sc, NDIS_PACKET_TYPE_NONE);
 	}
 
-	hn_nvs_set_datapath(sc,
+	/* Prepare receive routing before the host enables the VF path. */
+	if (rxvf)
+		hn_rxvf_set(sc, ifp);
+	error = hn_nvs_set_datapath(sc,
 	    rxvf ? HN_NVS_DATAPATH_VF : HN_NVS_DATAPATH_SYNTH);
+	if (error == 0 && rxvf &&
+	    assoc != atomic_load_acq_int(&sc->hn_vf_assoc)) {
+		hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
+		error = EAGAIN;
+	}
+	if (error) {
+		sc->hn_flags = old_flags;
+		hn_rxvf_set(sc, (old_flags & HN_FLAG_RXVF) ? ifp : NULL);
+		if ((old_flags & HN_FLAG_RXVF) ||
+		    (if_getdrvflags(hn_ifp) & IFF_DRV_RUNNING))
+			hn_rxfilter_config(sc);
+		else
+			hn_set_rxfilter(sc, NDIS_PACKET_TYPE_NONE);
+		if (error == EAGAIN)
+			taskqueue_enqueue_timeout(sc->hn_vf_taskq,
+			    &sc->hn_vf_init, hz);
+		goto out;
+	}
+	sc->hn_vf_active_assoc = rxvf ? assoc : 0;
 
-	hn_rxvf_set(sc, rxvf ? ifp : NULL);
+	if (!rxvf)
+		hn_rxvf_set(sc, NULL);
 
 	if (rxvf) {
 		hn_vf_rss_fixup(sc, true);
@@ -1229,7 +1275,7 @@ hn_rxvf_change(struct hn_softc *sc, if_t ifp, bool rxvf)
 		    rxvf ? "to" : "from", if_name(ifp));
 	}
 out:
-	HN_UNLOCK(sc);
+	return;
 }
 
 static void
@@ -1238,14 +1284,14 @@ hn_ifnet_event(void *arg, if_t ifp, int event)
 
 	if (event != IFNET_EVENT_UP && event != IFNET_EVENT_DOWN)
 		return;
-	hn_rxvf_change(arg, ifp, event == IFNET_EVENT_UP);
+	hn_rxvf_change(arg, ifp);
 }
 
 static void
 hn_ifaddr_event(void *arg, if_t ifp)
 {
 
-	hn_rxvf_change(arg, ifp, if_getflags(ifp) & IFF_UP);
+	hn_rxvf_change(arg, ifp);
 }
 
 static int
@@ -1638,7 +1684,7 @@ hn_xpnt_vf_setready(struct hn_softc *sc)
 	/*
 	 * Mark the VF ready.
 	 */
-	sc->hn_vf_rdytick = 0;
+	sc->hn_vf_ready = true;
 
 	/*
 	 * Save information for restoration.
@@ -1709,24 +1755,67 @@ hn_xpnt_vf_setready(struct hn_softc *sc)
 static bool
 hn_xpnt_vf_isready(struct hn_softc *sc)
 {
+	u_int assoc;
 
 	HN_LOCK_ASSERT(sc);
 
-	if (!hn_xpnt_vf || sc->hn_vf_ifp == NULL)
-		return (false);
+	assoc = atomic_load_acq_int(&sc->hn_vf_assoc);
+	return (hn_xpnt_vf && sc->hn_vf_ifp != NULL && sc->hn_vf_ready &&
+	    (assoc & HN_VF_ASSOC_ALLOCATED) &&
+	    sc->hn_vf_active_assoc == assoc);
+}
 
-	if (sc->hn_vf_rdytick == 0)
-		return (true);
+static bool
+hn_xpnt_vf_caninit(struct hn_softc *sc)
+{
 
-	if (sc->hn_vf_rdytick > ticks)
-		return (false);
-
-	/* Mark VF as ready. */
-	hn_xpnt_vf_setready(sc);
-	return (true);
+	HN_LOCK_ASSERT(sc);
+	return (hn_xpnt_vf && sc->hn_vf_ifp != NULL &&
+	    (atomic_load_acq_int(&sc->hn_vf_assoc) & HN_VF_ASSOC_ALLOCATED) &&
+	    (int)(ticks - sc->hn_vf_rdytick) >= 0);
 }
 
 static void
+hn_xpnt_vf_restore(struct hn_softc *sc)
+{
+	if_t ifp = sc->hn_ifp;
+
+	HN_LOCK_ASSERT(sc);
+	if (!sc->hn_vf_ready)
+		return;
+	if_setcapabilities(ifp, sc->hn_saved_caps);
+	if_sethwtsomax(ifp, sc->hn_saved_tsomax);
+	if_sethwtsomaxsegcount(ifp, sc->hn_saved_tsosegcnt);
+	if_sethwtsomaxsegsize(ifp, sc->hn_saved_tsosegsz);
+	if_setcapenable(ifp, sc->hn_saved_capenable);
+	if_sethwassist(ifp, sc->hn_saved_hwassist);
+	sc->hn_vf_ready = false;
+}
+
+static void
+hn_xpnt_vf_deactivate(struct hn_softc *sc)
+{
+
+	HN_LOCK_ASSERT(sc);
+	/* Do not send VF-formatted packets through synthetic during handoff. */
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags |= HN_XVFFLAG_SWITCHING;
+	rm_wunlock(&sc->hn_vf_lock);
+	hn_xpnt_vf_setdisable(sc, false);
+	if (sc->hn_vf_active_assoc != 0) {
+		/* Close local VF transmit even if returning to synthetic fails. */
+		hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
+		sc->hn_vf_active_assoc = 0;
+		hn_vf_rss_restore(sc);
+	}
+	hn_xpnt_vf_restore(sc);
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags &= ~HN_XVFFLAG_SWITCHING;
+	rm_wunlock(&sc->hn_vf_lock);
+	hn_resume_mgmt(sc);
+}
+
+static bool
 hn_xpnt_vf_setenable(struct hn_softc *sc)
 {
 	int i;
@@ -1735,11 +1824,17 @@ hn_xpnt_vf_setenable(struct hn_softc *sc)
 
 	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
 	rm_wlock(&sc->hn_vf_lock);
+	if (sc->hn_vf_active_assoc != atomic_load_acq_int(&sc->hn_vf_assoc)) {
+		rm_wunlock(&sc->hn_vf_lock);
+		return (false);
+	}
 	sc->hn_xvf_flags |= HN_XVFFLAG_ENABLED;
+	sc->hn_xvf_flags &= ~HN_XVFFLAG_SWITCHING;
 	rm_wunlock(&sc->hn_vf_lock);
 
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
 		sc->hn_rx_ring[i].hn_rx_flags |= HN_RX_FLAG_XPNT_VF;
+	return (true);
 }
 
 static void
@@ -1764,11 +1859,20 @@ static void
 hn_xpnt_vf_init(struct hn_softc *sc)
 {
 	int error;
+	u_int assoc;
 
 	HN_LOCK_ASSERT(sc);
 
 	KASSERT((sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) == 0,
 	    ("%s: transparent VF was enabled", if_name(sc->hn_ifp)));
+	if (!hn_xpnt_vf_caninit(sc))
+		return;
+	assoc = atomic_load_acq_int(&sc->hn_vf_assoc);
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags |= HN_XVFFLAG_SWITCHING;
+	rm_wunlock(&sc->hn_vf_lock);
+	if (!sc->hn_vf_ready)
+		hn_xpnt_vf_setready(sc);
 
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "try bringing up %s\n",
@@ -1784,7 +1888,7 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	if (error) {
 		if_printf(sc->hn_ifp, "bringing up %s failed: %d\n",
 		    if_name(sc->hn_vf_ifp), error);
-		return;
+		goto failed;
 	}
 
 	/*
@@ -1797,7 +1901,11 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	 * NOTE:
 	 * Datapath setting must happen _after_ bringing the VF up.
 	 */
-	hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
+	error = hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
+	if (error)
+		goto failed;
+	sc->hn_vf_active_assoc = assoc;
+	hn_suspend_mgmt(sc);
 
 	/*
 	 * NOTE:
@@ -1807,7 +1915,17 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	hn_vf_rss_fixup(sc, true);
 
 	/* Mark transparent mode VF as enabled. */
-	hn_xpnt_vf_setenable(sc);
+	if (!hn_xpnt_vf_setenable(sc)) {
+		error = EAGAIN;
+		goto failed;
+	}
+	if_link_state_change(sc->hn_ifp, if_getlinkstate(sc->hn_vf_ifp));
+	return;
+
+failed:
+	hn_xpnt_vf_deactivate(sc);
+	if (error == EAGAIN)
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, hz);
 }
 
 static void
@@ -1816,17 +1934,30 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 	struct hn_softc *sc = xsc;
 
 	HN_LOCK(sc);
+	if (sc->hn_detaching)
+		goto done;
 
 	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
 		goto done;
 	if (sc->hn_vf_ifp == NULL)
 		goto done;
+	if (!hn_xpnt_vf) {
+		if ((sc->hn_flags & HN_FLAG_RXVF) && sc->hn_vf_active_assoc !=
+		    atomic_load_acq_int(&sc->hn_vf_assoc))
+			hn_rxvf_change_locked(sc, sc->hn_vf_ifp, false);
+		hn_rxvf_change_locked(sc, sc->hn_vf_ifp,
+		    (if_getflags(sc->hn_vf_ifp) & IFF_UP) != 0);
+		goto done;
+	}
+	if (sc->hn_vf_active_assoc != 0 && sc->hn_vf_active_assoc !=
+	    atomic_load_acq_int(&sc->hn_vf_assoc))
+		hn_xpnt_vf_deactivate(sc);
 	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
 		goto done;
-
-	if (sc->hn_vf_rdytick != 0) {
-		/* Mark VF as ready. */
-		hn_xpnt_vf_setready(sc);
+	if ((int)(ticks - sc->hn_vf_rdytick) < 0) {
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init,
+		    sc->hn_vf_rdytick - ticks);
+		goto done;
 	}
 
 	if (if_getdrvflags(sc->hn_ifp) & IFF_DRV_RUNNING) {
@@ -1914,11 +2045,6 @@ hn_ifnet_attevent(void *xsc, if_t ifp)
 		if_setinputfn(ifp, hn_xpnt_vf_input);
 
 		/*
-		 * Stop link status management; use the VF's.
-		 */
-		hn_suspend_mgmt(sc);
-
-		/*
 		 * Give VF sometime to complete its attach routing.
 		 */
 		wait_ticks = hn_xpnt_vf_attwait * hz;
@@ -1926,6 +2052,8 @@ hn_ifnet_attevent(void *xsc, if_t ifp)
 
 		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init,
 		    wait_ticks);
+	} else {
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, 0);
 	}
 done:
 	HN_UNLOCK(sc);
@@ -1962,38 +2090,20 @@ hn_ifnet_detevent(void *xsc, if_t ifp)
 
 		KASSERT(sc->hn_vf_input != NULL, ("%s VF input is not saved",
 		    if_name(sc->hn_ifp)));
+		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED)
+			hn_xpnt_vf_deactivate(sc);
+		else
+			hn_xpnt_vf_restore(sc);
 		if_setinputfn(ifp, sc->hn_vf_input);
 		sc->hn_vf_input = NULL;
-
-		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) &&
-		    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED))
-			hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
-
-		if (sc->hn_vf_rdytick == 0) {
-			/*
-			 * The VF was ready; restore some settings.
-			 */
-			if_setcapabilities(ifp, sc->hn_saved_caps);
-
-			if_sethwtsomax(ifp, sc->hn_saved_tsomax);
-			if_sethwtsomaxsegcount(sc->hn_ifp,
-			    sc->hn_saved_tsosegcnt);
-			if_sethwtsomaxsegsize(ifp, sc->hn_saved_tsosegsz);
-
-			if_setcapenable(ifp, sc->hn_saved_capenable);
-			if_sethwassist(ifp, sc->hn_saved_hwassist);
-		}
-
-		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
-			/*
-			 * Restore RSS settings.
-			 */
+	} else if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+		hn_rxvf_change_locked(sc, ifp, false);
+		/* Never leave receive routing pointing at a departing VF. */
+		if (sc->hn_flags & HN_FLAG_RXVF) {
+			sc->hn_flags &= ~HN_FLAG_RXVF;
+			sc->hn_vf_active_assoc = 0;
+			hn_rxvf_set(sc, NULL);
 			hn_vf_rss_restore(sc);
-
-			/*
-			 * Resume link status management, which was suspended
-			 * by hn_ifnet_attevent().
-			 */
 			hn_resume_mgmt(sc);
 		}
 	}
@@ -2023,7 +2133,8 @@ hn_ifnet_lnkevent(void *xsc, if_t ifp, int link_state)
 {
 	struct hn_softc *sc = xsc;
 
-	if (sc->hn_vf_ifp == ifp)
+	if (sc->hn_vf_ifp == ifp &&
+	    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED))
 		if_link_state_change(sc->hn_ifp, link_state);
 }
 
@@ -2130,17 +2241,13 @@ hn_attach(device_t dev)
 	TIMEOUT_TASK_INIT(sc->hn_mgmt_taskq0, &sc->hn_netchg_status, 0,
 	    hn_netchg_status_taskfunc, sc);
 
-	if (hn_xpnt_vf) {
-		/*
-		 * Setup taskqueue for VF tasks, e.g. delayed VF bringing up.
-		 */
-		sc->hn_vf_taskq = taskqueue_create("hn_vf", M_WAITOK,
-		    taskqueue_thread_enqueue, &sc->hn_vf_taskq);
-		taskqueue_start_threads(&sc->hn_vf_taskq, 1, PI_NET, "%s vf",
-		    device_get_nameunit(dev));
-		TIMEOUT_TASK_INIT(sc->hn_vf_taskq, &sc->hn_vf_init, 0,
-		    hn_xpnt_vf_init_taskfunc, sc);
-	}
+	/* Association work must not block the channel delivering completions. */
+	sc->hn_vf_taskq = taskqueue_create("hn_vf", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->hn_vf_taskq);
+	taskqueue_start_threads(&sc->hn_vf_taskq, 1, PI_NET, "%s vf",
+	    device_get_nameunit(dev));
+	TIMEOUT_TASK_INIT(sc->hn_vf_taskq, &sc->hn_vf_init, 0,
+	    hn_xpnt_vf_init_taskfunc, sc);
 
 	/*
 	 * Allocate ifnet and setup its name earlier, so that if_printf
@@ -2489,6 +2596,11 @@ hn_detach(device_t dev)
 		 */
 		vmbus_xact_ctx_orphan(sc->hn_xact);
 	}
+
+	HN_LOCK(sc);
+	sc->hn_detaching = true;
+	HN_UNLOCK(sc);
+	taskqueue_drain_timeout(sc->hn_vf_taskq, &sc->hn_vf_init);
 
 	if (sc->hn_ifaddr_evthand != NULL)
 		EVENTHANDLER_DEREGISTER(ifaddr_event, sc->hn_ifaddr_evthand);
@@ -3772,6 +3884,16 @@ hn_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		 * Suspend this interface before the synthetic parts
 		 * are ripped.
 		 */
+		if (sc->hn_vf_ready)
+			hn_xpnt_vf_deactivate(sc);
+		if (sc->hn_flags & HN_FLAG_RXVF) {
+			hn_rxvf_change_locked(sc, sc->hn_vf_ifp, false);
+			if (sc->hn_flags & HN_FLAG_RXVF) {
+				error = EIO;
+				HN_UNLOCK(sc);
+				break;
+			}
+		}
 		hn_suspend(sc);
 
 		/*
@@ -3825,15 +3947,10 @@ hn_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		 */
 		hn_resume(sc);
 
-		if ((sc->hn_flags & HN_FLAG_RXVF) ||
-		    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
-			/*
-			 * Since we have reattached the NVS part,
-			 * change the datapath to VF again; in case
-			 * that it is lost, after the NVS was detached.
-			 */
-			hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
-		}
+		/* Reattach requires a fresh association and acknowledged switch. */
+		if (sc->hn_vf_ifp != NULL)
+			taskqueue_enqueue_timeout(sc->hn_vf_taskq,
+			    &sc->hn_vf_init, 0);
 
 		HN_UNLOCK(sc);
 		break;
@@ -4056,19 +4173,16 @@ hn_stop(struct hn_softc *sc, bool detaching)
 	/* Disable polling. */
 	hn_polling(sc, 0);
 
-	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) {
+	if (sc->hn_vf_ready || (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
 		KASSERT(sc->hn_vf_ifp != NULL,
 		    ("%s: VF is not attached", if_name(ifp)));
-
-		/* Mark transparent mode VF as disabled. */
-		hn_xpnt_vf_setdisable(sc, false /* keep hn_vf_ifp */);
 
 		/*
 		 * NOTE:
 		 * Datapath setting must happen _before_ bringing
 		 * the VF down.
 		 */
-		hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
+		hn_xpnt_vf_deactivate(sc);
 
 		/*
 		 * Bring the VF down.
@@ -4119,7 +4233,7 @@ hn_init_locked(struct hn_softc *sc)
 	/* Clear TX 'suspended' bit. */
 	hn_resume_tx(sc, sc->hn_tx_ring_inuse);
 
-	if (hn_xpnt_vf_isready(sc)) {
+	if (hn_xpnt_vf_caninit(sc)) {
 		/* Initialize transparent VF. */
 		hn_xpnt_vf_init(sc);
 	}
@@ -5953,10 +6067,18 @@ hn_transmit(if_t ifp, struct mbuf *m)
 	struct hn_tx_ring *txr;
 	int error, idx = 0;
 
-	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) {
+	if (sc->hn_xvf_flags & (HN_XVFFLAG_ENABLED | HN_XVFFLAG_SWITCHING)) {
 		struct rm_priotracker pt;
 
 		rm_rlock(&sc->hn_vf_lock, &pt);
+		if ((sc->hn_xvf_flags & HN_XVFFLAG_SWITCHING) ||
+		    ((sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) &&
+		    sc->hn_vf_active_assoc != atomic_load_acq_int(&sc->hn_vf_assoc))) {
+			rm_runlock(&sc->hn_vf_lock, &pt);
+			m_freem(m);
+			if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+			return (ENETDOWN);
+		}
 		if (__predict_true(sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
 			struct mbuf *m_bpf = NULL;
 			int obytes, omcast;
@@ -6472,6 +6594,9 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	/*
 	 * Attach the primary channel _before_ attaching NVS and RNDIS.
 	 */
+	atomic_store_rel_int(&sc->hn_vf_assoc,
+	    (atomic_load_int(&sc->hn_vf_assoc) + HN_VF_ASSOC_GENINC) &
+	    ~HN_VF_ASSOC_ALLOCATED);
 	error = hn_chan_attach(sc, sc->hn_prichan);
 	if (error)
 		goto failed;
@@ -6961,14 +7086,14 @@ hn_resume(struct hn_softc *sc)
 		hn_resume_data(sc);
 
 	/*
-	 * Don't resume link status change if VF is attached/activated.
+	 * Don't resume link status change if VF is activated.
 	 * - In the non-transparent VF mode, the synthetic device marks
 	 *   link down until the VF is deactivated; i.e. VF is down.
 	 * - In transparent VF mode, VF's media status is used until
-	 *   the VF is detached.
+	 *   the VF is deactivated.
 	 */
 	if ((sc->hn_flags & HN_FLAG_RXVF) == 0 &&
-	    !(hn_xpnt_vf && sc->hn_vf_ifp != NULL))
+	    !(sc->hn_xvf_flags & HN_XVFFLAG_ENABLED))
 		hn_resume_mgmt(sc);
 
 	/*
@@ -7389,6 +7514,29 @@ hn_nvs_handle_notify(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
 	}
 	hdr = VMBUS_CHANPKT_CONST_DATA(pkt);
 
+	if (hdr->nvs_type == HN_NVS_TYPE_VFASSOC_NOTE) {
+		const struct hn_nvs_vfassoc *assoc;
+		u_int state;
+
+		if (VMBUS_CHANPKT_DATALEN(pkt) < sizeof(*assoc)) {
+			if_printf(sc->hn_ifp, "short VF association notification\n");
+			return;
+		}
+		assoc = (const struct hn_nvs_vfassoc *)hdr;
+		if (assoc->nvs_alloc > 1) {
+			if_printf(sc->hn_ifp, "invalid VF association notification\n");
+			return;
+		}
+		/* Preserve withdrawals even when the worker coalesces notices. */
+		state = (atomic_load_int(&sc->hn_vf_assoc) + HN_VF_ASSOC_GENINC) &
+		    ~HN_VF_ASSOC_ALLOCATED;
+		atomic_store_rel_int(&sc->hn_vf_assoc, state | assoc->nvs_alloc);
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "VF %u %s\n", assoc->nvs_serial,
+			    assoc->nvs_alloc ? "associated" : "withdrawn");
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, 0);
+		return;
+	}
 	if (hdr->nvs_type == HN_NVS_TYPE_TXTBL_NOTE) {
 		/* Useless; ignore */
 		return;
@@ -7565,7 +7713,8 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 			break;
 
 		case VMBUS_CHANPKT_TYPE_INBAND:
-			hn_nvs_handle_notify(sc, pkt);
+			if (chan == sc->hn_prichan)
+				hn_nvs_handle_notify(sc, pkt);
 			break;
 
 		default:
