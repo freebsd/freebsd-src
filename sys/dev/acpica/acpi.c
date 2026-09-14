@@ -3660,6 +3660,36 @@ do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
 }
 #endif
 
+static void
+check_post_suspend_to_idle(device_t dev)
+{
+	devclass_t dc;
+#if defined(__x86_64__)
+	u_int vendor_id = cpu_vendor_id;
+#else
+	u_int vendor_id = 0;
+#endif
+
+	switch (vendor_id) {
+	case CPU_VENDOR_AMD:
+	case CPU_VENDOR_HYGON:
+		dc = devclass_find("amdsmu");
+
+		if (dc != NULL && devclass_get_count(dc) > 0)
+			break;
+		device_printf(dev,
+		    "Resumed from suspend-to-idle on AMD processor but "
+		    "amdsmu(4) is not attached; unable to verify S0i3 entry. "
+		    "It is unlikely the system entered a deep sleep state.\n");
+		break;
+	default:
+		device_printf(dev,
+		    "Resumed from suspend-to-idle on a processor FreeBSD does "
+		    "not yet support for this. It is unlikely the system "
+		    "entered a deep sleep state.\n");
+	}
+}
+
 /*
  * Enter the desired system sleep state.
  *
@@ -3835,6 +3865,9 @@ backout:
     resume_all_proc();
 
     EVENTHANDLER_INVOKE(power_resume, stype);
+
+    if (stype == POWER_STYPE_SUSPEND_TO_IDLE)
+	check_post_suspend_to_idle(sc->acpi_dev);
 
     /* Allow another sleep request after a while. */
     callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
