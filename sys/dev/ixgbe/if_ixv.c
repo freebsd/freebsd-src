@@ -1370,9 +1370,13 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 			if (bootverbose) {
 				baudrate = ixgbe_link_speed_to_baudrate(
 				    sc->link_speed);
-				device_printf(dev,
-				    "Link is up %ju Mbps Full Duplex\n",
-				    (uintmax_t)(baudrate / IF_Mbps(1)));
+				if (baudrate != 0)
+					device_printf(dev,
+					    "Link is up %ju Mbps Full Duplex\n",
+					    (uintmax_t)(baudrate / IF_Mbps(1)));
+				else
+					device_printf(dev,
+					    "Link is up (speed unknown)\n");
 			}
 			sc->link_active = true;
 			iflib_link_state_change(ctx, LINK_STATE_UP,
