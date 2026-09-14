@@ -51,7 +51,7 @@
 
 xprt_rdma_check_route_ftype *rdma_check_route = NULL;
 clnt_rdma_create_ftype *clnt_rdma_create_call = NULL;
-clnt_rdma_bcksend_ftype *clnt_rdma_bcksend_call = NULL;
+svc_rdma_create_backchannel_ftype *svc_rdma_create_backchannel_call = NULL;
 
 static enum clnt_stat clnt_reconnect_call(CLIENT *, struct rpc_callextra *,
     rpcproc_t, struct mbuf *, struct mbuf **, struct timeval);

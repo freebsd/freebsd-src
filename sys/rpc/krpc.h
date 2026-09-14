@@ -51,8 +51,8 @@ typedef int	xprt_rdma_check_route_ftype(struct vnet *vnet,
 		    struct sockaddr *dstaddr, uint32_t cbslots);
 extern xprt_rdma_check_route_ftype *rdma_check_route;
 
-typedef bool_t	clnt_rdma_bcksend_ftype(SVCXPRT *xprt, struct mbuf *m);
-extern clnt_rdma_bcksend_ftype *clnt_rdma_bcksend_call;
+typedef SVCXPRT *svc_rdma_create_backchannel_ftype(SVCPOOL *nfscbdool);
+extern svc_rdma_create_backchannel_ftype *svc_rdma_create_backchannel_call;
 
 typedef CLIENT	*clnt_rdma_create_ftype(struct sockaddr *raddr,
 		    const rpcprog_t prog, const rpcvers_t vers, int intrflag,
@@ -153,7 +153,6 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 	struct mbuf *mreq;	/* current record being built from mpending */
 	uint32_t resid;		/* number of bytes needed for fragment */
 	bool_t eor;		/* reading last fragment of current record */
-	bool_t rdma;		/* On an RDMA connection. */
 };
 
 void rpcnl_init(void);
