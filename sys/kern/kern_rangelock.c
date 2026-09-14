@@ -288,7 +288,7 @@ struct rl_q_entry {
 	struct rl_q_entry *rl_q_free;
 	off_t		rl_q_start, rl_q_end;
 	int		rl_q_flags;
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 	struct thread	*rl_q_owner;
 #endif
 };
@@ -320,7 +320,7 @@ rlqentry_alloc(vm_ooffset_t start, vm_ooffset_t end, int flags)
 	e->rl_q_start = start;
 	e->rl_q_end = end;
 	e->rl_q_flags = flags;
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 	e->rl_q_owner = curthread;
 #endif
 	return (e);
@@ -497,7 +497,7 @@ again:
 		if (rl_e_is_marked(next)) {
 			next = rl_e_unmark(next);
 			if (rl_q_cas(prev, cur, next)) {
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 				cur->rl_q_owner = NULL;
 #endif
 				cur->rl_q_free = free;
@@ -669,7 +669,7 @@ again:
 			if (rl_e_is_marked(next)) {
 				next = rl_e_unmark(next);
 				if (rl_q_cas(prev, cur, next)) {
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 					cur->rl_q_owner = NULL;
 #endif
 					cur->rl_q_free = *free;
@@ -898,7 +898,7 @@ DB_SHOW_COMMAND(rangelock, db_show_rangelock)
 		    "flags %x next %p",
 		    e, rl_e_is_marked(e), rl_e_is_marked(x->rl_q_next),
 		    x->rl_q_start, x->rl_q_end, x->rl_q_flags, x->rl_q_next);
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 		db_printf(" owner %p (%d)", x->rl_q_owner,
 		    x->rl_q_owner != NULL ? x->rl_q_owner->td_tid : -1);
 #endif
