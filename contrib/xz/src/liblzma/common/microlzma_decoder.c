@@ -108,8 +108,12 @@ microlzma_decode(void *coder_ptr, const lzma_allocator *allocator,
 			}
 		};
 
-		return_if_error(lzma_next_filter_init(&coder->lzma,
-				allocator, filters));
+		const lzma_ret ret = lzma_next_filter_init(&coder->lzma,
+				allocator, filters);
+		if (ret != LZMA_OK) {
+			lzma_next_end(&coder->lzma, allocator);
+			return ret;
+		}
 
 		// Pass one dummy 0x00 byte to the LZMA decoder since that
 		// is what it expects the first byte to be.

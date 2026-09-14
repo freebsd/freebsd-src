@@ -252,6 +252,17 @@ lzma_simple_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		if (coder == NULL)
 			return LZMA_MEM_ERROR;
 
+		// Allocate memory for the filter-specific data structure.
+		if (simple_size > 0) {
+			coder->simple = lzma_alloc(simple_size, allocator);
+			if (coder->simple == NULL) {
+				lzma_free(coder, allocator);
+				return LZMA_MEM_ERROR;
+			}
+		} else {
+			coder->simple = NULL;
+		}
+
 		next->coder = coder;
 		next->code = &simple_code;
 		next->end = &simple_coder_end;
@@ -260,15 +271,6 @@ lzma_simple_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		coder->next = LZMA_NEXT_CODER_INIT;
 		coder->filter = filter;
 		coder->allocated = 2 * unfiltered_max;
-
-		// Allocate memory for filter-specific data structure.
-		if (simple_size > 0) {
-			coder->simple = lzma_alloc(simple_size, allocator);
-			if (coder->simple == NULL)
-				return LZMA_MEM_ERROR;
-		} else {
-			coder->simple = NULL;
-		}
 	}
 
 	if (filters[0].options != NULL) {

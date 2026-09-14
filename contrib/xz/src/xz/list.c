@@ -1142,12 +1142,36 @@ print_info_robot(xz_file_info *xfi, file_pair *pair)
 static void
 update_totals(const xz_file_info *xfi)
 {
-	// TODO: Integer overflow checks
+	const uint64_t streams = lzma_index_stream_count(xfi->idx);
+	const uint64_t blocks = lzma_index_block_count(xfi->idx);
+	const uint64_t compressed_size = lzma_index_file_size(xfi->idx);
+	const uint64_t uncompressed_size
+			= lzma_index_uncompressed_size(xfi->idx);
+
+	// Of these, totals.uncompressed_size is the most likely to overflow
+	// because it doesn't require a huge file. Even that is likely to
+	// happen only with invalid/crafted files.
+	//
+	// For simplicity, the error message refers to file sizes even though
+	// we are checking other things too.
+	if (totals.files == UINT64_MAX
+			|| UINT64_MAX - totals.streams < streams
+			|| UINT64_MAX - totals.blocks < blocks
+			|| UINT64_MAX - totals.compressed_size
+				< compressed_size
+			|| UINT64_MAX - totals.uncompressed_size
+				< uncompressed_size
+			|| UINT64_MAX - totals.stream_padding
+				< xfi->stream_padding) {
+		message_fatal(_("Error: The total compressed or uncompressed "
+				"size of the files is too large"));
+	}
+
 	++totals.files;
-	totals.streams += lzma_index_stream_count(xfi->idx);
-	totals.blocks += lzma_index_block_count(xfi->idx);
-	totals.compressed_size += lzma_index_file_size(xfi->idx);
-	totals.uncompressed_size += lzma_index_uncompressed_size(xfi->idx);
+	totals.streams += streams;
+	totals.blocks += blocks;
+	totals.compressed_size += compressed_size;
+	totals.uncompressed_size += uncompressed_size;
 	totals.stream_padding += xfi->stream_padding;
 	totals.checks |= lzma_index_checks(xfi->idx);
 
