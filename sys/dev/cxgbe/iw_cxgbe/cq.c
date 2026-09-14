@@ -925,22 +925,21 @@ void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata)
 {
-	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
-	struct c4iw_dev *rhp;
+	struct c4iw_dev *rhp = to_c4iw_dev(ibcq->device);
 	struct c4iw_cq *chp = to_c4iw_cq(ibcq);
 	struct c4iw_create_cq_resp uresp;
-	struct c4iw_ucontext *ucontext = NULL;
 	int ret;
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
+	struct c4iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct c4iw_ucontext, ibucontext);
 
-	CTR3(KTR_IW_CXGBE, "%s ib_dev %p entries %d", __func__, ibdev, entries);
+	CTR3(KTR_IW_CXGBE, "%s ib_dev %p entries %d", __func__, ibcq->device,
+	    entries);
 	if (attr->flags)
 		return -EINVAL;
-
-	rhp = to_c4iw_dev(ibdev);
 
 	chp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!chp->wr_waitp) {
@@ -974,13 +973,14 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	if (hwentries < 64)
 		hwentries = 64;
 
-	memsize = hwentries * sizeof *chp->cq.queue;
+	memsize = hwentries * sizeof(*chp->cq.queue);
 
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
-	if (ucontext)
+	if (udata)
 		memsize = roundup(memsize, PAGE_SIZE);
+
 	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;
 	chp->cq.vector = vector;
@@ -1004,10 +1004,10 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	if (ucontext) {
 		ret = -ENOMEM;
-		mm = kmalloc(sizeof *mm, GFP_KERNEL);
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
 		if (!mm)
 			goto err_remove_handle;
-		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
+		mm2 = kmalloc(sizeof(*mm2), GFP_KERNEL);
 		if (!mm2)
 			goto err_free_mm;
 
@@ -1021,9 +1021,10 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		ucontext->key += PAGE_SIZE;
 		uresp.gts_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
+
 		spin_unlock(&ucontext->mmap_lock);
 		ret = ib_copy_to_udata(udata, &uresp,
-					sizeof(uresp) - sizeof(uresp.reserved));
+					sizeof(uresp));
 		if (ret)
 			goto err_free_mm2;
 

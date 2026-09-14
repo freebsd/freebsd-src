@@ -130,9 +130,11 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
 	} else {
 
-		mm = kmalloc(sizeof *mm, GFP_KERNEL);
-		if (!mm)
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
+		if (!mm) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		uresp.status_page_size = PAGE_SIZE;
 
@@ -511,6 +513,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	iwcm->get_qp = c4iw_get_qp;
 	ibdev->iwcm = iwcm;
 
+	ibdev->ops.driver_id = RDMA_DRIVER_CXGB4;
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret) {
 		kfree(iwcm);

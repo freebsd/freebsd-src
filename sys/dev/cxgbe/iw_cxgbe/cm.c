@@ -107,7 +107,7 @@ static int process_mpa_request(struct c4iw_ep *ep);
 static void process_peer_close(struct c4iw_ep *ep);
 static void process_conn_error(struct c4iw_ep *ep);
 static void process_close_complete(struct c4iw_ep *ep);
-static void ep_timeout(unsigned long arg);
+static void ep_timeout(struct timer_list *t);
 static void setiwsockopt(struct socket *so);
 static void init_iwarp_socket(struct socket *so, void *arg);
 static void uninit_iwarp_socket(struct socket *so);
@@ -183,15 +183,15 @@ static char *states[] = {
 
 static void deref_cm_id(struct c4iw_ep_common *epc)
 {
-      epc->cm_id->rem_ref(epc->cm_id);
-      epc->cm_id = NULL;
-      set_bit(CM_ID_DEREFED, &epc->history);
+	epc->cm_id->rem_ref(epc->cm_id);
+	epc->cm_id = NULL;
+	set_bit(CM_ID_DEREFED, &epc->history);
 }
 
 static void ref_cm_id(struct c4iw_ep_common *epc)
 {
-      set_bit(CM_ID_REFED, &epc->history);
-      epc->cm_id->add_ref(epc->cm_id);
+	set_bit(CM_ID_REFED, &epc->history);
+	epc->cm_id->add_ref(epc->cm_id);
 }
 
 static void deref_qp(struct c4iw_ep *ep)
@@ -1009,7 +1009,7 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 	GET_LOCAL_ADDR(&new_ep->com.local_addr, new_so);
 	GET_REMOTE_ADDR(&new_ep->com.remote_addr, new_so);
 	c4iw_get_ep(&real_lep->com);
-	init_timer(&new_ep->timer);
+	timer_setup(&new_ep->timer, ep_timeout, 0);
 	new_ep->com.state = MPA_REQ_WAIT;
 
 	setiwsockopt(new_so);
@@ -1285,8 +1285,6 @@ start_ep_timer(struct c4iw_ep *ep)
 	clear_bit(TIMEOUT, &ep->com.flags);
 	c4iw_get_ep(&ep->com);
 	ep->timer.expires = jiffies + ep_timeout_secs * HZ;
-	ep->timer.data = (unsigned long)ep;
-	ep->timer.function = ep_timeout;
 	add_timer(&ep->timer);
 }
 
@@ -2370,9 +2368,7 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 	mutex_lock(&ep->com.mutex);
 	CTR2(KTR_IW_CXGBE, "%s:crcB %p", __func__, ep);
 
-	if ((ep->com.state == DEAD) ||
-			(ep->com.state != MPA_REQ_RCVD)) {
-
+	if (ep->com.state != MPA_REQ_RCVD) {
 		CTR2(KTR_IW_CXGBE, "%s:crc1 %p", __func__, ep);
 		mutex_unlock(&ep->com.mutex);
 		c4iw_put_ep(&ep->com);
@@ -2390,13 +2386,14 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		CTR2(KTR_IW_CXGBE, "%s:crc3 %p", __func__, ep);
 		abort = send_mpa_reject(ep, pdata, pdata_len);
 	}
+	mutex_unlock(&ep->com.mutex);
+
 	STOP_EP_TIMER(ep);
 #ifdef KTR
 	err = c4iw_ep_disconnect(ep, abort != 0, GFP_KERNEL);
 #else
 	c4iw_ep_disconnect(ep, abort != 0, GFP_KERNEL);
 #endif
-	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	CTR3(KTR_IW_CXGBE, "%s:crc4 %p, err: %d", __func__, ep, err);
 	return 0;
@@ -2521,9 +2518,9 @@ err_defef_cm_id:
 err_abort:
 	abort = 1;
 err_out:
+	mutex_unlock(&ep->com.mutex);
 	if (abort)
 		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
-	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	CTR2(KTR_IW_CXGBE, "%s:cacE err %p", __func__, ep);
 	return err;
@@ -2621,7 +2618,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	cm_id->provider_data = ep;
 
-	init_timer(&ep->timer);
+	timer_setup(&ep->timer, ep_timeout, 0);
 	ep->plen = conn_param->private_data_len;
 
 	if (ep->plen) {
@@ -2673,10 +2670,10 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	ep->com.state = CONNECTING;
 	ep->tos = 0;
-	ep->com.local_addr = cm_id->local_addr;
-	ep->com.remote_addr = cm_id->remote_addr;
+	ep->com.local_addr = cm_id->m_local_addr;
+	ep->com.remote_addr = cm_id->m_remote_addr;
 
-	err = c4iw_sock_create(&cm_id->local_addr, &ep->com.so);
+	err = c4iw_sock_create(&cm_id->m_local_addr, &ep->com.so);
 	if (err)
 		goto fail;
 
@@ -2724,7 +2721,7 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	ref_cm_id(&lep->com);
 	lep->com.dev = dev;
 	lep->backlog = backlog;
-	lep->com.local_addr = cm_id->local_addr;
+	lep->com.local_addr = cm_id->m_local_addr;
 	lep->com.thread = curthread;
 	cm_id->provider_data = lep;
 	lep->com.state = LISTEN;
@@ -2757,7 +2754,7 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 			goto out;
 		}
 	}
-	rc = c4iw_sock_create(&cm_id->local_addr, &lep->com.so);
+	rc = c4iw_sock_create(&cm_id->m_local_addr, &lep->com.so);
 	if (rc) {
 		CTR2(KTR_IW_CXGBE, "%s:Failed to create socket. err %d",
 				__func__, rc);
@@ -2958,9 +2955,9 @@ int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 
 
 
-static void ep_timeout(unsigned long arg)
+static void ep_timeout(struct timer_list *t)
 {
-	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
+	struct c4iw_ep *ep = timer_container_of(ep, t, timer);
 
 	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
 
@@ -3010,19 +3007,19 @@ static int
 process_terminate(struct c4iw_ep *ep)
 {
 	struct c4iw_qp_attributes attrs = {0};
+	unsigned int tid = ep->hwtid;
 
 	CTR2(KTR_IW_CXGBE, "%s:tB %p %d", __func__, ep);
 
 	if (ep && ep->com.qp) {
-
-		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n",
-				ep->hwtid, ep->com.qp->wq.sq.qid);
+		pr_warn("TERM received tid %u qpid %u\n", tid,
+		       ep->com.qp->wq.sq.qid);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
-		c4iw_modify_qp(ep->com.dev, ep->com.qp, C4IW_QP_ATTR_NEXT_STATE, &attrs,
-				1);
+		c4iw_modify_qp(ep->com.dev, ep->com.qp, C4IW_QP_ATTR_NEXT_STATE,
+			       &attrs, 1);
 	} else
-		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n",
-								ep->hwtid);
+ 		pr_warn("TERM received tid %u no ep/qp\n", tid);
+
 	CTR2(KTR_IW_CXGBE, "%s:tE %p %d", __func__, ep);
 
 	return 0;

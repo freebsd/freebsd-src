@@ -522,7 +522,7 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 }
 
 static void build_immd_cmpl(struct t4_sq *sq, struct fw_ri_immd_cmpl *immdp,
-			   struct ib_send_wr *wr)
+			   const struct ib_send_wr *wr)
 {
 	memcpy((u8 *)immdp->data, (u8 *)(uintptr_t)wr->sg_list->addr, 16);
 	memset(immdp->r1, 0, 6);
@@ -677,7 +677,8 @@ static int ib_to_fw_opcode(int ib_opcode)
 	return opcode;
 }
 
-static int complete_sq_drain_wr(struct c4iw_qp *qhp, const struct ib_send_wr *wr)
+static int complete_sq_drain_wr(struct c4iw_qp *qhp,
+				const struct ib_send_wr *wr)
 {
 	struct t4_cqe cqe = {};
 	struct c4iw_cq *schp;
@@ -730,7 +731,8 @@ static int complete_sq_drain_wrs(struct c4iw_qp *qhp, const struct ib_send_wr *w
 	return ret;
 }
 
-static void complete_rq_drain_wr(struct c4iw_qp *qhp, const struct ib_recv_wr *wr)
+static void complete_rq_drain_wr(struct c4iw_qp *qhp,
+				 const struct ib_recv_wr *wr)
 {
 	struct t4_cqe cqe = {};
 	struct c4iw_cq *rchp;
@@ -761,7 +763,8 @@ static void complete_rq_drain_wr(struct c4iw_qp *qhp, const struct ib_recv_wr *w
 	spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
 }
 
-static void complete_rq_drain_wrs(struct c4iw_qp *qhp, const struct ib_recv_wr *wr)
+static void complete_rq_drain_wrs(struct c4iw_qp *qhp,
+				  const struct ib_recv_wr *wr)
 {
 	while (wr) {
 		complete_rq_drain_wr(qhp, wr);
@@ -2113,7 +2116,6 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		qhp->ucontext = ucontext;
 	}
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;
-	init_timer(&(qhp->timer));
 
 	CTR5(KTR_IW_CXGBE, "%s sq id %u size %u memsize %zu num_entries %u",
 		 __func__, qhp->wq.sq.qid,
@@ -2198,7 +2200,7 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->cap.max_send_wr = qhp->attr.sq_num_entries;
 	init_attr->cap.max_recv_wr = qhp->attr.rq_num_entries;
 	init_attr->cap.max_send_sge = qhp->attr.sq_max_sges;
-	init_attr->cap.max_recv_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_recv_sge = qhp->attr.rq_max_sges;
 	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
 	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
 	return 0;

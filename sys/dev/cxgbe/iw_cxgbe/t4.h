@@ -311,7 +311,7 @@ struct t4_swsqe {
 	int			signaled;
 	u16			idx;
 	int                     flushed;
-	struct timespec         host_ts;
+	ktime_t                 host_time;
 	u64                     sge_ts;
 };
 

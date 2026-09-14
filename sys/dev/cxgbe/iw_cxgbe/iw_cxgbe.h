@@ -462,7 +462,6 @@ struct c4iw_qp {
 	spinlock_t lock;
 	struct mutex mutex;
 	wait_queue_head_t wait;
-	struct timer_list timer;
 	int sq_sig_all;
 	struct c4iw_ucontext *ucontext;
 	struct c4iw_wr_wait *wr_waitp;
