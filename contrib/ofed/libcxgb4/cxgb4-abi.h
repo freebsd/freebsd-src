@@ -47,6 +47,11 @@ struct c4iw_alloc_pd_resp {
 	uint32_t pdid;
 };
 
+struct c4iw_create_cq_req {
+	struct ibv_create_cq ibv_req;
+	__u64 cqe_size;
+};
+
 struct c4iw_create_cq_resp {
 	struct ibv_create_cq_resp ibv_resp;
 	__u64 key;

@@ -156,11 +156,10 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			F_FW_RI_RES_WR_IQANDST |
 			V_FW_RI_RES_WR_IQANDSTINDEX(sc->sge.ofld_rxq[0].iq.abs_id));
 	res->u.cq.iqdroprss_to_iqesize = cpu_to_be16(
-			F_FW_RI_RES_WR_IQDROPRSS |
 			V_FW_RI_RES_WR_IQPCIECH(2) |
 			V_FW_RI_RES_WR_IQINTCNTTHRESH(0) |
 			F_FW_RI_RES_WR_IQO |
-			V_FW_RI_RES_WR_IQESIZE(1));
+			V_FW_RI_RES_WR_IQESIZE(ilog2(sizeof *cq->queue) - 4));
 	res->u.cq.iqsize = cpu_to_be16(cq->size);
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 
@@ -715,7 +714,7 @@ skip_cqe:
 static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 {
 	struct c4iw_qp *qhp = NULL;
-	struct t4_cqe cqe = {0, 0}, *rd_cqe;
+	struct t4_cqe uninitialized_var(cqe), *rd_cqe;
 	struct t4_wq *wq;
 	u32 credit = 0;
 	u8 cqe_flushed;

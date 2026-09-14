@@ -182,7 +182,12 @@ static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 /*
  * CQE defs
  */
+
+/*
+ * 64B CQE entries.
+ */
 struct t4_cqe {
+	struct rss_header rss;
 	__be32 header;
 	__be32 len;
 	union {
@@ -201,7 +206,7 @@ struct t4_cqe {
 		} gen;
 		u64 drain_cookie;
 	} u;
-	__be64 reserved;
+	__be64 reserved[4];
 	__be64 bits_type_ts;
 };
 

@@ -34,7 +34,7 @@
 #ifndef __C4IW_USER_H__
 #define __C4IW_USER_H__
 
-#define C4IW_UVERBS_ABI_VERSION	3
+#define C4IW_UVERBS_ABI_VERSION	5
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -43,6 +43,10 @@
  * In particular do not use pointer types -- pass pointers in __u64
  * instead.
  */
+struct c4iw_create_cq_req {
+	__u64 cqe_size;
+};
+
 struct c4iw_create_cq_resp {
 	__u64 key;
 	__u64 gts_key;

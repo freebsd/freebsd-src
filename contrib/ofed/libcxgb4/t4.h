@@ -63,6 +63,7 @@
 #include "t4_regs.h"
 #include "t4_chip_type.h"
 #include "t4fw_interface.h"
+#include "t4_msg.h"
 
 #ifdef DEBUG
 #define DBGLOG(s)
@@ -192,9 +193,10 @@ static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 #define T4_ERR_INTERNAL_ERR                0x1F /* internal error (opcode  */
 						/* mismatch) */
 /*
- * CQE defs
+ * 64B CQE entries.
  */
 struct t4_cqe {
+	struct rss_header rss;
 	__be32 header;
 	__be32 len;
 	union {
@@ -212,7 +214,7 @@ struct t4_cqe {
 			__be32 wrid_low;
 		} gen;
 	} u;
-	__be64 reserved;
+	__be64 reserved[4];
 	__be64 bits_type_ts;
 };
 
