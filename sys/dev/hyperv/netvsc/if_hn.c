@@ -1590,10 +1590,13 @@ hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
 	strlcpy(ifrk.ifrk_name, if_name(vf_ifp), sizeof(ifrk.ifrk_name));
 	error = ifhwioctl(SIOCGIFRSSKEY, vf_ifp, (caddr_t)&ifrk, curthread);
 	if (error) {
-		if_printf(ifp, "%s SIOCGIFRSSKEY failed: %d\n",
-		    if_name(vf_ifp), error);
+		if (error != EOPNOTSUPP)
+			if_printf(ifp, "%s SIOCGIFRSSKEY failed: %d\n",
+			    if_name(vf_ifp), error);
 		goto done;
 	}
+	if (ifrk.ifrk_func == RSS_FUNC_NONE)
+		goto done;
 	if (ifrk.ifrk_func != RSS_FUNC_TOEPLITZ) {
 		if_printf(ifp, "%s RSS function %u is not Toeplitz\n",
 		    if_name(vf_ifp), ifrk.ifrk_func);
@@ -1612,10 +1615,13 @@ hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
 	strlcpy(ifrh.ifrh_name, if_name(vf_ifp), sizeof(ifrh.ifrh_name));
 	error = ifhwioctl(SIOCGIFRSSHASH, vf_ifp, (caddr_t)&ifrh, curthread);
 	if (error) {
-		if_printf(ifp, "%s SIOCGRSSHASH failed: %d\n",
-		    if_name(vf_ifp), error);
+		if (error != EOPNOTSUPP)
+			if_printf(ifp, "%s SIOCGIFRSSHASH failed: %d\n",
+			    if_name(vf_ifp), error);
 		goto done;
 	}
+	if (ifrh.ifrh_func == RSS_FUNC_NONE)
+		goto done;
 	if (ifrh.ifrh_func != RSS_FUNC_TOEPLITZ) {
 		if_printf(ifp, "%s RSS function %u is not Toeplitz\n",
 		    if_name(vf_ifp), ifrh.ifrh_func);
@@ -1713,11 +1719,11 @@ hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
 		if (error) {
 			/* XXX roll-back? */
 			if_printf(ifp, "hn_rss_reconfig failed: %d\n", error);
-			/* XXX keep going. */
+			mbuf_types = 0;
 		}
 	}
 done:
-	/* Hash deliverability for mbufs. */
+	/* Do not expose hashes unless the VF and synthetic settings agree. */
 	hn_rss_mbuf_hash(sc, hn_rss_type_tondis(mbuf_types));
 }
 
