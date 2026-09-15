@@ -1,6 +1,6 @@
-if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
+if [ ! "$_BSDCONFIG_SYSRC_SUBR" ]; then _BSDCONFIG_SYSRC_SUBR=1
 #
-# Copyright (c) 2006-2015 Devin Teske
+# Copyright (c) 2006-2026 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,6 +24,7 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+############################################################ INFORMATION
 #
 # Compatibility shim: sources the canonical sysrc.subr from /usr/share/sysrc/
 # and loads bsdconfig-specific i18n messages afterward.
@@ -36,13 +37,11 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_include /usr/share/sysrc/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-if [ ! "$_SYSRC_JAILED" ]; then
-	f_dprintf "%s: loading includes..." sysrc.subr
-	f_include_lang $BSDCFG_LIBE/include/messages.subr
-fi
+f_dprintf "%s: loading includes..." sysrc.subr
+f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ MAIN
 
 f_dprintf "%s: Successfully loaded." sysrc.subr
 
-fi # ! $_SYSRC_SUBR
+fi # ! $_BSDCONFIG_SYSRC_SUBR

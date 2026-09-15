@@ -1,29 +1,10 @@
 if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 #
-# Copyright (c) 2006-2015 Devin Teske
-# All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
+# Copyright (c) 2006-2026 Devin Teske
 #
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
-#
+############################################################ INFORMATION
 #
 # This file was split-out of bsdconfig(8) and is now self-contained, and is
 # no longer dependent on bsdconfig(8) or any of its libraries.
@@ -33,7 +14,7 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 #
 # Standard pathnames (inherit values from shell if available)
 #
-: ${RC_DEFAULTS:="/etc/defaults/rc.conf"}
+: "${RC_DEFAULTS:=/etc/defaults/rc.conf}"
 
 ############################################################ GLOBALS
 
@@ -44,12 +25,7 @@ SUCCESS=0
 FAILURE=1
 
 #
-# Program name (derived from the running script)
-#
-pgm="${0##*/}"
-
-#
-# Error messages.
+# Error messages
 #
 msg_cannot_create_permission_denied="%s: cannot create %s: Permission denied"
 msg_permission_denied="%s: %s: Permission denied"
@@ -68,24 +44,28 @@ VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 
 ############################################################ FUNCTIONS
 
-# f_err $format [$arguments ...]
-#
-# Print a message to stderr (fd=2).
-#
-f_err()
-{
-	printf "$@" >&2
-}
-
 # f_have $anything ...
 #
 # A wrapper to the `type' built-in. Returns true if argument is a valid shell
 # built-in, keyword, or externally-tracked binary, otherwise false.
 #
+if ! type f_have > /dev/null 2>&1; then
 f_have()
 {
 	type "$@" > /dev/null 2>&1
 }
+fi
+
+# f_err $format [$arguments ...]
+#
+# Print a message to stderr (fd=2).
+#
+if ! f_have f_err; then
+f_err()
+{
+	printf "$@" >&2
+}
+fi
 
 # setvar $var_to_set [$value]
 #
@@ -125,8 +105,10 @@ fi
 # Returns error status if the requested variable ($var_to_get) is not set.
 #
 # If $var_to_set is missing or NULL, the value of $var_to_get is printed to
-# standard output for capturing in a sub-shell.
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
 #
+if ! f_have f_getvar; then
 f_getvar()
 {
 	local __var_to_get="$1" __var_to_set="$2"
@@ -137,21 +119,22 @@ f_getvar()
 	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
 	return $__retval
 }
+fi
 
-# f_eval_catch [ -d ] [ -e ] [ -k $var_to_set ] $funcname $utility \
+# f_eval_catch [-de] [-k $var_to_set] $funcname $utility \
 #	$printf_format [$printf_args ...]
 #
 # Evaluate the printf-rendered command line and capture its output. The return
 # status of the command is preserved. If `-k' is given, output is stored in
 # $var_to_set. If `-e' is given, output is echoed to stderr on failure.
 #
+if ! f_have f_eval_catch; then
 f_eval_catch()
 {
 	local OPTIND OPTARG __flag __show_err= __var_to_set=
 	while getopts "dek:" __flag > /dev/null; do
 		case "$__flag" in
-		d) : # no-op: always non-interactive here
-			;;
+		d) : ;; # no-op: always non-interactive here
 		e) __show_err=1 ;;
 		k) __var_to_set="$OPTARG" ;;
 		esac
@@ -170,44 +153,9 @@ f_eval_catch()
 	[ "$__var_to_set" ] && setvar "$__var_to_set" "$__output"
 	return $__retval
 }
+fi
 
-# source_rc_confs
-#
-# Source the rc.conf(5) override files (as defined in rc.conf(5)), preserving
-# the semantics used by /etc/rc.* at boot-time.
-#
-source_rc_confs()
-{
-	local i sourced_files
-	for i in ${rc_conf_files}; do
-		case ${sourced_files} in
-		*:$i:*)
-			;;
-		*)
-			sourced_files="${sourced_files}:$i:"
-			if [ -r $i ]; then
-				. $i
-			fi
-			;;
-		esac
-	done
-	# Re-do process to pick up [possibly] redefined $rc_conf_files
-	for i in ${rc_conf_files}; do
-		case ${sourced_files} in
-		*:$i:*)
-			;;
-		*)
-			sourced_files="${sourced_files}:$i:"
-			if [ -r $i ]; then
-				. $i
-			fi
-			;;
-		esac
-	done
-}
-
-
-# f_clean_env [ --except $varname ... ]
+# f_clean_env [--except $varname ...]
 #
 # Unset all environment variables in the current scope. An optional list of
 # arguments can be passed, indicating which variables to avoid unsetting; the
