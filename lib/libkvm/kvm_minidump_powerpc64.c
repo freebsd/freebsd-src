@@ -88,25 +88,25 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 		goto failed;
 	}
 	/* Check version */
-	hdr->version = be32toh(hdr->version);
+	hdr->version = _kvm32toh(kd, hdr->version);
 	if (hdr->version != MINIDUMP_VERSION && hdr->version != 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. "
 		    "Expected %d got %d", MINIDUMP_VERSION, hdr->version);
 		goto failed;
 	}
 	/* Convert header fields to host endian */
-	hdr->msgbufsize		= be32toh(hdr->msgbufsize);
-	hdr->bitmapsize		= be32toh(hdr->bitmapsize);
-	hdr->pmapsize		= be32toh(hdr->pmapsize);
-	hdr->kernbase		= be64toh(hdr->kernbase);
-	hdr->kernend		= be64toh(hdr->kernend);
-	hdr->dmapbase		= be64toh(hdr->dmapbase);
-	hdr->dmapend		= be64toh(hdr->dmapend);
-	hdr->hw_direct_map	= be32toh(hdr->hw_direct_map);
-	hdr->startkernel	= be64toh(hdr->startkernel);
-	hdr->endkernel		= be64toh(hdr->endkernel);
+	hdr->msgbufsize		= _kvm32toh(kd, hdr->msgbufsize);
+	hdr->bitmapsize		= _kvm32toh(kd, hdr->bitmapsize);
+	hdr->pmapsize		= _kvm32toh(kd, hdr->pmapsize);
+	hdr->kernbase		= _kvm64toh(kd, hdr->kernbase);
+	hdr->kernend		= _kvm64toh(kd, hdr->kernend);
+	hdr->dmapbase		= _kvm64toh(kd, hdr->dmapbase);
+	hdr->dmapend		= _kvm64toh(kd, hdr->dmapend);
+	hdr->hw_direct_map	= _kvm32toh(kd, hdr->hw_direct_map);
+	hdr->startkernel	= _kvm64toh(kd, hdr->startkernel);
+	hdr->endkernel		= _kvm64toh(kd, hdr->endkernel);
 	hdr->dumpavailsize	= hdr->version == MINIDUMP_VERSION ?
-	    be32toh(hdr->dumpavailsize) : 0;
+	    _kvm32toh(kd, hdr->dumpavailsize) : 0;
 
 	vmst->kimg_start = PPC64_KERNBASE;
 	vmst->kimg_end = PPC64_KERNBASE + hdr->endkernel - hdr->startkernel;

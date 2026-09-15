@@ -311,8 +311,8 @@ pte_get(kvm_t *kd, u_long ptex)
 	ppc64_pt_entry_t pte, *p;
 
 	p = _kvm_pmap_get(kd, ptex, sizeof(pte));
-	pte.pte_hi = be64toh(p->pte_hi);
-	pte.pte_lo = be64toh(p->pte_lo);
+	pte.pte_hi = _kvm64toh(kd, p->pte_hi);
+	pte.pte_lo = _kvm64toh(kd, p->pte_lo);
 	return (pte);
 }
 
