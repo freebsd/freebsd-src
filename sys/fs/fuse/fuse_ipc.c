@@ -590,28 +590,6 @@ fdata_set_dead(struct fuse_data *data)
 	FUSE_UNLOCK();
 }
 
-struct fuse_ticket *
-fuse_ticket_fetch(struct fuse_data *data)
-{
-	int err = 0;
-	struct fuse_ticket *ftick;
-
-	ftick = fticket_alloc(data);
-
-	if (!(data->dataflags & FSESS_INITED)) {
-		/* Sleep until get answer for INIT message */
-		FUSE_LOCK();
-		if (!(data->dataflags & FSESS_INITED) && data->ticketer > 2) {
-			err = msleep(&data->ticketer, &fuse_mtx, PCATCH | PDROP,
-			    "fu_ini", 0);
-			if (err)
-				fdata_set_dead(data);
-		} else
-			FUSE_UNLOCK();
-	}
-	return ftick;
-}
-
 int
 fuse_ticket_drop(struct fuse_ticket *ftick)
 {
@@ -924,7 +902,7 @@ fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
 	if (fdip->tick) {
 		fticket_refresh(fdip->tick);
 	} else {
-		fdip->tick = fuse_ticket_fetch(data);
+		fdip->tick = fticket_alloc(data);
 	}
 
 	/* FUSE_DIMALLOC will bzero the fiovs when it enlarges them */

@@ -47,6 +47,7 @@ class PreInit: public FuseTest {
 public:
 void SetUp() {
 	m_no_auto_init = true;
+	m_daemon_timeout = 1;
 	FuseTest::SetUp();
 }
 };
@@ -63,6 +64,28 @@ void SetUp() {
 	PreInit::SetUp();
 }
 };
+
+const char FULLPATH0[] = "mountpoint/some_file.txt";
+static void* access0(void* arg __unused) {
+	ssize_t r;
+
+	r = access(FULLPATH0, F_OK);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
+static void* stat1(void* arg) {
+	struct stat *sb = (struct stat*) arg;
+	int r;
+
+	r = stat("mountpoint", sb);
+	if (r != 0)
+               return 0;
+	else
+               return (void*)(intptr_t)errno;
+}
 
 static void* unmount1(void* arg __unused) {
 	ssize_t r;
@@ -172,25 +195,65 @@ TEST_F(PreInit, signal_during_unmount_before_init)
 }
 
 /*
- * If some process attempts VOP_GETATTR for the mountpoint before init is
- * complete, fusefs should wait, just like it does for other VOPs.
+ * If the daemon tries to unmount without ever completing INIT but after an
+ * operation like FUSE_ACCESS is blocking, waiting for the daemon, don't
+ * deadlock.  This will probably also happen if the unmount comes from a
+ * different process.
  *
- * To verify that fuse_vnop_getattr does indeed wait for FUSE_INIT to complete,
+ * When m_default_permissions is true, this is a regression test for bug 287431
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=287431
+ */
+TEST_F(PreInit, access_but_never_init)
+{
+	pthread_t th0;
+
+	/*
+	 * Don't call m_mock->start_service(), so nothing will ever respond to
+	 * FUSE_INIT.
+	 */
+
+	/*
+	* Create a thread to issue a fuse operation.  It will block since
+	* FUSE_INIT is not complete.
+	*/
+	ASSERT_EQ(0, pthread_create(&th0, NULL, access0, NULL));
+	nap();
+
+	/*
+	* Unmounting now, without ever responding to FUSE_INIT, should
+	* hopefully not trigger a deadlock.
+	*/
+	m_mock->unmount();
+
+	pthread_join(th0, NULL);
+}
+
+/*
+ * If some process attempts to access a vnode on the mountpoint before init is
+ * complete, fusefs should wait.
+ *
+ * To verify that fuse_vfsop_root does indeed wait for FUSE_INIT to complete,
  * invoke the test like this:
  *
-> sudo cpuset -c -l 0 dtrace -i 'fbt:fusefs:fuse_internal_init_callback:' -i 'fbt:fusefs:fuse_vnop_getattr:' -c "./pre-init --gtest_filter=PI/PreInitP.getattr_before_init/0"
+> sudo cpuset -c -l 0 dtrace -i 'fbt:fusefs:fuse_vfsop_root: {printf("tid=%d", tid);}' -i 'fbt:fusefs:fuse_internal_init_callback: {printf("tid=%d", tid);}' -i 'fbt:fusefs:fuse_vnop_getattr: {printf("tid=%d", tid);}' -c "./pre-init --gtest_filter=PI/PreInitP.getattr_before_init/0"
 ...
-dtrace: pid 4224 has exited
+dtrace: pid 7399 has exited
 CPU     ID                    FUNCTION:NAME
-  0  68670          fuse_vnop_getattr:entry
-  0  68893 fuse_internal_init_callback:entry
-  0  68894 fuse_internal_init_callback:return
-  0  68671         fuse_vnop_getattr:return
+...
+  0  72004            fuse_vfsop_root:entry tid=102466
+  0  72245 fuse_internal_init_callback:entry tid=102465
+  0  72246 fuse_internal_init_callback:return tid=102465
+  0  72005           fuse_vfsop_root:return tid=102466
+  0  72017          fuse_vnop_getattr:entry tid=102466
+  0  72018         fuse_vnop_getattr:return tid=102466
+...
  *
- * Note that fuse_vnop_getattr was entered first, but exitted last.
+ * Note that fuse_vnop_getattr's thread entered fuse_vfsop_root first, but
+ * exitted only after fuse_internal_init_callback completed.
  */
 TEST_P(PreInitP, getattr_before_init)
 {
+	pthread_t th0;
 	struct stat sb;
 	nlink_t nlink = 12345;
 
@@ -225,7 +288,8 @@ TEST_P(PreInitP, getattr_before_init)
 
 	m_mock->start_service();
 
-	EXPECT_EQ(0, stat("mountpoint", &sb));
+	ASSERT_EQ(0, pthread_create(&th0, NULL, stat1, &sb));
+	pthread_join(th0, NULL);
 	EXPECT_EQ(nlink, sb.st_nlink);
 }
 

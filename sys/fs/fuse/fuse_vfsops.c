@@ -627,10 +627,37 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 	int err = 0;
 
 	if (data->vroot != NULL) {
+		if (!(data->dataflags & FSESS_INITED)) {
+			/* Block all operations until init completes */
+			FUSE_LOCK();
+			if (data->dataflags & FSESS_INITED) {
+				/* We must've just gotten initialized */
+				FUSE_UNLOCK();
+			} else {
+				err = msleep(&data->ticketer, &fuse_mtx,
+				    PCATCH | PDROP, "fu_ini",
+				    data->daemon_timeout * hz);
+				if (err) {
+					/*
+					 * The daemon didn't initialize on
+					 * time.  Mark it as dead.  Most vnops
+					 * will fail as a result, but VFS_ROOT
+					 * must still succeed for the sake of
+					 * unmount.
+					 */
+					fdata_set_dead(data);
+				}
+			}
+		}
 		err = vget(data->vroot, lkflags);
 		if (err == 0)
 			*vpp = data->vroot;
 	} else {
+		/*
+		 * Get a vnode for the root.  Note that this step can happen
+		 * straight from sys_nmount, before INIT is complete.
+		 */
+
 		err = fuse_vnode_get(mp, NULL, FUSE_ROOT_ID, NULL, vpp, NULL,
 		    VDIR);
 		if (err == 0) {
@@ -667,6 +694,10 @@ fuse_vfsop_statfs(struct mount *mp, struct statfs *sbp)
 
 	data = fuse_get_mpdata(mp);
 
+	/*
+	 * We must fake the statfs data before initialization completes,
+	 * because nmount itself calls VFS_STATFS.
+	 */
 	if (!(data->dataflags & FSESS_INITED))
 		goto fake;
 

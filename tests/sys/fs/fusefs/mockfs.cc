@@ -427,7 +427,7 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
 	bool noclusterr, unsigned time_gran, bool nointr, bool noatime,
 	const char *fsname, const char *subtype, bool no_auto_init,
-	bool auto_unmount)
+	bool auto_unmount, unsigned daemon_timeout)
 	: m_daemon_id(NULL),
 	  m_kernel_minor_version(kernel_minor_version),
 	  m_kq(pm == KQ ? kqueue() : -1),
@@ -523,6 +523,12 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	if (auto_unmount) {
 		build_iovec(&iov, &iovlen, "auto_unmount",
 			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (daemon_timeout > 0) {
+		char val[12];
+
+		snprintf(val, sizeof(val), "%u", daemon_timeout);
+		build_iovec(&iov, &iovlen, "timeout=", &val, -1);
 	}
 	if (*fsname) {
 		build_iovec(&iov, &iovlen, "fsname=",

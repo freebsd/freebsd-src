@@ -389,7 +389,6 @@ fuse_aw_pop(struct fuse_data *data)
 	return (ftick);
 }
 
-struct fuse_ticket *fuse_ticket_fetch(struct fuse_data *data);
 int fuse_ticket_drop(struct fuse_ticket *ftick);
 void fuse_insert_callback(struct fuse_ticket *ftick, fuse_handler_t *handler);
 void fuse_insert_message(struct fuse_ticket *ftick, bool irq);
