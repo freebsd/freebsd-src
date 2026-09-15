@@ -73,7 +73,20 @@ rejected by physical-function policy.
 .Pp
 On Hyper-V, the host provides reset and assigned-address information through
 PCI configuration space instead of the Intel PF/VF mailbox.
-The driver uses one queue pair in this environment.
+The driver uses up to two queue pairs on X550, X552, X553, and E610
+when the host advertises multiple queues through PCI configuration space
+and sufficient MSI-X vectors are available.
+Otherwise, it uses one queue pair.
+To request two queue pairs, run the following from an elevated PowerShell
+prompt on the Hyper-V host, substituting the VM and network adapter names:
+.Bd -literal -offset indent
+Set-VMNetworkAdapter -VMName "vm-name" -Name "adapter-name" `
+    -IovQueuePairsRequested 2
+.Ed
+.Pp
+Changing this setting can detach and reattach the VF, so configure it before
+starting the guest when possible.
+.Pp
 MAC address, VLAN, multicast filter, and receive mode policies remain under
 host control.
 On E610, when the host does not support the PCI link-status query,
