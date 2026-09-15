@@ -60,6 +60,7 @@ KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 KLD_DEBUG	opt_kld.h
+RUST_KERNEL	opt_global.h
 NUM_CORE_FILES	opt_global.h
 QUEUE_MACRO_DEBUG_TRACE	opt_global.h
 QUEUE_MACRO_DEBUG_TRASH	opt_global.h
