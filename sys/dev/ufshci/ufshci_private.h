@@ -547,6 +547,8 @@ int ufshci_req_sdb_get_inflight_io(struct ufshci_controller *ctrlr);
 int ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_hibernation_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_cmd_ready(struct ufshci_controller *ctrlr);
+int ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
+    struct ufshci_uic_cmd *uic_cmd, uint32_t *return_value);
 int ufshci_uic_send_dme_link_startup(struct ufshci_controller *ctrlr);
 int ufshci_uic_send_dme_get(struct ufshci_controller *ctrlr, uint16_t attribute,
     uint32_t *return_value);

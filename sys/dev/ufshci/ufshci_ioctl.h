@@ -31,23 +31,29 @@
  * a command UPIU uses it.
  */
 struct ufshci_pt_command {
+	/* The driver overwrites task_tag. */
 	struct ufshci_upiu req_upiu;  /* [in] */
 	struct ufshci_upiu resp_upiu; /* [out] */
 	void *buf;		      /* [in] PRDT payload, may be NULL */
 	uint32_t len;		      /* [in] length of buf */
 	uint32_t flags;		      /* [in] UFSHCI_PT_FLAG_* */
-	uint32_t timeout_ms;	      /* [in] 0 means the driver default */
-	uint32_t xfer_len;	      /* [out] bytes actually moved */
-	uint8_t ocs;		      /* [out] overall command status */
+	uint32_t timeout_ms;	      /* [in] reserved, must be 0 */
+	uint32_t xfer_len;	      /* [out] bytes the request carried */
+	uint8_t ocs;		      /* [out] reserved, always 0 for now */
 	uint8_t reserved[7];
 };
 
 struct ufshci_pt_uic_command {
 	struct ufshci_uic_cmd cmd; /* [in/out] opcode and argument1..3 */
-	uint32_t timeout_ms;	   /* [in] */
+	uint32_t timeout_ms;	   /* [in] reserved, must be 0 */
 	uint32_t result;	   /* [out] UICCMDARG2 result code */
 };
 
+/*
+ * A zero return means the command reached the device, not that the device
+ * accepted it. The response field in the response UPIU header carries
+ * that. On an errno no output field is filled.
+ */
 #define UFSHCI_PASSTHROUGH_CMD	_IOWR('u', 0, struct ufshci_pt_command)
 #define UFSHCI_PASSTHROUGH_UIC	_IOWR('u', 1, struct ufshci_pt_uic_command)
 
