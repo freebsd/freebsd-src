@@ -1,0 +1,4 @@
+#define NSP_RAM 0xA4000000
+#define NSP_SD 0x10000000
+#define NSP_IO 0xB8000000 
+
