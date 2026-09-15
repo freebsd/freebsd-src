@@ -2848,19 +2848,21 @@ iflib_init_locked(if_ctx_t ctx)
 			}
 		}
 	}
+	/* Open every TX queue before publishing admission to transmitters. */
+	if (ctx->ifc_sysctl_simple_tx) {
+		for (i = 0, txq = ctx->ifc_txqs; i < scctx->isc_ntxqsets;
+		    i++, txq++)
+			atomic_clear_rel_int(&txq->ift_producers,
+			    IFLIB_TXQ_QUIESCING);
+	}
 	STATE_LOCK(ctx);
 	iflib_set_running(ctx, true);
 	STATE_UNLOCK(ctx);
 	IFDI_INTR_ENABLE(ctx);
 	txq = ctx->ifc_txqs;
-	for (i = 0; i < scctx->isc_ntxqsets; i++, txq++) {
+	for (i = 0; i < scctx->isc_ntxqsets; i++, txq++)
 		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer, txq,
 			txq->ift_timer.c_cpu);
-		if (ctx->ifc_sysctl_simple_tx) {
-			atomic_clear_rel_int(&txq->ift_producers,
-			    IFLIB_TXQ_QUIESCING);
-		}
-	}
 
 	/* Re-enable txsync/rxsync. */
 	netmap_enable_all_rings(ifp);
