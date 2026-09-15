@@ -3060,6 +3060,9 @@ _llvm_binutils=	usr.bin/clang/llvm-ar \
 .if ${MK_USB} != "no"
 _usb_tools=	stand/usb/tools
 .endif
+.if ${MK_LOADER_KBOOT} != "no"
+_kboot_tools=	stand/kboot/tools/brssl_ta
+.endif
 
 .if ${BUILD_WITH_STRICT_TMPPATH} != 0 || defined(BOOTSTRAP_ALL_TOOLS)
 _ar=usr.bin/ar
@@ -3076,7 +3079,8 @@ cross-tools: .MAKE .PHONY
     ${_elftctools} \
     ${_dtrace_tools} \
     ${_btxld} \
-    ${_usb_tools}
+    ${_usb_tools} \
+    ${_kboot_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
