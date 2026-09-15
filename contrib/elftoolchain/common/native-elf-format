@@ -41,6 +41,8 @@ $1 ~ "Machine:" {
             elfarch = "EM_PPC64";
         } else if (match($0, "AArch64")) {
             elfarch = "EM_AARCH64";
+        } else if (match($0, "LoongArch")) {
+            elfarch = "EM_LOONGARCH";
         } else {
             elfarch = "unknown";
         }
