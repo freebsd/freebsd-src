@@ -259,6 +259,8 @@
         ..
         tcp_log
         ..
+        ufshci
+        ..
         usb
         ..
         veriexec
