@@ -9,9 +9,49 @@
 /* Reading these PCI configuration bytes resets a VF on Hyper-V. */
 #define IXGBE_HV_RESET_OFFSET	0x201
 
+/* Hyper-V emulates the VF queue limit in PCI configuration space. */
+#define IXGBE_HV_QUEUE_COUNT_OFFSET	0x207
+
 /* E610 exposes VFLINKS in four emulated PCI configuration bytes. */
 #define IXGBE_HV_LINK_STATUS_OFFSET	0x209
 #define IXGBE_HV_LINK_STATUS_SIZE	4
+
+/**
+ * ixgbevf_hv_get_queues - Discover supported Hyper-V RSS queues at attach
+ * @hw: pointer to hardware structure
+ */
+u32
+ixgbevf_hv_get_queues(struct ixgbe_hw *hw)
+{
+	u32 grant, queues = 1;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_X550_vf:
+	case ixgbe_mac_X550EM_x_vf:
+	case ixgbe_mac_X550EM_a_vf:
+		/* 0x208 is a separate DCB flag on these PFs, not count bits. */
+		grant = IXGBE_READ_PCIE_BYTE(hw, IXGBE_HV_QUEUE_COUNT_OFFSET);
+		break;
+	case ixgbe_mac_E610_vf:
+		/* E610 reports the assigned count as a little-endian word. */
+		grant = IXGBE_READ_PCIE_BYTE(hw, IXGBE_HV_QUEUE_COUNT_OFFSET);
+		grant |= (u32)IXGBE_READ_PCIE_BYTE(hw,
+		    IXGBE_HV_QUEUE_COUNT_OFFSET + 1) << NBBY;
+		break;
+	default:
+		/* Older PFs do not provide VF-owned RSS on Hyper-V. */
+		grant = 1;
+		break;
+	}
+	/* Valid limits are 1, 2 and 4; use at most two symmetric RSS queues. */
+	if (grant == 2 || grant == 4)
+		queues = 2;
+
+	/* Shared stop must disable every queue that iflib can initialize. */
+	hw->mac.max_tx_queues = queues;
+	hw->mac.max_rx_queues = queues;
+	return (queues);
+}
 
 /**
  * ixgbevf_hv_update_mc_addr_list_vf - Hyper-V variant - just a stub.
@@ -234,17 +274,19 @@ ixgbevf_hv_get_link_state_vf(struct ixgbe_hw *hw, bool *link_state)
 static s32
 ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
-	u32 reg;
+	u32 i, reg;
 
 	/* RLPML is not implemented by the 82599 VF. */
 	if (hw->mac.type == ixgbe_mac_82599_vf)
 		return (IXGBE_SUCCESS);
 
-	reg = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(0));
-	reg &= ~IXGBE_RXDCTL_RLPMLMASK;
-	reg |= ((max_size + 4) & IXGBE_RXDCTL_RLPMLMASK) |
-	    IXGBE_RXDCTL_RLPML_EN;
-	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(0), reg);
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		reg = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
+		reg &= ~IXGBE_RXDCTL_RLPMLMASK;
+		reg |= ((max_size + 4) & IXGBE_RXDCTL_RLPMLMASK) |
+		    IXGBE_RXDCTL_RLPML_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), reg);
+	}
 
 	return (IXGBE_SUCCESS);
 }

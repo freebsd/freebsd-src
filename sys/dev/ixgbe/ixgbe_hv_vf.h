@@ -8,5 +8,6 @@
 #include "ixgbe_type.h"
 
 s32 ixgbevf_hv_init_ops_vf(struct ixgbe_hw *hw);
+u32 ixgbevf_hv_get_queues(struct ixgbe_hw *hw);
 
 #endif /* _IXGBE_HV_VF_H_ */

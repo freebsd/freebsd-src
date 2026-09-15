@@ -1112,7 +1112,7 @@ ixv_queue_limit(struct ixgbe_softc *sc, bool mailbox_ready)
 
 	hw = &sc->hw;
 	if (ixv_is_hyperv(hw)) {
-		limit = 1;
+		limit = ixgbevf_hv_get_queues(hw);
 	} else {
 		/* Preserve the current family limit as the mailbox fallback. */
 		switch (hw->mac.type) {
