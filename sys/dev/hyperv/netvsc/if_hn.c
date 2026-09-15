@@ -2132,10 +2132,16 @@ static void
 hn_ifnet_lnkevent(void *xsc, if_t ifp, int link_state)
 {
 	struct hn_softc *sc = xsc;
+	struct rm_priotracker pt;
 
+	/* Publish before a concurrent handoff can restore synthetic carrier. */
+	rm_rlock(&sc->hn_vf_lock, &pt);
 	if (sc->hn_vf_ifp == ifp &&
-	    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED))
+	    (sc->hn_xvf_flags & (HN_XVFFLAG_ENABLED | HN_XVFFLAG_SWITCHING)) ==
+	    HN_XVFFLAG_ENABLED && sc->hn_vf_active_assoc ==
+	    atomic_load_acq_int(&sc->hn_vf_assoc))
 		if_link_state_change(sc->hn_ifp, link_state);
+	rm_runlock(&sc->hn_vf_lock, &pt);
 }
 
 static int
@@ -7527,6 +7533,7 @@ hn_nvs_handle_notify(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
 			if_printf(sc->hn_ifp, "invalid VF association notification\n");
 			return;
 		}
+		/* The serial is diagnostic; hn_ismyvf() matches the VF by MAC. */
 		/* Preserve withdrawals even when the worker coalesces notices. */
 		state = (atomic_load_int(&sc->hn_vf_assoc) + HN_VF_ASSOC_GENINC) &
 		    ~HN_VF_ASSOC_ALLOCATED;
