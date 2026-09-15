@@ -5446,6 +5446,7 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
     uint8_t clockid, uint32_t speed)
 {
 	struct usb_device_request req;
+	usb_error_t err;
 	uDWord data;
 
 	DPRINTFN(6, "ifaceno=%d clockid=%d speed=%u\n",
@@ -5458,7 +5459,27 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
 	USETW(req.wLength, sizeof(data));
 	USETDW(data, speed);
 
-	return (usbd_do_request(udev, NULL, &req, data));
+	err = usbd_do_request(udev, NULL, &req, data);
+	if (err != USB_ERR_NORMAL_COMPLETION)
+		return (err);
+
+	/*
+	 * Read the rate back, because some devices only apply it once it has
+	 * been read, and produce no sound otherwise.
+	 */
+	req.bmRequestType = UT_READ_CLASS_INTERFACE;
+	USETDW(data, 0);
+
+	err = usbd_do_request(udev, NULL, &req, data);
+	if (err != USB_ERR_NORMAL_COMPLETION) {
+		DPRINTF("could not read sample rate back: %s\n",
+		    usbd_errstr(err));
+	} else if (UGETDW(data) != speed) {
+		DPRINTF("sample rate is %u Hz, expected %u Hz\n",
+		    UGETDW(data), speed);
+	}
+
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static int
