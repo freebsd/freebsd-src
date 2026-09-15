@@ -425,7 +425,7 @@ static void
 ufshci_req_queue_fill_utr_descriptor(struct ufshci_utp_xfer_req_desc *desc,
     uint8_t data_direction, const uint64_t paddr, const uint16_t response_off,
     const uint16_t response_len, const uint16_t prdt_off,
-    const uint16_t prdt_entry_cnt)
+    const uint16_t prdt_entry_cnt, const uint8_t total_ehs_length)
 {
 	uint8_t command_type;
 	/* Value to convert bytes to dwords */
@@ -441,6 +441,7 @@ ufshci_req_queue_fill_utr_descriptor(struct ufshci_utp_xfer_req_desc *desc,
 	desc->command_type = command_type;
 	desc->data_direction = data_direction;
 	desc->interrupt = true;
+	desc->total_ehs_length = total_ehs_length;
 	/* Set the initial value to Invalid. */
 	desc->overall_command_status = UFSHCI_UTR_OCS_INVALID;
 	desc->utp_command_descriptor_base_address = (uint32_t)(paddr &
@@ -719,6 +720,9 @@ ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
 		ufshci_req_queue_fill_utmr_descriptor(&tr->hwq->utmrd[slot_num],
 		    req);
 	} else {
+		KASSERT(req->request_size <= UFSHCI_UTP_XFER_REQ_SIZE &&
+		    req->response_size <= UFSHCI_UTP_XFER_RESP_SIZE,
+		    ("UPIU does not fit in the UTP command descriptor"));
 		request_len = req->request_size;
 		response_off = UFSHCI_UTP_XFER_REQ_SIZE;
 		response_len = req->response_size;
@@ -741,7 +745,8 @@ ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
 		ucd_paddr = tr->ucd_bus_addr;
 		ufshci_req_queue_fill_utr_descriptor(&tr->hwq->utrd[slot_num],
 		    data_direction, ucd_paddr, response_off, response_len,
-		    tr->prdt_off, tr->prdt_entry_cnt);
+		    tr->prdt_off, tr->prdt_entry_cnt,
+		    req->request_upiu.header.ehs_length);
 
 		bus_dmamap_sync(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
