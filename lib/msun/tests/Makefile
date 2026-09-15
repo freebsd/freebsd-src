@@ -70,6 +70,7 @@ ATF_TESTS_C+=	nan_test
 ATF_TESTS_C+=	nearbyint_test
 ATF_TESTS_C+=	next_test
 ATF_TESTS_C+=	rem_test
+ATF_TESTS_C+=	round_fenv_test
 ATF_TESTS_C+=	trig_test
 
 .if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
