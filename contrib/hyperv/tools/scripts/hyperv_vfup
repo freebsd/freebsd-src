@@ -71,14 +71,8 @@ then
 	# configured by dhclient.  laggX will take over the
 	# network operations.
 	#
-	while true
-	do
-		ifconfig $hn -alias > /dev/null 2>&1
-		if [ $? -ne 0 ]
-		then
-			break
-		fi
-	done
+	# Enumerate addresses; an empty ifconfig -alias may return success.
+	ipv4_down $hn
 
 	# TODO: Remove IPv6 addresses on hnX
 
