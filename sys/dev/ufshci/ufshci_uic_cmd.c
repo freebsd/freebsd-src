@@ -165,7 +165,7 @@ ufshci_uic_wait_cmd(struct ufshci_controller *ctrlr,
 	return (0);
 }
 
-static int
+int
 ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
     struct ufshci_uic_cmd *uic_cmd, uint32_t *return_value)
 {
@@ -190,8 +190,9 @@ ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
 
 	/* The result registers stay valid only until the next command. */
 	if (error == 0) {
+		uic_cmd->argument2 = ufshci_mmio_read_4(ctrlr, ucmdarg2);
 		config_result_code = UFSHCIV(UFSHCI_UICCMDARG2_REG_ERROR_CODE,
-		    ufshci_mmio_read_4(ctrlr, ucmdarg2));
+		    uic_cmd->argument2);
 		result_value = ufshci_mmio_read_4(ctrlr, ucmdarg3);
 	}
 
