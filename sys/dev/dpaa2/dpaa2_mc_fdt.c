@@ -193,6 +193,31 @@ dpaa2_mac_fdt_get_phy_dev(device_t dev)
 	return (OF_device_from_xref(OF_xref_from_node(sc->phy_handle)));
 }
 
+/*
+ * Resolve the i2c bus that this DPMAC's SFP+ module EEPROM sits on, from the
+ * "sfp" phandle parsed at attach: the referenced "sff,sfp" node carries an
+ * "i2c-bus" phandle pointing at the (possibly muxed) i2c bus.  Returns NULL if
+ * the DPMAC has no SFP association.
+ */
+static device_t
+dpaa2_mac_fdt_get_sfp_i2c_dev(device_t dev)
+{
+	struct dpaa2_mac_fdt_softc *sc;
+	phandle_t i2c_xref;
+
+	if (dev == NULL)
+		return (NULL);
+
+	sc = device_get_softc(dev);
+	if (sc->sfp == 0)
+		return (NULL);
+
+	if (OF_getencprop(sc->sfp, "i2c-bus", &i2c_xref, sizeof(i2c_xref)) <= 0)
+		return (NULL);
+
+	return (OF_device_from_xref(i2c_xref));
+}
+
 static device_method_t dpaa2_mac_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		dpaa2_mac_dev_probe),
@@ -342,6 +367,30 @@ dpaa2_mc_fdt_get_phy_dev(device_t dev, device_t *phy_dev, uint32_t id)
 	return (0);
 }
 
+static int
+dpaa2_mc_fdt_get_sfp_dev(device_t dev, device_t *sfp_dev, uint32_t id)
+{
+	device_t mdev, i2cdev;
+
+	mdev = dpaa2_mc_fdt_find_dpaa2_mac_dev(dev, id);
+	if (mdev == NULL)
+		return (ENXIO);
+
+	i2cdev = dpaa2_mac_fdt_get_sfp_i2c_dev(mdev);
+	if (i2cdev == NULL)
+		return (ENXIO);
+
+	if (sfp_dev != NULL)
+		*sfp_dev = i2cdev;
+
+	if (bootverbose)
+		device_printf(dev, "dpmac_id %u mdev %s sfp i2c bus %s\n",
+		    id, device_get_nameunit(mdev),
+		    device_get_nameunit(i2cdev));
+
+	return (0);
+}
+
 static const struct ofw_bus_devinfo *
 dpaa2_mc_simplebus_get_devinfo(device_t bus, device_t child)
 {
@@ -379,6 +428,7 @@ static device_method_t dpaa2_mc_fdt_methods[] = {
 	DEVMETHOD(dpaa2_mc_reserve_dev,	dpaa2_mc_reserve_dev),
 	DEVMETHOD(dpaa2_mc_release_dev, dpaa2_mc_release_dev),
 	DEVMETHOD(dpaa2_mc_get_phy_dev,	dpaa2_mc_fdt_get_phy_dev),
+	DEVMETHOD(dpaa2_mc_get_sfp_dev,	dpaa2_mc_fdt_get_sfp_dev),
 
 	/* OFW/simplebus */
 	DEVMETHOD(ofw_bus_get_devinfo,	dpaa2_mc_simplebus_get_devinfo),
