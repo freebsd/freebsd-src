@@ -648,7 +648,6 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	init_timer(&health->timer);
 	health->fatal_error = MLX5_SENSOR_NO_ERR;
 	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	clear_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
