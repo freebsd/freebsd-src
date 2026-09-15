@@ -168,7 +168,7 @@
 
 /* CCSIDR_EL1 - Cache Size ID Register */
 #define	CCSIDR_EL1_REG		MRS_REG_ALT_NAME(CCSIDR_EL1)
-#define	CCSIDR_EL1_op0		2
+#define	CCSIDR_EL1_op0		3
 #define	CCSIDR_EL1_op1		1
 #define	CCSIDR_EL1_CRn		0
 #define	CCSIDR_EL1_CRm		0
