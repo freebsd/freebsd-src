@@ -459,12 +459,18 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 
 	TASK_INIT(&ctrlr->reset_task, 0, ufshci_ctrlr_reset_task, ctrlr);
 
+	error = ufshci_ioctl_construct(ctrlr, dev);
+	if (error)
+		return (error);
+
 	return (0);
 }
 
 void
 ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 {
+	ufshci_ioctl_destruct(ctrlr);
+
 	if (ctrlr->resource == NULL)
 		goto nores;
 

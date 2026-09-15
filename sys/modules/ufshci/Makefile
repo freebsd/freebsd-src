@@ -12,6 +12,7 @@ SRCS =	ufshci.c	\
 	ufshci_req_queue.c	\
 	ufshci_req_sdb.c	\
 	ufshci_sim.c		\
+	ufshci_ioctl.c		\
 	ufshci_sysctl.c		\
 	acpi_if.h		\
 	bus_if.h		\
