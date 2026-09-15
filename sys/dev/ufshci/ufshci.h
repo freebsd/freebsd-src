@@ -9,6 +9,9 @@
 #define __UFSHCI_H__
 
 #include <sys/param.h>
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
 #include <sys/endian.h>
 
 /*

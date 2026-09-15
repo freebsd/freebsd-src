@@ -302,6 +302,7 @@ struct ufshci_device {
  */
 struct ufshci_controller {
 	device_t dev;
+	struct cdev *cdev;
 
 	uint32_t quirks;
 #define UFSHCI_QUIRK_IGNORE_UIC_POWER_MODE \
@@ -457,6 +458,11 @@ void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
 
 int ufshci_ctrlr_submit_task_mgmt_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req);
+/* ioctl */
+int ufshci_ioctl_construct(struct ufshci_controller *ctrlr,
+    device_t dev);
+void ufshci_ioctl_destruct(struct ufshci_controller *ctrlr);
+
 int ufshci_ctrlr_submit_transfer_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req);
 int ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr);
