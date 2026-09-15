@@ -27,31 +27,50 @@
  */
 
 #include <float.h>
+#include <stdint.h>
 
 #include "math.h"
 #include "math_private.h"
 
+static const double huge = 1.0e300;
+
 double
 round(double x)
 {
-	double t;
-	uint32_t hx;
+	uint64_t ix, mask, round_bit;
+	int biased_e, shift;
 
-	GET_HIGH_WORD(hx, x);
-	if ((hx & 0x7fffffff) == 0x7ff00000)
-		return (x + x);
+	EXTRACT_WORD64(ix, x);
+	biased_e = (int)((ix >> 52) & 0x7ff);
 
-	if (!(hx & 0x80000000)) {
-		t = floor(x);
-		if (t - x <= -0.5)
-			t += 1;
-		return (t);
-	} else {
-		t = floor(-x);
-		if (t + x <= -0.5)
-			t += 1;
-		return (-t);
+	/* Hot path: 1 <= |x| < 2**52. */
+	if (biased_e > 1022 && biased_e < 1075) {
+		shift = 1075 - biased_e;
+		round_bit = 1ULL << (shift - 1);
+		mask = ~((1ULL << shift) - 1);
+		if ((ix & ~mask) == 0)
+			return (x);
+		if (huge + x > 0.0) {
+			ix = (ix + round_bit) & mask;
+			INSERT_WORD64(x, ix);
+		}
+		return (x);
 	}
+
+	/* |x| < 1: round to signed 0 or signed 1. */
+	if (biased_e <= 1022) {
+		if ((ix & 0x7fffffffffffffffULL) == 0)
+			return (x);
+		if (huge + x > 0.0) {
+			ix = (ix & 0x8000000000000000ULL) |
+			    (biased_e == 1022 ? 0x3ff0000000000000ULL : 0);
+			INSERT_WORD64(x, ix);
+		}
+		return (x);
+	}
+
+	/* |x| >= 2**52 is already integral.  Propagate NaNs. */
+	return (biased_e == 2047 ? x + x : x);
 }
 
 #if (LDBL_MANT_DIG == 53)
