@@ -2147,7 +2147,7 @@ linux_timer_callback_wrapper(void *context)
 		return;
 	}
 
-	timer->function(timer->data);
+	timer->function(timer);
 }
 
 static int

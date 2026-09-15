@@ -37,11 +37,7 @@
 
 struct timer_list {
 	struct callout callout;
-	union {
-		void (*function) (unsigned long);	/* < v4.15 */
-		void (*function_415) (struct timer_list *);
-	};
-	unsigned long data;
+	void (*function) (struct timer_list *);
 	unsigned long expires;
 };
 
@@ -59,26 +55,8 @@ extern unsigned long linux_timer_hz_mask;
 
 #define	timer_setup(timer, func, flags) do {				\
 	CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0);			\
-	(timer)->function_415 = (func);					\
-	(timer)->data = (unsigned long)(timer);				\
-	callout_init(&(timer)->callout, 1);				\
-} while (0)
-
-#define	setup_timer(timer, func, dat) do {				\
 	(timer)->function = (func);					\
-	(timer)->data = (dat);						\
-	callout_init(&(timer)->callout, 1);			\
-} while (0)
-
-#define	__setup_timer(timer, func, dat, flags) do {			\
-	CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0);			\
-	setup_timer(timer, func, dat);					\
-} while (0)
-
-#define	init_timer(timer) do {						\
-	(timer)->function = NULL;					\
-	(timer)->data = 0;						\
-	callout_init(&(timer)->callout, 1);			\
+	callout_init(&(timer)->callout, 1);				\
 } while (0)
 
 extern int mod_timer(struct timer_list *, unsigned long);
