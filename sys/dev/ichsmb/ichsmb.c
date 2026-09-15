@@ -472,6 +472,66 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	return (smb_error);
 }
 
+int
+ichsmb_bpcall(device_t dev, u_char slave, char cmd, u_char wcount, char *wbuf,
+    u_char *rcount, char *rbuf)
+{
+	const sc_p sc = device_get_softc(dev);
+	int smb_error, i;
+
+	DBG("slave=0x%02x cmd=0x%02x wcount=%d\n", slave, (u_char)cmd, wcount);
+	KASSERT(sc->ich_cmd == -1,
+	    ("%s: ich_cmd=%d\n", __func__ , sc->ich_cmd));
+	if (!(sc->features & ICHSMB_FEATURE_BLOCK_BUFFER))
+		return (SMB_ENOTSUPP);
+	if (wcount < 1 || wcount > 32)
+		return (SMB_EINVAL);
+
+	mtx_lock(&sc->mutex);
+
+	/* Enable block buffer mode */
+	bus_write_1(sc->io_res, ICH_AUX_CNT,
+	    bus_read_1(sc->io_res, ICH_AUX_CNT) | ICH_AUX_CNT_E32B);
+
+	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK_PROC;
+	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
+	    slave | ICH_XMIT_SLVA_WRITE);
+	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
+
+	/* Write block count and reset data buffer */
+	bus_write_1(sc->io_res, ICH_D0, wcount);
+	bus_read_1(sc->io_res, ICH_HST_CNT);
+
+	/* Fill block buffer with write data and start transaction */
+	for (i = 0; i < wcount; i++)
+		bus_write_1(sc->io_res, ICH_BLOCK_DB, wbuf[i]);
+	bus_write_1(sc->io_res, ICH_HST_CNT,
+	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
+
+	/* Wait for transaction to complete */
+	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR) {
+		*rcount = bus_read_1(sc->io_res, ICH_D0);
+		if (*rcount < 1 || *rcount > 32) {
+			smb_error = SMB_EBUSERR;
+			*rcount = 0;
+		} else {
+			bus_read_1(sc->io_res, ICH_HST_CNT);
+
+			/* Read response data from block buffer */
+			for (i = 0; i < *rcount; i++)
+				rbuf[i] = bus_read_1(sc->io_res, ICH_BLOCK_DB);
+		}
+	}
+
+	/* Disable block buffer mode */
+	bus_write_1(sc->io_res, ICH_AUX_CNT,
+	    bus_read_1(sc->io_res, ICH_AUX_CNT) & ~ICH_AUX_CNT_E32B);
+
+	mtx_unlock(&sc->mutex);
+	DBG("smb_error=%d\n", smb_error);
+	return (smb_error);
+}
+
 /********************************************************************
 			OTHER FUNCTIONS
 ********************************************************************/
@@ -496,7 +556,9 @@ static const u_int8_t ichsmb_state_irqs[] = {
 	    | ICH_HST_STA_BYTE_DONE_STS),
 	/* i2c read (not used) */
 	(ICH_HST_STA_BUS_ERR | ICH_HST_STA_DEV_ERR | ICH_HST_STA_INTR
-	    | ICH_HST_STA_BYTE_DONE_STS)
+	    | ICH_HST_STA_BYTE_DONE_STS),
+	/* block process call (only uses block buffer mode) */
+	(ICH_HST_STA_BUS_ERR | ICH_HST_STA_DEV_ERR | ICH_HST_STA_INTR),
 };
 
 /*
