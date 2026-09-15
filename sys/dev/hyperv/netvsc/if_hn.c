@@ -6240,8 +6240,9 @@ hn_xmit_qflush(if_t ifp)
 	if_qflush(ifp);
 
 	rm_rlock(&sc->hn_vf_lock, &pt);
-	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
-		if_qflush(sc->hn_vf_ifp);
+	/* Transparent mode owns the VF's queues even while switching paths. */
+	if (hn_xpnt_vf && sc->hn_vf_ifp != NULL)
+		if_getqflushfn(sc->hn_vf_ifp)(sc->hn_vf_ifp);
 	rm_runlock(&sc->hn_vf_lock, &pt);
 }
 
