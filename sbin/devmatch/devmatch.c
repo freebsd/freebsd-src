@@ -204,7 +204,7 @@ pnpval_as_int(const char *val, const char *pnpinfo)
 {
 	int rv;
 	char key[256];
-	char *cp;
+	const char *cp;
 
 	if (pnpinfo == NULL)
 		return -1;
@@ -248,7 +248,7 @@ pnpval_as_str(const char *val, const char *pnpinfo)
 {
 	static char retval[256];
 	char key[256];
-	char *cp;
+	const char *cp;
 
 	if (pnpinfo == NULL) {
 		*retval = '\0';
@@ -282,7 +282,8 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 	char val1[256], val2[256];
 	int ival, len, ents, i, notme, mask, bit, v, found;
 	void *ptr, *walker;
-	char *lastmod = NULL, *cp, *s;
+	char *lastmod = NULL, *cp;
+	const char *s;
 
 	walker = hints;
 	getint(&walker);
