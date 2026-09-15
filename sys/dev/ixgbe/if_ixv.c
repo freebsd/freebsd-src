@@ -128,6 +128,8 @@ static void     ixv_if_update_admin_status(if_ctx_t);
 static int      ixv_if_msix_intr_assign(if_ctx_t, int);
 
 static int      ixv_if_mtu_set(if_ctx_t, uint32_t);
+static int      ixv_if_get_rss_key(if_ctx_t, struct ifrsskey *);
+static int      ixv_if_get_rss_hash(if_ctx_t, struct ifrsshash *);
 static void     ixv_reconcile_mac(struct ixgbe_softc *, if_t);
 static void     ixv_if_init(if_ctx_t);
 static void     ixv_if_local_timer(if_ctx_t, uint16_t);
@@ -220,6 +222,8 @@ static device_method_t ixv_if_methods[] = {
 	DEVMETHOD(ifdi_multi_set, ixv_if_multi_set),
 	DEVMETHOD(ifdi_promisc_set, ixv_if_promisc_set),
 	DEVMETHOD(ifdi_mtu_set, ixv_if_mtu_set),
+	DEVMETHOD(ifdi_get_rss_key, ixv_if_get_rss_key),
+	DEVMETHOD(ifdi_get_rss_hash, ixv_if_get_rss_hash),
 	DEVMETHOD(ifdi_media_status, ixv_if_media_status),
 	DEVMETHOD(ifdi_media_change, ixv_if_media_change),
 	DEVMETHOD(ifdi_timer, ixv_if_local_timer),
@@ -630,6 +634,69 @@ ixv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	return error;
 } /* ixv_if_mtu_set */
 
+static int
+ixv_rss_query_status(if_ctx_t ctx)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+
+	sx_assert(iflib_ctx_lock_get(ctx), SA_XLOCKED);
+	/* Older VFs share PF-controlled RSS settings which we cannot query. */
+	if (sc->hw.mac.type < ixgbe_mac_X550_vf)
+		return (EOPNOTSUPP);
+	if (atomic_load_acq_32(&sc->vf_mbx_ready) == 0 ||
+	    sc->vf_rss_mrqc == 0)
+		return (ENXIO);
+	return (0);
+}
+
+static int
+ixv_if_get_rss_key(if_ctx_t ctx, struct ifrsskey *ifrk)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	int error;
+
+	error = ixv_rss_query_status(ctx);
+	if (error != 0)
+		return (error);
+	ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+	ifrk->ifrk_keylen = sizeof(sc->vf_rss_key);
+	_Static_assert(sizeof(ifrk->ifrk_key) >= sizeof(sc->vf_rss_key),
+	    "RSS query buffer too small");
+	bzero(ifrk->ifrk_key, sizeof(ifrk->ifrk_key));
+	/* Preserve the byte order of the programmed registers. */
+	for (u_int i = 0; i < nitems(sc->vf_rss_key); i++)
+		le32enc(ifrk->ifrk_key + i * sizeof(u32), sc->vf_rss_key[i]);
+	return (0);
+}
+
+static int
+ixv_if_get_rss_hash(if_ctx_t ctx, struct ifrsshash *ifrh)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	u32 mrqc;
+	int error;
+
+	error = ixv_rss_query_status(ctx);
+	if (error != 0)
+		return (error);
+	ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
+	ifrh->ifrh_types = 0;
+	mrqc = sc->vf_rss_mrqc;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV4)
+		ifrh->ifrh_types |= RSS_TYPE_IPV4;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV4_TCP)
+		ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV4_UDP)
+		ifrh->ifrh_types |= RSS_TYPE_UDP_IPV4;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV6)
+		ifrh->ifrh_types |= RSS_TYPE_IPV6;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV6_TCP)
+		ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV6_UDP)
+		ifrh->ifrh_types |= RSS_TYPE_UDP_IPV6;
+	return (0);
+}
+
 static void
 ixv_reconcile_mac(struct ixgbe_softc *sc, if_t ifp)
 {
@@ -674,6 +741,7 @@ ixv_if_init(if_ctx_t ctx)
 	int error = 0;
 
 	INIT_DEBUGOUT("ixv_if_init: begin");
+	sc->vf_rss_mrqc = 0;
 	ixv_mbx_retry_prepare(sc);
 	hw->adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
@@ -1358,6 +1426,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
 		 * We need reinitialization. */
+		sc->vf_rss_mrqc = 0;
 		iflib_request_reset(ctx);
 		iflib_admin_intr_deferred(ctx);
 	}
@@ -1416,6 +1485,7 @@ ixv_if_stop(if_ctx_t ctx)
 	bool mailbox_ready, reset_seen;
 
 	INIT_DEBUGOUT("ixv_stop: begin\n");
+	sc->vf_rss_mrqc = 0;
 
 	ixv_mbx_retry_stop(sc);
 	ixv_if_disable_intr(ctx);
@@ -1783,16 +1853,16 @@ static void
 ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	u32 reta = 0, mrqc, rss_key[10];
+	u32 reta = 0, mrqc;
 	int queue_id;
 	int i, j;
 	u32 rss_hash_config;
 
-	rss_getkey((uint8_t *)rss_key);
+	rss_getkey((uint8_t *)sc->vf_rss_key);
 
 	/* Now fill out hash function seeds */
-	for (i = 0; i < 10; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), rss_key[i]);
+	for (u_int k = 0; k < nitems(sc->vf_rss_key); k++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(k), sc->vf_rss_key[k]);
 
 	/* Set up the redirection table */
 	for (i = 0, j = 0; i < 64; i++, j++) {
@@ -1863,6 +1933,7 @@ ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 		    "%s: RSS_HASHTYPE_RSS_UDP_IPV6_EX defined,"
 		    " but not supported\n", __func__);
 	IXGBE_WRITE_REG(hw, IXGBE_VFMRQC, mrqc);
+	sc->vf_rss_mrqc = mrqc;
 } /* ixv_initialize_rss_mapping */
 
 #define BSIZEPKT_ROUNDUP ((1<<IXGBE_SRRCTL_BSIZEPKT_SHIFT)-1)
