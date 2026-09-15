@@ -127,6 +127,18 @@ CODE {
 	}
 
 	static int
+	null_get_rss_key(if_ctx_t _ctx __unused, struct ifrsskey *_key __unused)
+	{
+		return (EOPNOTSUPP);
+	}
+
+	static int
+	null_get_rss_hash(if_ctx_t _ctx __unused, struct ifrsshash *_hash __unused)
+	{
+		return (EOPNOTSUPP);
+	}
+
+	static int
 	null_vf_status(if_ctx_t _ctx __unused,
 	    struct if_vf_status **_status __unused)
 	{
@@ -348,6 +360,20 @@ METHOD int priv_ioctl {
 #
 # optional methods
 #
+
+#
+# Report the programmed RSS key and hash selections under the context lock.
+# Unsupported queries return EOPNOTSUPP; unavailable state returns an error.
+#
+METHOD int get_rss_key {
+	if_ctx_t _ctx;
+	struct ifrsskey *_key;
+} DEFAULT null_get_rss_key;
+
+METHOD int get_rss_hash {
+	if_ctx_t _ctx;
+	struct ifrsshash *_hash;
+} DEFAULT null_get_rss_hash;
 
 METHOD int i2c_req {
 	if_ctx_t _ctx;
