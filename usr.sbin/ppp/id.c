@@ -96,7 +96,7 @@ ID0ioctl(int fd, unsigned long req, void *arg)
 
   ID0set0();
   ret = ioctl(fd, req, arg);
-  log_Printf(LogID0, "%d = ioctl(%d, %lu, %p)\n", ret, fd, req, arg);
+  log_Printf(LogID0, "%d = ioctl(%d, %lu)\n", ret, fd, req);
   ID0setuser();
   return ret;
 }
@@ -132,7 +132,7 @@ ID0fopen(const char *path, const char *mode)
 
   ID0set0();
   ret = fopen(path, mode);
-  log_Printf(LogID0, "%p = fopen(\"%s\", \"%s\")\n", ret, path, mode);
+  log_Printf(LogID0, "%s = fopen(\"%s\", \"%s\")\n", ret ? "file" : "null", path, mode);
   ID0setuser();
   return ret;
 }
