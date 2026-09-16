@@ -1109,7 +1109,7 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	const u_char *icmp_data_raw;
 	ssize_t icmp_data_raw_len;
 	double triptime;
-	int dupflag, i, j, recv_len;
+	int avail, dupflag, i, j, recv_len;
 	int8_t hlen;
 	uint16_t seq;
 	static int old_rrlen;
@@ -1273,9 +1273,11 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
 					(void)printf("\ncp:");
+					avail = (int)MIN((ssize_t)datalen,
+					    i + cc);
 					cp = (u_char*)(buf + hlen +
 					    offsetof(struct icmp, icmp_data));
-					for (i = 0; i < datalen; ++i, ++cp) {
+					for (i = 0; i < avail; ++i, ++cp) {
 						if ((i % 16) == 8)
 							(void)printf("\n\t");
 						(void)printf(" %2x", *cp);
