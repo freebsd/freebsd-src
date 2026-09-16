@@ -187,7 +187,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 
 	/* Calculate dump size. */
 	mbp = state->msgbufp;
-	dumpsize = ptesize;
+	dumpsize = round_page(ptesize);
 	dumpsize += round_page(mbp->msg_size);
 	dumpsize += round_page(nitems(dump_avail) * sizeof(uint64_t));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
@@ -269,7 +269,9 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		}
 	}
 	if (addr != dumpbuf) {
-		error = blk_write(di, dumpbuf, 0, addr - dumpbuf);
+		/* The sparse page array starts at a page-aligned offset. */
+		bzero(addr, dumpbuf + sizeof(dumpbuf) - addr);
+		error = blk_write(di, dumpbuf, 0, sizeof(dumpbuf));
 		if (error != 0)
 			goto fail;
 	}
