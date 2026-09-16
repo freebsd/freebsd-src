@@ -1,0 +1,49 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-GENERIC 8
+.Os
+.Sh NAME
+.Nm "sysconf generic"
+.Nd configure a file of no built-in format
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm generic
+.Fl f Ar file
+.Op Fl ceinNqvx
+.Op Fl j Ar jail | Fl R Ar dir
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Sh DESCRIPTION
+The
+.Cm generic
+target of
+.Xr sysconf 8
+exists for files matching no known format
+.Pq quote values only when required to round-trip .
+Having no default files of its own,
+it always requires
+.Fl f .
+The format is never inferred from the path;
+see
+.Xr sysconf-targets 8 .
+Shared options are in
+.Xr sysconf 8 .
+.Sh EXAMPLES
+.Dl sysconf generic -f /usr/local/etc/myapp.conf loglevel=debug
+.Sh SEE ALSO
+.Xr bsdconf_format 3 ,
+.Xr sysconf 8 ,
+.Xr sysconf-targets 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

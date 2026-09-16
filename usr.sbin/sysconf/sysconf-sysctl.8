@@ -1,0 +1,146 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-SYSCTL 8
+.Os
+.Sh NAME
+.Nm "sysconf sysctl"
+.Nd configure boot-time sysctl.conf directives
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm sysctl
+.Op Fl AcDeFinNqvVx
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file | Fl k Ar module
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm sysconf
+.Cm sysctl
+.Op Fl ADeFnNqvV
+.Op Fl f Ar file | Fl k Ar module
+.Fl a
+.Nm sysconf
+.Cm sysctl
+.Op Fl AaDinNq
+.Fl d
+.Op Ar name ...
+.Nm sysconf
+.Cm sysctl
+.Op Fl E
+.Op Fl k Ar module
+.Fl l | L
+.Sh DESCRIPTION
+The
+.Cm sysctl
+target of
+.Xr sysconf 8
+reads and modifies
+.Xr sysctl.conf 5
+configuration.
+Shared assignment syntax and options are documented in
+.Xr sysconf 8 ;
+multi-file write policy in
+.Xr sysconf-targets 8 .
+.Pp
+The stock file list is
+.Pa /etc/sysctl.conf ,
+.Pa /etc/sysctl.conf.local ,
+then
+.Pa /etc/sysctl.kld.d/ Ns Ar module Ns Pa .conf
+when
+.Fl k Ar module
+is given
+.Pq applied by Xr rc.subr 8 when the module loads .
+.Pp
+Values are quoted on write only when the value requires it
+.Pq embedded whitespace .
+.Pp
+When writing to the running system,
+each
+.Ar name Ns = Ns Ar value
+is validated against the kernel's sysctl tree first.
+An OID that cannot be set at run time
+.Pq non-leaf, read-only, or loader-only tunable
+is reported and skipped,
+while the remaining assignments are still applied.
+In particular,
+a loader-only tunable is reported as requiring the
+.Cm loader
+target instead
+.Pq see Xr sysconf-loader 8 .
+Numeric values are also checked against the OID's
+.Dv CTLTYPE
+.Po
+.Dv CTLTYPE_INT ,
+.Dv CTLTYPE_U64 ,
+and the other integer widths
+.Pc
+so an overflowing or non-numeric assignment cannot land in
+.Xr sysctl.conf 5
+and fail
+.Pq or apply truncated
+when
+.Xr sysctl 8
+loads the file at boot.
+.Pp
+An unknown OID
+.Pq often from a module that is not yet loaded
+is reported with a warning but still written,
+matching how
+.Xr init 8
+treats such lines in
+.Xr sysctl.conf 5 ;
+.Fl i
+and
+.Fl q
+suppress that warning.
+Validation is skipped entirely under
+.Fl R ,
+where the target system's kernel is not the running kernel.
+.Pp
+.Fl d
+descriptions for this target come from the running kernel
+.Pq as with Xr sysctl 8 Fl d ,
+not from a defaults file.
+.Sh FILES
+.Bl -tag -width "/etc/sysctl.conf.local" -compact
+.It Pa /etc/sysctl.conf
+Write target for new directives.
+.It Pa /etc/sysctl.conf.local
+Site-local overrides.
+.It Pa /etc/sysctl.kld.d/
+Module-specific drop-ins
+.Pq see Fl k .
+.El
+.Sh EXAMPLES
+.Dl sysconf sysctl kern.maxfiles=65536
+.Dl sysconf sysctl -F vfs.usermount
+.Dl sysconf sysctl -d kern.maxfiles
+.Dl sysconf sysctl -L
+.Dl sysconf sysctl -LE
+.Dl sysconf sysctl -k ipfw net.inet.ip.fw.verbose=1
+.Dl sysconf -x sysctl vfs.usermount
+.Dl sysconf -j www sysctl kern.ipc.somaxconn=1024
+.Pp
+An overflowing assignment is refused before the file is touched
+.Pq here an integer OID given a value beyond INT_MAX :
+.Pp
+.Dl sysconf sysctl security.bsd.see_other_uids=99999999999
+.Sh SEE ALSO
+.Xr sysctl.conf 5 ,
+.Xr sysconf 8 ,
+.Xr sysconf-loader 8 ,
+.Xr sysconf-targets 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

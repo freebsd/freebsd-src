@@ -1,0 +1,560 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+.Dt BSDCONF_FORMAT 3
+.Os
+.Sh NAME
+.Nm bsdconf_format_derive ,
+.Nm bsdconf_format_files ,
+.Nm bsdconf_format_files_free ,
+.Nm bsdconf_format_find ,
+.Nm bsdconf_format_guess ,
+.Nm bsdconf_format_lookup ,
+.Nm bsdconf_format_path ,
+.Nm bsdconf_format_processing ,
+.Nm bsdconf_format_put ,
+.Nm bsdconf_format_register
+.Nd configuration format descriptors and discovery
+.Sh LIBRARY
+.Lb libbsdconf
+.Sh SYNOPSIS
+.In bsdconf.h
+.Ft int
+.Fo bsdconf_format_derive
+.Fa "enum bsdconf_format base"
+.Fa "struct bsdconf_format_def *def"
+.Fc
+.Ft int
+.Fo bsdconf_format_files
+.Fa "enum bsdconf_format format"
+.Fa "const char *rootdir"
+.Fa "const char *module"
+.Fa "const char *defaults"
+.Fa "char ***filesp"
+.Fa "size_t *nfilesp"
+.Fa "size_t *write_idxp"
+.Fc
+.Ft void
+.Fo bsdconf_format_files_free
+.Fa "char **files"
+.Fa "size_t nfiles"
+.Fc
+.Ft int
+.Fo bsdconf_format_find
+.Fa "const char *keyword"
+.Fa "enum bsdconf_format *format"
+.Fc
+.Ft "enum bsdconf_format"
+.Fo bsdconf_format_guess
+.Fa "const char *path"
+.Fc
+.Ft "const struct bsdconf_format_def *"
+.Fo bsdconf_format_lookup
+.Fa "enum bsdconf_format format"
+.Fc
+.Ft "const char *"
+.Fo bsdconf_format_path
+.Fa "enum bsdconf_format format"
+.Fc
+.Ft uint16_t
+.Fo bsdconf_format_processing
+.Fa "enum bsdconf_format format"
+.Fc
+.Ft uint16_t
+.Fo bsdconf_format_put
+.Fa "enum bsdconf_format format"
+.Fc
+.Ft int
+.Fo bsdconf_format_register
+.Fa "const struct bsdconf_format_def *def"
+.Fa "enum bsdconf_format *format"
+.Fc
+.Sh DESCRIPTION
+Every supported configuration file format is described by the same small
+format descriptor
+.Pq introduced in Xr bsdconf 3 :
+.Bd -literal -offset indent
+struct bsdconf_format_def {
+    const char	*keyword;    /* target keyword (or NULL) */
+    const char	*path;       /* default write path (or NULL) */
+    const struct bsdconf_source
+		*sources;    /* ordered sources (or NULL) */
+    const char	*defaults;   /* defaults file (or NULL) */
+    const char	*defaults_env;     /* environment override */
+    const char	*files_directive;
+			     /* directive listing conf files */
+    const char	*dirs_directive;
+			     /* directive listing drop-in dirs */
+    const char	*local_directive;
+			     /* directive listing local files */
+    uint16_t	processing;  /* processing_options bitmask */
+    uint16_t	put;         /* put_options bitmask */
+};
+
+enum bsdconf_source_type {
+    BSDCONF_SOURCE_FILE = 0,  /* a single file */
+    BSDCONF_SOURCE_DIR,       /* each `*.conf' in a directory */
+    BSDCONF_SOURCE_MODDIR,    /* `<module>.conf' in a directory */
+};
+
+struct bsdconf_source {
+    enum bsdconf_source_type type;  /* how to interpret path */
+    const char	*path;              /* file or directory path */
+};
+.Ed
+.Pp
+There is exactly one parsing and writing engine;
+a format descriptor merely parameterizes it.
+The built-in formats,
+with their target keywords and default write paths,
+are:
+.Bl -column "BSDCONF_FORMAT_GENERIC" "keyword" "/boot/loader.conf"
+.It Sy format Ta Sy keyword Ta Sy "default write path"
+.It Dv BSDCONF_FORMAT_GENERIC Ta generic Ta \&-
+.It Dv BSDCONF_FORMAT_LOADER Ta loader Ta /boot/loader.conf
+.It Dv BSDCONF_FORMAT_SYSCTL Ta sysctl Ta /etc/sysctl.conf
+.It Dv BSDCONF_FORMAT_MAKE Ta make Ta /etc/make.conf
+.It Dv BSDCONF_FORMAT_SRC Ta src Ta /etc/src.conf
+.El
+.Pp
+The default write path
+.Pq the Va path member
+answers only the question of where a
+.Em new
+directive lands:
+the file to which a directive not yet present anywhere is appended.
+Which files are
+.Em consulted
+is a separate and potentially broader question,
+answered by the
+.Va sources
+member.
+When
+.Va sources
+is NULL
+.Pq as for Dv BSDCONF_FORMAT_MAKE
+the default write path is the format's one and only file and the two
+questions collapse into one.
+Otherwise
+.Po
+.Dv BSDCONF_FORMAT_LOADER ,
+.Dv BSDCONF_FORMAT_SYSCTL ,
+and
+.Dv BSDCONF_FORMAT_SRC
+.Pc
+the format is backed by several files and
+.Va sources
+lists them:
+an ordered,
+NULL-path terminated array in which each entry contributes a single file
+.Pq Dv BSDCONF_SOURCE_FILE ,
+every
+.Ql *.conf
+found in a drop-in directory
+.Pq Dv BSDCONF_SOURCE_DIR ,
+or the file
+.Ql <module>.conf
+in a directory keyed by kernel module name
+.Pq Dv BSDCONF_SOURCE_MODDIR .
+The order matches the order in which the system sources the files at boot,
+so a directive in a later file overrides the same directive in an earlier
+one and the last file listing a directive is the authoritative source of
+its value.
+The built-in source lists are:
+.Bl -tag -width BSDCONF_FORMAT_LOADER -offset indent
+.It Dv BSDCONF_FORMAT_LOADER
+discovered from
+.Pa /boot/defaults/loader.conf
+.Pq see below ;
+on a stock system
+.Pa /boot/device.hints ,
+.Pa /boot/loader.conf ,
+each
+.Pa *.conf
+in
+.Pa /boot/loader.conf.d ,
+then
+.Pa /boot/loader.conf.local
+.Pq see Xr loader.conf 5 ;
+.It Dv BSDCONF_FORMAT_SYSCTL
+.Pa /etc/sysctl.conf ,
+.Pa /etc/sysctl.conf.local ,
+then
+.Pa /etc/sysctl.kld.d/<module>.conf
+.Pq see Xr sysctl.conf 5 ;
+.It Dv BSDCONF_FORMAT_MAKE
+.Pa /etc/make.conf
+alone;
+.It Dv BSDCONF_FORMAT_SRC
+.Pa /etc/src-env.conf ,
+.Pa /etc/make.conf ,
+then
+.Pa /etc/src.conf
+.Pq the /usr/src build triad; see Xr src.conf 5 ;
+new writes prefer
+.Pa src.conf .
+.El
+.Pp
+A format whose backing files are themselves configuration data describes
+that machinery with the descriptor's
+.Va defaults
+member quintet rather than a static list alone.
+The boot loader hardcodes only
+.Pa /boot/defaults/loader.conf
+and discovers every other file from the
+.Va loader_conf_files ,
+.Va loader_conf_dirs ,
+and
+.Va local_loader_conf_files
+directives it encounters along the way
+.Pq see Xr loader.conf 5 ,
+and
+.Dv BSDCONF_FORMAT_LOADER
+names that defaults file and those three directives so that
+.Fn bsdconf_format_files
+matches that discovery:
+the defaults file is read,
+.Va loader_conf_files
+is chased
+.Po
+re-read after every file, as the loader does when a file queues
+additional names
+.Pc ,
+and the drop-in directories and local files named by the final
+.Va loader_conf_dirs
+and
+.Va local_loader_conf_files
+values are appended
+.Pq the loader likewise applies those only after the file-list walk .
+The defaults file itself is deliberately excluded from the resolved list,
+mirroring how
+.Xr sysrc 8
+excludes
+.Pa /etc/defaults/rc.conf ;
+the static
+.Va sources
+list serves as the fallback when the defaults file is missing.
+.Pp
+.Fn bsdconf_format_files
+resolves the backing files of
+.Fa format
+into a newly allocated array of paths stored through
+.Fa filesp
+.Pq with the count stored through Fa nfilesp ,
+each prefixed with
+.Fa rootdir
+unless NULL or empty.
+When
+.Fa defaults
+is non-NULL,
+it overrides the descriptor's defaults file for discovery and is used
+verbatim
+.Po
+not prefixed with
+.Fa rootdir ;
+it is ignored for formats without one
+.Pc .
+When
+.Fa write_idxp
+is non-NULL,
+the index of the file recommended for directives found in no file at all
+is stored through it:
+the format's default write path,
+or the last regular
+.Pq non-drop-in, non-local
+configuration file when discovery is in play.
+Sources of type
+.Dv BSDCONF_SOURCE_FILE
+.Pq and files named by a file-list directive
+are always listed,
+whether or not the file exists;
+directory sources contribute only the entries present on disk
+.Pq sorted ;
+module sources contribute
+.Ql <module>.conf
+only when
+.Fa module
+is non-NULL.
+The caller releases the result with
+.Fn bsdconf_format_files_free .
+.Pp
+The formats also differ in quoting on output,
+each honoring the full syntax its consumer accepts:
+.Xr loader.conf 5
+values are always written quoted
+.Pq quoted or unquoted input is accepted when parsing
+and no whitespace is permitted around the equals sign,
+as demanded by the boot loader's reader;
+.Xr sysctl.conf 5
+follows the file parser of
+.Xr sysctl 8 ,
+which trims whitespace around the equals sign and strips one pair of quotes
+around the value,
+so values are written unquoted unless quoting is required
+.Pq embedded whitespace or a comment character ;
+.Pa make.conf
+follows
+.Xr make 1
+syntax where values are never quoted
+.Pq the value runs to the end of the line
+and assignment modifiers such as
+.Ql +=
+are recognized.
+The
+.Dv BSDCONF_FORMAT_SRC
+triad
+.Po
+.Pa src-env.conf ,
+.Pa make.conf ,
+.Pa src.conf
+.Pc
+shares that
+.Pa make.conf
+syntax exactly
+.Pq all three are read by Xr make 1 when building /usr/src ,
+including the empty value,
+which for
+.Pa src.conf
+is the idiom for the value-less
+.Ql WITH_*
+and
+.Ql WITHOUT_*
+build knobs.
+.Pp
+.Fn bsdconf_format_find
+maps a target keyword
+.Pq e.g., Dq loader
+to its format.
+.Fn bsdconf_format_guess
+guesses the format of an arbitrary file from the basename of
+.Fa path ,
+matching
+.Ql <keyword>.conf
+with an optional trailing suffix
+.Pq e.g., Pa /etc/sysctl.conf.local .
+The guess is advisory and offered for consumers that opt into it
+.Pq an interactive picker suggesting a default, for example ;
+where a wrong format silently misformats a file,
+as when writing,
+the caller should require the format to be stated explicitly instead,
+as
+.Xr sysconf 8
+does with its
+.Ar target
+keyword.
+.Fn bsdconf_format_lookup
+returns the format descriptor for a format handle.
+.Fn bsdconf_format_path ,
+.Fn bsdconf_format_processing ,
+and
+.Fn bsdconf_format_put
+return the default file path and the two option bitmasks,
+respectively.
+.Sh ADDING FORMATS
+Before adding a format,
+consider whether one is needed at all:
+the parser hands each statement's raw directive and value to the caller's
+callbacks and imposes no semantics of its own,
+so a file whose directives mean something unusual
+.Po
+cumulative directives that legitimately repeat,
+for example,
+which a
+.Fn parse
+callback accumulates rather than overwrites;
+see
+.Xr bsdconf 3
+.Pc
+is read with the stock engine and bespoke callbacks;
+no format descriptor,
+flag,
+or engine change is required.
+A format descriptor parameterizes only tokenization and writing;
+reach for one when a file needs a
+.Xr sysconf 8
+target keyword,
+a source list,
+or distinct quoting on output.
+Rewriting files built from cumulative directives,
+where a change is additive rather than a replacement,
+is only partly covered by
+.Va match_line
+selection in
+.Xr bsdconf_put 3 ;
+higher-level additive policy remains the caller's concern
+.Pq see that page's Sx LIMITATIONS .
+.Pp
+Beyond callbacks,
+the format descriptor is the entire definition of a format;
+no format has private parsing or writing code.
+Support for a new configuration file format is therefore a data problem,
+approached one of two ways.
+.Pp
+An application whose format is mostly like an existing one bolts it on at
+runtime without duplicating any logic
+.Pq see Sx EXAMPLES :
+.Fn bsdconf_format_derive
+copies the format descriptor of the nearest
+.Fa base
+format into
+.Fa def ,
+the caller adjusts only the members that differ
+.Pq typically the keyword, the paths, and one or two bitmask flags ,
+and
+.Fn bsdconf_format_register
+registers the result and returns a new format handle through
+.Fa format .
+The format descriptor is copied by value but the strings and arrays it
+references
+.Po
+.Va keyword ,
+.Va path ,
+.Va sources ,
+and the
+.Va defaults
+member quintet
+.Pc
+are not;
+they must remain valid for the life of the registration.
+Registered formats participate in keyword and basename resolution exactly
+like built-ins,
+including target resolution in
+.Xr sysconf 8 Ns -style
+consumers.
+Registration is intended to occur during program initialization and is not
+thread-safe.
+.Pp
+Within the library,
+each built-in format is a self-contained translation unit
+.Pa ( bsdconf_format_<keyword>.c )
+that documents the format's syntax rules,
+cites the authority for them
+.Pq the consumer whose reader defines what is legal ,
+and defines its format descriptor,
+including its ordered source list.
+Promoting a format into the library therefore touches no existing parsing
+or writing code:
+a new file of the same shape is dropped in,
+its descriptor is declared alongside its siblings,
+one
+.Dv BSDCONF_FORMAT_*
+constant is appended to
+.Vt enum bsdconf_format ,
+one pointer is appended to the registry table,
+the file is listed in the Makefile,
+and this manual's
+.Sx DESCRIPTION
+section grows one row and one quoting note.
+The keyword becomes a
+.Xr sysconf 8
+target automatically.
+.Pp
+Many formats need no new engine capability at all.
+Formats whose statements are a space-separated directive and value with no
+equals sign
+.Pq the Apache-style directive files the ancestral parser was raised on
+parse today:
+with
+.Dv BSDCONF_BREAK_ON_EQUALS
+omitted,
+the first whitespace-delimited token is the directive and the remainder of
+the line is the raw value
+.Po which a
+.Fn parse
+callback may split further by its own rules
+.Pc ,
+and directive matching is case insensitive unless
+.Dv BSDCONF_CASE_SENSITIVE
+is set.
+Likewise
+.Dv BSDCONF_BREAK_ON_SEMICOLON
+already covers formats that terminate or chain statements with a
+semicolon.
+.Pp
+A candidate format whose syntax the existing option flags cannot express
+.Pq brace-grouped statement blocks being the canonical example
+is handled by teaching the shared engine
+.Pq the scanners in the parsing and writing cores
+one new
+.Va processing
+or
+.Va put
+flag that the new format's descriptor is the first to set.
+The capability lands once,
+composes with every existing flag,
+and becomes available to every other format
+.Pq built-in, derived, or registered
+rather than living in a private parser;
+the new format itself remains nothing more than a format descriptor in its
+own translation unit.
+.Sh RETURN VALUES
+.Fn bsdconf_format_derive
+and
+.Fn bsdconf_format_register
+return zero on success;
+otherwise -1 with
+.Va errno
+set to
+.Er EINVAL
+or
+.Er ENOSPC .
+.Fn bsdconf_format_find
+returns zero on success;
+otherwise -1.
+.Fn bsdconf_format_files
+returns zero on success;
+otherwise -1 with
+.Va errno
+set to indicate the error
+.Pq Er EINVAL for a format with no backing files .
+.Sh EXAMPLES
+Bolt on a new format at runtime by deriving from the built-in it most
+resembles,
+then set a directive in its file with full resilient write semantics:
+.Bd -literal -offset indent
+struct bsdconf_format_def def;
+enum bsdconf_format myfmt;
+struct bsdconf_option set[] = {
+	{ .type = BSDCONF_TYPE_STR, .directive = "loglevel",
+	  .value = { .str = "debug" },
+	  .action = BSDCONF_ACTION_SET_VALUE },
+	{ .directive = NULL }
+};
+
+if (bsdconf_format_derive(BSDCONF_FORMAT_SYSCTL, &def) != 0)
+	err(1, "bsdconf_format_derive");
+def.keyword = "myapp";
+def.path = "/usr/local/etc/myapp.conf";
+def.sources = NULL;	/* one file; path is the sole source */
+if (bsdconf_format_register(&def, &myfmt) != 0)
+	err(1, "bsdconf_format_register");
+
+if (bsdconf_put(set, bsdconf_format_path(myfmt),
+    bsdconf_format_processing(myfmt),
+    bsdconf_format_put(myfmt)) != 0)
+	err(1, "%s", bsdconf_format_path(myfmt));
+.Ed
+.Pp
+Promoting such a format into the library itself
+.Pq a compiled-in sibling of the built-ins
+is the same data expressed as a translation unit;
+see
+.Sx ADDING FORMATS .
+.Sh SEE ALSO
+.Xr bsdconf 3 ,
+.Xr bsdconf_put 3 ,
+.Xr loader.conf 5 ,
+.Xr src.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr sysconf 8
+.Sh HISTORY
+The format descriptor interface first appeared in
+.Fx 16.0
+as part of
+.Xr bsdconf 3 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

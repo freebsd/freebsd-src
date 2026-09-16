@@ -1,0 +1,290 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+.Dt BSDCONF_PUT 3
+.Os
+.Sh NAME
+.Nm bsdconf_put ,
+.Nm bsdconf_set_option
+.Nd resilient configuration file writing
+.Sh LIBRARY
+.Lb libbsdconf
+.Sh SYNOPSIS
+.In bsdconf.h
+.Ft int
+.Fo bsdconf_put
+.Fa "struct bsdconf_option options[]"
+.Fa "const char *path"
+.Fa "uint16_t processing_options"
+.Fa "uint16_t put_options"
+.Fc
+.Ft int
+.Fo bsdconf_set_option
+.Fa "struct bsdconf_option options[]"
+.Fa "const char *directive"
+.Fa "union bsdconf_value *value"
+.Fc
+.Sh DESCRIPTION
+.Fn bsdconf_put
+rewrites the configuration file at
+.Fa path ,
+applying the per-directive action of each option in the array:
+.Bl -tag -width BSDCONF_ACTION_SET_VALUE
+.It Dv BSDCONF_ACTION_SET_VALUE
+Set the directive to
+.Va value.str ,
+editing it in place if present or appending it to the file if absent.
+.It Dv BSDCONF_ACTION_CHECK
+Report
+.Pq via Va result
+whether the current value differs from
+.Va value.str ,
+without modifying the file.
+.It Dv BSDCONF_ACTION_REMOVE
+Delete the directive from the file.
+.El
+.Pp
+Unlike
+.Fn bsdconf_parse ,
+directives are matched exactly
+.Pq a pattern is not a writable target .
+Comments,
+blank lines,
+statement ordering,
+and the formatting of untouched statements are preserved.
+For each processed option,
+.Va result
+is set to a bitmask of
+.Dv BSDCONF_DIRECTIVE_FOUND ,
+.Dv BSDCONF_VALUE_CHANGED ,
+.Dv BSDCONF_DIRECTIVE_ADDED ,
+and
+.Dv BSDCONF_DIRECTIVE_REMOVED ,
+and
+.Va line
+is set to the line of the first match
+.Pq if found .
+A non-zero
+.Va match_line
+on input restricts the put to the statement on that physical line
+.Pq zero matches any statement, as before ;
+this allows a single
+.Ql name+=value
+among several to be rewritten or removed without appending a new line
+or touching the others
+.Pq make(1) list-strike edits in Xr sysconf 8 .
+.Pp
+The
+.Fa path
+argument to
+.Fn bsdconf_put
+must name a regular file
+.Pq only a regular file can be atomically replaced ;
+anything else is rejected with
+.Er EINVAL .
+When every option is
+.Dv BSDCONF_ACTION_CHECK ,
+or every
+.Dv BSDCONF_ACTION_SET_VALUE
+and
+.Dv BSDCONF_ACTION_REMOVE
+would leave the file unchanged,
+the original is left untouched:
+no temporary is created,
+.Va mtime
+is not bumped,
+and hard links are not severed.
+Otherwise the file is replaced atomically:
+output is streamed to a temporary file created with
+.Xr mkstemp 3
+in the target's own directory,
+flushed to stable storage with
+.Xr fsync 2 ,
+given the mode
+.Pq and, if permitted, the ownership
+of the original,
+and then moved over the original with
+.Xr rename 2 .
+An unexpected system failure or power loss mid-transaction leaves the
+original untouched
+.Pq see also Sx SECURITY CONSIDERATIONS .
+.Pp
+.Fn bsdconf_put
+operates on exactly one file.
+For a format backed by more than one file
+.Pq see Xr bsdconf_format 3 ,
+the caller decides which file to hand it,
+and the deterministic sourcing order makes that decision mechanical:
+because the last file to list a directive dictates its effective value,
+a directive should be rewritten in the last file of the format's ordered
+list that currently lists it
+.Pq found by parsing the files in order with Fn bsdconf_parse ,
+or appended to the format's default file when no file lists it.
+A removal,
+by contrast,
+must be applied to every file listing the directive,
+lest deleting the authoritative definition merely unmask an earlier one.
+This is the policy implemented by
+.Xr sysconf 8 .
+.Pp
+The
+.Fa put_options
+argument is a mask of the following bit fields:
+.Bl -tag -width BSDCONF_PUT_NO_DUPLICATES
+.It Dv BSDCONF_PUT_NO_DUPLICATES
+Fail with
+.Er EEXIST
+if a directive to be written appears more than once in the file.
+.It Dv BSDCONF_PUT_ALLOW_EMPTY
+Permit setting an empty value.
+.It Dv BSDCONF_PUT_BACKUP
+Save a copy of the original file with a
+.Ql .bak
+suffix before replacing it.
+.It Dv BSDCONF_PUT_UNQUOTED
+Emit
+.Va value.str
+as literal file text:
+no quotes are added and no characters are backslash-escaped
+.Pq the caller supplies the bytes that should appear on disk .
+Embedded whitespace is fine
+.Pq the value runs to the end of the line .
+A value that could not round-trip under the parser
+.Pq an embedded newline, unescaped comment marker, or trailing unescaped backslash
+is rejected with
+.Er EINVAL
+rather than silently corrupting the file.
+The reader still runs
+.Fn bsdconf_strunexpand
+on input, so escape sequences present in the file become the logical value
+on read; this flag does not re-encode them on write.
+.It Dv BSDCONF_PUT_QUOTE_ALWAYS
+Enclose every value in double-quotes,
+escaping embedded quotes and backslashes.
+.El
+.Pp
+.Fn bsdconf_set_option
+traverses the options-array and stages
+.Fa value
+into the option whose directive matches
+.Fa directive
+via
+.Xr strcmp 3 .
+.Sh RETURN VALUES
+.Fn bsdconf_put
+returns zero on success;
+otherwise -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Fn bsdconf_set_option
+returns 1 if a matching directive was staged,
+otherwise 0.
+.Sh SEE ALSO
+.Xr bsdconf 3 ,
+.Xr bsdconf_format 3 ,
+.Xr sysconf 8
+.Sh HISTORY
+The
+.Fn bsdconf_put
+and
+.Fn bsdconf_set_option
+functions first appeared in
+.Fx 16.0
+as part of
+.Xr bsdconf 3 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org
+.Sh LIMITATIONS
+.Fn bsdconf_put
+matches directives by exact name and, by default, treats each name as
+single-valued: the first matching statement is rewritten, or a new line
+is appended when none matches.
+That suits the built-in formats when the last assignment wins.
+.Pp
+Make(1)-style cumulative
+.Ql +=
+chains are supported only in part.
+With
+.Va match_line
+unset, a
+.Ql +=
+.Dv BSDCONF_ACTION_SET_VALUE
+appends a new statement rather than collapsing earlier ones; with
+.Va match_line
+set, one physical line can be rewritten or removed
+.Pq as Xr sysconf 8 does for make/src list strikes .
+Word-level
+.Ql -=
+policy and effective-value accumulation remain the caller's
+responsibility;
+the library does not implement
+.Ql -=
+itself.
+.Pp
+Formats whose directives legitimately repeat without make(1) operators
+.Pq for example Apache-style cumulative keywords; see Xr bsdconf 3
+likewise parse with caller-supplied callbacks, but
+.Fn bsdconf_put
+offers no first-class insert, remove, or reorder of occurrence
+.Em N
+among equals—only exact-name match or
+.Va match_line
+selection.
+.Sh SECURITY CONSIDERATIONS
+The write transaction is designed to be safe against both interruption and
+interference.
+The temporary file is created by
+.Xr mkstemp 3
+.Pq Dv O_EXCL ; never predictable, never followed
+in the target's own directory,
+so the data never crosses a filesystem boundary and never transits a
+world-writable directory such as
+.Pa /tmp .
+The mode and ownership propagated onto it are taken by
+.Xr fstat 2
+from the descriptor actually read,
+not by re-looking up the path,
+and are applied with
+.Xr fchmod 2
+.Pq the original mode masked to 0666, so setuid, setgid, and execute bits are not copied
+and
+.Xr fchown 2
+on the open descriptor,
+so a concurrently swapped file cannot influence them.
+A backup requested with
+.Dv BSDCONF_PUT_BACKUP
+is created mode 0600 then
+.Xr fchmod 2 Ns 'd
+to the original mode masked to 0777
+.Pq setuid and setgid bits are not restored
+and refuses to follow a symbolic link planted at the
+.Ql .bak
+name
+.Pq Dv O_NOFOLLOW .
+.Pp
+Symbolic links in the
+.Fa path
+argument to
+.Fn bsdconf_put
+are resolved
+.Pq with Xr realpath 3
+before work begins:
+writing through a symbolic link rewrites the file it points at and
+preserves the link itself,
+rather than replacing the link with a regular file.
+The resolution is not re-verified at
+.Xr open 2
+time;
+as with any path-based interface,
+an actor with write access to a directory along the path can redirect it,
+so the containing directories must be trustworthy
+.Pq as those of system configuration files are .
+Because replacement is by
+.Xr rename 2 ,
+a target with multiple hard links is severed from its other names,
+which afterwards continue to reference the old content;
+this is inherent to atomic replacement.

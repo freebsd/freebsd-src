@@ -1,0 +1,151 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-LOADER 8
+.Os
+.Sh NAME
+.Nm "sysconf loader"
+.Nd configure boot loader directives
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm loader
+.Op Fl AcDeFinNqvVx
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm sysconf
+.Cm loader
+.Op Fl ADeFnNqvV
+.Op Fl f Ar file
+.Fl a
+.Nm sysconf
+.Cm loader
+.Op Fl AaDinNq
+.Fl d
+.Op Ar name ...
+.Nm sysconf
+.Cm loader
+.Op Fl E
+.Fl l | L
+.Sh DESCRIPTION
+The
+.Cm loader
+target of
+.Xr sysconf 8
+reads and modifies
+.Xr loader.conf 5
+configuration.
+Shared assignment syntax and options are documented in
+.Xr sysconf 8 ;
+multi-file write policy in
+.Xr sysconf-targets 8 .
+.Pp
+The file list is not hardcoded:
+just as the boot loader itself hardcodes only
+.Pa /boot/defaults/loader.conf ,
+.Nm sysconf
+names that defaults file and the
+.Va loader_conf_files ,
+.Va loader_conf_dirs ,
+and
+.Va local_loader_conf_files
+directives so that discovery matches the loader
+.Pq see Xr bsdconf_format 3 and Xr loader.conf 5 .
+On a stock system this resolves to
+.Pa /boot/device.hints ,
+.Pa /boot/loader.conf ,
+.Pa /boot/loader.conf.d/*.conf ,
+and
+.Pa /boot/loader.conf.local ,
+in that order;
+when the defaults file is missing,
+that stock list is assumed.
+.Pp
+Values written for this target are always enclosed in quotes
+.Pq quoted or unquoted input is accepted
+with no whitespace around the equals sign,
+as demanded by the boot loader's reader.
+.Pp
+The defaults file
+.Pa /boot/defaults/loader.conf
+.Pq or Ev LOADER_DEFAULTS
+additionally supports
+.Fl d ,
+.Fl D ,
+and
+.Fl A
+.Pq see Xr sysconf-targets 8 .
+Space-separated list directives such as
+.Va kernels
+use
+.Ar name Ns += Ns Ar word
+and
+.Ar name Ns -= Ns Ar word
+as described in
+.Xr sysconf 8 .
+.Sh ENVIRONMENT
+.Bl -tag -width "LOADER_DEFAULTS"
+.It Ev LOADER_DEFAULTS
+Defaults file consulted in place of
+.Pa /boot/defaults/loader.conf
+for file-list discovery and for
+.Fl d ,
+.Fl D ,
+and
+.Fl A
+.Po
+in the vein of
+.Ev RC_DEFAULTS
+in
+.Xr sysrc 8
+.Pc .
+The value is used verbatim
+.Pq not subject to Fl R .
+.El
+.Sh FILES
+.Bl -tag -width "/boot/defaults/loader.conf" -compact
+.It Pa /boot/defaults/loader.conf
+Defaults and the authority on the file list.
+.It Pa /boot/device.hints
+First in the stock
+.Va loader_conf_files
+list.
+.It Pa /boot/loader.conf
+Stock write target.
+.It Pa /boot/loader.conf.d/
+Drop-in directory.
+.It Pa /boot/loader.conf.local
+Site-local overrides,
+sourced last.
+.El
+.Sh EXAMPLES
+.Dl sysconf loader zfs_load
+.Dl sysconf loader zfs_load=\(dqYES\(dq
+.Dl sysconf loader -l
+.Dl sysconf loader -d verbose_loading
+.Dl sysconf loader -Ad
+.Dl sysconf loader -D verbose_loading
+.Dl sysconf loader -aD
+.Dl sysconf loader -A
+.Dl sysconf loader kernels+=kernel_test
+.Dl sysconf loader kernels-=kernel_test
+.Dl sysconf -a loader
+.Dl sysconf loader -f /tmp/loader.conf.new zfs_load=\(dqYES\(dq
+.Sh SEE ALSO
+.Xr bsdconf_format 3 ,
+.Xr loader.conf 5 ,
+.Xr sysconf 8 ,
+.Xr sysconf-targets 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

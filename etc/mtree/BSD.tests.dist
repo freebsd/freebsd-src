@@ -1323,6 +1323,8 @@
         ..
         sa
         ..
+        sysconf
+        ..
         syslogd
         ..
         sysrc

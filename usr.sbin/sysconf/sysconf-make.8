@@ -1,0 +1,231 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-MAKE 8
+.Os
+.Sh NAME
+.Nm "sysconf make"
+.Nd configure make.conf directives
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm make
+.Op Fl ceFinNqsvVx
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm sysconf
+.Cm make
+.Op Fl eFnNqvV
+.Op Fl f Ar file
+.Fl a
+.Nm sysconf
+.Cm make
+.Op Fl E
+.Fl l | L
+.Sh DESCRIPTION
+The
+.Cm make
+target of
+.Xr sysconf 8
+reads and writes
+.Xr make 1 Ns -syntax
+configuration on
+.Pa /etc/make.conf
+by default,
+or on any single file named with
+.Fl f .
+Shared options are in
+.Xr sysconf 8 ;
+make(1) limitations and multi-file policy for other targets in
+.Xr sysconf-targets 8 .
+.Pp
+.Ql +=
+is the
+.Xr make 1
+append operator:
+a new
+.Ql name+=value
+line is appended
+.Pq prior assignments for the same name are left intact ,
+and reads report the cumulative effective value as
+.Nm make Fl V
+would.
+Assignment modifiers may also be requested by suffixing the name,
+as in
+.Ql CFLAGS+=-DDEBUG .
+.Pp
+.Ql -=
+is not a
+.Xr make 1
+operator;
+it strikes each given word from the
+.Em last
+assignment whose value contains that word as a whole whitespace-separated
+token
+.Pq rewriting the statement, or deleting it when the value becomes empty ,
+so successive strikes peel list fragments from the end of the assignment
+chain without collapsing earlier
+.Ql +=
+lines.
+.Pp
+.Ql WITH_*
+and
+.Ql WITHOUT_*
+presence knobs may be set with
+.Fl s
+.Pq preferred; writes Ql name=
+or
+.Ar name Ns = ;
+reads report
+.Ql name (present)
+for any assigned value
+.Po
+.Fl e
+prints the real assignment, e.g.\&
+.Ql name=
+or
+.Ql name=t ;
+.Fl n
+prints that same value alone
+.Pc .
+.Fl s
+is a no-op when the knob is already defined
+.Pq any value ;
+an explicit
+.Ar name Ns =
+.Pq including empty
+always writes, and a change of placeholder echoes
+.Ql name: old -> new .
+.Fl s
+does not clear an inverse
+.Ql WITH_
+or
+.Ql WITHOUT_
+for the same option
+.Po
+use
+.Fl V
+and clean up manually if needed
+.Pc .
+.Pp
+Writing
+.Ql WITH_ Ns Ar foo Ns =no
+.Pq exact lowercase Ql no
+still stores the assignment but warns to use
+.Ql WITHOUT_ Ns Ar foo Ns =1 ,
+matching the
+.Ql .warning
+in
+.Pa share/mk/bsd.mkopt.mk .
+.Nm
+emits that advisory on write and on read
+.Pq named queries and Fl a ,
+with
+.Ql file:line:
+of the authoritative statement when known
+.Pq suppressed by Fl q ,
+because
+.Xr make.conf 5
+is read by
+.Pa /usr/src
+builds: a line such as
+.Va WITH_MANCOMPRESS Ns =no
+here is what produces
+.Pp
+.Dl warning: Use WITHOUT_MANCOMPRESS=1 instead of WITH_MANCOMPRESS=no
+.Pp
+when running
+.Xr make 1
+in
+.Pa /usr/src
+.Pq after Pa bsd.opts.mk reloads Pa bsd.mkopt.mk for common options .
+The read-time form matters when the default presence display hides the
+.Ql =no
+value behind
+.Ql (present) .
+The same line stays silent under a bare
+.Ql make -C /tmp
+or ports, which never evaluate that option list.
+Neither
+.Nm
+nor make warns for
+.Ql WITHOUT_* Ns =no
+or
+.Ql WITH_* Ns =NO :
+presence of
+.Ql WITHOUT_
+still disables, and
+.Ql WITH_
+with a value other than lowercase
+.Ql no
+does not match the check.
+.Pp
+.Va WITHOUT_MODULES
+is not a presence knob:
+its value is a module reject list, so
+.Fl s
+is rejected and reads print the module list rather than
+.Ql (present) .
+Set it with a normal assignment
+.Pq e.g. Va WITHOUT_MODULES Ns = Ns Ar plip .
+.Pp
+This target has no defaults file;
+.Fl d ,
+.Fl D ,
+and
+.Fl A
+are errors.
+For the
+.Pa /usr/src
+build triad see
+.Xr sysconf-src 8 .
+.Sh FILES
+.Bl -tag -width "/etc/make.conf" -compact
+.It Pa /etc/make.conf
+Default file for the
+.Cm make
+target.
+.El
+.Sh EXAMPLES
+.Dl sysconf make CFLAGS+=-DDEBUG
+.Dl sysconf make -s WITHOUT_MANCOMPRESS
+.Dl sysconf make WITHOUT_MANCOMPRESS
+.Pp
+Strike a word from the last
+.Ql +=
+fragment that contains it
+.Pq here removing Ql 3 from the final line only :
+.Bd -literal -offset indent
+bar+=1
+bar+=1 2
+bar+=1 2 3
+.Ed
+.Pp
+.Dl sysconf make bar-=3
+.Pp
+leaves
+.Ql bar+=1 2
+on the last line.
+Repeating with
+.Ql bar-=2
+and
+.Ql bar-=1
+peels that line further, then removes it when emptied.
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr sysconf 8 ,
+.Xr sysconf-src 8 ,
+.Xr sysconf-targets 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

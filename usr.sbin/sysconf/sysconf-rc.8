@@ -1,0 +1,56 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-RC 8
+.Os
+.Sh NAME
+.Nm "sysconf rc"
+.Nd pass configuration requests through to sysrc
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm rc
+.Op Ar sysrc_argument ...
+.Sh DESCRIPTION
+The
+.Cm rc
+target of
+.Xr sysconf 8
+is a pure pass-through:
+.Xr rc.conf 5
+is
+.Xr sysrc 8 Ns 's
+domain,
+and its feature set is a superset of
+.Nm sysconf Ns 's ,
+so no option or argument is validated,
+interpreted,
+or reordered
+.Po
+.Ql --help
+and
+.Ql --version
+included
+.Pc .
+Every argument except the
+.Cm rc
+keyword itself is handed to
+.Xr sysrc 8
+verbatim.
+.Sh EXAMPLES
+.Dl sysconf rc kld_list+=i915kms
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr sysconf 8 ,
+.Xr sysrc 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

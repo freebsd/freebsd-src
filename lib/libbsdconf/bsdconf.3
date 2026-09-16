@@ -1,0 +1,432 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+.Dt BSDCONF 3
+.Os
+.Sh NAME
+.Nm bsdconf ,
+.Nm bsdconf_parse ,
+.Nm bsdconf_fparse ,
+.Nm bsdconf_get_option ,
+.Nm bsdconf_spool ,
+.Nm bsdconf_unquote
+.Nd configuration file reading library
+.Sh LIBRARY
+.Lb libbsdconf
+.Sh SYNOPSIS
+.In bsdconf.h
+.Ft int
+.Fo bsdconf_parse
+.Fa "struct bsdconf_option options[]"
+.Fa "const char *path"
+.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct bsdconf_option *option"
+.Fa "uint32_t line"
+.Fa "char *directive"
+.Fa "char *value\*[rp]"
+.Fa "uint16_t processing_options"
+.Fc
+.Ft int
+.Fo bsdconf_fparse
+.Fa "struct bsdconf_option options[]"
+.Fa "int fd"
+.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct bsdconf_option *option"
+.Fa "uint32_t line"
+.Fa "char *directive"
+.Fa "char *value\*[rp]"
+.Fa "uint16_t processing_options"
+.Fc
+.Ft "struct bsdconf_option *"
+.Fo bsdconf_get_option
+.Fa "struct bsdconf_option options[]"
+.Fa "const char *directive"
+.Fc
+.Ft int
+.Fo bsdconf_spool
+.Fa "int fd"
+.Fc
+.Ft "char *"
+.Fo bsdconf_unquote
+.Fa "char *value"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+library provides a light-weight,
+portable framework for reading and writing configuration
+files.
+It is the successor to the retired
+.Nm figpar
+library,
+extending the original read-only token parser into a unified,
+resilient reader/writer engine.
+.Pp
+Due to the fact that configuration files may have basic syntax differences,
+the library does not attempt to impose any structure on the data but instead
+provides raw data to a set of callback functions.
+These callback functions can in-turn initiate abort through their return
+value,
+allowing custom syntax validation during parsing.
+.Pp
+Syntax differences between well-known file formats are described by format
+descriptors:
+a format descriptor is a small read-only table of properties
+.Pq Vt struct bsdconf_format_def ; see Xr bsdconf_format 3
+naming a format's target keyword,
+backing files,
+and tokenizing/quoting rules,
+which parameterize a single shared engine.
+.Pp
+Despite the name, it bears no relation to a file descriptor;
+it is closer in spirit to a driver's method table:
+static data describing behavior,
+consulted rather than executed.
+Writing is documented in
+.Xr bsdconf_put 3 ;
+built-in formats and discovery in
+.Xr bsdconf_format 3 .
+.Pp
+Configuration directives,
+types,
+and callback functions are provided through data structures defined in
+.In bsdconf.h :
+.Bd -literal -offset indent
+struct bsdconf_option {
+    enum bsdconf_type		type;	/* value type */
+    const char			*directive; /* keyword */
+    union bsdconf_value		value;	/* value */
+    enum bsdconf_op		op;	/* assignment operator */
+    uint8_t			action;	/* bsdconf_put() action */
+    uint16_t			result;	/* set by bsdconf_put() */
+    uint32_t			line;	/* set by bsdconf_put() */
+    uint32_t			match_line;
+					/* put: 0=any, else line */
+
+    /* Pointer to function used when directive is found */
+    int (*parse)(struct bsdconf_option *option, uint32_t line,
+        char *directive, char *value);
+};
+
+enum bsdconf_type {
+    BSDCONF_TYPE_NONE      = 0x0000, /* directives with no value */
+    BSDCONF_TYPE_BOOL      = 0x0001, /* boolean */
+    BSDCONF_TYPE_INT       = 0x0002, /* signed 32-bit integer */
+    BSDCONF_TYPE_UINT      = 0x0004, /* unsigned 32-bit integer */
+    BSDCONF_TYPE_STR       = 0x0008, /* string pointer */
+    BSDCONF_TYPE_STRARRAY  = 0x0010, /* string array pointer */
+    BSDCONF_TYPE_DATA1     = 0x0020, /* void data type-1 (open) */
+    BSDCONF_TYPE_DATA2     = 0x0040, /* void data type-2 (open) */
+    BSDCONF_TYPE_DATA3     = 0x0080, /* void data type-3 (open) */
+    BSDCONF_TYPE_INT64     = 0x0100, /* signed 64-bit integer */
+    BSDCONF_TYPE_UINT64    = 0x0200, /* unsigned 64-bit integer */
+    BSDCONF_TYPE_RESERVED  = 0x0400, /* reserved */
+};
+
+union bsdconf_value {
+    void	*data;      /* Opaque pointer (DATA1..DATA3) */
+    char	*str;       /* Pointer to NUL-terminated string */
+    char	**strarray; /* Pointer to an array of strings */
+    int32_t	num;        /* Signed 32-bit integer value */
+    uint32_t	u_num;      /* Unsigned 32-bit integer value */
+    int64_t	num64;      /* Signed 64-bit integer value */
+    uint64_t	u_num64;    /* Unsigned 64-bit integer value */
+    bool	boolean;    /* Boolean value */
+};
+.Ed
+.Pp
+The
+.Fa processing_options
+argument to
+.Fn bsdconf_parse ,
+.Fn bsdconf_fparse ,
+and
+.Xr bsdconf_put 3
+is a mask of bit fields which indicate various processing options.
+The possible flags are:
+.Bl -tag -width BSDCONF_BREAK_ON_SEMICOLON
+.It Dv BSDCONF_BREAK_ON_EQUALS
+An equals sign
+.Pq Ql =
+is normally considered part of the directive.
+This flag enables terminating the directive at the equals sign.
+Also makes equals sign optional and transient.
+.It Dv BSDCONF_BREAK_ON_SEMICOLON
+A semicolon
+.Pq Ql \&;
+is normally considered part of the value.
+This flag enables terminating the value at the semicolon.
+Also allows multiple statements on a single line separated by semicolon.
+.It Dv BSDCONF_CASE_SENSITIVE
+Normally directives are matched case insensitively using
+.Xr fnmatch 3 .
+This flag enables directive matching to be case sensitive.
+.It Dv BSDCONF_REQUIRE_EQUALS
+If a directive is not followed by an equals,
+processing is aborted.
+.It Dv BSDCONF_STRICT_EQUALS
+Equals must be part of the directive
+.Pq no whitespace before or after
+to be considered a delimiter between directive and value.
+Required by file formats whose readers reject whitespace around the equals
+sign,
+such as the
+.Fx
+boot loader's processing of
+.Xr loader.conf 5 .
+.It Dv BSDCONF_OPERATOR_EQUALS
+Recognize
+.Xr make 1
+style assignment modifiers
+.Po
+.Ql += ,
+.Ql ?= ,
+.Ql := ,
+and
+.Ql !=
+.Pc
+and split them off the tail of the directive.
+The parsed operator is reported through the
+.Va op
+member of the matched option
+.Pq one of Dv BSDCONF_OP_ASSIGN , BSDCONF_OP_APPEND , BSDCONF_OP_COND , BSDCONF_OP_EXPAND , No or Dv BSDCONF_OP_SHELL .
+.El
+.Pp
+The
+.Fa options
+struct array pointer can be NULL and every directive will run the
+.Fn unknown
+function argument.
+.Pp
+The directive for each bsdconf_option item in the
+.Fn bsdconf_parse
+options argument is matched against each parsed directive using
+.Xr fnmatch 3
+until a match is found.
+If a match is found,
+the
+.Fn parse
+function for that bsdconf_option directive is run with the line number,
+directive,
+and value.
+Otherwise if no match,
+the
+.Fn unknown
+function is run
+.Pq with the same arguments .
+When
+.Dv BSDCONF_OPERATOR_EQUALS
+is set,
+.Fn unknown
+receives a non-NULL
+.Fa option
+whose
+.Va op
+member holds the statement's assignment operator
+.Pq there is no matched options-array slot to hang it on ;
+otherwise
+.Fa option
+may be
+.Dv NULL .
+.Pp
+If either
+.Fn parse
+or
+.Fn unknown
+return non-zero,
+.Fn bsdconf_parse
+aborts reading the file and returns the error value to its caller.
+.Pp
+A value normally ends at the first unescaped newline,
+but a statement may span multiple lines:
+a backslash immediately preceding the newline continues the value on the
+next line,
+in the manner of
+.Xr make 1
+.Pq essential to Pa make.conf and its siblings .
+The backslash-newline pairs are removed from the value delivered to the
+callbacks
+.Pq surrounding whitespace is preserved verbatim ,
+and reported line numbers are those of each statement's first line.
+.Xr bsdconf_put 3
+recognizes the same continuations when locating a value;
+rewriting a continued value replaces all of its lines with the single new
+value.
+.Pp
+.Fn bsdconf_fparse
+is identical to
+.Fn bsdconf_parse
+except that it operates on an already-open file descriptor
+.Fa fd ,
+which remains open on return
+.Pq the caller retains ownership .
+This allows the caller to constrain the process
+.Pq for example with Xr capsicum 4
+before parsing begins.
+The scanner requires a seekable descriptor;
+input that cannot seek
+.Pq a pipe or socket, standard input included
+is detected up front and transparently spooled through
+.Fn bsdconf_spool ,
+at the cost of one transient copy of the data.
+.Pp
+.Fn bsdconf_spool
+copies the remaining contents of
+.Fa fd
+to an unlinked temporary file
+.Pq created with Xr tmpfile 3
+and returns a seekable descriptor referencing it,
+which the caller must
+.Xr close 2
+.Pq the backing storage is reclaimed then .
+It is exported for callers that must adapt non-seekable input themselves
+before revoking their own ability to create files,
+as
+.Xr sysconf 8
+does before entering its
+.Xr capsicum 4
+sandbox.
+.Pp
+.Fn bsdconf_get_option
+traverses the options-array and returns the option that matches via
+.Xr strcmp 3 ,
+or
+.Dv NULL
+if none matches.
+.Pp
+.Fn bsdconf_unquote
+strips one layer of surrounding double-quotes from
+.Fa value
+in place and returns it.
+Parsed values retain their quotes so that data round-trips losslessly;
+this helper is for display and comparison purposes.
+.Sh RETURN VALUES
+.Fn bsdconf_parse
+and
+.Fn bsdconf_fparse
+return zero on success;
+otherwise -1
+.Pq or the non-zero result of a callback
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Fn bsdconf_spool
+returns a new seekable file descriptor on success;
+otherwise -1 with
+.Va errno
+set to indicate the error.
+.Fn bsdconf_get_option
+returns a pointer to the matching option,
+or
+.Dv NULL
+when none matches.
+.Sh EXAMPLES
+Read two known directives from a
+.Ql name=value
+file,
+routing every statement through a callback:
+.Bd -literal -offset indent
+#include <err.h>
+#include <stdio.h>
+#include <bsdconf.h>
+
+static int
+show(struct bsdconf_option *option, uint32_t line,
+    char *directive, char *value)
+{
+	printf("%u: %s is %s\en", line, directive,
+	    bsdconf_unquote(value));
+	return (0);
+}
+
+static struct bsdconf_option options[] = {
+	{ .directive = "hostname", .parse = show },
+	{ .directive = "timeout",  .parse = show },
+	{ .directive = NULL }
+};
+
+int
+main(void)
+{
+	if (bsdconf_parse(options, "/usr/local/etc/myapp.conf",
+	    NULL, BSDCONF_BREAK_ON_EQUALS) != 0)
+		err(1, "myapp.conf");
+	return (0);
+}
+.Ed
+.Pp
+Callbacks own the semantics,
+so a directive that legitimately repeats is accumulated rather than
+overwritten;
+no format descriptor is involved.
+The file here is Apache-style
+.Pq space-separated, no equals sign ,
+so
+.Dv BSDCONF_BREAK_ON_EQUALS
+is simply omitted:
+.Bd -literal -offset indent
+static char *servers[16];
+static size_t nservers;
+
+static int
+addserver(struct bsdconf_option *option, uint32_t line,
+    char *directive, char *value)
+{
+	if (nservers >= 16 ||
+	    (servers[nservers] = strdup(value)) == NULL)
+		return (-1); /* abort the parse */
+	nservers++;
+	return (0);
+}
+
+static struct bsdconf_option cumulative[] = {
+	{ .directive = "server", .parse = addserver },
+	{ .directive = NULL }
+};
+
+	...
+	if (bsdconf_parse(cumulative, path, NULL, 0) != 0)
+		err(1, "%s", path);
+.Ed
+.Sh SEE ALSO
+.Xr bsdconf_format 3 ,
+.Xr bsdconf_put 3 ,
+.Xr loader.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr sysconf 8
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 16.0 .
+It supersedes the
+.Nm figpar
+library which first appeared in
+.Fx 10.2
+and was retired to the ports tree.
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org
+.Sh BUGS
+This is the first implementation of the library,
+and the interface may be subject to refinement.
+.Pp
+Write-path limitations for cumulative directives are discussed in the
+.Sx LIMITATIONS
+section of
+.Xr bsdconf_put 3 .
+.Sh SECURITY CONSIDERATIONS
+Parsing allocates buffers sized by the longest directive and value
+encountered rather than by untrusted length fields,
+and
+.Fn bsdconf_fparse
+accepts an already-open descriptor precisely so that a caller may
+sandbox itself
+.Pq for example with Xr capsicum 4
+before touching untrusted input,
+as
+.Xr sysconf 8
+does for its read-only operations.
+Write-path hardening is documented in
+.Xr bsdconf_put 3 .

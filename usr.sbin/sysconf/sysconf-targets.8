@@ -1,0 +1,174 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-TARGETS 8
+.Os
+.Sh NAME
+.Nm sysconf-targets
+.Nd sysconf multi-file sourcing and write policy
+.Sh SYNOPSIS
+.Nm sysconf
+.Ar target
+.Op options
+.Op Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value ...
+.Sh DESCRIPTION
+This page documents rules shared by every
+.Xr sysconf 8
+target that is backed by more than one configuration file.
+Per-target file lists and syntax quirks are in
+.Xr sysconf-loader 8 ,
+.Xr sysconf-sysctl 8 ,
+.Xr sysconf-make 8 ,
+.Xr sysconf-src 8 ,
+.Xr sysconf-rc 8 ,
+and
+.Xr sysconf-generic 8 .
+Shared options remain in
+.Xr sysconf 8 .
+.Ss Authoritative file
+Most targets consult several files in the deterministic order the system
+sources them at boot.
+A directive in a later file overrides the same directive in an earlier one,
+so the last file listing a directive is the authoritative source of its
+value.
+.Pp
+Reads report that authoritative value.
+Writes are applied to the authoritative file
+.Pq so the change survives a reboot
+or appended to the target's default write file
+.Pq the first modifiable file listed
+when the directive is set nowhere or only in the read-only defaults.
+Removals
+.Pq Fl x
+are applied to every file listing the directive,
+lest deleting the authoritative definition merely unmask an earlier one.
+.Ss Defaults files
+For a target with a defaults file
+.Po
+presently
+.Ql loader ;
+see
+.Xr sysconf-loader 8
+.Pc ,
+the boot-time consumer sources the defaults before everything else,
+and so does
+.Nm sysconf :
+a directive no conf file mentions still reads back its default
+.Pq the value that does, in fact, take effect at boot ,
+with
+.Fl F
+truthfully naming the defaults file as its source.
+The defaults file is nevertheless read-only bookkeeping:
+it is never chosen as a write target,
+never satisfies a removal,
+and is never listed by
+.Fl l
+or
+.Fl L
+.Pq which enumerate only files Nm sysconf may modify .
+.Pp
+Those targets additionally support querying defaults:
+.Fl d
+reports directive descriptions,
+.Fl D
+consults the defaults alone,
+and
+.Fl A
+widens dumps to include directives still at their system default
+.Po
+a named
+.Ar name
+read always reflects the defaults already;
+.Fl A
+changes only
+.Fl a
+scope,
+or dumps everything when given with no
+.Ar name
+arguments
+.Pc .
+Attempting any of these against a target with no defaults
+.Po
+.Cm make
+and
+.Cm src
+have neither a defaults file nor directive descriptions
+.Pc
+is an error.
+The one exception is
+.Ql sysctl -d ,
+whose descriptions come from the running kernel rather than any file
+.Pq see Xr sysconf-sysctl 8 .
+.Ss Explicit file selection
+An arbitrary configuration file may be selected with
+.Fl f ,
+which overrides
+.Em which
+file is consulted and modified
+.Pq the named file alone; multi-file processing is disabled
+but never
+.Em how :
+the format is always stated explicitly by the
+.Ar target
+keyword and is never inferred from the file.
+This composes freely,
+so a
+.Xr loader.conf 5 Ns -formatted
+file may be staged anywhere
+.Pq Ql sysconf loader -f /tmp/loader.conf.new ...
+and,
+conversely,
+any format may be deliberately applied to any file.
+.Pp
+How each built-in format discovers or lists its backing files is
+implemented by
+.Xr bsdconf_format 3 .
+.Sh LIMITATIONS
+.Nm sysconf
+does not evaluate
+.Xr make 1
+conditionals
+.Pq Ql .if , .elif , .else , .endif
+or other makefile control flow that may appear in
+.Pa make.conf ,
+.Pa src.conf ,
+or
+.Pa src-env.conf .
+.Pp
+It also does not consult
+.Pa sys.mk ,
+.Pa local.sys.mk ,
+or other
+.Xr make 1
+defaults under
+.Pa /usr/share/mk .
+.Pp
+Effective values from
+.Nm sysconf
+therefore match
+.Nm make Fl V
+for straight-line assignment and
+.Ql +=
+chains in those conf files,
+but may differ when the value depends on conditionals or mk defaults.
+.Sh SEE ALSO
+.Xr bsdconf_format 3 ,
+.Xr sysconf 8 ,
+.Xr sysconf-generic 8 ,
+.Xr sysconf-loader 8 ,
+.Xr sysconf-make 8 ,
+.Xr sysconf-rc 8 ,
+.Xr sysconf-src 8 ,
+.Xr sysconf-sysctl 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

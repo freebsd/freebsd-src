@@ -1,0 +1,211 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 2, 2026
+\
+.Dt SYSCONF-SRC 8
+.Os
+.Sh NAME
+.Nm "sysconf src"
+.Nd configure the src-env.conf / make.conf / src.conf triad
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm src
+.Op Fl ceFinNqsvVx
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm sysconf
+.Cm src
+.Op Fl eFnNqvV
+.Op Fl f Ar file
+.Fl a
+.Nm sysconf
+.Cm src
+.Op Fl E
+.Fl l | L
+.Sh DESCRIPTION
+The
+.Cm src
+target of
+.Xr sysconf 8
+is the
+.Pa /usr/src
+build audience:
+it consults the same triad
+.Xr make 1
+uses when building the source tree
+.Po
+.Pa src-env.conf ,
+then
+.Pa make.conf ,
+then
+.Pa src.conf
+.Pc ,
+honoring
+.Ev SRC_ENV_CONF ,
+.Ev __MAKE_CONF ,
+and
+.Ev SRCCONF
+when set.
+See
+.Xr bsdconf_format 3
+and
+.Xr src.conf 5 .
+Shared options are in
+.Xr sysconf 8 ;
+authoritative-file and removal policy in
+.Xr sysconf-targets 8 ;
+.Ql +=
+and
+.Ql -=
+semantics match
+.Xr sysconf-make 8 .
+.Pp
+New directives are written to
+.Pa src.conf
+.Pq or the path in Ev SRCCONF ;
+an existing definition is rewritten in the file that last set it.
+There is no separate
+.Ql src-env
+keyword;
+use
+.Cm src
+or
+.Fl f
+for surgical edits of
+.Pa src-env.conf .
+.Pp
+.Ql WITH_*
+and
+.Ql WITHOUT_*
+are presence knobs
+.Po
+.Xr src.conf 5
+ignores the value; empty
+.Ql name=
+is the preferred spelling
+.Pc .
+Prefer
+.Fl s
+.Ar name
+over
+.Ar name Ns =
+when only presence matters;
+.Fl s
+leaves an already-defined knob
+.Pq any value
+unchanged and echoes
+.Ql (present) (unchanged) .
+An explicit
+.Ar name Ns =
+.Pq including empty
+always writes the requested value, and a change of placeholder echoes
+.Ql name: old -> new .
+.Fl s
+appends to the preferred write file and does not remove an inverse
+.Ql WITH_
+or
+.Ql WITHOUT_
+for the same option.
+Reads show
+.Ql name (present)
+for any assigned value;
+with
+.Fl e ,
+the real assignment
+.Po
+e.g.
+.Ql name=
+or
+.Ql name=t
+.Pc ;
+with
+.Fl n ,
+that same value alone
+.Pq empty when the assignment is Ql name= .
+Writing
+.Ql WITH_ Ns Ar foo Ns =no
+warns as on the
+.Cm make
+target
+.Pq see Xr sysconf-make 8 ;
+.Pa /usr/src
+make evaluates such assignments via
+.Pa bsd.opts.mk
+and
+.Pa src.opts.mk .
+.Pp
+.Va WITHOUT_MODULES
+is not a presence knob:
+its value is a module reject list, so
+.Fl s
+is rejected and reads print the module list rather than
+.Ql (present) .
+Set it with a normal assignment
+.Pq e.g. Va WITHOUT_MODULES Ns = Ns Ar plip .
+.Pp
+This target has no defaults file;
+.Fl d ,
+.Fl D ,
+and
+.Fl A
+are errors.
+.Sh ENVIRONMENT
+.Bl -tag -width "SRC_ENV_CONF"
+.It Ev SRC_ENV_CONF
+Path of
+.Pa src-env.conf
+.Pq default Pa /etc/src-env.conf ;
+verbatim,
+not subject to
+.Fl R .
+.It Ev __MAKE_CONF
+Path of
+.Pa make.conf
+.Pq default Pa /etc/make.conf ;
+verbatim,
+not subject to
+.Fl R .
+.It Ev SRCCONF
+Path of
+.Pa src.conf
+.Pq default Pa /etc/src.conf ;
+verbatim,
+not subject to
+.Fl R .
+Also the preferred write file for new directives.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/src-env.conf" -compact
+.It Pa /etc/src-env.conf
+First file of the triad.
+.It Pa /etc/make.conf
+Middle file of the triad.
+.It Pa /etc/src.conf
+Last file and preferred write target.
+.El
+.Sh EXAMPLES
+.Dl sysconf src -s WITHOUT_LLDB
+.Dl sysconf src WITHOUT_LLDB=
+.Dl sysconf src WITHOUT_LLDB
+.Dl sysconf src -x WITHOUT_LLDB
+.Dl sysconf src -V CFLAGS
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr bsdconf_format 3 ,
+.Xr src.conf 5 ,
+.Xr sysconf 8 ,
+.Xr sysconf-make 8 ,
+.Xr sysconf-targets 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org
