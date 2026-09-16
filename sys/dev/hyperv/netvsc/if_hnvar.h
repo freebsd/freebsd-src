@@ -268,6 +268,7 @@ struct hn_softc {
 	/* Applied VLANs and VF lifetime use hn_lock. */
 	u_int			hn_vf_vlans[HN_VLAN_WORDS];
 	bool			hn_vf_detaching;
+	bool			hn_vf_caps_busy;	/* unlocked capability ioctl */
 
 	/*
 	 * Transparent VF delayed initialization.
@@ -279,6 +280,7 @@ struct hn_softc {
 	u_int			hn_vf_active_assoc; /* confirmed VF generation */
 	struct taskqueue	*hn_vf_taskq;
 	struct timeout_task	hn_vf_init;
+	struct task		hn_vf_vlancap;
 
 	/*
 	 * Saved information for VF under transparent mode.
