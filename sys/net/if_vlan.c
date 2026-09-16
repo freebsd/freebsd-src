@@ -1704,6 +1704,8 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid,
 				/* Re-insert back where we found it. */
 				ret = vlan_inshash(trunk, ifv);
 				MPASS(ret == 0);
+			} else {
+				EVENTHANDLER_INVOKE(vlan_unconfig, p, oldvid);
 			}
 		}
 		/* Will unlock */
