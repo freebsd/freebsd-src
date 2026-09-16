@@ -406,7 +406,8 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* keys,
 	uint8_t* sigalg, char** reason, sldns_ede_code *reason_bogus,
 	sldns_pkt_section section, struct module_qstate* qstate,
-	int *verified, char* reasonbuf, size_t reasonlen)
+	struct val_qstate* vq, int *verified, char* reasonbuf,
+	size_t reasonlen)
 {
 	enum sec_status sec;
 	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
@@ -431,7 +432,8 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 	log_nametypeclass(VERB_ALGO, "verify rrset", rrset->rk.dname,
 		ntohs(rrset->rk.type), ntohs(rrset->rk.rrset_class));
 	sec = dnskeyset_verify_rrset(env, ve, rrset, keys, sigalg, reason,
-		reason_bogus, section, qstate, verified, reasonbuf, reasonlen);
+		reason_bogus, section, qstate, vq, verified, reasonbuf,
+		reasonlen);
 	verbose(VERB_ALGO, "verify result: %s", sec_status_to_string(sec));
 	regional_free_all(env->scratch);
 
@@ -475,7 +477,8 @@ val_verify_rrset_entry(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct key_entry_key* kkey,
 	char** reason, sldns_ede_code *reason_bogus,
 	sldns_pkt_section section, struct module_qstate* qstate,
-	int* verified, char* reasonbuf, size_t reasonlen)
+	struct val_qstate* vq, int* verified, char* reasonbuf,
+	size_t reasonlen)
 {
 	/* temporary dnskey rrset-key */
 	struct ub_packed_rrset_key dnskey;
@@ -489,7 +492,8 @@ val_verify_rrset_entry(struct module_env* env, struct val_env* ve,
 	dnskey.entry.key = &dnskey;
 	dnskey.entry.data = kd->rrset_data;
 	sec = val_verify_rrset(env, ve, rrset, &dnskey, kd->algo, reason,
-		reason_bogus, section, qstate, verified, reasonbuf, reasonlen);
+		reason_bogus, section, qstate, vq, verified, reasonbuf,
+		reasonlen);
 	return sec;
 }
 
@@ -499,13 +503,20 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* dnskey_rrset,
         struct ub_packed_rrset_key* ds_rrset, size_t ds_idx, char** reason,
 	sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-	int *nonechecked, char* reasonbuf, size_t reasonlen)
+	struct val_qstate* vq, int *nonechecked, char* reasonbuf,
+	size_t reasonlen, size_t* num_tagmatches,
+	size_t* num_tagmatches_dnskeysig)
 {
 	enum sec_status sec = sec_status_bogus;
 	size_t i, num, numchecked = 0, numhashok = 0, numsizesupp = 0;
 	num = rrset_get_count(dnskey_rrset);
 	*nonechecked = 0;
 	for(i=0; i<num; i++) {
+		if((*num_tagmatches)++ > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "DS match attempt reached "
+				"MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			return sec_status_bogus;
+		}
 		/* Skip DNSKEYs that don't match the basic criteria. */
 		if(ds_get_key_algo(ds_rrset, ds_idx) 
 		   != dnskey_get_algo(dnskey_rrset, i)
@@ -517,6 +528,15 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 		verbose(VERB_ALGO, "attempt DS match algo %d keytag %d",
 			ds_get_key_algo(ds_rrset, ds_idx),
 			ds_get_keytag(ds_rrset, ds_idx));
+
+		if(vq && vq->num_hash_attempts++ > env->cfg->val_hash_attempts) {
+			*reason = "too many hash attempts";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			verbose(VERB_ALGO, "rrset failed to verify: too many hash attempts, "
+				"val-hash-attempts (%d); bogus", env->cfg->val_hash_attempts);
+			return sec_status_bogus;
+		}
 
 		/* Convert the candidate DNSKEY into a hash using the 
 		 * same DS hash algorithm. */
@@ -541,8 +561,14 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 
 		/* Otherwise, we have a match! Make sure that the DNSKEY 
 		 * verifies *with this key*  */
+		if(*num_tagmatches_dnskeysig > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "DS that matched has too many DNSKEY to RRSIG tag matches "
+				"MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			return sec_status_bogus;
+		}
 		sec = dnskey_verify_rrset(env, ve, dnskey_rrset, dnskey_rrset,
-			i, reason, reason_bogus, LDNS_SECTION_ANSWER, qstate);
+			i, reason, reason_bogus, LDNS_SECTION_ANSWER, qstate,
+			vq, num_tagmatches_dnskeysig);
 		if(sec == sec_status_secure) {
 			return sec;
 		}
@@ -586,14 +612,14 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* dnskey_rrset,
 	struct ub_packed_rrset_key* ds_rrset, uint8_t* sigalg, char** reason,
 	sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-	char* reasonbuf, size_t reasonlen)
+	struct val_qstate* vq, char* reasonbuf, size_t reasonlen)
 {
 	/* as long as this is false, we can consider this DS rrset to be
 	 * equivalent to no DS rrset. */
 	int has_useful_ds = 0, digest_algo, alg, has_algo_refusal = 0,
 		nonechecked, has_checked_ds = 0;
 	struct algo_needs needs;
-	size_t i, num;
+	size_t i, num, num_tagmatches = 0, num_tagmatches_dnskeysig = 0;
 	enum sec_status sec;
 
 	if(dnskey_rrset->rk.dname_len != ds_rrset->rk.dname_len ||
@@ -615,6 +641,13 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 	}
 	num = rrset_get_count(ds_rrset);
 	for(i=0; i<num; i++) {
+		if(num_tagmatches > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "DS verify attempt reached "
+				"MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			*reason = "DS verify has too many tag matches";
+			return sec_status_bogus;
+		}
+
 		/* Check to see if we can understand this DS. 
 		 * And check it is the strongest digest */
 		if(!ds_digest_algo_is_supported(ds_rrset, i) ||
@@ -623,9 +656,16 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 			continue;
 		}
 
+		if(num_tagmatches_dnskeysig > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "DS verify attempt reached "
+				"DNSKEY to RRSIG MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			*reason = "DS verify has too many DNSKEY to RRSIG tag matches";
+			return sec_status_bogus;
+		}
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
-			ds_rrset, i, reason, reason_bogus, qstate,
-			&nonechecked, reasonbuf, reasonlen);
+			ds_rrset, i, reason, reason_bogus, qstate, vq,
+			&nonechecked, reasonbuf, reasonlen, &num_tagmatches,
+			&num_tagmatches_dnskeysig);
 		if(sec == sec_status_insecure) {
 			/* DNSKEY too large unsupported or algo refused by
 			 * crypto lib. */
@@ -687,12 +727,12 @@ val_verify_new_DNSKEYs(struct regional* region, struct module_env* env,
 	struct val_env* ve, struct ub_packed_rrset_key* dnskey_rrset, 
 	struct ub_packed_rrset_key* ds_rrset, int downprot, char** reason,
 	sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-	char* reasonbuf, size_t reasonlen)
+	struct val_qstate* vq, char* reasonbuf, size_t reasonlen)
 {
 	uint8_t sigalg[ALGO_NEEDS_MAX+1];
 	enum sec_status sec = val_verify_DNSKEY_with_DS(env, ve,
 		dnskey_rrset, ds_rrset, downprot?sigalg:NULL, reason, 
-		reason_bogus, qstate, reasonbuf, reasonlen);
+		reason_bogus, qstate, vq, reasonbuf, reasonlen);
 
 	if(sec == sec_status_secure) {
 		return key_entry_create_rrset(region, 
@@ -718,14 +758,14 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* ta_ds,
 	struct ub_packed_rrset_key* ta_dnskey, uint8_t* sigalg, char** reason,
 	sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-	char* reasonbuf, size_t reasonlen)
+	struct val_qstate* vq, char* reasonbuf, size_t reasonlen)
 {
 	/* as long as this is false, we can consider this anchor to be
 	 * equivalent to no anchor. */
 	int has_useful_ta = 0, digest_algo = 0, alg, has_algo_refusal = 0,
 		nonechecked, has_checked_ds = 0;
 	struct algo_needs needs;
-	size_t i, num;
+	size_t i, num, num_tagmatches = 0, num_tagmatches_dnskeysig = 0;
 	enum sec_status sec;
 
 	if(ta_ds && (dnskey_rrset->rk.dname_len != ta_ds->rk.dname_len ||
@@ -761,6 +801,15 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 	if(ta_ds) {
 	    num = rrset_get_count(ta_ds);
 	    for(i=0; i<num; i++) {
+		if(num_tagmatches > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "anchor DS verify attempt reached "
+				"MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			*reason = "anchor DS verify has too many tag matches";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			return sec_status_bogus;
+		}
+
 		/* Check to see if we can understand this DS. 
 		 * And check it is the strongest digest */
 		if(!ds_digest_algo_is_supported(ta_ds, i) ||
@@ -768,9 +817,18 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			ds_get_digest_algo(ta_ds, i) != digest_algo)
 			continue;
 
+		if(num_tagmatches_dnskeysig > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "anchor DS verify has too many DNSKEY to RRSIG tag matches "
+				"MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			*reason = "anchor DS verify has too many DNSKEY to RRSIG tag matches";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			return sec_status_bogus;
+		}
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
-			ta_ds, i, reason, reason_bogus, qstate, &nonechecked,
-			reasonbuf, reasonlen);
+			ta_ds, i, reason, reason_bogus, qstate, vq,
+			&nonechecked, reasonbuf, reasonlen, &num_tagmatches,
+			&num_tagmatches_dnskeysig);
 		if(sec == sec_status_insecure) {
 			has_algo_refusal = 1;
 			continue;
@@ -813,8 +871,16 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 		/* we saw a useful TA */
 		has_useful_ta = 1;
 
+		if(num_tagmatches_dnskeysig > MAX_TAG_MATCHES) {
+			verbose(VERB_ALGO, "anchor DS that matched has too many DNSKEY to RRSIG tag matches "
+				"MAX_TAG_MATCHES (%d); bogus", MAX_TAG_MATCHES);
+			*reason = "anchor DS that matched has too many DNSKEY to RRSIG tag matches";
+			if(reason_bogus)
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+			return sec_status_bogus;
+		}
 		sec = dnskey_verify_rrset(env, ve, dnskey_rrset,
-			ta_dnskey, i, reason, reason_bogus, LDNS_SECTION_ANSWER, qstate);
+			ta_dnskey, i, reason, reason_bogus, LDNS_SECTION_ANSWER, qstate, vq, &num_tagmatches_dnskeysig);
 		if(sec == sec_status_secure) {
 			if(!sigalg || algo_needs_set_secure(&needs,
 				(uint8_t)dnskey_get_algo(ta_dnskey, i))) {
@@ -862,12 +928,13 @@ val_verify_new_DNSKEYs_with_ta(struct regional* region, struct module_env* env,
 	struct ub_packed_rrset_key* ta_ds_rrset,
 	struct ub_packed_rrset_key* ta_dnskey_rrset, int downprot,
 	char** reason, sldns_ede_code *reason_bogus,
-	struct module_qstate* qstate, char* reasonbuf, size_t reasonlen)
+	struct module_qstate* qstate, struct val_qstate* vq, char* reasonbuf,
+	size_t reasonlen)
 {
 	uint8_t sigalg[ALGO_NEEDS_MAX+1];
 	enum sec_status sec = val_verify_DNSKEY_with_TA(env, ve,
 		dnskey_rrset, ta_ds_rrset, ta_dnskey_rrset,
-		downprot?sigalg:NULL, reason, reason_bogus, qstate,
+		downprot?sigalg:NULL, reason, reason_bogus, qstate, vq,
 		reasonbuf, reasonlen);
 
 	if(sec == sec_status_secure) {

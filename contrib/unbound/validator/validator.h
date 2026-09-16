@@ -231,6 +231,19 @@ struct val_qstate {
 	struct comm_timer* suspend_timer;
 	/** Number of suspends */
 	int suspend_count;
+
+	/** Number of DNSKEY RRSIG validation attempts. This is the number of
+	 * cryptographic operations done for the mesh state. */
+	int num_validation_attempts;
+	/** Number of DS hash verification attempts. This is the number of
+	 * hash operations done for the mesh state.
+	 * It does not count NSEC3 hashes. */
+	int num_hash_attempts;
+	/** Number of NSEC validations. And NSEC3 too. This is reset per
+	 * answer. */
+	int num_nsec_attempts;
+	/** The nsec attempts have been exceeded. */
+	int num_nsec_attempts_exceeded;
 };
 
 /**

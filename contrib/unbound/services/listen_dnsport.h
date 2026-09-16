@@ -347,6 +347,10 @@ struct tcp_req_info {
 	int num_done_req;
 	/** list of pending writable result packets, malloced one at a time */
 	struct tcp_req_done_item* done_req_list;
+	/** the read again timer, when the number of pipelined TCP queries
+	 * is large, it waits, zero time, for a new event loop to service
+	 * the remainder of the TCP traffic on the fd. */
+	struct comm_timer* read_again_timer;
 };
 
 /**
@@ -377,10 +381,12 @@ struct tcp_req_done_item {
  * Create tcp request info structure that keeps track of open
  * requests on the TCP channel that are resolved at the same time,
  * and the pending results that have to get written back to that client.
+ * @param base: comm base for read again timer.
  * @param spoolbuf: shared buffer
  * @return new structure or NULL on alloc failure.
  */
-struct tcp_req_info* tcp_req_info_create(struct sldns_buffer* spoolbuf);
+struct tcp_req_info* tcp_req_info_create(struct comm_base* base,
+	struct sldns_buffer* spoolbuf);
 
 /**
  * Delete tcp request structure.  Called by owning commpoint.

@@ -248,6 +248,7 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 	sldns_pkt_section section)
 {
 	uint16_t pkt_len;
+	size_t tolen;
 	uint32_t ttl;
 	const sldns_rr_descriptor* desc;
 
@@ -293,9 +294,13 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 		(rr->ttl_data - sldns_buffer_begin(pkt) + sizeof(uint32_t)));
 	/* insert decompressed size into rdata len stored in memory */
 	/* -2 because rdatalen bytes are not included. */
+	tolen = rr->size;
+	if(tolen < 2)
+		return 0;
 	pkt_len = htons(rr->size - 2);
 	memmove(to, &pkt_len, sizeof(uint16_t));
 	to += 2;
+	tolen -= 2;
 	/* read packet rdata len */
 	pkt_len = sldns_buffer_read_u16(pkt);
 	if(sldns_buffer_remaining(pkt) < pkt_len)
@@ -304,16 +309,29 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 	if(pkt_len > 0 && desc && desc->_dname_count > 0) {
 		int count = (int)desc->_dname_count;
 		int rdf = 0;
-		size_t len;
-		size_t oldpos;
+		size_t len, dlen;
+		size_t oldpos, newpos;
 		/* decompress dnames. */
 		while(pkt_len > 0 && count) {
 			switch(desc->_wireformat[rdf]) {
 			case LDNS_RDF_TYPE_DNAME:
 				oldpos = sldns_buffer_position(pkt);
-				dname_pkt_copy(pkt, to, 
+				dlen = pkt_dname_len(pkt);
+				if(dlen == 0)
+					return 0; /* malformed */
+				if(dlen > tolen)
+					return 0; /* alloc mismatch */
+				newpos = sldns_buffer_position(pkt);
+				if(oldpos > newpos)
+					return 0; /* should have moved forward*/
+				sldns_buffer_set_position(pkt, oldpos);
+				dname_pkt_copy(pkt, to,
 					sldns_buffer_current(pkt));
-				to += pkt_dname_len(pkt);
+				sldns_buffer_set_position(pkt, newpos);
+				to += dlen;
+				tolen -= dlen;
+				if(sldns_buffer_position(pkt)-oldpos > pkt_len)
+					return 0; /* malformed: walks diverged */
 				pkt_len -= sldns_buffer_position(pkt)-oldpos;
 				count--;
 				len = 0;
@@ -326,9 +344,12 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 				break;
 			}
 			if(len) {
+				if(len > tolen)
+					return 0; /* alloc mismatch */
 				log_assert(len <= pkt_len);
 				memmove(to, sldns_buffer_current(pkt), len);
 				to += len;
+				tolen -= len;
 				sldns_buffer_skip(pkt, (ssize_t)len);
 				pkt_len -= len;
 			}
@@ -336,8 +357,11 @@ rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 		}
 	}
 	/* copy remaining rdata */
-	if(pkt_len >  0)
+	if(pkt_len >  0) {
+		if(pkt_len > tolen)
+			return 0; /* alloc mismatch */
 		memmove(to, sldns_buffer_current(pkt), pkt_len);
+	}
 	
 	return 1;
 }
@@ -1108,6 +1132,17 @@ reply_all_rrsets_secure(struct reply_info* rep)
 {
 	size_t i;
 	for(i=0; i<rep->rrset_count; i++) {
+		if( ((struct packed_rrset_data*)rep->rrsets[i]->entry.data)
+			->security != sec_status_secure )
+		return 0;
+	}
+	return 1;
+}
+
+int reply_an_ns_rrsets_secure(struct reply_info* rep)
+{
+	size_t i;
+	for(i=0; i<rep->an_numrrsets+rep->ns_numrrsets; i++) {
 		if( ((struct packed_rrset_data*)rep->rrsets[i]->entry.data)
 			->security != sec_status_secure )
 		return 0;
