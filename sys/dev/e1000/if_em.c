@@ -395,11 +395,11 @@ static const pci_vendor_info_t igbv_vendor_info_array[] = {
 	PVID(0x8086, E1000_DEV_ID_82576_VF,
 	    "Intel(R) PRO/1000 82576 Virtual Function"),
 	PVID(0x8086, E1000_DEV_ID_82576_VF_HV,
-	    "Intel(R) PRO/1000 82576 Virtual Function"),
+	    "Intel(R) PRO/1000 82576 Hyper-V Virtual Function"),
 	PVID(0x8086, E1000_DEV_ID_I350_VF,
 	    "Intel(R) I350 Virtual Function"),
 	PVID(0x8086, E1000_DEV_ID_I350_VF_HV,
-	    "Intel(R) I350 Virtual Function"),
+	    "Intel(R) I350 Hyper-V Virtual Function"),
 	PVID_END
 };
 
@@ -1323,6 +1323,12 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_tso_segsize_max = EM_TSO_SEG_SIZE;
 		scctx->isc_capabilities = scctx->isc_capenable =
 		    sc->vf_ifp ? IGBV_CAPS : IGB_CAPS;
+		if (igbv_is_hyperv(sc)) {
+			/* The host owns VLAN filters and the receive-frame limit. */
+			scctx->isc_capabilities &=
+			    ~(IFCAP_VLAN_HWFILTER | IFCAP_JUMBO_MTU);
+			scctx->isc_capenable = scctx->isc_capabilities;
+		}
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_TSO |
 		     CSUM_IP6_TCP | CSUM_IP6_UDP;
 		if (hw->mac.type != e1000_82575)
@@ -1500,6 +1506,9 @@ em_if_attach_pre(if_ctx_t ctx)
 		goto err_pci;
 	}
 
+	if (igbv_is_hyperv(sc))
+		igbv_init_hv_ops(hw);
+
 	em_setup_msix(ctx);
 	e1000_get_bus_info(hw);
 
@@ -1637,7 +1646,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	/* Copy the permanent MAC address out of the EEPROM */
 	if (e1000_read_mac_addr(hw) < 0) {
 		device_printf(dev,
-		    "EEPROM read error while reading MAC address\n");
+		    "Unable to read MAC address\n");
 		error = EIO;
 		goto err_late;
 	}
@@ -1855,6 +1864,10 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 
 	IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
 
+	/* No native SET_LPE exchange is available with a Hyper-V PF. */
+	if (igbv_is_hyperv(sc) && mtu > ETHERMTU)
+		return (EINVAL);
+
 	switch (sc->hw.mac.type) {
 	case e1000_82571:
 	case e1000_82572:
@@ -1930,7 +1943,7 @@ em_if_init(if_ctx_t ctx)
 
 	/*
 	 * A VF restores its address only after its reset handshake establishes
-	 * CTS.  The PF path programs RAR[0] directly here.
+	 * its PF-assigned state.  The PF path programs RAR[0] directly here.
 	 */
 	if (!sc->vf_ifp)
 		e1000_rar_set(&sc->hw, sc->hw.mac.addr, 0);
@@ -3695,6 +3708,10 @@ em_if_set_promisc_impl(if_ctx_t ctx, int flags)
 	s32 error;
 	u32 reg_rctl;
 	int mcnt = 0;
+
+	/* Hyper-V receive-mode policy is configured through the host. */
+	if (igbv_is_hyperv(sc))
+		return (0);
 
 	if (sc->vf_ifp) {
 		if (flags & IFF_PROMISC)
@@ -6141,6 +6158,10 @@ em_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	bool present;
 	u32 index, mask;
 
+	/* Hyper-V supports host-assigned access VLANs, not guest VLANs. */
+	if (igbv_is_hyperv(sc))
+		return;
+
 	index = (vtag >> 5) & 0x7F;
 	mask = 1U << (vtag & 0x1F);
 	present = (sc->shadow_vfta[index] & mask) != 0;
@@ -6173,6 +6194,9 @@ em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	bool present;
 	u32 index, mask;
+
+	if (igbv_is_hyperv(sc))
+		return;
 
 	index = (vtag >> 5) & 0x7F;
 	mask = 1U << (vtag & 0x1F);
@@ -6287,6 +6311,10 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 	u32 max_frame_size, reg;
 	u16 vid;
 	int restore_failures;
+
+	/* Hyper-V programs the VF's receive limit and VLAN membership. */
+	if (igbv_is_hyperv(sc))
+		return;
 
 	/*
 	 * Only PFs have control over VLAN HW filtering
@@ -7437,6 +7465,11 @@ static void
 em_rebase_vf_stats(struct e1000_softc *sc)
 {
 	struct e1000_vf_stats *stats;
+	bool hyperv = igbv_is_hyperv(sc);
+
+	sc->vf_stats_valid = false;
+	if (hyperv && E1000_READ_REG(&sc->hw, E1000_STATUS) == 0xffffffff)
+		return;
 
 	/*
 	 * A PF reset starts a new VF counter epoch.  Preserve the accumulated
@@ -7465,14 +7498,30 @@ em_rebase_vf_stats(struct e1000_softc *sc)
 	INIT_VF_REG(E1000_VFGORLBC, gorlbc);
 	INIT_VF_REG(E1000_VFGPRLBC, gprlbc);
 #undef INIT_VF_REG
+	sc->vf_stats_valid = !hyperv ||
+	    E1000_READ_REG(&sc->hw, E1000_STATUS) != 0xffffffff;
 }
 
 static void
 em_update_vf_stats_counters(struct e1000_softc *sc)
 {
+	struct e1000_vf_stats sample;
 	struct e1000_vf_stats *stats;
+	bool hyperv, reset;
 
-	stats = &sc->ustats.vf_stats;
+	hyperv = igbv_is_hyperv(sc);
+	if (hyperv && E1000_READ_REG(&sc->hw, E1000_STATUS) == 0xffffffff) {
+		sc->vf_stats_valid = false;
+		return;
+	}
+	reset = hyperv && e1000_check_for_rst(&sc->hw, 0) == E1000_SUCCESS;
+	if (hyperv && !sc->vf_stats_valid)
+		reset = true;
+	if (hyperv && (E1000_READ_REG(&sc->hw, E1000_TXDCTL(0)) &
+	    E1000_TXDCTL_QUEUE_ENABLE) == 0)
+		reset = true;
+	sample = sc->ustats.vf_stats;
+	stats = &sample;
 
 	/*
 	 * Internal VF loopback traffic can continue without physical link,
@@ -7497,6 +7546,29 @@ em_update_vf_stats_counters(struct e1000_softc *sc)
 	    stats->last_gorlbc, stats->gorlbc);
 	UPDATE_VF_REG(E1000_VFGPRLBC,
 	    stats->last_gprlbc, stats->gprlbc);
+	/*
+	 * Hyper-V can reset the VF without a native mailbox handshake.  Do not
+	 * count that counter clear as a 32-bit wrap, including a reset during
+	 * this sweep.  The PF can also clear counters while blocking a queue
+	 * for MDD without leaving a reset indication.  Hyper-V has one queue;
+	 * a disabled queue cannot supply a valid running counter epoch.
+	 */
+	if (hyperv) {
+		if (e1000_check_for_rst(&sc->hw, 0) == E1000_SUCCESS)
+			reset = true;
+		if ((E1000_READ_REG(&sc->hw, E1000_TXDCTL(0)) &
+		    E1000_TXDCTL_QUEUE_ENABLE) == 0)
+			reset = true;
+		if (E1000_READ_REG(&sc->hw, E1000_STATUS) == 0xffffffff) {
+			/* Rebase on a good sample before accounting further deltas. */
+			sc->vf_stats_valid = false;
+			return;
+		}
+	}
+	if (reset)
+		em_rebase_vf_stats(sc);
+	else
+		sc->ustats.vf_stats = sample;
 }
 
 static uint64_t
