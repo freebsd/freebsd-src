@@ -3663,8 +3663,8 @@ do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
 static void
 check_post_suspend_to_idle(device_t dev)
 {
-	devclass_t dc;
 #if defined(__amd64__)
+	devclass_t dc;
 	u_int vendor_id = cpu_vendor_id;
 #else
 	u_int vendor_id = 0;
