@@ -1297,12 +1297,13 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
  * @param tp: trust point to verify with
  * @param rrset: DNSKEY rrset to verify.
  * @param qstate: qstate with region.
+ * @param vq: validator query state.
  * @return false on failure, true if verification successful.
  */
 static int
 verify_dnskey(struct module_env* env, struct val_env* ve,
         struct trust_anchor* tp, struct ub_packed_rrset_key* rrset,
-	struct module_qstate* qstate)
+	struct module_qstate* qstate, struct val_qstate* vq)
 {
 	char reasonbuf[256];
 	char* reason = NULL;
@@ -1310,7 +1311,7 @@ verify_dnskey(struct module_env* env, struct val_env* ve,
 	int downprot = env->cfg->harden_algo_downgrade;
 	enum sec_status sec = val_verify_DNSKEY_with_TA(env, ve, rrset,
 		tp->ds_rrset, tp->dnskey_rrset, downprot?sigalg:NULL, &reason,
-		NULL, qstate, reasonbuf, sizeof(reasonbuf));
+		NULL, qstate, vq, reasonbuf, sizeof(reasonbuf));
 	/* sigalg is ignored, it returns algorithms signalled to exist, but
 	 * in 5011 there are no other rrsets to check.  if downprot is
 	 * enabled, then it checks that the DNSKEY is signed with all
@@ -1350,16 +1351,18 @@ min_expiry(struct module_env* env, struct packed_rrset_data* dd)
 static int
 rr_is_selfsigned_revoked(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* dnskey_rrset, size_t i,
-	struct module_qstate* qstate)
+	struct module_qstate* qstate, struct val_qstate* vq)
 {
 	enum sec_status sec;
 	char* reason = NULL;
+	size_t num_tagmatches = 0;
 	verbose(VERB_ALGO, "seen REVOKE flag, check self-signed, rr %d",
 		(int)i);
 	/* no algorithm downgrade protection necessary, if it is selfsigned
 	 * revoked it can be removed. */
 	sec = dnskey_verify_rrset(env, ve, dnskey_rrset, dnskey_rrset, i, 
-		&reason, NULL, LDNS_SECTION_ANSWER, qstate);
+		&reason, NULL, LDNS_SECTION_ANSWER, qstate, vq,
+		&num_tagmatches);
 	return (sec == sec_status_secure);
 }
 
@@ -1575,7 +1578,7 @@ init_events(struct trust_anchor* tp)
 static void
 check_contains_revoked(struct module_env* env, struct val_env* ve,
 	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset,
-	int* changed, struct module_qstate* qstate)
+	int* changed, struct module_qstate* qstate, struct val_qstate* vq)
 {
 	struct packed_rrset_data* dd = (struct packed_rrset_data*)
 		dnskey_rrset->entry.data;
@@ -1595,7 +1598,8 @@ check_contains_revoked(struct module_env* env, struct val_env* ve,
 		}
 		if(!ta)
 			continue; /* key not found */
-		if(rr_is_selfsigned_revoked(env, ve, dnskey_rrset, i, qstate)) {
+		if(rr_is_selfsigned_revoked(env, ve, dnskey_rrset, i, qstate,
+			vq)) {
 			/* checked if there is an rrsig signed by this key. */
 			/* same keytag, but stored can be revoked already, so 
 			 * compare keytags, with +0 or +128(REVOKE flag) */
@@ -2209,7 +2213,7 @@ autr_tp_remove(struct module_env* env, struct trust_anchor* tp,
 
 int autr_process_prime(struct module_env* env, struct val_env* ve,
 	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset,
-	struct module_qstate* qstate)
+	struct module_qstate* qstate, struct val_qstate* vq)
 {
 	int changed = 0;
 	log_assert(tp && tp->autr);
@@ -2250,7 +2254,7 @@ int autr_process_prime(struct module_env* env, struct val_env* ve,
 		return 1; /* trust point exists */
 	}
 	/* check for revoked keys to remove immediately */
-	check_contains_revoked(env, ve, tp, dnskey_rrset, &changed, qstate);
+	check_contains_revoked(env, ve, tp, dnskey_rrset, &changed, qstate, vq);
 	if(changed) {
 		verbose(VERB_ALGO, "autotrust: revokedkeys, reassemble");
 		if(!autr_assemble(tp)) {
@@ -2266,7 +2270,7 @@ int autr_process_prime(struct module_env* env, struct val_env* ve,
 		}
 	}
 	/* verify the dnskey rrset and see if it is valid. */
-	if(!verify_dnskey(env, ve, tp, dnskey_rrset, qstate)) {
+	if(!verify_dnskey(env, ve, tp, dnskey_rrset, qstate, vq)) {
 		verbose(VERB_ALGO, "autotrust: dnskey did not verify.");
 		/* only increase failure count if this is not the first prime,
 		 * this means there was a previous successful probe */

@@ -196,7 +196,7 @@ verifytest_rrset(struct module_env* env, struct val_env* ve,
 	setup_sigalg(dnskey, sigalg); /* check all algorithms in the dnskey */
 	/* ok to give null as qstate here, won't be used for answer section. */
 	sec = dnskeyset_verify_rrset(env, ve, rrset, dnskey, sigalg, &reason,
-		NULL, LDNS_SECTION_ANSWER, NULL, &verified, reasonbuf,
+		NULL, LDNS_SECTION_ANSWER, NULL, NULL, &verified, reasonbuf,
 		sizeof(reasonbuf));
 	if(vsig) {
 		printf("verify outcome is: %s %s\n", sec_status_to_string(sec),
@@ -510,6 +510,146 @@ nsec3_hash_test(const char* fname)
 	sldns_buffer_free(buf);
 }
 
+/** Test the rrset_canonicalize_to_buffer function to see if the
+ * size of canon_owner name is properly checked for. */
+static void
+canon_owner_buf_test(void)
+{
+	struct regional* region;
+	sldns_buffer* buf;
+	struct ub_packed_rrset_key k;
+	struct packed_rrset_data d;
+	size_t rr_len[2];
+	time_t rr_ttl[2];
+	uint8_t* rr_data[2];
+	int ret;
+	unit_show_func("validator/val_sigcrypt.c",
+		"rrset_canonicalize_to_buffer");
+	region = regional_create();
+	if(!region)
+		fatal_exit("out of memory");
+	/* Purposefully a very small buffer, to overflow it */
+	buf = sldns_buffer_new(28);
+	if(!buf)
+		fatal_exit("out of memory");
+
+	/* An RRset to canonicalize. The buffer is made smaller, so
+	 * it can fail on bounds checks. */
+	memset(&d, 0, sizeof(d));
+	d.ttl = 3600;
+	d.count = 1;
+	d.rrsig_count = 1;
+	d.rr_len = rr_len;
+	d.rr_ttl = rr_ttl;
+	d.rr_data = rr_data;
+	rr_len[0] = 18;
+	rr_len[1] = 36;
+	rr_ttl[0] = 3600;
+	rr_ttl[1] = 3600;
+	rr_data[0] = (uint8_t*)"\x00\x10\x0Fzzaaaaaaaaaaaaa";
+	rr_data[1] = (uint8_t*)"\x00\x24\x00\x06\x08\x3\x01\x02\x03\x04\x01\x02\x03\x04\x01\x02\x03\x04\x12\x34\x03zzz\x00zzaaaaaaaaaaa";
+
+	memset(&k, 0, sizeof(k));
+	k.rk.dname = (uint8_t*) "\x0f" "aaaaaaaaaaaaaaa" "\x00";
+	k.rk.dname_len = 17;
+	k.rk.type = htons(LDNS_RR_TYPE_TXT);
+	k.rk.rrset_class = htons(LDNS_RR_CLASS_IN);
+	k.entry.data = &d;
+
+	/* There should be no buffer overflow, assertion failure, here */
+	ret = rrset_canonicalize_to_buffer(region, buf, &k);
+	unit_assert(ret == 0);
+
+	regional_destroy(region);
+	sldns_buffer_free(buf);
+}
+
+/** Test if ds_digest_match_dnskey that calls ds_create_dnskey_digest,
+ * checks the buffer size. */
+static void
+dnskey_ds_digest_test(void)
+{
+	struct regional* region;
+	sldns_buffer* buf;
+	struct module_env env;
+	struct ub_packed_rrset_key k1, k2;
+	struct packed_rrset_data d1, d2;
+	size_t rr_len1[1], rr_len2[1];
+	time_t rr_ttl1[1], rr_ttl2[1];
+	uint8_t* rr_rdata1[1], *rr_rdata2[1];
+	int ret;
+	unit_show_func("validator/val_sigcrypt.c", "ds_digest_match_dnskey");
+	region = regional_create();
+	if(!region)
+		fatal_exit("out of memory");
+	/* Purposefully a very small buffer, to overflow it */
+	buf = sldns_buffer_new(28);
+	if(!buf)
+		fatal_exit("out of memory");
+	memset(&env, 0, sizeof(env));
+	env.scratch = region;
+	env.scratch_buffer = buf;
+
+	/* A DNSKEY and DS RRset to match together. The buffer is made
+	 * smaller, so it can fail on bounds checks. */
+	memset(&d1, 0, sizeof(d1));
+	d1.ttl = 3600;
+	d1.count = 1;
+	d1.rr_len = rr_len1;
+	d1.rr_ttl = rr_ttl1;
+	d1.rr_data = rr_rdata1;
+	rr_len1[0] = 38;
+	rr_ttl1[0] = 3600;
+	/* DS rdata has: keytag (2bytes), algorithm (1byte),
+	 * digesttype (1byte), digest (remainder). */
+	rr_rdata1[0] = (uint8_t*)"\x00\x24"
+		"\x12\x34"
+		"\x08" /* RSASHA256 */
+		"\x02" /* SHA256 */
+		"0123456789abcdef0123456789abcdef"; /* 32 bytes */
+		;
+
+	memset(&k1, 0, sizeof(k1));
+	k1.rk.dname = (uint8_t*) "\x03" "foo" "\x00";
+	k1.rk.dname_len = 5;
+	k1.rk.type = htons(LDNS_RR_TYPE_DS);
+	k1.rk.rrset_class = htons(LDNS_RR_CLASS_IN);
+	k1.entry.data = &d1;
+
+	memset(&d2, 0, sizeof(d2));
+	d2.ttl = 3600;
+	d2.count = 1;
+	d2.rr_len = rr_len2;
+	d2.rr_ttl = rr_ttl2;
+	d2.rr_data = rr_rdata2;
+	rr_len2[0] = 38;
+	rr_ttl2[0] = 3600;
+	/* DNSKEY rdata has: flags (2bytes), protocol (1byte),
+	 * algorithm (1byte), publickey (remainder). */
+	rr_rdata2[0] = (uint8_t*)"\x00\x24"
+		"\x01\x01" /* KSK */
+		"\x03" /* DNSSEC_KEYPROTO */
+		"\x08" /* RSASHA256 */
+		"0123456789abcdef0123456789abcdef"; /* 32 bytes of content */
+		;
+
+	memset(&k2, 0, sizeof(k2));
+	k2.rk.dname = (uint8_t*) "\x03" "foo" "\x00";
+	k2.rk.dname_len = 5;
+	k2.rk.type = htons(LDNS_RR_TYPE_DNSKEY);
+	k2.rk.rrset_class = htons(LDNS_RR_CLASS_IN);
+	k2.entry.data = &d2;
+	/* 36 byte rdata length for DNSKEY (38-2), and dname length of 5,
+	 * exceeds the (small) buffer size. */
+
+	/* There should be no buffer overflow, assertion failure, here */
+	ret = ds_digest_match_dnskey(&env, &k2, 0, &k1, 0);
+	unit_assert(ret == 0);
+
+	regional_destroy(region);
+	sldns_buffer_free(buf);
+}
+
 #define xstr(s) str(s)
 #define str(s) #s
 
@@ -724,4 +864,6 @@ verify_test(void)
 #endif
 	nsectest();
 	nsec3_hash_test(SRCDIRSTR "/testdata/test_nsec3_hash.1");
+	dnskey_ds_digest_test();
+	canon_owner_buf_test();
 }

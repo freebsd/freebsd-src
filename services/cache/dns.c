@@ -677,7 +677,7 @@ tomsg(struct module_env* env, struct query_info* q, struct reply_info* r,
 		rrset_array_unlock(r->ref, r->rrset_count);
 		return NULL;
 	}
-	if(r->security == sec_status_secure && !reply_all_rrsets_secure(r)) {
+	if(r->security == sec_status_secure && !reply_an_ns_rrsets_secure(r)) {
 		/* message rrsets have changed status, revalidate */
 		rrset_array_unlock(r->ref, r->rrset_count);
 		return NULL;

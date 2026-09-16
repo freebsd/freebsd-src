@@ -786,3 +786,13 @@ size_t doq_table_quic_size_get(struct doq_table* ATTR_UNUSED(table))
 	return 0;
 }
 #endif
+
+void tcp_read_again_cb(void* ATTR_UNUSED(arg))
+{
+	/* nothing */
+}
+
+void tcp_more_read_again_cb(void* ATTR_UNUSED(arg))
+{
+	/* nothing */
+}

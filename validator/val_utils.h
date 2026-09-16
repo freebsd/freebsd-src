@@ -55,6 +55,11 @@ struct regional;
 struct val_anchors;
 struct rrset_cache;
 struct sock_list;
+struct val_qstate;
+
+/** Maximum number of matches with key tag and algorithm, for DNSKEY to
+ * RRSIG and DS to DNSKEY. Since the number is O(N*N), there is a limit. */
+#define MAX_TAG_MATCHES 256
 
 /**
  * Response classifications for the validator. The different types of proofs.
@@ -124,6 +129,7 @@ void val_find_signer(enum val_classification subtype,
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
  * @param verified: if not NULL, the number of RRSIG validations is returned.
  * @param reasonbuf: buffer to use for fail reason string print.
  * @param reasonlen: length of reasonbuf.
@@ -133,7 +139,8 @@ enum sec_status val_verify_rrset_entry(struct module_env* env,
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
 	struct key_entry_key* kkey, char** reason, sldns_ede_code *reason_bogus,
 	sldns_pkt_section section, struct module_qstate* qstate,
-	int* verified, char* reasonbuf, size_t reasonlen);
+	struct val_qstate* vq, int* verified, char* reasonbuf,
+	size_t reasonlen);
 
 /**
  * Verify DNSKEYs with DS rrset. Like val_verify_new_DNSKEYs but
@@ -148,6 +155,7 @@ enum sec_status val_verify_rrset_entry(struct module_env* env,
  * @param reason: reason of failure. Fixed string or alloced in scratch.
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
  * @param reasonbuf: buffer to use for fail reason string print.
  * @param reasonlen: length of reasonbuf.
  * @return: sec_status_secure if a DS matches.
@@ -158,7 +166,7 @@ enum sec_status val_verify_DNSKEY_with_DS(struct module_env* env,
     struct val_env* ve, struct ub_packed_rrset_key* dnskey_rrset,
     struct ub_packed_rrset_key* ds_rrset, uint8_t* sigalg, char** reason,
     sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-    char* reasonbuf, size_t reasonlen);
+    struct val_qstate* vq, char* reasonbuf, size_t reasonlen);
 
 /**
  * Verify DNSKEYs with DS and DNSKEY rrset.  Like val_verify_DNSKEY_with_DS
@@ -174,6 +182,7 @@ enum sec_status val_verify_DNSKEY_with_DS(struct module_env* env,
  * @param reason: reason of failure. Fixed string or alloced in scratch.
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
  * @param reasonbuf: buffer to use for fail reason string print.
  * @param reasonlen: length of reasonbuf.
  * @return: sec_status_secure if a DS matches.
@@ -185,7 +194,7 @@ enum sec_status val_verify_DNSKEY_with_TA(struct module_env* env,
     struct ub_packed_rrset_key* ta_ds,
     struct ub_packed_rrset_key* ta_dnskey, uint8_t* sigalg, char** reason,
     sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-    char* reasonbuf, size_t reasonlen);
+    struct val_qstate* vq, char* reasonbuf, size_t reasonlen);
 
 /**
  * Verify new DNSKEYs with DS rrset. The DS contains hash values that should
@@ -202,6 +211,7 @@ enum sec_status val_verify_DNSKEY_with_TA(struct module_env* env,
  * @param reason: reason of failure. Fixed string or alloced in scratch.
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
  * @param reasonbuf: buffer to use for fail reason string print.
  * @param reasonlen: length of reasonbuf.
  * @return a KeyEntry. This will either contain the now trusted
@@ -219,7 +229,7 @@ struct key_entry_key* val_verify_new_DNSKEYs(struct regional* region,
     struct ub_packed_rrset_key* dnskey_rrset, 
     struct ub_packed_rrset_key* ds_rrset, int downprot, char** reason,
     sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-    char* reasonbuf, size_t reasonlen);
+    struct val_qstate* vq, char* reasonbuf, size_t reasonlen);
 
 /**
  * Verify rrset with trust anchor: DS and DNSKEY rrset.
@@ -235,6 +245,7 @@ struct key_entry_key* val_verify_new_DNSKEYs(struct regional* region,
  * @param reason: reason of failure. Fixed string or alloced in scratch.
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
  * @param reasonbuf: buffer to use for fail reason string print.
  * @param reasonlen: length of reasonbuf.
  * @return a KeyEntry. This will either contain the now trusted
@@ -253,7 +264,7 @@ struct key_entry_key* val_verify_new_DNSKEYs_with_ta(struct regional* region,
     struct ub_packed_rrset_key* ta_ds_rrset,
     struct ub_packed_rrset_key* ta_dnskey_rrset, int downprot,
     char** reason, sldns_ede_code *reason_bogus, struct module_qstate* qstate,
-    char* reasonbuf, size_t reasonlen);
+    struct val_qstate* vq, char* reasonbuf, size_t reasonlen);
 
 /**
  * Determine if DS rrset is usable for validator or not.

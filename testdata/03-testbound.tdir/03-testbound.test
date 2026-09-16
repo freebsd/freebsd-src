@@ -85,6 +85,15 @@ for input in $PRE/testdata/*.rpl $PRE/testdata/*.crpl; do
 		fi
 	fi
 
+	# detect if ECDSA is needed
+	if echo $cleaninput | grep ecdsa >/dev/null 2>&1; then
+		if $PRE/testbound -e >/dev/null 2>&1; then
+			: # ECDSA is supported
+		else
+			continue
+		fi
+	fi
+
 	# detect if CLIENT_SUBNET is needed
 	if echo $cleaninput | grep subnet >/dev/null 2>&1; then
 		if $PRE/testbound -c >/dev/null 2>&1; then
