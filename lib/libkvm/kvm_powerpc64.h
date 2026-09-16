@@ -49,6 +49,7 @@
 
 #define	PPC64_MMU_G5		"mmu_g5"
 #define	PPC64_MMU_PHYP		"mmu_phyp"
+#define	PPC64_MMU_RADIX		"mmu_radix"
 
 /* MMU interface */
 #define	PPC64_MMU_OPS(kd)	(kd)->vmst->mmu.ops
@@ -75,5 +76,6 @@ struct vmstate {
 };
 
 extern struct ppc64_mmu_ops *ppc64_mmu_ops_hpt;
+extern struct ppc64_mmu_ops *ppc64_mmu_ops_radix;
 
 #endif /* !__KVM_POWERPC64_H__ */

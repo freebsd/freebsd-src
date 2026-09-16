@@ -131,6 +131,8 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 	if (strcmp(mmu_name, PPC64_MMU_G5) == 0 ||
 	    strcmp(mmu_name, PPC64_MMU_PHYP) == 0)
 		PPC64_MMU_OPS(kd) = ppc64_mmu_ops_hpt;
+	else if (strcmp(mmu_name, PPC64_MMU_RADIX) == 0)
+		PPC64_MMU_OPS(kd) = ppc64_mmu_ops_radix;
 	else {
 		_kvm_err(kd, kd->program, "unsupported MMU: %s", mmu_name);
 		goto failed;
