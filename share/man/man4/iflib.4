@@ -1,4 +1,4 @@
-.Dd September 14, 2026
+.Dd September 16, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -79,7 +79,9 @@ resource contention is not a problem (well behaved applications on
 systems where there are as many NIC queues as CPU cores).
 Note that when this is enabled, the tx_abdicate sysctl is no longer
 applicable and is ignored.
-Defaults to zero.
+By default, this is the inverse of
+.Va net.iflib.prefer_mpring .
+An explicitly configured value takes precedence over that global default.
 .El
 .Pp
 These
@@ -144,6 +146,17 @@ Some NICs allow processing completed transmit descriptors in batches.
 Doing so usually increases the transmit throughput by reducing the number of
 transmit interrupts.
 Setting this to a non-zero value will disable the use of this feature.
+.It Va net.iflib.prefer_mpring
+When set, use the
+.Va mp_ring
+transmit path by default instead of the simple transmit path.
+This is a read-only tunable that must be set before
+.Nm
+is loaded.
+An explicitly configured per-device
+.Va simple_tx
+value takes precedence.
+The default is one.
 .It Va net.iflib.simple_drain_quota
 Sets the maximum number of packets that the transmit task may remove from a
 simple transmit deferral ring in one drain operation.
