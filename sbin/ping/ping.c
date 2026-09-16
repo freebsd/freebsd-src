@@ -1119,6 +1119,7 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	struct icmp oicmp;
 	const u_char *oicmp_raw;
 
+	bzero(&icp, sizeof(icp));
 	/*
 	 * Get size of IP header of the received packet.
 	 * The header length is contained in the lower four bits of the first
@@ -1158,6 +1159,20 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	if (icp.icmp_type == icmp_type_rsp) {
 		if (icp.icmp_id != ident)
 			return;			/* 'Twas not our ECHO */
+		if (icmp_type_rsp == ICMP_MASKREPLY &&
+		    cc < (ssize_t)(ICMP_MINLEN + MASK_LEN)) {
+			if (options & F_VERBOSE)
+				warnx("truncated mask reply (%zd bytes) from %s",
+				    cc, inet_ntoa(from->sin_addr));
+			return;
+		}
+		if (icmp_type_rsp == ICMP_TSTAMPREPLY &&
+		    cc < (ssize_t)(ICMP_MINLEN + TS_LEN)) {
+			if (options & F_VERBOSE)
+				warnx("truncated timestamp reply (%zd bytes) from %s",
+				    cc, inet_ntoa(from->sin_addr));
+			return;
+		}
 		++nreceived;
 		triptime = 0.0;
 		if (timing) {
