@@ -384,6 +384,9 @@ struct comm_point {
 	 * Or leave NULL if it is not used at all. */
 	int* tcp_more_write_again;
 
+	/** resume timer for tcp_more_read_again */
+	struct comm_timer* tcp_more_read_again_timer;
+
 	/** if set, read/write completes:
 		read/write state of tcp is toggled.
 		buffer reset/bytecount reset.
@@ -1132,6 +1135,12 @@ void doq_send_pkt(struct comm_point* c, struct doq_pkt_addr* paddr,
 
 /** doq timer callback function. */
 void doq_timer_cb(void* arg);
+
+/** tcp read again callback function. For tcp req info listen. */
+void tcp_read_again_cb(void* arg);
+
+/** tcp more read again callback function. For outside network. */
+void tcp_more_read_again_cb(void* arg);
 
 /**
  * This routine is published for checks and tests, and is only used internally.

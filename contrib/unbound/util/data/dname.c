@@ -192,34 +192,34 @@ pkt_dname_len(sldns_buffer* pkt)
 	while(1) {
 		/* read next label */
 		if(sldns_buffer_remaining(pkt) < 1)
-			return 0;
+			goto fail;
 		labellen = sldns_buffer_read_u8(pkt);
 		if(LABEL_IS_PTR(labellen)) {
 			/* compression ptr */
 			uint16_t ptr;
 			if(sldns_buffer_remaining(pkt) < 1)
-				return 0;
+				goto fail;
 			ptr = PTR_OFFSET(labellen, sldns_buffer_read_u8(pkt));
 			if(ptrcount++ > MAX_COMPRESS_PTRS)
-				return 0; /* loop! */
+				goto fail; /* loop! */
 			if(sldns_buffer_limit(pkt) <= ptr)
-				return 0; /* out of bounds! */
+				goto fail; /* out of bounds! */
 			if(!endpos)
 				endpos = sldns_buffer_position(pkt);
 			sldns_buffer_set_position(pkt, ptr);
 		} else {
 			/* label contents */
 			if(labellen > 0x3f)
-				return 0; /* label too long */
+				goto fail; /* label too long */
 			len += 1 + labellen;
 			if(len > LDNS_MAX_DOMAINLEN)
-				return 0;
+				goto fail;
 			if(labellen == 0) {
 				/* end of dname */
 				break;
 			}
 			if(sldns_buffer_remaining(pkt) < labellen)
-				return 0;
+				goto fail;
 			sldns_buffer_skip(pkt, (ssize_t)labellen);
 		}
 	}
@@ -227,6 +227,13 @@ pkt_dname_len(sldns_buffer* pkt)
 		sldns_buffer_set_position(pkt, endpos);
 
 	return len;
+fail:
+	/* Restore the position on failure too: callers (rdata_copy) compute
+	 * the consumed field length from the buffer position and must not
+	 * see a partial walk of a name that failed to parse. */
+	if(endpos)
+		sldns_buffer_set_position(pkt, endpos);
+	return 0;
 }
 
 int 

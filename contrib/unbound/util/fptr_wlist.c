@@ -141,6 +141,8 @@ fptr_whitelist_comm_timer(void (*fptr)(void*))
 #ifdef UB_ON_WINDOWS
 	else if(fptr == &wsvc_cron_cb) return 1;
 #endif
+	else if(fptr == &tcp_read_again_cb) return 1;
+	else if(fptr == &tcp_more_read_again_cb) return 1;
 	else if(fptr == &auth_xfer_timer) return 1;
 	else if(fptr == &auth_xfer_probe_timer_callback) return 1;
 	else if(fptr == &auth_xfer_transfer_timer_callback) return 1;

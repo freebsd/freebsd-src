@@ -294,7 +294,14 @@ synth_cname_rrset(uint8_t** sname, size_t* snamelen, uint8_t* alias,
 		if(ttl_t > MAX_TTL) ttl_t = MAX_TTL;
 		ttl = (uint32_t)ttl_t;
 		sldns_write_uint32(cn->rr_first->ttl_data, ttl);
-		sldns_write_uint32(rrset->rr_first->ttl_data, ttl);
+		/* Do NOT write the clamp back into the packet buffer:
+		 * parse_packet already sized every name from the original
+		 * bytes and rdata_copy re-walks them trusting those sizes;
+		 * mutating packet bytes between the walks breaks that
+		 * invariant (compression pointers can target these TTL
+		 * bytes). The DNAME rrset receives the same clamp at store
+		 * time in rdata_copy, so the DNAME and the synthesized
+		 * CNAME still carry equal TTLs in the cache. */
 	}
 	sldns_write_uint16(cn->rr_first->ttl_data+4, aliaslen);
 	memmove(cn->rr_first->ttl_data+6, alias, aliaslen);
@@ -648,6 +655,9 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					if(rrset->type == LDNS_RR_TYPE_NS &&
 						rrset->rr_count > env->cfg->iter_scrub_ns) {
 						shorten_rrset(pkt, rrset, env->cfg->iter_scrub_ns);
+					} else if(rrset->type == LDNS_RR_TYPE_DS &&
+						rrset->rr_count > env->cfg->iter_scrub_ns) {
+						shorten_rrset(pkt, rrset, env->cfg->iter_scrub_ns);
 					}
 					prev = rrset;
 					rrset = rrset->rrset_all_next;
@@ -665,6 +675,9 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 		}
 
 		if(rrset->type == LDNS_RR_TYPE_NS &&
+			rrset->rr_count > env->cfg->iter_scrub_ns) {
+			shorten_rrset(pkt, rrset, env->cfg->iter_scrub_ns);
+		} else if(rrset->type == LDNS_RR_TYPE_DS &&
 			rrset->rr_count > env->cfg->iter_scrub_ns) {
 			shorten_rrset(pkt, rrset, env->cfg->iter_scrub_ns);
 		}
@@ -790,6 +803,11 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				} else {
 					shorten_rrset(pkt, rrset, env->cfg->iter_scrub_ns);
 				}
+			}
+		} else if(rrset->type==LDNS_RR_TYPE_DS) {
+			if(rrset->rr_count > env->cfg->iter_scrub_ns) {
+				shorten_rrset(pkt, rrset,
+					env->cfg->iter_scrub_ns);
 			}
 		}
 		/* if this is type DS and we query for type DS we just got
