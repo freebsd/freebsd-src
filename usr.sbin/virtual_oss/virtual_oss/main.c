@@ -2564,6 +2564,7 @@ int
 main(int argc, char **argv)
 {
 	const char *ptrerr;
+	const char *cuse_mod = "cuse.ko";
 	struct sigaction sa;
 	struct cuse_dev *pdev = NULL;
 	struct virtual_profile *pvp;
@@ -2583,9 +2584,17 @@ main(int argc, char **argv)
 
 	atomic_init();
 
-	if (kldload("cuse.ko") < 0 && errno != EEXIST)
-		err(1, "Failed to load cuse kernel module");
+	ptrerr = parse_options(argc, argv, 1);
+	if (ptrerr != NULL)
+		errx(EX_USAGE, "%s", ptrerr);
 
+	if (kldfind(cuse_mod) < 0 && errno == ENOENT) {
+		/* module is not loaded */
+		if (kldload(cuse_mod) < 0 && errno != EEXIST)
+			err(1, "Failed to load cuse kernel module");
+	}
+
+	/* cuse is loaded, initialize it */
 	if (cuse_init() != 0)
 		errx(EX_USAGE, "Could not connect to cuse module");
 
@@ -2599,9 +2608,6 @@ main(int argc, char **argv)
 	if (sigaction(SIGTERM, &sa, NULL) < 0)
 		err(1, "sigaction(SIGTERM)");
 
-	ptrerr = parse_options(argc, argv, 1);
-	if (ptrerr != NULL)
-		errx(EX_USAGE, "%s", ptrerr);
 
 	if (voss_dsp_rx_device[0] == 0 || voss_dsp_tx_device[0] == 0)
 		errx(EX_USAGE, "Missing -f argument");
