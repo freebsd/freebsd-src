@@ -266,7 +266,8 @@ main(int argc, char *argv[])
 		if (strcmp(argv[n], "--help") == 0)
 			help();
 		if (strcmp(argv[n], "--version") == 0) {
-			puts(SYSCONF_VERSION);
+			printf("%s (libbsdconf %s)\n", SYSCONF_VERSION,
+			    BSDCONF_VERSION);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -711,7 +712,7 @@ help(void)
 	fprintf(stderr, OPTFMT, "--help",
 	    "Print this message to stderr and exit.");
 	fprintf(stderr, OPTFMT, "--version",
-	    "Print version information to stdout and exit.");
+	    "Print the utility and library versions and exit.");
 	fprintf(stderr, OPTFMT, "-i",
 	    "Ignore unknown names (and quiet unknown sysctl OID warnings).");
 	fprintf(stderr, OPTFMT, "-j jail",

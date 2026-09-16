@@ -32,6 +32,14 @@
 #endif
 
 /*
+ * Library version info
+ */
+#define BSDCONF_VERSION		"1.1.0 2026-09-15"
+#define BSDCONF_VERSION_MAJOR	1
+#define BSDCONF_VERSION_MINOR	1
+#define BSDCONF_VERSION_PATCH	0
+
+/*
  * Union for storing various types of data in a single common container.
  *
  * NB: When writing a value with bsdconf_put(), the caller supplies the value

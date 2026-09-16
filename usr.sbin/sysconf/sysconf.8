@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd August 2, 2026
+.Dd September 15, 2026
 \
 .Dt SYSCONF 8
 .Os
@@ -453,7 +453,11 @@ Print a short usage statement
 .Pq or, for the long form, the full option summary
 to stderr and exit.
 .It Fl Fl version
-Print version information to stdout and exit.
+Print
+.Nm
+and linked
+.Xr bsdconf 3
+versions and exit.
 .It Fl i
 Ignore unknown names
 .Pq and suppress the warning when writing an unknown sysctl OID .

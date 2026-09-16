@@ -100,19 +100,19 @@ bsdconf_put(struct bsdconf_option options[], const char *path,
 	tpath[0] = '\0';
 
 	/* Decode processing options */
-	bequals = (processing_options & BSDCONF_BREAK_ON_EQUALS) != 0;
-	bsemicolon = (processing_options & BSDCONF_BREAK_ON_SEMICOLON) != 0;
-	case_sensitive = (processing_options & BSDCONF_CASE_SENSITIVE) != 0;
-	operator_equals = (processing_options & BSDCONF_OPERATOR_EQUALS) != 0;
-	require_equals = (processing_options & BSDCONF_REQUIRE_EQUALS) != 0;
-	strict_equals = (processing_options & BSDCONF_STRICT_EQUALS) != 0;
+	bequals = (processing_options & BSDCONF_BREAK_ON_EQUALS);
+	bsemicolon = (processing_options & BSDCONF_BREAK_ON_SEMICOLON);
+	case_sensitive = (processing_options & BSDCONF_CASE_SENSITIVE);
+	operator_equals = (processing_options & BSDCONF_OPERATOR_EQUALS);
+	require_equals = (processing_options & BSDCONF_REQUIRE_EQUALS);
+	strict_equals = (processing_options & BSDCONF_STRICT_EQUALS);
 
 	/* Decode put options */
-	backup = (put_options & BSDCONF_PUT_BACKUP) != 0;
-	emptyok = (put_options & BSDCONF_PUT_ALLOW_EMPTY) != 0;
-	nodup = (put_options & BSDCONF_PUT_NO_DUPLICATES) != 0;
-	quote_always = (put_options & BSDCONF_PUT_QUOTE_ALWAYS) != 0;
-	unquoted = (put_options & BSDCONF_PUT_UNQUOTED) != 0;
+	backup = (put_options & BSDCONF_PUT_BACKUP);
+	emptyok = (put_options & BSDCONF_PUT_ALLOW_EMPTY);
+	nodup = (put_options & BSDCONF_PUT_NO_DUPLICATES);
+	quote_always = (put_options & BSDCONF_PUT_QUOTE_ALWAYS);
+	unquoted = (put_options & BSDCONF_PUT_UNQUOTED);
 
 	/* Quoting directives are mutually exclusive */
 	if (unquoted && quote_always) {
