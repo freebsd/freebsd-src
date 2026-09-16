@@ -115,8 +115,7 @@
 
 #include <machine/in_cksum.h>
 
-VNET_DECLARE(struct uma_zone *, sack_hole_zone);
-#define	V_sack_hole_zone		VNET(sack_hole_zone)
+extern uma_zone_t tcp_sack_hole_zone;
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP SACK");
@@ -466,7 +465,7 @@ tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
 		return NULL;
 	}
 
-	hole = (struct sackhole *)uma_zalloc(V_sack_hole_zone, M_NOWAIT);
+	hole = uma_zalloc(tcp_sack_hole_zone, M_NOWAIT);
 	if (hole == NULL)
 		return NULL;
 
@@ -487,7 +486,7 @@ static void
 tcp_sackhole_free(struct tcpcb *tp, struct sackhole *hole)
 {
 
-	uma_zfree(V_sack_hole_zone, hole);
+	uma_zfree(tcp_sack_hole_zone, hole);
 
 	tp->snd_numholes--;
 	atomic_subtract_int(&V_tcp_sack_globalholes, 1);
