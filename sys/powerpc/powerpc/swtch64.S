@@ -186,6 +186,15 @@ save_tar:
 	sync				/* Make sure all of that finished */
 
 cpu_switchin:
+	/*
+	 * Release the old thread before waiting for the new one.  Two CPUs
+	 * may exchange threads, so waiting first would leave each CPU waiting
+	 * for the other to perform this store.
+	 */
+	cmpdi	%r14,0
+	beq-	1f
+	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
+1:
 #if defined(SMP)
 	/* Wait for the new thread to become unblocked */
 	addis	%r6,%r2,TOC_REF(blocked_lock)@ha
@@ -193,20 +202,15 @@ cpu_switchin:
 blocked_loop:
 	ld	%r7,TD_LOCK(%r13)
 	cmpd	%r6,%r7 
-	isync
 	beq-	blocked_loop
+	isync				/* Acquire thread state. */
 #endif
 	
 	ld	%r17,TD_PCB(%r13)	/* Get new PCB */
 	ld	%r1,PCB_SP(%r17)	/* Load the stack pointer */
 	addi	%r1,%r1,-48		/* Remember about cpu_switch stack frame */
 
-	/* Release old thread now that we have a stack pointer set up */
-	cmpdi	%r14,0
-	beq-	1f
-	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
-
-1:	mfsprg	%r7,0			/* Get the pcpu pointer */
+	mfsprg	%r7,0			/* Get the pcpu pointer */
 	std	%r13,PC_CURTHREAD(%r7)	/* Store new current thread */
 	ld	%r17,TD_PCB(%r13)	/* Store new current PCB */
 	std	%r17,PC_CURPCB(%r7)
