@@ -80,6 +80,7 @@ timer_Start(struct pppTimer *tp)
   struct pppTimer *t, *pt;
   u_long ticks = 0;
   sigset_t mask, omask;
+  int i;
 
   sigemptyset(&mask);
   sigaddset(&mask, SIGALRM);
@@ -89,7 +90,7 @@ timer_Start(struct pppTimer *tp)
     StopTimerNoBlock(tp);
 
   if (tp->load == 0) {
-    log_Printf(LogTIMER, "%s timer[%p] has 0 load!\n", tp->name, tp);
+    log_Printf(LogTIMER, "%s timer has 0 load!\n", tp->name);
     sigprocmask(SIG_SETMASK, &omask, NULL);
     return;
   }
@@ -102,7 +103,7 @@ timer_Start(struct pppTimer *tp)
     ticks = RESTVAL(itimer) - TimerList->rest;
 
   pt = NULL;
-  for (t = TimerList; t; t = t->next) {
+  for (i = 0, t = TimerList; t; t = t->next, i++) {
     if (ticks + t->rest >= tp->load)
       break;
     ticks += t->rest;
@@ -113,10 +114,11 @@ timer_Start(struct pppTimer *tp)
   tp->rest = tp->load - ticks;
 
   if (t)
-    log_Printf(LogTIMER, "timer_Start: Inserting %s timer[%p] before %s "
-              "timer[%p], delta = %ld\n", tp->name, tp, t->name, t, tp->rest);
+    log_Printf(LogTIMER, "timer_Start: Inserting %s timer[%d] before %s "
+              "timer[%d], delta = %ld\n", tp->name, i, t->name, i + 1,
+              tp->rest);
   else
-    log_Printf(LogTIMER, "timer_Start: Inserting %s timer[%p]\n", tp->name, tp);
+    log_Printf(LogTIMER, "timer_Start: Inserting %s timer[%d]\n", tp->name, i);
 
   /* Insert given *tp just before *t */
   tp->next = t;
@@ -237,6 +239,7 @@ timer_Show(int LogLevel, struct prompt *prompt)
   struct itimerval itimer;
   struct pppTimer *pt;
   long rest;
+  int i;
 
   /*
    * Adjust the base time so that the deltas reflect what's really
@@ -253,14 +256,14 @@ timer_Show(int LogLevel, struct prompt *prompt)
 #define SECS(val)	((val) / SECTICKS)
 #define HSECS(val)	(((val) % SECTICKS) * 100 / SECTICKS)
 #define DISP								\
-  "%s timer[%p]: freq = %ld.%02lds, next = %lu.%02lus, state = %s\n",	\
-  pt->name, pt, SECS(pt->load), HSECS(pt->load), SECS(rest),		\
+  "%s timer[%d]: freq = %ld.%02lds, next = %lu.%02lus, state = %s\n",	\
+  pt->name, i, SECS(pt->load), HSECS(pt->load), SECS(rest),		\
   HSECS(rest), tState2Nam(pt->state)
 
   if (!prompt)
     log_Printf(LogLevel, "---- Begin of Timer Service List---\n");
 
-  for (pt = TimerList; pt; pt = pt->next) {
+  for (pt = TimerList, i = 0; pt; pt = pt->next, i++) {
     rest += pt->rest;
     if (prompt)
       prompt_Printf(prompt, DISP);

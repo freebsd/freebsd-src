@@ -780,8 +780,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "ESP: %s ---> ", ncpaddr_ntoa(&srcaddr));
       loglen += strlen(logbuf + loglen);
-      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s, spi %p",
-               ncpaddr_ntoa(&dstaddr), payload);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s",
+               ncpaddr_ntoa(&dstaddr));
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -791,8 +791,8 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "AH: %s ---> ", ncpaddr_ntoa(&srcaddr));
       loglen += strlen(logbuf + loglen);
-      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s, spi %p",
-               ncpaddr_ntoa(&dstaddr), payload + sizeof(u_int32_t));
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s",
+               ncpaddr_ntoa(&dstaddr));
       loglen += strlen(logbuf + loglen);
     }
     break;

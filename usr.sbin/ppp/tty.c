@@ -187,8 +187,7 @@ tty_StartTimer(struct physical *p)
   dev->Timer.func = tty_Timeout;
   dev->Timer.name = "tty CD";
   dev->Timer.arg = p;
-  log_Printf(LogDEBUG, "%s: Using tty_Timeout [%p]\n",
-             p->link.name, tty_Timeout);
+  log_Printf(LogDEBUG, "%s: Using tty_Timeout\n", p->link.name);
   timer_Start(&dev->Timer);
 }
 
