@@ -931,6 +931,7 @@ mmu_radix_kenter(vm_offset_t va, vm_paddr_t pa)
 	MPASS(pte != NULL);
 	*pte = htobe64(pa | RPTE_VALID | RPTE_LEAF | RPTE_EAA_R | \
 	    RPTE_EAA_W | RPTE_EAA_P | PG_M | PG_A);
+	ptesync();
 }
 
 bool
@@ -6147,6 +6148,7 @@ mmu_radix_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 	pteval = pa | RPTE_EAA_R | RPTE_EAA_W | RPTE_EAA_P | PG_M | PG_A;
 	cache_bits = mmu_radix_calc_wimg(pa, ma);
 	pte_store(pte, pteval | cache_bits);
+	ptesync();
 }
 
 void
@@ -6158,6 +6160,7 @@ mmu_radix_kremove(vm_offset_t va)
 
 	pte = kvtopte(va);
 	pte_clear(pte);
+	pmap_invalidate_page(kernel_pmap, va);
 }
 
 int
