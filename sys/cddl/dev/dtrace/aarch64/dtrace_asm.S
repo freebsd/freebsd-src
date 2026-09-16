@@ -104,9 +104,9 @@ END(dtrace_fuword64_nocheck)
 
 /*
 void
-dtrace_copy(uintptr_t uaddr, uintptr_t kaddr, size_t size)
+dtrace_copyin_pan(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 */
-ENTRY(dtrace_copy)
+ENTRY(dtrace_copyin_pan)
 	cbz	x2, 2f		/* If len == 0 then skip loop */
 1:
 	mvn	x4, xzr		/* Set all bits */
@@ -119,13 +119,13 @@ ENTRY(dtrace_copy)
 	cbnz	x2, 1b
 2:
 	RET
-END(dtrace_copy)
+END(dtrace_copyin_pan)
 
 /*
 void
-dtrace_copystr(uintptr_t uaddr, uintptr_t kaddr, size_t size)
+dtrace_copyinstr_pan(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 */
-ENTRY(dtrace_copystr)
+ENTRY(dtrace_copyinstr_pan)
 	cbz     x2, 2f          /* If len == 0 then skip loop */
 1:
 	mvn	x4, xzr		/* Set all bits */
@@ -139,7 +139,63 @@ ENTRY(dtrace_copystr)
 	cbnz    x2, 1b
 2:
 	RET
-END(dtrace_copystr)
+END(dtrace_copyinstr_pan)
+
+/*
+void
+dtrace_copyout_pan(uintptr_t kaddr, uintptr_t uaddr, size_t size,
+    volatile uint16_t *flags)
+*/
+ENTRY(dtrace_copyout_pan)
+	cbz	x2, 4f		/* If len == 0 then skip loop */
+	ldrb	w4, [x0], #1	/* Load from kaddr */
+	sttrb	w4, [x1]	/* Store in uaddr or raise data abort */
+	b 2f			/* Check fault */
+1:
+	ldrb	w4, [x0], #1	/* Load from kaddr */
+	sttrb	w4, [x1]	/* Store in uaddr or raise data abort */
+	tst	x1, #0xfff	/* uaddr & 2^12-1 */
+	bne	3f		/* If not 4k aligned then skip check */
+2:
+	ldrh	w5, [x3]	/* Load cpu flags */
+	tst	w5, #CPU_DTRACE_BADADDR
+	bne	4f		/* If flags&CPU_DTRACE_BADADDR != 0 then break */
+3:
+	add	x1, x1, #1	/* uaddr++ */
+	sub	x2, x2, #1	/* len-- */
+	cbnz	x2, 1b
+4:
+	RET
+END(dtrace_copyout_pan)
+
+
+/*
+void
+dtrace_copyoutstr_pan(uintptr_t kaddr, uintptr_t uaddr, size_t size,
+    volatile uint16_t *flags)
+*/
+ENTRY(dtrace_copyoutstr_pan)
+	cbz	x2, 4f		/* If len == 0 then skip loop */
+	ldrb	w4, [x0], #1	/* Load from kaddr */
+	sttrb	w4, [x1]	/* Store in uaddr or raise data abort */
+	b 2f			/* Check fault */
+1:
+	ldrb	w4, [x0], #1	/* Load from kaddr */
+	sttrb	w4, [x1]	/* Store in uaddr or raise data abort */
+	tst	x1, #0xfff	/* uaddr & 2^12-1 */
+	bne	3f		/* If not 4k aligned then skip check */
+2:
+	ldrh	w5, [x3]	/* Load cpu flags */
+	tst	w5, #CPU_DTRACE_BADADDR
+	bne	4f		/* If flags&CPU_DTRACE_BADADDR != 0 then break */
+3:
+	cbz     w4, 4f          /* If == 0 then break */
+	add	x1, x1, #1	/* uaddr++ */
+	sub	x2, x2, #1	/* len-- */
+	cbnz	x2, 1b
+4:
+	RET
+END(dtrace_copyoutstr_pan)
 
 /*
 uintptr_t
