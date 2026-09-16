@@ -80,6 +80,10 @@ def build_response_packet(echo, ip, icmp, oip_ihl, special):
         # Build a package with a wrong last byte
         payload_no_last_byte = sc.bytes_hex(load)[:-2]
         load = (sc.hex_bytes(payload_no_last_byte)) + b"\x00"
+    if special == "short-wrong":
+        # Build a short package with a wrong last byte
+        payload_no_last_byte = sc.bytes_hex(load)[:-4]
+        load = (sc.hex_bytes(payload_no_last_byte)) + b"\x00"
     if special == "not-mine":
         # Modify the ICMP Identifier field
         oicmp.id += 1
@@ -202,7 +206,7 @@ def pinger(
     :keyword oip_ihl: Inner packet's Internet Header Length, defaults to None
     :type oip_ihl: class:`scapy.fields.BitField`, optional
     :keyword special: Send a special packet - one of `no-payload`, `not-mine`,
-        `tcp`, `udp`, `wrong` or `warp`, defaults to None
+        `short-wrong`, `tcp`, `udp`, `wrong` or `warp`, defaults to None
     :type special: str, optional
     :keyword icmp_pptr: ICMP pointer, defaults to 0
     :type icmp_pptr: class:`scapy.fields.ByteField`
@@ -1463,6 +1467,40 @@ round-trip min/avg/max/stddev = /// ms
                 "redacted": True,
             },
             id="_0_0_special_wrong",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "special": "short-wrong",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+63 bytes from: icmp_seq=0 ttl= time= ms
+wrong total length 83 instead of 84
+wrong data byte #54 should be 0x1 but was 0x0
+cp: xx xx xx xx xx xx xx xx
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0
+dp: xx xx xx xx xx xx xx xx
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_special_short_wrong",
         ),
     ]
 
