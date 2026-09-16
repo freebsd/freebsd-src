@@ -143,7 +143,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 	index = name[0];
-        if (index >= MAC_BSDEXTENDED_MAXRULES)
+	if (index < 0 || index >= MAC_BSDEXTENDED_MAXRULES)
 		return (ENOENT);
 
 	ruleptr = NULL;
@@ -157,7 +157,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 
 	mtx_lock(&ugidfw_mtx);
 	if (req->oldptr) {
-		if (index < 0 || index > rule_slots + 1) {
+		if (index > rule_slots + 1) {
 			error = ENOENT;
 			goto out;
 		}
