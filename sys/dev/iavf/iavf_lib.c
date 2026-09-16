@@ -520,6 +520,19 @@ iavf_get_vsi_res_from_vf_res(struct iavf_sc *sc)
 	device_t dev = sc->dev;
 
 	sc->vsi_res = NULL;
+	/* Bound PF-sized messages and preserve iflib's table-mask assumption. */
+	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == VIRTCHNL_VF_OFFLOAD_RSS_PF &&
+	    (sc->vf_res->rss_key_size == 0 ||
+	    sc->vf_res->rss_key_size > IAVF_RSS_KEY_SIZE ||
+	    sc->vf_res->rss_lut_size == 0 ||
+	    sc->vf_res->rss_lut_size > IAVF_AQ_BUF_SZ -
+	    sizeof(struct virtchnl_rss_lut) + 1 ||
+	    !powerof2(sc->vf_res->rss_lut_size))) {
+		device_printf(dev, "Unsupported PF RSS sizes: key %u lut %u\n",
+		    sc->vf_res->rss_key_size, sc->vf_res->rss_lut_size);
+		return (EINVAL);
+	}
 
 	for (int i = 0; i < sc->vf_res->num_vsis; i++) {
 		/* XXX: We only use the first VSI we find */
@@ -1090,7 +1103,7 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 	u32		lut = 0;
 	u64		set_hena = 0, hena;
 	int		i, j, que_id;
-	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG];
+	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0};
 	u32		rss_hash_config;
 
 	/* Don't set up RSS if using a single queue */
