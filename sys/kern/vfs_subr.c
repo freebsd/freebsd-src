@@ -5152,7 +5152,7 @@ vfs_unmountall(void)
 			continue;
 
 		if (bootverbose) {
-			printf("\tUnmounting %d/%d %s\n", ++n, nmountpoints,
+			printf("Unmounting %d/%d %s\n", ++n, nmountpoints,
 				mp->mnt_stat.f_mntonname);
 		}
 		unmount_or_warn(mp);
@@ -5160,7 +5160,7 @@ vfs_unmountall(void)
 
 	if (rootdevmp != NULL) {
 		if (bootverbose) {
-			printf("\tUnmounting %d/%d %s\n", ++n, nmountpoints,
+			printf("Unmounting %d/%d %s\n", ++n, nmountpoints,
 				rootdevmp->mnt_stat.f_mntonname);
 		}
 		unmount_or_warn(rootdevmp);
