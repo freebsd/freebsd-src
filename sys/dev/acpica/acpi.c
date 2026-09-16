@@ -3908,7 +3908,7 @@ backout:
 
     EVENTHANDLER_INVOKE(power_resume, stype);
 
-    if (stype == POWER_STYPE_SUSPEND_TO_IDLE)
+    if (stype == POWER_STYPE_SUSPEND_TO_IDLE && ACPI_SUCCESS(status))
 	check_post_suspend_to_idle(sc->acpi_dev);
 
     /* Allow another sleep request after a while. */
