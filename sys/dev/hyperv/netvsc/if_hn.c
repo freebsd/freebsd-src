@@ -184,6 +184,12 @@ do {							\
 #define HN_CSUM_IP6_HWASSIST(sc)	\
 	((sc)->hn_tx_ring[0].hn_csum_assist & HN_CSUM_IP6_MASK)
 
+/* Packet offloads can follow the VF; services requiring hn methods cannot. */
+#define HN_XPNT_VF_CAPS		(IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | \
+	IFCAP_TSO | IFCAP_LRO | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
+	IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWFILTER | \
+	IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS | IFCAP_MEXTPG)
+
 #define HN_PKTSIZE_MIN(align)		\
 	roundup2(ETHER_MIN_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN + \
 	    HN_RNDIS_PKT_LEN, (align))
@@ -299,6 +305,8 @@ static void			hn_xpnt_vf_input(if_t, struct mbuf *);
 static int			hn_xpnt_vf_iocsetflags(struct hn_softc *);
 static int			hn_xpnt_vf_iocsetcaps(struct hn_softc *,
 				    struct ifreq *);
+static void			hn_xpnt_vf_synccaps(struct hn_softc *);
+static void			hn_xpnt_vf_vlancap_taskfunc(void *, int);
 static void			hn_xpnt_vf_saveifflags(struct hn_softc *);
 static bool			hn_xpnt_vf_isready(struct hn_softc *);
 static bool			hn_xpnt_vf_caninit(struct hn_softc *);
@@ -1295,22 +1303,93 @@ hn_ifaddr_event(void *arg, if_t ifp)
 	hn_rxvf_change(arg, ifp);
 }
 
-static int
-hn_xpnt_vf_iocsetcaps(struct hn_softc *sc, struct ifreq *ifr __unused)
+static void
+hn_xpnt_vf_synccaps(struct hn_softc *sc)
 {
 	if_t ifp, vf_ifp;
+	int caps;
 
 	HN_LOCK_ASSERT(sc);
 	ifp = sc->hn_ifp;
 	vf_ifp = sc->hn_vf_ifp;
+	caps = if_getcapabilities(ifp);
+
+	/* Reflect the actual VF state even if an ioctl failed partway through. */
+	if_setcapenable(ifp, if_getcapenable(vf_ifp) & caps);
+	if_sethwassist(ifp, if_gethwassist(vf_ifp) &
+	    (HN_CSUM_IP_MASK | HN_CSUM_IP6_MASK | CSUM_TSO));
+	/* The worker refreshes VLAN children without holding hn_lock. */
+	if (!sc->hn_detaching)
+		taskqueue_enqueue(sc->hn_vf_taskq, &sc->hn_vf_vlancap);
+}
+
+static void
+hn_xpnt_vf_vlancap_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	/* VLAN configuration takes vlan_sx before entering hn ioctls. */
+	sx_assert(&sc->hn_lock, SA_UNLOCKED);
+	if_vlancap(sc->hn_ifp);
+}
+
+static int
+hn_xpnt_vf_iocsetcaps(struct hn_softc *sc, struct ifreq *ifr)
+{
+	if_t vf_ifp;
+	u_int assoc;
+	int caps, error;
+
+	HN_LOCK_ASSERT(sc);
+	if (sc->hn_vf_caps_busy)
+		return (EBUSY);
+	if (sc->hn_detaching || sc->hn_vf_detaching ||
+	    !hn_xpnt_vf_isready(sc))
+		return (ENXIO);
+
+	vf_ifp = sc->hn_vf_ifp;
+	if_ref(vf_ifp);
+	assoc = sc->hn_vf_active_assoc;
+	caps = if_getcapabilities(sc->hn_ifp);
+	/* Leave capabilities which hn does not expose unchanged on the VF. */
+	ifr->ifr_reqcap = (ifr->ifr_reqcap & caps) |
+	    (if_getcapenable(vf_ifp) & ~caps);
+	sc->hn_vf_caps_busy = true;
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags |= HN_XVFFLAG_SWITCHING;
+	rm_wunlock(&sc->hn_vf_lock);
 
 	/*
-	 * Just sync up with VF's enabled capabilities.
+	 * The VF ioctl may acquire vlan_sx, whose callers enter hn ioctls.
+	 * Detach waits for hn_vf_caps_busy with hn_lock released; new VF
+	 * initialization and capability changes cannot overlap this ioctl.
 	 */
-	if_setcapenable(ifp, if_getcapenable(vf_ifp));
-	if_sethwassist(ifp, if_gethwassist(vf_ifp));
+	HN_UNLOCK(sc);
+	error = ifhwioctl(SIOCSIFCAP, vf_ifp, (caddr_t)ifr, curthread);
+	HN_LOCK(sc);
 
-	return (0);
+	if (!sc->hn_detaching && !sc->hn_vf_detaching &&
+	    sc->hn_vf_ifp == vf_ifp && hn_xpnt_vf_isready(sc) &&
+	    sc->hn_vf_active_assoc == assoc) {
+		hn_xpnt_vf_synccaps(sc);
+		rm_wlock(&sc->hn_vf_lock);
+		sc->hn_xvf_flags &= ~HN_XVFFLAG_SWITCHING;
+		/* A link event during the ioctl was suppressed by SWITCHING. */
+		if ((sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) &&
+		    hn_xpnt_vf_isready(sc))
+			if_link_state_change(sc->hn_ifp,
+			    if_getlinkstate(vf_ifp));
+		rm_wunlock(&sc->hn_vf_lock);
+	} else if (error == 0) {
+		error = sc->hn_detaching || sc->hn_vf_detaching ? ENXIO : EAGAIN;
+	}
+	if_rele(vf_ifp);
+	sc->hn_vf_caps_busy = false;
+	wakeup(&sc->hn_vf_caps_busy);
+	/* Retry association work deferred while the ioctl was in flight. */
+	if (!sc->hn_detaching && !sc->hn_vf_detaching)
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, 0);
+	return (error);
 }
 
 static int
@@ -1698,13 +1777,11 @@ hn_xpnt_vf_setready(struct hn_softc *sc)
 	sc->hn_saved_hwassist = if_gethwassist(ifp);
 
 	/*
-	 * Intersect supported/enabled capabilities.
-	 *
-	 * NOTE:
-	 * if_hwassist is not changed here.
+	 * Expose only capabilities supported by the transparent packet path.
+	 * VF services such as send tags and the extended capability ioctl
+	 * require methods which hn does not implement.
 	 */
-	if_setcapabilitiesbit(ifp, 0, if_getcapabilities(vf_ifp));
-	if_setcapenablebit(ifp, 0, if_getcapabilities(ifp));
+	if_setcapabilities(ifp, if_getcapabilities(vf_ifp) & HN_XPNT_VF_CAPS);
 
 	/*
 	 * Fix TSO settings.
@@ -1717,12 +1794,9 @@ hn_xpnt_vf_setready(struct hn_softc *sc)
 		if_sethwtsomaxsegsize(ifp, if_gethwtsomaxsegsize(vf_ifp));
 
 	/*
-	 * Change VF's enabled capabilities.
+	 * Adopt the VF's enabled capabilities without changing its settings.
 	 */
-	memset(&ifr, 0, sizeof(ifr));
-	strlcpy(ifr.ifr_name, if_name(vf_ifp), sizeof(ifr.ifr_name));
-	ifr.ifr_reqcap = if_getcapenable(ifp);
-	hn_xpnt_vf_iocsetcaps(sc, &ifr);
+	hn_xpnt_vf_synccaps(sc);
 
 	if (if_getmtu(ifp) != ETHERMTU) {
 		int error;
@@ -1773,6 +1847,7 @@ hn_xpnt_vf_caninit(struct hn_softc *sc)
 	HN_LOCK_ASSERT(sc);
 	return (hn_xpnt_vf && sc->hn_vf_ifp != NULL &&
 	    !sc->hn_detaching && !sc->hn_vf_detaching &&
+	    !sc->hn_vf_caps_busy &&
 	    (atomic_load_acq_int(&sc->hn_vf_assoc) & HN_VF_ASSOC_ALLOCATED) &&
 	    (int)(ticks - sc->hn_vf_rdytick) >= 0);
 }
@@ -1791,6 +1866,8 @@ hn_xpnt_vf_restore(struct hn_softc *sc)
 	if_sethwtsomaxsegsize(ifp, sc->hn_saved_tsosegsz);
 	if_setcapenable(ifp, sc->hn_saved_capenable);
 	if_sethwassist(ifp, sc->hn_saved_hwassist);
+	if (!sc->hn_detaching)
+		taskqueue_enqueue(sc->hn_vf_taskq, &sc->hn_vf_vlancap);
 	sc->hn_vf_ready = false;
 }
 
@@ -1849,8 +1926,10 @@ hn_xpnt_vf_setdisable(struct hn_softc *sc, bool clear_vf)
 	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
 	rm_wlock(&sc->hn_vf_lock);
 	sc->hn_xvf_flags &= ~HN_XVFFLAG_ENABLED;
-	if (clear_vf)
+	if (clear_vf) {
+		sc->hn_xvf_flags &= ~HN_XVFFLAG_SWITCHING;
 		sc->hn_vf_ifp = NULL;
+	}
 	rm_wunlock(&sc->hn_vf_lock);
 
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
@@ -1952,7 +2031,7 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	 * Some VF drivers initialize hwassist only when brought up.  Refresh
 	 * the offload state before allowing transmit through the VF.
 	 */
-	hn_xpnt_vf_iocsetcaps(sc, NULL);
+	hn_xpnt_vf_synccaps(sc);
 
 	/*
 	 * NOTE:
@@ -1996,7 +2075,8 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 
 	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
 		goto done;
-	if (sc->hn_vf_ifp == NULL || sc->hn_vf_detaching)
+	if (sc->hn_vf_ifp == NULL || sc->hn_vf_detaching ||
+	    sc->hn_vf_caps_busy)
 		goto done;
 	if (!hn_xpnt_vf) {
 		if ((sc->hn_flags & HN_FLAG_RXVF) && sc->hn_vf_active_assoc !=
@@ -2133,6 +2213,9 @@ hn_ifnet_detevent(void *xsc, if_t ifp)
 
 	if (hn_xpnt_vf) {
 		sc->hn_vf_detaching = true;
+		while (sc->hn_vf_caps_busy)
+			sx_sleep(&sc->hn_vf_caps_busy, &sc->hn_lock, 0,
+			    "hnvfcap", 0);
 		/*
 		 * Make sure that the delayed initialization is not running.
 		 *
@@ -2316,6 +2399,7 @@ hn_attach(device_t dev)
 	    device_get_nameunit(dev));
 	TIMEOUT_TASK_INIT(sc->hn_vf_taskq, &sc->hn_vf_init, 0,
 	    hn_xpnt_vf_init_taskfunc, sc);
+	TASK_INIT(&sc->hn_vf_vlancap, 0, hn_xpnt_vf_vlancap_taskfunc, sc);
 
 	/*
 	 * Allocate ifnet and setup its name earlier, so that if_printf
@@ -2674,12 +2758,15 @@ hn_detach(device_t dev)
 
 	HN_LOCK(sc);
 	sc->hn_detaching = true;
+	while (sc->hn_vf_caps_busy)
+		sx_sleep(&sc->hn_vf_caps_busy, &sc->hn_lock, 0, "hnvfcap", 0);
 	HN_UNLOCK(sc);
 	if (sc->hn_vlan_atthand != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, sc->hn_vlan_atthand);
 	if (sc->hn_vlan_dethand != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->hn_vlan_dethand);
 	taskqueue_drain_timeout(sc->hn_vf_taskq, &sc->hn_vf_init);
+	taskqueue_drain(sc->hn_vf_taskq, &sc->hn_vf_vlancap);
 
 	if (sc->hn_ifaddr_evthand != NULL)
 		EVENTHANDLER_DEREGISTER(ifaddr_event, sc->hn_ifaddr_evthand);
@@ -4076,6 +4163,11 @@ hn_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		HN_LOCK(sc);
+		if (sc->hn_detaching || sc->hn_vf_caps_busy) {
+			error = sc->hn_vf_caps_busy ? EBUSY : ENXIO;
+			HN_UNLOCK(sc);
+			break;
+		}
 
 		if (hn_xpnt_vf_isready(sc)) {
 			ifr_vf = *ifr;
