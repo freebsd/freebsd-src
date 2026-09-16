@@ -188,7 +188,8 @@ _powerpc64_probe(kvm_t *kd)
 {
 
 	return (_kvm_probe_elf_kernel(kd, ELFCLASS64, EM_PPC64) &&
-	    kd->nlehdr.e_ident[EI_DATA] == ELFDATA2MSB);
+	    kd->nlehdr.e_ident[EI_DATA] == ELFDATA2MSB &&
+	    !_kvm_is_minidump(kd));
 }
 
 static int
@@ -196,7 +197,8 @@ _powerpc64le_probe(kvm_t *kd)
 {
 
 	return (_kvm_probe_elf_kernel(kd, ELFCLASS64, EM_PPC64) &&
-	    kd->nlehdr.e_ident[EI_DATA] == ELFDATA2LSB);
+	    kd->nlehdr.e_ident[EI_DATA] == ELFDATA2LSB &&
+	    !_kvm_is_minidump(kd));
 }
 
 static int
