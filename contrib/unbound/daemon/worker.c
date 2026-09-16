@@ -863,7 +863,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 			"validation");
 		goto bail_out; /* need to validate cache entry first */
 	} else if(rep->security == sec_status_secure) {
-		if(reply_all_rrsets_secure(rep)) {
+		if(reply_an_ns_rrsets_secure(rep)) {
 			*is_secure_answer = 1;
 		} else {
 			if(must_validate) {

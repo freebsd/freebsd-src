@@ -146,6 +146,10 @@ struct auth_zone {
 	uint16_t zonemd_callback_qtype;
 	/** for the zonemd callback, the unique info */
 	void* zonemd_callback_unique_info;
+	/** if the zonemd callback should write to file */
+	int zonemd_callback_perform_write;
+	/** chunklist to write for chunked transfer. */
+	struct auth_chunk* perform_write_chunk_list;
 	/** zone has been deleted */
 	int zone_deleted;
 	/** deletelist pointer, unused normally except during delete */

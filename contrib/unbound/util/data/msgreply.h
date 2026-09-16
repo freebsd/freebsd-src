@@ -494,6 +494,9 @@ int reply_check_cname_chain(struct query_info* qinfo, struct reply_info* rep);
  */
 int reply_all_rrsets_secure(struct reply_info* rep);
 
+/** Check status of answer and authority section RRs. */
+int reply_an_ns_rrsets_secure(struct reply_info* rep);
+
 /**
  * Find answer rrset in reply, the one matching qinfo. Follows CNAMEs, so the
  * result may have a different owner name.

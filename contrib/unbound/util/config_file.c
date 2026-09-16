@@ -278,7 +278,7 @@ config_create(void)
 	cfg->val_sig_skew_min = 3600; /* at least daylight savings trouble */
 	cfg->val_sig_skew_max = 86400; /* at most timezone settings trouble */
 	cfg->val_max_restart = 5;
-	cfg->val_clean_additional = 1;
+	cfg->val_clean_additional = 0; /* off to protect against much data. */
 	cfg->val_log_level = 0;
 	cfg->val_log_squelch = 0;
 	cfg->val_permissive_mode = 0;
@@ -429,6 +429,8 @@ config_create(void)
 	cfg->iter_scrub_rrsig = 8;
 	cfg->iter_scrub_promiscuous = 1;
 	cfg->max_global_quota = 200;
+	cfg->val_validation_attempts = 32;
+	cfg->val_hash_attempts = 32;
 	return cfg;
 error_exit:
 	config_delete(cfg);
@@ -785,6 +787,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_NUMBER_OR_ZERO("iter-scrub-rrsig:", iter_scrub_rrsig)
 	else S_YNO("iter-scrub-promiscuous:", iter_scrub_promiscuous)
 	else S_NUMBER_OR_ZERO("max-global-quota:", max_global_quota)
+	else S_NUMBER_OR_ZERO("val-validation-attempts:", val_validation_attempts)
+	else S_NUMBER_OR_ZERO("val-hash-attempts:", val_hash_attempts)
 	else S_YNO("serve-original-ttl:", serve_original_ttl)
 	else S_STR("val-nsec3-keysize-iterations:", val_nsec3_key_iterations)
 	else S_YNO("zonemd-permissive-mode:", zonemd_permissive_mode)
@@ -1265,6 +1269,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "iter-scrub-rrsig", iter_scrub_rrsig)
 	else O_YNO(opt, "iter-scrub-promiscuous", iter_scrub_promiscuous)
 	else O_DEC(opt, "max-global-quota", max_global_quota)
+	else O_DEC(opt, "val-validation-attempts", val_validation_attempts)
+	else O_DEC(opt, "val-hash-attempts", val_hash_attempts)
 	else O_YNO(opt, "serve-original-ttl", serve_original_ttl)
 	else O_STR(opt, "val-nsec3-keysize-iterations",val_nsec3_key_iterations)
 	else O_YNO(opt, "zonemd-permissive-mode", zonemd_permissive_mode)
