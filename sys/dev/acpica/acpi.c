@@ -3812,6 +3812,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
      */
     if (DEVICE_SUSPEND(root_bus) != 0) {
         device_printf(sc->acpi_dev, "device_suspend failed\n");
+        status = AE_ERROR;
         goto backout;
     }
     EVENTHANDLER_INVOKE(acpi_post_dev_suspend, stype);
