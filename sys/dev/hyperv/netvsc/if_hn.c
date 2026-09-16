@@ -97,6 +97,7 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/if_vlan_var.h>
 #include <net/rndis.h>
 #include <net/rss_config.h>
 
@@ -1771,6 +1772,7 @@ hn_xpnt_vf_caninit(struct hn_softc *sc)
 
 	HN_LOCK_ASSERT(sc);
 	return (hn_xpnt_vf && sc->hn_vf_ifp != NULL &&
+	    !sc->hn_detaching && !sc->hn_vf_detaching &&
 	    (atomic_load_acq_int(&sc->hn_vf_assoc) & HN_VF_ASSOC_ALLOCATED) &&
 	    (int)(ticks - sc->hn_vf_rdytick) >= 0);
 }
@@ -1855,6 +1857,60 @@ hn_xpnt_vf_setdisable(struct hn_softc *sc, bool clear_vf)
 		sc->hn_rx_ring[i].hn_rx_flags &= ~HN_RX_FLAG_XPNT_VF;
 }
 
+/*
+ * Do not configure the VF from the VLAN event callback.  The worker reads
+ * and applies the current VLAN topology outside the VLAN configuration
+ * lock, including VLANs configured before the VF arrives.  Only
+ * transparent mode subscribes.
+ */
+static void
+hn_vlan_event(void *xsc, if_t ifp, uint16_t vid __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	if (ifp != sc->hn_ifp)
+		return;
+	taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, 0);
+}
+
+/* Apply guest VLAN intent, not the host's administrative access VLAN. */
+static void
+hn_xpnt_vf_sync_vlans(struct hn_softc *sc, bool remove)
+{
+	struct epoch_tracker et;
+	u_int desired[HN_VLAN_WORDS] = { 0 }, changed, mask;
+	unsigned int i, bit;
+	uint16_t vid;
+
+	HN_LOCK_ASSERT(sc);
+	KASSERT(sc->hn_vf_ifp != NULL, ("VLAN sync without a VF"));
+	if (!remove) {
+		NET_EPOCH_ENTER(et);
+		for (vid = 1; vid < EVL_VLID_MASK; vid++) {
+			if (VLAN_DEVAT(sc->hn_ifp, vid) != NULL)
+				desired[vid / 32] |= 1U << (vid % 32);
+		}
+		NET_EPOCH_EXIT(et);
+	}
+	/* VF callbacks may sleep; never invoke them inside network epoch. */
+	for (i = 0; i < HN_VLAN_WORDS; i++) {
+		changed = desired[i] ^ sc->hn_vf_vlans[i];
+		while (changed != 0) {
+			bit = ffs(changed) - 1;
+			mask = 1U << bit;
+			vid = i * 32 + bit;
+			if ((desired[i] & mask) != 0)
+				EVENTHANDLER_INVOKE(vlan_config, sc->hn_vf_ifp,
+				    vid);
+			else
+				EVENTHANDLER_INVOKE(vlan_unconfig, sc->hn_vf_ifp,
+				    vid);
+			changed &= ~mask;
+		}
+		sc->hn_vf_vlans[i] = desired[i];
+	}
+}
+
 static void
 hn_xpnt_vf_init(struct hn_softc *sc)
 {
@@ -1867,6 +1923,7 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	    ("%s: transparent VF was enabled", if_name(sc->hn_ifp)));
 	if (!hn_xpnt_vf_caninit(sc))
 		return;
+	hn_xpnt_vf_sync_vlans(sc, false);
 	assoc = atomic_load_acq_int(&sc->hn_vf_assoc);
 	rm_wlock(&sc->hn_vf_lock);
 	sc->hn_xvf_flags |= HN_XVFFLAG_SWITCHING;
@@ -1939,7 +1996,7 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 
 	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
 		goto done;
-	if (sc->hn_vf_ifp == NULL)
+	if (sc->hn_vf_ifp == NULL || sc->hn_vf_detaching)
 		goto done;
 	if (!hn_xpnt_vf) {
 		if ((sc->hn_flags & HN_FLAG_RXVF) && sc->hn_vf_active_assoc !=
@@ -1952,13 +2009,14 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 	if (sc->hn_vf_active_assoc != 0 && sc->hn_vf_active_assoc !=
 	    atomic_load_acq_int(&sc->hn_vf_assoc))
 		hn_xpnt_vf_deactivate(sc);
-	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
-		goto done;
 	if ((int)(ticks - sc->hn_vf_rdytick) < 0) {
 		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init,
 		    sc->hn_vf_rdytick - ticks);
 		goto done;
 	}
+	hn_xpnt_vf_sync_vlans(sc, false);
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
+		goto done;
 
 	if (if_getdrvflags(sc->hn_ifp) & IFF_DRV_RUNNING) {
 		/*
@@ -2033,6 +2091,7 @@ hn_ifnet_attevent(void *xsc, if_t ifp)
 	    ("%s: transparent VF was enabled", if_name(sc->hn_ifp)));
 	sc->hn_vf_ifp = ifp;
 	rm_wunlock(&sc->hn_vf_lock);
+	sc->hn_vf_detaching = false;
 
 	if (hn_xpnt_vf) {
 		int wait_ticks;
@@ -2073,6 +2132,7 @@ hn_ifnet_detevent(void *xsc, if_t ifp)
 		goto done;
 
 	if (hn_xpnt_vf) {
+		sc->hn_vf_detaching = true;
 		/*
 		 * Make sure that the delayed initialization is not running.
 		 *
@@ -2094,6 +2154,8 @@ hn_ifnet_detevent(void *xsc, if_t ifp)
 			hn_xpnt_vf_deactivate(sc);
 		else
 			hn_xpnt_vf_restore(sc);
+		/* A departing VF discards its registration state itself. */
+		bzero(sc->hn_vf_vlans, sizeof(sc->hn_vf_vlans));
 		if_setinputfn(ifp, sc->hn_vf_input);
 		sc->hn_vf_input = NULL;
 	} else if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
@@ -2540,6 +2602,13 @@ hn_attach(device_t dev)
 		if_sethwtsomaxsegsize(ifp, PAGE_SIZE);
 	}
 
+	/* Schedule reconciliation when the synthetic interface's VLANs change. */
+	if (hn_xpnt_vf) {
+		sc->hn_vlan_atthand = EVENTHANDLER_REGISTER(vlan_config,
+		    hn_vlan_event, sc, EVENTHANDLER_PRI_ANY);
+		sc->hn_vlan_dethand = EVENTHANDLER_REGISTER(vlan_unconfig,
+		    hn_vlan_event, sc, EVENTHANDLER_PRI_ANY);
+	}
 	ether_ifattach(ifp, eaddr);
 
 	if ((if_getcapabilities(ifp) & (IFCAP_TSO6 | IFCAP_TSO4)) && bootverbose) {
@@ -2606,6 +2675,10 @@ hn_detach(device_t dev)
 	HN_LOCK(sc);
 	sc->hn_detaching = true;
 	HN_UNLOCK(sc);
+	if (sc->hn_vlan_atthand != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_config, sc->hn_vlan_atthand);
+	if (sc->hn_vlan_dethand != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->hn_vlan_dethand);
 	taskqueue_drain_timeout(sc->hn_vf_taskq, &sc->hn_vf_init);
 
 	if (sc->hn_ifaddr_evthand != NULL)
@@ -2623,8 +2696,12 @@ hn_detach(device_t dev)
 	if (sc->hn_ifnet_lnkhand != NULL)
 		EVENTHANDLER_DEREGISTER(ifnet_link_event, sc->hn_ifnet_lnkhand);
 
+	HN_LOCK(sc);
 	vf_ifp = sc->hn_vf_ifp;
-	__compiler_membar();
+	/* hn is leaving; remove its registrations from the live VF. */
+	if (vf_ifp != NULL && hn_xpnt_vf)
+		hn_xpnt_vf_sync_vlans(sc, true);
+	HN_UNLOCK(sc);
 	if (vf_ifp != NULL)
 		hn_ifnet_detevent(sc, vf_ifp);
 
