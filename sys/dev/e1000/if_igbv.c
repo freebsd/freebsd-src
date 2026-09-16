@@ -94,6 +94,7 @@ igbv_hv_reset_hw(struct e1000_hw *hw)
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
 	if (ctrl == 0xffffffff)
 		return (-E1000_ERR_RESET);
+	/* Reset VF-local state before the Hyper-V host reset/MAC exchange. */
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl | E1000_CTRL_RST);
 	E1000_WRITE_FLUSH(hw);
 	for (i = 0; i < E1000_VF_INIT_TIMEOUT; i++) {
@@ -556,6 +557,40 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 		}
 		return;
+	}
+
+	if (igbv_is_hyperv(sc)) {
+		u32 status, txdctl;
+
+		if (sc->vf_reset_pending)
+			return;
+		txdctl = E1000_READ_REG(hw, E1000_TXDCTL(0));
+		if (txdctl != 0xffffffff &&
+		    (txdctl & E1000_TXDCTL_QUEUE_ENABLE) == 0) {
+			/* Carrier can remain up after the PF disables queue DMA. */
+			sc->vf_stats_valid = false;
+			sc->link_speed = sc->link_duplex = 0;
+			if (sc->link_state != EM_LINK_STATE_DOWN) {
+				sc->link_state = EM_LINK_STATE_DOWN;
+				iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+			}
+			/*
+			 * Do not reset while carrier is down.  Limit requests
+			 * if the host keeps the queue disabled with carrier up.
+			 */
+			status = E1000_READ_REG(hw, E1000_STATUS);
+			if (status != 0xffffffff &&
+			    (status & E1000_STATUS_LU) != 0 &&
+			    ratecheck(&sc->vf_last_queue_log,
+			    &igbv_queue_log_interval)) {
+				device_printf(dev,
+				    "Hyper-V VF queue disabled; requesting recovery\n");
+				sc->vf_reset_pending = true;
+				iflib_request_reset_if_up(ctx);
+				iflib_admin_intr_deferred(ctx);
+			}
+			return;
+		}
 	}
 
 	if (!sc->vf_reset_pending &&
