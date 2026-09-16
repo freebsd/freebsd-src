@@ -704,6 +704,10 @@ static int iflib_simple_txbr_size = IFLIB_SIMPLE_TXBR_SIZE;
 SYSCTL_INT(_net_iflib, OID_AUTO, simple_txbr_size, CTLFLAG_RDTUN,
     &iflib_simple_txbr_size, 0,
     "number of entries in the simple tx deferral ring");
+static bool iflib_prefer_mpring = true;
+SYSCTL_BOOL(_net_iflib, OID_AUTO, prefer_mpring, CTLFLAG_RDTUN,
+    &iflib_prefer_mpring, 0,
+    "prefer the mp_ring transmit path by default");
 static u_int iflib_simple_drain_quota = 8;
 SYSCTL_UINT(_net_iflib, OID_AUTO, simple_drain_quota, CTLFLAG_RWTUN,
     &iflib_simple_drain_quota, 0,
@@ -7641,6 +7645,7 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	    "tx_watchdog_events", CTLFLAG_RD, &ctx->ifc_tx_watchdog_events, 0,
 	    "TX watchdog resets initiated by iflib");
 
+	ctx->ifc_sysctl_simple_tx = !iflib_prefer_mpring;
 	SYSCTL_ADD_BOOL(&ctx->ifc_sysctl_ctx, oid_list, OID_AUTO, "simple_tx",
 	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_simple_tx, 0,
 	    "use simple tx ring");
