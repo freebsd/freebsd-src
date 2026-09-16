@@ -1,5 +1,6 @@
 .PATH: ${ZFSTOP}/module/icp
 .PATH: ${ZFSTOP}/module/zcommon
+.PATH: ${ZFSTOP}/module/zfs
 .PATH: ${ZFSTOP}/lib/libzfs
 .PATH: ${ZFSTOP}/lib/libzfs/os/freebsd
 .PATH: ${ZFSTOP}/include
@@ -52,7 +53,9 @@ USER_C += \
         libzfs_zmount.c
 
 KERNEL_C = \
+	btree.c \
         cityhash.c \
+	range_tree.c \
         zfeature_common.c \
         zfs_comutil.c \
         zfs_deleg.c \
@@ -104,5 +107,8 @@ CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 CFLAGS+= -DSYSCONFDIR=\"/etc\"
 CFLAGS+= -DPKGDATADIR=\"/usr/share/zfs\"
 CFLAGS+= -DZFSEXECDIR=\"${LIBEXECDIR}/zfs\"
+
+CFLAGS.btree.c+=-fvisibility=hidden
+CFLAGS.range_tree.c+= -fvisibility=hidden
 
 .include <bsd.lib.mk>
