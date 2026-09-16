@@ -193,6 +193,8 @@ static void iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid);
 static void iflib_timer(void *arg);
 static void iflib_tqg_detach(if_ctx_t ctx);
 static int  iflib_simple_transmit(if_t ifp, struct mbuf *m);
+static int  iflib_simple_transmit_txq_select(if_t ifp, struct mbuf *m);
+static int  iflib_simple_transmit_txq_select_v2(if_t ifp, struct mbuf *m);
 static void iflib_simple_if_start(if_t ifp);
 static void iflib_simple_txq_drain(iflib_txq_t txq);
 
@@ -4749,7 +4751,6 @@ iflib_altq_if_start(if_t ifp)
 static int
 iflib_altq_if_transmit(if_t ifp, struct mbuf *m)
 {
-	if_ctx_t ctx = if_getsoftc(ifp);
 	int err;
 
 	if (if_altq_is_enabled(ifp)) {
@@ -4758,12 +4759,7 @@ iflib_altq_if_transmit(if_t ifp, struct mbuf *m)
 			if_start(ifp);
 		return (err);
 	}
-	if (ctx->ifc_sysctl_simple_tx)
-		err = iflib_simple_transmit(ifp, m);
-	else
-		err = iflib_if_transmit(ifp, m);
-
-	return (err);
+	return (iflib_if_transmit(ifp, m));
 }
 #endif /* ALTQ */
 
@@ -5586,9 +5582,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ifp = ctx->ifc_ifp;
 	if (ctx->ifc_sysctl_simple_tx) {
 		/* if_start drives the same drbr drain when ALTQ is active. */
-#ifndef ALTQ
 		if_settransmitfn(ifp, iflib_simple_transmit);
-#endif
 		if_setstartfn(ifp, iflib_simple_if_start);
 		device_printf(dev, "using simple transmit\n");
 	}
@@ -5605,6 +5599,19 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	    fail_cleanup);
 	_iflib_pre_assert(scctx);
 	ctx->ifc_txrx = *scctx->isc_txrx;
+	/*
+	 * Bind optional queue selection to a transmit entry point once, rather
+	 * than testing for optional methods for every packet.  Prefer v2 when
+	 * the driver provides both methods.
+	 */
+	if (ctx->ifc_sysctl_simple_tx) {
+		if (ctx->isc_txq_select_v2 != NULL)
+			if_settransmitfn(ifp,
+			    iflib_simple_transmit_txq_select_v2);
+		else if (ctx->isc_txq_select != NULL)
+			if_settransmitfn(ifp,
+			    iflib_simple_transmit_txq_select);
+	}
 
 	MPASS(scctx->isc_dma_width <= flsll(BUS_SPACE_MAXADDR));
 
@@ -8016,23 +8023,6 @@ iflib_debugnet_poll(if_t ifp, int count)
 }
 #endif /* DEBUGNET */
 
-static inline iflib_txq_t
-iflib_simple_select_queue(if_ctx_t ctx, struct mbuf *m)
-{
-	int qidx;
-
-#ifdef ALTQ
-	/* ALTQ-enabled interfaces always use queue 0. */
-	if (if_altq_is_enabled(ctx->ifc_ifp))
-		return (&ctx->ifc_txqs[0]);
-#endif
-	if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m))
-		qidx = QIDX(ctx, m);
-	else
-		qidx = NTXQSETS(ctx) + FIRST_QSET(ctx) - 1;
-	return (&ctx->ifc_txqs[qidx]);
-}
-
 enum iflib_txq_producer_status {
 	IFLIB_TXQ_PRODUCER_ENTERED,
 	IFLIB_TXQ_PRODUCER_QUIESCING,
@@ -8293,22 +8283,34 @@ iflib_simple_transmit_locked(iflib_txq_t txq, struct mbuf *m, int *bytes,
 	return (error);
 }
 
-static int
-iflib_simple_transmit(if_t ifp, struct mbuf *m)
+/*
+ * Always inline the common transmit path so queue selection does not add a
+ * function call to the default simple transmit path.
+ */
+static __always_inline int
+iflib_simple_transmit_impl(if_ctx_t ctx, if_t ifp, struct mbuf *m,
+    iflib_txq_t txq)
 {
-	if_ctx_t ctx;
-	iflib_txq_t txq;
 	struct mbuf **m_defer;
 	enum iflib_txq_producer_status producer_status;
 	bool pinned;
 	int error, i, reclaimable;
 	int bytes_sent = 0, pkt_sent = 0, mcast_sent = 0;
 
+
+#ifdef ALTQ
+	if (if_altq_is_enabled(ifp)) {
+		IFQ_ENQUEUE(&ifp->if_snd, m, error); /* XXX - DRVAPI */
+		if (error == 0)
+			if_start(ifp);
+		return (error);
+	}
+#endif
+
 	ctx = if_getsoftc(ifp);
 	if (__predict_false(!iflib_is_running(ctx) || !LINK_ACTIVE(ctx)))
 		goto net_down;
 
-	txq = iflib_simple_select_queue(ctx, m);
 	/*
 	 * Avoid blocking behind another transmitter; the ring is drained by
 	 * whoever holds ift_mtx, by tx completion, or by the watchdog timer.
@@ -8381,6 +8383,60 @@ net_down:
 	m_freem(m);
 	DBG_COUNTER_INC(tx_frees);
 	return (ENETDOWN);
+}
+
+static int
+iflib_simple_transmit(if_t ifp, struct mbuf *m)
+{
+	if_ctx_t ctx;
+	iflib_txq_t txq;
+	int qidx;
+
+	ctx = if_getsoftc(ifp);
+	if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m))
+		qidx = QIDX(ctx, m);
+	else
+		qidx = NTXQSETS(ctx) + FIRST_QSET(ctx) - 1;
+	MPASS(qidx < NTXQSETS(ctx));
+	txq = &ctx->ifc_txqs[qidx];
+	return (iflib_simple_transmit_impl(ctx, ifp, m, txq));
+}
+
+static int
+iflib_simple_transmit_txq_select(if_t ifp, struct mbuf *m)
+{
+	if_ctx_t ctx;
+	int qidx;
+
+	ctx = if_getsoftc(ifp);
+	qidx = ctx->isc_txq_select(ctx->ifc_softc, m);
+	MPASS(qidx < NTXQSETS(ctx));
+	return (iflib_simple_transmit_impl(ctx, ifp, m,
+	    &ctx->ifc_txqs[qidx]));
+}
+
+static int
+iflib_simple_transmit_txq_select_v2(if_t ifp, struct mbuf *m)
+{
+	struct if_pkt_info pi;
+	if_ctx_t ctx;
+	uint64_t early_pullups = 0;
+	int error, qidx;
+
+	ctx = if_getsoftc(ifp);
+	memset(&pi, 0, sizeof(pi));
+	error = iflib_parse_header_partial(&pi, &m, &early_pullups);
+	if (error != 0) {
+		/* Assign pullups for bad packets to the default queue. */
+		ctx->ifc_txqs[0].ift_pullups += early_pullups;
+		DBG_COUNTER_INC(encap_txd_encap_fail);
+		return (error);
+	}
+	qidx = ctx->isc_txq_select_v2(ctx->ifc_softc, m, &pi);
+	MPASS(qidx < NTXQSETS(ctx));
+	ctx->ifc_txqs[qidx].ift_pullups += early_pullups;
+	return (iflib_simple_transmit_impl(ctx, ifp, m,
+	    &ctx->ifc_txqs[qidx]));
 }
 
 /*
