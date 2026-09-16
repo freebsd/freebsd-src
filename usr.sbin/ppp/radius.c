@@ -1058,7 +1058,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   else {
     log_Printf(log_IsKept(LogRADIUS) ? LogRADIUS : LogPHASE,
 	       "Radius: Request sent\n");
-    log_Printf(LogDEBUG, "Using radius_Timeout [%p]\n", radius_Timeout);
+    log_Printf(LogDEBUG, "Using radius_Timeout\n");
     r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
     r->cx.timer.func = radius_Timeout;
     r->cx.timer.name = "radius auth";
@@ -1284,7 +1284,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
     radius_Process(r, got);
   else {
-    log_Printf(LogDEBUG, "Using radius_Timeout [%p]\n", radius_Timeout);
+    log_Printf(LogDEBUG, "Using radius_Timeout\n");
     r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
     r->cx.timer.func = radius_Timeout;
     r->cx.timer.name = "radius acct";
