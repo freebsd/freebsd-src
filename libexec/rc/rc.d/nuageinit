@@ -55,16 +55,14 @@ nuageinit_start()
 		case "$product" in
 		OpenStack*)
 			mkdir -p /media/nuageinit/openstack/latest
-			ifaces=$(ifconfig -l ether)
-			for iface in $ifaces; do
-				dhclient -p /tmp/ephemeraldhcp.$iface.pid $iface
-			done
-			pids=$(cat /tmp/ephemeraldhcp.*.pid)
-			left=$(pwait -op $pids 2>/dev/null)
-			for iface in $left; do
-				kill -15 $left
+			for iface in $(ifconfig -l ether); do
+				timeout 10s dhclient -p /tmp/ephemeraldhcp.$iface.pid $iface \
+					|| rm -f /tmp/ephemeraldhcp.$iface.pid
 			done
 			fetch_openstack
+			for pidfile in /tmp/ephemeraldhcp.*.pid; do
+				pkill -F $pidfile
+			done
 			citype=config-2
 			;;
 		*)
