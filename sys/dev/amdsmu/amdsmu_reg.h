@@ -74,6 +74,13 @@ struct amdsmu_metrics {
 	uint64_t total_time_resuming;
 	uint64_t time_last_in_s0i3;
 	uint64_t total_time_in_s0i3;
+	/*
+	 * "sw_drips" here is a bit of a misnomer.  The naming comes from the
+	 * Linux driver AMD wrote, but is really a Windows concept.  In
+	 * practice, this measures how much time the system spent in "S0i0"
+	 * (i.e. completely awake) between the calls to amdsmu_suspend() and
+	 * amdsmu_resume().
+	 */
 	uint64_t time_last_in_sw_drips;
 	uint64_t total_time_in_sw_drips;
 	/*
