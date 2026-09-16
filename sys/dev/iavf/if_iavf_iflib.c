@@ -401,6 +401,9 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_tso_size_max = IAVF_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = IAVF_MAX_DMA_SEG_SIZE;
 	scctx->isc_rss_table_size = IAVF_RSS_VSI_LUT_SIZE;
+	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == VIRTCHNL_VF_OFFLOAD_RSS_PF)
+		scctx->isc_rss_table_size = sc->vf_res->rss_lut_size;
 	scctx->isc_capabilities = scctx->isc_capenable = IAVF_CAPS;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
 

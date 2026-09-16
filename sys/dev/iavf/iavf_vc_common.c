@@ -724,17 +724,17 @@ iavf_config_rss_key(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_key *rss_key_msg;
 	int msg_len, key_length;
-	u8		rss_seed[IAVF_RSS_KEY_SIZE];
+	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0};
 
 #ifdef RSS
 	/* Fetch the configured RSS key */
 	rss_getkey((uint8_t *) &rss_seed);
 #else
-	iavf_get_default_rss_key((u32 *)rss_seed);
+	iavf_get_default_rss_key(rss_seed);
 #endif
 
 	/* Send the fetched key */
-	key_length = IAVF_RSS_KEY_SIZE;
+	key_length = sc->vf_res->rss_key_size;
 	msg_len = sizeof(struct virtchnl_rss_key) + (sizeof(u8) * key_length) - 1;
 	rss_key_msg = (struct virtchnl_rss_key *)
 	    malloc(msg_len, M_IAVF, M_NOWAIT | M_ZERO);
@@ -804,7 +804,7 @@ iavf_config_rss_lut(struct iavf_sc *sc)
 	u32 lut;
 	int i, que_id;
 
-	lut_length = IAVF_RSS_VSI_LUT_SIZE;
+	lut_length = sc->vf_res->rss_lut_size;
 	msg_len = sizeof(struct virtchnl_rss_lut) + (lut_length * sizeof(u8)) - 1;
 	rss_lut_msg = (struct virtchnl_rss_lut *)
 	    malloc(msg_len, M_IAVF, M_NOWAIT | M_ZERO);
