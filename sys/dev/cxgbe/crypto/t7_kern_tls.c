@@ -1975,7 +1975,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		tlsp->ghash_pending = true;
 		tlsp->ghash_valid = false;
 		tlsp->ghash_lcb = ghash_lcb;
-		if (last_ghash_frag)
+		if (ghash_lcb)
 			tlsp->ghash_offset = offset + plen;
 		else
 			tlsp->ghash_offset = rounddown2(offset + plen,
