@@ -124,6 +124,7 @@
 #define IG4_REG_DEVIDLE_CTRL	0x024C	/* RW	Device Control */
 /* Available at least on Atom SoCs */
 #define IG4_REG_CLK_PARMS	0x0800	/* RW	Clock Parameters */
+#define IG4_CLK_PARMS_EN	0x00000001 /* functional clock ungated */
 /* Available at least on Atom SoCs and Haswell mobile */
 #define IG4_REG_RESETS_HSW	0x0804	/* RW	Reset Register */
 #define IG4_REG_GENERAL		0x0808	/* RW	General Register */
