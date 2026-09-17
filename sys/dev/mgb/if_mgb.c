@@ -601,7 +601,12 @@ mgb_init(if_ctx_t ctx)
 	miid = device_get_softc(sc->miibus);
 	device_printf(sc->dev, "running init ...\n");
 
-	mgb_dma_init(sc);
+	error = mgb_dma_init(sc);
+	if (error != 0) {
+		device_printf(sc->dev, "DMA initialization failed: %d\n", error);
+		iflib_init_failed(ctx);
+		return;
+	}
 
 	/* XXX: Turn off perfect filtering, turn on (broad|multi|uni)cast rx */
 	CSR_CLEAR_REG(sc, MGB_RFE_CTL, MGB_RFE_ALLOW_PERFECT_FILTER);
@@ -1235,7 +1240,7 @@ mgb_dma_init(struct mgb_softc *sc)
 		if ((error = mgb_dma_rx_ring_init(sc, ch)))
 			goto fail;
 
-	for (ch = 0; ch < scctx->isc_nrxqsets; ch++)
+	for (ch = 0; ch < scctx->isc_ntxqsets; ch++)
 		if ((error = mgb_dma_tx_ring_init(sc, ch)))
 			goto fail;
 
@@ -1250,13 +1255,18 @@ mgb_dma_rx_ring_init(struct mgb_softc *sc, int channel)
 	int ring_config, error = 0;
 
 	rdata = &sc->rx_ring_data;
-	mgb_dmac_control(sc, MGB_DMAC_RX_START, 0, DMAC_RESET);
+	error = mgb_dmac_control(sc, MGB_DMAC_RX_START, channel, DMAC_RESET);
+	if (error != 0) {
+		device_printf(sc->dev, "Failed to reset RX DMAC.\n");
+		goto fail;
+	}
 	KASSERT(MGB_DMAC_STATE_IS_INITIAL(sc, MGB_DMAC_RX_START, channel),
 	    ("Trying to init channels when not in init state\n"));
 
 	/* write ring address */
 	if (rdata->ring_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid ring bus addr.\n");
+		error = EINVAL;
 		goto fail;
 	}
 
@@ -1268,6 +1278,7 @@ mgb_dma_rx_ring_init(struct mgb_softc *sc, int channel)
 	/* write head pointer writeback address */
 	if (rdata->head_wb_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid head wb bus addr.\n");
+		error = EINVAL;
 		goto fail;
 	}
 	CSR_WRITE_REG(sc, MGB_DMA_RX_HEAD_WB_H(channel),
@@ -1290,17 +1301,17 @@ mgb_dma_rx_ring_init(struct mgb_softc *sc, int channel)
 
 	rdata->last_head = CSR_READ_REG(sc, MGB_DMA_RX_HEAD(channel));
 
-	mgb_fct_control(sc, MGB_FCT_RX_CTL, channel, FCT_RESET);
+	error = mgb_fct_control(sc, MGB_FCT_RX_CTL, channel, FCT_RESET);
 	if (error != 0) {
 		device_printf(sc->dev, "Failed to reset RX FCT.\n");
 		goto fail;
 	}
-	mgb_fct_control(sc, MGB_FCT_RX_CTL, channel, FCT_ENABLE);
+	error = mgb_fct_control(sc, MGB_FCT_RX_CTL, channel, FCT_ENABLE);
 	if (error != 0) {
 		device_printf(sc->dev, "Failed to enable RX FCT.\n");
 		goto fail;
 	}
-	mgb_dmac_control(sc, MGB_DMAC_RX_START, channel, DMAC_START);
+	error = mgb_dmac_control(sc, MGB_DMAC_RX_START, channel, DMAC_START);
 	if (error != 0)
 		device_printf(sc->dev, "Failed to start RX DMAC.\n");
 fail:
@@ -1334,6 +1345,7 @@ mgb_dma_tx_ring_init(struct mgb_softc *sc, int channel)
 	/* write ring address */
 	if (rdata->ring_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid ring bus addr.\n");
+		error = EINVAL;
 		goto fail;
 	}
 	CSR_WRITE_REG(sc, MGB_DMA_TX_BASE_H(channel),
@@ -1354,6 +1366,7 @@ mgb_dma_tx_ring_init(struct mgb_softc *sc, int channel)
 	/* write head pointer writeback address */
 	if (rdata->head_wb_bus_addr == 0) {
 		device_printf(sc->dev, "Invalid head wb bus addr.\n");
+		error = EINVAL;
 		goto fail;
 	}
 	CSR_WRITE_REG(sc, MGB_DMA_TX_HEAD_WB_H(channel),
