@@ -945,7 +945,7 @@ enic_stop(if_ctx_t ctx)
 	for (index = 0; index < scctx->isc_ntxqsets; index++) {
 		enic_stop_wq(enic, index);
 		vnic_wq_clean(&enic->wq[index]);
-		vnic_cq_clean(&enic->cq[enic_cq_rq(enic, index)]);
+		vnic_cq_clean(&enic->cq[enic_cq_wq(enic, index)]);
 
 		wq = &softc->enic.wq[index];
 		wq->ring.desc_avail = wq->ring.desc_count - 1;
@@ -961,7 +961,7 @@ enic_stop(if_ctx_t ctx)
 	for (index = 0; index < scctx->isc_nrxqsets; index++) {
 		enic_stop_rq(enic, index);
 		vnic_rq_clean(&enic->rq[index]);
-		vnic_cq_clean(&enic->cq[enic_cq_wq(enic, index)]);
+		vnic_cq_clean(&enic->cq[enic_cq_rq(enic, index)]);
 
 		rq = &softc->enic.rq[index];
 		cq_rq = enic_cq_rq(&softc->enic, index);
