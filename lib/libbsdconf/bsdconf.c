@@ -420,12 +420,12 @@ bsdconf_fparse(struct bsdconf_option options[], int fd,
 	}
 
 	/* Processing options */
-	bequals = (processing_options & BSDCONF_BREAK_ON_EQUALS);
-	bsemicolon = (processing_options & BSDCONF_BREAK_ON_SEMICOLON);
-	case_sensitive = (processing_options & BSDCONF_CASE_SENSITIVE);
-	operator_equals = (processing_options & BSDCONF_OPERATOR_EQUALS);
-	require_equals = (processing_options & BSDCONF_REQUIRE_EQUALS);
-	strict_equals = (processing_options & BSDCONF_STRICT_EQUALS);
+	bequals = processing_options & BSDCONF_BREAK_ON_EQUALS;
+	bsemicolon = processing_options & BSDCONF_BREAK_ON_SEMICOLON;
+	case_sensitive = processing_options & BSDCONF_CASE_SENSITIVE;
+	operator_equals = processing_options & BSDCONF_OPERATOR_EQUALS;
+	require_equals = processing_options & BSDCONF_REQUIRE_EQUALS;
+	strict_equals = processing_options & BSDCONF_STRICT_EQUALS;
 
 	/* Read the file until EOF */
 	while (r > 0) {

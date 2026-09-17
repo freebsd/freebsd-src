@@ -34,10 +34,10 @@
 /*
  * Library version info
  */
-#define BSDCONF_VERSION		"1.1.0 2026-09-15"
+#define BSDCONF_VERSION		"1.1.1 2026-09-16"
 #define BSDCONF_VERSION_MAJOR	1
 #define BSDCONF_VERSION_MINOR	1
-#define BSDCONF_VERSION_PATCH	0
+#define BSDCONF_VERSION_PATCH	1
 
 /*
  * Union for storing various types of data in a single common container.
