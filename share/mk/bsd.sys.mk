@@ -96,6 +96,9 @@ CXXWARNFLAGS.clang+=	-Wno-c++20-extensions
 CXXWARNFLAGS.clang+=	-Wno-c++23-lambda-attributes
 CXXWARNFLAGS.clang+=	-Wno-nullability-completeness
 .endif
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 230000
+CWARNFLAGS.clang+=	-Wno-error=unused-but-set-global
+.endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
