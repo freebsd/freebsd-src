@@ -95,10 +95,20 @@ ig4iic_acpi_attach(device_t dev)
 		return (error);
 	if (strcmp(str, "APMC0D0F") == 0) {
 		sc->version = IG4_EMAG;
+	} else if (strcmp(str, "INT33C2") == 0 || strcmp(str, "INT33C3") == 0 ||
+	    strcmp(str, "INT3432") == 0 || strcmp(str, "INT3433") == 0) {
+		/* Lynx Point-LP / Wildcat Point-LP LPSS in ACPI mode. */
+		sc->version = IG4_HASWELL;
 	} else {
 		/* All the other HIDs matched are Atom SOCs. */
 		sc->version = IG4_ATOM;
 	}
+	/*
+	 * Firmware may leave LPSS functions in D3 (e.g. Dell XPS 13 9343):
+	 * the registers then read as all-ones and attach fails.  Run _PS0.
+	 */
+	acpi_set_powerstate(dev, ACPI_STATE_D0);
+
 	sc->regs_rid = 0;
 	sc->regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 					  &sc->regs_rid, RF_ACTIVE);
