@@ -30,21 +30,17 @@ amdsmu_match(device_t dev, const struct amdsmu_product **product_out)
 	const uint16_t vendorid = pci_get_vendor(dev);
 	const uint16_t deviceid = pci_get_device(dev);
 
-	const uint32_t model = CPUID_TO_MODEL(cpu_id);
+	/* CPUID_TO_MODEL() returns a number between 0 and 255. */
+	const int model = CPUID_TO_MODEL(cpu_id);
 
-	for (size_t i = 0; i < nitems(amdsmu_products); i++) {
-		const struct amdsmu_product *prod = &amdsmu_products[i];
+	/* Reverse order to match specific models first. */
+	for (size_t i = nitems(amdsmu_products); i != 0; i--) {
+		const struct amdsmu_product *prod = &amdsmu_products[i-1];
 
 		if (vendorid == prod->amdsmu_vendorid &&
-		    deviceid == prod->amdsmu_deviceid) {
-
-			/*
-			 * Some Krackan Point devices have different ip blocks
-			 * based on CPU model.
-			 */
-			if (prod->model != 0x00 && model != prod->model)
-				continue;
-
+		    deviceid == prod->amdsmu_deviceid &&
+		    /* -1 indicates all models match. */
+		    (prod->model == -1 || model == prod->model)) {
 			if (product_out != NULL)
 				*product_out = prod;
 			return (true);
