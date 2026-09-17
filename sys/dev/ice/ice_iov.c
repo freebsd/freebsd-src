@@ -1530,7 +1530,7 @@ ice_vc_enable_queues_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			device_printf(sc->dev,
 			    "Unable to enable VF-%d Rx queue %d: %s\n",
 			    vf->vf_num, bit, ice_err_str(error));
-			v_status = VIRTCHNL_STATUS_ERR_PARAM;
+			v_status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
 			goto done;
 		}
 		vf->rxq_enabled |= BIT(bit);
