@@ -48,6 +48,9 @@ CWARNEXTRA?=	-Wno-error=tautological-compare -Wno-error=empty-body \
 		-Wno-error=pointer-sign
 CWARNEXTRA+=	-Wno-error=shift-negative-value
 CWARNEXTRA+=	-Wno-address-of-packed-member
+.if ${COMPILER_VERSION} >= 230000
+CWARNEXTRA+=	-Wno-error=unused-but-set-global
+.endif
 .endif	# clang
 
 .if ${COMPILER_TYPE} == "gcc"
