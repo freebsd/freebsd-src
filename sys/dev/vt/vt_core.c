@@ -2939,13 +2939,13 @@ skip_thunk:
 				restore = true;
 				vd->vd_flags |= VDF_INVALID;
 			}
+			vw->vw_flags &= ~VWF_GRAPHICS;
 			VT_UNLOCK(vd);
 			if (restore) {
 				if (vd->vd_driver->vd_postswitch)
 					vd->vd_driver->vd_postswitch(vd);
 				vt_resume_flush_timer(vw, 0);
 			}
-			vw->vw_flags &= ~VWF_GRAPHICS;
 			break;
 		}
 		case KD_GRAPHICS:
