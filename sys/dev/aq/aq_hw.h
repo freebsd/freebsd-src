@@ -408,6 +408,8 @@ int aq_hw_set_power(struct aq_hw *hw, unsigned int power_state);
 
 int aq_hw_err_from_flags(struct aq_hw *hw);
 
+int aq_hw_invalidate_descriptor_cache(struct aq_hw *hw);
+
 int hw_atl_b0_hw_vlan_promisc_set(struct aq_hw *hw, bool promisc);
 
 int hw_atl_b0_hw_vlan_set(struct aq_hw *hw,

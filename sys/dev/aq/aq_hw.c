@@ -58,6 +58,31 @@ aq_hw_err_from_flags(struct aq_hw *hw)
 	return (0);
 }
 
+int
+aq_hw_invalidate_descriptor_cache(struct aq_hw *hw)
+{
+	int error;
+
+	/* Atlantic A0 does not implement this stop workaround. */
+	if (IS_CHIP_FEATURE(hw, REVISION_A0))
+		return (0);
+
+	/*
+	 * Cached Rx descriptors retain both descriptor and data addresses.
+	 * Toggle the global cache invalidation only after every ring is down.
+	 */
+	rdm_rx_dma_desc_cache_init_tgl(hw);
+	error = aq_hw_err_from_flags(hw);
+	if (error != 0)
+		return (error);
+
+	error = AQ_HW_WAIT_FOR(rdm_rx_dma_desc_cache_init_done_get(hw) != 0,
+	    1000, 10);
+	if (error != 0)
+		return (error);
+	return (aq_hw_err_from_flags(hw));
+}
+
 inline uint32_t
 aq_hw_read_reg(struct aq_hw *hw, uint32_t reg)
 {

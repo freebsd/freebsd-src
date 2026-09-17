@@ -395,6 +395,11 @@
 /* default value of bitfield rdm_desc_init_i */
 #define rdm_rx_dma_desc_cache_init_defaulT 0x0
 
+/* rdm_desc_init_done_i bitfield definitions */
+#define rdm_rx_dma_desc_cache_init_done_adr 0x00005a10
+#define rdm_rx_dma_desc_cache_init_done_msk 0x00000001
+#define rdm_rx_dma_desc_cache_init_done_shift 0
+
 /* rx int_desc_wrb_en bitfield definitions
  * preprocessor definitions for the bitfield "int_desc_wrb_en".
  * port="pif_rdm_int_desc_wrb_en_i"
