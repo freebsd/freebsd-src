@@ -45,6 +45,7 @@
 
 /* XXX We should really generate these and use them throughout the tree. */
 
+#define	PCI_VENDOR_ID_AMD		0x1022
 #define	PCI_VENDOR_ID_APPLE		0x106b
 #define	PCI_VENDOR_ID_ASUSTEK		0x1043
 #define	PCI_VENDOR_ID_ASMEDIA		0x1b21
