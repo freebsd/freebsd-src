@@ -737,6 +737,7 @@ MLINKS+=em.4 if_em.4 \
 	em.4 lem.4 \
 	em.4 if_lem.4
 MLINKS+=enc.4 if_enc.4
+MLINKS+=enic.4 if_enic.4
 MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
 MLINKS+=ext2fs.4 ext4fs.4
