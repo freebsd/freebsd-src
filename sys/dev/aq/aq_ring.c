@@ -208,10 +208,6 @@ aq_ring_rx_stop(struct aq_hw *hw, struct aq_ring *ring)
 
 	AQ_DBG_ENTERA("[%d]", ring->index);
 	rdm_rx_desc_en_set(hw, 0U, ring->index);
-	/* Invalidate Descriptor Cache to prevent writing to the cached
-	 * descriptors and to the data pointer of those descriptors
-	 */
-	rdm_rx_dma_desc_cache_init_tgl(hw);
 	err = aq_hw_err_from_flags(hw);
 	AQ_DBG_EXIT(err);
 	return (err);

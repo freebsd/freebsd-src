@@ -934,6 +934,9 @@ void tpb_tx_pkt_buff_size_per_tc_set(struct aq_hw *aq_hw,
 /* toggle rdm rx dma descriptor cache init */
 void rdm_rx_dma_desc_cache_init_tgl(struct aq_hw *aq_hw);
 
+/* get rdm rx dma descriptor cache init done */
+uint32_t rdm_rx_dma_desc_cache_init_done_get(struct aq_hw *aq_hw);
+
 /* set tx path pad insert enable */
 void tpb_tx_path_scp_ins_en_set(struct aq_hw *aq_hw,
     uint32_t tx_path_scp_ins_en);

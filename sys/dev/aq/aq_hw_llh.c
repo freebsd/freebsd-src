@@ -1728,6 +1728,15 @@ rdm_rx_dma_desc_cache_init_tgl(struct aq_hw *aq_hw)
 	);
 }
 
+uint32_t
+rdm_rx_dma_desc_cache_init_done_get(struct aq_hw *aq_hw)
+{
+	return (AQ_READ_REG_BIT(aq_hw,
+	    rdm_rx_dma_desc_cache_init_done_adr,
+	    rdm_rx_dma_desc_cache_init_done_msk,
+	    rdm_rx_dma_desc_cache_init_done_shift));
+}
+
 void
 tpb_tx_pkt_buff_size_per_tc_set(struct aq_hw *aq_hw,
     uint32_t tx_pkt_buff_size_per_tc, uint32_t buffer)

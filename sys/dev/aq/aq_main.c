@@ -873,6 +873,10 @@ aq_if_stop(if_ctx_t ctx)
 			    "could not stop RX ring %d\n", i);
 	}
 
+	if (aq_hw_invalidate_descriptor_cache(hw) != 0)
+		device_printf(softc->dev,
+		    "could not invalidate the RX descriptor cache\n");
+
 	if (aq_hw_reset(&softc->hw, true) != 0)
 		device_printf(softc->dev, "could not reset the MAC on stop\n");
 	memset(&softc->last_stats, 0, sizeof(softc->last_stats));
