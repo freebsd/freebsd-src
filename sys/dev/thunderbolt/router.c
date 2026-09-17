@@ -534,7 +534,8 @@ _tb_config_write(struct router_softc *sc, u_int space, u_int adapter,
 {
 	struct router_command *cmd;
 	struct tb_cfg_write *msg;
-	size_t msglen = sizeof(*msg) + dwlen * 4;
+	/* +4 to account for the CRC at the end. */
+	size_t msglen = sizeof(*msg) + dwlen * 4 + 4;
 	int error;
 
 	if ((error = router_alloc_cmd(sc, &cmd)) != 0)
