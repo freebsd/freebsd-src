@@ -2326,7 +2326,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		struct sockaddr_in6 ssrc;
 		struct sockaddr *gw;
 		int rt_flags;
-		u_int fibnum;
 
 		bzero(&sdst, sizeof(sdst));
 		bzero(&ssrc, sizeof(ssrc));
@@ -2345,10 +2344,9 @@ icmp6_redirect_input(struct mbuf *m, int off)
 			rt_flags |= RTF_GATEWAY;
 		} else
 			gw = ifp->if_addr->ifa_addr;
-		for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
-			rib_add_redirect(fibnum, (struct sockaddr *)&sdst, gw,
-			    (struct sockaddr *)&ssrc, ifp, rt_flags,
-			    V_icmp6_redirtimeout);
+		rib_add_redirect(M_GETFIB(m), (struct sockaddr *)&sdst, gw,
+		    (struct sockaddr *)&ssrc, ifp, rt_flags,
+		    V_icmp6_redirtimeout);
 	}
 
  freeit:
