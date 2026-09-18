@@ -288,4 +288,4 @@ DEFINE_CLASS_1(smmu, smmu_acpi_driver, smmu_acpi_methods,
     sizeof(struct smmu_softc), smmu_driver);
 
 EARLY_DRIVER_MODULE(smmu, acpi, smmu_acpi_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
