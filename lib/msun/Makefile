@@ -287,7 +287,8 @@ MLINKS+=remainder.3 remainderf.3 remainder.3 remainderl.3 \
 	remainder.3 remquo.3 remainder.3 remquof.3 remainder.3 remquol.3
 MLINKS+=rint.3 rintf.3 rint.3 rintl.3 \
 	rint.3 nearbyint.3 rint.3 nearbyintf.3 rint.3 nearbyintl.3
-MLINKS+=round.3 roundf.3 round.3 roundl.3
+MLINKS+=round.3 roundf.3 round.3 roundl.3 \
+	round.3 roundeven.3 round.3 roundevenf.3 round.3 roundevenl.3
 MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
 MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
 MLINKS+=sin.3 sinf.3 sin.3 sinl.3
