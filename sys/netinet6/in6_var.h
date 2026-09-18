@@ -635,9 +635,16 @@ struct in6_mfilter {
 };
 
 /*
- * Helper types and functions for IPv4 multicast filters.
+ * Structure attached to inpcb.in6p_moptions and passed to ip6_output() when
+ * IPv6 multicast options are in use.
+ * This structure is lazy-allocated.
  */
-STAILQ_HEAD(ip6_mfilter_head, in6_mfilter);
+struct ip6_moptions {
+	struct ifnet *im6o_multicast_ifp; /* ifp for outgoing multicasts */
+	u_char im6o_multicast_hlim;	/* hoplimit for outgoing multicasts */
+	u_char im6o_multicast_loop;	/* 1 >= hear sends if a member */
+	STAILQ_HEAD(ip6_mfilter_head, in6_mfilter) im6o_head;
+};
 
 struct in6_mfilter *ip6_mfilter_alloc(int mflags, int st0, int st1);
 void ip6_mfilter_free(struct in6_mfilter *);
@@ -860,7 +867,6 @@ in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 	}
 }
 
-struct ip6_moptions;
 struct sockopt;
 struct inpcbinfo;
 struct rib_head;

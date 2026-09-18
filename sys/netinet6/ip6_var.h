@@ -113,21 +113,6 @@ struct ip6_direct_ctx {
 	uint32_t	ip6dc_off;	/* offset to next header */
 };
 
-#if defined(_NETINET6_IN6_VAR_H_) && defined(_KERNEL)
-/*
- * Structure attached to inpcb.in6p_moptions and
- * passed to ip6_output when IPv6 multicast options are in use.
- * This structure is lazy-allocated.
- */
-struct ip6_moptions {
-	struct	ifnet *im6o_multicast_ifp; /* ifp for outgoing multicasts */
-	u_char	im6o_multicast_hlim;	/* hoplimit for outgoing multicasts */
-	u_char	im6o_multicast_loop;	/* 1 >= hear sends if a member */
-	struct ip6_mfilter_head im6o_head; /* group membership list */
-};
-#else
-struct ip6_moptions;
-#endif
 /*
  * Control options for outgoing packets
  */
@@ -395,6 +380,7 @@ struct inpcb;
 struct socket;
 struct sockopt;
 struct ucred;
+struct ip6_moptions;
 
 int	icmp6_ctloutput(struct socket *, struct sockopt *sopt);
 
