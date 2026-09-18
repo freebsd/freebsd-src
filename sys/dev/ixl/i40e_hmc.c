@@ -187,7 +187,7 @@ enum i40e_status_code i40e_add_pd_table_entry(struct i40e_hw *hw,
 		pd_entry->bp.sd_pd_index = pd_index;
 		pd_entry->bp.entry_type = I40E_SD_TYPE_PAGED;
 		/* Set page address and valid bit */
-		page_desc = page->pa | 0x1;
+		page_desc = CPU_TO_LE64(page->pa | 0x1);
 
 		pd_addr = (u64 *)pd_table->pd_page_addr.va;
 		pd_addr += rel_pd_idx;
