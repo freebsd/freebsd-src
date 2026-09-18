@@ -62,6 +62,7 @@ int mixer_delete(struct snd_mixer *m);
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 int mixer_uninit(device_t dev);
 int mixer_reinit(device_t dev);
+int mixer_make_dev(device_t dev);
 int mixer_ioctl_cmd(struct cdev *i_dev, unsigned long cmd, caddr_t arg,
     int mode, struct thread *td);
 int mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi);
