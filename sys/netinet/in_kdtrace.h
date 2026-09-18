@@ -251,9 +251,6 @@ SDT_PROBE_DECLARE(mib, tcp, count, tcps_pawsdrop);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_predack);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_preddat);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_pcbcachemiss);
-SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedrtt);
-SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedrttvar);
-SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedssthresh);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_usedrtt);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_usedrttvar);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_usedssthresh);
@@ -281,8 +278,17 @@ SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_recvcookie);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_spurcookie);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_failcookie);
 
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_hits);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_misses);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_added);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_bucketoverflow);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_allocfail);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedrtt);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedrttvar);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedssthresh);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedcwnd);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedsendpipe);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_cachedrecvpipe);
 
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_finwait2_drops);
 

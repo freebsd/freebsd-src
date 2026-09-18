@@ -259,9 +259,6 @@ MIB_PROBE_TCP(tcps_pawsdrop);
 MIB_PROBE_TCP(tcps_predack);
 MIB_PROBE_TCP(tcps_preddat);
 MIB_PROBE_TCP(tcps_pcbackemiss);
-MIB_PROBE_TCP(tcps_cachedrtt);
-MIB_PROBE_TCP(tcps_cachedrttvar);
-MIB_PROBE_TCP(tcps_cachedssthresh);
 MIB_PROBE_TCP(tcps_usedrtt);
 MIB_PROBE_TCP(tcps_usedrttvar);
 MIB_PROBE_TCP(tcps_usedssthresh);
@@ -289,8 +286,17 @@ MIB_PROBE_TCP(tcps_sc_recvcookie);
 MIB_PROBE_TCP(tcps_sc_spurcookie);
 MIB_PROBE_TCP(tcps_sc_failcookie);
 
+MIB_PROBE_TCP(tcps_hc_hits);
+MIB_PROBE_TCP(tcps_hc_misses);
 MIB_PROBE_TCP(tcps_hc_added);
 MIB_PROBE_TCP(tcps_hc_bucketoverflow);
+MIB_PROBE_TCP(tcps_hc_allocfail);
+MIB_PROBE_TCP(tcps_cachedrtt);
+MIB_PROBE_TCP(tcps_cachedrttvar);
+MIB_PROBE_TCP(tcps_cachedssthresh);
+MIB_PROBE_TCP(tcps_cachedcwnd);
+MIB_PROBE_TCP(tcps_cachedsendpipe);
+MIB_PROBE_TCP(tcps_cachedrecvpipe);
 
 MIB_PROBE_TCP(tcps_finwait2_drops);
 
