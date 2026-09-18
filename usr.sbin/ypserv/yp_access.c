@@ -146,7 +146,7 @@ load_securenets(void)
 		if ((linebuf[0] == '#')
 		    || (strspn(linebuf, " \t\r\n") == strlen(linebuf)))
 			continue;
-		if (sscanf(linebuf, "%s %s", addr1, addr2) < 2) {
+		if (sscanf(linebuf, "%19s %19s", addr1, addr2) < 2) {
 			yp_error("badly formatted securenets entry: %s",
 							linebuf);
 			continue;
