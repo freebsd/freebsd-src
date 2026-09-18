@@ -443,7 +443,7 @@ linuxkpi_devm_memremap(struct device *dev, resource_size_t offset, size_t size,
 		*dr = addr;
 		devres_add(dev, dr);
 	} else {
-                addr = ERR_PTR(-ENXIO);
+		addr = ERR_PTR(-ENXIO);
 		devres_free(dr);
 	}
 
