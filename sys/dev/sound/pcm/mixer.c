@@ -698,22 +698,16 @@ sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 	struct snd_mixer *m;
 
 	m = oidp->oid_arg1;
-	mtx_lock(m->lock);
 	strlcpy(devname, snd_mixernames[m->hwvol_mixer], sizeof(devname));
-	mtx_unlock(m->lock);
 	error = sysctl_handle_string(oidp, &devname[0], sizeof(devname), req);
-	mtx_lock(m->lock);
 	if (error == 0 && req->newptr != NULL) {
-		dev = mixer_lookup(devname);
-		if (dev == -1) {
-			mtx_unlock(m->lock);
-			return EINVAL;
-		} else {
-			m->hwvol_mixer = dev;
-		}
+		if ((dev = mixer_lookup(devname)) == -1)
+			return (EINVAL);
+		mtx_lock(m->lock);
+		m->hwvol_mixer = dev;
+		mtx_unlock(m->lock);
 	}
-	mtx_unlock(m->lock);
-	return error;
+	return (error);
 }
 
 int
