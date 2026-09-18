@@ -393,7 +393,6 @@ struct iavf_sc {
 
 /* Function prototypes */
 void		 iavf_init_tx_ring(struct iavf_vsi *vsi, struct iavf_tx_queue *que);
-void		 iavf_get_default_rss_key(u32 *);
 const char *	iavf_vc_stat_str(struct iavf_hw *hw,
     enum virtchnl_status_code stat_err);
 void		iavf_init_tx_rsqs(struct iavf_vsi *vsi);
