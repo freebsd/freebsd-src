@@ -54,7 +54,8 @@ struct snd_mixer {
 	uint32_t child[32];
 	uint8_t realdev[32];
 	char name[MIXER_NAMELEN];
-	struct mtx lock;
+	struct mtx *lock;
+	struct mtx priv_lock;
 	int modify_counter;
 	struct cdev *cdev;
 };
