@@ -735,9 +735,9 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 			return (ret);
 		}
 
-		if (d->mixer_dev != NULL) {
+		if (MIXER_REGISTERED(d->mixer)) {
 			PCM_ACQUIRE_QUICK(d);
-			ret = mixer_ioctl_cmd(d->mixer_dev, cmd, arg, -1, td);
+			ret = mixer_ioctl_cmd(d->mixer->cdev, cmd, arg, -1, td);
 			PCM_RELEASE_QUICK(d);
 		} else
 			ret = EBADF;
@@ -1520,9 +1520,9 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 			return (ret);
 		}
 
-		if (d->mixer_dev != NULL) {
+		if (MIXER_REGISTERED(d->mixer)) {
 			PCM_ACQUIRE_QUICK(d);
-			ret = mixer_ioctl_cmd(d->mixer_dev, xcmd, arg, -1, td);
+			ret = mixer_ioctl_cmd(d->mixer->cdev, xcmd, arg, -1, td);
 			PCM_RELEASE_QUICK(d);
 		} else
 			ret = ENOTSUP;
@@ -1532,9 +1532,9 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_GET_RECSRC_NAMES:
 	case SNDCTL_DSP_GET_RECSRC:
 	case SNDCTL_DSP_SET_RECSRC:
-		if (d->mixer_dev != NULL) {
+		if (MIXER_REGISTERED(d->mixer)) {
 			PCM_ACQUIRE_QUICK(d);
-			ret = mixer_ioctl_cmd(d->mixer_dev, cmd, arg, -1, td);
+			ret = mixer_ioctl_cmd(d->mixer->cdev, cmd, arg, -1, td);
 			PCM_RELEASE_QUICK(d);
 		} else
 			ret = ENOTSUP;
@@ -2205,7 +2205,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 	strlcpy(ai->cmd, CHN_COMM_UNKNOWN, sizeof(ai->cmd));
 	ai->card_number = unit;
 	ai->port_number = unit;
-	ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
+	ai->mixer_dev = MIXER_REGISTERED(d->mixer) ? unit : -1;
 	ai->legacy_device = unit;
 	snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
 	ai->enabled = device_is_attached(d->dev) ? 1 : 0;
@@ -2451,7 +2451,7 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 		 * @todo @c port_number - routing information?
 		 */
 		ai->port_number = unit;
-		ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
+		ai->mixer_dev = MIXER_REGISTERED(d->mixer) ? unit : -1;
 		/**
 		 * @note
 		 * @c legacy_device - OSSv4 docs:  "Obsolete."
