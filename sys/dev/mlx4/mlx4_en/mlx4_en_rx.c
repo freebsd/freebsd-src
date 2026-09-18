@@ -43,6 +43,7 @@
 #endif
 
 #include "en.h"
+#include <net/rss_config.h>
 
 #if (MLX4_EN_MAX_RX_SEGS == 1)
 static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
@@ -993,26 +994,12 @@ void mlx4_en_destroy_drop_qp(struct mlx4_en_priv *priv)
 	mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
 }
 
-const u32 *
-mlx4_en_get_rss_key(struct mlx4_en_priv *priv __unused,
-    u16 *keylen)
+void
+mlx4_en_get_rss_key(void *key)
 {
-	static const u32 rsskey[10] = {
-		cpu_to_be32(0xD181C62C),
-		cpu_to_be32(0xF7F4DB5B),
-		cpu_to_be32(0x1983A2FC),
-		cpu_to_be32(0x943E1ADB),
-		cpu_to_be32(0xD9389E6B),
-		cpu_to_be32(0xD1039C2C),
-		cpu_to_be32(0xA74499AD),
-		cpu_to_be32(0x593D56D9),
-		cpu_to_be32(0xF3253C06),
-		cpu_to_be32(0x2ADC1FFC)
-	};
-
-	if (keylen != NULL)
-		*keylen = sizeof(rsskey);
-	return (rsskey);
+	_Static_assert(MLX4_EN_RSS_KEY_SIZE == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(key);
 }
 
 u8 mlx4_en_get_rss_mask(struct mlx4_en_priv *priv)
@@ -1032,7 +1019,6 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
 	struct mlx4_qp_context context;
 	struct mlx4_rss_context *rss_context;
-	const u32 *key;
 	int rss_rings;
 	void *ptr;
 	int i;
@@ -1085,9 +1071,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 		rss_context->base_qpn_udp = rss_context->default_qpn;
 	rss_context->flags = mlx4_en_get_rss_mask(priv);
 	rss_context->hash_fn = MLX4_RSS_HASH_TOP;
-	key = mlx4_en_get_rss_key(priv, NULL);
-	for (i = 0; i < 10; i++)
-		rss_context->rss_key[i] = key[i];
+	mlx4_en_get_rss_key(rss_context->rss_key);
 
 	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, &context,
 			       &rss_map->indir_qp, &rss_map->indir_state);

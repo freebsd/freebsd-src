@@ -1953,7 +1953,6 @@ static int mlx4_en_ioctl(if_t dev, u_long command, caddr_t data)
 	int error;
 	int mask;
 	struct ifrsskey *ifrk;
-	const u32 *key;
 	struct ifrsshash *ifrh;
 	u8 rss_mask;
 
@@ -2092,12 +2091,11 @@ out:
 	case SIOCGIFRSSKEY:
 		ifrk = (struct ifrsskey *)data;
 		ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+		ifrk->ifrk_keylen = MLX4_EN_RSS_KEY_SIZE;
+		_Static_assert(sizeof(ifrk->ifrk_key) >= MLX4_EN_RSS_KEY_SIZE,
+		    "RSS query buffer too small");
 		mutex_lock(&mdev->state_lock);
-		key = mlx4_en_get_rss_key(priv, &ifrk->ifrk_keylen);
-		if (ifrk->ifrk_keylen > RSS_KEYLEN)
-			error = EINVAL;
-		else
-			memcpy(ifrk->ifrk_key, key, ifrk->ifrk_keylen);
+		mlx4_en_get_rss_key(ifrk->ifrk_key);
 		mutex_unlock(&mdev->state_lock);
 		break;
 
