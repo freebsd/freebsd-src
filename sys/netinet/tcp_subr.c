@@ -2515,8 +2515,8 @@ tcp_discardcb(struct tcpcb *tp)
 		metrics.hc_rtt = tp->t_srtt;
 		metrics.hc_rttvar = tp->t_rttvar;
 		metrics.hc_cwnd = tp->snd_cwnd;
-		metrics.hc_sendpipe = 0;
-		metrics.hc_recvpipe = 0;
+		metrics.hc_sendpipe = so->so_snd.sb_hiwat;
+		metrics.hc_recvpipe = so->so_rcv.sb_hiwat;
 
 		tcp_hc_update(&inp->inp_inc, &metrics);
 	}
