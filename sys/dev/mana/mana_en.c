@@ -49,9 +49,7 @@
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#ifdef RSS
 #include <net/rss_config.h>
-#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -70,22 +68,6 @@ static int mana_down(struct mana_port_context *apc);
 extern unsigned int mana_tx_req_size;
 extern unsigned int mana_rx_req_size;
 extern unsigned int mana_rx_refill_threshold;
-
-static void
-mana_rss_key_fill(void *k, size_t size)
-{
-	static bool rss_key_generated = false;
-	static uint8_t rss_key[MANA_HASH_KEY_SIZE];
-
-	KASSERT(size <= MANA_HASH_KEY_SIZE,
-	    ("Request more buytes than MANA RSS key can hold"));
-
-	if (!rss_key_generated) {
-		arc4random_buf(rss_key, MANA_HASH_KEY_SIZE);
-		rss_key_generated = true;
-	}
-	memcpy(k, rss_key, size);
-}
 
 static int
 mana_ifmedia_change(if_t ifp __unused)
@@ -2958,7 +2940,9 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	if_setmtu(ndev, apc->mtu);
 	if_setbaudrate(ndev, IF_Gbps(100));
 
-	mana_rss_key_fill(apc->hashkey, MANA_HASH_KEY_SIZE);
+	_Static_assert(sizeof(apc->hashkey) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(apc->hashkey);
 
 	err = mana_init_port(ndev);
 	if (err)
