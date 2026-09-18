@@ -744,29 +744,25 @@ mixer_hwvol_init(device_t dev)
 }
 
 void
-mixer_hwvol_mute_locked(struct snd_mixer *m)
-{
-	mix_setmutedevs(m, m->mutedevs ^ (1 << m->hwvol_mixer));
-}
-
-void
 mixer_hwvol_mute(device_t dev)
 {
 	struct snd_mixer *m;
 
 	m = mixer_get_devt(dev);
 	mtx_lock(m->lock);
-	mixer_hwvol_mute_locked(m);
+	mix_setmutedevs(m, m->mutedevs ^ (1 << m->hwvol_mixer));
 	mtx_unlock(m->lock);
 }
 
 void
-mixer_hwvol_step_locked(struct snd_mixer *m, int left_step, int right_step)
+mixer_hwvol_step(device_t dev, int left_step, int right_step)
 {
+	struct snd_mixer *m;
 	int level, left, right;
 
+	m = mixer_get_devt(dev);
+	mtx_lock(m->lock);
 	level = mixer_get(m, m->hwvol_mixer);
-
 	if (level != -1) {
 		left = level & 0xff;
 		right = (level >> 8) & 0xff;
@@ -783,16 +779,6 @@ mixer_hwvol_step_locked(struct snd_mixer *m, int left_step, int right_step)
 
 		mixer_set(m, m->hwvol_mixer, m->mutedevs, left | right << 8);
 	}
-}
-
-void
-mixer_hwvol_step(device_t dev, int left_step, int right_step)
-{
-	struct snd_mixer *m;
-
-	m = mixer_get_devt(dev);
-	mtx_lock(m->lock);
-	mixer_hwvol_step_locked(m, left_step, right_step);
 	mtx_unlock(m->lock);
 }
 
