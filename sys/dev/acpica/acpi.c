@@ -3908,8 +3908,11 @@ backout:
 
     EVENTHANDLER_INVOKE(power_resume, stype);
 
-    if (stype == POWER_STYPE_SUSPEND_TO_IDLE && ACPI_SUCCESS(status))
-	check_post_suspend_to_idle(sc->acpi_dev);
+    if (ACPI_SUCCESS(status)) {
+	if (stype == POWER_STYPE_SUSPEND_TO_IDLE)
+	    check_post_suspend_to_idle(sc->acpi_dev);
+	EVENTHANDLER_INVOKE(power_resume_check, stype);
+    }
 
     /* Allow another sleep request after a while. */
     callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
