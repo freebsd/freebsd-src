@@ -1150,6 +1150,8 @@ a10codec_attach(device_t dev)
 	val |= DAC_DPC_EN_DA;
 	CODEC_WRITE(sc, AC_DAC_DPC(sc), val);
 
+	pcm_init(dev, sc);
+
 	if (mixer_init(dev, sc->cfg->mixer_class, sc)) {
 		device_printf(dev, "mixer_init failed\n");
 		goto fail;
@@ -1164,8 +1166,6 @@ a10codec_attach(device_t dev)
 	}
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
-
-	pcm_init(dev, sc);
 
 	pcm_addchan(dev, PCMDIR_PLAY, &a10codec_chan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC, &a10codec_chan_class, sc);

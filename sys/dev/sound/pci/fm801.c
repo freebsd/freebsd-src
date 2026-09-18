@@ -613,6 +613,7 @@ fm801_pci_attach(device_t dev)
 	codec = AC97_CREATE(dev, fm801, fm801_ac97);
 	if (codec == NULL) goto oops;
 
+	pcm_init(dev, fm801);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto oops;
 
 	fm801->irqid = 0;
@@ -642,7 +643,6 @@ fm801_pci_attach(device_t dev)
 		device_get_nameunit(device_get_parent(dev)));
 
 #define FM801_MAXPLAYCH	1
-	pcm_init(dev, fm801);
 	pcm_addchan(dev, PCMDIR_PLAY, &fm801ch_class, fm801);
 	pcm_addchan(dev, PCMDIR_REC, &fm801ch_class, fm801);
 	if (pcm_register(dev, status))

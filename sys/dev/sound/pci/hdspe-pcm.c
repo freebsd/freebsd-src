@@ -1066,6 +1066,8 @@ hdspe_pcm_attach(device_t dev)
 
 	pcm_init(dev, scp);
 
+	mixer_init(dev, &hdspemixer_class, scp);
+
 	play = (hdspe_channel_play_ports(scp->hc)) ? 1 : 0;
 	rec = (hdspe_channel_rec_ports(scp->hc)) ? 1 : 0;
 
@@ -1089,8 +1091,6 @@ hdspe_pcm_attach(device_t dev)
 		device_printf(dev, "Can't register pcm.\n");
 		return (ENXIO);
 	}
-
-	mixer_init(dev, &hdspemixer_class, scp);
 
 	/* Register the PCM child for interrupt dispatch. */
 	mtx_lock(&sc->lock);

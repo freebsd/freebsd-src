@@ -761,6 +761,8 @@ sai_attach(device_t dev)
 
 	pcm_init(dev, scp);
 
+	mixer_init(dev, &saimixer_class, scp);
+
 	scp->chnum = 0;
 	pcm_addchan(dev, PCMDIR_PLAY, &saichan_class, scp);
 	scp->chnum++;
@@ -771,8 +773,6 @@ sai_attach(device_t dev)
 		device_printf(dev, "Can't register pcm.\n");
 		return (ENXIO);
 	}
-
-	mixer_init(dev, &saimixer_class, scp);
 
 	setup_dma(scp);
 	setup_sai(sc);

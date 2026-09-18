@@ -1416,6 +1416,7 @@ m3_pci_attach(device_t dev)
 		device_printf(dev, "ac97_create error\n");
 		goto bad;
 	}
+	pcm_init(dev, sc);
 	if (mixer_init(dev, ac97_getmixerclass(), codec)) {
 		device_printf(dev, "mixer_init error\n");
 		goto bad;
@@ -1423,7 +1424,6 @@ m3_pci_attach(device_t dev)
 
 	m3_enable_ints(sc);
 
-	pcm_init(dev, sc);
 	for (i=0 ; i<dacn ; i++) {
 		if (pcm_addchan(dev, PCMDIR_PLAY, &m3_pch_class, sc)) {
 			device_printf(dev, "pcm_addchan (play) error\n");

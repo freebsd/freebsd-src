@@ -692,6 +692,7 @@ nm_pci_attach(device_t dev)
 
 	codec = AC97_CREATE(dev, sc, nm_ac97);
 	if (codec == NULL) goto bad;
+	pcm_init(dev, sc);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	sc->irqid = 0;
@@ -707,7 +708,6 @@ nm_pci_attach(device_t dev)
 		 rman_get_start(sc->irq),
 		 device_get_nameunit(device_get_parent(dev)));
 
-	pcm_init(dev, sc);
 	pcm_addchan(dev, PCMDIR_REC, &nmchan_class, sc);
 	pcm_addchan(dev, PCMDIR_PLAY, &nmchan_class, sc);
 	if (pcm_register(dev, status))

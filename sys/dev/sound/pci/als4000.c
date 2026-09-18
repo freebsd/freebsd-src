@@ -833,12 +833,12 @@ als_pci_attach(device_t dev)
 		goto bad_attach;
 	}
 
+	pcm_init(dev, sc);
+
 	if (mixer_init(dev, &als_mixer_class, sc)) {
 		device_printf(dev, "failed to initialize mixer\n");
 		goto bad_attach;
 	}
-
-	pcm_init(dev, sc);
 
 	pcm_addchan(dev, PCMDIR_PLAY, &alspchan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC,  &alsrchan_class, sc);
