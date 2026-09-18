@@ -35,6 +35,7 @@
 
 #include <sys/cdefs.h>
 #include "ql_os.h"
+#include <net/rss_config.h>
 #include "ql_hw.h"
 #include "ql_def.h"
 #include "ql_inline.h"
@@ -1612,14 +1613,10 @@ qla_config_intr_cntxt(qla_host_t *ha, uint32_t start_idx, uint32_t num_intrs,
  * Name: qla_config_rss
  * Function: Configure RSS for the context/interface.
  */
-static const uint64_t rss_key[] = { 0xbeac01fa6a42b73bULL,
-			0x8030f20c77cb2da3ULL,
-			0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
-			0x255b0ec26d5a56daULL };
-
 static int
 qla_config_rss(qla_host_t *ha, uint16_t cntxt_id)
 {
+	uint8_t			rss_key[RSS_KEYSIZE];
 	q80_config_rss_t	*c_rss;
 	q80_config_rss_rsp_t	*c_rss_rsp;
 	uint32_t		err, i;
@@ -1648,8 +1645,16 @@ qla_config_rss(qla_host_t *ha, uint16_t cntxt_id)
 
 	c_rss->cntxt_id = cntxt_id;
 
-	for (i = 0; i < 5; i++) {
-		c_rss->rss_key[i] = rss_key[i];
+	_Static_assert(sizeof(c_rss->rss_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(rss_key);
+	/* Reverse the word pairs, retaining low-word-first mailbox ordering. */
+	for (i = 0; i < nitems(c_rss->rss_key); i++) {
+		const uint8_t *key = rss_key + sizeof(rss_key) -
+		    (i + 1) * sizeof(uint64_t);
+
+		c_rss->rss_key[i] = (uint64_t)be32dec(key + sizeof(uint32_t))
+		    << 32 | be32dec(key);
 	}
 
 	if (qla_mbx_cmd(ha, (uint32_t *)c_rss,
