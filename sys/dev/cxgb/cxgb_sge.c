@@ -3512,7 +3512,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    &qs->rspq, 0, t3_dump_rspq, "A",
 			    "dump of the response queue");
 
-			SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
+			SYSCTL_ADD_COUNTER_U64(ctx, txqpoidlist, OID_AUTO, "dropped",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
 			    "#tunneled packets dropped");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
