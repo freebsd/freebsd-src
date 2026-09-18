@@ -6245,8 +6245,12 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct snd_mixer *m;
 	uint8_t id;
 	int actlen;
+	bool mute, volume_up, volume_down;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	m = NULL;
+	mute = volume_up = volume_down = false;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -6269,7 +6273,7 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		    &sc->sc_hid.mute_loc)) {
 			DPRINTF("Mute toggle\n");
 
-			mixer_hwvol_mute_locked(m);
+			mute = true;
 		}
 
 		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_UP) &&
@@ -6278,7 +6282,7 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		    &sc->sc_hid.volume_up_loc)) {
 			DPRINTF("Volume Up\n");
 
-			mixer_hwvol_step_locked(m, 1, 1);
+			volume_up = true;
 		}
 
 		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_DOWN) &&
@@ -6287,7 +6291,7 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		    &sc->sc_hid.volume_down_loc)) {
 			DPRINTF("Volume Down\n");
 
-			mixer_hwvol_step_locked(m, -1, -1);
+			volume_down = true;
 		}
 
 	case USB_ST_SETUP:
@@ -6308,6 +6312,27 @@ tr_setup:
 		}
 		break;
 	}
+
+	if (!mute && !volume_up && !volume_down)
+		return;
+
+	/*
+	 * The mixer_hwvol_*() functions take the mixer lock, which is the PCM
+	 * lock, and end up in uaudio_mixer_ctl_set(), which takes the
+	 * mixer_lock this callback is entered with. Acquiring the two in that
+	 * order here would reverse the order taken by the mixer ioctl path
+	 * (PCM lock first, then mixer_lock), so drop mixer_lock for the
+	 * duration. The USB stack explicitly allows a callback to drop its
+	 * transfer mutex, and usbd_transfer_drain() accounts for it.
+	 */
+	mtx_unlock(&sc->sc_child[0].mixer_lock);
+	if (mute)
+		mixer_hwvol_mute(m->dev);
+	if (volume_up)
+		mixer_hwvol_step(m->dev, 1, 1);
+	if (volume_down)
+		mixer_hwvol_step(m->dev, -1, -1);
+	mtx_lock(&sc->sc_child[0].mixer_lock);
 }
 
 static int
