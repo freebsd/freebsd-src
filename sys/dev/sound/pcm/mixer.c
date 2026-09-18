@@ -519,8 +519,6 @@ int
 mixer_delete(struct snd_mixer *m)
 {
 	KASSERT(m != NULL, ("NULL snd_mixer"));
-	KASSERT(m->type == MIXER_TYPE_SECONDARY,
-	    ("%s(): illegal mixer type=%d", __func__, m->type));
 
 	/* mixer uninit can sleep --hps */
 
@@ -633,11 +631,7 @@ mixer_uninit(device_t dev)
 
 	/* mixer uninit can sleep --hps */
 
-	MIXER_UNINIT(m);
-
-	if (m->type == MIXER_TYPE_SECONDARY)
-		mtx_destroy(m->lock);
-	kobj_delete((kobj_t)m, M_DEVBUF);
+	mixer_delete(m);
 
 	return 0;
 }
