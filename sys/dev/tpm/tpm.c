@@ -139,15 +139,14 @@ int tpm_enabled;
 	((struct tpm_softc *)dev->si_drv1)
 
 d_open_t	tpmopen;
-d_close_t	tpmclose;
 d_read_t	tpmread;
 d_write_t	tpmwrite;
 d_ioctl_t	tpmioctl;
+static d_priv_dtor_t tpm_dtor;
 
 static struct cdevsw tpm_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	tpmopen,
-	.d_close =	tpmclose,
 	.d_read =	tpmread,
 	.d_write =	tpmwrite,
 	.d_ioctl =	tpmioctl,
@@ -404,7 +403,8 @@ tpm_detach(device_t dev)
 
 	/*
 	 * Prevent new methods from touching the transport.  Do not hold the
-	 * lock while destroy_dev() drains methods already waiting for it.
+	 * lock while destroy_dev() drains methods and cdevpriv destructors
+	 * which also acquire it.
 	 */
 	if (sc->sc_cdev != NULL) {
 		destroy_dev(sc->sc_cdev);
@@ -1659,36 +1659,26 @@ tpmopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	else if (sc->sc_suspend != 0 || (sc->sc_flags & TPM_OPEN) != 0)
 		error = EBUSY;
 	else {
-		sc->sc_flags |= TPM_OPEN;
-		error = 0;
+		error = devfs_set_cdevpriv(sc, tpm_dtor);
+		if (error == 0)
+			sc->sc_flags |= TPM_OPEN;
 	}
 	sx_xunlock(&sc->sc_lock);
 
 	return (error);
 }
 
-int
-tpmclose(struct cdev *dev, int flag, int mode, struct thread *td)
+static void
+tpm_dtor(void *arg)
 {
 	struct tpm_softc *sc;
-	int error;
 
-	sc = TPMSOFTC(dev);
-	if (sc == NULL)
-		return (ENXIO);
-
+	sc = arg;
 	sx_xlock(&sc->sc_lock);
-	if ((sc->sc_flags & TPM_OPEN) == 0)
-		error = EINVAL;
-	else {
-		if (sc->sc_init == tpm_tis12_init)
-			tpm_tis12_abort(sc);
-		sc->sc_flags &= ~TPM_OPEN;
-		error = 0;
-	}
+	if (sc->sc_init == tpm_tis12_init)
+		tpm_tis12_abort(sc);
+	sc->sc_flags &= ~TPM_OPEN;
 	sx_xunlock(&sc->sc_lock);
-
-	return (error);
 }
 
 int
