@@ -567,13 +567,37 @@ smmu_poll_until_consumed(struct smmu_softc *sc, struct smmu_queue *q)
 	}
 }
 
+static void
+smmu_sync_wait_msi(struct smmu_softc *sc, struct smmu_queue *q)
+{
+	sbintime_t start;
+	uint32_t *base;
+	int prod;
+
+	prod = q->lc.prod;
+
+	/* Wait for the sync completion. */
+	base = (void *)((uint64_t)q->vaddr +
+	    Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8);
+
+	start = getsbinuptime();
+	do {
+		if (atomic_load_32(base) == 0) {
+			/* MSI write completed. */
+			return;
+		}
+		DELAY(100);
+	} while ((getsbinuptime() - start) < SBT_1S);
+
+	if (atomic_load_32(base) != 0)
+		device_printf(sc->dev, "Failed to sync\n");
+}
+
 static int
 smmu_sync(struct smmu_softc *sc)
 {
 	struct smmu_cmdq_entry cmd;
 	struct smmu_queue *q;
-	uint32_t *base;
-	int timeout;
 	int prod;
 
 	q = &sc->cmdq;
@@ -584,26 +608,7 @@ smmu_sync(struct smmu_softc *sc)
 	cmd.sync.msiaddr = q->paddr + Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8;
 	smmu_cmdq_enqueue_cmd(sc, &cmd);
 
-	/* Wait for the sync completion. */
-	base = (void *)((uint64_t)q->vaddr +
-	    Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8);
-
-	/*
-	 * It takes around 200 loops (6 instructions each)
-	 * on Neoverse N1 to complete the sync.
-	 */
-	timeout = 10000;
-
-	do {
-		if (*base == 0) {
-			/* MSI write completed. */
-			break;
-		}
-		cpu_spinwait();
-	} while (timeout--);
-
-	if (timeout < 0)
-		device_printf(sc->dev, "Failed to sync\n");
+	smmu_sync_wait_msi(sc, q);
 
 	return (0);
 }
