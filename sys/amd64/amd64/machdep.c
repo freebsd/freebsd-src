@@ -206,6 +206,15 @@ long realmem = 0;
 int late_console = 1;
 int lass_enabled = 0;
 
+int ia32_splitlock = 0;
+SYSCTL_INT(_hw, OID_AUTO, splitlock, CTLFLAG_RD,
+    &ia32_splitlock, 0,
+    "splitlock prevention supported");
+int ia32_splitlock_force = 1;
+SYSCTL_INT(_hw, OID_AUTO, splitlock_force, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &ia32_splitlock_force, 0,
+    "splitlock prevention enabled by default");
+
 int __read_frequently fred = 0;
 SYSCTL_INT(_hw, OID_AUTO, fred, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &fred, 0,
@@ -1647,6 +1656,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
+
+	amd64_init_splitlock();
 
         env = kern_getenv("kernelname");
 	if (env != NULL)
