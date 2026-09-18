@@ -1099,7 +1099,7 @@ ixl_set_rss_key(struct ixl_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	struct ixl_vsi *vsi = &pf->vsi;
 	device_t	dev = pf->dev;
-	u32 rss_seed[IXL_RSS_KEY_SIZE_REG];
+	u32 rss_seed[IXL_RSS_KEY_SIZE_REG] = {0};
 	enum i40e_status_code status;
 
 	/* Fetch the configured RSS key */

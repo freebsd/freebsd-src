@@ -516,7 +516,6 @@ extern const uint8_t ixl_bcast_addr[ETHER_ADDR_LEN];
 /* Common function prototypes between PF/VF driver */
 void		ixl_debug_core(device_t dev, u32 enabled_mask, u32 mask, char *fmt, ...);
 void		 ixl_init_tx_ring(struct ixl_vsi *vsi, struct ixl_tx_queue *que);
-void		 ixl_get_default_rss_key(u32 *);
 const char *	i40e_vc_stat_str(struct i40e_hw *hw,
     enum virtchnl_status_code stat_err);
 void		ixl_init_tx_rsqs(struct ixl_vsi *vsi);
