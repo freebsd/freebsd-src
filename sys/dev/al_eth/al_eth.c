@@ -55,6 +55,7 @@
 #include <net/if_types.h>
 #include <netinet/in.h>
 #include <net/if_vlan_var.h>
+#include <net/rss_config.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
 
@@ -2960,8 +2961,9 @@ al_eth_config_rx_fwd(struct al_eth_adapter *adapter)
 	al_eth_mac_table_promiscuous_set(adapter, false);
 
 	/* set toeplitz hash keys */
-	for (i = 0; i < sizeof(adapter->toeplitz_hash_key); i++)
-		*((uint8_t*)adapter->toeplitz_hash_key + i) = (uint8_t)random();
+	_Static_assert(sizeof(adapter->toeplitz_hash_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey((uint8_t *)adapter->toeplitz_hash_key);
 
 	for (i = 0; i < AL_ETH_RX_HASH_KEY_NUM; i++)
 		al_eth_hash_key_set(&adapter->hal_adapter, i,
