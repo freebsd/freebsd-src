@@ -245,7 +245,7 @@ smmu_q_empty(struct smmu_queue *q)
 	return (0);
 }
 
-static int __unused
+static int
 smmu_q_consumed(struct smmu_queue *q, uint32_t prod)
 {
 
@@ -254,7 +254,7 @@ smmu_q_consumed(struct smmu_queue *q, uint32_t prod)
 		return (1);
 
 	if ((Q_WRP(q, q->lc.cons) != Q_WRP(q, prod)) &&
-	    (Q_IDX(q, q->lc.cons) <= Q_IDX(q, prod)))
+	    (Q_IDX(q, q->lc.cons) < Q_IDX(q, prod)))
 		return (1);
 
 	return (0);
@@ -568,6 +568,30 @@ smmu_poll_until_consumed(struct smmu_softc *sc, struct smmu_queue *q)
 }
 
 static void
+smmu_sync_wait_poll(struct smmu_softc *sc, struct smmu_queue *q)
+{
+	sbintime_t start;
+	int prod;
+
+	prod = q->lc.prod;
+
+	start = getsbinuptime();
+	do {
+		if (smmu_q_consumed(q, prod))
+			return;
+		if ((sc->features & SMMU_FEATURE_SEV) != 0)
+			wfe();
+		else
+			DELAY(100);
+
+		q->lc.cons = bus_read_4(sc->res[0], q->cons_off);
+	} while ((getsbinuptime() - start) < SBT_1S);
+
+	if (!smmu_q_consumed(q, prod))
+		device_printf(sc->dev, "Failed to sync\n");
+}
+
+static void
 smmu_sync_wait_msi(struct smmu_softc *sc, struct smmu_queue *q)
 {
 	sbintime_t start;
@@ -604,11 +628,18 @@ smmu_sync(struct smmu_softc *sc)
 	prod = q->lc.prod;
 
 	/* Enqueue sync command. */
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = CMD_SYNC;
-	cmd.sync.msiaddr = q->paddr + Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8;
+	if ((sc->features & SMMU_FEATURE_MSI) != 0) {
+		cmd.sync.msiaddr = q->paddr +
+		    Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8;
+	}
 	smmu_cmdq_enqueue_cmd(sc, &cmd);
 
-	smmu_sync_wait_msi(sc, q);
+	if ((sc->features & SMMU_FEATURE_MSI) != 0)
+		smmu_sync_wait_msi(sc, q);
+	else
+		smmu_sync_wait_poll(sc, q);
 
 	return (0);
 }
