@@ -52,6 +52,8 @@
 #define	I386_GET_XFPUSTATE	11
 #define	I386_SET_PKRU		12
 #define	I386_CLEAR_PKRU		13
+#define	I386_SET_SPLITLOCK	14
+#define	I386_GET_SPLITLOCK	15
 
 /* Leave space for 0-127 for to avoid translating syscalls */
 #define	AMD64_GET_FSBASE	128

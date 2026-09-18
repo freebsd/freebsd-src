@@ -212,7 +212,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	struct i386_set_pkru i386pkru;
 	struct amd64_get_xfpustate a64xfpu;
 	struct amd64_set_pkru a64pkru;
-	int error;
+	int error, val;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -231,6 +231,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case I386_GET_XFPUSTATE:
 	case I386_SET_PKRU:
 	case I386_CLEAR_PKRU:
+	case I386_SET_SPLITLOCK:
+	case I386_GET_SPLITLOCK:
 	case AMD64_GET_FSBASE:
 	case AMD64_SET_FSBASE:
 	case AMD64_GET_GSBASE:
@@ -297,6 +299,10 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case AMD64_CLEAR_PKRU:
 		if ((error = copyin(uap->parms, &a64pkru,
 		    sizeof(struct amd64_set_pkru))) != 0)
+			return (error);
+		break;
+	case I386_SET_SPLITLOCK:
+		if ((error = copyin(uap->parms, &val, sizeof(val))) != 0)
 			return (error);
 		break;
 	default:
@@ -419,6 +425,25 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case AMD64_DISABLE_TLSBASE:
 		clear_pcb_flags(pcb, PCB_TLSBASE);
 		update_pcb_bases(pcb);
+		break;
+
+	case I386_SET_SPLITLOCK:
+		if (!ia32_splitlock) {
+			if (val != 0)
+				error = ENOTSUP;
+			break;
+		}
+		if (val == 0)
+			disable_splitlock(td);
+		else if (val == 1)
+			enable_splitlock(td);
+		else
+			error = EINVAL;
+		break;
+
+	case I386_GET_SPLITLOCK:
+		val = (td->td_md.md_td_flags & TDF_MD_SPLITLOCK_AC) != 0;
+		error = copyout(&val, uap->parms, sizeof(val));
 		break;
 
 	default:
