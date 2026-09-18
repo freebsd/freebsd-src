@@ -629,8 +629,6 @@ mixer_uninit(device_t dev)
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		mixer_set(m, i, 0, 0);
 
-	mixer_setrecsrc(m, SOUND_MASK_MIC);
-
 	mtx_unlock(m->lock);
 
 	/* mixer uninit can sleep --hps */
