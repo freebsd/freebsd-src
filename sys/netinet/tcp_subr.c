@@ -2479,10 +2479,8 @@ tcp_discardcb(struct tcpcb *tp)
 	 * say srtt etc into the general one used by other stacks.
 	 */
 	if (tp->t_rttupdated >= 4) {
-		struct tcp_hc_metrics metrics;
 		uint32_t ssthresh;
 
-		bzero(&metrics, sizeof(metrics));
 		/*
 		 * Update the ssthresh always when the conditions below
 		 * are satisfied. This gives us better new start value
@@ -2510,15 +2508,14 @@ tcp_discardcb(struct tcpcb *tp)
 			    );
 		} else
 			ssthresh = 0;
-		metrics.hc_ssthresh = ssthresh;
-
-		metrics.hc_rtt = tp->t_srtt;
-		metrics.hc_rttvar = tp->t_rttvar;
-		metrics.hc_cwnd = tp->snd_cwnd;
-		metrics.hc_sendpipe = so->so_snd.sb_hiwat;
-		metrics.hc_recvpipe = so->so_rcv.sb_hiwat;
-
-		tcp_hc_update(&inp->inp_inc, &metrics);
+		tcp_hc_update(&inp->inp_inc, &(struct tcp_hc_metrics){
+		    .hc_ssthresh = ssthresh,
+		    .hc_rtt = tp->t_srtt,
+		    .hc_rttvar = tp->t_rttvar,
+		    .hc_cwnd = tp->snd_cwnd,
+		    .hc_sendpipe = so->so_snd.sb_hiwat,
+		    .hc_recvpipe = so->so_rcv.sb_hiwat,
+		    });
 	}
 
 	refcount_release(&tp->t_fb->tfb_refcnt);
