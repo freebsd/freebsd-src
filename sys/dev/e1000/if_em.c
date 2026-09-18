@@ -5231,11 +5231,13 @@ em_initialize_rss_mapping(struct e1000_softc *sc)
 	/*
 	 * Configure RSS key
 	 */
-	arc4rand(rss_key, sizeof(rss_key), 0);
+	_Static_assert(sizeof(rss_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(rss_key);
 	for (i = 0; i < RSSKEYLEN; ++i) {
 		uint32_t rssrk = 0;
 
-		rssrk = EM_RSSRK_VAL(rss_key, i);
+		rssrk = le32dec(rss_key + i * sizeof(rssrk));
 		E1000_WRITE_REG(hw,E1000_RSSRK(i), rssrk);
 	}
 
