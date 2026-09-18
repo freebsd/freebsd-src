@@ -34,6 +34,8 @@
 #ifndef _PCM_MIXER_H_
 #define	_PCM_MIXER_H_
 
+#define MIXER_REGISTERED(x)	((x) != NULL && (x)->cdev != NULL)
+
 #define MIXER_NAMELEN	16
 struct snd_mixer {
 	KOBJ_FIELDS;
@@ -54,6 +56,7 @@ struct snd_mixer {
 	char name[MIXER_NAMELEN];
 	struct mtx lock;
 	int modify_counter;
+	struct cdev *cdev;
 };
 
 struct snd_mixer *mixer_create(device_t dev, kobj_class_t cls, void *devinfo,

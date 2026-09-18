@@ -679,13 +679,9 @@ int
 mixer_uninit(device_t dev)
 {
 	int i;
-	struct snddev_info *d;
 	struct snd_mixer *m;
 
-	d = device_get_softc(dev);
-	if (d == NULL)
-		return EBADF;
-	m = d->mixer;
+	m = mixer_get_devt(dev);
 
 	KASSERT(m != NULL, ("NULL snd_mixer"));
 	KASSERT(m->type == MIXER_TYPE_PRIMARY,
@@ -695,9 +691,9 @@ mixer_uninit(device_t dev)
 	 * snd_uaudio(4) in particular can call mixer_uninit() directly if
 	 * attach failed prior to pcm_register(), in which case the cdev will
 	 * not have been created. Do not call destroy_dev() unconditionally.
-	*/
-	if (d->mixer_dev != NULL)
-		destroy_dev(d->mixer_dev);
+	 */
+	if (MIXER_REGISTERED(m))
+		destroy_dev(m->cdev);
 
 	mtx_lock(&m->lock);
 
@@ -714,9 +710,6 @@ mixer_uninit(device_t dev)
 
 	mtx_destroy(&m->lock);
 	kobj_delete((kobj_t)m, M_DEVBUF);
-
-	d->mixer_dev = NULL;
-	d->mixer = NULL;
 
 	return 0;
 }
@@ -765,7 +758,7 @@ mixer_make_dev(device_t dev)
 	devargs.mda_gid = GID_AUDIO;
 	devargs.mda_mode = 0660;
 	devargs.mda_si_drv1 = sc->mixer;
-	err = make_dev_s(&devargs, &sc->mixer_dev, "mixer%d", unit);
+	err = make_dev_s(&devargs, &sc->mixer->cdev, "mixer%d", unit);
 	if (err != 0) {
 		device_printf(dev, "failed to create mixer%d: error %d\n",
 		    unit, err);
@@ -1148,8 +1141,8 @@ mixer_clone(void *arg,
 		bus_topo_lock();
 		d = devclass_get_softc(pcm_devclass, snd_unit);
 		/* See related comment in dsp_clone(). */
-		if (PCM_REGISTERED(d) && d->mixer_dev != NULL) {
-			*dev = d->mixer_dev;
+		if (PCM_REGISTERED(d) && MIXER_REGISTERED(d->mixer)) {
+			*dev = d->mixer->cdev;
 			dev_ref(*dev);
 		}
 		bus_topo_unlock();
@@ -1246,17 +1239,21 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 		PCM_UNLOCKASSERT(d);
 		PCM_LOCK(d);
 
-		if (!((d->mixer_dev == i_dev && mi->dev == -1) ||
-		    mi->dev == i)) {
+		if (!MIXER_REGISTERED(d->mixer)) {
+			if (mi->dev == i) {
+				mixer_oss_mixerinfo_unavail(mi, i);
+				PCM_UNLOCK(d);
+				bus_topo_unlock();
+				return (0);
+			}
 			PCM_UNLOCK(d);
 			continue;
 		}
 
-		if (d->mixer == NULL) {
-			mixer_oss_mixerinfo_unavail(mi, i);
+		if (!((d->mixer->cdev == i_dev && mi->dev == -1) ||
+		    mi->dev == i)) {
 			PCM_UNLOCK(d);
-			bus_topo_unlock();
-			return (0);
+			continue;
 		}
 
 		m = d->mixer;

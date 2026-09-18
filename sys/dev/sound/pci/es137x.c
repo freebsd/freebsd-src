@@ -1516,7 +1516,7 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 
 	dev = oidp->oid_arg1;
 	d = device_get_softc(dev);
-	if (!PCM_REGISTERED(d) || d->mixer_dev == NULL || d->mixer == NULL)
+	if (!PCM_REGISTERED(d) || !MIXER_REGISTERED(d->mixer))
 		return (EINVAL);
 	es = d->devinfo;
 	if (es == NULL)
