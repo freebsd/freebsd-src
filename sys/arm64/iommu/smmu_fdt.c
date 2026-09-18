@@ -87,6 +87,8 @@ smmu_fdt_attach(device_t dev)
 	sc->dev = dev;
 
 	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "dma-coherent"))
+		sc->features |= SMMU_FEATURE_COHERENCY;
 
 	rid = 0;
 	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,

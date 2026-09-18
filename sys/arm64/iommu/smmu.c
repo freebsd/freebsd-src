@@ -623,20 +623,23 @@ smmu_sync(struct smmu_softc *sc)
 	struct smmu_cmdq_entry cmd;
 	struct smmu_queue *q;
 	int prod;
+	bool msipoll;
 
 	q = &sc->cmdq;
 	prod = q->lc.prod;
 
+	msipoll = ((sc->options & SMMU_OPT_MSIPOLL) != 0);
+
 	/* Enqueue sync command. */
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = CMD_SYNC;
-	if ((sc->features & SMMU_FEATURE_MSI) != 0) {
+	if (msipoll) {
 		cmd.sync.msiaddr = q->paddr +
 		    Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8;
 	}
 	smmu_cmdq_enqueue_cmd(sc, &cmd);
 
-	if ((sc->features & SMMU_FEATURE_MSI) != 0)
+	if (msipoll)
 		smmu_sync_wait_msi(sc, q);
 	else
 		smmu_sync_wait_poll(sc, q);
@@ -1356,8 +1359,6 @@ smmu_check_features(struct smmu_softc *sc)
 	uint32_t reg;
 	uint32_t val;
 
-	sc->features = 0;
-
 	reg = bus_read_4(sc->res[0], SMMU_IDR0);
 
 	if (reg & IDR0_ST_LVL_2) {
@@ -1404,6 +1405,9 @@ smmu_check_features(struct smmu_softc *sc)
 		if (bootverbose)
 			device_printf(sc->dev, "MSI feature present.\n");
 		sc->features |= SMMU_FEATURE_MSI;
+		/* Support polling if we support MSI & are cache-coherent */
+		if ((sc->features & SMMU_FEATURE_COHERENCY) != 0)
+			sc->options |= SMMU_OPT_MSIPOLL;
 	}
 
 	if (reg & IDR0_HYP) {

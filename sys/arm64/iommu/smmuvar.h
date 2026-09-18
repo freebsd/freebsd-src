@@ -160,6 +160,10 @@ struct smmu_softc {
 #define	SMMU_FEATURE_VAX			(1 << 13)
 #define	SMMU_FEATURE_COHERENCY			(1 << 14)
 #define	SMMU_FEATURE_RANGE_INV			(1 << 15)
+
+	uint32_t		options;
+#define	SMMU_OPT_MSIPOLL			(1 << 0)
+
 	struct smmu_queue cmdq;
 	struct smmu_queue evtq;
 	struct smmu_queue priq;
