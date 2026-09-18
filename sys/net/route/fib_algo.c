@@ -145,6 +145,28 @@ struct nhop_ref_table {
 	int32_t			refcnt[0];
 };
 
+/*
+ * Nexthop indexes are allocated per-rib, and ribs are keyed by
+ * (fibnum, neighbor family). A route with a gateway belonging to another
+ * family (an IPv4 prefix via an IPv6 nexthop, RFC 5549) therefore gets
+ * its index from that other family's space, where it can collide with the
+ * index of a native nexthop.
+ *
+ * Keep one flat idx->nhop array, but give every index space a contiguous
+ * segment within it, so the array offset is nhaf_base + nhop index.
+ * The rib's own family always owns the first segment, making the offset
+ * identical to the nexthop index for every table with no cross-family nexthops.
+ */
+struct nhop_af_table {
+	uint8_t			nhaf_family;	/* AF owning this index space */
+	bool			nhaf_hit;	/* true if out of index space */
+	uint32_t		nhaf_count;	/* # of indexes reserved */
+	uint32_t		nhaf_base;	/* offset within fd->nh_idx */
+};
+
+/* # of nhop index spaces per instance, currently 4o6 for now */
+#define	FD_MAX_NH_AF	2
+
 enum fib_callout_action {
 	FDA_NONE,	/* No callout scheduled */
 	FDA_REBUILD,	/* Asks to rebuild algo instance */
@@ -162,15 +184,20 @@ struct fib_sync_status {
 
 /*
  * Data structure for the fib lookup instance tied to the particular rib.
+ *
+ * Key:
+ * (f) - Protected by the FIB_MOD lock
+ * (r) - Protected by the RIB lock
  */
 struct fib_data {
-	uint32_t		number_nhops;	/* current # of nhops */
-	uint8_t			hit_nhops;	/* true if out of nhop limit */
-	uint8_t			init_done;	/* true if init is competed */
-	uint32_t		fd_dead:1;	/* Scheduled for deletion */
-	uint32_t		fd_linked:1;	/* true if linked */
-	uint32_t		fd_need_rebuild:1;	/* true if rebuild scheduled */
-	uint32_t		fd_batch:1;	/* true if batched notification scheduled */
+	uint32_t		number_nhops;	/* (r) total size of the nhop arrays */
+	uint32_t		fd_dead:1,	/* (f) Scheduled for deletion */
+				fd_linked:1;	/* (f) true if linked */
+	uint32_t		init_done:1,	/* (r) true if init is competed */
+				fd_need_rebuild:1,	/* (r) true if rebuild scheduled */
+				fd_batch:1,	/* (r) true if batched notification scheduled */
+				hit_nhops:1;	/* (r) true if out of nhop limit */
+	uint8_t			fd_num_af;	/* (r) # of nhop index spaces in use */
 	uint8_t			fd_family;	/* family */
 	uint32_t		fd_fibnum;	/* fibnum */
 	uint32_t		fd_failed_rebuilds;	/* stat: failed rebuilds */
@@ -178,6 +205,7 @@ struct fib_data {
 	struct callout		fd_callout;	/* rebuild callout */
 	enum fib_callout_action	fd_callout_action;	/* Callout action to take */
 	void			*fd_algo_data;	/* algorithm data */
+	struct nhop_af_table	fd_af[FD_MAX_NH_AF];	/* (r) index space descriptors */
 	struct nhop_object	**nh_idx;	/* nhop idx->ptr array */
 	struct nhop_ref_table	*nh_ref_table;	/* array with # of nhop references */
 	struct rib_head		*fd_rh;		/* RIB table we're attached to */
@@ -885,17 +913,37 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 static void
 estimate_nhop_scale(const struct fib_data *old_fd, struct fib_data *fd)
 {
+	uint32_t base = 0;
 
 	if (old_fd == NULL) {
+		fd->fd_num_af = 1;
+		fd->fd_af[0].nhaf_family = fd->fd_family;
 		// TODO: read from rtable
-		fd->number_nhops = 16;
-		return;
+		fd->fd_af[0].nhaf_count = 16;
+	} else {
+		fd->fd_num_af = old_fd->fd_num_af;
+		memcpy(fd->fd_af, old_fd->fd_af, sizeof(fd->fd_af));
+
+		for (int i = 0; i < fd->fd_num_af; i++) {
+			struct nhop_af_table *nt;
+
+			nt = &fd->fd_af[i];
+			nt->nhaf_hit = false;
+			if (!old_fd->fd_af[i].nhaf_hit)
+				continue;
+			if (nt->nhaf_count == 0)
+				/* half of the main family */
+				nt->nhaf_count = 8;
+			else if (nt->nhaf_count < FIB_MAX_NHOPS)
+				nt->nhaf_count *= 2;
+		}
 	}
 
-	if (old_fd->hit_nhops && old_fd->number_nhops < FIB_MAX_NHOPS)
-		fd->number_nhops = 2 * old_fd->number_nhops;
-	else
-		fd->number_nhops = old_fd->number_nhops;
+	for (int i = 0; i < fd->fd_num_af; i++) {
+		fd->fd_af[i].nhaf_base = base;
+		base += fd->fd_af[i].nhaf_count;
+	}
+	fd->number_nhops = base;
 }
 
 struct walk_cbdata {
@@ -940,7 +988,7 @@ sync_algo_end_cb(struct rib_head *rnh, enum rib_walk_hook stage, void *_data)
 
 	if (w->result == FLM_SUCCESS) {
 		/* Mark init as done to allow routing updates */
-		fd->init_done = 1;
+		fd->init_done = true;
 	}
 }
 
@@ -1166,14 +1214,14 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	}
 	*pfd = fd;
 
-	estimate_nhop_scale(old_fd, fd);
-
 	fd->fd_rh = rh;
 	fd->fd_family = rh->rib_family;
 	fd->fd_fibnum = rh->rib_fibnum;
 	callout_init_rm(&fd->fd_callout, &rh->rib_lock, 0);
 	fd->fd_vnet = curvnet;
 	fd->fd_flm = flm;
+
+	estimate_nhop_scale(old_fd, fd);
 
 	FIB_MOD_LOCK();
 	flm->flm_refcount++;
@@ -1766,11 +1814,51 @@ get_nhop_idx(struct nhop_object *nh)
 	return (nhop_get_idx(nh));
 }
 
+static uint8_t
+get_nhop_family(struct nhop_object *nh)
+{
+
+	if (NH_IS_NHGRP(nh))
+		return (nhgrp_get_neigh_family((struct nhgrp_object *)nh));
+
+	return (nhop_get_neigh_family(nh));
+}
+
+/*
+ * Returns the index space of fd owning family, or NULL.
+ */
+static struct nhop_af_table *
+find_af_table(struct fib_data *fd, uint8_t family)
+{
+
+	for (int i = 0; i < fd->fd_num_af; i++) {
+		if (fd->fd_af[i].nhaf_family == family)
+			return (&fd->fd_af[i]);
+	}
+
+	return (NULL);
+}
+
+/*
+ * Maps nh to its offset within the flat idx->nhop array of fd.
+ */
+static uint32_t
+get_nhop_off(struct fib_data *fd, struct nhop_object *nh)
+{
+	struct nhop_af_table *nt = find_af_table(fd, get_nhop_family(nh));
+	uint32_t idx = get_nhop_idx(nh);
+
+	KASSERT(nt != NULL, ("no index space for the nhop family"));
+	KASSERT(idx < nt->nhaf_count, ("invalid nhop index"));
+
+	return (nt->nhaf_base + idx);
+}
+
 uint32_t
 fib_get_nhop_idx(struct fib_data *fd, struct nhop_object *nh)
 {
 
-	return (get_nhop_idx(nh));
+	return (get_nhop_off(fd, nh));
 }
 
 static bool
@@ -1783,12 +1871,30 @@ is_idx_free(struct fib_data *fd, uint32_t index)
 static uint32_t
 fib_ref_nhop(struct fib_data *fd, struct nhop_object *nh)
 {
-	uint32_t idx = get_nhop_idx(nh);
+	struct nhop_af_table *nt;
+	uint32_t idx;
+	uint8_t family;
 
-	if (idx >= fd->number_nhops) {
+	RIB_WLOCK_ASSERT(fd->fd_rh);
+
+	family = get_nhop_family(nh);
+	nt = find_af_table(fd, family);
+	if (nt == NULL) {
+		KASSERT(fd->fd_num_af < FD_MAX_NH_AF,
+		    ("out of nhop index spaces for %s", print_family(family)));
+		nt = &fd->fd_af[fd->fd_num_af++];
+		nt->nhaf_family = family;
+		nt->nhaf_count = 0;
+		nt->nhaf_base = 0;
+	}
+
+	idx = get_nhop_idx(nh);
+	if (idx >= nt->nhaf_count) {
+		nt->nhaf_hit = true;
 		fd->hit_nhops = 1;
 		return (0);
 	}
+	idx += nt->nhaf_base;
 
 	if (is_idx_free(fd, idx)) {
 		nhop_ref_any(nh);
@@ -1844,10 +1950,10 @@ fib_schedule_release_nhop(struct fib_data *fd, struct nhop_object *nh)
 static void
 fib_unref_nhop(struct fib_data *fd, struct nhop_object *nh)
 {
-	uint32_t idx = get_nhop_idx(nh);
+	uint32_t idx = get_nhop_off(fd, nh);
 
-	KASSERT((idx < fd->number_nhops), ("invalid nhop index"));
-	KASSERT((nh == fd->nh_idx[idx]), ("index table contains whong nh"));
+	KASSERT(idx < fd->number_nhops, ("invalid nhop index"));
+	KASSERT(nh == fd->nh_idx[idx], ("index table contains whong nh"));
 
 	fd->nh_ref_table->refcnt[idx]--;
 	if (fd->nh_ref_table->refcnt[idx] == 0) {
