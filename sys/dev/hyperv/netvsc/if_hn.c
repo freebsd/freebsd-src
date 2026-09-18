@@ -2084,7 +2084,7 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 			hn_rxvf_change_locked(sc, sc->hn_vf_ifp, false);
 		hn_rxvf_change_locked(sc, sc->hn_vf_ifp,
 		    (if_getflags(sc->hn_vf_ifp) & IFF_UP) != 0);
-		goto done;
+		goto rss;
 	}
 	if (sc->hn_vf_active_assoc != 0 && sc->hn_vf_active_assoc !=
 	    atomic_load_acq_int(&sc->hn_vf_assoc))
@@ -2096,7 +2096,7 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 	}
 	hn_xpnt_vf_sync_vlans(sc, false);
 	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
-		goto done;
+		goto rss;
 
 	if (if_getdrvflags(sc->hn_ifp) & IFF_DRV_RUNNING) {
 		/*
@@ -2108,6 +2108,20 @@ hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
 		}
 		hn_xpnt_vf_init(sc);
 	}
+rss:
+	/*
+	 * A link-up event can follow recovery from a failed handoff RSS query.
+	 * An inactive path can consume this request: its next handoff queries
+	 * RSS again. This is a one-shot refresh, not a readiness poll.
+	 */
+	if (atomic_readandclear_int(&sc->hn_vf_rss_refresh) != 0 &&
+	    ((sc->hn_flags & HN_FLAG_RXVF) ||
+	    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) &&
+	    (sc->hn_vf_active_assoc & HN_VF_ASSOC_ALLOCATED) != 0 &&
+	    sc->hn_vf_active_assoc == atomic_load_acq_int(&sc->hn_vf_assoc) &&
+	    (if_getflags(sc->hn_vf_ifp) & IFF_UP) != 0 &&
+	    if_getlinkstate(sc->hn_vf_ifp) == LINK_STATE_UP)
+		hn_vf_rss_fixup(sc, true);
 done:
 	HN_UNLOCK(sc);
 }
@@ -2281,11 +2295,18 @@ hn_ifnet_lnkevent(void *xsc, if_t ifp, int link_state)
 
 	/* Publish before a concurrent handoff can restore synthetic carrier. */
 	rm_rlock(&sc->hn_vf_lock, &pt);
-	if (sc->hn_vf_ifp == ifp &&
-	    (sc->hn_xvf_flags & (HN_XVFFLAG_ENABLED | HN_XVFFLAG_SWITCHING)) ==
+	if (sc->hn_vf_ifp != ifp)
+		goto out;
+	if (link_state == LINK_STATE_UP) {
+		/* RSS queries and host reconfiguration require sleepable context. */
+		atomic_store_rel_int(&sc->hn_vf_rss_refresh, 1);
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init, 0);
+	}
+	if ((sc->hn_xvf_flags & (HN_XVFFLAG_ENABLED | HN_XVFFLAG_SWITCHING)) ==
 	    HN_XVFFLAG_ENABLED && sc->hn_vf_active_assoc ==
 	    atomic_load_acq_int(&sc->hn_vf_assoc))
 		if_link_state_change(sc->hn_ifp, link_state);
+out:
 	rm_runlock(&sc->hn_vf_lock, &pt);
 }
 
@@ -2718,10 +2739,9 @@ hn_attach(device_t dev)
 		    hn_ifnet_event, sc, EVENTHANDLER_PRI_ANY);
 		sc->hn_ifaddr_evthand = EVENTHANDLER_REGISTER(ifaddr_event,
 		    hn_ifaddr_event, sc, EVENTHANDLER_PRI_ANY);
-	} else {
-		sc->hn_ifnet_lnkhand = EVENTHANDLER_REGISTER(ifnet_link_event,
-		    hn_ifnet_lnkevent, sc, EVENTHANDLER_PRI_ANY);
 	}
+	sc->hn_ifnet_lnkhand = EVENTHANDLER_REGISTER(ifnet_link_event,
+	    hn_ifnet_lnkevent, sc, EVENTHANDLER_PRI_ANY);
 
 	/*
 	 * NOTE:

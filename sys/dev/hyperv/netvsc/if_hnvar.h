@@ -278,6 +278,7 @@ struct hn_softc {
 	bool			hn_detaching;	/* hn_lock */
 	u_int			hn_vf_assoc;	/* atomic generation + allocated */
 	u_int			hn_vf_active_assoc; /* confirmed VF generation */
+	u_int			hn_vf_rss_refresh; /* atomic link-up request */
 	struct taskqueue	*hn_vf_taskq;
 	struct timeout_task	hn_vf_init;
 	struct task		hn_vf_vlancap;
