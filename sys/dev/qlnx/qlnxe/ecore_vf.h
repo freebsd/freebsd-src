@@ -82,6 +82,9 @@ struct ecore_vf_iov {
 	 * bar or via the doorbell bar.
 	 */
 	bool b_doorbell_bar;
+
+	/* FreeBSD RSS queries require the RSS TLV itself to be accepted. */
+	bool rss_configured;
 };
 
 /**
