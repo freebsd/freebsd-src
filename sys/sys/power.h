@@ -113,6 +113,7 @@ extern int	 power_pm_suspend(enum power_transition _trans);
 
 typedef void (*power_change_fn)(void *, enum power_stype stype);
 EVENTHANDLER_DECLARE(power_resume, power_change_fn);
+EVENTHANDLER_DECLARE(power_resume_check, power_change_fn);
 EVENTHANDLER_DECLARE(power_suspend, power_change_fn);
 EVENTHANDLER_DECLARE(power_suspend_early, power_change_fn);
 
