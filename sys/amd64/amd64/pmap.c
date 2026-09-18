@@ -10236,8 +10236,22 @@ DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
 void
 pmap_activate_sw(struct thread *td)
 {
+	struct thread *oldtd;
 	pmap_t oldpmap, pmap;
 	u_int cpuid;
+	bool oldtd_sl, td_sl;
+
+	oldtd = curthread;
+	if (ia32_splitlock && oldtd != td) {
+		oldtd_sl = (atomic_load_int(&oldtd->td_md.md_td_flags) &
+		    TDF_MD_SPLITLOCK_AC) != 0;
+		td_sl = (atomic_load_int(&td->td_md.md_td_flags) &
+		    TDF_MD_SPLITLOCK_AC) != 0;
+		if (oldtd_sl && !td_sl)
+			disable_splitlock_ac();
+		else if (!oldtd_sl && td_sl)
+			enable_splitlock_ac();
+	}
 
 	oldpmap = PCPU_GET(curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);

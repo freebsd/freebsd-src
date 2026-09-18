@@ -981,6 +981,7 @@ ia32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	regs->tf_flags = TF_HASSEGS;
 
 	x86_clear_dbregs(pcb);
+	exec_splitlock(td);
 
 	fpstate_drop(td);
 

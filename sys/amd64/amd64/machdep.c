@@ -1928,6 +1928,42 @@ safe_read(vm_offset_t addr, char *valp)
 	return (uiomove_mem(UIO_MEM_KMEM, &uio));
 }
 
+void
+enable_splitlock_ac(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr(MSR_MEMORY_CTL, rdmsr(MSR_MEMORY_CTL) |
+	    MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+void
+enable_splitlock(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_md.md_td_flags |= TDF_MD_SPLITLOCK_AC;
+	critical_enter();
+	enable_splitlock_ac();
+	critical_exit();
+}
+
+void
+disable_splitlock_ac(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr(MSR_MEMORY_CTL, rdmsr(MSR_MEMORY_CTL) &
+	    ~MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+void
+disable_splitlock(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_md.md_td_flags &= ~TDF_MD_SPLITLOCK_AC;
+	critical_enter();
+	disable_splitlock_ac();
+	critical_exit();
+}
+
 #ifdef KDB
 
 /*

@@ -105,6 +105,11 @@ void	get_fpcontext(struct thread *td, struct __mcontext *mcp,
 	    char **xfpusave, size_t *xfpusave_len);
 int	set_fpcontext(struct thread *td, struct __mcontext *mcp,
 	    char *xfpustate, size_t xfpustate_len);
+void	enable_splitlock_ac(void);
+void	enable_splitlock(struct thread *td);
+void	disable_splitlock_ac(void);
+void	disable_splitlock(struct thread *td);
+void	exec_splitlock(struct thread *td);
 
 void	wrmsr_early_safe_start(void);
 void	wrmsr_early_safe_end(void);

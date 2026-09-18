@@ -80,6 +80,8 @@ struct mdthread {
 	void *md_usr_fpu_save;
 };
 
+#define	TDF_MD_SPLITLOCK_AC	0x00000001	/* Disable split cache lines */
+
 struct mdproc {
 	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 	struct system_segment_descriptor md_ldt_sd;
