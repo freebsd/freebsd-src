@@ -158,7 +158,7 @@ mixer_set(struct snd_mixer *m, unsigned int dev, uint32_t muted, unsigned int le
 
 	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES ||
 	    (0 == (m->devs & (1 << dev))))
-		return (-1);
+		return (EINVAL);
 
 	l = min((lev & 0x00ff), 100);
 	r = min(((lev & 0xff00) >> 8), 100);
@@ -166,7 +166,7 @@ mixer_set(struct snd_mixer *m, unsigned int dev, uint32_t muted, unsigned int le
 
 	d = device_get_softc(m->dev);
 	if (d == NULL)
-		return (-1);
+		return (ENXIO);
 
 	/* Allow the volume to be "changed" while muted. */
 	if (muted & (1 << dev)) {
@@ -188,7 +188,7 @@ mixer_set(struct snd_mixer *m, unsigned int dev, uint32_t muted, unsigned int le
 			(void)mixer_set_softpcmvol(m, d, tl, tr);
 		else if (realdev != SOUND_MIXER_NONE &&
 		    MIXER_SET(m, realdev, tl, tr) < 0)
-			return (-1);
+			return (EINVAL);
 	} else if (child != 0) {
 		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 			if (!(child & (1 << i)) || m->parent[i] != dev)
@@ -205,7 +205,7 @@ mixer_set(struct snd_mixer *m, unsigned int dev, uint32_t muted, unsigned int le
 		realdev = m->realdev[dev];
 		if (realdev != SOUND_MIXER_NONE &&
 		    MIXER_SET(m, realdev, l, r) < 0)
-			return (-1);
+			return (EINVAL);
 	} else {
 		if (dev == SOUND_MIXER_PCM && (d->flags & SD_F_SOFTPCMVOL))
 			(void)mixer_set_softpcmvol(m, d, l, r);
@@ -214,7 +214,7 @@ mixer_set(struct snd_mixer *m, unsigned int dev, uint32_t muted, unsigned int le
 			(void)mixer_set_eq(m, d, dev, (l + r) >> 1);
 		else if (realdev != SOUND_MIXER_NONE &&
 		    MIXER_SET(m, realdev, l, r) < 0)
-			return (-1);
+			return (EINVAL);
 	}
 
 	m->level[dev] = l | (r << 8);
@@ -266,7 +266,7 @@ mixer_setrecsrc(struct snd_mixer *mixer, uint32_t src)
 
 	d = device_get_softc(mixer->dev);
 	if (d == NULL)
-		return -1;
+		return (ENXIO);
 	src &= mixer->recdevs;
 	if (src == 0)
 		src = mixer->recdevs & SOUND_MASK_MIC;
@@ -280,7 +280,7 @@ mixer_setrecsrc(struct snd_mixer *mixer, uint32_t src)
 
 	mixer->recsrc = recsrc;
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -785,7 +785,7 @@ mix_set(struct snd_mixer *m, unsigned int dev, unsigned int left, unsigned int r
 	ret = mixer_set(m, dev, m->mutedevs, left | (right << 8));
 	mtx_unlock(m->lock);
 
-	return ((ret != 0) ? ENXIO : 0);
+	return (ret);
 }
 
 int
@@ -813,7 +813,7 @@ mix_setrecsrc(struct snd_mixer *m, uint32_t src)
 	ret = mixer_setrecsrc(m, src);
 	mtx_unlock(m->lock);
 
-	return ((ret != 0) ? ENXIO : 0);
+	return (ret);
 }
 
 uint32_t
@@ -1001,7 +1001,7 @@ mixer_ioctl_cmd(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 			break;
 		}
 		mtx_unlock(m->lock);
-		return ((ret == 0) ? 0 : ENXIO);
+		return (ret);
 	}
 	if ((cmd & ~0xff) == MIXER_READ(0)) {
 		switch (j) {
