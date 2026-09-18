@@ -726,12 +726,8 @@ iavf_config_rss_key(struct iavf_sc *sc)
 	int msg_len, key_length;
 	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0};
 
-#ifdef RSS
 	/* Fetch the configured RSS key */
 	rss_getkey((uint8_t *) &rss_seed);
-#else
-	iavf_get_default_rss_key(rss_seed);
-#endif
 
 	/* Send the fetched key */
 	key_length = sc->vf_res->rss_key_size;

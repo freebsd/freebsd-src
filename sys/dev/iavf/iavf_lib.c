@@ -58,29 +58,6 @@ iavf_msec_pause(int msecs)
 }
 
 /**
- * iavf_get_default_rss_key - Get the default RSS key for this driver
- * @key: output parameter to store the key in
- *
- * Copies the driver's default RSS key into the provided key variable.
- *
- * @pre assumes that key is not NULL and has at least IAVF_RSS_KEY_SIZE
- * storage space.
- */
-void
-iavf_get_default_rss_key(u32 *key)
-{
-	MPASS(key != NULL);
-
-	u32 rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0x41b01687,
-	    0x183cfd8c, 0xce880440, 0x580cbc3c,
-	    0x35897377, 0x328b25e1, 0x4fa98922,
-	    0xb7d90c14, 0xd5bad70d, 0xcd15a2c1,
-	    0x0, 0x0, 0x0};
-
-	bcopy(rss_seed, key, IAVF_RSS_KEY_SIZE);
-}
-
-/**
  * iavf_allocate_pci_resources_common - Allocate PCI resources
  * @sc: the private device softc pointer
  *
