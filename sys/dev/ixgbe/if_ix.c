@@ -687,13 +687,7 @@ ixgbe_initialize_rss_mapping(struct ixgbe_softc *sc)
 	u32 pfmrqc;
 #endif
 
-	if (sc->feat_en & IXGBE_FEATURE_RSS) {
-		/* Fetch the configured RSS key */
-		rss_getkey((uint8_t *)&rss_key);
-	} else {
-		/* set up random bits */
-		arc4rand(&rss_key, sizeof(rss_key), 0);
-	}
+	rss_getkey((uint8_t *)rss_key);
 
 	/* Set multiplier for RETA setup and table size based on MAC */
 	index_mult = 0x1;
