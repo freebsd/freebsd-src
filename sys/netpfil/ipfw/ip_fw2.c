@@ -248,16 +248,9 @@ SYSEND
 #endif /* SYSCTL_NODE */
 
 /*
- * Some macros used in the various matching options.
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
- * Other macros just cast void * into the appropriate type
  */
 #define	L3HDR(T, ip)	((T *)((u_int32_t *)(ip) + (ip)->ip_hl))
-#define	TCP(p)		((struct tcphdr *)(p))
-#define	SCTP(p)		((struct sctphdr *)(p))
-#define	UDP(p)		((struct udphdr *)(p))
-#define	ICMP(p)		((struct icmphdr *)(p))
-#define	ICMP6(p)	((struct icmp6_hdr *)(p))
 
 static __inline int
 icmptype_match(struct icmphdr *icmp, ipfw_insn_u32 *cmd)
@@ -1589,55 +1582,70 @@ do {									\
 		/* Search extension headers to find upper layer protocols */
 		while (ulp == NULL && offset == 0) {
 			switch (proto) {
-			case IPPROTO_ICMPV6:
-				PULLUP_TO(ulp, struct icmp6_hdr);
+			case IPPROTO_ICMPV6: {
+				struct icmp6_hdr *icmp6;
+
+				PULLUP(icmp6);
 #ifdef INET6
-				icmp6_type = ICMP6(ulp)->icmp6_type;
+				icmp6_type = icmp6->icmp6_type;
 #endif
+				ulp = icmp6;
 				break;
+			}
+			case IPPROTO_TCP: {
+				struct tcphdr *tcp;
 
-			case IPPROTO_TCP:
-				PULLUP_TO(ulp, struct tcphdr);
-				dst_port = TCP(ulp)->th_dport;
-				src_port = TCP(ulp)->th_sport;
+				PULLUP(tcp);
+				dst_port = tcp->th_dport;
+				src_port = tcp->th_sport;
 				/* save flags for dynamic rules */
-				args->f_id._flags = tcp_get_flags(TCP(ulp));
+				args->f_id._flags = tcp_get_flags(tcp);
+				ulp = tcp;
 				break;
+			}
+			case IPPROTO_SCTP: {
+				struct sctphdr *sctp;
 
-			case IPPROTO_SCTP:
 				if (pktlen >= hlen + sizeof(struct sctphdr) +
 				    sizeof(struct sctp_chunkhdr) +
 				    offsetof(struct sctp_init, a_rwnd))
-					PULLUP_LEN(ulp,
+					PULLUP_LEN(sctp,
 					    sizeof(struct sctphdr) +
 					    sizeof(struct sctp_chunkhdr) +
 					    offsetof(struct sctp_init, a_rwnd));
 				else if (pktlen >= hlen + sizeof(struct sctphdr))
-					PULLUP_LEN(ulp, pktlen - hlen);
+					PULLUP_LEN(sctp, pktlen - hlen);
 				else
-					PULLUP_LEN(ulp, sizeof(struct sctphdr));
-				src_port = SCTP(ulp)->src_port;
-				dst_port = SCTP(ulp)->dest_port;
+					PULLUP(sctp);
+				src_port = sctp->src_port;
+				dst_port = sctp->dest_port;
+				ulp = sctp;
 				break;
-
+			}
 			case IPPROTO_UDP:
-			case IPPROTO_UDPLITE:
-				PULLUP_TO(ulp, struct udphdr);
-				dst_port = UDP(ulp)->uh_dport;
-				src_port = UDP(ulp)->uh_sport;
-				break;
+			case IPPROTO_UDPLITE: {
+				struct udphdr *udp;
 
-			case IPPROTO_HOPOPTS:	/* RFC 2460 */
-				PULLUP_TO(ulp, struct ip6_hbh);
+				PULLUP(udp);
+				dst_port = udp->uh_dport;
+				src_port = udp->uh_sport;
+				ulp = udp;
+				break;
+			}
+			case IPPROTO_HOPOPTS: {	/* RFC 2460 */
+				struct ip6_hbh *hbh;
+
+				PULLUP(hbh);
 				ext_hd |= EXT_HOPOPTS;
-				hlen += (((struct ip6_hbh *)ulp)->ip6h_len + 1) << 3;
-				proto = ((struct ip6_hbh *)ulp)->ip6h_nxt;
-				ulp = NULL;
+				hlen += (hbh->ip6h_len + 1) << 3;
+				proto = hbh->ip6h_nxt;
 				break;
+			}
+			case IPPROTO_ROUTING: {	/* RFC 2460 */
+				struct ip6_rthdr *rth;
 
-			case IPPROTO_ROUTING:	/* RFC 2460 */
-				PULLUP_TO(ulp, struct ip6_rthdr);
-				switch (((struct ip6_rthdr *)ulp)->ip6r_type) {
+				PULLUP(rth);
+				switch (rth->ip6r_type) {
 				case 0:
 					ext_hd |= EXT_RTHDR0;
 					break;
@@ -1648,27 +1656,25 @@ do {									\
 					if (V_fw_verbose)
 						printf("IPFW2: IPV6 - Unknown "
 						    "Routing Header type(%d)\n",
-						    ((struct ip6_rthdr *)
-						    ulp)->ip6r_type);
+						    rth->ip6r_type);
 					if (V_fw_deny_unknown_exthdrs)
 					    return (IP_FW_DENY);
 					break;
 				}
 				ext_hd |= EXT_ROUTING;
-				hlen += (((struct ip6_rthdr *)ulp)->ip6r_len + 1) << 3;
-				proto = ((struct ip6_rthdr *)ulp)->ip6r_nxt;
-				ulp = NULL;
+				hlen += (rth->ip6r_len + 1) << 3;
+				proto = rth->ip6r_nxt;
 				break;
+			}
+			case IPPROTO_FRAGMENT: { /* RFC 2460 */
+				struct ip6_frag *frag6;
 
-			case IPPROTO_FRAGMENT:	/* RFC 2460 */
-				PULLUP_TO(ulp, struct ip6_frag);
+				PULLUP(frag6);
 				ext_hd |= EXT_FRAGMENT;
 				hlen += sizeof (struct ip6_frag);
-				proto = ((struct ip6_frag *)ulp)->ip6f_nxt;
-				offset = ((struct ip6_frag *)ulp)->ip6f_offlg &
-					IP6F_OFF_MASK;
-				ip6f_mf = ((struct ip6_frag *)ulp)->ip6f_offlg &
-					IP6F_MORE_FRAG;
+				proto = frag6->ip6f_nxt;
+				offset = frag6->ip6f_offlg & IP6F_OFF_MASK;
+				ip6f_mf = frag6->ip6f_offlg & IP6F_MORE_FRAG;
 				if (V_fw_permit_single_frag6 == 0 &&
 				    offset == 0 && ip6f_mf == 0) {
 					if (V_fw_verbose)
@@ -1678,27 +1684,27 @@ do {									\
 					    return (IP_FW_DENY);
 					break;
 				}
-				args->f_id.extra =
-				    ntohl(((struct ip6_frag *)ulp)->ip6f_ident);
-				ulp = NULL;
+				args->f_id.extra = ntohl(frag6->ip6f_ident);
 				break;
+			}
+			case IPPROTO_DSTOPTS: {	/* RFC 2460 */
+				struct ip6_hbh *hbh;
 
-			case IPPROTO_DSTOPTS:	/* RFC 2460 */
-				PULLUP_TO(ulp, struct ip6_hbh);
+				PULLUP(hbh);
 				ext_hd |= EXT_DSTOPTS;
-				hlen += (((struct ip6_hbh *)ulp)->ip6h_len + 1) << 3;
-				proto = ((struct ip6_hbh *)ulp)->ip6h_nxt;
-				ulp = NULL;
+				hlen += (hbh->ip6h_len + 1) << 3;
+				proto = hbh->ip6h_nxt;
 				break;
+			}
+			case IPPROTO_AH: {	/* RFC 2402 */
+				struct ip6_ext *ext6;
 
-			case IPPROTO_AH:	/* RFC 2402 */
-				PULLUP_TO(ulp, struct ip6_ext);
+				PULLUP(ext6);
 				ext_hd |= EXT_AH;
-				hlen += (((struct ip6_ext *)ulp)->ip6e_len + 2) << 2;
-				proto = ((struct ip6_ext *)ulp)->ip6e_nxt;
-				ulp = NULL;
+				hlen += (ext6->ip6e_len + 2) << 2;
+				proto = ext6->ip6e_nxt;
 				break;
-
+			}
 			case IPPROTO_ESP:	/* RFC 2406 */
 				PULLUP_TO(ulp, uint32_t);	/* SPI, Seq# */
 				/* Anything past Seq# is variable length and
@@ -1730,14 +1736,16 @@ do {									\
 				PULLUP_TO(ulp, struct grehdr);
 				break;
 
-			case IPPROTO_CARP:
-				PULLUP_TO(ulp, offsetof(
-				    struct carp_header, carp_counter));
-				if (CARP_ADVERTISEMENT !=
-				    ((struct carp_header *)ulp)->carp_type)
-					return (IP_FW_DENY);
-				break;
+			case IPPROTO_CARP: {
+				struct carp_header *carp;
 
+				PULLUP_TO(carp, offsetof(
+				    struct carp_header, carp_counter));
+				if (CARP_ADVERTISEMENT != carp->carp_type)
+					return (IP_FW_DENY);
+				ulp = carp;
+				break;
+			}
 			case IPPROTO_IPV6:	/* RFC 2893 */
 				PULLUP_TO(ulp, struct ip6_hdr);
 				break;
@@ -1791,37 +1799,46 @@ do {									\
 
 		if (offset == 0) {
 			switch (proto) {
-			case IPPROTO_TCP:
-				PULLUP_TO(ulp, struct tcphdr);
-				dst_port = TCP(ulp)->th_dport;
-				src_port = TCP(ulp)->th_sport;
-				/* save flags for dynamic rules */
-				args->f_id._flags = tcp_get_flags(TCP(ulp));
-				break;
+			case IPPROTO_TCP: {
+				struct tcphdr *tcp;
 
-			case IPPROTO_SCTP:
+				PULLUP(tcp);
+				dst_port = tcp->th_dport;
+				src_port = tcp->th_sport;
+				/* save flags for dynamic rules */
+				args->f_id._flags = tcp_get_flags(tcp);
+				ulp = tcp;
+				break;
+			}
+			case IPPROTO_SCTP: {
+				struct sctphdr *sctp;
+
 				if (pktlen >= hlen + sizeof(struct sctphdr) +
 				    sizeof(struct sctp_chunkhdr) +
 				    offsetof(struct sctp_init, a_rwnd))
-					PULLUP_LEN(ulp,
+					PULLUP_LEN(sctp,
 					    sizeof(struct sctphdr) +
 					    sizeof(struct sctp_chunkhdr) +
 					    offsetof(struct sctp_init, a_rwnd));
 				else if (pktlen >= hlen + sizeof(struct sctphdr))
-					PULLUP_LEN(ulp, pktlen - hlen);
+					PULLUP_LEN(sctp, pktlen - hlen);
 				else
-					PULLUP_LEN(ulp, sizeof(struct sctphdr));
-				src_port = SCTP(ulp)->src_port;
-				dst_port = SCTP(ulp)->dest_port;
+					PULLUP(sctp);
+				src_port = sctp->src_port;
+				dst_port = sctp->dest_port;
+				ulp = sctp;
 				break;
-
+			}
 			case IPPROTO_UDP:
-			case IPPROTO_UDPLITE:
-				PULLUP_TO(ulp, struct udphdr);
-				dst_port = UDP(ulp)->uh_dport;
-				src_port = UDP(ulp)->uh_sport;
-				break;
+			case IPPROTO_UDPLITE: {
+				struct udphdr *udp;
 
+				PULLUP(udp);
+				dst_port = udp->uh_dport;
+				src_port = udp->uh_sport;
+				ulp = udp;
+				break;
+			}
 			case IPPROTO_ICMP:
 				PULLUP_TO(ulp, struct icmphdr);
 				//args->f_id.flags = ICMP(ulp)->icmp_type;
@@ -2417,16 +2434,17 @@ do {									\
 				break;
 
 			case O_ICMPTYPE:
-				match = (offset == 0 && proto==IPPROTO_ICMP &&
-				    icmptype_match(ICMP(ulp), (ipfw_insn_u32 *)cmd) );
+				match = (offset == 0 && proto == IPPROTO_ICMP &&
+				    icmptype_match((struct icmphdr *)ulp,
+				    (ipfw_insn_u32 *)cmd));
 				break;
 
 #ifdef INET6
 			case O_ICMP6TYPE:
 				match = is_ipv6 && offset == 0 &&
-				    proto==IPPROTO_ICMPV6 &&
+				    proto == IPPROTO_ICMPV6 &&
 				    icmp6type_match(
-					ICMP6(ulp)->icmp6_type,
+					((struct icmp6_hdr *)ulp)->icmp6_type,
 					(ipfw_insn_u32 *)cmd);
 				break;
 #endif /* INET6 */
@@ -2505,7 +2523,7 @@ do {									\
 
 			case O_TCPDATALEN:
 				if (proto == IPPROTO_TCP && offset == 0) {
-				    struct tcphdr *tcp;
+				    struct tcphdr *tcp = ulp;
 				    uint16_t x;
 				    uint16_t *p;
 				    int i;
@@ -2526,7 +2544,6 @@ do {									\
 				    } else
 #endif /* INET6 */
 					    x = iplen - (ip->ip_hl << 2);
-				    tcp = TCP(ulp);
 				    x -= tcp->th_off << 2;
 				    if (cmdlen == 1) {
 					match = (cmd->arg1 == x);
@@ -2547,38 +2564,42 @@ do {									\
 				 * the full compliment of all 12 flags.
 				 */
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    flags_match(cmd, tcp_get_flags(TCP(ulp))));
+				    flags_match(cmd,
+				    tcp_get_flags((struct tcphdr *)ulp)));
 				break;
 
 			case O_TCPOPTS:
-				if (proto == IPPROTO_TCP && offset == 0 && ulp){
-					PULLUP_LEN(ulp,
-					    (TCP(ulp)->th_off << 2));
-					match = tcpopts_match(TCP(ulp), cmd);
+				if (proto == IPPROTO_TCP && offset == 0) {
+					struct tcphdr *tcp = ulp;
+
+					PULLUP_LEN(tcp, tcp->th_off << 2);
+					ulp = tcp;
+					match = tcpopts_match(tcp, cmd);
 				}
 				break;
 
 			case O_TCPSEQ:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    ((ipfw_insn_u32 *)cmd)->d[0] ==
-					TCP(ulp)->th_seq);
+					((struct tcphdr *)ulp)->th_seq);
 				break;
 
 			case O_TCPACK:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    ((ipfw_insn_u32 *)cmd)->d[0] ==
-					TCP(ulp)->th_ack);
+					((struct tcphdr *)ulp)->th_ack);
 				break;
 
 			case O_TCPMSS:
 				if (proto == IPPROTO_TCP &&
-				    (args->f_id._flags & TH_SYN) != 0 &&
-				    ulp != NULL) {
+				    (args->f_id._flags & TH_SYN) != 0) {
+					struct tcphdr *tcp = ulp;
 					uint16_t mss, *p;
 					int i;
 
-					PULLUP_LEN(ulp, TCP(ulp)->th_off << 2);
-					if ((tcpopts_parse(TCP(ulp), &mss) &
+					PULLUP_LEN(tcp, tcp->th_off << 2);
+					ulp = tcp;
+					if ((tcpopts_parse(tcp, &mss) &
 					    IP_FW_TCPOPT_MSS) == 0)
 						break;
 					if (cmdlen == 1) {
@@ -2600,7 +2621,7 @@ do {									\
 				    uint16_t *p;
 				    int i;
 
-				    x = ntohs(TCP(ulp)->th_win);
+				    x = ntohs(((struct tcphdr *)ulp)->th_win);
 				    if (cmdlen == 1) {
 					match = (cmd->arg1 == x);
 					break;
@@ -2617,7 +2638,7 @@ do {									\
 				/* reject packets which have SYN only */
 				/* XXX should i also check for TH_ACK ? */
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    (tcp_get_flags(TCP(ulp)) &
+				    (tcp_get_flags((struct tcphdr *)ulp) &
 				     (TH_RST | TH_ACK | TH_SYN)) != TH_SYN);
 				break;
 
@@ -3212,7 +3233,7 @@ do {									\
 				 */
 				if (hlen > 0 && is_ipv4 && offset == 0 &&
 				    (proto != IPPROTO_ICMP ||
-				     is_icmp_query(ICMP(ulp))) &&
+				     is_icmp_query((struct icmphdr *)ulp)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
 					KASSERT(!need_send_reject,
