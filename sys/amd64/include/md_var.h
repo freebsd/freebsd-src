@@ -46,6 +46,8 @@ extern int	hw_ssb_disable;
 extern int	nmi_flush_l1d_sw;
 extern int	syscall_ret_l1d_flush_mode;
 extern int	lass_enabled;
+extern int	ia32_splitlock;
+extern int	ia32_splitlock_force;
 
 extern vm_paddr_t intel_graphics_stolen_base;
 extern vm_paddr_t intel_graphics_stolen_size;
@@ -67,6 +69,7 @@ struct trapframe;
 void	amd64_conf_fast_syscall(void);
 void	amd64_cpu_init_fred(void);
 void	amd64_db_resume_dbreg(void);
+void	amd64_init_splitlock(void);
 vm_paddr_t amd64_loadaddr(void);
 void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_bsp_pcpu_init1(struct pcpu *pc);
