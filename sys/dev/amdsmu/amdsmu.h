@@ -123,6 +123,7 @@ struct amdsmu_softc {
 
 	struct eventhandler_entry	*eh_suspend;
 	struct eventhandler_entry	*eh_resume;
+	struct eventhandler_entry	*eh_resume_check;
 
 	struct resource		*res;
 	bus_space_tag_t 	bus_tag;
