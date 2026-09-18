@@ -66,31 +66,16 @@ static void dump_sched(struct qfq_sched *q, const char *msg);
 typedef	unsigned long	bitmap;
 
 /*
- * bitmaps ops are critical. Some linux versions have __fls
- * and the bitmap ops. Some machines have ffs
  * NOTE: fls() returns 1 for the least significant bit,
  *       __fls() returns 0 for the same case.
  * We use the base-0 version __fls() to match the description in
  * the ToN QFQ paper
  */
-#if defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
-int fls(unsigned int n)
-{
-	int i = 0;
-	for (i = 0; n > 0; n >>= 1, i++)
-		;
-	return i;
-}
-#endif
-
-#if !defined(_KERNEL) || defined( __FreeBSD__ ) || defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
 static inline unsigned long __fls(unsigned long word)
 {
 	return fls(word) - 1;
 }
-#endif
 
-#if !defined(_KERNEL) || !defined(__linux__)
 #ifdef QFQ_DEBUG
 static int test_bit(int ix, bitmap *p)
 {
@@ -116,11 +101,6 @@ static void __clear_bit(int ix, bitmap *p)
 #define __set_bit(ix, pData)	(*pData) |= (1<<(ix))
 #define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
 #endif /* !QFQ_DEBUG */
-#endif /* !__linux__ */
-
-#ifdef __MIPSEL__
-#define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
-#endif
 
 /*-------------------------------------------*/
 /*

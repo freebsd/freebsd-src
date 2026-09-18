@@ -430,7 +430,6 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
 				return(1);
 		}
 	} else {
-#if !defined(USERSPACE) && defined(__FreeBSD__)	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		NET_EPOCH_ASSERT();
@@ -442,7 +441,6 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
 			    (ia->ifa_addr))->sin_addr.s_addr)
 				return (1);	/* match */
 		}
-#endif /* __FreeBSD__ */
 	}
 	return(0);	/* no match, fail ... */
 }
@@ -471,9 +469,6 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
 static int
 verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 {
-#if defined(USERSPACE) || !defined(__FreeBSD__)
-	return 0;
-#else
 	struct nhop_object *nh;
 
 	nh = fib4_lookup(fib, src, 0, NHR_NONE, 0);
@@ -500,7 +495,6 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 
 	/* found valid route */
 	return 1;
-#endif /* __FreeBSD__ */
 }
 
 /*
@@ -1101,15 +1095,6 @@ static int
 check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
     struct ucred **uc)
 {
-#if defined(USERSPACE)
-	return 0;	// not supported in userspace
-#else
-#ifndef __FreeBSD__
-	/* XXX */
-	return cred_check(insn, proto, oif,
-	    dst_ip, dst_port, src_ip, src_port,
-	    (struct bsd_ucred *)uc, ugid_lookupp, ((struct mbuf *)inp)->m_skb);
-#else  /* FreeBSD */
 	struct in_addr src_ip, dst_ip;
 	struct inpcbinfo *pi;
 	struct ipfw_flow_id *id;
@@ -1206,8 +1191,6 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 	else if (insn->o.opcode == O_JAIL)
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return (match);
-#endif /* __FreeBSD__ */
-#endif /* not supported in userspace */
 }
 
 /*
@@ -1428,11 +1411,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 * these types of constraints, as well as decrease contention
 	 * on pcb related locks.
 	 */
-#ifndef __FreeBSD__
-	struct bsd_ucred ucred_cache;
-#else
 	struct ucred *ucred_cache = NULL;
-#endif
 	uint32_t f_pos = 0;	/* index of current rule in the array */
 	int ucred_lookup = 0;
 	int retval = 0;
@@ -1989,11 +1968,7 @@ do {									\
 					match = check_uidgid(
 						    (ipfw_insn_u32 *)cmd,
 						    args, &ucred_lookup,
-#ifdef __FreeBSD__
 						    &ucred_cache);
-#else
-						    (void *)&ucred_cache);
-#endif
 				break;
 
 			case O_RECV:
@@ -2233,27 +2208,17 @@ do {									\
 					memcpy(key.mac, eh->ether_shost,
 					    sizeof(key.mac));
 					break;
-#ifndef USERSPACE
 				case LOOKUP_UID:
 				case LOOKUP_JAIL:
 					check_uidgid(insntod(cmd, u32),
 					    args, &ucred_lookup,
-#ifdef __FreeBSD__
 					    &ucred_cache);
 					if (lookup_type == LOOKUP_UID)
 						key.u32 = ucred_cache->cr_uid;
 					else if (lookup_type == LOOKUP_JAIL)
 						key.u32 = ucred_cache->cr_prison->pr_id;
-#else /* !__FreeBSD__ */
-					    (void *)&ucred_cache);
-					if (lookup_type == LOOKUP_UID)
-						key.u32 = ucred_cache.uid;
-					else if (lookup_type == LOOKUP_JAIL)
-						key.u32 = ucred_cache.xid;
-#endif /* !__FreeBSD__ */
 					keylen = sizeof(key.u32);
 					break;
-#endif /* !USERSPACE */
 				case LOOKUP_MARK:
 					key.u32 = args->rule.pkt_mark;
 					keylen = sizeof(key.u32);
@@ -2824,7 +2789,6 @@ do {									\
 				break;
 
 			case O_SOCKARG:	{
-#ifndef USERSPACE	/* not supported in userspace */
 				struct inpcb *inp = args->inp;
 				struct inpcbinfo *pi;
 				bool inp_locked = false;
@@ -2875,7 +2839,6 @@ do {									\
 					if (inp_locked)
 						INP_RUNLOCK(inp);
 				}
-#endif /* !USERSPACE */
 				break;
 			}
 
@@ -3561,10 +3524,8 @@ do {									\
 			send_reject(args, reject_code, reject_mtu,
 				    iplen, ip);
 	}
-#ifdef __FreeBSD__
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);
-#endif
 	return (retval);
 
 pullup_failed:
