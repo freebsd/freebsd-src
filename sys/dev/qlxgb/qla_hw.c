@@ -35,6 +35,7 @@
 
 #include <sys/cdefs.h>
 #include "qla_os.h"
+#include <net/rss_config.h>
 #include "qla_reg.h"
 #include "qla_hw.h"
 #include "qla_def.h"
@@ -529,13 +530,10 @@ qla_fw_cmd(qla_host_t *ha, void *fw_cmd, uint32_t size)
  * Name: qla_config_rss
  * Function: Configure RSS for the context/interface.
  */
-const uint64_t rss_key[] = { 0xbeac01fa6a42b73bULL, 0x8030f20c77cb2da3ULL,
-			0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
-			0x255b0ec26d5a56daULL };
-
 static int
 qla_config_rss(qla_host_t *ha, uint16_t cntxt_id)
 {
+	uint8_t rss_key[RSS_KEYSIZE];
 	qla_fw_cds_config_rss_t rss_config;
 	int ret, i;
 
@@ -551,8 +549,17 @@ qla_config_rss(qla_host_t *ha, uint16_t cntxt_id)
 
 	rss_config.ind_tbl_mask = 0x7;
 
-	for (i = 0; i < 5; i++)
-		rss_config.rss_key[i] = rss_key[i];
+	_Static_assert(sizeof(rss_config.rss_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(rss_key);
+	/* Reverse the word pairs, retaining low-word-first firmware ordering. */
+	for (i = 0; i < nitems(rss_config.rss_key); i++) {
+		const uint8_t *key = rss_key + sizeof(rss_key) -
+		    (i + 1) * sizeof(uint64_t);
+
+		rss_config.rss_key[i] = (uint64_t)be32dec(key + sizeof(uint32_t))
+		    << 32 | be32dec(key);
+	}
 
 	ret = qla_fw_cmd(ha, &rss_config, sizeof(qla_fw_cds_config_rss_t));
 
