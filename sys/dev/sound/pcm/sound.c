@@ -332,7 +332,7 @@ sysctl_dev_pcm_mode(SYSCTL_HANDLER_ARGS)
 		mode |= PCM_MODE_PLAY;
 	if (d->reccount > 0)
 		mode |= PCM_MODE_REC;
-	if (d->mixer_dev != NULL)
+	if (d->mixer != NULL)
 		mode |= PCM_MODE_MIXER;
 	PCM_UNLOCK(d);
 
@@ -433,6 +433,13 @@ pcm_register(device_t dev, char *str)
 	err = dsp_make_dev(dev);
 	if (err)
 		return (err);
+	if (d->mixer != NULL) {
+		err = mixer_make_dev(dev);
+		if (err) {
+			dsp_destroy_dev(dev);
+			return (err);
+		}
+	}
 
 	bus_topo_lock();
 	if (snd_unit_auto < 0)
@@ -483,7 +490,8 @@ pcm_unregister(device_t dev)
 	}
 
 	sndstat_unregister(dev);
-	mixer_uninit(dev);
+	if (d->mixer != NULL)
+		mixer_uninit(dev);
 	dsp_destroy_dev(dev);
 
 	cv_destroy(&d->cv);

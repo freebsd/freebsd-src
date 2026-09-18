@@ -925,7 +925,6 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		{
 	    		snd_capabilities *p = (snd_capabilities *)arg;
 			struct pcmchan_caps *pcaps = NULL, *rcaps = NULL;
-			struct cdev *pdev;
 #ifdef COMPAT_FREEBSD32
 			snd_capabilities32 *p32 = (snd_capabilities32 *)arg;
 			snd_capabilities capabilities;
@@ -965,9 +964,8 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				    (pcm_getflags(d->dev) & SD_F_SIMPLEX) ? 0 :
 				    AFMT_FULLDUPLEX;
 			}
-			pdev = d->mixer_dev;
 	    		p->mixers = 1; /* default: one mixer */
-	    		p->inputs = pdev->si_drv1? mix_getdevs(pdev->si_drv1) : 0;
+			p->inputs = d->mixer ? mix_getdevs(d->mixer) : 0;
 	    		p->left = p->right = 100;
 			if (wrch)
 				CHN_UNLOCK(wrch);

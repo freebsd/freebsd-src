@@ -2157,8 +2157,7 @@ chn_syncstate(struct pcm_channel *c)
 	struct snd_mixer *m;
 
 	d = (c != NULL) ? c->parentsnddev : NULL;
-	m = (d != NULL && d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 :
-	    NULL;
+	m = (d != NULL) ? d->mixer : NULL;
 
 	if (d == NULL || m == NULL)
 		return;

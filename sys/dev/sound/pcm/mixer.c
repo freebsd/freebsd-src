@@ -75,14 +75,14 @@ static struct cdevsw mixer_cdevsw = {
 
 static eventhandler_tag mixer_ehtag = NULL;
 
-static struct cdev *
+static struct snd_mixer *
 mixer_get_devt(device_t dev)
 {
 	struct snddev_info *snddev;
 
 	snddev = device_get_softc(dev);
 
-	return snddev->mixer_dev;
+	return (snddev->mixer);
 }
 
 static int
@@ -616,7 +616,6 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	struct snddev_info *snddev;
 	struct snd_mixer *m;
 	uint16_t v;
-	struct cdev *pdev;
 	const char *name;
 	int i, unit, val;
 
@@ -646,10 +645,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 
 	mixer_setrecsrc(m, 0); /* Set default input. */
 
-	pdev = make_dev(&mixer_cdevsw, 0, UID_ROOT, GID_AUDIO, 0660, "mixer%d",
-	    unit);
-	pdev->si_drv1 = m;
-	snddev->mixer_dev = pdev;
+	snddev->mixer = m;
 
 	if (bootverbose) {
 		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
@@ -685,20 +681,23 @@ mixer_uninit(device_t dev)
 	int i;
 	struct snddev_info *d;
 	struct snd_mixer *m;
-	struct cdev *pdev;
 
 	d = device_get_softc(dev);
-	pdev = mixer_get_devt(dev);
-	if (d == NULL || pdev == NULL || pdev->si_drv1 == NULL)
+	if (d == NULL)
 		return EBADF;
+	m = d->mixer;
 
-	m = pdev->si_drv1;
 	KASSERT(m != NULL, ("NULL snd_mixer"));
 	KASSERT(m->type == MIXER_TYPE_PRIMARY,
 	    ("%s(): illegal mixer type=%d", __func__, m->type));
 
-	pdev->si_drv1 = NULL;
-	destroy_dev(pdev);
+	/*
+	 * snd_uaudio(4) in particular can call mixer_uninit() directly if
+	 * attach failed prior to pcm_register(), in which case the cdev will
+	 * not have been created. Do not call destroy_dev() unconditionally.
+	*/
+	if (d->mixer_dev != NULL)
+		destroy_dev(d->mixer_dev);
 
 	mtx_lock(&m->lock);
 
@@ -717,6 +716,7 @@ mixer_uninit(device_t dev)
 	kobj_delete((kobj_t)m, M_DEVBUF);
 
 	d->mixer_dev = NULL;
+	d->mixer = NULL;
 
 	return 0;
 }
@@ -725,11 +725,9 @@ int
 mixer_reinit(device_t dev)
 {
 	struct snd_mixer *m;
-	struct cdev *pdev;
 	int i;
 
-	pdev = mixer_get_devt(dev);
-	m = pdev->si_drv1;
+	m = mixer_get_devt(dev);
 	mtx_lock(&m->lock);
 
 	i = MIXER_REINIT(m);
@@ -749,6 +747,32 @@ mixer_reinit(device_t dev)
 	mtx_unlock(&m->lock);
 
 	return 0;
+}
+
+int
+mixer_make_dev(device_t dev)
+{
+	struct make_dev_args devargs;
+	struct snddev_info *sc;
+	int err, unit;
+
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
+
+	make_dev_args_init(&devargs);
+	devargs.mda_devsw = &mixer_cdevsw;
+	devargs.mda_uid = UID_ROOT;
+	devargs.mda_gid = GID_AUDIO;
+	devargs.mda_mode = 0660;
+	devargs.mda_si_drv1 = sc->mixer;
+	err = make_dev_s(&devargs, &sc->mixer_dev, "mixer%d", unit);
+	if (err != 0) {
+		device_printf(dev, "failed to create mixer%d: error %d\n",
+		    unit, err);
+		return (err);
+	}
+
+	return (0);
 }
 
 static int
@@ -781,10 +805,8 @@ int
 mixer_hwvol_init(device_t dev)
 {
 	struct snd_mixer *m;
-	struct cdev *pdev;
 
-	pdev = mixer_get_devt(dev);
-	m = pdev->si_drv1;
+	m = mixer_get_devt(dev);
 
 	m->hwvol_mixer = SOUND_MIXER_VOLUME;
 	m->hwvol_step = 5;
@@ -808,10 +830,8 @@ void
 mixer_hwvol_mute(device_t dev)
 {
 	struct snd_mixer *m;
-	struct cdev *pdev;
 
-	pdev = mixer_get_devt(dev);
-	m = pdev->si_drv1;
+	m = mixer_get_devt(dev);
 	mtx_lock(&m->lock);
 	mixer_hwvol_mute_locked(m);
 	mtx_unlock(&m->lock);
@@ -846,10 +866,8 @@ void
 mixer_hwvol_step(device_t dev, int left_step, int right_step)
 {
 	struct snd_mixer *m;
-	struct cdev *pdev;
 
-	pdev = mixer_get_devt(dev);
-	m = pdev->si_drv1;
+	m = mixer_get_devt(dev);
 	mtx_lock(&m->lock);
 	mixer_hwvol_step_locked(m, left_step, right_step);
 	mtx_unlock(&m->lock);
@@ -927,10 +945,9 @@ mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct snddev_info *d;
 	struct snd_mixer *m;
 
-	if (i_dev == NULL || i_dev->si_drv1 == NULL)
-		return (EBADF);
-
 	m = i_dev->si_drv1;
+	if (m == NULL)
+		return (EBADF);
 	d = device_get_softc(m->dev);
 	if (!PCM_REGISTERED(d))
 		return (EBADF);
@@ -944,10 +961,9 @@ mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct snddev_info *d;
 	struct snd_mixer *m;
 
-	if (i_dev == NULL || i_dev->si_drv1 == NULL)
-		return (EBADF);
-
 	m = i_dev->si_drv1;
+	if (m == NULL)
+		return (EBADF);
 	d = device_get_softc(m->dev);
 	if (!PCM_REGISTERED(d))
 		return (EBADF);
@@ -960,12 +976,13 @@ mixer_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
 	struct snddev_info *d;
+	struct snd_mixer *m;
 	int ret;
 
-	if (i_dev == NULL || i_dev->si_drv1 == NULL)
+	m = i_dev->si_drv1;
+	if (m == NULL)
 		return (EBADF);
-
-	d = device_get_softc(((struct snd_mixer *)i_dev->si_drv1)->dev);
+	d = device_get_softc(m->dev);
 	if (!PCM_REGISTERED(d))
 		return (EBADF);
 
@@ -1235,14 +1252,14 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 			continue;
 		}
 
-		if (d->mixer_dev->si_drv1 == NULL) {
+		if (d->mixer == NULL) {
 			mixer_oss_mixerinfo_unavail(mi, i);
 			PCM_UNLOCK(d);
 			bus_topo_unlock();
 			return (0);
 		}
 
-		m = d->mixer_dev->si_drv1;
+		m = d->mixer;
 		mtx_lock(&m->lock);
 
 		/*

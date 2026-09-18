@@ -1516,8 +1516,7 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 
 	dev = oidp->oid_arg1;
 	d = device_get_softc(dev);
-	if (!PCM_REGISTERED(d) || d->mixer_dev == NULL ||
-	    d->mixer_dev->si_drv1 == NULL)
+	if (!PCM_REGISTERED(d) || d->mixer_dev == NULL || d->mixer == NULL)
 		return (EINVAL);
 	es = d->devinfo;
 	if (es == NULL)
@@ -1535,7 +1534,7 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 	if (val == set)
 		return (0);
 	PCM_ACQUIRE_QUICK(d);
-	m = (d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 : NULL;
+	m = d->mixer;
 	if (m == NULL) {
 		PCM_RELEASE_QUICK(d);
 		return (ENODEV);

@@ -270,7 +270,7 @@ feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 
 	/* Check if any controls are muted. */
 	d = (c != NULL) ? c->parentsnddev : NULL;
-	m = (d != NULL && d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 : NULL;
+	m = (d != NULL) ? d->mixer : NULL;
 
 	if (m != NULL)
 		master_muted = (mix_getmutedevs(m) & (1 << SND_VOL_C_MASTER));
