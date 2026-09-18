@@ -47,7 +47,7 @@ create_db(void)
 	ATF_CHECK(db != NULL);
 	ATF_REQUIRE(atf_utils_file_exists(dbname));
 
-	ATF_REQUIRE(db->put(db, &key, &key, 0) == 0);
+	ATF_REQUIRE(db->put(db, &key, &val, 0) == 0);
 
 	db->close(db);
 }
