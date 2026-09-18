@@ -265,7 +265,7 @@ init_secondary(uint64_t cpu)
 
 	/* Wait for devices to be ready */
 	while (!atomic_load_int(&aps_after_dev))
-		__asm __volatile("wfe");
+		wfe();
 
 	install_cpu_errata();
 	enable_cpu_feat(CPU_FEAT_AFTER_DEV);
@@ -275,7 +275,7 @@ init_secondary(uint64_t cpu)
 
 	/* Wait until we can run the scheduler */
 	while (!atomic_load_int(&aps_ready))
-		__asm __volatile("wfe");
+		wfe();
 
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -508,7 +508,7 @@ enable_cpu_spin(uint64_t cpu, vm_paddr_t entry, vm_paddr_t release_paddr)
 
 	/* Wait for the target CPU to start */
 	while (atomic_load_64(&ap_cpuid) != 0)
-		__asm __volatile("wfe");
+		wfe();
 
 	return (0);
 }
