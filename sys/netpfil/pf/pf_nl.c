@@ -2324,7 +2324,7 @@ nlattr_add_pfr_addr(struct nl_writer *nw, int attr, const struct pfr_addr *a)
 static int
 pf_handle_table_get_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
-	struct pfioc_table attrs = { 0 };
+	struct nl_parsed_table_addrs attrs = { 0 };
 	struct pfr_addr *pfras;
 	struct nl_writer *nw = npt->nw;
 	struct genlmsghdr *ghdr_new;
@@ -2339,8 +2339,8 @@ pf_handle_table_get_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	PF_RULES_RLOCK();
 	/* Get required size. */
-	error = pfr_get_addrs(&attrs.pfrio_table, NULL,
-	    &size, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
+	error = pfr_get_addrs(&attrs.table, NULL,
+	    &size, attrs.flags | PFR_FLAG_USERIOCTL);
 	if (error != 0) {
 		PF_RULES_RUNLOCK();
 		return (error);
@@ -2352,8 +2352,8 @@ pf_handle_table_get_addrs(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (ENOMEM);
 	}
 	/* Now get the addresses. */
-	error = pfr_get_addrs(&attrs.pfrio_table, pfras,
-	    &size, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
+	error = pfr_get_addrs(&attrs.table, pfras,
+	    &size, attrs.flags | PFR_FLAG_USERIOCTL);
 	PF_RULES_RUNLOCK();
 	if (error != 0)
 		goto out;
