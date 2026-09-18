@@ -32,6 +32,7 @@
 
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
+#include <net/rss_config.h>
 #include "bcm_osal.h"
 #include "reg_addr.h"
 #include "ecore_gtt_reg_addr.h"
@@ -6481,21 +6482,10 @@ qlnx_update_rx_prod(struct ecore_hwfn *p_hwfn, struct qlnx_rx_queue *rxq)
 	return;
 }
 
-static uint32_t qlnx_hash_key[] = {
-                ((0x6d << 24)|(0x5a << 16)|(0x56 << 8)|0xda),
-                ((0x25 << 24)|(0x5b << 16)|(0x0e << 8)|0xc2),
-                ((0x41 << 24)|(0x67 << 16)|(0x25 << 8)|0x3d),
-                ((0x43 << 24)|(0xa3 << 16)|(0x8f << 8)|0xb0),
-                ((0xd0 << 24)|(0xca << 16)|(0x2b << 8)|0xcb),
-                ((0xae << 24)|(0x7b << 16)|(0x30 << 8)|0xb4),
-                ((0x77 << 24)|(0xcb << 16)|(0x2d << 8)|0xa3),
-                ((0x80 << 24)|(0x30 << 16)|(0xf2 << 8)|0x0c),
-                ((0x6a << 24)|(0x42 << 16)|(0xb7 << 8)|0x3b),
-                ((0xbe << 24)|(0xac << 16)|(0x01 << 8)|0xfa)};
-
 static int
 qlnx_start_queues(qlnx_host_t *ha)
 {
+        uint8_t                         rss_key[RSS_KEYSIZE];
         int				rc, tc, i, vport_id = 0,
 					drop_ttl0_flg = 1, vlan_removal_en = 1,
 					tx_switching = 0, hw_lro_enable = 0;
@@ -6637,8 +6627,13 @@ qlnx_start_queues(qlnx_host_t *ha)
                         rss_params->rss_ind_table[i] = fp->rxq->handle;
 		}
 
+                _Static_assert(sizeof(rss_params->rss_key) == RSS_KEYSIZE,
+                    "RSS key size mismatch");
+                rss_getkey(rss_key);
+                /* The shared code converts these host-order words to LE. */
                 for (i = 0; i < ECORE_RSS_KEY_SIZE; i++)
-			rss_params->rss_key[i] = (__le32)qlnx_hash_key[i];
+                        rss_params->rss_key[i] =
+                            be32dec(rss_key + i * sizeof(uint32_t));
 
         } else {
                 memset(rss_params, 0, sizeof(*rss_params));
