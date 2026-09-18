@@ -59,8 +59,8 @@
 #include "opt_inet6.h"
 #include "opt_rss.h"
 
-#ifdef RSS
 #include <net/rss_config.h>
+#ifdef RSS
 #include <netinet/in_rss.h>
 #endif
 
@@ -723,13 +723,17 @@ axgbe_initialize_rss_mapping(struct xgbe_prv_data *pdata)
 {
 	int i;
 
-	/* Get RSS key */
 #ifdef	RSS
 	int	qid;
 	uint32_t	rss_hash_config = 0;
+#endif
 
+	/* Get RSS key independently of software RSS queue placement. */
+	_Static_assert(sizeof(pdata->rss_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
 	rss_getkey((uint8_t *)&pdata->rss_key);
 
+#ifdef	RSS
 	rss_hash_config = rss_gethashconfig();
 
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
@@ -739,8 +743,6 @@ axgbe_initialize_rss_mapping(struct xgbe_prv_data *pdata)
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
 		XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 #else
-	arc4rand(&pdata->rss_key, ARRAY_SIZE(pdata->rss_key), 0);
-
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
