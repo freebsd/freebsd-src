@@ -145,6 +145,7 @@ bpf_ifnet_write(void *arg, struct mbuf *m, struct mbuf *mc, int flags)
 	};
 
 	if (hlen != 0) {
+		MPASS(hlen <= sizeof(dst.sa_data));
 		bcopy(mtod(m, const void *), &dst.sa_data, hlen);
 		ro.ro_prepend = (char *)&dst.sa_data;
 		ro.ro_plen = hlen;
