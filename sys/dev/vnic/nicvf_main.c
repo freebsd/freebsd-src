@@ -60,6 +60,7 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/rss_config.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -1055,6 +1056,7 @@ static int
 nicvf_rss_init(struct nicvf *nic)
 {
 	struct nicvf_rss_info *rss;
+	uint8_t rss_key[RSS_KEYSIZE];
 	int idx;
 
 	nicvf_get_rss_size(nic);
@@ -1068,12 +1070,12 @@ nicvf_rss_init(struct nicvf *nic)
 
 	rss->enable = TRUE;
 
-	/* Using the HW reset value for now */
-	rss->key[0] = 0xFEED0BADFEED0BADUL;
-	rss->key[1] = 0xFEED0BADFEED0BADUL;
-	rss->key[2] = 0xFEED0BADFEED0BADUL;
-	rss->key[3] = 0xFEED0BADFEED0BADUL;
-	rss->key[4] = 0xFEED0BADFEED0BADUL;
+	_Static_assert(sizeof(rss->key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(rss_key);
+	/* Each key register holds eight bytes in network order. */
+	for (idx = 0; idx < RSS_HASH_KEY_SIZE; idx++)
+		rss->key[idx] = be64dec(rss_key + idx * sizeof(uint64_t));
 
 	nicvf_set_rss_key(nic);
 
