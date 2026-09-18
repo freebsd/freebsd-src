@@ -434,9 +434,19 @@ static void
 iavf_vc_task(void *arg, int pending __unused)
 {
 	struct iavf_sc *sc = (struct iavf_sc *)arg;
-	u16 var;
+	enum iavf_status status;
+	u16 remaining = 0;
 
-	iavf_process_adminq(sc, &var);
+	status = iavf_process_adminq(sc, &remaining);
+	/*
+	 * A budget-limited pass may leave replies without another interrupt.
+	 * Keep processing them here: init can hold the iflib context lock
+	 * while waiting for a reply, preventing the iflib admin task from
+	 * making progress. Do not perpetuate the task during detach.
+	 */
+	if (status == IAVF_SUCCESS && remaining != 0 &&
+	    iavf_test_state(&sc->state, IAVF_STATE_INITIALIZED))
+		taskqueue_enqueue(sc->vc_tq, &sc->vc_task);
 }
 
 /**
