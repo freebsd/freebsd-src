@@ -2974,6 +2974,25 @@ mlx5e_get_rss_key(void *key_ptr)
 	rss_getkey(key_ptr);
 }
 
+static u_int
+mlx5e_get_rss_hash_types(void)
+{
+	u_int hashconfig, types;
+
+	hashconfig = rss_gethashconfig();
+	/* The IP-only TIRs are always enabled, independently of hashconfig. */
+	types = RSS_TYPE_IPV4 | RSS_TYPE_IPV6;
+	if (hashconfig & RSS_HASHTYPE_RSS_TCP_IPV4)
+		types |= RSS_TYPE_TCP_IPV4;
+	if (hashconfig & RSS_HASHTYPE_RSS_UDP_IPV4)
+		types |= RSS_TYPE_UDP_IPV4;
+	if (hashconfig & RSS_HASHTYPE_RSS_TCP_IPV6)
+		types |= RSS_TYPE_TCP_IPV6;
+	if (hashconfig & RSS_HASHTYPE_RSS_UDP_IPV6)
+		types |= RSS_TYPE_UDP_IPV6;
+	return (types);
+}
+
 static void
 mlx5e_hw_lro_set_tir_ctx_lro_max_msg_sz(struct mlx5e_priv *priv, u32 *tirc)
 {
@@ -4020,13 +4039,7 @@ err_i2c:
 	case SIOCGIFRSSHASH:
 		ifrh = (struct ifrsshash *)data;
 		ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
-		ifrh->ifrh_types =
-		    RSS_TYPE_IPV4 |
-		    RSS_TYPE_TCP_IPV4 |
-		    RSS_TYPE_UDP_IPV4 |
-		    RSS_TYPE_IPV6 |
-		    RSS_TYPE_TCP_IPV6 |
-		    RSS_TYPE_UDP_IPV6;
+		ifrh->ifrh_types = mlx5e_get_rss_hash_types();
 		break;
 
 	default:
