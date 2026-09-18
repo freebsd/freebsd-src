@@ -323,6 +323,7 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 	struct amdsmu_softc *sc = device_get_softc(dev);
 	struct amdsmu_metrics *m = &sc->metrics;
 	bool any_blocking = false;
+	const struct amdsmu_diagnostics *d;
 
 	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
 		return;
@@ -348,6 +349,18 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 		 */
 		if (m->ip_block_last_active_time[i] < m->time_last_in_sw_drips)
 			continue;
+		/* Check if this IP block should be ignored. */
+		d = NULL;
+		for (size_t j = 0; j < nitems(amdsmu_diagnostics); j++) {
+			if (strcmp(amdsmu_diagnostics[j].blocking_ip_block,
+			    sc->product->ip_blocks_names[i]) != 0)
+				continue;
+			d = &amdsmu_diagnostics[j];
+			break;
+		}
+		if (d != NULL && d->ignore)
+			continue;
+
 		if (!any_blocking) {
 			device_printf(dev,
 			    "IP blocks that blocked S0i3 entry:\n");
@@ -356,6 +369,16 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 		device_printf(dev, "  %s (active for %ju us)\n",
 		    sc->product->ip_blocks_names[i],
 		    (uintmax_t)m->ip_block_last_active_time[i]);
+
+		if (d == NULL)
+			continue;
+		if (d->expected_module != NULL &&
+		    devclass_find(d->expected_module) == NULL)
+			device_printf(dev,
+			    "    hint: load %s to allow this block to "
+			    "suspend\n", d->expected_module);
+		if (d->extra != NULL)
+			device_printf(dev, "    hint: %s\n", d->extra);
 	}
 
 	if (!any_blocking)

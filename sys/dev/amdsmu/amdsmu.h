@@ -115,6 +115,28 @@ static const struct amdsmu_product {
 	 */
 };
 
+static const struct amdsmu_diagnostics {
+	const char	*blocking_ip_block;
+	bool		ignore;
+	const char	*expected_module;
+	const char	*extra;
+} amdsmu_diagnostics[] = {
+	{ "CPU", false, NULL, "this can happen due to other IP blocks or "
+	    "because the system was on AC power" },
+	{ "MPM", false, NULL, "this can happen due to other IP blocks or "
+	    "because the system was on AC power" },
+	{ "GFX", false, "amdgpu", NULL },
+	{ "DISPLAY", false, "amdgpu", NULL },
+	/*
+	 * On Phoenix, these seem to report USB4, not USB3 as their names would
+	 * suggest.
+	 */
+	{ "USB3_0", false, "tb", "see thunderbolt(4)" },
+	{ "USB3_1", false, "tb", "see thunderbolt(4)" },
+	/* On Phoenix, the SMU seems to report garbage for this IP block. */
+	{ "USB4_0", true, NULL, NULL },
+};
+
 struct amdsmu_softc {
 	const struct amdsmu_product	*product;
 
