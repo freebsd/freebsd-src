@@ -111,6 +111,11 @@ extern int	 power_pm_register(u_int _pm_type, power_pm_fn_t _pm_fn,
 extern u_int	 power_pm_get_type(void);
 extern int	 power_pm_suspend(enum power_transition _trans);
 
+typedef void (*power_change_fn)(void *, enum power_stype stype);
+EVENTHANDLER_DECLARE(power_resume, power_change_fn);
+EVENTHANDLER_DECLARE(power_suspend, power_change_fn);
+EVENTHANDLER_DECLARE(power_suspend_early, power_change_fn);
+
 /*
  * System power API.
  */
