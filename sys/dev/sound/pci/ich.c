@@ -1029,6 +1029,8 @@ ich_pci_attach(device_t dev)
 		break;
 	}
 
+	pcm_init(dev, sc);
+
 	mixer_init(dev, ac97_getmixerclass(), sc->codec);
 
 	/* check and set VRA function */
@@ -1066,8 +1068,6 @@ ich_pci_attach(device_t dev)
 	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl, sc->dtbl_size,
 	    ich_setmap, sc, 0))
 		goto bad;
-
-	pcm_init(dev, sc);
 
 	pcm_addchan(dev, PCMDIR_PLAY, &ichchan_class, sc);		/* play */
 	pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);		/* record */

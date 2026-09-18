@@ -1017,6 +1017,8 @@ ess_attach(device_t dev)
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x2a);
 
+	pcm_init(dev, sc);
+
     	if (mixer_init(dev, &solomixer_class, sc))
 		goto no;
 
@@ -1025,7 +1027,6 @@ ess_attach(device_t dev)
 		rman_get_start(sc->irq),
 		device_get_nameunit(device_get_parent(dev)));
 
-	pcm_init(dev, sc);
       	pcm_addchan(dev, PCMDIR_REC, &esschan_class, sc);
 	pcm_addchan(dev, PCMDIR_PLAY, &esschan_class, sc);
 	if (pcm_register(dev, status))

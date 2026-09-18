@@ -785,6 +785,8 @@ sv_attach(device_t dev) {
 	sv_power(sc, 0);
 	sv_init(sc);
 
+	pcm_init(dev, sc);
+
 	if (mixer_init(dev, &sv_mixer_class, sc) != 0) {
 		device_printf(dev, "sv_attach: Mixer failed to initialize\n");
 		goto fail;
@@ -867,7 +869,6 @@ sv_attach(device_t dev) {
 	if (bootverbose)
 		printf("Sonicvibes: revision %d.\n", sc->rev);
 
-	pcm_init(dev, sc);
         pcm_addchan(dev, PCMDIR_PLAY, &svpchan_class, sc);
         pcm_addchan(dev, PCMDIR_REC,  &svrchan_class, sc);
 

@@ -2570,11 +2570,12 @@ envy24_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	pcm_init(dev, sc);
+
 	/* set multi track mixer */
 	mixer_init(dev, &envy24mixer_class, sc);
 
 	/* set channel information */
-	pcm_init(dev, sc);
 	sc->chnum = 0;
 	for (i = 0; i < 5; i++) {
 		pcm_addchan(dev, PCMDIR_PLAY, &envy24chan_class, sc);

@@ -1204,13 +1204,6 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 		DPRINTF("device needs bitperfect by default\n");
 		uaudio_pcm_setflags(dev, SD_F_BITPERFECT);
 	}
-	if (mixer_init(dev, mixer_class, sc))
-		goto detach;
-	mix_set(sc->sc_child[i].mixer_dev, SOUND_MIXER_MONITOR,
-	    UAUDIO_DEFAULT_MONITOR, UAUDIO_DEFAULT_MONITOR);
-	sc->sc_child[i].mixer_init = 1;
-
-	mixer_hwvol_init(dev);
 
 	device_set_descf(dev, "%s %s",
 	    usb_get_manufacturer(sc->sc_udev),
@@ -1222,6 +1215,14 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	pcm_init(dev, sc);
 
 	uaudio_pcm_setflags(dev, SD_F_MPSAFE);
+
+	if (mixer_init(dev, mixer_class, sc))
+		goto detach;
+	mix_set(sc->sc_child[i].mixer_dev, SOUND_MIXER_MONITOR,
+	    UAUDIO_DEFAULT_MONITOR, UAUDIO_DEFAULT_MONITOR);
+	sc->sc_child[i].mixer_init = 1;
+
+	mixer_hwvol_init(dev);
 
 	if (sc->sc_play_chan[i].num_alt > 0) {
 		sc->sc_play_chan[i].priv_sc = sc;

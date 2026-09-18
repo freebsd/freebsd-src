@@ -809,6 +809,7 @@ pcmcsa_attach(device_t dev)
 	}
 	if (csa->card->inv_eapd)
 		ac97_setflags(codec, AC97_F_EAPD_INV);
+	pcm_init(dev, csa);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
@@ -829,7 +830,6 @@ pcmcsa_attach(device_t dev)
 	csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
 	csa_active(csa, -1);
 
-	pcm_init(dev, csa);
 	pcm_addchan(dev, PCMDIR_REC, &csachan_class, csa);
 	pcm_addchan(dev, PCMDIR_PLAY, &csachan_class, csa);
 	if (pcm_register(dev, status)) {

@@ -41,6 +41,6 @@ struct aoa_softc {
 };
 
 void	aoa_interrupt(void *);
-int	aoa_attach(void *xsc);
+int	aoa_attach(void *xsc, kobj_class_t mixer_class, void *mixer_devinfo);
 
 #endif /* SOUND_AOA_H */

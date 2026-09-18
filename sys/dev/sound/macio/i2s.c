@@ -249,7 +249,7 @@ i2s_attach(device_t self)
 	if (config_intrhook_establish(i2s_delayed_attach) != 0)
 		return (ENOMEM);
 
-	return (aoa_attach(sc));
+	return (0);
 }
 
 /*****************************************************************************
@@ -737,9 +737,13 @@ i2s_postattach(void *xsc)
 	/* Reset the codec. */
 	i2s_audio_hw_reset(sc);
 
-	/* If we have a codec, initialize it. */
-	if (i2s_mixer)
-		mixer_init(self, i2s_mixer_class, i2s_mixer);
+	/*
+	 * Attach the DBDMA engine and the PCM layer, along with the codec's
+	 * mixer, if we have one. This is deferred until now because the codec
+	 * only becomes available once the I2C controller has attached.
+	 */
+	if (aoa_attach(sc, i2s_mixer_class, i2s_mixer) != 0)
+		device_printf(self, "could not attach PCM layer\n");
 
 	/* Read initial port status. */
 	i2s_cint(sc);

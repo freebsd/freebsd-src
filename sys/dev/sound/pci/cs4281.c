@@ -837,9 +837,9 @@ cs4281_pci_attach(device_t dev)
     if (codec == NULL)
         goto bad;
 
-    mixer_init(dev, ac97_getmixerclass(), codec);
-
     pcm_init(dev, sc);
+
+    mixer_init(dev, ac97_getmixerclass(), codec);
 
     pcm_addchan(dev, PCMDIR_PLAY, &cs4281chan_class, sc);
     pcm_addchan(dev, PCMDIR_REC, &cs4281chan_class, sc);

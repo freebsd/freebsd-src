@@ -535,6 +535,7 @@ via_attach(device_t dev)
 	if (!via->codec)
 		goto bad;
 
+	pcm_init(dev, via);
 	if (mixer_init(dev, ac97_getmixerclass(), via->codec))
 		goto bad;
 
@@ -585,7 +586,6 @@ via_attach(device_t dev)
 		 device_get_nameunit(device_get_parent(dev)));
 
 	/* Register */
-	pcm_init(dev, via);
 	pcm_addchan(dev, PCMDIR_PLAY, &viachan_class, via);
 	pcm_addchan(dev, PCMDIR_REC, &viachan_class, via);
 	if (pcm_register(dev, status))

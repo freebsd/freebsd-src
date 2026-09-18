@@ -2114,6 +2114,7 @@ emu_pci_attach(device_t dev)
 	codec = AC97_CREATE(dev, sc, emu_ac97);
 	if (codec == NULL) goto bad;
 	gotmic = (ac97_getcaps(codec) & AC97_CAP_MICCHANNEL) ? 1 : 0;
+	pcm_init(dev, sc);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	emu_midiattach(sc);
@@ -2131,7 +2132,6 @@ emu_pci_attach(device_t dev)
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
 
-	pcm_init(dev, sc);
 	for (i = 0; i < sc->nchans; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
 	for (i = 0; i < (gotmic ? 3 : 2); i++)

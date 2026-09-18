@@ -980,10 +980,10 @@ cmi_attach(device_t dev)
 	if (cmi_init(sc))
 		goto bad;
 
+	pcm_init(dev, sc);
+
 	if (mixer_init(dev, &cmi_mixer_class, sc))
 		goto bad;
-
-	pcm_init(dev, sc);
 
 	cmi_initsys(sc);
 

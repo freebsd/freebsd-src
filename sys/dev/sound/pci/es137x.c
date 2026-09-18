@@ -1798,6 +1798,7 @@ es_pci_attach(device_t dev)
 	es->escfg = ES_SET_NUMREC(es->escfg, 1);
 
 	devid = pci_get_devid(dev);
+	pcm_init(dev, es);
 	switch (devid) {
 	case ES1371_PCI_ID:
 	case ES1371_PCI_ID2:
@@ -1858,7 +1859,6 @@ es_pci_attach(device_t dev)
 	    rman_get_start(es->reg), rman_get_start(es->irq),
 	    device_get_nameunit(device_get_parent(dev)));
 
-	pcm_init(dev, es);
 	for (i = 0; i < numplay; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, ct, es);
 	pcm_addchan(dev, PCMDIR_REC, ct, es);

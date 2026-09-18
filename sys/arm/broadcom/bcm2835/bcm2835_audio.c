@@ -1037,12 +1037,12 @@ bcm2835_audio_delayed_init(void *xsc)
 	sc->dest = DEST_AUTO;
 	sc->verbose_trace = 0;
 
+	pcm_init(sc->dev, sc);
+
     	if (mixer_init(sc->dev, &bcmmixer_class, sc)) {
 		device_printf(sc->dev, "mixer_init failed\n");
 		goto no;
 	}
-
-	pcm_init(sc->dev, sc);
 
 	pcm_addchan(sc->dev, PCMDIR_PLAY, &bcmchan_class, sc);
     	snprintf(status, SND_STATUSLEN, "at VCHIQ");
