@@ -557,6 +557,9 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	if (m == NULL)
 		return (-1);
 
+	/* There is no need to lock here, but do it for consistency. */
+	mtx_lock(m->lock);
+
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		v = snd_mixerdefaults[i];
 
@@ -571,6 +574,8 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	}
 
 	mixer_setrecsrc(m, 0); /* Set default input. */
+
+	mtx_unlock(m->lock);
 
 	snddev->mixer = m;
 
