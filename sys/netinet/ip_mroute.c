@@ -403,7 +403,8 @@ mfc_alloc(void)
 	if (rt == NULL)
 		return rt;
 
-	rt->mfc_stall_ring = buf_ring_alloc(MAX_UPQ, M_MRTABLE, M_NOWAIT, NULL);
+	rt->mfc_stall_ring = buf_ring_alloc(MAX_UPQ, M_MRTABLE, M_NOWAIT,
+	    NOLOCK);
 	if (rt->mfc_stall_ring == NULL) {
 		free(rt, M_MRTABLE);
 		return NULL;

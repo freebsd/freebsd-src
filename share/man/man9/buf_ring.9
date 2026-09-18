@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 27, 2012
+.Dd September 18, 2026
 .Dt BUF_RING 9
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .In sys/param.h
 .In sys/buf_ring.h
 .Ft struct buf_ring *
-.Fn buf_ring_alloc "int count" "struct malloc_type *type" "int flags" "struct mtx *sc_lock"
+.Fn buf_ring_alloc "int count" "struct malloc_type *type" "int flags" "lock"
 .Ft void
 .Fn buf_ring_free "struct buf_ring *br" "struct malloc_type *type"
 .Ft int
@@ -74,7 +74,12 @@ slots using malloc_type
 and memory flags
 .Fa flags .
 The single consumer interface is protected by
-.Fa sc_lock .
+.Fa lock .
+Supported lock types are
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+and
+.Xr rmlock 9 .
 .Pp
 The
 .Fn buf_ring_free
