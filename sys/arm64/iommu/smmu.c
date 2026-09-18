@@ -1512,6 +1512,32 @@ smmu_check_features(struct smmu_softc *sc)
 }
 
 static void
+smmu_check_errata(struct smmu_softc *sc)
+{
+	uint32_t reg;
+	u_int variant;
+
+#define	 SMMU_Implementer_ARM		0x43b
+#define	 SMMU_ProductID_ARM_MMU_600	0x483
+
+	reg = bus_read_4(sc->res[0], SMMU_IIDR);
+	variant = SMMU_Variant_GET(reg);
+
+	switch(SMMU_ProductID_GET(reg)) {
+	case SMMU_Implementer_ARM:
+		switch (SMMU_ProductID_GET(reg)) {
+		/* Arm erratum 1076982 */
+		if (variant < 1)
+			sc->features &= ~SMMU_FEATURE_SEV;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+}
+
+static void
 smmu_init_asids(struct smmu_softc *sc)
 {
 
@@ -1571,6 +1597,8 @@ smmu_attach(device_t dev)
 		    "but not supported by hardware.\n");
 		return (ENXIO);
 	}
+
+	smmu_check_errata(sc);
 
 	smmu_init_asids(sc);
 
