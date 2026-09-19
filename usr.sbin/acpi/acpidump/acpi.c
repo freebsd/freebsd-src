@@ -70,6 +70,7 @@ static void	acpi_handle_madt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_ecdt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_hpet(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_mcfg(ACPI_TABLE_HEADER *sdp);
+static void	acpi_handle_msdm(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_slit(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_wddt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_lpit(ACPI_TABLE_HEADER *sdp);
@@ -1118,6 +1119,29 @@ acpi_handle_mcfg(ACPI_TABLE_HEADER *sdp)
 		printf("\tStart Bus=%d\n", alloc->StartBusNumber);
 		printf("\tEnd Bus=%d\n", alloc->EndBusNumber);
 	}
+	printf(END_COMMENT);
+}
+
+static void
+acpi_handle_msdm(ACPI_TABLE_HEADER *sdp)
+{
+	struct msdm_body *msdm;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	msdm = (struct msdm_body *)((char *)sdp + sizeof(ACPI_TABLE_HEADER));
+	if (sdp->Length < sizeof(ACPI_TABLE_HEADER) +
+	    offsetof(struct msdm_body, data) + msdm->data_length) {
+		warnx("MSDM table is corrupt");
+		printf(END_COMMENT);
+		return;
+	}
+	printf("\tVersion=%u\n", msdm->version);
+	printf("\tDataType=%u\n", msdm->data_type);
+	printf("\tDataLength=%u\n", msdm->data_length);
+	printf("\tData=");
+	acpi_print_string((char *)msdm->data, msdm->data_length);
+	printf("\n");
 	printf(END_COMMENT);
 }
 
@@ -2747,6 +2771,7 @@ static const struct {
 	{ ACPI_SIG_LPIT,	acpi_handle_lpit },
 	{ ACPI_SIG_MADT,	acpi_handle_madt },
 	{ ACPI_SIG_MCFG,	acpi_handle_mcfg },
+	{ ACPI_SIG_MSDM,	acpi_handle_msdm },
 	{ ACPI_SIG_NFIT,	acpi_handle_nfit },
 	{ ACPI_SIG_SLIT,	acpi_handle_slit },
 	{ ACPI_SIG_SPCR,	acpi_handle_spcr },

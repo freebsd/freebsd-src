@@ -130,6 +130,21 @@ enum TCPApcclient_ids {
 	PCCLIENT_ID_MAX,
 };
 
+/* MSDM */
+/*
+ * ACPICA's ACPI_TABLE_MSDM only defines the common ACPI header; the
+ * body below is the Microsoft-proprietary layout per "Microsoft
+ * Software Licensing Tables (SLIC and MSDM)", November 29, 2011.
+ */
+struct msdm_body {
+	uint32_t	version;
+	uint32_t	reserved;
+	uint32_t	data_type;
+	uint32_t	data_reserved;
+	uint32_t	data_length;
+	uint8_t		data[];
+} __packed;
+
 /*
  * Load the DSDT from a previous save file.  Note that other tables are
  * not saved (i.e. FADT)
