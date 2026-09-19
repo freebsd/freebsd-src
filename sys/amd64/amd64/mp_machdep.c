@@ -309,6 +309,8 @@ init_secondary(void)
 	else
 		lidt(&r_idt);
 
+	amd64_cpu_init_msr_memctl();
+
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
 

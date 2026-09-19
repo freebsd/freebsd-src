@@ -1658,6 +1658,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	thread0.td_pcb->pcb_flags = 0;
 
 	amd64_init_splitlock();
+	amd64_cpu_init_msr_memctl();
 
         env = kern_getenv("kernelname");
 	if (env != NULL)
@@ -1932,8 +1933,7 @@ void
 enable_splitlock_ac(void)
 {
 	MPASS(ia32_splitlock);
-	wrmsr(MSR_MEMORY_CTL, rdmsr(MSR_MEMORY_CTL) |
-	    MSR_MEMORY_CTL_SPLITLOCK);
+	wrmsr(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) | MSR_MEMORY_CTL_SPLITLOCK);
 }
 
 void
@@ -1950,8 +1950,7 @@ void
 disable_splitlock_ac(void)
 {
 	MPASS(ia32_splitlock);
-	wrmsr(MSR_MEMORY_CTL, rdmsr(MSR_MEMORY_CTL) &
-	    ~MSR_MEMORY_CTL_SPLITLOCK);
+	wrmsr(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) & ~MSR_MEMORY_CTL_SPLITLOCK);
 }
 
 void
