@@ -101,7 +101,8 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	u_int	pc_small_core;						\
 	u_int	pc_pcid_invlpg_workaround;				\
 	struct pmap_pcid pc_kpmap_store;				\
-	char	__pad[2900]		/* pad to UMA_PCPU_ALLOC_SIZE */
+	uint64_t pc_msr_memctl;						\
+	char	__pad[2892]		/* pad to UMA_PCPU_ALLOC_SIZE */
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1
