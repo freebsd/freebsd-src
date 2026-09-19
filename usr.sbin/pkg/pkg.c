@@ -168,7 +168,7 @@ extract_pkg_static(int fd, char *p, int sz)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	char *end;
+	const char *end;
 	int ret, r;
 
 	ret = -1;
@@ -1039,7 +1039,7 @@ cleanup:
 static bool
 pkg_is_pkg_pkg(const char *pkg)
 {
-	char *vstart, *basename;
+	const char *vstart, *basename;
 	size_t namelen;
 
 	/* Strip path. */
