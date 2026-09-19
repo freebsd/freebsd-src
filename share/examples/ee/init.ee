@@ -1,0 +1,23 @@
+# Example init.ee for ee (easy editor)
+
+# Display
+noinfo
+nohighlight
+
+# Formatting
+noexpand
+margins
+rightmargin 72
+noautoformat
+
+# Search
+nocase
+
+# Character display
+eightbit
+
+# Key bindings
+noemacs
+
+# Printing
+printcommand lp
