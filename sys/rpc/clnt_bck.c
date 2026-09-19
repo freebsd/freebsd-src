@@ -303,6 +303,7 @@ call_again:
 	TAILQ_INSERT_TAIL(&ct->ct_pending, cr, cr_link);
 	mtx_unlock(&ct->ct_lock);
 
+	error = 0;		/* Keep compilers happy. */
 	if (xprt->xp_socket != NULL) {
 		/* Handle TCP sockets. */
 		/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
@@ -339,7 +340,7 @@ call_again:
 	} else {
 		/* Handle RDMA. */
 		if (clnt_bck_rdma_send != NULL) {
-			clnt_bck_rdma_send(xprt, mreq);
+			error = clnt_bck_rdma_send(xprt, mreq);
 			mreq = NULL;
 		} else
 			error = ENOTCONN;
