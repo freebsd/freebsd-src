@@ -34,6 +34,25 @@
 
 #include "assym.inc"
 
+/*
+ * Historical notes.  Keep it for now if problems with older versions
+ * of toolchains reappear.
+ *
+ * Gnu as complains about %fs/%gs/%es/%ds registers offsets not being
+ * multiple of 8, but gas + ld.bfd work for %cs/%ss.
+ *
+ * Clang IAS + ld.lld combination cannot handle any of the segment
+ * registers.  Also, clang IAS does not know %rflags/%fs.base/%gs.base
+ * registers names, use dwarf registers numbers from psABI directly.
+ *
+ * LLVM libunwind from stable/13 cannot parse register numbers higher
+ * than 32.  Disable %rflags, %fs.base, and %gs.base annotations.
+ */
+#if !defined(__clang__) || (__clang_major__ >= 17)
+#define	WORKING_CFI
+#endif
+
+	.cfi_sections	.eh_frame
 	.text
 /*
  * Signal trampoline, mapped as vdso into shared page.
@@ -57,33 +76,24 @@ ENTRY(__vdso_sigcode)
 	.cfi_offset	%r13, SIGF_UC + UC_R13
 	.cfi_offset	%r14, SIGF_UC + UC_R14
 	.cfi_offset	%r15, SIGF_UC + UC_R15
-#if 0
-/*
- * Gnu as complains about %fs/%gs/%es/%ds registers offsets not being
- * multiple of 8, but gas + ld.bfd work for %cs/%ss.
- *
- * Clang IAS + ld.lld combination cannot handle any of the segment
- * registers.  Also, clang IAS does not know %rflags/%fs.base/%gs.base
- * registers names, use dwarf registers numbers from psABI directly.
- *
- * LLVM libunwind from stable/13 cannot parse register numbers higher
- * than 32.  Disable %rflags, %fs.base, and %gs.base annotations.
- */
+#ifdef WORKING_CFI
+#ifdef __clang__
 	.cfi_offset	%fs,  SIGF_UC + UC_FS
 	.cfi_offset	%gs,  SIGF_UC + UC_GS
 	.cfi_offset	%es,  SIGF_UC + UC_ES
 	.cfi_offset	%ds,  SIGF_UC + UC_DS
 #endif
+#endif
 	.cfi_offset	%rip, SIGF_UC + UC_RIP
-#if 0
+#ifdef WORKING_CFI
 	.cfi_offset	%cs,  SIGF_UC + UC_CS
-	.cfi_offset	49 /* %rflags */, SIGF_UC + UC_RFLAGS
+	.cfi_offset	%rflags, SIGF_UC + UC_RFLAGS
 #endif
 	.cfi_offset	%rsp, SIGF_UC + UC_RSP
-#if 0
+#ifdef WORKING_CFI
 	.cfi_offset	%ss,  SIGF_UC + UC_SS
-	.cfi_offset	58 /* %fs.base */, SIGF_UC + UC_FSBASE
-	.cfi_offset	59 /* %gs.base */, SIGF_UC + UC_GSBASE
+	.cfi_offset	%fs.base, SIGF_UC + UC_FSBASE
+	.cfi_offset	%gs.base, SIGF_UC + UC_GSBASE
 #endif
 	call	*SIGF_HANDLER(%rsp)	/* call signal handler */
 	lea	SIGF_UC(%rsp),%rdi	/* get ucontext_t */

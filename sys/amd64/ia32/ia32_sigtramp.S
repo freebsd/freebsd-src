@@ -34,6 +34,11 @@
 
 #include "ia32_assym.h"
 
+#if !defined(__clang__) || (__clang_major__ >= 17)
+#define	WORKING_CFI
+#endif
+
+	.cfi_sections	.eh_frame
 	.text
 /*
  * Signal trampoline, mapped as vdso into shared page, or copied to
@@ -45,7 +50,7 @@ __vdso_ia32_sigcode:
 	.cfi_startproc
 	.cfi_signal_frame
 	.cfi_def_cfa	%esp, 0
-#if 0
+#ifdef WORKING_CFI
 	.cfi_offset	%gs,  IA32_SIGF_UC + IA32_UC_GS
 	.cfi_offset	%fs,  IA32_SIGF_UC + IA32_UC_FS
 	.cfi_offset	%es,  IA32_SIGF_UC + IA32_UC_ES
@@ -59,15 +64,17 @@ __vdso_ia32_sigcode:
 	.cfi_offset	%ecx, IA32_SIGF_UC + IA32_UC_ECX
 	.cfi_offset	%eax, IA32_SIGF_UC + IA32_UC_EAX
 	.cfi_offset	%eip, IA32_SIGF_UC + IA32_UC_EIP
-#if 0
+#ifdef WORKING_CFI
 	.cfi_offset	%cs,  IA32_SIGF_UC + IA32_UC_CS
-	.cfi_offset	%flags, IA32_SIGF_UC + IA32_UC_EFLAGS
+	.cfi_offset	%eflags, IA32_SIGF_UC + IA32_UC_EFLAGS
 #endif
 	.cfi_offset	%esp, IA32_SIGF_UC + IA32_UC_ESP
-#if 0
+#ifdef WORKING_CFI
 	.cfi_offset	%ss,  IA32_SIGF_UC + IA32_UC_SS
-	.cfi_offset	93 /* %fs.base */, IA32_SIGF_UC + IA32_UC_FSBASE
-	.cfi_offset	94 /* %gs.base */, IA32_SIGF_UC + IA32_UC_GSBASE
+#ifdef __clang__
+	.cfi_offset	%fs.base, IA32_SIGF_UC + IA32_UC_FSBASE
+	.cfi_offset	%gs.base, IA32_SIGF_UC + IA32_UC_GSBASE
+#endif
 #endif
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC(%esp),%eax	/* get ucontext */
