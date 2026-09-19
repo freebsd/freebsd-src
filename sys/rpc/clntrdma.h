@@ -27,6 +27,7 @@ struct rpcrdma_xprt {
 	uint32_t	maxbck;
 	uint32_t	maxio;
 	uint32_t	maxsge;
+	uint32_t	maxsegs;
 	uint32_t	use_bounce;
 	void		*ep;
 };
