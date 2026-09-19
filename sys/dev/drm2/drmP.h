@@ -154,6 +154,8 @@ struct drm_device;
 #define DRIVER_GEM         0x1000
 #define DRIVER_MODESET     0x2000
 #define DRIVER_PRIME       0x4000
+/* DRIVER_RENDER: driver wants /dev/dri/renderD<n> (DRI3 render node). */
+#define DRIVER_RENDER      0x8000
 
 #define DRIVER_BUS_PCI 0x1
 #define DRIVER_BUS_PLATFORM 0x2
@@ -1082,6 +1084,7 @@ struct drm_device {
 	unsigned int agp_buffer_token;
 	struct drm_minor *control;		/**< Control node for card */
 	struct drm_minor *primary;		/**< render type primary screen head */
+	struct drm_minor *render;		/**< Render node (DRI3) */
 
         struct drm_mode_config mode_config;	/**< Current mode config */
 
@@ -1374,7 +1377,10 @@ extern unsigned int drm_timestamp_monotonic;
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
 
-#ifdef FREEBSD_NOTYET
+/*
+ * PRIME / DRI3 minimal in-tree port — bodies in sys/dev/drm2/drm_prime.c.
+ * The full Linux-style dma-buf surface is still under FREEBSD_NOTYET.
+ */
 extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 		int *prime_fd);
@@ -1386,14 +1392,16 @@ extern int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 extern int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 					struct drm_file *file_priv);
 
+void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
+void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
+
+#ifdef FREEBSD_NOTYET
+/* Cross-driver dma-buf surface — not in this minimal port. */
 extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, vm_page_t *pages,
 					    dma_addr_t *addrs, int max_pages);
 extern struct sg_table *drm_prime_pages_to_sg(vm_page_t *pages, int nr_pages);
 extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
 
-
-void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
-void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
 int drm_prime_add_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
 int drm_prime_lookup_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle);
 void drm_prime_remove_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
