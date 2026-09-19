@@ -1190,6 +1190,82 @@ gdb_resume_vcpus(void)
 }
 
 static void
+gdb_write_regs(const uint8_t *data, size_t len)
+{
+	size_t i;
+	uint64_t reg;
+	uint64_t regvals[nitems(gdb_regset)];
+	int regnums[nitems(gdb_regset)];
+
+	assert(len > 0);
+
+	for (i = 0; i < nitems(gdb_regset); i++) {
+#ifdef GDB_REG_FIRST_EXT
+		if (gdb_regset[i].id == GDB_REG_FIRST_EXT)
+			break;
+#endif
+		assert(len >= (size_t)(2 * gdb_regset[i].size));
+
+		reg = parse_integer(data, 2 * gdb_regset[i].size);
+		if (gdb_regset[i].size == 4)
+			reg = be32toh(reg);
+		else if (gdb_regset[i].size == 8)
+			reg = be64toh(reg);
+		else
+			assert(0); /* unknown register size */
+
+		regvals[i] = reg;
+		regnums[i] = gdb_regset[i].id;
+
+		len -= 2 * gdb_regset[i].size;
+		data += 2 * gdb_regset[i].size;
+	}
+	assert(len == 0);
+
+	if (vm_set_register_set(vcpus[cur_vcpu], nitems(gdb_regset),
+		regnums, regvals) == -1)
+		send_error(errno);
+	else
+		send_ok();
+}
+
+static void
+gdb_write_one_reg(const uint8_t *data, size_t len)
+{
+	const uint8_t *eq;
+	uintmax_t reg, regval;
+
+	assert(len > 0);
+	eq = memchr(data, '=', len);
+	if (eq == NULL) {
+
+		send_error(EINVAL);
+		return;
+	}
+	reg = parse_integer(data, eq - data);
+	if (reg >= nitems(gdb_regset)) {
+		send_error(EINVAL);
+		return;
+	}
+	len = len - (eq - data + 1);
+	data = eq + 1;
+
+	assert(len == (size_t)(2 * gdb_regset[reg].size));
+	regval = parse_integer(eq + 1, len);
+	if (gdb_regset[reg].size == 8) {
+		regval = be64toh(regval);
+	} else if (gdb_regset[reg].size == 4) {
+		regval = be32toh(regval);
+	} else {
+		assert(0); /* unknown register size */
+	}
+	if (vm_set_register(vcpus[cur_vcpu], gdb_regset[reg].id, regval) == -1)
+		send_error(errno);
+	else
+		send_ok();
+}
+
+static void
 gdb_read_regs(void)
 {
 	uint64_t regvals[nitems(gdb_regset)];
@@ -1883,8 +1959,14 @@ handle_command(const uint8_t *data, size_t len)
 	case 'g':
 		gdb_read_regs();
 		break;
+	case 'G':
+		gdb_write_regs(data + 1, len - 1);
+		break;
 	case 'p':
 		gdb_read_one_reg(data + 1, len - 1);
+		break;
+	case 'P':
+		gdb_write_one_reg(data + 1, len - 1);
 		break;
 	case 'H': {
 		int tid;
@@ -1953,11 +2035,9 @@ handle_command(const uint8_t *data, size_t len)
 	case '?':
 		report_stop(false);
 		break;
-	case 'G': /* TODO */
 	case 'v':
 		/* Handle 'vCont' */
 		/* 'vCtrlC' */
-	case 'P': /* TODO */
 	case 'Q': /* TODO */
 	case 't': /* TODO */
 	case 'X': /* TODO */
