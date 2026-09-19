@@ -124,8 +124,8 @@ extern int autobuf;
 extern int sigs;
 extern int follow_mode;
 extern lbool waiting_for_data;
-extern constant char helpdata[];
-extern constant int size_helpdata;
+extern constant char *help_data;
+extern constant int size_help_data;
 extern IFILE curr_ifile;
 #if LOGFILE
 extern int logfile;
@@ -256,7 +256,7 @@ static int ch_get(void)
 				return ('?');
 			if (less_lseek(ch_file, (less_off_t)pos, SEEK_SET) == BAD_LSEEK)
 			{
-				error("seek error", NULL_PARG);
+				error(LM(seek_error), NULL_PARG);
 				clear_eol();
 				return (EOI);
 			}
@@ -275,10 +275,12 @@ static int ch_get(void)
 			ch_have_ungotchar = FALSE;
 		} else if (ch_flags & CH_HELPFILE)
 		{
-			bp->data[bp->datasize] = (unsigned char) helpdata[ch_fpos];
+			bp->data[bp->datasize] = (unsigned char) help_data[ch_fpos];
 			n = 1;
 		} else
 		{
+			if (ch_file < 0)
+				return (EOI);
 			n = iread(ch_file, &bp->data[bp->datasize], LBUFSIZE - bp->datasize);
 		}
 
@@ -324,7 +326,22 @@ static int ch_get(void)
 			/* Either end of file or no data available.
 			 * read_again indicates the latter. */
 			if (!read_again)
+			{
 				ch_fsize = pos;
+				if (ch_flags & CH_POPENED)
+				{
+					/*
+					 * ch_file is a pipe from a LESSOPEN child program.
+					 * Since we've read to EOF, the child should have exited.
+					 * Close the pipe now so the child does not remain a
+					 * zombie. This also reports any error status from the
+					 * child if -show-preproc-errors is enabled.
+					 */
+					close_pipe(get_altpipe(curr_ifile));
+					set_altpipe(curr_ifile, NULL);
+					ch_file = -1;
+				}
+			}
 			if (ignore_eoi || read_again)
 			{
 				/* Wait a while, then try again. */
@@ -388,7 +405,7 @@ public void ch_ungetchar(int c)
 	else
 	{
 		if (ch_have_ungotchar)
-			error("ch_ungetchar overrun", NULL_PARG);
+			error(LM(ch_ungetchar_overrun), NULL_PARG);
 		ch_ungotchar = (unsigned char) c;
 		ch_have_ungotchar = TRUE;
 	}
@@ -408,7 +425,7 @@ public void end_logfile(void)
 	if (!tried && ch_fsize == NULL_POSITION)
 	{
 		tried = TRUE;
-		ierror("Finishing logfile", NULL_PARG);
+		ierror(LM(Finishing_logfile), NULL_PARG);
 		while (ch_forw_get() != EOI)
 			if (ABORT_SIGS())
 				break;
@@ -454,8 +471,7 @@ public void sync_logfile(void)
 		}
 		if (!wrote && !warned)
 		{
-			error("Warning: log file is incomplete",
-				NULL_PARG);
+			error(LM(log_file_is_incomplete), NULL_PARG);
 			warned = TRUE;
 		}
 	}
@@ -614,7 +630,7 @@ public POSITION ch_length(void)
 	if (ignore_eoi)
 		return (NULL_POSITION);
 	if (ch_flags & CH_HELPFILE)
-		return (size_helpdata);
+		return (size_help_data);
 	if (ch_flags & CH_NODATA)
 		return (0);
 	return (ch_fsize);
@@ -745,7 +761,7 @@ public void ch_flush(void)
 		ch_flags &= ~CH_CANSEEK;
 	} else
 	{
-		ch_fsize = (ch_flags & CH_HELPFILE) ? size_helpdata : filesize(ch_file);
+		ch_fsize = (ch_flags & CH_HELPFILE) ? size_help_data : filesize(ch_file);
 	}
 
 	if (less_lseek(ch_file, (less_off_t)0, SEEK_SET) == BAD_LSEEK)
@@ -755,7 +771,7 @@ public void ch_flush(void)
 		 * there's a good chance we're at the beginning anyway.
 		 * {{ I think this is bogus reasoning. }}
 		 */
-		error("seek error to 0", NULL_PARG);
+		error(LM(seek_error_to_0), NULL_PARG);
 	}
 }
 
@@ -818,7 +834,7 @@ static void ch_delbufs(void)
 /*
  * Is it possible to seek on a file descriptor?
  */
-public int seekable(int f)
+public lbool seekable(int f)
 {
 #if MSDOS_COMPILER
 	extern int fd0;
@@ -828,7 +844,7 @@ public int seekable(int f)
 		 * In MS-DOS, pipes are seekable.  Check for
 		 * standard input, and pretend it is not seekable.
 		 */
-		return (0);
+		return (FALSE);
 	}
 #endif
 	return (less_lseek(f, (less_off_t)1, SEEK_SET) != BAD_LSEEK);
@@ -883,7 +899,7 @@ public void ch_init(int f, int flags, ssize_t nread)
 	/*
 	 * Figure out the size of the file, if we can.
 	 */
-	ch_fsize = (flags & CH_HELPFILE) ? size_helpdata : filesize(ch_file);
+	ch_fsize = (flags & CH_HELPFILE) ? size_help_data : filesize(ch_file);
 
 	if (ch_fsize == 0 && nread > 0)
 	{
@@ -924,7 +940,7 @@ public void ch_close(void)
 		 * But don't really close it if it was opened via popen(),
 		 * because pclose() wants to close it.
 		 */
-		if (!(ch_flags & (CH_POPENED|CH_HELPFILE)))
+		if (ch_file >= 0 && !(ch_flags & (CH_POPENED|CH_HELPFILE)))
 			close(ch_file);
 		ch_file = -1;
 	} else

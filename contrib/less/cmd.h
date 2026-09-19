@@ -89,6 +89,7 @@
 #define A_F_FOREVER_BELL       77
 #define A_L_MOUSE              78
 #define A_R_MOUSE              79
+#define A_RSHIFT_LIMIT         80
 
 /* These values must not conflict with any A_* or EC_* value. */
 #define A_INVALID              100
@@ -180,6 +181,14 @@
 #define SK_CTL_END             37
 #define SK_SHIFT_LEFT_ARROW    38
 #define SK_SHIFT_RIGHT_ARROW   39
-#define SK_PAD_ENTER           41
-
 #define SK_CONTROL_K           40
+#define SK_PAD_ENTER           41
+#define SK_SHIFT_UP_ARROW      42
+#define SK_SHIFT_DOWN_ARROW    43
+#define SK_CTL_UP_ARROW        44
+#define SK_CTL_DOWN_ARROW      45
+#define SK_SHIFT_DELETE        46
+#define SK_SHIFT_PAGE_UP       47
+#define SK_SHIFT_PAGE_DOWN     48
+#define SK_CTL_PAGE_UP         49
+#define SK_CTL_PAGE_DOWN       50

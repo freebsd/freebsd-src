@@ -13,6 +13,8 @@
 
   e  ^E  j  ^N  CR  *  Forward  one line   (or _N lines).
   y  ^Y  k  ^K  ^P  *  Backward one line   (or _N lines).
+  J                 *  Forward  one line, but don't stop at end-of-file.
+  K  Y              *  Backward one line, but don't stop at beginning-of-file.
   ESC-j             *  Forward  one file line (or _N file lines).
   ESC-k             *  Backward one file line (or _N file lines).
   f  ^F  ^V  SPACE  *  Forward  one window (or _N lines).
@@ -25,6 +27,7 @@
   u  ^U             *  Backward one half-window (and set half-window to _N).
   ESC-)  RightArrow *  Right one half screen width (or _N positions).
   ESC-(  LeftArrow  *  Left  one half screen width (or _N positions).
+  ESC-]  ESC-RArrow *  Right like ESC-) but stop at longest line.
   ESC-}  ^RightArrow   Right to last column displayed.
   ESC-{  ^LeftArrow    Left  to first column.
   F                    Forward forever; like "tail -f".
@@ -117,6 +120,7 @@
   !_c_o_m_m_a_n_d             Execute the shell command with $SHELL.
   #_c_o_m_m_a_n_d             Execute the shell command, expanded like a prompt.
   |XX_c_o_m_m_a_n_d            Pipe file between current pos & mark XX to shell command.
+  ||XXYY_c_o_m_m_a_n_d          Pipe file between mark XX and mark YY to shell command.
   s _f_i_l_e               Save input to a file.
   v                    Edit the current file with $VISUAL or $EDITOR.
   V                    Print version number of "less".

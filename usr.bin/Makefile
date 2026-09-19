@@ -70,7 +70,6 @@ SUBDIR=	apply \
 	leave \
 	less \
 	lessecho \
-	lesskey \
 	limits \
 	locale \
 	localedef \

@@ -1,0 +1,372 @@
+# This is the default lessmsg file for less.
+# Messages defined in this file are compiled into the less executable.
+# This file can also be used as a template for creating a custom lessmsg file.
+
+# This file defines a list of mappings from a symbol name to a message string.
+# Each line in the file contains the symbol name, followed by one or more
+# ASCII spaces, followed by the message string.
+# To include a literal double-quote character in the message string, use
+# the C-style escape sequence \". Similarly, use \\ to include a literal
+# backslash, \n for newline, \r for carriage return, and \t for tab.
+# You can also use \xDD where DD is a hexadecimal number, or \DDD where DDD
+# is an octal number, to encode a character using its ASCII value.
+# Non-ASCII characters should be encoded as UTF-8 bytes.
+# A backslash at the end of a line indicates continuation onto the next line.
+# The backslash and following newline are removed from the line.
+# (Continuation lines work only in custom lessmsg files, not in the lessmsg
+# file which is compiled into less.)
+
+# Any spaces at the end of a line are significant, and will be included
+# in the message string. To make it easier to see that such trailing
+# spaces are present, you may wish to encode them as \40 or \x20.
+# Any printf-style format specifiers in a string (%s, %d, %x, etc) should be
+# retained in the new message. Do not remove such specifiers or add new ones.
+
+# To use a custom lessmsg file, copy this file and modify any messages desired,
+# then set your LESSMSG environment variable to the name of the file.
+# In each modified line, you should leave the symbol name unchanged, and
+# modify only the message string.
+# The default value of each symbol is built into less, so you can simply
+# delete any lines that you do not wish to modify, and less will use the
+# default value.
+
+Nothing_in_top_line Nothing in top line
+Nothing_in_bottom_line Nothing in bottom line
+No_bracket_in_top_line No bracket in top line
+No_bracket_in_bottom_line No bracket in bottom line
+No_matching_bracket No matching bracket
+invalid_hex_number_in_LESSUTFCHARDEF invalid hex number(s) in LESSUTFCHARDEF
+missing_colon_in_LESSUTFCHARDEF missing colon in LESSUTFCHARDEF
+invalid_chardef invalid chardef
+chardef_longer_than_256 chardef longer than 256
+invalid_charset_name invalid charset name
+seek_error seek error
+ch_ungetchar_overrun ch_ungetchar overrun
+Finishing_logfile Finishing logfile
+log_file_is_incomplete Warning: log file is incomplete
+seek_error_to_0 seek error to 0
+Integer_is_too_big Integer is too big
+Non_match Non-match\40
+First_file First-file\40
+EOF_ignore EOF-ignore\40
+Keep_pos Keep-pos\40
+Regex_off Regex-off\40
+Wrap Wrap\40
+Lit Lit\40
+Sub_X Sub-%d\40
+There_is_no_X_option There is no %s option
+There_is_no__X_option There is no --%s option
+Sub_pattern_1_X Sub-pattern (1-%d):
+read_error read error
+Search_hit_top Search hit top; continuing at bottom
+Search_hit_bottom Search hit bottom; continuing at top
+Link_X Link: %s
+Pattern_not_found Pattern not found
+Pattern_not_found_X Pattern not found: %s
+Invalid_line_number Invalid line number
+command_may_not_work_correctly_with_LESSOPEN Warning: command may not work correctly when file is viewed via LESSOPEN
+Command_not_available Command not available
+Examine Examine:\40
+Cannot_edit_standard_input Cannot edit standard input
+This_file_was_viewed_via_LESSOPEN WARNING: This file was viewed via LESSOPEN
+No_next_file No next file
+No_X_next_file No %snext file
+No_previous_file No previous file
+No_X_previous_file No %sprevious file
+No_next_tag No next tag
+No_previous_tag No previous tag
+No_such_file No such file
+set_mark set mark:\40
+clear_mark clear mark:\40
+goto_mark goto mark:\40
+pipe_mark |mark:\40
+pipe_line_number |line number:\40
+pipe_first_mark |first mark:\40
+pipe_first_line_number |first line number:\40
+pipe_second_mark |second mark:\40
+pipe_second_line_number |second line number:\40
+Brackets Brackets:\40
+some_commands_disabled Warning: some commands disabled
+some_edit_commands_disabled Warning: some edit commands disabled
+environment_variables_from_lesskey_file_unavailable Warning: environment variables from lesskey file unavailable
+ambiguous ambiguous
+invalid invalid
+Input_preprocessor_failed Input preprocessor failed (status %d)
+Input_preprocessor_terminated_X Input preprocessor terminated: %s
+Input_preprocessor_exited_with_status_X Input preprocessor exited with status %x
+X_may_be_a_binary_file \"%s\" may be a binary file.  See it anyway?\40
+X_is_a_terminal %s is a terminal (use -f to open it)
+Missing_filename Missing filename (\"less --help\" for help)
+X_exists Warning: \"%s\" exists; Overwrite, Append, Don't log, or Quit?\40
+Overwrite Overwrite, Append, Don't log, or Quit? (Type \"O\", \"A\", \"D\" or \"Q\")\40
+Cannot_write_to_X Cannot write to \"%s\"
+cannot_quote_command cannot quote command
+LESSOPEN_pipe_is_not_supported LESSOPEN pipe is not supported
+LESSOPEN_ignored LESSOPEN ignored: must contain exactly one %%s
+LESSCLOSE_ignored LESSCLOSE ignored; must contain no more than 2 %%s
+is_a_directory is a directory
+is_not_a_regular_file is not a regular file (use -f to see it)
+skipping ...skipping...
+Cannot_seek_to_end_of_file Cannot seek to end of file
+Cannot_seek_to_end_of_buffers Cannot seek to end of buffers
+Cannot_seek_to_beginning_of_file Cannot seek to beginning of file
+Cannot_seek_to_line_number_X Cannot seek to line number %n
+Determining_length_of_file Determining length of file
+Dont_know_length_of_file Don't know length of file
+Cannot_seek_to_that_file_position Cannot seek to that file position
+Calculating_line_numbers Calculating line numbers
+Line_numbers_turned_off Line numbers turned off
+press_RETURN (press RETURN)
+Cannot_seek_to_start_position Cannot seek to start position
+Cannot_create_pipe Cannot create pipe
+cannot_use_unicode_arguments WARNING: cannot use unicode arguments
+terminal_is_not_fully_functional WARNING: terminal is not fully functional
+No_filenames_allowed_with_t_option No filenames allowed with -t option
+Press_RETURN_to_continue Press RETURN to continue\40
+Cannot_allocate_memory Cannot allocate memory
+Invalid_mark_letter_X Invalid mark letter %c
+Mark_not_set Mark not set
+Cannot_find_line_number_X Cannot find line number %n
+Mark_not_in_current_file Mark not in current file
+log_file_support_is_not_available log file support is not available
+Input_is_not_a_pipe Input is not a pipe
+Log_file_is_already_in_use Log file is already in use
+No_log_file No log file
+Log_file_X Log file \"%s\"
+Invalid_fraction_in_X Invalid fraction in %s
+Position_target_at_screen_line_X Position target at screen line %d
+Position_target_at_screen_position_X Position target at screen position %s
+Horizontal_shift_X_columns Horizontal shift %d columns
+Horizontal_shift_X_of_screen_width Horizontal shift %s of screen width
+Cannot_use_lesskey_file_X Cannot use lesskey file \"%s\"
+Cannot_use_lesskey_source_file_X Cannot use lesskey source file \"%s\"
+Error_in_lesskey_content Error in lesskey content
+tags_support_is_not_available tags support is not available
+Tags_file_X Tags file \"%s\"
+Prompt_medium_X Prompt (medium): %s
+Prompt_long_X Prompt (long): %s
+Prompt_short_X Prompt (short): %s
+nothing (nothing)
+Print_after_medium_prompt_X Print after medium prompt: %s
+Print_after_long_prompt_X Print after long prompt: %s
+Print_after_short_prompt_X Print after short prompt: %s
+Autosave_actions_X Autosave actions: %s
+Invalid_color_string_X Invalid color string \"%s\"
+on on
+off off
+SGR_mode_is_X SGR mode is %s
+Invalid_color_specifier_X Invalid color specifier '%c'
+Set__use_color_before_changing_colors Set --use-color before changing colors
+Tab_stops Tab stops\40
+and_then and then\40
+every_X_spaces every %d spaces
+dq_must_be_followed_by_1_or_2_chars -\" must be followed by 1 or 2 chars
+quotes_X quotes %s
+cannot_set_rscroll_to_a_wide_character cannot set rscroll to a wide character
+rscroll_character_is_X rscroll character is %s
+Use_h_for_help Use \"h\" for help
+Search_match_shift_is_X Search match shift is %d
+Search_match_shift_is_X_of_screen_width Search match shift is %s of screen width
+Ignore_mouse_input Ignore mouse input
+Mouse_features_enabled_X Mouse features enabled: %s
+Line_number_width_must_not_be_larger_than_X Line number width must not be larger than %d
+Status_column_width_must_not_be_larger_than_X Status column width must not be larger than %d
+interrupt_character_is_X interrupt character is %s
+Header_is_X Header (lines,columns,line-number) is %s
+invalid_search_option_X invalid search option '%c'
+search_options_X search options: %s
+Search_does_not_include_header_lines_or_columns Search does not include header lines or columns
+Search_includes_header_columns_but_not_header_lines Search includes header columns but not header lines
+Search_includes_header_lines_but_not_header_columns Search includes header lines but not header columns
+Search_includes_header_lines_and_columns Search includes header lines and columns
+There_is_no_X_option_help There is no %s option (\"less --help\" for help)
+There_is_no__X_option_help There is no --%s option (\"less --help\" for help)
+The_X_option_should_not_be_followed_by_eq The --%s option should not be followed by =
+X_is_an_ambiguous_abbreviation --%s is an ambiguous abbreviation (\"less --help\" for help)
+No_such_option No such option
+Cannot_change_the_X_option Cannot change the %s option
+Cannot_query_the_X_option Cannot query the %s option
+Cannot_use_or_for_a_string_option Cannot use \"-+\" or \"-!\" for a string option
+Cant_use_for_a_numeric_option Can't use \"-!\" for a numeric option
+Value_is_required_after_X Value is required after %s
+Number_too_large_in_X Number too large in %s
+Negative_number_not_allowed_in_X Negative number not allowed in %s
+Number_is_required_after_X Number is required after %s
+Search_includes_displayed_screen Search includes displayed screen
+Search_skips_displayed_screen Search skips displayed screen
+Search_includes_all_of_displayed_screen Search includes all of displayed screen
+Max_buffer_space_per_file Max buffer space per file (K):\40
+Max_buffer_space_per_file_X Max buffer space per file: %dK
+Dont_automatically_allocate_buffers Don't automatically allocate buffers
+Automatically_allocate_buffers_when_needed Automatically allocate buffers when needed
+Repaint_by_scrolling_from_bottom_of_screen Repaint by scrolling from bottom of screen
+Repaint_by_painting_from_top_of_screen Repaint by painting from top of screen
+Assume_intelligent_terminal Assume intelligent terminal
+Assume_dumb_terminal Assume dumb terminal
+Dont_quit_at_end_of_file Don't quit at end-of-file
+Quit_at_end_of_file Quit at end-of-file
+Quit_immediately_at_end_of_file Quit immediately at end-of-file
+Open_only_regular_files Open only regular files
+Open_even_non_regular_files Open even non-regular files
+Dont_quit_if_end_of_file_on_first_screen Don't quit if end-of-file on first screen
+Quit_if_end_of_file_on_first_screen Quit if end-of-file on first screen
+Dont_highlight_search_matches Don't highlight search matches
+Highlight_matches_for_previous_search_only Highlight matches for previous search only
+Highlight_all_matches_for_previous_search_pattern Highlight all matches for previous search pattern
+Backwards_scroll_limit Backwards scroll limit:\40
+Backwards_scroll_limit_is_X_lines Backwards scroll limit is %d lines
+Case_is_significant_in_searches Case is significant in searches
+Ignore_case_in_searches Ignore case in searches
+Ignore_case_in_searches_and_in_patterns Ignore case in searches and in patterns
+Target_line Target line:\40
+Dont_display_a_status_column Don't display a status column
+Display_a_status_column Display a status column
+Interrupt_returns_to_prompt Interrupt (ctrl-C) returns to prompt
+Interrupt_exits_less Interrupt (ctrl-C) exits less
+Dont_use_the_LESSOPEN_filter Don't use the LESSOPEN filter
+Use_the_LESSOPEN_filter Use the LESSOPEN filter
+Short_prompt Short prompt
+Medium_prompt Medium prompt
+Long_prompt Long prompt
+Dont_use_line_numbers Don't use line numbers
+Use_line_numbers Use line numbers
+Constantly_display_line_numbers Constantly display line numbers
+Ring_the_bell_for_errors_AND_at_eof Ring the bell for errors AND at eof/bof
+Ring_the_bell_for_errors_but_not_at_eof Ring the bell for errors but not at eof/bof
+Never_ring_the_bell Never ring the bell
+Display_control_characters_as_caret Display control characters as ^X
+Display_control_characters_directly Display control characters directly (not recommended)
+Display_ANSI_sequences_directly Display ANSI sequences directly, other control characters as ^X
+Display_all_blank_lines Display all blank lines
+Squeeze_multiple_blank_lines Squeeze multiple blank lines
+Fold_long_lines Fold long lines
+Chop_long_lines Chop long lines
+Display_underlined_text_in_underline_mode Display underlined text in underline mode
+Backspaces_cause_overstrike Backspaces cause overstrike
+Print_backspace_as_caret Print backspace as ^H
+Dont_highlight_target_line Don't highlight target line
+Highlight_target_line Highlight target line
+Dont_highlight_first_unread_line Don't highlight first unread line
+Highlight_first_unread_line_after_forward_screen Highlight first unread line after forward-screen
+Highlight_first_unread_line_after_any_forward_movement Highlight first unread line after any forward movement
+Send_init_deinit_strings_to_terminal Send init/deinit strings to terminal
+Dont_use_init_deinit_strings Don't use init/deinit strings
+Forward_scroll_limit Forward scroll limit:\40
+Forward_scroll_limit_is_X_lines Forward scroll limit is %d lines
+Scroll_window_size Scroll window size:\40
+Scroll_window_size_is_X_lines Scroll window size is %d lines
+Dont_show_tildes_after_end_of_file Don't show tildes after end of file
+Show_tildes_after_end_of_file Show tildes after end of file
+Use_keypad_mode Use keypad mode
+Dont_use_keypad_mode Don't use keypad mode
+Use_new_bottom_of_screen_behavior Use new bottom of screen behavior
+Use_old_bottom_of_screen_behavior Use old bottom of screen behavior
+F_command_follows_file_descriptor F command follows file descriptor
+F_command_follows_file_name F command follows file name
+Dont_use_backslash_escaping_in_command_line_parameters Don't use backslash escaping in command line parameters
+Use_backslash_escaping_in_command_line_parameters Use backslash escaping in command line parameters
+Allow_duplicates_in_history_list Allow duplicates in history list
+Remove_duplicates_from_history_list Remove duplicates from history list
+Use_the_mouse_for_scrolling_vertically Use the mouse for scrolling vertically
+Use_the_mouse_for_scrolling_vertically_reverse Use the mouse for scrolling vertically (reverse)
+Normal_mouse_scroll_direction Normal mouse scroll direction
+Reverse_mouse_scroll_direction Reverse mouse scroll direction
+Lines_to_scroll_on_mouse_wheel Lines to scroll on mouse wheel:\40
+Scroll_X_lines_on_mouse_wheel Scroll %d line(s) on mouse wheel
+Dont_save_marks_in_history_file Don't save marks in history file
+Save_marks_in_history_file Save marks in history file
+Line_number_width Line number width:\40
+Line_number_width_is_X_chars Line number width is %d chars
+Status_column_width Status column width:\40
+Status_column_width_is_X_chars Status column width is %d chars
+Incremental_search_is_off Incremental search is off
+Incremental_search_is_on Incremental search is on
+Dont_use_color Don't use color
+Use_color Use color
+Dont_get_size_of_each_file Don't get size of each file
+Get_size_of_each_file Get size of each file
+Line_highlight_applies_to_text_only Line highlight applies to text only
+Line_highlight_applies_to_entire_width_of_screen Line highlight applies to entire width of screen
+Accept_pasted_input Accept pasted input
+Ignore_pasted_input Ignore pasted input
+Dont_stop_on_form_feed Don't stop on form feed
+Stop_on_form_feed Stop on form feed
+Stop_scrolling_at_end_of_file Stop scrolling at end of file
+Dont_stop_scrolling_at_end_of_file Don't stop scrolling at end of file
+Number_header_lines Number header lines
+Dont_number_header_lines Don't number header lines
+Dont_redraw_screen_when_quitting Don't redraw screen when quitting
+Redraw_last_screen_when_quitting Redraw last screen when quitting
+Search_options Search options:\40
+Dont_exit_F_command_when_input_closes Don't exit F command when input closes
+Exit_F_command_when_input_closes Exit F command when input closes
+Display_visual_bell Display visual bell
+Dont_display_visual_bell Don't display visual bell
+Lines_to_read_looking_for_modelines Lines to read looking for modelines:\40
+Read_X_lines_looking_for_modelines Read %d lines looking for modelines
+Wrap_lines_at_any_character Wrap lines at any character
+Wrap_lines_at_spaces Wrap lines at spaces
+Dont_show_error_message_if_preprocessor_fails Don't show error message if preprocessor fails
+Show_error_message_if_preprocessor_fails Show error message if preprocessor fails
+Backspace_handling_is_specified_by_the_U_option Backspace handling is specified by the -U option
+Display_underline_text_in_underline_mode Display underline text in underline mode
+Print_backspaces_as_caret Print backspaces as ^H
+Tab_handling_is_specified_by_the_U_option Tab handling is specified by the -U option
+Expand_tabs_to_spaces Expand tabs to spaces
+Print_tabs_as_caret Print tabs as ^I
+Carriage_return_handling_is_specified_by_the_U_option Carriage return handling is specified by the -U option
+Delete_carriage_return_before_newline Delete carriage return before newline
+Print_carriage_return_as_caret Print carriage return as ^M
+color_desc color desc:\40
+log_file log file:\40
+Log_file Log file:\40
+prompt prompt:\40
+tag tag:\40
+tags_file tags file:\40
+Tab_stops_ Tab stops:\40
+quotes quotes:\40
+Horizontal_shift Horizontal shift:\40
+rscroll_character rscroll character:\40
+Mouse_features Mouse features:\40
+Header_lines Header lines:\40
+Warn_when_editing_a_file_opened_via_LESSOPEN Warn when editing a file opened via LESSOPEN
+Dont_warn_when_editing_a_file_opened_via_LESSOPEN Don't warn when editing a file opened via LESSOPEN
+interrupt_character interrupt character:\40
+Search_match_shift Search match shift:\40
+Autosave_actions Autosave actions:\40
+Print_after_prompt Print after prompt:\40
+Error_X Error %d
+cannot_open cannot open
+Invalid_pattern Invalid pattern
+No_previous_regular_expression No previous regular expression
+Nothing_to_search Nothing to search
+OSC_8_link_not_found OSC 8 link not found
+No_OSC8_link_selected No OSC8 link selected
+Cannot_find_OSC8_link Cannot find OSC8 link
+No_handler_for_X_link_type No handler for \"%s\" link type
+Cannot_quote_URI Cannot quote URI
+link_done link done
+Please_re_enter_search_pattern Please re-enter search pattern
+No_tags_file No tags file
+No_such_tag_in_tags_file No such tag in tags file
+unknown_tag_type unknown tag type
+Tag_not_found Tag not found
+invalid_escape_sequence invalid escape sequence \"%s\"
+invalid_operator_X_in_version_line invalid operator '%s' in #version line
+non_numeric_version_number_in_version_line non-numeric version number in #version line
+unknown_action_X unknown action: \"%s\"
+missing_action missing action
+missing_eq_in_variable_definition missing = in variable definition
+
+# The help file can be overridden with the "HELP" symbol.
+# Normally this will be a multi-line string, so it is convenient to define
+# it here as a list of lines, each ending with a newline and backslash to
+# continue the message on the next line.  The last line should not have a
+# final backslash.
+#
+# Example (remove initial ## from each line):
+#
+##HELP \
+##First line of example help file.\n\
+##Second line of help file.\n\
+##Last line of help file.\n

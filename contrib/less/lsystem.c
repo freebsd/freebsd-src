@@ -95,15 +95,19 @@ public void lsystem(constant char *cmd, constant char *donemsg)
 	 */
 	term_deinit();
 	flush();         /* Make sure the deinit chars get out */
-	raw_mode(0);
+	raw_mode(FALSE);
 #if MSDOS_COMPILER==WIN32C
 	close_getchr();
 #endif
 
+#if !MSDOS_COMPILER
 	/*
 	 * Restore signals to their defaults.
+	 * But not on Windows, since signals are received by background processes
+	 * and a ctrl-C while running the child would kill this instance of less.
 	 */
-	init_signals(0);
+	init_signals(FALSE);
+#endif
 
 #if HAVE_DUP
 	/*
@@ -133,14 +137,19 @@ public void lsystem(constant char *cmd, constant char *donemsg)
 			p = save(shell);
 		else
 		{
-			char *esccmd = shell_quote(cmd);
-			if (esccmd != NULL)
+			constant char *copt = shell_coption();
+			if (copt == NULL)
+				p = save(cmd);
+			else
 			{
-				constant char *copt = shell_coption();
-				size_t len = strlen(shell) + strlen(esccmd) + strlen(copt) + 3;
-				p = (char *) ecalloc(len, sizeof(char));
-				SNPRINTF3(p, len, "%s %s %s", shell, copt, esccmd);
-				free(esccmd);
+				char *esccmd = shell_quote(cmd);
+				if (esccmd != NULL)
+				{
+					size_t len = strlen(shell) + strlen(esccmd) + strlen(copt) + 3;
+					p = (char *) ecalloc(len, sizeof(char));
+					SNPRINTF3(p, len, "%s %s %s", shell, copt, esccmd);
+					free(esccmd);
+				}
 			}
 		}
 	}
@@ -183,12 +192,15 @@ public void lsystem(constant char *cmd, constant char *donemsg)
 #if MSDOS_COMPILER==WIN32C
 	open_getchr();
 #endif
-	init_signals(1);
-	raw_mode(1);
+#if !MSDOS_COMPILER
+	init_signals(TRUE);
+#endif
+	raw_mode(TRUE);
 	if (donemsg != NULL)
 	{
 		putstr(donemsg);
-		putstr("  (press RETURN)");
+		putstr("  ");
+		putstr(LM(press_RETURN));
 		get_return();
 		putchr('\n');
 		flush();
@@ -234,51 +246,11 @@ public void lsystem(constant char *cmd, constant char *donemsg)
 #endif
 
 #if PIPEC
-
-/*
- * Pipe a section of the input file into the given shell command.
- * The section to be piped is the section "between" the current
- * position and the position marked by the given letter.
- *
- * If the mark is after the current screen, the section between
- * the top line displayed and the mark is piped.
- * If the mark is before the current screen, the section between
- * the mark and the bottom line displayed is piped.
- * If the mark is on the current screen, or if the mark is ".",
- * the whole current screen is piped.
- */
-public int pipe_mark(char c, constant char *cmd)
-{
-	POSITION mpos, tpos, bpos;
-
-	/*
-	 * mpos = the marked position.
-	 * tpos = top of screen.
-	 * bpos = bottom of screen.
-	 */
-	mpos = markpos(c);
-	if (mpos == NULL_POSITION)
-		return (-1);
-	tpos = position(TOP);
-	if (tpos == NULL_POSITION)
-		tpos = ch_zero();
-	bpos = position(BOTTOM);
-
-	if (c == '.') 
-		return (pipe_data(cmd, tpos, bpos));
-	else if (mpos < tpos)
-		return (pipe_data(cmd, mpos, bpos));
-	else if (bpos == NULL_POSITION)
-		return (pipe_data(cmd, tpos, bpos));
-	else
-		return (pipe_data(cmd, tpos, mpos));
-}
-
 /*
  * Create a pipe to the given shell command.
  * Feed it the file contents between the positions spos and epos.
  */
-public int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
+static int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
 {
 	FILE *f;
 	int c;
@@ -291,13 +263,13 @@ public int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
 	 */
 	if (ch_seek(spos) != 0)
 	{
-		error("Cannot seek to start position", NULL_PARG);
+		error(LM(Cannot_seek_to_start_position), NULL_PARG);
 		return (-1);
 	}
 
 	if ((f = popen(cmd, "w")) == NULL)
 	{
-		error("Cannot create pipe", NULL_PARG);
+		error(LM(Cannot_create_pipe), NULL_PARG);
 		return (-1);
 	}
 	clear_bot();
@@ -307,8 +279,10 @@ public int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
 
 	term_deinit();
 	flush();
-	raw_mode(0);
-	init_signals(0);
+	raw_mode(FALSE);
+#if !MSDOS_COMPILER
+	init_signals(FALSE);
+#endif
 #if MSDOS_COMPILER==WIN32C
 	close_getchr();
 #endif
@@ -349,8 +323,10 @@ public int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
 #if MSDOS_COMPILER==WIN32C
 	open_getchr();
 #endif
-	init_signals(1);
-	raw_mode(1);
+#if !MSDOS_COMPILER
+	init_signals(TRUE);
+#endif
+	raw_mode(TRUE);
 	term_init();
 	screen_trashed();
 #if defined(SIGWINCH) || defined(SIGWIND)
@@ -358,6 +334,36 @@ public int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
 	lwinch(0);
 #endif
 	return (0);
+}
+
+/*
+ * Pipe a section of the input file into the given shell command.
+ * If mpos2 is not NULL_POSITION, the section between
+ * mpos1 and mpos2 is piped.
+ * Otherwise, if mpos1 is before the current screen,
+ * the section between mpos1 and the bottom line displayed is piped.
+ * Otherwise, the section between the top line displayed and
+ * mpos1 is piped.
+ */
+public int pipe_pos(constant char *cmd, POSITION mpos1, POSITION mpos2)
+{
+	POSITION tpos, bpos;
+
+	tpos = position(TOP);
+	if (tpos == NULL_POSITION)
+		tpos = ch_zero();
+	bpos = position(BOTTOM);
+
+	if (mpos2 != NULL_POSITION)
+	{
+		if (mpos1 < mpos2)
+			return pipe_data(cmd, mpos1, mpos2);
+		else
+			return pipe_data(cmd, mpos2, mpos1);
+	} else if (mpos1 < tpos)
+		return pipe_data(cmd, mpos1, bpos);
+	else
+		return pipe_data(cmd, tpos, mpos1);
 }
 
 #endif

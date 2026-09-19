@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260918: lesskey(1) removed, lesskey(5) man page added
+OLD_FILES+=usr/bin/lesskey
+OLD_FILES+=usr/share/man/man1/lesskey.1.gz
+
 # 20260813: lib9p.so becomes a private library
 OLD_LIBS+=usr/lib/lib9p.so.1
 
