@@ -381,6 +381,19 @@ wrmsr(u_int msr, uint64_t newval)
 }
 
 static __inline void
+wrmsrns(u_int msr, uint64_t newval)
+{
+	uint32_t low, high;
+
+	low = newval;
+	high = newval >> 32;
+	__asm __volatile("wrmsrns" : : "a" (low), "d" (high), "c" (msr));
+}
+
+#define	wrmsr_imm(msr, val) \
+    __asm __volatile("wrmsrns %0, %1" : : "r" (val), "i" (msr))
+
+static __inline void
 load_cr0(u_long data)
 {
 
