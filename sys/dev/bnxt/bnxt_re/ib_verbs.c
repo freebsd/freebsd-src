@@ -2241,6 +2241,7 @@ static int bnxt_re_create_gsi_qp(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd)
 	rc = bnxt_qplib_create_qp1(res, qplqp);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "create HW QP1 failed!\n");
+		bnxt_qplib_free_hdr_buf(res, qplqp);
 		goto out;
 	}
 
