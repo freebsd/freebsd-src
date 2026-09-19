@@ -18,7 +18,7 @@
 #if HAVE_POSIX_REGCOMP
 #include <regex.h>
 #ifdef REG_EXTENDED
-extern int less_is_more;
+extern lbool less_is_more;
 #define REGCOMP_FLAG    (less_is_more ? 0 : REG_EXTENDED)
 #else
 #define REGCOMP_FLAG             0
@@ -26,6 +26,19 @@ extern int less_is_more;
 #define PATTERN_TYPE             regex_t *
 #define SET_NULL_PATTERN(name)   name = NULL
 #define RE_HANDLES_CASELESS      1
+
+#undef RM_VALID
+#undef RM_PTR
+#undef RM_EPTR
+#ifndef __WATCOMC__
+#define RM_VALID(r)              ((r)->rm_so >= 0)
+#define RM_PTR(r,line)           ((line) + (r)->rm_so)
+#define RM_EPTR(r,line)          ((line) + (r)->rm_eo)
+#else
+#define RM_VALID(r)              ((r)->rm_sp != NULL)
+#define RM_PTR(r,line)           ((r)->rm_sp)
+#define RM_EPTR(r,line)          ((r)->rm_ep)
+#endif
 #endif
 
 /* ---- PCRE ---- */

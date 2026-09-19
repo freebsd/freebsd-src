@@ -1,0 +1,5 @@
+# Internal lessmsg values which should never be changed.
+s s
+dot_d .d
+neg_dot_d -.d
+d_comma d,

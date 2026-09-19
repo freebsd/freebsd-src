@@ -11,6 +11,87 @@
 
 ======================================================================
 
+	Major changes between "less" versions 704 and 710
+
+* Add || command.
+
+* In | and || commands, ^N allows entering line number instead of mark letter.
+
+* Add "ESC-]" / "ESC-RIGHTARROW" (right-limit-scroll) command (github #783).
+
+* In lesskey files, add \k^x syntax for control chars and \k+x syntax
+  for shifted chars.
+
+* Underline OSC 8 links in text.
+
+* Add -DO for custom coloring of OSC 8 links.
+
+* Add LESSMSG, which allows translation of messages into other languages.
+
+* Add LESSSECURE_DISALLOW.
+
+* Add LESS_SHELL_COPTION.
+
+* Add %G, %y, and %% in prompt strings.
+
+* Add lesskey support for shift-uparrow, shift-downarrow, shift-pageup,
+  shift-pagedown, ctl-uparrow, ctl-downarrow, ctl-pageup, ctl-pagedown,
+  shift-delete.
+
+* Change "make check" to use nonstandard object and binary file names,
+  to avoid accidentally installing test binaries (github #791).
+
+* Fix issues on systems with volatile getenv return values.
+
+* Improve error handling for malformed binary lesskey file.
+
+* Improve messaging when using __mouse after --emouse (github #808).
+
+* Remove support for obsolete pre-241 lesskey binary format.
+
+* Remove obsolete lesskey program.
+
+* Move lesskey man page to section 5.
+
+* Update display when resize window while in F mode on Windows.
+
+* Fix missing "END" message at end of &-filtered output (github #774).
+
+* Fix missing bell with G command at end of &-filtered output (github #774).
+
+* Don't reset signal handlers in a subprocess on Windows.
+
+* Fix ' command to not modify the mark when given a numeric argument
+  (github #799).
+
+* Fix erroneous message from --rscroll command when rscroll char is non-ASCII.
+
+* Fix unexpected exit when TERM is invalid (github #809).
+
+* Fix possible crash when use ":e #" after ":d" (github #810).
+
+* Fix infinite loop if invalid option letter in LESS_UNSUPPORT.
+
+* Fix crash if run !! command with no previous ! command (github #812).
+
+* Fix inability to run a shell command starting with "!" character.
+
+* Fix bugs using ^S search modifier (github #814).
+
+* Fix display bugs when a status message contains non-ASCII chars
+  or is displayed on a very narrow screen (github #816).
+
+* Fix bug defining command which has a built-in command as a prefix
+  (github #795).
+
+* Fix string overrrun if input contains "\e\0".
+
+* Fix memory leak when using ${...} in lesskey file.
+
+* Fix status column display when long line is marked (github #820).
+
+======================================================================
+
 	Major changes between "less" versions 702 and 704
 
 * Fix possibly passing unsafe options to man when opening an

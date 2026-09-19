@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260925: lesskey(1) removed, lesskey(5) man page added
+OLD_FILES+=usr/bin/lesskey
+OLD_FILES+=usr/share/man/man1/lesskey.1.gz
+
 # 20260602: Removed by 0a36787e4c1f on 20210723
 OLD_FILES+=usr/share/locale/hr_HR.ISO8859-2/LC_MESSAGES
 OLD_FILES+=usr/share/locale/nl_BE.ISO8859-1/LC_MESSAGES

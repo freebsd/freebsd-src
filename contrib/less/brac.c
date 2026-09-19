@@ -23,12 +23,12 @@
  * The characters which serve as "open bracket" and 
  * "close bracket" are given.
  */
-public void match_brac(char obrac, char cbrac, int forwdir, int n)
+public void match_brac(char obrac, char cbrac, lbool forwdir, int n)
 {
 	int c;
 	int nest;
 	POSITION pos;
-	int (*chget)();
+	int (*chget)(void);
 
 	extern int ch_forw_get(), ch_back_get();
 
@@ -41,9 +41,9 @@ public void match_brac(char obrac, char cbrac, int forwdir, int n)
 	if (pos == NULL_POSITION || ch_seek(pos))
 	{
 		if (forwdir)
-			error("Nothing in top line", NULL_PARG);
+			error(LM(Nothing_in_top_line), NULL_PARG);
 		else
-			error("Nothing in bottom line", NULL_PARG);
+			error(LM(Nothing_in_bottom_line), NULL_PARG);
 		return;
 	}
 
@@ -55,9 +55,9 @@ public void match_brac(char obrac, char cbrac, int forwdir, int n)
 		if ((c = ch_forw_get()) == '\n' || c == EOI)
 		{
 			if (forwdir)
-				error("No bracket in top line", NULL_PARG);
+				error(LM(No_bracket_in_top_line), NULL_PARG);
 			else
-				error("No bracket in bottom line", NULL_PARG);
+				error(LM(No_bracket_in_bottom_line), NULL_PARG);
 			return;
 		}
 	} while (c != obrac || --n > 0);
@@ -83,8 +83,7 @@ public void match_brac(char obrac, char cbrac, int forwdir, int n)
 			if (nest == INT_MAX)
 				break;
 			nest++;
-		}
-		else if (c == cbrac && --nest < 0)
+		} else if (c == cbrac && --nest < 0)
 		{
 			/*
 			 * Found the matching bracket.
@@ -95,5 +94,5 @@ public void match_brac(char obrac, char cbrac, int forwdir, int n)
 			return;
 		}
 	}
-	error("No matching bracket", NULL_PARG);
+	error(LM(No_matching_bracket), NULL_PARG);
 }

@@ -4,7 +4,10 @@ LSDIR=	${SRCTOP}/contrib/less
 CFLAGS+=-I${SRCTOP}/usr.bin/less -I${LSDIR}
 WARNS?=	1
 
-.SUFFIXES: .nro .1
+.SUFFIXES: .nro .1 .5
 
 .nro.1:
+	cat ${.IMPSRC} > ${.TARGET}
+
+.nro.5:
 	cat ${.IMPSRC} > ${.TARGET}

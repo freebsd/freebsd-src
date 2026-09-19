@@ -12,6 +12,27 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260925:
+	less(1) has been updated to version 710, which removes the obsolete
+	lesskey(1) utility.  It is no longer built or installed, and the
+	manual page describing the lesskey file format has moved from
+	lesskey(1) to lesskey(5).
+
+	No separate compilation step is needed any more: less(1) has been
+	able to read plain-text lesskey files directly since version 590,
+	imported into FreeBSD in 2021.  Keep your key bindings in the
+	plain-text ~/.lesskey (or the file named by $LESSKEYIN) rather than
+	compiling them into the binary ~/.less; system-wide bindings belong
+	in /etc/syslesskey (or $LESSKEYIN_SYSTEM) rather than /etc/sysless.
+	If both forms are present, the plain-text one is used and the binary
+	one is ignored.
+
+	Existing binary lesskey files are still read, so nothing stops
+	working immediately, but they can no longer be generated or
+	regenerated.  Binary files produced by lesskey from less 240 or
+	older are no longer supported at all and must be rewritten in the
+	plain-text format.
+
 20260919:
 	The size of multiple embedded structs have changed and may lead to
 	problems (pci_error_handlers in pci_driver, dev_pm_info in struct device).

@@ -238,7 +238,6 @@ DIRDEPS+= \
 	usr.bin/leave \
 	usr.bin/less \
 	usr.bin/lessecho \
-	usr.bin/lesskey \
 	usr.bin/lex/lib \
 	usr.bin/limits \
 	usr.bin/locale \
