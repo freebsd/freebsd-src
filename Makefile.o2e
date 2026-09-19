@@ -21,23 +21,20 @@ O = obj
 OBJ = \
 	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
 	command.${O} cvt.${O} decode.${O} edit.${O} evar.${O} filename.${O} forwback.${O} \
-	help.${O} ifile.${O} input.${O} jump.${O} lesskey_parse.${O} line.${O} linenum.${O} \
+	help.${O} ifile.${O} input.${O} jump.${O} lesskey_parse.${O} line.${O} linenum.${O} lmsg.${O} \
 	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
 	output.${O} pattern.${O} position.${O} prompt.${O} search.${O} signal.${O} \
 	tags.${O} ttyin.${O} version.${O} xbuf.${O}  regexp.${O}
 
-all:    less.exe lesskey.exe scrsize.exe
+all:    less.exe scrsize.exe
 
 less.exe: ${OBJ}
 	${CC} ${OBJ} -o $@ ${LDFLAGS} ${LIBS}
 
-lesskey.exe: lesskey.${O} lesskey_parse.${O} version.${O} xbuf.${O}
-	${CC} lesskey.${O} lesskey_parse.${O} version.${O} xbuf.${O} -o $@ ${LDFLAGS}
-
 scrsize.exe: scrsize.c
 	${CC} ${CFLAGS} -D__ST_MT_ERRNO__ -s -Zmtd -lX11 $<
 
-${OBJ}: defines.h less.h
+$(OBJ): less.h funcs.h defines.h lang.h lmsg.h lessmsg.inc pattern.h xbuf.h
 
 defines.h: defines.o2
 	copy defines.o2 defines.h

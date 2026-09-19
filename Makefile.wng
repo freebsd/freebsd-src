@@ -25,8 +25,8 @@
 # REGEX_PACKAGE == gnu  (might not be available)
 #   This choice selects the GNU implementation, if provided by MingW.
 #
-# By default, the files help.c and funcs.h are generated using few posix
-# utilities (grep, sed, etc). On Windows, if the tools are missing, add:
+# By default, the files help.c, funcs.h and lessmsg.inc are generated using few
+# posix utilities (grep, sed, etc). On Windows, if the tools are missing, add:
 #   WINGEN=1
 # to compile a native C program which will be used instead of the posix tools.
 # NOTE: to cross compile with WINGEN=1, e.g. to arm, first run with native CC:
@@ -109,41 +109,30 @@ LIBS += ${XLDLIBS}
 .c.o:
 	${CC} -c -I. ${CFLAGS} $<
 
-LESS_SRC = brac.c ch.c charset.c cmdbuf.c command.c		\
-           cvt.c decode.c edit.c evar.c filename.c forwback.c 		\
-           ifile.c input.c jump.c line.c linenum.c 		\
-           lsystem.c main.c mark.c optfunc.c option.c 		\
-	   opttbl.c os.c output.c pattern.c position.c 		\
-	   prompt.c          screen.c scrsize.c search.c 	\
-	   signal.c tags.c ttyin.c version.c xbuf.c
+LESS_SRC = brac.c ch.c charset.c cmdbuf.c command.c \
+           cvt.c decode.c edit.c evar.c filename.c forwback.c \
+           ifile.c input.c jump.c line.c linenum.c lmsg.c \
+           lsystem.c main.c mark.c optfunc.c option.c \
+           opttbl.c os.c output.c pattern.c position.c \
+           prompt.c screen.c search.c \
+           signal.c tags.c ttyin.c version.c xbuf.c
+
 ifeq  (${REGEX_PACKAGE},regcomp-local)
 LESS_SRC += regexp.c
 endif
 
-OBJ = \
-	main.o screen.o brac.o ch.o charset.o cmdbuf.o \
-	command.o cvt.o decode.o edit.o evar.o filename.o forwback.o \
-	help.o ifile.o input.o jump.o line.o linenum.o \
-	lsystem.o mark.o optfunc.o option.o opttbl.o os.o \
-	output.o pattern.o position.o prompt.o search.o signal.o \
-	tags.o ttyin.o version.o xbuf.o
-ifeq  (${REGEX_PACKAGE},regcomp-local)
-OBJ += regexp.o
-endif
 ifneq (${SECURE_COMPILE},1)
-OBJ += lesskey_parse.o
+LESS_SRC += lesskey_parse.c
 else
 MINGW_DEFINES += -DSECURE_COMPILE=1
 endif
 
+OBJ = ${patsubst %.c,%.o,$(LESS_SRC)} help.o
 
-all: less.exe lesskey.exe lessecho.exe
+all: less.exe lessecho.exe
 
 less.exe: ${OBJ}
 	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
-
-lesskey.exe: lesskey.o lesskey_parse.o version.o xbuf.o
-	${CC} ${LDFLAGS} -o $@ lesskey.o lesskey_parse.o version.o xbuf.o
 
 lessecho.exe: lessecho.o version.o
 	${CC} ${LDFLAGS} -o $@ lessecho.o version.o
@@ -157,9 +146,11 @@ ifeq  (${WINGEN},1)
     BUILDGEN = buildgen.exe
     MKHELP = buildgen.exe help
     MKFUNCS = type 2>NUL ${LESS_SRC} | buildgen.exe funcs
+    MKLESSMSG = type lessmsg lessmsg_int 2>NUL | buildgen.exe lessmsg
 else
     MKHELP = (perl mkhelp.pl || sh mkhelp.sh)
     MKFUNCS = grep -h "^public [^;]*$$" ${LESS_SRC} | sed "s/$$/;/"
+    MKLESSMSG = sed -e "/^ *\#/d" -e "/^ *$$/d" -e "s/^ *\([^ ]*\)  *\(.*\)/M(\1,\"\2\")/" lessmsg lessmsg_int
 endif
 
 funcs.h: ${LESS_SRC} ${BUILDGEN}
@@ -170,10 +161,13 @@ funcs.h: ${LESS_SRC} ${BUILDGEN}
 help.c: less.hlp ${BUILDGEN}
 	${MKHELP}  < less.hlp > $@
 
+lessmsg.inc: lessmsg lessmsg_int ${BUILDGEN}
+	${MKLESSMSG} > $@
+
 buildgen.exe: buildgen.c
 	${CC} $< -o $@
 
-${OBJ}: less.h defines.h funcs.h
+$(OBJ): less.h funcs.h defines.h lang.h lmsg.h lessmsg.inc pattern.h xbuf.h
 
 TAGS:
 	etags *.c *.h

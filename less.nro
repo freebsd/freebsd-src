@@ -1,5 +1,5 @@
 '\" t
-.TH LESS 1 "30 May 2026" "less 704"
+.TH LESS 1 "08 Sep 2026" "less 710"
 .\" Define a string for the caret ("hat") as portably as possible.
 .ie \n(.g .ds ^ \(ha
 .el       .ds ^ ^
@@ -14,6 +14,43 @@
 .\" compatibility, else interpolate nothing.
 .ie \n(.g .ds : \:
 .el       .ds : \" empty
+.\" Define local versions of groff's "an-ext.tmac" macros if needed.
+.ds %% \" empty
+.if \n(.g .ig %%
+.\" Prepare link text for mail/web hyperlinks.  `MT` and `UR` call this.
+.de mV
+.  ds mU \\$1\"
+..
+.
+.
+.\" Emit hyperlink.  The optional argument supplies trailing punctuation
+.\" after link text.  `ME` and `UE` call this.
+.de mQ
+.  mY
+.  nh
+<\\*(mU>\\$1
+.  hy \\n(mH
+.  rm mU
+..
+.
+.
+.\" Start URL.
+.\" .UR url
+.if !\n(.g-\n(mG \{\
+.de UR
+.  mV \\$1
+..
+.\}
+.
+.
+.\" End URL.
+.\" .UE [punctuation]
+.if !\n(.g-\n(mG \{\
+.de UE
+.  mQ \\$1
+..
+.\}
+.%%
 .SH NAME
 less \- display the contents of a file in a terminal
 .SH SYNOPSIS
@@ -22,8 +59,10 @@ less \- display the contents of a file in a terminal
 .na
 .B less
 .\" AT&T man(7) macros accept six arguments at most.
-.RB [ \- [ + ] aABcCdeEfFgGiIJKLmMnNqQrRsSuUVwWX\*~\c
-]
+.\" DWB 3.3 has a bug when a sixth argument is long and interpolates a
+.\" string.  <https://github.com/n-t-roff/DWB3.3/issues/10>
+.RB [ \- [ + ]
+.BR aABcCdeEfFgGiIJKLmMnNqQrRsSuUVwWX\*~ ]
 .RB [ \-b\ \c
 .IR size ]
 .RB [ \-D\ \c
@@ -38,7 +77,7 @@ less \- display the contents of a file in a terminal
 }
 .IR log-file ]
 .RB [ \-p\ \c
-.I pattern ]
+.IR pattern ]
 .RB [ \-P\ \c
 .IR prompt ]
 .RB [ \-t\ \c
@@ -164,6 +203,10 @@ While the text is scrolled, it acts as though the
 .B "\-S"
 option
 (chop lines) were in effect.
+.IP "ESC-] or ESC-RIGHTARROW"
+Scroll horizontally right N characters like RIGHTARROW,
+but stop scrolling when the last (rightmost) character on the
+displayed screen becomes visible at the right margin.
 .IP "ESC-( or LEFTARROW"
 Scroll horizontally left N characters, default half the screen width
 (see the
@@ -491,6 +534,10 @@ the entire filename should be enclosed in double quotes
 (also see the
 .B "\-\[dq]"
 option).
+Any shell metacharacters in the filename, such as "*" and "?", are
+expanded by the shell named in the SHELL environment variable.
+(Note that some shells may execute external programs if
+certain metacharacters are used, such as backticks or dollar signs.)
 .IP "\*^X\*^V or E"
 Same as :e.
 Warning: some systems use \*^V as a special literalization character.
@@ -527,7 +574,8 @@ If possible, it also prints the length of the file,
 the number of lines in the file
 and the percent of the file above the last displayed line.
 .IP \-
-Followed by one of the command line option letters (see OPTIONS below),
+Followed by one of the command line option letters
+(see \*(lqOPTIONS\*(rq below),
 this will change the setting of that option
 and print a message describing the new setting.
 If a \*^P (CONTROL-P) is entered immediately after the dash,
@@ -544,7 +592,8 @@ a new value may be entered after the option letter.
 If no new value is entered, a message describing
 the current setting is printed and nothing is changed.
 .IP \-\-
-Like the \- command, but takes a long option name (see OPTIONS below)
+Like the \- command, but takes a long option name
+(see \*(lqOPTIONS\*(rq below),
 rather than a single option letter.
 Press ENTER or RETURN after typing the option name to change it.
 You can enter just the beginning of an option name, 
@@ -607,9 +656,11 @@ or defaults to "vi" if neither VISUAL nor EDITOR is defined.
 See also the discussion of LESSEDIT under the section on PROMPTS below.
 .IP "! \fIshell-command\fP"
 Invokes a shell to run the shell-command given.
-A percent sign (%) in the filename is replaced by the
-shell-escaped name of the current file.
-A pound sign (#) is replaced by the shell-escaped name of the previously examined file.
+A percent sign (%) in the command is replaced by the name of the
+current file.
+Two consecutive percent signs (%%) are replaced with a single percent sign.
+A pound sign (#) is replaced by the name of the previously examined file.
+Two consecutive pound signs (##) are replaced with a single pound sign.
 "!!" repeats the last shell command.
 "!" with no shell command invokes an interactive shell.
 If a \*^P (CONTROL-P) is entered immediately after the !,
@@ -622,7 +673,7 @@ Similar to the "!" command,
 except that the command is expanded in the same way as prompt strings.
 For example, the name of the current file would be given as "%f".
 .IP "| <\fIm\fP> \fIshell-command\fP"
-<m> represents any mark letter.
+<m> represents any mark character.
 Pipes a section of the input file to the given shell command.
 If the marked line is before the top line of the current screen,
 the section to be piped is between the marked line and the bottom line
@@ -630,10 +681,22 @@ of the current screen, inclusive.
 Otherwise (if the marked line is the top line of the current screen
 or after it) the section of the file to be piped is between the top line
 of the current screen and the marked line, inclusive.
-<m> may also be \*^ or $ to indicate beginning or end of file respectively.
-If <m> is \&.\& or newline, the current screen is piped.
-If a \*^P (CONTROL-P) is entered immediately after the mark letter,
+<m> may also be "\*^" or "$" to indicate beginning or end of file respectively.
+If <m> is "\&.\&" or newline, the currently displayed screen is piped.
+You can type \*^N in place of <m> in order to enter
+a line number instead of a mark letter.
+If a \*^P (CONTROL-P) is entered at the start of the shell command,
 no "done" message is printed after the shell command is executed.
+.IP "|| <\fIm1\fP> <\fIm2\fP> \fIshell-command\fP"
+Like "|", pipes a section of the input file to the given shell command.
+The section of the file to be piped is between the two lines marked
+with <m1> and <m2>, inclusive.
+The line marked by <m1> may be either before or after the line marked by <m2> in the file.
+Either mark may be "\*^" or "$" to indicate beginning or end of file respectively.
+":" or newline indicates the first line displayed on the screen,
+and ";" indicates the last line displayed on the screen.
+You can type \*^N in place of either <m1> or <m2> in order to enter
+a line number instead of a mark letter.
 .IP "s \fIfilename\fP"
 Save the input to a file.
 This works only if the input is a pipe, not an ordinary file.
@@ -741,7 +804,7 @@ and
 .B "\-\-modelines"
 begin with
 .BR "\-\-mo" "."
-
+.PP
 Some long option names are in uppercase, such as
 .BR "\-\-QUIT\-AT\-EOF" ","
 as
@@ -909,6 +972,8 @@ Mark letters in the status column.
 Line numbers enabled via the
 .B "\-N"
 option.
+.IP "O"
+OSC 8 hyperlinks.
 .IP "P"
 Prompts.
 .IP "R"
@@ -1005,10 +1070,11 @@ An 8-bit color string is one or two decimal integers separated by a dot,
 where the first integer specifies the foreground color and 
 the second specifies the background color.
 Each integer is a value between 0 and 255 inclusive which selects
-a "CSI 38;5" color value (see
-.nh
-https://\*:en\*:.wikipedia\*:.org/\*:wiki/\*:ANSI_escape_code\*:#SGR).
-.hy
+a "CSI 38;5" color value
+(an
+.UR https://\*:en\*:.wikipedia\*:.org/\*:wiki/\*:ANSI_escape_code\*:#SGR
+SGR escape sequence
+.UE ).
 If either integer is a "\-" or is omitted,
 the corresponding color is set to that of normal text.
 .PP
@@ -1041,14 +1107,11 @@ For historical reasons, when a lowercase color selector letter
 is followed by a numeric color value,
 the number is not interpreted as an "CSI 38;5" color value as described above,
 but instead as a 4-bit 
-.nh
-CHAR_INFO.Attributes 
-.hy
-value, between 0 and 15 inclusive
-(see 
-.nh
-https://\*:learn\*:.microsoft\*:.com/\*:en\-us/\*:windows/\*:console/\*:char\-info\-str).
-.hy
+.UR https://\*:learn\*:.microsoft\*:.com/\*:en\-us/\*:windows/\
+\*:console/\*:char\-info\-str
+CHAR_INFO.Attributes
+.UE
+value, between 0 and 15 inclusive.
 .IP
 To avoid confusion, it is recommended that the equivalent letters rather than numbers
 be used after a lowercase color selector on MS-DOS/Windows.
@@ -1207,7 +1270,7 @@ option is in effect.
 Causes
 .B less
 to open and interpret the named file as a
-.BR lesskey (1)
+.BR lesskey (5)
 binary file.
 Multiple
 .B "\-k"
@@ -1224,7 +1287,7 @@ below.
 Causes
 .B less
 to open and interpret the named file as a 
-.BR lesskey (1)
+.BR lesskey (5)
 source file. 
 If the LESSKEYIN or LESSKEYIN_SYSTEM environment variable is set, or
 if a lesskey source file is found in a standard place (see KEY BINDINGS),
@@ -1249,7 +1312,7 @@ below.
 Causes
 .B less
 to interpret the specified text as the contents of a
-.BR lesskey (1)
+.BR lesskey (5)
 source file.
 In the text,
 .B lesskey
@@ -1260,7 +1323,10 @@ Warning: certain environment variables such as
 LESS, LESSSECURE, LESSCHARSET and others,
 which are used early in startup, 
 cannot be set in a file specified by a command line option
-.RB "(" "\-\-lesskey" ", " "\-\-lesskey\-src" " or " "\-\-lesskey\-content" ")."
+.RB ( \-\-lesskey ,
+.B \-\-lesskey\-src
+or
+.BR \-\-lesskey\-content ).
 When using a
 .B lesskey
 file to set environment variables, it is safer to use the
@@ -1514,10 +1580,10 @@ If the environment variable LESSGLOBALTAGS is set, it is taken to be
 the name of a command compatible with
 .BR global (1),
 and that command is executed to find the tag.
-(See 
-.nh
-http://\*:www\*:.gnu\*:.org/\*:software/\*:global/\*:global\*:.html).
-.hy
+(See the
+.UR http://\*:www\*:.gnu\*:.org/\*:software/\*:global/\*:global\*:.html
+GNU global home page
+.UE .)
 The
 .B "\-t"
 option may also be specified from within
@@ -1643,7 +1709,8 @@ lines less than the current screen size.
 For example, if the screen is 24 lines,
 .B "\-z\-4"
 sets the
-scrolling window to 20 lines.  If the screen is later resized to 40 lines,
+scrolling window to 20 lines.
+If the screen is later resized to 40 lines,
 the scrolling window automatically changes to 36 lines.
 .IP "\fB\-""\fP\fIcc\fP\ or\ \fB\-\-quotes=\fP\fIcc\fP"
 Changes the filename quoting character.
@@ -1660,7 +1727,7 @@ character and followed by the close quote character.
 Note that even after the quote characters are changed, this option
 remains \-" (a dash followed by a double quote).
 .IP "\fB\-\*~\fP or \fB\-\-tilde\fP"
-Normally lines after end of file are displayed as a single tilde (\*~).
+Normally, lines after end of file are displayed as a single tilde (\*~).
 This option causes lines after end of file to be displayed as blank lines.
 .IP "\fB\-#\fP or \fB\-\-shift\fP"
 Specifies the default number of positions to scroll horizontally
@@ -1673,7 +1740,7 @@ screen width, \&.3 is three tenths of the screen width, and so on.
 If the number is specified as a fraction, the actual number of
 scroll positions is recalculated if the terminal window is resized.
 .IP "\fB\-\-autosave=\fP\fIactions\fP
-Normally the history file is saved only when
+Normally, the history file is saved only when
 .B less
 exits.
 This option specifies other actions which will cause the history file to be saved.
@@ -1979,7 +2046,7 @@ Searches do not include header lines or header columns.
 .IP "\fB\-\-no\-vbell\fP"
 Disables the terminal's visual bell.
 .IP "\fB\-\-past\-eof\fP"
-Normally scrolling commands (other than J, K, ESC-SPACE and ESC-b)
+Normally, scrolling commands (other than J, K, ESC-SPACE and ESC-b)
 stop scrolling when end-of-file is reached scrolling forward, or
 beginning-of-file is reached scrolling backward.
 This option makes all scrolling commands continue past end-of-file
@@ -2121,9 +2188,10 @@ The
 option can be used to change the colors.
 Colored text works only if the terminal supports 
 ANSI color escape sequences (as defined in 
-.nh
-https://\*:www\*:.ecma\-international\*:.org/\*:publications\-and\-standards/\*:standards/\*:ecma\-48).
-.hy
+.UR https://\*:www\*:.ecma\-international\*:.org/\
+\*:publications\-and\-standards/\*:standards/\*:ecma\-48)
+ECMA-48
+.UE .
 .IP "\fB\-\-wheel\-lines=\fP\fIn\fP"
 Set the number of lines or columns to scroll when the mouse wheel is scrolled
 and the
@@ -2245,7 +2313,7 @@ You may also change the line-editing keys (see LINE EDITING),
 and set environment variables used by
 .BR less .
 See the
-.BR lesskey (1)
+.BR lesskey (5)
 manual page for details about the file format.
 .PP
 If the environment variable LESSKEYIN is set,
@@ -2326,6 +2394,7 @@ to a command line which will invoke your input preprocessor.
 This command line should include one occurrence of the string "%s",
 which will be replaced by the filename
 when the input preprocessor command is invoked.
+Two consecutive percent signs are replaced with a single percent sign.
 .PP
 When
 .B less
@@ -2341,6 +2410,7 @@ It may include two occurrences of the string "%s";
 the first is replaced with the original name of the file and
 the second with the name of the replacement file,
 which was output by LESSOPEN.
+Two consecutive percent signs are replaced with a single percent sign.
 .PP
 For example, on many Unix systems, these two scripts will allow you
 to keep files in compressed format, but still let
@@ -2504,7 +2574,8 @@ Selects a character set appropriate for MS-DOS.
 Selects an EBCDIC character set.
 .IP IBM\-1047
 Selects an EBCDIC character set used by OS/390 Unix Services.
-This is the EBCDIC analogue of latin1.  You get similar results
+This is the EBCDIC analogue of latin1.
+You get similar results
 by setting either LESSCHARSET=IBM\-1047 or LC_CTYPE=en_US
 in your environment.
 .IP koi8\-r
@@ -2573,7 +2644,8 @@ interface is also not available, the default character set is utf\-8.
 .PP
 Control and binary characters are displayed in standout (reverse video).
 Each such character is displayed in caret notation if possible
-(e.g.\& \*^A for control-A).  Caret notation is used only if
+(e.g.\& \*^A for control-A).
+Caret notation is used only if
 inverting the 0100 bit results in a normal printable character.
 Otherwise, the character is displayed as a hex number in angle brackets.
 This format can be changed by
@@ -2704,9 +2776,9 @@ The line to be used is determined by the \fIX\fP, as with the %b option.
 Replaced by the number of pages in the input file,
 or equivalently, the page number of the last line in the input file.
 .IP "%E"
-Replaced by the name of the editor (from the VISUAL environment variable,
-or the EDITOR environment variable if VISUAL is not defined).
-See the discussion of the LESSEDIT feature below.
+Replaced by the value of the VISUAL environment variable,
+or the EDITOR environment variable if VISUAL is not defined.
+See the usage example at the LESSEDIT feature below.
 .IP "%f"
 Replaced by the name of the current input file.
 .IP "%F"
@@ -2715,6 +2787,8 @@ Replaced by the last component of the name of the current input file.
 Replaced by the shell-escaped name of the current input file.
 This is useful when the expanded string will be used in a shell command,
 such as in LESSEDIT.
+.IP "%G"
+Replaced by the shell-escaped last component of the name of the current input file.
 .IP "%i"
 Replaced by the index of the current file in the list of
 input files.
@@ -2752,6 +2826,10 @@ Replaced by the width of the longest line currently displayed on the screen.
 Note that using this sequence can make displaying the prompt be slower than usual.
 .IP "%x"
 Replaced by the name of the next input file in the list.
+.IP "%y"
+Replaced by the shell-escaped name of the next input file in the list.
+.IP "%%"
+Replaced by a single percent sign.
 .PP
 If any item is unknown (for example, the file size if input
 is a pipe), a question mark is printed instead.
@@ -2907,10 +2985,11 @@ and filename completion (TAB, \*^L)
 .IP "history"
 history file
 .IP "lesskey"
-use of lesskey files 
+use of lesskey files, including the
 .B "\-k"
 and
-.BR "\-\-lesskey\-src" ")"
+.B "\-\-lesskey\-src"
+options, and all environment variables whose name begins with "LESSKEY"
 .IP "lessopen"
 input preprocessor (LESSOPEN environment variable)
 .IP "logfile"
@@ -2945,8 +3024,12 @@ LESSSECURE_ALLOW=hist,edit
 were set, all of the above features would be disabled 
 except for history files and the edit command.
 .PP
+The LESSSECURE_DISALLOW environment variable can be set to a comma-separated list
+of names of features which are selectively disabled when LESSSECURE is not set.
+.PP
 Less can also be compiled to be permanently in "secure" mode.
-In that case, the LESSSECURE and LESSSECURE_ALLOW variables are ignored.
+In that case, all of the above features are disabled,
+and the LESSSECURE, LESSSECURE_ALLOW and LESSSECURE_DISALLOW variables are ignored.
 .
 .SH "COMPATIBILITY WITH MORE"
 If the environment variable LESS_IS_MORE is set to 1,
@@ -3007,10 +3090,10 @@ command rather than a search pattern.
 The LESS environment variable is ignored,
 and the MORE environment variable is used in its place.
 .
-.SH "ENVIRONMENT VARIABLES"
+.SH ENVIRONMENT
 Environment variables may be specified either in the system environment
 as usual, or in a
-.BR lesskey (1)
+.BR lesskey (5)
 file.
 If environment variables are defined in more than one place,
 variables defined in a local lesskey file take precedence over
@@ -3086,7 +3169,8 @@ Name of the command used by the
 option to find global tags.
 Normally should be set to "global" if your system has the
 .BR global (1)
-command.  If not set, global tags are not used.
+command.
+If not set, global tags are not used.
 .IP LESSHISTFILE
 Name of the history file used to remember search commands and
 shell commands between invocations of
@@ -3146,6 +3230,9 @@ See discussion under SECURITY.
 .IP LESSSECURE_ALLOW
 Enables individual features which are normally disabled by LESSSECURE.
 See discussion under SECURITY.
+.IP LESSSECURE_DISALLOW
+When LESSSECURE is not set, LESSSECURE_DISALLOW can disable individual features.
+See discussion under SECURITY.
 .IP LESSSEPARATOR
 String to be appended to a directory name in filename completion
 (default "\e" on MS-DOS, Windows, and OS/2; otherwise "/").
@@ -3181,6 +3268,18 @@ The default is 4000 (4 seconds).
 Emulate the
 .BR more (1)
 command.
+.IP LESSMSG
+When set to the name of a
+.I lessmsg
+file, messages displayed by less are taken from that file.
+This can be used to translate
+.B less
+messages into another language.
+See the file
+.B lessmsg
+in the
+.B less
+distribution for more details.
 .IP LESS_OSC8_OPEN_xxx
 Where "xxx" is a URI scheme such as "http" or "file",
 sets an OSC 8 handler for opening OSC 8 links containing a URI with that scheme.
@@ -3190,6 +3289,19 @@ no specific LESS_OSC8_OPEN_xxx handler set for the "xxx" scheme.
 .IP LESS_OSC8_OPEN_NONE
 Sets an OSC 8 handler for opening OSC 8 links which contain no scheme
 (that is, there is no colon in the URI).
+.IP LESS_SHELL_COPTION
+Normally when executing a shell command
+.B cmd
+(via \fB!\fP, \fB#\fP, or \fB|\fP, or a LESSOPEN command),
+if the SHELL environment variable is set, the command
+is invoked as "\fB$SHELL -c cmd\fP".
+If the LESS_SHELL_COPTION environment variable is set, its value
+is used instead of "\fB-c\fP" in that invocation.
+If LESS_SHELL_COPTION is set to a single dash,
+.B less
+acts as if SHELL were not set, and therefore invokes
+.B cmd
+directly.
 .IP LESS_SHELL_LINES
 When the
 .B "\-F"
@@ -3293,7 +3405,7 @@ Possible location of the history file; see the description of the LESSHISTFILE e
 Possible location of the history file; see the description of the LESSHISTFILE environment variable.
 .
 .SH "SEE ALSO"
-.BR lesskey (1),
+.BR lesskey (5),
 .BR lessecho (1)
 .
 .SH COPYRIGHT
@@ -3322,13 +3434,11 @@ See the GNU General Public License for more details.
 .
 Mark Nudelman
 .br
-Report bugs at 
-.nh
-https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues.
-.hy
-.br
-For more information, see the less homepage at
-.br
-.nh
-https://\*:greenwoodsoftware\*:.com/\*:less.
-.hy
+Report bugs at
+.UR https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues
+.UE .
+For more information, see the
+.UR https://\*:greenwoodsoftware\*:.com/\*:less
+.I less
+home page
+.UE .

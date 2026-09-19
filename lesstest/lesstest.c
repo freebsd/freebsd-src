@@ -24,15 +24,29 @@ static char* testfile = NULL;
 static char* keyfile = NULL;
 
 static int usage(void) {
-	fprintf(stderr, "usage: lesstest -o file.lt [-w#] [-h#] [-eEdv] [-D detail-file] [-S lt_screen-opts] [--] less.exe [flags] textfile\n");
-	fprintf(stderr, "   or: lesstest -t file.lt less.exe\n");
+	fprintf(stderr, "%s",
+	"usage: lesstest [options] [--] less.exe [flags] textfile\n"
+	"   or: lesstest [options] -t file.lt [--] less.exe\n"
+	"       Options:\n"
+	"          -d       print details of any screen mismatches (test failures)\n"
+	"          -D FILE  dump details of screen mismatches to file in ltview format\n"
+	"          -e       do not print PASS messages\n"
+	"          -h NUM   height of emulated screen\n"
+	"          -k FILE  read input keys from file rather than keyboard\n"
+	"          -o FILE  name of .lt file to create\n"
+	"          -s FILE  name of lt_screen program\n"
+	"          -S OPTS  options to pass to lt_screen program\n"
+	"          -t FILE  name of .lt file to test\n"
+	"          -v       print verbose messages\n"
+	"          -w NUM   width of emulated screen\n"
+	);
 	return 0;
 }
 
 static int setup(int argc, char* const* argv) {
 	char* logfile = NULL;
 	int ch;
-	while ((ch = getopt(argc, argv, "dD:eEk:o:s:S:t:v")) != -1) {
+	while ((ch = getopt(argc, argv, "dD:ek:o:s:S:t:v")) != -1) {
 		switch (ch) {
 		case 'd':
 			details = 1;
@@ -42,9 +56,6 @@ static int setup(int argc, char* const* argv) {
 			break;
 		case 'e':
 			err_only = 1;
-			break;
-		case 'E':
-			err_only = 2;
 			break;
         case 'k':
             keyfile = optarg;

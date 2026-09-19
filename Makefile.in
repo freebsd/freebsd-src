@@ -14,10 +14,14 @@ CFLAGS = @CFLAGS@
 CFLAGS_COMPILE_ONLY = -c
 LDFLAGS = @LDFLAGS@
 CPPFLAGS = @CPPFLAGS@
-EXEEXT = @EXEEXT@
-O=o
+
 ifneq ($(strip $(LESSTEST)),)
 CPPFLAGS += -DLESSTEST -DUSE_TERMCAP
+O=t.o
+EXE = _t@EXEEXT@
+else
+O=o
+EXE = @EXEEXT@
 endif
 
 # Make with SAN=1 to enable the gcc address sanitizer.
@@ -38,9 +42,11 @@ binprefix =
 
 sysconfdir = @sysconfdir@
 datarootdir = @datarootdir@
+datadir = @datadir@
 
 mandir = @mandir@
-manext = 1
+manprogext = 1
+manfileext = 5
 manprefix = 
 
 #### End of system configuration section. ####
@@ -49,14 +55,15 @@ SHELL = /bin/sh
 
 # This rule allows us to supply the necessary -D options
 # in addition to whatever the user asks for.
-.c.o:
-	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DLIBEXECDIR=\"${libexecdir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} $<
+.SUFFIXES: .${O}
+.c.${O}:
+	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DLIBEXECDIR=\"${libexecdir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} -o $@ $<
 
 OBJ = \
 	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
 	command.${O} cvt.${O} decode.${O} edit.${O} evar.${O} filename.${O} forwback.${O} \
 	help.${O} ifile.${O} input.${O} jump.${O} \
-	line.${O} linenum.${O} \
+	line.${O} linenum.${O} lmsg.${O} \
 	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
 	output.${O} pattern.${O} position.${O} prompt.${O} search.${O} signal.${O} \
 	tags.${O} ttyin.${O} version.${O} xbuf.${O}  @REGEX_O@
@@ -65,45 +72,40 @@ ifneq (@SECURE_COMPILE@,1)
 OBJ += lesskey_parse.${O}
 endif
 
-all: less$(EXEEXT) lesskey$(EXEEXT) lessecho$(EXEEXT)
+all: less$(EXE) lessecho$(EXE)
 
-less$(EXEEXT): ${OBJ}
+less$(EXE): ${OBJ}
 	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
 
-lesskey$(EXEEXT): lesskey.${O} lesskey_parse.${O} xbuf.${O} version.${O}
-	${CC} ${LDFLAGS} -o $@ lesskey.${O} lesskey_parse.${O} xbuf.${O} version.${O} ${LIBS}
-
-lessecho$(EXEEXT): lessecho.${O} version.${O}
+lessecho$(EXE): lessecho.${O} version.${O}
 	${CC} ${LDFLAGS} -o $@ lessecho.${O} version.${O} ${LIBS}
 
 charset.${O}: compose.uni ubin.uni wide.uni
 
-${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h lang.h pattern.h xbuf.h
+${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h lang.h lmsg.h lessmsg.inc pattern.h xbuf.h
 screen.${O} ttyin.${O}: pckeys.h
 
 install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro ${srcdir}/lessecho.nro installdirs
-	${INSTALL_PROGRAM} less$(EXEEXT) ${DESTDIR}${bindir}/${binprefix}less$(EXEEXT)
-	${INSTALL_PROGRAM} lesskey$(EXEEXT) ${DESTDIR}${bindir}/${binprefix}lesskey$(EXEEXT)
-	${INSTALL_PROGRAM} lessecho$(EXEEXT) ${DESTDIR}${libexecdir}/${binprefix}lessecho$(EXEEXT)
+	${INSTALL_PROGRAM} less$(EXE) ${DESTDIR}${bindir}/${binprefix}less$(EXE)
+	${INSTALL_PROGRAM} lessecho$(EXE) ${DESTDIR}${libexecdir}/${binprefix}lessecho$(EXE)
 	${INSTALL} ${srcdir}/less-osc8-open.sh ${DESTDIR}${libexecdir}/${binprefix}less-osc8-open
-	${INSTALL_DATA} ${srcdir}/less.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}less.${manext}
-	${INSTALL_DATA} ${srcdir}/lesskey.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}lesskey.${manext}
-	${INSTALL_DATA} ${srcdir}/lessecho.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}lessecho.${manext}
+	${INSTALL_DATA} ${srcdir}/less.nro ${DESTDIR}${mandir}/man${manprogext}/${manprefix}less.${manprogext}
+	${INSTALL_DATA} ${srcdir}/lesskey.nro ${DESTDIR}${mandir}/man${manfileext}/${manprefix}lesskey.${manfileext}
+	${INSTALL_DATA} ${srcdir}/lessecho.nro ${DESTDIR}${mandir}/man${manprogext}/${manprefix}lessecho.${manprogext}
 
 install-strip:
 	${MAKE} INSTALL_PROGRAM='${INSTALL_PROGRAM} -s' install
 
 installdirs: mkinstalldirs
-	${srcdir}/mkinstalldirs ${DESTDIR}${bindir} ${DESTDIR}${libexecdir} ${DESTDIR}${mandir}/man${manext}
+	${srcdir}/mkinstalldirs ${DESTDIR}${bindir} ${DESTDIR}${libexecdir} ${DESTDIR}${mandir}/man${manprogext} ${DESTDIR}${mandir}/man${manfileext}
 
 uninstall:
-	rm -f ${DESTDIR}${bindir}/${binprefix}less$(EXEEXT)
-	rm -f ${DESTDIR}${bindir}/${binprefix}lesskey$(EXEEXT)
-	rm -f ${DESTDIR}${libexecdir}/${binprefix}lessecho$(EXEEXT)
+	rm -f ${DESTDIR}${bindir}/${binprefix}less$(EXE)
+	rm -f ${DESTDIR}${libexecdir}/${binprefix}lessecho$(EXE)
 	rm -f ${DESTDIR}${libexecdir}/${binprefix}less-osc8-open
-	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}less.${manext}
-	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}lesskey.${manext}
-	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}lessecho.${manext}
+	rm -f ${DESTDIR}${mandir}/man${manprogext}/${manprefix}less.${manprogext}
+	rm -f ${DESTDIR}${mandir}/man${manfileext}/${manprefix}lesskey.${manfileext}
+	rm -f ${DESTDIR}${mandir}/man${manprogext}/${manprefix}lessecho.${manprogext}
 
 info:
 install-info:
@@ -111,8 +113,8 @@ dvi:
 installcheck:
 
 check:
-	if [ -x less$(EXEEXT) ] && ./less$(EXEEXT) -V | grep -q LESSTEST; then :; else ${MAKE} clean; fi; ${MAKE} LESSTEST=1
-	objdir=$$(pwd); rflags=""; if [ -z "${VERBOSE}" ]; then rflags=-e; fi; cd $(srcdir)/lesstest && ${MAKE} && ./runtest $$rflags -l "$$objdir/less" lt
+	${MAKE} LESSTEST=1
+	objdir=$$(pwd); rflags=""; if [ -z "${VERBOSE}" ]; then rflags=-e; fi; cd $(srcdir)/lesstest && ${MAKE} && ./runtest $$rflags -l "$$objdir/less_t@EXEEXT@" lt
 
 TAGS:
 	cd ${srcdir} && etags *.c *.h
@@ -132,7 +134,7 @@ ${srcdir}/configure: ${srcdir}/configure.ac
 	cd ${srcdir}; autoheader; autoconf
 
 clean:
-	rm -f *.${O} core less$(EXEEXT) lesskey$(EXEEXT) lessecho$(EXEEXT)
+	rm -f *.${O} *.o *.ot core less lessecho less@EXEEXT@ lessecho@EXEEXT@ less_t@EXEEXT@ lessecho_t@EXEEXT@
 
 mostlyclean: clean
 

@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "30 May 2026" "less 704"
+.TH LESSKEY 5 "08 Sep 2026" "less 710"
 .\" Define a string for the caret ("hat") as portably as possible.
 .ie \n(.g .ds ^ \(ha
 .el       .ds ^ ^
@@ -11,51 +11,51 @@
 .\" compatibility, else interpolate nothing.
 .ie \n(.g .ds : \:
 .el       .ds : \" empty
+.\" Define local versions of groff's "an-ext.tmac" macros if needed.
+.ds %% \" empty
+.if \n(.g .ig %%
+.\" Prepare link text for mail/web hyperlinks.  `MT` and `UR` call this.
+.de mV
+.  ds mU \\$1\"
+..
+.
+.
+.\" Emit hyperlink.  The optional argument supplies trailing punctuation
+.\" after link text.  `ME` and `UE` call this.
+.de mQ
+.  mY
+.  nh
+<\\*(mU>\\$1
+.  hy \\n(mH
+.  rm mU
+..
+.
+.
+.\" Start URL.
+.\" .UR url
+.if !\n(.g-\n(mG \{\
+.de UR
+.  mV \\$1
+..
+.\}
+.
+.
+.\" End URL.
+.\" .UE [punctuation]
+.if !\n(.g-\n(mG \{\
+.de UE
+.  mQ \\$1
+..
+.\}
+.%%
 .SH NAME
 lesskey \- customize key bindings for less
-.SH "SYNOPSIS (deprecated)"
-.B lesskey
-.RB [ \-o
-.IR output ]
-.B \-\-
-.I input
-.br
-.B lesskey
-.RB [ \-\-output=\c
-.IR output ]
-.B \-\-
-.I input
-.PP
-.B "lesskey \-V"
-.br
-.B "lesskey \-\-version"
-.SH SCOPE
-This document describes the format of the 
-.B lesskey
-source file, which is used by
-.B less
-version 582 and later.
-In previous versions of 
-.BR less ,
-a separate program called
-.B lesskey
-was used to compile the 
-.B lesskey 
-source file into a format understood by
-.BR less .
-This compilation step is no longer required and the
-.B lesskey
-program is therefore deprecated, although the file format remains supported by
-.B less
-itself.
-.PP
 .SH DESCRIPTION
 A
 .B lesskey
 file specifies a set of key bindings and environment variables
 to be used by subsequent invocations of
-.BR less .
-.SH FILE FORMAT
+.BR less (1).
 The input file consists of one or more
 .IR sections .
 Each section starts with a line that identifies the type of section.
@@ -109,28 +109,37 @@ when one of these keys is pressed:
 .RS 5m
 .TS
 l l.
-\ekb	BACKSPACE (the BACKSPACE key; may be different than \eb)
-\ekB	ctrl-BACKSPACE
+\ekb	BACKSPACE (may be different than \eb)
+\ek\*^b or \ekB	ctrl-BACKSPACE
 \ekd	DOWN ARROW
+\ek\*^d	ctrl-DOWN ARROW
+\ek+d	shift-DOWN ARROW
 \ekD	PAGE DOWN
+\ek^D	ctrl-PAGE DOWN
+\ek+D	shift-PAGE DOWN
 \eke	END
-\ekE	ctrl-END
-\ekF	shift-END
+\ek\*^e or \ekE	ctrl-END
+\ek+e or \ekF	shift-END
 \ekh	HOME
-\ekH	ctrl-HOME
-\ekI	shift-HOME
+\ek\*^h or \ekH	ctrl-HOME
+\ek+h or \ekI	shift-HOME
 \eki	INSERT
 \ekl	LEFT ARROW
-\ekL	ctrl-LEFT ARROW
-\ekM	shift-LEFT ARROW
+\ek\*^l or \ekL	ctrl-LEFT ARROW
+\ek+l or \ekM	shift-LEFT ARROW
 \ekr	RIGHT ARROW
-\ekR	ctrl-RIGHT ARROW
-\ekS	shift-RIGHT ARROW
+\ek\*^r or \ekR	ctrl-RIGHT ARROW
+\ek+r or \ekS	shift-RIGHT ARROW
 \ekt	BACKTAB
 \eku	UP ARROW
+\ek\*^u	ctrl-UP ARROW
+\ek+u	shift-UP ARROW
 \ekU	PAGE UP
+\ek^U	ctrl-PAGE UP
+\ek+U	shift-PAGE UP
 \ekx	DELETE
-\ekX	ctrl-DELETE
+\ek\*^x or \ekX	ctrl-DELETE
+\ek+x	shift-DELETE
 \ek1	F1
 \ekp1	lower left key on the numeric keypad
 \ekp2	lower center key on the numeric keypad
@@ -251,10 +260,12 @@ p	percent
 %	percent
 \ee(	left\-scroll
 \ee)	right\-scroll
+\ee]	right\-limit\-scroll
 \ee{	no\-scroll
 \ee}	end\-scroll
 \ekl	left\-scroll
 \ekr	right\-scroll
+\ee\ekr	right\-limit\-scroll
 \ekL	no\-scroll
 \ekM	no\-scroll
 \ekR	end\-scroll
@@ -507,8 +518,6 @@ the syntax ${NAME/STRING1/REPL1/STRING2/REPL2} and so on.
 If a line begins with #version followed by a relational operator and a version number,
 the remainder of the line is parsed if and only if the running version of
 .B less
-(or
-.BR lesskey )
 matches the operator.
 This can be helpful if a lesskey file is used by different versions of
 .BR less .
@@ -541,8 +550,6 @@ l l.
 .PP
 The #version feature is not supported in
 .B less
-and
-.B lesskey
 before version 594.
 In those older versions, all #version lines are ignored.
 .
@@ -596,6 +603,5 @@ See the GNU General Public License for more details.
 Mark Nudelman
 .br
 Report bugs at
-.nh
-https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues.
-.hy
+.UR https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues
+.UE .

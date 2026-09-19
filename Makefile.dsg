@@ -36,18 +36,15 @@ manext = 1
 OBJ = \
 	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
 	command.${O} cvt.${O} decode.${O} edit.${O} evar.${O} filename.${O} forwback.${O} \
-	help.${O} ifile.${O} input.${O} jump.${O} lesskey_parse.${O} line.${O} linenum.${O} \
+	help.${O} ifile.${O} input.${O} jump.${O} lesskey_parse.${O} line.${O} linenum.${O} lmsg.${O} \
 	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
 	output.${O} pattern.${O} position.${O} prompt.${O} search.${O} signal.${O} \
 	tags.${O} ttyin.${O} version.${O} xbuf.${O}
 
-all: less lesskey lessecho
+all: less lessecho
 
 less: ${OBJ}
 	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
-
-lesskey: lesskey.${O} lesskey_parse.${O} version.${O} xbuf.${O}
-	${CC} ${LDFLAGS} -o $@ lesskey.${O} lesskey_parse.${O} version.${O} xbuf.${O}
 
 lessecho: lessecho.${O} version.${O}
 	${CC} ${LDFLAGS} -o $@ lessecho.${O} version.${O}
@@ -55,11 +52,10 @@ lessecho: lessecho.${O} version.${O}
 defines.h: defines.ds
 	command.com /c copy $< $@ || cmd.exe /c copy $< $@ || cp $< $@
 
-${OBJ}: ${srcdir}/less.h defines.h ${srcdir}/funcs.h
+${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h lang.h lmsg.h lessmsg.inc pattern.h xbuf.h
 
 install: all ${srcdir}/less.man ${srcdir}/lesskey.man
 	${INSTALL_PROGRAM} less.exe ${bindir}/less.exe
-	${INSTALL_PROGRAM} lesskey.exe ${bindir}/lesskey.exe
 	${INSTALL_PROGRAM} lessecho.exe ${bindir}/lessecho.exe
 	${INSTALL_DATA} ${srcdir}/less.man ${mandir}/man${manext}/less.${manext}
 	${INSTALL_DATA} ${srcdir}/lesskey.man ${mandir}/man${manext}/lesskey.${manext}
@@ -74,7 +70,7 @@ TAGS:
 	etags *.c *.h
 
 clean:
-	command.com /c for %f in (*.${O} less lesskey lessecho *.exe) do if exist %f del %f
+	command.com /c for %f in (*.${O} less lessecho *.exe) do if exist %f del %f
 
 mostlyclean: clean
 

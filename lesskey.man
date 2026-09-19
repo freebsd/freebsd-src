@@ -1,31 +1,13 @@
-[4mLESSKEY[24m(1)                  General Commands Manual                 [4mLESSKEY[24m(1)
+[4mLESSKEY[24m(5)                    File Formats Manual                   [4mLESSKEY[24m(5)
 
 [1mNAME[0m
        lesskey - customize key bindings for less
 
-[1mSYNOPSIS (deprecated)[0m
-       [1mlesskey [22m[[1m-o [4m[22moutput[24m] [1m-- [4m[22minput[0m
-       [1mlesskey [22m[[1m--output=[4m[22moutput[24m] [1m-- [4m[22minput[0m
-
-       [1mlesskey -V[0m
-       [1mlesskey --version[0m
-
-[1mSCOPE[0m
-       This document describes the format of the [1mlesskey [22msource file, which is
-       used  by  [1mless  [22mversion 582 and later.  In previous versions of [1mless[22m, a
-       separate program called [1mlesskey [22mwas used to compile the [1mlesskey  [22msource
-       file  into  a  format  understood by [1mless[22m.  This compilation step is no
-       longer required and the [1mlesskey [22mprogram is  therefore  deprecated,  al‐
-       though the file format remains supported by [1mless [22mitself.
-
 [1mDESCRIPTION[0m
        A  [1mlesskey  [22mfile  specifies a set of key bindings and environment vari‐
-       ables to be used by subsequent invocations of [1mless[22m.
-
-[1mFILE FORMAT[0m
-       The input file consists of one or more [4msections[24m.  Each  section  starts
-       with  a  line  that  identifies the type of section.  Possible sections
-       are:
+       ables to be used by subsequent invocations of [1mless[22m(1).  The input  file
+       consists of one or more [4msections[24m.  Each section starts with a line that
+       identifies the type of section.  Possible sections are:
 
        #command
               Customizes command key bindings.
@@ -35,7 +17,7 @@
 
        #env   Defines environment variables.
 
-       Blank lines are ignored.  Any text that follows an unescaped hash  mark
+       Blank  lines are ignored.  Any text that follows an unescaped hash mark
        (#) in a line is ignored, except as noted below.
 
 [1mCOMMAND SECTION[0m
@@ -43,19 +25,19 @@
 
        #command
 
-       If  the command section is the first section in the file, this line may
+       If the command section is the first section in the file, this line  may
        be omitted.  The command section consists of lines of the form:
 
             [4mstring[24m <whitespace> [4maction[24m <whitespace> [extra‐string] <newline>
 
-       Whitespace is any sequence of one or  more  spaces  and/or  tabs.   The
-       [4mstring[24m  is  the command key(s) which invoke the action.  The [4mstring[24m may
+       Whitespace  is  any  sequence  of  one or more spaces and/or tabs.  The
+       [4mstring[24m is the command key(s) which invoke the action.  The  [4mstring[24m  may
        be a single command key, or a sequence of up to 15 keys.  The [4maction[24m is
        the name of the less action, from the lists in the EXAMPLE sections be‐
        low.  The characters in the [4mstring[24m may appear literally, or be prefixed
-       by a caret to indicate a control key.  A backslash followed by  one  to
-       three  octal  digits  may  be  used to specify a character by its octal
-       value.  A backslash followed  by  certain  characters  specifies  input
+       by  a  caret to indicate a control key.  A backslash followed by one to
+       three octal digits may be used to specify  a  character  by  its  octal
+       value.   A  backslash  followed  by  certain characters specifies input
        characters as follows:
             \b   BACKSPACE   (0x08)
             \e   ESCAPE      (0x1B)
@@ -63,72 +45,81 @@
             \r   RETURN      (0x0D)
             \t   TAB         (0x09)
 
-       \k  followed  by  one or two characters represents the char(s) produced
+       \k followed by one or two characters represents  the  char(s)  produced
        when one of these keys is pressed:
-            \kb    BACKSPACE (the BACKSPACE key; may be different than \b)
-            \kB    ctrl‐BACKSPACE
-            \kd    DOWN ARROW
-            \kD    PAGE DOWN
-            \ke    END
-            \kE    ctrl‐END
-            \kF    shift‐END
-            \kh    HOME
-            \kH    ctrl‐HOME
-            \kI    shift‐HOME
-            \ki    INSERT
-            \kl    LEFT ARROW
-            \kL    ctrl‐LEFT ARROW
-            \kM    shift‐LEFT ARROW
-            \kr    RIGHT ARROW
-            \kR    ctrl‐RIGHT ARROW
-            \kS    shift‐RIGHT ARROW
-            \kt    BACKTAB
-            \ku    UP ARROW
-            \kU    PAGE UP
-            \kx    DELETE
-            \kX    ctrl‐DELETE
-            \k1    F1
-            \kp1   lower left key on the numeric keypad
-            \kp2   lower center key on the numeric keypad
-            \kp3   lower right key on the numeric keypad
-            \kp4   center left key on the numeric keypad
-            \kp5   center key on the numeric keypad
-            \kp6   center right key on the numeric keypad
-            \kp7   upper left key on the numeric keypad
-            \kp8   upper center key on the numeric keypad
-            \kp9   upper right key on the numeric keypad
-            \kp0   0 on the numeric keypad
-            \kp*   * on the numeric keypad
-            \kp/   / on the numeric keypad
-            \kp-   - on the numeric keypad
-            \kp+   + on the numeric keypad
-            \kp.   . on the numeric keypad
-            \kp,   , on the numeric keypad
-            \kpe   ENTER on the numeric keypad
+            \kb           BACKSPACE (may be different than \b)
+            \k^b or \kB   ctrl‐BACKSPACE
+            \kd           DOWN ARROW
+            \k^d          ctrl‐DOWN ARROW
+            \k+d          shift‐DOWN ARROW
+            \kD           PAGE DOWN
+            \kˆD          ctrl‐PAGE DOWN
+            \k+D          shift‐PAGE DOWN
+            \ke           END
+            \k^e or \kE   ctrl‐END
+            \k+e or \kF   shift‐END
+            \kh           HOME
+            \k^h or \kH   ctrl‐HOME
+            \k+h or \kI   shift‐HOME
+            \ki           INSERT
+            \kl           LEFT ARROW
+            \k^l or \kL   ctrl‐LEFT ARROW
+            \k+l or \kM   shift‐LEFT ARROW
+            \kr           RIGHT ARROW
+            \k^r or \kR   ctrl‐RIGHT ARROW
+            \k+r or \kS   shift‐RIGHT ARROW
+            \kt           BACKTAB
+            \ku           UP ARROW
+            \k^u          ctrl‐UP ARROW
+            \k+u          shift‐UP ARROW
+            \kU           PAGE UP
+            \kˆU          ctrl‐PAGE UP
+            \k+U          shift‐PAGE UP
+            \kx           DELETE
+            \k^x or \kX   ctrl‐DELETE
+            \k+x          shift‐DELETE
+            \k1           F1
+            \kp1          lower left key on the numeric keypad
+            \kp2          lower center key on the numeric keypad
+            \kp3          lower right key on the numeric keypad
+            \kp4          center left key on the numeric keypad
+            \kp5          center key on the numeric keypad
+            \kp6          center right key on the numeric keypad
+            \kp7          upper left key on the numeric keypad
+            \kp8          upper center key on the numeric keypad
+            \kp9          upper right key on the numeric keypad
+            \kp0          0 on the numeric keypad
+            \kp*          * on the numeric keypad
+            \kp/          / on the numeric keypad
+            \kp-          - on the numeric keypad
+            \kp+          + on the numeric keypad
+            \kp.          . on the numeric keypad
+            \kp,          , on the numeric keypad
+            \kpe          ENTER on the numeric keypad
 
        A backslash followed by any other character indicates that character is
-       to be taken literally.  Characters which must be preceded by  backslash
+       to  be taken literally.  Characters which must be preceded by backslash
        include caret, space, tab, hash mark and the backslash itself.
 
        An action may be followed by an "extra" string.  When such a command is
        entered while running [1mless[22m, the action is performed, and then the extra
-       string  is  parsed,  just as if it were typed in to [1mless[22m.  This feature
-       can be used in certain cases to extend the functionality of a  command.
-       For  example,  see  the "{" and ":t" commands in the example below.  It
-       can also be used to execute  more  than  one  command  when  a  key  is
-       pressed.   For  example,  if this line were in a lesskey file, pressing
+       string is parsed, just as if it were typed in to  [1mless[22m.   This  feature
+       can  be used in certain cases to extend the functionality of a command.
+       For example, see the "{" and ":t" commands in the  example  below.   It
+       can  also  be  used  to  execute  more  than  one command when a key is
+       pressed.  For example, if this line were in a  lesskey  file,  pressing
        the "B" key would first set the "b" mark and then search for the string
        "next":
 
            B set-mark b/next\n
 
        The extra string has a special meaning for the "quit" action: when [1mless[0m
-       quits, the ASCII value of the first character of the  extra  string  is
+       quits,  the  ASCII  value of the first character of the extra string is
        used as its exit status.
 
 [1mEXAMPLE[0m
        The following input file describes the set of default command keys used
-       by  [1mless[22m.   Documentation  on each command can be found in the [1mless [22mman
+       by [1mless[22m.  Documentation on each command can be found in  the  [1mless  [22mman
        page, under the key sequence which invokes the command.
 
             #command
@@ -189,10 +180,12 @@
             %          percent
             \e(        left-scroll
             \e)        right-scroll
+            \e]        right-limit-scroll
             \e{        no-scroll
             \e}        end-scroll
             \kl        left-scroll
             \kr        right-scroll
+            \e\kr      right-limit-scroll
             \kL        no-scroll
             \kM        no-scroll
             \kR        end-scroll
@@ -294,20 +287,20 @@
             ZZ         quit
 
 [1mPRECEDENCE[0m
-       Commands specified by [1mlesskey [22mtake precedence  over  the  default  com‐
-       mands.   A  default  command key may be disabled by including it in the
-       input file with the action "invalid".  Alternatively, a key may be  de‐
+       Commands  specified  by  [1mlesskey  [22mtake precedence over the default com‐
+       mands.  A default command key may be disabled by including  it  in  the
+       input  file with the action "invalid".  Alternatively, a key may be de‐
        fined to do nothing by using the action "noaction".  "noaction" is sim‐
-       ilar  to  "invalid",  but [1mless [22mwill give an error beep for an "invalid"
-       command, but not for a "noaction" command.  In  addition,  ALL  default
+       ilar to "invalid", but [1mless [22mwill give an error beep  for  an  "invalid"
+       command,  but  not  for a "noaction" command.  In addition, ALL default
        commands may be disabled by adding this control line to the input file:
 
        #stop
 
-       This  will  cause  all  default commands to be ignored.  The #stop line
+       This will cause all default commands to be  ignored.   The  #stop  line
        should be the last line in that section of the file.
 
-       Be aware that #stop can be dangerous.  Since all default  commands  are
+       Be  aware  that #stop can be dangerous.  Since all default commands are
        disabled, you must provide sufficient commands before the #stop line to
        enable all necessary actions.  For example, failure to provide a "quit"
        command can lead to frustration.
@@ -317,9 +310,9 @@
 
        #line-edit
 
-       This  section specifies new key bindings for the line editing commands,
-       in a manner similar to the way key bindings for ordinary  commands  are
-       specified  in  the #command section.  The line‐editing section consists
+       This section specifies new key bindings for the line editing  commands,
+       in  a  manner similar to the way key bindings for ordinary commands are
+       specified in the #command section.  The line‐editing  section  consists
        of a list of keys and actions, one per line as in the example below.
 
 [1mEXAMPLE[0m
@@ -383,49 +376,49 @@
 
        #env
 
-       Following this line is a  list  of  environment  variable  assignments.
-       Each  line consists of an environment variable name, an equals sign (=)
-       and the value to be assigned to the environment variable.  White  space
-       before  and  after  the  equals sign is ignored.  Variables assigned in
-       this way are visible only to [1mless[22m.  If a variable is specified  in  the
+       Following  this  line  is  a  list of environment variable assignments.
+       Each line consists of an environment variable name, an equals sign  (=)
+       and  the value to be assigned to the environment variable.  White space
+       before and after the equals sign is  ignored.   Variables  assigned  in
+       this  way  are visible only to [1mless[22m.  If a variable is specified in the
        system environment and also in a lesskey file, the value in the lesskey
        file takes precedence.
 
        If the variable name is followed by += rather than =, the string is ap‐
-       pended  to the variable’s existing value.  This currently works only if
+       pended to the variable’s existing value.  This currently works only  if
        any += lines immediately follow the same variable’s original definition
-       (with an = line), without any intervening definitions  of  other  vari‐
-       ables.   It  can append only to a variable defined earlier in the file;
-       it cannot append to a variable in the system environment.   The  string
+       (with  an  =  line), without any intervening definitions of other vari‐
+       ables.  It can append only to a variable defined earlier in  the  file;
+       it  cannot  append to a variable in the system environment.  The string
        is appended literally, without any extra whitespace added, so if white‐
-       space  is  desired,  it  should be appended to the end of the preceding
-       line.  (It cannot be added to the beginning of the  +=  string  because
+       space is desired, it should be appended to the  end  of  the  preceding
+       line.   (It  cannot  be added to the beginning of the += string because
        space after the equals sign is ignored, as noted above.)
 
-       In  the string after the = sign, a substring of the form ${NAME} is re‐
+       In the string after the = sign, a substring of the form ${NAME} is  re‐
        placed with the value of the environment variable "NAME".  The value of
-       the variable may come from either the system  environment,  an  earlier
-       lesskey  file,  or  an  earlier definition in the current lesskey file.
-       Simple  text  replacements  can  be  performed  by  using  the   syntax
-       ${NAME/STRING/REPL}.   This  replaces  all instances of "STRING" in the
+       the  variable  may  come from either the system environment, an earlier
+       lesskey file, or an earlier definition in  the  current  lesskey  file.
+       Simple   text  replacements  can  be  performed  by  using  the  syntax
+       ${NAME/STRING/REPL}.  This replaces all instances of  "STRING"  in  the
        named environment variable with the text "REPL".  STRING is matched us‐
-       ing a simple text comparison; no metacharacters are supported.  An  in‐
-       stance  of  slash  or right curly bracket in STRING or REPL must be es‐
-       caped by preceding it with  [4mtwo[24m  backslashes.   If  REPL  is  an  empty
-       string,  all  instances of STRING are removed.  A slash immediately be‐
+       ing  a simple text comparison; no metacharacters are supported.  An in‐
+       stance of slash or right curly bracket in STRING or REPL  must  be  es‐
+       caped  by  preceding  it  with  [4mtwo[24m  backslashes.   If REPL is an empty
+       string, all instances of STRING are removed.  A slash  immediately  be‐
        fore the right curly bracket may be omitted.  Multiple replacements may
-       be performed by using  the  syntax  ${NAME/STRING1/REPL1/STRING2/REPL2}
+       be  performed  by  using the syntax ${NAME/STRING1/REPL1/STRING2/REPL2}
        and so on.
 
 [1mCONDITIONAL CONFIGURATION[0m
-       If  a line begins with #version followed by a relational operator and a
-       version number, the remainder of the line is parsed if and only if  the
-       running version of [1mless [22m(or [1mlesskey[22m) matches the operator.  This can be
-       helpful if a lesskey file is used by different versions of [1mless[22m.
+       If a line begins with #version followed by a relational operator and  a
+       version  number, the remainder of the line is parsed if and only if the
+       running version of [1mless [22mmatches the operator.  This can be helpful if a
+       lesskey file is used by different versions of [1mless[22m.
 
-       For  example,  suppose  that  a  new command named ’sideways-search’ is
-       added in [1mless [22mversion 777.  Then the following line  would  assign  the
-       command  to  the  Q key, but only in versions of [1mless [22mwhich support it.
+       For example, suppose that a  new  command  named  ’sideways-search’  is
+       added  in  [1mless  [22mversion 777.  Then the following line would assign the
+       command to the Q key, but only in versions of [1mless  [22mwhich  support  it.
        The line would be ignored by versions earlier than 777.
 
             #version >= 777  Q sideways-search
@@ -438,11 +431,11 @@
              =    Equal to
              !=   Not equal to
 
-       The #version feature is not supported in [1mless [22mand [1mlesskey  [22mbefore  ver‐
-       sion 594.  In those older versions, all #version lines are ignored.
+       The  #version  feature is not supported in [1mless [22mbefore version 594.  In
+       those older versions, all #version lines are ignored.
 
 [1mEXAMPLE[0m
-       The  following  input  file sets the -i and -S options when [1mless [22mis run
+       The following input file sets the -i and -S options when  [1mless  [22mis  run
        and, on version 595 and higher, adds a --color option.
 
             #env
@@ -455,30 +448,30 @@
        [1mless[22m(1)
 
 [1mWARNINGS[0m
-       On MS‐DOS and OS/2 systems, certain keys send a sequence of  characters
-       which  start  with  a  NUL character (0).  This NUL character should be
+       On  MS‐DOS and OS/2 systems, certain keys send a sequence of characters
+       which start with a NUL character (0).  This  NUL  character  should  be
        represented as \340 in a lesskey file.
 
 [1mCOPYRIGHT[0m
        Copyright (C) 1984‐2026  Mark Nudelman
 
-       less is part of the GNU project and is free software.  You  can  redis‐
-       tribute  it and/or modify it under the terms of either (1) the GNU Gen‐
-       eral Public License as published by the Free  Software  Foundation;  or
+       less  is  part of the GNU project and is free software.  You can redis‐
+       tribute it and/or modify it under the terms of either (1) the GNU  Gen‐
+       eral  Public  License  as published by the Free Software Foundation; or
        (2) the Less License.  See the file README in the less distribution for
        more details regarding redistribution.  You should have received a copy
-       of  the  GNU General Public License along with the source for less; see
-       the file COPYING.  If not, write to the Free  Software  Foundation,  59
-       Temple  Place, Suite 330, Boston, MA  02111‐1307, USA.  You should also
+       of the GNU General Public License along with the source for  less;  see
+       the  file  COPYING.   If not, write to the Free Software Foundation, 59
+       Temple Place, Suite 330, Boston, MA  02111‐1307, USA.  You should  also
        have received a copy of the Less License; see the file LICENSE.
 
        less is distributed in the hope that it will be useful, but WITHOUT ANY
-       WARRANTY; without even the implied warranty of MERCHANTABILITY or  FIT‐
-       NESS  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+       WARRANTY;  without even the implied warranty of MERCHANTABILITY or FIT‐
+       NESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License  for
        more details.
 
 [1mAUTHOR[0m
        Mark Nudelman
-       Report bugs at https://github.com/gwsw/less/issues.
+       Report bugs at ⟨https://github.com/gwsw/less/issues⟩.
 
-less 704                          30 May 2026                       [4mLESSKEY[24m(1)
+less 710                          08 Sep 2026                       [4mLESSKEY[24m(5)

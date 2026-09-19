@@ -98,7 +98,7 @@ public char *end_prompt;        /* Printed after clearing the prompt */
 public int hilite_search;       /* Highlight matched search patterns? */
 #endif
 
-public int less_is_more = 0;    /* Make compatible with POSIX more */
+public lbool less_is_more = FALSE; /* Make compatible with POSIX more */
 
 /*
  * Long option names.
@@ -213,134 +213,151 @@ static struct optname ttyin_name_optname = { "tty",              NULL };
  * a new value, and odesc[1] is the description, which should contain 
  * one %d which is replaced by the value of the number.
  * For STRING options, odesc[0] is the prompt to use when entering
- * a new value, and odesc[1], if not NULL, is the set of characters
- * that are valid in the string.
+ * a new value, and odesc[1], if not NULL, is a description of the
+ * characters that are valid in the string (see optstring()).
  */
 static struct loption option[] =
 {
 	{ 'a', &a_optname,
 		O_TRIPLE, OPT_ONPLUS, &how_search, NULL,
 		{
-			"Search includes displayed screen",
-			"Search skips displayed screen",
-			"Search includes all of displayed screen"
-		}
+			LM_Search_includes_displayed_screen,
+			LM_Search_skips_displayed_screen,
+			LM_Search_includes_all_of_displayed_screen
+		},
+		{ NULL, NULL, NULL }
 	},
 
 	{ 'b', &b_optname,
 		O_NUMBER|O_INIT_HANDLER, 64, &bufspace, opt_b, 
 		{
-			"Max buffer space per file (K): ",
-			"Max buffer space per file: %dK",
-			NULL
-		}
+			LM_Max_buffer_space_per_file,
+			LM_Max_buffer_space_per_file_X,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'B', &B__optname,
 		O_BOOL, OPT_ON, &autobuf, NULL,
 		{
-			"Don't automatically allocate buffers",
-			"Automatically allocate buffers when needed",
-			NULL
-		}
+			LM_Dont_automatically_allocate_buffers,
+			LM_Automatically_allocate_buffers_when_needed,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'c', &c_optname,
 		O_TRIPLE, OPT_OFF, &top_scroll, NULL,
 		{
-			"Repaint by scrolling from bottom of screen",
-			"Repaint by painting from top of screen",
-			"Repaint by painting from top of screen"
-		}
+			LM_Repaint_by_scrolling_from_bottom_of_screen,
+			LM_Repaint_by_painting_from_top_of_screen,
+			LM_Repaint_by_painting_from_top_of_screen,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'd', &d_optname,
 		O_BOOL|O_NO_TOGGLE, OPT_OFF, &know_dumb, NULL,
 		{
-			"Assume intelligent terminal",
-			"Assume dumb terminal",
-			NULL
-		}
+			LM_Assume_intelligent_terminal,
+			LM_Assume_dumb_terminal,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'D', &D__optname,
 		O_STRING|O_REPAINT|O_NO_QUERY, 0, NULL, opt_D,
-		{ "color desc: ", "s", NULL }
+		{ LM_color_desc, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ 'e', &e_optname,
 		O_TRIPLE, OPT_OFF, &quit_at_eof, NULL,
 		{
-			"Don't quit at end-of-file",
-			"Quit at end-of-file",
-			"Quit immediately at end-of-file"
-		}
+			LM_Dont_quit_at_end_of_file,
+			LM_Quit_at_end_of_file,
+			LM_Quit_immediately_at_end_of_file
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'f', &f_optname,
 		O_BOOL, OPT_OFF, &force_open, NULL,
 		{
-			"Open only regular files",
-			"Open even non-regular files",
-			NULL
-		}
+			LM_Open_only_regular_files,
+			LM_Open_even_non_regular_files,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'F', &F__optname,
 		O_BOOL, OPT_OFF, &quit_if_one_screen, NULL,
 		{
-			"Don't quit if end-of-file on first screen",
-			"Quit if end-of-file on first screen",
-			NULL
-		}
+			LM_Dont_quit_if_end_of_file_on_first_screen,
+			LM_Quit_if_end_of_file_on_first_screen,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 #if HILITE_SEARCH
 	{ 'g', &g_optname,
 		O_TRIPLE|O_HL_REPAINT, OPT_ONPLUS, &hilite_search, NULL,
 		{
-			"Don't highlight search matches",
-			"Highlight matches for previous search only",
-			"Highlight all matches for previous search pattern",
-		}
+			LM_Dont_highlight_search_matches,
+			LM_Highlight_matches_for_previous_search_only,
+			LM_Highlight_all_matches_for_previous_search_pattern,
+		},
+		{ NULL, NULL, NULL }
 	},
 #endif
 	{ 'h', &h_optname,
 		O_NUMBER, -1, &back_scroll, NULL,
 		{
-			"Backwards scroll limit: ",
-			"Backwards scroll limit is %d lines",
-			NULL
-		}
+			LM_Backwards_scroll_limit,
+			LM_Backwards_scroll_limit_is_X_lines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'i', &i_optname,
 		O_TRIPLE|O_HL_REPAINT, OPT_OFF, &caseless, opt_i,
 		{
-			"Case is significant in searches",
-			"Ignore case in searches",
-			"Ignore case in searches and in patterns"
-		}
+			LM_Case_is_significant_in_searches,
+			LM_Ignore_case_in_searches,
+			LM_Ignore_case_in_searches_and_in_patterns,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'j', &j_optname,
 		O_STRING, 0, NULL, opt_j,
 		{
-			"Target line: ",
-			"-.d",
-			NULL
-		}
+			LM_Target_line,
+			LM_neg_dot_d,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'J', &J__optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &status_col, NULL,
 		{
-			"Don't display a status column",
-			"Display a status column",
-			NULL
-		}
+			LM_Dont_display_a_status_column,
+			LM_Display_a_status_column,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 #if USERFILE
 	{ 'k', &k_optname,
 		O_STRING|O_NO_TOGGLE|O_NO_QUERY, 0, NULL, opt_k,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 #if HAVE_LESSKEYSRC 
 	{ OLETTER_NONE, &kc_optname,
 		O_STRING|O_NO_TOGGLE|O_NO_QUERY, 0, NULL, opt_kc,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &ks_optname,
 		O_STRING|O_NO_TOGGLE|O_NO_QUERY, 0, NULL, opt_ks,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 #endif /* HAVE_LESSKEYSRC */
@@ -348,480 +365,525 @@ static struct loption option[] =
 	{ 'K', &K__optname,
 		O_BOOL, OPT_OFF, &quit_on_intr, NULL,
 		{
-			"Interrupt (ctrl-C) returns to prompt",
-			"Interrupt (ctrl-C) exits less",
-			NULL
-		}
+			LM_Dont_quit_if_end_of_file_on_first_screen,
+			LM_Interrupt_exits_less,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'L', &L__optname,
 		O_BOOL, OPT_ON, &use_lessopen, NULL,
 		{
-			"Don't use the LESSOPEN filter",
-			"Use the LESSOPEN filter",
-			NULL
-		}
+			LM_Dont_use_the_LESSOPEN_filter,
+			LM_Use_the_LESSOPEN_filter,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'm', &m_optname,
 		O_TRIPLE, OPT_OFF, &pr_type, NULL,
 		{
-			"Short prompt",
-			"Medium prompt",
-			"Long prompt"
-		}
+			LM_Short_prompt,
+			LM_Medium_prompt,
+			LM_Long_prompt,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'n', &n_optname,
 		O_TRIPLE|O_REPAINT, OPT_ON, &linenums, NULL,
 		{
-			"Don't use line numbers",
-			"Use line numbers",
-			"Constantly display line numbers"
-		}
+			LM_Dont_use_line_numbers,
+			LM_Use_line_numbers,
+			LM_Constantly_display_line_numbers,
+		},
+		{ NULL, NULL, NULL }
 	},
 #if LOGFILE
 	{ 'o', &o_optname,
 		O_STRING, 0, NULL, opt_o,
-		{ "log file: ", NULL, NULL }
+		{ LM_log_file, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ 'O', &O__optname,
 		O_STRING, 0, NULL, opt__O,
-		{ "Log file: ", NULL, NULL }
+		{ LM_Log_file, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 #endif
 	{ 'p', &p_optname,
 		O_STRING|O_NO_TOGGLE|O_NO_QUERY, 0, NULL, opt_p,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 	{ 'P', &P__optname,
 		O_STRING, 0, NULL, opt__P,
-		{ "prompt: ", NULL, NULL }
+		{ LM_prompt, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ 'q', &q_optname,
 		O_TRIPLE, OPT_OFF, &quiet, NULL,
 		{
-			"Ring the bell for errors AND at eof/bof",
-			"Ring the bell for errors but not at eof/bof",
-			"Never ring the bell"
-		}
+			LM_Ring_the_bell_for_errors_AND_at_eof,
+			LM_Ring_the_bell_for_errors_but_not_at_eof,
+			LM_Never_ring_the_bell,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'r', &r_optname,
 		O_TRIPLE|O_REPAINT, OPT_OFF, &ctldisp, NULL,
 		{
-			"Display control characters as ^X",
-			"Display control characters directly (not recommended)",
-			"Display ANSI sequences directly, other control characters as ^X"
-		}
+			LM_Display_control_characters_as_caret,
+			LM_Display_control_characters_directly,
+			LM_Display_ANSI_sequences_directly,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 's', &s_optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &squeeze, NULL,
 		{
-			"Display all blank lines",
-			"Squeeze multiple blank lines",
-			NULL
-		}
+			LM_Display_all_blank_lines,
+			LM_Squeeze_multiple_blank_lines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'S', &S__optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &chopline, opt__S,
 		{
-			"Fold long lines",
-			"Chop long lines",
-			NULL
-		}
+			LM_Fold_long_lines,
+			LM_Chop_long_lines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 #if TAGS
 	{ 't', &t_optname,
 		O_STRING|O_NO_QUERY, 0, NULL, opt_t,
-		{ "tag: ", NULL, NULL }
+		{ LM_tag, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ 'T', &T__optname,
 		O_STRING, 0, NULL, opt__T,
-		{ "tags file: ", NULL, NULL }
+		{ LM_tags_file, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 #endif
 	{ 'u', &u_optname,
 		O_TRIPLE|O_REPAINT|O_HL_REPAINT, OPT_OFF, &bs_mode, NULL,
 		{
-			"Display underlined text in underline mode",
-			"Backspaces cause overstrike",
-			"Print backspace as ^H"
-		}
+			LM_Display_underlined_text_in_underline_mode,
+			LM_Backspaces_cause_overstrike,
+			LM_Print_backspace_as_caret,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'V', &V__optname,
 		O_NOVAR, 0, NULL, opt__V,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &hilite_target_optname,
 		O_BOOL, OPT_OFF, &hilite_target, opt_hilite_target,
 		{
-			"Don't highlight target line",
-			"Highlight target line",
-			NULL
-		}
+			LM_Dont_highlight_target_line,
+			LM_Highlight_target_line,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'w', &w_optname,
 		O_TRIPLE|O_REPAINT, OPT_OFF, &show_attn, NULL,
 		{
-			"Don't highlight first unread line",
-			"Highlight first unread line after forward-screen",
-			"Highlight first unread line after any forward movement",
-		}
+			LM_Dont_highlight_first_unread_line,
+			LM_Highlight_first_unread_line_after_forward_screen,
+			LM_Highlight_first_unread_line_after_any_forward_movement,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'x', &x_optname,
 		O_STRING|O_REPAINT, 0, NULL, opt_x,
-		{
-			"Tab stops: ",
-			"d,",
-			NULL
-		}
+		{ LM_Tab_stops_, LM_d_comma, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ 'X', &X__optname,
 		O_BOOL|O_NO_TOGGLE, OPT_OFF, &no_init, NULL,
 		{
-			"Send init/deinit strings to terminal",
-			"Don't use init/deinit strings",
-			NULL
-		}
+			LM_Send_init_deinit_strings_to_terminal,
+			LM_Dont_use_init_deinit_strings,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'y', &y_optname,
 		O_NUMBER, -1, &forw_scroll, NULL,
 		{
-			"Forward scroll limit: ",
-			"Forward scroll limit is %d lines",
-			NULL
-		}
+			LM_Forward_scroll_limit,
+			LM_Forward_scroll_limit_is_X_lines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ 'z', &z_optname,
 		O_NUMBER|O_NEGOK, -1, &swindow, NULL,
 		{
-			"Scroll window size: ",
-			"Scroll window size is %d lines",
-			NULL
-		}
+			LM_Scroll_window_size,
+			LM_Scroll_window_size_is_X_lines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ '"', &quote_optname,
 		O_STRING, 0, NULL, opt_quote,
-		{ "quotes: ", "s", NULL }
+		{ LM_quotes, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ '~', &tilde_optname,
 		O_BOOL|O_REPAINT, OPT_ON, &twiddle, NULL,
 		{
-			"Don't show tildes after end of file",
-			"Show tildes after end of file",
-			NULL
-		}
+			LM_Dont_show_tildes_after_end_of_file,
+			LM_Show_tildes_after_end_of_file,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ '?', &query_optname,
 		O_NOVAR, 0, NULL, opt_query,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 	{ '#', &pound_optname,
 		O_STRING, 0, NULL, opt_shift,
-		{
-			"Horizontal shift: ",
-			".d",
-			NULL
-		}
+		{ LM_Horizontal_shift, LM_dot_d, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &keypad_optname,
 		O_BOOL|O_NO_TOGGLE, OPT_OFF, &no_keypad, NULL,
 		{
-			"Use keypad mode",
-			"Don't use keypad mode",
-			NULL
-		}
+			LM_Use_keypad_mode,
+			LM_Dont_use_keypad_mode,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &oldbot_optname,
 		O_BOOL, OPT_OFF, &oldbot, NULL,
 		{
-			"Use new bottom of screen behavior",
-			"Use old bottom of screen behavior",
-			NULL
-		}
+			LM_Use_new_bottom_of_screen_behavior,
+			LM_Use_old_bottom_of_screen_behavior,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &follow_optname,
 		O_BOOL, FOLLOW_DESC, &follow_mode, NULL,
 		{
-			"F command follows file descriptor",
-			"F command follows file name",
-			NULL
-		}
+			LM_F_command_follows_file_descriptor,
+			LM_F_command_follows_file_name,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &use_backslash_optname,
 		O_BOOL, OPT_OFF, &opt_use_backslash, NULL,
 		{
-			"Don't use backslash escaping in command line parameters",
-			"Use backslash escaping in command line parameters",
-			NULL
-		}
+			LM_Dont_use_backslash_escaping_in_command_line_parameters,
+			LM_Use_backslash_escaping_in_command_line_parameters,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &rscroll_optname,
 		O_STRING|O_REPAINT|O_INIT_HANDLER, 0, NULL, opt_rscroll,
-		{ "rscroll character: ", "s", NULL }
+		{ LM_rscroll_character, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &nohistdups_optname,
 		O_BOOL, OPT_OFF, &no_hist_dups, NULL,
 		{
-			"Allow duplicates in history list",
-			"Remove duplicates from history list",
-			NULL
-		}
+			LM_Allow_duplicates_in_history_list,
+			LM_Remove_duplicates_from_history_list,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &mouse_optname,
 		O_TRIPLE, OPT_OFF, &xmouse, opt_mouse,
-		{
-			"Ignore mouse input",
-			"Use the mouse for scrolling vertically",
-			"Use the mouse for scrolling vertically (reverse)"
-		}
+		{ LM_NULL, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &emouse_optname,
 		O_STRING, 0, NULL, opt_emouse,
-		{ "Mouse features: ", "s", NULL }
+		{ LM_Mouse_features, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &mouse_reverse_optname,
 		O_BOOL, OPT_OFF, &mouse_reverse, NULL,
 		{
-			"Normal mouse scroll direction",
-			"Reverse mouse scroll direction",
-			NULL
-		}
+			LM_Normal_mouse_scroll_direction,
+			LM_Reverse_mouse_scroll_direction,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &wheel_lines_optname,
 		O_NUMBER|O_INIT_HANDLER, 0, &wheel_lines, opt_wheel_lines,
 		{
-			"Lines to scroll on mouse wheel: ",
-			"Scroll %d line(s) on mouse wheel",
-			NULL
-		}
+			LM_Lines_to_scroll_on_mouse_wheel,
+			LM_Scroll_X_lines_on_mouse_wheel,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &perma_marks_optname,
 		O_BOOL, OPT_OFF, &perma_marks, NULL,
 		{
-			"Don't save marks in history file",
-			"Save marks in history file",
-			NULL
-		}
+			LM_Dont_save_marks_in_history_file,
+			LM_Save_marks_in_history_file,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &linenum_width_optname,
 		O_NUMBER|O_REPAINT, MIN_LINENUM_WIDTH, &linenum_width, opt_linenum_width,
 		{
-			"Line number width: ",
-			"Line number width is %d chars",
-			NULL
-		}
+			LM_Line_number_width,
+			LM_Line_number_width_is_X_chars,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &status_col_width_optname,
 		O_NUMBER|O_REPAINT, 2, &status_col_width, opt_status_col_width,
 		{
-			"Status column width: ",
-			"Status column width is %d chars",
-			NULL
-		}
+			LM_Status_column_width,
+			LM_Status_column_width_is_X_chars,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &incr_search_optname,
 		O_BOOL, OPT_OFF, &incr_search, NULL,
 		{
-			"Incremental search is off",
-			"Incremental search is on",
-			NULL
-		}
+			LM_Incremental_search_is_off,
+			LM_Incremental_search_is_on,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &use_color_optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &use_color, NULL,
 		{
-			"Don't use color",
-			"Use color",
-			NULL
-		}
+			LM_Dont_use_color,
+			LM_Use_color,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &want_filesize_optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &want_filesize, opt_filesize,
 		{
-			"Don't get size of each file",
-			"Get size of each file",
-			NULL
-		}
+			LM_Dont_get_size_of_each_file,
+			LM_Get_size_of_each_file,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &status_line_optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &status_line, NULL,
 		{
-			"Line highlight applies to text only",
-			"Line highlight applies to entire width of screen",
-			NULL
-		}
+			LM_Line_highlight_applies_to_text_only,
+			LM_Line_highlight_applies_to_entire_width_of_screen,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &header_optname,
 		O_STRING|O_REPAINT, 0, NULL, opt_header,
-		{ "Header lines: ", "d,", NULL }
+		{ LM_Header_lines, LM_d_comma, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &no_paste_optname,
 		O_BOOL, OPT_OFF, &no_paste, opt_no_paste,
 		{ 
-			"Accept pasted input",
-			"Ignore pasted input",
-			NULL
-		}
+			LM_Accept_pasted_input,
+			LM_Ignore_pasted_input,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &form_feed_optname,
 		O_BOOL, OPT_OFF, &stop_on_form_feed, NULL,
 		{
-			"Don't stop on form feed",
-			"Stop on form feed",
-			NULL
-		}
+			LM_Dont_stop_on_form_feed,
+			LM_Stop_on_form_feed,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &past_eof_optname,
 		O_BOOL, OPT_OFF, &past_eof, NULL,
 		{
-			"Stop scrolling at end of file",
-			"Don't stop scrolling at end of file",
-			NULL
-		}
+			LM_Stop_scrolling_at_end_of_file,
+			LM_Dont_stop_scrolling_at_end_of_file,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &no_edit_warn_optname,
 		O_BOOL, OPT_OFF, &no_edit_warn, NULL,
 		{
-			"Warn when editing a file opened via LESSOPEN",
-			"Don't warn when editing a file opened via LESSOPEN",
-			NULL
-		}
+			LM_Warn_when_editing_a_file_opened_via_LESSOPEN,
+			LM_Dont_warn_when_editing_a_file_opened_via_LESSOPEN,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &nonum_headers_optname,
 		O_BOOL|O_REPAINT, 0, &nonum_headers, NULL,
 		{
-			"Number header lines",
-			"Don't number header lines",
-			NULL
-		}
+			LM_Number_header_lines,
+			LM_Dont_number_header_lines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &nosearch_headers_optname,
 		O_BOOL|O_HL_REPAINT, 0, NULL, opt_nosearch_headers,
-		{
-			NULL, NULL, NULL
-		}
+		{ LM_NULL, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &nosearch_header_lines_optname,
 		O_BOOL|O_HL_REPAINT, 0, NULL, opt_nosearch_header_lines,
-		{
-			NULL, NULL, NULL
-		}
+		{ LM_NULL, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &nosearch_header_cols_optname,
 		O_BOOL|O_HL_REPAINT, 0, NULL, opt_nosearch_header_cols,
-		{
-			NULL, NULL, NULL
-		}
+		{ LM_NULL, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &redraw_on_quit_optname,
 		O_BOOL, OPT_OFF, &redraw_on_quit, NULL,
 		{
-			"Don't redraw screen when quitting",
-			"Redraw last screen when quitting",
-			NULL
-		}
+			LM_Dont_redraw_screen_when_quitting,
+			LM_Redraw_last_screen_when_quitting,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &search_type_optname,
 		O_STRING, 0, NULL, opt_search_type,
-		{ "Search options: ", "s", NULL }
+		{ LM_Search_options, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &exit_F_on_close_optname,
 		O_BOOL, OPT_OFF, &exit_F_on_close, NULL,
 		{
-			"Don't exit F command when input closes",
-			"Exit F command when input closes",
-			NULL
-		}
+			LM_Dont_exit_F_command_when_input_closes,
+			LM_Exit_F_command_when_input_closes,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &no_vbell_optname,
 		O_BOOL, OPT_OFF, &no_vbell, NULL,
 		{
-			"Display visual bell",
-			"Don't display visual bell",
-			NULL
-		}
+			LM_Display_visual_bell,
+			LM_Dont_display_visual_bell,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &modelines_optname,
 		O_NUMBER, 0, &modelines, NULL,
 		{
-			"Lines to read looking for modelines: ",
-			"Read %d lines looking for modelines",
-			NULL
-		}
+			LM_Lines_to_read_looking_for_modelines,
+			LM_Read_X_lines_looking_for_modelines,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &intr_optname,
 		O_STRING, 0, NULL, opt_intr,
-		{ "interrupt character: ", "s", NULL }
+		{ LM_interrupt_character, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &wordwrap_optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &wordwrap, NULL,
 		{
-			"Wrap lines at any character",
-			"Wrap lines at spaces",
-			NULL
-		}
+			LM_Wrap_lines_at_any_character,
+			LM_Wrap_lines_at_spaces,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &show_preproc_error_optname,
 		O_BOOL, OPT_OFF, &show_preproc_error, NULL,
 		{
-			"Don't show error message if preprocessor fails",
-			"Show error message if preprocessor fails",
-			NULL
-		}
+			LM_Dont_show_error_message_if_preprocessor_fails,
+			LM_Show_error_message_if_preprocessor_fails,
+			LM_NULL
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &proc_backspace_optname,
 		O_TRIPLE|O_REPAINT|O_HL_REPAINT, OPT_OFF, &proc_backspace, NULL,
 		{
-			"Backspace handling is specified by the -U option",
-			"Display underline text in underline mode",
-			"Print backspaces as ^H"
-		}
+			LM_Backspace_handling_is_specified_by_the_U_option,
+			LM_Display_underline_text_in_underline_mode,
+			LM_Print_backspaces_as_caret,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &proc_tab_optname,
 		O_TRIPLE|O_REPAINT|O_HL_REPAINT, OPT_OFF, &proc_tab, NULL,
 		{
-			"Tab handling is specified by the -U option",
-			"Expand tabs to spaces",
-			"Print tabs as ^I"
-		}
+			LM_Tab_handling_is_specified_by_the_U_option,
+			LM_Expand_tabs_to_spaces,
+			LM_Print_tabs_as_caret,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &proc_return_optname,
 		O_TRIPLE|O_REPAINT|O_HL_REPAINT, OPT_OFF, &proc_return, NULL,
 		{
-			"Carriage return handling is specified by the -U option",
-			"Delete carriage return before newline",
-			"Print carriage return as ^M"
-		}
+			LM_Carriage_return_handling_is_specified_by_the_U_option,
+			LM_Delete_carriage_return_before_newline,
+			LM_Print_carriage_return_as_caret,
+		},
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &first_cmd_at_prompt_optname,
 		O_STRING|O_NO_TOGGLE|O_NO_QUERY, 0, NULL, opt_first_cmd_at_prompt,
+		{ LM_NULL, LM_NULL, LM_NULL },
 		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &match_shift_optname,
 		O_STRING|O_INIT_HANDLER, 0, NULL, opt_match_shift,
-		{
-			"Search match shift: ",
-			".d",
-			NULL
-		}
+		{ LM_Search_match_shift, LM_dot_d, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &autosave_optname,
 		O_STRING|O_INIT_HANDLER, 0, NULL, opt_autosave,
-		{ "Autosave actions: ", "s", NULL }
+		{ LM_Autosave_actions, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 	{ OLETTER_NONE, &end_prompt_optname,
 		O_STRING, 0, NULL, opt_end_prompt,
-		{ "Print after prompt: ", "s", NULL }
+		{ LM_Print_after_prompt, LM_s, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 #if LESSTEST
 	{ OLETTER_NONE, &ttyin_name_optname,
 		O_STRING|O_NO_TOGGLE, 0, NULL, opt_ttyin_name,
-		{
-			NULL,
-			NULL,
-			NULL
-		}
+		{ LM_NULL, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
 	},
 #endif /*LESSTEST*/
-	{ '\0', NULL, O_NOVAR, 0, NULL, NULL, { NULL, NULL, NULL } }
+	{ '\0', NULL, O_NOVAR, 0, NULL, NULL,
+		{ LM_NULL, LM_NULL, LM_NULL },
+		{ NULL, NULL, NULL }
+	}
 };
 
 
@@ -835,13 +897,13 @@ public void init_option(void)
 
 	p = lgetenv("LESS_IS_MORE");
 	if (!isnullenv(p) && !(p[0] == '0' && p[1] == '\0'))
-		less_is_more = 1;
+		less_is_more = TRUE;
 
 	for (o = option;  o->oletter != '\0';  o++)
 	{
-		/*
-		 * Set each variable to its default.
-		 */
+		int i;
+		for (i = 0;  i < 3;  i++)
+			o->odesc[i] = (o->odescid[i] == LM_NULL) ? NULL : lmsg(o->odescid[i]);
 		if (o->ovar != NULL)
 			*(o->ovar) = o->odefault;
 		if (o->otype & O_INIT_HANDLER)

@@ -205,7 +205,7 @@ public void add_lnum(LINENUM linenum, POSITION pos)
  */
 static void longloopmessage(void)
 {
-	ierror("Calculating line numbers", NULL_PARG);
+	ierror(LM(Calculating_line_numbers), NULL_PARG);
 }
 
 struct delayed_msg
@@ -261,7 +261,7 @@ static void abort_delayed_msg(struct delayed_msg *dmsg)
 		 */
 		screen_trashed();
 	linenums = 0;
-	error("Line numbers turned off", NULL_PARG);
+	error(LM(Line_numbers_turned_off), NULL_PARG);
 }
 
 /*
@@ -468,7 +468,7 @@ public LINENUM currline(int where)
 
 static void detlenmessage(void)
 {
-	ierror("Determining length of file", NULL_PARG);
+	ierror(LM(Determining_length_of_file), NULL_PARG);
 }
 
 /*

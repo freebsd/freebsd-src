@@ -26,7 +26,7 @@ endif
 SRC = \
 	main.c screen.c brac.c ch.c charset.c cmdbuf.c \
 	command.c cvt.c decode.c edit.c evar.c filename.c forwback.c \
-	help.c ifile.c input.c jump.c line.c linenum.c \
+	help.c ifile.c input.c jump.c lesskey_parse.c line.c linenum.c lmsg.c \
 	lsystem.c mark.c optfunc.c option.c opttbl.c os.c \
 	output.c pattern.c position.c prompt.c search.c signal.c \
 	tags.c ttyin.c version.c xbuf.c
@@ -38,24 +38,25 @@ DISTFILES_W = \
 	configure 
 UNICODE_FILES = \
 	compose.uni fmt.uni omit.uni ubin.uni wide.uni
+LMSG_FILES = \
+	lessmsg lessmsg_int
 DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
-	configure.ac lesskey.c lesskey_parse.c lessecho.c scrsize.c \
-	charset.h cmd.h funcs.h lang.h lglob.h less.h lesskey.h option.h \
+	configure.ac lessecho.c scrsize.c \
+	charset.h cmd.h funcs.h lang.h lglob.h less.h lesskey.h lmsg.h option.h \
 	pckeys.h pattern.h position.h xbuf.h \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less-osc8-open.sh \
 	less.hlp \
-	mkhelp.pl \
-	mkhelp.py \
+	mkhelp.pl mkhelp.py \
+	${LMSG_FILES} lessmsg.inc \
 	mkutable ${UNICODE_FILES} \
 	$(shell ${MAKE} -s -f ${srcdir}/lesstest/Makefile echo_distfiles srcdir=${srcdir}/lesstest) \
 	${DISTFILES_W}
 
-
-all: help.c funcs.h ${UNICODE_FILES} ${srcdir}/configure 
+all: help.c funcs.h ${UNICODE_FILES} lessmsg.inc ${srcdir}/configure
 
 release: .FORCE
 	@if ${srcdir}/ready_to_release -d ${srcdir}; then :; else exit 1; fi
@@ -74,16 +75,21 @@ help.c: less.hlp
 
 ${srcdir}/configure ${srcdir}/defines.h.in: ${srcdir}/configure.ac ${srcdir}/Makefile.in
 	cd ${srcdir}; autoheader; autoconf
+	touch ${srcdir}/configure ${srcdir}/defines.h.in
 
 funcs.h: ${SRC:%=${srcdir}/%}
 	-mv -f ${srcdir}/funcs.h ${srcdir}/funcs.h.old
 	grep -h '^public [^;]*$$' ${SRC:%=${srcdir}/%} | sed 's/$$/;/' >${srcdir}/funcs.h
 
+lessmsg.inc: ${LMSG_FILES}
+	-mv -f $@ $@.old
+	sed -e '/^ *#/d' -e '/^ *$$/d' -e 's/^ *\([^ ]*\)  *\(.*\)/M(\1,"\2")/' $^ > $@
+
 lint:
 	lint -I. ${CPPFLAGS} ${SRC}
 
 clean: 
-	rm -f Makefile config.status config.log config.cache defines.h stamp-h \
+	rm -f Makefile config.status config.log config.cache defines.h stamp-h lessmsg.inc \
 		configure defines.h.in funcs.h help.c \
 		less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man 
 
@@ -157,8 +163,7 @@ dist: ${DISTFILES}
 	echo "Creating $$RELDIR/$$TARF" && \
 	tar -cf - $$LESSREL | gzip -c >$$RELDIR/$$TARF && \
 	echo "Signing $$RELDIR/$$TARF" && \
-	${GPG} --detach-sign $$RELDIR/$$TARF && \
-	mv $$RELDIR/$$TARF.sig $$RELDIR/$$LESSREL.sig && \
+	${GPG} --detach-sign --output=$$RELDIR/$$LESSREL.sig $$RELDIR/$$TARF && \
 	echo "Creating $$RELDIR/$$ZIPF" && \
 	zip -rq $$RELDIR/$$ZIPF $$LESSREL && \
 	rm -rf $$LESSREL

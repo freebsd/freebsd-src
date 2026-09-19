@@ -63,6 +63,7 @@ struct loption
         int odefault;           /* Default value */
         int *ovar;              /* Pointer to the associated variable */
         void (*ofunc)(int, constant char*); /* Pointer to special handling function */
+        lessmsg_id odescid[3];  /* lmsg id for description of each value */
         constant char *odesc[3]; /* Description of each value */
 };
 

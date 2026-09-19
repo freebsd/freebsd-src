@@ -18,7 +18,7 @@
 CC = cl
 
 # Normal flags
-CFLAGS1 = /nologo /W3 /EHsc /O2 /I "." /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /c
+CFLAGS = /nologo /W3 /EHsc /O2 /I "." /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /c
 LDFLAGS = /nologo /subsystem:console /incremental:no
 
 # Debugging flags
@@ -30,51 +30,52 @@ LIBS = user32.lib shell32.lib
 
 #### End of system configuration section. ####
 
-OBJ1 = \
-	main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj \
-	command.obj cvt.obj decode.obj edit.obj evar.obj filename.obj forwback.obj \
-	help.obj ifile.obj input.obj jump.obj line.obj linenum.obj \
-	lsystem.obj mark.obj optfunc.obj option.obj opttbl.obj os.obj \
-	output.obj pattern.obj position.obj prompt.obj search.obj signal.obj \
-	tags.obj ttyin.obj version.obj xbuf.obj regexp.obj
+SRC = brac.c ch.c charset.c cmdbuf.c command.c \
+      cvt.c decode.c edit.c evar.c filename.c forwback.c \
+      ifile.c input.c jump.c line.c linenum.c lmsg.c \
+      lsystem.c main.c mark.c optfunc.c option.c \
+      opttbl.c os.c output.c pattern.c position.c \
+      prompt.c screen.c search.c \
+      signal.c tags.c ttyin.c version.c xbuf.c \
+      regexp.c
 
 !IF "$(SECURE_COMPILE)" == "1"
-OBJ = $(OBJ1)
-CFLAGS = $(CFLAGS1) /D "SECURE_COMPILE=1"
+CFLAGS = $(CFLAGS) /D "SECURE_COMPILE=1"
 !ELSE
-OBJ = $(OBJ1) lesskey_parse.obj
-CFLAGS = $(CFLAGS1)
+SRC = $(SRC) lesskey_parse.c
 !ENDIF
+
+OBJ = $(SRC:.c=.obj) help.obj
 
 # This rule allows us to supply the necessary -D options
 # in addition to whatever the user asks for.
 .c.obj::
 	$(CC) $(CFLAGS) $<
 
-all: less.exe lesskey.exe
+all: less.exe
 
 less.exe: $(OBJ)
 	$(LD) $(LDFLAGS) $** $(LIBS) /out:$@
-
-lesskey.exe: lesskey.obj lesskey_parse.obj version.obj xbuf.obj
-	$(LD) $(LDFLAGS) lesskey.obj lesskey_parse.obj version.obj xbuf.obj $(LIBS) /out:$@
 
 defines.h: defines.wn
 	-del defines.h
 	-copy defines.wn defines.h
 
-$(OBJ): less.h defines.h funcs.h cmd.h
+$(OBJ): less.h funcs.h defines.h lang.h lmsg.h lessmsg.inc pattern.h xbuf.h
 
-# generate help.c and funcs.h. We use *.c because we don't have a sources list.
+# generate help.c, funcs.h and lessmsg.inc.
 # intentionally detached from $(OBJ) in case of cross compile - needs native cc
 generated:
 	$(CC) buildgen.c
 	buildgen.exe help < less.hlp > help.c
-	type *.c 2>NUL | buildgen.exe funcs > funcs.h
+	type $(SRC) 2>NUL | buildgen.exe funcs > funcs.h
+	type lessmsg lessmsg_int 2>NUL | buildgen.exe lessmsg > lessmsg.inc
 
 clean:
 	-del *.obj 
-	-del less.exe
-	-del lesskey.exe
+	-del *.exe
 	-del defines.h
+	-del help.c
+	-del funcs.h
+	-del lessmsg.inc
 
