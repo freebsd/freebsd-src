@@ -47,6 +47,8 @@ CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
 
 %FILES.s
 
+%FILES.rs
+
 %FILES.m
 
 %CLEAN
