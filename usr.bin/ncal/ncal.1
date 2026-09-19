@@ -221,5 +221,21 @@ command and manual were written by
 The assignment of Julian\(enGregorian switching dates to country
 codes is historically naive for many countries.
 .Pp
+Sweden
+.Pq Fl s Ar SE
+used a unique transitional calendar from 1700\(en1712.
+To begin a gradual shift to the Gregorian calendar, Sweden omitted the
+Julian leap day in 1700, so February 29, 1700 did not exist in Sweden.
+The transition was abandoned mid-way due to the Great Northern War, and
+in 1712 King Charles\~XII added an extra day,
+.Dq February\~30, 1712 ,
+to revert to the Julian calendar.
+Sweden finally adopted the Gregorian calendar in 1753.
+.Nm
+models this correctly: February 1700 is shown with 28 days, February
+1712 is shown with 30 days, and dates in the transitional period
+(1700\(en1712) reflect the one-day offset between the Swedish and Julian
+calendars.
+.Pp
 Not all options are compatible and using them in different orders
 will give varying results.
