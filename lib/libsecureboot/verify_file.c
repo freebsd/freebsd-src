@@ -265,7 +265,9 @@ find_manifest(const char *name)
 }
 
 
-#ifdef LOADER_VERIEXEC_TESTING
+#if defined(LOADER_VERIEXEC_STRICT) || defined(LOADER_VERIEXEC_ELEVATED)
+# define ACCEPT_NO_FP_DEFAULT	VE_WANT
+#elif defined(LOADER_VERIEXEC_TESTING)
 # define ACCEPT_NO_FP_DEFAULT	VE_MUST + 1
 #else
 # define ACCEPT_NO_FP_DEFAULT	VE_MUST
@@ -299,6 +301,31 @@ severity_guess(const char *filename)
 }
 
 static int Verifying = -1;		/* 0 if not verifying */
+
+#ifdef LOADER_VERIEXEC_ELEVATED
+/*
+ * Turn verification on explicitly, rather than as a side effect of the first
+ * verify_prep().  Called early (efi_main) so the strict default is in force
+ * before any file or unverified input is read.  Fail-closed: a trust base that
+ * does not come up panics rather than latching Verifying = 0, which would
+ * silently accept everything.  Requires a compiled-in trust anchor.
+ */
+void
+ve_verifying_set(void)
+{
+
+	if (Verifying >= 1)
+		return;
+	Verifying = ve_trust_init();
+	if (Verifying < 1)
+		panic("veriexec: trust anchors failed to initialize");
+	ve_status_set(0, VE_NOT_CHECKED);
+	ve_status_state = VE_STATUS_NONE;
+	if (!ve_self_tests())
+		panic("veriexec: self tests failed");
+	ve_anchor_verbose_set(1);
+}
+#endif
 
 static void
 verify_tweak(int fd, off_t off, struct stat *stp,
