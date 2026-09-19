@@ -10,6 +10,15 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+d3c6de9c3cab:
+	less(1) has been updated to version 710.  The obsolete lesskey(1)
+	utility has been removed; less(1) reads plain-text lesskey files
+	such as ~/.lesskey and /etc/syslesskey directly, and the file format
+	is now documented in lesskey(5).  New features in this release
+	include the || command, the right-limit-scroll command, underlining
+	of OSC 8 hyperlinks, -DO for coloring them, and LESSMSG, which
+	allows less(1) messages to be translated into other languages.
+
 0c370a416b68:
         Update smartpqi(4) to vendor version 14.4690.0.2008 - 15.2.0.2008
         for the SmartArray storage controllers.  This adds support for new 
