@@ -239,13 +239,25 @@ exec_aout_imgact(struct image_params *imgp)
 	    a_out->a_entry >= virtual_offset + a_out->a_text ||
 
 	    /* text and data size must each be page rounded */
-	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK
+	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK ||
 
-#ifdef __amd64__
-	    ||
-	    /* overflows */
-	    virtual_offset + a_out->a_text + a_out->a_data + bss_size > UINT_MAX
-#endif
+	    /*
+	     * overflows: a_text/a_data/a_bss are attacker-controlled
+	     * uint32_t fields straight from the file header. This sum
+	     * must be computed in a type wider than 32 bits before
+	     * comparing against UINT_MAX: on ILP32 platforms (e.g. i386,
+	     * where this is the native, non-compat a.out personality)
+	     * "unsigned long" is itself only 32 bits, so the addition
+	     * would silently wrap *before* any "> UINT_MAX" comparison
+	     * ever ran, making such a check a no-op there. A crafted
+	     * small file (even a 0-byte one) could claim huge a_text/
+	     * a_data values that wrap back to something small enough to
+	     * also sail past the "text + data can't exceed file size"
+	     * check a few lines down. Casting to uint64_t first avoids
+	     * this on every platform, not just LP64 ones.
+	     */
+	    (uint64_t)virtual_offset + a_out->a_text + a_out->a_data + bss_size >
+	        UINT_MAX
 	    )
 		return (-1);
 
