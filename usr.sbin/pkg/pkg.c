@@ -706,7 +706,7 @@ verify_pubsignature(int fd_pkg, int fd_sig, struct repository *r)
 	}
 
 	/* Verify the signature. */
-	printf("Verifying signature with public key %s.a.. ", r->pubkey);
+	printf("Verifying signature with public key %s... ", r->pubkey);
 	if (pkgsign_verify_data(sctx, data, datasz, r->pubkey, NULL, 0, pk->sig,
 	    pk->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
@@ -813,7 +813,7 @@ verify_signature(int fd_pkg, int fd_sig, struct repository *r)
 	}
 
 	if (pkgsign_new(sc->type, &sctx) != 0) {
-		fprintf(stderr, "Failed to fetch 'rsa' signer\n");
+		fprintf(stderr, "Failed to fetch %s signer\n", sc->type);
 		goto cleanup;
 	}
 
