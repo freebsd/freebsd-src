@@ -146,20 +146,55 @@ static lbool must_quote(char c)
  */
 public char * shell_quoten(constant char *s, size_t slen)
 {
-	constant char *p;
-	char *np;
 	char *newstr;
+	char *np;
+	constant char *p;
+	lbool use_quotes = FALSE;
+	constant char *es = s + slen;
+#if MSDOS_COMPILER
+	int cbs = 0; /* consecutive backslashes */
+
+	if (slen == 0)
+		use_quotes = TRUE;
+	else
+	{
+		for (p = s;  p < es;  ++p)
+		{
+			if (*p == ' ' || *p == '\t')
+			{
+				use_quotes = TRUE;
+				break;
+			}
+		}
+	}
+	newstr = np = (char *) ecalloc(2*slen+3, sizeof(char));
+	if (use_quotes)
+		*np++ = '"';
+	while (s < es)
+	{
+		if (*s == '\\' || *s == '"')
+			*np++ = '\\';
+		else
+			np -= cbs;
+		cbs = (*s == '\\') ? cbs + 1 : 0;
+		*np++ = *s++;
+	}
+	if (use_quotes)
+		*np++ = '"';
+	else
+		np -= cbs;
+	*np = '\0';
+#else
 	size_t len;
 	constant char *esc = get_meta_escape();
 	size_t esclen = strlen(esc);
-	lbool use_quotes = FALSE;
 	lbool have_quotes = FALSE;
 
 	/*
 	 * Determine how big a string we need to allocate.
 	 */
 	len = 1; /* Trailing null byte */
-	for (p = s;  p < s + slen;  p++)
+	for (p = s;  p < es;  p++)
 	{
 		len++;
 		if (*p == openquote || *p == closequote)
@@ -203,7 +238,6 @@ public char * shell_quoten(constant char *s, size_t slen)
 		SNPRINTF4(newstr, len, "%c%.*s%c", openquote, (int) slen, s, closequote);
 	} else
 	{
-		constant char *es = s + slen;
 		while (s < es)
 		{
 			if (!metachar(*s))
@@ -225,6 +259,7 @@ public char * shell_quoten(constant char *s, size_t slen)
 		}
 		*np = '\0';
 	}
+#endif
 	return (newstr);
 }
 
@@ -237,7 +272,7 @@ public char * shell_quote(constant char *s)
  * Return a pathname that points to a specified file in a specified directory.
  * Return NULL if the file does not exist in the directory.
  */
-public char * dirfile(constant char *dirname, constant char *filename, int must_exist)
+public char * dirfile(constant char *dirname, constant char *filename, lbool must_exist)
 {
 	char *pathname;
 	size_t len;
@@ -279,12 +314,12 @@ public char * homefile(constant char *filename)
 	char *pathname;
 
 	/* Try $HOME/filename. */
-	pathname = dirfile(lgetenv("HOME"), filename, 1);
+	pathname = dirfile(lgetenv("HOME"), filename, TRUE);
 	if (pathname != NULL)
 		return (pathname);
 #if OS2
 	/* Try $INIT/filename. */
-	pathname = dirfile(lgetenv("INIT"), filename, 1);
+	pathname = dirfile(lgetenv("INIT"), filename, TRUE);
 	if (pathname != NULL)
 		return (pathname);
 #endif
@@ -373,8 +408,8 @@ static size_t fexpand_copy(constant char *fr, char *to)
 /*
  * Expand a string, substituting any "%" with the current filename,
  * and any "#" with the previous filename.
- * But a string of N "%"s is just replaced with N-1 "%"s.
- * Likewise for a string of N "#"s.
+ * But two consecutive "%"s are just replaced with one "%".
+ * Likewise for two consecutive "#"s.
  * {{ This is a lot of work just to support % and #. }}
  */
 public char * fexpand(constant char *s)
@@ -555,26 +590,31 @@ static FILE * shellcmd(constant char *cmd)
 	shell = lgetenv("SHELL");
 	if (!isnullenv(shell))
 	{
-		char *scmd;
-		char *esccmd;
+		constant char *copt = shell_coption();
 
 		/*
 		 * Read the output of <$SHELL -c cmd>.  
 		 * Escape any metacharacters in the command.
 		 */
-		esccmd = shell_quote(cmd);
-		if (esccmd == NULL)
+		if (copt == NULL)
 		{
 			fd = popen(cmd, "r");
 		} else
 		{
-			constant char *copt = shell_coption();
-			size_t len = strlen(shell) + strlen(esccmd) + strlen(copt) + 3;
-			scmd = (char *) ecalloc(len, sizeof(char));
-			SNPRINTF3(scmd, len, "%s %s %s", shell, copt, esccmd);
-			free(esccmd);
-			fd = popen(scmd, "r");
-			free(scmd);
+			char *esccmd = shell_quote(cmd);
+			if (esccmd == NULL)
+			{
+				error(LM(cannot_quote_command), NULL_PARG);
+				return NULL;
+			} else
+			{
+				size_t len = strlen(shell) + strlen(esccmd) + strlen(copt) + 3;
+				char *scmd = (char *) ecalloc(len, sizeof(char));
+				SNPRINTF3(scmd, len, "%s %s %s", shell, copt, esccmd);
+				fd = popen(scmd, "r");
+				free(scmd);
+				free(esccmd);
+			}
 		}
 	} else
 #endif
@@ -847,7 +887,7 @@ static int num_pct_s(constant char *lessopen)
  * See if we should open a "replacement file" 
  * instead of the file we're about to open.
  */
-public char * open_altfile(constant char *filename, int *pf, void **pfd)
+public char * open_altfile(constant char *filename, int *pf, FILE **pfd)
 {
 #if !HAVE_POPEN
 	return (NULL);
@@ -875,7 +915,7 @@ public char * open_altfile(constant char *filename, int *pf, void **pfd)
 		 * a "pipe preprocessor".
 		 */
 #if !HAVE_FILENO
-		error("LESSOPEN pipe is not supported", NULL_PARG);
+		error(LM(LESSOPEN_pipe_is_not_supported), NULL_PARG);
 		return (NULL);
 #else
 		lessopen++;
@@ -895,11 +935,15 @@ public char * open_altfile(constant char *filename, int *pf, void **pfd)
 	}
 	if (num_pct_s(lessopen) != 1)
 	{
-		error("LESSOPEN ignored: must contain exactly one %%s", NULL_PARG);
+		error(LM(LESSOPEN_ignored), NULL_PARG);
 		return (NULL);
 	}
 
 	qfilename = shell_quote(filename);
+	if (qfilename == NULL)
+	{
+		return (NULL);
+	}
 	len = strlen(lessopen) + strlen(qfilename) + 2;
 	cmd = (char *) ecalloc(len, sizeof(char));
 	SNPRINTF1(cmd, len, lessopen, qfilename);
@@ -947,7 +991,7 @@ public char * open_altfile(constant char *filename, int *pf, void **pfd)
 		}
 		/* Alt pipe contains data, so use it. */
 		ch_ungetchar(c);
-		*pfd = (void *) fd;
+		*pfd = fd;
 		*pf = f;
 		return (save("-"));
 	}
@@ -986,11 +1030,18 @@ public void close_altfile(constant char *altfilename, constant char *filename)
 		return;
 	if (num_pct_s(lessclose) > 2) 
 	{
-		error("LESSCLOSE ignored; must contain no more than 2 %%s", NULL_PARG);
+		error(LM(LESSCLOSE_ignored), NULL_PARG);
 		return;
 	}
 	qfilename = shell_quote(filename);
+	if (qfilename == NULL)
+		return;
 	qaltfilename = shell_quote(altfilename);
+	if (qaltfilename == NULL)
+	{
+		free(qfilename);
+		return;
+	}
 	len = strlen(lessclose) + strlen(qfilename) + strlen(qaltfilename) + 2;
 	cmd = (char *) ecalloc(len, sizeof(char));
 	SNPRINTF2(cmd, len, lessclose, qfilename, qaltfilename);
@@ -1044,11 +1095,10 @@ public char * bad_file(constant char *filename)
 
 	if (!force_open && is_dir(filename))
 	{
-		static char is_a_dir[] = " is a directory";
-
-		m = (char *) ecalloc(strlen(filename) + sizeof(is_a_dir), 
-			sizeof(char));
+		constant char *is_a_dir = LM(is_a_directory);
+		m = (char *) ecalloc(strlen(filename) + strlen(is_a_dir) + 2, sizeof(char));
 		strcpy(m, filename);
+		strcat(m, " ");
 		strcat(m, is_a_dir);
 	} else
 	{
@@ -1065,10 +1115,10 @@ public char * bad_file(constant char *filename)
 			m = NULL;
 		} else if (!S_ISREG(statbuf.st_mode))
 		{
-			static char not_reg[] = " is not a regular file (use -f to see it)";
-			m = (char *) ecalloc(strlen(filename) + sizeof(not_reg),
-				sizeof(char));
+			constant char *not_reg = LM(is_not_a_regular_file);
+			m = (char *) ecalloc(strlen(filename) + strlen(not_reg) + 2, sizeof(char));
 			strcpy(m, filename);
+			strcat(m, " ");
 			strcat(m, not_reg);
 		}
 #endif
@@ -1082,17 +1132,23 @@ public char * bad_file(constant char *filename)
  */
 public POSITION filesize(int f)
 {
+	if (f < 0)
+		return (NULL_POSITION);
 #if HAVE_STAT
+{
 	less_stat_t statbuf;
 
 	if (less_fstat(f, &statbuf) >= 0)
 		return ((POSITION) statbuf.st_size);
+}
 #else
 #ifdef _OSK
+{
 	long size;
 
 	if ((size = (long) _gs_size(f)) >= 0)
 		return ((POSITION) size);
+}
 #endif
 #endif
 	return (seek_filesize(f));
@@ -1106,9 +1162,9 @@ public lbool curr_ifile_changed(void)
 	 * or if the file is smaller than it previously was,
 	 * the file must be different.
 	 */
-	struct stat st;
+	less_stat_t st;
 	POSITION curr_pos = ch_tell();
-	int r = stat(get_filename(curr_ifile), &st);
+	int r = less_stat(get_filename(curr_ifile), &st);
 	if (r == 0 && (st.st_ino != curr_ino ||
 		st.st_dev != curr_dev ||
 		(curr_pos != NULL_POSITION && st.st_size < curr_pos)))
@@ -1122,7 +1178,12 @@ public lbool curr_ifile_changed(void)
  */
 public constant char * shell_coption(void)
 {
-	return ("-c");
+	constant char *copt = lgetenv("LESS_SHELL_COPTION");
+	if (isnullenv(copt))
+		copt = "-c";
+	else if (strcmp(copt, "-") == 0)
+		copt = NULL;
+	return copt;
 }
 
 /*

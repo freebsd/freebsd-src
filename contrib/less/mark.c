@@ -146,7 +146,7 @@ static struct mark * getumark(char c)
 	{
 		PARG parg;
 		parg.p_char = (char) c;
-		error("Invalid mark letter %c", &parg);
+		error(LM(Invalid_mark_letter_X), &parg);
 		return NULL;
 	}
 	return &marks[index];
@@ -178,24 +178,32 @@ static struct mark * getmark(char c)
 		 */
 		if (ch_end_seek())
 		{
-			error("Cannot seek to end of file", NULL_PARG);
+			error(LM(Cannot_seek_to_end_of_file), NULL_PARG);
 			return (NULL);
 		}
 		m = &sm;
 		pos = ch_tell();
 		if (pos == NULL_POSITION)
 			return (NULL);
-		pos = back_line(pos, NULL);
+		pos = back_line(pos, NULL, NULL);
 		if (pos == NULL_POSITION)
 			return (NULL);
 		cmark(m, curr_ifile, pos, sc_height-1);
 		break;
-	case '.':
+	case '.': case ':':
 		/*
-		 * Current position in the current file.
+		 * Top line on screen.
 		 */
 		m = &sm;
 		get_scrpos(&m->m_scrpos, TOP);
+		cmark(m, curr_ifile, m->m_scrpos.pos, m->m_scrpos.ln);
+		break;
+	case ';':
+		/*
+		 * Bottom line on screen.
+		 */
+		m = &sm;
+		get_scrpos(&m->m_scrpos, BOTTOM);
 		cmark(m, curr_ifile, m->m_scrpos.pos, m->m_scrpos.ln);
 		break;
 	case '\'':
@@ -213,7 +221,7 @@ static struct mark * getmark(char c)
 			break;
 		if (!mark_is_set(m))
 		{
-			error("Mark not set", NULL_PARG);
+			error(LM(Mark_not_set), NULL_PARG);
 			return (NULL);
 		}
 		break;
@@ -257,7 +265,7 @@ public void setmark(char c, int where, LINENUM linenum)
 		{
 			PARG parg;
 			parg.p_linenum = linenum;
-			error("Cannot find line number %n", &parg);
+			error(LM(Cannot_find_line_number_X), &parg);
 			return;
 		}
 		get_scrpos_pos(&scrpos, where, pos);
@@ -321,8 +329,6 @@ public void gomark(char c, int sline)
 	m = getmark(c);
 	if (m == NULL)
 		return;
-	if (sline != 0)
-		m->m_scrpos.ln = sline;
 
 	/*
 	 * If we're trying to go to the lastmark and 
@@ -345,8 +351,9 @@ public void gomark(char c, int sline)
 		if (edit_ifile(m->m_ifile))
 			return;
 	}
-
-	jump_loc(scrpos.pos, scrpos.ln);
+	if (sline == 0)
+		sline = m->m_scrpos.ln;
+	jump_loc(scrpos.pos, sline);
 }
 
 /*
@@ -366,7 +373,7 @@ public POSITION markpos(char c)
 
 	if (m->m_ifile != curr_ifile)
 	{
-		error("Mark not in current file", NULL_PARG);
+		error(LM(Mark_not_in_current_file), NULL_PARG);
 		return (NULL_POSITION);
 	}
 	return (m->m_scrpos.pos);
@@ -485,22 +492,21 @@ public void restore_mark(constant char *line)
 	int ln;
 	POSITION pos;
 
-#define skip_whitespace while (*line == ' ') line++
 	if (*line++ != 'm')
 		return;
-	skip_whitespace;
+	line = skipspc(line);
 	index = mark_index(*line++);
 	if (index < 0)
 		return;
-	skip_whitespace;
+	line = skipspc(line);
 	ln = lstrtoic(line, &line, 10);
 	if (ln < 0)
 		return;
-	skip_whitespace;
+	line = skipspc(line);
 	pos = lstrtoposc(line, &line, 10);
 	if (pos < 0)
 		return;
-	skip_whitespace;
+	line = skipspc(line);
 	/* Save in both active marks table and file_marks table. */
 	cmarkf(&marks[index], NULL_IFILE, pos, ln, line);
 	cmarkf(&file_marks[index], NULL_IFILE, pos, ln, line);

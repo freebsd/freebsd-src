@@ -16,7 +16,7 @@
 #include "less.h"
 #include "position.h"
 
-extern int less_is_more;
+extern lbool less_is_more;
 
 public lbool squished;
 public lbool no_back_scroll = FALSE;
@@ -110,7 +110,7 @@ public lbool entire_file_displayed(void)
 		return (FALSE);
 
 	/* Make sure first line of file is displayed. */
-	pos = position(0);
+	pos = position(TOP);
 	return (pos == NULL_POSITION || pos == 0);
 }
 
@@ -156,7 +156,7 @@ static POSITION forw_line_pfx(POSITION pos, int pfx, int skipeol)
 static void set_attr_header(int ln)
 {
 	set_attr_line(AT_COLOR_HEADER);
-	if (ln+1 == header_lines && position(0) != header_start_pos)
+	if (ln+1 == header_lines && position(TOP) != header_start_pos)
 		set_attr_line(AT_UNDERLINE);
 }
 
@@ -273,7 +273,8 @@ public void forw(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 				need_home = TRUE;
 			} else if (!first_time && !is_filtering() && full_screen)
 			{
-				putstr("...skipping...\n");
+				putstr(LM(skipping));
+				putstr("\n");
 			}
 		}
 	}
@@ -404,7 +405,7 @@ public void back(int n, POSITION pos, lbool force, lbool only_last, lbool to_new
 		/*
 		 * Get the previous line of input.
 		 */
-		pos = back_line(pos, &newline);
+		pos = back_line(pos, NULL, &newline);
 		if (to_newline && !newline)
 			++n;
 		if (pos == NULL_POSITION)

@@ -1,9 +1,64 @@
-.TH LESSECHO 1 "30 May 2026" "less 704"
+.TH LESSECHO 1 "08 Sep 2026" "less 710"
 .\" Define a string to interpolate the hyphenless break point escape
 .\" sequence (for URLs and similar) if the formatter claims groff
 .\" compatibility, else interpolate nothing.
 .ie \n(.g .ds : \:
 .el       .ds : \" empty
+.\" Define local versions of groff's "an-ext.tmac" macros if needed.
+.ds %% \" empty
+.if \n(.g .ig %%
+.\" Prepare link text for mail/web hyperlinks.  `MT` and `UR` call this.
+.de mV
+.  ds mU \\$1\"
+..
+.
+.
+.\" Emit hyperlink.  The optional argument supplies trailing punctuation
+.\" after link text.  `ME` and `UE` call this.
+.de mQ
+.  mY
+.  nh
+<\\*(mU>\\$1
+.  hy \\n(mH
+.  rm mU
+..
+.
+.
+.\" Start URL.
+.\" .UR url
+.if !\n(.g-\n(mG \{\
+.de UR
+.  mV \\$1
+..
+.\}
+.
+.
+.\" End URL.
+.\" .UE [punctuation]
+.if !\n(.g-\n(mG \{\
+.de UE
+.  mQ \\$1
+..
+.\}
+.
+.
+.\" Start email address.
+.\" .MT address
+.if !\n(.g-\n(mG \{\
+.de MT
+.  mV \\$1
+..
+.\}
+.
+.
+.\" End email address.
+.\" .ME [punctuation]
+.if !\n(.g-\n(mG \{\
+.de ME
+.  mQ \\$1
+..
+.\}
+.%%
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
@@ -74,10 +129,12 @@ The default is that only arguments containing metacharacters are quoted.
 .SH "SEE ALSO"
 .BR less (1)
 .SH AUTHOR
-This manual page was written by Thomas Schoepf <schoepf@debian.org>,
+This manual page was written by
+.MT schoepf@debian.org
+Thomas Schoepf
+.ME ,
 for the Debian GNU/Linux system (but may be used by others).
 .PP
 Report bugs at
-.nh
-https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues.
-.hy
+.UR https://\*:github\*:.com/\*:gwsw/\*:less/\*:issues
+.UE .
