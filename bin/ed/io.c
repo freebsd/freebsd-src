@@ -297,7 +297,7 @@ put_tty_line(const char *s, int l, long n, int gflag)
 {
 	int col = 0;
 	int lc = 0;
-	char *cp;
+	const char *cp;
 	wchar_t wc;
 	mbstate_t mbs;
 	size_t clen;
