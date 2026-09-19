@@ -559,6 +559,11 @@
 #define	CPUID_STDEXT4_NMISRC		0x00100000
 #define	CPUID_STDEXT4_LAM		0x04000000
 
+/*
+ * CPUID instruction 7 Structured Extended Features, leaf 1 ecx info
+ */
+#define	CPUID_STDEXT5_MSR_IMM		0x00000020
+
 /* CPUID_HYBRID_ID leaf 0x1a */
 #define	CPUID_HYBRID_CORE_MASK	0xff000000
 #define	CPUID_HYBRID_SMALL_CORE	0x20000000
