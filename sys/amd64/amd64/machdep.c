@@ -1929,11 +1929,26 @@ safe_read(vm_offset_t addr, char *valp)
 	return (uiomove_mem(UIO_MEM_KMEM, &uio));
 }
 
-void
-enable_splitlock_ac(void)
+static void
+enable_splitlock_ac_wrmsr(void)
 {
 	MPASS(ia32_splitlock);
 	wrmsr(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) | MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+static void
+enable_splitlock_ac_wrmsrimm(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr_imm(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) |
+	    MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+DEFINE_IFUNC(, void, enable_splitlock_ac, (void))
+{
+	if ((cpu_stdext_feature5 & CPUID_STDEXT5_MSR_IMM) != 0)
+		return (enable_splitlock_ac_wrmsrimm);
+	return (enable_splitlock_ac_wrmsr);
 }
 
 void
@@ -1946,11 +1961,26 @@ enable_splitlock(struct thread *td)
 	critical_exit();
 }
 
-void
-disable_splitlock_ac(void)
+static void
+disable_splitlock_ac_wrmsr(void)
 {
 	MPASS(ia32_splitlock);
 	wrmsr(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) & ~MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+static void
+disable_splitlock_ac_wrmsrimm(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr_imm(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) &
+	    ~MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+DEFINE_IFUNC(, void, disable_splitlock_ac, (void))
+{
+	if ((cpu_stdext_feature5 & CPUID_STDEXT5_MSR_IMM) != 0)
+		return (disable_splitlock_ac_wrmsrimm);
+	return (disable_splitlock_ac_wrmsr);
 }
 
 void
