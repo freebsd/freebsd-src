@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+3fe5961a0b70:
+	sysconf(8) and libbsdconf(3) have been added.  sysconf(8) queries
+	and edits loader.conf(5), sysctl.conf(5), and the make.conf(5)
+	family (make.conf, src.conf, and src-env.conf) in the style of
+	sysrc(8).  The rc target passes through to sysrc(8).
+
 7144a1d58c5c, a311bd18a6fb, 884ee8d6c9b4:
 	These three patches add the required "glue" so that the
 	nfsrdma.ko and nfsclrdma.ko modules can be loaded.
