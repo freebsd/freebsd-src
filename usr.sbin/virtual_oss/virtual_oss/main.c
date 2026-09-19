@@ -2564,6 +2564,7 @@ int
 main(int argc, char **argv)
 {
 	const char *ptrerr;
+	const char *cuse_mod = "cuse.ko";
 	struct sigaction sa;
 	struct cuse_dev *pdev = NULL;
 	struct virtual_profile *pvp;
@@ -2583,8 +2584,10 @@ main(int argc, char **argv)
 
 	atomic_init();
 
-	if (kldload("cuse.ko") < 0 && errno != EEXIST)
-		err(1, "Failed to load cuse kernel module");
+	if ((kldfind(cuse_mod) < 0 && errno == ENOENT) &&
+	    (kldload(cuse_mod) < 0 && errno != EEXIST)) {
+		err(1, "Failed to load %s", cuse_mod);
+	}
 
 	if (cuse_init() != 0)
 		errx(EX_USAGE, "Could not connect to cuse module");
