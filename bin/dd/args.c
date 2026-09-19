@@ -103,7 +103,8 @@ static char *oper;
 void
 jcl(char **argv)
 {
-	struct arg *ap, tmp;
+	const struct arg *ap;
+	struct arg tmp;
 	char *arg;
 
 	in.dbsz = out.dbsz = 512;
@@ -117,7 +118,7 @@ jcl(char **argv)
 		if (!*arg)
 			errx(1, "no value specified for %s", oper);
 		tmp.name = oper;
-		if (!(ap = (struct arg *)bsearch(&tmp, args,
+		if (!(ap = bsearch(&tmp, args,
 		    sizeof(args)/sizeof(struct arg), sizeof(struct arg),
 		    c_arg)))
 			errx(1, "unknown operand %s", tmp.name);
@@ -265,7 +266,8 @@ static const struct iflag {
 static void
 f_iflag(char *arg)
 {
-	struct iflag *ip, tmp;
+	const struct iflag *ip;
+	struct iflag tmp;
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
@@ -375,7 +377,8 @@ static const struct conv {
 static void
 f_conv(char *arg)
 {
-	struct conv *cp, tmp;
+	const struct conv *cp;
+	struct conv tmp;
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
@@ -411,7 +414,8 @@ static const struct oflag {
 static void
 f_oflag(char *arg)
 {
-	struct oflag *op, tmp;
+	const struct oflag *op;
+	struct oflag tmp;
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
