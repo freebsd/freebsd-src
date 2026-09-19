@@ -1538,6 +1538,20 @@ destroy_dev_drain(struct cdevsw *csw)
 	dev_unlock();
 }
 
+/*
+ * Flush all pending deferred destroy_dev() operations.  Drivers that call
+ * tty_rel_gone() or destroy_dev_sched*() and need a synchronous teardown
+ * should call this after scheduling destruction and before checking whether
+ * their devices are gone.
+ */
+void
+destroy_dev_drain_pending(void)
+{
+
+	taskqueue_drain(taskqueue_thread, &dev_dtr_task);
+	taskqueue_drain(taskqueue_thread, &dev_dtr_task_giant);
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
