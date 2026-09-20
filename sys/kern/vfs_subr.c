@@ -5925,8 +5925,6 @@ vop_fsync_debugprepost(struct vnode *vp, const char *name)
 {
 	struct mount *mp;
 
-	if (vp->v_type == VCHR)
-		;
 	/*
 	 * The shared vs. exclusive locking policy for fsync()
 	 * is actually determined by vp's write mount as indicated
@@ -5942,16 +5940,14 @@ vop_fsync_debugprepost(struct vnode *vp, const char *name)
 	 * should still be caught when the stacked filesystem
 	 * invokes VOP_FSYNC() on the underlying filesystem.
 	 */
-	else {
-		mp = NULL;
-		VOP_GETWRITEMOUNT(vp, &mp);
-		if (vn_lktype_write(mp, vp) == LK_SHARED)
-			ASSERT_VOP_LOCKED(vp, name);
-		else
-			ASSERT_VOP_ELOCKED(vp, name);
-		if (mp != NULL)
-			vfs_rel(mp);
-	}
+	mp = NULL;
+	VOP_GETWRITEMOUNT(vp, &mp);
+	if (vn_lktype_write(mp, vp) == LK_SHARED)
+		ASSERT_VOP_LOCKED(vp, name);
+	else
+		ASSERT_VOP_ELOCKED(vp, name);
+	if (mp != NULL)
+		vfs_rel(mp);
 }
 
 void
