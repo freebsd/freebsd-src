@@ -292,7 +292,7 @@ vop_revoke {
 };
 
 
-%% fsync	vp	- - -
+%% fsync	vp	L L L
 %! fsync	pre	vop_fsync_debugpre
 %! fsync	post	vop_fsync_debugpost
 
