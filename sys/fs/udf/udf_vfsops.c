@@ -496,11 +496,8 @@ bail:
 		free(udfmp, M_UDFMOUNT);
 	if (bp != NULL)
 		brelse(bp);
-	if (cp != NULL) {
-		g_topology_lock();
-		g_vfs_close(cp);
-		g_topology_unlock();
-	}
+	if (cp != NULL)
+		g_vfs_close_unlocked(cp);
 	dev_rel(dev);
 	return error;
 };
@@ -528,9 +525,7 @@ udf_unmount(struct mount *mp, int mntflags)
 #endif
 	}
 
-	g_topology_lock();
-	g_vfs_close(udfmp->im_cp);
-	g_topology_unlock();
+	g_vfs_close_unlocked(udfmp->im_cp);
 	vrele(udfmp->im_devvp);
 	dev_rel(udfmp->im_dev);
 

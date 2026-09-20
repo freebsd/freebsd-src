@@ -837,7 +837,6 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	struct ext2fs *es;
 	struct cdev *dev = devvp->v_rdev;
 	struct g_consumer *cp;
-	struct bufobj *bo;
 	struct csum *sump;
 	int error;
 	int ronly;
@@ -870,9 +869,6 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 		goto out;
 	}
 
-	bo = &devvp->v_bufobj;
-	bo->bo_private = cp;
-	bo->bo_ops = g_vfs_bufops;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > maxphys)
@@ -983,11 +979,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 out:
 	if (bp)
 		brelse(bp);
-	if (cp != NULL) {
-		g_topology_lock();
-		g_vfs_close(cp);
-		g_topology_unlock();
-	}
+	if (cp != NULL)
+		g_vfs_close_unlocked(cp);
 	if (ump) {
 		mtx_destroy(EXT2_MTX(ump));
 		free(ump->um_e2fs->e2fs_gd, M_EXT2MNT);
@@ -1029,9 +1022,7 @@ ext2_unmount(struct mount *mp, int mntflags)
 		ext2_sbupdate(ump, MNT_WAIT);
 	}
 
-	g_topology_lock();
-	g_vfs_close(ump->um_cp);
-	g_topology_unlock();
+	g_vfs_close_unlocked(ump->um_cp);
 	vrele(ump->um_devvp);
 	sump = fs->e2fs_clustersum;
 	for (i = 0; i < fs->e2fs_gcount; i++, sump++)
