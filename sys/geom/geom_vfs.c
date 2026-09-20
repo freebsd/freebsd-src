@@ -338,3 +338,16 @@ g_vfs_close(struct g_consumer *cp)
 	KASSERT(sc->sc_event == NULL, ("g_vfs %p event is non-NULL", sc));
 	g_free(sc);
 }
+
+void
+g_vfs_close_unlocked(struct g_consumer *cp)
+{
+	struct vnode *vp;
+
+	vp = cp->private;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	g_topology_lock();
+	g_vfs_close(cp);
+	g_topology_unlock();
+	VOP_UNLOCK(vp);
+}
