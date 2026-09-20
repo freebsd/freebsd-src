@@ -361,6 +361,7 @@ scottph [label="D Scott Phillips\nscottph@FreeBSD.org\n2019/05/28"]
 se [label="Stefan Esser\nse@FreeBSD.org\n1994/08/26"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
+seuros [label="Abdelkader Boudih\nseuros@FreeBSD.org\n2026/08/23"]
 sgalabov [label="Stanislav Galabov\nsgalabov@FreeBSD.org\n2016/02/24"]
 shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2017/09/02"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
@@ -440,6 +441,7 @@ adrian -> nprice
 adrian -> ray
 adrian -> rmh
 adrian -> sephe
+adrian -> seuros
 adrian -> sgalabov
 
 ae -> melifaro
