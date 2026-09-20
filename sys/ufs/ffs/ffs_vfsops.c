@@ -1202,11 +1202,8 @@ out:
 		free(fs->fs_si, M_UFSMNT);
 		free(fs, M_UFSMNT);
 	}
-	if (cp != NULL) {
-		g_topology_lock();
-		g_vfs_close(cp);
-		g_topology_unlock();
-	}
+	if (cp != NULL)
+		g_vfs_close_unlocked(cp);
 	if (ump != NULL) {
 		mtx_destroy(UFS_MTX(ump));
 		if (mp->mnt_gjprovider != NULL) {

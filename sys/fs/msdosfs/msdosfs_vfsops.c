@@ -863,11 +863,8 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 error_exit:
 	if (bp != NULL)
 		brelse(bp);
-	if (cp != NULL) {
-		g_topology_lock();
-		g_vfs_close(cp);
-		g_topology_unlock();
-	}
+	if (cp != NULL)
+		g_vfs_close_unlocked(cp);
 	if (pmp != NULL) {
 		lockdestroy(&pmp->pm_fatlock);
 		free(pmp->pm_inusemap, M_MSDOSFSFAT);
