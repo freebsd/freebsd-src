@@ -79,10 +79,11 @@ static struct pcisel getsel(const char *str);
 static void list_bridge(int fd, struct pci_conf *p);
 static void list_bars(int fd, struct pci_conf *p);
 static void list_devs(const char *name, int verbose, int bars, int bridge,
-    int caps, int errors, int vpd, int compact);
+    int caps, int errors, int vpd, int compact, const char *class);
 static void show_tree(int verbose);
 static void list_verbose(struct pci_conf *p);
 static void list_vpd(int fd, struct pci_conf *p);
+static bool validate_class(const char *class);
 static const char *guess_class(struct pci_conf *p);
 static const char *guess_subclass(struct pci_conf *p);
 static int load_vendors(void);
@@ -103,7 +104,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s",
-		"usage: pciconf -l [-BbcevV] [device]\n"
+		"usage: pciconf -l [-BbcevV] [-C class] [device]\n"
 		"       pciconf -t [-v]\n"
 		"       pciconf -a device\n"
 		"       pciconf -r [-b | -h] device addr[:addr2]\n"
@@ -122,12 +123,14 @@ main(int argc, char **argv)
 	enum { NONE, LIST, TREE, READ, WRITE, ATTACHED, DUMPBAR, READBAR,
 	    WRITEBAR } mode;
 	int compact, bars, bridge, caps, errors, verbose, vpd;
+	const char *class;
 
 	mode = NONE;
 	compact = bars = bridge = caps = errors = verbose = vpd = 0;
 	width = 4;
+	class = NULL;
 
-	while ((c = getopt(argc, argv, "aBbcDehlRrtWwVvx")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcC:DehlRrtWwVvx")) != -1) {
 		switch(c) {
 		case 'a':
 			mode = ATTACHED;
@@ -144,6 +147,10 @@ main(int argc, char **argv)
 
 		case 'c':
 			caps++;
+			break;
+
+		case 'C':
+			class = optarg;
 			break;
 
 		case 'D':
@@ -206,7 +213,7 @@ main(int argc, char **argv)
 		if (optind >= argc + 1)
 			usage();
 		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
-		    bars, bridge, caps, errors, vpd, compact);
+		    bars, bridge, caps, errors, vpd, compact, class);
 		break;
 	case TREE:
 		if (optind != argc)
@@ -314,15 +321,19 @@ fetch_devs(int fd, const char *name, struct pci_conf **confp, size_t *countp)
 
 static void
 list_devs(const char *name, int verbose, int bars, int bridge, int caps,
-    int errors, int vpd, int compact)
+    int errors, int vpd, int compact, const char *class)
 {
 	int fd;
 	struct pci_conf *conf, *p;
 	size_t count;
+	const char *pclass;
 	int none_count = 0;
 
 	if (verbose)
 		load_vendors();
+
+	if (class != NULL && !validate_class(class))
+		errx(1, "Invalid class name");
 
 	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
 	    0);
@@ -339,6 +350,12 @@ list_devs(const char *name, int verbose, int bars, int bridge, int caps,
 		printf("drv\tselector\tclass    rev  hdr  "
 		    "vendor device subven subdev\n");
 	for (p = conf; p < conf + count; p++) {
+		if (class != NULL) {
+			pclass = guess_class(p);
+			if (pclass == NULL || strcasecmp(pclass, class) != 0)
+				continue;
+		}
+
 		if (compact)
 			printf("%s%d@pci%d:%d:%d:%d:"
 			    "\t%06x   %02x   %02x   "
@@ -1080,6 +1097,19 @@ static struct
 	{PCIC_INSTRUMENT,	-1,			"non-essential instrumentation"},
 	{0, 0,		NULL}
 };
+
+static bool
+validate_class(const char *class)
+{
+	int i;
+
+	for (i = 0; pci_nomatch_tab[i].desc != NULL; i++) {
+		if ((strcasecmp(class, pci_nomatch_tab[i].desc) == 0) &&
+		    (pci_nomatch_tab[i].subclass == -1))
+			return (true);
+	}
+	return (false);
+}
 
 static const char *
 guess_class(struct pci_conf *p)
