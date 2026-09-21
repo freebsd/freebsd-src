@@ -127,6 +127,13 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if (fbt_excluded(name))
 		return (0);
 
+	/*
+	 * fbt probes are delivered through trap(), so instrumenting the
+	 * trap entry path would make them recurse.
+	 */
+	if (strcmp(name, "trap") == 0 || strcmp(name, "powerpc_interrupt") == 0)
+		return (0);
+
 	instr = (uint32_t *) symval->value;
 	limit = (uint32_t *) (symval->value + symval->size);
 
