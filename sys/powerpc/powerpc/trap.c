@@ -294,24 +294,30 @@ trap(struct trapframe *frame)
 		case EXC_FPU:
 			KASSERT((td->td_pcb->pcb_flags & PCB_FPU) != PCB_FPU,
 			    ("FPU already enabled for thread"));
+			critical_enter();
 			enable_fpu(td);
+			critical_exit();
 			break;
 
 		case EXC_VEC:
 			KASSERT((td->td_pcb->pcb_flags & PCB_VEC) != PCB_VEC,
 			    ("Altivec already enabled for thread"));
+			critical_enter();
 			enable_vec(td);
+			critical_exit();
 			break;
 
 		case EXC_VSX:
 			KASSERT((td->td_pcb->pcb_flags & PCB_VSX) != PCB_VSX,
 			    ("VSX already enabled for thread"));
+			critical_enter();
 			if (!(td->td_pcb->pcb_flags & PCB_VEC))
 				enable_vec(td);
 			if (td->td_pcb->pcb_flags & PCB_FPU)
 				save_fpu(td);
 			td->td_pcb->pcb_flags |= PCB_VSX;
 			enable_fpu(td);
+			critical_exit();
 			break;
 
 		case EXC_FAC:
