@@ -858,11 +858,17 @@ emulate_movs(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 			 * before the MMIO read is attempted.
 			 */
 			error = memread(vcpu, gpa, &val, opsize, arg);
-			if (error)
-				goto done;
+			if (error == 0)
+				vm_copyout(&val, copyinfo, opsize);
 
-			vm_copyout(&val, copyinfo, opsize);
+			/*
+			 * Release the copy resources even if the MMIO read
+			 * failed.
+			 */
 			vm_copy_teardown(copyinfo, nitems(copyinfo));
+
+			if (error != 0)
+				goto done;
 		} else {
 			/*
 			 * Case (4): read from and write to mmio.
