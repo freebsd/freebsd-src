@@ -824,6 +824,10 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 		    ("%s: sin6(%p)->sin6_addr is v4mapped which we "
 		    "should have handled.", __func__, sin6));
 
+		error = prison_remote_ip6(td->td_ucred, &sin6->sin6_addr);
+		if (error != 0)
+			goto release;
+
 		/* This only requires read-locking. */
 		error = in6_selectsrc_socket(sin6, optp, inp,
 		    td->td_ucred, scope_ambiguous, &in6a, NULL);
