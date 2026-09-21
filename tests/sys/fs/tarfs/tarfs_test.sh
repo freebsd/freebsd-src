@@ -396,31 +396,84 @@ tarfs_git_archive_cleanup() {
 	tarfs_cleanup
 }
 
-atf_test_case tarfs_large cleanup
 tarfs_large_head() {
-	atf_set "descr" "Test support for large files"
+	local size=$(((1<<$1)-$2))
+	atf_set "descr" "Test support for large files of size ${size}"
 	atf_set "require.user" "root"
 	atf_set "require.kmods" "tarfs"
-	atf_set "timeout" "2400"
+	atf_set "timeout" "1000"
 }
+
 tarfs_large_body() {
+	local size=$(((1<<$1)-$2))
+	local tarball="tarfs_test.tar.zst"
 	tarfs_setup
-	local tarball="${PWD}/tarfs_test.tar.zst"
-	local exp off
-	for exp in 31 32 33 34 35 36 ; do
-		for off in 1 0 ; do
-			local size=$(((1<<exp)-off))
-			atf_check truncate -s ${size} file
-			atf_check bsdtar -cf "${tarball}" --no-read-sparse --zstd file
-			atf_check mount -rt tarfs "${tarball}" "${mnt}"
-			atf_check -o inline:"${size}\n" stat -f%z "${mnt}"/file
-			atf_check umount "${mnt}"
-		done
-	done
+	atf_check truncate -s ${size} file
+	atf_check bsdtar -cf "${tarball}" --no-read-sparse --zstd file
+	atf_check mount -rt tarfs "${tarball}" "${mnt}"
+	atf_check -o inline:"${size}\n" stat -f%z "${mnt}/file"
+	atf_check umount "${mnt}"
 }
-tarfs_large_cleanup() {
-	tarfs_cleanup
-}
+
+atf_test_case tarfs_large_31_0 cleanup
+tarfs_large_31_0_head() { tarfs_large_head 31 0; }
+tarfs_large_31_0_body() { tarfs_large_body 31 0; }
+tarfs_large_31_0_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_31_1 cleanup
+tarfs_large_31_1_head() { tarfs_large_head 31 1; }
+tarfs_large_31_1_body() { tarfs_large_body 31 1; }
+tarfs_large_31_1_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_32_0 cleanup
+tarfs_large_32_0_head() { tarfs_large_head 32 0; }
+tarfs_large_32_0_body() { tarfs_large_body 32 0; }
+tarfs_large_32_0_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_32_1 cleanup
+tarfs_large_32_1_head() { tarfs_large_head 32 1; }
+tarfs_large_32_1_body() { tarfs_large_body 32 1; }
+tarfs_large_32_1_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_33_0 cleanup
+tarfs_large_33_0_head() { tarfs_large_head 33 0; }
+tarfs_large_33_0_body() { tarfs_large_body 33 0; }
+tarfs_large_33_0_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_33_1 cleanup
+tarfs_large_33_1_head() { tarfs_large_head 33 1; }
+tarfs_large_33_1_body() { tarfs_large_body 33 1; }
+tarfs_large_33_1_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_34_0 cleanup
+tarfs_large_34_0_head() { tarfs_large_head 34 0; }
+tarfs_large_34_0_body() { tarfs_large_body 34 0; }
+tarfs_large_34_0_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_34_1 cleanup
+tarfs_large_34_1_head() { tarfs_large_head 34 1; }
+tarfs_large_34_1_body() { tarfs_large_body 34 1; }
+tarfs_large_34_1_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_35_0 cleanup
+tarfs_large_35_0_head() { tarfs_large_head 35 0; }
+tarfs_large_35_0_body() { tarfs_large_body 35 0; }
+tarfs_large_35_0_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_35_1 cleanup
+tarfs_large_35_1_head() { tarfs_large_head 35 1; }
+tarfs_large_35_1_body() { tarfs_large_body 35 1; }
+tarfs_large_35_1_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_36_0 cleanup
+tarfs_large_36_0_head() { tarfs_large_head 36 0; }
+tarfs_large_36_0_body() { tarfs_large_body 36 0; }
+tarfs_large_36_0_cleanup() { tarfs_cleanup; }
+
+atf_test_case tarfs_large_36_1 cleanup
+tarfs_large_36_1_head() { tarfs_large_head 36 1; }
+tarfs_large_36_1_body() { tarfs_large_body 36 1; }
+tarfs_large_36_1_cleanup() { tarfs_cleanup; }
 
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
@@ -440,5 +493,11 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_long_names
 	atf_add_test_case tarfs_long_paths
 	atf_add_test_case tarfs_git_archive
-	atf_add_test_case tarfs_large
+
+	local exp off
+	for exp in 31 32 33 34 35 36; do
+		for off in 0 1; do
+			atf_add_test_case "tarfs_large_${exp}_${off}"
+		done
+	done
 }
