@@ -1879,7 +1879,7 @@ vmx_set_guest_reg(struct vmx_vcpu *vcpu, int ident, uint64_t regval)
 static int
 vmx_emulate_cr0_access(struct vmx_vcpu *vcpu, uint64_t exitqual)
 {
-	uint64_t crval, regval;
+	uint64_t crval, efer, entry_ctls, regval;
 
 	/* We only handle mov to %cr0 at this time */
 	if ((exitqual & 0xf0) != 0x00)
@@ -1893,23 +1893,21 @@ vmx_emulate_cr0_access(struct vmx_vcpu *vcpu, uint64_t exitqual)
 	crval &= ~cr0_zeros_mask;
 	vmcs_write(VMCS_GUEST_CR0, crval);
 
-	if (regval & CR0_PG) {
-		uint64_t efer, entry_ctls;
-
-		/*
-		 * If CR0.PG is 1 and EFER.LME is 1 then EFER.LMA and
-		 * the "IA-32e mode guest" bit in VM-entry control must be
-		 * equal.
-		 */
-		efer = vmcs_read(VMCS_GUEST_IA32_EFER);
-		if (efer & EFER_LME) {
-			efer |= EFER_LMA;
-			vmcs_write(VMCS_GUEST_IA32_EFER, efer);
-			entry_ctls = vmcs_read(VMCS_ENTRY_CTLS);
-			entry_ctls |= VM_ENTRY_GUEST_LMA;
-			vmcs_write(VMCS_ENTRY_CTLS, entry_ctls);
-		}
+	/*
+	 * Keep EFER.LMA and the IA-32e guest VM-entry control in sync
+	 * with CR0.PG, using the value written to the VMCS (crval).
+	 */
+	efer = vmcs_read(VMCS_GUEST_IA32_EFER);
+	entry_ctls = vmcs_read(VMCS_ENTRY_CTLS);
+	if ((crval & CR0_PG) != 0 && (efer & EFER_LME) != 0) {
+		efer |= EFER_LMA;
+		entry_ctls |= VM_ENTRY_GUEST_LMA;
+	} else {
+		efer &= ~EFER_LMA;
+		entry_ctls &= ~VM_ENTRY_GUEST_LMA;
 	}
+	vmcs_write(VMCS_GUEST_IA32_EFER, efer);
+	vmcs_write(VMCS_ENTRY_CTLS, entry_ctls);
 
 	return (HANDLED);
 }
