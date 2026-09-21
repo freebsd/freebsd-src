@@ -165,7 +165,7 @@ vatpit_callout_handler(void *a)
 
 	callout_deactivate(callout);
 
-	if (c->mode == TIMER_RATEGEN) {
+	if (c->mode == TIMER_RATEGEN || c->mode == TIMER_SQWAVE) {
 		pit_timer_start_cntr0(vatpit);
 	}
 
