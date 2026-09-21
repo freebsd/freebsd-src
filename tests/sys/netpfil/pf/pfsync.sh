@@ -1657,6 +1657,91 @@ rt_af_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "flush_by_intf" "cleanup"
+flush_by_intf_head()
+{
+	atf_set descr 'Test flushing states by interface'
+	atf_set require.user root
+}
+
+flush_by_intf_body()
+{
+	pfsynct_init
+
+	epair_sync=$(vnet_mkepair)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair_one}a ${epair_sync}a
+	vnet_mkjail two ${epair_two}a ${epair_sync}b
+
+	# pfsync interface
+	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair_one}a name epair_foo
+	jexec one ifconfig epair_foo 198.51.100.1/24 up
+	jexec one ifconfig pfsync0 \
+		syncdev ${epair_sync}a \
+		maxupd 1 \
+		up
+	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
+	jexec two ifconfig ${epair_two}a name epair_foo
+	jexec two ifconfig epair_foo 198.51.100.2/24 up
+	jexec two ifconfig pfsync0 \
+		syncdev ${epair_sync}b \
+		maxupd 1 \
+		up
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set state-policy if-bound" \
+		"set skip on ${epair_sync}a" \
+		"pass out keep state"
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set state-policy if-bound" \
+		"set skip on ${epair_sync}b" \
+		"pass out keep state"
+
+	ifconfig ${epair_one}b 198.51.100.254/24 up
+
+	ping -c 1 -S 198.51.100.254 198.51.100.1
+
+	# Give pfsync time to do its thing
+	sleep 2
+
+	if ! jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.254 ; then
+		atf_fail "state not found on synced host"
+	fi
+
+	# Now flush states in one, with an interface specified
+	# (Note the interface must exist on both hosts for the bug to manifest)
+	jexec one pfctl -i lo0 -Fs
+
+	sleep 2
+
+	if ! jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.254 ; then
+		atf_fail "state was removed on synced host!"
+	fi
+
+	# Now flush on the interface the state is actually on, this should get passed to
+	# the peer.
+	jexec one pfctl -i epair_foo -Fs
+
+	sleep 2
+
+	if jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.254 ; then
+		atf_fail "state was not removed on synced host!"
+	fi
+}
+
+flush_by_intf_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -1681,4 +1766,5 @@ atf_init_test_cases()
 	atf_add_test_case "tag"
 	atf_add_test_case "altq_queues"
 	atf_add_test_case "rt_af"
+	atf_add_test_case "flush_by_intf"
 }
