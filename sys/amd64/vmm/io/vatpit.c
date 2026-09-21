@@ -401,14 +401,14 @@ vatpit_handler(struct vm *vm, bool in, int port, int bytes, uint32_t *eax)
 			c->frbyte = 0;
 			c->crbyte = 0;
 			c->initial = c->cr[0] | (uint16_t)c->cr[1] << 8;
+			if (c->initial == 0)
+				c->initial = 0xffff;
 			binuptime(&c->now_bt);
 			/* Start an interval timer for channel 0 */
 			if (port == TIMER_CNTR0) {
 				c->callout_bt = c->now_bt;
 				pit_timer_start_cntr0(vatpit);
 			}
-			if (c->initial == 0)
-				c->initial = 0xffff;
 		}
 	}
 	VATPIT_UNLOCK(vatpit);
