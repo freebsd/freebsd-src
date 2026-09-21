@@ -522,7 +522,14 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	 *
 	 * Additionally, ensure VSX is disabled as well, as it is illegal
 	 * to leave it turned on when FP or VEC are off.
+	 *
+	 * The MSR bits in the frame and the PCB flags must change together:
+	 * if the thread is switched out in between, cpu_switchin() still
+	 * sees the flags, reloads the registers and puts the MSR bits back
+	 * into the frame, and the thread then runs with the units enabled
+	 * but without owning them.
 	 */
+	critical_enter();
 	tf->srr1 &= ~(PSL_FP | PSL_VSX | PSL_VEC);
 	pcb->pcb_flags &= ~(PCB_FPU | PCB_VSX | PCB_VEC);
 
@@ -536,7 +543,6 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	 * sigresume is callled will used by the resumed thread, instead of the
 	 * previously saved data from the mcontext.
 	 */
-	critical_enter();
 	msr = mfmsr() & ~(PSL_FP | PSL_VSX | PSL_VEC);
 	isync();
 	mtmsr(msr);
