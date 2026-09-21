@@ -634,6 +634,11 @@ options 	NUM_CORE_FILES=5
 options 	TSLOG
 options 	TSLOGSIZE=262144
 
+#
+# The KLD_DEBUG debug option enables debug printfs in the kernel linker.
+#
+options 	KLD_DEBUG=3
+
 
 #####################################################################
 # PERFORMANCE MONITORING OPTIONS
