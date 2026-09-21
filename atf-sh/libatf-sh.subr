@@ -210,6 +210,19 @@ atf_expect_fail()
 }
 
 #
+# atf_expect_skip reason
+#
+#   Sets the expectations to 'skip'.
+#
+atf_expect_skip()
+{
+    _atf_validate_expect
+
+    Expect=skip
+    Expect_Reason="${*}"
+}
+
+#
 # atf_expect_pass
 #
 #   Sets the expectations to 'pass'.
@@ -704,6 +717,11 @@ _atf_validate_expect()
             atf_fail "Test case was expected to receive a termination signal" \
                 "but it continued execution"
             ;;
+        skip)
+            Expect=pass
+            atf_fail "Test case was supposed to be skipped but it continued " \
+                "execution"
+            ;;
         timeout)
             Expect=pass
             atf_fail "Test case was expected to hang but it continued execution"
@@ -796,3 +814,25 @@ main()
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4
+# BEGIN `FreeBSD.subr`.
+#
+# Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
+atf_require_kmod_supported()
+{
+    true
+}
+
+# \brief FreeBSD specific helper routine for ensuring that a kmod has been
+# loaded.
+#
+# \param kmod a target kmod.
+atf_require_kmod()
+{
+    kldstat -q -m "${1}" || \
+        atf_skip "The required kmod ${1} is not loaded"
+}
+# END `FreeBSD.subr`.

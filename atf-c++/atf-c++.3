@@ -277,6 +277,16 @@ It is possible to get the path to the test case's source directory from any
 of its three components by querying the
 .Sq srcdir
 configuration variable.
+.Ss Requiring kernel modules
+Aside from the
+.Va require.kmods
+meta-data variable available in the header only, one can also check for
+additional kernel modules in the test case's body by using the
+.Fn require_kmod
+function, which takes the name of a single module.
+If it is not found, the test case will be automatically skipped.
+This feature is only available on
+.Fx .
 .Ss Requiring programs
 Aside from the
 .Va require.progs

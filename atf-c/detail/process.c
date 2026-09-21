@@ -218,8 +218,9 @@ atf_process_status_exitstatus(const atf_process_status_t *s)
 bool
 atf_process_status_signaled(const atf_process_status_t *s)
 {
-    int si_code = s->m_info.si_code;
-    return si_code == CLD_KILLED || si_code == CLD_DUMPED;
+    /* Issue #187: `si_code` is a macro on NetBSD. */
+    int code = s->m_info.si_code;
+    return code == CLD_KILLED || code == CLD_DUMPED;
 }
 
 int

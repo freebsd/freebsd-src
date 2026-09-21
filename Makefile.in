@@ -373,15 +373,20 @@ tests_atf_c___detail_PROGRAMS =  \
 	atf-c++/detail/process_test$(EXEEXT) \
 	atf-c++/detail/text_test$(EXEEXT) \
 	atf-c++/detail/version_helper$(EXEEXT)
+@FreeBSD_TRUE@am__append_1 = atf-sh/libatf-sh/FreeBSD.subr
+@FreeBSD_FALSE@am__append_2 = atf-sh/libatf-sh/os_stubs.subr
+@FreeBSD_TRUE@am__append_3 = atf-sh/kmod_test
+@FreeBSD_TRUE@am__append_4 = atf-sh/kmod_test
+@FreeBSD_TRUE@am__append_5 = atf-sh/kmod_test.sh
 check_PROGRAMS = bootstrap/h_tp_basic_c$(EXEEXT) \
 	bootstrap/h_tp_basic_cpp$(EXEEXT)
 tests_test_programs_PROGRAMS = test-programs/c_helpers$(EXEEXT) \
 	test-programs/cpp_helpers$(EXEEXT)
-@HAVE_ASAN_TRUE@am__append_1 = ASAN_OPTIONS=${ASAN_OPTIONS}
-@HAVE_UBSAN_TRUE@am__append_2 = UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
-@HAVE_KYUA_TRUE@am__append_3 = installcheck-kyua
-@CODE_COVERAGE_TRUE@@HAVE_KYUA_TRUE@am__append_4 = installcheck-kyua-lcov
-@CODE_COVERAGE_TRUE@am__append_5 = mostlyclean-code-coverage
+@HAVE_ASAN_TRUE@am__append_6 = ASAN_OPTIONS=${ASAN_OPTIONS}
+@HAVE_UBSAN_TRUE@am__append_7 = UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+@HAVE_KYUA_TRUE@am__append_8 = installcheck-kyua
+@CODE_COVERAGE_TRUE@@HAVE_KYUA_TRUE@am__append_9 = installcheck-kyua-lcov
+@CODE_COVERAGE_TRUE@am__append_10 = mostlyclean-code-coverage
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_cxx_compile_stdcxx.m4 \
@@ -1097,8 +1102,9 @@ atf_aclocal_DATA = atf-c/atf-common.m4 atf-c/atf-c.m4 \
 	atf-c++/atf-c++.m4 atf-sh/atf-sh.m4
 BUILT_SOURCES = 
 CLEANFILES = atf-c/atf-c.pc atf-c/pkg_config_test atf-c++/atf-c++.pc \
-	atf-c++/pkg_config_test atf-sh/atf-sh.pc atf-sh/misc_helpers \
-	atf-sh/atf_check_test atf-sh/atf-check_test atf-sh/config_test \
+	atf-c++/pkg_config_test atf-sh/libatf-sh.subr atf-sh/atf-sh.pc \
+	atf-sh/Kyuafile atf-sh/misc_helpers atf-sh/atf_check_test \
+	atf-sh/atf-check_test atf-sh/config_test $(am__append_4) \
 	atf-sh/integration_test atf-sh/normalize_test atf-sh/tc_test \
 	atf-sh/tp_test bootstrap/h_tp_basic_sh \
 	bootstrap/h_tp_atf_check_sh bootstrap/h_tp_fail \
@@ -1117,19 +1123,20 @@ EXTRA_DIST = admin/check-style-common.awk admin/check-style-c.awk \
 	atf-c++/atf-c++.pc.in $(tests_atf_c___DATA) \
 	atf-c++/pkg_config_test.sh $(tests_atf_c___detail_DATA) \
 	$(atf_sh_DATA) atf-sh/atf-sh.m4 atf-sh/atf-sh.pc.in \
-	$(tests_atf_sh_DATA) atf-sh/misc_helpers.sh \
+	atf-sh/Kyuafile.in $(tests_atf_sh_DATA) atf-sh/misc_helpers.sh \
 	atf-sh/atf_check_test.sh atf-sh/atf-check_test.sh \
-	atf-sh/config_test.sh atf-sh/integration_test.sh \
-	atf-sh/normalize_test.sh atf-sh/tc_test.sh atf-sh/tp_test.sh \
-	bootstrap/h_tp_basic_sh.sh bootstrap/h_tp_atf_check_sh.sh \
-	bootstrap/h_tp_fail.sh bootstrap/h_tp_pass.sh \
-	bootstrap/testsuite bootstrap/package.m4 \
-	bootstrap/testsuite.at $(testsuite_incs) doc/atf.7.in \
-	$(tests_test_programs_DATA) test-programs/common.sh \
-	test-programs/sh_helpers.sh test-programs/config_test.sh \
-	test-programs/expect_test.sh test-programs/meta_data_test.sh \
-	test-programs/result_test.sh test-programs/srcdir_test.sh \
-	$(doc_DATA) INSTALL.md README.md $(pkgtests_DATA)
+	atf-sh/config_test.sh $(am__append_5) \
+	atf-sh/integration_test.sh atf-sh/normalize_test.sh \
+	atf-sh/tc_test.sh atf-sh/tp_test.sh bootstrap/h_tp_basic_sh.sh \
+	bootstrap/h_tp_atf_check_sh.sh bootstrap/h_tp_fail.sh \
+	bootstrap/h_tp_pass.sh bootstrap/testsuite \
+	bootstrap/package.m4 bootstrap/testsuite.at $(testsuite_incs) \
+	doc/atf.7.in $(tests_test_programs_DATA) \
+	test-programs/common.sh test-programs/sh_helpers.sh \
+	test-programs/config_test.sh test-programs/expect_test.sh \
+	test-programs/meta_data_test.sh test-programs/result_test.sh \
+	test-programs/srcdir_test.sh $(doc_DATA) INSTALL.md README.md \
+	$(pkgtests_DATA)
 dist_man_MANS = atf-c/atf-c.3 atf-c++/atf-c++.3 atf-sh/atf-check.1 \
 	atf-sh/atf-sh.1 atf-sh/atf-sh.3 doc/atf-test-case.7 \
 	doc/atf-test-program.1
@@ -1139,14 +1146,14 @@ man_MANS = doc/atf.7
 noinst_DATA = INSTALL.md README.md
 noinst_LTLIBRARIES = atf-c/detail/libtest_helpers.la \
 	atf-c++/detail/libtest_helpers.la
-INSTALLCHECK_TARGETS = installcheck-bootstrap $(am__append_3) \
-	$(am__append_4)
+INSTALLCHECK_TARGETS = installcheck-bootstrap $(am__append_8) \
+	$(am__append_9)
 
 #
 # Custom targets.
 #
 PHONY_TARGETS = check-style installcheck-bootstrap installcheck-kyua \
-	$(am__append_5) clean-all
+	$(am__append_10) clean-all
 ACLOCAL_AMFLAGS = -I m4
 libatf_c_la_SOURCES = atf-c/build.c atf-c/build.h atf-c/check.c \
 	atf-c/check.h atf-c/error.c atf-c/error.h atf-c/error_fwd.h \
@@ -1318,13 +1325,15 @@ atf_sh_atf_sh_CPPFLAGS = -DATF_LIBEXECDIR=\"$(libexecdir)\" \
 
 atf_sh_atf_sh_LDADD = $(ATF_CXX_LIBS)
 atf_sh_DATA = atf-sh/libatf-sh.subr
+libatf_subr_sources = atf-sh/libatf-sh/common.subr $(am__append_1) \
+	$(am__append_2)
 atf_shdir = $(pkgdatadir)
 atf_shpkgconfigdir = $(atf_pkgconfigdir)
 atf_shpkgconfig_DATA = atf-sh/atf-sh.pc
 tests_atf_sh_DATA = atf-sh/Kyuafile
 tests_atf_shdir = $(pkgtestsdir)/atf-sh
 tests_atf_sh_SCRIPTS = atf-sh/misc_helpers atf-sh/atf_check_test \
-	atf-sh/atf-check_test atf-sh/config_test \
+	atf-sh/atf-check_test atf-sh/config_test $(am__append_3) \
 	atf-sh/integration_test atf-sh/normalize_test atf-sh/tc_test \
 	atf-sh/tp_test
 bootstrap_h_tp_basic_c_SOURCES = bootstrap/h_tp_basic_c.c
@@ -1365,8 +1374,8 @@ doc_DATA = AUTHORS COPYING NEWS README.md
 # Supporting logic to run our custom testsuite.
 #
 TESTS_ENVIRONMENT = PATH=$(prefix)/bin:$${PATH} \
-	PKG_CONFIG_PATH=$(prefix)/lib/pkgconfig $(am__append_1) \
-	$(am__append_2)
+	PKG_CONFIG_PATH=$(prefix)/lib/pkgconfig $(am__append_6) \
+	$(am__append_7)
 @HAVE_ASAN_TRUE@@HAVE_LSAN_FALSE@LSAN_OPTIONS = 
 
 # NB: the trailing comma is intentional. I hate automake not allowing `:=` use on subsequent lines.
@@ -3946,12 +3955,20 @@ atf-c++/pkg_config_test: $(srcdir)/atf-c++/pkg_config_test.sh
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
+atf-sh/libatf-sh.subr:
+	$(AM_V_GEN)cat ${libatf_subr_sources} > atf-sh/libatf-sh.subr.tmp; \
+	mv atf-sh/libatf-sh.subr.tmp atf-sh/libatf-sh.subr
 atf-sh/atf-sh.pc: $(srcdir)/atf-sh/atf-sh.pc.in Makefile
 	$(AM_V_GEN)test -d atf-sh || mkdir -p atf-sh; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
 	    -e 's#__EXEC_PREFIX__#$(exec_prefix)#g' \
 	    <$(srcdir)/atf-sh/atf-sh.pc.in >atf-sh/atf-sh.pc.tmp; \
 	mv atf-sh/atf-sh.pc.tmp atf-sh/atf-sh.pc
+atf-sh/Kyuafile: $(srcdir)/atf-sh/Kyuafile.in Makefile
+	$(AM_V_GEN)test -d atf-sh || mkdir -p atf-sh; \
+	cat $(srcdir)/atf-sh/Kyuafile.in > atf-sh/Kyuafile.tmp
+@FreeBSD_TRUE@	$(AM_V_GEN)printf 'atf_test_program{name="kmod_test"}\n' >> atf-sh/Kyuafile.tmp
+	$(AM_V_GEN)mv atf-sh/Kyuafile.tmp atf-sh/Kyuafile
 atf-sh/misc_helpers: $(srcdir)/atf-sh/misc_helpers.sh
 	$(AM_V_GEN)src="$(srcdir)/atf-sh/misc_helpers.sh"; \
 	dst="atf-sh/misc_helpers"; $(BUILD_SH_TP)
@@ -3964,6 +3981,9 @@ atf-sh/atf-check_test: $(srcdir)/atf-sh/atf-check_test.sh
 atf-sh/config_test: $(srcdir)/atf-sh/config_test.sh
 	$(AM_V_GEN)src="$(srcdir)/atf-sh/config_test.sh"; \
 	dst="atf-sh/config_test"; $(BUILD_SH_TP)
+@FreeBSD_TRUE@atf-sh/kmod_test: $(srcdir)/atf-sh/kmod_test.sh
+@FreeBSD_TRUE@	$(AM_V_GEN)src="$(srcdir)/atf-sh/kmod_test.sh"; \
+@FreeBSD_TRUE@	dst="atf-sh/kmod_test"; $(BUILD_SH_TP)
 atf-sh/integration_test: $(srcdir)/atf-sh/integration_test.sh
 	$(AM_V_GEN)src="$(srcdir)/atf-sh/integration_test.sh"; \
 	dst="atf-sh/integration_test"; \

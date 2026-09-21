@@ -147,6 +147,24 @@ EOF
         "${ATF_SH}" -s ./custom-shell tp helper
 }
 
+atf_test_case require_progs
+require_progs_body()
+{
+    cat | create_test_program tp <<EOF
+atf_test_case helper
+helper_head() {
+    atf_set "require.progs" "true"
+}
+helper_body() {
+    true
+}
+atf_init_test_cases() {
+    atf_add_test_case helper
+}
+EOF
+    atf_check -s eq:0 -o match:passed ./tp helper
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case no_args
@@ -155,6 +173,7 @@ atf_init_test_cases()
     atf_add_test_case custom_shell__command_line
     atf_add_test_case custom_shell__shebang
     atf_add_test_case set_e
+    atf_add_test_case require_progs
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

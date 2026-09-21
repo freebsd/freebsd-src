@@ -906,7 +906,7 @@ fi
 # List of tests.
 if $at_list_p; then
   cat <<_ATEOF || at_write_fail=1
-Automated Testing Framework 0.24 test suite: bootstrap tests test groups:
+Automated Testing Framework 0.26 test suite: bootstrap tests test groups:
 
  NUM: FILE-NAME:LINE     TEST-GROUP-NAME
       KEYWORDS
@@ -947,7 +947,7 @@ _ATEOF
   exit $at_write_fail
 fi
 if $at_version_p; then
-  printf '%s\n' "$as_me (Automated Testing Framework 0.24)" &&
+  printf '%s\n' "$as_me (Automated Testing Framework 0.26)" &&
   cat <<\_ATEOF || at_write_fail=1
 
 Copyright (C) 2026 Free Software Foundation, Inc.
@@ -1129,11 +1129,11 @@ exec 5>>"$at_suite_log"
 
 # Banners and logs.
 printf '%s\n' "## ------------------------------------------------------------- ##
-## Automated Testing Framework 0.24 test suite: bootstrap tests. ##
+## Automated Testing Framework 0.26 test suite: bootstrap tests. ##
 ## ------------------------------------------------------------- ##"
 {
   printf '%s\n' "## ------------------------------------------------------------- ##
-## Automated Testing Framework 0.24 test suite: bootstrap tests. ##
+## Automated Testing Framework 0.26 test suite: bootstrap tests. ##
 ## ------------------------------------------------------------- ##"
   echo
 
@@ -1952,7 +1952,7 @@ _ASBOX
   printf '%s\n' "Please send $at_msg and all information you think might help:
 
    To: <freebsd-testing@freebsd.org>
-   Subject: [Automated Testing Framework 0.24] $as_me: $at_msg1$at_msg2
+   Subject: [Automated Testing Framework 0.26] $as_me: $at_msg1$at_msg2
 
 You may investigate any problem if you feel able to do so, in which
 case the test suite provides a good starting point.  Its output may

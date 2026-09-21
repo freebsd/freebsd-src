@@ -1,6 +1,4 @@
-# Installation instructions
-
-## Introduction
+# Introduction
 
 ATF uses the GNU Automake, GNU Autoconf and GNU Libtool utilities as its
 build system. These are used only when compiling the application from the
@@ -9,86 +7,48 @@ do not need to read this document.
 
 For the impatient:
 
-    $ ./configure
-    $ make
-    Gain root privileges
-    # make install
-    Drop root privileges
-    $ make installcheck
+```shell
+$ ./configure
+$ make
+$ make check
+$ sudo make install # or `make install` with root privileges
+$ make installcheck
+```
 
 Or alternatively, install as a regular user into your home directory:
 
-    $ ./configure --prefix ~/local
-    $ make
-    $ make install
-    $ make installcheck
-
-## Dependencies
+```shell
+$ ./configure --prefix ~/local
+$ make
+$ make check
+$ make install
+$ make installcheck
+```
+# Dependencies
 
 To build and use ATF successfully you need:
 
-- A standards-compliant C/C++ complier. For example, GNU GCC 2.95 will not
-  work.
+* A C++-20 standards-compliant compiler.
+* pkg-config or an equivalent tool, e.g., pkgconf.
+* A POSIX shell interpreter.
+* A make(1) utility.
 
-- A POSIX shell interpreter.
+Optionally, if you want to build and run the tests (recommended), you
+need:
 
-- A make(1) utility.
+* Kyua 0.5 or greater.
 
-If you are building ATF from the code on the repository, you will also need
-to have GNU autoconf, automake and libtool installed.
+If you are building ATF from the code on the repository, you will also
+need the following tools:
 
-## Regenerating the build system
+* GNU Autoconf 2.68 (or later).
+* GNU Automake 1.9 (or later).
+* GNU Libtool.
 
-If you are building ATF from code extracted from the repository, you must
-first regenerate the files used by the build system. You will also need to
-do this if you modify `configure.ac`, `Makefile.am` or any of the other build
-system files. To do this, simply run:
+# Regenerating the build system
 
-    $ autoreconf -i -s
-
-For release builds, no extra steps are needed.
-
-## General build procedure
-
-To build and install the source package, you must follow these steps:
-
-1. Configure the sources to adapt to your operating system. This is done
-   using the `configure` script located on the sources' top directory,
-   and it is usually invoked without arguments unless you want to change
-   the installation prefix. More details on this procedure are given on a
-   later section.
-
-2. Build the sources to generate the binaries and scripts. Simply run
-   `make` on the sources' top directory after configuring them. No
-   problems should arise.
-
-3. Install the program by running `make install`. You may need to become
-   root to issue this step.
-
-4. Issue any manual installation steps that may be required. These are
-   described later in their own section.
-
-5. Check that the installed programs work by running `make installcheck`.
-   You do not need to be root to do this, even though some checks will not
-   be run otherwise.
-
-## Configuration flags
-
-The most common, standard flags given to `configure` are:
-
-- `--prefix=directory`:
-
-  **Possible values:** Any path
-
-  **Default:** `/usr/local`
-
-  Specifies where the program (binaries and all associated files) will
-  be installed.
-
-- `--help`:
-
-  Shows information about all available flags and exits immediately,
-  without running any configuration tasks.
+This is not necessary if you are building from a formal release
+distribution file.
 
 The following environment variables are specific to ATF's `configure`
 script:
@@ -159,9 +119,21 @@ script:
   library. If empty, the configure script will try to find a suitable
   interpreter for you.
 
+# Configuration flags
+
+The most common, standard flags given to `configure` are:
+
+- `--prefix=directory`
+
+  **Possible values**: any path
+  **Default**: "/usr/local"
+
+  Specifies where the library (binaries and all associated files) will be
+  installed.
+
 The following flags are specific to ATF's `configure` script:
 
-- `--enable-developer`:
+- `--enable-developer`
 
   **Default:** `yes` in HEAD builds; `no` in release builds.
 

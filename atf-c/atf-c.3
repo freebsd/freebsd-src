@@ -77,6 +77,7 @@
 .Nm atf_tc_fail ,
 .Nm atf_tc_fail_nonfatal ,
 .Nm atf_tc_pass ,
+.Nm atf_tc_require_kmod ,
 .Nm atf_tc_require_prog ,
 .Nm atf_tc_skip ,
 .Nm atf_utils_cat_file ,
@@ -209,6 +210,10 @@
 .Ft void
 .Fo atf_tc_pass
 .Fa "void"
+.Fc
+.Ft void
+.Fo atf_tc_require_kmod
+.Fa "const char *kmod"
 .Fc
 .Ft void
 .Fo atf_tc_require_prog
@@ -434,6 +439,16 @@ It is possible to get the path to the test case's source directory from any
 of its three components by querying the
 .Sq srcdir
 configuration variable.
+.Ss Requiring kernel modules
+Aside from the
+.Va require.kmods
+meta-data variable available in the header only, one can also check for
+additional kernel modules in the test case's body by using the
+.Fn atf_tc_require_kmod
+function, which takes the name of a single kernel module.
+If it is not found, the test case will be automatically skipped.
+This feature is only available on
+.Fx .
 .Ss Requiring programs
 Aside from the
 .Va require.progs

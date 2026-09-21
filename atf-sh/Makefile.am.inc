@@ -40,8 +40,19 @@ atf_sh_atf_sh_LDADD = $(ATF_CXX_LIBS)
 dist_man_MANS += atf-sh/atf-sh.1
 
 atf_sh_DATA = atf-sh/libatf-sh.subr
+libatf_subr_sources = atf-sh/libatf-sh/common.subr
+if FreeBSD
+libatf_subr_sources += atf-sh/libatf-sh/FreeBSD.subr
+else
+libatf_subr_sources += atf-sh/libatf-sh/os_stubs.subr
+endif
 atf_shdir = $(pkgdatadir)
 EXTRA_DIST += $(atf_sh_DATA)
+
+CLEANFILES += atf-sh/libatf-sh.subr
+atf-sh/libatf-sh.subr:
+	$(AM_V_GEN)cat ${libatf_subr_sources} > atf-sh/libatf-sh.subr.tmp; \
+	mv atf-sh/libatf-sh.subr.tmp atf-sh/libatf-sh.subr
 
 dist_man_MANS += atf-sh/atf-sh.3
 
@@ -60,6 +71,16 @@ atf-sh/atf-sh.pc: $(srcdir)/atf-sh/atf-sh.pc.in Makefile
 	mv atf-sh/atf-sh.pc.tmp atf-sh/atf-sh.pc
 
 tests_atf_sh_DATA = atf-sh/Kyuafile
+CLEANFILES += atf-sh/Kyuafile
+EXTRA_DIST += atf-sh/Kyuafile.in
+atf-sh/Kyuafile: $(srcdir)/atf-sh/Kyuafile.in Makefile
+	$(AM_V_GEN)test -d atf-sh || mkdir -p atf-sh; \
+	cat $(srcdir)/atf-sh/Kyuafile.in > atf-sh/Kyuafile.tmp
+if FreeBSD
+	$(AM_V_GEN)printf 'atf_test_program{name="kmod_test"}\n' >> atf-sh/Kyuafile.tmp
+endif
+	$(AM_V_GEN)mv atf-sh/Kyuafile.tmp atf-sh/Kyuafile
+
 tests_atf_shdir = $(pkgtestsdir)/atf-sh
 EXTRA_DIST += $(tests_atf_sh_DATA)
 
@@ -90,6 +111,15 @@ EXTRA_DIST += atf-sh/config_test.sh
 atf-sh/config_test: $(srcdir)/atf-sh/config_test.sh
 	$(AM_V_GEN)src="$(srcdir)/atf-sh/config_test.sh"; \
 	dst="atf-sh/config_test"; $(BUILD_SH_TP)
+
+if FreeBSD
+tests_atf_sh_SCRIPTS += atf-sh/kmod_test
+CLEANFILES += atf-sh/kmod_test
+EXTRA_DIST += atf-sh/kmod_test.sh
+atf-sh/kmod_test: $(srcdir)/atf-sh/kmod_test.sh
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/kmod_test.sh"; \
+	dst="atf-sh/kmod_test"; $(BUILD_SH_TP)
+endif
 
 tests_atf_sh_SCRIPTS += atf-sh/integration_test
 CLEANFILES += atf-sh/integration_test

@@ -1,4 +1,5 @@
 dnl Copyright (c) 2007 The NetBSD Foundation, Inc.
+dnl Copyright (c) 2024-2026 Enji Cooper <ngie@FreeBSD.org>.
 dnl All rights reserved.
 dnl
 dnl Redistribution and use in source and binary forms, with or without
@@ -27,7 +28,7 @@ dnl -----------------------------------------------------------------------
 dnl Initialize the GNU build system.
 dnl -----------------------------------------------------------------------
 
-AC_INIT([Automated Testing Framework], [0.24],
+AC_INIT([Automated Testing Framework], [0.26],
         [freebsd-testing@freebsd.org], [atf],
         [https://github.com/freebsd/atf/])
 AC_PREREQ([2.68])
@@ -215,6 +216,14 @@ if test x"${enable_code_coverage}" = xyes; then
         AC_MSG_ERROR([Please install lcov to obtain code coverage])
     fi
 fi
+
+if test -z "${ATF_TARGET_OS}"; then
+    AC_MSG_NOTICE([Checking target OS])
+    ATF_TARGET_OS="$(uname -o)"
+fi
+
+AM_CONDITIONAL([FreeBSD], [test "${ATF_TARGET_OS}" = "FreeBSD"])
+AC_MSG_NOTICE([Target OS: ${ATF_TARGET_OS}])
 
 dnl -----------------------------------------------------------------------
 dnl Finally, generate output.
