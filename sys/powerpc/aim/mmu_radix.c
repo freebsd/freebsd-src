@@ -6006,10 +6006,8 @@ mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 		pa = mmu_radix_extract_locked(pm, va);
 		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
 		sync_sz = min(sync_sz, sz);
-		if (pa != 0) {
-			pa += (va & PAGE_MASK);
+		if (pa != 0)
 			__syncicache(PHYS_TO_DMAP(pa), sync_sz);
-		}
 		va += sync_sz;
 		sz -= sync_sz;
 	}
