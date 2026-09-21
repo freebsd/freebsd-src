@@ -35,11 +35,13 @@
 /contrib/atf		@ngie-eign
 /contrib/blocklist	@jlduran
 /contrib/googletest	@ngie-eign
+/contrib/kyua		@ngie-eign
 /contrib/libcxxrt	@DimitryAndric @emaste
 /contrib/llvm-project	@DimitryAndric
 /contrib/llvm-project/libunwind @DimitryAndric @emaste @bsdjhb
 /contrib/llvm-project/lldb @DimitryAndric @emaste
 /contrib/llvm-project/openmp @DimitryAndric @emaste
+/contrib/lutok		@ngie-eign
 /contrib/mandoc		@concussious
 /contrib/netbsd-tests	@ngie-eign
 /contrib/netbsd-tests/crypto/opencrypto/	@jmgurney

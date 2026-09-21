@@ -37,6 +37,8 @@ aio(4)		asomers	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/atf		ngie,#test		Pre-commit review requested.
 contrib/googletest	ngie,#test		Pre-commit review requested.
+contrib/kyua		ngie,#test		Pre-commit review requested.
+contrib/lutok		ngie			Pre-commit review requested.
 sbin/ipf	cy			Pre-commit review requested.
 contrib/libcxxrt	dim,emaste		Pre-commit review preferred.
 contrib/llvm-project/compiler-rt	dim	Pre-commit review preferred.
