@@ -959,6 +959,9 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 		} else if (do_points) {
 		    if (!is_valid_number(name) || !is_valid_number(arg))
 			errx(ED_EFMT("invalid point found"));
+		    if (points_no >= ED_MAX_SAMPLES_NO)
+			errx(ED_EFMT("too many samples, maximum is %d"),
+			    ED_MAX_SAMPLES_NO);
 		    if (delay_first) {
 			points[points_no].delay = atof(name);
 			points[points_no].prob = atof(arg);
