@@ -1563,12 +1563,14 @@ smmu_check_errata(struct smmu_softc *sc)
 	reg = bus_read_4(sc->res[0], SMMU_IIDR);
 	variant = SMMU_Variant_GET(reg);
 
-	switch(SMMU_ProductID_GET(reg)) {
+	switch(SMMU_Implementer_GET(reg)) {
 	case SMMU_Implementer_ARM:
 		switch (SMMU_ProductID_GET(reg)) {
-		/* Arm erratum 1076982 */
-		if (variant < 1)
-			sc->features &= ~SMMU_FEATURE_SEV;
+		case SMMU_ProductID_ARM_MMU_600:
+			/* Arm erratum 1076982 */
+			if (variant < 1)
+				sc->features &= ~SMMU_FEATURE_SEV;
+			break;
 		default:
 			break;
 		}
