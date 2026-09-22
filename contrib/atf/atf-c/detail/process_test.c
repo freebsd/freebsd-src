@@ -26,9 +26,6 @@
 #include "atf-c/detail/process.h"
 
 #include <sys/types.h>
-#ifdef __FreeBSD__
-#include <sys/sysctl.h>
-#endif
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -47,7 +44,7 @@
 #include "atf-c/detail/sanity.h"
 #include "atf-c/detail/test_helpers.h"
 
-atf_error_t atf_process_status_init(atf_process_status_t *, int);
+atf_error_t atf_process_status_init(atf_process_status_t *, siginfo_t *);
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions for testing of 'atf_process_fork'.
@@ -166,6 +163,7 @@ capture_stream_fini(void *v)
     }
 
     free(s->m_msg);
+    s->m_msg = NULL;
     atf_process_stream_fini(&s->m_base.m_sb);
 }
 
@@ -576,23 +574,19 @@ child_sigterm(void)
 }
 
 static
-int
-fork_and_wait_child(void (*child_func)(void))
+void
+fork_and_wait_child(void (*child_func)(void), siginfo_t *info)
 {
     pid_t pid;
-    int status;
 
     pid = fork();
     ATF_REQUIRE(pid != -1);
     if (pid == 0) {
-        status = 0; /* Silence compiler warnings */
         child_func();
         UNREACHABLE;
     } else {
-        ATF_REQUIRE(waitpid(pid, &status, 0) != 0);
+        ATF_REQUIRE(waitid(P_PID, pid, info, WEXITED) != -1);
     }
-
-    return status;
 }
 
 ATF_TC(status_exited);
@@ -603,10 +597,12 @@ ATF_TC_HEAD(status_exited, tc)
 }
 ATF_TC_BODY(status_exited, tc)
 {
+    siginfo_t info;
+
     {
-        const int rawstatus = fork_and_wait_child(child_exit_success);
+        fork_and_wait_child(child_exit_success, &info);
         atf_process_status_t s;
-        RE(atf_process_status_init(&s, rawstatus));
+        RE(atf_process_status_init(&s, &info));
         ATF_CHECK(atf_process_status_exited(&s));
         ATF_CHECK_EQ(atf_process_status_exitstatus(&s), EXIT_SUCCESS);
         ATF_CHECK(!atf_process_status_signaled(&s));
@@ -614,9 +610,9 @@ ATF_TC_BODY(status_exited, tc)
     }
 
     {
-        const int rawstatus = fork_and_wait_child(child_exit_failure);
+        fork_and_wait_child(child_exit_failure, &info);
         atf_process_status_t s;
-        RE(atf_process_status_init(&s, rawstatus));
+        RE(atf_process_status_init(&s, &info));
         ATF_CHECK(atf_process_status_exited(&s));
         ATF_CHECK_EQ(atf_process_status_exitstatus(&s), EXIT_FAILURE);
         ATF_CHECK(!atf_process_status_signaled(&s));
@@ -632,10 +628,12 @@ ATF_TC_HEAD(status_signaled, tc)
 }
 ATF_TC_BODY(status_signaled, tc)
 {
+    siginfo_t info;
+
     {
-        const int rawstatus = fork_and_wait_child(child_sigkill);
+        fork_and_wait_child(child_sigkill, &info);
         atf_process_status_t s;
-        RE(atf_process_status_init(&s, rawstatus));
+        RE(atf_process_status_init(&s, &info));
         ATF_CHECK(!atf_process_status_exited(&s));
         ATF_CHECK(atf_process_status_signaled(&s));
         ATF_CHECK_EQ(atf_process_status_termsig(&s), SIGKILL);
@@ -644,9 +642,9 @@ ATF_TC_BODY(status_signaled, tc)
     }
 
     {
-        const int rawstatus = fork_and_wait_child(child_sigterm);
+        fork_and_wait_child(child_sigterm, &info);
         atf_process_status_t s;
-        RE(atf_process_status_init(&s, rawstatus));
+        RE(atf_process_status_init(&s, &info));
         ATF_CHECK(!atf_process_status_exited(&s));
         ATF_CHECK(atf_process_status_signaled(&s));
         ATF_CHECK_EQ(atf_process_status_termsig(&s), SIGTERM);
@@ -670,17 +668,22 @@ ATF_TC_BODY(status_coredump, tc)
         atf_tc_skip("Cannot unlimit the core file size; check limits "
                     "manually");
 
-#ifdef __FreeBSD__
-	int coredump_enabled;
-	size_t ce_len = sizeof(coredump_enabled);
-	if (sysctlbyname("kern.coredump", &coredump_enabled, &ce_len, NULL,
-	    0) == 0 && !coredump_enabled)
-		atf_tc_skip("Coredumps disabled");
+#if defined(__APPLE__)
+    /*
+     * The default security policy on macOS prevents this check from being
+     * tested (coredumps aren't generated for unsigned binaries).
+     *
+     * TODO(ngie,144): this test fails when run locally on my machines, but not
+     * in the GHA container images.
+     */
+    atf_tc_skip(
+        "atf_process_status_coredump check fails on macOS");
 #endif
 
-    const int rawstatus = fork_and_wait_child(child_sigquit);
+    siginfo_t info;
+    fork_and_wait_child(child_sigquit, &info);
     atf_process_status_t s;
-    RE(atf_process_status_init(&s, rawstatus));
+    RE(atf_process_status_init(&s, &info));
     ATF_CHECK(!atf_process_status_exited(&s));
     ATF_CHECK(atf_process_status_signaled(&s));
     ATF_CHECK_EQ(atf_process_status_termsig(&s), SIGQUIT);

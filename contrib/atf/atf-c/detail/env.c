@@ -25,10 +25,6 @@
 
 #include "atf-c/detail/env.h"
 
-#if defined(HAVE_CONFIG_H)
-#include "config.h"
-#endif
-
 #include <errno.h>
 #include <stdlib.h>
 
@@ -65,25 +61,11 @@ atf_env_set(const char *name, const char *val)
 {
     atf_error_t err;
 
-#if defined(HAVE_SETENV)
     if (setenv(name, val, 1) == -1)
-        err = atf_libc_error(errno, "Cannot set environment variable "
-                             "'%s' to '%s'", name, val);
+        err = atf_libc_error(errno,
+            "Cannot set environment variable '%s' to '%s'", name, val);
     else
         err = atf_no_error();
-#elif defined(HAVE_PUTENV)
-    char *buf;
-
-    err = atf_text_format(&buf, "%s=%s", name, val);
-    if (!atf_is_error(err)) {
-        if (putenv(buf) == -1)
-            err = atf_libc_error(errno, "Cannot set environment variable "
-                                 "'%s' to '%s'", name, val);
-        free(buf);
-    }
-#else
-#   error "Don't know how to set an environment variable."
-#endif
 
     return err;
 }
@@ -91,24 +73,7 @@ atf_env_set(const char *name, const char *val)
 atf_error_t
 atf_env_unset(const char *name)
 {
-    atf_error_t err;
 
-#if defined(HAVE_UNSETENV)
     unsetenv(name);
-    err = atf_no_error();
-#elif defined(HAVE_PUTENV)
-    char *buf;
-
-    err = atf_text_format(&buf, "%s=", name);
-    if (!atf_is_error(err)) {
-        if (putenv(buf) == -1)
-            err = atf_libc_error(errno, "Cannot unset environment variable"
-                                 " '%s'", name);
-        free(buf);
-    }
-#else
-#   error "Don't know how to unset an environment variable."
-#endif
-
-    return err;
+    return (atf_no_error());
 }

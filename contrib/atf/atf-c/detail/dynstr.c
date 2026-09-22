@@ -45,22 +45,18 @@ atf_error_t
 resize(atf_dynstr_t *ad, size_t newsize)
 {
     char *newdata;
-    atf_error_t err;
 
     PRE(newsize > ad->m_datasize);
 
-    newdata = (char *)malloc(newsize);
-    if (newdata == NULL) {
-        err = atf_no_memory_error();
-    } else {
-        strcpy(newdata, ad->m_data);
-        free(ad->m_data);
-        ad->m_data = newdata;
-        ad->m_datasize = newsize;
-        err = atf_no_error();
-    }
+    newdata = realloc(ad->m_data, newsize);
+    if (newdata == NULL)
+        return atf_no_memory_error();
 
-    return err;
+    newdata[newsize - 1] = '\0';
+    ad->m_data = newdata;
+    ad->m_datasize = newsize;
+
+    return atf_no_error();
 }
 
 static
@@ -117,21 +113,16 @@ const size_t atf_dynstr_npos = SIZE_MAX;
 atf_error_t
 atf_dynstr_init(atf_dynstr_t *ad)
 {
-    atf_error_t err;
 
-    ad->m_data = (char *)malloc(sizeof(char));
-    if (ad->m_data == NULL) {
-        err = atf_no_memory_error();
-        goto out;
-    }
+    ad->m_data = malloc(sizeof(char));
+    if (ad->m_data == NULL)
+        return atf_no_memory_error();
 
     ad->m_data[0] = '\0';
     ad->m_datasize = 1;
     ad->m_length = 0;
-    err = atf_no_error();
 
-out:
-    return err;
+    return atf_no_error();
 }
 
 atf_error_t
@@ -158,6 +149,7 @@ atf_dynstr_init_ap(atf_dynstr_t *ad, const char *fmt, va_list ap)
         va_end(ap2);
         if (ret < 0) {
             free(ad->m_data);
+            ad->m_data = NULL;
             err = atf_libc_error(errno, "Cannot format string");
             goto out;
         }
@@ -278,6 +270,7 @@ atf_dynstr_fini(atf_dynstr_t *ad)
 {
     INV(ad->m_data != NULL);
     free(ad->m_data);
+    ad->m_data = NULL;
 }
 
 char *

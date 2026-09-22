@@ -32,7 +32,7 @@
 
 #include "atf-c/detail/sanity.h"
 
-/* Theoretically, there can only be a single error intance at any given
+/* Theoretically, there can only be a single error instance at any given
  * point in time, because errors are raised at one point and must be
  * handled immediately.  If another error has to be raised during the
  * handling process, something else has to be done with the previous
@@ -124,11 +124,13 @@ atf_error_free(atf_error_t err)
 
     freeit = err->m_free;
 
-    if (err->m_data != NULL)
-        free(err->m_data);
+    free(err->m_data);
+    err->m_data = NULL;
 
-    if (freeit)
+    if (freeit) {
         free(err);
+        err = NULL;
+    }
 
     error_on_flight = false;
 }

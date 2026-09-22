@@ -163,6 +163,10 @@ ATF_TEST_CASE_BODY(atf_tp_writer)
         expss << "descr: second test case\n";
         CHECK;
 
+        w.tc_meta_data("require.kmods", "/nonexistent");
+        expss << "require.kmods: /nonexistent\n";
+        CHECK;
+
         w.tc_meta_data("require.progs", "/bin/cp");
         expss << "require.progs: /bin/cp\n";
         CHECK;

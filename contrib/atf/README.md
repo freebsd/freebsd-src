@@ -12,20 +12,18 @@ interface** to allow both humans and automation to run the tests.
 
 ATF-based test programs **rely on an execution engine** to be run and
 this execution engine is *not* shipped with ATF.
-**[Kyua](https://github.com/jmmv/kyua/) is the engine of choice.**
+**[Kyua](https://github.com/freebsd/kyua/) is the engine of choice.**
 
 ## Download
 
 Formal releases for source files are available for download from GitHub:
 
-* [atf 0.20](../../releases/tag/atf-0.20), released on February 7th, 2014.
+* [atf 0.25](../../releases/tag/atf-0.25), released on September 2nd, 2026.
 
 ## Installation
 
 You are encouraged to install binary packages for your operating system
 wherever available:
-
-* Fedora 20 and above: install the `atf` package with `yum install atf`.
 
 * FreeBSD 10.0 and above: install the `atf` package with `pkg install atf`.
 
@@ -33,15 +31,38 @@ wherever available:
 
 * OpenBSD: install the `devel/atf` package with `pkg_add atf`.
 
+* Ubuntu: install the `libatf-dev` and `atf-sh` packages with
+  `apt install libatf-dev atf-sh`.
+
 Should you want to build and install ATF from the source tree provided
-here, follow the instructions in the [INSTALL file](INSTALL).
+here, follow the instructions in the [INSTALL file](INSTALL.md).
+
+## More Reading
+
+* AUTHORS: List of authors and contributors for this project.
+
+* COPYING: License information.
+
+* INSTALL.md: Compilation and installation instructions.  These is not the
+  standard document shipped with many packages, so be sure to read it for
+  things that are specific to ATF's build.
+
+* NEWS.md: List of major changes between formal, published releases.
+
+## Other documents
+
+* `AUTHORS`: List of authors and contributors for this project.
+
+* `COPYING`: License information.
+
+* `INSTALL.md`: Compilation and installation instructions.  These is not the
+  standard document shipped with many packages, so be sure to read it for
+  things that are specific to ATF's build.
+
+* `NEWS.md`: List of major changes between formal, published releases.
 
 ## Support
 
 Please use the
-[atf-discuss mailing list](https://groups.google.com/forum/#!forum/atf-discuss)
-for any support inquiries related to `atf-c`, `atf-c++` or `atf-sh`.
-
-If you have any questions on Kyua proper, please use the
-[kyua-discuss mailing list](https://groups.google.com/forum/#!forum/kyua-discuss)
-instead.
+[FreeBSD-testing@FreeBSD.org](mailto:FreeBSD-testing@FreeBSD.org) mailing list
+for any support inquiries related to `atf-c`, `atf-c++`, `atf-sh`, or `kyua`.

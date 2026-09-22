@@ -108,6 +108,7 @@ ATF_TC_BODY(map_init_charpp_short, tc)
     atf_error_t err = atf_map_init_charpp(&map, array);
     ATF_REQUIRE(atf_is_error(err));
     ATF_REQUIRE(atf_error_is(err, "libc"));
+    atf_error_free(err);
 }
 
 /*

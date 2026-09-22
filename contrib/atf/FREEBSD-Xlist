@@ -2,7 +2,7 @@
 */Makefile*
 */*.m4
 */*.pc.in
-INSTALL
+INSTALL.md
 Makefile*
 aclocal.m4
 admin/
