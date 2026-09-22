@@ -43,6 +43,18 @@ __RCSID("$NetBSD: t_assert.c,v 1.3 2017/01/10 15:17:57 christos Exp $");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef	__FreeBSD__
+/* TODO: upstream this. */
+static void
+skip_if_ndebug_set(void)
+{
+
+#ifdef	NDEBUG
+	atf_tc_skip("Testcase requires code to be compiled without -DNDEBUG.");
+#endif
+}
+#endif
+
 static void
 disable_corefile(void)
 {
@@ -73,6 +85,10 @@ ATF_TC_BODY(assert_false, tc)
 	struct sigaction sa;
 	pid_t pid;
 	int sta;
+
+#ifdef	__FreeBSD__
+	skip_if_ndebug_set();
+#endif
 
 	pid = fork();
 	ATF_REQUIRE(pid >= 0);
@@ -111,6 +127,10 @@ ATF_TC_BODY(assert_true, tc)
 	struct sigaction sa;
 	pid_t pid;
 	int sta;
+
+#ifdef	__FreeBSD__
+	skip_if_ndebug_set();
+#endif
 
 	pid = fork();
 	ATF_REQUIRE(pid >= 0);
