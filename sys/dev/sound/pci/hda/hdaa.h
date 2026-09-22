@@ -105,7 +105,7 @@ struct hdaa_widget {
 	uint32_t ossmask;
 	int unsol;
 	nid_t conns[HDA_MAX_CONNS];
-	u_char connsenable[HDA_MAX_CONNS];
+	uint8_t connsenable[HDA_MAX_CONNS];
 	char name[HDA_MAX_NAMELEN];
 	uint8_t	*eld;
 	int	eld_len;
@@ -148,12 +148,12 @@ struct hdaa_audio_ctl {
 
 /* Association is a group of pins bound for some special function. */
 struct hdaa_audio_as {
-	u_char enable;
-	u_char index;
-	u_char dir;
-	u_char pincnt;
-	u_char fakeredir;
-	u_char digital;
+	uint8_t enable;
+	uint8_t index;
+	uint8_t dir;
+	uint8_t pincnt;
+	uint8_t fakeredir;
+	uint8_t digital;
 	uint16_t pinset;
 	nid_t hpredir;
 	nid_t pins[16];
@@ -172,13 +172,13 @@ struct hdaa_pcm_devinfo {
 	int	index;
 	int	registered;
 	int	playas, recas;
-	u_char	left[SOUND_MIXER_NRDEVICES];
-	u_char	right[SOUND_MIXER_NRDEVICES];
+	uint8_t	left[SOUND_MIXER_NRDEVICES];
+	uint8_t	right[SOUND_MIXER_NRDEVICES];
 	int	minamp[SOUND_MIXER_NRDEVICES]; /* Minimal amps in 1/4dB. */
 	int	maxamp[SOUND_MIXER_NRDEVICES]; /* Maximal amps in 1/4dB. */
 	int	chan_size;
 	int	chan_blkcnt;
-	u_char	digital;
+	uint8_t	digital;
 	uint32_t	ossmask;	/* Mask of supported OSS devices. */
 	uint32_t	recsrc;		/* Mask of supported OSS sources. */
 	int		autorecsrc;

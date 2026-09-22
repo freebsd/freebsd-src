@@ -137,19 +137,19 @@ MIXER_DECLARE(onyx_mixer);
 #define PCM3052_REG_INFO_4          80
 
 struct onyx_reg {
-	u_char LEFT_ATTN;
-	u_char RIGHT_ATTN;
-	u_char CONTROL;
-	u_char DAC_CONTROL;
-	u_char DAC_DEEMPH;
-	u_char DAC_FILTER;
-	u_char OUT_PHASE;
-	u_char ADC_CONTROL;
-	u_char ADC_HPF_BP;
-	u_char INFO_1;
-	u_char INFO_2;
-	u_char INFO_3;
-	u_char INFO_4;
+	uint8_t LEFT_ATTN;
+	uint8_t RIGHT_ATTN;
+	uint8_t CONTROL;
+	uint8_t DAC_CONTROL;
+	uint8_t DAC_DEEMPH;
+	uint8_t DAC_FILTER;
+	uint8_t OUT_PHASE;
+	uint8_t ADC_CONTROL;
+	uint8_t ADC_HPF_BP;
+	uint8_t INFO_1;
+	uint8_t INFO_2;
+	uint8_t INFO_3;
+	uint8_t INFO_4;
 };
 
 static const struct onyx_reg onyx_initdata = {

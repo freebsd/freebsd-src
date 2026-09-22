@@ -94,7 +94,7 @@ struct tumbler_softc
 	uint32_t sc_addr;
 	struct mtx sc_volume_mtx;
 	struct task sc_volume_task;
-	u_char sc_volume_reg[6];
+	uint8_t sc_volume_reg[6];
 };
 
 static int	tumbler_probe(device_t);
@@ -181,25 +181,25 @@ MIXER_DECLARE(tumbler_mixer);
  */
 
 struct tumbler_reg {
-	u_char MCR[1];
-        u_char DRC[2];
-	u_char VOLUME[6];
-	u_char TREBLE[1];
-	u_char BASS[1];
-	u_char MIXER1[3];
-	u_char MIXER2[3];
-	u_char LB0[15];
-	u_char LB1[15];
-	u_char LB2[15];
-	u_char LB3[15];
-	u_char LB4[15];
-	u_char LB5[15];
-	u_char RB0[15];
-	u_char RB1[15];
-	u_char RB2[15];
-	u_char RB3[15];
-	u_char RB4[15];
-	u_char RB5[15];
+	uint8_t MCR[1];
+        uint8_t DRC[2];
+	uint8_t VOLUME[6];
+	uint8_t TREBLE[1];
+	uint8_t BASS[1];
+	uint8_t MIXER1[3];
+	uint8_t MIXER2[3];
+	uint8_t LB0[15];
+	uint8_t LB1[15];
+	uint8_t LB2[15];
+	uint8_t LB3[15];
+	uint8_t LB4[15];
+	uint8_t LB5[15];
+	uint8_t RB0[15];
+	uint8_t RB1[15];
+	uint8_t RB2[15];
+	uint8_t RB3[15];
+	uint8_t RB4[15];
+	uint8_t RB5[15];
 };
 
 const struct tumbler_reg tumbler_initdata = {
@@ -312,7 +312,7 @@ static void
 tumbler_volume_task(void *arg, int pending __unused)
 {
 	struct tumbler_softc *sc = arg;
-	u_char reg[6];
+	uint8_t reg[6];
 
 	mtx_lock(&sc->sc_volume_mtx);
 	memcpy(reg, sc->sc_volume_reg, sizeof(reg));
@@ -415,7 +415,7 @@ tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct tumbler_softc *sc;
 	unsigned int l, r;
-	u_char reg[6];
+	uint8_t reg[6];
 
 	sc = device_get_softc(mix_getdevinfo(m));
 
