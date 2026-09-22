@@ -159,7 +159,13 @@ struct pmclog_initialize {
 struct pmclog_map_in {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
-	uint32_t		pl_pad;
+	union {
+		uint32_t	pl_u;
+		struct {
+			uint8_t	pl_pageshift;
+			uint8_t	pl_pad[3];
+		};
+	};
 	uintfptr_t		pl_start;	/* 8 byte aligned */
 	char			pl_pathname[PATH_MAX];
 } __packed;

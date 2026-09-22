@@ -89,8 +89,8 @@ syminfo::to_string(bool show_line)
 	return ss.str();
 }
 
-pmcview::pmcview() : tscfreq(0), pmcid(), pmcinfo(), procs(), tidtopid(),
-    images(), sysroot(""), filter()
+pmcview::pmcview() : tscfreq(0), pageshift(0), pmcid(), pmcinfo(), procs(),
+    tidtopid(), images(), sysroot(""), filter()
 {
 	char *root;
 
@@ -436,7 +436,7 @@ pmcview::process(struct pmclog_ev_threadexit &p)
  * if the dwarf symbols are available.
  */
 image
-pmcview::loadimage(const std::string &path)
+pmcview::loadimage(const std::string &path, bool iskernel)
 {
 	std::string fullpath;
 	image im;
@@ -519,7 +519,12 @@ pmcview::loadimage(const std::string &path)
 
 			if (ph.p_type == PT_LOAD) {
 				if ((ph.p_flags & PF_X) != 0 && !foundexec) {
-					im.vaddr = ph.p_vaddr & ~(ph.p_align - 1);
+					uint64_t alignment;
+
+					alignment = iskernel ? ph.p_align :
+					    (pageshift != 0 ? 1ULL << pageshift :
+					    (uint64_t)getpagesize());
+					im.vaddr = rounddown2(ph.p_vaddr, alignment);
 					foundexec = true;
 				}
 			}
@@ -727,8 +732,9 @@ pmcview::process(struct pmclog_ev_map_in &p)
 {
 	// Kernel map-in events should be mapped to pid 0
 	pid_t pid = (p.pl_pid == -1) ? 0 : p.pl_pid;
+	pageshift = p.pl_pageshift;
 
-	image im = loadimage(p.pl_pathname);
+	image im = loadimage(p.pl_pathname, pid == 0);
 
 	mapimage(pid, im, p.pl_start);
 }
@@ -958,4 +964,3 @@ pmcview::printvm(pid_t pid)
 		    i.second.highpc, i.second.image.c_str());
 	}
 }
-

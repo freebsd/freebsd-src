@@ -389,6 +389,7 @@ protected:
 	void printvm(pid_t pid);
 	// Fields available to views
 	uint64_t				tscfreq;
+	uint8_t					pageshift;
 	std::unordered_map<uint32_t, uint32_t>	pmcid;
 	std::unordered_map<uint32_t, struct pmcinfo> pmcinfo;
 	std::unordered_map<pid_t, struct procinfo> procs;
@@ -404,7 +405,7 @@ protected:
 	std::vector<struct pmcinfox>		extpmcinfo;
 	std::map<uint32_t, struct cpuidleaf>	cpuid; // x86 Only
 private:
-	image loadimage(const std::string &path);
+	image loadimage(const std::string &path, bool iskernel = false);
 	void mapimage(pid_t pid, const image &im, uint64_t linkaddr);
 	void loadsymboltable(image *im, Elf *e, Elf_Scn *scn, GElf_Shdr *sh);
 	void loadsymbols(image *im);

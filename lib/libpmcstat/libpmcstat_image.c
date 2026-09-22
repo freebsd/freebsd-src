@@ -312,7 +312,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 	const char *path, *elfbase;
 	char *p, *endp;
 	bool first_exec_segment;
-	uintfptr_t minva, maxva;
+	uintfptr_t minva, maxva, pagesize;
 	Elf *e;
 	Elf_Scn *scn;
 	GElf_Ehdr eh;
@@ -329,6 +329,11 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 	image->pi_isdynamic = 0;
 	image->pi_dynlinkerpath = NULL;
 	image->pi_vaddr = 0;
+
+	if (args->pa_pageshift != 0)
+		pagesize = 1ULL << args->pa_pageshift;
+	else
+		pagesize = getpagesize();
 
 	path = pmcstat_string_unintern(image->pi_execpath);
 	assert(path != NULL);
@@ -421,7 +426,17 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 			case PT_LOAD:
 				if ((ph.p_flags & PF_X) != 0 &&
 				    first_exec_segment) {
-					image->pi_vaddr = ph.p_vaddr & (-ph.p_align);
+					if (image->pi_iskernelmodule) {
+						image->pi_vaddr = ph.p_vaddr &
+						    (-ph.p_align);
+					} else {
+						/*
+						 * User MAP_IN records depend
+						 * on page size.
+						 */
+						image->pi_vaddr = rounddown2(
+						    ph.p_vaddr, pagesize);
+					}
 					first_exec_segment = false;
 				}
 				break;
