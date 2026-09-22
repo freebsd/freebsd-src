@@ -182,6 +182,8 @@ linux_pdev_dma_uninit(struct pci_dev *pdev)
 	struct linux_dma_priv *priv;
 
 	priv = pdev->dev.dma_priv;
+	if (priv == NULL)
+		return (0);
 	if (priv->dmat)
 		bus_dma_tag_destroy(priv->dmat);
 	if (priv->dmat_coherent)
@@ -480,6 +482,7 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	spin_lock_init(&pdev->dev.devres_lock);
 	INIT_LIST_HEAD(&pdev->dev.devres_head);
 	INIT_LIST_HEAD(&pdev->dev.irqents);
+	INIT_LIST_HEAD(&pdev->links);
 
 	return (0);
 }
@@ -698,7 +701,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	pdev->irq = pdev->dev.irq;
 	error = linux_pdev_dma_init(pdev);
 	if (error)
-		goto out_dma_init;
+		goto out_err;
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -713,7 +716,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		pbus = lkpinew_pci_dev(parent);
 		if (pbus == NULL) {
 			error = ENXIO;
-			goto out_dma_init;
+			goto out_err;
 		}
 	}
 	pcie_find_root_port(pbus);
@@ -728,19 +731,11 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	if (pdrv != NULL) {
 		error = pdrv->probe(pdev, id);
 		if (error)
-			goto out_probe;
+			goto out_err;
 	}
 	return (0);
 
-/* XXX the cleanup does not match the allocation up there. */
-out_probe:
-	free(pdev->bus, M_DEVBUF);
-	spin_lock_destroy(&pdev->pcie_cap_lock);
-	linux_pdev_dma_uninit(pdev);
-out_dma_init:
-	spin_lock(&pci_lock);
-	list_del(&pdev->links);
-	spin_unlock(&pci_lock);
+out_err:
 	put_device(&pdev->dev);
 	return (-error);
 }
