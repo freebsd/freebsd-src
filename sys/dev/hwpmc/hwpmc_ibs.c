@@ -918,6 +918,10 @@ pmc_ibs_finalize(struct pmc_mdep *md)
 {
 	PMCDBG0(MDP, INI, 1, "ibs-finalize");
 
+	/* Safe even if the IBS class was skipped at initialize time. */
+	if (ibs_pcpu == NULL)
+		return;
+
 	for (int i = 0; i < pmc_cpu_max(); i++)
 		KASSERT(ibs_pcpu[i] == NULL,
 		    ("[ibs,%d] non-null pcpu cpu %d", __LINE__, i));

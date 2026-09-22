@@ -1270,6 +1270,8 @@ pmc_amd_finalize(struct pmc_mdep *md)
 
 	pmc_perf_finalize(md);
 
+	pmc_ibs_finalize(md);
+
 	for (int i = 0; i < pmc_cpu_max(); i++)
 		KASSERT(amd_pcpu[i] == NULL,
 		    ("[amd,%d] non-null pcpu cpu %d", __LINE__, i));
