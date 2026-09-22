@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -55,6 +55,7 @@
 #include "common.h"
 
 #include "basic_tests.h"
+#include "hash_tests.h"
 #include "ns_tests.h"
 #include "misc_tests.h"
 #include "alloc_tests.h"
@@ -68,6 +69,7 @@ make_suite(void) {
   Suite *s = suite_create("basic");
 
   make_basic_test_case(s);
+  make_hash_test_case(s);
   make_namespace_test_case(s);
   make_miscellaneous_test_case(s);
   make_alloc_test_case(s);

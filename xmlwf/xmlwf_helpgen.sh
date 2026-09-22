@@ -6,7 +6,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2019-2021 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2019-2026 Sebastian Pipping <sebastian@pipping.org>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -30,7 +30,11 @@
 #
 # SPDX-License-Identifier: MIT
 
-./xmlwf/xmlwf_helpgen.py | sed \
+set -e
+
+cd "$(dirname "$(type -P "$0")")"
+
+./xmlwf_helpgen.py | sed \
         -e 's,usage: ,usage:,' \
         -e 's,  xmlwf,  %s,' \
         -e 's, \[-h | -v\],,' \

@@ -43,6 +43,8 @@
    SPDX-License-Identifier: MIT
 */
 
+#include "expat_config.h"
+
 #if defined(NDEBUG)
 #  undef NDEBUG /* because test suite relies on assert(...) at the moment */
 #endif

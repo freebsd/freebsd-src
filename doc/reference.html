@@ -53,7 +53,7 @@
   <body>
     <div>
       <h1>
-        The Expat XML Parser <small>Release 2.8.4</small>
+        The Expat XML Parser <small>Release 2.8.5</small>
       </h1>
     </div>
 
@@ -1763,12 +1763,16 @@ XML_StopParser(XML_Parser p,
 </pre>
       <div class="fcndef">
         <p>
-          Stops parsing, causing <code><a href="#XML_Parse">XML_Parse</a></code> or
-          <code><a href="#XML_ParseBuffer">XML_ParseBuffer</a></code> to return. Must be
-          called from within a call-back handler, except when aborting (when
-          <code>resumable</code> is <code>XML_FALSE</code>) an already suspended parser.
-          Some call-backs may still follow because they would otherwise get lost,
-          including
+          Stops parsing as soon as possible, causing <code><a href=
+          "#XML_Parse">XML_Parse</a></code> or <code><a href=
+          "#XML_ParseBuffer">XML_ParseBuffer</a></code> to return. Must be called from
+          within a call-back handler, except when aborting (when <code>resumable</code>
+          is <code>XML_FALSE</code>) an already suspended parser.
+        </p>
+
+        <p>
+          <strong>Note:</strong> Some call-backs may still follow because they would
+          otherwise get lost, including
         </p>
 
         <ul>
@@ -3709,8 +3713,20 @@ enum XML_FeatureEnum {
   XML_FEATURE_MIN_SIZE,
   XML_FEATURE_SIZEOF_XML_CHAR,
   XML_FEATURE_SIZEOF_XML_LCHAR,
+  /* Added in Expat 2.0.0. */
   XML_FEATURE_NS,
-  XML_FEATURE_LARGE_SIZE
+  /* Added in Expat 2.0.1. */
+  XML_FEATURE_LARGE_SIZE,
+  /* Added in Expat 2.1.0. */
+  XML_FEATURE_ATTR_INFO,
+  /* Added in Expat 2.4.0. */
+  XML_FEATURE_BILLION_LAUGHS_ATTACK_PROTECTION_MAXIMUM_AMPLIFICATION_DEFAULT,
+  XML_FEATURE_BILLION_LAUGHS_ATTACK_PROTECTION_ACTIVATION_THRESHOLD_DEFAULT,
+  /* Added in Expat 2.6.0. */
+  XML_FEATURE_GE,
+  /* Added in Expat 2.7.2. */
+  XML_FEATURE_ALLOC_TRACKER_MAXIMUM_AMPLIFICATION_DEFAULT,
+  XML_FEATURE_ALLOC_TRACKER_ACTIVATION_THRESHOLD_DEFAULT,
 };
 
 typedef struct {

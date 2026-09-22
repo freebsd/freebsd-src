@@ -8,6 +8,7 @@
 
    Copyright (c) 2022 Mark Brand <markbrand@google.com>
    Copyright (c) 2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2026 Braian Plaku <braianplaku@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -383,7 +384,9 @@ UnknownEncodingHandler(void *encodingHandlerData, const XML_Char *name,
 void
 InitializeParser(XML_Parser parser) {
   XML_SetUserData(parser, (void *)parser);
-  XML_SetHashSalt(parser, 0x41414141);
+  const uint8_t entropy[16] = {0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+                               0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41};
+  XML_SetHashSalt16Bytes(parser, entropy);
   XML_SetParamEntityParsing(parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
 
   XML_SetElementDeclHandler(parser, ElementDeclHandler);

@@ -31,6 +31,7 @@
 # Copyright (c) 2008-2019 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
 # Copyright (c) 2025      Hanno Böck <hanno@gentoo.org>
+# Copyright (c) 2026      Huang Wenbin <huangwenbin@kylinos.cn>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -172,3 +173,4 @@ done
 
 echo "Passed: $SUCCESS"
 echo "Failed: $ERROR"
+test "$ERROR" -eq 0

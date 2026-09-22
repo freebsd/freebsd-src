@@ -10,7 +10,7 @@
    Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
    Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2005      Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -35,6 +35,8 @@
    SPDX-License-Identifier: MIT
 */
 
+#include <stdbool.h>
+
 #define XML_MAP_FILE 01
 #define XML_EXTERNAL_ENTITIES 02
 
@@ -46,5 +48,5 @@
 
 extern int g_read_size_bytes;
 
-extern int XML_ProcessFile(XML_Parser parser, const XML_Char *filename,
-                           unsigned flags);
+extern bool XML_ProcessFile(XML_Parser parser, const XML_Char *filename,
+                            unsigned flags);
