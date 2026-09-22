@@ -30,6 +30,7 @@ extern "C" {
 #include <limits.h>
 #include <signal.h>
 #include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 }
 
@@ -46,7 +47,6 @@ extern "C" {
 
 #include "atf-c++/check.hpp"
 #include "atf-c++/detail/application.hpp"
-#include "atf-c++/detail/auto_array.hpp"
 #include "atf-c++/detail/env.hpp"
 #include "atf-c++/detail/exceptions.hpp"
 #include "atf-c++/detail/fs.hpp"
@@ -74,12 +74,14 @@ struct status_check {
     status_check_t type;
     bool negated;
     int value;
+    bool empty;
 
     status_check(const status_check_t& p_type, const bool p_negated,
-                 const int p_value) :
+                 const int p_value, const bool p_empty) :
         type(p_type),
         negated(p_negated),
-        value(p_value)
+        value(p_value),
+        empty(p_empty)
     {
     }
 };
@@ -119,23 +121,30 @@ public:
         const atf::fs::path file = atf::fs::path(
             atf::env::get("TMPDIR", "/tmp")) / pattern;
 
-        atf::auto_array< char > buf(new char[file.str().length() + 1]);
-        std::strcpy(buf.get(), file.c_str());
-
-        m_fd = ::mkstemp(buf.get());
+        std::string file_s = file.str();
+        // C++14 returns const char* with `std::string::data()`.
+        //
+        // TODO(ngie): remove the else block and simplify once we are on C++17
+        // or later.
+#if __cplusplus >= 201703L
+        char *file_ch_arr = file_s.data();
+#else
+        char *file_ch_arr = &file_s[0];
+#endif
+        m_fd = ::mkstemp(file_ch_arr);
         if (m_fd == -1)
             throw atf::system_error("atf_check::temp_file::temp_file(" +
-                                    file.str() + ")", "mkstemp(3) failed",
+                                    file_s + ")", "mkstemp(3) failed",
                                     errno);
 
-        m_path.reset(new atf::fs::path(buf.get()));
+        m_path.reset(new atf::fs::path(file_ch_arr));
     }
 
     ~temp_file(void)
     {
         close();
         try {
-            remove(*m_path);
+            atf::fs::remove(*m_path);
         } catch (const atf::system_error&) {
             // Ignore deletion errors.
         }
@@ -200,11 +209,11 @@ parse_exit_code(const std::string& str)
     try {
         const int value = atf::text::to_type< int >(str);
         if (value < 0 || value > 255)
-            throw std::runtime_error("Unused reason");
+            throw std::range_error("Unused reason");
         return value;
-    } catch (const std::runtime_error&) {
+    } catch (const std::range_error&) {
         throw atf::application::usage_error("Invalid exit code for -s option; "
-            "must be an integer in range 0-255");
+            "must be an integer in the range [0, 255]");
     }
 }
 
@@ -267,6 +276,7 @@ parse_status_check_arg(const std::string& arg)
     const std::string value_str = (
         delimiter == std::string::npos ? "" : arg.substr(delimiter + 1));
     int value;
+    bool empty = false;
 
     status_check_t type;
     if (action == "eq") {
@@ -278,9 +288,10 @@ parse_status_check_arg(const std::string& arg)
         value = parse_exit_code(value_str);
     } else if (action == "exit") {
         type = sc_exit;
-        if (value_str.empty())
+        if (value_str.empty()) {
             value = INT_MIN;
-        else
+            empty = true;
+        } else
             value = parse_exit_code(value_str);
     } else if (action == "ignore") {
         if (negated)
@@ -296,14 +307,15 @@ parse_status_check_arg(const std::string& arg)
         value = parse_exit_code(value_str);
     } else if (action == "signal") {
         type = sc_signal;
-        if (value_str.empty())
+        if (value_str.empty()) {
             value = INT_MIN;
-        else
+            empty = true;
+        } else
             value = parse_signal(value_str);
     } else
         throw atf::application::usage_error("Invalid status checker");
 
-    return status_check(type, negated, value);
+    return status_check(type, negated, value, empty);
 }
 
 static
@@ -435,8 +447,8 @@ execute_with_shell(char* const* argv)
 {
     const std::string cmd = flatten_argv(argv);
     const std::string shell = atf::env::get("ATF_SHELL", ATF_SHELL);
-
     const char* sh_argv[4];
+
     sh_argv[0] = shell.c_str();
     sh_argv[1] = "-c";
     sh_argv[2] = cmd.c_str();
@@ -599,7 +611,7 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
     bool result;
 
     if (sc.type == sc_exit) {
-        if (cr.exited() && sc.value != INT_MIN) {
+        if (cr.exited() && !sc.empty) {
             const int status = cr.exitcode();
 
             if (!sc.negated && sc.value != status) {
@@ -614,7 +626,7 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
                 result = false;
             } else
                 result = true;
-        } else if (cr.exited() && sc.value == INT_MIN) {
+        } else if (cr.exited() && sc.empty) {
             result = true;
         } else {
             std::cerr << "Fail: program did not exit cleanly\n";
@@ -623,7 +635,7 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
     } else if (sc.type == sc_ignore) {
         result = true;
     } else if (sc.type == sc_signal) {
-        if (cr.signaled() && sc.value != INT_MIN) {
+        if (cr.signaled() && !sc.empty) {
             const int status = cr.termsig();
 
             if (!sc.negated && sc.value != status) {
@@ -637,7 +649,7 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
                 result = false;
             } else
                 result = true;
-        } else if (cr.signaled() && sc.value == INT_MIN) {
+        } else if (cr.signaled() && sc.empty) {
             result = true;
         } else {
             std::cerr << "Fail: program did not receive a signal\n";
@@ -678,7 +690,7 @@ run_status_checks(const std::vector< status_check >& checks,
 
 static
 bool
-run_output_check(const output_check oc, const atf::fs::path& path,
+run_output_check(const output_check& oc, const atf::fs::path& path,
                  const std::string& stdxxx)
 {
     bool result;
@@ -903,9 +915,10 @@ atf_check::main(void)
 
     int status = EXIT_FAILURE;
 
-    if (m_status_checks.empty())
-        m_status_checks.push_back(status_check(sc_exit, false, EXIT_SUCCESS));
-    else if (m_status_checks.size() > 1) {
+    if (m_status_checks.empty()) {
+        m_status_checks.push_back(status_check(sc_exit, false, EXIT_SUCCESS,
+            false));
+    } else if (m_status_checks.size() > 1) {
         // TODO: Remove this restriction.
         throw atf::application::usage_error("Cannot specify -s more than once");
     }

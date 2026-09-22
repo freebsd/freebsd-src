@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 
+#include <signal.h>
 #include <stdbool.h>
 
 #include <atf-c/detail/fs.h>
@@ -76,7 +77,7 @@ int atf_process_stream_type(const atf_process_stream_t *);
  * --------------------------------------------------------------------- */
 
 struct atf_process_status {
-    int m_status;
+    siginfo_t m_info;
 };
 typedef struct atf_process_status atf_process_status_t;
 

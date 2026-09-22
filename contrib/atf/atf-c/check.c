@@ -348,6 +348,7 @@ atf_check_result_fini(atf_check_result_t *r)
     atf_list_fini(&r->pimpl->m_argv);
 
     free(r->pimpl);
+    r->pimpl = NULL;
 }
 
 const char *

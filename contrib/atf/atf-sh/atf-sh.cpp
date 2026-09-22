@@ -31,6 +31,8 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <utility>
+#include <vector>
 
 #include "atf-c++/detail/application.hpp"
 #include "atf-c++/detail/env.hpp"
@@ -55,7 +57,7 @@ fix_plain_name(const char *filename)
 }
 
 static
-std::string*
+std::string
 construct_script(const char* filename)
 {
     const std::string libexecdir = atf::env::get(
@@ -64,37 +66,35 @@ construct_script(const char* filename)
         "ATF_PKGDATADIR", ATF_PKGDATADIR);
     const std::string shell = atf::env::get("ATF_SHELL", ATF_SHELL);
 
-    std::string* command = new std::string();
-    command->reserve(512);
-    (*command) += ("Atf_Check='" + libexecdir + "/atf-check' ; " +
-                   "Atf_Shell='" + shell + "' ; " +
-                   ". " + pkgdatadir + "/libatf-sh.subr ; " +
-                   ". " + fix_plain_name(filename) + " ; " +
-                   "main \"${@}\"");
+    std::string command;
+
+    command += ("Atf_Check='" + libexecdir + "/atf-check' ; " +
+                "Atf_Shell='" + shell + "' ; " +
+                ". " + pkgdatadir + "/libatf-sh.subr ; " +
+                ". " + fix_plain_name(filename) + " ; " +
+                "main \"${@}\"");
     return command;
 }
 
 static
-const char**
+std::vector<std::string>
 construct_argv(const std::string& shell, const int interpreter_argc,
                const char* const* interpreter_argv)
 {
     PRE(interpreter_argc >= 1);
     PRE(interpreter_argv[0] != NULL);
 
-    const std::string* script = construct_script(interpreter_argv[0]);
+    std::string script = construct_script(interpreter_argv[0]);
 
-    const int count = 4 + (interpreter_argc - 1) + 1;
-    const char** argv = new const char*[count];
-    argv[0] = shell.c_str();
-    argv[1] = "-c";
-    argv[2] = script->c_str();
-    argv[3] = interpreter_argv[0];
+    std::vector<std::string> argv;
+
+    argv.push_back(shell);
+    argv.push_back(std::string("-c"));
+    argv.push_back(std::move(script));
+    argv.push_back(std::string(interpreter_argv[0]));
 
     for (int i = 1; i < interpreter_argc; i++)
-        argv[4 + i - 1] = interpreter_argv[i];
-
-    argv[count - 1] = NULL;
+        argv.push_back(interpreter_argv[i]);
 
     return argv;
 }
@@ -167,12 +167,18 @@ atf_sh::main(void)
         throw std::runtime_error("The test program '" + script.str() + "' "
                                  "does not exist");
 
-    const char** argv = construct_argv(m_shell.str(), m_argc, m_argv);
-    // Don't bother keeping track of the memory allocated by construct_argv:
-    // we are going to exec or die immediately.
+    std::vector<std::string> argvv = construct_argv(m_shell.str(), m_argc,
+        m_argv);
+    std::vector<const char *> argv;
 
-    const int ret = execv(m_shell.c_str(), const_cast< char** >(argv));
+    for (std::size_t i = 0; i < argvv.size(); i++)
+        argv.push_back(argvv[i].c_str());
+    argv.push_back(NULL);
+
+    const int ret = execv(m_shell.c_str(),
+        const_cast<char* const *>(argv.data()));
     INV(ret == -1);
+
     std::cerr << "Failed to execute " << m_shell.str() << ": "
               << std::strerror(errno) << "\n";
     return EXIT_FAILURE;

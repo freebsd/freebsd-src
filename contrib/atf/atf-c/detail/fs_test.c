@@ -901,8 +901,8 @@ do_umask_check(atf_error_t (*const mk_func)(atf_fs_path_t *),
                const char *exp_name)
 {
     atf_fs_path_t path;
-    int pre_mask, post_mask;
     atf_error_t err;
+    mode_t pre_mask, post_mask;
 
     printf("Creating temporary %s with umask %05o\n", exp_name, test_mask);
 
@@ -1039,9 +1039,12 @@ ATF_TC_BODY(mkstemp_umask, tc)
 
     RE(atf_fs_path_init_fmt(&p, "testfile.XXXXXX"));
 
-    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00100, "regular file");
-    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00200, "regular file");
-    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00400, "regular file");
+    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00100,
+                   "regular file");
+    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00200,
+                  "regular file");
+    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00400,
+                   "regular file");
 
     atf_fs_path_fini(&p);
 }

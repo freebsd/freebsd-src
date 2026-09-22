@@ -22,8 +22,8 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd May 11, 2025
-.Dt ATF-TEST-CASE 4
+.Dd August 5, 2025
+.Dt ATF-TEST-CASE 7
 .Os
 .Sh NAME
 .Nm atf-test-case
@@ -153,7 +153,7 @@ The following metadata properties can be exposed via the test case's head:
 .Bl -tag -width requireXmachineXX
 .It descr
 Type: textual.
-Required.
+Optional.
 .Pp
 A brief textual description of the test case's purpose.
 Will be shown to the user in reports.
@@ -223,14 +223,6 @@ The value can have a size suffix such as
 or
 .Sq T
 to make the amount of bytes easier to type and read.
-.It require.kmods
-Type: textual.
-Optional.
-.Pp
-A whitespace separated list of kernel modules that must be present to
-execute the test case.
-If any of the required kernel modules is not found, the test case is
-.Em skipped .
 .It require.progs
 Type: textual.
 Optional.

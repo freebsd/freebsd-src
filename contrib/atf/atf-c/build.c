@@ -83,7 +83,7 @@ append_optargs(const char *const optargs[], atf_list_t *argv)
 
     err = atf_no_error();
     while (*optargs != NULL && !atf_is_error(err)) {
-        err = append_arg1(strdup(*optargs), argv);
+        err = append_arg1(*optargs, argv);
         optargs++;
     }
 

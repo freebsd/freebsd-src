@@ -23,6 +23,8 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
+#include "config.h"
+
 #include "atf-c/detail/process.h"
 
 #include <sys/types.h>
@@ -42,7 +44,7 @@
 
 /* This prototype is not in the header file because this is a private
  * function; however, we need to access it during testing. */
-atf_error_t atf_process_status_init(atf_process_status_t *, int);
+atf_error_t atf_process_status_init(atf_process_status_t *, siginfo_t *);
 
 /* ---------------------------------------------------------------------
  * The "stream_prepare" auxiliary type.
@@ -65,6 +67,8 @@ stream_prepare_init(stream_prepare_t *sp, const atf_process_stream_t *sb)
     const int type = atf_process_stream_type(sb);
 
     sp->m_sb = sb;
+    sp->m_pipefds[0] = -1;
+    sp->m_pipefds[1] = -1;
     sp->m_pipefds_ok = false;
 
     if (type == atf_process_stream_type_capture) {
@@ -186,10 +190,10 @@ atf_process_stream_type(const atf_process_stream_t *sb)
  * --------------------------------------------------------------------- */
 
 atf_error_t
-atf_process_status_init(atf_process_status_t *s, int status)
+atf_process_status_init(atf_process_status_t *s, siginfo_t *info)
 {
-    s->m_status = status;
 
+    s->m_info = *info;
     return atf_no_error();
 }
 
@@ -201,43 +205,36 @@ atf_process_status_fini(atf_process_status_t *s ATF_DEFS_ATTRIBUTE_UNUSED)
 bool
 atf_process_status_exited(const atf_process_status_t *s)
 {
-    int mutable_status = s->m_status;
-    return WIFEXITED(mutable_status);
+    return s->m_info.si_code == CLD_EXITED;
 }
 
 int
 atf_process_status_exitstatus(const atf_process_status_t *s)
 {
     PRE(atf_process_status_exited(s));
-    int mutable_status = s->m_status;
-    return WEXITSTATUS(mutable_status);
+    return s->m_info.si_status;
 }
 
 bool
 atf_process_status_signaled(const atf_process_status_t *s)
 {
-    int mutable_status = s->m_status;
-    return WIFSIGNALED(mutable_status);
+    /* Issue #187: `si_code` is a macro on NetBSD. */
+    int code = s->m_info.si_code;
+    return code == CLD_KILLED || code == CLD_DUMPED;
 }
 
 int
 atf_process_status_termsig(const atf_process_status_t *s)
 {
     PRE(atf_process_status_signaled(s));
-    int mutable_status = s->m_status;
-    return WTERMSIG(mutable_status);
+    return s->m_info.si_status;
 }
 
 bool
 atf_process_status_coredump(const atf_process_status_t *s)
 {
     PRE(atf_process_status_signaled(s));
-#if defined(WCOREDUMP)
-    int mutable_status = s->m_status;
-    return WCOREDUMP(mutable_status);
-#else
-    return false;
-#endif
+    return s->m_info.si_code == CLD_DUMPED;
 }
 
 /* ---------------------------------------------------------------------
@@ -245,14 +242,12 @@ atf_process_status_coredump(const atf_process_status_t *s)
  * --------------------------------------------------------------------- */
 
 static
-atf_error_t
+void
 atf_process_child_init(atf_process_child_t *c)
 {
     c->m_pid = 0;
     c->m_stdout = -1;
     c->m_stderr = -1;
-
-    return atf_no_error();
 }
 
 static
@@ -269,14 +264,14 @@ atf_error_t
 atf_process_child_wait(atf_process_child_t *c, atf_process_status_t *s)
 {
     atf_error_t err;
-    int status;
+    siginfo_t info;
 
-    if (waitpid(c->m_pid, &status, 0) == -1)
+    if (waitid(P_PID, c->m_pid, &info, WEXITED) == -1)
         err = atf_libc_error(errno, "Failed waiting for process %d",
                              c->m_pid);
     else {
         atf_process_child_fini(c);
-        err = atf_process_status_init(s, status);
+        err = atf_process_status_init(s, &info);
     }
 
     return err;
@@ -347,7 +342,7 @@ child_connect(const stream_prepare_t *sp, int procfd)
         err = safe_dup(sp->m_sb->m_fd, procfd);
     } else if (type == atf_process_stream_type_redirect_path) {
         int aux = open(atf_fs_path_cstring(sp->m_sb->m_path),
-                       O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
         if (aux == -1)
             err = atf_libc_error(errno, "Could not create %s",
                                  atf_fs_path_cstring(sp->m_sb->m_path));
@@ -387,25 +382,17 @@ parent_connect(const stream_prepare_t *sp, int *fd)
 }
 
 static
-atf_error_t
+void
 do_parent(atf_process_child_t *c,
           const pid_t pid,
           const stream_prepare_t *outsp,
           const stream_prepare_t *errsp)
 {
-    atf_error_t err;
-
-    err = atf_process_child_init(c);
-    if (atf_is_error(err))
-        goto out;
 
     c->m_pid = pid;
 
     parent_connect(outsp, &c->m_stdout);
     parent_connect(errsp, &c->m_stderr);
-
-out:
-    return err;
 }
 
 static
@@ -481,7 +468,7 @@ fork_with_streams(atf_process_child_t *c,
         abort();
         err = atf_no_error();
     } else {
-        err = do_parent(c, pid, &outsp, &errsp);
+        do_parent(c, pid, &outsp, &errsp);
         if (atf_is_error(err))
             goto err_errpipe;
     }
@@ -527,6 +514,8 @@ atf_process_fork(atf_process_child_t *c,
     atf_error_t err;
     atf_process_stream_t inherit_outsb, inherit_errsb;
     const atf_process_stream_t *real_outsb, *real_errsb;
+
+    atf_process_child_init(c);
 
     real_outsb = NULL;  /* Shut up GCC warning. */
     err = init_stream_w_default(outsb, &inherit_outsb, &real_outsb);
@@ -665,7 +654,7 @@ atf_process_exec_list(atf_process_status_t *s,
 
     err = atf_process_exec_array(s, prog, argv2, outsb, errsb, prehook);
 
-    free(argv2);
 out:
+    free(argv2);
     return err;
 }

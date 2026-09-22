@@ -55,6 +55,9 @@
 OLD_FILES+=usr/bin/lesskey
 OLD_FILES+=usr/share/man/man1/lesskey.1.gz
 
+# 20260921: atf-0.26 release
+OLD_FILES+=usr/share/doc/atf/README
+
 # 20260813: lib9p.so becomes a private library
 OLD_LIBS+=usr/lib/lib9p.so.1
 

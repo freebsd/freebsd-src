@@ -129,26 +129,26 @@
 
 #define ATF_REQUIRE_MSG(expression, fmt, ...) \
     do { \
-        if (!(expression)) \
+        if (expression) {} else \
             atf_tc_fail_requirement(__FILE__, __LINE__, fmt, ##__VA_ARGS__); \
     } while(0)
 
 #define ATF_CHECK_MSG(expression, fmt, ...) \
     do { \
-        if (!(expression)) \
+        if (expression) {} else \
             atf_tc_fail_check(__FILE__, __LINE__, fmt, ##__VA_ARGS__); \
     } while(0)
 
 #define ATF_REQUIRE(expression) \
     do { \
-        if (!(expression)) \
+        if (expression) {} else \
             atf_tc_fail_requirement(__FILE__, __LINE__, "%s", \
                                     #expression " not met"); \
     } while(0)
 
 #define ATF_CHECK(expression) \
     do { \
-        if (!(expression)) \
+        if (expression) {} else \
             atf_tc_fail_check(__FILE__, __LINE__, "%s", \
                               #expression " not met"); \
     } while(0)

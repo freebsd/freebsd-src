@@ -70,16 +70,6 @@ libtool_body()
         atf_check -s eq:1 -o empty -e ignore "${hp}" -r res srcdir_exists
         atf_check -s eq:0 -o ignore -e empty grep "Cannot find datafile" res
     done
-
-    for hp in $(get_helpers c_helpers cpp_helpers); do
-        h=${hp##*/}
-        cp ${hp} tmp
-        cp ${hp} tmp/.libs/lt-${h}
-        atf_check -s eq:0 -o ignore -e ignore -x \
-                  "cd tmp && ./.libs/lt-${h} srcdir_exists"
-        atf_check -s eq:1 -o empty -e ignore "${hp}" -r res srcdir_exists
-        atf_check -s eq:0 -o ignore -e empty grep "Cannot find datafile" res
-    done
 }
 
 atf_test_case sflag

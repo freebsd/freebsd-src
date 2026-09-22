@@ -50,7 +50,7 @@ void atf_tp_fini(atf_tp_t *);
 char **atf_tp_get_config(const atf_tp_t *);
 bool atf_tp_has_tc(const atf_tp_t *, const char *);
 const struct atf_tc *atf_tp_get_tc(const atf_tp_t *, const char *);
-const struct atf_tc *const *atf_tp_get_tcs(const atf_tp_t *);
+const struct atf_tc **atf_tp_get_tcs(const atf_tp_t *);
 
 /* Modifiers. */
 atf_error_t atf_tp_add_tc(atf_tp_t *, struct atf_tc *);

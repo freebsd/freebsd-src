@@ -26,6 +26,7 @@
 #if !defined(ATF_C_UTILS_H)
 #define ATF_C_UTILS_H
 
+#include <sys/types.h>
 #include <stdbool.h>
 #include <unistd.h>
 

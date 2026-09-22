@@ -37,6 +37,7 @@ extern "C" {
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 
 extern "C" {
@@ -205,19 +206,8 @@ impl::app::run(int argc, char* const* argv)
     m_argc = argc;
     m_argv = argv;
 
-    m_argv0 = m_argv[0];
-
-    m_prog_name = std::strrchr(m_argv[0], '/');
-    if (m_prog_name == NULL)
-        m_prog_name = m_argv[0];
-    else
-        m_prog_name++;
-
-    // Libtool workaround: if running from within the source tree (binaries
-    // that are not installed yet), skip the "lt-" prefix added to files in
-    // the ".libs" directory to show the real (not temporary) name.
-    if (std::strncmp(m_prog_name, "lt-", 3) == 0)
-        m_prog_name += 3;
+    auto m_prog_filename = std::filesystem::path(m_argv[0]).filename();
+    m_prog_name = m_prog_filename.c_str();
 
     const std::string bug =
         std::string("This is probably a bug in ") + m_prog_name +
