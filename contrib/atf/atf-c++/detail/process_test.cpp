@@ -196,22 +196,19 @@ ATF_TEST_CASE_BODY(argv_array_assign)
     const char* const carray1[] = { "arg1", NULL };
     const char* const carray2[] = { "arg1", "arg2", NULL };
 
-    std::unique_ptr< argv_array > argv1(new argv_array(carray1));
-    std::unique_ptr< argv_array > argv2(new argv_array(carray2));
+    argv_array argv1 = argv_array(carray1);
+    argv_array argv2 = argv_array(carray2);
 
-    *argv2 = *argv1;
-    ATF_REQUIRE_EQ(argv2->size(), argv1->size());
-    ATF_REQUIRE(std::strcmp((*argv2)[0], (*argv1)[0]) == 0);
+    argv2 = argv1;
+    ATF_REQUIRE_EQ(argv2.size(), argv1.size());
+    ATF_REQUIRE(std::strcmp(argv2[0], argv1[0]) == 0);
 
-    ATF_REQUIRE(argv2->exec_argv() != argv1->exec_argv());
-    argv1.release();
+    ATF_REQUIRE(argv2.exec_argv() != argv1.exec_argv());
     {
-        const char* const* eargv2 = argv2->exec_argv();
+        const char* const* eargv2 = argv2.exec_argv();
         ATF_REQUIRE(std::strcmp(eargv2[0], carray1[0]) == 0);
         ATF_REQUIRE_EQ(eargv2[1], static_cast< const char* >(NULL));
     }
-
-    argv2.release();
 }
 
 ATF_TEST_CASE(argv_array_copy);
@@ -226,21 +223,18 @@ ATF_TEST_CASE_BODY(argv_array_copy)
 
     const char* const carray[] = { "arg0", NULL };
 
-    std::unique_ptr< argv_array > argv1(new argv_array(carray));
-    std::unique_ptr< argv_array > argv2(new argv_array(*argv1));
+    argv_array argv1 = argv_array(carray);
+    argv_array argv2 = argv1;
 
-    ATF_REQUIRE_EQ(argv2->size(), argv1->size());
-    ATF_REQUIRE(std::strcmp((*argv2)[0], (*argv1)[0]) == 0);
+    ATF_REQUIRE_EQ(argv2.size(), argv1.size());
+    ATF_REQUIRE(std::strcmp(argv2[0], argv1[0]) == 0);
 
-    ATF_REQUIRE(argv2->exec_argv() != argv1->exec_argv());
-    argv1.release();
+    ATF_REQUIRE(argv2.exec_argv() != argv1.exec_argv());
     {
-        const char* const* eargv2 = argv2->exec_argv();
+        const char* const* eargv2 = argv2.exec_argv();
         ATF_REQUIRE(std::strcmp(eargv2[0], carray[0]) == 0);
         ATF_REQUIRE_EQ(eargv2[1], static_cast< const char* >(NULL));
     }
-
-    argv2.release();
 }
 
 ATF_TEST_CASE(argv_array_exec_argv);

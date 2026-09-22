@@ -26,4 +26,6 @@
 
 CFLAGS+=	-DHAVE_CONFIG_H
 
+CXXSTD=		gnu++20
+
 WARNS?=		3

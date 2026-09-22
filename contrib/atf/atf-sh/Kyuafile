@@ -9,3 +9,4 @@ atf_test_program{name="config_test"}
 atf_test_program{name="atf-check_test"}
 atf_test_program{name="atf_check_test"}
 atf_test_program{name="integration_test"}
+atf_test_program{name="kmod_test"}

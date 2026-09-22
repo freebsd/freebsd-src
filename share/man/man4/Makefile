@@ -993,12 +993,6 @@ MAN+=		mlx5ib.4
 MAN+=		mlx5io.4
 .endif
 
-.if ${MK_TESTS} != "no"
-ATF=            ${SRCTOP}/contrib/atf
-.PATH:          ${ATF}/doc
-_atf_test_case.4=	atf-test-case.4
-.endif
-
 .if ${MK_PF} != "no"
 _pf.4=		pf.4
 _pflog.4=	pflog.4

@@ -39,14 +39,6 @@ namespace atf {
 namespace text {
 
 //!
-//! \brief Duplicates a C string using the new[] allocator.
-//!
-//! Replaces the functionality of strdup by using the new[] allocator and
-//! thus allowing the resulting memory to be managed by utils::auto_array.
-//!
-char* duplicate(const char*);
-
-//!
 //! \brief Joins multiple words into a string.
 //!
 //! Joins a list of words into a string, separating them using the provided

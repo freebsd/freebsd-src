@@ -383,7 +383,7 @@ atf_check -s exit:0 -o file:expout -e empty echo foo
 
 # Generate a file for later inspection
 atf_check -s exit:0 -o save:stdout -e empty ls
-grep foo ls || atf_fail "foo file not found in listing"
+grep foo stdout || atf_fail "foo file not found in listing"
 
 # Or just do the match along the way
 atf_check -s exit:0 -o match:"^foo$" -e empty ls

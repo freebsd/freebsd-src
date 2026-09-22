@@ -46,31 +46,29 @@ namespace impl = atf::process;
 // ------------------------------------------------------------------------
 
 template< class C >
-atf::auto_array< const char* >
+std::vector<const char*>
 collection_to_argv(const C& c)
 {
-    atf::auto_array< const char* > argv(new const char*[c.size() + 1]);
+    std::vector<const char*> argv;
+    argv.reserve(c.size() + 1);
 
-    std::size_t pos = 0;
-    for (typename C::const_iterator iter = c.begin(); iter != c.end();
-         iter++) {
-        argv[pos] = (*iter).c_str();
-        pos++;
+    for (const auto& item : c) {
+        argv.push_back(item.c_str());
     }
-    INV(pos == c.size());
-    argv[pos] = NULL;
+    argv.push_back(nullptr);
 
     return argv;
 }
 
-template< class C >
+template<class C>
 C
 argv_to_collection(const char* const* argv)
 {
     C c;
 
-    for (const char* const* iter = argv; *iter != NULL; iter++)
+    for (const char* const* iter = argv; *iter != nullptr; iter++) {
         c.push_back(std::string(*iter));
+    }
 
     return c;
 }
@@ -123,7 +121,7 @@ const char* const*
 impl::argv_array::exec_argv(void)
     const
 {
-    return m_exec_argv.get();
+    return m_exec_argv.data();
 }
 
 impl::argv_array::size_type

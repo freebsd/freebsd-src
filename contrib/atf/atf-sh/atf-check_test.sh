@@ -397,9 +397,9 @@ unusual_umask_head()
 unusual_umask_body()
 {
     for mask in 022 027 0222 0177 0777 ; do
-        umask $mask
+        umask ${mask}
         ${Atf_Check} true || \
-            atf_fail "atf-check failed with umask $mask"
+            atf_fail "atf-check failed with umask ${mask}"
     done
     umask 022
 }

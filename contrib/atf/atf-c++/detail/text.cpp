@@ -42,14 +42,6 @@ extern "C" {
 namespace impl = atf::text;
 #define IMPL_NAME "atf::text"
 
-char*
-impl::duplicate(const char* str)
-{
-    char* copy = new char[std::strlen(str) + 1];
-    std::strcpy(copy, str);
-    return copy;
-}
-
 bool
 impl::match(const std::string& str, const std::string& regex)
 {

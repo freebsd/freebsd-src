@@ -36,7 +36,6 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include <atf-c++/detail/auto_array.hpp>
 #include <atf-c++/detail/exceptions.hpp>
 #include <atf-c++/detail/fs.hpp>
 
@@ -58,7 +57,7 @@ class argv_array {
     // std::tr1::shared_array instead when it becomes widely available.
     // The reason would be to remove all copy constructors and assignment
     // operators from this class.
-    auto_array< const char* > m_exec_argv;
+    std::vector< const char* > m_exec_argv;
     void ctor_init_exec_argv(void);
 
 public:

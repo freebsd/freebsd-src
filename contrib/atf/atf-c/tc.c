@@ -26,7 +26,7 @@
 #include "atf-c/tc.h"
 
 #include <sys/types.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
 #include <sys/linker.h>
 #include <sys/module.h>
 #endif
@@ -107,9 +107,7 @@ static void format_reason_fmt(atf_dynstr_t *, const char *, const size_t,
 static void errno_test(struct context *, const char *, const size_t,
                        const int, const char *, const bool,
                        void (*)(struct context *, atf_dynstr_t *));
-#ifdef __FreeBSD__
 static atf_error_t check_kmod(struct context *, const char *);
-#endif
 static atf_error_t check_prog_in_dir(const char *, void *);
 static atf_error_t check_prog(struct context *, const char *);
 
@@ -144,7 +142,7 @@ context_set_resfile(struct context *ctx, const char *resfile)
     else if (strcmp(resfile, "/dev/stderr") == 0)
         ctx->resfilefd = STDERR_FILENO;
     else
-        ctx->resfilefd = open(resfile, O_WRONLY | O_CREAT | O_TRUNC,
+        ctx->resfilefd = open(resfile, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (ctx->resfilefd == -1) {
             err = atf_libc_error(errno,
@@ -467,8 +465,8 @@ errno_test(struct context *ctx, const char *file, const size_t line,
     }
 }
 
-#ifdef __FreeBSD__
-static atf_error_t
+#if defined(__FreeBSD__)
+atf_error_t
 check_kmod(struct context *ctx, const char *kmod)
 {
     struct kld_file_stat fstat = { .version = sizeof(fstat) };
@@ -478,24 +476,39 @@ check_kmod(struct context *ctx, const char *kmod)
     int fid, mid;
 
     for (fid = kldnext(0); fid > 0; fid = kldnext(fid)) {
-	if (kldstat(fid, &fstat) != 0)
-	    continue;
-	if (strcmp(fstat.name, kmod) == 0)
-	    goto done;
-	if (strncmp(fstat.name, kmod, len) == 0 &&
-	    strcmp(fstat.name + len, ".ko") == 0)
-	    goto done;
-	for (mid = kldfirstmod(fid); mid > 0; mid = modfnext(mid)) {
-	    if (modstat(mid, &mstat) != 0)
-		continue;
-	    if (strcmp(mstat.name, kmod) == 0)
-		goto done;
-	}
+        if (kldstat(fid, &fstat) != 0)
+            continue;
+
+        if (strcmp(fstat.name, kmod) == 0)
+            goto done;
+
+        if (strncmp(fstat.name, kmod, len) == 0 &&
+            strcmp(fstat.name + len, ".ko") == 0)
+            goto done;
+
+        for (mid = kldfirstmod(fid); mid > 0; mid = modfnext(mid)) {
+            if (modstat(mid, &mstat) != 0)
+                continue;
+            if (strcmp(mstat.name, kmod) == 0)
+                goto done;
+        }
     }
-    format_reason_fmt(&reason, NULL, 0, "The required kmod %s "
-	"is not loaded", kmod);
+    format_reason_fmt(&reason, NULL, 0,
+        "The required kmod %s is not loaded", kmod);
     fail_requirement(ctx, &reason);
+
 done:
+    return atf_no_error();
+}
+#else
+atf_error_t
+check_kmod(struct context *ctx, const char *kmod ATF_DEFS_ATTRIBUTE_UNUSED)
+{
+    atf_dynstr_t reason;
+
+    format_reason_fmt(&reason, NULL, 0,
+        "This API is only available on FreeBSD");
+    fail_requirement(ctx, &reason);
     return atf_no_error();
 }
 #endif
@@ -688,8 +701,10 @@ atf_tc_init_pack(atf_tc_t *tc, const atf_tc_pack_t *pack,
 void
 atf_tc_fini(atf_tc_t *tc)
 {
+    atf_map_fini(&tc->pimpl->m_config);
     atf_map_fini(&tc->pimpl->m_vars);
     free(tc->pimpl);
+    tc->pimpl = NULL;
 }
 
 /*
@@ -851,8 +866,10 @@ atf_tc_set_md_var(atf_tc_t *tc, const char *name, const char *fmt, ...)
 
     if (!atf_is_error(err))
         err = atf_map_insert(&tc->pimpl->m_vars, name, value, true);
-    else
+    else {
         free(value);
+        value = NULL;
+    }
 
     return err;
 }
@@ -869,9 +886,7 @@ static void _atf_tc_fail_check(struct context *, const char *, const size_t,
 static void _atf_tc_fail_requirement(struct context *, const char *,
     const size_t, const char *, va_list) ATF_DEFS_ATTRIBUTE_NORETURN;
 static void _atf_tc_pass(struct context *) ATF_DEFS_ATTRIBUTE_NORETURN;
-#ifdef __FreeBSD__
 static void _atf_tc_require_kmod(struct context *, const char *);
-#endif
 static void _atf_tc_require_prog(struct context *, const char *);
 static void _atf_tc_skip(struct context *, const char *, va_list)
     ATF_DEFS_ATTRIBUTE_NORETURN;
@@ -951,13 +966,11 @@ _atf_tc_pass(struct context *ctx)
     UNREACHABLE;
 }
 
-#ifdef __FreeBSD__
 static void
-_atf_tc_require_kmod(struct context *ctx, const char *kmod)
+_atf_tc_require_kmod(struct context *ctx, const char *prog)
 {
-    check_fatal_error(check_kmod(ctx, kmod));
+    check_fatal_error(check_kmod(ctx, prog));
 }
-#endif
 
 static void
 _atf_tc_require_prog(struct context *ctx, const char *prog)
@@ -1205,7 +1218,6 @@ atf_tc_pass(void)
     _atf_tc_pass(&Current);
 }
 
-#ifdef __FreeBSD__
 void
 atf_tc_require_kmod(const char *kmod)
 {
@@ -1213,7 +1225,6 @@ atf_tc_require_kmod(const char *kmod)
 
     _atf_tc_require_kmod(&Current, kmod);
 }
-#endif
 
 void
 atf_tc_require_prog(const char *prog)

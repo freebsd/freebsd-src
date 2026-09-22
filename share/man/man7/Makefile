@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/5/93
+#	@(#)Makefile	9.1 (Berkeley) 6/5/93
 
 .include <src.opts.mk>
 
@@ -53,14 +53,17 @@ MLINKS+= networking.7 wifi.7
 .endif
 
 .if ${MK_TESTS} != "no"
-ATF=	${SRCTOP}/contrib/atf
-.PATH:	${ATF}/doc
 MAN+=	atf.7
+MAN+=	atf-test-case.7
+MAN+=	tests.7
+
+ATFPATH=	${SRCTOP}/contrib/atf
+.PATH:	${ATFPATH}/doc
 
 CLEANFILES+= atf.7
 atf.7: atf.7.in
 	sed -e 's,__DOCDIR__,/usr/share/doc/atf,g' \
-	    <"${ATF}/doc/atf.7.in" >atf.7
+	    <"${ATFPATH}/doc/atf.7.in" >atf.7
 .endif
 
 .include <bsd.prog.mk>
