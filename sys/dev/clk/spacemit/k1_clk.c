@@ -338,7 +338,7 @@ k1_clk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		mux_mask <<= clk_sc->mux_shift;
 		val = READ4(sc, clk_sc->reg);
 		val &= ~mux_mask;
-		val |= (p_idx << clk_sc->mux_shift);
+		val |= (best_parent << clk_sc->mux_shift);
 		WRITE4(sc, clk_sc->reg, val);
 
 		if (k1_clk_send_fc_req(clk) != 0) {
@@ -383,7 +383,7 @@ k1_clk_init(struct clknode *clk, device_t dev)
 	sc = device_get_softc(clknode_get_device(clk));
 	clk_sc = clknode_get_softc(clk);
 
-	if (clk_sc->mux_shift == 0) {
+	if (clk_sc->mux_nbits == 0) {
 		clknode_init_parent_idx(clk, 0);
 		return (0);
 	}
