@@ -1040,7 +1040,7 @@ vfs_busyfs(fsid_t *fsid)
 	if (fsidcmp(&mp->mnt_stat.f_fsid, fsid) == 0)
 		return (mp);
 	else
-	    vfs_unbusy(mp);
+		vfs_unbusy(mp);
 
 slow:
 	mtx_lock(&mountlist_mtx);
