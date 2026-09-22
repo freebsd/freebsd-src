@@ -151,7 +151,7 @@ bsdconf_put(struct bsdconf_option options[], const char *path,
 	}
 
 	/* Slurp the original into memory */
-	if ((buf = bsdconf_readfile(fd, (size_t)sb.st_size, &buflen)) == NULL)
+	if ((buf = bsdconf_slurp(fd, &buflen)) == NULL)
 		goto cleanup;
 
 	/*

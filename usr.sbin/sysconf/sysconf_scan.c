@@ -236,22 +236,6 @@ scan_pass(int sandbox)
 		fds[n] = open(conf_files[n], O_RDONLY);
 		if (fds[n] < 0 && errno != ENOENT)
 			err(EXIT_FAILURE, "%s", conf_files[n]);
-
-		/*
-		 * Spool input that cannot seek (a fifo or /dev/stdin named
-		 * by `-f') before the sandbox slams shut: the library would
-		 * otherwise spool lazily inside bsdconf_fparse(), where
-		 * creating the temporary is no longer permitted.
-		 */
-		if (fds[n] >= 0 && lseek(fds[n], 0, SEEK_CUR) == -1) {
-			int sfd;
-
-			if (errno != ESPIPE ||
-			    (sfd = bsdconf_spool(fds[n])) == -1)
-				err(EXIT_FAILURE, "%s", conf_files[n]);
-			close(fds[n]);
-			fds[n] = sfd;
-		}
 	}
 
 #ifdef __FreeBSD__

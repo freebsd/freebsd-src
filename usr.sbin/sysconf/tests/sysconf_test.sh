@@ -416,6 +416,28 @@ make_src_knobs_cleanup()
 	cleanup_root
 }
 
+atf_test_case max_bytes_cap cleanup
+max_bytes_cap_head()
+{
+	atf_set "descr" "BSDCONF_MAX_BYTES bounds parse input"
+}
+max_bytes_cap_body()
+{
+	setup_root
+	printf 'foo=ok\n' > "$ROOT/etc/make.conf"
+	atf_check -o inline:'foo: ok\n' "$SYSCONF" make -R "$ROOT" foo
+	# A tight cap rejects an otherwise valid file
+	atf_check -s not-exit:0 -e match:'File too large' \
+	    env BSDCONF_MAX_BYTES=4 "$SYSCONF" make -R "$ROOT" foo
+	got=$( printf 'bar=piped\n' | "$SYSCONF" generic -f - bar ) ||
+		atf_fail "pipe parse failed"
+	atf_check_equal "bar: piped" "$got"
+}
+max_bytes_cap_cleanup()
+{
+	cleanup_root
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case make_src_knobs
@@ -428,4 +450,5 @@ atf_init_test_cases()
 	atf_add_test_case verbatim_backslash
 	atf_add_test_case equal_value_nocheck_mtime
 	atf_add_test_case sysctl_oid_range
+	atf_add_test_case max_bytes_cap
 }

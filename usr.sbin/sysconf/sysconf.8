@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 15, 2026
+.Dd September 16, 2026
 .Dt SYSCONF 8
 .Os
 .Sh NAME
@@ -431,8 +431,7 @@ may be a non-seekable stream
 .Po
 a fifo or
 .Pa /dev/stdin ,
-for example,
-spooled to a temporary automatically
+for example
 .Pc ;
 write operations require a regular file.
 A
@@ -597,6 +596,12 @@ a successful removal echoes
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width "LOADER_DEFAULTS"
+.It Ev BSDCONF_MAX_BYTES
+Maximum bytes
+.Nm
+will read from a configuration file or stream;
+see
+.Xr bsdconf 3 .
 .It Ev LOADER_DEFAULTS
 Defaults file for the
 .Ql loader

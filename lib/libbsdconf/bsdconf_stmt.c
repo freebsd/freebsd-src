@@ -15,6 +15,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,6 +101,138 @@ bsdconf_readfile(int fd, size_t size, size_t *lenp)
 			return (NULL);
 		}
 		if (r == 0) /* premature EOF (file shrank); stop */
+			break;
+		off += (size_t)r;
+	}
+
+	buf[off] = '\0';
+	*lenp = off;
+	return (buf);
+}
+
+/*
+ * Ceiling on a slurp of configuration data. Unset, empty, zero, or
+ * unparseable BSDCONF_MAX_BYTES restores BSDCONF_MAX_BYTES_DEFAULT.
+ */
+size_t
+bsdconf_max_bytes(void)
+{
+	const char *s;
+	char *end;
+	unsigned long n;
+
+	s = getenv("BSDCONF_MAX_BYTES");
+	if (s == NULL || *s == '\0')
+		return (BSDCONF_MAX_BYTES_DEFAULT);
+	errno = 0;
+	n = strtoul(s, &end, 10);
+	if (errno != 0 || end == s || *end != '\0' || n == 0)
+		return (BSDCONF_MAX_BYTES_DEFAULT);
+	if (n > SIZE_MAX)
+		return (SIZE_MAX);
+	return ((size_t)n);
+}
+
+/*
+ * Read the remaining contents of `fd' into a freshly allocated,
+ * NUL-terminated buffer, stopping at EOF or the BSDCONF_MAX_BYTES cap.
+ * Regular files whose remaining length already exceeds the cap fail with
+ * EFBIG without reading. Returns the buffer on success (which the caller
+ * must free) or NULL (with errno set) on error.
+ */
+char *
+bsdconf_slurp(int fd, size_t *lenp)
+{
+	struct stat sb;
+	char *buf;
+	char *t;
+	int sverrno;
+	size_t cap;
+	size_t maxb;
+	size_t off;
+	ssize_t r;
+
+	maxb = bsdconf_max_bytes();
+	if (maxb == 0) {
+		errno = EFBIG;
+		return (NULL);
+	}
+
+	/*
+	 * Known remaining length on a regular file: fail fast if the cap
+	 * cannot admit it, otherwise one exact allocation.
+	 */
+	if (fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode)) {
+		off_t cur;
+
+		cur = lseek(fd, 0, SEEK_CUR);
+		if (cur != -1 && sb.st_size >= cur) {
+			uintmax_t remain;
+
+			remain = (uintmax_t)(sb.st_size - cur);
+			if (remain > maxb) {
+				errno = EFBIG;
+				return (NULL);
+			}
+			return (bsdconf_readfile(fd, (size_t)remain, lenp));
+		}
+	}
+
+	/* Unknown length (pipe, socket, device): grow up to the cap */
+	cap = maxb < 8192 ? maxb : 8192;
+	if ((buf = malloc(cap + 1)) == NULL)
+		return (NULL);
+	off = 0;
+	for (;;) {
+		if (off == cap) {
+			size_t ncap;
+
+			if (cap >= maxb) {
+				char probe;
+
+				do {
+					r = read(fd, &probe, 1);
+				} while (r < 0 && errno == EINTR);
+				if (r < 0) {
+					sverrno = errno;
+					free(buf);
+					errno = sverrno;
+					return (NULL);
+				}
+				if (r > 0) {
+					free(buf);
+					errno = EFBIG;
+					return (NULL);
+				}
+				break;
+			}
+			ncap = cap * 2;
+			if (ncap <= cap || ncap > maxb)
+				ncap = maxb;
+			if (ncap <= cap) {
+				free(buf);
+				errno = EFBIG;
+				return (NULL);
+			}
+			if ((t = realloc(buf, ncap + 1)) == NULL) {
+				sverrno = errno;
+				free(buf);
+				errno = sverrno;
+				return (NULL);
+			}
+			buf = t;
+			cap = ncap;
+		}
+		r = read(fd, buf + off, cap - off);
+		if (r < 0) {
+			if (errno == EINTR)
+				continue;
+			sverrno = errno;
+			free(buf);
+			errno = sverrno;
+			return (NULL);
+		}
+		if (r == 0)
 			break;
 		off += (size_t)r;
 	}

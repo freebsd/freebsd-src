@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -66,10 +65,9 @@ bsdconf_unquote(char *value)
  * Copy the remaining contents of the open file descriptor `fd' to an
  * unlinked temporary file and return a seekable descriptor referencing it
  * (which the caller must close(2); the backing storage is reclaimed then).
- * This adapts input that cannot seek -- a pipe or socket, standard input
- * included -- for the scanner in bsdconf_fparse() below, which seeks
- * liberally. Returns the new descriptor on success; otherwise returns -1
- * and errno should be consulted.
+ * Exported for callers that need a seekable snapshot of a pipe or socket.
+ * Returns the new descriptor on success; otherwise returns -1 and errno
+ * should be consulted.
  */
 int
 bsdconf_spool(int fd)
@@ -114,109 +112,6 @@ fail:
 }
 
 /*
- * Read one byte into `*p', restarting on EINTR. Returns 1 on success, 0 on
- * EOF, or -1 on error (with errno set). Callers must treat a negative return
- * as failure: a loop conditioned only on `r != 0' spins forever on error
- * because read(2) returns -1, and a length counter in such a loop can grow
- * without bound (see the directive scan in bsdconf_fparse() below).
- */
-static ssize_t
-bsdconf_read1(int fd, char *p)
-{
-	ssize_t r;
-
-	do {
-		r = read(fd, p, 1);
-	} while (r < 0 && errno == EINTR);
-	return (r);
-}
-
-/*
- * Read exactly `n' bytes into `buf', restarting on EINTR. Returns 0 on
- * success, or -1 on error / premature EOF (with errno set; EIO for a short
- * read after the caller measured a length on a seekable descriptor).
- */
-static int
-bsdconf_readn(int fd, void *buf, size_t n)
-{
-	char *p = buf;
-	size_t off = 0;
-	ssize_t r;
-
-	while (off < n) {
-		r = read(fd, p + off, n - off);
-		if (r < 0) {
-			if (errno == EINTR)
-				continue;
-			return (-1);
-		}
-		if (r == 0) {
-			errno = EIO;
-			return (-1);
-		}
-		off += (size_t)r;
-	}
-	return (0);
-}
-
-/*
- * Advance past horizontal whitespace (spaces and tabs, not newline).
- * Updates `*r' and the byte in `*p'. Returns 0 on success, or -1 on
- * read error (errno set).
- */
-static int
-bsdconf_skip_hspace(int fd, char *p, ssize_t *r)
-{
-
-	while (*r > 0 && isspace((unsigned char)*p) && *p != '\n') {
-		*r = bsdconf_read1(fd, p);
-		if (*r < 0)
-			return (-1);
-	}
-	return (0);
-}
-
-/*
- * Truncate trailing whitespace from a NUL-terminated string whose end
- * (the NUL) is at `end'. Returns a pointer to the last remaining
- * character, or to `value' when the string is empty.
- */
-static char *
-bsdconf_rtrim_ws(char *value, char *end)
-{
-	char *t = end;
-
-	while (t > value && isspace((unsigned char)*--t))
-		*t = '\0';
-	return (t);
-}
-
-/*
- * Drop a trailing inline `#' or unescaped `;' that rode along with the
- * value (historic figpar behavior), then trim again. `ecomment' is set
- * when the end-key scan stopped on an unquoted `#'.
- */
-static char *
-bsdconf_trim_value_key(char *value, char *t, bool ecomment, bool bsemicolon)
-{
-	uint32_t x;
-
-	if (ecomment && t > value && *t == '#') {
-		*t = '\0';
-		return (bsdconf_rtrim_ws(value, t));
-	}
-	if (bsemicolon && t > value && *t == ';') {
-		for (x = 0; t - x > value && *(t - x - 1) == '\\'; x++)
-			;
-		if ((x & 1) == 0) {
-			*t = '\0';
-			return (bsdconf_rtrim_ws(value, t));
-		}
-	}
-	return (t);
-}
-
-/*
  * Invoke the unknown-directive call-back with a stack-local option that
  * carries the statement's assignment operator (there is no matched
  * options[] slot to hang it on). Returns the call-back's result.
@@ -234,126 +129,6 @@ bsdconf_call_unknown(int (*unknown)(struct bsdconf_option *option,
 }
 
 /*
- * Scan from the current byte in `*p' to the end of the value. Handles
- * quotes, escaped end-keys, inline comments, and semicolon terminators.
- * On return, `*p' holds the terminating key (or is at EOF), and `*r',
- * `*line', `*comment', and `*ecomment' are updated. Returns 0 on
- * success, or -1 on seek/read error (errno set).
- */
-static int
-bsdconf_scan_value_end(int fd, char *p, ssize_t *r, uint32_t *line,
-    uint8_t *comment, uint8_t *ecomment, bool bsemicolon)
-{
-	uint8_t end = 0;
-	uint8_t quote = 0;
-	uint32_t n;
-	off_t charpos;
-
-	*ecomment = 0;
-	while (*r > 0 && end == 0) {
-		/* Advance to the next character if we know we can */
-		if (*p != '\"' && *p != '#' && *p != '\n' &&
-		    (!bsemicolon || *p != ';')) {
-			*r = bsdconf_read1(fd, p);
-			if (*r < 0)
-				return (-1);
-			continue;
-		}
-
-		/*
-		 * If we get this far, we've hit an end-key
-		 */
-
-		/* Get the current offset */
-		if ((charpos = lseek(fd, 0, SEEK_CUR)) == -1)
-			return (-1);
-		charpos--;
-
-		/*
-		 * Go back so we can read the character before the key to
-		 * check if the character is escaped (which means we should
-		 * continue).
-		 */
-		if (lseek(fd, -2, SEEK_CUR) == -1)
-			return (-1);
-		*r = bsdconf_read1(fd, p);
-		if (*r < 0)
-			return (-1);
-
-		/*
-		 * Count how many backslashes there are (an odd number means
-		 * the key is escaped, even means otherwise).
-		 */
-		for (n = 1; *r > 0 && *p == '\\'; n++) {
-			/* Move back another offset to read */
-			if (lseek(fd, -2, SEEK_CUR) == -1)
-				return (-1);
-			*r = bsdconf_read1(fd, p);
-			if (*r < 0)
-				return (-1);
-		}
-
-		/* Move offset back to the key and read it */
-		if (lseek(fd, charpos, SEEK_SET) == -1)
-			return (-1);
-		*r = bsdconf_read1(fd, p);
-		if (*r < 0)
-			return (-1);
-
-		/*
-		 * If an even number of backslashes was counted meaning key
-		 * is not escaped, we should evaluate what to do.
-		 */
-		if ((n & 1) == 1) {
-			switch (*p) {
-			case '\"':
-				/*
-				 * Flag current sequence of characters to
-				 * follow as being quoted (hashes are not
-				 * considered comments).
-				 */
-				quote = !quote;
-				break;
-			case '#':
-				/*
-				 * If we aren't in a quoted series, we just
-				 * hit an inline comment and have found the
-				 * end of the value. Flag the remainder of
-				 * the line as a comment so it is not
-				 * mistaken for a new directive.
-				 */
-				if (!quote) {
-					*ecomment = *comment = 1;
-					end = 1;
-				}
-				break;
-			case '\n':
-				/*
-				 * Newline characters must always be escaped,
-				 * whether inside a quoted series or not,
-				 * otherwise they terminate the value.
-				 */
-				(*line)++;
-				end = 1;
-				/* FALLTHROUGH */
-			case ';':
-				if (!quote && bsemicolon)
-					end = 1;
-				break;
-			}
-		} else if (*p == '\n')
-			/* Escaped newline character. increment */
-			(*line)++;
-
-		/* Advance to the next character */
-		*r = bsdconf_read1(fd, p);
-		if (*r < 0)
-			return (-1);
-	}
-	return (0);
-}
-
-/*
  * Parse the configuration data on the open file descriptor `fd' and execute
  * the `parse' call-back functions for any directives defined by the array of
  * config options (first argument).
@@ -361,12 +136,13 @@ bsdconf_scan_value_end(int fd, char *p, ssize_t *r, uint32_t *line,
  * For unknown directives that are encountered, you can optionally pass a
  * call-back function for the third argument to be called for unknowns.
  *
- * The scanner requires a seekable descriptor; input that cannot seek (a
- * pipe or socket, standard input included) is detected up front and spooled
- * through bsdconf_spool() above, parsed from the temporary, and costs one
- * transient copy of the data. The descriptor is left positioned at
- * end-of-file (non-seekable input is left drained) and remains open (the
- * caller retains ownership).
+ * The descriptor is read into a bounded in-memory buffer (see
+ * bsdconf_slurp()) and then scanned as an array of characters with
+ * bsdconf_scan(), the same tokenizer used by bsdconf_put(). The descriptor
+ * need not be seekable; a pipe or socket is read to EOF subject to the
+ * BSDCONF_MAX_BYTES cap. The descriptor is left positioned at end-of-file
+ * (non-seekable input is left drained) and remains open (the caller retains
+ * ownership).
  *
  * Returns zero on success; otherwise returns -1 (or the non-zero result of a
  * call-back) and errno should be consulted.
@@ -379,30 +155,26 @@ bsdconf_fparse(struct bsdconf_option options[], int fd,
 	bool bequals;
 	bool bsemicolon;
 	bool case_sensitive;
+	bool found;
 	bool operator_equals;
 	bool require_equals;
 	bool strict_equals;
-	uint8_t comment = 0;
-	uint8_t ecomment;
-	uint8_t found;
-	uint8_t have_equals = 0;
-	char p[2];
+	char *buf = NULL;
 	char *directive = NULL;
 	char *t;
 	char *value = NULL;
 	enum bsdconf_op op;
 	int error;
 	int rv = 0;
-	int spoolfd = -1;
-	ssize_t r = 1;
-	uint32_t dline;
-	uint32_t dsize = 0;
+	int sverrno;
+	size_t buflen = 0;
+	size_t dsize = 0;
+	size_t i = 0;
+	size_t n;
+	size_t vsize = 0;
+	struct bsdconf_stmt st;
 	uint32_t line = 1;
-	uint32_t n;
-	uint32_t vsize = 0;
-	uint32_t x;
-	off_t charpos;
-	off_t curpos;
+	unsigned int x;
 
 	/* Sanity check: if no options and no unknown function, return */
 	if (options == NULL && unknown == NULL) {
@@ -410,14 +182,8 @@ bsdconf_fparse(struct bsdconf_option options[], int fd,
 		return (-1);
 	}
 
-	/* Spool input that cannot seek (see bsdconf_spool() above) */
-	if (lseek(fd, 0, SEEK_CUR) == -1) {
-		if (errno != ESPIPE)
-			return (-1);
-		if ((spoolfd = bsdconf_spool(fd)) == -1)
-			return (-1);
-		fd = spoolfd;
-	}
+	if ((buf = bsdconf_slurp(fd, &buflen)) == NULL)
+		return (-1);
 
 	/* Processing options */
 	bequals = processing_options & BSDCONF_BREAK_ON_EQUALS;
@@ -427,184 +193,38 @@ bsdconf_fparse(struct bsdconf_option options[], int fd,
 	require_equals = processing_options & BSDCONF_REQUIRE_EQUALS;
 	strict_equals = processing_options & BSDCONF_STRICT_EQUALS;
 
-	/* Read the file until EOF */
-	while (r > 0) {
-		r = bsdconf_read1(fd, p);
-		if (r < 0)
-			goto fail;
-
-		/* Skip to the beginning of a directive */
-		while (r > 0 && (isspace((unsigned char)*p) || *p == '#' ||
-		    comment || (bsemicolon && *p == ';'))) {
-			if (*p == '#')
-				comment = 1;
-			else if (*p == '\n') {
-				comment = 0;
-				line++;
-			}
-			r = bsdconf_read1(fd, p);
-			if (r < 0)
-				goto fail;
-		}
-		/* Test for EOF; if EOF then no directive was found */
-		if (r == 0)
-			goto cleanup;
-
-		/* Record the line number the directive appears on */
-		dline = line;
-
-		/* Get the current offset */
-		if ((curpos = lseek(fd, 0, SEEK_CUR)) == -1)
-			goto fail;
-		curpos--;
-
-		/* Find the length of the directive */
-		for (n = 0; r > 0; n++) {
-			if (isspace((unsigned char)*p))
-				break;
-			if (bequals && *p == '=') {
-				have_equals = 1;
-				break;
-			}
-			if (bsemicolon && *p == ';')
-				break;
-			r = bsdconf_read1(fd, p);
-			if (r < 0)
-				goto fail;
-		}
-
-		/* Test for EOF, if EOF then no directive was found */
-		if (n == 0 && r == 0)
-			goto cleanup;
-
-		/* Go back to the beginning of the directive */
-		if (lseek(fd, curpos, SEEK_SET) == -1)
-			goto fail;
-
-		/*
-		 * Allocate and read the directive into memory. The buffer
-		 * must be grown on the first pass (directive == NULL) even
-		 * when the name is empty (a line beginning with `='), lest
-		 * the string terminator below store through a NULL pointer.
-		 */
+	while (bsdconf_scan(buf, buflen, &i, &line, bequals, bsemicolon,
+	    strict_equals, operator_equals, &st)) {
+		n = st.dir_end - st.dir_start;
 		if (directive == NULL || n > dsize) {
 			if ((t = realloc(directive, n + 1)) == NULL)
 				goto fail;
 			directive = t;
 			dsize = n;
 		}
-		if (bsdconf_readn(fd, directive, n) != 0)
-			goto fail;
-
-		/* Advance beyond the equals sign if appropriate/desired */
-		if (bequals && *p == '=') {
-			if (lseek(fd, 1, SEEK_CUR) != -1) {
-				r = bsdconf_read1(fd, p);
-				if (r < 0)
-					goto fail;
-			}
-			if (strict_equals && isspace((unsigned char)*p))
-				*p = '\n';
-		}
-
-		/* Terminate the string */
+		memcpy(directive, buf + st.dir_start, n);
 		directive[n] = '\0';
 
-		/*
-		 * Split a make(1)-style operator (`+=' `?=' `:=' `!=') off
-		 * the tail of the directive if requested. The operator
-		 * character rode along with the directive because only the
-		 * `=' terminates the directive scan (above).
-		 */
-		op = have_equals ? BSDCONF_OP_ASSIGN : BSDCONF_OP_DEFAULT;
-		if (operator_equals && have_equals && n > 1) {
-			switch (directive[n - 1]) {
-			case '+': op = BSDCONF_OP_APPEND; break;
-			case '?': op = BSDCONF_OP_COND; break;
-			case ':': op = BSDCONF_OP_EXPAND; break;
-			case '!': op = BSDCONF_OP_SHELL; break;
-			}
-			if (op != BSDCONF_OP_ASSIGN)
-				directive[--n] = '\0';
-		}
-
-		/* Convert directive to lower case before comparison */
+		op = st.op;
 		if (!case_sensitive)
 			bsdconf_strtolower(directive);
 
-		/* Move to what may be the start of the value */
-		if (!(bsemicolon && *p == ';') &&
-		    !(strict_equals && *p == '=')) {
-			if (bsdconf_skip_hspace(fd, p, &r) != 0)
-				goto fail;
-		}
-
-		/* An equals sign may have stopped us, should we eat it? */
-		if (r > 0 && bequals && *p == '=' && !strict_equals) {
-			have_equals = 1;
-			r = bsdconf_read1(fd, p);
-			if (r < 0)
-				goto fail;
-			if (bsdconf_skip_hspace(fd, p, &r) != 0)
-				goto fail;
-		}
-
-		/* If no value, allocate a dummy value and jump to action */
-		if (r == 0 || *p == '\n' || *p == '#' ||
-		    (bsemicolon && *p == ';')) {
-			/* Count the consumed terminator if a newline */
-			if (r > 0 && *p == '\n')
-				line++;
-			/* Flag a trailing comment so it is skipped */
-			if (r > 0 && *p == '#')
-				comment = 1;
-			/* Initialize the value if not already done */
+		if (!st.have_value) {
 			if (value == NULL && (value = malloc(1)) == NULL)
 				goto fail;
 			value[0] = '\0';
 			goto call_function;
 		}
 
-		/* Get the current offset */
-		if ((curpos = lseek(fd, 0, SEEK_CUR)) == -1)
-			goto fail;
-		curpos--;
-
-		/* Find the end of the value */
-		if (bsdconf_scan_value_end(fd, p, &r, &line, &comment,
-		    &ecomment, bsemicolon) != 0)
-			goto fail;
-
-		/* Get the current offset */
-		if ((charpos = lseek(fd, 0, SEEK_CUR)) == -1)
-			goto fail;
-
-		/* Get the length of the value */
-		n = (uint32_t)(charpos - curpos);
-		if (r > 0) /* more to read, but don't read ending key */
-			n--;
-
-		/* Move offset back to the beginning of the value */
-		if (lseek(fd, curpos, SEEK_SET) == -1)
-			goto fail;
-
-		/* Allocate and read the value into memory */
-		if (n > vsize) {
+		n = st.val_end - st.val_start;
+		if (value == NULL || n > vsize) {
 			if ((t = realloc(value, n + 1)) == NULL)
 				goto fail;
 			value = t;
 			vsize = n;
 		}
-		if (bsdconf_readn(fd, value, n) != 0)
-			goto fail;
-
-		/* Terminate the string */
+		memcpy(value, buf + st.val_start, n);
 		value[n] = '\0';
-
-		/* Cut trailing whitespace and a trailing `#' / `;' key */
-		t = bsdconf_rtrim_ws(value, value + n);
-		t = bsdconf_trim_value_key(value, t, ecomment != 0,
-		    bsemicolon);
 
 		/* Escape the escaped quotes (see bsdconf_string.c) */
 		x = bsdconf_strcount(value, "\\\"");
@@ -626,12 +246,12 @@ bsdconf_fparse(struct bsdconf_option options[], int fd,
 
 call_function:
 		/* Abort if we're seeking only assignments */
-		if (require_equals && !have_equals) {
+		if (require_equals && !st.have_equals) {
 			errno = EINVAL;
 			goto fail;
 		}
 
-		found = have_equals = 0; /* reset */
+		found = 0;
 
 		/*
 		 * Report the statement's assignment operator through a
@@ -639,7 +259,7 @@ call_function:
 		 * (there is no matched options[] slot to hang it on).
 		 */
 		if (options == NULL && unknown != NULL) {
-			error = bsdconf_call_unknown(unknown, op, dline,
+			error = bsdconf_call_unknown(unknown, op, st.line,
 			    directive, value);
 			if (error != 0) {
 				rv = error;
@@ -658,7 +278,7 @@ call_function:
 				options[n].op = op;
 				if (options[n].parse != NULL) {
 					error = options[n].parse(&options[n],
-					    dline, directive, value);
+					    st.line, directive, value);
 					if (error != 0) {
 						rv = error;
 						goto cleanup;
@@ -675,7 +295,7 @@ call_function:
 			 * No match was found for the value we read from the
 			 * file; call function designated for unknown values.
 			 */
-			error = bsdconf_call_unknown(unknown, op, dline,
+			error = bsdconf_call_unknown(unknown, op, st.line,
 			    directive, value);
 			if (error != 0) {
 				rv = error;
@@ -690,12 +310,11 @@ fail:
 	rv = -1;
 
 cleanup:
-	x = errno; /* preserve errno across free(3) and close(2) */
-	if (spoolfd != -1)
-		close(spoolfd);
+	sverrno = errno; /* preserve errno across free(3) */
+	free(buf);
 	free(directive);
 	free(value);
-	errno = x;
+	errno = sverrno;
 
 	return (rv);
 }

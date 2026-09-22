@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd August 2, 2026
+.Dd September 16, 2026
 .Dt BSDCONF_PUT 3
 .Os
 .Sh NAME
@@ -97,6 +97,10 @@ no temporary is created,
 .Va mtime
 is not bumped,
 and hard links are not severed.
+The original is read in full, subject to the
+.Ev BSDCONF_MAX_BYTES
+cap documented in
+.Xr bsdconf 3 .
 Otherwise the file is replaced atomically:
 output is streamed to a temporary file created with
 .Xr mkstemp 3

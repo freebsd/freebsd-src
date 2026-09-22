@@ -34,10 +34,16 @@
 /*
  * Library version info
  */
-#define BSDCONF_VERSION		"1.1.1 2026-09-16"
+#define BSDCONF_VERSION		"1.2.0 2026-09-21"
 #define BSDCONF_VERSION_MAJOR	1
-#define BSDCONF_VERSION_MINOR	1
-#define BSDCONF_VERSION_PATCH	1
+#define BSDCONF_VERSION_MINOR	2
+#define BSDCONF_VERSION_PATCH	0
+
+/*
+ * Ceiling on bytes read from a configuration file or stream. Override with
+ * the BSDCONF_MAX_BYTES environment variable (an unsigned decimal count).
+ */
+#define BSDCONF_MAX_BYTES_DEFAULT	(64U * 1024U * 1024U)
 
 /*
  * Union for storing various types of data in a single common container.

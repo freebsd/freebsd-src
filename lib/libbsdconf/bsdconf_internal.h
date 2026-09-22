@@ -54,6 +54,8 @@ struct bsdconf_stmt {
 const char	*bsdconf_op_token(enum bsdconf_op _op);
 int		 bsdconf_writeall(int _fd, const void *_data, size_t _len);
 char		*bsdconf_readfile(int _fd, size_t _size, size_t *_lenp);
+size_t		 bsdconf_max_bytes(void);
+char		*bsdconf_slurp(int _fd, size_t *_lenp);
 int		 bsdconf_emit(int _fd, const void *_data, size_t _len,
 		    int *_last);
 int		 bsdconf_ensure_tmp(int *_tmpfdp, char *_tpath, size_t _tpathsz,

@@ -748,6 +748,8 @@ help(void)
 	fprintf(stderr, OPTFMT, "-x",
 	    "Remove name(s) from the target's files.");
 	fprintf(stderr, "ENVIRONMENT:\n");
+	fprintf(stderr, OPTFMT, "BSDCONF_MAX_BYTES",
+	    "Cap on bytes read from a configuration file (see bsdconf(3)).");
 	fprintf(stderr, OPTFMT, "LOADER_DEFAULTS",
 	    "Defaults file for the loader target (in place of");
 	fprintf(stderr, OPTFMT, "",

@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd August 2, 2026
+.Dd September 16, 2026
 .Dt BSDCONF 3
 .Os
 .Sh NAME
@@ -261,15 +261,23 @@ except that it operates on an already-open file descriptor
 .Fa fd ,
 which remains open on return
 .Pq the caller retains ownership .
+The descriptor is read into a bounded in-memory buffer and then scanned
+as an array of characters
+.Pq the same tokenizer used by Xr bsdconf_put 3 .
+The buffer is capped at
+.Dv BSDCONF_MAX_BYTES_DEFAULT
+bytes
+.Pq 67108864; 64 MiB ;
+.Ev BSDCONF_MAX_BYTES
+overrides that ceiling
+.Pq see Sx ENVIRONMENT .
+Input larger than the cap fails with
+.Er EFBIG .
+The descriptor need not be seekable;
+a pipe or socket is read to EOF subject to the same cap.
 This allows the caller to constrain the process
 .Pq for example with Xr capsicum 4
 before parsing begins.
-The scanner requires a seekable descriptor;
-input that cannot seek
-.Pq a pipe or socket, standard input included
-is detected up front and transparently spooled through
-.Fn bsdconf_spool ,
-at the cost of one transient copy of the data.
 .Pp
 .Fn bsdconf_spool
 copies the remaining contents of
@@ -280,13 +288,8 @@ and returns a seekable descriptor referencing it,
 which the caller must
 .Xr close 2
 .Pq the backing storage is reclaimed then .
-It is exported for callers that must adapt non-seekable input themselves
-before revoking their own ability to create files,
-as
-.Xr sysconf 8
-does before entering its
-.Xr capsicum 4
-sandbox.
+It is exported for callers that need a seekable snapshot of a pipe or
+socket.
 .Pp
 .Fn bsdconf_get_option
 traverses the options-array and returns the option that matches via
@@ -311,6 +314,11 @@ otherwise -1
 is returned and the global variable
 .Va errno
 is set to indicate the error.
+Input that exceeds the
+.Ev BSDCONF_MAX_BYTES
+cap fails with
+.Er EFBIG .
+.Pp
 .Fn bsdconf_spool
 returns a new seekable file descriptor on success;
 otherwise -1 with
@@ -321,6 +329,20 @@ returns a pointer to the matching option,
 or
 .Dv NULL
 when none matches.
+.Sh ENVIRONMENT
+.Bl -tag -width "BSDCONF_MAX_BYTES"
+.It Ev BSDCONF_MAX_BYTES
+Maximum number of bytes
+.Fn bsdconf_fparse
+and
+.Fn bsdconf_put
+will read from a configuration file or stream.
+The default is
+.Dv BSDCONF_MAX_BYTES_DEFAULT
+.Pq 67108864; 64 MiB .
+A larger value is an opt-in pain threshold for unusual files.
+Unset, empty, zero, or unparseable values restore the default.
+.El
 .Sh EXAMPLES
 Read two known directives from a
 .Ql name=value
@@ -417,16 +439,20 @@ Write-path limitations for cumulative directives are discussed in the
 section of
 .Xr bsdconf_put 3 .
 .Sh SECURITY CONSIDERATIONS
-Parsing allocates buffers sized by the longest directive and value
-encountered rather than by untrusted length fields,
-and
 .Fn bsdconf_fparse
-accepts an already-open descriptor precisely so that a caller may
+reads the descriptor into a bounded in-memory buffer rather than
+trusting untrusted length fields,
+and accepts an already-open descriptor precisely so that a caller may
 sandbox itself
 .Pq for example with Xr capsicum 4
 before touching untrusted input,
 as
 .Xr sysconf 8
 does for its read-only operations.
+The
+.Ev BSDCONF_MAX_BYTES
+cap
+.Pq see Sx ENVIRONMENT
+is the bound on that buffer.
 Write-path hardening is documented in
 .Xr bsdconf_put 3 .
