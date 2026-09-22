@@ -316,6 +316,7 @@ getsubopt1(char **arg, const char *const *options, char **valp, char **optp)
 	char *ptr;
 
 	*optp = NULL;
+	*valp = NULL;
 
 	/* Skip leading junk. */
 	for (ptr = *arg; *ptr != '\0'; ptr++)
