@@ -1105,6 +1105,6 @@ static driver_t cmi_driver = {
 };
 
 DRIVER_MODULE(snd_cmi, pci, cmi_driver, 0, 0);
-MODULE_DEPEND(snd_cmi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_cmi, sound, 1, 1, 1);
 MODULE_DEPEND(snd_cmi, midi, 1,1,1);
 MODULE_VERSION(snd_cmi, 1);

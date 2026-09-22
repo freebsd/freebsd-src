@@ -1789,5 +1789,5 @@ static driver_t m3_driver = {
 };
 
 DRIVER_MODULE(snd_maestro3, pci, m3_driver, 0, 0);
-MODULE_DEPEND(snd_maestro3, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_maestro3, sound, 1, 1, 1);
 MODULE_VERSION(snd_maestro3, 1);

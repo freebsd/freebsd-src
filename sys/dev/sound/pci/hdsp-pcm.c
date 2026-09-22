@@ -1186,5 +1186,5 @@ static driver_t hdsp_pcm_driver = {
 };
 
 DRIVER_MODULE(snd_hdsp_pcm, hdsp, hdsp_pcm_driver, 0, 0);
-MODULE_DEPEND(snd_hdsp, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_hdsp, sound, 1, 1, 1);
 MODULE_VERSION(snd_hdsp, 1);

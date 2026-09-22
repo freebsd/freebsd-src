@@ -119,7 +119,7 @@ static driver_t pcm_i2s_driver = {
 };
 
 DRIVER_MODULE(pcm_i2s, macio, pcm_i2s_driver, 0, 0);
-MODULE_DEPEND(pcm_i2s, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(pcm_i2s, sound, 1, 1, 1);
 
 static int	aoagpio_probe(device_t);
 static int 	aoagpio_attach(device_t);

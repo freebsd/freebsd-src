@@ -277,5 +277,5 @@ static driver_t midicsa_driver = {
 };
 DRIVER_MODULE(snd_csa_midi, csa, midicsa_driver, 0, 0);
 MODULE_DEPEND(snd_csa_midi, snd_csa, 1, 1, 1);
-MODULE_DEPEND(snd_csa_midi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_csa_midi, sound, 1, 1, 1);
 MODULE_VERSION(snd_csa_midi, 1);

@@ -792,5 +792,5 @@ static driver_t sai_pcm_driver = {
 };
 
 DRIVER_MODULE(sai, simplebus, sai_pcm_driver, 0, 0);
-MODULE_DEPEND(sai, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(sai, sound, 1, 1, 1);
 MODULE_VERSION(sai, 1);

@@ -1412,5 +1412,5 @@ static driver_t atiixp_driver = {
 };
 
 DRIVER_MODULE(snd_atiixp, pci, atiixp_driver, 0, 0);
-MODULE_DEPEND(snd_atiixp, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_atiixp, sound, 1, 1, 1);
 MODULE_VERSION(snd_atiixp, 1);

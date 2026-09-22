@@ -230,4 +230,4 @@ static driver_t fwisound_pcm_driver = {
 
 DRIVER_MODULE(fwisound_pcm, fwisound, fwisound_pcm_driver, 0, 0);
 MODULE_DEPEND(fwisound_pcm, fwisound, 1, 1, 1);
-MODULE_DEPEND(fwisound_pcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(fwisound_pcm, sound, 1, 1, 1);

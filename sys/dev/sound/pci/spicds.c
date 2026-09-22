@@ -365,5 +365,5 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 	mtx_unlock(&codec->lock);
 }
 
-MODULE_DEPEND(snd_spicds, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_spicds, sound, 1, 1, 1);
 MODULE_VERSION(snd_spicds, 1);

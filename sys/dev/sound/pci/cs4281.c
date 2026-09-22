@@ -964,5 +964,5 @@ static driver_t cs4281_driver = {
 };
 
 DRIVER_MODULE(snd_cs4281, pci, cs4281_driver, 0, 0);
-MODULE_DEPEND(snd_cs4281, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_cs4281, sound, 1, 1, 1);
 MODULE_VERSION(snd_cs4281, 1);

@@ -1201,5 +1201,5 @@ static driver_t a10codec_pcm_driver = {
 };
 
 DRIVER_MODULE(a10codec, simplebus, a10codec_pcm_driver, 0, 0);
-MODULE_DEPEND(a10codec, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(a10codec, sound, 1, 1, 1);
 MODULE_VERSION(a10codec, 1);

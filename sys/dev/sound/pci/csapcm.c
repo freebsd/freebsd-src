@@ -1031,6 +1031,6 @@ static driver_t pcmcsa_driver = {
 };
 
 DRIVER_MODULE(snd_csapcm, csa, pcmcsa_driver, 0, 0);
-MODULE_DEPEND(snd_csapcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_csapcm, sound, 1, 1, 1);
 MODULE_DEPEND(snd_csapcm, snd_csa, 1, 1, 1);
 MODULE_VERSION(snd_csapcm, 1);

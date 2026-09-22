@@ -1934,5 +1934,5 @@ static driver_t es_driver = {
 };
 
 DRIVER_MODULE(snd_es137x, pci, es_driver, 0, 0);
-MODULE_DEPEND(snd_es137x, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_es137x, sound, 1, 1, 1);
 MODULE_VERSION(snd_es137x, 1);

@@ -847,6 +847,6 @@ static driver_t ssi_pcm_driver = {
 };
 
 DRIVER_MODULE(ssi, simplebus, ssi_pcm_driver, 0, 0);
-MODULE_DEPEND(ssi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(ssi, sound, 1, 1, 1);
 MODULE_DEPEND(ssi, sdma, 0, 0, 0);
 MODULE_VERSION(ssi, 1);

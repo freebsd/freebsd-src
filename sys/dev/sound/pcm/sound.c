@@ -742,4 +742,4 @@ sound_modevent(module_t mod, int type, void *data)
 }
 
 DEV_MODULE(sound, sound_modevent, NULL);
-MODULE_VERSION(sound, SOUND_MODVER);
+MODULE_VERSION(sound, 1);

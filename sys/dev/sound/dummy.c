@@ -434,5 +434,5 @@ static driver_t dummy_driver = {
 };
 
 DRIVER_MODULE(snd_dummy, nexus, dummy_driver, 0, 0);
-MODULE_DEPEND(snd_dummy, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_dummy, sound, 1, 1, 1);
 MODULE_VERSION(snd_dummy, 1);

@@ -7211,5 +7211,5 @@ static driver_t hdaa_pcm_driver = {
 };
 
 DRIVER_MODULE(snd_hda_pcm, hdaa, hdaa_pcm_driver, NULL, NULL);
-MODULE_DEPEND(snd_hda, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_hda, sound, 1, 1, 1);
 MODULE_VERSION(snd_hda, 1);

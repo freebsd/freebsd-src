@@ -2684,6 +2684,6 @@ static driver_t envy24_driver = {
 };
 
 DRIVER_MODULE(snd_envy24, pci, envy24_driver, 0, 0);
-MODULE_DEPEND(snd_envy24, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_envy24, sound, 1, 1, 1);
 MODULE_DEPEND(snd_envy24, snd_spicds, 1, 1, 1);
 MODULE_VERSION(snd_envy24, 1);

@@ -86,7 +86,7 @@ static driver_t pcm_davbus_driver = {
 };
 
 DRIVER_MODULE(pcm_davbus, macio, pcm_davbus_driver, 0, 0);
-MODULE_DEPEND(pcm_davbus, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(pcm_davbus, sound, 1, 1, 1);
 
 /*****************************************************************************
 			Probe and attachment routines.
