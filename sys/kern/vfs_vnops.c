@@ -1842,6 +1842,8 @@ vn_statfile(struct file *fp, struct stat *sb, struct ucred *active_cred)
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_STAT(vp, sb, active_cred, fp->f_cred);
+	if (error == 0 && (vp->v_vflag & VV_ROOT) != 0)
+		sb->st_bsdflags |= SFBSD_MNTPOINT;
 	VOP_UNLOCK(vp);
 
 	return (error);
