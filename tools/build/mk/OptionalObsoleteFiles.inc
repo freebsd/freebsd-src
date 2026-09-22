@@ -1672,6 +1672,18 @@ OLD_DIRS+=usr/share/dtrace/toolkit
 OLD_DIRS+=usr/share/dtrace
 .endif
 
+.if ${MK_DTRACE_TESTS} == no
+DTRACE_TEST_DIRS=	cddl/usr.sbin/dtrace
+. for d in ${DTRACE_TEST_DIRS}
+.  if exists(${DESTDIR}${TESTSBASE}/${d}/)
+TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${TESTS_DIRS}
+TESTS_FILES!=find ${DESTDIR}${TESTSBASE}/${d}/ -type f | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_FILES+=${TESTS_FILES}
+.  endif
+. endfor
+.endif
+
 .if ${MK_EE} == no
 OLD_FILES+=usr/bin/edit
 OLD_FILES+=usr/bin/ee
@@ -9436,6 +9448,19 @@ OLD_FILES+=usr/share/zfs/compatibility.d/zol-0.7
 OLD_FILES+=usr/share/zfs/compatibility.d/zol-0.8
 OLD_DIRS+=usr/share/zfs/compatibility.d
 OLD_DIRS+=usr/share/zfs
+.endif
+
+.if ${MK_ZFS_TESTS} == no
+ZFS_TEST_DIRS=	cddl/usr.bin/ztest
+ZFS_TEST_DIRS+=	cddl/usr.sbin/zfsd
+. for d in ${ZFS_TEST_DIRS}
+.  if exists(${DESTDIR}${TESTSBASE}/${d}/)
+TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${TESTS_DIRS}
+TESTS_FILES!=find ${DESTDIR}${TESTSBASE}/${d}/ -type f | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_FILES+=${TESTS_FILES}
+.  endif
+. endfor
 .endif
 
 .if ${MK_ZONEINFO} == no
