@@ -1171,12 +1171,14 @@ vfs_domount_first(
 	if (error == 0)
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (vfsp->vfc_flags & VFCF_FILEMOUNT) {
-		if (error == 0 && vp->v_type != VDIR && vp->v_type != VREG && vp->v_type != VSOCK)
+		if (error == 0 && vp->v_type != VDIR && vp->v_type != VREG &&
+		    vp->v_type != VSOCK)
 			error = EINVAL;
 		/*
 		 * For file mounts, ensure that there is only one hardlink to the file.
 		 */
-		if (error == 0 && (vp->v_type == VREG || vp->v_type == VSOCK) && va.va_nlink != 1)
+		if (error == 0 && (vp->v_type == VREG || vp->v_type == VSOCK) &&
+		    va.va_nlink != 1)
 			error = EINVAL;
 	} else {
 		if (error == 0 && vp->v_type != VDIR)
