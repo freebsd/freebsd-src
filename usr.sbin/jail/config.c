@@ -373,8 +373,8 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 	struct cfparam *dp, *np;
 	struct cfstring *s, *ns;
 	struct cfvar *v, *nv;
-	const char *name;
-	char *cs, *tname;
+	const char *cs, *name;
+	char *tname;
 	unsigned flags;
 
 	if (j == NULL) {
@@ -834,7 +834,7 @@ import_params(struct cfjail *j)
 int
 equalopts(const char *opt1, const char *opt2)
 {
-	char *p;
+	const char *p;
 
 	/* "opt" vs. "opt" or "noopt" vs. "noopt" */
 	if (strcmp(opt1, opt2) == 0)
