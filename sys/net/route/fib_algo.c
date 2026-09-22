@@ -1884,8 +1884,6 @@ fib_ref_nhop(struct fib_data *fd, struct nhop_object *nh)
 		    ("out of nhop index spaces for %s", print_family(family)));
 		nt = &fd->fd_af[fd->fd_num_af++];
 		nt->nhaf_family = family;
-		nt->nhaf_count = 0;
-		nt->nhaf_base = 0;
 	}
 
 	idx = get_nhop_idx(nh);
