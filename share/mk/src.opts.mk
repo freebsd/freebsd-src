@@ -413,6 +413,7 @@ MK_BSDINSTALL:=	no
 
 .if ${MK_DTRACE} == "no"
 MK_CTF:=	no
+MK_DTRACE_TESTS:= no
 .endif
 
 .if ${MK_MAIL} == "no"
