@@ -343,6 +343,7 @@ struct nstat {
 
 /* st_bsdflags */
 #define	SFBSD_NAMEDATTR	0x0001		/* file is named attribute or dir */
+#define	SFBSD_MNTPOINT	0x0002		/* file is a mount point */
 
 #ifdef _KERNEL
 /*
