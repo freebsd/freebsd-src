@@ -433,6 +433,7 @@ MK_MITKRB5:=	no
 # if it is off.
 .if ${MK_DTRACE} == "no"
 MK_CTF:=	no
+MK_DTRACE_TESTS:= no
 .endif
 
 .if ${MK_MAIL} == "no"
