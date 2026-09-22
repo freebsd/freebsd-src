@@ -5883,12 +5883,12 @@ ipfw_detect_u32_kbi(void)
 	need = sizeof(ipfw_obj_lheader) + (64 * sizeof(ipfw_sopt_info));
 
 	opver = 0;
-	for (i = 4; i >= 0; i--) {
+	for (i = 5; i > 0; i--) {
 		hdr = realloc(hdr, need);
-		memset(hdr, 0, need);
 		if (hdr == NULL)
 			break;
 
+		memset(hdr, 0, need);
 		hdr->opheader.opcode  = IP_FW_DUMP_SOPTCODES;
 		hdr->opheader.version = opver;
 		hdr->size = need;
