@@ -122,6 +122,7 @@
 /sys/kern/sched_*.c	@OlCe2
 /sys/kern/syscalls.master	@brooksdavis
 /sys/kern/vfs_aio.c	@asomers
+/sys/net/route		@spmzt
 /sys/netinet/ip_carp.c	@glebius
 /sys/netpfil/ipfilter	@cschuber
 /sys/netpfil/pf	@glebius
