@@ -49,6 +49,7 @@ static const char *cpu_core_p[] = { "cpu_root" };
 static const char *cpu_bus_p[] = { "cpu_core" };
 static const char *perh_root_p[] = { "pll0_out", "pll2_out" };
 static const char *bus_root_p[] = { "osc", "pll2_out" };
+static const char *snd_root_p[] = { "pll2_out" };
 
 static const char *apb_bus_p[] = { "stg_axiahb" };
 static const char *apb0_p[] = { "apb_bus" };
@@ -88,6 +89,10 @@ static const char *gmac1_tx_inv_p[] = { "gmac1_tx" };
 static const char *gmac1_tx_p[] = { "gmac1_gtxclk", "gmac1_rmii_rtx" };
 static const char *gmac1_rx_p[] = { "gmac1_rgmii_rxin", "gmac1_rmii_rtx" };
 static const char *gmac1_rx_inv_p[] = { "gmac1_rx" };
+static const char *temp_sensor_clk_apb_p[] = { "apb0" };
+static const char *temp_sensor_clk_core_p[] = { "osc" };
+static const char *pwmdac_clk_apb_p[] = { "apb0" };
+static const char *pwmdac_clk_core_p[] = { "snd_root" };
 
 /* non-pll SYS clocks */
 static const struct jh7110_clk_def sys_clks[] = {
@@ -96,6 +101,7 @@ static const struct jh7110_clk_def sys_clks[] = {
 	JH7110_DIV(JH7110_SYSCLK_CPU_BUS, "cpu_bus", cpu_bus_p, 2),
 	JH7110_GATEDIV(JH7110_SYSCLK_PERH_ROOT, "perh_root", perh_root_p, 2),
 	JH7110_MUX(JH7110_SYSCLK_BUS_ROOT, "bus_root", bus_root_p),
+	JH7110_DIV(JH7110_SYSCLK_AUDIO_ROOT, "snd_root", snd_root_p, 8),
 
 	JH7110_GATE(JH7110_SYSCLK_APB0, "apb0", apb0_p),
 	JH7110_GATE(JH7110_SYSCLK_IOMUX_APB, "u0_sys_iomux_apb",
@@ -154,6 +160,16 @@ static const struct jh7110_clk_def sys_clks[] = {
 	JH7110_GATE(JH7110_SYSCLK_GMAC1_GTXC, "gmac1_gtxc", gmac1_gtxc_p),
 	JH7110_DIV(JH7110_SYSCLK_GMAC1_RMII_RTX, "gmac1_rmii_rtx",
 	    gmac1_rmii_rtx_p, 30),
+
+	JH7110_GATE(JH7110_SYSCLK_TEMP_APB, "temp_sensor_clk_apb",
+	    temp_sensor_clk_apb_p),
+	JH7110_GATE(JH7110_SYSCLK_TEMP_CORE, "temp_sensor_clk_core",
+	    temp_sensor_clk_core_p),
+
+	JH7110_GATE(JH7110_SYSCLK_PWMDAC_APB, "pwmdac_clk_apb",
+	    pwmdac_clk_apb_p),
+	JH7110_GATEDIV(JH7110_SYSCLK_PWMDAC_CORE, "pwmdac_clk_core",
+	    pwmdac_clk_core_p, 256),
 };
 
 static int
