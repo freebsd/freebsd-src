@@ -2756,6 +2756,62 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_type, tc)			\
 	    auth_alg, minor)						\
 	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_type);
 
+static void
+test_ktls13_receive_no_content_type(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno)
+{
+	char *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE_INTEQ(TLS_MINOR_VER_THREE, en->tls_vminor);
+
+	outbuf_cap = tls_header_len(en) + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(tc, en, 0 /* invalid content type */,
+	    seqno, NULL, 0, outbuf, outbuf_cap, 0);
+
+	rv = write(sockets[1], outbuf, outbuf_len);
+	ATF_REQUIRE_INTEQ((ssize_t)outbuf_len, rv);
+
+	ktls_receive_tls_error(sockets[0], EBADMSG);
+
+	free(outbuf);
+
+	close_sockets_ignore_errors(sockets);
+}
+
+#define GEN_RECEIVE_NO_CONTENT_TYPE_TEST(cipher_name, cipher_alg,	\
+	    key_size, auth_alg, minor)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_no_content_type);	\
+ATF_TC_BODY(ktls_receive_##cipher_name##_no_content_type, tc)		\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS_RX();						\
+	seqno = random();						\
+	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
+	    seqno, &en);						\
+	test_ktls13_receive_no_content_type(tc, &en, seqno);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_NO_CONTENT_TYPE_TEST(cipher_name, cipher_alg,	\
+	    key_size, auth_alg, minor)					\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_no_content_type);
+
 #define GEN_RECEIVE_TLS13_TESTS(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor)						\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
@@ -2763,7 +2819,9 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_type, tc)			\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, long_padded, 64 * 1024, 15)		\
 	GEN_RECEIVE_BAD_TYPE_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, 64)
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_NO_CONTENT_TYPE_TEST(cipher_name, cipher_alg,	\
+	    key_size, auth_alg, minor)
 
 #define ADD_RECEIVE_TLS13_TESTS(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor)						\
@@ -2772,12 +2830,15 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_type, tc)			\
 	ADD_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, long_padded)				\
 	ADD_RECEIVE_BAD_TYPE_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor)
+	    auth_alg, minor)						\
+	ADD_RECEIVE_NO_CONTENT_TYPE_TEST(cipher_name, cipher_alg,	\
+	    key_size, auth_alg, minor)
 
 /*
- * For TLS 1.3 cipher suites, run two additional receive tests which
- * use add padding to each record.  Also run a test that uses an
- * invalid "outer" record type.
+ * For TLS 1.3 cipher suites, run two additional receive tests: two which add
+ * padding to each record, a test that uses an invalid "outer" record type, and
+ * a test that exercises handling of a payload with an invalid inner content
+ * type.
  */
 TLS_13_TESTS(GEN_RECEIVE_TLS13_TESTS);
 

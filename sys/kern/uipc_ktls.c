@@ -2390,14 +2390,14 @@ tls13_find_record_type(struct ktls_session *tls, struct mbuf *m, int tls_len,
 			m_len--;
 		if (m_len > 0) {
 			record_type = cp[m_len - 1];
-			last_offset = offset + m_len;
+			last_offset = offset + m_len - 1;
 		}
 	}
 	if (last_offset < tls->params.tls_hlen)
 		return (EBADMSG);
 
 	*record_typep = record_type;
-	*trailer_len = tls_len - last_offset + 1;
+	*trailer_len = tls_len - last_offset;
 	return (0);
 }
 
