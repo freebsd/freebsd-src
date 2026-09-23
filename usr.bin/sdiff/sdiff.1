@@ -3,7 +3,7 @@
 .\" Written by Raymond Lai <ray@cyth.net>.
 .\" Public domain.
 .\"
-.Dd February 16, 2024
+.Dd September 23, 2026
 .Dt SDIFF 1
 .Os
 .Sh NAME
@@ -17,6 +17,8 @@
 .Op Fl w Ar width
 .Ar file1
 .Ar file2
+.Nm sdiff
+.Fl -help
 .Sh DESCRIPTION
 .Nm
 displays two files side by side,
@@ -85,6 +87,8 @@ Print a maximum of
 .Ar width
 characters on each line.
 The default is 130 characters.
+.It Fl -help
+Print the usage message and exit.
 .El
 .Pp
 Options passed to
@@ -153,6 +157,23 @@ Specifies a directory for temporary files to be created.
 The default is
 .Pa /tmp .
 .El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+No differences were found.
+.It 1
+Differences were found.
+.It >1
+An error occurred.
+.El
+.Pp
+The
+.Fl -help
+option exits with a status of 0.
 .Sh SEE ALSO
 .Xr cmp 1 ,
 .Xr diff 1 ,
