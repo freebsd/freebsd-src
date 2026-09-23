@@ -235,35 +235,6 @@ pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	return (ret);
 }
 
-int
-pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
-    int *nadd, int *naddr, int ticket, int flags)
-{
-	struct pfioc_table io;
-
-	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
-		DBGPRINT("%s %p %d %p\n", __func__, tbl, size, addr);
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	io.pfrio_ticket = ticket;
-	if (ioctl(dev, DIOCRINADEFINE, &io)) {
-		pfr_report_error(tbl, &io, "define inactive set table");
-		return (-1);
-	}
-	if (nadd != NULL)
-		*nadd = io.pfrio_nadd;
-	if (naddr != NULL)
-		*naddr = io.pfrio_naddr;
-	return (0);
-}
-
 /* interface management code */
 
 int

@@ -615,8 +615,8 @@ pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
 	if (ukt != NULL)
 		return (0);
 
-	return (pfr_ina_define(tbl, ab->pfrb_caddr, ab->pfrb_size, NULL, NULL,
-	    ticket, addrs ? PFR_FLAG_ADDRSTOO : 0));
+	return (pfctl_ina_define(pfh, tbl, ab->pfrb_caddr, ab->pfrb_size, NULL,
+	    NULL, ticket, addrs ? PFR_FLAG_ADDRSTOO : 0));
 }
 
 void

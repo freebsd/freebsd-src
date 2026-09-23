@@ -4051,6 +4051,100 @@ pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
 	return (ret);
 }
 
+struct nl_ina_define {
+	uint32_t nadd;
+	uint32_t naddr;
+};
+
+#define _OUT(_field)	offsetof(struct nl_ina_define, _field)
+static struct snl_attr_parser ap_ina_define[] = {
+	{ .type = PF_ID_NADD, .off = _OUT(nadd), .cb = snl_attr_get_uint32 },
+	{ .type = PF_ID_NADDR, .off = _OUT(naddr), .cb = snl_attr_get_uint32 },
+};
+#undef _OUT
+SNL_DECLARE_PARSER(ina_define_parser, struct genlmsghdr, snl_f_p_empty, ap_ina_define);
+
+static int
+_pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
+    struct pfr_addr *addr, int size, int *nadd, int *naddr,
+    int ticket, int flags)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct nl_ina_define attrs = {};
+	uint32_t seq_id;
+
+	assert(size <= 256);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, h->family_id,
+	    PFNL_CMD_INA_DEFINE);
+
+	snl_add_msg_attr_table(&nw, PF_ID_TABLE, tbl);
+	snl_add_msg_attr_u32(&nw, PF_ID_TICKET, ticket);
+	snl_add_msg_attr_u32(&nw, PF_ID_FLAGS, flags);
+	for (int i = 0; i < size; i++)
+		snl_add_msg_attr_pfr_addr(&nw, PF_ID_ADDR, &addr[i]);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL) {
+		e.error = ENXIO;
+		goto out;
+	}
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr)) {
+		e.error = ENXIO;
+		goto out;
+	}
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &ina_define_parser, &attrs))
+			continue;
+	}
+
+	if (*nadd)
+		*nadd = attrs.nadd;
+	if (*naddr)
+		*naddr = attrs.naddr;
+
+out:
+	snl_clear_lb(&h->ss);
+	return (e.error);
+}
+
+int
+pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
+    struct pfr_addr *addr, int size, int *nadd, int *naddr,
+    int ticket, int flags)
+{
+	int ret;
+	int off = 0;
+	int partial_add, partial_addr;
+	int chunk_size;
+
+	if (nadd)
+		*nadd = 0;
+	if (naddr)
+		*naddr = 0;
+
+	do {
+		chunk_size = MIN(size - off, 256);
+		ret = _pfctl_ina_define(h, tbl, &addr[off], chunk_size,
+		    &partial_add, &partial_addr, ticket, flags);
+		if (ret != 0)
+			break;
+		if (nadd)
+			*nadd += partial_add;
+		if (naddr)
+			*naddr += partial_addr;
+		off += chunk_size;
+	} while (off < size);
+
+	return (ret);
+}
+
 static void
 snl_add_msg_attr_limit_rate(struct snl_writer *nw, uint32_t type,
     const struct pfctl_limit_rate *rate)

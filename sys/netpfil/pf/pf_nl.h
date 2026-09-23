@@ -83,6 +83,7 @@ enum {
 	PFNL_CMD_SOURCE_NGET = 45,
 	PFNL_CMD_SOURCE_CLEAR = 46,
 	PFNL_CMD_TABLE_TEST_ADDRS = 47,
+	PFNL_CMD_INA_DEFINE = 48,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -591,6 +592,16 @@ enum pf_source_clear_t {
 	PF_SC_RDOMAIN		= 3, /* u32 */
 	PF_SC_AF		= 4, /* u8 */
 	PF_SC_ADDR		= 5, /* in6_addr */
+};
+
+enum pf_ina_define_t {
+	PF_ID_UNSPEC,
+	PF_ID_TABLE		= 1, /* pfr_table */
+	PF_ID_TICKET		= 2, /* u32 */
+	PF_ID_FLAGS		= 3, /* u32 */
+	PF_ID_ADDR		= 4, /* pfr_addr */
+	PF_ID_NADD		= 5, /* u32 */
+	PF_ID_NADDR		= 6, /* u32 */
 };
 
 #ifdef _KERNEL

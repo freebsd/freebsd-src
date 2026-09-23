@@ -2471,7 +2471,7 @@ pfctl_load_tables(struct pfctl *pf, char *path, struct pfctl_anchor *a,
 			    path, anchor_path);
 		}
 		ukt = (struct pfr_uktable *)kt;
-		e = pfr_ina_define(&ukt->pfrukt_t, ukt->pfrukt_addrs.pfrb_caddr,
+		e = pfctl_ina_define(pfh, &ukt->pfrukt_t, ukt->pfrukt_addrs.pfrb_caddr,
 		    ukt->pfrukt_addrs.pfrb_size, NULL, NULL,
 		    pf->anchor->ruleset.tticket,
 		    ukt->pfrukt_init_addr ? PFR_FLAG_ADDRSTOO : 0);

@@ -2885,6 +2885,60 @@ pf_handle_source_clear(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+struct nl_parsed_ina_define {
+	struct pfr_table table;
+	struct nl_parsed_table_addrs addrs;
+	size_t addr_count;
+	uint32_t ticket;
+	uint32_t flags;
+};
+
+#define	_OUT(_field)	offsetof(struct nl_parsed_ina_define, _field)
+static const struct nlattr_parser nla_ina_define_parser[] = {
+	{ .type = PF_ID_TABLE, .off = _OUT(table), .arg = &nested_table_parser, .cb = nlattr_get_nested },
+	{ .type = PF_ID_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+	{ .type = PF_ID_FLAGS, .off = _OUT(flags), .cb = nlattr_get_uint32 },
+	{ .type = PF_ID_ADDR, .off = _OUT(addrs), .cb = nlattr_get_pfr_addr },
+};
+NL_DECLARE_PARSER(ina_define_parser, struct genlmsghdr, nlf_p_empty, nla_ina_define_parser);
+
+static int
+pf_handle_ina_define(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_parsed_ina_define attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int nadd, naddr;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &ina_define_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_WLOCK();
+	error = pfr_ina_define(&attrs.table, attrs.addrs.addrs,
+	    attrs.addrs.addr_count, &nadd, &naddr,
+	    attrs.ticket, attrs.flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_WUNLOCK();
+
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_INA_DEFINE;
+
+	nlattr_add_u32(nw, PF_ID_NADD, nadd);
+	nlattr_add_u32(nw, PF_ID_NADDR, naddr);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2905,6 +2959,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&source_limiter_parser,
 	&source_parser,
 	&source_clear_parser,
+	&ina_define_parser,
 };
 
 static uint16_t family_id;
@@ -3285,6 +3340,14 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 		.cmd_securelevel = 4,
+	},
+	{
+		.cmd_num = PFNL_CMD_INA_DEFINE,
+		.cmd_name = "INA_DEFINE",
+		.cmd_cb = pf_handle_ina_define,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
 	},
 };
 

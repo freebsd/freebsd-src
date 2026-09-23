@@ -601,6 +601,9 @@ int	pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	    struct pfr_addr *addr, int size, int *nzero, int flags);
 int	pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
 	    struct pfr_addr *addr, int size, int *nmatch, int flags);
+int	pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
+	    struct pfr_addr *addr, int size, int *nadd, int *naddr,
+	    int ticket, int flags);
 
 struct pfctl_limit_rate {
 	unsigned int	 limit;
