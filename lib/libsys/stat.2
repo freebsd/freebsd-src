@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 17, 2025
+.Dd September 22, 2026
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -157,7 +157,7 @@ and into which information is placed concerning the file.
 The fields of
 .Vt "struct stat"
 related to the file system are:
-.Bl -tag -width ".Va st_nlink"
+.Bl -tag -width ".Va st_bsdflags"
 .It Va st_dev
 Numeric ID of the device containing the file.
 .It Va st_ino
@@ -172,6 +172,8 @@ for the list of flags and their description.
 .It Va st_rdev
 Numeric ID of the device referenced by the file, if the file is a
 character or block special; otherwise unspecified.
+.It Va st_bsdflags
+Miscellaneous file flags (see below).
 .El
 .Pp
 The
@@ -355,6 +357,15 @@ Test for a whiteout.
 .Pp
 The macros evaluate to a non-zero value if the test is true
 or to the value 0 if the test is false.
+.Pp
+The
+.Va st_bsdflags
+field contains the following flags, defined in
+.In sys/stat.h :
+.Bl -tag -width indent
+.It Dv SFBSD_NAMEDATTR
+The file is a named attribute or a named attribute directory.
+.El
 .Sh RETURN VALUES
 .Rv -std
 .Sh COMPATIBILITY
@@ -482,6 +493,12 @@ system calls are expected to conform to
 The
 .Fn fstatat
 system call follows The Open Group Extended API Set 2 specification.
+.Pp
+The
+.Va st_bsdflags
+field is a non-portable
+.Fx Ns -only
+extension.
 .Sh HISTORY
 The
 .Fn stat
