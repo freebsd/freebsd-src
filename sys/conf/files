@@ -2375,10 +2375,6 @@ dev/jme/if_jme.c		optional jme pci
 dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt | hkbd
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
-dev/le/am7990.c			optional le
-dev/le/am79900.c		optional le
-dev/le/if_le_pci.c		optional le pci
-dev/le/lance.c			optional le
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
 dev/liquidio/base/cn23xx_pf_device.c		optional lio	\

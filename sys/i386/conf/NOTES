@@ -243,11 +243,6 @@ envvar		hint.ed.0.at="isa"
 envvar		hint.ed.0.port="0x280"
 envvar		hint.ed.0.irq="5"
 envvar		hint.ed.0.maddr="0xd8000"
-# Hint for the i386-only ISA front-end of le(4).
-envvar		hint.le.0.at="isa"
-envvar		hint.le.0.port="0x280"
-envvar		hint.le.0.irq="10"
-envvar		hint.le.0.drq="0"
 device		sbni
 envvar		hint.sbni.0.at="isa"
 envvar		hint.sbni.0.port="0x210"

@@ -30,7 +30,6 @@ dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
-dev/le/if_le_isa.c		optional le isa
 dev/ofw/ofw_pcib.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
 dev/sbni/if_sbni.c		optional sbni
