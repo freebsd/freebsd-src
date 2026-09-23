@@ -117,6 +117,7 @@ static struct option longopts[] = {
 
 static const char *help_msg[] = {
 	"usage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1 file2\n",
+	"       sdiff --help\n",
 	"-l, --left-column: only print the left column for identical lines.",
 	"-o OUTFILE, --output=OUTFILE: interactively merge file1 and file2 into outfile.",
 	"-s, --suppress-common-lines: skip identical lines.",
