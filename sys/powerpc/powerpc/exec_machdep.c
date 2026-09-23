@@ -938,13 +938,6 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	/*
-	 * Save FPU state if needed. User may have changed it on
-	 * signal handler
-	 */
-	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
-		save_fpu(td);
-
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
