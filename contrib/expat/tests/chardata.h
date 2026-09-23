@@ -9,7 +9,7 @@
 
    Copyright (c) 2002-2004 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
-   Copyright (c) 2017      Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -34,10 +34,6 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XML_CHARDATA_H
 #  define XML_CHARDATA_H 1
 
@@ -57,7 +53,3 @@ void CharData_AppendXMLChars(CharData *storage, const XML_Char *s, int len);
 int CharData_CheckXMLChars(CharData *storage, const XML_Char *s);
 
 #endif /* XML_CHARDATA_H */
-
-#ifdef __cplusplus
-}
-#endif

@@ -7,8 +7,8 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 2017 Rhodri James <rhodri@wildebeest.org.uk>
-   Copyright (c) 2017 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
+   Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -33,10 +33,6 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XML_MEMCHECK_H
 #  define XML_MEMCHECK_H 1
 
@@ -53,7 +49,3 @@ void *tracking_realloc(void *ptr, size_t size);
 int tracking_report(void);
 
 #endif /* XML_MEMCHECK_H */
-
-#ifdef __cplusplus
-}
-#endif

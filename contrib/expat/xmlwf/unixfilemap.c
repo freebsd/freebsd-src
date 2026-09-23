@@ -10,7 +10,7 @@
    Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
    Copyright (c) 2001-2002 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2006      Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Licensed under the MIT license:
@@ -36,6 +36,8 @@
 
    SPDX-License-Identifier: MIT
 */
+
+#include "expat_config.h" // for off_t
 
 #include <sys/types.h>
 #include <sys/mman.h>
