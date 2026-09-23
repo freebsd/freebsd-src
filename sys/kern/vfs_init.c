@@ -427,6 +427,8 @@ vfs_register(struct vfsconf *vfc)
 		 */
 		hashval = fnv_32_str(vfc->vfc_name, FNV1_32_INIT);
 		hashval &= 0xff;
+		if (hashval == 0)
+			hashval = 1;
 		secondpass = 0;
 		do {
 			/* Look for and fix any collision. */
