@@ -79,6 +79,7 @@
 
 static int	vfs_domount(struct thread *td, const char *fstype, char *fspath,
 		    uint64_t fsflags, bool only_export, bool jail_export,
+		    char *check_fsid_str, char **bailmsg_p,
 		    struct vfsoptlist **optlist);
 static void	free_mntarg(struct mntarg *ma);
 static void	pnfsd_waitreplenish(struct mount *mp);
@@ -809,11 +810,11 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
 	struct vfsopt *opt, *tmp_opt;
-	char *fstype, *fspath, *errmsg;
+	char *fstype, *fspath, *errmsg, *bailmsg, *check_fsid_str;
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
 	bool autoro, has_nonexport, only_export, jail_export;
 
-	errmsg = fspath = NULL;
+	errmsg = fspath = check_fsid_str = bailmsg = NULL;
 	errmsg_len = fspathlen = 0;
 	errmsg_pos = -1;
 	autoro = default_autoro;
@@ -977,6 +978,9 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 		} else if (strcmp(opt->name, "noemptydir") == 0) {
 			fsflags &= ~MNT_EMPTYDIR;
 			do_freeopt = 1;
+		} else if (strcmp(opt->name, "check_fsid") == 0) {
+			check_fsid_str = strndup(opt->value, opt->len, M_MOUNT);
+			do_freeopt = 1;
 		}
 		if (do_freeopt)
 			vfs_freeopt(optlist, opt);
@@ -1008,11 +1012,10 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 		jail_export = true;
 
 	error = vfs_domount(td, fstype, fspath, fsflags, only_export,
-	    jail_export, &optlist);
-	if (error == ENODEV) {
-		error = EINVAL;
+	    jail_export, check_fsid_str, &bailmsg, &optlist);
+	if (bailmsg != NULL) {
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fstype", errmsg_len);
+			strncpy(errmsg, bailmsg, errmsg_len);
 		goto bail;
 	}
 
@@ -1027,7 +1030,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 		    " trying R/O mount\n", __func__);
 		fsflags |= MNT_RDONLY;
 		error = vfs_domount(td, fstype, fspath, fsflags, only_export,
-		    jail_export, &optlist);
+		    jail_export, check_fsid_str, &bailmsg, &optlist);
 	}
 bail:
 	/* copyout the errmsg */
@@ -1629,6 +1632,9 @@ vfs_domount(
 	uint64_t fsflags,		/* Flags common to all filesystems. */
 	bool only_export,		/* Got export option. */
 	bool jail_export,		/* Got export option in vnet prison. */
+	char *check_fsid_str,		/* fsid of an inode we're expecting
+					   to mount over. */
+	char **bailmsg_p,		/* textual error returned to caller */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
@@ -1636,6 +1642,7 @@ vfs_domount(
 	struct nameidata nd;
 	struct vnode *vp;
 	char *pathbuf;
+	fsid_t check_fsid;
 	int error;
 
 	/*
@@ -1645,6 +1652,18 @@ vfs_domount(
 	 */
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
+
+	if (check_fsid_str != NULL) {
+		bool parsed;
+
+		parsed = sscanf(check_fsid_str, "FSID:%d:%d",
+		    &check_fsid.val[0], &check_fsid.val[1]) == 2;
+		free(check_fsid_str, M_MOUNT);
+		if (!parsed) {
+			*bailmsg_p = "Invalid check_fsid value";
+			return (ENOENT);
+		}
+	}
 
 	if (jail_export) {
 		error = priv_check(td, PRIV_NFS_DAEMON);
@@ -1681,8 +1700,10 @@ vfs_domount(
 	if ((fsflags & MNT_UPDATE) == 0) {
 		/* Don't try to load KLDs if we're mounting the root. */
 		if (fsflags & MNT_ROOTFS) {
-			if ((vfsp = vfs_byname(fstype)) == NULL)
-				return (ENODEV);
+			if ((vfsp = vfs_byname(fstype)) == NULL) {
+				*bailmsg_p = "Invalid fstype";
+				return (EINVAL);
+			}
 		} else {
 			if ((vfsp = vfs_byname_kld(fstype, td, &error)) == NULL)
 				return (error);
@@ -1698,6 +1719,20 @@ vfs_domount(
 	if (error != 0)
 		return (error);
 	vp = nd.ni_vp;
+	if (check_fsid_str != NULL) {
+		struct mount *mp;
+
+		mp = vfs_getvfs(&check_fsid);
+		if (mp != vp->v_mount) {
+			vput(vp);
+			error = ENOENT;
+			*bailmsg_p = "vnode's FSID does not match check_fsid";
+		}
+		if (mp != NULL)
+			vfs_rel(mp);
+		if (error != 0)
+			goto out;
+	}
 	/*
 	 * Don't allow stacking file mounts to work around problems with the way
 	 * that namei sets nd.ni_dvp to vp_crossmp for these.
