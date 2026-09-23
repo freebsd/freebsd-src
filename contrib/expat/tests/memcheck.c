@@ -10,6 +10,7 @@
    Copyright (c) 2017-2023 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2022      Sean McBride <sean@rogue-research.com>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
+   Copyright (c) 2026      Leo Camus <leo.camus23@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -117,7 +118,7 @@ tracking_free(void *ptr) {
     if (entry->next != NULL)
       entry->next->prev = entry->prev;
     else
-      alloc_tail = entry->next;
+      alloc_tail = entry->prev;
     free(entry);
   } else {
     printf("Attempting to free unallocated memory at %p\n", ptr);

@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2022 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -42,31 +42,27 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XML_DUMMY_H
-#  define XML_DUMMY_H
+#define XML_DUMMY_H
 
-#  define DUMMY_START_DOCTYPE_HANDLER_FLAG (1UL << 0)
-#  define DUMMY_END_DOCTYPE_HANDLER_FLAG (1UL << 1)
-#  define DUMMY_ENTITY_DECL_HANDLER_FLAG (1UL << 2)
-#  define DUMMY_NOTATION_DECL_HANDLER_FLAG (1UL << 3)
-#  define DUMMY_ELEMENT_DECL_HANDLER_FLAG (1UL << 4)
-#  define DUMMY_ATTLIST_DECL_HANDLER_FLAG (1UL << 5)
-#  define DUMMY_COMMENT_HANDLER_FLAG (1UL << 6)
-#  define DUMMY_PI_HANDLER_FLAG (1UL << 7)
-#  define DUMMY_START_ELEMENT_HANDLER_FLAG (1UL << 8)
-#  define DUMMY_START_CDATA_HANDLER_FLAG (1UL << 9)
-#  define DUMMY_END_CDATA_HANDLER_FLAG (1UL << 10)
-#  define DUMMY_UNPARSED_ENTITY_DECL_HANDLER_FLAG (1UL << 11)
-#  define DUMMY_START_NS_DECL_HANDLER_FLAG (1UL << 12)
-#  define DUMMY_END_NS_DECL_HANDLER_FLAG (1UL << 13)
-#  define DUMMY_START_DOCTYPE_DECL_HANDLER_FLAG (1UL << 14)
-#  define DUMMY_END_DOCTYPE_DECL_HANDLER_FLAG (1UL << 15)
-#  define DUMMY_SKIP_HANDLER_FLAG (1UL << 16)
-#  define DUMMY_DEFAULT_HANDLER_FLAG (1UL << 17)
+#define DUMMY_START_DOCTYPE_HANDLER_FLAG (1UL << 0)
+#define DUMMY_END_DOCTYPE_HANDLER_FLAG (1UL << 1)
+#define DUMMY_ENTITY_DECL_HANDLER_FLAG (1UL << 2)
+#define DUMMY_NOTATION_DECL_HANDLER_FLAG (1UL << 3)
+#define DUMMY_ELEMENT_DECL_HANDLER_FLAG (1UL << 4)
+#define DUMMY_ATTLIST_DECL_HANDLER_FLAG (1UL << 5)
+#define DUMMY_COMMENT_HANDLER_FLAG (1UL << 6)
+#define DUMMY_PI_HANDLER_FLAG (1UL << 7)
+#define DUMMY_START_ELEMENT_HANDLER_FLAG (1UL << 8)
+#define DUMMY_START_CDATA_HANDLER_FLAG (1UL << 9)
+#define DUMMY_END_CDATA_HANDLER_FLAG (1UL << 10)
+#define DUMMY_UNPARSED_ENTITY_DECL_HANDLER_FLAG (1UL << 11)
+#define DUMMY_START_NS_DECL_HANDLER_FLAG (1UL << 12)
+#define DUMMY_END_NS_DECL_HANDLER_FLAG (1UL << 13)
+#define DUMMY_START_DOCTYPE_DECL_HANDLER_FLAG (1UL << 14)
+#define DUMMY_END_DOCTYPE_DECL_HANDLER_FLAG (1UL << 15)
+#define DUMMY_SKIP_HANDLER_FLAG (1UL << 16)
+#define DUMMY_DEFAULT_HANDLER_FLAG (1UL << 17)
 
 extern void init_dummy_handlers(void);
 extern unsigned long get_dummy_handler_flags(void);
@@ -146,7 +142,3 @@ extern void XMLCALL dummy_skip_handler(void *userData,
                                        int is_parameter_entity);
 
 #endif /* XML_DUMMY_H */
-
-#ifdef __cplusplus
-}
-#endif

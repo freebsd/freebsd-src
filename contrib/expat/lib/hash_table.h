@@ -1,5 +1,4 @@
-/* Interface to some helper routines used to accumulate and check
-   structured content.
+/* Hash table related internal API
                             __  __            _
                          ___\ \/ /_ __   __ _| |_
                         / _ \\  /| '_ \ / _` | __|
@@ -7,7 +6,6 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 2017 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
@@ -33,32 +31,48 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifndef XML_STRUCTDATA_H
-#  define XML_STRUCTDATA_H 1
+#if ! defined(HASH_TABLE_H)
+#  define HASH_TABLE_H 1
 
-#  include "expat.h"
+#  include "expat.h"    // for XML_Bool, XML_Parser
+#  include "internal.h" // for XML_NONTESTING_STATIC
 
-typedef struct {
-  const XML_Char *str;
-  int data0;
-  int data1;
-  int data2;
-} StructDataEntry;
+#  include <stddef.h> // for size_t
+
+typedef const XML_Char *KEY;
 
 typedef struct {
-  int count;     /* Number of entries used */
-  int max_count; /* Number of StructDataEntry items in `entries` */
-  StructDataEntry *entries;
-} StructData;
+  KEY name;
+} NAMED;
 
-void StructData_Init(StructData *storage);
+typedef struct {
+  NAMED **v;
+  unsigned char power;
+  size_t size;
+  size_t used;
+  XML_Parser parser;
+} HASH_TABLE;
 
-void StructData_AddItem(StructData *storage, const XML_Char *s, int data0,
-                        int data1, int data2);
+typedef struct {
+  NAMED **p;
+  NAMED **end;
+} HASH_TABLE_ITER;
 
-void StructData_CheckItems(StructData *storage, const StructDataEntry *expected,
-                           int count);
+XML_NONTESTING_STATIC NAMED *lookupWithLength(XML_Parser parser,
+                                              HASH_TABLE *table, KEY name,
+                                              size_t nameLen,
+                                              size_t createSize);
+XML_NONTESTING_STATIC NAMED *lookup(XML_Parser parser, HASH_TABLE *table,
+                                    KEY name, size_t createSize);
 
-void StructData_Dispose(StructData *storage);
+XML_NONTESTING_STATIC void hashTableInit(HASH_TABLE *table, XML_Parser parser);
+XML_NONTESTING_STATIC void hashTableClear(HASH_TABLE *table);
+XML_NONTESTING_STATIC void hashTableDestroy(HASH_TABLE *table);
+XML_NONTESTING_STATIC void hashTableIterInit(HASH_TABLE_ITER *iter,
+                                             const HASH_TABLE *table);
+XML_NONTESTING_STATIC NAMED *hashTableIterNext(HASH_TABLE_ITER *iter);
 
-#endif /* XML_STRUCTDATA_H */
+XML_NONTESTING_STATIC XML_Bool keyeq(KEY s1, size_t s1len, KEY s2);
+XML_NONTESTING_STATIC size_t keylen(KEY s);
+
+#endif // ! defined(HASH_TABLE_H)

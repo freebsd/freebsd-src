@@ -115,6 +115,7 @@ EXTRA_DIST = \
     expat_external.h \
     expat.h \
     fallthrough.h \
+    hash_table.h \
     iasciitab.h \
     internal.h \
     latin1tab.h \

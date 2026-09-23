@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2022 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -42,17 +42,9 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XML_ACC_TESTS_H
-#  define XML_ACC_TESTS_H
+#define XML_ACC_TESTS_H
 
 extern void make_accounting_test_case(Suite *s);
 
 #endif /* XML_ACC_TESTS_H */
-
-#ifdef __cplusplus
-}
-#endif
