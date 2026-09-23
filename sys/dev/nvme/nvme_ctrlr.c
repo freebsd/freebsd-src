@@ -1405,9 +1405,12 @@ nvme_ctrlr_shared_handler(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
 
-	nvme_mmio_write_4(ctrlr, intms, 1);
+	/* INTMS/INTMC are undefined when configured for MSI-X. */
+	if (!ctrlr->is_msix)
+		nvme_mmio_write_4(ctrlr, intms, 1);
 	nvme_ctrlr_poll(ctrlr);
-	nvme_mmio_write_4(ctrlr, intmc, 1);
+	if (!ctrlr->is_msix)
+		nvme_mmio_write_4(ctrlr, intmc, 1);
 }
 
 #define NVME_MAX_PAGES  (int)(1024 / sizeof(vm_page_t))

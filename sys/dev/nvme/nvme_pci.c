@@ -385,6 +385,7 @@ again:
 		ctrlr->msi_count = 0;
 		goto msi;
 	}
+	ctrlr->is_msix = true;
 	if (ctrlr->msi_count == 1)
 		return (nvme_ctrlr_setup_shared(ctrlr, 1));
 	if (ctrlr->msi_count != num_vectors_requested) {
