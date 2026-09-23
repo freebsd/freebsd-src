@@ -1818,7 +1818,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			namelc = "";
 		if (path == NULL) {
 			path = "/";
-			root = mypr->pr_root;
+			root = ppr->pr_root;
 			vref(root);
 		}
 		strlcpy(pr->pr_hostuuid, DEFAULT_HOSTUUID, HOSTUUIDLEN);
