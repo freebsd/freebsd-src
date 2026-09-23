@@ -656,6 +656,7 @@ OLD_FILES+=usr/include/c++/v1/locale.h
 
 # 20260420: remove perfmon
 OLD_FILES+=boot/kernel/perfmon.ko
+OLD_FILES+=usr/share/man/man4/i386/perfmon.4.gz
 OLD_FILES+=usr/share/man/man4/perfmon.4.gz
 OLD_FILES+=usr/share/examples/perfmon/Makefile
 OLD_FILES+=usr/share/examples/perfmon/README
