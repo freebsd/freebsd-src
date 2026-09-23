@@ -1611,8 +1611,7 @@ cd9660_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 					}
 				}
 				extlen++;
-			}
-			else {
+			} else {
 				*newname++ = '.';
 				found_ext = 1;
 			}
