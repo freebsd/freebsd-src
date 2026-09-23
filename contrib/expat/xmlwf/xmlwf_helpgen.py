@@ -50,7 +50,7 @@ epilog = dedent(
       0              the input files are well-formed and the output (if requested) was written successfully
       1              could not allocate data structures, signals a serious problem with execution environment
       2              one or more input files were not well-formed
-      3              could not create an output file
+      3              one or more output files could not be written
       4              command-line argument error
 
     xmlwf of libexpat is software libre, licensed under the MIT license.
@@ -116,7 +116,10 @@ input_related.add_argument(
 input_related.add_argument(
     "-k",
     action="store_true",
-    help="when processing multiple files, [k]eep processing after first file with error",
+    help=(
+        "when processing multiple files, [k]eep processing after first file with error"
+        ", and make the last error determine the exit code."
+    ),
 )
 
 output_related = parser.add_argument_group("output control arguments")

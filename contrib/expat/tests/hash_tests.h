@@ -1,4 +1,4 @@
-/*
+/* Tests related to the hash tables used inside Expat
                             __  __            _
                          ___\ \/ /_ __   __ _| |_
                         / _ \\  /| '_ \ / _` | __|
@@ -6,9 +6,7 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
-   Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -33,14 +31,11 @@
    SPDX-License-Identifier: MIT
 */
 
-/* Registered charset names are at most 40 characters long. */
+#ifndef XML_HASH_TESTS_H
+#define XML_HASH_TESTS_H
 
-#define CHARSET_MAX 41
+#include "minicheck.h"
 
-/* Figure out the charset to use from the ContentType.
-   buf contains the body of the header field (the part after "Content-Type:").
-   charset gets the charset to use.  It must be at least CHARSET_MAX chars
-   long.  charset will be empty if the default charset should be used.
-*/
+extern void make_hash_test_case(Suite *s);
 
-void getXMLCharset(const char *buf, char *charset);
+#endif /* XML_HASH_TESTS_H */

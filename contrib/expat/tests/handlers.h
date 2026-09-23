@@ -45,16 +45,12 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XML_HANDLERS_H
-#  define XML_HANDLERS_H
+#define XML_HANDLERS_H
 
-#  include "expat_config.h"
+#include "expat_config.h"
 
-#  include "expat.h"
+#include "expat.h"
 
 /* Variable holding the expected handler userData */
 extern const void *g_handler_data;
@@ -74,8 +70,8 @@ extern void XMLCALL start_element_event_handler(void *userData,
 extern void XMLCALL end_element_event_handler(void *userData,
                                               const XML_Char *name);
 
-#  define STRUCT_START_TAG 0
-#  define STRUCT_END_TAG 1
+#define STRUCT_START_TAG 0
+#define STRUCT_END_TAG 1
 
 extern void XMLCALL start_element_event_handler2(void *userData,
                                                  const XML_Char *name,
@@ -516,22 +512,21 @@ extern const struct handler_record_entry *
 _handler_record_get(const struct handler_record_list *storage, int index,
                     const char *file, int line);
 
-#  define handler_record_get(storage, index)                                   \
-    _handler_record_get((storage), (index), __FILE__, __LINE__)
+#define handler_record_get(storage, index)                                     \
+  _handler_record_get((storage), (index), __FILE__, __LINE__)
 
-#  define assert_record_handler_called(storage, index, expected_name,          \
-                                       expected_arg)                           \
-    do {                                                                       \
-      const struct handler_record_entry *e                                     \
-          = handler_record_get(storage, index);                                \
-      assert_true(strcmp(e->name, expected_name) == 0);                        \
-      assert_true(e->arg == (expected_arg));                                   \
-    } while (0)
+#define assert_record_handler_called(storage, index, expected_name,            \
+                                     expected_arg)                             \
+  do {                                                                         \
+    const struct handler_record_entry *e = handler_record_get(storage, index); \
+    assert_true(strcmp(e->name, expected_name) == 0);                          \
+    assert_true(e->arg == (expected_arg));                                     \
+  } while (0)
 
 /* Entity Declaration Handlers */
-#  define ENTITY_MATCH_FAIL (-1)
-#  define ENTITY_MATCH_NOT_FOUND (0)
-#  define ENTITY_MATCH_SUCCESS (1)
+#define ENTITY_MATCH_FAIL (-1)
+#define ENTITY_MATCH_NOT_FOUND (0)
+#define ENTITY_MATCH_SUCCESS (1)
 
 extern void XMLCALL param_entity_match_handler(
     void *userData, const XML_Char *entityName, int is_parameter_entity,
@@ -630,7 +625,3 @@ extern void XMLCALL suspend_then_resume_character_handler(void *userData,
                                                           int len);
 
 #endif /* XML_HANDLERS_H */
-
-#ifdef __cplusplus
-}
-#endif
