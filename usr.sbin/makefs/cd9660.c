@@ -139,10 +139,6 @@ static void cd9660_convert_structure(iso9660_disk *, fsnode *, cd9660node *, int
     int *, int *);
 static void cd9660_free_structure(cd9660node *);
 static int cd9660_generate_path_table(iso9660_disk *);
-static int cd9660_level1_convert_filename(iso9660_disk *, const char *, char *,
-    size_t, int);
-static int cd9660_level2_convert_filename(iso9660_disk *, const char *, char *,
-    size_t, int);
 static int cd9660_convert_filename(iso9660_disk *, const char *, char *, size_t,
     int);
 static void cd9660_populate_dot_records(iso9660_disk *, cd9660node *);
@@ -799,8 +795,6 @@ cd9660_translate_node_common(iso9660_disk *diskStructure, cd9660node *newnode)
 	char temp[ISO_FILENAME_MAXLENGTH];
 
 	/* Now populate the isoDirRecord structure */
-	memset(temp, 0, sizeof(temp));
-
 	(void)cd9660_convert_filename(diskStructure, newnode->node->name,
 	    temp, sizeof(temp), !(S_ISDIR(newnode->node->type)));
 
@@ -1564,13 +1558,15 @@ cd9660_compute_full_filename(cd9660node *node, char *buf)
 }
 
 /*
- * TODO: These two functions are almost identical.
- * Some code cleanup is possible here
- *
- * XXX bounds checking!
+ * Convert a file name to ISO compliant file name
+ * @param char * oldname The original filename
+ * @param char ** newname The new file name, in the appropriate character
+ *                        set and of appropriate length
+ * @param int 1 if file, 0 if directory
+ * @returns int The length of the new string
  */
 static int
-cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
+cd9660_convert_filename(iso9660_disk *diskStructure, const char *oldname,
     char *newname, size_t newnamelen, int is_file)
 {
 	/*
@@ -1578,18 +1574,43 @@ cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 	 * File Name shall not contain more than 8 d or d1 characters
 	 * File Name Extension shall not contain more than 3 d or d1 characters
 	 * Directory Identifier shall not contain more than 8 d or d1 characters
+	 *
+	 * ISO 9660 : 7.5.1
+	 * File name : 0+ d or d1 characters
+	 * separator 1 (.)
+	 * File name extension : 0+ d or d1 characters
+	 * separator 2 (;)
+	 * File version number (5 characters, 1-32767)
+	 * 1 <= Sum of File name and File name extension <= 30
 	 */
 	int namelen = 0;
 	int extlen = 0;
 	int found_ext = 0;
 	char *orignewname = newname;
+	int level;
+	int maxlen = is_file ? 30 : 31;
+	size_t suffix_len = is_file ? 3 : 1;
 
-	while (*oldname != '\0' && extlen < 3) {
+	assert(diskStructure->isoLevel == 1 || diskStructure->isoLevel == 2);
+	assert(newnamelen >= 4); /* at least enough memory for "[char];1\0" */
+
+	level = diskStructure->isoLevel;
+	while ((newnamelen - (newname - orignewname) > suffix_len)
+		   && (*oldname != '\0' && ((level == 1 && extlen < 3)
+		   || (level == 2 && namelen + extlen < maxlen)))) {
 		/* Handle period first, as it is special */
-		if (*oldname == '.') {
+		if (*oldname == '.' && (level == 1 || (level == 2 && is_file))) {
 			if (found_ext) {
-				*newname++ = '_';
-				extlen ++;
+				if (level == 1)
+					*newname++ = '_';
+				else if (level == 2) {
+					if (diskStructure->allow_multidot) {
+						*newname++ = '.';
+					} else {
+						*newname++ = '_';
+					}
+				}
+				extlen++;
 			}
 			else {
 				*newname++ = '.';
@@ -1597,13 +1618,13 @@ cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 			}
 		} else {
 			/* Enforce 12.3 / 8 */
-			if (namelen == 8 && !found_ext)
+			if (level == 1 && namelen == 8 && !found_ext)
 				break;
 
 			if (islower((unsigned char)*oldname))
 				*newname++ = toupper((unsigned char)*oldname);
-			else if (isupper((unsigned char)*oldname)
-			    || isdigit((unsigned char)*oldname))
+			else if (isupper((unsigned char)*oldname) ||
+			    isdigit((unsigned char)*oldname))
 				*newname++ = *oldname;
 			else
 				*newname++ = '_';
@@ -1620,90 +1641,10 @@ cd9660_level1_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 			*newname++ = '.';
 		/* Add version */
 		snprintf(newname, newnamelen - (newname - orignewname), ";%i", 1);
-	}
-	return namelen + extlen + found_ext;
-}
+	} else
+		*newname = '\0';
 
-/* XXX bounds checking! */
-static int
-cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
-    char *newname, size_t newnamelen, int is_file)
-{
-	/*
-	 * ISO 9660 : 7.5.1
-	 * File name : 0+ d or d1 characters
-	 * separator 1 (.)
-	 * File name extension : 0+ d or d1 characters
-	 * separator 2 (;)
-	 * File version number (5 characters, 1-32767)
-	 * 1 <= Sum of File name and File name extension <= 30
-	 */
-	int maxlen = is_file ? 30 : 31;
-	int namelen = 0;
-	int extlen = 0;
-	int found_ext = 0;
-	char *orignewname = newname;
-
-	while (*oldname != '\0' && namelen + extlen < maxlen) {
-		/* Handle period first, as it is special */
-		if (*oldname == '.' && is_file) {
-			if (found_ext) {
-				if (diskStructure->allow_multidot) {
-					*newname++ = '.';
-				} else {
-					*newname++ = '_';
-				}
-				extlen ++;
-			}
-			else {
-				*newname++ = '.';
-				found_ext = 1;
-			}
-		} else {
-			if (islower((unsigned char)*oldname))
-				*newname++ = toupper((unsigned char)*oldname);
-			else if (isupper((unsigned char)*oldname) ||
-			    isdigit((unsigned char)*oldname))
-				*newname++ = *oldname;
-			else
-				*newname++ = '_';
-
-			if (found_ext)
-				extlen++;
-			else
-				namelen++;
-		}
-		oldname ++;
-	}
-	if (is_file) {
-		if (!found_ext && !diskStructure->omit_trailing_period)
-			*newname++ = '.';
-		/* Add version */
-		snprintf(newname, newnamelen - (newname - orignewname), ";%i", 1);
-	}
-	return namelen + extlen + found_ext;
-}
-
-/*
- * Convert a file name to ISO compliant file name
- * @param char * oldname The original filename
- * @param char ** newname The new file name, in the appropriate character
- *                        set and of appropriate length
- * @param int 1 if file, 0 if directory
- * @returns int The length of the new string
- */
-static int
-cd9660_convert_filename(iso9660_disk *diskStructure, const char *oldname,
-    char *newname, size_t newnamelen, int is_file)
-{
-	assert(1 <= diskStructure->isoLevel && diskStructure->isoLevel <= 2);
-	if (diskStructure->isoLevel == 1)
-		return(cd9660_level1_convert_filename(diskStructure,
-		    oldname, newname, newnamelen, is_file));
-	else if (diskStructure->isoLevel == 2)
-		return (cd9660_level2_convert_filename(diskStructure,
-		    oldname, newname, newnamelen, is_file));
-	abort();
+	return (namelen + extlen + found_ext);
 }
 
 int
