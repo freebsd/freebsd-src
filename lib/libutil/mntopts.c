@@ -319,4 +319,6 @@ free_iovec(struct iovec **iov, int *iovlen)
 	for (i = 0; i < *iovlen; i += 2)
 		free((*iov)[i].iov_base);
 	free(*iov);
+	*iov = NULL;
+	*iovlen = 0;
 }
