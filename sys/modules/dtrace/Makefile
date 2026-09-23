@@ -1,5 +1,3 @@
-.include "Makefile.inc"
-
 SUBDIR=		dtaudit		\
 		dtmalloc	\
 		dtnfscl		\
