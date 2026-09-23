@@ -1291,7 +1291,7 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 	case NVME_LOG_ERROR: {
 		struct nvme_error_information_entry *err =
 		    (struct nvme_error_information_entry *)aer->log_page_buffer;
-		for (int i = 0; i < (aer->ctrlr->cdata.elpe + 1); i++)
+		for (uint32_t i = 0; i < aer->log_page_size / sizeof(*err); i++)
 			nvme_error_information_entry_swapbytes(err++);
 		break;
 	}
