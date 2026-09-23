@@ -731,7 +731,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	if (SV_PROC_FLAG(p, SV_ILP32) && narg > n) {
 		/* Expand the size of arguments copied from the stack */
 
-		for (i = narg; i >= n; i--)
+		for (i = narg - 1; i >= n; i--)
 			sa->args[i] = ((uint32_t *)(&sa->args[n]))[i-n];
 	}
 #endif
