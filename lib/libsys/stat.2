@@ -365,6 +365,10 @@ field contains the following flags, defined in
 .Bl -tag -width indent
 .It Dv SFBSD_NAMEDATTR
 The file is a named attribute or a named attribute directory.
+.It Dv SFBSD_MNTPOINT
+The file is a mount point.
+The reported file attributes describe the root node of the file system
+mounted on it.
 .El
 .Sh RETURN VALUES
 .Rv -std
