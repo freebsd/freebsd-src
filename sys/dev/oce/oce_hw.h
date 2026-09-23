@@ -1719,7 +1719,7 @@ enum CQFW_CONFIG_NUMBER {
 /**
  * @brief Function Capabilites
  * This field contains the flags indicating the capabilities of
- * the SLI Host’s PCI function.
+ * the SLI Host's PCI function.
  */
 enum CQFW_FUNCTION_CAPABILITIES {
 	FNC_UNCLASSIFIED_STATS = 0x1,
@@ -1748,7 +1748,7 @@ enum CQFW_ULP_MODES_SUPPORTED {
 
 /**
  * @brief Function Modes Supported
- * Valid function modes (or protocol-types) supported on the SLI-Host’s
+ * Valid function modes (or protocol-types) supported on the SLI-Host's
  * PCIe function.  This field is a logical OR of the following values:
  */
 enum CQFW_FUNCTION_MODES_SUPPORTED {

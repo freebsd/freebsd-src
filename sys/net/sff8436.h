@@ -187,7 +187,7 @@ enum {
 	SFF_8436_OPTIONS_END	= 195,
 	SFF_8436_SN_START 	= 196,	/* Vendor SN, riwght padded with 0x20 */
 	SFF_8436_SN_END 	= 211,
-	SFF_8436_DATE_START	= 212,	/* Vendor’s manufacturing date code
+	SFF_8436_DATE_START	= 212,	/* Vendor's manufacturing date code
 					* (see Table 40) */
 	SFF_8436_DATE_END	= 219,
 	SFF_8436_DIAG_TYPE	= 220,	/* Diagnostic Monitoring Type

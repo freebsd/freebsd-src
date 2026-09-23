@@ -756,7 +756,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	custom kernel configurations without any additional change.
 
 20230922:
-	A new loader tunable net.pf.default_to_drop allows pf(4)’s default
+	A new loader tunable net.pf.default_to_drop allows pf(4)'s default
 	behaviour to be changed from pass to drop. Previously this required
 	recompiling the kernel with the option PF_DEFAULT_TO_DROP.
 

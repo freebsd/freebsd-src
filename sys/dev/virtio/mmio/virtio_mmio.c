@@ -692,7 +692,7 @@ vtmmio_read_dev_config(device_t dev, bus_size_t offset,
 	 *   format for multi-byte fields.
 	 *
 	 *   2.4.3: Note that for legacy interfaces, device configuration space
-	 *   is generally the guest’s native endian, rather than PCI’s
+	 *   is generally the guest's native endian, rather than PCI's
 	 *   little-endian. The correct endian-ness is documented for each
 	 *   device.
 	 */

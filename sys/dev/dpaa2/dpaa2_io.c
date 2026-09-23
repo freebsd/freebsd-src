@@ -33,7 +33,7 @@
  * optional notification capabilities.
  *
  * Software portals are used by the driver to communicate with the QBMan. The
- * DPIO object’s main purpose is to enable the driver to perform I/O – enqueue
+ * DPIO object's main purpose is to enable the driver to perform I/O – enqueue
  * and dequeue operations, as well as buffer release and acquire operations –
  * using QBMan.
  */

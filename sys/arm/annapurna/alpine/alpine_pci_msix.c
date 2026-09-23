@@ -254,7 +254,7 @@ al_msix_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	 *           Same value as the MSIx Translation Base  Address Register
 	 * [19]    - WFE_EXIT
 	 *           Once set by MSIx message, an EVENTI is signal to the CPUs
-	 *           cluster specified by ‘Local GIC Target List’
+	 *           cluster specified by “Local GIC Target List”
 	 * [18:17] - Target GIC ID
 	 *           Specifies which IO-GIC (external shared GIC) is targeted
 	 *           0: Local GIC, as specified by the Local GIC Target List

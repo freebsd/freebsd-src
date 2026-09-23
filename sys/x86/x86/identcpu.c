@@ -1554,7 +1554,7 @@ fix_cpuid(void)
 	 * Re-enable AMD Topology Extension that could be disabled by BIOS
 	 * on some notebook processors.  Without the extension it's really
 	 * hard to determine the correct CPU cache topology.
-	 * See BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h
+	 * See BIOS and Kernel Developer's Guide (BKDG) for AMD Family 15h
 	 * Models 60h-6Fh Processors, Publication # 50742.
 	 */
 	if (vm_guest == VM_GUEST_NO && cpu_vendor_id == CPU_VENDOR_AMD &&
