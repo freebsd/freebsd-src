@@ -1,54 +1,30 @@
 /*-
-
-SPDX-License-Identifier: BSD-2-Clause
-
-Copyright (c) 1993, David Greenman
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-
-modification, are permitted provided that the following conditions
-
-are met:
-
-1. Redistributions of source code must retain the above copyright
-
-
-
-notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-
-
-
-notice, this list of conditions and the following disclaimer in the
-
-documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-
-ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-
-SUCH DAMAGE.
-*/
-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 1993, David Greenman
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -85,45 +61,46 @@ SUCH DAMAGE.
 #include <compat/ia32/ia32_signal.h>
 #endif
 
-static int	exec_aout_imgact(struct image_params *imgp);
-static int	aout_fixup(uintptr_t *stack_base, struct image_params *imgp);
+static int exec_aout_imgact(struct image_params *imgp);
+static int aout_fixup(uintptr_t *stack_base, struct image_params *imgp);
 
-#define	AOUT32_USRSTACK		0xbfc00000
+#define AOUT32_USRSTACK 0xbfc00000
 
 #if defined(i386)
 
-#define	AOUT32_PS_STRINGS	(AOUT32_USRSTACK - sizeof(struct ps_strings))
+#define AOUT32_PS_STRINGS \
+	(AOUT32_USRSTACK - sizeof(struct ps_strings))
 
 struct sysentvec aout_sysvec = {
-.sv_size	= SYS_MAXSYSCALL,
-.sv_table	= sysent,
-.sv_fixup	= aout_fixup,
-.sv_sendsig	= sendsig,
-.sv_sigcode	= sigcode,
-.sv_szsigcode	= &szsigcode,
-.sv_name	= "FreeBSD a.out",
-.sv_coredump	= NULL,
-.sv_minsigstksz	= MINSIGSTKSZ,
-.sv_minuser	= VM_MIN_ADDRESS,
-.sv_maxuser	= AOUT32_USRSTACK,
-.sv_usrstack	= AOUT32_USRSTACK,
-.sv_psstrings	= AOUT32_PS_STRINGS,
-.sv_psstringssz	= sizeof(struct ps_strings),
-.sv_stackprot	= VM_PROT_ALL,
-.sv_copyout_strings	= exec_copyout_strings,
-.sv_setregs	= exec_setregs,
-.sv_fixlimit	= NULL,
-.sv_maxssiz	= NULL,
-.sv_flags	= SV_ABI_FREEBSD | SV_AOUT | SV_ILP32 | SV_SIGSYS,
-.sv_set_syscall_retval = cpu_set_syscall_retval,
-.sv_fetch_syscall_args = cpu_fetch_syscall_args,
-.sv_syscallnames = syscallnames,
-.sv_schedtail	= NULL,
-.sv_thread_detach = NULL,
-.sv_trap	= NULL,
-.sv_onexec_old = exec_onexec_old,
-.sv_onexit =  exit_onexit,
-.sv_set_fork_retval = x86_set_fork_retval,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = sysent,
+	.sv_fixup = aout_fixup,
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode,
+	.sv_szsigcode = &szsigcode,
+	.sv_name = "FreeBSD a.out",
+	.sv_coredump = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = AOUT32_USRSTACK,
+	.sv_usrstack = AOUT32_USRSTACK,
+	.sv_psstrings = AOUT32_PS_STRINGS,
+	.sv_psstringssz = sizeof(struct ps_strings),
+	.sv_stackprot = VM_PROT_ALL,
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs = exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_AOUT | SV_ILP32 | SV_SIGSYS,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = syscallnames,
+	.sv_schedtail = NULL,
+	.sv_thread_detach = NULL,
+	.sv_trap = NULL,
+	.sv_onexec_old = exec_onexec_old,
+	.sv_onexit = exit_onexit,
+	.sv_set_fork_retval = x86_set_fork_retval,
 };
 
 #elif defined(amd64)
@@ -134,9 +111,9 @@ extern const char _binary_elf_vdso32_so_1_start[];
 extern const char _binary_elf_vdso32_so_1_end[];
 extern char _binary_elf_vdso32_so_1_size;
 
-#define	AOUT32_PS_STRINGS \
-(AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
-#define	AOUT32_MINUSER		FREEBSD32_MINUSER
+#define AOUT32_PS_STRINGS \
+	(AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
+#define AOUT32_MINUSER FREEBSD32_MINUSER
 
 extern const char *freebsd32_syscallnames[];
 extern u_long ia32_maxssiz;
@@ -144,38 +121,39 @@ extern u_long ia32_maxssiz;
 static int aout_szsigcode;
 
 struct sysentvec aout_sysvec = {
-.sv_size	= FREEBSD32_SYS_MAXSYSCALL,
-.sv_table	= freebsd32_sysent,
-.sv_fixup	= aout_fixup,
-.sv_sendsig	= ia32_sendsig,
-.sv_sigcode	= _binary_elf_vdso32_so_1_start,
-.sv_szsigcode	= &aout_szsigcode,
-.sv_name	= "FreeBSD a.out",
-.sv_coredump	= NULL,
-.sv_minsigstksz	= MINSIGSTKSZ,
-.sv_minuser	= AOUT32_MINUSER,
-.sv_maxuser	= AOUT32_USRSTACK,
-.sv_usrstack	= AOUT32_USRSTACK,
-.sv_psstrings	= AOUT32_PS_STRINGS,
-.sv_psstringssz	= sizeof(struct freebsd32_ps_strings),
-.sv_stackprot	= VM_PROT_ALL,
-.sv_copyout_strings	= freebsd32_copyout_strings,
-.sv_setregs	= ia32_setregs,
-.sv_fixlimit	= ia32_fixlimit,
-.sv_maxssiz	= &ia32_maxssiz,
-.sv_flags	= SV_ABI_FREEBSD | SV_AOUT | SV_ILP32 | SV_SIGSYS,
-.sv_set_syscall_retval = ia32_set_syscall_retval,
-.sv_fetch_syscall_args = ia32_fetch_syscall_args,
-.sv_syscallnames = freebsd32_syscallnames,
-.sv_onexec_old	= exec_onexec_old,
-.sv_onexit	= exit_onexit,
-.sv_set_fork_retval = x86_set_fork_retval,
+	.sv_size = FREEBSD32_SYS_MAXSYSCALL,
+	.sv_table = freebsd32_sysent,
+	.sv_fixup = aout_fixup,
+	.sv_sendsig = ia32_sendsig,
+	.sv_sigcode = _binary_elf_vdso32_so_1_start,
+	.sv_szsigcode = &aout_szsigcode,
+	.sv_name = "FreeBSD a.out",
+	.sv_coredump = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = AOUT32_MINUSER,
+	.sv_maxuser = AOUT32_USRSTACK,
+	.sv_usrstack = AOUT32_USRSTACK,
+	.sv_psstrings = AOUT32_PS_STRINGS,
+	.sv_psstringssz = sizeof(struct freebsd32_ps_strings),
+	.sv_stackprot = VM_PROT_ALL,
+	.sv_copyout_strings = freebsd32_copyout_strings,
+	.sv_setregs = ia32_setregs,
+	.sv_fixlimit = ia32_fixlimit,
+	.sv_maxssiz = &ia32_maxssiz,
+	.sv_flags = SV_ABI_FREEBSD | SV_AOUT | SV_ILP32 | SV_SIGSYS,
+	.sv_set_syscall_retval = ia32_set_syscall_retval,
+	.sv_fetch_syscall_args = ia32_fetch_syscall_args,
+	.sv_syscallnames = freebsd32_syscallnames,
+	.sv_onexec_old = exec_onexec_old,
+	.sv_onexit = exit_onexit,
+	.sv_set_fork_retval = x86_set_fork_retval,
 };
 
 static void
 aout_sysent(void *arg __unused)
 {
-aout_szsigcode = (int)(uintptr_t)&_binary_elf_vdso32_so_1_size;
+	aout_szsigcode =
+	    (int)(uintptr_t)&_binary_elf_vdso32_so_1_size;
 }
 SYSINIT(aout_sysent, SI_SUB_EXEC, SI_ORDER_ANY, aout_sysent, NULL);
 #else
@@ -185,206 +163,219 @@ SYSINIT(aout_sysent, SI_SUB_EXEC, SI_ORDER_ANY, aout_sysent, NULL);
 static int
 aout_fixup(uintptr_t *stack_base, struct image_params *imgp)
 {
+	*stack_base -= sizeof(uint32_t);
 
-*stack_base -= sizeof(uint32_t);  
-if (suword32((void *)*stack_base, imgp->args->argc) != 0)  
-	return (EFAULT);  
-return (0);
+	if (suword32((void *)*stack_base, imgp->args->argc) != 0)
+		return (EFAULT);
 
+	return (0);
 }
 
 static int
 exec_aout_imgact(struct image_params *imgp)
 {
-const struct exec *a_out;
-struct vmspace *vmspace;
-vm_map_t map;
-vm_object_t object;
-vm_offset_t text_end, data_end;
-unsigned long virtual_offset;
-unsigned long file_offset;
-unsigned long bss_size;
-int error;
+	const struct exec *a_out;
+	struct vmspace *vmspace;
+	vm_map_t map;
+	vm_object_t object;
+	vm_offset_t text_end, data_end;
+	unsigned long virtual_offset;
+	unsigned long file_offset;
+	unsigned long bss_size;
+	int error;
 
-a_out = (const struct exec *)imgp->image_header;  
+	a_out = (const struct exec *)imgp->image_header;
 
-/*  
- * Linux and *BSD binaries look very much alike,  
- * only the machine id is different:  
- * 0x64 for Linux, 0x86 for *BSD, 0x00 for BSDI.  
- * NetBSD is in network byte order.. ugh.  
- */  
-if (((a_out->a_midmag >> 16) & 0xff) != 0x86 &&  
-    ((a_out->a_midmag >> 16) & 0xff) != 0 &&  
-    ((((int)ntohl(a_out->a_midmag)) >> 16) & 0xff) != 0x86)  
-            return (-1);  
+	/*
+	 * Linux and *BSD binaries look very much alike,
+	 * only the machine id is different:
+	 * 0x64 for Linux, 0x86 for *BSD, 0x00 for BSDI.
+	 * NetBSD is in network byte order.. ugh.
+	 */
+	if (((a_out->a_midmag >> 16) & 0xff) != 0x86 &&
+	    ((a_out->a_midmag >> 16) & 0xff) != 0 &&
+	    ((((int)ntohl(a_out->a_midmag)) >> 16) & 0xff) != 0x86)
+		return (-1);
 
-/*  
- * Set file/virtual offset based on a.out variant.  
- *	We do two cases: host byte order and network byte order  
- *	(for NetBSD compatibility)  
- */  
-switch ((int)(a_out->a_midmag & 0xffff)) {  
-case ZMAGIC:  
-	virtual_offset = 0;  
-	if (a_out->a_text) {  
-		file_offset = PAGE_SIZE;  
-	} else {  
-		/* Bill's "screwball mode" */  
-		file_offset = 0;  
-	}  
-	break;  
-case QMAGIC:  
-	virtual_offset = PAGE_SIZE;  
-	file_offset = 0;  
-	/* Pass PS_STRINGS for BSD/OS binaries only. */  
-	if (N_GETMID(*a_out) == MID_ZERO)  
-		imgp->ps_strings = (void *)aout_sysvec.sv_psstrings;  
-	break;  
-default:  
-	/* NetBSD compatibility */  
-	switch ((int)(ntohl(a_out->a_midmag) & 0xffff)) {  
-	case ZMAGIC:  
-	case QMAGIC:  
-		virtual_offset = PAGE_SIZE;  
-		file_offset = 0;  
-		break;  
-	default:  
-		return (-1);  
-	}  
-}  
+	/*
+	 * Set file/virtual offset based on a.out variant.
+	 *	We do two cases: host byte order and network byte order
+	 *	(for NetBSD compatibility)
+	 */
+	switch ((int)(a_out->a_midmag & 0xffff)) {
+	case ZMAGIC:
+		virtual_offset = 0;
+		if (a_out->a_text) {
+			file_offset = PAGE_SIZE;
+		} else {
+			/* Bill's "screwball mode" */
+			file_offset = 0;
+		}
+		break;
 
-bss_size = roundup(a_out->a_bss, PAGE_SIZE);  
+	case QMAGIC:
+		virtual_offset = PAGE_SIZE;
+		file_offset = 0;
 
-/*  
- * Check various fields in header for validity/bounds.  
- */  
-if (/* entry point must lay with text region */  
-    a_out->a_entry < virtual_offset ||  
-    a_out->a_entry >= virtual_offset + a_out->a_text ||  
+		/* Pass PS_STRINGS for BSD/OS binaries only. */
+		if (N_GETMID(*a_out) == MID_ZERO)
+			imgp->ps_strings = (void *)aout_sysvec.sv_psstrings;
+		break;
 
-    /* text and data size must each be page rounded */  
-    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK ||  
+	default:
+		/* NetBSD compatibility */
+		switch ((int)(ntohl(a_out->a_midmag) & 0xffff)) {
+		case ZMAGIC:
+		case QMAGIC:
+			virtual_offset = PAGE_SIZE;
+			file_offset = 0;
+			break;
+		default:
+			return (-1);
+		}
+	}
 
-    (uint64_t)virtual_offset + a_out->a_text + a_out->a_data + bss_size >  
-        UINT_MAX  
-    )  
-	return (-1);  
+	bss_size = roundup(a_out->a_bss, PAGE_SIZE);
 
-/* text + data can't exceed file size */  
-if (a_out->a_data + a_out->a_text > imgp->attr->va_size)  
-	return (EFAULT);  
+	/*
+	 * Check various fields in header for validity/bounds.
+	 */
+	if (/* entry point must lay with text region */
+	    a_out->a_entry < virtual_offset ||
+	    a_out->a_entry >= virtual_offset + a_out->a_text ||
 
-/*  
- * text/data/bss must not exceed limits  
- */  
-PROC_LOCK(imgp->proc);  
-if (/* text can't exceed maximum text size */  
-    a_out->a_text > maxtsiz ||  
+	    /* text and data size must each be page rounded */
+	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK ||
 
-    /* data + bss can't exceed rlimit */  
-    a_out->a_data + bss_size > lim_cur_proc(imgp->proc, RLIMIT_DATA) ||  
-    racct_set(imgp->proc, RACCT_DATA, a_out->a_data + bss_size) != 0) {  
-	PROC_UNLOCK(imgp->proc);  
-	return (ENOMEM);  
-}  
-PROC_UNLOCK(imgp->proc);  
+	    (uint64_t)virtual_offset + a_out->a_text +
+	    a_out->a_data + bss_size > UINT_MAX)
+		return (-1);
 
-/*  
- * Avoid a possible deadlock if the current address space is destroyed  
- * and that address space maps the locked vnode.  In the common case,  
- * the locked vnode's v_usecount is decremented but remains greater  
- * than zero.  Consequently, the vnode lock is not needed by vrele().  
- * However, in cases where the vnode lock is external, such as nullfs,  
- * v_usecount may become zero.  
- */  
-VOP_UNLOCK(imgp->vp);  
+	/* text + data can't exceed file size */
+	if (a_out->a_data + a_out->a_text > imgp->attr->va_size)
+		return (EFAULT);
 
-/*  
- * Destroy old process VM and create a new one (with a new stack)  
- */  
-error = exec_new_vmspace(imgp, &aout_sysvec);  
+	/*
+	 * text/data/bss must not exceed limits
+	 */
+	PROC_LOCK(imgp->proc);
+	if (/* text can't exceed maximum text size */
+	    a_out->a_text > maxtsiz ||
 
-vn_lock(imgp->vp, LK_SHARED | LK_RETRY);  
-if (error)  
-	return (error);  
+	    /* data + bss can't exceed rlimit */
+	    a_out->a_data + bss_size >
+	    lim_cur_proc(imgp->proc, RLIMIT_DATA) ||
+	    racct_set(imgp->proc, RACCT_DATA,
+	    a_out->a_data + bss_size) != 0) {
+		PROC_UNLOCK(imgp->proc);
+		return (ENOMEM);
+	}
+	PROC_UNLOCK(imgp->proc);
 
-/*  
- * The vm space can be changed by exec_new_vmspace  
- */  
-vmspace = imgp->proc->p_vmspace;  
+	/*
+	 * Avoid a possible deadlock if the current address space is destroyed
+	 * and that address space maps the locked vnode.  In the common case,
+	 * the locked vnode's v_usecount is decremented but remains greater
+	 * than zero.  Consequently, the vnode lock is not needed by vrele().
+	 * However, in cases where the vnode lock is external, such as nullfs,
+	 * v_usecount may become zero.
+	 */
+	VOP_UNLOCK(imgp->vp);
 
-object = imgp->object;  
-map = &vmspace->vm_map;  
-vm_map_lock(map);  
-vm_object_reference(object);  
+	/*
+	 * Destroy old process VM and create a new one (with a new stack)
+	 */
+	error = exec_new_vmspace(imgp, &aout_sysvec);
 
-text_end = virtual_offset + a_out->a_text;  
-error = vm_map_insert(map, object,  
-	file_offset,  
-	virtual_offset, text_end,  
-	VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,  
-	MAP_COPY_ON_WRITE | MAP_PREFAULT | MAP_VN_EXEC);  
-if (error) {  
-	vm_map_unlock(map);  
-	vm_object_deallocate(object);  
-	return (error);  
-}  
-VOP_SET_TEXT_CHECKED(imgp->vp);  
-data_end = text_end + a_out->a_data;  
-if (a_out->a_data) {  
-	vm_object_reference(object);  
-	error = vm_map_insert(map, object,  
-		file_offset + a_out->a_text,  
-		text_end, data_end,  
-		VM_PROT_ALL, VM_PROT_ALL,  
-		MAP_COPY_ON_WRITE | MAP_PREFAULT | MAP_VN_EXEC);  
-	if (error) {  
-		vm_map_unlock(map);  
-		vm_object_deallocate(object);  
-		return (error);  
-	}  
-	VOP_SET_TEXT_CHECKED(imgp->vp);  
-}  
+	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+	if (error)
+		return (error);
 
-if (bss_size) {  
-	error = vm_map_insert(map, NULL, 0,  
-		data_end, data_end + bss_size,  
-		VM_PROT_ALL, VM_PROT_ALL, 0);  
-	if (error) {  
-		vm_map_unlock(map);  
-		return (error);  
-	}  
-}  
-vm_map_unlock(map);  
+	/*
+	 * The vm space can be changed by exec_new_vmspace
+	 */
+	vmspace = imgp->proc->p_vmspace;
 
-/* Fill in process VM information */  
-vmspace->vm_tsize = a_out->a_text >> PAGE_SHIFT;  
-vmspace->vm_dsize = (a_out->a_data + bss_size) >> PAGE_SHIFT;  
-vmspace->vm_taddr = (caddr_t) (uintptr_t) virtual_offset;  
-vmspace->vm_daddr = (caddr_t) (uintptr_t)  
-		    (virtual_offset + a_out->a_text);  
+	object = imgp->object;
+	map = &vmspace->vm_map;
 
-error = exec_map_stack(imgp);  
-if (error != 0)  
-	return (error);  
+	vm_map_lock(map);
+	vm_object_reference(object);
 
-/* Fill in image_params */  
-imgp->interpreted = 0;  
-imgp->entry_addr = a_out->a_entry;  
+	text_end = virtual_offset + a_out->a_text;
 
-imgp->proc->p_sysent = &aout_sysvec;  
+	error = vm_map_insert(map, object,
+	    file_offset,
+	    virtual_offset, text_end,
+	    VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
+	    MAP_COPY_ON_WRITE | MAP_PREFAULT | MAP_VN_EXEC);
+	if (error) {
+		vm_map_unlock(map);
+		vm_object_deallocate(object);
+		return (error);
+	}
 
-return (0);
+	VOP_SET_TEXT_CHECKED(imgp->vp);
 
+	data_end = text_end + a_out->a_data;
+
+	if (a_out->a_data) {
+		vm_object_reference(object);
+
+		error = vm_map_insert(map, object,
+		    file_offset + a_out->a_text,
+		    text_end, data_end,
+		    VM_PROT_ALL, VM_PROT_ALL,
+		    MAP_COPY_ON_WRITE | MAP_PREFAULT | MAP_VN_EXEC);
+		if (error) {
+			vm_map_unlock(map);
+			vm_object_deallocate(object);
+			return (error);
+		}
+
+		VOP_SET_TEXT_CHECKED(imgp->vp);
+	}
+
+	if (bss_size) {
+		error = vm_map_insert(map, NULL, 0,
+		    data_end, data_end + bss_size,
+		    VM_PROT_ALL, VM_PROT_ALL, 0);
+		if (error) {
+			vm_map_unlock(map);
+			return (error);
+		}
+	}
+
+	vm_map_unlock(map);
+
+	/* Fill in process VM information */
+	vmspace->vm_tsize = a_out->a_text >> PAGE_SHIFT;
+	vmspace->vm_dsize =
+	    (a_out->a_data + bss_size) >> PAGE_SHIFT;
+	vmspace->vm_taddr =
+	    (caddr_t)(uintptr_t)virtual_offset;
+	vmspace->vm_daddr =
+	    (caddr_t)(uintptr_t)
+	    (virtual_offset + a_out->a_text);
+
+	error = exec_map_stack(imgp);
+	if (error != 0)
+		return (error);
+
+	/* Fill in image_params */
+	imgp->interpreted = 0;
+	imgp->entry_addr = a_out->a_entry;
+
+	imgp->proc->p_sysent = &aout_sysvec;
+
+	return (0);
 }
 
 /*
-
-Tell kern_execve.c about it, with a little help from the linker.
-*/
+ * Tell kern_execve.c about it, with a little help from the linker.
+ */
 static struct execsw aout_execsw = {
-.ex_imgact = exec_aout_imgact,
-.ex_name = "a.out"
+	.ex_imgact = exec_aout_imgact,
+	.ex_name = "a.out"
 };
 EXEC_SET(aout, aout_execsw);
