@@ -267,7 +267,7 @@ __rebuild_environ(int newEnvironSize)
 	int tmpEnvironSize;
 
 	/* Resize environ. */
-	if (newEnvironSize > environSize) {
+	if (newEnvironSize > environSize || intEnviron == NULL) {
 		tmpEnvironSize = newEnvironSize * 2;
 		tmpEnviron = reallocarray(intEnviron, tmpEnvironSize + 1,
 		    sizeof(*intEnviron));
