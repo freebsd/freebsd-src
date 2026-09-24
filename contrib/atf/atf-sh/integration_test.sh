@@ -150,7 +150,7 @@ EOF
 atf_test_case require_progs
 require_progs_body()
 {
-    cat | create_test_program tp <<EOF
+    create_test_program tp <<'EOF'
 atf_test_case helper
 helper_head() {
     atf_set "require.progs" "true"
