@@ -277,6 +277,9 @@ qemu_netboot() {
 # we don't use the ipxe USB path we use here. We use that because Tianocore
 # expects http/https booting when the obvious '-boot n' sort of things
 # are used.
+#
+# -device virtio-rng-pci: EDK II's network stack has required an RNG
+# device since CVE-2023-45237.
 qemu_netboot_ramdisk() {
     netif=$1
     echo "$(param qemu_bin) -M q35 -cpu max -m 2g \
@@ -285,6 +288,7 @@ qemu_netboot_ramdisk() {
 	-hda ${OUTDIR}/netboot-ipxe.img \
 	-device virtio-net,netdev=net0 \
 	-netdev tap,id=net0,ifname=${netif},script=no,downscript=no \
+	-device virtio-rng-pci \
 	-fw_cfg name=opt/org.tianocore/IPv4PXESupport,string=no \
 	-fw_cfg name=opt/org.tianocore/IPv6PXESupport,string=no \
 	-nographic -monitor none -serial stdio"
