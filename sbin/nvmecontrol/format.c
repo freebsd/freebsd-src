@@ -177,7 +177,7 @@ format(const struct cmd *f, int argc, char *argv[])
 		if (read_namespace_data(fd, nsid, &nsd))
 			errx(EX_IOERR, "Identify request failed");
 		if (lbaf < 0)
-			lbaf = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd.flbas);
+			lbaf = nvme_ns_data_format_index(&nsd);
 		if (lbaf > nsd.nlbaf)
 			errx(EX_USAGE, "LBA format is out of range");
 		if (ms < 0)

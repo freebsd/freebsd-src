@@ -654,7 +654,7 @@ ndasetgeom(struct nda_softc *softc, struct cam_periph *periph)
 	nsd = nvme_get_identify_ns(periph);
         cd = nvme_get_identify_cntrl(periph);
 
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
+	flbas_fmt = nvme_ns_data_format_index(nsd);
 	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
 	disk->d_sectorsize = 1 << lbads;
 	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
