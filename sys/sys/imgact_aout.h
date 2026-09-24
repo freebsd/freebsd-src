@@ -144,12 +144,4 @@ struct exec {
 #define EX_DYNAMIC	0x20	/* contains run-time link-edit info */
 #define EX_DPMASK	0x30	/* mask for the above */
 
-#ifdef _KERNEL
-struct thread;
-struct vnode;
-
-int	aout_coredump(struct thread *td, struct vnode *vp, off_t limit,
-    int flags);
-#endif
-
 #endif /* !_IMGACT_AOUT_H_ */
