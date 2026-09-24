@@ -368,7 +368,7 @@ int	pfctl_define_table(char *, int, int, const char *, struct pfr_buffer *,
 
 void		 pfctl_clear_fingerprints(int, int);
 int		 pfctl_file_fingerprints(int, int, const char *);
-pf_osfp_t	 pfctl_get_fingerprint(const char *);
+pf_osfp_t	 pfctl_find_fingerprint(const char *);
 int		 pfctl_load_fingerprints(int, int);
 char		*pfctl_lookup_fingerprint(pf_osfp_t, char *, size_t);
 void		 pfctl_show_fingerprints(int);

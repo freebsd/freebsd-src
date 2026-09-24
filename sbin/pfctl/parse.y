@@ -6953,7 +6953,7 @@ expand_rule(struct pfctl_rule *r, bool keeprule,
 		}
 
 		if (src_os && src_os->os) {
-			r->os_fingerprint = pfctl_get_fingerprint(src_os->os);
+			r->os_fingerprint = pfctl_find_fingerprint(src_os->os);
 			if ((pf->opts & PF_OPT_VERBOSE2) &&
 			    r->os_fingerprint == PF_OSFP_NOMATCH)
 				fprintf(stderr,

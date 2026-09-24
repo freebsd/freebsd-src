@@ -263,7 +263,7 @@ pfctl_file_fingerprints(int dev, int opts, const char *fp_filename)
 void
 pfctl_clear_fingerprints(int dev, int opts)
 {
-	if (ioctl(dev, DIOCOSFPFLUSH))
+	if (pfctl_flush_fingerprints(pfh) != 0)
 		pfctl_err(opts, 1, "DIOCOSFPFLUSH");
 }
 
@@ -293,9 +293,8 @@ pfctl_load_fingerprints(int dev, int opts)
 
 	for (i = 0; i >= 0; i++) {
 		memset(&io, 0, sizeof(io));
-		io.fp_getnum = i;
-		if (ioctl(dev, DIOCOSFPGET, &io)) {
-			if (errno == EBUSY)
+		if ((errno = pfctl_get_fingerprint(pfh, i, &io)) != 0) {
+			if (errno == ENOENT)
 				break;
 			warn("DIOCOSFPGET");
 			return (1);
@@ -324,7 +323,7 @@ pfctl_show_fingerprints(int opts)
 
 /* Lookup a fingerprint */
 pf_osfp_t
-pfctl_get_fingerprint(const char *name)
+pfctl_find_fingerprint(const char *name)
 {
 	struct name_entry *nm, *class_nm, *version_nm, *subtype_nm;
 	pf_osfp_t ret = PF_OSFP_NOMATCH;
@@ -628,7 +627,7 @@ add_fingerprint(int dev, int opts, struct pf_osfp_ioctl *fp)
 	/* Linked to the sys/net/pf_osfp.c.  Call pf_osfp_add() */
 	if ((errno = pf_osfp_add(fp)))
 #else
-	if ((opts & PF_OPT_NOACTION) == 0 && ioctl(dev, DIOCOSFPADD, fp))
+	if ((opts & PF_OPT_NOACTION) == 0 && (errno = pfctl_add_fingerprint(pfh, fp)) != 0)
 #endif /* FAKE_PF_KERNEL */
 	{
 		if (errno == EEXIST) {

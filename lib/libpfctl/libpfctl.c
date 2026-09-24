@@ -4477,6 +4477,140 @@ out:
 	return (e.error);
 }
 
+int
+pfctl_flush_fingerprints(struct pfctl_handle *h)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, h->family_id,
+	    PFNL_CMD_OSFP_FLUSH);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL) {
+		e.error = ENXIO;
+		goto out;
+	}
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr)) {
+		e.error = ENXIO;
+		goto out;
+	}
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+	}
+
+out:
+	snl_clear_lb(&h->ss);
+	return (e.error);
+}
+
+#define _OUT(_field)	offsetof(struct pf_osfp_ioctl, _field)
+static struct snl_attr_parser ap_osfp[] = {
+	{ .type = PF_OFP_IDX, .off = _OUT(fp_getnum), .cb = snl_attr_get_uint32 },
+	{ .type = PF_OFP_OS_OS, .off = _OUT(fp_os.fp_os), .cb = snl_attr_get_uint32 },
+	{ .type = PF_OFP_OS_ENFLAGS, .off = _OUT(fp_os.fp_enflags), .cb = snl_attr_get_uint32 },
+	{ .type = PF_OFP_OS_CLASS, .off = _OUT(fp_os.fp_class_nm), .arg_u32 = PF_OSFP_LEN, .cb = snl_attr_copy_string},
+	{ .type = PF_OFP_OS_VERSION, .off = _OUT(fp_os.fp_version_nm), .arg_u32 = PF_OSFP_LEN, .cb = snl_attr_copy_string },
+	{ .type = PF_OFP_OS_SUBTYPE, .off = _OUT(fp_os.fp_subtype_nm), .arg_u32 = PF_OSFP_LEN, .cb = snl_attr_copy_string },
+	{ .type = PF_OFP_TCPOPTS, .off = _OUT(fp_tcpopts), .cb = snl_attr_get_uint64 },
+	{ .type = PF_OFP_WSIZE, .off = _OUT(fp_wsize), .cb = snl_attr_get_uint16 },
+	{ .type = PF_OFP_PSIZE, .off = _OUT(fp_psize), .cb = snl_attr_get_uint16 },
+	{ .type = PF_OFP_MSS, .off = _OUT(fp_mss), .cb = snl_attr_get_uint16 },
+	{ .type = PF_OFP_FLAGS, .off = _OUT(fp_flags), .cb = snl_attr_get_uint16 },
+	{ .type = PF_OFP_OPTCNT, .off = _OUT(fp_optcnt), .cb = snl_attr_get_uint8 },
+	{ .type = PF_OFP_WSCALE, .off = _OUT(fp_wscale), .cb = snl_attr_get_uint8 },
+	{ .type = PF_OFP_TTL, .off = _OUT(fp_ttl), .cb = snl_attr_get_uint8 },
+};
+#undef _OUT
+SNL_DECLARE_PARSER(osfp_parser, struct genlmsghdr, snl_f_p_empty, ap_osfp);
+
+int
+pfctl_get_fingerprint(struct pfctl_handle *h, int idx, struct pf_osfp_ioctl *fp)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, h->family_id,
+	    PFNL_CMD_OSFP_GET);
+
+	snl_add_msg_attr_u32(&nw, PF_OFP_IDX, idx);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL) {
+		e. error = ENXIO;
+		goto out;
+	}
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr)) {
+		e.error = ENXIO;
+		goto out;
+	}
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &osfp_parser, fp))
+			continue;
+	}
+
+out:
+	snl_clear_lb(&h->ss);
+	return (e.error);
+}
+
+int
+pfctl_add_fingerprint(struct pfctl_handle *h, struct pf_osfp_ioctl *fp)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, h->family_id,
+	    PFNL_CMD_OSFP_ADD);
+
+	snl_add_msg_attr_u32(&nw, PF_OFP_OS_OS, fp->fp_os.fp_os);
+	snl_add_msg_attr_u32(&nw, PF_OFP_OS_ENFLAGS, fp->fp_os.fp_enflags);
+	snl_add_msg_attr_string(&nw, PF_OFP_OS_CLASS, fp->fp_os.fp_class_nm);
+	snl_add_msg_attr_string(&nw, PF_OFP_OS_VERSION, fp->fp_os.fp_version_nm);
+	snl_add_msg_attr_string(&nw, PF_OFP_OS_SUBTYPE, fp->fp_os.fp_subtype_nm);
+	snl_add_msg_attr_u64(&nw, PF_OFP_TCPOPTS, fp->fp_tcpopts);
+	snl_add_msg_attr_u16(&nw, PF_OFP_WSIZE, fp->fp_wsize);
+	snl_add_msg_attr_u16(&nw, PF_OFP_PSIZE, fp->fp_psize);
+	snl_add_msg_attr_u16(&nw, PF_OFP_MSS, fp->fp_mss);
+	snl_add_msg_attr_u16(&nw, PF_OFP_FLAGS, fp->fp_flags);
+	snl_add_msg_attr_u8(&nw, PF_OFP_OPTCNT, fp->fp_optcnt);
+	snl_add_msg_attr_u8(&nw, PF_OFP_WSCALE, fp->fp_wscale);
+	snl_add_msg_attr_u8(&nw, PF_OFP_TTL, fp->fp_ttl);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL) {
+		e. error = ENXIO;
+		goto out;
+	}
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr)) {
+		e.error = ENXIO;
+		goto out;
+	}
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+	}
+
+out:
+	snl_clear_lb(&h->ss);
+	return (e.error);
+}
+
 static const struct snl_hdr_parser *all_parsers[] = {
 	&begin_addrs_parser,
 	&clear_states_parser,

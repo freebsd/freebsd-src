@@ -2900,6 +2900,7 @@ static const struct nlattr_parser nla_ina_define_parser[] = {
 	{ .type = PF_ID_FLAGS, .off = _OUT(flags), .cb = nlattr_get_uint32 },
 	{ .type = PF_ID_ADDR, .off = _OUT(addrs), .cb = nlattr_get_pfr_addr },
 };
+#undef _OUT
 NL_DECLARE_PARSER(ina_define_parser, struct genlmsghdr, nlf_p_empty, nla_ina_define_parser);
 
 static int
@@ -2939,6 +2940,129 @@ pf_handle_ina_define(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+static int
+pf_handle_osfp_flush(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+
+	PF_RULES_WLOCK();
+	pf_osfp_flush();
+	PF_RULES_WUNLOCK();
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_OSFP_FLUSH;
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (0);
+}
+
+#define	_OUT(_field)	offsetof(struct pf_osfp_ioctl, _field)
+static const struct nlattr_parser nla_osfp_parser[] = {
+	{ .type = PF_OFP_IDX, .off = _OUT(fp_getnum), .cb = nlattr_get_uint32 },
+	{ .type = PF_OFP_OS_OS, .off = _OUT(fp_os.fp_os), .cb = nlattr_get_uint32 },
+	{ .type = PF_OFP_OS_ENFLAGS, .off = _OUT(fp_os.fp_enflags), .cb = nlattr_get_uint32 },
+	{ .type = PF_OFP_OS_CLASS, .off = _OUT(fp_os.fp_class_nm), .arg = (void *)PF_OSFP_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_OFP_OS_VERSION, .off = _OUT(fp_os.fp_version_nm), .arg = (void *)PF_OSFP_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_OFP_OS_SUBTYPE, .off = _OUT(fp_os.fp_subtype_nm), .arg = (void *)PF_OSFP_LEN, .cb = nlattr_get_chara },
+	{ .type = PF_OFP_TCPOPTS, .off = _OUT(fp_tcpopts), .cb = nlattr_get_uint64 },
+	{ .type = PF_OFP_WSIZE, .off = _OUT(fp_wsize), .cb = nlattr_get_uint16 },
+	{ .type = PF_OFP_PSIZE, .off = _OUT(fp_psize), .cb = nlattr_get_uint16 },
+	{ .type = PF_OFP_MSS, .off = _OUT(fp_mss), .cb = nlattr_get_uint16 },
+	{ .type = PF_OFP_FLAGS, .off = _OUT(fp_flags), .cb = nlattr_get_uint16 },
+	{ .type = PF_OFP_OPTCNT, .off = _OUT(fp_optcnt), .cb = nlattr_get_uint8 },
+	{ .type = PF_OFP_WSCALE, .off = _OUT(fp_wscale), .cb = nlattr_get_uint8 },
+	{ .type = PF_OFP_TTL, .off = _OUT(fp_ttl), .cb = nlattr_get_uint8 },
+};
+#undef	_OUT
+NL_DECLARE_PARSER(osfp_parser, struct genlmsghdr, nlf_p_empty, nla_osfp_parser);
+
+static int
+pf_handle_osfp_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_osfp_ioctl attrs = {};
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	error = nl_parse_nlmsg(hdr, &osfp_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_RLOCK();
+	error = pf_osfp_get(&attrs);
+	PF_RULES_RUNLOCK();
+	if (error != 0) {
+		/*
+		 * pf_osfp_get() returns EBUSY if the index is not found.
+		 * Let's be a bit more sensible.
+		 */
+		return (ENOENT);
+	}
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_OSFP_GET;
+
+	nlattr_add_u32(nw, PF_OFP_OS_OS, attrs.fp_os.fp_os);
+	nlattr_add_u32(nw, PF_OFP_OS_ENFLAGS, attrs.fp_os.fp_enflags);
+	nlattr_add_string(nw, PF_OFP_OS_CLASS, attrs.fp_os.fp_class_nm);
+	nlattr_add_string(nw, PF_OFP_OS_VERSION, attrs.fp_os.fp_version_nm);
+	nlattr_add_string(nw, PF_OFP_OS_SUBTYPE, attrs.fp_os.fp_subtype_nm);
+	nlattr_add_u64(nw, PF_OFP_TCPOPTS, attrs.fp_tcpopts);
+	nlattr_add_u16(nw, PF_OFP_WSIZE, attrs.fp_wsize);
+	nlattr_add_u16(nw, PF_OFP_PSIZE, attrs.fp_psize);
+	nlattr_add_u16(nw, PF_OFP_MSS, attrs.fp_mss);
+	nlattr_add_u16(nw, PF_OFP_FLAGS, attrs.fp_flags);
+	nlattr_add_u8(nw, PF_OFP_OPTCNT, attrs.fp_optcnt);
+	nlattr_add_u8(nw, PF_OFP_WSCALE, attrs.fp_wscale);
+	nlattr_add_u8(nw, PF_OFP_TTL, attrs.fp_ttl);
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (0);
+}
+
+static int
+pf_handle_osfp_add(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_osfp_ioctl attrs = {};
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &osfp_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_WLOCK();
+	error = pf_osfp_add(&attrs);
+	PF_RULES_WUNLOCK();
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_OSFP_ADD;
+
+	if (!nlmsg_end(nw))
+		return (ENOMEM);
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2960,6 +3084,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&source_parser,
 	&source_clear_parser,
 	&ina_define_parser,
+	&osfp_parser,
 };
 
 static uint16_t family_id;
@@ -3345,6 +3470,30 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_INA_DEFINE,
 		.cmd_name = "INA_DEFINE",
 		.cmd_cb = pf_handle_ina_define,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
+	},
+	{
+		.cmd_num = PFNL_CMD_OSFP_FLUSH,
+		.cmd_name = "OSFP_FLUSH",
+		.cmd_cb = pf_handle_osfp_flush,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
+	},
+	{
+		.cmd_num = PFNL_CMD_OSFP_GET,
+		.cmd_name = "OSFP_GET",
+		.cmd_cb = pf_handle_osfp_get,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
+	},
+	{
+		.cmd_num = PFNL_CMD_OSFP_ADD,
+		.cmd_name = "OSFP_ADD",
+		.cmd_cb = pf_handle_osfp_add,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 		.cmd_securelevel = 3,

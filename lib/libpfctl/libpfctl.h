@@ -704,4 +704,8 @@ struct pfctl_source_clear {
 };
 int	pfctl_source_clear(struct pfctl_handle *h, struct pfctl_source_clear *);
 
+int	pfctl_flush_fingerprints(struct pfctl_handle *h);
+int	pfctl_get_fingerprint(struct pfctl_handle *h, int idx, struct pf_osfp_ioctl *fp);
+int	pfctl_add_fingerprint(struct pfctl_handle *h, struct pf_osfp_ioctl *fp);
+
 #endif
