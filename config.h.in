@@ -75,6 +75,9 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
+/* Define to 1 if you have the 'umount' function. */
+#undef HAVE_UMOUNT
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
@@ -130,9 +133,6 @@
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
-
-/* Set to the path of umount(8) */
-#undef UMOUNT
 
 /* Version number of package */
 #undef VERSION

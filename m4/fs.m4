@@ -99,19 +99,14 @@ dnl KYUA_FS_UNMOUNT
 dnl
 dnl Detect the correct method to unmount a file system.
 AC_DEFUN([KYUA_FS_UNMOUNT], [
-    AC_CHECK_FUNCS([unmount], [have_unmount2=yes], [have_unmount2=no])
-    if test "${have_unmount2}" = no; then
-        have_umount8=yes
-        AC_PATH_PROG([UMOUNT], [umount], [have_umount8=no])
-        if test "${have_umount8}" = yes; then
-            AC_DEFINE_UNQUOTED([UMOUNT], ["${UMOUNT}"],
-                               [Set to the path of umount(8)])
-        else
-            AC_MSG_ERROR([Don't know how to unmount a file system])
-        fi
-    fi
+    AC_CHECK_FUNCS([unmount], [], [
+        AC_CHECK_FUNCS([umount], [], [
+            AC_MSG_ERROR(
+                [Do not know how to unmount a file system using a function call]
+            )
+        ])
+    ])
 ])
-
 
 dnl KYUA_FS_MODULE
 dnl

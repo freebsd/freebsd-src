@@ -104,46 +104,6 @@ static enum os_type current_os =
     ;
 
 
-/// Specifies if a real unmount(2) is available.
-///
-/// We use this as a constant instead of a macro so that we can compile both
-/// versions of the unmount code unconditionally.  This is a way to prevent
-/// compilation bugs going unnoticed for long.
-static const bool have_unmount2 =
-#if defined(HAVE_UNMOUNT)
-    true;
-#else
-    false;
-#endif
-
-
-#if !defined(UMOUNT)
-/// Fake replacement value to the path to umount(8).
-#   define UMOUNT "do-not-use-this-value"
-#else
-#   if defined(HAVE_UNMOUNT)
-#       error "umount(8) detected when unmount(2) is also available"
-#   endif
-#endif
-
-
-#if !defined(HAVE_UNMOUNT)
-/// Fake unmount(2) function for systems without it.
-///
-/// This is only provided to allow our code to compile in all platforms
-/// regardless of whether they actually have an unmount(2) or not.
-///
-/// \return -1 to indicate error, although this should never happen.
-static int
-unmount(const char* /* path */,
-        const int /* flags */)
-{
-    PRE(false);
-    return -1;
-}
-#endif
-
-
 /// Error code returned by subprocess to indicate a controlled failure.
 const int exit_known_error = 123;
 
@@ -230,71 +190,29 @@ run_mount_tmpfs(const fs::path& mount_point, const uint64_t size)
 }
 
 
-/// Unmounts a file system using unmount(2).
+/// Unmounts a file system using unmount(2) or umount(2).
 ///
-/// \pre unmount(2) must be available; i.e. have_unmount2 must be true.
-///
-/// \param mount_point The file system to unmount.
-///
-/// \throw fs::system_error If the call to unmount(2) fails.
-static void
-unmount_with_unmount2(const fs::path& mount_point)
-{
-    PRE(have_unmount2);
-
-    if (::unmount(mount_point.c_str(), 0) == -1) {
-        const int original_errno = errno;
-        throw fs::system_error(F("unmount(%s) failed") % mount_point,
-                               original_errno);
-    }
-}
-
-
-/// Unmounts a file system using umount(8).
-///
-/// \pre umount(2) must not be available; i.e. have_unmount2 must be false.
+/// This is a thin wrapper around the filesystem implementation for the actual
+/// underlying system call which implements filesystem unmounting function.
 ///
 /// \param mount_point The file system to unmount.
 ///
-/// \throw fs::error If the execution of umount(8) fails.
+/// \throw fs::system_error The unmount operation fails.
 static void
-unmount_with_umount8(const fs::path& mount_point)
+unmount_impl(const fs::path& mount_point)
 {
-    PRE(!have_unmount2);
 
-    const pid_t pid = ::fork();
-    if (pid == -1) {
-        const int original_errno = errno;
-        throw fs::system_error("Cannot fork to execute unmount tool",
-                               original_errno);
-    } else if (pid == 0) {
-        const int ret = ::execlp(UMOUNT, "umount", mount_point.c_str(), NULL);
-        INV(ret == -1);
-        std::cerr << "Failed to exec " UMOUNT "\n";
-        std::exit(EXIT_FAILURE);
-    }
-
-    int status;
-retry:
-    if (::waitpid(pid, &status, 0) == -1) {
-        const int original_errno = errno;
-        if (errno == EINTR)
-            goto retry;
-        throw fs::system_error("Failed to wait for unmount subprocess",
-                               original_errno);
-    }
-
-    if (WIFEXITED(status)) {
-        if (WEXITSTATUS(status) == EXIT_SUCCESS)
-            return;
-        else
-            throw fs::error(F("Failed to unmount %s; returned exit code %s")
-                              % mount_point % WEXITSTATUS(status));
-    } else
-        throw fs::error(F("Failed to unmount %s; unmount tool received signal")
-                        % mount_point);
+#if defined(HAVE_UNMOUNT)
+    if (::unmount(mount_point.c_str(), 0) == 0)
+        return;
+#elif defined(HAVE_UMOUNT)
+    if (::umount(mount_point.c_str()) == 0)
+        return;
+#endif
+    const int original_errno = errno;
+    throw fs::system_error(F("unmount(%s) failed") % mount_point,
+                           original_errno);
 }
-
 
 /// Stats a file, without following links.
 ///
@@ -788,11 +706,7 @@ fs::unmount(const fs::path& in_mount_point)
     int retries = unmount_retries;
 retry:
     try {
-        if (have_unmount2) {
-            unmount_with_unmount2(mount_point);
-        } else {
-            unmount_with_umount8(mount_point);
-        }
+        unmount_impl(mount_point);
     } catch (const fs::system_error& error) {
         if (error.original_errno() == EBUSY && retries > 0) {
             LW(F("%s busy; unmount retries left %s") % mount_point % retries);
