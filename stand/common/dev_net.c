@@ -82,6 +82,7 @@ static int	net_strategy(void *, int, daddr_t, size_t, char *, size_t *);
 static int	net_print(int);
 
 static int net_getparams(int sock);
+static void net_setparams(int sock);
 
 struct devsw netdev = {
 	.dv_name = "net",
@@ -118,7 +119,6 @@ net_init(void)
 static int
 net_open(struct open_file *f, ...)
 {
-	struct iodesc *d;
 	va_list args;
 	struct devdesc *dev;
 	const char *devname;	/* Device part of file name (or NULL). */
@@ -161,35 +161,33 @@ net_open(struct open_file *f, ...)
 				return (error);
 			}
 		}
-		/*
-		 * Set the variables required by the kernel's nfs_diskless
-		 * mechanism.  This is the minimum set of variables required to
-		 * mount a root filesystem without needing to obtain additional
-		 * info from bootp or other sources.
-		 */
-		d = socktodesc(netdev_sock);
-		setenv("boot.netif.hwaddr", ether_sprintf(d->myea), 1);
-		setenv("boot.netif.ip", inet_ntoa(myip), 1);
-		setenv("boot.netif.netmask", intoa(netmask), 1);
-		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
-		setenv("boot.netif.server", inet_ntoa(rootip), 1);
-		if (netproto == NET_TFTP) {
-			setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
-			setenv("boot.tftproot.path", rootpath, 1);
-		} else if (netproto == NET_NFS) {
-			setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-			setenv("boot.nfsroot.path", rootpath, 1);
-		}
-		if (intf_mtu != 0) {
-			char mtu[16];
-			snprintf(mtu, sizeof(mtu), "%u", intf_mtu);
-			setenv("boot.netif.mtu", mtu, 1);
-		}
-
-		DEBUG_PRINTF(1,("%s: netproto=%d\n", __func__, netproto));
+		net_setparams(netdev_sock);
 	}
 	netdev_opens++;
 	dev->d_opendata = &netdev_sock;
+	return (error);
+}
+
+/*
+ * Configure a network interface without opening a file on it.  This is used
+ * by consumers which need DHCP configuration before switching to a firmware
+ * network protocol.
+ */
+int
+net_configure(struct devdesc *dev)
+{
+	int error, sock;
+
+	sock = netif_open(dev);
+	if (sock < 0)
+		return (ENXIO);
+
+	error = 0;
+	if (rootip.s_addr == 0)
+		error = net_getparams(sock);
+	if (error == 0)
+		net_setparams(sock);
+	netif_close(sock);
 	return (error);
 }
 
@@ -317,6 +315,37 @@ exit:
 	DEBUG_PRINTF(1,("%s: server path: %s\n", __func__, rootpath));
 
 	return (0);
+}
+
+static void
+net_setparams(int sock)
+{
+	struct iodesc *d;
+
+	/*
+	 * Set the variables required by the kernel's nfs_diskless mechanism.
+	 */
+	d = socktodesc(sock);
+	setenv("boot.netif.hwaddr", ether_sprintf(d->myea), 1);
+	setenv("boot.netif.ip", inet_ntoa(myip), 1);
+	setenv("boot.netif.netmask", intoa(netmask), 1);
+	setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+	setenv("boot.netif.server", inet_ntoa(rootip), 1);
+	if (netproto == NET_TFTP) {
+		setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
+		setenv("boot.tftproot.path", rootpath, 1);
+	} else if (netproto == NET_NFS) {
+		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+		setenv("boot.nfsroot.path", rootpath, 1);
+	}
+	if (intf_mtu != 0) {
+		char mtu[16];
+
+		snprintf(mtu, sizeof(mtu), "%u", intf_mtu);
+		setenv("boot.netif.mtu", mtu, 1);
+	}
+
+	DEBUG_PRINTF(1,("%s: netproto=%d\n", __func__, netproto));
 }
 
 static int

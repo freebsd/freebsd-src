@@ -506,8 +506,7 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	 * RC_DROPIT - just throw the request away
 	 */
 	if (cacherep == RC_DOIT) {
-		if ((nd->nd_flag & ND_NFSV41) != 0)
-			nd->nd_xprt = xprt;
+		nd->nd_xprt = xprt;
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&

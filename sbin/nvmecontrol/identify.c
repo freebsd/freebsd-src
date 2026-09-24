@@ -68,7 +68,7 @@ print_namespace(struct nvme_namespace_data *nsdata)
 
 	thin_prov = NVMEV(NVME_NS_DATA_NSFEAT_THIN_PROV, nsdata->nsfeat);
 
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsdata->flbas);
+	flbas_fmt = nvme_ns_data_format_index(nsdata);
 
 	printf("Size:                        %lld blocks\n",
 	    (long long)nsdata->nsze);

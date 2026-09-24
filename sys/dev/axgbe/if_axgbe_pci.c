@@ -59,8 +59,8 @@
 #include "opt_inet6.h"
 #include "opt_rss.h"
 
-#ifdef RSS
 #include <net/rss_config.h>
+#ifdef RSS
 #include <netinet/in_rss.h>
 #endif
 
@@ -93,7 +93,7 @@ static int axgbe_if_msix_intr_assign(if_ctx_t, int);
 static void xgbe_free_intr(struct xgbe_prv_data *, struct resource *, void *, int);
 
 /* Init and Iflib routines */
-static void axgbe_pci_init(struct xgbe_prv_data *);
+static int axgbe_pci_init(struct xgbe_prv_data *);
 static void axgbe_pci_stop(if_ctx_t);
 static void xgbe_disable_rx_tx_int(struct xgbe_prv_data *, struct xgbe_channel *);
 static void xgbe_disable_rx_tx_ints(struct xgbe_prv_data *);
@@ -357,7 +357,7 @@ axgbe_miibus_statchg(device_t dev)
 	    pdata->phy_link);
 
 	if (mii == NULL || ifp == NULL ||
-	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+	    !iflib_is_running(sc->ctx))
 		return;
 
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
@@ -723,13 +723,17 @@ axgbe_initialize_rss_mapping(struct xgbe_prv_data *pdata)
 {
 	int i;
 
-	/* Get RSS key */
 #ifdef	RSS
 	int	qid;
 	uint32_t	rss_hash_config = 0;
+#endif
 
+	/* Get RSS key independently of software RSS queue placement. */
+	_Static_assert(sizeof(pdata->rss_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
 	rss_getkey((uint8_t *)&pdata->rss_key);
 
+#ifdef	RSS
 	rss_hash_config = rss_gethashconfig();
 
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
@@ -739,8 +743,6 @@ axgbe_initialize_rss_mapping(struct xgbe_prv_data *pdata)
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
 		XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 #else
-	arc4rand(&pdata->rss_key, ARRAY_SIZE(pdata->rss_key), 0);
-
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
@@ -1500,9 +1502,8 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	scctx->isc_max_frame_size = if_getmtu(ifp) + 18;
 	scctx->isc_min_frame_size = XGMAC_MIN_PACKET;
 
-	axgbe_pci_init(pdata);
-
-	return (0);
+	ret = axgbe_pci_init(pdata);
+	return (ret < 0 ? -ret : ret);
 } /* axgbe_if_attach_post */
 
 static void
@@ -1595,27 +1596,28 @@ axgbe_if_detach(if_ctx_t ctx)
 	return (0);
 } /* axgbe_if_detach */
 
-static void
+static int
 axgbe_pci_init(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_if	*phy_if = &pdata->phy_if;
 	struct xgbe_hw_if       *hw_if = &pdata->hw_if;
-	int ret = 0;
+	int ret, reset_ret;
 
 	if (!__predict_false((test_bit(XGBE_DOWN, &pdata->dev_state)))) {
 		axgbe_printf(1, "%s: Starting when XGBE_UP\n", __func__);
-		return;
+		return (0);
 	}
 
-	hw_if->init(pdata);
+	ret = hw_if->init(pdata);
+	if (ret != 0) {
+		axgbe_error("%s: hardware init error %d\n", __func__, ret);
+		goto fail;
+	}
 
-        ret = phy_if->phy_start(pdata);
-        if (ret) {
-		axgbe_error("%s:  phy start %d\n", __func__, ret);
-		ret = hw_if->exit(pdata);
-		if (ret)
-			axgbe_error("%s: exit error %d\n", __func__, ret);
-		return;
+	ret = phy_if->phy_start(pdata);
+	if (ret != 0) {
+		axgbe_error("%s: phy start error %d\n", __func__, ret);
+		goto fail;
 	}
 
 	hw_if->enable_tx(pdata);
@@ -1631,6 +1633,13 @@ axgbe_pci_init(struct xgbe_prv_data *pdata)
 	xgbe_dump_mtl_registers(pdata);
 	xgbe_dump_mac_registers(pdata);
 	xgbe_dump_rmon_counters(pdata);
+	return (0);
+
+fail:
+	reset_ret = hw_if->exit(pdata);
+	if (reset_ret != 0)
+		axgbe_error("%s: cleanup reset error %d\n", __func__, reset_ret);
+	return (ret);
 }
 
 static void
@@ -1639,7 +1648,8 @@ axgbe_if_init(if_ctx_t ctx)
 	struct axgbe_if_softc   *sc = iflib_get_softc(ctx);
 	struct xgbe_prv_data    *pdata = &sc->pdata;	
 
-	axgbe_pci_init(pdata);
+	if (axgbe_pci_init(pdata) != 0)
+		iflib_init_failed(ctx);
 }
 
 static void
@@ -2357,11 +2367,9 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct axgbe_if_softc *sc = iflib_get_softc(ctx);
 	struct xgbe_prv_data *pdata = &sc->pdata;
-	if_t ifp = pdata->netdev;
 
-	axgbe_printf(1, "%s: MAC_PFR 0x%x drv_flags 0x%x if_flags 0x%x\n",
-	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), if_getdrvflags(ifp),
-	    flags);
+	axgbe_printf(1, "%s: MAC_PFR 0x%x if_flags 0x%x\n",
+	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), flags);
 
 	if (flags & IFF_PROMISC) {
 

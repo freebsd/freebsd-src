@@ -266,7 +266,8 @@ buildfs() {
 	# have been logged which no longer exist if a package was removed.
 	if [ -f ${DESTDIR}/METALOG.pkg ]; then
 		while read F REST; do
-			if [ -e ${DESTDIR}/${F} ]; then
+			if [ -e "${DESTDIR}/${F}" ] ||
+			    [ -L "${DESTDIR}/${F}" ]; then
 				echo "${F} ${REST}" >> ${DESTDIR}/METALOG
 			fi
 		done < ${DESTDIR}/METALOG.pkg

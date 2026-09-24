@@ -89,7 +89,7 @@ read_name(const args_info *args)
 			message_error(_("%s: Error reading filenames: %s"),
 				tuklib_mask_nonprint(args->files_name),
 				strerror(errno));
-			return NULL;
+			break;
 		}
 
 		if (feof(args->files_file)) {
@@ -99,7 +99,7 @@ read_name(const args_info *args)
 						tuklib_mask_nonprint(
 							args->files_name));
 
-			return NULL;
+			break;
 		}
 
 		if (c == args->files_delim) {
@@ -125,7 +125,7 @@ read_name(const args_info *args)
 					"of '--files'?"),
 					tuklib_mask_nonprint(
 						args->files_name));
-			return NULL;
+			break;
 		}
 
 		name[pos++] = c;
@@ -149,6 +149,8 @@ read_name(const args_info *args)
 		}
 	}
 
+	free(name);
+	name = NULL;
 	return NULL;
 }
 
@@ -335,8 +337,10 @@ main(int argc, char **argv)
 			run(name);
 		}
 
-		if (args.files_name != stdin_filename)
+		if (args.files_name != stdin_filename) {
 			(void)fclose(args.files_file);
+			free(args.files_name);
+		}
 	}
 
 #ifdef HAVE_DECODERS

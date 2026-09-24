@@ -51,6 +51,7 @@ typedef u_int64_t v4l2_std_id;
 #define v4l2_fourcc(a, b, c, d)	\
 	((u_int32_t)(a) | ((u_int32_t)(b) << 8) | \
 	 ((u_int32_t)(c) << 16) | ((u_int32_t)(d) << 24))
+#define v4l2_fourcc_be(a, b, c, d) (v4l2_fourcc(a, b, c, d) | (1U << 31))
 
 /*
  *  Enums
@@ -131,6 +132,12 @@ enum v4l2_ycbcr_encoding {
 	V4L2_YCBCR_ENC_BT2020         = 6,
 	V4L2_YCBCR_ENC_BT2020_CONST_LUM = 7,
 	V4L2_YCBCR_ENC_SMPTE240M      = 8,
+};
+
+enum v4l2_quantization {
+	V4L2_QUANTIZATION_DEFAULT     = 0,
+	V4L2_QUANTIZATION_FULL_RANGE  = 1,
+	V4L2_QUANTIZATION_LIM_RANGE   = 2,
 };
 
 enum v4l2_ctrl_type {
@@ -355,6 +362,35 @@ struct v4l2_standard {
 	u_int32_t		reserved[4];
 };
 
+enum v4l2_tuner_type {
+	V4L2_TUNER_RADIO	= 1,
+	V4L2_TUNER_ANALOG_TV	= 2,
+	V4L2_TUNER_DIGITAL_TV	= 3,
+	V4L2_TUNER_SDR		= 4,
+	V4L2_TUNER_RF		= 5,
+};
+
+struct v4l2_tuner {
+	uint32_t	index;
+	uint8_t		name[32];	/* Size fixed by the V4L2 ABI. */
+	uint32_t	type;		/* enum v4l2_tuner_type */
+	uint32_t	capability;
+	uint32_t	rangelow;
+	uint32_t	rangehigh;
+	uint32_t	rxsubchans;
+	uint32_t	audmode;
+	int32_t		signal;
+	int32_t		afc;
+	uint32_t	reserved[4];
+};
+
+struct v4l2_frequency {
+	uint32_t	tuner;
+	uint32_t	type;		/* enum v4l2_tuner_type */
+	uint32_t	frequency;
+	uint32_t	reserved[8];
+};
+
 struct v4l2_plane {
 	u_int32_t	bytesused;
 	u_int32_t	length;
@@ -371,6 +407,36 @@ struct v4l2_control {
 	u_int32_t	id;
 	int32_t		value;
 };
+
+struct v4l2_ext_control {
+	uint32_t	id;
+	uint32_t	size;
+	uint32_t	reserved2[1];
+	union {
+		int32_t		value;
+		int64_t		value64;
+		char		*string;
+		uint8_t		*p_u8;
+		uint16_t	*p_u16;
+		uint32_t	*p_u32;
+		void		*ptr;
+	};
+} __packed;
+
+struct v4l2_ext_controls {
+	union {
+		uint32_t	ctrl_class;
+		uint32_t	which;
+	};
+	uint32_t		count;
+	uint32_t		error_idx;
+	int32_t			request_fd;
+	uint32_t		reserved[1];
+	struct v4l2_ext_control	*controls;
+};
+
+#define V4L2_CTRL_WHICH_CUR_VAL		0
+#define V4L2_CTRL_WHICH_DEF_VAL		0x0f000000
 
 struct v4l2_queryctrl {
 	u_int32_t	id;
@@ -482,7 +548,15 @@ struct v4l2_frmivalenum {
 
 /* YUV411 planar and vendor webcam formats */
 #define V4L2_PIX_FMT_YUV411P	v4l2_fourcc('4', '1', '1', 'P')
+#define V4L2_PIX_FMT_YVYU	v4l2_fourcc('Y', 'V', 'Y', 'U')
+#define V4L2_PIX_FMT_VYUY	v4l2_fourcc('V', 'Y', 'U', 'Y')
 #define V4L2_PIX_FMT_SN9C10X	v4l2_fourcc('S', '9', '1', '0')
+#define V4L2_PIX_FMT_PAC207	v4l2_fourcc('P', '2', '0', '7')
+#define V4L2_PIX_FMT_PJPG	v4l2_fourcc('P', 'J', 'P', 'G')
+#define V4L2_PIX_FMT_SPCA501	v4l2_fourcc('S', '5', '0', '1')
+#define V4L2_PIX_FMT_SPCA505	v4l2_fourcc('S', '5', '0', '5')
+#define V4L2_PIX_FMT_SPCA508	v4l2_fourcc('S', '5', '0', '8')
+#define V4L2_PIX_FMT_SPCA561	v4l2_fourcc('S', '5', '6', '1')
 
 /* Grey formats */
 #define V4L2_PIX_FMT_GREY	v4l2_fourcc('G', 'R', 'E', 'Y')
@@ -523,10 +597,33 @@ struct v4l2_frmivalenum {
  */
 #define V4L2_CAP_VIDEO_CAPTURE		0x00000001
 #define V4L2_CAP_VIDEO_OUTPUT		0x00000002
+#define V4L2_CAP_VIDEO_OVERLAY		0x00000004
+#define V4L2_CAP_VBI_CAPTURE		0x00000010
+#define V4L2_CAP_VBI_OUTPUT		0x00000020
+#define V4L2_CAP_SLICED_VBI_CAPTURE	0x00000040
+#define V4L2_CAP_SLICED_VBI_OUTPUT	0x00000080
+#define V4L2_CAP_RDS_CAPTURE		0x00000100
+#define V4L2_CAP_VIDEO_OUTPUT_OVERLAY	0x00000200
+#define V4L2_CAP_HW_FREQ_SEEK		0x00000400
+#define V4L2_CAP_RDS_OUTPUT		0x00000800
 #define V4L2_CAP_VIDEO_CAPTURE_MPLANE	0x00001000
-#define V4L2_CAP_STREAMING		0x04000000
+#define V4L2_CAP_VIDEO_OUTPUT_MPLANE	0x00002000
+#define V4L2_CAP_VIDEO_M2M_MPLANE	0x00004000
+#define V4L2_CAP_VIDEO_M2M		0x00008000
+#define V4L2_CAP_TUNER			0x00010000
+#define V4L2_CAP_AUDIO			0x00020000
+#define V4L2_CAP_RADIO			0x00040000
+#define V4L2_CAP_MODULATOR		0x00080000
+#define V4L2_CAP_SDR_CAPTURE		0x00100000
 #define V4L2_CAP_EXT_PIX_FORMAT		0x00200000
+#define V4L2_CAP_SDR_OUTPUT		0x00400000
+#define V4L2_CAP_META_CAPTURE		0x00800000
 #define V4L2_CAP_READWRITE		0x01000000
+#define V4L2_CAP_ASYNCIO		0x02000000
+#define V4L2_CAP_STREAMING		0x04000000
+#define V4L2_CAP_META_OUTPUT		0x08000000
+#define V4L2_CAP_TOUCH			0x10000000
+#define V4L2_CAP_IO_MC			0x20000000
 #define V4L2_CAP_DEVICE_CAPS		0x80000000
 #define V4L2_CAP_TIMEPERFRAME		0x1000
 
@@ -563,12 +660,52 @@ struct v4l2_frmivalenum {
 /*
  *  Analog TV standards
  */
+#define V4L2_STD_PAL_B		((v4l2_std_id)0x00000001)
+#define V4L2_STD_PAL_B1		((v4l2_std_id)0x00000002)
+#define V4L2_STD_PAL_G		((v4l2_std_id)0x00000004)
+#define V4L2_STD_PAL_H		((v4l2_std_id)0x00000008)
+#define V4L2_STD_PAL_I		((v4l2_std_id)0x00000010)
+#define V4L2_STD_PAL_D		((v4l2_std_id)0x00000020)
+#define V4L2_STD_PAL_D1		((v4l2_std_id)0x00000040)
+#define V4L2_STD_PAL_K		((v4l2_std_id)0x00000080)
+#define V4L2_STD_PAL_M		((v4l2_std_id)0x00000100)
+#define V4L2_STD_PAL_N		((v4l2_std_id)0x00000200)
+#define V4L2_STD_PAL_Nc		((v4l2_std_id)0x00000400)
+#define V4L2_STD_PAL_60		((v4l2_std_id)0x00000800)
 #define V4L2_STD_NTSC_M		((v4l2_std_id)0x00001000)
 #define V4L2_STD_NTSC_M_JP	((v4l2_std_id)0x00002000)
 #define V4L2_STD_NTSC_443	((v4l2_std_id)0x00004000)
 #define V4L2_STD_NTSC_M_KR	((v4l2_std_id)0x00008000)
+#define V4L2_STD_SECAM_B	((v4l2_std_id)0x00010000)
+#define V4L2_STD_SECAM_D	((v4l2_std_id)0x00020000)
+#define V4L2_STD_SECAM_G	((v4l2_std_id)0x00040000)
+#define V4L2_STD_SECAM_H	((v4l2_std_id)0x00080000)
+#define V4L2_STD_SECAM_K	((v4l2_std_id)0x00100000)
+#define V4L2_STD_SECAM_K1	((v4l2_std_id)0x00200000)
+#define V4L2_STD_SECAM_L	((v4l2_std_id)0x00400000)
+#define V4L2_STD_SECAM_LC	((v4l2_std_id)0x00800000)
+#define V4L2_STD_ATSC_8_VSB	((v4l2_std_id)0x01000000)
+#define V4L2_STD_ATSC_16_VSB	((v4l2_std_id)0x02000000)
 #define V4L2_STD_NTSC		(V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_JP | \
 				 V4L2_STD_NTSC_443 | V4L2_STD_NTSC_M_KR)
+#define V4L2_STD_PAL_BG		(V4L2_STD_PAL_B | V4L2_STD_PAL_B1 | \
+				 V4L2_STD_PAL_G)
+#define V4L2_STD_PAL_DK		(V4L2_STD_PAL_D | V4L2_STD_PAL_D1 | \
+				 V4L2_STD_PAL_K)
+#define V4L2_STD_PAL		(V4L2_STD_PAL_BG | V4L2_STD_PAL_DK | \
+				 V4L2_STD_PAL_H | V4L2_STD_PAL_I)
+#define V4L2_STD_SECAM_DK	(V4L2_STD_SECAM_D | V4L2_STD_SECAM_K | \
+				 V4L2_STD_SECAM_K1)
+#define V4L2_STD_SECAM		(V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | \
+				 V4L2_STD_SECAM_H | V4L2_STD_SECAM_DK | \
+				 V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)
+#define V4L2_STD_ATSC		(V4L2_STD_ATSC_8_VSB | V4L2_STD_ATSC_16_VSB)
+#define V4L2_STD_525_60		(V4L2_STD_PAL_M | V4L2_STD_PAL_60 | \
+				 V4L2_STD_NTSC | V4L2_STD_NTSC_443)
+#define V4L2_STD_625_50		(V4L2_STD_PAL | V4L2_STD_PAL_N | \
+				 V4L2_STD_PAL_Nc | V4L2_STD_SECAM)
+#define V4L2_STD_UNKNOWN	0
+#define V4L2_STD_ALL		(V4L2_STD_525_60 | V4L2_STD_625_50)
 
 /*
  *  Control IDs
@@ -576,7 +713,10 @@ struct v4l2_frmivalenum {
 #define V4L2_CTRL_CLASS_USER		0x00980000
 #define V4L2_CTRL_CLASS_MPEG		0x00990000
 #define V4L2_CTRL_CLASS_CAMERA		0x009a0000
+#define V4L2_CTRL_ID_MASK		0x0fffffff
+#define V4L2_CTRL_ID2CLASS(id)		((id) & 0x0fff0000UL)
 #define V4L2_CID_BASE			(V4L2_CTRL_CLASS_USER | 0x900)
+#define V4L2_CID_USER_BASE		V4L2_CID_BASE
 #define V4L2_CID_USER_CLASS		(V4L2_CTRL_CLASS_USER | 1)
 
 /*
@@ -592,6 +732,8 @@ struct v4l2_frmivalenum {
 #define V4L2_CID_RED_BALANCE		(V4L2_CID_BASE + 14)
 #define V4L2_CID_BLUE_BALANCE		(V4L2_CID_BASE + 15)
 #define V4L2_CID_GAMMA			(V4L2_CID_BASE + 16)
+#define V4L2_CID_EXPOSURE		(V4L2_CID_BASE + 17)
+#define V4L2_CID_AUTOGAIN		(V4L2_CID_BASE + 18)
 #define V4L2_CID_GAIN			(V4L2_CID_BASE + 19)
 #define V4L2_CID_HFLIP			(V4L2_CID_BASE + 20)
 #define V4L2_CID_VFLIP			(V4L2_CID_BASE + 21)
@@ -634,6 +776,7 @@ enum v4l2_exposure_auto_type {
 #define V4L2_CID_PRIVACY		(V4L2_CID_CAMERA_CLASS_BASE + 16)
 #define V4L2_CID_IRIS_ABSOLUTE		(V4L2_CID_CAMERA_CLASS_BASE + 17)
 #define V4L2_CID_IRIS_RELATIVE		(V4L2_CID_CAMERA_CLASS_BASE + 18)
+#define V4L2_CID_AUTO_EXPOSURE_BIAS	(V4L2_CID_CAMERA_CLASS_BASE + 19)
 
 /*
  *  IDs reserved for driver specific controls
@@ -651,6 +794,7 @@ enum v4l2_exposure_auto_type {
 #define V4L2_CTRL_FLAG_SLIDER		0x0020
 #define V4L2_CTRL_FLAG_WRITE_ONLY	0x0040
 #define V4L2_CTRL_FLAG_VOLATILE		0x0080
+#define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
 
 /*
  *  V4L2 ioctl definitions
@@ -673,15 +817,22 @@ enum v4l2_exposure_auto_type {
 #define VIDIOC_ENUMINPUT	_IOWR('V', 26, struct v4l2_input)
 #define VIDIOC_G_CTRL		_IOWR('V', 27, struct v4l2_control)
 #define VIDIOC_S_CTRL		_IOWR('V', 28, struct v4l2_control)
+#define VIDIOC_G_TUNER		_IOWR('V', 29, struct v4l2_tuner)
+#define VIDIOC_S_TUNER		_IOW('V', 30, struct v4l2_tuner)
 #define VIDIOC_QUERYCTRL	_IOWR('V', 36, struct v4l2_queryctrl)
 #define VIDIOC_QUERYMENU	_IOWR('V', 37, struct v4l2_querymenu)
 #define VIDIOC_G_INPUT		_IOR('V', 38, int)
 #define VIDIOC_S_INPUT		_IOWR('V', 39, int)
+#define VIDIOC_G_FREQUENCY	_IOWR('V', 56, struct v4l2_frequency)
+#define VIDIOC_S_FREQUENCY	_IOW('V', 57, struct v4l2_frequency)
 #define VIDIOC_CROPCAP		_IOWR('V', 58, struct v4l2_cropcap)
 #define VIDIOC_G_CROP		_IOWR('V', 59, struct v4l2_crop)
 #define VIDIOC_S_CROP		_IOW('V', 60, struct v4l2_crop)
 #define VIDIOC_G_PRIORITY	_IOR('V', 67, u_int32_t)
 #define VIDIOC_S_PRIORITY	_IOW('V', 68, u_int32_t)
+#define VIDIOC_G_EXT_CTRLS	_IOWR('V', 71, struct v4l2_ext_controls)
+#define VIDIOC_S_EXT_CTRLS	_IOWR('V', 72, struct v4l2_ext_controls)
+#define VIDIOC_TRY_EXT_CTRLS	_IOWR('V', 73, struct v4l2_ext_controls)
 #define VIDIOC_TRY_FMT		_IOWR('V', 64, struct v4l2_format)
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS _IOWR('V', 75, struct v4l2_frmivalenum)
@@ -691,22 +842,32 @@ _Static_assert(sizeof(struct v4l2_capability) == 104, "v4l2_capability layout");
 _Static_assert(sizeof(struct v4l2_requestbuffers) == 20,
     "v4l2_requestbuffers layout");
 _Static_assert(sizeof(struct v4l2_querymenu) == 44, "v4l2_querymenu layout");
+_Static_assert(sizeof(struct v4l2_ext_control) == 20,
+    "v4l2_ext_control layout");
+_Static_assert(sizeof(struct v4l2_tuner) == 84, "v4l2_tuner layout");
+_Static_assert(sizeof(struct v4l2_frequency) == 44, "v4l2_frequency layout");
 _Static_assert(sizeof(struct v4l2_cropcap) == 44, "v4l2_cropcap layout");
 _Static_assert(sizeof(struct v4l2_crop) == 20, "v4l2_crop layout");
 #ifdef __LP64__
 _Static_assert(__offsetof(struct v4l2_format, fmt) == 8, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_format) == 208, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_buffer) == 88, "v4l2_buffer layout");
+_Static_assert(sizeof(struct v4l2_ext_controls) == 32,
+    "v4l2_ext_controls layout");
 #elif defined(__i386__)
 /* i386 is the only 32-bit port with a 32-bit time_t. */
 _Static_assert(__offsetof(struct v4l2_format, fmt) == 4, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_format) == 204, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_buffer) == 68, "v4l2_buffer layout");
+_Static_assert(sizeof(struct v4l2_ext_controls) == 24,
+    "v4l2_ext_controls layout");
 #else
 /* ILP32 with a 64-bit time_t: arm, powerpc, mips, riscv32. */
 _Static_assert(__offsetof(struct v4l2_format, fmt) == 4, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_format) == 204, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_buffer) == 80, "v4l2_buffer layout");
+_Static_assert(sizeof(struct v4l2_ext_controls) == 24,
+    "v4l2_ext_controls layout");
 #endif
 
 #endif /* _SYS_VIDEOIO_H_ */

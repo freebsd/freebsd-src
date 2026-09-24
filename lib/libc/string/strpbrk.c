@@ -35,7 +35,7 @@
  * Find the first occurrence in s1 of a character in s2 (excluding NUL).
  */
 char *
-strpbrk(const char *s1, const char *s2)
+(strpbrk)(const char *s1, const char *s2)
 {
 	const char *scanp;
 	int c, sc;

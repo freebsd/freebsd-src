@@ -56,6 +56,7 @@ atf_text_for_each_word(const char *instr, const char *sep,
     }
 
     free(str);
+    str = NULL;
 out:
     return err;
 }

@@ -43,7 +43,7 @@ ec2_setpass_run()
 	# Set a random password, and print it in encrypted format
 	PUBKEY=$(mktemp -t ec2_setpass)
 	ssh-keygen -e -m PKCS8 -f ${SSHKEYFILE} > ${PUBKEY}
-	PASSWD=`jot -cr 16 / z | tr '\\`' '-+' | rs -g 0`
+	PASSWD=$(jot -cr 16 / z | tr '\\`' '-+' | rs -g 0)
 	echo "${PASSWD}" | pw usermod ${ec2_fetchkey_user} -h 0
 	echo "Username: ${ec2_fetchkey_user}"
 	echo "Password: <Password>"

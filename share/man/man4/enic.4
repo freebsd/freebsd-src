@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright 2008-2017 Cisco Systems, Inc.
 .\" All rights reserved.
 .\"
@@ -22,44 +25,30 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 7, 2022
+.Dd September 17, 2026
 .Dt ENIC 4
 .Os
 .Sh NAME
 .Nm enic
-.Nd "VIC Ethernet NIC driver"
+.Nd Cisco VIC Ethernet driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device iflib"
-.Cd "device enic"
-.Ed
+.Cd device iflib
+.Cd device enic
 .Pp
-To load the driver as a module at run-time,
-run the following command as root:
-.Bd -literal -offset indent
-kldload if_enic
-.Ed
-.Pp
-To load the driver as a
-module at boot time, place the following lines in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_enic_load="YES"
-.Ed
+.Cd if_enic_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for Cisco Virtual Interface Card.
+driver provides support for the Cisco Virtual Interface Card.
 Support is limited to basic network connectivity.
 Media is controlled by the NIC itself since there can be multiple
 virtual PCI NIC devices exposed to the PCI bus.
 .Sh HARDWARE
 The
 .Nm
-driver should supports all known Cisco VIC cards.
+driver supports all known Cisco VIC Ethernet cards.
 .Sh CONFIGURATION
 The
 .Nm
@@ -68,7 +57,7 @@ network interface is configured using
 and the
 .Xr sysctl 8
 tree at
-.Dv dev.enic.<N> .
+.Va dev.enic.%d .
 All configurable entries are also tunables, and can be put directly into the
 .Xr loader.conf 5
 for persistent configuration.
@@ -85,4 +74,4 @@ The
 .Nm
 driver was written by
 .An Cisco UCS team
-based of the DPDK driver.
+based on the DPDK driver.

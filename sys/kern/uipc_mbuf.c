@@ -957,6 +957,8 @@ m_pullup(struct mbuf *n, int len)
 	}
 	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
 	do {
+		KASSERT((n->m_flags & M_EXTPG) == 0,
+		    ("%s: unmapped mbuf %p in chain", __func__, n));
 		count = min(min(max(len, max_protohdr), space), n->m_len);
 		bcopy(mtod(n, caddr_t), mtod(m, caddr_t) + m->m_len,
 		  (u_int)count);
@@ -1001,6 +1003,8 @@ m_copyup(struct mbuf *n, int len, int dstoff)
 	m->m_data += dstoff;
 	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
 	do {
+		KASSERT((n->m_flags & M_EXTPG) == 0,
+		    ("%s: unmapped mbuf %p in chain", __func__, n));
 		count = min(min(max(len, max_protohdr), space), n->m_len);
 		memcpy(mtod(m, caddr_t) + m->m_len, mtod(n, caddr_t),
 		    (unsigned)count);

@@ -266,6 +266,7 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs->tf_flags = TF_HASSEGS;
 
 	x86_clear_dbregs(pcb);
+	exec_splitlock(td);
 
 	/*
 	 * Drop the FP state if we hold it, so that the process gets a

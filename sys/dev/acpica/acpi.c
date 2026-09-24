@@ -158,6 +158,9 @@ static acpi_scan_children_t	acpi_device_scan_children;
 
 static isa_pnp_probe_t		acpi_isa_pnp_probe;
 
+static pci_get_id_t		acpi_pci_get_id;
+static pci_alloc_msi_t		acpi_pci_alloc_msi;
+
 static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
@@ -251,6 +254,10 @@ static device_method_t acpi_methods[] = {
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
 
+    /* PCI emulation */
+    DEVMETHOD(pci_get_id,		acpi_pci_get_id),
+    DEVMETHOD(pci_alloc_msi,		acpi_pci_alloc_msi),
+
     DEVMETHOD_END
 };
 
@@ -270,6 +277,24 @@ ACPI_SERIAL_DECL(acpi, "ACPI root bus");
 static struct rman acpi_rman_io, acpi_rman_mem;
 
 #define ACPI_MINIMUM_AWAKETIME	5
+
+/*
+ * Grace window after wakeup during which a power/sleep button press for suspend
+ * is ignored.  Some firmware wrongly reports the depress that caused the wakeup
+ * as an "S0 Power/Sleep Button Pressed" notify (value 0x80) instead of the
+ * spec-required "Device Wake" notify (0x02); honoring it re-enters sleep
+ * immediately after resume.  On the Framework Laptop 12 the replayed event
+ * arrives within ~620 ms of the recorded resume time when i915kms is loaded,
+ * so a one-second window was chosen originally; without KMS the same notify
+ * can arrive after that one-second mark (and is then held until
+ * acpi_sleep_disabled clears), so the default was widened to
+ * ACPI_MINIMUM_AWAKETIME seconds (the same bound already used since
+ * ece50487e935 to ignore sleep requests for a period after wakeup on some
+ * Toshiba and ThinkPad machines).  Override with hw.acpi.button_replay_window
+ * (seconds; 0 disables; default ACPI_MINIMUM_AWAKETIME).  See
+ * https://bugs.freebsd.org/296243 for the traces, timing data, and analysis.
+ */
+static int acpi_button_replay_secs = ACPI_MINIMUM_AWAKETIME;
 
 /* Holds the description of the acpi0 device. */
 static char acpi_desc[ACPI_OEM_ID_SIZE + ACPI_OEM_TABLE_ID_SIZE + 2];
@@ -763,6 +788,11 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
 	"sleep delay in seconds");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "button_replay_window", CTLFLAG_RWTUN,
+	&acpi_button_replay_secs, 0,
+	"Seconds after resume to ignore firmware-replayed power/sleep "
+	"button presses (0 disables)");
     SYSCTL_ADD_BOOL(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "s4bios_supported", CTLFLAG_RD, &sc->acpi_s4bios_supported, 0,
 	"Whether firmware supports saving/restoring the machine state (S4BIOS).");
@@ -2341,6 +2371,38 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
     return_VALUE (result);
 }
 
+static int
+acpi_pci_get_id(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	if (dev != device_get_parent(child))
+		return (EINVAL);
+
+        if (type != PCI_ID_MSI)
+                return (EINVAL);
+
+#ifdef __aarch64__
+	if (acpi_iort_lookup_pci_id(dev, child, id) == 0)
+		return (0);
+#endif
+
+	return (ENXIO);
+}
+
+static int
+acpi_pci_alloc_msi(device_t bus, device_t child, int *count)
+{
+	if (bus != device_get_parent(child))
+		return (EINVAL);
+
+#ifdef __aarch64__
+	if (acpi_iort_alloc_msi(bus, child, count) == 0)
+		return (0);
+#endif
+
+	return (ENXIO);
+}
+
 /*
  * Look for a MCFG table.  If it is present, use the settings for
  * domain (segment) 0 to setup PCI config space access via the memory
@@ -3637,6 +3699,38 @@ do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
 }
 #endif
 
+static void
+check_post_suspend_to_idle(device_t dev)
+{
+#if defined(__amd64__)
+	devclass_t dc;
+	u_int vendor_id = cpu_vendor_id;
+#else
+	u_int vendor_id = 0;
+#endif
+
+	switch (vendor_id) {
+#if defined(__amd64__)
+	case CPU_VENDOR_AMD:
+	case CPU_VENDOR_HYGON:
+		dc = devclass_find("amdsmu");
+
+		if (dc != NULL && devclass_get_count(dc) > 0)
+			break;
+		device_printf(dev,
+		    "Resumed from suspend-to-idle on AMD processor but "
+		    "amdsmu(4) is not attached; unable to verify S0i3 entry. "
+		    "It is unlikely the system entered a deep sleep state.\n");
+		break;
+#endif
+	default:
+		device_printf(dev,
+		    "Resumed from suspend-to-idle on a processor FreeBSD does "
+		    "not yet support for this. It is unlikely the system "
+		    "entered a deep sleep state.\n");
+	}
+}
+
 /*
  * Enter the desired system sleep state.
  *
@@ -3718,6 +3812,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, enum power_stype stype)
      */
     if (DEVICE_SUSPEND(root_bus) != 0) {
         device_printf(sc->acpi_dev, "device_suspend failed\n");
+        status = AE_ERROR;
         goto backout;
     }
     EVENTHANDLER_INVOKE(acpi_post_dev_suspend, stype);
@@ -3769,7 +3864,7 @@ backout:
 	/*
 	 * Record the resume time so a spurious power/sleep button press can be
 	 * ignored for a grace period afterward (see the comment before
-	 * ACPI_BUTTON_REPLAY_WINDOW).  This must be taken before
+	 * acpi_button_replay_secs).  This must be taken before
 	 * DEVICE_RESUME(), which re-initializes the EC that replays the press.
 	 */
 	sc->acpi_resume_sbt = getsbinuptime();
@@ -3812,6 +3907,12 @@ backout:
     resume_all_proc();
 
     EVENTHANDLER_INVOKE(power_resume, stype);
+
+    if (ACPI_SUCCESS(status)) {
+	if (stype == POWER_STYPE_SUSPEND_TO_IDLE)
+	    check_post_suspend_to_idle(sc->acpi_dev);
+	EVENTHANDLER_INVOKE(power_resume_check, stype);
+    }
 
     /* Allow another sleep request after a while. */
     callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
@@ -4163,27 +4264,20 @@ acpi_system_eventhandler_wakeup(struct acpi_softc *const sc,
     return_VOID;
 }
 
-/*
- * Grace window after wakeup during which a power/sleep button press for suspend
- * is ignored.  Some firmware wrongly reports the depress that caused the wakeup
- * as an "S0 Power/Sleep Button Pressed" notify (value 0x80) instead of the
- * spec-required "Device Wake" notify (0x02); honoring it re-enters sleep
- * immediately after resume.  On the Framework Laptop 12 the replayed event
- * arrives within ~620 ms of the recorded resume time, so a one-second window
- * was chosen.  See https://bugs.freebsd.org/296243 for the traces, timing
- * data, and analysis.
- */
-#define	ACPI_BUTTON_REPLAY_WINDOW	SBT_1S
-
 static bool
 acpi_button_resume_replay(struct acpi_softc *sc, const char *which)
 {
-    sbintime_t elapsed;
+    sbintime_t elapsed, window;
+    int secs;
 
     if (sc->acpi_resume_sbt == 0)
 	return (false);
+    secs = acpi_button_replay_secs;
+    if (secs <= 0)
+	return (false);
+    window = SBT_1S * secs;
     elapsed = getsbinuptime() - sc->acpi_resume_sbt;
-    if (elapsed < 0 || elapsed >= ACPI_BUTTON_REPLAY_WINDOW)
+    if (elapsed < 0 || elapsed >= window)
 	return (false);
     if (bootverbose) {
 	device_printf(sc->acpi_dev,

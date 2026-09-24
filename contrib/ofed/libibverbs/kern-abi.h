@@ -280,6 +280,15 @@ struct ibv_rss_caps_resp {
 	__u32 reserved;
 };
 
+struct ibv_tm_caps_resp {
+	__u32 max_rndv_hdr_size;
+	__u32 max_num_tags;
+	__u32 flags;
+	__u32 max_ops;
+	__u32 max_sge;
+	__u32 reserved;
+};
+
 struct ibv_query_device_resp_ex {
 	struct ibv_query_device_resp base;
 	__u32 comp_mask;
@@ -291,6 +300,7 @@ struct ibv_query_device_resp_ex {
 	struct ibv_rss_caps_resp rss_caps;
 	__u32  max_wq_type_rq;
 	__u32 raw_packet_caps;
+	struct ibv_tm_caps_resp tm_caps;
 };
 
 struct ibv_query_port {
@@ -944,6 +954,67 @@ struct ibv_kern_spec_action_drop {
 	__u16 reserved;
 };
 
+/* Copied from rdma/ib_user_verbs.h, remove after refactoring OFED */
+struct __ib_uverbs_flow_spec_hdr {
+	__u32 type;
+	__u16 size;
+	__u16 reserved;
+	/* followed by flow_spec */
+	__u64 __attribute__((aligned(8))) flow_spec_data[0];
+};
+
+/* Define in rdma/ib_user_verbs.h after refactoring OFED - start */
+struct ib_uverbs_flow_gre_filter {
+	/* c_ks_res0_ver field is bits 0-15 in offset 0 of a standard GRE header:
+	 * bit 0 - C - checksum bit.
+	 * bit 1 - reserved. set to 0.
+	 * bit 2 - key bit.
+	 * bit 3 - sequence number bit.
+	 * bits 4:12 - reserved. set to 0.
+	 * bits 13:15 - GRE version.
+	 */
+	__be16 c_ks_res0_ver;
+	__be16 protocol;
+	__be32 key;
+};
+
+struct ib_uverbs_flow_spec_gre {
+	union {
+		struct __ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_gre_filter     val;
+	struct ib_uverbs_flow_gre_filter     mask;
+};
+
+struct ib_uverbs_flow_mpls_filter {
+	/* The field includes the entire MPLS label:
+	 * bits 0:19 - label field.
+	 * bits 20:22 - traffic class field.
+	 * bits 23 - bottom of stack bit.
+	 * bits 24:31 - ttl field.
+	 */
+	__be32 label;
+};
+
+struct ib_uverbs_flow_spec_mpls {
+	union {
+		struct __ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_mpls_filter     val;
+	struct ib_uverbs_flow_mpls_filter     mask;
+};
+/* Define in rdma/ib_user_verbs.h after refactoring OFED - end */
+
 struct ibv_kern_spec {
 	union {
 		struct {
@@ -956,7 +1027,9 @@ struct ibv_kern_spec {
 		struct ibv_kern_spec_ipv4_ext ipv4_ext;
 		struct ibv_kern_spec_tcp_udp tcp_udp;
 		struct ibv_kern_spec_ipv6 ipv6;
+		struct ib_uverbs_flow_spec_gre gre;
 		struct ibv_kern_spec_tunnel tunnel;
+		struct ib_uverbs_flow_spec_mpls mpls;
 		struct ibv_kern_spec_action_tag flow_tag;
 		struct ibv_kern_spec_action_drop drop;
 	};
@@ -1116,7 +1189,7 @@ struct ibv_create_xsrq {
 	__u32 max_wr;
 	__u32 max_sge;
 	__u32 srq_limit;
-	__u32 reserved;
+	__u32 max_num_tags;
 	__u32 xrcd_handle;
 	__u32 cq_handle;
 	__u64 driver_data[0];

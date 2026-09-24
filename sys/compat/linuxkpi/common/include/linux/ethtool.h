@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 Bjoern A. Zeeb
+ * Copyright (c) 2022-2026 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,7 @@
 #define	_LINUXKPI_LINUX_ETHTOOL_H_
 
 #include <linux/types.h>
+#include <linux/rculist.h>
 
 #define	ETH_GSTRING_LEN	(2 * IF_NAMESIZE)	/* Increase if not large enough */
 

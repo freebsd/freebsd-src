@@ -19,7 +19,14 @@
 
 #define ULL(x) ((unsigned long long)(x))
 
-static EFI_MEMORY_TYPE mem_type = EfiReservedMemoryType;
+/*
+ * While memdisk_uefi.efi used EfiReservedMemoryType, we need to use
+ * EfiLoaderData instead, the standard memory type the loader uses to pass
+ * memory to the kernel. This is also safe if we're chain booting to another efi
+ * progarm since the memory will be available to that program. The other type
+ * isn't necessarily in the pmap, so the md driver fails.
+ */
+static EFI_MEMORY_TYPE mem_type = EfiLoaderData;
 
 struct decomp_state
 {

@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: ISC
 .\"
 .\" Copyright (c) 2008 AnyWi Technologies
@@ -25,24 +25,13 @@
 .Nm u3g
 .Nd USB support for 3G and 4G cellular modems
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device usb"
-.Cd "device ucom"
-.Cd "device u3g"
-.Ed
+.Cd device usb
+.Cd device ucom
+.Cd device u3g
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-u3g_load="YES"
-.Ed
-.Pp
-If neither of the above is done, the driver will be
-automatically loaded by devd(8) when the device is connected.
+.Cd u3g_load="YES"
 .Sh DESCRIPTION
 The
 .Nm

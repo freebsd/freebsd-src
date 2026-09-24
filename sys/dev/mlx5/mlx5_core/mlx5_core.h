@@ -40,6 +40,9 @@
 
 extern int mlx5_core_debug_mask;
 
+extern struct list_head mlx5_dev_list;
+extern struct mutex mlx5_intf_mutex;
+
 #define mlx5_core_dbg(dev, format, ...)					\
 	pr_debug("%s:%s:%d:(pid %d): " format,				\
 		 (dev)->priv.name, __func__, __LINE__, curthread->td_proc->p_pid,	\
@@ -65,6 +68,9 @@ do {									\
 	device_printf((_dev)->pdev->dev.bsddev, "INFO: ""%s:%d:(pid %d): " format, \
 		__func__, __LINE__, curthread->td_proc->p_pid, \
 		##__VA_ARGS__)
+
+#define mlx5_core_for_each_priv(__priv)		\
+	list_for_each_entry(__priv, &mlx5_dev_list, dev_list)
 
 enum {
 	MLX5_CMD_DATA, /* print command payload only */

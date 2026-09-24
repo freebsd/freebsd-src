@@ -237,6 +237,23 @@ int ibv_cmd_query_device_ex(struct ibv_context *context,
 			attr->raw_packet_caps = resp->raw_packet_caps;
 	}
 
+	if (attr_size >= offsetof(struct ibv_device_attr_ex, tm_caps) +
+			 sizeof(attr->tm_caps)) {
+		if (resp->response_length >=
+		    offsetof(struct ibv_query_device_resp_ex, tm_caps) +
+		    sizeof(resp->tm_caps)) {
+			attr->tm_caps.max_rndv_hdr_size =
+				resp->tm_caps.max_rndv_hdr_size;
+			attr->tm_caps.max_num_tags =
+				resp->tm_caps.max_num_tags;
+			attr->tm_caps.flags = resp->tm_caps.flags;
+			attr->tm_caps.max_ops =
+				resp->tm_caps.max_ops;
+			attr->tm_caps.max_sge =
+				resp->tm_caps.max_sge;
+		}
+	}
+
 	return 0;
 }
 
@@ -703,6 +720,17 @@ int ibv_cmd_create_srq_ex(struct ibv_context *context,
 		vxrcd = container_of(attr_ex->xrcd, struct verbs_xrcd, xrcd);
 		cmd->xrcd_handle = vxrcd->handle;
 		cmd->cq_handle   = attr_ex->cq->handle;
+	} else if (attr_ex->comp_mask & IBV_SRQ_INIT_ATTR_TM) {
+		if (cmd->srq_type != IBV_SRQT_TM)
+			return EINVAL;
+		if (!(attr_ex->comp_mask & IBV_SRQ_INIT_ATTR_CQ) ||
+		    !attr_ex->tm_cap.max_num_tags)
+			return EINVAL;
+
+		cmd->cq_handle    = attr_ex->cq->handle;
+		cmd->max_num_tags = attr_ex->tm_cap.max_num_tags;
+	} else if (cmd->srq_type != IBV_SRQT_BASIC) {
+		return EINVAL;
 	}
 
 	ret = pthread_mutex_init(&srq->srq.mutex, NULL);
@@ -1882,9 +1910,24 @@ static int ib_spec_to_kern_spec(struct ibv_flow_spec *ib_spec,
 	case IBV_FLOW_SPEC_UDP | IBV_FLOW_SPEC_INNER:
 		kern_spec->tcp_udp.size = sizeof(struct ibv_kern_spec_tcp_udp);
 		memcpy(&kern_spec->tcp_udp.val, &ib_spec->tcp_udp.val,
-		       sizeof(struct ibv_flow_ipv4_filter));
+		       sizeof(struct ibv_flow_tcp_udp_filter));
 		memcpy(&kern_spec->tcp_udp.mask, &ib_spec->tcp_udp.mask,
 		       sizeof(struct ibv_flow_tcp_udp_filter));
+		break;
+	case IBV_FLOW_SPEC_GRE:
+		kern_spec->gre.size = sizeof(struct ib_uverbs_flow_spec_gre);
+		memcpy(&kern_spec->gre.val, &ib_spec->gre.val,
+		       sizeof(struct ibv_flow_gre_filter));
+		memcpy(&kern_spec->gre.mask, &ib_spec->gre.mask,
+		       sizeof(struct ibv_flow_gre_filter));
+		break;
+	case IBV_FLOW_SPEC_MPLS:
+	case IBV_FLOW_SPEC_MPLS | IBV_FLOW_SPEC_INNER:
+		kern_spec->mpls.size = sizeof(struct ib_uverbs_flow_spec_mpls);
+		memcpy(&kern_spec->mpls.val, &ib_spec->mpls.val,
+		       sizeof(struct ibv_flow_mpls_filter));
+		memcpy(&kern_spec->mpls.mask, &ib_spec->mpls.mask,
+		       sizeof(struct ibv_flow_mpls_filter));
 		break;
 	case IBV_FLOW_SPEC_VXLAN_TUNNEL:
 		ret = get_filters_size(ib_spec, kern_spec,

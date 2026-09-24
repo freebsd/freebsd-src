@@ -36,13 +36,21 @@ CONFS=	dhclient.conf
 PACKAGE=dhclient
 SRCS=	dhclient.c clparse.c alloc.c dispatch.c hash.c bpf.c options.c \
 	tree.c conflex.c errwarn.c inet.c packet.c convert.c tables.c \
-	parse.c privsep.c
+	parse.c privsep.c inet6.c
 
 PROG=	dhclient
 SCRIPTS=dhclient-script
 MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhcp-options.5 \
 	dhclient-script.8
 LIBADD=	util
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=-DINET6
+.endif
+
+.if ${MK_NETLINK_SUPPORT} == "no"
+CFLAGS+=-DWITHOUT_NETLINK
+.endif
 
 .if ${MK_DYNAMICROOT} == "no"
 .warning ${PROG} built without libcasper support

@@ -882,12 +882,22 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 	pmap->pm_stats.resident_count -= count;
 }
 
+/*
+ * dcbz establishes a zeroed cache line without fetching it from memory,
+ * but raises an alignment interrupt on caching-inhibited mappings, so it
+ * may only be used on write-back memory.  The internal callers only zero
+ * freshly allocated page table pages, which are always write-back; the
+ * vm_page facing entry point guards on the page's memattr.
+ */
 static void
 pagezero(void *va)
 {
-	va = trunc_page(va);
+	vm_offset_t off;
 
-	bzero(va, PAGE_SIZE);
+	va = trunc_page(va);
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbz 0,%0" ::
+		    "r"((char *)va + off) : "memory");
 }
 
 static uint64_t
@@ -3492,19 +3502,19 @@ mmu_radix_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	PMAP_UNLOCK(pmap);
 }
 
-vm_paddr_t
-mmu_radix_extract(pmap_t pmap, vm_offset_t va)
+static vm_paddr_t
+mmu_radix_extract_locked(pmap_t pmap, vm_offset_t va)
 {
 	pml3_entry_t *l3e;
 	pt_entry_t *pte;
 	vm_paddr_t pa;
 
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	l3e = pmap_pml3e(pmap, va);
 	if (__predict_false(l3e == NULL))
 		return (0);
 	if (be64toh(*l3e) & RPTE_LEAF) {
 		pa = (be64toh(*l3e) & PG_PS_FRAME) | (va & L3_PAGE_MASK);
-		pa |= (va & L3_PAGE_MASK);
 	} else {
 		/*
 		 * Beware of a concurrent promotion that changes the
@@ -3519,8 +3529,18 @@ mmu_radix_extract(pmap_t pmap, vm_offset_t va)
 			return (0);
 		pa = be64toh(*pte);
 		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
-		pa |= (va & PAGE_MASK);
 	}
+	return (pa);
+}
+
+vm_paddr_t
+mmu_radix_extract(pmap_t pmap, vm_offset_t va)
+{
+	vm_paddr_t pa;
+
+	PMAP_LOCK(pmap);
+	pa = mmu_radix_extract_locked(pmap, va);
+	PMAP_UNLOCK(pmap);
 	return (pa);
 }
 
@@ -5781,7 +5801,10 @@ mmu_radix_zero_page(vm_page_t m)
 
 	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 	addr = VM_PAGE_TO_DMAP(m);
-	pagezero(addr);
+	if (__predict_true(m->md.mdpg_cache_attrs == VM_MEMATTR_DEFAULT))
+		pagezero(addr);
+	else
+		bzero(addr, PAGE_SIZE);
 }
 
 void
@@ -5980,13 +6003,11 @@ mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 
 	PMAP_LOCK(pm);
 	while (sz > 0) {
-		pa = pmap_extract(pm, va);
+		pa = mmu_radix_extract_locked(pm, va);
 		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
 		sync_sz = min(sync_sz, sz);
-		if (pa != 0) {
-			pa += (va & PAGE_MASK);
+		if (pa != 0)
 			__syncicache(PHYS_TO_DMAP(pa), sync_sz);
-		}
 		va += sync_sz;
 		sz -= sync_sz;
 	}

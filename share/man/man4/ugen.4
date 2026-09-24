@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" $NetBSD: ugen.4,v 1.13 2001/09/11 22:52:54 wiz Exp $
 .\"
 .\" Copyright (c) 1999 The NetBSD Foundation, Inc.
@@ -34,10 +37,14 @@
 .Nm ugen
 .Nd USB generic device support
 .Sh SYNOPSIS
-.Nm
-is integrated into the
-.Xr usb 4
-kernel module.
+.Cd device usb
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd hw.usb.ugen.debug
+.Cd usb_load="YES"
 .Sh DESCRIPTION
 The
 .Nm

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 5, 2026
+.Dd September 21, 2026
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -31,7 +31,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Oo Fl BbceVv Oc Op Ar device
+.Fl l Oo Fl BbceVv Oc Oo Fl C Ar class Oc Op Ar device
 .Nm
 .Fl t Oo Fl v Oc
 .Nm
@@ -226,6 +226,12 @@ Each capability is enumerated via a line in the following format:
 .Bd -literal
     cap 10[40] = PCI-Express 1 root port
 .Ed
+.Pp
+If the
+.Fl C
+option is supplied,
+.Nm
+will list only the devices whose PCI class name matches the given argument.
 .Pp
 The first value after the
 .Dq Li cap

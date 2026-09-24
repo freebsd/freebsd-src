@@ -47,6 +47,7 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/iflib.h>
+#include <net/rss_config.h>
 
 #define	WANT_NATIVE_PCI_GET_SLOT
 #include <linux/pci.h>
@@ -2893,7 +2894,9 @@ bnxt_attach_pre(if_ctx_t ctx)
 			goto failed;
 	}
 
-	arc4rand(softc->vnic_info.rss_hash_key, HW_HASH_KEY_SIZE, 0);
+	_Static_assert(HW_HASH_KEY_SIZE == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey(softc->vnic_info.rss_hash_key);
 	softc->vnic_info.rss_hash_type =
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_IPV4 |
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_TCP_IPV4 |

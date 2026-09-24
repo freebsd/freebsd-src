@@ -44,6 +44,7 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_TUNNEL_OFFLOADS	= 1 << 2,
 	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
 	MLX5_QP_FLAG_UAR_PAGE_INDEX     = 1 << 10,
 };
@@ -145,11 +146,80 @@ struct mlx5_ib_rss_caps {
 	__u8 reserved[7];
 };
 
+struct mlx5_packet_pacing_caps {
+	__u32 qp_rate_limit_min;
+	__u32 qp_rate_limit_max; /* In kpbs */
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
+	 */
+	__u32 supported_qpts;
+	__u32 reserved;
+};
+
+enum mlx5_ib_cqe_comp_res_format {
+	MLX5_IB_CQE_RES_FORMAT_HASH	= 1 << 0,
+	MLX5_IB_CQE_RES_FORMAT_CSUM	= 1 << 1,
+	MLX5_IB_CQE_RES_RESERVED	= 1 << 2,
+};
+
+struct mlx5_ib_cqe_comp_caps {
+	__u32 max_num;
+	__u32 supported_format; /* enum mlx5_ib_cqe_comp_res_format */
+};
+
+enum mlx5_ib_sw_parsing_offloads {
+	MLX5_IB_SW_PARSING = 1 << 0,
+	MLX5_IB_SW_PARSING_CSUM = 1 << 1,
+	MLX5_IB_SW_PARSING_LSO = 1 << 2,
+};
+
+struct mlx5_ib_sw_parsing_caps {
+	__u32 sw_parsing_offloads; /* enum mlx5_ib_sw_parsing_offloads */
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
+	 */
+	__u32 supported_qpts;
+};
+
+struct mlx5_ib_striding_rq_caps {
+	__u32 min_single_stride_log_num_of_bytes;
+	__u32 max_single_stride_log_num_of_bytes;
+	__u32 min_single_wqe_log_num_of_strides;
+	__u32 max_single_wqe_log_num_of_strides;
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
+	 */
+	__u32 supported_qpts;
+	__u32   reserved;
+};
+
+enum mlx5_ib_tunnel_offloads {
+	MLX5_IB_TUNNELED_OFFLOADS_VXLAN		= 1 << 0,
+	MLX5_IB_TUNNELED_OFFLOADS_GRE		= 1 << 1,
+	MLX5_IB_TUNNELED_OFFLOADS_GENEVE	= 1 << 2,
+	MLX5_IB_TUNNELED_OFFLOADS_MPLS_GRE	= 1 << 3,
+	MLX5_IB_TUNNELED_OFFLOADS_MPLS_UDP	= 1 << 4,
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	struct	mlx5_ib_tso_caps tso_caps;
 	struct	mlx5_ib_rss_caps rss_caps;
+	struct	mlx5_ib_cqe_comp_caps cqe_comp_caps;
+	struct	mlx5_packet_pacing_caps packet_pacing_caps;
+	__u32	mlx5_ib_support_multi_pkt_send_wqes;
+	__u32   reserved;
+	struct  mlx5_ib_sw_parsing_caps sw_parsing_caps;
+	struct  mlx5_ib_striding_rq_caps striding_rq_caps;
+	__u32	tunnel_offloads_caps; /* enum mlx5_ib_tunnel_offloads */
+	__u32	reserved3;
 };
 
 enum mlx5_ib_create_cq_flags {
@@ -228,7 +298,9 @@ enum mlx5_rx_hash_fields {
 	MLX5_RX_HASH_SRC_PORT_TCP	= 1 << 4,
 	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
-	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7
+	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	/* Save bits for future fields */
+	MLX5_RX_HASH_INNER		= (1UL << 31),
 };
 
 struct mlx5_ib_create_qp_rss {
@@ -238,7 +310,7 @@ struct mlx5_ib_create_qp_rss {
 	__u8 reserved[6];
 	__u8 rx_hash_key[128]; /* valid only for Toeplitz */
 	__u32   comp_mask;
-	__u32   reserved1;
+	__u32   flags;
 };
 
 struct mlx5_ib_create_qp_resp {
@@ -252,6 +324,10 @@ struct mlx5_ib_alloc_mw {
 	__u16	reserved2;
 };
 
+enum mlx5_ib_create_wq_mask {
+	MLX5_IB_CREATE_WQ_STRIDING_RQ	= (1 << 0),
+};
+
 struct mlx5_ib_create_wq {
 	__u64   buf_addr;
 	__u64   db_addr;
@@ -260,7 +336,9 @@ struct mlx5_ib_create_wq {
 	__u32   user_index;
 	__u32   flags;
 	__u32   comp_mask;
-	__u32   reserved;
+	__u32	single_stride_log_num_of_bytes;
+	__u32	single_wqe_log_num_of_strides;
+	__u32	two_byte_shift_en;
 };
 
 struct mlx5_ib_create_ah_resp {

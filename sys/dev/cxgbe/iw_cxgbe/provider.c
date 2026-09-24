@@ -130,9 +130,11 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
 	} else {
 
-		mm = kmalloc(sizeof *mm, GFP_KERNEL);
-		if (!mm)
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
+		if (!mm) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		uresp.status_page_size = PAGE_SIZE;
 
@@ -386,6 +388,25 @@ static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static if_t c4iw_get_netdev(struct ib_device *ibdev, u8 port)
+{
+	struct c4iw_dev *dev;
+	struct adapter *sc;
+	struct port_info *pi;
+	if_t ifp;
+
+	dev = to_c4iw_dev(ibdev);
+	sc = dev->rdev.adap;
+	if (!port || port > sc->params.nports)
+		return NULL;
+	pi = sc->port[port - 1];
+	ifp = pi->vi[0].ifp;
+	if (ifp)
+		if_ref(ifp);
+
+	return ifp;
+}
+
 /*
  * Returns -errno on error.
  */
@@ -476,6 +497,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	ibdev->post_recv = c4iw_post_receive;
 	ibdev->uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 	ibdev->get_port_immutable = c4iw_port_immutable;
+	ibdev->get_netdev = c4iw_get_netdev;
 
 	iwcm = kmalloc(sizeof(*iwcm), GFP_KERNEL);
 	if (iwcm == NULL)
@@ -491,6 +513,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	iwcm->get_qp = c4iw_get_qp;
 	ibdev->iwcm = iwcm;
 
+	ibdev->ops.driver_id = RDMA_DRIVER_CXGB4;
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret) {
 		kfree(iwcm);

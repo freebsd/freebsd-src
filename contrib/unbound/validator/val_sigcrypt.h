@@ -53,6 +53,7 @@ struct ub_packed_rrset_key;
 struct rbtree_type;
 struct regional;
 struct sldns_buffer;
+struct val_qstate;
 
 /** number of entries in algorithm needs array */
 #define ALGO_NEEDS_MAX 256
@@ -262,6 +263,7 @@ uint16_t dnskey_get_flags(struct ub_packed_rrset_key* k, size_t idx);
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
  * @param verified: if not NULL the number of RRSIG validations is returned.
  * @param reasonbuf: buffer to use for fail reason string print.
  * @param reasonlen: length of reasonbuf.
@@ -273,8 +275,9 @@ enum sec_status dnskeyset_verify_rrset(struct module_env* env,
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, uint8_t* sigalg,
 	char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate, int* verified,
-	char* reasonbuf, size_t reasonlen);
+	sldns_pkt_section section, struct module_qstate* qstate,
+	struct val_qstate* vq, int* verified, char* reasonbuf,
+	size_t reasonlen);
 
 /** 
  * verify rrset against one specific dnskey (from rrset) 
@@ -287,13 +290,16 @@ enum sec_status dnskeyset_verify_rrset(struct module_env* env,
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
+ * @param vq: validator qstate with attempt counts.
+ * @param num_tagmatches: incremented to keep track of tag matches.
  * @return secure if *this* key signs any of the signatures on rrset.
  *	unchecked on error or and bogus on bad signature.
  */
 enum sec_status dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey,
 	size_t dnskey_idx, char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate);
+	sldns_pkt_section section, struct module_qstate* qstate,
+	struct val_qstate* vq, size_t* num_tagmatches);
 
 /** 
  * verify rrset, with specific dnskey(from set), for a specific rrsig 

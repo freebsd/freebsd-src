@@ -65,6 +65,7 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 #include <machine/dbdma.h>
 #include <machine/intr_machdep.h>
 #include <machine/resource.h>
@@ -91,6 +92,9 @@ struct snapper_softc
 {
 	device_t sc_dev;
 	uint32_t sc_addr;
+	struct mtx sc_volume_mtx;
+	struct task sc_volume_task;
+	uint8_t sc_volume_reg[6];
 };
 
 static int	snapper_probe(device_t);
@@ -187,33 +191,33 @@ MIXER_DECLARE(snapper_mixer);
 #define SNAPPER_ACR_APD	0x01	/* Analog power down */
 
 struct snapper_reg {
-	u_char MCR1[1];
-	u_char DRC[6];
-	u_char VOLUME[6];
-	u_char TREBLE[1];
-	u_char BASS[1];
-	u_char MIXER_L[9];
-	u_char MIXER_R[9];
-	u_char LB0[15];
-	u_char LB1[15];
-	u_char LB2[15];
-	u_char LB3[15];
-	u_char LB4[15];
-	u_char LB5[15];
-	u_char LB6[15];
-	u_char RB0[15];
-	u_char RB1[15];
-	u_char RB2[15];
-	u_char RB3[15];
-	u_char RB4[15];
-	u_char RB5[15];
-	u_char RB6[15];
-	u_char LLB[15];
-	u_char RLB[15];
-	u_char LLB_GAIN[3];
-	u_char RLB_GAIN[3];
-	u_char ACR[1];
-	u_char MCR2[1];
+	uint8_t MCR1[1];
+	uint8_t DRC[6];
+	uint8_t VOLUME[6];
+	uint8_t TREBLE[1];
+	uint8_t BASS[1];
+	uint8_t MIXER_L[9];
+	uint8_t MIXER_R[9];
+	uint8_t LB0[15];
+	uint8_t LB1[15];
+	uint8_t LB2[15];
+	uint8_t LB3[15];
+	uint8_t LB4[15];
+	uint8_t LB5[15];
+	uint8_t LB6[15];
+	uint8_t RB0[15];
+	uint8_t RB1[15];
+	uint8_t RB2[15];
+	uint8_t RB3[15];
+	uint8_t RB4[15];
+	uint8_t RB5[15];
+	uint8_t RB6[15];
+	uint8_t LLB[15];
+	uint8_t RLB[15];
+	uint8_t LLB_GAIN[3];
+	uint8_t RLB_GAIN[3];
+	uint8_t ACR[1];
+	uint8_t MCR2[1];
 };
 
 static const struct snapper_reg snapper_initdata = {
@@ -338,6 +342,24 @@ snapper_write(struct snapper_softc *sc, uint8_t reg, const void *data)
 	return (0);
 }
 
+/*
+ * snapper_write() sleeps in iicbus_transfer(), so snapper_set() cannot
+ * program the volume registers inline. Hand the new values to a task
+ * instead, which runs with no lock held.
+ */
+static void
+snapper_volume_task(void *arg, int pending __unused)
+{
+	struct snapper_softc *sc = arg;
+	uint8_t reg[6];
+
+	mtx_lock(&sc->sc_volume_mtx);
+	memcpy(reg, sc->sc_volume_reg, sizeof(reg));
+	mtx_unlock(&sc->sc_volume_mtx);
+
+	snapper_write(sc, SNAPPER_VOLUME, reg);
+}
+
 static int
 snapper_probe(device_t dev)
 {
@@ -370,6 +392,9 @@ snapper_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
+
+	mtx_init(&sc->sc_volume_mtx, "snapper volume", NULL, MTX_DEF);
+	TASK_INIT(&sc->sc_volume_task, 0, snapper_volume_task, sc);
 
 	i2s_mixer_class = &snapper_mixer_class;
 	i2s_mixer = dev;
@@ -423,6 +448,12 @@ snapper_init(struct snd_mixer *m)
 static int
 snapper_uninit(struct snd_mixer *m)
 {
+	struct snapper_softc *sc;
+
+	sc = device_get_softc(mix_getdevinfo(m));
+
+	taskqueue_drain(taskqueue_thread, &sc->sc_volume_task);
+
 	return (0);
 }
 
@@ -437,7 +468,7 @@ snapper_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct snapper_softc *sc;
 	unsigned int l, r;
-	u_char reg[6];
+	uint8_t reg[6];
 
 	sc = device_get_softc(mix_getdevinfo(m));
 
@@ -456,7 +487,11 @@ snapper_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		reg[4] = (r & 0x00ff00) >> 8;
 		reg[5] = r & 0x0000ff;
 
-		snapper_write(sc, SNAPPER_VOLUME, reg);
+		mtx_lock(&sc->sc_volume_mtx);
+		memcpy(sc->sc_volume_reg, reg, sizeof(reg));
+		mtx_unlock(&sc->sc_volume_mtx);
+
+		taskqueue_enqueue(taskqueue_thread, &sc->sc_volume_task);
 
 		return (left | (right << 8));
 	}

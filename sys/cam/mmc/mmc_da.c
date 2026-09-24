@@ -74,6 +74,10 @@
 
 #include <cam/mmc/mmc_all.h>
 
+/* SDT Probes */
+SDT_PROBE_DEFINE3(cam, , sdda, error, "union ccb *", "uint32_t", "uint32_t");
+SDT_PROBE_DEFINE2(cam, , sdda, recovery, "union ccb *", "int");
+
 #ifdef _KERNEL
 
 typedef enum {
@@ -1983,7 +1987,13 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 sddaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
-	return(cam_periph_error(ccb, cam_flags, sense_flags));
+	int error;
+
+	CAM_PROBE3(sdda, error, ccb, cam_flags, sense_flags);
+
+	error = cam_periph_error(ccb, cam_flags, sense_flags);
+	CAM_PROBE2(sdda, recovery, ccb, error);
+	return (error);
 }
 
 static int

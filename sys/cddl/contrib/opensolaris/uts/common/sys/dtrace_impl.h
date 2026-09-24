@@ -1302,8 +1302,15 @@ extern int dtrace_attached(void);
 extern hrtime_t dtrace_gethrestime(void);
 #endif
 
+#if defined(__aarch64__)
+extern void dtrace_copyin_pan(uintptr_t, uintptr_t, size_t);
+extern void dtrace_copyinstr_pan(uintptr_t, uintptr_t, size_t);
+extern void dtrace_copyout_pan(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
+extern void dtrace_copyoutstr_pan(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
+#else
 extern void dtrace_copy(uintptr_t, uintptr_t, size_t);
 extern void dtrace_copystr(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
+#endif
 
 /*
  * DTrace Assertions

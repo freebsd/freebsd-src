@@ -128,7 +128,6 @@ pathconnect(int fd, int s, const char *path)
  * rather than relying on the host's /dev/fd keeps the fdescfs cases
  * self-contained: they exercise real fdescfs lookups regardless of how the
  * host is set up, and the mode-specific behaviour below is then well defined.
- * Skips if the kernel has no fdescfs.
  */
 static void
 mount_fdescfs(const char * const *opts)
@@ -154,8 +153,6 @@ mount_fdescfs(const char * const *opts)
 
 	errmsg[0] = '\0';
 	error = nmount(iov, iovlen, 0);
-	if (error != 0 && errno == ENODEV)
-		atf_tc_skip("no fdescfs support in the kernel");
 	ATF_REQUIRE_MSG(error == 0, "mount fdescfs on %s: %s", FDDIR,
 	    errmsg[0] != '\0' ? errmsg : strerror(errno));
 
@@ -183,6 +180,7 @@ fdpath(char *buf, size_t len, int fd)
 	ATF_TC_HEAD(name, tc)						\
 	{								\
 		atf_tc_set_md_var(tc, "require.user", "root");		\
+		atf_tc_set_md_var(tc, "require.kmods", "fdescfs");	\
 	}								\
 	ATF_TC_CLEANUP(name, tc)					\
 	{								\

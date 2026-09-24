@@ -87,6 +87,8 @@ smmu_fdt_attach(device_t dev)
 	sc->dev = dev;
 
 	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "dma-coherent"))
+		sc->features |= SMMU_FEATURE_COHERENCY;
 
 	rid = 0;
 	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -200,4 +202,4 @@ DEFINE_CLASS_1(smmu, smmu_fdt_driver, smmu_fdt_methods,
     sizeof(struct smmu_softc), smmu_driver);
 
 EARLY_DRIVER_MODULE(smmu, simplebus, smmu_fdt_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

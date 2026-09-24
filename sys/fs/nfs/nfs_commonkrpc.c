@@ -59,6 +59,7 @@
 
 #include <rpc/rpc.h>
 #include <rpc/krpc.h>
+#include <rpc/clntrdma.h>
 
 #include <kgssapi/krb5/kcrypto.h>
 
@@ -491,11 +492,10 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			CLNT_CONTROL(client, CLSET_TLS, &one);
 	} else {
 		/* RDMA. */
-		if (NFSHASNFSV4N(nmp) && cred != NULL) {
+		if (NFSHASNFSV4N(nmp) && cred != NULL &&
+		    svc_rdma_create_backchannel_call != NULL) {
 			/*
-			 * Set up the backchannel. svc_vc_create_backchannel()
-			 * is sufficient.  The rdma boolean in conn_cf will get
-			 * set by the CLSET_BACKCHANNEL control.
+			 * Set up the backchannel.
 			 */
 			/*
 			 * Make sure the nfscbd_pool doesn't get
@@ -505,7 +505,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			if (nfs_numnfscbd > 0) {
 				nfs_numnfscbd++;
 				NFSD_UNLOCK();
-				xprt = svc_vc_create_backchannel(nfscbd_pool);
+				xprt = svc_rdma_create_backchannel_call(
+				    nfscbd_pool);
 				CLNT_CONTROL(client, CLSET_BACKCHANNEL, xprt);
 				NFSD_LOCK();
 				nfs_numnfscbd--;
@@ -733,7 +734,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	struct ucred *authcred, *savcred;
 	struct nfsclsession *sep;
 	uint8_t sessionid[NFSX_V4SESSIONID];
-	bool nextconn_set;
+	bool nextconn_set, has_mreduce;
 	struct timespec trylater_delay, ts, waituntil;
 
 	/* Initially 1msec. */
@@ -748,6 +749,10 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		return (ESTALE);
 	}
 
+	has_mreduce = false;
+	if (nmp != NULL && NFSHASRDMA(nmp) &&
+	    (nd->nd_mreq->m_flags & M_PROTO11) != 0)
+		has_mreduce = true;
 	/*
 	 * Set authcred, which is used to acquire RPC credentials to
 	 * the cred argument, by default. The crhold() should not be
@@ -1535,6 +1540,8 @@ out:
 	}
 #endif
 
+	if (has_mreduce)
+		rpc_remove_mreduce(nd->nd_mreq, false);
 	m_freem(nd->nd_mreq);
 	if (usegssname == 0)
 		AUTH_DESTROY(auth);

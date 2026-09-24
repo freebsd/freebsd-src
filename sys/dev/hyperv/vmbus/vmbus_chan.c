@@ -274,9 +274,11 @@ vmbus_chan_sysctl_create(struct vmbus_channel *chan)
 	/*
 	 * Create dev.NAME.UNIT.channel.CHANID tree.
 	 */
-	if (VMBUS_CHAN_ISPRIMARY(chan))
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
 		ch_id = chan->ch_id;
-	else
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(ch_tree), OID_AUTO,
+		    "ch_id", CTLFLAG_RD, &chan->ch_id, 0, "owner channel id");
+	} else
 		ch_id = chan->ch_prichan->ch_id;
 	snprintf(name, sizeof(name), "%d", ch_id);
 	chid_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(ch_tree),
@@ -309,6 +311,11 @@ vmbus_chan_sysctl_create(struct vmbus_channel *chan)
 		    "chanid", CTLFLAG_RD, &chan->ch_id, 0, "channel id");
 	}
 
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	     "ch_subidx", CTLFLAG_RD, &chan->ch_subidx, 0, "subchan index");
+	SYSCTL_ADD_U8(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "monitor_id", CTLFLAG_RD, &chan->ch_monitor_id, 0,
+	    "owner monitor id");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
 	    "cpu", CTLFLAG_RD, &chan->ch_cpuid, 0, "owner CPU id");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
@@ -1854,6 +1861,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 	chan->ch_subidx = offer->chm_subidx;
 	chan->ch_guid_type = offer->chm_chtype;
 	chan->ch_guid_inst = offer->chm_chinst;
+	chan->ch_monitor_id = offer->chm_montrig;
 
 	/* Batch reading is on by default */
 	chan->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
@@ -1960,6 +1968,14 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		    note->chm_chanid);
 		return;
 	}
+	mtx_unlock(&sc->vmbus_chan_lock);
+
+	if (chan->ch_dev && chan->ch_rescind_cb) {
+		chan->ch_rescind_cb(chan);
+		return;
+	}
+
+	mtx_lock(&sc->vmbus_chan_lock);
 	vmbus_chan_rem_list(sc, chan);
 	mtx_unlock(&sc->vmbus_chan_lock);
 

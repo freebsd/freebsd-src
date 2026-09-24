@@ -223,6 +223,7 @@ struct nhgrp_object *nhgrp_alloc(uint32_t fibnum, int family,
 struct nhgrp_object *nhgrp_get_nhgrp(struct nhgrp_object *nhg, int *perror);
 void nhgrp_set_uidx(struct nhgrp_object *nhg, uint32_t uidx);
 uint32_t nhgrp_get_uidx(const struct nhgrp_object *nhg);
+uint8_t nhgrp_get_neigh_family(const struct nhgrp_object *nhg);
 uint8_t nhgrp_get_origin(const struct nhgrp_object *nhg);
 void nhgrp_set_origin(struct nhgrp_object *nhg, uint8_t origin);
 #endif /* _KERNEL */

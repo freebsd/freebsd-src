@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Thunderbolt firmware connection manager functions.
- *
- * $FreeBSD$
  */
 
 #ifndef _TB_VAR_H

@@ -33,7 +33,7 @@
 size_t __strcspn(const char *, const char *);
 
 char *
-strpbrk(const char *s, const char *charset)
+(strpbrk)(const char *s, const char *charset)
 {
 	size_t loc;
 

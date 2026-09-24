@@ -581,8 +581,10 @@ linux_to_bsd_poll_events(struct thread *td, int fd, short lev,
 
 	if (lev & LINUX_POLLMSG)
 		LINUX_RATELIMIT_MSG_OPT1("unsupported POLLMSG, events(%d)", lev);
-	if (lev & LINUX_POLLREMOVE)
-		LINUX_RATELIMIT_MSG_OPT1("unsupported POLLREMOVE, events(%d)", lev);
+	/*
+	 * Ignore LINUX_POLLREMOVE, as Linux's demangle_poll() silently
+	 * discards POLLREMOVE from the requested events.
+	 */
 
 	*bev = bits;
 }

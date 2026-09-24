@@ -1331,6 +1331,7 @@ via_attach(device_t dev)
 	if (!via->codec)
 		goto bad;
 
+	pcm_init(dev, via);
 	mixer_init(dev, ac97_getmixerclass(), via->codec);
 
 	via->codec_caps = ac97_getextcaps(via->codec);
@@ -1350,7 +1351,6 @@ via_attach(device_t dev)
 	    device_get_nameunit(device_get_parent(dev)));
 
 	/* Register */
-	pcm_init(dev, via);
 	for (i = 0; i < via_dxs_chnum; i++)
 	      pcm_addchan(dev, PCMDIR_PLAY, &via8233dxs_class, via);
 	for (i = 0; i < via_sgd_chnum; i++)
@@ -1435,5 +1435,5 @@ static driver_t via_driver = {
 };
 
 DRIVER_MODULE(snd_via8233, pci, via_driver, 0, 0);
-MODULE_DEPEND(snd_via8233, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_via8233, sound, 1, 1, 1);
 MODULE_VERSION(snd_via8233, 1);

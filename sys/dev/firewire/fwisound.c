@@ -545,4 +545,4 @@ static driver_t fwisound_driver = {
 DRIVER_MODULE(fwisound, firewire, fwisound_driver, 0, 0);
 MODULE_VERSION(fwisound, 1);
 MODULE_DEPEND(fwisound, firewire, 1, 1, 1);
-MODULE_DEPEND(fwisound, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(fwisound, sound, 1, 1, 1);

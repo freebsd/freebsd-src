@@ -401,6 +401,9 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_tso_size_max = IAVF_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = IAVF_MAX_DMA_SEG_SIZE;
 	scctx->isc_rss_table_size = IAVF_RSS_VSI_LUT_SIZE;
+	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == VIRTCHNL_VF_OFFLOAD_RSS_PF)
+		scctx->isc_rss_table_size = sc->vf_res->rss_lut_size;
 	scctx->isc_capabilities = scctx->isc_capenable = IAVF_CAPS;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
 
@@ -431,9 +434,19 @@ static void
 iavf_vc_task(void *arg, int pending __unused)
 {
 	struct iavf_sc *sc = (struct iavf_sc *)arg;
-	u16 var;
+	enum iavf_status status;
+	u16 remaining = 0;
 
-	iavf_process_adminq(sc, &var);
+	status = iavf_process_adminq(sc, &remaining);
+	/*
+	 * A budget-limited pass may leave replies without another interrupt.
+	 * Keep processing them here: init can hold the iflib context lock
+	 * while waiting for a reply, preventing the iflib admin task from
+	 * making progress. Do not perpetuate the task during detach.
+	 */
+	if (status == IAVF_SUCCESS && remaining != 0 &&
+	    iavf_test_state(&sc->state, IAVF_STATE_INITIALIZED))
+		taskqueue_enqueue(sc->vc_tq, &sc->vc_task);
 }
 
 /**
@@ -1558,10 +1571,9 @@ iavf_if_update_admin_status(if_ctx_t ctx)
 	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
 	struct iavf_hw *hw = &sc->hw;
 	struct iavf_vsi *vsi = &sc->vsi;
-	if_t ifp = iflib_get_ifp(ctx);
 	u16 pending = 0;
 
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	if (!iflib_is_running(ctx) ||
 	    atomic_load_acq_32(&sc->mbx_ready) == 0) {
 		if (vsi->link_active) {
 			vsi->link_active = false;
@@ -2075,11 +2087,9 @@ void
 iavf_update_link_status(struct iavf_sc *sc)
 {
 	struct iavf_vsi *vsi = &sc->vsi;
-	if_t ifp;
 	u64 baudrate;
 
-	ifp = iflib_get_ifp(vsi->ctx);
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+	if (!iflib_is_running(vsi->ctx)) {
 		if (vsi->link_active) {
 			vsi->link_active = false;
 			iflib_link_state_change(vsi->ctx, LINK_STATE_DOWN, 0);
@@ -2419,7 +2429,7 @@ iavf_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef IAVF_DEBUG
-#define CTX_ACTIVE(ctx) ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING))
+#define CTX_ACTIVE(ctx) iflib_is_running(ctx)
 
 /**
  * iavf_sysctl_vf_reset - Request a VF reset

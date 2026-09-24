@@ -505,6 +505,5 @@ ENTRY(savectx)
 	sd	s11, (PCB_S + 11 * 8)(a0)
 
 	__fpe_state_save a0
-	call	_C_LABEL(vector_state_store_savectx)
-	ret
+	tail	_C_LABEL(vector_state_store_savectx)
 END(savectx)

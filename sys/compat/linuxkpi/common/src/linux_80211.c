@@ -4622,10 +4622,12 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 
 	IMPROVE("clear up other bits in this state");
 
+	wiphy_lock(hw->wiphy);
 	lkpi_80211_mo_remove_interface(hw, vif);
 
 	/* Single VAP, so we can do this here. */
 	lkpi_80211_mo_stop(hw, false);			/* XXX SUSPEND */
+	wiphy_unlock(hw->wiphy);
 
 	mtx_destroy(&lvif->mtx);
 	free(lvif, M_80211_VAP);

@@ -84,8 +84,10 @@ static
 void
 delete_entry(struct list_entry *le)
 {
-    if (le->m_managed)
+    if (le->m_managed) {
         free(le->m_object);
+        le->m_object = NULL;
+    }
 
     free(le);
 }
@@ -204,6 +206,7 @@ atf_list_init(atf_list_t *l)
     leend = new_entry(NULL, false);
     if (leend == NULL) {
         free(lebeg);
+        lebeg = NULL;
         return atf_no_memory_error();
     }
 

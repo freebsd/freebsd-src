@@ -1070,6 +1070,8 @@ hdsp_pcm_attach(device_t dev)
 
 	pcm_init(dev, scp);
 
+	mixer_init(dev, &hdspmixer_class, scp);
+
 	play = (hdsp_channel_play_ports(scp->hc)) ? 1 : 0;
 	rec = (hdsp_channel_rec_ports(scp->hc)) ? 1 : 0;
 
@@ -1093,8 +1095,6 @@ hdsp_pcm_attach(device_t dev)
 		device_printf(dev, "Can't register pcm.\n");
 		return (ENXIO);
 	}
-
-	mixer_init(dev, &hdspmixer_class, scp);
 
 	/* Register the PCM child for interrupt dispatch. */
 	mtx_lock(&sc->lock);
@@ -1186,5 +1186,5 @@ static driver_t hdsp_pcm_driver = {
 };
 
 DRIVER_MODULE(snd_hdsp_pcm, hdsp, hdsp_pcm_driver, 0, 0);
-MODULE_DEPEND(snd_hdsp, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_hdsp, sound, 1, 1, 1);
 MODULE_VERSION(snd_hdsp, 1);

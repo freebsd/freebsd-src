@@ -27,17 +27,132 @@
  */
 
 #include <fenv.h>
+#include <float.h>	/* Needed for FLT_MANT_DIG. */
 
 #include "math.h"
 #include "math_private.h"
 
+#pragma STDC FENV_ACCESS ON
+
 #ifdef USE_BUILTIN_FMAF
 float
-fmaf(float x, float y, float z)
+#ifdef _RENAME_FMAF
+fmaf_sw
+#else
+fmaf
+#endif
+(float x, float y, float z)
 {
 	return (__builtin_fmaf(x, y, z));
 }
 #else
+
+#define _CC (0x1p12F + 1)	/* Needed by _SLOW2SUM() and _MUL() below */
+
+/*
+ * A struct dd represents a floating-point number with twice the precision
+ * of a float.  We maintain the invariant that "hi" stores the 24 high-order
+ * bits of the result.
+ */
+struct dd {
+	float hi;
+	float lo;
+};
+
+/*
+ * Compute a+b exactly, returning the exact result in a struct dd.  We assume
+ * that both a and b are finite, but make no assumptions about their relative
+ * magnitudes.
+ */
+static inline struct dd
+dd_add(float a, float b)
+{
+	struct dd ret;
+	_SLOW2SUM(a, b, ret.hi, ret.lo);
+	return (ret);
+}
+
+/*
+ * Compute a+b, with a small tweak:  The least significant bit of the
+ * result is adjusted into a sticky bit summarizing all the bits that
+ * were lost to rounding.  This adjustment negates the effects of double
+ * rounding when the result is added to another number with a higher
+ * exponent.  For an explanation of round and sticky bits, see any reference
+ * on FPU design, e.g.,
+ *
+ *     J. Coonen.  An Implementation Guide to a Proposed Standard for
+ *     Floating-Point Arithmetic.  Computer, vol. 13, no. 1, Jan 1980.
+ */
+static inline float
+add_adjusted(float a, float b)
+{
+	struct dd sum;
+	uint32_t hibits, lobits;
+
+	sum = dd_add(a, b);
+	if (sum.lo != 0) {
+		GET_FLOAT_WORD(hibits, sum.hi);
+		if ((hibits & 1) == 0) {
+			/* hibits += (int)copysignf(1.0f, sum.hi * sum.lo); */
+			GET_FLOAT_WORD(lobits, sum.lo);
+			hibits += 1 - ((hibits ^ lobits) >> 30);
+			SET_FLOAT_WORD(sum.hi, hibits);
+		}
+	}
+	return (sum.hi);
+}
+
+/*
+ * Compute ldexp(a+b, scale) with a single rounding error. It is assumed
+ * that the result will be subnormal, and care is taken to ensure that
+ * double rounding does not occur.
+ */
+
+static inline float
+add_and_denormalize(float a, float b, int scale)
+{
+	struct dd sum;
+	uint32_t hibits, lobits;
+	int bits_lost;
+
+	sum = dd_add(a, b);
+
+	/*
+	 * If we are losing at least two bits of accuracy to denormalization,
+	 * then the first lost bit becomes a round bit, and we adjust the
+	 * lowest bit of sum.hi to make it a sticky bit summarizing all the
+	 * bits in sum.lo. With the sticky bit adjusted, the hardware will
+	 * break any ties in the correct direction.
+	 *
+	 * If we are losing only one bit to denormalization, however, we must
+	 * break the ties manually.
+	 */
+	if (sum.lo != 0) {
+		GET_FLOAT_WORD(hibits, sum.hi);
+		bits_lost = -((int)(hibits >> 24) & 0x7f) - scale + 1;
+		if ((bits_lost != 1) ^ (int)(hibits & 1)) {
+			/* hibits += (int)copysign(1.0, sum.hi * sum.lo) */
+			GET_FLOAT_WORD(lobits, sum.lo);
+			hibits += 1 - (((hibits ^ lobits) >> 30) & 2);
+			SET_FLOAT_WORD(sum.hi, hibits);
+		}
+	}
+	return (ldexpf(sum.hi, scale));
+}
+
+/*
+ * Compute a*b exactly, returning the exact result in a struct dd.  We assume
+ * that both a and b are normalized, so no underflow or overflow will occur.
+ * The current rounding mode must be round-to-nearest.
+ */
+static inline struct dd
+dd_mul(float a, float b)
+{
+	struct dd ret;
+	_MUL(a, b, ret.hi, ret.lo);
+	return (ret);
+}
+
 #ifdef _RENAME_FMAF
 float fmaf_sw(float, float, float);
 #endif
@@ -45,9 +160,19 @@ float fmaf_sw(float, float, float);
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
- * A double has more than twice as much precision than a float, so
- * direct double-precision arithmetic suffices, except where double
- * rounding occurs.
+ * We use scaling to avoid overflow/underflow, along with the
+ * canonical precision-doubling technique adapted from:
+ *
+ *	Dekker, T.  A Floating-Point Technique for Extending the
+ *	Available Precision.  Numer. Math. 18, 224-242 (1971).
+ *
+ * This algorithm is sensitive to the rounding precision.  FPUs such
+ * as the i387 must be set in double-precision mode if variables are
+ * to be stored in FP registers in order to avoid incorrect results.
+ * This is the default on FreeBSD, but not on many other systems.
+ *
+ * Hardware instructions should be used on architectures that support it,
+ * since this implementation will likely be several times slower.
  */
 float
 #ifdef _RENAME_FMAF
@@ -57,29 +182,110 @@ fmaf
 #endif
 (float x, float y, float z)
 {
-	double xy, result;
-	uint32_t hr, lr;
-
-	xy = (double)x * y;
-	result = xy + z;
-	EXTRACT_WORDS(hr, lr, result);
-	/* Common case: The double precision result is fine. */
-	if ((lr & 0x1fffffff) != 0x10000000 ||	/* not a halfway case */
-	    (hr & 0x7ff00000) == 0x7ff00000 ||	/* NaN */
-	    result - xy == z ||			/* exact */
-	    fegetround() != FE_TONEAREST)	/* not round-to-nearest */
-		return (result);
+	float xs, ys, zs, adj;
+	struct dd xy, r;
+	int oround;
+	int ex, ey, ez;
+	int spread;
 
 	/*
-	 * If result is inexact, and exactly halfway between two float values,
-	 * we need to adjust the low-order bit in the direction of the error.
+	 * Handle special cases. The order of operations and the particular
+	 * return values here are crucial in handling special cases involving
+	 * infinities, NaNs, overflows, and signed zeroes correctly.
 	 */
-	fesetround(FE_TOWARDZERO);
-	volatile double vxy = xy;  /* XXX work around gcc CSE bug */
-	double adjusted_result = vxy + z;
+	if (x == 0 || y == 0)
+		return (x * y + z);
+	if (z == 0)
+		return (x * y);
+	if (!isfinite(x) || !isfinite(y))
+		return (x * y + z);
+	if (!isfinite(z))
+		return (z);
+
+	xs = frexpf(x, &ex);
+	ys = frexpf(y, &ey);
+	zs = frexpf(z, &ez);
+	oround = fegetround();
+	spread = ex + ey - ez;
+
+	/*
+	 * If x * y and z are many orders of magnitude apart, the scaling
+	 * will overflow, so we handle these cases specially.  Rounding
+	 * modes other than FE_TONEAREST are painful.
+	 */
+	if (spread < -FLT_MANT_DIG) {
+		feraiseexcept(FE_INEXACT);
+		if (!isnormal(z))
+			feraiseexcept(FE_UNDERFLOW);
+		switch (oround) {
+		case FE_TONEAREST:
+			return (z);
+		case FE_TOWARDZERO:
+			if ((x > 0) ^ (y < 0) ^ (z < 0))
+				return (z);
+			else
+				return (nextafterf(z, 0));
+		case FE_DOWNWARD:
+			if ((x > 0) ^ (y < 0))
+				return (z);
+			else
+				return (nextafterf(z, -INFINITY));
+		default:	/* FE_UPWARD */
+			if ((x > 0) ^ (y < 0))
+				return (nextafterf(z, INFINITY));
+			else
+				return (z);
+		}
+	}
+	if (spread <= FLT_MANT_DIG * 2)
+		zs = ldexpf(zs, -spread);
+	else
+		zs = copysignf(FLT_MIN, zs);
+
 	fesetround(FE_TONEAREST);
-	if (result == adjusted_result)
-		SET_LOW_WORD(adjusted_result, lr + 1);
-	return (adjusted_result);
+	/* work around clang issue #8472 */
+	volatile float vxs = xs;
+
+	/*
+	 * Basic approach for round-to-nearest:
+	 *
+	 *     (xy.hi, xy.lo) = x * y		(exact)
+	 *     (r.hi, r.lo)   = xy.hi + z	(exact)
+	 *     adj = xy.lo + r.lo		(inexact; low bit is sticky)
+	 *     result = r.hi + adj		(correctly rounded)
+	 */
+	xy = dd_mul(vxs, ys);
+	r = dd_add(xy.hi, zs);
+
+	spread = ex + ey;
+
+	if (r.hi == 0 && xy.lo == 0) {
+		/*
+		 * When the addends cancel to 0, ensure that the result has
+		 * the correct sign.
+		 */
+		fesetround(oround);
+		volatile float vzs = zs; /* XXX gcc CSE bug workaround */
+		return (xy.hi + vzs);
+	}
+
+	if (oround != FE_TONEAREST) {
+		/*
+		 * There is no need to worry about double rounding in directed
+		 * rounding modes.
+		 */
+		fesetround(oround);
+		/* work around clang issue #8472 */
+		volatile float vrlo = r.lo;
+		adj = vrlo + xy.lo;
+		return (ldexpf(r.hi + adj, spread));
+	}
+
+	adj = add_adjusted(r.lo, xy.lo);
+
+	if (spread + ilogbf(r.hi) > -127)
+		return (ldexpf(r.hi + adj, spread));
+	else
+		return (add_and_denormalize(r.hi, adj, spread));
 }
 #endif /* !USE_BUILTIN_FMAF */

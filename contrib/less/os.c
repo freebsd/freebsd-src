@@ -85,7 +85,7 @@ public lbool getting_one_screen = FALSE;
 /* Milliseconds to wait for data before displaying "waiting for data" message. */
 static int waiting_for_data_delay = 4000;
 /* Max milliseconds expected to "normally" read and display a screen of text. */
-public int screenfill_ms = 3000;
+static int screenfill_ms = 3000;
 
 static JUMP_BUF read_label;
 static JUMP_BUF open_label;

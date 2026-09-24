@@ -114,6 +114,9 @@ device		sfxge		# Solarflare SFC9000 10Gb Ethernet
 
 device		ioat		# Intel I/OAT DMA engine
 
+# Intel ME Host Firmware Status (HFSTS) debug probe
+device		hfsts
+
 # EFI Runtime Services support
 options 	EFIRT
 

@@ -935,7 +935,10 @@ extern LZMA_API(lzma_ret) lzma_lzip_decoder(
  *              - LZMA_MEM_ERROR
  *              - LZMA_MEMLIMIT_ERROR: Memory usage limit was reached.
  *                The minimum required memlimit value was stored to *memlimit.
- *              - LZMA_BUF_ERROR: Output buffer was too small.
+ *              - LZMA_BUF_ERROR: Output buffer was too small. (liblzma 5.8.3
+ *                and older have a bug: LZMA_BUF_ERROR may be returned when
+ *                the input seems to be truncated. The correct error code
+ *                would be LZMA_DATA_ERROR.)
  *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_stream_buffer_decode(

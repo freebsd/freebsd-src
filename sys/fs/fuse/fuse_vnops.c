@@ -507,10 +507,6 @@ fuse_vnop_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	int accmode = ap->a_accmode;
-	struct ucred *cred = ap->a_cred;
-
-	struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
-
 	int err;
 
 	if (fuse_isdeadfs(vp)) {
@@ -519,16 +515,6 @@ fuse_vnop_access(struct vop_access_args *ap)
 		}
 		return (EXTERROR(ENXIO, "This FUSE session is about "
 		    "to be closed"));
-	}
-	if (!(data->dataflags & FSESS_INITED)) {
-		if (vnode_isvroot(vp)) {
-			if (priv_check_cred(cred, PRIV_VFS_ADMIN) ||
-			    (fuse_match_cred(data->daemoncred, cred) == 0)) {
-				return 0;
-			}
-		}
-		return (EXTERROR(EBADF, "Access denied until FUSE session "
-		    "is initialized"));
 	}
 	if (vnode_islnk(vp)) {
 		return 0;

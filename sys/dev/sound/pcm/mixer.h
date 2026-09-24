@@ -34,6 +34,8 @@
 #ifndef _PCM_MIXER_H_
 #define	_PCM_MIXER_H_
 
+#define MIXER_REGISTERED(x)	((x) != NULL && (x)->cdev != NULL)
+
 #define MIXER_NAMELEN	16
 struct snd_mixer {
 	KOBJ_FIELDS;
@@ -52,8 +54,10 @@ struct snd_mixer {
 	uint32_t child[32];
 	uint8_t realdev[32];
 	char name[MIXER_NAMELEN];
-	struct mtx lock;
+	struct mtx *lock;
+	struct mtx priv_lock;
 	int modify_counter;
+	struct cdev *cdev;
 };
 
 struct snd_mixer *mixer_create(device_t dev, kobj_class_t cls, void *devinfo,
@@ -62,14 +66,13 @@ int mixer_delete(struct snd_mixer *m);
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 int mixer_uninit(device_t dev);
 int mixer_reinit(device_t dev);
+int mixer_make_dev(device_t dev);
 int mixer_ioctl_cmd(struct cdev *i_dev, unsigned long cmd, caddr_t arg,
     int mode, struct thread *td);
 int mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi);
 
 int mixer_hwvol_init(device_t dev);
-void mixer_hwvol_mute_locked(struct snd_mixer *m);
 void mixer_hwvol_mute(device_t dev);
-void mixer_hwvol_step_locked(struct snd_mixer *m, int l_step, int r_step);
 void mixer_hwvol_step(device_t dev, int left_step, int right_step);
 
 int mix_set(struct snd_mixer *m, unsigned int dev, unsigned int left, unsigned int right);

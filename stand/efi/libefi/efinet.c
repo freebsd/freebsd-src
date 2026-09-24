@@ -267,13 +267,10 @@ efi_pxe_snapshot(EFI_HANDLE h, struct pxe_cache_entry *pce)
 
 /*
  * Walk a device path looking for the first MSG_MAC_ADDR_DP node and
- * copy its 6-byte Ethernet MAC into out.  Returns true on success.
- * Used to correlate a PXE Base Code Protocol handle back to an SNP
- * unit when the two protocols live on different handles (typical for
- * UEFI: PXE Base Code is installed on a child handle whose device
- * path ends in Ipv4()/Ipv6(), extending the SNP's MAC-terminated path).
+ * copy its 6-byte Ethernet MAC into out.  Returns true on success,
+ * e.g. false if dp has no NIC node at all.
  */
-static bool
+bool
 efi_devpath_get_mac(EFI_DEVICE_PATH *dp, uint8_t out[6])
 {
 	MAC_ADDR_DEVICE_PATH *mac;
@@ -455,9 +452,13 @@ efi_env_net_params(struct iodesc *desc)
 	 * There must be a rootpath. It may be ip:/path or it may be just the
 	 * path in which case the ip needs to be serverip.
 	 */
+#ifdef LOADER_NET_SUPPORT
 	rootaddr = net_parse_rootpath();
 	if (rootaddr == INADDR_NONE)
 		rootaddr = serveraddr;
+#else
+	rootaddr = serveraddr;
+#endif
 	rootip.s_addr = rootaddr;
 
 #ifdef EFINET_DEBUG
@@ -536,11 +537,15 @@ static void
 efinet_end(struct netif *nif)
 {
 	EFI_SIMPLE_NETWORK *net = nif->nif_devdata;
+	EFI_HANDLE h;
 
 	if (net == NULL)
 		return;
 
 	net->Shutdown(net);
+	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
+	BS->CloseProtocol(h, &sn_guid, IH, NULL);
+	nif->nif_devdata = NULL;
 }
 
 static int efinet_dev_init(void);
@@ -661,10 +666,12 @@ efinet_dev_init(void)
 	 */
 	efi_pxe_snapshot_all(nifs);
 
+#ifdef LOADER_NET_SUPPORT
 	efinet_dev.dv_cleanup = netdev.dv_cleanup;
 	efinet_dev.dv_open = netdev.dv_open;
 	efinet_dev.dv_close = netdev.dv_close;
 	efinet_dev.dv_strategy = netdev.dv_strategy;
+#endif
 
 done:
 	free(handles2);

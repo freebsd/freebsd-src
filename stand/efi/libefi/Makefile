@@ -1,3 +1,6 @@
+LOADER_NET_SUPPORT?=	yes
+LOADER_MD_SUPPORT?=	yes
+
 .include <bsd.init.mk>
 
 LIB=	efi

@@ -612,6 +612,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	xo_emit(m, (uintmax_t )tcpstat.f, plural(tcpstat.f))
 #define	p1a(f, m) if (tcpstat.f || sflag <= 1)				\
 	xo_emit(m, (uintmax_t )tcpstat.f)
+#define	p1b(f, m) if (tcpstat.f || sflag <= 1) \
+	xo_emit(m, (uintmax_t )tcpstat.f, plurales(tcpstat.f))
 #define	p2(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1)	\
 	xo_emit(m, (uintmax_t )tcpstat.f1, plural(tcpstat.f1),		\
 	    (uintmax_t )tcpstat.f2, plural(tcpstat.f2))
@@ -714,23 +716,9 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/ignored RSTs in the window%s}\n");
 	p(tcps_connects, "\t{:connections-established/%ju} "
 	    "{N:/connection%s established (including accepts)}\n");
-	p(tcps_usedrtt, "\t\t{:connections-hostcache-rtt/%ju} "
-	    "{N:/time%s used RTT from hostcache}\n");
-	p(tcps_usedrttvar, "\t\t{:connections-hostcache-rttvar/%ju} "
-	    "{N:/time%s used RTT variance from hostcache}\n");
-	p(tcps_usedssthresh, "\t\t{:connections-hostcache-ssthresh/%ju} "
-	    "{N:/time%s used slow-start threshold from hostcache}\n");
 	p2(tcps_closed, tcps_drops, "\t{:connections-closed/%ju} "
 	    "{N:/connection%s closed (including} "
 	    "{:connection-drops/%ju} {N:/drop%s})\n");
-	p(tcps_cachedrtt, "\t\t{:connections-updated-rtt-on-close/%ju} "
-	    "{N:/connection%s updated cached RTT on close}\n");
-	p(tcps_cachedrttvar, "\t\t"
-	    "{:connections-updated-variance-on-close/%ju} "
-	    "{N:/connection%s updated cached RTT variance on close}\n");
-	p(tcps_cachedssthresh, "\t\t"
-	    "{:connections-updated-ssthresh-on-close/%ju} "
-	    "{N:/connection%s updated cached ssthresh on close}\n");
 	p(tcps_conndrops, "\t{:embryonic-connections-dropped/%ju} "
 	    "{N:/embryonic connection%s dropped}\n");
 	p2(tcps_rttupdated, tcps_segstimed, "\t{:segments-updated-rtt/%ju} "
@@ -800,8 +788,37 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	p3(tcps_hc_added, "\t{:entries-added/%ju} "
 	    "{N:/hostcache entr%s added}\n");
-	p1a(tcps_hc_bucketoverflow, "\t\t{:buffer-overflows/%ju} "
-	    "{N:/bucket overflow}\n");
+	p(tcps_hc_hits, "\t\t{:cache-hits/%ju} "
+	    "{N:/cache lookup hit%s}\n");
+	p1b(tcps_hc_misses, "\t\t{:cache-misses/%ju} "
+	    "{N:/cache lookup miss%s}\n");
+	p(tcps_hc_bucketoverflow, "\t\t{:bucket-overflows/%ju} "
+	    "{N:/bucket overflow%s}\n");
+	p(tcps_hc_allocfail, "\t\t{:allocation-failures/%ju} "
+	    "{N:/allocation failure%s}\n");
+	p(tcps_cachedrtt, "\t\t{:connections-updated-rtt-on-close/%ju} "
+	    "{N:/connection%s updated cached RTT on close}\n");
+	p(tcps_usedrtt, "\t\t{:connections-hostcache-rtt/%ju} "
+	    "{N:/time%s used RTT from hostcache}\n");
+	p(tcps_cachedrttvar, "\t\t"
+	    "{:connections-updated-variance-on-close/%ju} "
+	    "{N:/connection%s updated cached RTT variance on close}\n");
+	p(tcps_usedrttvar, "\t\t{:connections-hostcache-rttvar/%ju} "
+	    "{N:/time%s used RTT variance from hostcache}\n");
+	p(tcps_cachedssthresh, "\t\t"
+	    "{:connections-updated-ssthresh-on-close/%ju} "
+	    "{N:/connection%s updated cached ssthresh on close}\n");
+	p(tcps_usedssthresh, "\t\t{:connections-hostcache-ssthresh/%ju} "
+	    "{N:/time%s used slow-start threshold from hostcache}\n");
+	p(tcps_cachedcwnd, "\t\t"
+	    "{:connections-updated-cwnd-on-close/%ju} "
+	    "{N:/connection%s updated cached congestion windows on close}\n");
+	p(tcps_cachedsendpipe, "\t\t"
+	    "{:connections-updated-send-space-on-close/%ju} "
+	    "{N:/connection%s updated cached send buffer space on close}\n");
+	p(tcps_cachedrecvpipe, "\t\t"
+	    "{:connections-updated-recv-space-on-close/%ju} "
+	    "{N:/connection%s updated cached recv buffer space on close}\n");
 
 	xo_close_container("hostcache");
 

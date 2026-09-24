@@ -983,16 +983,20 @@ vfs_lookup_cross_mount(struct nameidata *ndp)
 			 * We are going to be holding the vnode lock, which
 			 * in this case is shared by the root vnode of the
 			 * filesystem mounted at mp, across the call to
-			 * VFS_ROOT().  Make the situation clear to the
+			 * VFS_ROOT().  Make the situation clear to that
 			 * filesystem by passing LK_CANRECURSE if the
-			 * lock is held exclusive, or by clearinng
-			 * LK_NODDLKTREAT to allow recursion on the shared
-			 * lock in the presence of an exclusive waiter.
+			 * lock is held exclusive, upgrading the lock (and
+			 * passing LK_CANRECURSE) if the lock is held shared
+			 * but mp requires an exclusive lock for lookup,
+			 * or clearing LK_NODDLKTREAT to allow recursion on
+			 * the shared lock in the presence of an exclusive
+			 * waiter.
 			 */
 			if (VOP_ISLOCKED(dp) == LK_EXCLUSIVE) {
 				crosslkflags &= ~LK_SHARED;
 				crosslkflags |= LK_EXCLUSIVE | LK_CANRECURSE;
 			} else if ((crosslkflags & LK_EXCLUSIVE) != 0) {
+				crosslkflags |= LK_CANRECURSE;
 				error = vn_lock(dp, LK_UPGRADE);
 				if (error != 0) {
 					MPASS(error == ENOENT);

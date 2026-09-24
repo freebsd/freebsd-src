@@ -59,7 +59,9 @@ void * efi_translate(vm_offset_t ptr);
 void	efi_copy_finish(void);
 void	efi_copy_finish_nop(void);
 
-void maybe_download_ramdisk(int argc, CHAR16 **argv);
+bool maybe_download_ramdisk(int argc, CHAR16 **argv);
+int download_md_image(const char *url);
+void maybe_download_initmd(void);
 
 #if defined(__amd64__) || defined(__i386__)
 /* Need this to setup page tables */

@@ -933,6 +933,17 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset, bool force_restore)
 		reset = true;
 	}
 
+	/*
+	 * Haswell/Broadwell LPSS in ACPI mode can come up with the functional
+	 * clock gated.  The controller then accepts FIFO writes but never
+	 * drives the bus and every transfer times out.
+	 */
+	if (sc->version == IG4_HASWELL) {
+		v = reg_read(sc, IG4_REG_CLK_PARMS);
+		if ((v & IG4_CLK_PARMS_EN) == 0)
+			reg_write(sc, IG4_REG_CLK_PARMS, v | IG4_CLK_PARMS_EN);
+	}
+
 	if ((sc->version == IG4_HASWELL || sc->version == IG4_ATOM) && reset) {
 		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_ASSERT_HSW);
 		reg_write(sc, IG4_REG_RESETS_HSW, IG4_RESETS_DEASSERT_HSW);

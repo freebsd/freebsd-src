@@ -764,6 +764,19 @@ acpi_iort_lookup_iwb_node(device_t bus, device_t child)
 }
 
 int
+acpi_iort_lookup_pci_id(device_t bus, device_t child, uintptr_t *devid)
+{
+	struct iort_node *node;
+
+	node = acpi_iort_lookup_iwb_node(bus, child);
+	if (!node)
+		return (ENODEV);
+
+	*devid = node->entries.mappings[0].outbase;
+	return (0);
+}
+
+int
 acpi_iort_lookup_its_from_iwb(device_t dev, int *its_id)
 {
 	struct iort_node *node;
@@ -784,6 +797,53 @@ acpi_iort_lookup_its_from_iwb(device_t dev, int *its_id)
 	}
 
 	return (ENODEV);
+}
+
+int
+acpi_iort_alloc_msi(device_t bus, device_t dev, int *count)
+{
+        int *irqs;
+        int irq_count;
+        int error;
+        int i;
+        int its_id;
+        u_int xref;
+        int pxm;
+
+        irq_count = *count;
+        irqs = mallocarray(irq_count, sizeof(int), M_DEVBUF, M_WAITOK | M_ZERO);
+
+        error = acpi_iort_lookup_its_from_iwb(dev, &its_id);
+        if (error)
+                return (error);
+
+        error = acpi_iort_its_lookup(its_id, &xref, &pxm);
+        if (error)
+                return (error);
+
+        error = intr_alloc_msi(bus, dev, xref, irq_count, irq_count, irqs);
+        if (error)
+                return (error);
+
+        for (i = 0; i < irq_count; i++) {
+                error = bus_generic_rl_set_resource(bus, dev, SYS_RES_IRQ,
+                    i + 1, irqs[i], 1);
+                if (error != 0)
+                        break;
+        }
+
+        *count = irq_count;
+
+        /* Clean up resources if something failed */
+        if (error != 0) {
+                for (int j = 0; j < i; j++) {
+                        bus_generic_rl_delete_resource(bus, dev, SYS_RES_IRQ,
+                            j + 1);
+                }
+        }
+
+        free(irqs, M_DEVBUF);
+        return (error);
 }
 
 device_t

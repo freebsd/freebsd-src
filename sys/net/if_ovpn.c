@@ -2744,7 +2744,7 @@ ovpn_clone_create(struct if_clone *ifc, char *name, size_t len,
 	rm_init_flags(&sc->lock, "if_ovpn_lock", RM_RECURSE);
 	sc->refcount = 0;
 
-	sc->notifring = buf_ring_alloc(32, M_OVPN, M_WAITOK, NULL);
+	sc->notifring = buf_ring_alloc(32, M_OVPN, M_WAITOK, &sc->lock);
 
 	COUNTER_ARRAY_ALLOC(sc->counters, OVPN_COUNTER_SIZE, M_WAITOK);
 

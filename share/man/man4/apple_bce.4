@@ -1,0 +1,53 @@
+.\"
+.\" Copyright (c) 2026 Enji Cooper <ngie@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd September 6, 2026
+.Dt APPLE_BCE 4
+.Os
+.Sh NAME
+.Nm apple_bce
+.Nd Apple T2 Buffer Copy Engine driver
+.Sh SYNOPSIS
+.Cd device pci
+.Cd device usb
+.Cd device apple_bce
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the Apple T2 Buffer Copy Engine.
+.Pp
+The T2 Buffer Copy Engine, called
+.Dq BCE
+for short, is a device which interacts with higher-level interfaces like the built-in
+keyboard, trackpad, audio, and VHCI (Virtual USB Host Interface), etc.
+.Sh HARDWARE
+The
+.Nm
+driver supports the Apple T2 Buffer Copy Engine on the following systems:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+MacBook Air (2018-2020)
+.It
+MacBook Pro (2018-2020)
+.It
+MacMini (2018)
+.It
+Mac Pro (2019 and later)
+.El
+.Sh SEE ALSO
+.Xr asmc 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Abdelkader Boudih Aq Mt seuros@FreeBSD.org .
+This manpage was written by
+.An Enji Cooper Aq Mt ngie@FreeBSD.org .

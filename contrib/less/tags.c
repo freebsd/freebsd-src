@@ -133,7 +133,7 @@ static struct tag * maketagent(constant char *file, LINENUM linenum, constant ch
 /*
  * Get tag mode.
  */
-public int gettagtype(void)
+static int gettagtype(void)
 {
 	int f;
 
@@ -178,13 +178,13 @@ public void findtag(constant char *tag)
 	case TAG_INTR:
 		break;
 	case TAG_NOFILE:
-		error("No tags file", NULL_PARG);
+		error(LM(No_tags_file), NULL_PARG);
 		break;
 	case TAG_NOTAG:
-		error("No such tag in tags file", NULL_PARG);
+		error(LM(No_such_tag_in_tags_file), NULL_PARG);
 		break;
 	case TAG_NOTYPE:
-		error("unknown tag type", NULL_PARG);
+		error(LM(unknown_tag_type), NULL_PARG);
 		break;
 	}
 }
@@ -416,12 +416,12 @@ static POSITION ctagsearch(void)
 	LINENUM linenum;
 	size_t line_len;
 	constant char *line;
-	int found;
+	lbool found;
 
 	pos = ch_zero();
 	linenum = find_linenum(pos);
 
-	for (found = 0; !found;)
+	for (found = FALSE; !found;)
 	{
 		/*
 		 * Get lines until we find a matching one or 
@@ -444,7 +444,7 @@ static POSITION ctagsearch(void)
 			/*
 			 * We hit EOF without a match.
 			 */
-			error("Tag not found", NULL_PARG);
+			error(LM(Tag_not_found), NULL_PARG);
 			return (NULL_POSITION);
 		}
 
@@ -459,7 +459,7 @@ static POSITION ctagsearch(void)
 		if (ctldisp != OPT_ONPLUS)
 		{
 			if (curtag_match(line, linepos))
-				found = 1;
+				found = TRUE;
 		} else
 		{
 			int cvt_ops = CVT_ANSI;
@@ -468,7 +468,7 @@ static POSITION ctagsearch(void)
 			char *cline = (char *) ecalloc(1, cvt_len);
 			cvt_text(cline, line, chpos, &line_len, cvt_ops);
 			if (curtag_match(cline, linepos))
-				found = 1;
+				found = TRUE;
 			free(chpos);
 			free(cline);
 		}
@@ -543,7 +543,7 @@ static enum tag_result findgtag(constant char *tag, int type)
 		/* Get our data from global(1). */
 		qtag = shell_quote(tag);
 		if (qtag == NULL)
-			qtag = save(tag);
+			return TAG_NOTAG;
 		command = (char *) ecalloc(strlen(cmd) + strlen(flag) +
 				strlen(qtag) + 5, sizeof(char));
 		sprintf(command, "%s -x%s %s", cmd, flag, qtag);

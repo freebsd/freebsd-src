@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <regex.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,16 +60,19 @@ init_out_filename(atf_dynstr_t *name, const pid_t pid, const char *suffix,
 {
     atf_error_t error;
 
-    error = atf_dynstr_init_fmt(name, "atf_utils_fork_%d_%s.txt",
-                                (int)pid, suffix);
-    if (atf_is_error(error)) {
-        char buffer[1024];
-        atf_error_format(error, buffer, sizeof(buffer));
-        if (in_parent) {
-            atf_tc_fail("Failed to create output file: %s", buffer);
-        } else {
-            err(EXIT_FAILURE, "Failed to create output file: %s", buffer);
-        }
+    error = atf_dynstr_init_fmt(name, "atf_utils_fork_%d_%s.txt", pid, suffix);
+    if (!atf_is_error(error))
+        return;
+
+    char buffer[1024];
+
+    atf_error_format(error, buffer, sizeof(buffer));
+    atf_error_free(error);
+
+    if (in_parent) {
+        atf_tc_fail("Failed to create output file: %s", buffer);
+    } else {
+        err(EXIT_FAILURE, "Failed to create output file: %s", buffer);
     }
 }
 
@@ -104,8 +108,8 @@ grep_string(const char *regex, const char *str)
 void
 atf_utils_cat_file(const char *name, const char *prefix)
 {
-    const int fd = open(name, O_RDONLY);
-    ATF_REQUIRE_MSG(fd != -1, "Cannot open %s", name);
+    const int fd = open(name, O_RDONLY | O_CLOEXEC);
+    ATF_REQUIRE_MSG(fd != -1, "Cannot open %s: %s", name, strerror(errno));
 
     char buffer[1024];
     ssize_t count;
@@ -145,7 +149,7 @@ atf_utils_cat_file(const char *name, const char *prefix)
 bool
 atf_utils_compare_file(const char *name, const char *contents)
 {
-    const int fd = open(name, O_RDONLY);
+    const int fd = open(name, O_RDONLY | O_CLOEXEC);
     ATF_REQUIRE_MSG(fd != -1, "Cannot open %s", name);
 
     const char *pos = contents;
@@ -173,11 +177,12 @@ atf_utils_compare_file(const char *name, const char *contents)
 void
 atf_utils_copy_file(const char *source, const char *destination)
 {
-    const int input = open(source, O_RDONLY);
+    const int input = open(source, O_RDONLY | O_CLOEXEC);
     ATF_REQUIRE_MSG(input != -1, "Failed to open source file during "
                     "copy (%s)", source);
 
-    const int output = open(destination, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+    const int output = open(destination,
+        O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0777);
     ATF_REQUIRE_MSG(output != -1, "Failed to open destination file during "
                     "copy (%s)", destination);
 
@@ -216,7 +221,7 @@ atf_utils_create_file(const char *name, const char *contents, ...)
     va_end(ap);
     ATF_REQUIRE(!atf_is_error(error));
 
-    const int fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    const int fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
     ATF_REQUIRE_MSG(fd != -1, "Cannot create file %s", name);
     ATF_REQUIRE(write(fd, atf_dynstr_cstring(&formatted),
                       atf_dynstr_length(&formatted)) != -1);
@@ -234,14 +239,12 @@ bool
 atf_utils_file_exists(const char *path)
 {
     const int ret = access(path, F_OK);
-    if (ret == -1) {
-        if (errno != ENOENT)
-            atf_tc_fail("Failed to check the existence of %s: %s", path,
-                        strerror(errno));
-        else
-            return false;
-    } else
+    if (ret != -1)
         return true;
+    if (errno != ENOENT)
+        atf_tc_fail("Failed to check the existence of %s: %s", path,
+                    strerror(errno));
+    return false;
 }
 
 /** Spawns a subprocess and redirects its output to files.
@@ -290,10 +293,13 @@ atf_utils_free_charpp(char **argv)
 {
     char **ptr;
 
-    for (ptr = argv; *ptr != NULL; ptr++)
+    for (ptr = argv; *ptr != NULL; ptr++) {
         free(*ptr);
+        *ptr = NULL;
+    }
 
     free(argv);
+    argv = NULL;
 }
 
 /** Searches for a regexp in a file.
@@ -316,7 +322,8 @@ atf_utils_grep_file(const char *regex, const char *file, ...)
     va_end(ap);
     ATF_REQUIRE(!atf_is_error(error));
 
-    ATF_REQUIRE((fd = open(file, O_RDONLY)) != -1);
+    fd = open(file, O_RDONLY | O_CLOEXEC);
+    ATF_REQUIRE_MSG(fd != -1, "Cannot open %s: %s", file, strerror(errno));
     bool found = false;
     char *line = NULL;
     while (!found && (line = atf_utils_readline(fd)) != NULL) {
@@ -404,7 +411,8 @@ atf_utils_redirect(const int target_fd, const char *name)
     else if (target_fd == STDERR_FILENO)
         fflush(stderr);
 
-    const int new_fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    const int new_fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+        0644);
     if (new_fd == -1)
         err(EXIT_FAILURE, "Cannot create %s", name);
     if (new_fd != target_fd) {
@@ -425,8 +433,9 @@ void
 atf_utils_wait(const pid_t pid, const int exitstatus, const char *expout,
                const char *experr)
 {
-    int status;
-    ATF_REQUIRE(waitpid(pid, &status, 0) != -1);
+    siginfo_t info;
+    ATF_REQUIRE(waitid(P_PID, pid, &info, WEXITED) != -1);
+    ATF_REQUIRE(info.si_pid == pid);
 
     atf_dynstr_t out_name;
     init_out_filename(&out_name, pid, "out", true);
@@ -437,8 +446,8 @@ atf_utils_wait(const pid_t pid, const int exitstatus, const char *expout,
     atf_utils_cat_file(atf_dynstr_cstring(&out_name), "subprocess stdout: ");
     atf_utils_cat_file(atf_dynstr_cstring(&err_name), "subprocess stderr: ");
 
-    ATF_REQUIRE(WIFEXITED(status));
-    ATF_REQUIRE_EQ(exitstatus, WEXITSTATUS(status));
+    ATF_REQUIRE(info.si_code == CLD_EXITED);
+    ATF_REQUIRE_EQ(exitstatus, info.si_status);
 
     const char *save_prefix = "save:";
     const size_t save_prefix_length = strlen(save_prefix);
@@ -463,4 +472,7 @@ atf_utils_wait(const pid_t pid, const int exitstatus, const char *expout,
 
     ATF_REQUIRE(unlink(atf_dynstr_cstring(&out_name)) != -1);
     ATF_REQUIRE(unlink(atf_dynstr_cstring(&err_name)) != -1);
+
+    atf_dynstr_fini(&out_name);
+    atf_dynstr_fini(&err_name);
 }

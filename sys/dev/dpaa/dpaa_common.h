@@ -24,7 +24,11 @@ struct dpaa_fd {
 	uint32_t cmd_stat;
 } __packed;
 
+#define	DPAA_FD_FORMAT_SHORT_SBSF	0
+#define	DPAA_FD_FORMAT_COMPOUND		1
+#define	DPAA_FD_FORMAT_LONG_SBSF	2
 #define	DPAA_FD_FORMAT_SHORT_MBSF	4
+#define	DPAA_FD_FORMAT_LONG_MBSF	6
 
 #define	DPAA_FD_RX_STATUS_DCL4C		0x10000000
 #define	DPAA_FD_RX_STATUS_DME		0x01000000

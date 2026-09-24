@@ -37,6 +37,7 @@
 #include "opt_rss.h"
 
 #include "ixgbe.h"
+#include "ixgbe_hv_vf.h"
 #include "ifdi_if.h"
 
 #include <net/netmap.h>
@@ -74,14 +75,27 @@ static const pci_vendor_info_t ixv_vendor_info_array[] =
 {
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF,
 	    "Intel(R) X520 82599 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF_HV,
+	    "Intel(R) X520 82599 Hyper-V Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF,
 	    "Intel(R) X540 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF_HV,
+	    "Intel(R) X540 Hyper-V Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF,
 	    "Intel(R) X550 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF_HV,
+	    "Intel(R) X550 Hyper-V Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF,
 	    "Intel(R) X552 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF_HV,
+	    "Intel(R) X552 Hyper-V Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF,
 	    "Intel(R) X553 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF_HV,
+	    "Intel(R) X553 Hyper-V Virtual Function"),
+	PVID_OEM(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_VF, 0,
+	    IXGBE_SUBDEV_ID_E610_VF_HV, 0,
+	    "Intel(R) E610 Hyper-V Virtual Function"),
 	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_E610_VF,
 	    "Intel(R) E610 Virtual Function"),
 	/* required last entry */
@@ -92,7 +106,6 @@ static const pci_vendor_info_t ixv_vendor_info_array[] =
  * Function prototypes
  ************************************************************************/
 static void     *ixv_register(device_t);
-static int      ixv_probe(device_t);
 static int      ixv_if_attach_pre(if_ctx_t);
 static int      ixv_if_attach_post(if_ctx_t);
 static int      ixv_if_detach(if_ctx_t);
@@ -104,6 +117,7 @@ static int      ixv_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int,
     int);
 static void     ixv_if_queues_free(if_ctx_t);
 static void     ixv_identify_hardware(if_ctx_t);
+static bool     ixv_is_hyperv(const struct ixgbe_hw *);
 static void     ixv_init_device_features(struct ixgbe_softc *);
 static int      ixv_allocate_pci_resources(if_ctx_t);
 static void     ixv_free_pci_resources(if_ctx_t);
@@ -114,6 +128,8 @@ static void     ixv_if_update_admin_status(if_ctx_t);
 static int      ixv_if_msix_intr_assign(if_ctx_t, int);
 
 static int      ixv_if_mtu_set(if_ctx_t, uint32_t);
+static int      ixv_if_get_rss_key(if_ctx_t, struct ifrsskey *);
+static int      ixv_if_get_rss_hash(if_ctx_t, struct ifrsshash *);
 static void     ixv_reconcile_mac(struct ixgbe_softc *, if_t);
 static void     ixv_if_init(if_ctx_t);
 static void     ixv_if_local_timer(if_ctx_t, uint16_t);
@@ -133,6 +149,7 @@ static void     ixv_initialize_receive_units(if_ctx_t);
 static void     ixv_initialize_rss_mapping(struct ixgbe_softc *);
 
 static void     ixv_setup_vlan_support(if_ctx_t);
+static bool     ixv_vlan_error_retryable(s32);
 static void     ixv_vlan_retry_add(struct ixgbe_softc *, u16);
 static void     ixv_vlan_retry_clear(struct ixgbe_softc *, u16);
 static bool     ixv_vlan_retry_pending(const struct ixgbe_softc *);
@@ -168,7 +185,7 @@ static int      ixv_msix_mbx(void *);
 static device_method_t ixv_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_register, ixv_register),
-	DEVMETHOD(device_probe, ixv_probe),
+	DEVMETHOD(device_probe, iflib_device_probe),
 	DEVMETHOD(device_attach, iflib_device_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
@@ -205,6 +222,8 @@ static device_method_t ixv_if_methods[] = {
 	DEVMETHOD(ifdi_multi_set, ixv_if_multi_set),
 	DEVMETHOD(ifdi_promisc_set, ixv_if_promisc_set),
 	DEVMETHOD(ifdi_mtu_set, ixv_if_mtu_set),
+	DEVMETHOD(ifdi_get_rss_key, ixv_if_get_rss_key),
+	DEVMETHOD(ifdi_get_rss_hash, ixv_if_get_rss_hash),
 	DEVMETHOD(ifdi_media_status, ixv_if_media_status),
 	DEVMETHOD(ifdi_media_change, ixv_if_media_change),
 	DEVMETHOD(ifdi_timer, ixv_if_local_timer),
@@ -255,16 +274,6 @@ static void *
 ixv_register(device_t dev)
 {
 	return (&ixv_sctx_init);
-}
-
-static int
-ixv_probe(device_t dev)
-{
-	if (pci_get_device(dev) == IXGBE_DEV_ID_E610_VF &&
-	    pci_get_subdevice(dev) == IXGBE_SUBDEV_ID_E610_VF_HV)
-		return (ENXIO);
-
-	return (iflib_device_probe(dev));
 }
 
 /************************************************************************
@@ -457,9 +466,12 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	sc->vf_link_poll_tick = device_get_unit(dev) % IXV_LINK_POLL_TICKS;
 
 	/* Initialize the shared code */
-	error = ixgbe_init_ops_vf(hw);
+	if (ixv_is_hyperv(hw))
+		error = ixgbevf_hv_init_ops_vf(hw);
+	else
+		error = ixgbe_init_ops_vf(hw);
 	if (error) {
-		device_printf(dev, "ixgbe_init_ops_vf() failed!\n");
+		device_printf(dev, "VF shared-code initialization failed\n");
 		error = EIO;
 		goto err_out;
 	}
@@ -603,10 +615,16 @@ ixv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
+	uint32_t max_mtu;
 	int error = 0;
 
 	IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
-	if (mtu > IXGBE_MAX_FRAME_SIZE - IXGBE_MTU_HDR) {
+	max_mtu = IXGBE_MAX_FRAME_SIZE - IXGBE_MTU_HDR;
+	/* The 82599 VF cannot enforce the X540 RLPML field. */
+	if (ixv_is_hyperv(&sc->hw) &&
+	    sc->hw.mac.type == ixgbe_mac_82599_vf)
+		max_mtu = ETHERMTU + ETHER_CRC_LEN;
+	if (mtu > max_mtu) {
 		error = EINVAL;
 	} else {
 		if_setmtu(ifp, mtu);
@@ -615,6 +633,69 @@ ixv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 
 	return error;
 } /* ixv_if_mtu_set */
+
+static int
+ixv_rss_query_status(if_ctx_t ctx)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+
+	sx_assert(iflib_ctx_lock_get(ctx), SA_XLOCKED);
+	/* Older VFs share PF-controlled RSS settings which we cannot query. */
+	if (sc->hw.mac.type < ixgbe_mac_X550_vf)
+		return (EOPNOTSUPP);
+	if (atomic_load_acq_32(&sc->vf_mbx_ready) == 0 ||
+	    sc->vf_rss_mrqc == 0)
+		return (ENXIO);
+	return (0);
+}
+
+static int
+ixv_if_get_rss_key(if_ctx_t ctx, struct ifrsskey *ifrk)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	int error;
+
+	error = ixv_rss_query_status(ctx);
+	if (error != 0)
+		return (error);
+	ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+	ifrk->ifrk_keylen = sizeof(sc->vf_rss_key);
+	_Static_assert(sizeof(ifrk->ifrk_key) >= sizeof(sc->vf_rss_key),
+	    "RSS query buffer too small");
+	bzero(ifrk->ifrk_key, sizeof(ifrk->ifrk_key));
+	/* Preserve the byte order of the programmed registers. */
+	for (u_int i = 0; i < nitems(sc->vf_rss_key); i++)
+		le32enc(ifrk->ifrk_key + i * sizeof(u32), sc->vf_rss_key[i]);
+	return (0);
+}
+
+static int
+ixv_if_get_rss_hash(if_ctx_t ctx, struct ifrsshash *ifrh)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	u32 mrqc;
+	int error;
+
+	error = ixv_rss_query_status(ctx);
+	if (error != 0)
+		return (error);
+	ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
+	ifrh->ifrh_types = 0;
+	mrqc = sc->vf_rss_mrqc;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV4)
+		ifrh->ifrh_types |= RSS_TYPE_IPV4;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV4_TCP)
+		ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV4_UDP)
+		ifrh->ifrh_types |= RSS_TYPE_UDP_IPV4;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV6)
+		ifrh->ifrh_types |= RSS_TYPE_IPV6;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV6_TCP)
+		ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+	if (mrqc & IXGBE_MRQC_RSS_FIELD_IPV6_UDP)
+		ifrh->ifrh_types |= RSS_TYPE_UDP_IPV6;
+	return (0);
+}
 
 static void
 ixv_reconcile_mac(struct ixgbe_softc *sc, if_t ifp)
@@ -660,6 +741,7 @@ ixv_if_init(if_ctx_t ctx)
 	int error = 0;
 
 	INIT_DEBUGOUT("ixv_if_init: begin");
+	sc->vf_rss_mrqc = 0;
 	ixv_mbx_retry_prepare(sc);
 	hw->adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
@@ -1071,12 +1153,12 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 	};
 	int i = 0;
 
-	if (hw->mac.type == ixgbe_mac_E610_vf &&
-	    ixgbevf_negotiate_api_version(hw, ixgbe_mbox_api_16) == 0)
+	if (hw->mac.type == ixgbe_mac_E610_vf && !ixv_is_hyperv(hw) &&
+	    hw->mac.ops.negotiate_api_version(hw, ixgbe_mbox_api_16) == 0)
 		return (0);
 
 	while (mbx_api[i] != ixgbe_mbox_api_unknown) {
-		if (ixgbevf_negotiate_api_version(hw, mbx_api[i]) == 0)
+		if (hw->mac.ops.negotiate_api_version(hw, mbx_api[i]) == 0)
 			return (0);
 		i++;
 	}
@@ -1097,22 +1179,26 @@ ixv_queue_limit(struct ixgbe_softc *sc, bool mailbox_ready)
 	int admin_vectors, limit, msix_vectors;
 
 	hw = &sc->hw;
-	/* Preserve the current family limit as the mailbox fallback. */
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599_vf:
-	case ixgbe_mac_X540_vf:
-		limit = 1;
-		break;
-	case ixgbe_mac_X550_vf:
-	case ixgbe_mac_X550EM_x_vf:
-	case ixgbe_mac_X550EM_a_vf:
-		limit = 2;
-		break;
-	case ixgbe_mac_E610_vf:
-		limit = 1;
-		break;
-	default:
-		return (1);
+	if (ixv_is_hyperv(hw)) {
+		limit = ixgbevf_hv_get_queues(hw);
+	} else {
+		/* Preserve the current family limit as the mailbox fallback. */
+		switch (hw->mac.type) {
+		case ixgbe_mac_82599_vf:
+		case ixgbe_mac_X540_vf:
+			limit = 1;
+			break;
+		case ixgbe_mac_X550_vf:
+		case ixgbe_mac_X550EM_x_vf:
+		case ixgbe_mac_X550EM_a_vf:
+			limit = 2;
+			break;
+		case ixgbe_mac_E610_vf:
+			limit = 1;
+			break;
+		default:
+			return (1);
+		}
 	}
 
 	/* Replace the fallback with the queue grant reported by the PF. */
@@ -1162,18 +1248,16 @@ ixv_update_xcast_mode(struct ixgbe_softc *sc, int flags)
 		mode = IXGBEVF_XCAST_MODE_MULTI;
 	else
 		mode = IXGBEVF_XCAST_MODE_NONE;
-	return (ixgbevf_update_xcast_mode(&sc->hw, mode));
+	return (sc->hw.mac.ops.update_xcast_mode(&sc->hw, mode));
 }
 
 static int
 ixv_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct ixgbe_softc *sc;
-	if_t ifp;
 
 	sc = iflib_get_softc(ctx);
-	ifp = iflib_get_ifp(ctx);
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+	if (!iflib_is_running(ctx))
 		return (0);
 	if (ixv_update_xcast_mode(sc, flags) != IXGBE_SUCCESS)
 		return (EOPNOTSUPP);
@@ -1288,12 +1372,11 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
-	if_t ifp = iflib_get_ifp(ctx);
 	bool check_link, reset_seen;
 	s32 status;
 	uint64_t baudrate;
 
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	if (!iflib_is_running(ctx) ||
 	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
 		if (sc->link_active) {
 			sc->link_active = false;
@@ -1306,7 +1389,13 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (sc->hw.mac.type != ixgbe_mac_E610_vf ||
 	    sc->hw.api_version != ixgbe_mbox_api_16)
 		check_link = true;
-	reset_seen = ixgbe_check_for_rst(&sc->hw, 0) == IXGBE_SUCCESS;
+	/*
+	 * Hyper-V uses this indication only to invalidate cached VFLINKS
+	 * state; it does not expose the mailbox handshake needed to turn it
+	 * into a driver reset.  Its check_link operation samples the bit.
+	 */
+	reset_seen = !ixv_is_hyperv(&sc->hw) &&
+	    ixgbe_check_for_rst(&sc->hw, 0) == IXGBE_SUCCESS;
 	if (reset_seen)
 		sc->hw.mac.get_link_status = true;
 	if (check_link) {
@@ -1337,6 +1426,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
 		 * We need reinitialization. */
+		sc->vf_rss_mrqc = 0;
 		iflib_request_reset(ctx);
 		iflib_admin_intr_deferred(ctx);
 	}
@@ -1346,9 +1436,13 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 			if (bootverbose) {
 				baudrate = ixgbe_link_speed_to_baudrate(
 				    sc->link_speed);
-				device_printf(dev,
-				    "Link is up %ju Mbps Full Duplex\n",
-				    (uintmax_t)(baudrate / IF_Mbps(1)));
+				if (baudrate != 0)
+					device_printf(dev,
+					    "Link is up %ju Mbps Full Duplex\n",
+					    (uintmax_t)(baudrate / IF_Mbps(1)));
+				else
+					device_printf(dev,
+					    "Link is up (speed unknown)\n");
 			}
 			sc->link_active = true;
 			iflib_link_state_change(ctx, LINK_STATE_UP,
@@ -1363,8 +1457,8 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 		}
 	}
 
-	/* iflib clears RUNNING before stop; do not replay after VF reset. */
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+	/* iflib closes admission before stop; do not replay after VF reset. */
+	if (iflib_is_running(ctx) &&
 	    atomic_readandclear_32(&sc->vf_vlan_retry_tick) != 0)
 		ixv_vlan_retry_tick(sc);
 
@@ -1391,6 +1485,7 @@ ixv_if_stop(if_ctx_t ctx)
 	bool mailbox_ready, reset_seen;
 
 	INIT_DEBUGOUT("ixv_stop: begin\n");
+	sc->vf_rss_mrqc = 0;
 
 	ixv_mbx_retry_stop(sc);
 	ixv_if_disable_intr(ctx);
@@ -1442,18 +1537,23 @@ ixv_identify_hardware(if_ctx_t ctx)
 	/* A subset of set_mac_type */
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_82599_VF:
+	case IXGBE_DEV_ID_82599_VF_HV:
 		hw->mac.type = ixgbe_mac_82599_vf;
 		break;
 	case IXGBE_DEV_ID_X540_VF:
+	case IXGBE_DEV_ID_X540_VF_HV:
 		hw->mac.type = ixgbe_mac_X540_vf;
 		break;
 	case IXGBE_DEV_ID_X550_VF:
+	case IXGBE_DEV_ID_X550_VF_HV:
 		hw->mac.type = ixgbe_mac_X550_vf;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_VF:
+	case IXGBE_DEV_ID_X550EM_X_VF_HV:
 		hw->mac.type = ixgbe_mac_X550EM_x_vf;
 		break;
 	case IXGBE_DEV_ID_X550EM_A_VF:
+	case IXGBE_DEV_ID_X550EM_A_VF_HV:
 		hw->mac.type = ixgbe_mac_X550EM_a_vf;
 		break;
 	case IXGBE_DEV_ID_E610_VF:
@@ -1465,6 +1565,24 @@ ixv_identify_hardware(if_ctx_t ctx)
 		break;
 	}
 } /* ixv_identify_hardware */
+
+static bool
+ixv_is_hyperv(const struct ixgbe_hw *hw)
+{
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82599_VF_HV:
+	case IXGBE_DEV_ID_X540_VF_HV:
+	case IXGBE_DEV_ID_X550_VF_HV:
+	case IXGBE_DEV_ID_X550EM_X_VF_HV:
+	case IXGBE_DEV_ID_X550EM_A_VF_HV:
+		return (true);
+	case IXGBE_DEV_ID_E610_VF:
+		return (hw->subsystem_device_id ==
+		    IXGBE_SUBDEV_ID_E610_VF_HV);
+	default:
+		return (false);
+	}
+}
 
 /************************************************************************
  * ixv_if_msix_intr_assign - Setup MSI-X Interrupt resources and handlers
@@ -1735,22 +1853,16 @@ static void
 ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	u32 reta = 0, mrqc, rss_key[10];
+	u32 reta = 0, mrqc;
 	int queue_id;
 	int i, j;
 	u32 rss_hash_config;
 
-	if (sc->feat_en & IXGBE_FEATURE_RSS) {
-		/* Fetch the configured RSS key */
-		rss_getkey((uint8_t *)&rss_key);
-	} else {
-		/* set up random bits */
-		arc4rand(&rss_key, sizeof(rss_key), 0);
-	}
+	rss_getkey((uint8_t *)sc->vf_rss_key);
 
 	/* Now fill out hash function seeds */
-	for (i = 0; i < 10; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), rss_key[i]);
+	for (u_int k = 0; k < nitems(sc->vf_rss_key); k++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(k), sc->vf_rss_key[k]);
 
 	/* Set up the redirection table */
 	for (i = 0, j = 0; i < 64; i++, j++) {
@@ -1821,6 +1933,7 @@ ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 		    "%s: RSS_HASHTYPE_RSS_UDP_IPV6_EX defined,"
 		    " but not supported\n", __func__);
 	IXGBE_WRITE_REG(hw, IXGBE_VFMRQC, mrqc);
+	sc->vf_rss_mrqc = mrqc;
 } /* ixv_initialize_rss_mapping */
 
 #define BSIZEPKT_ROUNDUP ((1<<IXGBE_SRRCTL_BSIZEPKT_SHIFT)-1)
@@ -1854,7 +1967,7 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, psrtype);
 
 	/* Tell PF our max_frame size */
-	if (ixgbevf_rlpml_set_vf(hw, sc->max_frame_size) != 0) {
+	if (hw->mac.ops.set_rlpml(hw, sc->max_frame_size) != 0) {
 		device_printf(sc->dev,
 		    "There is a problem with the PF setup.  It is likely the"
 		    " receive unit for this VF will not function correctly."
@@ -1954,6 +2067,12 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 /************************************************************************
  * VF VLAN mailbox retry helpers
  ************************************************************************/
+static bool
+ixv_vlan_error_retryable(s32 error)
+{
+	return (error != IXGBE_ERR_FEATURE_NOT_SUPPORTED);
+}
+
 static void
 ixv_vlan_retry_add(struct ixgbe_softc *sc, u16 vid)
 {
@@ -2051,7 +2170,7 @@ ixv_vlan_retry_tick(struct ixgbe_softc *sc)
 		attempts++;
 		enable = (sc->shadow_vfta[vid >> 5] & bit) != 0;
 		error = hw->mac.ops.set_vfta(hw, vid, 0, enable, false);
-		if (error != IXGBE_SUCCESS)
+		if (error != IXGBE_SUCCESS && ixv_vlan_error_retryable(error))
 			break;
 		ixv_vlan_retry_clear(sc, vid);
 	}
@@ -2109,7 +2228,8 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 				    false);
 			else
 				error = IXGBE_ERR_MBX;
-			if (error != IXGBE_SUCCESS) {
+			if (error != IXGBE_SUCCESS &&
+			    ixv_vlan_error_retryable(error)) {
 				ixv_vlan_retry_add(sc, vid);
 				restore_failures++;
 			} else
@@ -2150,7 +2270,7 @@ ixv_if_register_vlan(if_ctx_t ctx, u16 vtag)
 		return;
 
 	error = sc->hw.mac.ops.set_vfta(&sc->hw, vtag, 0, true, false);
-	if (error != IXGBE_SUCCESS) {
+	if (error != IXGBE_SUCCESS && ixv_vlan_error_retryable(error)) {
 		ixv_vlan_retry_add(sc, vtag);
 		if (!pending)
 			device_printf(sc->dev,
@@ -2184,7 +2304,7 @@ ixv_if_unregister_vlan(if_ctx_t ctx, u16 vtag)
 		return;
 
 	error = sc->hw.mac.ops.set_vfta(&sc->hw, vtag, 0, false, false);
-	if (error != IXGBE_SUCCESS) {
+	if (error != IXGBE_SUCCESS && ixv_vlan_error_retryable(error)) {
 		ixv_vlan_retry_add(sc, vtag);
 		if (!pending)
 			device_printf(sc->dev,

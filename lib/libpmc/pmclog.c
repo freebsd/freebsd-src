@@ -338,7 +338,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	case PMCLOG_TYPE_MAP_IN:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_map_in);
 		PMCLOG_READ32(le,ev->pl_u.pl_mi.pl_pid);
-		PMCLOG_SKIP32(le);
+		PMCLOG_READ32(le,ev->pl_u.pl_mi.pl_u);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mi.pl_start);
 		PMCLOG_READSTRING(le, ev->pl_u.pl_mi.pl_pathname, pathlen);
 		break;

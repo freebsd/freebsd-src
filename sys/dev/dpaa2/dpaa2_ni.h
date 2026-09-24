@@ -494,6 +494,13 @@ struct dpaa2_ni_softc {
 	/* sysctl(9) */
 	struct dpaa2_atomic	 buf_num;
 	struct dpaa2_atomic	 buf_free;
+	/*
+	 * How many times channel cleanup routine will be repeated if the RX or
+	 * TX budget was depleted.
+	 */
+	struct dpaa2_atomic	 clean_budget;
+	struct dpaa2_atomic	 tx_budget;
+	struct dpaa2_atomic	 rx_budget;
 
 	int			 irq_rid[DPAA2_NI_MSI_COUNT];
 	struct resource		*irq_res;

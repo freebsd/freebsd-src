@@ -112,6 +112,7 @@ atf_tp_fini(atf_tp_t *tp)
     atf_list_fini(&tp->pimpl->m_tcs);
 
     free(tp->pimpl);
+    tp->pimpl = NULL;
 }
 
 /*
@@ -139,7 +140,7 @@ atf_tp_get_tc(const atf_tp_t *tp, const char *id)
     return tc;
 }
 
-const atf_tc_t *const *
+const atf_tc_t **
 atf_tp_get_tcs(const atf_tp_t *tp)
 {
     const atf_tc_t **array;

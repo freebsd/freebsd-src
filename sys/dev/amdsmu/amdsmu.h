@@ -87,32 +87,59 @@ CTASSERT(nitems(amdsmu_ip_blocks_names_v2) <= IP_MAX_BLOCK_NAMES);
 static const struct amdsmu_product {
 	uint16_t	amdsmu_vendorid;
 	uint16_t	amdsmu_deviceid;
-	uint32_t	model;
+	/* CPU model from CPUID_TO_MODEL() if specific to that model, or -1. */
+	int		model;
 	int16_t		idlemask_reg;
 	size_t		ip_block_count;
 	const char 	**ip_blocks_names;
 	uint32_t	amdsmu_msg;
 } amdsmu_products[] = {
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_CEZANNE_ROOT, 0x00,
-	    SMU_REG_IDLEMASK_CEZANNE,	12 , amdsmu_ip_blocks_names,
+	/*
+	 * Lines with -1 as 'model' must come before ones having same vendor and
+	 * device IDs but a real CPU model.
+	 */
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_CEZANNE_ROOT,		-1,
+	    SMU_REG_IDLEMASK_CEZANNE,	12,	amdsmu_ip_blocks_names,
 	    SMU_REG_MSG_CEZANNE},
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_REMBRANDT_ROOT, 0x00,
-	    SMU_REG_IDLEMASK_PHOENIX,	12 , amdsmu_ip_blocks_names,
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_REMBRANDT_ROOT,	-1,
+	    SMU_REG_IDLEMASK_PHOENIX,	12,	amdsmu_ip_blocks_names,
 	    SMU_REG_MSG_CEZANNE},
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_PHOENIX_ROOT, 0x00,
-	    SMU_REG_IDLEMASK_PHOENIX,	21 , amdsmu_ip_blocks_names,
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_PHOENIX_ROOT,		-1,
+	    SMU_REG_IDLEMASK_PHOENIX,	21,	amdsmu_ip_blocks_names,
 	    SMU_REG_MSG_CEZANNE},
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT, 0x00,
-	    SMU_REG_IDLEMASK_KRACKAN,	22, amdsmu_ip_blocks_names,
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT,	-1,
+	    SMU_REG_IDLEMASK_KRACKAN,	22,	amdsmu_ip_blocks_names,
 	    SMU_REG_MSG_KRACKAN },
-	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT, 0x70,
-	    SMU_REG_IDLEMASK_KRACKAN,	25, amdsmu_ip_blocks_names_v2,
+	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT,	0x70,
+	    SMU_REG_IDLEMASK_KRACKAN,	25,	amdsmu_ip_blocks_names_v2,
 	    SMU_REG_MSG_KRACKAN },
 	/*
 	 * XXX Strix Point (PCI_DEVICEID_AMD_STRIX_POINT_ROOT) doesn't support
 	 * S0i3 and thus doesn't have an idlemask.  Since our driver doesn't
 	 * yet understand this, don't attach to Strix Point for the time being.
 	 */
+};
+
+static const struct amdsmu_diagnostics {
+	const char	*blocking_ip_block;
+	bool		ignore;
+	const char	*expected_module;
+	const char	*extra;
+} amdsmu_diagnostics[] = {
+	{ "CPU", false, NULL, "this can happen due to other IP blocks or "
+	    "because the system was on AC power" },
+	{ "MPM", false, NULL, "this can happen due to other IP blocks or "
+	    "because the system was on AC power" },
+	{ "GFX", false, "amdgpu", NULL },
+	{ "DISPLAY", false, "amdgpu", NULL },
+	/*
+	 * On Phoenix, these seem to report USB4, not USB3 as their names would
+	 * suggest.
+	 */
+	{ "USB3_0", false, "tb", "see thunderbolt(4)" },
+	{ "USB3_1", false, "tb", "see thunderbolt(4)" },
+	/* On Phoenix, the SMU seems to report garbage for this IP block. */
+	{ "USB4_0", true, NULL, NULL },
 };
 
 struct amdsmu_softc {
@@ -123,6 +150,7 @@ struct amdsmu_softc {
 
 	struct eventhandler_entry	*eh_suspend;
 	struct eventhandler_entry	*eh_resume;
+	struct eventhandler_entry	*eh_resume_check;
 
 	struct resource		*res;
 	bus_space_tag_t 	bus_tag;

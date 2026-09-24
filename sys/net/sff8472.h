@@ -130,7 +130,7 @@ enum {
 				    * 25.0Gb/s) */
 	SFF_8472_SN_START 	= 68, /* Vendor SN [Address A0h, Bytes 68-83] */
 	SFF_8472_SN_END 	= 83,
-	SFF_8472_DATE_START	= 84, /* Date code Vendor’s manufacturing
+	SFF_8472_DATE_START	= 84, /* Date code Vendor's manufacturing
 				    * date code (see Table 3.8) */
 	SFF_8472_DATE_END	= 91,
 	SFF_8472_DIAG_TYPE	= 92, /* Diagnostic Monitoring Type
@@ -244,7 +244,7 @@ enum {
 				    * set to 1 for “internally
 				    * calibrated” devices. */
 	SFF_8472_TX_I_OFFSET	= 78, /* Tx_I(Offset) Fixed decimal
-				    * (signed two’s complement)
+				    * (signed two's complement)
 				    * calibration data, laser bias
 				    * current. Bit 7 of byte 78 is
 				    * MSB, bit 0 of byte 79 is
@@ -260,7 +260,7 @@ enum {
 				    * for “internally calibrated”
 				    * devices. */
 	SFF_8472_TX_POWER_OFFSET	= 82, /* Tx_PWR(Offset) Fixed decimal
-					    * (signed two’s complement)
+					    * (signed two's complement)
 					    * calibration data, transmitter
 					    * coupled output power. Bit 7 of
 					    * byte 82 is MSB, bit 0 of byte 83
@@ -275,7 +275,7 @@ enum {
 				    * be set to 1 for “internally
 				    * calibrated” devices. */
 	SFF_8472_T_OFFSET	= 86, /* T (Offset) Fixed decimal (signed
-				    * two’s complement) calibration
+				    * two's complement) calibration
 				    * data, internal module
 				    * temperature. Bit 7 of byte 86 is
 				    * MSB, bit 0 of byte 87 is LSB.
@@ -291,7 +291,7 @@ enum {
 				    * for “internally calibrated”
 				    * devices. */
 	SFF_8472_V_OFFSET	= 90, /* V (Offset) Fixed decimal (signed
-				    * two’s complement) calibration
+				    * two's complement) calibration
 				    * data, internal module supply
 				    * voltage. Bit 7 of byte 90 is
 				    * MSB. Bit 0 of byte 91 is
@@ -323,7 +323,7 @@ enum {
 
 /*
  * Select Read/write bit that allows software disable of
- * laser. Writing ‘1’ disables laser. See Table 3.11 for
+ * laser. Writing 1 disables laser. See Table 3.11 for
  * enable/disable timing requirements. This bit is “OR”d with the hard
  * TX_DISABLE pin value. Note, per SFP MSA TX_DISABLE pin is default
  * enabled unless pulled low by hardware. If Soft TX Disable is not
@@ -348,7 +348,7 @@ enum {
      
 /*
  * Read/write bit that allows software rate select control. Writing
- * ‘1’ selects full bandwidth operation. This bit is “OR’d with the
+ * 1 selects full bandwidth operation. This bit is “OR”d with the
  * hard Rate_Select, AS(0) or RS(0) pin value. See Table 3.11 for
  * timing requirements. Default at power up is logic zero/low. If Soft
  * Rate Select is not implemented, the transceiver ignores the value

@@ -137,7 +137,7 @@ mv_cp110_icu_attach(device_t dev)
 		device_printf(dev, "cannot find msi-parent device\n");
 		return (ENXIO);
 	}
-	if (bus_alloc_resources(dev, mv_cp110_icu_res_spec, &sc->res) != 0) {
+	if (bus_alloc_resources(device_get_parent(dev), mv_cp110_icu_res_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
 		return (ENXIO);
 	}
@@ -164,7 +164,7 @@ mv_cp110_icu_attach(device_t dev)
 	return (0);
 
 fail:
-	bus_release_resources(dev, mv_cp110_icu_res_spec, &sc->res);
+	bus_release_resources(device_get_parent(dev), mv_cp110_icu_res_spec, &sc->res);
 	return (ENXIO);
 }
 

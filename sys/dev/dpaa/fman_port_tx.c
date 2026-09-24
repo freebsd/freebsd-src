@@ -137,6 +137,7 @@ fman_port_tx_config(device_t dev, struct fman_port_params *params)
 {
 	struct fman_port_tx_softc *sc = device_get_softc(dev);
 	struct fman_port_softc *base = &sc->sc_base;
+	bool fman_v3 = (base->sc_revision_major >= 6);
 
 	fman_port_config_common(base, params);
 
@@ -145,37 +146,24 @@ fman_port_tx_config(device_t dev, struct fman_port_params *params)
 		bus_write_4(base->sc_mem, FMBM_TFP, 0x00001013);
 
 	base->sc_tasks.extra = 0;
+	base->sc_open_dmas.extra = 0;
+	base->sc_fifo_bufs.extra = 0;
 	switch (base->sc_port_speed) {
 	case 10000:
-		base->sc_tasks.num = (base->sc_revision_major < 6) ? 16 : 14;
+		base->sc_tasks.num = fman_v3 ? 14 : 16;
+		base->sc_open_dmas.num = fman_v3 ? 12 : 8;
+		base->sc_fifo_bufs.num = fman_v3 ? 64 : 48;
 		break;
 	case 1000:
-		base->sc_tasks.num = (base->sc_revision_major >= 6) ? 4 : 3;
+		base->sc_tasks.num = fman_v3 ? 4 : 3;
+		base->sc_open_dmas.num = fman_v3 ? 3 : 1;
+		base->sc_fifo_bufs.num = fman_v3 ? 50 : 44;
 		break;
 	default:
 		base->sc_tasks.num = 0;
 		break;
 	}
 
-	if (base->sc_revision_major >= 6) {
-		base->sc_open_dmas.extra = 0;
-		base->sc_open_dmas.num =
-		    (base->sc_port_speed == 10000) ? 12 : 3;
-	} else if (base->sc_port_speed == 10000) {
-		base->sc_open_dmas.num = 8;
-		base->sc_open_dmas.extra = 8;
-	} else {
-		base->sc_open_dmas.num = 1;
-		base->sc_open_dmas.extra = 1;
-	}
-
-	if (base->sc_revision_major >= 6)
-		base->sc_fifo_bufs.num =
-		    (base->sc_port_speed == 10000) ? 64 : 50;
-	else
-		base->sc_fifo_bufs.num =
-		    (base->sc_port_speed == 10000) ? 48 : 44;
-	base->sc_fifo_bufs.extra = 0;
 	base->sc_fifo_bufs.num *= FMAN_BMI_FIFO_UNITS;
 
 	/* TODO: buf_margins?  See fman_sp_build_buffer_struct */

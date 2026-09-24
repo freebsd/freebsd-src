@@ -7,6 +7,7 @@ ztest_head()
 	atf_set "descr" "Run ztest"
 	atf_set "timeout" 900
 	atf_set "require.config" "rt_long"
+	atf_set "require.progs" ztest
 }
 
 ztest_body()

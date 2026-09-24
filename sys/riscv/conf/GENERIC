@@ -161,6 +161,7 @@ device		axidma		# Xilinx AXI DMA Controller
 
 # GPIO
 device		gpio
+device  	gpiopower	# event handler for gpio-based powerdown
 device		fdt_pinctrl
 
 # SPI

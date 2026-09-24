@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Thunderbolt PCIe bridge/switch definitions
- *
- * $FreeBSD$
  */
 
 #ifndef _TB_PCIB_H

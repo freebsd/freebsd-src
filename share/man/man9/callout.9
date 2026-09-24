@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 4, 2026
+.Dd September 18, 2026
 .Dt CALLOUT 9
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm callout_deactivate ,
 .Nm callout_drain ,
 .Nm callout_init ,
+.Nm callout_init_lock ,
 .Nm callout_init_mtx ,
 .Nm callout_init_rm ,
 .Nm callout_init_rw ,
@@ -68,6 +69,8 @@ typedef void callout_func_t (void *);
 .Fn callout_drain "struct callout *c"
 .Ft void
 .Fn callout_init "struct callout *c" "int mpsafe"
+.Ft void
+.Fn callout_init_lock "struct callout *c" "lock" "int flags"
 .Ft void
 .Fn callout_init_mtx "struct callout *c" "struct mtx *mtx" "int flags"
 .Ft void
@@ -192,11 +195,8 @@ perform blocking allocation requests,
 or invoke any other action that might sleep.
 .Pp
 Each callout structure must be initialized by
-.Fn callout_init ,
-.Fn callout_init_mtx ,
-.Fn callout_init_rm ,
-or
-.Fn callout_init_rw
+.Fn callout_init or
+.Fn callout_init_lock
 before it is passed to any of the other callout functions.
 The
 .Fn callout_init
@@ -212,19 +212,21 @@ and the Giant lock will be acquired before calling the callout function
 and released when the callout function returns.
 .Pp
 The
+.Fn callout_init_lock
+macro initializes a callout structure in
+.Fa c
+that is associated with a specific lock.
+The lock argument can be a pointer to either
+.Fa struct mtx ,
+.Fa struct rwlock
+or
+.Fa struct rmlock .
+Macros
 .Fn callout_init_mtx ,
 .Fn callout_init_rm ,
 and
 .Fn callout_init_rw
-functions initialize a callout structure in
-.Fa c
-that is associated with a specific lock.
-The lock is specified by the
-.Fa mtx ,
-.Fa rm ,
-or
-.Fa rw
-parameter.
+are provided for compatibility.
 The associated lock must be held while stopping or rescheduling the
 callout.
 The callout subsystem acquires the associated lock before calling the
@@ -242,8 +244,7 @@ one initialized with the
 .Dv RM_SLEEPABLE
 flag
 .Pc
-may not be used with
-.Fn callout_init_rm .
+may not be used.
 Similarly, other sleepable lock types such as
 .Xr sx 9
 and
@@ -254,10 +255,8 @@ the callout subsystem.
 These
 .Fa flags
 may be specified for
-.Fn callout_init_mtx ,
-.Fn callout_init_rm ,
-or
-.Fn callout_init_rw :
+.Fn callout_init_lock
+and associated compatibility macros.
 .Bl -tag -width ".Dv CALLOUT_RETURNUNLOCKED"
 .It Dv CALLOUT_RETURNUNLOCKED
 The callout function will release the associated lock itself,
@@ -265,8 +264,8 @@ so the callout subsystem should not attempt to unlock it
 after the callout function returns.
 .It Dv CALLOUT_SHAREDLOCK
 The lock is only acquired in read mode when running the callout handler.
-This flag is ignored by
-.Fn callout_init_mtx .
+This flag is ignored if the lock is of type
+.Xr mutex 9 .
 .El
 .Pp
 The function
@@ -585,10 +584,8 @@ The first approach is preferred as it is the simplest:
 .It
 Callouts can be associated with a specific lock when they are initialized
 by
-.Fn callout_init_mtx ,
-.Fn callout_init_rm ,
-or
-.Fn callout_init_rw .
+.Fn callout_init_lock
+or compatibility macros.
 When a callout is associated with a lock,
 the callout subsystem acquires the lock before the callout function is
 invoked.

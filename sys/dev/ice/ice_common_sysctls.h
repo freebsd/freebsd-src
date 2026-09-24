@@ -93,6 +93,21 @@ bool ice_enable_tx_lldp_filter = true;
  */
 bool ice_enable_health_events = true;
 
+#ifdef PCI_IOV
+/**
+ * @var ice_mdd_auto_reset_vf
+ * @brief reconstruct and release a VF after a malicious-driver reset
+ *
+ * Global default for automatically reconstructing and releasing a VF after
+ * hardware reports a malicious-driver event and the driver resets it. Leave
+ * this disabled unless availability is more important than keeping a
+ * persistently faulty VF blocked.
+ *
+ * @remark each PF has a separate sysctl which can override this value.
+ */
+bool ice_mdd_auto_reset_vf = false;
+#endif
+
 /**
  * @var ice_tx_balance_en
  * @brief boolean permitting the 5-layer scheduler topology enablement
@@ -132,6 +147,12 @@ static SYSCTL_NODE(_hw_ice, OID_AUTO, debug, ICE_CTLFLAG_DEBUG | CTLFLAG_RD, 0,
 SYSCTL_BOOL(_hw_ice, OID_AUTO, enable_health_events, CTLFLAG_RDTUN,
 	    &ice_enable_health_events, 0,
 	    "Enable FW health event reporting globally");
+
+#ifdef PCI_IOV
+SYSCTL_BOOL(_hw_ice, OID_AUTO, mdd_auto_reset_vf, CTLFLAG_RDTUN,
+	    &ice_mdd_auto_reset_vf, 0,
+	    "Automatically restore VFs after an MDD reset");
+#endif
 
 SYSCTL_BOOL(_hw_ice, OID_AUTO, irdma, CTLFLAG_RDTUN, &ice_enable_irdma, 0,
 	    "Enable iRDMA client interface");

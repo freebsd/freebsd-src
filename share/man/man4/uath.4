@@ -23,24 +23,16 @@
 .Nm uath
 .Nd Atheros USB IEEE 802.11a/b/g wireless network driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ehci"
-.Cd "device uhci"
-.Cd "device ohci"
-.Cd "device usb"
-.Cd "device uath"
-.Cd "device wlan"
-.Ed
+.Cd device ehci
+.Cd device uhci
+.Cd device ohci
+.Cd device usb
+.Cd device uath
+.Cd device wlan
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+.In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_uath_load="YES"
-.Ed
+.Cd if_uath_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,17 +60,6 @@ mode operation.
 Only one virtual interface may be configured at any time.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
-.Sh FIRMWARE
-.Nm
-requires firmware that is downloaded to the device.
-This is normally done by the
-.Xr uathload 8
-utility that is launched by
-.Xr devd 8
-when the device is inserted.
-.Xr uathload 8
-includes the firmware in the binary program.
-This firmware is licensed for general use and is included in the base system.
 .Sh HARDWARE
 The
 .Nm
@@ -116,6 +97,17 @@ driver should work with the following adapters:
 .\".It Li "ZyXEL G-200 v2" Ta AR5005UG
 .It Li "ZyXEL XtremeMIMO M-202" Ta AR5005UX
 .El
+.Sh FILES
+.Nm
+requires firmware that is downloaded to the device.
+This is normally done by the
+.Xr uathload 8
+utility that is launched by
+.Xr devd 8
+when the device is inserted.
+.Xr uathload 8
+includes the firmware in the binary program.
+This firmware is licensed for general use and is included in the base system.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Bd -literal -offset indent

@@ -283,6 +283,12 @@ next_cqe:
 
 static int cqe_completes_wr(struct t4_cqe *cqe, struct t4_wq *wq)
 {
+	if (DRAIN_CQE(cqe)) {
+		fprintf(stderr, "Unexpected DRAIN CQE qp id %u!\n",
+			wq->sq.qid);
+		return 0;
+	}
+
 	if (CQE_OPCODE(cqe) == FW_RI_TERMINATE)
 		return 0;
 
@@ -367,6 +373,15 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	 */
 	if (wq == NULL) {
 		ret = -EAGAIN;
+		goto skip_cqe;
+	}
+
+	/*
+	 * Special cqe for drain WR completions...
+	 */
+	if (DRAIN_CQE(hw_cqe)) {
+		*cookie = CQE_DRAIN_COOKIE(hw_cqe);
+		*cqe = *hw_cqe;
 		goto skip_cqe;
 	}
 
@@ -616,10 +631,33 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ibv_wc *wc)
 			wc->byte_len = CQE_LEN(&cqe);
 		else
 			wc->byte_len = 0;
-		wc->opcode = IBV_WC_RECV;
+
+		switch (CQE_OPCODE(&cqe)) {
+		case FW_RI_SEND:
+			wc->opcode = IBV_WC_RECV;
+			break;
+		case FW_RI_SEND_WITH_INV:
+		case FW_RI_SEND_WITH_SE_INV:
+			wc->opcode = IBV_WC_RECV;
+			wc->wc_flags |= IBV_WC_WITH_INV;
+			wc->invalidated_rkey = CQE_WRID_STAG(&cqe);
+			break;
+		case FW_RI_WRITE_IMMEDIATE:
+			wc->opcode = IBV_WC_RECV_RDMA_WITH_IMM;
+			wc->imm_data = CQE_IMM_DATA(&cqe);
+			wc->wc_flags |= IBV_WC_WITH_IMM;
+			break;
+		default:
+			PDBG("Unexpected opcode %d "
+			     "in the CQE received for QPID=0x%0x\n",
+			     CQE_OPCODE(&cqe), CQE_QPID(&cqe));
+			ret = -EINVAL;
+			goto out;
+		}
 	} else {
 		switch (CQE_OPCODE(&cqe)) {
 		case FW_RI_RDMA_WRITE:
+		case FW_RI_WRITE_IMMEDIATE:
 			wc->opcode = IBV_WC_RDMA_WRITE;
 			break;
 		case FW_RI_READ_REQ:
@@ -628,8 +666,11 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ibv_wc *wc)
 			break;
 		case FW_RI_SEND:
 		case FW_RI_SEND_WITH_SE:
+			wc->opcode = IBV_WC_SEND;
+			break;
 		case FW_RI_SEND_WITH_INV:
 		case FW_RI_SEND_WITH_SE_INV:
+			wc->wc_flags |= IBV_WC_WITH_INV;
 			wc->opcode = IBV_WC_SEND;
 			break;
 		case FW_RI_BIND_MW:

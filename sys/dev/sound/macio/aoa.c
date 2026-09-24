@@ -362,7 +362,7 @@ static kobj_method_t aoa_chan_methods[] = {
 CHANNEL_DECLARE(aoa_chan);
 
 int
-aoa_attach(void *xsc)
+aoa_attach(void *xsc, kobj_class_t mixer_class, void *mixer_devinfo)
 {
 	char status[SND_STATUSLEN];
 	struct aoa_softc *sc;
@@ -373,6 +373,10 @@ aoa_attach(void *xsc)
 	self = sc->sc_dev;
 
 	pcm_init(self, sc);
+
+	/* Install the codec's mixer, if we have one. */
+	if (mixer_class != NULL)
+		mixer_init(self, mixer_class, mixer_devinfo);
 
 	err = pcm_getbuffersize(self, AOA_BUFFER_SIZE, AOA_BUFFER_SIZE,
 	    AOA_BUFFER_SIZE);

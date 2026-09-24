@@ -40,6 +40,7 @@
 
 
 #include "oce_if.h"
+#include <net/rss_config.h>
 
 int
 oce_wait_ready(POCE_SOFTC sc)
@@ -846,7 +847,9 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 
 	fwcmd->params.req.if_id = LE_32(if_id);
 
-	read_random(fwcmd->params.req.hash, sizeof(fwcmd->params.req.hash));
+	_Static_assert(sizeof(fwcmd->params.req.hash) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	rss_getkey((uint8_t *)fwcmd->params.req.hash);
 
 	rc = oce_rss_itbl_init(sc, fwcmd);
 	if (rc == 0) {

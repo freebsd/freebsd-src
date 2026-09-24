@@ -133,7 +133,9 @@ puc_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (!puc_msi_disable) {
+	if (!puc_msi_disable &&
+	    (sc->sc_cfg->flags & PUC_FLAGS_NO_MSI) == 0 &&
+	    pci_msi_count(dev) == 1) {
 		count = 1;
 
 		if (pci_alloc_msi(dev, &count) == 0) {

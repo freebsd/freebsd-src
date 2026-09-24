@@ -1209,7 +1209,15 @@ out:
 }
 
 static int
-sendfile(struct thread *td, struct sendfile_args *uap, int compat)
+copyin_hdtr(const struct sf_hdtr *uhdtr, struct sf_hdtr *hdtr)
+{
+	return (copyin(uhdtr, hdtr, sizeof(*hdtr)));
+}
+
+int
+kern_sendfile(struct thread *td, int fd, int s, off_t offset, size_t nbytes,
+    struct sf_hdtr *uhdtr, off_t *usbytes, int flags, bool compat,
+    copyin_hdtr_t *copyin_hdtr_f, copyinuio_t *copyinuio_f)
 {
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
@@ -1221,18 +1229,18 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	 * File offset must be positive.  If it goes beyond EOF
 	 * we send only the header/trailer and no payload data.
 	 */
-	if (uap->offset < 0)
+	if (offset < 0)
 		return (EINVAL);
 
 	sbytes = 0;
 	hdr_uio = trl_uio = NULL;
 
-	if (uap->hdtr != NULL) {
-		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
+	if (uhdtr != NULL) {
+		error = copyin_hdtr_f(uhdtr, &hdtr);
 		if (error != 0)
 			goto out;
 		if (hdtr.headers != NULL) {
-			error = copyinuio(hdtr.headers, hdtr.hdr_cnt,
+			error = copyinuio_f(hdtr.headers, hdtr.hdr_cnt,
 			    &hdr_uio);
 			if (error != 0)
 				goto out;
@@ -1243,15 +1251,15 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			 * header size from nbytes.
 			 */
 			if (compat) {
-				if (uap->nbytes > hdr_uio->uio_resid)
-					uap->nbytes -= hdr_uio->uio_resid;
+				if (nbytes > hdr_uio->uio_resid)
+					nbytes -= hdr_uio->uio_resid;
 				else
-					uap->nbytes = 0;
+					nbytes = 0;
 			}
 #endif
 		}
 		if (hdtr.trailers != NULL) {
-			error = copyinuio(hdtr.trailers, hdtr.trl_cnt,
+			error = copyinuio_f(hdtr.trailers, hdtr.trl_cnt,
 			    &trl_uio);
 			if (error != 0)
 				goto out;
@@ -1260,21 +1268,21 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		}
 	}
 
-	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_FD(fd);
 
 	/*
 	 * sendfile(2) can start at any offset within a file so we require
 	 * CAP_READ+CAP_SEEK = CAP_PREAD.
 	 */
-	if ((error = fget_read(td, uap->fd, &cap_pread_rights, &fp)) != 0)
+	if ((error = fget_read(td, fd, &cap_pread_rights, &fp)) != 0)
 		goto out;
 
-	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
-	    uap->nbytes, &sbytes, uap->flags, td);
+	error = fo_sendfile(fp, s, hdr_uio, trl_uio, offset,
+	    nbytes, &sbytes, flags, td);
 	fdrop(fp, td);
 
-	if (uap->sbytes != NULL)
-		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	if (usbytes != NULL)
+		(void)copyout(&sbytes, usbytes, sizeof(off_t));
 
 out:
 	freeuio(hdr_uio);
@@ -1296,24 +1304,17 @@ out:
 int
 sys_sendfile(struct thread *td, struct sendfile_args *uap)
 {
-
-	return (sendfile(td, uap, 0));
+	return (kern_sendfile(td, uap->fd, uap->s, uap->offset,
+	    uap->nbytes, uap->hdtr, uap->sbytes, uap->flags, false,
+	    (copyin_hdtr_t *)copyin_hdtr, (copyinuio_t *)copyinuio));
 }
 
 #ifdef COMPAT_FREEBSD4
 int
 freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 {
-	struct sendfile_args args;
-
-	args.fd = uap->fd;
-	args.s = uap->s;
-	args.offset = uap->offset;
-	args.nbytes = uap->nbytes;
-	args.hdtr = uap->hdtr;
-	args.sbytes = uap->sbytes;
-	args.flags = uap->flags;
-
-	return (sendfile(td, &args, 1));
+	return (kern_sendfile(td, uap->fd, uap->s, uap->offset,
+	    uap->nbytes, uap->hdtr, uap->sbytes, uap->flags, true,
+	    (copyin_hdtr_t *)copyin_hdtr, (copyinuio_t *)copyinuio));
 }
 #endif /* COMPAT_FREEBSD4 */

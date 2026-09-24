@@ -2320,7 +2320,7 @@ These options are part of the ``server:`` section.
     Use this setting to protect the users that rely on this validator for
     authentication from potentially bad data in the additional section.
 
-    Default: yes
+    Default: no
 
 
 @@UAHL@unbound.conf@val-log-level@@: *<number>*
@@ -3356,6 +3356,26 @@ These options are part of the ``server:`` section.
     same zone as a spoofed packet.
 
     Default: yes
+
+
+@@UAHL@unbound.conf@val-validation-attempts@@: *<number>*
+    Limit on the number of DNSSEC validation attempts for a query.
+    This protects against too large numbers of cryptographic operations,
+    like for a deep delegation chain.
+    This counts attempts to validate RRSIGs.
+    When it is exceeded, the query fails.
+
+    Default: 32
+
+
+@@UAHL@unbound.conf@val-hash-attempts@@: *<number>*
+    Limit on the number of DNSSEC hash attempts for a query.
+    This protects against too large numbers of cryptographic operations,
+    like for a deep delegation chain.
+    This counts DS hash attempts to match DNSKEYs.
+    When it is exceeded, the query fails.
+
+    Default: 32
 
 
 @@UAHL@unbound.conf@fast-server-permil@@: *<number>*

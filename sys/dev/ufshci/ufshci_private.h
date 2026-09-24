@@ -302,6 +302,7 @@ struct ufshci_device {
  */
 struct ufshci_controller {
 	device_t dev;
+	struct cdev *cdev;
 
 	uint32_t quirks;
 #define UFSHCI_QUIRK_IGNORE_UIC_POWER_MODE \
@@ -457,6 +458,11 @@ void ufshci_ctrlr_poll(struct ufshci_controller *ctrlr);
 
 int ufshci_ctrlr_submit_task_mgmt_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req);
+/* ioctl */
+int ufshci_ioctl_construct(struct ufshci_controller *ctrlr,
+    device_t dev);
+void ufshci_ioctl_destruct(struct ufshci_controller *ctrlr);
+
 int ufshci_ctrlr_submit_transfer_request(struct ufshci_controller *ctrlr,
     struct ufshci_request *req);
 int ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr);
@@ -541,6 +547,8 @@ int ufshci_req_sdb_get_inflight_io(struct ufshci_controller *ctrlr);
 int ufshci_uic_power_mode_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_hibernation_ready(struct ufshci_controller *ctrlr);
 int ufshci_uic_cmd_ready(struct ufshci_controller *ctrlr);
+int ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
+    struct ufshci_uic_cmd *uic_cmd, uint32_t *return_value);
 int ufshci_uic_send_dme_link_startup(struct ufshci_controller *ctrlr);
 int ufshci_uic_send_dme_get(struct ufshci_controller *ctrlr, uint16_t attribute,
     uint32_t *return_value);

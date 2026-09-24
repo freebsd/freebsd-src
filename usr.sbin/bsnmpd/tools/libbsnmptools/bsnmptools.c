@@ -316,6 +316,7 @@ getsubopt1(char **arg, const char *const *options, char **valp, char **optp)
 	char *ptr;
 
 	*optp = NULL;
+	*valp = NULL;
 
 	/* Skip leading junk. */
 	for (ptr = *arg; *ptr != '\0'; ptr++)
@@ -1993,7 +1994,8 @@ snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 	struct snmp_object *object;
 	char buf[ASN_OIDSTRLEN];
 
-	if (pdu == NULL || (pdu->error_index > (int32_t) pdu->nbindings)) {
+	if (pdu == NULL || pdu->error_index < 1 ||
+	    (pdu->error_index > (int32_t) pdu->nbindings)) {
 		fprintf(stdout, "Invalid error index in PDU\n");
 		return;
 	}

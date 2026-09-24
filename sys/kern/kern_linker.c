@@ -337,7 +337,7 @@ linker_file_register_exterr(linker_file_t lf)
 	struct exterr_cat **start, **stop;
 
 	KLD_DPF(FILE,
-	    (__func__ ": registering exterror categories for %s\n",
+	    ("%s: registering exterror categories for %s\n", __func__,
 	    lf->filename));
 
 	sx_assert(&kld_sx, SA_XLOCKED);
@@ -354,8 +354,8 @@ linker_file_unregister_exterr(linker_file_t lf)
 	struct exterr_cat **start, **stop;
 
 	KLD_DPF(FILE,
-	    (__func__ ": unregistering exterror categories for %s\n",
-	    lf->filename));
+	    ("%s: unregistering exterror categories for %s\n",
+	    __func__, lf->filename));
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 

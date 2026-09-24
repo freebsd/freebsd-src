@@ -53,11 +53,16 @@ add_legacy_testcase()
 	local tc=${1}
 
 	atf_test_case ${tc%.[0-9]}
+	eval "${tc%.[0-9]}_head() { atf_set \"require.progs\" indent; }"
 	eval "${tc%.[0-9]}_body() { check ${tc}; }"
 	atf_add_test_case ${tc%.[0-9]}
 }
 
 atf_test_case backup_suffix
+backup_suffix_head()
+{
+	atf_set "require.progs" indent
+}
 backup_suffix_body()
 {
 	local argmax=$(sysctl -n kern.argmax)

@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  *
  * Thunderbolt 3 driver debug strings
- *
- * $FreeBSD$
  */
 
 #ifndef _TB_DEBUG_H

@@ -1,7 +1,10 @@
 .include <src.opts.mk>
 
-PACKAGE= bsdconfig
+PACKAGE= rc
 SCRIPTS= sysrc
+
+FILESDIR= ${SHAREDIR}/sysrc
+FILES= sysrc.subr
 
 MAN= sysrc.8
 

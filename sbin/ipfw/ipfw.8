@@ -1,5 +1,5 @@
 .\"
-.Dd May 21, 2026
+.Dd September 9, 2026
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1051,11 +1051,11 @@ Synonym for
 .Cm unreach host .
 .It Cm reset
 Discard packets that match this rule, and if the
-packet is a TCP packet, try to send a TCP reset (RST) notice.
+packet is a TCP packet over IPv4, try to send a TCP reset (RST) notice.
 The search terminates.
 .It Cm reset6
 Discard packets that match this rule, and if the
-packet is a TCP packet, try to send a TCP reset (RST) notice.
+packet is a TCP packet over IPv6, try to send a TCP reset (RST) notice.
 The search terminates.
 .It Cm skipto Ar number | tablearg
 Skip all subsequent rules numbered less than

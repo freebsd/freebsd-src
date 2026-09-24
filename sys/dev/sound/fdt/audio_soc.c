@@ -398,6 +398,11 @@ audio_soc_init(void *arg)
 
 	pcm_init(sc->dev, sc);
 
+	AUDIO_DAI_SETUP_MIXER(sc->codec_dev, sc->dev);
+	SLIST_FOREACH(aux_node, &sc->aux_devs, link) {
+		AUDIO_DAI_SETUP_MIXER(aux_node->dev, sc->dev);
+	}
+
 	sc->play_channel.sc = sc;
 	sc->rec_channel.sc = sc;
 
@@ -410,10 +415,6 @@ audio_soc_init(void *arg)
 	}
 
 	AUDIO_DAI_SETUP_INTR(sc->cpu_dev, audio_soc_intr, sc);
-	AUDIO_DAI_SETUP_MIXER(sc->codec_dev, sc->dev);
-	SLIST_FOREACH(aux_node, &sc->aux_devs, link) {
-		AUDIO_DAI_SETUP_MIXER(aux_node->dev, sc->dev);
-	}
 }
 
 static int

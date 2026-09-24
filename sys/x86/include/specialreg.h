@@ -559,6 +559,11 @@
 #define	CPUID_STDEXT4_NMISRC		0x00100000
 #define	CPUID_STDEXT4_LAM		0x04000000
 
+/*
+ * CPUID instruction 7 Structured Extended Features, leaf 1 ecx info
+ */
+#define	CPUID_STDEXT5_MSR_IMM		0x00000020
+
 /* CPUID_HYBRID_ID leaf 0x1a */
 #define	CPUID_HYBRID_CORE_MASK	0xff000000
 #define	CPUID_HYBRID_SMALL_CORE	0x20000000
@@ -575,9 +580,15 @@
 #define	IA32_ARCH_CAP_TSX_CTRL	0x00000080
 #define	IA32_ARCH_CAP_TAA_NO	0x00000100
 
+/* MSR IA32_CORE_CAP bits (platform) */
+#define	IA32_CORE_CAP_SPLITLOCK	0x00000020
+
 /* MSR IA32_TSX_CTRL bits */
 #define	IA32_TSX_CTRL_RTM_DISABLE	0x00000001
 #define	IA32_TSX_CTRL_TSX_CPUID_CLEAR	0x00000002
+
+/* MSR MEMORY_CTL platform bits */
+#define	MSR_MEMORY_CTL_SPLITLOCK	0x20000000
 
 /*
  * CPUID manufacturers identifiers
@@ -607,6 +618,7 @@
 #define	MSR_APICBASE		0x01b
 #define	MSR_EBL_CR_POWERON	0x02a
 #define	MSR_TEST_CTL		0x033
+#define	MSR_MEMORY_CTL		0x033	/* Platform, same index as TEST */
 #define	MSR_IA32_FEATURE_CONTROL 0x03a
 #define	MSR_IA32_SPEC_CTRL	0x048
 #define	MSR_IA32_PRED_CMD	0x049
@@ -618,6 +630,7 @@
 #define	MSR_PERFCTR0		0x0c1
 #define	MSR_PERFCTR1		0x0c2
 #define	MSR_PLATFORM_INFO	0x0ce
+#define	MSR_IA32_CORE_CAP	0x0cf
 #define	MSR_MPERF		0x0e7
 #define	MSR_APERF		0x0e8
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */

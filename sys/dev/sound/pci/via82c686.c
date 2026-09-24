@@ -535,6 +535,7 @@ via_attach(device_t dev)
 	if (!via->codec)
 		goto bad;
 
+	pcm_init(dev, via);
 	if (mixer_init(dev, ac97_getmixerclass(), via->codec))
 		goto bad;
 
@@ -585,7 +586,6 @@ via_attach(device_t dev)
 		 device_get_nameunit(device_get_parent(dev)));
 
 	/* Register */
-	pcm_init(dev, via);
 	pcm_addchan(dev, PCMDIR_PLAY, &viachan_class, via);
 	pcm_addchan(dev, PCMDIR_REC, &viachan_class, via);
 	if (pcm_register(dev, status))
@@ -642,5 +642,5 @@ static driver_t via_driver = {
 };
 
 DRIVER_MODULE(snd_via82c686, pci, via_driver, 0, 0);
-MODULE_DEPEND(snd_via82c686, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_via82c686, sound, 1, 1, 1);
 MODULE_VERSION(snd_via82c686, 1);

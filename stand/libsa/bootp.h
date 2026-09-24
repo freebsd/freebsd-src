@@ -108,6 +108,11 @@ struct bootp {
 #define TAG_CLIENTID		((unsigned char)  61)
 #define TAG_USER_CLASS		((unsigned char)  77)
 #define TAG_CLIENT_ARCH		((unsigned char)  93)	/* RFC 4578 */
+#define TAG_VI_VENDOR_CLASS	((unsigned char) 124)	/* RFC 3925 */
+#define TAG_VI_VENDOR_OPTS	((unsigned char) 125)	/* RFC 3925 */
+
+#define FREEBSD_ENTERPRISE_NUMBER	2238
+#define FREEBSD_VI_INITMD		1
 #endif
 
 #define TAG_END			((unsigned char) 255)

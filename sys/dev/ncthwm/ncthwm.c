@@ -39,7 +39,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#define NCTHWM_FAN_MAX                 5
+#define NCTHWM_FAN_MAX                 7
 
 #define NCTHWM_BANK_SELECT 0x4e
 #define NCTHWM_VENDOR_ID   0x4f
@@ -97,6 +97,21 @@ struct ncthwm_device {
 			{ .name = "AUXFAN0", .low_byte_offset = 0xc5, .high_byte_offset = 0xc4 },
 			{ .name = "AUXFAN1", .low_byte_offset = 0xc7, .high_byte_offset = 0xc6 },
 			{ .name = "AUXFAN2", .low_byte_offset = 0xc9, .high_byte_offset = 0xc8 },
+		},
+	}, {
+		.devid       = 0xd42b,
+		.descr       = "HWM on Nuvoton NCT6798D",
+		.base_offset = 5,
+		.fan_bank    = 4,
+		.fan_count   = 7,
+		.fan_info = {
+			{ .name = "SYSFAN",  .low_byte_offset = 0xc1, .high_byte_offset = 0xc0 },
+			{ .name = "CPUFAN",  .low_byte_offset = 0xc3, .high_byte_offset = 0xc2 },
+			{ .name = "AUXFAN0", .low_byte_offset = 0xc5, .high_byte_offset = 0xc4 },
+			{ .name = "AUXFAN1", .low_byte_offset = 0xc7, .high_byte_offset = 0xc6 },
+			{ .name = "AUXFAN2", .low_byte_offset = 0xc9, .high_byte_offset = 0xc8 },
+			{ .name = "AUXFAN3", .low_byte_offset = 0xcb, .high_byte_offset = 0xca },
+			{ .name = "AUXFAN4", .low_byte_offset = 0xcf, .high_byte_offset = 0xce },
 		},
 	}
 };

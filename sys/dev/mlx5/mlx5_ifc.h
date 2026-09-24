@@ -1166,7 +1166,7 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         tunnel_lso_const_out_ip_id[0x1];
 	u8         tunnel_lro_gre[0x1];
 	u8         tunnel_lro_vxlan[0x1];
-	u8         tunnel_statless_gre[0x1];
+	u8         tunnel_stateless_gre[0x1];
 	u8         tunnel_stateless_vxlan[0x1];
 
 	u8         swp[0x1];
@@ -1626,7 +1626,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_500[0x20];
 	u8	   num_of_uars_per_page[0x20];
-	u8         reserved_at_540[0x40];
+	u8         flex_parser_protocols[0x20];
+	u8         reserved_at_540[0x20];
 
 	u8         log_max_atomic_size_qp[0x8];
 	u8         reserved_67[0x10];
@@ -1765,8 +1766,7 @@ struct mlx5_ifc_tls_capabilities_bits {
 enum {
 	MLX5_WQ_TYPE_LINKED_LIST                 = 0x0,
 	MLX5_WQ_TYPE_CYCLIC                      = 0x1,
-	MLX5_WQ_TYPE_STRQ_LINKED_LIST            = 0x2,
-	MLX5_WQ_TYPE_STRQ_CYCLIC                 = 0x3,
+	MLX5_WQ_TYPE_CYCLIC_STRIDING_RQ          = 0x3,
 };
 
 enum rq_type {
@@ -3482,7 +3482,7 @@ struct mlx5_ifc_cqc_bits {
 	u8         scqe_break_moderation_en[0x1];
 	u8         oi[0x1];
 	u8         cq_period_mode[0x2];
-	u8         cqe_compression_en[0x1];
+	u8         cqe_comp_en[0x1];
 	u8         mini_cqe_res_format[0x2];
 	u8         st[0x4];
 	u8         reserved_2[0x8];

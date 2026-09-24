@@ -351,7 +351,7 @@ dtrace_copyin(uintptr_t uaddr, uintptr_t kaddr, size_t size,
 {
 
 	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copy(uaddr, kaddr, size);
+		dtrace_copyin_pan(uaddr, kaddr, size);
 }
 
 void
@@ -360,7 +360,7 @@ dtrace_copyout(uintptr_t kaddr, uintptr_t uaddr, size_t size,
 {
 
 	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copy(kaddr, uaddr, size);
+		dtrace_copyout_pan(kaddr, uaddr, size, flags);
 }
 
 void
@@ -369,7 +369,7 @@ dtrace_copyinstr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
 {
 
 	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copystr(uaddr, kaddr, size, flags);
+		dtrace_copyinstr_pan(uaddr, kaddr, size);
 }
 
 void
@@ -378,7 +378,7 @@ dtrace_copyoutstr(uintptr_t kaddr, uintptr_t uaddr, size_t size,
 {
 
 	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copystr(kaddr, uaddr, size, flags);
+		dtrace_copyoutstr_pan(kaddr, uaddr, size, flags);
 }
 
 uint8_t

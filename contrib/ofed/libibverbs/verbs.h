@@ -236,7 +236,8 @@ enum ibv_rx_hash_fields {
 	IBV_RX_HASH_SRC_PORT_TCP	= 1 << 4,
 	IBV_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	IBV_RX_HASH_SRC_PORT_UDP	= 1 << 6,
-	IBV_RX_HASH_DST_PORT_UDP	= 1 << 7
+	IBV_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	IBV_RX_HASH_INNER		= (1UL << 31),
 };
 
 struct ibv_rss_caps {
@@ -259,6 +260,23 @@ enum ibv_raw_packet_caps {
 	IBV_RAW_PACKET_CAP_IP_CSUM		= 1 << 2,
 };
 
+enum ibv_tm_cap_flags {
+	IBV_TM_CAP_RC		    = 1 << 0,
+};
+
+struct ibv_tm_caps {
+	/* Max size of rendezvous request header */
+	uint32_t max_rndv_hdr_size;
+	/* Max number of tagged buffers in a TM-SRQ matching list */
+	uint32_t max_num_tags;
+	/* From enum ibv_tm_cap_flags */
+	uint32_t flags;
+	/* Max number of outstanding list operations */
+	uint32_t max_ops;
+	/* Max number of SGEs in a tagged buffer */
+	uint32_t max_sge;
+};
+
 struct ibv_device_attr_ex {
 	struct ibv_device_attr	orig_attr;
 	uint32_t		comp_mask;
@@ -271,6 +289,7 @@ struct ibv_device_attr_ex {
 	uint32_t		max_wq_type_rq;
 	struct ibv_packet_pacing_caps packet_pacing_caps;
 	uint32_t		raw_packet_caps; /* Use ibv_raw_packet_caps */
+	struct ibv_tm_caps	tm_caps;
 };
 
 enum ibv_mtu {
@@ -654,7 +673,8 @@ struct ibv_srq_init_attr {
 
 enum ibv_srq_type {
 	IBV_SRQT_BASIC,
-	IBV_SRQT_XRC
+	IBV_SRQT_XRC,
+	IBV_SRQT_TM,
 };
 
 enum ibv_srq_init_attr_mask {
@@ -662,7 +682,13 @@ enum ibv_srq_init_attr_mask {
 	IBV_SRQ_INIT_ATTR_PD		= 1 << 1,
 	IBV_SRQ_INIT_ATTR_XRCD		= 1 << 2,
 	IBV_SRQ_INIT_ATTR_CQ		= 1 << 3,
-	IBV_SRQ_INIT_ATTR_RESERVED	= 1 << 4
+	IBV_SRQ_INIT_ATTR_TM		= 1 << 4,
+	IBV_SRQ_INIT_ATTR_RESERVED	= 1 << 5,
+};
+
+struct ibv_tm_cap {
+	uint32_t		max_num_tags;
+	uint32_t		max_ops;
 };
 
 struct ibv_srq_init_attr_ex {
@@ -674,6 +700,7 @@ struct ibv_srq_init_attr_ex {
 	struct ibv_pd	       *pd;
 	struct ibv_xrcd	       *xrcd;
 	struct ibv_cq	       *cq;
+	struct ibv_tm_cap	tm_cap;
 };
 
 enum ibv_wq_type {
@@ -947,7 +974,13 @@ struct ibv_send_wr {
 	int			num_sge;
 	enum ibv_wr_opcode	opcode;
 	int			send_flags;
-	__be32			imm_data;
+	/* When opcode is *_WITH_IMM: Immediate data in network byte order.
+	 * When opcode is *_INV: Stores the rkey to invalidate
+	 */
+	union {
+		__be32			imm_data;
+		uint32_t		invalidate_rkey;
+	};
 	union {
 		struct {
 			uint64_t	remote_addr;
@@ -1099,7 +1132,7 @@ struct ibv_cq_ex {
 	enum ibv_wc_opcode (*read_opcode)(struct ibv_cq_ex *current);
 	uint32_t (*read_vendor_err)(struct ibv_cq_ex *current);
 	uint32_t (*read_byte_len)(struct ibv_cq_ex *current);
-	uint32_t (*read_imm_data)(struct ibv_cq_ex *current);
+	__be32 (*read_imm_data)(struct ibv_cq_ex *current);
 	uint32_t (*read_qp_num)(struct ibv_cq_ex *current);
 	uint32_t (*read_src_qp)(struct ibv_cq_ex *current);
 	int (*read_wc_flags)(struct ibv_cq_ex *current);
@@ -1147,9 +1180,18 @@ static inline uint32_t ibv_wc_read_byte_len(struct ibv_cq_ex *cq)
 	return cq->read_byte_len(cq);
 }
 
-static inline uint32_t ibv_wc_read_imm_data(struct ibv_cq_ex *cq)
+static inline __be32 ibv_wc_read_imm_data(struct ibv_cq_ex *cq)
 {
 	return cq->read_imm_data(cq);
+}
+
+static inline uint32_t ibv_wc_read_invalidated_rkey(struct ibv_cq_ex *cq)
+{
+#ifdef __CHECKER__
+	return (__attribute__((force)) uint32_t)cq->read_imm_data(cq);
+#else
+	return cq->read_imm_data(cq);
+#endif
 }
 
 static inline uint32_t ibv_wc_read_qp_num(struct ibv_cq_ex *cq)
@@ -1238,6 +1280,8 @@ enum ibv_flow_spec_type {
 	IBV_FLOW_SPEC_TCP		= 0x40,
 	IBV_FLOW_SPEC_UDP		= 0x41,
 	IBV_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
+	IBV_FLOW_SPEC_GRE		= 0x51,
+	IBV_FLOW_SPEC_MPLS		= 0x60,
 	IBV_FLOW_SPEC_INNER		= 0x100,
 	IBV_FLOW_SPEC_ACTION_TAG	= 0x1000,
 	IBV_FLOW_SPEC_ACTION_DROP	= 0x1001,
@@ -1316,6 +1360,44 @@ struct ibv_flow_spec_tcp_udp {
 	struct ibv_flow_tcp_udp_filter mask;
 };
 
+struct ibv_flow_gre_filter {
+	/* c_ks_res0_ver field is bits 0-15 in offset 0 of a standard GRE header:
+	 * bit 0 - checksum present bit.
+	 * bit 1 - reserved. set to 0.
+	 * bit 2 - key present bit.
+	 * bit 3 - sequence number present bit.
+	 * bits 4:12 - reserved. set to 0.
+	 * bits 13:15 - GRE version.
+	 */
+	uint16_t c_ks_res0_ver;
+	uint16_t protocol;
+	uint32_t key;
+};
+
+struct ibv_flow_spec_gre {
+	enum ibv_flow_spec_type  type;
+	uint16_t  size;
+	struct ibv_flow_gre_filter val;
+	struct ibv_flow_gre_filter mask;
+};
+
+struct ibv_flow_mpls_filter {
+	/* The field includes the entire MPLS label:
+	 * bits 0:19 - label value field.
+	 * bits 20:22 - traffic class field.
+	 * bits 23 - bottom of stack bit.
+	 * bits 24:31 - ttl field.
+	 */
+	uint32_t label;
+};
+
+struct ibv_flow_spec_mpls {
+	enum ibv_flow_spec_type  type;
+	uint16_t  size;
+	struct ibv_flow_mpls_filter val;
+	struct ibv_flow_mpls_filter mask;
+};
+
 struct ibv_flow_tunnel_filter {
 	uint32_t tunnel_id;
 };
@@ -1350,6 +1432,8 @@ struct ibv_flow_spec {
 		struct ibv_flow_spec_ipv4_ext ipv4_ext;
 		struct ibv_flow_spec_ipv6 ipv6;
 		struct ibv_flow_spec_tunnel tunnel;
+		struct ibv_flow_spec_gre gre;
+		struct ibv_flow_spec_mpls mpls;
 		struct ibv_flow_spec_action_tag flow_tag;
 		struct ibv_flow_spec_action_drop drop;
 	};

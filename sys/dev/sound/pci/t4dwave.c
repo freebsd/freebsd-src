@@ -874,6 +874,7 @@ tr_pci_attach(device_t dev)
 
 	codec = AC97_CREATE(dev, tr, tr_ac97);
 	if (codec == NULL) goto bad;
+	pcm_init(dev, tr);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	tr->irqid = 0;
@@ -922,7 +923,6 @@ tr_pci_attach(device_t dev)
 		 rman_get_start(tr->reg), rman_get_start(tr->irq),
 		 device_get_nameunit(device_get_parent(dev)));
 
-	pcm_init(dev, tr);
 	pcm_addchan(dev, PCMDIR_REC, &trrchan_class, tr);
 	for (i = 0; i < dacn; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &trpchan_class, tr);
@@ -1034,5 +1034,5 @@ static driver_t tr_driver = {
 };
 
 DRIVER_MODULE(snd_t4dwave, pci, tr_driver, 0, 0);
-MODULE_DEPEND(snd_t4dwave, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_t4dwave, sound, 1, 1, 1);
 MODULE_VERSION(snd_t4dwave, 1);

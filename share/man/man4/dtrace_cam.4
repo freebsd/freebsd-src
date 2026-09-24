@@ -2,22 +2,38 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 7, 2026
+.Dd July 29, 2026
 .Dt DTRACE_CAM 4
 .Os
 .Sh NAME
 .Nm dtrace_cam
 .Nd a DTrace provider for tracing events related to CAM
 .Sh SYNOPSIS
-.Fn cam::xpt:action "union ccb *ccn"
+.Fn cam::xpt:action "union ccb *ccb"
 .Fn cam::xpt:done "union ccb *ccb"
-.Fn cam::xpt:async-cb "void *cbarg" "uint32_t async_code" "struct cam_path *path" "void *async_Arg"
+a.Fn cam::xpt:async-cb "void *cbarg" "uint32_t async_code" "struct cam_path *path" "void *async_arg"
+.Fn cam::periph:error "union ccb *ccb" "cam_flags camflags" "uint32_t sense_flags"
+.Fn cam::da:error "union ccb *ccb" "uint32_t cam_flags" "uint32_t sense_flags"
+.Fn cam::ada:error "union ccb *ccb" "uint32_t cam_flags" "uint32_t sense_flags"
+.Fn cam::nda:error "union ccb *ccb" "uint32_t cam_flags" "uint32_t sense_flags"
+.Fn cam::sdda:error "union ccb *ccb" "uint32_t cam_flags" "uint32_t sense_flags"
+.Fn cam::periph:recovery "union ccb *ccb" "int error"
+.Fn cam::da:recovery "union ccb *ccb" "int error"
+.Fn cam::ada:recovery "union ccb *ccb" "int error"
+.Fn cam::nda:recovery "union ccb *ccb" "int error"
+.Fn cam::sdda:recovery "union ccb *ccb" "int error"
+.Fn cam::periph:invalidate "struct cam_periph *periph"
+.Fn cam::periph:hold-boot "struct cam_periph *periph"
+.Fn cam::periph:release-boot "struct cam_periph *periph"
+.Fn cam::xpt:bus-register "struct cam_sim *sim" "path_id_t path_id"
+.Fn cam::xpt:hold-boot "int buses_to_config"
+.Fn cam::xpt:release-boot "int buses_to_config"
 .Sh DESCRIPTION
 The
 .Nm cam
 provider allows the tracing of CAM events.
 The
-.Fn cam::xpt_action
+.Fn cam::xpt:action
 probe fires when a CAM Control Block (ccb) is submitted to a CAM SIM driver.
 The
 .Fn cam::xpt:done
@@ -25,6 +41,122 @@ probe fires when that request completes.
 The
 .Fn cam::xpt:async-cb
 probe fires just before an async callback is called.
+The
+.Fn cam::periph:error
+probe fires on entry to
+.Fn cam_periph_error ,
+the generic CAM peripheral driver error handler, before any error
+recovery or retry decisions are made.
+The
+.Fn cam::da:error ,
+.Fn cam::ada:error ,
+.Fn cam::nda:error ,
+and
+.Fn cam::sdda:error
+probes fire on entry to the
+.Xr da 4 ,
+.Xr ada 4 ,
+.Xr nda 4 ,
+and sdda
+.Pq Xr mmc 4
+peripheral drivers' own error handlers, before they call
+.Fn cam_periph_error
+or otherwise process the failing ccb.
+.Pp
+The
+.Fn cam::periph:recovery
+probe fires once
+.Fn cam_periph_error
+has decided how to dispose of the failing ccb, reporting that decision
+as
+.Fa error :
+0 means the ccb is being treated as successful,
+.Dv ERESTART
+means the request is being retried, and any other value is the
+.Xr errno 2
+the request is failing with.
+Of those,
+.Er EIO
+means only this request is being failed,
+while
+.Er ENXIO
+means the device itself is now being treated as gone
+(a selection timeout, or an error seen after the peripheral was
+already invalidated).
+Other errno values can appear as well: CAM_SCSI_STATUS_ERROR handling
+maps specific SCSI sense key/ASC/ASCQ combinations to whatever errno
+is most appropriate
+.Pq Er EBUSY , Er ENOSPC , Er EINVAL , No and others
+via the table in
+.Pa sys/cam/scsi/scsi_all.c .
+The
+.Fn cam::da:recovery ,
+.Fn cam::ada:recovery ,
+.Fn cam::nda:recovery ,
+and
+.Fn cam::sdda:recovery
+probes report the same
+.Fa error
+decision from the corresponding peripheral driver's own error handler,
+which may resolve the error itself (for example
+.Xr da 4 Ns 's
+automatic READ/WRITE(6)-to-(10) upgrade) before ever calling
+.Fn cam_periph_error .
+The
+.Fn cam::periph:invalidate
+probe fires from
+.Fn cam_periph_invalidate
+when a peripheral is actually torn down as a result of an
+unrecoverable error, regardless of which peripheral driver or code
+path triggered it.
+.Pp
+The
+.Fn cam::periph:hold-boot
+and
+.Fn cam::periph:release-boot
+probes fire from
+.Fn cam_periph_hold_boot
+and
+.Fn cam_periph_release_boot ,
+reporting the
+.Vt cam_periph
+taking or releasing its own, per-peripheral root-mount hold, which is
+keyed by
+.Fa periph->periph_name
+(for example
+.Sq da
+or
+.Sq ada ) .
+Since the probe itself is necessarily generic
+.Pq SDT probe names are fixed at compile time, not runtime ,
+a consumer wanting to filter by peripheral type should match on
+.Fa periph->periph_name
+in the enabling's predicate, for example
+.Li stringof(args[0]->periph_name) == \(dqda\(dq .
+.Pp
+The
+.Fn cam::xpt:bus-register
+probe fires from
+.Fn xpt_bus_register
+once a new bus has been assigned a
+.Fa path_id
+and linked into the list of known busses, reporting the
+.Vt cam_sim
+being registered and that
+.Fa path_id .
+The
+.Fn cam::xpt:hold-boot
+and
+.Fn cam::xpt:release-boot
+probes report the CAM subsystem's shared boot-hold refcount
+.Pq Va xsoftc.buses_to_config
+immediately after it is incremented or decremented, respectively.
+This one refcount is shared by every bus's initial scan
+.Pq via Fn xpt_rescan
+as well as by peripheral drivers' own startup bookkeeping, so root
+mount can remain blocked on it long after any one contributor has
+finished; tracing both probes together shows exactly which holds are
+still outstanding and for how long.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr cam 4 ,

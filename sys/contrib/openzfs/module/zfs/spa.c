@@ -27,6 +27,7 @@
  * Copyright (c) 2023 Hewlett Packard Enterprise Development LP.
  * Copyright (c) 2023-2026, Klara, Inc.
  * Copyright (c) 2026, TrueNAS.
+ * Copyright 2026 Edgecast Cloud LLC.
  */
 
 /*
@@ -2992,6 +2993,9 @@ spa_claim_notify(zio_t *zio)
 
 typedef struct spa_load_error {
 	boolean_t	sle_verify_data;
+	boolean_t	sle_relaxmeta;	/* tolerate non-critical meta-data */
+	uint64_t	sle_maxmeta;	/* max acceptable meta-data errors */
+	uint64_t	sle_maxdata;	/* max acceptable data errors */
 	uint64_t	sle_meta_count;
 	uint64_t	sle_data_count;
 } spa_load_error_t;
@@ -3007,8 +3011,23 @@ spa_load_verify_done(zio_t *zio)
 
 	abd_free(zio->io_abd);
 	if (error) {
-		if ((BP_GET_LEVEL(bp) != 0 || DMU_OT_IS_METADATA(type)) &&
-		    type != DMU_OT_INTENT_LOG)
+		boolean_t meta;
+
+		if (type == DMU_OT_INTENT_LOG) {
+			meta = B_FALSE;
+		} else if (zio->io_bookmark.zb_objset == DMU_META_OBJSET) {
+			meta = B_TRUE;
+		} else if (sle->sle_relaxmeta) {
+			/*
+			 * Losing a file or a directory costs us the affected
+			 * objects, but the pool as a whole remains operable.
+			 */
+			meta = DMU_OT_IS_CRITICAL(type, BP_GET_LEVEL(bp));
+		} else {
+			meta = BP_GET_LEVEL(bp) != 0 ||
+			    DMU_OT_IS_METADATA(type);
+		}
+		if (meta)
 			atomic_inc_64(&sle->sle_meta_count);
 		else
 			atomic_inc_64(&sle->sle_data_count);
@@ -3044,6 +3063,14 @@ spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	 */
 	if (!spa_load_verify_metadata)
 		return (0);
+
+	/*
+	 * Stop the traversal as soon as the verdict is known, there is no
+	 * point in counting the errors we are not going to tolerate anyway.
+	 */
+	if (sle->sle_meta_count > sle->sle_maxmeta ||
+	    sle->sle_data_count > sle->sle_maxdata)
+		return (SET_ERROR(ECANCELED));
 
 	/*
 	 * Sanity check the block pointer in order to detect obvious damage
@@ -3098,7 +3125,7 @@ spa_load_verify(spa_t *spa)
 	zio_t *rio;
 	spa_load_error_t sle = { 0 };
 	zpool_load_policy_t policy;
-	boolean_t verify_ok = B_FALSE;
+	boolean_t verify_ok = B_FALSE, aborted = B_FALSE;
 	int error = 0;
 
 	zpool_get_load_policy(spa->spa_config, &policy);
@@ -3116,11 +3143,29 @@ spa_load_verify(spa_t *spa)
 		return (error);
 
 	/*
-	 * Verify data only if we are rewinding or error limit was set.
-	 * Otherwise nothing except dbgmsg care about it to waste time.
+	 * Verify data only if somebody is going to look at the error count:
+	 * either the caller set a limit for it, or we are only searching for
+	 * the best txg without rewinding to it (zpool import -nF), which
+	 * reports the count back to the user.
 	 */
-	sle.sle_verify_data = (policy.zlp_rewind & ZPOOL_REWIND_MASK) ||
-	    (policy.zlp_maxdata < UINT64_MAX);
+	sle.sle_verify_data = policy.zlp_maxdata < UINT64_MAX ||
+	    ((policy.zlp_rewind & ZPOOL_REWIND_MASK) &&
+	    (spa_load_verify_dryrun ||
+	    spa->spa_load_state != SPA_LOAD_RECOVER));
+
+	sle.sle_relaxmeta = policy.zlp_relaxmeta;
+
+	/*
+	 * Dry run reports the errors instead of acting on them, so it needs
+	 * the complete counts.  Otherwise stop counting once the thresholds
+	 * are exceeded, since the result can not change after that.
+	 */
+	if (spa_load_verify_dryrun) {
+		sle.sle_maxmeta = sle.sle_maxdata = UINT64_MAX;
+	} else {
+		sle.sle_maxmeta = policy.zlp_maxmeta;
+		sle.sle_maxdata = policy.zlp_maxdata;
+	}
 
 	rio = zio_root(spa, NULL, &sle,
 	    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE);
@@ -3129,14 +3174,24 @@ spa_load_verify(spa_t *spa)
 		if (spa->spa_extreme_rewind) {
 			spa_load_note(spa, "performing a complete scan of the "
 			    "pool since extreme rewind is on. This may take "
-			    "a very long time.\n  (spa_load_verify_data=%u, "
-			    "spa_load_verify_metadata=%u)",
-			    spa_load_verify_data, spa_load_verify_metadata);
+			    "a very long time.\n  (verifying metadata=%u, "
+			    "data=%u)", spa_load_verify_metadata,
+			    spa_load_verify_data && sle.sle_verify_data);
 		}
 
 		error = traverse_pool(spa, spa->spa_verify_min_txg,
 		    TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA |
-		    TRAVERSE_NO_DECRYPT, spa_load_verify_cb, rio);
+		    TRAVERSE_NO_DECRYPT | TRAVERSE_HARD,
+		    spa_load_verify_cb, rio);
+
+		/*
+		 * We aborted the traversal ourselves, so this is not a real
+		 * error, only the error counts below are now lower bounds.
+		 */
+		if (error == ECANCELED) {
+			error = 0;
+			aborted = B_TRUE;
+		}
 	}
 
 	(void) zio_wait(rio);
@@ -3146,25 +3201,34 @@ spa_load_verify(spa_t *spa)
 	spa->spa_load_data_errors = sle.sle_data_count;
 
 	if (sle.sle_meta_count != 0 || sle.sle_data_count != 0) {
-		spa_load_note(spa, "spa_load_verify found %llu metadata errors "
-		    "and %llu data errors", (u_longlong_t)sle.sle_meta_count,
+		spa_load_note(spa, "spa_load_verify found %s%llu metadata "
+		    "errors and %llu data errors",
+		    aborted ? "at least " : "",
+		    (u_longlong_t)sle.sle_meta_count,
 		    (u_longlong_t)sle.sle_data_count);
 	}
 
 	if (spa_load_verify_dryrun ||
 	    (!error && sle.sle_meta_count <= policy.zlp_maxmeta &&
 	    sle.sle_data_count <= policy.zlp_maxdata)) {
-		int64_t loss = 0;
-
 		verify_ok = B_TRUE;
 		spa->spa_load_txg = spa->spa_uberblock.ub_txg;
 		spa->spa_load_txg_ts = spa->spa_uberblock.ub_timestamp;
 
-		loss = spa->spa_last_ubsync_txg_ts - spa->spa_load_txg_ts;
+		fnvlist_add_uint64(spa->spa_load_info, ZPOOL_CONFIG_LOAD_TXG,
+		    spa->spa_load_txg);
 		fnvlist_add_uint64(spa->spa_load_info, ZPOOL_CONFIG_LOAD_TIME,
 		    spa->spa_load_txg_ts);
-		fnvlist_add_int64(spa->spa_load_info, ZPOOL_CONFIG_REWIND_TIME,
-		    loss);
+		/*
+		 * The loss makes sense only for a fallback to an older
+		 * uberblock, which is the only case we know the newest one in.
+		 */
+		if (spa->spa_last_ubsync_txg_ts != 0) {
+			fnvlist_add_int64(spa->spa_load_info,
+			    ZPOOL_CONFIG_REWIND_TIME,
+			    spa->spa_last_ubsync_txg_ts -
+			    spa->spa_load_txg_ts);
+		}
 		fnvlist_add_uint64(spa->spa_load_info,
 		    ZPOOL_CONFIG_LOAD_META_ERRORS, sle.sle_meta_count);
 		fnvlist_add_uint64(spa->spa_load_info,
@@ -6002,7 +6066,8 @@ spa_ld_checkpoint_rewind(spa_t *spa)
 			if (svdcount == SPA_SYNC_MIN_VDEVS)
 				break;
 		}
-		error = vdev_config_sync(svd, svdcount, spa->spa_first_txg);
+		error = vdev_config_sync(spa, svd, svdcount,
+		    spa->spa_first_txg);
 		if (error == 0)
 			spa->spa_last_synced_guid = rvd->vdev_guid;
 		spa_config_exit(spa, SCL_ALL, FTAG);
@@ -6349,6 +6414,15 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		    "Cleaning up temporary userrefs");
 		dsl_pool_clean_tmp_userrefs(spa->spa_dsl_pool);
 
+		/*
+		 * Anything still marked for deferred destruction because a
+		 * mount was holding it was left that way by a crash or an
+		 * export, and nothing is holding it now.  The sweep walks
+		 * every snapshot, so leave it to the async thread rather than
+		 * spending import time on it.
+		 */
+		spa_async_request(spa, SPA_ASYNC_DEFER_DESTROY);
+
 		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 		spa_import_progress_set_notes(spa, "Restarting initialize");
 		vdev_initialize_restart(spa->spa_root_vdev);
@@ -6397,7 +6471,8 @@ spa_load_retry(spa_t *spa, spa_load_state_t state)
  * 'state' is SPA_LOAD_RECOVER and one of these loads succeeds the pool
  * will be rewound to that txg. If 'state' is not SPA_LOAD_RECOVER this
  * function will not rewind the pool and will return the same error as
- * spa_load().
+ * spa_load(), or ECANCELED if the load only probed the requested txg
+ * instead of bringing the pool up.
  */
 static int
 spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
@@ -6419,8 +6494,25 @@ spa_load_best(spa_t *spa, spa_load_state_t state, uint64_t max_request,
 	}
 
 	load_error = rewind_error = spa_load(spa, state, SPA_IMPORT_EXISTING);
-	if (load_error == 0)
+	if (load_error == 0) {
+		/*
+		 * A load of an explicitly requested txg may only probe
+		 * whether that txg is usable, finishing without a syncing
+		 * thread.  Such a pool is not functional, so it can not be
+		 * handed to the caller no matter how well it loaded.  Report
+		 * the probed txg the same way an actual rewind would.
+		 */
+		if (spa_writeable(spa) && !spa->spa_sync_on) {
+			loadinfo = fnvlist_alloc();
+			fnvlist_add_nvlist(loadinfo, ZPOOL_CONFIG_REWIND_INFO,
+			    spa->spa_load_info);
+			fnvlist_free(spa->spa_load_info);
+			spa->spa_load_info = loadinfo;
+			spa_import_progress_remove(spa_guid(spa));
+			return (SET_ERROR(ECANCELED));
+		}
 		return (0);
+	}
 
 	/* Do not attempt to load uberblocks from previous txgs when: */
 	switch (load_error) {
@@ -9185,6 +9277,46 @@ spa_vdev_trim(spa_t *spa, nvlist_t *nv, uint64_t cmd_type, uint64_t rate,
 	return (total_errors);
 }
 
+typedef struct spa_split_dtl_arg {
+	spa_t		*ssda_spa;	/* the new pool */
+	uint64_t	*ssda_objs;	/* original DTL space map objects */
+	uint_t		ssda_count;	/* nitems in ssda_objs */
+} spa_split_dtl_arg_t;
+
+/*
+ * Record the DTL space map object of every leaf that has one into objs[],
+ * advancing *idxp. These are the objects that will be carried, via the
+ * copied MOS, onto the split disks.
+ */
+static void
+spa_split_collect_dtl(vdev_t *vd, uint64_t *objs, uint_t *idxp)
+{
+	if (vd->vdev_ops->vdev_op_leaf) {
+		if (vd->vdev_dtl_sm != NULL)
+			objs[(*idxp)++] = space_map_object(vd->vdev_dtl_sm);
+		return;
+	}
+	for (uint64_t c = 0; c < vd->vdev_children; c++)
+		spa_split_collect_dtl(vd->vdev_child[c], objs, idxp);
+}
+
+/*
+ * Callback that frees the inherited DTL space map objects from the new
+ * pool MOS. The new pool MOS is a byte copy of the original pool, so it
+ * contains a DTL space map object for every leaf of the original pool.
+ * The new pool references none of them because split leaves
+ * start with an empty DTL and allocate their own on demand.
+ */
+static void
+spa_split_dtl_free_sync(void *arg, dmu_tx_t *tx)
+{
+	spa_split_dtl_arg_t *ssda = arg;
+	objset_t *mos = ssda->ssda_spa->spa_meta_objset;
+
+	for (uint_t i = 0; i < ssda->ssda_count; i++)
+		space_map_free_obj(mos, ssda->ssda_objs[i], tx);
+}
+
 /*
  * Split a set of devices from their mirrors, and create a new pool from them.
  */
@@ -9199,7 +9331,9 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 	nvlist_t **child, *nvl, *tmp;
 	dmu_tx_t *tx;
 	const char *altroot = NULL;
-	vdev_t *rvd, **vml = NULL;			/* vdev modify list */
+	vdev_t *rvd, **vml = NULL;	/* vdev modify list */
+	uint64_t *dtl_objs = NULL;	/* DTL objs from original pool */
+	uint_t ndtl = 0, nleaves;
 	boolean_t activate_slog;
 
 	ASSERT(spa_writeable(spa));
@@ -9347,6 +9481,11 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 		return (spa_vdev_exit(spa, NULL, txg, error));
 	}
 
+	/* Create array of DTL objects. */
+	nleaves = vdev_count_leaves(spa);
+	dtl_objs = kmem_zalloc(nleaves * sizeof (uint64_t), KM_SLEEP);
+	spa_split_collect_dtl(spa->spa_root_vdev, dtl_objs, &ndtl);
+
 	/* stop writers from using the disks */
 	for (c = 0; c < children; c++) {
 		if (vml[c] != NULL)
@@ -9444,6 +9583,20 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 		    B_TRUE));
 	}
 
+	/*
+	 * Free the DTL space map objects inherited from the original pool
+	 * MOS so we won't leak them.
+	 */
+	if (ndtl != 0) {
+		spa_split_dtl_arg_t ssda;
+
+		ssda.ssda_spa = newspa;
+		ssda.ssda_objs = dtl_objs;
+		ssda.ssda_count = ndtl;
+		VERIFY0(dsl_sync_task(spa_name(newspa), NULL,
+		    spa_split_dtl_free_sync, &ssda, 0, ZFS_SPACE_CHECK_NONE));
+	}
+
 	/* set the props */
 	if (props != NULL) {
 		spa_configfile_set(newspa, props, B_FALSE);
@@ -9483,11 +9636,33 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 			}
 
 			vdev_split(vml[c]);
+
+			/*
+			 * As in spa_vdev_detach(), mark the vdev detached
+			 * and dirty its DTL, so that vdev_dtl_sync() frees
+			 * the leaf's DTL space map object.
+			 */
+			vml[c]->vdev_detached = B_TRUE;
+
+			/*
+			 * The leaf ZAP was transferred to the new pool
+			 * and this pool's copy is destroyed by the AVZ
+			 * rebuild below, so clear it to keep
+			 * vdev_dtl_sync() from destroying it again.
+			 */
+			vml[c]->vdev_leaf_zap = 0;
+
+			/*
+			 * vml[c]->vdev_top may be stale; the
+			 * surviving top-level vdev is rvd->vdev_child[c].
+			 */
+			if (vml[c]->vdev_dtl_sm != NULL)
+				vdev_dirty(rvd->vdev_child[c], VDD_DTL,
+				    vml[c], txg);
+
 			if (error == 0)
 				spa_history_log_internal(spa, "detach", tx,
 				    "vdev=%s", vml[c]->vdev_path);
-
-			vdev_free(vml[c]);
 		}
 	}
 	spa->spa_avz_action = AVZ_ACTION_REBUILD;
@@ -9498,6 +9673,18 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 		dmu_tx_commit(tx);
 	(void) spa_vdev_exit(spa, NULL, txg, 0);
 
+	/*
+	 * txg is synced, free vdevs.
+	 */
+	spa_config_enter(spa, SCL_STATE_ALL, spa, RW_WRITER);
+	for (c = 0; c < children; c++) {
+		if (vml[c] != NULL && vml[c]->vdev_ops != &vdev_indirect_ops) {
+			ASSERT0P(vml[c]->vdev_dtl_sm);
+			vdev_free(vml[c]);
+		}
+	}
+	spa_config_exit(spa, SCL_STATE_ALL, spa);
+
 	if (zio_injection_enabled)
 		zio_handle_panic_injection(spa, FTAG, 3);
 
@@ -9507,6 +9694,8 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 
 	newspa->spa_is_splitting = B_FALSE;
 	kmem_free(vml, children * sizeof (vdev_t *));
+	if (dtl_objs != NULL)
+		kmem_free(dtl_objs, nleaves * sizeof (uint64_t));
 
 	/* if we're not going to mount the filesystems in userland, export */
 	if (exp)
@@ -9540,6 +9729,9 @@ out:
 	(void) spa_vdev_exit(spa, NULL, txg, error);
 
 	kmem_free(vml, children * sizeof (vdev_t *));
+	if (dtl_objs != NULL)
+		kmem_free(dtl_objs, nleaves * sizeof (uint64_t));
+
 	return (error);
 }
 
@@ -9870,7 +10062,7 @@ spa_async_thread(void *arg)
 {
 	spa_t *spa = (spa_t *)arg;
 	dsl_pool_t *dp = spa->spa_dsl_pool;
-	int tasks;
+	uint32_t tasks;
 
 	ASSERT(spa->spa_sync_on);
 
@@ -10016,6 +10208,17 @@ spa_async_thread(void *arg)
 		spa_config_exit(spa, SCL_L2ARC, FTAG);
 		spa_namespace_exit(FTAG);
 	}
+
+	/*
+	 * Finish off snapshots whose deferred destruction was waiting on
+	 * something that has since let go of them.  The destroy is a sync
+	 * task, which a suspended pool would never come back from, and the
+	 * export path waits on this thread, so leave the mark where it is
+	 * and pick it up on the next request or at the next import.
+	 */
+	if ((tasks & SPA_ASYNC_DEFER_DESTROY) && spa_writeable(spa) &&
+	    !spa_suspended(spa))
+		dsl_destroy_snapshot_deferred(spa_name(spa));
 
 	/*
 	 * Let the world know that we're done.
@@ -10665,32 +10868,49 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 	if (spa_sync_pass(spa) != 1)
 		return;
 
-	dsl_pool_t *dp = spa->spa_dsl_pool;
-	rrw_enter(&dp->dp_config_rwlock, RW_WRITER, FTAG);
+	uint64_t oldver = spa->spa_ubsync.ub_version;
+	uint64_t newver = spa->spa_uberblock.ub_version;
 
-	if (spa->spa_ubsync.ub_version < SPA_VERSION_ORIGIN &&
-	    spa->spa_uberblock.ub_version >= SPA_VERSION_ORIGIN) {
-		dsl_pool_create_origin(dp, tx);
+	/*
+	 * These upgrades change DSL namespace, so they need the
+	 * writer lock.
+	 */
+	boolean_t need_origin = oldver < SPA_VERSION_ORIGIN &&
+	    newver >= SPA_VERSION_ORIGIN;
+	boolean_t need_clones = oldver < SPA_VERSION_NEXT_CLONES &&
+	    newver >= SPA_VERSION_NEXT_CLONES;
+	boolean_t need_dir_clones = oldver < SPA_VERSION_DIR_CLONES &&
+	    newver >= SPA_VERSION_DIR_CLONES;
 
-		/* Keeping the origin open increases spa_minref */
-		spa->spa_minref += 3;
+	if (need_origin || need_clones || need_dir_clones) {
+		dsl_pool_t *dp = spa->spa_dsl_pool;
+
+		rrw_enter(&dp->dp_config_rwlock, RW_WRITER, FTAG);
+
+		if (need_origin) {
+			dsl_pool_create_origin(dp, tx);
+
+			/* Keeping the origin open increases spa_minref */
+			spa->spa_minref += 3;
+		}
+
+		if (need_clones) {
+			dsl_pool_upgrade_clones(dp, tx);
+		}
+
+		if (need_dir_clones) {
+			dsl_pool_upgrade_dir_clones(dp, tx);
+
+			/* Keeping the freedir open increases spa_minref */
+			spa->spa_minref += 3;
+		}
+
+		rrw_exit(&dp->dp_config_rwlock, FTAG);
 	}
 
-	if (spa->spa_ubsync.ub_version < SPA_VERSION_NEXT_CLONES &&
-	    spa->spa_uberblock.ub_version >= SPA_VERSION_NEXT_CLONES) {
-		dsl_pool_upgrade_clones(dp, tx);
-	}
+	/* Remaining upgrades do not need dp_config_rwlock */
 
-	if (spa->spa_ubsync.ub_version < SPA_VERSION_DIR_CLONES &&
-	    spa->spa_uberblock.ub_version >= SPA_VERSION_DIR_CLONES) {
-		dsl_pool_upgrade_dir_clones(dp, tx);
-
-		/* Keeping the freedir open increases spa_minref */
-		spa->spa_minref += 3;
-	}
-
-	if (spa->spa_ubsync.ub_version < SPA_VERSION_FEATURES &&
-	    spa->spa_uberblock.ub_version >= SPA_VERSION_FEATURES) {
+	if (oldver < SPA_VERSION_FEATURES && newver >= SPA_VERSION_FEATURES) {
 		spa_feature_create_zap_objects(spa, tx);
 	}
 
@@ -10700,7 +10920,7 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 	 * Old pools that have this feature enabled must be upgraded to have
 	 * this feature active
 	 */
-	if (spa->spa_uberblock.ub_version >= SPA_VERSION_FEATURES) {
+	if (newver >= SPA_VERSION_FEATURES) {
 		boolean_t lz4_en = spa_feature_is_enabled(spa,
 		    SPA_FEATURE_LZ4_COMPRESS);
 		boolean_t lz4_ac = spa_feature_is_active(spa,
@@ -10722,8 +10942,6 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 		    sizeof (spa->spa_cksum_salt.zcs_bytes),
 		    spa->spa_cksum_salt.zcs_bytes, tx));
 	}
-
-	rrw_exit(&dp->dp_config_rwlock, FTAG);
 }
 
 static void
@@ -10894,6 +11112,59 @@ spa_sync_iterate_to_convergence(spa_t *spa, dmu_tx_t *tx)
 }
 
 /*
+ * Select up to SPA_SYNC_MIN_VDEVS top-level vdevs to write the uberblock to.
+ * First take the ones written during this txg, so that the idle ones may stay
+ * asleep.  If there are not enough, top up from special and dedup vdevs, which
+ * are expected to have no seek penalty.  Pools having none of those keep the
+ * old behavior of topping up from any vdev.
+ */
+static int
+spa_select_uberblock_vdevs(spa_t *spa, vdev_t **svd, uint64_t txg)
+{
+	vdev_t *rvd = spa->spa_root_vdev;
+	uint64_t children = rvd->vdev_children;
+	uint64_t c0 = random_in_range(children);
+	boolean_t tiered = spa_has_special(spa) || spa_has_dedup(spa);
+	int svdcount = 0;
+
+	for (int pass = 0; pass < 3; pass++) {
+		if (pass == 2 && svdcount > 0 && tiered)
+			break;
+
+		for (uint64_t c = 0; c < children &&
+		    svdcount < SPA_SYNC_MIN_VDEVS; c++) {
+			vdev_t *vd = rvd->vdev_child[(c0 + c) % children];
+			boolean_t dup = B_FALSE;
+
+			if (vd->vdev_ms_array == 0 || vd->vdev_islog ||
+			    !vdev_is_concrete(vd))
+				continue;
+
+			if (pass == 0 && !txg_list_member(
+			    &spa->spa_vdev_txg_list, vd, TXG_CLEAN(txg)))
+				continue;
+
+			if (pass == 1) {
+				metaslab_class_t *mc = vd->vdev_mg != NULL ?
+				    vd->vdev_mg->mg_class : NULL;
+				if (mc != spa_special_class(spa) &&
+				    mc != spa_dedup_class(spa))
+					continue;
+			}
+
+			for (int i = 0; i < svdcount; i++)
+				dup |= (svd[i] == vd);
+			if (dup)
+				continue;
+
+			svd[svdcount++] = vd;
+		}
+	}
+
+	return (svdcount);
+}
+
+/*
  * Rewrite the vdev configuration (which includes the uberblock) to
  * commit the transaction group.
  *
@@ -10919,30 +11190,12 @@ spa_sync_rewrite_vdev_config(spa_t *spa, dmu_tx_t *tx)
 
 		if (list_is_empty(&spa->spa_config_dirty_list)) {
 			vdev_t *svd[SPA_SYNC_MIN_VDEVS] = { NULL };
-			int svdcount = 0;
-			int children = rvd->vdev_children;
-			int c0 = random_in_range(children);
+			int svdcount = spa_select_uberblock_vdevs(spa, svd,
+			    txg);
 
-			for (int c = 0; c < children; c++) {
-				vdev_t *vd =
-				    rvd->vdev_child[(c0 + c) % children];
-
-				/* Stop when revisiting the first vdev */
-				if (c > 0 && svd[0] == vd)
-					break;
-
-				if (vd->vdev_ms_array == 0 ||
-				    vd->vdev_islog ||
-				    !vdev_is_concrete(vd))
-					continue;
-
-				svd[svdcount++] = vd;
-				if (svdcount == SPA_SYNC_MIN_VDEVS)
-					break;
-			}
-			error = vdev_config_sync(svd, svdcount, txg);
+			error = vdev_config_sync(spa, svd, svdcount, txg);
 		} else {
-			error = vdev_config_sync(rvd->vdev_child,
+			error = vdev_config_sync(spa, rvd->vdev_child,
 			    rvd->vdev_children, txg);
 		}
 
@@ -11150,6 +11403,13 @@ spa_sync(spa_t *spa, uint64_t txg)
 	 */
 	spa->spa_ubsync = spa->spa_uberblock;
 	spa_config_exit(spa, SCL_CONFIG, FTAG);
+
+	/*
+	 * An activity that ended in this txg is only over for a reader of
+	 * the pool now that the txg is on disk, so let the waiters look
+	 * again (see spa_activity_in_progress()).
+	 */
+	spa_notify_waiters(spa);
 
 	spa_handle_ignored_writes(spa);
 
@@ -11516,9 +11776,18 @@ spa_vdev_activity_in_progress_impl(vdev_t *vd, zpool_wait_activity_t activity)
 	mutex_enter(lock);
 	mutex_enter(&spa->spa_activities_lock);
 
+	/*
+	 * A thread that has finished still has to sync out the new state
+	 * before it exits, and until it does the vdev cannot be initialized
+	 * or trimmed again.  Wait for the thread itself, not just the state,
+	 * so that a command issued after the wait returns does not fail with
+	 * EBUSY.
+	 */
 	boolean_t in_progress = (activity == ZPOOL_WAIT_INITIALIZE) ?
-	    (vd->vdev_initialize_state == VDEV_INITIALIZE_ACTIVE) :
-	    (vd->vdev_trim_state == VDEV_TRIM_ACTIVE);
+	    (vd->vdev_initialize_state == VDEV_INITIALIZE_ACTIVE ||
+	    vd->vdev_initialize_thread != NULL) :
+	    (vd->vdev_trim_state == VDEV_TRIM_ACTIVE ||
+	    vd->vdev_trim_thread != NULL);
 	mutex_exit(lock);
 
 	if (in_progress)
@@ -11652,13 +11921,25 @@ spa_activity_in_progress(spa_t *spa, zpool_wait_activity_t activity,
 		zfs_fallthrough;
 	case ZPOOL_WAIT_SCRUB:
 	{
-		boolean_t scanning, paused, is_scrub;
+		boolean_t scanning, paused, is_scrub, finishing;
 		dsl_scan_t *scn =  spa->spa_dsl_pool->dp_scan;
 
 		is_scrub = (scn->scn_phys.scn_func == POOL_SCAN_SCRUB);
 		scanning = (scn->scn_phys.scn_state == DSS_SCANNING);
 		paused = dsl_scan_is_paused_scrub(scn);
-		*in_progress = (scanning && !paused &&
+
+		/*
+		 * dsl_scan_done() marks the scan finished in syncing
+		 * context, ahead of the config and label writes that the
+		 * same txg carries, so the scan is not over for anyone
+		 * reading the pool until that txg has synced.  Keep
+		 * reporting it as in progress until then, the way the
+		 * initialize and trim waits cover the whole operation.
+		 */
+		finishing = (scn->scn_finished_txg != 0 &&
+		    spa_last_synced_txg(spa) < scn->scn_finished_txg);
+
+		*in_progress = ((scanning || finishing) && !paused &&
 		    is_scrub == (activity == ZPOOL_WAIT_SCRUB));
 		break;
 	}

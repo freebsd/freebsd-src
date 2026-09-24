@@ -760,6 +760,8 @@ sai_attach(device_t dev)
 
 	pcm_init(dev, scp);
 
+	mixer_init(dev, &saimixer_class, scp);
+
 	scp->chnum = 0;
 	pcm_addchan(dev, PCMDIR_PLAY, &saichan_class, scp);
 	scp->chnum++;
@@ -770,8 +772,6 @@ sai_attach(device_t dev)
 		device_printf(dev, "Can't register pcm.\n");
 		return (ENXIO);
 	}
-
-	mixer_init(dev, &saimixer_class, scp);
 
 	setup_dma(scp);
 	setup_sai(sc);
@@ -792,5 +792,5 @@ static driver_t sai_pcm_driver = {
 };
 
 DRIVER_MODULE(sai, simplebus, sai_pcm_driver, 0, 0);
-MODULE_DEPEND(sai, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(sai, sound, 1, 1, 1);
 MODULE_VERSION(sai, 1);

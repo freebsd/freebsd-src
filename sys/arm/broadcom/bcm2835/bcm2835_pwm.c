@@ -323,7 +323,7 @@ bcm_pwm_ratio2_proc(SYSCTL_HANDLER_ARGS)
 	if (r > sc->period2)		// XXX >= ?
 		return (EINVAL);
 	sc->ratio2 = r;
-	W_DAT(sc, sc->ratio2);
+	W_DAT2(sc, sc->ratio2);
 	return (0);
 }
 

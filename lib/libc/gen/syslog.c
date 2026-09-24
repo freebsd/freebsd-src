@@ -467,7 +467,8 @@ setlogmask(int pmask)
 static void
 parse_tag(void)
 {
-	char *begin, *end, *p;
+	const char *begin, *end;
+	char *p;
 	pid_t pid;
 
 	if (LogTag == NULL || (LogStat & LOG_PID) != 0)

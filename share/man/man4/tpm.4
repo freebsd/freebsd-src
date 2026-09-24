@@ -20,35 +20,33 @@
 .Nm tpm
 .Nd Trusted Platform Module
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device tpm"
-.Ed
-.Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-tpm_load="YES"
-.Ed
+.Cd device tpm
 .Pp
 In
-.Pa /boot/device.hints :
+.Xr device.hints 5 :
 .Cd hint.tpm.0.at="isa"
 .Cd hint.tpm.0.maddr="0xfed40000"
 .Cd hint.tpm.0.msize="0x5000"
 .Cd hint.tpm.1.at="isa"
 .Cd hint.tpm.1.maddr="0xfed40000"
 .Cd hint.tpm.1.msize="0x1000"
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd tpm_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for various trusted platform modules (TPM) that can
 store cryptographic keys.
 .Pp
-Supported modules:
+The driver can be configured to use an IRQ by providing a free ISA
+interrupt vector in
+.Pa /boot/device.hints .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following trusted platform modules:
 .Pp
 .Bl -bullet -compact -offset indent
 .It
@@ -66,10 +64,6 @@ STM ST19WP18
 .It
 Winbond WEC WPCT200
 .El
-.Pp
-The driver can be configured to use an IRQ by providing a free ISA
-interrupt vector in
-.Pa /boot/device.hints .
 .Sh SEE ALSO
 .Xr intro 4 ,
 .Xr device.hints 5 ,
@@ -78,7 +72,7 @@ interrupt vector in
 The homepage of the BSSSD project, which developed the original
 .Nm
 driver:
-.Lk "http://bsssd.sourceforge.net/" .
+.Lk "https://bsssd.sourceforge.net/" .
 .Pp
 TPM main specification can be found at:
 .Lk "https://trustedcomputinggroup.org/resource/tpm-main-specification/" .

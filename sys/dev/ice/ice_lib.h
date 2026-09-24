@@ -72,6 +72,13 @@
 
 #include "ice_rss.h"
 
+enum ice_mdd_source_bits {
+	ICE_MDD_TX_PQM			= BIT(0),
+	ICE_MDD_TX_TCLAN		= BIT(1),
+	ICE_MDD_TX_TDPU			= BIT(2),
+	ICE_MDD_RX			= BIT(3),
+};
+
 /* Hide debug sysctls unless INVARIANTS is enabled */
 #ifdef INVARIANTS
 #define ICE_CTLFLAG_DEBUG 0
@@ -121,6 +128,11 @@ extern bool ice_enable_tx_lldp_filter;
 
 /* global sysctl indicating whether FW health status events should be enabled */
 extern bool ice_enable_health_events;
+
+#ifdef PCI_IOV
+/* reconstruct and release a VF automatically after an MDD reset */
+extern bool ice_mdd_auto_reset_vf;
+#endif
 
 /* global sysctl indicating whether to enable 5-layer scheduler topology */
 extern bool ice_tx_balance_en;
@@ -558,6 +570,7 @@ struct ice_vsi {
 	struct ice_softc	*sc;
 
 	bool dynamic;		/* if true, dynamically allocated */
+	bool hw_vsi_created;	/* firmware owns a VSI for this handle */
 
 	enum ice_vsi_type type;	/* type of this VSI */
 	u16 idx;		/* software index to sc->all_vsi[] */
@@ -695,6 +708,7 @@ enum ice_state {
 	ICE_STATE_CONTROLQ_EVENT_PENDING,
 	ICE_STATE_VFLR_PENDING,
 	ICE_STATE_MDD_PENDING,
+	ICE_STATE_RDMA_PE_INTR_PENDING,
 	ICE_STATE_RESET_OICR_RECV,
 	ICE_STATE_RESET_PFR_REQ,
 	ICE_STATE_PREPARED_FOR_RESET,
@@ -934,6 +948,7 @@ int  ice_map_bar(device_t dev, struct ice_bar_info *bar, int bar_num);
 void ice_free_bar(device_t dev, struct ice_bar_info *bar);
 void ice_set_ctrlq_len(struct ice_hw *hw);
 void ice_release_vsi(struct ice_vsi *vsi);
+void ice_release_vsi_resources(struct ice_vsi *vsi);
 struct ice_vsi *ice_alloc_vsi(struct ice_softc *sc, enum ice_vsi_type type);
 void ice_alloc_vsi_qmap(struct ice_vsi *vsi, const int max_tx_queues,
 		       const int max_rx_queues);

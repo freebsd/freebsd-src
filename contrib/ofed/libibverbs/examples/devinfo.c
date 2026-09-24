@@ -343,6 +343,22 @@ static void print_device_cap_flags_ex(uint64_t device_cap_flags_ex)
 		       ex_flags & unknown_flags);
 }
 
+static void print_tm_caps(const struct ibv_tm_caps *caps)
+{
+	if (caps->max_num_tags) {
+		printf("\tmax_rndv_hdr_size:\t\t%u\n",
+				caps->max_rndv_hdr_size);
+		printf("\tmax_num_tags:\t\t\t%u\n", caps->max_num_tags);
+		printf("\tmax_ops:\t\t\t%u\n", caps->max_ops);
+		printf("\tmax_sge:\t\t\t%u\n", caps->max_sge);
+		printf("\tflags:\n");
+		if (caps->flags & IBV_TM_CAP_RC)
+			printf("\t\t\t\t\tIBV_TM_CAP_RC\n");
+	} else {
+		printf("\ttag matching not supported\n");
+	}
+}
+
 static void print_tso_caps(const struct ibv_tso_caps *caps)
 {
 	uint32_t unknown_general_caps = ~(1 << IBV_QPT_RAW_PACKET |
@@ -522,6 +538,7 @@ static int print_hca_cap(struct ibv_device *ib_dev, uint8_t ib_port)
 		print_rss_caps(&device_attr.rss_caps);
 		printf("\tmax_wq_type_rq:\t\t\t%u\n", device_attr.max_wq_type_rq);
 		print_packet_pacing_caps(&device_attr.packet_pacing_caps);
+		print_tm_caps(&device_attr.tm_caps);
 	}
 
 	for (port = 1; port <= device_attr.orig_attr.phys_port_cnt; ++port) {

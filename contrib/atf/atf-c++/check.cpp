@@ -150,5 +150,6 @@ impl::exec(const atf::process::argv_array& argva)
     if (atf_is_error(err))
         throw_atf_error(err);
 
-    return std::unique_ptr< impl::check_result >(new impl::check_result(&result));
+    return std::unique_ptr< impl::check_result >(
+        new impl::check_result(&result));
 }

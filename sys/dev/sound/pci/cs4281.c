@@ -837,9 +837,9 @@ cs4281_pci_attach(device_t dev)
     if (codec == NULL)
         goto bad;
 
-    mixer_init(dev, ac97_getmixerclass(), codec);
-
     pcm_init(dev, sc);
+
+    mixer_init(dev, ac97_getmixerclass(), codec);
 
     pcm_addchan(dev, PCMDIR_PLAY, &cs4281chan_class, sc);
     pcm_addchan(dev, PCMDIR_REC, &cs4281chan_class, sc);
@@ -964,5 +964,5 @@ static driver_t cs4281_driver = {
 };
 
 DRIVER_MODULE(snd_cs4281, pci, cs4281_driver, 0, 0);
-MODULE_DEPEND(snd_cs4281, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_cs4281, sound, 1, 1, 1);
 MODULE_VERSION(snd_cs4281, 1);

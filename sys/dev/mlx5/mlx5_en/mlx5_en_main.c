@@ -2460,7 +2460,7 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	 */
 	if (priv->params.cqe_zipping_en) {
 		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_HASH);
-		MLX5_SET(cqc, cqc, cqe_compression_en, 1);
+		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
 	}
 
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_rq_size);
@@ -4124,6 +4124,18 @@ mlx5e_priv_static_destroy(struct mlx5e_priv *priv, struct mlx5_core_dev *mdev,
 }
 
 static int
+sysctl_ifname(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	char name[IFNAMSIZ];
+	int error;
+
+	strlcpy(name, if_name(priv->ifp), sizeof(name));
+	error = sysctl_handle_string(oidp, name, sizeof(name), req);
+	return (error);
+}
+
+static int
 sysctl_firmware(SYSCTL_HANDLER_ARGS)
 {
 	/*
@@ -4646,7 +4658,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if_initname(ifp, "mce", device_get_unit(mdev->pdev->dev.bsddev));
 	if_setmtu(ifp, ETHERMTU);
 	if_setinitfn(ifp, mlx5e_open);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_ALLMULTI);
 	if_setioctlfn(ifp, mlx5e_ioctl);
 	if_settransmitfn(ifp, mlx5e_xmit);
 	if_setqflushfn(ifp, if_qflush);
@@ -4953,6 +4966,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		    "mlx5e_open_flow_rules() failed, %d (ignored)\n", err);
 	}
 	PRIV_UNLOCK(priv);
+
+	SYSCTL_ADD_PROC(&priv->sysctl_ctx,
+			SYSCTL_CHILDREN(device_get_sysctl_tree(mdev->pdev->dev.bsddev)),
+			OID_AUTO, "ifname", CTLTYPE_STRING | CTLFLAG_RD |
+			CTLFLAG_MPSAFE, priv, 0,
+			sysctl_ifname, "A", "ifname managed by driver");
 
 	return (priv);
 

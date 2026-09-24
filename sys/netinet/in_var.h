@@ -209,9 +209,18 @@ struct in_mfilter {
 };
 
 /*
- * Helper types and functions for IPv4 multicast filters.
+ * Structure attached to inpcb.ip_moptions and passed to ip_output() when IP
+ * multicast options are in use.
+ * This structure is lazy-allocated.
  */
-STAILQ_HEAD(ip_mfilter_head, in_mfilter);
+struct ip_moptions {
+	struct ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
+	struct in_addr imo_multicast_addr; /* ifindex/addr on MULTICAST_IF */
+	u_long imo_multicast_vif;	/* vif num outgoing multicasts */
+	u_char imo_multicast_ttl;	/* TTL for outgoing multicasts */
+	u_char imo_multicast_loop;	/* 1 => hear sends if a member */
+	STAILQ_HEAD(ip_mfilter_head, in_mfilter) imo_head;
+};
 
 struct in_mfilter *ip_mfilter_alloc(int mflags, int st0, int st1);
 void ip_mfilter_free(struct in_mfilter *);
@@ -419,7 +428,6 @@ inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 #define MCAST_MUTED		3	/* [deprecated] */
 
 struct rib_head;
-struct	ip_moptions;
 struct ucred;
 
 struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);

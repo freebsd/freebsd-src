@@ -118,6 +118,7 @@ _LIBRARIES=	\
 		be \
 		begemot \
 		bluetooth \
+		bsdconf \
 		bsdxml \
 		bsm \
 		bsnmp \

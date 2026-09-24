@@ -34,7 +34,7 @@ extern int wscroll;
 extern int quit_on_intr;
 extern long jump_sline_fraction;
 
-extern int less_is_more;
+extern lbool less_is_more;
 
 /*
  * Interrupt signal handler.
@@ -170,7 +170,7 @@ static RETSIGTYPE sigusr1(int type)
 /*
  * Set up the signal handlers.
  */
-public void init_signals(int on)
+public void init_signals(lbool on)
 {
 	if (on)
 	{
@@ -261,7 +261,7 @@ public void psignals(void)
 		clear_bot();
 		term_deinit();
 		flush();
-		raw_mode(0);
+		raw_mode(FALSE);
 #ifdef SIGTTOU
 		LSIGNAL(SIGTTOU, SIG_DFL);
 #endif
@@ -274,7 +274,7 @@ public void psignals(void)
 		 * screen when we get back to the main command loop.
 		 */
 		LSIGNAL(SIGTSTP, stop);
-		raw_mode(1);
+		raw_mode(TRUE);
 		term_init();
 		screen_trashed();
 		tsignals |= S_WINCH;
@@ -289,7 +289,7 @@ public void psignals(void)
 		 */
 		old_width = sc_width;
 		old_height = sc_height;
-		get_term();
+		update_term();
 		if (sc_width != old_width || sc_height != old_height)
 			screen_size_changed();
 		screen_trashed();

@@ -10,6 +10,21 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4523eebc6c18:
+	less(1) has been updated to version 710.  The obsolete lesskey(1)
+	utility has been removed; less(1) reads plain-text lesskey files
+	such as ~/.lesskey and /etc/syslesskey directly, and the file format
+	is now documented in lesskey(5).  New features in this release
+	include the || command, the right-limit-scroll command, underlining
+	of OSC 8 hyperlinks, -DO for coloring them, and LESSMSG, which
+	allows less(1) messages to be translated into other languages.
+
+3fe5961a0b70:
+	sysconf(8) and libbsdconf(3) have been added.  sysconf(8) queries
+	and edits loader.conf(5), sysctl.conf(5), and the make.conf(5)
+	family (make.conf, src.conf, and src-env.conf) in the style of
+	sysrc(8).  The rc target passes through to sysrc(8).
+
 7144a1d58c5c, a311bd18a6fb, 884ee8d6c9b4:
 	These three patches add the required "glue" so that the
 	nfsrdma.ko and nfsclrdma.ko modules can be loaded.

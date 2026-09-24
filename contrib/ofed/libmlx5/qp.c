@@ -253,14 +253,14 @@ static void mlx5_bf_copy(unsigned long long *dst, unsigned long long *src,
 	}
 }
 
-static uint32_t send_ieth(struct ibv_send_wr *wr)
+static __be32 send_ieth(struct ibv_send_wr *wr)
 {
 	switch (wr->opcode) {
 	case IBV_WR_SEND_WITH_IMM:
 	case IBV_WR_RDMA_WRITE_WITH_IMM:
 		return wr->imm_data;
 	case IBV_WR_SEND_WITH_INV:
-		return htobe32(wr->imm_data);
+		return htobe32(wr->invalidate_rkey);
 	default:
 		return 0;
 	}
@@ -413,7 +413,7 @@ static inline int copy_eth_inline_headers(struct ibv_qp *ibqp,
 #undef	ALIGN
 #define ALIGN(x, log_a) ((((x) + (1 << (log_a)) - 1)) & ~((1 << (log_a)) - 1))
 
-static inline uint16_t get_klm_octo(int nentries)
+static inline __be16 get_klm_octo(int nentries)
 {
 	return htobe16(ALIGN(nentries, 3) / 2);
 }
@@ -742,7 +742,7 @@ static inline int _mlx5_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 				struct ibv_mw_bind_info	bind_info = {};
 
 				next_fence = MLX5_WQE_CTRL_INITIATOR_SMALL_FENCE;
-				ctrl->imm = htobe32(wr->imm_data);
+				ctrl->imm = htobe32(wr->invalidate_rkey);
 				err = set_bind_wr(qp, IBV_MW_TYPE_2, 0,
 						  &bind_info, ibqp->qp_num,
 						  &seg, &size);
@@ -787,7 +787,7 @@ static inline int _mlx5_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 				struct ibv_mw_bind_info	bind_info = {};
 
 				next_fence = MLX5_WQE_CTRL_INITIATOR_SMALL_FENCE;
-				ctrl->imm = htobe32(wr->imm_data);
+				ctrl->imm = htobe32(wr->invalidate_rkey);
 				err = set_bind_wr(qp, IBV_MW_TYPE_2, 0,
 						  &bind_info, ibqp->qp_num,
 						  &seg, &size);

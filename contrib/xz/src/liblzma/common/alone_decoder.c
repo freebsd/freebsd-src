@@ -152,8 +152,12 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
 			}
 		};
 
-		return_if_error(lzma_next_filter_init(&coder->next,
-				allocator, filters));
+		const lzma_ret ret = lzma_next_filter_init(&coder->next,
+				allocator, filters);
+		if (ret != LZMA_OK) {
+			lzma_next_end(&coder->next, allocator);
+			return ret;
+		}
 
 		coder->sequence = SEQ_CODE;
 		break;

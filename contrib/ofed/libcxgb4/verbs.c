@@ -168,20 +168,28 @@ int c4iw_dereg_mr(struct ibv_mr *mr)
 struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 			      struct ibv_comp_channel *channel, int comp_vector)
 {
-	struct ibv_create_cq cmd;
+	struct c4iw_create_cq_req cmd;
 	struct c4iw_create_cq_resp resp;
 	struct c4iw_cq *chp;
 	struct c4iw_dev *dev = to_c4iw_dev(context->device);
 	int ret;
+
+	if (dev->abi_version < 5) {
+		fprintf(stderr, "libcxgb4 FATAL ERROR: downlevel iw_cxgb4 "
+			"module.  Cannot support RDMA with this driver/lib"
+			" combination.  Update your drivers!\n");
+		return NULL;
+	}
 
 	chp = calloc(1, sizeof *chp);
 	if (!chp) {
 		return NULL;
 	}
 
+	cmd.cqe_size = sizeof *chp->cq.queue;
 	resp.reserved = 0;
 	ret = ibv_cmd_create_cq(context, cqe, channel, comp_vector,
-				&chp->ibv_cq, &cmd, sizeof cmd,
+				&chp->ibv_cq, &cmd.ibv_req, sizeof cmd,
 				&resp.ibv_resp, sizeof resp);
 	if (ret)
 		goto err1;
@@ -447,6 +455,8 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 	qhp->wq.sq.size = resp.sq_size;
 	qhp->wq.sq.memsize = resp.sq_memsize;
 	qhp->wq.sq.flags = resp.flags & C4IW_QPF_ONCHIP ? T4_SQ_ONCHIP : 0;
+	if (resp.flags & C4IW_QPF_WRITE_W_IMM)
+		qhp->wq.sq.flags |= T4_SQ_WRITE_W_IMM;
 	qhp->wq.sq.flush_cidx = -1;
 	qhp->wq.rq.msn = 1;
 	qhp->wq.rq.qid = resp.rqid;

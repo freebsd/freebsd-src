@@ -7,6 +7,7 @@ TESTSDIR=		${TESTSBASE}/sys/fs
 
 TESTSRC=		${SRCTOP}/contrib/netbsd-tests/fs
 
+TESTS_SUBDIRS+=		fdescfs
 #TESTS_SUBDIRS+=	nullfs	# XXX: needs rump
 # fusefs tests cannot be compiled/used without the googletest infrastructure.
 .if ${COMPILER_FEATURES:Mc++14} && ${MK_GOOGLETEST} != "no"

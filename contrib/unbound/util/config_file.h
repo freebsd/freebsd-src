@@ -798,6 +798,10 @@ struct config_file {
 	int iter_scrub_rrsig;
 	/** limit on upstream queries for an incoming query and subqueries. */
 	int max_global_quota;
+	/** limit on validator validation attempts. */
+	int val_validation_attempts;
+	/** limit on validator hash attempts. */
+	int val_hash_attempts;
 	/** Should the iterator scrub promiscuous NS rrsets, from positive
 	 * answers. */
 	int iter_scrub_promiscuous;

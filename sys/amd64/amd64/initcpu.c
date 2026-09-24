@@ -440,3 +440,32 @@ amd64_cpu_init_fred(void)
 		printf("FRED enabled\n");
 
 }
+
+void
+amd64_init_splitlock(void)
+{
+	uint64_t msr;
+
+	if ((cpu_stdext_feature3 & CPUID_STDEXT3_CORE_CAP) != 0) {
+		if (rdmsr_safe(MSR_IA32_CORE_CAP, &msr) == 0)
+			ia32_splitlock = (msr & IA32_CORE_CAP_SPLITLOCK) != 0;
+	}
+	if (ia32_splitlock) {
+		TUNABLE_INT_FETCH("hw.splitlock_force", &ia32_splitlock_force);
+		if (ia32_splitlock_force != 0)
+			ia32_splitlock_force = 1;
+	} else {
+		ia32_splitlock_force = 0;
+	}
+}
+
+void
+amd64_cpu_init_msr_memctl(void)
+{
+	uint64_t msr;
+
+	if ((cpu_stdext_feature3 & CPUID_STDEXT3_CORE_CAP) != 0 &&
+	    rdmsr_safe(MSR_IA32_CORE_CAP, &msr) == 0 &&
+	    (msr & IA32_CORE_CAP_SPLITLOCK) != 0)
+		PCPU_SET(msr_memctl, rdmsr(MSR_MEMORY_CTL));
+}

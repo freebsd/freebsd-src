@@ -1058,6 +1058,25 @@ nhgrp_get_idx(const struct nhgrp_object *nhg)
 	return (nhg_priv->nhg_idx);
 }
 
+/*
+ * Returns the address family of the nexthop index space @nhg was
+ * allocated from.
+ *
+ * XXX: we get group indexes from the nh_control, which is keyed by
+ * the neighbor family of its members. For now, all members are required
+ * to share that nh_control. The ideal is to support nexthop groups spanning
+ * multiple address families. Such a group will no longer belong to a
+ * single neighbor family.
+ */
+uint8_t
+nhgrp_get_neigh_family(const struct nhgrp_object *nhg)
+{
+	const struct nhgrp_priv *nhg_priv;
+
+	nhg_priv = NHGRP_PRIV_CONST(nhg);
+	return (nhg_priv->nh_control->ctl_rh->rib_family);
+}
+
 uint8_t
 nhgrp_get_origin(const struct nhgrp_object *nhg)
 {

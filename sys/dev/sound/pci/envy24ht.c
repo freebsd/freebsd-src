@@ -2474,11 +2474,12 @@ envy24ht_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	pcm_init(dev, sc);
+
 	/* set multi track mixer */
 	mixer_init(dev, &envy24htmixer_class, sc);
 
 	/* set channel information */
-	pcm_init(dev, sc);
 	sc->chnum = 0;
 	/* for (i = 0; i < 5; i++) { */
 		pcm_addchan(dev, PCMDIR_PLAY, &envy24htchan_class, sc);
@@ -2577,6 +2578,6 @@ static driver_t envy24ht_driver = {
 };
 
 DRIVER_MODULE(snd_envy24ht, pci, envy24ht_driver, 0, 0);
-MODULE_DEPEND(snd_envy24ht, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_envy24ht, sound, 1, 1, 1);
 MODULE_DEPEND(snd_envy24ht, snd_spicds, 1, 1, 1);
 MODULE_VERSION(snd_envy24ht, 1);

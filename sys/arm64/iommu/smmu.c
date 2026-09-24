@@ -245,7 +245,7 @@ smmu_q_empty(struct smmu_queue *q)
 	return (0);
 }
 
-static int __unused
+static int
 smmu_q_consumed(struct smmu_queue *q, uint32_t prod)
 {
 
@@ -254,7 +254,7 @@ smmu_q_consumed(struct smmu_queue *q, uint32_t prod)
 		return (1);
 
 	if ((Q_WRP(q, q->lc.cons) != Q_WRP(q, prod)) &&
-	    (Q_IDX(q, q->lc.cons) <= Q_IDX(q, prod)))
+	    (Q_IDX(q, q->lc.cons) < Q_IDX(q, prod)))
 		return (1);
 
 	return (0);
@@ -567,43 +567,82 @@ smmu_poll_until_consumed(struct smmu_softc *sc, struct smmu_queue *q)
 	}
 }
 
-static int
-smmu_sync(struct smmu_softc *sc)
+static void
+smmu_sync_wait_poll(struct smmu_softc *sc, struct smmu_queue *q)
 {
-	struct smmu_cmdq_entry cmd;
-	struct smmu_queue *q;
-	uint32_t *base;
-	int timeout;
+	sbintime_t start;
 	int prod;
 
-	q = &sc->cmdq;
 	prod = q->lc.prod;
 
-	/* Enqueue sync command. */
-	cmd.opcode = CMD_SYNC;
-	cmd.sync.msiaddr = q->paddr + Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8;
-	smmu_cmdq_enqueue_cmd(sc, &cmd);
+	start = getsbinuptime();
+	do {
+		if (smmu_q_consumed(q, prod))
+			return;
+		if ((sc->features & SMMU_FEATURE_SEV) != 0)
+			wfe();
+		else
+			DELAY(100);
+
+		q->lc.cons = bus_read_4(sc->res[0], q->cons_off);
+	} while ((getsbinuptime() - start) < SBT_1S);
+
+	if (!smmu_q_consumed(q, prod))
+		device_printf(sc->dev, "Failed to sync\n");
+}
+
+static void
+smmu_sync_wait_msi(struct smmu_softc *sc, struct smmu_queue *q)
+{
+	sbintime_t start;
+	uint32_t *base;
+	int prod;
+
+	prod = q->lc.prod;
 
 	/* Wait for the sync completion. */
 	base = (void *)((uint64_t)q->vaddr +
 	    Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8);
 
-	/*
-	 * It takes around 200 loops (6 instructions each)
-	 * on Neoverse N1 to complete the sync.
-	 */
-	timeout = 10000;
-
+	start = getsbinuptime();
 	do {
-		if (*base == 0) {
+		if (atomic_load_32(base) == 0) {
 			/* MSI write completed. */
-			break;
+			return;
 		}
-		cpu_spinwait();
-	} while (timeout--);
+		DELAY(100);
+	} while ((getsbinuptime() - start) < SBT_1S);
 
-	if (timeout < 0)
+	if (atomic_load_32(base) != 0)
 		device_printf(sc->dev, "Failed to sync\n");
+}
+
+static int
+smmu_sync(struct smmu_softc *sc)
+{
+	struct smmu_cmdq_entry cmd;
+	struct smmu_queue *q;
+	int prod;
+	bool msipoll;
+
+	q = &sc->cmdq;
+	prod = q->lc.prod;
+
+	msipoll = ((sc->options & SMMU_OPT_MSIPOLL) != 0);
+
+	/* Enqueue sync command. */
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = CMD_SYNC;
+	if (msipoll) {
+		cmd.sync.msiaddr = q->paddr +
+		    Q_IDX(q, prod) * CMDQ_ENTRY_DWORDS * 8;
+	}
+	smmu_cmdq_enqueue_cmd(sc, &cmd);
+
+	if (msipoll)
+		smmu_sync_wait_msi(sc, q);
+	else
+		smmu_sync_wait_poll(sc, q);
 
 	return (0);
 }
@@ -1320,8 +1359,6 @@ smmu_check_features(struct smmu_softc *sc)
 	uint32_t reg;
 	uint32_t val;
 
-	sc->features = 0;
-
 	reg = bus_read_4(sc->res[0], SMMU_IDR0);
 
 	if (reg & IDR0_ST_LVL_2) {
@@ -1368,6 +1405,9 @@ smmu_check_features(struct smmu_softc *sc)
 		if (bootverbose)
 			device_printf(sc->dev, "MSI feature present.\n");
 		sc->features |= SMMU_FEATURE_MSI;
+		/* Support polling if we support MSI & are cache-coherent */
+		if ((sc->features & SMMU_FEATURE_COHERENCY) != 0)
+			sc->options |= SMMU_OPT_MSIPOLL;
 	}
 
 	if (reg & IDR0_HYP) {
@@ -1512,6 +1552,34 @@ smmu_check_features(struct smmu_softc *sc)
 }
 
 static void
+smmu_check_errata(struct smmu_softc *sc)
+{
+	uint32_t reg;
+	u_int variant;
+
+#define	 SMMU_Implementer_ARM		0x43b
+#define	 SMMU_ProductID_ARM_MMU_600	0x483
+
+	reg = bus_read_4(sc->res[0], SMMU_IIDR);
+	variant = SMMU_Variant_GET(reg);
+
+	switch(SMMU_Implementer_GET(reg)) {
+	case SMMU_Implementer_ARM:
+		switch (SMMU_ProductID_GET(reg)) {
+		case SMMU_ProductID_ARM_MMU_600:
+			/* Arm erratum 1076982 */
+			if (variant < 1)
+				sc->features &= ~SMMU_FEATURE_SEV;
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+}
+
+static void
 smmu_init_asids(struct smmu_softc *sc)
 {
 
@@ -1571,6 +1639,8 @@ smmu_attach(device_t dev)
 		    "but not supported by hardware.\n");
 		return (ENXIO);
 	}
+
+	smmu_check_errata(sc);
 
 	smmu_init_asids(sc);
 

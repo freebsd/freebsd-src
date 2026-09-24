@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 5, 2026
+.Dd August 23, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aCDeHhMPSuWwxY
+.Op Fl aCDeHhMNPSuWwxY
 .Oo
 .Sm off
 .Fl c\~
@@ -345,6 +345,13 @@ See the
 flag in
 .Xr cpuset 1
 for a list of valid NUMA memory allocation policies and their formats.
+.It Fl N
+Prevent monitor mode from automatically rebooting the virtual machine.
+This option has no effect unless the
+.Va monitor.enabled
+configuration option is enabled or
+.Fl M
+was specified.
 .It Fl o Ar var Ns Cm = Ns Ar value
 Set the configuration variable
 .Ar var
@@ -1429,7 +1436,7 @@ bhyve -c 4 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
 .Pp
 .Rs
 .%A Intel
-.%B 64 and IA-32 Architectures Software Developer’s Manual
+.%B 64 and IA-32 Architectures Software Developer's Manual
 .%V Volume 3
 .Re
 .Sh HISTORY

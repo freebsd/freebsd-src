@@ -31,7 +31,10 @@ options 	DDB
 options 	DEVICE_POLLING
 #options 	DIAGNOSTIC
 options 	FDT
+options 	RANDOM_ENABLE_TPM
 #makeoptions	FDT_DTS_FILE=mpc8555cds.dts
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	KERN_TLS		# TLS transmit & receive offload
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
@@ -105,6 +108,7 @@ device		scc
 device  	sdhci
 device  	spibus
 device  	spigen
+device		tpm
 device		tuntap
 device		uart
 options 	USB_DEBUG	# enable debug msgs

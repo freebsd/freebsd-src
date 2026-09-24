@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" $OpenBSD: uipaq.4,v 1.1 2005/06/17 23:50:35 deraadt Exp $
 .\" $NetBSD: uipaq.4,v 1.3 2008/04/30 13:10:54 martin Exp $
 .\"
@@ -35,21 +38,13 @@
 .Nm uipaq
 .Nd USB support for iPAQ units
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device usb"
-.Cd "device ucom"
-.Cd "device uipaq"
-.Ed
+.Cd device usb
+.Cd device ucom
+.Cd device uipaq
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-uipaq_load="YES"
-.Ed
+.Cd uipaq_load="YES"
 .Sh DESCRIPTION
 The
 .Nm

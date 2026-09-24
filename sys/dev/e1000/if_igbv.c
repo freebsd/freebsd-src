@@ -41,6 +41,9 @@
 #define	IGBV_VLAN_RETRY_BATCH	4
 #define	IGBV_VLAN_RETRY_WINDOW	(8 * SBT_1S)
 
+/* Reading these six configuration bytes performs the Hyper-V VF handshake. */
+#define	IGBV_HV_RESET_OFFSET	0x201
+
 static const struct timeval igbv_queue_log_interval = { 2, 0 };
 static const struct timeval igbv_mbx_log_interval = { 60, 0 };
 static const sbintime_t igbv_queue_retry_delay[] = {
@@ -64,6 +67,104 @@ struct igb_vf_uc_addr_list {
 static bool	igbv_tx_pending(struct e1000_softc *);
 static bool	igbv_vlan_retry_pending(const struct e1000_softc *);
 static void	igbv_vlan_retry_tick(struct e1000_softc *);
+
+static s32
+igbv_hv_read_mac_addr(struct e1000_hw *hw)
+{
+
+	if (!em_is_valid_ether_addr(hw->mac.perm_addr))
+		return (-E1000_ERR_MAC_INIT);
+	memcpy(hw->mac.addr, hw->mac.perm_addr, ETHER_ADDR_LEN);
+	return (E1000_SUCCESS);
+}
+
+static s32
+igbv_hv_reset_hw(struct e1000_hw *hw)
+{
+	struct e1000_osdep *osdep;
+	u8 addr[ETHER_ADDR_LEN];
+	u32 ctrl;
+	int i;
+
+	osdep = hw->back;
+	hw->mac.get_link_status = true;
+	memset(hw->mac.perm_addr, 0, ETHER_ADDR_LEN);
+	/* Hyper-V does not service the native VF posted-message protocol. */
+	hw->mbx.timeout = 0;
+	ctrl = E1000_READ_REG(hw, E1000_CTRL);
+	if (ctrl == 0xffffffff)
+		return (-E1000_ERR_RESET);
+	/* Reset VF-local state before the Hyper-V host reset/MAC exchange. */
+	E1000_WRITE_REG(hw, E1000_CTRL, ctrl | E1000_CTRL_RST);
+	E1000_WRITE_FLUSH(hw);
+	for (i = 0; i < E1000_VF_INIT_TIMEOUT; i++) {
+		if (hw->mbx.ops.check_for_rst(hw, 0) != E1000_SUCCESS)
+			break;
+		DELAY(5);
+	}
+
+	/*
+	 * The PF handles 0x201..0x206 as a reset/MAC exchange, including
+	 * partial reads.  Do not use these bytes for routine status polling.
+	 * The host-assigned address also identifies the matching hn interface.
+	 */
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		addr[i] = pci_read_config(osdep->dev, IGBV_HV_RESET_OFFSET + i, 1);
+	if (!em_is_valid_ether_addr(addr))
+		return (-E1000_ERR_MAC_INIT);
+	memcpy(hw->mac.perm_addr, addr, ETHER_ADDR_LEN);
+	return (E1000_SUCCESS);
+}
+
+static s32
+igbv_hv_check_for_link(struct e1000_hw *hw)
+{
+	u32 status;
+
+	/* Leave reset indications for the statistics counter-epoch check. */
+	status = E1000_READ_REG(hw, E1000_STATUS);
+	hw->mac.get_link_status = true;
+	if (status == 0xffffffff)
+		return (-E1000_ERR_MAC_INIT);
+	/* Poll even after link-up so a host port link-down cannot stay cached. */
+	hw->mac.get_link_status = (status & E1000_STATUS_LU) == 0;
+	return (E1000_SUCCESS);
+}
+
+static int
+igbv_hv_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
+{
+	int error;
+
+	error = index == 0 &&
+	    memcmp(addr, hw->mac.perm_addr, ETHER_ADDR_LEN) == 0 ?
+	    E1000_SUCCESS : -E1000_ERR_MAC_INIT;
+	if (igbv_hv_read_mac_addr(hw) != E1000_SUCCESS)
+		return (-E1000_ERR_MAC_INIT);
+	return (error);
+}
+
+static void
+igbv_hv_update_mc_addr_list(struct e1000_hw *hw __unused,
+    u8 *addrs __unused, u32 count __unused)
+{
+
+	/* The host owns receive-filter policy for the synthetic/VF pair. */
+}
+
+void
+igbv_init_hv_ops(struct e1000_hw *hw)
+{
+
+	/* Install after the ordinary VF MAC and mailbox parameter setup. */
+	hw->mac.ops.reset_hw = igbv_hv_reset_hw;
+	/* Native init_hw calls rar_set_vf directly, bypassing the RAR op. */
+	hw->mac.ops.init_hw = igbv_hv_read_mac_addr;
+	hw->mac.ops.read_mac_addr = igbv_hv_read_mac_addr;
+	hw->mac.ops.rar_set = igbv_hv_rar_set;
+	hw->mac.ops.check_for_link = igbv_hv_check_for_link;
+	hw->mac.ops.update_mc_addr_list = igbv_hv_update_mc_addr_list;
+}
 
 static void
 igbv_queue_retry_callout(void *arg)
@@ -446,7 +547,7 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	dev = iflib_get_dev(ctx);
 	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
 
-	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) == 0 ||
+	if (!iflib_is_running(ctx) ||
 	    !sc->vf_queues_sanitized ||
 	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
 		if (sc->link_state != EM_LINK_STATE_DOWN) {
@@ -456,6 +557,40 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 		}
 		return;
+	}
+
+	if (igbv_is_hyperv(sc)) {
+		u32 status, txdctl;
+
+		if (sc->vf_reset_pending)
+			return;
+		txdctl = E1000_READ_REG(hw, E1000_TXDCTL(0));
+		if (txdctl != 0xffffffff &&
+		    (txdctl & E1000_TXDCTL_QUEUE_ENABLE) == 0) {
+			/* Carrier can remain up after the PF disables queue DMA. */
+			sc->vf_stats_valid = false;
+			sc->link_speed = sc->link_duplex = 0;
+			if (sc->link_state != EM_LINK_STATE_DOWN) {
+				sc->link_state = EM_LINK_STATE_DOWN;
+				iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+			}
+			/*
+			 * Do not reset while carrier is down.  Limit requests
+			 * if the host keeps the queue disabled with carrier up.
+			 */
+			status = E1000_READ_REG(hw, E1000_STATUS);
+			if (status != 0xffffffff &&
+			    (status & E1000_STATUS_LU) != 0 &&
+			    ratecheck(&sc->vf_last_queue_log,
+			    &igbv_queue_log_interval)) {
+				device_printf(dev,
+				    "Hyper-V VF queue disabled; requesting recovery\n");
+				sc->vf_reset_pending = true;
+				iflib_request_reset_if_up(ctx);
+				iflib_admin_intr_deferred(ctx);
+			}
+			return;
+		}
 	}
 
 	if (!sc->vf_reset_pending &&
@@ -508,9 +643,8 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	    atomic_readandclear_32(&sc->stats_pending) != 0;
 	if (timer_tick) {
 		em_update_stats_counters(sc);
-		/* iflib clears RUNNING before stop; do not replay after reset. */
-		if ((if_getdrvflags(iflib_get_ifp(ctx)) &
-		    IFF_DRV_RUNNING) != 0)
+		/* iflib closes admission before stop; do not replay after reset. */
+		if (iflib_is_running(ctx))
 			igbv_vlan_retry_tick(sc);
 	}
 }
@@ -772,6 +906,9 @@ igbv_update_uc_addr_list(struct e1000_softc *sc, if_t ifp)
 		.sc = sc,
 	};
 	u_int count;
+
+	if (igbv_is_hyperv(sc))
+		return;
 
 	count = if_foreach_lladdr(ifp, igbv_copy_uc_addr, &list);
 	if (count > IGBV_MAX_MAC_FILTERS) {

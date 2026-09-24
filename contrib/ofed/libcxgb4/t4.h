@@ -63,6 +63,7 @@
 #include "t4_regs.h"
 #include "t4_chip_type.h"
 #include "t4fw_interface.h"
+#include "t4_msg.h"
 
 #ifdef DEBUG
 #define DBGLOG(s)
@@ -99,6 +100,7 @@ struct t4_status_page {
 	__be16 pidx;
 	u8 qp_err;	/* flit 1 - sw owns */
 	u8 db_off;
+	u8 cq_armed;
 	u8 pad;
 	u16 host_wq_pidx;
 	u16 host_cidx;
@@ -120,6 +122,9 @@ struct t4_status_page {
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
 #define T4_MAX_RECV_SGE 4
 
+#define T4_WRITE_CMPL_MAX_SGL 4
+#define T4_WRITE_CMPL_MAX_CQE 16
+
 union t4_wr {
 	struct fw_ri_res_wr res;
 	struct fw_ri_wr init;
@@ -129,9 +134,10 @@ union t4_wr {
 	struct fw_ri_bind_mw_wr bind;
 	struct fw_ri_fr_nsmr_wr fr;
 	struct fw_ri_inv_lstag_wr inv;
+	struct fw_ri_rdma_write_cmpl_wr write_cmpl;
 	struct t4_status_page status;
 	__be64 flits[T4_EQ_ENTRY_SIZE / sizeof(__be64) * T4_SQ_NUM_SLOTS];
-};
+} __attribute__((aligned(T4_EQ_ENTRY_SIZE)));
 
 union t4_recv_wr {
 	struct fw_ri_recv_wr recv;
@@ -192,9 +198,10 @@ static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 #define T4_ERR_INTERNAL_ERR                0x1F /* internal error (opcode  */
 						/* mismatch) */
 /*
- * CQE defs
+ * 64B CQE entries.
  */
 struct t4_cqe {
+	struct rss_header rss;
 	__be32 header;
 	__be32 len;
 	union {
@@ -211,8 +218,14 @@ struct t4_cqe {
 			__be32 wrid_hi;
 			__be32 wrid_low;
 		} gen;
+		__u64 drain_cookie;
+		struct {
+			__be32 mo;
+			__be32 msn;
+			__u64 imm_data;
+		} imm_data_rcqe;
 	} u;
-	__be64 reserved;
+	__be64 reserved[3];
 	__be64 bits_type_ts;
 };
 
@@ -227,6 +240,11 @@ struct t4_cqe {
 #define M_CQE_SWCQE       0x1
 #define G_CQE_SWCQE(x)    ((((x) >> S_CQE_SWCQE)) & M_CQE_SWCQE)
 #define V_CQE_SWCQE(x)	  ((x)<<S_CQE_SWCQE)
+
+#define S_CQE_DRAIN       10
+#define M_CQE_DRAIN       0x1
+#define G_CQE_DRAIN(x)    ((((x) >> S_CQE_DRAIN)) & M_CQE_DRAIN)
+#define V_CQE_DRAIN(x)    ((x)<<S_CQE_DRAIN)
 
 #define S_CQE_STATUS      5
 #define M_CQE_STATUS      0x1F
@@ -244,6 +262,7 @@ struct t4_cqe {
 #define V_CQE_OPCODE(x)   ((x)<<S_CQE_OPCODE)
 
 #define SW_CQE(x)         (G_CQE_SWCQE(be32toh((x)->header)))
+#define DRAIN_CQE(x)      (G_CQE_DRAIN(be32toh((x)->header)))
 #define CQE_QPID(x)       (G_CQE_QPID(be32toh((x)->header)))
 #define CQE_TYPE(x)       (G_CQE_TYPE(be32toh((x)->header)))
 #define SQ_TYPE(x)	  (CQE_TYPE((x)))
@@ -262,6 +281,7 @@ struct t4_cqe {
 /* used for RQ completion processing */
 #define CQE_WRID_STAG(x)  (be32toh((x)->u.rcqe.stag))
 #define CQE_WRID_MSN(x)   (be32toh((x)->u.rcqe.msn))
+#define CQE_IMM_DATA(x)   ((x)->u.imm_data_rcqe.imm_data)
 
 /* used for SQ completion processing */
 #define CQE_WRID_SQ_IDX(x)	(x)->u.scqe.cidx
@@ -269,6 +289,7 @@ struct t4_cqe {
 /* generic accessor macros */
 #define CQE_WRID_HI(x)		((x)->u.gen.wrid_hi)
 #define CQE_WRID_LOW(x)		((x)->u.gen.wrid_low)
+#define CQE_DRAIN_COOKIE(x)    ((x)->u.drain_cookie)
 
 /* macros for flit 3 of the cqe */
 #define S_CQE_GENBIT	63
@@ -303,7 +324,8 @@ struct t4_swsqe {
 };
 
 enum {
-	T4_SQ_ONCHIP = (1<<0),
+	T4_SQ_ONCHIP =		(1<<0),
+	T4_SQ_WRITE_W_IMM =	(1<<2)
 };
 
 struct t4_sq {
@@ -591,6 +613,11 @@ struct t4_cq {
 	u8 error;
 };
 
+static inline void t4_clear_cq_armed(struct t4_cq *cq)
+{
+	((struct t4_status_page *)&cq->queue[cq->size])->cq_armed = 0;
+}
+
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
@@ -724,8 +751,9 @@ struct t4_dev_status_page
 {
 	u8 db_off;
 	u8 wc_supported;
-	u16 pad2;
-	u32 pad3;
+	u8 write_cmpl_supported;
+	u8 pad2;
+	u32 fid_base;
 	u64 qp_start;
 	u64 qp_size;
 	u64 cq_start;

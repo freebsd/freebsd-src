@@ -303,6 +303,7 @@ video_buf_done(struct video_buf *vb, size_t bytesused, uint32_t sequence)
 	vb->state = VB_DONE;
 	STAILQ_INSERT_TAIL(&vd->done, vb, entry);
 	selwakeup(&vd->sel);
+	KNOTE_LOCKED(&vd->sel.si_note, 0);
 	wakeup(&vd->done);
 	mtx_unlock(&vd->mtx);
 }
@@ -323,6 +324,7 @@ video_buf_error(struct video_buf *vb)
 	vb->state = VB_ERROR;
 	STAILQ_INSERT_TAIL(&vd->done, vb, entry);
 	selwakeup(&vd->sel);
+	KNOTE_LOCKED(&vd->sel.si_note, 0);
 	wakeup(&vd->done);
 	mtx_unlock(&vd->mtx);
 }
@@ -343,8 +345,9 @@ video_querycap(struct video_device *vd, struct v4l2_capability *cap)
 	strlcpy((char *)cap->card, vc.card, sizeof(cap->card));
 	strlcpy((char *)cap->bus_info, vc.bus_info, sizeof(cap->bus_info));
 	cap->version = vc.version;
-	cap->device_caps = vc.capabilities;
-	cap->capabilities = vc.capabilities | V4L2_CAP_DEVICE_CAPS;
+	cap->device_caps = vc.capabilities | V4L2_CAP_EXT_PIX_FORMAT;
+	cap->capabilities = vc.capabilities | V4L2_CAP_DEVICE_CAPS |
+	    V4L2_CAP_EXT_PIX_FORMAT;
 	return (0);
 }
 

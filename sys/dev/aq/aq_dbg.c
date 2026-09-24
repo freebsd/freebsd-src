@@ -37,9 +37,6 @@
  */
 
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include "aq_common.h"
 #include "aq_dbg.h"

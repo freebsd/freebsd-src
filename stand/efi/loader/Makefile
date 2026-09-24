@@ -6,6 +6,7 @@ LOADER_EXT2FS_SUPPORT?=	no
 LOADER_GZ_SUPPORT?=     yes
 LOADER_BZIP2_SUPPORT?=  yes
 LOADER_XZ_SUPPORT?=     yes
+LOADER_MD_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 

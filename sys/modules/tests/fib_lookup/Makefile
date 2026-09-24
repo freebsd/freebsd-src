@@ -1,3 +1,4 @@
+SYSDIR?=${SRCTOP}/sys
 .PATH: ${SYSDIR}/tests/fib_lookup
 
 KMOD=	test_lookup

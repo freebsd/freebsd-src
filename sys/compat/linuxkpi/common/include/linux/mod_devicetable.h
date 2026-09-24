@@ -81,6 +81,23 @@ struct dmi_system_id {
 
 #define	ACPI_ID_LEN		16
 
+struct x86_cpu_id {
+	uint16_t vendor;
+	uint16_t family;
+	uint16_t model;
+	uint16_t steppings;
+	uint16_t feature;
+	uint16_t flags;
+};
+
+#define	X86_VENDOR_ANY		0xffff
+#define	X86_FAMILY_ANY		0
+#define	X86_MODEL_ANY		0
+#define	X86_STEPPING_ANY	0
+#define	X86_STEP_MIN		0
+#define	X86_STEP_MAX		0xf
+#define	X86_FEATURE_ANY		0
+
 /* -----------------------------------------------------------------------------
  * USB
  */

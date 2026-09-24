@@ -608,6 +608,7 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs->tf_rbx = (register_t)imgp->ps_strings;
 
 	x86_clear_dbregs(pcb);
+	exec_splitlock(td);
 
 	fpstate_drop(td);
 

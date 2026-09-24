@@ -28,8 +28,6 @@
  * Thunderbolt 3 register definitions
  */
 
-/* $FreeBSD$ */
-
 #ifndef _NHI_REG_H
 #define _NHI_REG_H
 

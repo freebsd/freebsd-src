@@ -353,7 +353,7 @@ nvmf_init_ns(struct nvmf_softc *sc, uint32_t id,
 		goto fail;
 	}
 
-	lbaf = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, data->flbas);
+	lbaf = nvme_ns_data_format_index(data);
 	if (lbaf > data->nlbaf) {
 		ns_printf(ns, "Invalid LBA format index\n");
 		goto fail;
@@ -505,7 +505,7 @@ nvmf_update_ns(struct nvmf_namespace *ns,
 		return (false);
 	}
 
-	lbaf = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, data->flbas);
+	lbaf = nvme_ns_data_format_index(data);
 	if (lbaf > data->nlbaf) {
 		ns_printf(ns, "Invalid LBA format index\n");
 		return (false);

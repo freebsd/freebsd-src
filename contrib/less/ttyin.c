@@ -216,6 +216,14 @@ public int getchr(void)
 		}
 		if (result == READ_INTR)
 			return (READ_INTR);
+		if (result == 0)
+		{
+			/*
+			 * EOF on the tty means there is no more keyboard input.
+			 * Don't loop forever waiting for a byte which cannot arrive.
+			 */
+			quit(QUIT_ERROR);
+		}
 		if (result < 0)
 		{
 			/*

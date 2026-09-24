@@ -14,7 +14,7 @@
 
    Copyright (c) 2004-2006 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2006-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2022      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2023-2024 Sony Corporation / Snild Dolkow <snild@sony.com>
    Licensed under the MIT license:
@@ -41,27 +41,15 @@
    SPDX-License-Identifier: MIT
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XML_MINICHECK_H
-#  define XML_MINICHECK_H
+#define XML_MINICHECK_H
 
-#  define CK_NOFORK 0
-#  define CK_FORK 1
+#define CK_NOFORK 0
+#define CK_FORK 1
 
-#  define CK_SILENT 0
-#  define CK_NORMAL 1
-#  define CK_VERBOSE 2
-
-/* Workaround for Microsoft's compiler and Tru64 Unix systems where the
-   C compiler has a working __func__, but the C++ compiler only has a
-   working __FUNCTION__.  This could be fixed in configure.in, but it's
-   not worth it right now. */
-#  if defined(_MSC_VER) || (defined(__osf__) && defined(__cplusplus))
-#    define __func__ __FUNCTION__
-#  endif
+#define CK_SILENT 0
+#define CK_NORMAL 1
+#define CK_VERBOSE 2
 
 /* PRINTF_LIKE has two effects:
     1. Make clang's -Wformat-nonliteral stop warning about non-literal format
@@ -69,30 +57,30 @@ extern "C" {
     2. Make both clang and gcc's -Wformat-nonliteral warn about *callers* of
        the annotated function that use a non-literal format string.
 */
-#  if defined(__GNUC__)
-#    define PRINTF_LIKE(fmtpos, argspos)                                       \
-      __attribute__((format(printf, fmtpos, argspos)))
-#  else
-#    define PRINTF_LIKE(fmtpos, argspos)
-#  endif
+#if defined(__GNUC__)
+#  define PRINTF_LIKE(fmtpos, argspos)                                         \
+    __attribute__((format(printf, fmtpos, argspos)))
+#else
+#  define PRINTF_LIKE(fmtpos, argspos)
+#endif
 
-#  define START_TEST(testname)                                                 \
-    static void testname(void) {                                               \
-      _check_set_test_info(__func__, __FILE__, __LINE__);                      \
-      {
-#  define END_TEST                                                             \
-    }                                                                          \
-    }
+#define START_TEST(testname)                                                   \
+  static void testname(void) {                                                 \
+    _check_set_test_info(__func__, __FILE__, __LINE__);                        \
+    {
+#define END_TEST                                                               \
+  }                                                                            \
+  }
 
 void PRINTF_LIKE(1, 2) set_subtest(char const *fmt, ...);
 
-#  define fail(msg) _fail(__FILE__, __LINE__, msg)
-#  define assert_true(cond)                                                    \
-    do {                                                                       \
-      if (! (cond)) {                                                          \
-        _fail(__FILE__, __LINE__, "check failed: " #cond);                     \
-      }                                                                        \
-    } while (0)
+#define fail(msg) _fail(__FILE__, __LINE__, msg)
+#define assert_true(cond)                                                      \
+  do {                                                                         \
+    if (! (cond)) {                                                            \
+      _fail(__FILE__, __LINE__, "check failed: " #cond);                       \
+    }                                                                          \
+  } while (0)
 
 typedef void (*tcase_setup_function)(void);
 typedef void (*tcase_teardown_function)(void);
@@ -131,11 +119,11 @@ void _check_set_test_info(char const *function, char const *filename,
  * Prototypes for the actual implementation.
  */
 
-#  if defined(__has_attribute)
-#    if __has_attribute(noreturn)
+#if defined(__has_attribute)
+#  if __has_attribute(noreturn)
 __attribute__((noreturn))
-#    endif
 #  endif
+#endif
 void _fail(const char *file, int line, const char *msg);
 Suite *suite_create(const char *name);
 TCase *tcase_create(const char *name);
@@ -150,7 +138,3 @@ int srunner_ntests_failed(SRunner *runner);
 void srunner_free(SRunner *runner);
 
 #endif /* XML_MINICHECK_H */
-
-#ifdef __cplusplus
-}
-#endif

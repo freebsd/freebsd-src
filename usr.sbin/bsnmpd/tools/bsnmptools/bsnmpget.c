@@ -413,7 +413,9 @@ snmptool_get(struct snmp_toolinfo *snmptoolctx)
 		 * Loop through the object list and set object->error to the
 		 * varbinding that caused the error.
 		 */
-		if (snmp_object_seterror(snmptoolctx,
+		if (resp.error_index < 1 ||
+		    resp.error_index > (int32_t)resp.nbindings ||
+		    snmp_object_seterror(snmptoolctx,
 		    &(resp.bindings[resp.error_index - 1]),
 		    resp.error_status) <= 0) {
 			snmp_pdu_free(&resp);
@@ -1107,7 +1109,9 @@ snmptool_set(struct snmp_toolinfo *snmptoolctx)
 			break;
 		}
 
-		if (snmp_object_seterror(snmptoolctx,
+		if (resp.error_index < 1 ||
+		    resp.error_index > (int32_t)resp.nbindings ||
+		    snmp_object_seterror(snmptoolctx,
 		    &(resp.bindings[resp.error_index - 1]),
 		    resp.error_status) <= 0) {
 			snmp_pdu_free(&resp);

@@ -463,7 +463,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	int hlen = *offp;
 	int icmplen = ntohs(ip->ip_len) - *offp;
 	int i, code;
-	int fibnum;
 
 	NET_EPOCH_ASSERT();
 
@@ -729,12 +728,10 @@ reflect:
 			break;
 		}
 
-		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-			rib_add_redirect(fibnum, (struct sockaddr *)&icmpsrc,
-			    (struct sockaddr *)&icmpdst,
-			    (struct sockaddr *)&icmpgw, m->m_pkthdr.rcvif,
-			    RTF_GATEWAY, V_redirtimeout);
-		}
+		rib_add_redirect(M_GETFIB(m), (struct sockaddr *)&icmpsrc,
+		    (struct sockaddr *)&icmpdst,
+		    (struct sockaddr *)&icmpgw, m->m_pkthdr.rcvif,
+		    RTF_GATEWAY, V_redirtimeout);
 		break;
 
 	/*

@@ -251,7 +251,7 @@ pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 		softs->share_opq_and_eventq = false;
 	}
 	/* If the available interrupt count is more than one,
-	we don’t need to share the interrupt for IO and event queue */
+	we don't need to share the interrupt for IO and event queue */
 	if (softs->intr_count > 1)
 		softs->share_opq_and_eventq = false;
 

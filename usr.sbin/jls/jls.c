@@ -178,37 +178,45 @@ main(int argc, char **argv)
 		if (pflags & (PRINT_HEADER | PRINT_NAMEVAL))
 			add_param("all", NULL, (size_t)0, NULL, JP_USER);
 		else if (pflags & PRINT_VERBOSE) {
-			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
-			add_param("host.hostname", NULL, (size_t)0, NULL,
+			add_param(JAIL_PARAM_JID, NULL, (size_t)0, NULL,
 			    JP_USER);
-			add_param("path", NULL, (size_t)0, NULL, JP_USER);
-			add_param("name", NULL, (size_t)0, NULL, JP_USER);
-			add_param("dying", NULL, (size_t)0, NULL, JP_USER);
-			add_param("cpuset.id", NULL, (size_t)0, NULL, JP_USER);
+			add_param(JAIL_PARAM_HOST_HOSTNAME, NULL, (size_t)0,
+			    NULL, JP_USER);
+			add_param(JAIL_PARAM_PATH, NULL, (size_t)0, NULL,
+			    JP_USER);
+			add_param(JAIL_PARAM_NAME, NULL, (size_t)0, NULL,
+			    JP_USER);
+			add_param(JAIL_PARAM_DYING, NULL, (size_t)0, NULL,
+			    JP_USER);
+			add_param(JAIL_PARAM_CPUSET_ID, NULL, (size_t)0, NULL,
+			    JP_USER);
 #ifdef INET
 			if (ip4_ok)
-				add_param("ip4.addr", NULL, (size_t)0, NULL,
-				    JP_USER);
+				add_param(JAIL_PARAM_IP4_ADDR, NULL,
+				    (size_t)0, NULL, JP_USER);
 #endif
 #ifdef INET6
 			if (ip6_ok)
-				add_param("ip6.addr", NULL, (size_t)0, NULL,
-				    JP_USER | JP_OPT);
+				add_param(JAIL_PARAM_IP6_ADDR, NULL,
+				    (size_t)0, NULL, JP_USER | JP_OPT);
 #endif
 		} else {
 			pflags |= PRINT_DEFAULT;
 			if (pflags & PRINT_JAIL_NAME)
-				add_param("name", NULL, (size_t)0, NULL, JP_USER);
+				add_param(JAIL_PARAM_NAME, NULL, (size_t)0,
+				    NULL, JP_USER);
 			else
-				add_param("jid", NULL, (size_t)0, NULL, JP_USER);
+				add_param(JAIL_PARAM_JID, NULL, (size_t)0,
+				    NULL, JP_USER);
 #ifdef INET
 			if (ip4_ok)
-				add_param("ip4.addr", NULL, (size_t)0, NULL,
-				    JP_USER);
+				add_param(JAIL_PARAM_IP4_ADDR, NULL,
+				    (size_t)0, NULL, JP_USER);
 #endif
-			add_param("host.hostname", NULL, (size_t)0, NULL,
+			add_param(JAIL_PARAM_HOST_HOSTNAME, NULL, (size_t)0,
+			    NULL, JP_USER);
+			add_param(JAIL_PARAM_PATH, NULL, (size_t)0, NULL,
 			    JP_USER);
-			add_param("path", NULL, (size_t)0, NULL, JP_USER);
 		}
 	} else {
 		pflags &= ~PRINT_VERBOSE;
@@ -232,11 +240,12 @@ main(int argc, char **argv)
 
 	/* Add the index key parameters. */
 	if (jid != 0)
-		add_param("jid", &jid, sizeof(jid), NULL, 0);
+		add_param(JAIL_PARAM_JID, &jid, sizeof(jid), NULL, 0);
 	else if (jname != NULL)
-		add_param("name", jname, strlen(jname), NULL, 0);
+		add_param(JAIL_PARAM_NAME, jname, strlen(jname), NULL, 0);
 	else
-		add_param("lastjid", &lastjid, sizeof(lastjid), NULL, 0);
+		add_param(JAIL_PARAM_LASTJID, &lastjid, sizeof(lastjid),
+		    NULL, 0);
 
 	/* Print a header line if requested. */
 	if (pflags & PRINT_VERBOSE) {
@@ -449,13 +458,13 @@ print_jail(int pflags, int jflags)
 		n = 6;
 #endif
 #ifdef INET
-		if (ip4_ok && !strcmp(params[n].jp_name, "ip4.addr")) {
+		if (ip4_ok && !strcmp(params[n].jp_name, JAIL_PARAM_IP4_ADDR)) {
 			emit_ip_addr_list(AF_INET, "ipv4_addrs", params + n);
 			n++;
 		}
 #endif
 #ifdef INET6
-		if (ip6_ok && !strcmp(params[n].jp_name, "ip6.addr")) {
+		if (ip6_ok && !strcmp(params[n].jp_name, JAIL_PARAM_IP6_ADDR)) {
 			emit_ip_addr_list(AF_INET6, "ipv6_addrs", params + n);
 			n++;
 		}
@@ -610,9 +619,9 @@ special_print(int pflags, struct jailparam *param)
 			xo_emit("{P:\"\"}");
 		else if (!(pflags & PRINT_NAMEVAL))
 			xo_emit("{P:-}");
-	} else if (ip_as_list && !strcmp(param->jp_name, "ip4.addr")) {
+	} else if (ip_as_list && !strcmp(param->jp_name, JAIL_PARAM_IP4_ADDR)) {
 		emit_ip_addr_list(AF_INET, param->jp_name, param);
-	} else if (ip_as_list && !strcmp(param->jp_name, "ip6.addr")) {
+	} else if (ip_as_list && !strcmp(param->jp_name, JAIL_PARAM_IP6_ADDR)) {
 		emit_ip_addr_list(AF_INET6, param->jp_name, param);
 	} else {
 		return 0;

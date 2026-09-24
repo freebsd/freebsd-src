@@ -32,7 +32,6 @@
 extern "C" {
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <dirent.h>

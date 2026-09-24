@@ -752,6 +752,7 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 {
 	struct lockf *state;
 	struct lockf_entry *lock, *nlock;
+	struct lockf_entry_list active;
 
 	/*
 	 * For this to work correctly, the caller must ensure that no
@@ -778,6 +779,7 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 	state->ls_threads++;
 	VI_UNLOCK(vp);
 
+	LIST_INIT(&active);
 	sx_xlock(&state->ls_lock);
 	sx_xlock(&lf_owner_graph_lock);
 	LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
@@ -797,6 +799,7 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 			wakeup(lock);
 		}
 	}
+	LIST_SWAP(&active, &state->ls_active, lockf_entry, lf_link);
 	sx_xunlock(&lf_owner_graph_lock);
 	sx_xunlock(&state->ls_lock);
 
@@ -810,19 +813,17 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 	VI_UNLOCK(vp);
 
 	/*
-	 * We can just free all the active locks since they
-	 * will have no dependencies (we removed them all
-	 * above). We don't need to bother locking since we
-	 * are the last thread using this state structure.
+	 * We can just free all the active locks since they will have no
+	 * dependencies (we removed them all above).
 	 */
-	KASSERT(LIST_EMPTY(&state->ls_pending),
-	    ("lock pending for %p", state));
-	LIST_FOREACH_SAFE(lock, &state->ls_active, lf_link, nlock) {
+	LIST_FOREACH_SAFE(lock, &active, lf_link, nlock) {
 		LIST_REMOVE(lock, lf_link);
 		lf_free_lock(lock);
 	}
 out_free:
 	sx_xlock(&lf_lock_states_lock);
+	KASSERT(LIST_EMPTY(&state->ls_pending), ("lock pending for %p", state));
+	KASSERT(LIST_EMPTY(&state->ls_active), ("lock active for %p", state));
 	LIST_REMOVE(state, ls_link);
 	sx_xunlock(&lf_lock_states_lock);
 	sx_destroy(&state->ls_lock);
@@ -2557,7 +2558,7 @@ sysctl_kern_lockf_run(struct sbuf *sb)
 	error = 0;
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		error = vfs_busy(mp, MBF_MNTLSTLOCK);
+		error = vfs_busy(mp, MBF_MNTLSTLOCK | MBF_NOWAIT);
 		if (error != 0)
 			continue;
 		error = mp->mnt_op->vfs_report_lockf(mp, sb);

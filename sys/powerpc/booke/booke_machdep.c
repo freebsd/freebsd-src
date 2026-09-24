@@ -398,22 +398,32 @@ extern uintptr_t tlb0_miss_locks[];
  * MAXCPU array here would reserve megabytes for CPUs that do not exist.
  */
 static char booke_boot_critstack[BOOKE_CRITSTACK_SIZE] __aligned(16);
+static char booke_boot_mchkstack[BOOKE_CRITSTACK_SIZE] __aligned(16);
 static bool booke_boot_critstack_used;
 
 /* Initialise a struct pcpu. */
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
-	char *critstack;
+	char *critstack, *mchkstack;
 
 	pcpu->pc_booke.tid_next = TID_MIN;
 
+	/*
+	 * Machine check and critical interrupts have their own stacks with
+	 * their own stack pointer, because regular mode registers cannot be
+	 * trusted.
+	 */
 	if (!booke_boot_critstack_used) {
 		booke_boot_critstack_used = true;
 		critstack = booke_boot_critstack;
-	} else
+		mchkstack = booke_boot_mchkstack;
+	} else {
 		critstack = malloc(BOOKE_CRITSTACK_SIZE, M_DEVBUF, M_WAITOK);
+		mchkstack = malloc(BOOKE_CRITSTACK_SIZE, M_DEVBUF, M_WAITOK);
+	}
 	pcpu->pc_booke.critstack = critstack + BOOKE_CRITSTACK_SIZE;
+	pcpu->pc_booke.mchkstack = mchkstack + BOOKE_CRITSTACK_SIZE;
 
 #ifdef SMP
 	uintptr_t *ptr;

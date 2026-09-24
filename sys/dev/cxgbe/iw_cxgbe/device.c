@@ -40,7 +40,6 @@
 #include <linux/moduleparam.h>
 
 #include <rdma/ib_verbs.h>
-#include <linux/idr.h>
 
 #ifdef TCP_OFFLOAD
 #include "iw_cxgbe.h"
@@ -152,6 +151,7 @@ c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->qp_size = sc->vres.qp.size;
 	rdev->status_page->cq_start = sc->vres.cq.start;
 	rdev->status_page->cq_size = sc->vres.cq.size;
+	rdev->status_page->fid_base = sc->tids.ftid_base;
 
 	/* T5 and above devices don't need Doorbell recovery logic,
 	 * so db_off is always set to '0'.
@@ -159,6 +159,8 @@ c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->db_off = 0;
 
 	rdev->status_page->wc_supported = rdev->adap->iwt.wc_en;
+	rdev->status_page->write_cmpl_supported =
+	    rdev->adap->params.write_cmpl_support;
 
 	rdev->free_workq = create_singlethread_workqueue("iw_cxgb4_free");
 	if (!rdev->free_workq) {
@@ -188,9 +190,9 @@ c4iw_dealloc(struct c4iw_dev *iwsc)
 {
 
 	c4iw_rdev_close(&iwsc->rdev);
-	idr_destroy(&iwsc->cqidr);
-	idr_destroy(&iwsc->qpidr);
-	idr_destroy(&iwsc->mmidr);
+	WARN_ON(!xa_empty(&iwsc->cqs));
+	WARN_ON(!xa_empty(&iwsc->qps));
+	WARN_ON(!xa_empty(&iwsc->mrs));
 	ib_dealloc_device(&iwsc->ibdev);
 }
 
@@ -237,9 +239,9 @@ c4iw_alloc(struct adapter *sc)
 		return (ERR_PTR(rc));
 	}
 
-	idr_init(&iwsc->cqidr);
-	idr_init(&iwsc->qpidr);
-	idr_init(&iwsc->mmidr);
+	xa_init_flags(&iwsc->cqs, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&iwsc->qps, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&iwsc->mrs, XA_FLAGS_LOCK_IRQ);
 	spin_lock_init(&iwsc->lock);
 	mutex_init(&iwsc->rdev.stats.lock);
 	iwsc->avail_ird = iwsc->rdev.adap->params.max_ird_adapter;
@@ -260,6 +262,27 @@ static struct uld_info c4iw_uld_info = {
 	.uld_stop = c4iw_stop,
 	.uld_restart = c4iw_restart,
 };
+
+void _c4iw_free_wr_wait(struct kref *kref)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = container_of(kref, struct c4iw_wr_wait, kref);
+	CTR(KTR_IW_CXGBE, "Free wr_wait %p", wr_waitp);
+	kfree(wr_waitp);
+}
+
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
+	if (wr_waitp) {
+		kref_init(&wr_waitp->kref);
+		CTR(KTR_IW_CXGBE, "wr_wait %p", wr_waitp);
+	}
+	return wr_waitp;
+}
 
 static int
 c4iw_activate(struct adapter *sc)

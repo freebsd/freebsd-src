@@ -49,6 +49,7 @@ struct dev_pm_domain {
 
 struct dev_pm_info {
 	atomic_t usage_count;
+	bool can_wakeup;
 };
 
 #define	PM_EVENT_FREEZE		0x0001
@@ -110,5 +111,21 @@ static inline void
 pm_vt_switch_unregister(struct device *dev __unused)
 {
 }
+
+#ifdef CONFIG_PM_SLEEP
+static inline void
+device_set_wakeup_capable(struct device *dev __unused, bool capable __unused)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+#else
+void linuxkpi_device_set_wakeup_capable(struct device *, bool);
+
+static inline void
+device_set_wakeup_capable(struct device *dev, bool capable)
+{
+	linuxkpi_device_set_wakeup_capable(dev, capable);
+}
+#endif
 
 #endif	/* _LINUXKPI_LINUX_PM_H */

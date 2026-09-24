@@ -33,13 +33,6 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 # USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-AUTOMAKE_OPTIONS = \
-    dist-bzip2 \
-    dist-lzip \
-    dist-xz \
-    foreign \
-    subdir-objects
-
 ACLOCAL_AMFLAGS = -I m4
 LIBTOOLFLAGS = --verbose
 

@@ -1080,9 +1080,9 @@ atiixp_chip_post_init(void *arg)
 		break;
 	}
 
-	mixer_init(sc->dev, ac97_getmixerclass(), sc->codec);
-
 	pcm_init(sc->dev, sc);
+
+	mixer_init(sc->dev, ac97_getmixerclass(), sc->codec);
 
 	for (i = 0; i < ATI_IXP_NPCHAN; i++)
 		pcm_addchan(sc->dev, PCMDIR_PLAY, &atiixp_chan_class, sc);
@@ -1412,5 +1412,5 @@ static driver_t atiixp_driver = {
 };
 
 DRIVER_MODULE(snd_atiixp, pci, atiixp_driver, 0, 0);
-MODULE_DEPEND(snd_atiixp, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_atiixp, sound, 1, 1, 1);
 MODULE_VERSION(snd_atiixp, 1);

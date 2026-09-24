@@ -3680,7 +3680,7 @@ proc_synaptics_mux(struct psm_softc *sc, packetbuf_t *pb)
 	 * While in hidden multiplexing mode KBC does some editing of the
 	 * packet stream. It remembers the button bits from the last packet
 	 * received from each device, and replaces the button bits of every
-	 * packet with the logical OR of all devices’ most recent button bits.
+	 * packet with the logical OR of all devices' most recent button bits.
 	 * This button crosstalk should be filtered out as Synaptics and
 	 * generic mouse encode middle button presses in a different way.
 	 */

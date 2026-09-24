@@ -432,8 +432,10 @@ extern int yydebug;
     VAR_MAX_GLOBAL_QUOTA = 633,    /* VAR_MAX_GLOBAL_QUOTA  */
     VAR_HARDEN_UNVERIFIED_GLUE = 634, /* VAR_HARDEN_UNVERIFIED_GLUE  */
     VAR_LOG_TIME_ISO = 635,        /* VAR_LOG_TIME_ISO  */
-    VAR_ITER_SCRUB_PROMISCUOUS = 636, /* VAR_ITER_SCRUB_PROMISCUOUS  */
-    VAR_LOG_THREAD_ID = 637        /* VAR_LOG_THREAD_ID  */
+    VAR_VAL_VALIDATION_ATTEMPTS = 636, /* VAR_VAL_VALIDATION_ATTEMPTS  */
+    VAR_VAL_HASH_ATTEMPTS = 637,   /* VAR_VAL_HASH_ATTEMPTS  */
+    VAR_ITER_SCRUB_PROMISCUOUS = 638, /* VAR_ITER_SCRUB_PROMISCUOUS  */
+    VAR_LOG_THREAD_ID = 639        /* VAR_LOG_THREAD_ID  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -820,8 +822,10 @@ extern int yydebug;
 #define VAR_MAX_GLOBAL_QUOTA 633
 #define VAR_HARDEN_UNVERIFIED_GLUE 634
 #define VAR_LOG_TIME_ISO 635
-#define VAR_ITER_SCRUB_PROMISCUOUS 636
-#define VAR_LOG_THREAD_ID 637
+#define VAR_VAL_VALIDATION_ATTEMPTS 636
+#define VAR_VAL_HASH_ATTEMPTS 637
+#define VAR_ITER_SCRUB_PROMISCUOUS 638
+#define VAR_LOG_THREAD_ID 639
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -831,7 +835,7 @@ union YYSTYPE
 
 	char*	str;
 
-#line 835 "util/configparser.h"
+#line 839 "util/configparser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

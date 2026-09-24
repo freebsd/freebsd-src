@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.26.0.
+# See unbound.conf(5) man page, version 1.26.1.
 #
 # this is a comment.
 
@@ -202,6 +202,12 @@ server:
 	# Should the scrubber remove promiscuous NS from positive answers,
 	# protects against poison attempts.
 	# iter-scrub-promiscuous: yes
+
+	# Limit on number of DNSSEC validation attempts for a query.
+	# val-validation-attempts: 32
+
+	# Limit on number of DNSSEC hash attempts for a query.
+	# val-hash-attempts: 32
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
@@ -728,7 +734,7 @@ server:
 	# non-secure data. Useful to shield the users of this validator from
 	# potential bogus data in the additional section. All unsigned data
 	# in the additional section is removed from secure messages.
-	# val-clean-additional: yes
+	# val-clean-additional: no
 
 	# Turn permissive mode on to permit bogus messages. Thus, messages
 	# for which security checks failed will be returned to clients,

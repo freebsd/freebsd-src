@@ -8,6 +8,7 @@
                                  |_| XML parser
 
    Copyright (c) 2017 Rhodri James <rhodri@wildebeest.org.uk>
+   Copyright (c) 2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -31,10 +32,6 @@
 
    SPDX-License-Identifier: MIT
 */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef XML_STRUCTDATA_H
 #  define XML_STRUCTDATA_H 1
@@ -65,7 +62,3 @@ void StructData_CheckItems(StructData *storage, const StructDataEntry *expected,
 void StructData_Dispose(StructData *storage);
 
 #endif /* XML_STRUCTDATA_H */
-
-#ifdef __cplusplus
-}
-#endif

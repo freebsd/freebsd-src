@@ -617,6 +617,7 @@ extern SVCXPRT *svc_vc_create(SVCPOOL *, struct socket *,
          */
 
 extern SVCXPRT *svc_vc_create_backchannel(SVCPOOL *);
+extern SVCXPRT *svc_rdma_create_backchannel(SVCPOOL *);
 
 extern void *clnt_bck_create(struct socket *, const rpcprog_t, const rpcvers_t);
 	/*

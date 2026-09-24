@@ -443,7 +443,19 @@ pmap_is_la57(pmap_t pmap)
 {
 	if (pmap->pm_type == PT_X86)
 		return (la57);
-	return (false);		/* XXXKIB handle EPT */
+	if (pmap->pm_type == PT_RVI) {
+		/*
+		 * AMD nested paging has no field to specify the nested
+		 * page table walk length; the hardware derives it from
+		 * the host CR4.LA57 setting (see svm.c, where nCR3 is
+		 * loaded directly from pm_pmltop with no level encoding).
+		 * The NPT must therefore have the same number of levels
+		 * as the host page tables, otherwise guest-physical
+		 * translations are walked at the wrong depth.
+		 */
+		return (la57);
+	}
+	return (false);		/* Intel EPT encodes its own walk length. */
 }
 
 #define	PAT_INDEX_SIZE	8
@@ -10224,8 +10236,22 @@ DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
 void
 pmap_activate_sw(struct thread *td)
 {
+	struct thread *oldtd;
 	pmap_t oldpmap, pmap;
 	u_int cpuid;
+	bool oldtd_sl, td_sl;
+
+	oldtd = curthread;
+	if (ia32_splitlock && oldtd != td) {
+		oldtd_sl = (atomic_load_int(&oldtd->td_md.md_td_flags) &
+		    TDF_MD_SPLITLOCK_AC) != 0;
+		td_sl = (atomic_load_int(&td->td_md.md_td_flags) &
+		    TDF_MD_SPLITLOCK_AC) != 0;
+		if (oldtd_sl && !td_sl)
+			disable_splitlock_ac();
+		else if (!oldtd_sl && td_sl)
+			enable_splitlock_ac();
+	}
 
 	oldpmap = PCPU_GET(curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);

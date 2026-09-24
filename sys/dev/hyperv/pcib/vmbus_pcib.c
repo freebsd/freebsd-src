@@ -1013,6 +1013,7 @@ vmbus_pcib_on_channel_callback(struct vmbus_channel *chan, void *arg)
 					break;
 
 				hv_pci_devices_present2(hbus, bus_rel2);
+				break;
 
 			case PCI_EJECT:
 				dev_msg = (struct pci_dev_incoming *)buffer;

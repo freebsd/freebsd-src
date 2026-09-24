@@ -72,6 +72,10 @@
  */
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
+_Static_assert(NICE_WEIGHT * (PRIO_MAX - PRIO_MIN)
+    <= PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE,
+    "Priority range accounting for nice values cannot exceed the including "
+    "timeshare span.");
 #define	ESTCPULIM(e)							\
 	min((e), INVERSE_ESTCPU_WEIGHT *				\
 	    (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE -			\
@@ -129,6 +133,13 @@ static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
 static int	sched_slice = 12; /* Thread run time before rescheduling. */
 
+static inline void
+sched_update_hogticks(void)
+{
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
+}
+
 static void	setup_runqs(void);
 static void	schedcpu(void);
 static void	schedcpu_thread(void);
@@ -150,7 +161,7 @@ static struct kproc_desc sched_kp = {
 };
 
 static void
-sched_4bsd_schedcpu(void)
+sched_4bsd_sysinit(void)
 {
 	kproc_start(&sched_kp);
 }
@@ -202,8 +213,23 @@ sysctl_kern_4bsd_quantum(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
+	return (0);
+}
+
+static int
+sysctl_kern_slice(SYSCTL_HANDLER_ARGS)
+{
+	int error, new_val;
+
+	new_val = sched_slice;
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val <= 0)
+		return (EINVAL);
+	sched_slice = new_val;
+	sched_update_hogticks();
 	return (0);
 }
 
@@ -214,7 +240,9 @@ SYSCTL_PROC(_kern_sched_4bsd, OID_AUTO, quantum,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kern_4bsd_quantum, "I",
     "Quantum for timeshare threads in microseconds");
-SYSCTL_INT(_kern_sched_4bsd, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
+SYSCTL_PROC(_kern_sched_4bsd, OID_AUTO, slice,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_slice, "I",
     "Quantum for timeshare threads in stathz ticks");
 #ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
@@ -251,12 +279,6 @@ SYSCTL_INT(_kern_sched_4bsd_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
 	   &forward_wakeup_use_loop, 0,
 	   "Use a loop to find idle cpus");
 
-#endif
-#if 0
-static int sched_followon = 0;
-SYSCTL_INT(_kern_sched_4bsd, OID_AUTO, followon, CTLFLAG_RW,
-	   &sched_followon, 0,
-	   "allow threads to share a quantum");
 #endif
 
 static __inline void
@@ -328,7 +350,7 @@ maybe_preempt(struct thread *td)
 	 *    out anyways, so there's no point in preempting.  If we did,
 	 *    the current thread would not be properly resumed as well, so
 	 *    just avoid that whole landmine.
-	 *  - If the new thread's priority is not a realtime priority and
+	 *  - If the new thread's priority is not an interrupt priority and
 	 *    the current thread's priority is not an idle priority and
 	 *    FULL_PREEMPTION is disabled.
 	 *
@@ -343,8 +365,7 @@ maybe_preempt(struct thread *td)
 			("maybe_preempt: trying to run inhibited thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
-	if (KERNEL_PANICKED() || pri >= cpri /* || dumping */ ||
-	    TD_IS_INHIBITED(ctd))
+	if (KERNEL_PANICKED() || pri >= cpri || TD_IS_INHIBITED(ctd))
 		return (0);
 #ifndef FULL_PREEMPTION
 	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
@@ -366,7 +387,7 @@ maybe_preempt(struct thread *td)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that schedclock() updates ts_estcpu and p_cpticks asynchronously.
+ * Note that sched_clock() updates ts_estcpu and p_cpticks asynchronously.
  *
  * We wish to decay away 90% of ts_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
@@ -472,11 +493,6 @@ schedcpu(void)
 			 * Increment sleep time (if sleeping).  We
 			 * ignore overflow, as above.
 			 */
-			/*
-			 * The td_sched slptimes are not touched in wakeup
-			 * because the thread may not HAVE everything in
-			 * memory? XXX I think this is out of date.
-			 */
 			if (TD_ON_RUNQ(td)) {
 				awake = 1;
 				td->td_flags &= ~TDF_DIDRUN;
@@ -492,11 +508,6 @@ schedcpu(void)
 			 * ts_pctcpu is only for ps and ttyinfo().
 			 */
 			ts->ts_pctcpu = (ts->ts_pctcpu * ccpu) >> FSHIFT;
-			/*
-			 * If the td_sched has been idle the entire second,
-			 * stop recalculating its priority until
-			 * it wakes up.
-			 */
 			if (ts->ts_cpticks != 0) {
 #if	(FSHIFT >= CCPU_SHIFT)
 				ts->ts_pctcpu += (realstathz == 100)
@@ -511,11 +522,7 @@ schedcpu(void)
 #endif
 				ts->ts_cpticks = 0;
 			}
-			/*
-			 * If there are ANY running threads in this process,
-			 * then don't count it as sleeping.
-			 * XXX: this is broken.
-			 */
+
 			if (awake) {
 				if (ts->ts_slptime > 1) {
 					/*
@@ -532,6 +539,12 @@ schedcpu(void)
 				ts->ts_slptime = 0;
 			} else
 				ts->ts_slptime++;
+
+			/*
+			 * If the td_sched has been idle the entire second,
+			 * stop recalculating its priority until
+			 * it wakes up.
+			 */
 			if (ts->ts_slptime > 1) {
 				thread_unlock(td);
 				continue;
@@ -577,7 +590,8 @@ updatepri(struct thread *td)
 		ts->ts_estcpu = 0;
 	else {
 		newcpu = ts->ts_estcpu;
-		ts->ts_slptime--;	/* was incremented in schedcpu() */
+		/* schedcpu() performs one decay_cpu() on its own. */
+		ts->ts_slptime--;
 		while (newcpu && --ts->ts_slptime)
 			newcpu = decay_cpu(loadfac, newcpu);
 		ts->ts_estcpu = newcpu;
@@ -651,8 +665,7 @@ sched_4bsd_initticks(void)
 
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / 10;	/* ~100ms */
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 }
 
 /* External interfaces start here */
@@ -1876,7 +1889,7 @@ struct sched_instance sched_4bsd_instance = {
 	SLOT(init_ap),
 	SLOT(setup),
 	SLOT(initticks),
-	SLOT(schedcpu),
+	SLOT(sysinit),
 #undef SLOT
 };
 DECLARE_SCHEDULER(fourbsd_sched_selector, "4BSD", &sched_4bsd_instance);

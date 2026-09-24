@@ -836,7 +836,7 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 int mlx4_en_process_rx_cq(if_t dev,
 			  struct mlx4_en_cq *cq,
 			  int budget);
-void mlx4_en_poll_tx_cq(unsigned long data);
+void mlx4_en_poll_tx_cq(struct timer_list *t);
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		int is_tx, int rss, int qpn, int cqn, int user_prio,
 		struct mlx4_qp_context *context);
@@ -845,7 +845,7 @@ int mlx4_en_map_buffer(struct mlx4_buf *buf);
 void mlx4_en_unmap_buffer(struct mlx4_buf *buf);
 void mlx4_en_calc_rx_buf(if_t dev);
 
-const u32 *mlx4_en_get_rss_key(struct mlx4_en_priv *priv, u16 *keylen);
+void mlx4_en_get_rss_key(void *key);
 u8 mlx4_en_get_rss_mask(struct mlx4_en_priv *priv);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);

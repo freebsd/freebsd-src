@@ -451,34 +451,6 @@ int ecn_mark(struct mbuf* m);
 static inline void
 mq_append(struct mq *q, struct mbuf *m)
 {
-#ifdef USERSPACE
-	// buffers from netmap need to be copied
-	// XXX note that the routine is not expected to fail
-	ND("append %p to %p", m, q);
-	if (m->m_flags & M_STACK) {
-		struct mbuf *m_new;
-		void *p;
-		int l, ofs;
-
-		ofs = m->m_data - m->__m_extbuf;
-		// XXX allocate
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
-		ND("*** WARNING, volatile buf %p ext %p %d dofs %d m_new %p",
-			m, m->__m_extbuf, m->__m_extlen, ofs, m_new);
-		p = m_new->__m_extbuf;	/* new pointer */
-		l = m_new->__m_extlen;	/* new len */
-		if (l <= m->__m_extlen) {
-			panic("extlen too large");
-		}
-
-		*m_new = *m;	// copy
-		m_new->m_flags &= ~M_STACK;
-		m_new->__m_extbuf = p; // point to new buffer
-		_pkt_copy(m->__m_extbuf, p, m->__m_extlen);
-		m_new->m_data = p + ofs;
-		m = m_new;
-	}
-#endif /* USERSPACE */
 	if (q->head == NULL)
 		q->head = m;
 	else

@@ -7,7 +7,7 @@
 .Nd trace system calls
 .Sh SYNOPSIS
 .Nm
-.Op Fl facedDHS
+.Op Fl facedyDHS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
 .Op Fl t Ar expr
@@ -27,6 +27,15 @@ utility traces the system calls called by the specified process or program.
 Output is to the specified output file, or standard error by default.
 It does this by stopping and restarting the process being monitored via
 .Xr ptrace 2 .
+.Pp
+By default,
+.Nm
+enters the capability mode
+.Pq see Xr capsicum 4
+after opening the output file and creating and
+attaching to the target process.
+An error to enter the mode is not fatal, but a warning is
+issued to the standard error.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -66,6 +75,17 @@ Do not display information about signals received by the process.
 (Normally,
 .Nm
 displays signal as well as system call events.)
+.It Fl y
+Use the
+.Sq classic
+combination of
+.Xr ptrace 2
+and
+.Xr waitpid 2
+system calls to control the traced processes, instead of the
+process descriptors and kqueue PROCDESC filter
+.Pq see Xr pdfork 2 and Xr kqueue 2.
+Do not try to enter capability mode.
 .It Fl o Ar file
 Print the output to the specified
 .Ar file
@@ -286,10 +306,13 @@ calls made while starting a program:
 .Xr dtrace 1 ,
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
+.Xr pdfork 2 ,
+.Xr pdtrace 2 ,
 .Xr ptrace 2 ,
 .Xr utrace 2 ,
 .Xr fnmatch 3 ,
-.Xr sysdecode 3
+.Xr sysdecode 3 ,
+.Xr capsicum 4
 .Sh HISTORY
 The
 .Nm

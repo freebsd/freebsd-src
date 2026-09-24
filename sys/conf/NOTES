@@ -439,6 +439,13 @@ options 	QUEUE_MACRO_DEBUG_TRASH
 options 	SYSCTL_DEBUG
 
 #
+# Compile test-only failure-injection hooks in supporting device drivers.
+# These expose destructive controls below debug.fail_point and are omitted
+# by default.
+#
+options 	DRIVER_FAILPOINTS
+
+#
 # Enable textdump by default, this disables kernel core dumps.
 #
 options 	TEXTDUMP_PREFERRED
@@ -626,6 +633,11 @@ options 	NUM_CORE_FILES=5
 #
 options 	TSLOG
 options 	TSLOGSIZE=262144
+
+#
+# The KLD_DEBUG debug option enables debug printfs in the kernel linker.
+#
+options 	KLD_DEBUG=3
 
 
 #####################################################################
@@ -2441,6 +2453,7 @@ device		hpen		# Generic pen driver
 device		hrfkill		# RFKILL driver
 device		hsctrl		# System controls
 device		ps4dshock	# Sony PS4 DualShock 4 gamepad driver
+device		ps5dsense	# Sony PS5 DualSense gamepad driver
 device		u2f		# FIDO/U2F authenticator
 options 	U2F_DROP_UHID_ALIAS	# Do not install /dev/uhid alias for
 				# /dev/u2f/ and rename driver from uhid to u2f

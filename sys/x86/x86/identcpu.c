@@ -118,6 +118,7 @@ u_int	cpu_stdext_feature2;	/* %ecx */
 u_int	cpu_stdext_feature3;	/* %edx */
 /* leaf 7 %ecx = 1 */
 u_int	cpu_stdext_feature4;	/* %eax */
+u_int	cpu_stdext_feature5;	/* %ecx */
 uint64_t cpu_ia32_arch_caps;
 u_int	cpu_max_ext_state_size;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
@@ -1064,6 +1065,14 @@ printcpuinfo(void)
 				       );
 			}
 
+			if (cpu_stdext_feature5 != 0) {
+				printf("\n  Structured Extended Features5=0x%b",
+				    cpu_stdext_feature5,
+				       "\020"
+				       "\006MSR_IMM"
+				       );
+			}
+
 			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 				cpuid_count(0xd, 0x1, regs);
 				if (regs[0] != 0) {
@@ -1545,7 +1554,7 @@ fix_cpuid(void)
 	 * Re-enable AMD Topology Extension that could be disabled by BIOS
 	 * on some notebook processors.  Without the extension it's really
 	 * hard to determine the correct CPU cache topology.
-	 * See BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h
+	 * See BIOS and Kernel Developer's Guide (BKDG) for AMD Family 15h
 	 * Models 60h-6Fh Processors, Publication # 50742.
 	 */
 	if (vm_guest == VM_GUEST_NO && cpu_vendor_id == CPU_VENDOR_AMD &&
@@ -1616,6 +1625,7 @@ identify_cpu2(void)
 		if (max_eax_l7 >= 1) {
 			cpuid_count(7, 1, regs);
 			cpu_stdext_feature4 = regs[0];
+			cpu_stdext_feature5 = regs[2];
 		}
 	}
 }

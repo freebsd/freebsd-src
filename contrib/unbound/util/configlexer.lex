@@ -609,6 +609,8 @@ iter-scrub-ns{COLON}		{ YDVAR(1, VAR_ITER_SCRUB_NS) }
 iter-scrub-cname{COLON}		{ YDVAR(1, VAR_ITER_SCRUB_CNAME) }
 iter-scrub-rrsig{COLON}		{ YDVAR(1, VAR_ITER_SCRUB_RRSIG) }
 max-global-quota{COLON}		{ YDVAR(1, VAR_MAX_GLOBAL_QUOTA) }
+val-validation-attempts{COLON}	{ YDVAR(1, VAR_VAL_VALIDATION_ATTEMPTS) }
+val-hash-attempts{COLON}	{ YDVAR(1, VAR_VAL_HASH_ATTEMPTS) }
 max-transfer-size{COLON}	{ YDVAR(1, VAR_MAX_TRANSFER_SIZE) }
 max-transfer-time{COLON}	{ YDVAR(1, VAR_MAX_TRANSFER_TIME) }
 iter-scrub-promiscuous{COLON}	{ YDVAR(1, VAR_ITER_SCRUB_PROMISCUOUS) }

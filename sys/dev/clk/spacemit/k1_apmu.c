@@ -50,17 +50,17 @@ K1_CLK_GATE(sdh_axi_aclk, CLK_SDH_AXI, K1_SDH0_CLK_RES_CTRL, 4,
 K1_CLK_DIV_MUX_GATE(sdh0_clk, CLK_SDH0, K1_SDH0_CLK_RES_CTRL,
 	3, 8, 3, 5, 4, 11,
 	"pll1_d6", "pll1_d4", "pll2_d8", "pll2_d5",
-	"pll1_d11", "pll1_d11" , "pll1_d13", "pll1_d23"),
+	"pll1_d11", "pll1_d13", "pll1_d23"),
 
 K1_CLK_DIV_MUX_GATE(sdh1_clk, CLK_SDH1, K1_SDH1_CLK_RES_CTRL,
 	3, 8, 3, 5, 4, 11,
 	"pll1_d6", "pll1_d4", "pll2_d8", "pll2_d5",
-	"pll1_d11", "pll1_d11" , "pll1_d13", "pll1_d23"),
+	"pll1_d11", "pll1_d13", "pll1_d23"),
 
 K1_CLK_DIV_MUX_GATE(sdh2_clk, CLK_SDH2, K1_SDH2_CLK_RES_CTRL,
 	3, 8, 3, 5, 4, 11,
 	"pll1_d6", "pll1_d4", "pll2_d8", "pll1_d3",
-	"pll1_d11", "pll1_d11" , "pll1_d13", "pll1_d23")
+	"pll1_d11", "pll1_d13", "pll1_d23")
 };
 
 static const struct k1_reset_def apmu_resets[] = {

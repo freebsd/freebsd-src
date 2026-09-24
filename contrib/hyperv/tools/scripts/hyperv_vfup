@@ -5,6 +5,56 @@
 
 load_rc_config netif
 
+# Configure IPv6 on the lagg using the synthetic interface's rc.conf values.
+# Keep the variable remapping local to this subshell.
+ipv6_lagg_up()
+(
+	local var value suffix ifconfig_args
+
+	afexists inet6 || return 0
+	if ! ipv6if $hn && ! checkyesno ipv6_activate_all_interfaces
+	then
+		return 0
+	fi
+
+	for var in `list_vars "ifconfig_${hn}_*"`
+	do
+		suffix=${var#ifconfig_${hn}_}
+		case $suffix in
+		ipv6|alias*)
+			eval value=\"\$$var\"
+			setvar "ifconfig_${lagg}_${suffix}" "$value"
+			;;
+		esac
+	done
+	value=`get_if_var $hn ipv6_prefix_IF`
+	setvar "ipv6_prefix_${lagg}" "$value"
+	for var in `list_vars "ipv6_ifconfig_${hn}"` \
+	    `list_vars "ipv6_ifconfig_${hn}_alias*"`
+	do
+		suffix=${var#ipv6_ifconfig_${hn}}
+		eval value=\"\$$var\"
+		setvar "ipv6_ifconfig_${lagg}${suffix}" "$value"
+	done
+	ipv6_network_interfaces="$ipv6_network_interfaces $lagg"
+
+	ifconfig $lagg inet6 -ifdisabled up || return 1
+	for ifconfig_args in "`ifconfig_getargs $lagg ipv6`" \
+	    "`get_if_var $lagg ipv6_ifconfig_IF`"
+	do
+		[ -n "$ifconfig_args" ] || continue
+		# Accept legacy values without the address-family keyword.
+		case $ifconfig_args in
+		inet6|inet6[[:space:]]*) ;;
+		*) ifconfig_args="inet6 $ifconfig_args" ;;
+		esac
+		ifconfig $lagg $ifconfig_args || return 1
+	done
+	ipv6_up $lagg
+	ipv6_accept_rtadv_up $lagg
+	return 0
+)
+
 #
 # Customized per-interface setup, e.g. hyperv_vfup.hn1
 #
@@ -52,10 +102,31 @@ then
 	fi
 
 	#
-	# Configure laggX (failover), add hnX and VF to it.
+	# Stop accepting advertisements on hnX.  Leave IPv6 enabled and its
+	# link-local address in place until lagg has purged the member's
+	# IPv6 addresses, prefixes, and default routers.
 	#
-	ifconfig $lagg laggproto failover laggport $hn laggport $vf
-	ifconfig $lagg inet6 no_dad
+	if afexists inet6
+	then
+		ifconfig $hn inet6 -accept_rtadv || exit 1
+	fi
+
+	# Configure laggX (failover), add hnX and VF to it.
+	ifconfig $lagg laggproto failover laggport $hn laggport $vf || exit 1
+	if afexists inet6
+	then
+		# lagg does not purge an IPv6-disabled member or one without a
+		# link-local address.  Disable IPv6 and remove any addresses left.
+		# SLAAC addresses are relearned on lagg, not copied as permanent.
+		ifconfig $hn inet6 ifdisabled || exit 1
+		inet6_status=`ifconfig $hn inet6` || exit 1
+		for addr in `printf '%s\n' "$inet6_status" | \
+		    awk '$1 == "inet6" { print $2 }'`
+		do
+			ifconfig $hn inet6 "$addr" -alias || exit 1
+		done
+		ifconfig $lagg inet6 no_dad
+	fi
 
 	#
 	# Stop dhclient on hnX, if any.
@@ -71,16 +142,8 @@ then
 	# configured by dhclient.  laggX will take over the
 	# network operations.
 	#
-	while true
-	do
-		ifconfig $hn -alias > /dev/null 2>&1
-		if [ $? -ne 0 ]
-		then
-			break
-		fi
-	done
-
-	# TODO: Remove IPv6 addresses on hnX
+	# Enumerate addresses; an empty ifconfig -alias may return success.
+	ipv4_down $hn
 
 	#
 	# Use hnX's configuration for laggX
@@ -106,6 +169,7 @@ then
 			ifconfig $lagg $ifconfig_args
 		fi
 	fi
+	ipv6_lagg_up || exit 1
 else
 	#
 	# laggX exists.  Check whether VF was there or not.

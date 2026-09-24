@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 #include <machine/dbdma.h>
 #include <machine/intr_machdep.h>
 #include <machine/resource.h>
@@ -65,6 +66,10 @@ struct onyx_softc
 {
 	device_t sc_dev;
 	uint32_t sc_addr;
+	struct mtx sc_volume_mtx;
+	struct task sc_volume_task;
+	uint8_t sc_left;
+	uint8_t sc_right;
 };
 
 static int	onyx_probe(device_t);
@@ -132,19 +137,19 @@ MIXER_DECLARE(onyx_mixer);
 #define PCM3052_REG_INFO_4          80
 
 struct onyx_reg {
-	u_char LEFT_ATTN;
-	u_char RIGHT_ATTN;
-	u_char CONTROL;
-	u_char DAC_CONTROL;
-	u_char DAC_DEEMPH;
-	u_char DAC_FILTER;
-	u_char OUT_PHASE;
-	u_char ADC_CONTROL;
-	u_char ADC_HPF_BP;
-	u_char INFO_1;
-	u_char INFO_2;
-	u_char INFO_3;
-	u_char INFO_4;
+	uint8_t LEFT_ATTN;
+	uint8_t RIGHT_ATTN;
+	uint8_t CONTROL;
+	uint8_t DAC_CONTROL;
+	uint8_t DAC_DEEMPH;
+	uint8_t DAC_FILTER;
+	uint8_t OUT_PHASE;
+	uint8_t ADC_CONTROL;
+	uint8_t ADC_HPF_BP;
+	uint8_t INFO_1;
+	uint8_t INFO_2;
+	uint8_t INFO_3;
+	uint8_t INFO_4;
 };
 
 static const struct onyx_reg onyx_initdata = {
@@ -185,6 +190,26 @@ onyx_write(struct onyx_softc *sc, uint8_t reg, const uint8_t value)
 	return (0);
 }
 
+/*
+ * onyx_write() sleeps in iicbus_transfer(), so onyx_set() cannot program the
+ * volume registers inline. Hand the new values to a task instead, which runs
+ * with no lock held.
+ */
+static void
+onyx_volume_task(void *arg, int pending __unused)
+{
+	struct onyx_softc *sc = arg;
+	uint8_t l, r;
+
+	mtx_lock(&sc->sc_volume_mtx);
+	l = sc->sc_left;
+	r = sc->sc_right;
+	mtx_unlock(&sc->sc_volume_mtx);
+
+	onyx_write(sc, PCM3052_REG_LEFT_ATTN, l);
+	onyx_write(sc, PCM3052_REG_RIGHT_ATTN, r);
+}
+
 static int
 onyx_probe(device_t dev)
 {
@@ -215,6 +240,9 @@ onyx_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
+
+	mtx_init(&sc->sc_volume_mtx, "onyx volume", NULL, MTX_DEF);
+	TASK_INIT(&sc->sc_volume_task, 0, onyx_volume_task, sc);
 
 	i2s_mixer_class = &onyx_mixer_class;
 	i2s_mixer = dev;
@@ -255,6 +283,12 @@ onyx_init(struct snd_mixer *m)
 static int
 onyx_uninit(struct snd_mixer *m)
 {
+	struct onyx_softc *sc;
+
+	sc = device_get_softc(mix_getdevinfo(m));
+
+	taskqueue_drain(taskqueue_thread, &sc->sc_volume_task);
+
 	return (0);
 }
 
@@ -280,8 +314,12 @@ onyx_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		l = left + 128;
 		r = right + 128;
 
-		onyx_write(sc, PCM3052_REG_LEFT_ATTN, l);
-		onyx_write(sc, PCM3052_REG_RIGHT_ATTN, r);
+		mtx_lock(&sc->sc_volume_mtx);
+		sc->sc_left = l;
+		sc->sc_right = r;
+		mtx_unlock(&sc->sc_volume_mtx);
+
+		taskqueue_enqueue(taskqueue_thread, &sc->sc_volume_task);
 
 		return (left | (right << 8));
 	}

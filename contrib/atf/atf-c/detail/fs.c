@@ -31,7 +31,6 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -59,7 +58,6 @@ static atf_error_t do_mkdtemp(char *);
 static atf_error_t normalize(atf_dynstr_t *, char *);
 static atf_error_t normalize_ap(atf_dynstr_t *, const char *, va_list);
 static void replace_contents(atf_fs_path_t *, const char *);
-static const char *stat_type_to_string(const int);
 
 /* ---------------------------------------------------------------------
  * The "unknown_file_type" error type.
@@ -109,16 +107,12 @@ atf_error_t
 copy_contents(const atf_fs_path_t *p, char **buf)
 {
     atf_error_t err;
-    char *str;
 
-    str = (char *)malloc(atf_dynstr_length(&p->m_data) + 1);
-    if (str == NULL)
+    *buf = strdup(atf_fs_path_cstring(p));
+    if (*buf == NULL)
         err = atf_no_memory_error();
-    else {
-        strcpy(str, atf_dynstr_cstring(&p->m_data));
-        *buf = str;
+    else
         err = atf_no_error();
-    }
 
     return err;
 }
@@ -211,6 +205,7 @@ normalize_ap(atf_dynstr_t *d, const char *p, va_list ap)
     else {
         err = normalize(d, str);
         free(str);
+        str = NULL;
     }
 
 out:
@@ -229,36 +224,6 @@ replace_contents(atf_fs_path_t *p, const char *buf)
     err = atf_dynstr_append_fmt(&p->m_data, "%s", buf);
 
     INV(!atf_is_error(err));
-}
-
-static
-const char *
-stat_type_to_string(const int type)
-{
-    const char *str;
-
-    if (type == atf_fs_stat_blk_type)
-        str = "block device";
-    else if (type == atf_fs_stat_chr_type)
-        str = "character device";
-    else if (type == atf_fs_stat_dir_type)
-        str = "directory";
-    else if (type == atf_fs_stat_fifo_type)
-        str = "named pipe";
-    else if (type == atf_fs_stat_lnk_type)
-        str = "symbolic link";
-    else if (type == atf_fs_stat_reg_type)
-        str = "regular file";
-    else if (type == atf_fs_stat_sock_type)
-        str = "socket";
-    else if (type == atf_fs_stat_wht_type)
-        str = "whiteout";
-    else {
-        UNREACHABLE;
-        str = NULL;
-    }
-
-    return str;
 }
 
 /* ---------------------------------------------------------------------
@@ -730,15 +695,14 @@ atf_fs_mkdtemp(atf_fs_path_t *p)
 
     err = do_mkdtemp(buf);
     if (atf_is_error(err))
-        goto out_buf;
+        goto out;
 
     replace_contents(p, buf);
 
     INV(!atf_is_error(err));
-out_buf:
-    free(buf);
 out:
-    umask(mask);
+    (void)umask(mask);
+    free(buf);
     return err;
 }
 
@@ -759,16 +723,15 @@ atf_fs_mkstemp(atf_fs_path_t *p, int *fdout)
 
     err = do_mkstemp(buf, &fd);
     if (atf_is_error(err))
-        goto out_buf;
+        goto out;
 
     replace_contents(p, buf);
     *fdout = fd;
 
     INV(!atf_is_error(err));
-out_buf:
-    free(buf);
 out:
-    umask(mask);
+    (void)umask(mask);
+    free(buf);
     return err;
 }
 

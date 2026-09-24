@@ -129,7 +129,7 @@ void *__xa_next(struct xarray *, unsigned long *, bool);
 #define	xa_unlock_irqrestore(xa, flags) \
 	do { \
 		xa_unlock((xa)); \
-		flags == 0; \
+		(void)flags; \
 	} while (0)
 
 static inline int

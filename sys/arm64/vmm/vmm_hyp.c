@@ -835,7 +835,7 @@ VMM_HYP_FUNC(s2_tlbi_range)(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
 	uint64_t end, r, start;
 	uint64_t host_vttbr;
 #ifdef VMM_VHE
-	uint64_t host_tcr;
+	uint64_t host_hcr;
 #endif
 
 	dsb(ishst);
@@ -852,8 +852,8 @@ VMM_HYP_FUNC(s2_tlbi_range)(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
 	isb();
 
 #ifdef VMM_VHE
-	host_tcr = READ_SPECIALREG(tcr_el2);
-	WRITE_SPECIALREG(tcr_el2, host_tcr & ~HCR_TGE);
+	host_hcr = READ_SPECIALREG(hcr_el2);
+	WRITE_SPECIALREG(hcr_el2, host_hcr & ~HCR_TGE);
 	isb();
 #endif
 
@@ -882,7 +882,7 @@ VMM_HYP_FUNC(s2_tlbi_range)(uint64_t vttbr, vm_offset_t sva, vm_offset_t eva,
 	isb();
 
 #ifdef VMM_VHE
-	WRITE_SPECIALREG(tcr_el2, host_tcr);
+	WRITE_SPECIALREG(hcr_el2, host_hcr);
 	isb();
 #endif
 

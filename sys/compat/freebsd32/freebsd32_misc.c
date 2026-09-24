@@ -2222,83 +2222,20 @@ struct sf_hdtr32 {
 };
 
 static int
-freebsd32_do_sendfile(struct thread *td,
-    struct freebsd32_sendfile_args *uap, int compat)
+freebsd32_copyin_hdtr(const void *uhdtr, struct sf_hdtr *hdtr)
 {
 	struct sf_hdtr32 hdtr32;
-	struct sf_hdtr hdtr;
-	struct uio *hdr_uio, *trl_uio;
-	struct file *fp;
-	cap_rights_t rights;
-	struct iovec32 *iov32;
-	off_t offset, sbytes;
 	int error;
 
-	offset = PAIR32TO64(off_t, uap->offset);
-	if (offset < 0)
-		return (EINVAL);
+	error = copyin(uhdtr, &hdtr32, sizeof(hdtr32));
+	if (error != 0)
+		return (error);
+	hdtr->headers = PTRIN(hdtr32.headers);
+	hdtr->hdr_cnt = hdtr32.hdr_cnt;
+	hdtr->trailers = PTRIN(hdtr32.trailers);
+	hdtr->trl_cnt = hdtr32.trl_cnt;
 
-	hdr_uio = trl_uio = NULL;
-
-	if (uap->hdtr != NULL) {
-		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
-		if (error)
-			goto out;
-		PTRIN_CP(hdtr32, hdtr, headers);
-		CP(hdtr32, hdtr, hdr_cnt);
-		PTRIN_CP(hdtr32, hdtr, trailers);
-		CP(hdtr32, hdtr, trl_cnt);
-
-		if (hdtr.headers != NULL) {
-			iov32 = PTRIN(hdtr32.headers);
-			error = freebsd32_copyinuio(iov32,
-			    hdtr32.hdr_cnt, &hdr_uio);
-			if (error)
-				goto out;
-#ifdef COMPAT_FREEBSD4
-			/*
-			 * In FreeBSD < 5.0 the nbytes to send also included
-			 * the header.  If compat is specified subtract the
-			 * header size from nbytes.
-			 */
-			if (compat) {
-				if (uap->nbytes > hdr_uio->uio_resid)
-					uap->nbytes -= hdr_uio->uio_resid;
-				else
-					uap->nbytes = 0;
-			}
-#endif
-		}
-		if (hdtr.trailers != NULL) {
-			iov32 = PTRIN(hdtr32.trailers);
-			error = freebsd32_copyinuio(iov32,
-			    hdtr32.trl_cnt, &trl_uio);
-			if (error)
-				goto out;
-			trl_uio->uio_rw = UIO_WRITE;
-			trl_uio->uio_td = td;
-		}
-	}
-
-	AUDIT_ARG_FD(uap->fd);
-
-	if ((error = fget_read(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_PREAD), &fp)) != 0)
-		goto out;
-
-	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
-	    uap->nbytes, &sbytes, uap->flags, td);
-	fdrop(fp, td);
-
-	if (uap->sbytes != NULL)
-		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
-
-out:
-	if (hdr_uio)
-		freeuio(hdr_uio);
-	if (trl_uio)
-		freeuio(trl_uio);
-	return (error);
+	return (0);
 }
 
 #ifdef COMPAT_FREEBSD4
@@ -2306,16 +2243,20 @@ int
 freebsd4_freebsd32_sendfile(struct thread *td,
     struct freebsd4_freebsd32_sendfile_args *uap)
 {
-	return (freebsd32_do_sendfile(td,
-	    (struct freebsd32_sendfile_args *)uap, 1));
+	return (kern_sendfile(td, uap->fd, uap->s,
+	    PAIR32TO64(off_t, uap->offset), uap->nbytes,
+	    (struct sf_hdtr *)uap->hdtr, uap->sbytes, uap->flags,
+	    true, freebsd32_copyin_hdtr, (copyinuio_t *)freebsd32_copyinuio));
 }
 #endif
 
 int
 freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 {
-
-	return (freebsd32_do_sendfile(td, uap, 0));
+	return (kern_sendfile(td, uap->fd, uap->s,
+	    PAIR32TO64(off_t, uap->offset), uap->nbytes,
+	    (struct sf_hdtr *)uap->hdtr, uap->sbytes, uap->flags,
+	    false, freebsd32_copyin_hdtr, (copyinuio_t *)freebsd32_copyinuio));
 }
 
 static void

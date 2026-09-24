@@ -814,6 +814,31 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		*index = context->bfregi.sys_pages[0];
 	}
 
+	if (ucmd.cqe_comp_en == 1) {
+		if (unlikely((*cqe_size != 64) ||
+			     !MLX5_CAP_GEN(dev->mdev, cqe_compression))) {
+			err = -EOPNOTSUPP;
+			mlx5_ib_warn(dev, "CQE compression is not supported for size %d!\n",
+				     *cqe_size);
+			goto err_cqb;
+		}
+
+		if (unlikely(!ucmd.cqe_comp_res_format ||
+			     !(ucmd.cqe_comp_res_format <
+			       MLX5_IB_CQE_RES_RESERVED) ||
+			     (ucmd.cqe_comp_res_format &
+			      (ucmd.cqe_comp_res_format - 1)))) {
+			err = -EOPNOTSUPP;
+			mlx5_ib_warn(dev, "CQE compression res format %d is not supported!\n",
+				     ucmd.cqe_comp_res_format);
+			goto err_cqb;
+		}
+
+		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
+		MLX5_SET(cqc, cqc, mini_cqe_res_format,
+			 ilog2(ucmd.cqe_comp_res_format));
+	}
+
 	MLX5_SET(create_cq_in, *cqb, uid, context->devx_uid);
 	return 0;
 

@@ -1,6 +1,7 @@
 PACKAGE=	tests
 
 TAP_TESTS_SH=	legacy_test
+TEST_METADATA.legacy_test+=	required_programs="file2c"
 
 ${PACKAGE}FILES+=		regress.1.out
 ${PACKAGE}FILES+=		regress.2.out

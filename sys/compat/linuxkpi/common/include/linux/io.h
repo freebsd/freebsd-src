@@ -521,6 +521,20 @@ done:
 	return (addr);
 }
 
+#define	devm_memremap(...)	linuxkpi_devm_memremap(__VA_ARGS__)
+void *linuxkpi_devm_memremap(struct device *dev, resource_size_t offset,
+    size_t size, unsigned long flags);
+
+static inline void *
+devm_ioremap_wc(struct device *dev, resource_size_t offset,
+    resource_size_t size)
+{
+	void *addr;
+
+	addr = devm_memremap(dev, offset, size, MEMREMAP_WC);
+	return (IS_ERR(addr) ? NULL : addr);
+}
+
 static inline void
 memunmap(void *addr)
 {

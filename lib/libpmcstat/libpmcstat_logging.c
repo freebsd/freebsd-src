@@ -235,6 +235,7 @@ pmcstat_analyze_log(struct pmcstat_args *args,
 				    PMCSTAT_ALLOCATE);
 
 			assert(pp != NULL);
+			args->pa_pageshift = ev.pl_u.pl_mi.pl_pageshift;
 
 			image_path = pmcstat_string_intern(ev.pl_u.pl_mi.
 			    pl_pathname);

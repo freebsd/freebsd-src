@@ -212,6 +212,8 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	}
 
 	memcpy(&vf->vsi.info, &vsi_ctx.info, sizeof(vf->vsi.info));
+	/* A newly allocated hardware VSI starts a new statistics epoch. */
+	ixl_vsi_reset_stats(&vf->vsi);
 	return (0);
 
 fail:

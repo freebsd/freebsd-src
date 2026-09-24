@@ -98,8 +98,9 @@ SYSCTL_INT(_hw_mlx5, OID_AUTO, comp_eq_size, CTLFLAG_RDTUN | CTLFLAG_MPSAFE,
     "Set default completion EQ size between 1024 and 16384 inclusivly. Value should be power of two.");
 
 static LIST_HEAD(intf_list);
-static LIST_HEAD(dev_list);
-static DEFINE_MUTEX(intf_mutex);
+
+LIST_HEAD(mlx5_dev_list);
+DEFINE_MUTEX(mlx5_intf_mutex);
 
 struct mlx5_device_context {
 	struct list_head	list;
@@ -834,11 +835,11 @@ mlx5_register_device(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
 
-	mutex_lock(&intf_mutex);
-	list_add_tail(&priv->dev_list, &dev_list);
+	mutex_lock(&mlx5_intf_mutex);
+	list_add_tail(&priv->dev_list, &mlx5_dev_list);
 	list_for_each_entry(intf, &intf_list, list)
 		mlx5_add_device(intf, priv);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 
 	return 0;
 }
@@ -849,11 +850,11 @@ mlx5_unregister_device(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
 
-	mutex_lock(&intf_mutex);
+	mutex_lock(&mlx5_intf_mutex);
 	list_for_each_entry(intf, &intf_list, list)
 		mlx5_remove_device(intf, priv);
 	list_del(&priv->dev_list);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 }
 
 int mlx5_register_interface(struct mlx5_interface *intf)
@@ -863,11 +864,11 @@ int mlx5_register_interface(struct mlx5_interface *intf)
 	if (!intf->add || !intf->remove)
 		return -EINVAL;
 
-	mutex_lock(&intf_mutex);
+	mutex_lock(&mlx5_intf_mutex);
 	list_add_tail(&intf->list, &intf_list);
-	list_for_each_entry(priv, &dev_list, dev_list)
+	list_for_each_entry(priv, &mlx5_dev_list, dev_list)
 		mlx5_add_device(intf, priv);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 
 	return 0;
 }
@@ -877,11 +878,11 @@ void mlx5_unregister_interface(struct mlx5_interface *intf)
 {
 	struct mlx5_priv *priv;
 
-	mutex_lock(&intf_mutex);
-	list_for_each_entry(priv, &dev_list, dev_list)
+	mutex_lock(&mlx5_intf_mutex);
+	list_for_each_entry(priv, &mlx5_dev_list, dev_list)
 		mlx5_remove_device(intf, priv);
 	list_del(&intf->list);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 }
 EXPORT_SYMBOL(mlx5_unregister_interface);
 
@@ -2110,21 +2111,21 @@ static void shutdown_one(struct pci_dev *pdev)
  * contrib/ofed/libmlx5/mlx5.c or libibverbs will reject the device.
  */
 static const struct pci_device_id mlx5_core_pci_table[] = {
-	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
-	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
-	{ PCI_VDEVICE(MELLANOX, 4115) }, /* ConnectX-4 */
-	{ PCI_VDEVICE(MELLANOX, 4116) }, /* ConnectX-4 VF */
-	{ PCI_VDEVICE(MELLANOX, 4117) }, /* ConnectX-4LX */
-	{ PCI_VDEVICE(MELLANOX, 4118) }, /* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 4119) }, /* ConnectX-5, PCIe 3.0 */
-	{ PCI_VDEVICE(MELLANOX, 4120) }, /* ConnectX-5 VF */
-	{ PCI_VDEVICE(MELLANOX, 4121) }, /* ConnectX-5 Ex */
-	{ PCI_VDEVICE(MELLANOX, 4122) }, /* ConnectX-5 Ex VF */
-	{ PCI_VDEVICE(MELLANOX, 4123) }, /* ConnectX-6 */
-	{ PCI_VDEVICE(MELLANOX, 4124) }, /* ConnectX-6 VF */
-	{ PCI_VDEVICE(MELLANOX, 4125) }, /* ConnectX-6 Dx */
-	{ PCI_VDEVICE(MELLANOX, 4126) }, /* ConnectX Family mlx5Gen Virtual Function */
-	{ PCI_VDEVICE(MELLANOX, 4127) }, /* ConnectX-6 LX */
+	{ PCI_VDEVICE(MELLANOX, 4113) },			/* Connect-IB */
+	{ PCI_VDEVICE(MELLANOX, 4114), .driver_data = MLX5_PCI_DEV_IS_VF},	/* Connect-IB VF */
+	{ PCI_VDEVICE(MELLANOX, 4115) },			/* ConnectX-4 */
+	{ PCI_VDEVICE(MELLANOX, 4116), .driver_data = MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
+	{ PCI_VDEVICE(MELLANOX, 4117) },			/* ConnectX-4LX */
+	{ PCI_VDEVICE(MELLANOX, 4118), .driver_data = MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
+	{ PCI_VDEVICE(MELLANOX, 4119) },			/* ConnectX-5, PCIe 3.0 */
+	{ PCI_VDEVICE(MELLANOX, 4120), .driver_data = MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
+	{ PCI_VDEVICE(MELLANOX, 4121) },			/* ConnectX-5 Ex */
+	{ PCI_VDEVICE(MELLANOX, 4122), .driver_data = MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 Ex VF */
+	{ PCI_VDEVICE(MELLANOX, 4123) },			/* ConnectX-6 */
+	{ PCI_VDEVICE(MELLANOX, 4124), .driver_data = MLX5_PCI_DEV_IS_VF},	/* ConnectX-6 VF */
+	{ PCI_VDEVICE(MELLANOX, 4125) },			/* ConnectX-6 Dx */
+	{ PCI_VDEVICE(MELLANOX, 4126), .driver_data = MLX5_PCI_DEV_IS_VF},	/* ConnectX Family mlx5Gen Virtual Function */
+	{ PCI_VDEVICE(MELLANOX, 4127) },			/* ConnectX-6 LX */
 	{ PCI_VDEVICE(MELLANOX, 4128) },
 	{ PCI_VDEVICE(MELLANOX, 4129) }, /* ConnectX-7 */
 	{ PCI_VDEVICE(MELLANOX, 4130) },
@@ -2143,7 +2144,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4143) },
 	{ PCI_VDEVICE(MELLANOX, 4144) },
 	{ PCI_VDEVICE(MELLANOX, 0xa2d2) }, /* BlueField integrated ConnectX-5 network controller */
-	{ PCI_VDEVICE(MELLANOX, 0xa2d3) }, /* BlueField integrated ConnectX-5 network controller VF */
+	{ PCI_VDEVICE(MELLANOX, 0xa2d3), .driver_data = MLX5_PCI_DEV_IS_VF }, /* BlueField integrated ConnectX-5 network controller VF */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d6) }, /* BlueField-2 integrated ConnectX-6 Dx network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2dc) }, /* BlueField-3 integrated ConnectX-7 network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2df) }, /* BlueField-4 Family integrated network controller */

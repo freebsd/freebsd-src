@@ -12,6 +12,7 @@ nptv6_head()
 	atf_set "descr" "Test creation of NPTv6 rules"
 	atf_set "require.user" "root"
 	atf_set "require.kmods" "ipfw_nptv6"
+	atf_set "require.progs" ipfw
 }
 nptv6_body()
 {

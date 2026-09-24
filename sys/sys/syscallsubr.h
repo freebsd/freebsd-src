@@ -82,6 +82,20 @@ struct mmap_req {
 	mmap_check_fp_fn	mr_check_fp_fn;
 };
 
+/*
+ * A copyin_hdtr_t takes a pointer to a sendfile header/trailer in
+ * userspace and storage for on in the kernel and copies it in.
+ */
+typedef int (copyin_hdtr_t)(const void *hdtrp, struct sf_hdtr *hdtr);
+
+/*
+ * A copyinuio_t takes a pointer to an iovec in userspace along with a
+ * count and allocates a struct uio containing a copy of the iovec.
+ * The uio should be freed with freeuio().
+ */
+typedef int (copyinuio_t)(const void *iovp, unsigned int iovcnt,
+    struct uio **iov);
+
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
@@ -334,6 +348,10 @@ int	kern_sched_rr_get_interval_td(struct thread *td, struct thread *targettd,
 	    struct timespec *ts);
 int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	    union semun *arg, register_t *rval);
+int	kern_sendfile(struct thread *td, int fd, int s, off_t offset,
+	    size_t nbytes, struct sf_hdtr *hdtr, off_t *sbytes, int flags,
+	    bool compat, copyin_hdtr_t *copyin_hdtr_f,
+	    copyinuio_t *copyinuio_f);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,

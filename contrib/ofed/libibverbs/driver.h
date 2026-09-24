@@ -35,6 +35,7 @@
 #ifndef INFINIBAND_DRIVER_H
 #define INFINIBAND_DRIVER_H
 
+#include <stdbool.h>
 #include <infiniband/verbs.h>
 #include <infiniband/kern-abi.h>
 
@@ -321,6 +322,11 @@ static inline int verbs_get_srq_num(struct ibv_srq *srq, uint32_t *srq_num)
 		return 0;
 	}
 	return ENOSYS;
+}
+
+static inline bool check_comp_mask(uint64_t input, uint64_t supported)
+{
+	return (input & ~supported) == 0;
 }
 
 int ibv_query_gid_type(struct ibv_context *context, uint8_t port_num,

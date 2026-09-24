@@ -1,0 +1,712 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd September 16, 2026
+.Dt SYSCONF 8
+.Os
+.Sh NAME
+.Nm sysconf
+.Nd read and modify system configuration files
+.Sh SYNOPSIS
+.Nm
+.Ar target
+.Op Fl AcDeFinNqsvVx
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file | Fl k Ar module
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm
+.Ar target
+.Op Fl ADeFnNqvV
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file | Fl k Ar module
+.Fl a
+.Nm
+.Ar target
+.Op Fl AaDinNq
+.Op Fl j Ar jail | Fl R Ar dir
+.Fl d
+.Op Ar name ...
+.Nm
+.Ar target
+.Op Fl E
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl k Ar module
+.Fl l | L
+.Nm
+.Cm rc
+.Op Ar sysrc_argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility reads and modifies the system configuration files of the base
+system,
+completing the native configuration trinity alongside
+.Xr sysctl 8
+.Pq kernel state
+and
+.Xr sysrc 8
+.Pq Xr rc.conf 5 .
+The first positional argument selects a
+.Ar target
+keyword;
+options are equally accepted before it.
+Each target is documented on its own page
+.Pq see Sx TARGETS ;
+shared options and assignment syntax are documented here.
+.Ss Assignment syntax
+A
+.Ar name
+alone reads the current value of the directive,
+while
+.Ar name Ns = Ns Ar value
+atomically writes it.
+Writes echo
+.Ql name: old -> new
+when the stored value changes,
+or
+.Ql name: value (unchanged)
+when it is already set as requested
+.Pq the file is left untouched in that case .
+With
+.Fl e
+those echoes use
+.Ql name=...
+instead of
+.Ql name: ...
+.Pq matching read output .
+The echo is suppressed by
+.Fl q ;
+.Fl c
+writes nothing to stdout.
+A directive not previously set anywhere shows an empty old value.
+.Pp
+On the
+.Cm make
+and
+.Cm src
+targets, a
+.Ql WITH_*
+or
+.Ql WITHOUT_*
+build knob
+.Pq presence matters; Xr src.conf 5 ignores the value
+is shown as
+.Ql name (present)
+when defined
+.Po
+any value, including
+.Ql =
+or
+.Ql =t
+.Pc ,
+rather than printing the value after the colon;
+.Fl e
+prints the real assignment
+.Po
+e.g.
+.Ql name=
+or
+.Ql name=t
+.Pc ,
+and
+.Fl n
+prints that same value alone
+.Pq empty when the assignment is Ql name= .
+Setting such a knob with
+.Fl s
+echoes
+.Ql name: (not present) -> (present)
+.Po
+or
+.Ql (present) (unchanged)
+when it is already defined
+.Pc .
+An explicit
+.Ar name Ns =
+.Pq including empty
+always writes the requested value;
+a change of placeholder while the knob stays defined echoes
+.Ql name: old -> new
+like other assignments.
+A write of
+.Ql WITH_ Ns Ar foo Ns =no
+.Pq exact lowercase Ql no
+is still performed but warns to use
+.Ql WITHOUT_ Ns Ar foo Ns =1
+instead.
+That message matches
+.Pa share/mk/bsd.mkopt.mk
+and is emitted here as a precursor so a bad
+.Xr make.conf 5
+or
+.Xr src.conf 5
+assignment is caught at write time.
+The same advisory is printed on reads
+.Po
+named queries and
+.Fl a
+dump
+.Pc ,
+with
+.Ql file:line:
+when the authoritative statement is known, so an existing
+.Ql WITH_* Ns =no
+is not overlooked when presence display shows only
+.Ql (present) .
+.Fl q
+suppresses the read-time form.
+.Xr make 1
+itself typically warns later during a
+.Pa /usr/src
+build, when
+.Pa bsd.opts.mk
+.Pq or Pa src.opts.mk
+reloads
+.Pa bsd.mkopt.mk
+for recognized options such as
+.Va MANCOMPRESS .
+The same
+.Xr make.conf 5
+line stays silent for a bare
+.Xr make 1
+.Pq e.g. Fl C Pa /tmp
+or for ports, which do not run that option pass.
+.Ql WITHOUT_* Ns =no ,
+.Ql WITH_* Ns =NO ,
+and other values do not warn here or there.
+.Va WITHOUT_MODULES
+is not a presence knob
+.Pq its value is a module list
+and is excluded from
+.Fl s
+and presence display.
+.Pp
+For directives whose value is a space-separated list
+.Po
+.Va kld_list Ns -style ;
+see for example
+.Va kernels
+in
+.Xr loader.conf 5
+.Pc ,
+.Ar name Ns += Ns Ar word
+appends each given word not already present and
+.Ar name Ns -= Ns Ar word
+strikes each given word,
+after the fashion of
+.Xr sysrc 8 .
+Striking words from a directive set nowhere is reported like any other
+unknown directive.
+.Pp
+For
+.Xr make 1 Ns -syntax
+targets
+.Po
+.Cm make
+and
+.Cm src ;
+see
+.Xr sysconf-make 8
+and
+.Xr sysconf-src 8
+.Pc ,
+.Ql +=
+is instead the
+.Xr make 1
+append operator and
+.Ql -=
+strikes words from the last matching assignment fragment.
+.Pp
+Files are never modified in place:
+updates are streamed to a temporary file which is flushed to stable storage
+and atomically renamed over the target
+.Pq see Xr bsdconf_put 3 .
+How multi-file targets choose the file to read or rewrite is documented in
+.Xr sysconf-targets 8 .
+.Sh TARGETS
+The following target keywords are supported:
+.Bl -tag -width indent
+.It Cm loader
+Boot loader configuration
+.Pq Xr loader.conf 5 .
+See
+.Xr sysconf-loader 8 .
+.It Cm sysctl
+Kernel state set at boot
+.Pq Xr sysctl.conf 5 .
+See
+.Xr sysconf-sysctl 8 .
+.It Cm make
+System-wide
+.Xr make 1
+settings
+.Pq Pa /etc/make.conf .
+See
+.Xr sysconf-make 8 .
+.It Cm src
+The
+.Pa /usr/src
+build triad
+.Pq Pa src-env.conf , make.conf , src.conf .
+See
+.Xr sysconf-src 8 .
+.It Cm rc
+Pass-through to
+.Xr sysrc 8 .
+See
+.Xr sysconf-rc 8 .
+.It Cm generic
+Foreign or unknown format;
+requires
+.Fl f .
+See
+.Xr sysconf-generic 8 .
+.El
+.Pp
+Cross-cutting rules for multi-file sourcing,
+defaults,
+and where writes versus removals land are in
+.Xr sysconf-targets 8 .
+Built-in format descriptors and file-list discovery are in
+.Xr bsdconf_format 3 .
+.Sh OPTIONS
+The options are as follows:
+.Bl -tag -width indent
+.It Fl A
+Widen dump scope to include directives still at their system default
+.Po
+named reads always reflect the defaults;
+see
+.Xr sysconf-targets 8
+.Pc .
+With no
+.Ar name
+arguments,
+dumps everything
+.Po
+as
+.Fl a ,
+defaults included
+.Pc .
+.Pp
+Combined with
+.Fl D ,
+the scoping of
+.Fl D
+wins and
+.Fl A
+retains only its dump-implying role,
+so
+.Ql -ADd
+describes all defaults and only defaults,
+as in
+.Xr sysrc 8 .
+Only valid for targets with a defaults file
+.Pq see Xr sysconf-loader 8 .
+.It Fl a
+Dump all configured directives from the target:
+the union of the target's files,
+wherein directives in later files override earlier ones.
+Directives whose value still comes from the defaults file alone are out
+of scope
+.Pq widen with Fl A .
+.It Fl c
+Check mode.
+For each
+.Ar name Ns = Ns Ar value
+argument,
+compare the effective value against
+.Ar value
+without modifying any file
+.Po
+with
+.Fl x ,
+check that
+.Ar name
+is absent
+.Pc .
+Exit with success if no changes would be required,
+else error.
+.It Fl D
+Consult only the target's defaults file,
+reporting the system default value of each
+.Ar name
+.Po
+or, with
+.Fl a ,
+dumping every default
+.Pc .
+Defaults are read-only;
+combining
+.Fl D
+with an assignment is an error.
+Only valid for targets with a defaults file
+.Pq see Xr sysconf-loader 8 .
+.It Fl d
+Show the description of each
+.Ar name
+instead of its value.
+.Pp
+For targets with a defaults file,
+the description is the inline comment trailing the directive's default
+assignment,
+continued across subsequent lines of whitespace followed by a comment
+character.
+A commented-out default
+.Pq e.g., Ql #comconsole_speed=\(dq115200\(dq # Set the ...
+still yields its description.
+For the
+.Ql sysctl
+target,
+descriptions come from the running kernel
+.Po
+as with
+.Xr sysctl 8
+.Fl d ;
+see
+.Xr sysconf-sysctl 8
+.Pc .
+.Pp
+Combined with
+.Fl a ,
+.Fl A ,
+or
+.Fl D ,
+dumps the description of every directive in scope
+.Po
+of the configured directives,
+of everything defaults included,
+or of the defaults alone,
+respectively
+.Pc ,
+after the fashion of
+.Xr sysrc 8
+.Fl \&Ad .
+A directive the defaults never mention prints an empty description.
+.It Fl E
+With
+.Fl l
+or
+.Fl L ,
+list only files that exist on disk.
+.It Fl e
+Print values in
+.Ar name Ns = Ns Ar value
+format,
+suitable for feeding back into the configuration file.
+Applies to both reads and the informational echo from assignments
+.Po
+replacing the default
+.Ql name: value
+form;
+changed writes use
+.Ql name=old # -> new ,
+matching
+.Xr sysrc 8
+.Pc .
+For the
+.Ql loader
+target the value is quoted.
+.It Fl F
+Show the pathname of the file holding each directive's effective
+.Pq authoritative
+value instead of the value itself.
+For a directive still at its system default,
+this truthfully names the defaults file.
+.It Fl f Ar file
+Operate on
+.Ar file ,
+in the format of the
+.Ar target
+keyword,
+instead of the target's standard files;
+mutually exclusive with
+.Fl k .
+For read operations
+.Ar file
+may be a non-seekable stream
+.Po
+a fifo or
+.Pa /dev/stdin ,
+for example
+.Pc ;
+write operations require a regular file.
+A
+.Ar file
+of
+.Ql -
+means standard input
+.Pq a synonym for Pa /dev/stdin ,
+exempt from
+.Fl R .
+See
+.Xr sysconf-targets 8
+and
+.Xr sysconf-generic 8 .
+.It Fl h , Fl Fl help
+Print a short usage statement
+.Pq or, for the long form, the full option summary
+to stderr and exit.
+.It Fl Fl version
+Print
+.Nm
+and linked
+.Xr bsdconf 3
+versions and exit.
+.It Fl i
+Ignore unknown names
+.Pq and suppress the warning when writing an unknown sysctl OID .
+.It Fl j Ar jail
+Operate within the jail
+.Ar jail
+.Pq name or numeric id ;
+mutually exclusive with
+.Fl R .
+.It Fl k Ar module
+Include the kernel module drop-in file for
+.Ar module
+in the target's file list
+.Pq e.g., Pa /etc/sysctl.kld.d/ Ns Ar module Ns Pa .conf .
+Only valid for targets with a module drop-in directory
+.Pq see Xr sysconf-sysctl 8 .
+.It Fl l
+List the pathnames of the files backing the target,
+in sourcing order,
+and exit.
+The read-only defaults file is never listed
+.Po
+.Fl l
+enumerates only files
+.Nm sysconf
+may modify;
+see
+.Xr sysconf-targets 8
+.Pc .
+.It Fl L
+Like
+.Fl l ,
+but additionally list every drop-in candidate:
+for targets with a module drop-in directory,
+one candidate per loaded kernel module
+.Pq whether or not the file exists yet
+plus any drop-in already on disk.
+The read-only defaults file is likewise never listed.
+.It Fl n
+Show only directive values,
+not their names.
+.It Fl N
+Show only directive names,
+not their values.
+.It Fl q
+Quiet.
+Suppress warnings about unknown directives and the
+.Ql old -> new
+echo of write operations.
+.It Fl R Ar dir
+Operate within the root directory
+.Ar dir
+rather than
+.Pa / ;
+mutually exclusive with
+.Fl j .
+.It Fl s
+Set empty
+.Ql WITH_*
+and
+.Ql WITHOUT_*
+build knobs on the
+.Cm make
+and
+.Cm src
+targets
+.Po
+equivalent to
+.Ar name Ns =
+with no value;
+see
+.Xr sysconf-make 8
+and
+.Xr sysconf-src 8
+.Pc .
+Each bare
+.Ar name
+must begin with
+.Ql WITH_
+or
+.Ql WITHOUT_ .
+An already-present knob
+.Pq any value
+is left unchanged by
+.Fl s .
+An explicit
+.Ar name Ns =
+including empty always writes.
+Mutually exclusive with
+.Fl x .
+.It Fl v
+Verbose.
+Print the pathname of the configuration file holding the final effective
+value
+.Pq the last file in sourcing order that assigned the directive .
+.It Fl V
+Trail.
+For each named read
+.Pq and for Fl a ,
+print every assignment step that contributed to the effective value:
+.Ql file:line: nameopfragment ,
+and when the running effective value differs from the fragment,
+.Ql -> effective .
+.Pp
+For writes, print the same
+.Ql file:line:
+shape for the change:
+.Ql file:line: name=old -> name=new ,
+.Ql name=value (unchanged) ,
+.Ql name=value (added)
+when a new statement is created,
+or
+.Ql nameopfragment (removed)
+when a statement is deleted,
+using the statement operator
+.Ql = / += / ...
+as appropriate .
+.Pp
+Uses the same accumulation model as ordinary reads
+.Pq make(1) `+=' et al. ,
+so the last effective value matches
+.Fl v
+and,
+for linear conf files without
+.Ql .if ,
+.Nm make Fl V
+.Pq see Xr sysconf-make 8 and Xr sysconf-src 8 .
+.It Fl x
+Remove the named directive(s) from every file of the target listing them
+.Pq see Xr sysconf-targets 8 .
+With
+.Fl v
+or
+.Fl V ,
+a successful removal echoes
+.Ql name (removed)
+.Pq or a trail form with Fl V .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "LOADER_DEFAULTS"
+.It Ev BSDCONF_MAX_BYTES
+Maximum bytes
+.Nm
+will read from a configuration file or stream;
+see
+.Xr bsdconf 3 .
+.It Ev LOADER_DEFAULTS
+Defaults file for the
+.Ql loader
+target;
+see
+.Xr sysconf-loader 8 .
+.It Ev SRC_ENV_CONF , Ev __MAKE_CONF , Ev SRCCONF
+Paths for the
+.Cm src
+triad;
+see
+.Xr sysconf-src 8 .
+.El
+.Sh FILES
+See the per-target manuals
+.Pq Xr sysconf-loader 8 , Xr sysconf-sysctl 8 , Xr sysconf-make 8 , Xr sysconf-src 8
+for the files each keyword consults.
+Common paths include
+.Pa /boot/loader.conf ,
+.Pa /etc/sysctl.conf ,
+.Pa /etc/make.conf ,
+and
+.Pa /etc/src.conf .
+.Sh EXIT STATUS
+.Ex -std
+In check mode
+.Pq Fl c ,
+an exit status of zero means no changes are required.
+.Sh EXAMPLES
+Read and set a boot loader directive:
+.Pp
+.Dl sysconf loader zfs_load
+.Dl sysconf loader zfs_load=\(dqYES\(dq
+.Pp
+Raise a sysctl applied at boot:
+.Pp
+.Dl sysconf sysctl kern.maxfiles=65536
+.Pp
+List files backing the loader target:
+.Pp
+.Dl sysconf loader -l
+.Pp
+Append to a space-separated list:
+.Pp
+.Dl sysconf loader kernels+=kernel_test
+.Pp
+Append a
+.Xr make 1
+flag and set a
+.Pa src.conf
+knob:
+.Pp
+.Dl sysconf make CFLAGS+=-DDEBUG
+.Dl sysconf src -s WITHOUT_LLDB
+.Dl sysconf src WITHOUT_LLDB=
+.Pp
+Further examples for each target appear in
+.Xr sysconf-loader 8 ,
+.Xr sysconf-sysctl 8 ,
+.Xr sysconf-make 8 ,
+.Xr sysconf-src 8 ,
+.Xr sysconf-rc 8 ,
+and
+.Xr sysconf-generic 8 .
+.Sh SEE ALSO
+.Xr bsdconf 3 ,
+.Xr bsdconf_format 3 ,
+.Xr bsdconf_put 3 ,
+.Xr loader.conf 5 ,
+.Xr src.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr jail 8 ,
+.Xr sysconf-generic 8 ,
+.Xr sysconf-loader 8 ,
+.Xr sysconf-make 8 ,
+.Xr sysconf-rc 8 ,
+.Xr sysconf-src 8 ,
+.Xr sysconf-sysctl 8 ,
+.Xr sysconf-targets 8 ,
+.Xr sysctl 8 ,
+.Xr sysrc 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org
+.Sh SECURITY CONSIDERATIONS
+Read-only invocations
+.Po
+including
+.Fl c
+checks, which never modify files
+.Pc
+run inside a
+.Xr capsicum 4
+sandbox:
+the backing files are opened first and the process then relinquishes all
+other capabilities before any file content is parsed.
+.Pp
+Write operations replace files atomically and never in place;
+see the
+.Sx SECURITY CONSIDERATIONS
+section of
+.Xr bsdconf_put 3
+for the properties of the write transaction.

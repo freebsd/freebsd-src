@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2003 Marcel Moolenaar
@@ -46,25 +46,6 @@ In
 .Cd hint.uart.0.baud="38400"
 .Cd hint.uart.0.port="0x3f8"
 .Cd hint.uart.0.flags="0x10"
-.Pp
-With
-.Ar flags
-encoded as:
-.Bl -tag -compact -width 0x000000
-.It 0x00010
-device is potential system console
-.It 0x00080
-use this port for remote kernel debugging
-.It 0x00100
-set RX FIFO trigger level to ``low'' (NS8250 only)
-.It 0x00200
-set RX FIFO trigger level to ``medium low'' (NS8250 only)
-.It 0x00400
-set RX FIFO trigger level to ``medium high'' (default, NS8250 only)
-.It 0x00800
-set RX FIFO trigger level to ``high'' (NS8250 only)
-.El
-.\"
 .Sh DESCRIPTION
 The
 .Nm
@@ -105,19 +86,19 @@ In the following sections the components are discussed in detail.
 Options are described in the section that covers the component to which each
 option applies.
 .\"
-.Ss CORE COMPONENT
+.Ss Core Component
 At the heart of the
 .Nm
 driver is the core component.
 It contains the bus attachments and the low-level interrupt handler.
 .\"
-.Ss HARDWARE DRIVERS
+.Ss Hardware Drivers
 The core component and the kernel interfaces talk to the hardware through the
 hardware interface.
 This interface serves as an abstraction of the hardware and allows varying
 UARTs to be used for serial communications.
 .\"
-.Ss SYSTEM DEVICES
+.Ss System Devices
 System devices are UARTs that have a special purpose by way of hardware
 design or software setup.
 For example, Sun UltraSparc machines use UARTs as their keyboard interface.
@@ -126,7 +107,7 @@ Likewise, when the kernel is configured for a serial console, the
 corresponding UART will in turn be a system device so that the kernel can
 output boot messages early on in the boot process.
 .\"
-.Ss KERNEL INTERFACES
+.Ss Kernel Interfaces
 The last but not least of the components is the kernel interface.
 This component ultimately determines how the UART is made visible to the
 kernel in particular and to users in general.
@@ -136,22 +117,7 @@ applications.
 System devices, with the notable exception of serial consoles, generally
 have specialized kernel interfaces.
 .\"
-.Sh HARDWARE
-The
-.Nm
-driver supports the following classes of UARTs:
-.Pp
-.Bl -bullet -compact
-.It
-NS8250: standard hardware based on the 8250, 16450, 16550, 16650, 16750 or
-the 16950 UARTs.
-.It
-SCC: serial communications controllers supported by the
-.Xr scc 4
-device driver.
-.El
-.\"
-.Sh Pulse Per Second (PPS) Timing Interface
+.Ss Pulse Per Second (PPS) Timing Interface
 The
 .Nm
 driver can capture PPS timing information as defined in RFC 2783.
@@ -225,7 +191,7 @@ Generally speaking, a connection to a DB-9 style connector is an RS-232
 level signal at up to 12 volts.
 A connection to header pins or an edge-connector on an embedded board
 is typically a TTL signal at 3.3 or 5 volts.
-.Sh Special Devices
+.Ss Special Devices
 The
 .Nm
 driver also supports an initial-state and a lock-state control
@@ -271,7 +237,7 @@ be locked for devices that support more than one setting.
 The CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
-.Sh Console Tuneable
+.Ss Console Tuneable
 The
 .Nm
 driver can be designated as a system console.
@@ -354,6 +320,40 @@ Automatically computed values can be as large as 5% when the base
 frequency is a poor match to the traditional baud rates.
 .El
 .El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following classes of UARTs:
+.Pp
+.Bl -bullet -compact
+.It
+NS8250: standard hardware based on the 8250, 16450, 16550, 16650, 16750 or
+the 16950 UARTs.
+.It
+SCC: serial communications controllers supported by the
+.Xr scc 4
+device driver.
+.El
+.\"
+.Sh DEVICE HINTS
+The
+.Ar flags
+are encoded as:
+.Bl -tag -compact -width 0x000000
+.It 0x00010
+device is potential system console
+.It 0x00080
+use this port for remote kernel debugging
+.It 0x00100
+set RX FIFO trigger level to ``low'' (NS8250 only)
+.It 0x00200
+set RX FIFO trigger level to ``medium low'' (NS8250 only)
+.It 0x00400
+set RX FIFO trigger level to ``medium high'' (default, NS8250 only)
+.It 0x00800
+set RX FIFO trigger level to ``high'' (NS8250 only)
+.El
+.\"
 .Sh FILES
 .Bl -tag -width "/dev/ttyu?.init" -compact
 .It Pa /dev/ttyu?
@@ -400,4 +400,3 @@ documentation over three different manual pages:
 .Xr termios 4 ,
 .Xr uart 4 and
 .Xr tty 4 .
-

@@ -75,6 +75,9 @@ SDT_PROBE_DEFINE1(cam, , xpt, action, "union ccb *");
 SDT_PROBE_DEFINE1(cam, , xpt, done, "union ccb *");
 SDT_PROBE_DEFINE4(cam, , xpt, async__cb, "void *", "uint32_t",
     "struct cam_path *", "void *");
+SDT_PROBE_DEFINE2(cam, , xpt, bus__register, "struct cam_sim *", "path_id_t");
+SDT_PROBE_DEFINE1(cam, , xpt, hold__boot, "int");
+SDT_PROBE_DEFINE1(cam, , xpt, release__boot, "int");
 
 /* Wild guess based on not wanting to grow the stack too much */
 #define XPT_PRINT_MAXLEN	512
@@ -3941,6 +3944,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, uint32_t bus)
 	xsoftc.bus_generation++;
 	xpt_unlock_buses();
 
+	CAM_PROBE2(xpt, bus__register, sim, new_bus->path_id);
+
 	/*
 	 * Set a default transport so that a PATH_INQ can be issued to
 	 * the SIM.  This will then allow for probing and attaching of
@@ -5092,6 +5097,7 @@ xpt_hold_boot_locked(void)
 
 	if (xsoftc.buses_to_config++ == 0)
 		root_mount_hold_token("CAM", &xsoftc.xpt_rootmount);
+	CAM_PROBE1(xpt, hold__boot, xsoftc.buses_to_config);
 }
 
 void
@@ -5108,10 +5114,13 @@ xpt_release_boot(void)
 {
 
 	xpt_lock_buses();
-	if (--xsoftc.buses_to_config == 0) {
+	--xsoftc.buses_to_config;
+	CAM_PROBE1(xpt, release__boot, xsoftc.buses_to_config);
+	if (xsoftc.buses_to_config == 0) {
 		if (xsoftc.buses_config_done == 0) {
 			xsoftc.buses_config_done = 1;
 			xsoftc.buses_to_config++;
+			CAM_PROBE1(xpt, hold__boot, xsoftc.buses_to_config);
 			TASK_INIT(&xsoftc.boot_task, 0, xpt_finishconfig_task,
 			    NULL);
 			taskqueue_enqueue(taskqueue_thread, &xsoftc.boot_task);

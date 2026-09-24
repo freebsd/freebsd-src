@@ -297,7 +297,7 @@ void
 sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 {
 	int i;
-	u_char data, *p;
+	uint8_t data, *p;
 
 	if (length == 0)
 		return;

@@ -46,6 +46,7 @@ static int aq2_fw_get_link_counters(struct aq_hw *hw, uint32_t *up,
     uint32_t *down);
 static int aq2_fw_get_temp(struct aq_hw *hw, int *temp_mc);
 static int aq2_fw_get_thermal_limit(struct aq_hw *hw, int *limit_mc);
+static int aq2_fw_thermal_arm(struct aq_hw *hw, bool enable);
 static int aq2_fw_get_phy_hot_warning(struct aq_hw *hw, bool *hot);
 
 /* Coherent OUT-window read, bracketed by the transaction id. */
@@ -542,6 +543,38 @@ aq2_fw_get_temp(struct aq_hw *hw, int *temp_mc)
 	return (0);
 }
 
+/* interface-in thermal_shutdown.enable; the F/W boots with it set. */
+static int
+aq2_fw_thermal_arm(struct aq_hw *hw, bool enable)
+{
+	uint32_t v, want;
+	int err, limit_mc;
+
+	/* No threshold means an unpopulated word or a departed adapter. */
+	err = aq2_fw_get_thermal_limit(hw, &limit_mc);
+	if (err != 0)
+		return (err);
+
+	mtx_lock(&hw->fw_mtx);
+	v = AQ_READ_REG(hw, AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_REG);
+	if (enable)
+		want = v | AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_ENABLE;
+	else
+		want = v & ~AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_ENABLE;
+	if (want != v) {
+		AQ_WRITE_REG(hw, AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_REG,
+		    want);
+		err = aq2_fw_wait_shared_ack(hw);
+		/* Unacked: put the word back so the next poll retries. */
+		if (err != 0)
+			AQ_WRITE_REG(hw,
+			    AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_REG, v);
+	}
+	mtx_unlock(&hw->fw_mtx);
+
+	return (err);
+}
+
 /* interface-in thermal_shutdown.shutdown_temperature, whole degC. */
 static int
 aq2_fw_get_thermal_limit(struct aq_hw *hw, int *limit_mc)
@@ -618,7 +651,7 @@ const struct aq_firmware_ops aq2_fw_ops = {
 	.get_phy_fault = aq2_fw_get_phy_fault,
 	.get_phy_hot_warning = aq2_fw_get_phy_hot_warning,
 	.phy_reset = NULL,	/* A2 clears thermal shutdown on its own reset */
-	.thermal_arm = NULL,	/* A2 firmware ships thermal shutdown armed */
+	.thermal_arm = aq2_fw_thermal_arm,
 	.get_thermal_limit = aq2_fw_get_thermal_limit,
 	.led_control = NULL,
 };

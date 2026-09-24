@@ -30,6 +30,7 @@
 #define BXE_DRIVER_VERSION "1.78.91"
 
 #include "bxe.h"
+#include <net/rss_config.h>
 #include "ecore_sp.h"
 #include "ecore_init.h"
 #include "ecore_init_ops.h"
@@ -11483,7 +11484,6 @@ bxe_config_rss_pf(struct bxe_softc            *sc,
                   uint8_t                     config_hash)
 {
     struct ecore_config_rss_params params = { NULL };
-    int i;
 
     /*
      * Although RSS is meaningless when there is a single HW queue we
@@ -11514,10 +11514,15 @@ bxe_config_rss_pf(struct bxe_softc            *sc,
     memcpy(params.ind_table, rss_obj->ind_table, sizeof(params.ind_table));
 
     if (config_hash) {
-        /* RSS keys */
-        for (i = 0; i < sizeof(params.rss_key) / 4; i++) {
-            params.rss_key[i] = arc4random();
-        }
+        uint8_t key[RSS_KEYSIZE];
+        unsigned int i;
+
+        /* The searcher consumes the key in reverse byte order. */
+        _Static_assert(sizeof(params.rss_key) == RSS_KEYSIZE,
+            "RSS key size mismatch");
+        rss_getkey(key);
+        for (i = 0; i < sizeof(key); i++)
+            ((uint8_t *)params.rss_key)[sizeof(key) - 1 - i] = key[i];
 
         bxe_set_bit(ECORE_RSS_SET_SRCH, &params.rss_flags);
     }

@@ -3,24 +3,27 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd August 6, 2026
+.Dd September 13, 2026
 .Dt AQ 4
 .Os
 .Sh NAME
 .Nm aq
 .Nd Aquantia / Marvell AQC1xx Ethernet driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device aq"
-.Ed
+.Cd device aq
 .Pp
-To load the driver as a module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_aq_load="YES"
-.Ed
+.Cd dev.aq. Ns Ar %d . Ns Aq Ar iflib tunables
+.Cd if_aq_load="YES"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.aq.%d.debug
+.Cd dev.aq.%d.debug_categories
+.Cd dev.aq.%d.thermal_shutdown.enabled
 .Sh DESCRIPTION
 The
 .Nm
@@ -30,10 +33,6 @@ Aquantia (now Marvell) AQtion AQC1xx Ethernet controllers.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
-.Pp
-The
-.Nm
-driver is experimental, and has a number of caveats and limitations.
 .Sh HARDWARE
 The
 .Nm
@@ -97,6 +96,24 @@ Comparing this against the transitions logged by the driver
 distinguishes a single link event from a flapping link.
 .El
 .Pp
+The following variable controls the PHY thermal shutdown.
+It is present only on adapters whose firmware reports a PHY temperature
+and lets the driver arm the shutdown, and it may also be set as a
+.Xr loader.conf 5
+tunable:
+.Bl -tag -width indent
+.It Va thermal_shutdown.enabled
+Arm the PHY's autonomous thermal shutdown.
+Armed, the PHY drops the link when its die passes the threshold the
+board provisions; the driver reports the trip, waits for the PHY to
+cool, and brings the link back.
+The default, 1, arms the shutdown on every adapter that supports it,
+whether or not its firmware ships it armed; 0 disarms it on those same
+adapters.
+The driver applies the setting from its periodic status poll, normally
+within a second, and again after any reset of the adapter.
+.El
+.Pp
 The following variables tune the driver's own tracing:
 .Bl -tag -width indent
 .It Va debug
@@ -110,5 +127,7 @@ All categories are enabled by default.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr iflib 4 ,
 .Xr miibus 4 ,
+.Xr loader.conf 5 ,
 .Xr ifconfig 8

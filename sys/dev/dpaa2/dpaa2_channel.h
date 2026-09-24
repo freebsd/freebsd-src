@@ -45,6 +45,12 @@
 
 #define DPAA2_TX_BUFRING_SZ	 (4096u)
 
+#define RX_SEG_N		 (1u)
+#define RX_SEG_SZ		 (((MJUM9BYTES - 1) / PAGE_SIZE + 1) * PAGE_SIZE)
+#define RX_SEG_MAXSZ	 	 (((MJUM9BYTES - 1) / PAGE_SIZE + 1) * PAGE_SIZE)
+CTASSERT(RX_SEG_SZ % PAGE_SIZE == 0);
+CTASSERT(RX_SEG_MAXSZ % PAGE_SIZE == 0);
+
 /**
  * @brief QBMan channel to process ingress traffic.
  *

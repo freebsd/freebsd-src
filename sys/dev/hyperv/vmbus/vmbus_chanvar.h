@@ -61,6 +61,7 @@ struct vmbus_channel {
 	struct callout			ch_poll_timeo;
 	vmbus_chan_callback_t		ch_cb;
 	void				*ch_cbarg;
+	vmbus_chan_rescind_callback_t	ch_rescind_cb;
 
 	/*
 	 * TX bufring; at the beginning of ch_bufring.
@@ -81,6 +82,7 @@ struct vmbus_channel {
 	 * These are based on the vmbus_chanmsg_choffer.chm_montrig.
 	 * Save it here for easy access.
 	 */
+	uint8_t				ch_monitor_id;
 	uint32_t			ch_montrig_mask;/* MNF trig mask */
 	volatile uint32_t		*ch_montrig;	/* MNF trigger loc. */
 
@@ -186,5 +188,6 @@ void		vmbus_event_proc_compat(struct vmbus_softc *, int);
 void		vmbus_chan_msgproc(struct vmbus_softc *,
 		    const struct vmbus_message *);
 void		vmbus_chan_destroy_all(struct vmbus_softc *);
-
+struct hyperv_dma	*vmbus_get_mem_evtflags(void);
+struct hyperv_dma	*vmbus_get_mem_mnf2(void);
 #endif	/* !_VMBUS_CHANVAR_H_ */

@@ -36,6 +36,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libarchive \
 	libbegemot \
 	libblocksruntime \
+	libbsdconf \
 	libbsddialog \
 	libbsdstat \
 	libbsm \

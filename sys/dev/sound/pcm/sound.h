@@ -91,12 +91,6 @@ struct snd_mixer;
 
 #define SND_STATUSLEN	64
 
-#define SOUND_MODVER	5
-
-#define SOUND_MINVER	SOUND_MODVER
-#define SOUND_PREFVER	SOUND_MODVER
-#define SOUND_MAXVER	SOUND_MODVER
-
 #define SD_F_SIMPLEX		0x00000001
 /* unused			0x00000002 */
 #define SD_F_SOFTPCMVOL		0x00000004
@@ -189,8 +183,8 @@ struct snddev_info {
 	device_t dev;
 	char status[SND_STATUSLEN];
 	struct mtx lock;
-	struct cdev *mixer_dev;
 	struct cdev *dsp_dev;
+	struct snd_mixer *mixer;
 	uint32_t pvchanrate, pvchanformat, pvchanmode;
 	uint32_t rvchanrate, rvchanformat, rvchanmode;
 	int32_t eqpreamp;

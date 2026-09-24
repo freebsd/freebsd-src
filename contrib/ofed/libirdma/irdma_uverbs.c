@@ -1725,7 +1725,7 @@ irdma_upost_send(struct ibv_qp *ib_qp, struct ibv_send_wr *ib_wr,
 					info.op_type = IRDMA_OP_TYPE_SEND_SOL_INV;
 				else
 					info.op_type = IRDMA_OP_TYPE_SEND_INV;
-				info.stag_to_inv = ib_wr->imm_data;
+				info.stag_to_inv = ib_wr->invalidate_rkey;
 			}
 			info.op.send.num_sges = ib_wr->num_sge;
 			info.op.send.sg_list = (struct ibv_sge *)ib_wr->sg_list;
@@ -1821,7 +1821,7 @@ irdma_upost_send(struct ibv_qp *ib_qp, struct ibv_send_wr *ib_wr,
 			break;
 		case IBV_WR_LOCAL_INV:
 			info.op_type = IRDMA_OP_TYPE_INV_STAG;
-			info.op.inv_local_stag.target_stag = ib_wr->imm_data;
+			info.op.inv_local_stag.target_stag = ib_wr->invalidate_rkey;
 			err = irdma_uk_stag_local_invalidate(&iwuqp->qp, &info, true);
 			break;
 		default:

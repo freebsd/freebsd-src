@@ -1099,7 +1099,7 @@ ixl_set_rss_key(struct ixl_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	struct ixl_vsi *vsi = &pf->vsi;
 	device_t	dev = pf->dev;
-	u32 rss_seed[IXL_RSS_KEY_SIZE_REG];
+	u32 rss_seed[IXL_RSS_KEY_SIZE_REG] = {0};
 	enum i40e_status_code status;
 
 	/* Fetch the configured RSS key */
@@ -2054,7 +2054,7 @@ void
 ixl_handle_empr_reset(struct ixl_pf *pf)
 {
 	struct ixl_vsi	*vsi = &pf->vsi;
-	bool is_up = !!(if_getdrvflags(vsi->ifp) & IFF_DRV_RUNNING);
+	bool is_up = iflib_is_running(vsi->ctx);
 
 	ixl_prepare_for_reset(pf, is_up);
 	/*

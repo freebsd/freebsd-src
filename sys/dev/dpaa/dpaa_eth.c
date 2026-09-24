@@ -699,7 +699,7 @@ dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 		}
 		fq = qman_fq_create(1, chan, DTSEC_RM_FQR_RX_WQ,
 		    /*force_fqid=*/true, base_fqid + i,
-		    false, false, true, false, 0, 0, 0, 1, 1);
+		    false, false, true, false, 0, 0, 0, 1, 1, 0, 0);
 		if (fq == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not create RX FQ %d (fqid 0x%x)\n",
@@ -819,7 +819,7 @@ dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 	/* TX Frame Queue */
 	fq = qman_fq_create(1, sc->sc_port_tx_qman_chan,
 	    DTSEC_RM_FQR_TX_WQ, false, 0, false, false, true, false, 0, 0, 0,
-	    0, 0);
+	    0, 0, 0, 0);
 	if (fq == NULL) {
 		device_printf(sc->sc_dev, "could not create default TX queue"
 		    "\n");
@@ -849,7 +849,7 @@ dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 	/* TX Confirmation Frame Queue */
 	fq = qman_fq_create(1, sc->sc_rx_channel,
 	    DTSEC_RM_FQR_TX_CONF_WQ, false, 0, false, false, true, false, 0, 0,
-	    0, 0, 0);
+	    0, 0, 0, 0, 0);
 	if (fq == NULL) {
 		device_printf(sc->sc_dev, "could not create TX confirmation "
 		    "queue\n");

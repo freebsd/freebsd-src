@@ -2157,8 +2157,7 @@ chn_syncstate(struct pcm_channel *c)
 	struct snd_mixer *m;
 
 	d = (c != NULL) ? c->parentsnddev : NULL;
-	m = (d != NULL && d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 :
-	    NULL;
+	m = (d != NULL) ? d->mixer : NULL;
 
 	if (d == NULL || m == NULL)
 		return;
@@ -2171,14 +2170,14 @@ chn_syncstate(struct pcm_channel *c)
 
 		if (c->direction == PCMDIR_PLAY &&
 		    (d->flags & SD_F_SOFTPCMVOL)) {
-			/* CHN_UNLOCK(c); */
+			CHN_UNLOCK(c);
 			vol = mix_get(m, SOUND_MIXER_PCM);
 			parent = mix_getparent(m, SOUND_MIXER_PCM);
 			if (parent != SOUND_MIXER_NONE)
 				pvol = mix_get(m, parent);
 			else
 				pvol = 100 | (100 << 8);
-			/* CHN_LOCK(c); */
+			CHN_LOCK(c);
 		} else {
 			vol = 100 | (100 << 8);
 			pvol = vol;
@@ -2209,10 +2208,10 @@ chn_syncstate(struct pcm_channel *c)
 		struct pcm_feeder *f;
 		int treble, bass;
 
-		/* CHN_UNLOCK(c); */
+		CHN_UNLOCK(c);
 		treble = mix_get(m, SOUND_MIXER_TREBLE);
 		bass = mix_get(m, SOUND_MIXER_BASS);
-		/* CHN_LOCK(c); */
+		CHN_LOCK(c);
 
 		if (treble == -1)
 			treble = 50;

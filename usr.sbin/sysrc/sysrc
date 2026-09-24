@@ -1,45 +1,22 @@
 #!/bin/sh
-#-
-# Copyright (c) 2010-2018 Devin Teske
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
-#
+# Copyright (c) 2010-2026 Devin Teske
 #
 ############################################################ INCLUDES
 
-# Prevent `-d' from being interpreted as a debug flag by common.subr
-DEBUG_SELF_INITIALIZE=
-
-BSDCFG_SHARE="/usr/share/bsdconfig"
-[ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
-[ "$_SYSRC_SUBR"  ] || f_include $BSDCFG_SHARE/sysrc.subr
+SYSRC_SHARE="/usr/share/sysrc"
+[ "$_SYSRC_SUBR" ] || . $SYSRC_SHARE/sysrc.subr || exit 1
 
 ############################################################ GLOBALS
+
+pgm="${0##*/}" # Program basename
 
 #
 # Version information
 #
-SYSRC_VERSION="7.2 Jun-16,2018"
+SYSRC_VERSION="7.3 Sep-15,2026"
 
 #
 # Options
@@ -175,41 +152,18 @@ help()
 
 # jail_depend
 #
-# Dump dependencies such as language-file variables and include files to stdout
-# to be piped-into sh(1) running via jexec(8)/chroot(8). As a security measure,
-# this prevents existing language files and library files from being loaded in
-# the jail. This also relaxes the requirement to have these files in every jail
-# before sysrc can be used on said jail.
+# Dump dependencies such as include files to stdout to be piped-into sh(1)
+# running via jexec(8)/chroot(8). As a security measure, this prevents existing
+# library files from being loaded in the jail. This also relaxes the
+# requirement to have these files in every jail before sysrc can be used on
+# said jail.
 #
 jail_depend()
 {
 	#
-	# Indicate that we are jailed
-	#
-	echo export _SYSRC_JAILED=1
-
-	#
-	# Print i18n language variables (their current values are sanitized
-	# and re-printed for interpretation so that the i18n language files
-	# do not need to exist within the jail).
-	#
-	local var val
-	for var in \
-		msg_cannot_create_permission_denied \
-		msg_permission_denied \
-		msg_previous_syntax_errors \
-	; do
-		val=$( eval echo \"\$$var\" |
-			awk '{ gsub(/'\''/, "'\''\\'\'\''"); print }' )
-		echo $var="'$val'"
-	done
-
-	#
 	# Print include dependencies
 	#
-	echo DEBUG_SELF_INITIALIZE=
-	cat $BSDCFG_SHARE/common.subr
-	cat $BSDCFG_SHARE/sysrc.subr
+	cat $SYSRC_SHARE/sysrc.subr
 }
 
 # escape $string [$var_to_set]

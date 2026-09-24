@@ -82,24 +82,6 @@ struct ipoption {
 	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
-#if defined(_NETINET_IN_VAR_H_) && defined(_KERNEL)
-/*
- * Structure attached to inpcb.ip_moptions and
- * passed to ip_output when IP multicast options are in use.
- * This structure is lazy-allocated.
- */
-struct ip_moptions {
-	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
-	struct in_addr imo_multicast_addr; /* ifindex/addr on MULTICAST_IF */
-	u_long	imo_multicast_vif;	/* vif num outgoing multicasts */
-	u_char	imo_multicast_ttl;	/* TTL for outgoing multicasts */
-	u_char	imo_multicast_loop;	/* 1 => hear sends if a member */
-	struct ip_mfilter_head imo_head; /* group membership list */
-};
-#else
-struct ip_moptions;
-#endif
-
 struct	ipstat {
 	uint64_t ips_total;		/* total packets received */
 	uint64_t ips_badsum;		/* checksum bad */
@@ -191,6 +173,7 @@ struct inpcb;
 struct route;
 struct sockopt;
 struct inpcbinfo;
+struct ip_moptions;
 
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */

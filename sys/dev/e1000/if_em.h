@@ -721,9 +721,19 @@ struct e1000_softc {
 	bool			vf_mbx_retry_initialized;
 	bool			vf_queues_sanitized;
 	bool			vf_reset_pending;
+	bool			vf_stats_valid;
 	/* A PF can retain auxiliary filters across a VF reset. */
 	bool			vf_uc_filters_set;
 };
+
+static inline bool
+igbv_is_hyperv(const struct e1000_softc *sc)
+{
+
+	return (sc->vf_ifp &&
+	    (sc->hw.device_id == E1000_DEV_ID_82576_VF_HV ||
+	    sc->hw.device_id == E1000_DEV_ID_I350_VF_HV));
+}
 
 /*
  * Shared PF/VF mechanisms and VF policy entry points.  The latter live in
@@ -742,6 +752,7 @@ int	igbv_get_regs(SYSCTL_HANDLER_ARGS);
 int	igbv_if_attach_pre(if_ctx_t);
 int	igbv_if_attach_post(if_ctx_t);
 int	igbv_if_media_change(if_ctx_t);
+void	igbv_init_hv_ops(struct e1000_hw *);
 void	igbv_if_intr_enable(if_ctx_t);
 void	igbv_if_intr_disable(if_ctx_t);
 void	igbv_if_update_admin_status(if_ctx_t);
@@ -780,9 +791,4 @@ typedef struct _em_vendor_info_t {
 
 void em_dump_rs(struct e1000_softc *);
 
-#define EM_RSSRK_SIZE	4
-#define EM_RSSRK_VAL(key, i)	(key[(i) * EM_RSSRK_SIZE] | \
-				    key[(i) * EM_RSSRK_SIZE + 1] << 8 | \
-				    key[(i) * EM_RSSRK_SIZE + 2] << 16 | \
-				    key[(i) * EM_RSSRK_SIZE + 3] << 24)
 #endif /* _EM_H_DEFINED_ */

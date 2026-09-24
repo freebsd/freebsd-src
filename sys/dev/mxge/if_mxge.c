@@ -3872,7 +3872,7 @@ mxge_get_counter(if_t ifp, ift_counter cnt)
 		return (rv);
 	case IFCOUNTER_OQDROPS:
 		for (int s = 0; s < sc->num_slices; s++)
-			rv += sc->ss[s].tx.br->br_drops;
+			rv += buf_ring_drops(sc->ss[s].tx.br);
 		return (rv);
 	default:
 		return (if_get_counter_default(ifp, cnt));

@@ -92,6 +92,8 @@ struct dhcp_packet {
    extensions field). */
 #define DHCP_OPTIONS_COOKIE	"\143\202\123\143"
 
+#define	MIN_V6ONLY_WAIT		300	/* RFC 8925 */
+
 /* DHCP Option codes: */
 
 #define DHO_PAD				0
@@ -170,6 +172,7 @@ struct dhcp_packet {
 #define	DHO_STREETTALK_SERVER		75
 #define	DHO_STREETTALK_DA_SERVER	76
 #define DHO_DHCP_USER_CLASS_ID		77
+#define	DHO_IPV6_ONLY			108
 #define	DHO_URL				114
 #define	DHO_DOMAIN_SEARCH		119
 #define DHO_SIP_SERVERS			120

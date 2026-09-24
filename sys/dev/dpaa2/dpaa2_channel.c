@@ -78,12 +78,6 @@
 
 MALLOC_DEFINE(M_DPAA2_CH, "dpaa2_ch", "DPAA2 QBMan Channel");
 
-#define RX_SEG_N		 (1u)
-#define RX_SEG_SZ		 (((MJUM9BYTES - 1) / PAGE_SIZE + 1) * PAGE_SIZE)
-#define RX_SEG_MAXSZ	 	 (((MJUM9BYTES - 1) / PAGE_SIZE + 1) * PAGE_SIZE)
-CTASSERT(RX_SEG_SZ % PAGE_SIZE == 0);
-CTASSERT(RX_SEG_MAXSZ % PAGE_SIZE == 0);
-
 #define TX_SEG_N		 (16u) /* XXX-DSL: does DPAA2 limit exist? */
 #define TX_SEG_SZ		 (PAGE_SIZE)
 #define TX_SEG_MAXSZ	 	 (TX_SEG_N * TX_SEG_SZ)
@@ -212,7 +206,7 @@ dpaa2_chan_setup(device_t dev, device_t iodev, device_t condev, device_t bpdev,
 
 	/* Allocate initial # of Rx buffers and a channel storage */
 	error = dpaa2_buf_seed_pool(dev, bpdev, ch, DPAA2_NI_BUFS_INIT,
-	    DPAA2_RX_BUF_SIZE, NULL);
+	    DPAA2_RX_BUF_SIZE);
 	if (error) {
 		device_printf(dev, "%s: failed to seed buffer pool\n",
 		    __func__);
@@ -539,12 +533,8 @@ dpaa2_chan_bp_task(void *arg, int count)
 
 	/* Double allocated Rx buffers if amount of free buffers is < 25% */
 	if (bpconf.free_bufn < (buf_num >> 2)) {
-		mtx_assert(&ch->dma_mtx, MA_NOTOWNED);
-		mtx_lock(&ch->dma_mtx);
 		(void)dpaa2_buf_seed_pool(ch->ni_dev, bpdev, ch, buf_num,
-		    DPAA2_RX_BUF_SIZE, &ch->dma_mtx);
-		mtx_unlock(&ch->dma_mtx);
-
+		    DPAA2_RX_BUF_SIZE);
 		DPAA2_ATOMIC_XCHG(&sc->buf_free, bpconf.free_bufn);
 	}
 }

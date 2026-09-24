@@ -29,6 +29,7 @@ atf_test_case praudit_delim_comma
 praudit_delim_comma_head()
 {
 	atf_set "descr" "Verify that comma delimiter is present with -d ',' cmd"
+	atf_set "require.progs" praudit
 }
 
 praudit_delim_comma_body()
@@ -42,6 +43,7 @@ atf_test_case praudit_delim_underscore
 praudit_delim_underscore_head()
 {
 	atf_set "descr" "Verify that underscore delimiter is present with -d _"
+	atf_set "require.progs" praudit
 }
 
 praudit_delim_underscore_body()
@@ -56,6 +58,7 @@ praudit_no_args_head()
 {
 	atf_set "descr" "Verify that praudit outputs default form without " \
 			"any arguments"
+	atf_set "require.progs" praudit
 }
 
 praudit_no_args_body()
@@ -70,6 +73,7 @@ praudit_numeric_form_head()
 {
 	atf_set "descr" "Verify that praudit outputs the numeric form " \
 			"with -n flag"
+	atf_set "require.progs" praudit
 }
 
 praudit_numeric_form_body()
@@ -83,6 +87,7 @@ atf_test_case praudit_raw_form
 praudit_raw_form_head()
 {
 	atf_set "descr" "Verify that praudit outputs the raw form with -r flag"
+	atf_set "require.progs" praudit
 }
 
 praudit_raw_form_body()
@@ -97,6 +102,7 @@ praudit_same_line_head()
 {
 	atf_set "descr" "Verify that praudit outputs the trail in the same " \
 			"line  with -l flag"
+	atf_set "require.progs" praudit
 }
 
 praudit_same_line_body()
@@ -111,6 +117,7 @@ praudit_short_form_head()
 {
 	atf_set "descr" "Verify that praudit outputs the short form " \
 			"with -s flag"
+	atf_set "require.progs" praudit
 }
 
 praudit_short_form_body()
@@ -124,6 +131,7 @@ atf_test_case praudit_xml_form
 praudit_xml_form_head()
 {
 	atf_set "descr" "Verify that praudit outputs the XML file with -x flag"
+	atf_set "require.progs" praudit
 }
 
 praudit_xml_form_body()
@@ -139,6 +147,7 @@ praudit_sync_to_next_record_head()
 	atf_set "descr" "Verify that praudit(1) outputs the last few audit " \
 			"records when the initial part of the trail is " \
 			"corrputed."
+	atf_set "require.progs" praudit
 }
 
 praudit_sync_to_next_record_body()
@@ -158,6 +167,7 @@ praudit_raw_short_exclusive_head()
 {
 	atf_set "descr" "Verify that praudit outputs usage message on stderr " \
 			"when both raw and short options are specified"
+	atf_set "require.progs" praudit
 }
 
 praudit_raw_short_exclusive_body()

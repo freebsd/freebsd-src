@@ -34,6 +34,7 @@
  */
 #include <sys/cdefs.h>
 #include "qls_os.h"
+#include <net/rss_config.h>
 #include "qls_hw.h"
 #include "qls_def.h"
 #include "qls_inline.h"
@@ -969,21 +970,10 @@ qls_wait_for_config_reg_bits(qla_host_t *ha, uint32_t bits, uint32_t value)
 	return (-1);
 }
 
-static uint8_t q81_hash_key[] = {
-			0xda, 0x56, 0x5a, 0x6d,
-			0xc2, 0x0e, 0x5b, 0x25,
-			0x3d, 0x25, 0x67, 0x41,
-			0xb0, 0x8f, 0xa3, 0x43,
-			0xcb, 0x2b, 0xca, 0xd0,
-			0xb4, 0x30, 0x7b, 0xae,
-			0xa3, 0x2d, 0xcb, 0x77,
-			0x0c, 0xf2, 0x30, 0x80,
-			0x3b, 0xb7, 0x42, 0x6a,
-			0xfa, 0x01, 0xac, 0xbe };
-
 static int
 qls_init_rss(qla_host_t *ha)
 {
+	uint8_t		rss_key[RSS_KEYSIZE];
 	q81_rss_icb_t	*rss_icb;
 	int		ret = 0;
 	int		i;
@@ -1004,8 +994,17 @@ qls_init_rss(qla_host_t *ha)
 		rss_icb->cq_id[i] = (i & (ha->num_rx_rings - 1));
 	}
 
-	memcpy(rss_icb->ipv6_rss_hash_key, q81_hash_key, 40);
-	memcpy(rss_icb->ipv4_rss_hash_key, q81_hash_key, 16);
+	_Static_assert(sizeof(rss_icb->ipv6_rss_hash_key) == RSS_KEYSIZE,
+	    "RSS key size mismatch");
+	_Static_assert(sizeof(rss_icb->ipv4_rss_hash_key) <= RSS_KEYSIZE,
+	    "IPv4 RSS key exceeds common key size");
+	rss_getkey(rss_key);
+	/* The ICB stores each network-order key word in little-endian order. */
+	for (i = 0; i < nitems(rss_icb->ipv6_rss_hash_key); i++)
+		le32enc(&rss_icb->ipv6_rss_hash_key[i],
+		    be32dec(rss_key + i * sizeof(uint32_t)));
+	memcpy(rss_icb->ipv4_rss_hash_key, rss_icb->ipv6_rss_hash_key,
+	    sizeof(rss_icb->ipv4_rss_hash_key));
 
 	ret = qls_wait_for_config_reg_bits(ha, Q81_CTL_CONFIG_LR, 0);
 

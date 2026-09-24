@@ -68,6 +68,10 @@
 
 #include <cam/ata/ata_all.h>
 
+/* SDT Probes */
+SDT_PROBE_DEFINE3(cam, , ada, error, "union ccb *", "uint32_t", "uint32_t");
+SDT_PROBE_DEFINE2(cam, , ada, recovery, "union ccb *", "int");
+
 #ifdef _KERNEL
 
 #define ATA_MAX_28BIT_LBA               268435455UL
@@ -3479,6 +3483,10 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 adaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 {
+	int error;
+
+	CAM_PROBE3(ada, error, ccb, cam_flags, sense_flags);
+
 #ifdef CAM_IO_STATS
 	struct ada_softc *softc;
 	struct cam_periph *periph;
@@ -3503,7 +3511,9 @@ adaerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 	}
 #endif
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags));
+	error = cam_periph_error(ccb, cam_flags, sense_flags);
+	CAM_PROBE2(ada, recovery, ccb, error);
+	return (error);
 }
 
 static void

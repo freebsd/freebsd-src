@@ -1516,7 +1516,7 @@ init_bootorder(void)
 	}
 	fclose(fp);
 
-	return (qemu_fwcfg_add_file("bootorder", bootorder_len, bootorder));
+	return (qemu_fwcfg_add_file("bootorder", bootorder_len + 1, bootorder));
 }
 
 #define	BUSIO_ROUNDUP		32

@@ -51,6 +51,9 @@
 .Cm show devices
 .Nm
 .Op Fl u Ar unit
+.Cm show discovery
+.Nm
+.Op Fl u Ar unit
 .Cm show enclosures
 .Nm
 .Op Fl u Ar unit
@@ -124,6 +127,17 @@ Displays a summary of all adapters.
 Displays all devices, expanders and enclosures.
 .It Cm show devices
 Displays all devices.
+.It Cm show discovery
+Displays the firmware DiscoveryStatus field for each PHY
+.Po Dq SAS IO Unit Page 0 Pc
+and the AccessStatus field for each device
+.Po Dq SAS Device Page 0 Pc .
+Entries with a nonzero DiscoveryStatus, a non-Ok AccessStatus, or a PHY
+still showing discovery in progress are marked
+.Dq SUSPECT .
+Useful for finding which PHY or device a firmware discovery stall was
+attributed to, since these fields aren't otherwise exposed and can remain
+set after the boot completes.
 .It Cm show expanders
 Displays all expanders.
 .It Cm show enclosures

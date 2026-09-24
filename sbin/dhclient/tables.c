@@ -173,7 +173,7 @@ struct option dhcp_options[256] = {
 	{ "option-105", "X",				&dhcp_universe, 105 },
 	{ "option-106", "X",				&dhcp_universe, 106 },
 	{ "option-107", "X",				&dhcp_universe, 107 },
-	{ "option-108", "X",				&dhcp_universe, 108 },
+	{ "ipv6only", "L",				&dhcp_universe, 108 },
 	{ "option-109", "X",				&dhcp_universe, 109 },
 	{ "option-110", "X",				&dhcp_universe, 110 },
 	{ "option-111", "X",				&dhcp_universe, 111 },
@@ -403,11 +403,12 @@ unsigned char dhcp_option_default_priority_list[] = {
 	DHO_DHCP_USER_CLASS_ID,
 	DHO_DOMAIN_SEARCH,
 	DHO_URL,
+	DHO_IPV6_ONLY,
 
 	/* Presently-undefined options... */
 	62, 63, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
 	92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105,
-	106, 107, 108, 109, 110, 111, 112, 113,      115, 116, 117,
+	106, 107,      109, 110, 111, 112, 113,      115, 116, 117,
 	118,      120, 122, 123, 124, 125, 126, 127, 128, 129, 130,
 	131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
 	143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154,

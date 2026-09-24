@@ -51,6 +51,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260918: lesskey(1) removed, lesskey(5) man page added
+OLD_FILES+=usr/bin/lesskey
+OLD_FILES+=usr/share/man/man1/lesskey.1.gz
+
+# 20260921: atf-0.26 release
+OLD_FILES+=usr/share/doc/atf/README
+
 # 20260813: lib9p.so becomes a private library
 OLD_LIBS+=usr/lib/lib9p.so.1
 
@@ -649,6 +656,7 @@ OLD_FILES+=usr/include/c++/v1/locale.h
 
 # 20260420: remove perfmon
 OLD_FILES+=boot/kernel/perfmon.ko
+OLD_FILES+=usr/share/man/man4/i386/perfmon.4.gz
 OLD_FILES+=usr/share/man/man4/perfmon.4.gz
 OLD_FILES+=usr/share/examples/perfmon/Makefile
 OLD_FILES+=usr/share/examples/perfmon/README

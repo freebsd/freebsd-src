@@ -114,6 +114,22 @@
 #define	 IDR5_OAS_48		(0x5 << IDR5_OAS_S)
 #define	 IDR5_OAS_52		(0x6 << IDR5_OAS_S) /* Reserved in SMMU v3.0 */
 #define	SMMU_IIDR		0x018
+#define	 SMMU_ProductID_SHIFT	20
+#define	 SMMU_ProductID_MASK	(0xfffu << SMMU_ProductID_SHIFT)
+#define	 SMMU_ProductID_GET(x)	\
+    (((x) & SMMU_ProductID_MASK) >> SMMU_ProductID_SHIFT)
+#define	 SMMU_Variant_SHIFT	16
+#define	 SMMU_Variant_MASK	(0xfu << SMMU_Variant_SHIFT)
+#define	 SMMU_Variant_GET(x)	\
+    (((x) & SMMU_Variant_MASK) >> SMMU_Variant_SHIFT)
+#define	 SMMU_Revision_SHIFT	12
+#define	 SMMU_Revision_MASK	(0xfu << SMMU_Revision_SHIFT)
+#define	 SMMU_Revision_GET(x)	\
+    (((x) & SMMU_Revision_MASK) >> SMMU_Revision_SHIFT)
+#define	 SMMU_Implementer_SHIFT	0
+#define	 SMMU_Implementer_MASK	(0xfffu << SMMU_Implementer_SHIFT)
+#define	 SMMU_Implementer_GET(x) \
+    (((x) & SMMU_Implementer_MASK) >> SMMU_Implementer_SHIFT)
 #define	SMMU_AIDR		0x01C
 #define	SMMU_CR0		0x020
 #define	 CR0_VMW_S		6 /* VMID Wildcard */

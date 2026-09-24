@@ -2159,6 +2159,17 @@ device_get_softc(device_t dev)
 	return (dev->softc);
 }
 
+void *
+device_get_softc_class(device_t dev, kobj_class_t cls)
+{
+	char *ptr;
+
+	ptr = dev->softc;
+	ptr += kobj_instance_offset(device_get_driver(dev), cls);
+
+	return (ptr);
+}
+
 /**
  * @brief Set the device's softc field
  *
@@ -2472,6 +2483,7 @@ device_set_driver(device_t dev, driver_t *driver)
 {
 	int domain;
 	struct domainset *policy;
+	size_t size;
 
 	if (dev->state >= DS_ATTACHED)
 		return (EBUSY);
@@ -2488,13 +2500,14 @@ device_set_driver(device_t dev, driver_t *driver)
 	dev->driver = driver;
 	if (driver) {
 		kobj_init((kobj_t) dev, (kobj_class_t) driver);
-		if (!(dev->flags & DF_EXTERNALSOFTC) && driver->size > 0) {
+		size = kobj_total_data_size(driver);
+		if (!(dev->flags & DF_EXTERNALSOFTC) && size > 0) {
 			if (bus_get_domain(dev, &domain) == 0)
 				policy = DOMAINSET_PREF(domain);
 			else
 				policy = DOMAINSET_RR();
-			dev->softc = malloc_domainset(driver->size, M_BUS_SC,
-			    policy, M_WAITOK | M_ZERO);
+			dev->softc = malloc_domainset(size, M_BUS_SC, policy,
+			    M_WAITOK | M_ZERO);
 		}
 	} else {
 		kobj_init((kobj_t) dev, &null_class);

@@ -388,6 +388,11 @@ SDT_PROVIDER_DECLARE(cam);
 	SDT_PROBE3(cam, , group, probe, arg0, arg1, arg2)
 #define CAM_PROBE4(group, probe, arg0, arg1, arg2, arg3)	\
 	SDT_PROBE4(cam, , group, probe, arg0, arg1, arg2, arg3)
+#else
+#define CAM_PROBE1(group, probe, arg0)
+#define CAM_PROBE2(group, probe, arg0, arg1)
+#define CAM_PROBE3(group, probe, arg0, arg1, arg2)
+#define CAM_PROBE4(group, probe, arg0, arg1, arg2, arg3)
 #endif
 union ccb;
 struct sbuf;

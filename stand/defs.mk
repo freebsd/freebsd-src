@@ -127,6 +127,12 @@ CFLAGS+=	-I${SASRC}/geli
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
 CFLAGS+= -DLOADER_DISK_SUPPORT
 .endif
+.if ${LOADER_NET_SUPPORT:Uno} == "yes"
+CFLAGS+= -DLOADER_NET_SUPPORT
+.endif
+.if ${LOADER_MD_SUPPORT:Uno} == "yes"
+CFLAGS+= -DLOADER_MD_SUPPORT
+.endif
 
 # Machine specific flags for all builds here
 

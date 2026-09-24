@@ -6,6 +6,7 @@ ATF=		${SRCTOP}/contrib/atf
 ATF_TESTS_SH+=	atf_check_test
 ATF_TESTS_SH+=	config_test
 ATF_TESTS_SH+=	integration_test
+ATF_TESTS_SH+=	kmod_test
 ATF_TESTS_SH+=	normalize_test
 ATF_TESTS_SH+=	tc_test
 ATF_TESTS_SH+=	tp_test

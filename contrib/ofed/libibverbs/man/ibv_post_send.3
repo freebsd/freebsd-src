@@ -35,7 +35,12 @@ struct ibv_sge         *sg_list;                /* Pointer to the s/g array */
 int                     num_sge;                /* Size of the s/g array */
 enum ibv_wr_opcode      opcode;                 /* Operation type */
 int                     send_flags;             /* Flags of the WR properties */
-uint32_t                imm_data;               /* Immediate data (in network byte order) */
+union {
+.in +8
+__be32                  imm_data;               /* Immediate data (in network byte order) */
+uint32_t                invalidate_rkey;        /* Remote rkey to invalidate */
+.in -8
+};
 union {
 .in +8
 struct {

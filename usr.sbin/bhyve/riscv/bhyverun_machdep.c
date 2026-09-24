@@ -106,6 +106,7 @@ bhyve_usage(int code)
 	    "       -k: key=value flat config file\n"
 	    "       -M: monitor mode\n"
 	    "       -m: memory size\n"
+	    "       -N: don't reboot while in monitor mode\n"
 	    "       -o: set config 'var' to 'value'\n"
 	    "       -p: pin 'vcpu' to 'hostcpu'\n"
 	    "       -S: guest memory cannot be swapped\n"
@@ -123,7 +124,7 @@ bhyve_optparse(int argc, char **argv)
 	const char *optstr;
 	int c;
 
-	optstr = "hCDMSWk:f:o:p:c:s:m:U:";
+	optstr = "hCDMNSWk:f:o:p:c:s:m:U:";
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'c':
@@ -142,10 +143,13 @@ bhyve_optparse(int argc, char **argv)
 			bhyve_parse_simple_config_file(optarg);
 			break;
 		case 'M':
-			set_config_bool("monitor", true);
+			set_config_bool("monitor.enabled", true);
 			break;
 		case 'm':
 			set_config_value("memory.size", optarg);
+			break;
+		case 'N':
+			set_config_bool("monitor.no_reboot", true);
 			break;
 		case 'o':
 			if (!bhyve_parse_config_option(optarg)) {
@@ -187,6 +191,7 @@ bhyve_optparse(int argc, char **argv)
 
 	/* Handle backwards compatibility aliases in config options. */
 	bhyve_cfg_warn("virtio_msix", "virtio.msix");
+	bhyve_cfg_warn("monitor", "monitor.enabled");
 }
 
 void

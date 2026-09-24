@@ -533,14 +533,7 @@ device		ntb_hw_plx	# PLX NTB hardware driver
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # smbios: DMI/SMBIOS entry point (requires EFIRT option)
 # vpd: Vital Product Data kernel interface
-# si: Specialix International SI/XIO or SX intelligent serial card
 # tpm: Trusted Platform Module
-
-# Notes on the Specialix SI/XIO driver:
-#  The host card is memory, not IO mapped.
-#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
-#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
-#  The cards can use an IRQ of 11, 12 or 15.
 
 device		ipmi
 device		pbio

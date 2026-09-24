@@ -71,7 +71,8 @@ class check_result {
     check_result(const atf_check_result_t* result);
 
     friend check_result test_constructor(const char* const*);
-    friend std::unique_ptr< check_result > exec(const atf::process::argv_array&);
+    friend std::unique_ptr< check_result >
+        exec(const atf::process::argv_array&);
 
 public:
     //!

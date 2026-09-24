@@ -5,26 +5,14 @@
 .\" This software was developed by Aymeric Wibo <obiwac@freebsd.org>
 .\" under sponsorship from the FreeBSD Foundation.
 .\"
-.Dd June 11, 2026
+.Dd September 13, 2026
 .Dt AMDSMU 4
 .Os
 .Sh NAME
 .Nm amdsmu
 .Nd device driver for the AMD System Management Unit
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device amdsmu"
-.Ed
-.Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
-.Xr rc.conf 5 :
-.Bd -literal -offset indent
-kld_list="amdsmu"
-.Ed
+.Cd device amdsmu
 .Sh DESCRIPTION
 The
 .Nm
@@ -40,8 +28,11 @@ to query firmware version information, retrieve power management metrics,
 and hint to the SMU when the system is entering or leaving sleep.
 The driver registers ACPI suspend and resume event handlers to send the
 sleep hint to the SMU and refresh metrics after each sleep cycle.
-.Pp
-The following AMD processors are supported:
+.Sh HARDWARE
+The
+.Nm
+driver supports the
+System Management Unit in the following AMD mobile processors:
 .Pp
 .Bl -bullet -compact
 .It

@@ -29,7 +29,7 @@
 #include <sys/libkern.h>
 
 char *
-strchrnul(const char *p, int ch)
+(strchrnul)(const char *p, int ch)
 {
 
 	for (; *p != 0 && *p != ch; p++)

@@ -43,6 +43,8 @@
  * Constructors and destructors.
  */
 
+#define	MAXLEN 8192
+
 ATF_TC(init);
 ATF_TC_HEAD(init, tc)
 {
@@ -173,13 +175,12 @@ ATF_TC_HEAD(init_rep, tc)
 }
 ATF_TC_BODY(init_rep, tc)
 {
-    const size_t maxlen = 8192;
-    char buf[maxlen + 1];
+    char buf[MAXLEN + 1];
     size_t i;
 
     buf[0] = '\0';
 
-    for (i = 0; i < maxlen; i++) {
+    for (i = 0; i < MAXLEN; i++) {
         atf_dynstr_t str;
 
         RE(atf_dynstr_init_rep(&str, i, 'a'));
@@ -371,15 +372,14 @@ static
 void
 check_append(atf_error_t (*append)(atf_dynstr_t *, const char *, ...))
 {
-    const size_t maxlen = 8192;
-    char buf[maxlen + 1];
+    char buf[MAXLEN + 1];
     size_t i;
     atf_dynstr_t str;
 
     printf("Appending with plain string\n");
     buf[0] = '\0';
     RE(atf_dynstr_init(&str));
-    for (i = 0; i < maxlen; i++) {
+    for (i = 0; i < MAXLEN; i++) {
         if (strcmp(atf_dynstr_cstring(&str), buf) != 0) {
             fprintf(stderr, "Failed at iteration %zd\n", i);
             atf_tc_fail("Failed to append character at iteration %zd", i);
@@ -393,7 +393,7 @@ check_append(atf_error_t (*append)(atf_dynstr_t *, const char *, ...))
     printf("Appending with formatted string\n");
     buf[0] = '\0';
     RE(atf_dynstr_init(&str));
-    for (i = 0; i < maxlen; i++) {
+    for (i = 0; i < MAXLEN; i++) {
         if (strcmp(atf_dynstr_cstring(&str), buf) != 0) {
             fprintf(stderr, "Failed at iteration %zd\n", i);
             atf_tc_fail("Failed to append character at iteration %zd", i);
@@ -471,15 +471,14 @@ static
 void
 check_prepend(atf_error_t (*prepend)(atf_dynstr_t *, const char *, ...))
 {
-    const size_t maxlen = 8192;
-    char buf[maxlen + 1];
+    char buf[MAXLEN + 1];
     size_t i;
     atf_dynstr_t str;
 
     printf("Prepending with plain string\n");
     buf[0] = '\0';
     RE(atf_dynstr_init(&str));
-    for (i = 0; i < maxlen; i++) {
+    for (i = 0; i < MAXLEN; i++) {
         if (strcmp(atf_dynstr_cstring(&str), buf) != 0) {
             fprintf(stderr, "Failed at iteration %zd\n", i);
             atf_tc_fail("Failed to prepend character at iteration %zd", i);
@@ -499,7 +498,7 @@ check_prepend(atf_error_t (*prepend)(atf_dynstr_t *, const char *, ...))
     printf("Prepending with formatted string\n");
     buf[0] = '\0';
     RE(atf_dynstr_init(&str));
-    for (i = 0; i < maxlen; i++) {
+    for (i = 0; i < MAXLEN; i++) {
         if (strcmp(atf_dynstr_cstring(&str), buf) != 0) {
             fprintf(stderr, "Failed at iteration %zd\n", i);
             atf_tc_fail("Failed to prepend character at iteration %zd", i);

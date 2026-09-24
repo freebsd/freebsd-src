@@ -453,6 +453,11 @@ static const struct {
 		.devices = nct5585_devices,
 	},
 	{
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xd42b,
+		.descr   = "Nuvoton NCT6798D",
+		.devices = nct67xx_devices,
+	},
+	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xc800, .mask = 0xff,
 		.descr = "Nuvoton NCT6791",
 		.devices = nvt_devices,

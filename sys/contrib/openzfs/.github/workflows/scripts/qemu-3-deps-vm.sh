@@ -18,21 +18,35 @@ function alpine() {
   sudo apk add \
     acl alpine-sdk attr autoconf automake bash build-base clang22 coreutils \
     cpio cryptsetup curl curl-dev dhcpcd eudev eudev-dev eudev-libs findutils \
-    fio gawk gdb gettext-dev git grep jq libaio libaio-dev libcurl \
-    libtirpc-dev libtool libunwind libunwind-dev linux-headers linux-tools \
-    linux-virt linux-virt-dev lsscsi m4 make nfs-utils openssl-dev parted \
-    pax procps py3-cffi py3-distlib py3-packaging py3-setuptools python3 \
-    python3-dev qemu-guest-agent rng-tools rsync samba samba-server sed \
-    strace sysstat util-linux util-linux-dev wget words xfsprogs xxhash \
-    zlib-dev pamtester@testing
+    fio gawk gdb gettext-dev git grep jq libaio libaio-dev libcap-utils \
+    libcurl libtirpc-dev libtool libunwind libunwind-dev linux-headers \
+    linux-tools linux-stable linux-stable-dev lsscsi m4 make nfs-utils \
+    openssl-dev parted pax procps py3-cffi py3-distlib py3-packaging \
+    py3-setuptools python3 python3-dev qemu-guest-agent rng-tools rsync samba \
+    samba-server sed strace sysstat tzdata util-linux util-linux-dev wget \
+    words xfsprogs xxhash zlib-dev pamtester@testing
   echo "##[endgroup]"
 
   echo "##[group]Switch to eudev"
   sudo setup-devd udev
   echo "##[endgroup]"
 
+  echo "##[group]Boot the -stable kernel instead of -virt"
+  # -virt has CONFIG_SCSI_DEBUG disabled, which several ZTS tests
+  # (zpool_expand, zpool_reopen, fault/auto_*, ...) need to simulate
+  # disks that support expand/fault-injection scenarios real static
+  # disks can't easily provide.  -stable has it enabled.  This takes
+  # effect on the VM's next boot, which happens naturally when this
+  # deps step powers off and qemu-prepare-for-build.sh starts the VM
+  # back up for the build step -- no explicit reboot needed here.
+  sudo sed -i 's/^default=virt$/default=stable/' /etc/update-extlinux.conf
+  sudo update-extlinux
+  echo "##[endgroup]"
+
   echo "##[group]Install ksh93 from Source"
-  git clone --depth 1 https://github.com/ksh93/ksh.git /tmp/ksh
+  # Build the actively-maintained "1.0" branch instead of the
+  # default "dev" branch for a reproducible, stable build.
+  git clone --depth 1 --branch 1.0 https://github.com/ksh93/ksh.git /tmp/ksh
   cd /tmp/ksh
   ./bin/package make
   sudo ./bin/package install /
@@ -323,6 +337,12 @@ case "$1" in
     CMDLINE="$CMDLINE biosdevname=0 net.ifnames=0"
     echo 'GRUB_SERIAL_COMMAND="serial --speed=115200"' \
       | sudo tee -a /etc/default/grub >/dev/null
+    # Force GRUB itself onto the serial console.  These VMs have no display,
+    # and without this grub2-mkconfig can emit 'terminal_output gfxterm',
+    # which leaves GRUB stuck before the kernel starts on a headless VM.
+    sudo sed -i -e '/^GRUB_TERMINAL_INPUT/d' -e '/^GRUB_TERMINAL_OUTPUT/d' /etc/default/grub
+    echo 'GRUB_TERMINAL_INPUT="serial console"' | sudo tee -a /etc/default/grub >/dev/null
+    echo 'GRUB_TERMINAL_OUTPUT="serial console"' | sudo tee -a /etc/default/grub >/dev/null
     ;;
   ubuntu24|ubuntu26)
     GRUB_CFG="/boot/grub/grub.cfg"

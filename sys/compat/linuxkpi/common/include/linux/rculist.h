@@ -37,7 +37,8 @@
 #define	list_next_rcu(head)	(*((struct list_head **)(&(head)->next)))
 #define	list_prev_rcu(head)	(*((struct list_head **)(&(head)->prev)))
 
-#define	list_for_each_entry_rcu(pos, head, member) \
+/* We are currently ignoring the optional condition to check. */
+#define	list_for_each_entry_rcu(pos, head, member, _condition...) \
 	for (pos = list_entry_rcu((head)->next, typeof(*(pos)), member); \
 	     &(pos)->member != (head);					\
 	     pos = list_entry_rcu((pos)->member.next, typeof(*(pos)), member))
@@ -47,8 +48,9 @@
 	     &(pos)->member != (head);					\
 	     pos = list_entry_rcu((pos)->member.next, typeof(*(pos)), member))
 
+/* This should likely be its own implementation. */
 #define	list_for_each_entry_lockless(pos, head, member) \
-	list_for_each_entry_rcu(pos, head, member)
+	list_for_each_entry_rcu(pos, head, member, true)
 
 static inline void
 linux_list_add_rcu(struct list_head *new, struct list_head *prev,

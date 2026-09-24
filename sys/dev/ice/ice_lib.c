@@ -42,6 +42,7 @@
 
 #include "ice_lib.h"
 #include "ice_iflib.h"
+#include "ice_fault.h"
 #ifdef PCI_IOV
 #include "ice_iov.h"
 #endif
@@ -62,6 +63,33 @@
  */
 MALLOC_DEFINE(M_ICE, "ice", "Intel(R) 100Gb Network Driver lib allocations");
 
+#ifdef DRIVER_FAILPOINTS
+
+/*
+ * ICE fail points are global, but only the selected PF may trigger them.  An
+ * empty selector disables every point even if a stale failpoint setting
+ * remains armed.
+ */
+SYSCTL_NODE(_debug_fail_point, OID_AUTO, ice,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "ice driver fail points");
+
+static char ice_fail_device[32];
+SYSCTL_STRING(_debug_fail_point_ice, OID_AUTO, device,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, ice_fail_device,
+    sizeof(ice_fail_device), "device eligible for ice fail points");
+
+bool
+ice_fail_point_device_matches(struct ice_softc *sc)
+{
+	const char *nameunit;
+
+	nameunit = device_get_nameunit(sc->dev);
+	return (ice_fail_device[0] != '\0' && nameunit != NULL &&
+	    strcmp(nameunit, ice_fail_device) == 0);
+}
+
+#endif /* DRIVER_FAILPOINTS */
+
 /*
  * Helper function prototypes
  */
@@ -80,7 +108,8 @@ static void ice_check_ctrlq_errors(struct ice_softc *sc, const char *qname,
 				   struct ice_ctl_q_info *cq);
 static void ice_process_link_event(struct ice_softc *sc, struct ice_rq_event_info *e);
 static void ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
-				    struct ice_rq_event_info *event);
+				    struct ice_rq_event_info *event,
+				    struct ice_mbx_data *mbx_data);
 static void ice_nvm_version_str(struct ice_hw *hw, struct sbuf *buf);
 static void ice_update_port_oversize(struct ice_softc *sc, u64 rx_errors);
 static void ice_active_pkg_version_str(struct ice_hw *hw, struct sbuf *buf);
@@ -777,6 +806,7 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 		    ice_aq_str(hw->adminq.sq_last_status));
 		return (EIO);
 	}
+	vsi->hw_vsi_created = true;
 	vsi->info = ctx.info;
 
 	/* Initialize VSI with just 1 TC to start */
@@ -816,6 +846,8 @@ ice_deinit_vsi(struct ice_vsi *vsi)
 
 	/* Assert that the VSI pointer matches in the list */
 	MPASS(vsi == sc->all_vsi[vsi->idx]);
+	if (!vsi->hw_vsi_created)
+		return;
 
 	ctx.info = vsi->info;
 
@@ -837,7 +869,30 @@ ice_deinit_vsi(struct ice_vsi *vsi)
 		    "Free VSI %u AQ call failed, err %s aq_err %s\n",
 		    vsi->idx, ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
+	} else {
+		vsi->hw_vsi_created = false;
 	}
+}
+
+/*
+ * Release the queue maps and storage owned by a VSI.  Callers must remove
+ * the VSI sysctl context before reaching this helper.
+ */
+static void
+ice_free_vsi_resources(struct ice_vsi *vsi)
+{
+	struct ice_softc *sc = vsi->sc;
+	int idx = vsi->idx;
+
+	/* Assert that the VSI pointer matches in the list */
+	MPASS(vsi == sc->all_vsi[idx]);
+
+	ice_free_vsi_qmaps(vsi);
+
+	if (vsi->dynamic)
+		free(sc->all_vsi[idx], M_ICE);
+
+	sc->all_vsi[idx] = NULL;
 }
 
 /**
@@ -851,35 +906,39 @@ ice_deinit_vsi(struct ice_vsi *vsi)
 void
 ice_release_vsi(struct ice_vsi *vsi)
 {
-	struct ice_softc *sc = vsi->sc;
-	int idx = vsi->idx;
-
-	/* Assert that the VSI pointer matches in the list */
-	MPASS(vsi == sc->all_vsi[idx]);
+	MPASS(vsi == vsi->sc->all_vsi[vsi->idx]);
 
 	/* Cleanup RSS configuration */
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_RSS))
+	if (ice_is_bit_set(vsi->sc->feat_en, ICE_FEATURE_RSS))
 		ice_clean_vsi_rss_cfg(vsi);
 
+	/* Drain sysctl handlers before invalidating the hardware VSI. */
 	ice_del_vsi_sysctl_ctx(vsi);
 
-	/* Remove the configured mirror rule, if it exists */
-	ice_remove_vsi_mirroring(vsi);
-
-	/*
-	 * If we unload the driver after a reset fails, we do not need to do
-	 * this step.
-	 */
-	if (!ice_test_state(&sc->state, ICE_STATE_RESET_FAILED))
+	/* Do not issue firmware commands for a missing VSI or failed device. */
+	if (vsi->hw_vsi_created &&
+	    !ice_test_state(&vsi->sc->state, ICE_STATE_RESET_FAILED)) {
+		ice_remove_vsi_mirroring(vsi);
+		ice_remove_vsi_fltr(&vsi->sc->hw, vsi->idx);
 		ice_deinit_vsi(vsi);
-
-	ice_free_vsi_qmaps(vsi);
-
-	if (vsi->dynamic) {
-		free(sc->all_vsi[idx], M_ICE);
 	}
 
-	sc->all_vsi[idx] = NULL;
+	ice_free_vsi_resources(vsi);
+}
+
+/**
+ * ice_release_vsi_resources - Release software resources for a VSI
+ * @vsi: the VSI to release
+ *
+ * Release resources allocated by ice_alloc_vsi() without issuing firmware
+ * commands. This is used when setup fails before ice_initialize_vsi() has
+ * attempted to create the VSI in hardware.
+ */
+void
+ice_release_vsi_resources(struct ice_vsi *vsi)
+{
+	ice_del_vsi_sysctl_ctx(vsi);
+	ice_free_vsi_resources(vsi);
 }
 
 /**
@@ -1929,7 +1988,7 @@ ice_control_rx_queue(struct ice_vsi *vsi, u16 qidx, bool enable)
 int
 ice_control_all_rx_queues(struct ice_vsi *vsi, bool enable)
 {
-	int i, err;
+	int i, err = 0;
 
 	/* TODO: amortize waits by changing all queues up front and then
 	 * checking their status afterwards. This will become more necessary
@@ -1941,7 +2000,7 @@ ice_control_all_rx_queues(struct ice_vsi *vsi, bool enable)
 			break;
 	}
 
-	return (0);
+	return (err);
 }
 
 /**
@@ -2269,7 +2328,8 @@ ice_process_link_event(struct ice_softc *sc,
  */
 static void
 ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
-			struct ice_rq_event_info *event)
+			struct ice_rq_event_info *event,
+			struct ice_mbx_data *mbx_data)
 {
 	u16 opcode;
 
@@ -2281,7 +2341,7 @@ ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
 		break;
 #ifdef PCI_IOV
 	case ice_mbx_opc_send_msg_to_pf:
-		ice_vc_handle_vf_msg(sc, event);
+		ice_vc_handle_vf_msg(sc, event, mbx_data);
 		break;
 #endif
 	case ice_aqc_opc_fw_logs_event:
@@ -2317,6 +2377,9 @@ int
 ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 {
 	struct ice_rq_event_info event = { { 0 } };
+#ifdef PCI_IOV
+	struct ice_mbx_data mbx_data = { 0 };
+#endif
 	struct ice_hw *hw = &sc->hw;
 	struct ice_ctl_q_info *cq;
 	int status;
@@ -2335,6 +2398,11 @@ ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 	case ICE_CTL_Q_MAILBOX:
 		cq = &hw->mailboxq;
 		qname = "Mailbox";
+#ifdef PCI_IOV
+		if (!ice_is_e830(hw) && sc->num_vfs != 0)
+			hw->mbx_snapshot.mbx_buf.state =
+			    ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+#endif
 		break;
 	default:
 		device_printf(sc->dev,
@@ -2370,10 +2438,31 @@ ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 			return (EIO);
 		}
 		/* XXX should we separate this handler by controlq type? */
-		ice_process_ctrlq_event(sc, qname, &event);
+#ifdef PCI_IOV
+		if (q_type == ICE_CTL_Q_MAILBOX &&
+		    le16toh(event.desc.opcode) == ice_mbx_opc_send_msg_to_pf) {
+			if (ice_is_e830(hw)) {
+				ice_process_ctrlq_event(sc, qname, &event, NULL);
+				ice_e830_mbx_vf_dec_trig(hw, &event);
+			} else {
+				mbx_data.max_num_msgs_mbx = cq->num_rq_entries;
+				mbx_data.async_watermark_val =
+				    ICE_MBX_OVERFLOW_WATERMARK;
+				mbx_data.num_msg_proc = loop;
+				mbx_data.num_pending_arq = *pending;
+				ice_process_ctrlq_event(sc, qname, &event,
+				    &mbx_data);
+			}
+		} else
+#endif
+			ice_process_ctrlq_event(sc, qname, &event, NULL);
 	} while (*pending && (++loop < ICE_CTRLQ_WORK_LIMIT));
 
 	free(event.msg_buf, M_ICE);
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice, mailbox_pending,
+	    q_type == ICE_CTL_Q_MAILBOX, FAIL_POINT_NONSLEEPABLE, {
+		*pending = 1;
+	});
 
 	return 0;
 }
@@ -5296,6 +5385,10 @@ ice_configure_misc_interrupts(struct ice_softc *sc)
 	/* Associate the OICR interrupt with ITR 0, and enable it */
 	wr32(hw, PFINT_OICR_CTL, PFINT_OICR_CTL_CAUSE_ENA_M);
 
+#ifdef PCI_IOV
+	/* Start a fresh drain budget when restoring mailbox interrupts. */
+	sc->mbx_admin_passes = 0;
+#endif
 	/* Associate the Mailbox interrupt with ITR 0, and enable it */
 	wr32(hw, PFINT_MBX_CTL, PFINT_MBX_CTL_CAUSE_ENA_M);
 
@@ -5562,7 +5655,7 @@ ice_add_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid, u16 length)
 	}
 
 	status = ice_add_vlan(hw, &vlan_list);
-	if (!status)
+	if (!status || status == ICE_ERR_ALREADY_EXISTS)
 		goto done;
 
 	device_printf(vsi->sc->dev, "Failed to add VLAN filters:\n");
@@ -5627,7 +5720,7 @@ ice_remove_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid, u16 length)
 	}
 
 	status = ice_remove_vlan(hw, &vlan_list);
-	if (!status)
+	if (!status || status == ICE_ERR_DOES_NOT_EXIST)
 		goto done;
 
 	device_printf(vsi->sc->dev, "Failed to remove VLAN filters:\n");
@@ -5909,6 +6002,13 @@ ice_add_device_tunables(struct ice_softc *sc)
 	SYSCTL_ADD_BOOL(ctx, ctx_list, OID_AUTO, "enable_health_events",
 			CTLFLAG_RDTUN, &sc->enable_health_events, 0,
 			"Enable FW health event reporting for this PF");
+
+#ifdef PCI_IOV
+	sc->mdd_auto_reset_vf = ice_mdd_auto_reset_vf;
+	SYSCTL_ADD_BOOL(ctx, ctx_list, OID_AUTO, "mdd_auto_reset_vf",
+	    CTLFLAG_RDTUN, &sc->mdd_auto_reset_vf, 0,
+	    "Automatically restore VFs after an MDD reset");
+#endif
 
 	/* Add a node to track VSI sysctls. Keep track of the node in the
 	 * softc so that we can hook other sysctls into it later. This
@@ -6462,6 +6562,9 @@ ice_sysctl_request_reset(SYSCTL_HANDLER_ARGS)
 	 * interrupt on all PFs. Initiate the reset now. Preparation and
 	 * rebuild logic will be handled by the admin status task.
 	 */
+#ifdef PCI_IOV
+	ice_iov_notify_vfs_reset(sc);
+#endif
 	status = ice_reset(hw, reset_type);
 
 	/*
@@ -7860,6 +7963,17 @@ ice_replay_all_vsi_cfg(struct ice_softc *sc)
 		if (!vsi)
 			continue;
 
+#ifdef PCI_IOV
+		if (vsi->type == ICE_VSI_VF) {
+			status = ice_iov_rebuild_vf(sc, vsi);
+			if (status != 0)
+				device_printf(sc->dev,
+				    "Failed to rebuild VF %d VSI; leaving VF disabled\n",
+				    vsi->vf_num);
+			continue;
+		}
+#endif
+
 		status = ice_replay_vsi(hw, vsi->idx);
 		if (status) {
 			device_printf(sc->dev, "Failed to replay VSI %d, err %s aq_err %s\n",
@@ -7894,13 +8008,16 @@ ice_clean_vsi_rss_cfg(struct ice_vsi *vsi)
 	device_t dev = sc->dev;
 	int status;
 
-	status = ice_rem_vsi_rss_cfg(hw, vsi->idx);
-	if (status)
-		device_printf(dev,
-			      "Failed to remove RSS configuration for VSI %d, err %s\n",
-			      vsi->idx, ice_status_str(status));
+	if (vsi->hw_vsi_created &&
+	    !ice_test_state(&sc->state, ICE_STATE_RESET_FAILED)) {
+		status = ice_rem_vsi_rss_cfg(hw, vsi->idx);
+		if (status)
+			device_printf(dev,
+			    "Failed to remove RSS configuration for VSI %d, err %s\n",
+			    vsi->idx, ice_status_str(status));
+	}
 
-	/* Remove this VSI from the RSS list */
+	/* Remove software tracking even if the hardware VSI no longer exists. */
 	ice_rem_vsi_rss_list(hw, vsi->idx);
 }
 
@@ -8320,11 +8437,22 @@ ice_init_link_events(struct ice_softc *sc)
 	return (0);
 }
 
-#ifndef GL_MDET_TX_TCLAN
-/* Temporarily use this redefinition until the definition is fixed */
-#define GL_MDET_TX_TCLAN	E800_GL_MDET_TX_TCLAN
-#define PF_MDET_TX_TCLAN	E800_PF_MDET_TX_TCLAN
-#endif /* !defined(GL_MDET_TX_TCLAN) */
+static u32
+ice_gl_mdet_tx_tclan(struct ice_hw *hw)
+{
+
+	return (ice_is_e830(hw) ? E830_GL_MDET_TX_TCLAN :
+	    GL_MDET_TX_TCLAN);
+}
+
+static u32
+ice_pf_mdet_tx_tclan(struct ice_hw *hw)
+{
+
+	return (ice_is_e830(hw) ? E830_PF_MDET_TX_TCLAN :
+	    PF_MDET_TX_TCLAN);
+}
+
 /**
  * ice_handle_mdd_event - Handle possibly malicious events
  * @sc: the device softc
@@ -8337,98 +8465,143 @@ void
 ice_handle_mdd_event(struct ice_softc *sc)
 {
 	struct ice_hw *hw = &sc->hw;
-	bool mdd_detected = false, request_reinit = false;
 	device_t dev = sc->dev;
-	u32 reg;
+	u32 pf_sources, reg, tclan_reg, vf_sources;
+	bool request_reinit;
 
 	if (!ice_testandclear_state(&sc->state, ICE_STATE_MDD_PENDING))
 		return;
 
-	reg = rd32(hw, GL_MDET_TX_TCLAN);
+	pf_sources = 0;
+	vf_sources = 0;
+	tclan_reg = ice_gl_mdet_tx_tclan(hw);
+	reg = rd32(hw, tclan_reg);
 	if (reg & GL_MDET_TX_TCLAN_VALID_M) {
-		u8 pf_num  = (reg & GL_MDET_TX_TCLAN_PF_NUM_M) >> GL_MDET_TX_TCLAN_PF_NUM_S;
-		u16 vf_num = (reg & GL_MDET_TX_TCLAN_VF_NUM_M) >> GL_MDET_TX_TCLAN_VF_NUM_S;
-		u8 event   = (reg & GL_MDET_TX_TCLAN_MAL_TYPE_M) >> GL_MDET_TX_TCLAN_MAL_TYPE_S;
-		u16 queue  = (reg & GL_MDET_TX_TCLAN_QNUM_M) >> GL_MDET_TX_TCLAN_QNUM_S;
+		u8 pf_num = (reg & GL_MDET_TX_TCLAN_PF_NUM_M) >>
+		    GL_MDET_TX_TCLAN_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_TCLAN_VF_NUM_M) >>
+		    GL_MDET_TX_TCLAN_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_TCLAN_MAL_TYPE_M) >>
+		    GL_MDET_TX_TCLAN_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_TX_TCLAN_QNUM_M) >>
+		    GL_MDET_TX_TCLAN_QNUM_S;
 
-		device_printf(dev, "Malicious Driver Detection Tx Descriptor check event '%s' on Tx queue %u PF# %u VF# %u\n",
-			      ice_mdd_tx_tclan_str(event), queue, pf_num, vf_num);
+		device_printf(dev,
+		    "malicious-driver Tx descriptor event '%s' on queue %u, "
+		    "PF %u, VF %u\n", ice_mdd_tx_tclan_str(event), queue,
+		    pf_num, vf_num);
 
 		/* Only clear this event if it matches this PF, that way other
 		 * PFs can read the event and determine VF and queue number.
 		 */
 		if (pf_num == hw->pf_id)
-			wr32(hw, GL_MDET_TX_TCLAN, 0xffffffff);
-
-		mdd_detected = true;
+			wr32(hw, tclan_reg, 0xffffffff);
 	}
 
 	/* Determine what triggered the MDD event */
 	reg = rd32(hw, GL_MDET_TX_PQM);
 	if (reg & GL_MDET_TX_PQM_VALID_M) {
-		u8 pf_num  = (reg & GL_MDET_TX_PQM_PF_NUM_M) >> GL_MDET_TX_PQM_PF_NUM_S;
-		u16 vf_num = (reg & GL_MDET_TX_PQM_VF_NUM_M) >> GL_MDET_TX_PQM_VF_NUM_S;
-		u8 event   = (reg & GL_MDET_TX_PQM_MAL_TYPE_M) >> GL_MDET_TX_PQM_MAL_TYPE_S;
-		u16 queue  = (reg & GL_MDET_TX_PQM_QNUM_M) >> GL_MDET_TX_PQM_QNUM_S;
+		u8 pf_num = (reg & GL_MDET_TX_PQM_PF_NUM_M) >>
+		    GL_MDET_TX_PQM_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_PQM_VF_NUM_M) >>
+		    GL_MDET_TX_PQM_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_PQM_MAL_TYPE_M) >>
+		    GL_MDET_TX_PQM_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_TX_PQM_QNUM_M) >>
+		    GL_MDET_TX_PQM_QNUM_S;
 
-		device_printf(dev, "Malicious Driver Detection Tx Quanta check event '%s' on Tx queue %u PF# %u VF# %u\n",
-			      ice_mdd_tx_pqm_str(event), queue, pf_num, vf_num);
+		device_printf(dev,
+		    "malicious-driver Tx quanta event '%s' on queue %u, "
+		    "PF %u, VF %u\n", ice_mdd_tx_pqm_str(event), queue,
+		    pf_num, vf_num);
 
 		/* Only clear this event if it matches this PF, that way other
 		 * PFs can read the event and determine VF and queue number.
 		 */
 		if (pf_num == hw->pf_id)
 			wr32(hw, GL_MDET_TX_PQM, 0xffffffff);
+	}
 
-		mdd_detected = true;
+	reg = rd32(hw, GL_MDET_TX_TDPU);
+	if (reg & GL_MDET_TX_TDPU_VALID_M) {
+		u8 pf_num = (reg & GL_MDET_TX_TDPU_PF_NUM_M) >>
+		    GL_MDET_TX_TDPU_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_TDPU_VF_NUM_M) >>
+		    GL_MDET_TX_TDPU_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_TDPU_MAL_TYPE_M) >>
+		    GL_MDET_TX_TDPU_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_TX_TDPU_QNUM_M) >>
+		    GL_MDET_TX_TDPU_QNUM_S;
+
+		device_printf(dev,
+		    "malicious-driver Tx data event %#x on queue %u, "
+		    "PF %u, VF %u\n", event, queue, pf_num, vf_num);
+		if (pf_num == hw->pf_id)
+			wr32(hw, GL_MDET_TX_TDPU, 0xffffffff);
 	}
 
 	reg = rd32(hw, GL_MDET_RX);
 	if (reg & GL_MDET_RX_VALID_M) {
-		u8 pf_num  = (reg & GL_MDET_RX_PF_NUM_M) >> GL_MDET_RX_PF_NUM_S;
-		u16 vf_num = (reg & GL_MDET_RX_VF_NUM_M) >> GL_MDET_RX_VF_NUM_S;
-		u8 event   = (reg & GL_MDET_RX_MAL_TYPE_M) >> GL_MDET_RX_MAL_TYPE_S;
-		u16 queue  = (reg & GL_MDET_RX_QNUM_M) >> GL_MDET_RX_QNUM_S;
+		u8 pf_num = (reg & GL_MDET_RX_PF_NUM_M) >>
+		    GL_MDET_RX_PF_NUM_S;
+		u8 event = (reg & GL_MDET_RX_MAL_TYPE_M) >>
+		    GL_MDET_RX_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_RX_QNUM_M) >>
+		    GL_MDET_RX_QNUM_S;
 
-		device_printf(dev, "Malicious Driver Detection Rx event '%s' on Rx queue %u PF# %u VF# %u\n",
-			      ice_mdd_rx_str(event), queue, pf_num, vf_num);
+		/*
+		 * E810 Datasheet section 9.2.2.2.1 says only the queue field in
+		 * GL_MDET_RX is valid.  VP_MDET_RX provides VF attribution.
+		 */
+		device_printf(dev,
+		    "malicious-driver Rx event '%s' on queue %u, PF %u\n",
+		    ice_mdd_rx_str(event), queue, pf_num);
 
 		/* Only clear this event if it matches this PF, that way other
-		 * PFs can read the event and determine VF and queue number.
+		 * PFs can read the event and determine the queue number.
 		 */
 		if (pf_num == hw->pf_id)
 			wr32(hw, GL_MDET_RX, 0xffffffff);
-
-		mdd_detected = true;
 	}
 
-	/* Now, confirm that this event actually affects this PF, by checking
-	 * the PF registers.
+	/* Per-function latches provide authoritative PF/VF attribution. */
+	tclan_reg = ice_pf_mdet_tx_tclan(hw);
+	reg = rd32(hw, tclan_reg);
+	if (reg & PF_MDET_TX_TCLAN_VALID_M) {
+		wr32(hw, tclan_reg, 0xffff);
+		sc->soft_stats.tx_mdd_count++;
+		pf_sources |= ICE_MDD_TX_TCLAN;
+	}
+	reg = rd32(hw, PF_MDET_TX_PQM);
+	if (reg & PF_MDET_TX_PQM_VALID_M) {
+		wr32(hw, PF_MDET_TX_PQM, 0xffff);
+		sc->soft_stats.tx_mdd_count++;
+		pf_sources |= ICE_MDD_TX_PQM;
+	}
+	reg = rd32(hw, PF_MDET_TX_TDPU);
+	if (reg & PF_MDET_TX_TDPU_VALID_M) {
+		wr32(hw, PF_MDET_TX_TDPU, 0xffff);
+		sc->soft_stats.tx_mdd_count++;
+		pf_sources |= ICE_MDD_TX_TDPU;
+	}
+	reg = rd32(hw, PF_MDET_RX);
+	if (reg & PF_MDET_RX_VALID_M) {
+		wr32(hw, PF_MDET_RX, 0xffff);
+		sc->soft_stats.rx_mdd_count++;
+		pf_sources |= ICE_MDD_RX;
+	}
+
+#ifdef PCI_IOV
+	vf_sources = ice_iov_handle_mdd(sc);
+#endif
+	/*
+	 * E810 sets the parent PF_MDET latch for events attributed by a
+	 * VP_MDET latch to one of its VFs. Recover the PF only for event
+	 * classes which were not attributed to a VF. TDPU drops only the
+	 * offending packet and does not stop a queue.
 	 */
-	if (mdd_detected) {
-		reg = rd32(hw, PF_MDET_TX_TCLAN);
-		if (reg & PF_MDET_TX_TCLAN_VALID_M) {
-			wr32(hw, PF_MDET_TX_TCLAN, 0xffff);
-			sc->soft_stats.tx_mdd_count++;
-			request_reinit = true;
-		}
-
-		reg = rd32(hw, PF_MDET_TX_PQM);
-		if (reg & PF_MDET_TX_PQM_VALID_M) {
-			wr32(hw, PF_MDET_TX_PQM, 0xffff);
-			sc->soft_stats.tx_mdd_count++;
-			request_reinit = true;
-		}
-
-		reg = rd32(hw, PF_MDET_RX);
-		if (reg & PF_MDET_RX_VALID_M) {
-			wr32(hw, PF_MDET_RX, 0xffff);
-			sc->soft_stats.rx_mdd_count++;
-			request_reinit = true;
-		}
-	}
-
-	/* TODO: Implement logic to detect and handle events caused by VFs. */
+	request_reinit = (pf_sources & ~vf_sources &
+	    (ICE_MDD_TX_PQM | ICE_MDD_TX_TCLAN | ICE_MDD_RX)) != 0;
 
 	/* request that the upper stack re-initialize the Tx/Rx queues */
 	if (request_reinit)

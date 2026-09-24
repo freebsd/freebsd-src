@@ -172,7 +172,7 @@ str_to_filters(const char *str, uint32_t index, uint32_t flags)
 		// the messages are included in xz's translations.
 		message(V_ERROR, _("Error in --filters%s=FILTERS option:"),
 				filter_num);
-		message(V_ERROR, "%s", str);
+		message(V_ERROR, "%s", tuklib_mask_nonprint(str));
 		message(V_ERROR, "%*s^", error_pos, "");
 		message_fatal("%s", _(err));
 	}

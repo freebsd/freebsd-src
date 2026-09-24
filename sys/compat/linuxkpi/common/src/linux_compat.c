@@ -100,8 +100,11 @@
 #include <linux/printk.h>
 #include <linux/seq_file.h>
 #include <linux/uuid.h>
+#include <linux/mod_devicetable.h>
 
 #if defined(__i386__) || defined(__amd64__)
+#include <asm/cpu_device_id.h>
+#include <asm/cpufeature.h>
 #include <asm/smp.h>
 #include <asm/processor.h>
 #endif
@@ -2144,7 +2147,7 @@ linux_timer_callback_wrapper(void *context)
 		return;
 	}
 
-	timer->function(timer->data);
+	timer->function(timer);
 }
 
 static int
@@ -2833,6 +2836,12 @@ device_can_wakeup(struct device *dev)
 	return (false);
 }
 
+void
+linuxkpi_device_set_wakeup_capable(struct device *dev, bool capable)
+{
+	dev->power.can_wakeup = capable;
+}
+
 static void
 devm_device_group_remove(struct device *dev, void *p)
 {
@@ -3077,6 +3086,42 @@ linux_compat_uninit(void *arg)
 	rw_destroy(&linux_vma_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
+
+#if defined(__i386__) || defined(__amd64__)
+const struct x86_cpu_id *
+linuxkpi_x86_match_cpu(const struct x86_cpu_id *match_array)
+{
+	const struct x86_cpu_id *match;
+
+	for (match = match_array;
+	    (match->flags & X86_CPU_ID_FLAG_ENTRY_VALID) != 0;
+	    match++) {
+		if (match->vendor != X86_VENDOR_ANY &&
+		    match->vendor != boot_cpu_data.x86_vendor)
+			continue;
+
+		if (match->family != X86_FAMILY_ANY &&
+		    match->family != boot_cpu_data.x86)
+			continue;
+
+		if (match->model != X86_MODEL_ANY &&
+		    match->model != boot_cpu_data.x86_model)
+			continue;
+
+		if (match->model != X86_STEPPING_ANY &&
+		    (match->steppings & BIT(boot_cpu_data.x86_stepping)) == 0)
+			continue;
+
+		if (match->feature != X86_FEATURE_ANY &&
+		    !static_cpu_has(match->feature))
+			continue;
+
+		return (match);
+	}
+
+	return (NULL);
+}
+#endif
 
 /*
  * NOTE: Linux frequently uses "unsigned long" for pointer to integer

@@ -29,7 +29,7 @@
 #include <wchar.h>
 
 wchar_t *
-wcschr(const wchar_t *s, wchar_t c)
+(wcschr)(const wchar_t *s, wchar_t c)
 {
 
 	while (*s != c && *s != L'\0')

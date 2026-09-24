@@ -360,7 +360,7 @@ topo_probe_amd(void)
  * using CPUID Leaf 1 and Leaf 4, if supported.
  * See:
  *  - Intel 64 Architecture Processor Topology Enumeration
- *  - Intel 64 and IA-32 ArchitecturesSoftware Developer’s Manual,
+ *  - Intel 64 and IA-32 Architectures Software Developer's Manual,
  *    Volume 3A: System Programming Guide, PROGRAMMING CONSIDERATIONS
  *    FOR HARDWARE MULTI-THREADING CAPABLE PROCESSORS
  */
@@ -394,7 +394,7 @@ topo_probe_intel_0x4(void)
  * using CPUID Leaf 1Fh or 0Bh, if supported.
  * See:
  *  - Intel 64 Architecture Processor Topology Enumeration
- *  - Intel 64 and IA-32 ArchitecturesSoftware Developer’s Manual,
+ *  - Intel 64 and IA-32 Architectures Software Developer's Manual,
  *    Volume 3A: System Programming Guide, PROGRAMMING CONSIDERATIONS
  *    FOR HARDWARE MULTI-THREADING CAPABLE PROCESSORS
  */
@@ -451,7 +451,7 @@ topo_probe_intel_0xb(void)
  * Determine topology of caches for Intel CPUs.
  * See:
  *  - Intel 64 Architecture Processor Topology Enumeration
- *  - Intel 64 and IA-32 Architectures Software Developer’s Manual
+ *  - Intel 64 and IA-32 Architectures Software Developer's Manual
  *    Volume 2A: Instruction Set Reference, A-M,
  *    CPUID instruction
  */

@@ -26,10 +26,11 @@ struct ibv_srq_init_attr_ex {
 void                   *srq_context;    /* Associated context of the SRQ */
 struct ibv_srq_attr     attr;           /* SRQ attributes */
 uint32_t                comp_mask;      /* Identifies valid fields */
-enum ibv_srq_type       srq_type;       /* Basic / XRC */
+enum ibv_srq_type       srq_type;       /* Basic / XRC / tag matching */
 struct ibv_pd          *pd;             /* PD associated with the SRQ */
 struct ibv_xrcd        *xrcd;           /* XRC domain to associate with the SRQ */
 struct ibv_cq          *cq;             /* CQ to associate with the SRQ for XRC mode */
+struct ibv_tm_cap 	tm_cap; 	/* Tag matching attributes */
 .in -8
 };
 .sp
@@ -41,6 +42,16 @@ uint32_t                max_sge;        /* Requested max number of scatter eleme
 uint32_t                srq_limit;      /* The limit value of the SRQ */
 .in -8
 };
+.sp
+.nf
+struct ibv_tm_cap {
+.in +8
+uint32_t                max_num_tags;   /* Tag matching list size */
+uint32_t                max_ops;        /* Number of outstanding tag list operations */
+.in -8
+};
+.sp
+.nf
 .fi
 .PP
 The function

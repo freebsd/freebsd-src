@@ -14,17 +14,11 @@
 .Nm ufshci
 .Nd Universal Flash Storage Host Controller Interface driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ufshci"
-.Ed
+.Cd device ufshci
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ufshci_load="YES"
-.Ed
+.Cd ufshci_load="YES"
 .Sh DESCRIPTION
 Universal Flash Storage (UFS) is a low-power, high-performance storage
 standard composed of a host controller and a single target device.
@@ -58,7 +52,7 @@ The
 .Nm
 driver supports both host controllers and devices implementing the
 Universal Flash Storage Host Controller Interface 4.1 and earlier.
-.Sh CONFIGURATION
+.Sh LOADER TUNABLES
 The
 .Nm
 driver currently operates with a single doorbell (one I/O-queue), so any
@@ -68,37 +62,33 @@ become available, the following queue count tunable values will take effect:
 .Pp
 To force a single I/O queue pair shared by all CPUs, set the following
 tunable value in loader.conf(5):
-.Bd -literal -offset indent
-hw.ufshci.per_cpu_io_queues=0
-.Ed
+.Pp
+.Dl Va hw.ufshci.per_cpu_io_queues=0
 .Pp
 To assign more than one CPU per I/O queue pair, thereby reducing the
 number of MSI-X vectors consumed by the device, set the following tunable
 value in loader.conf(5):
-.Bd -literal -offset indent
-hw.ufshci.min_cpus_per_ioq=X
-.Ed
+.Pp
+.Dl Va hw.ufshci.min_cpus_per_ioq=X
 .Pp
 To change the I/O command timeout value (in seconds), set the following tunable
 value in loader.conf(5):
-.Bd -literal -offset indent
-hw.ufshci.timeout_period=X
-.Ed
+.Pp
+.Dl Va hw.ufshci.timeout_period=X
 .Pp
 To change the I/O command retry count, set the following tunable value in
 loader.conf(5):
-.Bd -literal -offset indent
-hw.ufshci.retry_count=X
-.Ed
+.Pp
+.Dl Va hw.ufshci.retry_count=X
 .Pp
 To force the driver to use legacy INTx interrupts, set the following tunable
 value in loader.conf(5):
-.br
-(Note: until MCQ support is available the driver always uses legacy INTx, so
-this value effectively remains 1)
-.Bd -literal -offset indent
-hw.ufshci.force_intx=1
-.Ed
+.Pp
+.Dl Va hw.ufshci.force_intx=1
+.Pp
+.Sy Note:
+until MCQ support is available the driver always uses legacy INTx,
+so this value effectively remains 1.
 .Sh SYSCTL VARIABLES
 The following controller-level
 .Xr sysctl 8

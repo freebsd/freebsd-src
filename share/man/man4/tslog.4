@@ -1,3 +1,4 @@
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2022 Mateusz Piotrowski <0mp@FreeBSD.org>
@@ -30,11 +31,7 @@
 .Nm tslog
 .Nd Boot-time event tracing facility
 .Sh SYNOPSIS
-To compile this boot-time event tracing facility into the kernel,
-place the following line in the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "option TSLOG"
-.Ed
+.Cd option TSLOG
 .Sh DESCRIPTION
 .Nm
 is a boot-time event tracing facility.

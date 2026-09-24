@@ -100,10 +100,10 @@ __get_buf(HTAB *hashp, u_int32_t addr,
     BUFHEAD *prev_bp,	/* If prev_bp set, indicates a new overflow page. */
     int newpage)
 {
-	BUFHEAD *bp;
+	int is_disk, segment_ndx, dir_ndx;
 	u_int32_t is_disk_mask;
-	int is_disk, segment_ndx;
 	SEGMENT segp;
+	BUFHEAD *bp;
 
 	is_disk = 0;
 	is_disk_mask = 0;
@@ -116,9 +116,17 @@ __get_buf(HTAB *hashp, u_int32_t addr,
 	} else {
 		/* Grab buffer out of directory */
 		segment_ndx = addr & (hashp->SGSIZE - 1);
-
+		dir_ndx = addr >> hashp->SSHIFT;
+		if (dir_ndx >= hashp->nsegs) {
+			/*
+			 * A bucket address could theoretically have been
+			 * generated using maliciously crafted header values
+			 * aimed at __call_hash.
+			 */
+			return (NULL);
+		}
 		/* valid segment ensured by __call_hash() */
-		segp = hashp->dir[addr >> hashp->SSHIFT];
+		segp = hashp->dir[dir_ndx];
 #ifdef DEBUG
 		assert(segp != NULL);
 #endif

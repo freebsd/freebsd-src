@@ -34,6 +34,7 @@
 #define _MLX5DV_H_
 
 #include <infiniband/types.h> /* For the __be64 type */
+#include <sys/types.h>
 #include <infiniband/endian.h>
 
 #if defined(__SSE3__)
@@ -57,13 +58,38 @@ enum {
 
 enum mlx5dv_context_comp_mask {
 	MLX5DV_CONTEXT_MASK_CQE_COMPRESION	= 1 << 0,
-	MLX5DV_CONTEXT_MASK_RESERVED		= 1 << 1,
+	MLX5DV_CONTEXT_MASK_SWP			= 1 << 1,
+	MLX5DV_CONTEXT_MASK_STRIDING_RQ		= 1 << 2,
+	MLX5DV_CONTEXT_MASK_TUNNEL_OFFLOADS	= 1 << 3,
+	MLX5DV_CONTEXT_MASK_RESERVED		= 1 << 4,
 };
 
 struct mlx5dv_cqe_comp_caps {
 	uint32_t max_num;
 	uint32_t supported_format; /* enum mlx5dv_cqe_comp_res_format */
 };
+
+struct mlx5dv_sw_parsing_caps {
+	uint32_t sw_parsing_offloads; /* Use enum mlx5dv_sw_parsing_offloads */
+	uint32_t supported_qpts;
+};
+
+struct mlx5dv_striding_rq_caps {
+	uint32_t min_single_stride_log_num_of_bytes;
+	uint32_t max_single_stride_log_num_of_bytes;
+	uint32_t min_single_wqe_log_num_of_strides;
+	uint32_t max_single_wqe_log_num_of_strides;
+	uint32_t supported_qpts;
+};
+
+enum mlx5dv_tunnel_offloads {
+	MLX5DV_RAW_PACKET_CAP_TUNNELED_OFFLOAD_VXLAN		= 1 << 0,
+	MLX5DV_RAW_PACKET_CAP_TUNNELED_OFFLOAD_GRE		= 1 << 1,
+	MLX5DV_RAW_PACKET_CAP_TUNNELED_OFFLOAD_GENEVE		= 1 << 2,
+	MLX5DV_RAW_PACKET_CAP_TUNNELED_OFFLOAD_CW_MPLS_OVER_GRE	= 1 << 3,
+	MLX5DV_RAW_PACKET_CAP_TUNNELED_OFFLOAD_CW_MPLS_OVER_UDP	= 1 << 4,
+};
+
 
 /*
  * Direct verbs device-specific attributes
@@ -73,6 +99,9 @@ struct mlx5dv_context {
 	uint64_t	flags;
 	uint64_t	comp_mask;
 	struct mlx5dv_cqe_comp_caps	cqe_comp_caps;
+	struct mlx5dv_sw_parsing_caps sw_parsing_caps;
+	struct mlx5dv_striding_rq_caps striding_rq_caps;
+	uint32_t	tunnel_offloads_caps;
 };
 
 enum mlx5dv_context_flags {
@@ -80,7 +109,9 @@ enum mlx5dv_context_flags {
 	 * This flag indicates if CQE version 0 or 1 is needed.
 	 */
 	MLX5DV_CONTEXT_FLAGS_CQE_V1	= (1 << 0),
-	MLX5DV_CONTEXT_FLAGS_MPW	= (1 << 1),
+	MLX5DV_CONTEXT_FLAGS_OBSOLETE	= (1 << 1), /* Obsoleted, don't use */
+	MLX5DV_CONTEXT_FLAGS_MPW_ALLOWED = (1 << 2),
+	MLX5DV_CONTEXT_FLAGS_ENHANCED_MPW = (1 << 3),
 };
 
 enum mlx5dv_cq_init_attr_mask {
@@ -96,6 +127,23 @@ struct mlx5dv_cq_init_attr {
 struct ibv_cq_ex *mlx5dv_create_cq(struct ibv_context *context,
 				   struct ibv_cq_init_attr_ex *cq_attr,
 				   struct mlx5dv_cq_init_attr *mlx5_cq_attr);
+
+enum mlx5dv_qp_create_flags {
+	MLX5DV_QP_CREATE_TUNNEL_OFFLOADS = 1 << 0,
+};
+
+enum mlx5dv_qp_init_attr_mask {
+	MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS	= 1 << 0,
+};
+
+struct mlx5dv_qp_init_attr {
+	uint64_t comp_mask;	/* Use enum mlx5dv_qp_init_attr_mask */
+	uint32_t create_flags;	/* Use enum mlx5dv_qp_create_flags */
+};
+
+struct ibv_qp *mlx5dv_create_qp(struct ibv_context *context,
+			struct ibv_qp_init_attr_ex *qp_attr,
+			struct mlx5dv_qp_init_attr *mlx5_qp_attr);
 /*
  * Most device capabilities are exported by ibv_query_device(...),
  * but there is HW device-specific information which is important
@@ -106,8 +154,12 @@ struct ibv_cq_ex *mlx5dv_create_cq(struct ibv_context *context,
 int mlx5dv_query_device(struct ibv_context *ctx_in,
 			struct mlx5dv_context *attrs_out);
 
+enum mlx5dv_qp_comp_mask {
+	MLX5DV_QP_MASK_UAR_MMAP_OFFSET		= 1 << 0,
+};
+
 struct mlx5dv_qp {
-	uint32_t		*dbrec;
+	__be32			*dbrec;
 	struct {
 		void		*buf;
 		uint32_t	wqe_cnt;
@@ -123,21 +175,22 @@ struct mlx5dv_qp {
 		uint32_t	size;
 	} bf;
 	uint64_t		comp_mask;
+	off_t			uar_mmap_offset;
 };
 
 struct mlx5dv_cq {
 	void			*buf;
-	uint32_t		*dbrec;
+	__be32			*dbrec;
 	uint32_t		cqe_cnt;
 	uint32_t		cqe_size;
-	void			*uar;
+	void			*cq_uar;
 	uint32_t		cqn;
 	uint64_t		comp_mask;
 };
 
 struct mlx5dv_srq {
 	void			*buf;
-	uint32_t		*dbrec;
+	__be32			*dbrec;
 	uint32_t		stride;
 	uint32_t		head;
 	uint32_t		tail;
@@ -146,7 +199,7 @@ struct mlx5dv_srq {
 
 struct mlx5dv_rwq {
 	void		*buf;
-	uint32_t	*dbrec;
+	__be32		*dbrec;
 	uint32_t	wqe_cnt;
 	uint32_t	stride;
 	uint64_t	comp_mask;
@@ -177,6 +230,44 @@ enum mlx5dv_obj_type {
 	MLX5DV_OBJ_SRQ	= 1 << 2,
 	MLX5DV_OBJ_RWQ	= 1 << 3,
 };
+
+enum mlx5dv_wq_init_attr_mask {
+	MLX5DV_WQ_INIT_ATTR_MASK_STRIDING_RQ	= 1 << 0,
+};
+
+struct mlx5dv_striding_rq_init_attr {
+	uint32_t	single_stride_log_num_of_bytes;
+	uint32_t	single_wqe_log_num_of_strides;
+	uint8_t		two_byte_shift_en;
+};
+
+struct mlx5dv_wq_init_attr {
+	uint64_t				comp_mask; /* Use enum mlx5dv_wq_init_attr_mask */
+	struct mlx5dv_striding_rq_init_attr	striding_rq_attrs;
+};
+
+/*
+ * This function creates a work queue object with extra properties
+ * defined by mlx5dv_wq_init_attr struct.
+ *
+ * For each bit in the comp_mask, a field in mlx5dv_wq_init_attr
+ * should follow.
+ *
+ * MLX5DV_WQ_INIT_ATTR_MASK_STRIDING_RQ: Create a work queue with
+ * striding RQ capabilities.
+ * - single_stride_log_num_of_bytes represents the size of each stride in the
+ *   WQE and its value should be between min_single_stride_log_num_of_bytes
+ *   and max_single_stride_log_num_of_bytes that are reported in
+ *   mlx5dv_query_device.
+ * - single_wqe_log_num_of_strides represents the number of strides in each WQE.
+ *   Its value should be between min_single_wqe_log_num_of_strides and
+ *   max_single_wqe_log_num_of_strides that are reported in mlx5dv_query_device.
+ * - two_byte_shift_en: When enabled, hardware pads 2 bytes of zeroes
+ *   before writing the message to memory (e.g. for IP alignment)
+ */
+struct ibv_wq *mlx5dv_create_wq(struct ibv_context *context,
+		struct ibv_wq_init_attr *wq_init_attr,
+		struct mlx5dv_wq_init_attr *mlx5_wq_attr);
 
 /*
  * This function will initialize mlx5dv_xxx structs based on supplied type.
@@ -283,21 +374,23 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	uint8_t		rsvd0[17];
+	uint8_t		rsvd0[2];
+	__be16		wqe_id;
+	uint8_t		rsvd4[13];
 	uint8_t		ml_path;
 	uint8_t		rsvd20[4];
-	uint16_t	slid;
-	uint32_t	flags_rqpn;
+	__be16		slid;
+	__be32		flags_rqpn;
 	uint8_t		hds_ip_ext;
 	uint8_t		l4_hdr_type_etc;
-	uint16_t	vlan_info;
-	uint32_t	srqn_uidx;
-	uint32_t	imm_inval_pkey;
+	__be16		vlan_info;
+	__be32		srqn_uidx;
+	__be32		imm_inval_pkey;
 	uint8_t		rsvd40[4];
-	uint32_t	byte_cnt;
+	__be32		byte_cnt;
 	__be64		timestamp;
-	uint32_t	sop_drop_qpn;
-	uint16_t	wqe_counter;
+	__be32		sop_drop_qpn;
+	__be16		wqe_counter;
 	uint8_t		signature;
 	uint8_t		op_own;
 };
@@ -306,6 +399,12 @@ enum mlx5dv_cqe_comp_res_format {
 	MLX5DV_CQE_RES_FORMAT_HASH		= 1 << 0,
 	MLX5DV_CQE_RES_FORMAT_CSUM		= 1 << 1,
 	MLX5DV_CQE_RES_FORMAT_RESERVED		= 1 << 2,
+};
+
+enum mlx5dv_sw_parsing_offloads {
+	MLX5DV_SW_PARSING		= 1 << 0,
+	MLX5DV_SW_PARSING_CSUM		= 1 << 1,
+	MLX5DV_SW_PARSING_LSO		= 1 << 2,
 };
 
 static MLX5DV_ALWAYS_INLINE
@@ -373,43 +472,48 @@ enum {
 
 struct mlx5_wqe_srq_next_seg {
 	uint8_t			rsvd0[2];
-	uint16_t		next_wqe_index;
+	__be16			next_wqe_index;
 	uint8_t			signature;
 	uint8_t			rsvd1[11];
 };
 
 struct mlx5_wqe_data_seg {
-	uint32_t		byte_count;
-	uint32_t		lkey;
-	uint64_t		addr;
+	__be32			byte_count;
+	__be32			lkey;
+	__be64			addr;
 };
 
 struct mlx5_wqe_ctrl_seg {
-	uint32_t	opmod_idx_opcode;
-	uint32_t	qpn_ds;
+	__be32		opmod_idx_opcode;
+	__be32		qpn_ds;
 	uint8_t		signature;
 	uint8_t		rsvd[2];
 	uint8_t		fm_ce_se;
-	uint32_t	imm;
+	__be32		imm;
+};
+
+struct mlx5_mprq_wqe {
+	struct mlx5_wqe_srq_next_seg	nseg;
+	struct mlx5_wqe_data_seg	dseg;
 };
 
 struct mlx5_wqe_av {
 	union {
 		struct {
-			uint32_t	qkey;
-			uint32_t	reserved;
+			__be32		qkey;
+			__be32		reserved;
 		} qkey;
-		uint64_t	dc_key;
+		__be64		dc_key;
 	} key;
-	uint32_t	dqp_dct;
+	__be32		dqp_dct;
 	uint8_t		stat_rate_sl;
 	uint8_t		fl_mlid;
-	uint16_t	rlid;
+	__be16		rlid;
 	uint8_t		reserved0[4];
 	uint8_t		rmac[6];
 	uint8_t		tclass;
 	uint8_t		hop_limit;
-	uint32_t	grh_gid_fl;
+	__be32		grh_gid_fl;
 	uint8_t		rgid[16];
 };
 
@@ -418,14 +522,14 @@ struct mlx5_wqe_datagram_seg {
 };
 
 struct mlx5_wqe_raddr_seg {
-	uint64_t	raddr;
-	uint32_t	rkey;
-	uint32_t	reserved;
+	__be64		raddr;
+	__be32		rkey;
+	__be32		reserved;
 };
 
 struct mlx5_wqe_atomic_seg {
-	uint64_t	swap_add;
-	uint64_t	compare;
+	__be64		swap_add;
+	__be64		compare;
 };
 
 struct mlx5_wqe_inl_data_seg {
@@ -433,12 +537,12 @@ struct mlx5_wqe_inl_data_seg {
 };
 
 struct mlx5_wqe_eth_seg {
-	uint32_t	rsvd0;
+	__be32		rsvd0;
 	uint8_t		cs_flags;
 	uint8_t		rsvd1;
-	uint16_t	mss;
-	uint32_t	rsvd2;
-	uint16_t	inline_hdr_sz;
+	__be16		mss;
+	__be32		rsvd2;
+	__be16		inline_hdr_sz;
 	uint8_t		inline_hdr_start[2];
 	uint8_t		inline_hdr[16];
 };
@@ -615,4 +719,24 @@ void mlx5dv_set_eth_seg(struct mlx5_wqe_eth_seg *seg, uint8_t cs_flags,
 	seg->inline_hdr_sz	= htobe16(inline_hdr_sz);
 	memcpy(seg->inline_hdr_start, inline_hdr_start, inline_hdr_sz);
 }
+
+enum mlx5dv_set_ctx_attr_type {
+	MLX5DV_CTX_ATTR_BUF_ALLOCATORS = 1,
+};
+
+struct mlx5dv_ctx_allocators {
+	void *(*alloc)(size_t size, void *priv_data);
+	void (*free)(void *ptr, void *priv_data);
+	void *data;
+};
+
+/*
+ * Generic context attributes set API
+ *
+ * Returns 0 on success, or the value of errno on failure
+ * (which indicates the failure reason).
+ */
+int mlx5dv_set_context_attr(struct ibv_context *context,
+		enum mlx5dv_set_ctx_attr_type type, void *attr);
+
 #endif /* _MLX5DV_H_ */

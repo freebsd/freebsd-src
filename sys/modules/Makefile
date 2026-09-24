@@ -138,6 +138,7 @@ SUBDIR=	\
 	${_glxsb} \
 	gpio \
 	${_gve} \
+	${_hfsts} \
 	hid \
 	${_hpt27xx} \
 	${_hptiop} \
@@ -178,6 +179,7 @@ SUBDIR=	\
 	${_igc} \
 	imgact_binmisc \
 	${_imx} \
+	${_intel_pmc} \
 	${_intelspi} \
 	${_io} \
 	${_ioat} \
@@ -831,6 +833,7 @@ _hptrr=		hptrr
 _hyperv=	hyperv
 _ichwd=		ichwd
 _ida=		ida
+_intel_pmc=	intel_pmc
 _intelspi=	intelspi
 _ips=		ips
 _isci=		isci
@@ -875,6 +878,7 @@ _apple_bce=	apple_bce
 _asmc=		asmc
 _ccp=		ccp
 _enic=		enic
+_hfsts=		hfsts
 _iavf=		iavf
 _ioat=		ioat
 _iwx=		iwx

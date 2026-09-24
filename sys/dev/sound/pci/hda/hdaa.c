@@ -7115,17 +7115,17 @@ hdaa_pcm_attach(device_t dev)
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
 	HDA_BOOTHVERBOSE(
-		device_printf(dev, "OSS mixer initialization...\n");
-	);
-	if (mixer_init(dev, &hdaa_audio_ctl_ossmixer_class, pdevinfo) != 0)
-		device_printf(dev, "Can't register mixer\n");
-
-	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Registering PCM channels...\n");
 	);
 	pcm_init(dev, pdevinfo);
 
 	pdevinfo->registered++;
+
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "OSS mixer initialization...\n");
+	);
+	if (mixer_init(dev, &hdaa_audio_ctl_ossmixer_class, pdevinfo) != 0)
+		device_printf(dev, "Can't register mixer\n");
 
 	d = device_get_softc(dev);
 	if (pdevinfo->playas >= 0) {
@@ -7211,5 +7211,5 @@ static driver_t hdaa_pcm_driver = {
 };
 
 DRIVER_MODULE(snd_hda_pcm, hdaa, hdaa_pcm_driver, NULL, NULL);
-MODULE_DEPEND(snd_hda, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_hda, sound, 1, 1, 1);
 MODULE_VERSION(snd_hda, 1);

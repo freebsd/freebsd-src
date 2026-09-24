@@ -35,11 +35,13 @@
 /contrib/atf		@ngie-eign
 /contrib/blocklist	@jlduran
 /contrib/googletest	@ngie-eign
+/contrib/kyua		@ngie-eign
 /contrib/libcxxrt	@DimitryAndric @emaste
 /contrib/llvm-project	@DimitryAndric
 /contrib/llvm-project/libunwind @DimitryAndric @emaste @bsdjhb
 /contrib/llvm-project/lldb @DimitryAndric @emaste
 /contrib/llvm-project/openmp @DimitryAndric @emaste
+/contrib/lutok		@ngie-eign
 /contrib/mandoc		@concussious
 /contrib/netbsd-tests	@ngie-eign
 /contrib/netbsd-tests/crypto/opencrypto/	@jmgurney
@@ -111,14 +113,24 @@
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling
 /sys/fs/pseudofs/	@dag-erling
+/sys/kern/kern_resource.c	@OlCe2
+/sys/kern/kern_switch.c	@OlCe2
+/sys/kern/kern_synch.c	@OlCe2
+/sys/kern/kern_thr.c	@OlCe2
+/sys/kern/ksched.c	@OlCe2
+/sys/kern/p1003_1b.c	@OlCe2
+/sys/kern/sched_*.c	@OlCe2
 /sys/kern/syscalls.master	@brooksdavis
 /sys/kern/vfs_aio.c	@asomers
+/sys/net/route		@spmzt
 /sys/netinet/ip_carp.c	@glebius
 /sys/netpfil/ipfilter	@cschuber
 /sys/netpfil/pf	@glebius
 /sys/opencrypto/	@jmgurney
 /sys/security/mac_veriexec/	@stephane-rochoy-stormshield
 /sys/security/mac_veriexec_parser/	@stephane-rochoy-stormshield
+sys/sys/sched.h		@OlCe2
+sys/sys/runq.h		@OlCe2
 /sys/tools/syscalls/	@brooksdavis
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign

@@ -33,7 +33,7 @@ static int compile_pattern2(constant char *pattern, int search_type, PATTERN_TYP
 	{
 		free(comp);
 		if (show_error)
-			error("Invalid pattern", NULL_PARG);
+			error(LM(Invalid_pattern), NULL_PARG);
 		return (-1);
 	}
 	if (*comp_pattern != NULL)
@@ -49,7 +49,7 @@ static int compile_pattern2(constant char *pattern, int search_type, PATTERN_TYP
 	{
 		free(comp);
 		if (show_error)
-			error("Invalid pattern", NULL_PARG);
+			error(LM(Invalid_pattern), NULL_PARG);
 		return (-1);
 	}
 	if (*comp_pattern != NULL)
@@ -112,7 +112,7 @@ static int compile_pattern2(constant char *pattern, int search_type, PATTERN_TYP
 	if ((comp = regcmp(pattern, 0)) == NULL)
 	{
 		if (show_error)
-			error("Invalid pattern", NULL_PARG);
+			error(LM(Invalid_pattern), NULL_PARG);
 		return (-1);
 	}
 	if (comp_pattern != NULL)
@@ -343,24 +343,19 @@ static lbool match_pattern1(PATTERN_TYPE pattern, constant char *tpattern, const
 			int i;
 			int ecount;
 			for (ecount = RM_COUNT;  ecount > 0;  ecount--)
-				if (rm[ecount-1].rm_so >= 0)
+				if (RM_VALID(&rm[ecount-1]))
 					break;
 			if (ecount >= nsp)
 				ecount = nsp-1;
 			for (i = 0;  i < ecount;  i++)
 			{
-				if (rm[i].rm_so < 0)
+				if (!RM_VALID(&rm[i]))
 				{
 					*sp++ = *ep++ = line;
 				} else
 				{
-#ifndef __WATCOMC__
-					*sp++ = line + rm[i].rm_so;
-					*ep++ = line + rm[i].rm_eo;
-#else
-					*sp++ = rm[i].rm_sp;
-					*ep++ = rm[i].rm_ep;
-#endif
+					*sp++ = RM_PTR(&rm[i], line);
+					*ep++ = RM_EPTR(&rm[i], line);
 				}
 			}
 		}
@@ -407,7 +402,7 @@ static lbool match_pattern1(PATTERN_TYPE pattern, constant char *tpattern, const
 			if (ecount > mcount) ecount = mcount;
 			for (i = 0;  i < ecount*2; )
 			{
-				if (ovector[i] < 0 || ovector[i+1] < 0)
+				if (ovector[i] == PCRE2_UNSET || ovector[i+1] == PCRE2_UNSET)
 				{
 					*sp++ = *ep++ = line;
 					i += 2;
@@ -452,26 +447,34 @@ static lbool match_pattern1(PATTERN_TYPE pattern, constant char *tpattern, const
 }
 
 /*
- * Return TRUE if the match satisfies all SUBSEARCH conditions.
+ * Return TRUE if the match satisfies all conditions in *subsearch.
+ * Update *subsearch to remove any satisfied conditions.
  */
-static lbool subsearch_ok(constant char **sp, constant char **ep, int search_type)
+static lbool subsearch_ok(constant char **sp, constant char **ep, int *subsearch)
 {
 	int i;
+	if (*subsearch == 0)
+		return TRUE;
 	for (i = 1;  i <= NUM_SEARCH_COLORS;  i++)
 	{
-		if ((search_type & SRCH_SUBSEARCH(i)) && ep[i] == sp[i])
-			return FALSE;
+		if (ep[i] != sp[i]) /* i-th subpattern matched */
+		{
+			*subsearch &= ~SRCH_SUBSEARCH(i);
+			if (*subsearch == 0)
+				return TRUE;
+		}
 	}
-	return TRUE;
+	return FALSE;
 }
 
 public lbool match_pattern(PATTERN_TYPE pattern, constant char *tpattern, constant char *line, size_t line_len, size_t line_off, constant char **sp, constant char **ep, int nsp, int notbol, int search_type)
 {
+	int subsearch = search_type & SRCH_SUBSEARCH_ALL;
 	for (;;)
 	{
 		size_t mlen;
 		lbool matched = match_pattern1(pattern, tpattern, line, line_len, line_off, sp, ep, nsp, notbol, search_type);
-		if (!matched || subsearch_ok(sp, ep, search_type))
+		if (!matched || subsearch_ok(sp, ep, &subsearch))
 			return matched;
 		/* We have a match, but it does not satisfy all SUBSEARCH conditions.
 		 * Continue searching after this match. */

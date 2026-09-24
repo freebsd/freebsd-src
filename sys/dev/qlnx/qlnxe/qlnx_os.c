@@ -32,6 +32,7 @@
 
 #include <sys/cdefs.h>
 #include "qlnx_os.h"
+#include <net/rss_config.h>
 #include "bcm_osal.h"
 #include "reg_addr.h"
 #include "ecore_gtt_reg_addr.h"
@@ -57,6 +58,7 @@
 #include "ecore_dbg_fw_funcs.h"
 #include "ecore_iov_api.h"
 #include "ecore_vf_api.h"
+#include "ecore_vf.h"
 
 #include "qlnx_ioctl.h"
 #include "qlnx_def.h"
@@ -2527,6 +2529,77 @@ _qlnx_set_promisc_allmulti(qlnx_host_t *ha, bool promisc, bool allmulti)
 }
 
 static int
+qlnx_rss_query_status(qlnx_host_t *ha)
+{
+	int i;
+
+	sx_assert(&ha->hw_lock, SA_XLOCKED);
+	if (ha->state != QLNX_STATE_OPEN ||
+	    (if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING) == 0)
+		return (ENXIO);
+	if (IS_VF(&ha->cdev) && ha->rss_params.rss_enable) {
+		for (i = 0; i < ha->cdev.num_hwfns; i++) {
+			struct ecore_vf_iov *iov = ha->cdev.hwfns[i].vf_iov_info;
+
+			if (iov == NULL || !iov->rss_configured)
+				return (ENXIO);
+		}
+	}
+	return (0);
+}
+
+static int
+qlnx_get_rss_key(qlnx_host_t *ha, struct ifrsskey *ifrk)
+{
+	const struct ecore_rss_params *rss = &ha->rss_params;
+	int error, i;
+
+	error = qlnx_rss_query_status(ha);
+	if (error != 0)
+		return (error);
+	ifrk->ifrk_func = rss->rss_enable ? RSS_FUNC_TOEPLITZ : RSS_FUNC_NONE;
+	ifrk->ifrk_keylen = rss->rss_enable ? sizeof(rss->rss_key) : 0;
+	_Static_assert(sizeof(ifrk->ifrk_key) >= sizeof(rss->rss_key),
+	    "RSS query buffer too small");
+	bzero(ifrk->ifrk_key, sizeof(ifrk->ifrk_key));
+	/* Undo the word conversion used when preparing the firmware request. */
+	if (rss->rss_enable) {
+		for (i = 0; i < ECORE_RSS_KEY_SIZE; i++)
+			be32enc(ifrk->ifrk_key + i * sizeof(uint32_t),
+			    rss->rss_key[i]);
+	}
+	return (0);
+}
+
+static int
+qlnx_get_rss_hash(qlnx_host_t *ha, struct ifrsshash *ifrh)
+{
+	const struct ecore_rss_params *rss = &ha->rss_params;
+	uint8_t caps;
+	int error;
+
+	error = qlnx_rss_query_status(ha);
+	if (error != 0)
+		return (error);
+	ifrh->ifrh_func = rss->rss_enable ? RSS_FUNC_TOEPLITZ : RSS_FUNC_NONE;
+	ifrh->ifrh_types = 0;
+	caps = rss->rss_enable ? rss->rss_caps : 0;
+	if (caps & ECORE_RSS_IPV4)
+		ifrh->ifrh_types |= RSS_TYPE_IPV4;
+	if (caps & ECORE_RSS_IPV4_TCP)
+		ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+	if (caps & ECORE_RSS_IPV4_UDP)
+		ifrh->ifrh_types |= RSS_TYPE_UDP_IPV4;
+	if (caps & ECORE_RSS_IPV6)
+		ifrh->ifrh_types |= RSS_TYPE_IPV6;
+	if (caps & ECORE_RSS_IPV6_TCP)
+		ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+	if (caps & ECORE_RSS_IPV6_UDP)
+		ifrh->ifrh_types |= RSS_TYPE_UDP_IPV6;
+	return (0);
+}
+
+static int
 qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	int		ret = 0, mask;
@@ -2537,6 +2610,18 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	ha = (qlnx_host_t *)if_getsoftc(ifp);
 
 	switch (cmd) {
+	case SIOCGIFRSSKEY:
+		QLNX_LOCK(ha);
+		ret = qlnx_get_rss_key(ha, (struct ifrsskey *)data);
+		QLNX_UNLOCK(ha);
+		break;
+
+	case SIOCGIFRSSHASH:
+		QLNX_LOCK(ha);
+		ret = qlnx_get_rss_hash(ha, (struct ifrsshash *)data);
+		QLNX_UNLOCK(ha);
+		break;
+
 	case SIOCSIFMTU:
 		QL_DPRINT4(ha, "SIOCSIFMTU (0x%lx)\n", cmd);
 
@@ -6481,21 +6566,10 @@ qlnx_update_rx_prod(struct ecore_hwfn *p_hwfn, struct qlnx_rx_queue *rxq)
 	return;
 }
 
-static uint32_t qlnx_hash_key[] = {
-                ((0x6d << 24)|(0x5a << 16)|(0x56 << 8)|0xda),
-                ((0x25 << 24)|(0x5b << 16)|(0x0e << 8)|0xc2),
-                ((0x41 << 24)|(0x67 << 16)|(0x25 << 8)|0x3d),
-                ((0x43 << 24)|(0xa3 << 16)|(0x8f << 8)|0xb0),
-                ((0xd0 << 24)|(0xca << 16)|(0x2b << 8)|0xcb),
-                ((0xae << 24)|(0x7b << 16)|(0x30 << 8)|0xb4),
-                ((0x77 << 24)|(0xcb << 16)|(0x2d << 8)|0xa3),
-                ((0x80 << 24)|(0x30 << 16)|(0xf2 << 8)|0x0c),
-                ((0x6a << 24)|(0x42 << 16)|(0xb7 << 8)|0x3b),
-                ((0xbe << 24)|(0xac << 16)|(0x01 << 8)|0xfa)};
-
 static int
 qlnx_start_queues(qlnx_host_t *ha)
 {
+        uint8_t                         rss_key[RSS_KEYSIZE];
         int				rc, tc, i, vport_id = 0,
 					drop_ttl0_flg = 1, vlan_removal_en = 1,
 					tx_switching = 0, hw_lro_enable = 0;
@@ -6637,8 +6711,13 @@ qlnx_start_queues(qlnx_host_t *ha)
                         rss_params->rss_ind_table[i] = fp->rxq->handle;
 		}
 
+                _Static_assert(sizeof(rss_params->rss_key) == RSS_KEYSIZE,
+                    "RSS key size mismatch");
+                rss_getkey(rss_key);
+                /* The shared code converts these host-order words to LE. */
                 for (i = 0; i < ECORE_RSS_KEY_SIZE; i++)
-			rss_params->rss_key[i] = (__le32)qlnx_hash_key[i];
+                        rss_params->rss_key[i] =
+                            be32dec(rss_key + i * sizeof(uint32_t));
 
         } else {
                 memset(rss_params, 0, sizeof(*rss_params));

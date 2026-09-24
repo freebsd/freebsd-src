@@ -107,6 +107,8 @@ struct t4_status_page {
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
 #define T4_MAX_RECV_SGE 4
 
+#define T4_WRITE_CMPL_MAX_SGL 4
+
 union t4_wr {
 	struct fw_ri_res_wr res;
 	struct fw_ri_wr ri;
@@ -117,6 +119,7 @@ union t4_wr {
 	struct fw_ri_fr_nsmr_wr fr;
 	struct fw_ri_fr_nsmr_tpte_wr fr_tpte;
 	struct fw_ri_inv_lstag_wr inv;
+	struct fw_ri_rdma_write_cmpl_wr write_cmpl;
 	struct t4_status_page status;
 	__be64 flits[T4_EQ_ENTRY_SIZE / sizeof(__be64) * T4_SQ_NUM_SLOTS];
 };
@@ -182,7 +185,12 @@ static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 /*
  * CQE defs
  */
+
+/*
+ * 64B CQE entries.
+ */
 struct t4_cqe {
+	struct rss_header rss;
 	__be32 header;
 	__be32 len;
 	union {
@@ -200,8 +208,13 @@ struct t4_cqe {
 			__be32 wrid_low;
 		} gen;
 		u64 drain_cookie;
+		struct {
+			__be32 mo;
+			__be32 msn;
+			__u64 imm_data;
+		} imm_data_rcqe;
 	} u;
-	__be64 reserved;
+	__be64 reserved[3];
 	__be64 bits_type_ts;
 };
 
@@ -216,6 +229,11 @@ struct t4_cqe {
 #define M_CQE_SWCQE       0x1
 #define G_CQE_SWCQE(x)    ((((x) >> S_CQE_SWCQE)) & M_CQE_SWCQE)
 #define V_CQE_SWCQE(x)	  ((x)<<S_CQE_SWCQE)
+
+#define S_CQE_DRAIN       10
+#define M_CQE_DRAIN       0x1
+#define G_CQE_DRAIN(x)    ((((x) >> S_CQE_DRAIN)) & M_CQE_DRAIN)
+#define V_CQE_DRAIN(x)	  ((x)<<S_CQE_DRAIN)
 
 #define S_CQE_STATUS      5
 #define M_CQE_STATUS      0x1F
@@ -233,6 +251,7 @@ struct t4_cqe {
 #define V_CQE_OPCODE(x)   ((x)<<S_CQE_OPCODE)
 
 #define SW_CQE(x)         (G_CQE_SWCQE(be32_to_cpu((x)->header)))
+#define DRAIN_CQE(x)      (G_CQE_DRAIN(be32_to_cpu((x)->header)))
 #define CQE_QPID(x)       (G_CQE_QPID(be32_to_cpu((x)->header)))
 #define CQE_TYPE(x)       (G_CQE_TYPE(be32_to_cpu((x)->header)))
 #define SQ_TYPE(x)	  (CQE_TYPE((x)))
@@ -251,6 +270,7 @@ struct t4_cqe {
 /* used for RQ completion processing */
 #define CQE_WRID_STAG(x)  (be32_to_cpu((x)->u.rcqe.stag))
 #define CQE_WRID_MSN(x)   (be32_to_cpu((x)->u.rcqe.msn))
+#define CQE_IMM_DATA(x)   ((x)->u.imm_data_rcqe.imm_data)
 
 /* used for SQ completion processing */
 #define CQE_WRID_SQ_IDX(x)	((x)->u.scqe.cidx)
@@ -291,7 +311,7 @@ struct t4_swsqe {
 	int			signaled;
 	u16			idx;
 	int                     flushed;
-	struct timespec         host_ts;
+	ktime_t                 host_time;
 	u64                     sge_ts;
 };
 
@@ -470,7 +490,7 @@ static inline void pio_copy(u64 __iomem *dst, u64 *src)
 	int count = 8;
 
 	while (count) {
-		writeq(*src, dst);
+		__raw_writeq(*src, dst);
 		src++;
 		dst++;
 		count--;
@@ -492,9 +512,8 @@ t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe, u8 wc)
 	} else {
 		CTR2(KTR_IW_CXGBE, "%s: DB wq->sq.pidx = %d",
 				__func__, wq->sq.pidx);
-		writel(V_PIDX_T5(inc) | V_QID(wq->sq.bar2_qid),
-				(void __iomem *)((u64)wq->sq.bar2_va +
-					SGE_UDB_KDOORBELL));
+		__raw_writel(V_PIDX_T5(inc) | V_QID(wq->sq.bar2_qid),
+			     (char __iomem *)wq->sq.bar2_va + SGE_UDB_KDOORBELL);
 	}
 
 	/* Flush user doorbell area writes. */
@@ -516,9 +535,8 @@ t4_ring_rq_db(struct t4_wq *wq, u16 inc, union t4_recv_wr *wqe, u8 wc)
 	} else {
 		CTR2(KTR_IW_CXGBE, "%s: DB wq->rq.pidx = %d",
 				__func__, wq->rq.pidx);
-		writel(V_PIDX_T5(inc) | V_QID(wq->rq.bar2_qid),
-				(void __iomem *)((u64)wq->rq.bar2_va +
-					SGE_UDB_KDOORBELL));
+		__raw_writel(V_PIDX_T5(inc) | V_QID(wq->rq.bar2_qid),
+			     (char __iomem *)wq->rq.bar2_va + SGE_UDB_KDOORBELL);
 	}
 
 	/* Flush user doorbell area writes. */
@@ -706,8 +724,9 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 struct t4_dev_status_page {
 	u8 db_off;
 	u8 wc_supported;
-	u16 pad2;
-	u32 pad3;
+	u8 write_cmpl_supported;
+	u8 pad2;
+	u32 fid_base;
 	u64 qp_start;
 	u64 qp_size;
 	u64 cq_start;

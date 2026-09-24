@@ -182,6 +182,8 @@ copy_thread(struct thread *td1, struct thread *td2)
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+	td2->td_md.md_td_flags = td1->td_md.md_td_flags &
+	    TDF_MD_SPLITLOCK_AC;
 	pmap_thread_init_invl_gen(td2);
 
 	/*

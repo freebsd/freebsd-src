@@ -1037,12 +1037,12 @@ bcm2835_audio_delayed_init(void *xsc)
 	sc->dest = DEST_AUTO;
 	sc->verbose_trace = 0;
 
+	pcm_init(sc->dev, sc);
+
     	if (mixer_init(sc->dev, &bcmmixer_class, sc)) {
 		device_printf(sc->dev, "mixer_init failed\n");
 		goto no;
 	}
-
-	pcm_init(sc->dev, sc);
 
 	pcm_addchan(sc->dev, PCMDIR_PLAY, &bcmchan_class, sc);
     	snprintf(status, SND_STATUSLEN, "at VCHIQ");
@@ -1137,6 +1137,6 @@ static driver_t bcm2835_audio_driver = {
 };
 
 DRIVER_MODULE(bcm2835_audio, vchiq, bcm2835_audio_driver, 0, 0);
-MODULE_DEPEND(bcm2835_audio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(bcm2835_audio, sound, 1, 1, 1);
 MODULE_DEPEND(bcm2835_audio, vchiq, 1, 1, 1);
 MODULE_VERSION(bcm2835_audio, 1);

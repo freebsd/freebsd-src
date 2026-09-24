@@ -66,8 +66,7 @@ struct safe_13h_hook {
 void
 biosmemdisk_detect(void)
 {
-	char line[80], scratch[80];
-	int hook = 0, count = 0, sector_size;
+	int hook = 0, sector_size;
 	uint16_t segment, offset;
 	struct safe_13h_hook *probe;
 	ACPI_TABLE_HEADER *mbft;
@@ -125,13 +124,7 @@ biosmemdisk_detect(void)
 		    mdi->mdi_major, mdi->mdi_minor, mdi->mdi_disk_ptr,
 		    mdi->mdi_disk_sectors, mdi->mdi_disk_sectors * sector_size);
 
-		snprintf(line, sizeof(line), "hint.md.%d.physaddr", count);
-		snprintf(scratch, sizeof(scratch), "0x%08x", mdi->mdi_disk_ptr);
-		setenv(line, scratch, 1);
-		snprintf(line, sizeof(line), "hint.md.%d.len", count);
-		snprintf(scratch, sizeof(scratch), "%d", mdi->mdi_disk_sectors * sector_size);
-		setenv(line, scratch, 1);
-		count++;
+		md_export_to_kernel(mdi->mdi_disk_ptr, mdi->mdi_disk_sectors * sector_size);
 end_of_loop:
 		hook++;
 		offset = probe->sh_next_offset;

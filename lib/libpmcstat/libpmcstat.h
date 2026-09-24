@@ -132,6 +132,7 @@ struct pmcstat_args {
 	int	pa_mergepmc;		/* merge PMC with same name */
 	double	pa_duration;		/* time duration */
 	uint32_t pa_tid;
+	uint8_t	pa_pageshift;		/* page shift recorded in log */
 	int	pa_argc;
 	char	**pa_argv;
 	STAILQ_HEAD(, pmcstat_ev) pa_events;

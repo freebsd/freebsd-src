@@ -362,8 +362,11 @@ tcp_hc_lookup(const struct in_conninfo *inc)
 #ifdef	TCP_HC_COUNTERS
 		hc_entry->hc_hits++;
 #endif
-	} else
+		TCPSTAT_INC(tcps_hc_hits);
+	} else {
 		smr_exit(V_tcp_hostcache.smr);
+		TCPSTAT_INC(tcps_hc_misses);
+	}
 
 	return (hc_entry);
 }
@@ -527,6 +530,7 @@ tcp_hc_update(const struct in_conninfo *inc, struct tcp_hc_metrics *hcm)
 		hc_entry = uma_zalloc_smr(V_tcp_hostcache.zone, M_NOWAIT);
 		if (hc_entry == NULL) {
 			THC_UNLOCK(hc_head);
+			TCPSTAT_INC(tcps_hc_allocfail);
 			return;
 		}
 
@@ -584,7 +588,7 @@ tcp_hc_update(const struct in_conninfo *inc, struct tcp_hc_metrics *hcm)
 			v = ((uint64_t)hc_entry->hc_cwnd +
 			    (uint64_t)hcm->hc_cwnd) / 2;
 		atomic_store_32(&hc_entry->hc_cwnd, v);
-		/* TCPSTAT_INC(tcps_cachedcwnd); */
+		TCPSTAT_INC(tcps_cachedcwnd);
 	}
 	if (hcm->hc_sendpipe != 0) {
 		if (hc_entry->hc_sendpipe == 0)
@@ -593,7 +597,7 @@ tcp_hc_update(const struct in_conninfo *inc, struct tcp_hc_metrics *hcm)
 			v = ((uint64_t)hc_entry->hc_sendpipe +
 			    (uint64_t)hcm->hc_sendpipe) / 2;
 		atomic_store_32(&hc_entry->hc_sendpipe, v);
-		/* TCPSTAT_INC(tcps_cachedsendpipe); */
+		TCPSTAT_INC(tcps_cachedsendpipe);
 	}
 	if (hcm->hc_recvpipe != 0) {
 		if (hc_entry->hc_recvpipe == 0)
@@ -602,7 +606,7 @@ tcp_hc_update(const struct in_conninfo *inc, struct tcp_hc_metrics *hcm)
 			v = ((uint64_t)hc_entry->hc_recvpipe +
 			    (uint64_t)hcm->hc_recvpipe) / 2;
 		atomic_store_32(&hc_entry->hc_recvpipe, v);
-		/* TCPSTAT_INC(tcps_cachedrecvpipe); */
+		TCPSTAT_INC(tcps_cachedrecvpipe);
 	}
 
 	/*

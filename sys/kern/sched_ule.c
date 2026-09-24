@@ -75,8 +75,6 @@
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#define	KTR_ULE	0
-
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 #define	TDQ_NAME_LEN	(sizeof("sched lock ") + sizeof(__XSTRING(MAXCPU)))
 #define	TDQ_LOADNAME_LEN	(sizeof("CPU ") + sizeof(__XSTRING(MAXCPU)) - 1 + sizeof(" load"))
@@ -89,7 +87,7 @@ struct td_sched {
 	short		ts_flags;	/* TSF_* flags. */
 	int		ts_cpu;		/* CPU we are on, or were last on. */
 	u_int		ts_rltick;	/* Real last tick, for affinity. */
-	u_int		ts_slice;	/* Ticks of slice remaining. */
+	u_int		ts_slice;	/* Ticks of slice passed. */
 	u_int		ts_ftick;	/* %CPU window's first tick */
 	u_int		ts_ltick;	/* %CPU window's last tick */
 	/* All ticks count below are stored shifted by SCHED_TICK_SHIFT. */
@@ -234,6 +232,14 @@ static int __read_mostly tickincr = 8 << SCHED_TICK_SHIFT;
 static int __read_mostly realstathz = 127;	/* reset during boot. */
 static int __read_mostly sched_slice = 10;	/* reset during boot. */
 static int __read_mostly sched_slice_min = 1;	/* reset during boot. */
+
+static inline void
+sched_update_hogticks(void)
+{
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
+}
+
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
 static int __read_mostly preempt_thresh = PRI_MAX_IDLE + 1;
@@ -677,11 +683,9 @@ tdq_slice(struct tdq *tdq)
 	 * cannot be higher priority load in the system.
 	 */
 	load = tdq->tdq_sysload - 1;
-	if (load >= SCHED_SLICE_MIN_DIVISOR)
-		return (sched_slice_min);
 	if (load <= 1)
 		return (sched_slice);
-	return (sched_slice / load);
+	return (imax(sched_slice_min, sched_slice / load));
 }
 
 /*
@@ -880,7 +884,7 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 
 /*
  * Find the cpu with the least load via the least loaded path that has a
- * lowpri greater than pri  pri.  A pri of -1 indicates any priority is
+ * lowpri greater than pri.  A pri of -1 indicates any priority is
  * acceptable.
  */
 static inline int
@@ -1099,7 +1103,7 @@ tdq_idled(struct tdq *tdq)
 	struct cpu_group *cg, *parent;
 	struct tdq *steal;
 	cpuset_t mask;
-	int cpu, switchcnt, goup;
+	int cpu, switchcnt, group;
 
 	if (smp_started == 0 || steal_idle == 0 || tdq->tdq_cg == NULL)
 		return (1);
@@ -1107,7 +1111,7 @@ tdq_idled(struct tdq *tdq)
 	CPU_CLR(PCPU_GET(cpuid), &mask);
 restart:
 	switchcnt = TDQ_SWITCHCNT(tdq);
-	for (cg = tdq->tdq_cg, goup = 0; ; ) {
+	for (cg = tdq->tdq_cg, group = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * We were assigned a thread but not preempted.  Returning
@@ -1123,9 +1127,9 @@ restart:
 		 * the other one specifically and then escalating two levels.
 		 */
 		if (cpu == -1) {
-			if (goup) {
+			if (group) {
 				cg = cg->cg_parent;
-				goup = 0;
+				group = 0;
 			}
 			parent = cg->cg_parent;
 			if (parent == NULL)
@@ -1135,7 +1139,7 @@ restart:
 					cg = &parent->cg_child[1];
 				else
 					cg = &parent->cg_child[0];
-				goup = 1;
+				group = 1;
 			} else
 				cg = parent;
 			continue;
@@ -1663,8 +1667,7 @@ sched_ule_initticks(void)
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / SCHED_SLICE_DEFAULT_DIVISOR;
 	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_update_hogticks();
 
 	/*
 	 * tickincr is shifted out by 10 to avoid rounding errors due to
@@ -2167,7 +2170,7 @@ tdq_trysteal(struct tdq *tdq)
 	struct cpu_group *cg, *parent;
 	struct tdq *steal;
 	cpuset_t mask;
-	int cpu, i, goup;
+	int cpu, i, group;
 
 	if (smp_started == 0 || steal_idle == 0 || trysteal_limit == 0 ||
 	    tdq->tdq_cg == NULL)
@@ -2177,7 +2180,7 @@ tdq_trysteal(struct tdq *tdq)
 	/* We don't want to be preempted while we're iterating. */
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
-	for (i = 1, cg = tdq->tdq_cg, goup = 0; ; ) {
+	for (i = 1, cg = tdq->tdq_cg, group = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * If a thread was added while interrupts were disabled don't
@@ -2195,9 +2198,9 @@ tdq_trysteal(struct tdq *tdq)
 		 * the other one specifically and then escalating two levels.
 		 */
 		if (cpu == -1) {
-			if (goup) {
+			if (group) {
 				cg = cg->cg_parent;
-				goup = 0;
+				group = 0;
 			}
 			if (++i > trysteal_limit) {
 				TDQ_LOCK(tdq);
@@ -2213,7 +2216,7 @@ tdq_trysteal(struct tdq *tdq)
 					cg = &parent->cg_child[1];
 				else
 					cg = &parent->cg_child[0];
-				goup = 1;
+				group = 1;
 			} else
 				cg = parent;
 			continue;
@@ -3344,7 +3347,7 @@ sched_ule_clear_tdname(struct thread *td)
 }
 
 static void
-sched_ule_schedcpu(void)
+sched_ule_sysinit(void)
 {
 }
 
@@ -3462,7 +3465,7 @@ struct sched_instance sched_ule_instance = {
 	SLOT(init_ap),
 	SLOT(setup),
 	SLOT(initticks),
-	SLOT(schedcpu),
+	SLOT(sysinit),
 #undef SLOT
 };
 DECLARE_SCHEDULER(ule_sched_selector, "ULE", &sched_ule_instance);
@@ -3480,9 +3483,25 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
-	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_slice_min = imax(1, sched_slice / SCHED_SLICE_MIN_DIVISOR);
+	sched_update_hogticks();
+	return (0);
+}
+
+static int
+sysctl_kern_slice(SYSCTL_HANDLER_ARGS)
+{
+	int error, new_val;
+
+	new_val = sched_slice;
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val <= 0)
+		return (EINVAL);
+	sched_slice = new_val;
+	sched_slice_min = imax(1, sched_slice / SCHED_SLICE_MIN_DIVISOR);
+	sched_update_hogticks();
 	return (0);
 }
 
@@ -3493,7 +3512,9 @@ SYSCTL_PROC(_kern_sched_ule, OID_AUTO, quantum,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kern_quantum, "I",
     "Quantum for timeshare threads in microseconds");
-SYSCTL_INT(_kern_sched_ule, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
+SYSCTL_PROC(_kern_sched_ule, OID_AUTO, slice,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_slice, "I",
     "Quantum for timeshare threads in stathz ticks");
 SYSCTL_UINT(_kern_sched_ule, OID_AUTO, interact, CTLFLAG_RWTUN, &sched_interact, 0,
     "Interactivity score threshold");

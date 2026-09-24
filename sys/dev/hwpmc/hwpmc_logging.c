@@ -947,6 +947,7 @@ void
 pmclog_process_map_in(struct pmc_owner *po, pid_t pid, uintfptr_t start,
     const char *path)
 {
+	struct pmclog_map_in *mi;
 	int pathlen, recordlen;
 
 	KASSERT(path != NULL, ("[pmclog,%d] map-in, null path", __LINE__));
@@ -956,8 +957,11 @@ pmclog_process_map_in(struct pmc_owner *po, pid_t pid, uintfptr_t start,
 	    pathlen;
 
 	PMCLOG_RESERVE(po, PMCLOG_TYPE_MAP_IN, recordlen);
+	mi = (struct pmclog_map_in *)ph;
 	PMCLOG_EMIT32(pid);
-	PMCLOG_EMIT32(0);
+	mi->pl_u = 0;
+	mi->pl_pageshift = PAGE_SHIFT;
+	PMCLOG_EMIT32(mi->pl_u);
 	PMCLOG_EMITADDR(start);
 	PMCLOG_EMITSTRING(path,pathlen);
 	PMCLOG_DESPATCH_SYNC(po);

@@ -241,6 +241,40 @@ struct tcp_fastopen_callout {
 	struct vnet *v;
 };
 
+union tcp_fastopen_ip_addr {
+	struct in_addr v4;
+	struct in6_addr v6;
+};
+
+struct tcp_fastopen_ccache_entry {
+	TAILQ_ENTRY(tcp_fastopen_ccache_entry) cce_link;
+	union tcp_fastopen_ip_addr cce_client_ip;	/* network byte order */
+	union tcp_fastopen_ip_addr cce_server_ip;	/* network byte order */
+	uint16_t server_port;				/* network byte order */
+	uint16_t server_mss;				/* host byte order */
+	uint8_t af;
+	uint8_t cookie_len;
+	uint8_t cookie[TCP_FASTOPEN_MAX_COOKIE_LEN];
+	sbintime_t disable_time; /* non-zero value means path is disabled */
+};
+
+struct tcp_fastopen_ccache;
+
+struct tcp_fastopen_ccache_bucket {
+	struct mtx	ccb_mtx;
+	TAILQ_HEAD(bucket_entries, tcp_fastopen_ccache_entry) ccb_entries;
+	int		ccb_num_entries;
+	struct tcp_fastopen_ccache *ccb_ccache;
+};
+
+struct tcp_fastopen_ccache {
+	struct tcp_fastopen_ccache_bucket *base;
+	unsigned int 	bucket_limit;
+	unsigned int 	buckets;
+	unsigned int 	mask;
+	uint32_t 	secret;
+};
+
 static struct tcp_fastopen_ccache_entry *tcp_fastopen_ccache_lookup(
     struct in_conninfo *, struct tcp_fastopen_ccache_bucket **);
 static struct tcp_fastopen_ccache_entry *tcp_fastopen_ccache_create(
@@ -366,8 +400,8 @@ VNET_DEFINE_STATIC(struct tcp_fastopen_keylist, tcp_fastopen_keys);
 VNET_DEFINE_STATIC(struct tcp_fastopen_callout, tcp_fastopen_autokey_ctx);
 #define V_tcp_fastopen_autokey_ctx	VNET(tcp_fastopen_autokey_ctx)
 
-VNET_DEFINE_STATIC(uma_zone_t, counter_zone);
-#define	V_counter_zone			VNET(counter_zone)
+static uma_zone_t counter_zone;
+static uma_zone_t ccache_zone;
 
 static MALLOC_DEFINE(M_TCP_FASTOPEN_CCACHE, "tfo_ccache", "TFO client cookie cache buckets");
 
@@ -381,10 +415,18 @@ VNET_DEFINE_STATIC(struct tcp_fastopen_ccache, tcp_fastopen_ccache);
 void
 tcp_fastopen_init(void)
 {
+	counter_zone = uma_zcreate("tfo", sizeof(unsigned int),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	ccache_zone = uma_zcreate("tfo_ccache_entries",
+	    sizeof(struct tcp_fastopen_ccache_entry), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_CACHE, 0);
+}
+
+void
+tcp_fastopen_vnet_init(void)
+{
 	unsigned int i;
 
-	V_counter_zone = uma_zcreate("tfo", sizeof(unsigned int),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	rm_init(&V_tcp_fastopen_keylock, "tfo_keylock");
 	callout_init_rm(&V_tcp_fastopen_autokey_ctx.c,
 	    &V_tcp_fastopen_keylock, 0);
@@ -426,23 +468,10 @@ tcp_fastopen_init(void)
 		}
 		V_tcp_fastopen_ccache.base[i].ccb_ccache = &V_tcp_fastopen_ccache;
 	}
-
-	/*
-	 * Note that while the total number of entries in the cookie cache
-	 * is limited by the table management logic to
-	 * V_tcp_fastopen_ccache.buckets *
-	 * V_tcp_fastopen_ccache.bucket_limit, the total number of items in
-	 * this zone can exceed that amount by the number of CPUs in the
-	 * system times the maximum number of unallocated items that can be
-	 * present in each UMA per-CPU cache for this zone.
-	 */
-	V_tcp_fastopen_ccache.zone = uma_zcreate("tfo_ccache_entries",
-	    sizeof(struct tcp_fastopen_ccache_entry), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_CACHE, 0);
 }
 
 void
-tcp_fastopen_destroy(void)
+tcp_fastopen_vnet_destroy(void)
 {
 	struct tcp_fastopen_ccache_bucket *ccb;
 	unsigned int i;
@@ -453,21 +482,18 @@ tcp_fastopen_destroy(void)
 		mtx_destroy(&ccb->ccb_mtx);
 	}
 
-	KASSERT(uma_zone_get_cur(V_tcp_fastopen_ccache.zone) == 0,
-	    ("%s: TFO ccache zone allocation count not 0", __func__));
-	uma_zdestroy(V_tcp_fastopen_ccache.zone);
 	free(V_tcp_fastopen_ccache.base, M_TCP_FASTOPEN_CCACHE);
 
 	callout_drain(&V_tcp_fastopen_autokey_ctx.c);
 	rm_destroy(&V_tcp_fastopen_keylock);
-	uma_zdestroy(V_counter_zone);
 }
 
 unsigned int *
 tcp_fastopen_alloc_counter(void)
 {
 	unsigned int *counter;
-	counter = uma_zalloc(V_counter_zone, M_NOWAIT);
+
+	counter = uma_zalloc(counter_zone, M_NOWAIT);
 	if (counter)
 		*counter = 1;
 	return (counter);
@@ -477,7 +503,7 @@ void
 tcp_fastopen_decrement_counter(unsigned int *counter)
 {
 	if (*counter == 1)
-		uma_zfree(V_counter_zone, counter);
+		uma_zfree(counter_zone, counter);
 	else
 		atomic_subtract_int(counter, 1);
 }
@@ -1060,7 +1086,7 @@ tcp_fastopen_ccache_create(struct tcp_fastopen_ccache_bucket *ccb,
 
 	cce = NULL;
 	if (ccb->ccb_num_entries < V_tcp_fastopen_ccache.bucket_limit)
-		cce = uma_zalloc(V_tcp_fastopen_ccache.zone, M_NOWAIT);
+		cce = uma_zalloc(ccache_zone, M_NOWAIT);
 
 	if (cce == NULL) {
 		/*
@@ -1138,7 +1164,7 @@ tcp_fastopen_ccache_entry_drop(struct tcp_fastopen_ccache_entry *cce,
 
 	TAILQ_REMOVE(&ccb->ccb_entries, cce, cce_link);
 	ccb->ccb_num_entries--;
-	uma_zfree(V_tcp_fastopen_ccache.zone, cce);
+	uma_zfree(ccache_zone, cce);
 }
 
 static int

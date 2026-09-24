@@ -36,9 +36,6 @@
  * @date 2017.12.07  @author roman.agafonov@aquantia.com
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/errno.h>
 
 #include "aq_common.h"

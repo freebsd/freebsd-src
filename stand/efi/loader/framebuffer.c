@@ -632,7 +632,14 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 			if (status != EFI_SUCCESS)
 				continue;
 
-			if (tgop->Mode->Info->PixelFormat == PixelBltOnly ||
+			/*
+			 * Some platforms half initialize the graphics protocol
+			 * here when no monitor present, even though spec says
+			 * they are non-optional. Windows and Linux don't access
+			 * Mode->Info generally, so such bugs can slip through.
+			 */
+			if (tgop->Mode == NULL || tgop->Mode->Info == NULL ||
+			    tgop->Mode->Info->PixelFormat == PixelBltOnly ||
 			    tgop->Mode->Info->PixelFormat >= PixelFormatMax)
 				continue;
 

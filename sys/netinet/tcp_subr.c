@@ -292,8 +292,8 @@ static int	tcp_soreceive_stream;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
     &tcp_soreceive_stream, 0, "Using soreceive_stream for TCP sockets");
 
-VNET_DEFINE(uma_zone_t, sack_hole_zone);
-#define	V_sack_hole_zone		VNET(sack_hole_zone)
+uma_zone_t tcp_sack_hole_zone;
+
 VNET_DEFINE(uint32_t, tcp_map_entries_limit) = 0;	/* unlimited */
 static int
 sysctl_net_inet_tcp_map_limit_check(SYSCTL_HANDLER_ARGS)
@@ -1460,10 +1460,8 @@ tcp_vnet_init(void *arg __unused)
 	tcp_hc_init();
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
-	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
-	tcp_fastopen_init();
+	tcp_fastopen_vnet_init();
 
 	COUNTER_ARRAY_ALLOC(V_tcps_states, TCP_NSTATES, M_WAITOK);
 	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
@@ -1583,12 +1581,16 @@ tcp_init(void *arg __unused)
 #ifdef INET6
 	IP6PROTO_REGISTER(IPPROTO_TCP, tcp6_input, tcp6_ctlinput);
 #endif
+
+	tcp_fastopen_init();
+	tcp_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 SYSINIT(tcp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, tcp_init, NULL);
 
 #ifdef VIMAGE
 static void
-tcp_destroy(void *unused __unused)
+tcp_vnet_destroy(void *unused __unused)
 {
 #ifdef TCP_HHOOK
 	int error;
@@ -1597,14 +1599,12 @@ tcp_destroy(void *unused __unused)
 	tcp_hc_destroy();
 	syncache_destroy();
 	in_pcbinfo_destroy(&V_tcbinfo);
-	/* tcp_discardcb() clears the sack_holes up. */
-	uma_zdestroy(V_sack_hole_zone);
 
 	/*
 	 * Cannot free the zone until all tcpcbs are released as we attach
 	 * the allocations to them.
 	 */
-	tcp_fastopen_destroy();
+	tcp_fastopen_vnet_destroy();
 
 	COUNTER_ARRAY_FREE(V_tcps_states, TCP_NSTATES);
 	VNET_PCPUSTAT_FREE(tcpstat);
@@ -1624,7 +1624,8 @@ tcp_destroy(void *unused __unused)
 	}
 #endif
 }
-VNET_SYSUNINIT(tcp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, tcp_destroy, NULL);
+VNET_SYSUNINIT(tcp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, tcp_vnet_destroy,
+    NULL);
 #endif
 
 /*
@@ -2478,10 +2479,8 @@ tcp_discardcb(struct tcpcb *tp)
 	 * say srtt etc into the general one used by other stacks.
 	 */
 	if (tp->t_rttupdated >= 4) {
-		struct tcp_hc_metrics metrics;
 		uint32_t ssthresh;
 
-		bzero(&metrics, sizeof(metrics));
 		/*
 		 * Update the ssthresh always when the conditions below
 		 * are satisfied. This gives us better new start value
@@ -2509,15 +2508,14 @@ tcp_discardcb(struct tcpcb *tp)
 			    );
 		} else
 			ssthresh = 0;
-		metrics.hc_ssthresh = ssthresh;
-
-		metrics.hc_rtt = tp->t_srtt;
-		metrics.hc_rttvar = tp->t_rttvar;
-		metrics.hc_cwnd = tp->snd_cwnd;
-		metrics.hc_sendpipe = 0;
-		metrics.hc_recvpipe = 0;
-
-		tcp_hc_update(&inp->inp_inc, &metrics);
+		tcp_hc_update(&inp->inp_inc, &(struct tcp_hc_metrics){
+		    .hc_ssthresh = ssthresh,
+		    .hc_rtt = tp->t_srtt,
+		    .hc_rttvar = tp->t_rttvar,
+		    .hc_cwnd = tp->snd_cwnd,
+		    .hc_sendpipe = so->so_snd.sb_hiwat,
+		    .hc_recvpipe = so->so_rcv.sb_hiwat,
+		    });
 	}
 
 	refcount_release(&tp->t_fb->tfb_refcnt);

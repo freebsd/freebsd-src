@@ -43,6 +43,7 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_TUNNEL_OFFLOADS	= 1 << 2,
 };
 
 enum {
@@ -178,7 +179,7 @@ struct mlx5_create_qp_ex_rss {
 	__u8 reserved[6];
 	__u8 rx_hash_key[128];
 	__u32   comp_mask;
-	__u32   reserved1;
+	__u32   create_flags;
 };
 
 struct mlx5_create_qp_resp_ex {
@@ -206,6 +207,10 @@ struct mlx5_create_qp_resp {
 	__u32				uuar_index;
 };
 
+enum mlx5_create_wq_comp_mask {
+	MLX5_IB_CREATE_WQ_STRIDING_RQ =		1 << 0,
+};
+
 struct mlx5_drv_create_wq {
 	__u64		buf_addr;
 	__u64		db_addr;
@@ -214,7 +219,9 @@ struct mlx5_drv_create_wq {
 	__u32		user_index;
 	__u32		flags;
 	__u32		comp_mask;
-	__u32		reserved;
+	__u32		single_stride_log_num_of_bytes;
+	__u32		single_wqe_log_num_of_strides;
+	__u32		two_byte_shift_en;
 };
 
 struct mlx5_create_wq {
@@ -273,6 +280,17 @@ struct mlx5_packet_pacing_caps {
 	__u32  reserved;
 };
 
+enum mlx5_mpw_caps {
+	MLX5_MPW_OBSOLETE	= 1 << 0, /* Obsoleted, don't use */
+	MLX5_ALLOW_MPW		= 1 << 1,
+	MLX5_SUPPORT_EMPW	= 1 << 2,
+};
+
+struct mlx5_striding_rq_caps {
+	struct mlx5dv_striding_rq_caps	caps;
+	__u32				reserved;
+};
+
 struct mlx5_query_device_ex_resp {
 	struct ibv_query_device_resp_ex ibv_resp;
 	__u32				comp_mask;
@@ -283,6 +301,10 @@ struct mlx5_query_device_ex_resp {
 	struct mlx5_packet_pacing_caps	packet_pacing_caps;
 	__u32				support_multi_pkt_send_wqe;
 	__u32				reserved;
+	struct mlx5dv_sw_parsing_caps	sw_parsing_caps;
+	struct mlx5_striding_rq_caps	striding_rq_caps;
+	__u32				tunnel_offloads_caps;
+	__u32				reserved4;
 };
 
 #endif /* MLX5_ABI_H */

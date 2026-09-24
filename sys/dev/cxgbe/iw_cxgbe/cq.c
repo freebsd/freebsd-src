@@ -49,21 +49,21 @@
 #include "iw_cxgbe.h"
 #include "user.h"
 
-static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-		      struct c4iw_dev_ucontext *uctx)
+static void destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
+		       struct c4iw_dev_ucontext *uctx,
+		       struct c4iw_wr_wait *wr_waitp)
 {
 	struct adapter *sc = rdev->adap;
 	struct c4iw_dev *rhp = rdev_to_c4iw_dev(rdev);
 	struct fw_ri_res_wr *res_wr;
 	struct fw_ri_res *res;
 	int wr_len;
-	struct c4iw_wr_wait wr_wait;
 	struct wrqe *wr;
 
 	wr_len = sizeof *res_wr + sizeof *res;
 	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
-                if (wr == NULL)
-                        return (0);
+	if (wr == NULL)
+		return;
         res_wr = wrtod(wr);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
@@ -71,29 +71,25 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_NRES(1) |
 			F_FW_WR_COMPL);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)wr_waitp;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_RESET;
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 
-	c4iw_init_wr_wait(&wr_wait);
-
-	t4_wrq_tx(sc, wr);
-
-	c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
+	c4iw_init_wr_wait(wr_waitp);
+	c4iw_ref_send_wait(rdev, wr, wr_waitp, 0, 0, NULL, __func__);
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(rhp->ibdev.dma_device,
 			  cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
-	return 0;
 }
 
 static int
 create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-    struct c4iw_dev_ucontext *uctx)
+	  struct c4iw_dev_ucontext *uctx, struct c4iw_wr_wait *wr_waitp)
 {
 	struct adapter *sc = rdev->adap;
 	struct c4iw_dev *rhp = rdev_to_c4iw_dev(rdev);
@@ -101,7 +97,6 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	struct fw_ri_res *res;
 	int wr_len;
 	int user = (uctx != &rdev->uctx);
-	struct c4iw_wr_wait wr_wait;
 	int ret;
 	struct wrqe *wr;
 	u64 cq_bar2_qoffset = 0;
@@ -128,7 +123,6 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err3;
 	}
 	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
-	memset(cq->queue, 0, cq->memsize);
 
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + sizeof *res;
@@ -144,7 +138,7 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_NRES(1) |
 			F_FW_WR_COMPL);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)wr_waitp;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
@@ -156,20 +150,16 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			F_FW_RI_RES_WR_IQANDST |
 			V_FW_RI_RES_WR_IQANDSTINDEX(sc->sge.ofld_rxq[0].iq.abs_id));
 	res->u.cq.iqdroprss_to_iqesize = cpu_to_be16(
-			F_FW_RI_RES_WR_IQDROPRSS |
 			V_FW_RI_RES_WR_IQPCIECH(2) |
 			V_FW_RI_RES_WR_IQINTCNTTHRESH(0) |
 			F_FW_RI_RES_WR_IQO |
-			V_FW_RI_RES_WR_IQESIZE(1));
+			V_FW_RI_RES_WR_IQESIZE(ilog2(sizeof *cq->queue) - 4));
 	res->u.cq.iqsize = cpu_to_be16(cq->size);
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 
-	c4iw_init_wr_wait(&wr_wait);
+	c4iw_init_wr_wait(wr_waitp);
 
-	t4_wrq_tx(sc, wr);
-
-	CTR2(KTR_IW_CXGBE, "%s wait_event wr_wait %p", __func__, &wr_wait);
-	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
+	ret = c4iw_ref_send_wait(rdev, wr, wr_waitp, 0, 0, NULL, __func__);
 	if (ret)
 		goto err4;
 
@@ -358,7 +348,7 @@ static void advance_oldest_read(struct t4_wq *wq)
  * Deal with out-of-order and/or completions that complete
  * prior unsignalled WRs.
  */
-void c4iw_flush_hw_cq(struct c4iw_cq *chp)
+void c4iw_flush_hw_cq(struct c4iw_cq *chp, struct c4iw_qp *flush_qhp)
 {
 	struct t4_cqe *hw_cqe, *swcqe, read_cqe;
 	struct c4iw_qp *qhp;
@@ -382,6 +372,13 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp)
 		 */
 		if (qhp == NULL)
 			goto next_cqe;
+
+		if (flush_qhp != qhp) {
+			spin_lock(&qhp->lock);
+
+			if (qhp->wq.flushed == 1)
+				goto next_cqe;
+		}
 
 		if (CQE_OPCODE(hw_cqe) == FW_RI_TERMINATE)
 			goto next_cqe;
@@ -434,11 +431,18 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp)
 next_cqe:
 		t4_hwcq_consume(&chp->cq);
 		ret = t4_next_hw_cqe(&chp->cq, &hw_cqe);
+		if (qhp && flush_qhp != qhp)
+			spin_unlock(&qhp->lock);
 	}
 }
 
 static int cqe_completes_wr(struct t4_cqe *cqe, struct t4_wq *wq)
 {
+	if (DRAIN_CQE(cqe)) {
+		WARN_ONCE(1, "Unexpected DRAIN CQE qp id %u!\n", wq->sq.qid);
+		return 0;
+	}
+
 	if (CQE_OPCODE(cqe) == FW_RI_TERMINATE)
 		return 0;
 
@@ -536,7 +540,7 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	/*
 	 * Special cqe for drain WR completions...
 	 */
-	if (CQE_OPCODE(hw_cqe) == C4IW_DRAIN_OPCODE) {
+	if (DRAIN_CQE(hw_cqe)) {
 		*cookie = CQE_DRAIN_COOKIE(hw_cqe);
 		*cqe = *hw_cqe;
 		goto skip_cqe;
@@ -715,7 +719,7 @@ skip_cqe:
 static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 {
 	struct c4iw_qp *qhp = NULL;
-	struct t4_cqe cqe = {0, 0}, *rd_cqe;
+	struct t4_cqe uninitialized_var(cqe), *rd_cqe;
 	struct t4_wq *wq;
 	u32 credit = 0;
 	u8 cqe_flushed;
@@ -755,15 +759,33 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->byte_len = CQE_LEN(&cqe);
 		else
 			wc->byte_len = 0;
-		wc->opcode = IB_WC_RECV;
-		if (CQE_OPCODE(&cqe) == FW_RI_SEND_WITH_INV ||
-		    CQE_OPCODE(&cqe) == FW_RI_SEND_WITH_SE_INV) {
+
+		switch (CQE_OPCODE(&cqe)) {
+		case FW_RI_SEND:
+			wc->opcode = IB_WC_RECV;
+			break;
+		case FW_RI_SEND_WITH_INV:
+		case FW_RI_SEND_WITH_SE_INV:
+			wc->opcode = IB_WC_RECV;
 			wc->ex.invalidate_rkey = CQE_WRID_STAG(&cqe);
 			wc->wc_flags |= IB_WC_WITH_INVALIDATE;
 			c4iw_invalidate_mr(qhp->rhp, wc->ex.invalidate_rkey);
+			break;
+		case FW_RI_WRITE_IMMEDIATE:
+			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
+			wc->ex.imm_data = CQE_IMM_DATA(&cqe);
+			wc->wc_flags |= IB_WC_WITH_IMM;
+			break;
+		default:
+			printf("Unexpected opcode %d "
+			       "in the CQE received for QPID=0x%0x\n",
+			       CQE_OPCODE(&cqe), CQE_QPID(&cqe));
+			ret = -EINVAL;
+			goto out;
 		}
 	} else {
 		switch (CQE_OPCODE(&cqe)) {
+		case FW_RI_WRITE_IMMEDIATE:
 		case FW_RI_RDMA_WRITE:
 			wc->opcode = IB_WC_RDMA_WRITE;
 			break;
@@ -790,9 +812,6 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			if (CQE_STATUS(&cqe) != T4_ERR_SUCCESS)
 				c4iw_invalidate_mr(qhp->rhp,
 						   CQE_WRID_FR_STAG(&cqe));
-			break;
-		case C4IW_DRAIN_OPCODE:
-			wc->opcode = IB_WC_SEND;
 			break;
 		default:
 			printf("Unexpected opcode %d "
@@ -891,35 +910,42 @@ void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	CTR2(KTR_IW_CXGBE, "%s ib_cq %p", __func__, ib_cq);
 	chp = to_c4iw_cq(ib_cq);
 
-	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
+	xa_erase_irq(&chp->rhp->cqs, chp->cq.cqid);
 	atomic_dec(&chp->refcnt);
 	wait_event(chp->wait, !atomic_read(&chp->refcnt));
 
 	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
 	    ibucontext);
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
-		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx);
+		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx,
+		   chp->wr_waitp);
+	c4iw_put_wr_wait(chp->wr_waitp);
 }
 
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata)
 {
-	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
-	struct c4iw_dev *rhp;
+	struct c4iw_dev *rhp = to_c4iw_dev(ibcq->device);
 	struct c4iw_cq *chp = to_c4iw_cq(ibcq);
 	struct c4iw_create_cq_resp uresp;
-	struct c4iw_ucontext *ucontext = NULL;
 	int ret;
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
+	struct c4iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct c4iw_ucontext, ibucontext);
 
-	CTR3(KTR_IW_CXGBE, "%s ib_dev %p entries %d", __func__, ibdev, entries);
+	CTR3(KTR_IW_CXGBE, "%s ib_dev %p entries %d", __func__, ibcq->device,
+	    entries);
 	if (attr->flags)
 		return -EINVAL;
 
-	rhp = to_c4iw_dev(ibdev);
+	chp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
+	if (!chp->wr_waitp) {
+		return -ENOMEM;
+	}
+	c4iw_init_wr_wait(chp->wr_waitp);
 
 	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
 	    ibucontext);
@@ -947,21 +973,23 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	if (hwentries < 64)
 		hwentries = 64;
 
-	memsize = hwentries * sizeof *chp->cq.queue;
+	memsize = hwentries * sizeof(*chp->cq.queue);
 
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
-	if (ucontext)
+	if (udata)
 		memsize = roundup(memsize, PAGE_SIZE);
+
 	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;
 	chp->cq.vector = vector;
 
 	ret = create_cq(&rhp->rdev, &chp->cq,
-			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
+			ucontext ? &ucontext->uctx : &rhp->rdev.uctx,
+			chp->wr_waitp);
 	if (ret)
-		goto err1;
+		goto err_free_wr_wait;
 
 	chp->rhp = rhp;
 	chp->cq.size--;				/* status page */
@@ -970,18 +998,18 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	spin_lock_init(&chp->comp_handler_lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
-	ret = insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
+	ret = xa_insert_irq(&rhp->cqs, chp->cq.cqid, chp, GFP_KERNEL);
 	if (ret)
-		goto err2;
+		goto err_destroy_cq;
 
 	if (ucontext) {
 		ret = -ENOMEM;
-		mm = kmalloc(sizeof *mm, GFP_KERNEL);
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
 		if (!mm)
-			goto err3;
-		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
+			goto err_remove_handle;
+		mm2 = kmalloc(sizeof(*mm2), GFP_KERNEL);
 		if (!mm2)
-			goto err4;
+			goto err_free_mm;
 
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.qid_mask = rhp->rdev.cqmask;
@@ -993,11 +1021,12 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		ucontext->key += PAGE_SIZE;
 		uresp.gts_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
+
 		spin_unlock(&ucontext->mmap_lock);
 		ret = ib_copy_to_udata(udata, &uresp,
-					sizeof(uresp) - sizeof(uresp.reserved));
+					sizeof(uresp));
 		if (ret)
-			goto err5;
+			goto err_free_mm2;
 
 		mm->key = uresp.key;
 		mm->addr = vtophys(chp->cq.queue);
@@ -1014,16 +1043,17 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	    __func__, chp->cq.cqid, chp, chp->cq.size, chp->cq.memsize,
 	    (unsigned long long) chp->cq.dma_addr);
 	return 0;
-err5:
+err_free_mm2:
 	kfree(mm2);
-err4:
+err_free_mm:
 	kfree(mm);
-err3:
-	remove_handle(rhp, &rhp->cqidr, chp->cq.cqid);
-err2:
+err_remove_handle:
+	xa_erase_irq(&rhp->cqs, chp->cq.cqid);
+err_destroy_cq:
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
-		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
-err1:
+		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, chp->wr_waitp);
+err_free_wr_wait:
+	c4iw_put_wr_wait(chp->wr_waitp);
 	return ret;
 }
 

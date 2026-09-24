@@ -1,5 +1,3 @@
-# $FreeBSD$
-
 LIB=	micron
 SRCS=	micron.c
 

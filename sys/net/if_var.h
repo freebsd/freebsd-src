@@ -738,6 +738,7 @@ if_start_fn_t if_getstartfn(if_t ifp);
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 if_transmit_fn_t if_gettransmitfn(if_t ifp);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
+if_qflush_fn_t if_getqflushfn(if_t ifp);
 void if_setgetcounterfn(if_t ifp, if_get_counter_t);
 void if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t);
 void if_setdebugnet_methods(if_t, struct debugnet_methods *);

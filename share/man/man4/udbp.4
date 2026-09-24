@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1999
 .\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
 .\"
@@ -22,26 +25,20 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 20, 2017
+.Dd September 13, 2026
 .Dt UDBP 4
 .Os
 .Sh NAME
 .Nm udbp
 .Nd USB Double Bulk Pipe driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device udbp"
-.Ed
+.Cd device netgraph
+.Cd device udbp
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-udbp_load="YES"
-.Ed
+.Cd netgraph_load="YES"
+.Cd udbp_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -55,56 +52,30 @@ is listed in the
 .Sx SEE ALSO
 section below.
 .Pp
-.\" XXX	The description of how to add netgraph to the kernel
-.\"	is out of place here.  It should be limited to the
-.\"	netgraph(4) manpage only.  However, that page does
-.\"	not yet give instructions for kldload(8) for the
-.\"	clueless.  Working on it -- sheldonh
 It requires
 .Xr netgraph 4
 to be available.
-This can be done either by adding
-.Cd "options NETGRAPH"
-to your kernel configuration file, or alternatively loading
-.Xr netgraph 4
-as a module, either from
-.Pa /boot/loader.conf
-or from the command line, before the
-.Nm
-module.
 .Sh EXAMPLES
-.Dl options NETGRAPH
-.Dl device udbp
-.Pp
-Add the
+Create a new Ethernet network interface node
+and connect its ether hook to the data hook of the
 .Nm
-driver to the kernel.
-.Pp
-.Dl kldload netgraph
-.Dl kldload udbp
-.Pp
-Load the
-.Xr netgraph 4
-module and then the
-.Nm
-driver.
+driver:
 .Pp
 .Dl ngctl mkpeer udbp0: eiface data ether
 .Dl ifconfig ngeth0 ether aa:dd:xx:xx:xx
 .Dl ifconfig ngeth0 inet 169.254.x.x/16
 .Pp
-Create a new Ethernet network interface node
-and connect its ether hook to the data hook of the
-.Nm
-driver.
-.Pp
-This enables FreeBSD to communicate with a Linux peer (e.g. using the
+This enables
+.Fx
+to communicate with a Linux peer (e.g. using the
 .Sy plusb
 driver).
 The Linux node should be configured to prefer link-local IPv4 addresses
 (e.g. using Network Manager in Debian and Red Hat derived distributions).
 .Pp
-Whilst both FreeBSD and Linux are able to interoperate by
+Whilst both
+.Fx
+and Linux are able to interoperate by
 loosely following CDC EEM 1.0 in their behaviour, neither implementation
 has been expressly designed to follow its specification.
 .Sh SEE ALSO
@@ -128,25 +99,11 @@ has been expressly designed to follow its specification.
 .%I Ghisler Software GmbH.
 .%U https://www.ghisler.com/cables/index.htm
 .Re
-.Sh CAVEATS
-The point-to-point nature and additional latency of USB host-host links
-makes them unsuitable as a "drop-in" replacement for an Ethernet LAN;
-for a USB 3.0 SuperSpeed cable, latency is comparable to 100BaseTX Ethernet
-(but often worse), with throughput comparable to 2.5GBASE-T.
-.Pp
-However, their energy efficiency makes them attractive for embedded applications.
-A Plugable PL27A1 cable claims 24mA of USB3 bus power,
-as compared to 150mA for a typical USB 3.0 to Gigabit Ethernet interface.
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
 .Fx 5.0 .
-.Sh BUGS
-The
-.Nm
-driver does not support the special packets described in section 5.1
-of the CDC EEM specification.
 .Sh AUTHORS
 .An -nosplit
 The
@@ -161,3 +118,18 @@ This manual page was written by
 .An Nick Hibma Aq Mt n_hibma@FreeBSD.org
 and updated by
 .An Bruce Simpson Aq Mt bms@FreeBSD.org .
+.Sh CAVEATS
+The point-to-point nature and additional latency of USB host-host links
+makes them unsuitable as a "drop-in" replacement for an Ethernet LAN;
+for a USB 3.0 SuperSpeed cable, latency is comparable to 100BaseTX Ethernet
+(but often worse), with throughput comparable to 2.5GBASE-T.
+.Pp
+However,
+their energy efficiency makes them attractive for embedded applications.
+A Plugable PL27A1 cable claims 24mA of USB3 bus power,
+as compared to 150mA for a typical USB 3.0 to Gigabit Ethernet interface.
+.Sh BUGS
+The
+.Nm
+driver does not support the special packets described in section 5.1
+of the CDC EEM specification.

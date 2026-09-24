@@ -67,6 +67,7 @@ TESTS=		tests.7
 TESTSPACKAGE=	tests
 
 ATF=		atf.7
+ATF=		atf-test-case.7
 ATFPACKAGE=	atf
 
 ATFPATH=	${SRCTOP}/contrib/atf

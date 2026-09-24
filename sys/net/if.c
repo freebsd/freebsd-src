@@ -5087,6 +5087,12 @@ if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 	ifp->if_qflush = flush_fn;
 }
 
+if_qflush_fn_t
+if_getqflushfn(if_t ifp)
+{
+	return (ifp->if_qflush);
+}
+
 void
 if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t alloc_fn)
 {

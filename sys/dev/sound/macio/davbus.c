@@ -86,7 +86,7 @@ static driver_t pcm_davbus_driver = {
 };
 
 DRIVER_MODULE(pcm_davbus, macio, pcm_davbus_driver, 0, 0);
-MODULE_DEPEND(pcm_davbus, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(pcm_davbus, sound, 1, 1, 1);
 
 /*****************************************************************************
 			Probe and attachment routines.
@@ -495,6 +495,7 @@ davbus_attach(device_t self)
 	struct davbus_softc 	*sc;
 	struct resource 	*dbdma_irq, *cintr;
 	void 			*cookie;
+	kobj_class_t		 mixer_class;
 	char			 compat[64];
 	int 			 rid, oirq, err;
 
@@ -557,16 +558,18 @@ davbus_attach(device_t self)
         bus_write_4(sc->reg, DAVBUS_SOUND_CTRL, DAVBUS_INPUT_SUBFRAME0 | 
 	    DAVBUS_OUTPUT_SUBFRAME0 | DAVBUS_RATE_44100 | DAVBUS_INTR_PORTCHG);
 
-	/* Attach DBDMA engine and PCM layer */
-	err = aoa_attach(sc);
+	/* Pick the codec module */
+	if (strcmp(compat, "screamer") == 0)
+		mixer_class = &screamer_mixer_class;
+	else if (strcmp(compat, "burgundy") == 0)
+		mixer_class = &burgundy_mixer_class;
+	else
+		mixer_class = NULL;
+
+	/* Attach DBDMA engine, codec mixer and PCM layer */
+	err = aoa_attach(sc, mixer_class, sc);
 	if (err)
 		return (err);
-
-	/* Install codec module */
-	if (strcmp(compat, "screamer") == 0)
-		mixer_init(self, &screamer_mixer_class, sc);
-	else if (strcmp(compat, "burgundy") == 0)
-		mixer_init(self, &burgundy_mixer_class, sc);
 
 	return (0);
 }

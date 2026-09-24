@@ -982,6 +982,11 @@ enum {
 	MLX5_ESW_VPORT_ADMIN_STATE_AUTO  = 0x2,
 };
 
+enum mlx5_flex_parser_protos {
+	MLX5_FLEX_PROTO_CW_MPLS_GRE   = 1 << 4,
+	MLX5_FLEX_PROTO_CW_MPLS_UDP   = 1 << 5,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */

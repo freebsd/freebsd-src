@@ -1022,9 +1022,6 @@ struct	tcpstat {
 	uint64_t tcps_predack;		/* times hdr predict ok for acks */
 	uint64_t tcps_preddat;		/* times hdr predict ok for data pkts */
 	uint64_t tcps_pcbcachemiss;
-	uint64_t tcps_cachedrtt;	/* times cached RTT in route updated */
-	uint64_t tcps_cachedrttvar;	/* times cached rttvar updated */
-	uint64_t tcps_cachedssthresh;	/* times cached ssthresh updated */
 	uint64_t tcps_usedrtt;		/* times RTT initialized from route */
 	uint64_t tcps_usedrttvar;	/* times RTTVAR initialized from rt */
 	uint64_t tcps_usedssthresh;	/* times ssthresh initialized from rt*/
@@ -1052,8 +1049,18 @@ struct	tcpstat {
 	uint64_t tcps_sc_spurcookie;	/* SYN cookie spurious, rejected */
 	uint64_t tcps_sc_failcookie;	/* SYN cookie failed, rejected */
 
+	/* TCP host cache */
+	uint64_t tcps_hc_hits;
+	uint64_t tcps_hc_misses;
 	uint64_t tcps_hc_added;		/* entry added to hostcache */
 	uint64_t tcps_hc_bucketoverflow;/* hostcache per bucket limit hit */
+	uint64_t tcps_hc_allocfail;	/* hostcache zone full */
+	uint64_t tcps_cachedrtt;	/* times cached RTT in route updated */
+	uint64_t tcps_cachedrttvar;	/* times cached rttvar updated */
+	uint64_t tcps_cachedssthresh;	/* times cached ssthresh updated */
+	uint64_t tcps_cachedcwnd;	/* times cached congestion window */
+	uint64_t tcps_cachedsendpipe;	/* times cached send buffer size */
+	uint64_t tcps_cachedrecvpipe;	/* times cached recv buffer size */
 
 	uint64_t tcps_finwait2_drops;    /* Drop FIN_WAIT_2 connection after time limit */
 

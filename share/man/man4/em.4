@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 30, 2026
+.Dd September 16, 2026
 .Dt EM 4
 .Os
 .Sh NAME
@@ -90,8 +90,36 @@ Virtual functions provided by 82576 and I350 physical functions appear as
 .Nm igbv
 interfaces.
 .Pp
-The driver supports Transmit/Receive checksum offload and Jumbo Frames
-on all but 82542-based adapters.
+On Hyper-V,
+.Nm igbv
+supports 82576 and I350 virtual functions using the host-assigned MAC address
+and a single transmit/receive queue pair.
+The VF can be used by
+.Xr hn 4
+as the accelerated data path for its synthetic interface.
+The host controls MAC, multicast, promiscuous-mode, and VLAN-filter policy;
+changing these on the VF does not reconfigure the host.
+Hyper-V VFs currently support an MTU of at most 1500 bytes.
+.Pp
+Only host-assigned access VLANs with untagged guest traffic are supported
+on Hyper-V; guest VLAN registration is ignored.
+With Windows I350 PF driver version 14.1.5.0, tagged VF transmissions can
+trigger host malicious driver detection and
+disable the VF's queues even when the Hyper-V port is configured for trunk mode.
+This limitation is also reproducible with Windows VF drivers.
+For guest VLAN trunks, disable SR-IOV for the virtual network adapter on
+the host and use the
+.Xr hn 4
+synthetic data path.
+.Pp
+If the host unexpectedly disables a running Hyper-V VF transmit queue,
+the driver reports link down.
+If the hardware reports carrier up, the driver requests recovery through
+the normal stop/init path.
+These recovery requests are rate-limited if the host keeps the queue disabled.
+.Pp
+The driver supports Transmit/Receive checksum offload.
+Jumbo Frames are supported except on 82542-based adapters and Hyper-V VFs.
 .Pp
 Physical functions on supported boards and ports advertise one or more of the
 .Cm wol_magic ,
@@ -506,7 +534,7 @@ the network connection (cable).
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
-.Pa http://support.intel.com .
+.Pa https://support.intel.com .
 .Pp
 If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the
@@ -515,6 +543,7 @@ issue to
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
+.Xr hn 4 ,
 .Xr iflib 4 ,
 .Xr led 4 ,
 .Xr netintro 4 ,

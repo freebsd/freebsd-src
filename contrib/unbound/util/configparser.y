@@ -218,6 +218,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_ITER_SCRUB_RRSIG
 %token VAR_MAX_TRANSFER_SIZE VAR_MAX_TRANSFER_TIME
 %token VAR_MAX_GLOBAL_QUOTA VAR_HARDEN_UNVERIFIED_GLUE VAR_LOG_TIME_ISO
+%token VAR_VAL_VALIDATION_ATTEMPTS VAR_VAL_HASH_ATTEMPTS
 %token VAR_ITER_SCRUB_PROMISCUOUS VAR_LOG_THREAD_ID
 
 %%
@@ -360,7 +361,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_harden_unknown_additional | server_disable_edns_do |
 	server_log_destaddr | server_cookie_secret_file |
 	server_iter_scrub_ns | server_iter_scrub_cname | server_max_global_quota |
-	server_iter_scrub_rrsig |
+	server_val_validation_attempts |
+	server_val_hash_attempts | server_iter_scrub_rrsig |
 	server_harden_unverified_glue | server_log_time_iso | server_iter_scrub_promiscuous
 	;
 stub_clause: stubstart contents_stub
@@ -4314,6 +4316,24 @@ server_iter_scrub_promiscuous: VAR_ITER_SCRUB_PROMISCUOUS STRING_ARG
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->iter_scrub_promiscuous =
 			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_val_validation_attempts: VAR_VAL_VALIDATION_ATTEMPTS STRING_ARG
+	{
+		OUTYY(("P(server_val_validation_attempts:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->val_validation_attempts = atoi($2);
+		free($2);
+	}
+	;
+server_val_hash_attempts: VAR_VAL_HASH_ATTEMPTS STRING_ARG
+	{
+		OUTYY(("P(server_val_hash_attempts:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->val_hash_attempts = atoi($2);
 		free($2);
 	}
 	;

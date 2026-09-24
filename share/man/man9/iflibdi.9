@@ -1,4 +1,4 @@
-.Dd August 8, 2026
+.Dd September 11, 2026
 .Dt IFLIBDI 9
 .Os
 .Sh NAME
@@ -90,6 +90,10 @@
 .Fc
 .Ft void
 .Fo iflib_init_failed
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft bool
+.Fo iflib_is_running
 .Fa "if_ctx_t ctx"
 .Fc
 .Ft void
@@ -260,6 +264,29 @@ Iflib then leaves
 .Dv IFF_DRV_RUNNING
 clear and does not enable interrupts or periodic timers.
 Output remains blocked so explicitly scheduled admin recovery work can run.
+.It Fn iflib_is_running
+Return an atomic snapshot of whether iflib admits software traffic to its
+queues.
+This function may be called from an interrupt filter without acquiring an
+iflib lock.
+Admission opens after successful driver initialization and receive-buffer
+setup, before enabling interrupts, and closes before stop or when the watchdog
+requests recovery.
+It remains closed after failed initialization.
+.Pp
+This is neither the physical link state nor proof that queue DMA has stopped.
+In particular, admission closes before deferred watchdog recovery stops the
+device.
+The snapshot does not hold a reference to the context or wait for existing
+queue users; callers must retain their normal lifetime and queue
+synchronization.
+Administrative and firmware recovery work may still be needed while admission
+is closed.
+.Pp
+Drivers should use this accessor instead of reading
+.Dv IFF_DRV_RUNNING
+for software run-state checks, and must not modify the driver flags.
+Iflib continues to publish the legacy driver flags for network-stack consumers.
 .It Fn iflib_add_int_delay_sysctl
 Modifies settings to user defined values for a given set of variables.
 .El

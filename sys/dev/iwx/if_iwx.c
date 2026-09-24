@@ -8085,6 +8085,9 @@ iwx_newstate_sub(struct ieee80211vap *vap, enum ieee80211_state nstate)
 	int err = 0;
 
 	IWX_LOCK(sc);
+	if (sc->sc_flags & IWX_FLAG_SHUTDOWN) {
+		goto out;
+	}
 
 	if (nstate <= ostate || nstate > IEEE80211_S_RUN) {
 		switch (ostate) {
@@ -10679,6 +10682,7 @@ iwx_detach(device_t dev)
 	int txq_i;
 
 	iwx_stop_device(sc);
+	sc->sc_flags |= IWX_FLAG_SHUTDOWN;
 
 	taskqueue_drain_all(sc->sc_tq);
 	taskqueue_free(sc->sc_tq);

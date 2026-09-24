@@ -64,6 +64,7 @@ posixacl_head()
 {
 	atf_set descr "Turn POSIX.1e ACLs on and off"
 	atf_set require.user "root"
+	atf_set "require.progs" tunefs
 }
 posixacl_body()
 {
@@ -81,6 +82,7 @@ nfs4acl_head()
 {
 	atf_set descr "Turn NFSv4 ACLs on and off"
 	atf_set require.user "root"
+	atf_set "require.progs" tunefs
 }
 nfs4acl_body()
 {
@@ -98,6 +100,7 @@ sunoj_head()
 {
 	atf_set descr "Turn Soft Updates on and off"
 	atf_set require.user "root"
+	atf_set "require.progs" tunefs
 }
 sunoj_body()
 {
@@ -115,6 +118,7 @@ suj_head()
 {
 	atf_set descr "Turn Soft Updates journaling on and off"
 	atf_set require.user "root"
+	atf_set "require.progs" tunefs
 }
 suj_body()
 {
@@ -132,6 +136,7 @@ gjournal_head()
 {
 	atf_set descr "Turn GEOM journaling on and off"
 	atf_set require.user "root"
+	atf_set "require.progs" tunefs
 }
 gjournal_body()
 {
@@ -149,6 +154,7 @@ conflict_head()
 {
 	atf_set descr "Soft Updates and GEOM journaling are mutually exclusive"
 	atf_set require.user "root"
+	atf_set "require.progs" tunefs
 }
 conflict_body()
 {

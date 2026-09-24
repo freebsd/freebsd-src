@@ -42,7 +42,7 @@ struct pmac_fan {
 };
 
 struct pmac_therm {
-	int target_temp, max_temp;	/* Tenths of a degree K */
+	int target_temp, high_temp, max_temp;	/* Tenths of a degree K */
 
 	char name[32];
 	int zone;

@@ -848,6 +848,28 @@ vmbus_synic_teardown(void *arg)
 	WRMSR(MSR_HV_SIEFP, (orig & MSR_HV_SIEFP_RSVD_MASK));
 }
 
+struct hyperv_dma *
+vmbus_get_mem_evtflags(void)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+
+	if (!sc)
+		return NULL;
+
+	return NULL; //&sc->vmbus_evtflags_dma;
+}
+
+struct hyperv_dma *
+vmbus_get_mem_mnf2(void)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+
+	if (!sc)
+		return NULL;
+
+	return NULL; //&sc->vmbus_mnf2_dma;
+}
+
 static int
 vmbus_dma_alloc(struct vmbus_softc *sc)
 {

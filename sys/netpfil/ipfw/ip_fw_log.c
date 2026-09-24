@@ -428,15 +428,10 @@ ipfw_log_syslog(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 	else
 		mark_str[0] = '\0';
 
-#ifdef __FreeBSD__
 	log(LOG_SECURITY | LOG_INFO, "ipfw: %d %s %s%s %s via %s%s\n",
 	    f ? f->rulenum : -1, action, proto, mark_str,
 	    args->flags & IPFW_ARGS_OUT ? "out" : "in", args->ifp->if_xname,
 	    fragment);
-#else
-	log(LOG_SECURITY | LOG_INFO, "ipfw: %d %s %s%s [no if info]%s\n",
-	    f ? f->rulenum : -1, action, proto, mark_str, fragment);
-#endif
 	if (limit_reached)
 		log(LOG_SECURITY | LOG_NOTICE,
 		    "ipfw: limit %d reached on entry %d\n",

@@ -107,15 +107,15 @@ struct ess_info {
 static int ess_rd(struct ess_info *sc, int reg);
 static void ess_wr(struct ess_info *sc, int reg, uint8_t val);
 static int ess_dspready(struct ess_info *sc);
-static int ess_cmd(struct ess_info *sc, u_char val);
-static int ess_cmd1(struct ess_info *sc, u_char cmd, int val);
+static int ess_cmd(struct ess_info *sc, uint8_t val);
+static int ess_cmd1(struct ess_info *sc, uint8_t cmd, int val);
 static int ess_get_byte(struct ess_info *sc);
 static void ess_setmixer(struct ess_info *sc, unsigned int port, unsigned int value);
 static int ess_getmixer(struct ess_info *sc, unsigned int port);
 static int ess_reset_dsp(struct ess_info *sc);
 
-static int ess_write(struct ess_info *sc, u_char reg, int val);
-static int ess_read(struct ess_info *sc, u_char reg);
+static int ess_write(struct ess_info *sc, uint8_t reg, int val);
+static int ess_read(struct ess_info *sc, uint8_t reg);
 
 static void ess_intr(void *arg);
 static int ess_setupch(struct ess_info *sc, int ch, int dir, int spd, uint32_t fmt, int len);
@@ -194,7 +194,7 @@ ess_dspready(struct ess_info *sc)
 }
 
 static int
-ess_dspwr(struct ess_info *sc, u_char val)
+ess_dspwr(struct ess_info *sc, uint8_t val)
 {
     	int  i;
 
@@ -210,14 +210,14 @@ ess_dspwr(struct ess_info *sc, u_char val)
 }
 
 static int
-ess_cmd(struct ess_info *sc, u_char val)
+ess_cmd(struct ess_info *sc, uint8_t val)
 {
 	DEB(printf("ess_cmd: %x\n", val));
     	return ess_dspwr(sc, val);
 }
 
 static int
-ess_cmd1(struct ess_info *sc, u_char cmd, int val)
+ess_cmd1(struct ess_info *sc, uint8_t cmd, int val)
 {
     	DEB(printf("ess_cmd1: %x, %x\n", cmd, val));
     	if (ess_dspwr(sc, cmd)) {
@@ -229,9 +229,9 @@ static void
 ess_setmixer(struct ess_info *sc, unsigned int port, unsigned int value)
 {
 	DEB(printf("ess_setmixer: reg=%x, val=%x\n", port, value);)
-    	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
+    	ess_wr(sc, SB_MIX_ADDR, (uint8_t) (port & 0xff)); /* Select register */
     	DELAY(10);
-    	ess_wr(sc, SB_MIX_DATA, (u_char) (value & 0xff));
+    	ess_wr(sc, SB_MIX_DATA, (uint8_t) (value & 0xff));
     	DELAY(10);
 }
 
@@ -240,7 +240,7 @@ ess_getmixer(struct ess_info *sc, unsigned int port)
 {
     	int val;
 
-    	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
+    	ess_wr(sc, SB_MIX_ADDR, (uint8_t) (port & 0xff)); /* Select register */
     	DELAY(10);
     	val = ess_rd(sc, SB_MIX_DATA);
     	DELAY(10);
@@ -263,13 +263,13 @@ ess_get_byte(struct ess_info *sc)
 }
 
 static int
-ess_write(struct ess_info *sc, u_char reg, int val)
+ess_write(struct ess_info *sc, uint8_t reg, int val)
 {
     	return ess_cmd1(sc, reg, val);
 }
 
 static int
-ess_read(struct ess_info *sc, u_char reg)
+ess_read(struct ess_info *sc, uint8_t reg)
 {
     	return (ess_cmd(sc, 0xc0) && ess_cmd(sc, reg))? ess_get_byte(sc) : -1;
 }
@@ -716,7 +716,7 @@ static uint32_t
 essmix_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
-    	u_char recdev;
+    	uint8_t recdev;
 
     	switch (src) {
 	case SOUND_MASK_CD:
@@ -1017,6 +1017,8 @@ ess_attach(device_t dev)
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x2a);
 
+	pcm_init(dev, sc);
+
     	if (mixer_init(dev, &solomixer_class, sc))
 		goto no;
 
@@ -1025,7 +1027,6 @@ ess_attach(device_t dev)
 		rman_get_start(sc->irq),
 		device_get_nameunit(device_get_parent(dev)));
 
-	pcm_init(dev, sc);
       	pcm_addchan(dev, PCMDIR_REC, &esschan_class, sc);
 	pcm_addchan(dev, PCMDIR_PLAY, &esschan_class, sc);
 	if (pcm_register(dev, status))
@@ -1070,5 +1071,5 @@ static driver_t ess_driver = {
 };
 
 DRIVER_MODULE(snd_solo, pci, ess_driver, 0, 0);
-MODULE_DEPEND(snd_solo, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_solo, sound, 1, 1, 1);
 MODULE_VERSION(snd_solo, 1);

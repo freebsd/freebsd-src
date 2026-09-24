@@ -166,6 +166,12 @@ invalidate_local_icache(void)
 }
 
 static __inline void
+wfe(void)
+{
+	__asm __volatile("wfe");
+}
+
+static __inline void
 wfet(uint64_t val)
 {
 	__asm __volatile(

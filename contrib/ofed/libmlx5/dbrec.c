@@ -53,6 +53,7 @@ static struct mlx5_db_page *__add_page(struct mlx5_context *context)
 	int pp;
 	int i;
 	int nlong;
+	int ret;
 
 	pp = ps / context->cache_line_size;
 	nlong = (pp + 8 * sizeof(long) - 1) / (8 * sizeof(long));
@@ -61,7 +62,11 @@ static struct mlx5_db_page *__add_page(struct mlx5_context *context)
 	if (!page)
 		return NULL;
 
-	if (mlx5_alloc_buf(&page->buf, ps, ps)) {
+	if (mlx5_is_extern_alloc(context))
+		ret = mlx5_alloc_buf_extern(context, &page->buf, ps);
+	else
+		ret = mlx5_alloc_buf(&page->buf, ps, ps);
+	if (ret) {
 		free(page);
 		return NULL;
 	}
@@ -80,10 +85,10 @@ static struct mlx5_db_page *__add_page(struct mlx5_context *context)
 	return page;
 }
 
-uint32_t *mlx5_alloc_dbrec(struct mlx5_context *context)
+__be32 *mlx5_alloc_dbrec(struct mlx5_context *context)
 {
 	struct mlx5_db_page *page;
-	uint32_t *db = NULL;
+	__be32 *db = NULL;
 	int i, j;
 
 	pthread_mutex_lock(&context->db_list_mutex);
@@ -113,7 +118,7 @@ out:
 	return db;
 }
 
-void mlx5_free_db(struct mlx5_context *context, uint32_t *db)
+void mlx5_free_db(struct mlx5_context *context, __be32 *db)
 {
 	struct mlx5_db_page *page;
 	uintptr_t ps = to_mdev(context->ibv_ctx.device)->page_size;
@@ -121,9 +126,12 @@ void mlx5_free_db(struct mlx5_context *context, uint32_t *db)
 
 	pthread_mutex_lock(&context->db_list_mutex);
 
-	for (page = context->db_list; page; page = page->next)
-		if (((uintptr_t) db & ~(ps - 1)) == (uintptr_t) page->buf.buf)
+	for (page = context->db_list; page; page = page->next) {
+		uintptr_t base = (uintptr_t) page->buf.buf;
+
+		if ((uintptr_t) db >= base && (uintptr_t) db - base < ps)
 			break;
+	}
 
 	if (!page)
 		goto out;
@@ -139,7 +147,11 @@ void mlx5_free_db(struct mlx5_context *context, uint32_t *db)
 		if (page->next)
 			page->next->prev = page->prev;
 
-		mlx5_free_buf(&page->buf);
+		if (page->buf.type == MLX5_ALLOC_TYPE_EXTERNAL)
+			mlx5_free_buf_extern(context, &page->buf);
+		else
+			mlx5_free_buf(&page->buf);
+
 		free(page);
 	}
 

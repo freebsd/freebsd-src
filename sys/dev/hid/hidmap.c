@@ -220,7 +220,7 @@ hidmap_intr(void *context, void *buf, hid_size_t len)
 		 * 5.8. If Logical Minimum and Logical Maximum are both
 		 * positive values then the contents of a field can be assumed
 		 * to be an unsigned value. Otherwise, all integer values are
-		 * signed values represented in 2’s complement format.
+		 * signed values represented in two's complement format.
 		 */
 		data = hi->lmin < 0 || hi->lmax < 0
 		    ? hid_get_data(buf, len, &hi->loc)

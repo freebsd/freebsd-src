@@ -1275,10 +1275,10 @@ testmd(pdinfo_t *md)
 void
 efiblk_memdisk_preload(void)
 {
+#ifdef LOADER_MD_SUPPORT
 	MEDIA_RAM_DISK_DEVICE_PATH *ram;
 	uint64_t start, end;
 	pdinfo_t *md;
-	char key[32], value[32];
 	int i;
 
 	STAILQ_FOREACH(md, &pdinfo, pd_link) {
@@ -1288,11 +1288,7 @@ efiblk_memdisk_preload(void)
 		i = ram->Instance;
 		start = ((uint64_t)ram->StartingAddr[1] << 32) | ram->StartingAddr[0];
 		end = ((uint64_t)ram->EndingAddr[1] << 32) | ram->EndingAddr[0];
-		snprintf(key, sizeof(key), "hint.md.%d.physaddr", i);
-		snprintf(value, sizeof(value), "0x%016x", start);
-		setenv(key, value, 1);
-		snprintf(key, sizeof(key), "hint.md.%d.len", i);
-		snprintf(value, sizeof(value), "%d", end - start + 1);
-		setenv(key, value, 1);
+		md_export_to_kernel(start, end - start + 1);
 	}
+#endif
 }

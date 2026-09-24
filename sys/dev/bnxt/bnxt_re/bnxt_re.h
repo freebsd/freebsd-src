@@ -933,7 +933,7 @@ int bnxt_re_setup_cnp_cos(struct bnxt_re_dev *rdev, bool reset);
 
 static inline enum ib_port_state bnxt_re_get_link_state(struct bnxt_re_dev *rdev)
 {
-	if (if_getdrvflags(rdev->netdev) & IFF_DRV_RUNNING &&
+	if (iflib_is_running(rdev->en_dev->softc->ctx) &&
 	    if_getlinkstate(rdev->netdev) == LINK_STATE_UP)
 		return IB_PORT_ACTIVE;
 	return IB_PORT_DOWN;

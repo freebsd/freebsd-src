@@ -206,6 +206,15 @@ long realmem = 0;
 int late_console = 1;
 int lass_enabled = 0;
 
+int ia32_splitlock = 0;
+SYSCTL_INT(_hw, OID_AUTO, splitlock, CTLFLAG_RD,
+    &ia32_splitlock, 0,
+    "splitlock prevention supported");
+int ia32_splitlock_force = 1;
+SYSCTL_INT(_hw, OID_AUTO, splitlock_force, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &ia32_splitlock_force, 0,
+    "splitlock prevention enabled by default");
+
 int __read_frequently fred = 0;
 SYSCTL_INT(_hw, OID_AUTO, fred, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &fred, 0,
@@ -1648,6 +1657,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
 
+	amd64_init_splitlock();
+	amd64_cpu_init_msr_memctl();
+
         env = kern_getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
@@ -1915,6 +1927,70 @@ safe_read(vm_offset_t addr, char *valp)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = NULL;
 	return (uiomove_mem(UIO_MEM_KMEM, &uio));
+}
+
+static void
+enable_splitlock_ac_wrmsr(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) | MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+static void
+enable_splitlock_ac_wrmsrimm(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr_imm(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) |
+	    MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+DEFINE_IFUNC(, void, enable_splitlock_ac, (void))
+{
+	if ((cpu_stdext_feature5 & CPUID_STDEXT5_MSR_IMM) != 0)
+		return (enable_splitlock_ac_wrmsrimm);
+	return (enable_splitlock_ac_wrmsr);
+}
+
+void
+enable_splitlock(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_md.md_td_flags |= TDF_MD_SPLITLOCK_AC;
+	critical_enter();
+	enable_splitlock_ac();
+	critical_exit();
+}
+
+static void
+disable_splitlock_ac_wrmsr(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) & ~MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+static void
+disable_splitlock_ac_wrmsrimm(void)
+{
+	MPASS(ia32_splitlock);
+	wrmsr_imm(MSR_MEMORY_CTL, PCPU_GET(msr_memctl) &
+	    ~MSR_MEMORY_CTL_SPLITLOCK);
+}
+
+DEFINE_IFUNC(, void, disable_splitlock_ac, (void))
+{
+	if ((cpu_stdext_feature5 & CPUID_STDEXT5_MSR_IMM) != 0)
+		return (disable_splitlock_ac_wrmsrimm);
+	return (disable_splitlock_ac_wrmsr);
+}
+
+void
+disable_splitlock(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_md.md_td_flags &= ~TDF_MD_SPLITLOCK_AC;
+	critical_enter();
+	disable_splitlock_ac();
+	critical_exit();
 }
 
 #ifdef KDB

@@ -1143,6 +1143,7 @@ static int
 pfsync_in_clr(struct mbuf *m, int offset, int count, int flags, int action)
 {
 	struct pfsync_clr *clr;
+	struct pfi_kkif *kif = NULL;
 	struct mbuf *mp;
 	int len = sizeof(*clr) * count;
 	int i, offp;
@@ -1159,7 +1160,7 @@ pfsync_in_clr(struct mbuf *m, int offset, int count, int flags, int action)
 		creatorid = clr[i].creatorid;
 
 		if (clr[i].ifname[0] != '\0' &&
-		    pfi_kkif_find(clr[i].ifname) == NULL)
+		    (kif = pfi_kkif_find(clr[i].ifname)) == NULL)
 			continue;
 
 		for (int i = 0; i <= V_pf_hashmask; i++) {
@@ -1168,11 +1169,14 @@ pfsync_in_clr(struct mbuf *m, int offset, int count, int flags, int action)
 relock:
 			PF_HASHROW_LOCK(ih);
 			LIST_FOREACH(s, &ih->states, entry) {
-				if (s->creatorid == creatorid) {
-					s->state_flags |= PFSTATE_NOSYNC;
-					pf_remove_state(s);
-					goto relock;
-				}
+				if (s->creatorid != creatorid)
+					continue;
+				if (kif != NULL && kif != s->kif)
+					continue;
+
+				s->state_flags |= PFSTATE_NOSYNC;
+				pf_remove_state(s);
+				goto relock;
 			}
 			PF_HASHROW_UNLOCK(ih);
 		}

@@ -435,6 +435,9 @@ struct ixgbe_softc {
 	bool			vf_mcast_overflow_warned;
 	u8			vf_link_mbx_failures;
 	u8			vf_link_poll_tick;
+	/* VF-owned RSS programming, protected by the iflib context lock. */
+	u32			vf_rss_key[10];
+	u32			vf_rss_mrqc;
 
 	/* Info about the interface */
 	int			advertise;	/* link speeds */
@@ -505,6 +508,8 @@ struct ixgbe_softc {
 
 	/* Firmware error check */
 	int			recovery_mode;
+	u_int			fw_mode_timer_paused;
+	bool			fw_mode_timer_initialized;
 	bool			overtemp_shutdown_pending;
 	struct callout		fw_mode_timer;
 

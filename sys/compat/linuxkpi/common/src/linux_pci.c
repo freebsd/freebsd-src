@@ -182,6 +182,8 @@ linux_pdev_dma_uninit(struct pci_dev *pdev)
 	struct linux_dma_priv *priv;
 
 	priv = pdev->dev.dma_priv;
+	if (priv == NULL)
+		return (0);
 	if (priv->dmat)
 		bus_dma_tag_destroy(priv->dmat);
 	if (priv->dmat_coherent)
@@ -480,6 +482,7 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	spin_lock_init(&pdev->dev.devres_lock);
 	INIT_LIST_HEAD(&pdev->dev.devres_head);
 	INIT_LIST_HEAD(&pdev->dev.irqents);
+	INIT_LIST_HEAD(&pdev->links);
 
 	return (0);
 }
@@ -698,7 +701,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	pdev->irq = pdev->dev.irq;
 	error = linux_pdev_dma_init(pdev);
 	if (error)
-		goto out_dma_init;
+		goto out_err;
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -713,7 +716,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		pbus = lkpinew_pci_dev(parent);
 		if (pbus == NULL) {
 			error = ENXIO;
-			goto out_dma_init;
+			goto out_err;
 		}
 	}
 	pcie_find_root_port(pbus);
@@ -728,19 +731,11 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	if (pdrv != NULL) {
 		error = pdrv->probe(pdev, id);
 		if (error)
-			goto out_probe;
+			goto out_err;
 	}
 	return (0);
 
-/* XXX the cleanup does not match the allocation up there. */
-out_probe:
-	free(pdev->bus, M_DEVBUF);
-	spin_lock_destroy(&pdev->pcie_cap_lock);
-	linux_pdev_dma_uninit(pdev);
-out_dma_init:
-	spin_lock(&pci_lock);
-	list_del(&pdev->links);
-	spin_unlock(&pci_lock);
+out_err:
 	put_device(&pdev->dev);
 	return (-error);
 }
@@ -1580,6 +1575,9 @@ pci_alloc_irq_vectors(struct pci_dev *pdev, int minv, int maxv,
 {
 	int error;
 
+	if ((flags & PCI_IRQ_AFFINITY) != 0) {
+		pr_debug("%s: TODO PCI_IRQ_AFFINITY\n", __func__);
+	}
 	if (flags & PCI_IRQ_MSIX) {
 		struct msix_entry *entries;
 		int i;
@@ -1613,7 +1611,7 @@ out:
 }
 
 struct msi_desc *
-lkpi_pci_msi_desc_alloc(int irq)
+lkpi_pci_msi_desc_alloc(unsigned int irq)
 {
 	struct device *dev;
 	struct pci_dev *pdev;
@@ -2016,6 +2014,56 @@ linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_ha
 	return (dr->mem);
 }
 
+void *
+linuxkpi_dma_alloc_noncoherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    enum dma_data_direction direction, gfp_t gfp)
+{
+	struct linux_dma_priv *priv;
+	size_t align;
+	void *mem;
+
+	size = PAGE_ALIGN(size);
+	align = PAGE_SIZE << get_order(size);
+	mem = kmem_alloc_contig(size, gfp & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR,
+	    align, 0, VM_MEMATTR_DEFAULT);
+	if (mem == NULL) {
+		*dma_handle = 0;
+		return (NULL);
+	}
+
+	priv = dev->dma_priv;
+	*dma_handle = linux_dma_map_phys_common(dev, vtophys(mem), size, priv->dmat);
+	if (*dma_handle == 0) {
+		kmem_free(mem, size);
+		mem = NULL;
+	}
+	return (mem);
+}
+
+void
+linuxkpi_dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
+    dma_addr_t dma_handle, enum dma_data_direction direction)
+{
+	lkpi_dma_unmap(dev, dma_handle, size, direction, 0);
+	kmem_free(vaddr, size);
+}
+
+void *
+linuxkpi_dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t gfp, unsigned long attrs)
+{
+	return (linuxkpi_dma_alloc_noncoherent(dev, size, dma_handle,
+	    DMA_BIDIRECTIONAL, gfp));
+}
+
+void
+linuxkpi_dma_free_attrs(struct device *dev, size_t size, void *vaddr,
+    dma_addr_t dma_handle, unsigned long attrs)
+{
+	linuxkpi_dma_free_noncoherent(dev, size, vaddr, dma_handle,
+	    DMA_BIDIRECTIONAL);
+}
+
 void
 linuxkpi_dma_sync(struct device *dev, dma_addr_t dma_addr, size_t size,
     bus_dmasync_op_t op)
@@ -2084,6 +2132,7 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 		    ("More than one segment (nseg=%d)", nseg + 1));
 
 		sg_dma_address(sg) = seg.ds_addr;
+		sg->dma_length = sg->length;
 	}
 
 	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) != 0)

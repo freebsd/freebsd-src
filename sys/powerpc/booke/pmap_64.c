@@ -109,7 +109,6 @@
 /* PMAP */
 /**************************************************************************/
 
-unsigned int kernel_pdirs;
 static uma_zone_t ptbl_root_zone;
 static pte_t ****kernel_ptbl_root;
 

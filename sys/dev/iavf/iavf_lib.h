@@ -430,7 +430,6 @@ bool iavf_mbx_log_allowed(struct iavf_sc *sc);
 void iavf_update_link_status(struct iavf_sc *);
 bool iavf_driver_is_detaching(struct iavf_sc *sc);
 void iavf_msec_pause(int msecs);
-void iavf_get_default_rss_key(u32 *key);
 int iavf_allocate_pci_resources_common(struct iavf_sc *sc);
 bool iavf_reset_is_complete(struct iavf_hw *hw);
 int iavf_reset_complete(struct iavf_hw *hw);

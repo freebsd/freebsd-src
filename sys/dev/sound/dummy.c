@@ -376,6 +376,7 @@ dummy_attach(device_t dev)
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 	pcm_init(dev, sc);
+	mixer_init(dev, &dummy_mixer_class, sc);
 	for (i = 0; i < DUMMY_NPCHAN; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &dummy_chan_class, sc);
 	for (i = 0; i < DUMMY_NRCHAN; i++)
@@ -385,7 +386,6 @@ dummy_attach(device_t dev)
 	    device_get_nameunit(device_get_parent(dev)));
 	if (pcm_register(dev, status))
 		return (ENXIO);
-	mixer_init(dev, &dummy_mixer_class, sc);
 
 	/*
 	 * Create an alias so that tests do not need to guess which one is the
@@ -434,5 +434,5 @@ static driver_t dummy_driver = {
 };
 
 DRIVER_MODULE(snd_dummy, nexus, dummy_driver, 0, 0);
-MODULE_DEPEND(snd_dummy, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_dummy, sound, 1, 1, 1);
 MODULE_VERSION(snd_dummy, 1);

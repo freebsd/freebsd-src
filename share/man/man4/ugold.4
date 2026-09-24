@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: ISC
+.\"
 .\"	$OpenBSD: ugold.4,v 1.1 2013/09/06 08:39:39 mpi Exp $
 .\"
 .\" Copyright (c) 2013 Takayoshi SASANO <sasano@openbsd.org>
@@ -15,27 +18,20 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd June 11, 2015
+.Dd September 21, 2026
 .Dt UGOLD 4
 .Os
 .Sh NAME
 .Nm ugold
 .Nd TEMPer gold HID thermometer
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines into
-your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device usb"
-.Cd "device hid"
-.Cd "device ugold"
-.Ed
+.Cd device usb
+.Cd device hid
+.Cd device ugold
 .Pp
-Alternatively, to load the driver as a module at boot time,
-place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-ugold_load="YES"
-.Ed
+.Cd ugold_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,9 +42,9 @@ made available through the
 .Xr sysctl 8
 interface.
 .Sh HARDWARE
-The following devices are supported by the
+The
 .Nm
-driver:
+driver supports the following HID thermometers:
 .Pp
 .Bl -bullet -compact
 .It

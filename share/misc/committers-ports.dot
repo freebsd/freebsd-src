@@ -52,7 +52,6 @@ culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16\n2021/09/06"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17\n2018/06/01"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03\n2015/06/11"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25\n2018/11/06"]
-dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01\n2019/11/05"]
 dutra [label="Gabriel M. Dutra\ndutra@FreeBSD.org\n2024/01/12"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22\n2016/11/16"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12\n2006/12/14"]
@@ -185,6 +184,7 @@ demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 diizzy [label="Daniel Engberg\ndiizzy@FreeBSD.org\n2021/07/06"]
 dmgk [label="Dmitri Goutnik\ndmgk@FreeBSD.org\n2019/09/15"]
 driesm [label="Dries Michiels\ndriesm@FreeBSD.org\n2021/11/06"]
+dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01"]
 dtxdf [label="Jesús Daniel Colmenares Oviedo\ndtxdf@FreeBSD.org\n2025/06/02"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2017/01/10"]
 dvl [label="Dan Langille\ndvl@FreeBSD.org\n2014/08/10"]
@@ -506,6 +506,8 @@ flz -> johans
 flz -> laszlof
 flz -> romain
 
+fuz -> dteske
+
 jpaetzel -> misha
 jpaetzel -> wg
 
@@ -563,6 +565,7 @@ joerg -> netchild
 joneum -> kai
 
 jrm -> dch
+jrm -> dteske
 jrm -> jwb
 jrm -> michaelo
 

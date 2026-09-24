@@ -1393,6 +1393,7 @@ emu_pcm_attach(device_t dev)
 	sc->emu10k1_volcache[1][1] = 75;
 	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
 	sc->route = route;
+	pcm_init(dev, sc);
 	switch (route) {
 	case RT_FRONT:
 		sc->rt.amounts_left[0] = 0xff;
@@ -1474,7 +1475,6 @@ emu_pcm_attach(device_t dev)
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
 	/* XXX we should better get number of available channels from parent */
-	pcm_init(dev, sc);
 	sc->pnum = 0;
 	if (route != RT_MCHRECORD)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
@@ -1539,5 +1539,5 @@ static driver_t emu_pcm_driver = {
 };
 DRIVER_MODULE(snd_emu10kx_pcm, emu10kx, emu_pcm_driver, 0, 0);
 MODULE_DEPEND(snd_emu10kx_pcm, snd_emu10kx, SND_EMU10KX_MINVER, SND_EMU10KX_PREFVER, SND_EMU10KX_MAXVER);
-MODULE_DEPEND(snd_emu10kx_pcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_emu10kx_pcm, sound, 1, 1, 1);
 MODULE_VERSION(snd_emu10kx_pcm, SND_EMU10KX_PREFVER);

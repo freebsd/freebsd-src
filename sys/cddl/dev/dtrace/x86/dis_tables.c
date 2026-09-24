@@ -3121,7 +3121,7 @@ dtrace_evex_mnem_adjust(dis86_t *x, const instable_t *dp, uint_t vex_W,
 /*
  * The following three functions adjust the register selection based on any
  * EVEX prefix bits present. See Intel 64 and IA-32 Architectures Software
- * Developer’s Manual Volume 2 (IASDv2), section 2.6.1 Table 2-30 and
+ * Developer's Manual Volume 2 (IASDv2), section 2.6.1 Table 2-30 and
  * section 2.6.2 Table 2-31.
  */
 static void

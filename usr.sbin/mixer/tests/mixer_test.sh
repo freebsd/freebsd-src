@@ -68,6 +68,7 @@ o_flag_head()
 {
 	atf_set "descr" "Verify that the output of the -o flag can be used " \
 		"as valid input"
+	atf_set "require.progs" mixer
 }
 o_flag_body()
 {
@@ -85,6 +86,7 @@ atf_test_case d_flag cleanup
 d_flag_head()
 {
 	atf_set "descr" "Test default unit setting"
+	atf_set "require.progs" mixer
 }
 d_flag_body()
 {
@@ -106,6 +108,7 @@ atf_test_case volume cleanup
 volume_head()
 {
 	atf_set "descr" "Test volume setting"
+	atf_set "require.progs" mixer
 }
 volume_body()
 {
@@ -191,6 +194,7 @@ atf_test_case mute cleanup
 mute_head()
 {
 	atf_set "descr" "Test muting"
+	atf_set "require.progs" mixer
 }
 mute_body()
 {
@@ -224,6 +228,7 @@ atf_test_case recsrc cleanup
 recsrc_head()
 {
 	atf_set "descr" "Test recording source handling"
+	atf_set "require.progs" mixer
 }
 recsrc_body()
 {
