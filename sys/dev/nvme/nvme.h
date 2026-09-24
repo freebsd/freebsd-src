@@ -103,6 +103,11 @@ struct sbuf;
 #define NVME_CAP_HI_REG_CSS_MASK			(0xff)
 #define NVME_CAP_HI_REG_CSS_NVM_SHIFT			(5)
 #define NVME_CAP_HI_REG_CSS_NVM_MASK			(0x1)
+
+/* CAP.CSS command set support flags */
+#define NVME_CAP_CSS_NVM				(0x01)
+#define NVME_CAP_CSS_IOCSS				(0x40)
+#define NVME_CAP_CSS_NOIOCSS				(0x80)
 #define NVME_CAP_HI_REG_BPS_SHIFT			(13)
 #define NVME_CAP_HI_REG_BPS_MASK			(0x1)
 #define NVME_CAP_HI_REG_CPS_SHIFT			(14)
@@ -152,6 +157,10 @@ struct sbuf;
 #define NVME_CC_REG_EN_MASK				(0x1)
 #define NVME_CC_REG_CSS_SHIFT				(4)
 #define NVME_CC_REG_CSS_MASK				(0x7)
+/* CC.CSS values */
+#define NVME_CC_CSS_NVM					(0x0)
+#define NVME_CC_CSS_IOCSS				(0x6)
+#define NVME_CC_CSS_ADMIN				(0x7)
 #define NVME_CC_REG_MPS_SHIFT				(7)
 #define NVME_CC_REG_MPS_MASK				(0xF)
 #define NVME_CC_REG_AMS_SHIFT				(11)

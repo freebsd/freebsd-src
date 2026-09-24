@@ -363,7 +363,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	uint32_t	csts;
 	uint32_t	aqa;
 	uint32_t	qsize;
-	uint8_t		en, rdy;
+	uint8_t		css, en, rdy;
 	int		err;
 
 	cc = nvme_mmio_read_4(ctrlr, cc);
@@ -400,7 +400,16 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	/* Initialization values for CC */
 	cc = 0;
 	cc |= NVMEF(NVME_CC_REG_EN, 1);
-	cc |= NVMEF(NVME_CC_REG_CSS, 0);
+	/* No CSI support; prefer the NVM command set when present. */
+	css = NVME_CAP_HI_CSS(ctrlr->cap_hi);
+	if ((css & NVME_CAP_CSS_NVM) != 0)
+		cc |= NVMEF(NVME_CC_REG_CSS, NVME_CC_CSS_NVM);
+	else if ((css & NVME_CAP_CSS_NOIOCSS) != 0)
+		cc |= NVMEF(NVME_CC_REG_CSS, NVME_CC_CSS_ADMIN);
+	else if ((css & NVME_CAP_CSS_IOCSS) != 0)
+		cc |= NVMEF(NVME_CC_REG_CSS, NVME_CC_CSS_IOCSS);
+	else
+		cc |= NVMEF(NVME_CC_REG_CSS, NVME_CC_CSS_NVM);
 	cc |= NVMEF(NVME_CC_REG_AMS, 0);
 	cc |= NVMEF(NVME_CC_REG_SHN, 0);
 	cc |= NVMEF(NVME_CC_REG_IOSQES, ctrlr->io_sqes);
