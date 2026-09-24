@@ -912,7 +912,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	else if (maxio > maxphys)
 		maxio = maxphys;	/* for safety */
 	disk->d_maxsize = maxio;
-	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsd->flbas);
+	flbas_fmt = nvme_ns_data_format_index(nsd);
 	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsd->lbaf[flbas_fmt]);
 	disk->d_sectorsize = 1 << lbads;
 	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
