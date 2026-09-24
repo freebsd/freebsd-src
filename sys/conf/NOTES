@@ -282,6 +282,12 @@ options 	SX_NOINLINE
 #	  and allows interrupt threads to run sooner rather than waiting.
 options 	PREEMPTION
 
+# IPI_PREEMPTION instructs the 4BSD scheduler to immediately preempt a thread
+# running on a specific CPU when a thread pinned there has higher priority,
+# instead of waiting for a return to userland.  It has no effect on other
+# schedulers (e.g., ULE).
+options 	IPI_PREEMPTION
+
 # SMP Debugging Options:
 #
 # CALLOUT_PROFILING enables rudimentary profiling of the callwheel data
