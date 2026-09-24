@@ -2558,7 +2558,7 @@ sysctl_kern_lockf_run(struct sbuf *sb)
 	error = 0;
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		error = vfs_busy(mp, MBF_MNTLSTLOCK);
+		error = vfs_busy(mp, MBF_MNTLSTLOCK | MBF_NOWAIT);
 		if (error != 0)
 			continue;
 		error = mp->mnt_op->vfs_report_lockf(mp, sb);
