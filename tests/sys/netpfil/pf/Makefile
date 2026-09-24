@@ -33,6 +33,7 @@ ATF_TESTS_SH+=	altq \
 		nat \
 		nat64 \
 		once \
+		osfp \
 		pass_block \
 		pflog \
 		pflow \
