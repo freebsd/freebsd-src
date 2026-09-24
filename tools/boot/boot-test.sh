@@ -1198,6 +1198,15 @@ EOF
 chain tftp://\${next-server}/loader.efi
 EOF
 	    register_netboot_test netboot-efi ${tftp} /boot-efi.ipxe "" qemu_netboot_ramdisk
+
+	    # Same idea as netboot-efi, but rootdev= forces currdev to an
+	    # http:// URL so the root fetch exercises the loader's own EFI
+	    # HTTP devspec (efi/libefi/efihttp.c) instead of tftp/NFS.
+	    cat > ${tftp}/boot-http.ipxe <<EOF
+#!ipxe
+chain tftp://\${next-server}/loader.efi rootdev=http://\${next-server}/
+EOF
+	    register_netboot_test netboot-http-efi ${tftp} /boot-http.ipxe "" qemu_netboot_ramdisk
 	fi
 
 	cat > ${tftp}/boot.ipxe <<EOF
