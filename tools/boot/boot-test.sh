@@ -49,6 +49,7 @@ pkg_for() {
     *ipxe*)		echo sysutils/ipxe ;;
     *syslinux*|*memdisk*) echo sysutils/syslinux ;;
     *edk2*)		echo emulators/qemu ;;	# edk2-*.fd ship with qemu
+    python3)		echo lang/python3 ;;
     *)			echo "" ;;		# makefs/mkimg etc. = base
     esac
 }
@@ -1322,6 +1323,21 @@ netboot_network_setup() {
 	done < "${resolved}"
     fi
 
+    # Each vmnet also gets its own python3 http.server (see netboot_helper),
+    # so http:// fetches (netboot-http-efi) have something to hit at
+    # ${next-server} alongside dnsmasq's tftp-root. Confirm the pid count
+    # still matches the plan and every one of them is still alive.
+    if ${converged}; then
+	if [ -s "${NETBOOT_STATE_DIR}/httpd.pids" ] && \
+		[ "$(wc -l < "${NETBOOT_STATE_DIR}/httpd.pids")" -eq "$(wc -l < "${resolved}")" ]; then
+	    while read pid; do
+		ps -p "${pid}" > /dev/null 2>&1 || { converged=false; break; }
+	    done < "${NETBOOT_STATE_DIR}/httpd.pids"
+	else
+	    converged=false
+	fi
+    fi
+
     if ${converged}; then
 	echo "  Existing vmnet(4)/dnsmasq setup already matches -- no sudo needed."
     else
@@ -1342,6 +1358,7 @@ netboot_network_setup() {
 netboot_helper() {
     planfile=$1
     [ -r "${planfile}" ] || die "netboot helper: cannot read plan ${planfile}"
+    need_cmd python3
     invoker=${SUDO_UID:-$(id -u)}
     mkdir -p "${NETBOOT_STATE_DIR}"
 
@@ -1351,6 +1368,12 @@ netboot_helper() {
 	kill "$(cat ${NETBOOT_STATE_DIR}/dnsmasq.pid)" 2>/dev/null || true
 	rm -f "${NETBOOT_STATE_DIR}/dnsmasq.pid"
     fi
+    if [ -s "${NETBOOT_STATE_DIR}/httpd.pids" ]; then
+	while read pid; do
+	    kill "${pid}" 2>/dev/null || true
+	done < "${NETBOOT_STATE_DIR}/httpd.pids"
+    fi
+    : > "${NETBOOT_STATE_DIR}/httpd.pids"
     for vmnet in $(ifconfig -g boot-test 2>/dev/null); do
 	ifconfig "${vmnet}" destroy
     done
@@ -1380,6 +1403,16 @@ EOF
 	ifconfig "${vmnet}" create group boot-test
 	ifconfig "${vmnet}" inet "${gw}/${prefix}" up
 	chown "${invoker}" "/dev/${vmnet}"
+
+	# One http.server per subnet, bound only to that subnet's own gw
+	# address (not 0.0.0.0), so concurrently-running tests never collide
+	# on port 80. Serves the exact same tree as dnsmasq's tftp-root above
+	# -- http:// and tftp:// fetches of the same path see identical bytes.
+	# Harmless for tests that never issue an http:// fetch; only
+	# netboot-http-efi actually relies on it today.
+	python3 -m http.server 80 --bind "${gw}" --directory "${tftpdir}" \
+	    > "${NETBOOT_STATE_DIR}/httpd-${vmnet}.log" 2>&1 &
+	echo $! >> "${NETBOOT_STATE_DIR}/httpd.pids"
 
 	# dnsmasq's dhcp-boot only sets DHCP option 67 (bootfile-name), never
 	# the classic fixed-length BOOTP "file" field -- confirmed by comparing
@@ -1417,7 +1450,8 @@ EOF
 
     md5 -q "${planfile}" > "${NETBOOT_STATE_DIR}/state.hash"
     chown "${invoker}" "${NETBOOT_STATE_DIR}" "${conf}" "${planfile}" \
-	"${NETBOOT_STATE_DIR}/dnsmasq.pid" "${NETBOOT_STATE_DIR}/state.hash"
+	"${NETBOOT_STATE_DIR}/dnsmasq.pid" "${NETBOOT_STATE_DIR}/state.hash" \
+	"${NETBOOT_STATE_DIR}"/httpd.pids "${NETBOOT_STATE_DIR}"/httpd-*.log
 }
 
 # Manual cleanup: `sudo sh boot-test.sh --netboot-teardown`. Not run
@@ -1426,6 +1460,11 @@ EOF
 netboot_teardown() {
     if [ -s "${NETBOOT_STATE_DIR}/dnsmasq.pid" ]; then
 	kill "$(cat ${NETBOOT_STATE_DIR}/dnsmasq.pid)" 2>/dev/null || true
+    fi
+    if [ -s "${NETBOOT_STATE_DIR}/httpd.pids" ]; then
+	while read pid; do
+	    kill "${pid}" 2>/dev/null || true
+	done < "${NETBOOT_STATE_DIR}/httpd.pids"
     fi
     for vmnet in $(ifconfig -g boot-test 2>/dev/null); do
 	ifconfig "${vmnet}" destroy

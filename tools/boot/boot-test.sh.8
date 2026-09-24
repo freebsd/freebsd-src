@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 5, 2026
+.Dd September 24, 2026
 .Dt BOOT-TEST.SH 8
 .Os
 .Sh NAME
@@ -215,13 +215,28 @@ invokes
 once to create the interfaces
 .Pq chowning the resulting device nodes back to the invoking user
 and start
-.Xr dnsmasq 8 .
+.Xr dnsmasq 8
+plus, on every one of those private
+.Li /30 Ns s ,
+a
+.Xr python3 1
+.Cm http.server
+bound to that subnet's gateway address and serving the same tree as
+.Xr dnsmasq 8 Ns 's
+tftp-root.
+.Ar netboot-http-efi
+forces its root device to an http:// URL and fetches its kernel and
+modules over that server via the loader's own
+.Dq Li http://host/path
+support rather than TFTP; every other netboot test simply ignores it.
 Because the interfaces persist until explicitly destroyed,
 .Nm
-leaves them and
-.Xr dnsmasq 8
-running afterward; subsequent runs detect the existing setup by comparing a
-hash of the intended configuration and skip
+leaves them,
+.Xr dnsmasq 8 ,
+and the
+.Xr python3 1
+servers running afterward; subsequent runs detect the existing setup by
+comparing a hash of the intended configuration and skip
 .Xr sudo 8
 entirely, so the prompt is normally seen once per boot rather than once per
 run.
@@ -245,10 +260,11 @@ from the base system, and the
 .Xr jq 1 ,
 .Xr expect 1 ,
 .Xr qemu 1 ,
+.Xr dnsmasq 8 ,
 and
-.Xr dnsmasq 8
+.Xr python3 1
 packages
-.Pq Pa textproc/jq , Pa lang/expect , Pa emulators/qemu , Pa dns/dnsmasq .
+.Pq Pa textproc/jq , Pa lang/expect , Pa emulators/qemu , Pa dns/dnsmasq , Pa lang/python3 .
 The network boot tests additionally require the
 .Pa sysutils/ipxe
 and
