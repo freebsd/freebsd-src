@@ -2432,7 +2432,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 			for (m = m_ret; m < &m_ret[npages]; m++) {
 				if (m <= mpred &&
 				    (req & VM_ALLOC_WIRED) != 0)
-					m->ref_count = 0;
+					m->ref_count = VPRC_OBJREF;
 				m->oflags = VPO_UNMANAGED;
 				m->busy_lock = VPB_UNBUSIED;
 				/* Don't change PG_ZERO. */
