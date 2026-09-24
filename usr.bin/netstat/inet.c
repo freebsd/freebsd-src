@@ -501,24 +501,18 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 			    so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
 			if (istcp)
-				xo_emit(" {:retransmit-timer/%4d.%02d} "
-				    "{:persist-timer/%4d.%02d} "
-				    "{:keepalive-timer/%4d.%02d} "
-				    "{:msl2-timer/%4d.%02d} "
-				    "{:delay-ack-timer/%4d.%02d} "
-				    "{:inactivity-timer/%4d.%02d}",
-				    tp->tt_rexmt / 1000,
-				    (tp->tt_rexmt % 1000) / 10,
-				    tp->tt_persist / 1000,
-				    (tp->tt_persist % 1000) / 10,
-				    tp->tt_keep / 1000,
-				    (tp->tt_keep % 1000) / 10,
-				    tp->tt_2msl / 1000,
-				    (tp->tt_2msl % 1000) / 10,
-				    tp->tt_delack / 1000,
-				    (tp->tt_delack % 1000) / 10,
-				    tp->t_rcvtime / 1000,
-				    (tp->t_rcvtime % 1000) / 10);
+				xo_emit(" {:retransmit-timer/%7.2f} "
+				    "{:persist-timer/%7.2f} "
+				    "{:keepalive-timer/%7.2f} "
+				    "{:msl2-timer/%7.2f} "
+				    "{:delay-ack-timer/%7.2f} "
+				    "{:inactivity-timer/%7.2f}",
+				    (double)tp->tt_rexmt / 1000.0,
+				    (double)tp->tt_persist / 1000.0,
+				    (double)tp->tt_keep / 1000.0,
+				    (double)tp->tt_2msl / 1000.0,
+				    (double)tp->tt_delack / 1000.0,
+				    (double)tp->t_rcvtime / 1000.0);
 		}
 		if (istcp && !Lflag && !xflag && !Tflag && !Rflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
