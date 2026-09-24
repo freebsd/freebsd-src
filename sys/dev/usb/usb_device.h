@@ -104,6 +104,7 @@ struct usb_device_flags {
 	 */
 	uint8_t peer_suspended:1;	/* set if peer is suspended */
 	uint8_t self_suspended:1;	/* set if self is suspended */
+	uint8_t usb3_lpm_managed:1; /* USB3 LPM policy has been selected */
 };
 
 /*

@@ -591,6 +591,7 @@ struct ure_softc {
 
 	u_int			sc_flags;
 #define	URE_FLAG_LINK		0x0001
+#define	URE_FLAG_LPM_ENABLED	0x0002
 #define	URE_FLAG_8152		0x0100	/* RTL8152 */
 #define	URE_FLAG_8153		0x0200	/* RTL8153 */
 #define	URE_FLAG_8153B		0x0400	/* RTL8153B */

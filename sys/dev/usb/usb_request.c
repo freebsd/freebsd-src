@@ -2343,3 +2343,31 @@ usbd_req_set_lpm_info(struct usb_device *udev, struct mtx *mtx,
 	}
 	return (err);
 }
+
+/* Configure parent-port link power saving only when the device is ready. */
+usb_error_t
+usbd_set_usb3_lpm(struct usb_device *udev, struct mtx *mtx, uint8_t enable)
+{
+	struct usb_device *hub;
+	usb_error_t err1, err2;
+
+	USB_BUS_LOCK(udev->bus);
+	udev->flags.usb3_lpm_managed = 1;
+	USB_BUS_UNLOCK(udev->bus);
+	if (udev->speed != USB_SPEED_SUPER ||
+	    udev->flags.usb_mode != USB_MODE_HOST || udev->parent_hub == NULL)
+		return (USB_ERR_NORMAL_COMPLETION);
+	hub = udev->parent_hub;
+	/* U1 timeouts 128 through 254 are reserved by USB 3.x. */
+	err1 = usbd_req_set_hub_u1_timeout(hub, mtx, udev->port_no,
+	    enable ? MIN(127, 128 - (2 * hub->depth)) : 0);
+	err2 = usbd_req_set_hub_u2_timeout(hub, mtx, udev->port_no,
+	    enable ? 128 - (2 * hub->depth) : 0);
+	if (enable && (err1 != USB_ERR_NORMAL_COMPLETION ||
+	    err2 != USB_ERR_NORMAL_COMPLETION)) {
+		/* Do not leave a partially enabled policy on failure. */
+		usbd_req_set_hub_u1_timeout(hub, mtx, udev->port_no, 0);
+		usbd_req_set_hub_u2_timeout(hub, mtx, udev->port_no, 0);
+	}
+	return (err1 != USB_ERR_NORMAL_COMPLETION ? err1 : err2);
+}

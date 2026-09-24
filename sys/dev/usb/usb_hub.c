@@ -508,6 +508,7 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 {
 	struct usb_bus *bus;
 	struct usb_device *child;
+	uint8_t lpm_managed;
 	uint8_t refcount;
 	usb_error_t err;
 
@@ -535,6 +536,11 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 		if (err) {
 			goto done;
 		}
+		USB_BUS_LOCK(bus);
+		lpm_managed = child->flags.usb3_lpm_managed;
+		USB_BUS_UNLOCK(bus);
+		if (!lpm_managed)
+			usbd_set_usb3_lpm(child, NULL, 1);
 	}
 	/* start control transfer, if device mode */
 
@@ -779,21 +785,10 @@ repeat:
 		speed = udev->speed;
 		break;
 	}
+	/* Keep the link active while enumeration and driver setup run. */
 	if (speed == USB_SPEED_SUPER) {
-		err = usbd_req_set_hub_u1_timeout(udev, NULL,
-		    portno, 128 - (2 * udev->depth));
-		if (err) {
-			DPRINTFN(0, "port %d U1 timeout "
-			    "failed, error=%s\n",
-			    portno, usbd_errstr(err));
-		}
-		err = usbd_req_set_hub_u2_timeout(udev, NULL,
-		    portno, 128 - (2 * udev->depth));
-		if (err) {
-			DPRINTFN(0, "port %d U2 timeout "
-			    "failed, error=%s\n",
-			    portno, usbd_errstr(err));
-		}
+		usbd_req_set_hub_u1_timeout(udev, NULL, portno, 0);
+		usbd_req_set_hub_u2_timeout(udev, NULL, portno, 0);
 	}
 
 	/*

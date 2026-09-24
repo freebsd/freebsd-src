@@ -644,6 +644,13 @@ ure_attach(device_t dev)
 	ue->ue_mtx = &sc->sc_mtx;
 	ue->ue_methods = &ure_ue_methods;
 
+	/* Post-attach setup runs asynchronously; it must not enter LPM. */
+	error = usbd_set_usb3_lpm(ue->ue_udev, NULL, 0);
+	if (error != USB_ERR_NORMAL_COMPLETION) {
+		device_printf(dev, "could not disable USB3 LPM\n");
+		goto detach;
+	}
+
 	error = uether_ifattach(ue);
 	if (error != 0) {
 		device_printf(dev, "could not attach interface\n");
@@ -1251,6 +1258,16 @@ ure_tick(struct usb_ether *ue)
 			sc->sc_rxstarted = 0;
 			ure_start(ue);
 		}
+	}
+
+	/* Defer LPM until the receive transfers are running. */
+	if ((sc->sc_flags & (URE_FLAG_LINK | URE_FLAG_LPM_ENABLED)) ==
+	    URE_FLAG_LINK && sc->sc_rxstarted &&
+	    if_getlinkstate(ifp) == LINK_STATE_UP &&
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+		if (usbd_set_usb3_lpm(ue->ue_udev, &sc->sc_mtx, 1) ==
+		    USB_ERR_NORMAL_COMPLETION)
+			sc->sc_flags |= URE_FLAG_LPM_ENABLED;
 	}
 }
 
@@ -2060,6 +2077,12 @@ ure_stop(struct usb_ether *ue)
 	if_t ifp = uether_getifp(ue);
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
+
+	/* Keep the link active before stopping or rebuilding its transfers. */
+	sc->sc_flags &= ~URE_FLAG_LPM_ENABLED;
+	if (usbd_set_usb3_lpm(ue->ue_udev, &sc->sc_mtx, 0) !=
+	    USB_ERR_NORMAL_COMPLETION)
+		device_printf(ue->ue_dev, "could not disable USB3 LPM\n");
 
 	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->sc_flags &= ~URE_FLAG_LINK;
