@@ -559,6 +559,11 @@ enum nvme_psdt {
 #define NVME_NS_DATA_FLBAS_FORMAT_MASK			(0xF)
 #define NVME_NS_DATA_FLBAS_EXTENDED_SHIFT		(4)
 #define NVME_NS_DATA_FLBAS_EXTENDED_MASK		(0x1)
+#define NVME_NS_DATA_FLBAS_FORMAT_MSB_SHIFT		(5)
+#define NVME_NS_DATA_FLBAS_FORMAT_MSB_MASK		(0x3)
+/* FIDXL width, and the format count below which FIDXU is reserved. */
+#define NVME_NS_DATA_FLBAS_FIDXL_BITS			(4)
+#define NVME_NS_DATA_LBAF_BASE_COUNT			(16)
 
 /** metadata capabilities */
 /* metadata can be transferred as part of data prp list */
@@ -2082,6 +2087,19 @@ void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint32_t nsid,
 extern int nvme_use_nvd;
 
 #endif /* _KERNEL */
+
+static inline uint8_t
+nvme_ns_data_format_index(const struct nvme_namespace_data *nsdata)
+{
+	uint8_t fmt;
+
+	fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsdata->flbas);
+	/* FIDXU is valid only above the base count; NLBAF is 0's based. */
+	if (nsdata->nlbaf + 1 > NVME_NS_DATA_LBAF_BASE_COUNT)
+		fmt |= NVMEV(NVME_NS_DATA_FLBAS_FORMAT_MSB, nsdata->flbas) <<
+		    NVME_NS_DATA_FLBAS_FIDXL_BITS;
+	return (fmt);
+}
 
 /* Endianess conversion functions for NVMe structs */
 static inline
