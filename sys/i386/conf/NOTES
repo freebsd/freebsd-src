@@ -27,9 +27,6 @@
 # for the MP Table if the user explicitly asks for it via the
 # MPTABLE_FORCE_HTT option.  Do NOT use this option if you have HTT
 # disabled in your BIOS.
-#
-# IPI_PREEMPTION instructs the kernel to preempt threads running on other
-# CPUS if needed.  Relies on the PREEMPTION option
 
 # Mandatory:
 device		apic			# I/O apic
