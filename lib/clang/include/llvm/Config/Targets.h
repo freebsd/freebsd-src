@@ -61,11 +61,7 @@
 #define LLVM_HAS_M68K_TARGET 0
 
 /* Define if the Mips target is built in */
-#ifdef LLVM_TARGET_ENABLE_MIPS
-#define LLVM_HAS_MIPS_TARGET 1
-#else
 #define LLVM_HAS_MIPS_TARGET 0
-#endif
 
 /* Define if the MSP430 target is built in */
 #define LLVM_HAS_MSP430_TARGET 0
