@@ -192,8 +192,12 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 #####################################################################
 # Scheduler options:
 #
-# Specifying one of SCHED_4BSD or SCHED_ULE is mandatory.  These options
-# select which scheduler is compiled in.
+# The options below select the schedulers that are compiled in.  Specifying at
+# least one is mandatory.  Multiple ones can be compiled in.  At boot, the
+# kernel will use ULE by default if present, with a fallback to one of the
+# compiled-in options.  A specific scheduler can be requested by setting the
+# 'kern.sched.name' tunable to a scheduler name, i.e., one of the options below
+# with the SCHED_ prefix removed.
 #
 # SCHED_4BSD is the historical, proven, BSD scheduler.  It has a global run
 # queue and no CPU affinity which makes it suboptimal for SMP.  It has very
@@ -202,15 +206,14 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # SCHED_ULE provides significant performance advantages over 4BSD on many
 # workloads on SMP machines.  It supports cpu-affinity, per-cpu runqueues
 # and scheduler locks.  It also has a stronger notion of interactivity
-# which leads to better responsiveness even on uniprocessor machines.  This
-# is the default scheduler.
-#
+# which leads to better responsiveness even on uniprocessor machines.
+options 	SCHED_4BSD
+options 	SCHED_ULE
+
 # SCHED_STATS is a debugging option which keeps some stats in the sysctl
 # tree at 'kern.sched.stats' and is useful for debugging scheduling decisions.
 #
-options 	SCHED_4BSD
 options 	SCHED_STATS
-options 	SCHED_ULE
 
 #####################################################################
 # SMP OPTIONS:
