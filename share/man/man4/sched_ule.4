@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 25, 2026
+.Dd November 10, 2026
 .Dt SCHED_ULE 4
 .Os
 .Sh NAME
@@ -58,11 +58,42 @@ Common scheduler sysctls are documented in
 The following sysctls are relevant to the operation of
 .Nm :
 .Bl -tag -width indent
-.It Va kern.sched.name
-This read-only sysctl reports the name of the active scheduler.
-.It Va kern.sched.quantum
-This read-write sysctl reports or sets the length of the quantum (in
-micro-seconds) granted to a thread.
+.It Va kern.sched.ule.quantum
+The length of the timeshare quantum in microseconds.
+.It Va kern.sched.ule.slice
+The length of the timeshare quantum in statclock ticks.
+.It Va kern.sched.ule.interact
+The interactivity score threshold.
+.It Va kern.sched.ule.preempt_thresh
+The non-inclusive numerical priority threshold below which preemption is allowed.
+Threads with numerically-lower priority values have higher priority.
+.It Va kern.sched.ule.static_boost
+The minimum priority (maximum numerical value) to be applied to a thread on wakeup.
+Value 1 indicates to use a priority specified statically by the kernel at the point of sleep.
+Value 0 indicates to keep the current thread's priority at wakeup.
+.It Va kern.sched.ule.idlespins
+The number of times an idle thread spins while waiting for work.
+.It Va kern.sched.ule.idlespinthresh
+The context switch threshold for idle thread spinning.
+.El
+.Pp
+The following sysctls are available only on SMP systems:
+.Bl -tag -width indent
+.It Va kern.sched.ule.affinity
+The number of clock ticks for which a thread retains CPU affinity.
+.It Va kern.sched.ule.balance
+Whether to enable the long-term load balancer.
+.It Va kern.sched.ule.balance_interval
+The average interval, in statclock ticks, between long-term load balancing
+passes.
+.It Va kern.sched.ule.steal_thresh
+The minimum load on a remote CPU before attempting to steal work.
+.It Va kern.sched.ule.always_steal
+Whether the idle thread always tries to steal work.
+.It Va kern.sched.ule.steal_idle
+Whether to try stealing work from another CPU before idling.
+.It Va kern.sched.ule.trysteal_limit
+The topological distance limit for stealing threads during a context switch.
 .El
 .Sh SEE ALSO
 .Xr scheduler 4 ,
