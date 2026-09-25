@@ -245,13 +245,16 @@ nlmsg_copy_nla(const struct nlattr *nla_orig, struct nl_writer *nw)
  * Translate a FreeBSD interface name to a Linux interface name.
  */
 static bool
-nlmsg_translate_ifname_nla(struct nlattr *nla, struct nl_writer *nw)
+nlmsg_translate_ifname_nla(struct nlmsghdr *hdr, struct nlattr *nla,
+    struct nl_writer *nw)
 {
+	struct ifinfomsg *ifinfo;
 	char ifname[LINUX_IFNAMSIZ];
 
-	if (nw->ifp == NULL)
-		return (false);
-	(void)ifname_bsd_to_linux_ifp(nw->ifp, ifname, sizeof(ifname));
+	ifinfo = (struct ifinfomsg *)(hdr + 1);
+	if (ifname_bsd_to_linux_idx(ifinfo->ifi_index, ifname,
+	    sizeof(ifname)) <= 0)
+		return (nlmsg_copy_nla(nla, nw));
 	return (nlattr_add_string(nw, IFLA_IFNAME, ifname));
 }
 
@@ -272,7 +275,7 @@ nlmsg_translate_all_nla(struct nlmsghdr *hdr, struct nlattr *nla,
 	case NL_RTM_GETLINK:
 		switch (nla->nla_type) {
 		case IFLA_IFNAME:
-			return (nlmsg_translate_ifname_nla(nla, nw));
+			return (nlmsg_translate_ifname_nla(hdr, nla, nw));
 		default:
 			break;
 		}
