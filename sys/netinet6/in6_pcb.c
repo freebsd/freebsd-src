@@ -87,6 +87,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+#include <sys/sysent.h>
 
 #include <vm/uma.h>
 
@@ -398,7 +399,8 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
-	if (sin6->sin6_port == 0)
+	if (sin6->sin6_port == 0 &&
+	    !SV_CURPROC_FLAG(SV_CONN_PORT0))
 		return (EADDRNOTAVAIL);
 
 	if (sin6->sin6_scope_id == 0 && !V_ip6_use_defzone)

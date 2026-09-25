@@ -596,8 +596,8 @@ struct sysentvec linux_sysvec = {
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_LINUX | SV_AOUT | SV_ILP32 |
-	    SV_SIG_DISCIGN | SV_SIG_WAITNDQ | SV_PERSISTENT_CTTY,
+	.sv_flags	= SV_ABI_LINUX | SV_AOUT | SV_ILP32 | SV_SIG_DISCIGN |
+	    SV_SIG_WAITNDQ | SV_PERSISTENT_CTTY | SV_CONN_PORT0,
 	.sv_set_syscall_retval = linux_set_syscall_retval,
 	.sv_fetch_syscall_args = linux_fetch_syscall_args,
 	.sv_syscallnames = linux_syscallnames,
