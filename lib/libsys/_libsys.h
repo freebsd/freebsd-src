@@ -478,6 +478,8 @@ typedef int (__sys_renameat2_t)(int, const char *, int, const char *, int);
 typedef int (__sys_pdopenpid_t)(pid_t, int);
 typedef int (__sys_pddupfd_t)(int, int, int);
 typedef int (__sys_pdptrace_t)(int, int, int, void *, int);
+typedef int (__sys_chaltroot_t)(const char *);
+typedef int (__sys_fchaltroot_t)(int);
 
 _Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
@@ -891,6 +893,8 @@ int __sys_renameat2(int oldfd, const char * old, int newfd, const char * new, in
 int __sys_pdopenpid(pid_t pid, int flags);
 int __sys_pddupfd(int pd, int fd, int flags);
 int __sys_pdptrace(int req, int pfd, int lwpid, void * addr, int data);
+int __sys_chaltroot(const char * path);
+int __sys_fchaltroot(int fd);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

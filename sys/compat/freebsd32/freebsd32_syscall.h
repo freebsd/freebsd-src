@@ -523,4 +523,6 @@
 #define	FREEBSD32_SYS_pdopenpid	603
 #define	FREEBSD32_SYS_pddupfd	604
 #define	FREEBSD32_SYS_freebsd32_pdptrace	605
-#define	FREEBSD32_SYS_MAXSYSCALL	606
+#define	FREEBSD32_SYS_chaltroot	606
+#define	FREEBSD32_SYS_fchaltroot	607
+#define	FREEBSD32_SYS_MAXSYSCALL	608

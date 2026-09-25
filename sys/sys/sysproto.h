@@ -1948,6 +1948,12 @@ struct pdptrace_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char data_l_[PADL_(int)]; int data; char data_r_[PADR_(int)];
 };
+struct chaltroot_args {
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+};
+struct fchaltroot_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+};
 int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2361,6 +2367,8 @@ int	sys_renameat2(struct thread *, struct renameat2_args *);
 int	sys_pdopenpid(struct thread *, struct pdopenpid_args *);
 int	sys_pddupfd(struct thread *, struct pddupfd_args *);
 int	sys_pdptrace(struct thread *, struct pdptrace_args *);
+int	sys_chaltroot(struct thread *, struct chaltroot_args *);
+int	sys_fchaltroot(struct thread *, struct fchaltroot_args *);
 
 #ifdef COMPAT_43
 
@@ -3372,6 +3380,8 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 #define	SYS_AUE_pdopenpid	AUE_PDOPENPID
 #define	SYS_AUE_pddupfd	AUE_NULL
 #define	SYS_AUE_pdptrace	AUE_PDPTRACE
+#define	SYS_AUE_chaltroot	AUE_CHALTROOT
+#define	SYS_AUE_fchaltroot	AUE_FCHALTROOT
 
 #undef PAD_
 #undef PADL_
