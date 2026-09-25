@@ -331,7 +331,8 @@ int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setcred(struct thread *const td, const u_int flags,
 	    struct setcred *const wcred);
-int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
+int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups,
+	    bool includes_egid);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
 int	kern_setpriority(struct thread *td, int which, int who, int prio);
