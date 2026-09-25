@@ -350,8 +350,9 @@ extern vm_page_t bogus_page;
  * exclusive busied.  The MI VM layer must never access this flag
  * directly.  Instead, it should call pmap_page_is_write_mapped().
  *
- * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
- * at least one executable mapping.  It is not consumed by the MI VM layer.
+ * PGA_PMAP_PRIV1 is reserved for use by the pmap, which defines its meaning.
+ * The MI VM layer does not consume it, except to assert that it is clear when
+ * a managed page is freed.
  *
  * PGA_NOSYNC must be set and cleared with the page busy lock held.
  *
@@ -383,7 +384,7 @@ extern vm_page_t bogus_page;
  */
 #define	PGA_WRITEABLE	0x0001		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x0002		/* page has been referenced */
-#define	PGA_EXECUTABLE	0x0004		/* page may be mapped executable */
+#define	PGA_PMAP_PRIV1	0x0004		/* reserved for use by the pmap */
 #define	PGA_ENQUEUED	0x0008		/* page is enqueued in a page queue */
 #define	PGA_DEQUEUE	0x0010		/* page is due to be dequeued */
 #define	PGA_REQUEUE	0x0020		/* page is due to be requeued */

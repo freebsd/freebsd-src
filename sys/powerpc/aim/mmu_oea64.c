@@ -101,6 +101,13 @@
 
 #include "mmu_oea64.h"
 
+/*
+ * PGA_EXECUTABLE is set when an executable mapping of the page is created and
+ * cleared when the page's last mapping is destroyed.  It is used to avoid
+ * redundant synchronization of the instruction cache.
+ */
+#define	PGA_EXECUTABLE	PGA_PMAP_PRIV1
+
 void moea64_release_vsid(uint64_t vsid);
 uintptr_t moea64_get_unique_vsid(void);
 
