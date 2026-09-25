@@ -148,105 +148,21 @@ nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 }
 
 static int
-nvme_sysctl_num_cmds(SYSCTL_HANDLER_ARGS)
+nvme_sysctl_qpair_stat(SYSCTL_HANDLER_ARGS)
 {
-	struct nvme_controller 	*ctrlr = arg1;
-	int64_t			num_cmds = 0;
+	struct nvme_controller	*ctrlr = arg1;
+	size_t			off = arg2;
+	int64_t			sum;
 	int			i;
 
-	num_cmds = ctrlr->adminq.num_cmds;
+	sum = *(int64_t *)((char *)&ctrlr->adminq + off);
 
 	if (ctrlr->ioq != NULL) {
 		for (i = 0; i < ctrlr->num_io_queues; i++)
-			num_cmds += ctrlr->ioq[i].num_cmds;
+			sum += *(int64_t *)((char *)&ctrlr->ioq[i] + off);
 	}
 
-	return (sysctl_handle_64(oidp, &num_cmds, 0, req));
-}
-
-static int
-nvme_sysctl_num_intr_handler_calls(SYSCTL_HANDLER_ARGS)
-{
-	struct nvme_controller 	*ctrlr = arg1;
-	int64_t			num_intr_handler_calls = 0;
-	int			i;
-
-	num_intr_handler_calls = ctrlr->adminq.num_intr_handler_calls;
-
-	if (ctrlr->ioq != NULL) {
-		for (i = 0; i < ctrlr->num_io_queues; i++)
-			num_intr_handler_calls += ctrlr->ioq[i].num_intr_handler_calls;
-	}
-
-	return (sysctl_handle_64(oidp, &num_intr_handler_calls, 0, req));
-}
-
-static int
-nvme_sysctl_num_retries(SYSCTL_HANDLER_ARGS)
-{
-	struct nvme_controller 	*ctrlr = arg1;
-	int64_t			num_retries = 0;
-	int			i;
-
-	num_retries = ctrlr->adminq.num_retries;
-
-	if (ctrlr->ioq != NULL) {
-		for (i = 0; i < ctrlr->num_io_queues; i++)
-			num_retries += ctrlr->ioq[i].num_retries;
-	}
-
-	return (sysctl_handle_64(oidp, &num_retries, 0, req));
-}
-
-static int
-nvme_sysctl_num_failures(SYSCTL_HANDLER_ARGS)
-{
-	struct nvme_controller 	*ctrlr = arg1;
-	int64_t			num_failures = 0;
-	int			i;
-
-	num_failures = ctrlr->adminq.num_failures;
-
-	if (ctrlr->ioq != NULL) {
-		for (i = 0; i < ctrlr->num_io_queues; i++)
-			num_failures += ctrlr->ioq[i].num_failures;
-	}
-
-	return (sysctl_handle_64(oidp, &num_failures, 0, req));
-}
-
-static int
-nvme_sysctl_num_ignored(SYSCTL_HANDLER_ARGS)
-{
-	struct nvme_controller 	*ctrlr = arg1;
-	int64_t			num_ignored = 0;
-	int			i;
-
-	num_ignored = ctrlr->adminq.num_ignored;
-
-	if (ctrlr->ioq != NULL) {
-		for (i = 0; i < ctrlr->num_io_queues; i++)
-			num_ignored += ctrlr->ioq[i].num_ignored;
-	}
-
-	return (sysctl_handle_64(oidp, &num_ignored, 0, req));
-}
-
-static int
-nvme_sysctl_num_recovery_nolock(SYSCTL_HANDLER_ARGS)
-{
-	struct nvme_controller 	*ctrlr = arg1;
-	int64_t			num;
-	int			i;
-
-	num = ctrlr->adminq.num_recovery_nolock;
-
-	if (ctrlr->ioq != NULL) {
-		for (i = 0; i < ctrlr->num_io_queues; i++)
-			num += ctrlr->ioq[i].num_recovery_nolock;
-	}
-
-	return (sysctl_handle_64(oidp, &num, 0, req));
+	return (sysctl_handle_64(oidp, &sum, 0, req));
 }
 
 static int
@@ -365,35 +281,41 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_num_cmds, "IU",
+	    ctrlr, offsetof(struct nvme_qpair, num_cmds),
+	    nvme_sysctl_qpair_stat, "IU",
 	    "Number of commands submitted");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_intr_handler_calls",
-	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE, ctrlr, 0,
-	    nvme_sysctl_num_intr_handler_calls, "IU",
+	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE, ctrlr,
+	    offsetof(struct nvme_qpair, num_intr_handler_calls),
+	    nvme_sysctl_qpair_stat, "IU",
 	    "Number of times interrupt handler was invoked (will "
 	    "typically be less than number of actual interrupts "
 	    "generated due to coalescing)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_retries", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_num_retries, "IU",
+	    ctrlr, offsetof(struct nvme_qpair, num_retries),
+	    nvme_sysctl_qpair_stat, "IU",
 	    "Number of commands retried");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_num_failures, "IU",
+	    ctrlr, offsetof(struct nvme_qpair, num_failures),
+	    nvme_sysctl_qpair_stat, "IU",
 	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_ignored", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_num_ignored, "IU",
+	    ctrlr, offsetof(struct nvme_qpair, num_ignored),
+	    nvme_sysctl_qpair_stat, "IU",
 	    "Number of interrupts ignored administratively");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_recovery_nolock", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_num_recovery_nolock, "IU",
+	    ctrlr, offsetof(struct nvme_qpair, num_recovery_nolock),
+	    nvme_sysctl_qpair_stat, "IU",
 	    "Number of times that we failed to lock recovery in the ISR");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
