@@ -1304,13 +1304,11 @@ shm_prison_remove(void *obj, void *data __unused)
 	struct prison *pr = obj;
 	struct prison *rpr;
 
-	SYSVSHM_LOCK();
 	prison_lock(pr);
 	rpr = osd_jail_get(pr, shm_prison_slot);
 	prison_unlock(pr);
 	if (rpr == pr)
 		shm_prison_cleanup(pr);
-	SYSVSHM_UNLOCK();
 	return (0);
 }
 
@@ -1320,6 +1318,7 @@ shm_prison_cleanup(struct prison *pr)
 	struct shmid_kernel *shmseg;
 	int i;
 
+	SYSVSHM_LOCK();
 	/* Remove any segments that belong to this jail. */
 	for (i = 0; i < shmalloced; i++) {
 		shmseg = &shmsegs[i];
@@ -1328,6 +1327,7 @@ shm_prison_cleanup(struct prison *pr)
 			shm_remove(shmseg, i);
 		}
 	}
+	SYSVSHM_UNLOCK();
 }
 
 SYSCTL_JAIL_PARAM_SYS_NODE(sysvshm, CTLFLAG_RW, "SYSV shared memory");
