@@ -308,6 +308,12 @@ static pt_entry_t *cmap1_pte;
  */
 #define	ATTR_SW_DBM	ATTR_DBM
 
+/*
+ * The machine-dependent page flag records that the icache is synchronized
+ * with a managed page's contents.
+ */
+#define	PGA_ICACHE_SYNCED	PGA_PMAP_PRIV1
+
 struct pmap kernel_pmap_store;
 
 /* Used for mapping ACPI memory before VM is initialized */
@@ -3666,7 +3672,8 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 				m->md.pv_gen++;
 				if (!pmap_page_is_mapped_locked(m))
-					vm_page_aflag_clear(m, PGA_WRITEABLE);
+					vm_page_aflag_clear(m, PGA_WRITEABLE |
+					    PGA_ICACHE_SYNCED);
 				pc->pc_map[field] |= 1UL << bit;
 				pmap_unuse_pt(pmap, va, pmap_load(pde), &free);
 				freed++;
@@ -4239,7 +4246,8 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pd_entry_t l1e,
 				vm_page_aflag_set(mt, PGA_REFERENCED);
 			if (TAILQ_EMPTY(&mt->md.pv_list) &&
 			    TAILQ_EMPTY(&pvh->pv_list))
-				vm_page_aflag_clear(mt, PGA_WRITEABLE);
+				vm_page_aflag_clear(mt, PGA_WRITEABLE |
+				    PGA_ICACHE_SYNCED);
 		}
 	}
 	if (pmap != kernel_pmap) {
@@ -4293,7 +4301,8 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		pmap_pvh_free(&m->md, pmap, va);
 		if (!pmap_page_is_mapped_locked(m))
-			vm_page_aflag_clear(m, PGA_WRITEABLE);
+			vm_page_aflag_clear(m, PGA_WRITEABLE |
+			    PGA_ICACHE_SYNCED);
 	}
 	return (pmap_unuse_pt(pmap, va, l2e, free));
 }
@@ -4372,7 +4381,8 @@ pmap_remove_l3c(pmap_t pmap, pt_entry_t *l3p, vm_offset_t va, vm_offset_t *vap,
 			pmap_pvh_free(&mt->md, pmap, tva);
 			if (TAILQ_EMPTY(&mt->md.pv_list) &&
 			    TAILQ_EMPTY(&pvh->pv_list))
-				vm_page_aflag_clear(mt, PGA_WRITEABLE);
+				vm_page_aflag_clear(mt, PGA_WRITEABLE |
+				    PGA_ICACHE_SYNCED);
 		}
 	}
 	if (*vap == va_next)
@@ -4476,7 +4486,8 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 			}
 			pmap_pvh_free(&m->md, pmap, sva);
 			if (!pmap_page_is_mapped_locked(m))
-				vm_page_aflag_clear(m, PGA_WRITEABLE);
+				vm_page_aflag_clear(m, PGA_WRITEABLE |
+				    PGA_ICACHE_SYNCED);
 		}
 		if (l3pg != NULL && pmap_unwire_l3(pmap, sva, l3pg, free)) {
 			/*
@@ -4713,7 +4724,7 @@ retry:
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
-	vm_page_aflag_clear(m, PGA_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE | PGA_ICACHE_SYNCED);
 	rw_wunlock(lock);
 	vm_page_free_pages_toq(&free, true);
 }
@@ -5622,6 +5633,94 @@ pmap_set_protected(pt_entry_t old_l3)
 }
 
 /*
+ * PGA_ICACHE_SYNCED is set on a managed page after the icache has been
+ * synchronized with the page's contents and the page has no writable
+ * mappings, so that the creation of future executable mappings to the page
+ * can skip the synchronization.  It is cleared when (1) a writable mapping
+ * to the page is created, so that PGA_WRITEABLE and PGA_ICACHE_SYNCED are never
+ * simultaneously set, or (2) the page's last mapping is destroyed.
+ */
+
+/*
+ * Atomically set PGA_WRITEABLE and clear PGA_ICACHE_SYNCED on the given page.
+ */
+static void
+pmap_page_set_writeable(vm_page_t m)
+{
+	vm_page_astate_t new, old;
+
+	VM_PAGE_ASSERT_PGA_WRITEABLE(m, PGA_WRITEABLE);
+	old = vm_page_astate_load(m);
+	do {
+		KASSERT((old.flags & (PGA_WRITEABLE | PGA_ICACHE_SYNCED)) !=
+		    (PGA_WRITEABLE | PGA_ICACHE_SYNCED),
+		    ("%s: %p is writable and icache synced", __func__, m));
+
+		/*
+		 * Skip the atomic if PGA_WRITEABLE is already set and
+		 * PGA_ICACHE_SYNCED is already clear.
+		 */
+		if ((old.flags & (PGA_WRITEABLE | PGA_ICACHE_SYNCED)) ==
+		    PGA_WRITEABLE)
+			break;
+		new = old;
+		new.flags |= PGA_WRITEABLE;
+		new.flags &= ~PGA_ICACHE_SYNCED;
+	} while (!vm_page_astate_fcmpset(m, &old, new));
+}
+
+/*
+ * Synchronize the icache with the specified range of physical pages, and
+ * set PGA_ICACHE_SYNCED on those pages if they are managed pages without any
+ * writable mappings.  To set PGA_ICACHE_SYNCED, the pages' PV list lock must
+ * be held by the caller.  Otherwise, between the icache sync and the test
+ * for PGA_WRITEABLE, the pages could first be modified and then have
+ * PGA_WRITEABLE cleared by pmap_remove_write().
+ */
+static __noinline void
+pmap_enter_sync_icache(vm_page_t m, vm_paddr_t pa, vm_size_t size,
+    pt_entry_t newpte)
+{
+	vm_page_astate_t new, old;
+	vm_page_t mt;
+
+	cpu_icache_sync_range(PHYS_TO_DMAP(pa), size);
+
+	/*
+	 * Don't set PGA_ICACHE_SYNCED if the new mapping is writable, because
+	 * the page's contents may change, or the page is unmanaged, because
+	 * we can't tell if another mapping is writable.
+	 */
+	if ((newpte & (ATTR_SW_MANAGED | ATTR_SW_DBM)) != ATTR_SW_MANAGED)
+		return;
+	rw_assert(VM_PAGE_TO_PV_LIST_LOCK(m), RA_WLOCKED);
+	KASSERT(VM_PAGE_TO_PV_LIST_LOCK(&m[size / PAGE_SIZE - 1]) ==
+	    VM_PAGE_TO_PV_LIST_LOCK(m),
+	    ("%s: range is not covered by one PV list lock", __func__));
+	for (mt = m; mt < &m[size / PAGE_SIZE]; mt++) {
+		old = vm_page_astate_load(mt);
+		do {
+			KASSERT((old.flags & (PGA_WRITEABLE |
+			    PGA_ICACHE_SYNCED)) !=
+			    (PGA_WRITEABLE | PGA_ICACHE_SYNCED),
+			    ("%s: %p is writable and icache synced", __func__,
+			    mt));
+
+			/*
+			 * Skip the atomic if PGA_ICACHE_SYNCED is already set,
+			 * or if PGA_WRITEABLE is set, because the page's
+			 * contents may change.
+			 */
+			if ((old.flags &
+			    (PGA_WRITEABLE | PGA_ICACHE_SYNCED)) != 0)
+				break;
+			new = old;
+			new.flags |= PGA_ICACHE_SYNCED;
+		} while (!vm_page_astate_fcmpset(mt, &old, new));
+	}
+}
+
+/*
  *	Insert the given physical page (p) at
  *	the specified virtual address (v) in the
  *	target physical map with the protection requested.
@@ -5649,6 +5748,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	KASSERT(ADDR_IS_CANONICAL(va),
 	    ("%s: Address not in canonical form: %lx", __func__, va));
+	KASSERT((pmap == kernel_pmap) == ADDR_IS_KERNEL(va),
+	    ("%s: pmap %p and va %#lx mismatch", __func__, pmap, va));
 
 	va = trunc_page(va);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
@@ -5829,11 +5930,14 @@ havel3:
 		 */
 		if (opa == pa) {
 			/*
-			 * No, might be a protection or wiring change.
+			 * No, might be a protection or wiring change.  If the
+			 * old mapping already had ATTR_SW_DBM set, then
+			 * PGA_WRITEABLE is already set and PGA_ICACHE_SYNCED is
+			 * already clear.
 			 */
-			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
-			    (new_l3 & ATTR_SW_DBM) != 0)
-				vm_page_aflag_set(m, PGA_WRITEABLE);
+			if ((orig_l3 & (ATTR_SW_MANAGED | ATTR_SW_DBM)) ==
+			    ATTR_SW_MANAGED && (new_l3 & ATTR_SW_DBM) != 0)
+				pmap_page_set_writeable(m);
 			goto validate;
 		}
 
@@ -5866,12 +5970,13 @@ havel3:
 				free_pv_entry(pmap, pv);
 
 			/*
-			 * The old page is likely COW, so check "writeable"
-			 * first.
+			 * The old page is likely COW, so check the flags first.
 			 */
-			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
+			if ((om->a.flags & (PGA_WRITEABLE |
+			    PGA_ICACHE_SYNCED)) != 0 &&
 			    !pmap_page_is_mapped_locked(om))
-				vm_page_aflag_clear(om, PGA_WRITEABLE);
+				vm_page_aflag_clear(om, PGA_WRITEABLE |
+				    PGA_ICACHE_SYNCED);
 		} else {
 			KASSERT((orig_l3 & ATTR_AF) != 0,
 			    ("pmap_enter: unmanaged mapping lacks ATTR_AF"));
@@ -5898,27 +6003,39 @@ havel3:
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		if ((new_l3 & ATTR_SW_DBM) != 0)
-			vm_page_aflag_set(m, PGA_WRITEABLE);
+			pmap_page_set_writeable(m);
 	}
 
 validate:
 	if (pmap->pm_stage == PM_STAGE1) {
 		/*
-		 * Sync icache if exec permission and attribute
-		 * VM_MEMATTR_WRITE_BACK is set. Do it now, before the mapping
-		 * is stored and made valid for hardware table walk. If done
-		 * later, then other can access this page before caches are
-		 * properly synced. Don't do it for kernel memory which is
-		 * mapped with exec permission even if the memory isn't going
-		 * to hold executable code. The only time when icache sync is
-		 * needed is after kernel module is loaded and the relocation
-		 * info is processed. And it's done in elf_cpu_load_file().
-		*/
-		if ((prot & VM_PROT_EXECUTE) &&  pmap != kernel_pmap &&
-		    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK &&
-		    (opa != pa || (orig_l3 & ATTR_S1_UXN) != 0)) {
-			PMAP_ASSERT_STAGE1(pmap);
-			cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
+		 * Synchronize the icache with the page's contents if the new
+		 * or updated mapping is a user mapping providing execute
+		 * permission to write-back memory.  This synchronization must
+		 * be completed before the mapping is stored.  Otherwise, a
+		 * processor could fetch stale instructions through the
+		 * mapping.  Kernel mappings are ignored, because ATTR_S1_UXN
+		 * is always set for them.  (elf_cpu_load_file() synchronizes
+		 * the icache for kernel modules.)  Skip the synchronization
+		 * if PGA_ICACHE_SYNCED is set, because the icache is already
+		 * synchronized with the page's contents.
+		 */
+		if ((new_l3 & ATTR_S1_UXN) == 0 &&
+		    (vm_page_astate_load(m).flags & PGA_ICACHE_SYNCED) == 0 &&
+		    (opa != pa || (orig_l3 & ATTR_S1_UXN) != 0) &&
+		    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK) {
+			/*
+			 * The page's PV list lock may not be held if we are
+			 * adding execute permission to an existing mapping.
+			 * Acquire it if PGA_ICACHE_SYNCED may be set.
+			 */
+			if (__predict_false(lock == NULL) && (new_l3 &
+			    (ATTR_SW_MANAGED | ATTR_SW_DBM)) ==
+			    ATTR_SW_MANAGED) {
+				lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+				rw_wlock(lock);
+			}
+			pmap_enter_sync_icache(m, pa, PAGE_SIZE, new_l3);
 		}
 	} else {
 		cpu_dcache_wb_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
@@ -6068,6 +6185,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(ADDR_IS_CANONICAL(va),
 	    ("%s: Address not in canonical form: %lx", __func__, va));
+	KASSERT(pmap != kernel_pmap || (new_l2 & ATTR_S1_UXN) != 0,
+	    ("%s: kernel mapping lacks ATTR_S1_UXN", __func__));
 	KASSERT((flags & (PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM)) !=
 	    PMAP_ENTER_NORECLAIM,
 	    ("pmap_enter_l2: flags is missing PMAP_ENTER_NOREPLACE"));
@@ -6216,7 +6335,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		}
 		if ((new_l2 & ATTR_SW_DBM) != 0)
 			for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
-				vm_page_aflag_set(mt, PGA_WRITEABLE);
+				pmap_page_set_writeable(mt);
 	}
 
 	/*
@@ -6231,9 +6350,14 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	 */
 	if ((new_l2 & ATTR_S1_UXN) == 0 && (PTE_TO_PHYS(new_l2) !=
 	    PTE_TO_PHYS(old_l2) || (old_l2 & ATTR_S1_UXN) != 0) &&
-	    pmap != kernel_pmap && m->md.pv_memattr == VM_MEMATTR_WRITE_BACK) {
-		cpu_icache_sync_range(PHYS_TO_DMAP(PTE_TO_PHYS(new_l2)),
-		    L2_SIZE);
+	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK) {
+		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
+			if ((vm_page_astate_load(mt).flags &
+			    PGA_ICACHE_SYNCED) == 0) {
+				pmap_enter_sync_icache(m, PTE_TO_PHYS(new_l2),
+				    L2_SIZE, new_l2);
+				break;
+			}
 	}
 
 	/*
@@ -6297,6 +6421,8 @@ pmap_enter_l3c(pmap_t pmap, vm_offset_t va, pt_entry_t l3e, u_int flags,
 	int lvl;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(pmap != kernel_pmap || (l3e & ATTR_S1_UXN) != 0,
+	    ("%s: kernel mapping lacks ATTR_S1_UXN", __func__));
 	KASSERT((va & L3C_OFFSET) == 0,
 	    ("pmap_enter_l3c: va is not aligned"));
 	KASSERT(!VA_IS_CLEANMAP(va) || (l3e & ATTR_SW_MANAGED) == 0,
@@ -6441,7 +6567,7 @@ have_l3p:
 		}
 		if ((l3e & ATTR_SW_DBM) != 0)
 			for (mt = m; mt < &m[L3C_ENTRIES]; mt++)
-				vm_page_aflag_set(mt, PGA_WRITEABLE);
+				pmap_page_set_writeable(mt);
 	}
 
 	/*
@@ -6455,11 +6581,16 @@ have_l3p:
 	KASSERT((pa & L3C_OFFSET) == 0, ("pmap_enter_l3c: pa is not aligned"));
 
 	/*
-	 * Sync the icache before the mapping is stored.
+	 * Conditionally sync the icache.  See pmap_enter() for details.
 	 */
-	if ((l3e & ATTR_S1_UXN) == 0 && pmap != kernel_pmap &&
+	if ((l3e & ATTR_S1_UXN) == 0 &&
 	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK)
-		cpu_icache_sync_range(PHYS_TO_DMAP(pa), L3C_SIZE);
+		for (mt = m; mt < &m[L3C_ENTRIES]; mt++)
+			if ((vm_page_astate_load(mt).flags &
+			    PGA_ICACHE_SYNCED) == 0) {
+				pmap_enter_sync_icache(m, pa, L3C_SIZE, l3e);
+				break;
+			}
 
 	/*
 	 * Map the superpage.
@@ -6498,6 +6629,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m, mpte;
 	int rv;
 
+	KASSERT((pmap == kernel_pmap) == ADDR_IS_KERNEL(start),
+	    ("%s: pmap %p and va %#lx mismatch", __func__, pmap, start));
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	mpte = NULL;
@@ -6552,6 +6685,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 	struct rwlock *lock;
 
+	KASSERT((pmap == kernel_pmap) == ADDR_IS_KERNEL(va),
+	    ("%s: pmap %p and va %#lx mismatch", __func__, pmap, va));
 	lock = NULL;
 	PMAP_LOCK(pmap);
 	(void)pmap_enter_quick_locked(pmap, va, m, prot, NULL, &lock);
@@ -6683,10 +6818,11 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	else
 		l3_val |= ATTR_AF;
 
-	/* Sync icache before the mapping is stored to PTE */
-	if ((prot & VM_PROT_EXECUTE) && pmap != kernel_pmap &&
+	/* Conditionally sync the icache.  See pmap_enter() for details. */
+	if ((l3_val & ATTR_S1_UXN) == 0 &&
+	    (vm_page_astate_load(m).flags & PGA_ICACHE_SYNCED) == 0 &&
 	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK)
-		cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
+		pmap_enter_sync_icache(m, pa, PAGE_SIZE, l3_val);
 
 	pmap_store(l3, l3_val);
 	dsb(ishst);
@@ -7517,9 +7653,11 @@ pmap_remove_pages(pmap_t pmap)
 					pvh->pv_gen++;
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
-							if ((mt->a.flags & PGA_WRITEABLE) != 0 &&
+							if ((mt->a.flags & (PGA_WRITEABLE |
+							    PGA_ICACHE_SYNCED)) != 0 &&
 							    TAILQ_EMPTY(&mt->md.pv_list))
-								vm_page_aflag_clear(mt, PGA_WRITEABLE);
+								vm_page_aflag_clear(mt, PGA_WRITEABLE |
+								    PGA_ICACHE_SYNCED);
 					}
 					ml3 = pmap_remove_pt_page(pmap,
 					    pv->pv_va);
@@ -7539,10 +7677,12 @@ pmap_remove_pages(pmap_t pmap)
 					TAILQ_REMOVE(&m->md.pv_list, pv,
 					    pv_next);
 					m->md.pv_gen++;
-					if ((m->a.flags & PGA_WRITEABLE) != 0 &&
+					if ((m->a.flags & (PGA_WRITEABLE |
+					    PGA_ICACHE_SYNCED)) != 0 &&
 					    !pmap_page_is_mapped_locked(m))
 						vm_page_aflag_clear(m,
-						    PGA_WRITEABLE);
+						    PGA_WRITEABLE |
+						    PGA_ICACHE_SYNCED);
 					break;
 				}
 				pmap_unuse_pt(pmap, pv->pv_va, pmap_load(pde),
