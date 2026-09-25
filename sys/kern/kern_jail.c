@@ -3723,8 +3723,10 @@ prison_deref(struct prison *pr, int flags)
 			 * that need to be killed, either in this prison or its
 			 * descendants.
 			 */
-			if (refcount_load(&pr->pr_uref) > 0)
+			if (refcount_load(&pr->pr_uref) > 0) {
 				killpr = pr;
+				flags &= ~PD_DEREF;
+			}
 			/* Make sure the parent prison doesn't get killed. */
 			flags &= ~PD_KILL;
 		}
@@ -3794,8 +3796,10 @@ prison_deref(struct prison *pr, int flags)
 		sx_xunlock(&allprison_lock);
 
 	/* Kill any processes attached to a killed prison. */
-	if (killpr != NULL)
+	if (killpr != NULL) {
 		prison_proc_iterate(killpr, prison_kill_processes_cb, NULL);
+		prison_free(killpr);
+	}
 
 	/*
 	 * Finish removing any unreferenced prisons, which couldn't happen
