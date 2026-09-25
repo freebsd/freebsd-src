@@ -133,7 +133,12 @@ vmdk_write(int fd)
 		return (ENOMEM);
 
 	desc_len = (n + VMDK_SECTOR_SIZE - 1) & ~(VMDK_SECTOR_SIZE - 1);
-	desc = realloc(desc, desc_len);
+	buf = realloc(desc, desc_len);
+	if (buf == NULL) {
+		free(desc);
+		return (ENOMEM);
+	}
+	desc = buf;
 	memset(desc + n, 0, desc_len - n);
 
 	le64enc(&hdr.desc_offset, 1);
