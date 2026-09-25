@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 21, 2008
+.Dd September 25, 2026
 .Dt SCHED_4BSD 4
 .Os
 .Sh NAME
@@ -36,6 +36,9 @@ The
 scheduler
 is the traditional system scheduler, providing both high throughput and solid
 interactive response in the presence of load.
+.Pp
+Common scheduler sysctls are documented in
+.Xr scheduler 4 .
 .Pp
 The following sysctls are relevant to the operation of
 .Nm :
@@ -58,7 +61,7 @@ on wakeup.
 .Pp
 Some sysctls will be available only on systems supporting SMP.
 .Sh SEE ALSO
-.Xr sched_ule 4 ,
+.Xr scheduler 4 ,
 .Xr sysctl 8
 .Sh HISTORY
 The

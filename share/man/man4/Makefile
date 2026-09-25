@@ -543,6 +543,7 @@ MAN=	aac.4 \
 	scc.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
+	scheduler.4 \
 	screen.4 \
 	scsi.4 \
 	sctp.4 \

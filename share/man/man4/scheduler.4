@@ -1,0 +1,61 @@
+.\"
+.\" Copyright (c) 2026 FreeBSD Foundation
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Author: Minsoo Choo <mchoo@FreeBSD.org>
+.\"
+.Dd September 25, 2026
+.Dt SCHEDULER 4
+.Os
+.Sh NAME
+.Nm scheduler
+.Nd common scheduler controls and statistics
+.Sh DESCRIPTION
+The
+.Nm
+interface provides sysctls shared by the system schedulers.
+Scheduler-specific controls are described in
+.Xr sched_4bsd 4
+and
+.Xr sched_ule 4 .
+.Pp
+The following sysctls are available:
+.Bl -tag -width indent
+.It Va kern.sched.name
+The name of the active scheduler.
+This is read-only at run time, but can be set as a boot-time tunable to select
+a scheduler compiled into the kernel.
+.It Va kern.sched.available
+A comma-separated list of schedulers compiled into the kernel.
+.It Va kern.sched.preemption
+Whether kernel preemption support was compiled in.
+This value is read-only and cannot be changed at run time.
+.It Va kern.sched.cpusetsize
+The size, in bytes, of the kernel's
+.Vt cpuset_t .
+.It Va kern.sched.cpusetsizemin
+The minimum supported size, in bytes, of a CPU set passed to the kernel.
+.It Va kern.sched.topology_spec
+An XML description of the detected CPU topology.
+See
+.Xr smp 4
+for the format.
+.El
+.Pp
+When the kernel is built with
+.Cd "options SCHED_STATS" ,
+the following sysctls are also available:
+.Bl -tag -width indent
+.It Va kern.sched.stats
+A node containing read-only counters for scheduling events.
+These include context-switch reasons and interrupt-thread events;
+additional counters depend on the scheduler.
+.It Va kern.sched.stats.reset
+Writing a nonzero value resets the scheduler statistics to zero.
+.El
+.Sh SEE ALSO
+.Xr sched_4bsd 4 ,
+.Xr sched_ule 4 ,
+.Xr smp 4 ,
+.Xr sysctl 8
