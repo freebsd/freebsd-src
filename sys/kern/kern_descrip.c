@@ -4416,6 +4416,7 @@ pwd_altroot(struct thread *td, struct vnode *altroot_vp)
 {
 	struct pwddesc *pdp;
 	struct pwd *newpwd, *oldpwd;
+	struct vnode *vp;
 
 	if (altroot_vp != NULL && altroot_vp->v_type != VDIR)
 		return (ENOTDIR);
@@ -4423,25 +4424,21 @@ pwd_altroot(struct thread *td, struct vnode *altroot_vp)
 	pdp = td->td_proc->p_pd;
 	PWDDESC_XLOCK(pdp);
 	oldpwd = PWDDESC_XLOCKED_LOAD_PWD(pdp);
-	if (altroot_vp != NULL) {
-		/*
-		 * Native process to a non-native ABI.
-		 */
-
-		vrefact(altroot_vp);
-		newpwd->pwd_adir = altroot_vp;
+	vp = altroot_vp != NULL ? altroot_vp : oldpwd->pwd_rdir;
+	if (vp != oldpwd->pwd_adir) {
+		vrefact(vp);
+		newpwd->pwd_adir = vp;
+		pwd_fill(oldpwd, newpwd);
+		pwd_set(pdp, newpwd);
+		newpwd = NULL;
 	} else {
-		/*
-		 * Non-native process to the native ABI.
-		 */
-
-		vrefact(oldpwd->pwd_rdir);
-		newpwd->pwd_adir = oldpwd->pwd_rdir;
+		oldpwd = NULL;
 	}
-	pwd_fill(oldpwd, newpwd);
-	pwd_set(pdp, newpwd);
 	PWDDESC_XUNLOCK(pdp);
-	pwd_drop(oldpwd);
+	if (oldpwd != NULL)
+		pwd_drop(oldpwd);
+	if (newpwd != NULL)
+		pwd_drop(newpwd);
 	return (0);
 }
 
