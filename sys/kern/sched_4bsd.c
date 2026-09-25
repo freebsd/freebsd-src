@@ -240,6 +240,7 @@ sysctl_kern_slice(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+/* NOTE: Please keep sched_4bsd.4 in sync with sysctl knobs defined here. */
 SYSCTL_NODE(_kern_sched, OID_AUTO, 4bsd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "4BSD Scheduler");
 
