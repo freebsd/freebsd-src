@@ -226,6 +226,8 @@
 #define	COPY_FILE_RANGE_CLONE		0x00800000	/* Require cloning. */
 #define	COPY_FILE_RANGE_USERFLAGS	(COPY_FILE_RANGE_CLONE)
 
+#define	FCHALTROOT_DISABLE	(-110)	/* Disable altroot by fchaltroot(2). */
+
 #endif /* __BSD_VISIBLE */
 
 #endif /* !_SYS_UNISTD_H_ */

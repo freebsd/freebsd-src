@@ -5424,3 +5424,88 @@ user_copy_file_range(struct thread *td, int infd, off_t *uinoffp, int outfd,
 		error = copyout(outoffp, uoutoffp, sizeof(off_t));
 	return (error);
 }
+
+static int
+disable_altdir(struct thread *td)
+{
+#ifdef MAC
+	int error;
+
+	error = mac_vnode_check_chaltroot(td->td_ucred, NULL);
+	if (error != 0)
+		return (error);
+#endif
+	return (pwd_altroot(td, NULL));
+}
+
+static int
+change_altdir(struct thread *td, struct vnode *vp)
+{
+	int error;
+
+	if (vp->v_type != VDIR) {
+		error = ENOTDIR;
+	} else {
+#ifdef MAC
+		error = mac_vnode_check_chaltroot(td->td_ucred, vp);
+		if (error == 0)
+#endif
+			error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
+	}
+	VOP_UNLOCK(vp);
+	if (error == 0)
+		error = pwd_altroot(td, vp);
+	vrele(vp);
+	return (error);
+}
+
+int
+sys_chaltroot(struct thread *td, struct chaltroot_args *uap)
+{
+	struct nameidata nd;
+	int error;
+
+	error = chroot_check_priv(td);
+	if (error != 0)
+		return (error);
+
+	if (uap->path == NULL)
+		return (disable_altdir(td));
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | LOCKSHARED | AUDITVNODE1,
+	    UIO_USERSPACE, uap->path);
+	error = namei(&nd);
+	if (error != 0)
+		return (error);
+	NDFREE_PNBUF(&nd);
+	return (change_altdir(td, nd.ni_vp));
+}
+
+int
+sys_fchaltroot(struct thread *td, struct fchaltroot_args *uap)
+{
+	struct vnode *vp;
+	struct file *fp;
+	int error;
+	uint8_t fdflags;
+
+	error = chroot_check_priv(td);
+	if (error != 0)
+		return (error);
+
+	if (uap->fd == FCHALTROOT_DISABLE)
+		return (disable_altdir(td));
+
+	error = getvnode_path(td, uap->fd, &cap_fchroot_rights, &fdflags, &fp);
+	if (error != 0)
+		return (error);
+	if ((fdflags & UF_RESOLVE_BENEATH) != 0) {
+		fdrop(fp, td);
+		return (ENOTCAPABLE);
+	}
+	vp = fp->f_vnode;
+	vrefact(vp);
+	fdrop(fp, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	return (change_altdir(td, vp));
+}

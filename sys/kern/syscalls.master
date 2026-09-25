@@ -3452,5 +3452,15 @@
 			int data
 		);
 	}
+606	AUE_CHALTROOT	STD {
+		int chaltroot(
+		    _In_z_opt_ const char *path
+		);
+	}
+607	AUE_FCHALTROOT	STD {
+		int fchaltroot(
+		    int fd
+		);
+	}
 
 ; vim: syntax=off
