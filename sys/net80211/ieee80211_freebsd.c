@@ -283,7 +283,7 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	}
 	sysctl_ctx_init(ctx);
 	snprintf(num, sizeof(num), "%u", ifp->if_dunit);
-	oid = SYSCTL_ADD_NODE(ctx, &SYSCTL_NODE_CHILDREN(_net, wlan),
+	oid = SYSCTL_ADD_NODE(ctx, SYSCTL_STATIC_CHILDREN(_net_wlan),
 	    OID_AUTO, num, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "%parent", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,

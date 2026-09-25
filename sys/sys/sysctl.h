@@ -273,9 +273,6 @@ struct sysctl_ctx_entry {
 
 TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
-#define	SYSCTL_NODE_CHILDREN(parent, name) \
-	sysctl__##parent##_##name.oid_children
-
 #ifndef NO_SYSCTL_DESCR
 #define	__DESCR(d) d
 #else
