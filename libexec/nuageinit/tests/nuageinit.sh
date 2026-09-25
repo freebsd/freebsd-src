@@ -92,23 +92,36 @@ EOF
 nocloud_userdata_script_body()
 {
 	mkdir -p media/nuageinit
-	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	setup_test_adduser
+	cat > media/nuageinit/meta-data << EOF
+instance-id: iid-local01
+hostname: myhost
+EOF
 	# ensure this is an invalid when parsed with the yaml parser
 	printf "#!/bin/sh\n: ${test:-yes}\necho $test\n" > "${PWD}"/media/nuageinit/user-data
 	chmod 644 "${PWD}"/media/nuageinit/user-data
 	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
 	atf_check test -x var/cache/nuageinit/user_data
 	atf_check -o inline:"#!/bin/sh\n: ${test:-yes}\necho $test\n" cat var/cache/nuageinit/user_data
+	# ensure meta-data is applied, regardless of what is in user-data
+	atf_check -o inline:"hostname='myhost'\n" cat etc/rc.conf.d/hostname
 }
 
 nocloud_user_data_script_body()
 {
 	mkdir -p media/nuageinit
-	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	setup_test_adduser
+	cat > media/nuageinit/meta-data << EOF
+instance-id: iid-local01
+hostname: myhost
+EOF
 	printf "#!/bin/sh\necho yeah\n" > "${PWD}"/media/nuageinit/user_data
-	chmod 755 "${PWD}"/media/nuageinit/user_data
+	chmod 644 "${PWD}"/media/nuageinit/user_data
 	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check test -x var/cache/nuageinit/user_data
 	atf_check -o inline:"#!/bin/sh\necho yeah\n" cat var/cache/nuageinit/user_data
+	# ensure meta-data is applied, regardless of what is in user-data
+	atf_check -o inline:"hostname='myhost'\n" cat etc/rc.conf.d/hostname
 }
 
 nocloud_userdata_cloudconfig_users_head()
