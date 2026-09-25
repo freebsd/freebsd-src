@@ -433,14 +433,15 @@ nvmf_reconnect_ns(struct nvmf_namespace *ns)
 	}
 }
 
-void
-nvmf_shutdown_ns(struct nvmf_namespace *ns)
+/* Called with ns->lock held; drops it. */
+static void
+nvmf_ns_abort_pending_bios(struct nvmf_namespace *ns)
 {
 	TAILQ_HEAD(, bio) bios;
 	struct bio *bio;
 
-	mtx_lock(&ns->lock);
-	ns->shutdown = true;
+	mtx_assert(&ns->lock, MA_OWNED);
+
 	TAILQ_INIT(&bios);
 	TAILQ_CONCAT(&bios, &ns->pending_bios, bio_queue);
 	mtx_unlock(&ns->lock);
@@ -456,11 +457,16 @@ nvmf_shutdown_ns(struct nvmf_namespace *ns)
 }
 
 void
+nvmf_shutdown_ns(struct nvmf_namespace *ns)
+{
+	mtx_lock(&ns->lock);
+	ns->shutdown = true;
+	nvmf_ns_abort_pending_bios(ns);
+}
+
+void
 nvmf_destroy_ns(struct nvmf_namespace *ns)
 {
-	TAILQ_HEAD(, bio) bios;
-	struct bio *bio;
-
 	if (ns->cdev->si_drv2 != NULL)
 		destroy_dev(ns->cdev->si_drv2);
 	destroy_dev(ns->cdev);
@@ -477,18 +483,7 @@ nvmf_destroy_ns(struct nvmf_namespace *ns)
 	}
 
 	/* Abort any pending I/O requests. */
-	TAILQ_INIT(&bios);
-	TAILQ_CONCAT(&bios, &ns->pending_bios, bio_queue);
-	mtx_unlock(&ns->lock);
-
-	while (!TAILQ_EMPTY(&bios)) {
-		bio = TAILQ_FIRST(&bios);
-		TAILQ_REMOVE(&bios, bio, bio_queue);
-		bio->bio_error = ECONNABORTED;
-		bio->bio_flags |= BIO_ERROR;
-		bio->bio_resid = bio->bio_bcount;
-		biodone(bio);
-	}
+	nvmf_ns_abort_pending_bios(ns);
 
 	mtx_destroy(&ns->lock);
 	free(ns, M_NVMF);
