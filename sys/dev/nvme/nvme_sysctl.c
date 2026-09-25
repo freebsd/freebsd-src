@@ -93,36 +93,17 @@ nvme_sysctl_dump_debug(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-nvme_sysctl_int_coal_time(SYSCTL_HANDLER_ARGS)
+nvme_sysctl_int_coal(SYSCTL_HANDLER_ARGS)
 {
 	struct nvme_controller *ctrlr = arg1;
-	uint32_t oldval = ctrlr->int_coal_time;
-	int error = sysctl_handle_int(oidp, &ctrlr->int_coal_time, 0,
-	    req);
+	uint32_t *valp = (uint32_t *)((char *)ctrlr + (size_t)arg2);
+	uint32_t oldval = *valp;
+	int error = sysctl_handle_int(oidp, valp, 0, req);
 
 	if (error)
 		return (error);
 
-	if (oldval != ctrlr->int_coal_time)
-		nvme_ctrlr_cmd_set_interrupt_coalescing(ctrlr,
-		    ctrlr->int_coal_time, ctrlr->int_coal_threshold, NULL,
-		    NULL);
-
-	return (0);
-}
-
-static int
-nvme_sysctl_int_coal_threshold(SYSCTL_HANDLER_ARGS)
-{
-	struct nvme_controller *ctrlr = arg1;
-	uint32_t oldval = ctrlr->int_coal_threshold;
-	int error = sysctl_handle_int(oidp, &ctrlr->int_coal_threshold, 0,
-	    req);
-
-	if (error)
-		return (error);
-
-	if (oldval != ctrlr->int_coal_threshold)
+	if (oldval != *valp)
 		nvme_ctrlr_cmd_set_interrupt_coalescing(ctrlr,
 		    ctrlr->int_coal_time, ctrlr->int_coal_threshold, NULL,
 		    NULL);
@@ -361,13 +342,15 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_int_coal_time, "IU",
+	    ctrlr, offsetof(struct nvme_controller, int_coal_time),
+	    nvme_sysctl_int_coal, "IU",
 	    "Interrupt coalescing timeout (in microseconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "int_coal_threshold",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr, 0,
-	    nvme_sysctl_int_coal_threshold, "IU",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr,
+	    offsetof(struct nvme_controller, int_coal_threshold),
+	    nvme_sysctl_int_coal, "IU",
 	    "Interrupt coalescing threshold");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
