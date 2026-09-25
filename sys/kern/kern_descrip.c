@@ -4411,12 +4411,14 @@ pwd_chdir(struct thread *td, struct vnode *vp)
 /*
  * Process is transitioning to/from a non-native ABI.
  */
-void
+int
 pwd_altroot(struct thread *td, struct vnode *altroot_vp)
 {
 	struct pwddesc *pdp;
 	struct pwd *newpwd, *oldpwd;
 
+	if (altroot_vp != NULL && altroot_vp->v_type != VDIR)
+		return (ENOTDIR);
 	newpwd = pwd_alloc();
 	pdp = td->td_proc->p_pd;
 	PWDDESC_XLOCK(pdp);
@@ -4440,6 +4442,7 @@ pwd_altroot(struct thread *td, struct vnode *altroot_vp)
 	pwd_set(pdp, newpwd);
 	PWDDESC_XUNLOCK(pdp);
 	pwd_drop(oldpwd);
+	return (0);
 }
 
 /*
