@@ -121,9 +121,9 @@ nvme_ctrlr_cmd_create_io_sq(struct nvme_controller *ctrlr,
 	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }
 
-void
-nvme_ctrlr_cmd_delete_io_cq(struct nvme_controller *ctrlr,
-    struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
+static void
+nvme_ctrlr_cmd_delete_io_queue(struct nvme_controller *ctrlr,
+    struct nvme_qpair *io_que, uint8_t opc, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 	struct nvme_command *cmd;
@@ -131,11 +131,10 @@ nvme_ctrlr_cmd_delete_io_cq(struct nvme_controller *ctrlr,
 	req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
 
 	cmd = &req->cmd;
-	cmd->opc = NVME_OPC_DELETE_IO_CQ;
+	cmd->opc = opc;
 
 	/*
-	 * TODO: create a delete io completion queue command data
-	 *  structure.
+	 * TODO: create a delete io queue command data structure.
 	 */
 	cmd->cdw10 = htole32(io_que->id);
 
@@ -143,24 +142,19 @@ nvme_ctrlr_cmd_delete_io_cq(struct nvme_controller *ctrlr,
 }
 
 void
+nvme_ctrlr_cmd_delete_io_cq(struct nvme_controller *ctrlr,
+    struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	nvme_ctrlr_cmd_delete_io_queue(ctrlr, io_que, NVME_OPC_DELETE_IO_CQ,
+	    cb_fn, cb_arg);
+}
+
+void
 nvme_ctrlr_cmd_delete_io_sq(struct nvme_controller *ctrlr,
     struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
-	struct nvme_request *req;
-	struct nvme_command *cmd;
-
-	req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
-
-	cmd = &req->cmd;
-	cmd->opc = NVME_OPC_DELETE_IO_SQ;
-
-	/*
-	 * TODO: create a delete io submission queue command data
-	 *  structure.
-	 */
-	cmd->cdw10 = htole32(io_que->id);
-
-	nvme_ctrlr_submit_admin_request(ctrlr, req);
+	nvme_ctrlr_cmd_delete_io_queue(ctrlr, io_que, NVME_OPC_DELETE_IO_SQ,
+	    cb_fn, cb_arg);
 }
 
 void
