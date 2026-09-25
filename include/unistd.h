@@ -516,6 +516,7 @@ struct crypt_data {
 
 int	 acct(const char *);
 int	 async_daemon(void);
+int	 chaltroot(const char *);
 int	 check_utility_compat(const char *);
 int	 close_range(unsigned int, unsigned int, int);
 ssize_t	 copy_file_range(int, off_t *, int, off_t *, size_t, unsigned int);
@@ -531,6 +532,7 @@ int	 execvP(const char *, const char *, char * const *);
 int	 execvpe(const char *, char * const *, char * const *);
 int	 feature_present(const char *);
 int	 fchroot(int);
+int	 fchaltroot(int);
 char	*fflagstostr(u_long);
 ssize_t	 freadlink(int fd, char *buf, size_t bufsize);
 int	 getdomainname(char *, int);

@@ -391,6 +391,8 @@ FBSD_1.8 {
 };
 
 FBSD_1.9 {
+	chaltroot;
+	fchaltroot;
 	kexec_load;
 	pddupfd;
 	pdopenpid;
