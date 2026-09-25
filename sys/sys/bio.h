@@ -79,8 +79,6 @@
 struct disk;
 struct bio;
 
-typedef void bio_task_t(void *);
-
 /*
  * The bio structure describes an I/O operation in the kernel.
  */
@@ -114,9 +112,6 @@ struct bio {
 	u_int	bio_inbed;		/* Children safely home by now */
 	struct bio *bio_parent;		/* Pointer to parent */
 	struct bintime bio_t0;		/* Time request started */
-
-	bio_task_t *bio_task;		/* Task_queue handler */
-	void	*bio_task_arg;		/* Argument to above */
 
 	void	*bio_spare1;
 	void	*bio_spare2;
