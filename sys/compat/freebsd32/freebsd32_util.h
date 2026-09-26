@@ -114,8 +114,7 @@ int	freebsd32_copyout_strings(struct image_params *imgp,
 	    uintptr_t *stack_base);
 int	freebsd32_copyiniov(struct iovec32 *iovp, u_int iovcnt,
 	    struct iovec **iov, int error);
-int	freebsd32_copyinuio(const struct iovec32 *iovp, u_int iovcnt,
-	    struct uio **uiop);
+int	freebsd32_copyinuio(const void *iovp, u_int iovcnt, struct uio **uiop);
 void	freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32);
 
 struct image_args;

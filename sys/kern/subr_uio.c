@@ -434,7 +434,7 @@ copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 }
 
 int
-copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
+copyinuio(const void *iovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec *iov;
 	struct uio *uio;

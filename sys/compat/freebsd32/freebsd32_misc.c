@@ -1288,20 +1288,22 @@ freebsd32_pdptrace(struct thread *td, struct freebsd32_pdptrace_args *uap)
 }
 
 int
-freebsd32_copyinuio(const struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
+freebsd32_copyinuio(const void *iovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec32 iov32;
+	const struct iovec32 *iovp32;
 	struct iovec *iov;
 	struct uio *uio;
 	int error, i;
 
+	iovp32 = iovp;
 	*uiop = NULL;
 	if (iovcnt > UIO_MAXIOV)
 		return (EINVAL);
 	uio = allocuio(iovcnt);
 	iov = uio->uio_iov;
 	for (i = 0; i < iovcnt; i++) {
-		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
+		error = copyin(&iovp32[i], &iov32, sizeof(struct iovec32));
 		if (error) {
 			freeuio(uio);
 			return (error);
@@ -2246,7 +2248,7 @@ freebsd4_freebsd32_sendfile(struct thread *td,
 	return (kern_sendfile(td, uap->fd, uap->s,
 	    PAIR32TO64(off_t, uap->offset), uap->nbytes,
 	    (struct sf_hdtr *)uap->hdtr, uap->sbytes, uap->flags,
-	    true, freebsd32_copyin_hdtr, (copyinuio_t *)freebsd32_copyinuio));
+	    true, freebsd32_copyin_hdtr, freebsd32_copyinuio));
 }
 #endif
 
@@ -2256,7 +2258,7 @@ freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 	return (kern_sendfile(td, uap->fd, uap->s,
 	    PAIR32TO64(off_t, uap->offset), uap->nbytes,
 	    (struct sf_hdtr *)uap->hdtr, uap->sbytes, uap->flags,
-	    false, freebsd32_copyin_hdtr, (copyinuio_t *)freebsd32_copyinuio));
+	    false, freebsd32_copyin_hdtr, freebsd32_copyinuio));
 }
 
 static void
