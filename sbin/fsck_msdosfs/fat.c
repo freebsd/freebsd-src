@@ -121,7 +121,7 @@ bitmap_count(long_bitmap_t *lbp)
 static int
 bitmap_ctor(long_bitmap_t *lbp, size_t bits, bool allone)
 {
-	size_t bitmap_size = roundup2(bits, LONG_BIT) / (LONG_BIT / 8);
+	size_t bitmap_size = roundup2(bits, LONG_BIT) / 8;
 
 	free(lbp->map);
 	lbp->map = calloc(1, bitmap_size);
