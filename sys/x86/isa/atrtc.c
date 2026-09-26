@@ -95,15 +95,30 @@ ACPI_MODULE_NAME("ATRTC")
  * RTC support routines
  */
 
+/*
+ * I/O delay between CMOS index and data accesses.  This used to be a read
+ * of port 0x84, but on Intel Arrow Lake HX platforms (e.g. MSI Vector 17 HX
+ * AI, MS-17S3) reading the undecoded ports 0x84/0x85 causes an immediate
+ * platform reset, while the CMOS ports themselves work fine.  Use the
+ * TSC-based cpu_lock_delay(), which only falls back to port 0x84 when no
+ * TSC is available.
+ */
+static inline void
+rtc_io_delay(void)
+{
+
+	cpu_lock_delay();
+}
+
 static inline u_char
 rtcin_locked(int reg)
 {
 
 	if (rtc_reg != reg) {
-		inb(0x84);
+		rtc_io_delay();
 		outb(IO_RTC, reg);
 		rtc_reg = reg;
-		inb(0x84);
+		rtc_io_delay();
 	}
 	return (inb(IO_RTC + 1));
 }
@@ -113,13 +128,13 @@ rtcout_locked(int reg, u_char val)
 {
 
 	if (rtc_reg != reg) {
-		inb(0x84);
+		rtc_io_delay();
 		outb(IO_RTC, reg);
 		rtc_reg = reg;
-		inb(0x84);
+		rtc_io_delay();
 	}
 	outb(IO_RTC + 1, val);
-	inb(0x84);
+	rtc_io_delay();
 }
 
 int
