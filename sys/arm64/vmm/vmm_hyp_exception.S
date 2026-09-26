@@ -59,7 +59,7 @@
 	stp	x0,  x1,  [sp, #(0  * 8)]
 .endm
 
-.macro	restore_host_registers
+.macro	load_host_registers
 	/* TODO: Only restore callee saved registers */
 	ldp	x0,  x1,  [sp, #(0  * 8)]
 	ldp	x2,  x3,  [sp, #(2  * 8)]
@@ -77,6 +77,10 @@
 	ldp	x26, x27, [sp, #(26 * 8)]
 	ldp	x28, x29, [sp, #(28 * 8)]
 	ldr	x30,      [sp, #(30 * 8)]
+.endm
+
+.macro	restore_host_registers
+	load_host_registers
 	add	sp, sp, #(32 * 8)
 .endm
 
@@ -170,17 +174,40 @@ hyp_vectors:
 	vempty			/* FIQ 32-bit EL1 */
 	vempty			/* Error 32-bit EL1 */
 
-.macro do_world_switch_to_host
-	save_guest_registers
-	restore_host_registers
 
+.macro finalise_world_switch_to_host
 	/* Restore host VTTBR */
 	mov	x9, #VTTBR_HOST
 	msr	vttbr_el2, x9
 
 #ifdef VMM_VHE
-	msr	vbar_el1, x1
+	/* Restore the previously saved vbar */
+	ldr x9, [sp, #(31 * 8)]
+	msr vbar_el1, x9
 #endif
+
+	isb
+	restore_host_registers
+.endm
+
+.macro do_world_switch_to_host
+	save_guest_registers
+	finalise_world_switch_to_host
+.endm
+
+/* World switch for sync exceptions from EL1, with the special handler call */
+.macro do_sync_world_switch_to_host
+	save_guest_registers
+	/* Load-in host register state but keep the stack frame */
+	load_host_registers
+
+	mrs	x0,	tpidr_el2
+	bl	VMM_HYP_FUNC(handle_sync_exit)
+
+	/* Store x0 in the stack slot that x0 will be restored from */
+	str	x0, [sp, #0]
+
+	finalise_world_switch_to_host
 .endm
 
 
@@ -255,8 +282,7 @@ LENTRY(handle_el2_el1_sync64)
 1:
 #endif
 	/* Guest exception taken to EL2 */
-	do_world_switch_to_host
-	mov	x0, #EXCP_TYPE_EL1_SYNC
+	do_sync_world_switch_to_host
 	ret
 LEND(handle_el2_el1_sync64)
 
@@ -301,18 +327,23 @@ LEND(handle_el2_el1_error64)
  * x0 - hypctx address
  */
 ENTRY(VMM_HYP_FUNC(do_call_guest))
-#ifdef VMM_VHE
-	mrs	x1, vbar_el1
-	adrp	x2, hyp_vectors
-	add	x2, x2, :lo12:hyp_vectors
-	msr	vbar_el1, x2
-	isb
-#endif
-
 	/* Save hypctx address */
 	msr	tpidr_el2, x0
 
 	save_host_registers
+
+#ifdef VMM_VHE
+	/* Store VBAR in a free stack slot */
+	mrs	x9, vbar_el1
+	str	x9, [sp, #(31 * 8)]
+
+	/* Set hyp_vectors as the new vbar */
+	adrp	x9, hyp_vectors
+	add	x9, x9, :lo12:hyp_vectors
+	msr	vbar_el1, x9
+	isb
+#endif
+
 	restore_guest_registers
 
 	/* Enter guest */
