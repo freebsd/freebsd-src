@@ -148,7 +148,7 @@ int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 static bool nd6_is_new_addr_neighbor(const struct sockaddr_in6 *,
 	struct ifnet *);
 static void nd6_slowtimo(void *);
-static int regen_tmpaddr(struct in6_ifaddr *);
+static bool regen_tmpaddr(struct in6_ifaddr *);
 static void nd6_free(struct llentry **, int);
 static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
@@ -976,7 +976,7 @@ nd6_timer(void *arg)
 	CK_STAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
 		if (IFA6_IS_INVALID(ia6)) {
-			int regen = 0;
+			bool regen = false;
 
 			/*
 			 * If the expiring address is temporary, try
@@ -990,8 +990,8 @@ nd6_timer(void *arg)
 			 */
 			if (V_ip6_use_tempaddr &&
 			    (ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0) {
-				if (regen_tmpaddr(ia6) == 0)
-					regen = 1;
+				if (regen_tmpaddr(ia6))
+					regen = true;
 			}
 
 			in6_purgeaddr(&ia6->ia_ifa);
@@ -1010,7 +1010,7 @@ nd6_timer(void *arg)
 			if (V_ip6_use_tempaddr &&
 			    (ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0 &&
 			    (oldflags & IN6_IFF_DEPRECATED) == 0) {
-				if (regen_tmpaddr(ia6) == 0) {
+				if (regen_tmpaddr(ia6)) {
 					/*
 					 * A new temporary address is
 					 * generated.
@@ -1111,7 +1111,7 @@ restart:
 /*
  * ia6 - deprecated/invalidated temporary address
  */
-static int
+static bool
 regen_tmpaddr(struct in6_ifaddr *ia6)
 {
 	struct ifaddr *ifa;
@@ -1119,6 +1119,11 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	NET_EPOCH_ASSERT();
+
+	/* ignore detached prefixes */
+	if (ia6->ia6_ndpr == NULL ||
+	    (ia6->ia6_ndpr->ndpr_stateflags & NDPRF_DETACHED) != 0)
+		return (false);
 
 	ifp = ia6->ia_ifa.ifa_ifp;
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1129,12 +1134,13 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 
 		it6 = (struct in6_ifaddr *)ifa;
 
-		/* ignore no autoconf addresses. */
-		if ((it6->ia6_flags & IN6_IFF_AUTOCONF) == 0)
+		/* ignore detached or no autoconf addresses. */
+		if ((it6->ia6_flags &
+		    (IN6_IFF_AUTOCONF | IN6_IFF_DETACHED)) != IN6_IFF_AUTOCONF)
 			continue;
 
 		/* ignore autoconf addresses with different prefixes. */
-		if (it6->ia6_ndpr == NULL || it6->ia6_ndpr != ia6->ia6_ndpr)
+		if (it6->ia6_ndpr != ia6->ia6_ndpr)
 			continue;
 
 		/*
@@ -1169,13 +1175,13 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 			ifa_free(&public_ifa6->ia_ifa);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
-			return (-1);
+			return (false);
 		}
 		ifa_free(&public_ifa6->ia_ifa);
-		return (0);
+		return (true);
 	}
 
-	return (-1);
+	return (false);
 }
 
 /*
