@@ -7,7 +7,8 @@ SRCS+= \
 
 .if ${LIB} == "sys"
 MAN+=	\
-	pkru.3
+	pkru.3 \
+	sysarch.x86.2
 .endif # ${LIB} == "sys"
 
 # Note: vdso support for hyperv only on amd64
