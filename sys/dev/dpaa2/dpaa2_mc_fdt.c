@@ -345,6 +345,11 @@ dpaa2_mc_fdt_get_phy_dev(device_t dev, device_t *phy_dev, uint32_t id)
 static const struct ofw_bus_devinfo *
 dpaa2_mc_simplebus_get_devinfo(device_t bus, device_t child)
 {
+	struct dpaa2_mc_softc *sc;
+
+	sc = device_get_softc(bus);
+	if (child == sc->rcdev)
+		return (NULL);
 
 	return (OFW_BUS_GET_DEVINFO(device_get_parent(bus), child));
 }
