@@ -1173,18 +1173,8 @@ end
 local metadata = load_metadata(citype)
 local line, obj = load_userdata()
 
--- No user-data
-if line == nil then
-	local calls_table = {
-		sethostname,
-		create_default_user,
-	}
-
-	for i = 1, #calls_table do
-		calls_table[i](obj, metadata)
-	end
 --  YAML user-data
-elseif line == "#cloud-config" then
+if line == "#cloud-config" then
 	local pre_network_calls = {
 		ca_certs,
 		mounts,
@@ -1231,7 +1221,19 @@ elseif line == "#cloud-config" then
 			calls_table[i](obj, metadata)
 		end
 	end
-elseif line:sub(1, 2) == "#!" then
+-- No YAML user-data
+else
+	local calls_table = {
+		sethostname,
+		create_default_user,
+	}
+
+	for i = 1, #calls_table do
+		calls_table[i](obj, metadata)
+	end
+end
+
+if line:sub(1, 2) == "#!" then
 	-- delay for execution at rc.local time --
 	nuage.chmod(root .. "/var/cache/nuageinit/user_data", "0755")
 end
