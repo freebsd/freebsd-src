@@ -561,7 +561,7 @@ tpm_request_locality(struct tpm_softc *sc, int l)
 	while ((r = bus_space_read_1(sc->sc_bt, sc->sc_bh, TPM_ACCESS) &
 	    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY)) !=
 	    (TPM_ACCESS_VALID | TPM_ACCESS_ACTIVE_LOCALITY) && to--) {
-		rv = tsleep(sc->sc_init, PRIBIO | PCATCH, "tpm_locality", 1);
+		rv = pause_sig("tpm_locality", 1);
 		if (rv &&  rv != EWOULDBLOCK) {
 #ifdef TPM_DEBUG
 			printf("tpm_request_locality: interrupted %d\n", rv);
@@ -638,7 +638,7 @@ tpm_getburst(struct tpm_softc *sc)
 		if (burst)
 			return burst;
 
-		rv = tsleep(sc, PRIBIO | PCATCH, "tpm_getburst", 1);
+		rv = pause_sig("tpm_getburst", 1);
 		if (rv && rv != EWOULDBLOCK) {
 			return 0;
 		}
@@ -807,7 +807,7 @@ tpm_waitfor_poll(struct tpm_softc *sc, u_int8_t mask, int tmo, void *c)
 	 * met.
 	 */
 	while (((sc->sc_stat = tpm_status(sc)) & mask) != mask && tmo--) {
-		rv = tsleep(c, PRIBIO | PCATCH, "tpm_poll", 1);
+		rv = pause_sig("tpm_poll", 1);
 		if (rv && rv != EWOULDBLOCK) {
 #ifdef TPM_DEBUG
 			printf("tpm_waitfor_poll: interrupted %d\n", rv);
