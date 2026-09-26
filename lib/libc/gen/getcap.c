@@ -709,6 +709,11 @@ cgetnext(char **bp, char **db_array)
 		np = nbuf;
 		for (;;) {
 			for (cp = line; *cp != '\0'; cp++) {
+				if (np >= nbuf + sizeof(nbuf) - 1) {
+					(void)cgetclose();
+					errno = ENAMETOOLONG;
+					return (-1);
+				}
 				if (*cp == ':') {
 					*np++ = ':';
 					done = 1;
