@@ -64,6 +64,8 @@ CFLAGS+=	-fno-omit-frame-pointer
 
 %FILES.s
 
+%FILES.rs
+
 %FILES.m
 
 %CLEAN
