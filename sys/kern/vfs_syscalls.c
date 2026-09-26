@@ -969,31 +969,31 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_chroot, CTLFLAG_RW,
     &unprivileged_chroot, 0,
     "Unprivileged processes can use chroot(2)");
 
+static int
+chroot_check_priv(struct thread *td)
+{
+	if (priv_check(td, PRIV_VFS_CHROOT) == 0)
+		return (0);
+	if (unprivileged_chroot == 0)
+		return (EXTERROR(EPERM,
+		    "security.bsd.unprivileged_chroot sysctl not enabled"));
+	if ((td->td_proc->p_flag2 & P2_NO_NEW_PRIVS) == 0)
+		return (EXTERROR(EPERM,
+		    "PROC_NO_NEW_PRIVS not enabled"));
+	return (0);
+}
+
 /*
  * Takes locked vnode, unlocks it before returning.
  */
 static int
 kern_chroot(struct thread *td, struct vnode *vp)
 {
-	struct proc *p;
 	int error;
 
-	error = priv_check(td, PRIV_VFS_CHROOT);
-	if (error != 0) {
-		p = td->td_proc;
-		if (unprivileged_chroot == 0) {
-			error = EXTERROR(EPERM,
-		    "security.bsd.unprivileged_chroot sysctl not enabled");
-			goto e_vunlock;
-		}
-		if ((p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
-			error = EXTERROR(EPERM,
-			    "PROC_NO_NEW_PRIVS not enabled");
-			goto e_vunlock;
-		}
-	}
-
-	error = change_dir(vp, td);
+	error = chroot_check_priv(td);
+	if (error == 0)
+		error = change_dir(vp, td);
 	if (error != 0)
 		goto e_vunlock;
 #ifdef MAC
