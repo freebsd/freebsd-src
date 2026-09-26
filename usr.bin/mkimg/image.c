@@ -330,10 +330,11 @@ image_file_map(int fd, off_t ofs, size_t sz, off_t *iofp)
 }
 
 static int
-image_file_unmap(void *buffer, size_t sz)
+image_file_unmap(void *buffer, size_t sz, off_t iof)
 {
 	size_t unit;
 
+	sz += iof;
 	unit = (secsz > image_swap_pgsz) ? secsz : image_swap_pgsz;
 	sz = (sz + unit - 1) & ~(unit - 1);
 	if (madvise(buffer, sz, MADV_DONTNEED) != 0)
@@ -381,7 +382,7 @@ image_copyin_stream(lba_t blk, int fd, uint64_t *sizep)
 			error = errno;
 		else
 			error = 0;
-		image_file_unmap(buffer, iosz);
+		image_file_unmap(buffer, iosz, iof);
 		/* XXX should we relinguish unused swap space? */
 		if (error)
 			return (error);
@@ -465,7 +466,7 @@ image_copyin_mapped(lba_t blk, int fd, uint64_t *sizep)
 					buf += iof;
 					error = image_chunk_copyin(blk, buf,
 					    sz, data, fd);
-					image_file_unmap(mp, sz);
+					image_file_unmap(mp, sz, iof);
 				} else
 					error = errno;
 
@@ -590,7 +591,7 @@ image_copyout_file(int fd, size_t size, int ifd, off_t iofs)
 			return (errno);
 		buf += iof;
 		error = image_copyout_memory(fd, sz, buf);
-		image_file_unmap(mp, sz);
+		image_file_unmap(mp, sz, iof);
 		if (error)
 			return (error);
 		size -= sz;
