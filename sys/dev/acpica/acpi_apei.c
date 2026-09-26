@@ -223,8 +223,14 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged, bool fatal)
 	int h = 0, sev;
 
 	if ((p->ValidationBits & 0x8) == 0x8) {
+		/*
+		 * pci_find_dbsf() walks the device tree, so it needs the
+		 * topology lock.  On the fatal path the machine is going
+		 * down and we may be running in a context that cannot
+		 * block, so the lock is deliberately skipped there.
+		 */
 		if (!fatal)
-			mtx_lock(&Giant);
+			bus_topo_lock();
 		dev = pci_find_dbsf((uint32_t)p->DeviceID[10] << 8 |
 		    p->DeviceID[9], p->DeviceID[11], p->DeviceID[8],
 		    p->DeviceID[7]);
@@ -246,7 +252,7 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged, bool fatal)
 				h = 1;
 		}
 		if (!fatal)
-			mtx_unlock(&Giant);
+			bus_topo_unlock();
 	}
 	if (h)
 		return (h);
