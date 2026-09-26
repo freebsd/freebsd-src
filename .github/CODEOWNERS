@@ -92,6 +92,7 @@
 /sys/arm64/include	@zxombie
 /sys/arm64/rockchip	@evadot
 /sys/arm64/vmm		@zxombie
+/sys/cddl/dev/kinst/	@christosmarg
 /sys/compat/linprocfs/	@dag-erling
 /sys/crypto/openssl/	@ngie-eign
 /sys/dev/drm2	@bsdimp
@@ -106,6 +107,7 @@
 /sys/dev/nvd	@bsdimp
 /sys/dev/nvme	@bsdimp
 /sys/dev/pci	@bsdimp @bsdjhb
+/sys/dev/sound/	@christosmarg
 /sys/dev/superio/	@stephane-rochoy-stormshield
 /sys/dev/veriexec/	@stephane-rochoy-stormshield
 /sys/dev/vt/	@emaste

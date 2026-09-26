@@ -103,12 +103,14 @@ stand/lua		kevans	Pre-commit review requested
 stand			imp	Pre-commit review strongly requested.
 stdio			des	Pre-commit review requested
 sys/compat/linuxkpi		pre-commit review requested via #linuxkpi phabricator group.
+sys/cddl/dev/kinst	christos	Pre-commit review recommended.
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/netpfil/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ixgbe	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ixl	#intel_networking	Pre-commit phabricator review requested.
 sys/dev/ice	#intel_networking	Pre-commit phabricator review requested.
+sys/dev/sound	christos	Pre-commit review recommended.
 sys/dev/xen	royger		Pre-commit review recommended.
 sys/dev/vt	emaste
 sys/kern/kern_switch.c	olce,#scheduler	Pre-commit review requested.
