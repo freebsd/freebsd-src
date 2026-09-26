@@ -36,6 +36,7 @@
 #include <sys/stat.h>
 #include <sys/ttydefaults.h>
 #include <sys/utsname.h>
+#include <sys/consio.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -293,8 +294,10 @@ main(int argc, char *argv[])
 			dogettytab();
 			continue;
 		}
-		if (CL && *CL)
+		if (CL && *CL) {
+			(void)ioctl(STDIN_FILENO, CONS_CLRHIST);
 			putpad(CL);
+		}
 		edithost(HE);
 
 		/* if this is the first time through this, and an
