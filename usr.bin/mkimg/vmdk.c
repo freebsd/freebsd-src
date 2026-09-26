@@ -75,7 +75,7 @@ static const char desc_fmt[] =
     "version=%d\n"
     "CID=%08x\n"
     "parentCID=ffffffff\n"
-    "createType=\"monolithicSparse\"\n"
+    "createType=\"%s\"\n"
     "# Extent description\n"
     "RW %ju SPARSE \"%s\"\n"
     "# The Disk Data Base\n"
@@ -83,7 +83,8 @@ static const char desc_fmt[] =
     "ddb.adapterType = \"ide\"\n"
     "ddb.geometry.cylinders = \"%u\"\n"
     "ddb.geometry.heads = \"%u\"\n"
-    "ddb.geometry.sectors = \"%u\"\n";
+    "ddb.geometry.sectors = \"%u\"\n"
+    "%s";
 
 static uint64_t grainsz;
 
@@ -127,8 +128,10 @@ vmdk_write(int fd)
 	le64enc(&hdr.grain_size, grainsz);
 
 	n = asprintf(&desc, desc_fmt, 1 /*version*/, 0 /*CID*/,
+	    "monolithicSparse" /*type*/,
 	    (uintmax_t)imagesz /*size*/, "" /*name*/,
-	    ncyls /*cylinders*/, nheads /*heads*/, nsecs /*sectors*/);
+	    ncyls /*cylinders*/, nheads /*heads*/, nsecs /*sectors*/,
+	    "" /*extra*/);
 	if (n == -1)
 		return (ENOMEM);
 
