@@ -575,7 +575,7 @@ intel_hwpstate_attach(device_t dev)
 	    "epp", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, dev, 0,
 	    sysctl_epp_select, "I",
 	    "Efficiency/Performance Preference "
-	    "(range from 0, most performant, through 100, most efficient)");
+	    "(range from 0, most performant, through 255, most efficient)");
 
 	return (cpufreq_register(dev));
 }
