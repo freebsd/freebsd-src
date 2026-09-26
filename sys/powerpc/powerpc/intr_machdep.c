@@ -73,6 +73,7 @@
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
@@ -89,13 +90,11 @@ static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
 	struct intr_event *event;
-	long	*cntp;
 	void	*priv;		/* PIC-private data */
 	device_t pic;
 	u_int	irq;
 	u_int	intline;
 	u_int	vector;
-	u_int	cntindex;
 	int	fwcode;
 	int	ipi;
 	int	pi_domain;
@@ -112,7 +111,6 @@ struct pic {
 	int	base;
 };
 
-static u_int intrcnt_index = 0;
 static struct mtx intr_table_lock;
 static struct powerpc_intr **powerpc_intrs;
 static struct pic piclist[MAX_PICS];
@@ -126,11 +124,10 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 static u_int stray_count;
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
-u_long *intrcnt;
-char *intrnames;
-size_t sintrcnt = sizeof(intrcnt);
-size_t sintrnames = sizeof(intrnames);
-int nintrcnt;
+static u_long *intrcnt;
+static char *intrnames;
+static u_int intrcnt_index;
+static int nintrcnt;
 
 /*
  * Just to start
@@ -167,7 +164,7 @@ intr_init_sources(void *arg __unused)
 
 	powerpc_intrs = mallocarray(num_io_irqs, sizeof(*powerpc_intrs),
 	    M_INTR, M_WAITOK | M_ZERO);
-	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
+	nintrcnt = mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
@@ -176,11 +173,6 @@ intr_init_sources(void *arg __unused)
 	    M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
-	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * INTRNAME_LEN;
-
-	intrcnt_setname("???", 0);
-	intrcnt_index = 1;
 }
 /*
  * This needs to happen before SI_SUB_CPU
@@ -218,7 +210,6 @@ intrcnt_add(const char *name, u_long **countp)
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
-	char intrname[16];
 	struct powerpc_intr *i, *iscan;
 	int vector;
 
@@ -238,7 +229,6 @@ intr_lookup(u_int irq)
 	}
 
 	i->event = NULL;
-	i->cntp = NULL;
 	i->priv = NULL;
 	i->trig = INTR_TRIGGER_CONFORM;
 	i->pol = INTR_POLARITY_CONFORM;
@@ -266,10 +256,6 @@ intr_lookup(u_int irq)
 
 	if (iscan == NULL && i->vector != -1) {
 		powerpc_intrs[i->vector] = i;
-		i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
-		i->cntp = &intrcnt[i->cntindex];
-		sprintf(intrname, "irq%u:", i->irq);
-		intrcnt_setname(intrname, i->cntindex);
 		nvectors++;
 	}
 	mtx_unlock(&intr_table_lock);
@@ -541,9 +527,6 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 		CPU_ZERO(&i->pi_cpuset);
 		CPU_COPY(&cpuset_domain[domain], &i->pi_cpuset);
 	}
-	mtx_lock(&intr_table_lock);
-	intrcnt_setname(i->event->ie_fullname, i->cntindex);
-	mtx_unlock(&intr_table_lock);
 
 	if (!cold) {
 		error = powerpc_map_irq(i);
@@ -639,8 +622,6 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	if (i == NULL)
 		goto stray;
 
-	(*i->cntp)++;
-
 	ie = i->event;
 	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
 
@@ -692,3 +673,74 @@ powerpc_intr_unmask(u_int irq)
 
 	PIC_UNMASK(i->pic, i->intline, i->priv);
 }
+
+/*
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ */
+static int
+powerpc_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req);
+	if (error != 0)
+		return (error);
+
+	return (intr_event_sysctl_intrnames(oidp, arg1, arg2, req));
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, intrnames,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    powerpc_sysctl_intrnames,
+    "", "Interrupt Names");
+
+static int
+powerpc_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL,
+			    intrcnt_index * sizeof(uint32_t), req));
+		intrcnt32 = malloc(intrcnt_index * sizeof(uint32_t), M_TEMP,
+		    M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < intrcnt_index; i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32,
+		    intrcnt_index * sizeof(uint32_t), req);
+		free(intrcnt32, M_TEMP);
+	} else
+#endif
+		error = sysctl_handle_opaque(oidp, intrcnt,
+		    intrcnt_index * sizeof(u_long), req);
+
+	return (error == 0 ? intr_event_sysctl_intrcnt(oidp, arg1, arg2, req) :
+	    error);
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    powerpc_sysctl_intrcnt,
+    "", "Interrupt Counts");
+
+#ifdef DDB
+/*
+ * DDB command to dump the IPI interrupt statistics.
+ */
+DB_SHOW_COMMAND_FLAGS(ipicnt, db_show_ipicnt, DB_CMD_MEMSAFE)
+{
+	u_int i;
+
+	for (i = 0; i < intrcnt_index && !db_pager_quit; ++i)
+		if (intrcnt[i] != 0)
+			db_printf("%s\t%lu\n", intrnames + i * INTRNAME_LEN,
+			    intrcnt[i]);
+}
+#endif
