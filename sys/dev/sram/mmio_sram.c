@@ -51,7 +51,6 @@ static struct resource_spec mmio_sram_spec[] = {
 };
 
 struct mmio_sram_softc {
-	struct simplebus_softc	simplebus_sc;
 	struct resource		*res[1];
 	device_t		dev;
 };
@@ -76,6 +75,7 @@ mmio_sram_attach(device_t dev)
 {
 	struct mmio_sram_softc *sc;
 	phandle_t node;
+	int rv;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -89,18 +89,9 @@ mmio_sram_attach(device_t dev)
 	if (node == -1)
 		return (ENXIO);
 
-	simplebus_init(dev, node);
-
-	/*
-	 * Allow devices to identify.
-	 */
-	bus_identify_children(dev);
-
-	/*
-	 * Now walk the OFW tree and attach top-level devices.
-	 */
-	for (node = OF_child(node); node > 0; node = OF_peer(node))
-		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
+	rv = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, node);
+	if (rv != 0)
+		return (rv);
 
 	bus_attach_children(dev);
 	return (0);

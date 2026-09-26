@@ -129,7 +129,6 @@ struct clk_list {
 };
 
 struct ti_sysc_softc {
-	struct simplebus_softc	sc;
 	bool			attach_done;
 
 	device_t		dev;

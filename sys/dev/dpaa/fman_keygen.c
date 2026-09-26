@@ -145,12 +145,12 @@ kg_ar_write(struct fman_softc *sc, uint32_t ar)
 		DELAY(1);
 	}
 	if ((ar & FMKG_AR_GO) != 0) {
-		device_printf(sc->sc_base.dev,
+		device_printf(sc->dev,
 		    "fman_kg: AR stuck busy (0x%08x)\n", ar);
 		return (ETIMEDOUT);
 	}
 	if ((ar & FMKG_AR_ERR) != 0) {
-		device_printf(sc->sc_base.dev,
+		device_printf(sc->dev,
 		    "fman_kg: AR reported error (0x%08x)\n", ar);
 		return (EIO);
 	}
@@ -212,7 +212,7 @@ kg_program_scheme(struct fman_softc *sc, uint8_t scheme_id,
 	error = kg_ar_write(sc, FMKG_AR_GO |
 	    (scheme_id << FMKG_AR_NUM_SHIFT) | FMKG_AR_SCM_WSEL_UPDCNT);
 	if (error != 0)
-		device_printf(sc->sc_base.dev,
+		device_printf(sc->dev,
 		    "fman_kg: scheme %u program failed\n", scheme_id);
 	return (error);
 }

@@ -88,7 +88,6 @@ enum {
 typedef int (*zynqmp_callfn_t)(register_t, register_t, register_t, uint32_t *payload);
 
 struct zynqmp_firmware_softc {
-	struct simplebus_softc	sc;
 	device_t		dev;
 	zynqmp_callfn_t		callfn;
 };

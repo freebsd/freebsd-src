@@ -60,7 +60,6 @@
 MALLOC_DECLARE(M_SYSCON);
 
 struct ti_scm_syscon_softc {
-	struct simplebus_softc	sc_simplebus;
 	device_t		dev;
 	struct syscon *		syscon;
 	struct resource *	res[1];
@@ -160,6 +159,7 @@ ti_scm_syscon_attach(device_t dev)
 {
 	struct ti_scm_syscon_softc *sc;
 	phandle_t node, child;
+	int rv;
 
  	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -183,12 +183,9 @@ ti_scm_syscon_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	simplebus_init(sc->dev, node);
-
-	bus_identify_children(sc->dev);
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		simplebus_add_device(sc->dev, child, 0, NULL, -1, NULL);
-	}
+	rv = simplebus_attach_impl(sc->dev, SB_FLAG_NO_RANGES, node);
+	if (rv != 0)
+		return (rv);
 
 	bus_attach_children(sc->dev);
 	return (0);

@@ -30,7 +30,6 @@
 #include <dev/fdt/simplebus.h>
 
 struct syscon_generic_softc {
-	struct simplebus_softc	simplebus;
 	device_t		dev;
 	struct syscon		*syscon;
 	struct resource		*mem_res;

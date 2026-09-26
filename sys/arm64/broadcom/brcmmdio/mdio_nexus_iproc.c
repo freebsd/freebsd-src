@@ -45,7 +45,6 @@ MALLOC_DEFINE(M_BRCM_IPROC_NEXUS, "Broadcom IPROC MDIO NEXUS",
     "Broadcom IPROC MDIO NEXUS dynamic memory");
 
 struct brcm_mdionexus_softc {
-	struct simplebus_softc simplebus_sc;
 	uint32_t mux_id;
 };
 
@@ -198,7 +197,7 @@ brcm_mdionexus_ofw_bus_attach(device_t dev)
 	parent = ofw_bus_get_node(dev);
 	simplebus_init(dev, parent);
 
-	sc = (struct simplebus_softc *)device_get_softc(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
 
 	/* Iterate through all bus subordinates */
 	for (node = OF_child(parent); node > 0; node = OF_peer(node)) {

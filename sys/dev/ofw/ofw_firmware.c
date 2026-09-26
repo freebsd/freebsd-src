@@ -43,7 +43,6 @@
 #include <dev/ofw/ofw_bus_subr.h>
 
 struct ofw_firmware_softc {
-	struct simplebus_softc	sc;
 	device_t		dev;
 };
 
@@ -54,7 +53,7 @@ ofw_firmware_setup_dinfo(device_t dev, phandle_t node,
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *ndi;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
 	if (di == NULL)
 		ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
 	else
@@ -122,25 +121,27 @@ static int
 ofw_firmware_attach(device_t dev)
 {
 	struct ofw_firmware_softc *sc;
+	struct simplebus_softc *sb_sc;
 	phandle_t node, child;
 	device_t cdev;
 
 	sc = device_get_softc(dev);
+	sb_sc = device_get_softc_class(dev, &simplebus_driver);
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	if (OF_getencprop(node, "#address-cells", &sc->sc.acells,
-	    sizeof(sc->sc.acells)) == -1) {
-		if (OF_getencprop(OF_parent(node), "#address-cells", &sc->sc.acells,
-		    sizeof(sc->sc.acells)) == -1) {
-			sc->sc.acells = 2;
+	if (OF_getencprop(node, "#address-cells", &sb_sc->acells,
+	    sizeof(sb_sc->acells)) == -1) {
+		if (OF_getencprop(OF_parent(node), "#address-cells",
+		     &sb_sc->acells, sizeof(sb_sc->acells)) == -1) {
+			sb_sc->acells = 2;
 		}
 	}
-	if (OF_getencprop(node, "#size-cells", &sc->sc.scells,
-	    sizeof(sc->sc.scells)) == -1) {
-		if (OF_getencprop(OF_parent(node), "#size-cells", &sc->sc.scells,
-		    sizeof(sc->sc.scells)) == -1) {
-			sc->sc.scells = 1;
+	if (OF_getencprop(node, "#size-cells", &sb_sc->scells,
+	    sizeof(sb_sc->scells)) == -1) {
+		if (OF_getencprop(OF_parent(node), "#size-cells",
+		    &sb_sc->scells, sizeof(sb_sc->scells)) == -1) {
+			sb_sc->scells = 1;
 		}
 	}
 

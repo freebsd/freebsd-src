@@ -54,7 +54,6 @@
 #define	DA9063_IIC_PAGE_CON_REG_PAGE_SHIFT	1
 
 struct da9063_iic_softc {
-	struct simplebus_softc	simplebus_sc;
 	device_t		dev;
 	struct mtx		mtx;
 	uint8_t			page;
@@ -219,9 +218,12 @@ da9063_iic_attach(device_t dev)
 	    DA9063_PAGE_CON_REG_PAGE_MASK) >> DA9063_IIC_PAGE_CON_REG_PAGE_SHIFT;
 	mtx_init(&sc->mtx, device_get_nameunit(sc->dev), NULL, MTX_DEF);
 
-	sc->simplebus_sc.flags |= SB_FLAG_NO_RANGES;
+	error = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (error != 0)
+		return (error);
 
-	return (simplebus_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

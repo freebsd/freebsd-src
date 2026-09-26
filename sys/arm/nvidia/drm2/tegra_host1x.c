@@ -88,7 +88,6 @@ struct client_info {
 };
 
 struct host1x_softc {
-	struct simplebus_softc	simplebus_sc;	/* must be first */
 	device_t		dev;
 	struct sx		lock;
 	int 			attach_done;
@@ -514,7 +513,7 @@ host1x_new_pass(device_t dev)
 		goto fail;
 	}
 
-	simplebus_init(dev, 0);
+	simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
 	for (node = OF_child(node); node > 0; node = OF_peer(node))
 	    simplebus_add_device(dev, node, 0, NULL, -1, NULL);
 

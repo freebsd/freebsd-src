@@ -160,12 +160,7 @@ MODULE_DEPEND(memacphy_fdt, miibus, 1, 1, 1);
 
 /* -------------------------------------------------------------------------- */
 
-/*
- * Order in this softc is important; memac_mdio_fdt_attach() calls
- * simplebus_init() which expects sb_sc at the beginning.
- */
 struct memac_mdio_softc_fdt {
-	struct simplebus_softc		sb_sc;		/* Must stay first. */
 	struct memac_mdio_softc_common	scc;
 };
 
@@ -294,8 +289,8 @@ static device_method_t memac_mdio_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(memac_mdio_fdt, memac_mdio_fdt_driver, memac_mdio_fdt_methods,
-    sizeof(struct memac_mdio_softc_fdt));
+DEFINE_CLASS_1(memac_mdio_fdt, memac_mdio_fdt_driver, memac_mdio_fdt_methods,
+    sizeof(struct memac_mdio_softc_fdt), simplebus_driver);
 
 EARLY_DRIVER_MODULE(memac_mdio_fdt, simplebus, memac_mdio_fdt_driver, 0, 0,
     BUS_PASS_SUPPORTDEV);

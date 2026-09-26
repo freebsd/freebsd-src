@@ -55,7 +55,6 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 struct aw_dwc3_softc {
-	struct simplebus_softc	sc;
 	device_t		dev;
 	clk_t			clk_bus;
 	hwreset_t		rst_bus;
@@ -85,8 +84,7 @@ static int
 aw_dwc3_attach(device_t dev)
 {
 	struct aw_dwc3_softc *sc;
-	device_t cdev;
-	phandle_t node, child;
+	phandle_t node;
 	int err;
 
 	sc = device_get_softc(dev);
@@ -113,17 +111,9 @@ aw_dwc3_attach(device_t dev)
 		}
 	}
 
-	simplebus_init(dev, node);
-	if (simplebus_fill_ranges(node, &sc->sc) < 0) {
-		device_printf(dev, "could not get ranges\n");
-		return (ENXIO);
-	}
-
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
-	}
+	err = simplebus_attach_impl(dev, 0, node);
+	if (err != 0)
+		return (err);
 
 	bus_attach_children(dev);
 	return (0);

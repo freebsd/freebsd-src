@@ -35,10 +35,6 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-struct ofw_regulator_bus_softc {
-	struct simplebus_softc simplebus_sc;
-};
-
 static int
 ofw_regulator_bus_probe(device_t dev)
 {
@@ -55,14 +51,11 @@ ofw_regulator_bus_probe(device_t dev)
 static int
 ofw_regulator_bus_attach(device_t dev)
 {
-	phandle_t node, child;
+	int	rv;
 
-	node  = ofw_bus_get_node(dev);
-	simplebus_init(dev, node);
-
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		simplebus_add_device(dev, child, 0, NULL, -1, NULL);
-	}
+	rv = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (rv != 0)
+		return (rv);
 
 	bus_attach_children(dev);
 	return (0);
@@ -77,8 +70,7 @@ static device_method_t ofw_regulator_bus_methods[] = {
 };
 
 DEFINE_CLASS_1(ofw_regulator_bus, ofw_regulator_bus_driver,
-    ofw_regulator_bus_methods, sizeof(struct ofw_regulator_bus_softc),
-    simplebus_driver);
+    ofw_regulator_bus_methods, 0, simplebus_driver);
 EARLY_DRIVER_MODULE(ofw_regulator_bus, simplebus, ofw_regulator_bus_driver,
     0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofw_regulator_bus, 1);

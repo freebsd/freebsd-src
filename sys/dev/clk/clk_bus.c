@@ -35,10 +35,6 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-struct ofw_clkbus_softc {
-	struct simplebus_softc simplebus_sc;
-};
-
 static int
 ofw_clkbus_probe(device_t dev)
 {
@@ -57,17 +53,11 @@ ofw_clkbus_probe(device_t dev)
 static int
 ofw_clkbus_attach(device_t dev)
 {
-	phandle_t node, child;
-	device_t cdev;
+	int	rv;
 
-	node  = ofw_bus_get_node(dev);
-	simplebus_init(dev, node);
-
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
-	}
+	rv = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (rv != 0)
+		return (rv);
 
 	bus_attach_children(dev);
 	return (0);
@@ -82,7 +72,7 @@ static device_method_t ofw_clkbus_methods[] = {
 };
 
 DEFINE_CLASS_1(ofw_clkbus, ofw_clkbus_driver, ofw_clkbus_methods,
-    sizeof(struct ofw_clkbus_softc), simplebus_driver);
+    0, simplebus_driver);
 EARLY_DRIVER_MODULE(ofw_clkbus, simplebus, ofw_clkbus_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofw_clkbus, 1);

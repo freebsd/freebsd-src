@@ -56,7 +56,6 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 struct qcom_dwc3_softc {
-	struct simplebus_softc	sc;
 	device_t		dev;
 	clk_t			clk_core;
 	clk_t			clk_sleep;
@@ -144,18 +143,9 @@ qcom_dwc3_attach(device_t dev)
 	 * Rest is glue code.
 	 */
 
-	simplebus_init(dev, node);
-	if (simplebus_fill_ranges(node, &sc->sc) < 0) {
-		device_printf(dev, "could not get ranges\n");
+	err = simplebus_attach_impl(dev, 0, node);
+	if (err != 0)
 		return (ENXIO);
-	}
-
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
-	}
-
 	bus_attach_children(dev);
 	return (0);
 }

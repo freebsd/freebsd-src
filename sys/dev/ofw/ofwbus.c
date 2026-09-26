@@ -73,8 +73,7 @@ static device_method_t ofwbus_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(ofwbus, ofwbus_driver, ofwbus_methods,
-    sizeof(struct simplebus_softc), simplebus_driver);
+DEFINE_CLASS_1(ofwbus, ofwbus_driver, ofwbus_methods, 0, simplebus_driver);
 EARLY_DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofwbus, 1);

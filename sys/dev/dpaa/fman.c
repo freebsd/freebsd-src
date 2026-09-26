@@ -161,13 +161,15 @@ int
 fman_activate_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct fman_softc *sc;
+	struct simplebus_softc *sb_sc;
 	bus_space_tag_t bt;
 	bus_space_handle_t bh;
 	int i, rv;
 
 	sc = device_get_softc(bus);
+	sb_sc = device_get_softc_class(bus, &simplebus_driver);
 	if (rman_get_type(res) != SYS_RES_IRQ) {
-		for (i = 0; i < sc->sc_base.nranges; i++) {
+		for (i = 0; i < sb_sc->nranges; i++) {
 			if (rman_is_region_manager(res, &sc->rman) != 0) {
 				bt = rman_get_bustag(sc->mem_res);
 				rv = bus_space_subregion(bt,
@@ -224,6 +226,7 @@ fman_alloc_resource(device_t bus, device_t child, int type, int rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct fman_softc *sc;
+	struct simplebus_softc *sb_sc;
 	struct resource_list *rl;
 	struct resource_list_entry *rle = NULL;
 	struct resource *res;
@@ -232,6 +235,7 @@ fman_alloc_resource(device_t bus, device_t child, int type, int rid,
 	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
+	sb_sc = device_get_softc_class(bus, &simplebus_driver);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -252,9 +256,9 @@ fman_alloc_resource(device_t bus, device_t child, int type, int rid,
 
 		res = NULL;
 		/* Map fman ranges to nexus ranges. */
-		for (i = 0; i < sc->sc_base.nranges; i++) {
-			if (start >= sc->sc_base.ranges[i].bus && end <
-			    sc->sc_base.ranges[i].bus + sc->sc_base.ranges[i].size) {
+		for (i = 0; i < sb_sc->nranges; i++) {
+			if (start >= sb_sc->ranges[i].bus && end <
+			    sb_sc->ranges[i].bus + sb_sc->ranges[i].size) {
 				start += rman_get_start(sc->mem_res);
 				end += rman_get_start(sc->mem_res);
 				res = rman_reserve_resource(&sc->rman, start,
@@ -366,14 +370,14 @@ fman_fill_soc_params(struct fman_softc *sc)
 			sc->total_fifo_size = 295 * 1024;
 			break;
 		default:
-			device_printf(sc->sc_base.dev,
+			device_printf(sc->dev,
 			    "Unsupported FManv3 revision: %d\n",
 			    sc->sc_revision_minor);
 			break;
 		}
 		break;
 	default:
-		device_printf(sc->sc_base.dev,
+		device_printf(sc->dev,
 		    "Unsupported FMan version: %d\n", sc->sc_revision_major);
 		break;
 	}
@@ -403,12 +407,12 @@ fman_reset(struct fman_softc *sc)
 #define	DEVDISR2_FMAN1	0xfcc00000
 #define	DEVDISR2_FMAN2	0x000fcc00
 
-		node = ofw_bus_get_node(device_get_parent(sc->sc_base.dev));
+		node = ofw_bus_get_node(device_get_parent(sc->dev));
 		node = fdt_find_compatible(node, "fsl,qoriq-device-config-2.0",
 		    false);
 
 		if (node == 0) {
-			device_printf(sc->sc_base.dev,
+			device_printf(sc->dev,
 			    "missing device-config node in FDT.  Cannot reset FMAN");
 			return (0);
 		}
@@ -487,7 +491,7 @@ fman_dma_init(struct fman_softc *sc)
 	    sc->dma_cam_num_entries * DMA_CAM_SIZE, DMA_CAM_ALIGN, 0, 0,
 	    VMEM_ADDR_MIN, VMEM_ADDR_MAX, M_BESTFIT | M_WAITOK, &addr);
 	if (err != 0)
-		device_printf(sc->sc_base.dev,
+		device_printf(sc->dev,
 		    "failed to allocate DMA buffer\n");
 	reg = addr;
 	bus_write_4(sc->mem_res, FMDM_EBCR, reg);
@@ -593,7 +597,7 @@ fman_init(struct fman_softc *sc)
 	sc->sc_revision_minor = fman_get_revision_minor(sc);
 
 	if (bootverbose)
-		device_printf(sc->sc_base.dev, "Hardware version: %d.%d.\n",
+		device_printf(sc->dev, "Hardware version: %d.%d.\n",
 		    sc->sc_revision_major, sc->sc_revision_minor);
 
 	fman_fill_soc_params(sc);
@@ -649,7 +653,7 @@ fman_init_muram(struct fman_softc *sc)
 	u_long base, size;
 	phandle_t node;
 
-	node = ofw_bus_get_node(sc->sc_base.dev);
+	node = ofw_bus_get_node(sc->dev);
 	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
 		char compat[255];
 
@@ -659,11 +663,11 @@ fman_init_muram(struct fman_softc *sc)
 			break;
 	}
 	if (node == 0) {
-		device_printf(sc->sc_base.dev, "no muram node\n");
+		device_printf(sc->dev, "no muram node\n");
 		return (ENXIO);
 	}
 	if (fdt_regsize(node, &base, &size) != 0) {
-		device_printf(sc->sc_base.dev, "failed to get muram reg\n");
+		device_printf(sc->dev, "failed to get muram reg\n");
 		return (ENXIO);
 	}
 	sc->muram_vmem = vmem_create("MURAM",
@@ -681,7 +685,7 @@ fman_attach(device_t dev)
 	phandle_t node;
 
 	sc = device_get_softc(dev);
-	sc->sc_base.dev = dev;
+	sc->dev = dev;
 
 	cell = 0;
 	node = ofw_bus_get_node(dev);
@@ -729,7 +733,7 @@ fman_attach(device_t dev)
 	sc->rman.rm_type = RMAN_ARRAY;
 	sc->rman.rm_descr = "FMan range";
 	rman_init_from_resource(&sc->rman, sc->mem_res);
-	simplebus_attach_impl(sc->sc_base.dev);
+	simplebus_attach_impl(sc->dev, 0, 0);
 
 	if (fman_init_muram(sc) != 0)
 		goto err;

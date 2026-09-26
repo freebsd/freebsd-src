@@ -46,7 +46,7 @@
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
 struct bcm2835_firmware_softc {
-	struct simplebus_softc	sc;
+	device_t	dev;
 	phandle_t	sc_mbox;
 };
 
@@ -81,6 +81,7 @@ bcm2835_firmware_attach(device_t dev)
 	int rv;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
 	node = ofw_bus_get_node(dev);
 	rv = OF_getencprop(node, "mboxes", &mbox, sizeof(mbox));
@@ -101,8 +102,12 @@ bcm2835_firmware_attach(device_t dev)
 	    "Firmware revision");
 
 	/* The firmwaare doesn't have a ranges property */
-	sc->sc.flags |= SB_FLAG_NO_RANGES;
-	return (simplebus_attach(dev));
+	rv = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (rv != 0)
+		return (rv);
+
+	bus_attach_children(dev);
+	return (0);
 }
 
 int
@@ -151,7 +156,7 @@ sysctl_bcm2835_firmware_get_revision(SYSCTL_HANDLER_ARGS)
 	uint32_t rev;
 	int err;
 
-	if (bcm2835_firmware_property(sc->sc.dev,
+	if (bcm2835_firmware_property(sc->dev,
 	    BCM2835_MBOX_TAG_FIRMWARE_REVISION, &rev, sizeof(rev)) != 0)
 		return (ENXIO);
 

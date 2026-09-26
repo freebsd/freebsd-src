@@ -103,7 +103,6 @@ struct rk_pinctrl_conf {
 };
 
 struct rk_pinctrl_softc {
-	struct simplebus_softc	simplebus_sc;
 	device_t		dev;
 	struct syscon		*grf;
 	struct syscon		*pmu;

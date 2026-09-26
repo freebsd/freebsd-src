@@ -63,7 +63,6 @@
 #endif
 
 struct ti_prcm_softc {
-	struct simplebus_softc  sc_simplebus;
 	device_t		dev;
 	struct resource *	mem_res;
 	bus_space_tag_t		bst;
@@ -135,6 +134,7 @@ static int
 ti_prcm_attach(device_t dev)
 {
 	struct ti_prcm_softc *sc;
+	struct simplebus__softc *sb_sc;
 	phandle_t node, child;
 	int rid;
 
@@ -144,20 +144,19 @@ ti_prcm_attach(device_t dev)
 	node = ofw_bus_get_node(sc->dev);
 	simplebus_init(sc->dev, node);
 
-	if (simplebus_fill_ranges(node, &sc->sc_simplebus) < 0) {
+	if (simplebus_fill_ranges(node, sb_sc) < 0) {
 		device_printf(sc->dev, "could not get ranges\n");
 		return (ENXIO);
 	}
-	if (sc->sc_simplebus.nranges == 0) {
+	if (sb_sc->nranges == 0) {
 		device_printf(sc->dev, "nranges == 0\n");
 		return (ENXIO);
 	}
 
 	sc->mem_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &rid,
-		sc->sc_simplebus.ranges[0].host,
-		(sc->sc_simplebus.ranges[0].host +
-			sc->sc_simplebus.ranges[0].size - 1),
-		sc->sc_simplebus.ranges[0].size,
+		sb_sc->ranges[0].host,
+		(sb_sc->ranges[0].host + sb_sc->ranges[0].size - 1),
+		sb_sc->ranges[0].size,
 		RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->mem_res == NULL) {

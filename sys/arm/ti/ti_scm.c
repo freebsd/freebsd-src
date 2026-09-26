@@ -82,7 +82,6 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 struct ti_scm_softc {
-	struct simplebus_softc	sc;
 	device_t		dev;
 };
 
@@ -108,24 +107,16 @@ static int
 ti_scm_attach(device_t dev)
 {
 	struct ti_scm_softc *sc;
-	device_t cdev;
 	phandle_t node, child;
+	int rv
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	simplebus_init(dev, node);
-	if (simplebus_fill_ranges(node, &sc->sc) < 0) {
-		device_printf(dev, "could not get ranges\n");
-		return (ENXIO);
-	}
-
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
-	}
+	rv = simplebus_attach_impl(dev, 0, node);
+	if (rv != 0)
+		return (rv);
 
 	bus_attach_children(dev);
 	return (0);

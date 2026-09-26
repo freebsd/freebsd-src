@@ -185,7 +185,7 @@ syscon_generic_attach(device_t dev)
 		return (ENXIO);
 	}
 	if (ofw_bus_is_compatible(dev, "simple-bus")) {
-		rv = simplebus_attach_impl(sc->dev);
+		rv = simplebus_attach_impl(sc->dev, 0, 0);
 		if (rv != 0) {
 			device_printf(dev, "Failed to create simplebus\n");
 			syscon_generic_detach(dev);

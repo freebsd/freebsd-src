@@ -90,7 +90,6 @@ struct brcm_mdio_ofw_devinfo {
 };
 
 struct brcm_iproc_mdio_softc {
-	struct simplebus_softc	sbus;
 	device_t		dev;
 	struct resource *	reg_base;
 	uint32_t		clock_rate;
@@ -300,12 +299,14 @@ static int
 brcm_iproc_mdio_attach(device_t dev)
 {
 	struct brcm_iproc_mdio_softc *sc;
+	struct simplebus_softc *sb_sc;
 	phandle_t node, parent;
 	struct brcm_mdio_ofw_devinfo *di;
 	int rid;
 	device_t child;
 
 	sc = device_get_softc(dev);
+	sb_sc = device_get_softc_class(dev, &simplebus_driver);
 	sc->dev = dev;
 
 	/* Allocate memory resources */
@@ -337,7 +338,7 @@ brcm_iproc_mdio_attach(device_t dev)
 
 		/* Initialize and populate resource list. */
 		resource_list_init(&di->di_rl);
-		ofw_bus_reg_to_rl(dev, node, sc->sbus.acells, sc->sbus.scells,
+		ofw_bus_reg_to_rl(dev, node, sb_sc->acells, sb_sc->scells,
 		    &di->di_rl);
 		ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
 

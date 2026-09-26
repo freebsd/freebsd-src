@@ -67,7 +67,6 @@ static device_attach_t am335x_pwmss_attach;
 static device_detach_t am335x_pwmss_detach;
 
 struct am335x_pwmss_softc {
-	struct simplebus_softc	sc_simplebus;
 	device_t		sc_dev;
 	struct syscon           *syscon;
 };
@@ -101,7 +100,7 @@ am335x_pwmss_attach(device_t dev)
 	struct am335x_pwmss_softc *sc;
 	uint32_t reg, id;
 	uint64_t rev_address;
-	phandle_t node, opp_table;
+	phandle_t opp_table;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -140,23 +139,9 @@ am335x_pwmss_attach(device_t dev)
 	reg |= (1 << id);
 	SYSCON_WRITE_4(sc->syscon, SCM_PWMSS_CTRL, reg);
 
-	node = ofw_bus_get_node(dev);
-
-	if (node == -1)
-		return (ENXIO);
-
-	simplebus_init(dev, node);
-
-	/*
-	 * Allow devices to identify.
-	 */
-	bus_identify_children(dev);
-
-	/*
-	 * Now walk the OFW tree and attach top-level devices.
-	 */
-	for (node = OF_child(node); node > 0; node = OF_peer(node))
-		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
+	error = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (error != 0)
+		return (error);
 
 	bus_attach_children(dev);
 	return (0);

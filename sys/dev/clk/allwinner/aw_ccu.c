@@ -50,7 +50,6 @@
 #define	CCU_SIZE	0x400
 
 struct aw_ccu_softc {
-	struct simplebus_softc	sc;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	struct mtx		mtx;
@@ -187,14 +186,9 @@ static int
 aw_ccu_attach(device_t dev)
 {
 	struct aw_ccu_softc *sc;
-	phandle_t node, child;
-	device_t cdev;
 	int error;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
-
-	simplebus_init(dev, node);
 
 	sc->flags = aw_ccu_search_compatible()->ocd_data;
 
@@ -213,12 +207,9 @@ aw_ccu_attach(device_t dev)
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	/* Attach child devices */
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
-	}
+	error = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (error != 0)
+		return (error);
 
 	bus_attach_children(dev);
 	return (0);

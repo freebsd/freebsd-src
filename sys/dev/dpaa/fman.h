@@ -63,7 +63,7 @@
  * FMan driver instance data.
  */
 struct fman_softc {
-	struct simplebus_softc sc_base;
+	device_t dev;
 	struct resource *mem_res;
 	struct resource *irq_res;
 	struct resource *err_irq_res;

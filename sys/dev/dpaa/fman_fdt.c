@@ -87,16 +87,14 @@ fman_fdt_probe(device_t dev)
 uint32_t
 fman_get_clock(struct fman_softc *sc)
 {
-	device_t dev;
 	phandle_t node;
 	pcell_t fman_clock;
 
-	dev = sc->sc_base.dev;
-	node = ofw_bus_get_node(dev);
+	node = ofw_bus_get_node(sc->dev);
 
 	if ((OF_getprop(node, "clock-frequency", &fman_clock,
 	    sizeof(fman_clock)) <= 0) || (fman_clock == 0)) {
-		device_printf(dev,
+		device_printf(sc->dev,
 		    "could not acquire correct frequency from DTS\n");
 
 		return (0);

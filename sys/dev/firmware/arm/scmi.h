@@ -61,7 +61,6 @@ struct scmi_transport_desc {
 struct scmi_transport;
 
 struct scmi_softc {
-	struct simplebus_softc		simplebus_sc;
 	device_t			dev;
 	struct mtx			mtx;
 	struct scmi_transport_desc	trs_desc;

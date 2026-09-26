@@ -152,7 +152,6 @@ simple_mfd_syscon_unlock(device_t dev)
 static int
 simple_mfd_probe(device_t dev)
 {
-
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 	if (!ofw_bus_is_compatible(dev, "simple-mfd"))
@@ -167,43 +166,16 @@ static int
 simple_mfd_attach(device_t dev)
 {
 	struct simple_mfd_softc *sc;
-	phandle_t node, child;
-	int rid;
+	int rid, rv;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
 
 	sc->dev = dev;
 	rid = 0;
 
-	/* Parse address-cells and size-cells from the parent node as a fallback */
-	if (OF_getencprop(node, "#address-cells", &sc->sc.acells,
-	    sizeof(sc->sc.acells)) == -1) {
-		if (OF_getencprop(OF_parent(node), "#address-cells", &sc->sc.acells,
-		    sizeof(sc->sc.acells)) == -1) {
-			sc->sc.acells = 2;
-		}
-	}
-	if (OF_getencprop(node, "#size-cells", &sc->sc.scells,
-	    sizeof(sc->sc.scells)) == -1) {
-		if (OF_getencprop(OF_parent(node), "#size-cells", &sc->sc.scells,
-		    sizeof(sc->sc.scells)) == -1) {
-			sc->sc.scells = 1;
-		}
-	}
-
-	/* If the node has a ranges prop, parse it so children mapping will be done correctly */
-	if (OF_hasprop(node, "ranges")) {
-		if (simplebus_fill_ranges(node, &sc->sc) < 0) {
-			device_printf(dev, "could not get ranges\n");
-			return (ENXIO);
-		}
-	}
-
-	/* Attach child devices */
-	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		(void)simple_mfd_add_device(dev, child, 0, NULL, -1, NULL);
-	}
+	rv = simplebus_attach_impl(dev, SB_FLAG_NO_RANGES, 0);
+	if (rv != 0)
+		return (rv);
 
 	if (ofw_bus_is_compatible(dev, "syscon")) {
 		sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -255,7 +227,7 @@ simple_mfd_setup_dinfo(device_t dev, phandle_t node,
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *ndi;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
 	if (di == NULL)
 		ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
 	else

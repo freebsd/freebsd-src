@@ -34,6 +34,8 @@
 #include <sys/kernel.h>
 #include <sys/rman.h>
 
+#include <machine/bus.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -178,13 +180,16 @@ simplebus_probe(device_t dev)
 }
 
 int
-simplebus_attach_impl(device_t dev)
+simplebus_attach_impl(device_t dev, int flags, phandle_t node)
 {
 	struct		simplebus_softc *sc;
-	phandle_t	node;
 
-	sc = device_get_softc(dev);
-	simplebus_init(dev, 0);
+	if (node == 0)
+		node = ofw_bus_get_node(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
+	sc->flags |=flags;
+
+	simplebus_init(dev, node);
 	if ((sc->flags & SB_FLAG_NO_RANGES) == 0 &&
 	    simplebus_fill_ranges(sc->node, sc) < 0) {
 		device_printf(dev, "could not get ranges\n");
@@ -207,7 +212,7 @@ simplebus_attach(device_t dev)
 {
 	int	rv;
 
-	rv = simplebus_attach_impl(dev);
+	rv = simplebus_attach_impl(dev, 0, 0);
 	if (rv != 0)
 		return (rv);
 
@@ -225,7 +230,7 @@ simplebus_detach(device_t dev)
 	if (rv != 0)
 		return (rv);
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
 	if (sc->ranges != NULL)
 		free(sc->ranges, M_DEVBUF);
 
@@ -236,8 +241,7 @@ void
 simplebus_init(device_t dev, phandle_t node)
 {
 	struct simplebus_softc *sc;
-
-	sc = device_get_softc(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
 	if (node == 0)
 		node = ofw_bus_get_node(dev);
 	sc->dev = dev;
@@ -250,6 +254,7 @@ simplebus_init(device_t dev, phandle_t node)
 	OF_getencprop(node, "#address-cells", &sc->acells, sizeof(sc->acells));
 	sc->scells = 1;
 	OF_getencprop(node, "#size-cells", &sc->scells, sizeof(sc->scells));
+
 }
 
 int
@@ -308,7 +313,7 @@ simplebus_setup_dinfo(device_t dev, phandle_t node,
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *ndi;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc_class(dev, &simplebus_driver);
 	if (di == NULL)
 		ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
 	else
@@ -468,7 +473,7 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int rid,
 	struct resource_list_entry *rle;
 	int j;
 
-	sc = device_get_softc(bus);
+	sc = device_get_softc_class(bus, &simplebus_driver);
 
 	/*
 	 * Request for the default allocation with a given rid: use resource
