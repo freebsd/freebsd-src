@@ -28,4 +28,4 @@ ci-buildkernel-riscv64: ci-buildkernel .PHONY
 
 ci-buildimage-riscv64: ci-buildimage .PHONY
 
-ci-runtest-riscv64: ci-runtest .PHONY
+ci-runtest-riscv64: ci-runtest-qemu .PHONY
