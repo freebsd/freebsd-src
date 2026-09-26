@@ -140,6 +140,17 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	    cdata->ver & 0xff);
 	printf("Traffic Based Keep Alive:    %sSupported\n",
 	    NVMEV(NVME_CTRLR_DATA_CTRATT_TBKAS, cdata->ctratt) ? "" : "Not ");
+	printf("CXL HDM:                     %sSupported\n",
+	    NVMEV(NVME_CTRLR_DATA_CHSI_CHS, cdata->chsi) ? "" : "Not ");
+	printf("NVMSS Shutdown Latency:      ");
+	if (cdata->nssl == 0)
+		printf("Not Reported\n");
+	else
+		printf("%u us\n", cdata->nssl);
+	printf("PLS Emergency Power Fail:    %sSupported\n",
+	    NVMEV(NVME_CTRLR_DATA_PLSI_PLSEPF, cdata->plsi) ? "" : "Not ");
+	printf("PLS Forced Quiescence:       %sSupported\n",
+	    NVMEV(NVME_CTRLR_DATA_PLSI_PLSFQ, cdata->plsi) ? "" : "Not ");
 	printf("Controller Type:             ");
 	switch (cdata->cntrltype) {
 	case 0:

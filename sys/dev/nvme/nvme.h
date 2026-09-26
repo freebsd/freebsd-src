@@ -378,6 +378,31 @@ enum nvme_psdt {
 #define NVME_CTRLR_DATA_CTRATT_UUID_LIST_SHIFT		(9)
 #define NVME_CTRLR_DATA_CTRATT_UUID_LIST_MASK		(0x1)
 
+/** BPCAP - boot partition capabilities */
+/* RPMB boot partition write protection support */
+#define NVME_CTRLR_DATA_BPCAP_RPMBBPWPS_SHIFT		(0)
+#define NVME_CTRLR_DATA_BPCAP_RPMBBPWPS_MASK		(0x3)
+/* supports Set Features boot partition write protection */
+#define NVME_CTRLR_DATA_BPCAP_SFBPWPS_SHIFT		(2)
+#define NVME_CTRLR_DATA_BPCAP_SFBPWPS_MASK		(0x1)
+
+#define NVME_CTRLR_DATA_BPCAP_RPMBBPWPS_UNSPEC		(0x0)
+#define NVME_CTRLR_DATA_BPCAP_RPMBBPWPS_NO		(0x1)
+#define NVME_CTRLR_DATA_BPCAP_RPMBBPWPS_YES		(0x2)
+
+/** CHSI - CXL HDM support information */
+/* supports CXL host managed device memory */
+#define NVME_CTRLR_DATA_CHSI_CHS_SHIFT			(0)
+#define NVME_CTRLR_DATA_CHSI_CHS_MASK			(0x1)
+
+/** PLSI - power loss signaling information */
+/* supports power loss signaling with emergency power fail */
+#define NVME_CTRLR_DATA_PLSI_PLSEPF_SHIFT		(0)
+#define NVME_CTRLR_DATA_PLSI_PLSEPF_MASK		(0x1)
+/* supports power loss signaling with forced quiescence */
+#define NVME_CTRLR_DATA_PLSI_PLSFQ_SHIFT		(1)
+#define NVME_CTRLR_DATA_PLSI_PLSFQ_MASK			(0x1)
+
 /** OACS - optional admin command support */
 /* supports security send/receive commands */
 #define NVME_CTRLR_DATA_OACS_SECURITY_SHIFT		(0)
@@ -1230,7 +1255,19 @@ struct nvme_controller_data {
 	/** Read Recovery Levels Supported */
 	uint16_t		rrls;
 
-	uint8_t			reserved1[9];
+	/** Boot Partition Capabilities */
+	uint8_t			bpcap;
+
+	/** CXL HDM Support Information */
+	uint8_t			chsi;
+
+	/** NVM Subsystem Shutdown Latency */
+	uint32_t		nssl;
+
+	uint8_t			reserved1[2];
+
+	/** Power Loss Signaling Information */
+	uint8_t			plsi;
 
 	/** Controller Type */
 	uint8_t			cntrltype;
@@ -2153,6 +2190,7 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s __unused)
 	s->oaes = le32toh(s->oaes);
 	s->ctratt = le32toh(s->ctratt);
 	s->rrls = le16toh(s->rrls);
+	s->nssl = le32toh(s->nssl);
 	s->crdt1 = le16toh(s->crdt1);
 	s->crdt2 = le16toh(s->crdt2);
 	s->crdt3 = le16toh(s->crdt3);
