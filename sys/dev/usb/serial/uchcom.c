@@ -628,6 +628,9 @@ uchcom_calc_baudrate(struct uchcom_softc *sc, uint32_t rate, uint8_t *divisor,
 		*divisor = 0;
 	}
 
+	if (rate == 0)
+		rate = 1;
+
 	*factor = 256 - clk / rate;
 
 	if (rate == 921600 && sc->sc_chiptype != TYPE_CH343) {
