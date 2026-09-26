@@ -21,6 +21,7 @@ SCRIPTS=auto \
 	netconfig_ipv4 \
 	netconfig_ipv6 \
 	pkgbase \
+	repair \
 	rootpass \
 	script \
 	services \
