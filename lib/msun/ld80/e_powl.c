@@ -363,7 +363,6 @@ if( x <= 0.0L )
 
 if( iyflg )
 	{
-	i = w;
 	w = floorl(x);
 	if( (w == x) && (fabsl(y) < 32768.0) )
 		{
@@ -375,6 +374,33 @@ if( iyflg )
 
 if( nflg )
 	x = fabsl(x);
+
+/*
+ * Pure integer bounds classification to avoid fenv pollution.
+ * If |y| >= 2^15 and |log2(x)| >= 1, the product definitively
+ * exceeds ld80 MEXP/MNEXP limits without requiring FP multiplication.
+ * Prevents NaN generation from intermediate calculations and UB on
+ * conversion (bug 292988).
+ */
+{
+	int ex = ilogbl(x);
+	int ey = ilogbl(y);
+
+	if (ey >= 15 && (ex <= -2 || ex >= 1)) {
+		int q_sign = signbit(y) ^ (ex < 0);
+		volatile long double v, s;
+
+		if (q_sign)
+			v = s = 0x1p-10000L; /* Guaranteed underflow */
+		else
+			v = s = 0x1p9000L;  /* Guaranteed overflow */
+
+		if (nflg && yoddint)
+			s = -s;
+		v = v * s;
+		return (v);
+	}
+}
 
 /* separate significand from exponent */
 x = frexpl( x, &i );
