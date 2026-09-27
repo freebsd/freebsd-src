@@ -101,6 +101,31 @@ SPLAY_GENERATE(splay_in, group_in, in, cmp_in);
 SPLAY_GENERATE(splay_internal_endpoint, alias_link, all.internal_endpoint,
     cmp_internal_endpoint);
 
+/*
+ * Fully specified links of a group, ordered by the remote endpoint
+ * (dst_addr, dst_port). Links that share an endpoint (for example a
+ * permanent redirect that overrides an older one) are ordered newest
+ * first, which keeps the "most recent link wins" behaviour of the former
+ * list. A lookup needle has la == NULL and sorts before every real link
+ * with the same endpoint, so RB_NFIND() returns the newest one.
+ */
+static inline int
+cmp_full(struct alias_link *a, struct alias_link *b)
+{
+	if (a->dst_addr.s_addr != b->dst_addr.s_addr)
+		return (a->dst_addr.s_addr > b->dst_addr.s_addr ? 1 : -1);
+	if (a->dst_port != b->dst_port)
+		return (a->dst_port > b->dst_port ? 1 : -1);
+	if (a == b)
+		return (0);
+	if (a->la == NULL)
+		return (-1);
+	if (b->la == NULL)
+		return (1);
+	return (a->seq > b->seq ? -1 : 1);
+}
+RB_GENERATE_STATIC(full_in, alias_link, all.in_full, cmp_full);
+
 static struct group_in *
 StartPointIn(struct libalias *la,
     struct in_addr alias_addr, u_short alias_port, int link_type,
@@ -119,10 +144,43 @@ StartPointIn(struct libalias *la,
 	grp->alias_addr = alias_addr;
 	grp->alias_port = alias_port;
 	grp->link_type = link_type;
-	LIST_INIT(&grp->full);
+	RB_INIT(&grp->full);
 	LIST_INIT(&grp->partial);
 	SPLAY_INSERT(splay_in, &la->linkSplayIn, grp);
 	return (grp);
+}
+
+/*
+ * First fully specified link of grp at or after (dst_addr, dst_port),
+ * or NULL. Callers check which fields actually match.
+ */
+static inline struct alias_link *
+FullInNFind(struct group_in *grp, struct in_addr dst_addr, u_short dst_port)
+{
+	struct alias_link needle = {
+		.la = NULL,
+		.dst_addr = dst_addr,
+		.dst_port = dst_port
+	};
+
+	return (RB_NFIND(full_in, &grp->full, &needle));
+}
+
+/*
+ * Fully specified link of grp for exactly (dst_addr, dst_port), or NULL.
+ * With several links for the same endpoint, the newest one is returned.
+ */
+static inline struct alias_link *
+FullInFind(struct group_in *grp, struct in_addr dst_addr, u_short dst_port)
+{
+	struct alias_link *lnk;
+
+	lnk = FullInNFind(grp, dst_addr, dst_port);
+	if (lnk != NULL &&
+	    lnk->dst_addr.s_addr == dst_addr.s_addr &&
+	    lnk->dst_port == dst_port)
+		return (lnk);
+	return (NULL);
 }
 
 static int
@@ -281,14 +339,9 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 		    lnk->link_type == LINK_UDP)
 			continue;
 
-		LIST_FOREACH(search_result, &grp->full, all.in) {
-			if (lnk->dst_addr.s_addr ==
-			    search_result->dst_addr.s_addr &&
-			    lnk->dst_port == search_result->dst_port)
-				break;     /* found match */
-		}
+		search_result = FullInFind(grp, lnk->dst_addr, lnk->dst_port);
 		if (search_result == NULL)
-			break;
+			break;     /* port is free */
 	}
 
 	if (i >= max_trials) {
@@ -521,21 +574,31 @@ DeleteLink(struct alias_link **plnk, int deletePermanent)
 			SPLAY_REMOVE(splay_out, &la->linkSplayOut, lnk);
 		}
 
-		/* Adjust input table pointers */
-		LIST_REMOVE(lnk, all.in);
+		/*
+		 * Adjust input table pointers.  AddLink() put every
+		 * non-PPTP link in its group, and the group is freed only
+		 * when it is empty, so the group must exist here.
+		 */
+		grp = StartPointIn(la, lnk->alias_addr, lnk->alias_port,
+		    lnk->link_type, 0);
+#ifdef _KERNEL
+		KASSERT(grp != NULL, ("%s: link %p has no group",
+		    __func__, lnk));
+#endif
+		if (lnk->flags & LINK_PARTIALLY_SPECIFIED)
+			LIST_REMOVE(lnk, all.in);
+		else
+			RB_REMOVE(full_in, &grp->full, lnk);
+
+		/* Remove intermediate node, if empty */
+		if (RB_EMPTY(&grp->full) && LIST_EMPTY(&grp->partial)) {
+			SPLAY_REMOVE(splay_in, &la->linkSplayIn, grp);
+			free(grp);
+		}
 
 		/* Adjust "internal endpoint" table pointer */
 		SPLAY_REMOVE(splay_internal_endpoint,
 		    &la->linkSplayInternalEndpoint, lnk);
-
-		/* Remove intermediate node, if empty */
-		grp = StartPointIn(la, lnk->alias_addr, lnk->alias_port, lnk->link_type, 0);
-		if (grp != NULL &&
-		    LIST_EMPTY(&grp->full) &&
-		    LIST_EMPTY(&grp->partial)) {
-			SPLAY_REMOVE(splay_in, &la->linkSplayIn, grp);
-			free(grp);
-		}
 	}
 		break;
 	}
@@ -624,6 +687,7 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 	lnk->flags = 0;
 	lnk->pflags = 0;
 	lnk->timestamp = LibAliasTime;
+	lnk->seq = la->linkSeq++;
 
 	/* Expiration time */
 	switch (link_type) {
@@ -727,7 +791,7 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		if (lnk->flags & LINK_PARTIALLY_SPECIFIED)
 			LIST_INSERT_HEAD(&grp->partial, lnk, all.in);
 		else
-			LIST_INSERT_HEAD(&grp->full, lnk, all.in);
+			RB_INSERT(full_in, &grp->full, lnk);
 
 		/* Set up pointers for "internal endpoint" lookup table */
 		SPLAY_INSERT(splay_internal_endpoint,
@@ -902,40 +966,36 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 
 	switch (flags_in) {
 	case 0:
-		LIST_FOREACH(lnk, &grp->full, all.in) {
-			if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
-			    lnk->dst_port == dst_port) {
-				struct alias_link *found;
+		lnk = FullInFind(grp, dst_addr, dst_port);
+		if (lnk != NULL) {
+			struct alias_link *found;
 
-				found = UseLink(la, lnk);
-				if (found != NULL)
-					return (found);
-				/* link expired */
-				grp = StartPointIn(la, alias_addr, alias_port, link_type, 0);
-				if (grp == NULL)
-					return (NULL);
-				break;
-			}
+			found = UseLink(la, lnk);
+			if (found != NULL)
+				return (found);
+			/* link expired */
+			grp = StartPointIn(la, alias_addr, alias_port, link_type, 0);
+			if (grp == NULL)
+				return (NULL);
 		}
 		break;
 	case LINK_UNKNOWN_DEST_PORT:
-		LIST_FOREACH(lnk, &grp->full, all.in) {
-			if(lnk->dst_addr.s_addr == dst_addr.s_addr) {
-				lnk_unknown_dst_port = lnk;
-				break;
-			}
-		}
+		/* full links always have dst_port != 0 */
+		lnk = FullInNFind(grp, dst_addr, 0);
+		if (lnk != NULL && lnk->dst_addr.s_addr == dst_addr.s_addr)
+			lnk_unknown_dst_port = lnk;
 		break;
 	case LINK_UNKNOWN_DEST_ADDR:
-		LIST_FOREACH(lnk, &grp->full, all.in) {
-			if(lnk->dst_port == dst_port) {
+		/* the tree is ordered by address first: still a linear scan */
+		RB_FOREACH(lnk, full_in, &grp->full) {
+			if (lnk->dst_port == dst_port) {
 				lnk_unknown_dst_addr = lnk;
 				break;
 			}
 		}
 		break;
 	case LINK_PARTIALLY_SPECIFIED:
-		lnk_unknown_all = LIST_FIRST(&grp->full);
+		lnk_unknown_all = RB_MIN(full_in, &grp->full);
 		break;
 	}
 
