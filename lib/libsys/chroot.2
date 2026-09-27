@@ -25,13 +25,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 27, 2026
+.Dd October 24, 2026
 .Dt CHROOT 2
 .Os
 .Sh NAME
 .Nm chroot ,
-.Nm fchroot
-.Nd change root directory
+.Nm fchroot ,
+.Nm chaltroot ,
+.Nm fchaltroot
+.Nd change root or alternative root directory
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,6 +42,10 @@
 .Fn chroot "const char *dirname"
 .Ft int
 .Fn fchroot "int fd"
+.Ft int
+.Fn chaltroot "const char *dirname"
+.Ft int
+.Fn fchaltroot "int fd"
 .Sh DESCRIPTION
 The
 .Fa dirname
@@ -60,13 +66,6 @@ a process must have execute (search) access for that directory.
 It should be noted that
 .Fn chroot
 has no effect on the process's current directory.
-.Pp
-This call is restricted to the super-user, unless the
-.Ql Va security.bsd.unprivileged_chroot
-sysctl variable is set to 1
-and the process has enabled the
-.Dv PROC_NO_NEW_PRIVS_CTL
-.Xr procctl 2 .
 .Pp
 Depending on the setting of the
 .Ql kern.chroot_allow_open_directories
@@ -106,15 +105,97 @@ The
 system call is identical to
 .Fn chroot
 except it takes a file descriptor instead of path.
+.Pp
+The
+.Fn chaltroot
+system call sets or changes the
+.Dq alternative root
+directory.
+If set to a directory for which the process has
+search permission, that directory is used as a root for
+absolute path lookups.
+If the lookup succeeds, the result is used.
+If the lookup fails with
+.Er ENOENT ,
+a second lookup is automatically initiated,
+starting from the process' true root directory,
+and the result of that lookup is returned.
+.Pp
+Calling the
+.Fn chaltroot
+system call with the
+.Fa dirname
+argument set to
+.Dv NULL
+disables the alternative root for the process.
+.Pp
+As with the normal root directory, the alternative root directory is
+inherited by child processes created by
+.Xr fork 2 ,
+and preserved across image activations on
+.Xr execve 2 ,
+except as described below.
+.Pp
+The alternative root facility is used by ABI emulators to
+provide a parallel installation of foreign system files
+while still providing seamless access to the file hierarchy
+of the host system.
+Upon activation of the executable image branded for the ABI
+emulator, the kernel automatically resets the alternative root to
+the value assigned to the ABI.
+When a process running under the ABI emulator activates a native
+image, the alternative root is disabled.
+.Pp
+Activation of a set-user-ID or set-group-ID image for the native ABI
+disables the alternative root, unless the set-ID bits are ignored,
+for instance because the process has enabled the
+.Dv PROC_NO_NEW_PRIVS_CTL
+.Xr procctl 2
+setting.
+Entering capability mode with
+.Xr cap_enter 2
+also disables the alternative root.
+.Pp
+Lookups which are restricted to stay beneath their starting directory,
+see the
+.Dv O_RESOLVE_BENEATH
+flag of
+.Xr open 2 ,
+do not use the alternative root.
+.Pp
+The
+.Fn fchaltroot
+system call is similar to
+.Fn chaltroot
+but takes a file descriptor to designate the new alternative root
+instead of a path.
+Calling the
+.Fn fchaltroot
+system call with the
+.Fa fd
+argument of
+.Dv FCHALTROOT_DISABLE
+disables the alternative root for the process.
+.Pp
+All functions described in this page are restricted to the super-user,
+unless the
+.Ql Va security.bsd.unprivileged_chroot
+sysctl variable is set to 1
+and the process has enabled the
+.Dv PROC_NO_NEW_PRIVS_CTL
+.Xr procctl 2
+setting.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
 The
-.Fn chroot
+.Fn chroot ,
+.Fn fchroot ,
+.Fn chaltroot ,
 and
-.Fn fchroot
+.Fn fchaltroot
 system calls
-will fail and the root directory will be unchanged if:
+will fail and the root or alternative root directory will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The effective user ID is not the super-user and the
@@ -142,8 +223,11 @@ Corrupted data was detected while reading from the file system.
 .Pp
 The
 .Fn chroot
-system call
-will fail and the root directory will be unchanged if:
+and
+.Fn chaltroot
+system calls
+will fail and the root or alternative root directory
+will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path name is not a directory.
@@ -165,8 +249,11 @@ points outside the process's allocated address space.
 .Pp
 The
 .Fn fchroot
-system call
-will fail and the root directory will be unchanged if:
+and
+.Fn fchaltroot
+system calls
+will fail and the root or alternative root directory
+will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er EACCES
 Search permission is denied for the directory referenced by the
@@ -179,6 +266,7 @@ is not a valid file descriptor.
 The file descriptor does not reference a directory.
 .El
 .Sh SEE ALSO
+.Xr cap_enter 2 ,
 .Xr chdir 2 ,
 .Xr jail 2
 .Sh HISTORY
@@ -195,6 +283,12 @@ The
 .Fn fchroot
 system call first appeared in
 .Fx 15.0 .
+The
+.Fn chaltroot
+and
+.Fn fchaltroot
+system calls first appeared in
+.Fx 16.0 .
 .Sh BUGS
 If the process is able to change its working directory to the target
 directory, but another access control check fails (such as a check for
