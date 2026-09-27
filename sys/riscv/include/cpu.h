@@ -36,6 +36,8 @@
 #define	_MACHINE_CPU_H_
 
 #ifndef LOCORE
+#include <sys/_cpuset.h>
+
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -105,6 +107,7 @@ void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	identify_cpu(u_int cpu);
 void	printcpuinfo(u_int cpu);
+cpuset_t hartmask_to_cpumask(const cpuset_t);
 
 static __inline uint64_t
 get_cyclecount(void)

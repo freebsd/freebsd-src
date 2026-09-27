@@ -110,6 +110,19 @@ static volatile int aps_ready;
 /* Temporary variables for init_secondary()  */
 void *dpcpu[MAXCPU - 1];
 
+static u_int
+hartid_to_cpuid(u_int hart)
+{
+	u_int cpuid;
+
+	cpuid = hart;
+	if (cpuid < boot_hart)
+		cpuid += mp_maxid + 1;
+	cpuid -= boot_hart;
+
+	return (cpuid);
+}
+
 static void
 release_aps(void *dummy __unused)
 {
@@ -154,10 +167,7 @@ init_secondary(uint64_t hart)
 	u_int cpuid;
 
 	/* Renumber this cpu */
-	cpuid = hart;
-	if (cpuid < boot_hart)
-		cpuid += mp_maxid + 1;
-	cpuid -= boot_hart;
+	cpuid = hartid_to_cpuid(hart);
 
 	/* Setup the pcpu pointer */
 	pcpup = &__pcpu[cpuid];
@@ -366,10 +376,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	 * Rotate the CPU IDs to put the boot CPU as CPU 0.
 	 * We keep the other CPUs ordered.
 	 */
-	cpuid = hart;
-	if (cpuid < boot_hart)
-		cpuid += mp_maxid + 1;
-	cpuid -= boot_hart;
+	cpuid = hartid_to_cpuid(hart);
 
 	/* Check if we are able to start this cpu */
 	if (cpuid > mp_maxid)
@@ -524,4 +531,20 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 	CTR1(KTR_SMP, "ipi_selected: ipi: %x", ipi);
 	intr_ipi_send(cpus, ipi);
+}
+
+cpuset_t
+hartmask_to_cpumask(const cpuset_t harts)
+{
+	u_int hart;
+	u_int cpu;
+	cpuset_t cpumask;
+
+	CPU_ZERO(&cpumask);
+	CPU_FOREACH_ISSET(hart, &harts) {
+		cpu = hartid_to_cpuid(hart);
+		CPU_SET(cpu, &cpumask);
+	}
+
+	return (cpumask);
 }
