@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 24, 2024
+.Dd September 28, 2026
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -144,8 +144,10 @@ utility:
 .Op Fl v
 .Ar prov ...
 .Nm
+.Op Fl -libxo
 .Cm list
 .Nm
+.Op Fl -libxo
 .Cm status
 .Nm
 .Cm load
@@ -781,6 +783,13 @@ See
 .It Cm unload
 See
 .Xr geom 8 .
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_options 7
+for details on command line arguments.
 .El
 .Pp
 Additional options include:
@@ -1244,6 +1253,7 @@ initialized in this way.
 .Xr crypto 4 ,
 .Xr geom 4 ,
 .Xr loader.conf 5 ,
+.Xr xo_options 7 ,
 .Xr geom 8 ,
 .Xr crypto 9
 .Sh HISTORY
