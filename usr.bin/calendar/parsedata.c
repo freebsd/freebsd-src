@@ -400,6 +400,7 @@ wdayom (int day, int offset, int month, int year)
 	 * Which way are we counting?  Offset 0 is invalid, abs (offset) > 5 is
 	 * meaningless, but that's OK.  Offset 5 may or may not be meaningless,
 	 * so there's no point in complaining for complaining's sake.
+	 */
 	if (offset == 0) {
 	    warnx("Invalid offset 0");
 	    return -1;
