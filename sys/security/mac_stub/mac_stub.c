@@ -1501,6 +1501,14 @@ stub_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
+stub_vnode_check_chaltroot(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel)
+{
+
+	return (0);
+}
+
+static int
 stub_vnode_check_create(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
@@ -2051,6 +2059,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_vnode_check_access = stub_vnode_check_access,
 	.mpo_vnode_check_chdir = stub_vnode_check_chdir,
 	.mpo_vnode_check_chroot = stub_vnode_check_chroot,
+	.mpo_vnode_check_chaltroot = stub_vnode_check_chaltroot,
 	.mpo_vnode_check_create = stub_vnode_check_create,
 	.mpo_vnode_check_deleteacl = stub_vnode_check_deleteacl,
 	.mpo_vnode_check_deleteextattr = stub_vnode_check_deleteextattr,

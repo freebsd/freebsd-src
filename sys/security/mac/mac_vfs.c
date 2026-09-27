@@ -464,6 +464,24 @@ mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp)
 	return (error);
 }
 
+MAC_CHECK_PROBE_DEFINE2(vnode_check_chaltroot, "struct ucred *",
+    "struct vnode *");
+
+int
+mac_vnode_check_chaltroot(struct ucred *cred, struct vnode *dvp)
+{
+	int error;
+
+	if (dvp != NULL)
+		ASSERT_VOP_LOCKED(dvp, "mac_vnode_check_chaltroot");
+
+	MAC_POLICY_CHECK(vnode_check_chaltroot, cred, dvp, dvp != NULL ?
+	    dvp->v_label : NULL);
+	MAC_CHECK_PROBE2(vnode_check_chaltroot, error, cred, dvp);
+
+	return (error);
+}
+
 MAC_CHECK_PROBE_DEFINE4(vnode_check_create, "struct ucred *",
     "struct vnode *", "struct componentname *", "struct vattr *");
 

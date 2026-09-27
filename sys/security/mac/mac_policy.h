@@ -619,6 +619,8 @@ typedef void	(*mpo_vnode_associate_singlelabel_t)(struct mount *mp,
 typedef int	(*mpo_vnode_check_access_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel,
 		    accmode_t accmode);
+typedef int	(*mpo_vnode_check_chaltroot_t)(struct ucred *cred,
+		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_vnode_check_chdir_t)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_vnode_check_chroot_t)(struct ucred *cred,
@@ -1015,6 +1017,7 @@ struct mac_policy_ops {
 	mpo_thread_userret_t			mpo_thread_userret;
 
 	mpo_vnode_check_access_t		mpo_vnode_check_access;
+	mpo_vnode_check_chaltroot_t		mpo_vnode_check_chaltroot;
 	mpo_vnode_check_chdir_t			mpo_vnode_check_chdir;
 	mpo_vnode_check_chroot_t		mpo_vnode_check_chroot;
 	mpo_vnode_check_create_t		mpo_vnode_check_create;

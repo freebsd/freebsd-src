@@ -2738,6 +2738,20 @@ test_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
 	return (0);
 }
 
+COUNTER_DECL(vnode_check_chaltroot);
+static int
+test_vnode_check_chaltroot(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	if (dvplabel != NULL)
+		LABEL_CHECK(dvplabel, MAGIC_VNODE);
+	COUNTER_INC(vnode_check_chaltroot);
+
+	return (0);
+}
+
 COUNTER_DECL(vnode_check_create);
 static int
 test_vnode_check_create(struct ucred *cred, struct vnode *dvp,
@@ -3505,6 +3519,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_vnode_associate_singlelabel = test_vnode_associate_singlelabel,
 	.mpo_vnode_check_chdir = test_vnode_check_chdir,
 	.mpo_vnode_check_chroot = test_vnode_check_chroot,
+	.mpo_vnode_check_chaltroot = test_vnode_check_chaltroot,
 	.mpo_vnode_check_create = test_vnode_check_create,
 	.mpo_vnode_check_deleteacl = test_vnode_check_deleteacl,
 	.mpo_vnode_check_deleteextattr = test_vnode_check_deleteextattr,
