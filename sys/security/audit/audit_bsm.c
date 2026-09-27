@@ -826,8 +826,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_JAIL_SET:
+	case AUE_CHALTROOT:
 	case AUE_CHDIR:
 	case AUE_CHROOT:
+	case AUE_FCHALTROOT:
 	case AUE_FSTATAT:
 	case AUE_FUTIMESAT:
 	case AUE_GETATTRLIST:

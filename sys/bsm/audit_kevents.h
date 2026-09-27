@@ -668,6 +668,8 @@
 #define	AUE_PDRFORK		43273	/* FreeBSD-specific. */
 #define	AUE_PDOPENPID		43274	/* FreeBSD-specific. */
 #define	AUE_PDPTRACE		43275	/* FreeBSD-specific. */
+#define	AUE_CHALTROOT		43276	/* FreeBSD-specific. */
+#define	AUE_FCHALTROOT		43277	/* FreeBSD-specific. */
 
 #define	AUE_SESSION_START	44901   /* Darwin. */
 #define	AUE_SESSION_UPDATE	44902   /* Darwin. */
