@@ -81,7 +81,8 @@ struct group_in {
 	u_short		alias_port;
 	int		link_type;
 	SPLAY_ENTRY(group_in)	in;
-	LIST_HEAD(, alias_link)	full, partial;
+	RB_HEAD(full_in, alias_link) full;	/* fully specified links */
+	LIST_HEAD(, alias_link)	partial;	/* partially specified links */
 };
 
 struct libalias {
@@ -112,6 +113,8 @@ struct libalias {
 	unsigned int	fragmentIdLinkCount;
 	unsigned int	fragmentPtrLinkCount;
 	unsigned int	sockCount;
+	/* Insertion counter, orders links that share an endpoint */
+	uint64_t	linkSeq;
 	/* log descriptor */
 #ifdef _KERNEL
 	char	       *logDesc;

@@ -286,6 +286,7 @@ struct alias_link {
 #define LINK_UNFIREWALLED          0x08
 
 	int		timestamp;	/* Time link was last accessed */
+	uint64_t	seq;		/* Insertion order within the instance */
 #ifndef NO_USE_SOCKETS
 	int		sockfd;		/* socket descriptor */
 #endif
@@ -293,7 +294,12 @@ struct alias_link {
 	union {
 		struct {
 			SPLAY_ENTRY(alias_link) out;
-			LIST_ENTRY (alias_link) in;
+			union {
+				/* in grp->partial */
+				LIST_ENTRY (alias_link) in;
+				/* in grp->full */
+				RB_ENTRY(alias_link) in_full;
+			};
 			SPLAY_ENTRY(alias_link) internal_endpoint;
 		} all;
 		struct {
