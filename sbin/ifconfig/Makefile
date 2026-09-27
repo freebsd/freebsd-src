@@ -43,6 +43,10 @@ SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
 LIBADD+=	80211
 .endif
 
+.if ${MK_USB} != "no"
+SRCS+=	ifue.c
+.endif
+
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
 .if ${MK_PF} != "no"
