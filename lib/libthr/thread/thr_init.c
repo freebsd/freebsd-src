@@ -539,6 +539,9 @@ init_private(void)
 				    mint, NULL, NULL);
 			}
 		}
+		env = getenv("LIBPTHREAD_PSHARED_LOCK_DESTROY_IMMEDIATE_GC");
+		if (env)
+			__thr_pshared_destroy_imm_gc = true;
 	}
 	init_once = 1;
 }

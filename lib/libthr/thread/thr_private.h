@@ -780,6 +780,7 @@ extern struct pthread	*_single_thread __hidden;
 extern bool		_thr_after_fork __hidden;
 
 extern int	__thr_new_flags;
+extern bool	__thr_pshared_destroy_imm_gc __hidden;
 
 /*
  * Function prototype definitions.
