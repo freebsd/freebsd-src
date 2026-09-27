@@ -376,7 +376,6 @@ linux_epoll_wait_ts(struct thread *td, int epfd, struct epoll_event *events,
 					NULL};
 	cap_rights_t rights;
 	struct file *epfp;
-	sigset_t omask;
 	int error;
 
 	if (maxevents <= 0 || maxevents > LINUX_MAX_EVENTS)
@@ -392,16 +391,10 @@ linux_epoll_wait_ts(struct thread *td, int epfd, struct epoll_event *events,
 	}
 	if (uset != NULL) {
 		error = kern_sigprocmask(td, SIG_SETMASK, uset,
-		    &omask, 0);
+		    &td->td_oldsigmask, 0);
 		if (error != 0)
 			goto leave;
 		td->td_pflags |= TDP_OLDMASK;
-		/*
-		 * Make sure that ast() is called on return to
-		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
-		 */
-		ast_sched(td, TDA_SIGSUSPEND);
 	}
 
 	coargs.leventlist = events;
@@ -420,9 +413,19 @@ linux_epoll_wait_ts(struct thread *td, int epfd, struct epoll_event *events,
 	if (error == 0)
 		td->td_retval[0] = coargs.count;
 
-	if (uset != NULL)
-		error = kern_sigprocmask(td, SIG_SETMASK, &omask,
-		    NULL, 0);
+	if (uset != NULL) {
+		/*
+		 * Make sure that ast() is called on return to usermode and
+		 * TDP_OLDMASK is cleared, restoring the old sigmask from
+		 * td_oldsigmask.  As on Linux, if we were interrupted, deliver
+		 * the signal with the temporary mask in place; otherwise
+		 * restore the old mask before any signal can be delivered.
+		 */
+		if (error == EINTR)
+			ast_sched(td, TDA_SIGSUSPEND);
+		else
+			ast_sched(td, TDA_PSELECT);
+	}
 leave:
 	fdrop(epfp, td);
 	return (error);
