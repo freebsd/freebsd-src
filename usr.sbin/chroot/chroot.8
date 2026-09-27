@@ -37,7 +37,15 @@
 .Op Fl g Ar group
 .Op Fl u Ar user
 .Op Fl n
+.Op Fl a
 .Ar newroot
+.Op Ar command Op Ar arg ...
+.Nm
+.Op Fl G Ar group Ns Op Cm \&, Ns Ar group  ...
+.Op Fl g Ar group
+.Op Fl u Ar user
+.Op Fl n
+.Fl A
 .Op Ar command Op Ar arg ...
 .Sh DESCRIPTION
 The
@@ -48,6 +56,15 @@ and then exec's
 .Ar command
 with provided arguments, if supplied,
 or an interactive copy of the user's login shell.
+With the
+.Fl a
+or
+.Fl A
+options,
+.Nm
+instead changes or disables the alternative root, see
+.Xr chaltroot 2 ,
+and does not change the current directory.
 .Pp
 The options are as follows:
 .Bl -tag -width "-G group[,group ...]"
@@ -71,6 +88,14 @@ If
 .Va security.bsd.unprivileged_chroot
 sysctl is set to 1, it will make it possible to chroot without
 superuser privileges.
+.It Fl a
+Change the alternative root instead of root, see
+.Xr chaltroot 2 .
+.It Fl A
+Disable the alternative root.
+The
+.Ar newroot
+argument must not be provided.
 .El
 .Sh ENVIRONMENT
 The following environment variable is referenced by

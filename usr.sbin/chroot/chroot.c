@@ -99,7 +99,7 @@ main(int argc, char *argv[])
 	gid_t		gid, *gidlist;
 	uid_t		uid;
 	int		arg, ch, error, gids;
-	bool		nonprivileged;
+	bool		altroot, clear_altroot, nonprivileged;
 
 	gid = 0;
 	uid = 0;
@@ -107,7 +107,8 @@ main(int argc, char *argv[])
 	user = group = grouplist = NULL;
 	gidlist = NULL;
 	nonprivileged = false;
-	while ((ch = getopt(argc, argv, "G:g:u:n")) != -1) {
+	altroot = clear_altroot = false;
+	while ((ch = getopt(argc, argv, "AaG:g:u:n")) != -1) {
 		switch(ch) {
 		case 'u':
 			user = optarg;
@@ -132,6 +133,12 @@ main(int argc, char *argv[])
 		case 'n':
 			nonprivileged = true;
 			break;
+		case 'a':
+			altroot = true;
+			break;
+		case 'A':
+			clear_altroot = true;
+			break;
 		case '?':
 		default:
 			usage();
@@ -140,7 +147,9 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc < 1)
+	if (!clear_altroot && argc < 1)
+		usage();
+	if (clear_altroot && altroot)
 		usage();
 
 	if (group != NULL)
@@ -170,13 +179,24 @@ main(int argc, char *argv[])
 		if (error != 0)
 			err(1, "procctl");
 	}
-
-	if (chdir(argv[0]) == -1)
-		err(1, "%s", argv[0]);
-	if (chroot(".") == -1) {
-		if (errno == EPERM && !nonprivileged && geteuid() != 0)
-			errx(1, "unprivileged use requires -n");
-		err(1, "%s", argv[0]);
+	if (clear_altroot) {
+		if (chaltroot(NULL) == -1)
+			err(1, "clearing altroot");
+	} else {
+		if (altroot) {
+			error = chaltroot(argv[0]);
+		} else {
+			if (chdir(argv[0]) == -1)
+				err(1, "%s", argv[0]);
+			error = chroot(".");
+		}
+		if (error == -1) {
+			if (errno == EPERM && !nonprivileged && geteuid() != 0)
+				errx(1, "unprivileged use requires -n");
+			err(1, "%s", argv[0]);
+		}
+		argc--;
+		argv++;
 	}
 
 	if (gidlist != NULL && setgroups(gids, gidlist) == -1)
@@ -186,9 +206,9 @@ main(int argc, char *argv[])
 	if (user && setuid(uid) == -1)
 		err(1, "setuid");
 
-	if (argv[1]) {
-		execvp(argv[1], &argv[1]);
-		err(1, "%s", argv[1]);
+	if (argc > 0) {
+		execvp(argv[0], argv);
+		err(1, "%s", argv[0]);
 	}
 
 	if (!(shell = getenv("SHELL")))
@@ -202,6 +222,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: chroot [-g group] [-G group,group,...] "
-	    "[-u user] [-n] newroot [command]\n");
+	    "[-u user] [-an] newroot [command]\n");
+	(void)fprintf(stderr, "       chroot [-g group] [-G group,group,...] "
+	    "[-u user] -A [command]\n");
 	exit(1);
 }
