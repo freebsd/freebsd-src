@@ -2743,7 +2743,7 @@ moea_unmapdev(void *p, vm_size_t size)
 		base = trunc_page(p);
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
-		moea_qremove((vm_offset_t)base, atop(size));
+		moea_qremove(base, atop(size));
 		kva_free(base, size);
 	}
 }

@@ -34,7 +34,7 @@
 #include <sys/rman.h>
 #include <sys/cpuset.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -67,7 +67,7 @@ static device_method_t gic_v5_acpi_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(gic, gic_v5_acpi_driver, gic_v5_acpi_methods,
+PRIVATE_DEFINE_CLASSN("gic", gic_v5_acpi_driver, gic_v5_acpi_methods,
     sizeof(struct gicv5_softc), gicv5_driver);
 
 EARLY_DRIVER_MODULE(gic_v5, acpi, gic_v5_acpi_driver, 0, 0,

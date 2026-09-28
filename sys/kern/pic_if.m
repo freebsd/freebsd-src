@@ -29,9 +29,16 @@
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/resource.h>
-#include <sys/intr.h>
+
+#include <machine/interrupt.h>
 
 INTERFACE pic;
+
+HEADER {
+	#include "intr_event_if.h"
+
+	DECLARE_CLASS(pic_base_class);
+};
 
 CODE {
 	static int
@@ -79,12 +86,13 @@ CODE {
 	}
 
 	static void
-	null_pic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
+	null_pic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
+	    u_int ipi)
 	{
 	}
 
 	static int
-	dflt_pic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc *isrc)
+	dflt_pic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrc)
 	{
 
 		return (EOPNOTSUPP);
@@ -139,21 +147,6 @@ METHOD int teardown_intr {
 	struct resource		*res;
 	struct intr_map_data	*data;
 } DEFAULT null_pic_teardown_intr;
-
-METHOD void post_filter {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void post_ithread {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void pre_ithread {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
 
 METHOD void init_secondary {
 	device_t	dev;
