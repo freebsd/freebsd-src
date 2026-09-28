@@ -361,6 +361,7 @@ reswitch:	switch (ch) {
 		case 'a':
 		case 'E':
 		case 'e':
+		case 'F':
 		case 'f':
 		case 'G':
 		case 'g':
@@ -550,6 +551,7 @@ reswitch:	switch (ch) {
 		case 'a':
 		case 'E':
 		case 'e':
+		case 'F':
 		case 'f':
 		case 'G':
 		case 'g':
