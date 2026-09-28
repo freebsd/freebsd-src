@@ -61,6 +61,12 @@
 /* The guest can allocate resource IDs, we only need one */
 #define	VTGPU_RESOURCE_ID	1
 
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define	VTGPU_FORMAT		VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM
+#else
+#define	VTGPU_FORMAT		VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM
+#endif
+
 struct vtgpu_softc {
 	/* Must be first so we can cast from info -> softc */
 	struct fb_info 		 vtgpu_fb_info;
@@ -556,7 +562,7 @@ vtgpu_create_2d(struct vtgpu_softc *sc)
 	    atomic_fetchadd_64(&sc->vtgpu_next_fence, 1));
 
 	s.req.resource_id = htole32(VTGPU_RESOURCE_ID);
-	s.req.format = htole32(VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM);
+	s.req.format = htole32(VTGPU_FORMAT);
 	s.req.width = htole32(sc->vtgpu_fb_info.fb_width);
 	s.req.height = htole32(sc->vtgpu_fb_info.fb_height);
 
