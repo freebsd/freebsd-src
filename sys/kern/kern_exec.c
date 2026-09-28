@@ -1265,6 +1265,20 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	imgp->vmspace_destroyed = true;
 	imgp->sysent = sv;
 
+	/*
+	 * Drop altroot if setuid.  It is done so late to avoid
+	 * clearing altroot until there is no way for execve(2) to
+	 * return to the calling image.
+	 *
+	 * Setuid is ignored for P2_NO_NEW_PRIVS processes, but
+	 * credential_setid is only cleared by execve_nosetid() after
+	 * the image activator returns, so check the flag here.
+	 */
+	if (imgp->credential_setid &&
+	    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0 &&
+	    (sv->sv_flags & SV_ABI_MASK) == SV_ABI_FREEBSD)
+		pwd_altroot(td, NULL);
+
 	if (p->p_sysent->sv_onexec_old != NULL)
 		p->p_sysent->sv_onexec_old(td);
 	itimers_exec(p);
