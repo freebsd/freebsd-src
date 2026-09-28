@@ -3725,6 +3725,15 @@ again:
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
+	if (fvp->v_type == VDIR &&
+	    ((fromnd.ni_resflags | tond.ni_resflags) & NIRES_BENEATH) != 0) {
+		/*
+		 * We must not rename a directory relative to FD_RESOLVE_BENEATH
+		 * descriptors.
+		 */
+		error = ENOTCAPABLE;
+		goto out;
+	}
 	error = vn_start_write(fvp, &mp, V_NOWAIT);
 	if (error != 0) {
 		NDFREE_PNBUF(&fromnd);
