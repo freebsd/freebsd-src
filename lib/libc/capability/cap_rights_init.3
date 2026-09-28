@@ -35,6 +35,7 @@
 .Nm cap_rights_is_set ,
 .Nm cap_rights_is_empty ,
 .Nm cap_rights_is_valid ,
+.Nm cap_rights_intersect ,
 .Nm cap_rights_merge ,
 .Nm cap_rights_remove ,
 .Nm cap_rights_contains
@@ -55,6 +56,8 @@
 .Fn cap_rights_is_empty "const cap_rights_t *rights"
 .Ft bool
 .Fn cap_rights_is_valid "const cap_rights_t *rights"
+.Ft cap_rights_t *
+.Fn cap_rights_intersect "cap_rights_t *dst" "const cap_rights_t *src"
 .Ft cap_rights_t *
 .Fn cap_rights_merge "cap_rights_t *dst" "const cap_rights_t *src"
 .Ft cap_rights_t *
@@ -133,6 +136,14 @@ function verifies if the given
 structure is valid.
 .Pp
 The
+.Fn cap_rights_intersect
+function clears all capability rights from the
+.Fa dst
+structure that are not present in the
+.Fa src
+structure, leaving only the rights common to both.
+.Pp
+The
 .Fn cap_rights_merge
 function merges all capability rights present in the
 .Fa src
@@ -173,9 +184,10 @@ structure given in the
 argument.
 .Pp
 The
-.Fn cap_rights_merge
-and
+.Fn cap_rights_merge ,
 .Fn cap_rights_remove
+and
+.Fn cap_rights_intersect
 functions return pointer to the
 .Vt cap_rights_t
 structure given in the
