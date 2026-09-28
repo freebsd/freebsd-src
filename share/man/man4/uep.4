@@ -29,26 +29,14 @@
 .Nm uep
 .Nd eGalax touchscreen driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines into
-your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device uep"
-.Cd "device usb"
-.Ed
+.Cd device uep
+.Cd device usb
+.Cd device evdev
+.Cd options EVDEV_SUPPORT
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-uep_load="YES"
-.Ed
-.Pp
-To compile this driver with evdev support enabled, place the
-following lines into the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options EVDEV_SUPPORT"
-.Cd "device evdev"
-.Ed
+.Cd uep_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,6 +57,19 @@ To get the mouse working in
 .Xr X 7 Pq Pa ports/x11/xorg-docs
 in evdev mode, install
 .Pa ports/x11-drivers/xf86-input-evdev .
+.Sh KERNEL CONFIGURATION
+The following settings can be configured at kernel compile time,
+see
+.Xr build 7 :
+.Bl -tag -width "options EVDEV_SUPPORT"
+.It Cd options EVDEV_SUPPORT
+Enable
+.Sy evdev
+output.
+This requires 
+.Cd device evdev
+only if enabled.
+.El
 .Sh FILES
 .Nm
 creates a blocking pseudo-device file,
