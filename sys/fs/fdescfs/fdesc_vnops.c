@@ -289,11 +289,13 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	char *pname = cnp->cn_nameptr;
 	struct thread *td = curthread;
 	struct file *fp;
+	struct filecaps fcaps;
 	struct fdesc_get_ino_args arg;
+	struct vnode *fvp;
 	int nlen = cnp->cn_namelen;
 	u_int fd, fd1;
 	int error;
-	struct vnode *fvp;
+	uint8_t fflags;
 	bool traverse;
 
 	if ((cnp->cn_flags & ISLASTCN) &&
@@ -335,7 +337,8 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	/*
 	 * No rights to check since 'fp' isn't actually used.
 	 */
-	if ((error = fget(td, fd, &cap_no_rights, &fp)) != 0)
+	if ((error = fget_cap(td, fd, &cap_no_rights, &fflags, &fp,
+	    &fcaps)) != 0)
 		goto bad;
 
 	/* A component below /dev/fd/N resolves in the directory N names. */
@@ -344,6 +347,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	    (VFSTOFDESC(dvp->v_mount)->flags & FMNT_LINRDLNKF) != 0;
 	if (traverse && fp->f_type != DTYPE_VNODE) {
 		fdrop(fp, td);
+		filecaps_free(&fcaps);
 		error = ENOTDIR;
 		goto bad;
 	}
@@ -380,6 +384,36 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		if (error == 0 && VN_IS_DOOMED(dvp))
 			error = ENOENT;
 	}
+
+	/*
+	 * Make sure that a nodup mount can't be used to launder away monotonic
+	 * file descriptor metadata, namely UF_RESOLVE_BENEATH and capability
+	 * rights.
+	 */
+	if (error == 0 && fvp->v_mount != dvp->v_mount &&
+	    ((fflags & UF_RESOLVE_BENEATH) != 0 || !filecaps_full(&fcaps))) {
+		struct nameidata *ndp;
+
+		ndp = vfs_lookup_nameidata(cnp);
+		if (ndp == NULL) {
+			vput(fvp);
+			error = ENOTCAPABLE;
+		} else {
+			if ((fflags & UF_RESOLVE_BENEATH) != 0)
+				ndp->ni_resflags |= NIRES_BENEATH;
+			if (!filecaps_full(&fcaps)) {
+				if (cap_rights_is_valid(
+				    &ndp->ni_filecaps.fc_rights))
+					filecaps_intersect(&fcaps,
+					    &ndp->ni_filecaps);
+				else
+					filecaps_move(&fcaps,
+					    &ndp->ni_filecaps);
+				ndp->ni_resflags |= NIRES_STRICTREL;
+			}
+		}
+	}
+	filecaps_free(&fcaps);
 
 	if (error)
 		goto bad;
