@@ -12,6 +12,29 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260929:
+	14.5-RELEASE-p1	EN-26:22.usb
+			EN-26:24.tzdata
+			SA-26:64.sysvsem
+			SA-26:66.jail
+			SA-26:67.ktls
+			SA-26:68.openssl
+			SA-26:69.udp
+
+	umass failure to attach. [EN-26:22.usb]
+
+	Timezone database information update. [EN-26:24.tzdata]
+
+	Heap out-of-bounds access in semop(2). [SA-26:64.sysvsem]
+
+	Multiple jail filesystem root escapes. [SA-26:66.jail]
+
+	Remote DOS via receive-side kernel TLS. [SA-26:67.ktls]
+
+	OpenSSL CVE-2026-84782. [SA-26:68.openssl]
+
+	UDP sendto(2) bypasses jail network isolation. [SA-26:69.udp]
+
 20260908:
 	14.5-RELEASE.
 
