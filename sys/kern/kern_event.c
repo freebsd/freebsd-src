@@ -3085,9 +3085,9 @@ kqueue_fork_copy_knote(struct kqueue *kq, struct kqueue *kq1, struct knote *kn,
 	    ("%s: knote %p not in flux", __func__, kn));
 	KASSERT((kn->kn_status & KN_DETACHED) == 0,
 	    ("%s: knote %p not detached", __func__, kn));
+	KASSERT((kn->kn_status & KN_MARKER) == 0,
+	    ("%s: knote %p not detached", __func__, kn));
 
-	if ((kn->kn_status & KN_MARKER) != 0)
-		return;
 	if ((kn->kn_status & KN_KQUEUE) != 0) {
 		/*
 		 * We cannot hold references to a kqueue outside of the process
@@ -3153,7 +3153,7 @@ kqueue_fork_copy_list(struct klist *knlist, struct knote *marker,
 	kn = SLIST_FIRST(knlist);
 	while (kn != NULL) {
 		MPASS(kn->kn_kq == kq);
-		if ((kn->kn_status & KN_DETACHED) != 0 ||
+		if ((kn->kn_status & (KN_DETACHED | KN_MARKER)) != 0 ||
 		    (kn_in_flux(kn) && (kn->kn_status & KN_SCAN) == 0)) {
 			kn = SLIST_NEXT(kn, kn_link);
 			continue;
