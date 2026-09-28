@@ -97,6 +97,7 @@ SYSCTL_U64(_kern_hwpmc, OID_AUTO, ibs_op_ctl2_extra_mask, CTLFLAG_RDTUN,
 
 struct ibs_cpu {
 	int		pc_status;
+	int		pc_nmi_credit;	/* latched NMIs already serviced */
 	struct pmc_hw	pc_ibspmcs[IBS_NPMCS];
 };
 static struct ibs_cpu **ibs_pcpu;
@@ -702,23 +703,39 @@ pmc_ibs_intr(struct trapframe *tf)
 
 	pac = ibs_pcpu[cpu];
 
+	/*
+	 * Fetch and op share an NMI.  Both valid bits may be set on entry,
+	 * so service each valid source or the skipped unit can stay frozen
+	 * with no NMI pending to re-arm it.
+	 */
 	config = rdmsr(IBS_FETCH_CTL);
 	if ((config & IBS_FETCH_CTL_VALID) != 0) {
 		pm = pac->pc_ibspmcs[IBS_PMC_FETCH].phw_pmc;
 
-		retval = 1;
+		retval++;
 
 		pmc_ibs_process_fetch(pm, tf, config);
 	}
 
 	config = rdmsr(IBS_OP_CTL);
-	if ((retval == 0) && ((config & IBS_OP_CTL_VALID) != 0)) {
+	if ((config & IBS_OP_CTL_VALID) != 0) {
 		pm = pac->pc_ibspmcs[IBS_PMC_OP].phw_pmc;
 
-		retval = 1;
+		retval++;
 
 		pmc_ibs_process_op(pm, tf, config);
 	}
+
+	/*
+	 * When both units were serviced, the second unit's NMI may still be
+	 * latched and will arrive with no valid bit set.  Claim that one
+	 * NMI so it is not reported as unknown.
+	 */
+	if (retval == 0 && pac->pc_nmi_credit != 0)
+		retval = 1;
+	pac->pc_nmi_credit = (retval == 2);
+	if (retval > 1)
+		retval = 1;
 
 	if (retval == 0) {
 		// Lets check for a stray NMI when stopping
