@@ -1945,6 +1945,55 @@ filecaps_full(const struct filecaps *fcaps)
 	    fcaps->fc_fcntls == CAP_FCNTL_ALL && fcaps->fc_nioctls == -1);
 }
 
+/*
+ * Find the intersection of two filecaps structures and store the result in the
+ * first structure.  This is a destructive operation on the src structure.
+ */
+void
+filecaps_intersect(struct filecaps *src, struct filecaps *dst)
+{
+
+	cap_rights_intersect(&dst->fc_rights, &src->fc_rights);
+	dst->fc_fcntls &= src->fc_fcntls;
+	if (dst->fc_nioctls == -1) {
+		dst->fc_ioctls = src->fc_ioctls;
+		dst->fc_nioctls = src->fc_nioctls;
+		src->fc_ioctls = NULL;
+	} else if (src->fc_nioctls != -1) {
+		int count;
+
+		/*
+		 * ioctl lists are usually short, so this dumb merge is fine.
+		 * We could alternately sort both lists and walk them in
+		 * parallel.
+		 */
+		count = 0;
+		for (int i = 0; i < dst->fc_nioctls; i++) {
+			bool found;
+
+			found = false;
+			for (int j = 0; j < src->fc_nioctls; j++) {
+				if (dst->fc_ioctls[i] == src->fc_ioctls[j]) {
+					count++;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				if (i != dst->fc_nioctls - 1)
+					dst->fc_ioctls[i] =
+					    dst->fc_ioctls[dst->fc_nioctls - 1];
+				dst->fc_nioctls--;
+				i--;
+			}
+		}
+		dst->fc_nioctls = count;
+	}
+	if (dst->fc_nioctls == 0)
+		filecaps_free_ioctl(dst);
+	filecaps_free(src);
+}
+
 static u_long *
 filecaps_free_prep(struct filecaps *fcaps)
 {
