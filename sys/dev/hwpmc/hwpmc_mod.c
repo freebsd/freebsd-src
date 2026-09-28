@@ -248,6 +248,9 @@ static void	pmc_post_callchain_callback(void);
 static void	pmc_process_allproc(struct pmc *pm);
 static void	pmc_process_csw_in(struct thread *td);
 static void	pmc_process_csw_out(struct thread *td);
+static void	pmc_process_csw_out_prepare(int cpu);
+static void	pmc_process_csw_start_all(int cpu);
+static void	pmc_process_csw_stop_all(int cpu);
 static void	pmc_process_exec(struct thread *td,
     struct pmckern_procexec *pk);
 static void	pmc_process_exit(void *arg, struct proc *p);
@@ -1425,6 +1428,63 @@ pmc_process_exec(struct thread *td, struct pmckern_procexec *pk)
 }
 
 /*
+ * Execute optional context-switch batch operations for all classes.
+ */
+static void
+pmc_process_csw_start_all(int cpu)
+{
+	struct pmc_classdep *pcd;
+	u_int class;
+
+	for (class = 0; class < md->pmd_nclass; class++) {
+		pcd = &md->pmd_classdep[class];
+		if (pcd->pcd_start_all != NULL)
+			(void)pcd->pcd_start_all(cpu);
+	}
+}
+
+static void
+pmc_process_csw_stop_all(int cpu)
+{
+	struct pmc_classdep *pcd;
+	u_int class;
+
+	pmc_process_csw_out_prepare(cpu);
+
+	for (class = 0; class < md->pmd_nclass; class++) {
+		pcd = &md->pmd_classdep[class];
+		if (pcd->pcd_stop_all != NULL)
+			(void)pcd->pcd_stop_all(cpu);
+	}
+}
+
+/*
+ * Mark virtual PMCs stopped, before you close hardware gates.
+ */
+static void
+pmc_process_csw_out_prepare(int cpu)
+{
+	struct pmc *pm;
+	struct pmc_classdep *pcd;
+	u_int class;
+	int adjri;
+
+	for (class = 0; class < md->pmd_nclass; class++) {
+		pcd = &md->pmd_classdep[class];
+		if (pcd->pcd_stop_all == NULL)
+			continue;
+		for (adjri = 0; adjri < pcd->pcd_num; adjri++) {
+			pm = NULL;
+			(void)pcd->pcd_get_config(cpu, adjri, &pm);
+			if (pm == NULL ||
+			    !PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
+				continue;
+			pm->pm_pcpu_state[cpu].pps_cpustate = 0;
+		}
+	}
+}
+
+/*
  * Thread context switch IN.
  */
 static void
@@ -1579,6 +1639,9 @@ pmc_process_csw_in(struct thread *td)
 	 */
 	(void)(*md->pmd_switch_in)(pc, pp);
 
+	/* Commit all class PMC start updates at one boundary. */
+	pmc_process_csw_start_all(cpu);
+
 	critical_exit();
 }
 
@@ -1699,6 +1762,9 @@ pmc_process_csw_out(struct thread *td)
 	    ("[pmc,%d weird CPU id %d", __LINE__, cpu));
 
 	pc = pmc_pcpu[cpu];
+
+	/* Close shared class gates before any PMC stop or read. */
+	pmc_process_csw_stop_all(cpu);
 
 	/*
 	 * When a PMC gets unlinked from a target PMC, it will
@@ -5229,6 +5295,9 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	}
 
 	PMCDBG2(PRC,EXT,2, "process-exit proc=%p pmc-process=%p", p, pp);
+
+	/* Run the context-switch-out steps for process exit. */
+	pmc_process_csw_stop_all(cpu);
 
 	/*
 	 * The exiting process could be the target of some PMCs which will be

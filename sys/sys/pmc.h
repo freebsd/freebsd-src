@@ -1054,6 +1054,11 @@ struct pmc_classdep {
 	/* starting and stopping PMCs */
 	int (*pcd_start_pmc)(int _cpu, int _ri, struct pmc *_pm);
 	int (*pcd_stop_pmc)(int _cpu, int _ri, struct pmc *_pm);
+	/*
+	 * Optional context-switch batch operations.
+	 */
+	int (*pcd_start_all)(int _cpu);
+	int (*pcd_stop_all)(int _cpu);
 
 	/* description */
 	int (*pcd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
