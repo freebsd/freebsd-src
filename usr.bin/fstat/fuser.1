@@ -43,7 +43,8 @@ more named files open.
 For block and character special devices, all processes using files
 on that device are listed.
 A file is considered open by a process if it was explicitly opened,
-is the working directory, root directory, jail root directory,
+is the working directory, root directory, alternative root directory,
+jail root directory,
 active executable text, kernel trace file or the controlling terminal
 of the process.
 If
@@ -83,6 +84,8 @@ The following symbols, written to stderr will indicate how files are used:
 .It Sy a
 The file is open as append only
 .Pq Dv O_APPEND No was specified .
+.It Sy b
+The file is the alternative root directory of the process.
 .It Sy c
 The file is the current workdir directory of the process.
 .It Sy d

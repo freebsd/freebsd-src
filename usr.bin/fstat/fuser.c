@@ -73,6 +73,7 @@ static const struct {
 	{PS_FST_UFLAG_RDIR,	'r'},
 	{PS_FST_UFLAG_CDIR,	'c'},
 	{PS_FST_UFLAG_JAIL,	'j'},
+	{PS_FST_UFLAG_ADIR,	'b'},
 	{PS_FST_UFLAG_TRACE,	't'},
 	{PS_FST_UFLAG_TEXT,	'x'},
 	{PS_FST_UFLAG_MMAP,	'm'},

@@ -44,7 +44,8 @@ The
 .Nm
 utility identifies open files.
 A file is considered open by a process if it was explicitly opened,
-is the working directory, root directory, jail root directory,
+is the working directory, root directory, alternative root directory,
+jail root directory,
 active executable text, or kernel trace file for that process.
 If no options are specified,
 .Nm
@@ -122,6 +123,8 @@ jail root directory
 memory-mapped file
 .It Sy root
 root inode
+.It Sy altr
+alternative root inode
 .It Sy text
 executable text inode
 .It Sy tr

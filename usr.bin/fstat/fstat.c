@@ -271,6 +271,8 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		printf("   wd");
 	else if (fst->fs_uflags & PS_FST_UFLAG_RDIR)
 		printf(" root");
+	else if (fst->fs_uflags & PS_FST_UFLAG_ADIR)
+		printf(" altr");
 	else if (fst->fs_uflags & PS_FST_UFLAG_TRACE)
 		printf("   tr");
 	else if (fst->fs_uflags & PS_FST_UFLAG_MMAP)
