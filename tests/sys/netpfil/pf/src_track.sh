@@ -588,6 +588,30 @@ mixed_af_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr298877" "cleanup"
+pr298877_head()
+{
+	atf_set descr 'Test per rule timeout values'
+	atf_set require.user root
+}
+
+pr298877_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	pft_set_rules alcatraz \
+	    "pass in keep state (src.track 10)"
+
+	atf_check -s exit:0 -o match:'.*src.track 10.*' \
+	    jexec alcatraz pfctl -sr
+}
+
+pr298877_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "source_track"
@@ -598,4 +622,5 @@ atf_init_test_cases()
 	atf_add_test_case "sn_types_compat"
 	atf_add_test_case "sn_types_pass"
 	atf_add_test_case "mixed_af"
+	atf_add_test_case "pr298877"
 }
