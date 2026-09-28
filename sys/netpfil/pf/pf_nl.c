@@ -723,7 +723,7 @@ nlattr_add_timeout(struct nl_writer *nw, int attrtype,
 		return (false);
 
 	for (int i = 0; i < PFTM_MAX; i++)
-		nlattr_add_u32(nw, PF_RT_TIMEOUT, timeout[i]);
+		nlattr_add_u32(nw, PF_TT_TIMEOUT, timeout[i]);
 
 	nlattr_set_len(nw, off);
 
