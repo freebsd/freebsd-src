@@ -352,6 +352,8 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			xo_emit("{P: }{:fd/%s} ", "jail");
 		else if (fst->fs_uflags & PS_FST_UFLAG_RDIR)
 			xo_emit("{P: }{:fd/%s} ", "root");
+		else if (fst->fs_uflags & PS_FST_UFLAG_ADIR)
+			xo_emit("{P: }{:fd/%s} ", "altr");
 		else if (fst->fs_uflags & PS_FST_UFLAG_TEXT)
 			xo_emit("{P: }{:fd/%s} ", "text");
 		else if (fst->fs_uflags & PS_FST_UFLAG_TRACE)
