@@ -363,13 +363,14 @@ reswitch:	switch (ch) {
 				goto error;
 			break;
 #ifndef NO_FLOATING_POINT
-		case 'a':
 		case 'A':
-		case 'e':
+		case 'a':
 		case 'E':
+		case 'e':
+		case 'F':
 		case 'f':
-		case 'g':
 		case 'G':
+		case 'g':
 			error = addtype(&types,
 			    (flags & LONGDBL) ? T_LONG_DOUBLE : T_DOUBLE);
 			if (error)
@@ -556,13 +557,14 @@ reswitch:	switch (ch) {
 				goto error;
 			break;
 #ifndef NO_FLOATING_POINT
-		case 'a':
 		case 'A':
-		case 'e':
+		case 'a':
 		case 'E':
+		case 'e':
+		case 'F':
 		case 'f':
-		case 'g':
 		case 'G':
+		case 'g':
 			error = addtype(&types,
 			    (flags & LONGDBL) ? T_LONG_DOUBLE : T_DOUBLE);
 			if (error)
