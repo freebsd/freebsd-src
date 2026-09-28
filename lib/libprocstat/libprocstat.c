@@ -530,6 +530,13 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 			if (entry != NULL)
 				STAILQ_INSERT_TAIL(head, entry, next);
 		}
+		/* alt root, if any. */
+		if (pwd.pwd_adir != NULL && pwd.pwd_adir != pwd.pwd_rdir) {
+			entry = filestat_new_entry(pwd.pwd_adir, PS_FST_TYPE_VNODE, -1,
+			    PS_FST_FFLAG_READ, PS_FST_UFLAG_ADIR, 0, 0, NULL, NULL);
+			if (entry != NULL)
+				STAILQ_INSERT_TAIL(head, entry, next);
+		}
 	}
 	/* ktrace vnode, if one */
 	if (kp->ki_tracep) {
@@ -777,6 +784,8 @@ kinfo_uflags2fst(int fd)
 {
 
 	switch (fd) {
+	case KF_FD_TYPE_ALTROOT:
+		return (PS_FST_UFLAG_ADIR);
 	case KF_FD_TYPE_CTTY:
 		return (PS_FST_UFLAG_CTTY);
 	case KF_FD_TYPE_CWD:

@@ -83,6 +83,7 @@
 #define	PS_FST_UFLAG_TEXT	0x0010
 #define	PS_FST_UFLAG_MMAP	0x0020
 #define	PS_FST_UFLAG_CTTY	0x0040
+#define	PS_FST_UFLAG_ADIR	0x0080
 
 /*
  * Descriptor flags.
