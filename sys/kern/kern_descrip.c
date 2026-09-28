@@ -5077,6 +5077,13 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 			error = export_vnode_to_sb(pwd->pwd_jdir,
 			    KF_FD_TYPE_JAIL, FREAD, efbuf);
 		}
+		/* alt root directory */
+		if (error == 0 && pwd->pwd_adir != NULL &&
+		    pwd->pwd_adir != pwd->pwd_rdir) {
+			vrefact(pwd->pwd_adir);
+			error = export_vnode_to_sb(pwd->pwd_adir,
+			    KF_FD_TYPE_ALTROOT, FREAD, efbuf);
+		}
 	}
 	PWDDESC_XUNLOCK(pdp);
 	if (error != 0)
