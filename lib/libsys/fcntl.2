@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 24, 2025
+.Dd September 22, 2026
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -173,6 +173,13 @@ and similar operations, and opening a directory with
 .Xr openat 2
 where the directory descriptor has the flag set causes the new directory
 descriptor to also have the flag set.
+A file descriptor with the
+.Dv FD_RESOLVE_BENEATH
+set cannot be used as either the source or target descriptor in
+.Xr renameat 2
+or
+.Xr renameat2 2
+system calls.
 .El
 .It Dv F_SETFD
 Set flags associated with
