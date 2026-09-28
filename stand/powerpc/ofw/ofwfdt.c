@@ -47,8 +47,6 @@ add_node_to_fdt(void *buffer, phandle_t node, int fdt_offset)
 		/* Detect and correct for errors and strangeness */
 		if (proplen < 0)
 			proplen = 0;
-		if (proplen > 1024)
-			proplen = 1024;
 
 		propbuf = malloc(proplen);
 		if (propbuf == NULL) {
