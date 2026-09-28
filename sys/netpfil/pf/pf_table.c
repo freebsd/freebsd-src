@@ -464,7 +464,7 @@ _skip:
 	}
 	if (flags & PFR_FLAG_DONE)
 		pfr_enqueue_addrs(kt, &delq, &xdel, ENQUEUE_UNMARKED_ONLY);
-	if ((flags & PFR_FLAG_FEEDBACK) && *size2) {
+	if ((flags & PFR_FLAG_FEEDBACK) && size2 != NULL && *size2) {
 		if (*size2 < size+xdel) {
 			*size2 = size+xdel;
 			senderr(0);
@@ -490,7 +490,7 @@ _skip:
 		*ndel = xdel;
 	if (nchange != NULL)
 		*nchange = xchange;
-	if ((flags & PFR_FLAG_FEEDBACK) && size2)
+	if ((flags & PFR_FLAG_FEEDBACK) && size2 != NULL)
 		*size2 = size+xdel;
 	pfr_destroy_ktable(tmpkt, 0);
 	return (0);

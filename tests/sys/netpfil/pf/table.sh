@@ -812,6 +812,39 @@ replace_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "replace_verbose" "cleanup"
+replace_verbose_head()
+{
+	atf_set descr 'Test table replace command, asked to be verbose'
+	atf_set require.user root
+}
+
+replace_verbose_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> { 192.0.2.1, 192.0.2.2 }" \
+	    "pass in from <foo> to any"
+
+	# This used to panic: pfr_set_addrs() dereferenced a NULL size2
+	# when asked for feedback over netlink.
+	atf_check -s exit:0 -e "match:1 addresses added." \
+	    -e "match:1 addresses deleted." \
+	    jexec alcatraz pfctl -v -t foo -T replace 192.0.2.2 192.0.2.3
+	atf_check -s exit:0 -o "match:192.0.2.2" -o "match:192.0.2.3" \
+	    -o "not-match:192.0.2.1" \
+	    jexec alcatraz pfctl -t foo -T show
+}
+
+replace_verbose_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "load" "cleanup"
 load_head()
 {
@@ -902,6 +935,7 @@ atf_init_test_cases()
 	atf_add_test_case "show_recursive"
 	atf_add_test_case "in_anchor"
 	atf_add_test_case "replace"
+	atf_add_test_case "replace_verbose"
 	atf_add_test_case "load"
 	atf_add_test_case "test"
 }
