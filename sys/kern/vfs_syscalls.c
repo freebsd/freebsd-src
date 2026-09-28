@@ -3869,6 +3869,15 @@ again:
 		error = EEXIST;
 		goto out;
 	}
+	if (fvp->v_type == VDIR &&
+	    ((fromnd.ni_resflags | tond.ni_resflags) & NIRES_BENEATH) != 0) {
+		/*
+		 * We must not rename a directory relative to FD_RESOLVE_BENEATH
+		 * descriptors.
+		 */
+		error = ENOTCAPABLE;
+		goto out;
+	}
 	if (exchange) {
 		if (tvp == NULL) {
 			error = ENOENT;
