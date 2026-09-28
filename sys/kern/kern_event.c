@@ -3097,7 +3097,8 @@ kqueue_fork_copy_knote(struct kqueue *kq, struct kqueue *kq1, struct knote *kn,
 	}
 	fop = kn->kn_fop;
 	if (fop->f_copy == NULL || (fop->f_isfd &&
-	    fdp->fd_files->fdt_ofiles[kn->kn_kevent.ident].fde_file == NULL))
+	    ((unsigned int)fdp->fd_files->fdt_nfiles <= kn->kn_kevent.ident ||
+	    fdp->fd_files->fdt_ofiles[kn->kn_kevent.ident].fde_file == NULL)))
 		return;
 	error = kqueue_expand(kq1, fop, kn->kn_kevent.ident, M_WAITOK);
 	if (error != 0)
