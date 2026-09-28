@@ -291,7 +291,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .endif
 	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} ${SOBJS} ${LDADD}
-.if ${MK_CTF} != "no"
+.if ${MK_CTF} != "no" && defined(SOBJS) && !empty(SOBJS)
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
 
