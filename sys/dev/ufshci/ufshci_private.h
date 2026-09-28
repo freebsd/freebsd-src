@@ -50,6 +50,20 @@ MALLOC_DECLARE(M_UFSHCI);
 
 #define UFSHCI_SECTOR_SIZE	      (512)
 
+/*
+ * stable/15 has no generic sleep types in <sys/power.h>, so define the
+ * ones this driver uses here.
+ */
+enum power_stype {
+	POWER_STYPE_AWAKE,
+	POWER_STYPE_STANDBY,
+	POWER_STYPE_SUSPEND_TO_MEM,
+	POWER_STYPE_SUSPEND_TO_IDLE,
+	POWER_STYPE_HIBERNATE,
+	POWER_STYPE_POWEROFF,
+	POWER_STYPE_COUNT,
+};
+
 struct ufshci_controller;
 
 struct ufshci_completion_poll_status {
