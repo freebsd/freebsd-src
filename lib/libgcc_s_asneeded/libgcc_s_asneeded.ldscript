@@ -1,0 +1,1 @@
+INPUT (AS_NEEDED(-lgcc_s))
