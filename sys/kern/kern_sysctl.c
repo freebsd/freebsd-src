@@ -2370,7 +2370,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if (IN_CAPABILITY_MODE(req->td)) {
 		if ((req->oldptr && !(oid->oid_kind & CTLFLAG_CAPRD)) ||
 		    (req->newptr && !(oid->oid_kind & CTLFLAG_CAPWR))) {
-			error = EPERM;
+			error = ECAPMODE;
 			goto out;
 		}
 	}
