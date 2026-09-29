@@ -651,16 +651,23 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	kt = pfr_lookup_table(tbl);
 	if (kt == NULL || !(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))
 		return (ESRCH);
-	SLIST_INIT(&workq);
 	for (i = 0, ad = addr; i < size; i++, ad++) {
 		if (pfr_validate_addr(ad))
 			senderr(EINVAL);
+		p = pfr_lookup_addr(kt, ad, 1);
+		if (p != NULL)
+			p->pfrke_mark = 0;
+	}
+	SLIST_INIT(&workq);
+	for (i = 0, ad = addr; i < size; i++, ad++) {
 		p = pfr_lookup_addr(kt, ad, 1);
 		if (flags & PFR_FLAG_FEEDBACK) {
 			ad->pfra_fback = (p != NULL) ?
 			    PFR_FB_CLEARED : PFR_FB_NONE;
 		}
-		if (p != NULL) {
+		/* An address given more than once is cleared once. */
+		if (p != NULL && !p->pfrke_mark) {
+			p->pfrke_mark = 1;
 			SLIST_INSERT_HEAD(&workq, p, pfrke_workq);
 			xzero++;
 		}

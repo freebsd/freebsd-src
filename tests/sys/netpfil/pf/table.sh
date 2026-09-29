@@ -294,6 +294,39 @@ zero_all_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "zero_twice" "cleanup"
+zero_twice_head()
+{
+	atf_set descr 'Test zeroing an address that is given twice'
+	atf_set require.user root
+	atf_set timeout 30
+}
+
+zero_twice_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.1, 192.0.2.3 }" \
+	    "pass in from <foo> to any"
+
+	# This used to hang the kernel with the rules lock held:
+	# pfr_clr_astats() put the entry on its work queue twice.
+	atf_check -s exit:0 -e "match:1/2 addresses cleared." \
+	    jexec alcatraz pfctl -t foo -T zero 192.0.2.1 192.0.2.1
+	atf_check -s exit:0 -e "match:2/4 addresses cleared." \
+	    jexec alcatraz pfctl -t foo -T zero 192.0.2.3 192.0.2.1 \
+	    192.0.2.3 192.0.2.5
+}
+
+zero_twice_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "reset_nonzero" "cleanup"
 reset_nonzero_head()
 {
@@ -923,6 +956,7 @@ atf_init_test_cases()
 	atf_add_test_case "match_counters"
 	atf_add_test_case "zero_one"
 	atf_add_test_case "zero_all"
+	atf_add_test_case "zero_twice"
 	atf_add_test_case "reset_nonzero"
 	atf_add_test_case "pr251414"
 	atf_add_test_case "automatic"
