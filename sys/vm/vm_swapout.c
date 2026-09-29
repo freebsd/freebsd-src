@@ -135,6 +135,19 @@ MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 static void vm_swapout_map_deactivate_pages(vm_map_t, long);
 static void vm_swapout_object_deactivate(pmap_t, vm_object_t, long);
 
+void
+vm_swapout_run(void)
+{
+	static int lastrun = 0;
+
+	mtx_lock(&vm_daemon_mtx);
+	if (ticks - lastrun >= hz || ticks < lastrun) {
+		wakeup(&vm_daemon_needed);
+		lastrun = ticks;
+	}
+	mtx_unlock(&vm_daemon_mtx);
+}
+
 static void
 vm_swapout_object_deactivate_page(pmap_t pmap, vm_page_t m, bool unmap)
 {
@@ -287,15 +300,14 @@ vm_daemon(void)
 	if (racct_enable && vm_daemon_timeout == 0)
 		vm_daemon_timeout = hz;
 
-	while (TRUE) {
+	while (true) {
 		mtx_lock(&vm_daemon_mtx);
 		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep",
 		    vm_daemon_timeout);
 		mtx_unlock(&vm_daemon_mtx);
 
 		/*
-		 * scan the processes for exceeding their rlimits or if
-		 * process is swapped out -- deactivate pages
+		 * Scan for processes exceeding their rlimits.
 		 */
 		tryagain = 0;
 		attempts = 0;
