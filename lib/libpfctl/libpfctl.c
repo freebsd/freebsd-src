@@ -2799,6 +2799,7 @@ static const struct snl_attr_parser ap_pfr_addr[] = {
 	{ .type = PFR_A_NET, .off = _OUT(pfra_net), .cb = snl_attr_get_uint8 },
 	{ .type = PFR_A_NOT, .off = _OUT(pfra_not), .cb = snl_attr_get_bool },
 	{ .type = PFR_A_ADDR, .off = _OUT(pfra_ip6addr), .cb = snl_attr_get_in6_addr },
+	{ .type = PFR_A_FBACK, .off = _OUT(pfra_fback), .cb = snl_attr_get_uint8 },
 };
 #undef _OUT
 SNL_DECLARE_ATTR_PARSER(pfr_addr_parser, ap_pfr_addr);

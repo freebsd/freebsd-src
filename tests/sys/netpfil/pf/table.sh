@@ -949,6 +949,38 @@ test_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "show_no_counters" "cleanup"
+show_no_counters_head()
+{
+	atf_set descr 'Test pfctl -v -T show on a table without counters'
+	atf_set require.user root
+}
+
+show_no_counters_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> persist { 192.0.2.1 }" \
+	    "table <bar> persist counters { 192.0.2.1 }" \
+	    "pass all"
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:"Cleared:" -o not-match:"In/Block:" \
+	    jexec alcatraz pfctl -t foo -v -T show
+	atf_check -s exit:0 -e ignore \
+	    -o match:"Cleared:" -o match:"In/Block:" \
+	    jexec alcatraz pfctl -t bar -v -T show
+}
+
+show_no_counters_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -972,4 +1004,5 @@ atf_init_test_cases()
 	atf_add_test_case "replace_verbose"
 	atf_add_test_case "load"
 	atf_add_test_case "test"
+	atf_add_test_case "show_no_counters"
 }
