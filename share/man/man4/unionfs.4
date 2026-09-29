@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2020 Gordon Bergling
@@ -31,19 +31,11 @@
 .Nm unionfs
 .Nd union mount file system
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "option UNIONFS"
-.Ed
+.Cd option UNIONFS
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-unionfs_load="YES"
-.Ed
+.Cd unionfs_load="YES"
 .Sh DESCRIPTION
 The UNIONFS driver is an implementation of a stackable unification filesystem.
 .Sh SEE ALSO
