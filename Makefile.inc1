@@ -2660,11 +2660,12 @@ ${_bt}-usr.sbin/makefs: ${_bt}-lib/libsbuf
 .endif
 .endif
 
-# 1300102: VHDX support
-.if ${BOOTSTRAPPING} < 1201520 || \
-	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300102) || \
+# 1600027: vmdks support
+.if ${BOOTSTRAPPING} < 1600027 || \
 	${MK_DISK_IMAGE_TOOLS_BOOTSTRAP} != "no"
 _mkimg=	usr.bin/mkimg
+${_bt}-usr.bin/mkimg: ${_bt}-lib/libz
+_other_bootstrap_tools+=lib/libz
 .else
 _bootstrap_tools_links+=mkimg
 .endif
