@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL-GUIDE-TLS-CLIENT-BLOCK 7ossl"
-.TH OSSL-GUIDE-TLS-CLIENT-BLOCK 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH OSSL-GUIDE-TLS-CLIENT-BLOCK 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -317,7 +317,7 @@ Finally we associate the \fBSSL\fR object we created earlier with the \fBBIO\fR 
 the \fBSSL_set_bio\fR\|(3) function. Note that this passes ownership of the \fBBIO\fR
 object to the \fBSSL\fR object. Once ownership is passed the SSL object is
 responsible for its management and will free it automatically when the \fBSSL\fR is
-freed. So, once \fBSSL_set_bio\fR\|(3) has been been called, you should not call
+freed. So, once \fBSSL_set_bio\fR\|(3) has been called, you should not call
 \&\fBBIO_free\fR\|(3) on the \fBBIO\fR.
 .PP
 .Vb 1
@@ -647,7 +647,7 @@ client developed on this page to support QUIC instead of TLS.
 \&\fBossl\-guide\-tls\-client\-non\-block\fR\|(7), \fBossl\-guide\-quic\-client\-block\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2023\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2023\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

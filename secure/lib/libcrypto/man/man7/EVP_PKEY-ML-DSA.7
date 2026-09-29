@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY-ML-DSA 7ossl"
-.TH EVP_PKEY-ML-DSA 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_PKEY-ML-DSA 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -105,6 +105,13 @@ Sets properties to be used when fetching algorithm implementations used for
 ML\-DSA hashing operations.
 .PP
 Use \fBEVP_PKEY_CTX_set_params\fR\|(3) after calling \fBEVP_PKEY_keygen_init\fR\|(3).
+.PP
+The following key generation parameter can be retrieved with
+\&\fBEVP_PKEY_CTX_get_params\fR\|(3) from the OpenSSL FIPS provider:
+.IP """fips\-indicator"" (\fBOSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR\fR) <integer>" 4
+.IX Item """fips-indicator"" (OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR) <integer>"
+Returns 1 if the operation is FIPS approved, or 0 otherwise.
+See "FIPS indicators" in \fBfips_module\fR\|(7) for more information.
 .SS "Common ML\-DSA parameters"
 .IX Subsection "Common ML-DSA parameters"
 In addition to the common parameters that all keytypes should support (see
@@ -344,7 +351,7 @@ In the \fBopenssl.cnf\fR file, this looks like:
 This functionality was added in OpenSSL 3.5.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2025\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

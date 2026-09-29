@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_POLL 3ossl"
-.TH SSL_POLL 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH SSL_POLL 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,7 +148,7 @@ least one of the given resources is ready.
 A call to \fBSSL_poll()\fR specifies an array of \fBSSL_POLL_ITEM\fR structures, each of
 which designates a resource which is being polled for readiness, and a set of
 event flags which indicate the specific readiness events which the caller is
-interested in in relation to the specified resource.
+interested in relation to the specified resource.
 .PP
 The fields of \fBSSL_POLL_ITEM\fR are as follows:
 .IP \fIdesc\fR 4
@@ -415,7 +415,7 @@ guaranteed to be at least one) reflect the cause of the failure of the first
 item in \fIitems\fR with \fBSSL_POLL_EVENT_F\fR raised. Note that there may be events
 other than \fISSL_POLL_EVENT_F\fR output for items which come before the first
 item with \fBSSL_POLL_EVENT_F\fR raised, and additional \fBSSL_POLL_EVENT_F\fR
-events may or may not have been output, both of which which will be reflected in
+events may or may not have been output, both of which will be reflected in
 \&\fIresult_count\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"

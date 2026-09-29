@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_BYTES 3ossl"
-.TH RAND_BYTES 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH RAND_BYTES 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -114,7 +114,7 @@ ignored.
 .PP
 \&\fBRAND_set1_random_provider()\fR specifies a provider, \fIprov\fR, which will be used
 by the library context \fIctx\fR for all of the generate calls above instead
-of the built\-in in DRBGs and entropy source.  Pass NULL for the provider
+of the built\-in DRBGs and entropy source.  Pass NULL for the provider
 to disable the random provider functionality.  In this case, the built\-in DRBGs
 and entropy source will be used.  This call should not be considered thread safe.
 .SH NOTES
@@ -163,7 +163,7 @@ The \fBRAND_bytes_ex()\fR and \fBRAND_priv_bytes_ex()\fR functions were added in
 The \fBRAND_set1_random_provider()\fR function was added in OpenSSL 3.5
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

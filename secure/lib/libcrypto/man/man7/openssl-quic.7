@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-QUIC 7ossl"
-.TH OPENSSL-QUIC 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH OPENSSL-QUIC 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -395,7 +395,7 @@ are handled in a timely manner. See \fBTHREAD ASSISTED MODE\fR for details.
 Ensure that your usage of \fBSSL_want\fR\|(3), \fBSSL_want_read\fR\|(3) and
 \&\fBSSL_want_write\fR\|(3) reflects the API changes described in \fBCHANGES TO EXISTING
 APIS\fR. In particular, you should use these APIs to determine the ability of a
-QUIC stream to receive or provide application data, not to to determine if
+QUIC stream to receive or provide application data, not to determine if
 network I/O is required.
 .IP \(bu 4
 Evaluate your application\*(Aqs use of \fBSSL_shutdown\fR\|(3) in light of the changes

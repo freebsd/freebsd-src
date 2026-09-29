@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CIPHER-AES 7ossl"
-.TH EVP_CIPHER-AES 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_CIPHER-AES 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -110,7 +110,16 @@ FIPS provider:
 .SS Parameters
 .IX Subsection "Parameters"
 This implementation supports the parameters described in
-"PARAMETERS" in \fBEVP_EncryptInit\fR\|(3).
+"PARAMETERS" in \fBEVP_EncryptInit\fR\|(3).  For implementations in the OpenSSL FIPS
+provider, these include the gettable "fips\-indicator"
+(\fBOSSL_CIPHER_PARAM_FIPS_APPROVED_INDICATOR\fR), which returns 1 if the
+operation is FIPS approved, or 0 otherwise.  See
+"FIPS indicators" in \fBfips_module\fR\|(7) for more information.
+For AES\-GCM encryption, an externally supplied IV makes the operation
+non\-approved, so this indicator returns 0.  See
+"PARAMETERS" in \fBEVP_EncryptInit\fR\|(3) for the related "iv\-generated" parameter.
+AES\-GCM tag lengths are approved only when they are 4, 8, or 12 through 16
+bytes.
 .SH NOTES
 .IX Header "NOTES"
 The AES\-SIV and AES\-WRAP mode implementations do not support streaming. That
