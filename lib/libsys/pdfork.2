@@ -264,7 +264,7 @@ implementation,
 does not clear the
 .Dv errno
 variable before executing the system call.
-.Sh INTERACTION OF PROCESS DESCRIPTORS AND Xr WAITPID 2
+.Ss Interaction of Process Descriptors and Xr WAITPID 2
 .Pp
 The
 .Fn pdwait
@@ -316,7 +316,7 @@ can execute the
 .Fn waitpid
 calls against the alive target regardless of the way
 the target process was forked.
-.Sh INTERACTION OF PROCESS DESCRIPTORS WITH OTHER SYSTEM CALLS
+.Ss Interaction of Process Descriptors with other System Calls
 .Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
