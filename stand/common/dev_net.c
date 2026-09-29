@@ -176,19 +176,40 @@ net_open(struct open_file *f, ...)
 int
 net_configure(struct devdesc *dev)
 {
-	int error, sock;
+	int error;
 
-	sock = netif_open(dev);
-	if (sock < 0)
+	if (netdev_sock >= 0)
+		return (0);
+
+	netdev_sock = netif_open(dev);
+	if (netdev_sock < 0)
 		return (ENXIO);
 
 	error = 0;
 	if (rootip.s_addr == 0)
-		error = net_getparams(sock);
+		error = net_getparams(netdev_sock);
 	if (error == 0)
-		net_setparams(sock);
-	netif_close(sock);
+		net_setparams(netdev_sock);
+	if (error != 0) {
+		netif_close(netdev_sock);
+		netdev_sock = -1;
+		return (error);
+	}
+
+	netdev_name = strdup(dev->d_dev->dv_name);
+	if (netdev_name == NULL) {
+		netif_close(netdev_sock);
+		netdev_sock = -1;
+		return (ENOMEM);
+	}
 	return (error);
+}
+
+void
+net_deconfigure(void)
+{
+
+	net_cleanup();
 }
 
 static int

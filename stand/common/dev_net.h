@@ -30,6 +30,7 @@
 extern struct devsw netdev;
 
 int net_configure(struct devdesc *);
+void net_deconfigure(void);
 uint32_t net_parse_rootpath(void);
 
 #endif
