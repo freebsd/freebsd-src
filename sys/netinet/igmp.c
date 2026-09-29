@@ -1577,42 +1577,41 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 			break;
 
 		case IGMP_VERSION_3: {
-				struct igmpv3 *igmpv3;
-				uint16_t igmpv3len;
-				uint16_t nsrc;
+			struct igmpv3 *igmpv3;
+			uint16_t igmpv3len;
+			uint16_t nsrc;
 
-				IGMPSTAT_INC(igps_rcv_v3_queries);
-				igmpv3 = (struct igmpv3 *)igmp;
-				/*
-				 * Validate length based on source count.
-				 */
-				nsrc = ntohs(igmpv3->igmp_numsrc);
-				if (nsrc * sizeof(in_addr_t) >
-				    UINT16_MAX - iphlen - IGMP_V3_QUERY_MINLEN) {
-					IGMPSTAT_INC(igps_rcv_tooshort);
-					m_freem(m);
-					return (IPPROTO_DONE);
-				}
-				/*
-				 * m_pullup() may modify m, so pullup in
-				 * this scope.
-				 */
-				igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
-				   sizeof(struct in_addr) * nsrc;
-				if ((!M_WRITABLE(m) ||
-				     m->m_len < igmpv3len) &&
-				    (m = m_pullup(m, igmpv3len)) == NULL) {
-					IGMPSTAT_INC(igps_rcv_tooshort);
-					return (IPPROTO_DONE);
-				}
-				igmpv3 = (struct igmpv3 *)(mtod(m, uint8_t *)
-				    + iphlen);
-				if (igmp_input_v3_query(ifp, ip, igmpv3) != 0) {
-					m_freem(m);
-					return (IPPROTO_DONE);
-				}
+			IGMPSTAT_INC(igps_rcv_v3_queries);
+			igmpv3 = (struct igmpv3 *)igmp;
+			/*
+			 * Validate length based on source count.
+			 */
+			nsrc = ntohs(igmpv3->igmp_numsrc);
+			if (nsrc * sizeof(in_addr_t) >
+			    UINT16_MAX - iphlen - IGMP_V3_QUERY_MINLEN) {
+				IGMPSTAT_INC(igps_rcv_tooshort);
+				m_freem(m);
+				return (IPPROTO_DONE);
+			}
+			/*
+			 * m_pullup() may modify m, so pullup in
+			 * this scope.
+			 */
+			igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
+			   sizeof(struct in_addr) * nsrc;
+			if ((!M_WRITABLE(m) ||
+			     m->m_len < igmpv3len) &&
+			    (m = m_pullup(m, igmpv3len)) == NULL) {
+				IGMPSTAT_INC(igps_rcv_tooshort);
+				return (IPPROTO_DONE);
+			}
+			igmpv3 = (struct igmpv3 *)(mtod(m, uint8_t *) + iphlen);
+			if (igmp_input_v3_query(ifp, ip, igmpv3) != 0) {
+				m_freem(m);
+				return (IPPROTO_DONE);
 			}
 			break;
+		}
 		}
 		break;
 
