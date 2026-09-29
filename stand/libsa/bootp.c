@@ -474,9 +474,7 @@ vend_rfc1048(u_char *cp, u_int len)
 			bcopy(cp, &rootip.s_addr, sizeof(rootip.s_addr));
 		}
 		if (tag == TAG_ROOTPATH) {
-			if ((val = getenv("dhcp.root-path")) == NULL)
-				val = (const char *)cp;
-			strlcpy(rootpath, val, sizeof(rootpath));
+			strlcpy(rootpath, (const char *)cp, sizeof(rootpath));
 		}
 		if (tag == TAG_HOSTNAME) {
 			if ((val = getenv("dhcp.host-name")) == NULL)

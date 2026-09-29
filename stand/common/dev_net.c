@@ -248,6 +248,7 @@ static int
 net_getparams(int sock)
 {
 	char buf[MAXHOSTNAMELEN];
+	const char *val;
 	n_long rootaddr, smask;
 
 #ifdef	SUPPORT_BOOTP
@@ -306,6 +307,8 @@ net_getparams(int sock)
 		return (EIO);
 	}
 exit:
+	if ((val = getenv("dhcp.root-path")) != NULL)
+		strlcpy(rootpath, val, sizeof(rootpath));
 	if ((rootaddr = net_parse_rootpath()) != htonl(INADDR_NONE))
 		rootip.s_addr = rootaddr;
 
