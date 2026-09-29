@@ -566,6 +566,7 @@ k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
+	pmc_config->pm_md.pm_amd.pm_amd_sub_class = PMC_AMD_SUB_CLASS_CORE;
 
 	pmask = NULL;
 	evmask = 0;
