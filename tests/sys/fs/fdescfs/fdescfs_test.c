@@ -271,6 +271,7 @@ check_ioctl_caps(const char *const *opts)
 	{                                                      \
 		atf_tc_set_md_var(tc, "descr", description);   \
 		atf_tc_set_md_var(tc, "require.user", "root"); \
+		atf_tc_set_md_var(tc, "require.kmods", "fdescfs"); \
 		atf_tc_set_md_var(tc, "timeout", "30");        \
 	}                                                      \
 	ATF_TC_CLEANUP(name, tc)                               \
