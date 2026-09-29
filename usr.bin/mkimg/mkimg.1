@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 30, 2025
+.Dd September 29, 2026
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -284,7 +284,17 @@ virtualization solutions.
 To create a VMDK file, specify
 .Fl f Ar vmdk
 on the command line.
-The preferred file extension is ".vmdk".
+.Pp
+The stream-optimized VMDK format is a variant in which each grain
+(64 KiB of the virtual disk) is compressed with deflate, and grains which
+contain only zeroes are omitted.
+It is typically much smaller than the other formats, and is the VMDK
+variant accepted by some cloud platforms for importing disk images.
+To create a stream-optimized VMDK file, specify
+.Fl f Ar vmdks
+on the command line.
+.Pp
+The preferred file extension is ".vmdk" for both variants.
 .Pp
 Not all virtualization solutions support all file formats, but often those
 virtualization environments have utilities to convert from one format to
