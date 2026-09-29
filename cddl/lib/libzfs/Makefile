@@ -5,6 +5,7 @@
 .PATH: ${ZFSTOP}/include
 .PATH: ${ZFSTOP}/module/zstd
 .PATH: ${ZFSTOP}/module/zstd/lib
+.PATH: ${ZFSTOP}/module/zfs
 
 PACKAGE=	zfs
 LIB_PACKAGE=
@@ -52,6 +53,7 @@ USER_C += \
         libzfs_zmount.c
 
 KERNEL_C = \
+	btree.c \
         cityhash.c \
         zfeature_common.c \
         zfs_comutil.c \
