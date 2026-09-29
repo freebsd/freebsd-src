@@ -221,6 +221,7 @@ pfi_cleanup(void)
 
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, pfi_attach_cookie);
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, pfi_detach_cookie);
+	EVENTHANDLER_DEREGISTER(ifnet_rename_event, pfi_rename_cookie);
 	EVENTHANDLER_DEREGISTER(group_attach_event, pfi_attach_group_cookie);
 	EVENTHANDLER_DEREGISTER(group_change_event, pfi_change_group_cookie);
 	EVENTHANDLER_DEREGISTER(group_detach_event, pfi_detach_group_cookie);
