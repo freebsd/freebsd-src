@@ -2777,9 +2777,25 @@ struct nl_addrs {
 	size_t total_count;
 };
 
+/* pfra_af is a u8, but the kernel sends PFR_A_AF as a u32.  Accept both. */
+static bool
+snl_attr_get_pfra_af(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	uint32_t af;
+
+	if (snl_attr_get_uint8(ss, nla, NULL, target))
+		return (true);
+	if (! snl_attr_get_uint32(ss, nla, NULL, &af))
+		return (false);
+	*(uint8_t *)target = af;
+
+	return (true);
+}
+
 #define _OUT(_field)	offsetof(struct pfr_addr, _field)
 static const struct snl_attr_parser ap_pfr_addr[] = {
-	{ .type = PFR_A_AF, .off = _OUT(pfra_af), .cb = snl_attr_get_uint32 },
+	{ .type = PFR_A_AF, .off = _OUT(pfra_af), .cb = snl_attr_get_pfra_af },
 	{ .type = PFR_A_NET, .off = _OUT(pfra_net), .cb = snl_attr_get_uint8 },
 	{ .type = PFR_A_NOT, .off = _OUT(pfra_not), .cb = snl_attr_get_bool },
 	{ .type = PFR_A_ADDR, .off = _OUT(pfra_ip6addr), .cb = snl_attr_get_in6_addr },

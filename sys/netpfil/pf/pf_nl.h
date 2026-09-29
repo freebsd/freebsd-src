@@ -494,7 +494,7 @@ enum pf_tstats_t {
 
 enum pfr_addr_t {
 	PFR_A_UNSPEC,
-	PFR_A_AF		= 1, /* uint8_t */
+	PFR_A_AF		= 1, /* uint8_t, uint32_t in replies */
 	PFR_A_NET		= 2, /* uint8_t */
 	PFR_A_NOT		= 3, /* bool */
 	PFR_A_ADDR		= 4, /* in6_addr */
