@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" $NetBSD: umodem.4,v 1.6 2001/09/11 23:18:55 wiz Exp $
 .\"
 .\" Copyright (c) 1999 The NetBSD Foundation, Inc.
@@ -34,21 +37,13 @@
 .Nm umodem
 .Nd USB Communication Device Class serial (CDC ACM) driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device usb"
-.Cd "device ucom"
-.Cd "device umodem"
-.Ed
+.Cd device usb
+.Cd device ucom
+.Cd device umodem
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-umodem_load="YES"
-.Ed
+.Cd umodem_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
