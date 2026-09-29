@@ -103,5 +103,7 @@ void vm_wait_severe(void);
 int vm_pageout_flush(vm_page_t *mc, int count, int flags, bool *eio);
 void vm_pageout_oom(int shortage);
 
+void vm_swapout_run(void);
+
 #endif /* _KERNEL */
 #endif	/* _VM_VM_PAGEOUT_H_ */
