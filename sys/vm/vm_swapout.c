@@ -295,10 +295,11 @@ vm_daemon(void)
 	struct thread *td;
 	struct vmspace *vm;
 	int breakout, tryagain, attempts;
-	uint64_t rsize, ravailable;
 
+#ifdef RACCT
 	if (racct_enable && vm_daemon_timeout == 0)
 		vm_daemon_timeout = hz;
+#endif
 
 	while (true) {
 		mtx_lock(&vm_daemon_mtx);
@@ -370,7 +371,10 @@ again:
 				    &vm->vm_map, limit);
 				size = vmspace_resident_count(vm);
 			}
+#ifdef RACCT
 			if (racct_enable) {
+				uint64_t ravailable, rsize;
+
 				rsize = IDX_TO_OFF(size);
 				PROC_LOCK(p);
 				if (p->p_state == PRS_NORMAL)
@@ -407,6 +411,7 @@ again:
 						tryagain = 1;
 				}
 			}
+#endif
 			vmspace_free(vm);
 			sx_slock(&allproc_lock);
 			PRELE(p);
