@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_CMP_SRV_CTX_NEW 3ossl"
-.TH OSSL_CMP_SRV_CTX_NEW 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH OSSL_CMP_SRV_CTX_NEW 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,15 +156,27 @@ OSSL_CMP_SRV_CTX_set_grant_implicit_confirm
 .Ve
 .SH DESCRIPTION
 .IX Header "DESCRIPTION"
-\&\fBOSSL_CMP_SRV_process_request()\fR implements the generic aspects of a CMP server.
-Its arguments are the \fBOSSL_CMP_SRV_CTX\fR \fIsrv_ctx\fR and the CMP request message
+\&\fBOSSL_CMP_SRV_process_request()\fR implements the generic core aspects
+of Certificate Management Protocol (CMP) servers.
+Its arguments are the \fBOSSL_CMP_SRV_CTX\fR \fIsrv_ctx\fR and a CMP request message
 \&\fIreq\fR. It does the typical generic checks on \fIreq\fR, calls
 the respective callback function (if present) for more specific processing,
-and then assembles a result message, which may be a CMP error message.
+and then assembles a response message, which may be a CMP error message.
+.PP
+Since \fBOSSL_CMP_SRV_process_request()\fR handles only a single CMP request message,
+it may need to be called multiple times until a CMP transaction has ended.
 If after return of the function the expression
 \&\fIOSSL_CMP_CTX_get_status(OSSL_CMP_SRV_CTX_get0_cmp_ctx(srv_ctx))\fR yields \-1
 then the function has closed the current transaction,
 which may be due to normal successful end of the transaction or due to an error.
+Otherwise, it should be called again with the next request message of the same
+transaction (which can be a certificate confirmation or a poll request message).
+The function should not be called by multiple threads sharing
+the same \fIsrv_ctx\fR without explicitly serialising the calls;
+calling it in parallel leads to undefined behavior.
+When an earlier call did not yet finish the respective transaction,
+calling it in an interleaved way with a new request belonging to a different
+transaction will abort the earlier transaction and begin the new one.
 .PP
 \&\fBOSSL_CMP_CTX_server_perform()\fR is an interface to
 \&\fBOSSL_CMP_SRV_process_request()\fR that can be used by a CMP client
@@ -221,10 +233,20 @@ confirmation of newly enrolled certificates if requested.
 .IX Header "NOTES"
 CMP is defined in RFC 9810 (and CRMF in RFC 4211).
 .PP
-So far the CMP server implementation is limited to one request per CMP message
-(and consequently to at most one response component per CMP message).
+Like the OpenSSL CMP client, the CMP server implementation documented here
+focuses on the Lightweight CMP Profile (RFC 9483).
+Among other things, this implies that only commonly used CMP message types are supported
+and that each CMP message may not contain multiple certificate requests or responses.
+.PP
+So far, this server implementation is single\-threaded and
+should not be called in parallel for any given \fBOSSL_CMP_SRV_CTX\fR \fIsrv_ctx\fR.
+It can handle only one CMP transaction at a time (which, of course, is not a problem
+for transactions consisting of just a single request/response message pair).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
+\&\fBOSSL_CMP_SRV_process_request()\fR returns a CMP response message, which may be an
+error message, or NULL on internal errors that preclude producing a response.
+.PP
 \&\fBOSSL_CMP_SRV_CTX_new()\fR returns a \fBOSSL_CMP_SRV_CTX\fR structure on success,
 NULL on error.
 .PP
@@ -246,7 +268,7 @@ supporting delayed delivery of all types of response messages
 was added in OpenSSL 3.3.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2007\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

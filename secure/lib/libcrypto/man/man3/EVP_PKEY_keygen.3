@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_KEYGEN 3ossl"
-.TH EVP_PKEY_KEYGEN 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_PKEY_KEYGEN 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -164,6 +164,9 @@ If \fItype\fR is \f(CW\*(C`RSA\*(C'\fR,
 a \fBsize_t\fR parameter must be given to specify the size of the RSA key.
 If \fItype\fR is \f(CW\*(C`EC\*(C'\fR,
 a string parameter must be given to specify the name of the EC curve.
+The list of built\-in curves can be obtained programmatically using
+\&\fBEC_get_builtin_curves\fR\|(3), and their names can be retrieved using
+\&\fBOSSL_EC_curve_nid2name\fR\|(3).
 If \fItype\fR is:
 \&\f(CW\*(C`ED25519\*(C'\fR,
 \&\f(CW\*(C`ED448\*(C'\fR,

@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SIGNATURE-ML-DSA 7ossl"
-.TH EVP_SIGNATURE-ML-DSA 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_SIGNATURE-ML-DSA 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -131,6 +131,16 @@ FIPS 204 <https://csrc.nist.gov/pubs/fips/204/final> Algorithm 2 step 10 and
 Algorithm 3 step 5 are omitted when this setting is 1.
 .PP
 See \fBEVP_PKEY\-ML\-DSA\fR\|(7) for information related to \fBML\-DSA\fR keys.
+.SS "FIPS indicator"
+.IX Subsection "FIPS indicator"
+The following parameter can be retrieved using
+\&\fBEVP_PKEY_CTX_get_params\fR\|(3):
+.IP """fips\-indicator"" (\fBOSSL_SIGNATURE_PARAM_FIPS_APPROVED_INDICATOR\fR) <integer>" 4
+.IX Item """fips-indicator"" (OSSL_SIGNATURE_PARAM_FIPS_APPROVED_INDICATOR) <integer>"
+The OpenSSL FIPS provider returns 1 if the operation is FIPS approved, or 0
+otherwise.  See "FIPS indicators" in \fBfips_module\fR\|(7) for more information.
+Supplying "test\-entropy", or setting the test\-only "message\-encoding"
+parameter to 0, causes this indicator to return 0.
 .SH NOTES
 .IX Header "NOTES"
 For backwards compatibility reasons \fBEVP_DigestSignInit_ex()\fR, \fBEVP_DigestSign()\fR,

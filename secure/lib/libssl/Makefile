@@ -41,7 +41,7 @@ SRCS+=	quic_rx_depack.c
 SRCS+=	quic_fc.c uint_set.c
 SRCS+=	quic_cfq.c quic_txpim.c quic_fifd.c quic_txp.c
 SRCS+=	quic_stream_map.c
-SRCS+=	quic_sf_list.c quic_rstream.c quic_sstream.c
+SRCS+=	quic_rstream.c quic_sstream.c
 SRCS+=	quic_reactor.c
 SRCS+=	quic_reactor_wait_ctx.c
 SRCS+=	quic_channel.c quic_port.c quic_engine.c
@@ -56,6 +56,10 @@ SRCS+=	qlog_event_helpers.c
 SRCS+=	json_enc.c qlog.c
 SRCS+=	getenv.c ctype.c
 SRCS+=	quic_obj.c
+SRCS+=	quic_strm_reas.c
+
+# rbtree
+SRCS+=	rbtree.c
 
 # record
 SRCS+=	rec_layer_d1.c rec_layer_s3.c
@@ -87,6 +91,7 @@ PICFLAG+=	-DOPENSSL_PIC
 
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/hashtable \
+	${LCRYPTO_SRC}/crypto/rbtree \
 	${LCRYPTO_SRC}/crypto/siphash \
 	${LCRYPTO_SRC}/ssl \
 	${LCRYPTO_SRC}/ssl/quic \

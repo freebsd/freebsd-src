@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_PROVIDER-FIPS 7ossl"
-.TH OSSL_PROVIDER-FIPS 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH OSSL_PROVIDER-FIPS 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -102,7 +102,10 @@ rather than other FIPS capable providers.
 .IX Subsection "Approved algorithms"
 Algorithms that are fetched using "fips=yes" may still be unapproved if certain
 conditions are not met. See "FIPS indicators" in \fBfips_module\fR\|(7) for additional
-information.
+information.  Every \f(CW\*(C`fips=yes\*(C'\fR algorithm implementation supplied by this
+provider exposes a gettable "fips\-indicator" context parameter and returns 1
+when the operation is approved.  Applications must not treat a missing
+indicator as an assertion of FIPS approval.
 .SS "Provider parameters"
 .IX Subsection "Provider parameters"
 See "Provider parameters" in \fBprovider\-base\fR\|(7) for a list of base parameters.
@@ -598,7 +601,7 @@ process.
 This functionality was added in OpenSSL 3.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

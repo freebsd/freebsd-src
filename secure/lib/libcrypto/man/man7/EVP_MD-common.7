@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_MD-COMMON 7ossl"
-.TH EVP_MD-COMMON 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_MD-COMMON 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -92,12 +92,20 @@ The length of the "flags" parameter should equal that of an
 \&\fBunsigned long int\fR.
 .Sp
 This value can also be retrieved with \fBEVP_MD_get_flags\fR\|(3).
+.SS "FIPS indicator"
+.IX Subsection "FIPS indicator"
+Digest implementations in the OpenSSL FIPS provider make the following
+parameter available with \fBEVP_MD_CTX_get_params\fR\|(3):
+.IP """fips\-indicator"" (\fBOSSL_DIGEST_PARAM_FIPS_APPROVED_INDICATOR\fR) <integer>" 4
+.IX Item """fips-indicator"" (OSSL_DIGEST_PARAM_FIPS_APPROVED_INDICATOR) <integer>"
+Returns 1 if the operation is FIPS approved, or 0 otherwise.
+See "FIPS indicators" in \fBfips_module\fR\|(7) for more information.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 "PARAMETERS" in \fBEVP_DigestInit\fR\|(3), \fBEVP_MD_get_params\fR\|(3), \fBprovider\-digest\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2020\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

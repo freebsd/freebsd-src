@@ -498,6 +498,9 @@ SRCS+=	file_store.c file_store_any2obj.c
 SRCS+=	prov_seed.c rand_deprecated.c rand_err.c rand_lib.c
 SRCS+=	rand_meth.c rand_pool.c rand_uniform.c randfile.c
 
+# rbtree
+SRCS+=	rbtree.c
+
 # rc2
 SRCS+=	rc2_cbc.c rc2_ecb.c rc2_skey.c rc2cfb64.c rc2ofb64.c
 
@@ -752,6 +755,7 @@ SUBDIR.${MK_TESTS}=	tests
 	${LCRYPTO_SRC}/crypto/poly1305 \
 	${LCRYPTO_SRC}/crypto/property \
 	${LCRYPTO_SRC}/crypto/rand \
+	${LCRYPTO_SRC}/crypto/rbtree \
 	${LCRYPTO_SRC}/crypto/rc2 \
 	${LCRYPTO_SRC}/crypto/rc4 \
 	${LCRYPTO_SRC}/crypto/rc5 \

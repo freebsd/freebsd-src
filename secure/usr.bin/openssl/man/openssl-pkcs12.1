@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-PKCS12 1ossl"
-.TH OPENSSL-PKCS12 1ossl 2026-08-25 3.5.8 OpenSSL
+.TH OPENSSL-PKCS12 1ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -166,13 +166,18 @@ try using the \fB\-legacy\fR option and, if needed, the \fB\-provider\-path\fR o
 Print out a usage message.
 .IP "\fB\-passin\fR \fIarg\fR" 4
 .IX Item "-passin arg"
-The password source for the input, and for encrypting any private keys that
-are output.
+The password source for input files. With \fB\-export\fR, it is used to decrypt
+the input private key. Otherwise, it is the password for the input PKCS#12
+file.
 For more information about the format of \fBarg\fR
 see \fBopenssl\-passphrase\-options\fR\|(1).
 .IP "\fB\-passout\fR \fIarg\fR" 4
 .IX Item "-passout arg"
-The password source for output files.
+The password source for output files. With \fB\-export\fR, it is the password for
+the output PKCS#12 file. Otherwise, it is used to encrypt any private keys that
+are output.
+For more information about the format of \fBarg\fR
+see \fBopenssl\-passphrase\-options\fR\|(1).
 .IP "\fB\-password\fR \fIarg\fR" 4
 .IX Item "-password arg"
 With \fB\-export\fR, \fB\-password\fR is equivalent to \fB\-passout\fR,
@@ -521,7 +526,7 @@ The \fB\-engine\fR option was deprecated in OpenSSL 3.0.
 The \fB\-nodes\fR option was deprecated in OpenSSL 3.0, too; use \fB\-noenc\fR instead.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2000\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

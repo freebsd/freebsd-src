@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_HTTP_TRANSFER 3ossl"
-.TH OSSL_HTTP_TRANSFER 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH OSSL_HTTP_TRANSFER 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -273,7 +273,8 @@ The caller is responsible for freeing the BIO pointer obtained.
 .PP
 \&\fBOSSL_HTTP_get()\fR uses HTTP GET to obtain data from \fIbio\fR if non\-NULL,
 else from the server contained in the \fIurl\fR, and returns it as a BIO.
-It supports redirection via HTTP status code 301 or 302.  It is meant for
+It supports redirection via HTTP status code 301 or 302.
+Redirection from HTTPS to HTTP is not allowed.  It is meant for
 transfers with a single round trip, so does not support persistent connections.
 If \fIbio\fR is non\-NULL, any host and port components in the \fIurl\fR are not used
 for connecting but the hostname is used, as usual, for the \f(CW\*(C`Host\*(C'\fR header.
