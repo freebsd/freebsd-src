@@ -229,6 +229,18 @@ struct usb_iso_packet_descriptor {
 };
 
 /*
+ * The following structure holds various information about a USB
+ * host interface
+ */
+struct usb_host_interface {
+	struct usb_interface_descriptor desc;
+	int extralen;
+	char *extra;			/* extra descriptors */
+	struct usb_host_endpoint *endpoint;
+	char *string;			/* interface string (if present) */
+};
+
+/*
  * The following structure holds various information about an USB
  * transfer. This structure is used for all kinds of USB transfers.
  *
