@@ -2853,6 +2853,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+	{
+		struct sockaddr_dl sa_dl;
+
 		if (cmd == SIOCADDMULTI)
 			error = priv_check(td, PRIV_NET_ADDMULTI);
 		else
@@ -2864,8 +2867,24 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if ((ifp->if_flags & IFF_MULTICAST) == 0)
 			return (EOPNOTSUPP);
 
-		/* Don't let users screw up protocols' entries. */
+		/*
+		 * The sockaddr embedded in the ifreq is not large enough to
+		 * hold a full sockaddr_dl, but existing callers of these ioctls
+		 * will set sa_len = sizeof(struct sockaddr_dl) anyway.  Bounce
+		 * the sockaddr into a sockaddr_dl on the stack to avoid
+		 * potential out-of-bounds accesses.
+		 */
 		if (ifr->ifr_addr.sa_family != AF_LINK)
+			return (EINVAL);
+		memset(&sa_dl, 0, sizeof(sa_dl));
+		memcpy(&sa_dl, &ifr->ifr_addr,
+		    MIN(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr)));
+		sa_dl.sdl_family = AF_LINK;
+		sa_dl.sdl_len = MIN(ifr->ifr_addr.sa_len, sizeof(sa_dl));
+		if (sa_dl.sdl_nlen + sa_dl.sdl_alen + sa_dl.sdl_slen >
+		    sizeof(ifr->ifr_addr) -
+		    offsetof(struct sockaddr_dl, sdl_data) ||
+		    sa_dl.sdl_nlen > IFNAMSIZ)
 			return (EINVAL);
 
 		if (cmd == SIOCADDMULTI) {
@@ -2880,18 +2899,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			 * already exists.
 			 */
 			NET_EPOCH_ENTER(et);
-			ifma = if_findmulti(ifp, &ifr->ifr_addr);
+			ifma = if_findmulti(ifp, (struct sockaddr *)&sa_dl);
 			NET_EPOCH_EXIT(et);
 			if (ifma != NULL)
 				error = EADDRINUSE;
 			else
-				error = if_addmulti(ifp, &ifr->ifr_addr, &ifma);
+				error = if_addmulti(ifp,
+				    (struct sockaddr *)&sa_dl, &ifma);
 		} else {
-			error = if_delmulti(ifp, &ifr->ifr_addr);
+			error = if_delmulti(ifp, (struct sockaddr *)&sa_dl);
 		}
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
+	}
 
 	case SIOCSIFPHYADDR:
 	case SIOCDIFPHYADDR:
