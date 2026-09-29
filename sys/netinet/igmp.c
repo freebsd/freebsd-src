@@ -1605,6 +1605,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				IGMPSTAT_INC(igps_rcv_tooshort);
 				return (IPPROTO_DONE);
 			}
+			ip = mtod(m, struct ip *);
 			igmpv3 = (struct igmpv3 *)(mtod(m, uint8_t *) + iphlen);
 			if (igmp_input_v3_query(ifp, ip, igmpv3) != 0) {
 				m_freem(m);
