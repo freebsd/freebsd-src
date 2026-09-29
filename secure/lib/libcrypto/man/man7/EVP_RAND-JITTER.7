@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_RAND-JITTER 7ossl"
-.TH EVP_RAND-JITTER 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_RAND-JITTER 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -90,7 +90,11 @@ The supported parameters are:
 .IX Item """strength"" (OSSL_RAND_PARAM_STRENGTH) <unsigned integer>"
 .IP """max_request"" (\fBOSSL_RAND_PARAM_MAX_REQUEST\fR) <unsigned integer>" 4
 .IX Item """max_request"" (OSSL_RAND_PARAM_MAX_REQUEST) <unsigned integer>"
+.IP """fips\-indicator"" (\fBOSSL_RAND_PARAM_FIPS_APPROVED_INDICATOR\fR) <integer>" 4
+.IX Item """fips-indicator"" (OSSL_RAND_PARAM_FIPS_APPROVED_INDICATOR) <integer>"
 .PD
+This parameter is available in the FIPS provider and returns 1.
+.Sp
 These parameters work as described in "PARAMETERS" in \fBEVP_RAND\fR\|(3).
 .SH NOTES
 .IX Header "NOTES"
@@ -148,7 +152,7 @@ are additionally conducted.  This option was added in OpenSSL 3.5.
 "PARAMETERS" in \fBEVP_RAND\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2024\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
