@@ -38,7 +38,7 @@ tests = ['alloc_class_001_pos', 'alloc_class_002_neg', 'alloc_class_003_pos',
     'alloc_class_007_pos', 'alloc_class_008_pos', 'alloc_class_009_pos',
     'alloc_class_010_pos', 'alloc_class_011_neg', 'alloc_class_012_pos',
     'alloc_class_013_pos', 'alloc_class_014_pos', 'alloc_class_015_neg',
-    'alloc_class_016_pos']
+    'alloc_class_016_pos', 'alloc_class_017_pos']
 tags = ['functional', 'alloc_class']
 
 [tests/functional/append]
@@ -598,8 +598,9 @@ tests = ['zpool_status_001_pos', 'zpool_status_002_pos',
     'zpool_status_003_pos', 'zpool_status_004_pos',
     'zpool_status_005_pos', 'zpool_status_006_pos',
     'zpool_status_007_pos', 'zpool_status_008_pos',
-    'zpool_status_009_pos',
-    'zpool_status_features_001_pos']
+    'zpool_status_009_pos', 'zpool_status_010_pos',
+    'zpool_status_011_pos', 'zpool_status_features_001_pos',
+    'zpool_status_-v']
 tags = ['functional', 'cli_root', 'zpool_status']
 
 [tests/functional/cli_root/zpool_sync]
@@ -727,6 +728,7 @@ tests = ['dedup_bclone', 'dedup_bclone_pruned', 'dedup_fdt_create',
     'dedup_fdt_import',
     'dedup_fdt_pacing', 'dedup_legacy_create', 'dedup_legacy_import',
     'dedup_legacy_fdt_upgrade', 'dedup_legacy_fdt_mixed', 'dedup_quota',
+    'dedup_log_zdb_leak',
     'dedup_prune', 'dedup_prune_leak', 'dedup_zap_shrink']
 pre =
 post =
@@ -958,7 +960,8 @@ tags = ['functional', 'refreserv']
 [tests/functional/removal]
 pre =
 tests = ['removal_all_vdev', 'removal_cancel', 'removal_check_space',
-    'removal_condense_export', 'removal_multiple_indirection',
+    'removal_condense_export', 'removal_indirect_class',
+    'removal_multiple_indirection',
     'removal_nopwrite', 'removal_remap_deadlists',
     'removal_resume_export', 'removal_sanity', 'removal_with_add',
     'removal_with_create_fs', 'removal_with_dedup',
@@ -1001,8 +1004,9 @@ tests = ['rootpool_002_neg', 'rootpool_003_neg', 'rootpool_007_pos']
 tags = ['functional', 'rootpool']
 
 [tests/functional/rsend]
-tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
-    'rsend_002_pos', 'rsend_003_pos', 'rsend_004_pos', 'rsend_005_pos',
+tests = ['recv_dedup', 'recv_dedup_encrypted_zvol',
+    'recv_dot_name_neg', 'rsend_001_pos', 'rsend_002_pos',
+    'rsend_003_pos', 'rsend_004_pos', 'rsend_005_pos',
     'rsend_006_pos', 'rsend_007_pos', 'rsend_008_pos', 'rsend_009_pos',
     'rsend_010_pos', 'rsend_011_pos', 'rsend_012_pos', 'rsend_013_pos',
     'rsend_014_pos', 'rsend_016_neg', 'rsend_019_pos', 'rsend_020_pos',
@@ -1028,6 +1032,7 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send-wR_encrypted_zvol',
     'send_partial_dataset', 'send_invalid',
     'send_large_blocks_incremental', 'send_large_blocks_initial',
+    'send_large_blocks_reverse',
     'send_large_microzap_incremental', 'send_large_microzap_transitive',
     'send_doall', 'send_raw_spill_block', 'send_raw_ashift',
     'send_raw_large_blocks', 'send_leak_keymaps']
@@ -1171,7 +1176,7 @@ tests = ['zstream_checksum_001_pos',
     'zstream_decompress_001_pos', 'zstream_decompress_002_pos',
     'zstream_decompress_003_neg', 'zstream_decompress_004_pos',
     'zstream_decompress_005_pos', 'zstream_decompress_006_neg',
-    'zstream_drop_record_001_pos',
+    'zstream_drop_records_001_pos',
     'zstream_dump_001_pos', 'zstream_dump_002_pos',
     'zstream_dump_003_pos', 'zstream_dump_004_neg',
     'zstream_raw_001_pos',
@@ -1180,7 +1185,7 @@ tests = ['zstream_checksum_001_pos',
     'zstream_recompress_005_pos',
     'zstream_redup_001_pos',
     'zstream_selftest_queue_001_pos',
-    'zstream_validate_001_neg']
+    'zstream_validate_001_neg', 'zstream_validate_002_neg']
 tags = ['functional', 'zstream']
 
 [tests/functional/zvol/zvol_ENOSPC]

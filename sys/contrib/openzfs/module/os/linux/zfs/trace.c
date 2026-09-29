@@ -27,8 +27,8 @@
 #include <sys/zfs_znode.h>
 #include <sys/zil_impl.h>
 
-#ifdef _KERNEL
 #define	CREATE_TRACE_POINTS
+#ifndef __FreeBSD__
 #include <sys/trace.h>
 #include <sys/trace_acl.h>
 #include <sys/trace_arc.h>

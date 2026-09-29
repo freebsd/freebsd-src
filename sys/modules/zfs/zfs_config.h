@@ -183,6 +183,9 @@
 /* Define if revalidate_disk() in block_device_operations */
 /* #undef HAVE_BLOCK_DEVICE_OPERATIONS_REVALIDATE_DISK */
 
+/* bvec_iter has bi_offset */
+/* #undef HAVE_BVEC_ITER_OFFSET */
+
 /* Define to 1 if you have the Mac OS X function
    CFLocaleCopyPreferredLanguages in the CoreFoundation framework. */
 /* #undef HAVE_CFLOCALECOPYPREFERREDLANGUAGES */
@@ -576,6 +579,9 @@
 /* revalidate_disk_size() is available */
 /* #undef HAVE_REVALIDATE_DISK_SIZE */
 
+/* rq_for_each_bvec() is available */
+/* #undef HAVE_RQ_FOR_EACH_BVEC */
+
 /* Define to 1 if you have the <security/pam_modules.h> header file. */
 #define HAVE_SECURITY_PAM_MODULES_H 1
 
@@ -641,6 +647,9 @@
 
 /* have super_block s_wb_err */
 /* #undef HAVE_SUPER_BLOCK_S_WB_ERR */
+
+/* Define if super_set_uuid() is available */
+/* #undef HAVE_SUPER_SET_UUID */
 
 /* sync_blockdev() is declared in include/blkdev.h */
 /* #undef HAVE_SYNC_BLOCKDEV */
@@ -864,7 +873,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-1069-FreeBSD.g02b5baf13"
+#define ZFS_META_ALIAS "zfs-2.4.99-1149-FreeBSD.g1f380a4f3"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -894,7 +903,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "1069-FreeBSD.g02b5baf13"
+#define ZFS_META_RELEASE "1149-FreeBSD.g1f380a4f3"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"
