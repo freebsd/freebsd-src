@@ -1231,11 +1231,8 @@ freebsd14_setgroups(struct thread *td, struct freebsd14_setgroups_args *uap)
 		groups = smallgroups;
 
 	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
-	if (error == 0) {
-		int ngroups = gidsetsize;
-
-		error = kern_setgroups(td, &ngroups, groups, true);
-	}
+	if (error == 0)
+		error = kern_setgroups(td, &gidsetsize, groups, true);
 
 	if (groups != smallgroups)
 		free(groups, M_TEMP);
