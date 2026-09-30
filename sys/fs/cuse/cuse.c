@@ -636,8 +636,7 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 
 	/* prevent creation of more devices */
 	cuse_server_lock(pcs);
-	if (pcsd->kern_dev != NULL)
-		pcsd->kern_dev->si_drv1 = NULL;
+	pcsd->kern_dev->si_drv1 = NULL;
 
 	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
 		if (pcc->server_dev == pcsd)
@@ -645,11 +644,8 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 	}
 	cuse_server_unlock(pcs);
 
-	/* destroy device, if any */
-	if (pcsd->kern_dev != NULL) {
-		/* destroy device synchronously */
-		destroy_dev(pcsd->kern_dev);
-	}
+	/* destroy device synchronously */
+	destroy_dev(pcsd->kern_dev);
 	free(pcsd, M_CUSE);
 }
 
@@ -1078,6 +1074,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		struct cuse_create_dev *pcd;
 		struct cuse_server_dev *pcsd;
 		struct cuse_data_chunk *pchk;
+		struct make_dev_args args;
 		int n;
 
 	case CUSE_IOCTL_GET_COMMAND:
@@ -1260,16 +1257,19 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 
 		pcsd->user_dev = pcd->dev;
 
-		pcsd->kern_dev = make_dev_credf(MAKEDEV_CHECKNAME,
-		    &cuse_client_devsw, 0, NULL, pcd->user_id, pcd->group_id,
-		    pcd->permissions, "%s", pcd->devname);
+		make_dev_args_init(&args);
+		args.mda_flags = MAKEDEV_CHECKNAME;
+		args.mda_devsw = &cuse_client_devsw;
+		args.mda_uid = pcd->user_id;
+		args.mda_gid = pcd->group_id;
+		args.mda_mode = pcd->permissions;
+		args.mda_si_drv1 = pcsd;
 
-		if (pcsd->kern_dev == NULL) {
+		error = make_dev_s(&args, &pcsd->kern_dev, "%s", pcd->devname);
+		if (error != 0) {
 			free(pcsd, M_CUSE);
-			error = ENOMEM;
 			break;
 		}
-		pcsd->kern_dev->si_drv1 = pcsd;
 
 		cuse_server_lock(pcs);
 		TAILQ_INSERT_TAIL(&pcs->hdev, pcsd, entry);
