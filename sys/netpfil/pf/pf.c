@@ -2689,7 +2689,13 @@ pf_purge_thread(void *unused __unused)
 				 */
 				pf_purge_expired_fragments();
 				pf_purge_expired_src_nodes();
+				/*
+				 * Takes the config lock, and may have to
+				 * sleep for it.
+				 */
+				NET_EPOCH_EXIT(et);
 				pf_purge_unlinked_rules();
+				NET_EPOCH_ENTER(et);
 				pfi_kkif_purge();
 			}
 			CURVNET_RESTORE();
