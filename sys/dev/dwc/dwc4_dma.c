@@ -1,9 +1,5 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
+ * Copyright (c) 2026 Ruslan Bukin <br@bsdpad.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,100 +52,66 @@
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/dwc/if_dwcvar.h>
-#include <dev/dwc/dwc1000_reg.h>
-#include <dev/dwc/dwc1000_dma.h>
+#include <dev/dwc/dwc4_reg.h>
+#include <dev/dwc/dwc4_dma.h>
+#include <dev/dwc/dwc4_mtl.h>
 
 #define	WATCHDOG_TIMEOUT_SECS	5
 #define	DMA_RESET_TIMEOUT	100
 
-/* TX descriptors - TDESC0 is almost unified */
-#define	TDESC0_OWN		(1U << 31)
-#define	TDESC0_IHE		(1U << 16)	/* IP Header Error */
-#define	TDESC0_ES		(1U << 15)	/* Error Summary */
-#define	TDESC0_JT		(1U << 14)	/* Jabber Timeout */
-#define	TDESC0_FF		(1U << 13)	/* Frame Flushed */
-#define	TDESC0_PCE		(1U << 12)	/* Payload Checksum Error */
-#define	TDESC0_LOC		(1U << 11)	/* Loss of Carrier */
-#define	TDESC0_NC		(1U << 10)	/* No Carrier */
-#define	TDESC0_LC		(1U <<  9)	/* Late Collision */
-#define	TDESC0_EC		(1U <<  8)	/* Excessive Collision */
-#define	TDESC0_VF		(1U <<  7)	/* VLAN Frame */
-#define	TDESC0_CC_MASK		0xf
-#define	TDESC0_CC_SHIFT		3		/* Collision Count */
-#define	TDESC0_ED		(1U <<  2)	/* Excessive Deferral */
-#define	TDESC0_UF		(1U <<  1)	/* Underflow Error */
-#define	TDESC0_DB		(1U <<  0)	/* Deferred Bit */
-/* TX descriptors - TDESC0 extended format only */
-#define	ETDESC0_IC		(1U << 30)	/* Interrupt on Completion */
-#define	ETDESC0_LS		(1U << 29)	/* Last Segment */
-#define	ETDESC0_FS		(1U << 28)	/* First Segment */
-#define	ETDESC0_DC		(1U << 27)	/* Disable CRC */
-#define	ETDESC0_DP		(1U << 26)	/* Disable Padding */
-#define	ETDESC0_CIC_NONE	(0U << 22)	/* Checksum Insertion Control */
-#define	ETDESC0_CIC_HDR		(1U << 22)
-#define	ETDESC0_CIC_SEG 	(2U << 22)
-#define	ETDESC0_CIC_FULL	(3U << 22)
-#define	ETDESC0_TER		(1U << 21)	/* Transmit End of Ring */
-#define	ETDESC0_TCH		(1U << 20)	/* Second Address Chained */
+/* RDES1 Write-back format */
+#define	RDES1_IPCE	(1 << 7) /* IP Payload Error;
+				  * 16-bit IP payload checksum mismatch.
+				  */
+#define	RDES1_IPCB	(1 << 6) /* Checksum offload engine is bypassed. */
+#define	RDES1_IPHE	(1 << 3) /*
+				  * IP Header Error;
+				  * 16-bit IP header checksum mismatch.
+				  */
+/* RX Read format */
+#define	RDES3_OWN	(1 << 31) /* DMA owns the descriptor */
+#define	RDES3_IOC	(1 << 30) /* Interrupt Enabled on Completion */
+#define	RDES3_BUF2V	(1 << 25) /* Buffer 2 Address Valid */
+#define	RDES3_BUF1V	(1 << 24) /* Buffer 1 Address Valid */
 
-/* TX descriptors - TDESC1 normal format */
-#define	NTDESC1_IC		(1U << 31)	/* Interrupt on Completion */
-#define	NTDESC1_LS		(1U << 30)	/* Last Segment */
-#define	NTDESC1_FS		(1U << 29)	/* First Segment */
-#define	NTDESC1_CIC_NONE	(0U << 27)	/* Checksum Insertion Control */
-#define	NTDESC1_CIC_HDR		(1U << 27)
-#define	NTDESC1_CIC_SEG 	(2U << 27)
-#define	NTDESC1_CIC_FULL	(3U << 27)
-#define	NTDESC1_DC		(1U << 26)	/* Disable CRC */
-#define	NTDESC1_TER		(1U << 25)	/* Transmit End of Ring */
-#define	NTDESC1_TCH		(1U << 24)	/* Second Address Chained */
-/* TX descriptors - TDESC1 extended format */
-#define	ETDESC1_DP		(1U << 23)	/* Disable Padding */
-#define	ETDESC1_TBS2_MASK	0x7ff
-#define	ETDESC1_TBS2_SHIFT	11		/* Receive Buffer 2 Size */
-#define	ETDESC1_TBS1_MASK	0x7ff
-#define	ETDESC1_TBS1_SHIFT	0		/* Receive Buffer 1 Size */
+/* RX Write-back format */
+#define	RDES3_FD	(1 << 29) /* First Descriptor */
+#define	RDES3_LD	(1 << 28) /* Last Descriptor */
+#define	RDES3_RE	(1 << 20) /* Receive Error */
+#define	RDES3_PL_S	0 /* Packet Length */
+#define	RDES3_PL_M	(0x7fff << RDES3_PL_S)
+#define	RDES3_CE	(1 << 24) /* CRC Error */
+#define	RDES3_LT_S	16 /* Length/Type Field */
+#define	RDES3_LT_M	(0x3 << RDES3_LT_S)
 
-/* RX descriptor - RDESC0 is unified */
-#define	RDESC0_OWN		(1U << 31)
-#define	RDESC0_AFM		(1U << 30)	/* Dest. Address Filter Fail */
-#define	RDESC0_FL_MASK		0x3fff
-#define	RDESC0_FL_SHIFT		16		/* Frame Length */
-#define	RDESC0_ES		(1U << 15)	/* Error Summary */
-#define	RDESC0_DE		(1U << 14)	/* Descriptor Error */
-#define	RDESC0_SAF		(1U << 13)	/* Source Address Filter Fail */
-#define	RDESC0_LE		(1U << 12)	/* Length Error */
-#define	RDESC0_OE		(1U << 11)	/* Overflow Error */
-#define	RDESC0_VLAN		(1U << 10)	/* VLAN Tag */
-#define	RDESC0_FS		(1U <<  9)	/* First Descriptor */
-#define	RDESC0_LS		(1U <<  8)	/* Last Descriptor */
-#define	RDESC0_ICE		(1U <<  7)	/* IPC Checksum Error */
-#define	RDESC0_LC		(1U <<  6)	/* Late Collision */
-#define	RDESC0_FT		(1U <<  5)	/* Frame Type */
-#define	RDESC0_RWT		(1U <<  4)	/* Receive Watchdog Timeout */
-#define	RDESC0_RE		(1U <<  3)	/* Receive Error */
-#define	RDESC0_DBE		(1U <<  2)	/* Dribble Bit Error */
-#define	RDESC0_CE		(1U <<  1)	/* CRC Error */
-#define	RDESC0_PCE		(1U <<  0)	/* Payload Checksum Error */
-#define	RDESC0_RXMA		(1U <<  0)	/* Rx MAC Address */
+/* TX Read format */
+#define	TDES2_IOC	(1 << 31) /* Interrupt on completion */
+#define	TDES2_TTSE	(1 << 30) /* Transmit Timestamp Enable */
+#define	TDES2_B2L_S	16 /* Buffer 2 Length */
+#define	TDES2_B2L_M	(0x3fff << TDES2_B2L_S)
+#define	TDES2_VTIR_S	14 /* VLAN Tag Insertion or Replacement */
+#define	TDES2_VTIR_M	(0x3 << TDES2_VTIR_S)
 
-/* RX descriptors - RDESC1 normal format */
-#define	NRDESC1_DIC		(1U << 31)	/* Disable Intr on Completion */
-#define	NRDESC1_RER		(1U << 25)	/* Receive End of Ring */
-#define	NRDESC1_RCH		(1U << 24)	/* Second Address Chained */
-#define	NRDESC1_RBS2_MASK	0x7ff
-#define	NRDESC1_RBS2_SHIFT	11		/* Receive Buffer 2 Size */
-#define	NRDESC1_RBS1_MASK	0x7ff
-#define	NRDESC1_RBS1_SHIFT	0		/* Receive Buffer 1 Size */
-
-/* RX descriptors - RDESC1 enhanced format */
-#define	ERDESC1_DIC		(1U << 31)	/* Disable Intr on Completion */
-#define	ERDESC1_RBS2_MASK	0x7ffff
-#define	ERDESC1_RBS2_SHIFT	16		/* Receive Buffer 2 Size */
-#define	ERDESC1_RER		(1U << 15)	/* Receive End of Ring */
-#define	ERDESC1_RCH		(1U << 14)	/* Second Address Chained */
-#define	ERDESC1_RBS1_MASK	0x7ffff
-#define	ERDESC1_RBS1_SHIFT	0		/* Receive Buffer 1 Size */
+#define	TDES3_OWN	(1 << 31) /* the DMA owns the descriptor */
+#define	TDES3_CTXT	(1 << 30) /* Context Type */
+#define	TDES3_FD	(1 << 29) /* First Descriptor */
+#define	TDES3_LD	(1 << 28) /* Last Descriptor */
+#define	TDES3_CPC_S		26
+#define	TDES3_CPC_M		(0x3 << TDES3_CPC_S)
+#define	TDES3_CPC_CRC_PAD	(0x0 << TDES3_CPC_S)
+#define	TDES3_CPC_CRC		(0x1 << TDES3_CPC_S)
+#define	TDES3_CPC_CRC_DISABLE	(0x2 << TDES3_CPC_S)
+#define	TDES3_CPC_CRC_REPLACE	(0x3 << TDES3_CPC_S)
+#define	TDES3_SAIC_S	23
+#define	TDES3_SAIC_M	(0x7 << TDES3_SAIC_S)
+#define	TDES3_TSE	18 /* TCP Segmentation Enable */
+#define	TDES3_CIC_S	16
+#define	TDES3_CIC_M	(0x3 << TDES3_CIC_S)
+#define	TDES3_CIC_HDR	(0x1 << TDES3_CIC_S) /* Only IP header csum inserted */
+#define	TDES3_CIC_FULL	(0x2 << TDES3_CIC_S) /* IP header & payload */
+#define	TDES3_CIC_FULLP	(0x3 << TDES3_CIC_S) /* IP header, payload, pseudo-hdr*/
+#define	TDES3_TPL_S	0 /* TCP Payload Length */
+#define	TDES3_TPL_M	(0x3ffff << TDES3_TPL_S)
 
 /*
  * A hardware buffer descriptor.  Rx and Tx buffers have the same descriptor
@@ -157,10 +119,10 @@
  */
 struct dwc_hwdesc
 {
-	uint32_t desc0;
-	uint32_t desc1;
-	uint32_t addr1;		/* ptr to first buffer data */
-	uint32_t addr2;		/* ptr to next descriptor / second buffer data*/
+	uint32_t tdes0;	/* Header or Buffer 1 Address[31:0] */
+	uint32_t tdes1; /* Buffer 2 Address [31:0] or Buffer 1 Address[63:32] */
+	uint32_t tdes2;
+	uint32_t tdes3;
 };
 
 #define	RX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * RX_DESC_COUNT)
@@ -200,73 +162,75 @@ txdesc_clear(struct dwc_softc *sc, int idx)
 {
 
 	sc->tx_desccount--;
-	sc->txdesc_ring[idx].addr1 = (uint32_t)(0);
-	sc->txdesc_ring[idx].desc0 = 0;
-	sc->txdesc_ring[idx].desc1 = 0;
+	sc->txdesc_ring[idx].tdes0 = 0;
+	sc->txdesc_ring[idx].tdes1 = 0;
+	sc->txdesc_ring[idx].tdes2 = 0;
+	sc->txdesc_ring[idx].tdes3 = 0;
 }
 
 inline static void
 txdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr,
   uint32_t len, uint32_t flags, bool first, bool last)
 {
-	uint32_t desc0, desc1;
+	uint32_t tdes0, tdes1, tdes2, tdes3;
 
 	if (!sc->dma_ext_desc) {
-		desc0 = 0;
-		desc1 = NTDESC1_TCH | len | flags;
+		tdes0 = paddr;
+		tdes1 = paddr >> 32;
+		tdes2 = len | TDES2_TTSE;
+		tdes3 = flags;
+
 		if (first)
-			desc1 |=  NTDESC1_FS;
-		if (last)
-			desc1 |= NTDESC1_LS | NTDESC1_IC;
+			tdes3 |= TDES3_FD;
+		if (last) {
+			tdes2 |= TDES2_IOC;
+			tdes3 |= TDES3_LD;
+		}
 	} else {
-		desc0 = ETDESC0_TCH | flags;
-		if (first)
-			desc0 |= ETDESC0_FS;
-		if (last)
-			desc0 |= ETDESC0_LS | ETDESC0_IC;
-		desc1 = len;
+		tdes0 = 0;
+		tdes1 = 0;
+		tdes2 = 0;
+		tdes3 = 0;
 	}
 	++sc->tx_desccount;
-	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
-	sc->txdesc_ring[idx].desc0 = desc0;
-	sc->txdesc_ring[idx].desc1 = desc1;
+	sc->txdesc_ring[idx].tdes0 = tdes0;
+	sc->txdesc_ring[idx].tdes1 = tdes1;
+	sc->txdesc_ring[idx].tdes2 = tdes2;
+	sc->txdesc_ring[idx].tdes3 = tdes3;
+
 	wmb();
-	sc->txdesc_ring[idx].desc0 |= TDESC0_OWN;
+	sc->txdesc_ring[idx].tdes3 |= TDES3_OWN;
 	wmb();
 }
 
 inline static uint32_t
 rxdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 {
-	uint32_t nidx;
 
-	sc->rxdesc_ring[idx].addr1 = (uint32_t)paddr;
-	nidx = next_rxidx(sc, idx);
-	sc->rxdesc_ring[idx].addr2 = sc->rxdesc_ring_paddr +
-	    (nidx * sizeof(struct dwc_hwdesc));
-	if (!sc->dma_ext_desc)
-		sc->rxdesc_ring[idx].desc1 = NRDESC1_RCH |
-		    MIN(MCLBYTES, NRDESC1_RBS1_MASK);
-	else
-		sc->rxdesc_ring[idx].desc1 = ERDESC1_RCH |
-		    MIN(MCLBYTES, ERDESC1_RBS1_MASK);
+	sc->rxdesc_ring[idx].tdes0 = (uint32_t)paddr;
+	sc->rxdesc_ring[idx].tdes1 = (uint32_t)(paddr >> 32);
+	sc->rxdesc_ring[idx].tdes2 = 0;
+	sc->rxdesc_ring[idx].tdes3 = RDES3_IOC | RDES3_BUF1V;
 
 	wmb();
-	sc->rxdesc_ring[idx].desc0 = RDESC0_OWN;
+	sc->rxdesc_ring[idx].tdes3 |= RDES3_OWN;
 	wmb();
-	return (nidx);
+
+	return (0);
 }
 
 int
-dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
+dma4_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 {
 	struct bus_dma_segment segs[TX_MAP_MAX_SEGS];
 	int error, nsegs;
 	struct mbuf * m;
 	uint32_t flags;
+	uint32_t csum_flags;
 	int i;
 	int last;
 
+	flags = 0;
 	error = bus_dmamap_load_mbuf_sg(sc->txbuf_tag, sc->txbuf_map[idx].map,
 	    *mp, segs, &nsegs, 0);
 	if (error == EFBIG) {
@@ -278,8 +242,8 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 		if ((m = m_defrag(*mp, M_NOWAIT)) == NULL)
 			return (ENOMEM);
 		*mp = m;
-		error = bus_dmamap_load_mbuf_sg(sc->txbuf_tag, sc->txbuf_map[idx].map,
-		    *mp, segs, &nsegs, 0);
+		error = bus_dmamap_load_mbuf_sg(sc->txbuf_tag,
+		    sc->txbuf_map[idx].map, *mp, segs, &nsegs, 0);
 	}
 	if (error != 0)
 		return (ENOMEM);
@@ -291,12 +255,18 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	m = *mp;
 
-	if ((m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)) != 0)
-		flags = sc->dma_ext_desc ? ETDESC0_CIC_SEG : NTDESC1_CIC_SEG;
-	else if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
-		flags = sc->dma_ext_desc ? ETDESC0_CIC_HDR : NTDESC1_CIC_HDR;
-	else
-		flags = sc->dma_ext_desc ? ETDESC0_CIC_NONE : NTDESC1_CIC_NONE;
+	csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP6_TCP | CSUM_IP6_UDP;
+	if ((m->m_pkthdr.csum_flags & csum_flags) != 0) {
+		if (!sc->dma_ext_desc)
+			flags = TDES3_CIC_FULLP;
+		else
+			panic("implement me");
+	} else if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
+		if (!sc->dma_ext_desc)
+			flags = TDES3_CIC_HDR;
+		else
+			panic("implement me");
+	}
 
 	bus_dmamap_sync(sc->txbuf_tag, sc->txbuf_map[idx].map,
 	    BUS_DMASYNC_PREWRITE);
@@ -315,11 +285,16 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	sc->txbuf_map[idx].last_desc_idx = last;
 
+	wmb();
+
+	WRITE4(sc, ETH_DMACTXDTPR(0), sc->txdesc_ring_paddr +
+	    sc->tx_desc_head * sizeof(struct dwc_hwdesc));
+
 	return (0);
 }
 
 static int
-dma1000_setup_rxbuf(struct dwc_softc *sc, int idx, struct mbuf *m)
+dma4_setup_rxbuf(struct dwc_softc *sc, int idx, struct mbuf *m)
 {
 	struct bus_dma_segment seg;
 	int error, nsegs;
@@ -361,36 +336,32 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 	if_t ifp;
 	struct mbuf *m, *m0;
 	int len;
-	uint32_t rdesc0;
+	uint32_t rdes1;
+	uint32_t rdes3;
 
 	m = map->mbuf;
 	ifp = sc->ifp;
-	rdesc0 = desc ->desc0;
+	rdes1 = desc->tdes1;
+	rdes3 = desc->tdes3;
 
-	if ((rdesc0 & (RDESC0_FS | RDESC0_LS)) !=
-		    (RDESC0_FS | RDESC0_LS)) {
+	if ((rdes3 & (RDES3_FD | RDES3_LD)) != (RDES3_FD | RDES3_LD)) {
 		/*
 		 * Something very wrong happens. The whole packet should be
 		 * received in one descriptor. Report problem.
 		 */
 		device_printf(sc->dev,
 		    "%s: RX descriptor without FIRST and LAST bit set: 0x%08X",
-		    __func__, rdesc0);
+		    __func__, rdes3);
 		return (NULL);
 	}
 
-	len = (rdesc0 >> RDESC0_FL_SHIFT) & RDESC0_FL_MASK;
-	if (len < 64) {
-		/*
-		 * Lenght is invalid, recycle old mbuf
-		 * Probably impossible case
-		 */
-		return (NULL);
-	}
+	len = (rdes3 & RDES3_PL_M) >> RDES3_PL_S;
 
 	/* Allocate new buffer */
 	m0 = dwc_alloc_mbufcl(sc);
 	if (m0 == NULL) {
+		device_printf(sc->dev, "no mbufs\n");
+
 		/* no new mbuf available, recycle old */
 		if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
 		return (NULL);
@@ -406,13 +377,13 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	if ((if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0 &&
-	    (rdesc0 & RDESC0_FT) != 0) {
+	    (rdes1 & RDES1_IPCB) == 0) {
 		m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
-		if ((rdesc0 & RDESC0_ICE) == 0)
+		if ((rdes1 & RDES1_IPCE) == 0)
 			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-		if ((rdesc0 & RDESC0_PCE) == 0) {
+		if ((rdes1 & RDES1_IPHE) == 0) {
 			m->m_pkthdr.csum_flags |=
-				CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 	}
@@ -427,7 +398,7 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 }
 
 void
-dma1000_txfinish_locked(struct dwc_softc *sc)
+dma4_txfinish_locked(struct dwc_softc *sc)
 {
 	struct dwc_bufmap *bmap;
 	struct dwc_hwdesc *desc;
@@ -446,7 +417,7 @@ dma1000_txfinish_locked(struct dwc_softc *sc)
 		last_idx = next_txidx(sc, bmap->last_desc_idx);
 		while (idx != last_idx) {
 			desc = &sc->txdesc_ring[idx];
-			if ((desc->desc0 & TDESC0_OWN) != 0) {
+			if ((desc->tdes3 & TDES3_OWN) != 0) {
 				map_finished = false;
 				break;
 			}
@@ -477,7 +448,7 @@ dma1000_txfinish_locked(struct dwc_softc *sc)
 }
 
 void
-dma1000_txstart(struct dwc_softc *sc)
+dma4_txstart(struct dwc_softc *sc)
 {
 	int enqueued;
 	struct mbuf *m;
@@ -498,7 +469,7 @@ dma1000_txstart(struct dwc_softc *sc)
 		m = if_dequeue(sc->ifp);
 		if (m == NULL)
 			break;
-		if (dma1000_setup_txbuf(sc, sc->tx_map_head, &m) != 0) {
+		if (dma4_setup_txbuf(sc, sc->tx_map_head, &m) != 0) {
 			if_sendq_prepend(sc->ifp, m);
 			if_setdrvflagbits(sc->ifp, IFF_DRV_OACTIVE, 0);
 			break;
@@ -509,39 +480,39 @@ dma1000_txstart(struct dwc_softc *sc)
 		++enqueued;
 	}
 
-	if (enqueued != 0) {
-		WRITE4(sc, TRANSMIT_POLL_DEMAND, 0x1);
+	if (enqueued != 0)
 		sc->tx_watchdog_count = WATCHDOG_TIMEOUT_SECS;
-	}
 }
 
 void
-dma1000_rxfinish_locked(struct dwc_softc *sc)
+dma4_rxfinish_locked(struct dwc_softc *sc)
 {
 	struct mbuf *m;
 	int error, idx;
 	struct dwc_hwdesc *desc;
 
 	DWC_ASSERT_LOCKED(sc);
+
 	for (;;) {
 		idx = sc->rx_idx;
 		desc = sc->rxdesc_ring + idx;
-		if ((desc->desc0 & RDESC0_OWN) != 0)
+		if (desc->tdes3 & RDES3_OWN)
 			break;
-
 		m = dwc_rxfinish_one(sc, desc, sc->rxbuf_map + idx);
 		if (m == NULL) {
-			wmb();
-			desc->desc0 = RDESC0_OWN;
+			desc->tdes3 = RDES3_BUF1V | RDES3_IOC | RDES3_OWN;
 			wmb();
 		} else {
 			/* We cannot create hole in RX ring */
-			error = dma1000_setup_rxbuf(sc, idx, m);
+			error = dma4_setup_rxbuf(sc, idx, m);
 			if (error != 0)
-				panic("dma1000_setup_rxbuf failed:  error %d\n",
+				panic("dma4_setup_rxbuf failed:  error %d\n",
 				    error);
-
 		}
+
+		WRITE4(sc, ETH_DMACRXDTPR(0), sc->rxdesc_ring_paddr +
+		    idx * sizeof(struct dwc_hwdesc));
+
 		sc->rx_idx = next_rxidx(sc, sc->rx_idx);
 	}
 }
@@ -550,71 +521,95 @@ dma1000_rxfinish_locked(struct dwc_softc *sc)
  * Start the DMA controller
  */
 void
-dma1000_start(struct dwc_softc *sc)
+dma4_start(struct dwc_softc *sc)
 {
 	uint32_t reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
-	/* Initializa DMA and enable transmitters */
-	reg = READ4(sc, OPERATION_MODE);
-	reg |= (MODE_TSF | MODE_OSF | MODE_FUF);
-	reg &= ~(MODE_RSF);
-	reg |= (MODE_RTC_LEV32 << MODE_RTC_SHIFT);
-	WRITE4(sc, OPERATION_MODE, reg);
+	/* Initialize DMA and enable transmitters */
 
-	WRITE4(sc, INTERRUPT_ENABLE, INT_EN_DEFAULT);
+	/* Configure TX channel 0 */
+	reg = READ4(sc, ETH_DMACTXCR(0));
+	reg |= DMACTXCR_OSF;
+	WRITE4(sc, ETH_DMACTXCR(0), reg);
 
-	/* Start DMA */
-	reg = READ4(sc, OPERATION_MODE);
-	reg |= (MODE_ST | MODE_SR);
-	WRITE4(sc, OPERATION_MODE, reg);
+	reg = MTLTXQOMR_TSF; /* Transmit Store and Forward */
+	reg |= MTLTXQOMR_EN;
+	reg |= MTLTXQOMR_TQS_8K;
+	WRITE4(sc, ETH_MTLTXQOMR(0), reg);
+
+	/* Configure RX channel 0 */
+	reg = MTLRXQOMR_RSF;
+	reg |= MTLRXQOMR_EHFC;
+	reg |= MTLRXQOMR_RQS_4K;
+	WRITE4(sc, ETH_MTLRXQOMR(0), reg);
+
+	reg = READ4(sc, ETH_MACRXQC0R(0));
+	reg |= MACRXQC0R_RXQ0EN_GEN;
+	WRITE4(sc, ETH_MACRXQC0R(0), reg);
+
+	/* Enable Interrupts. */
+	reg = DMACIER_TIE | DMACIER_TXSE | DMACIER_TBUE | DMACIER_RIE |
+	    DMACIER_RBUE | DMACIER_RSE | DMACIER_RWTE | DMACIER_ETIE |
+	    DMACIER_ERIE | DMACIER_FBEE | DMACIER_CDEE | DMACIER_AIE |
+	    DMACIER_NIE;
+	WRITE4(sc, ETH_DMACIER(0), reg);
+
+	/* Start DMA RX. */
+	reg = READ4(sc, ETH_DMACRXCR(0));
+	reg |= DMACRXCR_SR;
+	WRITE4(sc, ETH_DMACRXCR(0), reg);
+
+	/* Start DMA TX. */
+	reg = READ4(sc, ETH_DMACTXCR(0));
+	reg |= DMACTXCR_ST;
+	WRITE4(sc, ETH_DMACTXCR(0), reg);
 }
 
 /*
  * Stop the DMA controller
  */
 void
-dma1000_stop(struct dwc_softc *sc)
+dma4_stop(struct dwc_softc *sc)
 {
 	uint32_t reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
 	/* Stop DMA TX */
-	reg = READ4(sc, OPERATION_MODE);
-	reg &= ~(MODE_ST);
-	WRITE4(sc, OPERATION_MODE, reg);
+	reg = READ4(sc, ETH_DMACTXCR(0));
+	reg &= ~DMACTXCR_ST;
+	WRITE4(sc, ETH_DMACTXCR(0), reg);
 
 	/* Flush TX */
-	reg = READ4(sc, OPERATION_MODE);
-	reg |= (MODE_FTF);
-	WRITE4(sc, OPERATION_MODE, reg);
+	reg = READ4(sc, ETH_MTLTXQOMR(0));
+	reg |= MTLTXQOMR_FTQ;
+	WRITE4(sc, ETH_MTLTXQOMR(0), reg);
 
 	/* Stop DMA RX */
-	reg = READ4(sc, OPERATION_MODE);
-	reg &= ~(MODE_SR);
-	WRITE4(sc, OPERATION_MODE, reg);
+	reg = READ4(sc, ETH_DMACRXCR(0));
+	reg &= ~DMACRXCR_SR;
+	WRITE4(sc, ETH_DMACRXCR(0), reg);
 }
 
 int
-dma1000_reset(struct dwc_softc *sc)
+dma4_reset(struct dwc_softc *sc)
 {
 	uint32_t reg;
 	int i;
 
-	reg = READ4(sc, BUS_MODE);
-	reg |= (BUS_MODE_SWR);
-	WRITE4(sc, BUS_MODE, reg);
+	reg = READ4(sc, ETH_DMAMR);
+	reg |= DMAMR_SWR;
+	WRITE4(sc, ETH_DMAMR, reg);
 
 	for (i = 0; i < DMA_RESET_TIMEOUT; i++) {
-		if ((READ4(sc, BUS_MODE) & BUS_MODE_SWR) == 0)
+		if ((READ4(sc, ETH_DMAMR) & DMAMR_SWR) == 0)
 			break;
 		DELAY(10);
 	}
-	if (i >= DMA_RESET_TIMEOUT) {
+	if (i >= DMA_RESET_TIMEOUT)
 		return (ENXIO);
-	}
 
 	return (0);
 }
@@ -623,38 +618,61 @@ dma1000_reset(struct dwc_softc *sc)
  * Create the bus_dma resources
  */
 int
-dma1000_init(struct dwc_softc *sc)
+dma4_init(struct dwc_softc *sc)
 {
 	struct mbuf *m;
 	uint32_t reg;
 	int error;
-	int nidx;
 	int idx;
 
-	reg = BUS_MODE_USP;
-	if (!sc->nopblx8)
-		reg |= BUS_MODE_EIGHTXPBL;
-	reg |= (sc->txpbl << BUS_MODE_PBL_SHIFT);
-	reg |= (sc->rxpbl << BUS_MODE_RPBL_SHIFT);
+	WRITE4(sc, ETH_MACQ0TXFCR, 0xffff << 16 | 1);
+	WRITE4(sc, ETH_MACRXFCR, 1);
+
+	reg = READ4(sc, ETH_DMACCR(0));
+	if (sc->nopblx8)
+		reg &= ~DMACCR_PBLX8;
+	else
+		reg |= DMACCR_PBLX8;
+	WRITE4(sc, ETH_DMACCR(0), reg);
+
+	WRITE4(sc, ETH_DMACTXCR(0), 0);
+
+	reg = (MCLBYTES << DMACRXCR_RBSZ_S);
+	WRITE4(sc, ETH_DMACRXCR(0), reg);
+
+	reg = DMASBMR_BLEN4;
+	reg |= DMASBMR_BLEN8;
+	reg |= DMASBMR_BLEN16;
+	reg |= DMASBMR_EAME;
+	WRITE4(sc, ETH_DMASBMR, reg);
+
+	reg = READ4(sc, ETH_DMASBMR);
 	if (sc->fixed_burst)
-		reg |= BUS_MODE_FIXEDBURST;
-	if (sc->mixed_burst)
-		reg |= BUS_MODE_MIXEDBURST;
+		reg |= DMASBMR_FB;
+	else
+		reg &= ~DMASBMR_FB;
 	if (sc->aal)
-		reg |= BUS_MODE_AAL;
+		reg |= DMASBMR_AAL;
+	else
+		reg &= ~DMASBMR_AAL;
+	WRITE4(sc, ETH_DMASBMR, reg);
 
-	WRITE4(sc, BUS_MODE, reg);
-
-	reg = READ4(sc, HW_FEATURE);
-	if (reg & HW_FEATURE_EXT_DESCRIPTOR)
-		sc->dma_ext_desc = true;
+	/* No support in the driver. */
+	sc->dma_ext_desc = false;
 
 	/*
 	 * DMA must be stop while changing descriptor list addresses.
 	 */
-	reg = READ4(sc, OPERATION_MODE);
-	reg &= ~(MODE_ST | MODE_SR);
-	WRITE4(sc, OPERATION_MODE, reg);
+
+	/* Stop DMA TX */
+	reg = READ4(sc, ETH_DMACTXCR(0));
+	reg &= ~DMACTXCR_ST;
+	WRITE4(sc, ETH_DMACTXCR(0), reg);
+
+	/* Stop DMA RX */
+	reg = READ4(sc, ETH_DMACRXCR(0));
+	reg &= ~DMACRXCR_SR;
+	WRITE4(sc, ETH_DMACRXCR(0), reg);
 
 	/*
 	 * Set up TX descriptor ring, descriptors, and dma maps.
@@ -662,7 +680,7 @@ dma1000_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    DWC_DESC_RING_ALIGN, 0,	/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    TX_DESC_SIZE, 1, 		/* maxsize, nsegments */
@@ -676,7 +694,7 @@ dma1000_init(struct dwc_softc *sc)
 		goto out;
 	}
 
-	error = bus_dmamem_alloc(sc->txdesc_tag, (void**)&sc->txdesc_ring,
+	error = bus_dmamem_alloc(sc->txdesc_tag, (void **)&sc->txdesc_ring,
 	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
 	    &sc->txdesc_map);
 	if (error != 0) {
@@ -694,19 +712,13 @@ dma1000_init(struct dwc_softc *sc)
 		goto out;
 	}
 
-	for (idx = 0; idx < TX_DESC_COUNT; idx++) {
-		nidx = next_txidx(sc, idx);
-		sc->txdesc_ring[idx].addr2 = sc->txdesc_ring_paddr +
-		    (nidx * sizeof(struct dwc_hwdesc));
-	}
-
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES*TX_MAP_MAX_SEGS,	/* maxsize */
+	    MCLBYTES * TX_MAP_MAX_SEGS,	/* maxsize */
 	    TX_MAP_MAX_SEGS,		/* nsegments */
 	    MCLBYTES,			/* maxsegsize */
 	    0,				/* flags */
@@ -719,7 +731,7 @@ dma1000_init(struct dwc_softc *sc)
 	}
 
 	for (idx = 0; idx < TX_MAP_COUNT; idx++) {
-		error = bus_dmamap_create(sc->txbuf_tag, BUS_DMA_COHERENT,
+		error = bus_dmamap_create(sc->txbuf_tag, 0,
 		    &sc->txbuf_map[idx].map);
 		if (error != 0) {
 			device_printf(sc->dev,
@@ -731,7 +743,9 @@ dma1000_init(struct dwc_softc *sc)
 	for (idx = 0; idx < TX_DESC_COUNT; idx++)
 		txdesc_clear(sc, idx);
 
-	WRITE4(sc, TX_DESCR_LIST_ADDR, sc->txdesc_ring_paddr);
+	WRITE4(sc, ETH_DMACTXDLAR_HI(0), sc->txdesc_ring_paddr >> 32);
+	WRITE4(sc, ETH_DMACTXDLAR(0), sc->txdesc_ring_paddr);
+	WRITE4(sc, ETH_DMACTXRLR(0), TX_DESC_COUNT - 1);
 
 	/*
 	 * Set up RX descriptor ring, descriptors, dma maps, and mbufs.
@@ -739,7 +753,7 @@ dma1000_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    DWC_DESC_RING_ALIGN, 0,	/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    RX_DESC_SIZE, 1, 		/* maxsize, nsegments */
@@ -774,7 +788,7 @@ dma1000_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    MCLBYTES, 1, 		/* maxsize, nsegments */
@@ -788,8 +802,8 @@ dma1000_init(struct dwc_softc *sc)
 		goto out;
 	}
 
-	for (idx = 0; idx < RX_DESC_COUNT; idx++) {
-		error = bus_dmamap_create(sc->rxbuf_tag, BUS_DMA_COHERENT,
+	for (idx = 0; idx < RX_MAP_COUNT; idx++) {
+		error = bus_dmamap_create(sc->rxbuf_tag, 0,
 		    &sc->rxbuf_map[idx].map);
 		if (error != 0) {
 			device_printf(sc->dev,
@@ -801,13 +815,19 @@ dma1000_init(struct dwc_softc *sc)
 			error = ENOMEM;
 			goto out;
 		}
-		if ((error = dma1000_setup_rxbuf(sc, idx, m)) != 0) {
+		if ((error = dma4_setup_rxbuf(sc, idx, m)) != 0) {
 			device_printf(sc->dev,
 			    "could not create new RX buffer.\n");
 			goto out;
 		}
 	}
-	WRITE4(sc, RX_DESCR_LIST_ADDR, sc->rxdesc_ring_paddr);
+
+	WRITE4(sc, ETH_DMACRXDLAR_HI(0), sc->rxdesc_ring_paddr >> 32);
+	WRITE4(sc, ETH_DMACRXDLAR(0), sc->rxdesc_ring_paddr);
+
+	WRITE4(sc, ETH_DMACRXDTPR(0), sc->rxdesc_ring_paddr +
+	    (RX_DESC_COUNT - 1) * sizeof(struct dwc_hwdesc));
+	WRITE4(sc, ETH_DMACRXRLR(0), RX_DESC_COUNT - 1);
 
 out:
 	if (error != 0)
@@ -820,7 +840,7 @@ out:
  * Free the bus_dma resources
  */
 void
-dma1000_free(struct dwc_softc *sc)
+dma4_free(struct dwc_softc *sc)
 {
 	bus_dmamap_t map;
 	int idx;
@@ -866,32 +886,35 @@ dma1000_free(struct dwc_softc *sc)
  */
 
 int
-dma1000_intr(struct dwc_softc *sc)
+dma4_intr(struct dwc_softc *sc)
 {
 	uint32_t reg;
 	int rv;
 
+	rv = 0;
+
 	DWC_ASSERT_LOCKED(sc);
 
-	rv = 0;
-	reg = READ4(sc, DMA_STATUS);
-	if (reg & DMA_STATUS_NIS) {
-		if (reg & DMA_STATUS_RI)
-			dma1000_rxfinish_locked(sc);
+	reg = READ4(sc, ETH_DMACSR(0));
 
-		if (reg & DMA_STATUS_TI) {
-			dma1000_txfinish_locked(sc);
-			dma1000_txstart(sc);
+	if (reg & DMACSR_NIS) {
+		if (reg & DMACSR_RI)
+			dma4_rxfinish_locked(sc);
+
+		if (reg & DMACSR_TI) {
+			dma4_txfinish_locked(sc);
+			dma4_txstart(sc);
 		}
 	}
 
-	if (reg & DMA_STATUS_AIS) {
-		if (reg & DMA_STATUS_FBI) {
-			/* Fatal bus error */
+	if (reg & DMACSR_AIS) {
+		if (reg & DMACSR_FBE) {
+			/* Fatal Bus Error. */
 			rv = EIO;
 		}
 	}
 
-	WRITE4(sc, DMA_STATUS, reg & DMA_STATUS_INTR_MASK);
+	WRITE4(sc, ETH_DMACSR(0), reg);
+
 	return (rv);
 }
