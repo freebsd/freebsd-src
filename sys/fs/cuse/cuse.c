@@ -74,32 +74,6 @@
 #error "PAGE_SIZE is too big!"
 #endif
 
-static int
-cuse_modevent(module_t mod, int type, void *data)
-{
-	switch (type) {
-	case MOD_LOAD:
-	case MOD_UNLOAD:
-		return (0);
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static moduledata_t cuse_mod = {
-	.name = "cuse",
-	.evhand = &cuse_modevent,
-};
-
-DECLARE_MODULE(cuse, cuse_mod, SI_SUB_DEVFS, SI_ORDER_FIRST);
-MODULE_VERSION(cuse, 1);
-
-/*
- * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
- * declaring support for the cuse4bsd interface in cuse.ko:
- */
-MODULE_VERSION(cuse4bsd, 1);
-
 #ifdef FEATURE
 FEATURE(cuse, "Userspace character devices");
 #endif
@@ -295,7 +269,7 @@ cuse_cmd_unlock(struct cuse_client_command *pccmd)
 }
 
 static void
-cuse_kern_init(void *arg)
+cuse_kern_init(void)
 {
 	TAILQ_INIT(&cuse_server_head);
 
@@ -308,10 +282,9 @@ cuse_kern_init(void *arg)
 	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
 	    (CUSE_VERSION >> 0) & 0xFF);
 }
-SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, NULL);
 
 static void
-cuse_kern_uninit(void *arg)
+cuse_kern_uninit(void)
 {
 	void *ptr;
 
@@ -334,7 +307,6 @@ cuse_kern_uninit(void *arg)
 
 	mtx_destroy(&cuse_global_mtx);
 }
-SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, NULL);
 
 static int
 cuse_server_get(struct cuse_server **ppcs)
@@ -2062,3 +2034,34 @@ cuse_client_kqfilter(struct cdev *dev, struct knote *kn)
 		cuse_client_kqfilter_poll(dev, pcc);
 	return (error);
 }
+
+static int
+cuse_modevent(module_t mod, int type, void *data)
+{
+	switch (type) {
+	case MOD_LOAD:
+		cuse_kern_init();
+		break;
+	case MOD_UNLOAD:
+		cuse_kern_uninit();
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
+}
+
+static moduledata_t cuse_mod = {
+	.name = "cuse",
+	.evhand = &cuse_modevent,
+};
+
+DECLARE_MODULE(cuse, cuse_mod, SI_SUB_DEVFS, SI_ORDER_FIRST);
+MODULE_VERSION(cuse, 1);
+
+/*
+ * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
+ * declaring support for the cuse4bsd interface in cuse.ko:
+ */
+MODULE_VERSION(cuse4bsd, 1);
