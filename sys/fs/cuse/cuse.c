@@ -1666,11 +1666,21 @@ cuse_client_read(struct cdev *dev, struct uio *uio, int ioflag)
 	cuse_cmd_lock(pccmd);
 
 	while (uio->uio_resid != 0) {
-		if (uio->uio_iov->iov_len > CUSE_LENGTH_MAX) {
+		len = uio->uio_iov->iov_len;
+		/*
+		 * The uiomove() below does not step past an iovec it has
+		 * just emptied, so do it here, to avoid an infinite loop
+		 * where we are requesting zero-byte transfers.
+		 */
+		if (len == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (len > CUSE_LENGTH_MAX) {
 			error = ENOMEM;
 			break;
 		}
-		len = uio->uio_iov->iov_len;
 
 		cuse_server_lock(pcs);
 		if (len <= CUSE_COPY_BUFFER_MAX) {
@@ -1754,11 +1764,21 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 	cuse_cmd_lock(pccmd);
 
 	while (uio->uio_resid != 0) {
-		if (uio->uio_iov->iov_len > CUSE_LENGTH_MAX) {
+		len = uio->uio_iov->iov_len;
+		/*
+		 * The uiomove() below does not step past an iovec it has
+		 * just emptied, so do it here, to avoid an infinite loop
+		 * where we are requesting zero-byte transfers.
+		 */
+		if (len == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (len > CUSE_LENGTH_MAX) {
 			error = ENOMEM;
 			break;
 		}
-		len = uio->uio_iov->iov_len;
 
 		if (len <= CUSE_COPY_BUFFER_MAX) {
 			error = copyin(uio->uio_iov->iov_base,
