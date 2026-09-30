@@ -58,8 +58,6 @@ ACPI_MODULE_NAME("TIMER")
 
 static device_t			acpi_timer_dev;
 static struct resource		*acpi_timer_reg;
-static bus_space_handle_t	acpi_timer_bsh;
-static bus_space_tag_t		acpi_timer_bst;
 static eventhandler_tag		acpi_timer_eh;
 
 static u_int	acpi_timer_frequency = 14318182 / 4;
@@ -105,7 +103,7 @@ static __inline uint32_t
 acpi_timer_read(void)
 {
 
-    return (bus_space_read_4(acpi_timer_bst, acpi_timer_bsh, 0));
+	return (bus_read_4(acpi_timer_reg, 0));
 }
 
 /*
@@ -117,7 +115,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 {
     device_t dev;
     rman_res_t rlen, rstart;
-    int rid, rtype;
+    int rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -141,10 +139,9 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     default:
 	return_VOID;
     }
-    rid = 0;
     rlen = AcpiGbl_FADT.PmTimerLength;
     rstart = AcpiGbl_FADT.XPmTimerBlock.Address;
-    if (bus_set_resource(dev, rtype, rid, rstart, rlen))
+    if (bus_set_resource(dev, rtype, 0, rstart, rlen))
 	device_printf(dev, "couldn't set resource (%s 0x%jx+0x%jx)\n",
 	    (rtype == SYS_RES_IOPORT) ? "port" : "mem", rstart, rlen);
     return_VOID;
@@ -167,7 +164,7 @@ acpi_timer_probe(device_t dev)
 static int
 acpi_timer_attach(device_t dev)
 {
-    int rid, rtype;
+    int rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -181,12 +178,9 @@ acpi_timer_attach(device_t dev)
     default:
 	return (ENXIO);
     }
-    rid = 0;
-    acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
+    acpi_timer_reg = bus_alloc_resource_any(dev, rtype, 0, RF_ACTIVE);
     if (acpi_timer_reg == NULL)
 	return (ENXIO);
-    acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
-    acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
 
     /* Register suspend event handler. */
     if (EVENTHANDLER_REGISTER(power_suspend, acpi_timer_suspend_handler,
