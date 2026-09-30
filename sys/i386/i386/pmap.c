@@ -145,10 +145,10 @@
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
 #endif
-#include <x86/ifunc.h>
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/ifunc.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
