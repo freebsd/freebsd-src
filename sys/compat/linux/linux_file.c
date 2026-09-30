@@ -2043,13 +2043,13 @@ linux_inotify_add_watch(struct thread *td,
 		    args->mask);
 		return (EINVAL);
 	}
-	return (kern_inotify_add_watch(args->fd, AT_FDCWD, args->pathname,
-	    args->mask, td));
+	return (kern_inotify_add_watch(td, args->fd, AT_FDCWD, args->pathname,
+	    args->mask));
 }
 
 int
 linux_inotify_rm_watch(struct thread *td,
     struct linux_inotify_rm_watch_args *args)
 {
-	return (kern_inotify_rm_watch(args->fd, args->wd, td));
+	return (kern_inotify_rm_watch(td, args->fd, args->wd));
 }
