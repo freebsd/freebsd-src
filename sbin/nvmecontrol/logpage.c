@@ -754,16 +754,17 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	/*
 	 * The log page attributes indicate whether or not the controller
 	 * supports the SMART/Health information log page on a per
-	 * namespace basis.
+	 * namespace basis.  The vendor defines the scope of pages 0xC0-0xFF.
 	 */
 	if (nsid != NVME_GLOBAL_NAMESPACE_TAG) {
-		if (opt.page != NVME_LOG_HEALTH_INFORMATION)
+		if (opt.page == NVME_LOG_HEALTH_INFORMATION) {
+			if (ns_smart == 0)
+				errx(EX_UNAVAILABLE,
+				    "controller does not support per namespace "
+				    "smart/health information");
+		} else if (opt.page < 0xc0)
 			errx(EX_USAGE, "log page %d valid only at controller level",
 			    opt.page);
-		if (ns_smart == 0)
-			errx(EX_UNAVAILABLE,
-			    "controller does not support per namespace "
-			    "smart/health information");
 	}
 
 	print_fn = print_log_hex;
