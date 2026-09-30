@@ -29,6 +29,8 @@
 #ifndef __ARM64_IFUNC_H
 #define	__ARM64_IFUNC_H
 
+#include <sys/types.h>
+
 struct __ifunc_arg_t
 {
 	unsigned long _size; /* Size of the struct, so it can grow. */
@@ -43,17 +45,19 @@ typedef struct __ifunc_arg_t __ifunc_arg_t;
 #define _IFUNC_ARG_HWCAP (1ULL << 62)
 
 #define	DEFINE_IFUNC(qual, ret_type, name, args)			\
-    static ret_type (*name##_resolver(void))args __used;		\
-    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    static ret_type (*name##_resolver(void))args
+    static ret_type (*__CONCAT(name, _resolver)(void))args __used;	\
+    qual ret_type name args						\
+	__attribute__((ifunc(__XSTRING(name) "_resolver")));		\
+    static ret_type (*__CONCAT(name, _resolver)(void))args
 
 #define	DEFINE_UIFUNC(qual, ret_type, name, args)			\
-    static ret_type (*name##_resolver(uint64_t,				\
+    static ret_type (*__CONCAT(name, _resolver)(uint64_t,		\
 	const struct __ifunc_arg_t *ifunc_arg,				\
 	uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,		\
 	uint64_t))args __used;						\
-    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    static ret_type (*name##_resolver(					\
+    qual ret_type name args						\
+	__attribute__((ifunc(__XSTRING(name) "_resolver")));		\
+    static ret_type (*__CONCAT(name, _resolver)(			\
 	uint64_t at_hwcap __unused,					\
 	const struct __ifunc_arg_t *ifunc_arg __unused,			\
 	uint64_t _arg3 __unused,					\
