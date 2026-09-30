@@ -2346,7 +2346,8 @@ pcib_xlate_ari(device_t pcib, int bus, int *slot, int *func)
 	sc = device_get_softc(pcib);
 	ari_func = *func;
 
-	if (sc->flags & PCIB_ENABLE_ARI) {
+	/* ARI applies only to this port's secondary bus. */
+	if ((sc->flags & PCIB_ENABLE_ARI) && bus == sc->bus.sec) {
 		KASSERT(*slot == 0,
 		    ("Non-zero slot number with ARI enabled!"));
 		*slot = PCIE_ARI_SLOT(ari_func);
