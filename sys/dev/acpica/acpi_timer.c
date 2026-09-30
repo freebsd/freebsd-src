@@ -72,7 +72,6 @@ static void	acpi_timer_resume_handler(struct timecounter *,
 static void	acpi_timer_suspend_handler(struct timecounter *,
 		    enum power_stype);
 static u_int	acpi_timer_get_timecount(struct timecounter *tc);
-static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 
 static device_method_t acpi_timer_methods[] = {
@@ -93,12 +92,13 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, 0, 0);
 MODULE_DEPEND(acpi_timer, acpi, 1, 1, 1);
 
 static struct timecounter acpi_timer_timecounter = {
-	acpi_timer_get_timecount_safe,	/* get_timecount function */
+	acpi_timer_get_timecount,	/* get_timecount function */
 	0,				/* no poll_pps */
 	0,				/* no default counter_mask */
 	0,				/* no default frequency */
 	"ACPI",				/* name */
-	-1				/* quality (chosen later) */
+	900,				/* quality */
+	TC_FLAGS_SUSPEND_SAFE		/* flags */
 };
 
 static __inline uint32_t
@@ -153,51 +153,14 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 static int
 acpi_timer_probe(device_t dev)
 {
-    int rid, rtype;
-
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (dev != acpi_timer_dev)
 	return (ENXIO);
 
-    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
-    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-	rtype = SYS_RES_MEMORY;
-	break;
-    case ACPI_ADR_SPACE_SYSTEM_IO:
-	rtype = SYS_RES_IOPORT;
-	break;
-    default:
-	return (ENXIO);
-    }
-    rid = 0;
-    acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
-    if (acpi_timer_reg == NULL) {
-	device_printf(dev, "couldn't allocate resource (%s 0x%lx)\n",
-	    (rtype == SYS_RES_IOPORT) ? "port" : "mem",
-	    (u_long)AcpiGbl_FADT.XPmTimerBlock.Address);
-	return (ENXIO);
-    }
-    acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
-    acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
-    if (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER)
-	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
-    else
-	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
-    acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
-    acpi_timer_timecounter.tc_flags = TC_FLAGS_SUSPEND_SAFE;
-
-    acpi_timer_timecounter.tc_name = "ACPI-fast";
-    acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
-    acpi_timer_timecounter.tc_quality = 900;
-    tc_init(&acpi_timer_timecounter);
-
     device_set_descf(dev, "%d-bit timer at %u.%06uMHz",
 	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) != 0 ? 32 : 24,
 	acpi_timer_frequency / 1000000, acpi_timer_frequency % 1000000);
-
-    /* Release the resource, we'll allocate it again during attach. */
-    bus_release_resource(dev, rtype, rid, acpi_timer_reg);
     return (0);
 }
 
@@ -227,8 +190,19 @@ acpi_timer_attach(device_t dev)
 
     /* Register suspend event handler. */
     if (EVENTHANDLER_REGISTER(power_suspend, acpi_timer_suspend_handler,
-	&acpi_timer_timecounter, EVENTHANDLER_PRI_LAST) == NULL)
+	&acpi_timer_timecounter, EVENTHANDLER_PRI_LAST) == NULL) {
 	device_printf(dev, "failed to register suspend event handler\n");
+	bus_release_resource(dev, acpi_timer_reg);
+	return (ENXIO);
+    }
+
+    if (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER)
+	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
+    else
+	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
+    acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
+
+    tc_init(&acpi_timer_timecounter);
 
     return (0);
 }
@@ -285,36 +259,10 @@ acpi_timer_suspend_handler(struct timecounter *newtc, enum power_stype stype)
 	}
 }
 
-/*
- * Fetch current time value from reliable hardware.
- */
 static u_int
 acpi_timer_get_timecount(struct timecounter *tc)
 {
     return (acpi_timer_read());
-}
-
-/*
- * Fetch current time value from hardware that may not correctly
- * latch the counter.  We need to read until we have three monotonic
- * samples and then use the middle one, otherwise we are not protected
- * against the fact that the bits can be wrong in two directions.  If
- * we only cared about monosity, two reads would be enough.
- */
-static u_int
-acpi_timer_get_timecount_safe(struct timecounter *tc)
-{
-    u_int u1, u2, u3;
-
-    u2 = acpi_timer_read();
-    u3 = acpi_timer_read();
-    do {
-	u1 = u2;
-	u2 = u3;
-	u3 = acpi_timer_read();
-    } while (u1 > u2 || u2 > u3);
-
-    return (u2);
 }
 
 /*
