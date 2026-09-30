@@ -42,7 +42,6 @@
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#include <x86/ifunc.h>
 
 #include <dev/random/randomdev.h>
 
