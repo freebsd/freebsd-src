@@ -175,8 +175,8 @@ txdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 	uint32_t tdes0, tdes1, tdes2, tdes3;
 
 	if (!sc->dma_ext_desc) {
-		tdes0 = paddr;
-		tdes1 = paddr >> 32;
+		tdes0 = (uint32_t)paddr;
+		tdes1 = (uint32_t)((uint64_t)paddr >> 32);
 		tdes2 = len | TDES2_TTSE;
 		tdes3 = flags;
 
@@ -208,7 +208,7 @@ rxdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 {
 
 	sc->rxdesc_ring[idx].tdes0 = (uint32_t)paddr;
-	sc->rxdesc_ring[idx].tdes1 = (uint32_t)(paddr >> 32);
+	sc->rxdesc_ring[idx].tdes1 = (uint32_t)((uint64_t)paddr >> 32);
 	sc->rxdesc_ring[idx].tdes2 = 0;
 	sc->rxdesc_ring[idx].tdes3 = RDES3_IOC | RDES3_BUF1V;
 
@@ -743,8 +743,9 @@ dma4_init(struct dwc_softc *sc)
 	for (idx = 0; idx < TX_DESC_COUNT; idx++)
 		txdesc_clear(sc, idx);
 
-	WRITE4(sc, ETH_DMACTXDLAR_HI(0), sc->txdesc_ring_paddr >> 32);
-	WRITE4(sc, ETH_DMACTXDLAR(0), sc->txdesc_ring_paddr);
+	WRITE4(sc, ETH_DMACTXDLAR_HI(0),
+	    (uint32_t)((uint64_t)sc->txdesc_ring_paddr >> 32));
+	WRITE4(sc, ETH_DMACTXDLAR(0), (uint32_t)sc->txdesc_ring_paddr);
 	WRITE4(sc, ETH_DMACTXRLR(0), TX_DESC_COUNT - 1);
 
 	/*
@@ -822,8 +823,9 @@ dma4_init(struct dwc_softc *sc)
 		}
 	}
 
-	WRITE4(sc, ETH_DMACRXDLAR_HI(0), sc->rxdesc_ring_paddr >> 32);
-	WRITE4(sc, ETH_DMACRXDLAR(0), sc->rxdesc_ring_paddr);
+	WRITE4(sc, ETH_DMACRXDLAR_HI(0),
+	    (uint32_t)((uint64_t)sc->rxdesc_ring_paddr >> 32));
+	WRITE4(sc, ETH_DMACRXDLAR(0), (uint32_t)sc->rxdesc_ring_paddr);
 
 	WRITE4(sc, ETH_DMACRXDTPR(0), sc->rxdesc_ring_paddr +
 	    (RX_DESC_COUNT - 1) * sizeof(struct dwc_hwdesc));
