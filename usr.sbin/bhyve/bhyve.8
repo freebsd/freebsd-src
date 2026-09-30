@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 23, 2026
+.Dd October 3, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -831,6 +831,11 @@ The argument
 needs to point to a UNIX domain socket that a
 .Cm swtpm
 process is listening on.
+The
+.Cm swtpm
+utility can be installed from the
+.Pa sysutils/swtpm
+port.
 .El
 .Pp
 The
@@ -843,6 +848,10 @@ Defaults to
 .Cm 2.0 ,
 which is the only version currently supported.
 .El
+.Pp
+When using a TPM with UEFI firmware, the boot ROM should be configured
+with a writable
+.Ar varfile .
 .Ss Boot ROM device backends
 .Sm off
 .Bl -bullet
@@ -1357,7 +1366,7 @@ Be sure to create a per-guest copy of the template VARS file from
 bhyve -c 2 -m 4g -w -H \\
   -s 0,hostbridge \\
   -s 31,lpc -l com1,stdio \\
-  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,BHYVE_UEFI_VARS.fd
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,BHYVE_UEFI_VARS.fd \\
    uefivm
 .Ed
 .Pp
@@ -1412,15 +1421,34 @@ bhyve -c 2 -w -H \\
   -n id=0,size=4G,cpus=0-1,domain_policy=prefer:0 \\
    numavm
 .Ed
+.Pp
 To run a virtual machine with a single vCPU pinned to host CPU 12:
 .Bd -literal -offset indent
 bhyve -c 1 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
   -l com1,stdio -H -P -m 1G -p 0:12 vm1
 .Ed
+.Pp
 To run a virtual machine with 4 vCPUs pinned to host CPUs 12-15:
 .Bd -literal -offset indent
 bhyve -c 4 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
   -l com1,stdio -H -P -m 1G -p 0-3:12-15 vm1
+.Ed
+.Pp
+Run a UEFI virtual machine with a TPM device connected to a running
+.Cm swtpm
+instance listening on
+.Pa /var/run/swtpm/tpm .
+The
+.Pa tpmvm_VARS.fd
+file must be a per-guest copy of the firmware VARS template, as described
+in the UEFI example above:
+.Bd -literal -offset indent
+bhyve -c 2 -m 4g -w -H \\
+  -s 0,hostbridge \\
+  -s 31,lpc -l com1,stdio \\
+  -l tpm,swtpm,/var/run/swtpm/tpm \\
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,tpmvm_VARS.fd \\
+   tpmvm
 .Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
