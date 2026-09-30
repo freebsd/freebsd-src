@@ -290,24 +290,11 @@ cuse_kern_init(void)
 static void
 cuse_kern_uninit(void)
 {
-	void *ptr;
-
-	while (1) {
-		printf("Cuse: Please exit all /dev/cuse instances "
-		    "and processes which have used this device.\n");
-
-		pause("DRAIN", 2 * hz);
-
-		cuse_global_lock();
-		ptr = TAILQ_FIRST(&cuse_server_head);
-		cuse_global_unlock();
-
-		if (ptr == NULL)
-			break;
-	}
-
+	/* destroy_dev() runs the cdevpriv destructor of every open instance. */
 	if (cuse_dev != NULL)
 		destroy_dev(cuse_dev);
+
+	MPASS(TAILQ_EMPTY(&cuse_server_head));
 
 	mtx_destroy(&cuse_global_mtx);
 }
@@ -672,9 +659,21 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 }
 
 static void
-cuse_server_unref(struct cuse_server *pcs)
+cuse_server_free_devs_locked(struct cuse_server *pcs)
 {
 	struct cuse_server_dev *pcsd;
+
+	while ((pcsd = TAILQ_FIRST(&pcs->hdev)) != NULL) {
+		TAILQ_REMOVE(&pcs->hdev, pcsd, entry);
+		cuse_server_unlock(pcs);
+		cuse_server_free_dev(pcsd);
+		cuse_server_lock(pcs);
+	}
+}
+
+static void
+cuse_server_unref(struct cuse_server *pcs)
+{
 	struct cuse_memory *mem;
 
 	cuse_server_lock(pcs);
@@ -690,12 +689,8 @@ cuse_server_unref(struct cuse_server *pcs)
 	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
 	cuse_global_unlock();
 
-	while ((pcsd = TAILQ_FIRST(&pcs->hdev)) != NULL) {
-		TAILQ_REMOVE(&pcs->hdev, pcsd, entry);
-		cuse_server_unlock(pcs);
-		cuse_server_free_dev(pcsd);
-		cuse_server_lock(pcs);
-	}
+	/* The cdevpriv destructor destroys the devices before unreffing. */
+	MPASS(TAILQ_EMPTY(&pcs->hdev));
 
 	cuse_free_unit_by_id_locked(pcs, -1);
 
@@ -743,13 +738,10 @@ cuse_server_free(void *arg)
 {
 	struct cuse_server *pcs = arg;
 
-	/*
-	 * The final server unref should be done by the server thread
-	 * to prevent deadlock in the client cdevpriv destructor,
-	 * which cannot destroy itself.
-	 */
-	while (cuse_server_do_close(pcs) != 1)
-		pause("W", hz);
+	cuse_server_lock(pcs);
+	cuse_server_is_closing(pcs);
+	cuse_server_free_devs_locked(pcs);
+	cuse_server_unlock(pcs);
 
 	/* drop final refcount */
 	cuse_server_unref(pcs);
