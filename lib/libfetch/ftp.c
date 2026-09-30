@@ -1053,7 +1053,7 @@ ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
 	/* connect to server */
 	if ((conn = ftp_connect(url, purl, flags)) == NULL)
 		return (NULL);
-	if (cached_connection)
+	if (cached_connection != NULL)
 		ftp_disconnect(cached_connection);
 	cached_connection = fetch_ref(conn);
 	memcpy(&cached_host, url, sizeof(*url));
@@ -1100,6 +1100,7 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
     struct url *purl, const char *flags)
 {
 	conn_t *conn;
+	FILE *f;
 	int oflag;
 
 	/* check if we should use HTTP instead */
@@ -1144,9 +1145,12 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 		oflag = O_RDONLY;
 
 	/* initiate the transfer */
-	return (ftp_transfer(conn, op, url->doc, oflag, url->offset, flags));
-
+	f = ftp_transfer(conn, op, url->doc, oflag, url->offset, flags);
+	if (f == NULL)
+		goto errsock;
+	return (f);
 errsock:
+	fetch_deref(conn);
 	ftp_disconnect(conn);
 	return (NULL);
 }
