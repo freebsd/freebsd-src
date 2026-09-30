@@ -884,6 +884,17 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	u_int64_t			 src_nodes_total = 0;
 	int				 rs_num;
 	int				 error;
+	PF_RULES_RLOCK_TRACKER;
+
+/* The write lock to clear counters, the read lock to only read them. */
+#define	PF_GETRULE_LOCKOP(op) do {	\
+	if (attrs.clear)		\
+		PF_RULES_W##op();	\
+	else				\
+		PF_RULES_R##op();	\
+} while (0)
+#define	PF_GETRULE_LOCK()	PF_GETRULE_LOCKOP(LOCK)
+#define	PF_GETRULE_UNLOCK()	PF_GETRULE_LOCKOP(UNLOCK)
 
 	error = nl_parse_nlmsg(hdr, &getrule_parser, npt, &attrs);
 	if (error != 0)
@@ -897,23 +908,23 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	ghdr_new->version = 0;
 	ghdr_new->reserved = 0;
 
-	PF_RULES_WLOCK();
+	PF_GETRULE_LOCK();
 	ruleset = pf_find_kruleset(attrs.anchor);
 	if (ruleset == NULL) {
-		PF_RULES_WUNLOCK();
+		PF_GETRULE_UNLOCK();
 		error = ENOENT;
 		goto out;
 	}
 
 	rs_num = pf_get_ruleset_number(attrs.action);
 	if (rs_num >= PF_RULESET_MAX) {
-		PF_RULES_WUNLOCK();
+		PF_GETRULE_UNLOCK();
 		error = EINVAL;
 		goto out;
 	}
 
 	if (attrs.ticket != ruleset->rules[rs_num].active.ticket) {
-		PF_RULES_WUNLOCK();
+		PF_GETRULE_UNLOCK();
 		error = EBUSY;
 		goto out;
 	}
@@ -922,7 +933,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	while ((rule != NULL) && (rule->nr != attrs.nr))
 		rule = TAILQ_NEXT(rule, entries);
 	if (rule == NULL) {
-		PF_RULES_WUNLOCK();
+		PF_GETRULE_UNLOCK();
 		error = EBUSY;
 		goto out;
 	}
@@ -1034,7 +1045,10 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	if (attrs.clear)
 		pf_krule_clear_counters(rule);
 
-	PF_RULES_WUNLOCK();
+	PF_GETRULE_UNLOCK();
+#undef PF_GETRULE_LOCKOP
+#undef PF_GETRULE_LOCK
+#undef PF_GETRULE_UNLOCK
 
 	if (!nlmsg_end(nw)) {
 		error = ENOMEM;
