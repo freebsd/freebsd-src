@@ -3416,7 +3416,6 @@ int
 acpi_ReqSleepState(struct acpi_softc *sc, enum power_stype stype)
 {
 #if defined(__amd64__) || defined(__i386__)
-    struct apm_clone_data *clone;
     ACPI_STATUS status;
 
     if (stype < POWER_STYPE_AWAKE || stype >= POWER_STYPE_COUNT)
@@ -3448,15 +3447,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, enum power_stype stype)
 	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
-    /* Record the pending state and notify all apm devices. */
-    STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
-	clone->notify_status = APM_EV_NONE;
-	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
-	    selwakeuppri(&clone->sel_read, PZERO);
-	    KNOTE_LOCKED(&clone->sel_read.si_note, 0);
-	}
-    }
-
     /* If devd(8) is not running, immediately enter the sleep state. */
     if (!devctl_process_running()) {
 	ACPI_UNLOCK(acpi);
@@ -3468,13 +3458,13 @@ acpi_ReqSleepState(struct acpi_softc *sc, enum power_stype stype)
      * Set a timeout to fire if userland doesn't ack the suspend request
      * in time.  This way we still eventually go to sleep if we were
      * overheating or running low on battery, even if userland is hung.
-     * We cancel this timeout once all userland acks are in or the
-     * suspend request is aborted.
+     * We cancel this timeout once userland acks or the suspend request
+     * is aborted.
      */
     callout_reset(&sc->susp_force_to, 10 * hz, acpi_sleep_force, sc);
     ACPI_UNLOCK(acpi);
 
-    /* Now notify devd(8) also. */
+    /* Now notify devd(8). */
     acpi_UserNotify("Suspend", ACPI_ROOT_OBJECT, stype);
 
     return (0);
@@ -3489,16 +3479,13 @@ acpi_ReqSleepState(struct acpi_softc *sc, enum power_stype stype)
  * Acknowledge (or reject) a pending sleep state.  The caller has
  * prepared for suspend and is now ready for it to proceed.  If the
  * error argument is non-zero, it indicates suspend should be cancelled
- * and gives an errno value describing why.  Once all votes are in,
- * we suspend the system.
+ * and gives an errno value describing why.
  */
-int
-acpi_AckSleepState(struct apm_clone_data *clone, int error)
+static int
+acpi_AckSleepState(struct acpi_softc *sc, int error)
 {
-    struct acpi_softc *sc = clone->acpi_sc;
-
 #if defined(__amd64__) || defined(__i386__)
-    int ret, sleeping;
+    int ret;
 
     /* If no pending sleep type, return an error. */
     ACPI_LOCK(acpi);
@@ -3511,37 +3498,16 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
     if (error) {
 	sc->acpi_next_stype = POWER_STYPE_AWAKE;
 	callout_stop(&sc->susp_force_to);
-	device_printf(sc->acpi_dev,
-	    "listener on %s cancelled the pending suspend\n",
-	    devtoname(clone->cdev));
+	device_printf(sc->acpi_dev, "pending suspend cancelled\n");
     	ACPI_UNLOCK(acpi);
 	return (0);
     }
 
-    /*
-     * Mark this device as acking the suspend request.  Then, walk through
-     * all devices, seeing if they agree yet.  We only count devices that
-     * are writable since read-only devices couldn't ack the request.
-     */
-    sleeping = TRUE;
-    clone->notify_status = APM_EV_ACKED;
-    STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
-	if ((clone->flags & ACPI_EVF_WRITE) != 0 &&
-	    clone->notify_status != APM_EV_ACKED) {
-	    sleeping = FALSE;
-	    break;
-	}
-    }
-
-    /* If all devices have voted "yes", we will suspend now. */
-    if (sleeping)
-	callout_stop(&sc->susp_force_to);
+    callout_stop(&sc->susp_force_to);
     ACPI_UNLOCK(acpi);
     ret = 0;
-    if (sleeping) {
-	if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_stype)))
-		ret = ENODEV;
-    }
+    if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_stype)))
+	    ret = ENODEV;
     return (ret);
 #else
     device_printf(sc->acpi_dev, "ACPI suspend not supported on this platform "
@@ -4604,7 +4570,7 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	break;
     case ACPIIO_ACKSLPSTATE:
 	error = *(int *)addr;
-	error = acpi_AckSleepState(sc->acpi_clone, error);
+	error = acpi_AckSleepState(sc, error);
 	break;
     case ACPIIO_SETSLPSTATE:	/* DEPRECATED */
 	sstate = *(int *)addr;

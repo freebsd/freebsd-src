@@ -28,13 +28,10 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/poll.h>
-#include <sys/uio.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 
@@ -53,28 +50,12 @@ static int apm_active;
 
 static MALLOC_DEFINE(M_APMDEV, "apmdev", "APM device emulation");
 
-static d_open_t		apmopen;
-static d_write_t	apmwrite;
 static d_ioctl_t	apmioctl;
-static d_poll_t		apmpoll;
-static d_kqfilter_t	apmkqfilter;
-static void		apmreadfiltdetach(struct knote *kn);
-static int		apmreadfilt(struct knote *kn, long hint);
-static const struct filterops apm_readfiltops = {
-	.f_isfd = 1,
-	.f_detach = apmreadfiltdetach,
-	.f_event = apmreadfilt,
-	.f_copy = knote_triv_copy,
-};
 
 static struct cdevsw apm_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_open =	apmopen,
-	.d_write =	apmwrite,
 	.d_ioctl =	apmioctl,
-	.d_poll =	apmpoll,
 	.d_name =	"apm",
-	.d_kqfilter =	apmkqfilter
 };
 
 static int
@@ -198,85 +179,15 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 	return (0);
 }
 
-/* Create a struct for tracking per-device suspend notification. */
-static struct apm_clone_data *
-apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
-{
-	struct apm_clone_data *clone;
-
-	clone = malloc(sizeof(*clone), M_APMDEV, M_WAITOK);
-	clone->cdev = dev;
-	clone->acpi_sc = acpi_sc;
-	clone->notify_status = APM_EV_NONE;
-	bzero(&clone->sel_read, sizeof(clone->sel_read));
-	knlist_init_mtx(&clone->sel_read.si_note, &acpi_mutex);
-
-	/*
-	 * The acpi device is always managed by devd(8) and is considered
-	 * writable (i.e., ack is required to allow suspend to proceed.)
-	 */
-	if (strcmp("acpi", devtoname(dev)) == 0)
-		clone->flags = ACPI_EVF_DEVD | ACPI_EVF_WRITE;
-	else
-		clone->flags = ACPI_EVF_NONE;
-
-	ACPI_LOCK(acpi);
-	STAILQ_INSERT_TAIL(&acpi_sc->apm_cdevs, clone, entries);
-	ACPI_UNLOCK(acpi);
-	return (clone);
-}
-
-static void
-apmdtor(void *data)
-{
-	struct	apm_clone_data *clone;
-	struct	acpi_softc *acpi_sc;
-
-	clone = data;
-	acpi_sc = clone->acpi_sc;
-
-	/* We are about to lose a reference so check if suspend should occur */
-	if (acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE &&
-	    clone->notify_status != APM_EV_ACKED)
-		acpi_AckSleepState(clone, 0);
-
-	/* Remove this clone's data from the list and free it. */
-	ACPI_LOCK(acpi);
-	STAILQ_REMOVE(&acpi_sc->apm_cdevs, clone, apm_clone_data, entries);
-	ACPI_UNLOCK(acpi);
-	seldrain(&clone->sel_read);
-	knlist_destroy(&clone->sel_read.si_note);
-	free(clone, M_APMDEV);
-}
-
-static int
-apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
-{
-	struct	acpi_softc *acpi_sc = dev->si_drv1;
-	struct 	apm_clone_data *clone;
-
-	clone = apm_create_clone(dev, acpi_sc);
-	devfs_set_cdevpriv(clone, apmdtor);
-
-	/* If the device is opened for write, record that. */
-	if ((flag & FWRITE) != 0)
-		clone->flags |= ACPI_EVF_WRITE;
-
-	return (0);
-}
-
 static int
 apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int	error;
-	struct	apm_clone_data *clone;
 	struct	acpi_softc *acpi_sc = dev->si_drv1;
 	struct	apm_info info;
-	struct 	apm_event_info *ev_info;
 	apm_info_old_t aiop;
 
 	error = 0;
-	devfs_get_cdevpriv((void **)&clone);
 
 	switch (cmd) {
 	case APMIO_SUSPEND:
@@ -291,8 +202,7 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			"power off via apm suspend not supported\n");
 				error = ENXIO;
 			}
-		} else
-			error = acpi_AckSleepState(clone, 0);
+		}
 		break;
 	case APMIO_STANDBY:
 		if ((flag & FWRITE) == 0)
@@ -306,26 +216,7 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			"power off via apm standby not supported\n");
 				error = ENXIO;
 			}
-		} else
-			error = acpi_AckSleepState(clone, 0);
-		break;
-	case APMIO_NEXTEVENT:
-		printf("apm nextevent start\n");
-		ACPI_LOCK(acpi);
-		if (acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE &&
-		    clone->notify_status == APM_EV_NONE) {
-			ev_info = (struct apm_event_info *)addr;
-			/* XXX Check this. */
-			if (acpi_sc->acpi_next_stype == POWER_STYPE_STANDBY)
-				ev_info->type = PMEV_STANDBYREQ;
-			else
-				ev_info->type = PMEV_SUSPENDREQ;
-			ev_info->index = 0;
-			clone->notify_status = APM_EV_NOTIFIED;
-			printf("apm event returning %d\n", ev_info->type);
-		} else
-			error = EAGAIN;
-		ACPI_UNLOCK(acpi);
+		}
 		break;
 	case APMIO_GETINFO_OLD:
 		if (acpi_capm_get_info(&info))
@@ -376,70 +267,11 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	return (error);
 }
 
-static int
-apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return (uio->uio_resid);
-}
-
-static int
-apmpoll(struct cdev *dev, int events, struct thread *td)
-{
-	struct	apm_clone_data *clone;
-	int revents;
-
-	revents = 0;
-	devfs_get_cdevpriv((void **)&clone);
-	ACPI_LOCK(acpi);
-	if (clone->acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE)
-		revents |= events & (POLLIN | POLLRDNORM);
-	else
-		selrecord(td, &clone->sel_read);
-	ACPI_UNLOCK(acpi);
-	return (revents);
-}
-
-static int
-apmkqfilter(struct cdev *dev, struct knote *kn)
-{
-	struct	apm_clone_data *clone;
-
-	devfs_get_cdevpriv((void **)&clone);
-	kn->kn_hook = clone;
-	kn->kn_fop = &apm_readfiltops;
-	knlist_add(&clone->sel_read.si_note, kn, 0);
-	return (0);
-}
-
-static void
-apmreadfiltdetach(struct knote *kn)
-{
-	struct	apm_clone_data *clone;
-
-	clone = kn->kn_hook;
-	knlist_remove(&clone->sel_read.si_note, kn, 0);
-}
-
-static int
-apmreadfilt(struct knote *kn, long hint)
-{
-	struct	apm_clone_data *clone;
-	int	sleeping;
-
-	clone = kn->kn_hook;
-	sleeping = clone->acpi_sc->acpi_next_stype != POWER_STYPE_AWAKE;
-	return (sleeping);
-}
-
 void
 acpi_apm_init(struct acpi_softc *sc)
 {
 	struct make_dev_args args;
 	struct cdev *dev;
-
-	/* Create a clone for /dev/acpi also. */
-	STAILQ_INIT(&sc->apm_cdevs);
-	sc->acpi_clone = apm_create_clone(sc->acpi_dev_t, sc);
 
 	make_dev_args_init(&args);
 	args.mda_devsw = &apm_cdevsw;
@@ -448,6 +280,5 @@ acpi_apm_init(struct acpi_softc *sc)
 	args.mda_mode = 0664;
 	args.mda_si_drv1 = sc;
 	args.mda_flags = MAKEDEV_ETERNAL;
-	make_dev_s(&args, &dev, "apmctl");
 	make_dev_s(&args, &dev, "apm");
 }
