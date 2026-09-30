@@ -3223,6 +3223,14 @@ pf_free_state(struct pf_kstate *cur)
 	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_REMOVALS], 1);
 }
 
+static inline void
+pf_kkif_mark(struct pfi_kkif *kif)
+{
+
+	if ((atomic_load_int(&kif->pfik_flags) & PFI_IFLAG_REFS) == 0)
+		atomic_set_int(&kif->pfik_flags, PFI_IFLAG_REFS);
+}
+
 /*
  * Called only from pf_purge_thread(), thus serialized.
  */
@@ -3258,11 +3266,11 @@ relock:
 					s->nat_rule->rule_ref |= PFRULE_REFS;
 				if (s->anchor != NULL)
 					s->anchor->rule_ref |= PFRULE_REFS;
-				s->kif->pfik_flags |= PFI_IFLAG_REFS;
+				pf_kkif_mark(s->kif);
 				SLIST_FOREACH(mrm, &s->match_rules, entry)
 					mrm->r->rule_ref |= PFRULE_REFS;
 				if (s->act.rt_kif)
-					s->act.rt_kif->pfik_flags |= PFI_IFLAG_REFS;
+					pf_kkif_mark(s->act.rt_kif);
 				count++;
 			}
 			PF_HASHROW_UNLOCK(ih);

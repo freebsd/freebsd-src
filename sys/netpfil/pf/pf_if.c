@@ -426,7 +426,7 @@ pfi_kkif_remove_if_unref(struct pfi_kkif *kif)
 	}
 	RB_REMOVE(pfi_ifhead, &V_pfi_ifs, kif);
 
-	kif->pfik_flags |= PFI_IFLAG_REFS;
+	atomic_set_int(&kif->pfik_flags, PFI_IFLAG_REFS);
 
 	mtx_lock(&pfi_unlnkdkifs_mtx);
 	LIST_INSERT_HEAD(&V_pfi_unlinked_kifs, kif, pfik_list);
@@ -460,7 +460,7 @@ pfi_kkif_purge(void)
 			LIST_REMOVE(kif, pfik_list);
 			pf_kkif_free(kif);
 		} else
-			kif->pfik_flags &= ~PFI_IFLAG_REFS;
+			atomic_clear_int(&kif->pfik_flags, PFI_IFLAG_REFS);
 	}
 	mtx_unlock(&pfi_unlnkdkifs_mtx);
 }
@@ -660,7 +660,7 @@ pfi_kkif_update(struct pfi_kkif *kif)
 			if (tmpkif == NULL)
 				continue;
 
-			tmpkif->pfik_flags |= kif->pfik_flags;
+			atomic_set_int(&tmpkif->pfik_flags, kif->pfik_flags);
 		}
 	}
 
@@ -1018,7 +1018,7 @@ pfi_set_flags(const char *name, int flags)
 	RB_FOREACH(p, pfi_ifhead, &V_pfi_ifs) {
 		if (pfi_skip_if(name, p))
 			continue;
-		p->pfik_flags |= flags;
+		atomic_set_int(&p->pfik_flags, flags);
 	}
 	NET_EPOCH_EXIT(et);
 	return (0);
@@ -1034,7 +1034,7 @@ pfi_clear_flags(const char *name, int flags)
 	RB_FOREACH_SAFE(p, pfi_ifhead, &V_pfi_ifs, tmp) {
 		if (pfi_skip_if(name, p))
 			continue;
-		p->pfik_flags &= ~flags;
+		atomic_clear_int(&p->pfik_flags, flags);
 
 		if (p->pfik_ifp == NULL && p->pfik_group == NULL &&
 		    p->pfik_flags == 0 && p->pfik_rulerefs == 0) {
