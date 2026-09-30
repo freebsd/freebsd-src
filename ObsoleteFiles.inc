@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260930: apm(4) not i386-specific
+OLD_FILES+=usr/share/man/man4/i386/apm.4.gz
+
 # 20260930: apmd(8) removed
 OLD_FILES+=etc/apmd.conf
 OLD_FILES+=etc/rc.d/apmd

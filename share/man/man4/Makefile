@@ -57,6 +57,7 @@ MAN=	aac.4 \
 	${_bxe.4} \
 	${_aout.4} \
 	${_apic.4} \
+	${_apm.4} \
 	aq.4 \
 	arcmsr.4 \
 	arswitch.4 \
@@ -875,6 +876,7 @@ _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
 _aout.4=	aout.4
 _apic.4=	apic.4
+_apm.4=		apm.4
 _atrtc.4=	atrtc.4
 _attimer.4=	attimer.4
 _aibs.4=	aibs.4
