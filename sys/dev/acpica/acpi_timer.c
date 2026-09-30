@@ -60,7 +60,7 @@ static device_t			acpi_timer_dev;
 static struct resource		*acpi_timer_reg;
 static eventhandler_tag		acpi_timer_eh;
 
-static u_int	acpi_timer_frequency = 14318182 / 4;
+#define	ACPI_TIMER_FREQUENCY	(14318182 / 4)
 
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
@@ -157,7 +157,7 @@ acpi_timer_probe(device_t dev)
 
     device_set_descf(dev, "%d-bit timer at %u.%06uMHz",
 	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) != 0 ? 32 : 24,
-	acpi_timer_frequency / 1000000, acpi_timer_frequency % 1000000);
+	ACPI_TIMER_FREQUENCY / 1000000, ACPI_TIMER_FREQUENCY % 1000000);
     return (0);
 }
 
@@ -194,9 +194,13 @@ acpi_timer_attach(device_t dev)
 	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
     else
 	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
-    acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
+    acpi_timer_timecounter.tc_frequency = ACPI_TIMER_FREQUENCY;
 
     tc_init(&acpi_timer_timecounter);
+
+    SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
+	"acpi_timer_freq", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	NULL, 0, acpi_timer_sysctl_freq, "I", "ACPI timer frequency");
 
     return (0);
 }
@@ -268,19 +272,11 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
     int error;
     u_int freq;
 
-    if (acpi_timer_timecounter.tc_frequency == 0)
-	return (EOPNOTSUPP);
-    freq = acpi_timer_frequency;
+    freq = acpi_timer_timecounter.tc_frequency;
     error = sysctl_handle_int(oidp, &freq, 0, req);
     if (error == 0 && req->newptr != NULL) {
-	acpi_timer_frequency = freq;
-	acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
+	acpi_timer_timecounter.tc_frequency = freq;
     }
 
     return (error);
 }
-
-SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
-    acpi_timer_sysctl_freq, "I",
-    "ACPI timer frequency");
