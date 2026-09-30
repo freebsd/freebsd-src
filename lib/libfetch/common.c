@@ -57,6 +57,8 @@
 #include "fetch.h"
 #include "common.h"
 
+/* Maximum length of a line, newline included, for fetch_getln() */
+#define FETCH_LINE_MAX		65536
 
 /*** Local data **************************************************************/
 
@@ -1466,9 +1468,15 @@ fetch_getln(conn_t *conn)
 	/* look at the data we already have */
 	if (conn->pos < conn->buflen) {
 		conn->line = conn->buf + conn->pos;
-		while (conn->pos < conn->buflen)
+		while (conn->pos < conn->buflen) {
 			if (conn->buf[conn->pos++] == '\n')
 				goto found;
+			if (conn->buf + conn->pos - conn->line >=
+			    FETCH_LINE_MAX) {
+				errno = EPROTO;
+				goto fail;
+			}
+		}
 		/* reset for the upcoming memmove() */
 		conn->pos = conn->line - conn->buf;
 	}
@@ -1498,9 +1506,14 @@ fetch_getln(conn_t *conn)
 		if (rlen == 0)
 			break;
 		/* look for a newline */
-		while (conn->pos < conn->buflen)
+		while (conn->pos < conn->buflen) {
 			if (conn->buf[conn->pos++] == '\n')
 				goto found;
+			if (conn->pos >= FETCH_LINE_MAX) {
+				errno = EPROTO;
+				goto fail;
+			}
+		}
 		/* do we need a bigger buffer? */
 		if (conn->buflen > conn->bufsize / 2) {
 			tmp = conn->buf;
