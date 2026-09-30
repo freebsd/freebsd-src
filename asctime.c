@@ -76,8 +76,8 @@ asctime_r(struct tm const *restrict timeptr, char *restrict buf)
 	register const char *	mn;
 	int year, mday, hour, min, sec;
 	long long_TM_YEAR_BASE = TM_YEAR_BASE;
-	size_t bufsize = (buf == buf_asctime
-			  ? sizeof buf_asctime : STD_ASCTIME_BUF_SIZE);
+	int bufsize = (buf == buf_asctime
+		       ? sizeof buf_asctime : STD_ASCTIME_BUF_SIZE);
 
 	if (timeptr == NULL) {
 		strcpy(buf, "??? ??? ?? ??:??:?? ????\n");
