@@ -348,7 +348,7 @@ struct url *
 fetchParseURL(const char *URL)
 {
 	char *doc;
-	const char *p, *q;
+	const char *p, *q, *r;
 	struct url *u;
 	int i, n;
 
@@ -386,12 +386,18 @@ fetchParseURL(const char *URL)
 		q = fetch_pctdecode(u->user, URL, URL_USERLEN);
 		if (q == NULL)
 			goto ouch;
+		for (r = u->user; *r != '\0'; r++)
+			if (iscntrl((unsigned char)*r))
+				goto ouch;
 
 		/* password */
 		if (*q == ':') {
 			q = fetch_pctdecode(u->pwd, q + 1, URL_PWDLEN);
 			if (q == NULL)
 				goto ouch;
+			for (r = u->pwd; *r != '\0'; r++)
+				if (iscntrl((unsigned char)*r))
+					goto ouch;
 		}
 		p++;
 	} else {
