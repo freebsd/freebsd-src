@@ -707,7 +707,7 @@ cuse_server_do_close(struct cuse_server *pcs)
 }
 
 static void
-cuse_server_free(void *arg)
+cuse_server_dtor(void *arg)
 {
 	struct cuse_server *pcs = arg;
 
@@ -727,7 +727,7 @@ cuse_server_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 
 	pcs = malloc(sizeof(*pcs), M_CUSE, M_WAITOK | M_ZERO);
 
-	if (devfs_set_cdevpriv(pcs, &cuse_server_free)) {
+	if (devfs_set_cdevpriv(pcs, &cuse_server_dtor)) {
 		printf("Cuse: Cannot set cdevpriv.\n");
 		free(pcs, M_CUSE);
 		return (ENOMEM);
