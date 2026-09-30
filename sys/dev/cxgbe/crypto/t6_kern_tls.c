@@ -383,6 +383,8 @@ t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 	int atid, error, explicit_iv_size, keyid, mac_first;
 
 	tls = params->tls.tls;
+	vi = if_getsoftc(ifp);
+	sc = vi->adapter;
 
 	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
 	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
@@ -410,6 +412,8 @@ t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 		default:
 			return (EPROTONOSUPPORT);
 		}
+		if (!sc->tlst.cbc)
+			return (EPROTONOSUPPORT);
 		explicit_iv_size = AES_BLOCK_LEN;
 		mac_first = 1;
 		break;
@@ -430,9 +434,6 @@ t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 	default:
 		return (EPROTONOSUPPORT);
 	}
-
-	vi = if_getsoftc(ifp);
-	sc = vi->adapter;
 
 	tlsp = alloc_tlspcb(ifp, vi, M_WAITOK);
 

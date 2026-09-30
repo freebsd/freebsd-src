@@ -228,6 +228,7 @@ struct iw_tunables {
 };
 
 struct tls_tunables {
+	int cbc;
 	int inline_keys;
 	union {
 		struct {
