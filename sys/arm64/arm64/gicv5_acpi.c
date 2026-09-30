@@ -363,7 +363,13 @@ gic_v5_acpi_attach(device_t dev)
 	if (sc->gic_pic == NULL)
 		panic("%s: could not register PIC", device_get_nameunit(dev));
 
-	intr_ipi_pic_register(dev, 0);
+#ifdef SMP
+	err = intr_ipi_pic_register(dev, 0);
+	if (err != 0) {
+		device_printf(dev, "Could not register for IPIs\n");
+		goto count_error;
+	}
+#endif
 
 	err = intr_pic_claim_root(dev, ACPI_INTR_XREF, gicv5_intr, sc,
 	    INTR_ROOT_IRQ);
