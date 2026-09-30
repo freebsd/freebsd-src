@@ -57,6 +57,7 @@ static struct options {
 	bool		binary;
 	bool		hex;
 	uint32_t	page;
+	uint32_t	nsid;
 	uint8_t		lsp;
 	uint16_t	lsi;
 	bool		rae;
@@ -66,6 +67,7 @@ static struct options {
 	.binary = false,
 	.hex = false,
 	.page = NONE,
+	.nsid = NONE,
 	.lsp = 0,
 	.lsi = 0,
 	.rae = false,
@@ -81,6 +83,8 @@ static const struct opts logpage_opts[] = {
 	    "Dump the log page as hex"),
 	OPT("page", 'p', arg_uint32, opt, page,
 	    "Page to dump"),
+	OPT("namespace-id", 'n', arg_uint32, opt, nsid,
+	    "Namespace ID to request the page for"),
 	OPT("lsp", 'f', arg_uint8, opt, lsp,
 	    "Log Specific Field"),
 	OPT("lsi", 'i', arg_uint16, opt, lsi,
@@ -745,6 +749,8 @@ logpage(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 0, 1);
 	}
 	free(path);
+	if (opt.nsid != NONE)
+		nsid = opt.nsid;
 
 	if (read_controller_data(fd, &cdata))
 		errx(EX_IOERR, "Identify request failed");
