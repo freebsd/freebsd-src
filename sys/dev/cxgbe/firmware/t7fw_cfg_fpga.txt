@@ -166,7 +166,7 @@
 	reg[0x19c28] = 0x00800000/0x01f00000 # LE Hash bucket size 8, 
 
 	# ULP_TX_CONFIG
-	reg[0x8dc0] = 0x00000104/0x02000104 # Enable ITT on PI err
+	reg[0x8dc0] = 0x10000104/0x12000104 # Enable ITT on PI err
 					    # Enable more error msg for ...
 					    # TPT error.
 						# Err2uP = 0
@@ -519,7 +519,7 @@
 
 [fini]
 	version = 0x1425001d
-	checksum = 0x22432d98
+	checksum = 0x23442d98
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
