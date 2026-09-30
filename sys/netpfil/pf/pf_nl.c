@@ -847,7 +847,7 @@ pf_handle_addrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	error = nl_parse_nlmsg(hdr, &addrule_parser, npt, &attrs);
 	if (error != 0) {
-		pf_free_rule(attrs.rule);
+		pf_krule_free(attrs.rule);
 		return (error);
 	}
 
