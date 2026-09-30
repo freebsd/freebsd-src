@@ -369,8 +369,7 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case APMIO_BIOS:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		bzero(addr, sizeof(struct apm_bios_arg));
-		break;
+		return (EOPNOTSUPP);
 	default:
 		error = EINVAL;
 		break;
