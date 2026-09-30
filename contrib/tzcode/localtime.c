@@ -938,9 +938,9 @@ tzloadbody(char const *name, struct state *sp, char tzloadflags,
 		name = TZDEFAULT;
 		if (! name)
 		  return EINVAL;
-#ifdef __FreeBSD__
-		tzloadflags &= ~TZLOAD_FROMENV;
-#endif /* __FreeBSD__ */
+		/* Omit "tzloadflags &= ~TZLOAD_FROMENV;" here, as that
+		   would hurt performance by rereading and reanalyzing the
+		   TZDEFAULT file even when it is unchanged.  */
 	}
 
 	if (name[0] == ':')
