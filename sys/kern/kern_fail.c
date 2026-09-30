@@ -411,7 +411,7 @@ fail_point_pause(struct fail_point *fp, enum fail_point_return_code *pret)
 	if (fp->fp_pre_sleep_fn)
 		fp->fp_pre_sleep_fn(fp->fp_pre_sleep_arg);
 
-	tsleep(FP_PAUSE_CHANNEL(fp), 0, "failpt", 0);
+	tsleep(FP_PAUSE_CHANNEL(fp), PNOLOCK, "failpt", 0);
 
 	if (fp->fp_post_sleep_fn)
 		fp->fp_post_sleep_fn(fp->fp_post_sleep_arg);
