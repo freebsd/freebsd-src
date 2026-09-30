@@ -1930,6 +1930,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		panic("%s: failed to append sglist", __func__);
 #endif
 	}
+	KASSERT(txq->gl->sg_nseg == nsegs, ("%s: sg_nseg %u != nsegs %u",
+	    __func__, txq->gl->sg_nseg, nsegs));
 	if (last_ghash_frag) {
 		if (sglist_append_phys(txq->gl, zero_buffer_pa,
 		    AES_GMAC_HASH_LEN) != 0) {
@@ -1939,6 +1941,10 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		}
 	}
 	out = write_gl_to_buf(txq->gl, out);
+
+	KASSERT((char *)out - (char *)(wr + 1) == roundup2(txpkt_lens[0], 16),
+	    ("%s: txpkts_len[0] mismatch: %td vs %u", __func__,
+	    (char *)out - (char *)(wr + 1), roundup2(txpkt_lens[0], 16)));
 
 	if (request_ghash) {
 		/* ULP_TXPKT */
@@ -1988,7 +1994,17 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		m_snd_tag_ref(&tlsp->com);
 
 		txq->kern_tls_ghash_requested++;
+
+		KASSERT((char *)out - (char *)txpkt ==
+		    roundup2(txpkt_lens[1], 16),
+		    ("%s: txpkts_len[1] mismatch: %td vs %u", __func__,
+		    (char *)out - (char *)txpkt, roundup2(txpkt_lens[1], 16)));
+
 	}
+
+	KASSERT((char *)out - (char *)wr == roundup2(wr_len, 16),
+	    ("%s: wr_len mismatch: %td vs %u", __func__,
+	    (char *)out - (char *)wr, roundup2(wr_len, 16)));
 
 	if (using_scratch) {
 		out = dst;
