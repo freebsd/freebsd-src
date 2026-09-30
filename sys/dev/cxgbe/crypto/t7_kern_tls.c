@@ -46,6 +46,7 @@
 #include <opencrypto/xform.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include "common/common.h"
 #include "common/t4_regs.h"
@@ -631,6 +632,14 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls)
 	if (use_ghash)
 		imm_len += ktls_gcm_aad_len(tlsp);
 
+	/*
+	 * We might send 16 bytes of payload and a GHASH placeholder
+	 * as immediate data.
+	 */
+	imm_len += 16;
+	if (use_ghash)
+		imm_len += AES_GMAC_HASH_LEN;
+
 	wr_len += roundup2(imm_len, 16);
 
 	/*
@@ -647,6 +656,14 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls)
 
 	MPASS(nsegs <= TX_SGL_SEGS);
 	wr_len += ktls_sgl_size(nsegs);
+
+	/*
+	 * Might send 16 bytes of immediate data after DSGL.  This would
+	 * be instead of 16 bytes of imm_len data above, so just add
+	 * header.
+	 */
+	wr_len += sizeof(struct ulptx_idata);
+	wr_len = roundup2(wr_len, 16);
 
 	if (use_ghash) {
 		/* AES-GCM records might return a partial hash. */
@@ -1017,7 +1034,7 @@ write_split_mode_rx_phys(void *dst, struct mbuf *m, struct mbuf *m_tls,
  * add a 0 filled flit at the end.
  */
 static void *
-write_gl_to_buf(struct sglist *gl, caddr_t to)
+write_gl_to_buf(struct sglist *gl, caddr_t to, bool more)
 {
 	struct sglist_seg *seg;
 	__be64 *flitp;
@@ -1036,7 +1053,7 @@ write_gl_to_buf(struct sglist *gl, caddr_t to)
 	usgl = (void *)flitp;
 
 	usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
-	    V_ULPTX_NSGE(nsegs));
+	    V_ULP_TX_SC_MORE(more ? 1 : 0) | V_ULPTX_NSGE(nsegs));
 	usgl->len0 = htobe32(seg->ss_len);
 	usgl->addr0 = htobe64(seg->ss_paddr);
 	seg++;
@@ -1048,6 +1065,8 @@ write_gl_to_buf(struct sglist *gl, caddr_t to)
 	if (i & 1)
 		usgl->sge[i / 2].len[1] = htobe32(0);
 	flitp += nflits;
+	if (more)
+		return (flitp);
 
 	if (nflits & 1) {
 		MPASS(((uintptr_t)flitp) & 0xf);
@@ -1175,6 +1194,57 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	return (ndesc);
 }
 
+/*
+ * A variant of m_copydata()/m_unmapped_uiomove() that accepts an
+ * offset/length into the backing store of an EXTPG mbuf ignoring the
+ * leading offset in m_data and length in m_len.  This is needed as
+ * KTLS requests sometimes need to access data from the TLS record
+ * that are not part of the requested data sent on the wire.
+ */
+static void
+m_copyepgdata_raw(struct mbuf *m, int off, int len, caddr_t cp)
+{
+	int i, pglen, pgoff, seglen, segoff;
+
+	M_ASSERTEXTPG(m);
+	if (m->m_epg_hdrlen != 0) {
+		if (off >= m->m_epg_hdrlen) {
+			off -= m->m_epg_hdrlen;
+		} else {
+			seglen = m->m_epg_hdrlen - off;
+			segoff = off;
+			seglen = min(seglen, len);
+			off = 0;
+			len -= seglen;
+			memcpy(cp, &m->m_epg_hdr[segoff], seglen);
+			cp += seglen;
+		}
+	}
+	pgoff = m->m_epg_1st_off;
+	for (i = 0; i < m->m_epg_npgs && len > 0; i++) {
+		pglen = m_epg_pagelen(m, i, pgoff);
+		if (off >= pglen) {
+			off -= pglen;
+			pgoff = 0;
+			continue;
+		}
+		seglen = pglen - off;
+		segoff = pgoff + off;
+		off = 0;
+		seglen = min(seglen, len);
+		len -= seglen;
+		memcpy(cp, (char *)PHYS_TO_DMAP(m->m_epg_pa[i]) + segoff,
+		    seglen);
+		cp += seglen;
+	};
+	if (len != 0) {
+		KASSERT((off + len) <= m->m_epg_trllen,
+		    ("off + len > trail (%d + %d > %d)", off, len,
+		    m->m_epg_trllen));
+		memcpy(cp, &m->m_epg_trail[off], len);
+	}
+}
+
 static int
 ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
     void *dst, struct mbuf *m, struct tcphdr *tcp, struct mbuf *m_tls,
@@ -1200,11 +1270,11 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	u_int header_len, offset, plen, rlen, tlen;
 	u_int imm_len, ndesc, nsegs, txpkt_lens[2], wr_len;
 	u_int cpl_len, crypto_hdr_len, post_key_context_len;
-	u_int leading_waste, trailing_waste;
+	u_int leading_waste, trailing_waste, plen_dsgl_len;
 	u_short ip_len;
-	bool inline_key, ghash_lcb, last_ghash_frag, last_wr, need_lso;
-	bool request_ghash, send_partial_ghash, short_record, split_mode;
-	bool using_scratch;
+	bool inline_key, ghash_lcb, ghash_placeholder_in_dsgl, last_ghash_frag;
+	bool last_wr, need_lso, request_ghash, send_partial_ghash, short_record;
+	bool split_mode, using_scratch;
 
 	MPASS(tlsp->txq == txq);
 	M_ASSERTEXTPG(m_tls);
@@ -1401,8 +1471,32 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 #endif
 	}
 
+	/*
+	 * If there is trailing waste, send the last 16 bytes of data
+	 * as immediate data after the DSGL.
+	 */
+	ghash_placeholder_in_dsgl = last_ghash_frag;
+	plen_dsgl_len = plen;
+	if (trailing_waste != 0) {
+		if (plen <= 16) {
+			/* Just send entire payload as immediate data. */
+			plen_dsgl_len = 0;
+			ghash_placeholder_in_dsgl = false;
+		} else if (last_ghash_frag) {
+			_Static_assert(AES_GMAC_HASH_LEN == 16,
+			    "GMAC hash length mismatch");
+			ghash_placeholder_in_dsgl = false;
+		} else {
+			plen_dsgl_len -= 16;
+		}
+#ifdef VERBOSE_TRACES
+		CTR(KTR_CXGBE, "%s: %p plen_dsgl_len %u ghash in dsgl %u",
+		    __func__, tlsp, plen_dsgl_len, ghash_placeholder_in_dsgl);
+#endif
+	}
+
 	nsegs = sglist_count_mbuf_epg(m_tls, m_tls->m_epg_hdrlen + offset,
-	    plen);
+	    plen_dsgl_len);
 
 	/* Determine if we need an LSO header. */
 	need_lso = (m_tls->m_len > mss);
@@ -1440,8 +1534,20 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 			imm_len += ktls_gcm_aad_len(tlsp);
 	} else if (tlsp->tls13)
 		imm_len += sizeof(uint64_t);
+	if (plen_dsgl_len == 0) {
+		imm_len += plen;
+		if (last_ghash_frag)
+			imm_len += AES_GMAC_HASH_LEN;
+	}
 	wr_len += roundup2(imm_len, 16);
-	wr_len += ktls_sgl_size(nsegs + (last_ghash_frag ? 1 : 0));
+	if (plen_dsgl_len != 0) {
+		wr_len += ktls_sgl_size(nsegs +
+		    (ghash_placeholder_in_dsgl ? 1 : 0));
+		if (trailing_waste != 0) {
+			wr_len += sizeof(struct ulptx_idata);
+			wr_len += 16;
+		}
+	}
 	wr_len = roundup2(wr_len, 16);
 	txpkt_lens[0] = wr_len - sizeof(*wr);
 
@@ -1494,7 +1600,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	/* ULPTX_IDATA sub-command */
 	idata = (void *)(txpkt + 1);
 	idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM) |
-	    V_ULP_TX_SC_MORE(1));
+	    V_ULP_TX_SC_MORE((!inline_key || plen_dsgl_len != 0) ? 1 : 0));
 	idata->len = sizeof(struct cpl_tx_sec_pdu);
 
 	/*
@@ -1718,10 +1824,13 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		    V_ULPTX_LEN16(tlsp->tx_key_info_size >> 4));
 		memrd->addr = htobe32(tlsp->tx_key_addr >> 5);
 
-		/* ULPTX_IDATA for CPL_TX_* and headers. */
+		/*
+		 * ULPTX_IDATA for CPL_TX_* and immediate data
+		 * (including headers).
+		 */
 		idata = (void *)(memrd + 1);
 		idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM) |
-		    V_ULP_TX_SC_MORE(1));
+		    V_ULP_TX_SC_MORE(plen_dsgl_len != 0 ? 1 : 0));
 		idata->len = htobe32(post_key_context_len);
 
 		out = (void *)(idata + 1);
@@ -1835,6 +1944,17 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		out += AES_BLOCK_LEN;
 	}
 
+	if (plen_dsgl_len == 0) {
+		m_copyepgdata_raw(m_tls, m_tls->m_epg_hdrlen + offset, plen,
+		    out);
+		out += plen;
+		if (last_ghash_frag) {
+			memset(out, 0, AES_GMAC_HASH_LEN);
+			out += AES_GMAC_HASH_LEN;
+		}
+		txq->kern_tls_imm_only++;
+	}
+
 	if (imm_len % 16 != 0) {
 		if (imm_len % 8 != 0) {
 			/* Zero pad to an 8-byte boundary. */
@@ -1849,31 +1969,60 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		if (imm_len % 16 <= 8) {
 			idata = (void *)out;
 			idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP) |
-			    V_ULP_TX_SC_MORE(1));
+			    V_ULP_TX_SC_MORE(plen_dsgl_len != 0 ? 1 : 0));
 			idata->len = htobe32(0);
 			out = (void *)(idata + 1);
 		}
 	}
 
 	/* SGL for record payload */
-	sglist_reset(txq->gl);
-	if (sglist_append_mbuf_epg(txq->gl, m_tls, m_tls->m_epg_hdrlen + offset,
-	    plen) != 0) {
+	if (plen_dsgl_len != 0) {
+		sglist_reset(txq->gl);
+		if (sglist_append_mbuf_epg(txq->gl, m_tls,
+		    m_tls->m_epg_hdrlen + offset, plen_dsgl_len) != 0) {
 #ifdef INVARIANTS
-		panic("%s: failed to append sglist", __func__);
-#endif
-	}
-	KASSERT(txq->gl->sg_nseg == nsegs, ("%s: sg_nseg %u != nsegs %u",
-	    __func__, txq->gl->sg_nseg, nsegs));
-	if (last_ghash_frag) {
-		if (sglist_append_phys(txq->gl, zero_buffer_pa,
-		    AES_GMAC_HASH_LEN) != 0) {
-#ifdef INVARIANTS
-			panic("%s: failed to append sglist (2)", __func__);
+			panic("%s: failed to append sglist", __func__);
 #endif
 		}
+		KASSERT(txq->gl->sg_nseg == nsegs,
+		    ("%s: sg_nseg %u != nsegs %u", __func__, txq->gl->sg_nseg,
+		    nsegs));
+		if (ghash_placeholder_in_dsgl) {
+			if (sglist_append_phys(txq->gl, zero_buffer_pa,
+			    AES_GMAC_HASH_LEN) != 0) {
+#ifdef INVARIANTS
+				panic("%s: failed to append sglist (2)",
+				    __func__);
+#endif
+			}
+		}
+		out = write_gl_to_buf(txq->gl, out, trailing_waste != 0);
+		if (trailing_waste != 0) {
+			idata = (void *)out;
+			idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+			idata->len = htobe32(16);
+			out = (void *)(idata + 1);
+
+			if (last_ghash_frag) {
+				MPASS(!ghash_placeholder_in_dsgl);
+				MPASS(plen == plen_dsgl_len);
+				memset(out, 0, AES_GMAC_HASH_LEN);
+				out += AES_GMAC_HASH_LEN;
+			} else {
+				MPASS(plen_dsgl_len == plen - 16);
+				m_copyepgdata_raw(m_tls, m_tls->m_epg_hdrlen +
+				    offset + plen_dsgl_len, 16, out);
+				out += 16;
+			}
+			txq->kern_tls_imm_last16++;
+
+			if (!__is_aligned(out, 16)) {
+				MPASS((uintptr_t)out % 16 == 8);
+				memset(out, 0, 8);
+				out += 8;
+			}
+		}
 	}
-	out = write_gl_to_buf(txq->gl, out);
 
 	KASSERT((char *)out - (char *)(wr + 1) == roundup2(txpkt_lens[0], 16),
 	    ("%s: txpkts_len[0] mismatch: %td vs %u", __func__,

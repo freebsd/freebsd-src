@@ -13151,6 +13151,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 					txq->kern_tls_partial_ghash = 0;
 					txq->kern_tls_splitmode = 0;
 					txq->kern_tls_trailer = 0;
+					txq->kern_tls_imm_only = 0;
+					txq->kern_tls_imm_last16 = 0;
 				}
 				mp_ring_reset_stats(txq->r);
 			}

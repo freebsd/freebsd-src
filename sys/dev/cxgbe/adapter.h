@@ -696,6 +696,8 @@ struct sge_txq {
 			uint64_t kern_tls_partial_ghash;
 			uint64_t kern_tls_splitmode;
 			uint64_t kern_tls_trailer;
+			uint64_t kern_tls_imm_only;
+			uint64_t kern_tls_imm_last16;
 		};
 	};
 

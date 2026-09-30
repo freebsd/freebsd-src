@@ -4967,6 +4967,14 @@ add_txq_sysctls(struct vi_info *vi, struct sysctl_ctx_list *ctx,
 			    "kern_tls_trailer", CTLFLAG_RD,
 			    &txq->kern_tls_trailer,
 			    "# of NIC TLS trailer-only packets transmitted");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_imm_only", CTLFLAG_RD,
+			    &txq->kern_tls_imm_only,
+			    "# of NIC TLS records with only immediate payload");
+			SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO,
+			    "kern_tls_imm_last16", CTLFLAG_RD,
+			    &txq->kern_tls_imm_last16,
+			    "# of NIC TLS records with last 16 bytes as immediate data");
 		}
 		SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "kern_tls_cbc",
 		    CTLFLAG_RD, &txq->kern_tls_cbc,
