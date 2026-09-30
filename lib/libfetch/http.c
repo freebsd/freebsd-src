@@ -1986,7 +1986,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 	if (conn->err == HTTP_NOT_MODIFIED) {
 		http_seterr(HTTP_NOT_MODIFIED);
-		return (NULL);
+		goto ouch;
 	}
 
 	/* check for inconsistencies */
