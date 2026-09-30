@@ -748,10 +748,15 @@ TUNABLE_INT("hw.cxgbe.cop_managed_offloading", &t4_cop_managed_offloading);
  */
 static int t4_kern_tls = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, kern_tls, CTLFLAG_RDTUN, &t4_kern_tls, 0,
-    "Enable KERN_TLS mode for T6 adapters");
+    "Enable KERN_TLS mode for T6+ adapters");
 
 SYSCTL_NODE(_hw_cxgbe, OID_AUTO, tls, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "cxgbe(4) KERN_TLS parameters");
+
+static int t4_tls_cbc = 0;
+SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, cbc, CTLFLAG_RDTUN,
+    &t4_tls_cbc, 0,
+    "Enable offload of AES-CBC cipher suites.");
 
 static int t4_tls_inline_keys = 0;
 SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, inline_keys, CTLFLAG_RDTUN,
@@ -6274,6 +6279,7 @@ set_params__post_init(struct adapter *sc)
 
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
+		sc->tlst.cbc = t4_tls_cbc;
 		sc->tlst.inline_keys = t4_tls_inline_keys;
 		if (t4_kern_tls != 0 && is_t6(sc)) {
 			sc->tlst.combo_wrs = t4_tls_combo_wrs;
@@ -8251,6 +8257,9 @@ t4_sysctls(struct adapter *sc)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "KERN_TLS parameters");
 		children = SYSCTL_CHILDREN(oid);
 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cbc",
+		    CTLFLAG_RW, &sc->tlst.cbc, 0,
+		    "Enable offload of AES-CBC cipher suites.");
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "inline_keys",
 		    CTLFLAG_RW, &sc->tlst.inline_keys, 0, "Always pass TLS "
 		    "keys in work requests (1) or attempt to store TLS keys "

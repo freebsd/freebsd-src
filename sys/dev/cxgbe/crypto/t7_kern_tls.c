@@ -160,6 +160,8 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	uint32_t flowid;
 
 	tls = params->tls.tls;
+	vi = if_getsoftc(ifp);
+	sc = vi->adapter;
 
 	/* TLS 1.1 through TLS 1.3 are currently supported. */
 	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
@@ -187,6 +189,8 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		default:
 			return (EPROTONOSUPPORT);
 		}
+		if (!sc->tlst.cbc)
+			return (EPROTONOSUPPORT);
 		iv_size = AES_BLOCK_LEN;
 		mac_first = 1;
 		break;
@@ -211,9 +215,6 @@ t7_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	default:
 		return (EPROTONOSUPPORT);
 	}
-
-	vi = if_getsoftc(ifp);
-	sc = vi->adapter;
 
 	tlsp = alloc_tlspcb(ifp, vi, M_WAITOK);
 
