@@ -180,6 +180,7 @@ struct iichid_softc {
 	int			sampling_rate_slow;	/* iicbus lock */
 	int			sampling_rate_fast;
 	int			sampling_hysteresis;
+	sbintime_t		next_sample;		/* iicbus lock */
 	int			missing_samples;	/* iicbus lock */
 	int			dup_samples;		/* iicbus lock */
 	iichid_size_t		dup_size;		/* iicbus lock */
@@ -527,6 +528,7 @@ iichid_sampling_task(void *context, int pending)
 {
 	struct iichid_softc *sc;
 	device_t parent;
+	sbintime_t now, period;
 	iichid_size_t actual;
 	bool bus_requested;
 	int error, rate;
@@ -569,8 +571,21 @@ rearm:
 			rate = sc->sampling_rate_slow;
 		else
 			rate = sc->sampling_rate_fast;
+		period = SBT_1S / MAX(rate, 1);
+		/*
+		 * Schedule against an absolute deadline advanced by one
+		 * period per sample, so that neither the time spent in the
+		 * I2C transaction and handler dispatch nor the taskqueue
+		 * wakeup latency stretches the sampling period. If the
+		 * deadline has already passed then only advance the sample
+		 * by one period rather than bursting polls to catch up.
+		 */
+		now = sbinuptime();
+		sc->next_sample += period;
+		if (sc->next_sample <= now)
+			sc->next_sample = now + period;
 		taskqueue_enqueue_timeout_sbt(sc->taskqueue, &sc->sampling_task,
-		    SBT_1S / MAX(rate, 1), 0, C_PREL(2));
+		    sc->next_sample, 0, C_ABSOLUTE);
 	}
 out:
 	if (bus_requested)
@@ -746,6 +761,7 @@ iichid_reset_callout(struct iichid_softc *sc)
 	sc->missing_samples = sc->sampling_hysteresis;
 	sc->dup_samples = 0;
 	sc->dup_size = 0;
+	sc->next_sample = sbinuptime();
 	taskqueue_enqueue_timeout(sc->taskqueue, &sc->sampling_task, 0);
 
 	return (0);
