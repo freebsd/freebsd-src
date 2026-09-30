@@ -36,9 +36,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/ifunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#include <x86/ifunc.h>
 
 int fubyte_nosmap(volatile const void *base);
 int fubyte_smap(volatile const void *base);

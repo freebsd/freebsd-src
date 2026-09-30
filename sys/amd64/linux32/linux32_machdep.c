@@ -38,9 +38,9 @@
 #include <sys/reg.h>
 #include <sys/syscallsubr.h>
 
+#include <machine/ifunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#include <x86/ifunc.h>
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>

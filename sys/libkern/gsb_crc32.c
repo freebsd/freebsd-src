@@ -52,7 +52,7 @@
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#include <x86/ifunc.h>
+#include <machine/ifunc.h>
 #endif
 
 #if defined(__aarch64__)

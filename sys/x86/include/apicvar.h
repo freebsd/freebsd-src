@@ -28,6 +28,9 @@
 #ifndef _X86_APICVAR_H_
 #define _X86_APICVAR_H_
 
+/* For inthand_t. */
+#include <machine/intr_machdep.h>
+
 /*
  * Local && I/O APIC variable definitions.
  */

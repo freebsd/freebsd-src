@@ -95,13 +95,13 @@
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/ifunc.h>
 #include <machine/md_var.h>
 #ifdef DEV_APIC
 #include <sys/bus.h>
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
 #endif
-#include <x86/ifunc.h>
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");

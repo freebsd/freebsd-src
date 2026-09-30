@@ -153,17 +153,17 @@
 #include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
-#include <machine/asan.h>
-#include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
-#include <x86/ifunc.h>
+#include <machine/asan.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/ifunc.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/msan.h>
 #include <machine/pcb.h>
-#include <machine/specialreg.h>
 #include <machine/smp.h>
+#include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #include <machine/tss.h>
 
