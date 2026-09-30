@@ -268,19 +268,23 @@ cuse_cmd_unlock(struct cuse_client_command *pccmd)
 	sx_xunlock(&pccmd->sx);
 }
 
-static void
+static int
 cuse_kern_init(void)
 {
 	TAILQ_INIT(&cuse_server_head);
 
 	mtx_init(&cuse_global_mtx, "cuse-global-mtx", NULL, MTX_DEF);
 
-	cuse_dev = make_dev(&cuse_server_devsw, 0,
-	    UID_ROOT, GID_OPERATOR, 0600, "cuse");
+	cuse_dev = make_dev_credf(MAKEDEV_CHECKNAME,
+	    &cuse_server_devsw, 0, NULL, UID_ROOT, GID_OPERATOR, 0600, "cuse");
+	if (cuse_dev == NULL)
+		return (ENODEV);
 
 	printf("Cuse v%d.%d.%d @ /dev/cuse\n",
 	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
 	    (CUSE_VERSION >> 0) & 0xFF);
+
+	return (0);
 }
 
 static void
@@ -2038,18 +2042,20 @@ cuse_client_kqfilter(struct cdev *dev, struct knote *kn)
 static int
 cuse_modevent(module_t mod, int type, void *data)
 {
+	int err = 0;
+
 	switch (type) {
 	case MOD_LOAD:
-		cuse_kern_init();
+		err = cuse_kern_init();
 		break;
 	case MOD_UNLOAD:
 		cuse_kern_uninit();
 		break;
 	default:
-		return (EOPNOTSUPP);
+		err = EOPNOTSUPP;
 	}
 
-	return (0);
+	return (err);
 }
 
 static moduledata_t cuse_mod = {
