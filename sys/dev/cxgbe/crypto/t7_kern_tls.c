@@ -854,7 +854,6 @@ t7_ktls_parse_pkt(struct mbuf *m)
 	MPASS(m->m_next->m_flags & M_EXTPG);
 
 	tot_len = 0;
-	nsegs = -1;
 
 	/*
 	 * Each of the remaining mbufs in the chain should reference a
@@ -871,13 +870,6 @@ t7_ktls_parse_pkt(struct mbuf *m)
 		if (wr_len > SGE_MAX_WR_LEN || nsegs > TX_SGL_SEGS)
 			return (EFBIG);
 		tot_len += roundup2(wr_len, EQ_ESIZE);
-
-		/*
-		 * Store 'nsegs' for the first TLS record in the
-		 * header mbuf's metadata.
-		 */
-		if (m_tls == m->m_next)
-			set_mbuf_nsegs(m, nsegs);
 	}
 
 	MPASS(tot_len != 0);
@@ -891,9 +883,9 @@ t7_ktls_parse_pkt(struct mbuf *m)
 			if (error == 0) {
 #ifdef VERBOSE_TRACES
 				CTR(KTR_CXGBE,
-				    "%s: %p len16 %d nsegs %d TCP seq %u deferred",
+				    "%s: %p len16 %d TCP seq %u deferred",
 				    __func__, tlsp, mbuf_len16(m),
-				    nsegs, ntohl(tcp->th_seq));
+				    ntohl(tcp->th_seq));
 #endif
 			}
 			TXQ_UNLOCK(tlsp->txq);
@@ -904,8 +896,7 @@ t7_ktls_parse_pkt(struct mbuf *m)
 	}
 
 #ifdef VERBOSE_TRACES
-	CTR(KTR_CXGBE, "%s: %p len16 %d nsegs %d", __func__, tlsp,
-	    mbuf_len16(m), nsegs);
+	CTR(KTR_CXGBE, "%s: %p len16 %d", __func__, tlsp, mbuf_len16(m));
 #endif
 	items[0] = m;
 	error = mp_ring_enqueue(tlsp->txq->r, items, 1, 256);
@@ -1461,16 +1452,8 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 #endif
 	}
 
-	/*
-	 * Use cached value for first record in chain if not using
-	 * partial GCM mode. ktls_parse_pkt() calculates nsegs based
-	 * on send_partial_ghash being false.
-	 */
-	if (m->m_next == m_tls && !send_partial_ghash)
-		nsegs = mbuf_nsegs(m);
-	else
-		nsegs = sglist_count_mbuf_epg(m_tls,
-		    m_tls->m_epg_hdrlen + offset, plen);
+	nsegs = sglist_count_mbuf_epg(m_tls, m_tls->m_epg_hdrlen + offset,
+	    plen);
 
 	/* Determine if we need an LSO header. */
 	need_lso = (m_tls->m_len > mss);
