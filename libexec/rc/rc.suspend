@@ -26,10 +26,10 @@
 #
 #
 
-# sample run command file for APM Suspend Event
+# sample run command file for Power Management Suspend Event
 
 if [ $# -ne 2 ]; then
-	echo "Usage: $0 [apm|acpi] [standby,suspend|1-4]"
+	echo "Usage: $0 [acpi] [standby,suspend|1-4]"
 	exit 1
 fi
 
@@ -69,11 +69,8 @@ done
 /bin/sleep 3
 
 /bin/rm -f /var/run/rc.suspend.pid
-if [ $subsystem = "apm" ]; then
-	/usr/sbin/zzz
-else
-	# Notify the kernel to continue the suspend process
-	/usr/sbin/acpiconf -k 0
-fi
+
+# Notify the kernel to continue the suspend process
+/usr/sbin/acpiconf -k 0
 
 exit 0

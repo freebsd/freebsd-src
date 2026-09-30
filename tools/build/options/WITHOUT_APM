@@ -1,4 +1,2 @@
 Do not build
-.Xr apm 8 ,
-.Xr apmd 8
-and related programs.
+.Xr apm 8 .

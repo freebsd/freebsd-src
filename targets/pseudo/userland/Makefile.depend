@@ -774,7 +774,6 @@ DIRDEPS.i386= \
 	sbin/fdisk \
 	sbin/nvmecontrol \
 	usr.sbin/apm \
-	usr.sbin/apmd \
 	usr.sbin/btxld \
 	usr.sbin/cpucontrol \
 	usr.sbin/hyperv/tools \

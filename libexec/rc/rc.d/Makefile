@@ -100,8 +100,7 @@ ACPI=		power_profile
 .if ${MACHINE} == "i386"
 CONFGROUPS.${MK_APM}+=		APM
 APMPACKAGE=			apm
-APM=		apm \
-		apmd
+APM=		apm
 .endif
 
 CONFGROUPS.${MK_AUDIT}+=	AUDIT

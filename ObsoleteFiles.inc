@@ -51,6 +51,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260930: apmd(8) removed
+OLD_FILES+=etc/apmd.conf
+OLD_FILES+=etc/rc.d/apmd
+OLD_FILES+=usr/share/examples/etc/apmd.conf
+OLD_FILES+=usr/share/man/man8/apmd.8.gz
+OLD_FILES+=usr/sbin/apmd
+
 # 20260918: lesskey(1) removed, lesskey(5) man page added
 OLD_FILES+=usr/bin/lesskey
 OLD_FILES+=usr/share/man/man1/lesskey.1.gz

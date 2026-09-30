@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 11, 2026
+.Dd September 30, 2026
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -301,21 +301,6 @@ enable support for Automatic Power Management with
 the
 .Xr apm 8
 command.
-.It Va apmd_enable
-.Pq Vt bool
-Run
-.Xr apmd 8
-to handle APM event from userland.
-This also enables support for APM.
-.It Va apmd_flags
-.Pq Vt str
-If
-.Va apmd_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr apmd 8
-daemon.
 .It Va devd_enable
 .Pq Vt bool
 Run
