@@ -252,10 +252,9 @@ apmdtor(void *data)
 static int
 apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct	acpi_softc *acpi_sc;
+	struct	acpi_softc *acpi_sc = dev->si_drv1;
 	struct 	apm_clone_data *clone;
 
-	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
 	clone = apm_create_clone(dev, acpi_sc);
 	devfs_set_cdevpriv(clone, apmdtor);
 
@@ -271,14 +270,13 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 {
 	int	error;
 	struct	apm_clone_data *clone;
-	struct	acpi_softc *acpi_sc;
+	struct	acpi_softc *acpi_sc = dev->si_drv1;
 	struct	apm_info info;
 	struct 	apm_event_info *ev_info;
 	apm_info_old_t aiop;
 
 	error = 0;
 	devfs_get_cdevpriv((void **)&clone);
-	acpi_sc = clone->acpi_sc;
 
 	switch (cmd) {
 	case APMIO_SUSPEND:
@@ -436,11 +434,20 @@ apmreadfilt(struct knote *kn, long hint)
 void
 acpi_apm_init(struct acpi_softc *sc)
 {
+	struct make_dev_args args;
+	struct cdev *dev;
 
 	/* Create a clone for /dev/acpi also. */
 	STAILQ_INIT(&sc->apm_cdevs);
 	sc->acpi_clone = apm_create_clone(sc->acpi_dev_t, sc);
 
-	make_dev(&apm_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0660, "apmctl");
-	make_dev(&apm_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0664, "apm");
+	make_dev_args_init(&args);
+	args.mda_devsw = &apm_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0664;
+	args.mda_si_drv1 = sc;
+	args.mda_flags = MAKEDEV_ETERNAL;
+	make_dev_s(&args, &dev, "apmctl");
+	make_dev_s(&args, &dev, "apm");
 }
