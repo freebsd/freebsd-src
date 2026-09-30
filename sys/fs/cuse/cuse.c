@@ -648,6 +648,7 @@ cuse_server_unref(struct cuse_server *pcs)
 	 */
 	cuse_global_lock();
 	cuse_server_lock(pcs);
+	MPASS(pcs->refs > 0);
 	if (--(pcs->refs) != 0) {
 		cuse_server_unlock(pcs);
 		cuse_global_unlock();
@@ -683,6 +684,7 @@ cuse_server_unref(struct cuse_server *pcs)
 
 	mtx_destroy(&pcs->mtx);
 
+	MPASS(pcs->refs == 0);
 	free(pcs, M_CUSE);
 }
 
