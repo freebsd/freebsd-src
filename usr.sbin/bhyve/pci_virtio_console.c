@@ -515,11 +515,24 @@ pci_vtcon_control_tx(struct pci_vtcon_port *port, void *arg __unused,
 		break;
 
 	case VTCON_PORT_READY:
-		tmp = &sc->vsc_ports[ctrl->id];
-		if (ctrl->id >= VTCON_MAXPORTS || !tmp->vsp_enabled) {
+		if (ctrl->id >= VTCON_MAXPORTS) {
 			WPRINTF(("VTCON_PORT_READY event for unknown port %d",
 			    ctrl->id));
 			return;
+		}
+		tmp = &sc->vsc_ports[ctrl->id];
+		if (!tmp->vsp_enabled) {
+			WPRINTF(("VTCON_PORT_READY event for unknown port %d",
+			    ctrl->id));
+			return;
+		}
+
+		if (ctrl->value == 1) {
+			resp.id = ctrl->id;
+			resp.event = VTCON_PORT_NAME;
+			resp.value = 1;
+			pci_vtcon_control_send(sc, &resp, tmp->vsp_name,
+			    strlen(tmp->vsp_name));
 		}
 
 		if (tmp->vsp_console) {
@@ -541,10 +554,6 @@ pci_vtcon_announce_port(struct pci_vtcon_port *port)
 	event.event = VTCON_DEVICE_ADD;
 	event.value = 1;
 	pci_vtcon_control_send(port->vsp_sc, &event, NULL, 0);
-
-	event.event = VTCON_PORT_NAME;
-	pci_vtcon_control_send(port->vsp_sc, &event, port->vsp_name,
-	    strlen(port->vsp_name));
 }
 
 static void
