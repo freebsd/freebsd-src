@@ -878,6 +878,43 @@ replace_verbose_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "replace_create" "cleanup"
+replace_create_head()
+{
+	atf_set descr 'Test the counts of a replace that creates the table'
+	atf_set require.user root
+}
+
+replace_create_body()
+{
+	pft_init
+	pwd=$(pwd)
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	# libpfctl used to add the number of addresses to whatever the
+	# caller's counter held, which here is the number of tables created.
+	atf_check -s exit:0 -e "match:^1 table created\.$" \
+	    -e "match:^1 addresses added\.$" \
+	    jexec alcatraz pfctl -t foo -T replace 192.0.2.1
+
+	# More than one chunk of addresses.
+	for i in `seq 1 2`; do
+		for j in `seq 1 150`; do
+			echo "1.${i}.${j}.1" >> ${pwd}/bar.lst
+		done
+	done
+	atf_check -s exit:0 -e "match:^1 table created\.$" \
+	    -e "match:^300 addresses added\.$" \
+	    jexec alcatraz pfctl -t bar -T replace -f ${pwd}/bar.lst
+}
+
+replace_create_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "load" "cleanup"
 load_head()
 {
@@ -1002,6 +1039,7 @@ atf_init_test_cases()
 	atf_add_test_case "in_anchor"
 	atf_add_test_case "replace"
 	atf_add_test_case "replace_verbose"
+	atf_add_test_case "replace_create"
 	atf_add_test_case "load"
 	atf_add_test_case "test"
 	atf_add_test_case "show_no_counters"

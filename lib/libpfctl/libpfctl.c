@@ -2517,6 +2517,9 @@ pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	int partial_added;
 	int chunk_size;
 
+	if (nadd)
+		*nadd = 0;
+
 	do {
 		chunk_size = MIN(size - off, 256);
 		ret = _pfctl_table_add_addrs_h(h, tbl, &addr[off], chunk_size, &partial_added, flags);
@@ -2609,6 +2612,9 @@ pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	int partial_deleted;
 	int chunk_size;
 
+	if (ndel)
+		*ndel = 0;
+
 	do {
 		chunk_size = MIN(size - off, 256);
 		ret = _pfctl_table_del_addrs_h(h, tbl, &addr[off], chunk_size,
@@ -2693,6 +2699,13 @@ pfctl_table_set_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
 	int off = 0;
 	int partial_add, partial_del, partial_change;
 	int chunk_size;
+
+	if (nadd)
+		*nadd = 0;
+	if (ndel)
+		*ndel = 0;
+	if (nchange)
+		*nchange = 0;
 
 	do {
 		flags &= ~(PFR_FLAG_START | PFR_FLAG_DONE);
@@ -3983,6 +3996,9 @@ pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	int off = 0;
 	int partial_zeroed;
 	int chunk_size;
+
+	if (nzero)
+		*nzero = 0;
 
 	do {
 		chunk_size = MIN(size - off, 256);
