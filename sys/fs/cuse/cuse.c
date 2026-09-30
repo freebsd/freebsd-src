@@ -280,10 +280,6 @@ cuse_kern_init(void)
 	if (cuse_dev == NULL)
 		return (ENODEV);
 
-	printf("Cuse v%d.%d.%d @ /dev/cuse\n",
-	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
-	    (CUSE_VERSION >> 0) & 0xFF);
-
 	return (0);
 }
 

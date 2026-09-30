@@ -26,8 +26,6 @@
 #ifndef _CUSE_DEFS_H_
 #define	_CUSE_DEFS_H_
 
-#define	CUSE_VERSION		0x000125
-
 #define	CUSE_ERR_NONE		0
 #define	CUSE_ERR_BUSY		-1
 #define	CUSE_ERR_WOULDBLOCK	-2
