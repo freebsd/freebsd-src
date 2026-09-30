@@ -385,7 +385,6 @@ cuse_str_filter(char *ptr)
 static int
 cuse_convert_error(int error)
 {
-	;				/* indent fix */
 	switch (error) {
 	case CUSE_ERR_NONE:
 		return (0);
