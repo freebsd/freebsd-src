@@ -465,7 +465,7 @@ Zone	America/Aruba	-4:40:24 -	LMT	1912 Feb 12 # Oranjestad
 #
 # From Paul Eggert (2000-10-02):
 # Matthews and Vincent (1998) write that Atikokan, Pickle Lake, and
-# New Osnaburgh observe CST all year, that Big Trout Lake observes
+# New Osnaburgh observe [EST] all year, that Big Trout Lake observes
 # CST/CDT, and that Upsala and Shebandowan observe EST/EDT, all in
 # violation of the official Ontario rules.
 #
