@@ -854,6 +854,7 @@ t7_ktls_parse_pkt(struct mbuf *m)
 	MPASS(m->m_next->m_flags & M_EXTPG);
 
 	tot_len = 0;
+	nsegs = -1;
 
 	/*
 	 * Each of the remaining mbufs in the chain should reference a
@@ -892,7 +893,7 @@ t7_ktls_parse_pkt(struct mbuf *m)
 				CTR(KTR_CXGBE,
 				    "%s: %p len16 %d nsegs %d TCP seq %u deferred",
 				    __func__, tlsp, mbuf_len16(m),
-				    mbuf_nsegs(m), ntohl(tcp->th_seq));
+				    nsegs, ntohl(tcp->th_seq));
 #endif
 			}
 			TXQ_UNLOCK(tlsp->txq);
@@ -904,7 +905,7 @@ t7_ktls_parse_pkt(struct mbuf *m)
 
 #ifdef VERBOSE_TRACES
 	CTR(KTR_CXGBE, "%s: %p len16 %d nsegs %d", __func__, tlsp,
-	    mbuf_len16(m), mbuf_nsegs(m));
+	    mbuf_len16(m), nsegs);
 #endif
 	items[0] = m;
 	error = mp_ring_enqueue(tlsp->txq->r, items, 1, 256);
