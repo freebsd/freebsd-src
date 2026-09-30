@@ -56,18 +56,21 @@
 #define _COMPONENT	ACPI_TIMER
 ACPI_MODULE_NAME("TIMER")
 
-static device_t			acpi_timer_dev;
-static struct resource		*acpi_timer_reg;
-static eventhandler_tag		acpi_timer_eh;
+struct acpi_timer_softc {
+	device_t	dev;
+	struct resource *reg;
+	struct timecounter *tc;
+	struct timecounter *old_tc;
+};
 
 #define	ACPI_TIMER_FREQUENCY	(14318182 / 4)
 
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
-static void	acpi_timer_resume_handler(struct timecounter *,
+static void	acpi_timer_resume_handler(struct acpi_timer_softc *,
 		    enum power_stype);
-static void	acpi_timer_suspend_handler(struct timecounter *,
+static void	acpi_timer_suspend_handler(struct acpi_timer_softc *,
 		    enum power_stype);
 static u_int	acpi_timer_get_timecount(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
@@ -83,7 +86,7 @@ static device_method_t acpi_timer_methods[] = {
 static driver_t acpi_timer_driver = {
     "acpi_timer",
     acpi_timer_methods,
-    0,
+    sizeof(struct acpi_timer_softc),
 };
 
 DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, 0, 0);
@@ -100,10 +103,10 @@ static struct timecounter acpi_timer_timecounter = {
 };
 
 static __inline uint32_t
-acpi_timer_read(void)
+acpi_timer_read(struct acpi_timer_softc *sc)
 {
 
-	return (bus_read_4(acpi_timer_reg, 0));
+	return (bus_read_4(sc->reg, 0));
 }
 
 /*
@@ -120,14 +123,14 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (acpi_disabled("timer") || (acpi_quirks & ACPI_Q_TIMER) ||
-	acpi_timer_dev || AcpiGbl_FADT.PmTimerLength == 0)
+	device_find_child(parent, "acpi_timer", DEVICE_UNIT_ANY) != NULL ||
+	AcpiGbl_FADT.PmTimerLength == 0)
 	return_VOID;
 
     if ((dev = BUS_ADD_CHILD(parent, 2, "acpi_timer", 0)) == NULL) {
 	device_printf(parent, "could not add acpi_timer0\n");
 	return_VOID;
     }
-    acpi_timer_dev = dev;
 
     switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
     case ACPI_ADR_SPACE_SYSTEM_MEMORY:
@@ -152,22 +155,22 @@ acpi_timer_probe(device_t dev)
 {
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    if (dev != acpi_timer_dev)
-	return (ENXIO);
-
     device_set_descf(dev, "%d-bit timer at %u.%06uMHz",
 	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) != 0 ? 32 : 24,
 	ACPI_TIMER_FREQUENCY / 1000000, ACPI_TIMER_FREQUENCY % 1000000);
-    return (0);
+    return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
 acpi_timer_attach(device_t dev)
 {
+    struct acpi_timer_softc *sc = device_get_softc(dev);
+    eventhandler_tag eh;
     int rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+    sc->dev = dev;
     switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
     case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	rtype = SYS_RES_MEMORY;
@@ -178,15 +181,24 @@ acpi_timer_attach(device_t dev)
     default:
 	return (ENXIO);
     }
-    acpi_timer_reg = bus_alloc_resource_any(dev, rtype, 0, RF_ACTIVE);
-    if (acpi_timer_reg == NULL)
+
+    sc->reg = bus_alloc_resource_any(dev, rtype, 0, RF_ACTIVE);
+    if (sc->reg == NULL)
 	return (ENXIO);
 
-    /* Register suspend event handler. */
-    if (EVENTHANDLER_REGISTER(power_suspend, acpi_timer_suspend_handler,
-	&acpi_timer_timecounter, EVENTHANDLER_PRI_LAST) == NULL) {
+    /* Register resume and suspend event handlers. */
+    eh = EVENTHANDLER_REGISTER(power_suspend, acpi_timer_suspend_handler,
+	sc, EVENTHANDLER_PRI_LAST);
+    if (eh == NULL) {
 	device_printf(dev, "failed to register suspend event handler\n");
-	bus_release_resource(dev, acpi_timer_reg);
+	bus_release_resource(dev, sc->reg);
+	return (ENXIO);
+    }
+    if (EVENTHANDLER_REGISTER(power_resume, acpi_timer_resume_handler,
+	sc, EVENTHANDLER_PRI_LAST) == NULL) {
+	device_printf(dev, "failed to register resume event handler\n");
+	EVENTHANDLER_DEREGISTER(power_suspend, eh);
+	bus_release_resource(dev, sc->reg);
 	return (ENXIO);
     }
 
@@ -195,25 +207,29 @@ acpi_timer_attach(device_t dev)
     else
 	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
     acpi_timer_timecounter.tc_frequency = ACPI_TIMER_FREQUENCY;
+    acpi_timer_timecounter.tc_priv = sc;
+    sc->tc = &acpi_timer_timecounter;
 
-    tc_init(&acpi_timer_timecounter);
+    tc_init(sc->tc);
 
     SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
 	"acpi_timer_freq", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	NULL, 0, acpi_timer_sysctl_freq, "I", "ACPI timer frequency");
+	sc->tc, 0, acpi_timer_sysctl_freq, "I", "ACPI timer frequency");
 
     return (0);
 }
 
 static void
-acpi_timer_resume_handler(struct timecounter *newtc, enum power_stype stype)
+acpi_timer_resume_handler(struct acpi_timer_softc *sc, enum power_stype stype)
 {
-	struct timecounter *tc;
+	struct timecounter *newtc, *tc;
 
 	tc = timecounter;
-	if (tc != newtc) {
+	newtc = sc->old_tc;
+	sc->old_tc = NULL;
+	if (newtc != NULL && tc != newtc) {
 		if (bootverbose)
-			device_printf(acpi_timer_dev,
+			device_printf(sc->dev,
 			    "restoring timecounter, %s -> %s\n",
 			    tc->tc_name, newtc->tc_name);
 		(void)newtc->tc_get_timecount(newtc);
@@ -222,17 +238,13 @@ acpi_timer_resume_handler(struct timecounter *newtc, enum power_stype stype)
 }
 
 static void
-acpi_timer_suspend_handler(struct timecounter *newtc, enum power_stype stype)
+acpi_timer_suspend_handler(struct acpi_timer_softc *sc, enum power_stype stype)
 {
 	struct timecounter *tc;
 
-	/* Deregister existing resume event handler. */
-	if (acpi_timer_eh != NULL) {
-		EVENTHANDLER_DEREGISTER(power_resume, acpi_timer_eh);
-		acpi_timer_eh = NULL;
-	}
-
-	if ((timecounter->tc_flags & TC_FLAGS_SUSPEND_SAFE) != 0) {
+	tc = timecounter;
+	sc->old_tc = NULL;
+	if ((tc->tc_flags & TC_FLAGS_SUSPEND_SAFE) != 0) {
 		/*
 		 * If we are using a suspend safe timecounter, don't
 		 * save/restore it across suspend/resume.
@@ -240,27 +252,26 @@ acpi_timer_suspend_handler(struct timecounter *newtc, enum power_stype stype)
 		return;
 	}
 
-	KASSERT(newtc == &acpi_timer_timecounter,
-	    ("acpi_timer_suspend_handler: wrong timecounter"));
+	/*
+	  * Our timecounter is suspend safe, so must not be currently
+	  * active.
+	  */
+	MPASS(tc != sc->tc);
 
-	tc = timecounter;
-	if (tc != newtc) {
-		if (bootverbose)
-			device_printf(acpi_timer_dev,
-			    "switching timecounter, %s -> %s\n",
-			    tc->tc_name, newtc->tc_name);
-		(void)acpi_timer_read();
-		(void)acpi_timer_read();
-		timecounter = newtc;
-		acpi_timer_eh = EVENTHANDLER_REGISTER(power_resume,
-		    acpi_timer_resume_handler, tc, EVENTHANDLER_PRI_LAST);
-	}
+	if (bootverbose)
+		device_printf(sc->dev, "switching timecounter, %s -> %s\n",
+		    tc->tc_name, sc->tc->tc_name);
+	(void)acpi_timer_read(sc);
+	(void)acpi_timer_read(sc);
+	timecounter = sc->tc;
+	sc->old_tc = tc;
 }
 
 static u_int
 acpi_timer_get_timecount(struct timecounter *tc)
 {
-    return (acpi_timer_read());
+	struct acpi_timer_softc *sc = tc->tc_priv;
+	return (acpi_timer_read(sc));
 }
 
 /*
@@ -269,13 +280,14 @@ acpi_timer_get_timecount(struct timecounter *tc)
 static int
 acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 {
+    struct timecounter *tc = arg1;
     int error;
     u_int freq;
 
-    freq = acpi_timer_timecounter.tc_frequency;
+    freq = tc->tc_frequency;
     error = sysctl_handle_int(oidp, &freq, 0, req);
     if (error == 0 && req->newptr != NULL) {
-	acpi_timer_timecounter.tc_frequency = freq;
+	tc->tc_frequency = freq;
     }
 
     return (error);
