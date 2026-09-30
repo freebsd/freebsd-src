@@ -209,6 +209,7 @@ static d_read_t cuse_server_read;
 static d_write_t cuse_server_write;
 static d_poll_t cuse_server_poll;
 static d_mmap_single_t cuse_server_mmap_single;
+static d_purge_t cuse_server_purge;
 
 static struct cdevsw cuse_server_devsw = {
 	.d_version = D_VERSION,
@@ -221,6 +222,7 @@ static struct cdevsw cuse_server_devsw = {
 	.d_write = cuse_server_write,
 	.d_poll = cuse_server_poll,
 	.d_mmap_single = cuse_server_mmap_single,
+	.d_purge = cuse_server_purge,
 };
 
 static void cuse_client_is_closing(struct cuse_client *);
@@ -266,33 +268,6 @@ static void
 cuse_cmd_unlock(struct cuse_client_command *pccmd)
 {
 	sx_xunlock(&pccmd->sx);
-}
-
-static int
-cuse_kern_init(void)
-{
-	TAILQ_INIT(&cuse_server_head);
-
-	mtx_init(&cuse_global_mtx, "cuse-global-mtx", NULL, MTX_DEF);
-
-	cuse_dev = make_dev_credf(MAKEDEV_CHECKNAME,
-	    &cuse_server_devsw, 0, NULL, UID_ROOT, GID_OPERATOR, 0600, "cuse");
-	if (cuse_dev == NULL)
-		return (ENODEV);
-
-	return (0);
-}
-
-static void
-cuse_kern_uninit(void)
-{
-	/* destroy_dev() runs the cdevpriv destructor of every open instance. */
-	if (cuse_dev != NULL)
-		destroy_dev(cuse_dev);
-
-	MPASS(TAILQ_EMPTY(&cuse_server_head));
-
-	mtx_destroy(&cuse_global_mtx);
 }
 
 static int
@@ -667,18 +642,23 @@ cuse_server_unref(struct cuse_server *pcs)
 {
 	struct cuse_memory *mem;
 
+	/*
+	 * Take the global lock before the server lock, to avoid a lock order
+	 * reversal in cuse_kern_uninit().
+	 */
+	cuse_global_lock();
 	cuse_server_lock(pcs);
 	if (--(pcs->refs) != 0) {
 		cuse_server_unlock(pcs);
+		cuse_global_unlock();
 		return;
 	}
+	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
+	cuse_global_unlock();
+
 	cuse_server_is_closing(pcs);
 	/* final client wakeup, if any */
 	cuse_server_wakeup_all_client_locked(pcs);
-
-	cuse_global_lock();
-	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
-	cuse_global_unlock();
 
 	/* The cdevpriv destructor destroys the devices before unreffing. */
 	MPASS(TAILQ_EMPTY(&pcs->hdev));
@@ -1083,10 +1063,10 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		cuse_server_lock(pcs);
 
 		while ((pccmd = TAILQ_FIRST(&pcs->head)) == NULL) {
-			error = cv_wait_sig(&pcs->cv, &pcs->mtx);
-
 			if (pcs->is_closing)
 				error = ENXIO;
+			else
+				error = cv_wait_sig(&pcs->cv, &pcs->mtx);
 
 			if (error) {
 				cuse_server_unlock(pcs);
@@ -1410,6 +1390,25 @@ cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		return (error);
 
 	return (cuse_common_mmap_single(pcs, offset, size, object));
+}
+
+static void
+cuse_server_purge(struct cdev *dev __unused)
+{
+	struct cuse_server *pcs;
+
+	/*
+	 * Wake up the servers sleeping in CUSE_IOCTL_GET_COMMAND, so that
+	 * destroy_dev() can return.
+	 */
+	cuse_global_lock();
+	TAILQ_FOREACH(pcs, &cuse_server_head, entry) {
+		cuse_server_lock(pcs);
+		cuse_server_is_closing(pcs);
+		cv_broadcast(&pcs->cv);
+		cuse_server_unlock(pcs);
+	}
+	cuse_global_unlock();
 }
 
 /*------------------------------------------------------------------------*
@@ -2024,6 +2023,33 @@ cuse_client_kqfilter(struct cdev *dev, struct knote *kn)
 	if (error == 0)
 		cuse_client_kqfilter_poll(dev, pcc);
 	return (error);
+}
+
+static int
+cuse_kern_init(void)
+{
+	TAILQ_INIT(&cuse_server_head);
+
+	mtx_init(&cuse_global_mtx, "cuse-global-mtx", NULL, MTX_DEF);
+
+	cuse_dev = make_dev_credf(MAKEDEV_CHECKNAME,
+	    &cuse_server_devsw, 0, NULL, UID_ROOT, GID_OPERATOR, 0600, "cuse");
+	if (cuse_dev == NULL)
+		return (ENODEV);
+
+	return (0);
+}
+
+static void
+cuse_kern_uninit(void)
+{
+	/* destroy_dev() runs the cdevpriv destructor of every open instance. */
+	if (cuse_dev != NULL)
+		destroy_dev(cuse_dev);
+
+	MPASS(TAILQ_EMPTY(&cuse_server_head));
+
+	mtx_destroy(&cuse_global_mtx);
 }
 
 static int
