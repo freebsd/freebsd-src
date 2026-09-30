@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -36,7 +36,7 @@ static int test_sparse_array(void)
         { INT_MAX, "m" }, { 6666666, "d" }, { (ossl_uintmax_t)-1, "H" },
         { 99, "e" }
     };
-    SPARSE_ARRAY_OF(char) * sa;
+    SPARSE_ARRAY_OF(char) *sa;
     size_t i, j;
     int res = 0;
 
@@ -101,7 +101,7 @@ struct index_cases_st {
 };
 
 struct doall_st {
-    SPARSE_ARRAY_OF(char) * sa;
+    SPARSE_ARRAY_OF(char) *sa;
     size_t num_cases;
     const struct index_cases_st *cases;
     int res;

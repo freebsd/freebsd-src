@@ -1,5 +1,0 @@
-[provider_sect]
-legacy = legacy_sect
-
-[legacy_sect]
-activate = 1

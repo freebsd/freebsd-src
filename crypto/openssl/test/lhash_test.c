@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -544,7 +544,11 @@ static void hashtable_mt_free(HT_VALUE *v)
     int pending_delete;
     int ret;
 
-    CRYPTO_atomic_load_int(&m->pending_delete, &pending_delete, worker_lock);
+    if (!TEST_true(CRYPTO_atomic_load_int(&m->pending_delete, &pending_delete,
+            worker_lock))) {
+        free_failure = 1;
+        return;
+    }
 
     if (shutting_down == 1)
         return;
