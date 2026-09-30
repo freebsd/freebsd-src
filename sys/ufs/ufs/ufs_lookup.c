@@ -1246,6 +1246,8 @@ ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
 	error = UFS_BLKATOFF(vdp, (off_t)I_OFFSET(dp), (char **)&ep, &bp);
 	if (error == 0 && ep->d_namlen == 2 && ep->d_name[1] == '.' &&
 	    ep->d_name[0] == '.' && ep->d_ino != oip->i_number) {
+		ufs_dirbad(dp, I_OFFSET(dp),
+		    "rewrite: .. entry does not name the expected inode");
 		brelse(bp);
 		error = EIDRM;
 	}
