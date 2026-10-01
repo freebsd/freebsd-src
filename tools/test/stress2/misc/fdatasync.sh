@@ -37,6 +37,7 @@
 
 dir=$RUNDIR
 nfiles=500
+mkdir -p $dir && chmod 777 $dir
 [ `df -i $dir | tail -1 | awk '{print $7}'` -lt $nfiles ] && exit 0
 
 odir=`pwd`
@@ -45,8 +46,6 @@ sed '1,/^EOF/d' < $odir/$0 > fdatasync.c
 rm -f /tmp/fdatasync
 mycc -o fdatasync -Wall -Wextra -O2 -g fdatasync.c -lpthread || exit 1
 rm -f fdatasync.c
-
-mkdir -p $dir && chmod 777 $dir
 
 cd $dir
 jot $nfiles | xargs touch

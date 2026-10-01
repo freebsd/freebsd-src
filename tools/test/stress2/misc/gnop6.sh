@@ -60,7 +60,7 @@ su $testuser -c 'cd ..; ./run.sh marcus.cfg' > /dev/null 2>&1
 while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
-checkfs /dev/md$mdstart.nop || s=1 && s=0
+checkfs /dev/md$mdstart.nop; s=$?
 gnop destroy /dev/md$mdstart.nop
 mdconfig -d -u $mdstart
 
