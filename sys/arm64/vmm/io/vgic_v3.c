@@ -461,6 +461,7 @@ vgic_v3_cpucleanup(device_t dev, struct hypctx *hypctx)
 	}
 
 	mtx_destroy(&vgic_cpu->lr_mtx);
+	free(hypctx->vgic_cpu->private_irqs, M_VGIC_V3);
 	free(hypctx->vgic_cpu, M_VGIC_V3);
 }
 
