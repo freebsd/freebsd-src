@@ -11,8 +11,7 @@ void __stack_chk_fail(void);
 void
 __stack_chk_fail(void)
 {
-
-	panic("stack overflow detected; backtrace may be corrupted");
+	panic("stack buffer overflow detected; backtrace may be corrupted");
 }
 
 static void
