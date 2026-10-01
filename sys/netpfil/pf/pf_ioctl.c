@@ -2237,7 +2237,7 @@ pf_sourcelim_add(const struct pfioc_sourcelim *ioc)
 
 	if (RB_INSERT(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
 		pfsrlim) != NULL) {
-		RB_REMOVE(pf_sourcelim_nm_tree, &V_pf_sourcelim_nm_tree_inactive,
+		RB_REMOVE(pf_sourcelim_id_tree, &V_pf_sourcelim_id_tree_inactive,
 		    pfsrlim);
 		error = EBUSY;
 		goto unlock;
