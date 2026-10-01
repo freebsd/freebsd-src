@@ -2758,6 +2758,7 @@ pf_krule_free(struct pf_krule *rule)
 	counter_u64_free(rule->states_tot);
 	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
 		counter_u64_free(rule->src_nodes[sn_type]);
+	counter_rate_free(rule->pktrate.cr);
 	uma_zfree_pcpu(pf_timestamp_pcpu_zone, rule->timestamp);
 
 	mtx_destroy(&rule->nat.mtx);
