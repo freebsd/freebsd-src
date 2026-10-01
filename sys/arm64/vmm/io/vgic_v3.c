@@ -1992,11 +1992,10 @@ vgic_v3_flush_hwstate(device_t dev, struct hypctx *hypctx)
 			    ICH_LR_EL2_STATE_ACTIVE;
 		}
 
-#ifdef notyet
-		/* TODO: Check why this is needed */
-		if ((irq->config & _MASK) == LEVEL)
-			*hypctx_sys_reg(hypctx, HOST_ICH_LR_EL2(i)) |= ICH_LR_EL2_EOI;
-#endif
+		if ((irq->config & VGIC_CONFIG_MASK) == VGIC_CONFIG_LEVEL) {
+			*hypctx_sys_reg(hypctx,
+			    HOST_ICH_LR_EL2(i)) |= ICH_LR_EL2_EOI;
+		}
 
 		if (!irq->active && vgic_v3_irq_pending(irq)) {
 			*hypctx_sys_reg(hypctx, HOST_ICH_LR_EL2(i)) |=
