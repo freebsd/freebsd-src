@@ -986,6 +986,60 @@ test_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "test_verbose" "cleanup"
+test_verbose_head()
+{
+	atf_set descr 'Test pfctl -v -T test per-address feedback'
+	atf_set require.user root
+}
+
+test_verbose_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> persist { 192.0.2.1 198.51.100.0/24 !198.51.100.7 }" \
+	    "pass all"
+
+	# -v lists only the matching addresses.
+	atf_check -s exit:2 -e match:"2/4 addresses match." \
+	    -o match:"^M  192\.0\.2\.1$" \
+	    -o match:"^M  198\.51\.100\.5$" \
+	    -o not-match:"198\.51\.100\.7" \
+	    -o not-match:"1\.2\.3\.4" \
+	    jexec alcatraz pfctl -t foo -v -T test \
+	    192.0.2.1 198.51.100.5 198.51.100.7 1.2.3.4
+
+	# -vv lists every address and the table entry it matched.
+	atf_check -s exit:2 -e match:"2/4 addresses match." \
+	    -o match:"^M  192\.0\.2\.1	 192\.0\.2\.1$" \
+	    -o match:"^M  198\.51\.100\.5	 198\.51\.100\.0/24$" \
+	    -o match:"^   198\.51\.100\.7	!198\.51\.100\.7$" \
+	    -o match:"^   1\.2\.3\.4	 nomatch$" \
+	    jexec alcatraz pfctl -t foo -vv -T test \
+	    192.0.2.1 198.51.100.5 198.51.100.7 1.2.3.4
+
+	# libpfctl tests 256 addresses per request, check across requests.
+	for i in `seq 1 255`; do
+		echo "203.0.113.${i}"
+	done > addrs
+	echo "1.2.3.4" >> addrs
+	echo "198.51.100.5" >> addrs
+	atf_check -s exit:2 -e match:"1/257 addresses match." \
+	    -o match:"^   203\.0\.113\.255	 nomatch$" \
+	    -o match:"^   1\.2\.3\.4	 nomatch$" \
+	    -o match:"^M  198\.51\.100\.5	 198\.51\.100\.0/24$" \
+	    jexec alcatraz pfctl -t foo -vv -T test -f $(pwd)/addrs
+}
+
+test_verbose_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "show_no_counters" "cleanup"
 show_no_counters_head()
 {
@@ -1042,5 +1096,6 @@ atf_init_test_cases()
 	atf_add_test_case "replace_create"
 	atf_add_test_case "load"
 	atf_add_test_case "test"
+	atf_add_test_case "test_verbose"
 	atf_add_test_case "show_no_counters"
 }

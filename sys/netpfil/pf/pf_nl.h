@@ -527,6 +527,7 @@ enum pf_table_astats_t {
 	PF_TAS_FLAGS		= 3, /* u32 */
 	PF_TAS_ASTATS_COUNT	= 4, /* u32 */
 	PF_TAS_ASTATS_ZEROED	= 5, /* u32 */
+	PF_TAS_ADDR		= 6, /* nested, pfr_addr_t */
 };
 
 enum pf_limit_rate_t {

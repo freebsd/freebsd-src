@@ -3896,6 +3896,14 @@ static struct snl_attr_parser ap_table_get_astats[] = {
 #undef _OUT
 SNL_DECLARE_PARSER(table_astats_parser, struct genlmsghdr, snl_f_p_empty, ap_table_get_astats);
 
+#define _OUT(_field)	offsetof(struct nl_addrs, _field)
+static struct snl_attr_parser ap_table_test_addrs[] = {
+	{ .type = PF_TAS_ASTATS_COUNT, .off = _OUT(total_count), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TAS_ADDR, .off = 0, .cb = snl_attr_get_pfr_addrs },
+};
+#undef _OUT
+SNL_DECLARE_PARSER(table_test_addrs_parser, struct genlmsghdr, snl_f_p_empty, ap_table_test_addrs);
+
 int
 pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
     struct pfr_astats *as, int *size, int flags)
@@ -4022,7 +4030,7 @@ _pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
 	struct snl_errmsg_data e = {};
 	struct nlmsghdr *hdr;
 	uint32_t seq_id;
-	struct nl_astats attrs;
+	struct nl_addrs attrs = { .addrs = addrs, .max = size };
 
 	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, h->family_id,
@@ -4046,7 +4054,7 @@ _pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
 	}
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
-		if (! snl_parse_nlmsg(&h->ss, hdr, &table_astats_parser, &attrs))
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_test_addrs_parser, &attrs))
 			continue;
 	}
 
