@@ -1727,20 +1727,83 @@ out:
 }
 
 #ifndef OPENSSL_NO_POLY1305
-/* Test that EVP_MAC_final fails for Poly1305 when no key was set */
+/* Test Poly1305 no-key failures and staged key initialization */
 static int test_evp_mac_poly1305_no_key(void)
 {
     int ret = 0;
     EVP_MAC *mac = NULL;
     EVP_MAC_CTX *ctx = NULL;
+    /* RFC 7539 Poly1305 test vector. */
+    static const unsigned char staged_data[] = "Cryptographic Forum Research Group";
+    static const unsigned char expected[16] = {
+        0xa8, 0x06, 0x1d, 0xc1, 0x30, 0x51, 0x36, 0xc6,
+        0xc2, 0x2b, 0x8b, 0xaf, 0x0c, 0x01, 0x27, 0xa9
+    };
+    unsigned char no_key_data[16] = { 0 };
+    unsigned char key[32] = {
+        0x85, 0xd6, 0xbe, 0x78, 0x57, 0x55, 0x6d, 0x33,
+        0x7f, 0x44, 0x52, 0xfe, 0x42, 0xd5, 0x06, 0xa8,
+        0x01, 0x03, 0x80, 0x8a, 0xfb, 0x0d, 0xb2, 0xfd,
+        0x4a, 0xbf, 0xf6, 0xaf, 0x41, 0x49, 0xf5, 0x1b
+    };
     unsigned char out[16];
+    OSSL_PARAM key_params[2];
+    OSSL_PARAM null_key_params[2];
     size_t outl = 0;
+
+    key_params[0] = OSSL_PARAM_construct_octet_string(OSSL_MAC_PARAM_KEY,
+        key, sizeof(key));
+    key_params[1] = OSSL_PARAM_construct_end();
+    null_key_params[0] = OSSL_PARAM_construct_octet_string(OSSL_MAC_PARAM_KEY,
+        NULL, sizeof(key));
+    null_key_params[1] = OSSL_PARAM_construct_end();
 
     if (!TEST_ptr(mac = EVP_MAC_fetch(testctx, "Poly1305", testpropq))
         || !TEST_ptr(ctx = EVP_MAC_CTX_new(mac))
-        || !TEST_int_eq(EVP_MAC_init(ctx, NULL, 0, NULL), 1)
-        || !TEST_int_eq(EVP_MAC_final(ctx, out, &outl, sizeof(out)), 0))
+        || !TEST_int_eq(EVP_MAC_init(ctx, NULL, 0, NULL), 1))
         goto err;
+
+    ERR_clear_error();
+    if (!TEST_int_eq(EVP_MAC_update(ctx, no_key_data, sizeof(no_key_data)), 0)
+        || !TEST_int_eq(ERR_GET_REASON(ERR_get_error()), PROV_R_NO_KEY_SET))
+        goto err;
+
+    /* The failed update must not block staged key initialization. */
+    if (!TEST_int_eq(EVP_MAC_CTX_set_params(ctx, key_params), 1)
+        || !TEST_int_eq(EVP_MAC_update(ctx, staged_data,
+                            sizeof(staged_data) - 1),
+            1)
+        || !TEST_int_eq(EVP_MAC_final(ctx, out, &outl, sizeof(out)), 1)
+        || !TEST_size_t_eq(outl, sizeof(expected))
+        || !TEST_mem_eq(out, outl, expected, sizeof(expected)))
+        goto err;
+
+    EVP_MAC_CTX_free(ctx);
+    ctx = NULL;
+
+    if (!TEST_ptr(ctx = EVP_MAC_CTX_new(mac))
+        || !TEST_int_eq(EVP_MAC_init(ctx, NULL, 0, NULL), 1))
+        goto err;
+
+    ERR_clear_error();
+    if (!TEST_int_eq(EVP_MAC_final(ctx, out, &outl, sizeof(out)), 0)
+        || !TEST_int_eq(ERR_GET_REASON(ERR_get_error()), PROV_R_NO_KEY_SET))
+        goto err;
+
+    ERR_clear_error();
+    if (!TEST_int_eq(EVP_MAC_init(ctx, NULL, 0, null_key_params), 0)
+        || !TEST_int_eq(ERR_GET_REASON(ERR_get_error()),
+            PROV_R_INVALID_KEY_LENGTH))
+        goto err;
+
+    ERR_clear_error();
+    if (!TEST_int_eq(EVP_MAC_CTX_set_params(ctx, null_key_params), 0)
+        || !TEST_int_eq(ERR_GET_REASON(ERR_get_error()),
+            PROV_R_INVALID_KEY_LENGTH))
+        goto err;
+
+    EVP_MAC_CTX_free(ctx);
+    ctx = NULL;
     ret = 1;
 err:
     EVP_MAC_CTX_free(ctx);
@@ -3343,6 +3406,257 @@ err:
     return ret;
 }
 #endif /* !OPENSSL_NO_DEPRECATED_3_0 */
+
+/* Test that DHX (X9.42) rejects a malicious peer key during the
+ * derivation phase (specifically EVP_PKEY_derive_set_peer) when the
+ * remote 'q' does not match the local domain parameters but is still
+ * consistent with the remote key share.
+ * (CVE-2026-42770)
+ */
+static int test_dhx_derive_rejects_bad_peer_q(void)
+{
+    int ret = 0;
+    EVP_PKEY *local_key = NULL, *remote_key = NULL;
+    EVP_PKEY_CTX *pctx = NULL, *derive_ctx = NULL;
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+
+    BIGNUM *p = NULL, *g = NULL;
+    BIGNUM *q_valid = NULL, *pub_local = NULL, *priv_local = NULL;
+    BIGNUM *q_bad = NULL, *pub_bad = NULL;
+
+    static const unsigned char bin_p[] = {
+        0x87, 0xa8, 0xe6, 0x1d, 0xb4, 0xb6, 0x66, 0x3c,
+        0xff, 0xbb, 0xd1, 0x9c, 0x65, 0x19, 0x59, 0x99,
+        0x8c, 0xee, 0xf6, 0x08, 0x66, 0x0d, 0xd0, 0xf2,
+        0x5d, 0x2c, 0xee, 0xd4, 0x43, 0x5e, 0x3b, 0x00,
+        0xe0, 0x0d, 0xf8, 0xf1, 0xd6, 0x19, 0x57, 0xd4,
+        0xfa, 0xf7, 0xdf, 0x45, 0x61, 0xb2, 0xaa, 0x30,
+        0x16, 0xc3, 0xd9, 0x11, 0x34, 0x09, 0x6f, 0xaa,
+        0x3b, 0xf4, 0x29, 0x6d, 0x83, 0x0e, 0x9a, 0x7c,
+        0x20, 0x9e, 0x0c, 0x64, 0x97, 0x51, 0x7a, 0xbd,
+        0x5a, 0x8a, 0x9d, 0x30, 0x6b, 0xcf, 0x67, 0xed,
+        0x91, 0xf9, 0xe6, 0x72, 0x5b, 0x47, 0x58, 0xc0,
+        0x22, 0xe0, 0xb1, 0xef, 0x42, 0x75, 0xbf, 0x7b,
+        0x6c, 0x5b, 0xfc, 0x11, 0xd4, 0x5f, 0x90, 0x88,
+        0xb9, 0x41, 0xf5, 0x4e, 0xb1, 0xe5, 0x9b, 0xb8,
+        0xbc, 0x39, 0xa0, 0xbf, 0x12, 0x30, 0x7f, 0x5c,
+        0x4f, 0xdb, 0x70, 0xc5, 0x81, 0xb2, 0x3f, 0x76,
+        0xb6, 0x3a, 0xca, 0xe1, 0xca, 0xa6, 0xb7, 0x90,
+        0x2d, 0x52, 0x52, 0x67, 0x35, 0x48, 0x8a, 0x0e,
+        0xf1, 0x3c, 0x6d, 0x9a, 0x51, 0xbf, 0xa4, 0xab,
+        0x3a, 0xd8, 0x34, 0x77, 0x96, 0x52, 0x4d, 0x8e,
+        0xf6, 0xa1, 0x67, 0xb5, 0xa4, 0x18, 0x25, 0xd9,
+        0x67, 0xe1, 0x44, 0xe5, 0x14, 0x05, 0x64, 0x25,
+        0x1c, 0xca, 0xcb, 0x83, 0xe6, 0xb4, 0x86, 0xf6,
+        0xb3, 0xca, 0x3f, 0x79, 0x71, 0x50, 0x60, 0x26,
+        0xc0, 0xb8, 0x57, 0xf6, 0x89, 0x96, 0x28, 0x56,
+        0xde, 0xd4, 0x01, 0x0a, 0xbd, 0x0b, 0xe6, 0x21,
+        0xc3, 0xa3, 0x96, 0x0a, 0x54, 0xe7, 0x10, 0xc3,
+        0x75, 0xf2, 0x63, 0x75, 0xd7, 0x01, 0x41, 0x03,
+        0xa4, 0xb5, 0x43, 0x30, 0xc1, 0x98, 0xaf, 0x12,
+        0x61, 0x16, 0xd2, 0x27, 0x6e, 0x11, 0x71, 0x5f,
+        0x69, 0x38, 0x77, 0xfa, 0xd7, 0xef, 0x09, 0xca,
+        0xdb, 0x09, 0x4a, 0xe9, 0x1e, 0x1a, 0x15, 0x97
+    };
+    static const unsigned char bin_g[] = {
+        0x3F, 0xB3, 0x2C, 0x9B, 0x73, 0x13, 0x4D, 0x0B,
+        0x2E, 0x77, 0x50, 0x66, 0x60, 0xED, 0xBD, 0x48,
+        0x4C, 0xA7, 0xB1, 0x8F, 0x21, 0xEF, 0x20, 0x54,
+        0x07, 0xF4, 0x79, 0x3A, 0x1A, 0x0B, 0xA1, 0x25,
+        0x10, 0xDB, 0xC1, 0x50, 0x77, 0xBE, 0x46, 0x3F,
+        0xFF, 0x4F, 0xED, 0x4A, 0xAC, 0x0B, 0xB5, 0x55,
+        0xBE, 0x3A, 0x6C, 0x1B, 0x0C, 0x6B, 0x47, 0xB1,
+        0xBC, 0x37, 0x73, 0xBF, 0x7E, 0x8C, 0x6F, 0x62,
+        0x90, 0x12, 0x28, 0xF8, 0xC2, 0x8C, 0xBB, 0x18,
+        0xA5, 0x5A, 0xE3, 0x13, 0x41, 0x00, 0x0A, 0x65,
+        0x01, 0x96, 0xF9, 0x31, 0xC7, 0x7A, 0x57, 0xF2,
+        0xDD, 0xF4, 0x63, 0xE5, 0xE9, 0xEC, 0x14, 0x4B,
+        0x77, 0x7D, 0xE6, 0x2A, 0xAA, 0xB8, 0xA8, 0x62,
+        0x8A, 0xC3, 0x76, 0xD2, 0x82, 0xD6, 0xED, 0x38,
+        0x64, 0xE6, 0x79, 0x82, 0x42, 0x8E, 0xBC, 0x83,
+        0x1D, 0x14, 0x34, 0x8F, 0x6F, 0x2F, 0x91, 0x93,
+        0xB5, 0x04, 0x5A, 0xF2, 0x76, 0x71, 0x64, 0xE1,
+        0xDF, 0xC9, 0x67, 0xC1, 0xFB, 0x3F, 0x2E, 0x55,
+        0xA4, 0xBD, 0x1B, 0xFF, 0xE8, 0x3B, 0x9C, 0x80,
+        0xD0, 0x52, 0xB9, 0x85, 0xD1, 0x82, 0xEA, 0x0A,
+        0xDB, 0x2A, 0x3B, 0x73, 0x13, 0xD3, 0xFE, 0x14,
+        0xC8, 0x48, 0x4B, 0x1E, 0x05, 0x25, 0x88, 0xB9,
+        0xB7, 0xD2, 0xBB, 0xD2, 0xDF, 0x01, 0x61, 0x99,
+        0xEC, 0xD0, 0x6E, 0x15, 0x57, 0xCD, 0x09, 0x15,
+        0xB3, 0x35, 0x3B, 0xBB, 0x64, 0xE0, 0xEC, 0x37,
+        0x7F, 0xD0, 0x28, 0x37, 0x0D, 0xF9, 0x2B, 0x52,
+        0xC7, 0x89, 0x14, 0x28, 0xCD, 0xC6, 0x7E, 0xB6,
+        0x18, 0x4B, 0x52, 0x3D, 0x1D, 0xB2, 0x46, 0xC3,
+        0x2F, 0x63, 0x07, 0x84, 0x90, 0xF0, 0x0E, 0xF8,
+        0xD6, 0x47, 0xD1, 0x48, 0xD4, 0x79, 0x54, 0x51,
+        0x5E, 0x23, 0x27, 0xCF, 0xEF, 0x98, 0xC5, 0x82,
+        0x66, 0x4B, 0x4C, 0x0F, 0x6C, 0xC4, 0x16, 0x59
+    };
+
+    static const unsigned char bin_q_valid[] = {
+        0x8C, 0xF8, 0x36, 0x42, 0xA7, 0x09, 0xA0, 0x97,
+        0xB4, 0x47, 0x99, 0x76, 0x40, 0x12, 0x9D, 0xA2,
+        0x99, 0xB1, 0xA4, 0x7D, 0x1E, 0xB3, 0x75, 0x0B,
+        0xA3, 0x08, 0xB0, 0xFE, 0x64, 0xF5, 0xFB, 0xD3
+    };
+    static const unsigned char bin_local_pub[] = {
+        0x79, 0x6e, 0x15, 0x43, 0x14, 0x70, 0xac, 0x86,
+        0xfa, 0x8a, 0x78, 0xb8, 0xbc, 0xdd, 0x1f, 0x35,
+        0x89, 0xdb, 0xf1, 0x5f, 0xfe, 0x0e, 0x0a, 0x7a,
+        0x41, 0xdd, 0x86, 0x40, 0x88, 0x7f, 0x3c, 0xc3,
+        0xf0, 0x43, 0x9e, 0x28, 0x1f, 0x4c, 0xf3, 0x80,
+        0x0b, 0xac, 0x2d, 0xbd, 0xfc, 0xda, 0x58, 0x9b,
+        0x26, 0xcc, 0x82, 0x85, 0x12, 0x08, 0x5c, 0xe0,
+        0xd3, 0xe5, 0x7a, 0xa1, 0x3c, 0xd9, 0xe7, 0xa4,
+        0x66, 0xd8, 0x81, 0xba, 0xce, 0x91, 0xed, 0x10,
+        0xc6, 0x06, 0x4a, 0xb3, 0x6e, 0x0d, 0x66, 0x36,
+        0x7c, 0x4b, 0xfe, 0xd5, 0x6a, 0x9f, 0x90, 0x7e,
+        0x4d, 0xae, 0xc1, 0x67, 0x32, 0xfb, 0x5c, 0x54,
+        0x89, 0x1c, 0xb0, 0xd2, 0x62, 0x51, 0xfd, 0x61,
+        0xc3, 0x20, 0x40, 0x77, 0x42, 0x46, 0xb3, 0xf8,
+        0xbd, 0xcd, 0x5e, 0xf6, 0x0e, 0x68, 0x47, 0xcd,
+        0xd6, 0x9b, 0xd6, 0xd3, 0x18, 0xd1, 0xcd, 0xa0,
+        0xe8, 0xa3, 0x0a, 0x71, 0x6d, 0xe4, 0xdc, 0x1a,
+        0x4e, 0xb9, 0x9b, 0x06, 0x86, 0xb7, 0x71, 0x20,
+        0xc4, 0xb6, 0x9b, 0x00, 0x05, 0xf6, 0xa8, 0xc3,
+        0xae, 0x76, 0x8d, 0x23, 0xc0, 0x8c, 0x85, 0xbd,
+        0x1d, 0x58, 0xf4, 0x0d, 0xc0, 0x13, 0x8d, 0x62,
+        0x77, 0x43, 0x61, 0x37, 0xae, 0x69, 0x77, 0x9f,
+        0xdc, 0x21, 0x8c, 0x07, 0x1c, 0x14, 0x82, 0x6f,
+        0x47, 0x15, 0x62, 0x03, 0x3e, 0x85, 0xff, 0xc9,
+        0x9a, 0x21, 0x47, 0xd5, 0x39, 0xe2, 0x74, 0x13,
+        0x6a, 0x4a, 0x1e, 0x7f, 0x1d, 0xb9, 0x75, 0x83,
+        0xb5, 0x1d, 0xc0, 0x38, 0x5a, 0x52, 0xd7, 0x38,
+        0x39, 0x63, 0x75, 0x8d, 0x89, 0x33, 0x98, 0xa8,
+        0xd0, 0x13, 0xfd, 0xba, 0xd2, 0x0d, 0xdf, 0x30,
+        0xfb, 0xe0, 0x5f, 0xbb, 0x22, 0x49, 0x91, 0x3a,
+        0xe6, 0x75, 0x1b, 0x6b, 0x24, 0x6a, 0xe5, 0x62,
+        0x2b, 0xa2, 0x6c, 0x48, 0x27, 0x41, 0x7c, 0x2d
+    };
+    static const unsigned char bin_local_priv[] = {
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        0x99, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66,
+        0x77, 0x88, 0x99, 0x00, 0x11, 0x22, 0x33, 0x44,
+        0x55, 0x66, 0x77, 0x88, 0x99, 0x00, 0x11, 0x22
+    };
+
+    /* Remote malicious parameters */
+    static const unsigned char bin_remote_q[] = { 0x09, 0xf5 };
+    static const unsigned char bin_remote_pub[] = {
+        0x54, 0xc0, 0x57, 0x90, 0x3d, 0x36, 0x22, 0x35,
+        0xa6, 0x5c, 0x03, 0xf0, 0x01, 0xd8, 0xa3, 0xea,
+        0x25, 0x28, 0x36, 0xb3, 0x58, 0x02, 0x50, 0xab,
+        0xdc, 0x0a, 0x10, 0x83, 0x45, 0x1a, 0xf0, 0x12,
+        0x6f, 0xd1, 0x50, 0xf9, 0xe8, 0xd2, 0x12, 0xb3,
+        0x84, 0xae, 0x0c, 0x23, 0xaa, 0x7c, 0x67, 0xfe,
+        0x85, 0x13, 0x68, 0x11, 0x4c, 0xcc, 0x06, 0x1a,
+        0x66, 0x1e, 0x98, 0x6b, 0xd7, 0xe6, 0x3d, 0x25,
+        0x75, 0x13, 0x33, 0x9a, 0x69, 0x14, 0xcb, 0xfa,
+        0xb2, 0x09, 0xad, 0x79, 0x3e, 0xf2, 0x57, 0x04,
+        0xcd, 0x53, 0x2d, 0xdf, 0xb7, 0xe6, 0x93, 0xde,
+        0x70, 0x1d, 0x17, 0xe6, 0x29, 0xef, 0x3c, 0x18,
+        0x4d, 0x40, 0xd5, 0xfe, 0xa1, 0xf9, 0xed, 0xb8,
+        0x9c, 0x5b, 0xf8, 0xd7, 0xaa, 0x19, 0xe3, 0x37,
+        0x4f, 0x80, 0x59, 0x32, 0x15, 0x9c, 0xa7, 0xb5,
+        0xd5, 0x73, 0xb9, 0xe2, 0xf3, 0xc9, 0x4f, 0xe7,
+        0x47, 0xc4, 0xa3, 0xb0, 0x9e, 0x31, 0xaf, 0xa3,
+        0x78, 0x8d, 0x35, 0x83, 0x3a, 0xaf, 0x2a, 0xc8,
+        0xae, 0x8b, 0xc4, 0x85, 0x00, 0x13, 0x14, 0x64,
+        0xe7, 0x93, 0xa2, 0xe0, 0x35, 0x2e, 0x7c, 0x3e,
+        0xd9, 0xda, 0x9f, 0xcf, 0x89, 0xb1, 0x21, 0xbc,
+        0x1c, 0xee, 0x83, 0xc5, 0x44, 0x21, 0x4c, 0xeb,
+        0x33, 0x38, 0xb1, 0x4a, 0xc6, 0x89, 0x19, 0x68,
+        0x35, 0x17, 0x46, 0xea, 0xf6, 0x2b, 0xb5, 0x17,
+        0xeb, 0x98, 0xfc, 0x63, 0x3d, 0x8d, 0x23, 0x5b,
+        0xac, 0x37, 0xbc, 0x08, 0xe4, 0x7f, 0x18, 0x51,
+        0xd0, 0x55, 0x01, 0x94, 0x9a, 0x67, 0x33, 0x96,
+        0x5a, 0xdb, 0xfe, 0x8e, 0x43, 0xf7, 0xc3, 0xb9,
+        0x3c, 0xa7, 0x51, 0x5c, 0xd6, 0xab, 0x36, 0xd7,
+        0xef, 0x26, 0xbb, 0x0f, 0xd6, 0x03, 0x3a, 0xbc,
+        0x39, 0x61, 0x3e, 0x88, 0x0f, 0xff, 0xc8, 0x72,
+        0x9b, 0x03, 0xbf, 0xea, 0xdd, 0xf0, 0x88, 0x33
+    };
+
+    if (!TEST_ptr(p = BN_bin2bn(bin_p, sizeof(bin_p), NULL))
+        || !TEST_ptr(g = BN_bin2bn(bin_g, sizeof(bin_g), NULL)))
+        goto err;
+
+    if (!TEST_ptr(q_valid = BN_bin2bn(bin_q_valid, sizeof(bin_q_valid), NULL))
+        || !TEST_ptr(pub_local
+            = BN_bin2bn(bin_local_pub, sizeof(bin_local_pub), NULL))
+        || !TEST_true(priv_local
+            = BN_bin2bn(bin_local_priv, sizeof(bin_local_priv), NULL)))
+        goto err;
+
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q_valid))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, pub_local))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, priv_local))
+        || !TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "DHX", testpropq))
+        || !TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
+        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &local_key, EVP_PKEY_KEYPAIR, params), 0))
+        goto err;
+
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    EVP_PKEY_CTX_free(pctx);
+    params = NULL;
+    bld = NULL;
+    pctx = NULL;
+
+    if (!TEST_ptr(q_bad = BN_bin2bn(bin_remote_q, sizeof(bin_remote_q), NULL))
+        || !TEST_ptr(pub_bad
+            = BN_bin2bn(bin_remote_pub, sizeof(bin_remote_pub), NULL)))
+        goto err;
+
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q_bad))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, pub_bad))
+        || !TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "DHX", testpropq))
+        || !TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
+        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &remote_key, EVP_PKEY_PUBLIC_KEY, params), 0))
+        goto err;
+
+    if (!TEST_ptr(derive_ctx = EVP_PKEY_CTX_new(local_key, NULL))
+        || !TEST_int_gt(EVP_PKEY_derive_init(derive_ctx), 0))
+        goto err;
+
+    /* reject the remote key share, even if it is self-consistent, correct
+     * code needs to use local q, not remote-provided q. */
+    if (!TEST_int_le(EVP_PKEY_derive_set_peer(derive_ctx, remote_key), 0)) {
+        TEST_error("EVP_PKEY_derive_set_peer incorrectly accepted a peer with malicious 'q'");
+        goto err;
+    }
+
+    ret = 1;
+
+err:
+    BN_free(p);
+    BN_free(g);
+    BN_free(q_valid);
+    BN_free(pub_local);
+    BN_free(priv_local);
+    BN_free(q_bad);
+    BN_free(pub_bad);
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    EVP_PKEY_CTX_free(pctx);
+    EVP_PKEY_CTX_free(derive_ctx);
+    EVP_PKEY_free(local_key);
+    EVP_PKEY_free(remote_key);
+    return ret;
+}
 #endif /* !OPENSSL_NO_DH */
 
 /*
@@ -5678,6 +5992,11 @@ static const AEAD_ONESHOT_CFG aead_oneshot_cfgs[] = {
     { "ChaCha20-Poly1305", 32, 12, 16, 0 }
 };
 
+static const AEAD_ONESHOT_CFG aead_oneshot_zerolen_cfgs[] = {
+    { "AES-128-OCB", 16, 12, 16, 0 },
+    { "ChaCha20-Poly1305", 32, 12, 16, 0 },
+};
+
 /*
  * Drive an encrypt or decrypt operation.  AAD always via EVP_CipherUpdate.
  * Body via EVP_Cipher() when oneshot_body is non-zero, EVP_CipherUpdate
@@ -5898,6 +6217,302 @@ end:
     return ok;
 }
 
+static EVP_CIPHER_CTX *aead_oneshot_zerolen_ctx(const EVP_CIPHER *cipher,
+    int enc, const unsigned char *key, const unsigned char *iv,
+    const unsigned char *aad, size_t aad_len,
+    const unsigned char *tag, size_t tag_len)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+    int outl = 0;
+
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+        || !TEST_true(EVP_CipherInit_ex2(ctx, cipher, key, iv, enc, NULL))
+        || (aad_len > 0
+            && !TEST_true(EVP_CipherUpdate(ctx, NULL, &outl, aad,
+                (int)aad_len)))
+        || (!enc
+            && !TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                                (int)tag_len, (void *)tag),
+                0))) {
+        EVP_CIPHER_CTX_free(ctx);
+        return NULL;
+    }
+    return ctx;
+}
+
+/*
+ * For these built-in provider implementations, a NULL-input EVP_Cipher() call
+ * must produce or check the empty-message tag even when no payload Update was
+ * made.
+ */
+static int test_aead_oneshot_zerolen(int idx)
+{
+    static const unsigned char key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    static const unsigned char iv[12] = {
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+        0xa8, 0xa9, 0xaa, 0xab
+    };
+    static const unsigned char aad[] = "empty message context";
+    const AEAD_ONESHOT_CFG *cfg = &aead_oneshot_zerolen_cfgs[idx / 2];
+    int with_aad = idx % 2;
+    size_t aad_len = with_aad ? sizeof(aad) - 1 : 0;
+    EVP_CIPHER *cipher = NULL;
+    EVP_CIPHER_CTX *ctx_oracle = NULL, *ctx_oneshot = NULL;
+    EVP_CIPHER_CTX *ctx_dec = NULL, *ctx_dec_bad = NULL;
+    static const unsigned char empty = 0;
+    unsigned char out[16] = { 0 };
+    unsigned char tag_oracle[16] = { 0 };
+    unsigned char tag_oneshot[16] = { 0 };
+    unsigned char tag_bad[16] = { 0 };
+    int outl = 0, ret = 0;
+
+    ERR_set_mark();
+    cipher = EVP_CIPHER_fetch(testctx, cfg->name, testpropq);
+    ERR_pop_to_mark();
+    if (cipher == NULL)
+        return TEST_skip("'%s' is not available", cfg->name);
+
+    /*
+     * The explicit zero-length Update provides an oracle that also works on
+     * the unpatched GCM-SIV implementation, whose empty Final cannot generate
+     * a tag.
+     */
+    ctx_oracle = aead_oneshot_zerolen_ctx(cipher, 1, key, iv, aad, aad_len,
+        NULL, cfg->taglen);
+    if (!TEST_ptr(ctx_oracle)
+        || !TEST_true(EVP_EncryptUpdate(ctx_oracle, out, &outl, &empty, 0))
+        || !TEST_true(EVP_EncryptFinal_ex(ctx_oracle, out, &outl))
+        || !TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx_oracle, EVP_CTRL_AEAD_GET_TAG,
+                            (int)cfg->taglen, tag_oracle),
+            0))
+        goto end;
+
+    ctx_dec = aead_oneshot_zerolen_ctx(cipher, 0, key, iv, aad, aad_len,
+        tag_oracle, cfg->taglen);
+    if (!TEST_ptr(ctx_dec)
+        || !TEST_int_ge(EVP_Cipher(ctx_dec, out, NULL, 0), 0))
+        goto end;
+
+    memcpy(tag_bad, tag_oracle, cfg->taglen);
+    tag_bad[0] ^= 1;
+    ctx_dec_bad = aead_oneshot_zerolen_ctx(cipher, 0, key, iv, aad, aad_len,
+        tag_bad, cfg->taglen);
+    if (!TEST_ptr(ctx_dec_bad)
+        || !TEST_int_lt(EVP_Cipher(ctx_dec_bad, out, NULL, 0), 0))
+        goto end;
+
+    ctx_oneshot = aead_oneshot_zerolen_ctx(cipher, 1, key, iv, aad, aad_len,
+        NULL, cfg->taglen);
+    if (!TEST_ptr(ctx_oneshot)
+        || !TEST_int_ge(EVP_Cipher(ctx_oneshot, out, NULL, 0), 0)
+        || !TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx_oneshot, EVP_CTRL_AEAD_GET_TAG,
+                            (int)cfg->taglen, tag_oneshot),
+            0)
+        || !TEST_mem_eq(tag_oneshot, cfg->taglen,
+            tag_oracle, cfg->taglen))
+        goto end;
+
+    ret = 1;
+end:
+    if (!ret)
+        TEST_info("zero-length %s test failed (%s)", cfg->name,
+            with_aad ? "with AAD" : "no AAD");
+    EVP_CIPHER_CTX_free(ctx_oracle);
+    EVP_CIPHER_CTX_free(ctx_oneshot);
+    EVP_CIPHER_CTX_free(ctx_dec);
+    EVP_CIPHER_CTX_free(ctx_dec_bad);
+    EVP_CIPHER_free(cipher);
+    return ret;
+}
+
+static const AEAD_ONESHOT_CFG ccm_empty_final_cfgs[] = {
+    { "AES-128-CCM", 16, 12, 16, 1 },
+    { "AES-192-CCM", 24, 12, 16, 1 },
+    { "AES-256-CCM", 32, 12, 16, 1 },
+    { "ARIA-128-CCM", 16, 12, 16, 1 },
+    { "ARIA-192-CCM", 24, 12, 16, 1 },
+    { "ARIA-256-CCM", 32, 12, 16, 1 },
+    { "SM4-CCM", 16, 12, 16, 1 }
+};
+
+/*
+ * Finalize CCM after declaring an empty payload and supplying AAD, without a
+ * payload Update. Return one for authentication success, zero for an
+ * authentication failure, and minus one for any other failure.
+ */
+static int ccm_empty_final_op(const AEAD_ONESHOT_CFG *cfg, int enc,
+    int oneshot_final, const unsigned char *key, const unsigned char *iv,
+    const unsigned char *aad, size_t aad_len, unsigned char *tag,
+    const char **why)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+    EVP_CIPHER *cipher = NULL;
+    unsigned char out[1] = { 0 };
+    int outl = 0, rv;
+    int ret = -1;
+
+    *why = NULL;
+
+    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(testctx, cfg->name, testpropq))) {
+        *why = "CIPHER_FETCH";
+        goto end;
+    }
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())) {
+        *why = "CTX_NEW";
+        goto end;
+    }
+    if (!TEST_true(EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, enc))) {
+        *why = "INIT_CIPHER";
+        goto end;
+    }
+    if (!TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                         (int)cfg->ivlen, NULL),
+            0)) {
+        *why = "SET_IVLEN";
+        goto end;
+    }
+    if (!TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                         (int)cfg->taglen, enc ? NULL : tag),
+            0)) {
+        *why = "SET_TAG";
+        goto end;
+    }
+    if (!TEST_true(EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc))) {
+        *why = "INIT_KEY_IV";
+        goto end;
+    }
+    if (!TEST_true(EVP_CipherUpdate(ctx, NULL, &outl, NULL, 0))) {
+        *why = "LENGTH";
+        goto end;
+    }
+    if (!TEST_true(EVP_CipherUpdate(ctx, NULL, &outl, aad, (int)aad_len))) {
+        *why = "AAD";
+        goto end;
+    }
+
+    if (oneshot_final) {
+        rv = EVP_Cipher(ctx, out, NULL, 0);
+        ret = rv >= 0;
+        if (ret && rv != 0) {
+            *why = "ONESHOT_FINAL_LENGTH";
+            ret = -1;
+            goto end;
+        }
+    } else {
+        ret = EVP_CipherFinal_ex(ctx, out, &outl) > 0;
+        if (ret && outl != 0) {
+            *why = "STREAM_FINAL_LENGTH";
+            ret = -1;
+            goto end;
+        }
+    }
+
+    if (ret && enc
+        && !TEST_int_gt(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+                            (int)cfg->taglen, tag),
+            0)) {
+        *why = "GET_TAG";
+        ret = -1;
+    }
+
+end:
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_free(cipher);
+    return ret;
+}
+
+static int test_ccm_empty_final(int idx)
+{
+    static const unsigned char fixed_key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    static const unsigned char fixed_iv[12] = {
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5,
+        0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab
+    };
+    static const unsigned char fixed_aad[] = "CCM empty-payload Final regression";
+    const AEAD_ONESHOT_CFG *cfg = &ccm_empty_final_cfgs[idx];
+    EVP_CIPHER *probe = NULL;
+    unsigned char tag_stream[16], tag_oneshot[16], bad_tag[16];
+    const char *why = NULL;
+    int rv, ok = 0;
+
+    ERR_set_mark();
+    probe = EVP_CIPHER_fetch(testctx, cfg->name, testpropq);
+    ERR_pop_to_mark();
+    if (probe == NULL) {
+        TEST_info("skipping, '%s' is not available", cfg->name);
+        return 1;
+    }
+    EVP_CIPHER_free(probe);
+
+    memset(tag_stream, 0, sizeof(tag_stream));
+    rv = ccm_empty_final_op(cfg, 1, 0, fixed_key, fixed_iv, fixed_aad,
+        sizeof(fixed_aad) - 1, tag_stream, &why);
+    if (!TEST_int_eq(rv, 1)) {
+        TEST_error("%s: streaming encryption failed at %s",
+            cfg->name, why ? why : "FINAL");
+        goto end;
+    }
+
+    memset(tag_oneshot, 0, sizeof(tag_oneshot));
+    rv = ccm_empty_final_op(cfg, 1, 1, fixed_key, fixed_iv, fixed_aad,
+        sizeof(fixed_aad) - 1, tag_oneshot, &why);
+    if (!TEST_int_eq(rv, 1)) {
+        TEST_error("%s: one-shot encryption failed at %s",
+            cfg->name, why ? why : "FINAL");
+        goto end;
+    }
+    if (!TEST_mem_eq(tag_stream, cfg->taglen, tag_oneshot, cfg->taglen)) {
+        TEST_error("%s: streaming and one-shot tags differ", cfg->name);
+        goto end;
+    }
+
+    rv = ccm_empty_final_op(cfg, 0, 0, fixed_key, fixed_iv, fixed_aad,
+        sizeof(fixed_aad) - 1, tag_stream, &why);
+    if (!TEST_int_eq(rv, 1)) {
+        TEST_error("%s: streaming verification failed at %s",
+            cfg->name, why ? why : "FINAL");
+        goto end;
+    }
+    rv = ccm_empty_final_op(cfg, 0, 1, fixed_key, fixed_iv, fixed_aad,
+        sizeof(fixed_aad) - 1, tag_stream, &why);
+    if (!TEST_int_eq(rv, 1)) {
+        TEST_error("%s: one-shot verification failed at %s",
+            cfg->name, why ? why : "FINAL");
+        goto end;
+    }
+
+    memcpy(bad_tag, tag_stream, cfg->taglen);
+    bad_tag[0] ^= 1;
+    rv = ccm_empty_final_op(cfg, 0, 0, fixed_key, fixed_iv, fixed_aad,
+        sizeof(fixed_aad) - 1, bad_tag, &why);
+    if (!TEST_int_eq(rv, 0)) {
+        TEST_error("%s: streaming Final accepted an invalid tag", cfg->name);
+        goto end;
+    }
+    ERR_clear_error();
+    rv = ccm_empty_final_op(cfg, 0, 1, fixed_key, fixed_iv, fixed_aad,
+        sizeof(fixed_aad) - 1, bad_tag, &why);
+    if (!TEST_int_eq(rv, 0)) {
+        TEST_error("%s: one-shot Final accepted an invalid tag", cfg->name);
+        goto end;
+    }
+    ERR_clear_error();
+
+    ok = 1;
+end:
+    return ok;
+}
+
 #ifndef OPENSSL_NO_DES
 static int test_EVP_CIPHER_get_type_des_ede3(void)
 {
@@ -6064,6 +6679,7 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_TEST(test_EVP_PKEY_set1_DH);
 #endif
+    ADD_TEST(test_dhx_derive_rejects_bad_peer_q);
 #endif
 #ifndef OPENSSL_NO_EC
     ADD_TEST(test_EC_priv_pub);
@@ -6133,6 +6749,9 @@ int setup_tests(void)
 #endif
 
     ADD_ALL_TESTS(test_aead_oneshot_roundtrip, 2 * OSSL_NELEM(aead_oneshot_cfgs));
+    ADD_ALL_TESTS(test_aead_oneshot_zerolen,
+        2 * OSSL_NELEM(aead_oneshot_zerolen_cfgs));
+    ADD_ALL_TESTS(test_ccm_empty_final, OSSL_NELEM(ccm_empty_final_cfgs));
 
     /* Test case for CVE-2026-45446 */
     ADD_TEST(test_aes_siv_ctx_reuse);
