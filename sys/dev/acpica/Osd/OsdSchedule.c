@@ -94,6 +94,11 @@ static int			acpi_taskq_started;
 static void
 acpi_task_init(void *arg)
 {
+    if (acpi_max_tasks < 0) {
+	acpi_max_tasks = ACPI_MAX_TASKS;
+	printf("ACPI: Negative number of tasks, defaulting to %d.\n",
+	       acpi_max_tasks);
+    }
 
     acpi_tasks = malloc(sizeof(*acpi_tasks) * acpi_max_tasks, M_ACPITASK,
 	M_WAITOK | M_ZERO);
@@ -111,7 +116,12 @@ acpi_taskq_init(void *arg)
 
     acpi_taskq = taskqueue_create_fast("acpi_task", M_WAITOK,
 	&taskqueue_thread_enqueue, &acpi_taskq);
+
+    if (acpi_max_threads < 1)
+	acpi_max_threads = 1;
+
     taskqueue_start_threads(&acpi_taskq, acpi_max_threads, PWAIT, "acpi_task");
+
     if (acpi_task_count > 0) {
 	if (bootverbose)
 	    printf("AcpiOsExecute: enqueue %d pending tasks\n",
