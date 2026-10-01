@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -143,6 +143,20 @@ int CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void))
         result = InterlockedCompareExchange(lock, ONCE_ININIT, ONCE_UNINITED);
         if (result == ONCE_UNINITED) {
             init();
+            /*
+             * On weakly ordered systems, it may happen that the write to *lock
+             * below completes prior to some writes in whatever the init()
+             * callback routine above may do.  In this case, other threads
+             * entering here may see unsynchronized data in whatever the init
+             * routine initializes, leading to erroneous behavior.
+             *
+             * We should use InitOnceExecuteOnce here to implement this, but
+             * doing so requires that we modify the definition of the
+             * CRYPTO_ONCE type, which is an ABI breakage.  So instead
+             * just insert a memory barrier here to ensure that any pending
+             * writes are flushed to memory prior to setting ONCE_DONE below
+             */
+            MemoryBarrier();
             *lock = ONCE_DONE;
             return 1;
         }

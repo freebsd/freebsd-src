@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -139,6 +139,17 @@ static ossl_inline uint64_t constant_time_lt_64(uint64_t a, uint64_t b)
 }
 
 #ifdef BN_ULONG
+static ossl_inline BN_ULONG value_barrier_bn(BN_ULONG a)
+{
+#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
+    BN_ULONG r;
+    __asm__("" : "=r"(r) : "0"(a));
+#else
+    volatile BN_ULONG r = a;
+#endif
+    return r;
+}
+
 static ossl_inline BN_ULONG constant_time_msb_bn(BN_ULONG a)
 {
     return 0 - (a >> (sizeof(a) * 8 - 1));
