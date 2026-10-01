@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -2539,6 +2539,14 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL *s, PACKET *pkt)
 
     if (SSL_IS_TLS13(s)) {
         PACKET extpkt;
+
+        /*
+         * Fulfilling RFC8446:4.6.1 requirement: Clients MUST NOT cache
+         * tickets for longer than 7 days.
+         */
+        if (ticket_lifetime_hint > 604800) {
+            ticket_lifetime_hint = 604800;
+        }
 
         if (!PACKET_as_length_prefixed_2(pkt, &extpkt)
             || PACKET_remaining(pkt) != 0) {

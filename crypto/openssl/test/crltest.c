@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,34 @@
 #include <openssl/x509.h>
 
 #include "testutil.h"
+
+static const char *kRoot[] = {
+    "-----BEGIN CERTIFICATE-----\n",
+    "MIIEFjCCAv6gAwIBAgIUQR1kHB+/IzJcfAT/HHVPp+wPmxwwDQYJKoZIhvcNAQEL\n",
+    "BQAwgZAxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQH\n",
+    "DA1TYW4gRnJhbmNpc2NvMRUwEwYDVQQKDAxFeGFtcGxlIENvcnAxHjAcBgNVBAsM\n",
+    "FUNlcnRpZmljYXRlIEF1dGhvcml0eTEdMBsGA1UEAwwURXhhbXBsZSBDb3JwIFJv\n",
+    "b3QgQ0EwHhcNMjYwMzEwMTEzMDUzWhcNMzYwMzA3MTEzMDUzWjCBkDELMAkGA1UE\n",
+    "BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDVNhbiBGcmFuY2lz\n",
+    "Y28xFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEeMBwGA1UECwwVQ2VydGlmaWNhdGUg\n",
+    "QXV0aG9yaXR5MR0wGwYDVQQDDBRFeGFtcGxlIENvcnAgUm9vdCBDQTCCASIwDQYJ\n",
+    "KoZIhvcNAQEBBQADggEPADCCAQoCggEBALm21ITU+2o6ZHWukCyBw9H270fSABYT\n",
+    "rl8lhPCcTXynW9tBeHAaV50WMiOxBl+thfv1fGS3t8BbyjEjP3I5LAkBS9dTUI7F\n",
+    "PSQnngBgKvKrpsnsiJXVhNOISm6GfT/EXj1NWKLXR3MXGIGfiVud5ln9CQxzaq3e\n",
+    "TzW8X8zsdv6WGaeRIBm48QYe8TkK/TDmvoYZ7fD9lPMk3AUoNasZfuPeGpzh1cBR\n",
+    "bfvOYEHJQ31+GFzrJFldqoaq/k0If/khwVgjOdmF+R25OCF0jsrMjmZ42Qr2cNrd\n",
+    "VYEIjQL2R1grCVCGaIagzQuyN0Qvvl5BXsHKI51TpDQlq9SFkCOvRckCAwEAAaNm\n",
+    "MGQwHQYDVR0OBBYEFP4UDhMbCWfLSg1L2k/z75C1Q9szMB8GA1UdIwQYMBaAFP4U\n",
+    "DhMbCWfLSg1L2k/z75C1Q9szMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/\n",
+    "BAQDAgEGMA0GCSqGSIb3DQEBCwUAA4IBAQBcYi8b4tetG18ElSqF/CJkjm93xS6k\n",
+    "tk4jia0k+79FSAvy/TlcarBAe3PwlLA7GcLYDUmmM7GCiEMf91+c6dOmKkIdbw1B\n",
+    "FILQBnghZ9s+xl0+n1P0775dDWc0msXhXci/wcRK3HFqxEOXQUkDYZwrq1gXBESr\n",
+    "6yjpYe2RFKQUdnW+yrMlY1QyGNhelV7//BbSG8fD1esU7VaBE0wF/b8Ly2ykK5QE\n",
+    "d6XUwqTT6sIlcyxVGUgEMVj7kSZUQJ2LS/ze/r+a1FeC2I0UljD78UB+I40FafZe\n",
+    "pLLvkABIXRqtOiZ5YkdEK3Z4xI0yqSZC3og4jHsoCrfWbXasRieYR7dT\n",
+    "-----END CERTIFICATE-----\n",
+    NULL
+};
 
 #define PARAM_TIME 1474934400 /* Sep 27th, 2016 */
 
@@ -243,6 +271,52 @@ static X509 *X509_from_strings(const char **pem)
     BIO_free(b);
     return x;
 }
+
+/*
+ * A well-formed CRL issued by kRoot (sha256WithRSAEncryption, inner and
+ * outer signatureAlgorithm identical), used as the positive test case in
+ * test_crl_sigalg_mismatch.
+ */
+static const char *kCrlRootCA[] = {
+    "-----BEGIN X509 CRL-----\n",
+    "MIIB2jCBwwIBATANBgkqhkiG9w0BAQsFADCBkDELMAkGA1UEBhMCVVMxEzARBgNV\n",
+    "BAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDVNhbiBGcmFuY2lzY28xFTATBgNVBAoM\n",
+    "DEV4YW1wbGUgQ29ycDEeMBwGA1UECwwVQ2VydGlmaWNhdGUgQXV0aG9yaXR5MR0w\n",
+    "GwYDVQQDDBRFeGFtcGxlIENvcnAgUm9vdCBDQRcNMjYwMTAxMDAwMDAwWhcNMjcw\n",
+    "MTAxMDAwMDAwWjANBgkqhkiG9w0BAQsFAAOCAQEAjLDGYBswRZpuaRh9qVXrP4i0\n",
+    "wttPikYZkkUk07/KU1zN6pS21Dqx1sEofrkqwRnKXq/hsoCz3sd7QFIv30v2iZwM\n",
+    "ioaksAjcGnaLqe8vuKVtIyiOpDSJR89l84BZr2I9+6osTYnPgroMHQ/7OUt+PKdE\n",
+    "1VAkA137tLMRw2qGPELdCyHA7LXr0gI6jeyLPLtb1blQrMzznp3y/trNWa+DKq6h\n",
+    "SflQrixmLeXTMBD/DDUd8Kj9HHmejbJNAsgaNHv9mtIhUVEspRM0020b3AeJyfTP\n",
+    "3oN/y4fgQ8q5v9i8lDbe8moCo+W0rS4ksWvB6SuYYj/NkUE4EtoIreSVtcz8JA==\n",
+    "-----END X509 CRL-----\n",
+    NULL
+};
+
+/*
+ * kCrlMismatchedSigAlg is issued by kRoot with a deliberately inconsistent
+ * pair of signatureAlgorithm fields: the inner (signed) copy inside
+ * TBSCertList claims ecdsaWithSHA256, while the outer wrapper carries
+ * sha256WithRSAEncryption -- and the actual signature is a valid RSA-SHA256
+ * signature over that TBSCertList.  Without the inner/outer comparison,
+ * X509_CRL_verify() would accept this CRL because the RSA signature checks
+ * out.  RFC 5280 section 5.1.1.2 requires the two fields to be identical.
+ */
+static const char *kCrlMismatchedSigAlg[] = {
+    "-----BEGIN X509 CRL-----\n",
+    "MIIB1zCBwAIBATAKBggqhkjOPQQDAjCBkDELMAkGA1UEBhMCVVMxEzARBgNVBAgM\n",
+    "CkNhbGlmb3JuaWExFjAUBgNVBAcMDVNhbiBGcmFuY2lzY28xFTATBgNVBAoMDEV4\n",
+    "YW1wbGUgQ29ycDEeMBwGA1UECwwVQ2VydGlmaWNhdGUgQXV0aG9yaXR5MR0wGwYD\n",
+    "VQQDDBRFeGFtcGxlIENvcnAgUm9vdCBDQRcNMjYwMTAxMDAwMDAwWhcNMjcwMTAx\n",
+    "MDAwMDAwWjANBgkqhkiG9w0BAQsFAAOCAQEAcle5SUuN1XIx5amjddTqDPyEm9pP\n",
+    "sNeBwR+TQi19pWHtQ5anr6PBIAxHC5uxhVpZDScZu0TlodWigo+1bfAJRyrIm/6+\n",
+    "AbmAyNC4txpNsOHgCFGW7q9T8OutaOhUw+jC6i3bxUQZ64L1sXuy2nZMzU19+Aro\n",
+    "TxSWYkIJg65SKwM/8ggyd5G7TXkv7w19+W/7Y9JV0c+kPueUZSgEGUG/GJF/Nrrc\n",
+    "TRfvqz7Qs9H9+hUiQl5K7tF9gj6aU3p1s1IZKR2x0lv4wDRUUgIjrvRzfQSGjhgf\n",
+    "6rBILI3EIxPN/PoZ3mHLYkhH5IyNj9R2GlMle52isNdW8BiNlePLx0/Jzg==\n",
+    "-----END X509 CRL-----\n",
+    NULL
+};
 
 /*
  * Verify |leaf| certificate (chained up to |root|).  |crls| if
@@ -496,6 +570,53 @@ err:
     return status == X509_V_OK;
 }
 
+/*
+ * Check that X509_CRL_verify() rejects a CRL where the outer
+ * signatureAlgorithm does not match the inner copy inside TBSCertList.
+ * RFC 5280 section 5.1.1.2 requires the two to be identical; X509_verify()
+ * and X509_ACERT_verify() enforce this, and so must X509_CRL_verify().
+ *
+ * Both CRLs are issued by kRoot (RSA-2048).  kCrlMismatchedSigAlg carries a
+ * valid RSA-SHA256 signature over a TBSCertList whose inner signatureAlgorithm
+ * claims ecdsaWithSHA256, while the outer wrapper carries the correct
+ * sha256WithRSAEncryption.  Without the inner/outer comparison the signature
+ * would verify and the CRL would be accepted.
+ */
+static int test_crl_sigalg_mismatch(void)
+{
+    X509 *root = X509_from_strings(kRoot);
+    X509_CRL *good = CRL_from_strings(kCrlRootCA);
+    X509_CRL *bad = CRL_from_strings(kCrlMismatchedSigAlg);
+    EVP_PKEY *pkey = NULL;
+    int ret = 0;
+
+    if (!TEST_ptr(root) || !TEST_ptr(good) || !TEST_ptr(bad))
+        goto end;
+
+    pkey = X509_get0_pubkey(root);
+    if (!TEST_ptr(pkey))
+        goto end;
+
+    /* Well-formed CRL: inner and outer algorithms match; verify succeeds. */
+    if (!TEST_int_eq(X509_CRL_verify(good, pkey), 1))
+        goto end;
+
+    /*
+     * Mismatched CRL: inner signatureAlgorithm is ecdsaWithSHA256, outer is
+     * sha256WithRSAEncryption, RSA signature is valid.  X509_ALGOR_cmp()
+     * must catch the mismatch before the signature is checked.
+     */
+    if (!TEST_int_eq(X509_CRL_verify(bad, pkey), 0))
+        goto end;
+
+    ret = 1;
+end:
+    X509_CRL_free(good);
+    X509_CRL_free(bad);
+    X509_free(root);
+    return ret;
+}
+
 int setup_tests(void)
 {
     if (!TEST_ptr(test_root = X509_from_strings(kCRLTestRoot))
@@ -509,6 +630,8 @@ int setup_tests(void)
     ADD_TEST(test_get_crl_fn_score);
     ADD_ALL_TESTS(test_unknown_critical_crl, OSSL_NELEM(unknown_critical_crls));
     ADD_ALL_TESTS(test_reuse_crl, 6);
+    ADD_TEST(test_crl_sigalg_mismatch);
+
     return 1;
 }
 
