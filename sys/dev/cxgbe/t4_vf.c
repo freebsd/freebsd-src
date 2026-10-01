@@ -160,8 +160,12 @@ static struct cdevsw t4vf_cdevsw = {
 static int
 t4vf_probe(device_t dev)
 {
-	uint16_t d;
+	uint16_t d, v;
 	size_t i;
+
+	v = pci_get_vendor(dev);
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
 
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t4vf_pciids); i++) {
@@ -176,8 +180,12 @@ t4vf_probe(device_t dev)
 static int
 t5vf_probe(device_t dev)
 {
-	uint16_t d;
+	uint16_t d, v;
 	size_t i;
+
+	v = pci_get_vendor(dev);
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
 
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t5vf_pciids); i++) {
@@ -192,8 +200,12 @@ t5vf_probe(device_t dev)
 static int
 t6vf_probe(device_t dev)
 {
-	uint16_t d;
+	uint16_t d, v;
 	size_t i;
+
+	v = pci_get_vendor(dev);
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
 
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t6vf_pciids); i++) {
@@ -208,8 +220,12 @@ t6vf_probe(device_t dev)
 static int
 chvf_probe(device_t dev)
 {
-	uint16_t d;
+	uint16_t d, v;
 	size_t i;
+
+	v = pci_get_vendor(dev);
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
 
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t7vf_pciids); i++) {
