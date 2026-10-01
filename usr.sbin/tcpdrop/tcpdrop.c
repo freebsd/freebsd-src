@@ -63,16 +63,16 @@ static void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	char stack[TCP_FUNCTION_NAME_LEN_MAX];
-	char ca_name[TCP_CA_NAME_MAX];
-	char *lport, *fport;
+	char stack_buf[TCP_FUNCTION_NAME_LEN_MAX];
+	char ca_name_buf[TCP_CA_NAME_MAX];
+	char *stack, *ca_name, *lport, *fport;
 	bool dropall, dropspecific;
 	int ch, state;
 
 	dropall = false;
 	dropspecific = false;
-	ca_name[0] = '\0';
-	stack[0] = '\0';
+	ca_name = NULL;
+	stack = NULL;
 	state = -1;
 
 	while ((ch = getopt(argc, argv, "aC:lS:s:")) != -1) {
@@ -82,14 +82,16 @@ main(int argc, char *argv[])
 			break;
 		case 'C':
 			dropspecific = true;
-			strlcpy(ca_name, optarg, sizeof(ca_name));
+			strlcpy(ca_name_buf, optarg, sizeof(ca_name_buf));
+			ca_name = ca_name_buf;
 			break;
 		case 'l':
 			tcpdrop_list_commands = true;
 			break;
 		case 'S':
 			dropspecific = true;
-			strlcpy(stack, optarg, sizeof(stack));
+			strlcpy(stack_buf, optarg, sizeof(stack_buf));
+			stack = stack_buf;
 			break;
 		case 's':
 			dropspecific = true;
@@ -266,12 +268,12 @@ tcpdropall(const char *ca_name, const char *stack, int state)
 		 * If requested, skip sockets not having the requested
 		 * congestion control algorithm.
 		 */
-		if (ca_name[0] != '\0' &&
+		if (ca_name != NULL &&
 		    strncmp(xtp->xt_cc, ca_name, TCP_CA_NAME_MAX))
 			continue;
 
 		/* If requested, skip sockets not having the requested stack. */
-		if (stack[0] != '\0' &&
+		if (stack != NULL &&
 		    strncmp(xtp->xt_stack, stack, TCP_FUNCTION_NAME_LEN_MAX))
 			continue;
 
