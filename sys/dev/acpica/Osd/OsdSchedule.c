@@ -83,6 +83,7 @@ struct acpi_task_ctx {
 
 struct taskqueue		*acpi_taskq;
 static struct acpi_task_ctx	*acpi_tasks;
+/* Unsynchronized as only useful in the mono-CPU startup phase. */
 static int			acpi_task_count;
 static int			acpi_taskq_started;
 
