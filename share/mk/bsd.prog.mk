@@ -364,3 +364,4 @@ OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include <bsd.sys.mk>
+.include <bsd.sbom.mk>
