@@ -155,7 +155,7 @@ static ACPI_STATUS
 acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 {
     struct acpi_task_ctx *at;
-    int i;
+    int hiwater, i;
 
     for (at = NULL, i = 0; i < acpi_max_tasks; i++)
 	if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_FREE,
@@ -165,8 +165,11 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	    break;
 	}
 
-    if (i > acpi_tasks_hiwater)
-	atomic_cmpset_int(&acpi_tasks_hiwater, acpi_tasks_hiwater, i);
+    while (hiwater = atomic_load_int(&acpi_tasks_hiwater), i + 1 > hiwater) {
+	if (atomic_cmpset_int(&acpi_tasks_hiwater, hiwater, i + 1))
+	    break;
+	cpu_spinwait();
+    }
 
     if (at == NULL) {
 	printf("AcpiOsExecute: failed to enqueue task, consider increasing "
