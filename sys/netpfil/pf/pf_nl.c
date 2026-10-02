@@ -1824,6 +1824,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 		LIST_FOREACH(n, &sh->nodes, entry) {
 			if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+				PF_HASHROW_UNLOCK(sh);
 				nlmsg_abort(nw);
 				return (ENOMEM);
 			}
