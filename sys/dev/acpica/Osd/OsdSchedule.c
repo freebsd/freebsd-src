@@ -74,7 +74,7 @@ static MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 struct acpi_task_ctx {
     struct task			at_task;
     ACPI_OSD_EXEC_CALLBACK	at_function;
-    void 			*at_context;
+    void			*at_context;
     int				at_flag;
 #define	ACPI_TASK_FREE		0
 #define	ACPI_TASK_USED		1
