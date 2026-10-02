@@ -248,7 +248,6 @@ static void	pmc_post_callchain_callback(void);
 static void	pmc_process_allproc(struct pmc *pm);
 static void	pmc_process_csw_in(struct thread *td);
 static void	pmc_process_csw_out(struct thread *td);
-static void	pmc_process_csw_out_prepare(int cpu);
 static void	pmc_process_csw_start_all(int cpu);
 static void	pmc_process_csw_stop_all(int cpu);
 static void	pmc_process_exec(struct thread *td,
@@ -1449,38 +1448,10 @@ pmc_process_csw_stop_all(int cpu)
 	struct pmc_classdep *pcd;
 	u_int class;
 
-	pmc_process_csw_out_prepare(cpu);
-
 	for (class = 0; class < md->pmd_nclass; class++) {
 		pcd = &md->pmd_classdep[class];
 		if (pcd->pcd_stop_all != NULL)
 			(void)pcd->pcd_stop_all(cpu);
-	}
-}
-
-/*
- * Mark virtual PMCs stopped, before you close hardware gates.
- */
-static void
-pmc_process_csw_out_prepare(int cpu)
-{
-	struct pmc *pm;
-	struct pmc_classdep *pcd;
-	u_int class;
-	int adjri;
-
-	for (class = 0; class < md->pmd_nclass; class++) {
-		pcd = &md->pmd_classdep[class];
-		if (pcd->pcd_stop_all == NULL)
-			continue;
-		for (adjri = 0; adjri < pcd->pcd_num; adjri++) {
-			pm = NULL;
-			(void)pcd->pcd_get_config(cpu, adjri, &pm);
-			if (pm == NULL ||
-			    !PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)))
-				continue;
-			pm->pm_pcpu_state[cpu].pps_cpustate = 0;
-		}
 	}
 }
 
