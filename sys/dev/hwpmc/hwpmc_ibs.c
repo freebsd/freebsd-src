@@ -697,8 +697,6 @@ pmc_ibs_intr(struct trapframe *tf)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[ibs,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG3(MDP, INT, 1, "cpu=%d tf=%p um=%d", cpu, tf, TRAPF_USERMODE(tf));
-
 	retval = 0;
 
 	pac = ibs_pcpu[cpu];
@@ -744,13 +742,7 @@ pmc_ibs_intr(struct trapframe *tf)
 		}
 	}
 
-
-	if (retval)
-		counter_u64_add(pmc_stats.pm_intr_processed, 1);
-	else
-		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
-
-	PMCDBG1(MDP, INT, 2, "retval=%d", retval);
+	/* The caller updates the interrupt statistics. */
 
 	return (retval);
 }
