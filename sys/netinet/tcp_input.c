@@ -3888,18 +3888,15 @@ tcp_mss(struct tcpcb *tp, int offer)
 	mss = tp->t_maxseg;
 
 	/*
-	 * If there's a pipesize, change the socket buffer to that size,
-	 * don't change if sb_hiwat is different than default (then it
-	 * has been changed on purpose with setsockopt).
+	 * If there's a pipesize, change the socket buffer to that size, unless
+	 * it has been set by a setsockopt(2).
 	 * Make the socket buffers an integral number of mss units;
 	 * if the mss is larger than the socket buffer, decrease the mss.
 	 */
 	so = inp->inp_socket;
 	SOCK_SENDBUF_LOCK(so);
-	if ((so->so_snd.sb_hiwat == V_tcp_sendspace) && metrics.hc_sendpipe)
-		bufsize = metrics.hc_sendpipe;
-	else
-		bufsize = so->so_snd.sb_hiwat;
+	bufsize = (so->so_snd.sb_flags & SB_AUTOSIZE) ?
+	    max(metrics.hc_sendpipe, so->so_snd.sb_hiwat) : so->so_snd.sb_hiwat;
 	if (bufsize < mss)
 		mss = bufsize;
 	else {
@@ -3931,10 +3928,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 	}
 
 	SOCK_RECVBUF_LOCK(so);
-	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.hc_recvpipe)
-		bufsize = metrics.hc_recvpipe;
-	else
-		bufsize = so->so_rcv.sb_hiwat;
+	bufsize = (so->so_rcv.sb_flags & SB_AUTOSIZE) ?
+	    max(metrics.hc_recvpipe, so->so_rcv.sb_hiwat) : so->so_rcv.sb_hiwat;
 	if (bufsize > mss) {
 		bufsize = roundup(bufsize, mss);
 		if (bufsize > sb_max)
