@@ -2816,7 +2816,8 @@ check_option(struct client_lease *l, int option)
 	case DHO_DHCP_CLIENT_IDENTIFIER:
 	case DHO_BOOTFILE_NAME:
 	case DHO_DHCP_USER_CLASS_ID:
-	case DHO_URL:
+	case DHO_CAPTIVE_PORTAL:
+	case DHO_CAPTIVE_PORTAL_LEGACY:
 	case DHO_SIP_SERVERS:
 	case DHO_V_I_VENDOR_CLASS:
 	case DHO_V_I_VENDOR_OPTS:

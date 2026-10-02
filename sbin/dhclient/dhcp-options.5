@@ -36,7 +36,7 @@
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
 .\"
-.Dd January 1, 1995
+.Dd October 2, 2026
 .Dt DHCP-OPTIONS 5
 .Os
 .Sh NAME
@@ -591,9 +591,20 @@ Servers should be listed in order of preference.
 The StreetTalk Directory Assistance (STDA) server option specifies a
 list of STDA servers available to the client.
 Servers should be listed in order of preference.
-.It Ic option url Ar string ;
-This option specifies the URL that the client may use when using UEFI
-boot from a HTTP server.
+.It Ic option captive-portal Ar string ;
+This option specifies the URI of a captive portal API, as defined by
+RFC 8910.
+The value is a URI, usually of the form
+.Dq Li https:// Ns Ar host Ns Pa /path .
+A single option may contain more than one URI, separated by a space.
+.Pp
+The name
+.Ic url
+is retained as a deprecated alias.
+.It Ic option captive-portal-legacy Ar string ;
+This option specifies the URI of a captive portal API as defined by
+RFC 7710, which used DHCP option code 160.
+RFC 8910 obsoleted RFC 7710 and moved the option to code 114.
 .El
 .Sh SEE ALSO
 .Xr dhclient.conf 5 ,
@@ -602,7 +613,7 @@ boot from a HTTP server.
 .Xr dhclient 8 ,
 .Xr dhcpd 8
 .Rs
-.%R "RFC 2131, RFC 2132, RFC 3769, RFC 8925"
+.%R "RFC 2131, RFC 2132, RFC 3769, RFC 8910, RFC 8925"
 .Re
 .Sh AUTHORS
 .An -nosplit
