@@ -43,12 +43,50 @@
 extern int zstd_init(void);
 #endif
 
+/*
+ * We have to map a series of strings to an index number that's varies
+ * filesystem by filesystem. We need all of these attributes, even though the
+ * loader only uses a few since the layout of the system attributes bundles
+ * varies file by file and to get to the one we want, we have to understand
+ * all the different element types.
+ */
+enum zfs_sa_attr_id {
+	ZFS_SA_ATIME,
+	ZFS_SA_MTIME,
+	ZFS_SA_CTIME,
+	ZFS_SA_CRTIME,
+	ZFS_SA_GEN,
+	ZFS_SA_MODE,
+	ZFS_SA_SIZE,
+	ZFS_SA_PARENT,
+	ZFS_SA_LINKS,
+	ZFS_SA_XATTR,
+	ZFS_SA_RDEV,
+	ZFS_SA_FLAGS,
+	ZFS_SA_UID,
+	ZFS_SA_GID,
+	ZFS_SA_PAD,
+	ZFS_SA_ZNODE_ACL,
+	ZFS_SA_DACL_COUNT,
+	ZFS_SA_SYMLINK,
+	ZFS_SA_SCANSTAMP,
+	ZFS_SA_DACL_ACES,
+	ZFS_SA_DXATTR,
+	ZFS_SA_PROJID,
+	ZFS_SA_SEQ,
+	ZFS_SA_COUNT
+};
+
 struct zfsmount {
 	char			*path;
 	const spa_t		*spa;
 	objset_phys_t		objset;
 	uint64_t		rootobj;
 	uint64_t		fsid_guid;	/* mount's ds_fsid_guid */
+	dnode_phys_t		sa_registry;
+	dnode_phys_t		sa_layouts;
+	uint64_t		sa_attrs[ZFS_SA_COUNT];
+	bool			sa_loaded;
 	STAILQ_ENTRY(zfsmount)	next;
 };
 
@@ -3518,6 +3556,7 @@ zfs_mount_impl(const spa_t *spa, uint64_t rootobj, struct zfsmount *mount)
 {
 
 	mount->spa = spa;
+	mount->sa_loaded = false;
 
 	/*
 	 * Find the root object set if not explicitly provided
@@ -3710,6 +3749,89 @@ zfs_spa_init(spa_t *spa)
 	rc = vdev_init_from_nvlist(spa, nvlist);
 	nvlist_destroy(nvlist);
 	return (rc);
+}
+
+static const char *zfs_sa_attrs[ZFS_SA_COUNT] = {
+	[ZFS_SA_ATIME] =       "ZPL_ATIME",
+	[ZFS_SA_MTIME] =       "ZPL_MTIME",
+	[ZFS_SA_CTIME] =       "ZPL_CTIME",
+	[ZFS_SA_CRTIME] =      "ZPL_CRTIME",
+	[ZFS_SA_GEN] =         "ZPL_GEN",
+	[ZFS_SA_MODE] =        "ZPL_MODE",
+	[ZFS_SA_SIZE] =        "ZPL_SIZE",
+	[ZFS_SA_PARENT] =      "ZPL_PARENT",
+	[ZFS_SA_LINKS] =       "ZPL_LINKS",
+	[ZFS_SA_XATTR] =       "ZPL_XATTR",
+	[ZFS_SA_RDEV] =        "ZPL_RDEV",
+	[ZFS_SA_FLAGS] =       "ZPL_FLAGS",
+	[ZFS_SA_UID] =         "ZPL_UID",
+	[ZFS_SA_GID] =         "ZPL_GID",
+	[ZFS_SA_PAD] =         "ZPL_PAD",
+	[ZFS_SA_ZNODE_ACL] =   "ZPL_ZNODE_ACL",
+	[ZFS_SA_DACL_COUNT] =  "ZPL_DACL_COUNT",
+	[ZFS_SA_SYMLINK] =     "ZPL_SYMLINK",
+	[ZFS_SA_SCANSTAMP] =   "ZPL_SCANSTAMP",
+	[ZFS_SA_DACL_ACES] =   "ZPL_DACL_ACES",
+	[ZFS_SA_DXATTR] =      "ZPL_DXATTR",
+	[ZFS_SA_PROJID] =      "ZPL_PROJID",
+	[ZFS_SA_SEQ] =         "ZPL_SEQ",
+};
+
+#define	ZFS_SA_MAX_ATTRS	256
+
+/*
+ * Populate the sa_attrs array with the per-filesystem index
+ * numbers used to decode the system attribute bundles.
+ */
+static int
+zfs_sa_load(struct zfsmount *mount)
+{
+	dnode_phys_t master, sa_master;
+	uint64_t sa_object, registry, layouts;
+	int error;
+
+	if (mount->sa_loaded)
+		return (0);
+
+	error = objset_get_dnode(mount->spa, &mount->objset, MASTER_NODE_OBJ,
+	    &master);
+	if (error != 0)
+		return (error);
+	error = zap_lookup(mount->spa, &master, ZFS_SA_ATTRS,
+	    sizeof(sa_object), 1, &sa_object);
+	if (error != 0)
+		return (error);
+	error = objset_get_dnode(mount->spa, &mount->objset, sa_object,
+	    &sa_master);
+	if (error != 0)
+		return (error);
+	error = zap_lookup(mount->spa, &sa_master, SA_REGISTRY,
+	    sizeof(registry), 1, &registry);
+	if (error != 0)
+		return (error);
+	error = zap_lookup(mount->spa, &sa_master, SA_LAYOUTS,
+	    sizeof(layouts), 1, &layouts);
+	if (error != 0)
+		return (error);
+	error = objset_get_dnode(mount->spa, &mount->objset, registry,
+	    &mount->sa_registry);
+	if (error != 0)
+		return (error);
+	error = objset_get_dnode(mount->spa, &mount->objset, layouts,
+	    &mount->sa_layouts);
+	if (error != 0)
+		return (error);
+
+	for (unsigned int i = 0; i < nitems(zfs_sa_attrs); i++) {
+		error = zap_lookup(mount->spa, &mount->sa_registry,
+		    zfs_sa_attrs[i], sizeof(mount->sa_attrs[i]), 1,
+		    &mount->sa_attrs[i]);
+		if (error != 0)
+			mount->sa_attrs[i] = UINT64_MAX;
+	}
+
+	mount->sa_loaded = true;
+	return (0);
 }
 
 static int
