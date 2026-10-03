@@ -442,9 +442,15 @@ sdhci_fdt_attach(device_t dev)
 		slot->caps = sc->caps;
 		slot->max_clk = sc->max_clk;
 		slot->sdma_boundary = sc->sdma_boundary;
+		slot->host.caps = sc->caps_set;
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
 			continue;
+		/* Let the SoC glue veto modes the DT advertises. */
+		slot->host.caps &= ~sc->caps_clear;
+		if (sc->f_max_override != 0)
+			slot->host.f_max = sc->max_clk == 0 ? sc->f_max_override :
+			    MIN(sc->max_clk, sc->f_max_override);
 		sc->num_slots++;
 	}
 	device_printf(dev, "%d slot(s) allocated\n", sc->num_slots);
