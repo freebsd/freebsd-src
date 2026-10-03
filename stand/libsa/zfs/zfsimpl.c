@@ -3834,6 +3834,73 @@ zfs_sa_load(struct zfsmount *mount)
 	return (0);
 }
 
+/*
+ * Walk through the system attribute bundle looking for the attribute that's
+ * requested. Return it's value and size.
+ */
+static int
+zfs_sa_lookup(struct zfsmount *mount, const void *buf, size_t buflen,
+    enum zfs_sa_attr_id attr, void *value, size_t *size)
+{
+	const sa_hdr_phys_t *hdr;
+	uint16_t layout[ZFS_SA_MAX_ATTRS];
+	char layout_name[16];
+	size_t hdrsize, length, offset;
+	unsigned int i, j, length_idx;
+	int error;
+
+	hdr = buf;
+	if (buflen < sizeof(*hdr) || hdr->sa_magic != SA_MAGIC)
+		return (EIO);
+	error = zfs_sa_load(mount);
+	if (error != 0)
+		return (error);
+
+	memset(layout, 0xff, sizeof(layout));
+	i = SA_HDR_LAYOUT_NUM(hdr);
+	if (i == 0)
+		i = 1;
+	snprintf(layout_name, sizeof(layout_name), "%u", i);
+	error = zap_lookup(mount->spa, &mount->sa_layouts, layout_name,
+	    sizeof(layout[0]), nitems(layout), layout);
+	if (error != 0)
+		return (error);
+
+	hdrsize = SA_HDR_SIZE(hdr);
+	if (hdrsize < sizeof(*hdr) || hdrsize > buflen)
+		return (EIO);
+	offset = hdrsize;
+	length_idx = 0;
+	for (i = 0; i < nitems(layout) && layout[i] != UINT16_MAX; i++) {
+		for (j = 0; j < nitems(zfs_sa_attrs); j++) {
+			if (mount->sa_attrs[j] != UINT64_MAX &&
+			    SA_ATTR_NUM(mount->sa_attrs[j]) == layout[i])
+				break;
+		}
+		if (j == nitems(zfs_sa_attrs))
+			return (EIO);
+		length = SA_ATTR_LENGTH(mount->sa_attrs[j]);
+		if (length == 0) {
+			if (offsetof(sa_hdr_phys_t, sa_lengths) +
+			    (length_idx + 1) * sizeof(hdr->sa_lengths[0]) >
+			    hdrsize)
+				return (EIO);
+			length = hdr->sa_lengths[length_idx++];
+		}
+		if (offset > buflen || length > buflen - offset)
+			return (EIO);
+		if (j == attr) {
+			if (*size < length)
+				return (EOVERFLOW);
+			memcpy(value, (const char *)buf + offset, length);
+			*size = length;
+			return (0);
+		}
+		offset = roundup2(offset + length, 8);
+	}
+	return (ENOENT);
+}
+
 static int
 zfs_dnode_stat(struct zfsmount *mount, dnode_phys_t *dn, struct stat *sb,
     uint64_t fsid_guid, uint64_t objnum)
