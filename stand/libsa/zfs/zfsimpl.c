@@ -3995,38 +3995,11 @@ zfs_dnode_readlink(struct zfsmount *mount, dnode_phys_t *dn, char *path,
 	int rc = 0;
 
 	if (dn->dn_bonustype == DMU_OT_SA) {
-		sa_hdr_phys_t *sahdrp = NULL;
-		size_t size = 0;
-		void *buf = NULL;
-		int hdrsize;
-		char *p;
+		size_t size = psize;
 
-		if (dn->dn_bonuslen != 0) {
-			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
-		} else {
-			blkptr_t *bp;
-
-			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
-				return (EIO);
-			bp = DN_SPILL_BLKPTR(dn);
-
-			size = BP_GET_LSIZE(bp);
-			buf = malloc(size);
-			if (buf == NULL)
-				rc = ENOMEM;
-			else
-				rc = zio_read(mount->spa, bp, buf);
-			if (rc != 0) {
-				free(buf);
-				return (rc);
-			}
-			sahdrp = buf;
-		}
-		hdrsize = SA_HDR_SIZE(sahdrp);
-		p = (char *)((uintptr_t)sahdrp + hdrsize + SA_SYMLINK_OFFSET);
-		memcpy(path, p, psize);
-		free(buf);
-		return (0);
+		rc = zfs_dnode_sa_lookup(mount, dn, ZFS_SA_SYMLINK, path,
+		    &size);
+		return (rc != 0 ? rc : (size == psize ? 0 : EIO));
 	}
 	/*
 	 * Second test is purely to silence bogus compiler
