@@ -60,6 +60,11 @@ struct virtio_console_control {
 	uint16_t value;		/* Extra information for the key */
 };
 
+struct virtio_console_resize {
+	uint16_t cols;
+	uint16_t rows;
+} __packed;
+
 /* Some events for control messages */
 #define VIRTIO_CONSOLE_DEVICE_READY	0
 #define VIRTIO_CONSOLE_PORT_ADD		1

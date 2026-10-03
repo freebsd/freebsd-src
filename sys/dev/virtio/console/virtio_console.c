@@ -181,6 +181,8 @@ static void	 vtcon_ctrl_port_add_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_remove_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_console_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_open_event(struct vtcon_softc *, int);
+static void	 vtcon_ctrl_port_resize_event(struct vtcon_softc *, int,
+		     const void *, size_t);
 static void	 vtcon_ctrl_port_name_event(struct vtcon_softc *, int,
 		     const char *, size_t);
 static void	 vtcon_ctrl_process_event(struct vtcon_softc *,
@@ -820,6 +822,41 @@ vtcon_ctrl_port_open_event(struct vtcon_softc *sc, int id)
 }
 
 static void
+vtcon_ctrl_port_resize_event(struct vtcon_softc *sc, int id, const void *data,
+    size_t len)
+{
+	device_t dev;
+	struct vtcon_softc_port *scport;
+	struct vtcon_port *port;
+	struct virtio_console_resize resize;
+
+	dev = sc->vtcon_dev;
+	scport = &sc->vtcon_ports[id];
+
+	if (data == NULL || len < sizeof(resize)) {
+		device_printf(dev, "%s: resize port %d, but no size\n",
+		    __func__, id);
+		return;
+	}
+	memcpy(&resize, data, sizeof(resize));
+
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
+	if (port == NULL) {
+		VTCON_UNLOCK(sc);
+		device_printf(dev, "%s: resize port %d, but does not exist\n",
+		    __func__, id);
+		return;
+	}
+
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
+	vtcon_port_change_size(port, vtcon_htog16(sc, resize.cols),
+	    vtcon_htog16(sc, resize.rows));
+	VTCON_PORT_UNLOCK(port);
+}
+
+static void
 vtcon_ctrl_port_name_event(struct vtcon_softc *sc, int id, const char *name,
     size_t len)
 {
@@ -889,6 +926,7 @@ vtcon_ctrl_process_event(struct vtcon_softc *sc,
 		break;
 
 	case VIRTIO_CONSOLE_RESIZE:
+		vtcon_ctrl_port_resize_event(sc, id, data, data_len);
 		break;
 
 	case VIRTIO_CONSOLE_PORT_OPEN:
