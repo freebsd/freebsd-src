@@ -552,9 +552,6 @@ vt_fb_init(struct vt_device *vd)
 	/* Clear the screen. */
 	vd->vd_driver->vd_blank(vd, c);
 
-	/* Wakeup screen. KMS need this. */
-	vt_fb_postswitch(vd);
-
 	return (CN_INTERNAL);
 }
 
