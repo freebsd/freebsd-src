@@ -57,6 +57,7 @@ static struct options {
 	bool		binary;
 	bool		hex;
 	uint32_t	page;
+	uint32_t	nsid;
 	uint8_t		lsp;
 	uint16_t	lsi;
 	bool		rae;
@@ -66,6 +67,7 @@ static struct options {
 	.binary = false,
 	.hex = false,
 	.page = NONE,
+	.nsid = NONE,
 	.lsp = 0,
 	.lsi = 0,
 	.rae = false,
@@ -81,6 +83,8 @@ static const struct opts logpage_opts[] = {
 	    "Dump the log page as hex"),
 	OPT("page", 'p', arg_uint32, opt, page,
 	    "Page to dump"),
+	OPT("namespace-id", 'n', arg_uint32, opt, nsid,
+	    "Namespace ID to request the page for"),
 	OPT("lsp", 'f', arg_uint8, opt, lsp,
 	    "Log Specific Field"),
 	OPT("lsi", 'i', arg_uint16, opt, lsi,
@@ -745,6 +749,8 @@ logpage(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 0, 1);
 	}
 	free(path);
+	if (opt.nsid != NONE)
+		nsid = opt.nsid;
 
 	if (read_controller_data(fd, &cdata))
 		errx(EX_IOERR, "Identify request failed");
@@ -754,16 +760,17 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	/*
 	 * The log page attributes indicate whether or not the controller
 	 * supports the SMART/Health information log page on a per
-	 * namespace basis.
+	 * namespace basis.  The vendor defines the scope of pages 0xC0-0xFF.
 	 */
 	if (nsid != NVME_GLOBAL_NAMESPACE_TAG) {
-		if (opt.page != NVME_LOG_HEALTH_INFORMATION)
+		if (opt.page == NVME_LOG_HEALTH_INFORMATION) {
+			if (ns_smart == 0)
+				errx(EX_UNAVAILABLE,
+				    "controller does not support per namespace "
+				    "smart/health information");
+		} else if (opt.page < 0xc0)
 			errx(EX_USAGE, "log page %d valid only at controller level",
 			    opt.page);
-		if (ns_smart == 0)
-			errx(EX_UNAVAILABLE,
-			    "controller does not support per namespace "
-			    "smart/health information");
 	}
 
 	print_fn = print_log_hex;
