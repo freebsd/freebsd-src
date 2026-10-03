@@ -246,8 +246,14 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 
 found:
 	error = uiomove_fromphys(&m, offset, tlen, uio);
-	if (uio->uio_rw == UIO_WRITE && error == 0)
+	if (uio->uio_rw == UIO_WRITE) {
+		/*
+		 * Even a failed copy may have changed the page's contents,
+		 * because uiomove_fromphys() can copy part of the data before
+		 * it fails.
+		 */
 		vm_page_set_dirty(m);
+	}
 	vm_page_activate(m);
 	vm_page_sunbusy(m);
 
