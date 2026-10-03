@@ -3901,6 +3901,43 @@ zfs_sa_lookup(struct zfsmount *mount, const void *buf, size_t buflen,
 	return (ENOENT);
 }
 
+/*
+ * Try to find the requested attribute by looking in both the bonus area and the
+ * spill areas. The bonus area is already in memory, but we need to read the
+ * spill area.
+ */
+static int
+zfs_dnode_sa_lookup(struct zfsmount *mount, dnode_phys_t *dn,
+    enum zfs_sa_attr_id attr, void *value, size_t *size)
+{
+	void *buf;
+	size_t buflen, valuesize;
+	int error;
+
+	if (dn->dn_bonuslen != 0) {
+		valuesize = *size;
+		error = zfs_sa_lookup(mount, DN_BONUS(dn), dn->dn_bonuslen,
+		    attr, value, &valuesize);
+		if (error == 0) {
+			*size = valuesize;
+			return (0);
+		}
+		if (error != ENOENT)
+			return (error);
+	}
+	if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
+		return (ENOENT);
+	buflen = BP_GET_LSIZE(DN_SPILL_BLKPTR(dn));
+	buf = malloc(buflen);
+	if (buf == NULL)
+		return (ENOMEM);
+	error = zio_read(mount->spa, DN_SPILL_BLKPTR(dn), buf);
+	if (error == 0)
+		error = zfs_sa_lookup(mount, buf, buflen, attr, value, size);
+	free(buf);
+	return (error);
+}
+
 static int
 zfs_dnode_stat(struct zfsmount *mount, dnode_phys_t *dn, struct stat *sb,
     uint64_t fsid_guid, uint64_t objnum)
