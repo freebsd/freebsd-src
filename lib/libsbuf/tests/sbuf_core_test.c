@@ -125,6 +125,8 @@ ATF_TC_BODY(sbuf_drain_ret0_test, tc)
 	    "required to return error when drain func returns 0");
 	ATF_CHECK_EQ_MSG(EDEADLK, errno,
 	    "errno required to be EDEADLK when drain func returns 0");
+	
+	sbuf_delete(sb);
 }
 
 ATF_TC_WITHOUT_HEAD(sbuf_len_test);
@@ -242,6 +244,78 @@ ATF_TC_BODY(sbuf_setpos_test, tc)
 	sbuf_delete(sb);
 }
 
+ATF_TC_WITHOUT_HEAD(sbuf_get_flags_test);
+ATF_TC_BODY(sbuf_get_flags_test, tc)
+{
+	struct sbuf *sb;
+	int flags;
+
+	sb = sbuf_new(NULL, NULL, 0, 
+		SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
+	ATF_REQUIRE_MSG(sb != NULL, 
+		"sbuf_new failed: %s", strerror(errno));
+
+	flags = sbuf_get_flags(sb);
+		
+	ATF_CHECK((flags & SBUF_AUTOEXTEND) != 0);
+	ATF_CHECK((flags & SBUF_INCLUDENUL) != 0);
+
+	sbuf_delete(sb);
+}
+
+ATF_TC_WITHOUT_HEAD(sbuf_set_flags_test);
+ATF_TC_BODY(sbuf_set_flags_test, tc)
+{
+	struct sbuf *sb;
+
+	sb = sbuf_new_auto();
+
+	ATF_REQUIRE_MSG(sb != NULL, 
+		"sbuf_new_auto failed: %s", strerror(errno));
+
+	sbuf_set_flags(sb, SBUF_INCLUDENUL);
+ 
+	ATF_REQUIRE_MSG(sbuf_cat(sb, test_string) == 0,
+		"sbuf_cat failed");	
+
+	ATF_REQUIRE_EQ_MSG(0, 
+		sbuf_finish(sb),
+		"sbuf_finish failed: %s", strerror(errno));
+		
+	ATF_CHECK_EQ(
+		(ssize_t)(strlen(test_string) + 1),
+		sbuf_len(sb)
+	);
+
+	sbuf_delete(sb);
+}
+
+ATF_TC_WITHOUT_HEAD(sbuf_clear_flags_test);
+ATF_TC_BODY(sbuf_clear_flags_test, tc)
+{
+	struct sbuf *sb;
+	int flags;
+
+	sb = sbuf_new(NULL, NULL, 0, 
+		SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
+	ATF_REQUIRE_MSG(sb != NULL, 
+		"sbuf_new failed: %s", strerror(errno));
+
+	flags = sbuf_get_flags(sb);
+	ATF_REQUIRE(flags & SBUF_INCLUDENUL);
+
+	sbuf_clear_flags(sb, SBUF_INCLUDENUL);
+
+	flags = sbuf_get_flags(sb);
+		
+	ATF_CHECK((flags & SBUF_INCLUDENUL) == 0);
+
+	sbuf_delete(sb);
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, sbuf_clear_test);
@@ -249,18 +323,14 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sbuf_drain_ret0_test);
 	ATF_TP_ADD_TC(tp, sbuf_len_test);
 	ATF_TP_ADD_TC(tp, sbuf_new_fixedlen);
+	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
+	ATF_TP_ADD_TC(tp, sbuf_set_flags_test);
+	ATF_TP_ADD_TC(tp, sbuf_clear_flags_test);
 #if 0
 	/* TODO */
-#ifdef HAVE_SBUF_CLEAR_FLAGS
-	ATF_TP_ADD_TC(tp, sbuf_clear_flags_test);
-#endif
-#ifdef HAVE_SBUF_GET_FLAGS
-	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
-#endif
+#ifdef 
 	ATF_TP_ADD_TC(tp, sbuf_new_positive_test);
 	ATF_TP_ADD_TC(tp, sbuf_new_negative_test);
-#ifdef HAVE_SBUF_SET_FLAGS
-	ATF_TP_ADD_TC(tp, sbuf_set_flags_test);
 #endif
 #endif
 	ATF_TP_ADD_TC(tp, sbuf_setpos_test);
