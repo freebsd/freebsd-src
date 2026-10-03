@@ -216,7 +216,7 @@ corefile_open_last(struct thread *td, char *name, int indexpos,
 
 	nextvp = oldvp = NULL;
 	cmode = S_IRUSR | S_IWUSR;
-	oflags = VN_OPEN_NOAUDIT | VN_OPEN_NAMECACHE |
+	oflags = VN_OPEN_NOAUDIT | VN_OPEN_COREDUMP |
 	    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 	for (i = 0; i < ncores; i++) {
@@ -396,7 +396,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 		}
 	} else {
 		cmode = S_IRUSR | S_IWUSR;
-		oflags = VN_OPEN_NOAUDIT | VN_OPEN_NAMECACHE |
+		oflags = VN_OPEN_NOAUDIT | VN_OPEN_COREDUMP |
 		    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 		flags = O_CREAT | FWRITE | O_NOFOLLOW;
 		if ((td->td_proc->p_flag & P_SUGID) != 0)
