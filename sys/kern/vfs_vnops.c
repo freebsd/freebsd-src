@@ -309,7 +309,7 @@ restart:
 				NDREINIT(ndp);
 				goto restart;
 			}
-			if ((vn_open_flags & VN_OPEN_NAMECACHE) != 0 ||
+			if ((vn_open_flags & VN_OPEN_COREDUMP) != 0 ||
 			    (vn_irflag_read(ndp->ni_dvp) & VIRF_INOTIFY) != 0)
 				ndp->ni_cnd.cn_flags |= MAKEENTRY;
 #ifdef MAC
