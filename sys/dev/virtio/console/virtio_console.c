@@ -922,6 +922,7 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 		if (control == NULL)
 			break;
 
+		len = min(len, VTCON_CTRL_BUFSZ);
 		if (len > sizeof(struct virtio_console_control)) {
 			data = (void *) &control[1];
 			data_len = len - sizeof(struct virtio_console_control);
@@ -1320,6 +1321,7 @@ again:
 	deq = 0;
 
 	while ((buf = virtqueue_dequeue(vq, &len)) != NULL) {
+		len = min(len, VTCON_BULK_BUFSZ);
 		for (i = 0; i < len; i++) {
 #if defined(KDB)
 			if (port->vtcport_flags & VTCON_PORT_FLAG_CONSOLE)

@@ -2190,7 +2190,10 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 			mp = mp->m_next;
 		}
 
-		if (len < sc->vtnet_hdr_size + ETHER_HDR_LEN) {
+		if (synced < len ||
+		    len < sc->vtnet_hdr_size + ETHER_HDR_LEN) {
+			if (synced < len)
+				sc->vtnet_stats.rx_frame_too_large++;
 			rxq->vtnrx_stats.vrxs_ierrors++;
 			vtnet_rxq_discard_buf(rxq, m);
 			continue;
