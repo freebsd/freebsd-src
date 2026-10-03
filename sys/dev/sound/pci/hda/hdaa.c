@@ -2008,8 +2008,8 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 			/* Write HDMI/DisplayPort audio infoframe. */
 			hda_command(ch->devinfo->dev,
 			    HDA_CMD_SET_HDMI_DIP_INDEX(0, nid, 0x00));
-			if (w->eld != NULL && w->eld_len >= 6 &&
-			    ((w->eld[5] >> 2) & 0x3) == 1) { /* DisplayPort */
+			if (wp->eld != NULL && wp->eld_len >= 6 &&
+			    ((wp->eld[5] >> 2) & 0x3) == 1) { /* DisplayPort */
 				hda_command(ch->devinfo->dev,
 				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x84));
 				hda_command(ch->devinfo->dev,
