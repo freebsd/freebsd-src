@@ -242,6 +242,42 @@ vfs_check_namedattr(struct vnode *vp)
 }
 
 /*
+ * This check is performed when a vnode is opened for dumping the core
+ * from userspace process. The /dev/ufssuspend device allows userspace
+ * to suspend the UFS volume, and we must check that the dump does not
+ * go into the volume the coredumping process suspended.
+ *
+ * Taking MNT_ILOCK around checks is not required, because the process
+ * is single-threaded around dumping core, and we in particular check
+ * if the current process is the suspension owner.
+ */
+static int
+vn_open_nosuspend(struct vnode *vp, u_int vn_open_flags)
+{
+	struct mount *mp;
+	struct thread *susp_owner;
+	int error;
+
+	if ((vn_open_flags & VN_OPEN_COREDUMP) == 0)
+		return (0);
+	MPASS((curproc->p_flag & P_HADTHREADS) == 0 ||
+	    (curproc->p_flag & (P_SINGLE_BOUNDARY | P_SINGLE_EXIT |
+	    P_STOPPED)) != 0);
+
+	mp = NULL;
+	error = VOP_GETWRITEMOUNT(vp, &mp);
+	if (error != 0 || mp == NULL)
+		return (0);
+	susp_owner = atomic_load_ptr(&mp->mnt_susp_owner);
+	if ((atomic_load_int(&mp->mnt_kern_flag) & (MNTK_SUSPEND |
+	    MNTK_SUSPENDED)) != 0 && susp_owner != NULL &&
+	    susp_owner->td_proc == curproc)
+		error = EBUSY;
+	vfs_rel(mp);
+	return (error);
+}
+
+/*
  * Common code for vnode open operations via a name lookup.
  * Lookup the vnode and invoke VOP_CREATE if needed.
  * Check permissions, and call the VOP_OPEN or VOP_CREATE routine.
@@ -291,6 +327,12 @@ restart:
 			    (ndp->ni_dvp->v_mount->mnt_flag & MNT_NAMEDATTR) ==
 			    0) {
 				error = EINVAL;
+				vp = ndp->ni_dvp;
+				ndp->ni_dvp = NULL;
+				goto bad;
+			}
+			error = vn_open_nosuspend(ndp->ni_dvp, vn_open_flags);
+			if (error != 0) {
 				vp = ndp->ni_dvp;
 				ndp->ni_dvp = NULL;
 				goto bad;
@@ -375,7 +417,9 @@ restart:
 				goto bad;
 		}
 	}
-	error = vn_open_vnode(vp, fmode, cred, curthread, fp);
+	error = vn_open_nosuspend(vp, vn_open_flags);
+	if (error == 0)
+		error = vn_open_vnode(vp, fmode, cred, curthread, fp);
 	if (first_open) {
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_FOPENING;
