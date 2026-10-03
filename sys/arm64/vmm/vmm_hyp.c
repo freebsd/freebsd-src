@@ -39,6 +39,7 @@
 struct hypctx;
 
 uint64_t VMM_HYP_FUNC(do_call_guest)(struct hypctx *);
+uint64_t VMM_HYP_FUNC(handle_sync_exit)(struct hypctx *);
 
 static void
 vmm_hyp_reg_store_pmu_debug(struct hypctx *hypctx, bool guest)
@@ -700,61 +701,92 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 	vmm_hyp_reg_restore_vgic(hypctx, guest);
 }
 
-static void
-vmm_hyp_handle_guest_exit(struct hypctx *hypctx, uint64_t *ret)
+static bool
+hpfar_is_valid(uint64_t esr)
 {
-	bool hpfar_valid;
-	uint64_t s1e1r, hpfar_el2, host_esr_el2, host_far_el2;
+	/*
+	 * The hpfar_el2 register is valid for:
+	 *  - Translation and Access faults.
+	 *  - Translation, Access, and permission faults on
+	 *    the translation table walk on the stage 1 tables.
+	 *  - A stage 2 Address size fault.
+	 *
+	 * As we only need it in the first 2 cases we can just
+	 * exclude it on permission faults that are not from
+	 * the stage 1 table walk.
+	 *
+	 * TODO: Add a case for Arm erratum 834220.
+	 */
+	if ((esr & ISS_DATA_S1PTW) != 0)
+		return (true);
 
-	hpfar_valid = true;
-	host_esr_el2 = hypctx_read_sys_reg(hypctx, HOST_ESR_EL2);
-	if (*ret == EXCP_TYPE_EL1_SYNC) {
-		switch (ESR_ELx_EXCEPTION(host_esr_el2)) {
-		case EXCP_INSN_ABORT_L:
-		case EXCP_DATA_ABORT_L:
-			/*
-			 * The hpfar_el2 register is valid for:
-			 *  - Translation and Access faults.
-			 *  - Translation, Access, and permission faults on
-			 *    the translation table walk on the stage 1 tables.
-			 *  - A stage 2 Address size fault.
-			 *
-			 * As we only need it in the first 2 cases we can just
-			 * exclude it on permission faults that are not from
-			 * the stage 1 table walk.
-			 *
-			 * TODO: Add a case for Arm erratum 834220.
-			 */
-			if ((host_esr_el2 & ISS_DATA_S1PTW) != 0)
-				break;
-			switch (host_esr_el2 & ISS_DATA_DFSC_MASK) {
-			case ISS_DATA_DFSC_PF_L1:
-			case ISS_DATA_DFSC_PF_L2:
-			case ISS_DATA_DFSC_PF_L3:
-				hpfar_valid = false;
-				break;
-			}
-			break;
-		}
+	switch (esr & ISS_DATA_DFSC_MASK) {
+	case ISS_DATA_DFSC_PF_L1:
+	case ISS_DATA_DFSC_PF_L2:
+	case ISS_DATA_DFSC_PF_L3:
+		return (false);
 	}
-	if (hpfar_valid) {
+
+	return (true);
+}
+
+/*
+ * This function runs while guest system registers are live in the hardware,
+ * before the world switch is finalised.
+ */
+uint64_t
+VMM_HYP_FUNC(handle_sync_exit)(struct hypctx *hypctx)
+{
+	uint64_t esr, far, elr, spsr, par;
+	uint64_t hpfar, s1e1r;
+	uint64_t ret;
+
+	ret = EXCP_TYPE_EL1_SYNC;
+	esr = READ_SPECIALREG(esr_el2);
+
+	/* We only handle sync inst and data aborts from the guest */
+	if (ESR_ELx_EXCEPTION(esr) != EXCP_INSN_ABORT_L &&
+	    ESR_ELx_EXCEPTION(esr) != EXCP_DATA_ABORT_L)
+		return (ret);
+
+	/* Nothing else to do if HPFAR is valid */
+	if (hpfar_is_valid(esr)) {
 		hypctx_write_sys_reg(hypctx, HOST_HPFAR_EL2,
-				     READ_SPECIALREG(hpfar_el2));
-	} else {
-		/*
-		 * TODO: There is a risk the at instruction could cause an
-		 * exception here. We should handle it & return a failure.
-		 */
-		host_far_el2 = hypctx_read_sys_reg(hypctx, HOST_FAR_EL2);
-		s1e1r = arm64_address_translate_s1e1r(host_far_el2);
-		if (PAR_SUCCESS(s1e1r)) {
-			hpfar_el2 = (s1e1r & PAR_PA_MASK) >> PAR_PA_SHIFT;
-			hpfar_el2 <<= HPFAR_EL2_FIPA_SHIFT;
-			hypctx_write_sys_reg(hypctx, HOST_HPFAR_EL2, hpfar_el2);
-		} else {
-			*ret = EXCP_TYPE_REENTER;
-		}
+		    READ_SPECIALREG(hpfar_el2));
+		return (ret);
 	}
+
+	/*
+	 * We are about to execute a potentially faulting AT instruction.
+	 * Preserve the complete exception state & PAR to restore later.
+	 */
+	far = READ_SPECIALREG(far_el2);
+	elr = READ_SPECIALREG(elr_el2);
+	spsr = READ_SPECIALREG(spsr_el2);
+	par = READ_SPECIALREG(par_el1);
+
+	/*
+	 * TODO: There is a risk the at instruction could cause an
+	 * exception here. We should handle it & return a failure.
+	 */
+	s1e1r = arm64_address_translate_s1e1r(far);
+
+	if (PAR_SUCCESS(s1e1r)) {
+		hpfar = (s1e1r & PAR_PA_MASK) >> PAR_PA_SHIFT;
+		hpfar <<= HPFAR_EL2_FIPA_SHIFT;
+		hypctx_write_sys_reg(hypctx, HOST_HPFAR_EL2, hpfar);
+	} else {
+		ret = EXCP_TYPE_REENTER;
+	}
+
+	/* Restore the previously saved exception state */
+	WRITE_SPECIALREG(esr_el2, esr);
+	WRITE_SPECIALREG(far_el2, far);
+	WRITE_SPECIALREG(elr_el2, elr);
+	WRITE_SPECIALREG(spsr_el2, spsr);
+	WRITE_SPECIALREG(par_el1, par);
+
+	return (ret);
 }
 
 /* Minimum guest entry logic that should not be reordered */
@@ -791,7 +823,6 @@ vmm_hyp_call_guest(struct hyp *hyp, struct hypctx *hypctx)
 	ret = __vmm_hyp_call_guest(hypctx, &host_hypctx);
 
 	vmm_hyp_reg_store(hypctx, hyp, true);
-	vmm_hyp_handle_guest_exit(hypctx, &ret);
 	vmm_hyp_reg_restore(&host_hypctx, hyp, false);
 
 	return (ret);
