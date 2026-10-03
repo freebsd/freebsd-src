@@ -85,10 +85,11 @@ nan(const char *s)
 	} u;
 
 	_scan_nan(u.bits, 2, s);
+	/* Keep the mantissa only; a long payload must not reach the sign. */
 #if _BYTE_ORDER == _LITTLE_ENDIAN
-	u.bits[1] |= 0x7ff80000;
+	u.bits[1] = (u.bits[1] & 0x000fffff) | 0x7ff80000;
 #else
-	u.bits[0] |= 0x7ff80000;
+	u.bits[0] = (u.bits[0] & 0x000fffff) | 0x7ff80000;
 #endif
 	return (u.d);
 }
@@ -102,7 +103,7 @@ nanf(const char *s)
 	} u;
 
 	_scan_nan(u.bits, 1, s);
-	u.bits[0] |= 0x7fc00000;
+	u.bits[0] = (u.bits[0] & 0x007fffff) | 0x7fc00000;
 	return (u.f);
 }
 
