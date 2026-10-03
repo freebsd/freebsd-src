@@ -3958,44 +3958,22 @@ zfs_dnode_stat(struct zfsmount *mount, dnode_phys_t *dn, struct stat *sb,
 		sb->st_gid = zp->zp_gid;
 		sb->st_size = zp->zp_size;
 	} else {
-		sa_hdr_phys_t *sahdrp;
-		int hdrsize;
-		size_t size = 0;
-		void *buf = NULL;
+		uint64_t value;
+		size_t size;
+		int error;
 
-		if (dn->dn_bonuslen != 0)
-			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
-		else {
-			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) != 0) {
-				blkptr_t *bp = DN_SPILL_BLKPTR(dn);
-				int error;
-
-				size = BP_GET_LSIZE(bp);
-				buf = malloc(size);
-				if (buf == NULL)
-					error = ENOMEM;
-				else
-					error = zio_read(mount->spa, bp, buf);
-
-				if (error != 0) {
-					free(buf);
-					return (error);
-				}
-				sahdrp = buf;
-			} else {
-				return (EIO);
-			}
-		}
-		hdrsize = SA_HDR_SIZE(sahdrp);
-		sb->st_mode = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_MODE_OFFSET);
-		sb->st_uid = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_UID_OFFSET);
-		sb->st_gid = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_GID_OFFSET);
-		sb->st_size = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_SIZE_OFFSET);
-		free(buf);
+#define	SA_STAT(attr, field) do { \
+		size = sizeof(value); \
+		error = zfs_dnode_sa_lookup(mount, dn, attr, &value, &size); \
+		if (error != 0 || size != sizeof(value)) \
+			return (error != 0 ? error : EIO); \
+		sb->field = value; \
+} while (0)
+		SA_STAT(ZFS_SA_MODE, st_mode);
+		SA_STAT(ZFS_SA_UID, st_uid);
+		SA_STAT(ZFS_SA_GID, st_gid);
+		SA_STAT(ZFS_SA_SIZE, st_size);
+#undef SA_STAT
 	}
 
 	/*
