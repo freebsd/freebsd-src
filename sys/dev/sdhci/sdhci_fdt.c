@@ -403,6 +403,15 @@ sdhci_fdt_attach(device_t dev)
 		sc->wp_inverted = true;
 	if (OF_hasprop(node, "disable-wp"))
 		sc->wp_disabled = true;
+	/*
+	 * Soldered-down eMMC: no card detect and no write-protect switch.
+	 * An unwired WP line otherwise reads as "protected" (RK3588 dwcmshc),
+	 * and Linux ignores WP for (e)MMC cards altogether.
+	 */
+	if (OF_hasprop(node, "non-removable")) {
+		sc->quirks |= SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE;
+		sc->wp_disabled = true;
+	}
 
 	/* Allocate IRQ. */
 	rid = 0;
