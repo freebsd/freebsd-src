@@ -127,7 +127,8 @@ _start:
 	 * starting from the first 2MB physical page into which the kernel was
 	 * loaded.
 	 *
-	 * We also use an L1 entry to create a 1GB identity map (1:1 PA->VA).
+	 * We also use L1 entries to create 1GB identity maps (1:1 PA->VA)
+	 * of the regions holding the kernel and the DTB.
 	 * This is useful for two reasons:
 	 *  - handling the DTB pointer passed from SBI firmware (physical addr)
 	 *  - simpler construction of pagetables in pmap_bootstrap()
@@ -162,6 +163,17 @@ pagetables:
 	add	t0, s1, a5
 	sd	t6, (t0)		/* Store new PTE */
 
+	/* Identity map the DTB's 1GB region too, if we were given a DTB */
+	beqz	s4, 1f
+	srli	s2, s4, L1_SHIFT	/* dtbp >> L1_SHIFT */
+	andi	a5, s2, Ln_ADDR_MASK	/* & Ln_ADDR_MASK */
+	slli	s2, s2, PTE_PPN2_S	/* (s2 << PTE_PPN2_S) */
+	or	t6, t4, s2
+	mulw	a5, a5, a6		/* calculate L1 slot */
+	add	t0, s1, a5
+	sd	t6, (t0)		/* Store new PTE */
+1:
+
 	/* Construct the virtual address space at KERNBASE */
 
 	/* Add L1 entry for kernel */
@@ -189,14 +201,14 @@ pagetables:
 	add	t3, t4, t2
 	li	t0, (PTE_KERN | PTE_X)
 	or	t0, t0, s8		/* t0 |= pte bits */
-1:
+2:
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
 	sd	t5, (s1)		/* Store PTE entry to position */
 	addi	s1, s1, PTE_SIZE
 
 	addi	t4, t4, 1
-	bltu	t4, t3, 1b
+	bltu	t4, t3, 2b
 
 	/* Page tables END */
 
