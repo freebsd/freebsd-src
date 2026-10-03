@@ -109,7 +109,7 @@ acpi_taskq_init(void *arg)
 {
     int i;
 
-    acpi_taskq = taskqueue_create_fast("acpi_task", M_NOWAIT,
+    acpi_taskq = taskqueue_create_fast("acpi_task", M_WAITOK,
 	&taskqueue_thread_enqueue, &acpi_taskq);
     taskqueue_start_threads(&acpi_taskq, acpi_max_threads, PWAIT, "acpi_task");
     if (acpi_task_count > 0) {
