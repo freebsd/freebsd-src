@@ -137,7 +137,9 @@ struct vtcon_softc {
     KASSERT((_id) >= 0 && (_id) < (_sc)->vtcon_max_ports,	\
         ("%s: port ID %d out of range", __func__, _id))
 
-#define VTCON_FEATURES  VIRTIO_CONSOLE_F_MULTIPORT
+#define VTCON_FEATURES \
+    (VIRTIO_CONSOLE_F_SIZE		| \
+     VIRTIO_CONSOLE_F_MULTIPORT)
 
 static struct virtio_feature_desc vtcon_feature_desc[] = {
 	{ VIRTIO_CONSOLE_F_SIZE,	"ConsoleSize"	},
@@ -467,14 +469,19 @@ static void
 vtcon_read_config(struct vtcon_softc *sc, struct virtio_console_config *concfg)
 {
 	device_t dev;
+	int gen;
 
 	dev = sc->vtcon_dev;
 
-	bzero(concfg, sizeof(struct virtio_console_config));
+	do {
+		gen = virtio_config_generation(dev);
+		bzero(concfg, sizeof(struct virtio_console_config));
 
-	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, cols, concfg);
-	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, rows, concfg);
-	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_MULTIPORT, max_nr_ports, concfg);
+		VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, cols, concfg);
+		VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, rows, concfg);
+		VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_MULTIPORT, max_nr_ports,
+		    concfg);
+	} while (gen != virtio_config_generation(dev));
 }
 
 #undef VTCON_GET_CONFIG
