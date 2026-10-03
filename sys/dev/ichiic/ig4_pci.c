@@ -198,6 +198,12 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_LUNARLAKE_M_I2C_3      0xa87b8086
 #define PCI_CHIP_LUNARLAKE_M_I2C_4      0xa8508086
 #define PCI_CHIP_LUNARLAKE_M_I2C_5      0xa8518086
+#define PCI_CHIP_ARROWLAKE_S_I2C_0      0x7f4c8086
+#define PCI_CHIP_ARROWLAKE_S_I2C_1      0x7f4d8086
+#define PCI_CHIP_ARROWLAKE_S_I2C_2      0x7f4e8086
+#define PCI_CHIP_ARROWLAKE_S_I2C_3      0x7f4f8086
+#define PCI_CHIP_ARROWLAKE_S_I2C_4      0x7f7a8086
+#define PCI_CHIP_ARROWLAKE_S_I2C_5      0x7f7b8086
 #define PCI_CHIP_PANTHERLAKE_H_I2C_0    0xe4788086
 #define PCI_CHIP_PANTHERLAKE_H_I2C_1    0xe4798086
 #define PCI_CHIP_PANTHERLAKE_H_I2C_2    0xe4508086
@@ -346,6 +352,12 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_LUNARLAKE_M_I2C_3, "Intel Lunar Lake-M I2C Controller-3", IG4_TIGERLAKE},
 	{ PCI_CHIP_LUNARLAKE_M_I2C_4, "Intel Lunar Lake-M I2C Controller-4", IG4_TIGERLAKE},
 	{ PCI_CHIP_LUNARLAKE_M_I2C_5, "Intel Lunar Lake-M I2C Controller-5", IG4_TIGERLAKE},
+	{ PCI_CHIP_ARROWLAKE_S_I2C_0, "Intel Arrow Lake-S/HX I2C Controller-0", IG4_TIGERLAKE},
+	{ PCI_CHIP_ARROWLAKE_S_I2C_1, "Intel Arrow Lake-S/HX I2C Controller-1", IG4_TIGERLAKE},
+	{ PCI_CHIP_ARROWLAKE_S_I2C_2, "Intel Arrow Lake-S/HX I2C Controller-2", IG4_TIGERLAKE},
+	{ PCI_CHIP_ARROWLAKE_S_I2C_3, "Intel Arrow Lake-S/HX I2C Controller-3", IG4_TIGERLAKE},
+	{ PCI_CHIP_ARROWLAKE_S_I2C_4, "Intel Arrow Lake-S/HX I2C Controller-4", IG4_TIGERLAKE},
+	{ PCI_CHIP_ARROWLAKE_S_I2C_5, "Intel Arrow Lake-S/HX I2C Controller-5", IG4_TIGERLAKE},
 	{ PCI_CHIP_PANTHERLAKE_H_I2C_0, "Intel Panther Lake-H I2C Controller-0", IG4_TIGERLAKE},
 	{ PCI_CHIP_PANTHERLAKE_H_I2C_1, "Intel Panther Lake-H I2C Controller-1", IG4_TIGERLAKE},
 	{ PCI_CHIP_PANTHERLAKE_H_I2C_2, "Intel Panther Lake-H I2C Controller-2", IG4_TIGERLAKE},
