@@ -3713,7 +3713,7 @@ zfs_spa_init(spa_t *spa)
 }
 
 static int
-zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb,
+zfs_dnode_stat(struct zfsmount *mount, dnode_phys_t *dn, struct stat *sb,
     uint64_t fsid_guid, uint64_t objnum)
 {
 
@@ -3749,7 +3749,7 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb,
 				if (buf == NULL)
 					error = ENOMEM;
 				else
-					error = zio_read(spa, bp, buf);
+					error = zio_read(mount->spa, bp, buf);
 
 				if (error != 0) {
 					free(buf);
@@ -3933,7 +3933,7 @@ zfs_lookup(struct zfsmount *mount, const char *upath,
 		p = q;
 
 		/* Only st_mode is inspected here, so identity is irrelevant. */
-		if ((rc = zfs_dnode_stat(spa, &dn, &sb, 0, 0)) != 0)
+		if ((rc = zfs_dnode_stat(mount, &dn, &sb, 0, 0)) != 0)
 			goto done;
 		if (!S_ISDIR(sb.st_mode)) {
 			rc = ENOTDIR;
@@ -3959,7 +3959,7 @@ zfs_lookup(struct zfsmount *mount, const char *upath,
 		 * Check for symlink.
 		 */
 		/* Only st_mode is inspected here, so identity is irrelevant. */
-		rc = zfs_dnode_stat(spa, &dn, &sb, 0, 0);
+		rc = zfs_dnode_stat(mount, &dn, &sb, 0, 0);
 		if (rc)
 			goto done;
 		if (S_ISLNK(sb.st_mode)) {
