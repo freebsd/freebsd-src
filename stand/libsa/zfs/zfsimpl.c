@@ -3785,7 +3785,8 @@ zfs_dnode_stat(struct zfsmount *mount, dnode_phys_t *dn, struct stat *sb,
 }
 
 static int
-zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
+zfs_dnode_readlink(struct zfsmount *mount, dnode_phys_t *dn, char *path,
+    size_t psize)
 {
 	int rc = 0;
 
@@ -3810,7 +3811,7 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 			if (buf == NULL)
 				rc = ENOMEM;
 			else
-				rc = zio_read(spa, bp, buf);
+				rc = zio_read(mount->spa, bp, buf);
 			if (rc != 0) {
 				free(buf);
 				return (rc);
@@ -3831,7 +3832,7 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 	    sizeof(znode_phys_t) <= sizeof(dn->dn_bonus)) {
 		memcpy(path, &dn->dn_bonus[sizeof(znode_phys_t)], psize);
 	} else {
-		rc = dnode_read(spa, dn, 0, path, psize);
+		rc = dnode_read(mount->spa, dn, 0, path, psize);
 	}
 	return (rc);
 }
@@ -3979,7 +3980,7 @@ zfs_lookup(struct zfsmount *mount, const char *upath,
 			}
 			strcpy(&path[sb.st_size], p);
 
-			rc = zfs_dnode_readlink(spa, &dn, path, sb.st_size);
+			rc = zfs_dnode_readlink(mount, &dn, path, sb.st_size);
 			if (rc != 0)
 				goto done;
 
