@@ -359,4 +359,7 @@ FBSD_1.9 {
 	rsqrt;
 	rsqrtf;
 	rsqrtl;
+	roundeven;
+	roundevenf;
+	roundevenl;
 };
