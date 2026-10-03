@@ -69,5 +69,6 @@ struct smbcmd {
 #define SMB_BWRITE	_IOW('i', 10, struct smbcmd)
 #define SMB_BREAD	_IOWR('i', 11, struct smbcmd)
 #define SMB_OLD_TRANS	_IOWR('i', 12, struct smbcmd)
+#define SMB_BPCALL	_IOWR('i', 13, struct smbcmd)
 
 #endif
