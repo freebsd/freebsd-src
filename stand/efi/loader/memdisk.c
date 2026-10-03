@@ -228,16 +228,20 @@ maybe_download_initmd(void)
 	const char *url;
 	int error;
 
-	if (efi_find_handle(&efinet_dev, 0) == NULL)
-		return;
-
 	memset(&dev, 0, sizeof(dev));
 	dev.d_dev = &efinet_dev;
-	dev.d_unit = 0;
+	if (boot_nic_unit(&dev.d_unit) != 0) {
+		printf("Could not identify boot NIC, defaulting to net0\n");
+		dev.d_unit = 0;
+	}
+
+	if (efi_find_handle(&efinet_dev, dev.d_unit) == NULL)
+		return;
+
 	error = net_configure(&dev);
 	if (error != 0) {
-		printf("Could not configure net0 for initmd: %s\n",
-		    strerror(error));
+		printf("Could not configure net%d for initmd: %s\n",
+		    dev.d_unit, strerror(error));
 		return;
 	}
 
