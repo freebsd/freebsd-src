@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <locale.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <wchar.h>
@@ -80,6 +81,17 @@ ATF_TC_BODY(swprintf_d, tc)
 	SWPRINTF_TEST("  2147483647", "%12d", INT_MAX);
 	SWPRINTF_TEST("002147483647", "%012d", INT_MAX);
 	SWPRINTF_TEST("2,147,483,647", "%'d", INT_MAX);
+}
+
+ATF_TC_WITHOUT_HEAD(swprintf_F);
+ATF_TC_BODY(swprintf_F, tc)
+{
+	SWPRINTF_TEST("1.500000", "%F", 1.5);
+	SWPRINTF_TEST("INF", "%F", INFINITY);
+	SWPRINTF_TEST("-INF", "%F", -INFINITY);
+	SWPRINTF_TEST("1.500000", "%1$F", 1.5);
+	SWPRINTF_TEST("-INF", "%1$F", -INFINITY);
+	SWPRINTF_TEST("  1.500000", "%1$*2$F", 1.5, 10);
 }
 
 ATF_TC_WITHOUT_HEAD(swprintf_x);
@@ -198,6 +210,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, swprintf_b);
 	ATF_TP_ADD_TC(tp, swprintf_B);
 	ATF_TP_ADD_TC(tp, swprintf_d);
+	ATF_TP_ADD_TC(tp, swprintf_F);
 	ATF_TP_ADD_TC(tp, swprintf_x);
 	ATF_TP_ADD_TC(tp, swprintf_X);
 	ATF_TP_ADD_TC(tp, swprintf_wN);
