@@ -3845,7 +3845,7 @@ struct obj_list {
  * Lookup a file and return its dnode.
  */
 static int
-zfs_lookup(const struct zfsmount *mount, const char *upath,
+zfs_lookup(struct zfsmount *mount, const char *upath,
     dnode_phys_t *dnode, uint64_t *objnum_out)
 {
 	int rc;
