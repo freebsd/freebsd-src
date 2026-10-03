@@ -634,6 +634,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	struct lock_class *class;
 	struct lock_object *c_lock;
 	uintptr_t lock_status;
+	sbintime_t prec;
 	int c_iflags;
 #ifdef SMP
 	struct callout_cpu *new_cc;
@@ -676,10 +677,26 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		if (c_iflags & CALLOUT_TRYLOCK) {
 			if (__predict_false(class->lc_trylock(c_lock,
 			    lock_status) == 0)) {
+				/*
+				 * Retry after half of the precision, but not
+				 * sooner than a tick from the current time.
+				 * Every failure halves the precision, so the
+				 * retry delay would otherwise shrink to zero.
+				 * Immediate retries can starve a
+				 * lower-priority lock owner on the same CPU,
+				 * preventing it from running to release the
+				 * lock.
+				 *
+				 * Use the current time because cc_lastscan may
+				 * be stale by the time the lock is attempted.
+				 * Keep the precision at least a tick as well,
+				 * so that the retries of many contended
+				 * callouts can share a timer interrupt.
+				 */
 				cc_exec_curr(cc, direct) = NULL;
-				callout_cc_add(c, cc,
-				    cc->cc_lastscan + c->c_precision / 2,
-				    qmax(c->c_precision / 2, 1), c_func, c_arg,
+				prec = qmax(c->c_precision / 2, tick_sbt);
+				callout_cc_add(c, cc, sbinuptime() + prec,
+				    prec, c_func, c_arg,
 				    (direct) ? C_DIRECT_EXEC : 0);
 				return;
 			}
