@@ -167,6 +167,7 @@ const static char *ossnames[] = SOUND_DEVICE_NAMES;
  * Function prototypes
  ****************************************************************************/
 static int	hdaa_pcmchannel_setup(struct hdaa_chan *);
+static void	hdaa_powerup(struct hdaa_devinfo *);
 
 static void	hdaa_widget_connection_select(struct hdaa_widget *, uint8_t);
 static void	hdaa_audio_ctl_amp_set(struct hdaa_audio_ctl *,
@@ -2155,7 +2156,14 @@ static int
 hdaa_channel_start(struct hdaa_chan *ch)
 {
 	struct hdaa_devinfo *devinfo = ch->devinfo;
-	uint32_t fmt;
+	uint32_t fmt, power;
+
+	power = hda_command(devinfo->dev,
+	    HDA_CMD_GET_POWER_STATE(0, devinfo->nid));
+	if (power != HDA_INVALID &&
+	    (HDA_CMD_GET_POWER_STATE_ACT(power) != HDA_CMD_POWER_STATE_D0 ||
+	     HDA_CMD_GET_POWER_STATE_SET(power) != HDA_CMD_POWER_STATE_D0))
+		hdaa_powerup(devinfo);
 
 	fmt = hdaa_stream_format(ch);
 	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
