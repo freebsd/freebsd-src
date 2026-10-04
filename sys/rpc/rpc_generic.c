@@ -993,7 +993,7 @@ int
 rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int siz, bool from_pages)
 {
 	struct rpcrdma_reduce_pg *rb;
-	char *cp, *uiocp;
+	char *cp = NULL, *uiocp;
 	int error, left, len, i, uiosiz, xfer;
 
 	rb = mtod(mr, struct rpcrdma_reduce_pg *);
