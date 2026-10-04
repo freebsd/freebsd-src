@@ -612,7 +612,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 	return (0);
 }
 
-static int
+int
 nvme_ctrlr_delete_qpairs(struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;

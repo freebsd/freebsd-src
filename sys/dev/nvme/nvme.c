@@ -44,8 +44,13 @@ int
 nvme_shutdown(device_t dev)
 {
 	struct nvme_controller	*ctrlr;
+	uint32_t		csts;
 
 	ctrlr = DEVICE2SOFTC(dev);
+
+	csts = nvme_mmio_read_4(ctrlr, csts);
+	if (ctrlr->is_initialized && !ctrlr->is_failed && csts != NVME_GONE)
+		nvme_ctrlr_delete_qpairs(ctrlr);
 	nvme_ctrlr_shutdown(ctrlr);
 
 	return (0);
