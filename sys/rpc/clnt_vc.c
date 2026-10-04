@@ -856,6 +856,7 @@ clnt_vc_destroy(CLIENT *cl)
 	struct socket *so;
 	SVCXPRT *xprt;
 	uint32_t reterr;
+	bool_t rlse;
 
 	clnt_vc_close(cl);
 
@@ -864,11 +865,16 @@ clnt_vc_destroy(CLIENT *cl)
 	ct->ct_backchannelxprt = NULL;
 	if (xprt != NULL) {
 		mtx_unlock(&ct->ct_lock);	/* To avoid a LOR. */
+		rlse = FALSE;
 		sx_xlock(&xprt->xp_lock);
 		mtx_lock(&ct->ct_lock);
-		xprt->xp_p2 = NULL;
+		if (xprt->xp_p2 == ct) {
+			xprt->xp_p2 = NULL;
+			rlse = TRUE;
+		}
 		sx_xunlock(&xprt->xp_lock);
-		SVC_RELEASE(xprt);
+		if (rlse)
+			SVC_RELEASE(xprt);
 	}
 
 	/* Wait for the upcall kthread to terminate. */
