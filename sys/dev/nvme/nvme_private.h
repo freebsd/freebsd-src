@@ -132,6 +132,11 @@ struct nvme_async_event_request {
 	uint8_t				log_page_buffer[NVME_MAX_AER_LOG_SIZE];
 };
 
+/* Progress of a hardware Abort for a timed-out tracker */
+#define	NVME_ABORT_NONE		0	/* No abort submitted */
+#define	NVME_ABORT_SENT		1	/* Abort submitted, not yet completed */
+#define	NVME_ABORT_FAILED	2	/* Abort did not abort the command */
+
 struct nvme_tracker {
 	TAILQ_ENTRY(nvme_tracker)	tailq;
 	struct nvme_request		*req;
@@ -139,6 +144,7 @@ struct nvme_tracker {
 	sbintime_t			deadline;
 	bus_dmamap_t			payload_dma_map;
 	uint16_t			cid;
+	uint8_t				abort_state;
 
 	uint64_t			*prp;
 	bus_addr_t			prp_bus_addr;

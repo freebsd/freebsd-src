@@ -814,34 +814,18 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 	struct nvme_tracker     *tr = arg;
 
 	/*
-	 * If cdw0 bit 0 == 1, the controller was not able to abort the command
-	 * we requested.  We still need to check the active tracker array, to
-	 * cover race where I/O timed out at same time controller was completing
-	 * the I/O. An abort command always is on the admin queue, but affects
-	 * either an admin or an I/O queue, so take the appropriate qpair lock
-	 * for the original command's queue, since we'll need it to avoid races
-	 * with the completion code and to complete the command manually.
+	 * On IANP or Abort failure the command may still complete through
+	 * a deferred abort: the tracker stays live to keep its CID
+	 * reserved, and the timeout handler escalates to a reset.
 	 */
 	mtx_lock(&tr->qpair->lock);
-	if ((status->cdw0 & 1) == 1 && tr->qpair->act_tr[tr->cid] != NULL) {
-		/*
-		 * An I/O has timed out, and the controller was unable to abort
-		 * it for some reason.  And we've not processed a completion for
-		 * it yet. Construct a fake completion status, and then complete
-		 * the I/O's tracker manually.
-		 */
+	if ((nvme_completion_is_error(status) || (status->cdw0 & 1) == 1) &&
+	    tr->qpair->act_tr[tr->cid] == tr &&
+	    tr->abort_state == NVME_ABORT_SENT) {
 		nvme_printf(tr->qpair->ctrlr,
-		    "abort command failed, aborting command manually\n");
-		nvme_qpair_manual_complete_tracker(tr,
-		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_ALL);
+		    "abort command failed, resetting on next timeout pass\n");
+		tr->abort_state = NVME_ABORT_FAILED;
 	}
-	/*
-	 * XXX We don't check status for the possible 'Could not abort because
-	 * excess aborts were submitted to the controller'. We don't prevent
-	 * that, either. Document for the future here, since the standard is
-	 * squishy and only says 'may generate' but implies anything is possible
-	 * including hangs if you exceed the ACL.
-	 */
 	mtx_unlock(&tr->qpair->lock);
 }
 
@@ -992,6 +976,7 @@ do_reset:
 			 * Timeout expired, abort it or reset controller.
 			 */
 			if (ctrlr->enable_aborts &&
+			    tr->abort_state == NVME_ABORT_NONE &&
 			    tr->req->cb_fn != nvme_abort_complete) {
 				/*
 				 * This isn't an abort command, ask for a
@@ -999,9 +984,13 @@ do_reset:
 				 * queue which will reset the card if it
 				 * times out.
 				 */
+				tr->abort_state = NVME_ABORT_SENT;
 				nvme_ctrlr_cmd_abort(ctrlr,
 				    qpair->cid_base + tr->cid, qpair->id,
 				    nvme_abort_complete, tr);
+			} else if (ctrlr->enable_aborts &&
+			    tr->abort_state == NVME_ABORT_SENT) {
+				continue;
 			} else {
 				/*
 				 * We have a live command in the card (either
@@ -1177,6 +1166,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
 	TAILQ_INSERT_TAIL(&qpair->outstanding_tr, tr, tailq);
 	tr->deadline = SBT_MAX;
+	tr->abort_state = NVME_ABORT_NONE;
 	tr->req = req;
 	req->cmd.cid = qpair->cid_base + tr->cid;
 
