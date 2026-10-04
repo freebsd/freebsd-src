@@ -2156,14 +2156,21 @@ static int
 hdaa_channel_start(struct hdaa_chan *ch)
 {
 	struct hdaa_devinfo *devinfo = ch->devinfo;
+	struct hdaa_audio_ctl *ctl;
+	int i;
 	uint32_t fmt, power;
 
 	power = hda_command(devinfo->dev,
 	    HDA_CMD_GET_POWER_STATE(0, devinfo->nid));
 	if (power != HDA_INVALID &&
 	    (HDA_CMD_GET_POWER_STATE_ACT(power) != HDA_CMD_POWER_STATE_D0 ||
-	     HDA_CMD_GET_POWER_STATE_SET(power) != HDA_CMD_POWER_STATE_D0))
+	     HDA_CMD_GET_POWER_STATE_SET(power) != HDA_CMD_POWER_STATE_D0)) {
 		hdaa_powerup(devinfo);
+		i = 0;
+		while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL)
+			hdaa_audio_ctl_amp_set(ctl, HDAA_AMP_MUTE_DEFAULT,
+			    HDAA_AMP_VOL_DEFAULT, HDAA_AMP_VOL_DEFAULT);
+	}
 
 	fmt = hdaa_stream_format(ch);
 	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
