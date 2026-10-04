@@ -33,6 +33,7 @@
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/counter.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -328,6 +329,8 @@ struct nvme_controller {
 	bool				is_dying;
 	bool				isr_warned;
 	bool				is_initialized;
+
+	eventhandler_tag		timestamp_tag;
 
 	/* Host Memory Buffer */
 	int				hmb_nchunks;
