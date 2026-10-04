@@ -711,8 +711,11 @@ static	void clear_unlinked_inodedep(struct inodedep *);
 static	struct inodedep *first_unlinked_inodedep(struct ufsmount *);
 static	int flush_pagedep_deps(struct vnode *, struct mount *,
 	    struct diraddhd *, struct buf *);
+static	int flush_pagedep_deps1(struct vnode *, struct mount *,
+	    struct diraddhd *, struct diraddhd *, struct vnode *, ino_t *);
 static	int free_pagedep(struct pagedep *);
-static	int flush_newblk_dep(struct vnode *, struct mount *, ufs_lbn_t);
+static	int flush_newblk_dep(struct vnode *, struct mount *, ufs_lbn_t,
+	    struct diradd *);
 static	int flush_inodedep_deps(struct vnode *, struct mount *, ino_t);
 static	int flush_deplist(struct allocdirectlst *, int, int *);
 static	int sync_cgs(struct mount *, int);
@@ -1340,13 +1343,30 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, print_threads, CTLFLAG_RW,
 /* List of all filesystems mounted with soft updates */
 static TAILQ_HEAD(, mount_softdeps) softdepmounts;
 
+/*
+ * Put the diradds that flush_pagedep_deps() set aside on unfinishedp back
+ * on the pagedep's list.  This is done before the directory buffer is
+ * unlocked, which could make the list invalid, and before the selection of
+ * dependencies restarts after the softdep lock was dropped to wait or to
+ * obtain a vnode.
+ */
+static void
+requeue_unfinished(struct diraddhd *diraddhdp, struct diraddhd *unfinishedp)
+{
+	struct diradd *dap;
+
+	while ((dap = LIST_FIRST(unfinishedp)) != NULL) {
+		LIST_REMOVE(dap, da_pdlist);
+		LIST_INSERT_HEAD(diraddhdp, dap, da_pdlist);
+	}
+}
+
 static void
 get_parent_vp_unlock_bp(struct mount *mp,
 	struct buf *bp,
 	struct diraddhd *diraddhdp,
 	struct diraddhd *unfinishedp)
 {
-	struct diradd *dap;
 
 	/*
 	 * Requeue unfinished dependencies before
@@ -1354,10 +1374,7 @@ get_parent_vp_unlock_bp(struct mount *mp,
 	 * diraddhdp invalid.
 	 */
 	ACQUIRE_LOCK(VFSTOUFS(mp));
-	while ((dap = LIST_FIRST(unfinishedp)) != NULL) {
-		LIST_REMOVE(dap, da_pdlist);
-		LIST_INSERT_HEAD(diraddhdp, dap, da_pdlist);
-	}
+	requeue_unfinished(diraddhdp, unfinishedp);
 	FREE_LOCK(VFSTOUFS(mp));
 
 	bp->b_vflags &= ~BV_SCANNED;
@@ -13210,13 +13227,17 @@ flush_deplist(
 }
 
 /*
- * Flush dependencies associated with an allocdirect block.
+ * Flush dependencies associated with an allocdirect block.  The vnode must
+ * be exclusively locked.  The softdep lock must be held on entry and is
+ * released on return.  The locked parent directory buffer keeps dap valid
+ * while the lock is dropped.
  */
 static int
 flush_newblk_dep(
 	struct vnode *vp,
 	struct mount *mp,
-	ufs_lbn_t lbn)
+	ufs_lbn_t lbn,
+	struct diradd *dap)
 {
 	struct newblk *newblk;
 	struct ufsmount *ump;
@@ -13226,6 +13247,7 @@ flush_newblk_dep(
 	ufs2_daddr_t blkno;
 	int error;
 
+	ASSERT_VOP_ELOCKED(vp, "flush_newblk_dep");
 	error = 0;
 	bo = &vp->v_bufobj;
 	ip = VTOI(vp);
@@ -13233,14 +13255,23 @@ flush_newblk_dep(
 	if (blkno == 0)
 		panic("flush_newblk_dep: Missing block");
 	ump = VFSTOUFS(mp);
-	ACQUIRE_LOCK(ump);
+	LOCK_OWNED(ump);
+	KASSERT(dap->da_newinum == ip->i_number,
+	    ("flush_newblk_dep: inode mismatch %ju != %ju",
+	    (uintmax_t)dap->da_newinum, (uintmax_t)ip->i_number));
 	/*
 	 * Loop until all dependencies related to this block are satisfied.
 	 * We must be careful to restart after each sleep in case a write
 	 * completes some part of this process for us.
 	 */
 	for (;;) {
-		if (newblk_lookup(mp, blkno, 0, &newblk) == 0) {
+		/*
+		 * The mkdir dependency may have completed while we dropped the
+		 * lock.  Its allocdirect may then have been freed, exposing an
+		 * older dependency for a previous use of the same block number.
+		 */
+		if ((dap->da_state & MKDIR_BODY) == 0 ||
+		    newblk_lookup(mp, blkno, 0, &newblk) == 0) {
 			FREE_LOCK(ump);
 			break;
 		}
@@ -13308,6 +13339,14 @@ flush_newblk_dep(
 
 /*
  * Eliminate a pagedep dependency by flushing out all its diradd dependencies.
+ *
+ * Some of the dependencies can only be flushed through the vnode of the
+ * added inode, and obtaining it with get_parent_vp() requires dropping the
+ * softdep lock, during which the dependency list may change.  The vnode is
+ * managed here.  Whenever flush_pagedep_deps1() needs a different vnode, or
+ * had to wait with the softdep lock dropped, it returns EJUSTRETURN and the
+ * selection of dependencies restarts from scratch, so that a vnode is only
+ * used for a dependency that was found while the vnode was held.
  */
 static int
 flush_pagedep_deps(
@@ -13316,30 +13355,102 @@ flush_pagedep_deps(
 	struct diraddhd *diraddhdp,
 	struct buf *locked_bp)
 {
-	struct inodedep *inodedep;
-	struct inoref *inoref;
-	struct ufsmount *ump;
-	struct diradd *dap;
-	struct vnode *vp;
-	int error = 0;
-	struct buf *bp;
-	ino_t inum;
 	struct diraddhd unfinished;
+	struct ufsmount *ump;
+	struct vnode *vp;
+	ino_t inum;
+	int error;
 
 	LIST_INIT(&unfinished);
 	ump = VFSTOUFS(mp);
 	LOCK_OWNED(ump);
-restart:
+	vp = NULL;
+	for (;;) {
+		error = flush_pagedep_deps1(pvp, mp, diraddhdp, &unfinished,
+		    vp, &inum);
+		if (error != EJUSTRETURN)
+			break;
+		/*
+		 * Restart with all dependencies back on the list, before the
+		 * softdep lock is dropped below.
+		 */
+		requeue_unfinished(diraddhdp, &unfinished);
+		if (vp != NULL ? inum == VTOI(vp)->i_number : inum == 0)
+			continue;
+		FREE_LOCK(ump);
+		if (vp != NULL) {
+			vput(vp);
+			vp = NULL;
+		}
+		error = 0;
+		if (inum != 0)
+			error = get_parent_vp(pvp, mp, inum, locked_bp,
+			    diraddhdp, &unfinished, &vp);
+		ACQUIRE_LOCK(ump);
+		if (error != 0)
+			break;
+	}
+	requeue_unfinished(diraddhdp, &unfinished);
+	if (vp != NULL) {
+		FREE_LOCK(ump);
+		vput(vp);
+		ACQUIRE_LOCK(ump);
+	}
+	return (error);
+}
+
+/*
+ * Flush the diradd dependencies on diraddhdp for flush_pagedep_deps().
+ * The softdep lock is held on entry and on return.  If vp is not NULL, it
+ * is a locked vnode that is only used for the inode it belongs to.
+ *
+ * Returns EJUSTRETURN whenever the selection of dependencies has to
+ * restart: when a vnode is needed that the caller has to obtain, with
+ * *inump set to its inode number; when vp has to be released first, with
+ * *inump set to 0; and after waiting with the softdep lock dropped, with
+ * *inump set to the inode number of vp if it is still needed, or to 0.
+ * The caller puts the diradds set aside on unfinishedp back on diraddhdp,
+ * obtains or releases the vnode, and calls again.  The diradds are also
+ * put back here before waiting, so that none are kept off the list while
+ * the lock is dropped for a restart.
+ */
+static int
+flush_pagedep_deps1(
+	struct vnode *pvp,
+	struct mount *mp,
+	struct diraddhd *diraddhdp,
+	struct diraddhd *unfinishedp,
+	struct vnode *vp,
+	ino_t *inump)
+{
+	struct inodedep *inodedep;
+	struct inoref *inoref;
+	struct ufsmount *ump;
+	struct diradd *dap;
+	struct buf *bp;
+	ino_t inum;
+	int error;
+
+	ump = VFSTOUFS(mp);
+	LOCK_OWNED(ump);
+	*inump = 0;
 	while ((dap = LIST_FIRST(diraddhdp)) != NULL) {
+		/*
+		 * Release a vnode that does not belong to this entry.
+		 */
+		if (vp != NULL && ((dap->da_state & MKDIR_PARENT) != 0 ||
+		    VTOI(vp)->i_number != dap->da_newinum))
+			return (EJUSTRETURN);
 		/*
 		 * Flush ourselves if this directory entry
 		 * has a MKDIR_PARENT dependency.
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
 			FREE_LOCK(ump);
-			if ((error = ffs_update(pvp, 1)) != 0)
-				break;
+			error = ffs_update(pvp, 1);
 			ACQUIRE_LOCK(ump);
+			if (error != 0)
+				return (error);
 			/*
 			 * If that cleared dependencies, go on to next.
 			 */
@@ -13357,13 +13468,13 @@ restart:
 			 * our caller shortly.
 			 */
 			LIST_REMOVE(dap, da_pdlist);
-			LIST_INSERT_HEAD(&unfinished, dap, da_pdlist);
+			LIST_INSERT_HEAD(unfinishedp, dap, da_pdlist);
 			continue;
 		}
 		/*
 		 * A newly allocated directory must have its "." and
 		 * ".." entries written out before its name can be
-		 * committed in its parent. 
+		 * committed in its parent.
 		 */
 		inum = dap->da_newinum;
 		if (inodedep_lookup(UFSTOVFS(ump), inum, 0, &inodedep) == 0)
@@ -13375,28 +13486,34 @@ restart:
 		TAILQ_FOREACH(inoref, &inodedep->id_inoreflst, if_deps) {
 			if ((inoref->if_state & (DEPCOMPLETE | GOINGAWAY))
 			    == DEPCOMPLETE) {
+				if (vp != NULL)
+					return (EJUSTRETURN);
+				requeue_unfinished(diraddhdp, unfinishedp);
 				jwait(&inoref->if_list, MNT_WAIT);
-				goto restart;
+				return (EJUSTRETURN);
 			}
 		}
 		if (dap->da_state & MKDIR_BODY) {
-			FREE_LOCK(ump);
-			error = get_parent_vp(pvp, mp, inum, locked_bp,
-			    diraddhdp, &unfinished, &vp);
+			if (vp == NULL) {
+				*inump = inum;
+				return (EJUSTRETURN);
+			}
+			error = flush_newblk_dep(vp, mp, 0, dap);
+			ACQUIRE_LOCK(ump);
 			if (error != 0)
-				break;
-			error = flush_newblk_dep(vp, mp, 0);
+				return (error);
 			/*
 			 * If we still have the dependency we might need to
 			 * update the vnode to sync the new link count to
 			 * disk.
 			 */
-			if (error == 0 && dap == LIST_FIRST(diraddhdp))
+			if (dap == LIST_FIRST(diraddhdp)) {
+				FREE_LOCK(ump);
 				error = ffs_update(vp, 1);
-			vput(vp);
-			if (error != 0)
-				break;
-			ACQUIRE_LOCK(ump);
+				ACQUIRE_LOCK(ump);
+				if (error != 0)
+					return (error);
+			}
 			/*
 			 * If that cleared dependencies, go on to next.
 			 */
@@ -13420,22 +13537,27 @@ restart:
 		 * locate that buffer, ensure that there will be no rollback
 		 * caused by a bitmap dependency, then write the inode buffer.
 		 */
-retry:
 		if (inodedep_lookup(UFSTOVFS(ump), inum, 0, &inodedep) == 0)
 			panic("flush_pagedep_deps: lost inode");
 		/*
 		 * If the inode still has bitmap dependencies,
-		 * push them to disk.
+		 * push them to disk.  getdirtybuf() drops the lock
+		 * when it has to wait for the buffer.
 		 */
 		if ((inodedep->id_state & (DEPCOMPLETE | GOINGAWAY)) == 0) {
 			bp = inodedep->id_bmsafemap->sm_buf;
+			requeue_unfinished(diraddhdp, unfinishedp);
 			bp = getdirtybuf(bp, LOCK_PTR(ump), MNT_WAIT);
-			if (bp == NULL)
-				goto retry;
+			if (bp == NULL) {
+				if (vp != NULL)
+					*inump = inum;
+				return (EJUSTRETURN);
+			}
 			FREE_LOCK(ump);
-			if ((error = bwrite(bp)) != 0)
-				break;
+			error = bwrite(bp);
 			ACQUIRE_LOCK(ump);
+			if (error != 0)
+				return (error);
 			if (dap != LIST_FIRST(diraddhdp))
 				continue;
 		}
@@ -13445,16 +13567,15 @@ retry:
 		 * adjusted update it here to flush it to disk.
 		 */
 		if (dap == LIST_FIRST(diraddhdp)) {
+			if (vp == NULL) {
+				*inump = inum;
+				return (EJUSTRETURN);
+			}
 			FREE_LOCK(ump);
-			error = get_parent_vp(pvp, mp, inum, locked_bp,
-			    diraddhdp, &unfinished, &vp);
-			if (error != 0)
-				break;
 			error = ffs_update(vp, 1);
-			vput(vp);
-			if (error)
-				break;
 			ACQUIRE_LOCK(ump);
+			if (error != 0)
+				return (error);
 		}
 		/*
 		 * If we have failed to get rid of all the dependencies
@@ -13462,18 +13583,12 @@ retry:
 		 */
 		if (dap == LIST_FIRST(diraddhdp)) {
 			inodedep_lookup(UFSTOVFS(ump), inum, 0, &inodedep);
-			panic("flush_pagedep_deps: failed to flush " 
+			panic("flush_pagedep_deps: failed to flush "
 			    "inodedep %p ino %ju dap %p",
 			    inodedep, (uintmax_t)inum, dap);
 		}
 	}
-	if (error)
-		ACQUIRE_LOCK(ump);
-	while ((dap = LIST_FIRST(&unfinished)) != NULL) {
-		LIST_REMOVE(dap, da_pdlist);
-		LIST_INSERT_HEAD(diraddhdp, dap, da_pdlist);
-	}
-	return (error);
+	return (0);
 }
 
 /*
