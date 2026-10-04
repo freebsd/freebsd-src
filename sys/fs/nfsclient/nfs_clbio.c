@@ -196,7 +196,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	error = ncl_readrpc(vp, &uio, cred);
+	error = ncl_readrpc(vp, &uio, NULL, cred);
 	pmap_qremove(kva, npages);
 
 	uma_zfree(ncl_pbuf_zone, bp);
@@ -467,7 +467,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
 	if (newnfs_directio_enable && (ioflag & IO_DIRECT) && (vp->v_type == VREG))
 		/* No caching/ no readaheads. Just read data into the user buffer */
-		return ncl_readrpc(vp, uio, cred);
+		return ncl_readrpc(vp, uio, NULL, cred);
 
 	n = 0;
 	on = 0;
@@ -798,7 +798,7 @@ nfs_directio_write(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		 * verifier on the mount point.
 		 */
 		must_commit = 2;
-		error = ncl_writerpc(vp, &uio, cred, &iomode,
+		error = ncl_writerpc(vp, &uio, NULL, cred, &iomode,
 		    &must_commit, 0, ioflag);
 		KASSERT(must_commit == 2,
 		    ("ncl_directio_write: Updated write verifier"));
@@ -1586,7 +1586,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 	    case VREG:
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
 		NFSINCRGLOBAL(nfsstatsv1.read_bios);
-		error = ncl_readrpc(vp, uiop, cr);
+		error = ncl_readrpc(vp, uiop, bp->b_pages, cr);
 
 		if (!error) {
 		    if (uiop->uio_resid) {
@@ -1693,8 +1693,8 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		else
 		    iomode = NFSWRITE_FILESYNC;
 
-		error = ncl_writerpc(vp, uiop, cr, &iomode, &must_commit,
-		    called_from_strategy, 0);
+		error = ncl_writerpc(vp, uiop, bp->b_pages, cr, &iomode,
+		    &must_commit, called_from_strategy, 0);
 
 		/*
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try

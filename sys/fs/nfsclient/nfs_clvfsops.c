@@ -1288,6 +1288,11 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 		newflag |= NFSMNT_RDMA;
+		/* Set readahead to 8, if not already set. */
+		if ((args.flags & NFSMNT_READAHEAD) == 0) {
+			args.readahead = 8;
+			args.flags |= NFSMNT_READAHEAD;
+		}
 	}
 	if (vfs_getopt(mp->mnt_optnew, "sec",
 		(void **) &secname, NULL) == 0)
