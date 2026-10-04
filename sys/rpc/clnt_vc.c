@@ -980,11 +980,8 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 	mtx_unlock(&ct->ct_lock);
 
 	/*
-	 * If another thread is already here, it must be in
-	 * soreceive(), so just return to avoid races with it.
-	 * ct_upcallrefs is protected by the SOCKBUF_LOCK(),
-	 * which is held in this function, except when
-	 * soreceive() is called.
+	 * ct_upcallrefs prevents another upcall from processing the
+	 * socket while the receive buffer lock is dropped.
 	 */
 	if (ct->ct_upcallrefs > 0)
 		return (SU_OK);
@@ -1025,6 +1022,11 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * to read from the stream.
 			 */
 			error = ECONNRESET;
+
+			/* Avoid reversing the so_snd -> so_rcv lock order. */
+			SOCK_RECVBUF_UNLOCK(so);
+			socantsendmore(so);
+			SOCK_RECVBUF_LOCK(so);
 		}
 
 		/*
