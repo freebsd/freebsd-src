@@ -109,10 +109,25 @@
 #define	__LINUX_NPXCW__		0x37f
 #endif
 
-/* Scheduling policies */
-#define	LINUX_SCHED_OTHER	0
+/**
+ * Linux scheduling policies.
+ *
+ * Ref: `linux/include/uapi/linux/sched.h`
+ */
+#define	LINUX_SCHED_NORMAL	0
+/* `SCHED_OTHER` is a legacy alias for `SCHED_NORMAL`. */
+#define	LINUX_SCHED_OTHER	LINUX_SCHED_NORMAL
 #define	LINUX_SCHED_FIFO	1
 #define	LINUX_SCHED_RR		2
+/**
+ * FreeBSD does not implement analogs for these Linux scheduling policies. This
+ * is mostly here for reference and to be self-documenting in `sched_set*()`.
+ */
+#define	LINUX_SCHED_BATCH	3
+/* LINUX_SCHED_ISO: slot reserved, but not implemented upstream. */
+#define	LINUX_SCHED_IDLE	5
+#define	LINUX_SCHED_DEADLINE	6
+#define	LINUX_SCHED_EXT		7
 
 #define	LINUX_MAX_RT_PRIO	100
 
