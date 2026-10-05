@@ -275,6 +275,8 @@ in6_control_ioctl(u_long cmd, void *data,
 	 * Compat to make pre-10.x ifconfig(8) operable.
 	 */
 	if (cmd == OSIOCAIFADDR_IN6) {
+		gone_in(17, "%s (pid %d) uses OSIOCAIFADDR_IN6",
+		    curthread->td_proc->p_comm, curthread->td_proc->p_pid);
 		cmd = SIOCAIFADDR_IN6;
 		ifra = &tmpifra;
 		memset(ifra, 0, sizeof(*ifra));
