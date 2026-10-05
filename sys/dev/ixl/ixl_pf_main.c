@@ -50,6 +50,7 @@ static u_int	ixl_add_maddr(void *, struct sockaddr_dl *, u_int);
 static u_int	ixl_match_maddr(void *, struct sockaddr_dl *, u_int);
 static char *	ixl_switch_element_string(struct sbuf *, u8, u16);
 static enum ixl_fw_mode ixl_get_fw_mode(struct ixl_pf *);
+static void	ixl_print_nvm_cmd(device_t, int, struct i40e_nvm_access *);
 
 /* Sysctls */
 static int	ixl_sysctl_set_advertise(SYSCTL_HANDLER_ARGS);
@@ -3123,8 +3124,8 @@ ixl_sysctl_show_fw(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-void
-ixl_print_nvm_cmd(device_t dev, struct i40e_nvm_access *nvma)
+static void
+ixl_print_nvm_cmd(device_t dev, int apiver, struct i40e_nvm_access *nvma)
 {
 	u8 nvma_ptr = nvma->config & 0xFF;
 	u8 nvma_flags = (nvma->config & 0xF00) >> 8;
@@ -3134,7 +3135,7 @@ ixl_print_nvm_cmd(device_t dev, struct i40e_nvm_access *nvma)
 	case I40E_NVM_READ:
 		if (nvma_ptr == 0xF && nvma_flags == 0xF &&
 		    nvma->offset == 0 && nvma->data_size == 1) {
-			device_printf(dev, "NVMUPD: Get Driver Status Command\n");
+			device_printf(dev, "NVMUPD: API: v%d Get Driver Status Command\n", apiver);
 			return;
 		}
 		cmd_str = "READ ";
@@ -3143,12 +3144,12 @@ ixl_print_nvm_cmd(device_t dev, struct i40e_nvm_access *nvma)
 		cmd_str = "WRITE";
 		break;
 	default:
-		device_printf(dev, "NVMUPD: unknown command: 0x%08x\n", nvma->command);
+		device_printf(dev, "NVMUPD: API: v%d unknown command: 0x%08x\n", apiver, nvma->command);
 		return;
 	}
 	device_printf(dev,
-	    "NVMUPD: cmd: %s ptr: 0x%02x flags: 0x%01x offset: 0x%08x data_s: 0x%08x\n",
-	    cmd_str, nvma_ptr, nvma_flags, nvma->offset, nvma->data_size);
+	    "NVMUPD: API: v%d cmd: %s ptr: 0x%02x flags: 0x%01x offset: 0x%08x data_s: 0x%08x\n",
+	    apiver, cmd_str, nvma_ptr, nvma_flags, nvma->offset, nvma->data_size);
 }
 
 int
@@ -3159,7 +3160,7 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 	device_t dev = pf->dev;
 	enum i40e_status_code status = 0;
 	size_t nvma_size, ifd_len, exp_len;
-	int err, perrno;
+	int err, perrno, apiver;
 
 	DEBUGFUNC("ixl_handle_nvmupd_cmd");
 
@@ -3175,20 +3176,26 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 		    __func__, ifd_len, nvma_size);
 		device_printf(dev, "%s: data pointer: %p\n", __func__,
 		    ifd->ifd_data);
-		return (EINVAL);
+		err = EINVAL;
+		goto out;
 	}
+
+	if (ifd->ifd_cmd == I40E_NVM_ACCESS &&
+	    !ixl_testandset_state(&pf->state, IXL_STATE_NVMUPD_API_WARNED))
+		device_printf(dev,
+		    "Using deprecated tools API, please update the tool\n");
 
 	nvma = malloc(ifd_len, M_IXL, M_WAITOK);
 	err = copyin(ifd->ifd_data, nvma, ifd_len);
 	if (err) {
 		device_printf(dev, "%s: Cannot get request from user space\n",
 		    __func__);
-		free(nvma, M_IXL);
-		return (err);
+		goto out_free;
 	}
 
+	apiver = ifd->ifd_cmd == I40E_NVM_ACCESS2 ? 2 : 1;
 	if (pf->dbg_mask & IXL_DBG_NVMUPD)
-		ixl_print_nvm_cmd(dev, nvma);
+		ixl_print_nvm_cmd(dev, apiver, nvma);
 
 	if (IXL_PF_IS_RESETTING(pf)) {
 		int count = 0;
@@ -3203,16 +3210,16 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 		device_printf(dev,
 		    "%s: timeout waiting for EMP reset to finish\n",
 		    __func__);
-		free(nvma, M_IXL);
-		return (-EBUSY);
+		perrno = -EBUSY;
+		goto out_sanitize;
 	}
 
 	if (nvma->data_size < 1 || nvma->data_size > 4096) {
 		device_printf(dev,
 		    "%s: invalid request, data size not in supported range\n",
 		    __func__);
-		free(nvma, M_IXL);
-		return (EINVAL);
+		err = EINVAL;
+		goto out_free;
 	}
 
 	/*
@@ -3230,8 +3237,7 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 		if (err) {
 			device_printf(dev, "%s: Cannot get request from user space\n",
 					__func__);
-			free(nvma, M_IXL);
-			return (err);
+			goto out_free;
 		}
 	}
 
@@ -3240,27 +3246,37 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 	status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
 	// IXL_PF_UNLOCK(pf);
 
+	/* Let the nvmupdate report errors, show them only when debug is enabled */
+	if (status != 0 && (pf->dbg_mask & IXL_DBG_NVMUPD) != 0)
+		device_printf(dev, "i40e_nvmupd_command API: v%d status %s, perrno %d\n",
+		    apiver, i40e_stat_str(hw, status), perrno);
+
 	err = copyout(nvma, ifd->ifd_data, ifd_len);
-	free(nvma, M_IXL);
 	if (err) {
 		device_printf(dev, "%s: Cannot return data to user space\n",
 				__func__);
-		return (err);
+		goto out_free;
 	}
 
-	/* Let the nvmupdate report errors, show them only when debug is enabled */
-	if (status != 0 && (pf->dbg_mask & IXL_DBG_NVMUPD) != 0)
-		device_printf(dev, "i40e_nvmupd_command status %s, perrno %d\n",
-		    i40e_stat_str(hw, status), perrno);
+out_sanitize:
+	if (ifd->ifd_cmd == I40E_NVM_ACCESS2) {
+		err = -perrno;
+		goto out_free;
+	}
 
 	/*
 	 * -EPERM is actually ERESTART, which the kernel interprets as it needing
 	 * to run this ioctl again. So use -EACCES for -EPERM instead.
 	 */
 	if (perrno == -EPERM)
-		return (-EACCES);
+		err = -EACCES;
 	else
-		return (perrno);
+		err = perrno;
+
+out_free:
+	free(nvma, M_IXL);
+out:
+	return (err);
 }
 
 int

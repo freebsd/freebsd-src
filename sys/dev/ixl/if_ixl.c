@@ -1965,7 +1965,8 @@ ixl_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
 		/* NVM update command */
-		if (ifd->ifd_cmd == I40E_NVM_ACCESS) {
+		if (ifd->ifd_cmd == I40E_NVM_ACCESS ||
+		    ifd->ifd_cmd == I40E_NVM_ACCESS2) {
 			error = priv_check(curthread, PRIV_DRIVER);
 			if (error)
 				break;
