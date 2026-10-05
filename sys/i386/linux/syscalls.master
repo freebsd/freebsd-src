@@ -2630,8 +2630,13 @@
 		int linux_cachestat(void);
 	}
 ; Linux 6.6:
-452	AUE_NULL		STD {
-		int linux_fchmodat2(void);
+452	AUE_FCHMODAT	STD {
+		int linux_fchmodat2(
+		    l_int dfd,
+		    const char *filename,
+		    l_mode_t mode,
+		    l_int flags
+		);
 	}
 
  ; vim: syntax=off

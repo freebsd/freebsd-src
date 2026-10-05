@@ -1246,7 +1246,10 @@ struct linux_cachestat_args {
 	syscallarg_t dummy;
 };
 struct linux_fchmodat2_args {
-	syscallarg_t dummy;
+	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
+	char filename_l_[PADL_(const char *)]; const char * filename; char filename_r_[PADR_(const char *)];
+	char mode_l_[PADL_(l_mode_t)]; l_mode_t mode; char mode_r_[PADR_(l_mode_t)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 int	linux_setxattr(struct thread *, struct linux_setxattr_args *);
 int	linux_lsetxattr(struct thread *, struct linux_lsetxattr_args *);
@@ -1767,7 +1770,7 @@ int	linux_fchmodat2(struct thread *, struct linux_fchmodat2_args *);
 #define	LINUX_SYS_AUE_linux_futex_waitv	AUE_NULL
 #define	LINUX_SYS_AUE_linux_set_mempolicy_home_node	AUE_NULL
 #define	LINUX_SYS_AUE_linux_cachestat	AUE_NULL
-#define	LINUX_SYS_AUE_linux_fchmodat2	AUE_NULL
+#define	LINUX_SYS_AUE_linux_fchmodat2	AUE_FCHMODAT
 
 #undef PAD_
 #undef PADL_
