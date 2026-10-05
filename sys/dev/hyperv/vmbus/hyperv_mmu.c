@@ -83,6 +83,39 @@ static inline int fill_gva_list(uint64_t gva_list[],
 	return gva_n;
 }
 
+static void
+hv_tlb_flush_params(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
+    enum invl_op_codes op, uint64_t *addr_space, uint64_t *flags,
+    vm_offset_t *start, vm_offset_t *end)
+{
+	switch (op) {
+	case INVL_OP_TLB:
+	case INVL_OP_TLB_PCID:
+	case INVL_OP_TLB_INVPCID_PTI:
+	case INVL_OP_TLB_INVPCID:
+		*start = *end = 0;
+		break;
+	case INVL_OP_PG:
+	case INVL_OP_PG_INVPCID:
+	case INVL_OP_PG_PCID:
+		*start = addr1;
+		*end = addr1 + PAGE_SIZE;
+		break;
+	default:
+		*start = addr1;
+		*end = addr2;
+		break;
+	}
+	if (pmap == kernel_pmap || *end == 0) {
+		*addr_space = 0;
+		*flags = HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES;
+	} else {
+		*addr_space = pmap->pm_cr3 & ~CR3_PCID_MASK;
+		*flags = 0;
+	}
+	if (*end == 0 && pmap != kernel_pmap)
+		*flags |= HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY;
+}
 
 inline int hv_cpumask_to_vpset(struct hv_vpset *vpset,
     const cpuset_t *cpus, struct vmbus_softc * sc)
@@ -135,7 +168,7 @@ hv_vm_tlb_flush(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 	int cpu, vcpu;
 	int max_gvas, gva_n;
 	uint64_t status = 0;
-	uint64_t cr3;
+	vm_offset_t start, end;
 
 	/*
 	 * Hyper-V doesn't handle the invalidating cache. Let system handle it.
@@ -178,18 +211,9 @@ hv_vm_tlb_flush(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 	    ("hv_tlb_flush: interrupts disabled"));
 	critical_enter();
 	flush->processor_mask = 0;
-	cr3 = pmap->pm_cr3;
 
-	if (op == INVL_OP_TLB || op == INVL_OP_TLB_INVPCID ||
-	    op == INVL_OP_TLB_INVPCID_PTI || op == INVL_OP_TLB_PCID) {
-		flush->address_space = 0;
-		flush->flags = HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES;
-	} else {
-
-		flush->address_space = cr3;
-		flush->address_space &= ~CR3_PCID_MASK;
-		flush->flags = 0;
-	}
+	hv_tlb_flush_params(pmap, addr1, addr2, op, &flush->address_space,
+	    &flush->flags, &start, &end);
 	if(CPU_CMP(&mask, &all_cpus) == 0) {
 		flush->flags |= HV_FLUSH_ALL_PROCESSORS;
 	} else {
@@ -207,19 +231,14 @@ hv_vm_tlb_flush(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 			goto native;
 	}
 	max_gvas = (PAGE_SIZE - sizeof(*flush)) / sizeof(flush->gva_list[0]);
-	if (addr2 == 0) {
-		flush->flags |= HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY;
-		status = hypercall_do_md(HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE,
-		    (uint64_t)flush, (uint64_t)NULL);
-	} else if ((addr2 && (addr2 -addr1)/HV_TLB_FLUSH_UNIT) > max_gvas) {
+	if (end == 0 || (end - start) / HV_TLB_FLUSH_UNIT > max_gvas) {
 		status = hypercall_do_md(HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE,
 		    (uint64_t)flush, (uint64_t)NULL);
 	} else {
-		gva_n = fill_gva_list(flush->gva_list, addr1, addr2);
+		gva_n = fill_gva_list(flush->gva_list, start, end);
 
 		status = hv_do_rep_hypercall(HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST,
 		    gva_n, 0, (uint64_t)flush, (uint64_t)NULL);
-
 	}
 	if(status)
 		goto native;
@@ -256,22 +275,13 @@ hv_flush_tlb_others_ex(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 		return EINVAL;
 	flush = *VMBUS_PCPU_PTR(sc, cpu_mem, curcpu);
 	uint64_t status = 0;
-	uint64_t cr3;
+	vm_offset_t start, end;
 
 	if (!(hyperv_recommends & HYPERV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
 	       return EINVAL;
 
-	cr3 = pmap->pm_cr3;
-	if (op == INVL_OP_TLB) {
-		flush->address_space = 0;
-		flush->flags = HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES;
-	} else {
-
-		flush->address_space = cr3;
-		flush->address_space &= ~CR3_PCID_MASK;
-		flush->flags = 0;
-	}
-
+	hv_tlb_flush_params(pmap, addr1, addr2, op, &flush->address_space,
+	    &flush->flags, &start, &end);
 	flush->hv_vp_set.valid_bank_mask = 0;
 
 	flush->hv_vp_set.format = HV_GENERIC_SET_SPARSE_4K;
@@ -287,19 +297,13 @@ hv_flush_tlb_others_ex(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
 	    sizeof(flush->hv_vp_set.bank_contents[0])) /
 	    sizeof(flush->hv_vp_set.bank_contents[0]);
 
-	if (addr2 == 0) {
-		flush->flags |= HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY;
-		status = hv_do_rep_hypercall(
-				HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX,
-				0, nr_bank, (uint64_t)flush, (uint64_t)NULL);
-	} else if (addr2 &&
-	    ((addr2 - addr1)/HV_TLB_FLUSH_UNIT) > max_gvas) {
+	if (end == 0 || ((end - start) / HV_TLB_FLUSH_UNIT) > max_gvas) {
 		status = hv_do_rep_hypercall(
 		    HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX,
 		    0, nr_bank, (uint64_t)flush, (uint64_t)NULL);
 	} else {
 		gva_n = fill_gva_list(&flush->hv_vp_set.bank_contents[nr_bank],
-		    addr1, addr2);
+		    start, end);
 		status = hv_do_rep_hypercall(
 		    HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX,
 		    gva_n, nr_bank, (uint64_t)flush, (uint64_t)NULL);
