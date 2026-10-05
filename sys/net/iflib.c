@@ -3457,6 +3457,13 @@ iflib_txd_db_check(iflib_txq_t txq, int ring)
 	if_ctx_t ctx = txq->ift_ctx;
 	qidx_t dbval, max;
 
+	/*
+	 * Nothing has been queued since the last doorbell.  The threshold is
+	 * zero for a lightly used ring, so the test below would not catch this.
+	 */
+	if (txq->ift_db_pending == 0)
+		return (false);
+
 	max = TXQ_MAX_DB_DEFERRED(txq, txq->ift_in_use);
 
 	/* force || threshold exceeded || at the edge of the ring */
