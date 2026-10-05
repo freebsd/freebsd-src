@@ -1288,6 +1288,7 @@ devfs_open(struct vop_open_args *ap)
 	int error, ref, vlocked;
 	struct cdevsw *dsw;
 	struct file *fpop;
+	bool passable;
 
 	if (vp->v_type == VBLK)
 		return (ENXIO);
@@ -1306,6 +1307,7 @@ devfs_open(struct vop_open_args *ap)
 		dev_relthread(dev, ref);
 		return (ENXIO);
 	}
+	passable = (dsw->d_flags & D_NONPASSABLE) == 0;
 
 	if (vp->v_type == VCHR)
 		devfs_usecount_add(vp);
@@ -1347,8 +1349,7 @@ devfs_open(struct vop_open_args *ap)
 #endif
 	if (fp->f_ops == &badfileops) {
 		finit(fp, fp->f_flag, DTYPE_VNODE, dev,
-		    (dsw->d_flags & D_NONPASSABLE) == 0 ? &devfs_ops_f :
-		    &devfs_ops_nonpassable_f);
+		    passable ? &devfs_ops_f : &devfs_ops_nonpassable_f);
 	}
 	return (error);
 }
