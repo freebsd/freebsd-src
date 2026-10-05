@@ -828,6 +828,8 @@
         file
         ..
         fs
+            cd9660
+            ..
             fdescfs
             ..
             fusefs

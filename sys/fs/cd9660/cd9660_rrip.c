@@ -609,7 +609,8 @@ cd9660_rrip_loop(struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana,
 					}
 				}
 				if (ana->error) {
-					*ana->outlen = 0;
+					if (ana->outlen != NULL)
+						*ana->outlen = 0;
 					result = 0;
 					goto error;
 				}
@@ -680,7 +681,7 @@ int
 cd9660_rrip_analyze(struct iso_directory_record *isodir, struct iso_node *inop,
     struct iso_mnt *imp)
 {
-	ISO_RRIP_ANALYZE analyze;
+	ISO_RRIP_ANALYZE analyze = { 0 };
 
 	analyze.inop = inop;
 	analyze.imp = imp;
@@ -707,7 +708,7 @@ int
 cd9660_rrip_getname(struct iso_directory_record *isodir, char *outbuf,
     u_short *outlen, ino_t *inump, struct iso_mnt *imp)
 {
-	ISO_RRIP_ANALYZE analyze;
+	ISO_RRIP_ANALYZE analyze = { 0 };
 	RRIP_TABLE *tab;
 	u_short c;
 
@@ -747,7 +748,7 @@ int
 cd9660_rrip_getsymname(struct iso_directory_record *isodir, char *outbuf,
     u_short *outlen, struct iso_mnt *imp)
 {
-	ISO_RRIP_ANALYZE analyze;
+	ISO_RRIP_ANALYZE analyze = { 0 };
 	int ret;
 
 	analyze.outbuf = outbuf;
@@ -774,12 +775,14 @@ static RRIP_TABLE rrip_table_extref[] = {
  * Note: We insist on the ER field.
  */
 int
-cd9660_rrip_offset(struct iso_directory_record *isodir, struct iso_mnt *imp)
+cd9660_rrip_offset(struct iso_directory_record *isodir, struct iso_mnt *imp,
+    int *errp)
 {
 	ISO_RRIP_OFFSET *p;
-	ISO_RRIP_ANALYZE analyze;
+	ISO_RRIP_ANALYZE analyze = { 0 };
 	int ret;
 
+	*errp = 0;
 	imp->rr_skip0 = 0;
 	p = (ISO_RRIP_OFFSET *)(isodir->name + 1);
 	if (memcmp(p, "SP\7\1\276\357", 6) != 0) {
@@ -793,6 +796,14 @@ cd9660_rrip_offset(struct iso_directory_record *isodir, struct iso_mnt *imp)
 	analyze.imp = imp;
 	analyze.fields = ISO_SUSP_EXTREF;
 	ret = cd9660_rrip_loop(isodir, &analyze, rrip_table_extref);
+
+	/*
+	 * Malformed RR; fail instead of allowing mount to continue (PR 296853).
+	 */
+	if (analyze.error) {
+		*errp = EINVAL;
+		return (-1);
+	}
 	if ((ret & ISO_SUSP_EXTREF) == 0)
 		return (-1);
 
