@@ -418,7 +418,9 @@ jaildesc_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 
 	jd = fp->f_data;
 	kif->kf_type = KF_TYPE_JAILDESC;
+	JAILDESC_LOCK(jd);
 	kif->kf_un.kf_jail.kf_jid = jd->jd_prison ? jd->jd_prison->pr_id : 0;
+	JAILDESC_UNLOCK(jd);
 	return (0);
 }
 
