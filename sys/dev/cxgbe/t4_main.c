@@ -42,6 +42,7 @@
 #include <sys/eventhandler.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/nv.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 #include <dev/pci/pcireg.h>
@@ -57,6 +58,7 @@
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/if_vlan_var.h>
+#include <net/if_vf_status.h>
 #include <net/rss_config.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -280,6 +282,7 @@ static driver_t vche_driver = {
 /* ifnet interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(if_t, unsigned long, caddr_t);
+static int cxgbe_vf_status(if_t, struct if_vf_status **);
 static int cxgbe_transmit(if_t, struct mbuf *);
 static void cxgbe_qflush(if_t);
 #if defined(KERN_TLS) || defined(RATELIMIT)
@@ -745,10 +748,15 @@ TUNABLE_INT("hw.cxgbe.cop_managed_offloading", &t4_cop_managed_offloading);
  */
 static int t4_kern_tls = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, kern_tls, CTLFLAG_RDTUN, &t4_kern_tls, 0,
-    "Enable KERN_TLS mode for T6 adapters");
+    "Enable KERN_TLS mode for T6+ adapters");
 
 SYSCTL_NODE(_hw_cxgbe, OID_AUTO, tls, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "cxgbe(4) KERN_TLS parameters");
+
+static int t4_tls_cbc = 0;
+SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, cbc, CTLFLAG_RDTUN,
+    &t4_tls_cbc, 0,
+    "Enable offload of AES-CBC cipher suites.");
 
 static int t4_tls_inline_keys = 0;
 SYSCTL_INT(_hw_cxgbe_tls, OID_AUTO, inline_keys, CTLFLAG_RDTUN,
@@ -2868,6 +2876,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	if_setinitfn(ifp, cxgbe_init);
 	if_setioctlfn(ifp, cxgbe_ioctl);
+	if_setvfstatusfn(ifp, cxgbe_vf_status);
 	if_settransmitfn(ifp, cxgbe_transmit);
 	if_setqflushfn(ifp, cxgbe_qflush);
 	if (vi->pi->nvi > 1 || sc->flags & IS_VF)
@@ -3056,6 +3065,68 @@ cxgbe_init(void *arg)
 		return;
 	cxgbe_init_synchronized(vi);
 	end_synchronized_op(sc, 0);
+}
+
+static int
+cxgbe_vf_status(if_t ifp, struct if_vf_status **statusp)
+{
+	struct port_info *pi;
+	struct adapter *sc;
+	struct t4_vf_info *snapshot;
+	struct if_vf_info *vf;
+	struct if_vf_status *status;
+	struct vi_info *vi;
+	uint16_t num_vfs;
+	int error, i;
+
+	vi = if_getsoftc(ifp);
+	pi = vi->pi;
+	sc = pi->adapter;
+	if (!IS_MAIN_VI(vi))
+		return (EOPNOTSUPP);
+	error = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK,
+	    "t4vfstat");
+	if (error != 0)
+		return (error);
+	if (!pi->iov_status_supported) {
+		end_synchronized_op(sc, 0);
+		return (EOPNOTSUPP);
+	}
+	num_vfs = pi->iov_num_vfs;
+	snapshot = NULL;
+	if (num_vfs != 0) {
+		snapshot = mallocarray(num_vfs, sizeof(*snapshot), M_CXGBE,
+		    M_WAITOK);
+		memcpy(snapshot, pi->iov_vfs, num_vfs * sizeof(*snapshot));
+	}
+	end_synchronized_op(sc, 0);
+
+	status = if_vf_status_alloc(num_vfs);
+	for (i = 0; i < num_vfs; i++) {
+		vf = &status->vfs[i];
+		vf->fields = IFVF_F_CONFIGURED;
+		vf->index = i;
+		vf->configured = snapshot[i].configured;
+		if (!vf->configured)
+			continue;
+		vf->fields |= IFVF_F_VLAN_MODE;
+		if (!ETHER_IS_ZERO(snapshot[i].mac)) {
+			memcpy(vf->mac, snapshot[i].mac, sizeof(vf->mac));
+			vf->fields |= IFVF_F_MAC;
+		}
+		if (snapshot[i].access_vlan) {
+			vf->vlan_mode = IFVF_VLAN_ACCESS;
+			vf->vlan = snapshot[i].vlan;
+			vf->vlan_proto = ETHERTYPE_VLAN;
+			vf->vlan_count = 1;
+			vf->fields |= IFVF_F_VLAN | IFVF_F_VLAN_PROTO |
+			    IFVF_F_VLAN_COUNT;
+		} else
+			vf->vlan_mode = IFVF_VLAN_TRUNK;
+	}
+	free(snapshot, M_CXGBE);
+	*statusp = status;
+	return (0);
 }
 
 static int
@@ -6208,6 +6279,7 @@ set_params__post_init(struct adapter *sc)
 
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
+		sc->tlst.cbc = t4_tls_cbc;
 		sc->tlst.inline_keys = t4_tls_inline_keys;
 		if (t4_kern_tls != 0 && is_t6(sc)) {
 			sc->tlst.combo_wrs = t4_tls_combo_wrs;
@@ -8185,6 +8257,9 @@ t4_sysctls(struct adapter *sc)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "KERN_TLS parameters");
 		children = SYSCTL_CHILDREN(oid);
 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cbc",
+		    CTLFLAG_RW, &sc->tlst.cbc, 0,
+		    "Enable offload of AES-CBC cipher suites.");
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "inline_keys",
 		    CTLFLAG_RW, &sc->tlst.inline_keys, 0, "Always pass TLS "
 		    "keys in work requests (1) or attempt to store TLS keys "
@@ -13085,6 +13160,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 					txq->kern_tls_partial_ghash = 0;
 					txq->kern_tls_splitmode = 0;
 					txq->kern_tls_trailer = 0;
+					txq->kern_tls_imm_only = 0;
+					txq->kern_tls_imm_last16 = 0;
 				}
 				mp_ring_reset_stats(txq->r);
 			}

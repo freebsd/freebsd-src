@@ -363,6 +363,7 @@ sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 seuros [label="Abdelkader Boudih\nseuros@FreeBSD.org\n2026/08/23"]
 sgalabov [label="Stanislav Galabov\nsgalabov@FreeBSD.org\n2016/02/24"]
+sheda [label="Stéphane Rochoy\nsheda@FreeBSD.org\n2026/07/10"]
 shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2017/09/02"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 siva [label="Siva Mahadevan\nsiva@FreeBSD.org\n2026/01/16"]
@@ -386,10 +387,10 @@ ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2010/07/16"]
 tmunro [label="Thomas Munro\ntmunro@FreeBSD.org\n2018/10/15"]
 tpearson [label="Timothy Pearson\ntpearson@FreeBSD.org\n2025/12/02"]
-tsoome [label="Toomas Soome\ntsoome@FreeBSD.org\n2016/08/10"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2011/03/10"]
+tsoome [label="Toomas Soome\ntsoome@FreeBSD.org\n2016/08/10"]
 tuexen [label="Michael Tuexen\ntuexen@FreeBSD.org\n2009/06/06"]
 tychon [label="Tycho Nightingale\ntychon@FreeBSD.org\n2014/01/21"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
@@ -536,12 +537,13 @@ delphij -> rafan
 delphij -> sephe
 
 des -> anholt
+des -> bapt
 des -> hmp
 des -> ivy
 des -> mike
 des -> olli
 des -> ru
-des -> bapt
+des -> sheda
 
 dds -> versus
 
@@ -641,6 +643,7 @@ imp -> chuck
 imp -> dmlb
 imp -> emax
 imp -> furuta
+imp -> jaeyoon
 imp -> jfree
 imp -> joe
 imp -> johalun
@@ -658,13 +661,13 @@ imp -> remko
 imp -> rik
 imp -> rink
 imp -> sanpei
+imp -> sheda
 imp -> shiba
 imp -> takawata
 imp -> toshi
 imp -> tsoome
 imp -> uch
 imp -> vexeduxr
-imp -> jaeyoon
 
 jake -> bms
 jake -> gordon

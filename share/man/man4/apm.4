@@ -1,0 +1,53 @@
+.\" LP (Laptop Package)
+.\"
+.\" Copyright (c) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+.\"
+.\" This software may be used, modified, copied, and distributed, in
+.\" both source and binary form provided that the above copyright and
+.\" these terms are retained. Under no circumstances is the author
+.\" responsible for the proper functioning of this software, nor does
+.\" the author assume any responsibility for damages incurred with its
+.\" use.
+.\"
+.Dd September 30, 2026
+.Dt APM 4 amd64
+.Os
+.Sh NAME
+.Nm apm
+.Nd power management interface
+.Sh DESCRIPTION
+.Nm
+is an interface to power management on i386 and amd64.
+This interface was originally designed to support the Advanced Power Management
+(APM) BIOS extension on i386.
+However, the interface is now implemented by
+.Xr acpi 4.
+.Pp
+.Nm
+exports an application interface as a character device.
+Applications such as
+.Xr apm 8
+can control APM, or retrieve APM status information via this interface.
+The following
+.Xr ioctl 2
+commands are defined in
+.In machine/apm_bios.h :
+.Bl -tag -width 4n -offset indent
+.It Sy APMIO_SUSPEND
+Suspend system (typically using S3).
+.It Sy APMIO_GETINFO
+Get power management information.
+.It Sy APMIO_STANDBY
+Suspend system (typically using S1).
+.It Sy APMIO_GETPWSTATUS
+Get per battery information.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/apm" -compact
+.It Pa /dev/apm
+.El
+.Sh SEE ALSO
+.Xr apm 8 ,
+.Xr zzz 8
+.Sh AUTHORS
+.An Tatsumi Hosokawa Aq Mt hosokawa@jp.FreeBSD.org

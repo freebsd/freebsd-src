@@ -139,6 +139,8 @@
 #define SHOW_sizerdev	'Z'
 
 static void	 usage(const char *);
+static int	 mountpoint_main(int, char *[]);
+static void	 mountpoint_usage(void) __dead2;
 static void	 output(const struct stat *, const char *, const char *, int);
 static int	 format1(const struct stat *,	/* stat info */
 	    const char *,		/* the file name */
@@ -184,6 +186,9 @@ main(int argc, char *argv[])
 	linkfail = 0;
 	statfmt = NULL;
 	timefmt = NULL;
+
+	if (strcmp(getprogname(), "mountpoint") == 0)
+		return (mountpoint_main(argc, argv));
 
 	if (strcmp(getprogname(), "readlink") == 0) {
 		am_readlink = 1;
@@ -390,6 +395,49 @@ usage(const char *synopsis)
 {
 	(void)fprintf(stderr, "usage: %s %s\n", getprogname(), synopsis);
 	exit(1);
+}
+
+/*
+ * When invoked as mountpoint, report whether the file is the root of a
+ * mounted file system.  Exit with 0 if it is, 1 if it is not and
+ * 2 on error.
+ */
+static int
+mountpoint_main(int argc, char *argv[])
+{
+	struct stat st;
+	int ch, mounted, quiet;
+
+	quiet = 0;
+	while ((ch = getopt(argc, argv, "q")) != -1)
+		switch (ch) {
+		case 'q':
+			quiet = 1;
+			break;
+		default:
+			mountpoint_usage();
+		}
+	argc -= optind;
+	argv += optind;
+	if (argc != 1)
+		mountpoint_usage();
+
+	if (stat(argv[0], &st) == -1)
+		err(2, "%s", argv[0]);
+
+	mounted = (st.st_bsdflags & SFBSD_MNTPOINT) != 0;
+	if (!quiet)
+		printf("%s is %sa mount point\n", argv[0],
+		    mounted ? "" : "not ");
+	return (mounted ? 0 : 1);
+}
+
+static void
+mountpoint_usage(void)
+{
+
+	(void)fprintf(stderr, "usage: %s [-q] file\n", getprogname());
+	exit(2);
 }
 
 /* 

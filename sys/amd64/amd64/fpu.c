@@ -51,15 +51,15 @@
 
 #include <machine/cputypes.h>
 #include <machine/frame.h>
+#include <machine/ifunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/resource.h>
-#include <machine/specialreg.h>
 #include <machine/segments.h>
+#include <machine/specialreg.h>
 #include <machine/ucontext.h>
-#include <x86/ifunc.h>
 
 /*
  * Floating point support.

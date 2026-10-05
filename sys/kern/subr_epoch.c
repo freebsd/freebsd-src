@@ -193,6 +193,7 @@ epoch_trace_report(const char *fmt, ...)
 {
 	va_list ap;
 	struct stackentry se, *new;
+	bool dup;
 
 	stack_save(&se.se_stack);
 
@@ -205,10 +206,13 @@ epoch_trace_report(const char *fmt, ...)
 		bcopy(&se.se_stack, &new->se_stack, sizeof(struct stack));
 
 		mtx_lock(&epoch_stacks_lock);
-		new = RB_INSERT(stacktree, &epoch_stacks, new);
+		dup = RB_INSERT(stacktree, &epoch_stacks, new) != NULL;
 		mtx_unlock(&epoch_stacks_lock);
-		if (new != NULL)
+		if (dup) {
+			/* Lost a race; the other thread reports it. */
 			free(new, M_STACK);
+			return;
+		}
 	}
 
 	va_start(ap, fmt);

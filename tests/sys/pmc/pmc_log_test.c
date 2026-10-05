@@ -398,7 +398,7 @@ ATF_TC_BODY(owner_exit_with_log_and_running_pmc, tc)
 
 	ATF_REQUIRE((child = fork()) >= 0);
 	if (child == 0) {
-		volatile unsigned long sink = 0;
+		volatile unsigned long sink __unused = 0;
 		unsigned long i;
 		pmc_id_t cid;
 		int fd;

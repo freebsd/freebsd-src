@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SECURITY_LEVEL 3ossl"
-.TH SSL_CTX_SET_SECURITY_LEVEL 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH SSL_CTX_SET_SECURITY_LEVEL 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -77,18 +77,22 @@ SSL_CTX_set_security_level, SSL_set_security_level, SSL_CTX_get_security_level, 
 \& int SSL_get_security_level(const SSL *s);
 \&
 \& void SSL_CTX_set_security_callback(SSL_CTX *ctx,
-\&                                    int (*cb)(SSL *s, SSL_CTX *ctx, int op,
-\&                                              int bits, int nid,
+\&                                    int (*cb)(const SSL *s, const SSL_CTX *ctx,
+\&                                              int op, int bits, int nid,
 \&                                              void *other, void *ex));
 \&
-\& void SSL_set_security_callback(SSL *s, int (*cb)(SSL *s, SSL_CTX *ctx, int op,
-\&                                                  int bits, int nid,
-\&                                                  void *other, void *ex));
+\& void SSL_set_security_callback(SSL *s,
+\&                                int (*cb)(const SSL *s, const SSL_CTX *ctx,
+\&                                          int op, int bits, int nid,
+\&                                          void *other, void *ex));
 \&
-\& int (*SSL_CTX_get_security_callback(const SSL_CTX *ctx))(SSL *s, SSL_CTX *ctx, int op,
-\&                                                          int bits, int nid, void *other,
+\& int (*SSL_CTX_get_security_callback(const SSL_CTX *ctx))(const SSL *s,
+\&                                                          const SSL_CTX *ctx,
+\&                                                          int op, int bits,
+\&                                                          int nid, void *other,
 \&                                                          void *ex);
-\& int (*SSL_get_security_callback(const SSL *s))(SSL *s, SSL_CTX *ctx, int op,
+\& int (*SSL_get_security_callback(const SSL *s))(const SSL *s,
+\&                                                const SSL_CTX *ctx, int op,
 \&                                                int bits, int nid, void *other,
 \&                                                void *ex);
 \&
@@ -160,7 +164,75 @@ Security level set to 256 bits of security. As a result RSA, DSA and DH keys
 shorter than 15360 bits and ECC keys shorter than 512 bits are prohibited.
 .SH "APPLICATION DEFINED SECURITY CALLBACKS"
 .IX Header "APPLICATION DEFINED SECURITY CALLBACKS"
-\&\fIDocumentation to be provided.\fR
+An application defined security callback is installed with
+\&\fBSSL_CTX_set_security_callback()\fR or \fBSSL_set_security_callback()\fR and replaces the
+default callback. It is consulted whenever the library needs to decide whether
+an algorithm, key, parameter or protocol version meets the configured security
+level. It should return 1 to permit the operation and 0 to reject it. A
+rejected parameter is not advertised or used, as appropriate.
+.PP
+The callback arguments are:
+.IP "\fBs\fR, \fBctx\fR" 4
+.IX Item "s, ctx"
+The \fBSSL\fR or \fBSSL_CTX\fR the check applies to. One of the two is NULL: checks
+originating from a connection pass \fBs\fR (with \fBctx\fR NULL), and checks
+originating from a context pass \fBctx\fR (with \fBs\fR NULL).
+.IP \fBop\fR 4
+.IX Item "op"
+The operation being checked, one of the \fBSSL_SECOP_*\fR values below.
+.IP \fBbits\fR 4
+.IX Item "bits"
+The number of bits of security the parameter provides, or 0 when not
+meaningful for \fBop\fR.
+.IP \fBnid\fR 4
+.IX Item "nid"
+An identifier whose meaning depends on \fBop\fR, or \fBNID_undef\fR when not
+applicable.
+.IP \fBother\fR 4
+.IX Item "other"
+A pointer to the object being checked, whose type depends on \fBop\fR as listed
+below. It is NULL when no object is associated with the operation.
+.IP \fBex\fR 4
+.IX Item "ex"
+The extra data pointer previously set with \fBSSL_CTX_set0_security_ex_data()\fR or
+\&\fBSSL_set0_security_ex_data()\fR, or NULL.
+.PP
+Several operations have \fB_SUPPORTED\fR, \fB_SHARED\fR and \fB_CHECK\fR variants.
+The \fIsupported\fR variant checks a parameter before advertising support for it.
+The \fIshared\fR variant checks a parameter when selecting from the options
+offered by both peers. The \fIcheck\fR variant checks a parameter the peer has
+selected before accepting it.
+.PP
+The defined operations, and the corresponding type of \fBother\fR, are:
+.IP "\fBSSL_SECOP_CIPHER_SUPPORTED\fR, \fBSSL_SECOP_CIPHER_SHARED\fR, \fBSSL_SECOP_CIPHER_CHECK\fR" 4
+.IX Item "SSL_SECOP_CIPHER_SUPPORTED, SSL_SECOP_CIPHER_SHARED, SSL_SECOP_CIPHER_CHECK"
+Advertise/select/accept a TLS cipher suite. \fBother\fR is the \fBSSL_CIPHER\fR.
+.IP "\fBSSL_SECOP_CURVE_SUPPORTED\fR, \fBSSL_SECOP_CURVE_SHARED\fR, \fBSSL_SECOP_CURVE_CHECK\fR" 4
+.IX Item "SSL_SECOP_CURVE_SUPPORTED, SSL_SECOP_CURVE_SHARED, SSL_SECOP_CURVE_CHECK"
+Advertise/select/accept a named group used for key exchange, either an elliptic
+curve or a finite\-field DH group. \fBnid\fR is the group and \fBother\fR points to
+its two byte TLS codepoint.
+.IP "\fBSSL_SECOP_SIGALG_SUPPORTED\fR, \fBSSL_SECOP_SIGALG_SHARED\fR, \fBSSL_SECOP_SIGALG_CHECK\fR, \fBSSL_SECOP_SIGALG_MASK\fR" 4
+.IX Item "SSL_SECOP_SIGALG_SUPPORTED, SSL_SECOP_SIGALG_SHARED, SSL_SECOP_SIGALG_CHECK, SSL_SECOP_SIGALG_MASK"
+Advertise/select/accept a signature algorithm used in the handshake;
+\&\fBSSL_SECOP_SIGALG_MASK\fR is used when building the mask of permitted signature
+algorithms. \fBnid\fR is its hash and \fBother\fR points to its two byte TLS
+codepoint.
+.IP \fBSSL_SECOP_VERSION\fR 4
+.IX Item "SSL_SECOP_VERSION"
+Negotiate a protocol version. \fBnid\fR is the version, for example
+\&\fBTLS1_2_VERSION\fR, and \fBother\fR is NULL.
+.IP \fBSSL_SECOP_TMP_DH\fR 4
+.IX Item "SSL_SECOP_TMP_DH"
+Use an ephemeral DH key. \fBother\fR is the \fBEVP_PKEY\fR.
+.IP "\fBSSL_SECOP_EE_KEY\fR, \fBSSL_SECOP_CA_KEY\fR" 4
+.IX Item "SSL_SECOP_EE_KEY, SSL_SECOP_CA_KEY"
+Accept an end entity or CA certificate public key. \fBother\fR is the \fBX509\fR
+certificate.
+.IP "\fBSSL_SECOP_TICKET\fR, \fBSSL_SECOP_COMPRESSION\fR" 4
+.IX Item "SSL_SECOP_TICKET, SSL_SECOP_COMPRESSION"
+Issue or accept a session ticket, or enable record compression. \fBother\fR
+is NULL.
 .SH NOTES
 .IX Header "NOTES"
 The default security level can be configured when OpenSSL is compiled by
@@ -224,7 +296,7 @@ data pointer or NULL if the ex data is not set.
 These functions were added in OpenSSL 1.1.0.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2014\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

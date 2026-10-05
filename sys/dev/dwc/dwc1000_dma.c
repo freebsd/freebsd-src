@@ -152,6 +152,21 @@
 #define	ERDESC1_RBS1_SHIFT	0		/* Receive Buffer 1 Size */
 
 /*
+ * A hardware buffer descriptor.  Rx and Tx buffers have the same descriptor
+ * layout, but the bits in the fields have different meanings.
+ */
+struct dwc_hwdesc
+{
+	uint32_t desc0;
+	uint32_t desc1;
+	uint32_t addr1;		/* ptr to first buffer data */
+	uint32_t addr2;		/* ptr to next descriptor / second buffer data*/
+};
+
+#define	RX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * RX_DESC_COUNT)
+#define	TX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * TX_DESC_COUNT)
+
+/*
  * The hardware imposes alignment restrictions on various objects involved in
  * DMA transfers.  These values are expressed in bytes (not bits).
  */

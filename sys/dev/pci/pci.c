@@ -4967,6 +4967,192 @@ pci_probe(device_t dev)
 	return (BUS_PROBE_GENERIC);
 }
 
+#ifdef PCI_IOV
+/*
+ * Compute the maximum PCI bus number needed for the currently configured VFs.
+ */
+static int
+pci_iov_max_vf_bus_cur(device_t pf, int iov_pos, uint16_t num_vfs,
+    int *max_bus)
+{
+	uint64_t last_rid;
+	uint32_t pf_rid;
+	uint16_t rid_offset, rid_stride;
+
+	pf_rid = pci_get_rid(pf);
+	rid_offset = pci_read_config(pf, iov_pos + PCIR_SRIOV_VF_OFF, 2);
+	rid_stride = pci_read_config(pf, iov_pos + PCIR_SRIOV_VF_STRIDE, 2);
+	if (rid_offset == 0 || (num_vfs > 1 && rid_stride == 0))
+		return (EINVAL);
+	last_rid = (uint64_t)pf_rid + rid_offset +
+	    (uint64_t)(num_vfs - 1) * rid_stride;
+	if (last_rid > UINT16_MAX)
+		return (ERANGE);
+	*max_bus = MAX(*max_bus, PCI_RID2BUS(last_rid));
+	return (0);
+}
+
+/*
+ * First VF Offset and VF Stride may change with NumVFs.  Probe every valid
+ * NumVFs value while VF Enable is clear and return the largest VF bus.
+ */
+static int
+pci_iov_max_vf_bus(device_t pf, int iov_pos, int *max_bus)
+{
+	uint16_t ctl, num_vfs, original_num_vfs, total_vfs;
+	int error, pf_max_bus;
+
+	total_vfs = pci_read_config(pf, iov_pos + PCIR_SRIOV_TOTAL_VFS, 2);
+	if (total_vfs == 0 || total_vfs == UINT16_MAX)
+		return (0);
+
+	ctl = pci_read_config(pf, iov_pos + PCIR_SRIOV_CTL, 2);
+	original_num_vfs = pci_read_config(pf,
+	    iov_pos + PCIR_SRIOV_NUM_VFS, 2);
+	pf_max_bus = pci_get_bus(pf);
+	error = 0;
+
+	if ((ctl & PCIM_SRIOV_VF_EN) != 0) {
+		/* NumVFs is writable only while VF Enable is clear. */
+		num_vfs = original_num_vfs;
+		if (num_vfs == 0 || num_vfs > total_vfs)
+			return (EINVAL);
+		return (pci_iov_max_vf_bus_cur(pf, iov_pos, num_vfs, max_bus));
+	}
+
+	for (num_vfs = total_vfs; num_vfs != 0; num_vfs--) {
+		pci_write_config(pf, iov_pos + PCIR_SRIOV_NUM_VFS,
+		    num_vfs, 2);
+		error = pci_iov_max_vf_bus_cur(pf, iov_pos, num_vfs,
+		    &pf_max_bus);
+		if (error != 0)
+			break;
+	}
+	pci_write_config(pf, iov_pos + PCIR_SRIOV_NUM_VFS,
+	    original_num_vfs, 2);
+	if (error == 0)
+		*max_bus = MAX(*max_bus, pf_max_bus);
+	return (error);
+}
+
+/*
+ * Reserve bus numbers required by VFs after the bus has identified all of
+ * its children, but before their drivers attach.  This is best effort;
+ * pci_iov.c retains a runtime allocation path for configurations that cannot
+ * be sized during boot.
+ */
+void
+pci_reserve_iov_buses(device_t dev, int busno)
+{
+	struct pci_iov_bus_group {
+		bool		have_iov;
+		bool		vfs_enabled;
+		bool		ctl_changed;
+		device_t	lowest_pf;
+		int		lowest_iov_pos;
+		uint16_t	saved_ctl;
+	} groups[PCI_SLOTMAX + 1], *group;
+	device_t child, pcib, *devlist;
+	struct pci_softc *sc;
+	rman_res_t start;
+	uint16_t ctl;
+	int devcount, error, group_slot, i, iov_pos, max_bus, slot;
+	bool ari, have_iov;
+
+	pcib = device_get_parent(dev);
+	sc = device_get_softc(dev);
+	max_bus = busno;
+	ari = PCIB_ARI_ENABLED(pcib);
+	bzero(groups, sizeof(groups));
+	have_iov = false;
+	error = device_get_children(dev, &devlist, &devcount);
+	if (error != 0)
+		return;
+	for (i = 0; i < devcount; i++) {
+		child = devlist[i];
+		if (pci_find_extcap(child, PCIZ_SRIOV, &iov_pos) != 0 ||
+		    PCI_EXTCAP_VER(pci_read_config(child, iov_pos, 4)) != 1)
+			continue;
+		slot = pci_get_slot(child);
+		MPASS(!ari || slot == 0);
+		group_slot = ari ? 0 : slot;
+		group = &groups[group_slot];
+		ctl = pci_read_config(child, iov_pos + PCIR_SRIOV_CTL, 2);
+		if ((ctl & PCIM_SRIOV_VF_EN) != 0)
+			group->vfs_enabled = true;
+		if (!group->have_iov || pci_get_function(child) <
+		    pci_get_function(group->lowest_pf)) {
+			group->have_iov = true;
+			have_iov = true;
+			group->lowest_pf = child;
+			group->lowest_iov_pos = iov_pos;
+		}
+	}
+	if (!have_iov) {
+		free(devlist, M_TEMP);
+		return;
+	}
+
+	/*
+	 * The ARI Hierarchy bit is writable only in the lowest-numbered PF
+	 * and controls the VF routing layout for all PFs on the device.
+	 * Temporarily enable it while sizing an ARI hierarchy whose VFs are
+	 * not already active.
+	 */
+	if (ari) {
+		group = &groups[0];
+		MPASS(group->have_iov);
+		group->saved_ctl = pci_read_config(group->lowest_pf,
+		    group->lowest_iov_pos + PCIR_SRIOV_CTL, 2);
+		ctl = group->saved_ctl;
+		ctl |= PCIM_SRIOV_ARI_EN;
+		group->ctl_changed = !group->vfs_enabled &&
+		    ctl != group->saved_ctl;
+		if (group->ctl_changed)
+			pci_write_config(group->lowest_pf,
+			    group->lowest_iov_pos + PCIR_SRIOV_CTL, ctl, 2);
+	}
+
+	for (i = 0; i < devcount; i++) {
+		child = devlist[i];
+		if (pci_find_extcap(child, PCIZ_SRIOV, &iov_pos) != 0 ||
+		    PCI_EXTCAP_VER(pci_read_config(child, iov_pos, 4)) != 1)
+			continue;
+		slot = pci_get_slot(child);
+		MPASS(!ari || slot == 0);
+		group = &groups[ari ? 0 : slot];
+		ctl = pci_read_config(child, iov_pos + PCIR_SRIOV_CTL, 2);
+		if (group->vfs_enabled && (ctl & PCIM_SRIOV_VF_EN) == 0)
+			continue;
+		error = pci_iov_max_vf_bus(child, iov_pos, &max_bus);
+		if (error != 0 && bootverbose)
+			device_printf(child,
+			    "cannot size SR-IOV function: %d\n", error);
+	}
+	if (ari && groups[0].ctl_changed) {
+		group = &groups[0];
+		pci_write_config(group->lowest_pf,
+		    group->lowest_iov_pos + PCIR_SRIOV_CTL,
+		    group->saved_ctl, 2);
+	}
+	free(devlist, M_TEMP);
+
+	start = rman_get_start(sc->sc_bus);
+	if (max_bus <= rman_get_end(sc->sc_bus))
+		return;
+	error = bus_adjust_resource(dev, sc->sc_bus, start, max_bus);
+	if (error != 0) {
+		device_printf(dev,
+		    "failed to reserve bus numbers %ju-%d for SR-IOV: %d\n",
+		    (uintmax_t)start, max_bus, error);
+		return;
+	}
+	if (bootverbose)
+		device_printf(dev, "reserved bus numbers %ju-%d for SR-IOV\n",
+		    (uintmax_t)start, max_bus);
+}
+#endif
+
 int
 pci_attach_common(device_t dev)
 {
@@ -5009,6 +5195,9 @@ pci_attach(device_t dev)
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	pci_add_children(dev, domain, busno);
+#ifdef PCI_IOV
+	pci_reserve_iov_buses(dev, busno);
+#endif
 	bus_attach_children(dev);
 	return (0);
 }

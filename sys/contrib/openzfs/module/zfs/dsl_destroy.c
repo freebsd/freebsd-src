@@ -807,6 +807,10 @@ old_synchronous_dataset_destroy(dsl_dataset_t *ds, dmu_tx_t *tx)
 	VERIFY0(traverse_dataset(ds,
 	    dsl_dataset_phys(ds)->ds_prev_snap_txg, TRAVERSE_POST |
 	    TRAVERSE_NO_DECRYPT, kill_blkptr, &ka));
+
+	/* We are not synced by dsl_pool_sync(), so apply the deltas here. */
+	dsl_dataset_apply_deltas(ds, tx);
+
 	ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) ||
 	    dsl_dataset_phys(ds)->ds_unique_bytes == 0);
 }
@@ -1341,7 +1345,6 @@ dsl_destroy_inconsistent(const char *dsname, void *arg)
 }
 
 
-#if defined(_KERNEL)
 EXPORT_SYMBOL(dsl_destroy_head);
 EXPORT_SYMBOL(dsl_destroy_head_sync_impl);
 EXPORT_SYMBOL(dsl_dataset_user_hold_check_one);
@@ -1349,4 +1352,3 @@ EXPORT_SYMBOL(dsl_destroy_snapshot_sync_impl);
 EXPORT_SYMBOL(dsl_destroy_inconsistent);
 EXPORT_SYMBOL(dsl_dataset_user_release_tmp);
 EXPORT_SYMBOL(dsl_destroy_head_check_impl);
-#endif

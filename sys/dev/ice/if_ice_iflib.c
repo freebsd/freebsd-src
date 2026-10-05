@@ -3583,10 +3583,8 @@ ice_init_link(struct ice_softc *sc)
 	} else {
 		ice_clear_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING);
 
-		if (ice_is_e830(hw)) {
-			if (!(sc->ldo_tlv.options & ICE_LINK_OVERRIDE_PORT_DIS))
-				return;
-
+		if (ice_is_e830(hw) &&
+		    (sc->ldo_tlv.options & ICE_LINK_OVERRIDE_PORT_DIS) != 0) {
 			ice_set_state(&sc->state, ICE_STATE_TOTAL_PORT_SHUTDOWN);
 			ice_clear_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
 		}

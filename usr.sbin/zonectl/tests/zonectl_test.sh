@@ -36,6 +36,7 @@ report_filter_head()
 {
 	atf_set "descr" "zonectl -o only reports zones matching the filter"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 report_filter_body()
 {
@@ -62,6 +63,7 @@ report_zones_head()
 {
 	atf_set "descr" "zonectl -c rz reports every zone"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 report_zones_body()
 {
@@ -83,6 +85,7 @@ report_starting_lba_head()
 {
 	atf_set "descr" "zonectl -c rz -l reports zones from a starting LBA"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 report_starting_lba_body()
 {
@@ -106,6 +109,7 @@ report_params_head()
 {
 	atf_set "descr" "zonectl -c params reports the device parameters"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 report_params_body()
 {
@@ -126,6 +130,7 @@ open_zone_head()
 {
 	atf_set "descr" "zonectl -c open explicitly opens a zone"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 open_zone_body()
 {
@@ -144,6 +149,7 @@ close_zone_head()
 {
 	atf_set "descr" "zonectl -c close closes an open zone"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 close_zone_body()
 {
@@ -165,6 +171,7 @@ finish_zone_head()
 {
 	atf_set "descr" "zonectl -c finish transitions a zone to full"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 finish_zone_body()
 {
@@ -185,6 +192,7 @@ zone_state_handling_head()
 	atf_set "descr" \
 	    "zone commands follow ZBC spec outside their transition states"
 	atf_set "require.user" "root"
+	atf_set "require.kmods" "g_md g_zoned"
 }
 zone_state_handling_body()
 {

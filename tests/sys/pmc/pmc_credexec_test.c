@@ -146,7 +146,7 @@ allocate_counting_pmc(void)
 static void
 spin(void)
 {
-	volatile unsigned long s = 0;
+	volatile unsigned long s __unused = 0;
 	int i;
 
 	for (i = 0; i < 2000000; i++)

@@ -42,19 +42,54 @@
  * Driver data and defines.
  */
 #define	RX_DESC_COUNT	1024
-#define	RX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * RX_DESC_COUNT)
+#define	RX_MAP_COUNT	RX_DESC_COUNT
 #define	TX_DESC_COUNT	1024
 #define	TX_MAP_COUNT	TX_DESC_COUNT
-#define	TX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * TX_DESC_COUNT)
 #define	TX_MAP_MAX_SEGS	32
 
 #define	DMA_DEFAULT_PBL	8
+
+/* Synopsys Core versions IDs */
+#define	DWMAC_CORE_3_40		0x34
+#define	DWMAC_CORE_3_50		0x35
+#define	DWMAC_CORE_3_70		0x37
+#define	DWMAC_CORE_4_00		0x40
+#define	DWMAC_CORE_4_10		0x41
+#define	DWMAC_CORE_5_00		0x50
+#define	DWMAC_CORE_5_10		0x51
+#define	DWMAC_CORE_5_20		0x52
+#define	DWMAC_CORE_5_40		0x54
 
 struct dwc_bufmap {
 	bus_dmamap_t		map;
 	struct mbuf		*mbuf;
 	/* Only used for TX descirptors */
 	int			last_desc_idx;
+};
+
+struct dwc_softc;
+
+struct dwc_ops {
+	int (*dma_init)(struct dwc_softc *sc);
+	void (*dma_free)(struct dwc_softc *sc);
+	void (*dma_start)(struct dwc_softc *sc);
+	void (*dma_stop)(struct dwc_softc *sc);
+	int (*dma_reset)(struct dwc_softc *sc);
+	void (*dma_txfinish_locked)(struct dwc_softc *sc);
+	void (*dma_txstart)(struct dwc_softc *sc);
+	int (*dma_intr)(struct dwc_softc *sc);
+
+	int (*core_miibus_read_reg)(device_t dev, int phy, int reg);
+	int (*core_miibus_write_reg)(device_t dev, int phy, int reg, int val);
+	void (*core_miibus_statchg)(device_t dev);
+	void (*core_setup)(struct dwc_softc *sc);
+	void (*core_enable_mac)(struct dwc_softc *sc, bool enable);
+	void (*core_enable_csum_offload)(struct dwc_softc *sc);
+	void (*core_setup_rxfilter)(struct dwc_softc *sc);
+	void (*core_get_hwaddr)(struct dwc_softc *sc, uint8_t *hwaddr);
+	void (*core_harvest_stats)(struct dwc_softc *sc);
+	void (*core_intr)(struct dwc_softc *softc);
+	void (*core_intr_disable)(struct dwc_softc *sc);
 };
 
 struct dwc_softc {
@@ -113,6 +148,12 @@ struct dwc_softc {
 	uint32_t		tx_map_tail;
 	int			tx_desccount;
 	int			tx_mapcount;
+	struct dwc_ops		*ops;
+
+	int			flags;
+#define	DWC_HAS_GMAC5		(1 << 2)
+#define	DWC_HAS_GMAC4		(1 << 1)
+#define	DWC_HAS_GMAC3		(1 << 0)
 };
 
 #define	READ4(_sc, _reg) \

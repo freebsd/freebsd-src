@@ -26,10 +26,10 @@
 #
 #
 
-# sample run command file for APM Resume Event
+# sample run command file for Power Management Resume Event
 
 if [ $# -ne 2 ]; then
-	echo "Usage: $0 [apm|acpi] [standby,suspend|1-4]"
+	echo "Usage: $0 [acpi] [standby,suspend|1-4]"
 	exit 1
 fi
 

@@ -4407,7 +4407,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	if (!error) {
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			KASSERT(sep != NULL, ("sep NULL"));
-			if (sep->sess_cbsess.nfsess_xprt != NULL)
+			if (sep->sess_cbsess.nfsess_xprt != NULL &&
+			    sep->sess_cbsess.nfsess_xprt->xp_p2 != NULL)
 				error = newnfs_request(nd, NULL, clp,
 				    &clp->lc_req, NULL, NULL, cred,
 				    clp->lc_program, clp->lc_req.nr_vers, NULL,

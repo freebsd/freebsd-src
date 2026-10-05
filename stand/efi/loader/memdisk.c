@@ -245,6 +245,8 @@ maybe_download_initmd(void)
 	if (url == NULL || *url == '\0')
 		return;
 
+	/* Release SNP so the firmware network stack can fetch the image. */
+	net_deconfigure();
 	printf("Downloading initmd from %s\n", url);
 	error = download_md_image(url);
 	if (error != 0 && error != ECANCELED)

@@ -294,6 +294,39 @@ zero_all_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "zero_twice" "cleanup"
+zero_twice_head()
+{
+	atf_set descr 'Test zeroing an address that is given twice'
+	atf_set require.user root
+	atf_set timeout 30
+}
+
+zero_twice_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.1, 192.0.2.3 }" \
+	    "pass in from <foo> to any"
+
+	# This used to hang the kernel with the rules lock held:
+	# pfr_clr_astats() put the entry on its work queue twice.
+	atf_check -s exit:0 -e "match:1/2 addresses cleared." \
+	    jexec alcatraz pfctl -t foo -T zero 192.0.2.1 192.0.2.1
+	atf_check -s exit:0 -e "match:2/4 addresses cleared." \
+	    jexec alcatraz pfctl -t foo -T zero 192.0.2.3 192.0.2.1 \
+	    192.0.2.3 192.0.2.5
+}
+
+zero_twice_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "reset_nonzero" "cleanup"
 reset_nonzero_head()
 {
@@ -812,6 +845,76 @@ replace_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "replace_verbose" "cleanup"
+replace_verbose_head()
+{
+	atf_set descr 'Test table replace command, asked to be verbose'
+	atf_set require.user root
+}
+
+replace_verbose_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> { 192.0.2.1, 192.0.2.2 }" \
+	    "pass in from <foo> to any"
+
+	# This used to panic: pfr_set_addrs() dereferenced a NULL size2
+	# when asked for feedback over netlink.
+	atf_check -s exit:0 -e "match:1 addresses added." \
+	    -e "match:1 addresses deleted." \
+	    jexec alcatraz pfctl -v -t foo -T replace 192.0.2.2 192.0.2.3
+	atf_check -s exit:0 -o "match:192.0.2.2" -o "match:192.0.2.3" \
+	    -o "not-match:192.0.2.1" \
+	    jexec alcatraz pfctl -t foo -T show
+}
+
+replace_verbose_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "replace_create" "cleanup"
+replace_create_head()
+{
+	atf_set descr 'Test the counts of a replace that creates the table'
+	atf_set require.user root
+}
+
+replace_create_body()
+{
+	pft_init
+	pwd=$(pwd)
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	# libpfctl used to add the number of addresses to whatever the
+	# caller's counter held, which here is the number of tables created.
+	atf_check -s exit:0 -e "match:^1 table created\.$" \
+	    -e "match:^1 addresses added\.$" \
+	    jexec alcatraz pfctl -t foo -T replace 192.0.2.1
+
+	# More than one chunk of addresses.
+	for i in `seq 1 2`; do
+		for j in `seq 1 150`; do
+			echo "1.${i}.${j}.1" >> ${pwd}/bar.lst
+		done
+	done
+	atf_check -s exit:0 -e "match:^1 table created\.$" \
+	    -e "match:^300 addresses added\.$" \
+	    jexec alcatraz pfctl -t bar -T replace -f ${pwd}/bar.lst
+}
+
+replace_create_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "load" "cleanup"
 load_head()
 {
@@ -883,6 +986,92 @@ test_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "test_verbose" "cleanup"
+test_verbose_head()
+{
+	atf_set descr 'Test pfctl -v -T test per-address feedback'
+	atf_set require.user root
+}
+
+test_verbose_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> persist { 192.0.2.1 198.51.100.0/24 !198.51.100.7 }" \
+	    "pass all"
+
+	# -v lists only the matching addresses.
+	atf_check -s exit:2 -e match:"2/4 addresses match." \
+	    -o match:"^M  192\.0\.2\.1$" \
+	    -o match:"^M  198\.51\.100\.5$" \
+	    -o not-match:"198\.51\.100\.7" \
+	    -o not-match:"1\.2\.3\.4" \
+	    jexec alcatraz pfctl -t foo -v -T test \
+	    192.0.2.1 198.51.100.5 198.51.100.7 1.2.3.4
+
+	# -vv lists every address and the table entry it matched.
+	atf_check -s exit:2 -e match:"2/4 addresses match." \
+	    -o match:"^M  192\.0\.2\.1	 192\.0\.2\.1$" \
+	    -o match:"^M  198\.51\.100\.5	 198\.51\.100\.0/24$" \
+	    -o match:"^   198\.51\.100\.7	!198\.51\.100\.7$" \
+	    -o match:"^   1\.2\.3\.4	 nomatch$" \
+	    jexec alcatraz pfctl -t foo -vv -T test \
+	    192.0.2.1 198.51.100.5 198.51.100.7 1.2.3.4
+
+	# libpfctl tests 256 addresses per request, check across requests.
+	for i in `seq 1 255`; do
+		echo "203.0.113.${i}"
+	done > addrs
+	echo "1.2.3.4" >> addrs
+	echo "198.51.100.5" >> addrs
+	atf_check -s exit:2 -e match:"1/257 addresses match." \
+	    -o match:"^   203\.0\.113\.255	 nomatch$" \
+	    -o match:"^   1\.2\.3\.4	 nomatch$" \
+	    -o match:"^M  198\.51\.100\.5	 198\.51\.100\.0/24$" \
+	    jexec alcatraz pfctl -t foo -vv -T test -f $(pwd)/addrs
+}
+
+test_verbose_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "show_no_counters" "cleanup"
+show_no_counters_head()
+{
+	atf_set descr 'Test pfctl -v -T show on a table without counters'
+	atf_set require.user root
+}
+
+show_no_counters_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> persist { 192.0.2.1 }" \
+	    "table <bar> persist counters { 192.0.2.1 }" \
+	    "pass all"
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:"Cleared:" -o not-match:"In/Block:" \
+	    jexec alcatraz pfctl -t foo -v -T show
+	atf_check -s exit:0 -e ignore \
+	    -o match:"Cleared:" -o match:"In/Block:" \
+	    jexec alcatraz pfctl -t bar -v -T show
+}
+
+show_no_counters_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
@@ -890,6 +1079,7 @@ atf_init_test_cases()
 	atf_add_test_case "match_counters"
 	atf_add_test_case "zero_one"
 	atf_add_test_case "zero_all"
+	atf_add_test_case "zero_twice"
 	atf_add_test_case "reset_nonzero"
 	atf_add_test_case "pr251414"
 	atf_add_test_case "automatic"
@@ -902,6 +1092,10 @@ atf_init_test_cases()
 	atf_add_test_case "show_recursive"
 	atf_add_test_case "in_anchor"
 	atf_add_test_case "replace"
+	atf_add_test_case "replace_verbose"
+	atf_add_test_case "replace_create"
 	atf_add_test_case "load"
 	atf_add_test_case "test"
+	atf_add_test_case "test_verbose"
+	atf_add_test_case "show_no_counters"
 }

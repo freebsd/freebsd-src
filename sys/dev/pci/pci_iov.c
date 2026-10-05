@@ -748,21 +748,21 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	last_rid = first_rid + (num_vfs - 1) * rid_stride;
 
 	if (pci_get_bus(dev) != PCI_RID2BUS(last_rid)) {
-		device_t pcib = device_get_parent(bus);
-		uint8_t secbus = pci_read_config(pcib, PCIR_SECBUS_1, 1);
-		uint8_t subbus = pci_read_config(pcib, PCIR_SUBBUS_1, 1);
+		struct pci_softc *sc = device_get_softc(bus);
 		uint16_t vf_bus = PCI_RID2BUS(last_rid);
 
-		/* 
-		 * XXX: This should not be directly accessing the bridge registers and does
-		 * nothing to prevent some other device from releasing this bus number while
-		 * another PF is using it.
+		/*
+		 * The PCI bus owns its entire sc_bus range in the parent
+		 * resource manager.  Boot-time SR-IOV sizing may already have
+		 * extended that resource through vf_bus, so do not claim the
+		 * same bus number a second time.
 		 */
-		if (secbus == 0 || vf_bus < secbus || vf_bus > subbus) {
+		if (vf_bus < rman_get_start(sc->sc_bus) ||
+		    vf_bus > rman_get_end(sc->sc_bus)) {
 			int rid = 0;
 
 			iov->iov_bus_res = bus_alloc_resource(bus, PCI_RES_BUS, &rid,
-							      vf_bus, vf_bus, 1, RF_ACTIVE);
+			    vf_bus, vf_bus, 1, RF_ACTIVE);
 			if (iov->iov_bus_res == NULL) {
 				device_printf(dev,
 				    "failed to allocate PCIe bus number for VFs\n");

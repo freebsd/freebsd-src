@@ -36,16 +36,18 @@
 #include <sys/types.h>
 
 #define	DEFINE_IFUNC(qual, ret_type, name, args)			\
-    static ret_type (*name##_resolver(void))args __used;		\
-    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    static ret_type (*name##_resolver(void))args
+    static ret_type (*__CONCAT(name, _resolver)(void))args __used;	\
+    qual ret_type name args						\
+	__attribute__((ifunc(__XSTRING(name) "_resolver")));		\
+    static ret_type (*__CONCAT(name, _resolver)(void))args
 
 #define	DEFINE_UIFUNC(qual, ret_type, name, args)			\
-    static ret_type (*name##_resolver(register_t, register_t,		\
+    static ret_type (*__CONCAT(name, _resolver)(register_t, register_t,	\
 	register_t, register_t, register_t, register_t, register_t,	\
 	register_t))args __used;					\
-    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    static ret_type (*name##_resolver(					\
+    qual ret_type name args						\
+	__attribute__((ifunc(__XSTRING(name) "_resolver")));		\
+    static ret_type (*__CONCAT(name, _resolver)(			\
 	register_t cpu_features,					\
 	register_t cpu_features2,					\
 	register_t arg3 __unused,					\

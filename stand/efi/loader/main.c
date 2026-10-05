@@ -1383,6 +1383,12 @@ main(int argc, CHAR16 *argv[])
 	devinit();
 
 	/*
+	 * Parse command line arguments before any operation that may configure
+	 * the network so DHCP overrides are available on the first attempt.
+	 */
+	howto = parse_args(argc, argv);
+
+	/*
 	 * If we didn't find a ipxe image, and we're netbooting, try to
 	 * download an initmd that the dhcp server tells us about.
 	 */
@@ -1394,7 +1400,6 @@ main(int argc, CHAR16 *argv[])
 	 * args (eg -h) or via the UEFI ConOut variable.
 	 */
 	has_kbd = has_keyboard();
-	howto = parse_args(argc, argv);
 	if (!has_kbd && (howto & RB_PROBE))
 		howto |= RB_SERIAL | RB_MULTIPLE;
 	howto &= ~RB_PROBE;

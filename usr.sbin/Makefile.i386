@@ -3,7 +3,6 @@ SUBDIR+=	acpi
 .endif
 .if ${MK_APM} != "no"
 SUBDIR+=	apm
-SUBDIR+=	apmd
 .endif
 SUBDIR+=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"

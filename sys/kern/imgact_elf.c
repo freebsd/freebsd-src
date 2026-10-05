@@ -803,15 +803,6 @@ __elfN(load_interp_file)(struct thread *td, const char *file, u_long *addr,
 	u_long base_addr = 0;
 	int error;
 
-#ifdef CAPABILITY_MODE
-	/*
-	 * XXXJA: This check can go away once we are sufficiently confident
-	 * that the checks in namei() are correct.
-	 */
-	if (IN_CAPABILITY_MODE(td))
-		return (ECAPMODE);
-#endif
-
 	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK | M_ZERO);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;

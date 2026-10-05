@@ -2570,6 +2570,8 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 	}
 	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
 	NDFREE_PNBUF(&nd);
+	if (error == 0 && (nd.ni_vp->v_vflag & VV_ROOT) != 0)
+		sbp->st_bsdflags |= SFBSD_MNTPOINT;
 	vput(nd.ni_vp);
 #ifdef __STAT_TIME_T_EXT
 	sbp->st_atim_ext = 0;
@@ -3867,6 +3869,15 @@ again:
 		 * the time this check works.
 		 */
 		error = EEXIST;
+		goto out;
+	}
+	if (fvp->v_type == VDIR &&
+	    ((fromnd.ni_resflags | tond.ni_resflags) & NIRES_BENEATH) != 0) {
+		/*
+		 * We must not rename a directory relative to FD_RESOLVE_BENEATH
+		 * descriptors.
+		 */
+		error = ENOTCAPABLE;
 		goto out;
 	}
 	if (exchange) {

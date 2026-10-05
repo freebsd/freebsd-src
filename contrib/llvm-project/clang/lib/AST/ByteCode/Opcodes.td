@@ -851,6 +851,10 @@ def InvalidNewDeleteExpr : Opcode {
   let Args = [ArgExpr];
 }
 
+def CheckPlacementNew : Opcode {
+  let Args = [ArgExpr];
+}
+
 def CheckNewTypeMismatchArray : Opcode {
   let Types = [IntegerTypeClass];
   let Args = [ArgExpr];

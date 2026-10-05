@@ -49,6 +49,7 @@
 struct t4iov_softc {
 	device_t sc_dev;
 	device_t sc_main;
+	struct port_info *sc_port;
 	bool sc_attached;
 
 	int pf;
@@ -277,6 +278,7 @@ t4iov_attach_child(device_t dev)
 {
 	struct t4iov_softc *sc;
 #ifdef PCI_IOV
+	struct adapter *adap;
 	nvlist_t *pf_schema, *vf_schema;
 #endif
 	device_t pdev;
@@ -306,6 +308,16 @@ t4iov_attach_child(device_t dev)
 		device_printf(dev, "Failed to initialize SR-IOV: %d\n", error);
 		return (0);
 	}
+	sc->sc_port = device_get_softc(pdev);
+	adap = device_get_softc(sc->sc_main);
+	error = begin_synchronized_op(adap, NULL, SLEEP_OK, "t4iovatt");
+	if (error != 0) {
+		(void)pci_iov_detach(dev);
+		sc->sc_port = NULL;
+		return (error);
+	}
+	sc->sc_port->iov_status_supported = true;
+	end_synchronized_op(adap, 0);
 #endif
 
 	sc->sc_attached = true;
@@ -317,6 +329,7 @@ t4iov_detach_child(device_t dev)
 {
 	struct t4iov_softc *sc;
 #ifdef PCI_IOV
+	struct adapter *adap;
 	int error;
 #endif
 
@@ -330,6 +343,13 @@ t4iov_detach_child(device_t dev)
 		device_printf(dev, "Failed to disable SR-IOV\n");
 		return (error);
 	}
+	adap = device_get_softc(sc->sc_main);
+	error = begin_synchronized_op(adap, NULL, SLEEP_OK, "t4iovdet");
+	if (error != 0)
+		return (error);
+	sc->sc_port->iov_status_supported = false;
+	end_synchronized_op(adap, 0);
+	sc->sc_port = NULL;
 #endif
 
 	sc->sc_attached = false;
@@ -359,14 +379,46 @@ t4iov_detach(device_t dev)
 static int
 t4iov_iov_init(device_t dev, uint16_t num_vfs, const struct nvlist *config)
 {
+	struct t4iov_softc *sc;
+	struct t4_vf_info *vfs;
+	struct adapter *adap;
+	int error;
 
 	/* XXX: The Linux driver sets up a vf_monitor task on T4 adapters. */
+	sc = device_get_softc(dev);
+	MPASS(sc->sc_port != NULL);
+	vfs = mallocarray(num_vfs, sizeof(*vfs), M_CXGBE,
+	    M_WAITOK | M_ZERO);
+	adap = device_get_softc(sc->sc_main);
+	error = begin_synchronized_op(adap, NULL, SLEEP_OK, "t4vfinit");
+	if (error != 0) {
+		free(vfs, M_CXGBE);
+		return (error);
+	}
+	MPASS(sc->sc_port->iov_vfs == NULL);
+	sc->sc_port->iov_vfs = vfs;
+	sc->sc_port->iov_num_vfs = num_vfs;
+	end_synchronized_op(adap, 0);
 	return (0);
 }
 
 static void
 t4iov_iov_uninit(device_t dev)
 {
+	struct t4iov_softc *sc;
+	struct t4_vf_info *vfs;
+	struct adapter *adap;
+
+	sc = device_get_softc(dev);
+	MPASS(sc->sc_port != NULL);
+	adap = device_get_softc(sc->sc_main);
+	if (begin_synchronized_op(adap, NULL, SLEEP_OK, "t4vffini") != 0)
+		return;
+	vfs = sc->sc_port->iov_vfs;
+	sc->sc_port->iov_vfs = NULL;
+	sc->sc_port->iov_num_vfs = 0;
+	end_synchronized_op(adap, 0);
+	free(vfs, M_CXGBE);
 }
 
 static int
@@ -376,6 +428,8 @@ t4iov_add_vf(device_t dev, uint16_t vfnum, const struct nvlist *config)
 	struct t4iov_softc *sc;
 	struct adapter *adap;
 	uint8_t ma[ETHER_ADDR_LEN];
+	uint16_t vlan;
+	bool access_vlan, has_mac, has_vlan;
 	size_t size;
 	int rc;
 
@@ -383,27 +437,19 @@ t4iov_add_vf(device_t dev, uint16_t vfnum, const struct nvlist *config)
 	MPASS(sc->sc_attached);
 	MPASS(sc->sc_main != NULL);
 	adap = device_get_softc(sc->sc_main);
+	memset(ma, 0, sizeof(ma));
+	vlan = 0;
+	access_vlan = false;
+	has_mac = nvlist_exists_binary(config, "mac-addr");
+	has_vlan = nvlist_exists_number(config, "vlan");
 
-	if (nvlist_exists_binary(config, "mac-addr")) {
+	if (has_mac) {
 		mac = nvlist_get_binary(config, "mac-addr", &size);
 		bcopy(mac, ma, ETHER_ADDR_LEN);
-
-		if (begin_synchronized_op(adap, NULL, SLEEP_OK | INTR_OK,
-		    "t4vfma") != 0)
-			return (ENXIO);
-		rc = -t4_set_vf_mac(adap, sc->pf, vfnum + 1, 1, ma);
-		end_synchronized_op(adap, 0);
-		if (rc != 0) {
-			device_printf(dev,
-			    "Failed to set VF%d MAC address to "
-			    "%02x:%02x:%02x:%02x:%02x:%02x, rc = %d\n", vfnum,
-			    ma[0], ma[1], ma[2], ma[3], ma[4], ma[5], rc);
-			return (rc);
-		}
 	}
 
-	if (nvlist_exists_number(config, "vlan")) {
-		uint16_t vlan = nvlist_get_number(config, "vlan");
+	if (has_vlan) {
+		vlan = nvlist_get_number(config, "vlan");
 
 		/* We can't restrict to VID 0 */
 		if (vlan == DOT1Q_VID_NULL)
@@ -411,21 +457,46 @@ t4iov_add_vf(device_t dev, uint16_t vfnum, const struct nvlist *config)
 
 		if (vlan == VF_VLAN_TRUNK)
 			vlan = DOT1Q_VID_NULL;
+		else
+			access_vlan = true;
+	}
 
-		if (begin_synchronized_op(adap, NULL, SLEEP_OK | INTR_OK,
-		    "t4vfvl") != 0)
-			return (ENXIO);
+	if (begin_synchronized_op(adap, NULL, SLEEP_OK | INTR_OK,
+	    "t4vfadd") != 0)
+		return (ENXIO);
+
+	if (has_mac) {
+		rc = -t4_set_vf_mac(adap, sc->pf, vfnum + 1, 1, ma);
+		if (rc != 0) {
+			device_printf(dev,
+			    "Failed to set VF%d MAC address to "
+			    "%02x:%02x:%02x:%02x:%02x:%02x, rc = %d\n", vfnum,
+			    ma[0], ma[1], ma[2], ma[3], ma[4], ma[5], rc);
+			goto out;
+		}
+	}
+
+	if (has_vlan) {
 		rc = t4_set_vlan_acl(adap, sc->pf, vfnum + 1, vlan);
-		end_synchronized_op(adap, 0);
 		if (rc != 0) {
 			device_printf(dev,
 			    "Failed to set VF%d VLAN to %d, rc = %d\n",
 			    vfnum, vlan, rc);
-			return (rc);
+			goto out;
 		}
 	}
 
-	return (0);
+	if (has_mac)
+		memcpy(sc->sc_port->iov_vfs[vfnum].mac, ma,
+		    ETHER_ADDR_LEN);
+	sc->sc_port->iov_vfs[vfnum].vlan = vlan;
+	sc->sc_port->iov_vfs[vfnum].access_vlan = access_vlan;
+	sc->sc_port->iov_vfs[vfnum].configured = true;
+	rc = 0;
+
+out:
+	end_synchronized_op(adap, 0);
+	return (rc);
 }
 #endif
 

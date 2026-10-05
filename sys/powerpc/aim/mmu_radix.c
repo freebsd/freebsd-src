@@ -121,6 +121,8 @@ static void pmap_pte_walk(pml1_entry_t *l1, vm_offset_t va);
 
 extern int nkpt;
 extern caddr_t crashdumpmap;
+extern unsigned char _etext[];
+extern unsigned char _end[];
 
 #define RIC_FLUSH_TLB 0
 #define RIC_FLUSH_PWC 1
@@ -493,6 +495,9 @@ static void mmu_radix_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t ma);
 static int mmu_radix_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void mmu_radix_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
 static void mmu_radix_scan_init(void);
+static size_t mmu_radix_scan_pmap(struct bitset *dump_bitset);
+static void *mmu_radix_dump_pmap_init(unsigned blkpgs);
+static void *mmu_radix_dump_pmap(void *ctx, void *buf, u_long *nbytes);
 static void	mmu_radix_cpu_bootstrap(int ap);
 static void	mmu_radix_tlbie_all(void);
 
@@ -515,6 +520,9 @@ static struct pmap_funcs mmu_radix_methods = {
 	.dev_direct_mapped = mmu_radix_dev_direct_mapped,
 	.dumpsys_pa_init = mmu_radix_scan_init,
 	.dumpsys_map_chunk = mmu_radix_dumpsys_map,
+	.dumpsys_scan_pmap = mmu_radix_scan_pmap,
+	.dumpsys_dump_pmap_init = mmu_radix_dump_pmap_init,
+	.dumpsys_dump_pmap = mmu_radix_dump_pmap,
 	.page_is_mapped = mmu_radix_page_is_mapped,
 	.ps_enabled = mmu_radix_ps_enabled,
 	.align_superpage = mmu_radix_align_superpage,
@@ -931,6 +939,7 @@ mmu_radix_kenter(vm_offset_t va, vm_paddr_t pa)
 	MPASS(pte != NULL);
 	*pte = htobe64(pa | RPTE_VALID | RPTE_LEAF | RPTE_EAA_R | \
 	    RPTE_EAA_W | RPTE_EAA_P | PG_M | PG_A);
+	ptesync();
 }
 
 bool
@@ -6147,6 +6156,7 @@ mmu_radix_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 	pteval = pa | RPTE_EAA_R | RPTE_EAA_W | RPTE_EAA_P | PG_M | PG_A;
 	cache_bits = mmu_radix_calc_wimg(pa, ma);
 	pte_store(pte, pteval | cache_bits);
+	ptesync();
 }
 
 void
@@ -6158,6 +6168,7 @@ mmu_radix_kremove(vm_offset_t va)
 
 	pte = kvtopte(va);
 	pte_clear(pte);
+	pmap_invalidate_page(kernel_pmap, va);
 }
 
 int
@@ -6177,6 +6188,155 @@ mmu_radix_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 
 	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, pa, size);
 	return (mem_valid(pa, size));
+}
+
+static void
+mmu_radix_dump_add_range(struct bitset *dump_bitset, vm_paddr_t pa,
+    vm_size_t size)
+{
+	vm_paddr_t end;
+
+	end = pa + size;
+	for (; pa < end; pa += PAGE_SIZE) {
+		if (vm_phys_is_dumpable(pa))
+			vm_page_dump_add(dump_bitset, pa);
+	}
+}
+
+static void
+mmu_radix_dump_add_leaf(struct bitset *dump_bitset, vm_offset_t va,
+    vm_paddr_t pa, vm_size_t size, vm_offset_t kstart, vm_offset_t kend)
+{
+	vm_offset_t end, start;
+
+	/*
+	 * Most DMAP mappings only provide aliases for memory already selected
+	 * by the minidump bitmap.  The relocated kernel image is the exception:
+	 * its pages were allocated before regular minidump page tracking began.
+	 */
+	if (va < VM_MIN_KERNEL_ADDRESS) {
+		end = va + size;
+		if (end <= kstart || va >= kend)
+			return;
+		start = MAX(va, kstart);
+		end = MIN(end, kend);
+		pa += start - va;
+		size = end - start;
+	}
+	mmu_radix_dump_add_range(dump_bitset, pa, size);
+}
+
+static size_t
+mmu_radix_scan_pmap(struct bitset *dump_bitset)
+{
+	pt_entry_t *l1, *l2, *l3, *pt;
+	pt_entry_t l1e, l2e, l3e, pte;
+	vm_offset_t kstart, kend, va1, va2, va3, va;
+	vm_paddr_t pa;
+	u_int i, j, k, l;
+
+	kstart = trunc_page((vm_offset_t)_etext);
+	kend = round_page((vm_offset_t)_end);
+	l1 = kernel_pmap->pm_pml1;
+
+	PMAP_LOCK(kernel_pmap);
+	for (i = 0; i < RADIX_PGD_SIZE / sizeof(*l1); i++) {
+		l1e = be64toh(l1[i]);
+		if ((l1e & RPTE_VALID) == 0)
+			continue;
+		va1 = DMAP_BASE_ADDRESS | ((vm_offset_t)i <<
+		    L1_PAGE_SIZE_SHIFT);
+		if ((l1e & RPTE_LEAF) != 0) {
+			mmu_radix_dump_add_leaf(dump_bitset, va1,
+			    l1e & RPTE_RPN_MASK, L1_PAGE_SIZE, kstart, kend);
+			continue;
+		}
+
+		pa = l1e & RPDE_NLB_MASK;
+		mmu_radix_dump_add_range(dump_bitset, pa, PAGE_SIZE);
+		l2 = PHYS_TO_DMAP(pa);
+		for (j = 0; j < NL2EPG; j++) {
+			l2e = be64toh(l2[j]);
+			if ((l2e & RPTE_VALID) == 0)
+				continue;
+			va2 = va1 | ((vm_offset_t)j << L2_PAGE_SIZE_SHIFT);
+			if ((l2e & RPTE_LEAF) != 0) {
+				mmu_radix_dump_add_leaf(dump_bitset, va2,
+				    l2e & RPTE_RPN_MASK, L2_PAGE_SIZE, kstart,
+				    kend);
+				continue;
+			}
+
+			pa = l2e & RPDE_NLB_MASK;
+			mmu_radix_dump_add_range(dump_bitset, pa, PAGE_SIZE);
+			l3 = PHYS_TO_DMAP(pa);
+			for (k = 0; k < NL3EPG; k++) {
+				l3e = be64toh(l3[k]);
+				if ((l3e & RPTE_VALID) == 0)
+					continue;
+				va3 = va2 | ((vm_offset_t)k <<
+				    L3_PAGE_SIZE_SHIFT);
+				if ((l3e & RPTE_LEAF) != 0) {
+					mmu_radix_dump_add_leaf(dump_bitset, va3,
+					    l3e & RPTE_RPN_MASK, L3_PAGE_SIZE,
+					    kstart, kend);
+					continue;
+				}
+
+				pa = l3e & RPDE_NLB_MASK;
+				mmu_radix_dump_add_range(dump_bitset, pa,
+				    PAGE_SIZE);
+				pt = PHYS_TO_DMAP(pa);
+				for (l = 0; l < RPTE_ENTRIES; l++) {
+					pte = be64toh(pt[l]);
+					if ((pte & (RPTE_VALID | RPTE_LEAF)) !=
+					    (RPTE_VALID | RPTE_LEAF))
+						continue;
+					va = va3 | ((vm_offset_t)l << PAGE_SHIFT);
+					mmu_radix_dump_add_leaf(dump_bitset, va,
+					    pte & RPTE_RPN_MASK, PAGE_SIZE,
+					    kstart, kend);
+				}
+			}
+		}
+	}
+	PMAP_UNLOCK(kernel_pmap);
+
+	return (RADIX_PGD_SIZE);
+}
+
+struct radix_dump_context {
+	size_t off;
+	size_t blksz;
+};
+
+static struct radix_dump_context radix_dump_ctx;
+
+static void *
+mmu_radix_dump_pmap_init(unsigned blkpgs)
+{
+
+	radix_dump_ctx.off = 0;
+	radix_dump_ctx.blksz = blkpgs * PAGE_SIZE;
+	return (&radix_dump_ctx);
+}
+
+static void *
+mmu_radix_dump_pmap(void *ctx, void *buf __unused, u_long *nbytes)
+{
+	struct radix_dump_context *dctx;
+	void *p;
+
+	dctx = ctx;
+	if (dctx->off == RADIX_PGD_SIZE) {
+		*nbytes = 0;
+		return (NULL);
+	}
+
+	*nbytes = MIN(dctx->blksz, RADIX_PGD_SIZE - dctx->off);
+	p = (char *)kernel_pmap->pm_pml1 + dctx->off;
+	dctx->off += *nbytes;
+	return (p);
 }
 
 static void

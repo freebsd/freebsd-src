@@ -221,8 +221,6 @@ zfs_close(struct inode *ip, int flag, cred_t *cr)
 	return (0);
 }
 
-#if defined(_KERNEL)
-
 static int zfs_fillpage(struct inode *ip, struct page *pp);
 
 /*
@@ -354,8 +352,6 @@ mappedread(znode_t *zp, int nbytes, zfs_uio_t *uio)
 
 	return (error);
 }
-#endif /* _KERNEL */
-
 static unsigned long zfs_delete_blocks = DMU_MAX_DELETEBLKCNT;
 
 /*
@@ -1775,14 +1771,31 @@ zfs_getattr_fast(zidmap_t *idmap, u32 request_mask, struct inode *ip,
 
 	mutex_exit(&zp->z_lock);
 
+#ifdef STATX_BTIME
+	if (request_mask & STATX_BTIME) {
+		sp->btime = zp->z_btime;
+		sp->result_mask |= STATX_BTIME;
+	}
+#endif
+
 	/*
 	 * Required to prevent NFS client from detecting different inode
 	 * numbers of snapshot root dentry before and after snapshot mount.
+	 * Likewise report the snapshot creation time as the birth time,
+	 * matching the unmounted '.zfs/snapshot/<name>' directory.
 	 */
 	if (zfsvfs->z_issnap) {
-		if (ip->i_sb->s_root->d_inode == ip)
+		if (ip->i_sb->s_root->d_inode == ip) {
 			sp->ino = ZFSCTL_INO_SNAPDIRS -
 			    dmu_objset_id(zfsvfs->z_os);
+#ifdef STATX_BTIME
+			if (request_mask & STATX_BTIME) {
+				sp->btime.tv_sec = dsl_get_creation(
+				    dmu_objset_ds(zfsvfs->z_os));
+				sp->btime.tv_nsec = 0;
+			}
+#endif
+		}
 	}
 
 	zfs_exit(zfsvfs, FTAG);
@@ -4481,7 +4494,6 @@ zfs_fid(struct inode *ip, fid_t *fidp)
 	return (0);
 }
 
-#if defined(_KERNEL)
 EXPORT_SYMBOL(zfs_open);
 EXPORT_SYMBOL(zfs_close);
 EXPORT_SYMBOL(zfs_lookup);
@@ -4507,4 +4519,3 @@ EXPORT_SYMBOL(zfs_map);
 
 module_param(zfs_delete_blocks, ulong, 0644);
 MODULE_PARM_DESC(zfs_delete_blocks, "Delete files larger than N blocks async");
-#endif

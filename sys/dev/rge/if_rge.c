@@ -766,18 +766,20 @@ rge_tx_list_sync(struct rge_softc *sc, struct rge_queues *q,
  *
  * @param sc	driver softc
  * @param q	TX queue ring
- * @param m	mbuf to enqueue
+ * @param mp	mbuf to enqueue, updated if defragmentation replaces it
  * @returns	if the mbuf is enqueued, it's consumed here and the number of
  * 		TX descriptors used is returned; if there's no space then 0 is
- *		returned; if the mbuf couldn't be defragged and the caller
- *		should free it then -1 is returned.
+ *		returned; if the mbuf couldn't be mapped and the caller should
+ *		free it then -1 is returned.
  */
 static int
-rge_encap(struct rge_softc *sc, struct rge_queues *q, struct mbuf *m, int idx)
+rge_encap(struct rge_softc *sc, struct rge_queues *q, struct mbuf **mp,
+    int idx)
 {
 	struct rge_tx_desc *d = NULL;
 	struct rge_txq *txq;
 	bus_dmamap_t txmap;
+	struct mbuf *m;
 	uint32_t cmdsts, cflags = 0;
 	int cur, error, i;
 	bus_dma_segment_t seg[RGE_TX_NSEGS];
@@ -785,6 +787,7 @@ rge_encap(struct rge_softc *sc, struct rge_queues *q, struct mbuf *m, int idx)
 
 	RGE_ASSERT_LOCKED(sc);
 
+	m = *mp;
 	txq = &q->q_tx.rge_txq[idx];
 	txmap = txq->txq_dmamap;
 
@@ -800,10 +803,13 @@ rge_encap(struct rge_softc *sc, struct rge_queues *q, struct mbuf *m, int idx)
 	case EFBIG: /* mbuf chain is too fragmented */
 		sc->sc_drv_stats.tx_encap_refrag_cnt++;
 		nsegs = RGE_TX_NSEGS;
-		if (m_defrag(m, M_NOWAIT) == 0 &&
-		    bus_dmamap_load_mbuf_sg(sc->sc_dmat_tx_buf, txmap, m,
-		    seg, &nsegs, BUS_DMA_NOWAIT) == 0)
-			break;
+		m = m_defrag(m, M_NOWAIT);
+		if (m != NULL) {
+			*mp = m;
+			if (bus_dmamap_load_mbuf_sg(sc->sc_dmat_tx_buf, txmap,
+			    m, seg, &nsegs, BUS_DMA_NOWAIT) == 0)
+				break;
+		}
 		/* FALLTHROUGH */
 	default:
 		sc->sc_drv_stats.tx_encap_err_toofrag++;
@@ -2498,8 +2504,8 @@ rge_tx_task(void *arg, int npending)
 		if (m == NULL)
 			break;
 
-		/* Attempt to encap */
-		used = rge_encap(sc, q, m, idx);
+		/* Attempt to encap, m might change due to defrag */
+		used = rge_encap(sc, q, &m, idx);
 		if (used < 0) {
 			if_inc_counter(sc->sc_ifp, IFCOUNTER_OQDROPS, 1);
 			m_freem(m);

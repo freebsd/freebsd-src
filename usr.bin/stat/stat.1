@@ -29,12 +29,13 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 9, 2025
+.Dd October 1, 2026
 .Dt STAT 1
 .Os
 .Sh NAME
 .Nm stat ,
-.Nm readlink
+.Nm readlink ,
+.Nm mountpoint
 .Nd display file status
 .Sh SYNOPSIS
 .Nm
@@ -45,6 +46,9 @@
 .Nm readlink
 .Op Fl fn
 .Op Ar
+.Nm mountpoint
+.Op Fl q
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -75,9 +79,34 @@ corresponding to
 .Ar file .
 In this case, the argument does not need to be a symbolic link.
 .Pp
+When invoked as
+.Nm mountpoint ,
+the utility checks whether
+.Ar file
+is the root of a mounted file system.
+This is usually a directory, but file systems such as
+.Xr nullfs 5
+can also be mounted over regular files and sockets.
+Symbolic links are followed.
+Unless the
+.Fl q
+option is given, a message stating whether
+.Ar file
+is a mount point is written to the standard output.
+Error messages are written to the standard error even with
+.Fl q .
+.Pp
 The information displayed is obtained by calling
 .Xr lstat 2
 with the given argument and evaluating the returned structure.
+When invoked as
+.Nm mountpoint ,
+.Xr stat 2
+is called instead and the
+.Dv SFBSD_MNTPOINT
+flag in the
+.Fa st_bsdflags
+field is checked.
 The default format displays the
 .Fa st_dev ,
 .Fa st_ino ,
@@ -197,6 +226,11 @@ fail.
 When run as
 .Nm readlink ,
 error messages are automatically suppressed.
+When run as
+.Nm mountpoint ,
+.Fl q
+suppresses the normal output instead;
+error messages are still written to the standard error.
 .It Fl f Ar format
 Display information using the specified format.
 See the
@@ -513,6 +547,12 @@ which default to
 .Cm S .
 .Sh EXIT STATUS
 .Ex -std stat readlink
+.Pp
+The
+.Nm mountpoint
+utility exits 0 if
+.Ar file
+is a mount point, 1 if it is not, and 2 if an error occurred.
 .Sh EXAMPLES
 If no options are specified, the default format is
 "%d %i %Sp %l %Su %Sg %r %z \e"%Sa\e" \e"%Sm\e" \e"%Sc\e" \e"%SB\e" %k %b %#Xf %N".
@@ -620,6 +660,19 @@ To display the same in UTC:
 $ TZ= stat -f %Sm -t %Y%m%d%H%M%S /tmp/foo
 20070427181533
 .Ed
+.Pp
+To check whether a directory is a mount point:
+.Bd -literal -offset indent
+\*[Gt] mountpoint /dev
+/dev is a mount point
+\*[Gt] mountpoint /usr/bin
+/usr/bin is not a mount point
+.Ed
+.Pp
+To mount a file system only if nothing is mounted there yet:
+.Bd -literal -offset indent
+$ mountpoint -q /mnt || mount /dev/md0 /mnt
+.Ed
 .Sh SEE ALSO
 .Xr file 1 ,
 .Xr ls 1 ,
@@ -627,7 +680,9 @@ $ TZ= stat -f %Sm -t %Y%m%d%H%M%S /tmp/foo
 .Xr readlink 2 ,
 .Xr stat 2 ,
 .Xr printf 3 ,
-.Xr strftime 3
+.Xr strftime 3 ,
+.Xr nullfs 5 ,
+.Xr mount 8
 .Sh HISTORY
 The
 .Nm

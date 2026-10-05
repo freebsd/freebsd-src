@@ -535,6 +535,13 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "umtx lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * Jails
+	 */
+	{ "process lock", &lock_class_mtx_sleep },
+	{ "jail mutex", &lock_class_mtx_sleep },
+	{ "jaildesc", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * Sockets
 	 */
 	{ "accept", &lock_class_mtx_sleep },

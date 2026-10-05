@@ -30,18 +30,6 @@
 #ifndef	__DWC1000_DMA_H__
 #define	 __DWC1000_DMA_H__
 
-/*
- * A hardware buffer descriptor.  Rx and Tx buffers have the same descriptor
- * layout, but the bits in the fields have different meanings.
- */
-struct dwc_hwdesc
-{
-	uint32_t desc0;
-	uint32_t desc1;
-	uint32_t addr1;		/* ptr to first buffer data */
-	uint32_t addr2;		/* ptr to next descriptor / second buffer data*/
-};
-
 int dma1000_init(struct dwc_softc *sc);
 void dma1000_free(struct dwc_softc *sc);
 void dma1000_start(struct dwc_softc *sc);

@@ -2243,6 +2243,7 @@ igc_initialize_rss_mapping(struct igc_softc *sc)
 	int queue_id;
 	u32 reta;
 	u32 rss_key[RSSKEYLEN], mrqc, shift = 0;
+	u32 rss_hash_config;
 
 	/*
 	 * The redirection table controls which destination
@@ -2308,16 +2309,27 @@ igc_initialize_rss_mapping(struct igc_softc *sc)
 		IGC_WRITE_REG_ARRAY(hw, IGC_RSSRK(0), i, rss_key[i]);
 
 	/*
-	 * Configure the RSS fields to hash upon.
+	 * Configure the RSS fields to hash upon.  Hash exactly what the
+	 * stack hashes, so that hardware and software agree on the hash
+	 * of a flow.
 	 */
-	mrqc |= (IGC_MRQC_RSS_FIELD_IPV4 |
-	    IGC_MRQC_RSS_FIELD_IPV4_TCP);
-	mrqc |= (IGC_MRQC_RSS_FIELD_IPV6 |
-	    IGC_MRQC_RSS_FIELD_IPV6_TCP);
-	mrqc |=( IGC_MRQC_RSS_FIELD_IPV4_UDP |
-	    IGC_MRQC_RSS_FIELD_IPV6_UDP);
-	mrqc |=( IGC_MRQC_RSS_FIELD_IPV6_UDP_EX |
-	    IGC_MRQC_RSS_FIELD_IPV6_TCP_EX);
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV4;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV4_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6_EX)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6_TCP_EX;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV4_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6_UDP_EX;
 
 	IGC_WRITE_REG(hw, IGC_MRQC, mrqc);
 }

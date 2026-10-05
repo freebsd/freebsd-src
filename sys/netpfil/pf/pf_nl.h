@@ -494,10 +494,11 @@ enum pf_tstats_t {
 
 enum pfr_addr_t {
 	PFR_A_UNSPEC,
-	PFR_A_AF		= 1, /* uint8_t */
+	PFR_A_AF		= 1, /* uint8_t, uint32_t in replies */
 	PFR_A_NET		= 2, /* uint8_t */
 	PFR_A_NOT		= 3, /* bool */
 	PFR_A_ADDR		= 4, /* in6_addr */
+	PFR_A_FBACK		= 5, /* uint8_t */
 };
 
 enum pf_table_addrs_t {
@@ -526,6 +527,7 @@ enum pf_table_astats_t {
 	PF_TAS_FLAGS		= 3, /* u32 */
 	PF_TAS_ASTATS_COUNT	= 4, /* u32 */
 	PF_TAS_ASTATS_ZEROED	= 5, /* u32 */
+	PF_TAS_ADDR		= 6, /* nested, pfr_addr_t */
 };
 
 enum pf_limit_rate_t {

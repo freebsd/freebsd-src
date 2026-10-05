@@ -1,3 +1,4 @@
+3.1:	Fixed symbolic link following
 3.0:	Lua scripts API stability
 2.1:	SMBIOS 3 support
 2.0:	Secure boot support

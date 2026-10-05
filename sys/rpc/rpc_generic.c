@@ -946,7 +946,7 @@ _rpc_copym_into_ext_pgs(struct mbuf *mp, int maxextsiz)
  * Create an mr mbuf and associated pages.
  */
 struct mbuf *
-rpc_reduce_pg(int len, int pos, bool to_mem)
+rpc_reduce_pg(vm_page_t *pgp, int len, int pos, bool to_mem)
 {
 	struct mbuf *mr;
 	struct rpcrdma_reduce_pg *rb;
@@ -960,9 +960,14 @@ rpc_reduce_pg(int len, int pos, bool to_mem)
 	rb->len = len;
 	rb->npg = i;
 	rb->pos = pos;
-	for (i = 0; i < rb->npg; i++)
-		rb->pg[i] = vm_page_alloc_noobj(VM_ALLOC_WAITOK |
-		    VM_ALLOC_NODUMP | VM_ALLOC_WIRED);
+	rb->pg_allocd = (pgp != NULL) ? 0 : 1;
+	for (i = 0; i < rb->npg; i++) {
+		if (pgp != NULL)
+			rb->pg[i] = *pgp++;
+		else
+			rb->pg[i] = vm_page_alloc_noobj(VM_ALLOC_WAITOK |
+			    VM_ALLOC_NODUMP | VM_ALLOC_WIRED);
+	}
 	rb->into_mem = (to_mem) ? 1 : 0;
 	return (mr);
 }
@@ -974,7 +979,7 @@ rpc_free_rdma_reduction(struct mbuf *mr)
 	int i;
 
 	rb = mtod(mr, struct rpcrdma_reduce_pg *);
-	for (i = 0; i < rb->npg; i++) {
+	for (i = 0; i < rb->npg && rb->pg_allocd != 0; i++) {
 		vm_page_unwire_noq(rb->pg[i]);
 		vm_page_free(rb->pg[i]);
 	}
@@ -988,14 +993,15 @@ int
 rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int siz, bool from_pages)
 {
 	struct rpcrdma_reduce_pg *rb;
-	char *cp, *uiocp;
+	char *cp = NULL, *uiocp;
 	int error, left, len, i, uiosiz, xfer;
 
 	rb = mtod(mr, struct rpcrdma_reduce_pg *);
 	if (siz > rb->len)
 		return (EBADRPC);
 	i = 0;
-	cp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(rb->pg[i]));
+	if (rb->pg_allocd != 0)
+		cp = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(rb->pg[i]));
 	len = PAGE_SIZE;
 	if (i == rb->npg - 1 && siz < PAGE_SIZE)
 		len = siz;
@@ -1012,33 +1018,39 @@ rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int siz, bool from_pages)
 				if (i == rb->npg - 1)
 					return (EBADRPC);
 				i++;
-				cp = PHYS_TO_DMAP(
-				    VM_PAGE_TO_PHYS(rb->pg[i]));
+				if (rb->pg_allocd != 0)
+					cp = PHYS_TO_DMAP(
+					    VM_PAGE_TO_PHYS(rb->pg[i]));
 				len = PAGE_SIZE;
 				if (i == rb->npg - 1 && siz < PAGE_SIZE)
 					len = siz;
 			}
 			xfer = (left > len) ? len : left;
-			if (from_pages) {
-				if (uiop->uio_segflg == UIO_SYSSPACE) {
-					memcpy(uiocp, cp, xfer);
+			if (rb->pg_allocd != 0) {
+				if (from_pages) {
+					if (uiop->uio_segflg == UIO_SYSSPACE) {
+						memcpy(uiocp, cp, xfer);
+					} else {
+						error = copyout(cp, uiocp,
+						    xfer);
+						if (error != 0)
+							return (EBADRPC);
+					}
 				} else {
-					error = copyout(cp, uiocp, xfer);
-					if (error != 0)
-						return (EBADRPC);
-				}
-			} else {
-				if (uiop->uio_segflg == UIO_SYSSPACE) {
-					memcpy(cp, uiocp, xfer);
-				} else {
-					error = copyout(uiocp, cp, xfer);
-					if (error != 0)
-						return (EBADRPC);
+					if (uiop->uio_segflg == UIO_SYSSPACE) {
+						memcpy(cp, uiocp, xfer);
+					} else {
+						error = copyout(uiocp, cp,
+						    xfer);
+						if (error != 0)
+							return (EBADRPC);
+					}
 				}
 			}
 			left -= xfer;
 			len -= xfer;
-			cp += xfer;
+			if (rb->pg_allocd != 0)
+				cp += xfer;
 			uiocp += xfer;
 			uiop->uio_offset += xfer;
 			uiop->uio_resid -= xfer;

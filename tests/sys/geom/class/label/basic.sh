@@ -27,6 +27,7 @@
 #
 
 class=label
+ATF_TEST=true
 . $(atf_get_srcdir)/../geom_subr.sh
 
 atf_test_case create cleanup

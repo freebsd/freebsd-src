@@ -926,7 +926,6 @@ g_part_ctl_commit(struct gctl_req *req, struct g_part_parms *gpp)
 
 	if (table->gpt_scheme == &g_part_null_scheme) {
 		g_topology_lock();
-		g_access(cp, -1, -1, -1);
 		g_part_wither(gp, ENXIO);
 		return (0);
 	}
@@ -1080,7 +1079,6 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 fail:
 	g_topology_lock();
 	if (null == NULL) {
-		g_access(cp, -1, -1, -1);
 		g_part_wither(gp, error);
 	} else {
 		kobj_delete((kobj_t)gp->softc, M_GEOM);
@@ -1529,7 +1527,6 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 		error = g_part_probe(gp, cp, table->gpt_depth);
 		if (error) {
 			g_topology_lock();
-			g_access(cp, -1, -1, -1);
 			g_part_wither(gp, error);
 			return (0);
 		}
@@ -1577,6 +1574,8 @@ g_part_wither(struct g_geom *gp, int error)
 
 	table = gp->softc;
 	if (table != NULL) {
+		if (table->gpt_opened)
+			g_access(LIST_FIRST(&gp->consumer), -1, -1, -1);
 		gp->softc = NULL;
 		while ((entry = LIST_FIRST(&table->gpt_entry)) != NULL) {
 			LIST_REMOVE(entry, gpe_entry);
@@ -2180,18 +2179,14 @@ g_part_resize(struct g_consumer *cp)
 		    "  Use `gpart commit %s` to save changes or "
 		    "`gpart undo %s` to revert them.\n", cp->geom->name,
 		    cp->geom->name, cp->geom->name);
-	if (g_part_check_integrity(table, cp) != 0) {
-		g_access(cp, -1, -1, -1);
-		table->gpt_opened = 0;
+	if (g_part_check_integrity(table, cp) != 0)
 		g_part_wither(table->gpt_gp, ENXIO);
-	}
 }
 
 static void
 g_part_orphan(struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	struct g_part_table *table;
 
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("%s", __func__));
@@ -2199,9 +2194,6 @@ g_part_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	KASSERT(pp->error != 0, ("%s", __func__));
-	table = cp->geom->softc;
-	if (table != NULL && table->gpt_opened)
-		g_access(cp, -1, -1, -1);
 	g_part_wither(cp->geom, pp->error);
 }
 

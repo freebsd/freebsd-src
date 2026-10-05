@@ -33,6 +33,7 @@
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/counter.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -132,6 +133,11 @@ struct nvme_async_event_request {
 	uint8_t				log_page_buffer[NVME_MAX_AER_LOG_SIZE];
 };
 
+/* Progress of a hardware Abort for a timed-out tracker */
+#define	NVME_ABORT_NONE		0	/* No abort submitted */
+#define	NVME_ABORT_SENT		1	/* Abort submitted, not yet completed */
+#define	NVME_ABORT_FAILED	2	/* Abort did not abort the command */
+
 struct nvme_tracker {
 	TAILQ_ENTRY(nvme_tracker)	tailq;
 	struct nvme_request		*req;
@@ -139,6 +145,7 @@ struct nvme_tracker {
 	sbintime_t			deadline;
 	bus_dmamap_t			payload_dma_map;
 	uint16_t			cid;
+	uint8_t				abort_state;
 
 	uint64_t			*prp;
 	bus_addr_t			prp_bus_addr;
@@ -323,6 +330,8 @@ struct nvme_controller {
 	bool				isr_warned;
 	bool				is_initialized;
 
+	eventhandler_tag		timestamp_tag;
+
 	/* Host Memory Buffer */
 	int				hmb_nchunks;
 	size_t				hmb_chunk;
@@ -437,6 +446,7 @@ void	nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl);
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_shutdown(struct nvme_controller *ctrlr);
+int	nvme_ctrlr_delete_qpairs(struct nvme_controller *ctrlr);
 void	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void	nvme_ctrlr_start_config_hook(void *ctrlr_arg);

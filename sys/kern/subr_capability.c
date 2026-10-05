@@ -317,6 +317,29 @@ cap_rights_is_valid(const cap_rights_t *rights)
 }
 
 cap_rights_t *
+cap_rights_intersect(cap_rights_t *dst, const cap_rights_t *src)
+{
+	unsigned int i, n;
+
+	assert(CAPVER(dst) == CAP_RIGHTS_VERSION_00);
+	assert(CAPVER(src) == CAP_RIGHTS_VERSION_00);
+	assert(CAPVER(dst) == CAPVER(src));
+	assert(cap_rights_is_valid(src));
+	assert(cap_rights_is_valid(dst));
+
+	n = CAPARSIZE(dst);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
+
+	for (i = 0; i < n; i++)
+		dst->cr_rights[i] &= src->cr_rights[i] | ~0x01FFFFFFFFFFFFFFULL;
+
+	assert(cap_rights_is_valid(src));
+	assert(cap_rights_is_valid(dst));
+
+	return (dst);
+}
+
+cap_rights_t *
 cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src)
 {
 	unsigned int i, n;

@@ -1749,9 +1749,7 @@ relock:
 			/* Journal must account for each new link. */
 			softdep_setup_dotdot_link(tdp, fip);
 		SET_I_OFFSET(fip, mastertemplate.dot_reclen);
-		if (ufs_dirrewrite(fip, fdp, newparent, DT_DIR, 0) != 0)
-			ufs_dirbad(fip, mastertemplate.dot_reclen,
-			    "rename: missing .. entry");
+		(void)ufs_dirrewrite(fip, fdp, newparent, DT_DIR, 0);
 		cache_purge(fdvp);
 	}
 	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, false);

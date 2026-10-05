@@ -919,8 +919,11 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int opts, int numeric)
 	} else {
 		if (r->action >= nitems(actiontypes))
 			printf("action(%d)", r->action);
-	else
+		else {
 			printf("%s", actiontypes[r->action]);
+			if (r->natpass)
+				printf(" pass");
+		}
 	}
 	if (r->action == PF_DROP) {
 		if (r->rule_flag & PFRULE_RETURN)

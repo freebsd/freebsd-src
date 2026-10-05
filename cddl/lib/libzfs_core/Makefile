@@ -11,8 +11,7 @@ LIBADD=	nvpair spl zutil
 
 INCS=	libzfs_core.h
 SRCS=	libzfs_core.c \
-	os/freebsd/libzfs_core_ioctl.c \
-	zfs_ioctl_compat.c
+	os/freebsd/libzfs_core_ioctl.c
 
 WARNS?=	2
 CSTD=	c99

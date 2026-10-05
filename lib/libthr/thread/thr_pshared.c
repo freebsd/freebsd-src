@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 #include "namespace.h"
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -48,6 +49,10 @@ static struct pshared_hash_head pshared_hash[HASH_SIZE];
 /* XXXKIB: lock could be split to per-hash chain, if appears contested */
 static struct urwlock pshared_lock = DEFAULT_URWLOCK;
 static int page_size;
+
+#define GC_INTERVAL_USEC 25000
+static struct timeval pshared_gc_time = {0, 0};
+bool __thr_pshared_destroy_imm_gc = false;
 
 void
 __thr_pshared_init(void)
@@ -94,9 +99,8 @@ pshared_unlock(struct pthread *curthread)
  * mapped off-page.
  *
  * Mitigate the problem by checking the liveness of all hashed keys
- * periodically.  Right now this is executed on each
- * pthread_lock_destroy(), but may be done less often if found to be
- * too time-consuming.
+ * periodically.  Right now this is executed on pthread_lock_destroy()
+ * if previous gc happen later than 25msecs.
  */
 static void
 pshared_gc(struct pthread *curthread)
@@ -104,8 +108,18 @@ pshared_gc(struct pthread *curthread)
 	struct pshared_hash_head *hd;
 	struct psh *h, *h1;
 	int error, i;
+	struct timeval now, diff;
 
 	pshared_wlock(curthread);
+
+	if (!__thr_pshared_destroy_imm_gc && gettimeofday(&now, NULL) == 0) {
+		timersub(&now, &pshared_gc_time, &diff);
+		if (diff.tv_sec == 0 && diff.tv_usec < GC_INTERVAL_USEC) {
+			pshared_unlock(curthread);
+			return;
+		}
+	}
+
 	for (i = 0; i < HASH_SIZE; i++) {
 		hd = &pshared_hash[i];
 		LIST_FOREACH_SAFE(h, hd, link, h1) {
@@ -118,6 +132,11 @@ pshared_gc(struct pthread *curthread)
 			free(h);
 		}
 	}
+
+	if (!__thr_pshared_destroy_imm_gc && gettimeofday(&now, NULL) == 0) {
+		pshared_gc_time = now;
+	}
+
 	pshared_unlock(curthread);
 }
 

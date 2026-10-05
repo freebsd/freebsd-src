@@ -55,5 +55,6 @@ gzoned_test_cleanup()
 	true
 }
 
+ATF_TEST=true
 . `dirname $0`/../geom_subr.sh
 . `dirname $0`/../zoned_subr.sh

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 11, 2026
+.Dd September 30, 2026
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -293,29 +293,6 @@ A list of jail properties for the service.
 See
 .Sx SERVICE JAILS
 for a list of valid properties.
-.It Va apm_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable support for Automatic Power Management with
-the
-.Xr apm 8
-command.
-.It Va apmd_enable
-.Pq Vt bool
-Run
-.Xr apmd 8
-to handle APM event from userland.
-This also enables support for APM.
-.It Va apmd_flags
-.Pq Vt str
-If
-.Va apmd_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr apmd 8
-daemon.
 .It Va devd_enable
 .Pq Vt bool
 Run
@@ -5185,7 +5162,6 @@ to
 .Xr security 7 ,
 .Xr tuning 7 ,
 .Xr accton 8 ,
-.Xr apm 8 ,
 .Xr bsdinstall 8 ,
 .Xr bthidd 8 ,
 .Xr chkprintcap 8 ,

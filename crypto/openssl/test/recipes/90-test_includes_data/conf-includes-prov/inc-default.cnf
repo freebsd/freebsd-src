@@ -1,5 +1,0 @@
-[provider_sect]
-default = default_sect
-
-[default_sect]
-activate = 1

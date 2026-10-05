@@ -413,6 +413,23 @@ AC_DEFUN([ZFS_AC_RPM], [
 
 	AS_IF([test "x$enable_debuginfo" = xyes], [
 		RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --define "__strip /bin/true"'
+	], [
+		RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --nodebuginfo'
+	])
+
+	AC_MSG_CHECKING([whether to use $RPM configure caching])
+	AS_IF([test "x$cache_file" != x/dev/null], [
+		# Cannot use the main cache file because it can have
+		# different build/host/target (and usually does). So
+		# treat the presence of a cache file as an indicator
+		# that caching should be enabled and use a new cache
+		# file.
+		CONFCACHE_FILE="${ac_pwd}/config.rpm.cache"
+		RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --define "confcache --cache-file=$(CONFCACHE_FILE)"'
+		AC_SUBST([CONFCACHE_FILE])
+		AC_MSG_RESULT([yes (${CONFCACHE_FILE})])
+	],[
+		AC_MSG_RESULT([no])
 	])
 
 	RPM_DEFINE_UTIL=' --define "_initconfdir $(initconfdir)"'
@@ -454,9 +471,9 @@ AC_DEFUN([ZFS_AC_RPM], [
 		AC_SUBST(MULTIARCH_LIBDIR)
 	])
 
-	dnl # Make RPM_DEFINE_KMOD additions conditional on CONFIG_KERNEL,
-	dnl # since the values will not be set otherwise. The spec files
-	dnl # provide defaults for them.
+	dnl # For akmod builds, we don't need to define kernel build parameters
+	dnl # since akmods handles this automatically. For regular kmod builds,
+	dnl # we need all the kernel build parameters.
 	dnl #
 	RPM_DEFINE_KMOD='--define "_wrong_version_format_terminate_build 0"'
 	AM_COND_IF([CONFIG_KERNEL], [
@@ -486,6 +503,20 @@ AC_DEFUN([ZFS_AC_RPM], [
 	AC_MSG_CHECKING([whether spec files are available])
 	AC_MSG_RESULT([yes ($RPM_SPEC_DIR/*.spec.in)])
 
+	AC_MSG_CHECKING([whether rpm database is readable])
+	AS_IF([test -r "$($RPM --eval '%{_dbpath}')/rpmdb.sqlite"], [
+		AC_MSG_RESULT([yes ($($RPM --eval '%{_dbpath}')/rpmdb.sqlite)])
+	],[
+		AS_IF([test -r "$($RPM --eval '%{_dbpath}')/Packages"], [
+			AC_MSG_RESULT([yes ($($RPM --eval '%{_dbpath}')/Packages)])
+		],[
+			RPM_DBPATH="${ac_pwd}/.rpmdb"
+			RPM="$RPM --dbpath=\$(RPM_DBPATH)"
+			RPMBUILD="$RPMBUILD --dbpath=\$(RPM_DBPATH)"
+			AC_MSG_RESULT([no (using directory ${RPM_DBPATH})])
+		])
+	])
+
 	AC_SUBST(HAVE_RPM)
 	AC_SUBST(RPM)
 	AC_SUBST(RPM_VERSION)
@@ -494,6 +525,7 @@ AC_DEFUN([ZFS_AC_RPM], [
 	AC_SUBST(RPMBUILD)
 	AC_SUBST(RPMBUILD_VERSION)
 
+	AC_SUBST(RPM_DBPATH)
 	AC_SUBST(RPM_SPEC_DIR)
 	AC_SUBST(RPM_DEFINE_UTIL)
 	AC_SUBST(RPM_DEFINE_KMOD)

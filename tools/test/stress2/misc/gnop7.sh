@@ -49,6 +49,7 @@ newfs $newfs_flags /dev/md$mdstart.nop > /dev/null
 mount /dev/md$mdstart.nop $mntpoint
 chmod 777 $mntpoint
 set +e
+s=0
 
 export runRUNTIME=3m
 export RUNDIR=$mntpoint/stressX

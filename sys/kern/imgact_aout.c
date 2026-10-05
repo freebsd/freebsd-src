@@ -236,17 +236,13 @@ exec_aout_imgact(struct image_params *imgp)
 	 */
 	if (/* entry point must lay with text region */
 	    a_out->a_entry < virtual_offset ||
-	    a_out->a_entry >= virtual_offset + a_out->a_text ||
-
+	    a_out->a_entry >= (uint64_t)virtual_offset + a_out->a_text ||
 	    /* text and data size must each be page rounded */
-	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK
-
-#ifdef __amd64__
-	    ||
-	    /* overflows */
-	    virtual_offset + a_out->a_text + a_out->a_data + bss_size > UINT_MAX
-#endif
-	    )
+	    (a_out->a_text & PAGE_MASK) != 0 ||
+	    (a_out->a_data & PAGE_MASK) != 0 ||
+	    /* no overflows */
+	    (uint64_t)virtual_offset + a_out->a_text + a_out->a_data +
+	    bss_size > UINT_MAX)
 		return (-1);
 
 	/* text + data can't exceed file size */

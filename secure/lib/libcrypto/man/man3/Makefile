@@ -665,6 +665,7 @@ MAN+= X509_sign.3
 MAN+= X509_verify.3
 MAN+= X509_verify_cert.3
 MAN+= X509v3_get_ext_by_NID.3
+MAN+= X509V3_EXT_nconf_nid.3
 MAN+= X509V3_EXT_print.3
 MAN+= b2i_PVK_bio_ex.3
 MAN+= d2i_PKCS8PrivateKey_bio.3

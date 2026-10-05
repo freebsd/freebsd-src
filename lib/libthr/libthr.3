@@ -206,8 +206,14 @@ for pthread operations specifying a timeout.
 If the operation requests a timeout less than the value provided,
 it is silently increased to the value.
 The value of zero means no minimum (default).
-.Pp
+.It Ev LIBPTHREAD_PSHARED_LOCK_DESTROY_IMMEDIATE_GC
+The implementation of the process shared lock scans
+the mapped shared off-pages to detect locks destroyed by other processes,
+when the current process destroys a shared lock.
+This is done not more often than 25msec.
+Setting the environment variable causes the scan to run on each destroy.
 .El
+.Pp
 The following
 .Dv sysctl
 MIBs affect the operation of the library:

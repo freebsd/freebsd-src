@@ -1,5 +1,4 @@
-MAN=	apm.4 \
-	CPU_ELAN.4 \
+MAN=	CPU_ELAN.4 \
 	glxiic.4 \
 	glxsb.4 \
 	longrun.4 \

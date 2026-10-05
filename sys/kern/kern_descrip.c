@@ -1935,6 +1935,65 @@ filecaps_free(struct filecaps *fcaps)
 	bzero(fcaps, sizeof(*fcaps));
 }
 
+bool
+filecaps_full(const struct filecaps *fcaps)
+{
+	cap_rights_t allrights;
+
+	CAP_ALL(&allrights);
+	return (cap_rights_contains(&fcaps->fc_rights, &allrights) &&
+	    fcaps->fc_fcntls == CAP_FCNTL_ALL && fcaps->fc_nioctls == -1);
+}
+
+/*
+ * Find the intersection of two filecaps structures and store the result in the
+ * first structure.  This is a destructive operation on the src structure.
+ */
+void
+filecaps_intersect(struct filecaps *src, struct filecaps *dst)
+{
+
+	cap_rights_intersect(&dst->fc_rights, &src->fc_rights);
+	dst->fc_fcntls &= src->fc_fcntls;
+	if (dst->fc_nioctls == -1) {
+		dst->fc_ioctls = src->fc_ioctls;
+		dst->fc_nioctls = src->fc_nioctls;
+		src->fc_ioctls = NULL;
+	} else if (src->fc_nioctls != -1) {
+		int count;
+
+		/*
+		 * ioctl lists are usually short, so this dumb merge is fine.
+		 * We could alternately sort both lists and walk them in
+		 * parallel.
+		 */
+		count = 0;
+		for (int i = 0; i < dst->fc_nioctls; i++) {
+			bool found;
+
+			found = false;
+			for (int j = 0; j < src->fc_nioctls; j++) {
+				if (dst->fc_ioctls[i] == src->fc_ioctls[j]) {
+					count++;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				if (i != dst->fc_nioctls - 1)
+					dst->fc_ioctls[i] =
+					    dst->fc_ioctls[dst->fc_nioctls - 1];
+				dst->fc_nioctls--;
+				i--;
+			}
+		}
+		dst->fc_nioctls = count;
+	}
+	if (dst->fc_nioctls == 0)
+		filecaps_free_ioctl(dst);
+	filecaps_free(src);
+}
+
 static u_long *
 filecaps_free_prep(struct filecaps *fcaps)
 {
@@ -3302,10 +3361,7 @@ fgetvp_lookup_smr(struct nameidata *ndp, struct vnode **vpp, int *flagsp)
 	 *
 	 * Not yet supported by fast path.
 	 */
-	CAP_ALL(&rights);
-	if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights, &rights) ||
-	    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
-	    ndp->ni_filecaps.fc_nioctls != -1) {
+	if (!filecaps_full(&ndp->ni_filecaps)) {
 #ifdef notyet
 		ndp->ni_lcf |= NI_LCF_STRICTREL;
 #else
@@ -3407,10 +3463,7 @@ fgetvp_lookup(struct nameidata *ndp, struct vnode **vpp)
 	 * all lookups relative to it must also be
 	 * strictly relative.
 	 */
-	CAP_ALL(&rights);
-	if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights, &rights) ||
-	    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
-	    ndp->ni_filecaps.fc_nioctls != -1) {
+	if (!filecaps_full(&ndp->ni_filecaps)) {
 		ndp->ni_lcf |= NI_LCF_STRICTREL;
 		ndp->ni_resflags |= NIRES_STRICTREL;
 	}

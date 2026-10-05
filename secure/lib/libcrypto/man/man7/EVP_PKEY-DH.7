@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY-DH 7ossl"
-.TH EVP_PKEY-DH 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_PKEY-DH 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -165,6 +165,14 @@ The default value used if this is not set is the maximum value of
 BN_num_bits(\fIq\fR)). The minimum value that this can be set to is 2 * s.
 Where s is the security strength of the key which has values of
 112, 128, 152, 176 and 200 for key sizes of 2048, 3072, 4096, 6144 and 8192.
+.SS "DH and DHX key generation FIPS indicator"
+.IX Subsection "DH and DHX key generation FIPS indicator"
+The following key generation parameter can be retrieved with
+\&\fBEVP_PKEY_CTX_get_params\fR\|(3) from the OpenSSL FIPS provider:
+.IP """fips\-indicator"" (\fBOSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR\fR) <integer>" 4
+.IX Item """fips-indicator"" (OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR) <integer>"
+Returns 1 if the operation is FIPS approved, or 0 otherwise.
+See "FIPS indicators" in \fBfips_module\fR\|(7) for more information.
 .SS "DH and DHX key validation"
 .IX Subsection "DH and DHX key validation"
 For keys that are not a named group the FIPS186\-4 standard specifies that the
@@ -364,7 +372,7 @@ The following sections of FIPS186\-4:
 \&\fBOSSL_PROVIDER\-FIPS\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2020\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

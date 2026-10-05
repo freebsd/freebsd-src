@@ -957,6 +957,9 @@ array specifies a value that is unknown.
 An attempt is made to set a read-only value.
 .It Bq Er EPERM
 A process without appropriate privilege attempts to set a value.
+.It Bq Er ECAPMODE
+The process is in capability mode and the variable is not accessible
+in capability mode.
 .El
 .Sh SEE ALSO
 .Xr confstr 3 ,

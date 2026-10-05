@@ -12,7 +12,7 @@ SRCS= \
 	zstream_byteswap.c \
 	zstream_chain.c \
 	zstream_decompress.c \
-	zstream_drop_record.c \
+	zstream_drop_records.c \
 	zstream_dump.c \
 	zstream_fletcher4.c \
 	zstream_io.c \

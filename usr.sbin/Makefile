@@ -227,8 +227,7 @@ SUBDIR_PARALLEL=
 
 # Add architecture-specific manpages
 # to be included anyway
-MAN=   apmd/apmd.8 \
-       nvram/nvram.8
+MAN=   nvram/nvram.8
 
 .include <bsd.prog.mk>
 

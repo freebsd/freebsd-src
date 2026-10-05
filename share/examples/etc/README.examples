@@ -7,7 +7,6 @@ accidentally deleted or broken beyond repair.
 This directory contains the following files:
 
 amd.map		- filesystem automounter lookup resolution map (see amd(8))
-apmd.conf	- configuration file for apmd(8)
 bsd-style-copyright	- copyright style for bsd system
 crontab		- system scheduled command table (see crontab(5))
 csh.cshrc	- sample .cshrc (see csh(1))

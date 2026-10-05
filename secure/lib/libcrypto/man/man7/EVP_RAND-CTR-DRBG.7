@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_RAND-CTR-DRBG 7ossl"
-.TH EVP_RAND-CTR-DRBG 7ossl 2026-08-25 3.5.8 OpenSSL
+.TH EVP_RAND-CTR-DRBG 7ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -112,6 +112,10 @@ These parameters work as described in "PARAMETERS" in \fBEVP_RAND\fR\|(3).
 This Boolean indicates if a derivation function should be used or not.
 A nonzero value (the default) uses the derivation function.  A zero value
 does not.
+.IP """fips\-indicator"" (\fBOSSL_DRBG_PARAM_FIPS_APPROVED_INDICATOR\fR) <integer>" 4
+.IX Item """fips-indicator"" (OSSL_DRBG_PARAM_FIPS_APPROVED_INDICATOR) <integer>"
+The OpenSSL FIPS provider returns 1 if the operation is FIPS approved, or 0
+otherwise.  See "FIPS indicators" in \fBfips_module\fR\|(7) for more information.
 .SH NOTES
 .IX Header "NOTES"
 A context for CTR DRBG can be obtained by calling:
@@ -157,7 +161,7 @@ NIST SP 800\-90A and SP 800\-90B
 "PARAMETERS" in \fBEVP_RAND\fR\|(3)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2020\-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

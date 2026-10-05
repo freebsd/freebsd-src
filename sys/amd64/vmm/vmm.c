@@ -56,13 +56,13 @@
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
 
-#include <machine/cpu.h>
-#include <machine/pcb.h>
-#include <machine/smp.h>
-#include <machine/md_var.h>
-#include <x86/psl.h>
 #include <x86/apicreg.h>
-#include <x86/ifunc.h>
+#include <machine/cpu.h>
+#include <machine/ifunc.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
+#include <x86/psl.h>
+#include <machine/smp.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>

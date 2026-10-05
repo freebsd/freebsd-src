@@ -108,6 +108,7 @@ ipmi_hint_identify(device_t dev, struct ipmi_get_info *info)
 
 	/* Set the mode and default I/O resources for each mode. */
 	bzero(info, sizeof(struct ipmi_get_info));
+	device_printf(dev, "ipmi_hint_identify - %s hint\n", mode);
 	if (strcasecmp(mode, "KCS") == 0) {
 		info->iface_type = KCS_MODE;
 		info->address = 0xca2;
@@ -250,20 +251,34 @@ ipmi_isa_attach(device_t dev)
 	switch (info.iface_type) {
 	case KCS_MODE:
 		error = ipmi_kcs_attach(sc);
+		if (error) {
+			device_printf(dev, "ipmi_kcs_attach error\n");
+			goto bad;
+		}
 		break;
 	case SMIC_MODE:
 		error = ipmi_smic_attach(sc);
+		if (error) {
+			device_printf(dev, "ipmi_smic_attach error\n");
+			goto bad;
+		}
 		break;
 	case BT_MODE:
 		error = ipmi_bt_attach(sc);
+		if (error) {
+			device_printf(dev, "ipmi_bt_attach error\n");
+			goto bad;
+		}
 		break;
 	}
 
 	if (error)
 		goto bad;
 	error = ipmi_attach(dev);
-	if (error)
+	if (error) {
+		device_printf(dev, "ipmi_attach error\n");
 		goto bad;
+	}
 
 	return (0);
 bad:

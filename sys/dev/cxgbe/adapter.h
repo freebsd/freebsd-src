@@ -312,6 +312,13 @@ struct tx_sched_params {
 	struct tx_cl_rl_params cl_rl[];
 };
 
+struct t4_vf_info {
+	uint8_t mac[ETHER_ADDR_LEN];
+	uint16_t vlan;
+	bool configured;
+	bool access_vlan;
+};
+
 struct port_info {
 	device_t dev;
 	struct adapter *adapter;
@@ -323,6 +330,9 @@ struct port_info {
 	bool vxlan_tcam_entry;
 
 	struct tx_sched_params *sched_params;
+	struct t4_vf_info *iov_vfs;
+	uint16_t iov_num_vfs;
+	bool iov_status_supported;
 
 	struct mtx pi_lock;
 	char lockname[16];
@@ -686,6 +696,8 @@ struct sge_txq {
 			uint64_t kern_tls_partial_ghash;
 			uint64_t kern_tls_splitmode;
 			uint64_t kern_tls_trailer;
+			uint64_t kern_tls_imm_only;
+			uint64_t kern_tls_imm_last16;
 		};
 	};
 

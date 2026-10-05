@@ -2660,11 +2660,12 @@ ${_bt}-usr.sbin/makefs: ${_bt}-lib/libsbuf
 .endif
 .endif
 
-# 1300102: VHDX support
-.if ${BOOTSTRAPPING} < 1201520 || \
-	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300102) || \
+# 1600027: vmdks support
+.if ${BOOTSTRAPPING} < 1600027 || \
 	${MK_DISK_IMAGE_TOOLS_BOOTSTRAP} != "no"
 _mkimg=	usr.bin/mkimg
+${_bt}-usr.bin/mkimg: ${_bt}-lib/libz
+_other_bootstrap_tools+=lib/libz
 .else
 _bootstrap_tools_links+=mkimg
 .endif
@@ -3322,13 +3323,14 @@ _startup_libs+=	lib/libc_nonshared
 _startup_libs+=	lib/libcxxrt
 _startup_libs+=	lib/libsys
 
-_prereq_libs+=	lib/libgcc_eh lib/libgcc_s
-_startup_libs+=	lib/libgcc_eh lib/libgcc_s
+_prereq_libs+=	lib/libgcc_eh lib/libgcc_s lib/libgcc_s_asneeded
+_startup_libs+=	lib/libgcc_eh lib/libgcc_s lib/libgcc_s_asneeded
 
 lib/libc__L: lib/libsys__L
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
-lib/libcxxrt__L: lib/libgcc_s__L
+lib/libgcc_s_asneeded__L: lib/libgcc_s__L
+lib/libcxxrt__L: lib/libgcc_s_asneeded__L
 lib/libcrypt__L: lib/libmd__L
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \

@@ -137,7 +137,9 @@ struct vtcon_softc {
     KASSERT((_id) >= 0 && (_id) < (_sc)->vtcon_max_ports,	\
         ("%s: port ID %d out of range", __func__, _id))
 
-#define VTCON_FEATURES  VIRTIO_CONSOLE_F_MULTIPORT
+#define VTCON_FEATURES \
+    (VIRTIO_CONSOLE_F_SIZE		| \
+     VIRTIO_CONSOLE_F_MULTIPORT)
 
 static struct virtio_feature_desc vtcon_feature_desc[] = {
 	{ VIRTIO_CONSOLE_F_SIZE,	"ConsoleSize"	},
@@ -179,6 +181,8 @@ static void	 vtcon_ctrl_port_add_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_remove_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_console_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_open_event(struct vtcon_softc *, int);
+static void	 vtcon_ctrl_port_resize_event(struct vtcon_softc *, int,
+		     const void *, size_t);
 static void	 vtcon_ctrl_port_name_event(struct vtcon_softc *, int,
 		     const char *, size_t);
 static void	 vtcon_ctrl_process_event(struct vtcon_softc *,
@@ -467,14 +471,19 @@ static void
 vtcon_read_config(struct vtcon_softc *sc, struct virtio_console_config *concfg)
 {
 	device_t dev;
+	int gen;
 
 	dev = sc->vtcon_dev;
 
-	bzero(concfg, sizeof(struct virtio_console_config));
+	do {
+		gen = virtio_config_generation(dev);
+		bzero(concfg, sizeof(struct virtio_console_config));
 
-	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, cols, concfg);
-	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, rows, concfg);
-	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_MULTIPORT, max_nr_ports, concfg);
+		VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, cols, concfg);
+		VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, rows, concfg);
+		VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_MULTIPORT, max_nr_ports,
+		    concfg);
+	} while (gen != virtio_config_generation(dev));
 }
 
 #undef VTCON_GET_CONFIG
@@ -813,6 +822,41 @@ vtcon_ctrl_port_open_event(struct vtcon_softc *sc, int id)
 }
 
 static void
+vtcon_ctrl_port_resize_event(struct vtcon_softc *sc, int id, const void *data,
+    size_t len)
+{
+	device_t dev;
+	struct vtcon_softc_port *scport;
+	struct vtcon_port *port;
+	struct virtio_console_resize resize;
+
+	dev = sc->vtcon_dev;
+	scport = &sc->vtcon_ports[id];
+
+	if (data == NULL || len < sizeof(resize)) {
+		device_printf(dev, "%s: resize port %d, but no size\n",
+		    __func__, id);
+		return;
+	}
+	memcpy(&resize, data, sizeof(resize));
+
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
+	if (port == NULL) {
+		VTCON_UNLOCK(sc);
+		device_printf(dev, "%s: resize port %d, but does not exist\n",
+		    __func__, id);
+		return;
+	}
+
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
+	vtcon_port_change_size(port, vtcon_htog16(sc, resize.cols),
+	    vtcon_htog16(sc, resize.rows));
+	VTCON_PORT_UNLOCK(port);
+}
+
+static void
 vtcon_ctrl_port_name_event(struct vtcon_softc *sc, int id, const char *name,
     size_t len)
 {
@@ -882,6 +926,7 @@ vtcon_ctrl_process_event(struct vtcon_softc *sc,
 		break;
 
 	case VIRTIO_CONSOLE_RESIZE:
+		vtcon_ctrl_port_resize_event(sc, id, data, data_len);
 		break;
 
 	case VIRTIO_CONSOLE_PORT_OPEN:
@@ -915,6 +960,7 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 		if (control == NULL)
 			break;
 
+		len = min(len, VTCON_CTRL_BUFSZ);
 		if (len > sizeof(struct virtio_console_control)) {
 			data = (void *) &control[1];
 			data_len = len - sizeof(struct virtio_console_control);
@@ -1313,6 +1359,7 @@ again:
 	deq = 0;
 
 	while ((buf = virtqueue_dequeue(vq, &len)) != NULL) {
+		len = min(len, VTCON_BULK_BUFSZ);
 		for (i = 0; i < len; i++) {
 #if defined(KDB)
 			if (port->vtcport_flags & VTCON_PORT_FLAG_CONSOLE)

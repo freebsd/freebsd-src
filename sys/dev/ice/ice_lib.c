@@ -9699,15 +9699,33 @@ retry:
 		}
 		return;
 	}
+	ice_debug(hw, ICE_DBG_LINK,
+	    "%s IFF_UP: %d, media: %d, TPS: %d, link_active_on_if_down: %d\n",
+	    __func__,
+	    (if_getflags(sc->ifp) & IFF_UP) != 0,
+	    (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) != 0,
+	    ice_test_state(&sc->state, ICE_STATE_TOTAL_PORT_SHUTDOWN),
+	    ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN));
 
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		ice_clear_state(&sc->state, ICE_STATE_NO_MEDIA);
-		/* Apply default link settings */
-		if (!ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN)) {
+		if ((if_getflags(sc->ifp) & IFF_UP) != 0 ||
+		    ice_test_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN)) {
+			/* Apply default link settings if link was administratively
+			 * brought up or link_active_on_if_down flag is enabled */
+			ice_debug(hw, ICE_DBG_LINK,
+			    "%s: applying saved phy cfg\n",
+			    __func__);
+			ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
+		} else {
+			/* Either link_active_on_if_down is disabled or
+			 * Total Port Shutdown is enabled in NVM */
+			ice_debug(hw, ICE_DBG_LINK,
+			    "%s: bringing link down\n",
+			    __func__);
 			ice_set_link(sc, false);
 			ice_set_state(&sc->state, ICE_STATE_LINK_STATUS_REPORTED);
-		} else
-			ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
+		}
 	} else {
 		 /* Set link down, and poll for media available in timer. This prevents the
 		  * driver from receiving spurious link-related events.

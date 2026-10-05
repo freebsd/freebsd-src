@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DTLSV1_GET_TIMEOUT 3ossl"
-.TH DTLSV1_GET_TIMEOUT 3ossl 2026-08-25 3.5.8 OpenSSL
+.TH DTLSV1_GET_TIMEOUT 3ossl 2026-09-29 3.5.9 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -95,7 +95,7 @@ Once the timeout expires, \fBDTLSv1_handle_timeout()\fR should be called to hand
 internal processing which is due; for more information, see
 \&\fBDTLSv1_handle_timeout\fR\|(3).
 .PP
-\&\fBSSL_get_event_timeout\fR\|(3) supersedes all use cases for this this function and
+\&\fBSSL_get_event_timeout\fR\|(3) supersedes all use cases for this function and
 may be used instead of it.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -107,7 +107,7 @@ Returns 0 on failure, or if no timeout is currently active.
 \&\fBDTLSv1_handle_timeout\fR\|(3), \fBSSL_get_event_timeout\fR\|(3), \fBssl\fR\|(7)
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2023\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

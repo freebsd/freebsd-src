@@ -1219,9 +1219,7 @@ freebsd14_setgroups(struct thread *td, struct freebsd14_setgroups_args *uap)
 
 	/*
 	 * Before FreeBSD 15.0, we allow one more group to be supplied to
-	 * account for the egid appearing before the supplementary groups.  This
-	 * may technically allow one more supplementary group for systems that
-	 * did use the default NGROUPS_MAX if we round it back up to 1024.
+	 * account for the egid appearing before the supplementary groups.
 	 */
 	gidsetsize = uap->gidsetsize;
 	if (gidsetsize > ngroups_max + 1 || gidsetsize < 0)
@@ -1233,13 +1231,8 @@ freebsd14_setgroups(struct thread *td, struct freebsd14_setgroups_args *uap)
 		groups = smallgroups;
 
 	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
-	if (error == 0) {
-		int ngroups = gidsetsize > 0 ? gidsetsize - 1 /* egid */ : 0;
-
-		error = kern_setgroups(td, &ngroups, groups + 1);
-		if (error == 0 && gidsetsize > 0)
-			td->td_proc->p_ucred->cr_gid = groups[0];
-	}
+	if (error == 0)
+		error = kern_setgroups(td, &gidsetsize, groups, true);
 
 	if (groups != smallgroups)
 		free(groups, M_TEMP);
@@ -1281,7 +1274,7 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 
 	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
 	if (error == 0)
-		error = kern_setgroups(td, &gidsetsize, groups);
+		error = kern_setgroups(td, &gidsetsize, groups, false);
 
 	if (groups != smallgroups)
 		free(groups, M_TEMP);
@@ -1289,25 +1282,43 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 }
 
 /*
- * CAUTION: This function normalizes 'groups', possibly also changing the value
- * of '*ngrpp' as a consequence.
+ * 'includes_egid' indicates that the first element of groups[] (if any) is the
+ * desired effective GID and that only the other elements will be used to set
+ * the supplementary groups.  If true, and groups[] is empty, the effective GID
+ * is left unchanged and all supplementary groups deleted (see setgroups(2)).
+ *
+ * CAUTION: This function normalizes 'groups' (only the supplementary groups on
+ * 'includes_egid') and may need to update the value of '*ngrpp' as
+ * a consequence.
  */
 int
-kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups)
+kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups, bool includes_egid)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
+	gid_t egid;
 	int ngrp, error;
 
 	ngrp = *ngrpp;
 	/* Sanity check size. */
-	if (ngrp < 0 || ngrp > ngroups_max)
+	if (ngrp < 0 || ngrp > (includes_egid ? ngroups_max + 1 : ngroups_max))
 		return (EINVAL);
 
+	if (includes_egid) {
+		if (ngrp > 0) {
+			egid = groups[0];
+			groups++;
+			ngrp--;
+		} else
+			includes_egid = false;
+	}
+
 	AUDIT_ARG_GROUPSET(groups, ngrp);
+	if (includes_egid)
+		AUDIT_ARG_EGID(egid);
 
 	groups_normalize(&ngrp, groups);
-	*ngrpp = ngrp;
+	*ngrpp = includes_egid ? ngrp + 1 : ngrp;
 
 	newcred = crget();
 	crextend(newcred, ngrp);
@@ -1324,15 +1335,29 @@ kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups)
 	 */
 	error = mac_cred_check_setgroups(oldcred, ngrp,
 	    ngrp == 0 ? NULL : groups);
-	if (error)
+	if (error != 0)
 		goto fail;
+
+	if (includes_egid) {
+		error = mac_cred_check_setegid(oldcred, egid);
+		if (error != 0)
+			goto fail;
+	}
 #endif
 
 	error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS);
-	if (error)
+	if (error != 0)
 		goto fail;
 
+	if (includes_egid) {
+		error = priv_check_cred(oldcred, PRIV_CRED_SETEGID);
+		if (error != 0)
+			goto fail;
+	}
+
 	crsetgroups_internal(newcred, ngrp, groups);
+	if (includes_egid)
+		change_egid(newcred, egid);
 	setsugid(p);
 	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);

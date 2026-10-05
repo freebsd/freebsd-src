@@ -1175,6 +1175,25 @@ enum nvme_activate_action {
 	NVME_AA_ACTIVATE			= 0x2,
 };
 
+/* Timestamp - Data Structure for Set Features / Get Features */
+struct nvme_timestamp_data {
+	uint8_t		tstmp[6];	/* milliseconds since 1970-01-01 UTC */
+	uint8_t		tstmps;		/* attributes, get features only */
+	uint8_t		rsvd7;
+} __packed;
+
+_Static_assert(sizeof(struct nvme_timestamp_data) == 8,
+    "bad size for nvme_timestamp_data");
+
+/** Timestamp attributes */
+#define NVME_TIMESTAMP_TSTMPS_SYNCH_SHIFT		(0)
+#define NVME_TIMESTAMP_TSTMPS_SYNCH_MASK		(0x1)
+#define NVME_TIMESTAMP_TSTMPS_ORIGIN_SHIFT		(1)
+#define NVME_TIMESTAMP_TSTMPS_ORIGIN_MASK		(0x7)
+
+#define NVME_TIMESTAMP_ORIGIN_RESET			(0x0)
+#define NVME_TIMESTAMP_ORIGIN_SET_FEATURES		(0x1)
+
 struct nvme_power_state {
 	/** Maximum Power */
 	uint16_t	mp;			/* Maximum Power */

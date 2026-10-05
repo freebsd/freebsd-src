@@ -32,6 +32,9 @@ AMIBASENAME=${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}
 .else
 AMIBASENAME=${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX} ${AMIBOOTMETHOD}
 .endif
+.if ${EC2_FORMAT} == "vmdks"
+EC2_VMDK=	--vmdk
+.endif
 
 CLEANFILES+=		ec2ami
 
@@ -88,7 +91,7 @@ ec2ami-${_FL}-${_FS}: cw-ec2-${_FL}-${_FS} ${CW_EC2_PORTINSTALL}
 .endif
 	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} \
 	    ${EC2ARCH} ${SSMOPTS_${_FL}_${_FS}} ${SSMOPTSEXTRA_${_FL}_${_FS}} \
-	    ${BOOTMODEOPT} --sriov --ena \
+	    ${BOOTMODEOPT} ${EC2_VMDK} --sriov --ena \
 	    ${.OBJDIR}/${EC2-${_FL:tu}${_FS:tu}IMAGE} \
 	    "${AMIBASENAME} ${_FL} ${_FS:tu}" \
 	    "${TYPE}/${TARGET} ${GITBRANCH}@${GITREV}" \

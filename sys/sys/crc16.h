@@ -34,7 +34,7 @@
 extern uint16_t const crc16_table[256];
 
 static inline uint16_t
-crc16(uint16_t crc, const void *buffer, unsigned int len)
+crc16(uint16_t crc, const void *buffer, size_t len)
 {
 	const unsigned char *cp = buffer;
 	while (len--)

@@ -43,12 +43,50 @@
 extern int zstd_init(void);
 #endif
 
+/*
+ * We have to map a series of strings to an index number that's varies
+ * filesystem by filesystem. We need all of these attributes, even though the
+ * loader only uses a few since the layout of the system attributes bundles
+ * varies file by file and to get to the one we want, we have to understand
+ * all the different element types.
+ */
+enum zfs_sa_attr_id {
+	ZFS_SA_ATIME,
+	ZFS_SA_MTIME,
+	ZFS_SA_CTIME,
+	ZFS_SA_CRTIME,
+	ZFS_SA_GEN,
+	ZFS_SA_MODE,
+	ZFS_SA_SIZE,
+	ZFS_SA_PARENT,
+	ZFS_SA_LINKS,
+	ZFS_SA_XATTR,
+	ZFS_SA_RDEV,
+	ZFS_SA_FLAGS,
+	ZFS_SA_UID,
+	ZFS_SA_GID,
+	ZFS_SA_PAD,
+	ZFS_SA_ZNODE_ACL,
+	ZFS_SA_DACL_COUNT,
+	ZFS_SA_SYMLINK,
+	ZFS_SA_SCANSTAMP,
+	ZFS_SA_DACL_ACES,
+	ZFS_SA_DXATTR,
+	ZFS_SA_PROJID,
+	ZFS_SA_SEQ,
+	ZFS_SA_COUNT
+};
+
 struct zfsmount {
 	char			*path;
 	const spa_t		*spa;
 	objset_phys_t		objset;
 	uint64_t		rootobj;
 	uint64_t		fsid_guid;	/* mount's ds_fsid_guid */
+	dnode_phys_t		sa_registry;
+	dnode_phys_t		sa_layouts;
+	uint64_t		sa_attrs[ZFS_SA_COUNT];
+	bool			sa_loaded;
 	STAILQ_ENTRY(zfsmount)	next;
 };
 
@@ -3518,6 +3556,7 @@ zfs_mount_impl(const spa_t *spa, uint64_t rootobj, struct zfsmount *mount)
 {
 
 	mount->spa = spa;
+	mount->sa_loaded = false;
 
 	/*
 	 * Find the root object set if not explicitly provided
@@ -3712,8 +3751,195 @@ zfs_spa_init(spa_t *spa)
 	return (rc);
 }
 
+static const char *zfs_sa_attrs[ZFS_SA_COUNT] = {
+	[ZFS_SA_ATIME] =       "ZPL_ATIME",
+	[ZFS_SA_MTIME] =       "ZPL_MTIME",
+	[ZFS_SA_CTIME] =       "ZPL_CTIME",
+	[ZFS_SA_CRTIME] =      "ZPL_CRTIME",
+	[ZFS_SA_GEN] =         "ZPL_GEN",
+	[ZFS_SA_MODE] =        "ZPL_MODE",
+	[ZFS_SA_SIZE] =        "ZPL_SIZE",
+	[ZFS_SA_PARENT] =      "ZPL_PARENT",
+	[ZFS_SA_LINKS] =       "ZPL_LINKS",
+	[ZFS_SA_XATTR] =       "ZPL_XATTR",
+	[ZFS_SA_RDEV] =        "ZPL_RDEV",
+	[ZFS_SA_FLAGS] =       "ZPL_FLAGS",
+	[ZFS_SA_UID] =         "ZPL_UID",
+	[ZFS_SA_GID] =         "ZPL_GID",
+	[ZFS_SA_PAD] =         "ZPL_PAD",
+	[ZFS_SA_ZNODE_ACL] =   "ZPL_ZNODE_ACL",
+	[ZFS_SA_DACL_COUNT] =  "ZPL_DACL_COUNT",
+	[ZFS_SA_SYMLINK] =     "ZPL_SYMLINK",
+	[ZFS_SA_SCANSTAMP] =   "ZPL_SCANSTAMP",
+	[ZFS_SA_DACL_ACES] =   "ZPL_DACL_ACES",
+	[ZFS_SA_DXATTR] =      "ZPL_DXATTR",
+	[ZFS_SA_PROJID] =      "ZPL_PROJID",
+	[ZFS_SA_SEQ] =         "ZPL_SEQ",
+};
+
+#define	ZFS_SA_MAX_ATTRS	256
+
+/*
+ * Populate the sa_attrs array with the per-filesystem index
+ * numbers used to decode the system attribute bundles.
+ */
 static int
-zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb,
+zfs_sa_load(struct zfsmount *mount)
+{
+	dnode_phys_t master, sa_master;
+	uint64_t sa_object, registry, layouts;
+	int error;
+
+	if (mount->sa_loaded)
+		return (0);
+
+	error = objset_get_dnode(mount->spa, &mount->objset, MASTER_NODE_OBJ,
+	    &master);
+	if (error != 0)
+		return (error);
+	error = zap_lookup(mount->spa, &master, ZFS_SA_ATTRS,
+	    sizeof(sa_object), 1, &sa_object);
+	if (error != 0)
+		return (error);
+	error = objset_get_dnode(mount->spa, &mount->objset, sa_object,
+	    &sa_master);
+	if (error != 0)
+		return (error);
+	error = zap_lookup(mount->spa, &sa_master, SA_REGISTRY,
+	    sizeof(registry), 1, &registry);
+	if (error != 0)
+		return (error);
+	error = zap_lookup(mount->spa, &sa_master, SA_LAYOUTS,
+	    sizeof(layouts), 1, &layouts);
+	if (error != 0)
+		return (error);
+	error = objset_get_dnode(mount->spa, &mount->objset, registry,
+	    &mount->sa_registry);
+	if (error != 0)
+		return (error);
+	error = objset_get_dnode(mount->spa, &mount->objset, layouts,
+	    &mount->sa_layouts);
+	if (error != 0)
+		return (error);
+
+	for (unsigned int i = 0; i < nitems(zfs_sa_attrs); i++) {
+		error = zap_lookup(mount->spa, &mount->sa_registry,
+		    zfs_sa_attrs[i], sizeof(mount->sa_attrs[i]), 1,
+		    &mount->sa_attrs[i]);
+		if (error != 0)
+			mount->sa_attrs[i] = UINT64_MAX;
+	}
+
+	mount->sa_loaded = true;
+	return (0);
+}
+
+/*
+ * Walk through the system attribute bundle looking for the attribute that's
+ * requested. Return it's value and size.
+ */
+static int
+zfs_sa_lookup(struct zfsmount *mount, const void *buf, size_t buflen,
+    enum zfs_sa_attr_id attr, void *value, size_t *size)
+{
+	const sa_hdr_phys_t *hdr;
+	uint16_t layout[ZFS_SA_MAX_ATTRS];
+	char layout_name[16];
+	size_t hdrsize, length, offset;
+	unsigned int i, j, length_idx;
+	int error;
+
+	hdr = buf;
+	if (buflen < sizeof(*hdr) || hdr->sa_magic != SA_MAGIC)
+		return (EIO);
+	error = zfs_sa_load(mount);
+	if (error != 0)
+		return (error);
+
+	memset(layout, 0xff, sizeof(layout));
+	i = SA_HDR_LAYOUT_NUM(hdr);
+	if (i == 0)
+		i = 1;
+	snprintf(layout_name, sizeof(layout_name), "%u", i);
+	error = zap_lookup(mount->spa, &mount->sa_layouts, layout_name,
+	    sizeof(layout[0]), nitems(layout), layout);
+	if (error != 0)
+		return (error);
+
+	hdrsize = SA_HDR_SIZE(hdr);
+	if (hdrsize < sizeof(*hdr) || hdrsize > buflen)
+		return (EIO);
+	offset = hdrsize;
+	length_idx = 0;
+	for (i = 0; i < nitems(layout) && layout[i] != UINT16_MAX; i++) {
+		for (j = 0; j < nitems(zfs_sa_attrs); j++) {
+			if (mount->sa_attrs[j] != UINT64_MAX &&
+			    SA_ATTR_NUM(mount->sa_attrs[j]) == layout[i])
+				break;
+		}
+		if (j == nitems(zfs_sa_attrs))
+			return (EIO);
+		length = SA_ATTR_LENGTH(mount->sa_attrs[j]);
+		if (length == 0) {
+			if (offsetof(sa_hdr_phys_t, sa_lengths) +
+			    (length_idx + 1) * sizeof(hdr->sa_lengths[0]) >
+			    hdrsize)
+				return (EIO);
+			length = hdr->sa_lengths[length_idx++];
+		}
+		if (offset > buflen || length > buflen - offset)
+			return (EIO);
+		if (j == attr) {
+			if (*size < length)
+				return (EOVERFLOW);
+			memcpy(value, (const char *)buf + offset, length);
+			*size = length;
+			return (0);
+		}
+		offset = roundup2(offset + length, 8);
+	}
+	return (ENOENT);
+}
+
+/*
+ * Try to find the requested attribute by looking in both the bonus area and the
+ * spill areas. The bonus area is already in memory, but we need to read the
+ * spill area.
+ */
+static int
+zfs_dnode_sa_lookup(struct zfsmount *mount, dnode_phys_t *dn,
+    enum zfs_sa_attr_id attr, void *value, size_t *size)
+{
+	void *buf;
+	size_t buflen, valuesize;
+	int error;
+
+	if (dn->dn_bonuslen != 0) {
+		valuesize = *size;
+		error = zfs_sa_lookup(mount, DN_BONUS(dn), dn->dn_bonuslen,
+		    attr, value, &valuesize);
+		if (error == 0) {
+			*size = valuesize;
+			return (0);
+		}
+		if (error != ENOENT)
+			return (error);
+	}
+	if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
+		return (ENOENT);
+	buflen = BP_GET_LSIZE(DN_SPILL_BLKPTR(dn));
+	buf = malloc(buflen);
+	if (buf == NULL)
+		return (ENOMEM);
+	error = zio_read(mount->spa, DN_SPILL_BLKPTR(dn), buf);
+	if (error == 0)
+		error = zfs_sa_lookup(mount, buf, buflen, attr, value, size);
+	free(buf);
+	return (error);
+}
+
+static int
+zfs_dnode_stat(struct zfsmount *mount, dnode_phys_t *dn, struct stat *sb,
     uint64_t fsid_guid, uint64_t objnum)
 {
 
@@ -3732,44 +3958,22 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb,
 		sb->st_gid = zp->zp_gid;
 		sb->st_size = zp->zp_size;
 	} else {
-		sa_hdr_phys_t *sahdrp;
-		int hdrsize;
-		size_t size = 0;
-		void *buf = NULL;
+		uint64_t value;
+		size_t size;
+		int error;
 
-		if (dn->dn_bonuslen != 0)
-			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
-		else {
-			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) != 0) {
-				blkptr_t *bp = DN_SPILL_BLKPTR(dn);
-				int error;
-
-				size = BP_GET_LSIZE(bp);
-				buf = malloc(size);
-				if (buf == NULL)
-					error = ENOMEM;
-				else
-					error = zio_read(spa, bp, buf);
-
-				if (error != 0) {
-					free(buf);
-					return (error);
-				}
-				sahdrp = buf;
-			} else {
-				return (EIO);
-			}
-		}
-		hdrsize = SA_HDR_SIZE(sahdrp);
-		sb->st_mode = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_MODE_OFFSET);
-		sb->st_uid = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_UID_OFFSET);
-		sb->st_gid = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_GID_OFFSET);
-		sb->st_size = *(uint64_t *)((char *)sahdrp + hdrsize +
-		    SA_SIZE_OFFSET);
-		free(buf);
+#define	SA_STAT(attr, field) do { \
+		size = sizeof(value); \
+		error = zfs_dnode_sa_lookup(mount, dn, attr, &value, &size); \
+		if (error != 0 || size != sizeof(value)) \
+			return (error != 0 ? error : EIO); \
+		sb->field = value; \
+} while (0)
+		SA_STAT(ZFS_SA_MODE, st_mode);
+		SA_STAT(ZFS_SA_UID, st_uid);
+		SA_STAT(ZFS_SA_GID, st_gid);
+		SA_STAT(ZFS_SA_SIZE, st_size);
+#undef SA_STAT
 	}
 
 	/*
@@ -3785,43 +3989,17 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb,
 }
 
 static int
-zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
+zfs_dnode_readlink(struct zfsmount *mount, dnode_phys_t *dn, char *path,
+    size_t psize)
 {
 	int rc = 0;
 
 	if (dn->dn_bonustype == DMU_OT_SA) {
-		sa_hdr_phys_t *sahdrp = NULL;
-		size_t size = 0;
-		void *buf = NULL;
-		int hdrsize;
-		char *p;
+		size_t size = psize;
 
-		if (dn->dn_bonuslen != 0) {
-			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
-		} else {
-			blkptr_t *bp;
-
-			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
-				return (EIO);
-			bp = DN_SPILL_BLKPTR(dn);
-
-			size = BP_GET_LSIZE(bp);
-			buf = malloc(size);
-			if (buf == NULL)
-				rc = ENOMEM;
-			else
-				rc = zio_read(spa, bp, buf);
-			if (rc != 0) {
-				free(buf);
-				return (rc);
-			}
-			sahdrp = buf;
-		}
-		hdrsize = SA_HDR_SIZE(sahdrp);
-		p = (char *)((uintptr_t)sahdrp + hdrsize + SA_SYMLINK_OFFSET);
-		memcpy(path, p, psize);
-		free(buf);
-		return (0);
+		rc = zfs_dnode_sa_lookup(mount, dn, ZFS_SA_SYMLINK, path,
+		    &size);
+		return (rc != 0 ? rc : (size == psize ? 0 : EIO));
 	}
 	/*
 	 * Second test is purely to silence bogus compiler
@@ -3831,7 +4009,7 @@ zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
 	    sizeof(znode_phys_t) <= sizeof(dn->dn_bonus)) {
 		memcpy(path, &dn->dn_bonus[sizeof(znode_phys_t)], psize);
 	} else {
-		rc = dnode_read(spa, dn, 0, path, psize);
+		rc = dnode_read(mount->spa, dn, 0, path, psize);
 	}
 	return (rc);
 }
@@ -3845,7 +4023,7 @@ struct obj_list {
  * Lookup a file and return its dnode.
  */
 static int
-zfs_lookup(const struct zfsmount *mount, const char *upath,
+zfs_lookup(struct zfsmount *mount, const char *upath,
     dnode_phys_t *dnode, uint64_t *objnum_out)
 {
 	int rc;
@@ -3933,7 +4111,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath,
 		p = q;
 
 		/* Only st_mode is inspected here, so identity is irrelevant. */
-		if ((rc = zfs_dnode_stat(spa, &dn, &sb, 0, 0)) != 0)
+		if ((rc = zfs_dnode_stat(mount, &dn, &sb, 0, 0)) != 0)
 			goto done;
 		if (!S_ISDIR(sb.st_mode)) {
 			rc = ENOTDIR;
@@ -3959,7 +4137,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath,
 		 * Check for symlink.
 		 */
 		/* Only st_mode is inspected here, so identity is irrelevant. */
-		rc = zfs_dnode_stat(spa, &dn, &sb, 0, 0);
+		rc = zfs_dnode_stat(mount, &dn, &sb, 0, 0);
 		if (rc)
 			goto done;
 		if (S_ISLNK(sb.st_mode)) {
@@ -3979,7 +4157,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath,
 			}
 			strcpy(&path[sb.st_size], p);
 
-			rc = zfs_dnode_readlink(spa, &dn, path, sb.st_size);
+			rc = zfs_dnode_readlink(mount, &dn, path, sb.st_size);
 			if (rc != 0)
 				goto done;
 

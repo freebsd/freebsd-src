@@ -2027,72 +2027,6 @@ out:
 	return (ret);
 }
 
-int
-pfctl_get_states_iter(pfctl_get_state_fn f, void *arg)
-{
-	struct pfctl_state_filter filter = {};
-	return (pfctl_get_filtered_states_iter(&filter, f, arg));
-}
-
-int
-pfctl_get_filtered_states_iter(struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg)
-{
-	struct pfctl_handle h = {};
-	int error;
-
-	snl_init(&h.ss, NETLINK_GENERIC);
-	error = pfctl_get_states_h(&h, filter, f, arg);
-	snl_free(&h.ss);
-
-	return (error);
-}
-
-static int
-pfctl_append_states(struct pfctl_state *s, void *arg)
-{
-	struct pfctl_state *new;
-	struct pfctl_states *states = (struct pfctl_states *)arg;
-
-	new = malloc(sizeof(*s));
-	if (new == NULL)
-		return (ENOMEM);
-
-	memcpy(new, s, sizeof(*s));
-
-	TAILQ_INSERT_TAIL(&states->states, new, entry);
-
-	return (0);
-}
-
-int
-pfctl_get_states(int dev __unused, struct pfctl_states *states)
-{
-	int ret;
-
-	bzero(states, sizeof(*states));
-	TAILQ_INIT(&states->states);
-
-	ret = pfctl_get_states_iter(pfctl_append_states, states);
-	if (ret != 0) {
-		pfctl_free_states(states);
-		return (ret);
-	}
-
-	return (0);
-}
-
-void
-pfctl_free_states(struct pfctl_states *states)
-{
-	struct pfctl_state *s, *tmp;
-
-	TAILQ_FOREACH_SAFE(s, &states->states, entry, tmp) {
-		free(s);
-	}
-
-	bzero(states, sizeof(*states));
-}
-
 struct pfctl_nl_clear_states {
 	uint32_t killed;
 };
@@ -2517,6 +2451,9 @@ pfctl_table_add_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	int partial_added;
 	int chunk_size;
 
+	if (nadd)
+		*nadd = 0;
+
 	do {
 		chunk_size = MIN(size - off, 256);
 		ret = _pfctl_table_add_addrs_h(h, tbl, &addr[off], chunk_size, &partial_added, flags);
@@ -2609,6 +2546,9 @@ pfctl_table_del_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl, struct pf
 	int partial_deleted;
 	int chunk_size;
 
+	if (ndel)
+		*ndel = 0;
+
 	do {
 		chunk_size = MIN(size - off, 256);
 		ret = _pfctl_table_del_addrs_h(h, tbl, &addr[off], chunk_size,
@@ -2694,6 +2634,13 @@ pfctl_table_set_addrs_h(struct pfctl_handle *h, struct pfr_table *tbl,
 	int partial_add, partial_del, partial_change;
 	int chunk_size;
 
+	if (nadd)
+		*nadd = 0;
+	if (ndel)
+		*ndel = 0;
+	if (nchange)
+		*nchange = 0;
+
 	do {
 		flags &= ~(PFR_FLAG_START | PFR_FLAG_DONE);
 		if (off == 0)
@@ -2777,12 +2724,29 @@ struct nl_addrs {
 	size_t total_count;
 };
 
+/* pfra_af is a u8, but the kernel sends PFR_A_AF as a u32.  Accept both. */
+static bool
+snl_attr_get_pfra_af(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	uint32_t af;
+
+	if (snl_attr_get_uint8(ss, nla, NULL, target))
+		return (true);
+	if (! snl_attr_get_uint32(ss, nla, NULL, &af))
+		return (false);
+	*(uint8_t *)target = af;
+
+	return (true);
+}
+
 #define _OUT(_field)	offsetof(struct pfr_addr, _field)
 static const struct snl_attr_parser ap_pfr_addr[] = {
-	{ .type = PFR_A_AF, .off = _OUT(pfra_af), .cb = snl_attr_get_uint32 },
+	{ .type = PFR_A_AF, .off = _OUT(pfra_af), .cb = snl_attr_get_pfra_af },
 	{ .type = PFR_A_NET, .off = _OUT(pfra_net), .cb = snl_attr_get_uint8 },
 	{ .type = PFR_A_NOT, .off = _OUT(pfra_not), .cb = snl_attr_get_bool },
 	{ .type = PFR_A_ADDR, .off = _OUT(pfra_ip6addr), .cb = snl_attr_get_in6_addr },
+	{ .type = PFR_A_FBACK, .off = _OUT(pfra_fback), .cb = snl_attr_get_uint8 },
 };
 #undef _OUT
 SNL_DECLARE_ATTR_PARSER(pfr_addr_parser, ap_pfr_addr);
@@ -3866,6 +3830,14 @@ static struct snl_attr_parser ap_table_get_astats[] = {
 #undef _OUT
 SNL_DECLARE_PARSER(table_astats_parser, struct genlmsghdr, snl_f_p_empty, ap_table_get_astats);
 
+#define _OUT(_field)	offsetof(struct nl_addrs, _field)
+static struct snl_attr_parser ap_table_test_addrs[] = {
+	{ .type = PF_TAS_ASTATS_COUNT, .off = _OUT(total_count), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TAS_ADDR, .off = 0, .cb = snl_attr_get_pfr_addrs },
+};
+#undef _OUT
+SNL_DECLARE_PARSER(table_test_addrs_parser, struct genlmsghdr, snl_f_p_empty, ap_table_test_addrs);
+
 int
 pfctl_get_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
     struct pfr_astats *as, int *size, int flags)
@@ -3967,6 +3939,9 @@ pfctl_clr_astats(struct pfctl_handle *h, const struct pfr_table *tbl,
 	int partial_zeroed;
 	int chunk_size;
 
+	if (nzero)
+		*nzero = 0;
+
 	do {
 		chunk_size = MIN(size - off, 256);
 		ret = _pfctl_clr_astats(h, tbl, &addrs[off], chunk_size,
@@ -3989,7 +3964,7 @@ _pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
 	struct snl_errmsg_data e = {};
 	struct nlmsghdr *hdr;
 	uint32_t seq_id;
-	struct nl_astats attrs;
+	struct nl_addrs attrs = { .addrs = addrs, .max = size };
 
 	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, h->family_id,
@@ -4013,7 +3988,7 @@ _pfctl_test_addrs(struct pfctl_handle *h, const struct pfr_table *tbl,
 	}
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
-		if (! snl_parse_nlmsg(&h->ss, hdr, &table_astats_parser, &attrs))
+		if (! snl_parse_nlmsg(&h->ss, hdr, &table_test_addrs_parser, &attrs))
 			continue;
 	}
 

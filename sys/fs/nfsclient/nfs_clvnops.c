@@ -549,7 +549,8 @@ nfs_access(struct vop_access_args *ap)
 			auio.uio_td = ap->a_td;
 
 			if (vp->v_type == VREG)
-				error = ncl_readrpc(vp, &auio, ap->a_cred);
+				error = ncl_readrpc(vp, &auio, NULL,
+				    ap->a_cred);
 			else if (vp->v_type == VDIR) {
 				char* bp;
 				bp = malloc(NFS_DIRBLKSIZ, M_TEMP, M_WAITOK);
@@ -1648,7 +1649,8 @@ ncl_readlinkrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
  * Ditto above
  */
 int
-ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
+ncl_readrpc(struct vnode *vp, struct uio *uiop, vm_page_t *pgp,
+    struct ucred *cred)
 {
 	int error, ret, attrflag;
 	struct nfsvattr nfsva;
@@ -1662,7 +1664,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		    NFSV4OPEN_ACCESSREAD, 0, cred, uiop->uio_td);
 	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
 	if (error != 0 && error != EFAULT)
-		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
+		error = nfsrpc_read(vp, uiop, pgp, cred, uiop->uio_td, &nfsva,
 		    &attrflag);
 	if (attrflag) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
@@ -1678,8 +1680,9 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
  * nfs write call
  */
 int
-ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
-    int *iomode, int *must_commit, int called_from_strategy, int ioflag)
+ncl_writerpc(struct vnode *vp, struct uio *uiop, vm_page_t *pgp,
+    struct ucred *cred, int *iomode, int *must_commit, int called_from_strategy,
+    int ioflag)
 {
 	struct nfsvattr nfsva;
 	int error, attrflag, ret;
@@ -1693,7 +1696,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		    NFSV4OPEN_ACCESSWRITE, 0, cred, uiop->uio_td);
 	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
 	if (error != 0 && error != EFAULT)
-		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
+		error = nfsrpc_write(vp, uiop, pgp, iomode, must_commit, cred,
 		    uiop->uio_td, &nfsva, &attrflag, called_from_strategy,
 		    ioflag);
 	if (attrflag) {

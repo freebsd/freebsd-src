@@ -330,10 +330,11 @@ image_file_map(int fd, off_t ofs, size_t sz, off_t *iofp)
 }
 
 static int
-image_file_unmap(void *buffer, size_t sz)
+image_file_unmap(void *buffer, size_t sz, off_t iof)
 {
 	size_t unit;
 
+	sz += iof;
 	unit = (secsz > image_swap_pgsz) ? secsz : image_swap_pgsz;
 	sz = (sz + unit - 1) & ~(unit - 1);
 	if (madvise(buffer, sz, MADV_DONTNEED) != 0)
@@ -381,7 +382,7 @@ image_copyin_stream(lba_t blk, int fd, uint64_t *sizep)
 			error = errno;
 		else
 			error = 0;
-		image_file_unmap(buffer, iosz);
+		image_file_unmap(buffer, iosz, iof);
 		/* XXX should we relinguish unused swap space? */
 		if (error)
 			return (error);
@@ -465,7 +466,7 @@ image_copyin_mapped(lba_t blk, int fd, uint64_t *sizep)
 					buf += iof;
 					error = image_chunk_copyin(blk, buf,
 					    sz, data, fd);
-					image_file_unmap(mp, sz);
+					image_file_unmap(mp, sz, iof);
 				} else
 					error = errno;
 
@@ -590,11 +591,37 @@ image_copyout_file(int fd, size_t size, int ifd, off_t iofs)
 			return (errno);
 		buf += iof;
 		error = image_copyout_memory(fd, sz, buf);
-		image_file_unmap(mp, sz);
+		image_file_unmap(mp, sz, iof);
 		if (error)
 			return (error);
 		size -= sz;
 		iofs += sz;
+	}
+	return (0);
+}
+
+static int
+image_buffer_file(char *buffer, size_t size, int ifd, off_t iofs)
+{
+	void *mp;
+	char *buf, *p;
+	size_t iosz, sz;
+	off_t iof;
+
+	iosz = secsz * image_swap_pgsz;
+	p = buffer;
+
+	while (size > 0) {
+		sz = (size > iosz) ? iosz : size;
+		buf = mp = image_file_map(ifd, iofs, sz, &iof);
+		if (buf == NULL)
+			return (errno);
+		buf += iof;
+		memcpy(p, buf, sz);
+		image_file_unmap(mp, sz, iof);
+		size -= sz;
+		iofs += sz;
+		p += sz;
 	}
 	return (0);
 }
@@ -634,6 +661,48 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 		}
 		size -= sz;
 		blk += sz / secsz;
+	}
+	return (error);
+}
+
+int
+image_buffer_region(char *buf, lba_t blk, lba_t size)
+{
+	char *p;
+	struct chunk *ch;
+	size_t ofs, sz;
+	int error;
+
+	size *= secsz;
+
+	p = buf;
+	error = 0;
+	while (!error && size > 0) {
+		ch = image_chunk_find(blk);
+		if (ch == NULL) {
+			error = EINVAL;
+			break;
+		}
+		ofs = (blk - ch->ch_block) * secsz;
+		sz = ch->ch_size - ofs;
+		sz = ((lba_t)sz < size) ? sz : (size_t)size;
+		switch (ch->ch_type) {
+		case CH_TYPE_ZEROES:
+			memset(p, 0, sz);
+			break;
+		case CH_TYPE_FILE:
+			error = image_buffer_file(p, sz, ch->ch_u.file.fd,
+			    ch->ch_u.file.ofs + ofs);
+			break;
+		case CH_TYPE_MEMORY:
+			memcpy(p, ch->ch_u.mem.ptr, sz);
+			break;
+		default:
+			assert(0);
+		}
+		size -= sz;
+		blk += sz / secsz;
+		p += sz;
 	}
 	return (error);
 }

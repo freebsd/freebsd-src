@@ -1727,7 +1727,7 @@ spa_create_zio_taskqs(spa_t *spa)
 	}
 }
 
-#if defined(_KERNEL) && defined(HAVE_SPA_THREAD)
+#ifdef HAVE_SPA_THREAD
 static void
 spa_thread(void *arg)
 {
@@ -1848,11 +1848,9 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 			ASSERT(spa->spa_proc != &p0);
 			ASSERT(spa->spa_did != 0);
 		} else {
-#ifdef _KERNEL
 			cmn_err(CE_WARN,
 			    "Couldn't create process for zfs pool \"%s\"\n",
 			    spa->spa_name);
-#endif
 		}
 	}
 #endif /* HAVE_SPA_THREAD */
@@ -2220,9 +2218,7 @@ spa_sync_time_logger(spa_t *spa, uint64_t txg, boolean_t force)
 	}
 	spa->spa_last_flush_txg_time = curtime;
 
-	mutex_enter(&dp->dp_lock);
 	dirty = dp->dp_dirty_pertxg[idx];
-	mutex_exit(&dp->dp_lock);
 	if (!force && dirty == 0) {
 		return;
 	}
@@ -6383,6 +6379,16 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		}
 
 		/*
+		 * A scrub error log with no scan to own it is stale.
+		 * Promote it, so an error scrub can reach its entries.
+		 */
+		if (spa->spa_errlog_scrub != 0 && spa->spa_errlog_last == 0 &&
+		    !dsl_scan_scrubbing(spa->spa_dsl_pool) &&
+		    !dsl_scan_resilvering(spa->spa_dsl_pool) &&
+		    !dsl_errorscrubbing(spa->spa_dsl_pool))
+			spa_errlog_rotate(spa);
+
+		/*
 		 * Log the fact that we booted up (so that we can detect if
 		 * we rebooted in the middle of an operation).
 		 */
@@ -10034,7 +10040,7 @@ spa_async_fault_vdev(vdev_t *vd, boolean_t *suspend)
 			/* A required disk is missing so suspend the pool */
 			*suspend = B_TRUE;
 		}
-		vdev_set_state(vd, B_TRUE, newstate, VDEV_AUX_ERR_EXCEEDED);
+		vdev_set_state(vd, B_FALSE, newstate, VDEV_AUX_ERR_EXCEEDED);
 	}
 	for (int c = 0; c < vd->vdev_children; c++)
 		spa_async_fault_vdev(vd->vdev_child[c], suspend);

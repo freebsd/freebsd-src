@@ -1,0 +1,5 @@
+nat pass on em0 from 192.0.2.0/24 to any -> 198.51.100.1
+rdr pass on em0 proto tcp from any to 198.51.100.1 port 80 -> 192.0.2.10
+rdr pass log on em0 proto tcp from any to 198.51.100.1 port 443 -> 192.0.2.10
+binat pass on em0 from 192.0.2.20 to any -> 198.51.100.20
+rdr on em0 proto tcp from any to 198.51.100.1 port 22 -> 192.0.2.10

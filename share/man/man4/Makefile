@@ -57,6 +57,7 @@ MAN=	aac.4 \
 	${_bxe.4} \
 	${_aout.4} \
 	${_apic.4} \
+	${_apm.4} \
 	aq.4 \
 	arcmsr.4 \
 	arswitch.4 \
@@ -736,6 +737,7 @@ MLINKS+=em.4 if_em.4 \
 	em.4 if_igbv.4 \
 	em.4 lem.4 \
 	em.4 if_lem.4
+MLINKS+=ena.4 if_ena.4
 MLINKS+=enc.4 if_enc.4
 MLINKS+=enic.4 if_enic.4
 MLINKS+=epair.4 if_epair.4
@@ -875,6 +877,7 @@ _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
 _aout.4=	aout.4
 _apic.4=	apic.4
+_apm.4=		apm.4
 _atrtc.4=	atrtc.4
 _attimer.4=	attimer.4
 _aibs.4=	aibs.4

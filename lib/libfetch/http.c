@@ -1565,7 +1565,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 	char timebuf[80];
 	char hbuf[MAXHOSTNAMELEN + 7], *host;
 	conn_t *conn;
-	struct url *url, *new;
+	struct url *url, *loc;
 	int chunked, direct, ims, noredirect, verbose;
 	int e, i, n, val;
 	off_t offset, clength, length, size;
@@ -1602,7 +1602,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 	e = HTTP_PROTOCOL_ERROR;
 	do {
-		new = NULL;
+		loc = NULL;
 		chunked = 0;
 		offset = 0;
 		clength = -1;
@@ -1871,32 +1871,32 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 					n = 1;
 					break;
 				}
-				if (new)
-					free(new);
+				if (loc != NULL)
+					fetchFreeURL(loc);
 				if (verbose)
 					fetch_info("%d redirect to %s",
 					    conn->err, p);
 				if (*p == '/')
 					/* absolute path */
-					new = fetchMakeURL(url->scheme, url->host,
+					loc = fetchMakeURL(url->scheme, url->host,
 					    url->port, p, url->user, url->pwd);
 				else
-					new = fetchParseURL(p);
-				if (new == NULL) {
+					loc = fetchParseURL(p);
+				if (loc == NULL) {
 					/* XXX should set an error code */
 					DEBUGF("failed to parse new URL\n");
 					goto ouch;
 				}
 
 				/* Only copy credentials if the host matches */
-				if (strcmp(new->host, url->host) == 0 &&
-				    !*new->user && !*new->pwd) {
-					strcpy(new->user, url->user);
-					strcpy(new->pwd, url->pwd);
+				if (strcmp(loc->host, url->host) == 0 &&
+				    !*loc->user && !*loc->pwd) {
+					strcpy(loc->user, url->user);
+					strcpy(loc->pwd, url->pwd);
 				}
-				new->offset = url->offset;
-				new->length = url->length;
-				new->ims_time = url->ims_time;
+				loc->offset = url->offset;
+				loc->length = url->length;
+				loc->ims_time = url->ims_time;
 				break;
 			case hdr_transfer_encoding:
 				/* XXX weak test*/
@@ -1965,13 +1965,13 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		clean_http_auth_challenges(&server_challenges);
 		fetch_close(conn);
 		conn = NULL;
-		if (!new) {
+		if (loc == NULL) {
 			DEBUGF("redirect with no new location\n");
 			break;
 		}
 		if (url != URL)
 			fetchFreeURL(url);
-		url = new;
+		url = loc;
 	} while (++i < n);
 
 	/* we failed, or ran out of retries */
@@ -1986,7 +1986,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 	if (conn->err == HTTP_NOT_MODIFIED) {
 		http_seterr(HTTP_NOT_MODIFIED);
-		return (NULL);
+		goto ouch;
 	}
 
 	/* check for inconsistencies */

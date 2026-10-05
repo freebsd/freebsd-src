@@ -29,7 +29,7 @@ require_linux()
 {
 	emul=$(sysctl -n compat.linux.emul_path 2>/dev/null)
 	[ "$emul" ] || atf_skip "Linux ABI not present (compat.linux.emul_path)"
-	kldstat -q -m linux64 || kldstat -q -m linux ||
+	kldstat -q -n linux64 || kldstat -q -n linux ||
 		atf_skip "linux(4) not loaded"
 	lsh="$emul/bin/sh"
 	[ -x "$lsh" ] || atf_skip "Linux userland not installed ($lsh)"

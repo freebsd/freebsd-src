@@ -74,32 +74,6 @@
 #error "PAGE_SIZE is too big!"
 #endif
 
-static int
-cuse_modevent(module_t mod, int type, void *data)
-{
-	switch (type) {
-	case MOD_LOAD:
-	case MOD_UNLOAD:
-		return (0);
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static moduledata_t cuse_mod = {
-	.name = "cuse",
-	.evhand = &cuse_modevent,
-};
-
-DECLARE_MODULE(cuse, cuse_mod, SI_SUB_DEVFS, SI_ORDER_FIRST);
-MODULE_VERSION(cuse, 1);
-
-/*
- * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
- * declaring support for the cuse4bsd interface in cuse.ko:
- */
-MODULE_VERSION(cuse4bsd, 1);
-
 #ifdef FEATURE
 FEATURE(cuse, "Userspace character devices");
 #endif
@@ -235,6 +209,7 @@ static d_read_t cuse_server_read;
 static d_write_t cuse_server_write;
 static d_poll_t cuse_server_poll;
 static d_mmap_single_t cuse_server_mmap_single;
+static d_purge_t cuse_server_purge;
 
 static struct cdevsw cuse_server_devsw = {
 	.d_version = D_VERSION,
@@ -247,6 +222,7 @@ static struct cdevsw cuse_server_devsw = {
 	.d_write = cuse_server_write,
 	.d_poll = cuse_server_poll,
 	.d_mmap_single = cuse_server_mmap_single,
+	.d_purge = cuse_server_purge,
 };
 
 static void cuse_client_is_closing(struct cuse_client *);
@@ -293,48 +269,6 @@ cuse_cmd_unlock(struct cuse_client_command *pccmd)
 {
 	sx_xunlock(&pccmd->sx);
 }
-
-static void
-cuse_kern_init(void *arg)
-{
-	TAILQ_INIT(&cuse_server_head);
-
-	mtx_init(&cuse_global_mtx, "cuse-global-mtx", NULL, MTX_DEF);
-
-	cuse_dev = make_dev(&cuse_server_devsw, 0,
-	    UID_ROOT, GID_OPERATOR, 0600, "cuse");
-
-	printf("Cuse v%d.%d.%d @ /dev/cuse\n",
-	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
-	    (CUSE_VERSION >> 0) & 0xFF);
-}
-SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, NULL);
-
-static void
-cuse_kern_uninit(void *arg)
-{
-	void *ptr;
-
-	while (1) {
-		printf("Cuse: Please exit all /dev/cuse instances "
-		    "and processes which have used this device.\n");
-
-		pause("DRAIN", 2 * hz);
-
-		cuse_global_lock();
-		ptr = TAILQ_FIRST(&cuse_server_head);
-		cuse_global_unlock();
-
-		if (ptr == NULL)
-			break;
-	}
-
-	if (cuse_dev != NULL)
-		destroy_dev(cuse_dev);
-
-	mtx_destroy(&cuse_global_mtx);
-}
-SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, NULL);
 
 static int
 cuse_server_get(struct cuse_server **ppcs)
@@ -422,7 +356,6 @@ cuse_str_filter(char *ptr)
 static int
 cuse_convert_error(int error)
 {
-	;				/* indent fix */
 	switch (error) {
 	case CUSE_ERR_NONE:
 		return (0);
@@ -678,8 +611,7 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 
 	/* prevent creation of more devices */
 	cuse_server_lock(pcs);
-	if (pcsd->kern_dev != NULL)
-		pcsd->kern_dev->si_drv1 = NULL;
+	pcsd->kern_dev->si_drv1 = NULL;
 
 	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
 		if (pcc->server_dev == pcsd)
@@ -687,32 +619,15 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 	}
 	cuse_server_unlock(pcs);
 
-	/* destroy device, if any */
-	if (pcsd->kern_dev != NULL) {
-		/* destroy device synchronously */
-		destroy_dev(pcsd->kern_dev);
-	}
+	/* destroy device synchronously */
+	destroy_dev(pcsd->kern_dev);
 	free(pcsd, M_CUSE);
 }
 
 static void
-cuse_server_unref(struct cuse_server *pcs)
+cuse_server_free_devs_locked(struct cuse_server *pcs)
 {
 	struct cuse_server_dev *pcsd;
-	struct cuse_memory *mem;
-
-	cuse_server_lock(pcs);
-	if (--(pcs->refs) != 0) {
-		cuse_server_unlock(pcs);
-		return;
-	}
-	cuse_server_is_closing(pcs);
-	/* final client wakeup, if any */
-	cuse_server_wakeup_all_client_locked(pcs);
-
-	cuse_global_lock();
-	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
-	cuse_global_unlock();
 
 	while ((pcsd = TAILQ_FIRST(&pcs->hdev)) != NULL) {
 		TAILQ_REMOVE(&pcs->hdev, pcsd, entry);
@@ -720,6 +635,34 @@ cuse_server_unref(struct cuse_server *pcs)
 		cuse_server_free_dev(pcsd);
 		cuse_server_lock(pcs);
 	}
+}
+
+static void
+cuse_server_unref(struct cuse_server *pcs)
+{
+	struct cuse_memory *mem;
+
+	/*
+	 * Take the global lock before the server lock, to avoid a lock order
+	 * reversal in cuse_kern_uninit().
+	 */
+	cuse_global_lock();
+	cuse_server_lock(pcs);
+	MPASS(pcs->refs > 0);
+	if (--(pcs->refs) != 0) {
+		cuse_server_unlock(pcs);
+		cuse_global_unlock();
+		return;
+	}
+	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
+	cuse_global_unlock();
+
+	cuse_server_is_closing(pcs);
+	/* final client wakeup, if any */
+	cuse_server_wakeup_all_client_locked(pcs);
+
+	/* The cdevpriv destructor destroys the devices before unreffing. */
+	MPASS(TAILQ_EMPTY(&pcs->hdev));
 
 	cuse_free_unit_by_id_locked(pcs, -1);
 
@@ -741,6 +684,7 @@ cuse_server_unref(struct cuse_server *pcs)
 
 	mtx_destroy(&pcs->mtx);
 
+	MPASS(pcs->refs == 0);
 	free(pcs, M_CUSE);
 }
 
@@ -763,17 +707,14 @@ cuse_server_do_close(struct cuse_server *pcs)
 }
 
 static void
-cuse_server_free(void *arg)
+cuse_server_dtor(void *arg)
 {
 	struct cuse_server *pcs = arg;
 
-	/*
-	 * The final server unref should be done by the server thread
-	 * to prevent deadlock in the client cdevpriv destructor,
-	 * which cannot destroy itself.
-	 */
-	while (cuse_server_do_close(pcs) != 1)
-		pause("W", hz);
+	cuse_server_lock(pcs);
+	cuse_server_is_closing(pcs);
+	cuse_server_free_devs_locked(pcs);
+	cuse_server_unlock(pcs);
 
 	/* drop final refcount */
 	cuse_server_unref(pcs);
@@ -786,7 +727,7 @@ cuse_server_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 
 	pcs = malloc(sizeof(*pcs), M_CUSE, M_WAITOK | M_ZERO);
 
-	if (devfs_set_cdevpriv(pcs, &cuse_server_free)) {
+	if (devfs_set_cdevpriv(pcs, &cuse_server_dtor)) {
 		printf("Cuse: Cannot set cdevpriv.\n");
 		free(pcs, M_CUSE);
 		return (ENOMEM);
@@ -1115,6 +1056,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		struct cuse_create_dev *pcd;
 		struct cuse_server_dev *pcsd;
 		struct cuse_data_chunk *pchk;
+		struct make_dev_args args;
 		int n;
 
 	case CUSE_IOCTL_GET_COMMAND:
@@ -1123,10 +1065,10 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		cuse_server_lock(pcs);
 
 		while ((pccmd = TAILQ_FIRST(&pcs->head)) == NULL) {
-			error = cv_wait_sig(&pcs->cv, &pcs->mtx);
-
 			if (pcs->is_closing)
 				error = ENXIO;
+			else
+				error = cv_wait_sig(&pcs->cv, &pcs->mtx);
 
 			if (error) {
 				cuse_server_unlock(pcs);
@@ -1297,16 +1239,19 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 
 		pcsd->user_dev = pcd->dev;
 
-		pcsd->kern_dev = make_dev_credf(MAKEDEV_CHECKNAME,
-		    &cuse_client_devsw, 0, NULL, pcd->user_id, pcd->group_id,
-		    pcd->permissions, "%s", pcd->devname);
+		make_dev_args_init(&args);
+		args.mda_flags = MAKEDEV_CHECKNAME;
+		args.mda_devsw = &cuse_client_devsw;
+		args.mda_uid = pcd->user_id;
+		args.mda_gid = pcd->group_id;
+		args.mda_mode = pcd->permissions;
+		args.mda_si_drv1 = pcsd;
 
-		if (pcsd->kern_dev == NULL) {
+		error = make_dev_s(&args, &pcsd->kern_dev, "%s", pcd->devname);
+		if (error != 0) {
 			free(pcsd, M_CUSE);
-			error = ENOMEM;
 			break;
 		}
-		pcsd->kern_dev->si_drv1 = pcsd;
 
 		cuse_server_lock(pcs);
 		TAILQ_INSERT_TAIL(&pcs->hdev, pcsd, entry);
@@ -1447,6 +1392,25 @@ cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		return (error);
 
 	return (cuse_common_mmap_single(pcs, offset, size, object));
+}
+
+static void
+cuse_server_purge(struct cdev *dev __unused)
+{
+	struct cuse_server *pcs;
+
+	/*
+	 * Wake up the servers sleeping in CUSE_IOCTL_GET_COMMAND, so that
+	 * destroy_dev() can return.
+	 */
+	cuse_global_lock();
+	TAILQ_FOREACH(pcs, &cuse_server_head, entry) {
+		cuse_server_lock(pcs);
+		cuse_server_is_closing(pcs);
+		cv_broadcast(&pcs->cv);
+		cuse_server_unlock(pcs);
+	}
+	cuse_global_unlock();
 }
 
 /*------------------------------------------------------------------------*
@@ -1666,11 +1630,21 @@ cuse_client_read(struct cdev *dev, struct uio *uio, int ioflag)
 	cuse_cmd_lock(pccmd);
 
 	while (uio->uio_resid != 0) {
-		if (uio->uio_iov->iov_len > CUSE_LENGTH_MAX) {
+		len = uio->uio_iov->iov_len;
+		/*
+		 * The uiomove() below does not step past an iovec it has
+		 * just emptied, so do it here, to avoid an infinite loop
+		 * where we are requesting zero-byte transfers.
+		 */
+		if (len == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (len > CUSE_LENGTH_MAX) {
 			error = ENOMEM;
 			break;
 		}
-		len = uio->uio_iov->iov_len;
 
 		cuse_server_lock(pcs);
 		if (len <= CUSE_COPY_BUFFER_MAX) {
@@ -1754,11 +1728,21 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 	cuse_cmd_lock(pccmd);
 
 	while (uio->uio_resid != 0) {
-		if (uio->uio_iov->iov_len > CUSE_LENGTH_MAX) {
+		len = uio->uio_iov->iov_len;
+		/*
+		 * The uiomove() below does not step past an iovec it has
+		 * just emptied, so do it here, to avoid an infinite loop
+		 * where we are requesting zero-byte transfers.
+		 */
+		if (len == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (len > CUSE_LENGTH_MAX) {
 			error = ENOMEM;
 			break;
 		}
-		len = uio->uio_iov->iov_len;
 
 		if (len <= CUSE_COPY_BUFFER_MAX) {
 			error = copyin(uio->uio_iov->iov_base,
@@ -2042,3 +2026,63 @@ cuse_client_kqfilter(struct cdev *dev, struct knote *kn)
 		cuse_client_kqfilter_poll(dev, pcc);
 	return (error);
 }
+
+static int
+cuse_kern_init(void)
+{
+	TAILQ_INIT(&cuse_server_head);
+
+	mtx_init(&cuse_global_mtx, "cuse-global-mtx", NULL, MTX_DEF);
+
+	cuse_dev = make_dev_credf(MAKEDEV_CHECKNAME,
+	    &cuse_server_devsw, 0, NULL, UID_ROOT, GID_OPERATOR, 0600, "cuse");
+	if (cuse_dev == NULL)
+		return (ENODEV);
+
+	return (0);
+}
+
+static void
+cuse_kern_uninit(void)
+{
+	/* destroy_dev() runs the cdevpriv destructor of every open instance. */
+	if (cuse_dev != NULL)
+		destroy_dev(cuse_dev);
+
+	MPASS(TAILQ_EMPTY(&cuse_server_head));
+
+	mtx_destroy(&cuse_global_mtx);
+}
+
+static int
+cuse_modevent(module_t mod, int type, void *data)
+{
+	int err = 0;
+
+	switch (type) {
+	case MOD_LOAD:
+		err = cuse_kern_init();
+		break;
+	case MOD_UNLOAD:
+		cuse_kern_uninit();
+		break;
+	default:
+		err = EOPNOTSUPP;
+	}
+
+	return (err);
+}
+
+static moduledata_t cuse_mod = {
+	.name = "cuse",
+	.evhand = &cuse_modevent,
+};
+
+DECLARE_MODULE(cuse, cuse_mod, SI_SUB_DEVFS, SI_ORDER_FIRST);
+MODULE_VERSION(cuse, 1);
+
+/*
+ * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
+ * declaring support for the cuse4bsd interface in cuse.ko:
+ */
+MODULE_VERSION(cuse4bsd, 1);

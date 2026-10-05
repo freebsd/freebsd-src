@@ -96,6 +96,13 @@ typedef int (copyin_hdtr_t)(const void *hdtrp, struct sf_hdtr *hdtr);
 typedef int (copyinuio_t)(const void *iovp, unsigned int iovcnt,
     struct uio **iov);
 
+/*
+ * A updateiov_t takes a pointer to a struct uio previously created with
+ * copyinuio_t and a pointer to the corresponding iovec in userspace.
+ * It updates all lengths in userspace to match those in the uio.
+ */
+typedef int(updateiov_t)(const struct uio *uiop, void *iovp);
+
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
@@ -358,7 +365,8 @@ int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setcred(struct thread *const td, const u_int flags,
 	    struct setcred *const wcred);
-int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
+int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups,
+	    bool includes_egid);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
 int	kern_setpriority(struct thread *td, int which, int who, int prio);
@@ -438,6 +446,11 @@ int	user_cpuset_getaffinity(struct thread *td, cpulevel_t level,
 int	user_cpuset_setaffinity(struct thread *td, cpulevel_t level,
 	    cpuwhich_t which, id_t id, size_t cpusetsize,
 	    const cpuset_t *maskp, const struct cpuset_copy_cb *cb);
+int	user_jail_get(struct thread *td, struct iovec *iovp,
+	    unsigned int iovcnt, int flags, copyinuio_t *copyinuio_f,
+	    updateiov_t *updateiov_f);
+int	user_jail_set(struct thread *td, struct iovec *iovp,
+	    unsigned int iovcnt, int flags, copyinuio_t *copyinuio_f);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */

@@ -77,6 +77,7 @@ AC_DEFUN([ZFS_AC_KERNEL_TEST_SRC], [
 	ZFS_AC_KERNEL_SRC_FS_PARSE
 	ZFS_AC_KERNEL_SRC_VFS_PARSE_FS_STRING_3ARGS
 	ZFS_AC_KERNEL_SRC_SB_DYING
+	ZFS_AC_KERNEL_SRC_SUPER_SET_UUID
 	ZFS_AC_KERNEL_SRC_SET_NLINK
 	ZFS_AC_KERNEL_SRC_VFS_FILEMAP_DIRTY_FOLIO
 	ZFS_AC_KERNEL_SRC_VFS_READ_FOLIO
@@ -107,6 +108,7 @@ AC_DEFUN([ZFS_AC_KERNEL_TEST_SRC], [
 	ZFS_AC_KERNEL_SRC_PERCPU
 	ZFS_AC_KERNEL_SRC_GENERIC_FILLATTR
 	ZFS_AC_KERNEL_SRC_BIO_MAX_SEGS
+	ZFS_AC_KERNEL_SRC_RQ_FOR_EACH_BVEC
 	ZFS_AC_KERNEL_SRC_SIGINFO
 	ZFS_AC_KERNEL_SRC_SYSFS
 	ZFS_AC_KERNEL_SRC_STANDALONE_LINUX_STDARG
@@ -195,6 +197,7 @@ AC_DEFUN([ZFS_AC_KERNEL_TEST_RESULT], [
 	ZFS_AC_KERNEL_FS_PARSE
 	ZFS_AC_KERNEL_VFS_PARSE_FS_STRING_3ARGS
 	ZFS_AC_KERNEL_SB_DYING
+	ZFS_AC_KERNEL_SUPER_SET_UUID
 	ZFS_AC_KERNEL_SET_NLINK
 	ZFS_AC_KERNEL_VFS_FILEMAP_DIRTY_FOLIO
 	ZFS_AC_KERNEL_VFS_READ_FOLIO
@@ -225,6 +228,7 @@ AC_DEFUN([ZFS_AC_KERNEL_TEST_RESULT], [
 	ZFS_AC_KERNEL_PERCPU
 	ZFS_AC_KERNEL_GENERIC_FILLATTR
 	ZFS_AC_KERNEL_BIO_MAX_SEGS
+	ZFS_AC_KERNEL_RQ_FOR_EACH_BVEC
 	ZFS_AC_KERNEL_SIGINFO
 	ZFS_AC_KERNEL_SYSFS
 	ZFS_AC_KERNEL_STANDALONE_LINUX_STDARG
@@ -266,6 +270,7 @@ AC_DEFUN([ZFS_AC_KERNEL_TEST_RESULT], [
 			ZFS_AC_KERNEL_FLUSH_DCACHE_PAGE
 			;;
 	esac
+	ZFS_AC_KERNEL_CACHE_UNUSED_RESULTS
 ])
 
 dnl #
@@ -624,7 +629,6 @@ dnl # $2 - add to top-level Makefile
 dnl # $3 - additional build flags
 dnl #
 AC_DEFUN([ZFS_LINUX_CONFTEST_MAKEFILE], [
-	test -d build || mkdir -p build
 	test -d build/$1 || mkdir -p build/$1
 
 	file=build/$1/Makefile
@@ -700,6 +704,7 @@ AC_DEFUN([ZFS_LINUX_COMPILE], [
 		for kernel module builds])
 	AC_ARG_VAR([KERNEL_ARCH], [Architecture to build kernel modules for])
 	AC_TRY_COMMAND([
+	    test -d "$1" || mkdir -p "$1";
 	    KBUILD_MODPOST_NOFINAL="$5" KBUILD_MODPOST_WARN="$6"
 	    make modules -k -j$TEST_JOBS ${KERNEL_CC:+CC=$KERNEL_CC}
 	    ${KERNEL_LD:+LD=$KERNEL_LD} ${KERNEL_LLVM:+LLVM=$KERNEL_LLVM}
@@ -861,6 +866,14 @@ dnl # The maximum allowed parallelism can be controlled by setting the
 dnl # TEST_JOBS environment variable.  Otherwise, it default to $(nproc).
 dnl #
 AC_DEFUN([ZFS_LINUX_TEST_COMPILE_ALL], [
+	dnl # It may be that no Makefile has been generated because no
+	dnl # build tests were needed, eg. in the case where the test
+	dnl # results have all been cached. However, subsequent code
+	dnl # assumes a file named Makefile exists. So create an empty
+	dnl # one if needed.
+	test -d build || mkdir build
+	touch build/Makefile
+
 	AS_IF([test "x$2" != "x"], [
 		_ZFS_LINUX_TEST_COMPILE_PROGRESS_START([build], [$2])
 	])
@@ -886,6 +899,7 @@ AC_DEFUN([ZFS_LINUX_TEST_COMPILE_ALL], [
 	dnl # not yet been built.
 	dnl #
 	AS_IF([test "x$enable_linux_builtin" = "xno"], [
+		touch build/Makefile
 		for dir in $(awk '/^obj-m/ { print [$]3 }' \
 		    build/Makefile.compile.$1); do
 			name=${dir%/}
@@ -937,6 +951,7 @@ dnl #
 AC_DEFUN([ZFS_LINUX_TEST_SRC], [
 	cachevar="zfs_cv_kernel_[$1]_$_zfs_linux_cache_checksum"
 	eval "cacheval=\$$cachevar"
+	eval "zfs_cv_kernel_cachevarlist=$zfs_cv_kernel_cachevarlist:$cachevar"
 	AS_IF([test "x$cacheval" = "x"], [
 		ZFS_LINUX_CONFTEST_C([ZFS_LINUX_TEST_PROGRAM([[$2]], [[$3]],
 		    [["Dual BSD/GPL"]])], [$1])
@@ -975,6 +990,27 @@ AC_DEFUN([ZFS_LINUX_TEST_RESULT], [
 	])
 	eval "cacheval=\$$cachevar"
 	AS_IF([test "x$cacheval" = "xyes"], [$2], [$3])
+])
+
+dnl #
+dnl # ZFS_AC_KERNEL_CACHE_UNUSED_RESULTS
+dnl #
+dnl # Kernel build tests are run unconditionally, but the results are
+dnl # conditionally checked. Cache the build results of all unchecked
+dnl # tests so that they are not rebuilt everytime when caching is enabled.
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_CACHE_UNUSED_RESULTS], [
+	AC_MSG_CHECKING([for unchecked kernel build results to cache])
+	for cachevar in $(echo "${zfs_cv_kernel_cachevarlist}" | tr : ' '); do
+		eval "cacheval=\$$cachevar"
+		if test "x${cacheval}" = "x"; then
+			testname=${cachevar#zfs_cv_kernel_}
+			testname=${testname%_*}
+			ZFS_LINUX_TEST_RESULT([${testname}])
+		fi
+	done
+	unset zfs_cv_kernel_cachevarlist
+	AC_MSG_RESULT([done])
 ])
 
 dnl #

@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd December 4, 2021
+.Dd October 1, 2026
 .Dt TCPDROP 8
 .Os
 .Sh NAME
@@ -170,9 +170,9 @@ port 22, the port used by
 # tcpdrop -l -a | grep -vw 22 | sh
 .Ed
 .Pp
-To drop all TCP connections using the new-reno congestion control algorithm use:
+To drop all TCP connections using the NewReno congestion control algorithm use:
 .Bd -literal -offset indent
-# tcpdrop -C new-reno
+# tcpdrop -C newreno
 .Ed
 .Pp
 The following command will drop all connections using the TCP stack
@@ -186,14 +186,15 @@ To drop all TCP connections in the LAST_ACK state use:
 # tcpdrop -s LAST_ACK
 .Ed
 .Pp
-To drop all TCP connections using the congestion control algorithm new-reno and
+To drop all TCP connections using the congestion control algorithm NewReno and
 the TCP stack rack and being in the LAST_ACK state use:
 .Bd -literal -offset indent
-# tcpdrop -C new-reno -S rack -s LAST_ACK
+# tcpdrop -C newreno -S rack -s LAST_ACK
 .Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr sockstat 1 ,
+.Xr mod_cc 4 ,
 .Xr tcp 4 ,
 .Xr tcp_functions 9
 .Sh AUTHORS

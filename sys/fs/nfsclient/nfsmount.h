@@ -131,6 +131,7 @@ struct	nfsmount {
 #define	NFSMNT_SYSKRB5		0x00000002
 #define	NFSMNT_RDMA		0x00000004
 #define	NFSMNT_NOWRITEREDUCE	0x00000008
+#define	NFSMNT_NOREADREDUCE	0x00000010
 
 #define	NFSMNT_DIRPATH(m)	(&((m)->nm_name[(m)->nm_krbnamelen + 1]))
 #define	NFSMNT_SRVKRBNAME(m)						\

@@ -40,6 +40,7 @@
 #include <sys/ptrace.h>
 #include <sys/syscallsubr.h>
 
+#include <machine/ifunc.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
@@ -48,7 +49,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
-#include <x86/ifunc.h>
 #include <x86/reg.h>
 #include <x86/sysarch.h>
 
