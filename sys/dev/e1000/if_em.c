@@ -544,6 +544,7 @@ static void	em_handle_link(void *);
 
 static void	em_enable_vectors_82574(if_ctx_t);
 
+static void	em_sysctl_request_reinit(struct e1000_softc *);
 static int	em_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
 static int	igb_sysctl_dmac(SYSCTL_HANDLER_ARGS);
@@ -1223,6 +1224,7 @@ em_add_device_sysctls(struct e1000_softc *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    em_sysctl_print_fw_version, "A",
 	    "Prints FW/NVM Versions");
+	sc->fc = e1000_fc_full;
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fc",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
 	    em_set_flowcntl, "I", "Flow Control");
@@ -5095,10 +5097,7 @@ em_reset(if_ctx_t ctx)
 	    roundup2(hw->mac.max_frame_size, 1024);
 	hw->fc.low_water = hw->fc.high_water - 1500;
 
-	if (sc->fc) /* locally set flow control value? */
-		hw->fc.requested_mode = sc->fc;
-	else
-		hw->fc.requested_mode = e1000_fc_full;
+	hw->fc.requested_mode = sc->fc;
 
 	if (hw->mac.type == e1000_80003es2lan)
 		hw->fc.pause_time = 0xFFFF;
@@ -5111,7 +5110,10 @@ em_reset(if_ctx_t ctx)
 	switch (hw->mac.type) {
 	case e1000_pchlan:
 		/* Workaround: no TX flow ctrl for PCH */
-		hw->fc.requested_mode = e1000_fc_rx_pause;
+		if (hw->fc.requested_mode == e1000_fc_full)
+			hw->fc.requested_mode = e1000_fc_rx_pause;
+		else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+			hw->fc.requested_mode = e1000_fc_none;
 		hw->fc.pause_time = 0xFFFF; /* override */
 		if (if_getmtu(ifp) > ETHERMTU) {
 			hw->fc.high_water = 0x3500;
@@ -8533,16 +8535,13 @@ em_add_int_delay_sysctl(struct e1000_softc *sc, const char *name,
 static int
 em_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	static int input = 3; /* default is full */
+	int error, input;
 	struct e1000_softc *sc = (struct e1000_softc *) arg1;
 
+	input = sc->fc;
 	error = sysctl_handle_int(oidp, &input, 0, req);
 
 	if ((error) || (req->newptr == NULL))
-		return (error);
-
-	if (input == sc->fc) /* no change? */
 		return (error);
 
 	switch (input) {
@@ -8550,17 +8549,21 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	case e1000_fc_tx_pause:
 	case e1000_fc_full:
 	case e1000_fc_none:
-		sc->hw.fc.requested_mode = input;
-		sc->fc = input;
 		break;
 	default:
-		/* Do nothing */
-		return (error);
+		return (EINVAL);
 	}
 
-	sc->hw.fc.current_mode = sc->hw.fc.requested_mode;
-	e1000_force_mac_fc(&sc->hw);
-	return (error);
+	if (input == sc->fc) /* no change? */
+		return (0);
+
+	/*
+	 * The mode is advertised to the link partner and also decides the
+	 * pause thresholds and per-queue drop, so it takes a reinit to apply.
+	 */
+	sc->fc = input;
+	em_sysctl_request_reinit(sc);
+	return (0);
 }
 
 static void
