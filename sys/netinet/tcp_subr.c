@@ -3392,25 +3392,21 @@ static void
 tcp6_ctlinput_viaudp(udp_tun_icmp_param_t param)
 {
 	struct ip6ctlparam *ip6cp = param.ip6cp;
-	struct mbuf *m;
-	struct udphdr *udp;
+	struct udphdr udp;
 	uint16_t port;
 
-	m = m_pulldown(ip6cp->ip6c_m, ip6cp->ip6c_off, sizeof(struct udphdr), NULL);
-	if (m == NULL) {
+	if (ip6cp->ip6c_m->m_pkthdr.len <
+	    ip6cp->ip6c_off + sizeof(struct udphdr))
 		return;
-	}
-	udp = mtod(m, struct udphdr *);
-	if (ntohs(udp->uh_sport) != V_tcp_udp_tunneling_port) {
+	m_copydata(ip6cp->ip6c_m, ip6cp->ip6c_off, sizeof(udp),
+	    (caddr_t)&udp);
+	if (ntohs(udp.uh_sport) != V_tcp_udp_tunneling_port)
 		return;
-	}
-	port = udp->uh_dport;
-	m_adj(m, sizeof(struct udphdr));
-	if ((m->m_flags & M_PKTHDR) == 0) {
-		ip6cp->ip6c_m->m_pkthdr.len -= sizeof(struct udphdr);
-	}
+	port = udp.uh_dport;
+	ip6cp->ip6c_off += sizeof(struct udphdr);
 	/* Now call in to the normal handling code */
 	tcp6_ctlinput_with_port(ip6cp, port);
+	ip6cp->ip6c_off -= sizeof(struct udphdr);
 }
 
 #endif /* INET6 */
