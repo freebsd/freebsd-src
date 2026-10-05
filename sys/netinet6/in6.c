@@ -266,7 +266,7 @@ in6_control_ioctl(u_long cmd, void *data,
 {
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
-	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
+	struct in6_aliasreq tmpifra, *ifra = (struct in6_aliasreq *)data;
 	struct sockaddr_in6 *sa6;
 	int error;
 	bool control_locked = false;
@@ -276,7 +276,9 @@ in6_control_ioctl(u_long cmd, void *data,
 	 */
 	if (cmd == OSIOCAIFADDR_IN6) {
 		cmd = SIOCAIFADDR_IN6;
-		ifra->ifra_vhid = 0;
+		ifra = &tmpifra;
+		memset(ifra, 0, sizeof(*ifra));
+		memcpy(ifra, data, sizeof(struct oin6_aliasreq));
 	}
 
 	switch (cmd) {
