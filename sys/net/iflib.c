@@ -3466,26 +3466,27 @@ iflib_txd_db_check(iflib_txq_t txq, int ring)
 
 	max = TXQ_MAX_DB_DEFERRED(txq, txq->ift_in_use);
 
-	/* force || threshold exceeded || at the edge of the ring */
-	if (ring || (txq->ift_db_pending >= max) || (TXQ_AVAIL(txq) <= MAX_TX_DESC(ctx))) {
+	/* Defer unless forced, at the threshold or at the edge of the ring. */
+	if (!ring && txq->ift_db_pending < max &&
+	    TXQ_AVAIL(txq) > MAX_TX_DESC(ctx))
+		return (false);
 
-		/*
-		 * 'npending' is used if the card's doorbell is in terms of the number of descriptors
-		 * pending flush (BRCM). 'pidx' is used in cases where the card's doorbeel uses the
-		 * producer index explicitly (INTC).
-		 */
-		dbval = txq->ift_npending ? txq->ift_npending : txq->ift_pidx;
-		bus_dmamap_sync(txq->ift_ifdi->idi_tag, txq->ift_ifdi->idi_map,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-		ctx->isc_txd_flush(ctx->ifc_softc, txq->ift_id, dbval);
+	/*
+	 * 'npending' is used if the card's doorbell is in terms of the number
+	 * of descriptors pending flush (BRCM). 'pidx' is used in cases where
+	 * the card's doorbell uses the producer index explicitly (INTC).
+	 */
+	dbval = txq->ift_npending ? txq->ift_npending : txq->ift_pidx;
+	bus_dmamap_sync(txq->ift_ifdi->idi_tag, txq->ift_ifdi->idi_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	ctx->isc_txd_flush(ctx->ifc_softc, txq->ift_id, dbval);
 
-		/*
-		 * Absent bugs there are zero packets pending so reset pending counts to zero.
-		 */
-		txq->ift_db_pending = txq->ift_npending = 0;
-		return (true);
-	}
-	return (false);
+	/*
+	 * Absent bugs there are zero packets pending so reset pending counts
+	 * to zero.
+	 */
+	txq->ift_db_pending = txq->ift_npending = 0;
+	return (true);
 }
 
 #ifdef PKT_DEBUG
