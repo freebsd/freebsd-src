@@ -347,6 +347,12 @@ static const struct nlattr_decoder nla_d_ruleset[] = {
 };
 NL_DECLARE_ATTR_DECODER(ruleset_decoder, nla_d_ruleset);
 
+static const struct nlattr_decoder nla_d_set_timeout[] = {
+	{ .type = PF_TO_TIMEOUT, .attr_name = "timeout", .cb = nlattr_decode_uint32 },
+	{ .type = PF_TO_SECONDS, .attr_name = "seconds", .cb = nlattr_decode_uint32 },
+};
+NL_DECLARE_ATTR_DECODER(timeout_decoder, nla_d_set_timeout);
+
 static inline void
 nl_verify_decoders(const struct nlattr_decoder_set **decoder, size_t count)
 {
@@ -368,11 +374,14 @@ static const struct nlattr_decoder_set *all_decoders[] = {
 	&rule_addr_decoder,
 	&killclear_states_decoder,
 	&ruleset_decoder,
+	&timeout_decoder,
 };
 
 static const struct pfnl_cmd_decoder cmd_decoder[] = {
 	{ .cmd_num = PFNL_CMD_GETRULES, .ds = &getrules_decoder },
 	{ .cmd_num = PFNL_CMD_KILLSTATES, .ds = &killclear_states_decoder },
+	{ .cmd_num = PFNL_CMD_SET_TIMEOUT, .ds = &timeout_decoder},
+	{ .cmd_num = PFNL_CMD_GET_TIMEOUT, .ds = &timeout_decoder},
 	{ .cmd_num = PFNL_CMD_SET_LIMIT, .ds = &set_limit_decoder },
 	{ .cmd_num = PFNL_CMD_GET_LIMIT, .ds = &set_limit_decoder },
 	{ .cmd_num = PFNL_CMD_GET_ADDRS, .ds = &addr_decoder },
