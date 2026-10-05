@@ -69,6 +69,7 @@ enum {
 	BF_KMEM_ALLOC_CONTIG	= 0x08,
 	BF_KMEM_ALLOC		= BF_KMEM_ALLOC_PAGES | BF_KMEM_ALLOC_CONTIG,
 	BF_COHERENT		= 0x10,
+	BF_FORCE_MAP		= 0x20,
 };
 
 struct bounce_page;
@@ -113,6 +114,10 @@ struct bus_dmamap {
 	struct memdesc	       kmsan_mem;
 #endif
 	struct sync_list	slist[];
+};
+
+static struct bus_dmamap nobounce_dmamap = {
+	.flags = DMAMAP_COHERENT,
 };
 
 static bool _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, bus_dmamap_t map,
@@ -278,6 +283,11 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->map_count = 0;
 	newtag->segments = NULL;
 
+#ifdef KMSAN
+	/* KMSAN stores the memory descriptor in the map. */
+	newtag->bounce_flags |= BF_FORCE_MAP;
+#endif
+
 	if ((flags & BUS_DMA_COHERENT) != 0) {
 		newtag->bounce_flags |= BF_COHERENT;
 	}
@@ -412,6 +422,12 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 	}
 
+	if ((dmat->bounce_flags &
+	    (BF_COULD_BOUNCE | BF_COHERENT | BF_FORCE_MAP)) == BF_COHERENT &&
+	    !in_realm()) {
+		*mapp = NULL;
+		goto out;
+	}
 	*mapp = alloc_dmamap(dmat, M_NOWAIT);
 	if (*mapp == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
@@ -459,9 +475,11 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	}
 	bz->map_count++;
 
+out:
 	if (error == 0) {
 		dmat->map_count++;
-		if ((dmat->bounce_flags & BF_COHERENT) != 0)
+		if (*mapp != NULL &&
+		    (dmat->bounce_flags & BF_COHERENT) != 0)
 			(*mapp)->flags |= DMAMAP_COHERENT;
 	} else {
 		free(*mapp, M_DEVBUF);
@@ -479,17 +497,19 @@ static int
 bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
-	/* Check we are destroying the correct map type */
-	if ((map->flags & DMAMAP_FROM_DMAMEM) != 0)
-		panic("bounce_bus_dmamap_destroy: Invalid map freed\n");
-
-	if (STAILQ_FIRST(&map->bpages) != NULL || map->sync_count != 0) {
-		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, EBUSY);
-		return (EBUSY);
+	if (map != NULL && map != &nobounce_dmamap) {
+		if ((map->flags & DMAMAP_FROM_DMAMEM) != 0)
+			panic("bounce_bus_dmamap_destroy: Invalid map freed\n");
+		if (STAILQ_FIRST(&map->bpages) != NULL ||
+		    map->sync_count != 0) {
+			CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__,
+			    dmat, EBUSY);
+			return (EBUSY);
+		}
+		if (dmat->bounce_zone != NULL)
+			dmat->bounce_zone->map_count--;
+		free(map, M_DEVBUF);
 	}
-	if (dmat->bounce_zone)
-		dmat->bounce_zone->map_count--;
-	free(map, M_DEVBUF);
 	dmat->map_count--;
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
 	return (0);
@@ -751,6 +771,20 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	if (segs == NULL)
 		segs = dmat->segments;
 
+	if (map == NULL) {
+		KASSERT((dmat->bounce_flags &
+		    (BF_COULD_BOUNCE | BF_COHERENT | BF_FORCE_MAP)) ==
+		    BF_COHERENT && !in_realm(),
+		    ("%s: invalid NULL map for tag %p", __func__, dmat));
+		map = &nobounce_dmamap;
+		if (!_bus_dmamap_addsegs(dmat, map, buf, buflen, segs, segp)) {
+			bus_dmamap_unload(dmat, map);
+			return (EFBIG); /* XXX better return value here? */
+		}
+		return (0);
+	}
+	sl = map->slist + map->sync_count - 1;
+
 	if (might_bounce(dmat, map, (bus_addr_t)buf, buflen)) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
@@ -760,7 +794,6 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 		}
 	}
 
-	sl = map->slist + map->sync_count - 1;
 	sl_end = 0;
 
 	while (buflen > 0) {
@@ -831,6 +864,17 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	char *kvaddr, *vaddr, *sl_vend;
 	int error;
 
+	if (map == NULL) {
+		KASSERT((dmat->bounce_flags &
+		    (BF_COULD_BOUNCE | BF_COHERENT | BF_FORCE_MAP)) ==
+		    BF_COHERENT && !in_realm(),
+		    ("%s: invalid NULL map for tag %p", __func__, dmat));
+		map = &nobounce_dmamap;
+		sl = NULL;
+	} else {
+		sl = map->slist + map->sync_count - 1;
+	}
+
 	KASSERT((map->flags & DMAMAP_FROM_DMAMEM) != 0 ||
 	    dmat->common.alignment <= PAGE_SIZE,
 	    ("loading user buffer with alignment bigger than PAGE_SIZE is not "
@@ -839,7 +883,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	if (flags & BUS_DMA_LOAD_MBUF)
+	if ((flags & BUS_DMA_LOAD_MBUF) != 0 && map != &nobounce_dmamap)
 		map->flags |= DMAMAP_MBUF;
 
 	if (might_bounce(dmat, map, (bus_addr_t)buf, buflen)) {
@@ -856,7 +900,6 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	 * continuous segments first and then pass these segment into
 	 * load loop.
 	 */
-	sl = map->slist + map->sync_count - 1;
 	vaddr = buf;
 	sl_pend = 0;
 	sl_vend = NULL;
@@ -960,6 +1003,9 @@ bounce_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 static void
 bounce_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
+	if (map == NULL || map == &nobounce_dmamap)
+		return;
+
 	free_bounce_pages(dmat, map);
 	map->sync_count = 0;
 	map->flags &= ~DMAMAP_MBUF;
@@ -1057,6 +1103,8 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		 */
 		dsb(sy);
 	}
+	if (map == NULL)
+		goto out;
 
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
@@ -1127,6 +1175,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 			dma_dcache_sync(sl, op);
 	}
 
+out:
 	if ((op & (BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE)) != 0) {
 		/*
 		 * Wait for the bcopy to complete before any DMA operations.
@@ -1134,7 +1183,8 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		dsb(sy);
 	}
 
-	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
+	if (map != NULL)
+		kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
 }
 
 #ifdef KMSAN
