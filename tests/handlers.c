@@ -63,6 +63,7 @@
 #include "structdata.h"
 #include "common.h"
 #include "handlers.h"
+#include "../lib/xcs.h"
 
 /* Global variables for user parameter settings tests */
 /* Variable holding the expected handler userData */
@@ -95,15 +96,16 @@ start_element_event_handler2(void *userData, const XML_Char *name,
                              const XML_Char **attr) {
   StructData *storage = (StructData *)userData;
   UNUSED_P(attr);
-  StructData_AddItem(storage, name, (int)XML_GetCurrentColumnNumber(g_parser),
-                     (int)XML_GetCurrentLineNumber(g_parser), STRUCT_START_TAG);
+  StructData_AddItem(storage, name, (int)XML_GetCurrentColumnNumber64(g_parser),
+                     (int)XML_GetCurrentLineNumber64(g_parser),
+                     STRUCT_START_TAG);
 }
 
 void XMLCALL
 end_element_event_handler2(void *userData, const XML_Char *name) {
   StructData *storage = (StructData *)userData;
-  StructData_AddItem(storage, name, (int)XML_GetCurrentColumnNumber(g_parser),
-                     (int)XML_GetCurrentLineNumber(g_parser), STRUCT_END_TAG);
+  StructData_AddItem(storage, name, (int)XML_GetCurrentColumnNumber64(g_parser),
+                     (int)XML_GetCurrentLineNumber64(g_parser), STRUCT_END_TAG);
 }
 
 void XMLCALL
@@ -116,7 +118,7 @@ counting_start_element_handler(void *userData, const XML_Char *name,
   int count, id, i;
 
   while (info->name != NULL) {
-    if (! xcstrcmp(name, info->name))
+    if (! xcscmp(name, info->name))
       break;
     info++;
   }
@@ -138,14 +140,14 @@ counting_start_element_handler(void *userData, const XML_Char *name,
     fail("ID not present");
     return;
   }
-  if (id != -1 && xcstrcmp(atts[id], info->id_name) != 0) {
+  if (id != -1 && xcscmp(atts[id], info->id_name) != 0) {
     fail("ID does not have the correct name");
     return;
   }
   for (i = 0; i < info->attr_count + info->default_attr_count; i++) {
     attr = info->attributes;
     while (attr->name != NULL) {
-      if (! xcstrcmp(atts[0], attr->name))
+      if (! xcscmp(atts[0], attr->name))
         break;
       attr++;
     }
@@ -153,7 +155,7 @@ counting_start_element_handler(void *userData, const XML_Char *name,
       fail("Attribute not recognised");
       return;
     }
-    if (xcstrcmp(atts[1], attr->value) != 0) {
+    if (xcscmp(atts[1], attr->value) != 0) {
       fail("Attribute has wrong value");
       return;
     }
@@ -176,9 +178,9 @@ start_element_suspender(void *userData, const XML_Char *name,
                         const XML_Char **atts) {
   UNUSED_P(userData);
   UNUSED_P(atts);
-  if (! xcstrcmp(name, XCS("suspend")))
+  if (! xcscmp(name, XCS("suspend")))
     XML_StopParser(g_parser, XML_TRUE);
-  if (! xcstrcmp(name, XCS("abort")))
+  if (! xcscmp(name, XCS("abort")))
     XML_StopParser(g_parser, XML_FALSE);
 }
 
@@ -195,12 +197,12 @@ triplet_start_checker(void *userData, const XML_Char *name,
                       const XML_Char **atts) {
   XML_Char **elemstr = (XML_Char **)userData;
   char buffer[1024];
-  if (xcstrcmp(elemstr[0], name) != 0) {
+  if (xcscmp(elemstr[0], name) != 0) {
     snprintf(buffer, sizeof(buffer),
              "unexpected start string: '%" XML_FMT_STR "'", name);
     fail(buffer);
   }
-  if (xcstrcmp(elemstr[1], atts[0]) != 0) {
+  if (xcscmp(elemstr[1], atts[0]) != 0) {
     snprintf(buffer, sizeof(buffer),
              "unexpected attribute string: '%" XML_FMT_STR "'", atts[0]);
     fail(buffer);
@@ -215,7 +217,7 @@ triplet_start_checker(void *userData, const XML_Char *name,
 void XMLCALL
 triplet_end_checker(void *userData, const XML_Char *name) {
   XML_Char **elemstr = (XML_Char **)userData;
-  if (xcstrcmp(elemstr[0], name) != 0) {
+  if (xcscmp(elemstr[0], name) != 0) {
     char buffer[1024];
     snprintf(buffer, sizeof(buffer),
              "unexpected end string: '%" XML_FMT_STR "'", name);
@@ -291,7 +293,7 @@ int XMLCALL
 UnknownEncodingHandler(void *data, const XML_Char *encoding,
                        XML_Encoding *info) {
   UNUSED_P(data);
-  if (xcstrcmp(encoding, XCS("unsupported-encoding")) == 0) {
+  if (xcscmp(encoding, XCS("unsupported-encoding")) == 0) {
     int i;
     for (i = 0; i < 256; ++i)
       info->map[i] = i;
@@ -323,7 +325,7 @@ int XMLCALL
 unknown_released_encoding_handler(void *data, const XML_Char *encoding,
                                   XML_Encoding *info) {
   UNUSED_P(data);
-  if (! xcstrcmp(encoding, XCS("unsupported-encoding"))) {
+  if (! xcscmp(encoding, XCS("unsupported-encoding"))) {
     int i;
 
     for (i = 0; i < 256; i++)
@@ -359,12 +361,12 @@ MiscEncodingHandler(void *data, const XML_Char *encoding, XML_Encoding *info) {
   int i;
   int high_map = -2; /* Assume a 2-byte sequence */
 
-  if (! xcstrcmp(encoding, XCS("invalid-9"))
-      || ! xcstrcmp(encoding, XCS("ascii-like"))
-      || ! xcstrcmp(encoding, XCS("invalid-len"))
-      || ! xcstrcmp(encoding, XCS("invalid-a"))
-      || ! xcstrcmp(encoding, XCS("invalid-surrogate"))
-      || ! xcstrcmp(encoding, XCS("invalid-high")))
+  if (! xcscmp(encoding, XCS("invalid-9"))
+      || ! xcscmp(encoding, XCS("ascii-like"))
+      || ! xcscmp(encoding, XCS("invalid-len"))
+      || ! xcscmp(encoding, XCS("invalid-a"))
+      || ! xcscmp(encoding, XCS("invalid-surrogate"))
+      || ! xcscmp(encoding, XCS("invalid-high")))
     high_map = -1;
 
   for (i = 0; i < 128; ++i)
@@ -373,28 +375,28 @@ MiscEncodingHandler(void *data, const XML_Char *encoding, XML_Encoding *info) {
     info->map[i] = high_map;
 
   /* If required, put an invalid value in the ASCII entries */
-  if (! xcstrcmp(encoding, XCS("invalid-9")))
+  if (! xcscmp(encoding, XCS("invalid-9")))
     info->map[9] = 5;
   /* If required, have a top-bit set character starts a 5-byte sequence */
-  if (! xcstrcmp(encoding, XCS("invalid-len")))
+  if (! xcscmp(encoding, XCS("invalid-len")))
     info->map[0x81] = -5;
   /* If required, make a top-bit set character a valid ASCII character */
-  if (! xcstrcmp(encoding, XCS("invalid-a")))
+  if (! xcscmp(encoding, XCS("invalid-a")))
     info->map[0x82] = 'a';
   /* If required, give a top-bit set character a forbidden value,
    * what would otherwise be the first of a surrogate pair.
    */
-  if (! xcstrcmp(encoding, XCS("invalid-surrogate")))
+  if (! xcscmp(encoding, XCS("invalid-surrogate")))
     info->map[0x83] = 0xd801;
   /* If required, give a top-bit set character too high a value */
-  if (! xcstrcmp(encoding, XCS("invalid-high")))
+  if (! xcscmp(encoding, XCS("invalid-high")))
     info->map[0x84] = 0x010101;
 
   info->data = data;
   info->release = NULL;
-  if (! xcstrcmp(encoding, XCS("failing-conv")))
+  if (! xcscmp(encoding, XCS("failing-conv")))
     info->convert = failing_converter;
-  else if (! xcstrcmp(encoding, XCS("prefix-conv")))
+  else if (! xcscmp(encoding, XCS("prefix-conv")))
     info->convert = prefix_converter;
   else
     info->convert = NULL;
@@ -437,7 +439,7 @@ external_entity_optioner(XML_Parser parser, const XML_Char *context,
   UNUSED_P(base);
   UNUSED_P(publicId);
   while (options->parse_text != NULL) {
-    if (! xcstrcmp(systemId, options->system_id)) {
+    if (! xcscmp(systemId, options->system_id)) {
       enum XML_Status rc;
       ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
       if (ext_parser == NULL)
@@ -874,13 +876,13 @@ external_entity_param(XML_Parser parser, const XML_Char *context,
   if (ext_parser == NULL)
     fail("Could not create external entity parser");
 
-  if (! xcstrcmp(systemId, XCS("004-1.ent"))) {
+  if (! xcscmp(systemId, XCS("004-1.ent"))) {
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text1, (int)strlen(text1), XML_TRUE)
         != XML_STATUS_ERROR)
       fail("Inner DTD with invalid tag not rejected");
     if (XML_GetErrorCode(ext_parser) != XML_ERROR_EXTERNAL_ENTITY_HANDLING)
       xml_failure(ext_parser);
-  } else if (! xcstrcmp(systemId, XCS("004-2.ent"))) {
+  } else if (! xcscmp(systemId, XCS("004-2.ent"))) {
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text2, (int)strlen(text2), XML_TRUE)
         != XML_STATUS_ERROR)
       fail("Invalid tag in external param not rejected");
@@ -984,11 +986,11 @@ external_entity_valuer(XML_Parser parser, const XML_Char *context,
   ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
   if (ext_parser == NULL)
     fail("Could not create external entity parser");
-  if (! xcstrcmp(systemId, XCS("004-1.ent"))) {
+  if (! xcscmp(systemId, XCS("004-1.ent"))) {
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text1, (int)strlen(text1), XML_TRUE)
         == XML_STATUS_ERROR)
       xml_failure(ext_parser);
-  } else if (! xcstrcmp(systemId, XCS("004-2.ent"))) {
+  } else if (! xcscmp(systemId, XCS("004-2.ent"))) {
     ExtFaults *fault = XML_GetUserData(parser);
     enum XML_Status status;
     enum XML_Error error;
@@ -1030,7 +1032,7 @@ external_entity_not_standalone(XML_Parser parser, const XML_Char *context,
   ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
   if (ext_parser == NULL)
     fail("Could not create external entity parser");
-  if (! xcstrcmp(systemId, XCS("foo"))) {
+  if (! xcscmp(systemId, XCS("foo"))) {
     XML_SetNotStandaloneHandler(ext_parser, reject_not_standalone_handler);
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text1, (int)strlen(text1), XML_TRUE)
         != XML_STATUS_ERROR)
@@ -1040,7 +1042,7 @@ external_entity_not_standalone(XML_Parser parser, const XML_Char *context,
     XML_SetNotStandaloneHandler(ext_parser, NULL);
     XML_ParserFree(ext_parser);
     return XML_STATUS_ERROR;
-  } else if (! xcstrcmp(systemId, XCS("bar"))) {
+  } else if (! xcscmp(systemId, XCS("bar"))) {
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text2, (int)strlen(text2), XML_TRUE)
         == XML_STATUS_ERROR)
       xml_failure(ext_parser);
@@ -1068,12 +1070,12 @@ external_entity_value_aborter(XML_Parser parser, const XML_Char *context,
   ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
   if (ext_parser == NULL)
     fail("Could not create external entity parser");
-  if (! xcstrcmp(systemId, XCS("004-1.ent"))) {
+  if (! xcscmp(systemId, XCS("004-1.ent"))) {
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text1, (int)strlen(text1), XML_TRUE)
         == XML_STATUS_ERROR)
       xml_failure(ext_parser);
   }
-  if (! xcstrcmp(systemId, XCS("004-2.ent"))) {
+  if (! xcscmp(systemId, XCS("004-2.ent"))) {
     XML_SetXmlDeclHandler(ext_parser, entity_suspending_xdecl_handler);
     XML_SetUserData(ext_parser, ext_parser);
     if (_XML_Parse_SINGLE_BYTES(ext_parser, text2, (int)strlen(text2), XML_TRUE)
@@ -1101,9 +1103,9 @@ external_entity_public(XML_Parser parser, const XML_Char *context,
   ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
   if (ext_parser == NULL)
     return XML_STATUS_ERROR;
-  if (systemId != NULL && ! xcstrcmp(systemId, XCS("http://example.org/"))) {
+  if (systemId != NULL && ! xcscmp(systemId, XCS("http://example.org/"))) {
     text = text1;
-  } else if (publicId != NULL && ! xcstrcmp(publicId, XCS("foo"))) {
+  } else if (publicId != NULL && ! xcscmp(publicId, XCS("foo"))) {
     text = text2;
   } else
     fail("Unexpected parameters to external entity parser");
@@ -1126,9 +1128,9 @@ external_entity_devaluer(XML_Parser parser, const XML_Char *context,
 
   UNUSED_P(base);
   UNUSED_P(publicId);
-  if (systemId == NULL || ! xcstrcmp(systemId, XCS("bar")))
+  if (systemId == NULL || ! xcscmp(systemId, XCS("bar")))
     return XML_STATUS_OK;
-  if (xcstrcmp(systemId, XCS("foo")) != 0)
+  if (xcscmp(systemId, XCS("foo")) != 0)
     fail("Unexpected system ID");
   ext_parser = XML_ExternalEntityParserCreate(parser, context, NULL);
   if (ext_parser == NULL)
@@ -1527,9 +1529,9 @@ accounting_external_entity_ref_handler(XML_Parser parser,
   const struct AccountingTestCase *const testCase = XML_GetUserData(parser);
 
   const char *externalText = NULL;
-  if (xcstrcmp(systemId, XCS("first.ent")) == 0) {
+  if (xcscmp(systemId, XCS("first.ent")) == 0) {
     externalText = testCase->firstExternalText;
-  } else if (xcstrcmp(systemId, XCS("second.ent")) == 0) {
+  } else if (xcscmp(systemId, XCS("second.ent")) == 0) {
     externalText = testCase->secondExternalText;
   } else {
     assert(! "systemId is neither \"first.ent\" nor \"second.ent\"");
@@ -1569,16 +1571,16 @@ verify_attlist_decl_handler(void *userData, const XML_Char *element_name,
                             const XML_Char *default_value, int is_required) {
   AttTest *at = (AttTest *)userData;
 
-  if (xcstrcmp(element_name, at->element_name) != 0)
+  if (xcscmp(element_name, at->element_name) != 0)
     fail("Unexpected element name in attribute declaration");
-  if (xcstrcmp(attr_name, at->attr_name) != 0)
+  if (xcscmp(attr_name, at->attr_name) != 0)
     fail("Unexpected attribute name in attribute declaration");
-  if (xcstrcmp(attr_type, at->attr_type) != 0)
+  if (xcscmp(attr_type, at->attr_type) != 0)
     fail("Unexpected attribute type in attribute declaration");
   if ((default_value == NULL && at->default_value != NULL)
       || (default_value != NULL && at->default_value == NULL)
       || (default_value != NULL
-          && xcstrcmp(default_value, at->default_value) != 0))
+          && xcscmp(default_value, at->default_value) != 0))
     fail("Unexpected default value in attribute declaration");
   if (is_required != at->is_required)
     fail("Requirement mismatch in attribute declaration");
@@ -1649,23 +1651,24 @@ rsqb_handler(void *userData, const XML_Char *s, int len) {
 void XMLCALL
 byte_character_handler(void *userData, const XML_Char *s, int len) {
 #if XML_CONTEXT_BYTES > 0
-  int offset, size;
+  int64_t offset;
+  uint64_t size;
   const char *buffer;
   ByteTestData *data = (ByteTestData *)userData;
 
   UNUSED_P(s);
-  buffer = XML_GetInputContext(g_parser, &offset, &size);
+  buffer = XML_GetInputContext64(g_parser, &offset, &size);
   if (buffer == NULL)
     fail("Failed to get context buffer");
   if (offset != data->start_element_len)
     fail("Context offset in unexpected position");
   if (len != data->cdata_len)
     fail("CDATA length reported incorrectly");
-  if (size != data->total_string_len)
+  if (size != (uint64_t)data->total_string_len)
     fail("Context size is not full buffer");
-  if (XML_GetCurrentByteIndex(g_parser) != offset)
+  if (XML_GetCurrentByteIndex64(g_parser) != offset)
     fail("Character byte index incorrect");
-  if (XML_GetCurrentByteCount(g_parser) != len)
+  if (XML_GetCurrentByteCount64(g_parser) != (uint64_t)len)
     fail("Character byte count incorrect");
 #else
   UNUSED_P(s);
@@ -1723,7 +1726,7 @@ void XMLCALL
 record_element_start_handler(void *userData, const XML_Char *name,
                              const XML_Char **atts) {
   UNUSED_P(atts);
-  CharData_AppendXMLChars((CharData *)userData, name, (int)xcstrlen(name));
+  CharData_AppendXMLChars((CharData *)userData, name, (int)xcslen(name));
 }
 
 void XMLCALL
@@ -1763,13 +1766,13 @@ param_entity_match_handler(void *userData, const XML_Char *entityName,
       || entity_value_to_match == NULL) {
     return;
   }
-  if (! xcstrcmp(entityName, entity_name_to_match)) {
+  if (! xcscmp(entityName, entity_name_to_match)) {
     /* The cast here is safe because we control the horizontal and
      * the vertical, and we therefore know our strings are never
      * going to overflow an int.
      */
-    if (value_length != (int)xcstrlen(entity_value_to_match)
-        || xcstrncmp(value, entity_value_to_match, value_length) != 0) {
+    if (value_length != (int)xcslen(entity_value_to_match)
+        || xcsncmp(value, entity_value_to_match, value_length) != 0) {
       entity_match_flag = ENTITY_MATCH_FAIL;
     } else {
       entity_match_flag = ENTITY_MATCH_SUCCESS;

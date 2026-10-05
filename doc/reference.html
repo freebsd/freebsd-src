@@ -53,7 +53,7 @@
   <body>
     <div>
       <h1>
-        The Expat XML Parser <small>Release 2.8.5</small>
+        The Expat XML Parser <small>Release 2.9.0</small>
       </h1>
     </div>
 
@@ -309,22 +309,76 @@
 
                 <li>
                   <a href="#XML_GetCurrentByteIndex">XML_GetCurrentByteIndex</a>
+                  (deprecated)
+                </li>
+
+                <li>
+                  <a href="#XML_GetCurrentByteIndex64">XML_GetCurrentByteIndex64</a>
                 </li>
 
                 <li>
                   <a href="#XML_GetCurrentLineNumber">XML_GetCurrentLineNumber</a>
+                  (deprecated)
+                </li>
+
+                <li>
+                  <a href="#XML_GetCurrentLineNumber64">XML_GetCurrentLineNumber64</a>
                 </li>
 
                 <li>
                   <a href="#XML_GetCurrentColumnNumber">XML_GetCurrentColumnNumber</a>
+                  (deprecated)
+                </li>
+
+                <li>
+                  <a href=
+                  "#XML_GetCurrentColumnNumber64">XML_GetCurrentColumnNumber64</a>
                 </li>
 
                 <li>
                   <a href="#XML_GetCurrentByteCount">XML_GetCurrentByteCount</a>
+                  (deprecated)
                 </li>
 
                 <li>
-                  <a href="#XML_GetInputContext">XML_GetInputContext</a>
+                  <a href="#XML_GetCurrentByteCount64">XML_GetCurrentByteCount64</a>
+                </li>
+
+                <li>
+                  <a href="#XML_GetInputContext">XML_GetInputContext</a> (deprecated)
+                </li>
+
+                <li>
+                  <a href="#XML_GetInputContext64">XML_GetInputContext64</a>
+                </li>
+              </ul>
+            </li>
+
+            <li>
+              <a href="#properties">Properties / Security Tuning</a>
+              <ul>
+                <li>
+                  <a href="#XML_GetPropertyBool">XML_GetPropertyBool</a>
+                </li>
+
+                <li>
+                  <a href="#XML_GetPropertyDouble">XML_GetPropertyDouble</a>
+                </li>
+
+                <li>
+                  <a href="#XML_GetPropertyUInt64">XML_GetPropertyUInt64</a>
+                </li>
+
+                <li>
+                  <a href="#XML_SetPropertyBool">XML_SetPropertyBool</a>
+                </li>
+
+                <li>
+                  <a href="#XML_SetPropertyDouble">XML_SetPropertyDouble</a>
+                </li>
+
+                <li>
+                  <a href="#XML_SetPropertyUInt64">XML_SetPropertyUInt64</a>
                 </li>
               </ul>
             </li>
@@ -389,10 +443,6 @@
 
                 <li>
                   <a href="#XML_GetIdAttributeIndex">XML_GetIdAttributeIndex</a>
-                </li>
-
-                <li>
-                  <a href="#XML_GetAttributeInfo">XML_GetAttributeInfo</a>
                 </li>
 
                 <li>
@@ -751,19 +801,59 @@ make install
         </dd>
 
         <dt>
-          <a id="XML_LARGE_SIZE" name="XML_LARGE_SIZE">XML_LARGE_SIZE</a>
+          <a id="XML_LARGE_SIZE" name="XML_LARGE_SIZE">XML_LARGE_SIZE</a> (deprecated)
         </dt>
 
         <dd>
-          If defined, causes the <code>XML_Size</code> and <code>XML_Index</code> integer
-          types to be at least 64 bits in size. This is intended to support processing of
-          very large input streams, where the return values of <code><a href=
-          "#XML_GetCurrentByteIndex">XML_GetCurrentByteIndex</a></code>, <code><a href=
-          "#XML_GetCurrentLineNumber">XML_GetCurrentLineNumber</a></code> and
-          <code><a href=
-          "#XML_GetCurrentColumnNumber">XML_GetCurrentColumnNumber</a></code> could
-          overflow. It may not be supported by all compilers, and is turned off by
-          default.
+          <p>
+            If defined, causes the <code>XML_Size</code> and <code>XML_Index</code>
+            integer types to be at least 64 bits in size. This is intended to support
+            processing of very large input streams, where the return values of
+            <code><a href="#XML_GetCurrentByteIndex">XML_GetCurrentByteIndex</a></code>,
+            <code><a href="#XML_GetCurrentLineNumber">XML_GetCurrentLineNumber</a></code>
+            and <code><a href=
+            "#XML_GetCurrentColumnNumber">XML_GetCurrentColumnNumber</a></code> could
+            overflow. It may not be supported by all compilers, and is turned off by
+            default.
+          </p>
+
+          <p>
+            Starting with Expat 2.9.0, there are 64bit versions of these functions, so
+            that relying on (non-default and uncommon) macro <code>XML_LARGE_SIZE</code>
+            is no longer needed. These functions are:
+          </p>
+
+          <ul>
+            <li>
+              <code><a href=
+              "#XML_GetCurrentByteIndex64">XML_GetCurrentByteIndex64</a></code>
+            </li>
+
+            <li>
+              <code><a href=
+              "#XML_GetCurrentColumnNumber64">XML_GetCurrentColumnNumber64</a></code>
+            </li>
+
+            <li>
+              <code><a href=
+              "#XML_GetCurrentLineNumber64">XML_GetCurrentLineNumber64</a></code>
+            </li>
+          </ul>
+
+          <p>
+            And there are two more that <code>XML_LARGE_SIZE</code> was not covering:
+          </p>
+
+          <ul>
+            <li>
+              <code><a href=
+              "#XML_GetCurrentByteCount64">XML_GetCurrentByteCount64</a></code>
+            </li>
+
+            <li>
+              <code><a href="#XML_GetInputContext64">XML_GetInputContext64</a></code>
+            </li>
+          </ul>
         </dd>
 
         <dt>
@@ -789,16 +879,6 @@ make install
           On Windows, this should be set if Expat is going to be linked statically with
           the code that calls it; this is required to get all the right MSVC magic
           annotations correct. This is ignored on other platforms.
-        </dd>
-
-        <dt>
-          <a id="XML_ATTR_INFO" name="XML_ATTR_INFO">XML_ATTR_INFO</a>
-        </dt>
-
-        <dd>
-          If defined, makes the additional function <code><a href=
-          "#XML_GetAttributeInfo">XML_GetAttributeInfo</a></code> available for reporting
-          attribute byte offsets.
         </dd>
       </dl>
 
@@ -1705,6 +1785,17 @@ XML_ParseBuffer(XML_Parser p,
           this case Expat provides the buffer. By obtaining the buffer from Expat with
           the <code><a href="#XML_GetBuffer">XML_GetBuffer</a></code> function, the
           application can avoid double copying of the input.
+        </p>
+
+        <p>
+          <strong>Note:</strong> It is the responsibility of the application code to pass
+          a value for <code>len</code> that does not exceed the length of the remaining
+          unparsed XML content that was previously copied into the buffer obtained from
+          <code><a href="#XML_GetBuffer">XML_GetBuffer</a></code>. The documentation of
+          <code><a href="#XML_GetBuffer">XML_GetBuffer</a></code> below has an <a href=
+          "#XML_GetBuffer">example of typical use</a> of functions <code><a href=
+          "#XML_GetBuffer">XML_GetBuffer</a></code> and <code><a href=
+          "#XML_ParseBuffer">XML_ParseBuffer</a></code> in tandem.
         </p>
 
         <p>
@@ -2889,7 +2980,40 @@ enum XML_Error XMLCALL
 XML_GetErrorCode(XML_Parser p);
 </pre>
       <div class="fcndef">
-        Return what type of error has occurred.
+        <p>
+          Return what type of error has occurred inside the main Expat parsing machinery.
+        </p>
+
+        <p>
+          Only the following functions record the type of error for retrivial via
+          <code>XML_GetErrorCode</code>:
+        </p>
+
+        <ul>
+          <li>
+            <code><a href="#XML_GetBuffer">XML_GetBuffer</a></code>
+          </li>
+
+          <li>
+            <code><a href="#XML_Parse">XML_Parse</a></code>
+          </li>
+
+          <li>
+            <code><a href="#XML_ParseBuffer">XML_ParseBuffer</a></code>
+          </li>
+
+          <li>
+            <code><a href="#XML_ParserReset">XML_ParserReset</a></code>
+          </li>
+
+          <li>
+            <code><a href="#XML_ResumeParser">XML_ResumeParser</a></code>
+          </li>
+
+          <li>
+            <code><a href="#XML_StopParser">XML_StopParser</a></code>
+          </li>
+        </ul>
       </div>
 
       <h4 id="XML_ErrorString">
@@ -2907,13 +3031,18 @@ XML_ErrorString(enum XML_Error code);
       </div>
 
       <h4 id="XML_GetCurrentByteIndex">
-        XML_GetCurrentByteIndex
+        XML_GetCurrentByteIndex (deprecated)
       </h4>
 
       <pre class="fcndec">
 XML_Index XMLCALL
 XML_GetCurrentByteIndex(XML_Parser p);
 </pre>
+      <p>
+        <b>Note:</b> This function is deprecated, please use function <code><a href=
+        "#XML_GetCurrentByteIndex64">XML_GetCurrentByteIndex64</a></code>, instead.
+      </p>
+
       <div class="fcndef">
         Return the byte offset of the position. This always corresponds to the values
         returned by <code><a href=
@@ -2928,14 +3057,36 @@ XML_GetCurrentByteIndex(XML_Parser p);
         "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
       </p>
 
+      <h4 id="XML_GetCurrentByteIndex64">
+        XML_GetCurrentByteIndex64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+int64_t XMLCALL
+XML_GetCurrentByteIndex64(XML_Parser p);
+</pre>
+      <div class="fcndef">
+        Return the byte offset of the position. This always corresponds to the values
+        returned by <code><a href=
+        "#XML_GetCurrentLineNumber64">XML_GetCurrentLineNumber64</a></code> and
+        <code><a href=
+        "#XML_GetCurrentColumnNumber64">XML_GetCurrentColumnNumber64</a></code>.
+      </div>
+
       <h4 id="XML_GetCurrentLineNumber">
-        XML_GetCurrentLineNumber
+        XML_GetCurrentLineNumber (deprecated)
       </h4>
 
       <pre class="fcndec">
 XML_Size XMLCALL
 XML_GetCurrentLineNumber(XML_Parser p);
 </pre>
+      <p>
+        <b>Note:</b> This function is deprecated, please use function <code><a href=
+        "#XML_GetCurrentLineNumber64">XML_GetCurrentLineNumber64</a></code>, instead.
+      </p>
+
       <div class="fcndef">
         Return the line number of the position. The first line is reported as
         <code>1</code>.
@@ -2948,14 +3099,33 @@ XML_GetCurrentLineNumber(XML_Parser p);
         "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
       </p>
 
+      <h4 id="XML_GetCurrentLineNumber64">
+        XML_GetCurrentLineNumber64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+uint64_t XMLCALL
+XML_GetCurrentLineNumber64(XML_Parser p);
+</pre>
+      <div class="fcndef">
+        Return the line number of the position. The first line is reported as
+        <code>1</code>.
+      </div>
+
       <h4 id="XML_GetCurrentColumnNumber">
-        XML_GetCurrentColumnNumber
+        XML_GetCurrentColumnNumber (deprecated)
       </h4>
 
       <pre class="fcndec">
 XML_Size XMLCALL
 XML_GetCurrentColumnNumber(XML_Parser p);
 </pre>
+      <p>
+        <b>Note:</b> This function is deprecated, please use function <code><a href=
+        "#XML_GetCurrentColumnNumber64">XML_GetCurrentColumnNumber64</a></code>, instead.
+      </p>
+
       <div class="fcndef">
         Return the <em>offset</em>, from the beginning of the current line, of the
         position. The first column is reported as <code>0</code>.
@@ -2968,13 +3138,53 @@ XML_GetCurrentColumnNumber(XML_Parser p);
         "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
       </p>
 
+      <h4 id="XML_GetCurrentColumnNumber64">
+        XML_GetCurrentColumnNumber64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+uint64_t XMLCALL
+XML_GetCurrentColumnNumber64(XML_Parser p);
+</pre>
+      <div class="fcndef">
+        Return the <em>offset</em>, from the beginning of the current line, of the
+        position. The first column is reported as <code>0</code>.
+      </div>
+
       <h4 id="XML_GetCurrentByteCount">
-        XML_GetCurrentByteCount
+        XML_GetCurrentByteCount (deprecated)
       </h4>
 
       <pre class="fcndec">
 int XMLCALL
 XML_GetCurrentByteCount(XML_Parser p);
+</pre>
+      <p>
+        <b>Note:</b> This function is deprecated, please use function <code><a href=
+        "#XML_GetCurrentByteCount64">XML_GetCurrentByteCount64</a></code>, instead.
+      </p>
+
+      <div class="fcndef">
+        Return the number of bytes in the current event. Returns <code>0</code> if the
+        event is inside a reference to an internal entity and for the end-tag event for
+        empty element tags (the later can be used to distinguish empty-element tags from
+        empty elements using separate start and end tags).
+      </div>
+
+      <p>
+        <strong>Note:</strong> Type <code>int</code> is known to wrap around (on both
+        32bit platforms and 64bit platforms).
+      </p>
+
+      <h4 id="XML_GetCurrentByteCount64">
+        XML_GetCurrentByteCount64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+uint64_t XMLCALL
+XML_GetCurrentByteCount64(XML_Parser p);
 </pre>
       <div class="fcndef">
         Return the number of bytes in the current event. Returns <code>0</code> if the
@@ -2984,7 +3194,7 @@ XML_GetCurrentByteCount(XML_Parser p);
       </div>
 
       <h4 id="XML_GetInputContext">
-        XML_GetInputContext
+        XML_GetInputContext (deprecated)
       </h4>
 
       <pre class="fcndec">
@@ -2992,6 +3202,53 @@ const char * XMLCALL
 XML_GetInputContext(XML_Parser p,
                     int *offset,
                     int *size);
+</pre>
+      <p>
+        <b>Note:</b> This function is deprecated, please use function <code><a href=
+        "#XML_GetInputContext64">XML_GetInputContext64</a></code>, instead.
+      </p>
+
+      <div class="fcndef">
+        <p>
+          Returns the parser's input buffer, sets the integer pointed at by
+          <code>offset</code> to the offset within this buffer of the current parse
+          position, and set the integer pointed at by <code>size</code> to the size of
+          the returned buffer.
+        </p>
+
+        <p>
+          This should only be called from within a handler during an active parse and the
+          returned buffer should only be referred to from within the handler that made
+          the call. This input buffer contains the untranslated bytes of the input.
+        </p>
+
+        <p>
+          Only a limited amount of context is kept, so if the event triggering a call
+          spans over a very large amount of input, the actual parse position may be
+          before the beginning of the buffer.
+        </p>
+
+        <p>
+          If <code>XML_CONTEXT_BYTES</code> is zero, this will always return
+          <code>NULL</code>.
+        </p>
+
+        <p>
+          <strong>Note:</strong> Type <code>int</code> is known to wrap around (on both
+          32bit platforms and 64bit platforms).
+        </p>
+      </div>
+
+      <h4 id="XML_GetInputContext64">
+        XML_GetInputContext64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+const char * XMLCALL
+XML_GetInputContext64(XML_Parser p,
+                    int64_t *offset,
+                    zint64_t *size);
 </pre>
       <div class="fcndef">
         <p>
@@ -3020,9 +3277,388 @@ XML_GetInputContext(XML_Parser p,
       </div>
 
       <h3>
+        <a id="properties" name="properties">Properties / Security Tuning</a>
+      </h3>
+
+      <p>
+        Expat 2.9.0 introduced a new Properties API. Think of properties as the control
+        knobs of a parser. The key motivations behind its introduction are:
+      </p>
+
+      <ul>
+        <li>to allow Expat to add more properties — both security-related and non-
+        security ones — in the future (without need to also add new related getter and
+        setter functions for each of them as was the case in the past),
+        </li>
+
+        <li>to allow users to read (not just to set) the current values, and
+        </li>
+
+        <li>to allow users to distinuish the different sources of error beyond a mere
+        "did not work".
+        </li>
+      </ul>
+
+      <p>
+        There is one setter function and one getter function — a pair — per supported
+        data type:
+      </p>
+
+      <ul>
+        <li>For <code>XML_Bool</code>:
+          <ul>
+            <li>
+              <code><a href="#XML_GetPropertyBool">XML_GetPropertyBool</a></code>
+            </li>
+
+            <li>
+              <code><a href="#XML_SetPropertyBool">XML_SetPropertyBool</a></code>
+            </li>
+          </ul>
+        </li>
+
+        <li>For <code>double</code>:
+          <ul>
+            <li>
+              <code><a href="#XML_GetPropertyDouble">XML_GetPropertyDouble</a></code>
+            </li>
+
+            <li>
+              <code><a href="#XML_SetPropertyDouble">XML_SetPropertyDouble</a></code>
+            </li>
+          </ul>
+        </li>
+
+        <li>For <code>uint64_t</code>:
+          <ul>
+            <li>
+              <code><a href="#XML_GetPropertyUInt64">XML_GetPropertyUInt64</a></code>
+            </li>
+
+            <li>
+              <code><a href="#XML_SetPropertyUInt64">XML_SetPropertyUInt64</a></code>
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <p>
+        They all share these two key enums:
+      </p>
+
+      <h4 id="XML_Parser_Property">
+        XML_Parser_Property
+      </h4>
+
+      <pre>
+/* Added in Expat 2.9.0. */
+enum XML_Parser_Property {
+#  if XML_GE == 1
+  XML_PROP_ALLOC_TRACKER_ACTIVATION_THRESHOLD = 1,   // of type `uint64_t`
+  XML_PROP_ALLOC_TRACKER_MAXIMUM_AMPLIFICATION = 2,  // of type `double`
+  XML_PROP_BILLION_LAUGHS_ACTIVATION_THRESHOLD = 3,  // of type `uint64_t`
+  XML_PROP_BILLION_LAUGHS_MAXIMUM_AMPLIFICATION = 4, // of type `double`
+#  endif
+  XML_PROP_REPARSE_DEFERRAL_ENABLED = 5, // of type `XML_Bool`
+  /* more properties upcoming here */
+};</pre>
+      <h4 id="XML_Prop_Error">
+        XML_Prop_Error
+      </h4>
+
+      <pre>
+/* Added in 2.9.0. */
+enum XML_Prop_Error {
+  XML_PROP_ERROR_NONE = 0, // i.e. success
+
+  XML_PROP_ERROR_INVALID_KEY = 1,   // i.e. the property is not known at all
+  XML_PROP_ERROR_INVALID_TYPE = 2,  // i.e. the property is known but expects a
+                                    // different type (so a different
+                                    // getter/setter would need to be called)
+  XML_PROP_ERROR_INVALID_VALUE = 3, // i.e. the value is invalid (with a setter
+                                    // function) or a NULL-pointer (with a
+                                    // getter function)
+
+  XML_PROP_ERROR_PARSER_NULL = 4,     // i.e. the parser argument is NULL
+  XML_PROP_ERROR_PARSER_NOT_ROOT = 5, // i.e. the parser is not a root parser
+                                      // but a subparser (and a root parser is
+                                      // needed)
+
+  /* potentially more error codes upcoming here */
+};</pre>
+      <p>
+        Let us look at these functions in more detail:
+      </p>
+
+      <h4 id="XML_GetPropertyBool">
+        XML_GetPropertyBool
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+enum XML_Prop_Error
+XML_GetPropertyBool(XML_Parser parser, enum XML_Parser_Property property,
+                    XML_Bool *value);
+</pre>
+      <div class="fcndef">
+        <p>
+          Writes the current value of boolean property <code>property</code> of parser
+          <code>parser</code> to output variable <code>value</code>. Supported properties
+          are:
+        </p>
+
+        <ul>
+          <li>
+            <code>XML_PROP_REPARSE_DEFERRAL_ENABLED</code> — whether <a href=
+            "#XML_SetReparseDeferralEnabled">reparse deferral</a> is active or not
+          </li>
+        </ul>
+
+        <p>
+          Both parameters <code>parser</code> and <code>value</code> must be
+          non-<code>NULL</code>. On success <code>XML_PROP_ERROR_NONE</code> is returned;
+          on error one of the other variants of <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> is returned.
+        </p>
+
+        <p>
+          <strong>Note:</strong> There may be more error codes introduced into <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> in the future, so user code must be robust
+          towards error codes from the future at runtime that were not known at compile
+          time.
+        </p>
+      </div>
+
+      <h4 id="XML_GetPropertyDouble">
+        XML_GetPropertyDouble
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+enum XML_Prop_Error
+XML_GetPropertyDouble(XML_Parser parser, enum XML_Parser_Property property,
+                      double *value);
+</pre>
+      <div class="fcndef">
+        <p>
+          Writes the current value of floating point property <code>property</code> of
+          parser <code>parser</code> to output variable <code>value</code>. Supported
+          properties are:
+        </p>
+
+        <ul>
+          <li>
+            <code>XML_PROP_ALLOC_TRACKER_MAXIMUM_AMPLIFICATION</code> — the maximum
+            tolerated amplification with the <a href=
+            "#XML_SetAllocTrackerMaximumAmplification">allocation tracker</a>
+          </li>
+
+          <li>
+            <code>XML_PROP_BILLION_LAUGHS_MAXIMUM_AMPLIFICATION</code> — the maximum
+            tolerated amplification with <a href=
+            "#XML_SetBillionLaughsAttackProtectionMaximumAmplification">billion laughs
+            attack protection</a>
+          </li>
+        </ul>
+
+        <p>
+          Both parameters <code>parser</code> and <code>value</code> must be
+          non-<code>NULL</code>. On success <code>XML_PROP_ERROR_NONE</code> is returned;
+          on error one of the other variants of <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> is returned.
+        </p>
+
+        <p>
+          <strong>Note:</strong> There may be more error codes introduced into <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> in the future, so user code must be robust
+          towards error codes from the future at runtime that were not known at compile
+          time.
+        </p>
+      </div>
+
+      <h4 id="XML_GetPropertyUInt64">
+        XML_GetPropertyUInt64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+enum XML_Prop_Error
+XML_GetPropertyUInt64(XML_Parser parser, enum XML_Parser_Property property,
+                      uint64_t *value);
+</pre>
+      <div class="fcndef">
+        <p>
+          Writes the current value of integral property <code>property</code> of parser
+          <code>parser</code> to output variable <code>value</code>. Supported properties
+          are:
+        </p>
+
+        <ul>
+          <li>
+            <code>XML_PROP_ALLOC_TRACKER_ACTIVATION_THRESHOLD</code> — the activation
+            threshold in bytes with the <a href=
+            "#XML_SetAllocTrackerActivationThreshold">allocation tracker</a>
+          </li>
+
+          <li>
+            <code>XML_PROP_BILLION_LAUGHS_ACTIVATION_THRESHOLD</code> — the activation
+            threshold in bytes with <a href=
+            "#XML_SetBillionLaughsAttackProtectionActivationThreshold">billion laughs
+            attack protection</a>
+          </li>
+        </ul>
+
+        <p>
+          Both parameters <code>parser</code> and <code>value</code> must be
+          non-<code>NULL</code>. On success <code>XML_PROP_ERROR_NONE</code> is returned;
+          on error one of the other variants of <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> is returned.
+        </p>
+
+        <p>
+          <strong>Note:</strong> There may be more error codes introduced into <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> in the future, so user code must be robust
+          towards error codes from the future at runtime that were not known at compile
+          time.
+        </p>
+      </div>
+
+      <h3>
         <a id="attack-protection" name="attack-protection">Attack Protection</a><a id=
         "billion-laughs" name="billion-laughs"></a>
       </h3>
+
+      <h4 id="XML_SetPropertyBool">
+        XML_SetPropertyBool
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+enum XML_Prop_Error
+XML_SetPropertyBool(XML_Parser parser, enum XML_Parser_Property property,
+                    XML_Bool value);
+</pre>
+      <div class="fcndef">
+        <p>
+          Applies the given value <code>value</code> to boolean property
+          <code>property</code> of parser <code>parser</code>. Supported properties are:
+        </p>
+
+        <ul>
+          <li>
+            <code>XML_PROP_REPARSE_DEFERRAL_ENABLED</code> — whether <a href=
+            "#XML_SetReparseDeferralEnabled">reparse deferral</a> is active or not
+          </li>
+        </ul>
+
+        <p>
+          Parameter <code>parser</code> must be non-<code>NULL</code>. On success
+          <code>XML_PROP_ERROR_NONE</code> is returned; on error one of the other
+          variants of <a href="#XML_Prop_Error">XML_Prop_Error</a> is returned.
+        </p>
+
+        <p>
+          <strong>Note:</strong> There may be more error codes introduced into <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> in the future, so user code must be robust
+          towards error codes from the future at runtime that were not known at compile
+          time.
+        </p>
+      </div>
+
+      <h4 id="XML_SetPropertyDouble">
+        XML_SetPropertyDouble
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+enum XML_Prop_Error
+XML_SetPropertyDouble(XML_Parser parser, enum XML_Parser_Property property,
+                      double value);
+</pre>
+      <div class="fcndef">
+        <p>
+          Applies the given value <code>value</code> to floating point property
+          <code>property</code> of parser <code>parser</code>. Supported properties are:
+        </p>
+
+        <ul>
+          <li>
+            <code>XML_PROP_ALLOC_TRACKER_MAXIMUM_AMPLIFICATION</code> — the maximum
+            tolerated amplification with the <a href=
+            "#XML_SetAllocTrackerMaximumAmplification">allocation tracker</a>
+          </li>
+
+          <li>
+            <code>XML_PROP_BILLION_LAUGHS_MAXIMUM_AMPLIFICATION</code> — the maximum
+            tolerated amplification with <a href=
+            "#XML_SetBillionLaughsAttackProtectionMaximumAmplification">billion laughs
+            attack protection</a>
+          </li>
+        </ul>
+
+        <p>
+          Value <code>value</code> may or may not be cast to <code>float</code>
+          internally.
+        </p>
+
+        <p>
+          Parameter <code>parser</code> must be non-<code>NULL</code>. On success
+          <code>XML_PROP_ERROR_NONE</code> is returned; on error one of the other
+          variants of <a href="#XML_Prop_Error">XML_Prop_Error</a> is returned.
+        </p>
+
+        <p>
+          <strong>Note:</strong> There may be more error codes introduced into <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> in the future, so user code must be robust
+          towards error codes from the future at runtime that were not known at compile
+          time.
+        </p>
+      </div>
+
+      <h4 id="XML_SetPropertyUInt64">
+        XML_SetPropertyUInt64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.9.0. */
+enum XML_Prop_Error
+XML_SetPropertyUInt64(XML_Parser parser, enum XML_Parser_Property property,
+                      uint64_t value);
+</pre>
+      <div class="fcndef">
+        <p>
+          Applies the given value <code>value</code> to integral property
+          <code>property</code> of parser <code>parser</code>. Supported properties are:
+        </p>
+
+        <ul>
+          <li>
+            <code>XML_PROP_ALLOC_TRACKER_ACTIVATION_THRESHOLD</code> — the activation
+            threshold in bytes with the <a href=
+            "#XML_SetAllocTrackerActivationThreshold">allocation tracker</a>
+          </li>
+
+          <li>
+            <code>XML_PROP_BILLION_LAUGHS_ACTIVATION_THRESHOLD</code> — the activation
+            threshold in bytes with <a href=
+            "#XML_SetBillionLaughsAttackProtectionActivationThreshold">billion laughs
+            attack protection</a>
+          </li>
+        </ul>
+
+        <p>
+          Parameter <code>parser</code> must be non-<code>NULL</code>. On success
+          <code>XML_PROP_ERROR_NONE</code> is returned; on error one of the other
+          variants of <a href="#XML_Prop_Error">XML_Prop_Error</a> is returned.
+        </p>
+
+        <p>
+          <strong>Note:</strong> There may be more error codes introduced into <a href=
+          "#XML_Prop_Error">XML_Prop_Error</a> in the future, so user code must be robust
+          towards error codes from the future at runtime that were not known at compile
+          time.
+        </p>
+      </div>
 
       <h4 id="XML_SetBillionLaughsAttackProtectionMaximumAmplification">
         XML_SetBillionLaughsAttackProtectionMaximumAmplification
@@ -3405,38 +4041,6 @@ XML_GetIdAttributeIndex(XML_Parser p);
         means the current call.
       </div>
 
-      <h4 id="XML_GetAttributeInfo">
-        XML_GetAttributeInfo
-      </h4>
-
-      <pre class="fcndec">
-const XML_AttrInfo * XMLCALL
-XML_GetAttributeInfo(XML_Parser parser);
-</pre>
-
-      <pre class="signature">
-typedef struct {
-  XML_Index  nameStart;  /* Offset to beginning of the attribute name. */
-  XML_Index  nameEnd;    /* Offset after the attribute name's last byte. */
-  XML_Index  valueStart; /* Offset to beginning of the attribute value. */
-  XML_Index  valueEnd;   /* Offset after the attribute value's last byte. */
-} XML_AttrInfo;
-</pre>
-      <div class="fcndef">
-        Returns an array of <code>XML_AttrInfo</code> structures for the attribute/value
-        pairs passed in the last call to the <code>XML_StartElementHandler</code> that
-        were specified in the start-tag rather than defaulted. Each attribute/value pair
-        counts as 1; thus the number of entries in the array is
-        <code>XML_GetSpecifiedAttributeCount(parser) / 2</code>.
-      </div>
-
-      <p>
-        <strong>Note:</strong> Type <code>XML_Index</code> is known to wrap around on
-        32bit platforms and 64bit Windows unless Expat has been compiled with
-        (non-default and uncommon) macro <code><a href=
-        "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
-      </p>
-
       <h4 id="XML_SetEncoding">
         XML_SetEncoding
       </h4>
@@ -3495,6 +4099,11 @@ int XMLCALL
 XML_SetHashSalt(XML_Parser parser,
                 unsigned long hash_salt);
 </pre>
+      <p>
+        <b>Note:</b> This function is deprecated, please use function <code><a href=
+        "#XML_SetHashSalt16Bytes">XML_SetHashSalt16Bytes</a></code>, instead.
+      </p>
+
       <div class="fcndef">
         Sets the hash salt to use for internal hash calculations. Helps in preventing DoS
         attacks based on predicting hash function behavior. In order to have an effect
@@ -3502,15 +4111,13 @@ XML_SetHashSalt(XML_Parser parser,
         called after <code>XML_Parse</code> or <code>XML_ParseBuffer</code> or when
         <code>parser</code> is <code>NULL</code>.
         <p>
-          <b>Note:</b> Function <code>XML_SetHashSalt</code> is
-          <strong>deprecated</strong>. Please use function <code><a href=
-          "#XML_SetHashSalt16Bytes">XML_SetHashSalt16Bytes</a></code> instead for better
-          security. <code>XML_SetHashSalt</code> only provides 4 to 8 bytes of entropy
-          (depending on the size of type <code>unsigned long</code>) while the SipHash
-          implementation used by Expat can leverage up to 16 bytes of entropy — at least
-          twice as much. Function <code><a href=
+          <b>Note:</b> Function <code>XML_SetHashSalt</code> only provides 4 to 8 bytes
+          of entropy (depending on the size of type <code>unsigned long</code>) while the
+          SipHash implementation used by Expat can leverage up to 16 bytes of entropy —
+          at least twice as much. Function <code><a href=
           "#XML_SetHashSalt16Bytes">XML_SetHashSalt16Bytes</a></code> of Expat &gt;=2.8.0
-          (and where backported) matches the amount of entropy supported by SipHash.
+          (and where backported) with better security matches the amount of entropy
+          supported by SipHash.
         </p>
 
         <p>
@@ -3710,6 +4317,7 @@ enum XML_FeatureEnum {
   XML_FEATURE_UNICODE_WCHAR_T,
   XML_FEATURE_DTD,
   XML_FEATURE_CONTEXT_BYTES,
+  /* Added in Expat 1.95.5, removed in Expat 2.9.0. */
   XML_FEATURE_MIN_SIZE,
   XML_FEATURE_SIZEOF_XML_CHAR,
   XML_FEATURE_SIZEOF_XML_LCHAR,
@@ -3717,7 +4325,7 @@ enum XML_FeatureEnum {
   XML_FEATURE_NS,
   /* Added in Expat 2.0.1. */
   XML_FEATURE_LARGE_SIZE,
-  /* Added in Expat 2.1.0. */
+  /* Added in Expat 2.1.0, removed in Expat 2.9.0. */
   XML_FEATURE_ATTR_INFO,
   /* Added in Expat 2.4.0. */
   XML_FEATURE_BILLION_LAUGHS_ATTACK_PROTECTION_MAXIMUM_AMPLIFICATION_DEFAULT,

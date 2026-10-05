@@ -50,6 +50,7 @@
 #include "expat_config.h"
 
 #include <assert.h>
+#include <inttypes.h> // for PRIu64
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -72,7 +73,7 @@
 #  include <wchar.h>
 #endif
 
-#include "../lib/xcsinc.c"
+#include "../lib/xcs.h"
 
 enum ExitCode {
   XMLWF_EXIT_SUCCESS = 0,
@@ -360,23 +361,6 @@ cleanupUserData(XmlwfUserData *userData) {
 }
 
 static int
-xcscmp(const XML_Char *xs, const XML_Char *xt) {
-  while (*xs != 0 && *xt != 0) {
-    if (*xs < *xt)
-      return -1;
-    if (*xs > *xt)
-      return 1;
-    xs++;
-    xt++;
-  }
-  if (*xs < *xt)
-    return -1;
-  if (*xs > *xt)
-    return 1;
-  return 0;
-}
-
-static int
 notationCmp(const void *a, const void *b) {
   const NotationList *const n1 = *(const NotationList *const *)a;
   const NotationList *const n2 = *(const NotationList *const *)b;
@@ -587,12 +571,11 @@ metaLocation(XML_Parser parser) {
     puttc(T('"'), fp);
   }
   ftprintf(fp,
-           T(" byte=\"%") T(XML_FMT_INT_MOD) T("d\"") T(" nbytes=\"%d\"")
-               T(" line=\"%") T(XML_FMT_INT_MOD) T("u\"") T(" col=\"%")
-                   T(XML_FMT_INT_MOD) T("u\""),
-           XML_GetCurrentByteIndex(parser), XML_GetCurrentByteCount(parser),
-           XML_GetCurrentLineNumber(parser),
-           XML_GetCurrentColumnNumber(parser));
+           T(" byte=\"%") T(PRId64) T("\"") T(" nbytes=\"%") T(PRIu64) T("\"")
+               T(" line=\"%") T(PRIu64) T("\"") T(" col=\"%") T(PRIu64) T("\""),
+           XML_GetCurrentByteIndex64(parser), XML_GetCurrentByteCount64(parser),
+           XML_GetCurrentLineNumber64(parser),
+           XML_GetCurrentColumnNumber64(parser));
 }
 
 static void

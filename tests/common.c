@@ -48,7 +48,8 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <stdint.h> // for SIZE_MAX
+#include <inttypes.h> // for PRIu64
+#include <stdint.h>   // for SIZE_MAX
 #include <stdio.h>
 #include <string.h>
 
@@ -188,10 +189,10 @@ _xml_failure(XML_Parser parser, const char *file, int line) {
   char buffer[1024];
   enum XML_Error err = XML_GetErrorCode(parser);
   snprintf(buffer, sizeof(buffer),
-           "    %d: %" XML_FMT_STR " (line %" XML_FMT_INT_MOD
-           "u, offset %" XML_FMT_INT_MOD "u)\n    reported from %s, line %d\n",
-           err, XML_ErrorString(err), XML_GetCurrentLineNumber(parser),
-           XML_GetCurrentColumnNumber(parser), file, line);
+           "    %d: %" XML_FMT_STR " (line %" PRIu64 ", offset %" PRIu64
+           ")\n    reported from %s, line %d\n",
+           err, XML_ErrorString(err), XML_GetCurrentLineNumber64(parser),
+           XML_GetCurrentColumnNumber64(parser), file, line);
   _fail(file, line, buffer);
 }
 
