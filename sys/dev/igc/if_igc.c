@@ -181,6 +181,7 @@ static int	igc_if_msix_intr_assign(if_ctx_t, int);
 static int	igc_msix_link(void *);
 static void	igc_handle_link(void *context);
 
+static void	igc_sysctl_request_reinit(struct igc_softc *);
 static int	igc_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	igc_sysctl_dmac(SYSCTL_HANDLER_ARGS);
 static int	igc_sysctl_eee(SYSCTL_HANDLER_ARGS);
@@ -533,6 +534,7 @@ igc_if_attach_pre(if_ctx_t ctx)
 	    OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    sc, 0, igc_sysctl_debug_info, "I", "Debug Information");
 
+	sc->fc = igc_fc_full;
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
@@ -2190,10 +2192,7 @@ igc_reset(if_ctx_t ctx)
 	/* 16-byte granularity */
 	hw->fc.low_water = hw->fc.high_water - 16;
 
-	if (sc->fc) /* locally set flow control value? */
-		hw->fc.requested_mode = sc->fc;
-	else
-		hw->fc.requested_mode = igc_fc_full;
+	hw->fc.requested_mode = sc->fc;
 
 	hw->fc.pause_time = IGC_FC_PAUSE_TIME;
 
@@ -3736,16 +3735,13 @@ igc_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS)
 static int
 igc_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	static int input = 3; /* default is full */
+	int error, input;
 	struct igc_softc *sc = (struct igc_softc *) arg1;
 
+	input = sc->fc;
 	error = sysctl_handle_int(oidp, &input, 0, req);
 
 	if ((error) || (req->newptr == NULL))
-		return (error);
-
-	if (input == sc->fc) /* no change? */
 		return (error);
 
 	switch (input) {
@@ -3753,17 +3749,21 @@ igc_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	case igc_fc_tx_pause:
 	case igc_fc_full:
 	case igc_fc_none:
-		sc->hw.fc.requested_mode = input;
-		sc->fc = input;
 		break;
 	default:
-		/* Do nothing */
-		return (error);
+		return (EINVAL);
 	}
 
-	sc->hw.fc.current_mode = sc->hw.fc.requested_mode;
-	igc_force_mac_fc(&sc->hw);
-	return (error);
+	if (input == sc->fc) /* no change? */
+		return (0);
+
+	/*
+	 * The mode is advertised to the link partner and also decides the
+	 * pause thresholds and per-queue drop, so it takes a reinit to apply.
+	 */
+	sc->fc = input;
+	igc_sysctl_request_reinit(sc);
+	return (0);
 }
 
 static void
