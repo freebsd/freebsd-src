@@ -427,10 +427,13 @@ iso_mountfs(struct vnode *devvp, struct mount *mp)
 
 		rootp = (struct iso_directory_record *)bp->b_data;
 
-		if ((isomp->rr_skip = cd9660_rrip_offset(rootp,isomp)) < 0) {
-		    isomp->im_flags |= ISOFSMNT_NORRIP;
+		if ((isomp->rr_skip = cd9660_rrip_offset(rootp, isomp,
+			 &error)) < 0) {
+			if (error != 0)
+				goto out;
+			isomp->im_flags |= ISOFSMNT_NORRIP;
 		} else {
-		    isomp->im_flags &= ~ISOFSMNT_GENS;
+			isomp->im_flags &= ~ISOFSMNT_GENS;
 		}
 
 		/*
