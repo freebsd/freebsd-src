@@ -165,7 +165,7 @@ CPP		?=	cpp
 CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
-CTFMERGE	?=	ctfmerge -t
+CTFMERGE	?=	ctfmerge
 
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
