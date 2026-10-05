@@ -373,6 +373,7 @@ static const struct nlattr_decoder_set *all_decoders[] = {
 static const struct pfnl_cmd_decoder cmd_decoder[] = {
 	{ .cmd_num = PFNL_CMD_GETRULES, .ds = &getrules_decoder },
 	{ .cmd_num = PFNL_CMD_KILLSTATES, .ds = &killclear_states_decoder },
+	{ .cmd_num = PFNL_CMD_SET_LIMIT, .ds = &set_limit_decoder },
 	{ .cmd_num = PFNL_CMD_GET_LIMIT, .ds = &set_limit_decoder },
 	{ .cmd_num = PFNL_CMD_GET_ADDRS, .ds = &addr_decoder },
 	{ .cmd_num = PFNL_CMD_GET_ADDR, .ds = &addr_decoder },
