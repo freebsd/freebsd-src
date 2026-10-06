@@ -1775,7 +1775,9 @@ cam_iosched_bio_update_stats(struct cam_iosched_softc *isc, struct bio *bp,
     union ccb *done_ccb)
 {
 	int retval = 0;
+
 #ifdef CAM_IOSCHED_DYNAMIC
+	cam_periph_assert(isc->periph, MA_OWNED);
 	if (!do_dynamic_iosched)
 		return retval;
 
