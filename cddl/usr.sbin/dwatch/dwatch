@@ -717,8 +717,9 @@ pproc_dump()
 
 ############################################################ MAIN
 
-# If we're running as root, no need for sudo(8)
+# If we're running as root, no need for mdo(1) or sudo(8)
 [ "$( id -u )" != 0 ] && type sudo > /dev/null 2>&1 && SUDO=sudo
+[ "$( id -u )" != 0 ] && mdo true > /dev/null 2>&1 && SUDO=mdo
 
 #
 # Process command-line options
