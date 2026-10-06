@@ -151,8 +151,9 @@ am_runtests_OBJECTS = acc_tests.$(OBJEXT) alloc_tests.$(OBJEXT) \
 	basic_tests.$(OBJEXT) chardata.$(OBJEXT) common.$(OBJEXT) \
 	dummy.$(OBJEXT) handlers.$(OBJEXT) hash_tests.$(OBJEXT) \
 	memcheck.$(OBJEXT) minicheck.$(OBJEXT) misc_tests.$(OBJEXT) \
-	ns_tests.$(OBJEXT) nsalloc_tests.$(OBJEXT) runtests.$(OBJEXT) \
-	structdata.$(OBJEXT)
+	ns_tests.$(OBJEXT) nsalloc_tests.$(OBJEXT) \
+	props_tests.$(OBJEXT) runtests.$(OBJEXT) structdata.$(OBJEXT) \
+	xcs_tests.$(OBJEXT)
 runtests_OBJECTS = $(am_runtests_OBJECTS)
 runtests_DEPENDENCIES = ../lib/libtestpat.la
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -184,7 +185,8 @@ am__depfiles_remade = ./$(DEPDIR)/acc_tests.Po \
 	./$(DEPDIR)/hash_tests.Po ./$(DEPDIR)/memcheck.Po \
 	./$(DEPDIR)/minicheck.Po ./$(DEPDIR)/misc_tests.Po \
 	./$(DEPDIR)/ns_tests.Po ./$(DEPDIR)/nsalloc_tests.Po \
-	./$(DEPDIR)/runtests.Po ./$(DEPDIR)/structdata.Po
+	./$(DEPDIR)/props_tests.Po ./$(DEPDIR)/runtests.Po \
+	./$(DEPDIR)/structdata.Po ./$(DEPDIR)/xcs_tests.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -519,12 +521,10 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
-EXPAT_ATTR_INFO = @EXPAT_ATTR_INFO@
 EXPAT_CHAR_TYPE = @EXPAT_CHAR_TYPE@
 EXPAT_CONTEXT_BYTES = @EXPAT_CONTEXT_BYTES@
 EXPAT_DTD = @EXPAT_DTD@
 EXPAT_LARGE_SIZE = @EXPAT_LARGE_SIZE@
-EXPAT_MIN_SIZE = @EXPAT_MIN_SIZE@
 EXPAT_NS = @EXPAT_NS@
 FGREP = @FGREP@
 FILECMD = @FILECMD@
@@ -579,7 +579,6 @@ SO_PATCH = @SO_PATCH@
 STRIP = @STRIP@
 VERSION = @VERSION@
 VSCRIPT_LDFLAGS = @VSCRIPT_LDFLAGS@
-_EXPAT_COMMENT_ATTR_INFO = @_EXPAT_COMMENT_ATTR_INFO@
 _EXPAT_COMMENT_DTD_OR_GE = @_EXPAT_COMMENT_DTD_OR_GE@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -656,8 +655,10 @@ runtests_SOURCES = \
     misc_tests.c \
     ns_tests.c \
     nsalloc_tests.c \
+    props_tests.c \
     runtests.c \
-    structdata.c
+    structdata.c \
+    xcs_tests.c
 
 runtests_LDADD = ../lib/libtestpat.la
 runtests_LDFLAGS = @AM_LDFLAGS@ @LIBM@
@@ -675,9 +676,11 @@ EXTRA_DIST = \
     misc_tests.h \
     ns_tests.h \
     nsalloc_tests.h \
+    props_tests.h \
     README.md \
     structdata.h \
     udiffer.py \
+    xcs_tests.h \
     xmltest.log.expected \
     xmltest.sh
 
@@ -742,8 +745,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/misc_tests.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ns_tests.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nsalloc_tests.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/props_tests.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/runtests.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/structdata.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcs_tests.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -1186,8 +1191,10 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/misc_tests.Po
 	-rm -f ./$(DEPDIR)/ns_tests.Po
 	-rm -f ./$(DEPDIR)/nsalloc_tests.Po
+	-rm -f ./$(DEPDIR)/props_tests.Po
 	-rm -f ./$(DEPDIR)/runtests.Po
 	-rm -f ./$(DEPDIR)/structdata.Po
+	-rm -f ./$(DEPDIR)/xcs_tests.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -1246,8 +1253,10 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/misc_tests.Po
 	-rm -f ./$(DEPDIR)/ns_tests.Po
 	-rm -f ./$(DEPDIR)/nsalloc_tests.Po
+	-rm -f ./$(DEPDIR)/props_tests.Po
 	-rm -f ./$(DEPDIR)/runtests.Po
 	-rm -f ./$(DEPDIR)/structdata.Po
+	-rm -f ./$(DEPDIR)/xcs_tests.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

@@ -1,16 +1,12 @@
-/*
-                            __  __            _
+/* Tests related to the XCS (XML character string) functionality
+__  __            _
                          ___\ \/ /_ __   __ _| |_
                         / _ \\  /| '_ \ / _` | __|
                        |  __//  \| |_) | (_| | |_
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
-   Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
-   Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2005      Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -35,14 +31,56 @@
    SPDX-License-Identifier: MIT
 */
 
-#include <stdbool.h>
+#include "xcs_tests.h"
 
-#include "expat.h" // for XML_Parser, XML_Char
+#include "ascii.h"
+#include "common.h" // for g_chunkSize
+#include "xcs.h"    // for xcslen, xcscmp, xcsncmp
 
-#define XML_MAP_FILE 01
-#define XML_EXTERNAL_ENTITIES 02
+static const XML_Char empty[] = {'\0'};
+static const XML_Char test[] = {ASCII_T, ASCII_E, ASCII_S, ASCII_T, '\0'};
+static const XML_Char testing[]
+    = {ASCII_T, ASCII_E, ASCII_S, ASCII_T, ASCII_I, ASCII_N, ASCII_G, '\0'};
 
-extern int g_read_size_bytes;
+START_TEST(test_xcs_len) {
+  if (g_chunkSize != 0)
+    return;
 
-extern bool XML_ProcessFile(XML_Parser parser, const XML_Char *filename,
-                            unsigned flags);
+  assert_true(xcslen(empty) == 0);
+  assert_true(xcslen(test) == 4);
+}
+END_TEST
+
+START_TEST(test_xcs_cmp) {
+  if (g_chunkSize != 0)
+    return;
+
+  assert_true(xcscmp(test, test) == 0);
+  assert_true(xcscmp(test, testing) < 0);
+  assert_true(xcscmp(testing, test) > 0);
+}
+END_TEST
+
+START_TEST(test_xcs_ncmp) {
+  if (g_chunkSize != 0)
+    return;
+
+  assert_true(xcsncmp(test, test, 0) == 0);
+  assert_true(xcsncmp(test, test, 4) == 0);
+
+  assert_true(xcsncmp(test, testing, 4) == 0);
+  assert_true(xcsncmp(testing, test, 4) == 0);
+
+  assert_true(xcsncmp(test, testing, 5) < 0);
+  assert_true(xcsncmp(testing, test, 5) > 0);
+}
+END_TEST
+
+void
+make_xcs_test_case(Suite *s) {
+  TCase *const tc_xcs = tcase_create("xcs tests");
+  suite_add_tcase(s, tc_xcs);
+  tcase_add_test(tc_xcs, test_xcs_len);
+  tcase_add_test(tc_xcs, test_xcs_cmp);
+  tcase_add_test(tc_xcs, test_xcs_ncmp);
+}

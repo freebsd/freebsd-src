@@ -6,7 +6,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2021 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -32,6 +32,7 @@ bin_PROGRAMS = xmlwf
 
 xmlwf_LDADD = ../lib/libexpat.la
 xmlwf_SOURCES = \
+    ../lib/xcs.c \
     xmlwf.c \
     xmlfile.c \
     codepage.c \

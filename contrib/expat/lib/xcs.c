@@ -6,11 +6,7 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
-   Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
-   Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2005      Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2022-2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -35,14 +31,60 @@
    SPDX-License-Identifier: MIT
 */
 
-#include <stdbool.h>
+#include "xcs.h"
 
-#include "expat.h" // for XML_Parser, XML_Char
+#if defined(XML_UNICODE)
+#  if defined(XML_UNICODE_WCHAR_T)
+#    include <wchar.h> // for wcscmp, wcslen, wcsncmp
+#  endif
+#else
+#  include <string.h> // for strcmp, strlen, strncmp
+#endif
 
-#define XML_MAP_FILE 01
-#define XML_EXTERNAL_ENTITIES 02
+size_t
+xcslen(const XML_Char *s) {
+#ifdef XML_UNICODE
+#  ifdef XML_UNICODE_WCHAR_T
+  return wcslen(s);
+#  else
+  // XML_Char is unsigned short
+  size_t len = 0;
+  while (s[len]) {
+    len++;
+  }
+  return len;
+#  endif
+#else
+  return strlen(s);
+#endif
+}
 
-extern int g_read_size_bytes;
+int
+xcscmp(const XML_Char *a, const XML_Char *b) {
+#if defined(XML_UNICODE)
+#  if defined(XML_UNICODE_WCHAR_T)
+  return wcscmp(a, b);
+#  else
+  for (; a[0] && b[0] && a[0] == b[0]; a++, b++)
+    ;
+  return a[0] - b[0];
+#  endif
+#else
+  return strcmp(a, b);
+#endif
+}
 
-extern bool XML_ProcessFile(XML_Parser parser, const XML_Char *filename,
-                            unsigned flags);
+int
+xcsncmp(const XML_Char *a, const XML_Char *b, size_t len) {
+#if defined(XML_UNICODE)
+#  if defined(XML_UNICODE_WCHAR_T)
+  return wcsncmp(a, b, len);
+#  else
+  for (; len > 0 && a[0] && b[0] && a[0] == b[0]; len--, a++, b++) {
+  }
+  return (len == 0) ? 0 : (a[0] - b[0]);
+#  endif
+#else
+  return strncmp(a, b, len);
+#endif
+}

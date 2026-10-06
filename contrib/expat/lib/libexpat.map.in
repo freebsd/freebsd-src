@@ -97,7 +97,7 @@ LIBEXPAT_1.95.8 {
 
 LIBEXPAT_2.1.0 {
  global:
-@_EXPAT_COMMENT_ATTR_INFO@ XML_GetAttributeInfo;
+# XML_GetAttributeInfo;
   XML_SetHashSalt;
 } LIBEXPAT_1.95.8;
 
@@ -122,3 +122,18 @@ LIBEXPAT_2.8.0 {
  global:
   XML_SetHashSalt16Bytes;
 } LIBEXPAT_2.7.2;
+
+LIBEXPAT_2.9.0 {
+ global:
+  XML_GetCurrentByteCount64;
+  XML_GetCurrentByteIndex64;
+  XML_GetCurrentColumnNumber64;
+  XML_GetCurrentLineNumber64;
+  XML_GetInputContext64;
+  XML_GetPropertyBool;
+  XML_GetPropertyDouble;
+  XML_GetPropertyUInt64;
+  XML_SetPropertyBool;
+  XML_SetPropertyDouble;
+  XML_SetPropertyUInt64;
+} LIBEXPAT_2.8.0;
