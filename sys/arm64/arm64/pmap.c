@@ -2152,6 +2152,31 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 	isb();
 }
 
+/*
+ * Invalidates any cached final-level TLB entry for the specified virtual
+ * address in the given virtual address space, but only on the current
+ * processor.
+ *
+ * The pmap_multiple_tlbi errata only affect broadcast invalidations.
+ */
+static __inline void
+pmap_s1_invalidate_page_local(pmap_t pmap, vm_offset_t va)
+{
+	uint64_t r;
+
+	PMAP_ASSERT_STAGE1(pmap);
+	dsb(nshst);
+	r = TLBI_VA(va);
+	if (pmap == kernel_pmap) {
+		__asm __volatile("tlbi vaale1, %0" : : "r" (r));
+	} else {
+		r |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
+		__asm __volatile("tlbi vale1, %0" : : "r" (r));
+	}
+	dsb(nsh);
+	isb();
+}
+
 static __inline void
 pmap_s2_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 {
@@ -9965,11 +9990,16 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		ptep = pmap_pte(pmap, far, &lvl);
 		if (ptep != NULL &&
 		    ((pte = pmap_load(ptep)) & ATTR_SW_DBM) != 0) {
+			/*
+			 * A local invalidation suffices when enabling write
+			 * access.  At worst, a write using a stale read-only
+			 * TLB entry on another processor triggers a fault,
+			 * requiring its own local invalidation below.
+			 */
 			if ((pte & ATTR_S1_AP_RW_BIT) ==
-			    ATTR_S1_AP(ATTR_S1_AP_RO)) {
+			    ATTR_S1_AP(ATTR_S1_AP_RO))
 				pmap_clear_bits(ptep, ATTR_S1_AP_RW_BIT);
-				pmap_s1_invalidate_page(pmap, far, true);
-			}
+			pmap_s1_invalidate_page_local(pmap, far);
 			rv = KERN_SUCCESS;
 		}
 		PMAP_UNLOCK(pmap);
