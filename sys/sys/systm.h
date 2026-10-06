@@ -97,7 +97,6 @@ struct ucred;
 #ifdef _KERNEL
 #include <sys/param.h>		/* MAXCPU */
 #include <sys/pcpu.h>		/* curthread */
-#include <sys/kpilite.h>
 #include <sys/limits.h>
 
 extern bool scheduler_stopped;
@@ -177,6 +176,7 @@ int linux_alloc_current_noop(struct thread *, int);
 #define critical_enter() critical_enter_KBI()
 #define critical_exit() critical_exit_KBI()
 #else
+#include "offset.inc"
 static __inline void
 critical_enter(void)
 {
