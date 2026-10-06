@@ -1823,6 +1823,28 @@ cam_iosched_bio_update_stats(struct cam_iosched_softc *isc, struct bio *bp,
 }
 
 /*
+ * Update completion status and statistics for each bio in a queue.
+ * The queue is not modified.
+ */
+void
+cam_iosched_bio_queue_update_stats(struct cam_iosched_softc *isc,
+    struct bio_queue *queue, union ccb *done_ccb, int error)
+{
+	struct bio *bp;
+
+	TAILQ_FOREACH(bp, queue, bio_queue) {
+		bp->bio_error = error;
+		if (error != 0) {
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_resid = bp->bio_bcount;
+		} else
+			bp->bio_resid = 0;
+		cam_iosched_bio_update_stats(isc, bp, done_ccb);
+		done_ccb = NULL;
+	}
+}
+
+/*
  * Tell the io scheduler that you've pushed a trim down into the sim.
  * This also tells the I/O scheduler not to push any more trims down, so
  * some periphs do not call it if they can cope with multiple trims in flight.
