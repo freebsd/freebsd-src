@@ -97,6 +97,7 @@ DUMMY(process_vm_writev);
 /* Linux 3.8: */
 DUMMY(finit_module);
 DUMMY(sched_setattr);
+DUMMY(sched_getattr);
 /* Linux 3.18: */
 DUMMY(bpf);
 /* Linux 3.19: */
