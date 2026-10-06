@@ -30,6 +30,7 @@
 #include <sys/sbuf.h>
 #include <sys/stat.h>
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -106,8 +107,8 @@ start_element(void *data, const char *name, const char **attr)
 	}
 	if (iseq(name, "netband") && mt->curband == NULL && mt->rd != NULL) {
 		if (mode == NULL) {
-			warnx("no mode for netband at line %ld",
-			    XML_GetCurrentLineNumber(mt->parser));
+			warnx("no mode for netband at line %" PRIu64,
+			    XML_GetCurrentLineNumber64(mt->parser));
 			return;
 		}
 		if (iseq(mode, "11b"))
@@ -125,15 +126,15 @@ start_element(void *data, const char *name, const char **attr)
 		else if (iseq(mode, "11acg"))
 			mt->curband = &mt->rd->bands_11acg;
 		else
-			warnx("unknown mode \"%s\" at line %ld",
+			warnx("unknown mode \"%s\" at line %" PRIu64,
 			    __DECONST(char *, mode),
-			    XML_GetCurrentLineNumber(mt->parser));
+			    XML_GetCurrentLineNumber64(mt->parser));
 		return;
 	}
 	if (iseq(name, "band") && mt->netband == NULL) {
 		if (mt->curband == NULL) {
-			warnx("band without enclosing netband at line %ld",
-			    XML_GetCurrentLineNumber(mt->parser));
+			warnx("band without enclosing netband at line %" PRIu64,
+			    XML_GetCurrentLineNumber64(mt->parser));
 			return;
 		}
 		mt->netband = calloc(1, sizeof(struct netband));
@@ -143,8 +144,8 @@ start_element(void *data, const char *name, const char **attr)
 	if (iseq(name, "freqband") && mt->freqband == NULL && mt->netband != NULL) {
 		/* XXX handle inlines and merge into table? */
 		if (mt->netband->band != NULL) {
-			warnx("duplicate freqband at line %ld ignored",
-			    XML_GetCurrentLineNumber(mt->parser));
+			warnx("duplicate freqband at line %" PRIu64 " ignored",
+			    XML_GetCurrentLineNumber64(mt->parser));
 			/* XXX complain */
 		} else
 			mt->netband->band = (void *)strdup(ref);
@@ -227,8 +228,8 @@ decode_flag(struct mystate *mt, const char *p, int len)
 	for (i = 0; i < nitems(flags); i++)
 		if (len == flags[i].len && iseq(p, flags[i].name))
 			return flags[i].value;
-	warnx("unknown flag \"%.*s\" at line %ld ignored",
-	    len, p, XML_GetCurrentLineNumber(mt->parser));
+	warnx("unknown flag \"%.*s\" at line %" PRIu64 " ignored",
+	    len, p, XML_GetCurrentLineNumber64(mt->parser));
 	return 0;
 #undef iseq
 }
@@ -269,8 +270,8 @@ end_element(void *data, const char *name)
 		else if (mt->netband != NULL)
 			mt->netband->flags |= decode_flag(mt, p, len);
 		else {
-			warnx("flags without freqband or netband at line %ld ignored",
-			    XML_GetCurrentLineNumber(mt->parser));
+			warnx("flags without freqband or netband at line %" PRIu64 " ignored",
+			    XML_GetCurrentLineNumber64(mt->parser));
 		}
 		goto done;
 	}
@@ -318,8 +319,8 @@ end_element(void *data, const char *name)
 	}
 
 	if (len != 0) {
-		warnx("unexpected XML token \"%s\" data \"%s\" at line %ld",
-		    name, p, XML_GetCurrentLineNumber(mt->parser));
+		warnx("unexpected XML token \"%s\" data \"%s\" at line %" PRIu64,
+		    name, p, XML_GetCurrentLineNumber64(mt->parser));
 		/* XXX goto done? */
 	}
 	/* </freqband> */
@@ -337,12 +338,12 @@ end_element(void *data, const char *name)
 	/* </band> */
 	if (iseq(name, "band") && mt->netband != NULL) {
 		if (mt->netband->band == NULL) {
-			warnx("no freqbands for band at line %ld",
-			   XML_GetCurrentLineNumber(mt->parser));
+			warnx("no freqbands for band at line %" PRIu64,
+			   XML_GetCurrentLineNumber64(mt->parser));
 		}
 		if (mt->netband->maxPower == 0) {
-			warnx("no maxpower for band at line %ld",
-			   XML_GetCurrentLineNumber(mt->parser));
+			warnx("no maxpower for band at line %" PRIu64,
+			   XML_GetCurrentLineNumber64(mt->parser));
 		}
 		/* default max power w/ DFS to max power */
 		if (mt->netband->maxPowerDFS == 0)
@@ -359,16 +360,16 @@ end_element(void *data, const char *name)
 	if (iseq(name, "country") && mt->country != NULL) {
 		/* XXX NO_COUNTRY should be in the net80211 country enum */
 		if ((int) mt->country->code == NO_COUNTRY) {
-			warnx("no ISO cc for country at line %ld",
-			   XML_GetCurrentLineNumber(mt->parser));
+			warnx("no ISO cc for country at line %" PRIu64,
+			   XML_GetCurrentLineNumber64(mt->parser));
 		}
 		if (mt->country->name == NULL) {
-			warnx("no name for country at line %ld",
-			   XML_GetCurrentLineNumber(mt->parser));
+			warnx("no name for country at line %" PRIu64,
+			   XML_GetCurrentLineNumber64(mt->parser));
 		}
 		if (mt->country->rd == NULL) {
-			warnx("no regdomain reference for country at line %ld",
-			   XML_GetCurrentLineNumber(mt->parser));
+			warnx("no regdomain reference for country at line %" PRIu64,
+			   XML_GetCurrentLineNumber64(mt->parser));
 		}
 		mt->country = NULL;
 		goto done;
@@ -433,9 +434,9 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 	XML_SetElementHandler(mt->parser, start_element, end_element);
 	XML_SetCharacterDataHandler(mt->parser, char_data);
 	if (XML_Parse(mt->parser, p, len, 1) != XML_STATUS_OK) {
-		warnx("%s: %s at line %ld", __func__,
+		warnx("%s: %s at line %" PRIu64, __func__,
 		   XML_ErrorString(XML_GetErrorCode(mt->parser)),
-		   XML_GetCurrentLineNumber(mt->parser));
+		   XML_GetCurrentLineNumber64(mt->parser));
 		return -1;
 	}
 	XML_ParserFree(mt->parser);
