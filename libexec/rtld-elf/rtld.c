@@ -3027,6 +3027,7 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
 
 errp:
 	munmap(obj->mapbase, obj->mapsize);
+	obj->path = NULL;	/* obj->path is owned and freed by caller */
 	obj_free(obj);
 	return (NULL);
 }
