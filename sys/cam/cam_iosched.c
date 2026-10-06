@@ -1771,7 +1771,7 @@ cam_iosched_trim_done(struct cam_iosched_softc *isc)
  * might use notes in the ccb for statistics.
  */
 int
-cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
+cam_iosched_bio_update_stats(struct cam_iosched_softc *isc, struct bio *bp,
     union ccb *done_ccb)
 {
 	int retval = 0;

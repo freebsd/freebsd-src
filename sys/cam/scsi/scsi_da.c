@@ -4788,7 +4788,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	 * the case of sendfile can be quite extensive. Release the periph
 	 * refcount taken in dastart() for each CCB.
 	 */
-	cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
+	cam_iosched_bio_update_stats(softc->cam_iosched, bp, done_ccb);
 	xpt_release_ccb(done_ccb);
 	KASSERT(softc->refcount >= 1, ("dadone softc %p refcount %d", softc, softc->refcount));
 	softc->refcount--;

@@ -3010,7 +3010,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		 * extensive.  Release the periph refcount taken in adastart()
 		 * for each CCB.
 		 */
-		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
+		cam_iosched_bio_update_stats(softc->cam_iosched, bp, done_ccb);
 		xpt_release_ccb(done_ccb);
 		KASSERT(softc->refcount >= 1, ("adadone softc %p refcount %d", softc, softc->refcount));
 		softc->refcount--;

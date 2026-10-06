@@ -1322,7 +1322,7 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * routine, which in the case of sendfile can be quite
 			 * extensive.
 			 */
-			cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
+			cam_iosched_bio_update_stats(softc->cam_iosched, bp, done_ccb);
 			xpt_release_ccb(done_ccb);
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
@@ -1349,7 +1349,7 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * so we can keep proper counts.
 			 */
 			bp1 = TAILQ_FIRST(&queue);
-			cam_iosched_bio_complete(softc->cam_iosched, bp1, done_ccb);
+			cam_iosched_bio_update_stats(softc->cam_iosched, bp1, done_ccb);
 			xpt_release_ccb(done_ccb);
 			softc->outstanding_cmds--;
 			ndaschedule(periph);
@@ -1363,7 +1363,7 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 				} else
 					bp2->bio_resid = 0;
 				if (bp1 != bp2)
-					cam_iosched_bio_complete(softc->cam_iosched, bp2, NULL);
+					cam_iosched_bio_update_stats(softc->cam_iosched, bp2, NULL);
 				biodone(bp2);
 			}
 		}
