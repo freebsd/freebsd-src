@@ -779,28 +779,6 @@ linux_fchmodat(struct thread *td, struct linux_fchmodat_args *args)
 	    args->mode, 0));
 }
 
-int
-linux_fchmodat2(struct thread *td, struct linux_fchmodat2_args *args)
-{
-	int bsdflags, dfd, lflags;
-
-	bsdflags = 0;
-	lflags = args->flags;
-
-	if ((lflags & ~(LINUX_AT_EMPTY_PATH | LINUX_AT_SYMLINK_NOFOLLOW)) != 0)
-		return (EINVAL);
-
-	if ((lflags & LINUX_AT_EMPTY_PATH) != 0)
-		bsdflags |= AT_EMPTY_PATH;
-
-	if ((lflags & LINUX_AT_SYMLINK_NOFOLLOW) != 0)
-		bsdflags |= AT_SYMLINK_NOFOLLOW;
-
-	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	return (kern_fchmodat(td, dfd, args->filename, UIO_USERSPACE,
-	    args->mode, bsdflags));
-}
-
 #ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_mkdir(struct thread *td, struct linux_mkdir_args *args)

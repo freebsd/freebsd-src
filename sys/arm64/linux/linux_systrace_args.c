@@ -2428,12 +2428,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fchmodat2 */
 	case 452: {
-		struct linux_fchmodat2_args *p = params;
-		iarg[a++] = p->dfd; /* l_int */
-		uarg[a++] = (intptr_t)p->filename; /* const char * */
-		iarg[a++] = p->mode; /* l_mode_t */
-		iarg[a++] = p->flags; /* l_int */
-		*n_args = 4;
+		*n_args = 0;
 		break;
 	}
 	default:
@@ -6373,22 +6368,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fchmodat2 */
 	case 452:
-		switch (ndx) {
-		case 0:
-			p = "l_int";
-			break;
-		case 1:
-			p = "userland const char *";
-			break;
-		case 2:
-			p = "l_mode_t";
-			break;
-		case 3:
-			p = "l_int";
-			break;
-		default:
-			break;
-		};
 		break;
 	default:
 		break;
@@ -7700,9 +7679,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 451:
 	/* linux_fchmodat2 */
 	case 452:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	default:
 		break;
 	};

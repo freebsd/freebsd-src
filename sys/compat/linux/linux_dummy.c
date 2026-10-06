@@ -147,3 +147,5 @@ DUMMY(futex_waitv);
 DUMMY(set_mempolicy_home_node);
 /* Linux 6.5: */
 DUMMY(cachestat);
+/* Linux 6.6: */
+DUMMY(fchmodat2);
