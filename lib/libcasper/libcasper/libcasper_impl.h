@@ -33,6 +33,10 @@
 #ifndef	_LIBCASPER_IMPL_H_
 #define	_LIBCASPER_IMPL_H_
 
+#include <sys/param.h>
+#include <sys/procdesc.h>
+
+#include <errno.h>
 #include <stdbool.h>
 
 #include "libcasper.h"
@@ -43,6 +47,25 @@ struct service_connection;
 
 bool fd_is_valid(int fd);
 void fd_fix_environment(int *fdp);
+
+static inline pid_t
+casper_pdfork(int *fdp)
+{
+	pid_t pid;
+
+	pid = pdfork(fdp, PD_NOWAITPID);
+#if __FreeBSD_version < 1700000
+	/*
+	 * Kernels predating PD_NOWAITPID (introduced in 15.2) reject the
+	 * flag with EINVAL before creating a child, so retrying without
+	 * it is safe.  The child must then be reaped with waitpid(2), as
+	 * before.  This fallback is compiled out starting with 17.0.
+	 */
+	if (pid == -1 && errno == EINVAL)
+		pid = pdfork(fdp, 0);
+#endif
+	return (pid);
+}
 
 /* Private service functions. */
 struct service	*service_alloc(const char *name,
