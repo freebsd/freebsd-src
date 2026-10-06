@@ -113,7 +113,7 @@ linux_ifnet_vnet_init(void *arg __unused)
 		linux_ifnet_arrival(NULL, ifp);
 	NET_EPOCH_EXIT(et);
 }
-VNET_SYSINIT(linux_ifnet_vnet_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+VNET_SYSINIT(linux_ifnet_vnet_init, SI_SUB_INIT_IF, SI_ORDER_ANY,
     linux_ifnet_vnet_init, NULL);
 
 static void
@@ -129,7 +129,7 @@ linux_ifnet_vnet_uninit(void *arg __unused)
 	clear_unrhdr(V_linux_eth_unr);
 	delete_unrhdr(V_linux_eth_unr);
 }
-VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     linux_ifnet_vnet_uninit, NULL);
 
 /*
