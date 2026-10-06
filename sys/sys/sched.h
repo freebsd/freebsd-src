@@ -70,9 +70,7 @@
 #ifdef _KERNEL
 
 #include <sys/types.h>
-#ifdef SCHED_STATS
 #include <sys/pcpu.h>
-#endif
 #include <sys/linker_set.h>
 #include <sys/sdt.h>
 
