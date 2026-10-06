@@ -86,7 +86,7 @@
  *
  * The former are declared in an abstract manner with some of the SCHED_ITF_*()
  * macros (SCHED_ITF_INTERNAL() being a notable exception), described in detail
- * below.  A fUN() line declares a function, and the final interface function
+ * below.  A FUN() line declares a function, and the final interface function
  * name is the symbol in the third argument prefixed by 'sched_'.  E.g., such
  * lines:
  *
@@ -521,7 +521,6 @@ void sched_instance_select(void);
  */
 
 void ast_scheduler(struct thread *td, int tda);
-
 
 #endif /* _KERNEL */
 
