@@ -531,7 +531,7 @@ mkimg(void)
 			else
 				offset++;
 			if (expand_number(offset, &byteoffset) == -1)
-				error = errno;
+				err(EX_IOERR, "partition %d", part->index + 1);
 		}
 
 		/* Work out exactly where the partition starts. */
