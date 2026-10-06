@@ -1136,7 +1136,7 @@ __pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count)
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
 		m->m_yieldloops = count;
-	return (0);
+	return (ret);
 }
 
 int
