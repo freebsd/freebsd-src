@@ -21,6 +21,7 @@
    Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2025      Berkay Eren Ürün <berkay.ueruen@siemens.com>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
+   Copyright (c) 2026      Filippo Tedeschi <filippotedeschi98@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -560,6 +561,24 @@ START_TEST(test_alloc_explicit_encoding) {
     fail("Encoding set despite failing allocator");
   else if (i == max_alloc_count)
     fail("Encoding not set at max allocation count");
+}
+END_TEST
+
+/* Test robustness of XML_ParserReset() with a failing allocator when setting
+ * encoding */
+START_TEST(test_alloc_reset_encoding) {
+  int i;
+  const int max_alloc_count = 5;
+
+  for (i = 0; i < max_alloc_count; i++) {
+    g_allocation_count = i;
+    if (XML_ParserReset(g_parser, XCS("us-ascii")) == XML_TRUE)
+      break;
+  }
+  if (i == 0)
+    fail("Reset with encoding succeeded despite failing allocator");
+  else if (i == max_alloc_count)
+    fail("Reset with encoding failed at max allocation count");
 }
 END_TEST
 
@@ -2118,6 +2137,10 @@ START_TEST(test_alloc_tracker_size_recorded) {
     assert_true(ptr != NULL);
     assert_true(sizeRecordedFor(ptr) == 10);
 
+    assert_true(expat_realloc(parser, ptr, SIZE_MAX, -1) == NULL);
+
+    assert_true(sizeRecordedFor(ptr) == 10); // i.e. unchanged
+
     assert_true(expat_realloc(parser, ptr, SIZE_MAX / 2, -1) == NULL);
 
     assert_true(sizeRecordedFor(ptr) == 10); // i.e. unchanged
@@ -2273,6 +2296,40 @@ START_TEST(test_alloc_tracker_api) {
 }
 END_TEST
 
+START_TEST(test_alloc_tracker_api_float_round_trip) {
+  const float values[] = {1.0f, 1.1f, INFINITY};
+
+  for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+    set_subtest("float %f", (double)i);
+    const float wanted = values[i];
+
+    XML_Parser parser = XML_ParserCreate(NULL);
+    assert_true(parser != NULL);
+
+    // Self-Test: Original value not already at target value
+    double actual = 123.456;
+    assert_true((float)actual != wanted);
+#if XML_GE == 1
+    assert_true(
+        XML_GetPropertyDouble(
+            parser, XML_PROP_ALLOC_TRACKER_MAXIMUM_AMPLIFICATION, &actual)
+        == XML_PROP_ERROR_NONE);
+    assert_true((float)actual != wanted); // Self-Test
+
+    // Test: Target value applied successfully
+    assert_true(XML_SetAllocTrackerMaximumAmplification(parser, wanted)
+                == XML_TRUE);
+    assert_true(
+        XML_GetPropertyDouble(
+            parser, XML_PROP_ALLOC_TRACKER_MAXIMUM_AMPLIFICATION, &actual)
+        == XML_PROP_ERROR_NONE);
+    assert_true((float)actual == wanted);
+#endif // XML_GE == 1
+    XML_ParserFree(parser);
+  }
+}
+END_TEST
+
 START_TEST(test_mem_api_cycle) {
   XML_Parser parser = XML_ParserCreate(NULL);
 
@@ -2336,6 +2393,7 @@ make_alloc_test_case(Suite *s) {
   tcase_add_test__ifdef_xml_dtd(tc_alloc, test_alloc_parameter_entity);
   tcase_add_test__ifdef_xml_dtd(tc_alloc, test_alloc_dtd_default_handling);
   tcase_add_test(tc_alloc, test_alloc_explicit_encoding);
+  tcase_add_test(tc_alloc, test_alloc_reset_encoding);
   tcase_add_test(tc_alloc, test_alloc_set_base);
   tcase_add_test(tc_alloc, test_alloc_realloc_buffer);
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_ext_entity_realloc_buffer);
@@ -2386,6 +2444,7 @@ make_alloc_test_case(Suite *s) {
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_threshold);
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_getbuffer_unlimited);
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_api);
+  tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_api_float_round_trip);
 
   tcase_add_test(tc_alloc, test_mem_api_cycle);
   tcase_add_test__if_xml_ge(tc_alloc, test_mem_api_unlimited);

@@ -1,4 +1,4 @@
-/*
+/* Tests related to the public properties API of Expat
                             __  __            _
                          ___\ \/ /_ __   __ _| |_
                         / _ \\  /| '_ \ / _` | __|
@@ -6,11 +6,7 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
-   Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
-   Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2005      Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2026 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -35,14 +31,11 @@
    SPDX-License-Identifier: MIT
 */
 
-#include <stdbool.h>
+#ifndef XML_PROPS_TESTS_H
+#define XML_PROPS_TESTS_H
 
-#include "expat.h" // for XML_Parser, XML_Char
+#include "minicheck.h"
 
-#define XML_MAP_FILE 01
-#define XML_EXTERNAL_ENTITIES 02
+extern void make_props_test_case(Suite *s);
 
-extern int g_read_size_bytes;
-
-extern bool XML_ProcessFile(XML_Parser parser, const XML_Char *filename,
-                            unsigned flags);
+#endif /* XML_PROPS_TESTS_H */
