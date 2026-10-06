@@ -359,6 +359,41 @@ START_TEST(test_billion_laughs_attack_protection_api) {
 }
 END_TEST
 
+START_TEST(test_billions_laughs_attack_protection_api_float_round_trip) {
+  const float values[] = {1.0f, 1.1f, INFINITY};
+
+  for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+    set_subtest("float %f", (double)i);
+    const float wanted = values[i];
+
+    XML_Parser parser = XML_ParserCreate(NULL);
+    assert_true(parser != NULL);
+
+    // Self-Test: Original value not already at target value
+    double actual = 123.456;
+    assert_true((float)actual != wanted);
+#  if XML_GE == 1
+    assert_true(
+        XML_GetPropertyDouble(
+            parser, XML_PROP_BILLION_LAUGHS_MAXIMUM_AMPLIFICATION, &actual)
+        == XML_PROP_ERROR_NONE);
+    assert_true((float)actual != wanted); // Self-Test
+
+    // Test: Target value applied successfully
+    assert_true(
+        XML_SetBillionLaughsAttackProtectionMaximumAmplification(parser, wanted)
+        == XML_TRUE);
+    assert_true(
+        XML_GetPropertyDouble(
+            parser, XML_PROP_BILLION_LAUGHS_MAXIMUM_AMPLIFICATION, &actual)
+        == XML_PROP_ERROR_NONE);
+    assert_true((float)actual == wanted);
+#  endif // XML_GE == 1
+    XML_ParserFree(parser);
+  }
+}
+END_TEST
+
 START_TEST(test_helper_unsigned_char_to_printable) {
   // Smoke test
   unsigned char uc = 0;
@@ -451,6 +486,8 @@ make_accounting_test_case(Suite *s) {
 
   tcase_add_test(tc_accounting, test_accounting_precision);
   tcase_add_test(tc_accounting, test_billion_laughs_attack_protection_api);
+  tcase_add_test(tc_accounting,
+                 test_billions_laughs_attack_protection_api_float_round_trip);
   tcase_add_test(tc_accounting, test_helper_unsigned_char_to_printable);
   tcase_add_test__ifdef_xml_dtd(tc_accounting,
                                 test_amplification_isolated_external_parser);

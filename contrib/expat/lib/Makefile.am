@@ -53,6 +53,7 @@ libexpat_la_LDFLAGS += $(VSCRIPT_LDFLAGS),@builddir@/libexpat.map
 endif
 
 libexpat_la_SOURCES = \
+    xcs.c \
     xmlparse.c \
     xmltok.c \
     xmlrole.c
@@ -125,7 +126,7 @@ EXTRA_DIST = \
     siphash.h \
     utf8tab.h \
     winconfig.h \
-    xcsinc.c \
+    xcs.h \
     xmlrole.h \
     xmltok.h \
     xmltok_impl.c \

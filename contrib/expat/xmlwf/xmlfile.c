@@ -45,6 +45,7 @@
 
 #include "expat_config.h"
 
+#include <inttypes.h> // PRIu64
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -98,11 +99,9 @@ reportError(XML_Parser parser, const XML_Char *filename) {
   enum XML_Error code = XML_GetErrorCode(parser);
   const XML_Char *message = XML_ErrorString(code);
   if (message)
-    ftprintf(stdout,
-             T("%s") T(":%") T(XML_FMT_INT_MOD) T("u") T(":%")
-                 T(XML_FMT_INT_MOD) T("u") T(": %s\n"),
-             filename, XML_GetCurrentLineNumber(parser),
-             XML_GetCurrentColumnNumber(parser), message);
+    ftprintf(stdout, T("%s") T(":%") T(PRIu64) T(":%") T(PRIu64) T(": %s\n"),
+             filename, XML_GetCurrentLineNumber64(parser),
+             XML_GetCurrentColumnNumber64(parser), message);
   else
     ftprintf(stderr, T("%s: (unknown message %u)\n"), filename,
              (unsigned int)code);

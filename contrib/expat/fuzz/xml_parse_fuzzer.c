@@ -79,7 +79,7 @@ ParseOneInput(XML_Parser p, const uint8_t *data, size_t size) {
   if (XML_Parse(p, (const XML_Char *)data, (int)size, 1) == XML_STATUS_ERROR) {
     XML_ErrorString(XML_GetErrorCode(p));
   }
-  XML_GetCurrentLineNumber(p);
+  XML_GetCurrentLineNumber64(p);
   if (size % 2) {
     XML_ParserReset(p, NULL);
   }

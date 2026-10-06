@@ -206,7 +206,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(docdir)" \
 	"$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 libexpat_la_LIBADD =
-am__libexpat_la_SOURCES_DIST = xmlparse.c xmltok.c xmlrole.c \
+am__libexpat_la_SOURCES_DIST = xcs.c xmlparse.c xmltok.c xmlrole.c \
 	random_arc4random.c random_arc4random.h \
 	random_arc4random_buf.c random_arc4random_buf.h \
 	random_dev_urandom.c random_dev_urandom.h random_getentropy.c \
@@ -218,7 +218,7 @@ am__libexpat_la_SOURCES_DIST = xmlparse.c xmltok.c xmlrole.c \
 @WITH_GETENTROPY_TRUE@am__objects_4 = random_getentropy.lo
 @WITH_EITHER_GETRANDOM_TRUE@am__objects_5 = random_getrandom.lo
 @MINGW_TRUE@am__objects_6 = random_rand_s.lo
-am_libexpat_la_OBJECTS = xmlparse.lo xmltok.lo xmlrole.lo \
+am_libexpat_la_OBJECTS = xcs.lo xmlparse.lo xmltok.lo xmlrole.lo \
 	$(am__objects_1) $(am__objects_2) $(am__objects_3) \
 	$(am__objects_4) $(am__objects_5) $(am__objects_6)
 libexpat_la_OBJECTS = $(am_libexpat_la_OBJECTS)
@@ -230,7 +230,7 @@ libexpat_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libexpat_la_LDFLAGS) $(LDFLAGS) -o $@
 libtestpat_la_LIBADD =
-am__libtestpat_la_SOURCES_DIST = xmlparse.c xmltok.c xmlrole.c \
+am__libtestpat_la_SOURCES_DIST = xcs.c xmlparse.c xmltok.c xmlrole.c \
 	random_arc4random.c random_arc4random.h \
 	random_arc4random_buf.c random_arc4random_buf.h \
 	random_dev_urandom.c random_dev_urandom.h random_getentropy.c \
@@ -245,10 +245,10 @@ am__libtestpat_la_SOURCES_DIST = xmlparse.c xmltok.c xmlrole.c \
 @WITH_EITHER_GETRANDOM_TRUE@am__objects_11 =  \
 @WITH_EITHER_GETRANDOM_TRUE@	libtestpat_la-random_getrandom.lo
 @MINGW_TRUE@am__objects_12 = libtestpat_la-random_rand_s.lo
-am__objects_13 = libtestpat_la-xmlparse.lo libtestpat_la-xmltok.lo \
-	libtestpat_la-xmlrole.lo $(am__objects_7) $(am__objects_8) \
-	$(am__objects_9) $(am__objects_10) $(am__objects_11) \
-	$(am__objects_12)
+am__objects_13 = libtestpat_la-xcs.lo libtestpat_la-xmlparse.lo \
+	libtestpat_la-xmltok.lo libtestpat_la-xmlrole.lo \
+	$(am__objects_7) $(am__objects_8) $(am__objects_9) \
+	$(am__objects_10) $(am__objects_11) $(am__objects_12)
 @WITH_TESTS_TRUE@am_libtestpat_la_OBJECTS = $(am__objects_13)
 libtestpat_la_OBJECTS = $(am_libtestpat_la_OBJECTS)
 @WITH_TESTS_TRUE@am_libtestpat_la_rpath =
@@ -273,6 +273,7 @@ am__depfiles_remade = ./$(DEPDIR)/libtestpat_la-random_arc4random.Plo \
 	./$(DEPDIR)/libtestpat_la-random_getentropy.Plo \
 	./$(DEPDIR)/libtestpat_la-random_getrandom.Plo \
 	./$(DEPDIR)/libtestpat_la-random_rand_s.Plo \
+	./$(DEPDIR)/libtestpat_la-xcs.Plo \
 	./$(DEPDIR)/libtestpat_la-xmlparse.Plo \
 	./$(DEPDIR)/libtestpat_la-xmlrole.Plo \
 	./$(DEPDIR)/libtestpat_la-xmltok.Plo \
@@ -281,8 +282,8 @@ am__depfiles_remade = ./$(DEPDIR)/libtestpat_la-random_arc4random.Plo \
 	./$(DEPDIR)/random_dev_urandom.Plo \
 	./$(DEPDIR)/random_getentropy.Plo \
 	./$(DEPDIR)/random_getrandom.Plo ./$(DEPDIR)/random_rand_s.Plo \
-	./$(DEPDIR)/xmlparse.Plo ./$(DEPDIR)/xmlrole.Plo \
-	./$(DEPDIR)/xmltok.Plo
+	./$(DEPDIR)/xcs.Plo ./$(DEPDIR)/xmlparse.Plo \
+	./$(DEPDIR)/xmlrole.Plo ./$(DEPDIR)/xmltok.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -369,12 +370,10 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
-EXPAT_ATTR_INFO = @EXPAT_ATTR_INFO@
 EXPAT_CHAR_TYPE = @EXPAT_CHAR_TYPE@
 EXPAT_CONTEXT_BYTES = @EXPAT_CONTEXT_BYTES@
 EXPAT_DTD = @EXPAT_DTD@
 EXPAT_LARGE_SIZE = @EXPAT_LARGE_SIZE@
-EXPAT_MIN_SIZE = @EXPAT_MIN_SIZE@
 EXPAT_NS = @EXPAT_NS@
 FGREP = @FGREP@
 FILECMD = @FILECMD@
@@ -429,7 +428,6 @@ SO_PATCH = @SO_PATCH@
 STRIP = @STRIP@
 VERSION = @VERSION@
 VSCRIPT_LDFLAGS = @VSCRIPT_LDFLAGS@
-_EXPAT_COMMENT_ATTR_INFO = @_EXPAT_COMMENT_ATTR_INFO@
 _EXPAT_COMMENT_DTD_OR_GE = @_EXPAT_COMMENT_DTD_OR_GE@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -497,9 +495,9 @@ lib_LTLIBRARIES = libexpat.la
 @WITH_TESTS_TRUE@noinst_LTLIBRARIES = libtestpat.la
 libexpat_la_LDFLAGS = @AM_LDFLAGS@ @LIBM@ -no-undefined -version-info \
 	@LIBCURRENT@:@LIBREVISION@:@LIBAGE@ $(am__append_1)
-libexpat_la_SOURCES = xmlparse.c xmltok.c xmlrole.c $(am__append_2) \
-	$(am__append_3) $(am__append_4) $(am__append_5) \
-	$(am__append_6) $(am__append_7)
+libexpat_la_SOURCES = xcs.c xmlparse.c xmltok.c xmlrole.c \
+	$(am__append_2) $(am__append_3) $(am__append_4) \
+	$(am__append_5) $(am__append_6) $(am__append_7)
 @WITH_TESTS_TRUE@libtestpat_la_CPPFLAGS = -DXML_TESTING
 @WITH_TESTS_TRUE@libtestpat_la_SOURCES = $(libexpat_la_SOURCES)
 doc_DATA = \
@@ -522,7 +520,7 @@ EXTRA_DIST = \
     siphash.h \
     utf8tab.h \
     winconfig.h \
-    xcsinc.c \
+    xcs.h \
     xmlrole.h \
     xmltok.h \
     xmltok_impl.c \
@@ -625,6 +623,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-random_getentropy.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-random_getrandom.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-random_rand_s.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xcs.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xmlparse.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xmlrole.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xmltok.Plo@am__quote@ # am--include-marker
@@ -634,6 +633,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random_getentropy.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random_getrandom.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random_rand_s.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcs.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlparse.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlrole.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmltok.Plo@am__quote@ # am--include-marker
@@ -667,6 +667,13 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+libtestpat_la-xcs.lo: xcs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libtestpat_la-xcs.lo -MD -MP -MF $(DEPDIR)/libtestpat_la-xcs.Tpo -c -o libtestpat_la-xcs.lo `test -f 'xcs.c' || echo '$(srcdir)/'`xcs.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libtestpat_la-xcs.Tpo $(DEPDIR)/libtestpat_la-xcs.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='xcs.c' object='libtestpat_la-xcs.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libtestpat_la-xcs.lo `test -f 'xcs.c' || echo '$(srcdir)/'`xcs.c
 
 libtestpat_la-xmlparse.lo: xmlparse.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libtestpat_la-xmlparse.lo -MD -MP -MF $(DEPDIR)/libtestpat_la-xmlparse.Tpo -c -o libtestpat_la-xmlparse.lo `test -f 'xmlparse.c' || echo '$(srcdir)/'`xmlparse.c
@@ -914,6 +921,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libtestpat_la-random_getentropy.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-random_getrandom.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-random_rand_s.Plo
+	-rm -f ./$(DEPDIR)/libtestpat_la-xcs.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-xmlparse.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-xmlrole.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-xmltok.Plo
@@ -923,6 +931,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/random_getentropy.Plo
 	-rm -f ./$(DEPDIR)/random_getrandom.Plo
 	-rm -f ./$(DEPDIR)/random_rand_s.Plo
+	-rm -f ./$(DEPDIR)/xcs.Plo
 	-rm -f ./$(DEPDIR)/xmlparse.Plo
 	-rm -f ./$(DEPDIR)/xmlrole.Plo
 	-rm -f ./$(DEPDIR)/xmltok.Plo
@@ -978,6 +987,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libtestpat_la-random_getentropy.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-random_getrandom.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-random_rand_s.Plo
+	-rm -f ./$(DEPDIR)/libtestpat_la-xcs.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-xmlparse.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-xmlrole.Plo
 	-rm -f ./$(DEPDIR)/libtestpat_la-xmltok.Plo
@@ -987,6 +997,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/random_getentropy.Plo
 	-rm -f ./$(DEPDIR)/random_getrandom.Plo
 	-rm -f ./$(DEPDIR)/random_rand_s.Plo
+	-rm -f ./$(DEPDIR)/xcs.Plo
 	-rm -f ./$(DEPDIR)/xmlparse.Plo
 	-rm -f ./$(DEPDIR)/xmlrole.Plo
 	-rm -f ./$(DEPDIR)/xmltok.Plo
