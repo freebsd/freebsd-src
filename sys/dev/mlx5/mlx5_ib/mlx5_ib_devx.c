@@ -40,6 +40,8 @@
 
 #include <sys/priv.h>
 
+#include <linux/bitops.h>
+#include <linux/overflow.h>
 #include <linux/xarray.h>
 #include <linux/rculist.h>
 #include <linux/srcu.h>
@@ -2082,19 +2084,151 @@ err:
 	return err;
 }
 
+/*
+ * A DevX UMEM is mapped at an IOVA equal to the DMA address of its first
+ * byte, the UMEM VA plays no part in choosing its page size or MTT list.
+ */
+static u64 devx_umem_start_dma_addr(struct ib_umem *umem)
+{
+	return sg_dma_address(umem->sg_head.sgl) + ib_umem_offset(umem);
+}
+
+static u64 devx_umem_dma_offset(struct ib_umem *umem, u64 pgsz)
+{
+	return devx_umem_start_dma_addr(umem) & (pgsz - 1);
+}
+
+static size_t devx_umem_num_dma_blocks(struct ib_umem *umem, u64 pgsz)
+{
+	u64 iova = devx_umem_start_dma_addr(umem);
+
+	return (ALIGN(iova + umem->length, pgsz) - ALIGN_DOWN(iova, pgsz)) /
+	       pgsz;
+}
+
+static u64 devx_umem_find_best_pgoff(struct ib_umem *umem, u64 pgsz_bitmap)
+{
+	u64 iova = devx_umem_start_dma_addr(umem);
+	u64 pgoff = ib_umem_offset(umem);
+	u64 curr_base = ~0ULL;
+	u64 curr_len = 0;
+	u64 mask = 0;
+	struct scatterlist *sg;
+	unsigned int bits;
+	u64 last_iova;
+	u64 end;
+	int i;
+
+	/* The best result is the smallest page size that results in the minimum
+	 * number of required pages. Compute the largest page size that could
+	 * work based on IOVA bits that don't change.
+	 */
+	if (check_add_overflow(umem->length - 1, iova, &last_iova))
+		return 0;
+	bits = fls64(iova ^ last_iova);
+	if (bits < 64)
+		mask = pgsz_bitmap & GENMASK_ULL(63, bits);
+
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
+		/* If the current entry is physically contiguous with the
+		 * previous one, no need to take its start addresses into
+		 * consideration.
+		 */
+		if (check_add_overflow(curr_base, curr_len, &end) ||
+		    end != sg_dma_address(sg)) {
+			curr_base = sg_dma_address(sg);
+			curr_len = 0;
+
+			/* Reduce max page size if IOVA/DMA bits differ */
+			mask |= (curr_base + pgoff) ^ iova;
+
+			/* The alignment of any IOVA matching a discontinuity
+			 * point in the DMA list sets the maximum possible page
+			 * size as this must be a starting point of a new page
+			 * that needs to be aligned.
+			 */
+			if (i != 0)
+				mask |= iova;
+		}
+
+		curr_len += sg_dma_len(sg);
+		iova += sg_dma_len(sg) - pgoff;
+
+		pgoff = 0;
+	}
+
+	/* The mask accumulates 1's in each position where the IOVA and DMA
+	 * address differ, thus the length of trailing 0 is the largest page
+	 * size that can pass the IOVA through to the DMA address.
+	 */
+	if (mask)
+		pgsz_bitmap &= GENMASK_ULL(__ffs64(mask), 0);
+	return pgsz_bitmap ? rounddown_pow_of_two(pgsz_bitmap) : 0;
+}
+
+static u64 devx_umem_find_best_pgsize(struct ib_umem *umem, u64 pgsz_bitmap)
+{
+	u64 page_size;
+
+	/* Don't bother checking larger page sizes as offset must be zero and
+	 * total DEVX umem length must be equal to total umem length.
+	 */
+	pgsz_bitmap &= GENMASK_ULL(max_t(u64, order_base_2(umem->length),
+					 PAGE_SHIFT),
+				   MLX5_ADAPTER_PAGE_SHIFT);
+	if (!pgsz_bitmap)
+		return 0;
+
+	page_size = devx_umem_find_best_pgoff(umem, pgsz_bitmap);
+	if (!page_size)
+		return 0;
+
+	/* If the page_size is less than the CPU page size then we can use the
+	 * offset and create a umem which is a subset of the page list.
+	 * For larger page sizes we can't be sure the DMA  list reflects the
+	 * VA so we must ensure that the umem extent is exactly equal to the
+	 * page list. Reduce the page size until one of these cases is true.
+	 */
+	while ((devx_umem_dma_offset(umem, page_size) != 0 ||
+		(umem->length % page_size) != 0) &&
+		page_size > PAGE_SIZE)
+		page_size /= 2;
+
+	return page_size;
+}
+
 static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 			 struct uverbs_attr_bundle *attrs,
 			 struct devx_umem *obj)
 {
+	u64 pgsz_bitmap;
+	u64 page_size;
 	u64 addr;
 	size_t size;
 	u32 access;
-	int npages;
 	int err;
-	u32 page_mask;
 
 	if (uverbs_copy_from(&addr, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR) ||
 	    uverbs_copy_from(&size, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_LEN))
+		return -EFAULT;
+
+	/*
+	 * If the user does not pass in pgsz_bitmap then the user promises not
+	 * to use umem_offset!=0 in any commands that allocate on top of the
+	 * umem.
+	 *
+	 * If the user wants to use a umem_offset then it must pass in
+	 * pgsz_bitmap which guides the maximum page size and thus maximum
+	 * object alignment inside the umem. See the PRM.
+	 *
+	 * Users are not allowed to use IOVA here, mkeys are not supported on
+	 * umem.
+	 */
+	pgsz_bitmap = GENMASK_ULL(63, min(PAGE_SHIFT, MLX5_ADAPTER_PAGE_SHIFT));
+	if (uverbs_attr_is_valid(attrs,
+				 MLX5_IB_ATTR_DEVX_UMEM_REG_PGSZ_BITMAP) &&
+	    uverbs_copy_from(&pgsz_bitmap, attrs,
+			     MLX5_IB_ATTR_DEVX_UMEM_REG_PGSZ_BITMAP))
 		return -EFAULT;
 
 	err = uverbs_get_flags32(&access, attrs,
@@ -2113,17 +2247,15 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 	if (IS_ERR(obj->umem))
 		return PTR_ERR(obj->umem);
 
-	mlx5_ib_cont_pages(obj->umem, obj->umem->address,
-			   MLX5_MKEY_PAGE_SHIFT_MASK, &npages,
-			   &obj->page_shift, &obj->ncont, NULL);
-
-	if (!npages) {
+	page_size = devx_umem_find_best_pgsize(obj->umem, pgsz_bitmap);
+	if (!page_size) {
 		ib_umem_release(obj->umem);
 		return -EINVAL;
 	}
 
-	page_mask = (1 << obj->page_shift) - 1;
-	obj->page_offset = obj->umem->address & page_mask;
+	obj->page_shift = order_base_2(page_size);
+	obj->page_offset = devx_umem_dma_offset(obj->umem, page_size);
+	obj->ncont = devx_umem_num_dma_blocks(obj->umem, page_size);
 
 	return 0;
 }
@@ -2733,6 +2865,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 			   UA_MANDATORY),
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
 			     enum ib_access_flags),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_PGSZ_BITMAP,
+			     u64),
 	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_DEVX_UMEM_REG_OUT_ID,
 			    UVERBS_ATTR_TYPE(u32),
 			    UA_MANDATORY));
