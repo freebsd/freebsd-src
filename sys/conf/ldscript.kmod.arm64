@@ -1,0 +1,207 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 Kyle Crenshaw
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+ /*
+  * Per-arch ldscript for arm64 kernel loadable modules.
+  *
+  * Derived from sys/conf/ldscript.arm64 with the kernel-only directives
+  * removed (text_start, _etext / _end / etext PROVIDEs, .vmm_vectors,
+  * .init_pagetable, debuginfo include, locore alignment) and the
+  * kmod-specific bits added:
+  *
+  *   1. PHDRS declaration with FILEHDR and PHDRS attributes on the
+  *      first PT_LOAD so the ELF header and program headers are part
+  *      of PT_LOAD[0]'s file content and reach memory at the module's
+  *      load address.  Without this, lld's default arm64 layout
+  *      (CONSTANT(COMMONPAGESIZE)=0x10000) pushes PT_LOAD[0] to file
+  *      offset 0x10000 and leaves the Elf64_Ehdr at file offset 0
+  *      outside every loadable segment.  __elfN(loadimage)() in
+  *      stand/common/load_elf.c only copies PT_LOAD content, so the
+  *      kernel's link_elf_link_preload() ends up dereferencing
+  *      ef->address as Elf_Ehdr and reads .text bytes instead of the
+  *      header -- the resulting bogus e_phoff faults in
+  *      preload_protect().
+  *
+  *   2. Explicit handling of the cache-line / read-pattern data
+  *      sections that match the kernel ldscript -- .data.read_frequently
+  *      (SORT_BY_ALIGNMENT, 128-byte aligned), .data.read_mostly,
+  *      .data.exclusive_cache_line (128-byte aligned) -- so kmods that
+  *      use the matching __read_frequently / __read_mostly /
+  *      __exclusive_cache_line attribute decorations get the same memory
+  *      layout as in-kernel code instead of being silently coalesced
+  *      into a single .data section.
+  *
+  *   3. Linker-set bounds (__start/__stop_set_sysctl_set,
+  *      __start/__stop_set_modmetadata_set, __start/__stop_set_sysinit_set)
+  *      so kmods register their module metadata, sysctls, and sysinit
+  *      records correctly even when ld doesn't emit those bounds by
+  *      default for the kmod link.
+  */
+
+PHDRS
+{
+	text		PT_LOAD FILEHDR PHDRS FLAGS(5);	/* R + X */
+	rodata		PT_LOAD FLAGS(4);		/* R     */
+	data		PT_LOAD FLAGS(6);		/* R + W */
+	dynamic		PT_DYNAMIC FLAGS(6);
+}
+
+SECTIONS
+{
+	. = SIZEOF_HEADERS;
+
+	/* Read-only / executable.  Coalesce .plt + .text + .stub +
+	   .init / .fini + gnu-linkonce text into PT_LOAD[0] so the ELF
+	   header and program headers sit at the head of the first
+	   loadable segment. */
+	.plt		: { *(.plt) } :text
+	.text		:
+	{
+		*(.text .text.*)
+		*(.stub)
+		*(.gnu.warning)
+		*(.gnu.linkonce.t*)
+		. = ALIGN(CONSTANT(COMMONPAGESIZE));
+	} :text
+
+	.fini		: { *(.fini) } :text
+	.init		: { *(.init) } :text
+
+	/* Read-only data and supporting tables go in their own PT_LOAD
+	   so page protections can flip R-X -> R-only at the PT_LOAD
+	   boundary. */
+	.rodata		:
+	{
+		*(.rodata .rodata.*)
+		*(.gnu.linkonce.r*)
+		. = ALIGN(CONSTANT(COMMONPAGESIZE));
+	} :rodata
+	.rodata1	: { *(.rodata1) } :rodata
+	.note.gnu.build-id : { *(.note.gnu.build-id) } :rodata
+
+	/* Relocations (kept read-only with the rest of rodata). */
+	.rel.text	: { *(.rel.text) *(.rel.gnu.linkonce.t*) } :rodata
+	.rela.text	: { *(.rela.text) *(.rela.gnu.linkonce.t*) } :rodata
+	.rel.data	: { *(.rel.data) *(.rel.gnu.linkonce.d*) } :rodata
+	.rela.data	: { *(.rela.data) *(.rela.gnu.linkonce.d*) } :rodata
+	.rel.rodata	: { *(.rel.rodata) *(.rel.gnu.linkonce.r*) } :rodata
+	.rela.rodata	: { *(.rela.rodata) *(.rela.gnu.linkonce.r*) } :rodata
+	.rel.got	: { *(.rel.got) } :rodata
+	.rela.got	: { *(.rela.got) } :rodata
+	.rel.bss	: { *(.rel.bss) } :rodata
+	.rela.bss	: { *(.rela.bss) } :rodata
+	.rel.plt	: { *(.rel.plt) } :rodata
+	.rela.plt	: { *(.rela.plt) } :rodata
+
+	/* Writable data.  Match the kernel ldscript's split of .data
+	   into the per-cache-line / read-pattern variants so module-
+	   defined symbols decorated with __read_frequently /
+	   __read_mostly / __exclusive_cache_line end up in the right
+	   sections and honour the same alignment guarantees as
+	   in-kernel data. */
+	.data		:
+	{
+		*(.data .data.*)
+		*(.gnu.linkonce.d*)
+	} :data
+	. = ALIGN(128);
+	.data.read_frequently :
+	{
+		*(SORT_BY_ALIGNMENT(.data.read_frequently))
+	} :data
+	.data.read_mostly :
+	{
+		*(.data.read_mostly)
+	} :data
+	. = ALIGN(128);
+	.data.exclusive_cache_line :
+	{
+		*(.data.exclusive_cache_line)
+	} :data
+	. = ALIGN(128);
+	.data1		: { *(.data1) } :data
+
+	/* Init / fini arrays -- kmod-relevant copies of the kernel
+	   layout; without the PROVIDE_HIDDEN start/end the linker
+	   doesn't always emit the bounds for kmod-format links. */
+	.init_array	:
+	{
+		PROVIDE_HIDDEN (__init_array_start = .);
+		KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+		KEEP (*(.init_array))
+		PROVIDE_HIDDEN (__init_array_end = .);
+	} :data
+	.fini_array	:
+	{
+		PROVIDE_HIDDEN (__fini_array_start = .);
+		KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*)))
+		KEEP (*(.fini_array))
+		PROVIDE_HIDDEN (__fini_array_end = .);
+	} :data
+	.ctors		: { *(.ctors) } :data
+	.dtors		: { *(.dtors) } :data
+
+	/* Linker-set bounds.  FreeBSD kmods register module metadata,
+	   sysctls, and sysinit records via linker sets; without
+	   explicit __start/__stop symbols the kernel loader can't find
+	   them at runtime and the module loads without registering. */
+	set_sysctl_set	:
+	{
+		__start_set_sysctl_set = .;
+		KEEP(*(set_sysctl_set))
+		__stop_set_sysctl_set = .;
+	} :data
+
+	set_modmetadata_set :
+	{
+		__start_set_modmetadata_set = .;
+		KEEP(*(set_modmetadata_set))
+		__stop_set_modmetadata_set = .;
+	} :data
+
+	set_sysinit_set :
+	{
+		__start_set_sysinit_set = .;
+		KEEP(*(set_sysinit_set))
+		__stop_set_sysinit_set = .;
+	} :data
+
+	.got		: { *(.got.plt) *(.got) } :data
+	.dynamic	: { *(.dynamic) } :data :dynamic
+
+	.sdata		: { *(.sdata) } :data
+	.sbss		: { *(.sbss) *(.scommon) } :data
+	.bss		:
+	{
+		*(.dynbss)
+		*(.bss .bss.*)
+		*(COMMON)
+	} :data
+
+	.gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+	/DISCARD/ : { *(.note.GNU-stack) }
+}
