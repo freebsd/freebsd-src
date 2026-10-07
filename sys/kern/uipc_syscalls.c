@@ -329,21 +329,15 @@ kern_accept(struct thread *td, int s, struct sockaddr *sa, struct file **fp)
 }
 
 int
-kern_accept4(struct thread *td, int s, struct sockaddr *sa, int flags,
-    struct file **fp)
+kern_accept4_fp(struct thread *td, struct file *headfp, struct filecaps *fcaps,
+    struct sockaddr *sa, int flags, struct file **fp)
 {
-	struct file *headfp, *nfp = NULL;
+	struct file *nfp = NULL;
 	struct socket *head, *so;
-	struct filecaps fcaps;
 	u_int fflag;
 	pid_t pgid;
 	int error, fd, tmp;
 
-	AUDIT_ARG_FD(s);
-	error = getsock_cap(td, s, &cap_accept_rights,
-	    &headfp, &fcaps);
-	if (error != 0)
-		return (error);
 	fflag = atomic_load_int(&headfp->f_flag);
 	head = headfp->f_data;
 	if (!SOLISTENING(head)) {
@@ -357,7 +351,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr *sa, int flags,
 #endif
 	error = falloc_caps(td, &nfp, &fd,
 	    ((flags & SOCK_CLOEXEC) != 0 ? O_CLOEXEC : 0) |
-	    ((flags & SOCK_CLOFORK) != 0 ? O_CLOFORK : 0), &fcaps);
+	    ((flags & SOCK_CLOFORK) != 0 ? O_CLOFORK : 0), fcaps);
 	if (error != 0)
 		goto done;
 	SOCK_LOCK(head);
@@ -415,7 +409,7 @@ noconnection:
 	 */
 done:
 	if (nfp == NULL)
-		filecaps_free(&fcaps);
+		filecaps_free(fcaps);
 	if (fp != NULL) {
 		if (error == 0) {
 			*fp = nfp;
@@ -425,6 +419,24 @@ done:
 	}
 	if (nfp != NULL)
 		fdrop(nfp, td);
+	return (error);
+}
+
+int
+kern_accept4(struct thread *td, int s, struct sockaddr *sa, int flags,
+    struct file **fp)
+{
+	struct file *headfp;
+	struct filecaps fcaps;
+	int error;
+
+	AUDIT_ARG_FD(s);
+	error = getsock_cap(td, s, &cap_accept_rights,
+	    &headfp, &fcaps);
+	if (error != 0)
+		return (error);
+
+	error = kern_accept4_fp(td, headfp, &fcaps, sa, flags, fp);
 	fdrop(headfp, td);
 	return (error);
 }
