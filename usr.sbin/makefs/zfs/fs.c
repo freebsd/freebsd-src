@@ -389,10 +389,11 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 			 * The size of a ZPL directory is the number of entries
 			 * (including "." and ".."), and the link count is the
 			 * number of entries which are directories
-			 * (including "." and "..").
+			 * (including "." and "..").  The root of a dataset is
+			 * the "." node itself, followed by the other entries.
 			 */
-			for (fsnode *c =
-			    fsnode_isroot(cur) ? cur->next : cur->child;
+			for (const fsnode *c =
+			    fsnode_isroot(cur) ? cur : cur->child;
 			    c != NULL; c = c->next) {
 				switch (c->type) {
 				case S_IFDIR:
