@@ -477,7 +477,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 			 *
 			 * 	 The idea is that, while set with CHN_F_NOTRIGGER,
 			 * 	 a channel isn't playing, *but* without this we
-			 * 	 end up with "interrupt timeout / channel dead".
+			 * 	 end up with interrupt timeout.
 			 */
 			ret = EAGAIN;
 		} else {
