@@ -310,7 +310,7 @@ ATF_TEST_CASE_BODY(test__body_only__crashes)
 
     const model::test_result exp_result(
         model::test_result_broken,
-        F("Premature exit; test case received signal %s (core dumped)") %
+        F("Error: Empty test result or no new line. Test case received signal %s (core dumped)") %
         SIGABRT);
     run_one(this, "crash", exp_result);
 }

@@ -67,7 +67,7 @@ avoid_coredump_on_crash(void)
 }
 
 
-inline void abort_without_coredump(void) UTILS_NORETURN;
+inline void abort_without_coredump [[noreturn]] (void);
 
 
 /// Aborts execution and tries to not dump core.

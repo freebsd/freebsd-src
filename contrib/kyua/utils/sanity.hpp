@@ -49,8 +49,8 @@
 namespace utils {
 
 
-void sanity_failure(const assert_type, const char*, const size_t,
-                    const std::string&) UTILS_NORETURN;
+void sanity_failure [[noreturn]](
+    const assert_type, const char*, const size_t, const std::string&);
 
 
 void install_crash_handlers(const std::string&);

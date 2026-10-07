@@ -112,7 +112,7 @@ check_execenv(const std::string& execenv, const config::tree& user_config)
 {
     std::string name = execenv;
     if (name.empty())
-        name = engine::execenv::default_execenv_name; // if test claims nothing
+        name = DEFAULT_EXECENV_NAME; // if test claims nothing
 
     std::set< std::string > execenvs;
     try {
@@ -274,7 +274,7 @@ static std::vector< std::shared_ptr< engine::reqs_checker > > _reqs_checkers;
 }  // anonymous namespace
 
 
-const std::vector< std::shared_ptr< engine::reqs_checker > >
+std::vector< std::shared_ptr< engine::reqs_checker > >
 engine::reqs_checkers()
 {
     return _reqs_checkers;

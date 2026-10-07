@@ -131,7 +131,7 @@ class mock_interface : public scheduler::interface {
     ///
     /// \param exit_code Exit code.
     void
-    do_exit(const int exit_code) const UTILS_NORETURN
+    do_exit [[noreturn]] (const int exit_code) const
     {
         std::cout.flush();
         std::cerr.flush();
@@ -140,7 +140,7 @@ class mock_interface : public scheduler::interface {
 
     /// Executes a test case that creates various files and then fails.
     void
-    exec_create_files_and_fail(void) const UTILS_NORETURN
+    exec_create_files_and_fail [[noreturn]] (void) const
     {
         std::cerr << "This should not be clobbered\n";
         atf::utils::create_file("first file", "");
@@ -155,7 +155,7 @@ class mock_interface : public scheduler::interface {
     /// This is intended to validate that the test runs in an empty directory,
     /// separate from any control files that the scheduler may have created.
     void
-    exec_delete_all(void) const UTILS_NORETURN
+    exec_delete_all [[noreturn]] (void) const
     {
         const int exit_code = ::system("rm *") == -1
             ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -170,14 +170,14 @@ class mock_interface : public scheduler::interface {
     ///
     /// \param exit_code Exit status to terminate the program with.
     void
-    exec_exit(const int exit_code) const UTILS_NORETURN
+    exec_exit [[noreturn]] (const int exit_code) const
     {
         do_exit(exit_code);
     }
 
     /// Executes a test case that just fails.
     void
-    exec_fail(void) const UTILS_NORETURN
+    exec_fail [[noreturn]] (void) const
     {
         std::cerr << "This should not be clobbered\n";
         ::kill(::getpid(), SIGTERM);
@@ -191,10 +191,10 @@ class mock_interface : public scheduler::interface {
     ///     number.
     /// \param vars User-provided variables to pass to the test program.
     void
-    exec_print_params(const model::test_program& test_program,
-                      const std::string& test_case_name,
-                      const config::properties_map& vars) const
-        UTILS_NORETURN
+    exec_print_params [[noreturn]] (
+        const model::test_program& test_program,
+        const std::string& test_case_name,
+        const config::properties_map& vars) const
     {
         std::cout << F("Test program: %s\n") % test_program.relative_path();
         std::cout << F("Test case: %s\n") % test_case_name;
@@ -218,9 +218,9 @@ public:
     /// \param test_program The test program to execute.
     /// \param vars User-provided variables to pass to the test program.
     void
-    exec_list(const model::test_program& test_program,
-              const config::properties_map& vars)
-        const UTILS_NORETURN
+    exec_list [[noreturn]] (
+        const model::test_program& test_program,
+        const config::properties_map& vars) const
     {
         const std::string name = test_program.absolute_path().leaf_name();
 

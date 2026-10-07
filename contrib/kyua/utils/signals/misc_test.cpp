@@ -51,7 +51,7 @@ namespace signals = utils::signals;
 namespace {
 
 
-static void program_reset_raise(void) UTILS_NORETURN;
+static void program_reset_raise [[noreturn]] (void);
 
 
 /// Body of a subprocess that tests the signals::reset function.

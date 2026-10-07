@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm kyua
-.Nd Testing framework for infrastructure software
+.Nd testing framework for infrastructure software
 .Sh SYNOPSIS
 .Nm
 .Op Fl -config Ar file
@@ -280,13 +280,13 @@ The first step in reporting a bug is to check if there already is a similar
 bug in the database.
 You can check what issues are currently in the database by going to:
 .Bd -literal -offset indent
-https://github.com/jmmv/kyua/issues/
+https://github.com/freebsd/kyua/issues/
 .Ed
 .Pp
 If there is no existing issue that describes an issue similar to the
 one you are experiencing, you can open a new one by visiting:
 .Bd -literal -offset indent
-https://github.com/jmmv/kyua/issues/new/
+https://github.com/freebsd/kyua/issues/new/
 .Ed
 .Pp
 When doing so, please include as much detail as possible.

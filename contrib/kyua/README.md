@@ -1,5 +1,4 @@
-Welcome to the Kyua project!
-============================
+# Welcome to the Kyua project!
 
 Kyua is a **testing framework** for infrastructure software, originally
 designed to equip BSD-based operating systems with a test suite.  This
@@ -16,7 +15,7 @@ on a production machine.
 
 Kyua is **able to execute test programs written with a plethora of testing
 libraries and languages**.  The library of choice is
-[ATF](https://github.com/jmmv/atf/), for which Kyua was originally
+[ATF](https://github.com/freebsd/atf/), for which Kyua was originally
 designed, but simple, framework-less test programs and TAP-compliant test
 programs can also be executed through Kyua.
 
@@ -26,25 +25,23 @@ This is not an official Google product.
 [Read more about Kyua in the About wiki page.](../../wiki/About)
 
 
-Download
---------
+## Download
 
-The latest version of Kyua is 0.13 and was released on August 26th, 2016.
+The latest version of Kyua is 0.14.1 and was released on March 29th, 2025.
 
-Download: [kyua-0.13](../../releases/tag/kyua-0.13).
+Download: [kyua-0.14.1](../../releases/tag/kyua-0.14.1).
 
-See the [release notes](NEWS.md) for information about the changes in this
+See the [release notes](NEWS) for information about the changes in this
 and all previous releases.
 
 
-Installation
-------------
+## Installation
 
 You are encouraged to install binary packages for your operating system
 wherever available:
 
-* Fedora 20 and above: install the `kyua-cli` package with `yum install
-  kyua-cli`.
+* Fedora 20 and above: install the `kyua` package with `dnf install
+  kyua`.
 
 * FreeBSD 10.0 and above: install the `kyua` package with `pkg install kyua`.
 
@@ -52,7 +49,7 @@ wherever available:
 
 * OpenBSD with packages: install the `kyua` package with `pkg_add kyua`.
 
-* OS X (with Homebrew): install the `kyua` package with `brew install kyua`.
+* macOS (with Homebrew): install the `kyua` package with `brew install kyua`.
 
 Should you want to build and install Kyua from the source tree provided
 here, follow the instructions in the
@@ -60,11 +57,10 @@ here, follow the instructions in the
 
 You should also install the ATF libraries to assist in the development of
 test programs.  To that end, see the
-[ATF project page](https://github.com/jmmv/atf/).
+[ATF project page](https://github.com/freebsd/atf/).
 
 
-Contributing
-------------
+## Contributing
 
 Want to contribute?  Great!  But please first read the guidelines provided
 in [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -74,11 +70,10 @@ the [list of copyright holders](AUTHORS) and the [list of
 individuals](CONTRIBUTORS).
 
 
-Support
--------
+## Support
 
 Please use the [kyua-discuss mailing
 list](https://groups.google.com/forum/#!forum/kyua-discuss) for any support
 inquiries.
 
-*Homepage:* https://github.com/jmmv/kyua/
+*Homepage:* https://github.com/freebsd/kyua/

@@ -82,7 +82,7 @@ set_defaults(config::tree& tree)
     for (auto em : execenv::execenvs())
         if (em->is_supported())
             supported.insert(em->name());
-    supported.insert(execenv::default_execenv_name);
+    supported.insert(DEFAULT_EXECENV_NAME);
     tree.set< config::strings_set_node >("execenvs", supported);
 
     // TODO(jmmv): Automatically derive this from the number of CPUs in the
@@ -244,7 +244,7 @@ engine::empty_config(void)
     // Tests of Kyua itself tend to use an empty config, i.e. default
     // execution environment is used. Let's allow it.
     std::set< std::string > supported;
-    supported.insert(engine::execenv::default_execenv_name);
+    supported.insert(DEFAULT_EXECENV_NAME);
     tree.set< config::strings_set_node >("execenvs", supported);
 
     return tree;

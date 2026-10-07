@@ -32,6 +32,7 @@
 #if !defined(ENGINE_EXECENV_EXECENV_HPP)
 #define ENGINE_EXECENV_EXECENV_HPP
 
+#include "engine/execenv/execenv_fwd.hpp"
 #include "model/test_program.hpp"
 #include "utils/optional.ipp"
 #include "utils/process/operations_fwd.hpp"
@@ -41,9 +42,6 @@ using utils::optional;
 
 namespace engine {
 namespace execenv {
-
-
-extern const char* default_execenv_name;
 
 
 /// Abstract interface of an execution environment.
@@ -85,7 +83,7 @@ public:
     /// scheduler::interface::exec_test() or exec_cleanup().
     ///
     /// \param args The arguments to pass to the binary.
-    virtual void exec(const args_vector& args) const UTILS_NORETURN = 0;
+    virtual void exec [[noreturn]] (const args_vector& args) const = 0;
 };
 
 

@@ -35,7 +35,7 @@
 using utils::process::args_vector;
 
 
-static inline void requires_freebsd(void) UTILS_NORETURN;
+static inline void requires_freebsd [[noreturn]] (void);
 
 static inline void
 requires_freebsd(void)

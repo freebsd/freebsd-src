@@ -47,8 +47,8 @@ namespace text = utils::text;
 namespace {
 
 
-static void throw_regex_error(const int, const ::regex_t*, const std::string&)
-    UTILS_NORETURN;
+static void throw_regex_error [[noreturn]] (
+    const int, const ::regex_t*, const std::string&);
 
 
 /// Constructs and raises a regex_error.

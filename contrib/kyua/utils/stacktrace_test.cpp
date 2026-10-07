@@ -94,7 +94,7 @@ public:
 
     /// Runs the binary.
     void
-    operator()(void) const UTILS_NORETURN
+    operator() [[noreturn]] (void) const
     {
         atf::utils::copy_file(_binary.str(), _copy_name.str());
 
@@ -106,15 +106,14 @@ public:
     ///
     /// This interface is exposed to support passing crash_me to the executor.
     void
-    operator()(const fs::path& /* control_directory */) const
-        UTILS_NORETURN
+    operator() [[noreturn]] (const fs::path& /* control_directory */) const
     {
         (*this)();  // Delegate to ensure the two entry points remain in sync.
     }
 };
 
 
-static void child_exit(const fs::path&) UTILS_NORETURN;
+static void child_exit [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that exits cleanly.
@@ -125,7 +124,7 @@ child_exit(const fs::path& /* control_directory */)
 }
 
 
-static void child_pause(const fs::path&) UTILS_NORETURN;
+static void child_pause [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that just blocks.

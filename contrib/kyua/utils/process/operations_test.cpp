@@ -117,7 +117,7 @@ child_exit(void)
 }
 
 
-static void suspend(void) UTILS_NORETURN;
+static void suspend [[noreturn]] (void);
 
 
 /// Blocks a subprocess from running indefinitely.
@@ -132,7 +132,7 @@ suspend(void)
 }
 
 
-static void write_loop(const int) UTILS_NORETURN;
+static void write_loop [[noreturn]] (const int);
 
 
 /// Provides an infinite stream of data in a subprocess.

@@ -30,7 +30,7 @@
 
 #include <memory>
 
-#include "engine/execenv/execenv.hpp"
+#include "engine/execenv/execenv_fwd.hpp"
 #include "model/exceptions.hpp"
 #include "model/types.hpp"
 #include "utils/config/exceptions.hpp"
@@ -522,7 +522,7 @@ bool
 model::metadata::has_execenv(void) const
 {
     const std::string& name = execenv();
-    return !name.empty() && name != engine::execenv::default_execenv_name;
+    return !name.empty() && name != DEFAULT_EXECENV_NAME;
 }
 
 

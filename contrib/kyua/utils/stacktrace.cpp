@@ -77,7 +77,7 @@ const char* utils::builtin_gdb = GDB;
 
 
 /// Maximum time the external GDB process is allowed to run for.
-datetime::delta utils::gdb_timeout(60, 0);
+datetime::delta utils::gdb_timeout(300, 0);
 
 
 namespace {

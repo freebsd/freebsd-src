@@ -31,7 +31,7 @@
 #include "model/metadata.hpp"
 
 extern "C" {
-#include "libutil.h"
+#include <libutil.h>
 }
 
 std::string

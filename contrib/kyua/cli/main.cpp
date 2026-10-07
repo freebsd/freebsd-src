@@ -56,6 +56,7 @@ extern "C" {
 #include "cli/common.ipp"
 #include "cli/config.hpp"
 #include "engine/atf.hpp"
+#include "engine/googletest.hpp"
 #include "engine/plain.hpp"
 #include "engine/scheduler.hpp"
 #include "engine/tap.hpp"
@@ -102,6 +103,9 @@ register_scheduler_interfaces(void)
     scheduler::register_interface(
         "atf", std::shared_ptr< scheduler::interface >(
             new engine::atf_interface()));
+    scheduler::register_interface(
+        "googletest", std::shared_ptr< scheduler::interface >(
+            new engine::googletest_interface()));
     scheduler::register_interface(
         "plain", std::shared_ptr< scheduler::interface >(
             new engine::plain_interface()));

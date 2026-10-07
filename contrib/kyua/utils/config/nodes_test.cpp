@@ -85,7 +85,8 @@ ATF_TEST_CASE_BODY(bool_node__deep_copy)
     config::bool_node node;
     node.set(true);
     config::detail::base_node* raw_copy = node.deep_copy();
-    config::bool_node* copy = static_cast< config::bool_node* >(raw_copy);
+    config::bool_node* copy = dynamic_cast< config::bool_node* >(raw_copy);
+    ATF_REQUIRE(copy != nullptr);
     ATF_REQUIRE(copy->value());
     copy->set(false);
     ATF_REQUIRE(node.value());
@@ -192,7 +193,8 @@ ATF_TEST_CASE_BODY(int_node__deep_copy)
     config::int_node node;
     node.set(5);
     config::detail::base_node* raw_copy = node.deep_copy();
-    config::int_node* copy = static_cast< config::int_node* >(raw_copy);
+    config::int_node* copy = dynamic_cast< config::int_node* >(raw_copy);
+    ATF_REQUIRE(copy != nullptr);
     ATF_REQUIRE_EQ(5, copy->value());
     copy->set(10);
     ATF_REQUIRE_EQ(5, node.value());
@@ -302,8 +304,9 @@ ATF_TEST_CASE_BODY(positive_int_node__deep_copy)
     config::positive_int_node node;
     node.set(5);
     config::detail::base_node* raw_copy = node.deep_copy();
-    config::positive_int_node* copy = static_cast< config::positive_int_node* >(
+    config::positive_int_node* copy = dynamic_cast< config::positive_int_node* >(
         raw_copy);
+    ATF_REQUIRE(copy != nullptr);
     ATF_REQUIRE_EQ(5, copy->value());
     copy->set(10);
     ATF_REQUIRE_EQ(5, node.value());
@@ -419,7 +422,8 @@ ATF_TEST_CASE_BODY(string_node__deep_copy)
     config::string_node node;
     node.set("first");
     config::detail::base_node* raw_copy = node.deep_copy();
-    config::string_node* copy = static_cast< config::string_node* >(raw_copy);
+    config::string_node* copy = dynamic_cast< config::string_node* >(raw_copy);
+    ATF_REQUIRE(copy != nullptr);
     ATF_REQUIRE_EQ("first", copy->value());
     copy->set("second");
     ATF_REQUIRE_EQ("first", node.value());
@@ -523,7 +527,8 @@ ATF_TEST_CASE_BODY(strings_set_node__deep_copy)
     node.set(value);
     config::detail::base_node* raw_copy = node.deep_copy();
     config::strings_set_node* copy =
-        static_cast< config::strings_set_node* >(raw_copy);
+        dynamic_cast< config::strings_set_node* >(raw_copy);
+    ATF_REQUIRE(copy != nullptr);
     value.insert("bar");
     ATF_REQUIRE_EQ(1, copy->value().size());
     copy->set(value);

@@ -32,7 +32,9 @@
 #if !defined(ENGINE_REQUIREMENTS_HPP)
 #define ENGINE_REQUIREMENTS_HPP
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "model/metadata_fwd.hpp"
 #include "utils/config/tree_fwd.hpp"
@@ -68,7 +70,7 @@ void register_reqs_checker(const std::shared_ptr< reqs_checker > checker);
 /// Returns the list of registered extra requirement checkers.
 ///
 /// \return A vector of pointers to extra requirement checkers.
-const std::vector< std::shared_ptr< reqs_checker > > reqs_checkers();
+std::vector< std::shared_ptr< reqs_checker > > reqs_checkers();
 
 
 }  // namespace engine

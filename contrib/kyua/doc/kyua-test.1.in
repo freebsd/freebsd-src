@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua test"
-.Nd Runs tests
+.Nd run tests
 .Sh SYNOPSIS
 .Nm
 .Op Fl -build-root Ar path

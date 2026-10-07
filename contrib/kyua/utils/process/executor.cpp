@@ -693,6 +693,8 @@ struct utils::process::executor::executor_handle::impl : utils::noncopyable {
     executor::exit_handle
     reap(const pid_t original_pid)
     {
+        PRE(original_pid > 0);
+
         const exec_handles_map::iterator iter = all_exec_handles.find(
             original_pid);
         exec_handle& data = (*iter).second;
