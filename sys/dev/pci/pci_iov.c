@@ -142,7 +142,7 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 
 	iov = malloc(sizeof(*dinfo->cfg.iov), M_SRIOV, M_WAITOK | M_ZERO);
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	if (dinfo->cfg.iov != NULL) {
 		error = EBUSY;
 		goto cleanup;
@@ -171,7 +171,7 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 
 	dinfo->cfg.iov = iov;
 	iov->iov_cdev->si_drv1 = dinfo;
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (0);
 
@@ -180,7 +180,7 @@ cleanup:
 	nvlist_destroy(pf_schema);
 	nvlist_destroy(vf_schema);
 	free(iov, M_SRIOV);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	return (error);
 }
 
@@ -191,23 +191,23 @@ pci_iov_detach_method(device_t bus, device_t dev)
 	struct pcicfg_iov *iov;
 	int error;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	dinfo = device_get_ivars(dev);
 	iov = dinfo->cfg.iov;
 
 	if (iov == NULL) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		return (0);
 	}
 
 	if ((iov->iov_flags & IOV_BUSY) != 0) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		return (EBUSY);
 	}
 
 	error = pci_iov_delete_iov_children(dinfo);
 	if (error != 0) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		return (error);
 	}
 
@@ -220,7 +220,7 @@ pci_iov_detach_method(device_t bus, device_t dev)
 	nvlist_destroy(iov->iov_schema);
 
 	free(iov, M_SRIOV);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (0);
 }
@@ -701,7 +701,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	int iov_inited;
 	bool ari_enabled;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	dinfo = cdev->si_drv1;
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
@@ -710,7 +710,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 	config = NULL;
 
 	if ((iov->iov_flags & IOV_BUSY) || iov->iov_num_vfs != 0) {
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		return (EBUSY);
 	}
 	iov->iov_flags |= IOV_BUSY;
@@ -818,7 +818,7 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	nvlist_destroy(config);
 	iov->iov_flags &= ~IOV_BUSY;
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (0);
 out:
@@ -852,7 +852,7 @@ out:
 	nvlist_destroy(config);
 	iov->iov_num_vfs = 0;
 	iov->iov_flags &= ~IOV_BUSY;
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	return (error);
 }
 
@@ -905,7 +905,7 @@ pci_iov_build_status(struct pci_devinfo *dinfo, nvlist_t **statusp)
 	int busno, devcount, error, func, i, slot;
 	uint16_t rid_off, rid_stride, vf_rid;
 
-	mtx_assert(&Giant, MA_OWNED);
+	bus_topo_assert();
 
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
@@ -1024,7 +1024,7 @@ pci_iov_delete_iov_children(struct pci_devinfo *dinfo)
 	int i, error, devcount;
 	uint32_t iov_ctl;
 
-	mtx_assert(&Giant, MA_OWNED);
+	bus_topo_assert();
 
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
@@ -1101,7 +1101,7 @@ pci_iov_delete(struct cdev *cdev)
 	struct pcicfg_iov *iov;
 	int error;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	dinfo = cdev->si_drv1;
 	iov = dinfo->cfg.iov;
 
@@ -1117,7 +1117,7 @@ pci_iov_delete(struct cdev *cdev)
 	error = pci_iov_delete_iov_children(dinfo);
 
 out:
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	return (error);
 }
 
@@ -1131,10 +1131,10 @@ pci_iov_get_schema_ioctl(struct cdev *cdev, struct pci_iov_schema *output)
 
 	packed = NULL;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	dinfo = cdev->si_drv1;
 	packed = nvlist_pack(dinfo->cfg.iov->iov_schema, &size);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	if (packed == NULL) {
 		error = ENOMEM;
@@ -1177,10 +1177,10 @@ pci_iov_get_status_ioctl(struct cdev *cdev, struct pci_iov_status *output)
 
 	status = NULL;
 	packed = NULL;
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	dinfo = cdev->si_drv1;
 	error = pci_iov_build_status(dinfo, &status);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 	if (error != 0)
 		goto out;
 
