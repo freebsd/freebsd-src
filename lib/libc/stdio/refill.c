@@ -48,7 +48,7 @@ lflush(FILE *fp)
 {
 	int	ret = 0;
 
-	if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR)) {
+	if ((fp->_flags & (__SLBF | __SWR)) == (__SLBF | __SWR)) {
 		FLOCKFILE_CANCELSAFE(fp);
 		ret = __sflush(fp);
 		FUNLOCKFILE_CANCELSAFE();
@@ -63,11 +63,6 @@ lflush(FILE *fp)
 int
 __srefill(FILE *fp)
 {
-
-	/* make sure stdio is set up */
-	if (!__sdidinit)
-		__sinit();
-
 	ORIENT(fp, -1);
 
 	fp->_r = 0;		/* largely a convenience for callers */
@@ -116,14 +111,14 @@ __srefill(FILE *fp)
 	 * flush all line buffered output files, per the ANSI C
 	 * standard.
 	 */
-	if (fp->_flags & (__SLBF|__SNBF)) {
+	if (fp->_flags & (__SLBF | __SNBF)) {
 		/* Ignore this file in _fwalk to avoid potential deadlock. */
 		fp->_flags |= __SIGN;
 		(void) _fwalk(lflush);
 		fp->_flags &= ~__SIGN;
 
 		/* Now flush this file without locking it. */
-		if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR))
+		if ((fp->_flags & (__SLBF | __SWR)) == (__SLBF | __SWR))
 			__sflush(fp);
 	}
 	fp->_p = fp->_bf._base;

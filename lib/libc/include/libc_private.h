@@ -78,6 +78,11 @@ void *libc_dlopen(const char *, int);
 void _rtld_error(const char *fmt, ...);
 
 /*
+ * Stdio cleanup function which is called by exit() and abort().
+ */
+extern __weak_symbol void _cleanup(void);
+
+/*
  * File lock contention is difficult to diagnose without knowing
  * where locks were set. Allow a debug library to be built which
  * records the source file and line number of each lock call.
