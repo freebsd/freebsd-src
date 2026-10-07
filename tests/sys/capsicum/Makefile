@@ -10,7 +10,6 @@ CFLAGS+=	-I${SRCTOP}/tests
 .if ${MK_GOOGLETEST} != no
 
 GTESTS+=	capsicum-test
-GTESTS_WRAPPER_SH.capsicum-test=	functional
 # This test script runs the same test suite twice, once as root and once as an
 # unprivileged user.  Serialize them since some tests access global namespaces,
 # e.g., mqueuefs, and can trample on each other.

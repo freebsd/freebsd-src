@@ -6,10 +6,6 @@
 # GoogleTest is a C++ test framework, thus, it does not describe/articulate how
 # to write tests in other languages, e.g., C or shell, unlike the ATF, plain,
 # and TAP raw test interfaces.
-#
-# For now this is a thin wrapper around the `plain` test interface, but in the
-# future this will rely on a newer version of kyua which will integrate in
-# GoogleTest support.
 
 .if !target(__<bsd.test.mk>__)
 .error googletest.test.mk cannot be included directly.
@@ -34,13 +30,8 @@ BINDIR.${_T}= ${TESTSDIR}
 CXXFLAGS.${_T}+= ${GTESTS_CXXFLAGS}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.cc
-.if !empty(GTESTS_WRAPPER_SH.${_T})
-# A stopgap/workaround to let kyua execute test case one by one
-ATF_TESTS_SH+= ${GTESTS_WRAPPER_SH.${_T}}
-.else
 _TESTS+= ${_T}
-TEST_INTERFACE.${_T}= plain
-.endif
+TEST_INTERFACE.${_T}= googletest
 
 .endfor
 .endif
