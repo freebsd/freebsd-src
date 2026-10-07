@@ -34,11 +34,6 @@
 
 #include "engine/kyuafile_fwd.hpp"
 
-#include <string>
-#include <vector>
-
-#include <lutok/state.hpp>
-
 #include "engine/scheduler_fwd.hpp"
 #include "model/test_program_fwd.hpp"
 #include "utils/config/tree_fwd.hpp"

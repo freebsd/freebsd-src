@@ -31,6 +31,7 @@
 
 #include "utils/text/operations.hpp"
 
+#include <string>
 #include <sstream>
 
 #include "utils/text/exceptions.hpp"

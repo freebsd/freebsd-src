@@ -34,12 +34,7 @@
 #include "engine/requirements.hpp"
 #include "os/freebsd/reqs_checker_kmods.hpp"
 
-#include "engine/prepare/prepare.hpp"
-#include "os/freebsd/prepare_kmods.hpp"
-
 namespace execenv = engine::execenv;
-namespace prepare = engine::prepare;
-
 
 /// FreeBSD related features initialization.
 ///
@@ -64,9 +59,6 @@ freebsd::main(const int, const char* const* const)
             new freebsd::reqs_checker_kmods()
         )
     );
-
-    prepare::register_handler(
-        std::shared_ptr< prepare::handler >(new freebsd::prepare_kmods()));
 #endif
 
     return 0;

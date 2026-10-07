@@ -217,7 +217,7 @@ verbose_body() {
     # Switch to the current directory using its physical location and update
     # HOME accordingly.  Otherwise, the test below where we compare the value
     # of HOME in the output might fail if the path to HOME contains a symlink
-    # (as is the case in OS X when HOME points to the temporary directory.)
+    # (as is the case in macOS when HOME points to the temporary directory.)
     local real_cwd="$(pwd -P)"
     cd "${real_cwd}"
     HOME="${real_cwd}"

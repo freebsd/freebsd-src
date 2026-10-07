@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua report-html"
-.Nd Generates an HTML report with the results of a test suite run
+.Nd generate an HTML report with the results of a test suite run
 .Sh SYNOPSIS
 .Nm
 .Op Fl -force

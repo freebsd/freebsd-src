@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua db-migrate"
-.Nd Upgrades the schema of an existing results file
+.Nd upgrade the schema of an existing results file
 .Sh SYNOPSIS
 .Nm
 .Op Fl -results-file Ar file

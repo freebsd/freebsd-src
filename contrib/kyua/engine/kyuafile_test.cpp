@@ -27,19 +27,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "engine/kyuafile.hpp"
-
+#include <memory>
 extern "C" {
 #include <unistd.h>
 }
-
-#include <stdexcept>
-#include <typeinfo>
-
 #include <atf-c++.hpp>
-#include <lutok/operations.hpp>
-#include <lutok/state.ipp>
-#include <lutok/test_utils.hpp>
-
 #include "engine/atf.hpp"
 #include "engine/exceptions.hpp"
 #include "engine/plain.hpp"

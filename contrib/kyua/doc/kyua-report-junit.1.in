@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua report-junit"
-.Nd Generates a JUnit report with the results of a test suite run
+.Nd generate a JUnit report with the results of a test suite run
 .Sh SYNOPSIS
 .Nm
 .Op Fl -output Ar path

@@ -664,7 +664,7 @@ ATF_TEST_CASE_BODY(calculate_atf_result__missing_file)
     const status body_status = status::fake_exited(EXIT_SUCCESS);
     const model::test_result expected(
         model::test_result_broken,
-        "Premature exit; test case exited with code 0");
+        "Error: Premature exit. Test case exited with code 0");
     ATF_REQUIRE_EQ(expected, engine::calculate_atf_result(
         utils::make_optional(body_status), fs::path("foo")));
 }
@@ -677,8 +677,9 @@ ATF_TEST_CASE_BODY(calculate_atf_result__bad_file)
 
     const status body_status = status::fake_exited(EXIT_SUCCESS);
     atf::utils::create_file("foo", "invalid\n");
-    const model::test_result expected(model::test_result_broken,
-                                      "Unknown test result 'invalid'");
+    const model::test_result expected(
+	model::test_result_broken,
+        "Error: Unknown test result 'invalid'. Test case exited with code 0");
     ATF_REQUIRE_EQ(expected, engine::calculate_atf_result(
         utils::make_optional(body_status), fs::path("foo")));
 }

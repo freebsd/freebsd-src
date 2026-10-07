@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua db-exec"
-.Nd Executes a SQL statement in a results file
+.Nd execute a SQL statement in a results file
 .Sh SYNOPSIS
 .Nm
 .Op Fl -no-headers

@@ -224,8 +224,8 @@ EOF
 
 # CHECK_STYLE_DISABLE
     cat >expout <<EOF
-bogus_test_cases:die  ->  broken: Premature exit; test case received signal 9  [S.UUUs]
-bogus_test_cases:exit  ->  broken: Premature exit; test case exited with code 0  [S.UUUs]
+bogus_test_cases:die  ->  broken: Error: Empty test result or no new line. Test case received signal 9  [S.UUUs]
+bogus_test_cases:exit  ->  broken: Error: Empty test result or no new line. Test case exited with code 0  [S.UUUs]
 bogus_test_cases:pass  ->  passed  [S.UUUs]
 
 Results file id is $(utils_results_id)

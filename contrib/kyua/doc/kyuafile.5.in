@@ -25,12 +25,12 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd March 23, 2024
+.Dd November 29, 2024
 .Dt KYUAFILE 5
 .Os
 .Sh NAME
 .Nm Kyuafile
-.Nd Test suite description files
+.Nd test suite description files
 .Sh SYNOPSIS
 .Fn atf_test_program "string name" "[string metadata]"
 .Fn current_kyuafile
@@ -40,6 +40,7 @@
 .Fn fs.files "string path"
 .Fn fs.is_absolute "string path"
 .Fn fs.join "string path" "string path"
+.Fn googletest_test_program "string name" "[string metadata]"
 .Fn include "string path"
 .Fn plain_test_program "string name" "[string metadata]"
 .Fn syntax "int version"
@@ -123,6 +124,16 @@ the test cases in the test program.
 Any metadata properties defined by the test cases themselves override the
 metadata values defined here.
 The mapping to ATF metadata naming for each property is provided below.
+.Pp
+.Em Google Test test programs
+are those that use the Google Test test infrastructure.
+They can be registered with the
+.Fn googletest_test_program
+table constructor.
+This function takes the
+.Fa name
+of the test program, and a collection of optional metadata settings for the
+test program.
 .Pp
 .Em Plain test programs
 are those that return 0 on success and non-0 on failure; in general, most test
@@ -300,7 +311,6 @@ Supported platforms:
 .Pp
 ATF:
 .Va require.kmods
-(appends to the list declared at the Kyuafile level instead of overwriting it)
 .It Va required_memory
 Amount of physical memory that the test needs to run successfully.
 .Pp
@@ -458,6 +468,9 @@ recurses into a couple of subdirectories:
 syntax(2)
 
 test_suite('second')
+
+googletest_test_program{name='dont_run_as_root_test',
+                        required_user='unprivileged'}
 
 plain_test_program{name='legacy_test',
                    allowed_architectures='amd64 i386',

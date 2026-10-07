@@ -625,13 +625,21 @@ engine::calculate_atf_result(const optional< process::status >& body_status,
     try {
         result = atf_result::load(results_file);
     } catch (const engine::format_error& error) {
-        result = atf_result(atf_result::broken, error.what());
-    } catch (const std::runtime_error& error) {
-        if (body_status)
-            result = atf_result(
-                atf_result::broken, F("Premature exit; test case %s") %
+        if (body_status) {
+            result = atf_result(atf_result::broken,
+                F("Error: %s. Test case %s") %
+                error.what() %
                 format_status(body_status.get()));
-        else {
+        } else {
+            // The test case timed out.  apply() handles this case later.
+        }
+    } catch (const std::runtime_error& error) {
+        if (body_status) {
+            result = atf_result(
+                atf_result::broken,
+                F("Error: Premature exit. Test case %s") %
+                format_status(body_status.get()));
+        } else {
             // The test case timed out.  apply() handles this case later.
         }
     }
