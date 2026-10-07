@@ -1109,6 +1109,8 @@ __pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count)
 	struct pthread_mutex *m;
 	int ret;
 
+	if (count < 0)
+		return (EINVAL);
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
 		m->m_spinloops = count;
@@ -1133,6 +1135,8 @@ __pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count)
 	struct pthread_mutex *m;
 	int ret;
 
+	if (count < 0)
+		return (EINVAL);
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
 		m->m_yieldloops = count;
