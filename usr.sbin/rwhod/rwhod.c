@@ -122,6 +122,21 @@ void	run_as(uid_t *uid, gid_t *gid);
 void	quit(const char *msg);
 void	sender_process(void);
 int	verify(char *name, int maxlen);
+
+/*
+ * sockaddr_get_port: get the port from a sockaddr
+ * sockaddr_ntop: convert a sockaddr to a string
+ *
+ * These helpers make the receive path address-family independent
+ * by supporting both IPv4 (AF_INET) and IPv6 (AF_INET6).
+ * This is a first step toward full IPv6 support in rwhod.
+ *
+ *                    -- Taranpreet Kaur, March 2026
+ */
+static in_port_t sockaddr_get_port(const struct sockaddr *sa);
+static void sockaddr_ntop(const struct sockaddr *sa, socklen_t salen,
+    char *host, size_t hostlen);
+
 static void usage(void) __dead2;
 
 #ifdef DEBUG
@@ -333,17 +348,60 @@ verify(char *name, int maxlen)
 	return (size > 0);
 }
 
+/*
+ * sockaddr_get_port: get the port from a sockaddr
+ * It checks the family:
+ * - AF_INET: return the port from the sockaddr_in structure
+ * - AF_INET6: return the port from the sockaddr_in6 structure
+ * - Otherwise, return 0
+ */
+static in_port_t
+sockaddr_get_port(const struct sockaddr *sa) {
+	if (sa == NULL)
+		return (0);
+	if (sa->sa_family == AF_INET)
+		return (((const struct sockaddr_in *)sa)->sin_port);
+	if (sa->sa_family == AF_INET6)
+		return (((const struct sockaddr_in6 *)sa)->sin6_port);
+	return (0);
+}
+
+/*
+ * sockaddr_ntop: convert a sockaddr to a string
+ * It checks the family:
+ * - AF_INET: convert the IP address from network byte order to a string
+ * - AF_INET6: convert the IP address from network byte order to a string
+ * - Otherwise, set the host to "unknown"
+ *
+ * It uses the getnameinfo function to get the host name from the sockaddr.
+ */
+static void
+sockaddr_ntop(const struct sockaddr *sa, socklen_t salen, char *host,
+    size_t hostlen) {
+	if (sa == NULL || host == NULL || hostlen == 0)
+		return;
+	if (getnameinfo(sa, salen, host, hostlen, NULL, 0, NI_NUMERICHOST) != 0)
+	{
+		if (host[0] == '\0')
+			strlcpy(host, "unknown", hostlen);
+	}
+}
+
 void
 receiver_process(void)
 {
-	struct sockaddr_in from;
+	/* sockaddr_storage is a generic container that can hold
+	 * both sockaddr_in (IPv4) and sockaddr_in6 (IPv6) addresses.*/
+	struct sockaddr_storage from;
 	struct stat st;
 	cap_rights_t rights;
+	char host[NI_MAXHOST];
 	char path[64];
 	int dirfd;
 	struct whod wd;
 	socklen_t len;
 	int cc, whod;
+	in_port_t from_port;
 	time_t t;
 
 	len = sizeof(from);
@@ -363,6 +421,11 @@ receiver_process(void)
 		exit(1);
 	}
 	for (;;) {
+		/*
+		 * recvfrom(2) updates len to actual source sockaddr length,
+		 * so reset it before each call.
+		 */
+		len = sizeof(from);
 		cc = recvfrom(s, &wd, sizeof(wd), 0, (struct sockaddr *)&from,
 		    &len);
 		if (cc <= 0) {
@@ -370,14 +433,16 @@ receiver_process(void)
 				syslog(LOG_WARNING, "recv: %m");
 			continue;
 		}
-		if (from.sin_port != sp->s_port && !insecure_mode) {
+		sockaddr_ntop((const struct sockaddr *)&from, len, host,
+		    sizeof(host));
+		from_port = sockaddr_get_port((const struct sockaddr *)&from);
+		if (from_port != sp->s_port && !insecure_mode) {
 			syslog(LOG_WARNING, "%d: bad source port from %s",
-			    ntohs(from.sin_port), inet_ntoa(from.sin_addr));
+			    ntohs(from_port), host);
 			continue;
 		}
 		if (cc < WHDRSIZE) {
-			syslog(LOG_WARNING, "short packet from %s",
-			    inet_ntoa(from.sin_addr));
+			syslog(LOG_WARNING, "short packet from %s", host);
 			continue;
 		}
 		if (wd.wd_vers != WHODVERSION)
@@ -385,8 +450,7 @@ receiver_process(void)
 		if (wd.wd_type != WHODTYPE_STATUS)
 			continue;
 		if (!verify(wd.wd_hostname, sizeof(wd.wd_hostname))) {
-			syslog(LOG_WARNING, "malformed host name from %s",
-			    inet_ntoa(from.sin_addr));
+			syslog(LOG_WARNING, "malformed host name from %s", host);
 			continue;
 		}
 		(void) snprintf(path, sizeof(path), "whod.%s", wd.wd_hostname);
