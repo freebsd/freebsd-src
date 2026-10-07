@@ -3,7 +3,7 @@
 .\"
 .\" Copyright (c) 2025 Klara, Inc.
 .\"
-.Dd May 19, 2025
+.Dd October 7, 2026
 .Dt INOTIFY 2
 .Os
 .Sh NAME
@@ -377,3 +377,27 @@ Thus, the
 implementation behaves as though
 .Dv IN_EXCL_UNLINK
 is always set.
+.Pp
+Some inotify events rely on the kernel's name cache in order to determine
+the name of the file being accessed.
+Some filesystems do not use the name cache, for instance
+.Xr devfs 4 ,
+and
+.Xr tmpfs 4
+mounts with the
+.Dv nonc
+option set.
+inotify may not reliably deliver events for files on such filesystems.
+.Pp
+inotify does not deliver events for
+.Xr devfs 4
+files so as to avoid leaking potentially sensitive timing information.
+For instance,
+.Dv IN_ACCESS
+events on
+.Pa /dev/input
+could be used to determine information about keyboard input from a different
+user.
+A watch on a
+.Xr devfs 4
+file or directory may be created, but will not deliver any events.
