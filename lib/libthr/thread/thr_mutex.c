@@ -54,6 +54,15 @@ _Static_assert(sizeof(struct pthread_mutex) <= THR_PAGE_SIZE_MIN,
     "pthread_mutex is too large for off-page");
 
 /*
+ * Keep the thread-private linkage off the cache line holding the lock word;
+ * Only meaningful where cache line is 64 bytes.
+ */
+#if defined(__LP64__) && CACHE_LINE_SIZE == 64
+_Static_assert(offsetof(struct pthread_mutex, m_qe) >= CACHE_LINE_SIZE,
+    "m_qe must not share a cache line with m_lock.m_owner");
+#endif
+
+/*
  * For adaptive mutexes, how many times to spin doing trylock2
  * before entering the kernel to block
  */

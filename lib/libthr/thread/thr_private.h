@@ -172,13 +172,17 @@ struct pthread_mutex {
 	int				m_yieldloops;
 	int				m_ps;	/* pshared init stage */
 	/*
+	 * Deliberately put m_qe and m_lock into different cache line to prevent
+	 * false sharing.
+	 */
+	struct pthread_mutex		*m_rb_prev;
+	/*
 	 * Link for all mutexes a thread currently owns, of the same
 	 * prio type.
 	 */
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
 	/* Link for all private mutexes a thread currently owns. */
 	TAILQ_ENTRY(pthread_mutex)	m_pqe;
-	struct pthread_mutex		*m_rb_prev;
 };
 
 struct pthread_mutex_attr {
