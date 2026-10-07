@@ -82,6 +82,8 @@ zfs_prep_opts(fsinfo_t *fsopts)
 	memset(zfs, 0, sizeof(*zfs));
 
 	const option_t zfs_options[] = {
+		{ '\0', "autotrim", &zfs->autotrim, OPT_STRPTR,
+		  0, 0, "Automatic TRIM (on or off)" },
 		{ '\0', "bootfs", &zfs->bootfs, OPT_STRPTR,
 		  0, 0, "Bootable dataset" },
 		{ '\0', "mssize", &zfs->mssize, OPT_INT64,
@@ -247,6 +249,17 @@ zfs_check_opts(fsinfo_t *fsopts)
 	if (zfs->vdevpath[0] != '/')
 		errx(1, "path `%s' must be absolute", zfs->vdevpath);
 
+	zfs->autotrimval = SPA_AUTOTRIM_OFF;
+	if (zfs->autotrim != NULL) {
+		if (strcmp(zfs->autotrim, "on") == 0)
+			zfs->autotrimval = SPA_AUTOTRIM_ON;
+		else if (strcmp(zfs->autotrim, "off") == 0)
+			zfs->autotrimval = SPA_AUTOTRIM_OFF;
+		else
+			errx(1, "invalid value `%s' for autotrim",
+			    zfs->autotrim);
+	}
+
 	if (zfs->ashift == 0)
 		zfs->ashift = 12;
 
@@ -262,6 +275,7 @@ zfs_cleanup_opts(fsinfo_t *fsopts)
 	zfs = fsopts->fs_specific;
 	free(zfs->rootpath);
 	free(zfs->vdevpath);
+	free(zfs->autotrim);
 	free(zfs->bootfs);
 	free(__DECONST(void *, zfs->poolname));
 	STAILQ_FOREACH_SAFE(d, &zfs->datasetdescs, next, tmp) {
@@ -474,6 +488,9 @@ pool_init_objdir_poolprops(zfs_opt_t *zfs, zfs_zap_t *objdir)
 	zap_add_uint64(objdir, DMU_POOL_PROPS, id);
 
 	zfs->poolprops = zap_alloc(zfs->mos, dnode);
+
+	if (zfs->autotrim != NULL)
+		zap_add_uint64(zfs->poolprops, "autotrim", zfs->autotrimval);
 }
 
 /*

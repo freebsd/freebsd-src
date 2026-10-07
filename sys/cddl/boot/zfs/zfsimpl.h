@@ -905,6 +905,16 @@ typedef enum pool_state {
 } pool_state_t;
 
 /*
+ * Send TRIM commands in-line during normal pool operation while deleting.
+ *	OFF: no
+ *	ON: yes
+ */
+typedef enum {
+	SPA_AUTOTRIM_OFF = 0,
+	SPA_AUTOTRIM_ON,
+} spa_autotrim_t;
+
+/*
  * The uberblock version is incremented whenever an incompatible on-disk
  * format change is made to the SPA, DMU, or ZAP.
  *
