@@ -312,7 +312,7 @@ same_ip_multiple_ifaces_fib0_body()
 {
 	ADDR="192.0.2.2"
 	MASK0="24"
-	MASK1="32"
+	MASK1="31"
 
 	# Unlike most of the tests in this file, this is applicable regardless
 	# of net.add_addr_allfibs
