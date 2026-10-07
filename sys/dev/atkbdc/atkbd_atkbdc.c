@@ -116,24 +116,30 @@ atkbdattach(device_t dev)
 	int rid;
 	int error;
 
+	TSENTER();
 	sc = device_get_softc(dev);
 
 	rid = KBDC_RID_KBD;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
 	flags = device_get_flags(dev);
 	error = atkbd_attach_unit(dev, &kbd, irq, flags);
-	if (error)
+	if (error) {
+		TSEXIT();
 		return error;
+	}
 
 	/* declare our interrupt handler */
 	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (sc->intr == NULL)
+	if (sc->intr == NULL) {
+		TSEXIT();
 		return ENXIO;
+	}
 	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, atkbdintr,
 			       kbd, &sc->ih);
 	if (error)
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 
+	TSEXIT();
 	return error;
 }
 
