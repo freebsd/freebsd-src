@@ -443,3 +443,21 @@ nfscl_lockderef(struct nfsv4lock *lckp)
 	}
 	NFSUNLOCKCLSTATE();
 }
+
+/*
+ * Free the session slot of a compound that was built but will not be sent
+ * to the server.
+ */
+void
+nfsv4_freeunsentslot(struct nfsmount *nmp, struct nfsclsession *sep,
+    struct nfsrv_descript *nd)
+{
+
+	if (nmp == NULL || (nd->nd_flag & (ND_NFSV41 | ND_HASSLOTID)) !=
+	    (ND_NFSV41 | ND_HASSLOTID))
+		return;
+	if (sep == NULL)
+		sep = nfsmnt_mdssession(nmp);
+	if (sep != NULL)
+		nfsv4_freeslot(sep, nd->nd_slotid, true);
+}

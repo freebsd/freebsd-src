@@ -2138,6 +2138,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 			error = nfsm_uiombuf(nd, uiop, len);
 		}
 		if (error != 0) {
+			nfsv4_freeunsentslot(nmp, NULL, nd);
 			m_freem(nd->nd_mreq);
 			free(nd, M_TEMP);
 			return (error);
@@ -7376,6 +7377,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	*tl = txdr_unsigned(len);
 	error = nfsm_uiombuf(nd, uiop, len);
 	if (error != 0) {
+		nfsv4_freeunsentslot(nmp, &dsp->nfsclds_sess, nd);
 		m_freem(nd->nd_mreq);
 		return (error);
 	}
@@ -9740,6 +9742,7 @@ nfsrpc_setextattr(vnode_t vp, const char *name, struct uio *uiop,
 	NFSCL_REQSTART(nd, NFSPROC_SETEXTATTR, vp, cred);
 	if (uiop->uio_resid > nd->nd_maxreq) {
 		/* nd_maxreq is set by NFSCL_REQSTART(). */
+		nfsv4_freeunsentslot(VFSTONFS(vp->v_mount), NULL, nd);
 		m_freem(nd->nd_mreq);
 		return (EINVAL);
 	}
@@ -9750,6 +9753,7 @@ nfsrpc_setextattr(vnode_t vp, const char *name, struct uio *uiop,
 	*tl = txdr_unsigned(uiop->uio_resid);
 	error = nfsm_uiombuf(nd, uiop, uiop->uio_resid);
 	if (error != 0) {
+		nfsv4_freeunsentslot(VFSTONFS(vp->v_mount), NULL, nd);
 		m_freem(nd->nd_mreq);
 		return (error);
 	}
