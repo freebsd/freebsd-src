@@ -649,6 +649,7 @@ size_t
 llentry_free(struct llentry *lle)
 {
 	size_t pkts_dropped;
+	int ret;
 
 	LLE_WLOCK_ASSERT(lle);
 
@@ -656,9 +657,30 @@ llentry_free(struct llentry *lle)
 
 	pkts_dropped = lltable_drop_entry_queue(lle);
 
-	/* cancel timer */
-	if (callout_stop(&lle->lle_timer) > 0)
+	/*
+	 * Cancel timer.  Handle races with timer callback.
+	 */
+	ret = callout_stop(&lle->lle_timer);
+	if (ret > 0) {
 		LLE_REMREF(lle);
+	} else if (ret == 0) {
+		/*
+		 * Timer callback is executing.  Two cases:
+		 *
+		 * refcnt > 1: Another thread is calling us while the timer
+		 * is running.  The entry is already unlinked (KASSERT above),
+		 * so timer will skip its LLE_REMREF.  Drop one ref and bail;
+		 * timer's llentry_free() will free the entry.
+		 *
+		 * refcnt == 1: We are the timer callback and already dropped
+		 * our ref before calling llentry_free().  Proceed to free.
+		 */
+		if (lle->lle_refcnt > 1) {
+			LLE_REMREF(lle);
+			LLE_WUNLOCK(lle);
+			return (pkts_dropped);
+		}
+	}
 	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);
