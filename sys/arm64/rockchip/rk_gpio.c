@@ -40,8 +40,8 @@
 #include <sys/gpio.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -906,6 +906,13 @@ rk_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	RK_GPIO_UNLOCK(sc);
 }
 
+static void
+rk_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	panic("%s: not implemented\n", __func__);
+}
+
 /*
  * Called by INTRNG before delivering to the ithread.  Mask the source
  * so it cannot re-fire during the ithread window -- without this,
@@ -959,14 +966,17 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_config_32,	rk_gpio_pin_config_32),
 	DEVMETHOD(gpio_map_gpios,	rk_gpio_map_gpios),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	rk_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	rk_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	rk_pic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_map_intr,		rk_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	rk_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	rk_pic_teardown_intr),
 	DEVMETHOD(pic_disable_intr,	rk_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	rk_pic_enable_intr),
-	DEVMETHOD(pic_pre_ithread,	rk_pic_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	rk_pic_post_ithread),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	rk_gpio_get_node),
@@ -974,11 +984,8 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_gpio_driver = {
-	"gpio",
-	rk_gpio_methods,
-	sizeof(struct rk_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN("gpio", rk_gpio_driver, rk_gpio_methods,
+    sizeof(struct rk_gpio_softc), pic_base_class);
 
 /*
  * GPIO driver is always a child of rk_pinctrl driver and should be probed

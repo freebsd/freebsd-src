@@ -32,6 +32,12 @@
 
 INTERFACE pic;
 
+HEADER {
+	#include "intr_event_if.h"
+
+	DECLARE_CLASS(pic_base_class);
+};
+
 CODE {
 	static pic_translate_code_t pic_translate_code_default;
 

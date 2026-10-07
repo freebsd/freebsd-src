@@ -45,8 +45,8 @@
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
+#include <machine/interrupt.h>
 #include <machine/vmparam.h>
-#include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>

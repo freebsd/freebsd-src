@@ -30,6 +30,8 @@
 #ifndef _SYS_LOCK_PROFILE_H_
 #define _SYS_LOCK_PROFILE_H_
 
+#include <sys/queue.h>
+
 struct lock_profile_object;
 LIST_HEAD(lpohead, lock_profile_object);
 

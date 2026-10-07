@@ -59,8 +59,8 @@
 #include "sdhci_if.h"
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include "opt_mmccam.h"
 
