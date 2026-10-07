@@ -179,6 +179,16 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		printf("Not Specified\n");
 	else
 		printf("%u\n", cdata->maxcmd);
+	printf("Warning Composite Temperature Threshold: ");
+	if (cdata->wctemp == 0)
+		printf("Not Reported\n");
+	else
+		print_temp_K(cdata->wctemp);
+	printf("Critical Composite Temperature Threshold: ");
+	if (cdata->cctemp == 0)
+		printf("Not Reported\n");
+	else
+		print_temp_K(cdata->cctemp);
 	printf("\n");
 
 	printf("Admin Command Set Attributes\n");
