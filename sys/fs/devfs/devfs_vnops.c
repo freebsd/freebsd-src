@@ -922,6 +922,22 @@ fiodgname_buf_get_ptr(void *fgnp, u_long com)
 }
 
 static int
+devfs_inotify(struct vop_inotify_args *ap)
+{
+	/*
+	 * Don't provide inotify for devfs nodes.  Most of the inotify hooks
+	 * don't fire anyway since devfs files do not use the vnode I/O path.
+	 * If that were not the case, however, inotify could be abused to leak
+	 * sensitive timing information, e.g., by watching for reads from
+	 * /dev/input.  Thus, we make inotify do nothing here as a safeguard.
+	 *
+	 * At some point it may be desirable to enable inotify for specific
+	 * device files.
+	 */
+	return (0);
+}
+
+static int
 devfs_ioctl(struct vop_ioctl_args *ap)
 {
 	struct fiodgname_arg *fgn;
@@ -2126,6 +2142,7 @@ static struct vop_vector devfs_vnodeops = {
 
 	.vop_access =		devfs_access,
 	.vop_getattr =		devfs_getattr,
+	.vop_inotify =		devfs_inotify,
 	.vop_ioctl =		devfs_rioctl,
 	.vop_lookup =		devfs_lookup,
 	.vop_mknod =		devfs_mknod,
@@ -2159,6 +2176,7 @@ static struct vop_vector devfs_specops = {
 	.vop_create =		VOP_PANIC,
 	.vop_fsync =		vop_stdfsync,
 	.vop_getattr =		devfs_getattr,
+	.vop_inotify =		devfs_inotify,
 	.vop_ioctl =		devfs_ioctl,
 	.vop_link =		VOP_PANIC,
 	.vop_mkdir =		VOP_PANIC,
