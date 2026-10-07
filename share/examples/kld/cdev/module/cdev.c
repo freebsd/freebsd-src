@@ -168,15 +168,20 @@ mydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 int
 mydev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-    int err = 0;
+	int err = 0;
+	size_t outlen;
 
-    printf("mydev_read: dev_t=%lu, uio=%p, ioflag=%d\n",
-	dev2udev(dev), uio, ioflag);
+	printf("mydev_read: dev_t=%lu, uio=%p, ioflag=%d\n",
+	    dev2udev(dev), uio, ioflag);
 
-    if (len <= 0) {
-	err = -1;
-    } else {	/* copy buf to userland */
-	copystr(&buf, uio->uio_iov->iov_base, 513, &len);
-    }
-    return(err);
+	if (len <= 0) {
+		err = EINVAL;
+	} else {	/* copy buf to userland */
+		outlen = strlen(buf) + 1;
+		err = copyout(buf, uio->uio_iov->iov_base, outlen);
+		if (err == 0)
+			uio->uio_resid -= outlen;
+	}
+
+	return (err);
 }
