@@ -383,6 +383,8 @@ int nfscl_wcc_data(struct nfsrv_descript *, vnode_t,
 int nfsm_loadattr(struct nfsrv_descript *, struct nfsvattr *);
 int nfscl_request(struct nfsrv_descript *, vnode_t,
          NFSPROC_T *, struct ucred *);
+void nfsv4_freeunsentslot(struct nfsmount *, struct nfsclsession *,
+    struct nfsrv_descript *);
 
 /* nfs_nfsdsubs.c */
 void nfsd_fhtovp(struct nfsrv_descript *, struct nfsrvfh *, int,
