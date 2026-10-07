@@ -1,0 +1,6 @@
+#
+# REQUIRE: services
+# PROVIDE: outbound
+# BEFORE: final
+#
+# meta class - adds no rules

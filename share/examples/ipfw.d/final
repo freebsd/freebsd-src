@@ -1,0 +1,13 @@
+#
+# PROVIDE: final
+# REQUIRE: setup services outbound routing
+#
+
+#
+add allow tcp from me to any out setup // default outbound 
+
+# silently ignore local multicast
+add deny ip from any to 224.0.0.0/4 // drop multicast
+
+# drop and log everything else
+add reset log ip from any to any
