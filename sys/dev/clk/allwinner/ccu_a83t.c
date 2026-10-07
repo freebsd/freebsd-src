@@ -211,8 +211,8 @@ NKMP_CLK(pll_c0cpux_clk,
     0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
     0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor */
     0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
-    0, 0,					/* lock */
     31,						/* gate */
+    0, 0,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_SCALE_CHANGE);	/* flags */
 NKMP_CLK(pll_c1cpux_clk,
     CLK_PLL_C1CPUX,				/* id */
@@ -222,8 +222,8 @@ NKMP_CLK(pll_c1cpux_clk,
     0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
     0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor */
     0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
-    0, 0,					/* lock */
     31,						/* gate */
+    0, 0,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_SCALE_CHANGE);	/* flags */
 
 static const char *pll_audio_parents[] = {"osc24M"};
