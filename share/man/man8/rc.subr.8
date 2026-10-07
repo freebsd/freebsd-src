@@ -827,6 +827,20 @@ This is a generic version of
 .Va ${name}_fib ,
 or
 .Va ${name}_nice .
+.It Va ${name}_pre_start
+Optional command to be run during
+.Cm start
+after
+.Ar argument Ns Va _setup .
+prior to the respective
+.Ar argument Ns Va _precmd .
+If the command fails for any reason it will output a error
+and execution will stop.
+.It Va ${name}_post_stop
+Optional command to be run during
+.Cm stop
+after
+.Ar argument Ns Va _postcmd .
 .It Va ${name}_setup
 Optional command to be run during
 .Cm start ,
