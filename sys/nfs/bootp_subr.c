@@ -1595,6 +1595,7 @@ bootpc_init(void)
 	NET_EPOCH_EXIT(et);
 	if (ifcnt == 0) {
 		printf("WARNING: BOOTP found no eligible network interfaces, skipping!\n");
+		CURVNET_RESTORE();
 		goto out;
 	}
 
@@ -1639,7 +1640,6 @@ retry:
 	}
 	if_iter_finish(&iter);
 	NET_EPOCH_EXIT(et);
-	CURVNET_RESTORE();
 
 	if (STAILQ_EMPTY(&gctx->interfaces) ||
 	    STAILQ_FIRST(&gctx->interfaces)->ifp == NULL) {
@@ -1657,6 +1657,7 @@ retry:
 #endif
 	}
 
+	CURVNET_RESTORE();
 	error = socreate(AF_INET, &bootp_so, SOCK_DGRAM, 0, td->td_ucred, td);
 	if (error != 0)
 		panic("%s: socreate, error=%d", __func__, error);
