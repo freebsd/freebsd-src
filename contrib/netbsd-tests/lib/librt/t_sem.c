@@ -287,7 +287,11 @@ ATF_TC_BODY(timedwait, tc)
 	    "%s", strerror(errno));
 	ATF_REQUIRE_MSG(clock_gettime(CLOCK_REALTIME, &ts) == 0,
 	    "%s", strerror(errno));
-        timespec_add_ms(&ts, 100);
+	/*
+	 * Only EINTR matters here, not the deadline: keep it far enough
+	 * from the 50ms timer that a loaded host cannot hit ETIMEDOUT.
+	 */
+	ts.tv_sec += 10;
 	ATF_REQUIRE_ERRNO(EINTR, sem_timedwait(&sem, &ts));
 	ATF_REQUIRE_MSG(got_sigalrm, "did not get SIGALRM");
 }
@@ -365,7 +369,11 @@ ATF_TC_BODY(clockwait_absolute_intr_remaining, tc)
 	    "%s", strerror(errno));
 	ATF_REQUIRE_MSG(clock_gettime(CLOCK_MONOTONIC, &ts) == 0,
 	    "%s", strerror(errno));
-        timespec_add_ms(&ts, 100);
+	/*
+	 * Only EINTR matters here, not the deadline: keep it far enough
+	 * from the 50ms timer that a loaded host cannot hit ETIMEDOUT.
+	 */
+	ts.tv_sec += 10;
 	ATF_REQUIRE_EQ(-1, sem_clockwait_np(&sem, CLOCK_MONOTONIC,
 	    TIMER_ABSTIME, &ts, &remain));
 	ATF_REQUIRE_ERRNO(EINTR, 1);
