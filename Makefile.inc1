@@ -2457,6 +2457,7 @@ real-sign-packages:	_pkgbootstrap .PHONY
 	printf "version = 2;\n" > ${WSTAGEDIR}/meta
 	@${PKG_CMD} -o ABI=${PKG_ABI} -o OSVERSION="${SRCRELDATE}" \
 		-o WORKERS_COUNT=${PKG_WORKERS_COUNT} repo \
+		-l \
 		-m ${WSTAGEDIR}/meta \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
