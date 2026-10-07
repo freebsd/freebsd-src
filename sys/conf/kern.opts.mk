@@ -58,6 +58,7 @@ __DEFAULT_NO_OPTIONS = \
     RATELIMIT \
     REPRODUCIBLE_BUILD \
     REPRODUCIBLE_PATHS \
+    RUST_KERNEL \
     VERIEXEC
 
 # Some options are totally broken on some architectures. We disable them. If you
