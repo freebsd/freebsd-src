@@ -57,7 +57,7 @@ struct lkpi_fw_task {
 
 static int
 _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware **fw,
-    struct device *dev, gfp_t gfp __unused, bool enoentok, bool warn)
+    struct device *dev, gfp_t gfp __unused, bool warn)
 {
 	const struct firmware *fbdfw;
 	struct linuxkpi_firmware *lfw;
@@ -124,12 +124,8 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 		}
 	}
 	if (fbdfw == NULL) {
-		if (enoentok)
-			*fw = lfw;
-		else {
-			free(lfw, M_LKPI_FW);
-			*fw = NULL;
-		}
+		linuxkpi_release_firmware(lfw);
+		*fw = NULL;
 		if (warn)
 			device_printf(dev->bsddev,
 			    "could not load firmware image '%s'\n",
@@ -159,8 +155,8 @@ lkpi_fw_task(void *ctx, int pending)
 	if (lfwt->cont == NULL)
 		goto out;
 
-	_linuxkpi_request_firmware(lfwt->fw_name, &fw, lfwt->dev,
-	    lfwt->gfp, true, true);
+	_linuxkpi_request_firmware(lfwt->fw_name, &fw, lfwt->dev, lfwt->gfp,
+	    true);
 
 	/*
 	 * Linux seems to run the callback if it cannot find the firmware.
@@ -200,8 +196,7 @@ linuxkpi_request_firmware(const struct linuxkpi_firmware **fw,
     const char *fw_name, struct device *dev)
 {
 
-	return (_linuxkpi_request_firmware(fw_name, fw, dev, GFP_KERNEL, false,
-	    true));
+	return (_linuxkpi_request_firmware(fw_name, fw, dev, GFP_KERNEL, true));
 }
 
 int
@@ -209,7 +204,7 @@ linuxkpi_firmware_request_nowarn(const struct linuxkpi_firmware **fw,
     const char *fw_name, struct device *dev)
 {
 
-	return (_linuxkpi_request_firmware(fw_name, fw, dev, GFP_KERNEL, false,
+	return (_linuxkpi_request_firmware(fw_name, fw, dev, GFP_KERNEL,
 	    false));
 }
 
