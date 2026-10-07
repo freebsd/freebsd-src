@@ -53,6 +53,8 @@
 static char *xhci_ids[] = {
 	"PNP0D10",
 	"PNP0D15",
+	"QCOM068B",
+	"QCOM068C",
 	NULL,
 };
 
