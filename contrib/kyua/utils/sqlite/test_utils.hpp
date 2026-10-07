@@ -97,7 +97,7 @@ static const char* create_test_table_sql =
     "INSERT INTO test (prime) VALUES (3);\n";
 
 
-static void create_test_table(::sqlite3*) UTILS_UNUSED;
+[[maybe_unused]] void create_test_table(::sqlite3*);
 
 
 /// Creates a 'test' table in a database.
@@ -118,7 +118,7 @@ create_test_table(::sqlite3* db)
 }
 
 
-static void verify_test_table(::sqlite3*) UTILS_UNUSED;
+[[maybe_unused]] void verify_test_table(::sqlite3*);
 
 
 /// Verifies that the specified database contains the 'test' table.

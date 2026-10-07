@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua config"
-.Nd Inspects the values of the loaded configuration
+.Nd inspect the values of the loaded configuration
 .Sh SYNOPSIS
 .Nm
 .Op Ar variable1 .. variableN

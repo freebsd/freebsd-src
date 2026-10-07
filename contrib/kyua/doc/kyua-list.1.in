@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua list"
-.Nd Lists test cases and their metadata
+.Nd list test cases and their metadata
 .Sh SYNOPSIS
 .Nm
 .Op Fl -build-root Ar path

@@ -1,4 +1,4 @@
-// Copyright 2010 The Kyua Authors.
+// Copyright 2024 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,46 +26,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <cstdlib>
-#include <string>
+/// \file engine/atf_list.hpp
+/// Parser of googletest test case lists.
 
-#include <atf-c++.hpp>
+#if !defined(ENGINE_GOOGLETEST_LIST_HPP)
+#define ENGINE_GOOGLETEST_LIST_HPP
 
+#include <istream>
 
-ATF_TEST_CASE_WITHOUT_HEAD(fails);
-ATF_TEST_CASE_BODY(fails)
-{
-    fail("Failed on purpose");
-}
+#include "model/metadata_fwd.hpp"
+#include "model/test_case_fwd.hpp"
+#include "model/types.hpp"
+#include "utils/fs/path_fwd.hpp"
 
-
-ATF_TEST_CASE_WITHOUT_HEAD(passes);
-ATF_TEST_CASE_BODY(passes)
-{
-}
+namespace engine {
 
 
-ATF_TEST_CASE_WITHOUT_HEAD(skips);
-ATF_TEST_CASE_BODY(skips)
-{
-    skip("Skipped on purpose");
-}
+model::test_cases_map parse_googletest_list(std::istream&);
 
 
-ATF_INIT_TEST_CASES(tcs)
-{
-    std::string enabled;
+}  // namespace engine
 
-    const char* tests = std::getenv("TESTS");
-    if (tests == NULL)
-        enabled = "fails passes skips";
-    else
-        enabled = tests;
-
-    if (enabled.find("fails") != std::string::npos)
-        ATF_ADD_TEST_CASE(tcs, fails);
-    if (enabled.find("passes") != std::string::npos)
-        ATF_ADD_TEST_CASE(tcs, passes);
-    if (enabled.find("skips") != std::string::npos)
-        ATF_ADD_TEST_CASE(tcs, skips);
-}
+#endif  // !defined(ENGINE_GOOGLETEST_LIST_HPP)

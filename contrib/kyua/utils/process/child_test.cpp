@@ -255,7 +255,7 @@ open_fail(const char* path, const int flags, ...) throw()
 ///
 /// \return Always -1.
 template< int Errno >
-static pid_t
+static int
 pipe_fail(int* /* fildes */) throw()
 {
     errno = Errno;

@@ -137,7 +137,7 @@ ATF_TEST_CASE_BODY(commit__fail)
         backend.database().exec(
             "CREATE TABLE foo ("
             "a REFERENCES env_vars(var_name) DEFERRABLE INITIALLY DEFERRED)");
-        backend.database().exec("INSERT INTO foo VALUES (\"WHAT\")");
+        backend.database().exec("INSERT INTO foo VALUES ('WHAT')");
         ATF_REQUIRE_THROW(store::error, tx.commit());
     }
     // If the code attempts to maintain any state regarding the already-put

@@ -106,19 +106,22 @@ utils_cp_helper() {
 # Kyua with the deterministic strings.  This is to be used by tests that
 # validate the 'test' and 'report' subcommands.
 utils_install_times_wrapper() {
-    [ ! -x kyua ] || return
-    cat >kyua <<EOF
+    local DUMMY_KYUA_BINDIR=$(pwd)
+    local DUMMY_KYUA_BIN="$DUMMY_KYUA_BINDIR/kyua"
+
+    [ ! -x "$DUMMY_KYUA_BIN" ] || return
+
+    local ORIG_KYUA_BIN=$(which kyua)
+    cat >"$DUMMY_KYUA_BIN" <<EOF
 #! /bin/sh
 
-PATH=${PATH}
-
-kyua "\${@}" >kyua.tmpout
+$ORIG_KYUA_BIN "\${@}" >kyua.tmpout
 result=\${?}
 cat kyua.tmpout | ${utils_strip_times}
 exit \${result}
 EOF
-    chmod +x kyua
-    PATH="$(pwd):${PATH}"
+    chmod +x "$DUMMY_KYUA_BIN"
+    export PATH="$DUMMY_KYUA_BINDIR:${PATH}"
 }
 
 
@@ -130,13 +133,16 @@ EOF
 # execution so that the output can be verified.  For these reasons, this is to
 # be used exclusively by tests that validate the 'test' subcommand.
 utils_install_stable_test_wrapper() {
-    [ ! -x kyua ] || return
-    cat >kyua <<EOF
+    local DUMMY_KYUA_BINDIR=$(pwd)
+    local DUMMY_KYUA_BIN="$DUMMY_KYUA_BINDIR/kyua"
+
+    [ ! -x "$DUMMY_KYUA_BIN" ] || return
+
+    local ORIG_KYUA_BIN=$(which kyua)
+    cat >"$DUMMY_KYUA_BIN" <<EOF
 #! /bin/sh
 
-PATH=${PATH}
-
-kyua "\${@}" >kyua.tmpout
+$ORIG_KYUA_BIN "\${@}" >kyua.tmpout
 result=\${?}
 cat kyua.tmpout | ${utils_strip_times} >kyua.tmpout2
 
@@ -147,8 +153,8 @@ cat kyua.tmpout3 kyua.tmpout4
 
 exit \${result}
 EOF
-    chmod +x kyua
-    PATH="$(pwd):${PATH}"
+    chmod +x "$DUMMY_KYUA_BIN"
+    export PATH="$DUMMY_KYUA_BINDIR:${PATH}"
 }
 
 

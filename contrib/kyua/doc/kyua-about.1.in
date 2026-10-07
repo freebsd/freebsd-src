@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua about"
-.Nd Shows detailed authors, license, and version information
+.Nd show detailed authors, license, and version information
 .Sh SYNOPSIS
 .Nm
 .Op Ar authors | license | version

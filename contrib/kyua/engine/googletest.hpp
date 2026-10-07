@@ -26,38 +26,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/// \file engine/execenv/execenv_host.hpp
-/// Default execution environment.
+/// \file engine/googletest.hpp
+/// Execution engine for test programs that implement the googletest interface.
 
-#if !defined(ENGINE_EXECENV_EXECENV_HOST_HPP)
-#define ENGINE_EXECENV_EXECENV_HOST_HPP
+#if !defined(ENGINE_GOOGLETEST_HPP)
+#define ENGINE_GOOGLETEST_HPP
 
-#include "engine/execenv/execenv.hpp"
-
-#include "utils/process/operations_fwd.hpp"
-
-namespace execenv = engine::execenv;
-
-using utils::process::args_vector;
+#include "engine/scheduler.hpp"
 
 namespace engine {
-namespace execenv {
 
 
-class execenv_host : public execenv::interface {
+/// Implementation of the scheduler interface for googletest test programs.
+class googletest_interface : public engine::scheduler::interface {
 public:
-    execenv_host(const model::test_program& test_program,
-                 const std::string& test_case_name) :
-        execenv::interface(test_program, test_case_name)
-    {}
+    void exec_list [[noreturn]] (
+    const model::test_program&,
+        const utils::config::properties_map&) const;
 
-    void init() const;
-    void cleanup() const;
-    void exec [[noreturn]] (const args_vector& args) const;
+    model::test_cases_map parse_list(
+        const utils::optional< utils::process::status >&,
+        const utils::fs::path&,
+        const utils::fs::path&) const;
+
+    void exec_test [[noreturn]] (
+        const model::test_program&, const std::string&,
+        const utils::config::properties_map&,
+        const utils::fs::path&) const;
+
+    model::test_result compute_result(
+        const utils::optional< utils::process::status >&,
+        const utils::fs::path&,
+        const utils::fs::path&,
+        const utils::fs::path&) const;
 };
 
 
-}  // namespace execenv
 }  // namespace engine
 
-#endif  // !defined(ENGINE_EXECENV_EXECENV_HOST_HPP)
+
+#endif  // !defined(ENGINE_GOOGLETEST_HPP)

@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua help"
-.Nd Shows usage information
+.Nd show usage information
 .Sh SYNOPSIS
 .Nm
 .Op Ar command

@@ -32,6 +32,7 @@ extern "C" {
 #include <sys/types.h>
 
 #include <dirent.h>
+#include <limits.h>
 }
 
 #include <cerrno>
@@ -128,9 +129,6 @@ struct utils::fs::detail::directory_iterator::impl : utils::noncopyable {
     ::DIR* _dirp;
 
     /// Custom representation of the directory entry.
-    ///
-    /// We must keep this as a pointer so that we can support the common
-    /// operators (* and ->) over iterators.
     std::unique_ptr< directory_entry > _entry;
 
     /// Constructs an iterator pointing to the "end" of the directory.
@@ -191,12 +189,9 @@ struct utils::fs::detail::directory_iterator::impl : utils::noncopyable {
     {
         ::dirent* result;
 
-        errno = 0;
-        if ((result = ::readdir(_dirp)) == NULL && errno != 0) {
-            const int original_errno = errno;
-            throw fs::system_error(F("readdir(%s) failed") % _path,
-                                   original_errno);
-        }
+        // TODO(ngie): use `std::filesystem::directory_iterator` once the
+        // minimum C++ standard is C++20.
+        result = ::readdir(_dirp);
         if (result == NULL) {
             _entry.reset();
             close();

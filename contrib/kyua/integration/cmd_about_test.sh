@@ -119,7 +119,7 @@ topic__version_body() {
     local lines="$(wc -l stdout | awk '{ print $1 }')"
     [ "${lines}" -eq 1 ] || atf_fail "Version query returned more than one line"
 
-    grep -E '^kyua (.*) [0-9]+\.[0-9]+$' stdout || \
+    grep -E '^kyua (.*) [0-9]+\.[0-9]+(\.[0-9]+)?$' stdout || \
         atf_fail "Invalid version message"
 }
 

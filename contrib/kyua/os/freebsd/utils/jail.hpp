@@ -51,9 +51,10 @@ public:
                           const std::string& test_case_name);
     void create(const std::string& jail_name,
                 const std::string& jail_params);
-    void exec(const std::string& jail_name,
-              const fs::path& program,
-              const args_vector& args) throw() UTILS_NORETURN;
+    void exec [[noreturn]] (
+        const std::string& jail_name,
+        const fs::path& program,
+        const args_vector& args) throw();
     void remove(const std::string& jail_name);
 };
 

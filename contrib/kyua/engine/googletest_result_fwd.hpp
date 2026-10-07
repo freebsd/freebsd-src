@@ -26,38 +26,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/// \file engine/execenv/execenv_host.hpp
-/// Default execution environment.
+/// \file engine/googletest_result_fwd.hpp
+/// Forward declarations for engine/googletest_result.hpp
 
-#if !defined(ENGINE_EXECENV_EXECENV_HOST_HPP)
-#define ENGINE_EXECENV_EXECENV_HOST_HPP
-
-#include "engine/execenv/execenv.hpp"
-
-#include "utils/process/operations_fwd.hpp"
-
-namespace execenv = engine::execenv;
-
-using utils::process::args_vector;
+#if !defined(ENGINE_GOOGLETEST_RESULT_FWD_HPP)
+#define ENGINE_GOOGLETEST_RESULT_FWD_HPP
 
 namespace engine {
-namespace execenv {
 
 
-class execenv_host : public execenv::interface {
-public:
-    execenv_host(const model::test_program& test_program,
-                 const std::string& test_case_name) :
-        execenv::interface(test_program, test_case_name)
-    {}
-
-    void init() const;
-    void cleanup() const;
-    void exec [[noreturn]] (const args_vector& args) const;
-};
+class googletest_result;
 
 
-}  // namespace execenv
 }  // namespace engine
 
-#endif  // !defined(ENGINE_EXECENV_EXECENV_HOST_HPP)
+#endif  // !defined(ENGINE_GOOGLETEST_RESULT_FWD_HPP)

@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm kyua.conf
-.Nd Configuration file for the kyua tool
+.Nd configuration file for the kyua tool
 .Sh SYNOPSIS
 .Fn syntax "int version"
 .Pp

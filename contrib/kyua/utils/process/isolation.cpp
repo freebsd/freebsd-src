@@ -67,7 +67,7 @@ const int process::exit_isolation_failure = 124;
 namespace {
 
 
-static void fail(const std::string&, const int) UTILS_NORETURN;
+static void fail [[noreturn]] (const std::string&, const int);
 
 
 /// Fails the process with an errno-based error message.

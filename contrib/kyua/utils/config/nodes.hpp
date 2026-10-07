@@ -181,6 +181,8 @@ public:
 /// A leaf node that holds a positive non-zero integer value.
 class positive_int_node : public int_node {
     virtual void validate(const value_type&) const;
+public:
+    virtual base_node* deep_copy(void) const;
 };
 
 

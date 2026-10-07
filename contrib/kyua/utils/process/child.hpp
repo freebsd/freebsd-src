@@ -64,8 +64,8 @@ namespace process {
 
 namespace detail {
 
-void report_error_and_abort(void) UTILS_NORETURN;
-void report_error_and_abort(const std::runtime_error&) UTILS_NORETURN;
+void report_error_and_abort [[noreturn]] (void);
+void report_error_and_abort [[noreturn]] (const std::runtime_error&);
 
 
 }  // namespace detail

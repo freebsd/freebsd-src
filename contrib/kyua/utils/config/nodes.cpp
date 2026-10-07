@@ -153,7 +153,7 @@ config::detail::inner_node::combine_into(const tree_key& key,
     } catch (const std::bad_cast& unused_e) {
         throw config::bad_combination_error(
             key, "'%s' is an inner node in the base tree but a leaf node in "
-            "the overrides treee");
+            "the overrides tree");
     }
 }
 
@@ -227,8 +227,10 @@ config::detail::inner_node::lookup_rw(const tree_key& key,
     if (child_iter == _children.end()) {
         if (_dynamic) {
             base_node* const child = (key_pos == key.size() - 1) ?
-                static_cast< base_node* >(new_node()) :
-                static_cast< base_node* >(new dynamic_inner_node());
+                dynamic_cast< base_node* >(new_node()) :
+                dynamic_cast< base_node* >(new dynamic_inner_node());
+	    // The types for `new_node`
+            INV_MSG(child != nullptr, "check the return type for the function called");
             _children.insert(children_map::value_type(key[key_pos], child));
             child_iter = _children.find(key[key_pos]);
         } else {
@@ -523,6 +525,18 @@ config::positive_int_node::validate(const value_type& new_value) const
 {
     if (new_value <= 0)
         throw value_error("Must be a positive integer");
+}
+
+
+/// Copies the node.
+///
+/// \return A dynamically-allocated node.
+config::detail::base_node*
+config::positive_int_node::deep_copy(void) const
+{
+    std::unique_ptr< positive_int_node > new_node(new positive_int_node());
+    new_node->_value = _value;
+    return new_node.release();
 }
 
 
