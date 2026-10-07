@@ -694,13 +694,17 @@ gve_free_rings(struct gve_priv *priv)
 {
 	gve_free_irqs(priv);
 
-	gve_free_tx_rings(priv, 0, priv->tx_cfg.num_queues);
-	free(priv->tx, M_GVE);
-	priv->tx = NULL;
+	if (priv->tx != NULL) {
+		gve_free_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		free(priv->tx, M_GVE);
+		priv->tx = NULL;
+	}
 
-	gve_free_rx_rings(priv, 0, priv->rx_cfg.num_queues);
-	free(priv->rx, M_GVE);
-	priv->rx = NULL;
+	if (priv->rx != NULL) {
+		gve_free_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		free(priv->rx, M_GVE);
+		priv->rx = NULL;
+	}
 }
 
 static int

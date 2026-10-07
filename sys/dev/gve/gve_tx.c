@@ -207,6 +207,9 @@ gve_free_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
 	int i;
 
+	if (priv->tx == NULL)
+		return;
+
 	for (i = start_idx; i < stop_idx; i++)
 		gve_tx_free_ring(priv, i);
 }
