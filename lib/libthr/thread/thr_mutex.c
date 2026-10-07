@@ -865,7 +865,7 @@ mutex_self_trylock(struct pthread_mutex *m)
 
 	case PTHREAD_MUTEX_RECURSIVE:
 		/* Increment the lock count: */
-		if (m->m_count + 1 > 0) {
+		if (m->m_count < INT_MAX) {
 			m->m_count++;
 			ret = 0;
 		} else
@@ -934,7 +934,7 @@ mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
 
 	case PTHREAD_MUTEX_RECURSIVE:
 		/* Increment the lock count: */
-		if (m->m_count + 1 > 0) {
+		if (m->m_count < INT_MAX) {
 			m->m_count++;
 			ret = 0;
 		} else
