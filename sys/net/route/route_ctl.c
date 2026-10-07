@@ -818,8 +818,13 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 	    nhop_can_multipath(rnd_add->rnd_nhop) &&
 	    nhop_can_multipath(rnd_orig.rnd_nhop)) {
 
+		/*
+		 * @rt_orig may be freed once unlocked. Pass @rt if any: it
+		 * is what gets inserted if the prefix vanishes.
+		 */
 		for (int i = 0; i < RIB_MAX_RETRIES; i++) {
-			error = add_route_flags_mpath(rnh, rt_orig, rnd_add, &rnd_orig,
+			error = add_route_flags_mpath(rnh,
+			    rt != NULL ? rt : rt_orig, rnd_add, &rnd_orig,
 			    op_flags, rc);
 			if (error != EAGAIN)
 				break;
@@ -855,6 +860,10 @@ add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
 	struct route_nhop_data rnd_new;
 	int error = 0;
 
+	/* Prefix vanished: nothing to append to, @rt may be deleted. */
+	if (rnd_orig->rnd_nhop == NULL && !(op_flags & RTM_F_CREATE))
+		return (ENOENT);
+
 	if (!NH_IS_NHGRP(rnd_add->rnd_nhop))
 		error = nhgrp_get_addition_group(rnh, rnd_orig, rnd_add, &rnd_new);
 	else
@@ -869,7 +878,8 @@ add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
 			RIB_RLOCK(rnh);
 			lookup_prefix_rt(rnh, rt, rnd_orig);
 			RIB_RUNLOCK(rnh);
-			if (rnd_orig == NULL && !(op_flags & RTM_F_CREATE)) {
+			if (rnd_orig->rnd_nhop == NULL &&
+			    !(op_flags & RTM_F_CREATE)) {
 				/* In this iteration route doesn't exist */
 				error = ENOENT;
 			}
