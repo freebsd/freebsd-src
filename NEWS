@@ -2,11 +2,52 @@
 
 ## Changes in version 0.15.0
 
-**Released on 2026/XX/YY.**
+**Released on 2026/10/07.**
 
-* Issue #203: add initial GoogleTest support.
+### Bugfixes
 
-**Full Changelog**: https://github.com/freebsd/lutok/compare/lutok-0.14.1...kyua-0.15.0
+* #265: Null cleanups
+* #271: kyua: Try harder to delete directories.
+* #300: Implement utils::config::positive_int_node::deep_copy
+
+### Developer Workflow Changes
+
+* #254: Add initial GitHub Actions support for kyua
+* #288: [CI] remove legacy CI scripts and files
+* #291: Remove Travis CI config
+* #298: Add sanitizers and code coverage support
+* #301: Add FreeBSD CI support via vmactions
+* #305: Automate uploading release assets
+
+### Feature Enhancements
+
+* #203: Add GoogleTest support
+* #230: Do not count skipped as passed in test cmd
+* #260: Support require.diskspace ATF metadata
+* #261: Pass unprivileged user config prop to ATF using all known names
+* #266: Add "kyua debug -p" option
+* #270: Add required_kmods metadata
+* #272: Make "test" command actually report about workdir cleanup issues
+* #273: Make "debug -p" skip writing stdout/stderr to tmp files
+* #277: kyua-debug: Add -P option
+* #290: Require C++-20 in order to build kyua
+* #307: Upstream multiple items from FreeBSD
+
+### Documentation
+
+* #258: kyuafile.5: Add ATF metadata mapping reference
+* #275: kyua manuals: Correct --results-file short form
+* #279: docs: Standardize document description tone
+
+### Miscellaneous
+
+* #264: Switch from std::auto_ptr<> to std::unique_ptr<>
+* #269: Fix cmd_about_test:topic__version test case
+* #297: Reduce overall lutok dependency
+* #312: Replace KYUA_ATTRIBUTE_{NORETURN,UNUSED}} with C++ attributes
+* #318: utils::fs: remove umount(8) support
+
+**Full Changelog**: https://github.com/freebsd/lutok/compare/kyua-0.14.1...kyua-0.15.0
 
 ## Changes in version 0.14.1
 
