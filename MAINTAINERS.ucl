@@ -1,0 +1,477 @@
+/*
+
+List of maintainers and watch paths.
+
+Each maintainer is represented by their FreeBSD.org username, used as a key in the "people" object.
+This may also be a team of maintainers, in which case the name should be prefixed with "#", i.e. "#bhyve".
+Each value in "people" is an object that may contain the user's GitHub username (key "github"),
+and Forgejo/Codeberg username (key "forgejo"), and possibly other information (all optional).
+
+Each group is a key-value pair in the "groups" object.
+Every group contains:
+- key "members": a single member, or a list of members (FreeBSD.org usernames, or team names)
+- key "watch": a single path, or a list of paths to watch
+- key "except": a single path, a list of paths to ignore (optional)
+Paths to directories must end with trailing separators.
+
+The functionality to ignore paths does not work with Forgejo's CODEOWNERS currently.
+
+After editing this file, run
+
+	./tools/lua/MAINTAINERS.lua update <platform> > path/to/CODEOWNERS
+
+for GitHub and/or Forgejo.
+
+*/
+
+version: 0
+
+groups {
+	"aio(4)" {
+		"members": "asomers",
+		"watch": [ ],
+	},
+
+	"allwinner" {
+		"members": "manu",
+		"watch": "sys/arm/allwinner/",
+	},
+
+	"bhyve" {
+		"members": "#bhyve",
+		"watch": [
+			"lib/libvmmapi/",
+			"sys/*/vmm/",
+			"sys/*/include/vmm*",
+			"tests/sys/vmm/",
+			"usr.sbin/bhyve*",
+		],
+	},
+
+	"bsdconfig" {
+		"members": "dteske",
+		"watch": [
+			"usr.sbin/bsdconfig/",
+			"usr.sbin/sysrc/",
+		],
+	},
+
+	"buildtools" {
+		"members": [
+			"imp",
+			"jrtc27",
+		],
+		"watch": "tools/build/",
+	},
+
+	"builtins1" {
+		"members": "jilles",
+		"watch": [
+			"bin/sh/",
+			"bin/kill/",
+			"usr.bin/printf/",
+			"bin/test/",
+		],
+	}
+
+	"capsicum" {
+		"members": "#capsicum",
+		"watch": "tests/sys/capsicum/",
+	},
+
+	"dpv" {
+		"members": "dteske",
+		"watch": [
+			"lib/libdpv/",
+			"usr.sbin/dpv/",
+		],
+	},
+
+	"secteam" {
+		"members": "#secteam",
+		"watch": [
+			"bin/kenv/",
+			"contrib/llvm-project/libcxx/include/cfenv",
+			"libexec/flua/libfreebsd/kenv",
+			"usr.bin/env/",
+			"usr.bin/printenv/",
+		],
+	},
+
+	"fetch" {
+		"members": "des",
+		"watch": [
+			"lib/libfetch/",
+			"usr.bin/fetc/",
+		],
+	},
+
+	"fusefs" {
+		"members": "asomers",
+		"watch": [
+			"sbin/mount_fusefs/",
+			"sys/modules/fusefs/",
+			"tests/sys/fs/fusefs/",
+		],
+	},
+
+	"geli" {
+		"members": "pjd",
+		"watch": [
+			"libexec/rc/rc.d/geli*"
+			"lib/geom/eli/"
+			"sys/geom/eli/",
+		],
+	},
+
+	"ice" {
+		"members": "erj",
+		"watch": "sys/contrib/dev/ice/",
+	},
+
+	"ip_carp" {
+		"members": "glebius",
+		"watch": "sys/netinet/ip_carp.c",
+	},
+
+	"ipf" {
+		"members": "cy",
+		"watch": [
+			"sys/netpfil/ipfilter/",
+			"sbin/ipf/",
+		],
+	},
+
+	"intel_networking" {
+		"members": "#intel_networking",			
+		"watch": [
+			"sys/dev/e1000/",
+			"sys/dev/ixgbe/",
+			"sys/dev/ixl/",
+			"sys/dev/ice/",
+		],
+	},
+
+	"libcxxrt" {
+		"members": [
+			"dim",
+			"emaste",
+		],
+		"watch": "contrib/libcxxrt/",
+	},
+
+	"libfigpar" {
+		"members": "dteske",
+		"watch": "lib/libfigpar/",,
+	},
+
+	"libm" {
+		"members": "#numerics",
+		"watch": "lib/msun/",
+	},
+
+	"libpam" {
+		"members": "des",
+		"watch": [
+			"lib/libpam/",
+			"contrib/openpam/lib/libpam/",
+		],
+	},
+
+	"libunwind" {
+		"members": [
+			"dim",
+			"emaste",
+			"jhb",
+		],
+		"watch": "contrib/llvm-project/libunwind/",
+	},
+
+	"linuxkpi" {
+		"members": [
+			"bz",
+			"dumbbell",
+			"emaste",
+			"manu",
+			"minsoochoo0122_proton.me",
+			"rcocker87_gmail.com"
+			"wulf",
+			"zeising",
+		],
+		"watch": "sys/compat/linuxkpi/",
+	},
+
+	"lldb" {
+		"members": [
+			"dim",
+			"emaste",
+		],
+		"watch": "contrib/llvm-project/lldb/",
+	},
+
+	"llvm" {
+		"members": "dim",
+		"watch": [
+			"contrib/llvm-project/compiler-rt/",
+			"contrib/llvm-project/libcxx/",
+			"contrib/llvm-project/llvm/",
+		],
+	},
+
+	"lpr" {
+		"members": "gad",
+		"watch": "usr.sbin/lpr/",
+	},
+
+	"mail" {
+		"members": "gshapiro",
+		"watch": [
+			"contrib/sendmail/",
+			"etc/mail/",
+			"etc/sendmail/",
+			"libexec/rc/rc.d/sendmail",
+			"share/sendmail/",
+		],
+	},
+
+	"man" {
+		"members": "ziaee",
+		"watch": [
+			"share/man/",
+			"contrib/mandoc/",
+		]
+	},
+
+	"mk" {
+		"members": [
+			"bapt",
+			"bdrewery",
+			"emaste",
+			"imp",
+			"sjg",
+		],
+		"watch": "share/mk/",
+	},
+
+	"nanobsd" {
+		"members": [
+			"imp",
+			"jlduran",
+		],
+		"watch": "tools/tools/nanobsd",
+	},
+
+	"nfs" {
+		# as far as I know, this does not have a phabricator group
+		"members": "freebsd-fs",
+		"watch": [
+			"sys/fs/nfs/",
+			"sys/nfs/",
+		],
+	},
+
+	"nvme" {
+		"members": "imp",
+		"watch": [
+			"sbin/nvmecontrol",
+			"sys/dev/mpi3mr",
+			"sys/dev/mpr/",
+			"sys/dev/mps/",
+			"sys/dev/nvd/",
+			"sys/dev/nvme/",
+			"sys/cam/nvme/",
+			"sys/modules/mpi3mr/",
+			"sys/modules/mpr/",
+			"sys/modules/mps/",
+			"sys/modules/nvd/",
+			"sys/modules/nvme/",
+		],
+	},
+
+	"opencrypto" {
+		"members": "jhb",
+		"watch": [
+			"sys/opencrypto/",
+			"tests/sys/opencrypto/",
+		],
+	},
+
+	"openmp" {
+		"members: [
+			"dim",
+			"emaste",
+		],
+		"watch": "contrib/llvm/openmp/",
+	},
+
+	"openssh" {
+		"members": "emaste",
+		"watch": "crypto/openssh",
+	},
+
+	"openssl" {
+		"members": "benl",
+		"watch": [
+			"crypto/openssl/",
+			"secure/usr.bin/openssl/",
+			"sys/crypto/openssl/",
+		],
+	},
+
+	"pci" {
+		"members": "imp", "jhb",
+		"watch": "sys/dev/pci/",
+	},
+
+	"pf" {
+		"members": [
+			"kp",
+			"glebius",
+		],
+		"watch": "sys/netpfil/pf/",
+	},
+
+	"pjdfstest" {
+		"members": [
+			"asomers",
+			"ngie",
+			"pjd",
+		],
+		"watch": "contrib/pjdfstest/",
+	},
+
+	"pkg" {
+		"members": "#pkg",
+		"watch": "usr.sbin/pkg/",
+	},
+
+	"pmcstudy" {
+		"members": "rrs",
+		"watch": "usr.sbin/pmcstudy/",
+	},
+
+	"pseudofs" {
+		"members": "des",
+		"watch: [
+			"sys/compat/linprocfs/",
+			"sys/fs/procfs/",
+			"sys/fs/pseudofs/",
+			"sys/modules/linprocfs/",
+			"sys/modules/procfs/",
+			"sys/modules/pseudofs/",
+			"sys/sys/procfs.h",
+		],
+	},
+
+	"csprng" {
+		"members": "#csprng",
+		"watch": [
+			"sys/dev/random/",
+			"sys/sys/random.h",
+		],
+	},
+
+	"releng" {
+		"members": "#releng",
+		"watch": "release/release.sh",
+	},
+
+	"rockchip" {
+		"members": "manu",
+		"watch": "sys/arm64/rockchip/",
+	},
+
+	"sctp" {
+		"members": [
+			"rrs",
+			"tuexen",
+		],
+		"watch": "sys/modules/sctp/",
+	},
+
+	"stand" {
+		"members": "imp",
+		"watch": "stand/",
+	},
+
+	"stand/forth" {
+		"members": "dteske",
+		"watch": "stand/forth/",
+	},
+
+	"stand/lua" {
+		"members": "kevans",
+		"watch": "stand/lua/",
+	},
+
+	"test" {
+		"members": "#test",
+		"watch": [
+			"contrib/atf/",
+			"contrib/googletest/",
+			"contrib/netbsd-tests/",
+			"contrib/pjdfstest/",
+			"share/mk/*.test.mk",
+			"tests/",
+		],
+	},
+
+	"top" {
+		"members": "eadler",
+		"watch": "usr.bin/top/",
+	},
+
+	"ufshci" {
+		"members": "jaeyoon",
+		"watch": [ ],
+	},
+
+	"vt" {
+		"members": "emaste",
+		"watch": "sys/dev/vt/",
+	},
+
+	"wireless" {
+		"members": "adrian",
+		"watch": [
+			"share/firmwares/iwm/",
+			"sys/contrib/dev/ath/",
+			"sys/contrib/dev/iwm/",
+			"sys/contrib/dev/iwn/",
+			"sys/contrib/dev/otus/",
+			"sys/dev/ath/",
+			"sys/dev/iwm/",
+			"sys/dev/iwn/",
+			"sys/dev/otus/",
+			"sys/dev/usb/wlan/",
+			"sys/modules/ath/",
+			"sys/modules/iwn/",
+			"sys/modules/iwm/",
+			"sys/modules/otus/",
+			"sys/net80211/",
+			"tools/regression/net80211/",
+			"tools/tools/ath/",
+			"tools/tools/iwn/",
+			"tools/tools/net80211/",
+		],
+	},
+
+	"xen" {
+		"members": "royger",
+		"watch": [
+			"sys/dev/xen/",
+			"sys/x86/xen/",
+			"sys/xen/",
+		],
+	}
+}
+
+people {
+	# You can add your personal info here. For example:
+	#
+	# 	"bob_id" {
+	# 		"github": "@bob-github",
+	# 		"forgejo": "@bob-forgejo",
+	#       "phabricator": "@bob-phabricator",
+	# 	},
+}
