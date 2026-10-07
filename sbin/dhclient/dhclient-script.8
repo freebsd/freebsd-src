@@ -142,11 +142,11 @@ in order to make valid shell variables, and the variable names start with
 So for example, the new subnet mask would be passed in
 .Va $new_subnet_mask .
 .Pp
-As an exception, the captive portal API URI from DHCP option 114
+As an exception, the captive portal API URL from DHCP option 114
 .Pq see Xr dhcp-options 5
 is passed as
 .Va $new_captive_portal_url .
-When such a URI is received, the script also writes it to
+When such a URL is received, the script also writes it to
 .Pa /var/run/captive-portal. Ns Va $interface
 so that it can be discovered by other programs.
 The file is removed when the lease expires or is lost.
