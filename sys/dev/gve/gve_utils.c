@@ -69,8 +69,12 @@ gve_free_counters(counter_u64_t *stat, int num_stats)
 {
 	int i;
 
-	for (i = 0; i < num_stats; i++)
-		counter_u64_free(stat[i]);
+	for (i = 0; i < num_stats; i++) {
+		if (stat[i] != NULL) {
+			counter_u64_free(stat[i]);
+			stat[i] = NULL;
+		}
+	}
 }
 
 /* Currently assumes a single segment. */
