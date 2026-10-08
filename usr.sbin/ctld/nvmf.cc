@@ -371,8 +371,8 @@ nvmf_controller::add_namespace(u_int id, const char *lun_name)
 		return false;
 	}
 
-	std::string lun_label = "namespace ID " + std::to_string(id - 1);
-	return target::add_lun(id, lun_label.c_str(), lun_name);
+	std::string lun_label = "namespace ID " + std::to_string(id);
+	return target::add_lun(id - 1, lun_label.c_str(), lun_name);
 }
 
 bool
