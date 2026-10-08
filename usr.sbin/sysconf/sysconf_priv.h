@@ -37,7 +37,7 @@
 #define __unused	/* not all compilers support attributes */
 #endif
 
-#define SYSCONF_VERSION	"2.0 2026-09-16"
+#define SYSCONF_VERSION	"2.1 2026-09-22"
 
 /* getopt(3) optstring; shared by parse_options() and find_target() */
 #define OPTSTRING	"AacdDEeFf:hij:k:lLnNqR:svVx"
@@ -195,6 +195,11 @@ int		 describe_sysctl(void);
 int		 sysctl_writable(const char *_name, const char *_value,
 		    int _quiet_unknown);
 #endif
+
+/* sysconf-targets.c */
+const char	*resolve_keyword(const char *_token,
+		    const char *const *_keywords, const char *_what);
+const char	*target_resolve(int _argc, char **_argv);
 
 /* sysconf.c */
 void		 usage(void);

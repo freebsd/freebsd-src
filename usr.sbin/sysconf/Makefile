@@ -12,6 +12,7 @@ MAN=		sysconf.8			\
 		sysconf-targets.8
 
 SRCS=		sysconf.c			\
+		sysconf-targets.c		\
 		sysconf_edit_assign.c		\
 		sysconf_edit_make.c		\
 		sysconf_edit_write.c		\

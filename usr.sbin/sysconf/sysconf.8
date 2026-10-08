@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 16, 2026
+.Dd September 22, 2026
 .Dt SYSCONF 8
 .Os
 .Sh NAME
@@ -51,7 +51,8 @@ and
 .Pq Xr rc.conf 5 .
 The first positional argument selects a
 .Ar target
-keyword;
+keyword
+.Pq or a unique prefix of one; see Sx TARGETS ;
 options are equally accepted before it.
 Each target is documented on its own page
 .Pq see Sx TARGETS ;
@@ -265,6 +266,23 @@ requires
 See
 .Xr sysconf-generic 8 .
 .El
+.Pp
+A unique prefix of a target keyword is accepted:
+.Ql sy
+selects
+.Cm sysctl
+and
+.Ql sr
+selects
+.Cm src .
+.Ql s
+matches both and is rejected with a list of matches.
+An exact keyword always wins.
+Prefix matching is case-sensitive and applies to the start of the keyword
+only, so
+.Ql ctl
+does not select
+.Cm sysctl .
 .Pp
 Cross-cutting rules for multi-file sourcing,
 defaults,

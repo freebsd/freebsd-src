@@ -438,6 +438,54 @@ max_bytes_cap_cleanup()
 	cleanup_root
 }
 
+atf_test_case target_prefix cleanup
+target_prefix_head()
+{
+	atf_set "descr" \
+		"Unique target prefixes resolve; ambiguous and unknown fail"
+}
+target_prefix_body()
+{
+	find_sysconf
+	setup_root
+	:> "$ROOT/etc/make.conf"
+	:> "$ROOT/etc/src-env.conf"
+	:> "$ROOT/etc/src.conf"
+	printf 'foo=1\n' > "$ROOT/etc/make.conf"
+
+	# Unique prefixes
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" m -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" ma -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" make -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" sr -R "$ROOT" foo
+	printf 'kern.foo=1\n' > "$ROOT/etc/sysctl.conf"
+	atf_check -o inline:'kern.foo: 1\n' "$SYSCONF" sy -R "$ROOT" kern.foo
+	# generic requires -f
+	atf_check -s not-exit:0 -e match:'no default files' \
+	    "$SYSCONF" g -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' \
+	    "$SYSCONF" g -R "$ROOT" -f /etc/make.conf foo
+
+	# Ambiguous: src and sysctl
+	atf_check -s not-exit:0 \
+	    -e match:'ambiguous target' \
+	    -e match:'src' \
+	    -e match:'sysctl' \
+	    "$SYSCONF" s foo
+	# Exact still wins
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" src -R "$ROOT" foo
+	# Infix is not a prefix
+	atf_check -s not-exit:0 -e match:'unknown target' \
+	    "$SYSCONF" ctl foo
+	# src-env is not a prefix of src
+	atf_check -s not-exit:0 -e match:'src-env' -e match:'src' \
+	    "$SYSCONF" src-env foo
+}
+target_prefix_cleanup()
+{
+	cleanup_root
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case make_src_knobs
@@ -451,4 +499,5 @@ atf_init_test_cases()
 	atf_add_test_case equal_value_nocheck_mtime
 	atf_add_test_case sysctl_oid_range
 	atf_add_test_case max_bytes_cap
+	atf_add_test_case target_prefix
 }
