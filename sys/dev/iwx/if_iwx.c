@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) AND ISC
  */
 
-/*	$OpenBSD: if_iwx.c,v 1.175 2023/07/05 15:07:28 stsp Exp $	*/
+/*	$OpenBSD: if_iwx.c,v 1.184 2024/05/08 14:03:54 stsp Exp $	*/
 
 /*
  *
@@ -911,7 +911,7 @@ iwx_alloc_fw_monitor(struct iwx_softc *sc, uint8_t max_power)
 	}
 
 	if (max_power > 26) {
-		 IWX_DPRINTF(sc, IWX_DEBUG_FIRMWARE_TLV,
+		IWX_DPRINTF(sc, IWX_DEBUG_FIRMWARE_TLV,
 		     "%s: External buffer size for monitor is too big %d, "
 		     "check the FW TLV\n", DEVNAME(sc), max_power);
 		return 0;
@@ -5633,17 +5633,15 @@ iwx_tx_fill_cmd(struct iwx_softc *sc, struct iwx_node *in,
 	} else if (sc->sc_rate_n_flags_version >= 2)
 		rate_flags |= IWX_RATE_MCS_LEGACY_OFDM_MSK;
 
-	rval = (rs->rs_rates[ieee80211_node_get_txrate_dot11rate(ni)]
-	    & IEEE80211_RATE_VAL);
-	IWX_DPRINTF(sc, IWX_DEBUG_TXRATE, "%s:%d: rval=%i dot11 %d\n", __func__, __LINE__,
-	    rval, rs->rs_rates[ieee80211_node_get_txrate_dot11rate(ni)]);
+	IWX_DPRINTF(sc, IWX_DEBUG_TXRATE, "%s:%d: rinfo->rate=%i dot11 %d\n", __func__, __LINE__,
+	    rinfo->rate, rs->rs_rates[ieee80211_node_get_txrate_dot11rate(ni)]);
 
 	if (sc->sc_rate_n_flags_version >= 2) {
 		if (rate_flags & IWX_RATE_MCS_LEGACY_OFDM_MSK) {
-			rate_flags |= (iwx_fw_rateidx_ofdm(rval) &
+			rate_flags |= (iwx_fw_rateidx_ofdm(rinfo->rate) &
 			    IWX_RATE_LEGACY_RATE_MSK);
 		} else {
-			rate_flags |= (iwx_fw_rateidx_cck(rval) &
+			rate_flags |= (iwx_fw_rateidx_cck(rinfo->rate) &
 			    IWX_RATE_LEGACY_RATE_MSK);
 		}
 	} else
@@ -5955,9 +5953,7 @@ iwx_flush_sta_tids(struct iwx_softc *sc, int sta_id, uint16_t tids)
 
 	resp_len = iwx_rx_packet_payload_len(pkt);
 	/* Some firmware versions don't provide a response. */
-	if (resp_len == 0)
-		goto out;
-	else if (resp_len != sizeof(*resp)) {
+	if (resp_len != sizeof(*resp)) {
 		err = EIO;
 		goto out;
 	}
@@ -6054,11 +6050,6 @@ iwx_flush_sta(struct iwx_softc *sc, struct iwx_node *in)
 		    DEVNAME(sc), err);
 		goto done;
 	}
-
-	/*
-	 * XXX-THJ: iwx_wait_tx_queues_empty was here, but it was a nope in the
-	 * fc drive rand has has been replaced in OpenBSD.
-	 */
 
 	err = iwx_drain_sta(sc, in, 0);
 done:
@@ -6799,7 +6790,7 @@ iwx_rval2ridx(int rval)
 			break;
 	}
 
-       return ridx;
+	return ridx;
 }
 
 static void
@@ -7840,15 +7831,15 @@ iwx_run(struct ieee80211vap *vap, struct iwx_softc *sc)
 		return err;
 	}
 #endif
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		return 0;
+
 	err = iwx_power_mac_update_mode(sc, in);
 	if (err) {
 		printf("%s: could not update MAC power (error %d)\n",
 		    DEVNAME(sc), err);
 		return err;
 	}
-
-	if (ic->ic_opmode == IEEE80211_M_MONITOR)
-		return 0;
 
 	err = iwx_rs_init(sc, in);
 	if (err) {
@@ -9127,7 +9118,7 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf *ml)
 			 * For v5 and above, we can check the version, for older
 			 * versions we need to check the size.
 			 */
-			 if (iwx_lookup_notif_ver(sc, IWX_LEGACY_GROUP,
+			if (iwx_lookup_notif_ver(sc, IWX_LEGACY_GROUP,
 			    IWX_ALIVE) == 6) {
 				SYNC_RESP_STRUCT(resp6, pkt);
 				if (iwx_rx_packet_payload_len(pkt) !=
@@ -9403,6 +9394,16 @@ iwx_rx_pkt(struct iwx_softc *sc, struct iwx_rx_data *data, struct mbuf *ml)
 		}
 
 		case IWX_WIDE_ID(IWX_DATA_PATH_GROUP, IWX_RLC_CONFIG_CMD):
+			break;
+
+		/*
+		 * Ignore for now. The Linux driver only acts on this request
+		 * with 160Mhz channels in 11ax mode.
+		 */
+		case IWX_WIDE_ID(IWX_DATA_PATH_GROUP,
+		    IWX_THERMAL_DUAL_CHAIN_REQUEST):
+			DPRINTF(("%s: thermal dual-chain request received\n",
+			    DEVNAME(sc)));
 			break;
 
 		/* undocumented notification from iwx-ty-a0-gf-a0-77 image */
@@ -9972,7 +9973,7 @@ static const struct iwx_dev_info iwx_dev_info_table[] = {
 	_IWX_DEV_INFO(IWX_CFG_ANY, IWX_CFG_ANY,
 		      IWX_CFG_MAC_TYPE_SO, IWX_CFG_ANY,
 		      IWX_CFG_RF_TYPE_HR1, IWX_CFG_ANY,
-		      IWX_CFG_160, IWX_CFG_ANY, IWX_CFG_NO_CDB, IWX_CFG_ANY,
+		      IWX_CFG_NO_160, IWX_CFG_ANY, IWX_CFG_NO_CDB, IWX_CFG_ANY,
 		      iwx_cfg_so_a0_hr_b0), /* ax101 */
 	_IWX_DEV_INFO(IWX_CFG_ANY, IWX_CFG_ANY,
 		      IWX_CFG_MAC_TYPE_SO, IWX_CFG_ANY,
@@ -9989,7 +9990,7 @@ static const struct iwx_dev_info iwx_dev_info_table[] = {
 	_IWX_DEV_INFO(IWX_CFG_ANY, IWX_CFG_ANY,
 		      IWX_CFG_MAC_TYPE_SOF, IWX_CFG_ANY,
 		      IWX_CFG_RF_TYPE_HR1, IWX_CFG_ANY,
-		      IWX_CFG_160, IWX_CFG_ANY, IWX_CFG_NO_CDB, IWX_CFG_ANY,
+		      IWX_CFG_NO_160, IWX_CFG_ANY, IWX_CFG_NO_CDB, IWX_CFG_ANY,
 		      iwx_cfg_so_a0_hr_b0), /* AX101 */
 	_IWX_DEV_INFO(IWX_CFG_ANY, IWX_CFG_ANY,
 		      IWX_CFG_MAC_TYPE_SOF, IWX_CFG_ANY,
@@ -10175,7 +10176,7 @@ iwx_find_device_cfg(struct iwx_softc *sc)
 	cores = IWX_SUBDEVICE_CORES(sdev_id);
 
 	for (i = nitems(iwx_dev_info_table) - 1; i >= 0; i--) {
-		 const struct iwx_dev_info *dev_info = &iwx_dev_info_table[i];
+		const struct iwx_dev_info *dev_info = &iwx_dev_info_table[i];
 
 		if (dev_info->device != (uint16_t)IWX_CFG_ANY &&
 		    dev_info->device != sc->sc_pid)
