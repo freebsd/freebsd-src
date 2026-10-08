@@ -464,7 +464,6 @@ mkimg(void)
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_START, 0);
-	abs_offset = false;
 	TAILQ_FOREACH(part, &partlist, link) {
 		byteoffset = blkoffset = 0;
 		abs_offset = false;
