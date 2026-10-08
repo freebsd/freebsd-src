@@ -180,7 +180,7 @@ init_secondary(uint64_t hart)
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;
-	schedinit_ap();
+	sched_init_ap();
 
 	/* Setup and enable interrupts */
 	intr_pic_init_secondary();

@@ -12,7 +12,7 @@
    Copyright (c) 2001-2003 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2004-2006 Karl Waclawek <karl@waclawek.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
-   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2019      Zhongyuan Zhou <zhouzhongyuan@huawei.com>
    Copyright (c) 2024      Hanno Böck <hanno@gentoo.org>
@@ -41,16 +41,11 @@
    SPDX-License-Identifier: MIT
 */
 
+#include <inttypes.h> // PRIu64
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <expat.h>
-
-#ifdef XML_LARGE_SIZE
-#  define XML_FMT_INT_MOD "ll"
-#else
-#  define XML_FMT_INT_MOD "l"
-#endif
 
 #ifdef XML_UNICODE_WCHAR_T
 #  define XML_FMT_STR "ls"
@@ -225,9 +220,8 @@ main(void) {
       if (errorCode == XML_ERROR_ABORTED) {
         errorCode = XML_ERROR_NO_MEMORY;
       }
-      fprintf(stderr,
-              "Parse error at line %" XML_FMT_INT_MOD "u:\n%" XML_FMT_STR "\n",
-              XML_GetCurrentLineNumber(parser), XML_ErrorString(errorCode));
+      fprintf(stderr, "Parse error at line %" PRIu64 ":\n%" XML_FMT_STR "\n",
+              XML_GetCurrentLineNumber64(parser), XML_ErrorString(errorCode));
       XML_ParserFree(parser);
       return 1;
     }

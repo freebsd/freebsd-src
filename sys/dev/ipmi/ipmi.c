@@ -89,6 +89,9 @@ static int wd_pretimeout_countdown = 120; /* sec */
 static int cycle_wait = 10; /* sec */
 static int wd_init_enable = 1;
 
+/* Log IPMICTL_SEND_COMMAND transactions */
+static int hexdump_send = 0;
+
 static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "IPMI driver parameters");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RWTUN,
@@ -110,6 +113,9 @@ SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RWTUN,
 SYSCTL_INT(_hw_ipmi, OID_AUTO, cycle_wait, CTLFLAG_RWTUN,
 	&cycle_wait, 0,
 	"IPMI power cycle on reboot delay time (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, hexdump_send, CTLFLAG_RWTUN,
+	&hexdump_send, 0,
+	"IPMI driver hexdump IPMICTL_SEND_COMMAND");
 
 static struct cdevsw ipmi_cdevsw = {
 	.d_version =    D_VERSION,
@@ -327,6 +333,12 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 				ipmi_free_request(kreq);
 				return (error);
 			}
+			if (hexdump_send) {
+				printf("IPMI_REQ_MSG: netfn=%02x cmd=%02x\n",
+				    req->msg.netfn, req->msg.cmd);
+				hexdump(kreq->ir_request, req->msg.data_len,
+				    "SEND_COMMAND ->\n", 0);
+			}
 			IPMI_LOCK(sc);
 			dev->ipmi_requests++;
 			error = sc->ipmi_enqueue_request(sc, kreq);
@@ -442,6 +454,12 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 		if (error == 0)
 			error = copyout(kreq->ir_reply, recv->msg.data + 1,
 			    len - 1);
+		if (hexdump_send) {
+			printf("IPMI_RECV_MSG: netfn=%02x cmd=%02x\n",
+			    recv->msg.netfn, recv->msg.cmd);
+			hexdump(kreq->ir_reply, len - 1,
+			    "RECEIVE_MSG <-\n", 0);
+		}
 		ipmi_free_request(kreq);
 		if (error)
 			return (error);

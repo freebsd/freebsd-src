@@ -35,9 +35,6 @@ namespace execenv = engine::execenv;
 using utils::none;
 
 
-const char* execenv::default_execenv_name = "host";
-
-
 /// List of registered execution environments, except default host one.
 ///
 /// Use register_execenv() to add an entry to this global list.

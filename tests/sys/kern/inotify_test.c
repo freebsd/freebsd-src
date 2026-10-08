@@ -319,6 +319,40 @@ ATF_TC_BODY(inotify_mask_create, tc)
 }
 
 /*
+ * Verify that inotify events are not generated for devfs.  In principle such
+ * events could leak timing information about I/O device accesses.
+ */
+ATF_TC_WITHOUT_HEAD(inotify_devfs);
+ATF_TC_BODY(inotify_devfs, tc)
+{
+	char buf[1];
+	int fd, ifd, n, wd1, wd2, wd3;
+
+	ifd = inotify(IN_NONBLOCK);
+
+	wd1 = inotify_add_watch(ifd, "/dev", IN_ALL_EVENTS);
+	ATF_REQUIRE(wd1 >= 0);
+	wd2 = inotify_add_watch(ifd, "/dev/null", IN_ALL_EVENTS);
+	ATF_REQUIRE(wd2 >= 0);
+	wd3 = inotify_add_watch(ifd, "/dev/zero", IN_ALL_EVENTS);
+	ATF_REQUIRE(wd3 >= 0);
+
+	fd = open("/dev/null", O_WRONLY);
+	ATF_REQUIRE(fd != -1);
+	ATF_REQUIRE(write(fd, buf, sizeof(buf)) == (ssize_t)sizeof(buf));
+	close_checked(fd);
+
+	fd = open("/dev/zero", O_RDONLY);
+	ATF_REQUIRE(fd != -1);
+	ATF_REQUIRE(read(fd, buf, sizeof(buf)) == (ssize_t)sizeof(buf));
+	close_checked(fd);
+
+	ATF_REQUIRE(ioctl(ifd, FIONREAD, &n) == 0);
+	ATF_REQUIRE_MSG(n == 0, "unexpected %d bytes of inotify events", n);
+	close_checked(ifd);
+}
+
+/*
  * Make sure that inotify cooperates with nullfs: if a lower vnode is the
  * subject of an event, the upper vnode should be notified, and if the upper
  * vnode is the subject of an event, the lower vnode should be notified.
@@ -1011,6 +1045,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, inotify_capsicum);
 	ATF_TP_ADD_TC(tp, inotify_coalesce);
 	ATF_TP_ADD_TC(tp, inotify_mask_create);
+	ATF_TP_ADD_TC(tp, inotify_devfs);
 	ATF_TP_ADD_TC(tp, inotify_nullfs);
 	ATF_TP_ADD_TC(tp, inotify_nullfs_remove);
 	ATF_TP_ADD_TC(tp, inotify_nullfs_rename);

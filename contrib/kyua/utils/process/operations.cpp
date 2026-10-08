@@ -31,7 +31,6 @@
 extern "C" {
 #include <sys/types.h>
 #include <sys/wait.h>
-
 #include <signal.h>
 #include <unistd.h>
 }
@@ -164,7 +163,7 @@ process::exec_unsafe(const fs::path& program, const args_vector& args)
         argv[1 + args.size()] = NULL;
 
         const int ret = ::execv(program.c_str(),
-                                (char* const*)(unsigned long)(const void*)argv);
+                                UTILS_UNCONST(char* const, argv));
         original_errno = errno;
         INV(ret == -1);
         std::cerr << "Failed to execute " << program << ": "

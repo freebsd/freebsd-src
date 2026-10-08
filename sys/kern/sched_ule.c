@@ -1899,14 +1899,14 @@ sched_ule_init(void)
 }
 
 /*
- * schedinit_ap() is needed prior to calling sched_throw(NULL) to ensure that
+ * sched_init_ap() is needed prior to calling sched_throw(NULL) to ensure that
  * the pcpu requirements are met for any calls in the period between curthread
  * initialization and sched_throw().  One can safely add threads to the queue
  * before sched_throw(), for instance, as long as the thread lock is setup
  * correctly.
  *
  * TDQ_SELF() relies on the below sched pcpu setting; it may be used only
- * after schedinit_ap().
+ * after sched_init_ap().
  */
 static void
 sched_ule_init_ap(void)
@@ -2320,7 +2320,7 @@ thread_unblock_switch(struct thread *td, struct mtx *mtx)
  * be assigned elsewhere via binding.
  */
 static void
-sched_ule_sswitch(struct thread *td, int flags)
+sched_ule_switch(struct thread *td, int flags)
 {
 	struct thread *newtd;
 	struct tdq *tdq;
@@ -3240,7 +3240,7 @@ sched_ule_ap_entry(void)
 
 	tdq = TDQ_SELF();
 
-	/* This should have been setup in schedinit_ap(). */
+	/* This should have been setup in sched_init_ap(). */
 	THREAD_LOCKPTR_ASSERT(curthread, TDQ_LOCKPTR(tdq));
 
 	TDQ_LOCK(tdq);
@@ -3418,58 +3418,6 @@ sched_ule_find_l2_neighbor(int cpu)
 }
 #endif
 
-struct sched_instance sched_ule_instance = {
-#define	SLOT(name) .name = sched_ule_##name
-	SLOT(load),
-	SLOT(rr_interval),
-	SLOT(runnable),
-	SLOT(exit),
-	SLOT(fork),
-	SLOT(fork_exit),
-	SLOT(class),
-	SLOT(nice),
-	SLOT(ap_entry),
-	SLOT(exit_thread),
-	SLOT(estcpu),
-	SLOT(fork_thread),
-	SLOT(ithread_prio),
-	SLOT(lend_prio),
-	SLOT(lend_user_prio),
-	SLOT(lend_user_prio_cond),
-	SLOT(pctcpu),
-	SLOT(prio),
-	SLOT(sleep),
-	SLOT(sswitch),
-	SLOT(throw),
-	SLOT(unlend_prio),
-	SLOT(user_prio),
-	SLOT(userret_slowpath),
-	SLOT(add),
-	SLOT(choose),
-	SLOT(clock),
-	SLOT(idletd),
-	SLOT(preempt),
-	SLOT(relinquish),
-	SLOT(rem),
-	SLOT(wakeup),
-	SLOT(bind),
-	SLOT(unbind),
-	SLOT(is_bound),
-	SLOT(affinity),
-	SLOT(sizeof_proc),
-	SLOT(sizeof_thread),
-	SLOT(tdname),
-	SLOT(clear_tdname),
-	SLOT(find_l2_neighbor),
-	SLOT(init),
-	SLOT(init_ap),
-	SLOT(setup),
-	SLOT(initticks),
-	SLOT(sysinit),
-#undef SLOT
-};
-DECLARE_SCHEDULER(ule_sched_selector, "ULE", &sched_ule_instance);
-
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 {
@@ -3551,3 +3499,5 @@ SYSCTL_INT(_kern_sched_ule, OID_AUTO, always_steal, CTLFLAG_RWTUN,
     &always_steal, 0,
     "Always run the stealer from the idle thread");
 #endif
+
+DECLARE_SCHEDULER(ule, "ULE");

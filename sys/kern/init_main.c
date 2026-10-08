@@ -493,7 +493,7 @@ proc0_init(void *dummy __unused)
 	 * Initialise scheduler resources.
 	 * Add scheduler specific parts to proc, thread as needed.
 	 */
-	schedinit();	/* scheduler gets its house in order */
+	sched_init();	/* scheduler gets its house in order */
 
 	/*
 	 * Create process 0.

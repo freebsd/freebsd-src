@@ -84,6 +84,34 @@ add_new_alias() {
 	fi
 }
 
+add_captive_portal() {
+	# DHCP option 114 (RFC 8910), with the legacy DHCP option 160
+	# (RFC 7710) as a fallback.
+	captive_portal_url="${new_captive_portal_url:-$new_captive_portal_legacy}"
+
+	if [ -z "$captive_portal_url" ]; then
+		rm -f /var/run/captive-portal.$interface
+		return 0
+	fi
+
+	$LOGGER "New Captive Portal ($interface): $captive_portal_url"
+
+	captive_portal_tmp=/var/run/captive-portal.${interface}.tmp
+	if ! (umask 022; echo "$captive_portal_url" > $captive_portal_tmp); then
+		rm -f $captive_portal_tmp
+		return 1
+	fi
+	if ! mv $captive_portal_tmp /var/run/captive-portal.$interface; then
+		rm -f $captive_portal_tmp
+		return 1
+	fi
+	return 0
+}
+
+delete_captive_portal() {
+	rm -f /var/run/captive-portal.$interface
+}
+
 fill_classless_routes() {
 	set $1
 	while [ $# -ge 5 ]; do
@@ -349,6 +377,7 @@ BOUND|RENEW|REBIND|REBOOT)
 	if [ "$new_ip_address" != "$alias_ip_address" ]; then
 		add_new_alias
 	fi
+	add_captive_portal
 	if is_default_interface; then
 		add_new_resolv_conf
 	fi
@@ -356,6 +385,7 @@ BOUND|RENEW|REBIND|REBOOT)
 
 EXPIRE|FAIL)
 	delete_old_alias
+	delete_captive_portal
 	if [ -n "$old_ip_address" ]; then
 		delete_old_address
 		delete_old_routes
@@ -392,6 +422,7 @@ TIMEOUT)
 				add_new_alias
 			fi
 			add_new_routes
+			add_captive_portal
 			if ! is_default_interface; then
 				exit_with_hooks 0
 			fi
@@ -402,6 +433,7 @@ TIMEOUT)
 	fi
 	eval "$IFCONFIG $interface inet -alias $new_ip_address $medium"
 	delete_old_routes
+	delete_captive_portal
 	exit_with_hooks 1
 	;;
 esac

@@ -108,6 +108,64 @@ autoexpand_cleanup()
 }
 
 #
+# Test setting the autotrim pool property.
+#
+atf_test_case autotrim cleanup
+autotrim_body()
+{
+	local src val
+
+	create_test_inputs
+
+	atf_check -s exit:1 -e match:"invalid value .foo. for autotrim" \
+	    $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    -o autotrim=foo $TEST_IMAGE $TEST_INPUTS_DIR
+
+	for val in on off; do
+		atf_check $MAKEFS -s 1g -o rootpath=/ \
+		    -o poolname=$ZFS_POOL_NAME \
+		    -o autotrim=$val \
+		    $TEST_IMAGE $TEST_INPUTS_DIR
+
+		import_image
+
+		check_image_contents
+
+		# OpenZFS reports a pool property whose value equals the
+		# default as coming from the default, even if it was set.
+		if [ $val = off ]; then
+			src=default
+		else
+			src=local
+		fi
+		atf_check -o inline:$val\\n \
+		    zpool get -H -o value autotrim $ZFS_POOL_NAME
+		atf_check -o inline:$src\\n \
+		    zpool get -H -o source autotrim $ZFS_POOL_NAME
+
+		atf_check zpool destroy ${ZFS_POOL_NAME}
+		atf_check rm -f ${TEST_ZFS_POOL_NAME}
+		atf_check mdconfig -d -u $(cat ${TEST_MD_DEVICE_FILE})
+		atf_check rm -f ${TEST_MD_DEVICE_FILE}
+	done
+
+	# Without the option the property keeps its default value.
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	import_image
+
+	atf_check -o inline:off\\n \
+	    zpool get -H -o value autotrim $ZFS_POOL_NAME
+	atf_check -o inline:default\\n \
+	    zpool get -H -o source autotrim $ZFS_POOL_NAME
+}
+autotrim_cleanup()
+{
+	common_cleanup
+}
+
+#
 # Test with some default layout defined by the common code.
 #
 atf_test_case basic cleanup
@@ -1110,6 +1168,7 @@ T_flag_mtree_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case autoexpand
+	atf_add_test_case autotrim
 	atf_add_test_case basic
 	atf_add_test_case compression
 	atf_add_test_case dataset_removal

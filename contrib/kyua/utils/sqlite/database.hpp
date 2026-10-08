@@ -43,6 +43,7 @@ extern "C" {
 
 #include <cstddef>
 #include <memory>
+#include <string>
 
 #include "utils/fs/path_fwd.hpp"
 #include "utils/optional_fwd.hpp"

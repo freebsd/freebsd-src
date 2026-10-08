@@ -149,7 +149,7 @@ zygote_main(int *sockp)
 			error = errno;
 			goto send;
 		}
-		pid = pdfork(&procfd, PD_NOWAITPID);
+		pid = casper_pdfork(&procfd);
 		switch (pid) {
 		case -1:
 			/* Failure. */

@@ -80,7 +80,7 @@ using utils::optional;
 static const datetime::delta infinite_timeout(1000000, 0);
 
 
-static void do_exit(const int) UTILS_NORETURN;
+static void do_exit [[noreturn]] (const int);
 
 
 /// Terminates a subprocess without invoking destructors.
@@ -118,8 +118,7 @@ public:
 
     /// Runs the subprocess.
     void
-    operator()(const fs::path& /* control_directory */)
-        UTILS_NORETURN
+    operator() [[noreturn]] (const fs::path& /* control_directory */)
     {
         std::cout << "Creating cookie: " << _cookie_name << " (stdout)\n";
         std::cerr << "Creating cookie: " << _cookie_name << " (stderr)\n";
@@ -129,7 +128,7 @@ public:
 };
 
 
-static void child_delete_all(const fs::path&) UTILS_NORETURN;
+static void child_delete_all [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that deletes all files in the current directory.
@@ -155,7 +154,7 @@ child_delete_all(const fs::path& control_directory)
 }
 
 
-static void child_dump_unprivileged_user(const fs::path&) UTILS_NORETURN;
+static void child_dump_unprivileged_user [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that dumps user configuration.
@@ -183,15 +182,14 @@ public:
 
     /// Runs the subprocess.
     void
-    operator()(const fs::path& /* control_directory */)
-        UTILS_NORETURN
+    operator() [[noreturn]] (const fs::path& /* control_directory */)
     {
         do_exit(_exit_code);
     }
 };
 
 
-static void child_pause(const fs::path&) UTILS_NORETURN;
+static void child_pause [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that just blocks.
@@ -207,7 +205,7 @@ child_pause(const fs::path& /* control_directory */)
 }
 
 
-static void child_print(const fs::path&) UTILS_NORETURN;
+static void child_print [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that writes to stdout and stderr.
@@ -236,8 +234,7 @@ public:
 
     /// Runs the subprocess.
     void
-    operator()(const fs::path& /* control_directory */)
-        UTILS_NORETURN
+    operator() [[noreturn]] (const fs::path& /* control_directory */)
     {
         ::sleep(_seconds);
         do_exit(EXIT_SUCCESS);
@@ -245,7 +242,7 @@ public:
 };
 
 
-static void child_spawn_blocking_child(const fs::path&) UTILS_NORETURN;
+static void child_spawn_blocking_child [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that spawns a subchild that gets stuck.
@@ -278,7 +275,7 @@ child_spawn_blocking_child(
 }
 
 
-static void child_validate_isolation(const fs::path&) UTILS_NORETURN;
+static void child_validate_isolation [[noreturn]] (const fs::path&);
 
 
 /// Subprocess that checks if isolate_child() has been called.

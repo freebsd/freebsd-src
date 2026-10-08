@@ -48,6 +48,7 @@
 #include <machine/specialreg.h>
 
 #define	IBS_STOP_ITER		50 /* Stopping iterations */
+#define	IBS_NMI_CREDIT_MAX	2  /* Max owed IBS NMIs per CPU */
 
 /* AMD IBS PMCs */
 struct ibs_descr {
@@ -97,7 +98,7 @@ SYSCTL_U64(_kern_hwpmc, OID_AUTO, ibs_op_ctl2_extra_mask, CTLFLAG_RDTUN,
 
 struct ibs_cpu {
 	int		pc_status;
-	int		pc_nmi_credit;	/* latched NMIs already serviced */
+	int		pc_nmi_credit;	/* owed NMIs already serviced */
 	struct pmc_hw	pc_ibspmcs[IBS_NPMCS];
 };
 static struct ibs_cpu **ibs_pcpu;
@@ -725,13 +726,21 @@ pmc_ibs_intr(struct trapframe *tf)
 	}
 
 	/*
-	 * When both units were serviced, the second unit's NMI may still be
-	 * latched and will arrive with no valid bit set.  Claim that one
-	 * NMI so it is not reported as unknown.
+	 * When both units were serviced, the second unit's NMI is still
+	 * owed and will arrive with no valid bit set.  It is not always
+	 * the next NMI: on Zen 6 one or more NMIs carrying a single new
+	 * sample can arrive first, and those may carry both samples again.
+	 * Count the owed NMIs and let each NMI with no valid bit consume one,
+	 * so they are not reported as unknown.  Cap the count, since every
+	 * leftover credit would hide a genuine unknown NMI later.
 	 */
-	if (retval == 0 && pac->pc_nmi_credit != 0)
+	if (retval == 2) {
+		if (pac->pc_nmi_credit < IBS_NMI_CREDIT_MAX)
+			pac->pc_nmi_credit++;
+	} else if (retval == 0 && pac->pc_nmi_credit > 0) {
+		pac->pc_nmi_credit--;
 		retval = 1;
-	pac->pc_nmi_credit = (retval == 2);
+	}
 	if (retval > 1)
 		retval = 1;
 

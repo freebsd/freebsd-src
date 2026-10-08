@@ -1771,11 +1771,13 @@ cam_iosched_trim_done(struct cam_iosched_softc *isc)
  * might use notes in the ccb for statistics.
  */
 int
-cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
+cam_iosched_bio_update_stats(struct cam_iosched_softc *isc, struct bio *bp,
     union ccb *done_ccb)
 {
 	int retval = 0;
+
 #ifdef CAM_IOSCHED_DYNAMIC
+	cam_periph_assert(isc->periph, MA_OWNED);
 	if (!do_dynamic_iosched)
 		return retval;
 
@@ -1820,6 +1822,28 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 	}
 #endif
 	return retval;
+}
+
+/*
+ * Update completion status and statistics for each bio in a queue.
+ * The queue is not modified.
+ */
+void
+cam_iosched_bio_queue_update_stats(struct cam_iosched_softc *isc,
+    struct bio_queue *queue, union ccb *done_ccb, int error)
+{
+	struct bio *bp;
+
+	TAILQ_FOREACH(bp, queue, bio_queue) {
+		bp->bio_error = error;
+		if (error != 0) {
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_resid = bp->bio_bcount;
+		} else
+			bp->bio_resid = 0;
+		cam_iosched_bio_update_stats(isc, bp, done_ccb);
+		done_ccb = NULL;
+	}
 }
 
 /*

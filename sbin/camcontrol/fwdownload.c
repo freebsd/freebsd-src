@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2015 Spectra Logic Corporation.
  * Copyright (c) 2011 Sandvine Incorporated. All rights reserved.
  * Copyright (c) 2002-2011 Andre Albsmeier <andre@albsmeier.net>
  * All rights reserved.
@@ -196,6 +197,8 @@ static struct fw_vendor vendors_list[] = {
 	{VENDOR_HITACHI, 	"HITACHI",	T_ANY,
 	0x8000, 0x05, 0x05, 1, 0, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
 	{VENDOR_HP,	 	"HP",		T_ANY,
+	0x8000, 0x07, 0x07, 0, 1, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
+	{VENDOR_HP,	 	"HPE",		T_ANY,
 	0x8000, 0x07, 0x07, 0, 1, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
 	{VENDOR_IBM,		"IBM",		T_SEQUENTIAL,
 	0x8000, 0x07, 0x07, 0, 1, FW_TUR_NA, 300 * 1000, FW_TIMEOUT_DEFAULT},

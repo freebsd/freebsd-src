@@ -2431,10 +2431,21 @@ supersede:
 		if (len) {
 			char name[256];
 
-			if (dhcp_option_ev_name(name, sizeof(name),
+			/*
+			 * The option is named "captive-portal", so the
+			 * generic name derived below would be
+			 * new_captive_portal / old_captive_portal.
+			 * Append "_url" suffix so that the variable name
+			 * says that the value is a URL.
+			 */
+			if (i == DHO_CAPTIVE_PORTAL)
+				strlcpy(name, "captive_portal_url",
+				    sizeof(name));
+			else if (!dhcp_option_ev_name(name, sizeof(name),
 			    &dhcp_options[i]))
-				script_set_env(ip->client, prefix, name,
-				    pretty_print_option(i, dp, len, 0, 0));
+				continue;
+			script_set_env(ip->client, prefix, name,
+			    pretty_print_option(i, dp, len, 0, 0));
 		}
 	}
 	snprintf(tbuf, sizeof(tbuf), "%d", (int)lease->expiry);
@@ -2816,7 +2827,8 @@ check_option(struct client_lease *l, int option)
 	case DHO_DHCP_CLIENT_IDENTIFIER:
 	case DHO_BOOTFILE_NAME:
 	case DHO_DHCP_USER_CLASS_ID:
-	case DHO_URL:
+	case DHO_CAPTIVE_PORTAL:
+	case DHO_CAPTIVE_PORTAL_LEGACY:
 	case DHO_SIP_SERVERS:
 	case DHO_V_I_VENDOR_CLASS:
 	case DHO_V_I_VENDOR_OPTS:

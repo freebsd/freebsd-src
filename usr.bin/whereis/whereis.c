@@ -33,6 +33,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
@@ -249,7 +250,7 @@ colonify(ccharp *cpp)
 static void
 defaults(void)
 {
-	size_t s;
+	size_t i, s;
 	char *b, buf[BUFSIZ], *cp;
 	const char *path_ports;
 	int nele;
@@ -307,9 +308,11 @@ defaults(void)
 	/* -s defaults to precompiled list, plus subdirs of
 	 * $PORTSDIR. If not set, it defaults to /usr/ports */
 	if (!sourcedirs) {
-		size_t sp_len = strlen(*sourcepaths);
-		sourcedirs = malloc(sp_len * sizeof (char *));
-		for (size_t i = 0; i < sp_len; i++)
+		s = nitems(sourcepaths);
+		sourcedirs = malloc(s * sizeof(char *));
+		if (sourcedirs == NULL)
+			abort();
+		for (i = 0; i < s; i++)
 			sourcedirs[i] = sourcepaths[i];
 
 		path_ports = getenv("PORTSDIR");
@@ -329,6 +332,15 @@ defaults(void)
 			return;
 		if ((dir = opendir(path_ports)) == NULL)
 			err(EX_OSERR, "opendir(%s)", path_ports);
+
+		/*
+		 * Move the index one element back so if we end up adding some
+		 * port directories, we place them back to back to the
+		 * sourcepaths and the NULL element shows only at the end (used
+		 * later on as end-o-array marker)
+		 */
+		--i;
+
 		while ((dirp = readdir(dir)) != NULL) {
 			/*
 			 * Not everything below path_ports is of
@@ -360,11 +372,11 @@ defaults(void)
 				continue;
 			}
 			sourcedirs = realloc(sourcedirs,
-					     (nele + 2) * sizeof(char *));
+					     (i + 2) * sizeof(char *));
 			if (sourcedirs == NULL)
 				abort();
-			sourcedirs[nele++] = b;
-			sourcedirs[nele] = NULL;
+			sourcedirs[i++] = b;
+			sourcedirs[i] = NULL;
 		}
 		closedir(dir);
 	}

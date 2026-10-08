@@ -37,14 +37,10 @@
 
 #include <stdbool.h>
 
+#include "expat.h" // for XML_Parser, XML_Char
+
 #define XML_MAP_FILE 01
 #define XML_EXTERNAL_ENTITIES 02
-
-#ifdef XML_LARGE_SIZE
-#  define XML_FMT_INT_MOD "ll"
-#else
-#  define XML_FMT_INT_MOD "l"
-#endif
 
 extern int g_read_size_bytes;
 

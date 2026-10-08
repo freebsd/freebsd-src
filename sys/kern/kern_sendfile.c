@@ -660,7 +660,11 @@ sendfile_wait_generic(struct socket *so, off_t need, int *space)
 	SOCK_SENDBUF_LOCK(so);
 	lowat = so->so_snd.sb_lowat;
 	if (so->so_snd.sb_flags & SB_AUTOLOWAT) {
+#if defined(INET) || defined(INET6)
 		newlowat = min(V_tcp_sendspace, so->so_snd.sb_hiwat) / 2;
+#else
+		newlowat = so->so_snd.sb_hiwat / 2;
+#endif
 		if (so->so_snd.sb_lowat < newlowat)
 			so->so_snd.sb_lowat = newlowat;
 		if (so->so_snd.sb_lowat < PAGE_SIZE &&

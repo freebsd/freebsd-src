@@ -85,17 +85,21 @@ ndp_del_gu_success_body() {
 
 	vnet_mkjail ${jname} ${epair0}a
 
-	jexec ${jname} ndp -i ${epair0}a -- -disabled
-	jexec ${jname} ifconfig ${epair0}a up
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
 
 	jexec ${jname} ifconfig ${epair0}a inet6 2001:db8::1/64
+	ifconfig ${epair0}b inet6 2001:db8::2/64
 
 	# wait for DAD to complete
-	while [ `jexec ${jname} ifconfig | grep inet6 | grep -c tentative` != "0" ]; do
+	while jexec ${jname} ifconfig ${epair0}a inet6 | grep -q tentative ||
+	    ifconfig ${epair0}b inet6 | grep -q tentative; do
 		sleep 0.1
 	done
 
-	jexec ${jname} ping -c1 -t1 2001:db8::2
+	# A reachable peer keeps the entry alive; an unanswered solicitation
+	# would expire it after nd6_mmaxtries retransmissions (about 3s).
+	atf_check -o ignore jexec ${jname} ping -c1 -t5 2001:db8::2
 
 	atf_check -o match:"2001:db8::2 \(2001:db8::2\) deleted" jexec ${jname} ndp -nd 2001:db8::2
 }

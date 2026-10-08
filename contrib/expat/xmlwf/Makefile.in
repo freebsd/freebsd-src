@@ -22,7 +22,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2021 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -148,8 +148,10 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_xmlwf_OBJECTS = xmlwf-xmlwf.$(OBJEXT) xmlwf-xmlfile.$(OBJEXT) \
-	xmlwf-codepage.$(OBJEXT) xmlwf-@FILEMAP@.$(OBJEXT)
+am__dirstamp = $(am__leading_dot)dirstamp
+am_xmlwf_OBJECTS = ../lib/xmlwf-xcs.$(OBJEXT) xmlwf-xmlwf.$(OBJEXT) \
+	xmlwf-xmlfile.$(OBJEXT) xmlwf-codepage.$(OBJEXT) \
+	xmlwf-@FILEMAP@.$(OBJEXT)
 xmlwf_OBJECTS = $(am_xmlwf_OBJECTS)
 xmlwf_DEPENDENCIES = ../lib/libexpat.la
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -174,9 +176,9 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/conftools/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/xmlwf-@FILEMAP@.Po \
-	./$(DEPDIR)/xmlwf-codepage.Po ./$(DEPDIR)/xmlwf-xmlfile.Po \
-	./$(DEPDIR)/xmlwf-xmlwf.Po
+am__depfiles_remade = ../lib/$(DEPDIR)/xmlwf-xcs.Po \
+	./$(DEPDIR)/xmlwf-@FILEMAP@.Po ./$(DEPDIR)/xmlwf-codepage.Po \
+	./$(DEPDIR)/xmlwf-xmlfile.Po ./$(DEPDIR)/xmlwf-xmlwf.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -260,12 +262,10 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
-EXPAT_ATTR_INFO = @EXPAT_ATTR_INFO@
 EXPAT_CHAR_TYPE = @EXPAT_CHAR_TYPE@
 EXPAT_CONTEXT_BYTES = @EXPAT_CONTEXT_BYTES@
 EXPAT_DTD = @EXPAT_DTD@
 EXPAT_LARGE_SIZE = @EXPAT_LARGE_SIZE@
-EXPAT_MIN_SIZE = @EXPAT_MIN_SIZE@
 EXPAT_NS = @EXPAT_NS@
 FGREP = @FGREP@
 FILECMD = @FILECMD@
@@ -320,7 +320,6 @@ SO_PATCH = @SO_PATCH@
 STRIP = @STRIP@
 VERSION = @VERSION@
 VSCRIPT_LDFLAGS = @VSCRIPT_LDFLAGS@
-_EXPAT_COMMENT_ATTR_INFO = @_EXPAT_COMMENT_ATTR_INFO@
 _EXPAT_COMMENT_DTD_OR_GE = @_EXPAT_COMMENT_DTD_OR_GE@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -381,6 +380,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 xmlwf_LDADD = ../lib/libexpat.la
 xmlwf_SOURCES = \
+    ../lib/xcs.c \
     xmlwf.c \
     xmlfile.c \
     codepage.c \
@@ -477,6 +477,14 @@ uninstall-binPROGRAMS:
 clean-binPROGRAMS:
 	$(am__rm_f) $(bin_PROGRAMS)
 	test -z "$(EXEEXT)" || $(am__rm_f) $(bin_PROGRAMS:$(EXEEXT)=)
+../lib/$(am__dirstamp):
+	@$(MKDIR_P) ../lib
+	@: >>../lib/$(am__dirstamp)
+../lib/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ../lib/$(DEPDIR)
+	@: >>../lib/$(DEPDIR)/$(am__dirstamp)
+../lib/xmlwf-xcs.$(OBJEXT): ../lib/$(am__dirstamp) \
+	../lib/$(DEPDIR)/$(am__dirstamp)
 
 xmlwf$(EXEEXT): $(xmlwf_OBJECTS) $(xmlwf_DEPENDENCIES) $(EXTRA_xmlwf_DEPENDENCIES) 
 	@rm -f xmlwf$(EXEEXT)
@@ -484,10 +492,12 @@ xmlwf$(EXEEXT): $(xmlwf_OBJECTS) $(xmlwf_DEPENDENCIES) $(EXTRA_xmlwf_DEPENDENCIE
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f ../lib/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@../lib/$(DEPDIR)/xmlwf-xcs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlwf-@FILEMAP@.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlwf-codepage.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlwf-xmlfile.Po@am__quote@ # am--include-marker
@@ -522,6 +532,20 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+../lib/xmlwf-xcs.o: ../lib/xcs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xmlwf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ../lib/xmlwf-xcs.o -MD -MP -MF ../lib/$(DEPDIR)/xmlwf-xcs.Tpo -c -o ../lib/xmlwf-xcs.o `test -f '../lib/xcs.c' || echo '$(srcdir)/'`../lib/xcs.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ../lib/$(DEPDIR)/xmlwf-xcs.Tpo ../lib/$(DEPDIR)/xmlwf-xcs.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='../lib/xcs.c' object='../lib/xmlwf-xcs.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xmlwf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ../lib/xmlwf-xcs.o `test -f '../lib/xcs.c' || echo '$(srcdir)/'`../lib/xcs.c
+
+../lib/xmlwf-xcs.obj: ../lib/xcs.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xmlwf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ../lib/xmlwf-xcs.obj -MD -MP -MF ../lib/$(DEPDIR)/xmlwf-xcs.Tpo -c -o ../lib/xmlwf-xcs.obj `if test -f '../lib/xcs.c'; then $(CYGPATH_W) '../lib/xcs.c'; else $(CYGPATH_W) '$(srcdir)/../lib/xcs.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ../lib/$(DEPDIR)/xmlwf-xcs.Tpo ../lib/$(DEPDIR)/xmlwf-xcs.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='../lib/xcs.c' object='../lib/xmlwf-xcs.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xmlwf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ../lib/xmlwf-xcs.obj `if test -f '../lib/xcs.c'; then $(CYGPATH_W) '../lib/xcs.c'; else $(CYGPATH_W) '$(srcdir)/../lib/xcs.c'; fi`
 
 xmlwf-xmlwf.o: xmlwf.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xmlwf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT xmlwf-xmlwf.o -MD -MP -MF $(DEPDIR)/xmlwf-xmlwf.Tpo -c -o xmlwf-xmlwf.o `test -f 'xmlwf.c' || echo '$(srcdir)/'`xmlwf.c
@@ -704,6 +728,8 @@ clean-generic:
 distclean-generic:
 	-$(am__rm_f) $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || $(am__rm_f) $(CONFIG_CLEAN_VPATH_FILES)
+	-$(am__rm_f) ../lib/$(DEPDIR)/$(am__dirstamp)
+	-$(am__rm_f) ../lib/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -713,6 +739,7 @@ clean: clean-am
 clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
 
 distclean: distclean-am
+	-rm -f ../lib/$(DEPDIR)/xmlwf-xcs.Po
 	-rm -f ./$(DEPDIR)/xmlwf-@FILEMAP@.Po
 	-rm -f ./$(DEPDIR)/xmlwf-codepage.Po
 	-rm -f ./$(DEPDIR)/xmlwf-xmlfile.Po
@@ -762,6 +789,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
+	-rm -f ../lib/$(DEPDIR)/xmlwf-xcs.Po
 	-rm -f ./$(DEPDIR)/xmlwf-@FILEMAP@.Po
 	-rm -f ./$(DEPDIR)/xmlwf-codepage.Po
 	-rm -f ./$(DEPDIR)/xmlwf-xmlfile.Po

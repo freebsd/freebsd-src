@@ -60,6 +60,7 @@ static struct cdevsw ffs_susp_cdevsw = {
 	.d_write =	ffs_susp_rdwr,
 	.d_ioctl =	ffs_susp_ioctl,
 	.d_name =	"ffs_susp",
+	.d_flags =	D_NONPASSABLE,
 };
 
 static struct cdev *ffs_susp_dev;

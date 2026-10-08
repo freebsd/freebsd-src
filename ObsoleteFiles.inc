@@ -71,7 +71,12 @@ OLD_FILES+=usr/share/man/man1/lesskey.1.gz
 # 20260921: atf-0.26 release
 OLD_FILES+=usr/share/doc/atf/README
 
+# 20260903: vm_page_try_to_free(9) removed
+OLD_FILES+=usr/share/man/man9/vm_page_try_to_free.9.gz
+
 # 20260813: lib9p.so becomes a private library
+OLD_FILES+=usr/lib/lib9p.a
+OLD_FILES+=usr/lib/lib9p.so
 OLD_LIBS+=usr/lib/lib9p.so.1
 
 # 20260811: libusb symbol versioning, shared library bumped to version 4
@@ -80,6 +85,10 @@ OLD_LIBS+=usr/lib/libusb.so.3
 # 20260810: test removed
 OLD_FILES+=usr/tests/sys/netinet6/frag6/frag6_01
 OLD_FILES+=usr/tests/sys/netinet6/frag6/frag6_01.py
+
+# 20260809: fwcamctl(8) removed
+OLD_FILES+=usr/sbin/fwcamctl
+OLD_FILES+=usr/share/man/man8/fwcamctl.8.gz
 
 # 20260707: Move sendfile_helper to tests/sys/common
 OLD_FILES+=usr/tests/sys/kern/sendfile_helper
@@ -642,6 +651,9 @@ OLD_FILES+=usr/lib/clang/19/share/cfi_ignorelist.txt
 OLD_FILES+=usr/lib/clang/19/share/msan_ignorelist.txt
 OLD_DIRS+=usr/lib/clang/19/share
 OLD_DIRS+=usr/lib/clang/19
+OLD_LIBS+=usr/lib/libprivateclang.so.19
+OLD_LIBS+=usr/lib/libprivatelldb.so.19
+OLD_LIBS+=usr/lib/libprivatellvm.so.19
 
 # 20260425: new libc++ import which bumps version from 19 to 21
 OLD_FILES+=usr/include/c++/v1/__algorithm/fold.h
@@ -707,6 +719,7 @@ OLD_LIBS+=usr/lib/krb5/plugins/preauth/test.so.121
 OLD_LIBS+=usr/lib/krb5/plugins/tls/k5tls.so.121
 
 # 20260120: Made libkrb5profile INTERNALLIB
+OLD_FILES+=usr/lib/libkrb5profile.a
 OLD_LIBS+=usr/lib/libkrb5profile.so.122
 OLD_FILES+=usr/lib/libkrb5profile.so
 

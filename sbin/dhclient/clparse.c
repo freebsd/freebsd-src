@@ -125,6 +125,11 @@ read_client_conf(void)
 	    [top_level_config.requested_option_count++] = DHO_DOMAIN_SEARCH;
 	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_INTERFACE_MTU;
+	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] = DHO_CAPTIVE_PORTAL;
+	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] =
+	    DHO_CAPTIVE_PORTAL_LEGACY;
 #ifdef INET6
 	/*
 	 * RFC 8925 sec 3.2: The DHCPv4 client on an IPv4-requiring host MUST

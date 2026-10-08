@@ -5,7 +5,6 @@ KYUA_DOCDIR=	/usr/share/doc/kyua
 KYUA_EGDIR=	/usr/share/examples/kyua
 KYUA_MISCDIR=	/usr/share/kyua/misc
 KYUA_STOREDIR=	/usr/share/kyua/store
-KYUA_VERSION=	0.13
 
 KYUA_SRCDIR=	${SRCTOP}/contrib/kyua
 .PATH: ${KYUA_SRCDIR}
@@ -15,6 +14,7 @@ PROG_CXX=	kyua
 SRCS=		main.cpp
 LIBADD=		lutok sqlite3 util
 
+.PATH: ${KYUA_SRCDIR}/doc
 MAN=		kyua-about.1 \
 		kyua-config.1 \
 		kyua-db-exec.1 \
@@ -44,10 +44,6 @@ CFLAGS+=	-DGDB=\"/usr/local/bin/gdb\"			\
 		-DKYUA_MISCDIR=\"${KYUA_MISCDIR}\"		\
 		-DKYUA_PLATFORM=\"${MACHINE}\"			\
 		-DKYUA_STOREDIR=\"${KYUA_STOREDIR}\"		\
-		-DPACKAGE=\"kyua\"				\
-		-DPACKAGE_NAME=\"Kyua\"				\
-		-DPACKAGE_VERSION=\"${KYUA_VERSION}\"		\
-		-DVERSION=\"${KYUA_VERSION}\"
 
 CXXWARNFLAGS.gcc+=	-Wno-free-nonheap-object
 
@@ -120,6 +116,9 @@ SRCS+=	engine/atf.cpp			\
 	engine/config.cpp		\
 	engine/exceptions.cpp		\
 	engine/filters.cpp		\
+	engine/googletest.cpp		\
+	engine/googletest_list.cpp	\
+	engine/googletest_result.cpp	\
 	engine/kyuafile.cpp		\
 	engine/plain.cpp		\
 	engine/requirements.cpp		\
@@ -208,21 +207,5 @@ STORE=		migrate_v1_v2.sql migrate_v2_v3.sql schema_v3.sql
 STOREDIR=	${KYUA_STOREDIR}
 STORETAGS=	package=kyua
 .PATH:		${KYUA_SRCDIR}/store
-
-CLEANFILES+=	${MAN}
-.PATH: ${KYUA_SRCDIR}/doc
-.for man in ${MAN}
-${man}: ${man}.in
-	sh ${KYUA_SRCDIR}/doc/manbuild.sh \
-	    -v "CONFDIR=${KYUA_CONFDIR}" \
-	    -v "DOCDIR=${KYUA_DOCDIR}" \
-	    -v "EGDIR=${KYUA_EGDIR}" \
-	    -v "MISCDIR=${KYUA_MISCDIR}" \
-	    -v "PACKAGE=kyua" \
-	    -v "STOREDIR=${KYUA_STOREDIR}" \
-	    -v "TESTSDIR=${TESTSBASE}" \
-	    -v "VERSION=${KYUA_VERSION}" \
-	    ${.ALLSRC} ${.TARGET}
-.endfor
 
 .include <bsd.prog.mk>

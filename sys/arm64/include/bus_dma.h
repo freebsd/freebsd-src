@@ -81,8 +81,10 @@ bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bus_dma_tag_common *tc;
 
-	tc = (struct bus_dma_tag_common *)dmat;
-	tc->impl->map_unload(dmat, map);
+	if (map != NULL) {
+		tc = (struct bus_dma_tag_common *)dmat;
+		tc->impl->map_unload(dmat, map);
+	}
 }
 
 static inline void
@@ -135,8 +137,10 @@ _bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 	struct bus_dma_tag_common *tc;
 
-	tc = (struct bus_dma_tag_common *)dmat;
-	tc->impl->map_waitok(dmat, map, mem, callback, callback_arg);
+	if (map != NULL) {
+		tc = (struct bus_dma_tag_common *)dmat;
+		tc->impl->map_waitok(dmat, map, mem, callback, callback_arg);
+	}
 }
 
 static inline bus_dma_segment_t *

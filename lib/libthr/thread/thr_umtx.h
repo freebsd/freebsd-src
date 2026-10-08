@@ -82,13 +82,19 @@ _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
 
 	if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
 		return (0);
+	if ((uint32_t)mtx->m_owner == UMUTEX_CONTESTED &&
+	    __predict_true((mtx->m_flags & (UMUTEX_PRIO_PROTECT |
+	   UMUTEX_PRIO_INHERIT)) == 0) &&
+	   atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_CONTESTED,
+	   id | UMUTEX_CONTESTED))
+		return (0);
 	if (__predict_false((uint32_t)mtx->m_owner == UMUTEX_RB_OWNERDEAD) &&
 	    atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_RB_OWNERDEAD,
 	    id | UMUTEX_CONTESTED))
 		return (EOWNERDEAD);
 	if (__predict_false((uint32_t)mtx->m_owner == UMUTEX_RB_NOTRECOV))
 		return (ENOTRECOVERABLE);
-	if ((mtx->m_flags & UMUTEX_PRIO_PROTECT) == 0)
+	if ((mtx->m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0)
 		return (EBUSY);
 	return (__thr_umutex_trylock(mtx));
 }

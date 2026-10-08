@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm "kyua report"
-.Nd Generates reports with the results of a test suite run
+.Nd generate reports with the results of a test suite run
 .Sh SYNOPSIS
 .Nm
 .Op Fl -output Ar path

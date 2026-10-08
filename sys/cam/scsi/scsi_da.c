@@ -4658,6 +4658,7 @@ static void
 dadone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct bio *bp, *bp1;
+	struct bio_queue queue;
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
 	da_ccb_state state;
@@ -4788,16 +4789,21 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	 * the case of sendfile can be quite extensive. Release the periph
 	 * refcount taken in dastart() for each CCB.
 	 */
-	cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
+	if (state == DA_CCB_DELETE) {
+		TAILQ_INIT(&queue);
+		TAILQ_INSERT_HEAD(&queue, bp, bio_queue);
+		TAILQ_CONCAT(&queue, &softc->delete_run_queue.queue,
+		    bio_queue);
+		softc->delete_run_queue.insert_point = NULL;
+		cam_iosched_bio_queue_update_stats(softc->cam_iosched, &queue,
+		    done_ccb, bp->bio_error);
+	} else {
+		cam_iosched_bio_update_stats(softc->cam_iosched, bp, done_ccb);
+	}
 	xpt_release_ccb(done_ccb);
 	KASSERT(softc->refcount >= 1, ("dadone softc %p refcount %d", softc, softc->refcount));
 	softc->refcount--;
 	if (state == DA_CCB_DELETE) {
-		TAILQ_HEAD(, bio) queue;
-
-		TAILQ_INIT(&queue);
-		TAILQ_CONCAT(&queue, &softc->delete_run_queue.queue, bio_queue);
-		softc->delete_run_queue.insert_point = NULL;
 		/*
 		 * Normally, the xpt_release_ccb() above would make sure
 		 * that when we have more work to do, that work would
@@ -4813,20 +4819,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		cam_periph_unlock(periph);
 		while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
 			TAILQ_REMOVE(&queue, bp1, bio_queue);
-			bp1->bio_error = bp->bio_error;
-			if (bp->bio_flags & BIO_ERROR) {
-				bp1->bio_flags |= BIO_ERROR;
-				bp1->bio_resid = bp1->bio_bcount;
-			} else
-				bp1->bio_resid = 0;
 			biodone(bp1);
 		}
 	} else {
 		daschedule(periph);
 		cam_periph_unlock(periph);
+		if (bp != NULL)
+			biodone(bp);
 	}
-	if (bp != NULL)
-		biodone(bp);
 	return;
 }
 

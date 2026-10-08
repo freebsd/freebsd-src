@@ -53,7 +53,7 @@ public:
 
     void init() const;
     void cleanup() const;
-    void exec(const args_vector& args) const UTILS_NORETURN;
+    void exec [[noreturn]] (const args_vector& args) const;
 };
 
 

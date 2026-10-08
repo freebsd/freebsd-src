@@ -34,24 +34,17 @@
 #if !defined(UTILS_DEFS_HPP)
 #define UTILS_DEFS_HPP
 
-
-/// Attribute to mark a function as non-returning.
-#define UTILS_NORETURN @ATTRIBUTE_NORETURN@
-
+extern "C" {
+#include <inttypes.h>
+}
 
 /// Attribute to mark a function as pure.
 #define UTILS_PURE @ATTRIBUTE_PURE@
-
-
-/// Attribute to mark an entity as unused.
-#define UTILS_UNUSED @ATTRIBUTE_UNUSED@
-
 
 /// Unconstifies a pointer.
 ///
 /// \param type The target type of the conversion.
 /// \param ptr The pointer to be unconstified.
-#define UTILS_UNCONST(type, ptr) ((type*)(unsigned long)(const void*)(ptr))
-
+#define UTILS_UNCONST(type, ptr) ((type*)(uintptr_t)(const void*)(ptr))
 
 #endif  // !defined(UTILS_DEFS_HPP)
