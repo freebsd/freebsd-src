@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20261008: replaced with ATF test
+OLD_FILES+=usr/tests/usr.bin/ncal/legacy_test
+OLD_FILES+=usr/tests/usr.bin/ncal/regress.sh
+
 # 20260930: apm(8) only displays ACPI status
 OLD_FILES+=etc/rc.d/apm
 
