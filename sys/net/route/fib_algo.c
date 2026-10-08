@@ -1821,9 +1821,10 @@ get_nhop_idx(struct nhop_object *nh)
 static uint8_t
 get_nhop_family(struct nhop_object *nh)
 {
-
+#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh))
 		return (nhgrp_get_neigh_family((struct nhgrp_object *)nh));
+#endif
 
 	return (nhop_get_neigh_family(nh));
 }
