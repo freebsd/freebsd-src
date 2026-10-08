@@ -58,7 +58,7 @@ SRCS+=	mem_clr.c
 # aes
 SRCS+=	aes_cfb.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if defined(ASM_aarch64)
-SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S vpaes-armv8.S
+SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S bsaes-armv8.S vpaes-armv8.S
 ACFLAGS.aesv8-armx.S=	-march=armv8-a+crypto
 .elif defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S aesni-sha256-x86_64.S
@@ -314,7 +314,9 @@ SRCS+=	md4_dgst.c md4_one.c
 
 # md5
 SRCS+=	md5_dgst.c md5_one.c md5_sha1.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	md5-aarch64.S
+.elif defined(ASM_amd64)
 SRCS+=	md5-x86_64.S
 .elif defined(ASM_i386)
 SRCS+=	md5-586.S
@@ -399,13 +401,14 @@ SRCS+=	provider_seeding.c provider_util.c securitycheck.c
 SRCS+=	securitycheck_default.c
 
 # providers/common/der
+# der_digests_gen.c, der_dsa_key.c and der_ec_key.c are not listed: nothing in
+# libcrypto references them, and upstream's linker drops them from libcommon.a.
 SRCS+=	der_rsa_gen.c der_rsa_key.c der_rsa_sig.c
-SRCS+=	der_digests_gen.c
 SRCS+=	der_ml_dsa_gen.c der_ml_dsa_key.c
 SRCS+=	der_wrap_gen.c
 SRCS+=	der_slh_dsa_gen.c der_slh_dsa_key.c
-SRCS+=	der_dsa_gen.c der_dsa_key.c der_dsa_sig.c
-SRCS+=	der_ec_gen.c der_ec_key.c der_ec_sig.c
+SRCS+=	der_dsa_gen.c der_dsa_sig.c
+SRCS+=	der_ec_gen.c der_ec_sig.c
 SRCS+=	der_ecx_gen.c der_ecx_key.c
 
 # providers/implementations/asymciphers
