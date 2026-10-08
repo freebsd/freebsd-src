@@ -63,12 +63,6 @@ _Static_assert(offsetof(struct pthread_mutex, m_qe) >= CACHE_LINE_SIZE,
 #endif
 
 /*
- * For adaptive mutexes, how many times to spin doing trylock2
- * before entering the kernel to block
- */
-#define MUTEX_ADAPTIVE_SPINS	2000
-
-/*
  * Prototypes
  */
 int	__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
@@ -274,8 +268,7 @@ mutex_init_body(struct pthread_mutex *pmutex,
 		pmutex->m_lock.m_flags |= UMUTEX_ROBUST;
 	}
 	if (PMUTEX_TYPE(pmutex->m_flags) == PTHREAD_MUTEX_ADAPTIVE_NP) {
-		pmutex->m_spinloops =
-		    _thr_spinloops ? _thr_spinloops: MUTEX_ADAPTIVE_SPINS;
+		pmutex->m_spinloops = _thr_spinloops;
 		pmutex->m_yieldloops = _thr_yieldloops;
 	}
 }
