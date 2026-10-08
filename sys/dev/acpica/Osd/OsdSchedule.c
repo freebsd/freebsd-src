@@ -57,9 +57,14 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, max_tasks, CTLFLAG_RDTUN, &acpi_max_tasks,
 /*
  * Track and report the system's demand for task slots.
  */
-static int acpi_tasks_hiwater;
+static int acpi_boot_tasks_nb;
+SYSCTL_INT(_debug_acpi, OID_AUTO, boot_tasks_nb, CTLFLAG_RD,
+    &acpi_boot_tasks_nb, 0,
+    "Amount of ACPI event tasks queued at boot before processing starts.");
+static int acpi_tasks_high_water;
 SYSCTL_INT(_debug_acpi, OID_AUTO, tasks_hiwater, CTLFLAG_RD,
-    &acpi_tasks_hiwater, 1, "Peak demand for ACPI event task slots.");
+    &acpi_tasks_high_water, 0,
+    "Peak demand for ACPI event task slots (after boot).");
 
 /*
  * Allow the user to tune the number of task threads we start.  It seems
@@ -155,9 +160,11 @@ static ACPI_STATUS
 acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 {
     struct acpi_task_ctx *at;
-    int hiwater, i;
+    int *high_water_p;
+    int high_water, i;
 
-    for (at = NULL, i = 0; i < acpi_max_tasks; i++)
+    at = NULL;
+    for (i = 0; i < acpi_max_tasks; i++)
 	if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_FREE,
 	    ACPI_TASK_USED)) {
 	    at = &acpi_tasks[i];
@@ -165,8 +172,11 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	    break;
 	}
 
-    while (hiwater = atomic_load_int(&acpi_tasks_hiwater), i + 1 > hiwater) {
-	if (atomic_cmpset_int(&acpi_tasks_hiwater, hiwater, i + 1))
+    /* Update the appropriate high water mark. */
+    high_water_p = acpi_taskq_started ? &acpi_tasks_high_water :
+	&acpi_boot_tasks_nb;
+    while (high_water = atomic_load_int(high_water_p), i + 1 > high_water) {
+	if (atomic_cmpset_int(high_water_p, high_water, i + 1))
 	    break;
 	cpu_spinwait();
     }
