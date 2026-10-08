@@ -88,8 +88,6 @@ struct acpi_task_ctx {
 
 struct taskqueue		*acpi_taskq;
 static struct acpi_task_ctx	*acpi_tasks;
-/* Unsynchronized as only useful in the mono-CPU startup phase. */
-static int			acpi_task_count;
 static int			acpi_taskq_started;
 
 /*
@@ -117,7 +115,7 @@ SYSINIT(acpi_tasks, SI_SUB_DRIVERS, SI_ORDER_FIRST, acpi_task_init, NULL);
 static void
 acpi_taskq_init(void *arg)
 {
-    int i;
+    int boot_tasks_nb, i;
 
     acpi_taskq = taskqueue_create_fast("acpi_task", M_WAITOK,
 	&taskqueue_thread_enqueue, &acpi_taskq);
@@ -127,10 +125,10 @@ acpi_taskq_init(void *arg)
 
     taskqueue_start_threads(&acpi_taskq, acpi_max_threads, PWAIT, "acpi_task");
 
-    if (acpi_task_count > 0) {
+    boot_tasks_nb = atomic_load_int(&acpi_boot_tasks_nb);
+    if (boot_tasks_nb > 0) {
 	if (bootverbose)
-	    printf("AcpiOsExecute: enqueue %d pending tasks\n",
-		acpi_task_count);
+	    printf("AcpiOsExecute: enqueue %d pending tasks\n", boot_tasks_nb);
 	for (i = 0; i < acpi_max_tasks; i++)
 	    if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_USED,
 		ACPI_TASK_USED | ACPI_TASK_ENQUEUED))
@@ -153,7 +151,6 @@ acpi_task_execute(void *context, int pending)
     at = (struct acpi_task_ctx *)context;
     at->at_function(at->at_context);
     atomic_clear_int(&at->at_flag, ACPI_TASK_USED | ACPI_TASK_ENQUEUED);
-    acpi_task_count--;
 }
 
 static ACPI_STATUS
@@ -168,7 +165,6 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_FREE,
 	    ACPI_TASK_USED)) {
 	    at = &acpi_tasks[i];
-	    acpi_task_count++;
 	    break;
 	}
 
