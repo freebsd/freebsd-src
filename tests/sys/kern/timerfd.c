@@ -715,6 +715,9 @@ ATF_TC_HEAD(timerfd__periodic_timer_performance, tc)
 }
 ATF_TC_BODY(timerfd__periodic_timer_performance, tc)
 {
+	if (sysconf(_SC_NPROCESSORS_CONF) < 2)
+		atf_tc_skip("Test livelocks with one CPU, see PR 299223");
+
 	int timerfd = timerfd_create(CLOCK_MONOTONIC, /**/
 	    TFD_CLOEXEC | TFD_NONBLOCK);
 
