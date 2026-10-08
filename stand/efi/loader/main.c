@@ -1380,13 +1380,19 @@ main(int argc, CHAR16 *argv[])
 	 */
 	efiblk_memdisk_preload();
 
-	devinit();
-
 	/*
 	 * Parse command line arguments before any operation that may configure
 	 * the network so DHCP overrides are available on the first attempt.
 	 */
 	howto = parse_args(argc, argv);
+
+	/*
+	 * We want to initialize after giving loader args a chance to elect a
+	 * different console than what we autodetect, but we need efinet to
+	 * have initialized before netbooting an initmd has any chance of
+	 * working.
+	 */
+	devinit();
 
 	/*
 	 * If we didn't find a ipxe image, and we're netbooting, try to
