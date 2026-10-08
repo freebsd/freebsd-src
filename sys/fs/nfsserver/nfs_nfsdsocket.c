@@ -652,6 +652,8 @@ tryagain:
 		vn_finished_write(mp);
 
 		if (error == 0 && nd->nd_repstat == ERELOOKUP) {
+			nfsrvd_statend(nfsv3to4op[nd->nd_procnum], /*bytes*/ 0,
+			    /*now*/ NULL, /*then*/ &start_time);
 			/*
 			 * Roll back to the beginning of the RPC request
 			 * arguments.
@@ -1353,6 +1355,11 @@ tryagain:
 		}
 
 		if (nd->nd_repstat == ERELOOKUP) {
+			if (statsinprog != 0) {
+				nfsrvd_statend(op, /*bytes*/ 0, /*now*/ NULL,
+				    /*then*/ &start_time);
+				statsinprog = 0;
+			}
 			/*
 			 * Roll back to the beginning of the operation
 			 * arguments.
