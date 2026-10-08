@@ -281,6 +281,9 @@ ATF_TC_BODY(cponfork_timer_race, tc)
 	int error, kq, status;
 	pid_t pid;
 
+	if (sysconf(_SC_NPROCESSORS_CONF) < 2)
+		atf_tc_skip("Test livelocks with one CPU, see PR 299223");
+
 	for (int i = 0; i < 100; i++) {
 		kq = kqueuex(KQUEUE_CPONFORK);
 		ATF_REQUIRE(kq >= 0);
