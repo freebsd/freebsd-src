@@ -369,10 +369,14 @@ umount_loop() {
 }
 
 vm_create_disk() {
-	local BOOTFILES BOOTPARTSOFFSET FSPARTTYPE X86GPTBOOTFILE
+	local BOOTFILES BOOTPARTSOFFSET FSPARTTYPE PARTALIGN X86GPTBOOTFILE
+
+	if [ -n "${VM_PARTALIGN}" ]; then
+		PARTALIGN="%${VM_PARTALIGN}"
+	fi
 
 	if [ -z "${NOSWAP}" ]; then
-		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
+		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}${PARTALIGN}"
 	fi
 
 	if [ -n "${VM_BOOTPARTSOFFSET}" ]; then
@@ -380,7 +384,7 @@ vm_create_disk() {
 	fi
 
 	if [ -n "${CONFIG_DRIVE}" ]; then
-		CONFIG_DRIVE="-p freebsd/config-drive::${CONFIG_DRIVE_SIZE}"
+		CONFIG_DRIVE="-p freebsd/config-drive::${CONFIG_DRIVE_SIZE}${PARTALIGN}"
 	fi
 
 	case "${VMFS}" in
@@ -412,19 +416,19 @@ vm_create_disk() {
 			ESP=yes
 			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
 				   -p freebsd-boot/bootfs:=${BOOTFILES}/${X86GPTBOOTFILE}${BOOTPARTSOFFSET}"
-			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}"
+			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}${PARTALIGN}"
 			MAKEFSARGS="$MAKEFSARGS -B little"
 			;;
 		arm:armv7 | arm64:aarch64 | riscv:riscv64*)
 			ESP=yes
 			BOOTPARTS=
-			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}"
+			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}${PARTALIGN}"
 			MAKEFSARGS="$MAKEFSARGS -B little"
 			;;
 		powerpc:powerpc*)
 			ESP=no
 			BOOTPARTS="-p prepboot:=${BOOTFILES}/powerpc/boot1.chrp/boot1.elf -a 1"
-			ROOTFSPART="-p freebsd:=${VMBASE}"
+			ROOTFSPART="-p freebsd:=${VMBASE}${PARTALIGN}"
 			if [ ${TARGET_ARCH} = powerpc64le ]; then
 				MAKEFSARGS="$MAKEFSARGS -B little"
 			else
@@ -445,7 +449,7 @@ vm_create_disk() {
 		if [ -z "${BOOTPARTS}" ]; then
 			espsuffix="${BOOTPARTSOFFSET}"
 		fi
-		BOOTPARTS="${BOOTPARTS} -p efi/efiboot0:=${espfilename}${espsuffix}"
+		BOOTPARTS="${BOOTPARTS} -p efi/efiboot0:=${espfilename}${espsuffix}${PARTALIGN}"
 
 		# Add this to fstab
 		mkdir -p ${DESTDIR}/boot/efi
