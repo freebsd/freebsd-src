@@ -1554,7 +1554,9 @@ mmc_host_timing(device_t dev, enum mmc_bus_timing timing)
 		return (HOST_TIMING_CAP(host_caps, MMC_CAP_MMC_HS400_120) ||
 			HOST_TIMING_CAP(host_caps, MMC_CAP_MMC_HS400_180));
 	case bus_timing_mmc_hs400es:
-		return (HOST_TIMING_CAP(host_caps, MMC_CAP_MMC_HS400 |
+		return (HOST_TIMING_CAP(host_caps, MMC_CAP_MMC_HS400_120 |
+		    MMC_CAP_MMC_ENH_STROBE) ||
+		    HOST_TIMING_CAP(host_caps, MMC_CAP_MMC_HS400_180 |
 		    MMC_CAP_MMC_ENH_STROBE));
 	}
 
