@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 1, 2021
+.Dd October 8, 2026
 .Dt LIBTHR 3
 .Os
 .Sh NAME
@@ -199,7 +199,7 @@ The value is the count of loop operations.
 The integer value of the variable specifies how often blocked
 threads are inserted at the head of the sleep queue, instead of its tail.
 Bigger values reduce the frequency of the FIFO discipline.
-The value must be between 0 and 255.
+The value must be between 0 and 31.
 .It Dv LIBPTHREAD_UMTX_MIN_TIMEOUT
 The minimal amount of time, in nanoseconds, the thread is required to sleep
 for pthread operations specifying a timeout.
