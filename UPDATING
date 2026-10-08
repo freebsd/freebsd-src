@@ -12,6 +12,26 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20261014:
+	15.1-RELEASE-p5	EN-26:25.tzdata
+			EN-26:26.hastd
+			EN-26:27.tcp
+			SA-26:70.tcp
+			SA-26:71.sound
+			SA-26:72.bhyve
+
+	Timezone database information update. [EN-26:25.tzdata]
+
+	Multiple issues in hastd(8). [EN-26:26.hastd]
+
+	TCP timers may overflow and fire late or not at all. [EN-26:27.tcp]
+
+	Remotely triggerable buffer overflow in tcp_rack. [SA-26:70.tcp]
+
+	TOCTOU race between sound(4) buffer resizing and mmap. [SA-26:71.sound]
+
+	Multiple vulnerabilities in bhyve device models. [SA-26:72.bhyve]
+
 20260928:
 	15.1-RELEASE-p4	EN-26:23.syslogd
 			EN-26:24.tzdata
