@@ -37,7 +37,7 @@
 #define __unused	/* not all compilers support attributes */
 #endif
 
-#define SYSCONF_VERSION	"2.1 2026-09-22"
+#define SYSCONF_VERSION	"2.2 2026-09-22"
 
 /* getopt(3) optstring; shared by parse_options() and find_target() */
 #define OPTSTRING	"AacdDEeFf:hij:k:lLnNqR:svVx"
@@ -197,12 +197,21 @@ int		 sysctl_writable(const char *_name, const char *_value,
 #endif
 
 /* sysconf-targets.c */
+int		 find_operand(int _argc, char **_argv, int _from, int _past_dd);
 const char	*resolve_keyword(const char *_token,
 		    const char *const *_keywords, const char *_what);
-const char	*target_resolve(int _argc, char **_argv);
+const char	*target_resolve(int *_argcp, char **_argv);
 
 /* sysconf.c */
 void		 usage(void);
 void		 help(void);
+
+/* sysconf_poudriere.c */
+int		 poudriere_longopt_p(const char *_arg);
+int		 poudriere_dispatch(int _argc, char **_argv, int _tgt);
+int		 poudriere_native(void);
+void		 poudriere_setup(void);
+void		 poudriere_usage(void);
+void		 poudriere_help(void);
 
 #endif /* !_SYSCONF_PRIV_H_ */

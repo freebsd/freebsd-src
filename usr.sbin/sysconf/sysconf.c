@@ -171,10 +171,10 @@ main(int argc, char *argv[])
 	pgm = getprogname();
 
 	/*
-	 * Target selection, including the rc pass-through, runs while
-	 * argv is still pristine (see target_resolve()).
+	 * Target selection, including the rc and poudriere pass-throughs,
+	 * runs while argv is still pristine (see target_resolve()).
 	 */
-	resolved = target_resolve(argc, argv);
+	resolved = target_resolve(&argc, argv);
 
 	/*
 	 * Honor `--help' and `--version' wherever they appear (getopt(3)
@@ -206,8 +206,11 @@ main(int argc, char *argv[])
 	 * sysctl(8) (e.g., `sysconf sysctl -L'). getopt(3) skips over its
 	 * first argument, so hand it the target keyword's slot as the
 	 * program name.
+	 *
+	 * Nested `poudriere make|src|src-env' already stripped both keywords;
+	 * remaining argv is options plus names.
 	 */
-	if (argc > 0) {
+	if (argc > 0 && !poudriere_native()) {
 		target = resolved != NULL ? resolved : argv[0];
 		argc--;
 		argv++;
@@ -254,7 +257,10 @@ main(int argc, char *argv[])
 #endif
 
 	/* Resolve the target format and its backing files */
-	resolve_target(target);
+	if (poudriere_native())
+		poudriere_setup();
+	else
+		resolve_target(target);
 
 	/* `-k' requires a target with a module drop-in directory */
 	if (module != NULL) {
@@ -564,6 +570,7 @@ usage(void)
 	    " -l | -L\n", pgm);
 	fprintf(stderr,
 	    "       %s rc [sysrc(8) argument ...]\n", pgm);
+	poudriere_usage();
 	fprintf(stderr, "Try `%s --help' for more information.\n", pgm);
 	exit(EXIT_FAILURE);
 }
@@ -598,6 +605,7 @@ help(void)
 	    "__MAKE_CONF, SRCCONF)");
 	fprintf(stderr, TGTFMT, "rc",
 	    "pass-through: all other arguments go to sysrc(8) verbatim");
+	poudriere_help();
 	fprintf(stderr, TGTFMT, "generic",
 	    "no default files; requires -f file");
 	fprintf(stderr,

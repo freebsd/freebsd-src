@@ -1,0 +1,364 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd September 23, 2026
+.Dt SYSCONF-POUDRIERE 8
+.Os
+.Sh NAME
+.Nm "sysconf poudriere"
+.Nd configure poudriere.conf and poudriere.d overlay files
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm poudriere
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Ar sysrc_argument ...
+.Nm sysconf
+.Cm poudriere
+.Bro Cm make Ns | Ns Cm src Ns | Ns Cm src-env Brc
+.Op Fl ceFinNqsvVx
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm sysconf
+.Cm poudriere
+.Bro Cm make Ns | Ns Cm src Ns | Ns Cm src-env Brc
+.Op Fl eFnNqvV
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Fl f Ar file
+.Fl a
+.Nm sysconf
+.Cm poudriere
+.Bro Cm make Ns | Ns Cm src Ns | Ns Cm src-env Brc
+.Op Fl E
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Fl f Ar file
+.Fl l | L
+.Sh DESCRIPTION
+The
+.Cm poudriere
+target of
+.Xr sysconf 8
+reaches the same files
+.Xr poudriere 8
+sources.
+With no sub-target, it is the
+.Pa poudriere.conf
+collection, handed to
+.Xr sysrc 8
+as
+.Fl f
+files.
+The sub-targets are
+.Cm make ,
+.Cm src ,
+and
+.Cm src-env .
+Each is the matching
+.Xr make 1
+collection under
+.Pa poudriere.d ,
+handled by the same engine as
+.Xr sysconf-make 8 .
+.Pp
+A unique prefix of the
+.Cm poudriere
+keyword is accepted
+.Pq Ql p .
+A unique prefix of a sub-target is accepted the same way
+.Po
+.Ql m
+selects
+.Cm make ;
+.Ql s
+and
+.Ql sr
+are ambiguous between
+.Cm src
+and
+.Cm src-env
+.Pc .
+.Ss poudriere.conf
+.Pa poudriere.conf
+is
+.Xr rc.conf 5 Ns -style
+shell written by the administrator;
+poudriere never writes it.
+The default collection, sourced by every poudriere command, is in order:
+.Pa POUDRIERE_ETC/poudriere.conf
+if readable
+.Pq default Pa /usr/local/etc/poudriere.conf ,
+then
+.Pa POUDRIERED/poudriere.conf
+if readable and not the same file as the first
+.Pq default Pa POUDRIERE_ETC/poudriere.d/poudriere.conf .
+At least one of those two files must exist.
+Honor
+.Ev POUDRIERE_ETC
+and
+.Ev POUDRIERED
+when set.
+.Pp
+When a jail, ports tree, or set is given, the matching files are
+appended, in the order
+.Xr poudriere 8
+uses:
+.Bd -unfilled -offset indent
+.Pa POUDRIERED/<setname>-poudriere.conf
+.Pa POUDRIERED/<tree>-poudriere.conf
+.Pa POUDRIERED/<jailname>-poudriere.conf
+.Pa POUDRIERED/<tree>-<setname>-poudriere.conf
+.Pa POUDRIERED/<jailname>-<tree>-poudriere.conf
+.Pa POUDRIERED/<jailname>-<setname>-poudriere.conf
+.Pa POUDRIERED/<jailname>-<tree>-<setname>-poudriere.conf
+.Ed
+.Pp
+An explicit
+.Xr sysrc 8
+.Fl f
+replaces discovery.
+.Fl l
+and
+.Fl L
+are handled here and printed one path per line.
+For this
+.Pa poudriere.conf
+collection,
+.Fl l
+lists each readable file.
+.Fl L
+lists every location the given jail, tree, and set would consult,
+including overlays that do not exist yet.
+If no jail, tree, or set is given, the list is the two global
+.Pa poudriere.conf
+paths.
+.Fl E
+limits either list to files that exist.
+.Fl l
+and
+.Fl L
+take no variable names.
+Other arguments except the
+.Cm poudriere
+keyword itself are handed to
+.Xr sysrc 8
+verbatim.
+A bare
+.Ql --
+means the next word is a variable in this collection, even when that
+word is
+.Cm make ,
+.Cm src ,
+.Cm src-env ,
+or a unique prefix of one of those sub-targets.
+.Ss make.conf, src.conf, and src-env.conf
+These live only under
+.Pa POUDRIERED
+and use
+.Xr make 1
+syntax, so they are not mixed into the
+.Pa poudriere.conf
+sysrc collection.
+.Pp
+.Cm poudriere make
+consults, in the order shown by
+.Xr poudriere 8 :
+.Bd -unfilled -offset indent
+.Pa POUDRIERED/make.conf
+.Pa POUDRIERED/<setname>-make.conf
+.Pa POUDRIERED/<tree>-make.conf
+.Pa POUDRIERED/<jailname>-make.conf
+.Pa POUDRIERED/<tree>-<setname>-make.conf
+.Pa POUDRIERED/<jailname>-<tree>-make.conf
+.Pa POUDRIERED/<jailname>-<setname>-make.conf
+.Pa POUDRIERED/<jailname>-<tree>-<setname>-make.conf
+.Ed
+.Pp
+.Fl l
+always prints the global path, even when that file does not exist:
+.Pa POUDRIERED/make.conf
+for
+.Cm make ,
+.Pa POUDRIERED/src.conf
+for
+.Cm src ,
+and
+.Pa POUDRIERED/src-env.conf
+for
+.Cm src-env .
+An overlay is printed only when the file exists.
+.Fl L
+lists every location the given jail, tree, and set would consult,
+including files that do not exist yet.
+.Cm src
+and
+.Cm src-env
+have no per-tree file, so
+.Fl Fl tree
+does not add a path to those lists.
+.Fl E
+limits either list to files that exist, so a missing global is omitted.
+On a read, a missing global is skipped and an
+overlay is consulted only when the file exists.
+Hook-plugin
+.Pa make.conf
+files are not collected.
+.Pp
+.Cm poudriere src
+follows the shorter list
+.Xr poudriere 8
+uses when building jails
+.Pq global, then set, then jail; no tree :
+.Bd -unfilled -offset indent
+.Pa POUDRIERED/src.conf
+.Pa POUDRIERED/<setname>-src.conf
+.Pa POUDRIERED/<jailname>-src.conf
+.Ed
+.Pp
+.Cm poudriere src-env
+uses that same order, with
+.Pa src-env.conf
+in place of
+.Pa src.conf :
+.Bd -unfilled -offset indent
+.Pa POUDRIERED/src-env.conf
+.Pa POUDRIERED/<setname>-src-env.conf
+.Pa POUDRIERED/<jailname>-src-env.conf
+.Ed
+.Pp
+An explicit
+.Fl f
+replaces discovery, as on other
+.Nm sysconf
+targets.
+A name already defined is rewritten in the last file in the
+collection that defines it, so the change is not placed where a later
+overlay would mask it.
+A name defined nowhere is appended to the global file, and that write
+creates the global file when it is missing.
+A bare
+.Ar name
+reads, and
+.Ar name Ns = Ns Ar value
+writes, including
+.Ql +=
+and
+.Ql -= .
+Those rules are the
+.Dq Assignment syntax
+section of
+.Xr sysconf 8 .
+.Ss Context long options
+.Bl -tag -width indent
+.It Fl Fl jail Ar name
+Poudriere jail name, as in
+.Pa <jailname>-make.conf
+and the other jail files.
+.It Fl Fl ports Ar name , Fl Fl tree Ar name
+Poudriere ports tree.
+.Fl Fl tree
+is an alias of
+.Fl Fl ports ;
+when both are given, the last wins.
+A tree applies to
+.Pa poudriere.conf
+and the
+.Cm make
+sub-target.
+.Cm src
+and
+.Cm src-env
+ignore it; poudriere does not read a per-tree src file.
+.It Fl Fl set Ar name
+Poudriere set name.
+.El
+.Pp
+.Fl Fl jail Ns = Ns Ar name
+(and the same attached form for the others) is accepted.
+These long options are consumed here and never passed to
+.Xr sysrc 8
+or mistaken for
+.Nm sysconf
+operands.
+They are distinct from
+.Fl j
+on
+.Xr sysconf 8
+and
+.Xr sysrc 8 ,
+which name a running jail.
+.Ss Out of scope
+Poudriere maintains the following itself, or they are a different format:
+.Pp
+.Bl -tag -width indent -compact
+.It Pa poudriere.d/jails/ , poudriere.d/ports/
+One file per property; the whole file is the value.
+.It Pa poudriere.d/*-options/
+A
+.Ev PORT_DBDIR
+tree of per-port
+.Ql OPTIONS
+files, written by
+.Ql poudriere options
+.Pq Ql make config .
+.It Pa poudriere.d/*-blacklist
+Port origins, one per line
+.Pq with optional Ql @flavor ;
+.Ql #
+comments.
+Not
+.Ql name=value .
+.It Pa poudriere.d/hooks/
+Shell scripts, including plugin
+.Pa make.conf
+files under
+.Pa hooks/plugins/ .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width POUDRIERE_ETC
+.It Ev POUDRIERE_ETC
+Directory containing
+.Pa poudriere.conf
+.Pq default Pa /usr/local/etc .
+.It Ev POUDRIERED
+Overlay directory
+.Pq default Pa POUDRIERE_ETC/poudriere.d .
+.El
+.Sh EXAMPLES
+.Dl sysconf poudriere ZPOOL=zroot
+.Dl sysconf poudriere --jail 131amd64 PARALLEL_JOBS=8
+.Dl sysconf p ZPOOL
+.Dl sysconf p -- src
+.Dl sysconf poudriere make --jail 131amd64 CFLAGS
+.Dl sysconf p m --jail 131amd64 CFLAGS+=-O2
+.Dl sysconf poudriere src --set dev WITHOUT_LLVM_BINUTILS=
+.Dl sysconf p src-env --jail 131amd64 SRC_ENV_VAR
+.Sh SEE ALSO
+.Xr poudriere 8 ,
+.Xr sysconf 8 ,
+.Xr sysconf-make 8 ,
+.Xr sysconf-rc 8 ,
+.Xr sysrc 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

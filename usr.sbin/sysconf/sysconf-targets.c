@@ -6,7 +6,8 @@
  */
 
 /*
- * Target keyword selection: unique-prefix match, and the rc pass-through.
+ * Target keyword selection: unique-prefix match, the rc pass-through,
+ * and the poudriere target (sysrc collection or native make overlays).
  */
 
 #include "sysconf_priv.h"
@@ -20,6 +21,7 @@ static const char *const target_keywords[] = {
 	"generic",
 	"loader",
 	"make",
+	"poudriere",
 	"rc",
 	"src",
 	"sysctl",
@@ -82,31 +84,47 @@ resolve_target_keyword(const char *token)
 }
 
 /*
- * Locate the target keyword in `argv' without consuming or validating
- * anything: the first argument that is neither an option cluster nor the
- * argument of one (per OPTSTRING; an unknown option letter is assumed to
- * take no argument). A `--' ends option scanning as usual. Returns the
- * argv index of the target, or -1 when there is none. Used before any
- * getopt(3) processing so that the `rc' pass-through target (see
- * exec_sysrc() below) can be detected while the command line is still
- * pristine.
+ * Locate an operand in `argv' without consuming or validating anything:
+ * the first argument that is neither an option cluster nor the argument
+ * of one (per OPTSTRING; an unknown option letter is assumed to take no
+ * argument). Used before any getopt(3) processing so that pass-through
+ * targets (`rc', `poudriere'; see exec_sysrc() / poudriere_dispatch())
+ * can be detected while the command line is still pristine.
  *
  * Attached arguments (`-fPATH', `-R/altroot') are self-contained: the rest
  * of the cluster is the option's argument, so the following argv element is
  * not consumed. Only a trailing option letter that takes an argument and
  * has nothing after it in the cluster (`-f PATH') skips the next element.
+ *
+ * Poudriere context long options (`--jail'/`--ports'/`--tree'/`--set')
+ * take an argument and must not be mistaken for a keyword.
+ *
+ * `past_dd' is for the top-level target: `--' ends options and the next
+ * word is the keyword (`sysconf -- loader'). The poudriere nested keyword
+ * passes zero: `--' ends the stem, and the following word is a name
+ * (`sysconf p -- src' reads the variable src from poudriere.conf).
  */
-static int
-find_target(int argc, char *argv[])
+int
+find_operand(int argc, char *argv[], int from, int past_dd)
 {
 	int n;
 	const char *o;
 	const char *p;
 
-	for (n = 1; n < argc; n++) {
-		if (strcmp(argv[n], "--") == 0)
+	for (n = from; n < argc; n++) {
+		if (strcmp(argv[n], "--") == 0) {
+			if (!past_dd)
+				return (-1);
 			return (n + 1 < argc ? n + 1 : -1);
+		}
 		if (argv[n][0] == '-' && argv[n][1] != '\0') {
+			if (argv[n][1] == '-') {
+				if (poudriere_longopt_p(argv[n]) &&
+				    strchr(argv[n], '=') == NULL &&
+				    n + 1 < argc)
+					n++;
+				continue;
+			}
 			for (p = argv[n] + 1; *p != '\0'; p++) {
 				o = strchr(OPTSTRING, *p);
 				if (o != NULL && o[1] == ':') {
@@ -127,6 +145,13 @@ find_target(int argc, char *argv[])
 	}
 
 	return (-1);
+}
+
+static int
+find_target(int argc, char *argv[])
+{
+
+	return (find_operand(argc, argv, 1, 1));
 }
 
 /*
@@ -159,21 +184,28 @@ exec_sysrc(int argc, char *argv[], int skip)
 
 /*
  * Resolve the target keyword. The `rc' target execs sysrc(8) and does
- * not return, so `--help' and `--version' are not intercepted on that
- * path. Unique-prefix shorthands are expanded (`r', `m'). Returns the
- * canonical keyword, or NULL when the token is unknown or absent.
+ * not return. The `poudriere' target either execs sysrc(8) or compacts
+ * argv for a native make/src/src-env overlay (`*argcp' is updated) and
+ * returns NULL so main does not treat it as a libbsdconf keyword.
+ * Unique-prefix shorthands are expanded (`r', `m', `p'). Returns the
+ * canonical keyword, or NULL when the token is unknown, absent, or
+ * handled as a poudriere overlay.
  */
 const char *
-target_resolve(int argc, char *argv[])
+target_resolve(int *argcp, char *argv[])
 {
 	const char *resolved;
 	int n;
 
-	n = find_target(argc, argv);
+	n = find_target(*argcp, argv);
 	if (n < 0)
 		return (NULL);
 	resolved = resolve_target_keyword(argv[n]);
 	if (resolved != NULL && strcmp(resolved, "rc") == 0)
-		exec_sysrc(argc, argv, n); /* never returns */
+		exec_sysrc(*argcp, argv, n); /* never returns */
+	if (resolved != NULL && strcmp(resolved, "poudriere") == 0) {
+		*argcp = poudriere_dispatch(*argcp, argv, n);
+		return (NULL);
+	}
 	return (resolved);
 }
