@@ -398,6 +398,7 @@ nvmf_init_ns(struct nvmf_softc *sc, uint32_t id,
 	    device_get_nameunit(sc->dev), id);
 
 	ns->cdev->si_flags |= SI_UNMAPPED;
+	ns->cdev->si_iosize_max = sc->max_xfer_size;
 
 	return (ns);
 fail:
