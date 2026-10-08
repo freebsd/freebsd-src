@@ -2695,9 +2695,8 @@ ${_bt}-usr.sbin/makefs: ${_bt}-lib/libsbuf
 .endif
 .endif
 
-# 1600027, 1501504: vmdks support
-.if ${BOOTSTRAPPING} < 1501504 || \
-	(${BOOTSTRAPPING} > 1600000 && ${BOOTSTRAPPING} < 1600027) || \
+# 1600029: %align support
+.if ${BOOTSTRAPPING} < 1600029 || \
 	${MK_DISK_IMAGE_TOOLS_BOOTSTRAP} != "no"
 _mkimg=	usr.bin/mkimg
 ${_bt}-usr.bin/mkimg: ${_bt}-lib/libz
