@@ -46,7 +46,7 @@ configure:
 	    enable-ec_nistp_64_gcc_128 \
 	    enable-ktls \
 	    enable-sctp \
-	    --openssldir=etc \
+	    --openssldir=/etc/ssl \
 	    --prefix=/usr)
 
 all: patch
