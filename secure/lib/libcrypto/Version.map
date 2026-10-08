@@ -4810,7 +4810,6 @@ OPENSSL_3_0_9 {
         OCSP_RESPID_set_by_key_ex;
         OPENSSL_LH_flush;
         OPENSSL_buf2hexstr_ex;
-        OPENSSL_cpuid_setup;
         OPENSSL_hexstr2buf_ex;
         OPENSSL_info;
         OPENSSL_sk_find_all;
@@ -5401,6 +5400,8 @@ OPENSSL_3_0_9 {
 OPENSSL_3_5_0 {
     global:
 	ASN1_item_unpack_ex;
+	ASYNC_get_mem_functions;
+	ASYNC_set_mem_functions;
 	BIO_ADDR_copy;
 	BIO_ADDR_dup;
 	BIO_err_is_non_fatal;
@@ -5427,6 +5428,7 @@ OPENSSL_3_5_0 {
 	BN_signed_native2bn;
 	CMS_EnvelopedData_decrypt;
 	CMS_EnvelopedData_dup;
+	CMS_EnvelopedData_it;
 	CMS_SignedData_free;
 	CMS_SignedData_new;
 	CMS_SignedData_verify;
@@ -5451,6 +5453,10 @@ OPENSSL_3_5_0 {
 	EVP_CIPHER_CTX_set_algor_params;
 	EVP_CIPHER_can_pipeline;
 	EVP_CipherInit_SKEY;
+	EVP_CipherPipelineDecryptInit;
+	EVP_CipherPipelineEncryptInit;
+	EVP_CipherPipelineFinal;
+	EVP_CipherPipelineUpdate;
 	EVP_DigestSqueeze;
 	EVP_KEYMGMT_gen_gettable_params;
 	EVP_MAC_init_SKEY;
@@ -5555,17 +5561,9 @@ OPENSSL_3_5_0 {
 	OSSL_CMP_ATAVS_free;
 	OSSL_CMP_ATAVS_it;
 	OSSL_CMP_ATAVS_new;
-	OSSL_CMP_CERTREQTEMPLATE_free;
-	OSSL_CMP_CERTREQTEMPLATE_it;
-	OSSL_CMP_CERTREQTEMPLATE_new;
-	OSSL_CMP_CRLSOURCE_free;
-	OSSL_CMP_CRLSOURCE_it;
-	OSSL_CMP_CRLSOURCE_new;
 	OSSL_CMP_CRLSTATUS_create;
 	OSSL_CMP_CRLSTATUS_free;
 	OSSL_CMP_CRLSTATUS_get0;
-	OSSL_CMP_CRLSTATUS_it;
-	OSSL_CMP_CRLSTATUS_new;
 	OSSL_CMP_CRLSTATUS_new1;
 	OSSL_CMP_CTX_get0_geninfo_ITAVs;
 	OSSL_CMP_CTX_get0_libctx;
@@ -5588,9 +5586,6 @@ OPENSSL_3_5_0 {
 	OSSL_CMP_ITAV_new0_certReqTemplate;
 	OSSL_CMP_ITAV_new0_crlStatusList;
 	OSSL_CMP_MSG_get0_certreq_publickey;
-	OSSL_CMP_ROOTCAKEYUPDATE_free;
-	OSSL_CMP_ROOTCAKEYUPDATE_it;
-	OSSL_CMP_ROOTCAKEYUPDATE_new;
 	OSSL_CMP_SRV_CTX_init_trans;
 	OSSL_CMP_get1_caCerts;
 	OSSL_CMP_get1_certReqTemplate;
@@ -5598,8 +5593,6 @@ OPENSSL_3_5_0 {
 	OSSL_CMP_get1_rootCaKeyUpdate;
 	OSSL_CRMF_ATTRIBUTETYPEANDVALUE_dup;
 	OSSL_CRMF_ATTRIBUTETYPEANDVALUE_free;
-	OSSL_CRMF_ATTRIBUTETYPEANDVALUE_it;
-	OSSL_CRMF_ATTRIBUTETYPEANDVALUE_new;
 	OSSL_CRMF_CERTTEMPLATE_dup;
 	OSSL_CRMF_CERTTEMPLATE_get0_publicKey;
 	OSSL_CRMF_ENCRYPTEDKEY_free;
@@ -5670,7 +5663,6 @@ OPENSSL_3_5_0 {
 	OSSL_ISSUER_SERIAL_get0_issuer;
 	OSSL_ISSUER_SERIAL_get0_issuerUID;
 	OSSL_ISSUER_SERIAL_get0_serial;
-	OSSL_ISSUER_SERIAL_it;
 	OSSL_ISSUER_SERIAL_new;
 	OSSL_ISSUER_SERIAL_set1_issuer;
 	OSSL_ISSUER_SERIAL_set1_issuerUID;
@@ -5681,7 +5673,6 @@ OPENSSL_3_5_0 {
 	OSSL_NAMED_DAY_new;
 	OSSL_OBJECT_DIGEST_INFO_free;
 	OSSL_OBJECT_DIGEST_INFO_get0_digest;
-	OSSL_OBJECT_DIGEST_INFO_it;
 	OSSL_OBJECT_DIGEST_INFO_new;
 	OSSL_OBJECT_DIGEST_INFO_set1_digest;
 	OSSL_PARAM_print_to_bio;
@@ -5763,17 +5754,11 @@ OPENSSL_3_5_0 {
 	TS_VERIFY_CTX_set0_data;
 	TS_VERIFY_CTX_set0_imprint;
 	TS_VERIFY_CTX_set0_store;
-	WPACKET_quic_sub_allocate_bytes;
-	WPACKET_quic_write_vlint;
-	WPACKET_start_quic_sub_packet;
-	WPACKET_start_quic_sub_packet_bound;
 	X509_ACERT_INFO_free;
 	X509_ACERT_INFO_it;
 	X509_ACERT_INFO_new;
 	X509_ACERT_ISSUER_V2FORM_free;
-	X509_ACERT_ISSUER_V2FORM_it;
 	X509_ACERT_ISSUER_V2FORM_new;
-	X509_ACERT_ISSUER_it;
 	X509_ACERT_add1_attr;
 	X509_ACERT_add1_attr_by_NID;
 	X509_ACERT_add1_attr_by_OBJ;
@@ -5816,7 +5801,6 @@ OPENSSL_3_5_0 {
 	X509_ACERT_sign;
 	X509_ACERT_sign_ctx;
 	X509_ACERT_verify;
-	X509_HOLDER_it;
 	X509_PUBKEY_set0_public_key;
 	X509_PURPOSE_get_unused_id;
 	X509_STORE_CTX_get0_rpk;
@@ -5841,10 +5825,6 @@ OPENSSL_3_5_0 {
 	d2i_OSSL_AUTHORITY_ATTRIBUTE_ID_SYNTAX;
 	d2i_OSSL_BASIC_ATTR_CONSTRAINTS;
 	d2i_OSSL_CMP_ATAVS;
-	d2i_OSSL_CMP_CERTREQTEMPLATE;
-	d2i_OSSL_CMP_CRLSOURCE;
-	d2i_OSSL_CMP_CRLSTATUS;
-	d2i_OSSL_CMP_ROOTCAKEYUPDATE;
 	d2i_OSSL_CRMF_ENCRYPTEDKEY;
 	d2i_OSSL_DAY_TIME;
 	d2i_OSSL_DAY_TIME_BAND;
@@ -5888,10 +5868,6 @@ OPENSSL_3_5_0 {
 	i2d_OSSL_AUTHORITY_ATTRIBUTE_ID_SYNTAX;
 	i2d_OSSL_BASIC_ATTR_CONSTRAINTS;
 	i2d_OSSL_CMP_ATAVS;
-	i2d_OSSL_CMP_CERTREQTEMPLATE;
-	i2d_OSSL_CMP_CRLSOURCE;
-	i2d_OSSL_CMP_CRLSTATUS;
-	i2d_OSSL_CMP_ROOTCAKEYUPDATE;
 	i2d_OSSL_CRMF_ENCRYPTEDKEY;
 	i2d_OSSL_DAY_TIME;
 	i2d_OSSL_DAY_TIME_BAND;
@@ -5919,25 +5895,4 @@ OPENSSL_3_5_0 {
 	i2d_X509_ACERT;
 	i2d_X509_ACERT_bio;
 	i2d_X509_ACERT_fp;
-	ossl_crypto_condvar_broadcast;
-	ossl_crypto_condvar_free;
-	ossl_crypto_condvar_new;
-	ossl_crypto_condvar_signal;
-	ossl_crypto_condvar_wait;
-	ossl_crypto_condvar_wait_timeout;
-	ossl_crypto_mutex_free;
-	ossl_crypto_mutex_lock;
-	ossl_crypto_mutex_new;
-	ossl_crypto_mutex_try_lock;
-	ossl_crypto_mutex_unlock;
-	ossl_crypto_thread_native_clean;
-	ossl_crypto_thread_native_exit;
-	ossl_crypto_thread_native_is_self;
-	ossl_crypto_thread_native_join;
-	ossl_crypto_thread_native_perform_join;
-	ossl_crypto_thread_native_spawn;
-	ossl_crypto_thread_native_start;
-	ssl3_cbc_digest_record;
-	ssl3_cbc_remove_padding_and_mac;
-	tls1_cbc_remove_padding_and_mac;
 } OPENSSL_3_0_9;
