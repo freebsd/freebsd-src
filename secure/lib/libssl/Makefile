@@ -33,6 +33,9 @@ SRCS+=	priority_queue.c
 SRCS+=	hashfunc.c
 SRCS+=	siphash.c
 
+# crypto/thread: libssl has its own copy, as upstream does
+SRCS+=	arch.c thread_none.c thread_posix.c thread_win.c
+
 # quic
 SRCS+=	quic_method.c quic_impl.c quic_wire.c quic_ackm.c quic_statm.c
 SRCS+=	cc_newreno.c quic_demux.c quic_record_rx.c
@@ -67,8 +70,8 @@ SRCS+=	rec_layer_d1.c rec_layer_s3.c
 # record/methods
 SRCS+=	tls_common.c ssl3_meth.c tls1_meth.c tls13_meth.c tlsany_meth.c
 SRCS+=	dtls_meth.c tls_multib.c
-SRSC+=	ssl3_cbc.c
-SRSC+=	tls_pad.c
+SRCS+=	ssl3_cbc.c
+SRCS+=	tls_pad.c
 
 # rio
 SRCS+=	poll_immediate.c
@@ -93,6 +96,8 @@ PICFLAG+=	-DOPENSSL_PIC
 	${LCRYPTO_SRC}/crypto/hashtable \
 	${LCRYPTO_SRC}/crypto/rbtree \
 	${LCRYPTO_SRC}/crypto/siphash \
+	${LCRYPTO_SRC}/crypto/thread \
+	${LCRYPTO_SRC}/crypto/thread/arch \
 	${LCRYPTO_SRC}/ssl \
 	${LCRYPTO_SRC}/ssl/quic \
 	${LCRYPTO_SRC}/ssl/record \
