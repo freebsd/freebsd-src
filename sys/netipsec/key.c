@@ -183,6 +183,10 @@ static struct rmlock sptree_lock;
 #define	SPTREE_WLOCK_ASSERT()   rm_assert(&sptree_lock, RA_WLOCKED)
 #define	SPTREE_UNLOCK_ASSERT()  rm_assert(&sptree_lock, RA_UNLOCKED)
 
+/* Size of the SPD */
+VNET_DEFINE_STATIC(unsigned long, spd_size) = 0;
+#define	V_spd_size		VNET(spd_size)
+
 /* Hash table for lookup SP using unique id */
 VNET_DEFINE_STATIC(struct secpolicy_list *, sphashtbl);
 VNET_DEFINE_STATIC(u_long, sphash_mask);
@@ -209,8 +213,6 @@ VNET_DEFINE_STATIC(u_int, key_spdcache_maxentries) = 0;
 #define	V_key_spdcache_maxentries	VNET(key_spdcache_maxentries)
 VNET_DEFINE_STATIC(u_int, key_spdcache_threshold) = 32;
 #define	V_key_spdcache_threshold	VNET(key_spdcache_threshold)
-VNET_DEFINE_STATIC(unsigned long, spd_size) = 0;
-#define	V_spd_size		VNET(spd_size)
 
 #define SPDCACHE_ENABLED()	(V_key_spdcache_maxentries != 0)
 #define SPDCACHE_ACTIVE() \
@@ -1410,7 +1412,6 @@ key_unregister_ifnet(struct secpolicy **spp, u_int count)
 		ipsec_accel_spddel(spp[i]);
 		TAILQ_REMOVE(&V_sptree_ifnet[spp[i]->spidx.dir],
 		    spp[i], chain);
-		V_spd_size--;
 		LIST_REMOVE(spp[i], idhash);
 	}
 	SPTREE_WUNLOCK();
