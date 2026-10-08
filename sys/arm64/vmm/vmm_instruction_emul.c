@@ -63,11 +63,16 @@ vmm_emulate_instruction(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		error = memread(vcpu, gpa, &val, vie->access_size, memarg);
 		if (error)
 			goto out;
-		error = vm_set_register(vcpu, vie->reg, val);
+		/* Make sure we treat Rt=31 as xzr and not SP */
+		if (vie->reg != 31)
+			error = vm_set_register(vcpu, vie->reg, val);
 	} else {
-		error = vm_get_register(vcpu, vie->reg, &val);
-		if (error)
-			goto out;
+		val = 0;
+		if (vie->reg != 31) {
+			error = vm_get_register(vcpu, vie->reg, &val);
+			if (error)
+				goto out;
+		}
 		/* Mask any unneeded bits from the register */
 		if (vie->access_size < 8)
 			val &= (1ul << (vie->access_size * 8)) - 1;
@@ -89,11 +94,23 @@ vmm_emulate_register(struct vcpu *vcpu, struct vre *vre, reg_read_t regread,
 		error = regread(vcpu, &val, regarg);
 		if (error)
 			goto out;
-		error = vm_set_register(vcpu, vre->reg, val);
+		/*
+		 * vre->reg here comes from msr/mrs Rt, where 31 means "xzr" as
+		 * opposed to "SP". Reading into xzr must not set the register.
+		 */
+		if (vre->reg != 31)
+			error = vm_set_register(vcpu, vre->reg, val);
 	} else {
-		error = vm_get_register(vcpu, vre->reg, &val);
-		if (error)
-			goto out;
+		val = 0;
+		/*
+		 * Writing xzr into a register must write 0, instead of the
+		 * value of SP.
+		 */
+		if (vre->reg != 31) {
+			error = vm_get_register(vcpu, vre->reg, &val);
+			if (error)
+				goto out;
+		}
 		error = regwrite(vcpu, val, regarg);
 	}
 
