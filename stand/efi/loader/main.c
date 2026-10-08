@@ -1268,8 +1268,6 @@ main(int argc, CHAR16 *argv[])
 		    "failures\n", i);
 	}
 
-	devinit();
-
 	/*
 	 * Detect console settings two different ways: one via the command
 	 * args (eg -h) or via the UEFI ConOut variable.
@@ -1279,6 +1277,12 @@ main(int argc, CHAR16 *argv[])
 	if (!has_kbd && (howto & RB_PROBE))
 		howto |= RB_SERIAL | RB_MULTIPLE;
 	howto &= ~RB_PROBE;
+
+	/*
+	 * We want to initialize after giving loader args a chance to elect a
+	 * different console than what we autodetect.
+	 */
+	devinit();
 
 	/*
 	 * Read additional environment variables from the boot device's
