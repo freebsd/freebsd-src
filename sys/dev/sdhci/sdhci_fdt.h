@@ -44,6 +44,9 @@ struct sdhci_fdt_softc {
 	bool		wp_inverted;	/* WP pin is inverted */
 	bool		wp_disabled;	/* WP pin is not supported */
 	bool		no_18v;		/* No 1.8V support */
+	uint32_t	f_max_override;	/* external-clock controller rate limit */
+	uint32_t	caps_set;	/* host caps supplied before slot discovery */
+	uint32_t	caps_clear;	/* host caps to drop after DT parsing */
 
 	clk_t		clk_xin;	/* xin24m fixed clock */
 	clk_t		clk_ahb;	/* ahb clock */
