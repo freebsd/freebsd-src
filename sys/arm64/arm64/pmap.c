@@ -154,6 +154,7 @@
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/rsi.h>
+#include <machine/sysinsn.h>
 
 #ifdef NUMA
 #define	PMAP_MEMDOM	MAXMEMDOM
@@ -2103,26 +2104,18 @@ static __inline void
 pmap_s1_invalidate_range_kernel(uint64_t r, bool final_only)
 {
 	if (final_only)
-		__asm __volatile(".arch_extension tlb-rmi	\n"
-		    "tlbi rvaale1is, %0				\n"
-		    ".arch_extension notlb-rmi" : : "r" (r));
+		tlbi_rvaale1is(r);
 	else
-		__asm __volatile(".arch_extension tlb-rmi	\n"
-		    "tlbi rvaae1is, %0				\n"
-		    ".arch_extension notlb-rmi" : : "r" (r));
+		tlbi_rvaae1is(r);
 }
 
 static __inline void
 pmap_s1_invalidate_range_user(uint64_t r, bool final_only)
 {
 	if (final_only)
-		__asm __volatile(".arch_extension tlb-rmi	\n"
-		    "tlbi rvale1is, %0				\n"
-		    ".arch_extension notlb-rmi" : : "r" (r));
+		tlbi_rvale1is(r);
 	else
-		__asm __volatile(".arch_extension tlb-rmi	\n"
-		    "tlbi rvae1is, %0				\n"
-		    ".arch_extension notlb-rmi" : : "r" (r));
+		tlbi_rvae1is(r);
 }
 
 /*
