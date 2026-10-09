@@ -825,6 +825,8 @@ gre_input(struct mbuf *m, int off, int proto, void *arg)
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
 	M_SETFIB(m, ifp->if_fib);
+	if (V_encap_hash_inbound)
+		encap_set_flowid(m, af);
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
 #endif

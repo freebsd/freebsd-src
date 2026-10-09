@@ -727,6 +727,8 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	M_SETFIB(m, ifp->if_fib);
+	if (V_encap_hash_inbound)
+		encap_set_flowid(m, af);
 	netisr_dispatch(isr, m);
 	return;
 drop:

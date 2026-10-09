@@ -67,6 +67,7 @@
 #include <netinet/in_fib.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/ip_encap.h>
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
@@ -1781,6 +1782,8 @@ skip_float:
 	 */
 	af = ovpn_get_af(m);
 	if (af != 0) {
+		if (V_encap_hash_inbound)
+			encap_set_flowid(m, af);
 		BPF_MTAP2(sc->ifp, &af, sizeof(af), m);
 		if (V_async_netisr_queue)
 			netisr_queue(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);

@@ -43,6 +43,7 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/ip_encap.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
 #include <netinet/udp_var.h>
@@ -1833,6 +1834,8 @@ wg_deliver_in(struct wg_peer *peer)
 
 		CURVNET_SET(if_getvnet(ifp));
 		M_SETFIB(m, if_getfib(ifp));
+		if (V_encap_hash_inbound)
+			encap_set_flowid(m, af);
 #ifdef DEV_NETMAP
 		if ((if_getcapenable(ifp) & IFCAP_NETMAP) != 0)
 			wg_deliver_netmap(ifp, m, af);

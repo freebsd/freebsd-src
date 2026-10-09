@@ -68,6 +68,7 @@
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/ip_encap.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -3063,6 +3064,8 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	if (proto == GENEVE_PROTO_ETHER)
 		(*ifp->if_input)(ifp, m);
 	else {
+		if (V_encap_hash_inbound)
+			encap_set_flowid(m, af);
 		BPF_MTAP2(ifp, &af, sizeof(af), m);
 		netisr_dispatch_src(info.isr, (uintptr_t)xgnvso, m);
 	}

@@ -71,20 +71,32 @@
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
+#include <netinet/in_rss.h>
 
 #ifdef INET6
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_rss.h>
 #endif
 
 static MALLOC_DEFINE(M_NETADDR, "encap_export_host",
     "Export host address structure");
+
+SYSCTL_DECL(_net_route);
+VNET_DEFINE(bool, encap_hash_inbound) = false;
+SYSCTL_BOOL(_net_route, OID_AUTO, hash_inbound, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(encap_hash_inbound), false,
+    "Compute flowid for packets received over tunnel interfaces");
 
 struct encaptab {
 	CK_LIST_ENTRY(encaptab) chain;
@@ -410,3 +422,43 @@ encap6_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 }
 #endif /* INET6 */
+
+/*
+ * Set the flowid of a decapsulated IP packet from its inner addresses.
+ *
+ * flowid of an incoming packet computed over the outer tunnel tuple,
+ * which is the same for every flow a peer. Hashing the inner addresses
+ * instead to make the mpath (and RSS, if enabled) work properly.
+ *
+ * Callers must check the V_encap_hash_inbound sysctl before calling.
+ */
+bool
+encap_set_flowid(struct mbuf *m, int af)
+{
+	uint32_t rss_hash, rss_type;
+
+	M_ASSERTPKTHDR(m);
+
+	switch (af) {
+#ifdef INET
+	case AF_INET: {
+		if (rss_mbuf_software_hash_v4(m, 0, &rss_hash, &rss_type) != 0)
+			return (false);
+		break;
+	}
+#endif
+#ifdef INET6
+	case AF_INET6: {
+		if (rss_mbuf_software_hash_v6(m, 0, &rss_hash, &rss_type) != 0)
+			return (false);
+		break;
+	}
+#endif
+	default:
+		return (false);
+	}
+
+	m->m_pkthdr.flowid = rss_hash;
+	M_HASHTYPE_SET(m, rss_type);
+	return (true);
+}
