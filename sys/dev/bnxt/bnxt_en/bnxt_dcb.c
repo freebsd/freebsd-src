@@ -865,9 +865,6 @@ bnxt_dcb_setdcbx(struct bnxt_softc *softc, uint8_t mode)
 void
 bnxt_dcb_init(struct bnxt_softc *softc)
 {
-	struct bnxt_ieee_ets ets = {0};
-	struct bnxt_ieee_pfc pfc = {0};
-
 	softc->dcbx_cap = 0;
 
 	if (softc->hwrm_spec_code < 0x10501)
@@ -887,9 +884,6 @@ bnxt_dcb_init(struct bnxt_softc *softc)
 		softc->dcbx_cap |= BNXT_DCB_CAP_DCBX_HOST;
 	else if (softc->fw_cap & BNXT_FW_CAP_DCBX_AGENT)
 		softc->dcbx_cap |= BNXT_DCB_CAP_DCBX_LLD_MANAGED;
-
-	bnxt_dcb_ieee_setets(softc, &ets);
-	bnxt_dcb_ieee_setpfc(softc, &pfc);
 
 }
 
