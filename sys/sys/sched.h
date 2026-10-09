@@ -317,6 +317,8 @@
  */
 #define _SCHED_ITF_ARG1(a0, ...)					\
 	a0
+#define _SCHED_ITF_ARG2(a0, a1, ...)					\
+	a1
 #define _SCHED_ITF_ARG9(a0, a1, a2, a3, a4, a5, a6, a7, a8, ...)	\
 	a8
 #define _SCHED_ITF_NARGS(...)						\
@@ -362,16 +364,18 @@
 	__CONCAT(fn, _impl)
 #define SCHED_ITF_FUNCTION_NAME(fn)					\
 	__CONCAT(sched_, fn)
-#define _SCHED_ITF_IMPL_FUNCTION_NAME(sched_name, fn)			\
+#define SCHED_ITF_IMPL_FUNCTION_NAME(sched_name, fn)			\
 	SCHED_ITF_FUNCTION_NAME(__CONCAT(__CONCAT(sched_name, _),	\
 	    fn))
+
+struct proc;
+struct thread;
+
+#ifndef SCHED_IMPLEMENTATION
 
 /*
  * C declaration of first part of interface functions.
  */
-struct proc;
-struct thread;
-
 /* Eliding argument names to avoid collisions with C++ keywords. */
 #define _SCHED_ITF_FUN(args, ret_type, fn, ...)				\
 	ret_type							\
@@ -381,9 +385,28 @@ SCHED_ITF_DISPATCH(_SCHED_ITF_FUN, );
 SCHED_ITF_WRAP(_SCHED_ITF_FUN, );
 #undef _SCHED_ITF_FUN
 
+#else /* SCHED_IMPLEMENTATION */
+
+/*
+ * C declarations for implementation functions.
+ *
+ * SCHED_IMPLEMENTATION must be defined to the scheduler name as used in
+ * variable names (i.e., lower case, such as 4bsd or ule).
+ */
+#define _SCHED_ITF_FUN(args, ret_type, fn, ...)				\
+	static ret_type							\
+	SCHED_ITF_IMPL_FUNCTION_NAME(_SCHED_ITF_ARG1 args, fn)		\
+		(SCHED_ITF_ARGS_PROTO_NAME(__VA_ARGS__));
+SCHED_ITF_NOCOMMON(_SCHED_ITF_FUN, SCHED_IMPLEMENTATION)
+#undef _SCHED_ITF_FUN
+
+#endif /* !SCHED_IMPLEMENTATION */
+
 /*
  * Common functions.
  */
+
+#ifndef SCHED_IMPLEMENTATION
 
 static inline void
 sched_userret(struct thread *td)
@@ -403,6 +426,8 @@ sched_userret(struct thread *td)
 	if (__predict_false(td->td_priority != td->td_user_pri))
 		sched_userret_slowpath(td);
 }
+
+#endif /* SCHED_IMPLEMENTATION */
 
 static __inline void
 sched_pin(void)
@@ -475,6 +500,7 @@ extern int dtrace_vtime_active;
 extern dtrace_vtime_switch_func_t dtrace_vtime_switch_func;
 #endif
 
+#if defined(SCHED_IMPLEMENTATION) || defined(SCHED_SHIM)
 /*
  * Scheduler instance structure.
  */
@@ -495,22 +521,26 @@ struct sched_selection {
 };
 
 #define _SCHED_DECLARE_FIELD_FUN(args, ret_type, fn, ...)		\
-	.SCHED_ITF_FIELD_NAME(fn) = &_SCHED_ITF_IMPL_FUNCTION_NAME(	\
+	.SCHED_ITF_FIELD_NAME(fn) = &SCHED_ITF_IMPL_FUNCTION_NAME(	\
 	    _SCHED_ITF_ARG1 args, fn),
+#endif /* SCHED_IMPLEMENTATION || SCHED_SHIM */
 
-#define	DECLARE_SCHEDULER(var_name, string_name)			\
+#ifdef SCHED_IMPLEMENTATION
+#define	DECLARE_SCHEDULER(string_name)					\
 	static const struct sched_instance				\
-	__CONCAT(_sched_instance_, var_name) = {			\
+	__CONCAT(_sched_instance_, SCHED_IMPLEMENTATION) = {		\
 		SCHED_ITF_NOCOMMON(_SCHED_DECLARE_FIELD_FUN,		\
-		    var_name)						\
+		    SCHED_IMPLEMENTATION)				\
 	};								\
 	static const struct sched_selection				\
-	__CONCAT(_sched_selector_, var_name) = {			\
+	__CONCAT(_sched_selector_, SCHED_IMPLEMENTATION) = {		\
 		.name = string_name,					\
-		.instance = &__CONCAT(_sched_instance_, var_name),	\
+		.instance = &__CONCAT(_sched_instance_,			\
+		    SCHED_IMPLEMENTATION),				\
 	};								\
 	DATA_SET(sched_instance_set,					\
-	    __CONCAT(_sched_selector_, var_name));
+	    __CONCAT(_sched_selector_, SCHED_IMPLEMENTATION));
+#endif /* SCHED_IMPLEMENTATION */
 
 void sched_instance_select(void);
 

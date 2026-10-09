@@ -3993,9 +3993,6 @@ kern/link_elf.c			standard
 kern/linker_if.m		standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
-kern/sched_4bsd.c		optional sched_4bsd
-kern/sched_shim.c		standard
-kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
@@ -4718,6 +4715,27 @@ nlm/nlm_prot_server.c		optional nfslockd | nfsd
 nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
+
+# Scheduler
+kern/sched_4bsd.c		optional sched_4bsd
+sched_4bsd_ns.h			optional sched_4bsd \
+	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
+	$S/tools/sched_impl_ns.awk" \
+	compile-with		"${CPP} -DSCHED_IMPLEMENTATION=4bsd \
+	$S/kern/sched_ns.h | \
+	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend local \
+	clean			"sched_4bsd_ns.h"
+kern/sched_ule.c		optional sched_ule
+sched_ule_ns.h			optional sched_ule \
+	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
+	$S/tools/sched_impl_ns.awk" \
+	compile-with		"${CPP} -DSCHED_IMPLEMENTATION=ule \
+	$S/kern/sched_ns.h | \
+	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend local \
+	clean			"sched_ule_ns.h"
+kern/sched_shim.c		standard
 
 # Linux Kernel Programming Interface
 compat/linuxkpi/common/src/linux_80211.c	optional compat_linuxkpi wlan \
