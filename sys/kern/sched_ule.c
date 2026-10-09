@@ -1242,7 +1242,7 @@ tdq_notify(struct tdq *tdq, int lowpri)
 
 	/*
 	 * Try to figure out if we can signal the idle thread instead of sending
-	 * an IPI.  This check is racy; at worst, we will deliever an IPI
+	 * an IPI.  This check is racy; at worst, we will deliver an IPI
 	 * unnecessarily.
 	 */
 	cpu = TDQ_ID(tdq);
