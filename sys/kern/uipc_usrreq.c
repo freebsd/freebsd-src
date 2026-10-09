@@ -1464,7 +1464,8 @@ restart:
 	SOCK_RECVBUF_LOCK(so);
 	UIPC_STREAM_SBCHECK(sb);
 	while (sb->sb_acc < sb->sb_lowat &&
-	    (sb->sb_ctl == 0 || controlp == NULL)) {
+	    (sb->sb_ctl == 0 || controlp == NULL ||
+	    STAILQ_FIRST(&sb->uxst_mbq) == sb->uxst_fnrdy)) {
 		if (so->so_error) {
 			error = so->so_error;
 			if (!peek)
