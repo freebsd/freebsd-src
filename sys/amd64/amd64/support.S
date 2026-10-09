@@ -1996,7 +1996,7 @@ ENTRY(cpu_sync_core)
 	iretq
 END(cpu_sync_core)
 
-/* External Retpoline thunk */
+/* External retpoline thunk */
 ENTRY(__x86_indirect_thunk_r11)
 	callq	2f
 1:	pause
