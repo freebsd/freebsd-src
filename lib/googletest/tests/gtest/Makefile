@@ -2,14 +2,21 @@
 
 .PATH:	${GOOGLETEST_SRCROOT}/src ${GOOGLETEST_SRCROOT}/test
 
-GTESTS+=	gtest_environment_test
-GTESTS+=	gtest_no_test_unittest
-GTESTS+=	googletest-param-test-test
 GTESTS+=	gtest_premature_exit_test
-GTESTS+=	gtest_repeat_test
-GTESTS+=	gtest_stress_test
-GTESTS+=	gtest_throw_on_failure_ex_test
-GTESTS+=	gtest-unittest-api_test
+# These test scenarios are't handled properly with the googletest engine in
+# kyua 0.15.0.
+PLAIN_TESTS_CXX+= gtest_environment_test
+PLAIN_TESTS_CXX+= gtest_no_test_unittest
+PLAIN_TESTS_CXX+= gtest_throw_on_failure_ex_test
+
+# NOTE: these tests rely on testing by side-effect with global variables/state
+# used in multiple testcases.
+#
+# Running this plain C++ tests gets around that problem.
+PLAIN_TESTS_CXX+= googletest-param-test-test
+PLAIN_TESTS_CXX+= gtest_repeat_test
+PLAIN_TESTS_CXX+= gtest_stress_test
+PLAIN_TESTS_CXX+= gtest-unittest-api_test
 
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
