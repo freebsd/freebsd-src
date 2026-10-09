@@ -800,7 +800,7 @@ mgb_admin_intr(void *xsc)
 	/* XXX: TX interrupts should not occur */
 	if ((intr_sts & MGB_INTR_STS_TX_ANY) != 0) {
 		for (qidx = 0; qidx < scctx->isc_ntxqsets; qidx++) {
-			if ((intr_sts & MGB_INTR_STS_RX(qidx))) {
+			if ((intr_sts & MGB_INTR_STS_TX(qidx))) {
 				/* clear the interrupt sts and run handler */
 				CSR_WRITE_REG(sc, MGB_INTR_ENBL_CLR,
 				    MGB_INTR_STS_TX(qidx));
