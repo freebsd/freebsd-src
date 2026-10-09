@@ -120,10 +120,10 @@ reset_vm_el2_regs(void *vcpu)
 	 * Generate the guest MPIDR value. We only support 16 CPUs at affinity
 	 * level 0 to simplify the vgicv3 driver (see writing sgi1r_el1).
 	 */
-	cpu_aff = (vcpuid & 0xf) << MPIDR_AFF0_SHIFT |
-	    ((vcpuid >> 4) & 0xff) << MPIDR_AFF1_SHIFT |
-	    ((vcpuid >> 12) & 0xff) << MPIDR_AFF2_SHIFT |
-	    ((vcpuid >> 20) & 0xff) << MPIDR_AFF3_SHIFT;
+	cpu_aff = (vcpuid & 0xf) << MPIDR_Aff0_SHIFT |
+	    ((vcpuid >> 4) & 0xff) << MPIDR_Aff1_SHIFT |
+	    ((vcpuid >> 12) & 0xff) << MPIDR_Aff2_SHIFT |
+	    ((vcpuid >> 20) & 0xff) << MPIDR_Aff3_SHIFT;
 	*hypctx_sys_reg(el2ctx, HOST_VMPIDR_EL2) |= cpu_aff;
 
 	/* Use the same CPU identification information as the host */

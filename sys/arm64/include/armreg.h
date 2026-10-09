@@ -2141,22 +2141,22 @@
 #define	MPIDR_EL1_CRn			0
 #define	MPIDR_EL1_CRm			0
 #define	MPIDR_EL1_op2			5
-#define	MPIDR_AFF0_SHIFT		0
-#define	MPIDR_AFF0_MASK			(UL(0xff) << MPIDR_AFF0_SHIFT)
-#define	MPIDR_AFF0_VAL(x)		((x) & MPIDR_AFF0_MASK)
-#define	MPIDR_AFF1_SHIFT		8
-#define	MPIDR_AFF1_MASK			(UL(0xff) << MPIDR_AFF1_SHIFT)
-#define	MPIDR_AFF1_VAL(x)		((x) & MPIDR_AFF1_MASK)
-#define	MPIDR_AFF2_SHIFT		16
-#define	MPIDR_AFF2_MASK			(UL(0xff) << MPIDR_AFF2_SHIFT)
-#define	MPIDR_AFF2_VAL(x)		((x) & MPIDR_AFF2_MASK)
+#define	MPIDR_Aff0_SHIFT		0
+#define	MPIDR_Aff0_MASK			(UL(0xff) << MPIDR_Aff0_SHIFT)
+#define	MPIDR_Aff0_VAL(x)		((x) & MPIDR_Aff0_MASK)
+#define	MPIDR_Aff1_SHIFT		8
+#define	MPIDR_Aff1_MASK			(UL(0xff) << MPIDR_Aff1_SHIFT)
+#define	MPIDR_Aff1_VAL(x)		((x) & MPIDR_Aff1_MASK)
+#define	MPIDR_Aff2_SHIFT		16
+#define	MPIDR_Aff2_MASK			(UL(0xff) << MPIDR_Aff2_SHIFT)
+#define	MPIDR_Aff2_VAL(x)		((x) & MPIDR_Aff2_MASK)
 #define	MPIDR_MT_SHIFT			24
 #define	MPIDR_MT_MASK			(UL(0x1) << MPIDR_MT_SHIFT)
 #define	MPIDR_U_SHIFT			30
 #define	MPIDR_U_MASK			(UL(0x1) << MPIDR_U_SHIFT)
-#define	MPIDR_AFF3_SHIFT		32
-#define	MPIDR_AFF3_MASK			(UL(0xff) << MPIDR_AFF3_SHIFT)
-#define	MPIDR_AFF3_VAL(x)		((x) & MPIDR_AFF3_MASK)
+#define	MPIDR_Aff3_SHIFT		32
+#define	MPIDR_Aff3_MASK			(UL(0xff) << MPIDR_Aff3_SHIFT)
+#define	MPIDR_Aff3_VAL(x)		((x) & MPIDR_Aff3_MASK)
 
 /* MVFR0_EL1 */
 #define	MVFR0_EL1_ISS			ISS_MSR_REG(MVFR0_EL1)

@@ -1633,8 +1633,8 @@ vgic_v3_icc_sgi1r_write(struct vcpu *vcpu, uint64_t rval, void *arg)
 		aff1 = ICC_SGI1R_Aff1_VAL(rval) >> ICC_SGI1R_Aff1_SHIFT;
 		aff2 = ICC_SGI1R_Aff2_VAL(rval) >> ICC_SGI1R_Aff2_SHIFT;
 		aff3 = ICC_SGI1R_Aff3_VAL(rval) >> ICC_SGI1R_Aff3_SHIFT;
-		mpidr = aff3 << MPIDR_AFF3_SHIFT |
-		    aff2 << MPIDR_AFF2_SHIFT | aff1 << MPIDR_AFF1_SHIFT;
+		mpidr = aff3 << MPIDR_Aff3_SHIFT |
+		    aff2 << MPIDR_Aff2_SHIFT | aff1 << MPIDR_Aff1_SHIFT;
 
 		cpus = ICC_SGI1R_TargetList_VAL(rval) >>
 		    ICC_SGI1R_TargetList_SHIFT;
@@ -1642,7 +1642,7 @@ vgic_v3_icc_sgi1r_write(struct vcpu *vcpu, uint64_t rval, void *arg)
 		while (cpus > 0) {
 			if (cpus & 1) {
 				target_vcpuid = mpidr_to_vcpu(hyp,
-				    mpidr | (cpu_off << MPIDR_AFF0_SHIFT));
+				    mpidr | (cpu_off << MPIDR_Aff0_SHIFT));
 				if (target_vcpuid >= 0 &&
 				    CPU_ISSET(target_vcpuid, &active_cpus)) {
 					INJECT_IRQ(hyp, target_vcpuid, irqid,
