@@ -3008,17 +3008,19 @@ static void
 sched_ule_affinity(struct thread *td)
 {
 #ifdef SMP
-	struct td_sched *ts;
+	struct td_sched *const ts = td_get_sched(td);
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td_get_sched(td);
+
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu))
 		return;
+
 	if (TD_ON_RUNQ(td)) {
 		sched_rem(td);
 		sched_add(td, SRQ_BORING | SRQ_HOLDTD);
 		return;
 	}
+
 	if (!TD_IS_RUNNING(td))
 		return;
 	/*
