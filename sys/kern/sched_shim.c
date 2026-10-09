@@ -15,6 +15,7 @@
 #include <sys/proc.h>
 #include <sys/runq.h>
 #include <sys/sbuf.h>
+#define SCHED_SHIM
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
