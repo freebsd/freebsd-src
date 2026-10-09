@@ -2627,7 +2627,7 @@ uipc_sbready(struct sockbuf *sb, struct mbuf *m, int count)
 			count--;
 		} else if (m->m_flags & M_NOTREADY)
 			break;
-		else if (blocker)
+		else if (blocker && m->m_type == MT_DATA)
 			sb->sb_acc += m->m_len;
 	}
 	if (blocker) {
