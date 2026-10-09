@@ -395,9 +395,9 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 		error = vm_get_register(fbsdrun_vcpu(cpu), VM_REG_GUEST_MPIDR_EL1,
 		    &mpidr);
 		assert(error == 0);
-#define	MPIDR_AFF_MASK	(MPIDR_AFF0_MASK | MPIDR_AFF1_MASK | MPIDR_AFF2_MASK | MPIDR_AFF3_MASK)
-		cpu_to_mpidr[cpu] = mpidr & MPIDR_AFF_MASK;
-#undef MPIDR_AFF_MASK
+#define	MPIDR_Aff_MASK	(MPIDR_Aff0_MASK | MPIDR_Aff1_MASK | MPIDR_Aff2_MASK | MPIDR_Aff3_MASK)
+		cpu_to_mpidr[cpu] = mpidr & MPIDR_Aff_MASK;
+#undef MPIDR_Aff_MASK
 	}
 
 	bootrom = get_config_value("bootrom");
