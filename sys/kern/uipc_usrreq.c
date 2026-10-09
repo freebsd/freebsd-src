@@ -1069,7 +1069,7 @@ uipc_stream_sbcheck(struct sockbuf *sb)
 	MPASS(sb->uxst_fnrdy == NULL || notready);
 	MPASS(dacc == sb->sb_acc);
 	MPASS(dccc == sb->sb_ccc);
-	MPASS(dctl == sb->sb_ctl);
+	MPASS(dctl == sb->uxst_ctl);
 	MPASS(dmbcnt == sb->sb_mbcnt);
 	(void)STAILQ_EMPTY(&sb->uxst_mbq);
 }
@@ -1100,8 +1100,8 @@ uipc_stream_sbspace(struct sockbuf *sb)
 {
 	u_int space, mbspace;
 
-	if (__predict_true(sb->sb_hiwat >= sb->sb_ccc + sb->sb_ctl))
-		space = sb->sb_hiwat - sb->sb_ccc - sb->sb_ctl;
+	if (__predict_true(sb->sb_hiwat >= sb->sb_ccc + sb->uxst_ctl))
+		space = sb->sb_hiwat - sb->sb_ccc - sb->uxst_ctl;
 	else
 		return (0);
 	if (__predict_true(sb->sb_mbmax >= sb->sb_mbcnt))
@@ -1307,7 +1307,7 @@ restart:
 		}
 		if (!STAILQ_EMPTY(&cmc.mc_q)) {
 			STAILQ_CONCAT(&sb->uxst_mbq, &cmc.mc_q);
-			sb->sb_ctl += cmc.mc_len;
+			sb->uxst_ctl += cmc.mc_len;
 			sb->sb_mbcnt += cmc.mc_mlen;
 			cmc.mc_len = 0;
 		}
@@ -1464,7 +1464,7 @@ restart:
 	SOCK_RECVBUF_LOCK(so);
 	UIPC_STREAM_SBCHECK(sb);
 	while (sb->sb_acc < sb->sb_lowat &&
-	    (sb->sb_ctl == 0 || controlp == NULL ||
+	    (sb->uxst_ctl == 0 || controlp == NULL ||
 	    STAILQ_FIRST(&sb->uxst_mbq) == sb->uxst_fnrdy)) {
 		if (so->so_error) {
 			error = so->so_error;
@@ -1493,7 +1493,7 @@ restart:
 	}
 
 	MPASS(STAILQ_FIRST(&sb->uxst_mbq));
-	MPASS(sb->sb_acc > 0 || sb->sb_ctl > 0);
+	MPASS(sb->sb_acc > 0 || sb->uxst_ctl > 0);
 
 	mbcnt = 0;
 	ctl = 0;
@@ -1566,8 +1566,8 @@ restart:
 		MPASS(sb->sb_acc >= datalen);
 		sb->sb_acc -= datalen;
 		sb->sb_ccc -= datalen;
-		MPASS(sb->sb_ctl >= ctl);
-		sb->sb_ctl -= ctl;
+		MPASS(sb->uxst_ctl >= ctl);
+		sb->uxst_ctl -= ctl;
 		MPASS(sb->sb_mbcnt >= mbcnt);
 		sb->sb_mbcnt -= mbcnt;
 		UIPC_STREAM_SBCHECK(sb);
@@ -1636,7 +1636,7 @@ restart:
 				SOCK_RECVBUF_LOCK(so);
 				if (__predict_false(
 				    (sb->sb_state & SBS_CANTRCVMORE) ||
-				    cmc.mc_len + sb->sb_ccc + sb->sb_ctl >
+				    cmc.mc_len + sb->sb_ccc + sb->uxst_ctl >
 				    sb->sb_hiwat)) {
 					/*
 					 * While the lock was dropped and we
@@ -1661,7 +1661,7 @@ restart:
 				STAILQ_CONCAT(&cmc.mc_q, &sb->uxst_mbq);
 				STAILQ_SWAP(&cmc.mc_q, &sb->uxst_mbq, mbuf);
 
-				sb->sb_ctl = sb->sb_acc = sb->sb_ccc =
+				sb->uxst_ctl = sb->sb_acc = sb->sb_ccc =
 				    sb->sb_mbcnt = 0;
 				STAILQ_FOREACH(m, &sb->uxst_mbq, m_stailq) {
 					if (m->m_type == MT_DATA) {
@@ -1672,7 +1672,7 @@ restart:
 						sb->sb_acc += m->m_len;
 						sb->sb_ccc += m->m_len;
 					} else {
-						sb->sb_ctl += m->m_len;
+						sb->uxst_ctl += m->m_len;
 					}
 					sb->sb_mbcnt += MSIZE;
 					if (m->m_flags & M_EXT)
@@ -4595,7 +4595,7 @@ unp_dispose(struct socket *so)
 		sb = &so->so_rcv;
 		m = STAILQ_FIRST(&sb->uxst_mbq);
 		STAILQ_INIT(&sb->uxst_mbq);
-		sb->sb_acc = sb->sb_ccc = sb->sb_ctl = sb->sb_mbcnt = 0;
+		sb->sb_acc = sb->sb_ccc = sb->uxst_ctl = sb->sb_mbcnt = 0;
 		/*
 		 * Trim M_NOTREADY buffers from the free list.  They are
 		 * referenced by the I/O thread.
