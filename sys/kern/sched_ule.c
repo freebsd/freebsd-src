@@ -509,19 +509,21 @@ normalize_ts_off(int offset)
 static inline void
 tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 {
-	struct td_sched *ts;
 	u_char pri, idx;
 
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_BLOCKED_ASSERT(td, MA_OWNED);
 
-	pri = td->td_priority;
-	ts = td_get_sched(td);
 	TD_SET_RUNQ(td);
+
 	if (THREAD_CAN_MIGRATE(td)) {
+		struct td_sched *const ts = td_get_sched(td);
+
 		tdq->tdq_transferable++;
 		ts->ts_flags |= TSF_XFERABLE;
 	}
+
+	pri = td->td_priority;
 	if (PRI_MIN_BATCH <= pri && pri <= PRI_MAX_BATCH) {
 		/*
 		 * The queues allocated to the batch range are not used as
