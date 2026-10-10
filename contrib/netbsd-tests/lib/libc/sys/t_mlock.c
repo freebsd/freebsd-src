@@ -46,6 +46,15 @@ __RCSID("$NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $");
 #include <stdlib.h>
 #include <unistd.h>
 
+/*
+ * sbrk is obsolete, and libc only provides it on a subset of
+ * architectures.
+ */
+#if defined(__amd64__) || defined(__arm__) || defined(__i386__) || \
+    defined(__powerpc__)
+#define	HAVE_SBRK
+#endif
+
 #ifdef __FreeBSD__
 #include <limits.h>
 #define _KMEMUSER
@@ -103,7 +112,7 @@ ATF_TC_BODY(mlock_err, tc)
 	unsigned long vmin = 0;
 	size_t len = sizeof(vmin);
 #endif
-#if !defined(__aarch64__) && !defined(__riscv)
+#ifdef HAVE_SBRK
 	void *invalid_ptr;
 #endif
 	void *buf;
@@ -159,8 +168,7 @@ ATF_TC_BODY(mlock_err, tc)
 #endif
 	(void)free(buf);
 
-/* There is no sbrk on AArch64 and RISC-V */
-#if !defined(__aarch64__) && !defined(__riscv)
+#ifdef HAVE_SBRK
 	/*
 	 * Try to create a pointer to an unmapped page - first after current
 	 * brk will likely do.
