@@ -2,7 +2,8 @@ PACKAGE=			tests
 
 .include <bsd.own.mk>
 
-.if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "riscv"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "arm" || \
+    ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc"
 ATF_TESTS_C+=			brk_test
 .endif
 ATF_TESTS_C+=			cpuset_test
