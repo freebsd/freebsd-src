@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_kern_tls.h"
 
 #include <sys/param.h>

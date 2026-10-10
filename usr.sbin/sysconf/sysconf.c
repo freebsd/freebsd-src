@@ -58,82 +58,6 @@ const char	*module = NULL;		/* `-k module' */
 const char	*rootdir = "";		/* `-R dir' */
 
 /*
- * Locate the target keyword in `argv' without consuming or validating
- * anything: the first argument that is neither an option cluster nor the
- * argument of one (per OPTSTRING; an unknown option letter is assumed to
- * take no argument). A `--' ends option scanning as usual. Returns the
- * argv index of the target, or -1 when there is none. Used before any
- * getopt(3) processing so that the `rc' pass-through target (see
- * exec_sysrc() below) can be detected while the command line is still
- * pristine.
- *
- * Attached arguments (`-fPATH', `-R/altroot') are self-contained: the rest
- * of the cluster is the option's argument, so the following argv element is
- * not consumed. Only a trailing option letter that takes an argument and
- * has nothing after it in the cluster (`-f PATH') skips the next element.
- */
-static int
-find_target(int argc, char *argv[])
-{
-	int n;
-	const char *o;
-	const char *p;
-
-	for (n = 1; n < argc; n++) {
-		if (strcmp(argv[n], "--") == 0)
-			return (n + 1 < argc ? n + 1 : -1);
-		if (argv[n][0] == '-' && argv[n][1] != '\0') {
-			for (p = argv[n] + 1; *p != '\0'; p++) {
-				o = strchr(OPTSTRING, *p);
-				if (o != NULL && o[1] == ':') {
-					/* Takes an argument */
-					if (p[1] != '\0') {
-						;
-						/* attached: rest of argv[n] */
-					} else if (n + 1 < argc) {
-						n++;
-						/* separate argv */
-					}
-					break;
-				}
-			}
-			continue;
-		}
-		return (n);
-	}
-
-	return (-1);
-}
-
-/*
- * The `rc' pass-through: rc.conf(5) is sysrc(8)'s domain, and its feature
- * set is a superset of ours, so no option or argument is validated,
- * interpreted, or reordered here -- every argument except the target
- * keyword itself (at argv index `skip') is handed to sysrc(8) verbatim.
- * Never returns.
- */
-static void
-exec_sysrc(int argc, char *argv[], int skip)
-{
-	int n;
-	int nargc = 0;
-	char **nargv;
-
-	if ((nargv = calloc((size_t)argc + 1, sizeof(*nargv))) == NULL)
-		err(EXIT_FAILURE, NULL);
-	nargv[nargc++] = (char *)(uintptr_t)"sysrc";
-	for (n = 1; n < argc; n++) {
-		if (n == skip)
-			continue;
-		nargv[nargc++] = argv[n];
-	}
-	nargv[nargc] = NULL;
-
-	execvp("sysrc", nargv);
-	err(EXIT_FAILURE, "sysrc");
-}
-
-/*
  * Run the getopt(3) loop over `argv', setting the option globals. Called
  * once for the options preceding the target keyword and once for those
  * following it. Returns the number of arguments consumed (optind).
@@ -241,19 +165,16 @@ main(int argc, char *argv[])
 	int have_writes = 0;
 	int n;
 	int rv = EXIT_SUCCESS;
+	const char *resolved = NULL;
 	const char *target = NULL;
 
 	pgm = getprogname();
 
 	/*
-	 * The `rc' target is a pure pass-through to sysrc(8), detected
-	 * while the command line is still pristine so that nothing --
-	 * `--help' and `--version' included -- is intercepted on its way
-	 * there (see exec_sysrc()).
+	 * Target selection, including the rc and poudriere pass-throughs,
+	 * runs while argv is still pristine (see target_resolve()).
 	 */
-	n = find_target(argc, argv);
-	if (n > 0 && strcmp(argv[n], "rc") == 0)
-		exec_sysrc(argc, argv, n); /* never returns */
+	resolved = target_resolve(&argc, argv);
 
 	/*
 	 * Honor `--help' and `--version' wherever they appear (getopt(3)
@@ -285,9 +206,12 @@ main(int argc, char *argv[])
 	 * sysctl(8) (e.g., `sysconf sysctl -L'). getopt(3) skips over its
 	 * first argument, so hand it the target keyword's slot as the
 	 * program name.
+	 *
+	 * Nested `poudriere make|src|src-env' already stripped both keywords;
+	 * remaining argv is options plus names.
 	 */
-	if (argc > 0) {
-		target = argv[0];
+	if (argc > 0 && !poudriere_native()) {
+		target = resolved != NULL ? resolved : argv[0];
 		argc--;
 		argv++;
 #ifdef __FreeBSD__
@@ -333,7 +257,10 @@ main(int argc, char *argv[])
 #endif
 
 	/* Resolve the target format and its backing files */
-	resolve_target(target);
+	if (poudriere_native())
+		poudriere_setup();
+	else
+		resolve_target(target);
 
 	/* `-k' requires a target with a module drop-in directory */
 	if (module != NULL) {
@@ -643,6 +570,7 @@ usage(void)
 	    " -l | -L\n", pgm);
 	fprintf(stderr,
 	    "       %s rc [sysrc(8) argument ...]\n", pgm);
+	poudriere_usage();
 	fprintf(stderr, "Try `%s --help' for more information.\n", pgm);
 	exit(EXIT_FAILURE);
 }
@@ -677,8 +605,11 @@ help(void)
 	    "__MAKE_CONF, SRCCONF)");
 	fprintf(stderr, TGTFMT, "rc",
 	    "pass-through: all other arguments go to sysrc(8) verbatim");
+	poudriere_help();
 	fprintf(stderr, TGTFMT, "generic",
 	    "no default files; requires -f file");
+	fprintf(stderr,
+	    "A unique prefix of a target keyword is accepted.\n");
 	fprintf(stderr, "OPTIONS:\n");
 #define OPTFMT "\t%-9s %s\n"
 	fprintf(stderr, OPTFMT, "-A",

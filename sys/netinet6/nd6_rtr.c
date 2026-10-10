@@ -1215,7 +1215,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	struct in6_aliasreq ifra;
 	struct in6_ifaddr *ia = NULL, *ib = NULL;
 	int error, plen0;
-	struct in6_addr *ifid_addr = NULL, mask, newaddr;
+	struct in6_addr mask, newaddr;
 	int prefixlen = pr->ndpr_plen;
 	int updateflags;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1255,47 +1255,39 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 		if(!in6_get_stableifid(ifp, &newaddr, prefixlen))
 			return NULL;
 	} else {
+		bool have_ifid = false;
+
 		ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp, 0); /* 0 is OK? */
-		if (ifa) {
+		if (ifa != NULL) {
 			ib = (struct in6_ifaddr *)ifa;
-			ifid_addr = &ib->ia_addr.sin6_addr;
 
 			/* prefixlen + ifidlen must be equal to 128 */
 			plen0 = in6_mask2len(&ib->ia_prefixmask.sin6_addr, NULL);
-			if (prefixlen != plen0) {
-				ifa_free(ifa);
-				ifid_addr = NULL;
+			if (prefixlen == plen0) {
+				memcpy(&newaddr, &ib->ia_addr.sin6_addr,
+				    sizeof(newaddr));
+				have_ifid = true;
+			} else {
 				nd6log((LOG_DEBUG,
 				    "%s: wrong prefixlen for %s (prefix=%d ifid=%d)\n",
 				    __func__, if_name(ifp), prefixlen, 128 - plen0));
 			}
+			ifa_free(ifa);
 		}
 
-		/* No suitable LL address, get the ifid directly */
-		if (ifid_addr == NULL) {
-			ifa = ifa_alloc(sizeof(struct in6_ifaddr), M_NOWAIT);
-			if (ifa != NULL) {
-				ib = (struct in6_ifaddr *)ifa;
-				ifid_addr = &ib->ia_addr.sin6_addr;
-				if(in6_get_ifid(ifp, NULL, ifid_addr) != 0) {
-					nd6log((LOG_DEBUG,
-					    "%s: failed to get ifid for %s\n",
-					    __func__, if_name(ifp)));
-					ifa_free(ifa);
-					ifid_addr = NULL;
-				}
+		/*
+		 * No suitable link-local address, get the ifid directly.
+		 * Only the low 64 bits are filled in, zero the rest.
+		 */
+		if (!have_ifid) {
+			memset(&newaddr, 0, sizeof(newaddr));
+			if (in6_get_ifid(ifp, NULL, &newaddr) != 0) {
+				nd6log((LOG_INFO,
+				    "%s: could not determine ifid for %s\n",
+				    __func__, if_name(ifp)));
+				return (NULL);
 			}
 		}
-
-		if (ifid_addr == NULL) {
-			nd6log((LOG_INFO,
-			    "%s: could not determine ifid for %s\n",
-			    __func__, if_name(ifp)));
-			return NULL;
-		}
-
-		memcpy(&newaddr, &ib->ia_addr.sin6_addr, sizeof(ib->ia_addr.sin6_addr));
-		ifa_free(ifa);
 	}
 
 	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr, &mask);

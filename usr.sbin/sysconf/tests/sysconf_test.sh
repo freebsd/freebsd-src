@@ -438,6 +438,253 @@ max_bytes_cap_cleanup()
 	cleanup_root
 }
 
+atf_test_case target_prefix cleanup
+target_prefix_head()
+{
+	atf_set "descr" \
+		"Unique target prefixes resolve; ambiguous and unknown fail"
+}
+target_prefix_body()
+{
+	find_sysconf
+	setup_root
+	:> "$ROOT/etc/make.conf"
+	:> "$ROOT/etc/src-env.conf"
+	:> "$ROOT/etc/src.conf"
+	printf 'foo=1\n' > "$ROOT/etc/make.conf"
+
+	# Unique prefixes
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" m -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" ma -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" make -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" sr -R "$ROOT" foo
+	printf 'kern.foo=1\n' > "$ROOT/etc/sysctl.conf"
+	atf_check -o inline:'kern.foo: 1\n' "$SYSCONF" sy -R "$ROOT" kern.foo
+	# generic requires -f
+	atf_check -s not-exit:0 -e match:'no default files' \
+	    "$SYSCONF" g -R "$ROOT" foo
+	atf_check -o inline:'foo: 1\n' \
+	    "$SYSCONF" g -R "$ROOT" -f /etc/make.conf foo
+
+	# Ambiguous: src and sysctl
+	atf_check -s not-exit:0 \
+	    -e match:'ambiguous target' \
+	    -e match:'src' \
+	    -e match:'sysctl' \
+	    "$SYSCONF" s foo
+	# Exact still wins
+	atf_check -o inline:'foo: 1\n' "$SYSCONF" src -R "$ROOT" foo
+	# Infix is not a prefix
+	atf_check -s not-exit:0 -e match:'unknown target' \
+	    "$SYSCONF" ctl foo
+	# src-env is not a prefix of src
+	atf_check -s not-exit:0 -e match:'src-env' -e match:'src' \
+	    "$SYSCONF" src-env foo
+}
+target_prefix_cleanup()
+{
+	cleanup_root
+}
+
+atf_test_case poudriere_sysrc cleanup
+poudriere_sysrc_head()
+{
+	atf_set "descr" \
+		"poudriere target feeds sysrc -f over the conf collection"
+}
+poudriere_sysrc_body()
+{
+	find_sysconf
+	command -v sysrc > /dev/null 2>&1 ||
+		atf_skip "sysrc not installed"
+	ETC="$( pwd )/petc"
+	mkdir -p "$ETC/poudriere.d"
+	printf 'ZPOOL=old\nFOO=global\n' > "$ETC/poudriere.conf"
+	printf 'FOO=jail\nJOBS=2\n' \
+	    > "$ETC/poudriere.d/131amd64-poudriere.conf"
+	export POUDRIERE_ETC="$ETC"
+
+	# -l / -L are printed here, one path per line (not sysrc -L)
+	atf_check -o inline:"$ETC/poudriere.conf\n" \
+	    "$SYSCONF" p -l
+	atf_check -o inline:"$ETC/poudriere.conf\n$ETC/poudriere.d/poudriere.conf\n" \
+	    "$SYSCONF" p -L
+	atf_check -o inline:"$ETC/poudriere.conf\n$ETC/poudriere.d/131amd64-poudriere.conf\n" \
+	    "$SYSCONF" p --jail 131amd64 -l
+	atf_check -o inline:"$ETC/poudriere.conf\n$ETC/poudriere.d/poudriere.conf\n$ETC/poudriere.d/131amd64-poudriere.conf\n" \
+	    "$SYSCONF" p --jail 131amd64 -L
+	atf_check -o inline:"$ETC/poudriere.conf\n" \
+	    "$SYSCONF" p --jail 99amd64 -l
+	atf_check -o match:'99amd64-poudriere.conf' \
+	    -o not-match:'rc\.conf' \
+	    "$SYSCONF" p --jail 99amd64 -L
+	atf_check -o inline:"$ETC/poudriere.conf\n" \
+	    "$SYSCONF" p -E -L
+	atf_check -o inline:"$ETC/poudriere.conf\n$ETC/poudriere.d/131amd64-poudriere.conf\n" \
+	    "$SYSCONF" p --jail 131amd64 -E -L
+	atf_check -s not-exit:0 -e match:'take no names' \
+	    "$SYSCONF" p -l ZPOOL
+
+	# Shorthand p; read from the global file
+	atf_check -o match:'ZPOOL: old' \
+	    "$SYSCONF" p ZPOOL
+	# Write a new name into the first file
+	atf_check -o match:'BASEFS' \
+	    "$SYSCONF" poudriere BASEFS=/poudriere
+	atf_check -o match:'BASEFS=' cat "$ETC/poudriere.conf"
+	atf_check -o not-match:'BASEFS' \
+	    cat "$ETC/poudriere.d/131amd64-poudriere.conf"
+
+	# Overlay collection: --jail appends the jail overlay last
+	atf_check -o match:'FOO: jail' \
+	    "$SYSCONF" poudriere --jail 131amd64 FOO
+	# Without --jail the overlay is not in the collection
+	atf_check -o match:'FOO: global' \
+	    "$SYSCONF" poudriere FOO
+	# --tree is an alias of --ports
+	printf 'FOO=tree\n' > "$ETC/poudriere.d/default-poudriere.conf"
+	atf_check -o match:'FOO: tree' \
+	    "$SYSCONF" poudriere --tree default FOO
+	atf_check -o match:'FOO: tree' \
+	    "$SYSCONF" poudriere --ports default FOO
+	# Rewrite the overlay's existing var
+	atf_check -o match:'JOBS' \
+	    "$SYSCONF" poudriere --jail 131amd64 JOBS=8
+	atf_check -o match:'JOBS: 8' \
+	    "$SYSCONF" poudriere --jail 131amd64 JOBS
+
+	# Attached --jail=
+	atf_check -o match:'FOO: jail' \
+	    "$SYSCONF" poudriere --jail=131amd64 FOO
+
+	# `--' ends the nested keyword; colliding names are variables
+	printf 'src=from-conf\nm=short\n' >> "$ETC/poudriere.conf"
+	printf 'src=from-overlay\n' > "$ETC/poudriere.d/src.conf"
+	atf_check -o match:'src: from-conf' \
+	    "$SYSCONF" p -- src
+	atf_check -o match:'m: short' \
+	    "$SYSCONF" p -- m
+	atf_check -s not-exit:0 -e match:"unknown variable 'make'" \
+	    "$SYSCONF" p -- make
+	atf_check -o match:'src: from-overlay' \
+	    "$SYSCONF" p src src
+
+	# -f replaces discovery
+	printf 'BAR=only\n' > "$ETC/other.conf"
+	atf_check -o match:'BAR: only' \
+	    "$SYSCONF" poudriere -f "$ETC/other.conf" BAR
+
+	# Missing globals
+	unset POUDRIERE_ETC
+	export POUDRIERE_ETC="$( pwd )/missing-etc"
+	mkdir -p "$POUDRIERE_ETC"
+	atf_check -s not-exit:0 -e match:'poudriere.conf' \
+	    "$SYSCONF" p ZPOOL
+}
+poudriere_sysrc_cleanup()
+{
+	rm -rf "$( pwd )/petc" "$( pwd )/missing-etc"
+}
+
+atf_test_case poudriere_overlays cleanup
+poudriere_overlays_head()
+{
+	atf_set "descr" \
+		"poudriere make/src/src-env overlays with --jail/--tree/--set"
+}
+poudriere_overlays_body()
+{
+	find_sysconf
+	ETC="$( pwd )/petc"
+	D="$ETC/poudriere.d"
+	mkdir -p "$D"
+	export POUDRIERE_ETC="$ETC"
+
+	printf 'CFLAGS=global\n' > "$D/make.conf"
+	printf 'CFLAGS=jail\n' > "$D/131amd64-make.conf"
+	printf 'CFLAGS=tree\n' > "$D/default-make.conf"
+	printf 'CFLAGS=set\n' > "$D/dev-make.conf"
+	printf 'CFLAGS=combo\n' > "$D/131amd64-default-make.conf"
+
+	# Shorthand p m
+	atf_check -o inline:'CFLAGS: global\n' \
+	    "$SYSCONF" p m CFLAGS
+	atf_check -o inline:'CFLAGS: jail\n' \
+	    "$SYSCONF" poudriere make --jail 131amd64 CFLAGS
+	atf_check -o inline:'CFLAGS: tree\n' \
+	    "$SYSCONF" p m --tree default CFLAGS
+	atf_check -o inline:'CFLAGS: tree\n' \
+	    "$SYSCONF" poudriere make --ports default CFLAGS
+	atf_check -o inline:'CFLAGS: set\n' \
+	    "$SYSCONF" poudriere make --set dev CFLAGS
+	# jail-tree combo is last of those two
+	atf_check -o inline:'CFLAGS: combo\n' \
+	    "$SYSCONF" poudriere make --jail 131amd64 --tree default CFLAGS
+
+	# Rewrite overlay's existing name; new name goes to global
+	atf_check -o match:'CFLAGS' \
+	    "$SYSCONF" poudriere make --jail 131amd64 CFLAGS=-O2
+	atf_check -o match:'CFLAGS=-O2' cat "$D/131amd64-make.conf"
+	atf_check -o match:'CFLAGS=global' cat "$D/make.conf"
+	atf_check -o match:'CXXFLAGS' \
+	    "$SYSCONF" poudriere make --jail 131amd64 CXXFLAGS=-pipe
+	atf_check -o match:'CXXFLAGS=-pipe' cat "$D/make.conf"
+	atf_check -o not-match:'CXXFLAGS' cat "$D/131amd64-make.conf"
+
+	# Create missing global
+	rm -f "$D/make.conf"
+	atf_check -o match:'LDFLAGS' \
+	    "$SYSCONF" p m LDFLAGS=-L/usr/local/lib
+	atf_check -o match:'LDFLAGS=-L/usr/local/lib' cat "$D/make.conf"
+
+	# src vs src-env; --tree ignored (no tree-src.conf in poudriere(8))
+	printf 'WITHOUT_FOO=\n' > "$D/src.conf"
+	printf 'WITHOUT_TREE=\n' > "$D/default-src.conf"
+	printf 'SRC_ENV_VAR=1\n' > "$D/src-env.conf"
+	printf 'SRC_ENV_VAR=tree\n' > "$D/default-src-env.conf"
+	atf_check -o inline:'WITHOUT_FOO (present)\n' \
+	    "$SYSCONF" poudriere src WITHOUT_FOO
+	atf_check -s not-exit:0 -e match:'unknown directive' \
+	    "$SYSCONF" poudriere src --tree default WITHOUT_TREE
+	atf_check -o inline:'SRC_ENV_VAR: 1\n' \
+	    "$SYSCONF" poudriere src-env SRC_ENV_VAR
+	atf_check -o inline:'SRC_ENV_VAR: 1\n' \
+	    "$SYSCONF" poudriere src-env --tree default SRC_ENV_VAR
+	atf_check -o inline:'SRC_ENV_VAR: 1\n' \
+	    "$SYSCONF" p src-e SRC_ENV_VAR
+
+	# Ambiguous nested prefix
+	atf_check -s not-exit:0 -e match:'ambiguous' -e match:'src' \
+	    -e match:'src-env' \
+	    "$SYSCONF" p s FOO
+
+	# -l lists the collection
+	atf_check -o match:'make.conf' -o match:'131amd64-make.conf' \
+	    "$SYSCONF" poudriere make --jail 131amd64 -l
+
+	# -L lists every poudriere(8) stem, including files not on disk
+	atf_check -o inline:"$D/make.conf\n$D/abc-make.conf\n$D/xyz-make.conf\n$D/160-make.conf\n$D/xyz-abc-make.conf\n$D/160-xyz-make.conf\n$D/160-abc-make.conf\n$D/160-xyz-abc-make.conf\n" \
+	    "$SYSCONF" p m --jail 160 --set abc --tree xyz -L
+	atf_check -o inline:"$D/make.conf\n$D/xyz-make.conf\n$D/160-make.conf\n$D/160-xyz-make.conf\n" \
+	    "$SYSCONF" p m --jail 160 --tree xyz -L
+	atf_check -o inline:"$D/make.conf\n" \
+	    "$SYSCONF" p m --jail 160 --set abc --tree xyz -l
+	atf_check -o inline:"$D/make.conf\n" \
+	    "$SYSCONF" p m --jail 160 --set abc --tree xyz -E -L
+	atf_check -o inline:"$D/src.conf\n$D/abc-src.conf\n$D/160-src.conf\n" \
+	    "$SYSCONF" p src --jail 160 --set abc --tree xyz -L
+	atf_check -o inline:"$D/src.conf\n$D/160-src.conf\n" \
+	    "$SYSCONF" p src --jail 160 --tree xyz -L
+	atf_check -o inline:"$D/src-env.conf\n$D/abc-src-env.conf\n$D/160-src-env.conf\n" \
+	    "$SYSCONF" p src-env --jail 160 --set abc --tree xyz -L
+	atf_check -o inline:"$D/src-env.conf\n" \
+	    "$SYSCONF" p src-env --jail 160 --set abc --tree xyz -E -L
+}
+poudriere_overlays_cleanup()
+{
+	rm -rf "$( pwd )/petc"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case make_src_knobs
@@ -451,4 +698,7 @@ atf_init_test_cases()
 	atf_add_test_case equal_value_nocheck_mtime
 	atf_add_test_case sysctl_oid_range
 	atf_add_test_case max_bytes_cap
+	atf_add_test_case target_prefix
+	atf_add_test_case poudriere_sysrc
+	atf_add_test_case poudriere_overlays
 }

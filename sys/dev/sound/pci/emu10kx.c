@@ -112,14 +112,14 @@
 #define	DSP_CCR		DSP_CONST(0x17)
 
 /* Live! Inputs */
-#define	IN_AC97_L 	0x00
-#define	IN_AC97_R 	0x01
+#define	IN_AC97_L	0x00
+#define	IN_AC97_R	0x01
 #define	IN_AC97		IN_AC97_L
 #define	IN_SPDIF_CD_L	0x02
 #define	IN_SPDIF_CD_R	0x03
 #define	IN_SPDIF_CD	IN_SPDIF_CD_L
-#define	IN_ZOOM_L 	0x04
-#define	IN_ZOOM_R 	0x05
+#define	IN_ZOOM_L	0x04
+#define	IN_ZOOM_R	0x05
 #define	IN_ZOOM		IN_ZOOM_L
 #define	IN_TOSLINK_L	0x06
 #define	IN_TOSLINK_R	0x07
@@ -141,8 +141,8 @@
 #define	OUT_AC97_R	0x01
 #define	OUT_AC97	OUT_AC97_L
 #define	OUT_A_FRONT	OUT_AC97
-#define	OUT_TOSLINK_L 	0x02
-#define	OUT_TOSLINK_R 	0x03
+#define	OUT_TOSLINK_L	0x02
+#define	OUT_TOSLINK_R	0x03
 #define	OUT_TOSLINK	OUT_TOSLINK_L
 #define	OUT_D_CENTER	0x04
 #define	OUT_D_SUB	0x05
@@ -152,7 +152,7 @@
 #define	OUT_REAR_L	0x08
 #define	OUT_REAR_R	0x09
 #define	OUT_REAR	OUT_REAR_L
-#define	OUT_ADC_REC_L 	0x0a
+#define	OUT_ADC_REC_L	0x0a
 #define	OUT_ADC_REC_R	0x0b
 #define	OUT_ADC_REC	OUT_ADC_REC_L
 #define	OUT_MIC_CAP	0x0c
@@ -295,7 +295,7 @@ struct emu_rm {
 	signed int	allocmap[EMU_MAX_GPR];
 	int		num_gprs;
 	int		last_free_gpr;
-	int 		num_used;
+	int		num_used;
 };
 
 struct emu_intr_handler {
@@ -328,7 +328,7 @@ struct emu_sc_info {
 	/* Resources */
 	struct resource	*reg;
 	struct resource	*irq;
-	void 		*ih;
+	void		*ih;
 
 	/* IRQ handlers */
 	struct emu_intr_handler ihandler[EMU_MAX_IRQ_CONSUMERS];
@@ -347,22 +347,22 @@ struct emu_sc_info {
 	unsigned int	opcode_shift;
 	unsigned int	high_operand_shift;
 	unsigned int	address_mask;
-	uint32_t 	is_emu10k1:1, is_emu10k2, is_ca0102, is_ca0108:1,
+	uint32_t	is_emu10k1:1, is_emu10k2, is_ca0102, is_ca0108:1,
 			has_ac97:1, has_51:1, has_71:1,
 			enable_ir:1,
 			broken_digital:1, is_cardbus:1;
 
 	signed int	mch_disabled, mch_rec, dbg_level;
-	signed int 	num_inputs;
-	unsigned int 	num_outputs;
-	unsigned int 	num_fxbuses;
-	unsigned int 	routing_code_start;
+	signed int	num_inputs;
+	unsigned int	num_outputs;
+	unsigned int	num_fxbuses;
+	unsigned int	routing_code_start;
 	unsigned int	routing_code_end;
 
 	/* HW resources */
 	struct emu_voice voice[NUM_G];			/* Hardware voices */
 	uint32_t	irq_mask[EMU_MAX_IRQ_CONSUMERS]; /* IRQ manager data */
-	int 		timer[EMU_MAX_IRQ_CONSUMERS];	/* timer */
+	int		timer[EMU_MAX_IRQ_CONSUMERS];	/* timer */
 	int		timerinterval;
 	struct		emu_rm *rm;
 	struct		emu_mem mem;			/* memory */
@@ -426,20 +426,20 @@ static int	emu_modevent(module_t mod __unused, int cmd, void *data __unused);
 
 #ifdef	SND_EMU10KX_DEBUG
 
-#define EMU_MTX_DEBUG() do { 						\
+#define EMU_MTX_DEBUG() do {						\
 		if (mtx_owned(&sc->rw)) {				\
 		printf("RW owned in %s line %d for %s\n", __func__,	\
 			__LINE__ , device_get_nameunit(sc->dev));	\
 		printf("rw lock owned: %d\n", mtx_owned(&sc->rw));	\
 		printf("rw lock: value %x thread %x\n",			\
-			((&sc->rw)->mtx_lock & ~MTX_FLAGMASK), 		\
+			((&sc->rw)->mtx_lock & ~MTX_FLAGMASK),		\
 			(uintptr_t)curthread);				\
 		printf("rw lock: recursed %d\n", mtx_recursed(&sc->rw));\
 		db_show_mtx(&sc->rw);					\
 		}							\
 	} while (0)
 #else
-#define EMU_MTX_DEBUG() do { 						\
+#define EMU_MTX_DEBUG() do {						\
 	} while (0)
 #endif
 
@@ -1580,7 +1580,7 @@ sysctl_emu_digitalswitch_control(SYSCTL_HANDLER_ARGS)
 
 	sc = arg1;
 
-	new_val = (sc->mode == MODE_DIGITAL) ? 1 : 0;	
+	new_val = (sc->mode == MODE_DIGITAL) ? 1 : 0;
 	err = sysctl_handle_int(oidp, &new_val, 0, req);
 
 	if (err || req->newptr == NULL)
@@ -1617,20 +1617,20 @@ emu_digitalswitch(struct emu_sc_info *sc)
  */
 #define	EFX_CACHE(CACHE_IDX) do {				\
 	sc->cache_gpr[CACHE_IDX] = emu_rm_gpr_alloc(sc->rm, 1); \
-	emu_addefxop(sc, ACC3, 					\
-		GPR(sc->cache_gpr[CACHE_IDX]), 			\
-		DSP_CONST(0), 					\
-		DSP_CONST(0), 					\
-		DSP_CONST(0), 					\
+	emu_addefxop(sc, ACC3,					\
+		GPR(sc->cache_gpr[CACHE_IDX]),			\
+		DSP_CONST(0),					\
+		DSP_CONST(0),					\
+		DSP_CONST(0),					\
 		&pc);						\
 } while (0)
 
 /* Allocate GPR for volume control and route sound: OUT = OUT + IN * VOL */
-#define	EFX_ROUTE(TITLE, INP_NR, IN_GPR_IDX, OUT_CACHE_IDX, DEF) do { 	\
+#define	EFX_ROUTE(TITLE, INP_NR, IN_GPR_IDX, OUT_CACHE_IDX, DEF) do {	\
 	sc->mixer_gpr[IN_GPR_IDX] = emu_addefxmixer(sc, TITLE, IN_GPR_IDX,  DEF); \
-	sc->mixer_volcache[IN_GPR_IDX] = DEF; 			\
-	emu_addefxop(sc, MACS, 					\
-		GPR(sc->cache_gpr[OUT_CACHE_IDX]), 		\
+	sc->mixer_volcache[IN_GPR_IDX] = DEF;			\
+	emu_addefxop(sc, MACS,					\
+		GPR(sc->cache_gpr[OUT_CACHE_IDX]),		\
 		GPR(sc->cache_gpr[OUT_CACHE_IDX]),		\
 		INP_NR,						\
 		GPR(sc->mixer_gpr[IN_GPR_IDX]),			\
@@ -1754,7 +1754,7 @@ emu_initefx(struct emu_sc_info *sc)
 		EFX_ROUTE(NULL, INP(IN_SPDIF_CD_R), M_IN1_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE(NULL, INP(IN_SPDIF_CD_L), M_IN1_REC_L, C_REC_L, 0);
 		EFX_ROUTE(NULL, INP(IN_SPDIF_CD_R), M_IN1_REC_R, C_REC_R, 0);
-		
+
 		if (sc->dbg_level > 0) {
 			/* in2, ZoomVide (???) */
 			EFX_ROUTE("zoom_front_l", INP(IN_ZOOM_L), M_IN2_FRONT_L, C_FRONT_L, 0);
@@ -2170,11 +2170,11 @@ static d_close_t	emu10kx_close;
 static d_read_t		emu10kx_read;
 
 static struct cdevsw emu10kx_cdevsw = {
-	.d_open = 	emu10kx_open,
+	.d_open =	emu10kx_open,
 	.d_close =	emu10kx_close,
-	.d_read = 	emu10kx_read,
-	.d_name = 	"emu10kx",
-	.d_version = 	D_VERSION,
+	.d_read =	emu10kx_read,
+	.d_name =	"emu10kx",
+	.d_version =	D_VERSION,
 };
 
 static int

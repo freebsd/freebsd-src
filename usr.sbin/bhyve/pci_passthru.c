@@ -42,7 +42,6 @@
 
 #include <vm/vm.h>
 
-#include <machine/iodev.h>
 #include <machine/vm.h>
 
 #ifndef WITHOUT_CAPSICUM

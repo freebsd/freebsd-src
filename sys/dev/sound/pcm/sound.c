@@ -515,7 +515,7 @@ pcm_unregister(device_t dev)
  * @brief	Handle OSSv4 SNDCTL_SYSINFO ioctl.
  *
  * @param si	Pointer to oss_sysinfo struct where information about the
- * 		sound subsystem will be written/copied.
+ *		sound subsystem will be written/copied.
  *
  * This routine returns information about the sound system, such as the
  * current OSS version, number of audio, MIDI, and mixer drivers, etc.

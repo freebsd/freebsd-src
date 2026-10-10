@@ -78,7 +78,7 @@ bnxt_hwrm_queue_pri2cos_cfg(struct bnxt_softc *softc,
 		qidx = softc->tc_to_qidx[ets->prio_tc[i]];
 		pri2cos[i] = q_info[qidx].queue_id;
 	}
-	return _hwrm_send_message(softc, &req, sizeof(req));
+	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
 static int
@@ -92,6 +92,7 @@ bnxt_hwrm_queue_pri2cos_qcfg(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_QUEUE_PRI2COS_QCFG);
 
 	req.flags = htole32(HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_IVLAN);
+	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
 	if (!rc) {
 		uint8_t *pri2cos = &resp->pri0_cos_queue_id;
@@ -106,6 +107,7 @@ bnxt_hwrm_queue_pri2cos_qcfg(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets
 				ets->prio_tc[i] = tc;
 		}
 	}
+	BNXT_HWRM_UNLOCK(softc);
 	return rc;
 }
 
@@ -152,7 +154,7 @@ bnxt_hwrm_queue_cos2bw_cfg(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets,
 			req.unused_0 = 0;
 		}
 	}
-	return _hwrm_send_message(softc, &req, sizeof(req));
+	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
 static int
@@ -167,8 +169,10 @@ bnxt_hwrm_queue_cos2bw_qcfg(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets)
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_QUEUE_COS2BW_QCFG);
 
+	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
 	if (rc) {
+		BNXT_HWRM_UNLOCK(softc);
 		return rc;
 	}
 
@@ -191,6 +195,7 @@ bnxt_hwrm_queue_cos2bw_qcfg(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets)
 			ets->tc_tx_bw[tc] = cos2bw.bw_weight;
 		}
 	}
+	BNXT_HWRM_UNLOCK(softc);
 	return 0;
 }
 
@@ -288,7 +293,7 @@ bnxt_hwrm_queue_pfc_cfg(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc)
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_QUEUE_PFCENABLE_CFG);
 
 	req.flags = htole32(pri_mask);
-	return _hwrm_send_message(softc, &req, sizeof(req));
+	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
 static int
@@ -302,13 +307,16 @@ bnxt_hwrm_queue_pfc_qcfg(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc)
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_QUEUE_PFCENABLE_QCFG);
 
+	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
 	if (rc) {
+		BNXT_HWRM_UNLOCK(softc);
 		return rc;
 	}
 
 	pri_mask = le32toh(resp->flags);
 	pfc->pfc_en = pri_mask;
+	BNXT_HWRM_UNLOCK(softc);
 	return 0;
 }
 
@@ -341,7 +349,7 @@ bnxt_hwrm_get_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	get.structure_id = htole16(HWRM_STRUCT_HDR_STRUCT_ID_DCBX_APP);
 	get.subtype = htole16(HWRM_STRUCT_DATA_SUBTYPE_HOST_OPERATIONAL);
 	get.count = 0;
-	rc = _hwrm_send_message(softc, &get, sizeof(get));
+	rc = hwrm_send_message(softc, &get, sizeof(get));
 	if (rc)
 		goto set_app_exit;
 
@@ -362,6 +370,11 @@ bnxt_hwrm_get_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	}
 
 set_app_exit:
+	if (rc == ETIMEDOUT) {
+		device_printf(softc->dev,
+		    "dcbx app get timed out, leaking DMA buffer\n");
+		return rc;
+	}
 	iflib_dma_free(&dma_data);
 	return rc;
 }
@@ -377,6 +390,7 @@ bnxt_hwrm_set_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	struct iflib_dma_info dma_data;
 	size_t data_len;
 	int rc, n, i;
+	bool did_set = false;
 
 	if (softc->hwrm_spec_code < 0x10601)
 		return 0;
@@ -393,7 +407,7 @@ bnxt_hwrm_set_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	get.structure_id = htole16(HWRM_STRUCT_HDR_STRUCT_ID_DCBX_APP);
 	get.subtype = htole16(HWRM_STRUCT_DATA_SUBTYPE_HOST_OPERATIONAL);
 	get.count = 0;
-	rc = _hwrm_send_message(softc, &get, sizeof(get));
+	rc = hwrm_send_message(softc, &get, sizeof(get));
 	if (rc)
 		goto set_app_exit;
 
@@ -445,9 +459,16 @@ bnxt_hwrm_set_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	set.src_data_addr = htole64(dma_data.idi_paddr);
 	set.data_len = htole16(sizeof(*data) + sizeof(*fw_app) * n);
 	set.hdr_cnt = 1;
-	rc = _hwrm_send_message(softc, &set, sizeof(set));
+	did_set = true;
+	rc = hwrm_send_message(softc, &set, sizeof(set));
 
 set_app_exit:
+	if (rc == ETIMEDOUT) {
+		device_printf(softc->dev,
+		    "dcbx app %s timed out, leaking DMA buffer\n",
+		    did_set ? "set" : "get");
+		return rc;
+	}
 	iflib_dma_free(&dma_data);
 	return rc;
 }
@@ -466,12 +487,14 @@ bnxt_hwrm_queue_dscp_qcaps(struct bnxt_softc *softc)
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_QUEUE_DSCP_QCAPS);
 
+	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
 	if (!rc) {
 		softc->max_dscp_value = (1 << resp->num_dscp_bits) - 1;
 		if (softc->max_dscp_value < 0x3f)
 			softc->max_dscp_value = 0;
 	}
+	BNXT_HWRM_UNLOCK(softc);
 	return rc;
 }
 
@@ -502,12 +525,15 @@ bnxt_hwrm_queue_dscp2pri_qcfg(struct bnxt_softc *softc, struct bnxt_dcb_app *app
 	req.dest_data_addr = htole64(dma_data.idi_paddr);
 	req.dest_data_buffer_size = htole16(sizeof(*dscp2pri) * 64);
 	req.port_id = htole16(softc->pf.port_id);
+	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (!rc)
+		entry_cnt = le16toh(resp->entry_cnt);
+	BNXT_HWRM_UNLOCK(softc);
 
 	if (rc)
 		goto end;
 
-	entry_cnt =  le16toh(resp->entry_cnt);
 	for (i = 0; i < entry_cnt && *num_inputs < nitems; i++) {
 		app[*num_inputs].priority = dscp2pri[i].pri;
 		app[*num_inputs].protocol = dscp2pri[i].dscp;
@@ -516,6 +542,11 @@ bnxt_hwrm_queue_dscp2pri_qcfg(struct bnxt_softc *softc, struct bnxt_dcb_app *app
 	}
 
 end:
+	if (rc == ETIMEDOUT) {
+		device_printf(softc->dev,
+		    "dscp2pri qcfg timed out, leaking DMA buffer\n");
+		return rc;
+	}
 	iflib_dma_free(&dma_data);
 	return rc;
 }
@@ -549,8 +580,13 @@ bnxt_hwrm_queue_dscp2pri_cfg(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
 	dscp2pri->pri = app->priority;
 	req.entry_cnt = htole16(1);
 	req.port_id = htole16(softc->pf.port_id);
-	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	rc = hwrm_send_message(softc, &req, sizeof(req));
 
+	if (rc == ETIMEDOUT) {
+		device_printf(softc->dev,
+		    "dscp2pri cfg timed out, leaking DMA buffer\n");
+		return rc;
+	}
 	iflib_dma_free(&dma_data);
 	return rc;
 }
@@ -829,9 +865,6 @@ bnxt_dcb_setdcbx(struct bnxt_softc *softc, uint8_t mode)
 void
 bnxt_dcb_init(struct bnxt_softc *softc)
 {
-	struct bnxt_ieee_ets ets = {0};
-	struct bnxt_ieee_pfc pfc = {0};
-
 	softc->dcbx_cap = 0;
 
 	if (softc->hwrm_spec_code < 0x10501)
@@ -851,9 +884,6 @@ bnxt_dcb_init(struct bnxt_softc *softc)
 		softc->dcbx_cap |= BNXT_DCB_CAP_DCBX_HOST;
 	else if (softc->fw_cap & BNXT_FW_CAP_DCBX_AGENT)
 		softc->dcbx_cap |= BNXT_DCB_CAP_DCBX_LLD_MANAGED;
-
-	bnxt_dcb_ieee_setets(softc, &ets);
-	bnxt_dcb_ieee_setpfc(softc, &pfc);
 
 }
 

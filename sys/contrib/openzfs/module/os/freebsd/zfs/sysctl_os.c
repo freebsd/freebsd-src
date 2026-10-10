@@ -513,19 +513,6 @@ param_set_active_allocator(SYSCTL_HANDLER_ARGS)
 	return (param_set_active_allocator_common(buf));
 }
 
-/*
- * The in-core space map representation is more compact than its on-disk form.
- * The zfs_metaslab_condense_pct determines how much more compact the in-core
- * space map representation must be before we compact it on-disk.
- * Values should be greater than or equal to 100.
- */
-extern uint_t zfs_metaslab_condense_pct;
-
-SYSCTL_UINT(_vfs_zfs_metaslab, OID_AUTO, condense_pct,
-	CTLFLAG_RWTUN, &zfs_metaslab_condense_pct, 0,
-	"Condense on-disk spacemap when it is more than this many percents"
-	" of in-memory counterpart");
-
 extern uint_t zfs_remove_max_segment;
 
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, remove_max_segment,

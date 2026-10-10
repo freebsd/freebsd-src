@@ -278,6 +278,59 @@ compression_cleanup()
 }
 
 #
+# Make sure that the link count and the size of the directories which are the
+# roots of datasets count "." and the directories which are the mountpoints
+# of other datasets.  fts(3) trusts the link count of the directories of ZFS
+# and skips the subdirectories that it does not account for.
+#
+atf_test_case dataset_link_counts cleanup
+dataset_link_counts_body()
+{
+	local dir entries subdirs
+
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+
+	mkdir -p dir1/sub1 dir1/sub2 dir1/dir2/sub3 dir1/dir2/dir3 dir4
+	echo a > dir1/a
+	echo b > dir1/dir2/b
+	echo c > dir1/sub1/c
+	echo d > dir1/sub2/d
+	echo e > dir1/dir2/sub3/e
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    -o fs=${ZFS_POOL_NAME}/dir1 -o fs=${ZFS_POOL_NAME}/dir1/dir2 \
+	    -o fs=${ZFS_POOL_NAME}/dir1/dir2/dir3 -o fs=${ZFS_POOL_NAME}/dir4 \
+	    -o fs=${ZFS_POOL_NAME}/dir5 \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	import_image
+
+	# find(1) relies on the link counts to decide which entries may be
+	# directories, so it must see the whole tree.
+	(cd $TEST_INPUTS_DIR && find dir1 dir4 | sort) > ./expected
+	atf_check -o file:./expected -x \
+	    "cd $TEST_MOUNT_DIR && find dir1 dir4 | sort"
+
+	# The link count is the number of directories in the directory plus
+	# "." and "..", and the size is the number of entries plus the same.
+	for dir in . dir1 dir1/sub1 dir1/dir2 dir1/dir2/dir3 dir4 dir5; do
+		subdirs=$(ls -d $TEST_MOUNT_DIR/$dir/*/ 2>/dev/null | wc -l)
+		entries=$(ls -A $TEST_MOUNT_DIR/$dir | wc -l)
+		atf_check -o inline:$((subdirs + 2))\\n \
+		    stat -f %l $TEST_MOUNT_DIR/$dir
+		atf_check -o inline:$((entries + 2))\\n \
+		    stat -f %z $TEST_MOUNT_DIR/$dir
+	done
+}
+dataset_link_counts_cleanup()
+{
+	common_cleanup
+}
+
+#
 # Try destroying a dataset that was created by makefs.
 #
 atf_test_case dataset_removal cleanup
@@ -1171,6 +1224,7 @@ atf_init_test_cases()
 	atf_add_test_case autotrim
 	atf_add_test_case basic
 	atf_add_test_case compression
+	atf_add_test_case dataset_link_counts
 	atf_add_test_case dataset_removal
 	atf_add_test_case devfs
 	atf_add_test_case empty_dir

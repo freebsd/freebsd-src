@@ -155,6 +155,12 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 #define MAX_DEFER_WAITERS       50
 
 /*
+ * For adaptive mutexes, how many times to spin doing trylock2
+ * before entering the kernel to block
+ */
+#define MUTEX_ADAPTIVE_SPINS	2000
+
+/*
  * Values for pthread_mutex m_ps indicator.
  */
 #define	PMUTEX_INITSTAGE_ALLOC	0

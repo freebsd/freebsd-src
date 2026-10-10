@@ -581,7 +581,7 @@ pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 		}
 	} else if (strcmp("amd_df", pe->pmu) == 0) {
 		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_DATA_FABRIC;
-		if (cpu_family <= 19) {
+		if (cpu_family <= 0x19) {
 			amd->pm_amd_config |=
 			    AMD_PMC_DF1_TO_EVENTMASK(ped->ped_event);
 			amd->pm_amd_config |=

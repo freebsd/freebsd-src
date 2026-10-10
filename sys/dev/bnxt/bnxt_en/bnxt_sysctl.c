@@ -29,16 +29,91 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
-#include <linux/delay.h>
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_sysctl.h"
+#include "bnxt_ktls.h"
 
-DEFINE_MUTEX(tmp_mutex); /* mutex lock for driver */
+struct bnxt_ktls_counters_list {
+	enum bnxt_ktls_counters id;
+	const char *label;
+	const char *desc;
+};
+static const struct bnxt_ktls_counters_list ktls_counters[] = {
+	{ BNXT_KTLS_TX_ADD,			"add_tx_session",		"KTLS sessions add count" },
+	{ BNXT_KTLS_TX_DEL,			"delete_tx_session",		"KTLS sessions delete count" },
+	{ BNXT_KTLS_TX_HW_PKT,			"hw_tx_pkts",			"HW KTLS TX count" },
+	{ BNXT_KTLS_TX_FAILED,			"failed_tx_pkts",		"SW KTLS TX count" },
+	{ BNXT_KTLS_TX_OOO,			"ooo_tx_pkts",			"OOO KTLS TX count" },
+	{ BNXT_KTLS_TX_RETRANS,			"retrans_tx_pkts",		"Retransmitted KTLS TX count" },
+	{ BNXT_KTLS_TX_REPLAY,			"replay_tx_pkts",		"Replay KTLS TX count" },
+	{ BNXT_KTLS_TX_SEQ_FWD,			"seq_fwd_tx_pkts",		"Seq forward KTLS Tx count" },
+	{ BNXT_KTLS_TX_SEQ_FWD_TLS_HDR,		"seq_fwd_tx_tls_hdr_pkts",	"Seq forward Tx packets with TLS header" },
+	{ BNXT_KTLS_TX_SEQ_FWD_SILENT_DROPS,	"seq_fwd_tx_silent_drops_pkts",	"Silently dropped seq forward packets" },
+	{ BNXT_KTLS_TX_SEQ_FWD_REPLAY,		"seq_fwd_tx_replay_pkts",	"Replayed Seq forward packets" },
+	{ BNXT_KTLS_TX_MBUF_ALLOCS,		"mbuf_allocs",			"Alloc mbufs count" },
+	{ BNXT_KTLS_TX_MBUF_FREES,		"mbuf_frees",			"Free mbufs count" },
+	{ BNXT_KTLS_TX_MBUF_ERRORS,		"mbuf_errors",			"Error mbufs count" },
+};
+static const int ktls_counters_count = sizeof(ktls_counters) / sizeof(ktls_counters[0]);
+
+struct bnxt_ktls_err_counters_list {
+	enum bnxt_ktls_err_counters id;
+	const char *label;
+	const char *desc;
+};
+static const struct bnxt_ktls_err_counters_list ktls_err_counters[] = {
+	{ BNXT_KTLS_TX_DEV_ADD_FAILED,	    "add_tx_session_failure",	"Tx KTLS device add failure count" },
+	{ BNXT_KTLS_TX_MPC_TIMEOUT,	    "mpc_cmd_timeout",		"Timeout MPC commands count" },
+	{ BNXT_KTLS_TX_UNINITIALIZED,	    "ktls_tx_uninit",		"snd_tag alloc failure due to ktls not initialized" },
+	{ BNXT_KTLS_TX_CTX_ALLOC_FAILED,    "ctx_alloc_failures",	"snd_tag alloc failure due to ctx alloc failed" },
+	{ BNXT_KTLS_TX_MPC_FAILED,	    "mpc_failures",		"MPC command failures count" },
+	{ BNXT_KTLS_TX_TCE_NOT_READY,	    "tce_not_ready",		"Tx crypto engine(TCE) is not ready" },
+	{ BNXT_KTLS_TX_TCE_READY_DELAYED,   "tce_ready_delayed",	"TCE getting ready with delay" },
+	{ BNXT_KTLS_TX_TCE_BAD,	    	    "tce_bad",			"TCE is in bad state" },
+	{ BNXT_KTLS_TX_UNSUPPORTED_TLS_HDR, "unsupported_tls_hdr",	"snd_tag alloc failure due to unsupported TLS header" },
+	{ BNXT_KTLS_TX_INVALID_TAG, 	    "invalid_tag",		"Invalid snd_tag" },
+	{ BNXT_KTLS_TX_ZERO_TCP_PAYLEN,     "zero_payload",		"Packet/s with zero TCP payload" },
+	{ BNXT_KTLS_TX_INVALID_REC_SN,      "invalid_rec_sn",		"Invalid Record" },
+	{ BNXT_KTLS_TX_TCE_FREE,	    "tce_free",        		"Packets received when crypto delete is ongoing"},
+	{ BNXT_KTLS_TX_MPC_RING_BUSY,	    "mpc_ring_busy",		"MPC ring full on crypto add/delete xmit, retry count"},
+};
+
+static const int ktls_err_counters_count = sizeof(ktls_err_counters) / sizeof(ktls_err_counters[0]);
+
+struct bnxt_mpc_cmp_time_counters_list {
+	enum bnxt_mpc_cmp_time_counters id;
+	const char *label;
+	const char *desc;
+};
+static const struct bnxt_mpc_cmp_time_counters_list mpc_cmp_counters[] = {
+	{ BNXT_MPC_CMP_TIME_1US,		"<=1us",	"MPC command completion <= 1us" },
+	{ BNXT_MPC_CMP_TIME_1_5US,		"1-5us",	"MPC command completion between 1-5us" },
+	{ BNXT_MPC_CMP_TIME_5_10US,		"5-10us",	"MPC command completion between 5-10us" },
+	{ BNXT_MPC_CMP_TIME_10_15US,		"10-15us",	"MPC command completion between 10-15us" },
+	{ BNXT_MPC_CMP_TIME_15_20US,		"15-20us",	"MPC command completion between 15-20us" },
+	{ BNXT_MPC_CMP_TIME_20_25US,		"20-25us",	"MPC command completion between 20-25us" },
+	{ BNXT_MPC_CMP_TIME_25_50US,		"25-50us",	"MPC command completion between 25-50us" },
+	{ BNXT_MPC_CMP_TIME_50_100US,		"50-100us",	"MPC command completion between 50-100us" },
+	{ BNXT_MPC_CMP_TIME_100_200US,		"100-200us",	"MPC command completion between 100-200us" },
+	{ BNXT_MPC_CMP_TIME_200_500US,		"200-500us",	"MPC command completion between 200-500us" },
+	{ BNXT_MPC_CMP_TIME_500_1000US,		"500-1000us",	"MPC command completion between 500-1000us" },
+	{ BNXT_MPC_CMP_TIME_1000_1500US,	"1000-1500us",	"MPC command completion between 1000-1500us" },
+	{ BNXT_MPC_CMP_TIME_1500_2000US,	"1500-2000us",	"MPC command completion between 1500-2000us" },
+	{ BNXT_MPC_CMP_TIME_2000_2500US,	"2000-2500us",	"MPC command completion between 2000-2500us" },
+	{ BNXT_MPC_CMP_TIME_2500_3000US,	"2500-3000us",	"MPC command completion between 2500-3000us" },
+	{ BNXT_MPC_CMP_TIME_3000_3500US,	"3000-3500us",	"MPC command completion between 3000-3500us" },
+	{ BNXT_MPC_CMP_TIME_3500_4000US,	"3500-4000us",	"MPC command completion between 3500-4000us" },
+	{ BNXT_MPC_CMP_TIME_4000_4500US,	"4000-4500us",	"MPC command completion between 4000-4500us" },
+	{ BNXT_MPC_CMP_TIME_4500_5000US,	"4500-5000us",	"MPC command completion between 4500-5000us" },
+	{ BNXT_MPC_CMP_TIME_5000_PLUS_US,	"5000+us",	"MPC command completion >= 5000us" },
+};
+static const int mpc_cmp_counters_count = sizeof(mpc_cmp_counters) / sizeof(mpc_cmp_counters[0]);
+
 extern void bnxt_fw_reset(struct bnxt_softc *bp);
 extern void bnxt_queue_sp_work(struct bnxt_softc *bp);
-extern void
+extern bool
 process_nq(struct bnxt_softc *softc, uint16_t nqid);
 /*
  * We want to create:
@@ -121,6 +196,27 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		return ENOMEM;
 	}
 
+	sysctl_ctx_init(&softc->ktls_stats);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->ktls_stats_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "ktls_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "kTLS statistics");
+	if (!softc->ktls_stats_oid) {
+		sysctl_ctx_free(&softc->ktls_stats);
+		return ENOMEM;
+	}
+
+	sysctl_ctx_init(&softc->mpc_cmp_time_stats);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->mpc_cmp_time_stats_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "mpc_cmp_time_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+	    "MPC completion time statistics");
+	if (!softc->mpc_cmp_time_stats_oid) {
+		sysctl_ctx_free(&softc->mpc_cmp_time_stats);
+		return ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -175,6 +271,22 @@ bnxt_free_sysctl_ctx(struct bnxt_softc *softc)
 			softc->dcb_oid = NULL;
 	}
 
+	if (softc->ktls_stats_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->ktls_stats);
+		if (orc)
+			rc = orc;
+		else
+			softc->ktls_stats_oid = NULL;
+	}
+
+	if (softc->mpc_cmp_time_stats_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->mpc_cmp_time_stats);
+		if (orc)
+			rc = orc;
+		else
+			softc->mpc_cmp_time_stats_oid = NULL;
+	}
+
 	return rc;
 }
 
@@ -218,6 +330,100 @@ bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr)
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "bcast_bytes", CTLFLAG_RD, &tx_stats->tx_bcast_bytes,
 	    "broadcast bytes sent");
+
+	return 0;
+}
+
+int
+bnxt_create_generic_stats_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid;
+	char	name[32];
+	char	desc[64];
+
+	sprintf(name, "generic_stats");
+	sprintf(desc, "Generic Stats");
+	oid = SYSCTL_ADD_NODE(&softc->hw_stats,
+	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name,
+		CTLFLAG_RD | CTLFLAG_MPSAFE, 0, desc);
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_statistics_tx_tlp", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_statistics_tx_tlp, "pcie_statistics_tx_tlp");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_statistics_rx_tlp", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_statistics_rx_tlp, "pcie_statistics_rx_tlp");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_hdr_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_hdr_posted, "pcie_credit_fc_hdr_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_hdr_nonposted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_hdr_nonposted, "pcie_credit_fc_hdr_nonposted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_hdr_cmpl", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_hdr_cmpl, "pcie_credit_fc_hdr_cmpl");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_data_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_data_posted, "pcie_credit_fc_data_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_data_nonposted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_data_nonposted, "pcie_credit_fc_data_nonposted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_data_cmpl", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_data_cmpl, "pcie_credit_fc_data_cmpl");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_tgt_nonposted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_tgt_nonposted, "pcie_credit_fc_tgt_nonposted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_tgt_data_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_tgt_data_posted, "pcie_credit_fc_tgt_data_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_tgt_hdr_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_tgt_hdr_posted, "pcie_credit_fc_tgt_hdr_posted");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_cmpl_hdr_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_cmpl_hdr_posted, "pcie_credit_fc_cmpl_hdr_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_cmpl_data_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_cmpl_data_posted, "pcie_credit_fc_cmpl_data_posted");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_cmpl_longest", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_cmpl_longest, "pcie_cmpl_longest");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_cmpl_shortest", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_cmpl_shortest, "pcie_cmpl_shortest");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcq", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcq, "cache_miss_count_cfcq");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcs", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcs, "cache_miss_count_cfcs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcc", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcc, "cache_miss_count_cfcc");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcm", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcm, "cache_miss_count_cfcm");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_dbs_dropped", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_dbs_dropped, "hw_db_recov_dbs_dropped");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_drops_serviced", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_drops_serviced, "hw_db_recov_drops_serviced");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_dbs_recovered", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_dbs_recovered, "hw_db_recov_dbs_recovered");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_oo_drop_count", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_oo_drop_count, "hw_db_recov_oo_drop_count");
 
 	return 0;
 }
@@ -1396,21 +1602,46 @@ bnxt_vlan_strip_sysctl(SYSCTL_HANDLER_ARGS) {
 	return rc;
 }
 
+/*
+ * sysctl_handle_int() allows any int-sized value; reject anything that
+ * would truncate/overflow when narrowed into the uint16_t coal field.
+ */
+static int
+bnxt_sysctl_check_u16_range(struct bnxt_softc *softc, const char *what,
+    int val, uint16_t mult)
+{
+	int max = mult ? (UINT16_MAX / mult) : UINT16_MAX;
+
+	if (val < 0 || val > max) {
+		device_printf(softc->dev,
+		    "%s: value %d out of range [0, %d]\n", what, val, max);
+		return EINVAL;
+	}
+	return 0;
+}
+
 static int
 bnxt_set_coal_rx_usecs(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_usecs;
+	hw_coal = &softc->rx_coal;
+	val = hw_coal->coal_ticks;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_usecs = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1419,18 +1650,33 @@ bnxt_set_coal_rx_usecs(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_rx_frames(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_frames;
+	hw_coal = &softc->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_frames = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1439,18 +1685,25 @@ bnxt_set_coal_rx_frames(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_rx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_usecs_irq;
+	hw_coal = &softc->rx_coal;
+	val = hw_coal->coal_ticks_irq;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_usecs_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks_irq = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1459,38 +1712,111 @@ bnxt_set_coal_rx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_rx_frames_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_frames_irq;
+	hw_coal = &softc->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs_irq / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_frames_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs_irq = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
 }
 
 static int
+bnxt_set_rx_coalesce_mode(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal_cap *coal_cap;
+	struct bnxt_coal *hw_coal;
+	uint16_t flags;
+	int val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	coal_cap = &softc->coal_cap;
+
+	if (coal_cap->cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TIMER_RESET) {
+		hw_coal = &softc->rx_coal;
+		flags = hw_coal->flags;
+
+		val = flags & HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+		rc = sysctl_handle_int(oidp, &val, 0, req);
+		if (rc || !req->newptr)
+			return rc;
+
+		if (val)
+			flags |= HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+		else
+			flags &= ~HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+
+		hw_coal->flags = flags;
+		rc = bnxt_hwrm_set_coal(softc);
+		return rc;
+	}
+
+	if (coal_cap->cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TMR_RESET_ON_ALLOC) {
+		hw_coal = &softc->rx_coal;
+		val = hw_coal->timer_reset_during_ring_alloc;
+		rc = sysctl_handle_int(oidp, &val, 0, req);
+		if (rc || !req->newptr)
+			return rc;
+
+		/* Takes effect on next ring (re)alloc, so no bnxt_hwrm_set_coal() call needed here. */
+		hw_coal->timer_reset_during_ring_alloc = val ? 1 : 0;
+
+		return rc;
+	}
+
+	return EOPNOTSUPP;
+}
+
+static int
 bnxt_set_coal_tx_usecs(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_usecs;
+	hw_coal = &softc->tx_coal;
+	val = hw_coal->coal_ticks;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_usecs = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1499,18 +1825,33 @@ bnxt_set_coal_tx_usecs(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_tx_frames(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_frames;
+	hw_coal = &softc->tx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_frames = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1519,18 +1860,25 @@ bnxt_set_coal_tx_frames(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_tx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_usecs_irq;
+	hw_coal = &softc->tx_coal;
+	val = hw_coal->coal_ticks_irq;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_usecs_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks_irq = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1539,21 +1887,160 @@ bnxt_set_coal_tx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_tx_frames_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_frames_irq;
+	hw_coal = &softc->tx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs_irq / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_frames_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs_irq = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
+}
+
+static int
+bnxt_set_stats_coal_ticks(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->stats_coal_ticks;
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->stats_coal_ticks = val;
+	/*
+	 * Stats DMA period is set once at HWRM_STAT_CTX_ALLOC time; there's no
+	 * HWRM_STAT_CTX_CFG to reprogram it, so nothing to apply this to yet.
+	 */
+
+	return 0;
+}
+
+static int
+bnxt_set_cagr_tick_res(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->cagr_tick_res;
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	if (val < BNXT_CAGR_TICK_RES_MIN ||
+	    val > BNXT_CAGR_TICK_RES_MAX)
+		return EINVAL;
+
+	softc->cagr_tick_res = val;
+
+	return rc;
+}
+
+static int
+bnxt_set_rx_coal_budget(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	hw_coal = &softc->rx_coal;
+
+	val = hw_coal->budget;
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->budget = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_tx_host_coal_bds(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	uint32_t val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_host_coal_bds;
+
+	rc = sysctl_handle_int(oidp, (int *)&val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	if (val < BNXT_TX_HOST_COAL_BDS_MIN || val > softc->tx_ring_size)
+		return EINVAL;
+
+	softc->tx_host_coal_bds = val;
+
+	return 0;
+}
+
+static int
+bnxt_set_tx_hw_coal_cnt(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	uint32_t val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_hw_coal_cnt;
+
+	rc = sysctl_handle_int(oidp, (int *)&val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	if (val > HWRM_RING_ALLOC_INPUT_CMPL_COAL_CNT_LAST)
+		return EINVAL;
+
+	softc->tx_hw_coal_cnt = (uint8_t)val;
+
+	return 0;
 }
 
 static
@@ -1634,6 +2121,10 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_rx_frames_irq, "I",
 	    "interrupt coalescing Rx Frames IRQ");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_coalesce_mode",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_rx_coalesce_mode, "I",
+	    "set rx_coalesce_mode 0/1");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_usecs, "I", "interrupt coalescing Tx Usces");
@@ -1648,6 +2139,46 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_frames_irq, "I",
 	    "interrupt coalescing Tx Frames IRQ");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_stats_coal_ticks",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_stats_coal_ticks, "I",
+	    "interrupt coalescing stats coal ticks");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cagr_tick_res",
+	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_cagr_tick_res, "I", "CAGR tick resolution");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_rx_coal_budget",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_rx_coal_budget, "I",
+	    "Rx interrupt coalescing budget");
+
+	/*
+	 * Default coal_bds to half the Tx ring depth, clamped between
+	 * BNXT_TX_HOST_COAL_BDS_MIN and DEFAULT; disable below the floor to
+	 * avoid uint underflow in (coal_bds - (BNXT_MAX_NUM_SEGS+1)).
+	 */
+	softc->tx_host_coal_bds = min(softc->tx_ring_size,
+	    max(BNXT_TX_HOST_COAL_BDS_MIN,
+		min(BNXT_TX_HOST_COAL_BDS_DEFAULT, softc->tx_ring_size / 2)));
+	softc->tx_host_coal_enable =
+	    (softc->tx_ring_size >= BNXT_TX_HOST_COAL_BDS_MIN);
+	softc->tx_hw_coal_cnt = BNXT_TX_HW_COAL_CNT_DEFAULT;
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_host_coal_bds",
+	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_tx_host_coal_bds, "I",
+	    "host-driven TX coalescing: max BDs before forcing completion "
+	    "(33 to Tx ring size, default max(33, min(256, ring_size/2)) "
+	    "clamped to ring_size; feature auto-disabled if ring_size < 33)");
+	SYSCTL_ADD_BOOL(ctx, children, OID_AUTO, "tx_host_coal_enable", CTLFLAG_RDTUN,
+	    &softc->tx_host_coal_enable, 0,
+	    "enable host-driven TX coalescing via NO_CMPL/COAL_NOW BD flags "
+	    "(default enabled)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_hw_coal_cnt",
+	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_tx_hw_coal_cnt, "I",
+	    "HW-driven TX coalesced-completion packet count code for ring_alloc "
+	    "(0=off 1=4 2=8 3=12 4=16 5=24 6=32 7=48 8=64[default] "
+	    "9=96 10=128 11=192 12=256 13=320 14=384 15=MAX; "
+	    "requires BNXT_FLAG_TX_COAL_CMPL firmware capability)");
 	SYSCTL_ADD_U32(ctx, children, OID_AUTO, "flags", CTLFLAG_RD,
 		&softc->flags, 0, "flags");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fw_cap", CTLFLAG_RD,
@@ -2133,5 +2664,109 @@ int
 bnxt_create_config_sysctls_post(struct bnxt_softc *softc)
 {
 	/* Nothing for now, meant for future expansion */
+	return 0;
+}
+
+static int
+sysctl_counter_u64_handler(SYSCTL_HANDLER_ARGS)
+{
+	counter_u64_t *counter = (counter_u64_t *)arg1;
+	uint64_t val = counter_u64_fetch(*counter);
+
+	return sysctl_handle_64(oidp, &val, 0, req);
+}
+
+int
+bnxt_create_ktls_sysctls(struct bnxt_softc *softc)
+{
+	struct bnxt_tls_info *ktls = softc->ktls_info;
+	struct sysctl_oid *oid;
+
+	if (!ktls)
+		return 0;
+
+	oid = SYSCTL_ADD_NODE(&softc->ktls_stats,
+			      SYSCTL_CHILDREN(softc->ktls_stats_oid), OID_AUTO,
+			      "ktls_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+			      "In-kernel TLS statistics");
+	if (!oid)
+		return ENOMEM;
+
+	for (int i = 0; i < ktls_counters_count; i++) {
+		const struct bnxt_ktls_counters_list *counters = &ktls_counters[i];
+
+		SYSCTL_ADD_PROC(&softc->ktls_stats,
+				SYSCTL_CHILDREN(oid), OID_AUTO,
+				counters->label,
+				CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				&ktls->counters[counters->id],
+				0,
+				sysctl_counter_u64_handler,
+				"Q",
+				counters->desc);
+	}
+
+	for (int i = 0; i < ktls_err_counters_count; i++) {
+		const struct bnxt_ktls_err_counters_list *err_counters = &ktls_err_counters[i];
+
+		SYSCTL_ADD_PROC(&softc->ktls_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+				err_counters->label,
+				CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				&ktls->err_counters[err_counters->id], 0,
+				sysctl_counter_u64_handler, "Q",
+				err_counters->desc);
+	}
+
+	return 0;
+}
+
+int
+bnxt_ktls_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+	struct sysctl_oid *oid;
+
+	ctx = device_get_sysctl_ctx(softc->dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
+
+	oid = SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "max_ktls_entries",
+			      CTLFLAG_RDTUN, &softc->max_ktls_entries, 0,
+			      "Maximum number of TLS offload entries to preallocate (default: 102400, max: 512000)");
+	if (!oid)
+		return ENOMEM;
+
+	return 0;
+}
+
+int
+bnxt_create_mpc_cmp_time_sysctls(struct bnxt_softc *softc)
+{
+	struct bnxt_tls_info *ktls = softc->ktls_info;
+	struct sysctl_oid *oid;
+
+	if (!ktls)
+		return 0;
+
+	oid = SYSCTL_ADD_NODE(&softc->mpc_cmp_time_stats,
+			      SYSCTL_CHILDREN(softc->mpc_cmp_time_stats_oid), OID_AUTO,
+			      "mpc_cmp_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "MPC CMP time statistics");
+	if (!oid)
+		return ENOMEM;
+
+	for (int i = 0; i < mpc_cmp_counters_count; i++) {
+		const struct bnxt_mpc_cmp_time_counters_list *mpc_counters = &mpc_cmp_counters[i];
+
+		SYSCTL_ADD_PROC(&softc->mpc_cmp_time_stats,
+				SYSCTL_CHILDREN(oid), OID_AUTO,
+				mpc_counters->label,
+				CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				&ktls->mpc_cmp_time[mpc_counters->id],
+				0,
+				sysctl_counter_u64_handler,
+				"Q",
+				mpc_counters->desc);
+	}
+
 	return 0;
 }

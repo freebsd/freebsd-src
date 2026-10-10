@@ -156,12 +156,6 @@ void *pcm_getdevinfo(device_t dev);
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
 
-/*
- * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
- * so that the macro versions of pcm_{,un}lock can dereference them.
- * we also have to do this now makedev() has gone away.
- */
-
 struct snddev_info {
 	struct {
 		struct {

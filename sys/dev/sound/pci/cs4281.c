@@ -112,7 +112,7 @@ static int       cs4281_init(struct sc_info *);
 
 /* talk to the card */
 static uint32_t cs4281_rd(struct sc_info *, int);
-static void 	 cs4281_wr(struct sc_info *, int, uint32_t);
+static void	 cs4281_wr(struct sc_info *, int, uint32_t);
 
 /* misc */
 static uint8_t  cs4281_rate_to_rv(uint32_t);
@@ -449,13 +449,13 @@ cs4281chan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t cs4281chan_methods[] = {
-    	KOBJMETHOD(channel_init,		cs4281chan_init),
-    	KOBJMETHOD(channel_setformat,		cs4281chan_setformat),
-    	KOBJMETHOD(channel_setspeed,		cs4281chan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	cs4281chan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		cs4281chan_trigger),
-    	KOBJMETHOD(channel_getptr,		cs4281chan_getptr),
-    	KOBJMETHOD(channel_getcaps,		cs4281chan_getcaps),
+	KOBJMETHOD(channel_init,		cs4281chan_init),
+	KOBJMETHOD(channel_setformat,		cs4281chan_setformat),
+	KOBJMETHOD(channel_setspeed,		cs4281chan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	cs4281chan_setblocksize),
+	KOBJMETHOD(channel_trigger,		cs4281chan_trigger),
+	KOBJMETHOD(channel_getptr,		cs4281chan_getptr),
+	KOBJMETHOD(channel_getcaps,		cs4281chan_getcaps),
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(cs4281chan);
@@ -543,9 +543,9 @@ cs4281_power(struct sc_info *sc, int state)
         cs4281_clr4(sc, CS4281PCI_EPPMC, CS4281PCI_EPPMC_FPDN);
         break;
     case 3:
-    	/* Power off card and codec */
-    	cs4281_set4(sc, CS4281PCI_EPPMC, CS4281PCI_EPPMC_FPDN);
-    	cs4281_clr4(sc, CS4281PCI_SPMC, CS4281PCI_SPMC_RSTN);
+	/* Power off card and codec */
+	cs4281_set4(sc, CS4281PCI_EPPMC, CS4281PCI_EPPMC_FPDN);
+	cs4281_clr4(sc, CS4281PCI_SPMC, CS4281PCI_SPMC_RSTN);
         break;
     }
 

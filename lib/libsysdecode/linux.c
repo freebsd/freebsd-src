@@ -35,9 +35,9 @@
 
 #ifdef __aarch64__
 #include <arm64/linux/linux.h>
-#elif __i386__
+#elif defined(__i386__)
 #include <i386/linux/linux.h>
-#elif __amd64__
+#elif defined(__amd64__)
 #include <amd64/linux/linux.h>
 #else
 #error "Unsupported Linux arch"

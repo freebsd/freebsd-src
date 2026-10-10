@@ -157,6 +157,7 @@
 #include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
+#include <machine/cpu.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/ifunc.h>
@@ -1149,11 +1150,11 @@ pmap_invalidate_range_svinval(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	args.sva = sva;
 	args.eva = eva;
 	fence();
-	if (smp_started)
-		smp_rendezvous_cpus(pmap->pm_active, smp_no_rendezvous_barrier,
-		    pmap_invalidate_range_svinval_cb,
+	if (smp_started) {
+		smp_rendezvous_cpus(hartmask_to_cpumask(pmap->pm_active),
+		    smp_no_rendezvous_barrier, pmap_invalidate_range_svinval_cb,
 		    smp_no_rendezvous_barrier, &args);
-	else
+	} else
 		pmap_invalidate_range_svinval_cb(&args);
 	sched_unpin();
 }
@@ -5323,7 +5324,7 @@ pmap_activate_boot(pmap_t pmap)
 void
 pmap_active_cpus(pmap_t pmap, cpuset_t *res)
 {
-	*res = pmap->pm_active;
+	*res = hartmask_to_cpumask(pmap->pm_active);
 }
 
 void

@@ -32,6 +32,7 @@
 int bnxt_init_sysctl_ctx(struct bnxt_softc *softc);
 int bnxt_free_sysctl_ctx(struct bnxt_softc *softc);
 int bnxt_create_port_stats_sysctls(struct bnxt_softc *softc);
+int bnxt_create_generic_stats_sysctls(struct bnxt_softc *softc);
 int bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr);
 int bnxt_create_rx_sysctls(struct bnxt_softc *softc, int rxr);
 int bnxt_create_ver_sysctls(struct bnxt_softc *softc);
@@ -42,3 +43,6 @@ int bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc);
 int bnxt_create_pause_fc_sysctls(struct bnxt_softc *softc);
 int bnxt_create_dcb_sysctls(struct bnxt_softc *softc);
 int bnxt_create_dcb_ets_sysctls(struct bnxt_softc *softc);
+int bnxt_create_ktls_sysctls(struct bnxt_softc *softc);
+int bnxt_ktls_sysctls(struct bnxt_softc *softc);
+int bnxt_create_mpc_cmp_time_sysctls(struct bnxt_softc *softc);

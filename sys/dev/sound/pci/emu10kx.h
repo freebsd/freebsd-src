@@ -170,7 +170,7 @@ struct emu_route {
 };
 
 struct emu_voice* emu_valloc(struct emu_sc_info *sc);
-void 	emu_vfree(struct emu_sc_info *sc, struct emu_voice *v);
+void	emu_vfree(struct emu_sc_info *sc, struct emu_voice *v);
 int	emu_vinit(struct emu_sc_info *sc, struct emu_voice *m, struct emu_voice *s,
     uint32_t sz, struct snd_dbuf *b);
 void	emu_vroute(struct emu_sc_info *sc, struct emu_route *rt,  struct emu_voice *v);

@@ -4913,6 +4913,12 @@ product UBIQUAM UALL		0x3100	CDMA 1xRTT USB Modem (U-100/105/200/300/520)
 
 /* u-blox products */
 product UBLOX XPLR_M9		0x0501	M9 GNSS Explorer Kit
+product UBLOX LARA_L6_1		0x1341	LARA-L6
+product UBLOX LARA_L6_2		0x1342	LARA-L6
+product UBLOX LARA_L6_3		0x1343	LARA-L6
+product UBLOX LARA_L6_4		0x1349	LARA-L6
+product UBLOX LARA_L6_5		0x134A	LARA-L6
+product UBLOX LARA_L6_6		0x134B	LARA-L6
 
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner

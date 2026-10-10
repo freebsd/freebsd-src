@@ -54,7 +54,7 @@
 #define SV_DMA_COUNT	0x04
 
 #define	SV_DMA_MODE	0x0B
-#define 	SV_DMA_MODE_AUTO	0x10
+#define	SV_DMA_MODE_AUTO	0x10
 #define		SV_DMA_MODE_RD		0x04
 #define		SV_DMA_MODE_WR		0x08
 
@@ -91,17 +91,17 @@
 #define SV_CM_DATA	0x05
 
 /* ------------------------------------------------------------------------- */
-/* Indexed Codec/Mixer Registers (left channels were applicable) */ 
+/* Indexed Codec/Mixer Registers (left channels were applicable) */
 
 #define SV_REG_ADC_INPUT	0x00
-#define 	SV_INPUT_GAIN_MASK	0x0f
+#define	SV_INPUT_GAIN_MASK	0x0f
 #define		SV_INPUT_MICGAIN	0x10
 #define		SV_INPUT_CD		0x20
-#define 	SV_INPUT_DAC		0x40
-#define 	SV_INPUT_AUX2		0x60
-#define 	SV_INPUT_LINE		0x80
-#define 	SV_INPUT_AUX1		0xa0
-#define 	SV_INPUT_MIC		0xc0
+#define	SV_INPUT_DAC		0x40
+#define	SV_INPUT_AUX2		0x60
+#define	SV_INPUT_LINE		0x80
+#define	SV_INPUT_AUX1		0xa0
+#define	SV_INPUT_MIC		0xc0
 #define		SV_INPUT_MIXOUT		0xe0
 
 #define	SV_REG_AUX1		0x02
@@ -152,7 +152,7 @@
 #define SV_REG_SYN_SAMPLING_HI 	0x21
 
 #define SV_REG_CLOCK_SOURCE	0x22
-#define		SV_CLOCK_ALTERNATE	0x10	
+#define		SV_CLOCK_ALTERNATE	0x10
 #define SV_REG_ALT_RATE	0x23
 
 #define SV_REG_ADC_PLLM	0x24
@@ -192,12 +192,12 @@
 #define	SV_REG_DIGITAL_PWR	0x31
 #define		SV_DIGITAL_OFF_SYN	0x01
 #define		SV_DIGITAL_OFF_MU	0x02
-#define		SV_DIGITAL_OFF_GP	0x04	
+#define		SV_DIGITAL_OFF_GP	0x04
 #define		SV_DIGITAL_OFF_BI	0x08
 #define		SV_DIGITAL_OFF		0x0f
 
 /* ------------------------------------------------------------------------- */
-/* ADC PLL constants */ 
+/* ADC PLL constants */
 
 #define		SV_F_SCALE		512
 #define		SV_F_REF		24576000

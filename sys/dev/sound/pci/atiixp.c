@@ -747,7 +747,7 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 				pollticks = 1;
 			if (atiixp_chan_active(sc) == 0 ||
 			    pollticks < sc->poll_ticks) {
-			    	if (bootverbose) {
+				if (bootverbose) {
 					if (atiixp_chan_active(sc) == 0)
 						device_printf(sc->dev,
 						    "%s: pollticks=%d\n",

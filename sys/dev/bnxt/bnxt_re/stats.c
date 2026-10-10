@@ -611,7 +611,8 @@ static void bnxt_re_copy_db_pacing_stats(struct bnxt_re_dev *rdev,
 	stats->value[BNXT_RE_DBQ_PACING_CMPL] = dbr_sw_stats->dbq_pacing_complete;
 	stats->value[BNXT_RE_DBQ_PACING_ALERT] = dbr_sw_stats->dbq_pacing_alerts;
 	stats->value[BNXT_RE_DBQ_DBR_FIFO_REG] = readl_fbsd(rdev->en_dev->softc,
-						       rdev->dbr_db_fifo_reg_off, 0);
+						       rdev->dbr_db_fifo_reg_off,
+						       BNXT_HWRM_BAR_IDX);
 }
 
 int bnxt_re_get_hw_stats(struct ib_device *ibdev,

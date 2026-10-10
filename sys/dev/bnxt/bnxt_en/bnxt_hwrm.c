@@ -30,8 +30,12 @@
 #include <sys/endian.h>
 #include <linux/pci.h>
 
+#include "opt_kern_tls.h"
+
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
+#include "bnxt_mpc.h"
+#include "bnxt_ktls.h"
 #include "hsi_struct_def.h"
 #include "bnxt_coredump.h"
 
@@ -252,10 +256,17 @@ _hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len)
 		DELAY(1000);
 	}
 	if (i >= softc->hwrm_cmd_timeo) {
-		device_printf(softc->dev,
-		    "Timeout sending %s: (timeout: %u) seq: %d\n",
-		    GET_HWRM_REQ_TYPE(req->req_type), softc->hwrm_cmd_timeo,
-		    le16toh(req->seq_id));
+		if (req->req_type == HWRM_PORT_QSTATS ||
+		    req->req_type == HWRM_PORT_QSTATS_EXT)
+			bnxt_log_live(softc, BNXT_LOGGER_L2,
+				      "Timeout sending %s: (timeout: %u) seq: %d\n",
+				      GET_HWRM_REQ_TYPE(req->req_type), softc->hwrm_cmd_timeo,
+				      le16toh(req->seq_id));
+		else
+			device_printf(softc->dev,
+				      "Timeout sending %s: (timeout: %u) seq: %d\n",
+				      GET_HWRM_REQ_TYPE(req->req_type), softc->hwrm_cmd_timeo,
+				      le16toh(req->seq_id));
 		return ETIMEDOUT;
 	}
 	/* Last byte of resp contains the valid key */
@@ -397,7 +408,7 @@ static int bnxt_alloc_all_ctx_pg_info(struct bnxt_softc *softc, int ctx_max)
 			continue;
 
 		if (ctxm->instance_bmap)
-			n = hweight32(ctxm->instance_bmap);
+			n = bitcount32(ctxm->instance_bmap);
 		ctxm->pg_info = kcalloc(n, sizeof(*ctxm->pg_info), GFP_ATOMIC);
 		if (!ctxm->pg_info)
 			return -ENOMEM;
@@ -446,23 +457,23 @@ bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt_softc *softc)
 		__le32 *p;
 		u32 flags;
 
-		req.type = cpu_to_le16(type);
+		req.type = htole16(type);
 		rc = _hwrm_send_message(softc, &req, sizeof(req));
 		if (rc)
 			goto ctx_done;
-		flags = le32_to_cpu(resp->flags);
-		type = le16_to_cpu(resp->next_valid_type);
+		flags = le32toh(resp->flags);
+		type = le16toh(resp->next_valid_type);
 		if (!(flags & HWRM_FUNC_BACKING_STORE_QCAPS_V2_OUTPUT_FLAGS_TYPE_VALID))
 			continue;
 
-		ctxm->type = le16_to_cpu(resp->type);
+		ctxm->type = le16toh(resp->type);
 		ctxm->flags = flags;
 
-		ctxm->entry_size = le16_to_cpu(resp->entry_size);
-		ctxm->instance_bmap = le32_to_cpu(resp->instance_bit_map);
+		ctxm->entry_size = le16toh(resp->entry_size);
+		ctxm->instance_bmap = le32toh(resp->instance_bit_map);
 		ctxm->entry_multiple = resp->entry_multiple;
-		ctxm->max_entries = le32_to_cpu(resp->max_num_entries);
-		ctxm->min_entries = le32_to_cpu(resp->min_num_entries);
+		ctxm->max_entries = le32toh(resp->max_num_entries);
+		ctxm->min_entries = le32toh(resp->min_num_entries);
 		init_val = resp->ctx_init_value;
 		init_off = resp->ctx_init_offset;
 		bnxt_init_ctx_initializer(ctxm, init_val, init_off,
@@ -471,7 +482,7 @@ bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt_softc *softc)
 					      BNXT_MAX_SPLIT_ENTRY);
 		for (i = 0, p = &resp->split_entry_0; i < ctxm->split_entry_cnt;
 		     i++, p++)
-			ctxm->split[i] = le32_to_cpu(*p);
+			ctxm->split[i] = le32toh(*p);
 	}
 	rc = bnxt_alloc_all_ctx_pg_info(softc, BNXT_CTX_V2_MAX);
 
@@ -490,10 +501,8 @@ int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc)
 	if (softc->hwrm_spec_code < 0x10902 || softc->ctx_mem)
 		return 0;
 
-	if (BNXT_CHIP_P7(softc)) {
-		if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
-			return bnxt_hwrm_func_backing_store_qcaps_v2(softc);
-	}
+	if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
+		return bnxt_hwrm_func_backing_store_qcaps_v2(softc);
 
 	if (BNXT_VF(softc))
 		return 0;
@@ -517,50 +526,50 @@ int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc)
 			softc->ctx_mem = ctx;
 		}
 		init_val = resp->ctx_kind_initializer;
-		init_mask = le16_to_cpu(resp->ctx_init_mask);
+		init_mask = le16toh(resp->ctx_init_mask);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
-		ctxm->max_entries = le32_to_cpu(resp->qp_max_entries);
-		ctxm->qp_qp1_entries = le16_to_cpu(resp->qp_min_qp1_entries);
-		ctxm->qp_l2_entries = le16_to_cpu(resp->qp_max_l2_entries);
-		ctxm->entry_size = le16_to_cpu(resp->qp_entry_size);
+		ctxm->max_entries = le32toh(resp->qp_max_entries);
+		ctxm->qp_qp1_entries = le16toh(resp->qp_min_qp1_entries);
+		ctxm->qp_l2_entries = le16toh(resp->qp_max_l2_entries);
+		ctxm->entry_size = le16toh(resp->qp_entry_size);
 		bnxt_init_ctx_initializer(ctxm, init_val, resp->qp_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
-		ctxm->srq_l2_entries = le16_to_cpu(resp->srq_max_l2_entries);
-		ctxm->max_entries = le32_to_cpu(resp->srq_max_entries);
-		ctxm->entry_size = le16_to_cpu(resp->srq_entry_size);
+		ctxm->srq_l2_entries = le16toh(resp->srq_max_l2_entries);
+		ctxm->max_entries = le32toh(resp->srq_max_entries);
+		ctxm->entry_size = le16toh(resp->srq_entry_size);
 		bnxt_init_ctx_initializer(ctxm, init_val, resp->srq_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_CQ];
-		ctxm->cq_l2_entries = le16_to_cpu(resp->cq_max_l2_entries);
-		ctxm->max_entries = le32_to_cpu(resp->cq_max_entries);
-		ctxm->entry_size = le16_to_cpu(resp->cq_entry_size);
+		ctxm->cq_l2_entries = le16toh(resp->cq_max_l2_entries);
+		ctxm->max_entries = le32toh(resp->cq_max_entries);
+		ctxm->entry_size = le16toh(resp->cq_entry_size);
 		bnxt_init_ctx_initializer(ctxm, init_val, resp->cq_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_VNIC];
-		ctxm->vnic_entries = le32_to_cpu(resp->vnic_max_vnic_entries);
+		ctxm->vnic_entries = le32toh(resp->vnic_max_vnic_entries);
 		ctxm->max_entries = ctxm->vnic_entries +
-			le16_to_cpu(resp->vnic_max_ring_table_entries);
-		ctxm->entry_size = le16_to_cpu(resp->vnic_entry_size);
+			le16toh(resp->vnic_max_ring_table_entries);
+		ctxm->entry_size = le16toh(resp->vnic_entry_size);
 		bnxt_init_ctx_initializer(ctxm, init_val,
 					  resp->vnic_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_STAT];
-		ctxm->max_entries = le32_to_cpu(resp->stat_max_entries);
-		ctxm->entry_size = le16_to_cpu(resp->stat_entry_size);
+		ctxm->max_entries = le32toh(resp->stat_max_entries);
+		ctxm->entry_size = le16toh(resp->stat_entry_size);
 		bnxt_init_ctx_initializer(ctxm, init_val,
 					  resp->stat_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_STQM];
-		ctxm->entry_size = le16_to_cpu(resp->tqm_entry_size);
-		ctxm->min_entries = le32_to_cpu(resp->tqm_min_entries_per_ring);
-		ctxm->max_entries = le32_to_cpu(resp->tqm_max_entries_per_ring);
+		ctxm->entry_size = le16toh(resp->tqm_entry_size);
+		ctxm->min_entries = le32toh(resp->tqm_min_entries_per_ring);
+		ctxm->max_entries = le32toh(resp->tqm_max_entries_per_ring);
 		ctxm->entry_multiple = resp->tqm_entries_multiple;
 		if (!ctxm->entry_multiple)
 			ctxm->entry_multiple = 1;
@@ -568,17 +577,17 @@ int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc)
 		memcpy(&ctx->ctx_arr[BNXT_CTX_FTQM], ctxm, sizeof(*ctxm));
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
-		ctxm->max_entries = le32_to_cpu(resp->mrav_max_entries);
-		ctxm->entry_size = le16_to_cpu(resp->mrav_entry_size);
+		ctxm->max_entries = le32toh(resp->mrav_max_entries);
+		ctxm->entry_size = le16toh(resp->mrav_entry_size);
 		ctxm->mrav_num_entries_units =
-			le16_to_cpu(resp->mrav_num_entries_units);
+			le16toh(resp->mrav_num_entries_units);
 		bnxt_init_ctx_initializer(ctxm, init_val,
 					  resp->mrav_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
-		ctxm->entry_size = le16_to_cpu(resp->tim_entry_size);
-		ctxm->max_entries = le32_to_cpu(resp->tim_max_entries);
+		ctxm->entry_size = le16toh(resp->tim_entry_size);
+		ctxm->max_entries = le32toh(resp->tim_max_entries);
 
 		ctx->tqm_fp_rings_count = resp->tqm_fp_rings_count;
 		if (!ctx->tqm_fp_rings_count)
@@ -594,6 +603,9 @@ int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc)
 		ctxm = &ctx->ctx_arr[BNXT_CTX_FTQM];
 		memcpy(ctxm, &ctx->ctx_arr[BNXT_CTX_STQM], sizeof(*ctxm));
 		ctxm->instance_bmap = (1 << ctx->tqm_fp_rings_count) - 1;
+
+		/* Do not inherit STQM's pg_info pointer (prevents aliasing on reset). */
+		ctxm->pg_info = NULL;
 
 		rc = bnxt_alloc_all_ctx_pg_info(softc, BNXT_CTX_MAX);
 	} else {
@@ -655,10 +667,10 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_QP) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
 		ctx_pg = ctxm->pg_info;
-		req.qp_num_entries = cpu_to_le32(ctx_pg->entries);
-		req.qp_num_qp1_entries = cpu_to_le16(ctxm->qp_qp1_entries);
-		req.qp_num_l2_entries = cpu_to_le16(ctxm->qp_l2_entries);
-		req.qp_entry_size = cpu_to_le16(ctxm->entry_size);
+		req.qp_num_entries = htole32(ctx_pg->entries);
+		req.qp_num_qp1_entries = htole16(ctxm->qp_qp1_entries);
+		req.qp_num_l2_entries = htole16(ctxm->qp_l2_entries);
+		req.qp_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.qpc_pg_size_qpc_lvl,
 				&req.qpc_page_dir);
@@ -666,9 +678,9 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_SRQ) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
 		ctx_pg = ctxm->pg_info;
-		req.srq_num_entries = cpu_to_le32(ctx_pg->entries);
-		req.srq_num_l2_entries = cpu_to_le16(ctxm->srq_l2_entries);
-		req.srq_entry_size = cpu_to_le16(ctxm->entry_size);
+		req.srq_num_entries = htole32(ctx_pg->entries);
+		req.srq_num_l2_entries = htole16(ctxm->srq_l2_entries);
+		req.srq_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.srq_pg_size_srq_lvl,
 				&req.srq_page_dir);
@@ -676,9 +688,9 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_CQ) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_CQ];
 		ctx_pg = ctxm->pg_info;
-		req.cq_num_entries = cpu_to_le32(ctx_pg->entries);
-		req.cq_num_l2_entries = cpu_to_le16(ctxm->cq_l2_entries);
-		req.cq_entry_size = cpu_to_le16(ctxm->entry_size);
+		req.cq_num_entries = htole32(ctx_pg->entries);
+		req.cq_num_l2_entries = htole16(ctxm->cq_l2_entries);
+		req.cq_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				      &req.cq_pg_size_cq_lvl,
 				&req.cq_page_dir);
@@ -686,11 +698,11 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_MRAV) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
 		ctx_pg = ctxm->pg_info;
-		req.mrav_num_entries = cpu_to_le32(ctx_pg->entries);
+		req.mrav_num_entries = htole32(ctx_pg->entries);
 		if (ctxm->mrav_num_entries_units)
 			flags |=
 			HWRM_FUNC_BACKING_STORE_CFG_INPUT_FLAGS_MRAV_RESERVATION_SPLIT;
-		req.mrav_entry_size = cpu_to_le16(ctxm->entry_size);
+		req.mrav_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.mrav_pg_size_mrav_lvl,
 				&req.mrav_page_dir);
@@ -698,8 +710,8 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TIM) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
 		ctx_pg = ctxm->pg_info;
-		req.tim_num_entries = cpu_to_le32(ctx_pg->entries);
-		req.tim_entry_size = cpu_to_le16(ctxm->entry_size);
+		req.tim_num_entries = htole32(ctx_pg->entries);
+		req.tim_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.tim_pg_size_tim_lvl,
 				&req.tim_page_dir);
@@ -707,10 +719,10 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_VNIC) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_VNIC];
 		ctx_pg = ctxm->pg_info;
-		req.vnic_num_vnic_entries = cpu_to_le16(ctxm->vnic_entries);
+		req.vnic_num_vnic_entries = htole16(ctxm->vnic_entries);
 		req.vnic_num_ring_table_entries =
-			cpu_to_le16(ctxm->max_entries - ctxm->vnic_entries);
-		req.vnic_entry_size = cpu_to_le16(ctxm->entry_size);
+			htole16(ctxm->max_entries - ctxm->vnic_entries);
+		req.vnic_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.vnic_pg_size_vnic_lvl,
 				&req.vnic_page_dir);
@@ -718,8 +730,8 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_STAT) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_STAT];
 		ctx_pg = ctxm->pg_info;
-		req.stat_num_entries = cpu_to_le32(ctxm->max_entries);
-		req.stat_entry_size = cpu_to_le16(ctxm->entry_size);
+		req.stat_num_entries = htole32(ctxm->max_entries);
+		req.stat_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.stat_pg_size_stat_lvl,
 				&req.stat_page_dir);
@@ -736,18 +748,18 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 		if (!(enables & ena))
 			continue;
 
-		req.tqm_entry_size = cpu_to_le16(ctxm->entry_size);
-		*num_entries = cpu_to_le32(ctx_pg->entries);
+		req.tqm_entry_size = htole16(ctxm->entry_size);
+		*num_entries = htole32(ctx_pg->entries);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TQM_RING8) {
 		pg_attr = &req.tqm_ring8_pg_size_tqm_ring_lvl;
 		pg_dir = &req.tqm_ring8_page_dir;
 		ctx_pg = &ctx->ctx_arr[BNXT_CTX_FTQM].pg_info[8];
-		req.tqm_ring8_num_entries = cpu_to_le32(ctx_pg->entries);
+		req.tqm_ring8_num_entries = htole32(ctx_pg->entries);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
-	req.flags = cpu_to_le32(flags);
+	req.flags = htole32(flags);
 	return hwrm_send_message(softc, &req, req_len);
 }
 
@@ -790,11 +802,21 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all)
 	hw_resc->min_stat_ctxs = le16toh(resp->min_stat_ctx);
 	hw_resc->max_stat_ctxs = le16toh(resp->max_stat_ctx);
 
+	{
+		struct bnxt_hw_tls_resc *tls_resc =
+		    &hw_resc->tls_resc[BNXT_CRYPTO_TYPE_KTLS];
+
+		tls_resc->min_tx_key_ctxs = le32toh(resp->min_ktls_tx_key_ctxs);
+		tls_resc->max_tx_key_ctxs = le32toh(resp->max_ktls_tx_key_ctxs);
+		tls_resc->min_rx_key_ctxs = le32toh(resp->min_ktls_rx_key_ctxs);
+		tls_resc->max_rx_key_ctxs = le32toh(resp->max_ktls_rx_key_ctxs);
+	}
+
 	if (BNXT_CHIP_P5_PLUS(softc)) {
 		hw_resc->max_nqs = hw_resc->max_irqs = le16toh(resp->max_msix);
 		hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
 	}
-	
+
 	if (BNXT_PF(softc)) {
 		struct bnxt_pf_info *pf = &softc->pf;
 
@@ -825,34 +847,34 @@ int bnxt_hwrm_func_backing_store_cfg_v2(struct bnxt_softc *softc,
 		return 0;
 
 	if (instance_bmap)
-		n = hweight32(ctxm->instance_bmap);
+		n = bitcount32(ctxm->instance_bmap);
 	else
 		instance_bmap = 1;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_BACKING_STORE_CFG_V2);
 
 	BNXT_HWRM_LOCK(softc);
-	req.type = cpu_to_le16(ctxm->type);
-	req.entry_size = cpu_to_le16(ctxm->entry_size);
+	req.type = htole16(ctxm->type);
+	req.entry_size = htole16(ctxm->entry_size);
 	req.subtype_valid_cnt = ctxm->split_entry_cnt;
 	for (i = 0, p = &req.split_entry_0; i < ctxm->split_entry_cnt; i++)
-		p[i] = cpu_to_le32(ctxm->split[i]);
+		p[i] = htole32(ctxm->split[i]);
 	for (i = 0, j = 0; j < n && !rc; i++) {
 		struct bnxt_ctx_pg_info *ctx_pg;
 
 		if (!(instance_bmap & (1 << i)))
 			continue;
-		req.instance = cpu_to_le16(i);
+		req.instance = htole16(i);
 		ctx_pg = &ctxm->pg_info[j++];
 		if (!ctx_pg->entries)
 			continue;
-		req.num_entries = cpu_to_le32(ctx_pg->entries);
+		req.num_entries = htole32(ctx_pg->entries);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				      &req.page_size_pbl_level,
 				      &req.page_dir);
 		if (last && j == n)
 			req.flags =
-				cpu_to_le32(HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_FLAGS_BS_CFG_ALL_DONE);
+				htole32(HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_FLAGS_BS_CFG_ALL_DONE);
 		rc = _hwrm_send_message(softc, &req, sizeof(req));
 	}
 	BNXT_HWRM_UNLOCK(softc);
@@ -864,7 +886,7 @@ bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 		void *resp, uint32_t resp_len, uint32_t app_timeout)
 {
 	int rc = 0;
-	void *output = (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_err_output *output = (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct input *input = req;
 	uint32_t old_timeo;
 
@@ -877,13 +899,24 @@ bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 		softc->hwrm_cmd_timeo = max(app_timeout, softc->hwrm_cmd_timeo);
 	rc = _hwrm_send_message(softc, req, req_len);
 	softc->hwrm_cmd_timeo = old_timeo;
+
+	/*
+	 * On ETIMEDOUT the shared resp buffer may still hold a stale, unrelated
+	 * response, so skip the copy; otherwise clamp to resp_len and PAGE_SIZE.
+	 */
+	if (rc != ETIMEDOUT) {
+		uint32_t copy_len = min(resp_len, output->resp_len);
+
+		copy_len = min(copy_len, PAGE_SIZE);
+		if (copy_len)
+			memcpy(resp, output, copy_len);
+	}
+
 	if (rc) {
 		device_printf(softc->dev, "%s: %s command failed with rc: 0x%x\n",
 			      __FUNCTION__, GET_HWRM_REQ_TYPE(input->req_type), rc);
 		goto fail;
 	}
-
-	memcpy(resp, output, resp_len);
 fail:
 	BNXT_HWRM_UNLOCK(softc);
 	return rc;
@@ -1072,7 +1105,7 @@ static const u16 bnxt_async_events_arr[] = {
 int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *bp, unsigned long *bmap, int bmap_size,
 			    bool async_only)
 {
-	DECLARE_BITMAP(async_events_bmap, 256);
+	unsigned long async_events_bmap[howmany(256, NBBY * sizeof(unsigned long))];
 	u32 *events = (u32 *)async_events_bmap;
 	struct hwrm_func_drv_rgtr_output *resp =
 		(void *)bp->hwrm_cmd_resp.idi_vaddr;
@@ -1106,7 +1139,7 @@ int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *bp, unsigned long *bmap, int bmap
 		int i;
 
 		memset(data, 0, sizeof(data));
-		for (i = 0; i < ARRAY_SIZE(bnxt_vf_req_snif); i++) {
+		for (i = 0; i < nitems(bnxt_vf_req_snif); i++) {
 			u16 cmd = bnxt_vf_req_snif[i];
 			unsigned int bit, idx;
 
@@ -1120,29 +1153,29 @@ int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *bp, unsigned long *bmap, int bmap
 		}
 
 		for (i = 0; i < 8; i++)
-			req.vf_req_fwd[i] = cpu_to_le32(data[i]);
+			req.vf_req_fwd[i] = htole32(data[i]);
 
 		req.enables |=
 			htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_VF_REQ_FWD);
 	}
 
 	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
-		req.flags |= cpu_to_le32(HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_FLOW_HANDLE_64BIT_MODE);
+		req.flags |= htole32(HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_FLOW_HANDLE_64BIT_MODE);
 
 	memset(async_events_bmap, 0, sizeof(async_events_bmap));
-	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
+	for (i = 0; i < nitems(bnxt_async_events_arr); i++) {
 		u16 event_id = bnxt_async_events_arr[i];
 
 		if (event_id == HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
 		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)) {
 			continue;
 		}
-		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+		bit_set(async_events_bmap, bnxt_async_events_arr[i]);
 	}
 	if (bmap && bmap_size) {
 		for (i = 0; i < bmap_size; i++) {
-			if (test_bit(i, bmap))
-				__set_bit(i, async_events_bmap);
+			if (bit_test(bmap, i))
+				bit_set(async_events_bmap, i);
 		}
 	}
 	for (i = 0; i < 8; i++)
@@ -1207,6 +1240,12 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct bnxt_func_info *func = &softc->func;
 	uint32_t flags, flags_ext, flags_ext2;
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	bool ktls_fw_supported = false;
+	uint16_t ktls_max_keys = 0, ktls_ctxs_per_partition = 0;
+	bool ktls_partition_cap = false;
+#endif
+	uint8_t mpc_chnls_cap = 0;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCAPS);
 	req.fid = htole16(0xffff);
@@ -1259,12 +1298,24 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (BNXT_PF(softc) && (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_ECN_STATS_SUPPORTED))
 		softc->fw_cap |= BNXT_FW_CAP_ECN_STATS;
 
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_KTLS_SUPPORTED) {
+		softc->fw_cap |= BNXT_FW_CAP_KTLS_SUPPORTED;
+		/* Actual alloc/free is deferred until after BNXT_HWRM_UNLOCK(); it can sleep. */
+		ktls_fw_supported = true;
+		ktls_max_keys = le16toh(resp->max_key_ctxs_alloc);
+		ktls_partition_cap = BNXT_PARTITION_CAP(resp);
+		ktls_ctxs_per_partition = le16toh(resp->ctxs_per_partition);
+	}
+#endif
 	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_PTP_PPS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_PTP_PPS;
 	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_PTP_PTM_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_PTP_PTM;
 	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_PTP_64BIT_RTC_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_PTP_RTC;
+	if (BNXT_CHIP_P7(softc) && (flags & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_PTP_SUPPORTED))
+		softc->fw_cap |= BNXT_FW_CAP_PTP;
 	if (BNXT_PF(softc) && (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_HOT_RESET_IF_SUPPORT))
 		softc->fw_cap |= BNXT_FW_CAP_HOT_RESET_IF;
 	if (BNXT_PF(softc) && (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_FW_LIVEPATCH_SUPPORTED))
@@ -1276,6 +1327,8 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (BNXT_PF(softc) &&
 	    (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_VF_CFG_ASYNC_FOR_PF_SUPPORTED))
 		softc->fw_cap |= BNXT_FW_CAP_VF_CFG_FOR_PF;
+	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_TX_COAL_CMPL_CAP)
+		softc->fw_cap |= BNXT_FLAG_TX_COAL_CMPL;
 
 	flags_ext2 = htole32(resp->flags_ext2);
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_RX_ALL_PKTS_TIMESTAMPS_SUPPORTED)
@@ -1286,7 +1339,8 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_DBR_PACING_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_DBR_PACING_SUPPORTED;
 
-	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
+	if (BNXT_CHIP_P5_PLUS(softc) &&
+	    flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS;
 
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_GENERIC_STATS_SUPPORTED)
@@ -1350,6 +1404,33 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 			}
 		}
 	}
+
+	/*
+	 * Only extract the field needed here; the actual alloc/free work
+	 * (malloc(M_NOWAIT)/free() in bnxt_alloc_mpc_info()) happens after
+	 * BNXT_HWRM_UNLOCK() below instead of under hwrm_lock.
+	 */
+	if (BNXT_PF(softc))
+		mpc_chnls_cap = resp->mpc_chnls_cap;
+
+	BNXT_HWRM_UNLOCK(softc);
+	if (BNXT_PF(softc))
+		bnxt_alloc_mpc_info(softc, mpc_chnls_cap);
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	if (ktls_fw_supported) {
+		bnxt_alloc_ktls_info(softc, ktls_max_keys, ktls_partition_cap,
+		    ktls_ctxs_per_partition);
+		/*
+		 * HW Tx completion coalescing is not used with HW KTLS; the
+		 * driver expects ordinary per-packet TX completions on that path.
+		 */
+		if (softc->ktls_info != NULL)
+			softc->fw_cap &= ~BNXT_FLAG_TX_COAL_CMPL;
+	} else {
+		bnxt_free_ktls_info(softc);
+	}
+#endif
+	return rc;
 
 fail:
 	BNXT_HWRM_UNLOCK(softc);
@@ -1446,6 +1527,8 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
         struct hwrm_func_qcfg_output *resp =
 	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct bnxt_func_qcfg *fn_qcfg = &softc->fn_qcfg;
+	struct bnxt_hw_resc *hw_resc = &softc->hw_resc;
+	struct bnxt_hw_tls_resc *tls_resc;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCFG);
         req.fid = htole16(0xffff);
@@ -1464,6 +1547,22 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 	fn_qcfg->alloc_hw_ring_grps = le16toh(resp->alloc_hw_ring_grps);
 	fn_qcfg->alloc_stat_ctx = le16toh(resp->alloc_stat_ctx);
 	fn_qcfg->alloc_msix = le16toh(resp->alloc_msix);
+
+	fn_qcfg->orig_alloc_completion_rings = fn_qcfg->alloc_completion_rings;
+	fn_qcfg->orig_alloc_tx_rings = fn_qcfg->alloc_tx_rings;
+
+	/* Reserve minimum rings for MPC */
+	if (BNXT_PF(softc)) {
+		if (softc->mpc_info) {
+			uint16_t mpc_min = BNXT_MIN_MPC_TCE + BNXT_MIN_MPC_RCE;
+
+			/* Clamp to 0 instead of underflowing these unsigned counts. */
+			fn_qcfg->alloc_completion_rings -=
+			    min(fn_qcfg->alloc_completion_rings, mpc_min);
+			fn_qcfg->alloc_tx_rings -=
+			    min(fn_qcfg->alloc_tx_rings, mpc_min);
+		}
+	}
 
 	switch (resp->port_partition_type) {
 	case HWRM_FUNC_QCFG_OUTPUT_PORT_PARTITION_TYPE_NPAR1_0:
@@ -1504,10 +1603,14 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
         if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_ENABLE_RDMA_SRIOV)
                 softc->fw_cap |= BNXT_FW_CAP_ENABLE_RDMA_SRIOV;
 
+	tls_resc = &hw_resc->tls_resc[BNXT_CRYPTO_TYPE_KTLS];
+	tls_resc->resv_tx_key_ctxs = le32toh(resp->num_ktls_tx_key_ctxs);
+	tls_resc->resv_rx_key_ctxs = le32toh(resp->num_ktls_rx_key_ctxs);
+
 	if (softc->db_size)
 		goto end;
 
-	softc->legacy_db_size = le16_to_cpu(resp->legacy_l2_db_size_kb) * 1024;
+	softc->legacy_db_size = le16toh(resp->legacy_l2_db_size_kb) * 1024;
 	softc->db_offset = le16toh(resp->legacy_l2_db_size_kb) * 1024;
 
 	if (BNXT_CHIP_P5(softc)) {
@@ -1519,7 +1622,7 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 		softc->db_offset = min_db_offset;
 	}
 
-	softc->db_size = roundup2(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
+	softc->db_size = roundup2(le16toh(resp->l2_doorbell_bar_size_kb) *
 			1024, PAGE_SIZE);
 	if (!softc->db_size || softc->db_size > pci_resource_len(softc->pdev, 2) ||
 			softc->db_size <= min_db_offset)
@@ -1973,15 +2076,24 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 
 	switch (type) {
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_TX:
-		cp_ring = &softc->tx_cp_rings[idx];
+		if (ring->queue_id == BNXT_MPC_QUEUE_ID) {
+			cp_ring = ring->cp_ring;
+			req.mpc_chnls_type = ring->mpc_chnl_type;
+			req.enables |= htole32(HWRM_RING_ALLOC_INPUT_ENABLES_MPC_CHNLS_TYPE);
+		} else {
+			cp_ring = &softc->tx_cp_rings[idx];
 
-		req.cmpl_ring_id = htole16(cp_ring->ring.phys_id);
-		/* queue_id - what CoS queue the TX ring is associated with */
-		req.queue_id = htole16(softc->tx_q_info[0].queue_id);
+			/* queue_id - what CoS queue the TX ring is associated with */
+			req.queue_id = htole16(softc->tx_q_info[0].queue_id);
 
+			req.enables |= htole32(
+			    HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
+		}
 		req.stat_ctx_id = htole32(cp_ring->stats_ctx_id);
-		req.enables |= htole32(
-		    HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
+		if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL &&
+		    ring->queue_id != BNXT_MPC_QUEUE_ID)
+			req.cmpl_coal_cnt = softc->tx_hw_coal_cnt;
+		req.cmpl_ring_id = htole16(cp_ring->ring.phys_id);
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_RX:
 		if (!BNXT_CHIP_P5_PLUS(softc))
@@ -2018,9 +2130,15 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 		}
 
                 req.cq_handle = htole64(ring->id);
-		req.nq_ring_id = htole16(softc->nq_rings[idx].ring.phys_id);
+		if (ring->queue_id == BNXT_MPC_QUEUE_ID)
+			req.nq_ring_id = htole16(softc->mpc_info->mpc_nq_rings[idx].ring.phys_id);
+		else
+			req.nq_ring_id = htole16(softc->nq_rings[idx].ring.phys_id);
 		req.enables |= htole32(
 			HWRM_RING_ALLOC_INPUT_ENABLES_NQ_RING_ID_VALID);
+
+		if (softc->rx_coal.timer_reset_during_ring_alloc)
+			req.flags |= HWRM_RING_ALLOC_INPUT_FLAGS_TIMER_RESET;
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ:
 		req.int_mode = HWRM_RING_ALLOC_INPUT_INT_MODE_MSIX;
@@ -2125,6 +2243,26 @@ bnxt_hwrm_port_qstats(struct bnxt_softc *softc)
 
 	return rc;
 }
+
+int bnxt_hwrm_generic_qstats(struct bnxt_softc *bp, u8 flags)
+{
+	struct hwrm_stat_generic_qstats_input req = {0};
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_GENERIC_STATS))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_GENERIC_QSTATS);
+
+	req.flags = flags;
+	req.generic_stat_size = sizeof(struct generic_sw_hw_stats);
+	req.generic_stat_host_addr = htole64(bp->hw_generic_stats.idi_paddr);
+
+	rc = hwrm_send_message(bp, &req, sizeof(req));
+
+	return rc;
+}
+
 static int bnxt_hwrm_pri2cos_idx(struct bnxt_softc *softc, uint32_t path_dir)
 {
 	struct hwrm_queue_pri2cos_qcfg_input req = {0};
@@ -2443,6 +2581,7 @@ bnxt_hwrm_reserve_pf_rings(struct bnxt_softc *softc)
 	req.num_rx_rings = htole16(BNXT_MAX_NUM_QUEUES);
 	req.num_vnics = htole16(BNXT_MAX_NUM_QUEUES);
 	req.num_stat_ctxs = htole16(BNXT_MAX_NUM_QUEUES * 2);
+	bnxt_hwrm_reserve_pf_key_ctxs(softc, &req, BNXT_CRYPTO_TYPE_KTLS);
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
@@ -3339,81 +3478,208 @@ bnxt_hwrm_free_wol_fltr(struct bnxt_softc *softc)
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
-static void bnxt_hwrm_set_coal_params(struct bnxt_softc *softc, uint32_t max_frames,
-        uint32_t buf_tmrs, uint16_t flags,
-        struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
+void
+bnxt_hwrm_coal_params_qcaps(struct bnxt_softc *softc)
 {
-        req->flags = htole16(flags);
-        req->num_cmpl_dma_aggr = htole16((uint16_t)max_frames);
-        req->num_cmpl_dma_aggr_during_int = htole16(max_frames >> 16);
-        req->cmpl_aggr_dma_tmr = htole16((uint16_t)buf_tmrs);
-        req->cmpl_aggr_dma_tmr_during_int = htole16(buf_tmrs >> 16);
-        /* Minimum time between 2 interrupts set to buf_tmr x 2 */
-        req->int_lat_tmr_min = htole16((uint16_t)buf_tmrs * 2);
-        req->int_lat_tmr_max = htole16((uint16_t)buf_tmrs * 4);
-        req->num_cmpl_aggr_int = htole16((uint16_t)max_frames * 4);
+	struct bnxt_coal_cap *coal_cap = &softc->coal_cap;
+	struct hwrm_ring_aggint_qcaps_output *resp =
+	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_ring_aggint_qcaps_input req = {0};
+	int rc;
+
+	coal_cap->cmpl_params = BNXT_LEGACY_COAL_CMPL_PARAMS;
+	coal_cap->num_cmpl_dma_aggr_max = 63;
+	coal_cap->num_cmpl_dma_aggr_during_int_max = 63;
+	coal_cap->cmpl_aggr_dma_tmr_max = 65535;
+	coal_cap->cmpl_aggr_dma_tmr_during_int_max = 65535;
+	coal_cap->int_lat_tmr_min_max = 65535;
+	coal_cap->int_lat_tmr_max_max = 65535;
+	coal_cap->num_cmpl_aggr_int_max = 65535;
+	coal_cap->timer_units = 80;
+
+	if (softc->hwrm_spec_code < 0x10902)
+		return;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_RING_AGGINT_QCAPS);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc) {
+		BNXT_HWRM_UNLOCK(softc);
+		return;
+	}
+
+	coal_cap->cmpl_params = le32toh(resp->cmpl_params);
+	coal_cap->nq_params = le32toh(resp->nq_params);
+	coal_cap->num_cmpl_dma_aggr_max = le16toh(resp->num_cmpl_dma_aggr_max);
+	coal_cap->num_cmpl_dma_aggr_during_int_max =
+	    le16toh(resp->num_cmpl_dma_aggr_during_int_max);
+	coal_cap->cmpl_aggr_dma_tmr_max = le16toh(resp->cmpl_aggr_dma_tmr_max);
+	coal_cap->cmpl_aggr_dma_tmr_during_int_max =
+	    le16toh(resp->cmpl_aggr_dma_tmr_during_int_max);
+	coal_cap->int_lat_tmr_min_max = le16toh(resp->int_lat_tmr_min_max);
+	coal_cap->int_lat_tmr_max_max = le16toh(resp->int_lat_tmr_max_max);
+	coal_cap->num_cmpl_aggr_int_max = le16toh(resp->num_cmpl_aggr_int_max);
+	coal_cap->timer_units = le16toh(resp->timer_units);
+	BNXT_HWRM_UNLOCK(softc);
+}
+
+static uint16_t
+bnxt_usec_to_coal_tmr(struct bnxt_softc *softc, uint16_t usec)
+{
+	struct bnxt_coal_cap *coal_cap = &softc->coal_cap;
+
+	return (usec * 1000 / coal_cap->timer_units);
+}
+
+static void
+bnxt_hwrm_set_coal_params(struct bnxt_softc *softc, struct bnxt_coal *hw_coal,
+    struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
+{
+	struct bnxt_coal_cap *coal_cap = &softc->coal_cap;
+	uint16_t val, tmr, max, flags = hw_coal->flags;
+	uint32_t cmpl_params = coal_cap->cmpl_params;
+
+	max = hw_coal->bufs_per_record * 128;
+	if (hw_coal->budget)
+		max = hw_coal->bufs_per_record * hw_coal->budget;
+	max = min_t(uint16_t, max, coal_cap->num_cmpl_aggr_int_max);
+
+	val = clamp_t(uint16_t, hw_coal->coal_bufs, 1, max);
+	req->num_cmpl_aggr_int = htole16(val);
+
+	val = min_t(uint16_t, val, coal_cap->num_cmpl_dma_aggr_max);
+	req->num_cmpl_dma_aggr = htole16(val);
+
+	val = clamp_t(uint16_t, hw_coal->coal_bufs_irq, 1,
+	    coal_cap->num_cmpl_dma_aggr_during_int_max);
+	req->num_cmpl_dma_aggr_during_int = htole16(val);
+
+	tmr = bnxt_usec_to_coal_tmr(softc, hw_coal->coal_ticks);
+	tmr = clamp_t(uint16_t, tmr, 1, coal_cap->int_lat_tmr_max_max);
+	req->int_lat_tmr_max = htole16(tmr);
+
+	/* Minimum timer set to 1/2 of the interrupt timer. */
+	if (cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_INT_LAT_TMR_MIN) {
+		val = tmr / 2;
+		val = clamp_t(uint16_t, val, 1, coal_cap->int_lat_tmr_min_max);
+		req->int_lat_tmr_min = htole16(val);
+		req->enables |= htole16(BNXT_COAL_CMPL_MIN_TMR_ENABLE);
+	}
+
+	/* Buf timer set to 1/4 of the interrupt timer. */
+	val = clamp_t(uint16_t, tmr / 4, 1, coal_cap->cmpl_aggr_dma_tmr_max);
+	req->cmpl_aggr_dma_tmr = htole16(val);
+
+	/*
+	 * Gate on CMPL_AGGR_DMA_TMR_DURING_INT, not the similarly-named
+	 * NUM_CMPL_DMA_AGGR_DURING_INT bit which covers the unrelated count field.
+	 */
+	if (cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_CMPL_AGGR_DMA_TMR_DURING_INT) {
+		tmr = bnxt_usec_to_coal_tmr(softc, hw_coal->coal_ticks_irq);
+		val = clamp_t(uint16_t, tmr, 1,
+		    coal_cap->cmpl_aggr_dma_tmr_during_int_max);
+		req->cmpl_aggr_dma_tmr_during_int = htole16(val);
+		/*
+		 * No dedicated enable bit exists for this field; reusing
+		 * NUM_CMPL_DMA_AGGR_DURING_INT's enable bit matches existing behavior.
+		 */
+		req->enables |=
+		    htole16(BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE);
+	}
+
+	if ((cmpl_params & HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_RING_IDLE) &&
+	    hw_coal->idle_thresh && hw_coal->coal_ticks < hw_coal->idle_thresh)
+		flags |= HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_RING_IDLE;
+
+	req->flags = htole16(flags);
+	req->enables |= htole16(BNXT_COAL_CMPL_ENABLES);
+}
+
+static int
+bnxt_hwrm_set_coal_nq(struct bnxt_softc *softc, uint32_t ring_id,
+    struct bnxt_coal *hw_coal)
+{
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req = {0};
+	struct bnxt_coal_cap *coal_cap = &softc->coal_cap;
+	uint16_t tmr;
+
+	if (!(coal_cap->nq_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_NQ_PARAMS_INT_LAT_TMR_MIN))
+		return (0);
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req,
+	    HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
+
+	req.ring_id = htole16(ring_id);
+	req.flags =
+	    htole16(HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_IS_NQ);
+
+	tmr = bnxt_usec_to_coal_tmr(softc, hw_coal->coal_ticks) / 2;
+	tmr = clamp_t(uint16_t, tmr, 1, coal_cap->int_lat_tmr_min_max);
+	req.int_lat_tmr_min = htole16(tmr);
+	req.enables |= htole16(BNXT_COAL_CMPL_MIN_TMR_ENABLE);
+
+	return (hwrm_send_message(softc, &req, sizeof(req)));
 }
 
 int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
 {
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req = {0};
 	int i, rc = 0;
-	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0},
-							   req_tx = {0}, *req;
-	uint16_t max_buf, max_buf_irq;
-	uint16_t buf_tmr, buf_tmr_irq;
-	uint32_t flags;
 
-	bnxt_hwrm_cmd_hdr_init(softc, &req_rx,
-			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
-	bnxt_hwrm_cmd_hdr_init(softc, &req_tx,
-			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
+	if (!bnxt_drv_state_test(softc, BNXT_STATE_UP))
+		return (rc);
 
-	/* Each rx completion (2 records) should be DMAed immediately.
-	 * DMA 1/4 of the completion buffers at a time.
-	 */
-	max_buf = min_t(uint16_t, softc->rx_coal_frames / 4, 2);
-	/* max_buf must not be zero */
-	max_buf = clamp_t(uint16_t, max_buf, 1, 63);
-	max_buf_irq = clamp_t(uint16_t, softc->rx_coal_frames_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(softc->rx_coal_usecs);
-	/* buf timer set to 1/4 of interrupt timer */
-	buf_tmr = max_t(uint16_t, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(softc->rx_coal_usecs_irq);
-	buf_tmr_irq = max_t(uint16_t, buf_tmr_irq, 1);
-
-	flags = HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
-
-	/* RING_IDLE generates more IRQs for lower latency.  Enable it only
-	 * if coal_usecs is less than 25 us.
-	 */
-	if (softc->rx_coal_usecs < 25)
-		flags |= HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_RING_IDLE;
-
-	bnxt_hwrm_set_coal_params(softc, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req_rx);
-
-	/* max_buf must not be zero */
-	max_buf = clamp_t(uint16_t, softc->tx_coal_frames, 1, 63);
-	max_buf_irq = clamp_t(uint16_t, softc->tx_coal_frames_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(softc->tx_coal_usecs);
-	/* buf timer set to 1/4 of interrupt timer */
-	buf_tmr = max_t(uint16_t, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(softc->tx_coal_usecs_irq);
-	buf_tmr_irq = max_t(uint16_t, buf_tmr_irq, 1);
-	flags = HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
-	bnxt_hwrm_set_coal_params(softc, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
+	bnxt_hwrm_cmd_hdr_init(softc, &req,
+	    HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
+	bnxt_hwrm_set_coal_params(softc, &softc->rx_coal, &req);
 
 	for (i = 0; i < softc->nrxqsets; i++) {
+		req.ring_id = htole16(softc->grp_info[i].cp_ring_id);
 
-		req = &req_rx;
-		req->ring_id = htole16(softc->grp_info[i].cp_ring_id);
-
-		rc = hwrm_send_message(softc, req, sizeof(*req));
+		rc = hwrm_send_message(softc, &req, sizeof(req));
 		if (rc)
 			break;
+
+		if (BNXT_CHIP_P5_PLUS(softc))
+			rc = bnxt_hwrm_set_coal_nq(softc,
+			    softc->nq_rings[i].ring.phys_id, &softc->rx_coal);
+		else
+			rc = bnxt_hwrm_set_coal_nq(softc,
+			    softc->rx_cp_rings[i].ring.phys_id, &softc->rx_coal);
+		if (rc) {
+			device_printf(softc->dev,
+			    "%s: Rx NQ coalesce setting failed for queue %d\n",
+			    __func__, i);
+			break;
+		}
 	}
-	return rc;
+
+	if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL) {
+		struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_tx = {0};
+
+		bnxt_hwrm_cmd_hdr_init(softc, &req_tx,
+		    HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
+		bnxt_hwrm_set_coal_params(softc, &softc->tx_coal, &req_tx);
+
+		for (i = 0; i < softc->ntxqsets; i++) {
+			req_tx.ring_id =
+			    htole16(softc->tx_cp_rings[i].ring.phys_id);
+
+			rc = hwrm_send_message(softc, &req_tx, sizeof(req_tx));
+			if (rc) {
+				device_printf(softc->dev,
+				    "%s: Tx coalesce setting failed for queue %d\n",
+				    __func__, i);
+				break;
+			}
+		}
+	}
+
+	return (rc);
 }
 
 void bnxt_hwrm_ring_info_get(struct bnxt_softc *softc, uint8_t ring_type,
@@ -3543,7 +3809,7 @@ bnxt_hwrm_get_dump_len(struct bnxt_softc *softc, uint16_t dump_type,
 		else
 			*dump_len = le32toh(resp->crashdump_size);
 	} else {
-		*dump_len = le32_to_cpu(resp->coredump_size);
+		*dump_len = le32toh(resp->coredump_size);
 	}
 	if (*dump_len <= 0)
 		rc = -EINVAL;

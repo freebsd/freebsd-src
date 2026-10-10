@@ -29,10 +29,10 @@
 #ifndef _CS4281_H_
 #define _CS4281_H_
 
-#define CS4281_PCI_ID 	0x60051013
+#define CS4281_PCI_ID	0x60051013
 
 /* Ball Parks */
-#define CS4281PCI_BA0_SIZE 	4096
+#define CS4281PCI_BA0_SIZE	4096
 #define CS4281PCI_BA1_SIZE	65536
 
 /* Register values */

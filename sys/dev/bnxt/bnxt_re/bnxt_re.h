@@ -1035,8 +1035,6 @@ int bnxt_re_set_dbq_throttling_reg(struct bnxt_re_dev *rdev,
 void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev);
 int bnxt_re_hwrm_pri2cos_qcfg(struct bnxt_re_dev *rdev, struct bnxt_re_tc_rec *tc_rec,
 			      u16 target_id);
-void writel_fbsd(struct bnxt_softc *bp, u32, u8, u32);
-u32 readl_fbsd(struct bnxt_softc *bp, u32, u8);
 
 static inline unsigned int bnxt_re_get_total_mr_mw_count(struct bnxt_re_dev *rdev)
 {

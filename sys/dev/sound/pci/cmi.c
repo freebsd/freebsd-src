@@ -115,12 +115,12 @@ struct sc_info {
 	bus_dma_tag_t		parent_dmat;
 	struct resource		*reg, *irq;
 	int			regid, irqid;
-	void 			*ih;
+	void			*ih;
 	struct mtx		lock;
 
 	int			spdif_enabled;
 	unsigned int		bufsz;
-	struct sc_chinfo 	pch, rch;
+	struct sc_chinfo	pch, rch;
 
 	struct mpu401	*mpu;
 	mpu401_intr_t		*mpu_intr;
@@ -439,7 +439,7 @@ cmichan_setspeed(kobj_t obj, void *data, uint32_t speed)
 		}
 		rsp = cmi_rd(ch->parent, CMPCI_REG_FUNC_1, 4);
 		rsp >>= CMPCI_REG_DAC_FS_SHIFT;
-		rsp &= 	CMPCI_REG_DAC_FS_MASK;
+		rsp &=	CMPCI_REG_DAC_FS_MASK;
 	} else {
 		cmi_partial_wr4(ch->parent,
 				CMPCI_REG_FUNC_1,
@@ -448,7 +448,7 @@ cmichan_setspeed(kobj_t obj, void *data, uint32_t speed)
 				r);
 		rsp = cmi_rd(ch->parent, CMPCI_REG_FUNC_1, 4);
 		rsp >>= CMPCI_REG_ADC_FS_SHIFT;
-		rsp &= 	CMPCI_REG_ADC_FS_MASK;
+		rsp &=	CMPCI_REG_ADC_FS_MASK;
 	}
 	mtx_unlock(&sc->lock);
 	ch->spd = cmpci_regvalue_to_rate(r);
@@ -583,13 +583,13 @@ cmichan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t cmichan_methods[] = {
-    	KOBJMETHOD(channel_init,		cmichan_init),
-    	KOBJMETHOD(channel_setformat,		cmichan_setformat),
-    	KOBJMETHOD(channel_setspeed,		cmichan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	cmichan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		cmichan_trigger),
-    	KOBJMETHOD(channel_getptr,		cmichan_getptr),
-    	KOBJMETHOD(channel_getcaps,		cmichan_getcaps),
+	KOBJMETHOD(channel_init,		cmichan_init),
+	KOBJMETHOD(channel_setformat,		cmichan_setformat),
+	KOBJMETHOD(channel_setspeed,		cmichan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	cmichan_setblocksize),
+	KOBJMETHOD(channel_trigger,		cmichan_trigger),
+	KOBJMETHOD(channel_getptr,		cmichan_getptr),
+	KOBJMETHOD(channel_getcaps,		cmichan_getcaps),
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(cmichan);
@@ -754,10 +754,10 @@ cmi_initsys(struct sc_info* sc)
 	   to a device specific sysctl "dev.pcm.X.yyy" via
 	   device_get_sysctl_*() as discussed on multimedia@ in msg-id
 	   <861wujij2q.fsf@xps.des.no> */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
 		       SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-		       OID_AUTO, "spdif_enabled", CTLFLAG_RW, 
-		       &sc->spdif_enabled, 0, 
+		       OID_AUTO, "spdif_enabled", CTLFLAG_RW,
+		       &sc->spdif_enabled, 0,
 		       "enable SPDIF output at 44.1 kHz and above");
 
 	return 0;
@@ -778,10 +778,10 @@ MIXER_DECLARE(cmi_mixer);
 
 static unsigned char
 cmi_mread(struct mpu401 *arg, void *sc, int reg)
-{	
+{
 	unsigned int d;
 
-		d = bus_space_read_1(0,0, 0x330 + reg); 
+		d = bus_space_read_1(0,0, 0x330 + reg);
 	/*	printf("cmi_mread: reg %x %x\n",reg, d);
 	*/
 	return d;
@@ -808,9 +808,9 @@ cmi_muninit(struct mpu401 *arg, void *cookie)
 }
 
 static kobj_method_t cmi_mpu_methods[] = {
-    	KOBJMETHOD(mpufoi_read,		cmi_mread),
-    	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
-    	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
+	KOBJMETHOD(mpufoi_read,		cmi_mread),
+	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
+	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
 	KOBJMETHOD_END
 };
 
@@ -821,19 +821,19 @@ cmi_midiattach(struct sc_info *sc) {
 /*
 	const struct {
 		int port,bits;
-	} *p, ports[] = { 
-		{0x330,0}, 
-		{0x320,1}, 
-		{0x310,2}, 
-		{0x300,3}, 
+	} *p, ports[] = {
+		{0x330,0},
+		{0x320,1},
+		{0x310,2},
+		{0x300,3},
 		{0,0} } ;
 	Notes, CMPCI_REG_VMPUSEL sets the io port for the mpu.  Does
 	anyone know how to bus_space tag?
 */
 	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
-	cmi_clr4(sc, CMPCI_REG_LEGACY_CTRL, 
+	cmi_clr4(sc, CMPCI_REG_LEGACY_CTRL,
 			CMPCI_REG_VMPUSEL_MASK << CMPCI_REG_VMPUSEL_SHIFT);
-	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL, 
+	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL,
 			0 << CMPCI_REG_VMPUSEL_SHIFT );
 	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
 	sc->mpu = mpu401_init(&cmi_mpu_class, sc, cmi_intr, &sc->mpu_intr);

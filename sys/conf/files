@@ -1332,6 +1332,9 @@ dev/bnxt/bnxt_en/bnxt_ulp.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/bnxt_log.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/bnxt_log_data.c	optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/bnxt_coredump.c	optional bnxt iflib pci compile-with "${BNXT_C}"
+dev/bnxt/bnxt_en/bnxt_ptp.c		optional bnxt iflib pci compile-with "${BNXT_C}"
+dev/bnxt/bnxt_en/bnxt_mpc.c		optional bnxt iflib pci compile-with "${BNXT_C}"
+dev/bnxt/bnxt_en/bnxt_ktls.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/if_bnxt.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bwi/bwimac.c		optional bwi
 dev/bwi/bwiphy.c		optional bwi

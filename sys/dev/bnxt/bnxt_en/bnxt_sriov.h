@@ -1,8 +1,10 @@
 #ifndef _BNXT_SRIOV_H_
 #define _BNXT_SRIOV_H_
 
+#include <sys/param.h>
 #include <sys/iov_schema.h>
-#include <linux/pci.h>
+#include <dev/pci/pcireg.h>
+#include "pci_if.h"
 #include <dev/pci/pci_iov.h>
 
 #include "opt_global.h"

@@ -164,8 +164,8 @@ csa_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 }
 
 static kobj_method_t csa_ac97_methods[] = {
-    	KOBJMETHOD(ac97_read,		csa_rdcd),
-    	KOBJMETHOD(ac97_write,		csa_wrcd),
+	KOBJMETHOD(ac97_read,		csa_rdcd),
+	KOBJMETHOD(ac97_write,		csa_wrcd),
 	KOBJMETHOD_END
 };
 AC97_DECLARE(csa_ac97);
@@ -623,13 +623,13 @@ csachan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t csachan_methods[] = {
-    	KOBJMETHOD(channel_init,		csachan_init),
-    	KOBJMETHOD(channel_setformat,		csachan_setformat),
-    	KOBJMETHOD(channel_setspeed,		csachan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	csachan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		csachan_trigger),
-    	KOBJMETHOD(channel_getptr,		csachan_getptr),
-    	KOBJMETHOD(channel_getcaps,		csachan_getcaps),
+	KOBJMETHOD(channel_init,		csachan_init),
+	KOBJMETHOD(channel_setformat,		csachan_setformat),
+	KOBJMETHOD(channel_setspeed,		csachan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	csachan_setblocksize),
+	KOBJMETHOD(channel_trigger,		csachan_trigger),
+	KOBJMETHOD(channel_getptr,		csachan_getptr),
+	KOBJMETHOD(channel_getcaps,		csachan_getcaps),
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(csachan);
@@ -676,7 +676,7 @@ csa_init(struct csa_info *csa)
 	/* Power up amplifier */
 	csa_writeio(resp, BA0_EGPIODR, csa_readio(resp, BA0_EGPIODR) |
 		EGPIODR_GPOE2);
-	csa_writeio(resp, BA0_EGPIOPTR, csa_readio(resp, BA0_EGPIOPTR) | 
+	csa_writeio(resp, BA0_EGPIOPTR, csa_readio(resp, BA0_EGPIOPTR) |
 		EGPIOPTR_GPPT2);
 
 	return 0;

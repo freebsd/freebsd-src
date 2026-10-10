@@ -50,7 +50,7 @@ static
 static
 #ifdef __aarch64__
 #include <arm64/linux/linux_syscalls.c>
-#elif __amd64__
+#elif defined(__amd64__)
 #include <amd64/linux/linux_syscalls.c>
 #else
 #include <i386/linux/linux_syscalls.c>

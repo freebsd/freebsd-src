@@ -37,8 +37,13 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#include "opt_kern_tls.h"
 
+#include <machine/atomic.h>
 #include "bnxt.h"
+#include "bnxt_ptp.h"
+#include "bnxt_ktls.h"
+#include "bnxt_log.h"
 
 /*
  * Function prototypes
@@ -77,7 +82,7 @@ struct if_txrx bnxt_txrx  = {
  * Device Dependent Packet Transmit and Receive Functions
  */
 
-static const uint16_t bnxt_tx_lhint[] = {
+const uint16_t bnxt_tx_lhint[] = {
 	TX_BD_SHORT_FLAGS_LHINT_LT512,
 	TX_BD_SHORT_FLAGS_LHINT_LT1K,
 	TX_BD_SHORT_FLAGS_LHINT_LT2K,
@@ -92,12 +97,38 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	struct bnxt_ring *txr = &softc->tx_rings[pi->ipi_qsidx];
 	struct tx_bd_long *tbd;
 	struct tx_bd_long_hi *tbdh;
+	bool need_cpl = false;
 	bool need_hi = false;
 	uint16_t flags_type;
-	uint16_t lflags;
+	uint16_t lflags = 0;
 	uint32_t cfa_meta;
 	int seg = 0;
-	uint8_t wrap = 0;
+	struct tx_bd_opaque *opq;
+
+	txr->prod = pi->ipi_pidx;
+#ifdef KTLS_IFLIB_SUPPORT
+	uint32_t kid = 0;
+	int ret;
+
+	if (pi->ipi_mbuf != NULL) {
+		ret = bnxt_ktls_xmit(softc, txr, &pi->ipi_mbuf, &lflags, &kid, pi);
+
+		if (ret) {
+			BNXT_DEBUG(softc->dev, "kTLS xmit failed, ret=%d\n", ret);
+			return ret;
+		}
+	}
+#endif
+
+	if ((pi->ipi_flags & IPI_TX_INTR) != 0)
+		need_cpl = true;
+
+	if (softc->tx_host_coal_enable) {
+		/* BD field of opaque is only 15 bits; respect tx_host_coal_bds threshold */
+		if (txr->running_bds >
+		    (softc->tx_host_coal_bds - (BNXT_MAX_NUM_SEGS + 1)))
+			need_cpl = true;
+	}
 
 	/* If we have offloads enabled, we need to use two BDs. */
 	if ((pi->ipi_csum_flags & (CSUM_OFFLOAD | CSUM_TSO | CSUM_IP)) ||
@@ -107,15 +138,29 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	/* TODO: Devices before Cu+B1 need to not mix long and short BDs */
 	need_hi = true;
 
-	pi->ipi_new_pidx = pi->ipi_pidx;
+	pi->ipi_new_pidx = txr->prod;
 	tbd = &((struct tx_bd_long *)txr->vaddr)[pi->ipi_new_pidx];
 	pi->ipi_ndescs = 0;
+	opq = (struct tx_bd_opaque *)&tbd->opaque;
 	/* No need to byte-swap the opaque value */
-	tbd->opaque = ((pi->ipi_nsegs + need_hi) << 24) | pi->ipi_new_pidx;
+	opq->ktls_replay = 0;
+	opq->idx = pi->ipi_new_pidx & TX_RING_MASK(txr);
+	opq->bds = txr->running_bds + pi->ipi_nsegs + need_hi;
 	tbd->len = htole16(pi->ipi_segs[seg].ds_len);
 	tbd->addr = htole64(pi->ipi_segs[seg++].ds_addr);
 	flags_type = ((pi->ipi_nsegs + need_hi) <<
 	    TX_BD_SHORT_FLAGS_BD_CNT_SFT) & TX_BD_SHORT_FLAGS_BD_CNT_MASK;
+
+	if (softc->tx_host_coal_enable) {
+		flags_type |= TX_BD_LONG_FLAGS_COAL_NOW;
+		if (need_cpl)
+			txr->running_bds = 0;
+		else {
+			txr->running_bds += (pi->ipi_nsegs + 1);
+			flags_type |= TX_BD_LONG_FLAGS_NO_CMPL;
+		}
+	}
+
 	if (pi->ipi_len >= 2048)
 		flags_type |= TX_BD_SHORT_FLAGS_LHINT_GTE2K;
 	else
@@ -124,24 +169,26 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	if (need_hi) {
 		flags_type |= TX_BD_LONG_TYPE_TX_BD_LONG;
 
-		/* Handle wrapping */
-		if (pi->ipi_new_pidx == txr->ring_size - 1)
-			wrap = 1;
-
 		pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
-
-		/* Toggle epoch bit on wrap */
-		if (wrap && pi->ipi_new_pidx == 0)
+		if (pi->ipi_new_pidx == 0)
 			txr->epoch_bit = !txr->epoch_bit;
-		if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
-			txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
 		tbdh = &((struct tx_bd_long_hi *)txr->vaddr)[pi->ipi_new_pidx];
+#ifdef KTLS_IFLIB_SUPPORT
+		tbdh->kid_or_ts_high_mss = htole32((pi->ipi_tso_segsz &  TX_BD_LONG_MSS_MASK) |
+					   ((KID_HIGH(kid) << TX_BD_LONG_KID_OR_TS_HIGH_SFT) &
+					     TX_BD_LONG_KID_OR_TS_HIGH_MASK));
+
+		tbdh->kid_or_ts_low_hdr_size = htole16((((pi->ipi_ehdrlen + pi->ipi_ip_hlen +
+					pi->ipi_tcp_hlen) >> 1) & TX_BD_LONG_HDR_SIZE_MASK) |
+					((KID_LOW(kid) << TX_BD_LONG_KID_OR_TS_LOW_SFT) &
+					 TX_BD_LONG_KID_OR_TS_LOW_MASK));
+#else
 		tbdh->kid_or_ts_high_mss = htole16(pi->ipi_tso_segsz);
 		tbdh->kid_or_ts_low_hdr_size = htole16((pi->ipi_ehdrlen + pi->ipi_ip_hlen +
 		    pi->ipi_tcp_hlen) >> 1);
+#endif
 		tbdh->cfa_action = 0;
-		lflags = 0;
 		cfa_meta = 0;
 		if (pi->ipi_mflags & M_VLANTAG) {
 			/* TODO: Do we need to byte-swap the vtag here? */
@@ -180,13 +227,9 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	for (; seg < pi->ipi_nsegs; seg++) {
 		tbd->flags_type = htole16(flags_type);
 
-		if (pi->ipi_new_pidx == txr->ring_size - 1)
-			wrap = 1;
 		pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
-		if (wrap && pi->ipi_new_pidx == 0)
+		if (pi->ipi_new_pidx == 0)
 			txr->epoch_bit = !txr->epoch_bit;
-		if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
-			txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
 		tbd = &((struct tx_bd_long *)txr->vaddr)[pi->ipi_new_pidx];
 		tbd->len = htole16(pi->ipi_segs[seg].ds_len);
@@ -195,14 +238,12 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	}
 	flags_type |= TX_BD_SHORT_FLAGS_PACKET_END;
 	tbd->flags_type = htole16(flags_type);
-	if (pi->ipi_new_pidx == txr->ring_size - 1)
-		wrap = 1;
-	pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
-	if (wrap && pi->ipi_new_pidx == 0)
-		txr->epoch_bit = !txr->epoch_bit;
-	if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
-		txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
+	pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
+	if (pi->ipi_new_pidx == 0)
+		txr->epoch_bit = !txr->epoch_bit;
+
+	txr->prod = pi->ipi_new_pidx;
 	return 0;
 }
 
@@ -223,6 +264,8 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->tx_cp_rings[txqid];
 	struct tx_cmpl *cmpl = (struct tx_cmpl *)cpr->ring.vaddr;
+	struct bnxt_ring *txr;
+	struct bnxt_sw_tx_bd *tx_buf;
 	int avail = 0;
 	uint32_t cons = cpr->cons;
 	uint32_t raw_cons = cpr->raw_cons;
@@ -232,6 +275,7 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 	uint32_t last_raw_cons;
 	uint16_t type;
 	uint16_t err;
+	struct tx_bd_opaque *opq;
 
 	for (;;) {
 		last_cons = cons;
@@ -255,7 +299,8 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 				device_printf(softc->dev,
 				    "TX completion error %u\n", err);
 			/* No need to byte-swap the opaque value */
-			avail += cmpl[cons].opaque >> 24;
+			opq = (struct tx_bd_opaque *)&cmpl[cons].opaque;
+			avail += opq->bds;
 			/*
 			 * If we're not clearing, iflib only cares if there's
 			 * at least one buffer.  Don't scan the whole ring in
@@ -263,7 +308,63 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 			 */
 			if (!clear)
 				goto done;
+
+			if (__predict_false(opq->ktls_replay)) {
+				struct bnxt_tls_info *ktls = softc->ktls_info;
+				struct bnxt_replay_pkt *pkt;
+				uint32_t idx = opq->idx;
+
+				txr = &softc->tx_rings[txqid];
+				if (idx >= txr->ring_size) {
+					bnxt_log_live(softc, BNXT_LOGGER_L2,
+					    "%s: Invalid replay idx %u (ring_size=%u) "
+					    "on TXQ %u, opaque 0x%x\n",
+					    __func__, idx, txr->ring_size, txqid,
+					    cmpl[cons].opaque);
+					break;
+				}
+				tx_buf = &txr->tx_buf_ring[idx];
+				pkt = &txr->replay_pkt[idx];
+				MPASS(tx_buf->is_replay);
+				bus_dmamap_sync(ktls->dma_tag, pkt->dma_map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(ktls->dma_tag, pkt->dma_map);
+				m_freem(pkt->mbuf);
+				counter_u64_add(ktls->counters[BNXT_KTLS_TX_MBUF_FREES], 1);
+				pkt->mbuf = NULL;
+				tx_buf->is_replay = 0;
+			}
 			break;
+		case TX_CMPL_COAL_TYPE_TX_L2_COAL:
+			if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL) {
+				tx_cmpl_coal_t *cmpl_coal = (tx_cmpl_coal_t *)cmpl;
+				uint32_t sq_cons;
+
+				err = (le16toh(cmpl_coal[cons].errors_v) &
+				    TX_CMPL_COAL_ERRORS_BUFFER_ERROR_MASK) >>
+				    TX_CMPL_COAL_ERRORS_BUFFER_ERROR_SFT;
+				if (err)
+					device_printf(softc->dev,
+					    "TX completion error %u\n", err);
+
+				sq_cons = le32toh(cmpl_coal[cons].sq_cons_idx) &
+				    TX_CMPL_COAL_SQ_CONS_IDX_MASK;
+
+				txr = &softc->tx_rings[txqid];
+				avail += (sq_cons - txr->free_flow_cons) &
+				    txr->db_ring_mask;
+
+				/*
+				 * Only the consuming (clear) pass advances free_flow_cons;
+				 * peek calls must not claim unreclaimed SQ entries. Gating
+				 * on clear also means only gtaskq writes it, so no atomics.
+				 */
+				if (!clear)
+					goto done;
+				txr->free_flow_cons = sq_cons;
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			if (type & 1) {
 				NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
@@ -334,8 +435,6 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 			pidx = 0;
 			rx_ring->epoch_bit = !rx_ring->epoch_bit;
 		}
-		if (pidx < EPOCH_ARR_SZ)
-			rx_ring->epoch_arr[pidx] = rx_ring->epoch_bit;
 	}
 
 	return;
@@ -495,9 +594,11 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 {
 	struct rx_pkt_cmpl *rcp;
 	struct rx_pkt_cmpl_hi *rcph;
+	struct rx_pkt_v2_cmpl_hi *rcph_v2;
 	struct rx_abuf_cmpl *acp;
 	uint32_t flags2;
 	uint32_t errors;
+	uint64_t ts, ts_lo, ts_poll;
 	uint8_t	ags;
 	int i;
 
@@ -549,6 +650,24 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 			ri->iri_csum_flags |= CSUM_L4_VALID;
 			ri->iri_csum_data = 0xffff;
 		}
+	}
+
+	if (softc->rx_ts_enabled && softc->ptp_cfg != NULL) {
+		rcph_v2 = (struct rx_pkt_v2_cmpl_hi *)rcph;
+		ts_poll = atomic_load_acq_64(
+		    (volatile uint64_t *)&softc->ptp_cfg->old_time);
+		ts_lo = le32toh(rcph_v2->timestamp);
+		ts = (ts_poll & BNXT_HI_TIMER_MASK) | ts_lo;
+		if (ts_lo < (ts_poll & BNXT_LO_TIMER_MASK)) {
+			ts += BNXT_LO_TIMER_MASK + 1;
+		}
+		ts = bnxt_ptp_hwtstamp_to_ns(softc->ptp_cfg, ts);
+#ifdef IFLIB_IRI_VALID_FLAGS
+		if (ts != 0) {
+			ri->iri_rcv_tstmp = ts;
+			ri->iri_flags |= M_TSTMP;
+		}
+#endif
 	}
 
 	/* And finally the ag ring stuff. */

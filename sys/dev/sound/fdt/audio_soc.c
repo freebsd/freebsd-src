@@ -51,7 +51,7 @@ struct audio_soc_aux_node {
 
 struct audio_soc_channel {
 	struct audio_soc_softc	*sc;	/* parent device's softc */
-	struct pcm_channel 	*pcm;	/* PCM channel */
+	struct pcm_channel	*pcm;	/* PCM channel */
 	struct snd_dbuf		*buf;	/* PCM buffer */
 	int			dir;	/* direction */
 };
@@ -69,8 +69,8 @@ struct audio_soc_softc {
 	device_t		codec_dev;
 	SLIST_HEAD(, audio_soc_aux_node)	aux_devs;
 	unsigned int		mclk_fs;
-	struct audio_soc_channel 	play_channel;
-	struct audio_soc_channel 	rec_channel;
+	struct audio_soc_channel	play_channel;
+	struct audio_soc_channel	rec_channel;
 	/*
 	 * The format is from the CPU node, for CODEC node clock roles
 	 * need to be reversed.
@@ -268,10 +268,10 @@ audio_soc_chan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t audio_soc_chan_methods[] = {
-	KOBJMETHOD(channel_init, 	audio_soc_chan_init),
-	KOBJMETHOD(channel_free, 	audio_soc_chan_free),
-	KOBJMETHOD(channel_setformat, 	audio_soc_chan_setformat),
-	KOBJMETHOD(channel_setspeed, 	audio_soc_chan_setspeed),
+	KOBJMETHOD(channel_init,	audio_soc_chan_init),
+	KOBJMETHOD(channel_free,	audio_soc_chan_free),
+	KOBJMETHOD(channel_setformat,	audio_soc_chan_setformat),
+	KOBJMETHOD(channel_setspeed,	audio_soc_chan_setspeed),
 	KOBJMETHOD(channel_setblocksize,audio_soc_chan_setblocksize),
 	KOBJMETHOD(channel_trigger,	audio_soc_chan_trigger),
 	KOBJMETHOD(channel_getptr,	audio_soc_chan_getptr),

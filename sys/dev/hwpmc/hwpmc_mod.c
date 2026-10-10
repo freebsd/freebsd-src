@@ -4465,7 +4465,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 		}
 
-		if ((error = (*pcd->pcd_get_msr)(adjri, &gm.pm_msr)) < 0)
+		if ((error = (*pcd->pcd_get_msr)(adjri, &gm.pm_msr)) != 0)
 			break;
 
 		if ((error = copyout(&gm, arg, sizeof(gm))) < 0)

@@ -351,7 +351,7 @@ ich_resetchan(struct sc_info *sc, int num)
 		return (0);
 #if 0
 	else if (sc->vendor == NVIDIA_VENDORID) {
-	    	sc->flags |= ICH_IGNORE_RESET;
+		sc->flags |= ICH_IGNORE_RESET;
 		device_printf(sc->dev, "ignoring reset failure!\n");
 		return (0);
 	}
@@ -544,7 +544,7 @@ ichchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
-      	uint32_t pos;
+	uint32_t pos;
 
 	ICH_DEBUG(
 		if (!(sc->flags & ICH_CALIBRATE_DONE))
@@ -802,7 +802,7 @@ ich_calibrate(void *arg)
 		device_printf(sc->dev, "measured ac97 link rate at %d Hz", actual_48k_rate);
 		if (sc->ac97rate != actual_48k_rate)
 			printf(", will use %d Hz", sc->ac97rate);
-	 	printf("\n");
+		printf("\n");
 	}
 	sc->flags |= ICH_CALIBRATE_DONE;
 	ICH_UNLOCK(sc);
@@ -884,7 +884,7 @@ ich_pci_attach(device_t dev)
 	uint32_t		subdev;
 	uint16_t		extcaps;
 	uint16_t		devid, vendor;
-	struct sc_info 		*sc;
+	struct sc_info		*sc;
 	int			i;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -927,7 +927,7 @@ ich_pci_attach(device_t dev)
 	 * read-only.  Need to enable "legacy support", by poking into
 	 * pci config space.  The driver should use MMBAR and MBBAR,
 	 * but doing so will mess things up here.  ich4 has enough new
-	 * features it warrants it's own driver. 
+	 * features it warrants it's own driver.
 	 */
 	if (vendor == INTEL_VENDORID && (devid == INTEL_82801DB ||
 	    devid == INTEL_82801EB || devid == INTEL_6300ESB ||
@@ -942,9 +942,9 @@ ich_pci_attach(device_t dev)
 		sc->regtype = SYS_RES_IOPORT;
 	}
 
-	sc->nambar = bus_alloc_resource_any(dev, sc->regtype, 
+	sc->nambar = bus_alloc_resource_any(dev, sc->regtype,
 		&sc->nambarid, RF_ACTIVE);
-	sc->nabmbar = bus_alloc_resource_any(dev, sc->regtype, 
+	sc->nabmbar = bus_alloc_resource_any(dev, sc->regtype,
 		&sc->nabmbarid, RF_ACTIVE);
 
 	if (!sc->nambar || !sc->nabmbar) {
@@ -1147,14 +1147,14 @@ ich_pci_codec_reset(struct sc_info *sc)
 	int i;
 	uint32_t control;
 
-	control = ich_rd(sc, ICH_REG_GLOB_CNT, 4); 
+	control = ich_rd(sc, ICH_REG_GLOB_CNT, 4);
 	control &= ~(ICH_GLOB_CTL_SHUT);
 	control |= (control & ICH_GLOB_CTL_COLD) ?
 		    ICH_GLOB_CTL_WARM : ICH_GLOB_CTL_COLD;
 	ich_wr(sc, ICH_REG_GLOB_CNT, control, 4);
 
 	for (i = 500000; i; i--) {
-	     	if (ich_rd(sc, ICH_REG_GLOB_STA, 4) & ICH_GLOB_STA_PCR)
+		if (ich_rd(sc, ICH_REG_GLOB_STA, 4) & ICH_GLOB_STA_PCR)
 			break;		/*		or ICH_SCR? */
 		DELAY(1);
 	}
@@ -1203,7 +1203,7 @@ ich_pci_resume(device_t dev)
 	ich_pci_codec_reset(sc);
 	ICH_UNLOCK(sc);
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
-    	if (mixer_reinit(dev) == -1) {
+	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return (ENXIO);
 	}
@@ -1224,7 +1224,7 @@ static device_method_t ich_methods[] = {
 	DEVMETHOD(device_probe,		ich_pci_probe),
 	DEVMETHOD(device_attach,	ich_pci_attach),
 	DEVMETHOD(device_detach,	ich_pci_detach),
-	DEVMETHOD(device_suspend, 	ich_pci_suspend),
+	DEVMETHOD(device_suspend,	ich_pci_suspend),
 	DEVMETHOD(device_resume,	ich_pci_resume),
 	DEVMETHOD_END
 };

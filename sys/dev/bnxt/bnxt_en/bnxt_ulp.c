@@ -33,7 +33,6 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
-#include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/bitmap.h>
 #include <linux/rcupdate.h>
@@ -76,7 +75,7 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 	rcu_assign_pointer(ulp->ulp_ops, ulp_ops);
 
 	if (ulp_id == BNXT_ROCE_ULP) {
-		if (test_bit(BNXT_STATE_OPEN, &bp->state) && bp->is_dev_init)
+		if (bnxt_drv_state_test(bp, BNXT_STATE_OPEN) && bp->is_dev_init)
 			bnxt_hwrm_vnic_cfg(bp, &bp->vnic_info);
 	}
 
@@ -104,14 +103,19 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 
 	mtx_lock(&bp->en_ops_lock);
 	RCU_INIT_POINTER(ulp->ulp_ops, NULL);
+	mtx_unlock(&bp->en_ops_lock);
 	synchronize_rcu();
+	mtx_lock(&bp->en_ops_lock);
 	ulp->max_async_event_id = 0;
 	ulp->async_events_bmap = NULL;
+	mtx_unlock(&bp->en_ops_lock);
 	while (atomic_read(&ulp->ref_count) != 0 && i < 10) {
-		msleep(100);
+		pause_sbt("bxtms", SBT_1MS * 100, 0, C_HARDCLOCK);
 		i++;
 	}
-	mtx_unlock(&bp->en_ops_lock);
+	/* Tell the caller a ULP consumer may still hold a reference into torn-down state. */
+	if (atomic_read(&ulp->ref_count) != 0)
+		return ETIMEDOUT;
 	return 0;
 }
 
@@ -372,7 +376,7 @@ EXPORT_SYMBOL(bnxt_ulp_log_live);
 
 void bnxt_ulp_async_events(struct bnxt_softc *bp, struct hwrm_async_event_cmpl *cmpl)
 {
-	u16 event_id = le16_to_cpu(cmpl->event_id);
+	u16 event_id = le16toh(cmpl->event_id);
 	struct bnxt_en_dev *edev = bp->edev;
 	struct bnxt_ulp_ops *ops;
 	int i;
@@ -392,7 +396,7 @@ void bnxt_ulp_async_events(struct bnxt_softc *bp, struct hwrm_async_event_cmpl *
 			continue;
 
 		/* Read max_async_event_id first before testing the bitmap. */
-		rmb();
+		atomic_thread_fence_acq();
 		if (edev->flags & BNXT_EN_FLAG_ULP_STOPPED)
 			continue;
 
@@ -414,7 +418,7 @@ static int bnxt_register_async_events(struct bnxt_en_dev *edev, int ulp_id,
 	mtx_lock(&bp->en_ops_lock);
 	ulp = &edev->ulp_tbl[ulp_id];
 	ulp->async_events_bmap = events_bmap;
-	wmb();
+	atomic_thread_fence_rel();
 	ulp->max_async_event_id = max_id;
 	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
 	mtx_unlock(&bp->en_ops_lock);
@@ -426,7 +430,11 @@ void bnxt_destroy_irq(struct bnxt_softc *softc)
 	kfree(softc->irq_tbl);
 }
 
-static int bnxt_populate_irq(struct bnxt_softc *softc)
+/*
+ * Build the IRQ table from scratch for isc_ntxqsets + irq_count vectors;
+ * usable by any feature needing private IRQs without prior setup.
+ */
+int bnxt_populate_irq(struct bnxt_softc *softc, int irq_count)
 {
 	struct resource_list *rl = NULL;
 	struct resource_list_entry *rle = NULL;
@@ -434,20 +442,79 @@ static int bnxt_populate_irq(struct bnxt_softc *softc)
 	struct pci_devinfo *dinfo = NULL;
 	int i;
 
-	softc->total_irqs = softc->scctx->isc_nrxqsets + BNXT_ROCE_IRQ_COUNT;
+	softc->total_irqs = softc->scctx->isc_ntxqsets + irq_count;
 	irq_tbl = kzalloc(softc->total_irqs * sizeof(*softc->irq_tbl), GFP_KERNEL);
 
 	if (!irq_tbl) {
 		device_printf(softc->dev, "Failed to allocate IRQ table\n");
 		return -1;
 	}
+
 	dinfo = device_get_ivars(softc->pdev->dev.bsddev);
 	rl = &dinfo->resources;
 	rle = resource_list_find(rl, SYS_RES_IRQ, 1);
+	if (rle == NULL) {
+		device_printf(softc->dev,
+		    "No default resources for rid = %d, type = %d\n",
+		    1, SYS_RES_IRQ);
+		kfree(irq_tbl);
+		return -1;
+	}
+
 	softc->pdev->dev.irq_start = rle->start;
 	softc->pdev->dev.irq_end = rle->start + softc->total_irqs;
 
 	for (i = 0; i < softc->total_irqs; i++) {
+		irq_tbl[i].entry = i;
+		irq_tbl[i].vector = softc->pdev->dev.irq_start + i;
+	}
+
+	softc->irq_tbl = irq_tbl;
+
+	return 0;
+}
+
+/*
+ * Grow the IRQ table by BNXT_ROCE_IRQ_COUNT on top of existing entries (e.g.
+ * MPC's) instead of reassigning total_irqs, to avoid reclaiming MPC's rids.
+ */
+static int bnxt_populate_irq_roce(struct bnxt_softc *softc)
+{
+	struct resource_list *rl = NULL;
+	struct resource_list_entry *rle = NULL;
+	struct pci_devinfo *dinfo = NULL;
+	struct bnxt_msix_tbl *irq_tbl;
+	int prev_total_irqs = softc->total_irqs;
+	int i;
+
+	softc->total_irqs += BNXT_ROCE_IRQ_COUNT;
+	irq_tbl = krealloc(softc->irq_tbl,
+	    softc->total_irqs * sizeof(*softc->irq_tbl), GFP_KERNEL);
+
+	if (!irq_tbl) {
+		device_printf(softc->dev, "Failed to allocate IRQ table\n");
+		/* Roll back total_irqs since the table itself wasn't grown. */
+		softc->total_irqs = prev_total_irqs;
+		return -1;
+	}
+
+	dinfo = device_get_ivars(softc->pdev->dev.bsddev);
+	rl = &dinfo->resources;
+	rle = resource_list_find(rl, SYS_RES_IRQ, 1);
+	if (rle == NULL) {
+		device_printf(softc->dev,
+		    "No default resources for rid = %d, type = %d\n",
+		    1, SYS_RES_IRQ);
+		/* irq_tbl isn't installed yet; free it and roll back total_irqs. */
+		kfree(irq_tbl);
+		softc->total_irqs = prev_total_irqs;
+		return -1;
+	}
+
+	softc->pdev->dev.irq_start = rle->start;
+	softc->pdev->dev.irq_end = rle->start + softc->total_irqs;
+
+	for (i = prev_total_irqs; i < softc->total_irqs; i++) {
 		irq_tbl[i].entry = i;
 		irq_tbl[i].vector = softc->pdev->dev.irq_start + i;
 	}
@@ -521,7 +588,7 @@ int bnxt_rdma_aux_device_add(struct bnxt_softc *bp)
 	struct auxiliary_device *aux_dev;
 	int ret = -1;
 
-	if (bnxt_populate_irq(bp))
+	if (bnxt_populate_irq_roce(bp))
 		return ret;
 
 	device_printf(bp->dev, "V:D:SV:SD %x:%x:%x:%x, irq 0x%x, "

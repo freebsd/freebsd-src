@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 16, 2026
+.Dd September 23, 2026
 .Dt SYSCONF 8
 .Os
 .Sh NAME
@@ -38,6 +38,45 @@
 .Nm
 .Cm rc
 .Op Ar sysrc_argument ...
+.Nm
+.Cm poudriere
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Ar sysrc_argument ...
+.Nm
+.Cm poudriere
+.Bro Cm make Ns | Ns Cm src Ns | Ns Cm src-env Brc
+.Op Fl ceFinNqsvVx
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm
+.Cm poudriere
+.Bro Cm make Ns | Ns Cm src Ns | Ns Cm src-env Brc
+.Op Fl eFnNqvV
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Fl f Ar file
+.Fl a
+.Nm
+.Cm poudriere
+.Bro Cm make Ns | Ns Cm src Ns | Ns Cm src-env Brc
+.Op Fl E
+.Op Fl Fl jail Ar name
+.Op Fl Fl ports Ar name
+.Op Fl Fl tree Ar name
+.Op Fl Fl set Ar name
+.Op Fl f Ar file
+.Fl l | L
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,7 +90,8 @@ and
 .Pq Xr rc.conf 5 .
 The first positional argument selects a
 .Ar target
-keyword;
+keyword
+.Pq or a unique prefix of one; see Sx TARGETS ;
 options are equally accepted before it.
 Each target is documented on its own page
 .Pq see Sx TARGETS ;
@@ -258,6 +298,20 @@ Pass-through to
 .Xr sysrc 8 .
 See
 .Xr sysconf-rc 8 .
+.It Cm poudriere
+.Pa poudriere.conf
+collection via
+.Xr sysrc 8 ;
+.Cm poudriere make ,
+.Cm poudriere src ,
+and
+.Cm poudriere src-env
+for the
+.Xr make 1
+overlays under
+.Pa poudriere.d .
+See
+.Xr sysconf-poudriere 8 .
 .It Cm generic
 Foreign or unknown format;
 requires
@@ -265,6 +319,23 @@ requires
 See
 .Xr sysconf-generic 8 .
 .El
+.Pp
+A unique prefix of a target keyword is accepted:
+.Ql sy
+selects
+.Cm sysctl
+and
+.Ql sr
+selects
+.Cm src .
+.Ql s
+matches both and is rejected with a list of matches.
+An exact keyword always wins.
+Prefix matching is case-sensitive and applies to the start of the keyword
+only, so
+.Ql ctl
+does not select
+.Cm sysctl .
 .Pp
 Cross-cutting rules for multi-file sourcing,
 defaults,
@@ -664,6 +735,7 @@ Further examples for each target appear in
 .Xr sysconf-make 8 ,
 .Xr sysconf-src 8 ,
 .Xr sysconf-rc 8 ,
+.Xr sysconf-poudriere 8 ,
 and
 .Xr sysconf-generic 8 .
 .Sh SEE ALSO
@@ -677,6 +749,7 @@ and
 .Xr sysconf-generic 8 ,
 .Xr sysconf-loader 8 ,
 .Xr sysconf-make 8 ,
+.Xr sysconf-poudriere 8 ,
 .Xr sysconf-rc 8 ,
 .Xr sysconf-src 8 ,
 .Xr sysconf-sysctl 8 ,

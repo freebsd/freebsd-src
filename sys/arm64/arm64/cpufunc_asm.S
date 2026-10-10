@@ -49,13 +49,30 @@
 	.word	PAGE_MASK
 
 /*
+ * Macro to apply "insn op" to each cache line that overlaps the address
+ * range ["addr", "addr" + "size"), where "size" is non-zero.  This macro
+ * expects the cache line size to be in x3 and "addr" to be aligned to that
+ * size.  It will corrupt "addr" and "size".
+ */
+.macro apply_to_range insn, op, addr, size
+1:
+	\insn	\op, \addr
+	add	\addr, \addr, x3	/* Move to the next line */
+	subs	\size, \size, x3	/* Reduce the size */
+	b.hi	1b			/* Check if we are done */
+.endm
+
+/*
  * Macro to handle the cache. This takes the start address in x0, length
  * in x1. It will corrupt x0, x1, x2, x3, and x4.
  */
-.macro cache_handle_range dcop = 0, ic = 0, icop = 0
+.macro cache_handle_range dc = 1, dcop = 0, ic = 0, icop = 0
 .if \ic == 0
 	adrp	x3, dcache_line_size	/* Load the D cache line size */
 	ldr	x3, [x3, :lo12:dcache_line_size]
+.elseif \dc == 0
+	adrp	x3, icache_line_size	/* Load the I cache line size */
+	ldr	x3, [x3, :lo12:icache_line_size]
 .else
 	adrp	x3, idcache_line_size	/* Load the I & D cache line size */
 	ldr	x3, [x3, :lo12:idcache_line_size]
@@ -64,22 +81,20 @@
 	and	x2, x0, x4		/* Get the low bits of the address */
 	add	x1, x1, x2		/* Add these to the size */
 	bic	x0, x0, x4		/* Clear the low bit of the address */
+.if \dc != 0
 .if \ic != 0
 	mov	x2, x0			/* Save the address */
 	mov	x4, x1			/* Save the size */
 .endif
-1:
-	dc	\dcop, x0
-	add	x0, x0, x3		/* Move to the next line */
-	subs	x1, x1, x3		/* Reduce the size */
-	b.hi	1b			/* Check if we are done */
+	apply_to_range	dc, \dcop, x0, x1
 	dsb	ish
+.endif
 .if \ic != 0
-2:
-	ic	\icop, x2
-	add	x2, x2, x3		/* Move to the next line */
-	subs	x4, x4, x3		/* Reduce the size */
-	b.hi	2b			/* Check if we are done */
+.if \dc != 0
+	apply_to_range	ic, \icop, x2, x4
+.else
+	apply_to_range	ic, \icop, x0, x1
+.endif
 	dsb	ish
 	isb
 .endif
@@ -140,14 +155,34 @@ ENTRY(arm64_idc_aliasing_icache_sync_range)
 END(arm64_idc_aliasing_icache_sync_range)
 
 /*
+ * Invalidating a PIPT icache by virtual address broadcasts an invalidation
+ * for each line to the other CPUs.  For a range larger than 32KB, such as
+ * a superpage, invalidating the entire icache is likely to be cheaper.
+ */
+#define	ICACHE_SYNC_RANGE_MAX	(32 * 1024)
+
+/*
+ * void arm64_idc_pipt_icache_sync_range(void *, vm_size_t)
+ *
+ * When the CTR_EL0.IDC bit is set cleaning to PoU becomes a dsb.
+ * A PIPT icache can be invalidated by virtual address, but a large range
+ * is better handled by arm64_idc_aliasing_icache_sync_range()'s ialluis.
+ */
+ENTRY(arm64_idc_pipt_icache_sync_range)
+	cmp	x1, #ICACHE_SYNC_RANGE_MAX
+	b.hi	arm64_idc_aliasing_icache_sync_range
+	dsb	ishst
+	cache_handle_range	dc = 0, ic = 1, icop = ivau
+	ret
+END(arm64_idc_pipt_icache_sync_range)
+
+/*
  * void arm64_aliasing_icache_sync_range(void *, vm_size_t)
+ *
+ * Invalidating an aliasing icache by virtual address could miss lines that
+ * were fetched through a different mapping, so invalidate the entire icache.
  */
 ENTRY(arm64_aliasing_icache_sync_range)
-	/*
-	 * XXX Temporary solution - I-cache flush should be range based for
-	 * PIPT cache or IALLUIS for VIVT or VIPT caches
-	 */
-/*	cache_handle_range	dcop = cvau, ic = 1, icop = ivau */
 	cache_handle_range	dcop = cvau
 	ic	ialluis
 	dsb	ish
@@ -156,12 +191,24 @@ ENTRY(arm64_aliasing_icache_sync_range)
 END(arm64_aliasing_icache_sync_range)
 
 /*
+ * void arm64_pipt_icache_sync_range(void *, vm_size_t)
+ *
+ * A PIPT icache can be invalidated by virtual address, but a large range
+ * is better handled by arm64_aliasing_icache_sync_range()'s ialluis.
+ */
+ENTRY(arm64_pipt_icache_sync_range)
+	cmp	x1, #ICACHE_SYNC_RANGE_MAX
+	b.hi	arm64_aliasing_icache_sync_range
+	cache_handle_range	dcop = cvau, ic = 1, icop = ivau
+	ret
+END(arm64_pipt_icache_sync_range)
+
+/*
  * int arm64_icache_sync_range_checked(void *, vm_size_t)
  */
 ENTRY(arm64_icache_sync_range_checked)
 	adr	x5, cache_maint_fault
 	SET_FAULT_HANDLER(x5, x6)
-	/* XXX: See comment in arm64_icache_sync_range */
 	cache_handle_range	dcop = cvau
 	ic	ialluis
 	dsb	ish
