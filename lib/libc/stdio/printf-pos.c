@@ -357,13 +357,14 @@ reswitch:	switch (ch) {
 			if ((error = addsarg(&types, flags)))
 				goto error;
 			break;
-		case 'a':
 		case 'A':
-		case 'e':
+		case 'a':
 		case 'E':
+		case 'e':
+		case 'F':
 		case 'f':
-		case 'g':
 		case 'G':
+		case 'g':
 			error = addtype(&types,
 			    (flags & LONGDBL) ? T_LONG_DOUBLE : T_DOUBLE);
 			if (error)
@@ -546,13 +547,14 @@ reswitch:	switch (ch) {
 			if ((error = addsarg(&types, flags)))
 				goto error;
 			break;
-		case 'a':
 		case 'A':
-		case 'e':
+		case 'a':
 		case 'E':
+		case 'e':
+		case 'F':
 		case 'f':
-		case 'g':
 		case 'G':
+		case 'g':
 			error = addtype(&types,
 			    (flags & LONGDBL) ? T_LONG_DOUBLE : T_DOUBLE);
 			if (error)
