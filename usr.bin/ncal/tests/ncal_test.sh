@@ -136,6 +136,39 @@ ncal_options_body()
 	ncal_out s-r-gmgy-nhl -N -d 2008.03 1 2007
 }
 
+atf_test_case sweden
+sweden_head()
+{
+	atf_set "descr" "Sweden's 1700-1712 transitional calendar"
+}
+sweden_body()
+{
+	# February 1700 has no leap day and February 1712 has 30 days.
+	ncal_out se-r-3-1700-nhl -N -h -3 -s SE -d 1700.02
+	ncal_out se-r-3-1712-nhl -N -h -3 -s SE -d 1712.02
+}
+
+atf_test_case sweden_jd
+sweden_jd_head()
+{
+	atf_set "descr" "Sweden's transitional calendar in Julian-day format"
+}
+sweden_jd_body()
+{
+	ncal_out se-r-jd-170003-nhl -N -h -j -s SE 3 1700
+	ncal_out se-r-jd-171202-nhl -N -h -j -s SE 2 1712
+}
+
+atf_test_case sweden_julian
+sweden_julian_head()
+{
+	atf_set "descr" "-J overrides the Swedish transitional calendar"
+}
+sweden_julian_body()
+{
+	ncal_out se-J-170002-nhl -N -h -s SE -J 2 1700
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case year_md
@@ -145,4 +178,7 @@ atf_init_test_cases()
 	atf_add_test_case invalid_args
 	atf_add_test_case cal_options
 	atf_add_test_case ncal_options
+	atf_add_test_case sweden
+	atf_add_test_case sweden_jd
+	atf_add_test_case sweden_julian
 }
