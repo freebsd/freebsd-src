@@ -195,6 +195,9 @@
 			    remquof, x, y, z)
 #define	rint(x)		__tg_simple(x, rint)
 #define	round(x)	__tg_simple(x, round)
+#if __ISO_C_VISIBLE >= 2023
+#define	roundeven(x)	__tg_simple(x, roundeven)
+#endif
 #define	scalbn(x, y)	__tg_simplev(x, scalbn, x, y)
 #define	scalbln(x, y)	__tg_simplev(x, scalbln, x, y)
 #define	tgamma(x)	__tg_simple(x, tgamma)
