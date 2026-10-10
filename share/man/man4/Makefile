@@ -797,6 +797,7 @@ MLINKS+=me.4 if_me.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mfi.4 mfi_linux.4 \
 	mfi.4 mfip.4
+MLINKS+=${_mgb.4} ${_if_mgb.4}
 MLINKS+=mlx5en.4 mce.4 \
 	mlx5en.4 if_mce.4
 MLINKS+=mos.4 if_mos.4
@@ -913,6 +914,7 @@ _i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
 _if_bxe.4=	if_bxe.4
 _if_hn.4=	if_hn.4
+_if_mgb.4=	if_mgb.4
 _if_nfe.4=	if_nfe.4
 _if_urtw.4=	if_urtw.4
 _if_wpi.4=	if_wpi.4
@@ -952,7 +954,6 @@ _wpi.4=		wpi.4
 _xen.4=		xen.4
 _xnb.4=		xnb.4
 
-MLINKS+=mgb.4 if_mgb.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
