@@ -167,6 +167,7 @@ const static char *ossnames[] = SOUND_DEVICE_NAMES;
  * Function prototypes
  ****************************************************************************/
 static int	hdaa_pcmchannel_setup(struct hdaa_chan *);
+static void	hdaa_audio_wake(struct hdaa_devinfo *);
 
 static void	hdaa_widget_connection_select(struct hdaa_widget *, uint8_t);
 static void	hdaa_audio_ctl_amp_set(struct hdaa_audio_ctl *,
@@ -839,6 +840,29 @@ hdaa_sense_deinit(struct hdaa_devinfo *devinfo)
 		    device_get_parent(devinfo->dev), devinfo->dev,
 		    w->unsol);
 		w->unsol = -1;
+	}
+}
+
+static void
+hdaa_sense_wake(struct hdaa_devinfo *devinfo)
+{
+	struct hdaa_widget *w;
+	int i;
+
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdaa_widget_get(devinfo, i);
+		if (w == NULL || w->enable == 0 || w->type !=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		if (w->unsol >= 0) {
+			hda_command(devinfo->dev,
+			    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid,
+			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE |
+			    w->unsol));
+		}
+		if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) ||
+		    HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+			hdaa_eld_handler(w);
 	}
 }
 
@@ -2155,7 +2179,15 @@ static int
 hdaa_channel_start(struct hdaa_chan *ch)
 {
 	struct hdaa_devinfo *devinfo = ch->devinfo;
-	uint32_t fmt;
+	uint32_t fmt, power;
+
+	power = hda_command(devinfo->dev,
+	    HDA_CMD_GET_POWER_STATE(0, devinfo->nid));
+	if (power != HDA_INVALID &&
+	    (HDA_CMD_GET_POWER_STATE_ACT(power) != HDA_CMD_POWER_STATE_D0 ||
+	     HDA_CMD_GET_POWER_STATE_SET(power) != HDA_CMD_POWER_STATE_D0)) {
+		hdaa_audio_wake(devinfo);
+	}
 
 	fmt = hdaa_stream_format(ch);
 	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
@@ -5271,13 +5303,10 @@ hdaa_gpo_commit(struct hdaa_devinfo *devinfo)
 }
 
 static void
-hdaa_audio_commit(struct hdaa_devinfo *devinfo)
+hdaa_audio_widget_commit(struct hdaa_devinfo *devinfo)
 {
 	struct hdaa_widget *w;
 	int i;
-
-	/* Commit controls. */
-	hdaa_audio_ctl_commit(devinfo);
 
 	/* Commit selectors, pins and EAPD. */
 	for (i = 0; i < devinfo->nodecnt; i++) {
@@ -5312,6 +5341,13 @@ hdaa_audio_commit(struct hdaa_devinfo *devinfo)
 }
 
 static void
+hdaa_audio_commit(struct hdaa_devinfo *devinfo)
+{
+	hdaa_audio_ctl_commit(devinfo);
+	hdaa_audio_widget_commit(devinfo);
+}
+
+static void
 hdaa_powerup(struct hdaa_devinfo *devinfo)
 {
 	int i;
@@ -5327,6 +5363,23 @@ hdaa_powerup(struct hdaa_devinfo *devinfo)
 		    i, HDA_CMD_POWER_STATE_D0));
 	}
 	DELAY(1000);
+}
+
+static void
+hdaa_audio_wake(struct hdaa_devinfo *devinfo)
+{
+	struct hdaa_audio_ctl *ctl;
+	int i;
+
+	hdaa_lockassert(devinfo);
+	hdaa_powerup(devinfo);
+	hdaa_audio_widget_commit(devinfo);
+	hdaa_patch_direct(devinfo);
+	i = 0;
+	while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL)
+		hdaa_audio_ctl_amp_set(ctl, HDAA_AMP_MUTE_DEFAULT,
+		    HDAA_AMP_VOL_DEFAULT, HDAA_AMP_VOL_DEFAULT);
+	hdaa_sense_wake(devinfo);
 }
 
 static int
