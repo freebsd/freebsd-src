@@ -29,6 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -115,6 +116,41 @@ struct l_pselect6arg {
 	l_uintptr_t	ss;
 	l_size_t	ss_len;
 };
+
+/**
+ * `SCHED_ATTR_SIZE_VER0` represents the size of the initial published structure.
+ *
+ * See `linux/kernel/sched/syscalls.c` for more details.
+ */
+#define LINUX_SCHED_ATTR_SIZE_VER0 48
+/**
+ * Linux struct sched_attr
+ */
+struct linux_sched_attr {
+	l_uint 		size;
+	l_uint 		sched_policy;
+	uint64_t 	sched_flags;
+	int32_t  	sched_nice;
+	l_uint 		sched_priority;
+
+	uint64_t 	sched_runtime;
+	uint64_t 	sched_deadline;
+	uint64_t 	sched_period;
+
+	l_uint 		sched_util_min;
+	l_uint 		sched_util_max;
+};
+/**
+ * `.size` must be checked at runtime as well in the syscall to match the
+ * Linux implementation.
+ *
+ * This `_Static_assert(..)` is a sanity check to ensure that the structure
+ * meets the minimum expected bar.
+ */
+_Static_assert(sizeof(struct linux_sched_attr) >= LINUX_SCHED_ATTR_SIZE_VER0,
+    "struct linux_sched_attr size");
+
+static int	bsd_sched_policy_to_linux_sched_policy(int);
 
 static int	linux_utimensat_lts_to_ts(struct l_timespec *,
 			struct timespec *);
@@ -1348,6 +1384,82 @@ linux_sched_getscheduler(struct thread *td,
 		break;
 	}
 	return (error);
+}
+
+static int
+bsd_sched_policy_to_linux_sched_policy(int bsd_policy)
+{
+
+	switch (bsd_policy) {
+	case SCHED_FIFO:
+		return (LINUX_SCHED_FIFO);
+	case SCHED_RR:
+		return (LINUX_SCHED_RR);
+	case SCHED_OTHER:
+		/* FALLTHROUGH */
+	default:
+		return (LINUX_SCHED_OTHER);
+	}
+}
+
+int
+linux_sched_getattr(struct thread *td, struct linux_sched_getattr_args *args)
+{
+	struct linux_sched_attr lattr;
+	struct sched_param bsd;
+	struct thread *tdt;
+	int error, policy;
+
+	if (args->attr == NULL || args->pid < 0 || args->flags != 0 ||
+	    args->size < LINUX_SCHED_ATTR_SIZE_VER0 || args->size > PAGE_SIZE)
+		return (EINVAL);
+
+	tdt = linux_tdfind(td, args->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	error = kern_sched_getscheduler(td, tdt, &policy);
+	if (error != 0) {
+		PROC_UNLOCK(tdt->td_proc);
+		return (error);
+	}
+
+	error = kern_sched_getparam(td, tdt, &bsd);
+	PROC_UNLOCK(tdt->td_proc);
+	if (error != 0)
+		return (error);
+
+	memset(&lattr, 0, sizeof(lattr));
+	lattr.size = MIN(args->size, sizeof(lattr));
+	lattr.sched_policy = bsd_sched_policy_to_linux_sched_policy(policy);
+	/*
+	 * TODO(PR#299617,ngie): fill in `.sched_nice` with policies like
+	 * `LINUX_SCHED_NORMAL`, etc.
+	 */
+
+	if (linux_map_sched_prio) {
+		switch (lattr.sched_policy) {
+		case LINUX_SCHED_OTHER:
+			lattr.sched_priority = 0;
+			break;
+		case LINUX_SCHED_FIFO:
+		case LINUX_SCHED_RR:
+			/**
+			 * Map [0, RTP_PRIO_MAX - RTP_PRIO_MIN] to
+			 * [1, LINUX_MAX_RT_PRIO - 1] (rounding up).
+			 */
+			lattr.sched_priority =
+			    (bsd.sched_priority *
+				    (LINUX_MAX_RT_PRIO - 1) +
+				(RTP_PRIO_MAX - RTP_PRIO_MIN - 1)) /
+				(RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
+			break;
+		}
+	} else {
+		lattr.sched_priority = bsd.sched_priority;
+	}
+
+	return (copyout(&lattr, args->attr, lattr.size));
 }
 
 int
