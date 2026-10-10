@@ -34,7 +34,7 @@
 /* Feature bits. */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0x1 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	0x2 /* Memory stats virtqueue */
-#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on OOM */
+#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on guest OOM */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
@@ -45,17 +45,20 @@ struct virtio_balloon_config {
 
 	/* Number of pages we've actually got in balloon. */
 	uint32_t actual;
+
 };
 
-#define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
-#define VIRTIO_BALLOON_S_SWAP_OUT 1   /* Amount of memory swapped out */
-#define VIRTIO_BALLOON_S_MAJFLT   2   /* Number of major faults */
-#define VIRTIO_BALLOON_S_MINFLT   3   /* Number of minor faults */
-#define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
-#define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
-#define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
-#define VIRTIO_BALLOON_S_CACHES   7   /* Disk caches */
-#define VIRTIO_BALLOON_S_NR       8
+#define VIRTIO_BALLOON_S_SWAP_IN	0   /* Amount of memory swapped in */
+#define VIRTIO_BALLOON_S_SWAP_OUT	1   /* Amount of memory swapped out */
+#define VIRTIO_BALLOON_S_MAJFLT		2   /* Number of major faults */
+#define VIRTIO_BALLOON_S_MINFLT		3   /* Number of minor faults */
+#define VIRTIO_BALLOON_S_MEMFREE	4   /* Total amount of free memory */
+#define VIRTIO_BALLOON_S_MEMTOT		5   /* Total amount of memory */
+#define VIRTIO_BALLOON_S_AVAIL		6   /* Available memory as in /proc */
+#define VIRTIO_BALLOON_S_CACHES		7   /* Disk caches */
+#define VIRTIO_BALLOON_S_HTLB_PGALLOC	8   /* Hugetlb page allocations */
+#define VIRTIO_BALLOON_S_HTLB_PGFAIL	9   /* Hugetlb alloc failures */
+#define VIRTIO_BALLOON_S_NR		10
 
 /*
  * Memory statistics structure.
