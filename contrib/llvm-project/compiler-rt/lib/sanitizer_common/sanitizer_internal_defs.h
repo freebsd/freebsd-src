@@ -102,13 +102,10 @@
 // We can use .preinit_array section on Linux to call sanitizer initialization
 // functions very early in the process startup (unless PIC macro is defined).
 //
-// On FreeBSD, .preinit_array functions are called with rtld_bind_lock writer
-// lock held. It will lead to dead lock if unresolved PLT functions (which helds
-// rtld_bind_lock reader lock) are called inside .preinit_array functions.
-//
 // FIXME: do we have anything like this on Mac?
 #ifndef SANITIZER_CAN_USE_PREINIT_ARRAY
-#if (SANITIZER_LINUX || SANITIZER_FUCHSIA || SANITIZER_NETBSD) && !defined(PIC)
+#if (SANITIZER_LINUX || SANITIZER_FUCHSIA || SANITIZER_NETBSD || \
+    SANITIZER_FREEBSD) && !defined(PIC)
 #define SANITIZER_CAN_USE_PREINIT_ARRAY 1
 // Before Solaris 11.4, .preinit_array is fully supported only with GNU ld.
 // FIXME: Check for those conditions.
