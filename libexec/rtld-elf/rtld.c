@@ -999,8 +999,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 	dbg("resolving ifuncs");
 	if (initlist_objects_ifunc(&initlist,
-		ld_bind_now != NULL && *ld_bind_now != '\0', SYMLOOK_EARLY,
-		&lockstate) == -1)
+	    ld_bind_now != NULL && *ld_bind_now != '\0', SYMLOOK_EARLY,
+	    &lockstate) == -1)
 		rtld_die();
 
 	rtld_exit_ptr = rtld_exit;
