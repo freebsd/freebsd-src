@@ -121,30 +121,36 @@ static void	usage(void);
 static int
 su_cmp(const void *a, const void *b)
 {
-	const sockunion_t	*sua = (const sockunion_t *)a;
-	const sockunion_t	*sub = (const sockunion_t *)b;
+	const struct sockaddr_storage *sua = (struct sockaddr_storage*)a;
+	const struct sockaddr_storage *sub = (struct sockaddr_storage*)b;
 
-	assert(sua->sa.sa_family == sub->sa.sa_family);
+	assert(sua->ss_family == sub->ss_family);
 
-	switch (sua->sa.sa_family) {
+	switch (sua->ss_family) {
 #ifdef INET
-	case AF_INET:
-		return ((int)(sua->sin.sin_addr.s_addr -
-		    sub->sin.sin_addr.s_addr));
+	case AF_INET: {
+		const struct sockaddr_in *sua = (struct sockaddr_in*)a;
+		const struct sockaddr_in *sub = (struct sockaddr_in*)b;
+		return ((int)(sua->sin_addr.s_addr -
+		    sub->sin_addr.s_addr));
 		break;
+	}
 #endif
 #ifdef INET6
-	case AF_INET6:
-		return (memcmp(&sua->sin6.sin6_addr, &sub->sin6.sin6_addr,
+	case AF_INET6: {
+		const struct sockaddr_in6 *sua = (struct sockaddr_in6*)a;
+		const struct sockaddr_in6 *sub = (struct sockaddr_in6*)b;
+		return (memcmp(&sua->sin6_addr, &sub->sin6_addr,
 		    sizeof(struct in6_addr)));
 		break;
+	}
 #endif
 	default:
 		break;
 	}
 
-	assert(sua->sa.sa_len == sub->sa.sa_len);
-	return (memcmp(sua, sub, sua->sa.sa_len));
+	assert(sua->ss_len == sub->ss_len);
+	return (memcmp(sua, sub, sua->ss_len));
 }
 
 #if defined(INET) && defined(INET6)
@@ -373,21 +379,6 @@ af2sock(const int af, int s, int s6)
 #ifdef INET6
 	if (af == AF_INET6)
 		return (s6);
-#endif
-	return (-1);
-}
-
-static __inline int
-af2socklen(const int af)
-{
-
-#ifdef INET
-	if (af == AF_INET)
-		return (sizeof(struct sockaddr_in));
-#endif
-#ifdef INET6
-	if (af == AF_INET6)
-		return (sizeof(struct sockaddr_in6));
 #endif
 	return (-1);
 }
@@ -771,7 +762,7 @@ process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 	} break;
 
 	case 'g': {
-		sockunion_t	 sources[MAX_ADDRS];
+		struct sockaddr_storage sources[MAX_ADDRS];
 		char		 addrbuf[NI_MAXHOST];
 		int		 nreqsrc, nsrc;
 
@@ -790,9 +781,9 @@ process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 			warnc(EPROTONOSUPPORT, "getsourcefilter");
 			break;
 		}
-		nsrc = nreqsrc;
+		nsrc = MIN(MAX_ADDRS, nreqsrc);
 		if (getsourcefilter(af2sock(af, s, s6), ifindex, &su.sa,
-		    su.sa.sa_len, &fmode, &nsrc, &sources[0].ss) != 0) {
+		    su.sa.sa_len, &fmode, &nsrc, sources) != 0) {
 			warn("getsourcefilter");
 			printf("-1\n");
 			break;
@@ -809,7 +800,7 @@ process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 		}
 		fprintf(stderr, "\nend hexdump\n");
 
-		qsort(sources, nsrc, af2socklen(af), su_cmp);
+		qsort(sources, nsrc, sizeof(struct sockaddr_storage), su_cmp);
 		for (i = 0; i < nsrc; i++) {
 			sockunion_t *psu = (sockunion_t *)&sources[i];
 			addrbuf[0] = '\0';
