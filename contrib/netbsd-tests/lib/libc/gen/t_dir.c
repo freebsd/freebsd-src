@@ -38,14 +38,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/*
- * sbrk is obsolete, and libc only provides it on a subset of
- * architectures.
- */
-#if defined(__amd64__) || defined(__arm__) || defined(__i386__) || \
-    defined(__powerpc__)
-#define	HAVE_SBRK
-#endif
+
 
 ATF_TC(seekdir_basic);
 ATF_TC_HEAD(seekdir_basic, tc)
@@ -141,7 +134,8 @@ ATF_TC_BODY(seekdir_basic, tc)
 	free(wasname);
 }
 
-#ifdef HAVE_SBRK
+/* There is no sbrk on AArch64 and RISC-V */
+#if !defined(__aarch64__) && !defined(__riscv)
 ATF_TC(telldir_leak);
 ATF_TC_HEAD(telldir_leak, tc)
 {
@@ -191,7 +185,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, seekdir_basic);
-#ifdef HAVE_SBRK
+#if !defined(__aarch64__) && !defined(__riscv)
 	ATF_TP_ADD_TC(tp, telldir_leak);
 #endif
 
