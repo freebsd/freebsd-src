@@ -22,5 +22,6 @@
 #define SYS_read		  0
 #define SYS_reboot		169
 #define SYS_symlinkat		266
+#define SYS_unlinkat		  263
 #define SYS_uname		 63
 #define SYS_write		  1
