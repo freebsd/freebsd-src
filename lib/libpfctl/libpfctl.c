@@ -4079,9 +4079,9 @@ _pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
 			continue;
 	}
 
-	if (*nadd)
+	if (nadd)
 		*nadd = attrs.nadd;
-	if (*naddr)
+	if (naddr)
 		*naddr = attrs.naddr;
 
 out:
