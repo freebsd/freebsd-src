@@ -115,8 +115,6 @@ int	 pfr_set_addrs(struct pfr_table *, struct pfr_addr *, int,
 int	 pfr_get_addrs(struct pfr_table *, struct pfr_addr *, int *, int);
 int	 pfr_get_astats(struct pfr_table *, struct pfr_astats *, int *, int);
 int	 pfr_tst_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
-int	 pfr_ina_define(struct pfr_table *, struct pfr_addr *, int, int *,
-	    int *, int, int);
 void	 pfr_buf_clear(struct pfr_buffer *);
 int	 pfr_buf_add(struct pfr_buffer *, const void *);
 void	*pfr_buf_next(struct pfr_buffer *, const void *);

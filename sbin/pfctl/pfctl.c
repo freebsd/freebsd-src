@@ -2476,7 +2476,7 @@ pfctl_load_tables(struct pfctl *pf, char *path, struct pfctl_anchor *a,
 		    pf->anchor->ruleset.tticket,
 		    ukt->pfrukt_init_addr ? PFR_FLAG_ADDRSTOO : 0);
 		if (e != 0)
-			err(1, "%s pfr_ina_define() %s@%s", __func__,
+			err(1, "%s pfctl_ina_define() %s@%s", __func__,
 			    kt->pfrkt_name, kt->pfrkt_anchor);
 		RB_REMOVE(pfr_ktablehead, &pfr_ktables, kt);
 		pfr_buf_clear(&ukt->pfrukt_addrs);
