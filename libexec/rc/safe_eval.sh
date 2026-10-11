@@ -1,6 +1,6 @@
 :
 # RCSid:
-#	$Id: safe_eval.sh,v 1.34 2026/10/11 18:08:28 sjg Exp $
+#	$Id: safe_eval.sh,v 1.35 2026/10/11 21:48:58 sjg Exp $
 #
 #	@(#) Copyright (c) 2023-2026 Simon J. Gerraty
 #
@@ -57,8 +57,13 @@ fi
 # If we pass all that, we eval "var=val" and return 0.
 #
 safe_set_var() {
-    eval $_local ssv_allow ssv_extra ssv_only ssv_rc
-    ssv_only="A-Za-z0-9_. 	\$,/=:+-"
+    eval $_local ssv_allow ssv_extra ssv_only ssv_space ssv_rc
+    # use [:space:] if we can as it includes \n
+    case " " in
+    [[:space:]]) ssv_space="[:space:]";;
+    *) ssv_space=" 	";;
+    esac
+    ssv_only="${ssv_space}A-Za-z0-9_.,/=:+\$-"
     ssv_rc=
 
     while :
@@ -84,9 +89,9 @@ safe_set_var() {
         ssv_rc=1
         ;;
     esac
-    : is ssv_val ok - "$ssv_val"
+    : is ssv_val ok - "$ssv_val" match only [$ssv_extra$ssv_only]
     case "$ssv_val" in
-    *[!$ssv_only$ssv_extra]*)
+    *[!$ssv_extra$ssv_only]*)
         ssv_val=invalid
         ssv_rc=${ssv_rc:-2}
         ;;
