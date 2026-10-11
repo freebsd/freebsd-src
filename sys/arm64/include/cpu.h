@@ -198,9 +198,14 @@
     ((mask) & CPU_ID_RAW((impl), (part), (var), (rev))))
 
 #if !defined(__ASSEMBLER__)
+/*
+ * Check whether midr identifies the given implementer and part at a product
+ * revision rXpY from r(var_low)p(rev_low) to r(var_high)p(rev_high)
+ * inclusive.  X is MIDR_EL1.Variant, and Y is MIDR_EL1.Revision.
+ */
 static inline bool
-midr_check_var_part_range(u_int midr, u_int impl, u_int part, u_int var_low,
-    u_int part_low, u_int var_high, u_int part_high)
+midr_check_var_rev_range(u_int midr, u_int impl, u_int part, u_int var_low,
+    u_int rev_low, u_int var_high, u_int rev_high)
 {
 	/* Check for the correct part */
 	if (CPU_IMPL(midr) != impl || CPU_PART(midr) != part)
@@ -210,12 +215,12 @@ midr_check_var_part_range(u_int midr, u_int impl, u_int part, u_int var_low,
 	if (CPU_VAR(midr) < var_low || CPU_VAR(midr) > var_high)
 		return (false);
 
-	/* If the variant is the low value, check if the part is high enough */
-	if (CPU_VAR(midr) == var_low && CPU_PART(midr) < part_low)
+	/* If the variant is var_low, check if the revision is high enough */
+	if (CPU_VAR(midr) == var_low && CPU_REV(midr) < rev_low)
 		return (false);
 
-	/* If the variant is the high value, check if the part is low enough */
-	if (CPU_VAR(midr) == var_high && CPU_PART(midr) > part_high)
+	/* If the variant is var_high, check if the revision is low enough */
+	if (CPU_VAR(midr) == var_high && CPU_REV(midr) > rev_high)
 		return (false);
 
 	return (true);

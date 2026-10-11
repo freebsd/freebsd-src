@@ -1798,7 +1798,7 @@ pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
 	}
 
 	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
-	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
+	if (midr_check_var_rev_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
 	    0, 0, 0, 2)) {
 		static u_int errata_id = 2051678;
 
@@ -1904,7 +1904,7 @@ pmap_multiple_tlbi_check(const struct cpu_feat *feat __unused, u_int midr)
 	 * Present in r0p0 - r1p1
 	 * Fixed in r1p2
 	 */
-	if (midr_check_var_part_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
+	if (midr_check_var_rev_range(midr, CPU_IMPL_ARM, CPU_PART_CORTEX_A510,
 	    0, 0, 1, 1))
 		return (FEAT_DEFAULT_DISABLE);
 

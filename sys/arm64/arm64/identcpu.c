@@ -2287,7 +2287,7 @@ user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
 	 * Present in r3p0 - r4p0
 	 * Fixed in r4p1
 	 */
-	return (midr_check_var_part_range(midr, CPU_IMPL_ARM,
+	return (midr_check_var_rev_range(midr, CPU_IMPL_ARM,
 	    CPU_PART_NEOVERSE_N1, 3, 0, 4, 0) && CTR_DIC_VAL(ctr) != 0);
 }
 
