@@ -1,6 +1,6 @@
 :
 # RCSid:
-#	$Id: safe_eval.sh,v 1.30 2026/10/11 04:48:37 sjg Exp $
+#	$Id: safe_eval.sh,v 1.31 2026/10/11 05:49:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2023-2026 Simon J. Gerraty
 #
@@ -52,12 +52,19 @@ safe_set_var() {
     fi
     : first is ssv_var sane?
     case "$ssv_var" in
-    *[!A-Za-z0-9_]*|ssv_*) ssv_var=invalid; ssv_rc=1;;
+    *[!A-Za-z0-9_]*|ssv_*)
+        ssv_var=invalid
+        ssv_rc=1
+        ;;
     esac
+    : is ssv_val ok - "$ssv_val"
     case "$ssv_val" in
-    *[!${3:-A-Za-z0-9_  ,/=:+-}$4]*) ssv_val=invalid; ssv_rc=${ssv_rc:-2};;
+    *[!${3:-A-Za-z0-9_. 	\$,/=:+-}$4]*)
+        ssv_val=invalid
+        ssv_rc=${ssv_rc:-2}
+        ;;
     esac
-    : is $ssv_var is allowed
+    : is $ssv_var is allowed - "${2:-$ssv_var}"
     case " ${2:-$ssv_var} " in
     *" $ssv_var "*) ;;
     *) ssv_rc=${ssv_rc:-3};;
