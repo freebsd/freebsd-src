@@ -97,12 +97,109 @@ test_nlbuf_writer_allocation(struct ktest_test_context *ctx)
 	return (0);
 }
 
+struct test_nlbuf_refill_attrs {
+	uint32_t	size;
+	uint32_t	completed;
+	uint32_t	unfinished;
+	uint32_t	attr_len;
+};
+
+#define	_OUT(_field)	offsetof(struct test_nlbuf_refill_attrs, _field)
+static const struct nlattr_parser nla_p_nlbuf_refill[] = {
+	{ .type = 1, .off = _OUT(size), .cb = nlattr_get_uint32 },
+	{ .type = 2, .off = _OUT(completed), .cb = nlattr_get_uint32 },
+	{ .type = 3, .off = _OUT(unfinished), .cb = nlattr_get_uint32 },
+	{ .type = 4, .off = _OUT(attr_len), .cb = nlattr_get_uint32 },
+};
+#undef _OUT
+NL_DECLARE_ATTR_PARSER(nlbuf_refill_parser, nla_p_nlbuf_refill);
+
+static int
+test_nlbuf_refill_parser(struct ktest_test_context *ctx, struct nlattr *nla)
+{
+	struct test_nlbuf_refill_attrs *attrs;
+
+	attrs = npt_alloc(ctx->npt, sizeof(*attrs));
+	ctx->arg = attrs;
+	if (attrs != NULL)
+		return (nl_parse_nested(nla, &nlbuf_refill_parser, ctx->npt,
+		    attrs));
+	return (ENOMEM);
+}
+
+static bool
+test_nlbuf_discard(struct nl_writer *nw)
+{
+	nl_buf_free(nw->buf);
+	nw->buf = NULL;
+	return (true);
+}
+
+/*
+ * Add an attribute that does not fit into the buffer to an unfinished
+ * message, optionally preceded by a completed one.
+ */
+static int
+test_nlbuf_writer_refill(struct ktest_test_context *ctx)
+{
+	struct test_nlbuf_refill_attrs *attrs = ctx->arg;
+	struct nl_writer nw = {};
+	void *data;
+	u_int expected;
+	int error = 0;
+
+	if (attrs == NULL || attrs->unfinished < sizeof(struct nlmsghdr) ||
+	    (attrs->completed != 0 &&
+	    attrs->completed < sizeof(struct nlmsghdr)))
+		return (EINVAL);
+	if (!nlmsg_get_buf_wrapper(&nw, attrs->size, true))
+		return (EINVAL);
+	nw.cb = test_nlbuf_discard;
+	data = malloc(attrs->attr_len, M_TEMP, M_WAITOK | M_ZERO);
+
+	if (attrs->completed != 0) {
+		if (!nlmsg_add(&nw, 0, 0, NLMSG_NOOP, 0, 0) ||
+		    nlmsg_reserve_data(&nw, attrs->completed -
+		    sizeof(struct nlmsghdr), void *) == NULL ||
+		    !nlmsg_end(&nw)) {
+			error = EINVAL;
+			goto out;
+		}
+	}
+	if (!nlmsg_add(&nw, 0, 0, NLMSG_NOOP, 0, 0) ||
+	    nlmsg_reserve_data(&nw, attrs->unfinished -
+	    sizeof(struct nlmsghdr), void *) == NULL ||
+	    !nlattr_add(&nw, 1, attrs->attr_len, data)) {
+		error = EINVAL;
+		goto out;
+	}
+
+	expected = NETLINK_ALIGN(attrs->unfinished) +
+	    NLA_ALIGN(attrs->attr_len + sizeof(struct nlattr));
+	KTEST_LOG(ctx, "message of %u bytes in a buffer of %u, expected %u",
+	    nw.buf->datalen, nw.buf->buflen, expected);
+	if (nw.buf->datalen > nw.buf->buflen || nw.buf->datalen != expected)
+		error = EINVAL;
+out:
+	if (nw.buf != NULL)
+		nl_buf_free(nw.buf);
+	free(data, M_TEMP);
+
+	return (error);
+}
+
 static const struct ktest_test_info tests[] = {
 	{
 		.name = "test_nlbuf_writer_allocation",
 		.desc = "test different buffer sizes in the netlink writer",
 		.func = &test_nlbuf_writer_allocation,
 		.parse = &test_nlbuf_parser,
+	},
+	{
+		.name = "test_nlbuf_writer_refill",
+		.desc = "test growing the buffer under an unfinished message",
+		.func = &test_nlbuf_writer_refill,
+		.parse = &test_nlbuf_refill_parser,
 	},
 };
 KTEST_MODULE_DECLARE(ktest_netlink_message_writer, tests);
