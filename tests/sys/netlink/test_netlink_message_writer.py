@@ -37,3 +37,24 @@ class TestNetlinkMessageWriter(BaseKernelTest):
             NlAttrU32(3, malloc_flags),
         ]
         self.runtest(test_meta)
+
+    @pytest.mark.parametrize(
+        "sz",
+        [
+            # buffer size, completed message, unfinished message, attribute
+            pytest.param([NLMSG_SMALL, 0, 20, 112], id="small"),
+            pytest.param([NLMSG_SMALL, 0, 20, 8176], id="large_attr"),
+            pytest.param([NLMSG_LARGE, 0, 2000, 4092], id="large_msg"),
+            pytest.param([NLMSG_LARGE, 100, 1900, 196], id="after_completed"),
+        ],
+    )
+    def test_nlbuf_writer_refill(self, sz):
+        """override to parametrize"""
+
+        test_meta = [
+            NlAttrU32(1, sz[0]),  # size
+            NlAttrU32(2, sz[1]),  # completed
+            NlAttrU32(3, sz[2]),  # unfinished
+            NlAttrU32(4, sz[3]),  # attr_len
+        ]
+        self.runtest(test_meta)

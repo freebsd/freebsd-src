@@ -156,6 +156,7 @@ _nlmsg_refill_buffer(struct nl_writer *nw, size_t required_len)
 	/* Calculate new buffer size and allocate it. */
 	completed_len = (nw->hdr != NULL) ?
 	    (char *)nw->hdr - nw->buf->data : nw->buf->datalen;
+	last_len = nw->buf->datalen - completed_len;
 	if (completed_len > 0 && required_len < NLMBUFSIZE) {
 		/* We already ran out of space, use largest effective size. */
 		new_len = max(nw->buf->buflen, NLMBUFSIZE);
@@ -165,9 +166,10 @@ _nlmsg_refill_buffer(struct nl_writer *nw, size_t required_len)
 			new_len = NLMBUFSIZE;
 		else
 			new_len = nw->buf->buflen * 2;
-		while (new_len < required_len)
-			new_len *= 2;
 	}
+	/* The unfinished message is copied over and needs room as well. */
+	while (new_len < last_len + required_len)
+		new_len *= 2;
 
 	new = nl_buf_alloc(new_len, nw->malloc_flag | M_ZERO);
 	if (__predict_false(new == NULL)) {
@@ -177,7 +179,6 @@ _nlmsg_refill_buffer(struct nl_writer *nw, size_t required_len)
 	}
 
 	/* Copy last (unfinished) header to the new storage. */
-	last_len = nw->buf->datalen - completed_len;
 	if (last_len > 0) {
 		memcpy(new->data, nw->hdr, last_len);
 		new->datalen = last_len;
