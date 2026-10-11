@@ -1,6 +1,6 @@
 :
 # RCSid:
-#	$Id: safe_eval.sh,v 1.32 2026/10/11 06:02:40 sjg Exp $
+#	$Id: safe_eval.sh,v 1.34 2026/10/11 18:08:28 sjg Exp $
 #
 #	@(#) Copyright (c) 2023-2026 Simon J. Gerraty
 #
@@ -23,26 +23,53 @@ else
 fi
 
 ##
-# safe_set_var "var=val" ["allowed_vars" ["only_chars" ["extra_chars"]]]
+# safe_set_var ["options"] "var=val"
 #
-# Useful for processing command line input like 'var=val'
+# Useful for processing command line input like 'var=val'.
+#
 # We perform a number of sanity checks similar to safe_set.
 # We set ssv_var=var and ssv_val=val so that caller can produce
-# error messages if desired.  ssv_var or ssv_val will be set to
-# 'invalid' if they fail the relevant checks.
+# error messages if desired.
+# To be safe, ssv_var and/or ssv_val will be set to 'invalid'
+# if they fail the relevant checks.
+#
+# Options:
+#
+# -a "allow"
+# 	list of allowed variable names.
+#
+# -o "only_chars"
+# 	white-list of acceptable chars in "val"
+# 	default is 'A-Za-z0-9_  ,/=:+-'.
+#
+# -x "extra_chars"
+# 	eXtra chars to add to white-list for "val".
+#
 # 1. if "var" contains anything but 'A-Za-z0-9_' or matches 'ssv_*'
-#    we set ssv_var=invalid and return 1
+#    we set ssv_var=invalid and return 1.
+#
 # 2. if "val" contains anything not in the combined set of
 #    "only_chars" and "extra_chars" we will set ssv_val=invalid
-#    and return 2
-# 3. if "allowed_vars" and "var" is not a member we return 3
-# If "only_chars" is not provided we use 'A-Za-z0-9_  ,/=:+-'
-# similar to save_set.
-# If we pass all that, we eval "var=val" and return 0
+#    and return 2.
+#
+# 3. if "allow" is set and "var" is not a member we return 3.
+#
+# If we pass all that, we eval "var=val" and return 0.
 #
 safe_set_var() {
-    eval $_local ssv_rc
+    eval $_local ssv_allow ssv_extra ssv_only ssv_rc
+    ssv_only="A-Za-z0-9_. 	\$,/=:+-"
     ssv_rc=
+
+    while :
+    do
+        case "$1" in
+        -a) ssv_allow="$2"; shift 2;;
+        -o) ssv_only="$2"; shift 2;;
+        -x) ssv_extra="$2"; shift 2;;
+        *) break;;
+        esac
+    done
     if ${isPOSIX_SHELL:-false}; then
         ssv_var="${1%%=*}"
         ssv_val="${1#*=}"
@@ -59,13 +86,13 @@ safe_set_var() {
     esac
     : is ssv_val ok - "$ssv_val"
     case "$ssv_val" in
-    *[!${3:-A-Za-z0-9_. 	\$,/=:+-}$4]*)
+    *[!$ssv_only$ssv_extra]*)
         ssv_val=invalid
         ssv_rc=${ssv_rc:-2}
         ;;
     esac
     : is $ssv_var is allowed - "${2:-$ssv_var}"
-    case " ${2:-$ssv_var} " in
+    case " ${ssv_allow:-$ssv_var} " in
     *" $ssv_var "*) ;;
     *) ssv_rc=${ssv_rc:-3};;
     esac
@@ -87,7 +114,7 @@ safe_set_var() {
 # so just delete them.
 #
 # "xtras" should be used with caution and cannot include ';'
-# 
+#
 safe_set() {
     ${SED:-sed} -e 's/^[ 	]*//;s/[ 	]*#.*//;s/^:.*//' \
     -e '/`/d' -e '/\$(/d' \
@@ -153,11 +180,42 @@ safe_dot() {
     return 0
 }
 
+# for testing
 case /$0 in
 */safe_eval*)
     case "$1" in
     dot|eval|set) op=safe_$1; shift; $op "$@";;
-    *) safe_dot "$@";;
+    set_var)
+        shift
+        allow=
+        only=
+        extra=
+
+        while :
+        do
+            : 1="$1"
+            case "$1" in
+            -a) allow="$2"; shift 2;;
+            -o) only="$2"; shift 2;;
+            -x) extra="$2"; shift 2;;
+            *=*)
+                if safe_set_var ${allow:+-a "$allow"} ${only:+-o "$only"} \
+                    ${extra:+-x "$extra"} "$1"; then
+                    echo $ssv_var=$ssv_val
+                else
+                    case $? in
+                    1) echo invalid variable;;
+                    2) echo invalid value for $ssv_var;;
+                    3) echo denied $ssv_var;;
+                    esac
+                fi
+                shift
+                ;;
+            *) break;;
+            esac
+        done
+        ;;
+    *)  safe_dot "$@";;
     esac
     ;;
 esac
