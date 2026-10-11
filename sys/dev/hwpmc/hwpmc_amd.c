@@ -51,6 +51,7 @@
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#include <machine/smp.h>
 
 #define	OVERFLOW_WAIT_COUNT	50
 
@@ -68,6 +69,11 @@ static struct amd_descr *amd_pmcdesc;
 
 static int amd_npmcs;
 static int amd_core_npmcs, amd_l3_npmcs, amd_df_npmcs, amd_umc_npmcs;
+static u_int amd_umc_nchannels;
+static uint32_t *amd_umc_gate_evsel;	/* [amd_umc_nchannels] */
+static u_int amd_umc_pkg_shift;
+static u_int amd_umc_npkgs;
+static u_int *amd_umc_gate_refcnt;	/* [amd_umc_npkgs] */
 
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
@@ -1211,6 +1217,15 @@ amd_get_caps(int ri, uint32_t *caps)
 	return (0);
 }
 
+static u_int
+amd_umc_pkg_of(int cpu)
+{
+	/* Single-socket or undetected topology: all CPUs map to package 0. */
+	if (amd_umc_pkg_shift == 0)
+		return (0);
+	return ((u_int)cpu_apic_ids[cpu] >> amd_umc_pkg_shift);
+}
+
 /*
  * Processor-dependent initialization.
  */
@@ -1221,6 +1236,7 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 	struct pmc_cpu *pc;
 	struct pmc_hw  *phw;
 	int first_ri, n;
+	u_int ch, pkg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] insane cpu number %d", __LINE__, cpu));
@@ -1243,6 +1259,14 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 		    ("[amd,%d] nonzero initial virtual mask on CPU %d",
 		    __LINE__, cpu));
 		amd_v2_disable_all();
+	}
+	if (amd_umc_gate_evsel != NULL) {
+		pkg = amd_umc_pkg_of(cpu);
+		if (atomic_fetchadd_int(&amd_umc_gate_refcnt[pkg], 1) == 0) {
+			for (ch = 0; ch < amd_umc_nchannels; ch++)
+				wrmsr(amd_umc_gate_evsel[ch],
+				    AMD_PMC_UMC_ENABLE);
+		}
 	}
 
 	/*
@@ -1273,6 +1297,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	struct amd_cpu *pac;
 	struct pmc_cpu *pc;
 	int first_ri, i;
+	u_int ch, pkg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] insane cpu number (%d)", __LINE__, cpu));
@@ -1316,6 +1341,17 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	for (i = 0; i < amd_npmcs; i++)
 		pc->pc_hwpmcs[i + first_ri] = NULL;
 
+	if (amd_umc_gate_evsel != NULL) {
+		pkg = amd_umc_pkg_of(cpu);
+		KASSERT(atomic_load_acq_int(
+		    &amd_umc_gate_refcnt[pkg]) >= 1,
+		    ("[amd,%d] UMC gate refcnt underflow pkg %u",
+		    __LINE__, pkg));
+		if (atomic_fetchadd_int(&amd_umc_gate_refcnt[pkg], -1) == 1) {
+			for (ch = 0; ch < amd_umc_nchannels; ch++)
+				wrmsr(amd_umc_gate_evsel[ch], 0);
+		}
+	}
 	free(pac->pc_amdpmcs, M_PMC);
 	free(pac, M_PMC);
 	return (0);
@@ -1434,6 +1470,43 @@ amd_hwcheck(void)
 }
 
 /*
+ * UMC perfmon registers are clock-gated when no counter in the channel is
+ * enabled.  Reserve the last slot of each channel and keep it enabled with
+ * EventSelect=0 so writes to the other slots take effect.  Assumes all
+ * sockets have the same UMC layout as the boot CPU.
+ */
+static void
+pmc_amd_initialize_umc(int pmcs_per_umc)
+{
+	u_int c, max_pkg, pkg;
+
+	if (amd_umc_npmcs == 0 || pmcs_per_umc < 2)
+		return;
+
+	amd_umc_nchannels = amd_umc_npmcs / pmcs_per_umc;
+	amd_umc_pkg_shift = (cpu_procinfo2 & AMDID_COREID_SIZE) >>
+	    AMDID_COREID_SIZE_SHIFT;
+
+	max_pkg = 0;
+	CPU_FOREACH(c) {
+		pkg = amd_umc_pkg_of(c);
+		if (pkg > max_pkg)
+			max_pkg = pkg;
+	}
+	amd_umc_npkgs = max_pkg + 1;
+
+	amd_umc_gate_evsel = mallocarray(amd_umc_nchannels,
+	    sizeof(*amd_umc_gate_evsel), M_PMC, M_WAITOK | M_ZERO);
+	amd_umc_gate_refcnt = mallocarray(amd_umc_npkgs,
+	    sizeof(*amd_umc_gate_refcnt), M_PMC, M_WAITOK | M_ZERO);
+	for (c = 0; c < amd_umc_nchannels; c++)
+		amd_umc_gate_evsel[c] = AMD_PMC_UMC_BASE +
+		    2 * (c * pmcs_per_umc + (pmcs_per_umc - 1));
+
+	amd_umc_npmcs -= amd_umc_nchannels;
+}
+
+/*
  * Initialize ourselves.
  */
 struct pmc_mdep *
@@ -1445,6 +1518,7 @@ pmc_amd_initialize(void)
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_cputype cputype;
 	int ncpus, nclasses, i;
+	int hw, per;
 	int family, model, stepping;
 	int npmcs_total;
 	int error;
@@ -1519,6 +1593,9 @@ pmc_amd_initialize(void)
 		amd_l3_npmcs = 0;
 	if ((amd_feature2 & AMDID2_PNXC) == 0)
 		amd_df_npmcs = 0;
+
+	pmc_amd_initialize_umc(pmcs_per_umc);
+
 	npmcs_total = amd_core_npmcs + amd_l3_npmcs + amd_df_npmcs +
 	    amd_umc_npmcs;
 	KASSERT(npmcs_total <= AMD_NPMCS_MAX,
@@ -1592,15 +1669,17 @@ pmc_amd_initialize(void)
 	KASSERT(amd_npmcs == npmcs_total - amd_umc_npmcs,
 	    ("%s: UMC cursor wrong: got %d expected %d",
 	    __func__, amd_npmcs, npmcs_total - amd_umc_npmcs));
+	per = amd_umc_gate_evsel != NULL ? pmcs_per_umc - 1 : pmcs_per_umc;
 	for (i = 0; i < amd_umc_npmcs; i++) {
+		hw = (i / per) * pmcs_per_umc + i % per;
 		d = &amd_pmcdesc[amd_npmcs + i];
 		snprintf(d->pm_descr.pd_name, PMC_NAME_MAX,
-		    "K8-UMC%d-%d", i / pmcs_per_umc, i);
+		    "K8-UMC%d-%d", i / per, i);
 		d->pm_descr.pd_class = PMC_CLASS_K8;
 		d->pm_descr.pd_caps = AMD_PMC_UMC_CAPS;
 		d->pm_descr.pd_width = 48;
-		d->pm_evsel = AMD_PMC_UMC_BASE + 2 * i;
-		d->pm_perfctr = AMD_PMC_UMC_BASE + 2 * i + 1;
+		d->pm_evsel = AMD_PMC_UMC_BASE + 2 * hw;
+		d->pm_perfctr = AMD_PMC_UMC_BASE + 2 * hw + 1;
 		d->pm_subclass = PMC_AMD_SUB_CLASS_UMC;
 	}
 	amd_npmcs += amd_umc_npmcs;
@@ -1720,6 +1799,13 @@ error:
 	free(pmc_mdep, M_PMC);
 	free(amd_pcpu, M_PMC);
 	amd_pcpu = NULL;
+	free(amd_umc_gate_refcnt, M_PMC);
+	amd_umc_gate_refcnt = NULL;
+	free(amd_umc_gate_evsel, M_PMC);
+	amd_umc_gate_evsel = NULL;
+	amd_umc_nchannels = 0;
+	amd_umc_npkgs = 0;
+	amd_umc_pkg_shift = 0;
 	free(amd_pmcdesc, M_PMC);
 	amd_pmcdesc = NULL;
 	amd_npmcs = 0;
@@ -1749,6 +1835,14 @@ pmc_amd_finalize(struct pmc_mdep *md)
 
 	free(amd_pcpu, M_PMC);
 	amd_pcpu = NULL;
+
+	free(amd_umc_gate_refcnt, M_PMC);
+	amd_umc_gate_refcnt = NULL;
+	free(amd_umc_gate_evsel, M_PMC);
+	amd_umc_gate_evsel = NULL;
+	amd_umc_nchannels = 0;
+	amd_umc_npkgs = 0;
+	amd_umc_pkg_shift = 0;
 
 	free(amd_pmcdesc, M_PMC);
 	amd_pmcdesc = NULL;
