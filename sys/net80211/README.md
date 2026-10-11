@@ -86,7 +86,7 @@ Try to keep all FreeBSD specific components in ieee80211_freebsd.[ch].
 
 ## Protocol Overview
 
-A basic protocol overview is available at (@ref md_net80211_PROTOCOL).
+A basic protocol overview is available at (@ref md_net80211_2PROTOCOL).
 
 The most comprehensive overview is the 802.11 protocol document itself,
 but it is very large and implementations do not always correspond 1:1
@@ -98,10 +98,10 @@ with the protocol definitions.
 
  * Module layout
  * Logging
- * Debugging - (@ref md_net80211_DEBUG)
- * Top-level device layout (ieee80211com)
- * Data / Control Path Overview (@ref md_net80211_DATAPATH_TRANSMIT), (@ref md_net80211_DATAPATH_RECEIVE)
- * Deferred work (@ref md_net80211_DEFERRED_WORK)
+ * Debugging - (@ref md_net80211_2DEBUG)
+ * Top-level device registration - (@ref md_net80211_2DRIVER__REGISTRATION)
+ * Data / Control Path Overview (@ref md_net80211_2DATAPATH__TRANSMIT), (@ref md_net80211_2DATAPATH__RECEIVE)
+ * Deferred work (@ref md_net80211_2DEFERRED__WORK)
  * Regulatory
  * Virtual interfaces
  * Operating Modes
