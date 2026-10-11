@@ -1,6 +1,6 @@
 :
 # RCSid:
-#	$Id: safe_eval.sh,v 1.31 2026/10/11 05:49:50 sjg Exp $
+#	$Id: safe_eval.sh,v 1.32 2026/10/11 06:02:40 sjg Exp $
 #
 #	@(#) Copyright (c) 2023-2026 Simon J. Gerraty
 #
@@ -32,10 +32,10 @@ fi
 # 'invalid' if they fail the relevant checks.
 # 1. if "var" contains anything but 'A-Za-z0-9_' or matches 'ssv_*'
 #    we set ssv_var=invalid and return 1
-# 3. if "val" contains anything not in the combined set of
+# 2. if "val" contains anything not in the combined set of
 #    "only_chars" and "extra_chars" we will set ssv_val=invalid
-#    and return 3
-# 2. if "allowed_vars" and "var" is not a member we return 2
+#    and return 2
+# 3. if "allowed_vars" and "var" is not a member we return 3
 # If "only_chars" is not provided we use 'A-Za-z0-9_  ,/=:+-'
 # similar to save_set.
 # If we pass all that, we eval "var=val" and return 0
