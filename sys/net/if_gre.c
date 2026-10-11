@@ -139,7 +139,7 @@ static int	gre_set_encap_nl(struct gre_softc *, struct nl_pstate *, uint32_t);
 static int	gre_set_udp_sport_nl(struct gre_softc *, struct nl_pstate *, uint16_t);
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+static SYSCTL_NODE(_net_link, OID_AUTO, gre, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Generic Routing Encapsulation");
 #ifndef MAX_GRE_NEST
 /*
