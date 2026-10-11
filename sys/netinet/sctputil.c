@@ -5452,9 +5452,20 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t *freed_so_far, int hold_rlock,
 		goto out;
 	}
 	atomic_add_int(&stcb->freed_by_sorcv_sincelast, *freed_so_far);
-	/* Have you have freed enough to look */
 	*freed_so_far = 0;
-	/* Yep, its worth a look and the lock overhead */
+	if (hold_rlock) {
+		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
+		r_unlocked = 1;
+	}
+	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+		goto out;
+	}
+	SCTP_TCB_LOCK(stcb);
+	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+		/* No reports here */
+		SCTP_TCB_UNLOCK(stcb);
+		goto out;
+	}
 
 	/* Figure out what the rwnd would be */
 	rwnd = sctp_calc_rwnd(stcb, &stcb->asoc);
@@ -5464,24 +5475,6 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t *freed_so_far, int hold_rlock,
 		dif = 0;
 	}
 	if (dif >= rwnd_req) {
-		if (hold_rlock) {
-			SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
-			r_unlocked = 1;
-		}
-		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			/*
-			 * One last check before we allow the guy possibly
-			 * to get in. There is a race, where the guy has not
-			 * reached the gate. In that case
-			 */
-			goto out;
-		}
-		SCTP_TCB_LOCK(stcb);
-		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			/* No reports here */
-			SCTP_TCB_UNLOCK(stcb);
-			goto out;
-		}
 		SCTP_STAT_INCR(sctps_wu_sacks_sent);
 		NET_EPOCH_ENTER(et);
 		sctp_send_sack(stcb, SCTP_SO_LOCKED);
@@ -5492,11 +5485,11 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t *freed_so_far, int hold_rlock,
 		NET_EPOCH_EXIT(et);
 		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_6);
-		SCTP_TCB_UNLOCK(stcb);
 	} else {
 		/* Update how much we have pending */
 		stcb->freed_by_sorcv_sincelast = dif;
 	}
+	SCTP_TCB_UNLOCK(stcb);
 out:
 	if (so && r_unlocked && hold_rlock) {
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
