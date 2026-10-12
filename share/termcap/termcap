@@ -4812,7 +4812,15 @@ alacritty+common|base fragment for alacritty:\
 
 # From Tim Culverhouse <tim@timculverhouse.com>
 xterm-ghostty|ghostty|Ghostty:\
-	:am:hs:km:mi:ms:xn:\
+	:ut:AX:NP:5i:\
+	:Co#256:pa#32767:\
+	:AB=\E[48;5;%dm:AF=\E[38;5;%dm:\
+	:ac=++,,--..00``aaffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
+	:oc=\E]104\007:op=\E[39;49m:r1=\E]\E\\\Ec:\
+	:tc=ghostty+common:
+
+ghostty+common|base fragment for ghostty:\
+	:am:bs:hs:km:mi:ms:xn:\
 	:co#80:it#8:li#24:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
 	:LE=\E[%dD:RI=\E[%dC:SF=\E[%dS:SR=\E[%dT:UP=\E[%dA:\
@@ -4827,7 +4835,10 @@ xterm-ghostty|ghostty|Ghostty:\
 	:mh=\E[2m:mr=\E[7m:nd=\E[C:rc=\E8:sc=\E7:se=\E[27m:sf=\n:\
 	:so=\E[7m:sr=\EM:st=\EH:ta=^I:te=\E[?1049l:ti=\E[?1049h:\
 	:ts=\E]2;:ue=\E[24m:up=\E[A:us=\E[4m:vb=\E[?5h\E[?5l:\
-	:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?12;25h:
+	:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?12;25h:\
+	:@7=\EOF:@8=\EOM:F1=\E[23~:F2=\E[24~:Km=\E[<:RA=\E[?7l:\
+	:SA=\E[?7h:ZH=\E[3m:ZR=\E[23m:cb=\E[1K:ch=\E[%i%dG:\
+	:cv=\E[%i%dd:k;=\E[21~:kB=\E[Z:mk=\E[8m:
 
 #
 # END OF TERMCAP
