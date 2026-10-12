@@ -402,6 +402,7 @@ static void	iwm_nic_umac_error(struct iwm_softc *);
 static void	iwm_handle_rxb(struct iwm_softc *, struct mbuf *);
 static void	iwm_notif_intr(struct iwm_softc *);
 static void	iwm_intr(void *);
+static void	iwm_intr_msix(void *);
 static int	iwm_attach(device_t);
 static int	iwm_is_valid_ether_addr(uint8_t *);
 static void	iwm_preinit(void *);
@@ -1266,8 +1267,21 @@ iwm_free_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 static void
 iwm_enable_interrupts(struct iwm_softc *sc)
 {
-	sc->sc_intmask = IWM_CSR_INI_SET_MASK;
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	if (!sc->sc_msix) {
+		sc->sc_intmask = IWM_CSR_INI_SET_MASK;
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	} else {
+		/*
+		 * fh/hw_mask keeps all the unmasked causes.
+		 * Unlike msi, in msix cause is enabled when it is unset.
+		 */
+		sc->sc_hw_mask = sc->sc_hw_init_mask;
+		sc->sc_fh_mask = sc->sc_fh_init_mask;
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    ~sc->sc_fh_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    ~sc->sc_hw_mask);
+	}
 }
 
 static void
@@ -1279,12 +1293,19 @@ iwm_restore_interrupts(struct iwm_softc *sc)
 static void
 iwm_disable_interrupts(struct iwm_softc *sc)
 {
-	/* disable interrupts */
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, 0);
+	if (!sc->sc_msix) {
+		/* disable interrupts */
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, 0);
 
-	/* acknowledge all interrupts */
-	IWM_WRITE(sc, IWM_CSR_INT, ~0);
-	IWM_WRITE(sc, IWM_CSR_FH_INT_STATUS, ~0);
+		/* acknowledge all interrupts */
+		IWM_WRITE(sc, IWM_CSR_INT, ~0);
+		IWM_WRITE(sc, IWM_CSR_FH_INT_STATUS, ~0);
+	} else {
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    sc->sc_fh_init_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    sc->sc_hw_init_mask);
+	}
 }
 
 static void
@@ -1399,7 +1420,17 @@ iwm_stop_device(struct iwm_softc *sc)
 	DELAY(5000);
 
 	/*
+	 * Upon stop, the IVAR table gets erased, so msi-x won't
+	 * work. This causes a bug in RF-KILL flows, since the interrupt
+	 * that enables radio won't fire on the correct irq, and the
+	 * driver won't be able to handle the interrupt.
+	 * Configure the IVAR table again after reset.
+	 */
+	iwm_conf_msix_hw(sc, 1);
+
+	/*
 	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
+	 * Clear the interrupt again.
 	 */
 	iwm_disable_interrupts(sc);
 
@@ -2709,8 +2740,17 @@ static inline void
 iwm_enable_fw_load_int(struct iwm_softc *sc)
 {
 	IWM_DPRINTF(sc, IWM_DEBUG_INTR, "Enabling FW load interrupt\n");
-	sc->sc_intmask = IWM_CSR_INT_BIT_FH_TX;
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+
+	if (!sc->sc_msix) {
+		sc->sc_intmask = IWM_CSR_INT_BIT_FH_TX;
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	} else {
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    sc->sc_hw_init_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    ~IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM);
+		sc->sc_fh_mask = IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM;
+	}
 }
 
 /* XXX Add proper rfkill support code */
@@ -5957,6 +5997,95 @@ iwm_intr(void *arg)
 	return;
 }
 
+static void
+iwm_intr_msix(void *arg)
+{
+	struct iwm_softc *sc = arg;
+	uint32_t inta_fh, inta_hw;
+	int vector = 0;
+
+	IWM_LOCK(sc);
+
+	inta_fh = IWM_READ(sc, IWM_CSR_MSIX_FH_INT_CAUSES_AD);
+	inta_hw = IWM_READ(sc, IWM_CSR_MSIX_HW_INT_CAUSES_AD);
+	/* acknowledge all interrupts */
+	IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
+	IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
+	inta_fh &= sc->sc_fh_mask;
+	inta_hw &= sc->sc_hw_mask;
+
+	if (inta_fh & IWM_MSIX_FH_INT_CAUSES_Q0 ||
+	    inta_fh & IWM_MSIX_FH_INT_CAUSES_Q1)
+		iwm_notif_intr(sc);
+
+	/* firmware chunk loaded */
+	if (inta_fh & IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
+		sc->sc_fw_chunk_done = 1;
+		wakeup(&sc->sc_fw);
+	}
+
+	if ((inta_fh & IWM_MSIX_FH_INT_CAUSES_FH_ERR) ||
+	    (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR) ||
+	    (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR_V2)) {
+		struct ieee80211com *ic = &sc->sc_ic;
+		struct ieee80211vap *vap;
+		int i;
+
+#ifdef IWM_DEBUG
+		iwm_nic_error(sc);
+#endif
+		/* Dump driver status (TX and RX rings) while we're here. */
+		device_printf(sc->sc_dev, "driver status:\n");
+		for (i = 0; i < IWM_MAX_QUEUES; i++) {
+			struct iwm_tx_ring *ring = &sc->txq[i];
+			device_printf(sc->sc_dev,
+			    "  tx ring %2d: qid=%-2d cur=%-3d "
+			    "queued=%-3d\n",
+			    i, ring->qid, ring->cur, ring->queued);
+		}
+		device_printf(sc->sc_dev, "  rx ring: cur=%d\n", sc->rxq.cur);
+
+		/* Reset our firmware state tracking. */
+		sc->sc_firmware_state = 0;
+		IWM_UNLOCK(sc);
+
+		vap = TAILQ_FIRST(&ic->ic_vaps);
+		if (vap == NULL) {
+			printf("%s: null vap\n", __func__);
+			return;
+		}
+
+		device_printf(sc->sc_dev,
+		    "%s: controller panicked, iv_state = %d; restarting\n",
+		    __func__, vap->iv_state);
+
+		ieee80211_restart_all(ic);
+		return;
+	}
+
+	if (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_RF_KILL)
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_rftoggle_task);
+
+	if (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_HW_ERR) {
+		device_printf(sc->sc_dev, "hardware error, stopping device\n");
+		iwm_stop(sc);
+		goto out;
+	}
+
+	/*
+	 * Before sending the interrupt the HW disables it to prevent
+	 * a nested interrupt. This is done by writing 1 to the
+	 * corresponding bit in the mask register. After handling the
+	 * interrupt, it should be re-enabled by clearing this bit.
+	 * This register is defined as a write 1 clear (W1C) register,
+	 * meaning that it's being cleared by writing 1 to the bit.
+	 */
+	IWM_WRITE(sc, IWM_CSR_MSIX_AUTOMASK_ST_AD, 1 << vector);
+
+ out:
+	IWM_UNLOCK(sc);
+}
+
 /*
  * Autoconf glue-sniffing
  */
@@ -6074,8 +6203,12 @@ iwm_pci_attach(device_t dev)
 	/* Install interrupt handler. */
 	count = 1;
 	rid = 0;
-	if (pci_alloc_msi(dev, &count) == 0)
+	if (pci_alloc_msix(dev, &count) == 0) {
 		rid = 1;
+		sc->sc_msix = 1;
+	} else if (pci_alloc_msi(dev, &count) == 0) {
+		rid = 1;
+	}
 	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE |
 	    (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->sc_irq == NULL) {
@@ -6083,7 +6216,7 @@ iwm_pci_attach(device_t dev)
 			return (ENXIO);
 	}
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, iwm_intr, sc, &sc->sc_ih);
+	    NULL, sc->sc_msix ? iwm_intr_msix : iwm_intr, sc, &sc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "can't establish interrupt");
 		return (error);

@@ -475,6 +475,13 @@ struct iwm_softc {
 
 	int			sc_intmask;
 
+	/* MSIX support */
+	int			sc_msix;
+	uint32_t		sc_fh_init_mask;
+	uint32_t		sc_fh_mask;
+	uint32_t		sc_hw_init_mask;
+	uint32_t		sc_hw_mask;
+
 	/*
 	 * So why do we need a separate stopped flag and a generation?
 	 * the former protects the device from issuing commands when it's

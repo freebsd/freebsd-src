@@ -342,10 +342,20 @@ iwm_clear_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits)
 void
 iwm_enable_rfkill_int(struct iwm_softc *sc)
 {
-	sc->sc_intmask = IWM_CSR_INT_BIT_RF_KILL;
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
-	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
+	if (!sc->sc_msix) {
+		sc->sc_intmask = IWM_CSR_INT_BIT_RF_KILL;
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	} else {
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    sc->sc_fh_init_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    ~IWM_MSIX_HW_INT_CAUSES_REG_RF_KILL);
+		sc->sc_hw_mask = IWM_MSIX_HW_INT_CAUSES_REG_RF_KILL;
+	}
+
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_9000)
+		IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
+		    IWM_CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
 }
 
 int
@@ -640,6 +650,107 @@ iwm_clear_persistence_bit(struct iwm_softc *sc)
 	return 0;
 }
 
+void
+iwm_init_msix_hw(struct iwm_softc *sc)
+{
+	iwm_conf_msix_hw(sc, 0);
+
+	if (!sc->sc_msix)
+		return;
+
+	sc->sc_fh_init_mask = ~IWM_READ(sc, IWM_CSR_MSIX_FH_INT_MASK_AD);
+	sc->sc_fh_mask = sc->sc_fh_init_mask;
+	sc->sc_hw_init_mask = ~IWM_READ(sc, IWM_CSR_MSIX_HW_INT_MASK_AD);
+	sc->sc_hw_mask = sc->sc_hw_init_mask;
+}
+
+void
+iwm_conf_msix_hw(struct iwm_softc *sc, int stopped)
+{
+	int vector = 0;
+
+	if (!sc->sc_msix) {
+		/* Newer chips default to MSIX. */
+		if (sc->cfg->mqrx_supported && !stopped && iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_UREG_CHICK,
+			    IWM_UREG_CHICK_MSI_ENABLE);
+			iwm_nic_unlock(sc);
+		}
+		return;
+	}
+
+	if (!stopped && iwm_nic_lock(sc)) {
+		iwm_write_prph(sc, IWM_UREG_CHICK, IWM_UREG_CHICK_MSIX_ENABLE);
+		iwm_nic_unlock(sc);
+	}
+
+	/* Disable all interrupts */
+	IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD, ~0);
+	IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD, ~0);
+
+	/* Map fallback-queue (command/mgmt) to a single vector */
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_RX_IVAR(0),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	/* Map RSS queue (data) to the same vector */
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_RX_IVAR(1),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+
+	/* Enable the RX queues cause interrupts */
+	IWM_CLRBITS(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+	    IWM_MSIX_FH_INT_CAUSES_Q0 | IWM_MSIX_FH_INT_CAUSES_Q1);
+
+	/* Map non-RX causes to the same vector */
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_D2S_CH0_NUM),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_D2S_CH1_NUM),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_S2D),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_FH_ERR),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_ALIVE),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_WAKEUP),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_IML),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_CT_KILL),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_RF_KILL),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_PERIODIC),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_SW_ERR),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_SCD),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_FH_TX),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_HW_ERR),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+	IWM_WRITE_1(sc, IWM_CSR_MSIX_IVAR(IWM_MSIX_IVAR_CAUSE_REG_HAP),
+	    vector | IWM_MSIX_NON_AUTO_CLEAR_CAUSE);
+
+	/* Enable non-RX causes interrupts */
+	IWM_CLRBITS(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+	    IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM |
+	    IWM_MSIX_FH_INT_CAUSES_D2S_CH1_NUM |
+	    IWM_MSIX_FH_INT_CAUSES_S2D |
+	    IWM_MSIX_FH_INT_CAUSES_FH_ERR);
+	IWM_CLRBITS(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+	    IWM_MSIX_HW_INT_CAUSES_REG_ALIVE |
+	    IWM_MSIX_HW_INT_CAUSES_REG_WAKEUP |
+	    IWM_MSIX_HW_INT_CAUSES_REG_IML |
+	    IWM_MSIX_HW_INT_CAUSES_REG_CT_KILL |
+	    IWM_MSIX_HW_INT_CAUSES_REG_RF_KILL |
+	    IWM_MSIX_HW_INT_CAUSES_REG_PERIODIC |
+	    IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR |
+	    IWM_MSIX_HW_INT_CAUSES_REG_SCD |
+	    IWM_MSIX_HW_INT_CAUSES_REG_FH_TX |
+	    IWM_MSIX_HW_INT_CAUSES_REG_HW_ERR |
+	    IWM_MSIX_HW_INT_CAUSES_REG_HAP);
+}
+
 /* iwlwifi pcie/trans.c */
 int
 iwm_start_hw(struct iwm_softc *sc)
@@ -661,9 +772,7 @@ iwm_start_hw(struct iwm_softc *sc)
 	if ((error = iwm_apm_init(sc)) != 0)
 		return error;
 
-	/* On newer chipsets MSI is disabled by default. */
-	if (sc->cfg->mqrx_supported)
-		iwm_write_prph(sc, IWM_UREG_CHICK, IWM_UREG_CHICK_MSI_ENABLE);
+	iwm_init_msix_hw(sc);
 
 	iwm_enable_rfkill_int(sc);
 	iwm_check_rfkill(sc);
