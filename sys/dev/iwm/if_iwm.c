@@ -2247,6 +2247,12 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 
 	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
 
+	data->calib_version = 255;	/* TODO:
+					this value will prevent some checks from
+					failing, we need to check if this
+					field is still needed, and if it does,
+					where is it in the NVM */
+
 	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000) {
 		/* TODO: use IWL_NVM_EXT */
 		uint16_t lar_offset = data->nvm_version < 0xE39 ?
