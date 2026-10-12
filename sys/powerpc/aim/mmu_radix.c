@@ -6199,7 +6199,7 @@ mmu_radix_scan_pmap(struct bitset *dump_bitset)
 
 		pa = l1e & RPDE_NLB_MASK;
 		mmu_radix_dump_add_range(dump_bitset, pa, PAGE_SIZE);
-		l2 = PHYS_TO_DMAP(pa);
+		l2 = (pt_entry_t *)PHYS_TO_DMAP(pa);
 		for (j = 0; j < NL2EPG; j++) {
 			l2e = be64toh(l2[j]);
 			if ((l2e & RPTE_VALID) == 0)
@@ -6214,7 +6214,7 @@ mmu_radix_scan_pmap(struct bitset *dump_bitset)
 
 			pa = l2e & RPDE_NLB_MASK;
 			mmu_radix_dump_add_range(dump_bitset, pa, PAGE_SIZE);
-			l3 = PHYS_TO_DMAP(pa);
+			l3 = (pt_entry_t *)PHYS_TO_DMAP(pa);
 			for (k = 0; k < NL3EPG; k++) {
 				l3e = be64toh(l3[k]);
 				if ((l3e & RPTE_VALID) == 0)
@@ -6231,7 +6231,7 @@ mmu_radix_scan_pmap(struct bitset *dump_bitset)
 				pa = l3e & RPDE_NLB_MASK;
 				mmu_radix_dump_add_range(dump_bitset, pa,
 				    PAGE_SIZE);
-				pt = PHYS_TO_DMAP(pa);
+				pt = (pt_entry_t *)PHYS_TO_DMAP(pa);
 				for (l = 0; l < RPTE_ENTRIES; l++) {
 					pte = be64toh(pt[l]);
 					if ((pte & (RPTE_VALID | RPTE_LEAF)) !=
