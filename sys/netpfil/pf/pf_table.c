@@ -2285,15 +2285,26 @@ pfr_attach_table(struct pf_kruleset *rs, char *name)
 		strlcpy(tbl.pfrt_anchor, ac->path, sizeof(tbl.pfrt_anchor));
 	kt = pfr_lookup_table(&tbl);
 	if (kt == NULL) {
+		/*
+		 * Hold rs across the table creation below.  A new table takes
+		 * a reference on the ruleset, and pfr_destroy_ktable() drops
+		 * it again on the failure paths, which lets
+		 * pf_remove_if_empty_ruleset() free the anchor rs points into
+		 * while our caller still holds rs.
+		 */
+		rs->tables++;
 		kt = pfr_create_ktable(&tbl, time_second, 1);
-		if (kt == NULL)
+		if (kt == NULL) {
+			rs->tables--;
 			return (NULL);
+		}
 		if (ac != NULL) {
 			bzero(tbl.pfrt_anchor, sizeof(tbl.pfrt_anchor));
 			rt = pfr_lookup_table(&tbl);
 			if (rt == NULL) {
 				rt = pfr_create_ktable(&tbl, 0, 1);
 				if (rt == NULL) {
+					rs->tables--;
 					pfr_destroy_ktable(kt, 0);
 					return (NULL);
 				}
@@ -2302,6 +2313,7 @@ pfr_attach_table(struct pf_kruleset *rs, char *name)
 			kt->pfrkt_root = rt;
 		}
 		pfr_insert_ktable(kt);
+		rs->tables--;
 	}
 	if (!kt->pfrkt_refcnt[PFR_REFCNT_RULE]++)
 		pfr_setflags_ktable(kt, kt->pfrkt_flags|PFR_TFLAG_REFERENCED);
