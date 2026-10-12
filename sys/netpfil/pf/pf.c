@@ -2960,6 +2960,9 @@ void
 pf_unload_vnet_purge(void)
 {
 
+	/* Overload entries reference rules: apply them before rules are freed. */
+	taskqueue_drain(taskqueue_swi, &V_pf_overloadtask);
+
 	/*
 	 * To cleanse up all kifs and rules we need
 	 * two runs: first one clears reference flags,
