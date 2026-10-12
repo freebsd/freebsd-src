@@ -620,6 +620,26 @@ iwm_apm_stop(struct iwm_softc *sc)
 	IWM_DPRINTF(sc, IWM_DEBUG_TRANS, "%s: iwm apm stop\n", __func__);
 }
 
+int
+iwm_clear_persistence_bit(struct iwm_softc *sc)
+{
+	uint32_t hpm, wprot;
+
+	hpm = iwm_read_prph(sc, IWM_HPM_DEBUG);
+	if (hpm != 0xa5a5a5a0 && (hpm & IWM_HPM_PERSISTENCE_BIT)) {
+		wprot = iwm_read_prph(sc, IWM_PREG_PRPH_WPROT_9000);
+		if (wprot & IWM_PREG_WFPM_ACCESS) {
+			device_printf(sc->sc_dev,
+			    "cannot clear persistence bit\n");
+			return EPERM;
+		}
+		iwm_write_prph(sc, IWM_HPM_DEBUG,
+		    hpm & ~IWM_HPM_PERSISTENCE_BIT);
+	}
+
+	return 0;
+}
+
 /* iwlwifi pcie/trans.c */
 int
 iwm_start_hw(struct iwm_softc *sc)
@@ -628,6 +648,11 @@ iwm_start_hw(struct iwm_softc *sc)
 
 	if ((error = iwm_prepare_card_hw(sc)) != 0)
 		return error;
+
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_9000) {
+		if ((error = iwm_clear_persistence_bit(sc)) != 0)
+			return error;
+	}
 
 	/* Reset the entire device */
 	IWM_WRITE(sc, IWM_CSR_RESET, IWM_CSR_RESET_REG_FLAG_SW_RESET);
