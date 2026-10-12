@@ -298,7 +298,7 @@ acpi_ec_ecdt_probe(device_t parent)
     }
 
     /* Find and save the ACPI handle for this device. */
-    status = AcpiGetHandle(NULL, ecdt->Id, &h);
+    status = AcpiGetHandle(ACPI_ROOT_OBJECT, ecdt->Id, &h);
     if (ACPI_FAILURE(status)) {
 	device_delete_child(parent, child);
 	printf("%s: can't get handle\n", __func__);
