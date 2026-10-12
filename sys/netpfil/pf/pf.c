@@ -286,6 +286,31 @@ MTX_SYSINIT(pf_overloadqueue_mtx, &pf_overloadqueue_mtx,
 #define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
 #define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
+/*
+ * Source limiter overload table changes, applied by pf_source_table_task().
+ * Tables can only be modified with the rules lock held exclusively, which
+ * packet processing does not hold.
+ */
+struct pf_source_table_entry {
+	STAILQ_ENTRY(pf_source_table_entry)	next;
+	struct pfr_addr				addr;
+	struct pfr_ktable			*table;	/* compared only */
+	uint32_t				id;
+	bool					insert;
+};
+
+STAILQ_HEAD(pf_source_table_head, pf_source_table_entry);
+VNET_DEFINE_STATIC(struct pf_source_table_head, pf_source_tablequeue);
+#define	V_pf_source_tablequeue	VNET(pf_source_tablequeue)
+VNET_DEFINE_STATIC(struct task, pf_source_tabletask);
+#define	V_pf_source_tabletask	VNET(pf_source_tabletask)
+
+static struct mtx_padalign pf_source_tablequeue_mtx;
+MTX_SYSINIT(pf_source_tablequeue_mtx, &pf_source_tablequeue_mtx,
+    "pf source limiter table queue", MTX_DEF);
+#define	PF_SOURCE_TABLEQ_LOCK()		mtx_lock(&pf_source_tablequeue_mtx)
+#define	PF_SOURCE_TABLEQ_UNLOCK()	mtx_unlock(&pf_source_tablequeue_mtx)
+
 VNET_DEFINE(struct pf_krulequeue, pf_unlinked_rules);
 struct mtx_padalign pf_unlnkdrules_mtx;
 MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
@@ -402,6 +427,9 @@ static void		 pf_log_matches(struct pf_pdesc *, struct pf_krule *,
 			    struct pf_krule *, struct pf_kruleset *,
 			    struct pf_krule_slist *);
 static void		 pf_overload_task(void *v, int pending);
+static void		 pf_source_table_task(void *v, int pending);
+static bool		 pf_source_table_enqueue(struct pf_source *sr,
+			    bool insert);
 static u_short		 pf_insert_src_node(struct pf_ksrc_node *[PF_SN_MAX],
 			    struct pf_srchash *[PF_SN_MAX], struct pf_krule *,
 			    struct pf_addr *, sa_family_t, struct pf_addr *,
@@ -571,6 +599,15 @@ pf_source_purge(void)
 		    srlim->pfsrlim_rate.seconds + 1)
 			continue;
 
+		/* Retry a removal pf_source_rele() failed to queue. */
+		if (sr->pfsr_intable &&
+		    srlim->pfsrlim_overload.table != NULL &&
+		    srlim->pfsrlim_overload.lwm > 0) {
+			if (!pf_source_table_enqueue(sr, false))
+				continue;
+			sr->pfsr_intable = 0;
+		}
+
 		TAILQ_REMOVE(&pf_source_gc, sr, pfsr_empty_gc);
 
 		RB_REMOVE(pf_source_tree, &srlim->pfsrlim_sources, sr);
@@ -603,11 +640,79 @@ pf_source_pfr_addr(struct pfr_addr *p, const struct pf_source *sr)
 	}
 }
 
+/*
+ * Queue an overload table change for pf_source_table_task().  The entry
+ * identifies the limiter by id and remembers its table: either may be gone
+ * or replaced by the time the task runs, in which case the change is
+ * dropped.
+ */
+static bool
+pf_source_table_enqueue(struct pf_source *sr, bool insert)
+{
+	struct pf_source_table_entry *pfste;
+
+	pfste = malloc(sizeof(*pfste), M_PFTEMP, M_NOWAIT);
+	if (pfste == NULL)
+		return (false);
+
+	pf_source_pfr_addr(&pfste->addr, sr);
+	pfste->table = sr->pfsr_parent->pfsrlim_overload.table;
+	pfste->id = sr->pfsr_parent->pfsrlim_id;
+	pfste->insert = insert;
+
+	PF_SOURCE_TABLEQ_LOCK();
+	STAILQ_INSERT_TAIL(&V_pf_source_tablequeue, pfste, next);
+	PF_SOURCE_TABLEQ_UNLOCK();
+	taskqueue_enqueue(taskqueue_swi, &V_pf_source_tabletask);
+
+	return (true);
+}
+
+static void
+pf_source_table_task(void *v, int pending __unused)
+{
+	struct pf_source_table_head queue = STAILQ_HEAD_INITIALIZER(queue);
+	struct pf_source_table_entry *pfste, *npfste;
+	struct pf_sourcelim *srlim;
+	struct pfr_ktable *t;
+
+	CURVNET_SET((struct vnet *)v);
+
+	PF_SOURCE_TABLEQ_LOCK();
+	STAILQ_CONCAT(&queue, &V_pf_source_tablequeue);
+	PF_SOURCE_TABLEQ_UNLOCK();
+
+	/* A previous run may already have processed the queue. */
+	if (STAILQ_EMPTY(&queue)) {
+		CURVNET_RESTORE();
+		return;
+	}
+
+	PF_RULES_WLOCK();
+	STAILQ_FOREACH(pfste, &queue, next) {
+		srlim = pf_sourcelim_find(pfste->id);
+		if (srlim == NULL ||
+		    (t = srlim->pfsrlim_overload.table) == NULL ||
+		    t != pfste->table)
+			continue;
+
+		if (pfste->insert)
+			pfr_insert_kentry(t, &pfste->addr, time_second);
+		else
+			pfr_remove_kentry(t, &pfste->addr);
+	}
+	PF_RULES_WUNLOCK();
+
+	STAILQ_FOREACH_SAFE(pfste, &queue, next, npfste)
+		free(pfste, M_PFTEMP);
+
+	CURVNET_RESTORE();
+}
+
 static void
 pf_source_used(struct pf_source *sr)
 {
 	struct pf_sourcelim *srlim = sr->pfsr_parent;
-	struct pfr_ktable *t;
 	unsigned int used;
 
 	used = sr->pfsr_inuse++;
@@ -615,14 +720,10 @@ pf_source_used(struct pf_source *sr)
 
 	if (used == 0)
 		TAILQ_REMOVE(&pf_source_gc, sr, pfsr_empty_gc);
-	else if ((t = srlim->pfsrlim_overload.table) != NULL &&
+	else if (srlim->pfsrlim_overload.table != NULL &&
 	    used >= srlim->pfsrlim_overload.hwm && !sr->pfsr_intable) {
-		struct pfr_addr p;
-
-		pf_source_pfr_addr(&p, sr);
-
-		pfr_insert_kentry(t, &p, time_second);
-		sr->pfsr_intable = 1;
+		if (pf_source_table_enqueue(sr, true))
+			sr->pfsr_intable = 1;
 	}
 }
 
@@ -630,20 +731,14 @@ static void
 pf_source_rele(struct pf_source *sr)
 {
 	struct pf_sourcelim *srlim = sr->pfsr_parent;
-	struct pfr_ktable *t;
 	unsigned int used;
 
 	used = --sr->pfsr_inuse;
 
-	t = srlim->pfsrlim_overload.table;
-	if (t != NULL && sr->pfsr_intable &&
+	if (srlim->pfsrlim_overload.table != NULL && sr->pfsr_intable &&
 	    used < srlim->pfsrlim_overload.lwm) {
-		struct pfr_addr p;
-
-		pf_source_pfr_addr(&p, sr);
-
-		pfr_remove_kentry(t, &p);
-		sr->pfsr_intable = 0;
+		if (pf_source_table_enqueue(sr, false))
+			sr->pfsr_intable = 0;
 	}
 
 	if (used == 0) {
@@ -1543,6 +1638,8 @@ retry_waitok3:
 	STAILQ_INIT(&V_pf_sendqueue);
 	SLIST_INIT(&V_pf_overloadqueue);
 	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, curvnet);
+	STAILQ_INIT(&V_pf_source_tablequeue);
+	TASK_INIT(&V_pf_source_tabletask, 0, pf_source_table_task, curvnet);
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
@@ -2979,6 +3076,9 @@ pf_unload_vnet_purge(void)
 	pf_purge_fragments(UINT_MAX);
 	pf_purge_expired_src_nodes();
 	pf_source_purge();
+
+	/* All states are gone, so no more table changes can be queued. */
+	taskqueue_drain(taskqueue_swi, &V_pf_source_tabletask);
 
 	/*
 	 * Now all kifs & rules should be unreferenced,

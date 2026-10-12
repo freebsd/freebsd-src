@@ -306,6 +306,65 @@ source_basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "source_table" "cleanup"
+source_table_head()
+{
+	atf_set descr 'Test the table of a source limiter'
+	atf_set require.user root
+}
+
+source_table_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+
+	# This used to panic a kernel with INVARIANTS: the table was changed
+	# while the packet was handled, with the rules lock held for reading.
+	pft_set_rules alcatraz \
+	    "set timeout icmp.error 120" \
+	    "table <many> persist" \
+	    "source limiter \"server\" id 1 entries 128 limit 100 table <many> above 2 below 2" \
+	    "pass in proto icmp source limiter \"server\""
+
+	# Each ping creates a state.  Two states do not exceed the mark.
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	sleep 1
+	atf_check -s exit:0 -o empty \
+	    jexec alcatraz pfctl -t many -T show
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	# The address is added to the table by a task.
+	sleep 1
+	atf_check -s exit:0 -o "match:192.0.2.2" \
+	    jexec alcatraz pfctl -t many -T show
+
+	# Once the states are gone the source is below the mark and is removed.
+	atf_check -s exit:0 -e ignore \
+	    jexec alcatraz pfctl -F states
+	sleep 1
+	atf_check -s exit:0 -o empty \
+	    jexec alcatraz pfctl -t many -T show
+}
+
+source_table_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "out" "cleanup"
 out_head()
 {
@@ -358,5 +417,6 @@ atf_init_test_cases()
 	atf_add_test_case "state_block"
 	atf_add_test_case "state_multiple"
 	atf_add_test_case "source_basic"
+	atf_add_test_case "source_table"
 	atf_add_test_case "out"
 }
