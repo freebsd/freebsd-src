@@ -209,6 +209,9 @@ iwm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	    IWM_PHY_BAND_24 : IWM_PHY_BAND_5;
 
 	cmd->ci.channel = ieee80211_chan2ieee(ic, chan);
+
+	/* TODO: HT40 */
+	/* TODO: VHT40/VHT80 */
 	cmd->ci.width = IWM_PHY_VHT_CHANNEL_MODE20;
 	cmd->ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
 

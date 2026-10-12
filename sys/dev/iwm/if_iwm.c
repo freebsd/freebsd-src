@@ -2003,6 +2003,11 @@ iwm_add_channel_band(struct iwm_softc *sc, struct ieee80211_channel chans[],
 	}
 }
 
+/* TODO: HT20 */
+/* TODO: HT40 */
+/* TODO: VHT20 */
+/* TODO: VHT40, VHT80 */
+
 static void
 iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
     struct ieee80211_channel chans[])
@@ -2034,6 +2039,23 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 		iwm_add_channel_band(sc, chans, maxchans, nchans,
 		    IWM_NUM_2GHZ_CHANNELS, ch_num, bands);
 	}
+}
+
+static int
+iwm_mimo_enabled(struct iwm_softc *sc)
+{
+	return (!sc->nvm_data->sku_cap_mimo_disable);
+}
+
+static void
+iwm_setup_ht_rates(struct iwm_softc *sc)
+{
+	/* XXX TODO MCS0..7 */
+
+	if (!iwm_mimo_enabled(sc))
+		return;
+
+	/* XXX TODO: MCS8..15 if >1 antenna and mimo enabled */
 }
 
 static void
@@ -4671,7 +4693,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	int n_channels;
 	uint16_t mcc;
 #endif
-	int resp_v2 = iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
+	int resp_v3 = iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V3);
 
 	if (!iwm_is_lar_supported(sc)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_LAR, "%s: no LAR support\n",
@@ -4686,7 +4708,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	else
 		mcc_cmd.source_id = IWM_MCC_SOURCE_OLD_FW;
 
-	if (resp_v2)
+	if (resp_v3)
 		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd);
 	else
 		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd_v1);
@@ -4703,7 +4725,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	pkt = hcmd.resp_pkt;
 
 	/* Extract MCC response */
-	if (resp_v2) {
+	if (resp_v3) {
 		mcc_resp = (void *)pkt->data;
 		mcc = mcc_resp->mcc;
 		n_channels =  le32toh(mcc_resp->n_channels);
@@ -4905,6 +4927,9 @@ iwm_init(struct iwm_softc *sc)
 		iwm_stop(sc);
 		return;
 	}
+
+	if (sc->nvm_data->sku_cap_11n_enable)
+		iwm_setup_ht_rates(sc);
 
 	/*
 	 * Ok, firmware loaded and we are jogging
@@ -6191,6 +6216,11 @@ iwm_attach(device_t dev)
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_TRACE,
 	    "<-%s\n", __func__);
 
+	device_printf(dev, "%s: TX ant=0x%x, RX ant=0x%x\n",
+	    __func__,
+	    iwm_get_valid_tx_ant(sc),
+	    iwm_get_valid_rx_ant(sc));
+
 	return 0;
 
 	/* Free allocated memory if something failed during attachment. */
@@ -6286,6 +6316,9 @@ iwm_preinit(void *arg)
 	    "hw rev 0x%x, fw ver %s, address %s\n",
 	    sc->sc_hw_rev & IWM_CSR_HW_REV_TYPE_MSK,
 	    sc->sc_fwver, ether_sprintf(sc->nvm_data->hw_addr));
+
+	if (sc->nvm_data->sku_cap_11n_enable)
+		iwm_setup_ht_rates(sc);
 
 	/* not all hardware can do 5GHz band */
 	if (!sc->nvm_data->sku_cap_band_52GHz_enable)
