@@ -566,6 +566,8 @@ struct iwm_softc {
 #define	IWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	IWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define IWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+#define	IWM_LOCK_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define	IWM_LOCK_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 static inline bool
 iwm_fw_has_api(struct iwm_softc *sc, unsigned int api)

@@ -4892,6 +4892,8 @@ iwm_init(struct iwm_softc *sc)
 {
 	int error;
 
+	IWM_LOCK_ASSERT_LOCKED(sc);
+
 	if (sc->sc_flags & IWM_FLAG_HW_INITED) {
 		return;
 	}
@@ -6556,6 +6558,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	device_t dev = sc->sc_dev;
 	int i;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
 
 	if (!sc->sc_attached)
 		return 0;
