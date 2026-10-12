@@ -129,7 +129,7 @@ ptmx_fdopen(struct cdev *dev __unused, int fflags, struct thread *td,
     struct file *fp)
 {
 
-	return (pts_alloc(fflags & (FREAD|FWRITE), td, fp));
+	return (pts_alloc(fflags & (FREAD | FWRITE | FNONBLOCK), td, fp));
 }
 
 static struct cdevsw ptmx_cdevsw = {
