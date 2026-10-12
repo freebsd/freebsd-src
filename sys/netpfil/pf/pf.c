@@ -10825,7 +10825,7 @@ static int
 pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 {
 	struct ah	 ext;
-	u_int32_t	 hlen, end;
+	u_int32_t	 hlen, end, extlen;
 	int		 hdr_cnt;
 
 	hlen = h->ip_hl << 2;
@@ -10873,7 +10873,16 @@ pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 				DPFPRINTF(PF_DEBUG_MISC, "IP short exthdr");
 				return (PF_DROP);
 			}
-			pd->off += (ext.ah_len + 2) * 4;
+			extlen = (ext.ah_len + 2) * 4;
+			if (end < pd->off + extlen) {
+				if ((h->ip_off & htons(IP_MF | IP_OFFMASK))
+				    != 0)
+					return (PF_PASS);
+				DPFPRINTF(PF_DEBUG_MISC, "IP long exthdr");
+				REASON_SET(reason, PFRES_SHORT);
+				return (PF_DROP);
+			}
+			pd->off += extlen;
 			pd->proto = ext.ah_nxt;
 			break;
 		default:
