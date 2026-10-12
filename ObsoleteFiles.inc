@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20261012: Removed <sys/kpilite.h>
+OLD_FILES+=usr/include/sys/kpilite.h
+
 # 20261008: replaced with ATF test
 OLD_FILES+=usr/tests/usr.bin/ncal/legacy_test
 OLD_FILES+=usr/tests/usr.bin/ncal/regress.sh
