@@ -4687,6 +4687,46 @@ iwm_send_bt_init_conf(struct iwm_softc *sc)
 	    &bt_cmd);
 }
 
+static int
+iwm_send_soc_conf(struct iwm_softc *sc)
+{
+	struct iwm_soc_configuration_cmd cmd;
+	int err;
+	uint32_t cmd_id, flags = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	/*
+	 * In VER_1 of this command, the discrete value is considered
+	 * an integer; In VER_2, it's a bitmask.  Since we have only 2
+	 * values in VER_1, this is backwards-compatible with VER_2,
+	 * as long as we don't set any other flag bits.
+	 */
+	if (!sc->cfg->integrated) { /* VER_1 */
+		flags = IWM_SOC_CONFIG_CMD_FLAGS_DISCRETE;
+	} else { /* VER_2 */
+		uint8_t scan_cmd_ver;
+		if (sc->cfg->ltr_delay != IWM_SOC_FLAGS_LTR_APPLY_DELAY_NONE)
+			flags |= (sc->cfg->ltr_delay &
+			    IWM_SOC_FLAGS_LTR_APPLY_DELAY_MASK);
+		scan_cmd_ver = iwm_lookup_cmd_ver(sc, IWM_LONG_GROUP,
+		    IWM_SCAN_REQ_UMAC);
+		if (scan_cmd_ver != IWM_FW_CMD_VER_UNKNOWN &&
+		    scan_cmd_ver >= 2 && sc->cfg->low_latency_xtal)
+			flags |= IWM_SOC_CONFIG_CMD_FLAGS_LOW_LATENCY;
+	}
+	cmd.flags = htole32(flags);
+
+	cmd.latency = htole32(sc->cfg->xtal_latency);
+
+	cmd_id = iwm_cmd_id(IWM_SOC_CONFIGURATION_CMD, IWM_SYSTEM_GROUP, 0);
+	err = iwm_send_cmd_pdu(sc, cmd_id, 0, sizeof(cmd), &cmd);
+	if (err)
+		device_printf(sc->sc_dev, "failed to set soc latency: %d\n",
+		    err);
+	return err;
+}
+
 static boolean_t
 iwm_is_lar_supported(struct iwm_softc *sc)
 {
@@ -4843,6 +4883,11 @@ iwm_init_hw(struct iwm_softc *sc)
 	if ((error = iwm_send_bt_init_conf(sc)) != 0) {
 		device_printf(sc->sc_dev, "bt init conf failed\n");
 		goto error;
+	}
+
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT)) {
+		if ((error = iwm_send_soc_conf(sc)) != 0)
+			goto error;
 	}
 
 	error = iwm_send_tx_ant_cfg(sc, iwm_get_valid_tx_ant(sc));

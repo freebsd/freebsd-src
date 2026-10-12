@@ -92,4 +92,5 @@ const struct iwm_cfg iwm9560_cfg = {
 	.host_interrupt_operation_mode = 0,
 	.mqrx_supported = 1,
 	.integrated = 1,
+	.xtal_latency = 650,
 };
