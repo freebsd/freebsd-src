@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20261103: Removed <sys/kpilite.h>
+OLD_FILES+=usr/include/sys/kpilite.h
+
 # 20261020: Regenerate trust store
 OLD_FILES+=usr/share/certs/trusted/Atos_TrustedRoot_2011.pem
 OLD_FILES+=usr/share/certs/trusted/SecureSign_Root_CA12.pem
