@@ -562,6 +562,21 @@ iwm_fw_info_free(struct iwm_fw_info *fw)
 	memset(fw->img, 0, sizeof(fw->img));
 }
 
+static uint8_t
+iwm_lookup_cmd_ver(struct iwm_softc *sc, uint8_t grp, uint8_t cmd)
+{
+	const struct iwm_fw_cmd_version *entry;
+	int i;
+
+	for (i = 0; i < sc->n_cmd_versions; i++) {
+		entry = &sc->cmd_versions[i];
+		if (entry->group == grp && entry->cmd == cmd)
+			return entry->cmd_ver;
+	}
+
+	return IWM_FW_CMD_VER_UNKNOWN;
+}
+
 static int
 iwm_read_firmware(struct iwm_softc *sc)
 {
@@ -817,6 +832,22 @@ iwm_read_firmware(struct iwm_softc *sc)
 		}
 
 		case IWM_UCODE_TLV_CMD_VERSIONS:
+			if (tlv_len % sizeof(struct iwm_fw_cmd_version)) {
+				tlv_len /= sizeof(struct iwm_fw_cmd_version);
+				tlv_len *= sizeof(struct iwm_fw_cmd_version);
+			}
+			if (sc->n_cmd_versions != 0) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			if (tlv_len > sizeof(sc->cmd_versions)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			memcpy(&sc->cmd_versions[0], tlv_data, tlv_len);
+			sc->n_cmd_versions = tlv_len / sizeof(struct iwm_fw_cmd_version);
+			break;
+
 		case IWM_UCODE_TLV_SDIO_ADMA_ADDR:
 		case IWM_UCODE_TLV_FW_GSCAN_CAPA:
 			/* ignore, not used by current driver */

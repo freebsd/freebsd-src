@@ -489,6 +489,10 @@ struct iwm_softc {
 	struct iwm_fw_info	sc_fw;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
+#define IWM_MAX_FW_CMD_VERSIONS	64
+	struct iwm_fw_cmd_version cmd_versions[IWM_MAX_FW_CMD_VERSIONS];
+	int n_cmd_versions;
+
 	const struct iwm_cfg	*cfg;
 	struct iwm_nvm_data	*nvm_data;
 	struct iwm_phy_db	*sc_phy_db;
