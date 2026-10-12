@@ -912,6 +912,25 @@ iflib_num_tx_descs(if_ctx_t ctx)
 	return (scctx->isc_ntxd[first_txq]);
 }
 
+static inline void
+prefetch(void *x)
+{
+#if defined(__i386__) || defined(__amd64__)
+	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
+#else
+	__builtin_prefetch(x);
+#endif
+}
+
+static inline void
+prefetch2cachelines(void *x)
+{
+	prefetch(x);
+#if (CACHE_LINE_SIZE < 128)
+	prefetch((char *)x + CACHE_LINE_SIZE);
+#endif
+}
+
 #ifdef DEV_NETMAP
 #include <sys/selinfo.h>
 #include <net/netmap.h>
@@ -1194,9 +1213,9 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 		pi.ipi_qsidx = kring->ring_id;
 		nic_i = netmap_idx_k2n(kring, nm_i);
 
-		__builtin_prefetch(&ring->slot[nm_i]);
-		__builtin_prefetch(&txq->ift_sds.ifsd_m[nic_i]);
-		__builtin_prefetch(&txq->ift_sds.ifsd_map[nic_i]);
+		prefetch(&ring->slot[nm_i]);
+		prefetch(&txq->ift_sds.ifsd_m[nic_i]);
+		prefetch(&txq->ift_sds.ifsd_map[nic_i]);
 
 		while (nm_i != head) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
@@ -1244,9 +1263,9 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 			}
 
 			/* prefetch for next round */
-			__builtin_prefetch(&ring->slot[nm_i + 1]);
-			__builtin_prefetch(&txq->ift_sds.ifsd_m[nic_i + 1]);
-			__builtin_prefetch(&txq->ift_sds.ifsd_map[nic_i + 1]);
+			prefetch(&ring->slot[nm_i + 1]);
+			prefetch(&txq->ift_sds.ifsd_m[nic_i + 1]);
+			prefetch(&txq->ift_sds.ifsd_map[nic_i + 1]);
 
 			NM_CHECK_ADDR_LEN_OFF(na, len, offset);
 
@@ -1546,33 +1565,6 @@ iflib_netmap_timer(void *arg)
 
 #define iflib_netmap_attach(ctx) (0)
 #define netmap_rx_irq(ifp, qid, budget) (0)
-#endif
-
-#if defined(__i386__) || defined(__amd64__)
-static __inline void
-prefetch(void *x)
-{
-	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-}
-
-static __inline void
-prefetch2cachelines(void *x)
-{
-	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-#if (CACHE_LINE_SIZE < 128)
-	__asm volatile("prefetcht0 %0" :: "m" (*(((unsigned long *)x) + CACHE_LINE_SIZE / (sizeof(unsigned long)))));
-#endif
-}
-#else
-static __inline void
-prefetch(void *x)
-{
-}
-
-static __inline void
-prefetch2cachelines(void *x)
-{
-}
 #endif
 
 static void
