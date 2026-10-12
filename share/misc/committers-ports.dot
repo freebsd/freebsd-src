@@ -29,7 +29,6 @@ node [color=grey62, style=filled, bgcolor=black];
 # Alumni go here.. Try to keep things sorted.
 
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15\n2017/08/17"]
-ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29\n2013/12/02"]
 alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11\n2011/01/14"]
 alonso [label="Alonso Schaich\nalonso@FreeBSD.org\n2014/08/14\n2017/08/07"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11\n2011/01/14"]
@@ -148,6 +147,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
 adridg [label="Adriaan de Groot\nadridg@FreeBSD.org\n2017/09/08"]
+ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
@@ -329,6 +329,7 @@ zirias [label="Felix Palmen\nzirias@FreeBSD.org\n2022/08/02"]
 "0mp" -> driesm
 "0mp" -> nc
 
+acm -> ahze
 acm -> dtxdf
 
 adamw -> ahze
@@ -446,6 +447,8 @@ delphij -> rafan
 demon -> mat
 
 diizzy -> uzsolt
+
+dtxdf -> ahze
 
 eadler -> ak
 eadler -> antoine
