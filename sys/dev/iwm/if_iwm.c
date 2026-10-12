@@ -4727,6 +4727,29 @@ iwm_send_soc_conf(struct iwm_softc *sc)
 	return err;
 }
 
+static int
+iwm_send_temp_report_ths_cmd(struct iwm_softc *sc)
+{
+	struct iwm_temp_report_ths_cmd cmd;
+	int err;
+
+	/*
+	 * In order to give responsibility for critical-temperature-kill
+	 * and TX backoff to FW we need to send an empty temperature
+	 * reporting command at init time.
+	 */
+	memset(&cmd, 0, sizeof(cmd));
+
+	err = iwm_send_cmd_pdu(sc,
+	    IWM_WIDE_ID(IWM_PHY_OPS_GROUP, IWM_TEMP_REPORTING_THRESHOLDS_CMD),
+	    0, sizeof(cmd), &cmd);
+	if (err)
+		device_printf(sc->sc_dev,
+		    "TEMP_REPORT_THS_CMD command failed (error %d)\n", err);
+
+	return err;
+}
+
 static boolean_t
 iwm_is_lar_supported(struct iwm_softc *sc)
 {
@@ -4887,6 +4910,11 @@ iwm_init_hw(struct iwm_softc *sc)
 
 	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT)) {
 		if ((error = iwm_send_soc_conf(sc)) != 0)
+			goto error;
+	}
+
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_CT_KILL_BY_FW)) {
+		if ((error = iwm_send_temp_report_ths_cmd(sc)) != 0)
 			goto error;
 	}
 
