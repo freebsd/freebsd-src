@@ -4409,7 +4409,11 @@ pwd_chdir(struct thread *td, struct vnode *vp)
 }
 
 /*
- * Process is transitioning to/from a non-native ABI.
+ * Set the alternative root directory for the process.
+ *
+ * A non-NULL altroot_vp enables the alternative root and uses
+ * altroot_vp for it.  NULL disables it by setting the alternative
+ * root to the process root directory.
  */
 int
 pwd_altroot(struct thread *td, struct vnode *altroot_vp)
