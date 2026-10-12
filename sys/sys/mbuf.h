@@ -1536,8 +1536,6 @@ m_free(struct mbuf *m)
 	struct mbuf *n = m->m_next;
 
 	MBUF_PROBE1(m__free, m);
-	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
-		m_tag_delete_chain(m, NULL);
 	if (m->m_flags & M_PKTHDR && m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		m_snd_tag_rele(m->m_pkthdr.snd_tag);
 	if (m->m_flags & M_EXTPG)
