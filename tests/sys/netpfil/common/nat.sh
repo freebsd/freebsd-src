@@ -103,7 +103,7 @@ userspace_nat_body()
 	firewall_init $firewall
 
 	if ! kldstat -q -m ipdivert; then
-		atf_skip "This test requires ipdivert module loaded"
+		atf_skip "This test requires divert(4)"
 	fi
 
 	epair_host_nat=$(vnet_mkepair)

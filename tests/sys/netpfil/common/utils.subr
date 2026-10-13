@@ -86,21 +86,21 @@ firewall_init()
 
 	if [ ${firewall} == "ipfw" ]; then
 		if ! kldstat -q -m ipfw; then
-			atf_skip "This test requires ipfw"
+			atf_skip "This test requires ipfw(4)"
 		elif [ $(sysctl -n net.inet.ip.fw.default_to_accept) -ne 1 ]; then
 			atf_skip "ipfw tests require net.inet.ip.fw.default_to_accept=1 tunable"
 		fi
 	elif [ ${firewall} == "pf" ]; then
 		if [ ! -c /dev/pf ]; then
-			atf_skip "This test requires pf"
+			atf_skip "This test requires pf(4)"
 		fi
 	elif [ ${firewall} == "ipf" ]; then
 		if ! kldstat -q -m ipfilter; then
-			atf_skip "This test requires ipf"
+			atf_skip "This test requires ipf(4)"
 		fi
 	elif [ ${firewall} == "ipfnat" ]; then
 		if ! kldstat -q -m ipfilter; then
-			atf_skip "This test requires ipf"
+			atf_skip "This test requires ipf(4)"
 		fi
 	else
 		atf_fail "$fw is not a valid firewall to initialize"
@@ -113,7 +113,7 @@ dummynet_init()
 	firewall=$1
 
 	if ! kldstat -q -m dummynet; then
-		atf_skip "This test requires dummynet"
+		atf_skip "This test requires dummynet(4)"
 	fi
 
 	case $firewall in
@@ -121,7 +121,7 @@ dummynet_init()
 		# Nothing. This is okay.
 		;;
 	*)
-		atf_skip "${firewall} does not support dummynet"
+		atf_skip "${firewall} does not support dummynet(4)"
 		;;
 	esac
 }
@@ -131,7 +131,7 @@ nat_init()
 	firewall=$1
 	if [ ${firewall} == "ipfw" ]; then
 		if ! kldstat -q -m ipfw_nat; then
-			atf_skip "This test requires ipfw_nat"
+			atf_skip "This test requires ipfw_nat.ko loaded"
 		fi
 	fi
 }
