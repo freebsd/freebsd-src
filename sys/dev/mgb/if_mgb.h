@@ -35,7 +35,7 @@
 #define MGB_LAN7431_DEVICE_ID		0x7431
 #define MGB_PCI11414_DEVICE_ID		0xA041
 
-#define MGB_TIMEOUT			(500)
+#define MGB_TIMEOUT			(5000)
 
 /** Control/Status Registers **/
 #define MGB_BAR				0 /* PCI Base Address */
