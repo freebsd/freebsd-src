@@ -2660,6 +2660,7 @@ sched_ule_preempt(struct thread *td)
 	struct tdq *tdq;
 	int flags;
 
+	MPASS(td == curthread);
 	SDT_PROBE2(sched, , , surrender, td, td->td_proc);
 
 	thread_lock(td);
