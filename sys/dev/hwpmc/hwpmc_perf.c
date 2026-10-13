@@ -3,10 +3,11 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * AMD/Intel MPERF and APERF MSRs counters exposed as an hwpmc(4) PMC class.
+ * AMD/Intel MPERF/APERF and AMD-only IRPERF MSR counters exposed as an
+ * hwpmc(4) PMC class.
  *
  * Read-only, system-scope (PMC_MODE_SC), 64-bit counters reporting
- * MPERF and APERF MSR values.
+ * MPERF/APERF and IRPERF MSR values.
  */
 
 #include <sys/param.h>
@@ -18,31 +19,18 @@
 
 #define PERF_CAPS	PMC_CAP_READ
 
+static int perf_npmcs = 0;
+
 struct perf_descr {
 	struct pmc_descr pm_descr;  /* "base class" */
+	enum pmc_event pm_ev;
+	u_int pm_msr;
 };
 
-static const struct perf_descr perf_pmcdesc[PERF_NPMCS] = {
-	{
-		.pm_descr = {
-			.pd_name  = "MPERF",
-			.pd_class = PMC_CLASS_PERF,
-			.pd_caps  = PERF_CAPS,
-			.pd_width = 64
-		},
-	},
-	{
-		.pm_descr = {
-			.pd_name  = "APERF",
-			.pd_class = PMC_CLASS_PERF,
-			.pd_caps  = PERF_CAPS,
-			.pd_width = 64
-		}
-	}
-};
+static struct perf_descr perf_pmcdesc[PERF_NPMCS_TOTAL];
 
 struct perf_cpu {
-	struct pmc_hw tc_hw[PERF_NPMCS];
+	struct pmc_hw tc_hw[PERF_NPMCS_TOTAL];
 };
 
 static struct perf_cpu **perf_pcpu;
@@ -54,7 +42,7 @@ perf_allocate_pmc(int cpu __diagused, int ri __diagused,
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS,
+	KASSERT(ri >= 0 && ri < perf_npmcs,
 	    ("[perf,%d] illegal row index %d", __LINE__, ri));
 
 	if (a->pm_class != PMC_CLASS_PERF)
@@ -69,7 +57,6 @@ perf_allocate_pmc(int cpu __diagused, int ri __diagused,
 	 * Frequency is an indirect power proxy and could be abused by
 	 * attacks like Hertzbleed.
 	 */
-
 	if (priv_check(curthread, PRIV_PMC_SYSTEM) != 0)
 		return (EPERM);
 
@@ -78,18 +65,8 @@ perf_allocate_pmc(int cpu __diagused, int ri __diagused,
 	if ((a->pm_caps & ~PERF_CAPS) != 0)
 		return (EPERM);
 
-	switch (ri) {
-	case PERF_MPERF:
-		if (a->pm_ev != PMC_EV_PERF_MPERF)
-			return (EINVAL);
-		break;
-	case PERF_APERF:
-		if (a->pm_ev != PMC_EV_PERF_APERF)
-			return (EINVAL);
-		break;
-	default:
+	if (a->pm_ev != perf_pmcdesc[ri].pm_ev)
 		return (EINVAL);
-	}
 
 	return (0);
 }
@@ -103,7 +80,7 @@ perf_config_pmc(int cpu, int ri, struct pmc *pm)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal row-index %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal row-index %d",
 	    __LINE__, ri));
 
 	phw = &perf_pcpu[cpu]->tc_hw[ri];
@@ -125,7 +102,7 @@ perf_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal row-index %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal row-index %d",
 	    __LINE__, ri));
 
 	phw = &perf_pcpu[cpu]->tc_hw[ri];
@@ -150,7 +127,7 @@ perf_get_config(int cpu, int ri, struct pmc **ppm)
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal row-index %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal row-index %d",
 	    __LINE__, ri));
 
 	*ppm = perf_pcpu[cpu]->tc_hw[ri].phw_pmc;
@@ -161,7 +138,7 @@ perf_get_config(int cpu, int ri, struct pmc **ppm)
 static int
 perf_get_msr(int ri __diagused, uint32_t *msr __unused)
 {
-	KASSERT(ri >= 0 && ri < PERF_NPMCS,
+	KASSERT(ri >= 0 && ri < perf_npmcs,
 	    ("[perf,%d] ri %d out of range", __LINE__, ri));
 
 	return (EINVAL);
@@ -183,7 +160,7 @@ perf_pcpu_fini(struct pmc_mdep *md, int cpu)
 	ri = md->pmd_classdep[perf_classindex].pcd_ri;
 	pc = pmc_pcpu[cpu];
 
-	for (i = 0; i < PERF_NPMCS; i++) {
+	for (i = 0; i < perf_npmcs; i++) {
 		pc->pc_hwpmcs[i + ri] = NULL;
 	}
 
@@ -215,7 +192,7 @@ perf_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	KASSERT(pc, ("[perf,%d] null generic per-cpu", __LINE__));
 
-	for (i = 0; i < PERF_NPMCS; i++) {
+	for (i = 0; i < perf_npmcs; i++) {
 		perf_pc->tc_hw[i].phw_state = PMC_PHW_FLAG_IS_ENABLED |
 			PMC_PHW_CPU_TO_STATE(cpu) | PMC_PHW_INDEX_TO_STATE(i) |
 			PMC_PHW_FLAG_IS_SHAREABLE;
@@ -232,7 +209,7 @@ perf_read_pmc(int cpu __diagused, int ri, struct pmc *pm, pmc_value_t *v)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal ri %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal ri %d",
 	    __LINE__, ri));
 
 	mode = PMC_TO_MODE(pm);
@@ -242,16 +219,7 @@ perf_read_pmc(int cpu __diagused, int ri, struct pmc *pm, pmc_value_t *v)
 
 	PMCDBG1(MDP, REA, 1, "perf-read id=%d", ri);
 
-	switch (ri) {
-	case PERF_MPERF:
-		*v = rdmsr(MSR_MPERF);
-		break;
-	case PERF_APERF:
-		*v = rdmsr(MSR_APERF);
-		break;
-	default:
-		return (EINVAL);
-	}
+	*v = rdmsr(perf_pmcdesc[ri].pm_msr);
 
 	return (0);
 }
@@ -262,7 +230,7 @@ perf_write_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused,
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal row-index %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal row-index %d",
 	    __LINE__, ri));
 
 	return (0);
@@ -273,7 +241,7 @@ perf_release_pmc(int cpu __diagused, int ri __diagused, struct pmc *pmc __unused
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS,
+	KASSERT(ri >= 0 && ri < perf_npmcs,
 	    ("[perf,%d] illegal row-index %d", __LINE__, ri));
 	KASSERT(perf_pcpu[cpu]->tc_hw[ri].phw_pmc == NULL,
 	   ("[perf,%d] PHW pmc non-NULL", __LINE__));
@@ -286,7 +254,7 @@ perf_start_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused)
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal row-index %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal row-index %d",
 	    __LINE__, ri));
 
 	return (0);
@@ -297,7 +265,7 @@ perf_stop_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused)
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[perf,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < PERF_NPMCS, ("[perf,%d] illegal row-index %d",
+	KASSERT(ri >= 0 && ri < perf_npmcs, ("[perf,%d] illegal row-index %d",
 	    __LINE__, ri));
 
 	return (0);
@@ -313,6 +281,46 @@ pmc_perf_initialize(struct pmc_mdep *md, int maxcpu, int classindex)
 	    __LINE__, md->pmd_nclass));
 
 	if ((cpu_power_ecx & CPUID_PERF_STAT) && (tsc_perf_stat == 1)) {
+		strlcpy(perf_pmcdesc[perf_npmcs].pm_descr.pd_name, "MPERF",
+		    PMC_NAME_MAX);
+
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_class = PMC_CLASS_PERF;
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_caps  = PERF_CAPS;
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_width = 64;
+		perf_pmcdesc[perf_npmcs].pm_msr = MSR_MPERF;
+		perf_pmcdesc[perf_npmcs].pm_ev = PMC_EV_PERF_MPERF;
+		perf_npmcs++;
+
+		strlcpy(perf_pmcdesc[perf_npmcs].pm_descr.pd_name, "APERF",
+		    PMC_NAME_MAX);
+
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_class = PMC_CLASS_PERF;
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_caps  = PERF_CAPS;
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_width = 64;
+		perf_pmcdesc[perf_npmcs].pm_msr = MSR_APERF;
+		perf_pmcdesc[perf_npmcs].pm_ev = PMC_EV_PERF_APERF;
+		perf_npmcs++;
+	}
+
+	/*
+	 * The IRPERF MSR is supported only for AMD CPUs. The feature is
+	 * enabled during the boot on each CPU available if AMDFEID_IRPERF
+	 * is set on amd_extended_feature_extensions.
+	 */
+	if ((amd_extended_feature_extensions & AMDFEID_IRPERF) &&
+	    (rdmsr(MSR_HWCR) & HWCR_IRPERFEN)) {
+		strlcpy(perf_pmcdesc[perf_npmcs].pm_descr.pd_name, "IRPERF",
+		    PMC_NAME_MAX);
+
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_class = PMC_CLASS_PERF;
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_caps  = PERF_CAPS;
+		perf_pmcdesc[perf_npmcs].pm_descr.pd_width = 64;
+		perf_pmcdesc[perf_npmcs].pm_msr = MSR_IRPERF;
+		perf_pmcdesc[perf_npmcs].pm_ev = PMC_EV_PERF_IRPERF;
+		perf_npmcs++;
+	}
+
+	if (perf_npmcs) {
 
 		perf_pcpu = malloc(sizeof(struct perf_cpu *) * maxcpu, M_PMC,
 			M_ZERO | M_WAITOK);
@@ -320,9 +328,9 @@ pmc_perf_initialize(struct pmc_mdep *md, int maxcpu, int classindex)
 		perf_classindex = classindex;
 		pcd = &md->pmd_classdep[classindex];
 
-		pcd->pcd_caps   = PMC_CAP_READ;
+		pcd->pcd_caps   = PERF_CAPS;
 		pcd->pcd_class  = PMC_CLASS_PERF;
-		pcd->pcd_num    = PERF_NPMCS;
+		pcd->pcd_num    = perf_npmcs;
 		pcd->pcd_ri	= md->pmd_npmc;
 		pcd->pcd_width  = 64;
 
@@ -339,7 +347,7 @@ pmc_perf_initialize(struct pmc_mdep *md, int maxcpu, int classindex)
 		pcd->pcd_start_pmc	= perf_start_pmc;
 		pcd->pcd_stop_pmc	= perf_stop_pmc;
 
-		md->pmd_npmc += PERF_NPMCS;
+		md->pmd_npmc += perf_npmcs;
 	}
 
 	return (0);

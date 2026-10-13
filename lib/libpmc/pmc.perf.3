@@ -3,12 +3,12 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd August 5, 2026
+.Dd October 13, 2026
 .Dt PMC.PERF 3
 .Os
 .Sh NAME
 .Nm pmc.perf
-.Nd measurements using the MPERF/APERF effective frequency counters
+.Nd measurements using the MPERF/APERF/IRPERF frequency counters
 .Sh LIBRARY
 .Lb libpmc
 .Sh SYNOPSIS
@@ -38,12 +38,24 @@ to
 scaled by the processor's nominal frequency, yields the
 average effective frequency.
 .Pp
+AMD processors additionally provide a third fixed-counter machine
+specific register,
+.Va IRPERF
+.Pq Dq Instructions Retired Performance Count ,
+which increments by one for each instruction retired by the core.
+Unlike
+.Va MPERF
+and
+.Va APERF ,
+.Va IRPERF
+is an AMD-only facility and is not available on Intel processors.
+.Pp
 The
 .Dv PMC_CLASS_PERF
-class exposes these two MSRs as read-only 64-bit counters that may
+class exposes these MSRs as read-only 64-bit counters that may
 only be allocated in system-wide counting mode
 .Pq Dv PMC_MODE_SC.
-Both counters expose the unmodified contents of the underlying MSRs.
+All counters expose the unmodified contents of the underlying MSRs.
 .Pp
 It reflects the free-running count of the underlying MSR since the
 processor was last reset, and continues to accumulate across
@@ -70,19 +82,29 @@ By default AMD/Intel PERF enables the read flag.
 PERF events do not support further event qualifiers.
 .Ss Event Specifiers
 The following event names are supported:
-.Bl -tag -width "perf-mperf / mperf"
+.Bl -tag -width "perf-irperf / irperf"
 .It Cm perf-mperf , Cm mperf
 The Max Performance Frequency Clock Count
 MSR of the core the counter is bound to.
 .It Cm perf-aperf , Cm aperf
 The Actual Performance Frequency Clock Count
 MSR of the core the counter is bound to.
+.It Cm perf-irperf , Cm irperf
+The Instructions Retired Performance Count
+MSR of the core the counter is bound to.
+This event is only available on AMD processors; it is not
+supported on Intel processors.
+See
+.Sx Availability
+below for the full set of conditions that must hold for this
+event to be present.
 .El
 .Ss Counter Scope
-.Va MPERF
+.Va MPERF ,
+.Va APERF ,
 and
-.Va APERF
-are per-core registers: each core has its own independent pair of
+.Va IRPERF
+are per-core registers: each core has its own independent set of
 MSRs, and a PMC of this class always reads the value local to the
 CPU it is bound to.
 Readings from different cores must not be combined or averaged
@@ -108,10 +130,47 @@ class is not registered and does not appear in the output of
 .Xr pmccontrol 8
 or
 .Xr pmcstat 8 .
+.Pp
+The
+.Cm perf-irperf
+event is further restricted to AMD processors that advertise
+support for the IRPERF MSR in CPUID 8000_0008H bit 1 EBX.
+On processors that do not advertise this bit, including all
+Intel processors, the
+.Cm perf-irperf
+event specifier is not available even though the rest of the
+.Dv PMC_CLASS_PERF
+class may be present.
+.Pp
+Due to erratum #1054
+.Pq Dq Instructions Retired Performance Counter May Be Inaccurate ,
+IRPERF is additionally left disabled on affected AMD Zen 1 parts
+.Pq Family 17h, Models below 30h ,
+even though those processors advertise CPUID support for the MSR.
+It is enabled only for Zen 1 Family 17h Model 30h and later, and for
+all subsequent microarchitectures.
+.Pp
+As with
+.Va MPERF
+and
+.Va APERF ,
+the kernel also verifies, at boot time, that the IRPERF MSR is
+actually incrementing before enabling it; some virtualized
+environments advertise CPUID and erratum-safe family/model
+information without functional MSR support behind it.
+.Pp
+If IRPERF is unavailable for any of the reasons above, the rest of
+the
+.Dv PMC_CLASS_PERF
+class
+.Pq Va MPERF No and Va APERF
+is still registered normally; only the
+.Cm perf-irperf
+event specifier is absent.
 .Sh EXAMPLES
-Sample both counters on CPU 0 for five seconds:
+Sample all three counters on CPU 0 for five seconds:
 .Bd -literal -offset indent
-pmcstat -c 0 -s perf-mperf -s perf-aperf -w 5
+pmcstat -c 0 -s perf-mperf -s perf-aperf -s perf-irperf -w 5
 .Ed
 .Sh SEE ALSO
 .Xr pmc 3 ,

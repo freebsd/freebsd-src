@@ -1643,8 +1643,21 @@ pmc_amd_initialize(void)
 	 * cpu_startup() -> startrtclock()), not by hwpmc's TSC PMC class. It is
 	 * set only after confirming both MSRs actually increment (some emulators
 	 * expose the CPUID bit without real MSR support).
+	 *
+	 * Separately, detect support for the IRPERF MSR (AMD-only). If the
+	 * feature is present, HWCR_IRPERFEN should already be set in MSR_HWCR
+	 * by initializecpu() at boot, which also accounts for erratum #1054
+	 * (IRPERF is left disabled on affected Zen 1 parts) and verifies IRPERF
+	 * is actually incrementing on a dead/emulated MSR. This code only reads
+	 * back that already-decided state.
+	 *
+	 * Either condition above causes the PERF class to be registered, so at
+	 * least one of MPERF/APERF or IRPERF is expected to be usable when this
+	 * branch is taken.
 	 */
-	if ((cpu_power_ecx & CPUID_PERF_STAT) && (tsc_perf_stat == 1)) {
+	if (((cpu_power_ecx & CPUID_PERF_STAT) && (tsc_perf_stat == 1)) ||
+	    ((amd_extended_feature_extensions & AMDFEID_IRPERF) &&
+	    (rdmsr(MSR_HWCR) & HWCR_IRPERFEN))) {
 		nclasses++;
 	}
 

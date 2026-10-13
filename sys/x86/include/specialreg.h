@@ -111,6 +111,28 @@
 #define	EFER_AIBRSE	0x000200000	/* Automatic IBRS */
 
 /*
+ * Bits in AMD64 special registers. HWCR is 64 bits wide
+ */
+#define	HWCR_SMMLOCK			0x00000001	/* SMM code lock (R/W) */
+#define	HWCR_TLBCACHEDIS		0x00000008	/* Cacheable memory disable (R/W) */
+#define	HWCR_INVDWBINVD			0x00000010	/* INVD to WBINVD conversion (R/W) */
+#define	HWCR_ALLOWFERRONNE		0x00000080	/* Allow FERR on NE (R/W) */
+#define	HWCR_IGNNEEM			0x00000100	/* IGNNE port emulation enable (R/W) */
+#define	HWCR_MONMWAITDIS		0x00000200	/* MONITOR and MWAIT disable (R/W) */
+#define	HWCR_MONMWAITUSEREN		0x00000400	/* MONITOR/MWAIT user mode enable (R/W) */
+#define	HWCR_SMISPCYCDIS		0x00002000	/* SMI special bus cycle disable */
+#define	HWCR_RSMSPCYCDIS		0x00004000	/* RSM special bus cycle disable */
+#define	HWCR_WRAP32DIS			0x00020000	/* 32-bit address wrap disable (R/W) */
+#define	HWCR_MCSTATUSWREN		0x00040000	/* Machine check status write enable (R/W) */
+#define	HWCR_IOCFGGPFAULT		0x00100000	/* IO-space configuration causes a GP fault (R/W) */
+#define	HWCR_LOCKTSCTOCURRENTP0		0x00200000	/* Lock the TSC to the current P0 frequency (R/W) */
+#define	HWCR_TSCFREQSEL			0x01000000	/* TSC frequency select (R) */
+#define	HWCR_CPBDIS			0x02000000	/* Core performance boost disable (R/W) */
+#define	HWCR_EFFFREQCNTMWAIT		0x04000000	/* Effective frequency counting during mwait (R/W) */
+#define	HWCR_EFFFREQREADONLYLOCK	0x08000000	/* Read-only effective frequency counter lock */
+#define	HWCR_IRPERFEN			0x40000000	/* Enable instructions retired counter (R/W) */
+
+/*
  * Intel Extended Features registers
  */
 #define	XCR0	0		/* XFEATURE_ENABLED_MASK register */
@@ -1253,6 +1275,7 @@
 #define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
 #define	MSR_CSTAR	0xc0000083	/* compat mode SYSCALL target rip */
 #define	MSR_SF_MASK	0xc0000084	/* syscall flags mask */
+#define	MSR_IRPERF	0xc00000e9	/* instructions retired performance count */
 #define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment" */
 #define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
 #define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs */

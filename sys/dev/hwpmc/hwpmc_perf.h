@@ -3,21 +3,21 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * AMD/Intel MPERF and APERF MSRs counters exposed as an hwpmc(4) PMC class.
+ * AMD/Intel MPERF/APERF MSR counters, and the AMD-only IRPERF counter,
+ * exposed as an hwpmc(4) PMC class.
  */
 
 #ifdef  _KERNEL
 
 /*
- * A row per MSR: MPERF and APERF.
+ * A row per MSR: MPERF, APERF and IRPERF.
  */
 
-#define PERF_NPMCS 2
-#define PERF_MPERF 0
-#define PERF_APERF 1
+#define PERF_NPMCS_TOTAL	3
 
-extern int      tsc_perf_stat;
-extern  u_int   cpu_power_ecx;
+extern	int	tsc_perf_stat;
+extern	u_int	cpu_power_ecx;
+extern	u_int	amd_extended_feature_extensions;
 
 /*
  * Prototypes.
