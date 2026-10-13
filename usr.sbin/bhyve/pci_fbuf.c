@@ -32,14 +32,15 @@
 
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
-#include <vmmapi.h>
 
+#include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <errno.h>
 #include <unistd.h>
+
+#include <vmmapi.h>
 
 #include "bhyvegc.h"
 #include "bhyverun.h"
@@ -72,9 +73,8 @@ static int fbuf_debug = 1;
 #define	DMEMSZ	128
 
 #define	FB_SIZE		(16*MB)
-
-#define COLS_MAX	1920
-#define	ROWS_MAX	1200
+_Static_assert(FB_SIZE >= GC_ROWS_MAX * GC_COLS_MAX * sizeof(uint32_t),
+    "Framebuffer size is too small for maximum resolution");
 
 #define COLS_DEFAULT	1024
 #define ROWS_DEFAULT	768
@@ -92,6 +92,8 @@ struct pci_fbuf_softc {
 		uint16_t refreshrate;
 		uint8_t  reserved[116];
 	} __packed memregs;
+
+	pthread_mutex_t mtx;
 
 	/* rfb server */
 	char      *rfb_host;
@@ -134,8 +136,8 @@ pci_fbuf_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
 		return;
 	}
 
+	pthread_mutex_lock(&sc->mtx);
 	p = (uint8_t *)&sc->memregs + offset;
-
 	switch (size) {
 	case 1:
 		*p = value;
@@ -165,6 +167,7 @@ pci_fbuf_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
 		DPRINTF(DEBUG_INFO, ("switching to VESA mode"));
 		sc->gc_image->vgamode = 0;
 	}
+	pthread_mutex_unlock(&sc->mtx);
 }
 
 static uint64_t
@@ -178,13 +181,13 @@ pci_fbuf_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 
 	sc = pi->pi_arg;
 
-
 	if (offset + size > DMEMSZ) {
 		printf("fbuf: read too large, offset %ld size %d\n",
 		       offset, size);
 		return (0);
 	}
 
+	pthread_mutex_lock(&sc->mtx);
 	p = (uint8_t *)&sc->memregs + offset;
 	value = 0;
 	switch (size) {
@@ -204,6 +207,7 @@ pci_fbuf_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 		printf("fbuf: read unknown size %d\n", size);
 		break;
 	}
+	pthread_mutex_unlock(&sc->mtx);
 
 	DPRINTF(DEBUG_VERBOSE,
 	    ("fbuf rd: offset 0x%lx, size: %d, value: 0x%lx",
@@ -316,7 +320,7 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 	value = get_config_value_node(nvl, "w");
 	if (value != NULL) {
 		sc->memregs.width = atoi(value);
-		if (sc->memregs.width > COLS_MAX) {
+		if (sc->memregs.width > GC_COLS_MAX) {
 			EPRINTLN("fbuf: width %d too large", sc->memregs.width);
 			return (-1);
 		}
@@ -327,7 +331,7 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 	value = get_config_value_node(nvl, "h");
 	if (value != NULL) {
 		sc->memregs.height = atoi(value);
-		if (sc->memregs.height > ROWS_MAX) {
+		if (sc->memregs.height > GC_ROWS_MAX) {
 			EPRINTLN("fbuf: height %d too large",
 			    sc->memregs.height);
 			return (-1);
@@ -347,21 +351,32 @@ static void
 pci_fbuf_render(struct bhyvegc *gc, void *arg)
 {
 	struct pci_fbuf_softc *sc;
+	uint32_t width, height;
 
 	sc = arg;
-
+	pthread_mutex_lock(&sc->mtx);
 	if (sc->vga_full && sc->gc_image->vgamode) {
 		/* TODO: mode switching to vga and vesa should use the special
 		 *      EFI-bhyve protocol port.
 		 */
+		pthread_mutex_unlock(&sc->mtx);
 		vga_render(gc, sc->vgasc);
 		return;
 	}
-	if (sc->gc_width != sc->memregs.width ||
-	    sc->gc_height != sc->memregs.height) {
-		bhyvegc_resize(gc, sc->memregs.width, sc->memregs.height);
-		sc->gc_width = sc->memregs.width;
-		sc->gc_height = sc->memregs.height;
+	width = sc->memregs.width;
+	height = sc->memregs.height;
+	if (sc->gc_width != width || sc->gc_height != height) {
+		if (width > GC_COLS_MAX || height > GC_ROWS_MAX) {
+			/* Ignore an invalid resolution. */
+			pthread_mutex_unlock(&sc->mtx);
+		} else {
+			sc->gc_width = width;
+			sc->gc_height = height;
+			pthread_mutex_unlock(&sc->mtx);
+			bhyvegc_resize(gc, width, height);
+		}
+	} else {
+		pthread_mutex_unlock(&sc->mtx);
 	}
 }
 
@@ -379,6 +394,8 @@ pci_fbuf_init(struct pci_devinst *pi, nvlist_t *nvl)
 	sc = calloc(1, sizeof(struct pci_fbuf_softc));
 
 	pi->pi_arg = sc;
+
+	pthread_mutex_init(&sc->mtx, NULL);
 
 	/* initialize config space */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x40FB);
@@ -438,8 +455,10 @@ pci_fbuf_init(struct pci_devinst *pi, nvlist_t *nvl)
 
 	error = rfb_init(sc->rfb_host, sc->rfb_port, sc->rfb_wait, sc->rfb_password);
 done:
-	if (error)
+	if (error) {
+		pthread_mutex_destroy(&sc->mtx);
 		free(sc);
+	}
 
 	return (error);
 }
