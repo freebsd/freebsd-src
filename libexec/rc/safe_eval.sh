@@ -1,6 +1,6 @@
 :
 # RCSid:
-#	$Id: safe_eval.sh,v 1.35 2026/10/11 21:48:58 sjg Exp $
+#	$Id: safe_eval.sh,v 1.36 2026/10/13 22:44:09 sjg Exp $
 #
 #	@(#) Copyright (c) 2023-2026 Simon J. Gerraty
 #
@@ -42,6 +42,9 @@ fi
 # 	white-list of acceptable chars in "val"
 # 	default is 'A-Za-z0-9_  ,/=:+-'.
 #
+# -v "values"
+#	list of allowed values.
+#
 # -x "extra_chars"
 # 	eXtra chars to add to white-list for "val".
 #
@@ -54,10 +57,12 @@ fi
 #
 # 3. if "allow" is set and "var" is not a member we return 3.
 #
+# 4. if "values" is set and "val" is not a member we return 4.
+#
 # If we pass all that, we eval "var=val" and return 0.
 #
 safe_set_var() {
-    eval $_local ssv_allow ssv_extra ssv_only ssv_space ssv_rc
+    eval $_local ssv_allow ssv_extra ssv_only ssv_space ssv_rc ssv_values
     # use [:space:] if we can as it includes \n
     case " " in
     [[:space:]]) ssv_space="[:space:]";;
@@ -68,9 +73,11 @@ safe_set_var() {
 
     while :
     do
+        : 1="$1"
         case "$1" in
         -a) ssv_allow="$2"; shift 2;;
         -o) ssv_only="$2"; shift 2;;
+        -v) ssv_values="$2"; shift 2;;
         -x) ssv_extra="$2"; shift 2;;
         *) break;;
         esac
@@ -100,6 +107,10 @@ safe_set_var() {
     case " ${ssv_allow:-$ssv_var} " in
     *" $ssv_var "*) ;;
     *) ssv_rc=${ssv_rc:-3};;
+    esac
+    case " ${ssv_values:-$ssv_val} " in
+    *" $ssv_val "*) ;;
+    *) ssv_rc=${ssv_rc:-4};;
     esac
     ssv_rc=${ssv_rc:-0}
     if [ $ssv_rc = 0 ]; then
@@ -193,8 +204,9 @@ case /$0 in
     set_var)
         shift
         allow=
-        only=
         extra=
+        only=
+        values=
 
         while :
         do
@@ -202,16 +214,20 @@ case /$0 in
             case "$1" in
             -a) allow="$2"; shift 2;;
             -o) only="$2"; shift 2;;
+            -v) values="$2"; shift 2;;
             -x) extra="$2"; shift 2;;
             *=*)
-                if safe_set_var ${allow:+-a "$allow"} ${only:+-o "$only"} \
+                if safe_set_var ${allow:+-a "$allow"} \
+                    ${only:+-o "$only"} \
+                    ${values:+-v "$values"} \
                     ${extra:+-x "$extra"} "$1"; then
                     echo $ssv_var=$ssv_val
                 else
                     case $? in
                     1) echo invalid variable;;
-                    2) echo invalid value for $ssv_var;;
-                    3) echo denied $ssv_var;;
+                    2) echo "invalid value for '$ssv_var'";;
+                    3) echo "denied variable '$ssv_var'";;
+                    4) echo "denied value '$ssv_val' for '$ssv_var'";;
                     esac
                 fi
                 shift
