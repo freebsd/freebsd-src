@@ -267,7 +267,7 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	struct buf *bp, *nbp;
 	ufs_lbn_t lbn;
 	int error, passes, wflag;
-	bool still_dirty, unlocked, wait;
+	bool unlocked, wait;
 
 	ip = VTOI(vp);
 	bo = &vp->v_bufobj;
@@ -314,14 +314,13 @@ loop:
 		/*
 		 * Flush indirects in order, if requested.
 		 *
-		 * Note that if only datasync is requested, we can
-		 * skip indirect blocks when softupdates are not
-		 * active.  Otherwise we must flush them with data,
-		 * since dependencies prevent data block writes.
+		 * Indirect blocks are only dirtied by changes to the
+		 * block pointers they hold, so even a data-only sync
+		 * must write them: they are needed to retrieve newly
+		 * allocated blocks.
 		 */
 		if (waitfor == MNT_WAIT && bp->b_lblkno <= -UFS_NDADDR &&
-		    (lbn_level(bp->b_lblkno) >= passes ||
-		    ((flags & DATA_ONLY) != 0 && !DOINGSOFTDEP(vp))))
+		    lbn_level(bp->b_lblkno) >= passes)
 			continue;
 		if (bp->b_lblkno > lbn)
 			panic("ffs_syncvnode: syncing truncated data.");
@@ -421,35 +420,16 @@ next_locked:
 	 * these will be done with one sync and one async pass.
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
-		if ((flags & DATA_ONLY) == 0) {
-			still_dirty = true;
-		} else {
-			/*
-			 * For data-only sync, dirty indirect buffers
-			 * are ignored.
-			 */
-			still_dirty = false;
-			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
-				if (bp->b_lblkno > -UFS_NDADDR) {
-					still_dirty = true;
-					break;
-				}
-			}
+		/* Write the inode after sync passes to flush deps. */
+		if (wait && DOINGSOFTDEP(vp) && (flags & NO_INO_UPDT) == 0) {
+			BO_UNLOCK(bo);
+			ffs_update(vp, 1);
+			BO_LOCK(bo);
 		}
-
-		if (still_dirty) {
-			/* Write the inode after sync passes to flush deps. */
-			if (wait && DOINGSOFTDEP(vp) &&
-			    (flags & NO_INO_UPDT) == 0) {
-				BO_UNLOCK(bo);
-				ffs_update(vp, 1);
-				BO_LOCK(bo);
-			}
-			/* switch between sync/async. */
-			wait = !wait;
-			if (wait || ++passes < UFS_NIADDR + 2)
-				goto loop;
-		}
+		/* switch between sync/async. */
+		wait = !wait;
+		if (wait || ++passes < UFS_NIADDR + 2)
+			goto loop;
 	}
 	BO_UNLOCK(bo);
 	error = 0;
