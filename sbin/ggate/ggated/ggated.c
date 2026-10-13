@@ -1100,14 +1100,6 @@ main(int argc, char *argv[])
 		err(EXIT_FAILURE, "Cannot open/create pidfile");
 	}
 
-	if (!g_gate_verbose) {
-		/* Run in daemon mode. */
-		if (daemon(0, 0) == -1)
-			g_gate_xlog("Cannot daemonize: %s", strerror(errno));
-	}
-
-	pidfile_write(pfh);
-
 	signal(SIGCHLD, SIG_IGN);
 
 	sfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1128,6 +1120,19 @@ main(int argc, char *argv[])
 	g_gate_log(LOG_INFO, "Listen on port: %d.", port);
 
 	signal(SIGHUP, huphandler);
+
+	if (!g_gate_verbose) {
+		/*
+		 * Run in daemon mode.  Daemonize _after_ opening the socket,
+		 * so consumers may connect as soon as the ggated command
+		 * returns, but _before_ writing the pidfile, because daemon()
+		 * changes the pid.
+		 */
+		if (daemon(0, 0) == -1)
+			g_gate_xlog("Cannot daemonize: %s", strerror(errno));
+	}
+
+	pidfile_write(pfh);
 
 	for (;;) {
 		fromlen = sizeof(from);
