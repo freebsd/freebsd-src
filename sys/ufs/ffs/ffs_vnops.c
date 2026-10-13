@@ -458,7 +458,7 @@ next_locked:
 			error = ffs_update(vp, 1);
 		if (DOINGSUJ(vp))
 			softdep_journal_fsync(VTOI(vp));
-	} else if ((ip->i_flags & (IN_SIZEMOD | IN_IBLKDATA)) != 0) {
+	} else if ((ip->i_flag & (IN_SIZEMOD | IN_IBLKDATA)) != 0) {
 		error = ffs_update(vp, 1);
 	}
 	if (error == 0 && unlocked)
@@ -1044,7 +1044,7 @@ ffs_write(
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
 		if (!(ioflag & IO_DATASYNC) ||
-		    (ip->i_flags & (IN_SIZEMOD | IN_IBLKDATA)))
+		    (ip->i_flag & (IN_SIZEMOD | IN_IBLKDATA)))
 			error = ffs_update(vp, 1);
 		if (ffs_fsfail_cleanup(VFSTOUFS(vp->v_mount), error))
 			error = ENXIO;
