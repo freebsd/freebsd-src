@@ -213,6 +213,8 @@ ndp_prefix_len_mismatch_body() {
 	jexec alcatraz ifconfig ${epair}a inet6 -auto_linklocal
 	jexec alcatraz ifconfig ${epair}a inet6 -ifdisabled
 	jexec alcatraz ifconfig ${epair}a inet6 accept_rtadv
+	# Stable addresses (RFC 7217) do not use the link-local address.
+	jexec alcatraz ifconfig ${epair}a inet6 -stableaddr
 	jexec alcatraz ifconfig ${epair}a inet6 fe80::5a9c:fcff:fe10:5d07/127
 	jexec alcatraz ifconfig ${epair}a up
 
