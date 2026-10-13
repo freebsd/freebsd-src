@@ -189,7 +189,7 @@ join_common(pthread_t pthread, void **thread_return,
 	_thr_cancel_leave(curthread, 0);
 	THR_CLEANUP_POP(curthread, 0);
 
-	if (ret == ETIMEDOUT || ret == EBUSY) {
+	if (ret == ETIMEDOUT) {
 		backout_join(pthread, curthread);
 	} else {
 		ret = 0;
