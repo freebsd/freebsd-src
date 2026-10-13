@@ -1620,7 +1620,7 @@ sched_setup_smp(void)
 	int i;
 
 	CPU_FOREACH(i) {
-		tdq = DPCPU_ID_PTR(i, tdq);
+		tdq = TDQ_CPU(i);
 		tdq_setup(tdq, i);
 		tdq->tdq_cg = smp_topo_find(cpu_top, i);
 		if (tdq->tdq_cg == NULL)
