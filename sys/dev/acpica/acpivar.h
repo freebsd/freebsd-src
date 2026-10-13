@@ -456,6 +456,11 @@ EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_post_dev_suspend, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_pre_dev_resume, acpi_event_handler_t);
 
+/* Lid state changes.  The int argument is 1 for open, 0 for closed. */
+typedef void (*acpi_lid_event_handler_t)(void *, int);
+
+EVENTHANDLER_DECLARE(acpi_lid_event, acpi_lid_event_handler_t);
+
 void		acpi_invoke_sleep_eventhandler(const enum power_stype *stype);
 void		acpi_invoke_wake_eventhandler(const enum power_stype *stype);
 
