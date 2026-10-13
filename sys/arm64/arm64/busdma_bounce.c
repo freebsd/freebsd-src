@@ -1101,7 +1101,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		/*
 		 * Wait for any DMA operations to complete before the bcopy.
 		 */
-		dsb(sy);
+		dmb(oshld);
 	}
 	if (map == NULL)
 		goto out;
@@ -1176,11 +1176,17 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	}
 
 out:
-	if ((op & (BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE)) != 0) {
+	/*
+	 * If the device is cache-coherent then the cache operation will
+	 * have performed a dsb instruction so we don't need another
+	 * barrier here.
+	 */
+	if ((map == NULL || (map->flags & DMAMAP_COHERENT) != 0) &&
+	    (op & (BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE)) != 0) {
 		/*
 		 * Wait for the bcopy to complete before any DMA operations.
 		 */
-		dsb(sy);
+		dmb(oshst);
 	}
 
 	if (map != NULL)
