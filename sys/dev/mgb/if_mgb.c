@@ -968,6 +968,7 @@ mgb_isc_txd_encap(void *xsc , if_pkt_info_t ipi)
 	struct mgb_ring_desc *txd;
 	bus_dma_segment_t *segs;
 	qidx_t pidx, nsegs;
+	uint32_t ctl;
 	int i;
 
 	KASSERT(ipi->ipi_qsidx == 0,
@@ -981,23 +982,20 @@ mgb_isc_txd_encap(void *xsc , if_pkt_info_t ipi)
 
 	/* For each seg, create a descriptor */
 	for (i = 0; i < nsegs; ++i) {
-		KASSERT(nsegs == 1, ("Multisegment packet !!!!!\n"));
 		txd = &rdata->ring[pidx];
-		txd->ctl = htole32(
-		    (segs[i].ds_len & MGB_DESC_CTL_BUFLEN_MASK ) |
-		    /*
-		     * XXX: This will be wrong in the multipacket case
-		     * I suspect FS should be for the first packet and
-		     * LS should be for the last packet
-		     */
-		    MGB_TX_DESC_CTL_FS | MGB_TX_DESC_CTL_LS |
-		    MGB_DESC_CTL_FCS);
+		ctl = (segs[i].ds_len & MGB_DESC_CTL_BUFLEN_MASK) |
+		    MGB_DESC_CTL_FCS;
+		if (i == 0)
+			ctl |= MGB_TX_DESC_CTL_FS;
+		if (i == (nsegs - 1))
+			ctl |= MGB_TX_DESC_CTL_LS | MGB_DESC_CTL_IOC;
+		txd->ctl = htole32(ctl);
 		txd->addr.low = htole32(CSR_TRANSLATE_ADDR_LOW32(
 		    segs[i].ds_addr));
 		txd->addr.high = htole32(CSR_TRANSLATE_ADDR_HIGH32(
 		    segs[i].ds_addr));
-		txd->sts = htole32(
-		    (segs[i].ds_len << 16) & MGB_DESC_FRAME_LEN_MASK);
+		txd->sts = htole32((ipi->ipi_len << MGB_DESC_FRAME_LEN_SHIFT) &
+		    MGB_DESC_FRAME_LEN_MASK);
 		pidx = MGB_NEXT_RING_IDX(pidx);
 	}
 	ipi->ipi_new_pidx = pidx;
