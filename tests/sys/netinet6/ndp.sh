@@ -862,6 +862,162 @@ ndp_routeinfo_option_cleanup() {
 }
 
 
+# SLAAC interface identifier selection in in6_ifadd(): a link-local
+# address with the advertised prefix length lends its identifier to the
+# autoconfigured address, otherwise the identifier is derived from the MAC
+# address, which covers PPP links with a /128 link-local address as well as
+# interfaces without a link-local address.  The MAC address below gives the
+# EUI-64 based identifier 11:22ff:fe33:4455.  Stable addresses (RFC 7217)
+# are switched off on the host, they bypass both paths.
+ndp_slaac_prefix="2001:db8:ffff:2000"
+ndp_slaac_mac="02:11:22:33:44:55"
+ndp_slaac_mac_ifid="11:22ff:fe33:4455"
+ndp_slaac_ll_ifid="dead:beef:1:2"
+
+# Prepare ${ifname} in jail ${jname} as a SLAAC host with the test MAC
+# address and without an automatic link-local address.  DAD is off, so
+# that addresses are final once configured.  The caller adds the addresses
+# its case needs and brings the interface up.
+ndp_slaac_host()
+{
+	local ifname=$1 jname=$2
+
+	atf_check ifconfig -j ${jname} ${ifname} ether ${ndp_slaac_mac}
+	atf_check ifconfig -j ${jname} ${ifname} inet6 -auto_linklocal \
+	    -ifdisabled accept_rtadv -stableaddr no_dad
+}
+
+# Advertise ${ndp_slaac_prefix}::/64 to all nodes from ${sendif} and wait
+# for jail ${jname} to autoconfigure an address from it on ${ifname}.  Any
+# further arguments are passed to ra.py.
+ndp_slaac_advertise()
+{
+	local sendif=$1 jname=$2 ifname=$3 i
+
+	shift 3
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${sendif} \
+	    --dst ff02::1 \
+	    --src $(ndp_if_lladdr ${sendif}) \
+	    --prefix "${ndp_slaac_prefix}::" --prefixlen 64 "$@"
+	for i in $(jot 20); do
+		if ifconfig -j ${jname} ${ifname} inet6 | \
+		    grep -q "inet6 ${ndp_slaac_prefix}:.*autoconf"; then
+			return
+		fi
+		sleep 0.1
+	done
+	atf_fail "No address from ${ndp_slaac_prefix}::/64 was autoconfigured on ${ifname}"
+}
+
+atf_test_case "ndp_slaac_ifid_lladdr" "cleanup"
+ndp_slaac_ifid_lladdr_head() {
+	atf_set descr 'SLAAC takes the interface ID from a /64 link-local address'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_slaac_ifid_lladdr_body() {
+	local epair jname
+
+	vnet_init
+
+	jname="v6t-ndp_slaac_ifid_lladdr"
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair}a
+
+	ndp_slaac_host ${epair}a ${jname}
+	atf_check ifconfig -j ${jname} ${epair}a inet6 \
+	    fe80::${ndp_slaac_ll_ifid}/64
+	atf_check ifconfig -j ${jname} ${epair}a up
+	ndp_if_up ${epair}b
+	ndp_slaac_advertise ${epair}b ${jname} ${epair}a
+
+	atf_check \
+	    -o match:"inet6 ${ndp_slaac_prefix}:${ndp_slaac_ll_ifid} prefixlen 64.*autoconf" \
+	    -o not-match:"inet6 ${ndp_slaac_prefix}:${ndp_slaac_mac_ifid} " \
+	    ifconfig -j ${jname} ${epair}a inet6
+}
+
+ndp_slaac_ifid_lladdr_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_slaac_ifid_no_lladdr" "cleanup"
+ndp_slaac_ifid_no_lladdr_head() {
+	atf_set descr 'SLAAC derives the interface ID from the MAC address without a link-local address'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_slaac_ifid_no_lladdr_body() {
+	local epair jname
+
+	vnet_init
+
+	jname="v6t-ndp_slaac_ifid_no_lladdr"
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair}a
+
+	# An interface joins the all-nodes group, and so receives
+	# advertisements, only once it has an IPv6 address: give it a
+	# static one from another prefix in place of the link-local one.
+	ndp_slaac_host ${epair}a ${jname}
+	atf_check ifconfig -j ${jname} ${epair}a inet6 \
+	    2001:db8:ffff:1::2/64
+	atf_check ifconfig -j ${jname} ${epair}a up
+	ndp_if_up ${epair}b
+	ndp_slaac_advertise ${epair}b ${jname} ${epair}a
+
+	atf_check \
+	    -o match:"inet6 ${ndp_slaac_prefix}:${ndp_slaac_mac_ifid} prefixlen 64.*autoconf" \
+	    -o not-match:"inet6 fe80:" \
+	    ifconfig -j ${jname} ${epair}a inet6
+}
+
+ndp_slaac_ifid_no_lladdr_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_slaac_ifid_lladdr_plen128" "cleanup"
+ndp_slaac_ifid_lladdr_plen128_head() {
+	atf_set descr 'SLAAC derives the interface ID from the MAC address when the link-local address is a /128'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_slaac_ifid_lladdr_plen128_body() {
+	local epair jname
+
+	vnet_init
+
+	jname="v6t-ndp_slaac_ifid_lladdr_plen128"
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair}a
+
+	ndp_slaac_host ${epair}a ${jname}
+	atf_check ifconfig -j ${jname} ${epair}a inet6 \
+	    fe80::${ndp_slaac_ll_ifid}/128
+	atf_check ifconfig -j ${jname} ${epair}a up
+	ndp_if_up ${epair}b
+	ndp_slaac_advertise ${epair}b ${jname} ${epair}a
+
+	atf_check \
+	    -o match:"inet6 ${ndp_slaac_prefix}:${ndp_slaac_mac_ifid} prefixlen 64.*autoconf" \
+	    -o not-match:"inet6 ${ndp_slaac_prefix}:${ndp_slaac_ll_ifid} " \
+	    ifconfig -j ${jname} ${epair}a inet6
+}
+
+ndp_slaac_ifid_lladdr_plen128_cleanup() {
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "ndp_add_gu_success"
@@ -877,4 +1033,7 @@ atf_init_test_cases()
 	atf_add_test_case "ndp_input_validation_src_linklocal"
 	atf_add_test_case "ndp_multirouter_pref"
 	atf_add_test_case "ndp_routeinfo_option"
+	atf_add_test_case "ndp_slaac_ifid_lladdr"
+	atf_add_test_case "ndp_slaac_ifid_no_lladdr"
+	atf_add_test_case "ndp_slaac_ifid_lladdr_plen128"
 }

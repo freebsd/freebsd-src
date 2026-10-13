@@ -56,7 +56,7 @@ def main():
                         help='The route info preference advertised')
 
     args = parser.parse_args()
-    pkt = sp.Ether() / \
+    pkt = sp.Ether(src=sp.get_if_hwaddr(args.sendif[0])) / \
         sp.IPv6(src=args.src, dst=args.dst, hlim=args.hoplimit) / \
         sp.ICMPv6ND_RA(chlim=64,
                        prf=args.rtrpref,
