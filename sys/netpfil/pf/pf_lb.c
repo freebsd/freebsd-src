@@ -224,6 +224,10 @@ pf_match_translation_rule(int rs_num, struct pf_test_ctx *ctx, struct pf_krulese
 			    r) != PF_TEST_OK) {
 				break;
 			}
+			/* If we found a match in the anchor we're done. */
+			if (ctx->tr != NULL) {
+				break;
+			}
 		}
 		r = TAILQ_NEXT(r, entries);
 	}
