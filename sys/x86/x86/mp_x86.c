@@ -1347,14 +1347,21 @@ ipi_bitmap_handler(struct trapframe *frame)
 	td->td_intr_nesting_level++;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = frame;
+
+#ifdef COUNT_IPIS
+	if (ipi_bitmap & (1 << IPI_AST)) {
+		(*ipi_ast_counts[cpu])++;
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+		(*ipi_hardclock_counts[cpu])++;
+	if (ipi_bitmap & (1 << IPI_PREEMPT))
+		(*ipi_preempt_counts[cpu])++;
+#endif
+
 #if defined(STACK) || defined(DDB)
 	if (ipi_bitmap & (1 << IPI_TRACE))
 		stack_capture_intr();
 #endif
 	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
-#ifdef COUNT_IPIS
-		(*ipi_hardclock_counts[cpu])++;
-#endif
 		/*
 		 * Enter a critical section so that hardclockintr() can execute
 		 * entirely without preemption (as it calls code that can enter
@@ -1371,9 +1378,6 @@ ipi_bitmap_handler(struct trapframe *frame)
 		critical_exit();
 	}
 	if (ipi_bitmap & (1 << IPI_AST)) {
-#ifdef COUNT_IPIS
-		(*ipi_ast_counts[cpu])++;
-#endif
 		/* Nothing to do for AST */
 	}
 	/*
@@ -1382,13 +1386,8 @@ ipi_bitmap_handler(struct trapframe *frame)
 	 * IPIs are processed in due course (in particular, hardclockintr()), it
 	 * has to be called last.
 	 */
-	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
-#ifdef COUNT_IPIS
-		(*ipi_preempt_counts[cpu])++;
-#endif
-		if (do_preempt)
-			sched_preempt(td);
-	}
+	if (ipi_bitmap & (1 << IPI_PREEMPT) && do_preempt)
+		sched_preempt(td);
 	td->td_intr_frame = oldframe;
 	td->td_intr_nesting_level--;
 }
