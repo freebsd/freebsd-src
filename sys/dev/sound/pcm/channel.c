@@ -1841,8 +1841,9 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 	CHN_LOCKASSERT(c);
 
-	if ((c->flags & (CHN_F_MMAP | CHN_F_TRIGGERED)) ||
-	    !(c->direction == PCMDIR_PLAY || c->direction == PCMDIR_REC))
+	if (!(c->direction == PCMDIR_PLAY || c->direction == PCMDIR_REC))
+		return EINVAL;
+	if ((c->flags & (CHN_F_MMAP | CHN_F_TRIGGERED)) != 0)
 		return EINVAL;
 
 	if (latency == -1) {
@@ -1900,6 +1901,9 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		chn_notify(c->parentchannel, CHN_N_BLOCKSIZE);
 		CHN_UNLOCK(c->parentchannel);
 		CHN_LOCK(c);
+		/* Revalidate. */
+		if ((c->flags & (CHN_F_MMAP | CHN_F_TRIGGERED)) != 0)
+			return EINVAL;
 		if (c->direction == PCMDIR_PLAY) {
 			limit = (pb != NULL) ?
 			    sndbuf_xbytes(pb->bufsize, pb, bs) : 0;
@@ -1965,6 +1969,9 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			b->blksz = nblksz;
 		}
 		CHN_LOCK(c);
+		/* Revalidate. */
+		if ((c->flags & (CHN_F_MMAP | CHN_F_TRIGGERED)) != 0)
+			return EINVAL;
 
 		if (!CHN_EMPTY(c, children)) {
 			nsblksz = round_blksz(
