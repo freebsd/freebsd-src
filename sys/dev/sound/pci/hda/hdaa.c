@@ -2053,6 +2053,7 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 					uint32_t blksz, uint32_t blkcnt)
 {
 	struct hdaa_chan *ch = data;
+	int error;
 
 	blksz -= blksz % lcm(HDA_DMA_ALIGNMENT, sndbuf_getalign(ch->b));
 
@@ -2076,9 +2077,11 @@ hdaa_channel_setfragments(kobj_t obj, void *data,
 
 	if ((sndbuf_getblksz(ch->b) != blksz ||
 	    sndbuf_getblkcnt(ch->b) != blkcnt) &&
-	    sndbuf_resize(ch->b, blkcnt, blksz) != 0)
+	    (error = sndbuf_resize(ch->b, blkcnt, blksz)) != 0) {
 		device_printf(ch->devinfo->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
+		return (error);
+	}
 
 	ch->blksz = sndbuf_getblksz(ch->b);
 	ch->blkcnt = sndbuf_getblkcnt(ch->b);
@@ -2091,7 +2094,9 @@ hdaa_channel_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct hdaa_chan *ch = data;
 
-	hdaa_channel_setfragments(obj, data, blksz, ch->pdevinfo->chan_blkcnt);
+	if (hdaa_channel_setfragments(obj, data, blksz,
+	    ch->pdevinfo->chan_blkcnt) != 0)
+		return (0);
 
 	return (ch->blksz);
 }

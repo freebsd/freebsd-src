@@ -1870,7 +1870,6 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 {
 	struct snd_dbuf *b, *bs, *pb;
 	int sblksz, sblkcnt, hblksz, hblkcnt, limit = 0, nsblksz, nsblkcnt;
-	int ret;
 
 	CHN_LOCKASSERT(c);
 
@@ -1940,6 +1939,8 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			    sndbuf_xbytes(sndbuf_getblksz(pb), pb, bs) * 2 : 0;
 		}
 	} else {
+		int error;
+
 		hblkcnt = 2;
 		if (c->flags & CHN_F_HAS_SIZE) {
 			hblksz = round_blksz(sndbuf_xbytes(sblksz, bs, b),
@@ -1965,11 +1966,27 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		hblksz -= hblksz % sndbuf_getalign(b);
 
 		CHN_UNLOCK(c);
-		if (chn_usefrags == 0 ||
-		    CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
-		    hblksz, hblkcnt) != 0)
-			sndbuf_setblksz(b, CHANNEL_SETBLOCKSIZE(c->methods,
-			    c->devinfo, hblksz));
+		error = ENOTSUP;
+		if (chn_usefrags) {
+			error = CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
+			    hblksz, hblkcnt);
+			/* The default implementation returns ENOTSUP. */
+			if (error != 0 && error != ENOTSUP) {
+				CHN_LOCK(c);
+				return error;
+			}
+		}
+		if (error == ENOTSUP) {
+			uint32_t nblksz;
+
+			nblksz = CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo,
+			    hblksz);
+			if (nblksz == 0) {
+				CHN_LOCK(c);
+				return EINVAL;
+			}
+			sndbuf_setblksz(b, nblksz);
+		}
 		CHN_LOCK(c);
 
 		if (!CHN_EMPTY(c, children)) {
@@ -2008,11 +2025,13 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 	if (sndbuf_getblkcnt(bs) != sblkcnt || sndbuf_getblksz(bs) != sblksz ||
 	    sndbuf_getsize(bs) != (sblkcnt * sblksz)) {
-		ret = sndbuf_remalloc(bs, sblkcnt, sblksz);
-		if (ret != 0) {
+		int error;
+
+		error = sndbuf_remalloc(bs, sblkcnt, sblksz);
+		if (error != 0) {
 			device_printf(c->dev, "%s(): Failed: %d %d\n",
 			    __func__, sblkcnt, sblksz);
-			return ret;
+			return error;
 		}
 	}
 
