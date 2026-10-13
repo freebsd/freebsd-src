@@ -346,12 +346,14 @@ cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
     struct sc_info *sc = ch->parent;
     u_int32_t go;
 
-    go = adcdac_go(ch, 0);
-
     /* 2 interrupts are possible and used in buffer (half-empty,empty),
      * hence factor of 2. */
-    ch->blksz = MIN(blocksize, sc->bufsz / 2);
-    sndbuf_resize(ch->buffer, 2, ch->blksz);
+    blocksize = MIN(blocksize, sc->bufsz / 2);
+    if (sndbuf_resize(ch->buffer, 2, blocksize) != 0)
+	return 0;
+    ch->blksz = blocksize;
+
+    go = adcdac_go(ch, 0);
     ch->dma_setup = 0;
     adcdac_prog(ch);
     adcdac_go(ch, go);

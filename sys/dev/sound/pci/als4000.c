@@ -267,7 +267,8 @@ alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	if (blocksize > sc->bufsz / 2) {
 		blocksize = sc->bufsz / 2;
 	}
-	sndbuf_resize(ch->buffer, 2, blocksize);
+	if (sndbuf_resize(ch->buffer, 2, blocksize) != 0)
+		return 0;
 	return blocksize;
 }
 

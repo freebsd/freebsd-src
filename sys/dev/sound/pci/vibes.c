@@ -224,7 +224,8 @@ svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 
         /* user has requested interrupts every blocksize bytes */
 	RANGE(blocksize, SV_MIN_BLKSZ, sc->bufsz / SV_INTR_PER_BUFFER);
-	sndbuf_resize(ch->buffer, SV_INTR_PER_BUFFER, blocksize);
+	if (sndbuf_resize(ch->buffer, SV_INTR_PER_BUFFER, blocksize) != 0)
+		return 0;
 	DEB(printf("svchan_setblocksize: %d\n", blocksize));
 	return blocksize;
 }
