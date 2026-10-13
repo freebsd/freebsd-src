@@ -925,7 +925,7 @@ amd_get_msr(int ri, uint32_t *msr)
 static int
 amd_get_caps(int ri, uint32_t *caps)
 {
-	KASSERT(ri >= 0 && ri < amd_npmcs,
+	KASSERT(ri >= 0 && ri < AMD_NPMCS,
 	    ("[amd,%d] ri %d out of range", __LINE__, ri));
 
 	*caps = amd_pmcdesc[ri].pm_descr.pd_caps;
