@@ -33,6 +33,7 @@
 #define MGB_MICROCHIP_VENDOR_ID		0x1055
 #define MGB_LAN7430_DEVICE_ID		0x7430
 #define MGB_LAN7431_DEVICE_ID		0x7431
+#define MGB_PCI11414_DEVICE_ID		0xA041
 
 #define MGB_TIMEOUT			(500)
 
@@ -85,6 +86,19 @@
 #define MGB_PHY_RESET			0x10
 #define MGB_PHY_READY			0x80
 
+/* Strap configuration */
+#define	STRAP_READ			0x0C
+#define	STRAP_READ_USE_RMII_EN		(1 << 23)
+#define	STRAP_READ_USE_SGMII_EN		(1 << 22)
+#define	STRAP_READ_RMII_EN		(1 << 7)
+#define	STRAP_READ_SGMII_EN		(1 << 6)
+#define	STRAP_READ_SGMII_REFCLK		(1 << 5)
+#define	STRAP_READ_SGMII_2_5G		(1 << 4)
+#define	STRAP_READ_BASE_X		(1 << 3)
+#define	STRAP_READ_RGMII_TXC_DELAY_EN	(1 << 2)
+#define	STRAP_READ_RGMII_RXC_DELAY_EN	(1 << 1)
+#define	STRAP_READ_ADV_PM_DISABLE	(1 << 0)
+
 /** FIFO Controller **/
 #define MGB_FCT_TX_CTL			0xC4
 #define MGB_FCT_RX_CTL			0xAC
@@ -129,7 +143,7 @@
  *
  **/
 /* In linux driver these numbers are 50 and 65 for tx and rx .... */
-#define MGB_DMA_RING_SIZE		16 /* in programming guide, this number is 100 */
+#define MGB_DMA_RING_SIZE		1024 /* in programming guide, this number is 100 */
 #define MGB_DMA_MAXSEGS			32
 #define MGB_DMA_REG(reg, _channel)	((reg) | ((_channel) << 6))
 #define MGB_DMA_RING_LIST_SIZE		\
@@ -193,6 +207,22 @@
 #define MGB_MII_READ			0x0
 #define MGB_MII_WRITE			0x2
 #define MGB_MII_BUSY			0x1
+
+#define	SGMII_ACC			0x720
+#define	SGMII_ACC_SGMII_BZY		(1 << 31)
+#define	SGMII_ACC_SGMII_WR		(1 << 30)
+#define	SGMII_ACC_SGMII_MMD_SHIFT	16
+#define	SGMII_ACC_SGMII_MMD_MASK	0xf0000
+#define	SGMII_ACC_SGMII_MMD_VSR		(1 << 15)
+#define	SGMII_ACC_SGMII_ADDR_SHIFT	0
+#define	SGMII_ACC_SGMII_ADDR_MASK	0xffff
+#define	SGMII_DATA			0x724
+#define	SGMII_DATA_SHIFT		0
+#define	SGMII_DATA_MASK			0xffff
+#define	SGMII_CTL			0x728
+#define	SGMII_CTL_SGMII_ENABLE		(1 << 31)
+#define	SGMII_CTL_LINK_STATUS_SOURCE	(1 << 8)
+#define	SGMII_CTL_SGMII_POWER_DN	(1 << 1)
 
 /** Interrupt registers **/
 #define MGB_INTR_STS			0x780
@@ -325,6 +355,7 @@ struct mgb_softc {
 	struct mgb_ring_data		 rx_ring_data;
 	struct mgb_ring_data		 tx_ring_data;
 
+	bool				sgmii_en;
 };
 
 #endif /* _IF_MGB_H_ */

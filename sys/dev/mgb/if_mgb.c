@@ -91,6 +91,8 @@ static const pci_vendor_info_t mgb_vendor_info_array[] = {
 	    "Microchip LAN7430 PCIe Gigabit Ethernet Controller"),
 	PVID(MGB_MICROCHIP_VENDOR_ID, MGB_LAN7431_DEVICE_ID,
 	    "Microchip LAN7431 PCIe Gigabit Ethernet Controller"),
+	PVID(MGB_MICROCHIP_VENDOR_ID, MGB_PCI11414_DEVICE_ID,
+	    "Microchip PCI11414 PCIe Gigabit Ethernet Controller"),
 	PVID_END
 };
 
@@ -329,13 +331,47 @@ mgb_register(device_t dev)
 }
 
 static int
+mgb_mii_attach(struct mgb_softc *sc)
+{
+	struct mii_data *miid;
+	if_softc_ctx_t scctx;
+	int phyaddr;
+	int error;
+
+	scctx = iflib_get_softc_ctx(sc->ctx);
+
+	switch (pci_get_device(sc->dev)) {
+	case MGB_LAN7430_DEVICE_ID:
+		phyaddr = 1;
+		break;
+	case MGB_LAN7431_DEVICE_ID:
+	default:
+		phyaddr = MII_PHY_ANY;
+		break;
+	}
+
+	/* XXX: Would be nice(r) if locked methods were here */
+	error = mii_attach(sc->dev, &sc->miibus, iflib_get_ifp(sc->ctx),
+	    mgb_media_change, mgb_media_status,
+	    BMSR_DEFCAPMASK, phyaddr, MII_OFFSET_ANY, MIIF_DOPAUSE);
+	if (error != 0) {
+		device_printf(sc->dev, "Failed to attach MII interface\n");
+		return (error);
+	}
+
+	miid = device_get_softc(sc->miibus);
+	scctx->isc_media = &miid->mii_media;
+
+	return (0);
+}
+
+static int
 mgb_attach_pre(if_ctx_t ctx)
 {
 	struct mgb_softc *sc;
 	if_softc_ctx_t scctx;
-	int error, phyaddr, rid;
+	int error, rid;
 	struct ether_addr hwaddr;
-	struct mii_data *miid;
 
 	sc = iflib_get_softc(ctx);
 	sc->ctx = ctx;
@@ -395,27 +431,11 @@ mgb_attach_pre(if_ctx_t ctx)
 		goto fail;
 	}
 
-	switch (pci_get_device(sc->dev)) {
-	case MGB_LAN7430_DEVICE_ID:
-		phyaddr = 1;
-		break;
-	case MGB_LAN7431_DEVICE_ID:
-	default:
-		phyaddr = MII_PHY_ANY;
-		break;
+	if (!sc->sgmii_en) {
+		error = mgb_mii_attach(sc);
+		if (error)
+			goto fail;
 	}
-
-	/* XXX: Would be nice(r) if locked methods were here */
-	error = mii_attach(sc->dev, &sc->miibus, iflib_get_ifp(ctx),
-	    mgb_media_change, mgb_media_status,
-	    BMSR_DEFCAPMASK, phyaddr, MII_OFFSET_ANY, MIIF_DOPAUSE);
-	if (error != 0) {
-		device_printf(sc->dev, "Failed to attach MII interface\n");
-		goto fail;
-	}
-
-	miid = device_get_softc(sc->miibus);
-	scctx->isc_media = &miid->mii_media;
 
 	scctx->isc_msix_bar = pci_msix_table_bar(sc->dev);
 	/** Setup PBA BAR **/
@@ -446,6 +466,11 @@ mgb_attach_pre(if_ctx_t ctx)
 	CSR_WRITE_REG(sc, MGB_INTR_VEC_RX_MAP, 0);
 	CSR_WRITE_REG(sc, MGB_INTR_VEC_TX_MAP, 0);
 	CSR_WRITE_REG(sc, MGB_INTR_VEC_OTHER_MAP, 0);
+
+	if (sc->sgmii_en) {
+		/* Unsure which speed to set, use 1Gbps as default. */
+		iflib_link_state_change(ctx, LINK_STATE_UP, IF_Mbps(1000));
+	}
 
 	return (0);
 
@@ -598,8 +623,6 @@ mgb_init(if_ctx_t ctx)
 	int error;
 
 	sc = iflib_get_softc(ctx);
-	miid = device_get_softc(sc->miibus);
-	device_printf(sc->dev, "running init ...\n");
 
 	error = mgb_dma_init(sc);
 	if (error != 0) {
@@ -615,6 +638,10 @@ mgb_init(if_ctx_t ctx)
 	    MGB_RFE_ALLOW_MULTICAST |
 	    MGB_RFE_ALLOW_UNICAST);
 
+	if (sc->sgmii_en)
+		return;
+
+	miid = device_get_softc(sc->miibus);
 	error = mii_mediachg(miid);
 	/* Not much we can do if this fails. */
 	if (error)
@@ -1190,10 +1217,11 @@ mgb_test_bar(struct mgb_softc *sc)
 	id_rev = CSR_READ_REG(sc, 0);
 	dev_id = id_rev >> 16;
 	if (dev_id == MGB_LAN7430_DEVICE_ID ||
-	    dev_id == MGB_LAN7431_DEVICE_ID) {
+	    dev_id == MGB_LAN7431_DEVICE_ID ||
+	    dev_id == MGB_PCI11414_DEVICE_ID) {
 		return (0);
 	} else {
-		device_printf(sc->dev, "ID check failed.\n");
+		device_printf(sc->dev, "ID check failed: 0x%x\n", dev_id);
 		return (ENXIO);
 	}
 }
@@ -1457,7 +1485,11 @@ mgb_hw_teardown(struct mgb_softc *sc)
 static int
 mgb_hw_init(struct mgb_softc *sc)
 {
-	int error = 0;
+	uint32_t sgmii_ctl;
+	uint32_t reg;
+	int error;
+
+	error = 0;
 
 	error = mgb_hw_reset(sc);
 	if (error != 0)
@@ -1468,6 +1500,30 @@ mgb_hw_init(struct mgb_softc *sc)
 	error = mgb_phy_reset(sc);
 	if (error != 0)
 		goto fail;
+
+	/* Enable SGMII if needed. */
+	reg = CSR_READ_REG(sc, STRAP_READ);
+	if (bootverbose)
+		device_printf(sc->dev, "  Strap: %#b\n", reg,
+			"\020"
+			"\01ADV_PM_DISABLE"
+			"\02RGMII_RXC_DELAY_EN"
+			"\03RGMII_TXC_DELAY_EN"
+			"\04BASE_X"
+			"\05SGMII_2_5G"
+			"\06SGMII_REFCLK"
+			"\07SGMII_EN"
+			"\10RMII_EN"
+			"\27USE_SGMII_EN"
+			"\30USE_RMII_EN");
+	if ((reg & STRAP_READ_USE_SGMII_EN) != 0 &&
+	    (reg & STRAP_READ_SGMII_EN) != 0) {
+		sgmii_ctl = CSR_READ_REG(sc, SGMII_CTL);
+		sgmii_ctl |= SGMII_CTL_SGMII_ENABLE;
+		sgmii_ctl &= ~SGMII_CTL_SGMII_POWER_DN;
+		CSR_WRITE_REG(sc, SGMII_CTL, sgmii_ctl);
+		sc->sgmii_en = true;
+	}
 
 	error = mgb_dmac_reset(sc);
 	if (error != 0)
