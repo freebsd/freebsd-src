@@ -29,6 +29,9 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+
+#include <machine/atomic.h>
+
 #include <time.h>
 
 #include "pci_hda.h"
@@ -82,7 +85,7 @@ struct hda_bdle {
 	uint32_t addrh;
 	uint32_t len;
 	uint32_t ioc;
-} __packed;
+};
 
 struct hda_bdle_desc {
 	void *addr;
@@ -625,8 +628,9 @@ hda_stream_start(struct hda_softc *sc, uint8_t stream_ind)
 	bdl_paddr = bdpl | (bdpu << 32);
 	bdl_vaddr = hda_dma_get_vaddr(sc, bdl_paddr,
 	    HDA_BDL_ENTRY_LEN * bdl_cnt);
-	if (!bdl_vaddr) {
-		DPRINTF("Fail to get the guest virtual address");
+	if (bdl_vaddr == NULL ||
+	    (uintptr_t)bdl_vaddr % HDA_DMA_ACCESS_LEN != 0) {
+		DPRINTF("Invalid guest virtual address %p", bdl_vaddr);
 		return (-1);
 	}
 
@@ -637,11 +641,14 @@ hda_stream_start(struct hda_softc *sc, uint8_t stream_ind)
 
 	bdle = (struct hda_bdle *)bdl_vaddr;
 	for (size_t i = 0; i < bdl_cnt; i++, bdle++) {
-		bdle_sz = bdle->len;
-		assert(!(bdle_sz % HDA_DMA_ACCESS_LEN));
+		bdle_sz = atomic_load_32(&bdle->len);
+		if (bdle_sz % HDA_DMA_ACCESS_LEN != 0 || bdle_sz == 0) {
+			DPRINTF("Invalid BDLE length: 0x%x", bdle_sz);
+			return (-1);
+		}
 
-		bdle_addrl = bdle->addrl;
-		bdle_addrh = bdle->addrh;
+		bdle_addrl = atomic_load_32(&bdle->addrl);
+		bdle_addrh = atomic_load_32(&bdle->addrh);
 
 		bdle_paddr = bdle_addrl | (bdle_addrh << 32);
 		bdle_vaddr = hda_dma_get_vaddr(sc, bdle_paddr, bdle_sz);
@@ -653,7 +660,7 @@ hda_stream_start(struct hda_softc *sc, uint8_t stream_ind)
 		bdle_desc = &st->bdl[i];
 		bdle_desc->addr = bdle_vaddr;
 		bdle_desc->len = bdle_sz;
-		bdle_desc->ioc = bdle->ioc;
+		bdle_desc->ioc = atomic_load_32(&bdle->ioc);
 
 		DPRINTF("bdle: 0x%zx bdle_sz: 0x%x", i, bdle_sz);
 	}
