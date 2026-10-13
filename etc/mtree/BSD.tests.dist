@@ -838,6 +838,8 @@
             ..
             tmpfs
             ..
+            ufs
+            ..
             unionfs
             ..
         ..

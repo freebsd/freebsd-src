@@ -16,6 +16,7 @@ TESTS_SUBDIRS+=		fusefs
 TESTS_SUBDIRS+=		pjdfstest
 TESTS_SUBDIRS+=		tarfs
 TESTS_SUBDIRS+=		tmpfs
+TESTS_SUBDIRS+=		ufs
 TESTS_SUBDIRS+=		unionfs
 
 ${PACKAGE}FILES+=	h_funcs.subr
