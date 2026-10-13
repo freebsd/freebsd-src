@@ -139,6 +139,8 @@ pfil_fake_mbuf(pfil_mbuf_chk_t func, void *mem, u_int len, struct ifnet *ifp,
 		 */
 		rv = PFIL_REALLOCED;
 	}
+	if (!SLIST_EMPTY(&m.m_pkthdr.tags))
+		m_tag_delete_chain(&m, NULL);
 
 	return (rv);
 }
