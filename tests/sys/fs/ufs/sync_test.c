@@ -223,8 +223,8 @@ ondisk_read(ino_t ino, int lbn, struct ondisk *od)
 			ATF_REQUIRE(bread(&disk, fsbtodb(fs, ib), buf,
 			    fs->fs_bsize) == fs->fs_bsize);
 			od->blkno = disk.d_ufs == 1 ?
-			    ((ufs1_daddr_t *)buf)[lbn - UFS_NDADDR] :
-			    ((ufs2_daddr_t *)buf)[lbn - UFS_NDADDR];
+			    __DECONST(ufs1_daddr_t *, buf)[lbn - UFS_NDADDR] :
+			    __DECONST(ufs2_daddr_t *, buf)[lbn - UFS_NDADDR];
 		}
 	}
 
