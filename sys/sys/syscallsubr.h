@@ -97,11 +97,13 @@ typedef int (copyinuio_t)(const void *iovp, unsigned int iovcnt,
     struct uio **iov);
 
 /*
- * A updateiov_t takes a pointer to a struct uio previously created with
+ * An updateiov_t takes a pointer to a struct uio previously created with
  * copyinuio_t and a pointer to the corresponding iovec in userspace.
- * It updates all lengths in userspace to match those in the uio.
+ * They update all lengths in userspace to match those in the uio.
+ * They are a helper for non-standard uio use (not using uiomove) such
+ * as that in the jail_get(2) system call implementation.
  */
-typedef int(updateiov_t)(const struct uio *uiop, void *iovp);
+typedef int (updateiov_t)(const struct uio *uiop, void *iovp);
 
 uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
