@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 14, 2026
+.Dd October 16, 2026
 .Dt TERMIOS 4
 .Os
 .Sh NAME
@@ -160,10 +160,11 @@ creates a new session with the
 function; other processes
 remaining in the old session that had this terminal as their controlling
 terminal continue to have it.
-A process does not relinquish its
-controlling terminal simply by closing all of its file descriptors
-associated with the controlling terminal if other processes continue to
-have it open.
+Closing all file descriptors associated with the controlling terminal in
+one process does not disassociate the terminal from the session while
+another process continues to have it open.
+When the last file descriptor associated with the controlling terminal is
+closed, the terminal is disassociated from the session.
 .Pp
 When a controlling process terminates, the controlling terminal is
 disassociated from the current session, allowing it to be acquired by a
