@@ -59,7 +59,7 @@ static bool nlattr_add_pf_threshold(struct nl_writer *, int,
 
 struct nl_parsed_state {
 	uint8_t		version;
-	uint32_t	id;
+	uint64_t	id;
 	uint32_t	creatorid;
 	char		ifname[IFNAMSIZ];
 	uint16_t	proto;
@@ -72,7 +72,7 @@ struct nl_parsed_state {
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct nl_parsed_state, _field)
 static const struct nlattr_parser nla_p_state[] = {
-	{ .type = PF_ST_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
+	{ .type = PF_ST_ID, .off = _OUT(id), .cb = nlattr_get_uint64 },
 	{ .type = PF_ST_CREATORID, .off = _OUT(creatorid), .cb = nlattr_get_uint32 },
 	{ .type = PF_ST_IFNAME, .arg = (const void *)IFNAMSIZ, .off = _OUT(ifname), .cb = nlattr_get_chara },
 	{ .type = PF_ST_AF, .off = _OUT(af), .cb = nlattr_get_uint8 },
