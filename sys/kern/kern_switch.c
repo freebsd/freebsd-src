@@ -215,12 +215,6 @@ critical_exit_preempt(void)
 	struct thread *td;
 	int flags;
 
-	/*
-	 * If td_critnest is 0, it is possible that we are going to get
-	 * preempted again before reaching the code below. This happens
-	 * rarely and is harmless. However, this means td_owepreempt may
-	 * now be unset.
-	 */
 	td = curthread;
 	if (td->td_critnest != 0)
 		return;
@@ -228,13 +222,29 @@ critical_exit_preempt(void)
 		return;
 
 	/*
-	 * Microoptimization: we committed to switch,
-	 * disable preemption in interrupt handlers
-	 * while spinning for the thread lock.
+	 * Temporarily disable preemption, as thread_lock() can enter/exit
+	 * spinlock sections multiple times if the thread lock can't be acquired
+	 * right away or changes.  A call to spinlock_exit() there causes
+	 * a fast-growing stack of recursive calls with critical_exit_preempt()
+	 * as long as the condition persists (provided 'td_owepreempt' is still
+	 * non-zero), easily leading to stack exhaustion.
 	 */
 	td->td_critnest = 1;
 	thread_lock(td);
 	td->td_critnest--;
+	/*
+	 * We might have been preempted after the test on 'td_critnest' above
+	 * and before returning from the thread_lock() call, on reception of an
+	 * IPI_PREEMPT or some interrupt whose handler uses critical sections.
+	 * If that is the case, 'td_owepreempt' was reset and there is no need
+	 * to switch to another thread.  We are in a spinlock section here so
+	 * 'td_owepreempt' is stable and no incoming preemption will be lost.
+	 */
+	if (__predict_false(td->td_owepreempt == 0)) {
+		thread_unlock(td);
+		return;
+	}
+
 	flags = SW_INVOL | SW_PREEMPT;
 	if (TD_IS_IDLETHREAD(td))
 		flags |= SWT_IDLE;
