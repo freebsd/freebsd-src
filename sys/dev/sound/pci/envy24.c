@@ -1714,7 +1714,7 @@ envy24chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
 	/* struct sc_info *sc = ch->parent; */
-	u_int32_t size, prev;
+	uint32_t blk, size, prev;
         unsigned int bcnt, bsize;
 
 #if(0)
@@ -1729,20 +1729,22 @@ envy24chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 			break;
 	}
 
-	ch->blk = prev / ch->unit;
+	blk = prev / ch->unit;
 	if (ch->dir == PCMDIR_PLAY)
-		ch->blk *= ENVY24_PLAY_BUFUNIT / 4;
+		blk *= ENVY24_PLAY_BUFUNIT / 4;
 	else
-		ch->blk *= ENVY24_REC_BUFUNIT / 4;
+		blk *= ENVY24_REC_BUFUNIT / 4;
 	/* set channel buffer information */
 	/* ch->size = ch->unit * ENVY24_SAMPLE_NUM; */
         if (ch->dir == PCMDIR_PLAY)
-                bsize = ch->blk * 4 / ENVY24_PLAY_BUFUNIT;
+                bsize = blk * 4 / ENVY24_PLAY_BUFUNIT;
         else
-                bsize = ch->blk * 4 / ENVY24_REC_BUFUNIT;
+                bsize = blk * 4 / ENVY24_REC_BUFUNIT;
         bsize *= ch->unit;
         bcnt = ch->size / bsize;
-        sndbuf_resize(ch->buffer, bcnt, bsize);
+        if (sndbuf_resize(ch->buffer, bcnt, bsize) != 0)
+		return 0;
+	ch->blk = blk;
 	/* mtx_unlock(&sc->lock); */
 
 #if(0)

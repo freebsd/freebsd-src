@@ -632,8 +632,9 @@ eschan1371_setspeed(kobj_t obj, void *data, uint32_t speed)
 static int
 eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
 {
-  	struct es_chinfo *ch = data;
-  	struct es_info *es = ch->parent;
+	struct es_chinfo *ch = data;
+	struct es_info *es = ch->parent;
+	int error;
 
 	blksz &= ES_BLK_ALIGN;
 
@@ -657,9 +658,11 @@ eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
 
 	if ((ch->buffer->blksz != blksz ||
 	    ch->buffer->blkcnt != blkcnt) &&
-	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
+	    (error = sndbuf_resize(ch->buffer, blkcnt, blksz)) != 0) {
 		device_printf(es->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
+		return (error);
+	}
 
 	ch->bufsz = ch->buffer->bufsize;
 	ch->blksz = ch->buffer->blksz;
@@ -674,7 +677,8 @@ eschan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
   	struct es_chinfo *ch = data;
   	struct es_info *es = ch->parent;
 
-	eschan_setfragments(obj, data, blksz, es->blkcnt);
+	if (eschan_setfragments(obj, data, blksz, es->blkcnt) != 0)
+		return (0);
 
 	return (ch->blksz);
 }

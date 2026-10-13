@@ -947,6 +947,10 @@ hdspchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		}
 	}
 
+	if (sndbuf_resize(ch->buffer, 2,
+	    (hl->period * AFMT_CHANNEL(ch->format) * sizeof(uint32_t))) != 0)
+		return (0);
+
 	mtx_lock(&sc->lock);
 	sc->ctrl_register &= ~HDSP_LAT_MASK;
 	sc->ctrl_register |= hdsp_encode_latency(hl->n);
@@ -957,9 +961,6 @@ hdspchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 #if 0
 	device_printf(scp->dev, "New period=%d\n", sc->period);
 #endif
-
-	sndbuf_resize(ch->buffer, 2,
-	    (sc->period * AFMT_CHANNEL(ch->format) * sizeof(uint32_t)));
 
 	/* Reset pointer, rewrite frequency (same register) for 9632. */
 	hdsp_write_4(sc, HDSP_RESET_POINTER, 0);
