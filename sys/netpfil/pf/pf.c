@@ -8075,9 +8075,21 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &pd->hdr.icmp6.icmp6_cksum,
 					    &nk->addr[didx], 0);
 
-				if (nk->port[iidx] != pd->hdr.icmp6.icmp6_id)
+				/*
+				 * Only echo has an identifier.  Other
+				 * types use a virtual id of 0 and keep
+				 * other fields here (e.g. the NA flags).
+				 */
+				if (virtual_type == htons(ICMP6_ECHO_REQUEST) &&
+				    nk->port[iidx] != pd->hdr.icmp6.icmp6_id) {
+					pd->hdr.icmp6.icmp6_cksum =
+					    pf_cksum_fixup(
+					    pd->hdr.icmp6.icmp6_cksum,
+					    pd->hdr.icmp6.icmp6_id,
+					    nk->port[iidx], 0);
 					pd->hdr.icmp6.icmp6_id =
 					    nk->port[iidx];
+				}
 
 				m_copyback(pd->m, pd->off, sizeof(struct icmp6_hdr),
 				    (caddr_t )&pd->hdr.icmp6);

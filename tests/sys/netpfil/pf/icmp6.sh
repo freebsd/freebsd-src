@@ -196,9 +196,82 @@ repeat_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nat_nud" "cleanup"
+nat_nud_head()
+{
+	atf_set descr 'Test that NUD works when pf translates the probes'
+	atf_set require.user root
+}
+
+nat_nud_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a inet6 no_dad
+	jexec alcatraz ifconfig ${epair}a inet6 2001:db8::1/64 up
+	# Probe a stale neighbour one second after using it, not five.
+	jexec alcatraz sysctl net.inet6.icmp6.nd6_delay=1
+
+	vnet_mkjail singsing ${epair}b
+	jexec singsing ifconfig ${epair}b inet6 no_dad
+	jexec singsing ifconfig ${epair}b inet6 2001:db8::2/64 up
+
+	lla=$(jexec alcatraz ifconfig ${epair}a inet6 | \
+	    awk '/fe80:/ { sub(/%.*/, "", $2); print $2 }')
+	llb=$(jexec singsing ifconfig ${epair}b inet6 | \
+	    awk '/fe80:/ { sub(/%.*/, "", $2); print $2 }')
+
+	# NUD probes are sent from the link-local address, so this translates
+	# them, and the advertisements answering them come back to 2001:db8::1.
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "nat on ${epair}a inet6 from fe80::/10 to any -> 2001:db8::1" \
+	    "pass"
+
+	# singsing resolving alcatraz leaves it stale in alcatraz's neighbour
+	# cache, and alcatraz answering uses it, so alcatraz will probe it.
+	atf_check -s exit:0 -o ignore \
+	    jexec singsing ping -6 -c 1 ${lla}%${epair}b
+
+	# The advertisement answering the probe makes the neighbour reachable.
+	# A corrupted one is dropped: alcatraz probes twice more, then deletes
+	# the entry.
+	state=
+	for i in $(seq 1 15); do
+		state=$(jexec alcatraz ndp -n ${llb}%${epair}a 2>/dev/null | \
+		    awk 'NR == 2 { print $5 }')
+		if [ "${state}" = "R" ]; then
+			break
+		fi
+		sleep 1
+	done
+
+	jexec alcatraz ndp -an
+	jexec alcatraz pfctl -ss -vv
+
+	if [ "${state}" != "R" ]; then
+		atf_fail "NUD failed, neighbour state '${state:-no entry}'"
+	fi
+	atf_check -o match:"^[[:space:]]*0 bad checksums$" \
+	    jexec alcatraz netstat -s -p icmp6
+
+	# The probe was translated
+	atf_check -o match:"2001:db8::1 \(${lla}\) -> ${llb}\[135\]" \
+	    jexec alcatraz pfctl -ss
+}
+
+nat_nud_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "zero_id"
 	atf_add_test_case "ttl_exceeded"
 	atf_add_test_case "repeat"
+	atf_add_test_case "nat_nud"
 }
