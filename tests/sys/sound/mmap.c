@@ -102,10 +102,68 @@ ATF_TC_BODY(mmap_buffer_lifetime, tc)
 	ATF_REQUIRE(munmap(buf, len) == 0);
 }
 
+/*
+ * Verify that an attempt to resize a channel's buffer while it is mmapped
+ * fails.
+ */
+ATF_TC(mmap_resize_fails);
+ATF_TC_HEAD(mmap_resize_fails, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Resizing a mmapped channel buffer fails");
+	atf_tc_set_md_var(tc, "require.kmods", "snd_dummy");
+}
+ATF_TC_BODY(mmap_resize_fails, tc)
+{
+	audio_buf_info abi;
+	uint8_t *buf;
+	size_t len;
+	int fd, arg, ret;
+
+	fd = open("/dev/dsp.dummy", O_RDWR);
+	ATF_REQUIRE_MSG(fd >= 0, FMT_ERR("open"));
+
+	arg = (2 << 16) | 14; /* 2 * 16KB */
+	ATF_REQUIRE_MSG(ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &arg) == 0,
+	    FMT_ERR("SNDCTL_DSP_SETFRAGMENT"));
+	ATF_REQUIRE_MSG(ioctl(fd, SNDCTL_DSP_GETOSPACE, &abi) == 0,
+	    FMT_ERR("SNDCTL_DSP_GETOSPACE"));
+
+	len = abi.fragstotal * abi.fragsize;
+	ATF_REQUIRE_MSG(len >= PAGE_SIZE, "buffer too small: %zu", len);
+
+	buf = mmap(NULL, len, PROT_WRITE, MAP_SHARED, fd, 0);
+	ATF_REQUIRE_MSG(buf != MAP_FAILED, FMT_ERR("mmap"));
+
+	/* Try to resize the buffer; this should fail. */
+	arg = (4 << 16) | 12; /* 4 * 4KB */
+	ret = ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &arg);
+	ATF_REQUIRE_MSG(ret != 0, "resize of mmapped buffer should fail");
+	ATF_REQUIRE_MSG(errno == EINVAL,
+	    "expected EINVAL, got %s", strerror(errno));
+
+	ATF_REQUIRE(munmap(buf, len) == 0);
+
+	/*
+	 * CHN_F_MMAP is only cleared when the fd is closed, so resizing still
+	 * fails after munmap.  This is probably a bug, but we can at least
+	 * verify that the resize succeeds after the fd is closed and reopened.
+	 */
+	ATF_REQUIRE(close(fd) == 0);
+	fd = open("/dev/dsp.dummy", O_RDWR);
+	ATF_REQUIRE_MSG(fd >= 0, FMT_ERR("open"));
+	arg = (4 << 16) | 12; /* 4 * 4KB */
+	ATF_REQUIRE_MSG(ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &arg) == 0,
+	    FMT_ERR("SNDCTL_DSP_SETFRAGMENT after reopen"));
+
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, mmap_offset_overflow);
 	ATF_TP_ADD_TC(tp, mmap_buffer_lifetime);
+	ATF_TP_ADD_TC(tp, mmap_resize_fails);
 
 	return (atf_no_error());
 }
