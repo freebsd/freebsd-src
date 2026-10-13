@@ -718,8 +718,9 @@ tagname2tag(struct pf_tagset *ts, const char *tagname, bool add_new)
 	 * require additional configuration. If they are missing on the target
 	 * system we just ignore them
 	 */
-	if (add_new == false) {
-		printf("%s: Not creating a new tag\n", __func__);
+	if (! add_new) {
+		DPFPRINTF(PF_DEBUG_MISC, "%s: Not creating a new tag\n",
+		    __func__);
 		PF_TAGS_RUNLOCK();
 		return (0);
 	}
