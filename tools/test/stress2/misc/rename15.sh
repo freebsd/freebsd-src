@@ -34,22 +34,23 @@
 
 . ../default.cfg
 
+set -u
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
-mdconfig -a -t swap -s 2g -u $mdstart
-fl=$newfs_flags
-fl='-j'
-[ $fl = "-U" -a `jot -r 1 0 1` -eq 1 ] && fl="-j"
-echo "newfs $fl md$mdstart"
-newfs $fl md$mdstart > /dev/null
+mdconfig -a -t swap -s 5g -u $mdstart
+fstype=${fstype:-$(echo "-U -j -u" | sed 's/ /\n/g' | sort -R | head -1)} # SU, SUJ or UFS2
+echo "newfs $fstype md$mdstart"
+newfs $fstype md$mdstart > /dev/null 2>&1
 mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export LOAD=80
 export MAXSWAPPCT=80
 export RUNDIR=$mntpoint/stressX
+export CTRLDIR=$mntpoint/stressX.control
 export dirnprenameLOAD=100
 export dirrenameLOAD=100
+export ftsINCARNATIONS=2 # Workaround for kern.maxfiles limit exceeded
 export renameLOAD=100
 export runRUNTIME=10m
 export rwLOAD=80
@@ -68,15 +69,28 @@ testcases/dirnprename/dirnprename
 testcases/dirrename/dirrename
 '
 
-su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS'
+if [ "$fstype" = "-U" ]; then # workaround for SU disk full issue
+	set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
+	export KBLOCKS=$(($1 / 7))
+	export INODES=$(($2 / 7))
+fi
+
+su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS > /dev/null'
 
 ../tools/killall.sh
-for i in `jot 6`; do
-	mount | grep -q "on $mntpoint " || break
-	umount $mntpoint && break || sleep 10
-	[ $i -eq 6 ] &&
-	    { echo FATAL; fstat -mf $mntpoint; exit 1; }
+for i in `jot 3`; do
+	umount $mntpoint && break
+	sleep 30
 done
+if mount | grep -q "on $mntpoint "; then
+	mount | sed -n "/\\$mntpoint/p"
+	fstat -mf $mntpoint | sed 1d | awk '{print $3}' | while read pid; do
+		ps -lp $pid
+		procstat -k $pid
+		procstat -f $pid
+	done
+fi
+mount | grep -q "on $mntpoint " && exit 1
 checkfs /dev/md$mdstart; s=$?
 mdconfig -d -u $mdstart
 exit $s
