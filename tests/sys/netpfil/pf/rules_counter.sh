@@ -148,6 +148,58 @@ keepcounters_body()
 	    jexec alcatraz pfctl -s r -v
 }
 
+atf_test_case "keepcounters_pool" "cleanup"
+keepcounters_pool_head()
+{
+	atf_set descr 'Test keepcounters for a rule with an interface pool'
+	atf_set require.user root
+}
+
+keepcounters_pool_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"set keepcounters" \
+		"nat on ${epair}b inet from any to any -> (${epair}b)"
+
+	atf_check -s exit:0 -o ignore jexec alcatraz ping -c 1 192.0.2.1
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:'Evaluations: [1-9]' \
+	    jexec alcatraz pfctl -s nat -v
+
+	# The same rule again keeps its counters
+	pft_set_rules noflush alcatraz \
+		"set keepcounters" \
+		"nat on ${epair}b inet from any to any -> (${epair}b)"
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:'Evaluations: [1-9]' \
+	    jexec alcatraz pfctl -s nat -v
+
+	# Another prefix length makes it a different rule
+	pft_set_rules noflush alcatraz \
+		"set keepcounters" \
+		"nat on ${epair}b inet from any to any -> (${epair}b)/24"
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:'Evaluations: 0[[:space:]]' \
+	    jexec alcatraz pfctl -s nat -v
+}
+
+keepcounters_pool_cleanup()
+{
+	pft_cleanup
+}
+
 keepcounters_cleanup()
 {
 	pft_cleanup
@@ -157,4 +209,5 @@ atf_init_test_cases()
 {
 	atf_add_test_case "get_clear"
 	atf_add_test_case "keepcounters"
+	atf_add_test_case "keepcounters_pool"
 }
