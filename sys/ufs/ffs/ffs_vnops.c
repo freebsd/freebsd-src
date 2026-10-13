@@ -271,11 +271,18 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	struct buf *bp, *nbp;
 	ufs_lbn_t lbn;
 	int error, passes, wflag;
-	bool unlocked, wait;
+	bool inoupdt, unlocked, wait;
 
 	ip = VTOI(vp);
 	bo = &vp->v_bufobj;
 	ump = VFSTOUFS(vp->v_mount);
+	/*
+	 * With soft updates, the passes below may write the inode while
+	 * new block pointers in it are still rolled back.  That clears
+	 * IN_SIZEMOD and IN_IBLKDATA all the same, so note up front
+	 * whether a data-only sync has to write the inode.
+	 */
+	inoupdt = (ip->i_flag & (IN_SIZEMOD | IN_IBLKDATA)) != 0;
 #ifdef WITNESS
 	wflag = IS_SNAPSHOT(ip) ? LK_NOWITNESS : 0;
 #else
@@ -442,7 +449,7 @@ next_locked:
 			error = ffs_update(vp, 1);
 		if (DOINGSUJ(vp))
 			softdep_journal_fsync(VTOI(vp));
-	} else if ((ip->i_flag & (IN_SIZEMOD | IN_IBLKDATA)) != 0) {
+	} else if (inoupdt) {
 		error = ffs_update(vp, 1);
 	}
 	if (error == 0 && unlocked)
