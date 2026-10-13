@@ -84,10 +84,29 @@ sndbuf_rele(struct snd_dbuf *b)
 	}
 }
 
+
 bus_addr_t
 sndbuf_getbufaddr(struct snd_dbuf *buf)
 {
 	return (buf->buf_addr);
+}
+
+static bool
+sndbuf_busy(struct snd_dbuf *b)
+{
+	CHN_LOCKASSERT(b->channel);
+
+	return (refcount_load(&b->refcount) > 1 ||
+	    (b->flags & SNDBUF_F_DETACHED) != 0 ||
+	    /*
+	     * XXX-MJ CHN_F_MMAP is not reliable, but for software buffers the
+	     * refcount accurately reflects whether the buffer is mapped.
+	     * Ensure that there is no in-flight DMA transfer by checking
+	     * CHN_F_TRIGGERED.  This should really be checked at a higher
+	     * layer, but this is tricky since chn_resizebuf() and
+	     * sndbuf_resize() drop and reacquire the channel lock.
+	     */
+	    (b->channel->flags & (CHN_F_MMAP | CHN_F_TRIGGERED)) != 0);
 }
 
 static void
@@ -207,8 +226,7 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 
 	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
-		if (refcount_load(&b->refcount) > 1 ||
-		    (b->flags & SNDBUF_F_DETACHED) != 0) {
+		if (sndbuf_busy(b)) {
 			CHN_UNLOCK(b->channel);
 			return (EBUSY);
 		}
@@ -216,6 +234,11 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		CHN_UNLOCK(b->channel);
 		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
 		CHN_LOCK(b->channel);
+		if (sndbuf_busy(b)) {
+			CHN_UNLOCK(b->channel);
+			free(tmpbuf, M_DEVBUF);
+			return (EBUSY);
+		}
 		if (snd_verbose > 3)
 			printf("%s(): b=%p %p -> %p [%d -> %d : %d]\n",
 			    __func__, b, b->tmpbuf, tmpbuf,
@@ -253,8 +276,7 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 
 	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
-		if (refcount_load(&b->refcount) > 1 ||
-		    (b->flags & SNDBUF_F_DETACHED) != 0)
+		if (sndbuf_busy(b))
 			return (EBUSY);
 		allocsize = round_page(bufsize);
 		CHN_UNLOCK(b->channel);
@@ -262,14 +284,17 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
 		shadbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
 		CHN_LOCK(b->channel);
-		if (b->buf != NULL)
-			free(b->buf, M_DEVBUF);
+		if (sndbuf_busy(b)) {
+			free(buf, M_DEVBUF);
+			free(tmpbuf, M_DEVBUF);
+			free(shadbuf, M_DEVBUF);
+			return (EBUSY);
+		}
+		free(b->buf, M_DEVBUF);
 		b->buf = buf;
-		if (b->tmpbuf != NULL)
-			free(b->tmpbuf, M_DEVBUF);
+		free(b->tmpbuf, M_DEVBUF);
 		b->tmpbuf = tmpbuf;
-		if (b->shadbuf != NULL)
-			free(b->shadbuf, M_DEVBUF);
+		free(b->shadbuf, M_DEVBUF);
 		b->shadbuf = shadbuf;
 		if (snd_verbose > 3)
 			printf("%s(): b=%p %d -> %d [%d]\n",
