@@ -822,7 +822,10 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 	int error;
 	int sig;
 
-	if (!LINUX_SIG_VALID(args->sig))
+	/*
+	 * Allow signal 0 as a means to check for privileges
+	 */
+	if (!LINUX_SIG_VALID(args->sig) && args->sig != 0)
 		return (EINVAL);
 
 	error = copyin(args->info, &linfo, sizeof(linfo));
@@ -833,7 +836,11 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 		/* SI_USER, SI_KERNEL */
 		return (EPERM);
 
-	sig = linux_to_bsd_signal(args->sig);
+	if (args->sig > 0)
+		sig = linux_to_bsd_signal(args->sig);
+	else
+		sig = 0;
+
 	ksiginfo_init(&ksi);
 	error = lsiginfo_to_siginfo(td, &linfo, &ksi.ksi_info, sig);
 	if (error != 0)
