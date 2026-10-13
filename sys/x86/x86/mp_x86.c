@@ -1335,6 +1335,7 @@ ipi_bitmap_handler(struct trapframe *frame)
 	struct thread *td;
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
+	bool do_preempt = true;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
@@ -1343,16 +1344,6 @@ ipi_bitmap_handler(struct trapframe *frame)
 	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->
 	    pc_ipi_bitmap);
 
-	/*
-	 * sched_preempt() must be called to clear the pending preempt
-	 * IPI to enable delivery of further preempts.  However, the
-	 * critical section will cause extra scheduler lock thrashing
-	 * when used unconditionally.  Only critical_enter() if
-	 * hardclock must also run, which requires the section entry.
-	 */
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
-		critical_enter();
-
 	td->td_intr_nesting_level++;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = frame;
@@ -1360,11 +1351,24 @@ ipi_bitmap_handler(struct trapframe *frame)
 	if (ipi_bitmap & (1 << IPI_TRACE))
 		stack_capture_intr();
 #endif
-	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
 #ifdef COUNT_IPIS
-		(*ipi_preempt_counts[cpu])++;
+		(*ipi_hardclock_counts[cpu])++;
 #endif
-		sched_preempt(td);
+		/*
+		 * Enter a critical section so that hardclockintr() can execute
+		 * entirely without preemption (as it calls code that can enter
+		 * critical sections).
+		 */
+		critical_enter();
+		hardclockintr();
+		/*
+		 * If we are going to preempt now, do not let sched_preempt() do
+		 * an unnecessary extra preemption below.
+		 */
+		if (td->td_owepreempt != 0)
+			do_preempt = false;
+		critical_exit();
 	}
 	if (ipi_bitmap & (1 << IPI_AST)) {
 #ifdef COUNT_IPIS
@@ -1372,16 +1376,21 @@ ipi_bitmap_handler(struct trapframe *frame)
 #endif
 		/* Nothing to do for AST */
 	}
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+	/*
+	 * sched_preempt() causes an immediate switch to another thread when not
+	 * executing in a critical section.  In order to ensure that all other
+	 * IPIs are processed in due course (in particular, hardclockintr()), it
+	 * has to be called last.
+	 */
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
 #ifdef COUNT_IPIS
-		(*ipi_hardclock_counts[cpu])++;
+		(*ipi_preempt_counts[cpu])++;
 #endif
-		hardclockintr();
+		if (do_preempt)
+			sched_preempt(td);
 	}
 	td->td_intr_frame = oldframe;
 	td->td_intr_nesting_level--;
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
-		critical_exit();
 }
 
 /*
