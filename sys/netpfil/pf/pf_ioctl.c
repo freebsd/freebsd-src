@@ -5843,12 +5843,16 @@ DIOCCHANGEADDR_error:
 
 	case DIOCSETREASS: {
 		u_int32_t	*reass = (u_int32_t *)addr;
+		u_int32_t	 flags;
 
-		V_pf_status.reass = *reass & (PF_REASS_ENABLED|PF_REASS_NODF);
+		flags = *reass & (PF_REASS_ENABLED|PF_REASS_NODF);
 		/* Removal of DF flag without reassembly enabled is not a
 		 * valid combination. Disable reassembly in such case. */
-		if (!(V_pf_status.reass & PF_REASS_ENABLED))
-			V_pf_status.reass = 0;
+		if (!(flags & PF_REASS_ENABLED))
+			flags = 0;
+		PF_RULES_WLOCK();
+		V_pf_status.reass = flags;
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
