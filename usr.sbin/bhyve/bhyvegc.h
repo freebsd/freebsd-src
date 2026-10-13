@@ -43,4 +43,7 @@ void bhyvegc_set_fbaddr(struct bhyvegc *gc, void *fbaddr);
 void bhyvegc_resize(struct bhyvegc *gc, int width, int height);
 struct bhyvegc_image *bhyvegc_get_image(struct bhyvegc *gc);
 
+#define	GC_COLS_MAX	1920
+#define	GC_ROWS_MAX	1200
+
 #endif /* _BHYVEGC_H_ */
