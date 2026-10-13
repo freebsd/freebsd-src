@@ -1544,6 +1544,7 @@ sched_4bsd_preempt(struct thread *td)
 {
 	int flags;
 
+	MPASS(td == curthread);
 	SDT_PROBE2(sched, , , surrender, td, td->td_proc);
 	if (td->td_critnest > 1) {
 		td->td_owepreempt = 1;
