@@ -1508,29 +1508,22 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 			/*
 			 * Shared-clock guard.  If this clock entity is
-			 * shared between the playback and capture paths,
-			 * and the OTHER direction is already streaming at
-			 * a different rate, do not reprogram the clock --
-			 * the rate that is already locked wins.  This
-			 * stops an idle or secondary stream from yanking
-			 * the shared clock out from under an active
-			 * stream and dropping USB stream lock.  The first
-			 * active stream owns the clock; a later one
-			 * follows it (see uaudio_chan_start(), which
-			 * re-aligns the jitter-info record stream to the
-			 * playback rate before it is started).
+			 * shared between the playback and capture paths
+			 * and the OTHER direction is already streaming,
+			 * that direction owns the clock: do not write it,
+			 * even with the same rate.  Some devices reload
+			 * their clock on every SET_CUR and drop the stream
+			 * that is already running.
 			 */
 			if (uaudio20_clock_is_shared(sc, x)) {
 				uint32_t other = (dir == PCMDIR_PLAY) ?
 				    uaudio_dir_running_rate(sc->sc_rec_chan) :
 				    uaudio_dir_running_rate(sc->sc_play_chan);
 
-				if (other != 0 &&
-				    other != chan_alt->sample_rate) {
+				if (other != 0) {
 					DPRINTF("shared clock ID=%u busy at "
-					    "%u Hz; not reprogramming to "
-					    "%u Hz\n", x, other,
-					    chan_alt->sample_rate);
+					    "%u Hz; not writing %u Hz\n",
+					    x, other, chan_alt->sample_rate);
 					continue;
 				}
 			}
@@ -2975,15 +2968,22 @@ uaudio_chan_start(struct uaudio_chan *ch)
 			 */
 			if (uaudio_chan_match_rate(ch_rec,
 			    ch_play->usb_alt[ch_play->set_alt].sample_rate,
-			    &rec_alt))
+			    &rec_alt)) {
 				ch_rec->set_alt = rec_alt;
 
-			/*
-			 * Start both endpoints because of need for
-			 * jitter information:
-			 */
-			uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
-			uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+				/*
+				 * Start both endpoints because of need for
+				 * jitter information:
+				 */
+				uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			} else {
+				/*
+				 * No capture rate matches playback; do not
+				 * start capture at a stale rate.
+				 */
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			}
 		} else {
 			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
