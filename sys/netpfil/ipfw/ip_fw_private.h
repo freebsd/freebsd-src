@@ -161,14 +161,6 @@ void ipfw_nat_destroy(void);
 struct ip;
 struct ip_fw;
 struct ip_fw_chain;
-
-void ipfw_bpf_init(int);
-void ipfw_bpf_uninit(int);
-void ipfw_tap_alloc(struct ip_fw_chain *, uint32_t);
-void ipfw_tap_free(struct ip_fw_chain *, uint32_t);
-void ipfw_bpf_tap(struct ip_fw_chain *, struct ip_fw_args *, struct ip *,
-    uint32_t);
-void ipfw_pflog_tap(void *, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
     struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip,
     void *eh);
@@ -176,6 +168,15 @@ VNET_DECLARE(u_int64_t, norule_counter);
 #define	V_norule_counter	VNET(norule_counter)
 VNET_DECLARE(int, verbose_limit);
 #define	V_verbose_limit		VNET(verbose_limit)
+
+/* In ip_fw_bpf.c */
+void ipfw_bpf_init(int);
+void ipfw_bpf_uninit(int);
+void ipfw_tap_alloc(struct ip_fw_chain *, uint32_t);
+void ipfw_tap_free(struct ip_fw_chain *, uint32_t);
+void ipfw_bpf_tap(struct ip_fw_chain *, struct ip_fw_args *, struct ip *,
+    uint32_t);
+void ipfw_pflog_tap(void *, struct mbuf *);
 
 /* In ip_fw_dynamic.c */
 struct sockopt_data;
