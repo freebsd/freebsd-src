@@ -231,6 +231,7 @@ struct uaudio_chan_alt {
 	uint16_t sample_size;
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
+	uint8_t	sync_feed_ep;
 	uint8_t channels;
 };
 
@@ -1808,6 +1809,27 @@ uaudio_get_chan(struct uaudio_softc *sc, struct uaudio_chan *chan,
 	return (NULL);
 }
 
+/*
+ * Return the explicit feedback endpoint of the alternate setting holding
+ * the data endpoint "ed1", or zero if there is none.
+ */
+static uint8_t
+uaudio_chan_find_sync_feed_ep(struct usb_config_descriptor *cd,
+    usb_endpoint_descriptor_audio_t *ed1)
+{
+	struct usb_endpoint_descriptor *ed = (void *)ed1;
+
+	while ((ed = usb_edesc_foreach(cd, ed)) != NULL) {
+		if (UE_GET_XFERTYPE(ed->bmAttributes) == UE_ISOCHRONOUS &&
+		    UE_GET_ISO_USAGE(ed->bmAttributes) ==
+		    UE_ISO_USAGE_FEEDBACK &&
+		    UE_GET_DIR(ed->bEndpointAddress) !=
+		    UE_GET_DIR(ed1->bEndpointAddress))
+			return (ed->bEndpointAddress);
+	}
+	return (0);
+}
+
 static void
 uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
     uint32_t rate, uint8_t channels, uint8_t bit_resolution)
@@ -2144,6 +2166,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->p_sed = sed;
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
+		chan_alt->sync_feed_ep = uaudio_chan_find_sync_feed_ep(cd, ed1);
 
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
@@ -2382,10 +2405,11 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		    (int)temp, (int)sample_rate);
 
 		/*
-		 * Use feedback value as fallback when there is no
-		 * recording channel:
+		 * Use the feedback value unless the recording channel is
+		 * streaming and providing jitter information:
 		 */
-		if (ch->priv_sc->sc_rec_chan[i].num_alt == 0) {
+		if (ch->priv_sc->sc_rec_chan[i].cur_alt >=
+		    ch->priv_sc->sc_rec_chan[i].num_alt) {
 			int32_t jitter_max = howmany(sample_rate, 16000);
 
 			/*
@@ -2426,6 +2450,12 @@ uaudio_chan_is_async(struct uaudio_chan *ch, uint8_t alt)
 {
 	uint8_t attr = ch->usb_alt[alt].p_ed1->bmAttributes;
 	return (UE_GET_ISO_TYPE(attr) == UE_ISO_ASYNC);
+}
+
+static int
+uaudio_chan_has_sync_feed_ep(struct uaudio_chan *ch, uint8_t alt)
+{
+	return (alt < ch->num_alt && ch->usb_alt[alt].sync_feed_ep != 0);
 }
 
 static void
@@ -2910,6 +2940,7 @@ uaudio_chan_need_both(struct uaudio_chan *pchan, struct uaudio_chan *rchan)
 	return (pchan->num_alt > 0 &&
 	    pchan->running != 0 &&
 	    uaudio_chan_is_async(pchan, pchan->set_alt) != 0 &&
+	    uaudio_chan_has_sync_feed_ep(pchan, pchan->set_alt) == 0 &&
 	    rchan->num_alt > 0 &&
 	    rchan->running == 0);
 }
