@@ -850,15 +850,16 @@ static void
 pfr_insert_kentries(struct pfr_ktable *kt,
     struct pfr_kentryworkq *workq, time_t tzero)
 {
-	struct pfr_kentry	*p;
+	struct pfr_kentry	*p, *q;
 	int			 rv, n = 0;
 
-	SLIST_FOREACH(p, workq, pfrke_workq) {
+	SLIST_FOREACH_SAFE(p, workq, pfrke_workq, q) {
 		rv = pfr_route_kentry(kt, p);
 		if (rv) {
 			printf("pfr_insert_kentries: cannot route entry "
 			    "(code=%d).\n", rv);
-			break;
+			pfr_destroy_kentry(p);
+			continue;
 		}
 		p->pfrke_counters.pfrkc_tzero = tzero;
 		n++;
@@ -880,8 +881,10 @@ pfr_insert_kentry(struct pfr_ktable *kt, struct pfr_addr *ad, time_t tzero)
 		return (ENOMEM);
 
 	rv = pfr_route_kentry(kt, p);
-	if (rv)
+	if (rv) {
+		pfr_destroy_kentry(p);
 		return (rv);
+	}
 
 	p->pfrke_counters.pfrkc_tzero = tzero;
 	kt->pfrkt_cnt++;
