@@ -92,19 +92,12 @@ _pthread_tryjoin_np(pthread_t pthread, void **thread_return)
 	return (join_common(pthread, thread_return, NULL, false, true));
 }
 
-static void
-join_common_joined(struct pthread *pthread, struct pthread *curthread,
-    void **thread_return)
+static void *
+join_common_detach(struct pthread *pthread)
 {
-	void *tmp;
-
-	tmp = pthread->ret;
 	pthread->flags |= THR_FLAGS_DETACHED;
 	pthread->joiner = NULL;
-	_thr_try_gc(curthread, pthread); /* thread lock released */
-
-	if (thread_return != NULL)
-		*thread_return = tmp;
+	return (pthread->ret);
 }
 
 /*
@@ -117,6 +110,7 @@ join_common(pthread_t pthread, void **thread_return,
 {
 	struct pthread *curthread = _get_curthread();
 	struct timespec ts, ts2, *tsp;
+	void *tmp;
 	long tid;
 	int ret;
 
@@ -156,7 +150,10 @@ join_common(pthread_t pthread, void **thread_return,
 			THR_THREAD_UNLOCK(curthread, pthread);
 			return (EBUSY);
 		}
-		join_common_joined(pthread, curthread, thread_return);
+		tmp = join_common_detach(pthread);
+		_thr_try_gc(curthread, pthread); /* thread lock released */
+		if (thread_return != NULL)
+			*thread_return = tmp;
 		return (0);
 	}
 
@@ -193,8 +190,17 @@ join_common(pthread_t pthread, void **thread_return,
 		backout_join(pthread, curthread);
 	} else {
 		ret = 0;
+		THREAD_LIST_WRLOCK(curthread);
 		THR_THREAD_LOCK(curthread, pthread);
-		join_common_joined(pthread, curthread, thread_return);
+		tmp = join_common_detach(pthread);
+		if (THR_SHOULD_GC(pthread)) {
+			THR_LIST_REMOVE(pthread);
+			THR_GCLIST_ADD(pthread);
+		}
+		THR_THREAD_UNLOCK(curthread, pthread);
+		THREAD_LIST_UNLOCK(curthread);
+		if (thread_return != NULL)
+			*thread_return = tmp;
 	}
 	return (ret);
 }
