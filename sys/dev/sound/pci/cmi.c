@@ -470,7 +470,8 @@ cmichan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	if (blocksize > sc->bufsz / CMI_INTR_PER_BUFFER) {
 		blocksize = sc->bufsz / CMI_INTR_PER_BUFFER;
 	}
-	sndbuf_resize(ch->buffer, CMI_INTR_PER_BUFFER, blocksize);
+	if (sndbuf_resize(ch->buffer, CMI_INTR_PER_BUFFER, blocksize) != 0)
+		return 0;
 
 	return blocksize;
 }

@@ -328,8 +328,9 @@ viachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct via_chinfo *ch = data;
 
+	if (sndbuf_resize(ch->buffer, SEGS_PER_CHAN, blocksize) != 0)
+		return 0;
 	ch->blksz = blocksize;
-	sndbuf_resize(ch->buffer, SEGS_PER_CHAN, ch->blksz);
 
 	return ch->blksz;
 }

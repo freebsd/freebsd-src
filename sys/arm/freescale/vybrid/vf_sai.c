@@ -368,7 +368,8 @@ saichan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	struct sc_pcminfo *scp = ch->parent;
 	struct sc_info *sc = scp->sc;
 
-	sndbuf_resize(ch->buffer, sc->dma_size / blocksize, blocksize);
+	if (sndbuf_resize(ch->buffer, sc->dma_size / blocksize, blocksize) != 0)
+		return (0);
 
 	sc->period = sndbuf_getblksz(ch->buffer);
 	return (sc->period);
