@@ -54,7 +54,7 @@ typedef void prt_close_t(void *);
 typedef int prt_exec_t(int, char *[]);
 
 struct proto {
-	const char		*prt_name;
+	char			 prt_name[4];
 	prt_connect_t		*prt_connect;
 	prt_connect_wait_t	*prt_connect_wait;
 	prt_server_t		*prt_server;
