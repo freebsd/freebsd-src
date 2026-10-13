@@ -672,8 +672,8 @@ struct bnxt_ring {
 	uint8_t			mpc_chnl_type;	/* valid when queue_id == BNXT_MPC_QUEUE_ID */
 	struct iflib_dma_info	ring_mem;	/* manual DMA alloc for driver-private rings (MPC) */
 	struct bnxt_cp_ring	*cp_ring;	/* completion ring this TX ring reports to (MPC) */
-	uint16_t		prod;		/* MPC TX ring producer index */
-	uint16_t		cons;		/* MPC TX ring consumer index */
+	uint32_t		prod;		/* MPC TX ring producer index */
+	uint32_t		cons;		/* MPC TX ring consumer index */
 	struct mtx		tx_lock;	/* MPC TX ring lock */
 	union {
 		struct bnxt_sw_tx_bd		*tx_buf_ring;
