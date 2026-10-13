@@ -49,6 +49,7 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/debugnet.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -104,6 +105,10 @@ static void	rge_txq_flush_mbufs(struct rge_softc *sc);
 static void	rge_tick(void *);
 static void	rge_link_state(struct rge_softc *);
 static void	rge_setwol(struct rge_softc *);
+
+#ifdef DEBUGNET
+DEBUGNET_DEFINE(rge);
+#endif
 
 struct rge_matchid {
 	uint16_t vendor;
@@ -180,6 +185,10 @@ rge_attach_if(struct rge_softc *sc, const char *eaddr)
 	/* TODO: is this needed for iftransmit? */
 	if_setsendqlen(sc->sc_ifp, RGE_TX_LIST_CNT - 1);
 	if_setsendqready(sc->sc_ifp);
+
+#ifdef DEBUGNET
+	DEBUGNET_SET(sc->sc_ifp, rge);
+#endif
 }
 
 static int
@@ -2673,6 +2682,84 @@ rge_shutdown(device_t dev)
 
 	return (0);
 }
+
+#ifdef DEBUGNET
+static void
+rge_debugnet_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
+{
+	struct rge_softc *sc;
+
+	sc = if_getsoftc(ifp);
+	RGE_LOCK(sc);
+	*nrxr = RGE_RX_LIST_CNT;
+	*ncl = DEBUGNET_MAX_IN_FLIGHT;
+	*clsize = MCLBYTES;
+	RGE_UNLOCK(sc);
+}
+
+static void
+rge_debugnet_event(if_t ifp __unused, enum debugnet_ev event __unused)
+{
+}
+
+static int
+rge_debugnet_transmit(if_t ifp, struct mbuf *m)
+{
+	struct rge_softc *sc;
+	struct rge_queues *q;
+	int idx, free, used;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	    sc->sc_stopped)
+		return (EBUSY);
+
+	q = sc->sc_queues;
+	idx = q->q_tx.rge_txq_prodidx;
+	free = q->q_tx.rge_txq_considx;
+	if (free <= idx)
+		free += RGE_TX_LIST_CNT;
+	free -= idx;
+	if (free < RGE_TX_NSEGS + 2)
+		return (ENOBUFS);
+
+	used = rge_encap(sc, q, &m, idx);
+	if (used <= 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
+
+	idx += used;
+	if (idx >= RGE_TX_LIST_CNT)
+		idx -= RGE_TX_LIST_CNT;
+	q->q_tx.rge_txq_prodidx = idx;
+
+	RGE_WRITE_2(sc, RGE_TXSTART, RGE_TXSTART_START);
+	return (0);
+}
+
+static int
+rge_debugnet_poll(if_t ifp, int count __unused)
+{
+	struct rge_softc *sc;
+	struct rge_queues *q;
+	struct mbufq rx_mq;
+	struct mbuf *m;
+
+	sc = if_getsoftc(ifp);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	    sc->sc_stopped)
+		return (EBUSY);
+
+	q = sc->sc_queues;
+	rge_txeof(q);
+	mbufq_init(&rx_mq, RGE_RX_LIST_CNT);
+	(void)rge_rxeof(q, &rx_mq);
+	while ((m = mbufq_dequeue(&rx_mq)) != NULL)
+		if_input(ifp, m);
+	return (0);
+}
+#endif /* DEBUGNET */
 
 static device_method_t rge_methods[] = {
 	DEVMETHOD(device_probe,			rge_probe),
