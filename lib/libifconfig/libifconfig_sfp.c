@@ -432,7 +432,7 @@ static void
 get_cmis_string(struct i2c_info *ii, uint8_t off, char *dst)
 {
 	read_i2c_page(ii, CMIS_BASE, 0x00, 0, off,
-	    SFF_VENDOR_STRING_SIZE, dst);
+	    SFF_VENDOR_STRING_SIZE, (uint8_t *)dst);
 	dst += SFF_VENDOR_STRING_SIZE;
 	do { *dst-- = '\0'; } while (*dst == 0x20);
 }
@@ -440,7 +440,7 @@ get_cmis_string(struct i2c_info *ii, uint8_t off, char *dst)
 static void
 get_cmis_date(struct i2c_info *ii, uint8_t off, char *dst)
 {
-	char buf[SFF_VENDOR_DATE_SIZE];
+	uint8_t buf[SFF_VENDOR_DATE_SIZE];
 
 	read_i2c_page(ii, CMIS_BASE, 0x00, 0, off,
 	    SFF_VENDOR_DATE_SIZE, buf);
