@@ -1917,6 +1917,8 @@ static const struct snl_attr_parser nla_p_speer[] = {
 	{ .type = PF_STP_SEQLO, .off = _OUT(seqlo), .cb = snl_attr_get_uint32 },
 	{ .type = PF_STP_SEQHI, .off = _OUT(seqhi), .cb = snl_attr_get_uint32 },
 	{ .type = PF_STP_SEQDIFF, .off = _OUT(seqdiff), .cb = snl_attr_get_uint32 },
+	{ .type = PF_STP_MAX_WIN, .off = _OUT(max_win), .cb = snl_attr_get_uint16 },
+	{ .type = PF_STP_MSS, .off = _OUT(mss), .cb = snl_attr_get_uint16 },
 	{ .type = PF_STP_STATE, .off = _OUT(state), .cb = snl_attr_get_uint8 },
 	{ .type = PF_STP_WSCALE, .off = _OUT(wscale), .cb = snl_attr_get_uint8 },
 };

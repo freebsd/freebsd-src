@@ -359,6 +359,8 @@ struct pfctl_state_peer {
 	uint32_t			 seqdiff;
 	uint8_t				 state;
 	uint8_t				 wscale;
+	uint16_t			 max_win;
+	uint16_t			 mss;
 };
 
 struct pfctl_state_key {
