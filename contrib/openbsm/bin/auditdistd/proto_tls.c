@@ -854,7 +854,7 @@ tls_wrap(int fd, bool client, void **ctxp)
 	if (tlsctx == NULL)
 		return (errno);
 
-	if (proto_wrap("socketpair", client, fd, &sock) == -1) {
+	if (proto_wrap("skp", client, fd, &sock) == -1) {
 		error = errno;
 		free(tlsctx);
 		return (error);
