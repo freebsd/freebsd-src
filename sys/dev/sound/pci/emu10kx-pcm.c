@@ -785,7 +785,7 @@ emupchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 	blocksize = EMU_PLAY_BUFSZ / blkcnt;
 
 	if (sndbuf_resize(ch->buffer, blkcnt, blocksize) != 0)
-		return (ch->blksz);
+		return (0);
 
 	mtx_lock(&sc->lock);
 	ch->blksz = blocksize;

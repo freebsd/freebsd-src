@@ -113,7 +113,8 @@ fwisound_chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 	if (blksz < 4)
 		blksz = 4;
 
-	sndbuf_resize(chan->buf, chan->buf->bufsize / blksz, blksz);
+	if (sndbuf_resize(chan->buf, chan->buf->bufsize / blksz, blksz) != 0)
+		return (0);
 
 	return (chan->buf->blksz);
 }
