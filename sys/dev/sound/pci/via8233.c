@@ -565,6 +565,7 @@ via8233chan_setfragments(kobj_t obj, void *data,
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
+	int error;
 
 	blksz &= VIA_BLK_ALIGN;
 
@@ -588,9 +589,11 @@ via8233chan_setfragments(kobj_t obj, void *data,
 
 	if ((ch->buffer->blksz != blksz ||
 	    ch->buffer->blkcnt != blkcnt) &&
-	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
+	    (error = sndbuf_resize(ch->buffer, blkcnt, blksz)) != 0) {
 		device_printf(via->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
+		return (error);
+	}
 
 	ch->blksz = ch->buffer->blksz;
 	ch->blkcnt = ch->buffer->blkcnt;
@@ -604,7 +607,8 @@ via8233chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 
-	via8233chan_setfragments(obj, data, blksz, via->blkcnt);
+	if (via8233chan_setfragments(obj, data, blksz, via->blkcnt) != 0)
+		return (0);
 
 	return (ch->blksz);
 }

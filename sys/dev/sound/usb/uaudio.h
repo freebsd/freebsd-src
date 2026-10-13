@@ -43,8 +43,6 @@ extern void	*uaudio_chan_init(struct uaudio_chan *ch, struct snd_dbuf *b,
 extern int	uaudio_chan_free(struct uaudio_chan *ch);
 extern int	uaudio_chan_set_param_blocksize(struct uaudio_chan *ch,
 		    uint32_t blocksize);
-extern int	uaudio_chan_set_param_fragments(struct uaudio_chan *ch,
-		    uint32_t blocksize, uint32_t blockcount);
 extern int	uaudio_chan_set_param_speed(struct uaudio_chan *ch,
 		    uint32_t speed);
 extern int	uaudio_chan_getptr(struct uaudio_chan *ch);

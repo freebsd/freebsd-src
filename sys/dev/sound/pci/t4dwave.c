@@ -538,7 +538,8 @@ trpchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct tr_chinfo *ch = data;
 
-	sndbuf_resize(ch->buffer, 2, blocksize);
+	if (sndbuf_resize(ch->buffer, 2, blocksize) != 0)
+		return 0;
 	return blocksize;
 }
 
@@ -659,8 +660,8 @@ trrchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct tr_rchinfo *ch = data;
 
-	sndbuf_resize(ch->buffer, 2, blocksize);
-
+	if (sndbuf_resize(ch->buffer, 2, blocksize) != 0)
+		return 0;
 	return blocksize;
 }
 

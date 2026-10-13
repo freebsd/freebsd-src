@@ -941,6 +941,11 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		}
 	}
 
+	if (sndbuf_resize(ch->buffer,
+	    (HDSPE_CHANBUF_SIZE * AFMT_CHANNEL(ch->format)) / (hl->period * 4),
+	    (hl->period * 4)) != 0)
+		return (0);
+
 	mtx_lock(&sc->lock);
 	sc->ctrl_register &= ~HDSPE_LAT_MASK;
 	sc->ctrl_register |= hdspe_encode_latency(hl->n);
@@ -952,9 +957,6 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	device_printf(scp->dev, "New period=%d\n", sc->period);
 #endif
 
-	sndbuf_resize(ch->buffer,
-	    (HDSPE_CHANBUF_SIZE * AFMT_CHANNEL(ch->format)) / (sc->period * 4),
-	    (sc->period * 4));
 end:
 
 	return (ch->buffer->blksz);

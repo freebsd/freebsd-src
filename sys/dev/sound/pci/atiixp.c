@@ -532,6 +532,7 @@ atiixp_chan_setfragments(kobj_t obj, void *data,
 {
 	struct atiixp_chinfo *ch = data;
 	struct atiixp_info *sc = ch->parent;
+	int error;
 
 	blksz &= ATI_IXP_BLK_ALIGN;
 
@@ -555,9 +556,11 @@ atiixp_chan_setfragments(kobj_t obj, void *data,
 
 	if ((ch->buffer->blksz != blksz ||
 	    ch->buffer->blkcnt != blkcnt) &&
-	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
+	    (error = sndbuf_resize(ch->buffer, blkcnt, blksz)) != 0) {
 		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
 		    __func__, blksz, blkcnt);
+		return (error);
+	}
 
 	ch->blksz = ch->buffer->blksz;
 	ch->blkcnt = ch->buffer->blkcnt;
@@ -571,7 +574,8 @@ atiixp_chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 	struct atiixp_chinfo *ch = data;
 	struct atiixp_info *sc = ch->parent;
 
-	atiixp_chan_setfragments(obj, data, blksz, sc->blkcnt);
+	if (atiixp_chan_setfragments(obj, data, blksz, sc->blkcnt) != 0)
+		return (0);
 
 	return (ch->blksz);
 }

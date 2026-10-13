@@ -2782,16 +2782,12 @@ uaudio_chan_free(struct uaudio_chan *ch)
 int
 uaudio_chan_set_param_blocksize(struct uaudio_chan *ch, uint32_t blocksize)
 {
-	uint32_t temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
-	sndbuf_setup(ch->pcm_buf, ch->buf, temp);
-	return (temp / 2);
-}
+	uint32_t temp;
 
-int
-uaudio_chan_set_param_fragments(struct uaudio_chan *ch, uint32_t blocksize,
-    uint32_t blockcount)
-{
-	return (1);
+	temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
+	if (sndbuf_setup(ch->pcm_buf, ch->buf, temp) != 0)
+		return (0);
+	return (temp / 2);
 }
 
 int

@@ -1837,7 +1837,6 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 {
 	struct snd_dbuf *b, *bs, *pb;
 	int sblksz, sblkcnt, hblksz, hblkcnt, limit = 0, nsblksz, nsblkcnt;
-	int ret;
 	u_int32_t maxsize;
 
 	CHN_LOCKASSERT(c);
@@ -1909,6 +1908,8 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			    sndbuf_xbytes(pb->blksz, pb, bs) * 2 : 0;
 		}
 	} else {
+		int error;
+
 		/*
 		 * The byte-rate-scaled cap applies to the secondary buffer
 		 * only.  It exists to absorb userland scheduling latency,
@@ -1942,11 +1943,27 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		hblksz -= hblksz % b->align;
 
 		CHN_UNLOCK(c);
-		if (chn_usefrags == 0 ||
-		    CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
-		    hblksz, hblkcnt) != 0)
-			b->blksz = CHANNEL_SETBLOCKSIZE(c->methods,
-			    c->devinfo, hblksz);
+		error = ENOTSUP;
+		if (chn_usefrags) {
+			error = CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
+			    hblksz, hblkcnt);
+			/* The default implementation returns ENOTSUP. */
+			if (error != 0 && error != ENOTSUP) {
+				CHN_LOCK(c);
+				return error;
+			}
+		}
+		if (error == ENOTSUP) {
+			uint32_t nblksz;
+
+			nblksz = CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo,
+			    hblksz);
+			if (nblksz == 0) {
+				CHN_LOCK(c);
+				return EINVAL;
+			}
+			b->blksz = nblksz;
+		}
 		CHN_LOCK(c);
 
 		if (!CHN_EMPTY(c, children)) {
@@ -1985,11 +2002,13 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 	if (bs->blkcnt != sblkcnt || bs->blksz != sblksz ||
 	    bs->bufsize != (sblkcnt * sblksz)) {
-		ret = sndbuf_remalloc(bs, sblkcnt, sblksz);
-		if (ret != 0) {
+		int error;
+
+		error = sndbuf_remalloc(bs, sblkcnt, sblksz);
+		if (error != 0) {
 			device_printf(c->dev, "%s(): Failed: %d %d\n",
 			    __func__, sblkcnt, sblksz);
-			return ret;
+			return error;
 		}
 	}
 
