@@ -1325,11 +1325,14 @@ ocs_ref_get(ocs_ref_t *ref)
 static inline uint32_t
 ocs_ref_get_unless_zero(ocs_ref_t *ref)
 {
-	uint32_t rc = 0;
+	uint32_t rc;
+
 	rc = ocs_atomic_read(&ref->count);
-		if (rc != 0) {
-			ocs_atomic_add_return(&ref->count, 1);
-		}
+	do {
+		if (rc == 0)
+			return 0;
+	} while (!atomic_fcmpset_32(&ref->count, &rc, rc + 1));
+
 	return rc;
 }
 
