@@ -139,7 +139,7 @@ struct sockaddr	*get_ifa(char *, int);
 void		 routehandler(struct protocol *);
 void		 usage(void);
 int		 check_option(struct client_lease *l, int option);
-int		 check_classless_option(unsigned char *data, int len);
+int		 check_classless_option(unsigned char *data, size_t len);
 int		 ipv4addrs(const char * buf);
 int		 res_hnok(const char *dn);
 int		 check_search(const char *srch);
@@ -2846,43 +2846,56 @@ check_option(struct client_lease *l, int option)
 
 /* RFC 3442 The Classless Static Routes option checks */
 int
-check_classless_option(unsigned char *data, int len)
+check_classless_option(unsigned char *data, size_t len)
 {
-	int i = 0;
-	unsigned char width;
+	unsigned int i;
 	in_addr_t addr, mask;
+	unsigned char width;
 
 	if (len < 5) {
-		warning("Too small length: %d", len);
+		warning("Too small length: %zu", len);
 		return (0);
 	}
-	while(i < len) {
+	for (i = 0; i < len; i += 4) {
+		unsigned int octets;
+
 		width = data[i++];
-		if (width == 0) {
-			i += 4;
-			continue;
-		} else if (width < 9) {
-			addr =  (in_addr_t)(data[i]	<< 24);
-			i += 1;
-		} else if (width < 17) {
-			addr =  (in_addr_t)(data[i]	<< 24) +
-				(in_addr_t)(data[i + 1]	<< 16);
-			i += 2;
-		} else if (width < 25) {
-			addr =  (in_addr_t)(data[i]	<< 24) +
-				(in_addr_t)(data[i + 1]	<< 16) +
-				(in_addr_t)(data[i + 2]	<< 8);
-			i += 3;
-		} else if (width < 33) {
-			addr =  (in_addr_t)(data[i]	<< 24) +
-				(in_addr_t)(data[i + 1]	<< 16) +
-				(in_addr_t)(data[i + 2]	<< 8)  +
-				data[i + 3];
-			i += 4;
-		} else {
-			warning("Incorrect subnet width: %d", width);
+		octets = (width + 7) / 8;
+		if (len < i + octets) {
+			warning("Incorrect data length: %zu", len);
 			return (0);
 		}
+
+		switch (octets) {
+		case 0:
+			continue;
+		case 1:
+			addr = ((in_addr_t)data[i] << 24);
+			i += 1;
+			break;
+		case 2:
+			addr = ((in_addr_t)data[i] << 24) +
+			    ((in_addr_t)data[i + 1] << 16);
+			i += 2;
+			break;
+		case 3:
+			addr = ((in_addr_t)data[i] << 24) +
+			    ((in_addr_t)data[i + 1] << 16) +
+			    ((in_addr_t)data[i + 2] << 8);
+			i += 3;
+			break;
+		case 4:
+			addr = ((in_addr_t)data[i] << 24) +
+			    ((in_addr_t)data[i + 1] << 16) +
+			    ((in_addr_t)data[i + 2] << 8) +
+			    data[i + 3];
+			i += 4;
+			break;
+		default:
+			warning("Incorrect subnet width: %u", width);
+			return (0);
+		}
+
 		mask = (in_addr_t)(~0) << (32 - width);
 		addr = ntohl(addr);
 		mask = ntohl(mask);
@@ -2899,10 +2912,9 @@ check_classless_option(unsigned char *data, int len)
 			data[i - 1] = (unsigned char)(
 				(addr >> (((32 - width)/8)*8)) & 0xFF);
 		}
-		i += 4;
 	}
 	if (i > len) {
-		warning("Incorrect data length: %d (must be %d)", len, i);
+		warning("Incorrect data length: %zu (must be %u)", len, i);
 		return (0);
 	}
 	return (1);
