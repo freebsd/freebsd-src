@@ -9736,7 +9736,14 @@ ocs_hw_io_t *
 ocs_hw_io_lookup(ocs_hw_t *hw, uint32_t xri)
 {
 	uint32_t ioindex;
-	ioindex = xri - hw->sli.config.extent[SLI_RSRC_FCOE_XRI].base[0];
+	uint32_t base = hw->sli.config.extent[SLI_RSRC_FCOE_XRI].base[0];
+
+	if (xri < base || (xri - base) >= hw->config.n_io) {
+		ocs_log_err(hw->os, "xri %#x out of range (base=%#x n_io=%u)\n",
+		    xri, base, hw->config.n_io);
+		return NULL;
+	}
+	ioindex = xri - base;
 	return hw->io[ioindex];
 }
 
@@ -11346,6 +11353,8 @@ ocs_hw_reclaim_xri(ocs_hw_t *hw, uint16_t xri_base, uint16_t xri_count)
 
 	for (i = 0; i < xri_count; i++) {
 		io = ocs_hw_io_lookup(hw, xri_base + i);
+		if (io == NULL)
+			continue;
 
 		/*
 		 * if this is an auto xfer rdy XRI, then we need to release any
