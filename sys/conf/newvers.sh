@@ -179,7 +179,7 @@ findvcs()
 
 git_tree_modified()
 {
-	! $git_cmd "--work-tree=${VCSTOP}" -c core.checkStat=minimal -c core.fileMode=off diff --quiet
+	! $git_cmd "--work-tree=${VCSTOP}" -c core.checkStat=minimal -c core.fileMode=off diff --quiet HEAD
 }
 
 LC_ALL=C; export LC_ALL
