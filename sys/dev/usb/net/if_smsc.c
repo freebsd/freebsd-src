@@ -554,6 +554,8 @@ smsc_miibus_statchg(device_t dev)
 	    (IFM_ACTIVE | IFM_AVALID)) {
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
 			case IFM_10_T:
+			case IFM_10_T1L:
+			case IFM_10_T1S:
 			case IFM_100_TX:
 				sc->sc_flags |= SMSC_FLAG_LINK;
 				break;
