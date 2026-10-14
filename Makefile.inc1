@@ -530,6 +530,15 @@ GIT_CMD=   ${_P}/git
 .export GIT_CMD
 .endif
 
+.if !defined(GOT_CMD) || empty(GOT_CMD)
+. for _P in /usr/bin /usr/local/bin
+.  if exists(${_P}/got)
+GOT_CMD=   ${_P}/got
+.  endif
+. endfor
+.export GOT_CMD
+.endif
+
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
 OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
@@ -597,6 +606,8 @@ PKG_WORKERS_COUNT?=	1
 .if !defined(PKG_TIMESTAMP)
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 SOURCE_DATE_EPOCH!=	${GIT_CMD} -C ${SRCDIR} show -s --format=%ct HEAD
+.elif !empty(GOT_CMD) && exists(${GOT_CMD}) && exists(${SRCDIR}/.got)
+SOURCE_DATE_EPOCH!=	( cd ${SRCDIR} && ${GOT_CMD} cat HEAD | awk '$$1 == "committer" { print $$(NF-1); exit }' )
 .else
 TIMEEPOCHNOW=		%s
 SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
@@ -2207,11 +2218,21 @@ create-packages: .PHONY create-packages-world create-packages-kernel create-pack
 
 create-source-src-package: _pkgbootstrap .PHONY
 	rm -f ${SSTAGEDIR}/src.plist 2>/dev/null || :
+.if ( !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git) ) || \
+    ( !empty(GOT_CMD) && exists(${GOT_CMD}) && exists(${SRCDIR}/.got) )
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
 		> ${SSTAGEDIR}/src.plist
+.else
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ;  \
+		${GOT_CMD} tree -R | \
+		    awk '/^sys\// { next } { sub(/ -> .*/, "") } /\/$/ { next } { sub(/[*@$]$/, "") } { print }' | \
+		    sort ) \
+		> ${SSTAGEDIR}/src.plist
+.endif
 	flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src" \
 		PKGGENNAME "src" \
@@ -2233,11 +2254,21 @@ create-source-src-package: _pkgbootstrap .PHONY
 
 create-source-src-sys-package: _pkgbootstrap .PHONY
 	rm -f ${SSTAGEDIR}/src-sys.plist 2>/dev/null || :
+.if ( !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git) ) || \
+    ( !empty(GOT_CMD) && exists(${GOT_CMD}) && exists(${SRCDIR}/.got) )
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ; \
 		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
 		> ${SSTAGEDIR}/src-sys.plist
+.else
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ;  \
+		${GOT_CMD} tree -R | \
+		    awk '!/^sys\// { next } { sub(/ -> .*/, "") } /\/$/ { next } { sub(/[*@$]$/, "") } { print }' | \
+		    sort ) \
+		> ${SSTAGEDIR}/src-sys.plist
+.endif
 	flua ${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src-sys" \
 		PKGGENNAME "src-sys" \
