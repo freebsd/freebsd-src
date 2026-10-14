@@ -268,6 +268,7 @@ struct smsc_softc {
 	uint32_t          sc_flags;
 #define	SMSC_FLAG_LINK      0x0001
 #define	SMSC_FLAG_LAN9514   0x1000	/* LAN9514 */
+#define	SMSC_FLAG_EXT_PHY   0x2000	/* External PHY (HW_CFG.PSEL) */
 };
 
 #define	SMSC_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)

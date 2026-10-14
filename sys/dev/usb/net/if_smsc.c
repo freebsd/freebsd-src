@@ -1449,11 +1449,12 @@ smsc_chip_init(struct smsc_softc *sc)
 	/* Vlan */
 	smsc_write_reg(sc, SMSC_VLAN1, (uint32_t)ETHERTYPE_VLAN);
 
-	/*
-	 * Initialise the PHY
-	 */
-	if ((err = smsc_phy_init(sc)) != 0)
-		goto init_failed;
+	if ((sc->sc_flags & SMSC_FLAG_EXT_PHY) == 0) {
+		/* Initialise the PHY */
+		err = smsc_phy_init(sc);
+		if (err != 0)
+			goto init_failed;
+	}
 
 	/*
 	 * Start TX
@@ -1621,20 +1622,27 @@ smsc_attach_post(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
 	struct ether_addr eaddr;
-	uint32_t mac_h, mac_l;
+	uint32_t hwcfg, mac_h, mac_l;
 	int err;
 	int i;
 
 	smsc_dbg_printf(sc, "smsc_attach_post\n");
 
-	/* Setup some of the basics */
-	sc->sc_phyno = 1;
 
 	/* Attempt to get the mac address, if an EEPROM is not attached this
 	 * will just return FF:FF:FF:FF:FF:FF, so in such cases we invent a MAC
 	 * address based on urandom.
 	 */
 	memset(sc->sc_ue.ue_eaddr, 0xff, ETHER_ADDR_LEN);
+
+	smsc_read_reg(sc, SMSC_HW_CFG, &hwcfg);
+	if (hwcfg & SMSC_HW_CFG_PSEL) {
+		smsc_dbg_printf(sc, "HW_CFG indicates external PHY\n");
+		sc->sc_flags |= SMSC_FLAG_EXT_PHY;
+		sc->sc_phyno = MII_PHY_ANY;
+	} else {
+		sc->sc_phyno = 1;
+	}
 
 	/* Check if there is already a MAC address in the register */
 	if ((smsc_read_reg(sc, SMSC_MAC_ADDRL, &mac_l) == 0) &&
@@ -1688,6 +1696,8 @@ static int
 smsc_attach_post_sub(struct usb_ether *ue)
 {
 	struct smsc_softc *sc;
+	struct mii_softc *miisc;
+	struct mii_data *mii;
 	if_t ifp;
 	int error;
 
@@ -1718,6 +1728,19 @@ smsc_attach_post_sub(struct usb_ether *ue)
 	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
 	    uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
 	    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, 0);
+
+	if (error != 0)
+		goto fail;
+
+	if (sc->sc_phyno == MII_PHY_ANY) {
+		/* Store the actual PHY address we found. */
+		mii = device_get_softc(ue->ue_miibus);
+		miisc = LIST_FIRST(&mii->mii_phys);
+		if (miisc != NULL)
+			sc->sc_phyno = miisc->mii_phy;
+	}
+
+fail:
 	bus_topo_unlock();
 
 	return (error);
