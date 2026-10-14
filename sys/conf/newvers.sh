@@ -182,6 +182,11 @@ git_tree_modified()
 	! $git_cmd "--work-tree=${VCSTOP}" -c core.checkStat=minimal -c core.fileMode=off diff --quiet HEAD
 }
 
+got_tree_modified()
+{
+	( cd ${VCSTOP} && $got_cmd status -S '?m' | grep -q . )
+}
+
 LC_ALL=C; export LC_ALL
 if [ ! -r version ]
 then
@@ -233,6 +238,15 @@ if findvcs .gituprevision; then
 	gituprevision="${VCSTOP}/.gituprevision"
 fi
 
+if findvcs .got; then
+	for dir in /usr/bin /usr/local/bin; do
+		if [ -x "${dir}/got" ] ; then
+			got_cmd="${dir}/got"
+			break
+		fi
+	done
+fi
+
 if findvcs .hg; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/hg" ] ; then
@@ -279,6 +293,23 @@ if [ -n "$git_cmd" ] ; then
 	fi
 fi
 
+if [ -n "$got_cmd" ] ; then
+	got=$(cd ${VCSTOP} && ${got_cmd} info | awk '/^work tree base commit:/ { print $NF; exit }' | cut -c 1-12 )
+	got_cnt=$(cd ${VCSTOP} && ${got_cmd} log -s | wc -l)
+	if [ -n "$got_cnt" ] ; then
+		got="n$(echo ${got_cnt})-${got}"
+	fi
+	got_b=$(cd ${VCSTOP} && ${got_cmd} branch )
+	if [ -n "$got_b" -a "$got_b" != "HEAD" ] ; then
+		got="${got_b}-${got}"
+	fi
+	if got_tree_modified; then
+		got="${got}-dirty"
+		modified=yes
+	fi
+	got=" ${got}"
+fi
+
 if [ -n "$gituprevision" ] ; then
 	gitup=" $(awk -F: '{print $2}' $gituprevision)"
 fi
@@ -297,10 +328,10 @@ fi
 
 [ ${include_metadata} = "if-modified" -a ${modified} = "yes" ] && include_metadata=yes
 if [ ${include_metadata} != "yes" ]; then
-	VERINFO="${VERSION}${svn}${git}${gitup}${hg} ${i}"
+	VERINFO="${VERSION}${svn}${git}${gitup}${got}${hg} ${i}"
 	VERSTR="${VERINFO}\\n"
 else
-	VERINFO="${VERSION} #${v}${svn}${git}${gitup}${hg}: ${t}"
+	VERINFO="${VERSION} #${v}${svn}${git}${gitup}${got}${hg}: ${t}"
 	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
 
