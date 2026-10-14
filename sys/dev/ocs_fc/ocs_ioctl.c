@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/linker.h>
 #include <sys/firmware.h>
+#include <sys/priv.h>
 
 static d_open_t		ocs_open;
 static d_close_t	ocs_close;
@@ -97,6 +98,11 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 				sli4_req_common_read_object_t *rdobj =
 					(sli4_req_common_read_object_t *)sli_config->payload.embed;
 
+				if (mcmd->out_bytes > OCS_MAX_DMA_ALLOC) {
+					device_printf(ocs->dev, "%s: COMMON_READ_OBJECT - %llu exceeds max\n",
+					    __func__, (unsigned long long)mcmd->out_bytes);
+					return EINVAL;
+				}
 				if (ocs_dma_alloc(ocs, dma, mcmd->out_bytes, 4096)) {
 					device_printf(ocs->dev, "%s: COMMON_READ_OBJECT - %lld allocation failed\n",
 							__func__, (unsigned long long)mcmd->out_bytes);
@@ -116,6 +122,17 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			sli4_req_common_write_object_t *wrobj =
 				(sli4_req_common_write_object_t *)sli_config->payload.embed;
 
+			if (mcmd->in_bytes > wrobj->desired_write_length) {
+				device_printf(ocs->dev, "%s: COMMON_WRITE_OBJECT - in_bytes %llu exceeds desired_write_length %u\n",
+				    __func__, (unsigned long long)mcmd->in_bytes,
+				    wrobj->desired_write_length);
+				return EINVAL;
+			}
+			if (wrobj->desired_write_length > OCS_MAX_DMA_ALLOC) {
+				device_printf(ocs->dev, "%s: COMMON_WRITE_OBJECT - desired_write_length %u exceeds max\n",
+				    __func__, wrobj->desired_write_length);
+				return EINVAL;
+			}
 			if (ocs_dma_alloc(ocs, dma, wrobj->desired_write_length, 4096)) {
 				device_printf(ocs->dev, "%s: COMMON_WRITE_OBJECT - %d allocation failed\n",
 						__func__, wrobj->desired_write_length);
@@ -144,6 +161,11 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 				sli4_req_common_read_object_list_t *rdobj =
 					(sli4_req_common_read_object_list_t *)sli_config->payload.embed;
 
+				if (mcmd->out_bytes > OCS_MAX_DMA_ALLOC) {
+					device_printf(ocs->dev, "%s: COMMON_READ_OBJECT_LIST - %llu exceeds max\n",
+					    __func__, (unsigned long long)mcmd->out_bytes);
+					return EINVAL;
+				}
 				if (ocs_dma_alloc(ocs, dma, mcmd->out_bytes, 4096)) {
 					device_printf(ocs->dev, "%s: COMMON_READ_OBJECT_LIST - %lld allocation failed\n",
 							__func__,(unsigned long long) mcmd->out_bytes);
@@ -170,10 +192,15 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			break;
 		}
 	} else {
-		uint32_t max_bytes = max(mcmd->in_bytes, mcmd->out_bytes);
+		uint64_t max_bytes = max(mcmd->in_bytes, mcmd->out_bytes);
+		if (max_bytes > OCS_MAX_DMA_ALLOC) {
+			device_printf(ocs->dev, "%s: non-embedded - %llu exceeds max\n",
+			    __func__, (unsigned long long)max_bytes);
+			return EINVAL;
+		}
 		if (ocs_dma_alloc(ocs, dma, max_bytes, 4096)) {
-			device_printf(ocs->dev, "%s: non-embedded - %u allocation failed\n",
-					__func__, max_bytes);
+			device_printf(ocs->dev, "%s: non-embedded - %llu allocation failed\n",
+					__func__, (unsigned long long)max_bytes);
 			return ENXIO;
 		}
 
@@ -210,8 +237,17 @@ ocs_process_mbx_ioctl(ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd)
 
 	switch(((sli4_mbox_command_header_t *)mcmd->payload)->command) {
 	case SLI4_MBOX_COMMAND_SLI_CONFIG:
-		if (ENXIO == ocs_process_sli_config(ocs, mcmd, &dma))
-			return ENXIO;
+		error = ocs_process_sli_config(ocs, mcmd, &dma);
+		if (error != 0)
+			goto no_support;
+		/* never copy out more than was allocated for the command */
+		if (mcmd->out_bytes && dma.virt && mcmd->out_bytes > dma.size) {
+			device_printf(ocs->dev, "%s: out_bytes %llu exceeds buffer size %zu\n",
+			    __func__, (unsigned long long)mcmd->out_bytes,
+			    dma.size);
+			error = EINVAL;
+			goto no_support;
+		}
 		break;
 
 	case SLI4_MBOX_COMMAND_READ_REV:
@@ -299,6 +335,12 @@ ocs_process_ecd_helper (ocs_t *ocs, ocs_ioctl_ecd_helper_t *req)
 			device_printf(ocs->dev, "Error: bar %d not defined\n", req->bar);
 			return -EFAULT;
 		}
+		if ((uint64_t)req->offset + sizeof(uint32_t) >
+		    rman_get_size(ocs->reg[req->bar].res)) {
+			device_printf(ocs->dev, "Error: bar %d offset 0x%x out of range\n",
+				      req->bar, req->offset);
+			return -EFAULT;
+		}
 		break;
 	default:
 		break;
@@ -358,6 +400,11 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 	int status = 0;
 	struct ocs_softc *ocs = cdev->si_drv1;
 	device_t dev = ocs->dev;
+
+	status = priv_check(td, PRIV_DRIVER);
+	if (status) {
+		return (status);
+	}
 
 	switch (cmd) {
 	case OCS_IOCTL_CMD_ELXU_MBOX: {
@@ -1212,7 +1259,7 @@ ocs_debug_attach(void *os)
 	}
 
 	unit = device_get_unit(ocs->dev);
-	ocs->cdev = make_dev(&ocs_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
+	ocs->cdev = make_dev(&ocs_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600,
 			"ocs%d", unit);
 	if (ocs->cdev) {
 		ocs->cdev->si_drv1 = ocs;
