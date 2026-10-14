@@ -71,6 +71,8 @@ typedef struct epoch_record {
 	volatile struct epoch_tdlist er_tdlist;
 	volatile uint32_t er_gen;
 	uint32_t er_cpuid;
+	/* Set by epoch_drain_callbacks(), consumed by this CPU's task. */
+	int er_drain_req;
 #ifdef INVARIANTS
 	/* Used to verify record ownership for non-preemptible epochs. */
 	struct thread *er_td;
@@ -139,6 +141,7 @@ __read_mostly epoch_t global_epoch;
 __read_mostly epoch_t global_epoch_preempt;
 
 static void epoch_call_task(void *context __unused);
+static void epoch_drain_cb(struct epoch_context *ctx);
 static 	uma_zone_t pcpu_zone_record;
 
 static struct sx epoch_sx;
@@ -331,14 +334,15 @@ epoch_init(void *arg __unused)
 }
 SYSINIT(epoch, SI_SUB_EPOCH, SI_ORDER_FIRST, epoch_init, NULL);
 
-#if !defined(EARLY_AP_STARTUP)
+/*
+ * The callback tasks are bound to their CPUs at SI_SUB_SMP.
+ */
 static void
 epoch_init_smp(void *dummy __unused)
 {
 	inited = 2;
 }
 SYSINIT(epoch_smp, SI_SUB_SMP + 1, SI_ORDER_FIRST, epoch_init_smp, NULL);
-#endif
 
 static void
 epoch_ctor(epoch_t epoch)
@@ -824,6 +828,10 @@ epoch_call_task(void *arg __unused)
 			continue;
 		er = epoch_currecord(epoch);
 		record = &er->er_record;
+		if (atomic_load_acq_int(&er->er_drain_req) != 0) {
+			atomic_store_int(&er->er_drain_req, 0);
+			epoch_call(epoch, epoch_drain_cb, &er->er_drain_ctx);
+		}
 		if ((npending = record->n_pending) == 0)
 			continue;
 		ck_epoch_poll_deferred(record, &cb_stack);
@@ -961,69 +969,38 @@ void
 epoch_drain_callbacks(epoch_t epoch)
 {
 	epoch_record_t er;
-	struct thread *td;
-	int was_bound;
-	int old_pinned;
-	int old_cpu;
 	int cpu;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "epoch_drain_callbacks() may sleep!");
 
-	/* too early in boot to have epoch set up */
-	if (__predict_false(epoch == NULL))
+	/* too early in boot to have epoch set up, or the tasks bound */
+	if (__predict_false(epoch == NULL || inited < 2))
 		return;
-#if !defined(EARLY_AP_STARTUP)
-	if (__predict_false(inited < 2))
-		return;
-#endif
 	DROP_GIANT();
 
 	sx_xlock(&epoch->e_drain_sx);
 	mtx_lock(&epoch->e_drain_mtx);
 
-	td = curthread;
-	thread_lock(td);
-	old_cpu = PCPU_GET(cpuid);
-	old_pinned = td->td_pinned;
-	was_bound = sched_is_bound(td);
-	sched_unbind(td);
-	td->td_pinned = 0;
-
 	/*
-	 * Schedule a destructor on each CPU and block until all of them have
-	 * run.  Don't assume that destructors are invoked in order: once we're
-	 * finished draining, do the same thing again to ensure that any
-	 * destructors scheduled after the first pass have also run.
+	 * Have each CPU's callback task queue a destructor on its own record
+	 * and block until all of them have run.  Don't assume that destructors
+	 * are invoked in order: once we're finished draining, do the same thing
+	 * again to ensure that any destructors scheduled after the first pass
+	 * have also run.
 	 */
 	for (int i = 0; i < 2; i++) {
 		CPU_FOREACH(cpu)
 			epoch->e_drain_count++;
 		CPU_FOREACH(cpu) {
 			er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
-			sched_bind(td, cpu);
-			epoch_call(epoch, &epoch_drain_cb, &er->er_drain_ctx);
+			atomic_store_rel_int(&er->er_drain_req, 1);
+			GROUPTASK_ENQUEUE(DPCPU_ID_PTR(cpu, epoch_cb_task));
 		}
-
-		/* restore CPU binding, if any */
-		if (was_bound != 0) {
-			sched_bind(td, old_cpu);
-		} else {
-			/* get thread back to initial CPU, if any */
-			if (old_pinned != 0)
-				sched_bind(td, old_cpu);
-			sched_unbind(td);
-		}
-		/* restore pinned after bind */
-		td->td_pinned = old_pinned;
-		thread_unlock(td);
 
 		while (epoch->e_drain_count != 0)
 			msleep(epoch, &epoch->e_drain_mtx, PZERO, "EDRAIN", 0);
-
-		thread_lock(td);
 	}
-	thread_unlock(td);
 
 	mtx_unlock(&epoch->e_drain_mtx);
 	sx_xunlock(&epoch->e_drain_sx);
