@@ -138,8 +138,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 				 * unsupported or unsafe AMD extended features
 				 * (8000_0008 EBX).
 				 */
-				regs[1] &= (AMDFEID_CLZERO | AMDFEID_IRPERF |
-				    AMDFEID_XSAVEERPTR);
+				regs[1] &= AMDFEID_CLZERO | AMDFEID_XSAVEERPTR;
 
 				vm_get_topology(vm, &sockets, &cores, &threads,
 				    &maxcpus);
