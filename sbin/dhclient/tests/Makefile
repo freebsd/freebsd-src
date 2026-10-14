@@ -2,6 +2,8 @@
 
 ATF_TESTS_SH=	pcp
 
+ATF_TESTS_PYTEST+=	functional.py
+
 # Tests assign a common IP address.
 TEST_METADATA.pcp+=	is_exclusive=true
 
