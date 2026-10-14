@@ -41,6 +41,7 @@
 
 /* Deprecated historical FPU control interface */
 
+#include <sys/cdefs.h>
 #include <x86/x86_ieeefp.h>
 
 /*
