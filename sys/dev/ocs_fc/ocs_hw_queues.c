@@ -1873,6 +1873,12 @@ ocs_hw_rqpair_process_auto_xfr_rdy_cmd(ocs_hw_t *hw, hw_cq_t *cq, uint8_t *cqe)
 		fc_header_t *fc_hdr = seq->header->dma.virt;
 
 		seq->hio = ocs_hw_io_lookup(hw, seq->xri);
+		if (seq->hio == NULL) {
+			ocs_log_err(hw->os, "auto_xrdy CQE, invalid xri=%#x\n",
+			    seq->xri);
+			ocs_hw_rqpair_sequence_free(hw, seq);
+			return -1;
+		}
 		ocs_lock(&seq->hio->axr_lock);
 		axr_lock_taken = 1;
 
@@ -1971,6 +1977,11 @@ ocs_hw_rqpair_process_auto_xfr_rdy_data(ocs_hw_t *hw, hw_cq_t *cq, uint8_t *cqe)
 #endif
 	/* Look up the IO */
 	io = ocs_hw_io_lookup(hw, opt_wr->xri);
+	if (io == NULL) {
+		ocs_log_err(hw->os, "auto_xrdy data CQE for invalid xri=%#x\n",
+		    opt_wr->xri);
+		return -1;
+	}
 	ocs_lock(&io->axr_lock);
 	buf = io->axr_buf;
 	buf->data_cqe = 1;
