@@ -788,8 +788,11 @@ static int32_t
 ocs_validate_fcp_cmd(ocs_t *ocs, ocs_hw_sequence_t *seq)
 {
 	size_t		exp_payload_len = 0;
+	size_t		cdb_len;
 	fcp_cmnd_iu_t *cmnd = seq->payload->dma.virt;
-	exp_payload_len = sizeof(fcp_cmnd_iu_t) - 16 + cmnd->additional_fcp_cdb_length;
+	/* additional_fcp_cdb_length is in 4-byte words */
+	exp_payload_len = sizeof(fcp_cmnd_iu_t) - 16 +
+	    cmnd->additional_fcp_cdb_length * sizeof(uint32_t);
 
 	/*
 	 * If we received less than FCP_CMND_IU bytes, assume that the frame is
@@ -801,6 +804,16 @@ ocs_validate_fcp_cmd(ocs_t *ocs, ocs_hw_sequence_t *seq)
 		ocs_log_debug(ocs, "dropping ox_id %04x with payload length (%zd) less than expected (%zd)\n",
 			      ocs_be16toh(fchdr->ox_id), seq->payload->dma.len,
 			      exp_payload_len);
+		return -1;
+	}
+
+	/* CAM cannot carry a CDB longer than CAM_MAX_CDBLEN; do not truncate */
+	cdb_len = sizeof(cmnd->fcp_cdb) +
+	    cmnd->additional_fcp_cdb_length * sizeof(uint32_t);
+	if (cmnd->task_management_flags == 0 && cdb_len > CAM_MAX_CDBLEN) {
+		fc_header_t	*fchdr = seq->header->dma.virt;
+		ocs_log_debug(ocs, "dropping ox_id %04x with unsupported CDB length (%zd > %d)\n",
+			    ocs_be16toh(fchdr->ox_id), cdb_len, CAM_MAX_CDBLEN);
 		return -1;
 	}
 	return 0;
