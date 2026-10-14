@@ -607,6 +607,8 @@ int32_t ocs_scsi_recv_cmd(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
 		atio->priority = (flags & OCS_SCSI_PRIORITY_MASK) >>
 		    OCS_SCSI_PRIORITY_SHIFT;
 
+		if (cdb_len > sizeof(atio->cdb_io.cdb_bytes))
+			cdb_len = sizeof(atio->cdb_io.cdb_bytes);
 		atio->cdb_len = cdb_len;
 		ocs_memcpy(atio->cdb_io.cdb_bytes, cdb, cdb_len);
 
