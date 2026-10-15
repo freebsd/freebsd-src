@@ -902,10 +902,6 @@ pfr_remove_kentry(struct pfr_ktable *kt, struct pfr_addr *ad)
 	if (p == NULL || p->pfrke_not)
 		return (ESRCH);
 
-	if (p->pfrke_mark)
-		return (0);
-
-	p->pfrke_mark = 1;
 	SLIST_INSERT_HEAD(&workq, p, pfrke_workq);
 	pfr_remove_kentries(kt, &workq);
 

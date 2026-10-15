@@ -365,6 +365,61 @@ source_table_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "source_table_marked" "cleanup"
+source_table_marked_head()
+{
+	atf_set descr 'Test the removal of a source from a table after a replace'
+	atf_set require.user root
+}
+
+source_table_marked_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "set timeout icmp.error 120" \
+	    "table <many> persist" \
+	    "source limiter \"server\" id 1 entries 128 limit 100 table <many> above 2 below 2" \
+	    "pass in proto icmp source limiter \"server\""
+
+	# Three states put the source in the table.
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	sleep 1
+	atf_check -s exit:0 -o "match:192.0.2.2" \
+	    jexec alcatraz pfctl -t many -T show
+
+	# A replace that keeps the address leaves its entry marked.
+	atf_check -s exit:0 -e ignore \
+	    jexec alcatraz pfctl -t many -T replace 192.0.2.2 192.0.2.99
+
+	# The marked entry used to be skipped when the source was removed.
+	atf_check -s exit:0 -e ignore \
+	    jexec alcatraz pfctl -F states
+	sleep 1
+	atf_check -s exit:0 -o "not-match:192.0.2.2" -o "match:192.0.2.99" \
+	    jexec alcatraz pfctl -t many -T show
+}
+
+source_table_marked_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "out" "cleanup"
 out_head()
 {
@@ -418,5 +473,6 @@ atf_init_test_cases()
 	atf_add_test_case "state_multiple"
 	atf_add_test_case "source_basic"
 	atf_add_test_case "source_table"
+	atf_add_test_case "source_table_marked"
 	atf_add_test_case "out"
 }
