@@ -64,7 +64,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_S1_PXN		(1UL << 53)
 #define	ATTR_S1_XN		(ATTR_S1_PXN | ATTR_S1_UXN)
 
-#define	ATTR_S2_XN(x)		((x) << 53)
+#define	ATTR_S2_XN_SHIFT	53
+#define	ATTR_S2_XN(x)		((x) << ATTR_S2_XN_SHIFT)
 #define	 ATTR_S2_XN_MASK	ATTR_S2_XN(3UL)
 #define	 ATTR_S2_XN_NONE	0UL	/* Allow execution at EL0 & EL1 */
 #define	 ATTR_S2_XN_EL1		1UL	/* Allow execution at EL0 */
@@ -95,7 +96,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_S1_nG		(1 << 11)
 #define	ATTR_AF			(1 << 10)
 /* When TCR_EL1.DS == 0 */
-#define	ATTR_SH(x)		((x) << 8)
+#define	ATTR_SH_SHIFT		8
+#define	ATTR_SH(x)		((x) << ATTR_SH_SHIFT)
 #define	 ATTR_SH_MASK		ATTR_SH(3)
 #define	 ATTR_SH_NS		0		/* Non-shareable */
 #define	 ATTR_SH_OS		2		/* Outer-shareable */
@@ -106,24 +108,31 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_OA_51_50_DELTA	(50 - 8)	/* Delta from address to pte */
 
 #define	ATTR_S1_AP_RW_BIT	(1 << 7)
-#define	ATTR_S1_AP(x)		((x) << 6)
+#define	ATTR_S1_AP_SHIFT	6
+#define	ATTR_S1_AP(x)		((x) << ATTR_S1_AP_SHIFT)
 #define	 ATTR_S1_AP_MASK	ATTR_S1_AP(3)
 #define	 ATTR_S1_AP_RW		(0 << 1)
 #define	 ATTR_S1_AP_RO		(1 << 1)
 #define	 ATTR_S1_AP_USER	(1 << 0)
 #define	ATTR_S1_NS		(1 << 5)
-#define	ATTR_S1_IDX(x)		((x) << 2)
-#define	ATTR_S1_IDX_MASK	(7 << 2)
+#define	ATTR_S1_IDX_SHIFT	2
+#define	ATTR_S1_IDX(x)		((x) << ATTR_S1_IDX_SHIFT)
+#define	ATTR_S1_IDX_MASK	(7 << ATTR_S1_IDX_SHIFT)
 
-#define	ATTR_S2_S2AP(x)		((x) << 6)
+#define	ATTR_S2_S2AP_SHIFT	6
+#define	ATTR_S2_S2AP(x)		((x) << ATTR_S2_S2AP_SHIFT)
 #define	 ATTR_S2_S2AP_MASK	3
 #define	 ATTR_S2_S2AP_READ	1
 #define	 ATTR_S2_S2AP_WRITE	2
 
-#define	ATTR_S2_MEMATTR(x)		((x) << 2)
+#define	ATTR_S2_MEMATTR_SHIFT		2
+#define	ATTR_S2_MEMATTR(x)		((x) << ATTR_S2_MEMATTR_SHIFT)
 #define	 ATTR_S2_MEMATTR_MASK		ATTR_S2_MEMATTR(0xf)
 #define	 ATTR_S2_MEMATTR_DEVICE_nGnRnE	0x0
-#define	 ATTR_S2_MEMATTR_NC		0xf
+#define	 ATTR_S2_MEMATTR_DEVICE_nGnRE	0x1
+#define	 ATTR_S2_MEMATTR_DEVICE_nGRE	0x2
+#define	 ATTR_S2_MEMATTR_DEVICE_GRE	0x3
+#define	 ATTR_S2_MEMATTR_NC		0x5
 #define	 ATTR_S2_MEMATTR_WT		0xa
 #define	 ATTR_S2_MEMATTR_WB		0xf
 
