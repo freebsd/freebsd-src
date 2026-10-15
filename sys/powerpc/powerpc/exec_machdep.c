@@ -422,13 +422,21 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		for (i = 0; i < 32; i++)
 			memcpy(&mcp->mc_fpreg[i], &pcb->pcb_fpu.fpr[i].fpr,
 			    sizeof(double));
-	}
 
-	if (pcb->pcb_flags & PCB_VSX) {
-		mcp->mc_flags |= _MC_VS_VALID;
-		for (i = 0; i < 32; i++)
-			memcpy(&mcp->mc_vsxfpreg[i],
-			    &pcb->pcb_fpu.fpr[i].vsr[2], sizeof(double));
+		/*
+		 * The second halves of VSR0-31 in the PCB are current
+		 * whenever the FP state is: VSX instructions cannot run
+		 * without PCB_VSX, and save_fpu() stores them when it is
+		 * set.  Export them regardless of whether the thread owns
+		 * VSX at this moment, or a signal delivered right after a
+		 * sigreturn loses them.
+		 */
+		if (cpu_features & PPC_FEATURE_HAS_VSX) {
+			mcp->mc_flags |= _MC_VS_VALID;
+			for (i = 0; i < 32; i++)
+				memcpy(&mcp->mc_vsxfpreg[i],
+				    &pcb->pcb_fpu.fpr[i].vsr[2], sizeof(double));
+		}
 	}
 
 	/*
