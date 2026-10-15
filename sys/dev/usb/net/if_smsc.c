@@ -494,9 +494,6 @@ smsc_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int locked;
 	uint32_t addr;
 
-	if (sc->sc_phyno != phy)
-		return (0);
-
 	locked = mtx_owned(&sc->sc_mtx);
 	if (!locked)
 		SMSC_LOCK(sc);
