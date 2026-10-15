@@ -45,6 +45,12 @@ ATF_TESTS_C+=	resolve_beneath_test
 ATF_TESTS_C+=	sched_affinity
 ATF_TESTS_C+=	shutdown_dgram
 ATF_TESTS_C+=	sigaltstack
+.if ${MACHINE_ARCH:Mpowerpc64*} != ""
+ATF_TESTS_C+=	sigreturn_fpregs
+SRCS.sigreturn_fpregs=	sigreturn_fpregs.c sigreturn_fpregs_ppc64.S
+LIBADD.sigreturn_fpregs+=	pthread
+TEST_METADATA.sigreturn_fpregs+=	is_exclusive="true"
+.endif
 ATF_TESTS_C+=	sigwait
 ATF_TESTS_C+=	socket_accept
 ATF_TESTS_C+=	socket_accf
