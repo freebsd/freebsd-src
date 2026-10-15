@@ -162,8 +162,10 @@ iwm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 	if (!update) {
 		int ac;
 		for (ac = 0; ac < WME_NUM_AC; ac++) {
-			add_sta_cmd.tfd_queue_msk |=
-			    htole32(1 << iwm_ac_to_tx_fifo[ac]);
+			int qid = ac;
+			if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+				qid += IWM_DQA_MIN_MGMT_QUEUE;
+			add_sta_cmd.tfd_queue_msk |= htole32(1 << qid);
 		}
 		IEEE80211_ADDR_COPY(&add_sta_cmd.addr, in->in_ni.ni_bssid);
 	}
@@ -277,7 +279,10 @@ iwm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 	if (ret)
 		return ret;
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tfd_queue_msk |= htole32(1 << iwm_ac_to_tx_fifo[ac]);
+		int qid = ac;
+		if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+			qid += IWM_DQA_MIN_MGMT_QUEUE;
+		tfd_queue_msk |= htole32(1 << qid);
 	}
 	ret = iwm_flush_tx_path(sc, tfd_queue_msk, IWM_CMD_SYNC);
 	if (ret)
@@ -352,13 +357,24 @@ int
 iwm_add_aux_sta(struct iwm_softc *sc)
 {
 	int ret;
+	int qid;
+
+	/*
+	 * Note: OpenBSD calls different TXQ setups here;
+	 * + DQA calls iwm_enable_txq(), which only sends the cmd_pdu
+	 * + non-DQA calls iwm_enable_ac_txq(), which does similar stuff to
+	 *   command setup but not the command scheduler
+	 */
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+		qid = IWM_DQA_AUX_QUEUE;
+	else
+		qid = IWM_AUX_QUEUE;
 
 	sc->sc_aux_sta.sta_id = IWM_AUX_STA_ID;
-	sc->sc_aux_sta.tfd_queue_msk = (1 << IWM_AUX_QUEUE);
+	sc->sc_aux_sta.tfd_queue_msk = (1 << qid);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, IWM_AUX_QUEUE,
-	    IWM_TX_FIFO_MCAST);
+	ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, qid, IWM_TX_FIFO_MCAST);
 	if (ret)
 		return ret;
 

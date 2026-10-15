@@ -1147,10 +1147,25 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	ring->desc = ring->desc_dma.vaddr;
 
 	/*
-	 * We only use rings 0 through 9 (4 EDCA + cmd) so there is no need
-	 * to allocate commands space for other rings.
+	 * There is no need to allocate DMA buffers for unused rings.
+	 * 7k/8k/9k hardware supports up to 31 Tx rings which is more
+	 * than we currently need.
+	 *
+	 * In DQA mode we use 1 command queue + 4 DQA mgmt/data queues.
+	 * The command is queue 0 (sc->txq[0]), and 4 mgmt/data frame queues
+	 * are sc->tqx[IWM_DQA_MIN_MGMT_QUEUE + ac], i.e. sc->txq[5:8],
+	 * in order to provide one queue per EDCA category.
+	 * Tx aggregation requires additional queues, one queue per TID for
+	 * which aggregation is enabled. We map TID 0-7 to sc->txq[10:17].
+	 *
+	 * In non-DQA mode, we use rings 0 through 9 (0-3 are EDCA, 9 is cmd),
+	 * and Tx aggregation is not supported.
+	 *
+	 * Unfortunately, we cannot tell if DQA will be used until the
+	 * firmware gets loaded later, so just allocate sufficient rings
+	 * in order to satisfy both cases.
 	 */
-	if (qid > IWM_CMD_QUEUE)
+	if (qid > IWM_LAST_AGG_TX_QUEUE)
 		return 0;
 
 	size = IWM_TX_RING_COUNT * sizeof(struct iwm_device_cmd);
@@ -1162,8 +1177,13 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	}
 	ring->cmd = ring->cmd_dma.vaddr;
 
-	/* FW commands may require more mapped space than packets. */
-	if (qid == IWM_CMD_QUEUE) {
+	/*
+	 * FW commands may require more mapped space than packets.  The
+	 * DQA command queue is ring 0 and we can't tell at allocation
+	 * time which command queue id will be used, so give both the
+	 * command-sized DMA tag.
+	 */
+	if (qid == IWM_CMD_QUEUE || qid == IWM_DQA_CMD_QUEUE) {
 		maxsize = IWM_RBUF_SIZE;
 		nsegments = 1;
 	} else {
@@ -1227,7 +1247,7 @@ iwm_reset_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 	ring->queued = 0;
 	ring->cur = 0;
 
-	if (ring->qid == IWM_CMD_QUEUE && sc->cmd_hold_nic_awake)
+	if (ring->qid == sc->cmdqid && sc->cmd_hold_nic_awake)
 		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
@@ -1692,9 +1712,11 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 
 	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
 
-	if (qid == IWM_CMD_QUEUE) {
+	if (qid == sc->cmdqid) {
+#if 0
 		/* Disable the scheduler. */
 		iwm_write_prph(sc, IWM_SCD_EN_CTRL, 0);
+#endif
 
 		/* Stop the TX queue prior to configuration. */
 		iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
@@ -1737,7 +1759,8 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 		    IWM_SCD_QUEUE_STTS_REG_MSK);
 
 		/* Enable the scheduler for this queue. */
-		iwm_write_prph(sc, IWM_SCD_EN_CTRL, qmsk);
+		iwm_write_prph(sc, IWM_SCD_EN_CTRL,
+		    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | qmsk);
 	} else {
 		struct iwm_scd_txq_cfg_cmd cmd;
 		int error;
@@ -1813,7 +1836,8 @@ iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 	iwm_nic_unlock(sc);
 
 	/* enable command channel */
-	error = iwm_enable_txq(sc, 0 /* unused */, IWM_CMD_QUEUE, 7);
+	error = iwm_enable_txq(sc, 0 /* unused */, sc->cmdqid,
+	    IWM_TX_FIFO_CMD);
 	if (error)
 		return error;
 
@@ -2929,6 +2953,11 @@ iwm_load_ucode_wait_alive(struct iwm_softc *sc,
 	sc->cur_ucode = ucode_type;
 	sc->ucode_loaded = FALSE;
 
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+		sc->cmdqid = IWM_DQA_CMD_QUEUE;
+	else
+		sc->cmdqid = IWM_CMD_QUEUE;
+
 	memset(&alive_data, 0, sizeof(alive_data));
 	iwm_init_notification_wait(sc->sc_notif_wait, &alive_wait,
 				   alive_cmd, nitems(alive_cmd),
@@ -3672,10 +3701,10 @@ iwm_rx_tx_cmd(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 static void
 iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 {
-	struct iwm_tx_ring *ring = &sc->txq[IWM_CMD_QUEUE];
+	struct iwm_tx_ring *ring = &sc->txq[sc->cmdqid];
 	struct iwm_tx_data *data;
 
-	if (pkt->hdr.qid != IWM_CMD_QUEUE) {
+	if (pkt->hdr.qid != sc->cmdqid) {
 		return;	/* Not a command ack. */
 	}
 
@@ -3851,13 +3880,22 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	int nsegs;
 	uint8_t tid, type;
 	int i, totlen, error, pad;
+	int qid;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	hdrlen = ieee80211_anyhdrsize(wh);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	tid = 0;
-	ring = &sc->txq[ac];
+
+	/* Map EDCA categories to Tx data queues. */
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+		qid = IWM_DQA_MIN_MGMT_QUEUE + ac;
+	else
+		qid = ac;
+
+	ring = &sc->txq[qid];
 	desc = &ring->desc[ring->cur];
+	memset(desc, 0, sizeof(*desc));
 	data = &ring->data[ring->cur];
 
 	/* Fill out iwm_tx_cmd to send to the firmware */
@@ -4768,6 +4806,17 @@ iwm_send_soc_conf(struct iwm_softc *sc)
 }
 
 static int
+iwm_send_dqa_cmd(struct iwm_softc *sc)
+{
+	struct iwm_dqa_enable_cmd dqa_cmd;
+	uint32_t cmd_id;
+
+	dqa_cmd.cmd_queue = htole32(IWM_DQA_CMD_QUEUE);
+	cmd_id = iwm_cmd_id(IWM_DQA_ENABLE_CMD, IWM_DATA_PATH_GROUP, 0);
+	return iwm_send_cmd_pdu(sc, cmd_id, 0, sizeof(dqa_cmd), &dqa_cmd);
+}
+
+static int
 iwm_send_temp_report_ths_cmd(struct iwm_softc *sc)
 {
 	struct iwm_temp_report_ths_cmd cmd;
@@ -4907,7 +4956,7 @@ static int
 iwm_init_hw(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	int error, i, ac;
+	int error, i, ac, qid;
 
 	sc->sf_state = IWM_SF_UNINIT;
 
@@ -4973,6 +5022,11 @@ iwm_init_hw(struct iwm_softc *sc)
 		goto error;
 	}
 
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT)) {
+		if ((error = iwm_send_dqa_cmd(sc)) != 0)
+			goto error;
+	}
+
 	/* Add auxiliary station for scanning */
 	if ((error = iwm_add_aux_sta(sc)) != 0) {
 		device_printf(sc->sc_dev, "add_aux_sta failed\n");
@@ -5011,7 +5065,12 @@ iwm_init_hw(struct iwm_softc *sc)
 
 	/* Enable Tx queues. */
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		error = iwm_enable_txq(sc, IWM_STATION_ID, ac,
+		if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+			qid = ac + IWM_DQA_MIN_MGMT_QUEUE;
+		else
+			qid = ac;
+
+		error = iwm_enable_txq(sc, IWM_STATION_ID, qid,
 		    iwm_ac_to_tx_fifo[ac]);
 		if (error)
 			goto error;

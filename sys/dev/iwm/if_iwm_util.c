@@ -167,7 +167,7 @@
 int
 iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 {
-	struct iwm_tx_ring *ring = &sc->txq[IWM_CMD_QUEUE];
+	struct iwm_tx_ring *ring = &sc->txq[sc->cmdqid];
 	struct iwm_tfd *desc;
 	struct iwm_tx_data *txdata = NULL;
 	struct iwm_device_cmd *cmd;
