@@ -920,10 +920,9 @@ dbtrap:
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
 
-	GET_TOCBASE(%r1)			/* get new SP */
-	addis	%r1,%r1,TOC_REF(trapstk)@ha
-	ld	%r1,TOC_REF(trapstk)@l(%r1)
-	addi	%r1,%r1,(TRAPSTKSZ-48)
+	GET_CPUINFO(%r1)			/* this CPU's trap stack */
+	ld	%r1,PC_AIM_DBSTACK(%r1)
+	addi	%r1,%r1,-48
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */

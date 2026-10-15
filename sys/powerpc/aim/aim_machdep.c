@@ -529,6 +529,20 @@ kdb_cpu_set_singlestep(void)
 	kdb_frame->srr1 |= PSL_SE;
 }
 
+#if defined(__powerpc64__) && defined(KDB)
+/* Stack used by the KDB trap handler (dbtrap) on each CPU. */
+#define	AIM_DBSTACK_SIZE	8192
+
+/*
+ * Stack for the KDB trap handler on the boot CPU.  It is static because the
+ * boot CPU is initialised long before malloc works; APs reach cpu_pcpu_init()
+ * at SI_SUB_CPU and allocate theirs.  Sizing a MAXCPU array would reserve
+ * megabytes for CPUs that do not exist.
+ */
+static char aim_boot_dbstack[AIM_DBSTACK_SIZE] __aligned(16);
+static bool aim_boot_dbstack_used;
+#endif
+
 /*
  * Initialise a struct pcpu.
  */
@@ -536,8 +550,21 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 #ifdef __powerpc64__
+#ifdef KDB
+	char *dbstack;
+#endif
+
 /* Copy the SLB contents from the current CPU */
 memcpy(pcpu->pc_aim.slb, PCPU_GET(aim.slb), sizeof(pcpu->pc_aim.slb));
+
+#ifdef KDB
+	if (!aim_boot_dbstack_used) {
+		aim_boot_dbstack_used = true;
+		dbstack = aim_boot_dbstack;
+	} else
+		dbstack = malloc(AIM_DBSTACK_SIZE, M_DEVBUF, M_WAITOK);
+	pcpu->pc_aim.dbstack = dbstack + AIM_DBSTACK_SIZE;
+#endif
 #endif
 }
 

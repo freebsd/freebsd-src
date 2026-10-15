@@ -62,13 +62,6 @@ GLOBAL(tmpstk)
 TOC_ENTRY(tmpstk)
 TOC_ENTRY(can_wakeup)
 
-#ifdef KDB
-#define TRAPSTKSZ       8192            /* 8k trap stack */
-GLOBAL(trapstk)
-        .space        TRAPSTKSZ
-TOC_ENTRY(trapstk)
-#endif
-
 
 /*
  * Entry point for bootloaders that do not fully implement ELF and start
