@@ -327,13 +327,13 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
 	ATF_TP_ADD_TC(tp, sbuf_set_flags_test);
 	ATF_TP_ADD_TC(tp, sbuf_clear_flags_test);
+
 #if 0
-	/* TODO */
-#ifdef 
+	/* TODO */ 
 	ATF_TP_ADD_TC(tp, sbuf_new_positive_test);
 	ATF_TP_ADD_TC(tp, sbuf_new_negative_test);
 #endif
-#endif
+
 	ATF_TP_ADD_TC(tp, sbuf_setpos_test);
 
 	return (atf_no_error());
