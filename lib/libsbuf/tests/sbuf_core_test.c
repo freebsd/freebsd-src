@@ -258,9 +258,10 @@ ATF_TC_BODY(sbuf_get_flags_test, tc)
 
 	flags = sbuf_get_flags(sb);
 		
-	ATF_CHECK((flags & SBUF_AUTOEXTEND) != 0);
-	ATF_CHECK((flags & SBUF_INCLUDENUL) != 0);
-
+	ATF_CHECK_INTEQ(
+	    flags & (SBUF_AUTOEXTEND | SBUF_AUTOEXTEND),
+	    SBUF_AUTOEXTEND | SBUF_AUTOEXTEND)
+	ATF_CHECK_INTEQ(flags ^ (SBUF_AUTOEXTEND | SBUF_INCLUDENUL), 0);
 	sbuf_delete(sb);
 }
 
