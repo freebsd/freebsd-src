@@ -34,6 +34,7 @@
 .extern _DYNAMIC
 
 _ENTRY(.rtld_start)
+	.cfi_undefined lr
 	stwu    %r1,-48(%r1)	/* 16-byte aligned stack for reg saves +
 				exit_proc & obj _rtld args +
 				backchain & lrsave stack frame */
