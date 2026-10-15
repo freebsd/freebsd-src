@@ -352,7 +352,7 @@ MAN=	aac.4 \
 	me.4 \
 	mem.4 \
 	mfi.4 \
-	${_mgb.4} \
+	mgb.4 \
 	miibus.4 \
 	mld.4 \
 	mlx.4 \
@@ -924,7 +924,6 @@ _io.4=		io.4
 _itwd.4=	itwd.4
 _kvmclock.4=	kvmclock.4
 _mca.4=		mca.4
-_mgb.4=		mgb.4
 _nda.4=		nda.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
