@@ -305,13 +305,13 @@ ATF_TC_BODY(sbuf_clear_flags_test, tc)
 		"sbuf_new failed: %s", strerror(errno));
 
 	flags = sbuf_get_flags(sb);
-	ATF_REQUIRE(flags & SBUF_INCLUDENUL);
+	ATF_REQUIRE_INTEQ(SBUF_INCLUDENUL, flags & SBUF_INCLUDENUL);
 
 	sbuf_clear_flags(sb, SBUF_INCLUDENUL);
 
 	flags = sbuf_get_flags(sb);
 		
-	ATF_CHECK((flags & SBUF_INCLUDENUL) == 0);
+	ATF_CHECK_INTEQ(0, flags & SBUF_INCLUDENUL);
 
 	sbuf_delete(sb);
 }
