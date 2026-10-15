@@ -16,6 +16,11 @@ SUBDIR=	\
 	aibs
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+SUBDIR+= \
+	acpi_apple
+.endif
+
 SUBDIR+= \
 	acpi_einj \
 	acpi_ged

@@ -848,6 +848,9 @@ dev/ale/if_ale.c		optional ale pci
 dev/alpm/alpm.c			optional alpm pci
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
+dev/apple_acpi/apple_acpi.c	optional acpi_apple acpi pci backlight
+dev/apple_acpi/apple_backlight.c optional acpi_apple acpi pci backlight
+dev/apple_acpi/apple_platform.c	optional acpi_apple acpi pci backlight
 #
 dev/aq/aq_main.c		optional aq
 dev/aq/aq_media.c		optional aq

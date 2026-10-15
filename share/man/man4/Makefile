@@ -14,6 +14,7 @@ MANPACKAGE=	kernel-man
 MAN=	aac.4 \
 	aacraid.4 \
 	acpi.4 \
+	${_acpi_apple.4} \
 	${_acpi_asus.4} \
 	${_acpi_asus_wmi.4} \
 	${_acpi_dock.4} \
@@ -956,6 +957,7 @@ _xnb.4=		xnb.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_acpi_apple.4=	acpi_apple.4
 _ioat.4=	ioat.4
 _iwx.4=		iwx.4
 _nvdimm.4=	nvdimm.4

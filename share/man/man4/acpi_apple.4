@@ -1,0 +1,74 @@
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <seuros@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 16, 2026
+.Dt ACPI_APPLE 4 amd64
+.Os
+.Sh NAME
+.Nm acpi_apple
+.Nd Apple platform ACPI driver
+.Sh SYNOPSIS
+.Cd device acpi_apple
+.Cd device backlight
+.Sh DESCRIPTION
+The
+.Nm
+driver attaches to Apple platform ACPI devices found on Intel-based
+Macs and provides two independent functions through a single driver,
+selected by the ACPI hardware ID it matches:
+.Bl -tag -width indent
+.It APP9876 , APP000B
+Platform instance.
+Attaches to the PCH PMC companion
+.Pq T2 Macs, 2018 and later
+or the GMUX GPU multiplexer companion
+.Pq Intel Macs with discrete graphics, 2006-2020 .
+Arms Wake-on-LAN on shutdown for any interface with wake enabled
+.Pq e.g. Va dev.bge.N.wake=1 ,
+and follows the ACPI lid switch, blanking the backlight when the lid is
+closed and restoring it when the lid is reopened.
+.It APP0002
+Backlight instance.
+Controls the panel backlight found on all Intel Macs with an internal
+display, and registers with the
+.Xr backlight 9
+framework.
+The correct control method is selected automatically.
+.El
+.Pp
+.Dv APP0001
+.Pq SMC companion
+is intentionally not claimed by this driver; it is owned by
+.Xr asmc 4 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the Apple ACPI devices found in the DSDT of Intel-based
+Macs:
+.Pp
+.Bl -bullet -compact
+.It
+APP9876, the PCH PMC companion, present on T2 Macs
+.Pq 2018 and later .
+.It
+APP000B, the GMUX GPU multiplexer, present on Intel Macs with discrete
+graphics
+.Pq 2006-2020 ,
+including single-GPU Mac minis.
+.It
+APP0002, the panel backlight, present on all Intel Macs with a built-in
+display.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr asmc 4 ,
+.Xr backlight 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt seuros@FreeBSD.org
