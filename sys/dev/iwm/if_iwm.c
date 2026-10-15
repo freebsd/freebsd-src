@@ -5042,8 +5042,11 @@ iwm_init_hw(struct iwm_softc *sc)
 		 * going to be overwritten in the other flows.
 		 * For now use the first channel we have.
 		 */
-		if ((error = iwm_phy_ctxt_add(sc,
-		    &sc->sc_phyctxt[i], &ic->ic_channels[1], 1, 1)) != 0)
+		sc->sc_phyctxt[i].id = i;
+		sc->sc_phyctxt[i].channel = &ic->ic_channels[1];
+		error = iwm_phy_ctxt_cmd(sc, &sc->sc_phyctxt[i], 1, 1,
+		    IWM_FW_CTXT_ACTION_ADD, 0, IEEE80211_HTINFO_2NDCHAN_NONE);
+		if (error)
 			goto error;
 	}
 
@@ -6482,6 +6485,7 @@ iwm_attach(device_t dev)
 	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 	for (i = 0; i < nitems(sc->sc_phyctxt); i++) {
 		sc->sc_phyctxt[i].id = i;
+		sc->sc_phyctxt[i].sco = IEEE80211_HTINFO_2NDCHAN_NONE;
 		sc->sc_phyctxt[i].color = 0;
 		sc->sc_phyctxt[i].ref = 0;
 		sc->sc_phyctxt[i].channel = NULL;

@@ -349,6 +349,7 @@ struct iwm_phy_ctxt {
 	uint16_t color;
 	uint32_t ref;
 	struct ieee80211_channel *channel;
+	uint8_t sco; /* 40MHz secondary channel offset */
 };
 
 struct iwm_bf_data {

@@ -159,4 +159,22 @@ iwm_get_phy_config(struct iwm_softc *sc)
 	return sc->sc_fw.phy_config & phy_config;
 }
 
+/**
+ * @brief Return the HT above/below field for the given channel width
+ *
+ * @param sc driver softc
+ * @param c channel
+ * @return IEEE80211_HTINFO_2NDCHAN_* value
+ */
+static inline uint8_t
+iwm_get_phy_sco(struct iwm_softc *sc, const struct ieee80211_channel *c)
+{
+	if (IEEE80211_IS_CHAN_HT40U(c))
+		return (IEEE80211_HTINFO_2NDCHAN_ABOVE);
+	else if (IEEE80211_IS_CHAN_HT40D(c))
+		return (IEEE80211_HTINFO_2NDCHAN_BELOW);
+	else
+		return (IEEE80211_HTINFO_2NDCHAN_NONE);
+}
+
 #endif	/* __IF_IWM_UTIL_H__ */

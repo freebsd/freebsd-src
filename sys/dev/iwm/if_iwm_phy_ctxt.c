@@ -188,7 +188,7 @@ iwm_phy_ctxt_cmd_hdr(struct iwm_softc *sc, struct iwm_phy_ctxt *ctxt,
 static void
 iwm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	struct iwm_phy_context_cmd *cmd, struct ieee80211_channel *chan,
-	uint8_t chains_static, uint8_t chains_dynamic)
+	uint8_t chains_static, uint8_t chains_dynamic, uint8_t sco)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t active_cnt, idle_cnt;
@@ -209,11 +209,23 @@ iwm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	    IWM_PHY_BAND_24 : IWM_PHY_BAND_5;
 
 	cmd->ci.channel = ieee80211_chan2ieee(ic, chan);
-
-	/* TODO: HT40 */
-	/* TODO: VHT40/VHT80 */
-	cmd->ci.width = IWM_PHY_VHT_CHANNEL_MODE20;
-	cmd->ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+	if (IEEE80211_IS_CHAN_HT40(chan)) {
+		if (sco == IEEE80211_HTINFO_2NDCHAN_ABOVE) {
+			/* secondary chan above -> control chan below */
+			cmd->ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+			cmd->ci.width = IWM_PHY_VHT_CHANNEL_MODE40;
+		} else if (sco == IEEE80211_HTINFO_2NDCHAN_BELOW) {
+			/* secondary chan below -> control chan above */
+			cmd->ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_ABOVE;
+			cmd->ci.width = IWM_PHY_VHT_CHANNEL_MODE40;
+		} else {
+			cmd->ci.width = IWM_PHY_VHT_CHANNEL_MODE20;
+			cmd->ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+		}
+	} else {
+		cmd->ci.width = IWM_PHY_VHT_CHANNEL_MODE20;
+		cmd->ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+	}
 
 	/* Set rx the chains */
 	idle_cnt = chains_static;
@@ -240,17 +252,60 @@ iwm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	cmd->txchain_info = htole32(iwm_get_valid_tx_ant(sc));
 }
 
-/*
- * Send a command
- * only if something in the configuration changed: in case that this is the
- * first time that the phy configuration is applied or in case that the phy
- * configuration changed from the previous apply.
- */
 static int
-iwm_phy_ctxt_apply(struct iwm_softc *sc,
+iwm_phy_ctxt_cmd_uhb(struct iwm_softc *sc, struct iwm_phy_ctxt *ctxt,
+    uint8_t chains_static, uint8_t chains_dynamic, uint32_t action,
+    uint32_t apply_time, uint8_t sco)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct iwm_phy_context_cmd_uhb cmd;
+	uint8_t active_cnt, idle_cnt;
+	struct ieee80211_channel *chan = ctxt->channel;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ctxt->id,
+	    ctxt->color));
+	cmd.action = htole32(action);
+	cmd.apply_time = htole32(apply_time);
+
+	cmd.ci.band = IEEE80211_IS_CHAN_2GHZ(chan) ?
+	    IWM_PHY_BAND_24 : IWM_PHY_BAND_5;
+	cmd.ci.channel = htole32(ieee80211_chan2ieee(ic, chan));
+	if (IEEE80211_IS_CHAN_HT40(chan)) {
+		if (sco == IEEE80211_HTINFO_2NDCHAN_ABOVE) {
+			/* secondary chan above -> control chan below */
+			cmd.ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+			cmd.ci.width = IWM_PHY_VHT_CHANNEL_MODE40;
+		} else if (sco == IEEE80211_HTINFO_2NDCHAN_BELOW) {
+			/* secondary chan below -> control chan above */
+			cmd.ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_ABOVE;
+			cmd.ci.width = IWM_PHY_VHT_CHANNEL_MODE40;
+		} else {
+			cmd.ci.width = IWM_PHY_VHT_CHANNEL_MODE20;
+			cmd.ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+		}
+	} else {
+		cmd.ci.width = IWM_PHY_VHT_CHANNEL_MODE20;
+		cmd.ci.ctrl_pos = IWM_PHY_VHT_CTRL_POS_1_BELOW;
+	}
+
+	idle_cnt = chains_static;
+	active_cnt = chains_dynamic;
+	cmd.rxchain_info = htole32(iwm_get_valid_rx_ant(sc) <<
+					IWM_PHY_RX_CHAIN_VALID_POS);
+	cmd.rxchain_info |= htole32(idle_cnt << IWM_PHY_RX_CHAIN_CNT_POS);
+	cmd.rxchain_info |= htole32(active_cnt <<
+	    IWM_PHY_RX_CHAIN_MIMO_CNT_POS);
+	cmd.txchain_info = htole32(iwm_get_valid_tx_ant(sc));
+
+	return iwm_send_cmd_pdu(sc, IWM_PHY_CONTEXT_CMD, 0, sizeof(cmd), &cmd);
+}
+
+int
+iwm_phy_ctxt_cmd(struct iwm_softc *sc,
 	struct iwm_phy_ctxt *ctxt,
 	uint8_t chains_static, uint8_t chains_dynamic,
-	uint32_t action, uint32_t apply_time)
+	uint32_t action, uint32_t apply_time, uint8_t sco)
 {
 	struct iwm_phy_context_cmd cmd;
 	int ret;
@@ -260,12 +315,23 @@ iwm_phy_ctxt_apply(struct iwm_softc *sc,
 	    __func__,
 	    ctxt->channel);
 
+	/*
+	 * Intel increased the size of the fw_channel_info struct and neglected
+	 * to bump the phy_context_cmd struct, which contains an fw_channel_info
+	 * member in the middle.
+	 * To keep things simple we use a separate function to handle the larger
+	 * variant of the phy context command.
+	 */
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_ULTRA_HB_CHANNELS))
+		return iwm_phy_ctxt_cmd_uhb(sc, ctxt, chains_static,
+		    chains_dynamic, action, apply_time, sco);
+
 	/* Set the command header fields */
 	iwm_phy_ctxt_cmd_hdr(sc, ctxt, &cmd, action, apply_time);
 
 	/* Set the command data */
 	iwm_phy_ctxt_cmd_data(sc, &cmd, ctxt->channel,
-	    chains_static, chains_dynamic);
+	    chains_static, chains_dynamic, sco);
 
 	ret = iwm_send_cmd_pdu(sc, IWM_PHY_CONTEXT_CMD, IWM_CMD_SYNC,
 	    sizeof(struct iwm_phy_context_cmd), &cmd);
@@ -285,14 +351,22 @@ iwm_phy_ctxt_add(struct iwm_softc *sc, struct iwm_phy_ctxt *ctxt,
 	uint8_t chains_static, uint8_t chains_dynamic)
 {
 	ctxt->channel = chan;
+	int sco, ret;
+
+	sco = iwm_get_phy_sco(sc, chan);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_CMD,
 	    "%s: called; channel=%d\n",
 	    __func__,
 	    ieee80211_chan2ieee(&sc->sc_ic, chan));
 
-	return iwm_phy_ctxt_apply(sc, ctxt,
-	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_ADD, 0);
+	ret = iwm_phy_ctxt_cmd(sc, ctxt,
+	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_ADD, 0, sco);
+	if (ret != 0)
+		return (ret);
+
+	ctxt->sco = sco;
+	return (0);
 }
 
 /*
@@ -306,14 +380,22 @@ iwm_phy_ctxt_changed(struct iwm_softc *sc,
 	uint8_t chains_static, uint8_t chains_dynamic)
 {
 	ctxt->channel = chan;
+	int sco, ret;
+
+	sco = iwm_get_phy_sco(sc, chan);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_CMD,
 	    "%s: called; channel=%d\n",
 	    __func__,
 	    ieee80211_chan2ieee(&sc->sc_ic, chan));
 
-	return iwm_phy_ctxt_apply(sc, ctxt,
-	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_MODIFY, 0);
+	ret = iwm_phy_ctxt_cmd(sc, ctxt,
+	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_MODIFY, 0, sco);
+	if (ret != 0)
+		return (ret);
+
+	ctxt->sco = sco;
+	return (0);
 }
 
 /*
