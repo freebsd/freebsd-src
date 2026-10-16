@@ -406,7 +406,7 @@ iwm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 }
 
 void
-iwm_stop_session_protection(struct iwm_softc *sc, struct iwm_vap *ivp)
+iwm_unprotect_session(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_time_event_cmd time_cmd = {};
 

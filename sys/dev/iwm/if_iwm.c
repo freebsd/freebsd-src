@@ -4764,7 +4764,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	    (nstate == IEEE80211_S_INIT ||
 	     nstate == IEEE80211_S_SCAN ||
 	     nstate == IEEE80211_S_AUTH)) {
-		iwm_stop_session_protection(sc, ivp);
+		iwm_unprotect_session(sc, ivp);
 	}
 
 	if ((vap->iv_state == IEEE80211_S_RUN ||
