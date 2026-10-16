@@ -81,8 +81,8 @@ int cd9660_rrip_getname(struct iso_directory_record *isodir,
 int cd9660_rrip_getsymname(struct iso_directory_record *isodir,
 			       char *outbuf, u_short *outlen,
 			       struct iso_mnt *imp);
-int cd9660_rrip_offset(struct iso_directory_record *isodir,
-			   struct iso_mnt *imp);
+int cd9660_rrip_offset(struct iso_directory_record *isodir, struct iso_mnt *imp,
+    int *errp);
 #endif /* _KERNEL */
 
 #endif /* _ISOFS_CD9660_ISO_RRIP_H_ */
