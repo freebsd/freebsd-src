@@ -215,7 +215,7 @@ flag bits are defined as follows:
 #define	M_EXT		0x00000001 /* has associated external storage */
 #define	M_PKTHDR	0x00000002 /* start of record */
 #define	M_EOR		0x00000004 /* end of record */
-#define	M_RDONLY	0x00000008 /* associated data marked read-only */
+#define	M_RDONLY	0x00000008 /* associated data is marked read-only */
 #define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
@@ -226,19 +226,19 @@ flag bits are defined as follows:
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
 				      hw-stamped on port (useful for IEEE 1588
 				      and 802.1AS) */
+#define	M_TSTMP_LRO	0x00001000 /* Time LRO pushed in pkt is valid in (PH_loc) */
 
-#define	M_PROTO1	0x00001000 /* protocol-specific */
-#define	M_PROTO2	0x00002000 /* protocol-specific */
-#define	M_PROTO3	0x00004000 /* protocol-specific */
-#define	M_PROTO4	0x00008000 /* protocol-specific */
-#define	M_PROTO5	0x00010000 /* protocol-specific */
-#define	M_PROTO6	0x00020000 /* protocol-specific */
-#define	M_PROTO7	0x00040000 /* protocol-specific */
-#define	M_PROTO8	0x00080000 /* protocol-specific */
-#define	M_PROTO9	0x00100000 /* protocol-specific */
-#define	M_PROTO10	0x00200000 /* protocol-specific */
-#define	M_PROTO11	0x00400000 /* protocol-specific */
-#define	M_PROTO12	0x00800000 /* protocol-specific */
+#define	M_PROTO1	0x00002000 /* protocol-specific */
+#define	M_PROTO2	0x00004000 /* protocol-specific */
+#define	M_PROTO3	0x00008000 /* protocol-specific */
+#define	M_PROTO4	0x00010000 /* protocol-specific */
+#define	M_PROTO5	0x00020000 /* protocol-specific */
+#define	M_PROTO6	0x00040000 /* protocol-specific */
+#define	M_PROTO7	0x00080000 /* protocol-specific */
+#define	M_PROTO8	0x00100000 /* protocol-specific */
+#define	M_PROTO9	0x00200000 /* protocol-specific */
+#define	M_PROTO10	0x00400000 /* protocol-specific */
+#define	M_PROTO11	0x00800000 /* protocol-specific */
 .Ed
 .Pp
 The available
@@ -246,7 +246,7 @@ The available
 types are defined as follows:
 .Bd -literal
 #define	MT_DATA		1	/* dynamic (data) allocation */
-#define	MT_HEADER	MT_DATA	/* packet header */
+#define	MT_HEADER	MT_DATA	/* packet header, use M_PKTHDR instead */
 
 #define	MT_VENDOR1	4	/* for vendor-internal use */
 #define	MT_VENDOR2	5	/* for vendor-internal use */
@@ -268,14 +268,14 @@ types are defined as follows:
 The available external buffer types are defined as follows:
 .Bd -literal
 #define	EXT_CLUSTER	1	/* mbuf cluster */
-#define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
-#define	EXT_JUMBOP	3	/* jumbo cluster 4096 bytes */
+#define	EXT_SFBUF	2	/* sendfile(2)'s sf_buf */
+#define	EXT_JUMBOP	3	/* jumbo cluster page sized */
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference */
 #define	EXT_RXRING	8	/* data in NIC receive ring */
-#define	EXT_PGS		9	/* array of unmapped pages */
+#define	EXT_CTL		9	/* buffer from a ctl(4) backend */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
 #define	EXT_VENDOR2	225	/* for vendor-internal use */
@@ -290,7 +290,7 @@ The available external buffer types are defined as follows:
 #define	EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	253	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
+#define	EXT_EXTREF	255	/* has externally maintained ext_cnt ptr */
 .Ed
 .Pp
 If the
