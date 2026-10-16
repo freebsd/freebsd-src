@@ -455,6 +455,7 @@ struct iwm_softc {
 	struct iwm_tx_ring	txq[IWM_MAX_QUEUES];
 	struct iwm_rx_ring	rxq;
 	int			qfullmsk;
+	int			qenablemsk;
 	int			cmdqid;
 
 	/* ICT table. */

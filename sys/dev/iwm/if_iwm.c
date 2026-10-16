@@ -1244,6 +1244,7 @@ iwm_reset_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 	sc->qfullmsk &= ~(1 << ring->qid);
+	sc->qenablemsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
 
@@ -1795,6 +1796,7 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT, "%s: enabled txq %d FIFO %d\n",
 	    __func__, qid, fifo);
 
+	sc->qenablemsk |= (1 << qid);
 	return 0;
 }
 
