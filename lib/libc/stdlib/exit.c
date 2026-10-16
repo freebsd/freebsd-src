@@ -38,7 +38,15 @@
 #include "atexit.h"
 #include "libc_private.h"
 
-void (*__cleanup)(void);
+/*
+ * This variable points to the stdio cleanup function which is called
+ * by exit() and abort(). Originally this function pointer was set
+ * during runtime the first time stdio was used however as stdio is
+ * always present now we set it here at startup. The __cleanup pointer
+ * itself is retained in the unlikely event that an application should
+ * need to hook the stdio cleanup routine.
+ */
+void (*__cleanup)(void) = &_cleanup;
 
 /*
  * This variable is zero until a process has created a thread.

@@ -75,7 +75,8 @@ setvbuf(FILE * __restrict fp, char * __restrict buf, int mode, size_t size)
 	flags = fp->_flags;
 	if (flags & __SMBF)
 		free((void *)fp->_bf._base);
-	flags &= ~(__SLBF | __SNBF | __SMBF | __SOPT | __SOFF | __SNPT | __SEOF);
+	flags &= ~(__SLBF | __SNBF | __SMBF | __SOPT | __SOFF | __SNPT |
+	    __SEOF);
 
 	/* If setting unbuffered mode, skip all the hard work. */
 	if (mode == _IONBF)
@@ -127,8 +128,7 @@ nbf:
 		flags |= __SNPT;
 
 	/*
-	 * Fix up the FILE fields, and set __cleanup for output flush on
-	 * exit (since we are buffered in some way).
+	 * Fix up the FILE fields.
 	 */
 	if (mode == _IOLBF)
 		flags |= __SLBF;
@@ -150,7 +150,6 @@ nbf:
 		/* begin/continue reading, or stay in intermediate state */
 		fp->_w = 0;
 	}
-	__cleanup = _cleanup;
 
 end:
 	FUNLOCKFILE_CANCELSAFE();
