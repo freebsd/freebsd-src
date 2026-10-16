@@ -344,7 +344,7 @@ struct mbuf {
 		SLIST_ENTRY(mbuf)	m_slistpkt;
 		STAILQ_ENTRY(mbuf)	m_stailqpkt;
 	};
-	caddr_t		 m_data;	/* location of data */
+	char		*m_data;	/* location of data */
 	int32_t		 m_len;		/* amount of data in this mbuf */
 	uint32_t	 m_type:8,	/* type of data in this mbuf */
 			 m_flags:24;	/* flags; see below */
@@ -823,14 +823,14 @@ void		 m_adj(struct mbuf *, int);
 void		 m_adj_decap(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
-int		 m_append(struct mbuf *, int, c_caddr_t);
+int		 m_append(struct mbuf *, int, const void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_catpkt(struct mbuf *, struct mbuf *);
 int		 m_clget(struct mbuf *m, int how);
 void 		*m_cljget(struct mbuf *m, int how, int size);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
-void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
-void		 m_copydata(const struct mbuf *, int, int, caddr_t);
+void		 m_copyback(struct mbuf *, int, int, const void *);
+void		 m_copydata(const struct mbuf *, int, int, void *);
 struct mbuf	*m_copym(struct mbuf *, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
@@ -839,7 +839,7 @@ struct mbuf	*m_defrag(struct mbuf *, int);
 void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
-		    void (*)(char *, caddr_t, u_int));
+		    void (*)(char *, char *, u_int));
 void		 m_dispose_extcontrolm(struct mbuf *m);
 struct mbuf	*m_dup(const struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);

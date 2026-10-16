@@ -648,7 +648,7 @@ nospace:
 }
 
 static void
-m_copyfromunmapped(const struct mbuf *m, int off, int len, caddr_t cp)
+m_copyfromunmapped(const struct mbuf *m, int off, int len, void *data)
 {
 	struct iovec iov;
 	struct uio uio;
@@ -658,7 +658,7 @@ m_copyfromunmapped(const struct mbuf *m, int off, int len, caddr_t cp)
 	KASSERT(len >= 0, ("m_copyfromunmapped: negative len %d", len));
 	KASSERT(off < m->m_len,
 	    ("m_copyfromunmapped: len exceeds mbuf length"));
-	iov.iov_base = cp;
+	iov.iov_base = data;
 	iov.iov_len = len;
 	uio.uio_resid = len;
 	uio.uio_iov = &iov;
@@ -676,8 +676,9 @@ m_copyfromunmapped(const struct mbuf *m, int off, int len, caddr_t cp)
  * continuing for "len" bytes, into the indicated buffer.
  */
 void
-m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
+m_copydata(const struct mbuf *m, int off, int len, void *data)
 {
+	char *cp = data;
 	u_int count;
 
 	KASSERT(off >= 0, ("m_copydata, negative off %d", off));
@@ -695,7 +696,7 @@ m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
 		if ((m->m_flags & M_EXTPG) != 0)
 			m_copyfromunmapped(m, off, count, cp);
 		else
-			bcopy(mtod(m, caddr_t) + off, cp, count);
+			bcopy(mtod(m, char *) + off, cp, count);
 		len -= count;
 		cp += count;
 		off = 0;
@@ -1248,7 +1249,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 }
 
 static void
-m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
+m_copytounmapped(const struct mbuf *m, int off, int len, const void *data)
 {
 	struct iovec iov;
 	struct uio uio;
@@ -1257,7 +1258,7 @@ m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
 	KASSERT(off >= 0, ("m_copytounmapped: negative off %d", off));
 	KASSERT(len >= 0, ("m_copytounmapped: negative len %d", len));
 	KASSERT(off < m->m_len, ("m_copytounmapped: len exceeds mbuf length"));
-	iov.iov_base = __DECONST(caddr_t, cp);
+	iov.iov_base = __DECONST(void *, data);
 	iov.iov_len = len;
 	uio.uio_resid = len;
 	uio.uio_iov = &iov;
@@ -1276,8 +1277,9 @@ m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
  * chain if necessary.
  */
 void
-m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
+m_copyback(struct mbuf *m0, int off, int len, const void *data)
 {
+	const char *cp = data;
 	int mlen;
 	struct mbuf *m = m0, *n;
 	int totlen = 0;
@@ -1291,7 +1293,7 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 			n = m_get(M_NOWAIT, m->m_type);
 			if (n == NULL)
 				goto out;
-			bzero(mtod(n, caddr_t), MLEN);
+			bzero(mtod(n, void *), MLEN);
 			n->m_len = min(MLEN, len + off);
 			m->m_next = n;
 		}
@@ -1306,7 +1308,7 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 		if ((m->m_flags & M_EXTPG) != 0)
 			m_copytounmapped(m, off, mlen, cp);
 		else
-			bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
+			bcopy(cp, mtod(m, char *) + off, (u_int)mlen);
 		cp += mlen;
 		len -= mlen;
 		mlen += off;
@@ -1335,8 +1337,9 @@ out:	if (((m = m0)->m_flags & M_PKTHDR) && (m->m_pkthdr.len < totlen))
  * Return 1 if able to complete the job; otherwise 0.
  */
 int
-m_append(struct mbuf *m0, int len, c_caddr_t cp)
+m_append(struct mbuf *m0, int len, const void *data)
 {
+	const char *cp = data;
 	struct mbuf *m, *n;
 	int remainder, space;
 
@@ -1350,7 +1353,7 @@ m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		 */
 		if (space > remainder)
 			space = remainder;
-		bcopy(cp, mtod(m, caddr_t) + m->m_len, space);
+		bcopy(cp, mtod(m, char *) + m->m_len, space);
 		m->m_len += space;
 		cp += space, remainder -= space;
 	}
@@ -1363,7 +1366,7 @@ m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		if (n == NULL)
 			break;
 		n->m_len = min(MLEN, remainder);
-		bcopy(cp, mtod(n, caddr_t), n->m_len);
+		bcopy(cp, mtod(n, void *), n->m_len);
 		cp += n->m_len, remainder -= n->m_len;
 		m->m_next = n;
 		m = n;
