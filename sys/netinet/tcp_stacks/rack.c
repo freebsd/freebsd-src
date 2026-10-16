@@ -275,7 +275,7 @@ static int32_t rack_rate_sample_method = USE_RTT_LOW;
 static int32_t rack_pace_every_seg = 0;
 static int32_t rack_delayed_ack_time = 40000;	/* 40ms in usecs */
 static int32_t rack_pacing_delay_reduction = 4;
-static int32_t rack_wma_divisor = 8;		/* For WMA calculation */
+static uint32_t rack_wma_divisor = 8;		/* For WMA calculation */
 static int32_t rack_cwnd_block_ends_measure = 0;
 static int32_t rack_rwnd_block_ends_measure = 0;
 static int32_t rack_def_profile = 0;
@@ -837,6 +837,22 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		COUNTER_ARRAY_ZERO(rack_out_size, TCP_MSS_ACCT_SIZE);
 	}
 	rack_clear_counter = 0;
+	return (0);
+}
+
+static int
+sysctl_rack_wma_divisor(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val;
+	int error;
+
+	val = *(uint32_t *)arg1;
+	error = sysctl_handle_32(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val == 0 || val > INT32_MAX)
+		return (EINVAL);
+	*(uint32_t *)arg1 = val;
 	return (0);
 }
 
@@ -1407,11 +1423,11 @@ rack_init_sysctls(void)
 	    "measure",
 	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Measure related controls");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	SYSCTL_ADD_PROC(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_measure),
-	    OID_AUTO, "wma_divisor", CTLFLAG_RW,
-	    &rack_wma_divisor, 8,
-	    "When doing b/w calculation what is the  divisor for the WMA");
+	    OID_AUTO, "wma_divisor", CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &rack_wma_divisor, 0, sysctl_rack_wma_divisor, "IU",
+	    "When doing b/w calculation what is the divisor for the WMA");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_measure),
 	    OID_AUTO, "end_cwnd", CTLFLAG_RW,
