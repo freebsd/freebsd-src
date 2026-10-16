@@ -301,12 +301,12 @@ create_parameters(char *level_str, char *optname_str, char *optval_str,
 					break;
 				}
 			if (so_levels[i].name == NULL)
-				errx(1, "unsupported level %s", optname_str);
+				errx(1, "unsupported level %s", level_str);
 		} else {
 			if (arg < 0)
-				errx(1, "level negative %s", optname_str);
+				errx(1, "level negative %s", level_str);
 			else if (arg > INT_MAX)
-				errx(1, "level too large %s", optname_str);
+				errx(1, "level too large %s", level_str);
 			else
 				level = (int)arg;
 		}
