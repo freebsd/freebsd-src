@@ -365,18 +365,21 @@ iwm_add_aux_sta(struct iwm_softc *sc)
 	 * + non-DQA calls iwm_enable_ac_txq(), which does similar stuff to
 	 *   command setup but not the command scheduler
 	 */
-	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT)) {
 		qid = IWM_DQA_AUX_QUEUE;
-	else
+		ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, qid,
+		    IWM_TX_FIFO_MCAST);
+	} else {
 		qid = IWM_AUX_QUEUE;
+		ret = iwm_enable_ac_txq(sc, qid, IWM_TX_FIFO_MCAST);
+	}
+	if (ret)
+		return ret;
 
 	sc->sc_aux_sta.sta_id = IWM_AUX_STA_ID;
 	sc->sc_aux_sta.tfd_queue_msk = (1 << qid);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	ret = iwm_enable_txq(sc, IWM_AUX_STA_ID, qid, IWM_TX_FIFO_MCAST);
-	if (ret)
-		return ret;
 
 	ret = iwm_add_int_sta_common(sc, &sc->sc_aux_sta, NULL,
 					 IWM_MAC_INDEX_AUX, 0);

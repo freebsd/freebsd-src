@@ -1702,6 +1702,55 @@ iwm_nic_init(struct iwm_softc *sc)
 }
 
 int
+iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo)
+{
+	int err;
+
+	if (!sc->cmd_hold_nic_awake) {
+		device_printf(sc->sc_dev, "%s: NIC not awake\n", __func__);
+		return (ENXIO);
+	}
+
+	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
+
+	iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
+	    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE)
+	    | (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+
+	err = iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
+	if (err) {
+		return err;
+	}
+
+	iwm_write_prph(sc, IWM_SCD_QUEUE_RDPTR(qid), 0);
+
+	iwm_write_mem32(sc,
+	    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
+
+	/* Set scheduler window size and frame limit. */
+	iwm_write_mem32(sc,
+	    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
+	    sizeof(uint32_t),
+	    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+	    IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+	    ((IWM_FRAME_LIMIT
+		<< IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+	    IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+
+	iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
+	    (1 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+	    (fifo << IWM_SCD_QUEUE_STTS_REG_POS_TXF) |
+	    (1 << IWM_SCD_QUEUE_STTS_REG_POS_WSL) |
+	    IWM_SCD_QUEUE_STTS_REG_MSK);
+
+	if (qid == sc->cmdqid)
+		iwm_write_prph(sc, IWM_SCD_EN_CTRL,
+		    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | (1 << qid));
+
+	return 0;
+}
+
+int
 iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 {
 	int qmsk;
@@ -1841,8 +1890,7 @@ iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 	iwm_nic_unlock(sc);
 
 	/* enable command channel */
-	error = iwm_enable_txq(sc, 0 /* unused */, sc->cmdqid,
-	    IWM_TX_FIFO_CMD);
+	error = iwm_enable_ac_txq(sc, sc->cmdqid, IWM_TX_FIFO_CMD);
 	if (error)
 		return error;
 

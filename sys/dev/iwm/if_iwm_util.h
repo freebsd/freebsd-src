@@ -125,6 +125,7 @@ extern	int iwm_send_lq_cmd(struct iwm_softc *sc, struct iwm_lq_cmd *lq,
 extern	boolean_t iwm_rx_diversity_allowed(struct iwm_softc *sc);
 
 extern	uint8_t iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx);
+extern	int iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo);
 extern	int iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo);
 extern	int iwm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk,
 				  uint32_t flags);
