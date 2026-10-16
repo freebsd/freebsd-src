@@ -1780,7 +1780,7 @@ uipc_sopoll_stream_or_seqpacket(struct socket *so, int events,
 		if (events & (POLLIN | POLLRDNORM | POLLRDHUP)) {
 			SOCK_RECVBUF_LOCK(so);
 			if (sbavail(&so->so_rcv) >= so->so_rcv.sb_lowat ||
-			    so->so_error || so->so_rerror)
+			    soerror(so))
 				revents |= events & (POLLIN | POLLRDNORM);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				revents |= events &
