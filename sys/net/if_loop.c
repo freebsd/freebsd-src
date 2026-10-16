@@ -73,14 +73,6 @@
 
 #include <security/mac/mac_framework.h>
 
-#ifdef TINY_LOMTU
-#define	LOMTU	(1024+512)
-#elif defined(LARGE_LOMTU)
-#define LOMTU	131072
-#else
-#define LOMTU	16384
-#endif
-
 #define	LO_CSUM_FEATURES	(CSUM_IP | CSUM_IP_TCP | CSUM_IP_UDP | \
 				    CSUM_IP_SCTP)
 #define	LO_CSUM_FEATURES6	(CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_SCTP)
@@ -123,7 +115,7 @@ lo_clone_create(struct if_clone *ifc, char *name, size_t len,
 
 	ifp = if_alloc(IFT_LOOP);
 	if_initname(ifp, loname, ifd->unit);
-	ifp->if_mtu = LOMTU;
+	ifp->if_mtu = IF_MAXMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	ifp->if_ioctl = loioctl;
 	ifp->if_output = looutput;
