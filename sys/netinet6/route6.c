@@ -89,7 +89,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	rh = (struct ip6_rthdr *)((caddr_t)ip6 + off);
+	rh = (struct ip6_rthdr *)((char *)ip6 + off);
 
 	/*
 	 * While this switch may look gratuitous, leave it in
@@ -104,7 +104,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		IP6STAT_INC(ip6s_badoptions);
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
+			    (char *)&rh->ip6r_type - (char *)ip6);
 		*mp = NULL;
 		return (IPPROTO_DONE);
 	}

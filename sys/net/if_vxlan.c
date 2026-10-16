@@ -2825,8 +2825,7 @@ vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
 		goto out;
 
 	if (__predict_false(m->m_len < offset + sizeof(struct vxlan_header))) {
-		m_copydata(m, offset, sizeof(struct vxlan_header),
-		    (caddr_t) &vxlanhdr);
+		m_copydata(m, offset, sizeof(struct vxlan_header), &vxlanhdr);
 		vxh = &vxlanhdr;
 	} else
 		vxh = mtodo(m, offset);

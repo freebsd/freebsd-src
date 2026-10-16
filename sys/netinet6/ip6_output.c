@@ -139,7 +139,7 @@ static int ip6_getpcbopt(struct inpcb *, int, struct sockopt *);
 static int ip6_setpktopt(int, u_char *, int, struct ip6_pktopts *,
 	struct ucred *, int, int, int);
 
-static int ip6_copyexthdr(struct mbuf **, caddr_t, int);
+static int ip6_copyexthdr(struct mbuf **, const void *, int);
 static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 	struct ip6_frag **);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
@@ -157,7 +157,7 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 #define	MAKE_EXTHDR(hp, mp, _ol)					\
     do {								\
 	struct ip6_ext *eh = (struct ip6_ext *)(hp);		\
-	error = ip6_copyexthdr((mp), (caddr_t)(hp),		\
+	error = ip6_copyexthdr((mp), (hp),			\
 	    ((eh)->ip6e_len + 1) << 3);				\
 	if (error)						\
 		goto freehdrs;					\
@@ -198,7 +198,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
 	if (offset + sizeof(csum) > m->m_len)
-		m_copyback(m, offset, sizeof(csum), (caddr_t)&csum);
+		m_copyback(m, offset, sizeof(csum), &csum);
 	else
 		*(u_short *)mtodo(m, offset) = csum;
 }
@@ -1278,7 +1278,7 @@ bad:
 }
 
 static int
-ip6_copyexthdr(struct mbuf **mp, caddr_t hdr, int hlen)
+ip6_copyexthdr(struct mbuf **mp, const void *hdr, int hlen)
 {
 	struct mbuf *m;
 
@@ -1293,7 +1293,7 @@ ip6_copyexthdr(struct mbuf **mp, caddr_t hdr, int hlen)
 		return (ENOBUFS);
 	m->m_len = hlen;
 	if (hdr)
-		bcopy(hdr, mtod(m, caddr_t), hlen);
+		bcopy(hdr, mtod(m, void *), hlen);
 
 	*mp = m;
 	return (0);
@@ -1324,7 +1324,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 	if (M_WRITABLE(mlast) &&
 	    M_TRAILINGSPACE(mlast) >= sizeof(struct ip6_frag)) {
 		/* use the trailing space of the last mbuf for the fragment hdr */
-		*frghdrp = (struct ip6_frag *)(mtod(mlast, caddr_t) +
+		*frghdrp = (struct ip6_frag *)(mtod(mlast, char *) +
 		    mlast->m_len);
 		mlast->m_len += sizeof(struct ip6_frag);
 		m->m_pkthdr.len += sizeof(struct ip6_frag);
@@ -3191,7 +3191,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 		mh->m_next = m;
 		m = mh;
 		m->m_len = sizeof(*ip6);
-		bcopy((caddr_t)ip6, mtod(m, caddr_t), sizeof(*ip6));
+		bcopy(ip6, mtod(m, void *), sizeof(*ip6));
 	}
 	exthdrs->ip6e_ip6 = m;
 	return 0;

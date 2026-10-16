@@ -268,7 +268,7 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 			RSS_DEBUG("short fragment frame?\n");
 			return (-1);
 		}
-		ip6f = (const struct ip6_frag *)((c_caddr_t)ip6 + off);
+		ip6f = (const struct ip6_frag *)((const char *)ip6 + off);
 		if ((ip6f->ip6f_offlg & ~IP6F_RESERVED_MASK) == 0) {
 			off = ip6_lasthdr(m, off, proto, &nxt);
 			if (off < 0) {
@@ -342,7 +342,7 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 			RSS_DEBUG("short TCP frame?\n");
 			return (-1);
 		}
-		th = (const struct tcphdr *)((c_caddr_t)ip6 + off);
+		th = (const struct tcphdr *)((const char *)ip6 + off);
 		return rss_proto_software_hash_v6(&ip6->ip6_src, &ip6->ip6_dst,
 		    th->th_sport,
 		    th->th_dport,
@@ -355,7 +355,7 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 			RSS_DEBUG("short UDP frame?\n");
 			return (-1);
 		}
-		uh = (const struct udphdr *)((c_caddr_t)ip6 + off);
+		uh = (const struct udphdr *)((const char *)ip6 + off);
 		return rss_proto_software_hash_v6(&ip6->ip6_src, &ip6->ip6_dst,
 		    uh->uh_sport,
 		    uh->uh_dport,

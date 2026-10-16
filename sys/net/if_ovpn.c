@@ -2466,7 +2466,7 @@ ovpn_peer_from_mbuf(struct ovpn_softc *sc, struct mbuf *m, int off)
 	if (m_length(m, NULL) < (off + sizeof(struct udphdr) + hdrlen))
 		return (NULL);
 
-	m_copydata(m, off + sizeof(struct udphdr), hdrlen, (caddr_t)&ohdr);
+	m_copydata(m, off + sizeof(struct udphdr), hdrlen, &ohdr);
 
 	peerid = ntohl(ohdr.opcode) & 0x00ffffff;
 
@@ -2512,7 +2512,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 		return (false);
 	}
 
-	m_copydata(m, off + sizeof(*uhdr), ohdrlen, (caddr_t)&tmphdr);
+	m_copydata(m, off + sizeof(*uhdr), ohdrlen, &tmphdr);
 
 	op = ntohl(tmphdr.opcode) >> 24 >> OVPN_OP_SHIFT;
 	if (op != OVPN_OP_DATA_V2) {

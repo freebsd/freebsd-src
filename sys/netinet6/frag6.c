@@ -474,7 +474,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * sizeof(struct ip6_frag) == 8
 	 * sizeof(struct ip6_hdr) = 40
 	 */
-	ip6f = (struct ip6_frag *)((caddr_t)ip6 + offset);
+	ip6f = (struct ip6_frag *)((char *)ip6 + offset);
 	if ((ip6f->ip6f_offlg & IP6F_MORE_FRAG) &&
 	    (((ntohs(ip6->ip6_plen) - offset) & 0x7) != 0)) {
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
@@ -503,7 +503,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		 * we must update the last one.
 		 */
 		m_copyback(m, ip6_get_prevhdr(m, offset), sizeof(uint8_t),
-		    (caddr_t)&nxt);
+		   &nxt);
 		ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) -
 		    sizeof(struct ip6_frag));
 		if (ip6_deletefraghdr(m, offset, M_NOWAIT) != 0)
@@ -864,8 +864,7 @@ postinsert:
 	ip6_deletefraghdr(m, offset, M_NOWAIT);
 
 	/* Set nxt(-hdr field value) to the original value. */
-	m_copyback(m, ip6_get_prevhdr(m, offset), sizeof(uint8_t),
-	    (caddr_t)&nxt);
+	m_copyback(m, ip6_get_prevhdr(m, offset), sizeof(uint8_t), &nxt);
 
 #ifdef MAC
 	mac_ip6q_reassemble(q6, m);

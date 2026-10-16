@@ -396,7 +396,7 @@ arprequest_internal(struct ifnet *ifp, const struct in_addr *sip,
 	m->m_pkthdr.len = m->m_len;
 	M_ALIGN(m, m->m_len);
 	ah = mtod(m, struct arphdr *);
-	bzero((caddr_t)ah, m->m_len);
+	bzero(ah, m->m_len);
 #ifdef MAC
 	mac_netinet_arp_send(ifp, m);
 #endif

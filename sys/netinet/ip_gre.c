@@ -528,7 +528,7 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 		m_copydata(m, hlen + offsetof(struct ip, ip_tos),
 		    sizeof(u_char), &gi->gi_ip.ip_tos);
 		m_copydata(m, hlen + offsetof(struct ip, ip_id),
-		    sizeof(u_short), (caddr_t)&gi->gi_ip.ip_id);
+		    sizeof(u_short), &gi->gi_ip.ip_id);
 		break;
 #ifdef INET6
 	case AF_INET6:

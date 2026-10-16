@@ -1237,7 +1237,7 @@ ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 	 */
 	if (data != NULL) {
 		mv.m_next = m;
-		mv.m_data = (caddr_t)&vlan;
+		mv.m_data = (char *)&vlan;
 		mv.m_len = sizeof(vlan);
 		mb.m_next = &mv;
 		mb.m_data = data;

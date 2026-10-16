@@ -1854,7 +1854,7 @@ pim6_input(struct mbuf *m, int off, int proto, void *arg __unused)
 		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	pim = (struct pim *)((caddr_t)ip6 + off);
+	pim = (struct pim *)((char *)ip6 + off);
 
 #define PIM6_CHECKSUM
 #ifdef PIM6_CHECKSUM

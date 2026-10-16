@@ -186,7 +186,7 @@ ip_redir_alloc(struct mbuf *m, struct nhop_object *nh, u_short ip_len,
 	}
 	mcopy->m_len = min(ip_len, M_TRAILINGSPACE(mcopy));
 	mcopy->m_pkthdr.len = mcopy->m_len;
-	m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
+	m_copydata(m, 0, mcopy->m_len, mtod(mcopy, void *));
 
 	return (mcopy);
 }

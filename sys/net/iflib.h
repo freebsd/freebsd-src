@@ -239,7 +239,7 @@ typedef struct if_softc_ctx {
 	uint32_t __spare6__;
 	uint32_t __spare7__;
 	uint32_t __spare8__;
-	caddr_t __spare9__;
+	void *__spare9__;
 	int isc_disable_msix;
 	if_txrx_t isc_txrx;
 	struct ifmedia *isc_media;

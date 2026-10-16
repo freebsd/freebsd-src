@@ -259,7 +259,7 @@ bstp_transmit_tcn(struct bstp_state *bs, struct bstp_port *bp)
 	bpdu.tbu_protover = 0;
 	bpdu.tbu_bpdutype = BSTP_MSGTYPE_TCN;
 
-	memcpy(mtod(m, caddr_t) + sizeof(*eh), &bpdu, sizeof(bpdu));
+	memcpy(mtod(m, char *) + sizeof(*eh), &bpdu, sizeof(bpdu));
 
 	bp->bp_txcount++;
 	ifp->if_transmit(ifp, m);
@@ -372,7 +372,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 			bpdu->cbu_protover = BSTP_PROTO_STP;
 			m->m_pkthdr.len = sizeof(*eh) + BSTP_BPDU_STP_LEN;
 			eh->ether_type = htons(BSTP_BPDU_STP_LEN);
-			memcpy(mtod(m, caddr_t) + sizeof(*eh), bpdu,
+			memcpy(mtod(m, char *) + sizeof(*eh), bpdu,
 			    BSTP_BPDU_STP_LEN);
 			break;
 
@@ -381,7 +381,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 			bpdu->cbu_versionlen = htons(0);
 			m->m_pkthdr.len = sizeof(*eh) + BSTP_BPDU_RSTP_LEN;
 			eh->ether_type = htons(BSTP_BPDU_RSTP_LEN);
-			memcpy(mtod(m, caddr_t) + sizeof(*eh), bpdu,
+			memcpy(mtod(m, char *) + sizeof(*eh), bpdu,
 			    BSTP_BPDU_RSTP_LEN);
 			break;
 
@@ -481,7 +481,7 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 	    (m = m_pullup(m, sizeof(tpdu))) == NULL)
 		goto out;
 
-	memcpy(&tpdu, mtod(m, caddr_t), sizeof(tpdu));
+	memcpy(&tpdu, mtod(m, char *), sizeof(tpdu));
 
 	/* basic packet checks */
 	if (tpdu.tbu_dsap != LLC_8021D_LSAP ||
@@ -546,7 +546,7 @@ bstp_received_stp(struct bstp_state *bs, struct bstp_port *bp,
 		if ((*mp)->m_len < BSTP_BPDU_STP_LEN &&
 		    (*mp = m_pullup(*mp, BSTP_BPDU_STP_LEN)) == NULL)
 			return;
-		memcpy(&cpdu, mtod(*mp, caddr_t), BSTP_BPDU_STP_LEN);
+		memcpy(&cpdu, mtod(*mp, char *), BSTP_BPDU_STP_LEN);
 
 		bstp_decode_bpdu(bp, &cpdu, cu);
 		bstp_received_bpdu(bs, bp, cu);
@@ -567,7 +567,7 @@ bstp_received_rstp(struct bstp_state *bs, struct bstp_port *bp,
 	if ((*mp)->m_len < BSTP_BPDU_RSTP_LEN &&
 	    (*mp = m_pullup(*mp, BSTP_BPDU_RSTP_LEN)) == NULL)
 		return;
-	memcpy(&cpdu, mtod(*mp, caddr_t), BSTP_BPDU_RSTP_LEN);
+	memcpy(&cpdu, mtod(*mp, char *), BSTP_BPDU_RSTP_LEN);
 
 	bstp_decode_bpdu(bp, &cpdu, cu);
 	bstp_received_bpdu(bs, bp, cu);

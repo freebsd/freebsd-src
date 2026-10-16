@@ -380,7 +380,7 @@ void nd6_na_output(struct ifnet *, const struct in6_addr *,
 void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, const struct in6_addr *, uint8_t *);
-caddr_t nd6_ifptomac(struct ifnet *);
+char *nd6_ifptomac(struct ifnet *);
 u_int nd6_lladdr_opt_pad(struct ifnet *);
 void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);

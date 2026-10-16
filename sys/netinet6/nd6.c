@@ -429,7 +429,7 @@ nd6_option(union nd_opts *ndopts)
 	nd_opt = ndopts->nd_opts_search;
 
 	/* make sure nd_opt_len is inside the buffer */
-	if ((caddr_t)&nd_opt->nd_opt_len >= (caddr_t)ndopts->nd_opts_last) {
+	if ((char *)&nd_opt->nd_opt_len >= (char *)ndopts->nd_opts_last) {
 		bzero(ndopts, sizeof(*ndopts));
 		return NULL;
 	}
@@ -444,7 +444,7 @@ nd6_option(union nd_opts *ndopts)
 		return NULL;
 	}
 
-	ndopts->nd_opts_search = (struct nd_opt_hdr *)((caddr_t)nd_opt + olen);
+	ndopts->nd_opts_search = (struct nd_opt_hdr *)((char *)nd_opt + olen);
 	if (ndopts->nd_opts_search > ndopts->nd_opts_last) {
 		/* option overruns the end of buffer, invalid */
 		bzero(ndopts, sizeof(*ndopts));
@@ -612,7 +612,7 @@ nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
 	if (sizeof(hdr) > m->m_len)
 		return (NULL);
 
-	m_copydata(m, 0, sizeof(hdr), (caddr_t)&hdr);
+	m_copydata(m, 0, sizeof(hdr), &hdr);
 	*src = hdr.ip6_src;
 
 	return (src);

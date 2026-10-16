@@ -503,7 +503,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 	ip = mtod(m, struct ip *);
-	uh = (struct udphdr *)((caddr_t)ip + iphlen);
+	uh = (struct udphdr *)((char *)ip + iphlen);
 	cscov_partial = (proto == IPPROTO_UDPLITE) ? 1 : 0;
 
 	/*
@@ -743,7 +743,7 @@ udp_common_ctlinput(struct icmp *icmp, struct inpcbinfo *pcbinfo)
 	if (icmp_errmap(icmp) == 0)
 		return;
 
-	uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+	uh = (struct udphdr *)((char *)ip + (ip->ip_hl << 2));
 	inp = in_pcblookup(pcbinfo, ip->ip_dst, uh->uh_dport, ip->ip_src,
 	    uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL) {

@@ -1332,7 +1332,7 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 		goto out;
 	}
 	m->m_len = 1;
-	*mtod(m, caddr_t) = tp->t_iobc;
+	*mtod(m, char *) = tp->t_iobc;
 	if ((flags & MSG_PEEK) == 0)
 		tp->t_oobflags ^= (TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 

@@ -460,7 +460,7 @@ struct sadb_x_if_hw_offl {
 #define PFKEY_ADDR_PROTO(ext) \
 	(((const struct sadb_address *)(ext))->sadb_address_proto)
 #define PFKEY_ADDR_SADDR(ext) \
-	((const struct sockaddr *)((c_caddr_t)(ext) + sizeof(struct sadb_address)))
+	((const struct sockaddr *)((const char *)(ext) + sizeof(struct sadb_address)))
 
 /* in 64bits */
 #define	PFKEY_UNUNIT64(a)	((a) << 3)

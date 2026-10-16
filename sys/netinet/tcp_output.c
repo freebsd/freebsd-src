@@ -1077,8 +1077,7 @@ send:
 		 */
 		mb = sbsndptr_noadv(&so->so_snd, off, &moff);
 		if (len <= MHLEN - hdrlen - max_linkhdr && !hw_tls) {
-			m_copydata(mb, moff, len,
-			    mtod(m, caddr_t) + hdrlen);
+			m_copydata(mb, moff, len, mtod(m, char *) + hdrlen);
 			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
 				sbsndptr_adv(&so->so_snd, mb, len);
 			m->m_len += len;
@@ -1158,7 +1157,8 @@ send:
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		if (tp->t_port) {
-			udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
+			udp = (struct udphdr *)((char *)ip6 +
+			    sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			ulen = hdrlen + len - sizeof(struct ip6_hdr);
@@ -1173,7 +1173,7 @@ send:
 	{
 		ip = mtod(m, struct ip *);
 		if (tp->t_port) {
-			udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
+			udp = (struct udphdr *)((char *)ip + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			ulen = hdrlen + len - sizeof(struct ip);
@@ -2098,7 +2098,7 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 			n->m_data = m->m_data + off;
 			mb_dupcl(n, m);
 		} else
-			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
+			bcopy(mtod(m, char *) + off, mtod(n, char *),
 			    (u_int)n->m_len);
 
 		if (sb && (sb->sb_sndptr == m) &&

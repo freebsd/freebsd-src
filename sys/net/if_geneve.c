@@ -2489,7 +2489,7 @@ geneve_inherit_l3_hdr(struct mbuf *m, struct geneve_softc *sc, uint16_t proto,
 	switch (proto) {
 	case ETHERTYPE_IP:
 		if (__predict_false(m->m_len < offset + sizeof(struct ip))) {
-			m_copydata(m, offset, sizeof(struct ip), (caddr_t)&iphdr);
+			m_copydata(m, offset, sizeof(struct ip), &iphdr);
 			ip_inner = &iphdr;
 		} else
 			ip_inner = mtodo(m, offset);
@@ -2503,7 +2503,7 @@ geneve_inherit_l3_hdr(struct mbuf *m, struct geneve_softc *sc, uint16_t proto,
 
 	case ETHERTYPE_IPV6:
 		if (__predict_false(m->m_len < offset + sizeof(struct ip6_hdr))) {
-			m_copydata(m, offset, sizeof(struct ip6_hdr), (caddr_t)&ip6hdr);
+			m_copydata(m, offset, sizeof(struct ip6_hdr), &ip6hdr);
 			ip6_inner = &ip6hdr;
 		} else
 			ip6_inner = mtodo(m, offset);
@@ -2996,7 +2996,7 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	/* Get geneve header */
 	offset += sizeof(struct udphdr);
 	if (__predict_false(m->m_len < offset + sizeof(struct genevehdr))) {
-		m_copydata(m, offset, sizeof(struct genevehdr), (caddr_t)&gnvhdr);
+		m_copydata(m, offset, sizeof(struct genevehdr), &gnvhdr);
 		gnvh = &gnvhdr;
 	} else
 		gnvh = mtodo(m, offset);

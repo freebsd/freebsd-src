@@ -876,7 +876,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin.sin_len = sizeof(sin);
 		sin.sin_addr = sc->sc_inc.inc_faddr;
 		sin.sin_port = sc->sc_inc.inc_fport;
-		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
+		bzero(sin.sin_zero, sizeof(sin.sin_zero));
 		error = in_pcbconnect(inp, &sin, thread0.td_ucred);
 		if (error != 0)
 			goto abort;

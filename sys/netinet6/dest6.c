@@ -78,7 +78,7 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 			return (IPPROTO_DONE);
 		}
 	}
-	dstopts = (struct ip6_dest *)(mtod(m, caddr_t) + off);
+	dstopts = (struct ip6_dest *)(mtod(m, char *) + off);
 	dstoptlen = (dstopts->ip6d_len + 1) << 3;
 
 	if (m->m_len < off + dstoptlen) {
@@ -89,7 +89,7 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 			return (IPPROTO_DONE);
 		}
 	}
-	dstopts = (struct ip6_dest *)(mtod(m, caddr_t) + off);
+	dstopts = (struct ip6_dest *)(mtod(m, char *) + off);
 	off += dstoptlen;
 	dstoptlen -= sizeof(struct ip6_dest);
 	opt = (u_int8_t *)dstopts + sizeof(struct ip6_dest);

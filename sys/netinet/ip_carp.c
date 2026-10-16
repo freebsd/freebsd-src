@@ -1408,7 +1408,7 @@ vrrp_send_ad_locked(struct carp_softc *sc)
 			in = (struct sockaddr_in *)sc->sc_ifas[i]->ifa_addr;
 
 			if (m_append(m, sizeof(in->sin_addr),
-			    (caddr_t)&in->sin_addr) != 1) {
+			    &in->sin_addr) != 1) {
 				m_freem(m);
 				goto resched;
 			}

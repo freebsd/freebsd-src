@@ -377,7 +377,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	uh = (struct udphdr *)((caddr_t)ip6 + off);
+	uh = (struct udphdr *)((char *)ip6 + off);
 
 	UDPSTAT_INC(udps_ipackets);
 
@@ -582,7 +582,7 @@ udp6_common_ctlinput(struct ip6ctlparam *ip6cp, struct inpcbinfo *pcbinfo)
 		return;
 
 	bzero(&uh, sizeof(uh));
-	m_copydata(m, off, sizeof(*uhp), (caddr_t)&uh);
+	m_copydata(m, off, sizeof(*uhp), &uh);
 
 	/* Check to see if its tunneled */
 	inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_dst, uh.uh_dport,
@@ -889,7 +889,7 @@ udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
 	 * Stuff checksum and output datagram.
 	 */
 	cscov = cscov_partial = 0;
-	udp6 = (struct udphdr *)(mtod(m, caddr_t) + hlen);
+	udp6 = (struct udphdr *)(mtod(m, char *) + hlen);
 	udp6->uh_sport = inp->inp_lport; /* lport is always set in the PCB */
 	udp6->uh_dport = fport;
 	if (nxt == IPPROTO_UDPLITE) {

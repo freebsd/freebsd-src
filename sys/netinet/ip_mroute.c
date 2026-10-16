@@ -477,7 +477,7 @@ X_ip_mrouter_set(struct socket *so, struct sockopt *sopt)
 		} else {
 			error = sooptcopyin(sopt, &mfc, sizeof(struct mfcctl),
 			    sizeof(struct mfcctl));
-			bzero((caddr_t)&mfc + sizeof(struct mfcctl),
+			bzero((char *)&mfc + sizeof(struct mfcctl),
 			    sizeof(mfc) - sizeof(struct mfcctl));
 		}
 		if (error)
@@ -1088,7 +1088,7 @@ del_vif_locked(struct mfctable *mfct, vifi_t vifi,
 
 	mtx_destroy(&vifp->v_mtx);
 
-	bzero((caddr_t)vifp, sizeof (*vifp));
+	bzero(vifp, sizeof(*vifp));
 
 	CTR2(KTR_IPMF, "%s: delete vif %d", __func__, (int)vifi);
 
@@ -2286,10 +2286,10 @@ bw_upcalls_send(struct mfctable *mfct)
 		return;
 	}
 
-	m_copyback(m, 0, sizeof(struct igmpmsg), (caddr_t)&igmpmsg);
+	m_copyback(m, 0, sizeof(struct igmpmsg), &igmpmsg);
 	len += sizeof(struct igmpmsg);
 	while ((bu = buf_ring_dequeue_mc(mfct->bw_upcalls)) != NULL) {
-		m_copyback(m, len, sizeof(struct bw_upcall), (caddr_t)bu);
+		m_copyback(m, len, sizeof(struct bw_upcall), bu);
 		len += sizeof(struct bw_upcall);
 		free(bu, M_MRTABLE);
 	}
@@ -2538,7 +2538,7 @@ pim_register_send_rp(struct mfctable *mfct, struct ip *ip, struct vif *vifp,
 	if (ip->ip_off & htons(IP_DF))
 		ip_outer->ip_off |= htons(IP_DF);
 	ip_fillid(ip_outer, V_ip_random_id);
-	pimhdr = (struct pim_encap_pimhdr *)((caddr_t)ip_outer
+	pimhdr = (struct pim_encap_pimhdr *)((char *)ip_outer
 			+ sizeof(pim_encap_iphdr));
 	*pimhdr = pim_encap_pimhdr;
 	/* If the iif crosses a border, set the Border-bit */

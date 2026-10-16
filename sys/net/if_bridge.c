@@ -4045,12 +4045,12 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	/* Strip off the Ethernet header and keep a copy. */
-	m_copydata(*mp, 0, ETHER_HDR_LEN, (caddr_t) &eh2);
+	m_copydata(*mp, 0, ETHER_HDR_LEN, &eh2);
 	m_adj(*mp, ETHER_HDR_LEN);
 
 	/* Strip off snap header, if present */
 	if (snap) {
-		m_copydata(*mp, 0, sizeof(struct llc), (caddr_t) &llc1);
+		m_copydata(*mp, 0, sizeof(struct llc), &llc1);
 		m_adj(*mp, sizeof(struct llc));
 	}
 
@@ -4186,13 +4186,13 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		M_PREPEND(*mp, sizeof(struct llc), M_NOWAIT);
 		if (*mp == NULL)
 			return (error);
-		bcopy(&llc1, mtod(*mp, caddr_t), sizeof(struct llc));
+		bcopy(&llc1, mtod(*mp, void *), sizeof(struct llc));
 	}
 
 	M_PREPEND(*mp, ETHER_HDR_LEN, M_NOWAIT);
 	if (*mp == NULL)
 		return (error);
-	bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
+	bcopy(&eh2, mtod(*mp, void *), ETHER_HDR_LEN);
 
 	return (0);
 
@@ -4226,7 +4226,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (*mp == NULL)
 		return (-1);
 
-	if (IP_HDR_ALIGNED_P(mtod(m, caddr_t)) == 0) {
+	if (IP_HDR_ALIGNED_P(mtod(m, char *)) == 0) {
 		if ((m = m_copyup(m, sizeof(struct ip),
 			(max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
@@ -4323,7 +4323,7 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 	 * it.  Otherwise, if it is aligned, make sure the entire base
 	 * IPv6 header is in the first mbuf of the chain.
 	 */
-	if (IP6_HDR_ALIGNED_P(mtod(m, caddr_t)) == 0) {
+	if (IP6_HDR_ALIGNED_P(mtod(m, char *)) == 0) {
 		struct ifnet *inifp = m->m_pkthdr.rcvif;
 		if ((m = m_copyup(m, sizeof(struct ip6_hdr),
 			    (max_linkhdr + 3) & ~3)) == NULL) {
@@ -4401,7 +4401,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf **mp, struct ether_header *eh,
 					mprev->m_nextpkt = nextpkt;
 				goto dropit;
 			}
-			bcopy(llc, mtod(mcur, caddr_t),sizeof(struct llc));
+			bcopy(llc, mtod(mcur, void *), sizeof(struct llc));
 		}
 
 		M_PREPEND(mcur, ETHER_HDR_LEN, M_NOWAIT);
@@ -4412,7 +4412,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf **mp, struct ether_header *eh,
 				mprev->m_nextpkt = nextpkt;
 			goto dropit;
 		}
-		bcopy(eh, mtod(mcur, caddr_t), ETHER_HDR_LEN);
+		bcopy(eh, mtod(mcur, void *), ETHER_HDR_LEN);
 
 		/*
 		 * The previous two M_PREPEND could have inserted one or two

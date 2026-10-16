@@ -13946,7 +13946,8 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack, int32_t flags)
 		ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
 		if (tp->t_port) {
 			rack->r_ctl.fsb.tcp_ip_hdr_len += sizeof(struct udphdr);
-			udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
+			udp = (struct udphdr *)((char *)ip6 +
+			    sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			rack->r_ctl.fsb.udp = udp;
@@ -13968,7 +13969,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack, int32_t flags)
 		ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
 		if (tp->t_port) {
 			rack->r_ctl.fsb.tcp_ip_hdr_len += sizeof(struct udphdr);
-			udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
+			udp = (struct udphdr *)((char *)ip + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			rack->r_ctl.fsb.udp = udp;
@@ -18117,7 +18118,7 @@ rack_fo_base_copym(struct mbuf *the_m, uint32_t the_off, int32_t *plen,
 			n->m_data = m->m_data + off;
 			mb_dupcl(n, m);
 		} else {
-			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
+			bcopy(mtod(m, char *) + off, mtod(n, char *),
 			    (u_int)n->m_len);
 		}
 		len -= n->m_len;
@@ -21412,7 +21413,7 @@ send:
 		s_moff = moff;
 		if (len <= MHLEN - hdrlen - max_linkhdr && !hw_tls) {
 			m_copydata(mb, moff, (int)len,
-				   mtod(m, caddr_t)+hdrlen);
+				   mtod(m, char *) + hdrlen);
 			/*
 			 * If we are not retransmitting advance the
 			 * sndptr to help remember the next place in
@@ -21547,7 +21548,8 @@ send:
 		if (isipv6) {
 			ip6 = mtod(m, struct ip6_hdr *);
 			if (tp->t_port) {
-				udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
+				udp = (struct udphdr *)((char *)ip6 +
+				    sizeof(struct ip6_hdr));
 				udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 				udp->uh_dport = tp->t_port;
 				ulen = hdrlen + len - sizeof(struct ip6_hdr);
@@ -21562,7 +21564,8 @@ send:
 #ifdef INET
 			ip = mtod(m, struct ip *);
 			if (tp->t_port) {
-				udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
+				udp = (struct udphdr *)((char *)ip +
+				    sizeof(struct ip));
 				udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 				udp->uh_dport = tp->t_port;
 				ulen = hdrlen + len - sizeof(struct ip);

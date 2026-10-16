@@ -390,7 +390,7 @@ stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	if (proto != IPPROTO_IPV6)
 		return (0);
 
-	m_copydata(m, 0, sizeof(ip), (caddr_t)&ip);
+	m_copydata(m, 0, sizeof(ip), &ip);
 
 	if (ip.ip_v != 4)
 		return (0);
@@ -735,7 +735,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 		return (IPPROTO_DONE);
 	}
 
-	m_copydata(m, 0, sizeof(struct ip), (caddr_t)&ip);
+	m_copydata(m, 0, sizeof(struct ip), &ip);
 	if (sc == NULL || (STF2IFP(sc)->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);

@@ -337,7 +337,7 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 			}
 		}
 		oip6 = mtod(m, struct ip6_hdr *);
-		icp = (struct icmp6_hdr *)(mtod(m, caddr_t) + off);
+		icp = (struct icmp6_hdr *)(mtod(m, char *) + off);
 
 		if (icp->icmp6_type < ICMP6_ECHO_REQUEST ||
 		    icp->icmp6_type == ND_REDIRECT) {
@@ -499,7 +499,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	/* Calculate the checksum. */
-	icmp6 = (struct icmp6_hdr *)((caddr_t)ip6 + off);
+	icmp6 = (struct icmp6_hdr *)((char *)ip6 + off);
 	code = icmp6->icmp6_code;
 	if ((sum = in6_cksum(m, IPPROTO_ICMPV6, off, icmp6len)) != 0) {
 		nd6log((LOG_ERR,
@@ -608,7 +608,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 					break;
 				}
 			}
-			nicmp6 = (struct icmp6_hdr *)(mtod(n, caddr_t) + off);
+			nicmp6 = (struct icmp6_hdr *)(mtod(n, char *) + off);
 			noff = off;
 		}
 		if (n) {
@@ -940,7 +940,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 			return (-1);
 		}
 	}
-	icmp6 = (struct icmp6_hdr *)(mtod(m, caddr_t) + off);
+	icmp6 = (struct icmp6_hdr *)(mtod(m, char *) + off);
 	eip6 = (struct ip6_hdr *)(icmp6 + 1);
 	bzero(&icmp6dst, sizeof(icmp6dst));
 
@@ -973,7 +973,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 					}
 				}
 				eh = (struct ip6_ext *)
-				    (mtod(m, caddr_t) + eoff);
+				    (mtod(m, char *) + eoff);
 				if (nxt == IPPROTO_AH)
 					eoff += (eh->ip6e_len + 2) << 2;
 				else
@@ -998,7 +998,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 					}
 				}
 				rth = (struct ip6_rthdr *)
-				    (mtod(m, caddr_t) + eoff);
+				    (mtod(m, char *) + eoff);
 				rthlen = (rth->ip6r_len + 1) << 3;
 				/*
 				 * XXX: currently there is no
@@ -1022,7 +1022,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 						}
 					}
 					rth0 = (struct ip6_rthdr0 *)
-					    (mtod(m, caddr_t) + eoff);
+					    (mtod(m, char *) + eoff);
 
 					/* just ignore a bogus header */
 					if ((rth0->ip6r0_len % 2) == 0 &&
@@ -1042,7 +1042,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 						return (-1);
 					}
 				}
-				fh = (struct ip6_frag *)(mtod(m, caddr_t) +
+				fh = (struct ip6_frag *)(mtod(m, char *) +
 				    eoff);
 				/*
 				 * Data after a fragment header is meaningless
@@ -1069,7 +1069,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 			}
 		}
 	  notify:
-		icmp6 = (struct icmp6_hdr *)(mtod(m, caddr_t) + off);
+		icmp6 = (struct icmp6_hdr *)(mtod(m, char *) + off);
 
 		/*
 		 * retrieve parameters from the inner IPv6 header, and convert
@@ -1189,7 +1189,7 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 	struct in6_ifaddr *ia6 = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
-	ni6 = (struct icmp6_nodeinfo *)(mtod(m, caddr_t) + off);
+	ni6 = (struct icmp6_nodeinfo *)(mtod(m, char *) + off);
 
 	/*
 	 * Validate IPv6 source address.
@@ -1285,7 +1285,7 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 			 * We do not do proxy at this moment.
 			 */
 			m_copydata(m, off + sizeof(struct icmp6_nodeinfo),
-			    subjlen, (caddr_t)&in6_subj);
+			    subjlen, &in6_subj);
 			if (in6_setscope(&in6_subj, m->m_pkthdr.rcvif, NULL))
 				goto bad;
 
@@ -1332,8 +1332,8 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 				}
 			}
 			/* ip6 possibly invalid but not used after. */
-			ni6 = (struct icmp6_nodeinfo *)(mtod(m, caddr_t) + off);
-			subj = (char *)(mtod(m, caddr_t) + off +
+			ni6 = (struct icmp6_nodeinfo *)(mtod(m, char *) + off);
+			subj = (char *)(mtod(m, char *) + off +
 			    sizeof(struct icmp6_nodeinfo));
 			if (!ni6_dnsmatch(subj, subjlen, mtod(n, const char *),
 			    n->m_len)) {
@@ -1420,9 +1420,9 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 	n->m_pkthdr.len = n->m_len = replylen;
 
 	/* copy mbuf header and IPv6 + Node Information base headers */
-	bcopy(mtod(m, caddr_t), mtod(n, caddr_t), sizeof(struct ip6_hdr));
+	bcopy(mtod(m, void *), mtod(n, void *), sizeof(struct ip6_hdr));
 	nni6 = (struct icmp6_nodeinfo *)(mtod(n, struct ip6_hdr *) + 1);
-	bcopy((caddr_t)ni6, (caddr_t)nni6, sizeof(struct icmp6_nodeinfo));
+	bcopy(ni6, nni6, sizeof(struct icmp6_nodeinfo));
 
 	/* qtype dependent procedure */
 	switch (qtype) {
@@ -1442,7 +1442,7 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 	}
 	case NI_QTYPE_FQDN:
 		nni6->ni_code = ICMP6_NI_SUCCESS;
-		fqdn = (struct ni_reply_fqdn *)(mtod(n, caddr_t) +
+		fqdn = (struct ni_reply_fqdn *)(mtod(n, char *) +
 		    sizeof(struct ip6_hdr) + sizeof(struct icmp6_nodeinfo));
 		nni6->ni_flags = 0; /* XXX: meaningless TTL */
 		fqdn->ni_fqdn_ttl = 0;	/* ditto. */
@@ -1911,7 +1911,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	int delivered = 0, fib;
 
 	/* This is assumed to be safe; icmp6_input() does a pullup. */
-	icmp6 = (struct icmp6_hdr *)((caddr_t)ip6 + off);
+	icmp6 = (struct icmp6_hdr *)((char *)ip6 + off);
 
 	/*
 	 * XXX: the address may have embedded scope zone ID, which should be
@@ -2033,14 +2033,14 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		struct ip6_hdr nip6;
 
 		l = off - sizeof(struct ip6_hdr);
-		m_copydata(m, 0, sizeof(nip6), (caddr_t)&nip6);
+		m_copydata(m, 0, sizeof(nip6), &nip6);
 		m_adj(m, l);
 		l = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
 		if (m->m_len < l) {
 			if ((m = m_pullup(m, l)) == NULL)
 				return;
 		}
-		bcopy((caddr_t)&nip6, mtod(m, caddr_t), sizeof(nip6));
+		bcopy(&nip6, mtod(m, void *), sizeof(nip6));
 	} else /* off == sizeof(struct ip6_hdr) */ {
 		size_t l;
 		l = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
@@ -2195,7 +2195,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	nd_rd = (struct nd_redirect *)((caddr_t)ip6 + off);
+	nd_rd = (struct nd_redirect *)((char *)ip6 + off);
 
 	ifp = m->m_pkthdr.rcvif;
 	redtgt6 = nd_rd->nd_rd_target;

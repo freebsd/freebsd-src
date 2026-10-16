@@ -1058,7 +1058,7 @@ in_delayed_cksum_o(struct mbuf *m, uint16_t iph_offset)
 		/* if udp header is not in the first mbuf copy udplen */
 		if (offset + sizeof(struct udphdr) > m->m_len) {
 			m_copydata(m, offset + offsetof(struct udphdr,
-			    uh_ulen), sizeof(cklen), (caddr_t)&cklen);
+			    uh_ulen), sizeof(cklen), &cklen);
 			cklen = ntohs(cklen);
 		} else {
 			uh = (struct udphdr *)mtodo(m, offset);
@@ -1074,7 +1074,7 @@ in_delayed_cksum_o(struct mbuf *m, uint16_t iph_offset)
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
 	if (offset + sizeof(csum) > m->m_len)
-		m_copyback(m, offset, sizeof(csum), (caddr_t)&csum);
+		m_copyback(m, offset, sizeof(csum), &csum);
 	else
 		*(u_short *)mtodo(m, offset) = csum;
 }

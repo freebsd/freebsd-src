@@ -1011,8 +1011,7 @@ mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
 		soff = off + sizeof(struct mldv2_query);
 		nrecorded = 0;
 		for (i = 0; i < nsrc; i++) {
-			m_copydata(m0, soff, sizeof(struct in6_addr),
-			    (caddr_t)&srcaddr);
+			m_copydata(m0, soff, sizeof(struct in6_addr), &srcaddr);
 			retval = in6m_record_source(inm, &srcaddr);
 			if (retval < 0)
 				break;

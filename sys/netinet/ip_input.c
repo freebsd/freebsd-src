@@ -1017,7 +1017,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (mcopy != NULL) {
 		mcopy->m_len = min(ntohs(ip->ip_len), M_TRAILINGSPACE(mcopy));
 		mcopy->m_pkthdr.len = mcopy->m_len;
-		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
+		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, void *));
 	}
 #ifdef IPSTEALTH
 	if (V_ipstealth == 0)
@@ -1182,7 +1182,7 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		} else {
 			microtime(&tv);
 		}
-		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv), SCM_TIMESTAMP,
+		*mp = sbcreatecontrol(&tv, sizeof(tv), SCM_TIMESTAMP,
 		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL) {
 			mp = &(*mp)->m_next;

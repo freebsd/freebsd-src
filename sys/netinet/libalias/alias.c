@@ -1818,7 +1818,7 @@ m_megapullup(struct mbuf *m, int len)
 		goto bad;
 	m_align(mcl, len);
 	m_move_pkthdr(mcl, m);
-	m_copydata(m, 0, len, mtod(mcl, caddr_t));
+	m_copydata(m, 0, len, mtod(mcl, void *));
 	mcl->m_len = mcl->m_pkthdr.len = len;
 	m_freem(m);
 

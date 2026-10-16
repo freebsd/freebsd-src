@@ -695,7 +695,7 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, struct linear_buffer *lb, u_int fi
 	 * link-local address because rtrequest requires addresses with
 	 * embedded scope id.
 	 */
-	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, info))
+	if (rt_xaddrs((char *)(rtm + 1), (char *)rtm + len, info))
 		return (EINVAL);
 
 	info->rti_flags = rtm->rtm_flags;
@@ -1106,7 +1106,7 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 	if ((rtm = malloc(total_len, M_TEMP, M_NOWAIT)) == NULL)
 		senderr(ENOBUFS);
 
-	m_copydata(m, 0, len, (caddr_t)rtm);
+	m_copydata(m, 0, len, rtm);
 	bzero(&info, sizeof(info));
 	nh = NULL;
 	struct linear_buffer lb = {
@@ -1294,7 +1294,7 @@ send_rtm_reply(struct socket *so, struct rt_msghdr *rtm, struct mbuf *m,
 		else
 			rtm->rtm_flags |= RTF_DONE;
 
-		m_copyback(m, 0, rtm->rtm_msglen, (caddr_t)rtm);
+		m_copyback(m, 0, rtm->rtm_msglen, rtm);
 		if (m->m_pkthdr.len < rtm->rtm_msglen) {
 			m_freem(m);
 			m = NULL;
@@ -1753,7 +1753,7 @@ rtsock_msg_mbuf(int type, struct rt_addrinfo *rtinfo)
 
 	m->m_pkthdr.len = m->m_len = len;
 	rtm = mtod(m, struct rt_msghdr *);
-	bzero((caddr_t)rtm, len);
+	bzero(rtm, len);
 	for (i = 0; i < RTAX_MAX; i++) {
 		if ((sa = rtinfo->rti_info[i]) == NULL)
 			continue;
@@ -1771,7 +1771,7 @@ rtsock_msg_mbuf(int type, struct rt_addrinfo *rtinfo)
 			(void)sa6_recoverscope(sin6);
 		}
 #endif
-		m_copyback(m, len, dlen, (caddr_t)sa);
+		m_copyback(m, len, dlen, sa);
 		len += dlen;
 	}
 	if (m->m_pkthdr.len != len) {
@@ -1881,7 +1881,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 				(void)sa6_recoverscope(sin6);
 			}
 #endif
-			bcopy((caddr_t)sa, cp, (unsigned)dlen);
+			bcopy(sa, cp, (unsigned)dlen);
 			cp += dlen;
 			buflen -= dlen;
 		} else if (cp != NULL) {
@@ -1976,7 +1976,7 @@ rtsock_ifmsg(struct ifnet *ifp, int if_flags_mask __unused)
 
 	if (V_route_cb.any_count == 0)
 		return;
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 	m = rtsock_msg_mbuf(RTM_IFINFO, &info);
 	if (m == NULL)
 		return;
@@ -2010,7 +2010,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 
 	ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
 
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
 	info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(
@@ -2056,7 +2056,7 @@ rtsock_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
 	init_sockaddrs_family(family, &dst.sa, &mask.sa);
 	export_rtaddrs(rt, &dst.sa, &mask.sa);
 
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_DST] = &dst.sa;
 	info.rti_info[RTAX_NETMASK] = &mask.sa;
 	info.rti_info[RTAX_GATEWAY] = &nh->gw_sa;
@@ -2123,7 +2123,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	if (V_route_cb.any_count == 0)
 		return;
 
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_IFA] = ifma->ifma_addr;
 	if (ifp && ifp->if_addr)
 		info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
@@ -2154,7 +2154,7 @@ rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
 
 	if (V_route_cb.any_count == 0)
 		return NULL;
-	bzero((caddr_t)info, sizeof(*info));
+	bzero(info, sizeof(*info));
 	m = rtsock_msg_mbuf(type, info);
 	if (m != NULL) {
 		ifan = mtod(m, struct if_announcemsghdr *);
@@ -2284,7 +2284,7 @@ sysctl_dumpnhop(struct rtentry *rt, struct nhop_object *nh, uint32_t weight,
 	if (w->w_op == NET_RT_FLAGS && !(rtflags & w->w_arg))
 		return (0);
 
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_DST] = w->dst;
 	info.rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 	info.rti_info[RTAX_NETMASK] = (rtflags & RTF_HOST) ? NULL : w->mask;
@@ -2316,7 +2316,7 @@ sysctl_dumpnhop(struct rtentry *rt, struct nhop_object *nh, uint32_t weight,
 		rtm->rtm_rmx.rmx_weight = weight;
 		rtm->rtm_index = nh->nh_ifp->if_index;
 		rtm->rtm_addrs = info.rti_addrs;
-		error = SYSCTL_OUT(w->w_req, (caddr_t)rtm, size);
+		error = SYSCTL_OUT(w->w_req, rtm, size);
 		return (error);
 	}
 	return (error);
@@ -2359,7 +2359,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, const struct if_data *src_ifd,
 
 	memcpy(ifd, src_ifd, sizeof(*ifd));
 
-	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
+	return (SYSCTL_OUT(w->w_req, ifm, len));
 }
 
 static int
@@ -2393,7 +2393,7 @@ sysctl_iflist_ifm(struct ifnet *ifp, const struct if_data *src_ifd,
 
 	memcpy(ifd, src_ifd, sizeof(*ifd));
 
-	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
+	return (SYSCTL_OUT(w->w_req, ifm, len));
 }
 
 static int
@@ -2472,7 +2472,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	int len, error = 0;
 	struct sockaddr_storage ss;
 
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 	bzero(&ifd, sizeof(ifd));
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
@@ -2538,7 +2538,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 	NET_EPOCH_ASSERT();
 
 	error = 0;
-	bzero((caddr_t)&info, sizeof(info));
+	bzero(&info, sizeof(info));
 
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
