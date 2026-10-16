@@ -43,10 +43,13 @@
  * To minimize memory waste in per-cpu UMA zones, the page size should
  * be a multiple of the size of struct pcpu.
  */
-_Static_assert(PAGE_SIZE % sizeof(struct pcpu) == 0, "fix pcpu size");
+_Static_assert(UMA_PCPU_ALLOC_SIZE % sizeof(struct pcpu) == 0,
+	"pcpu size should be a factor of UMA_PCPU_ALLOC_SIZE");
 _Static_assert(offsetof(struct pcpu, __pad) +
-    sizeof(((struct pcpu *)0)->__pad) == sizeof(struct pcpu),
-    "fix pcpu padding");
+	sizeof(((struct pcpu *)0)->__pad) == sizeof(struct pcpu),
+	"pcpu padding should be the last field in pcpu and match alignment");
+_Static_assert(sizeof(((struct pcpu *)0)->__pad) < UMA_PCPU_ALLOC_SIZE,
+	"pcpu padding should be smaller than UMA_PCPU_ALLOC_SIZE");
 
 extern struct pcpu __pcpu[];
 
