@@ -2810,7 +2810,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (bnxt_pci_mapping(softc)) {
 		device_printf(softc->dev, "PCI mapping failed\n");
 		rc = ENXIO;
-		goto pci_map_fail;
+		goto free_pci_map;
 	}
 
 	softc->pdev = malloc(sizeof(*softc->pdev), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -3262,7 +3262,6 @@ pci_attach_fail:
 	softc->pdev = NULL;
 free_pci_map:
 	bnxt_pci_mapping_free(softc);
-pci_map_fail:
 	pci_disable_busmaster(softc->dev);
 	return (rc);
 }
