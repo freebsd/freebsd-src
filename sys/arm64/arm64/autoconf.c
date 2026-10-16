@@ -43,7 +43,7 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 static void	configure_first(void *);
 static void	configure(void *);

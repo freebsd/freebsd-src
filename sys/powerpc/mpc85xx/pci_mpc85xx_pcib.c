@@ -44,6 +44,8 @@
 #include <sys/rman.h>
 #include <sys/endian.h>
 
+#include <machine/interrupt.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -55,8 +57,6 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
-
-#include <machine/intr_machdep.h>
 
 #include "pcib_if.h"
 

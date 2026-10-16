@@ -81,7 +81,7 @@
 
 #include <machine/cpu.h>
 #include <machine/fpe.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>

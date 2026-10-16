@@ -43,7 +43,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/openpicreg.h>
 #include <machine/openpicvar.h>
@@ -68,6 +68,13 @@ static int		cpcht_probe(device_t);
 static int		cpcht_attach(device_t);
 
 static void		cpcht_configure_htbridge(device_t, phandle_t);
+
+/*
+ * Interrupt event interface.
+ */
+static intr_event_post_filter_t		openpic_cpcht_post_filter;
+static intr_event_post_ithread_t	openpic_cpcht_post_ithread;
+static intr_event_pre_ithread_t		openpic_cpcht_pre_ithread;
 
 /*
  * pcib interface.
@@ -519,6 +526,11 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(device_probe,		openpic_cpcht_probe),
 	DEVMETHOD(device_attach,	openpic_cpcht_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	openpic_cpcht_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	openpic_cpcht_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	openpic_cpcht_pre_ithread),
+
 	/* PIC interface */
 	DEVMETHOD(pic_config,		openpic_cpcht_config),
 	DEVMETHOD(pic_enable,		openpic_cpcht_enable),
@@ -534,7 +546,7 @@ struct openpic_cpcht_softc {
 	struct mtx sc_ht_mtx;
 };
 
-DEFINE_CLASS_1(htpic, openpic_cpcht_driver, openpic_cpcht_methods,
+PRIVATE_DEFINE_CLASSN("htpic", openpic_cpcht_driver, openpic_cpcht_methods,
     sizeof(struct openpic_cpcht_softc), openpic_class);
 
 EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, 0, 0,
@@ -558,6 +570,7 @@ openpic_cpcht_attach(device_t dev)
 	struct openpic_cpcht_softc *sc;
 	phandle_t node;
 	int err, irq;
+	pic_config_t *openpic_config;
 
 	node = ofw_bus_get_node(dev);
 	err = openpic_common_attach(dev, node);
@@ -579,6 +592,8 @@ openpic_cpcht_attach(device_t dev)
 	 * IBM CPC945 Manual, Section 9.3.
 	 */
 
+	openpic_config = KOBJ_LOOKUP_METHOD(&openpic_class, pic_config);
+	MPASS(openpic_config != (pic_config_t *)kobj_error_method);
 	for (irq = 0; irq < 4; irq++)
 		openpic_config(dev, irq, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	for (irq = 4; irq < 124; irq++)
@@ -593,6 +608,28 @@ openpic_cpcht_attach(device_t dev)
 		cpcht_msipic = node;
 
 	return (0);
+}
+
+static void
+openpic_cpcht_post_filter(device_t pic, interrupt_t *i)
+{
+
+	openpic_cpcht_eoi(pic, i->intline, i->priv);
+}
+
+static void
+openpic_cpcht_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	openpic_cpcht_unmask(pic, i->intline, i->priv);
+}
+
+static void
+openpic_cpcht_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	KOBJ_LOOKUP_METHOD(&openpic_class, pic_mask)(pic, i->intline, i->priv);
+	openpic_cpcht_eoi(pic, i->intline, i->priv);
 }
 
 static void
@@ -645,7 +682,9 @@ openpic_cpcht_enable(device_t dev, u_int irq, u_int vec, void **priv)
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_enable(dev, irq, vec, priv);
+	MPASS(KOBJ_LOOKUP_METHOD(&openpic_class, pic_enable) !=
+	    (pic_enable_t *)kobj_error_method);
+	KOBJ_LOOKUP_METHOD(&openpic_class, pic_enable)(dev, irq, vec, priv);
 
 	sc = device_get_softc(dev);
 
@@ -674,7 +713,9 @@ openpic_cpcht_unmask(device_t dev, u_int irq, void *priv)
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_unmask(dev, irq, priv);
+	MPASS(KOBJ_LOOKUP_METHOD(&openpic_class, pic_unmask) !=
+	    (pic_unmask_t *)kobj_error_method);
+	KOBJ_LOOKUP_METHOD(&openpic_class, pic_unmask)(dev, irq, priv);
 
 	sc = device_get_softc(dev);
 
@@ -728,5 +769,7 @@ openpic_cpcht_eoi(device_t dev, u_int irq, void *priv)
 		}
 	}
 
-	openpic_eoi(dev, irq, priv);
+	MPASS(KOBJ_LOOKUP_METHOD(&openpic_class, pic_eoi) !=
+	    (pic_eoi_t *)kobj_error_method);
+	KOBJ_LOOKUP_METHOD(&openpic_class, pic_eoi)(dev, irq, priv);
 }

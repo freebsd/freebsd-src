@@ -36,8 +36,8 @@
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/clk/clk_fixed.h>
 #include <dev/syscon/syscon.h>

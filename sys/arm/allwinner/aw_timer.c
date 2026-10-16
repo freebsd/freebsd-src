@@ -36,7 +36,7 @@
 #include <sys/watchdog.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 
 #include <dev/ofw/openfirm.h>

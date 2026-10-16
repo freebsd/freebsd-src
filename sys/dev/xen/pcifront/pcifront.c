@@ -50,7 +50,7 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 
 #include <machine/xen-os.h>
 #include <machine/hypervisor.h>
