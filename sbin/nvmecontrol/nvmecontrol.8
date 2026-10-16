@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd September 10, 2026
+.Dd September 29, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -63,6 +63,7 @@
 .Nm
 .Ic logpage
 .Aq Fl p Ar page_id
+.Op Fl n Ar nsid
 .Op Fl x
 .Op Fl v Ar vendor-string
 .Op Fl b
@@ -359,6 +360,13 @@ will set Log Specific Field.
 will set Log Specific Identifier.
 .Fl r
 will set Retain Asynchronous Event.
+.Fl n
+will request the page for namespace
+.Ar nsid .
+A namespace given with
+.Fl n
+or as the device is accepted only for the 0x02 page (SMART/Health) and for
+vendor specific pages 0xc0 to 0xff.
 .Ss ns
 Various namespace management commands.
 If namespace management is supported by device, allow list, create and delete
@@ -1015,6 +1023,11 @@ Display a hexadecimal dump of the nvme0 controller's Error Information Log.
 Print the contents of vendor specific page 0xcb as binary data on
 standard out.
 Redirect it to a temporary file.
+.Pp
+.Dl nvmecontrol logpage -p 0xc2 -n 1 -b nvme0
+.Pp
+Print the contents of vendor specific page 0xc2 for namespace 1 of the
+nvme0 controller as binary data on standard out.
 .Pp
 .Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
 .Pp
