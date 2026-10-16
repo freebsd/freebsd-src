@@ -82,6 +82,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -198,6 +199,12 @@ SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
 int
 sys_acct(struct thread *td, struct acct_args *uap)
 {
+	return (kern_acct(td, uap->path));
+}
+
+int
+kern_acct(struct thread *td, const char *path)
+{
 	struct nameidata nd;
 	int error, flags, replacing;
 
@@ -209,9 +216,9 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 * If accounting is to be started to a file, open that file for
 	 * appending and make sure it's a 'normal'.
 	 */
-	if (uap->path != NULL) {
+	if (path != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
-		    uap->path);
+		    path);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error)
@@ -249,7 +256,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 * switching from one accounting file to another due to log
 	 * rotation.
 	 */
-	replacing = (acct_vp != NULL && uap->path != NULL);
+	replacing = (acct_vp != NULL && path != NULL);
 
 	/*
 	 * If accounting was previously enabled, kill the old space-watcher,
@@ -260,7 +267,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	acct_suspended = 0;
 	if (acct_vp != NULL)
 		error = acct_disable(td, !replacing);
-	if (uap->path == NULL) {
+	if (path == NULL) {
 		if (acct_state & ACCT_RUNNING) {
 			acct_state |= ACCT_EXITREQ;
 			wakeup(&acct_state);
