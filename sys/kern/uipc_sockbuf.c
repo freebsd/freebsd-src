@@ -1008,7 +1008,7 @@ sbappend_ktls_rx(struct sockbuf *sb, struct mbuf *m)
 	/* Remove all packet headers and mbuf tags to get a pure data chain. */
 	for (n = m; n != NULL; n = n->m_next) {
 		if (n->m_flags & M_PKTHDR) {
-			ifp = m->m_pkthdr.leaf_rcvif;
+			ifp = n->m_pkthdr.leaf_rcvif;
 			if ((n->m_pkthdr.csum_flags & CSUM_TLS_MASK) ==
 			    CSUM_TLS_DECRYPTED) {
 				/* Mark all mbufs in this packet decrypted. */
