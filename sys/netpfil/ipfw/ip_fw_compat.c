@@ -703,12 +703,7 @@ static moduledata_t ipfw_compat_mod = {
 	0
 };
 
-/* Define startup order. */
-#define	IPFW_COMPAT_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
-#define	IPFW_COMPAT_MODEVENT_ORDER	(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_COMPAT_MODULE_ORDER	(IPFW_COMPAT_MODEVENT_ORDER + 1)
-
-DECLARE_MODULE(ipfw_compat, ipfw_compat_mod, IPFW_COMPAT_SI_SUB_FIREWALL,
-    IPFW_COMPAT_MODULE_ORDER);
+DECLARE_MODULE(ipfw_compat, ipfw_compat_mod, SI_SUB_PROTO_FIREWALL,
+    SI_ORDER_SECOND);
 MODULE_DEPEND(ipfw_compat, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_compat, 1);

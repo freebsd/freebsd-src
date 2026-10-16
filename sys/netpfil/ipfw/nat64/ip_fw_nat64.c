@@ -114,38 +114,10 @@ vnet_ipfw_nat64_uninit(const void *arg __unused)
 	return (0);
 }
 
-static int
-ipfw_nat64_modevent(module_t mod, int type, void *unused)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-	case MOD_UNLOAD:
-		break;
-	default:
-		return (EOPNOTSUPP);
-	}
-	return (0);
-}
-
-static moduledata_t ipfw_nat64_mod = {
-	"ipfw_nat64",
-	ipfw_nat64_modevent,
-	0
-};
-
-/* Define startup order. */
-#define	IPFW_NAT64_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
-#define	IPFW_NAT64_MODEVENT_ORDER	(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_NAT64_MODULE_ORDER		(IPFW_NAT64_MODEVENT_ORDER + 1)
-#define	IPFW_NAT64_VNET_ORDER		(IPFW_NAT64_MODEVENT_ORDER + 2)
-
-DECLARE_MODULE(ipfw_nat64, ipfw_nat64_mod, IPFW_NAT64_SI_SUB_FIREWALL,
-    SI_ORDER_ANY);
 MODULE_DEPEND(ipfw_nat64, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nat64, 1);
 
-VNET_SYSINIT(vnet_ipfw_nat64_init, IPFW_NAT64_SI_SUB_FIREWALL,
-    IPFW_NAT64_VNET_ORDER, vnet_ipfw_nat64_init, NULL);
-VNET_SYSUNINIT(vnet_ipfw_nat64_uninit, IPFW_NAT64_SI_SUB_FIREWALL,
-    IPFW_NAT64_VNET_ORDER, vnet_ipfw_nat64_uninit, NULL);
+VNET_SYSINIT(vnet_ipfw_nat64_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
+    vnet_ipfw_nat64_init, NULL);
+VNET_SYSUNINIT(vnet_ipfw_nat64_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
+    vnet_ipfw_nat64_uninit, NULL);

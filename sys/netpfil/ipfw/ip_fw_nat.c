@@ -1194,50 +1194,18 @@ ipfw_nat_destroy(void *dummy __unused)
 	ipfw_nat_get_log_ptr = NULL;
 }
 
-static int
-ipfw_nat_modevent(module_t mod, int type, void *unused)
-{
-	int err = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		break;
-
-	case MOD_UNLOAD:
-		break;
-
-	default:
-		return EOPNOTSUPP;
-		break;
-	}
-	return err;
-}
-
-static moduledata_t ipfw_nat_mod = {
-	"ipfw_nat",
-	ipfw_nat_modevent,
-	0
-};
-
-/* Define startup order. */
-#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
-#define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
-#define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)
-
-DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, IPFW_NAT_SI_SUB_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipfw_nat, libalias, 1, 1, 1);
 MODULE_DEPEND(ipfw_nat, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nat, 1);
 
-SYSINIT(ipfw_nat_init, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_MODULE_ORDER,
-    ipfw_nat_init, NULL);
-VNET_SYSINIT(vnet_ipfw_nat_init, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_VNET_ORDER,
+SYSINIT(ipfw_nat_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND, ipfw_nat_init,
+    NULL);
+VNET_SYSINIT(vnet_ipfw_nat_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
     vnet_ipfw_nat_init, NULL);
 
-SYSUNINIT(ipfw_nat_destroy, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_MODULE_ORDER,
+SYSUNINIT(ipfw_nat_destroy, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
     ipfw_nat_destroy, NULL);
-VNET_SYSUNINIT(vnet_ipfw_nat_uninit, IPFW_NAT_SI_SUB_FIREWALL,
-    IPFW_NAT_VNET_ORDER, vnet_ipfw_nat_uninit, NULL);
+VNET_SYSUNINIT(vnet_ipfw_nat_uninit, SI_SUB_PROTO_FIREWALL,
+    SI_ORDER_SECOND, vnet_ipfw_nat_uninit, NULL);
 
 /* end of file */
