@@ -1429,7 +1429,9 @@ smsc_chip_init(struct smsc_softc *sc)
 	    (sc->sc_rev_id & SMSC_ID_REV_CHIP_REV_MASK));
 
 	/* GPIO/LED setup */
-	reg_val = SMSC_LED_GPIO_CFG_SPD_LED | SMSC_LED_GPIO_CFG_LNK_LED | 
+	if (smsc_read_reg(sc, SMSC_LED_GPIO_CFG, &reg_val) < 0)
+		reg_val = 0;
+	reg_val |= SMSC_LED_GPIO_CFG_SPD_LED | SMSC_LED_GPIO_CFG_LNK_LED |
 	          SMSC_LED_GPIO_CFG_FDX_LED;
 	smsc_write_reg(sc, SMSC_LED_GPIO_CFG, reg_val);
 
