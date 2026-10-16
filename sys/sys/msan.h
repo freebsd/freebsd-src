@@ -50,6 +50,7 @@ union ccb;
 struct bio;
 struct mbuf;
 struct memdesc;
+struct thread;
 struct uio;
 
 void kmsan_init(void);
