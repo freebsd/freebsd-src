@@ -2150,6 +2150,69 @@ iwm_setup_ht_rates(struct iwm_softc *sc)
 }
 
 static void
+iwm_vap_update_slot(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+}
+
+static void
+iwm_vap_update_preamble(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+}
+
+static int
+iwm_vap_update_wme(struct ieee80211vap *vap,
+    const struct wmeParams *wme_params)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+
+	return (0);
+}
+
+static void
+iwm_vap_update_erp_protmode(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+}
+
+static void
 iwm_set_hw_address_family_8000(struct iwm_softc *sc, struct iwm_nvm_data *data,
 	const uint16_t *mac_override, const uint16_t *nvm_hw)
 {
@@ -5209,9 +5272,20 @@ iwm_start(struct iwm_softc *sc)
 static void
 iwm_stop(struct iwm_softc *sc)
 {
+	IWM_LOCK_ASSERT_LOCKED(sc);
 
 	sc->sc_flags &= ~IWM_FLAG_HW_INITED;
 	sc->sc_flags |= IWM_FLAG_STOPPED;
+
+	/*
+	 * Attempt to cancel; but if we can't, then don't call drain as
+	 * that can't be done with the lock held.
+	 */
+	if (sc->sc_tq != NULL) {
+		taskqueue_cancel(sc->sc_tq, &sc->mac_ctxt_task, NULL);
+		taskqueue_cancel(sc->sc_tq, &sc->phy_ctxt_task, NULL);
+	}
+
 	sc->sc_generation++;
 	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
@@ -5249,6 +5323,8 @@ iwm_parent(struct ieee80211com *ic)
 	int startall = 0;
 	int rfkill = 0;
 
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
 	IWM_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
 		if (!(sc->sc_flags & IWM_FLAG_HW_INITED)) {
@@ -5273,6 +5349,8 @@ iwm_rftoggle_task(void *arg, int npending __unused)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int rfkill;
 
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
 	IWM_LOCK(sc);
 	rfkill = iwm_check_rfkill(sc);
 	IWM_UNLOCK(sc);
@@ -5287,6 +5365,68 @@ iwm_rftoggle_task(void *arg, int npending __unused)
 		ieee80211_resume_all(ic);
 		ieee80211_notify_radio(ic, 1);
 	}
+}
+
+/*
+ * Deferred MAC related task updates.
+ *
+ * This is scheduled whenever something in the STA MAC
+ * config has changed.  This driver currently only supports
+ * a single STA interface, so that's the assumption made
+ * here.
+ */
+static void
+iwm_mac_ctxt_task(void *arg, int npending __unused)
+{
+	struct iwm_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	const struct iwm_vap *iv;
+	int error;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	if (vap == NULL)
+		return;
+
+	iv = IWM_VAP(vap);
+
+	IWM_LOCK(sc);
+
+	/* Don't scheduled work if the driver is stopped */
+	if (sc->sc_flags & IWM_FLAG_STOPPED) {
+		IWM_UNLOCK(sc);
+		return;
+	}
+
+	/*
+	 * Only trigger an update if we've already programmed in a
+	 * MAC context.
+	 */
+	if (iv->is_uploaded) {
+		if ((error = iwm_mac_ctxt_changed(sc, vap)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update MAC\n", __func__);
+		}
+	}
+	IWM_UNLOCK(sc);
+}
+
+/*
+ * Deferred PHY related task updates.
+ *
+ * This is scheduled whenever something in the STA PHY
+ * config has changed.  This driver currently only supports
+ * a single STA interface, so that's the assumption made
+ * here.
+ */
+static void
+iwm_phy_ctxt_task(void *arg, int npending __unused)
+{
+	struct iwm_softc *sc = arg;
+	/* TODO */
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
 }
 
 /*
@@ -6326,6 +6466,14 @@ iwm_attach(device_t dev)
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
 	TASK_INIT(&sc->sc_rftoggle_task, 0, iwm_rftoggle_task, sc);
 
+	/*
+	 * Note: these would be per-ctx, but right now the driver
+	 * only knows about a single VAP.  This mirrors what
+	 * OpenBSD iwm does to make porting/updating easier.
+	 */
+	TASK_INIT(&sc->mac_ctxt_task, 0, iwm_mac_ctxt_task, sc);
+	TASK_INIT(&sc->phy_ctxt_task, 0, iwm_phy_ctxt_task, sc);
+
 	sc->sc_tq = taskqueue_create("iwm_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
 	error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "iwm_taskq");
@@ -6711,6 +6859,11 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	ivp->iv_newstate = vap->iv_newstate;
 	vap->iv_newstate = iwm_newstate;
 
+	vap->iv_updateslot = iwm_vap_update_slot;
+	vap->iv_erp_protmode_update = iwm_vap_update_erp_protmode;
+	vap->iv_preamble_update = iwm_vap_update_preamble;
+	vap->iv_wme_update = iwm_vap_update_wme;
+
 	ivp->id = IWM_DEFAULT_MACID;
 	ivp->color = IWM_DEFAULT_COLOR;
 
@@ -6905,15 +7058,29 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 
 	IWM_LOCK_ASSERT_UNLOCKED(sc);
 
-	if (!sc->sc_attached)
+	IWM_LOCK(sc);
+	if (!sc->sc_attached) {
+		IWM_UNLOCK(sc);
 		return 0;
+	}
 	sc->sc_attached = 0;
+	sc->sc_flags |= IWM_FLAG_STOPPED;
+	IWM_UNLOCK(sc);
+
 	if (do_net80211) {
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
 	}
 	iwm_stop_device(sc);
+
+	while (taskqueue_cancel(sc->sc_tq, &sc->mac_ctxt_task, NULL) != 0)
+		taskqueue_drain(sc->sc_tq, &sc->mac_ctxt_task);
+	while (taskqueue_cancel(sc->sc_tq, &sc->phy_ctxt_task, NULL) != 0)
+		taskqueue_drain(sc->sc_tq, &sc->phy_ctxt_task);
+
 	taskqueue_drain_all(sc->sc_tq);
 	taskqueue_free(sc->sc_tq);
+	sc->sc_tq = NULL;
+
 	if (do_net80211) {
 		IWM_LOCK(sc);
 		iwm_xmit_queue_drain(sc);
