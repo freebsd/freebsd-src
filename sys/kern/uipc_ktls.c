@@ -1731,10 +1731,10 @@ ktls_reset_receive_tag(void *context, int pending)
 	INP_RUNLOCK(inp);
 
 	if (inp->inp_vflag & INP_IPV6) {
-		if ((if_getcapenable2(ifp) & IFCAP2_RXTLS6) == 0)
+		if ((if_getcapenable2(ifp) & IFCAP2_BIT(IFCAP2_RXTLS6)) == 0)
 			goto out;
 	} else {
-		if ((if_getcapenable2(ifp) & IFCAP2_RXTLS4) == 0)
+		if ((if_getcapenable2(ifp) & IFCAP2_BIT(IFCAP2_RXTLS4)) == 0)
 			goto out;
 	}
 
