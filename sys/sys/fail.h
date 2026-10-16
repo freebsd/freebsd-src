@@ -71,6 +71,7 @@ struct fail_point {
 	                             * unfreed fail_point_setting
 	                             */
 	struct fail_point_setting * volatile fp_setting;
+	bool *fp_enabled;
 	int fp_flags;
 
 	/**< Function to call before sleep or pause */
@@ -98,7 +99,7 @@ struct fail_point {
 
 __BEGIN_DECLS
 
-/* Private failpoint eval function -- use fail_point_eval() instead. */
+/* Private failpoint eval function -- use fail_point_eval/_fast() instead. */
 enum fail_point_return_code fail_point_eval_nontrivial(struct fail_point *,
         int *ret);
 
@@ -192,19 +193,39 @@ fail_point_eval(struct fail_point *fp, int *ret)
 	return (fail_point_eval_nontrivial(fp, ret));
 }
 
+/**
+ * Fast-variant of failpoint evaluation.
+ * fp_enabled caches fp->fp_setting != NULL in the static
+ * fail point context. Not consistent in all edge cases.
+ */
+static inline enum fail_point_return_code
+fail_point_eval_fast(struct fail_point *fp, bool *fp_enabled, int *ret)
+{
+
+	if (__predict_true(!*fp_enabled))
+		return (FAIL_POINT_RC_CONTINUE);
+	else
+		return (fail_point_eval_nontrivial(fp, ret));
+}
+
 __END_DECLS
 
 /* Declare a fail_point and its sysctl in a function. */
-#define KFAIL_POINT_DECLARE(name) \
-    extern struct fail_point _FAIL_POINT_NAME(name)
 #define _FAIL_POINT_NAME(name) _fail_point_##name
+#define _FAIL_POINT_NAME_ENABLED(name) _fail_point_##name##_enabled
+#define KFAIL_POINT_DECLARE(name) \
+    extern struct fail_point _FAIL_POINT_NAME(name); \
+    extern bool _FAIL_POINT_NAME_ENABLED(name)
 #define _FAIL_POINT_LOCATION() "(" __FILE__ ":" __XSTRING(__LINE__) ")"
 #define KFAIL_POINT_DEFINE(parent, name, flags) \
-	struct fail_point _FAIL_POINT_NAME(name) = { \
+	bool _FAIL_POINT_NAME_ENABLED(name) __section("fail_point") = false; \
+	static struct fail_point _FAIL_POINT_NAME(name) = \
+	{ \
 	        .fp_name = #name, \
 	        .fp_location = _FAIL_POINT_LOCATION(), \
 	        .fp_ref_cnt = 0, \
 	        .fp_setting = NULL, \
+	        .fp_enabled = &_FAIL_POINT_NAME_ENABLED(name), \
 	        .fp_flags = (flags), \
 	        .fp_pre_sleep_fn = NULL, \
 	        .fp_pre_sleep_arg = NULL, \
@@ -226,7 +247,9 @@ __END_DECLS
 	int RETURN_VALUE; \
  \
 	if (__predict_false(cond && \
-	        fail_point_eval(&_FAIL_POINT_NAME(name), &RETURN_VALUE))) { \
+	        fail_point_eval_fast(&_FAIL_POINT_NAME(name), \
+		    &_FAIL_POINT_NAME_ENABLED(name), \
+		    &RETURN_VALUE))) { \
  \
 		code; \
  \
