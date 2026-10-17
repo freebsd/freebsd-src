@@ -27,7 +27,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_acpi.h"
-#include "apple_acpi.h"
+#include "acpi_apple.h"
 
 #include "backlight_if.h"
 

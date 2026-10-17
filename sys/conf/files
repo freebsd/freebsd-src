@@ -736,6 +736,9 @@ dev/aacraid/aacraid.c		optional aacraid
 dev/aacraid/aacraid_cam.c	optional aacraid scbus
 dev/aacraid/aacraid_debug.c	optional aacraid
 dev/aacraid/aacraid_pci.c	optional aacraid pci
+dev/acpi_apple/acpi_apple.c	optional acpi_apple acpi pci backlight
+dev/acpi_apple/acpi_apple_bl.c	optional acpi_apple acpi pci backlight
+dev/acpi_apple/acpi_apple_platform.c optional acpi_apple acpi pci backlight
 dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
 dev/acpi_support/acpi_asus_wmi.c	optional acpi_asus_wmi acpi
@@ -848,9 +851,6 @@ dev/ale/if_ale.c		optional ale pci
 dev/alpm/alpm.c			optional alpm pci
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
-dev/apple_acpi/apple_acpi.c	optional acpi_apple acpi pci backlight
-dev/apple_acpi/apple_backlight.c optional acpi_apple acpi pci backlight
-dev/apple_acpi/apple_platform.c	optional acpi_apple acpi pci backlight
 #
 dev/aq/aq_main.c		optional aq
 dev/aq/aq_media.c		optional aq

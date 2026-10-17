@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-#include "apple_acpi.h"
+#include "acpi_apple.h"
 
 #include <sys/endian.h>
 #include <sys/systm.h>

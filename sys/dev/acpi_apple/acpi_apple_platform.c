@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-#include "apple_acpi.h"
+#include "acpi_apple.h"
 
 /*
  * APP9876 and APP000B attach concurrently as ACPI_APPLE_PLATFORM on T2
@@ -24,7 +24,7 @@
  */
 static struct mtx	acpi_apple_platform_mtx;
 MTX_SYSINIT(acpi_apple_platform_mtx_init, &acpi_apple_platform_mtx,
-    "apple_platform", MTX_DEF);
+    "acpi_apple_platform", MTX_DEF);
 static int		acpi_apple_platform_refs;
 static eventhandler_tag	acpi_apple_shutdown_tag;
 static eventhandler_tag	acpi_apple_lid_tag;
