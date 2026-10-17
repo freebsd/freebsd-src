@@ -312,6 +312,7 @@ static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(const struct socket *, struct mbuf *,
 		    struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
+static struct mbuf **unp_peek_control(struct mbuf *, struct mbuf **, int *);
 static void	unp_addsockcred(struct thread *, struct mchain *, int);
 static void	unp_process_defers(void * __unused, int);
 
@@ -1689,20 +1690,12 @@ restart:
 			}
 		} else {
 			/*
-			 * XXXGL
-			 *
-			 * In MSG_PEEK case control is not externalized.  This
-			 * means we are leaking some kernel pointers to the
-			 * userland.  They are useless to a law-abiding
-			 * application, but may be useful to a malware.  This
-			 * is what the historical implementation in the
-			 * soreceive_generic() did. To be improved?
+			 * In MSG_PEEK case control is not externalized.  See
+			 * unp_peek_control().
 			 */
-			if (controlp != NULL) {
-				*controlp = m_copym(control, 0, control->m_len,
-				    M_WAITOK);
-				controlp = &(*controlp)->m_next;
-			}
+			if (controlp != NULL)
+				controlp = unp_peek_control(control, controlp,
+				    &flags);
 			control = STAILQ_NEXT(control, m_stailq);
 		}
 	}
@@ -2258,7 +2251,7 @@ uipc_peek_dgram(struct socket *so, struct mbuf *m, struct sockaddr **psa,
     struct uio *uio, struct mbuf **controlp, int *flagsp)
 {
 	ssize_t len = 0;
-	int error;
+	int error, cflags;
 
 	so->so_rcv.uxdg_peeked = m;
 	so->so_rcv.uxdg_cc += m->m_pkthdr.len;
@@ -2274,15 +2267,17 @@ uipc_peek_dgram(struct socket *so, struct mbuf *m, struct sockaddr **psa,
 	KASSERT(m, ("%s: no data or control after soname", __func__));
 
 	/*
-	 * With MSG_PEEK the control isn't executed, just copied.
+	 * With MSG_PEEK the control isn't externalized.  See
+	 * unp_peek_control().
 	 */
+	cflags = 0;
 	while (m != NULL && m->m_type == MT_CONTROL) {
-		if (controlp != NULL) {
-			*controlp = m_copym(m, 0, m->m_len, M_WAITOK);
-			controlp = &(*controlp)->m_next;
-		}
+		if (controlp != NULL)
+			controlp = unp_peek_control(m, controlp, &cflags);
 		m = m->m_next;
 	}
+	if (flagsp != NULL)
+		*flagsp |= cflags;
 	KASSERT(m == NULL || m->m_type == MT_DATA,
 	    ("%s: not MT_DATA mbuf %p", __func__, m));
 	while (m != NULL && uio->uio_resid > 0) {
@@ -3886,6 +3881,47 @@ next:
 	}
 
 	return (error);
+}
+
+/*
+ * Copy control messages out for MSG_PEEK.  They aren't externalized, and the
+ * internalized SCM_RIGHTS holds kernel pointers (struct filedescent *), which
+ * must not be copied out.  Leave it out and report MSG_CTRUNC; the rights are
+ * delivered by a later receive without MSG_PEEK.  Anything else is copied
+ * across, as unp_externalize() does.  Returns the new tail of the chain.
+ */
+static struct mbuf **
+unp_peek_control(struct mbuf *control, struct mbuf **controlp, int *flagsp)
+{
+	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	socklen_t clen = control->m_len, datalen;
+	void *data;
+
+	while (cm != NULL) {
+		MPASS(clen >= sizeof(*cm) && clen >= cm->cmsg_len);
+
+		data = CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+		if (cm->cmsg_level == SOL_SOCKET &&
+		    cm->cmsg_type == SCM_RIGHTS) {
+			if (datalen > 0)
+				*flagsp |= MSG_CTRUNC;
+		} else {
+			*controlp = sbcreatecontrol(data, datalen,
+			    cm->cmsg_type, cm->cmsg_level, M_WAITOK);
+			controlp = &(*controlp)->m_next;
+		}
+
+		if (CMSG_SPACE(datalen) < clen) {
+			clen -= CMSG_SPACE(datalen);
+			cm = (struct cmsghdr *)
+			    ((caddr_t)cm + CMSG_SPACE(datalen));
+		} else {
+			clen = 0;
+			cm = NULL;
+		}
+	}
+	return (controlp);
 }
 
 static void
