@@ -5,6 +5,7 @@ name: Checklist
 
 on:
   pull_request_target:
+    branches: [ main ]
     types: [ opened, reopened, edited, synchronize ]
 
 permissions:
