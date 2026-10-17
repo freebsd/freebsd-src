@@ -285,6 +285,7 @@ struct iwm_tx_ring {
 	int			cur;
 };
 
+/* Note: these are used as a mask; must be a power of 2 */
 #define IWM_RX_LEGACY_RING_COUNT	256
 #define IWM_RX_MQ_RING_COUNT		512
 

@@ -5640,6 +5640,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 	}
 
 	hw = le16toh(sc->rxq.stat->closed_rb_num) & 0xfff;
+	/* Mask the returned value to the hardware ring size */
+	hw &= (count - 1);
 
 	/*
 	 * Process responses
