@@ -112,6 +112,11 @@ options 	NETGDB			# netgdb(4) client support
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# Exploit mitigation via turning out of bounds fixed size array accesses into
+# a platform dependent trap instruction, instead of out of bounds read/write
+options 	KUBSAN_BOUNDS		# Trap fixed-size array bounds violations
+options 	KUBSAN_BOUNDS_NO_MERGE	# Disable bounds-check trap merging
+
 # CPU frequency control
 device		cpufreq
 
