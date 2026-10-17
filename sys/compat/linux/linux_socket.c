@@ -194,11 +194,6 @@ linux_to_bsd_ip_sockopt(int opt)
 		    "unsupported IPv4 socket option IP_ROUTER_ALERT (%d), you can not do user-space routing from linux programs",
 		    opt);
 		return (-2);
-	case LINUX_IP_PKTINFO:
-		LINUX_RATELIMIT_MSG_OPT1(
-		    "unsupported IPv4 socket option IP_PKTINFO (%d), you can not get extended packet info for datagram sockets in linux programs",
-		    opt);
-		return (-2);
 	case LINUX_IP_PKTOPTIONS:
 		LINUX_RATELIMIT_MSG_OPT1(
 		    "unsupported IPv4 socket option IP_PKTOPTIONS (%d)",
@@ -2270,6 +2265,30 @@ linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
 	return (kern_shutdown(td, args->s, args->how));
 }
 
+/*
+ * Linux IP_PKTINFO is the union of IP_RECVDSTADDR and IP_RECVIF.  The
+ * two resulting control messages are folded back into one IP_PKTINFO by
+ * recvmsg_scm_ip_pktinfo().
+ */
+static int
+linux_setsockopt_ip_pktinfo(struct thread *td,
+    struct linux_setsockopt_args *args)
+{
+	int error, val;
+
+	if (args->optlen < sizeof(val))
+		return (EINVAL);
+	error = copyin(PTRIN(args->optval), &val, sizeof(val));
+	if (error != 0)
+		return (error);
+	error = kern_setsockopt(td, args->s, IPPROTO_IP, IP_RECVDSTADDR,
+	    &val, UIO_SYSSPACE, sizeof(val));
+	if (error != 0)
+		return (error);
+	return (kern_setsockopt(td, args->s, IPPROTO_IP, IP_RECVIF,
+	    &val, UIO_SYSSPACE, sizeof(val)));
+}
+
 int
 linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 {
@@ -2336,6 +2355,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			 */
 			return (0);
 		}
+		if (args->optname == LINUX_IP_PKTINFO)
+			return (linux_setsockopt_ip_pktinfo(td, args));
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:
@@ -2605,6 +2626,21 @@ linux_getsockopt_tcp_info(struct thread *td,
 	return (linux_sockopt_copyout(td, &l_tinfo, len, args));
 }
 
+static int
+linux_getsockopt_ip_pktinfo(struct thread *td,
+    struct linux_getsockopt_args *args)
+{
+	socklen_t len;
+	int error, val;
+
+	len = sizeof(val);
+	error = kern_getsockopt(td, args->s, IPPROTO_IP, IP_RECVDSTADDR,
+	    &val, UIO_SYSSPACE, &len);
+	if (error != 0)
+		return (error);
+	return (linux_sockopt_copyout(td, &val, len, args));
+}
+
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 {
@@ -2697,6 +2733,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		}
 		break;
 	case IPPROTO_IP:
+		if (args->optname == LINUX_IP_PKTINFO)
+			return (linux_getsockopt_ip_pktinfo(td, args));
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:
