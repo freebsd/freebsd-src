@@ -1706,9 +1706,10 @@ iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo)
 {
 	int err;
 
-	if (!sc->cmd_hold_nic_awake) {
-		device_printf(sc->sc_dev, "%s: NIC not awake\n", __func__);
-		return (ENXIO);
+	if (!iwm_nic_lock(sc)) {
+		device_printf(sc->sc_dev, "%s: cannot enable txq %d\n",
+		    __func__, qid);
+		return EBUSY;
 	}
 
 	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
@@ -1719,6 +1720,10 @@ iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo)
 
 	err = iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
 	if (err) {
+		iwm_nic_unlock(sc);
+		device_printf(sc->sc_dev,
+		    "%s: cannot clear aggr_sel for txq %d\n",
+		    __func__, qid);
 		return err;
 	}
 
@@ -1746,6 +1751,8 @@ iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo)
 	if (qid == sc->cmdqid)
 		iwm_write_prph(sc, IWM_SCD_EN_CTRL,
 		    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | (1 << qid));
+
+	iwm_nic_unlock(sc);
 
 	return 0;
 }
