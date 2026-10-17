@@ -121,7 +121,6 @@ static int cd9660_setup_volume_descriptors(iso9660_disk *);
 #if 0
 static int cd9660_fill_extended_attribute_record(cd9660node *);
 #endif
-static void cd9660_sort_nodes(cd9660node *);
 static int cd9660_translate_node_common(iso9660_disk *, cd9660node *);
 static int cd9660_translate_node(iso9660_disk *, fsnode *, cd9660node *);
 static int cd9660_compare_filename(const char *, const char *);
@@ -129,8 +128,6 @@ static void cd9660_sorted_child_insert(cd9660node *, cd9660node *);
 static int cd9660_handle_collisions(iso9660_disk *, cd9660node *, int);
 static cd9660node *cd9660_rename_filename(iso9660_disk *, cd9660node *, int,
     int);
-static void cd9660_copy_filenames(iso9660_disk *, cd9660node *);
-static void cd9660_sorting_nodes(cd9660node *);
 static int cd9660_count_collisions(cd9660node *);
 static cd9660node *cd9660_rrip_move_directory(iso9660_disk *, cd9660node *);
 static int cd9660_add_dot_records(iso9660_disk *, cd9660node *);
@@ -1022,7 +1019,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 {
 	int i = 0;
 	int numbts, digit, digits, temp, powers, count;
-	char *naming;
+	char *naming, o_name[ISO_FILENAME_MAXLENGTH];
 	int maxlength;
         char *tmp;
 
@@ -1048,8 +1045,8 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 			digits++;
 			powers = powers * 10;
 		}
-
-		naming = iter->o_name;
+		strncpy(o_name, iter->isoDirRecord->name, ISO_FILENAME_MAXLENGTH);
+		naming = o_name;
 
 		/*
 		while ((*naming != '.') && (*naming != ';')) {
@@ -1092,7 +1089,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 #endif
 
 		/* (copying just the filename before the '.' */
-		memcpy(tmp, (iter->o_name), numbts);
+		memcpy(tmp, iter->isoDirRecord->name, numbts);
 
 		/* adding the appropriate number following the name */
 		temp = i;
@@ -1128,56 +1125,6 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 
 	free(tmp);
 	return iter;
-}
-
-/* Todo: Figure out why these functions are nec. */
-static void
-cd9660_copy_filenames(iso9660_disk *diskStructure, cd9660node *node)
-{
-	cd9660node *cn;
-
-	if (TAILQ_EMPTY(&node->cn_children))
-		return;
-
-	if (TAILQ_FIRST(&node->cn_children)->isoDirRecord == NULL) {
-		debug_print_tree(diskStructure, diskStructure->rootNode, 0);
-		exit(1);
-	}
-
-	TAILQ_FOREACH(cn, &node->cn_children, cn_next_child) {
-		cd9660_copy_filenames(diskStructure, cn);
-		memcpy(cn->o_name, cn->isoDirRecord->name, sizeof(cn->o_name));
-	}
-}
-
-static void
-cd9660_sorting_nodes(cd9660node *node)
-{
-	cd9660node *cn;
-
-	TAILQ_FOREACH(cn, &node->cn_children, cn_next_child)
-		cd9660_sorting_nodes(cn);
-	cd9660_sort_nodes(node);
-}
-
-/* XXX Bubble sort. */
-static void
-cd9660_sort_nodes(cd9660node *node)
-{
-	cd9660node *cn, *next;
-
-	do {
-		TAILQ_FOREACH(cn, &node->cn_children, cn_next_child) {
-			if ((next = TAILQ_NEXT(cn, cn_next_child)) == NULL)
-				return;
-			else if (strcmp(next->isoDirRecord->name,
-				        cn->isoDirRecord->name) >= 0)
-				continue;
-			TAILQ_REMOVE(&node->cn_children, next, cn_next_child);
-			TAILQ_INSERT_BEFORE(cn, next, cn_next_child);
-			break;
-		}
-	} while (cn != NULL);
 }
 
 static int
@@ -1437,13 +1384,10 @@ cd9660_convert_structure(iso9660_disk *diskStructure, fsnode *root,
 	/* cd9660_handle_collisions(first_node); */
 
 	/* TODO: need cleanup */
-	cd9660_copy_filenames(diskStructure, parent_node);
-
 	do {
 		flag = cd9660_handle_collisions(diskStructure, parent_node,
 		    counter);
 		counter++;
-		cd9660_sorting_nodes(parent_node);
 	} while ((flag == 1) && (counter < 100));
 }
 
