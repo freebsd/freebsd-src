@@ -21,8 +21,10 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/backlight/backlight.h>
 
-#define	ACPI_APPLE_PLATFORM	0x01	/* WoL + lid (APP000B/APP9876) */
-#define	ACPI_APPLE_BACKLIGHT	0x02	/* panel backlight (APP0002) */
+enum acpi_apple_mode {
+	ACPI_APPLE_PLATFORM,		/* WoL + lid (APP000B/APP9876) */
+	ACPI_APPLE_BACKLIGHT,		/* panel backlight (APP0002) */
+};
 
 /*
  * Apple GMUX (GPU multiplexer) registers.
@@ -116,7 +118,7 @@ struct apple_bl_hw {
 struct acpi_apple_softc {
 	device_t		dev;
 	ACPI_HANDLE		handle;
-	int			mode;
+	enum acpi_apple_mode	mode;
 
 	/* Backlight */
 	struct mtx		bl_mtx;		/* protects hw access + cache */
