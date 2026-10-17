@@ -712,6 +712,8 @@ static int
 bsd_to_linux_ip6_cmsg_type(int cmsg_type)
 {
 	switch (cmsg_type) {
+	case IPV6_PKTINFO:
+		return (LINUX_IPV6_PKTINFO);
 	case IPV6_2292HOPLIMIT:
 		return (LINUX_IPV6_2292HOPLIMIT);
 	case IPV6_HOPLIMIT:
@@ -1929,6 +1931,11 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		udata = NULL;
 		error = 0;
 
+		/*
+		 * IPPROTO_IPV6 control messages need no conversion, the
+		 * payloads mapped by bsd_to_linux_ip6_cmsg_type() have the
+		 * same layout on both systems.
+		 */
 		switch (cm->cmsg_level) {
 		case IPPROTO_IP:
 			error = recvmsg_scm_ipproto_ip(cm->cmsg_type,
