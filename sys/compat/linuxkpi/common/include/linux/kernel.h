@@ -30,8 +30,6 @@
 #ifndef	_LINUXKPI_LINUX_KERNEL_H_
 #define	_LINUXKPI_LINUX_KERNEL_H_
 
-#include "opt_linuxkpi.h"
-
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>
@@ -178,9 +176,9 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
- * unless LINUXKPI_DEBUG is defined:
+ * unless DEBUG is defined:
  */
-#ifdef LINUXKPI_DEBUG
+#ifdef DEBUG
 extern int linuxkpi_debug;
 #define pr_debug(fmt, ...)					\
 	do {							\
