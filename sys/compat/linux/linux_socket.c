@@ -680,6 +680,16 @@ linux_to_bsd_msg_flags(int flags)
 }
 
 static int
+linux_to_bsd_ip_cmsg_type(int cmsg_type)
+{
+	switch (cmsg_type) {
+	case LINUX_IP_PKTINFO:
+		return (IP_SENDSRCADDR);
+	}
+	return (-1);
+}
+
+static int
 linux_to_bsd_ip6_cmsg_type(int cmsg_type)
 {
 	switch (cmsg_type) {
@@ -694,6 +704,8 @@ linux_to_bsd_cmsg_type(int cmsg_type, int cmsg_level)
 {
 
 	switch (cmsg_level) {
+	case IPPROTO_IP:
+		return (linux_to_bsd_ip_cmsg_type(cmsg_type));
 	case IPPROTO_IPV6:
 		return (linux_to_bsd_ip6_cmsg_type(cmsg_type));
 	case SOL_SOCKET:
@@ -1441,6 +1453,49 @@ out:
 	return (error);
 }
 
+/*
+ * Translate the payload of a Linux IP_PKTINFO control message in place
+ * into an IP_SENDSRCADDR one.  *lenp is set to 0 when the message carries
+ * no source address and is to be dropped.  There is no IPv4 unicast
+ * equivalent of ipi_ifindex, so it is ignored.
+ */
+static int
+sendmsg_scm_ip_pktinfo(void *data, l_size_t *lenp)
+{
+	struct l_in_pktinfo lpi;
+	struct in_addr src;
+
+	if (*lenp != sizeof(lpi))
+		return (EINVAL);
+	memcpy(&lpi, data, sizeof(lpi));
+	if (lpi.ipi_ifindex != 0)
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "sendmsg IP_PKTINFO ipi_ifindex %d ignored",
+		    lpi.ipi_ifindex);
+	if (lpi.ipi_spec_dst == INADDR_ANY) {
+		*lenp = 0;
+		return (0);
+	}
+	src.s_addr = lpi.ipi_spec_dst;
+	memcpy(data, &src, sizeof(src));
+	*lenp = sizeof(src);
+	return (0);
+}
+
+static int
+sendmsg_scm_ipproto_ip(int msg_type, void *data, l_size_t *lenp)
+{
+	int error;
+
+	error = 0;
+	switch (msg_type) {
+	case IP_SENDSRCADDR:
+		error = sendmsg_scm_ip_pktinfo(data, lenp);
+		break;
+	}
+	return (error);
+}
+
 static int
 linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags)
@@ -1591,6 +1646,17 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				    CMSG_DATA(data), len);
 				if (error != 0)
 					goto bad;
+
+				/* Translate payloads differing from Linux. */
+				if (cmsg->cmsg_level == IPPROTO_IP) {
+					error = sendmsg_scm_ipproto_ip(
+					    cmsg->cmsg_type, CMSG_DATA(data),
+					    &len);
+					if (error != 0)
+						goto bad;
+					if (len == 0)
+						goto next;
+				}
 			}
 
 			cmsg->cmsg_len = CMSG_LEN(len);
