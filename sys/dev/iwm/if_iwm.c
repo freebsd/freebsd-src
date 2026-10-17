@@ -7104,13 +7104,17 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	device_t dev = sc->sc_dev;
 	int i;
 
-	IWM_LOCK_ASSERT_UNLOCKED(sc);
-
-	IWM_LOCK(sc);
+	/*
+	 * Note: this is called during detach where the attach path
+	 * didn't entirely attach all state.  Thus mutexes may not
+	 * be initialised here.
+	 */
 	if (!sc->sc_attached) {
-		IWM_UNLOCK(sc);
 		return 0;
 	}
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+	IWM_LOCK(sc);
 	sc->sc_attached = 0;
 	sc->sc_flags |= IWM_FLAG_STOPPED;
 	IWM_UNLOCK(sc);
