@@ -664,9 +664,9 @@ ATF_TC_BODY(empty_path_at_fdcwd, tc)
 
 /*
  * A NUL-leading path with a nonzero length is not the empty-path
- * extension: connect(2) and connectat(2) with AT_FDCWD must perform a
- * pathname lookup and fail with ENOENT, not treat AT_FDCWD as a peer
- * descriptor and fail with EBADF.
+ * extension: connect(2) and connectat(2) with AT_FDCWD must look up the
+ * abstract name and, with nothing bound to it, fail with ECONNREFUSED as
+ * Linux does, not treat AT_FDCWD as a peer descriptor and fail with EBADF.
  *
  * Such addresses occur in the wild: they name Linux abstract namespace
  * sockets, and the linuxulator passes them through with the leading NUL
@@ -681,9 +681,9 @@ ATF_TC_BODY(nul_path_at_fdcwd, tc)
 	int s;
 
 	ATF_REQUIRE((s = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
-	ATF_REQUIRE_ERRNO(ENOENT, connect(s,
+	ATF_REQUIRE_ERRNO(ECONNREFUSED, connect(s,
 	    (const struct sockaddr *)&nul_sun, nul_sun.sun_len) == -1);
-	ATF_REQUIRE_ERRNO(ENOENT, connectat(AT_FDCWD, s,
+	ATF_REQUIRE_ERRNO(ECONNREFUSED, connectat(AT_FDCWD, s,
 	    (const struct sockaddr *)&nul_sun, nul_sun.sun_len) == -1);
 	ATF_REQUIRE_EQ(0, close(s));
 }
