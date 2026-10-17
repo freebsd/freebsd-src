@@ -90,6 +90,7 @@ int efi_getdev(void **vdev, const char *devspec, const char **path);
 int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
 EFI_HANDLE efi_find_handle(struct devsw *, int);
 int efi_handle_lookup(EFI_HANDLE, struct devsw **, int *,  uint64_t *);
+int efinet_handle_lookup(EFI_HANDLE, int *);
 int efi_handle_update_dev(EFI_HANDLE, struct devsw *, int, uint64_t);
 
 EFI_DEVICE_PATH *efi_lookup_image_devpath(EFI_HANDLE);
