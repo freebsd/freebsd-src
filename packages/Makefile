@@ -60,7 +60,6 @@ SUBDIR=	\
 	pam \
 	periodic \
 	powerd \
-	ppp \
 	rc \
 	rcmds \
 	resolvconf \
@@ -143,6 +142,7 @@ SUBDIR.${MK_OPENSSL}+=		openssl
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg-bootstrap
 SUBDIR.${MK_PKGCONF}+=		pkgconf
 SUBDIR.${MK_PMC}+=		pmc
+SUBDIR.${MK_PPP}+=		ppp
 SUBDIR.${MK_QUOTAS}+=		quotacheck
 SUBDIR.${MK_RESCUE}+=		rescue
 SUBDIR.${MK_SENDMAIL}+=		sendmail libmilter
