@@ -682,8 +682,27 @@ linux_to_bsd_msg_flags(int flags)
 }
 
 static int
-linux_to_bsd_cmsg_type(int cmsg_type)
+linux_to_bsd_ip6_cmsg_type(int cmsg_type)
 {
+	switch (cmsg_type) {
+	case LINUX_IPV6_PKTINFO:
+		return (IPV6_PKTINFO);
+	}
+	return (-1);
+}
+
+static int
+linux_to_bsd_cmsg_type(int cmsg_type, int cmsg_level)
+{
+
+	switch (cmsg_level) {
+	case IPPROTO_IPV6:
+		return (linux_to_bsd_ip6_cmsg_type(cmsg_type));
+	case SOL_SOCKET:
+		break;
+	default:
+		return (-1);
+	}
 
 	switch (cmsg_type) {
 	case LINUX_SCM_RIGHTS:
@@ -1508,16 +1527,16 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				goto bad;
 
 			/*
-			 * Now we support only SCM_RIGHTS and SCM_CRED,
-			 * so return EINVAL in any other cmsg_type
+			 * Return EINVAL for any cmsg_type which is not
+			 * translated.
 			 */
 			cmsg = data;
-			cmsg->cmsg_type =
-			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type);
 			cmsg->cmsg_level =
 			    linux_to_bsd_sockopt_level(linux_cmsg.cmsg_level);
-			if (cmsg->cmsg_type == -1
-			    || cmsg->cmsg_level != SOL_SOCKET) {
+			cmsg->cmsg_type =
+			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type,
+			    cmsg->cmsg_level);
+			if (cmsg->cmsg_type == -1) {
 				linux_msg(curthread,
 				    "unsupported sendmsg cmsg level %d type %d",
 				    linux_cmsg.cmsg_level, linux_cmsg.cmsg_type);
@@ -1528,10 +1547,20 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			 * Some applications (e.g. pulseaudio) attempt to
 			 * send ancillary data even if the underlying protocol
 			 * doesn't support it which is not allowed in the
-			 * FreeBSD system call interface.
+			 * FreeBSD system call interface.  Pass control
+			 * messages only to the address family they belong to.
 			 */
-			if (sa_family != AF_UNIX)
-				goto next;
+			switch (cmsg->cmsg_level) {
+			case SOL_SOCKET:
+				if (sa_family != AF_UNIX)
+					goto next;
+				break;
+			default:
+				if (sa_family != AF_INET &&
+				    sa_family != AF_INET6)
+					goto next;
+				break;
+			}
 
 			if (cmsg->cmsg_type == SCM_CREDS) {
 				len = sizeof(struct cmsgcred);
