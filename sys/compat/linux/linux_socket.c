@@ -32,6 +32,7 @@
 #include <sys/capsicum.h>
 #include <sys/domain.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -48,6 +49,8 @@
 #include <security/audit/audit.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -713,6 +716,13 @@ linux_to_bsd_cmsg_type(int cmsg_type, int cmsg_level)
 	return (-1);
 }
 
+/*
+ * Returned by the bsd_to_linux_*_cmsg_type() functions for a control
+ * message which is folded into another one and must be neither delivered
+ * nor counted as unsupported.
+ */
+#define	LINUX_CMSG_CONSUMED	(-2)
+
 static int
 bsd_to_linux_ip_cmsg_type(int cmsg_type)
 {
@@ -722,6 +732,11 @@ bsd_to_linux_ip_cmsg_type(int cmsg_type)
 		return (LINUX_IP_RECVORIGDSTADDR);
 	case IP_RECVTOS:
 		return (LINUX_IP_TOS);
+	case IP_RECVDSTADDR:
+		return (LINUX_IP_PKTINFO);
+	case IP_RECVIF:
+		/* Merged into IP_PKTINFO by recvmsg_scm_ip_pktinfo(). */
+		return (LINUX_CMSG_CONSUMED);
 	}
 	return (-1);
 }
@@ -1842,9 +1857,115 @@ recvmsg_scm_ip_origdstaddr(socklen_t *datalen, void **data, void **udata)
 	return (error);
 }
 
+/*
+ * Return the interface index carried by an IP_RECVIF control message
+ * following the current one, or 0 if there is none.  ip_savecontrol()
+ * appends IP_RECVDSTADDR before IP_RECVIF, one control message per mbuf.
+ */
 static int
-recvmsg_scm_ipproto_ip(l_int msg_type, l_int lmsg_type, socklen_t *datalen,
+recvmsg_scm_ip_recvif(struct mbuf *m)
+{
+	struct sockaddr_dl *sdl;
+	struct cmsghdr *cm;
+
+	for (; m != NULL; m = m->m_next) {
+		if (m->m_len < sizeof(*cm))
+			continue;
+		cm = mtod(m, struct cmsghdr *);
+		if (cm->cmsg_level != IPPROTO_IP || cm->cmsg_type != IP_RECVIF)
+			continue;
+		if (cm->cmsg_len <
+		    CMSG_LEN(offsetof(struct sockaddr_dl, sdl_data)))
+			return (0);
+		sdl = (struct sockaddr_dl *)CMSG_DATA(cm);
+		return (sdl->sdl_index);
+	}
+	return (0);
+}
+
+struct linux_ip_pktinfo_cb_arg {
+	in_addr_t	dst;
+	in_addr_t	spec_dst;
+};
+
+/*
+ * Linux reports in ipi_spec_dst the local address a reply to the sender
+ * would use.  For unicast this is the header destination, which is what
+ * IP_RECVDSTADDR supplies.  For broadcast and multicast datagrams pick an
+ * address of the receiving interface instead, preferring one which is not
+ * link-local, and fall back to the header destination.
+ */
+static u_int
+linux_ip_pktinfo_ifa_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct linux_ip_pktinfo_cb_arg *cba = arg;
+	in_addr_t addr;
+
+	/* A non-link-local address has already been chosen. */
+	if (count > 0)
+		return (0);
+	addr = satosin(ifa->ifa_addr)->sin_addr.s_addr;
+	if (IN_LINKLOCAL(ntohl(addr))) {
+		if (cba->spec_dst == cba->dst)
+			cba->spec_dst = addr;
+		return (0);
+	}
+	cba->spec_dst = addr;
+	return (1);
+}
+
+static in_addr_t
+linux_ip_pktinfo_spec_dst(struct thread *td, struct in_addr dst, int ifindex)
+{
+	struct linux_ip_pktinfo_cb_arg cba;
+	struct epoch_tracker et;
+	if_t ifp;
+
+	cba.dst = cba.spec_dst = dst.s_addr;
+	if (ifindex == 0)
+		return (cba.spec_dst);
+
+	CURVNET_SET(TD_TO_VNET(td));
+	NET_EPOCH_ENTER(et);
+	ifp = ifnet_byindex(ifindex);
+	if (ifp != NULL && (IN_MULTICAST(ntohl(dst.s_addr)) ||
+	    in_ifnet_broadcast(dst, ifp)))
+		if_foreach_addr_type(ifp, AF_INET, linux_ip_pktinfo_ifa_cb,
+		    &cba);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
+	return (cba.spec_dst);
+}
+
+/*
+ * Build a Linux IP_PKTINFO control message from the IP_RECVDSTADDR one
+ * and the IP_RECVIF one which follows it.
+ */
+static int
+recvmsg_scm_ip_pktinfo(struct thread *td, struct mbuf *m, socklen_t *datalen,
     void **data, void **udata)
+{
+	struct l_in_pktinfo *lpi;
+	struct in_addr dst;
+
+	if (*datalen != sizeof(dst))
+		return (EINVAL);
+	memcpy(&dst, *data, sizeof(dst));
+	lpi = malloc(sizeof(*lpi), M_LINUX, M_WAITOK);
+	lpi->ipi_ifindex = recvmsg_scm_ip_recvif(m->m_next);
+	lpi->ipi_spec_dst = linux_ip_pktinfo_spec_dst(td, dst,
+	    lpi->ipi_ifindex);
+	lpi->ipi_addr = dst.s_addr;
+	*data = *udata = lpi;
+	*datalen = sizeof(*lpi);
+	return (0);
+}
+_Static_assert(sizeof(struct l_in_pktinfo) == 12,
+    "scm_ip_pktinfo sizeof l_in_pktinfo");
+
+static int
+recvmsg_scm_ipproto_ip(struct thread *td, struct mbuf *m, l_int msg_type,
+    l_int lmsg_type, socklen_t *datalen, void **data, void **udata)
 {
 	int error;
 
@@ -1853,6 +1974,9 @@ recvmsg_scm_ipproto_ip(l_int msg_type, l_int lmsg_type, socklen_t *datalen,
 	case IP_ORIGDSTADDR:
 		error = recvmsg_scm_ip_origdstaddr(datalen, data,
 		    udata);
+		break;
+	case IP_RECVDSTADDR:
+		error = recvmsg_scm_ip_pktinfo(td, m, datalen, data, udata);
 		break;
 	}
 
@@ -1946,6 +2070,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		    cm->cmsg_level);
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
 
+		if (lcm->cmsg_type == LINUX_CMSG_CONSUMED)
+			continue;
 		if (lcm->cmsg_type == -1 ||
 		    lcm->cmsg_level == -1) {
 			LINUX_RATELIMIT_MSG_OPT2(
@@ -1967,7 +2093,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		 */
 		switch (cm->cmsg_level) {
 		case IPPROTO_IP:
-			error = recvmsg_scm_ipproto_ip(cm->cmsg_type,
+			error = recvmsg_scm_ipproto_ip(td, m, cm->cmsg_type,
 			    lcm->cmsg_type, &datalen, &data, &udata);
  			break;
 		case SOL_SOCKET:
