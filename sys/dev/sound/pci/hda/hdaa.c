@@ -588,8 +588,10 @@ hdaa_presence_handler(struct hdaa_widget *w)
 			    (!connected && asp->dir == as->dir)) {
 				snprintf(buf, sizeof(buf), "cdev=dsp%d",
 				    device_get_unit(asp->pdevinfo->dev));
+				hdaa_unlock(devinfo);
 				devctl_notify("SND", "CONN",
 				    asp->dir == HDAA_CTL_IN ? "IN" : "OUT", buf);
+				hdaa_lock(devinfo);
 				break;
 			}
 		}
