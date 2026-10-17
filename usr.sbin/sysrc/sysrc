@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="7.3 Sep-15,2026"
+SYSRC_VERSION="7.3.1 Oct-17,2026"
 
 #
 # Options
@@ -804,19 +804,23 @@ while [ $# -gt 0 ]; do
 		# If `-N' is passed, simplify the output
 		#
 		if [ ! "$SHOW_VALUE" ]; then
-			echo "$NAME"
+			if [ ! "$QUIET" ]; then
+				echo "$NAME"
+			fi
 			f_sysrc_set "$NAME" "$new" || status=$FAILURE
 		else
 			if f_sysrc_set "$NAME" "$new"; then
-				if [ "$SHOW_FILE" ]; then
-					after=$( f_sysrc_find "$NAME" )
-				else
-					after=$( f_sysrc_get "$NAME" )
+				if [ ! "$QUIET" ]; then
+					if [ "$SHOW_FILE" ]; then
+						after=$( f_sysrc_find "$NAME" )
+					else
+						after=$( f_sysrc_get "$NAME" )
+					fi
+					echo -n "${SHOW_NAME:+$NAME$SEP}"
+					echo -n "$before${SHOW_EQUALS:+\" #}"
+					echo -n " -> ${SHOW_EQUALS:+\"}$after"
+					echo "${SHOW_EQUALS:+\"}"
 				fi
-				echo -n "${SHOW_NAME:+$NAME$SEP}"
-				echo -n "$before${SHOW_EQUALS:+\" #}"
-				echo -n " -> ${SHOW_EQUALS:+\"}$after"
-				echo "${SHOW_EQUALS:+\"}"
 			else
 				status=$FAILURE
 			fi
