@@ -106,6 +106,15 @@ CODE {
 			    phy_dev, id));
 		return (ENXIO);
 	}
+
+	static int
+	bypass_get_sfp_dev(device_t dev, device_t *sfp_dev, uint32_t id)
+	{
+		if (device_get_parent(dev) != NULL)
+			return (DPAA2_MC_GET_SFP_DEV(device_get_parent(dev),
+			    sfp_dev, id));
+		return (ENXIO);
+	}
 }
 
 METHOD int manage_dev {
@@ -150,3 +159,20 @@ METHOD int get_phy_dev {
 	device_t	 *phy_dev;
 	uint32_t	 id;
 } DEFAULT bypass_get_phy_dev;
+
+/**
+ * @brief Look up the i2c bus device that a DPMAC's SFP+ cage sits on.
+ *
+ * Resolved from the "sfp" phandle in the DPMAC's device-tree node (its
+ * "i2c-bus" property). Only implemented on the FDT compat layer; returns
+ * ENXIO under ACPI, where the association comes from loader tunables instead.
+ *
+ *   dev     - requesting device (walked up to the MC bus)
+ *   sfp_dev - the i2c bus (iicbus) device the SFP EEPROM answers on
+ *   id      - DPMAC object id
+ */
+METHOD int get_sfp_dev {
+	device_t	 dev;
+	device_t	 *sfp_dev;
+	uint32_t	 id;
+} DEFAULT bypass_get_sfp_dev;
