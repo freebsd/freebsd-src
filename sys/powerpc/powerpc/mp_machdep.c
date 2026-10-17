@@ -302,17 +302,7 @@ powerpc_ipi_handler(void *arg)
 	ipimask = atomic_readandclear_32(&(pcpup->pc_ipimask));
 	if (ipimask == 0)
 		return (FILTER_STRAY);
-	if (ipimask & (1 << IPI_AST)) {
-		CTR1(KTR_SMP, "%s: IPI_AST", __func__);
-	}
-	if (ipimask & (1 << IPI_PREEMPT)) {
-		CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
-		sched_preempt(curthread);
-	}
-	if (ipimask & (1 << IPI_RENDEZVOUS)) {
-		CTR1(KTR_SMP, "%s: IPI_RENDEZVOUS", __func__);
-		smp_rendezvous_action();
-	}
+	/* A stop request should not be delayed.  Keep it first. */
 	if (ipimask & (1 << IPI_STOP)) {
 
 		/*
@@ -330,9 +320,25 @@ powerpc_ipi_handler(void *arg)
 		CPU_CLR_ATOMIC(cpuid, &started_cpus);
 		CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
 	}
+	if (ipimask & (1 << IPI_RENDEZVOUS)) {
+		CTR1(KTR_SMP, "%s: IPI_RENDEZVOUS", __func__);
+		smp_rendezvous_action();
+	}
 	if (ipimask & (1 << IPI_HARDCLOCK)) {
 		CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
 		hardclockintr();
+	}
+	if (ipimask & (1 << IPI_AST)) {
+		CTR1(KTR_SMP, "%s: IPI_AST", __func__);
+	}
+	/*
+	 * sched_preempt() causes an immediate switch to another thread when not
+	 * executing in a critical section.  In order to ensure that all other
+	 * IPIs are processed in due course, it has to be called last.
+	 */
+	if (ipimask & (1 << IPI_PREEMPT)) {
+		CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+		sched_preempt(curthread);
 	}
 
 	return (FILTER_HANDLED);
