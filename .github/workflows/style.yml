@@ -22,7 +22,7 @@ jobs:
         run: |
           echo "DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: ${{ env.DEPTH }}
           ref: ${{ github.event.pull_request.head.sha }}
