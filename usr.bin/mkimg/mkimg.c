@@ -516,7 +516,15 @@ mkimg(void)
 			if (expand_number(align, &bytealign) == -1)
 				err(EX_DATAERR, "partition %d",
 				    part->index + 1);
-			if ((bytealign == 0) || (bytealign % secsz != 0))
+			if (bytealign == 0)
+				errx(EX_DATAERR, "partition %d: "
+				    "invalid alignment", part->index + 1);
+			if (secsz % bytealign == 0) {
+				warnx("partition %d: ignoring "
+				    "redundant alignment", part->index + 1);
+				bytealign = secsz;
+			}
+			if (bytealign % secsz != 0)
 				errx(EX_DATAERR, "partition %d: "
 				    "invalid alignment", part->index + 1);
 			blkalign = bytealign / secsz;
