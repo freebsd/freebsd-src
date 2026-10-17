@@ -408,6 +408,17 @@ pci_dev_id(struct pci_dev *pdev)
 	return (PCI_DEVID(pdev->bus->number, pdev->devfn));
 }
 
+static inline bool
+pci_is_vga(struct pci_dev *pdev)
+{
+	/* pdev->class holds only the base class. */
+	uint8_t class = pci_get_class(pdev->dev.bsddev);
+	uint8_t subclass  = pci_get_subclass(pdev->dev.bsddev);
+
+	return ((class == PCIC_DISPLAY && subclass == PCIS_DISPLAY_VGA) ||
+	    (class == PCIC_OLD && subclass == PCIS_OLD_VGA));
+}
+
 static inline int
 pci_resource_type(struct pci_dev *pdev, int bar)
 {
