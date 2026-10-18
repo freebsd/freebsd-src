@@ -345,5 +345,7 @@ FBSD_1.8 {
 
 FBSD_1.9 {
 	 pthread_cond_clockwait;
+	 pthread_query_np;
+	 pthread_query_all_np;
 	 pthread_tryjoin_np;
 };
