@@ -1,26 +1,8 @@
 /*-
- * Copyright (c) 2017 Enji Cooper <ngie@freebsd.org>
+ * Copyright (c) 2017-2026 Enji Cooper <ngie@FreeBSD.org>
+ * Copyright (c) 2026 Joao Bonifacio <joaoboni017@gmail.com>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/param.h>
@@ -34,14 +16,11 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "sbuf_test_common.h"
-
 static char test_string[] = "this is a test string";
 #define TEST_STRING_CHOP_COUNT 5
 _Static_assert(nitems(test_string) > TEST_STRING_CHOP_COUNT,
     "test_string is too short");
 
-#ifdef HAVE_SBUF_CLEAR_FLAGS
 ATF_TC_WITHOUT_HEAD(sbuf_clear_flags_test);
 ATF_TC_BODY(sbuf_clear_flags_test, tc)
 {
@@ -104,7 +83,6 @@ ATF_TC_BODY(sbuf_clear_test, tc)
 
 	sbuf_delete(sb);
 }
-#endif
 
 ATF_TC_WITHOUT_HEAD(sbuf_done_and_sbuf_finish_test);
 ATF_TC_BODY(sbuf_done_and_sbuf_finish_test, tc)
@@ -174,11 +152,9 @@ ATF_TC_BODY(sbuf_len_test, tc)
 		    "sbuf_cat failed");
 	}
 
-#ifdef HAVE_SBUF_SET_FLAGS
 	sbuf_set_flags(sb, SBUF_INCLUDENUL);
 	ATF_REQUIRE_MSG((ssize_t)(i * test_string_len + 1) == sbuf_len(sb),
 	    "sbuf_len(..) didn't report the NUL char");
-#endif
 
 	ATF_REQUIRE_MSG(sbuf_finish(sb) == 0, "sbuf_finish failed: %s",
 	    strerror(errno));
@@ -269,7 +245,6 @@ ATF_TC_BODY(sbuf_setpos_test, tc)
 	sbuf_delete(sb);
 }
 
-#ifdef HAVE_SBUF_GET_FLAGS
 ATF_TC_WITHOUT_HEAD(sbuf_get_flags_test);
 ATF_TC_BODY(sbuf_get_flags_test, tc)
 {
@@ -288,9 +263,7 @@ ATF_TC_BODY(sbuf_get_flags_test, tc)
 	ATF_CHECK_INTEQ(flags ^ (SBUF_AUTOEXTEND | SBUF_INCLUDENUL), 0);
 	sbuf_delete(sb);
 }
-#endif
 
-#ifdef HAVE_SBUF_SET_FLAGS
 ATF_TC_WITHOUT_HEAD(sbuf_set_flags_test);
 ATF_TC_BODY(sbuf_set_flags_test, tc)
 {
@@ -312,24 +285,18 @@ ATF_TC_BODY(sbuf_set_flags_test, tc)
 
 	sbuf_delete(sb);
 }
-#endif
 
 ATF_TP_ADD_TCS(tp)
 {
-#ifdef HAVE_SBUF_CLEAR_FLAGS
+
 	ATF_TP_ADD_TC(tp, sbuf_clear_flags_test);
 	ATF_TP_ADD_TC(tp, sbuf_clear_test);
-#endif
 	ATF_TP_ADD_TC(tp, sbuf_done_and_sbuf_finish_test);
 	ATF_TP_ADD_TC(tp, sbuf_drain_ret0_test);
-#ifdef HAVE_SBUF_GET_FLAGS
 	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
-#endif
 	ATF_TP_ADD_TC(tp, sbuf_len_test);
 	ATF_TP_ADD_TC(tp, sbuf_new_fixedlen);
-#ifdef HAVE_SBUF_SET_FLAGS
 	ATF_TP_ADD_TC(tp, sbuf_set_flags_test);
-#endif
 	ATF_TP_ADD_TC(tp, sbuf_setpos_test);
 
 	return (atf_no_error());
