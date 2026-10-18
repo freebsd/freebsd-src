@@ -71,7 +71,15 @@ save_vec_int(struct thread *td)
 	STVX(28);	STVX(29);	STVX(30);	STVX(31);
 #undef STVX
 
-	__asm __volatile("mfvscr 0; stvewx 0,0,%0" :: "b"(&pcb->pcb_vec.vscr));
+	/*
+	 * mfvscr places VSCR in bits 96-127 of the vector register, but
+	 * which word stvewx stores at a given address depends on the byte
+	 * order (in little-endian mode element positions are reversed).
+	 * Replicate VSCR into all four words first, so the store is right
+	 * either way.
+	 */
+	__asm __volatile("mfvscr 0; vspltw 0,0,3; stvewx 0,0,%0"
+	    :: "b"(&pcb->pcb_vec.vscr));
 
 	/*
 	 * Disable vector unit again
@@ -123,8 +131,18 @@ enable_vec(struct thread *td)
 	 * (this needs to done before loading the user's vector registers
 	 * since we need to use a scratch vector register)
 	 */
-	__asm __volatile("vxor 0,0,0; lvewx 0,0,%0; mtvscr 0" \
+	/*
+	 * lvewx loads the word into whichever element the byte order maps
+	 * that address to; replicate it into all words so that mtvscr finds
+	 * it in bits 96-127 either way.
+	 */
+#if _BYTE_ORDER == _BIG_ENDIAN
+	__asm __volatile("lvewx 0,0,%0; vspltw 0,0,3; mtvscr 0" \
 			  :: "b"(&pcb->pcb_vec.vscr));
+#else
+	__asm __volatile("lvewx 0,0,%0; vspltw 0,0,0; mtvscr 0" \
+			  :: "b"(&pcb->pcb_vec.vscr));
+#endif
 
 #define LVX(n)   __asm ("lvx " #n ",0,%0" \
 		:: "b"(&pcb->pcb_vec.vr[n]));
