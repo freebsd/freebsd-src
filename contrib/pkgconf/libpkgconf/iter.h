@@ -47,6 +47,26 @@ pkgconf_list_zero(pkgconf_list_t *list)
 }
 
 static inline void
+pkgconf_list_splice(pkgconf_list_t *dest, pkgconf_list_t *src)
+{
+	if (dest == src || src->head == NULL)
+		return;
+
+	if (dest->head == NULL)
+		dest->head = src->head;
+	else
+	{
+		dest->tail->next = src->head;
+		src->head->prev = dest->tail;
+	}
+
+	dest->tail = src->tail;
+	dest->length += src->length;
+
+	pkgconf_list_zero(src);
+}
+
+static inline void
 pkgconf_node_insert(pkgconf_node_t *node, void *data, pkgconf_list_t *list)
 {
 	pkgconf_node_t *tnode;

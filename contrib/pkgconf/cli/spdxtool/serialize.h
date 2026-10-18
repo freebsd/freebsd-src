@@ -536,7 +536,7 @@ spdxtool_serialize_array_add_array(spdxtool_serialize_array_t *array, spdxtool_s
 }
 
 spdxtool_serialize_value_t *
-spdxtool_serialize_sbom(pkgconf_client_t *client, spdxtool_core_agent_t *agent, spdxtool_core_creation_info_t *creation, spdxtool_core_spdx_document_t *spdx);
+spdxtool_serialize_sbom(pkgconf_client_t *client, spdxtool_core_agent_t *agent, spdxtool_core_tool_t *tool, spdxtool_core_creation_info_t *creation, spdxtool_core_spdx_document_t *spdx);
 
 #ifdef __cplusplus
 }

@@ -42,37 +42,6 @@ cache_member_cmp(const void *a, const void *b)
 	return strcmp(key, pkg->id);
 }
 
-static int
-cache_member_sort_cmp(const void *a, const void *b)
-{
-	const pkgconf_pkg_t *pkgA = *(void **) a;
-	const pkgconf_pkg_t *pkgB = *(void **) b;
-
-	if (pkgA == NULL)
-		return 1;
-
-	if (pkgB == NULL)
-		return -1;
-
-	return strcmp(pkgA->id, pkgB->id);
-}
-
-static void
-cache_dump(const pkgconf_client_t *client)
-{
-	size_t i;
-
-	PKGCONF_TRACE(client, "dumping package cache contents");
-
-	for (i = 0; i < client->cache_count; i++)
-	{
-		const pkgconf_pkg_t *pkg = client->cache_table[i];
-
-		PKGCONF_TRACE(client, SIZE_FMT_SPECIFIER": %p(%s)",
-			i, pkg, pkg == NULL ? "NULL" : pkg->id);
-	}
-}
-
 /*
  * !doc
  *
@@ -127,6 +96,13 @@ pkgconf_cache_add(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 	if (pkg == NULL)
 		return;
 
+	pkgconf_pkg_t *cached_pkg = pkgconf_cache_lookup(client, pkg->id);
+	if (cached_pkg != NULL)
+	{
+		pkgconf_pkg_unref(client, cached_pkg);
+		return;
+	}
+
 	pkgconf_pkg_ref(client, pkg);
 
 	pkgconf_pkg_t **new_table;
@@ -148,10 +124,21 @@ pkgconf_cache_add(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 	}
 
 	client->cache_table = new_table;
-	client->cache_table[client->cache_count - 1] = pkg;
 
-	qsort(client->cache_table, client->cache_count,
-		sizeof(void *), cache_member_sort_cmp);
+	size_t lo = 0, hi = client->cache_count - 1;
+	while (lo < hi)
+	{
+		size_t mid = lo + (hi - lo) / 2;
+
+		if (strcmp(client->cache_table[mid]->id, pkg->id) < 0)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+
+	memmove(&client->cache_table[lo + 1], &client->cache_table[lo],
+		(client->cache_count - 1 - lo) * sizeof(void *));
+	client->cache_table[lo] = pkg;
 
 	PKGCONF_TRACE(client, "added @%p to cache", pkg);
 }
@@ -192,18 +179,10 @@ pkgconf_cache_remove(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 
 	(*slot)->flags &= ~PKGCONF_PKG_PROPF_CACHED;
 	pkgconf_pkg_unref(client, *slot);
-	*slot = NULL;
 
-	qsort(client->cache_table, client->cache_count,
-		sizeof(void *), cache_member_sort_cmp);
-
-	if (client->cache_table[client->cache_count - 1] != NULL)
-	{
-		PKGCONF_TRACE(client, "end of cache table refers to %p, not NULL",
-			client->cache_table[client->cache_count - 1]);
-		cache_dump(client);
-		abort();
-	}
+	size_t idx = (size_t)(slot - client->cache_table);
+	memmove(&client->cache_table[idx], &client->cache_table[idx + 1],
+		(client->cache_count - idx - 1) * sizeof(void *));
 
 	client->cache_count--;
 	if (client->cache_count > 0)

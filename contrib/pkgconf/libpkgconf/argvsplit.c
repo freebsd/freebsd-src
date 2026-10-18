@@ -49,20 +49,15 @@ pkgconf_argv_free(char **argv)
 }
 
 /*
- * !doc
+ * Walk `src`, breaking it at whitespace which is neither quoted nor escaped.
  *
- * .. c:function:: int pkgconf_argv_split(const char *src, int *argc, char ***argv)
- *
- *    Splits a string into an argument vector.
- *
- *    :param char*   src: The string to split.
- *    :param int*    argc: A pointer to an integer to store the argument count.
- *    :param char*** argv: A pointer to a pointer for an argument vector.
- *    :return: 0 on success, -1 on error.
- *    :rtype: int
+ * When `raw` is set, the quoting and escaping is only read to find those breaks:
+ * the quotes and backslashes are copied into the argument along with everything
+ * else, leaving it spelled exactly as it was written.  Otherwise they are
+ * consumed, as a shell would consume them.
  */
-int
-pkgconf_argv_split(const char *src, int *argc, char ***argv)
+static int
+argv_split(const char *src, int *argc, char ***argv, bool raw)
 {
 	char *buf = calloc(1, strlen(src) + 1);
 	if (buf == NULL)
@@ -92,7 +87,7 @@ pkgconf_argv_split(const char *src, int *argc, char ***argv)
 		if (escaped)
 		{
 			/* POSIX: only \CHAR is special inside a double quote if CHAR is {$, `, ", \, newline}. */
-			if (quote == '"')
+			if (quote == '"' && !raw)
 			{
 				if (!(*src_iter == '$' || *src_iter == '`' || *src_iter == '"' || *src_iter == '\\'))
 					*dst_iter++ = '\\';
@@ -109,9 +104,19 @@ pkgconf_argv_split(const char *src, int *argc, char ***argv)
 		else if (quote)
 		{
 			if (*src_iter == quote)
+			{
 				quote = 0;
+
+				if (raw)
+					*dst_iter++ = *src_iter;
+			}
 			else if (*src_iter == '\\' && quote != '\'')
+			{
 				escaped = true;
+
+				if (raw)
+					*dst_iter++ = *src_iter;
+			}
 			else
 				*dst_iter++ = *src_iter;
 		}
@@ -145,11 +150,17 @@ pkgconf_argv_split(const char *src, int *argc, char ***argv)
 		{
 			case '\\':
 				escaped = true;
+
+				if (raw)
+					*dst_iter++ = *src_iter;
 				break;
 
 			case '\"':
 			case '\'':
 				quote = *src_iter;
+
+				if (raw)
+					*dst_iter++ = *src_iter;
 				break;
 
 			default:
@@ -175,4 +186,49 @@ pkgconf_argv_split(const char *src, int *argc, char ***argv)
 
 	*argc = argc_count;
 	return 0;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: int pkgconf_argv_split(const char *src, int *argc, char ***argv)
+ *
+ *    Splits a string into an argument vector, consuming shell quoting and
+ *    backslash escapes the way a shell would.
+ *
+ *    :param char*   src: The string to split.
+ *    :param int*    argc: A pointer to an integer to store the argument count.
+ *    :param char*** argv: A pointer to a pointer for an argument vector.
+ *    :return: 0 on success, -1 on error.
+ *    :rtype: int
+ */
+int
+pkgconf_argv_split(const char *src, int *argc, char ***argv)
+{
+	return argv_split(src, argc, argv, false);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: int pkgconf_argv_split_raw(const char *src, int *argc, char ***argv)
+ *
+ *    Splits a string into an argument vector without interpreting it: the
+ *    quoting and escaping says where the arguments end, but is left in the text.
+ *
+ *    This is for input which still has to be expanded.  Consuming the quoting
+ *    here would consume only what the input itself spells, leaving whatever a
+ *    variable substitutes into it unconsumed, so it is left for a second pass
+ *    over the finished text.
+ *
+ *    :param char*   src: The string to split.
+ *    :param int*    argc: A pointer to an integer to store the argument count.
+ *    :param char*** argv: A pointer to a pointer for an argument vector.
+ *    :return: 0 on success, -1 on error.
+ *    :rtype: int
+ */
+int
+pkgconf_argv_split_raw(const char *src, int *argc, char ***argv)
+{
+	return argv_split(src, argc, argv, true);
 }

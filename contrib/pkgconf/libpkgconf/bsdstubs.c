@@ -21,7 +21,7 @@
 #else
 /*
  * Creates a memory buffer and copies at most 'len' characters to it.
- * If 'len' is less than the length of the source string, truncation occured.
+ * If 'len' is less than the length of the source string, truncation occurred.
  */
 static inline char *
 pkgconf_strndup_impl(const char *src, size_t len)

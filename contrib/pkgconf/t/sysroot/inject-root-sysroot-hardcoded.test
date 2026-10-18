@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=/
+PackageSearchPath: lib1
+Query: sysroot-inject-hardcoded
+WantedFlags: cflags
+ExpectedStdout: -I/opt/x

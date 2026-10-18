@@ -8,6 +8,7 @@ datadir=@datadir@
 Name: libpkgconf
 Description: a library for accessing and manipulating development framework configuration
 URL: https://github.com/pkgconf/pkgconf
+Maintainer: Ariadne Conill <ariadne@ariadne.space>
 License: ISC
 License.file: ${datadir}/doc/pkgconf/COPYING
 Source: https://github.com/pkgconf/pkgconf

@@ -28,8 +28,17 @@ spdxtool_core_agent_free(spdxtool_core_agent_t *agent);
 spdxtool_serialize_value_t *
 spdxtool_core_agent_to_object(pkgconf_client_t *client, const spdxtool_core_agent_t *agent);
 
+spdxtool_core_tool_t *
+spdxtool_core_tool_new(pkgconf_client_t *client, const char *creation_info_id, const char *short_name, const char *name);
+
+void
+spdxtool_core_tool_free(spdxtool_core_tool_t *tool);
+
+spdxtool_serialize_value_t *
+spdxtool_core_tool_to_object(pkgconf_client_t *client, const spdxtool_core_tool_t *tool);
+
 spdxtool_core_creation_info_t *
-spdxtool_core_creation_info_new(pkgconf_client_t *client, const char *agent_id, const char *id, const char *time);
+spdxtool_core_creation_info_new(pkgconf_client_t *client, const char *agent_id, const char *tool_id, const char *id, const char *time);
 
 void
 spdxtool_core_creation_info_free(spdxtool_core_creation_info_t *creation);

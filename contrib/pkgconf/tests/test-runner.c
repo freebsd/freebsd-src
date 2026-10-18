@@ -181,7 +181,7 @@ environ_lookup_handler(const pkgconf_client_t *client, const char *key)
 
 		if (!strcmp(key, env->key))
 		{
-			char cwd[PATH_MAX] = {0};
+			char cwd[PKGCONF_ITEM_SIZE] = {0};
 			const char *pwd = getcwd(cwd, sizeof(cwd));
 
 			pkgconf_buffer_t expanded = PKGCONF_BUFFER_INITIALIZER;
@@ -883,7 +883,7 @@ run_tool(const pkgconf_test_case_t *testcase, pkgconf_buffer_t *o_stdout, pkgcon
 	}
 
 	// Inject Environment vars for the child process
-	char tool_cwd[PATH_MAX] = {0};
+	char tool_cwd[PKGCONF_ITEM_SIZE] = {0};
 	const char *pwd = getcwd(tool_cwd, sizeof(tool_cwd));
 
 	pkgconf_node_t *iter;
@@ -1195,7 +1195,7 @@ run_test_case(const pkgconf_test_case_t *testcase)
 	}
 
 	// If the test has setup steps, create a new tmp_dir and chdir into it.
-	char original_cwd[PATH_MAX] = {0};
+	char original_cwd[PKGCONF_ITEM_SIZE] = {0};
 	char *tmp_dir = NULL;
 
 	if (getcwd(original_cwd, sizeof(original_cwd)) == NULL)
@@ -1258,7 +1258,13 @@ run_test_case(const pkgconf_test_case_t *testcase)
 			.testcase = testcase,
 		};
 
-		pkgconf_client_init(&state.cli_state.pkg_client, error_handler, NULL, personality, &state, environ_lookup_handler);
+		pkgconf_client_options_t client_options = {
+			.error_handler = error_handler,
+			.personality = personality,
+			.client_data = &state,
+			.environ_lookup_handler = environ_lookup_handler,
+		};
+		pkgconf_client_init_with_options(&state.cli_state.pkg_client, &client_options);
 		pkgconf_client_set_output(&state.cli_state.pkg_client, &out->output);
 
 		pkgconf_node_t *iter;
@@ -1272,7 +1278,7 @@ run_test_case(const pkgconf_test_case_t *testcase)
 		 * Re-expand Query now that %PWD% is known (if we have a tmp_dir).
 		 * For tests without a tmp_dir this is a no-op since %PWD% won't appear.
 		 */
-		char query_cwd[PATH_MAX] = {0};
+		char query_cwd[PKGCONF_ITEM_SIZE] = {0};
 		const char *query_pwd = getcwd(query_cwd, sizeof(query_cwd));
 
 		pkgconf_buffer_t query_expanded = PKGCONF_BUFFER_INITIALIZER;
@@ -1314,7 +1320,7 @@ run_test_case(const pkgconf_test_case_t *testcase)
 	{
 		pkgconf_bufferset_t *set = iter->data;
 
-		char expected_cwd[PATH_MAX] = {0};
+		char expected_cwd[PKGCONF_ITEM_SIZE] = {0};
 		const char *expected_pwd = getcwd(expected_cwd, sizeof(expected_cwd));
 
 		pkgconf_buffer_t expected_expanded = PKGCONF_BUFFER_INITIALIZER;
@@ -1559,7 +1565,7 @@ main(int argc, char *argv[])
 		usage();
 
 	{
-		char test_fixtures_dir_abs[PATH_MAX] = {0};
+		char test_fixtures_dir_abs[PKGCONF_ITEM_SIZE] = {0};
 		if (!realpath(test_fixtures_dir_arg, test_fixtures_dir_abs))
 		{
 			fprintf(stderr, "realpath failed: %s\n", strerror(errno));

@@ -1,0 +1,8 @@
+prefix=/test
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: nodesc
+Version: 1.0.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lnodesc

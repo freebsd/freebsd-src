@@ -1,0 +1,4 @@
+Name: windows-sysroot-libdir
+Description: regression test for issue #574
+Version: 1
+Libs: -LC:/dir/install_dir/usr/local/lib -lproject

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: escape-layers
+WantVariable: quoted_sq
+ExpectedStdout: item1 item2 item\ with\ spaces

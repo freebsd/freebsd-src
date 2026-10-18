@@ -1,0 +1,5 @@
+Name: windows-sysroot-inject
+Description: regression test for issue #574 (sysroot injection normalized)
+Version: 1
+Libs: -L/opt/lib -linject
+Cflags: -I/opt/include
