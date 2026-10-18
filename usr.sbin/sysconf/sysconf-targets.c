@@ -70,7 +70,13 @@ resolve_keyword(const char *token, const char *const *keywords,
 	if (nmatch == 1)
 		return (found);
 	if (nmatch > 1) {
-		warnx("ambiguous %s `%s'; matches %s", what, token, matches);
+		/*
+		 * snprintf(3) returns the length that would have been
+		 * written, so off >= sizeof(matches) means the list was
+		 * truncated.
+		 */
+		warnx("ambiguous %s `%s'; matches %s%s", what, token, matches,
+		    off >= sizeof(matches) ? " (truncated)" : "");
 		usage();
 	}
 	return (NULL);
@@ -127,14 +133,14 @@ find_operand(int argc, char *argv[], int from, int past_dd)
 			}
 			for (p = argv[n] + 1; *p != '\0'; p++) {
 				o = strchr(OPTSTRING, *p);
+				/* Does the option take an argument? */
 				if (o != NULL && o[1] == ':') {
-					/* Takes an argument */
-					if (p[1] != '\0') {
-						;
-						/* attached: rest of argv[n] */
-					} else if (n + 1 < argc) {
+					/*
+					 * Is the option argument in the next
+					 * argv entry?
+					 */
+					if (p[1] == '\0' && n + 1 < argc) {
 						n++;
-						/* separate argv */
 					}
 					break;
 				}

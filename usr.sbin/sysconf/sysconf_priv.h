@@ -37,7 +37,7 @@
 #define __unused	/* not all compilers support attributes */
 #endif
 
-#define SYSCONF_VERSION	"2.2 2026-09-22"
+#define SYSCONF_VERSION	"2.2.1 2026-10-17"
 
 /* getopt(3) optstring; shared by parse_options() and find_target() */
 #define OPTSTRING	"AacdDEeFf:hij:k:lLnNqR:svVx"
