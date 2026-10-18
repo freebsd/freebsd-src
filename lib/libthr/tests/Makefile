@@ -40,6 +40,7 @@ ATF_TESTS_C+=		pthread_tryjoin_test
 
 LIBADD+=		pthread
 LIBADD.fpu_test+=	m
+LIBADD.pthread_tryjoin_test+=	kvm
 LIBADD.sem_test+=	rt
 
 BINDIR=		${TESTSDIR}
