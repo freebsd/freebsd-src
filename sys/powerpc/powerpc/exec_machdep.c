@@ -414,7 +414,7 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 			KASSERT(td == curthread,
 				("get_mcontext: fp save not curthread"));
 			critical_enter();
-			save_fpu(td);
+			save_fpu_nodrop(td);
 			critical_exit();
 		}
 		mcp->mc_flags |= _MC_FP_VALID;
@@ -448,7 +448,7 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 			KASSERT(td == curthread,
 				("get_mcontext: altivec save not curthread"));
 			critical_enter();
-			save_vec(td);
+			save_vec_nodrop(td);
 			critical_exit();
 		}
 		mcp->mc_flags |= _MC_AV_VALID;
