@@ -507,12 +507,10 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 }
 
 /*
- * This function cancels the given delayed work structure in a
- * synchronous fashion. It returns true if pending delayed work was
- * cancelled. Else the work was not pending.
+ * Cancel and drain delayed work, reporting cancelled pending work through
+ * cancelled and the taskqueue pending count through pending.
  *
- * If the work restarted itself or was busy while being cancelled,
- * retry_needed is set to true so the caller can re-check the state.
+ * Return true if the caller needs to re-check the state after draining.
  */
 static bool
 linux_cancel_delayed_work_sync_int(struct delayed_work *dwork, u_int *pending,
@@ -527,19 +525,30 @@ linux_cancel_delayed_work_sync_int(struct delayed_work *dwork, u_int *pending,
 	};
 	struct taskqueue *tq;
 	int ret, state;
+	bool stopped;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_cancel_delayed_work_sync() might sleep");
 	mtx_lock(&dwork->timer.mtx);
 
 	state = linux_update_state(&dwork->work.state, states);
+	/*
+	 * A taskqueue worker can have dequeued the task without linux_work_fn()
+	 * having claimed the callback yet.  In that case taskqueue_cancel()
+	 * reports EBUSY with no pending tasks, but our transition to IDLE still
+	 * prevents the callback.  Account for this using the state consumed by
+	 * the atomic transition, not just the native queue's pending count.
+	 * WORK_ST_EXEC, in contrast, means the callback was already claimed.
+	 */
+	*cancelled = (state == WORK_ST_TIMER || state == WORK_ST_TASK ||
+	    state == WORK_ST_CANCEL);
 	switch (state) {
 	case WORK_ST_IDLE:
 		mtx_unlock(&dwork->timer.mtx);
 		return (false);
 	case WORK_ST_TIMER:
 	case WORK_ST_CANCEL:
-		*cancelled = (callout_stop(&dwork->timer.callout) == 1);
+		stopped = (callout_stop(&dwork->timer.callout) == 1);
 
 		tq = dwork->work.work_queue->taskqueue;
 		ret = taskqueue_cancel(tq, &dwork->work.work_task, pending);
@@ -547,7 +556,7 @@ linux_cancel_delayed_work_sync_int(struct delayed_work *dwork, u_int *pending,
 
 		callout_drain(&dwork->timer.callout);
 		taskqueue_drain(tq, &dwork->work.work_task);
-		return (*cancelled || (ret != 0));
+		return (stopped || (ret != 0));
 	default:
 		tq = dwork->work.work_queue->taskqueue;
 		ret = taskqueue_cancel(tq, &dwork->work.work_task, pending);
