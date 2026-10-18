@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20261018:
+	The FreeBSD-base repository is now enabled in /etc/pkg/FreeBSD.conf.
+	To disable it, edit that file or put "FreeBSD-base: { enabled: no }"
+	into /usr/local/etc/pkg/repos/FreeBSD.conf.
+
 20260919:
 	less(1) has been updated to version 710, which removes the obsolete
 	lesskey(1) utility.  It is no longer built or installed, and the
