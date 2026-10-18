@@ -1,0 +1,7 @@
+prefix=${pcfiledir}/../../
+includedir=${pcfiledir}/../../include
+
+Name: trailing
+Description: issue #577: prefix ending in a separator must not drop the join
+Version: 1
+Cflags: -I${includedir}

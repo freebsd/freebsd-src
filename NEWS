@@ -1,6 +1,186 @@
 Changes from previous version of pkgconf
 ========================================
 
+Changes from 3.0.8 to 3.0.9:
+----------------------------
+
+* Build fixes:
+  - The Autotools build now includes and runs the spdxtool utility API tests,
+    ensuring that they are included in release tarballs.
+    Patch by commitmaniac.
+
+Changes from 3.0.7 to 3.0.8:
+----------------------------
+
+* Correctness and portability fixes:
+  - spdxtool now percent-encodes problematic ASCII characters in generated
+    SPDX URLs and URNs.  Patch by Tuukka Pasanen, sponsored by The FreeBSD
+    Foundation.
+  - The built-in pc_path, pc_system_libdirs and pc_system_includedirs variables
+    now use the platform path separator, fixing their output for multiple paths
+    on Windows.  Patch by Christoph Reiter.
+
+* Documentation and build fixes:
+  - Correct the pkgconf(1) description of --variable to document that it prints
+    values for every module specified on the command line.  Patch by Christoph
+    Reiter.
+  - Update the bug-report URL embedded by Meson builds to point to the pkgconf
+    issue tracker on GitHub.
+
+Changes from 3.0.6 to 3.0.7:
+----------------------------
+
+* Correctness fixes:
+  - spdxtool now serializes the SPDX 3.0 suppliedBy property as a single Agent
+    reference instead of a one-element array, as required by the official JSON
+    schema.
+  - bomtool no longer emits PackageDownloadLocation twice for each package.
+  These fixes were contributed by R. Christian McDonald.
+
+* Build, packaging and portability fixes:
+  - The Windows installer uses a default installation directory without a
+    space in its name.  Patch by Kai Pastor.
+  - Skip the spdxtool allocation-failure test for static builds, where linker
+    wrapping also intercepts libpkgconf allocations and invalidates the test.
+    See https://github.com/pkgconf/pkgconf/issues/593.
+  - Use PKGCONF_ITEM_SIZE instead of PATH_MAX in the test runner, allowing it
+    to build on systems where PATH_MAX is not declared, such as GNU Hurd.
+    See https://github.com/pkgconf/pkgconf/issues/600.
+
+Changes from 3.0.5 to 3.0.6:
+----------------------------
+
+* Command-line behavior:
+  - --variable accepts multiple modules and prints the requested
+    variable's value for each module, in argument order.  --path and
+    --print-variables remain limited to a single module.
+  - pccritic no longer reports the PC061 style finding for CRLF line endings,
+    avoiding a noisy warning for normal Windows files.
+    See https://github.com/pkgconf/pkgconf/issues/587.
+
+* Build and portability fixes:
+  - Improve OS/2 support by exporting libpkgconf APIs from DLL builds,
+    recognizing OS/2 drive letters and path separators, comparing paths without
+    case sensitivity, and using binary mode for redirected standard output and
+    error.  Patches by KO Myung-Hun.
+  - Declare pkgconf long-path-aware in its Windows application manifest,
+    allowing paths beyond the traditional MAX_PATH limit when long paths are
+    enabled by the operating system.  Patch by moi15moi.
+
+Changes from 3.0.4 to 3.0.5:
+----------------------------
+
+* Correctness fixes:
+  - Shell quoting and backslash escapes in pc(5) properties are now consumed
+    once, after variable substitution, instead of while splitting the property
+    beforehand.  Quoting arriving from a variable is therefore treated like
+    quoting written inline, --variable reports a value as the .pc file spells
+    it, and fragments are escaped exactly once when rendered.  This supersedes
+    the 3.0.4 fix, which unescaped whitespace at parse time and so hid the
+    escaping from consumers such as cmake's FindPkgConfig.
+    See https://github.com/pkgconf/pkgconf/issues/575 and
+    https://github.com/pkgconf/pkgconf/issues/579.
+  - Metadata queries no longer consult Conflicts rules between the modules named
+    on the command line, as reporting metadata does not combine them into a
+    build.  This covers --license, --license-file, --modversion, --path,
+    --print-provides, --print-requires, --print-requires-private,
+    --print-variables, --source and --variable.  --cflags, --libs and --exists
+    are unaffected.
+    See https://github.com/pkgconf/pkgconf/issues/580.
+  - ${pc_sysrootdir} is now injected into the path taken by every -isystem and
+    -idirafter flag in a fragment list, rather than only the first.
+  - -isystem and -idirafter written joined to their path, as in `-isystem/opt`,
+    are split into the flag and the path it takes, so that the path is subject
+    to the same sysroot injection and deduplication as the separated spelling.
+  - Sysroot injection is decided by reading the fragment's path instead of
+    remembering whether ${pc_sysrootdir} was expanded, so a path which already
+    lies under the sysroot never acquires a doubled prefix.
+
+* Performance:
+  - The package cache and the fragment deduplication index are kept sorted and
+    searched with bsearch() rather than re-sorted or scanned linearly.
+  - Variable keys and fragment text are stored with the structures they belong
+    to, and buffers are rewound and reused rather than reallocated.
+  - Escaping, fragment rendering and path relocation write into their
+    destination buffer directly.
+  Resolving a graph of roughly forty modules is about six times faster than
+  3.0.4, and a small graph such as gio-2.0 about twice as fast.
+
+* Build and portability fixes:
+  - Fix the pkgconf-lite build, which failed to link because the dependency list
+    renderer had come to depend on tracing machinery that pkgconf-lite omits.
+  - Fix the test runner failing to build on MinGW, where the mkdtemp(3) fallback
+    was compiled only for MSVC builds.
+    See https://github.com/pkgconf/pkgconf/issues/582.
+  - The meson build now defines HAVE_DECL_READLINKAT, so readlinkat(2) is used
+    where it is available instead of always falling back to readlink(2).
+  The MinGW and readlinkat fixes are by moi15moi.
+
+* New libpkgconf API additions:
+  - pkgconf_argv_split_raw: splits a string into an argument vector like
+    pkgconf_argv_split, but leaves the quoting it reads in place.
+  - pkgconf_fragment_filter_splice: like pkgconf_fragment_filter, but moves the
+    matching fragments to the destination list instead of copying them.
+  - pkgconf_charset_from_spans: compiles a span list into a byte set.
+  - pkgconf_buffer_escape_charset: escapes a buffer against such a byte set.
+  - pkgconf_buffer_rewind: empties a buffer while keeping its allocation.
+  - pkgconf_list_splice: moves the contents of one list onto the end of another.
+
+Changes from 3.0.3 to 3.0.4:
+----------------------------
+
+* Fix a crash (stack overflow) triggered by a crafted .pc file containing a
+  self-referential fragment variable, such as `x=$${x}` referenced from Cflags.
+  Fragment variables are now evaluated only once while re-splitting.  Found
+  through fuzzing.
+
+* Fix over-escaping of variable values containing backslash-escaped whitespace,
+  such as paths quoted with `printf %q`.  Such a value was stored with its
+  escapes intact and then escaped a second time when rendered into a fragment,
+  producing output like `-L/a\\\ dir`.  This broke meson's test suite, which
+  uses paths with spaces to stay Windows-safe.
+
+* Fix mangled and duplicated -L/-I paths on Windows when PKG_CONFIG_SYSROOT_DIR
+  and PKG_CONFIG_LIBDIR are set.  Path separators are now normalized to forward
+  slashes for all runtime-injected paths (sysroot, build root, search paths and
+  pcfiledir), so that sysroot matching and injection operate on a consistent
+  basis.
+
+* Fix `--define-prefix` dropping a path separator when the redefined prefix ends
+  with a trailing slash, and only rewrite a package's directories when they match
+  the original prefix on a path component boundary.
+
+* Fix single-package queries returning results drawn from more than the requested
+  module, by restoring the package limit that was lost during a refactor of the
+  query builder.
+
+Changes from 3.0.2 to 3.0.3:
+----------------------------
+
+* Restore correct handling of sysroots when emulating legacy pkg-config, and
+  add explicit regression tests for this case.
+
+* Fix references to bomtool in spdxtool --help.
+  Patch by Pierre Pronchery.
+
+* Fix various typos in the source code.
+  Patch by Christian Clauss.
+
+Changes from 3.0.1 to 3.0.2:
+----------------------------
+
+* Fix build on systems where readlinkat(2) is missing, such as Illumos when
+  built without appropriate CFLAGS.
+
+* Fix detection of readlinkat(2) on systems where it is gated behind
+  _ATFILE_SOURCE, such as on certain builds of Illumos.
+
+Changes from 3.0.0 to 3.0.1:
+----------------------------
+
+* Various Meson-related fixes and improvements.
+  Patches by Benjamin Gilbert.
+
 Changes from 2.5.1 to 3.0.0:
 ----------------------------
 
@@ -38,13 +218,21 @@ Changes from 2.5.1 to 3.0.0:
     PackageDownloadLocation is derived from the Source tag, and SPDX 2.3 package
     names are used.  Patches by Stéphane Rochoy and Tuukka Pasanen.
 
+* New pccritic(1) utility which scores the quality of pc(5) files.  Each module
+  or .pc file is graded from A to F based on findings across several categories:
+  required and recommended metadata, version sanity, relocatability of libdir
+  and includedir, Cflags and Libs hygiene, the Requires relationship, the NTIA
+  SBOM minimum elements, and file-formatting style.  Supports --quiet for a
+  one-line score per target, --min-score for use as a CI gate, and colorized
+  output.
+
 * New test and I/O framework.
   - kyua is no longer required to run tests.
   - Declarative configuration for integration tests, C unit tests for functional tests.
   - Tests now run on Windows.
   - .pc and personality files are now opened in binary mode, and the line reader
-    was reworked to correctly handle CRLF line endings and to avoid getc/ungetc
-    for better performance.  Binary-mode handling by moi15moi.
+    was reworked to correctly handle LF, CRLF and lone-CR line endings, including
+    on non-seekable streams.  Binary-mode handling by moi15moi.
   Major contributions by Elizabeth Ashford.
 
 * New pc(5) features:
@@ -89,8 +277,17 @@ Changes from 2.5.1 to 3.0.0:
   - Variable substitution is now guarded against denial-of-service inputs,
     including billion-laughs style expansion and excessively complex bytecode
     programs.
+  - Dependency traversal is now limited to 256 levels by default to prevent
+    stack exhaustion from excessively deep graphs.  A depth of -1 explicitly
+    enables unlimited traversal.
+  - Bytecode validation now uses overflow-safe bounds checks and rejects
+    truncated, oversized and otherwise malformed programs.
+  - Dynamic buffers now reject overlapping source and destination storage and
+    guard allocation-size arithmetic against overflow.
   - LLVM libFuzzer targets were added for the pc(5) parser and the solver, and
     the numerous out-of-memory and crash paths they surfaced were hardened.
+  - Allocation failures are now propagated through parsing, rendering, output
+    and SBOM generation instead of silently producing partial results.
   - Dropped use of strlcpy, strlcat and other silently truncating string
     functions.
 
@@ -110,6 +307,11 @@ Changes from 2.5.1 to 3.0.0:
     WantDefaultStatic.
   - The vestigial --relocate=path option, which existed only for the old test
     suite, has been removed.
+  - pccritic --min-score now strictly accepts integer values from 0 through 100.
+
+* Build system changes:
+  - The meson build gained a with-pkg-config-dir option to override the default
+    package search path, matching the autotools --with-pkg-config-dir option.
 
 * pkg.m4 changes:
   - PKG_WITH_MODULES now properly quotes its action arguments (serial 16).
@@ -145,8 +347,9 @@ Changes from 2.5.1 to 3.0.0:
   - SPDX license expressions in the License field are now properly parsed and
     validated.  Patches by Tuukka Pasanen.
 
-* The libpkgconf API and ABI were substantially reworked, breaking ABI
-  compatibility.  The libpkgconf soversion is now 8.
+* The libpkgconf API and ABI were substantially reworked, breaking both API and
+  ABI compatibility.  Consumers will need source changes as well as a rebuild.
+  The libpkgconf soversion is now 8.
   - An abstract pkgconf_buffer_t type is now used throughout libpkgconf in place
     of fixed-size stack buffers, removing a class of truncation bugs.
   - A new pkgconf_output API abstracts all output, allowing the output stream to
@@ -155,9 +358,22 @@ Changes from 2.5.1 to 3.0.0:
   - The pkgconf_tuple_parse API has been removed; variables are now evaluated
     via pkgconf_variable_eval (backed by the new bytecode engine).
   - The fragment rendering API was reworked around pkgconf_buffer_t, and the old
-    pkgconf_fragment_render API has been removed.
+    pkgconf_fragment_render API has been removed.  Fragment renderer callbacks
+    and pkgconf_fragment_render_buf now return bool so allocation and rendering
+    failures can be reported.
+  - pkgconf_license_render now returns bool so allocation failures can be
+    reported.
   - The package copyright field was migrated to a bufferset.
   - Environment variable lookups can now be mocked via pkgconf_client_getenv.
+  - Client construction gained an options-based API: pkgconf_client_init_with_options
+    and pkgconf_client_new_with_options accept a pkgconf_client_options_t struct, with
+    the original pkgconf_client_init and pkgconf_client_new retained as wrappers.  The
+    unveil handler may now be supplied directly as a client option.
+  - New pkgconf_variable_eval_name API, which evaluates a named variable and
+    applies sysroot fixups to the result.
+  - The pkgconf_pkg_traverse_func_t callback gained a trailing iter_flags
+    argument carrying per-traversal state (PKGCONF_PKG_ITERF_*), replacing the
+    removed PKGCONF_PKG_PKGF_ITER_PKG_IS_PRIVATE client flag.
 
 Changes from 2.5.0 to 2.5.1:
 ----------------------------
@@ -374,7 +590,7 @@ Changes from 2.0.0 to 2.0.1:
 
   The order of --modversion output is based on the dependency resolution
   queue which is passed to the solver, which itself generally maps to the
-  order of the constrants provided on the command line.
+  order of the constraints provided on the command line.
 
 * A new flag, --verbose, has been added.  When used with `--modversion`, it
   is possible to disambiguate which version belongs to which module:

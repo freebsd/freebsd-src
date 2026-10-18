@@ -1,4 +1,11 @@
 option(
+  'with-pkg-config-dir',
+  type: 'string',
+  value: '',
+  description: 'Specify the default package search path (default {prefix}/{libdir}/pkgconfig:{prefix}/{datadir}/pkgconfig)'
+)
+
+option(
   'with-system-libdir',
   type: 'string',
   value: '',

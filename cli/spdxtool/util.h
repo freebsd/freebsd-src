@@ -28,13 +28,22 @@ typedef struct spdxtool_core_agent_
 	char *name;
 } spdxtool_core_agent_t;
 
+typedef struct spdxtool_core_tool_
+{
+	char *spdx_id;
+	const char *type;
+	char *creation_info;
+	char *name;
+} spdxtool_core_tool_t;
+
 typedef struct spdxtool_core_creation_info_
 {
 	char *id;
 	const char *type;
 	char *created;
 	char *created_by;
-	const char *created_using;
+	char *create_using;
+	char *created_using;
 	char *spec_version;
 } spdxtool_core_creation_info_t;
 

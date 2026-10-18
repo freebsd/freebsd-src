@@ -1,0 +1,6 @@
+prefix=/usr
+Cflags: -I${pc_sysrootdir}/a -I/b
+
+Name: sysroot-inject-mixed
+Description: test fixture
+Version: 1.0.0

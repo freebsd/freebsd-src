@@ -73,7 +73,7 @@ pkgconf_tuple_find_global(pkgconf_client_t *client, const char *key)
 
 	v = pkgconf_variable_find(&client->global_vars, key);
 
-	pkgconf_buffer_reset(&client->_scratch_buffer);
+	pkgconf_buffer_rewind(&client->_scratch_buffer);
 	(void) pkgconf_variable_eval(client, &client->global_vars, v, &client->_scratch_buffer, &saw_sysroot);
 
 	return pkgconf_buffer_str_or_empty(&client->_scratch_buffer);
@@ -195,28 +195,42 @@ pkgconf_tuple_add(const pkgconf_client_t *client, pkgconf_list_t *list, const ch
 		return NULL;
 	}
 
-	v->flags = flags;
-
 	if (!parse)
 	{
-		pkgconf_buffer_reset(&v->bcbuf);
-		pkgconf_bytecode_emit_text(&v->bcbuf, dequote_value, strlen(dequote_value));
-		pkgconf_bytecode_from_buffer(&v->bc, &v->bcbuf);
+		if (!pkgconf_bytecode_emit_text(&rhs_bcbuf, dequote_value, strlen(dequote_value)))
+		{
+			pkgconf_buffer_finalize(&rhs_bcbuf);
+			free(dequote_value);
+			return NULL;
+		}
+
 		free(dequote_value);
-		return (pkgconf_tuple_t *) v;
+	}
+	else
+	{
+		if (!pkgconf_bytecode_compile(&rhs_bcbuf, dequote_value))
+		{
+			pkgconf_buffer_finalize(&rhs_bcbuf);
+			free(dequote_value);
+			return NULL;
+		}
+
+		free(dequote_value);
 	}
 
-	pkgconf_bytecode_compile(&rhs_bcbuf, dequote_value);
-	free(dequote_value);
-
 	/* ugh, we are doing var=${var}/foo stuff */
-	if (pkgconf_bytecode_references_var(&rhs_bcbuf, key))
+	if (parse && pkgconf_bytecode_references_var(&rhs_bcbuf, key))
 	{
 		pkgconf_buffer_t old_bcbuf = PKGCONF_BUFFER_INITIALIZER;
 		pkgconf_buffer_t new_bcbuf = PKGCONF_BUFFER_INITIALIZER;
 
 		/* preserve the old bytecode */
-		pkgconf_buffer_copy(&v->bcbuf, &old_bcbuf);
+		if (!pkgconf_buffer_copy(&v->bcbuf, &old_bcbuf))
+		{
+			pkgconf_buffer_finalize(&old_bcbuf);
+			pkgconf_buffer_finalize(&rhs_bcbuf);
+			return NULL;
+		}
 
 		/* splice the selfrefs, using the old bytecode instead of ${var} */
 		if (!pkgconf_bytecode_rewrite_selfrefs(&new_bcbuf, &rhs_bcbuf, key, &old_bcbuf))
@@ -229,15 +243,22 @@ pkgconf_tuple_add(const pkgconf_client_t *client, pkgconf_list_t *list, const ch
 		}
 
 		/* copy the spliced bytecode back to &rhs_bcbuf, replacing its contents */
-		pkgconf_buffer_copy(&new_bcbuf, &rhs_bcbuf);
+		if (!pkgconf_buffer_copy(&new_bcbuf, &rhs_bcbuf))
+		{
+			pkgconf_buffer_finalize(&old_bcbuf);
+			pkgconf_buffer_finalize(&new_bcbuf);
+			pkgconf_buffer_finalize(&rhs_bcbuf);
+			return NULL;
+		}
 
 		pkgconf_buffer_finalize(&old_bcbuf);
 		pkgconf_buffer_finalize(&new_bcbuf);
 	}
 
-	pkgconf_buffer_copy(&rhs_bcbuf, &v->bcbuf);
+	pkgconf_buffer_finalize(&v->bcbuf);
+	v->bcbuf = rhs_bcbuf;
+	v->flags = flags;
 	pkgconf_bytecode_from_buffer(&v->bc, &v->bcbuf);
-	pkgconf_buffer_finalize(&rhs_bcbuf);
 
 	return (pkgconf_tuple_t *) v;
 }
@@ -267,7 +288,7 @@ pkgconf_tuple_find(pkgconf_client_t *client, pkgconf_list_t *list, const char *k
 	if (v == NULL)
 		v = pkgconf_variable_find(&client->global_vars, key);
 
-	pkgconf_buffer_reset(&client->_scratch_buffer);
+	pkgconf_buffer_rewind(&client->_scratch_buffer);
 
 	(void) pkgconf_variable_eval(client, list, v, &client->_scratch_buffer, NULL);
 

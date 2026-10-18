@@ -25,7 +25,9 @@
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 
-/* bound the number of injection rounds per input to keep executions cheap */
+/* Bound the allocation site selected for fault injection.  Exhaustively
+ * replaying every allocation for every libFuzzer input makes this relatively
+ * expensive solve-and-serialize target prohibitively slow. */
 #define ALLOC_FAIL_MAX 4096
 
 /* the fuzzer input is split on NUL bytes into up to this many .pc files, named
@@ -36,6 +38,20 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 #define SOLVE_MAXDEPTH 10
 
 static const char universe_names[UNIVERSE_MAX] = { 'a', 'b', 'c', 'd' };
+
+static unsigned long
+allocation_failure_for_input(const uint8_t *data, size_t size)
+{
+	uint32_t hash = UINT32_C(2166136261);
+
+	for (size_t i = 0; i < size; i++)
+	{
+		hash ^= data[i];
+		hash *= UINT32_C(16777619);
+	}
+
+	return (unsigned long)(hash % ALLOC_FAIL_MAX) + 1;
+}
 
 static const char *
 environ_lookup_handler(const pkgconf_client_t *client, const char *key)
@@ -181,16 +197,11 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	/* baseline run with all allocations succeeding */
 	run_spdx(pers, dir, out);
 
-	/* then fail each allocation site reachable by this input, one at a time */
-	for (unsigned long i = 1; i <= ALLOC_FAIL_MAX; i++)
-	{
-		alloc_inject_arm(i);
-		run_spdx(pers, dir, out);
-		alloc_inject_disarm();
-
-		if (!alloc_inject_fired())
-			break;
-	}
+	/* Exercise one deterministic allocation failure per input.  Mutations vary
+	 * the selected site, while keeping the per-input cost constant. */
+	alloc_inject_arm(allocation_failure_for_input(data, size));
+	run_spdx(pers, dir, out);
+	alloc_inject_disarm();
 
 	pkgconf_cross_personality_deinit(pers);
 	fclose(out);

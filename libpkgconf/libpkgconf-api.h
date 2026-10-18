@@ -12,6 +12,12 @@
 # else
 #  define PKGCONF_API __declspec(dllimport)
 # endif
+#elif defined(__OS2__)
+# if defined(LIBPKGCONF_EXPORT) || defined(DLL_EXPORT)
+#  define PKGCONF_API __declspec(dllexport)
+# else
+#  define PKGCONF_API
+# endif
 #else
 # define PKGCONF_API __attribute__((visibility("default")))
 #endif

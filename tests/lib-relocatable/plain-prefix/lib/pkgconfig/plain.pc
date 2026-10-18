@@ -1,0 +1,6 @@
+prefix=/nonexistent/plain
+includedir=/nonexistent/plain/include
+
+Name: plain
+Description: prefix without a trailing separator still relocates correctly
+Version: 1

@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: spaces-in-paths
+WantedFlags: cflags
+ExpectedStdout: -I/test\ with\ spaces/include -I/test\ with\ spaces/include/subdir

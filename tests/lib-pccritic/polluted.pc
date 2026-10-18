@@ -1,0 +1,14 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: polluted
+Description: A package whose Cflags pollute consumer builds
+Version: 1.0.0
+URL: https://example.org/polluted
+Maintainer: Example Maintainer <maint@example.org>
+Source: https://example.org/polluted-1.0.0.tar.gz
+License: ISC
+Cflags: -I${includedir} -O2 -g
+Libs: -L${libdir} -lpolluted

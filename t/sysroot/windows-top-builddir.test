@@ -1,0 +1,6 @@
+SkipPlatforms: unix haiku lite
+Environment: PKG_CONFIG_TOP_BUILD_DIR=C:\build\dir
+PackageSearchPath: lib1
+Query: windows-top-builddir
+WantedFlags: libs
+ExpectedStdout: -LC:/build/dir/lib -ltbd

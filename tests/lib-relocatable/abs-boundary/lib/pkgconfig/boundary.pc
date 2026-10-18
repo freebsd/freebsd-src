@@ -1,0 +1,7 @@
+prefix=/nonexistent/hardcoded/
+includedir=/nonexistent/hardcoded/include
+siblingdir=/nonexistent/hardcodedX
+
+Name: boundary
+Description: trailing separator in prefix must still require a component boundary
+Version: 1

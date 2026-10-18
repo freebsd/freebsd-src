@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: fragment-escaped-space-var
+WantedFlags: libs
+ExpectedStdout: -L/test/a\ dir/b\ dir -la

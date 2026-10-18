@@ -1,11 +1,5 @@
 /* libpkgconf/config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define to 1 if you have the `strlcat' function. */
-#mesondefine HAVE_STRLCAT
-
-/* Define to 1 if you have the `strlcpy' function. */
-#mesondefine HAVE_STRLCPY
-
 /* Define to 1 if you have the `strndup' function. */
 #mesondefine HAVE_STRNDUP
 
@@ -24,11 +18,17 @@
 /* Define to 1 if you have the `unveil' function. */
 #mesondefine HAVE_DECL_UNVEIL
 
+/* Define to 1 if you have the `readlinkat' function. */
+#mesondefine HAVE_DECL_READLINKAT
+
+/* Define to 1 if you have the `mkdtemp' function. */
+#mesondefine HAVE_DECL_MKDTEMP
+
+/* Define to 1 if you have the `getc_unlocked' function. */
+#mesondefine HAVE_DECL_GETC_UNLOCKED
+
 /* Define to 1 if you have the `nl_langinfo_l' function. */
 #mesondefine HAVE_DECL_NL_LANGINFO_L
-
-/* Name of package */
-#mesondefine PACKAGE
 
 /* Define to the address where bug reports for this package should be sent. */
 #mesondefine PACKAGE_BUGREPORT
@@ -36,23 +36,11 @@
 /* Define to the full name of this package. */
 #mesondefine PACKAGE_NAME
 
-/* Define to the full name and version of this package. */
-#mesondefine PACKAGE_STRING
-
 /* Define to the one symbol short name of this package. */
 #mesondefine PACKAGE_TARNAME
 
-/* Define to the home page for this package. */
-#mesondefine PACKAGE_URL
-
 /* Define to the version of this package. */
 #mesondefine PACKAGE_VERSION
-
-/* Define to 1 if you have the ANSI C header files. */
-#mesondefine STDC_HEADERS
-
-/* Version number of package */
-#mesondefine VERSION
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE
