@@ -39,8 +39,10 @@
 #include <sys/limits.h>
 
 #include <machine/altivec.h>
+#include <machine/cpufunc.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
+#include <machine/spr.h>
 
 static void
 save_vec_int(struct thread *td)
@@ -80,6 +82,7 @@ save_vec_int(struct thread *td)
 	 */
 	__asm __volatile("mfvscr 0; vspltw 0,0,3; stvewx 0,0,%0"
 	    :: "b"(&pcb->pcb_vec.vscr));
+	pcb->pcb_vec.vrsave = mfspr(SPR_VRSAVE);
 
 	/*
 	 * Disable vector unit again
@@ -125,6 +128,8 @@ enable_vec(struct thread *td)
 	 */
 	msr = mfmsr();
 	mtmsr(msr | PSL_VEC);
+
+	mtspr(SPR_VRSAVE, pcb->pcb_vec.vrsave);
 
 	/*
 	 * Restore VSCR by first loading it into a vector and then into VSCR.
