@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=/sysroot
+PackageSearchPath: lib1
+Query: sysroot-inject-mixed
+WantedFlags: cflags
+ExpectedStdout: -I/sysroot/a -I/sysroot/b

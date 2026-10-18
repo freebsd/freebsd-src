@@ -8,11 +8,20 @@
             "name": "Default"
         },
         {
+            "type": "Tool",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Tool/spdxtool",
+            "name": "spdxtool"
+        },
+        {
             "type": "CreationInfo",
             "@id": "_:creationinfo_1",
             "created": "test",
             "createdBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "createUsing": [
+                "https://github.com/pkgconf/pkgconf/Tool/spdxtool"
             ],
             "specVersion": "3.0.1"
         },
@@ -73,9 +82,7 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
-            "suppliedBy": [
-                "https://github.com/pkgconf/pkgconf/Agent/privparent_maintainer"
-            ],
+            "suppliedBy": "https://github.com/pkgconf/pkgconf/Agent/privparent_maintainer",
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://example.com/priv-parent",
             "software_downloadLocation": "",
@@ -89,9 +96,7 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
-            "suppliedBy": [
-                "https://github.com/pkgconf/pkgconf/Agent/privchild_maintainer"
-            ],
+            "suppliedBy": "https://github.com/pkgconf/pkgconf/Agent/privchild_maintainer",
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://example.com/priv-child",
             "software_downloadLocation": "",

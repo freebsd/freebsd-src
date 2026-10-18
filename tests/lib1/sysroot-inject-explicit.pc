@@ -1,0 +1,7 @@
+prefix=/usr
+Cflags: -I${pc_sysrootdir}/opt/x
+Libs: -L${pc_sysrootdir}/opt/lib -lx
+
+Name: sysroot-inject-explicit
+Description: test fixture
+Version: 1.0.0

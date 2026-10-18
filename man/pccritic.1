@@ -1,0 +1,138 @@
+.\" Copyright (c) 2026 pkgconf authors (see AUTHORS).
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" This software is provided 'as is' and without any warranty, express or
+.\" implied.  In no event shall the authors be liable for any damages arising
+.\" from the use of this software.
+.Dd June 28, 2026
+.Dt PCCRITIC 1
+.Os
+.Sh NAME
+.Nm pccritic
+.Nd a quality scorer for pkg-config files
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Ar module-or-file ...
+.Sh DESCRIPTION
+.Nm
+inspects
+.Xr pc 5
+files and reports quality findings, assigning each file a score from 0 to 100
+and a letter grade from A to F.
+It is intended both as an interactive aid for package authors and as a check
+that can be run in continuous integration.
+.Pp
+Each command-line argument is treated as a target.
+If an argument contains a slash or ends in
+.Pa .pc
+it is interpreted as a path to a file; otherwise it is resolved as a module
+name from the search path, exactly as
+.Xr pkgconf 1
+would resolve it.
+A file that
+.Xr pkgconf 1
+refuses to load because it omits a required field is still scanned directly so
+that the most broken files can be scored.
+.Pp
+Findings are classified by severity.
+The score begins at 100 and each finding subtracts a fixed penalty: 25 for a
+.Em critical
+finding, 10 for a
+.Em major
+finding, 4 for a
+.Em minor
+finding, and 1 for an
+.Em info
+finding.
+The result is clamped to the range 0 to 100.
+Grades are assigned as A for 90 and above, B for 80, C for 70, D for 60, and F
+below 60.
+.Pp
+The checks cover required and recommended metadata, version sanity,
+relocatability of the
+.Ic libdir
+and
+.Ic includedir
+variables, hygiene of the
+.Ic Cflags
+and
+.Ic Libs
+fields, the
+.Ic Requires
+and
+.Ic Requires.private
+relationship, and basic file-formatting style.
+.Pp
+The
+.Ar options
+are as follows:
+.Bl -tag -width indent
+.It Fl -about
+Print the version number, the Copyright notice, and the license of the
+.Nm
+program to standard output and exit.
+.It Fl -version
+Print the version number of the
+.Nm
+program to standard output and exit.
+.It Fl -help
+Print a short usage summary to standard output and exit.
+.It Fl -quiet
+Print only the score and grade for each target, one per line, instead of the
+full list of findings.
+.It Fl -min-score Ar n
+Exit with a non-zero status if any target scores below
+.Ar n .
+This is useful for failing a continuous-integration job when a file's quality
+regresses below a threshold.
+.It Fl -color Ns Op = Ns Ar when
+Control colorized output.
+.Ar when
+may be
+.Cm auto
+(the default),
+.Cm always ,
+or
+.Cm never .
+When
+.Cm auto ,
+color is enabled only when standard output is a terminal and the
+.Ev NO_COLOR
+environment variable is not set.
+Giving
+.Fl -color
+without a value is equivalent to
+.Cm always .
+.It Fl -define-variable Ns = Ns Ar varname Ns = Ns Ar value
+Define
+.Ar varname
+as
+.Ar value .
+This affects how variables in the inspected file are expanded.
+.El
+.Sh EXIT STATUS
+.Nm
+exits 0 on success.
+It exits non-zero if a target could not be loaded, if the command line is
+invalid, or if
+.Fl -min-score
+was given and a target scored below the threshold.
+.Sh EXAMPLES
+Score an installed module by name:
+.Pp
+.Dl $ pccritic zlib
+.Pp
+Score a file before installation and fail if it grades below a C:
+.Pp
+.Dl $ pccritic --min-score 70 ./mylib.pc
+.Pp
+Summarize every file in a directory:
+.Pp
+.Dl $ pccritic --quiet /usr/lib/pkgconfig/*.pc
+.Sh SEE ALSO
+.Xr pkgconf 1 ,
+.Xr pc 5

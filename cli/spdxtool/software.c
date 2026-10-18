@@ -16,6 +16,25 @@
 #include "software.h"
 #include "core.h"
 
+static char *
+relationship_spdx_id(pkgconf_client_t *client, const char *from, const char *to, char sep)
+{
+	pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
+	char *spdx_id = NULL;
+
+	if (!pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", from, sep, sep, to))
+		goto out;
+
+	if (pkgconf_buffer_len(&relationship_buf) == 0)
+		goto out;
+
+	spdx_id = spdxtool_util_get_spdx_id_string(client, "Relationship", pkgconf_buffer_str(&relationship_buf));
+
+out:
+	pkgconf_buffer_finalize(&relationship_buf);
+	return spdx_id;
+}
+
 /*
  * !doc
  *
@@ -26,7 +45,7 @@
  *    :param pkgconf_client_t *client: The pkgconf client being accessed.
  *    :param const char *spdx_id: spdxId for this SBOM element
  *    :param const char *creation_id: id for CreationInfo
- *    :param const char *sbom_type: Sbom types can be found SPDX documention
+ *    :param const char *sbom_type: Sbom types can be found SPDX documentation
  *    :return: NULL if some problem occurs and Sbom struct if not
  */
 spdxtool_software_sbom_t *
@@ -135,19 +154,12 @@ spdxtool_software_sbom_to_object(pkgconf_client_t *client, spdxtool_software_sbo
 	{
 		pkgconf_dependency_t *dep = node->data;
 		pkgconf_pkg_t *match = dep->match;
-		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
 
 		/* an unresolved (but tolerated) dependency has no match */
 		if (match == NULL)
 			continue;
 
-		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", sbom->rootElement->id, sep, sep, match->id);
-		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
-		if (!relationship_str)
-			goto err;
-
-		char *spdx_id_relation = spdxtool_util_get_spdx_id_string(client, "Relationship", relationship_str);
-		free(relationship_str);
+		char *spdx_id_relation = relationship_spdx_id(client, sbom->rootElement->id, match->id, sep);
 		if (!spdx_id_relation)
 			goto err;
 
@@ -170,19 +182,12 @@ spdxtool_software_sbom_to_object(pkgconf_client_t *client, spdxtool_software_sbo
 	{
 		pkgconf_dependency_t *dep = node->data;
 		pkgconf_pkg_t *match = dep->match;
-		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
 
 		/* an unresolved (but tolerated) dependency has no match */
 		if (match == NULL)
 			continue;
 
-		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", sbom->rootElement->id, sep, sep, match->id);
-		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
-		if (!relationship_str)
-			goto err;
-
-		char *spdx_id_relation = spdxtool_util_get_spdx_id_string(client, "Relationship", relationship_str);
-		free(relationship_str);
+		char *spdx_id_relation = relationship_spdx_id(client, sbom->rootElement->id, match->id, sep);
 		if (!spdx_id_relation)
 			goto err;
 
@@ -293,7 +298,11 @@ serialize_copyright_lines_to_object(spdxtool_serialize_object_list_t *object_lis
 	PKGCONF_FOREACH_LIST_ENTRY(copyright_lines->head, node)
 	{
 		const pkgconf_bufferset_t *set = node->data;
-		pkgconf_buffer_join(&copyright_buf, '\n', pkgconf_buffer_str_or_empty(&set->buffer), NULL);
+		if (!pkgconf_buffer_join(&copyright_buf, '\n', pkgconf_buffer_str_or_empty(&set->buffer), NULL))
+		{
+			pkgconf_buffer_finalize(&copyright_buf);
+			return false;
+		}
 	}
 
 	bool ok = spdxtool_serialize_object_add_string(object_list, "software_copyrightText", pkgconf_buffer_str_or_empty(&copyright_buf)) != NULL;
@@ -321,7 +330,6 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 	spdxtool_serialize_value_t *ret = NULL;
 	spdxtool_serialize_object_list_t *object_list = NULL;
 	spdxtool_serialize_array_t *originated_by = NULL;
-	spdxtool_serialize_array_t *supplied_by = NULL;
 	char *creation_info = NULL;
 	char *spdx_id = NULL;
 	char *agent = NULL;
@@ -368,20 +376,8 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 		goto err;
 
 	supplier = spdxtool_util_tuple_lookup(client, &pkg->vars, "suppliedBy");
-	if (supplier)
-	{
-		supplied_by = spdxtool_serialize_array_new();
-		if (!supplied_by)
-			goto err;
-
-		if (!spdxtool_serialize_array_add_string(supplied_by, supplier))
-			goto err;
-
-		ok = spdxtool_serialize_object_add_array(object_list, "suppliedBy", supplied_by);
-		supplied_by = NULL;
-		if (!ok)
-			goto err;
-	}
+	if (supplier && !spdxtool_serialize_object_add_string(object_list, "suppliedBy", supplier))
+		goto err;
 
 	if (!serialize_copyright_lines_to_object(object_list, &pkg->copyright))
 		goto err;
@@ -410,7 +406,8 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 			if (!spdx_id_license)
 				goto err;
 
-			pkgconf_license_insert(client, &relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_license);
+			if (!pkgconf_license_insert(client, &relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_license))
+				goto err;
 			free(spdx_id_license);
 			spdx_id_license = NULL;
 		}
@@ -426,14 +423,21 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 			goto err;
 		}
 
-		pkgconf_license_copy_list(client, cpy_relations, &relations);
+		if (!pkgconf_license_copy_list(client, cpy_relations, &relations))
+		{
+			free(tuple_license);
+			goto err;
+		}
 		spdxtool_core_relationship_t *relationship = spdxtool_core_relationship_new(client, creation_info, tuple_license, spdx_id, cpy_relations, "hasDeclaredLicense");
 		free(tuple_license);
 		if (!relationship)
 			goto err;
-		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
-			goto err;
 		cpy_relations = NULL;
+		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
+		{
+			spdxtool_core_relationship_free(relationship);
+			goto err;
+		}
 	}
 
 	tuple_license = spdxtool_util_tuple_lookup(client, &pkg->vars, "hasConcludedLicense");
@@ -446,14 +450,21 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 			goto err;
 		}
 
-		pkgconf_license_copy_list(client, cpy_relations, &relations);
+		if (!pkgconf_license_copy_list(client, cpy_relations, &relations))
+		{
+			free(tuple_license);
+			goto err;
+		}
 		spdxtool_core_relationship_t *relationship = spdxtool_core_relationship_new(client, creation_info, tuple_license, spdx_id, cpy_relations, "hasConcludedLicense");
 		free(tuple_license);
 		if (!relationship)
 			goto err;
-		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
-			goto err;
 		cpy_relations = NULL;
+		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
+		{
+			spdxtool_core_relationship_free(relationship);
+			goto err;
+		}
 	}
 	pkgconf_license_free(&relations);
 
@@ -461,19 +472,12 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 	{
 		pkgconf_dependency_t *dep = node->data;
 		pkgconf_pkg_t *match = dep->match;
-		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
 
 		/* an unresolved (but tolerated) dependency has no match */
 		if (match == NULL)
 			continue;
 
-		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", pkg->id, sep, sep, match->id);
-		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
-		if (!relationship_str)
-			goto err;
-
-		char *spdx_id_relation = spdxtool_util_get_spdx_id_string(client, "Relationship", relationship_str);
-		free(relationship_str);
+		char *spdx_id_relation = relationship_spdx_id(client, pkg->id, match->id, sep);
 		if (!spdx_id_relation)
 			goto err;
 
@@ -492,34 +496,35 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 			goto err;
 		}
 
-		pkgconf_license_insert(client, cpy_relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_package);
+		if (!pkgconf_license_insert(client, cpy_relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_package))
+		{
+			free(spdx_id_relation);
+			free(spdx_id_package);
+			goto err;
+		}
 		spdxtool_core_relationship_t *relationship = spdxtool_core_relationship_new(client, creation_info, spdx_id_relation, spdx_id, cpy_relations, "dependsOn");
 		free(spdx_id_relation);
 		free(spdx_id_package);
 		if (!relationship)
 			goto err;
-		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
-			goto err;
 		cpy_relations = NULL;
+		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
+		{
+			spdxtool_core_relationship_free(relationship);
+			goto err;
+		}
 	}
 
 	PKGCONF_FOREACH_LIST_ENTRY(pkg->requires_private.head, node)
 	{
 		pkgconf_dependency_t *dep = node->data;
 		pkgconf_pkg_t *match = dep->match;
-		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
 
 		/* an unresolved (but tolerated) dependency has no match */
 		if (match == NULL)
 			continue;
 
-		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", pkg->id, sep, sep, match->id);
-		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
-		if (!relationship_str)
-			goto err;
-
-		char *spdx_id_relation = spdxtool_util_get_spdx_id_string(client, "Relationship", relationship_str);
-		free(relationship_str);
+		char *spdx_id_relation = relationship_spdx_id(client, pkg->id, match->id, sep);
 		if (!spdx_id_relation)
 			goto err;
 
@@ -538,7 +543,12 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 			goto err;
 		}
 
-		pkgconf_license_insert(client, cpy_relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_package);
+		if (!pkgconf_license_insert(client, cpy_relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_package))
+		{
+			free(spdx_id_relation);
+			free(spdx_id_package);
+			goto err;
+		}
 		spdxtool_core_relationship_t *relationship = spdxtool_core_relationship_new(client, creation_info, spdx_id_relation, spdx_id, cpy_relations, "dependsOn");
 		free(spdx_id_relation);
 		free(spdx_id_package);
@@ -569,8 +579,13 @@ err:
 	free(agent);
 	free(supplier);
 	free(spdx_id_license);
+	pkgconf_license_free(&relations);
+	if (cpy_relations != NULL)
+	{
+		pkgconf_license_free(cpy_relations);
+		free(cpy_relations);
+	}
 	spdxtool_serialize_object_list_free(object_list);
 	spdxtool_serialize_array_free(originated_by);
-	spdxtool_serialize_array_free(supplied_by);
 	return ret;
 }

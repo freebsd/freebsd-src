@@ -52,11 +52,22 @@ pkgconf_queue_push_dependency(pkgconf_list_t *list, const pkgconf_dependency_t *
 	if (pkgq == NULL)
 		return;
 
-	pkgconf_buffer_append(&depbuf, dep->package);
-	if (dep->version != NULL)
-		pkgconf_buffer_append_fmt(&depbuf, " %s %s", pkgconf_pkg_get_comparator(dep), dep->version);
+	if (!pkgconf_buffer_append(&depbuf, dep->package) ||
+		(dep->version != NULL &&
+		 !pkgconf_buffer_append_fmt(&depbuf, " %s %s", pkgconf_pkg_get_comparator(dep), dep->version)))
+	{
+		pkgconf_buffer_finalize(&depbuf);
+		free(pkgq);
+		return;
+	}
 
 	pkgq->package = pkgconf_buffer_freeze(&depbuf);
+	if (pkgq->package == NULL)
+	{
+		free(pkgq);
+		return;
+	}
+
 	pkgconf_node_insert_tail(&pkgq->iter, pkgq, list);
 }
 
@@ -80,6 +91,12 @@ pkgconf_queue_push(pkgconf_list_t *list, const char *package)
 		return;
 
 	pkgq->package = strdup(package);
+	if (pkgq->package == NULL)
+	{
+		free(pkgq);
+		return;
+	}
+
 	pkgconf_node_insert_tail(&pkgq->iter, pkgq, list);
 }
 
@@ -137,8 +154,10 @@ pkgconf_queue_free(pkgconf_list_t *list)
 }
 
 static void
-pkgconf_queue_mark_public(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *data)
+pkgconf_queue_mark_public(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *data, unsigned int iter_flags)
 {
+	(void) iter_flags;
+
 	if (pkg->flags & PKGCONF_PKG_PROPF_VISITED_PRIVATE)
 	{
 		pkgconf_list_t *list = data;
@@ -161,13 +180,15 @@ static unsigned int
 pkgconf_queue_collect_dependencies_main(pkgconf_client_t *client,
 	pkgconf_pkg_t *root,
 	void *data,
-	int maxdepth);
+	int maxdepth,
+	unsigned int iter_flags);
 
 static inline unsigned int
 pkgconf_queue_collect_dependencies_walk(pkgconf_client_t *client,
 	pkgconf_list_t *deplist,
 	void *data,
-	int depth)
+	int depth,
+	unsigned int iter_flags)
 {
 	unsigned int eflags = PKGCONF_PKG_ERRF_OK;
 	pkgconf_node_t *node;
@@ -191,12 +212,12 @@ pkgconf_queue_collect_dependencies_walk(pkgconf_client_t *client,
 		if (pkg->serial == client->serial)
 			continue;
 
-		if (client->flags & PKGCONF_PKG_PKGF_ITER_PKG_IS_PRIVATE)
+		if (iter_flags & PKGCONF_PKG_ITERF_PRIVATE)
 			pkg->flags |= PKGCONF_PKG_PROPF_VISITED_PRIVATE;
 		else
 			pkg->flags &= ~PKGCONF_PKG_PROPF_VISITED_PRIVATE;
 
-		eflags |= pkgconf_queue_collect_dependencies_main(client, pkg, data, depth - 1);
+		eflags |= pkgconf_queue_collect_dependencies_main(client, pkg, data, depth - 1, iter_flags);
 
 		flattened_dep = pkgconf_dependency_copy(client, dep);
 		if (flattened_dep == NULL)
@@ -215,7 +236,8 @@ static unsigned int
 pkgconf_queue_collect_dependencies_main(pkgconf_client_t *client,
 	pkgconf_pkg_t *root,
 	void *data,
-	int maxdepth)
+	int maxdepth,
+	unsigned int iter_flags)
 {
 	unsigned int eflags = PKGCONF_PKG_ERRF_OK;
 
@@ -233,24 +255,20 @@ pkgconf_queue_collect_dependencies_main(pkgconf_client_t *client,
 	{
 		PKGCONF_TRACE(client, "%s: collecting shared dependencies, level %d", root->id, maxdepth);
 
-		eflags = pkgconf_queue_collect_dependencies_walk(client, &root->requires_shared, data, maxdepth);
+		eflags = pkgconf_queue_collect_dependencies_walk(client, &root->requires_shared, data, maxdepth, iter_flags);
 		if (eflags != PKGCONF_PKG_ERRF_OK)
 			return eflags;
 	}
 
 	PKGCONF_TRACE(client, "%s: collecting private dependencies, level %d", root->id, maxdepth);
 
-	/* XXX: ugly */
-	const unsigned int saved_flags = client->flags;
-	client->flags |= PKGCONF_PKG_PKGF_ITER_PKG_IS_PRIVATE;
-	eflags = pkgconf_queue_collect_dependencies_walk(client, &root->requires_private, data, maxdepth);
-	client->flags = saved_flags;
+	eflags = pkgconf_queue_collect_dependencies_walk(client, &root->requires_private, data, maxdepth, iter_flags | PKGCONF_PKG_ITERF_PRIVATE);
 	if (eflags != PKGCONF_PKG_ERRF_OK)
 		return eflags;
 
 	PKGCONF_TRACE(client, "%s: collecting public dependencies, level %d", root->id, maxdepth);
 
-	eflags = pkgconf_queue_collect_dependencies_walk(client, &root->required, data, maxdepth);
+	eflags = pkgconf_queue_collect_dependencies_walk(client, &root->required, data, maxdepth, iter_flags);
 	if (eflags != PKGCONF_PKG_ERRF_OK)
 		return eflags;
 
@@ -266,7 +284,7 @@ pkgconf_queue_collect_dependencies(pkgconf_client_t *client,
 	int maxdepth)
 {
 	++client->serial;
-	return pkgconf_queue_collect_dependencies_main(client, root, data, maxdepth);
+	return pkgconf_queue_collect_dependencies_main(client, root, data, maxdepth, PKGCONF_PKG_ITERF_NONE);
 }
 
 static inline unsigned int
@@ -306,6 +324,13 @@ pkgconf_queue_collect_conflicts(pkgconf_client_t *client,
 			}
 
 			flattened_conflict->why = strdup(pkg->id);
+			if (flattened_conflict->why == NULL)
+			{
+				eflags |= PKGCONF_PKG_ERRF_DEPGRAPH_BREAK;
+				pkgconf_dependency_unref(client, flattened_conflict);
+				continue;
+			}
+
 			pkgconf_node_insert(&flattened_conflict->iter, flattened_conflict, &world->conflicts);
 		}
 	}

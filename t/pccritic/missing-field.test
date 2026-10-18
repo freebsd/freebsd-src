@@ -1,0 +1,5 @@
+Tool: pccritic
+ToolArgs: --quiet %TEST_FIXTURES_DIR%/lib-pccritic/nodesc.pc
+ExpectedStdout: 75/100 (C)
+MatchStdout: Partial
+ExpectedExitCode: 0

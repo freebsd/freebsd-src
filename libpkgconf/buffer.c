@@ -28,10 +28,69 @@
  * dynamically-allocated buffers.
  */
 
-static inline size_t
-target_allocation_size(size_t target_size)
+/* buffers below BUFFER_LINEAR_GROWTH_MAX increment by 128 bytes each time */
+#define BUFFER_LINEAR_GROWTH_MAX 4096
+
+static inline bool
+target_allocation_size(size_t target_size, size_t *allocation_size)
 {
-	return 128 + (128 * (target_size / 128));
+	if (target_size < BUFFER_LINEAR_GROWTH_MAX)
+	{
+		*allocation_size = target_size + (128 - (target_size % 128));
+		return true;
+	}
+
+	size_t cap = BUFFER_LINEAR_GROWTH_MAX;
+	while (cap <= target_size)
+	{
+		if (cap > SIZE_MAX / 2)
+			return false;
+
+		cap *= 2;
+	}
+
+	*allocation_size = cap;
+	return true;
+}
+
+static inline bool
+buffer_reserve(pkgconf_buffer_t *buffer, size_t content_len)
+{
+	size_t new_cap, old_cap;
+	char *newbase;
+
+	if (!target_allocation_size(content_len, &new_cap))
+		return false;
+
+	if (buffer->base != NULL && target_allocation_size(pkgconf_buffer_len(buffer), &old_cap) && old_cap == new_cap)
+		return true;
+
+	newbase = realloc(buffer->base, new_cap);
+	if (newbase == NULL)
+		return false;
+
+	buffer->base = newbase;
+	return true;
+}
+
+static bool
+buffer_storage_overlaps(const pkgconf_buffer_t *buffer, const void *source, size_t source_size)
+{
+	if (buffer->base == NULL || source == NULL || source_size == 0)
+		return false;
+
+	size_t buffer_size = pkgconf_buffer_len(buffer) + 1;
+	uintptr_t buffer_start = (uintptr_t) buffer->base;
+	uintptr_t source_start = (uintptr_t) source;
+
+	if (buffer_start > UINTPTR_MAX - (buffer_size - 1) ||
+		source_start > UINTPTR_MAX - (source_size - 1))
+		return true;
+
+	uintptr_t buffer_end = buffer_start + buffer_size - 1;
+	uintptr_t source_end = source_start + source_size - 1;
+
+	return buffer_start <= source_end && source_start <= buffer_end;
 }
 
 #if 0
@@ -53,6 +112,7 @@ buffer_debug(pkgconf_buffer_t *buffer)
  * .. c:function:: bool pkgconf_buffer_append(pkgconf_buffer_t *buffer, const char *text)
  *
  *    Append a null-terminated string to the buffer, reallocating as necessary.
+ *    The storage occupied by *text* must not overlap the buffer.
  *
  *    :param pkgconf_buffer_t *buffer: The buffer to append to.
  *    :param char *text: The null-terminated string to append.
@@ -61,20 +121,27 @@ buffer_debug(pkgconf_buffer_t *buffer)
 bool
 pkgconf_buffer_append(pkgconf_buffer_t *buffer, const char *text)
 {
-	size_t needed = strlen(text) + 1;
-	size_t newsize = pkgconf_buffer_len(buffer) + needed;
+	size_t len = pkgconf_buffer_len(buffer);
+	size_t text_len = strlen(text);
 
-	char *newbase = realloc(buffer->base, target_allocation_size(newsize));
-	if (newbase == NULL)
+	if (text_len == SIZE_MAX)
 		return false;
 
-	char *newend = newbase + pkgconf_buffer_len(buffer);
-	memcpy(newend, text, needed);
+	if (buffer_storage_overlaps(buffer, text, text_len + 1))
+		return false;
 
-	buffer->base = newbase;
-	buffer->end = newend + (needed - 1);
+	if (len > SIZE_MAX - text_len)
+		return false;
 
+	size_t new_len = len + text_len;
+	if (!buffer_reserve(buffer, new_len))
+		return false;
+
+	memcpy(buffer->base + len, text, text_len);
+
+	buffer->end = buffer->base + new_len;
 	*buffer->end = '\0';
+
 	return true;
 }
 
@@ -84,6 +151,7 @@ pkgconf_buffer_append(pkgconf_buffer_t *buffer, const char *text)
  * .. c:function:: bool pkgconf_buffer_append_slice(pkgconf_buffer_t *buf, const char *p, size_t n)
  *
  *    Append a slice of *n* bytes to the buffer. Does nothing if *n* is zero.
+ *    The source slice must not overlap the buffer.
  *
  *    :param pkgconf_buffer_t *buf: The buffer to append to.
  *    :param char *p: Pointer to the byte sequence to append.
@@ -93,14 +161,25 @@ pkgconf_buffer_append(pkgconf_buffer_t *buffer, const char *text)
 bool
 pkgconf_buffer_append_slice(pkgconf_buffer_t *buf, const char *p, size_t n)
 {
+	size_t len = pkgconf_buffer_len(buf);
+
 	if (n == 0)
 		return true;
 
-	for (size_t i = 0; i < n; i++)
-	{
-		if (!pkgconf_buffer_push_byte(buf, p[i]))
-			return false;
-	}
+	if (buffer_storage_overlaps(buf, p, n))
+		return false;
+
+	if (len > SIZE_MAX - n)
+		return false;
+
+	size_t new_len = len + n;
+	if (!buffer_reserve(buf, new_len))
+		return false;
+
+	memcpy(buf->base + len, p, n);
+
+	buf->end = buf->base + new_len;
+	*buf->end = '\0';
 
 	return true;
 }
@@ -120,27 +199,32 @@ pkgconf_buffer_append_slice(pkgconf_buffer_t *buf, const char *p, size_t n)
 bool
 pkgconf_buffer_append_vfmt(pkgconf_buffer_t *buffer, const char *fmt, va_list src_va)
 {
+	char stackbuf[256];
 	va_list va;
-	char *buf;
-	size_t needed;
+	int formatted_len;
 
 	va_copy(va, src_va);
-	needed = vsnprintf(NULL, 0, fmt, va) + 1;
+	formatted_len = vsnprintf(stackbuf, sizeof stackbuf, fmt, va);
 	va_end(va);
 
-	buf = malloc(needed);
-	if (buf == NULL)
+	if (formatted_len < 0)
+		return false;
+
+	if ((size_t) formatted_len < sizeof stackbuf)
+		return pkgconf_buffer_append_slice(buffer, stackbuf, (size_t) formatted_len);
+
+	size_t len = pkgconf_buffer_len(buffer);
+
+	if (!buffer_reserve(buffer, len + (size_t) formatted_len))
 		return false;
 
 	va_copy(va, src_va);
-	vsnprintf(buf, needed, fmt, va);
+	vsnprintf(buffer->base + len, (size_t) formatted_len + 1, fmt, va);
 	va_end(va);
 
-	bool ret = pkgconf_buffer_append(buffer, buf);
+	buffer->end = buffer->base + len + (size_t) formatted_len;
 
-	free(buf);
-
-	return ret;
+	return true;
 }
 
 /*
@@ -173,6 +257,7 @@ pkgconf_buffer_append_fmt(pkgconf_buffer_t *buffer, const char *fmt, ...)
  *
  *    Prepend a null-terminated string to the beginning of the buffer.
  *    If *text* is NULL, the buffer contents are unchanged.
+ *    The storage occupied by *text* must not overlap the buffer.
  *
  *    :param pkgconf_buffer_t *buffer: The buffer to prepend to.
  *    :param char *text: The null-terminated string to prepend, or NULL.
@@ -182,6 +267,16 @@ bool
 pkgconf_buffer_prepend(pkgconf_buffer_t *buffer, const char *text)
 {
 	pkgconf_buffer_t tmpbuf = PKGCONF_BUFFER_INITIALIZER;
+	bool ret = true;
+
+	if (text != NULL)
+	{
+		size_t text_len = strlen(text);
+
+		if (text_len == SIZE_MAX ||
+			buffer_storage_overlaps(buffer, text, text_len + 1))
+			return false;
+	}
 
 	if (text != NULL && !pkgconf_buffer_append(&tmpbuf, text))
 		return false;
@@ -193,11 +288,11 @@ pkgconf_buffer_prepend(pkgconf_buffer_t *buffer, const char *text)
 	}
 
 	if (pkgconf_buffer_len(&tmpbuf))
-		pkgconf_buffer_copy(&tmpbuf, buffer);
+		ret = pkgconf_buffer_copy(&tmpbuf, buffer);
 
 	pkgconf_buffer_finalize(&tmpbuf);
 
-	return true;
+	return ret;
 }
 
 /*
@@ -214,17 +309,19 @@ pkgconf_buffer_prepend(pkgconf_buffer_t *buffer, const char *text)
 bool
 pkgconf_buffer_push_byte(pkgconf_buffer_t *buffer, char byte)
 {
-	size_t newsize = pkgconf_buffer_len(buffer) + 1;
-	char *newbase = realloc(buffer->base, target_allocation_size(newsize));
-	if (newbase == NULL)
+	size_t len = pkgconf_buffer_len(buffer);
+
+	if (len == SIZE_MAX)
 		return false;
 
-	char *newend = newbase + newsize;
-	*(newend - 1) = byte;
-	*newend = '\0';
+	size_t new_len = len + 1;
+	if (!buffer_reserve(buffer, new_len))
+		return false;
 
-	buffer->base = newbase;
-	buffer->end = newend;
+	buffer->base[len] = byte;
+
+	buffer->end = buffer->base + new_len;
+	*buffer->end = '\0';
 
 	return true;
 }
@@ -246,14 +343,11 @@ pkgconf_buffer_trim_byte(pkgconf_buffer_t *buffer)
 	if (len == 0)
 		return false;
 
-	size_t newsize = len - 1;
-	char *newbase = realloc(buffer->base, target_allocation_size(newsize));
-
-	if (newbase == NULL)
+	size_t new_len = len - 1;
+	if (!buffer_reserve(buffer, new_len))
 		return false;
 
-	buffer->base = newbase;
-	buffer->end = newbase + newsize;
+	buffer->end = buffer->base + new_len;
 	*(buffer->end) = '\0';
 
 	return true;
@@ -461,6 +555,7 @@ pkgconf_buffer_match(const pkgconf_buffer_t *haystack, const pkgconf_buffer_t *n
  *
  *    Copy *src* into *dest*, replacing all occurrences of *pattern* with *value*.
  *    If *pattern* is empty, *src* is appended to *dest* unmodified.
+ *    Neither *src*, *pattern* nor *value* may overlap *dest*.
  *
  *    :param pkgconf_buffer_t *dest: The destination buffer.
  *    :param pkgconf_buffer_t *src: The source buffer.
@@ -473,6 +568,10 @@ pkgconf_buffer_subst(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const 
 {
 	const char *iter = src->base;
 
+	if (dest == src ||
+		buffer_storage_overlaps(dest, src->base, pkgconf_buffer_len(src) + 1))
+		return false;
+
 	if (pattern == NULL)
 		pattern = "";
 
@@ -480,6 +579,9 @@ pkgconf_buffer_subst(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const 
 		value = "";
 
 	size_t pattern_len = strlen(pattern);
+	if (buffer_storage_overlaps(dest, pattern, pattern_len + 1) ||
+		buffer_storage_overlaps(dest, value, strlen(value) + 1))
+		return false;
 
 	if (!pkgconf_buffer_len(src))
 		return true;
@@ -513,6 +615,7 @@ pkgconf_buffer_subst(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const 
  *
  *    Copy *src* into *dest*, inserting a backslash before any byte that falls
  *    within the provided character spans.
+ *    The source and destination buffers must not overlap.
  *
  *    :param pkgconf_buffer_t *dest: The destination buffer.
  *    :param pkgconf_buffer_t *src: The source buffer.
@@ -523,22 +626,103 @@ pkgconf_buffer_subst(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const 
 bool
 pkgconf_buffer_escape(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const pkgconf_span_t *spans, size_t nspans)
 {
+	pkgconf_charset_t charset;
+
+	pkgconf_charset_from_spans(&charset, spans, nspans);
+
+	return pkgconf_buffer_escape_charset(dest, src, &charset);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_charset_from_spans(pkgconf_charset_t *charset, const pkgconf_span_t *spans, size_t nspans)
+ *
+ *    Build a byte-set from a list of character spans, so that membership tests over it are a
+ *    single lookup.  Callers which test many bytes against the same spans should build the set
+ *    once and pass it to :c:func:`pkgconf_buffer_escape_charset`.
+ *
+ *    :param pkgconf_charset_t *charset: The byte-set to populate.
+ *    :param pkgconf_span_t *spans: Array of character spans to include.
+ *    :param size_t nspans: Number of entries in the *spans* array.
+ *    :return: nothing
+ */
+void
+pkgconf_charset_from_spans(pkgconf_charset_t *charset, const pkgconf_span_t *spans, size_t nspans)
+{
+	memset(charset, 0, sizeof(*charset));
+
+	for (size_t i = 0; i < nspans; i++)
+	{
+		unsigned int lo = spans[i].lo, hi = spans[i].hi;
+
+		if (lo > hi)
+			continue;
+
+		size_t wlo = lo >> 6, whi = hi >> 6;
+
+		/* bits at or above lo, and bits at or below hi, within their words */
+		uint64_t mlo = ~UINT64_C(0) << (lo & 63);
+		uint64_t mhi = (hi & 63) == 63 ? ~UINT64_C(0) : (UINT64_C(1) << ((hi & 63) + 1)) - 1;
+
+		if (wlo == whi)
+		{
+			charset->words[wlo] |= mlo & mhi;
+			continue;
+		}
+
+		charset->words[wlo] |= mlo;
+
+		for (size_t w = wlo + 1; w < whi; w++)
+			charset->words[w] = ~UINT64_C(0);
+
+		charset->words[whi] |= mhi;
+	}
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: bool pkgconf_buffer_escape_charset(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const pkgconf_charset_t *charset)
+ *
+ *    Copy *src* into *dest*, inserting a backslash before any byte which is a member of
+ *    *charset*.  Like :c:func:`pkgconf_buffer_escape`, but takes a prebuilt byte-set.
+ *    The source and destination buffers must not overlap.
+ *
+ *    :param pkgconf_buffer_t *dest: The destination buffer.
+ *    :param pkgconf_buffer_t *src: The source buffer.
+ *    :param pkgconf_charset_t *charset: The set of bytes to escape.
+ *    :return: :code:`true` on success, :code:`false` on allocation failure.
+ */
+bool
+pkgconf_buffer_escape_charset(pkgconf_buffer_t *dest, const pkgconf_buffer_t *src, const pkgconf_charset_t *charset)
+{
 	const char *p = pkgconf_buffer_str(src);
+	const char *run = p;
+
+	if (dest == src ||
+		buffer_storage_overlaps(dest, src->base, pkgconf_buffer_len(src) + 1))
+		return false;
 
 	if (!pkgconf_buffer_len(src))
 		return true;
 
 	for (; *p; p++)
 	{
-		if (pkgconf_span_contains((unsigned char) *p, spans, nspans))
-		{
-			if (!pkgconf_buffer_push_byte(dest, '\\'))
-				return false;
-		}
+		if (!pkgconf_charset_contains(charset, (unsigned char) *p))
+			continue;
 
-		if (!pkgconf_buffer_push_byte(dest, *p))
+		if (p > run && !pkgconf_buffer_append_slice(dest, run, (size_t) (p - run)))
 			return false;
+
+		if (!pkgconf_buffer_push_byte(dest, '\\'))
+			return false;
+
+		run = p;
 	}
+
+	if (p > run)
+		return pkgconf_buffer_append_slice(dest, run, (size_t) (p - run));
 
 	return true;
 }

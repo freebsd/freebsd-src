@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: escape-layers
+WantedFlags: cflags
+ExpectedStdout: -I/test/a\ dir -DBS=x\\y -DLIT=p\\q -DLITSP=p\ q

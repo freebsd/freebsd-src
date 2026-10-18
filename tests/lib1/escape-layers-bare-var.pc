@@ -1,0 +1,7 @@
+libs_list=-L/test/a\ dir -la -Wl,--foo\\bar
+
+Name: escape-layers-bare-var
+Description: test fixture
+Version: 1.0.0
+
+Libs: ${libs_list}

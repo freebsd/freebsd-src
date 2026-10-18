@@ -18,7 +18,7 @@
 #include <libpkgconf/stdinc.h>
 #include <libpkgconf/libpkgconf.h>
 
-static void license_sanitize_string(const char *s, pkgconf_buffer_t *buf)
+static bool license_sanitize_string(const char *s, pkgconf_buffer_t *buf)
 {
 	unsigned int i = 0;
 	/*
@@ -31,24 +31,27 @@ static void license_sanitize_string(const char *s, pkgconf_buffer_t *buf)
 	{
 		if (isalnum((unsigned char) s[i]) || s[i] == '-' || s[i] == '+' || s[i] == '(' || s[i] == ')' || s[i] == '.' || s[i] == ':')
 		{
-			pkgconf_buffer_push_byte(buf, s[i]);
+			if (!pkgconf_buffer_push_byte(buf, s[i]))
+				return false;
 		}
 	}
+
+	return true;
 }
 
 /*
  * !doc
  *
- * .. c:function:: void pkgconf_license_copy_list(const pkgconf_client_t *client, pkgconf_list_t *list, const pkgconf_list_t *base)
+ * .. c:function:: bool pkgconf_license_copy_list(const pkgconf_client_t *client, pkgconf_list_t *list, const pkgconf_list_t *base)
  *
  *    Copies a `license list` to another `license list`
  *
  *    :param pkgconf_client_t* client: The pkgconf client being accessed.
  *    :param pkgconf_list_t* list: The list the fragments are being added to.
  *    :param pkgconf_list_t* base: The list the fragments are being copied from.
- *    :return: nothing
+ *    :return: true on success, false on allocation failure
  */
-void
+bool
 pkgconf_license_copy_list(const pkgconf_client_t *client, pkgconf_list_t *list, const pkgconf_list_t *base)
 {
 	pkgconf_node_t *node;
@@ -60,17 +63,24 @@ pkgconf_license_copy_list(const pkgconf_client_t *client, pkgconf_list_t *list, 
 		pkgconf_license_t *cpy_license = calloc(1, sizeof(pkgconf_license_t));
 
 		if (cpy_license == NULL)
-			continue;
+			return false;
 
 		cpy_license->type = license->type;
 
 		if (license->data != NULL)
 		{
 			cpy_license->data = strdup(license->data);
+			if (cpy_license->data == NULL)
+			{
+				free(cpy_license);
+				return false;
+			}
 		}
 
 		pkgconf_node_insert_tail(&cpy_license->iter, cpy_license, list);
 	}
+
+	return true;
 }
 
 /*
@@ -97,12 +107,14 @@ pkgconf_license_free(pkgconf_list_t *list)
 		free(license->data);
 		free(license);
 	}
+
+	pkgconf_list_zero(list);
 }
 
 /*
  * !doc
  *
- * .. c:function:: void pkgconf_license_insert(pkgconf_client_t *client, pkgconf_list_t *list, unsigned char type, const char *data)
+ * .. c:function:: bool pkgconf_license_insert(pkgconf_client_t *client, pkgconf_list_t *list, unsigned char type, const char *data)
  *
  *    Adds a `license` of text to a `license list` directly without interpreting it.
  *
@@ -110,31 +122,39 @@ pkgconf_license_free(pkgconf_list_t *list)
  *    :param pkgconf_list_t* list: The fragment list.
  *    :param char type: The type of the license.
  *    :param char* data: The data of the license
- *    :return: nothing
+ *    :return: true on success, false on allocation failure
  */
-void
+bool
 pkgconf_license_insert(pkgconf_client_t *client, pkgconf_list_t *list, unsigned char type, const char *data)
 {
-	(void) client;
-
 	pkgconf_license_t *license;
+
+	if (data == NULL)
+		return false;
 
 	license = calloc(1, sizeof(pkgconf_license_t));
 	if (!license)
 	{
 		pkgconf_error(client, "pkgconf_license_insert: out of memory");
-		return;
+		return false;
 	}
 	license->type = type;
 	license->data = strdup(data);
+	if (license->data == NULL)
+	{
+		pkgconf_error(client, "pkgconf_license_insert: out of memory");
+		free(license);
+		return false;
+	}
 
 	pkgconf_node_insert_tail(&license->iter, license, list);
+	return true;
 }
 
 /*
  * !doc
  *
- * .. c:function:: pkgconf_license_evaluate_str(pkgconf_client_t *client, pkgconf_list_t *license_list, const char *expression, unsigned int flags)
+ * .. c:function:: bool pkgconf_license_evaluate_str(pkgconf_client_t *client, pkgconf_list_t *license_list, const char *expression, unsigned int flags)
  *
  * Evaluates SPDX expression strings like:
  * - BSD-3-Clause
@@ -153,9 +173,9 @@ pkgconf_license_insert(pkgconf_client_t *client, pkgconf_list_t *list, unsigned 
  * :param pkgconf_list_t* license_list: The dependency list to populate with dependency nodes.
  * :param char* expression: The dependency data to parse.
  * :param uint flags: Any flags to attach to the dependency nodes.
- * :return: nothing
+ * :return: true on success, false on allocation failure
  */
-void
+bool
 pkgconf_license_evaluate_str(pkgconf_client_t *client, pkgconf_list_t *license_list, const char *expression, unsigned int flags)
 {
 	pkgconf_buffer_t out_buffer = PKGCONF_BUFFER_INITIALIZER;
@@ -168,95 +188,112 @@ pkgconf_license_evaluate_str(pkgconf_client_t *client, pkgconf_list_t *license_l
 	(void)flags;
 
 	if (expression == NULL)
-		return;
+		return true;
 
 	buf_size = strlen(expression) + 1;
 	ret = pkgconf_argv_split(expression, &argc, &argv);
-	if (!ret)
+	if (ret)
+		return true;
+
+	/* This is not the first License:
+	 * so add AND
+	 */
+	if (license_list->head)
 	{
-		/* This is not the first License:
-		 * so add AND
-		 */
-		if (license_list->head)
-		{
-			pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_AND, "AND");
-		}
-
-		i = 0;
-		while (i < argc)
-		{
-			string_len = strnlen(argv[i], buf_size);
-			cur_word = argv[i];
-			if (string_len >= 1)
-			{
-				license_sanitize_string(cur_word, &out_buffer);
-				if (!pkgconf_buffer_len(&out_buffer))
-				{
-					i ++;
-					pkgconf_buffer_finalize(&out_buffer);
-					continue;
-				}
-
-				cur_word = (char *)pkgconf_buffer_str(&out_buffer);
-				size_t cur_len = strnlen(cur_word, buf_size);
-				if (!cur_len)
-				{
-					i ++;
-					pkgconf_buffer_finalize(&out_buffer);
-					continue;
-				}
-
-				if (cur_word[0] == '(')
-				{
-					pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_BRACKET_OPEN, "(");
-					/* If there is more after '(' like '(BSD-2-Clause'
-					 * Then append rest to fragments as license.
-					 * This is expression like GPL-2.0-only OR (BSD-2-Clause AND ISC)
-					 */
-					if (cur_len >= 2)
-					{
-						cur_word ++;
-						pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_EXPRESSION, cur_word);
-					}
-				}
-				else if (cur_word[cur_len - 1] == ')')
-				{
-					if (cur_len >= 2)
-					{
-						cur_word[cur_len - 1] = 0x00;
-						pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_EXPRESSION, cur_word);
-					}
-					pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_BRACKET_CLOSE, ")");
-				}
-				else if (!strcasecmp(cur_word, "and"))
-				{
-					pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_AND, "AND");
-				}
-				else if (!strcasecmp(cur_word, "or"))
-				{
-					pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_OR, "OR");
-				}
-				else if (!strcasecmp(cur_word, "with"))
-				{
-					pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_WITH, "WITH");
-				}
-				else
-				{
-					pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_EXPRESSION, cur_word);
-				}
-				pkgconf_buffer_finalize(&out_buffer);
-			}
-			i++;
-		}
-
-		pkgconf_argv_free(argv);
+		if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_AND, "AND"))
+			goto fail;
 	}
+
+	i = 0;
+	while (i < argc)
+	{
+		string_len = strnlen(argv[i], buf_size);
+		cur_word = argv[i];
+		if (string_len >= 1)
+		{
+			if (!license_sanitize_string(cur_word, &out_buffer))
+				goto fail;
+
+			if (!pkgconf_buffer_len(&out_buffer))
+			{
+				i ++;
+				pkgconf_buffer_finalize(&out_buffer);
+				continue;
+			}
+
+			cur_word = (char *)pkgconf_buffer_str(&out_buffer);
+			size_t cur_len = strnlen(cur_word, buf_size);
+			if (!cur_len)
+			{
+				i ++;
+				pkgconf_buffer_finalize(&out_buffer);
+				continue;
+			}
+
+			if (cur_word[0] == '(')
+			{
+				if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_BRACKET_OPEN, "("))
+					goto fail;
+				/* If there is more after '(' like '(BSD-2-Clause'
+				 * Then append rest to fragments as license.
+				 * This is expression like GPL-2.0-only OR (BSD-2-Clause AND ISC)
+				 */
+				if (cur_len >= 2)
+				{
+					cur_word ++;
+					if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_EXPRESSION, cur_word))
+						goto fail;
+				}
+			}
+			else if (cur_word[cur_len - 1] == ')')
+			{
+				if (cur_len >= 2)
+				{
+					cur_word[cur_len - 1] = 0x00;
+					if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_EXPRESSION, cur_word))
+						goto fail;
+				}
+				if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_BRACKET_CLOSE, ")"))
+					goto fail;
+			}
+			else if (!strcasecmp(cur_word, "and"))
+			{
+				if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_AND, "AND"))
+					goto fail;
+			}
+			else if (!strcasecmp(cur_word, "or"))
+			{
+				if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_OR, "OR"))
+					goto fail;
+			}
+			else if (!strcasecmp(cur_word, "with"))
+			{
+				if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_WITH, "WITH"))
+					goto fail;
+			}
+			else
+			{
+				if (!pkgconf_license_insert(client, license_list, PKGCONF_LICENSE_EXPRESSION, cur_word))
+					goto fail;
+			}
+			pkgconf_buffer_finalize(&out_buffer);
+		}
+		i++;
+	}
+
+	pkgconf_argv_free(argv);
+	return true;
+
+fail:
+	pkgconf_buffer_finalize(&out_buffer);
+	pkgconf_argv_free(argv);
+	return false;
 }
 
 /*
  * !doc
  *
- * .. c:function:: pkgconf_license_evaluate_str(pkgconf_client_t *client, pkgconf_list_t *license_list, const char *expression, unsigned int flags)
+ * .. c:function:: bool pkgconf_license_evaluate(pkgconf_client_t *client, pkgconf_pkg_t *pkg, pkgconf_list_t *license_list, const char *license_str, unsigned int flags)
  *
  * Evaluates SPDX expression strings like:
  * - BSD-3-Clause
@@ -275,15 +312,18 @@ pkgconf_license_evaluate_str(pkgconf_client_t *client, pkgconf_list_t *license_l
  * :param pkgconf_list_t* license_list: The dependency list to populate with dependency nodes.
  * :param char* expression: The dependency data to parse.
  * :param uint flags: Any flags to attach to the dependency nodes.
- * :return: nothing
+ * :return: true on success, false on allocation failure
  */
-void
+bool
 pkgconf_license_evaluate(pkgconf_client_t *client, pkgconf_pkg_t *pkg, pkgconf_list_t *license_list, const char *license_str, unsigned int flags)
 {
 	char *license_expression = pkgconf_bytecode_eval_str(client, &pkg->vars, license_str, NULL);
+	if (license_expression == NULL)
+		return false;
 
-	pkgconf_license_evaluate_str(client, license_list, license_expression, flags);
+	bool ret = pkgconf_license_evaluate_str(client, license_list, license_expression, flags);
 	free(license_expression);
+	return ret;
 }
 
 /*
@@ -300,7 +340,7 @@ pkgconf_license_evaluate(pkgconf_client_t *client, pkgconf_pkg_t *pkg, pkgconf_l
  * :param uint flags: Any flags to attach to the dependency nodes.
  * :return: nothing
  */
-void
+bool
 pkgconf_license_render(pkgconf_client_t *client, const pkgconf_list_t *list, pkgconf_buffer_t *buf)
 {
 	const pkgconf_buffer_t *frag_string = NULL;
@@ -314,7 +354,8 @@ pkgconf_license_render(pkgconf_client_t *client, const pkgconf_list_t *list, pkg
 		pkgconf_license_t *license = node->data;
 		is_delim = true;
 		frag_string = PKGCONF_BUFFER_FROM_STR(license->data);
-		pkgconf_buffer_append(buf, pkgconf_buffer_str_or_empty(frag_string));
+		if (!pkgconf_buffer_append(buf, pkgconf_buffer_str_or_empty(frag_string)))
+			return false;
 
 		if (license->type == PKGCONF_LICENSE_BRACKET_OPEN || (node->next != NULL && ((const pkgconf_license_t *)node->next->data)->type == PKGCONF_LICENSE_BRACKET_CLOSE))
 		{
@@ -323,7 +364,10 @@ pkgconf_license_render(pkgconf_client_t *client, const pkgconf_list_t *list, pkg
 
 		if (node->next != NULL && is_delim)
 		{
-			pkgconf_buffer_push_byte(buf, ' ');
+			if (!pkgconf_buffer_push_byte(buf, ' '))
+				return false;
 		}
 	}
+
+	return true;
 }

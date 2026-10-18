@@ -7,7 +7,7 @@
 .\" This software is provided 'as is' and without any warranty, express or
 .\" implied.  In no event shall the authors be liable for any damages arising
 .\" from the use of this software.
-.Dd June 23, 2026
+.Dd September 8, 2026
 .Dt PKGCONF 1
 .Os
 .Sh NAME
@@ -117,8 +117,7 @@ options:
 .It
 Single-module output options:
 .Fl -path ,
-.Fl -print-variables ,
-.Fl -variable :
+.Fl -print-variables :
 If any of these options is specified, only the first
 .Ar module
 argument is used, all other arguments are silently ignored,
@@ -128,8 +127,9 @@ Depth-one output options:
 .Fl -print-provides ,
 .Fl -modversion ,
 .Fl -print-requires ,
+.Fl -print-requires-private ,
 and
-.Fl -print-requires-private :
+.Fl -variable :
 If any of these options is specified, only modules
 explicitly specified on the command line are inspected
 and no dependency resolution is attempted.
@@ -288,6 +288,19 @@ Most other options and all command line arguments are ignored.
 Ignore
 .Sq Conflicts
 rules in modules.
+This option is implied by the options which merely report metadata about the
+requested modules rather than combining them into a build, namely
+.Fl -license ,
+.Fl -license-file ,
+.Fl -modversion ,
+.Fl -path ,
+.Fl -print-provides ,
+.Fl -print-requires ,
+.Fl -print-requires-private ,
+.Fl -print-variables ,
+.Fl -source ,
+and
+.Fl -variable .
 .It Fl -keep-system-cflags , Fl -keep-system-libs
 Keep CFLAGS or linker flag fragments that would be filtered due to being
 included by default in the compiler.
@@ -384,6 +397,12 @@ is greater than the requested
 number.
 .It Fl -maximum-traverse-depth Ns = Ns Ar depth
 Impose a limit on the allowed depth in the dependency graph.
+The default
+.Ar depth
+is 256.
+Set
+.Ar depth
+to \-1 to allow unlimited traversal.
 For example, a
 .Ar depth
 of 2 restricts the resolver from acting on child
@@ -570,12 +589,11 @@ This option implies
 and
 .Fl -errors-to-stdout .
 .It Fl -variable Ns = Ns Ar varname
-For the first
-.Ar module
-given on the command line, print the value of the variable with the name
+For each specified
+.Ar module ,
+print the value of the variable with the name
 .Ar varname
-to standard output.
-Any subsequent arguments are silently ignored.
+to standard output in command-line order.
 This option implies
 .Fl -maximum-traverse-depth Ns =1
 and overrides and disables all
@@ -621,9 +639,15 @@ in the same way as
 .It Ev DESTDIR
 If set to the same value as
 .Ev PKG_CONFIG_SYSROOT_DIR ,
-behave in the same way as if
+follow
 .Ev PKG_CONFIG_FDO_SYSROOT_RULES
-is set.
+for variable lookups, but disable automatic sysroot injection into
+.Fl I
+and
+.Fl L
+fragments to avoid prefixing paths with
+.Ev DESTDIR
+twice.
 If
 .Ev PKG_CONFIG_SYSROOT_DIR
 is not set or set to a different value,
@@ -693,6 +717,7 @@ For more details, see the
 command line option, which overrides this variable.
 .It Ev PKG_CONFIG_MAXIMUM_TRAVERSE_DEPTH
 Impose a limit on the allowed depth in the dependency graph.
+Set this variable to \-1 to allow unlimited traversal.
 This variable overrides the
 .Fl -maximum-traverse-depth
 option, but is overridden by the other options mentioned there.

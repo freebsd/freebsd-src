@@ -20,6 +20,8 @@
 
 #ifdef _WIN32
 
+#include <libpkgconf/config.h>
+
 #include <direct.h>
 #include <io.h>
 #include <fcntl.h>
@@ -44,6 +46,17 @@
 #	define popen _popen
 #	define pclose _pclose
 
+static inline int
+mkstemp(char *tmpl)
+{
+	if (_mktemp_s(tmpl, strlen(tmpl) + 1) != 0)
+		return -1;
+	return _open(tmpl, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY, _S_IREAD | _S_IWRITE);
+}
+#endif // _MSC_VER
+
+#if !HAVE_DECL_MKDTEMP
+
 static inline char *
 mkdtemp(char *tmpl)
 {
@@ -54,14 +67,7 @@ mkdtemp(char *tmpl)
 	return tmpl;
 }
 
-static inline int
-mkstemp(char *tmpl)
-{
-	if (_mktemp_s(tmpl, strlen(tmpl) + 1) != 0)
-		return -1;
-	return _open(tmpl, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY, _S_IREAD | _S_IWRITE);
-}
-#endif // _MSC_VER
+#endif // !HAVE_DECL_MKDTEMP
 
 #endif // _WIN32
 #endif // WIN_SHIM_H 

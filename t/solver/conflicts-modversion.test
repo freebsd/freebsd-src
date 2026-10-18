@@ -1,0 +1,7 @@
+PackageSearchPath: lib1
+Query: conflicts, foo
+WantedFlags: modversion
+ExpectedStdout: 1.2.3
+ExpectedStdout: 1.2.3
+ExpectedExitCode: 0
+MatchStdout: partial
