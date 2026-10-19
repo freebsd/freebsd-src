@@ -781,6 +781,14 @@ vn_inotify_add_watch(struct vnode *vp, struct inotify_softc *sc, uint32_t mask,
 		size_t buflen, len;
 		int eof, error;
 
+		/*
+		 * Some filesystems, at least fuse, require that the directory
+		 * be opened before reading it.
+		 */
+		error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
+		if (error != 0)
+			return (error);
+
 		buflen = 128 * sizeof(struct dirent);
 		buf = malloc(buflen, M_TEMP, M_WAITOK);
 
@@ -817,6 +825,7 @@ vn_inotify_add_watch(struct vnode *vp, struct inotify_softc *sc, uint32_t mask,
 			vrele(nd.ni_vp);
 		}
 		free(buf, M_TEMP);
+		VOP_CLOSE(vp, FREAD, td->td_ucred, td);
 		if (error != 0)
 			return (error);
 	}
