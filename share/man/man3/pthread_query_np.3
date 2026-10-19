@@ -1,0 +1,254 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright 2026 The FreeBSD Foundation
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.Dd October 19, 2026
+.Dt PTHREAD_QUERY_NP 3
+.Os
+.Sh NAME
+.Nm pthread_query_all_np ,
+.Nm pthread_query_np
+.Nd query thread information
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.In pthread_np.h
+.Ft int
+.Fo pthread_query_np
+.Fa "pthread_t thread"
+.Fa "struct pthread_info_np *info"
+.Fa "size_t bufsz"
+.Fc
+.Ft int
+.Fo pthread_query_all_np
+.Fa "struct pthread_info_np *info"
+.Fa "size_t *bufsz"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pthread_query_np
+function returns the
+.Fx
+threading library implementation-specific information about
+the thread specified by the
+.Fa thread
+argument.
+The
+.Fa info
+argument must point to a
+.Vt struct pthread_info_np
+structure, which is filled with the following information
+if the corresponding thread is found:
+.Bd -literal
+struct pthread_info_np {
+	size_t pthread_info_size;
+	pthread_t thread;
+	long lwpid;
+	enum pthread_state_np state;
+	int flags;
+	int cancel_state;
+	int *errno_location;
+	struct tcb *tcb;
+	struct uexterror *exterr;
+	char name[128];
+};
+.Ed
+.Pp
+The meaning of the structure fields is the following:
+.Bl -tag -width pthread_info_size
+.It Va pthread_info_size
+The size of the structure.
+If new fields are added in the future, it is guaranteed they will be
+added at the end of the
+.Vt pthread_info_np
+structure.
+.It Va thread
+The thread identifier, as defined by the threading library.
+.It Va lwpid
+The thread identifier, as defined by the kernel.
+See
+.Xr pthread_getthreadid_np 3 .
+.It Va state
+The state of the thread.
+Can be one of the following values:
+.Bl -tag -width PTHREAD_STATE_SUSPENDED_NP
+.It Dv PTHREAD_STATE_RUNNING_NP
+Thread is runnable.
+.It Dv PTHREAD_STATE_SUSPENDED_NP
+Thread was suspended, see
+.Xr pthread_suspend_np 3 .
+.It Dv PTHREAD_STATE_DEAD_NP
+Thread has exited but was not yet reclaimed by
+.Xr pthread_join 3 .
+.El
+.It Va flags
+Additional information about the reported thread is provided
+by the following flags:
+.Bl -tag -width PTHREAD_INFO_DETACHED_NP
+.It Dv PTHREAD_INFO_DETACHED_NP
+Set if the thread is detached, see
+.Xr pthread_attr_setdetachstate 3
+and
+.Xr pthread_detach 3 .
+.It Dv PTHREAD_INFO_INITIAL_NP
+Set if the thread was the first thread in the process,
+that is it was executing the
+.Fn main
+function in the process.
+.El
+.It Va cancel_state
+Provides information about the thread cancellability state,
+as flags.
+The following flags are defined:
+.Bl -tag -width PTHREAD_INFO_CANCEL_AT_POINT_NP
+.It Dv PTHREAD_INFO_CANCEL_ENABLED_NP
+Cancellation is enabled, see
+.Xr pthread_setcancelstate 3 .
+.It Dv PTHREAD_INFO_CANCEL_ASYNC_NP
+Thread cancellation is asynchronous, see
+.Xr pthread_setcanceltype 3 .
+.It Dv PTHREAD_INFO_CANCEL_PENDING_NP
+The cancel event is pending, see
+.Xr pthread_cancel 3 .
+.It Dv PTHREAD_INFO_CANCEL_AT_POINT_NP
+The thread is executing at a cancellation point.
+.It Dv PTHREAD_INFO_CANCEL_IN_PROG_NP
+The cancellation is in progress.
+In particular, the stack unwinding might happen.
+.El
+.It Va errno_location
+The address of the thread-private instance of the
+.Xr errno 3
+variable.
+.It Va tcb
+The address of the architecture-specific thread control block.
+The
+.In machine/tls.h
+header provides the definition of
+.Vt struct tcb .
+.It Va exterr
+The location of the thread-private instance of the
+.Vt struct uexterror ,
+used by the kernel to pass extended information about errors
+from system calls.
+See
+.Xr exterror 9 .
+.It Va name
+Name of the thread, as set by
+.Xr pthread_setname_np 3 .
+.El
+.Pp
+The
+.Fa bufsz
+argument must specify the size of the passed structure.
+At most
+.Fa bufsz
+bytes are copied to it.
+The
+.Va pthread_info_size
+member reports the size of the buffer needed for
+the full structure,
+if the library has updated its definition.
+The system guarantees that the layout of existing members
+never changes.
+.Pp
+The
+.Fn pthread_query_all_np
+function returns the information about all threads in the calling
+process.
+The buffer pointed to by the
+.Fa info
+argument must have the size in bytes as provided by the value
+pointed to by the
+.Fa bufsz
+argument.
+To iterate over the buffer, increment the pointer to the previous
+.Vt pthread_info_np
+structure by its
+.Va pthread_info_size
+member.
+The
+.Fa bufsz
+location is always updated with the size of the buffer required
+to report all threads.
+.Sh RETURN VALUES
+If successful, the described functions return zero.
+Otherwise an error number is returned to indicate the error or
+special condition.
+.Sh ERRORS
+The
+.Fn pthread_query_np
+and
+.Fn pthread_query_all_np
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The threading library was not yet initialized.
+.El
+.Pp
+The
+.Fn pthread_query_np
+function also fails if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+The passed
+.Fa thread
+argument does not designate a valid thread.
+.El
+.Pp
+The
+.Fn pthread_query_all_np
+function also fails if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The value pointed to by the
+.Fa bufsz
+argument is too small.
+The value is updated with the required size of the buffer.
+.El
+.Sh SEE ALSO
+.Xr pthread 3 ,
+.Xr pthread_create 3 ,
+.Xr pthread_np 3
+.Sh STANDARDS
+The
+.Fn pthread_query_np
+and
+.Fn pthread_query_all_np
+functions are an
+.Fx
+extension.
+.Sh HISTORY
+The described functions first appeared in
+.Fx 16.0 .
+.Sh CAVEATS
+The
+.Fn pthread_query_np
+and
+.Fn pthread_query_all_np
+functions expose the internal transient state of the C runtime.
+A running thread changes its state over time.
+As such, it is up to the consumer of the interface to accommodate the
+temporal nature of the reported values.
+.Pp
+For instance, the
+.Va thread
+thread library identifier can be reused
+after the exited thread is joined, or,
+for a detached thread, reclaimed.
+The
+.Va lwpid
+kernel thread identifier can be reused immediately after the
+thread exits.
+Similarly,
+.Va errno_location ,
+.Va tcb ,
+and
+.Va exterr
+pointers are only guaranteed to point to valid objects while
+the thread has not exited.
