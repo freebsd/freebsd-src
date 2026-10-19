@@ -278,8 +278,10 @@ exit_thread(void)
 {
 	struct pthread *curthread = _get_curthread();
 
+	THR_LOCK(curthread);
 	free(curthread->name);
 	curthread->name = NULL;
+	THR_UNLOCK(curthread);
 
 	/* Check if there is thread specific data: */
 	if (curthread->specific != NULL) {

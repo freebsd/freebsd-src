@@ -203,6 +203,10 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 		_tcb_dtor(thread->tcb);
 	}
 	thread->tcb = NULL;
+	if (thread->name != NULL) {
+		free(thread->name);
+		thread->name = NULL;
+	}
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
 		thr_destroy(curthread, thread);
 		atomic_add_int(&total_threads, -1);
