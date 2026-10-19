@@ -1841,7 +1841,7 @@ gdb_query(const uint8_t *data, size_t len)
 		start_packet();
 		if (doff >= xmllen) {
 			append_char('l');
-		} else if (doff + dlen >= xmllen) {
+		} else if (dlen >= xmllen - doff) {
 			append_char('l');
 			append_binary_data(xml + doff, xmllen - doff);
 		} else {
