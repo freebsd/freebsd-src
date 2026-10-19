@@ -673,6 +673,24 @@ nvme_ctrlr_notify_ns_added(struct nvme_controller *ctrlr, device_t child)
 	}
 }
 
+static void
+nvme_ctrlr_notify_ns_recovered(struct nvme_controller *ctrlr)
+{
+	device_t *children;
+	int n_children;
+
+	if (device_get_children(ctrlr->dev, &children, &n_children) != 0)
+		return;
+
+	/*
+	 * A controller failure was reported to every child, so notify every
+	 * child when its namespaces become available again.
+	 */
+	for (int i = 0; i < n_children; i++)
+		nvme_ctrlr_notify_ns_added(ctrlr, children[i]);
+	free(children, M_TEMP);
+}
+
 static bool
 is_log_page_id_valid(uint8_t page_id)
 {
@@ -1278,13 +1296,19 @@ static void
 nvme_ctrlr_reset_task(void *arg, int pending)
 {
 	struct nvme_controller	*ctrlr = arg;
+	bool			recovering;
 	int			status;
 
+	recovering = ctrlr->is_initialized && ctrlr->is_failed;
 	nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"start\"");
 	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status == 0) {
 		nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"success\"");
+		if (recovering)
+			ctrlr->is_failed = false;
 		nvme_ctrlr_start(ctrlr, true);
+		if (recovering && !ctrlr->is_failed)
+			nvme_ctrlr_notify_ns_recovered(ctrlr);
 	} else {
 		nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"timed_out\"");
 		nvme_ctrlr_fail(ctrlr, true);
