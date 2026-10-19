@@ -47,13 +47,14 @@
 static int uart_pci_probe(device_t dev);
 static int uart_pci_attach(device_t dev);
 static int uart_pci_detach(device_t dev);
+static int uart_pci_resume(device_t dev);
 
 static device_method_t uart_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		uart_pci_probe),
 	DEVMETHOD(device_attach,	uart_pci_attach),
 	DEVMETHOD(device_detach,	uart_pci_detach),
-	DEVMETHOD(device_resume,	uart_bus_resume),
+	DEVMETHOD(device_resume,	uart_pci_resume),
 	DEVMETHOD_END
 };
 
@@ -72,6 +73,7 @@ struct pci_id {
 	int		rid;
 	int		rclk;
 	int		regshft;
+	int		regiowidth;
 };
 
 struct pci_unique_id {
@@ -80,7 +82,15 @@ struct pci_unique_id {
 };
 
 #define PCI_NO_MSI	0x40000000
+#define PCI_INTEL_LPSS	0x20000000
 #define PCI_RID_MASK	0x0000ffff
+
+/* Intel LPSS private registers, relative to BAR0. */
+#define LPSS_CLK	0x200
+#define LPSS_CLK_EN		(1U << 0)
+#define LPSS_CLK_UPDATE		(1U << 31)
+#define LPSS_RESETS	0x204
+#define LPSS_RESETS_FUNC	0x3
 
 static const struct pci_id pci_ns8250_ids[] = {
 { 0x1028, 0x0008, 0xffff, 0, "Dell Remote Access Card III", 0x14,
@@ -188,6 +198,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 	24 * DEFAULT_RCLK, 2 },
 { 0x8086, 0x5aee, 0xffff, 0, "Intel Apollo Lake SIO/LPSS UART 3", 0x10,
 	24 * DEFAULT_RCLK, 2 },
+{ 0x8086, 0x7e25, 0xffff, 0, "Intel Meteor Lake-P LPSS UART 0",
+	0x10 | PCI_INTEL_LPSS, 24 * DEFAULT_RCLK, 2, 4 },
 { 0x8086, 0x8811, 0xffff, 0, "Intel EG20T Serial Port 0", 0x10 },
 { 0x8086, 0x8812, 0xffff, 0, "Intel EG20T Serial Port 1", 0x10 },
 { 0x8086, 0x8813, 0xffff, 0, "Intel EG20T Serial Port 2", 0x10 },
@@ -235,6 +247,48 @@ uart_pci_match(device_t dev, const struct pci_id *id)
 	    (id->subven != subven || id->subdev != subdev))
 		id++;
 	return ((id->vendor == vendor && id->device == device) ? id : NULL);
+}
+
+static int
+uart_pci_lpss_setup(struct resource *res)
+{
+	uint32_t clk, resets;
+
+	if (rman_get_size(res) < LPSS_RESETS + sizeof(uint32_t))
+		return (ENXIO);
+
+	resets = bus_read_4(res, LPSS_RESETS);
+	bus_write_4(res, LPSS_RESETS, resets | LPSS_RESETS_FUNC);
+	bus_barrier(res, LPSS_RESETS, sizeof(uint32_t),
+	    BUS_SPACE_BARRIER_WRITE);
+
+	/*
+	 * Divide the 100 MHz reference clock down to 44.2368 MHz.  Bits
+	 * 15:1 hold M and bits 30:16 hold N, giving a rate of ref * M / N.
+	 */
+	clk = (15625U << 16) | (6912U << 1);
+	bus_write_4(res, LPSS_CLK, clk);
+	bus_barrier(res, LPSS_CLK, sizeof(uint32_t),
+	    BUS_SPACE_BARRIER_WRITE);
+	bus_write_4(res, LPSS_CLK, clk | LPSS_CLK_EN | LPSS_CLK_UPDATE);
+	(void)bus_read_4(res, LPSS_CLK);
+
+	return (0);
+}
+
+static int
+uart_pci_lpss_init(device_t dev, const struct pci_id *id)
+{
+	struct resource *res;
+	int error, rid;
+
+	rid = id->rid & PCI_RID_MASK;
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL)
+		return (ENXIO);
+	error = uart_pci_lpss_setup(res);
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	return (error);
 }
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
@@ -317,7 +371,13 @@ uart_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	result = uart_bus_probe(dev, id->regshft, 0, id->rclk,
+	if ((id->rid & PCI_INTEL_LPSS) != 0) {
+		result = uart_pci_lpss_init(dev, id);
+		if (result != 0)
+			return (result);
+	}
+
+	result = uart_bus_probe(dev, id->regshft, id->regiowidth, id->rclk,
 	    id->rid & PCI_RID_MASK, 0, 0);
 	/* Bail out on error. */
 	if (result > 0)
@@ -360,6 +420,24 @@ uart_pci_detach(device_t dev)
 		pci_release_msi(dev);
 
 	return (uart_bus_detach(dev));
+}
+
+static int
+uart_pci_resume(device_t dev)
+{
+	const struct pci_id *id;
+	struct uart_softc *sc;
+
+	id = uart_pci_match(dev, pci_ns8250_ids);
+	sc = device_get_softc(dev);
+
+	/* The UART core holds the register window across suspend. */
+	if (id != NULL && (id->rid & PCI_INTEL_LPSS) != 0 &&
+	    sc->sc_rres != NULL && sc->sc_rtype == SYS_RES_MEMORY) {
+		if (uart_pci_lpss_setup(sc->sc_rres) != 0)
+			device_printf(dev, "LPSS reinitialization failed\n");
+	}
+	return (uart_bus_resume(dev));
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, NULL, NULL);
