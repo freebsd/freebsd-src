@@ -926,7 +926,7 @@ m_adj_decap(struct mbuf *mp, int len)
  * contiguous region in an attempt to avoid being called next time.
  */
 struct mbuf *
-m_pullup(struct mbuf *n, int len)
+__m_pullup(struct mbuf *n, int len)
 {
 	struct mbuf *m;
 	int count;

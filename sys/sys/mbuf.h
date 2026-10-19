@@ -862,7 +862,7 @@ int		 m_pkthdr_init(struct mbuf *, int);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *, int);
 struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
-struct mbuf	*m_pullup(struct mbuf *, int);
+struct mbuf	*__m_pullup(struct mbuf *, int);
 int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
@@ -876,6 +876,15 @@ void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *,
 void		 m_snd_tag_destroy(struct m_snd_tag *);
 void		 m_rcvif_serialize(struct mbuf *);
 struct ifnet	*m_rcvif_restore(struct mbuf *);
+
+static __inline struct mbuf *
+m_pullup(struct mbuf *m, int len)
+{
+	if (__predict_false(m->m_len < len))
+		return (__m_pullup(m, len));
+	else
+		return (m);
+}
 
 static __inline int
 m_gettype(int size)
