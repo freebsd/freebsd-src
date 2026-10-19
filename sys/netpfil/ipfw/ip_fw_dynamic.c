@@ -116,12 +116,6 @@
 	(d)->bcnt_ ## dir += pktlen;		\
 	} while (0)
 
-#define	DYN_REFERENCED		0x01
-/*
- * DYN_REFERENCED flag is used to show that state keeps reference to named
- * object, and this reference should be released when state becomes expired.
- */
-
 struct dyn_data {
 	void		*parent;	/* pointer to parent rule */
 	uint32_t	chain_id;	/* cached ruleset id */
@@ -130,7 +124,8 @@ struct dyn_data {
 	uint32_t	hashval;	/* hash value used for hash resize */
 	uint16_t	fibnum;		/* fib used to send keepalives */
 	uint8_t		_pad;
-	uint8_t		flags;		/* internal flags */
+	uint8_t		flags;
+#define	DYN_REFERENCED	0x01		/* holds reference to named object */
 	uint32_t	rulenum;	/* parent rule number */
 	uint32_t	ruleid;		/* parent rule id */
 
