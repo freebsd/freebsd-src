@@ -4579,9 +4579,19 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	 * assigned from net80211.
 	 */
 
+	/*
+	 * Ok, this is a bit "fun" and could do with some cleanup.
+	 * 'ac' here is (mostly) the AC, not TID.  It's actually used
+	 * as the destination txq.
+	 *
+	 * For A-MPDU enabled queues, 'ac' becomes the private queue
+	 * allocated for this TID.  However, ni_tx_ampdu[] is now per
+	 * TID, not per AC.  So a little twisty logic is done here.
+	 */
 	ac = M_WME_GETAC(m);
 	if (m->m_flags & M_AMPDU_MPDU) {
-		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
+		struct ieee80211_tx_ampdu *tap =
+		    &ni->ni_tx_ampdu[WME_AC_TO_TID(ac)];
 
 		if (!IEEE80211_AMPDU_RUNNING(tap))
 			return (EINVAL);
