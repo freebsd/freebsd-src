@@ -17,11 +17,11 @@
 /*
  * Return values, where needed, are based on the !CONFIG_PM/!CONFIG_PM_SLEEP
  * assumption given we currently do not support anything in here.
- * We could #error in case CONFIG_PM or CONFIG_PM_SLEEP are set but that
- * would likely be too intrusive for now.
- *
- * We could likely use dev_dbg() in here instead of pr_debug() if the former
- * would be mapped to the latter with additional dev information.
+ * Several values used to be hard coded in the previous implementation
+ * with the assumption that CONFIG_PM was set for the driver to compile
+ * and returned appropriate values as needed for drm-kmod.  They were restored
+ * inline leaving the TODO logging available as the implementation itself is
+ * still missing as are any non-trivial dev->power bits in LinuxKPI.
  */
 
 static inline void
@@ -132,14 +132,22 @@ static inline int
 pm_runtime_get_sync(struct device *dev __unused)
 {
 	pr_debug("%s TODO\n", __func__);
+#ifdef CONFIG_PM
+	return (0);
+#else
 	return (1);
+#endif
 }
 
 static inline int
 pm_runtime_get_if_in_use(struct device *dev __unused)
 {
 	pr_debug("%s TODO\n", __func__);
+#ifdef CONFIG_PM
+	return (1);
+#else
 	return (-EINVAL);
+#endif
 }
 
 #if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION < 60900
@@ -151,14 +159,23 @@ pm_runtime_get_if_active(struct device *dev __unused)
 #endif
 {
 	pr_debug("%s TODO\n", __func__);
+#ifdef CONFIG_PM
+	return (1);
+#else
 	return (-EINVAL);
+#endif
+
 }
 
 static inline int
 pm_runtime_resume_and_get(struct device *dev __unused)
 {
 	pr_debug("%s TODO\n", __func__);
+#ifdef CONFIG_PM
+	return (0);
+#else
 	return (1);
+#endif
 }
 
 #endif	/* _LINUXKPI_LINUX_PM_RUNTIME_H_ */
