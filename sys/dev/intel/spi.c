@@ -42,6 +42,7 @@
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
+#include <dev/intel/lpss.h>
 #include <dev/intel/spi.h>
 
 /**
@@ -123,9 +124,7 @@
 #define	 SPI_CS_CTRL_HW_MODE			(1 << 0)
 #define	 SPI_CS_CTRL_CS_HIGH			(1 << 1)
 
-#define	INTELSPI_RESETS			0x204
-#define	 INTELSPI_RESET_HOST			(1 << 0) | (1 << 1)
-#define	 INTELSPI_RESET_DMA			(1 << 2)
+#define	INTELSPI_RESETS			(LPSS_PRIV_SPT + LPSS_PRIV_RESETS)
 
 /* Same order as intelspi_vers */
 static const struct intelspi_info {
@@ -133,19 +132,19 @@ static const struct intelspi_info {
 	uint32_t reg_cs_ctrl;
 } intelspi_infos[] = {
 	[SPI_BAYTRAIL] = {
-		.reg_lpss_base = 0x400,
+		.reg_lpss_base = LPSS_PRIV_BYT,
 		.reg_cs_ctrl = 0x18,
 	},
 	[SPI_BRASWELL] = {
-		.reg_lpss_base = 0x400,
+		.reg_lpss_base = LPSS_PRIV_BYT,
 		.reg_cs_ctrl = 0x18,
 	},
 	[SPI_LYNXPOINT] = {
-		.reg_lpss_base = 0x800,
+		.reg_lpss_base = LPSS_PRIV_LPT,
 		.reg_cs_ctrl = 0x18,
 	},
 	[SPI_SUNRISEPOINT] = {
-		.reg_lpss_base = 0x200,
+		.reg_lpss_base = LPSS_PRIV_SPT,
 		.reg_cs_ctrl = 0x24,
 	},
 };
@@ -509,7 +508,7 @@ intelspi_attach(device_t dev)
 	/* Release LPSS reset */
 	if (sc->sc_vers == SPI_SUNRISEPOINT)
 		INTELSPI_WRITE(sc, INTELSPI_RESETS,
-		    (INTELSPI_RESET_HOST | INTELSPI_RESET_DMA));
+		    LPSS_PRIV_RESETS_FUNC | LPSS_PRIV_RESETS_IDMA);
 
 	sc->sc_irq_res = bus_alloc_resource_any(sc->sc_dev,
 	    SYS_RES_IRQ, &sc->sc_irq_rid, RF_ACTIVE | RF_SHAREABLE);

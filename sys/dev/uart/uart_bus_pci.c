@@ -35,6 +35,7 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/intel/lpss.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -85,12 +86,8 @@ struct pci_unique_id {
 #define PCI_INTEL_LPSS	0x20000000
 #define PCI_RID_MASK	0x0000ffff
 
-/* Intel LPSS private registers, relative to BAR0. */
-#define LPSS_CLK	0x200
-#define LPSS_CLK_EN		(1U << 0)
-#define LPSS_CLK_UPDATE		(1U << 31)
-#define LPSS_RESETS	0x204
-#define LPSS_RESETS_FUNC	0x3
+#define LPSS_CLK	(LPSS_PRIV_SPT + LPSS_PRIV_CLK)
+#define LPSS_RESETS	(LPSS_PRIV_SPT + LPSS_PRIV_RESETS)
 
 static const struct pci_id pci_ns8250_ids[] = {
 { 0x1028, 0x0008, 0xffff, 0, "Dell Remote Access Card III", 0x14,
@@ -258,19 +255,17 @@ uart_pci_lpss_setup(struct resource *res)
 		return (ENXIO);
 
 	resets = bus_read_4(res, LPSS_RESETS);
-	bus_write_4(res, LPSS_RESETS, resets | LPSS_RESETS_FUNC);
+	bus_write_4(res, LPSS_RESETS, resets | LPSS_PRIV_RESETS_FUNC);
 	bus_barrier(res, LPSS_RESETS, sizeof(uint32_t),
 	    BUS_SPACE_BARRIER_WRITE);
 
-	/*
-	 * Divide the 100 MHz reference clock down to 44.2368 MHz.  Bits
-	 * 15:1 hold M and bits 30:16 hold N, giving a rate of ref * M / N.
-	 */
-	clk = (15625U << 16) | (6912U << 1);
+	/* Divide the 100 MHz reference clock down to 44.2368 MHz. */
+	clk = LPSS_PRIV_CLK_MN(6912, 15625);
 	bus_write_4(res, LPSS_CLK, clk);
 	bus_barrier(res, LPSS_CLK, sizeof(uint32_t),
 	    BUS_SPACE_BARRIER_WRITE);
-	bus_write_4(res, LPSS_CLK, clk | LPSS_CLK_EN | LPSS_CLK_UPDATE);
+	bus_write_4(res, LPSS_CLK,
+	    clk | LPSS_PRIV_CLK_EN | LPSS_PRIV_CLK_UPDATE);
 	(void)bus_read_4(res, LPSS_CLK);
 
 	return (0);
