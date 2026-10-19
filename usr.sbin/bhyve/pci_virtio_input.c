@@ -467,19 +467,14 @@ static int
 vtinput_eventqueue_add_event(
     struct vtinput_eventqueue *queue, struct input_event *e)
 {
-	/* check if queue is full */
 	if (queue->idx >= queue->size) {
-		/* alloc new elements for queue */
-		const uint32_t newSize = queue->idx;
-		void *newPtr = realloc(queue->events,
-		    queue->size * sizeof(struct vtinput_event_elem));
-		if (newPtr == NULL) {
-			WPRINTF(("%s: realloc memory for eventqueue failed!",
-			    __func__));
+		const size_t nsize = queue->idx + VTINPUT_MAX_PKT_LEN;
+		void *ptr = realloc(queue->events,
+		    nsize * sizeof(struct vtinput_event_elem));
+		if (ptr == NULL)
 			return (1);
-		}
-		queue->events = newPtr;
-		queue->size = newSize;
+		queue->events = ptr;
+		queue->size = nsize;
 	}
 
 	/* save event */
@@ -584,8 +579,7 @@ vtinput_read_event_from_host(int fd, struct input_event *event)
 }
 
 static void
-vtinput_read_event(int fd __attribute((unused)),
-    enum ev_type t __attribute__((unused)), void *arg __attribute__((unused)))
+vtinput_read_event(int fd __unused, enum ev_type t __unused, void *arg)
 {
 	struct pci_vtinput_softc *sc = arg;
 
