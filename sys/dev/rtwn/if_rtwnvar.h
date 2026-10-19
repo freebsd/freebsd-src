@@ -308,6 +308,7 @@ struct rtwn_softc {
 	void		(*sc_fw_download_enable)(struct rtwn_softc *, int);
 #endif
 	int		(*sc_llt_init)(struct rtwn_softc *);
+	void		(*sc_enable_mac_txrx)(struct rtwn_softc *);
 	int		(*sc_set_page_size)(struct rtwn_softc *);
 	void		(*sc_lc_calib)(struct rtwn_softc *);
 	void		(*sc_iq_calib)(struct rtwn_softc *);
@@ -362,6 +363,7 @@ struct rtwn_softc {
 	uint8_t		(*sc_temp_read)(struct rtwn_softc *);
 	void		(*sc_init_tx_agg)(struct rtwn_softc *);
 	void		(*sc_init_rx_agg)(struct rtwn_softc *);
+	void		(*sc_init_beacon_timer)(struct rtwn_softc *);
 	void		(*sc_init_intr)(struct rtwn_softc *);
 	void		(*sc_init_ampdu)(struct rtwn_softc *);
 	void		(*sc_init_edca)(struct rtwn_softc *);
@@ -515,6 +517,8 @@ void	rtwn_attach_vht_cap_info_mcs(struct rtwn_softc *);
 #endif
 #define rtwn_llt_init(_sc) \
 	(((_sc)->sc_llt_init)((_sc)))
+#define rtwn_enable_mac_txrx(_sc) \
+	(((_sc)->sc_enable_mac_txrx)((_sc)))
 #define rtwn_set_page_size(_sc) \
 	(((_sc)->sc_set_page_size)((_sc)))
 #define rtwn_lc_calib(_sc) \
@@ -587,6 +591,8 @@ void	rtwn_attach_vht_cap_info_mcs(struct rtwn_softc *);
 	(((_sc)->sc_init_tx_agg)((_sc)))
 #define rtwn_init_rx_agg(_sc) \
 	(((_sc)->sc_init_rx_agg)((_sc)))
+#define rtwn_init_beacon_timer(_sc) \
+	(((_sc)->sc_init_beacon_timer)((_sc)))
 #define rtwn_init_intr(_sc) \
 	(((_sc)->sc_init_intr)((_sc)))
 #define rtwn_init_ampdu(_sc) \

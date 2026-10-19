@@ -12,6 +12,10 @@ SRCS	 = rtwn_usb_attach.c rtwn_usb_ep.c rtwn_usb_reg.c rtwn_usb_rx.c \
 SRCS	+= r88eu_attach.c r88eu_init.c \
 	   r88eu.h r88eu_reg.h
 
+.PATH: ${SRCTOP}/sys/dev/rtwn/rtl8188f/usb
+SRCS	+= r88fu_attach.c r88fu_init.c \
+	   r88fu.h 
+
 .PATH: ${SRCTOP}/sys/dev/rtwn/rtl8192c/usb
 SRCS	+= r92cu_attach.c r92cu_init.c r92cu_led.c r92cu_rx.c r92cu_tx.c \
 	   r92cu.h r92cu_priv.h r92cu_reg.h r92cu_tx_desc.h

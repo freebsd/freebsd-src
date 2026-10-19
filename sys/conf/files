@@ -2964,6 +2964,17 @@ dev/rtwn/rtl8188e/pci/r88ee_init.c	optional rtwn_pci pci
 dev/rtwn/rtl8188e/pci/r88ee_rx.c	optional rtwn_pci pci
 dev/rtwn/rtl8188e/usb/r88eu_attach.c	optional rtwn_usb
 dev/rtwn/rtl8188e/usb/r88eu_init.c	optional rtwn_usb
+
+# RTL8188F
+dev/rtwn/rtl8188f/r88f_calib.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_chan.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_fw.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_init.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_rom.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_rx.c	optional rtwn
+dev/rtwn/rtl8188f/usb/r88fu_attach.c	optional rtwn_usb
+dev/rtwn/rtl8188f/usb/r88fu_init.c	optional rtwn_usb
+
 # RTL8192C
 dev/rtwn/rtl8192c/r92c_attach.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_beacon.c	optional rtwn

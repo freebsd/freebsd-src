@@ -1520,6 +1520,8 @@ rtwn_dma_init(struct rtwn_softc *sc)
 	if (error != 0)
 		return (error);
 
+	rtwn_enable_mac_txrx(sc);
+
 	/* Set the number of pages for each queue. */
 	RTWN_DPRINTF(sc, RTWN_DEBUG_RESET,
 	    "%s: pages per queue: high %d, normal %d, low %d, public %d\n",
@@ -1903,7 +1905,7 @@ rtwn_init_beacon_reg(struct rtwn_softc *sc)
 	rtwn_write_1(sc, R92C_BCN_CTRL(0), R92C_BCN_CTRL_DIS_TSF_UDT0);
 	rtwn_write_1(sc, R92C_BCN_CTRL(1), R92C_BCN_CTRL_DIS_TSF_UDT0);
 	rtwn_write_2(sc, R92C_TBTT_PROHIBIT, 0x6404);
-	rtwn_write_1(sc, R92C_DRVERLYINT, 0x05);
+	rtwn_init_beacon_timer(sc);
 	rtwn_write_1(sc, R92C_BCNDMATIM, 0x02);
 	rtwn_write_2(sc, R92C_BCNTCFG, 0x660f);
 }
