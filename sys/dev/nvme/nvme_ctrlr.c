@@ -1679,7 +1679,7 @@ nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 	mtx = mtx_pool_find(mtxpool_sleep, npc);
 	npc->metadata = (uintptr_t) mtx;
 
-	/* XXX no timeout passed down */
+	req->timeout_ms = npc->timeout_ms;
 	if (is_admin)
 		nvme_ctrlr_submit_admin_request(ctrlr, req);
 	else
