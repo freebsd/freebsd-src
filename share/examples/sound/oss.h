@@ -98,10 +98,6 @@ oss_init(struct config *config)
 	if (ioctl(config->fd, SNDCTL_DSP_GETCAPS, &config->audio_info.caps) < 0)
 		err(1, "Unable to get capabilities");
 
-	/* Check if device supports triggering */
-	if (!(config->audio_info.caps & PCM_CAP_TRIGGER))
-		errx(1, "Device doesn't support triggering!\n");
-
 	/* Handle memory mapped mode */
 	if (config->mmap) {
 		if (!(config->audio_info.caps & PCM_CAP_MMAP))
@@ -216,27 +212,24 @@ oss_init(struct config *config)
 	    config->sample_count, config->audio_info.max_channels,
 	    config->sample_size, config->sample_rate, config->format);
 
-	/* Set trigger direction and mmap protection */
-	switch (config->mode & O_ACCMODE) {
-	case O_RDONLY:
-		tmp = PCM_ENABLE_INPUT;
-		prot = PROT_READ;
-		break;
-	case O_WRONLY:
-		tmp = PCM_ENABLE_OUTPUT;
-		prot = PROT_WRITE;
-		break;
-	case O_RDWR:
-		tmp = PCM_ENABLE_INPUT | PCM_ENABLE_OUTPUT;
-		prot = PROT_READ | PROT_WRITE;
-		break;
-	default:
-		errx(1, "Invalid mode %d", config->mode);
-		break;
-	}
 
 	/* Map or allocate the buffer */
 	if (config->mmap) {
+		/* Set mmap protection */
+		switch (config->mode & O_ACCMODE) {
+		case O_RDONLY:
+			prot = PROT_READ;
+			break;
+		case O_WRONLY:
+			prot = PROT_WRITE;
+			break;
+		case O_RDWR:
+			prot = PROT_READ | PROT_WRITE;
+			break;
+		default:
+			errx(1, "Invalid mode %d", config->mode);
+			break;
+		}
 		config->buf = mmap(NULL, config->buffer_info.bytes, prot, MAP_SHARED, config->fd, 0);
 		if (config->buf == MAP_FAILED)
 			err(1, "Memory map failed");
@@ -244,8 +237,4 @@ oss_init(struct config *config)
 		if ((config->buf = malloc(config->buffer_info.bytes)) == NULL)
 			err(1, "Allocating buffer failed");
 	}
-
-	/* Set the trigger */
-	if (ioctl(config->fd, SNDCTL_DSP_SETTRIGGER, &tmp) < 0)
-		err(1, "Failed to set trigger");
 }
