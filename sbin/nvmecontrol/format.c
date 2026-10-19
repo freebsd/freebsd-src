@@ -59,6 +59,7 @@ static struct options {
 	uint32_t	ses;
 	bool		Eflag;
 	bool		Cflag;
+	bool		dry_run;
 	const char	*dev;
 } opt = {
 	.lbaf = NONE,
@@ -69,6 +70,7 @@ static struct options {
 	.ses = SES_NONE,
 	.Eflag = false,
 	.Cflag = false,
+	.dry_run = false,
 	.dev = NULL,
 };
 
@@ -78,6 +80,8 @@ static const struct opts format_opts[] = {
 	    "Cryptographic erase"),
 	OPT("erase", 'E', arg_none, opt, Eflag,
 	    "User data erase"),
+	OPT("dry-run", 'n', arg_none, opt, dry_run,
+	    "Print the Format NVM command without submitting it"),
 	OPT("lbaf", 'f', arg_uint32, opt, lbaf,
 	    "LBA Format to apply to the media"),
 	OPT("ms", 'm', arg_uint32, opt, ms,
@@ -186,7 +190,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	struct nvme_pt_command		pt;
 	char				*path;
 	const char			*target;
-	uint32_t			nsid, scan_nsid;
+	uint32_t			cdw10, nsid, scan_nsid;
 	int				lbaf, ms, pi, pil, ses, fd;
 	u_int				i;
 	uint32_t			sector_size;
@@ -220,7 +224,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	else
 		ses = opt.ses;
 
-	open_dev(target, &fd, 1, 1);
+	open_dev(target, &fd, !opt.dry_run, 1);
 	get_nsid(fd, &path, &nsid);
 	if (nsid == 0) {
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
@@ -232,7 +236,7 @@ format(const struct cmd *f, int argc, char *argv[])
 		 * string to get the controller substring and namespace ID.
 		 */
 		close(fd);
-		open_dev(path, &fd, 1, 1);
+		open_dev(path, &fd, !opt.dry_run, 1);
 	}
 	free(path);
 
@@ -316,11 +320,19 @@ format(const struct cmd *f, int argc, char *argv[])
 			pil = 0;
 	}
 
+	cdw10 = (ses << 9) + (pil << 8) + (pi << 5) + (ms << 4) + lbaf;
+	if (opt.dry_run) {
+		printf("Format NVM: opc=%#x nsid=%#010x cdw10=%#010x "
+		    "(lbaf=%d mset=%d pi=%d pil=%d ses=%d)\n",
+		    NVME_OPC_FORMAT_NVM, nsid, cdw10, lbaf, ms, pi, pil, ses);
+		close(fd);
+		exit(0);
+	}
+
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_FORMAT_NVM;
 	pt.cmd.nsid = htole32(nsid);
-	pt.cmd.cdw10 = htole32((ses << 9) + (pil << 8) + (pi << 5) +
-	    (ms << 4) + lbaf);
+	pt.cmd.cdw10 = htole32(cdw10);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "format request failed");

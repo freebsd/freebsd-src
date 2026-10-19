@@ -153,6 +153,7 @@
 .Aq Ar device-id
 .Nm
 .Ic format
+.Op Fl n
 .Op Fl f Ar fmt
 .Op Fl s Ar sector-size
 .Op Fl m Ar mset
@@ -505,6 +506,10 @@ Use Extended Data Structure.
 Format either specified namespace, or all namespaces of specified controller,
 using specified parameters:
 .Bl -tag -width 8n
+.It Fl n , Fl Fl dry-run
+Print the resolved Format NVM command without submitting it to the controller.
+Identify commands needed to resolve and validate the format parameters are
+still performed.
 .It Fl f Ar fmt
 The index
 .Ar fmt
