@@ -71,6 +71,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <setjmp.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,23 +100,35 @@ enum {
 	JMP_REBOOT,
 };
 
-static struct termios term, oldterm;
-static int disk_fd[NDISKS];
-static int ndisks;
-static int bootfd = -1;
-static int consin_fd, consout_fd;
-static int hostbase_fd = -1;
+struct env {
+	char *str;	/* name=value */
+	SLIST_ENTRY(env) next;
+};
 
-static void *loader_hdl;
-static char *loader;
-static int explicit_loader_fd = -1;
-static jmp_buf jb;
+struct bhyveload_softc {
+	struct vmctx *ctx;
+	struct vcpu *vcpu;
 
-static char *vmname, *progname;
-static struct vmctx *ctx;
-static struct vcpu *vcpu;
+	SLIST_HEAD(, env) envhead;
 
-static uint64_t gdtbase, cr3, rsp;
+	struct termios oldterm;
+
+	char *loader;
+
+	int boot_dfd;			/* directory fd for host /boot */
+	int consin_fd, consout_fd;	/* console I/O fds */
+	int explicit_loader_fd;		/* handle for alternate userboot.so */
+	int hostbase_fd;		/* host root directory fd */
+
+	int ndisks;
+	int disk_fd[NDISKS];
+
+	uint64_t gdtbase;
+	uint64_t cr3;
+	uint64_t rsp;
+
+	jmp_buf jb;
+};
 
 static void cb_exit(void *arg, int v);
 
@@ -124,33 +137,36 @@ static void cb_exit(void *arg, int v);
  */
 
 static void
-cb_putc(void *arg __unused, int ch)
+cb_putc(void *arg, int ch)
 {
+	struct bhyveload_softc *sc = arg;
 	char c = ch;
 
-	(void) write(consout_fd, &c, 1);
+	(void)write(sc->consout_fd, &c, 1);
 }
 
 static int
-cb_getc(void *arg __unused)
+cb_getc(void *arg)
 {
+	struct bhyveload_softc *sc = arg;
 	char c;
 	ssize_t nread;
 
-	nread = read(consin_fd, &c, 1);
+	nread = read(sc->consin_fd, &c, 1);
 	if (nread == 0)
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	if (nread == 1)
 		return (c);
 	return (-1);
 }
 
 static int
-cb_poll(void *arg __unused)
+cb_poll(void *arg)
 {
+	struct bhyveload_softc *sc = arg;
 	int n;
 
-	if (ioctl(consin_fd, FIONREAD, &n) >= 0)
+	if (ioctl(sc->consin_fd, FIONREAD, &n) >= 0)
 		return (n > 0);
 	return (0);
 }
@@ -170,14 +186,15 @@ struct cb_file {
 };
 
 static int
-cb_open(void *arg __unused, const char *filename, void **hp)
+cb_open(void *arg, const char *filename, void **hp)
 {
+	struct bhyveload_softc *sc = arg;
 	struct cb_file *cf;
 	struct stat sb;
 	int fd;
 
 	cf = NULL;
-	if (hostbase_fd == -1)
+	if (sc->hostbase_fd == -1)
 		return (ENOENT);
 
 	/* Absolute paths are relative to our hostbase, chop off leading /. */
@@ -189,7 +206,7 @@ cb_open(void *arg __unused, const char *filename, void **hp)
 		filename = ".";
 
 	/* May be opening the root dir */
-	fd = openat(hostbase_fd, filename, O_RDONLY | O_RESOLVE_BENEATH);
+	fd = openat(sc->hostbase_fd, filename, O_RDONLY | O_RESOLVE_BENEATH);
 	if (fd < 0)
 		return (errno);
 
@@ -326,14 +343,15 @@ cb_stat(void *arg __unused, void *h, struct stat *sbp)
  */
 
 static int
-cb_diskread(void *arg __unused, int unit, uint64_t from, void *to, size_t size,
+cb_diskread(void *arg, int unit, uint64_t from, void *to, size_t size,
     size_t *resid)
 {
+	struct bhyveload_softc *sc = arg;
 	ssize_t n;
 
-	if (unit < 0 || unit >= ndisks)
+	if (unit < 0 || unit >= sc->ndisks)
 		return (EIO);
-	n = pread(disk_fd[unit], to, size, from);
+	n = pread(sc->disk_fd[unit], to, size, from);
 	if (n < 0)
 		return (errno);
 	*resid = size - n;
@@ -341,14 +359,15 @@ cb_diskread(void *arg __unused, int unit, uint64_t from, void *to, size_t size,
 }
 
 static int
-cb_diskwrite(void *arg __unused, int unit, uint64_t offset, void *src,
-    size_t size, size_t *resid)
+cb_diskwrite(void *arg, int unit, uint64_t offset, void *src, size_t size,
+    size_t *resid)
 {
+	struct bhyveload_softc *sc = arg;
 	ssize_t n;
 
-	if (unit < 0 || unit >= ndisks)
+	if (unit < 0 || unit >= sc->ndisks)
 		return (EIO);
-	n = pwrite(disk_fd[unit], src, size, offset);
+	n = pwrite(sc->disk_fd[unit], src, size, offset);
 	if (n < 0)
 		return (errno);
 	*resid = size - n;
@@ -356,30 +375,32 @@ cb_diskwrite(void *arg __unused, int unit, uint64_t offset, void *src,
 }
 
 static int
-cb_diskioctl(void *arg __unused, int unit, u_long cmd, void *data)
+cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
 {
+	struct bhyveload_softc *sc = arg;
 	struct stat sb;
 
-	if (unit < 0 || unit >= ndisks)
+	if (unit < 0 || unit >= sc->ndisks)
 		return (EBADF);
 
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
-		if (fstat(disk_fd[unit], &sb) != 0)
+		if (fstat(sc->disk_fd[unit], &sb) != 0)
 			return (ENOTTY);
 		if (S_ISCHR(sb.st_mode)) {
-			if (ioctl(disk_fd[unit], DIOCGSECTORSIZE, data) != 0)
+			if (ioctl(sc->disk_fd[unit], DIOCGSECTORSIZE, data) !=
+			    0)
 				return (ENOTTY);
 		} else {
 			*(u_int *)data = 512;
 		}
 		break;
 	case DIOCGMEDIASIZE:
-		if (fstat(disk_fd[unit], &sb) != 0)
+		if (fstat(sc->disk_fd[unit], &sb) != 0)
 			return (ENOTTY);
 		if (S_ISCHR(sb.st_mode) &&
-		    ioctl(disk_fd[unit], DIOCGMEDIASIZE, &sb.st_size) != 0)
-				return (ENOTTY);
+		    ioctl(sc->disk_fd[unit], DIOCGMEDIASIZE, &sb.st_size) != 0)
+			return (ENOTTY);
 		*(off_t *)data = sb.st_size;
 		break;
 	default:
@@ -393,13 +414,14 @@ cb_diskioctl(void *arg __unused, int unit, u_long cmd, void *data)
  * Guest virtual machine i/o callbacks
  */
 static int
-cb_copyin(void *arg __unused, const void *from, uint64_t to, size_t size)
+cb_copyin(void *arg, const void *from, uint64_t to, size_t size)
 {
+	struct bhyveload_softc *sc = arg;
 	char *ptr;
 
 	to &= 0x7fffffff;
 
-	ptr = vm_map_gpa(ctx, to, size);
+	ptr = vm_map_gpa(sc->ctx, to, size);
 	if (ptr == NULL)
 		return (EFAULT);
 
@@ -408,13 +430,14 @@ cb_copyin(void *arg __unused, const void *from, uint64_t to, size_t size)
 }
 
 static int
-cb_copyout(void *arg __unused, uint64_t from, void *to, size_t size)
+cb_copyout(void *arg, uint64_t from, void *to, size_t size)
 {
+	struct bhyveload_softc *sc = arg;
 	char *ptr;
 
 	from &= 0x7fffffff;
 
-	ptr = vm_map_gpa(ctx, from, size);
+	ptr = vm_map_gpa(sc->ctx, from, size);
 	if (ptr == NULL)
 		return (EFAULT);
 
@@ -423,8 +446,9 @@ cb_copyout(void *arg __unused, uint64_t from, void *to, size_t size)
 }
 
 static void
-cb_setreg(void *arg __unused, int r, uint64_t v)
+cb_setreg(void *arg, int r, uint64_t v)
 {
+	struct bhyveload_softc *sc = arg;
 	int error;
 	enum vm_reg_name vmreg;
 
@@ -433,7 +457,7 @@ cb_setreg(void *arg __unused, int r, uint64_t v)
 	switch (r) {
 	case 4:
 		vmreg = VM_REG_GUEST_RSP;
-		rsp = v;
+		sc->rsp = v;
 		break;
 	default:
 		break;
@@ -441,19 +465,20 @@ cb_setreg(void *arg __unused, int r, uint64_t v)
 
 	if (vmreg == VM_REG_LAST) {
 		printf("test_setreg(%d): not implemented\n", r);
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 
-	error = vm_set_register(vcpu, vmreg, v);
+	error = vm_set_register(sc->vcpu, vmreg, v);
 	if (error) {
 		perror("vm_set_register");
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 }
 
 static void
-cb_setmsr(void *arg __unused, int r, uint64_t v)
+cb_setmsr(void *arg, int r, uint64_t v)
 {
+	struct bhyveload_softc *sc = arg;
 	int error;
 	enum vm_reg_name vmreg;
 	
@@ -469,19 +494,20 @@ cb_setmsr(void *arg __unused, int r, uint64_t v)
 
 	if (vmreg == VM_REG_LAST) {
 		printf("test_setmsr(%d): not implemented\n", r);
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 
-	error = vm_set_register(vcpu, vmreg, v);
+	error = vm_set_register(sc->vcpu, vmreg, v);
 	if (error) {
 		perror("vm_set_msr");
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 }
 
 static void
-cb_setcr(void *arg __unused, int r, uint64_t v)
+cb_setcr(void *arg, int r, uint64_t v)
 {
+	struct bhyveload_softc *sc = arg;
 	int error;
 	enum vm_reg_name vmreg;
 	
@@ -493,7 +519,7 @@ cb_setcr(void *arg __unused, int r, uint64_t v)
 		break;
 	case 3:
 		vmreg = VM_REG_GUEST_CR3;
-		cr3 = v;
+		sc->cr3 = v;
 		break;
 	case 4:
 		vmreg = VM_REG_GUEST_CR4;
@@ -504,47 +530,49 @@ cb_setcr(void *arg __unused, int r, uint64_t v)
 
 	if (vmreg == VM_REG_LAST) {
 		printf("test_setcr(%d): not implemented\n", r);
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 
-	error = vm_set_register(vcpu, vmreg, v);
+	error = vm_set_register(sc->vcpu, vmreg, v);
 	if (error) {
 		perror("vm_set_cr");
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 }
 
 static void
-cb_setgdt(void *arg __unused, uint64_t base, size_t size)
+cb_setgdt(void *arg, uint64_t base, size_t size)
 {
+	struct bhyveload_softc *sc = arg;
 	int error;
 
-	error = vm_set_desc(vcpu, VM_REG_GUEST_GDTR, base, size - 1, 0);
+	error = vm_set_desc(sc->vcpu, VM_REG_GUEST_GDTR, base, size - 1, 0);
 	if (error != 0) {
 		perror("vm_set_desc(gdt)");
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 
-	gdtbase = base;
+	sc->gdtbase = base;
 }
 
 static void
-cb_exec(void *arg __unused, uint64_t rip)
+cb_exec(void *arg, uint64_t rip)
 {
+	struct bhyveload_softc *sc = arg;
 	int error;
 
-	if (cr3 == 0)
-		error = vm_setup_freebsd_registers_i386(vcpu, rip, gdtbase,
-		    rsp);
+	if (sc->cr3 == 0)
+		error = vm_setup_freebsd_registers_i386(sc->vcpu, rip,
+		    sc->gdtbase, sc->rsp);
 	else
-		error = vm_setup_freebsd_registers(vcpu, rip, cr3, gdtbase,
-		    rsp);
+		error = vm_setup_freebsd_registers(sc->vcpu, rip,
+		    sc->cr3, sc->gdtbase, sc->rsp);
 	if (error) {
 		perror("vm_setup_freebsd_registers");
-		cb_exit(NULL, USERBOOT_EXIT_QUIT);
+		cb_exit(sc, USERBOOT_EXIT_QUIT);
 	}
 
-	cb_exit(NULL, 0);
+	cb_exit(sc, 0);
 }
 
 /*
@@ -559,32 +587,27 @@ cb_delay(void *arg __unused, int usec)
 }
 
 static void
-cb_exit(void *arg __unused, int v)
+cb_exit(void *arg, int v)
 {
+	struct bhyveload_softc *sc = arg;
 
-	tcsetattr(consout_fd, TCSAFLUSH, &oldterm);
+	tcsetattr(sc->consout_fd, TCSAFLUSH, &sc->oldterm);
 	if (v == USERBOOT_EXIT_REBOOT)
-		longjmp(jb, JMP_REBOOT);
+		longjmp(sc->jb, JMP_REBOOT);
 	exit(v);
 }
 
 static void
-cb_getmem(void *arg __unused, uint64_t *ret_lowmem, uint64_t *ret_highmem)
+cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 {
+	struct bhyveload_softc *sc = arg;
 
-	*ret_lowmem = vm_get_lowmem_size(ctx);
-	*ret_highmem = vm_get_highmem_size(ctx);
+	*ret_lowmem = vm_get_lowmem_size(sc->ctx);
+	*ret_highmem = vm_get_highmem_size(sc->ctx);
 }
 
-struct env {
-	char *str;	/* name=value */
-	SLIST_ENTRY(env) next;
-};
-
-static SLIST_HEAD(envhead, env) envhead;
-
 static void
-addenv(const char *str)
+addenv(struct bhyveload_softc *sc, const char *str)
 {
 	struct env *env;
 
@@ -594,17 +617,18 @@ addenv(const char *str)
 	env->str = strdup(str);
 	if (env->str == NULL)
 		err(EX_OSERR, "strdup");
-	SLIST_INSERT_HEAD(&envhead, env, next);
+	SLIST_INSERT_HEAD(&sc->envhead, env, next);
 }
 
 static char *
-cb_getenv(void *arg __unused, int num)
+cb_getenv(void *arg, int num)
 {
-	int i;
+	struct bhyveload_softc *sc = arg;
 	struct env *env;
+	int i;
 
 	i = 0;
-	SLIST_FOREACH(env, &envhead, next) {
+	SLIST_FOREACH(env, &sc->envhead, next) {
 		if (i == num)
 			return (env->str);
 		i++;
@@ -614,53 +638,57 @@ cb_getenv(void *arg __unused, int num)
 }
 
 static int
-cb_vm_set_register(void *arg __unused, int vcpuid, int reg, uint64_t val)
+cb_vm_set_register(void *arg, int vcpuid, int reg, uint64_t val)
 {
+	struct bhyveload_softc *sc = arg;
 
 	assert(vcpuid == BSP);
-	return (vm_set_register(vcpu, reg, val));
+	return (vm_set_register(sc->vcpu, reg, val));
 }
 
 static int
-cb_vm_set_desc(void *arg __unused, int vcpuid, int reg, uint64_t base,
-    u_int limit, u_int access)
+cb_vm_set_desc(void *arg, int vcpuid, int reg, uint64_t base, u_int limit,
+    u_int access)
 {
+	struct bhyveload_softc *sc = arg;
 
 	assert(vcpuid == BSP);
-	return (vm_set_desc(vcpu, reg, base, limit, access));
+	return (vm_set_desc(sc->vcpu, reg, base, limit, access));
 }
 
 static void
-cb_swap_interpreter(void *arg __unused, const char *interp_req)
+cb_swap_interpreter(void *arg, const char *interp_req)
 {
+	struct bhyveload_softc *sc = arg;
 
 	/*
 	 * If the user specified a loader but we detected a mismatch, we should
 	 * not try to pivot to a different loader on them.
 	 */
-	free(loader);
-	if (explicit_loader_fd != -1) {
+	free(sc->loader);
+	if (sc->explicit_loader_fd != -1) {
 		perror("requested loader interpreter does not match guest userboot");
-		cb_exit(NULL, 1);
+		cb_exit(sc, 1);
 	}
 	if (interp_req == NULL || *interp_req == '\0') {
 		perror("guest failed to request an interpreter");
-		cb_exit(NULL, 1);
+		cb_exit(sc, 1);
 	}
-
-	if (asprintf(&loader, "userboot_%s.so", interp_req) == -1)
+	if (asprintf(&sc->loader, "userboot_%s.so", interp_req) == -1)
 		err(EX_OSERR, "malloc");
-	longjmp(jb, JMP_SWAPLOADER);
+	longjmp(sc->jb, JMP_SWAPLOADER);
 }
 
 static void
-cb_accept_interpreter(void *arg __unused)
+cb_accept_interpreter(void *arg)
 {
-	if (bootfd == -1)
+	struct bhyveload_softc *sc = arg;
+
+	if (sc->boot_dfd == -1)
 		return;
 
-	close(bootfd);
-	bootfd = -1;
+	close(sc->boot_dfd);
+	sc->boot_dfd = -1;
 }
 
 static struct loader_callbacks cb = {
@@ -706,7 +734,7 @@ static struct loader_callbacks cb = {
 };
 
 static int
-altcons_open(char *path)
+altcons_open(struct bhyveload_softc *sc, const char *path)
 {
 	struct stat sb;
 	int err;
@@ -729,7 +757,7 @@ altcons_open(char *path)
 			if (fd < 0)
 				err = errno;
 			else
-				consin_fd = consout_fd = fd;
+				sc->consin_fd = sc->consout_fd = fd;
 		}
 	}
 
@@ -737,13 +765,13 @@ altcons_open(char *path)
 }
 
 static int
-disk_open(char *path)
+disk_open(struct bhyveload_softc *sc, const char *path)
 {
 	struct stat sbuf;
 	off_t size;
 	int fd, ret, sectsz;
 
-	if (ndisks >= NDISKS)
+	if (sc->ndisks >= NDISKS)
 		return (ERANGE);
 
 	fd = open(path, O_RDWR);
@@ -768,8 +796,7 @@ disk_open(char *path)
 		assert(sectsz != 0);
 	}
 
-	disk_fd[ndisks] = fd;
-	ndisks++;
+	sc->disk_fd[sc->ndisks++] = fd;
 
 	return (0);
 err:
@@ -778,7 +805,7 @@ err:
 }
 
 static void
-usage(void)
+usage(const char *progname)
 {
 
 	fprintf(stderr,
@@ -789,94 +816,109 @@ usage(void)
 	exit(1);
 }
 
-static void
+static int
 hostbase_open(const char *base)
 {
 	cap_rights_t rights;
-
-	if (hostbase_fd != -1)
-		close(hostbase_fd);
-	hostbase_fd = open(base, O_DIRECTORY | O_PATH);
-	if (hostbase_fd == -1)
-		err(EX_OSERR, "open");
-
-	if (caph_rights_limit(hostbase_fd, cap_rights_init(&rights, CAP_FSTATAT,
-	    CAP_LOOKUP, CAP_PREAD)) < 0)
-		err(EX_OSERR, "caph_rights_limit");
-}
-
-static void
-loader_open(void)
-{
 	int fd;
 
-	if (loader == NULL) {
-		loader = strdup("userboot.so");
-		if (loader == NULL)
+	fd = open(base, O_DIRECTORY | O_PATH);
+	if (fd == -1)
+		err(EX_OSERR, "open");
+
+	if (caph_rights_limit(fd,
+	    cap_rights_init(&rights, CAP_FSTATAT, CAP_LOOKUP, CAP_PREAD)) < 0)
+		err(EX_OSERR, "caph_rights_limit");
+
+	return (fd);
+}
+
+static void *
+loader_open(struct bhyveload_softc *sc)
+{
+	void *handle;
+	int fd;
+
+	if (sc->loader == NULL) {
+		sc->loader = strdup("userboot.so");
+		if (sc->loader == NULL)
 			err(EX_OSERR, "malloc");
 	}
 
-	assert(bootfd >= 0 || explicit_loader_fd >= 0);
-	if (explicit_loader_fd >= 0)
-		fd = explicit_loader_fd;
+	assert(sc->boot_dfd >= 0 || sc->explicit_loader_fd >= 0);
+	if (sc->explicit_loader_fd >= 0)
+		fd = sc->explicit_loader_fd;
 	else
-		fd = openat(bootfd, loader, O_RDONLY | O_RESOLVE_BENEATH);
+		fd = openat(sc->boot_dfd, sc->loader,
+		    O_RDONLY | O_RESOLVE_BENEATH);
 	if (fd == -1)
 		err(EX_OSERR, "openat");
 
-	loader_hdl = fdlopen(fd, RTLD_LOCAL);
-	if (!loader_hdl)
+	handle = fdlopen(fd, RTLD_LOCAL);
+	if (handle == NULL)
 		errx(EX_OSERR, "dlopen: %s", dlerror());
-	if (fd != explicit_loader_fd)
+	if (fd != sc->explicit_loader_fd)
 		close(fd);
+
+	return (handle);
 }
 
 int
 main(int argc, char** argv)
 {
+	struct bhyveload_softc sc;
+	struct termios term;
 	void (*func)(struct loader_callbacks *, void *, int, int);
+	void * volatile loader_hdl;
+	char *vmname, *progname;
 	uint64_t mem_size;
-	int opt, error, memflags, need_reinit;
+	int opt, error, memflags;
+	bool need_reinit;
 
 	progname = basename(argv[0]);
+
+	memset(&sc, 0, sizeof(sc));
+	SLIST_INIT(&sc.envhead);
+	sc.boot_dfd = sc.explicit_loader_fd = sc.hostbase_fd = -1;
+	sc.consin_fd = STDIN_FILENO;
+	sc.consout_fd = STDOUT_FILENO;
 
 	memflags = 0;
 	mem_size = 256 * MB;
 
-	consin_fd = STDIN_FILENO;
-	consout_fd = STDOUT_FILENO;
-
 	while ((opt = getopt(argc, argv, "CSc:d:e:h:l:m:")) != -1) {
 		switch (opt) {
 		case 'c':
-			error = altcons_open(optarg);
+			error = altcons_open(&sc, optarg);
 			if (error != 0)
 				errx(EX_USAGE, "Could not open '%s'", optarg);
 			break;
 
 		case 'd':
-			error = disk_open(optarg);
+			error = disk_open(&sc, optarg);
 			if (error != 0)
 				errc(EX_USAGE, error, "Could not open '%s'", optarg);
 			break;
 
 		case 'e':
-			addenv(optarg);
+			addenv(&sc, optarg);
 			break;
 
 		case 'h':
-			hostbase_open(optarg);
+			if (sc.hostbase_fd != -1)
+				close(sc.hostbase_fd);
+			sc.hostbase_fd = hostbase_open(optarg);
 			break;
 
 		case 'l':
-			if (loader != NULL)
+			if (sc.loader != NULL)
 				errx(EX_USAGE, "-l can only be given once");
-			loader = strdup(optarg);
-			if (loader == NULL)
+			sc.loader = strdup(optarg);
+			if (sc.loader == NULL)
 				err(EX_OSERR, "malloc");
-			explicit_loader_fd = open(loader, O_RDONLY);
-			if (explicit_loader_fd == -1)
-				err(EX_OSERR, "%s", loader);
+			sc.explicit_loader_fd = open(sc.loader, O_RDONLY);
+			if (sc.explicit_loader_fd == -1)
+				err(EX_OSERR, "%s", sc.loader);
 			break;
 
 		case 'm':
@@ -891,7 +933,7 @@ main(int argc, char** argv)
 			memflags |= VM_MEM_F_WIRED;
 			break;
 		case '?':
-			usage();
+			usage(progname);
 		}
 	}
 
@@ -899,45 +941,47 @@ main(int argc, char** argv)
 	argv += optind;
 
 	if (argc != 1)
-		usage();
+		usage(progname);
 
 	vmname = argv[0];
-
-	need_reinit = 0;
-	error = vm_create(vmname);
-	if (error) {
-		if (errno != EEXIST)
-			err(1, "vm_create");
-		need_reinit = 1;
-	}
-
-	ctx = vm_open(vmname);
-	if (ctx == NULL)
-		err(1, "vm_open");
 
 	/*
 	 * If we weren't given an explicit loader to use, we need to support the
 	 * guest requesting a different one.
 	 */
-	if (explicit_loader_fd == -1) {
+	if (sc.explicit_loader_fd == -1) {
 		cap_rights_t rights;
+		int fd;
 
-		bootfd = open("/boot", O_DIRECTORY | O_PATH);
-		if (bootfd == -1)
+		fd = open("/boot", O_DIRECTORY | O_PATH);
+		if (fd == -1)
 			err(1, "open");
 
 		/*
-		 * bootfd will be used to do a lookup of our loader and do an
+		 * boot_dfd will be used to do a lookup of our loader and do an
 		 * fdlopen(3) on the loader; thus, we need mmap(2) in addition
 		 * to the more usual lookup rights.
 		 */
-		if (caph_rights_limit(bootfd, cap_rights_init(&rights,
+		if (caph_rights_limit(fd, cap_rights_init(&rights,
 		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_PREAD)) < 0)
 			err(1, "caph_rights_limit");
+		sc.boot_dfd = fd;
 	}
 
-	vcpu = vm_vcpu_open(ctx, BSP);
-	if (vcpu == NULL)
+	need_reinit = false;
+	error = vm_create(vmname);
+	if (error) {
+		if (errno != EEXIST)
+			err(1, "vm_create");
+		need_reinit = true;
+	}
+
+	sc.ctx = vm_open(vmname);
+	if (sc.ctx == NULL)
+		err(1, "vm_open");
+
+	sc.vcpu = vm_vcpu_open(sc.ctx, BSP);
+	if (sc.vcpu == NULL)
 		err(1, "vm_vcpu_open");
 
 	caph_cache_catpages();
@@ -949,41 +993,40 @@ main(int argc, char** argv)
 	 * cb_swap_interpreter will swap out loader as appropriate and set
 	 * need_reinit so that we end up in a clean state once again.
 	 */
-	if (setjmp(jb) != 0) {
-		dlclose(loader_hdl);
+	loader_hdl = NULL;
+	if (setjmp(sc.jb) != 0) {
+		dlclose(__DEVOLATILE(void *, loader_hdl));
 		loader_hdl = NULL;
 
-		need_reinit = 1;
+		need_reinit = true;
 	}
 
 	if (need_reinit) {
-		error = vm_reinit(ctx);
+		error = vm_reinit(sc.ctx);
 		if (error)
 			err(1, "vm_reinit");
 	}
 
-	vm_set_memflags(ctx, memflags);
-	error = vm_setup_memory(ctx, mem_size, VM_MMAP_ALL);
+	vm_set_memflags(sc.ctx, memflags);
+	error = vm_setup_memory(sc.ctx, mem_size, VM_MMAP_ALL);
 	if (error)
 		err(1, "vm_setup_memory");
 
-	loader_open();
-	func = dlsym(loader_hdl, "loader_main");
+	loader_hdl = loader_open(&sc);
+	func = dlsym(__DEVOLATILE(void *, loader_hdl), "loader_main");
 	if (!func)
 		errx(1, "dlsym: %s", dlerror());
 
-	tcgetattr(consout_fd, &term);
-	oldterm = term;
+	tcgetattr(sc.consout_fd, &sc.oldterm);
+	term = sc.oldterm;
 	cfmakeraw(&term);
 	term.c_cflag |= CLOCAL;
+	tcsetattr(sc.consout_fd, TCSAFLUSH, &term);
 
-	tcsetattr(consout_fd, TCSAFLUSH, &term);
+	addenv(&sc, "smbios.bios.vendor=BHYVE");
+	addenv(&sc, "boot_serial=1");
 
-	addenv("smbios.bios.vendor=BHYVE");
-	addenv("boot_serial=1");
+	func(&cb, &sc, USERBOOT_VERSION_6, sc.ndisks);
 
-	func(&cb, NULL, USERBOOT_VERSION_6, ndisks);
-
-	free(loader);
 	return (0);
 }
