@@ -131,6 +131,22 @@ nvme_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+nvme_sysctl_format_timeout_period(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t *ptr = arg1;
+	uint32_t newval = *ptr;
+	int error = sysctl_handle_int(oidp, &newval, 0, req);
+
+	if (error || req->newptr == NULL)
+		return (error);
+	if (newval > NVME_MAX_FORMAT_TIMEOUT_PERIOD ||
+	    newval < NVME_MIN_TIMEOUT_PERIOD)
+		return (EINVAL);
+	*ptr = newval;
+	return (0);
+}
+
 static void
 nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 {
@@ -278,6 +294,11 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &ctrlr->timeout_period, 0, nvme_sysctl_timeout_period, "IU",
 	    "Timeout period for I/O queues (in seconds)");
+
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "format_timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &ctrlr->format_timeout_period, 0, nvme_sysctl_format_timeout_period,
+	    "IU", "Timeout period for Format NVM commands (in seconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,

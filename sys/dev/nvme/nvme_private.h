@@ -81,8 +81,10 @@ MALLOC_DECLARE(M_NVME);
 
 #define NVME_ADMIN_TIMEOUT_PERIOD	(60)    /* in seconds */
 #define NVME_DEFAULT_TIMEOUT_PERIOD	(30)    /* in seconds */
+#define NVME_FORMAT_TIMEOUT_PERIOD	(10 * 60) /* in seconds */
 #define NVME_MIN_TIMEOUT_PERIOD		(5)
 #define NVME_MAX_TIMEOUT_PERIOD		(120)
+#define NVME_MAX_FORMAT_TIMEOUT_PERIOD	(60 * 60)
 
 #define NVME_DEFAULT_RETRY_COUNT	(4)
 
@@ -302,6 +304,7 @@ struct nvme_controller {
 
 	/** timeout period in seconds */
 	uint32_t		admin_timeout_period;
+	uint32_t		format_timeout_period;
 	uint32_t		timeout_period;
 
 	/** doorbell stride */

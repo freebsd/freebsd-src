@@ -1843,6 +1843,12 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	timeout_period = max(timeout_period, NVME_MIN_TIMEOUT_PERIOD);
 	ctrlr->timeout_period = timeout_period;
 
+	timeout_period = NVME_FORMAT_TIMEOUT_PERIOD;
+	TUNABLE_INT_FETCH("hw.nvme.format_timeout_period", &timeout_period);
+	timeout_period = min(timeout_period, NVME_MAX_FORMAT_TIMEOUT_PERIOD);
+	timeout_period = max(timeout_period, NVME_MIN_TIMEOUT_PERIOD);
+	ctrlr->format_timeout_period = timeout_period;
+
 	nvme_retry_count = NVME_DEFAULT_RETRY_COUNT;
 	TUNABLE_INT_FETCH("hw.nvme.retry_count", &nvme_retry_count);
 
