@@ -657,6 +657,22 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 	return (0);
 }
 
+static void
+nvme_ctrlr_notify_ns_added(struct nvme_controller *ctrlr, device_t child)
+{
+	struct nvme_namespace *ns;
+
+	/*
+	 * Notify the consumer of all currently active namespaces.
+	 */
+	for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
+		ns = &ctrlr->ns[i];
+		if (ns->data.nsze == 0)
+			continue;
+		NVME_NS_ADDED(child, ns);
+	}
+}
+
 static bool
 is_log_page_id_valid(uint8_t page_id)
 {
@@ -1253,17 +1269,7 @@ nvme_ctrlr_start_config_hook(void *arg)
 		child = device_add_child(ctrlr->dev, NULL, DEVICE_UNIT_ANY);
 		device_set_ivars(child, ctrlr);
 		bus_attach_children(ctrlr->dev);
-
-		/*
-		 * Now notify the child of all the known namepsaces
-		 */
-		for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
-			struct nvme_namespace	*ns = &ctrlr->ns[i];
-
-			if (ns->data.nsze == 0)
-				continue;
-			NVME_NS_ADDED(child, ns);
-		}
+		nvme_ctrlr_notify_ns_added(ctrlr, child);
 	}
 	TSEXIT();
 }
