@@ -3274,6 +3274,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	struct if_rxd_info ri;
 	int err, budget_left, rx_bytes, rx_pkts;
 	iflib_fl_t fl;
+	bool rx_err;
 #if defined(INET6) || defined(INET)
 	int lro_enabled;
 #endif
@@ -3289,6 +3290,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 
 	ifp = ctx->ifc_ifp;
 	mh = mt = NULL;
+	rx_err = false;
 	MPASS(budget > 0);
 	rx_pkts	= rx_bytes = 0;
 	if (sctx->isc_flags & IFLIB_HAS_RXCQ)
@@ -3323,9 +3325,9 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		ri.iri_frags = rxq->ifr_frags;
 		err = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
 
-		if (err) {
-			CURVNET_RESTORE();
-			goto err;
+		if (__predict_false(err != 0)) {
+			rx_err = true;
+			break;
 		}
 		rx_pkts += 1;
 		rx_bytes += ri.iri_len;
@@ -3372,8 +3374,10 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	}
 	CURVNET_RESTORE();
 	/* make sure that we can refill faster than drain */
-	for (i = 0, fl = &rxq->ifr_fl[0]; i < sctx->isc_nfl; i++, fl++)
-		retval |= iflib_fl_refill_all(ctx, fl);
+	if (__predict_true(!rx_err)) {
+		for (i = 0, fl = &rxq->ifr_fl[0]; i < sctx->isc_nfl; i++, fl++)
+			retval |= iflib_fl_refill_all(ctx, fl);
+	}
 
 	if (mh != NULL) {
 		if_input(ifp, mh);
@@ -3389,15 +3393,16 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 #if defined(INET6) || defined(INET)
 	tcp_lro_flush_all(&rxq->ifr_lc);
 #endif
+	if (__predict_false(rx_err)) {
+		STATE_LOCK(ctx);
+		ctx->ifc_flags |= IFC_DO_RESET;
+		iflib_admin_intr_deferred(ctx);
+		STATE_UNLOCK(ctx);
+		return (0);
+	}
 	if (avail != 0 || iflib_rxd_avail(ctx, rxq, *cidxp, 1) != 0)
 		retval |= IFLIB_RXEOF_MORE;
 	return (retval);
-err:
-	STATE_LOCK(ctx);
-	ctx->ifc_flags |= IFC_DO_RESET;
-	iflib_admin_intr_deferred(ctx);
-	STATE_UNLOCK(ctx);
-	return (0);
 }
 
 #define TXD_NOTIFY_COUNT(txq) (((txq)->ift_size / (txq)->ift_update_freq) - 1)
