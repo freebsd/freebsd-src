@@ -55,6 +55,7 @@ static struct options {
 	uint32_t	ms;
 	uint32_t	pi;
 	uint32_t	pil;
+	uint32_t	sector_size;
 	uint32_t	ses;
 	bool		Eflag;
 	bool		Cflag;
@@ -64,6 +65,7 @@ static struct options {
 	.ms = NONE,
 	.pi = NONE,
 	.pil = NONE,
+	.sector_size = NONE,
 	.ses = SES_NONE,
 	.Eflag = false,
 	.Cflag = false,
@@ -84,7 +86,9 @@ static const struct opts format_opts[] = {
 	    "Protective information"),
 	OPT("pil", 'l', arg_uint32, opt, pil,
 	    "Protective information location"),
-	OPT("ses", 's', arg_uint32, opt, ses,
+	OPT("sector-size", 's', arg_uint32, opt, sector_size,
+	    "Sector size"),
+	OPT("ses", 0, arg_uint32, opt, ses,
 	    "Secure erase settings"),
 	{ NULL, 0, arg_none, NULL, NULL }
 };
@@ -118,18 +122,25 @@ format(const struct cmd *f, int argc, char *argv[])
 	const char			*target;
 	uint32_t			nsid;
 	int				lbaf, ms, pi, pil, ses, fd;
+	int				best_rp, i, lbads;
+	uint32_t			sector_size;
 
 	if (arg_parse(argc, argv, f))
 		return;
 
 	if ((int)opt.Eflag + opt.Cflag + (opt.ses != SES_NONE) > 1) {
 		fprintf(stderr,
-		    "Only one of -E, -C or -s may be specified\n");
+		    "Only one of -E, -C or --ses may be specified\n");
 		arg_help(argc, argv, f);
 	}
 
 	target = opt.dev;
 	lbaf = opt.lbaf;
+	sector_size = opt.sector_size;
+	if (lbaf >= 0 && sector_size != NONE) {
+		fprintf(stderr, "Only one of -f or -s may be specified\n");
+		arg_help(argc, argv, f);
+	}
 	ms = opt.ms;
 	pi = opt.pi;
 	pil = opt.pil;
@@ -155,6 +166,8 @@ format(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	}
 	free(path);
+	if (sector_size != NONE && nsid == NVME_GLOBAL_NAMESPACE_TAG)
+		errx(EX_USAGE, "sector size requires a namespace target");
 
 	/* Check that controller can execute this command. */
 	if (read_controller_data(fd, &cd))
@@ -176,6 +189,32 @@ format(const struct cmd *f, int argc, char *argv[])
 		/* Try to keep previous namespace parameters. */
 		if (read_namespace_data(fd, nsid, &nsd))
 			errx(EX_IOERR, "Identify request failed");
+		if (sector_size != NONE) {
+			if (sector_size == 0)
+				errx(EX_USAGE, "sector size must be non-zero");
+			lbads = fls(sector_size) - 1;
+			lbaf = -1;
+			best_rp = 4;
+			for (i = 0; i <= nsd.nlbaf; i++) {
+				uint32_t format;
+				int rp;
+
+				format = nsd.lbaf[i];
+				if (NVMEV(NVME_NS_DATA_LBAF_LBADS, format) != lbads ||
+				    NVMEV(NVME_NS_DATA_LBAF_MS, format) !=
+				    sector_size % (1U << lbads))
+					continue;
+				rp = NVMEV(NVME_NS_DATA_LBAF_RP, format);
+				if (rp < best_rp) {
+					lbaf = i;
+					best_rp = rp;
+				}
+			}
+			if (lbaf < 0)
+				errx(EX_USAGE,
+				    "namespace does not support sector size %u",
+				    sector_size);
+		}
 		if (lbaf < 0)
 			lbaf = nvme_ns_data_format_index(&nsd);
 		if (lbaf > nsd.nlbaf)

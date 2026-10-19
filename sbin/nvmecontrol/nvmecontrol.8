@@ -154,6 +154,7 @@
 .Nm
 .Ic format
 .Op Fl f Ar fmt
+.Op Fl s Ar sector-size
 .Op Fl m Ar mset
 .Op Fl p Ar pi
 .Op Fl l Ar pil
@@ -511,6 +512,16 @@ of the parameters to use.
 LBA Format #, as specified in the identification of the namespace using
 .Dq nvmecontrol identify
 command with a namespace specified maps this index into these parameters.
+.It Fl s Ar sector-size
+Select the LBA format matching the specified total sector size.
+The data size is the largest power of two not greater than
+.Ar sector-size ,
+and any remainder is the metadata size.
+If multiple LBA formats match, the one with the best relative performance is
+selected, with the lowest format index used to break ties.
+This option may only be used when formatting a namespace and is mutually
+exclusive with
+.Fl f .
 .It Fl m Ar mset
 Metadata Setting.
 .Ar mset
