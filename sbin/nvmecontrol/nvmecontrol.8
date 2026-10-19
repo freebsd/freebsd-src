@@ -517,10 +517,18 @@ Select the LBA format matching the specified total sector size.
 The data size is the largest power of two not greater than
 .Ar sector-size ,
 and any remainder is the metadata size.
-If multiple LBA formats match, the one with the best relative performance is
+When formatting a namespace, the format with the best relative performance is
 selected, with the lowest format index used to break ties.
-This option may only be used when formatting a namespace and is mutually
-exclusive with
+When formatting a controller, every active namespace must have exactly one
+matching format, and that format must have the same index in every namespace.
+The effective
+.Ar mset ,
+.Ar pi ,
+and
+.Ar pil
+values must also match across all active namespaces.
+Otherwise, the operation is rejected.
+This option is mutually exclusive with
 .Fl f .
 .It Fl m Ar mset
 Metadata Setting.

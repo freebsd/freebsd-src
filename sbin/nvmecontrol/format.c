@@ -112,18 +112,85 @@ CMD_COMMAND(format_cmd);
 
 /* End of tables for command line parsing */
 
+static int
+find_lbaf(const struct nvme_namespace_data *nsd, uint32_t sector_size,
+    bool require_unique)
+{
+	uint32_t format;
+	int best, best_rp, i, lbads, matches, rp;
+
+	lbads = fls(sector_size) - 1;
+	best = -1;
+	best_rp = 4;
+	matches = 0;
+	for (i = 0; i <= nsd->nlbaf; i++) {
+		format = nsd->lbaf[i];
+		if (NVMEV(NVME_NS_DATA_LBAF_LBADS, format) != lbads ||
+		    NVMEV(NVME_NS_DATA_LBAF_MS, format) !=
+		    sector_size % (1U << lbads))
+			continue;
+		matches++;
+		rp = NVMEV(NVME_NS_DATA_LBAF_RP, format);
+		if (rp < best_rp) {
+			best = i;
+			best_rp = rp;
+		}
+	}
+	if (require_unique && matches > 1)
+		return (-2);
+	return (best);
+}
+
+static void
+check_controller_namespace(int fd, uint32_t nsid, uint32_t sector_size,
+    int *lbaf, int *ms, int *pi, int *pil, bool *found)
+{
+	struct nvme_namespace_data nsd;
+	int fmt, ns_ms, ns_pi, ns_pil;
+
+	if (read_namespace_data(fd, nsid, &nsd))
+		errx(EX_IOERR, "Identify request failed for namespace %u", nsid);
+	fmt = find_lbaf(&nsd, sector_size, true);
+	if (fmt == -2)
+		errx(EX_USAGE,
+		    "namespace %u has multiple formats for sector size %u",
+		    nsid, sector_size);
+	if (fmt < 0)
+		errx(EX_USAGE, "namespace %u does not support sector size %u",
+		    nsid, sector_size);
+	ns_ms = opt.ms == NONE ?
+	    NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsd.flbas) : opt.ms;
+	ns_pi = opt.pi == NONE ?
+	    NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps) : opt.pi;
+	ns_pil = opt.pil == NONE ?
+	    NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps) : opt.pil;
+	if (!*found) {
+		*lbaf = fmt;
+		*ms = ns_ms;
+		*pi = ns_pi;
+		*pil = ns_pil;
+		*found = true;
+	} else if (*lbaf != fmt || *ms != ns_ms || *pi != ns_pi ||
+	    *pil != ns_pil) {
+		errx(EX_USAGE,
+		    "namespace %u has incompatible format parameters", nsid);
+	}
+}
+
 static void
 format(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_controller_data	cd;
 	struct nvme_namespace_data	nsd;
+	struct nvme_ns_list		nslist;
 	struct nvme_pt_command		pt;
 	char				*path;
 	const char			*target;
-	uint32_t			nsid;
+	uint32_t			nsid, scan_nsid;
 	int				lbaf, ms, pi, pil, ses, fd;
-	int				best_rp, i, lbads;
+	u_int				i;
 	uint32_t			sector_size;
+	bool				done, found;
 
 	if (arg_parse(argc, argv, f))
 		return;
@@ -141,6 +208,8 @@ format(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "Only one of -f or -s may be specified\n");
 		arg_help(argc, argv, f);
 	}
+	if (sector_size == 0)
+		errx(EX_USAGE, "sector size must be non-zero");
 	ms = opt.ms;
 	pi = opt.pi;
 	pil = opt.pil;
@@ -166,8 +235,6 @@ format(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	}
 	free(path);
-	if (sector_size != NONE && nsid == NVME_GLOBAL_NAMESPACE_TAG)
-		errx(EX_USAGE, "sector size requires a namespace target");
 
 	/* Check that controller can execute this command. */
 	if (read_controller_data(fd, &cd))
@@ -190,26 +257,7 @@ format(const struct cmd *f, int argc, char *argv[])
 		if (read_namespace_data(fd, nsid, &nsd))
 			errx(EX_IOERR, "Identify request failed");
 		if (sector_size != NONE) {
-			if (sector_size == 0)
-				errx(EX_USAGE, "sector size must be non-zero");
-			lbads = fls(sector_size) - 1;
-			lbaf = -1;
-			best_rp = 4;
-			for (i = 0; i <= nsd.nlbaf; i++) {
-				uint32_t format;
-				int rp;
-
-				format = nsd.lbaf[i];
-				if (NVMEV(NVME_NS_DATA_LBAF_LBADS, format) != lbads ||
-				    NVMEV(NVME_NS_DATA_LBAF_MS, format) !=
-				    sector_size % (1U << lbads))
-					continue;
-				rp = NVMEV(NVME_NS_DATA_LBAF_RP, format);
-				if (rp < best_rp) {
-					lbaf = i;
-					best_rp = rp;
-				}
-			}
+			lbaf = find_lbaf(&nsd, sector_size, false);
 			if (lbaf < 0)
 				errx(EX_USAGE,
 				    "namespace does not support sector size %u",
@@ -228,6 +276,36 @@ format(const struct cmd *f, int argc, char *argv[])
 	} else {
 
 		/* We have no previous parameters, so default to zeroes. */
+		if (sector_size != NONE) {
+			found = false;
+			if (cd.ver == 0) {
+				for (scan_nsid = 1; scan_nsid <= cd.nn; scan_nsid++)
+					check_controller_namespace(fd, scan_nsid,
+					    sector_size, &lbaf, &ms, &pi, &pil,
+					    &found);
+			} else {
+				scan_nsid = 0;
+				done = false;
+				while (!done) {
+					if (read_active_namespaces(fd, scan_nsid,
+					    &nslist))
+						errx(EX_IOERR,
+						    "Identify request failed");
+					for (i = 0; i < nitems(nslist.ns); i++) {
+						scan_nsid = nslist.ns[i];
+						if (scan_nsid == 0) {
+							done = true;
+							break;
+						}
+						check_controller_namespace(fd, scan_nsid,
+						    sector_size, &lbaf, &ms, &pi, &pil,
+						    &found);
+					}
+				}
+			}
+			if (!found)
+				errx(EX_USAGE, "controller has no active namespaces");
+		}
 		if (lbaf < 0)
 			lbaf = 0;
 		if (ms < 0)
