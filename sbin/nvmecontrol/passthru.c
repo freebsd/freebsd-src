@@ -41,6 +41,8 @@
 #include "nvmecontrol.h"
 #include "comnd.h"
 
+#define NONE 0xfffffffeu
+
 static struct options {
 	uint8_t		opcode;
 	uint8_t		flags;
@@ -80,7 +82,7 @@ static struct options {
 	.flags = 0,
 	.ifn = "",
 	.metadata_len = 0,
-	.nsid = 0,
+	.nsid = NONE,
 	.opcode = 0,
 	.prefill = 0,
 	.read = false,
@@ -152,8 +154,10 @@ static const struct args args[] = {
 };
 
 static void
-passthru(const struct cmd *f, int argc, char *argv[])
+passthru(const struct cmd *f, int argc, char *argv[], bool admin)
 {
+	char		*path;
+	uint32_t	nsid;
 	int	fd = -1, ifd = -1;
 	size_t	bytes_read;
 	void	*data = NULL, *metadata = NULL;
@@ -161,7 +165,22 @@ passthru(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
+	/*
+	 * Open the specified device. Get the namespace ID for that device, and
+	 * use that if one isn't on the command line.
+	 */
 	open_dev(opt.dev, &fd, 1, 1);
+	get_nsid(fd, &path, &nsid);
+	if (admin && nsid != 0) {
+		/*
+		 * We got namespace device, but we need the admin device.
+		 */
+		close(fd);
+		open_dev(path, &fd, 0, 1);
+	}
+	free(path);
+	if (opt.nsid != NONE)
+		nsid = opt.nsid;
 
 	if (opt.read && opt.write)
 		errx(EX_USAGE, "need exactly one of --read or --write");
@@ -201,7 +220,7 @@ passthru(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "opcode       : %#02x\n", opt.opcode);
 		fprintf(stderr, "flags        : %#02x\n", opt.flags);
 		fprintf(stderr, "rsvd1        : %#04x\n", opt.rsvd);
-		fprintf(stderr, "nsid         : %#04x\n", opt.nsid);
+		fprintf(stderr, "nsid         : %#04x\n", nsid);
 		fprintf(stderr, "cdw2         : %#08x\n", opt.cdw2);
 		fprintf(stderr, "cdw3         : %#08x\n", opt.cdw3);
 		fprintf(stderr, "data_len     : %#08x\n", opt.data_len);
@@ -226,7 +245,7 @@ passthru(const struct cmd *f, int argc, char *argv[])
 	pt.cmd.opc = opt.opcode;
 	pt.cmd.fuse = opt.flags;
 	pt.cmd.cid = htole16(opt.rsvd);
-	pt.cmd.nsid = opt.nsid;				/* XXX note: kernel overrides this */
+	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.rsvd2 = htole32(opt.cdw2);
 	pt.cmd.rsvd3 = htole32(opt.cdw3);
 	pt.cmd.cdw10 = htole32(opt.cdw10);
@@ -264,15 +283,13 @@ cleanup:
 static void
 admin_passthru(const struct cmd *nf, int argc, char *argv[])
 {
-
-	passthru(nf, argc, argv);
+	passthru(nf, argc, argv, true);
 }
 
 static void
 io_passthru(const struct cmd *nf, int argc, char *argv[])
 {
-
-	passthru(nf, argc, argv);
+	passthru(nf, argc, argv, false);
 }
 
 static struct cmd admin_pass_cmd = {

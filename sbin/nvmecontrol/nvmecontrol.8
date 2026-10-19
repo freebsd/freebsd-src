@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd September 10, 2026
+.Dd September 21, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -766,7 +766,7 @@ This is ignored and not implemented in
 .It Fl f -flags
 Nvme command flags.
 .It Fl n -namespace-id
-Namespace ID for command (Ignored).
+Namespace ID for command (ignored for admin, defaults to device's namespace for io).
 .It Fl p -prefill
 Value to prefill payload with.
 .It Fl b -raw-binary
