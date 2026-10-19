@@ -390,4 +390,6 @@ int __libc_uexterr_gettext(char *buf, size_t bufsz);
 void __libc_uexterr_set(int eerror, int category, const char *mmsg,
     uint64ptr_t pp1, uint64ptr_t pp2, int line);
 
+extern int __libsys_errno;
+
 #endif /* _LIBC_PRIVATE_H_ */

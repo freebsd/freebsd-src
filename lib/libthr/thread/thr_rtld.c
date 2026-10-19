@@ -39,8 +39,6 @@
 #include "rtld_lock.h"
 #include "thr_private.h"
 
-extern int __libsys_errno;
-
 static int	_thr_rtld_clr_flag(int);
 static void	*_thr_rtld_lock_create(void);
 static void	_thr_rtld_lock_destroy(void *);
