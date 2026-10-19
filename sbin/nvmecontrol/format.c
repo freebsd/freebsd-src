@@ -165,9 +165,9 @@ check_controller_namespace(int fd, uint32_t nsid, uint32_t sector_size,
 	ns_ms = opt.ms == NONE ?
 	    NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsd.flbas) : opt.ms;
 	ns_pi = opt.pi == NONE ?
-	    NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps) : opt.pi;
+	    NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps) : opt.pi;
 	ns_pil = opt.pil == NONE ?
-	    NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps) : opt.pil;
+	    NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps) : opt.pil;
 	if (!*found) {
 		*lbaf = fmt;
 		*ms = ns_ms;
@@ -274,9 +274,9 @@ format(const struct cmd *f, int argc, char *argv[])
 		if (ms < 0)
 			ms = NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsd.flbas);
 		if (pi < 0)
-			pi = NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps);
+			pi = NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps);
 		if (pil < 0)
-			pil = NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps);
+			pil = NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps);
 	} else {
 
 		/* We have no previous parameters, so default to zeroes. */
