@@ -128,7 +128,8 @@ VNET_DEFINE(u_int, ipport_reservedhigh) = IPPORT_RESERVED - 1;	/* 1023 */
 VNET_DEFINE(u_int, ipport_reservedlow);
 
 /* Enable random ephemeral port allocation by default. */
-VNET_DEFINE(bool, ipport_randomized) = true;
+VNET_DEFINE_STATIC(bool, ipport_randomized) = true;
+#define	V_ipport_randomized	VNET(ipport_randomized)
 
 #ifdef INET
 static struct inpcb	*in_pcblookup_internal(struct inpcbinfo_ctx *ipictx,

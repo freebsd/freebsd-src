@@ -603,7 +603,6 @@ VNET_DECLARE(u_int, ipport_firstauto);
 VNET_DECLARE(u_int, ipport_lastauto);
 VNET_DECLARE(u_int, ipport_hifirstauto);
 VNET_DECLARE(u_int, ipport_hilastauto);
-VNET_DECLARE(bool, ipport_randomized);
 
 #define	V_ipport_reservedhigh	VNET(ipport_reservedhigh)
 #define	V_ipport_reservedlow	VNET(ipport_reservedlow)
@@ -613,7 +612,6 @@ VNET_DECLARE(bool, ipport_randomized);
 #define	V_ipport_lastauto	VNET(ipport_lastauto)
 #define	V_ipport_hifirstauto	VNET(ipport_hifirstauto)
 #define	V_ipport_hilastauto	VNET(ipport_hilastauto)
-#define	V_ipport_randomized	VNET(ipport_randomized)
 
 void	in_pcbinfo_init(struct inpcbinfo *, struct inpcbstorage *,
 	    u_int, u_int, u_int);
