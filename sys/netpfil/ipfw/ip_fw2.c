@@ -1531,16 +1531,14 @@ do {									\
 			goto pullup_failed;				\
 		(_p) = (__typeof(_p))((char *)args->mem + hlen + ehlen);\
 	} else {							\
-		if (__predict_false(m->m_len < _max)) {			\
-			args->m = m = m_pullup(m, _max);		\
-			if (m == NULL)					\
-				goto pullup_failed;			\
-			if (eh != NULL) {				\
-				eh = mtod(m, struct ether_header *);	\
-				ip = (struct ip *)(eh + 1);		\
-			} else						\
-				ip = mtod(m, struct ip *);		\
-		}							\
+		args->m = m = m_pullup(m, _max);			\
+		if (__predict_false((m == NULL)))			\
+			goto pullup_failed;				\
+		if (eh != NULL) {					\
+			eh = mtod(m, struct ether_header *);		\
+			ip = (struct ip *)(eh + 1);			\
+		} else							\
+			ip = mtod(m, struct ip *);			\
 		(_p) = (__typeof(_p))(mtod(m, char *) + hlen + ehlen);	\
 	}								\
 } while (0)

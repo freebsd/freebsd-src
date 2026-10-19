@@ -477,8 +477,7 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 
 	if (m->m_pkthdr.len > len)
 		m_adj(m, len - m->m_pkthdr.len);
-	if (m->m_len < sizeof(tpdu) &&
-	    (m = m_pullup(m, sizeof(tpdu))) == NULL)
+	if ((m = m_pullup(m, sizeof(tpdu))) == NULL)
 		goto out;
 
 	memcpy(&tpdu, mtod(m, char *), sizeof(tpdu));
@@ -543,8 +542,7 @@ bstp_received_stp(struct bstp_state *bs, struct bstp_port *bp,
 		bstp_received_tcn(bs, bp, &tu);
 		break;
 	case BSTP_MSGTYPE_CFG:
-		if ((*mp)->m_len < BSTP_BPDU_STP_LEN &&
-		    (*mp = m_pullup(*mp, BSTP_BPDU_STP_LEN)) == NULL)
+		if ((*mp = m_pullup(*mp, BSTP_BPDU_STP_LEN)) == NULL)
 			return;
 		memcpy(&cpdu, mtod(*mp, char *), BSTP_BPDU_STP_LEN);
 
@@ -564,8 +562,7 @@ bstp_received_rstp(struct bstp_state *bs, struct bstp_port *bp,
 	if (tpdu->tbu_bpdutype != BSTP_MSGTYPE_RSTP)
 		return;
 
-	if ((*mp)->m_len < BSTP_BPDU_RSTP_LEN &&
-	    (*mp = m_pullup(*mp, BSTP_BPDU_RSTP_LEN)) == NULL)
+	if ((*mp = m_pullup(*mp, BSTP_BPDU_RSTP_LEN)) == NULL)
 		return;
 	memcpy(&cpdu, mtod(*mp, char *), BSTP_BPDU_RSTP_LEN);
 

@@ -351,7 +351,7 @@ udp6_multi_input(struct mbuf *m, int off, int proto,
 int
 udp6_input(struct mbuf **mp, int *offp, int proto)
 {
-	struct mbuf *m = *mp;
+	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct udphdr *uh;
 	struct inpcb *inp;
@@ -368,13 +368,13 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	NET_EPOCH_ASSERT();
 
-	if (m->m_len < off + sizeof(struct udphdr)) {
-		m = m_pullup(m, off + sizeof(struct udphdr));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (IPPROTO_DONE);
-		}
+	/* Always consumed. */
+	m = *mp;
+	*mp = NULL;
+
+	if ((m = m_pullup(m, off + sizeof(struct udphdr))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	uh = (struct udphdr *)((char *)ip6 + off);
@@ -456,10 +456,8 @@ skip_checksum:
 	fromsa[1].sin6_port = uh->uh_dport;
 
 	pcbinfo = udp_get_inpcbinfo(nxt);
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))  {
-		*mp = NULL;
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
 		return (udp6_multi_input(m, off, proto, fromsa));
-	}
 
 	/*
 	 * Locate pcb for datagram.
@@ -529,7 +527,6 @@ skip_checksum:
 		    !in6_localip(&ip6->ip6_src)))
 			goto badunlocked;
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
-		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 	INP_RLOCK_ASSERT(inp);
@@ -538,7 +535,6 @@ skip_checksum:
 		if (up->u_rxcslen == 0 || up->u_rxcslen > ulen) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
-			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
 	}
@@ -548,12 +544,10 @@ skip_checksum:
 		UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
 	if (udp6_append(inp, m, off, fromsa) == 0)
 		INP_RUNLOCK(inp);
-	*mp = NULL;
 	return (IPPROTO_DONE);
 
 badunlocked:
 	m_freem(m);
-	*mp = NULL;
 	return (IPPROTO_DONE);
 }
 

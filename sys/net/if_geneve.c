@@ -3096,18 +3096,14 @@ geneve_input_ether(struct geneve_softc *sc, struct mbuf **m0,
 	if (m->m_pkthdr.len < ETHER_HDR_LEN)
 		return (EINVAL);
 
-	if (m->m_len < ETHER_HDR_LEN &&
-	    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		*m0 = NULL;
+	if ((*m0 = m = m_pullup(m, ETHER_HDR_LEN)) == NULL)
 		return (ENOBUFS);
-	}
 
 	eh = mtod(m, struct ether_header *);
 	info->ethertype = ntohs(eh->ether_type);
 	if (sc->gnv_flags & GENEVE_FLAG_LEARN)
 		geneve_ftable_learn(sc, sa, eh->ether_shost);
 
-	*m0 = m;
 	return (0);
 }
 
@@ -3128,8 +3124,7 @@ geneve_input_inherit(struct geneve_softc *sc, struct mbuf **m0,
 		if (m->m_pkthdr.len < offset)
 			return (EINVAL);
 
-		if (m->m_len < offset &&
-		    (*m0 = m = m_pullup(m, offset)) == NULL)
+		if ((*m0 = m = m_pullup(m, offset)) == NULL)
 			return (ENOBUFS);
 		iphdr = mtodo(m, offset - sizeof(struct ip));
 
@@ -3147,8 +3142,7 @@ geneve_input_inherit(struct geneve_softc *sc, struct mbuf **m0,
 		if (m->m_pkthdr.len < offset)
 			return (EINVAL);
 
-		if (m->m_len < offset &&
-		    (*m0 = m = m_pullup(m, offset)) == NULL)
+		if ((*m0 = m = m_pullup(m, offset)) == NULL)
 			return (ENOBUFS);
 		ip6hdr = mtodo(m, offset - sizeof(struct ip6_hdr));
 
@@ -3171,8 +3165,7 @@ geneve_input_inherit(struct geneve_softc *sc, struct mbuf **m0,
 		if (m->m_pkthdr.len < offset)
 			return (EINVAL);
 
-		if (m->m_len < offset &&
-		    (*m0 = m = m_pullup(m, offset)) == NULL)
+		if ((*m0 = m = m_pullup(m, offset)) == NULL)
 			return (ENOBUFS);
 		info->isr = NETISR_ARP;
 		break;

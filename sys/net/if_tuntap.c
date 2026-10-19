@@ -2005,8 +2005,7 @@ tunwrite_l3(struct tuntap_softc *tp, struct mbuf *m)
 	TUN_LOCK(tp);
 	if (tp->tun_flags & TUN_IFHEAD) {
 		TUN_UNLOCK(tp);
-		if (m->m_len < sizeof(family) &&
-		(m = m_pullup(m, sizeof(family))) == NULL)
+		if ((m = m_pullup(m, sizeof(family))) == NULL)
 			return (ENOBUFS);
 		family = ntohl(*mtod(m, u_int32_t *));
 		m_adj(m, sizeof(family));

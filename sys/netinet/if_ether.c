@@ -657,8 +657,7 @@ arpintr(struct mbuf *m)
 
 	ifp = m->m_pkthdr.rcvif;
 
-	if (m->m_len < sizeof(struct arphdr) &&
-	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
+	if ((m = m_pullup(m, sizeof(struct arphdr))) == NULL) {
 		ARP_LOG(LOG_NOTICE, "packet with short header received on %s\n",
 		    if_name(ifp));
 		return;
@@ -666,15 +665,12 @@ arpintr(struct mbuf *m)
 	ar = mtod(m, struct arphdr *);
 
 	/* Check if length is sufficient */
-	if (m->m_len <  arphdr_len(ar)) {
-		m = m_pullup(m, arphdr_len(ar));
-		if (m == NULL) {
-			ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
-			    if_name(ifp));
-			return;
-		}
-		ar = mtod(m, struct arphdr *);
+	if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
+		ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
+		    if_name(ifp));
+		return;
 	}
+	ar = mtod(m, struct arphdr *);
 
 	hlen = 0;
 	layer = "";

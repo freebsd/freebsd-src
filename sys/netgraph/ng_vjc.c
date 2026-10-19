@@ -453,8 +453,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		need2pullup = MAX_VJHEADER;
 		if (need2pullup > m->m_pkthdr.len)
 			need2pullup = m->m_pkthdr.len;
-		if (m->m_len < need2pullup
-		    && (m = m_pullup(m, need2pullup)) == NULL) {
+		if ((m = m_pullup(m, need2pullup)) == NULL) {
 			priv->slc.sls_errorin++;
 			NG_FREE_ITEM(item);
 			return (ENOBUFS);
@@ -592,20 +591,17 @@ ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP)
 	struct tcphdr *tcp;
 	int ihlen, thlen;
 
-	if (m->m_len < sizeof(*ip) && (m = m_pullup(m, sizeof(*ip))) == NULL)
+	if ((m = m_pullup(m, sizeof(*ip))) == NULL)
 		return (NULL);
 	ip = mtod(m, struct ip *);
 	if (!knownTCP && ip->ip_p != IPPROTO_TCP)
 		return (m);
 	ihlen = ip->ip_hl << 2;
-	if (m->m_len < ihlen + sizeof(*tcp)) {
-		if ((m = m_pullup(m, ihlen + sizeof(*tcp))) == NULL)
-			return (NULL);
-		ip = mtod(m, struct ip *);
-	}
+	if ((m = m_pullup(m, ihlen + sizeof(*tcp))) == NULL)
+		return (NULL);
+	ip = mtod(m, struct ip *);
 	tcp = (struct tcphdr *)((u_char *)ip + ihlen);
 	thlen = tcp->th_off << 2;
-	if (m->m_len < ihlen + thlen)
-		m = m_pullup(m, ihlen + thlen);
-	return (m);
+
+	return (m_pullup(m, ihlen + thlen));
 }

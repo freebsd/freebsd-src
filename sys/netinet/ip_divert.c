@@ -208,8 +208,7 @@ divert_packet(struct mbuf *m, uint64_t id, bool incoming)
 		return;
 	}
 	/* Assure header */
-	if (m->m_len < sizeof(struct ip) &&
-	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+	if ((m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return;
 #ifdef INET
 	/* Delayed checksums are currently not compatible with divert. */
@@ -355,8 +354,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		m_freem(control);
 
 	/* Packet must have a header (but that's about it) */
-	if (m->m_len < sizeof (struct ip) &&
-	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
+	if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
 		m_freem(m);
 		return (EINVAL);
 	}

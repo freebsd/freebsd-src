@@ -537,14 +537,10 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		return (ENETDOWN);
 	}
 
-	if (m->m_len < sizeof(*ip6)) {
-		m = m_pullup(m, sizeof(*ip6));
-		if (!m) {
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			SDT_PROBE2(if_stf, , stf_output, error, ENOBUFS,
-			    __LINE__);
-			return (ENOBUFS);
-		}
+	if ((m = m_pullup(m, sizeof(*ip6))) == NULL) {
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		SDT_PROBE2(if_stf, , stf_output, error, ENOBUFS, __LINE__);
+		return (ENOBUFS);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	tos = IPV6_TRAFFIC_CLASS(ip6);
@@ -762,13 +758,9 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 	otos = ip.ip_tos;
 	m_adj(m, off);
 
-	if (m->m_len < sizeof(*ip6)) {
-		m = m_pullup(m, sizeof(*ip6));
-		if (!m) {
-			SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE,
-			    __LINE__);
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, sizeof(*ip6))) == NULL) {
+		SDT_PROBE2(if_stf, , stf_input, out, IPPROTO_DONE, __LINE__);
+		return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 

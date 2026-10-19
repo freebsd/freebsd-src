@@ -124,13 +124,9 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 
 	switch (direction) {
 	case SND_IN:
-		if (m->m_len < (sizeof(struct ip6_hdr) +
-		    sizeof(struct icmp6_hdr))) {
-			m = m_pullup(m, sizeof(struct ip6_hdr) +
-			    sizeof(struct icmp6_hdr));
-			if (!m)
-				return (ENOBUFS);
-		}
+		if ((m = m_pullup(m, sizeof(struct ip6_hdr) +
+		    sizeof(struct icmp6_hdr))) == NULL)
+			return (ENOBUFS);
 
 		/* Before passing off the mbuf record the proper interface. */
 		m->m_pkthdr.rcvif = ifp;
@@ -175,11 +171,8 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 		return (error);
 
 	case SND_OUT:
-		if (m->m_len < sizeof(struct ip6_hdr)) {
-			m = m_pullup(m, sizeof(struct ip6_hdr));
-			if (!m)
-				return (ENOBUFS);
-		}
+		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL)
+			return (ENOBUFS);
 		ip6 = mtod(m, struct ip6_hdr *);
 		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
 			m->m_flags |= M_MCAST;

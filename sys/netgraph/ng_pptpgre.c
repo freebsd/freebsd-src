@@ -660,8 +660,7 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 		m->m_pkthdr.rcvif = NULL;
 	} else {
 		M_PREPEND(m, grelen, M_NOWAIT);
-		if (m == NULL || (m->m_len < grelen
-		    && (m = m_pullup(m, grelen)) == NULL)) {
+		if (m == NULL || (m = m_pullup(m, grelen)) == NULL) {
 			priv->stats.memoryFailures++;
 			ERROUT(ENOBUFS);
 		}
@@ -776,41 +775,35 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 	}
 
 	/* Safely pull up the complete IP+GRE headers */
-	if (m->m_len < sizeof(*ip) + sizeof(*gre)) {
-		if ((m = m_pullup(m, sizeof(*ip) + sizeof(*gre))) == NULL) {
-			priv->stats.memoryFailures++;
-			_NGI_M(item) = NULL;
-			ERROUT(ENOBUFS);
-		}
-		_NGI_M(item) = m;
+	if ((m = m_pullup(m, sizeof(*ip) + sizeof(*gre))) == NULL) {
+		priv->stats.memoryFailures++;
+		_NGI_M(item) = NULL;
+		ERROUT(ENOBUFS);
 	}
+	_NGI_M(item) = m;
 	ip = mtod(m, const struct ip *);
 	iphlen = ip->ip_hl << 2;
-	if (m->m_len < iphlen + sizeof(*gre)) {
-		if ((m = m_pullup(m, iphlen + sizeof(*gre))) == NULL) {
-			priv->stats.memoryFailures++;
-			_NGI_M(item) = NULL;
-			ERROUT(ENOBUFS);
-		}
-		_NGI_M(item) = m;
-		ip = mtod(m, const struct ip *);
+	if ((m = m_pullup(m, iphlen + sizeof(*gre))) == NULL) {
+		priv->stats.memoryFailures++;
+		_NGI_M(item) = NULL;
+		ERROUT(ENOBUFS);
 	}
+	_NGI_M(item) = m;
+	ip = mtod(m, const struct ip *);
 	gre = (const struct greheader *)((const u_char *)ip + iphlen);
 	grelen = sizeof(*gre) + sizeof(u_int32_t) * (gre->hasSeq + gre->hasAck);
 	if (m->m_pkthdr.len < iphlen + grelen) {
 		priv->stats.recvRunts++;
 		ERROUT(EINVAL);
 	}
-	if (m->m_len < iphlen + grelen) {
-		if ((m = m_pullup(m, iphlen + grelen)) == NULL) {
-			priv->stats.memoryFailures++;
-			_NGI_M(item) = NULL;
-			ERROUT(ENOBUFS);
-		}
-		_NGI_M(item) = m;
-		ip = mtod(m, const struct ip *);
-		gre = (const struct greheader *)((const u_char *)ip + iphlen);
+	if ((m = m_pullup(m, iphlen + grelen)) == NULL) {
+		priv->stats.memoryFailures++;
+		_NGI_M(item) = NULL;
+		ERROUT(ENOBUFS);
 	}
+	_NGI_M(item) = m;
+	ip = mtod(m, const struct ip *);
+	gre = (const struct greheader *)((const u_char *)ip + iphlen);
 
 	/* Sanity check packet length and GRE header bits */
 	extralen = m->m_pkthdr.len

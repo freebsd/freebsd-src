@@ -166,12 +166,10 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 		{
-			if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
-				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
-				if (m == NULL) {
-					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					return (-1);
-				}
+			if ((m = m_pullup(m, sizeof(*ip6) + sizeof(*th))) ==
+			    NULL) {
+				KMOD_TCPSTAT_INC(tcps_rcvshort);
+				return (-1);
 			}
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)(ip6 + 1);
@@ -198,12 +196,10 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET
 		case ETHERTYPE_IP:
 		{
-			if (m->m_len < sizeof (struct tcpiphdr)) {
-				m = m_pullup(m, sizeof (struct tcpiphdr));
-				if (m == NULL) {
-					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					return (-1);
-				}
+			if ((m = m_pullup(m, sizeof (struct tcpiphdr))) ==
+			    NULL) {
+				KMOD_TCPSTAT_INC(tcps_rcvshort);
+				return (-1);
 			}
 			ip = mtod(m, struct ip *);
 			th = (struct tcphdr *)(ip + 1);

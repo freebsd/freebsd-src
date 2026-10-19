@@ -67,27 +67,20 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 	u_int8_t *opt;
 
 	m = *mp;
+	*mp = NULL;	/* Consumed in most cases. */
 	off = *offp;
 
 	/* Validation of the length of the header. */
-	if (m->m_len < off + sizeof(*dstopts)) {
-		m = m_pullup(m, off + sizeof(*dstopts));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = m;
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, off + sizeof(*dstopts))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (IPPROTO_DONE);
 	}
 	dstopts = (struct ip6_dest *)(mtod(m, char *) + off);
 	dstoptlen = (dstopts->ip6d_len + 1) << 3;
 
-	if (m->m_len < off + dstoptlen) {
-		m = m_pullup(m, off + dstoptlen);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = m;
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, off + dstoptlen)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (IPPROTO_DONE);
 	}
 	dstopts = (struct ip6_dest *)(mtod(m, char *) + off);
 	off += dstoptlen;
@@ -112,10 +105,8 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 		default:		/* unknown option */
 			optlen = ip6_unknown_opt(opt, m,
 			    opt - mtod(m, u_int8_t *));
-			if (optlen == -1) {
-				*mp = NULL;
+			if (optlen == -1)
 				return (IPPROTO_DONE);
-			}
 			optlen += 2;
 			break;
 		}
@@ -127,6 +118,5 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 
   bad:
 	m_freem(m);
-	*mp = NULL;
 	return (IPPROTO_DONE);
 }

@@ -205,12 +205,9 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6))
 		goto freeit;
 
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	nd_rs = (struct nd_router_solicit *)((char *)ip6 + off);
@@ -550,14 +547,11 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
+	ip6 = mtod(m, struct ip6_hdr *);
 	nd_ra = (struct nd_router_advert *)((char *)ip6 + off);
 
 	icmp6len -= sizeof(*nd_ra);

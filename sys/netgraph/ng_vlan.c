@@ -205,7 +205,7 @@ m_chk(struct mbuf **mp, int len)
 		(*mp) = NULL;
 		return (EINVAL);
 	}
-	if ((*mp)->m_len < len && ((*mp) = m_pullup((*mp), len)) == NULL)
+	if ((*mp = m_pullup(*mp, len)) == NULL)
 		return (ENOBUFS);
 
 	return (0);

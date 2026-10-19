@@ -680,14 +680,13 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	 */
 
 #define	M_CHECK(length)	do {					\
-	pullup_len += length;					\
-	if (((m)->m_pkthdr.len < (pullup_len)) ||		\
-	   ((pullup_len) > MHLEN)) {				\
+	pullup_len += (length);					\
+	if ((m->m_pkthdr.len < pullup_len) ||			\
+	   (pullup_len > MHLEN)) {				\
 		error = EINVAL;					\
 		goto bypass;					\
 	} 							\
-	if ((m)->m_len < (pullup_len) &&			\
-	   (((m) = m_pullup((m),(pullup_len))) == NULL)) {	\
+	if ((m = m_pullup(m, pullup_len)) == NULL) {		\
 		error = ENOBUFS;				\
 		goto done;					\
 	}							\

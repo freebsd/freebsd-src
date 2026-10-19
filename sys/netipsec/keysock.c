@@ -109,12 +109,10 @@ key_send(struct socket *so, int flags, struct mbuf *m,
 		goto end;
 	}
 
-	if (m->m_len < sizeof(struct sadb_msg)) {
-		if ((m = m_pullup(m, sizeof(struct sadb_msg))) == NULL) {
-			PFKEYSTAT_INC(out_nomem);
-			error = ENOBUFS;
-			goto end;
-		}
+	if ((m = m_pullup(m, sizeof(struct sadb_msg))) == NULL) {
+		PFKEYSTAT_INC(out_nomem);
+		error = ENOBUFS;
+		goto end;
 	}
 
 	M_ASSERTPKTHDR(m);
@@ -189,12 +187,9 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 
 	PFKEYSTAT_INC(in_total);
 	PFKEYSTAT_ADD(in_bytes, m->m_pkthdr.len);
-	if (m->m_len < sizeof(struct sadb_msg)) {
-		m = m_pullup(m, sizeof(struct sadb_msg));
-		if (m == NULL) {
-			PFKEYSTAT_INC(in_nomem);
-			return (ENOBUFS);
-		}
+	if ((m = m_pullup(m, sizeof(struct sadb_msg))) == NULL) {
+		PFKEYSTAT_INC(in_nomem);
+		return (ENOBUFS);
 	}
 	if (m->m_len >= sizeof(struct sadb_msg)) {
 		struct sadb_msg *msg;

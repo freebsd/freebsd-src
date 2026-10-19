@@ -1446,7 +1446,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		 * generic PPP. PPPoE is an exception to the rule.
 		 */
 		if (m->m_pkthdr.len >= 2) {
-			if (m->m_len < 2 && !(m = m_pullup(m, 2)))
+			if ((m = m_pullup(m, 2)) == NULL)
 				LEAVE(ENOBUFS);
 			if (mtod(m, u_char *)[0] == 0xff &&
 			    mtod(m, u_char *)[1] == 0x03)
@@ -1454,7 +1454,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		}
 
 		if (V_ng_pppoe_lcp_pcp && m->m_pkthdr.len >= 2 &&
-		    (m->m_len >= 2 || (m = m_pullup(m, 2))) &&
+		    (m = m_pullup(m, 2)) != NULL &&
 		    mtod(m, uint16_t *)[0] == htons(PROT_LCP))
 			EVL_APPLY_PRI(m, (uint8_t)(V_ng_pppoe_lcp_pcp & 0x7));
 
@@ -1489,11 +1489,8 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		 * that has set up this hook. This indicates that it
 		 * wants us to offer service.
 		 */
-		if (m->m_len < sizeof(*wh)) {
-			m = m_pullup(m, sizeof(*wh));
-			if (m == NULL)
-				LEAVE(ENOBUFS);
-		}
+		if ((m = m_pullup(m, sizeof(*wh))) == NULL)
+			LEAVE(ENOBUFS);
 		wh = mtod(m, struct pppoe_full_hdr *);
 		ph = &wh->ph;
 		code = wh->ph.code;
@@ -1598,13 +1595,10 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 	 * Use them to decide where to send it.
 	 */
 	privp->packets_in++;
-	if( m->m_len < sizeof(*wh)) {
-		m = m_pullup(m, sizeof(*wh)); /* Checks length */
-		if (m == NULL) {
-			log(LOG_NOTICE, "ng_pppoe[%x]: couldn't "
-			    "m_pullup(wh)\n", node->nd_ID);
-			LEAVE(ENOBUFS);
-		}
+	if ((m = m_pullup(m, sizeof(*wh))) == NULL) {
+		log(LOG_NOTICE, "ng_pppoe[%x]: couldn't m_pullup(wh)\n",
+		    node->nd_ID);
+		LEAVE(ENOBUFS);
 	}
 	wh = mtod(m, struct pppoe_full_hdr *);
 	length = ntohs(wh->ph.length);
@@ -1618,14 +1612,10 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 		 * (Linux wouldn't have this problem).
 		 */
 		if (m->m_pkthdr.len <= MHLEN) {
-			if( m->m_len < m->m_pkthdr.len) {
-				m = m_pullup(m, m->m_pkthdr.len);
-				if (m == NULL) {
-					log(LOG_NOTICE, "ng_pppoe[%x]: "
-					    "couldn't m_pullup(pkthdr)\n",
-					    node->nd_ID);
-					LEAVE(ENOBUFS);
-				}
+			if ((m = m_pullup(m, m->m_pkthdr.len)) == NULL) {
+				log(LOG_NOTICE, "ng_pppoe[%x]: couldn't "
+				    "m_pullup(pkthdr)\n", node->nd_ID);
+				LEAVE(ENOBUFS);
 			}
 		}
 		if (m->m_len != m->m_pkthdr.len) {

@@ -1431,11 +1431,8 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 		goto drop;
 	}
 
-	if (m->m_len < sizeof(*hdr)) { 
-		m = m_pullup(m, sizeof(*hdr));
-		if (m == NULL)
-			goto drop;
-	}
+	if ((m = m_pullup(m, sizeof(*hdr))) == NULL)
+		goto drop;
 
 	/* Strip L2CAP packet header and verify packet length */
 	hdr = mtod(m, ng_l2cap_hdr_t *);
@@ -1568,11 +1565,8 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 			goto drop;
 		}
 
-		if (m->m_len < sizeof(*clt_hdr)) {
-			m = m_pullup(m, sizeof(*clt_hdr));
-			if (m == NULL)
-				goto drop;
-		}
+		if ((m = m_pullup(m, sizeof(*clt_hdr))) == NULL)
+			goto drop;
 
 		/* Strip connectionless header and deliver packet */
 		clt_hdr = mtod(m, ng_l2cap_clt_hdr_t *);
@@ -2644,8 +2638,7 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 	/* Create L2CA packet header */
 	M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 	if (m != NULL)
-		if (m->m_len < sizeof(*hdr))
-			m = m_pullup(m, sizeof(*hdr));
+		m = m_pullup(m, sizeof(*hdr));
 
 	if (m == NULL) {
 		NG_BTSOCKET_L2CAP_ERR(

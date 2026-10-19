@@ -569,7 +569,7 @@ nglmi_rcvdata(hook_p hook, item_p item)
 		log(LOG_WARNING, "nglmi: packetlen (%d) too big\n", packetlen);
 		goto drop;
 	}
-	if (m->m_len < packetlen && (m = m_pullup(m, packetlen)) == NULL) {
+	if ((m = m_pullup(m, packetlen)) == NULL) {
 		log(LOG_WARNING,
 		    "nglmi: m_pullup failed for %d bytes\n", packetlen);
 		return (0);

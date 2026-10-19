@@ -364,7 +364,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		/*
 		 * Fix IPv4 header
 		 */
-		if (m->m_len < skip && (m = m_pullup(m, skip)) == NULL) {
+		if ((m = m_pullup(m, skip)) == NULL) {
 			DPRINTF(("%s: processing failed for SA %s/%08lx\n",
 			    __func__, ipsec_address(&sav->sah->saidx.dst,
 			    buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
@@ -620,8 +620,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	NET_EPOCH_ENTER(et);
 
 	/* Fix IPv6 header */
-	if (m->m_len < sizeof(struct ip6_hdr) &&
-	    (m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
+	if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
 		DPRINTF(("%s: processing failed for SA %s/%08lx\n",
 		    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
 		    sizeof(buf)), (u_long) ntohl(sav->spi)));

@@ -1258,8 +1258,7 @@ mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
 	struct llc *llc;
 	int ae;
 
-	if (m->m_len < hdrlen + sizeof(*llc) &&
-	    (m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
+	if ((m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ANY,
 		    "discard data frame: %s", "m_pullup failed");
 		vap->iv_stats.is_rx_tooshort++;
@@ -1673,9 +1672,8 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 
 		/* pull up enough to get to the mesh control */
-		if (m->m_len < hdrspace + sizeof(struct ieee80211_meshcntl) &&
-		    (m = m_pullup(m, hdrspace +
-		        sizeof(struct ieee80211_meshcntl))) == NULL) {
+		if ((m = m_pullup(m, hdrspace +
+		    sizeof(struct ieee80211_meshcntl))) == NULL) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 			    ni->ni_macaddr, NULL,
 			    "data too short: expecting %u", hdrspace);
@@ -1696,7 +1694,6 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 
 		/* pull complete hdrspace = ieee80211_hdrspace + meshcontrol */
 		if ((meshdrlen > sizeof(struct ieee80211_meshcntl)) &&
-		    (m->m_len < hdrspace) &&
 		    ((m = m_pullup(m, hdrspace)) == NULL)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 			    ni->ni_macaddr, NULL,

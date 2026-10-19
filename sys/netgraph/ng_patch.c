@@ -559,14 +559,13 @@ ng_patch_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 
 #define	PULLUP_CHECK(mbuf, length) do {					\
-	pullup_len += length;						\
+	pullup_len += (length);						\
 	if (((mbuf)->m_pkthdr.len < pullup_len) ||			\
 	    (pullup_len > MHLEN)) {					\
 		error = EINVAL;						\
 		goto bypass;						\
 	}								\
-	if ((mbuf)->m_len < pullup_len &&				\
-	    (((mbuf) = m_pullup((mbuf), pullup_len)) == NULL)) {	\
+	if (((mbuf) = m_pullup((mbuf), pullup_len)) == NULL) {		\
 		error = ENOBUFS;					\
 		goto drop;						\
 	}								\

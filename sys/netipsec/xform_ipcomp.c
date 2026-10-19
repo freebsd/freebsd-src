@@ -212,7 +212,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	 * compression it means someone is playing tricks on us.
 	 */
 	error = ENOBUFS;
-	if (m->m_len < skip + hlen && (m = m_pullup(m, skip + hlen)) == NULL) {
+	if ((m = m_pullup(m, skip + hlen)) == NULL) {
 		IPCOMPSTAT_INC(ipcomps_hdrops);		/*XXX*/
 		DPRINTF(("%s: m_pullup failed\n", __func__));
 		key_freesav(&sav);
@@ -347,7 +347,7 @@ ipcomp_input_cb(struct cryptop *crp)
 	/* In case it's not done already, adjust the size of the mbuf chain */
 	m->m_pkthdr.len = clen + hlen + skip;
 
-	if (m->m_len < skip + hlen && (m = m_pullup(m, skip + hlen)) == NULL) {
+	if ((m = m_pullup(m, skip + hlen)) == NULL) {
 		IPCOMPSTAT_INC(ipcomps_hdrops);		/*XXX*/
 		DPRINTF(("%s: m_pullup failed\n", __func__));
 		error = EINVAL;				/*XXX*/

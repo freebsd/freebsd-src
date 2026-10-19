@@ -285,8 +285,7 @@ ieee80211_ff_decap(struct ieee80211_node *ni, struct mbuf *m)
 	 */
 	if (m->m_pkthdr.len < 3*FF_LLC_SIZE)
 		return m;
-	if (m->m_len < FF_LLC_SIZE &&
-	    (m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
+	if ((m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 		    ni->ni_macaddr, "fast-frame",
 		    "%s", "m_pullup(llc) failed");

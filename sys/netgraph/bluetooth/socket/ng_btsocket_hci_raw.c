@@ -1586,11 +1586,9 @@ ng_btsocket_hci_raw_send(struct socket *so, int flags, struct mbuf *m,
 		goto drop;
 	}
 
-	if (m->m_len < sizeof(ng_hci_cmd_pkt_t)) {
-		if ((m = m_pullup(m, sizeof(ng_hci_cmd_pkt_t))) == NULL) {
-			error = ENOBUFS;
-			goto drop;
-		}
+	if ((m = m_pullup(m, sizeof(ng_hci_cmd_pkt_t))) == NULL) {
+		error = ENOBUFS;
+		goto drop;
 	}
 	if (*mtod(m, u_int8_t *) != NG_HCI_CMD_PKT) {
 		error = ENOTSUP;

@@ -62,31 +62,13 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *m;
 	struct ip6_rthdr *rh;
 	int off = *offp, rhlen;
-#ifdef __notyet__
-	struct ip6aux *ip6a;
-#endif
 
 	m = *mp;
+	*mp = NULL;	/* Consumed in most cases. */
 
-#ifdef __notyet__
-	ip6a = ip6_findaux(m);
-	if (ip6a) {
-		/* XXX reject home-address option before rthdr */
-		if (ip6a->ip6a_flags & IP6A_SWAP) {
-			IP6STAT_INC(ip6s_badoptions);
-			m_freem(m);
-			return IPPROTO_DONE;
-		}
-	}
-#endif
-
-	if (m->m_len < off + sizeof(*rh)) {
-		m = m_pullup(m, off + sizeof(*rh));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, off + sizeof(*rh))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	rh = (struct ip6_rthdr *)((char *)ip6 + off);
@@ -104,8 +86,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		IP6STAT_INC(ip6s_badoptions);
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    (char *)&rh->ip6r_type - (char *)ip6);
-		*mp = NULL;
+		    (char *)&rh->ip6r_type - (char *)ip6);
 		return (IPPROTO_DONE);
 	}
 

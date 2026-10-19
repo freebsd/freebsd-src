@@ -688,8 +688,7 @@ ng_ether_rcv_lower(hook_p hook, item_p item)
 		NG_FREE_M(m);
 		return (EINVAL);
 	}
-	if (m->m_len < sizeof(struct ether_header)
-	    && (m = m_pullup(m, sizeof(struct ether_header))) == NULL)
+	if ((m = m_pullup(m, sizeof(struct ether_header))) == NULL)
 		return (ENOBUFS);
 
 	/* Drop in the MAC address if desired */
@@ -728,8 +727,7 @@ ng_ether_rcv_upper(hook_p hook, item_p item)
 		NG_FREE_M(m);
 		return (EINVAL);
 	}
-	if (m->m_len < sizeof(struct ether_header) &&
-	    (m = m_pullup(m, sizeof(struct ether_header))) == NULL)
+	if ((m = m_pullup(m, sizeof(struct ether_header))) == NULL)
 		return (ENOBUFS);
 
 	m->m_pkthdr.rcvif = ifp;

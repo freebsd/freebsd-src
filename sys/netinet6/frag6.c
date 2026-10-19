@@ -440,17 +440,14 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 #endif
 
 	m = *mp;
+	*mp = NULL;	/* Consumed in most cases. */
 	offset = *offp;
 
 	M_ASSERTPKTHDR(m);
 
-	if (m->m_len < offset + sizeof(struct ip6_frag)) {
-		m = m_pullup(m, offset + sizeof(struct ip6_frag));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, offset + sizeof(struct ip6_frag))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -464,7 +461,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	if (ip6->ip6_plen == 0) {
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER, offset);
 		in6_ifstat_inc(dstifp, ifs6_reass_fail);
-		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
@@ -480,7 +476,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 		    offsetof(struct ip6_hdr, ip6_plen));
 		in6_ifstat_inc(dstifp, ifs6_reass_fail);
-		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
@@ -524,7 +519,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		    offsetof(struct ip6_hdr, ip6_plen));
 		in6_ifstat_inc(dstifp, ifs6_reass_fail);
 		IP6STAT_INC(ip6s_fragdropped);
-		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
@@ -650,7 +644,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 			icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    offset - sizeof(struct ip6_frag) +
 			    offsetof(struct ip6_frag, ip6f_offlg));
-			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
 	} else if (fragoff + frgpartlen > IPV6_MAXPACKET) {
@@ -660,7 +653,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 		    offset - sizeof(struct ip6_frag) +
 		    offsetof(struct ip6_frag, ip6f_offlg));
-		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
@@ -809,7 +801,6 @@ postinsert:
 				frag6_freef(q6, bucket);
 			}
 			IP6QB_UNLOCK(bucket);
-			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
 		plen += af6->ip6af_frglen;
@@ -821,7 +812,6 @@ postinsert:
 			frag6_freef(q6, bucket);
 		}
 		IP6QB_UNLOCK(bucket);
-		*mp = NULL;
 		return (IPPROTO_DONE);
 	}
 
@@ -902,7 +892,6 @@ postinsert:
 #ifdef RSS
 	/* Queue/dispatch for reprocessing. */
 	netisr_dispatch(NETISR_IPV6_DIRECT, m);
-	*mp = NULL;
 	return (IPPROTO_DONE);
 #endif
 
@@ -918,7 +907,6 @@ dropfrag2:
 	in6_ifstat_inc(dstifp, ifs6_reass_fail);
 	IP6STAT_INC(ip6s_fragdropped);
 	m_freem(m);
-	*mp = NULL;
 	return (IPPROTO_DONE);
 }
 

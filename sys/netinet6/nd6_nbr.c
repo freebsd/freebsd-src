@@ -172,12 +172,9 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		goto bads;
 	}
 
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	nd_ns = (struct nd_neighbor_solicit *)((char *)ip6 + off);
@@ -710,12 +707,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	nd_na = (struct nd_neighbor_advert *)((char *)ip6 + off);

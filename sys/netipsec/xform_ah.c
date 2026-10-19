@@ -553,14 +553,11 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Figure out header size. */
 	rplen = HDRSIZE(sav);
 
-	if (m->m_len < skip + rplen) {
-		m = m_pullup(m, skip + rplen);
-		if (m == NULL) {
-			DPRINTF(("ah_input: cannot pullup header\n"));
-			AHSTAT_INC(ahs_hdrops);		/*XXX*/
-			error = ENOBUFS;
-			goto bad;
-		}
+	if ((m = m_pullup(m, skip + rplen)) == NULL) {
+		DPRINTF(("ah_input: cannot pullup header\n"));
+		AHSTAT_INC(ahs_hdrops);		/*XXX*/
+		error = ENOBUFS;
+		goto bad;
 	}
 	ah = (struct newah *)(mtod(m, caddr_t) + skip);
 

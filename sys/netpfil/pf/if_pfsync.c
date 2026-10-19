@@ -978,13 +978,11 @@ pfsync_input(struct mbuf **mp, int *offp __unused, int proto __unused)
 		goto done;
 	}
 
-	if (offset + sizeof(*ph) > m->m_len) {
-		if ((m = m_pullup(m, offset + sizeof(*ph))) == NULL) {
-			V_pfsyncstats.pfsyncs_hdrops++;
-			return (IPPROTO_DONE);
-		}
-		ip = mtod(m, struct ip *);
+	if ((m = m_pullup(m, offset + sizeof(*ph))) == NULL) {
+		V_pfsyncstats.pfsyncs_hdrops++;
+		return (IPPROTO_DONE);
 	}
+	ip = mtod(m, struct ip *);
 	ph = (struct pfsync_header *)((char *)ip + offset);
 
 	/* verify the version */
@@ -1081,13 +1079,11 @@ pfsync6_input(struct mbuf **mp, int *offp __unused, int proto __unused)
 		goto done;
 	}
 
-	if (offset + sizeof(*ph) > m->m_len) {
-		if ((m = m_pullup(m, offset + sizeof(*ph))) == NULL) {
-			V_pfsyncstats.pfsyncs_hdrops++;
-			return (IPPROTO_DONE);
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
+	if ((m = m_pullup(m, offset + sizeof(*ph))) == NULL) {
+		V_pfsyncstats.pfsyncs_hdrops++;
+		return (IPPROTO_DONE);
 	}
+	ip6 = mtod(m, struct ip6_hdr *);
 	ph = (struct pfsync_header *)((char *)ip6 + offset);
 
 	/* verify the version */

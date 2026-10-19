@@ -569,19 +569,12 @@ cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
 int
 tcp6_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 {
-	struct mbuf *m;
 
-	m = *mp;
-	if (m->m_len < *offp + sizeof(struct tcphdr)) {
-		m = m_pullup(m, *offp + sizeof(struct tcphdr));
-		if (m == NULL) {
-			*mp = m;
-			TCPSTAT_INC(tcps_rcvshort);
-			return (IPPROTO_DONE);
-		}
+	if ((*mp = m_pullup(*mp, *offp + sizeof(struct tcphdr))) == NULL) {
+		TCPSTAT_INC(tcps_rcvshort);
+		return (IPPROTO_DONE);
 	}
 
-	*mp = m;
 	return (tcp_input_with_port(mp, offp, proto, port));
 }
 
@@ -692,12 +685,9 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 			ip_stripoptions(m);
 			off0 = sizeof(struct ip);
 		}
-		if (m->m_len < sizeof (struct tcpiphdr)) {
-			if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
-			    == NULL) {
-				TCPSTAT_INC(tcps_rcvshort);
-				return (IPPROTO_DONE);
-			}
+		if ((m = m_pullup(m, sizeof (struct tcpiphdr))) == NULL) {
+			TCPSTAT_INC(tcps_rcvshort);
+			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 		th = (struct tcphdr *)((char *)ip + off0);
@@ -768,15 +758,12 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 	if (off > sizeof (struct tcphdr)) {
 #ifdef INET6
 		if (isipv6) {
-			if (m->m_len < off0 + off) {
-				m = m_pullup(m, off0 + off);
-				if (m == NULL) {
-					TCPSTAT_INC(tcps_rcvshort);
-					return (IPPROTO_DONE);
-				}
-				ip6 = mtod(m, struct ip6_hdr *);
-				th = (struct tcphdr *)((char *)ip6 + off0);
+			if ((m = m_pullup(m, off0 + off)) == NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				return (IPPROTO_DONE);
 			}
+			ip6 = mtod(m, struct ip6_hdr *);
+			th = (struct tcphdr *)((char *)ip6 + off0);
 		}
 #endif
 #if defined(INET) && defined(INET6)
@@ -784,15 +771,13 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 #endif
 #ifdef INET
 		{
-			if (m->m_len < sizeof(struct ip) + off) {
-				if ((m = m_pullup(m, sizeof (struct ip) + off))
-				    == NULL) {
-					TCPSTAT_INC(tcps_rcvshort);
-					return (IPPROTO_DONE);
-				}
-				ip = mtod(m, struct ip *);
-				th = (struct tcphdr *)((char *)ip + off0);
+			if ((m = m_pullup(m, sizeof (struct ip) + off)) ==
+			    NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				return (IPPROTO_DONE);
 			}
+			ip = mtod(m, struct ip *);
+			th = (struct tcphdr *)((char *)ip + off0);
 		}
 #endif
 		optlen = off - sizeof (struct tcphdr);

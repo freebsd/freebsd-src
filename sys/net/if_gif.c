@@ -470,9 +470,7 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET
 	case AF_INET:
 		proto = IPPROTO_IPV4;
-		if (m->m_len < sizeof(struct ip))
-			m = m_pullup(m, sizeof(struct ip));
-		if (m == NULL) {
+		if ((m = m_pullup(m, sizeof(struct ip))) == NULL) {
 			error = ENOBUFS;
 			goto err;
 		}
@@ -484,9 +482,7 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET6
 	case AF_INET6:
 		proto = IPPROTO_IPV6;
-		if (m->m_len < sizeof(struct ip6_hdr))
-			m = m_pullup(m, sizeof(struct ip6_hdr));
-		if (m == NULL) {
+		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
 			error = ENOBUFS;
 			goto err;
 		}
@@ -592,9 +588,7 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 #ifdef INET
 	case IPPROTO_IPV4:
 		af = AF_INET;
-		if (m->m_len < sizeof(struct ip))
-			m = m_pullup(m, sizeof(struct ip));
-		if (m == NULL)
+		if ((m = m_pullup(m, sizeof(struct ip))) == NULL)
 			goto drop;
 		ip = mtod(m, struct ip *);
 		if (ip_ecn_egress((ifp->if_flags & IFF_LINK1) ? ECN_ALLOWED:
@@ -607,9 +601,7 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 #ifdef INET6
 	case IPPROTO_IPV6:
 		af = AF_INET6;
-		if (m->m_len < sizeof(struct ip6_hdr))
-			m = m_pullup(m, sizeof(struct ip6_hdr));
-		if (m == NULL)
+		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL)
 			goto drop;
 		t = htonl((uint32_t)ecn << 20);
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -675,9 +667,7 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 	case AF_LINK:
 		n = sizeof(struct etherip_header) +
 		    sizeof(struct ether_header);
-		if (n > m->m_len)
-			m = m_pullup(m, n);
-		if (m == NULL)
+		if ((m = m_pullup(m, n)) == NULL)
 			goto drop;
 		eip = mtod(m, struct etherip_header *);
 		if (eip->eip_ver != ETHERIP_VERSION) {

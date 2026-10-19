@@ -597,12 +597,10 @@ ip6_input(struct mbuf *m)
 		m_freem(m);
 		m = n;
 	}
-	if (m->m_len < sizeof(struct ip6_hdr)) {
-		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
-			IP6STAT_INC(ip6s_toosmall);
-			in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
-			goto bad;
-		}
+	if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
+		IP6STAT_INC(ip6s_toosmall);
+		in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
+		goto bad;
 	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -946,41 +944,31 @@ bad:
 static int
 ip6_hopopts_input(u_int32_t *rtalertp, struct mbuf **mp, int *offp)
 {
-	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
 
 	/* validation of the length of the header */
-	if (m->m_len < off + sizeof(*hbh)) {
-		m = m_pullup(m, off + sizeof(*hbh));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (-1);
-		}
+	if ((*mp = m_pullup(*mp, off + sizeof(*hbh))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (-1);
 	}
-	hbh = (struct ip6_hbh *)(mtod(m, char *) + off);
+	hbh = (struct ip6_hbh *)(mtod(*mp, char *) + off);
 	hbhlen = (hbh->ip6h_len + 1) << 3;
 
-	if (m->m_len < off + hbhlen) {
-		m = m_pullup(m, off + hbhlen);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (-1);
-		}
+	if ((*mp = m_pullup(*mp, off + hbhlen)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (-1);
 	}
-	hbh = (struct ip6_hbh *)(mtod(m, char *) + off);
+	hbh = (struct ip6_hbh *)(mtod(*mp, char *) + off);
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
-	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
-				hbhlen, rtalertp) < 0) {
+	if (ip6_process_hopopts(*mp, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
+	    hbhlen, rtalertp) < 0) {
 		*mp = NULL;
 		return (-1);
 	}
 
 	*offp = off;
-	*mp = m;
 	return (0);
 }
 

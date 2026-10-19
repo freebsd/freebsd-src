@@ -5795,8 +5795,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 		return (PF_PASS);
 	}
 
-	if (__predict_false(m->m_len < sizeof(struct ether_header)) &&
-	    (m = *m0 = m_pullup(*m0, sizeof(struct ether_header))) == NULL) {
+	if ((m = *m0 = m_pullup(*m0, sizeof(struct ether_header))) == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    "%s: m_len < sizeof(struct ether_header)"
 		     ", pullup failed", __func__);
@@ -11313,8 +11312,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	case AF_INET: {
 		struct ip *h;
 
-		if (__predict_false((*m0)->m_len < sizeof(struct ip)) &&
-		    (pd->m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
+		if ((pd->m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    "%s: m_len < sizeof(struct ip), pullup failed",
 			    __func__);
@@ -11364,8 +11362,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	case AF_INET6: {
 		struct ip6_hdr *h;
 
-		if (__predict_false((*m0)->m_len < sizeof(struct ip6_hdr)) &&
-		    (pd->m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
+		if ((pd->m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    "%s: m_len < sizeof(struct ip6_hdr)"
 			     ", pullup failed", __func__);

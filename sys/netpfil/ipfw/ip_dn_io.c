@@ -813,8 +813,7 @@ dummynet_send(struct mbuf *m)
 			 * contiguous in the first mbuf header.
 			 * Insure this is true.
 			 */
-			if (m->m_len < ETHER_HDR_LEN &&
-			    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
+			if ((m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
 				printf("dummynet/ether: pullup failed, "
 				    "dropping packet\n");
 				break;

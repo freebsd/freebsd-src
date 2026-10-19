@@ -1085,8 +1085,7 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 
 	fibnum = so->so_fibnum;
 #define senderr(e) { error = e; goto flush;}
-	if (m == NULL || ((m->m_len < sizeof(long)) &&
-		       (m = m_pullup(m, sizeof(long))) == NULL))
+	if (m == NULL || (m = m_pullup(m, sizeof(long))) == NULL)
 		return (ENOBUFS);
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("route_output");

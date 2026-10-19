@@ -496,11 +496,9 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * Get IP and UDP header together in first mbuf.
 	 */
-	if (m->m_len < iphlen + sizeof(struct udphdr)) {
-		if ((m = m_pullup(m, iphlen + sizeof(struct udphdr))) == NULL) {
-			UDPSTAT_INC(udps_hdrops);
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, iphlen + sizeof(struct udphdr))) == NULL) {
+		UDPSTAT_INC(udps_hdrops);
+		return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
 	uh = (struct udphdr *)((char *)ip + iphlen);

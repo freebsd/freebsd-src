@@ -578,7 +578,7 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 #endif
 	struct udphdr *uh;
 	struct tcphdr *th;
-	int len, thlen;
+	int len;
 	uint16_t port;
 
 	TCPSTAT_INC(tcps_tunneled_pkts);
@@ -588,27 +588,23 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 		m_freem(m);
 		return (true);
 	}
-	thlen = sizeof(struct tcphdr);
-	if (m->m_len < off + sizeof(struct udphdr) + thlen &&
-	    (m =  m_pullup(m, off + sizeof(struct udphdr) + thlen)) == NULL) {
+	if ((m = m_pullup(m, off + sizeof(struct udphdr) +
+	    sizeof(struct tcphdr))) == NULL) {
 		TCPSTAT_INC(tcps_tunneled_errs);
 		return (true);
 	}
 	iph = mtod(m, struct ip *);
 	uh = (struct udphdr *)((char *)iph + off);
 	th = (struct tcphdr *)(uh + 1);
-	thlen = th->th_off << 2;
-	if (m->m_len < off + sizeof(struct udphdr) + thlen) {
-		m =  m_pullup(m, off + sizeof(struct udphdr) + thlen);
-		if (m == NULL) {
-			TCPSTAT_INC(tcps_tunneled_errs);
-			return (true);
-		} else {
-			iph = mtod(m, struct ip *);
-			uh = (struct udphdr *)((char *)iph + off);
-			th = (struct tcphdr *)(uh + 1);
-		}
+	if ((m = m_pullup(m, off + sizeof(struct udphdr) +
+	    (th->th_off << 2))) == NULL) {
+		TCPSTAT_INC(tcps_tunneled_errs);
+		return (true);
 	}
+	iph = mtod(m, struct ip *);
+	uh = (struct udphdr *)((char *)iph + off);
+	th = (struct tcphdr *)(uh + 1);
+
 	m->m_pkthdr.tcp_tun_port = port = uh->uh_sport;
 	bcopy(th, uh, m->m_len - off - sizeof(struct udphdr));
 	m->m_len -= sizeof(struct udphdr);

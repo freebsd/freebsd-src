@@ -380,12 +380,9 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 
 	/* Make sure we have an entire header */
 	NGI_GET_M(item, m);
-	if (m->m_len < sizeof(*eh) ) {
-		m = m_pullup(m, sizeof(*eh));
-		if (m == NULL) {
-			NG_FREE_ITEM(item);
-			return(EINVAL);
-		}
+	if ((m = m_pullup(m, sizeof(*eh))) == NULL) {
+		NG_FREE_ITEM(item);
+		return(EINVAL);
 	}
 
 	eh = mtod(m, struct ether_header *);

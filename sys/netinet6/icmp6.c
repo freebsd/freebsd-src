@@ -243,12 +243,9 @@ icmp6_error2(struct mbuf *m, int type, int code, int param,
 	if (ifp == NULL)
 		return;
 
-	if (m->m_len < sizeof(struct ip6_hdr)) {
-		m = m_pullup(m, sizeof(struct ip6_hdr));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -285,12 +282,9 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	}
 #endif
 
-	if (m->m_len < sizeof(struct ip6_hdr)) {
-		m = m_pullup(m, sizeof(struct ip6_hdr));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	oip6 = mtod(m, struct ip6_hdr *);
 
@@ -329,12 +323,9 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	if (off >= 0 && nxt == IPPROTO_ICMPV6) {
 		struct icmp6_hdr *icp;
 
-		if (m->m_len < off + sizeof(struct icmp6_hdr)) {
-			m = m_pullup(m, off + sizeof(struct icmp6_hdr));
-			if (m == NULL) {
-				IP6STAT_INC(ip6s_exthdrtoolong);
-				return;
-			}
+		if ((m = m_pullup(m, off + sizeof(struct icmp6_hdr))) == NULL) {
+			IP6STAT_INC(ip6s_exthdrtoolong);
+			return;
 		}
 		oip6 = mtod(m, struct ip6_hdr *);
 		icp = (struct icmp6_hdr *)(mtod(m, char *) + off);
@@ -459,15 +450,12 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	NET_EPOCH_ASSERT();
 
 	m = *mp;
+	*mp = NULL;	/* Always consumed. */
 	off = *offp;
 
-	if (m->m_len < off + sizeof(struct icmp6_hdr)) {
-		m = m_pullup(m, off + sizeof(struct icmp6_hdr));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = m;
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, off + sizeof(struct icmp6_hdr))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -601,12 +589,9 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			n->m_pkthdr.len = n0len + (noff - off);
 			n->m_next = n0;
 		} else {
-			if (n->m_len < off + sizeof(*nicmp6)) {
-				n = m_pullup(n, off + sizeof(*nicmp6));
-				if (n == NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					break;
-				}
+			if ((n = m_pullup(n, off + sizeof(*nicmp6))) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				break;
 			}
 			nicmp6 = (struct icmp6_hdr *)(mtod(n, char *) + off);
 			noff = off;
@@ -641,10 +626,8 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		if ((ip6->ip6_hlim != 1) || (m->m_flags & M_RTALERT_MLD) == 0)
 			goto freeit;
-		if (mld_input(&m, off, icmp6len) != 0) {
-			*mp = NULL;
+		if (mld_input(&m, off, icmp6len) != 0)
 			return (IPPROTO_DONE);
-		}
 		/* m stays. */
 		break;
 
@@ -672,14 +655,10 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		if (pr == NULL)
 			pr = curthread->td_ucred->cr_prison;
 		if (mode == FQDN) {
-			if (m->m_len < off + sizeof(struct icmp6_nodeinfo)) {
-				m = m_pullup(m, off +
-				    sizeof(struct icmp6_nodeinfo));
-				if (m == NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					*mp = m;
-					return (IPPROTO_DONE);
-				}
+			if ((m = m_pullup(m, off +
+			    sizeof(struct icmp6_nodeinfo))) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				return (IPPROTO_DONE);
 			}
 			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if (n)
@@ -765,13 +744,9 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		if (icmp6len < sizeof(struct nd_router_solicit))
 			goto badlen;
 		if (send_sendso_input_hook != NULL) {
-			if (m->m_len < off + icmp6len) {
-				m = m_pullup(m, off + icmp6len);
-				if (m == NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					*mp = NULL;
-					return (IPPROTO_DONE);
-				}
+			if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				return (IPPROTO_DONE);
 			}
 			error = send_sendso_input_hook(m, ifp, SND_IN, ip6len);
 			if (error == 0) {
@@ -890,7 +865,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	deliver:
 		if (icmp6_notify_error(&m, off, icmp6len) != 0) {
 			/* In this case, m should've been freed. */
-			*mp = NULL;
 			return (IPPROTO_DONE);
 		}
 		break;
@@ -907,12 +881,10 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	/* deliver the packet to appropriate sockets */
 	icmp6_rip6_input(&m, *offp);
 
-	*mp = m;
 	return (IPPROTO_DONE);
 
  freeit:
 	m_freem(m);
-	*mp = NULL;
 	return (IPPROTO_DONE);
 }
 
@@ -926,19 +898,17 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 	struct sockaddr_in6 icmp6src, icmp6dst;
 
 	m = *mp;
+	*mp = NULL;	/* Consumed in most cases. */
 
 	if (icmp6len < sizeof(struct icmp6_hdr) + sizeof(struct ip6_hdr)) {
 		ICMP6STAT_INC(icp6s_tooshort);
 		goto freeit;
 	}
 
-	if (m->m_len < off + sizeof(*icmp6) + sizeof(struct ip6_hdr)) {
-		m = m_pullup(m, off + sizeof(*icmp6) + sizeof(struct ip6_hdr));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = m;
-			return (-1);
-		}
+	if ((m = m_pullup(m, off + sizeof(*icmp6) + sizeof(struct ip6_hdr))) ==
+	    NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (-1);
 	}
 	icmp6 = (struct icmp6_hdr *)(mtod(m, char *) + off);
 	eip6 = (struct ip6_hdr *)(icmp6 + 1);
@@ -963,14 +933,10 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 			case IPPROTO_HOPOPTS:
 			case IPPROTO_DSTOPTS:
 			case IPPROTO_AH:
-				if (m->m_len < eoff + sizeof(struct ip6_ext)) {
-					m = m_pullup(m, eoff +
-					    sizeof(struct ip6_ext));
-					if (m == NULL) {
-						IP6STAT_INC(ip6s_exthdrtoolong);
-						*mp = m;
-						return (-1);
-					}
+				if ((m = m_pullup(m, eoff +
+				    sizeof(struct ip6_ext))) == NULL) {
+					IP6STAT_INC(ip6s_exthdrtoolong);
+					return (-1);
 				}
 				eh = (struct ip6_ext *)
 				    (mtod(m, char *) + eoff);
@@ -989,13 +955,10 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 				 * information that depends on the final
 				 * destination (e.g. path MTU).
 				 */
-				if (m->m_len < eoff + sizeof(*rth)) {
-					m = m_pullup(m, eoff + sizeof(*rth));
-					if (m == NULL) {
-						IP6STAT_INC(ip6s_exthdrtoolong);
-						*mp = m;
-						return (-1);
-					}
+				if ((m = m_pullup(m, eoff + sizeof(*rth))) ==
+				    NULL) {
+					IP6STAT_INC(ip6s_exthdrtoolong);
+					return (-1);
 				}
 				rth = (struct ip6_rthdr *)
 				    (mtod(m, char *) + eoff);
@@ -1012,14 +975,10 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 				    rth->ip6r_type == IPV6_RTHDR_TYPE_0) {
 					int hops;
 
-					if (m->m_len < eoff + rthlen) {
-						m = m_pullup(m, eoff + rthlen);
-						if (m == NULL) {
-							IP6STAT_INC(
-							    ip6s_exthdrtoolong);
-							*mp = m;
-							return (-1);
-						}
+					if ((m = m_pullup(m, eoff + rthlen)) ==
+					    NULL) {
+						IP6STAT_INC(ip6s_exthdrtoolong);
+						return (-1);
 					}
 					rth0 = (struct ip6_rthdr0 *)
 					    (mtod(m, char *) + eoff);
@@ -1033,14 +992,10 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 				nxt = rth->ip6r_nxt;
 				break;
 			case IPPROTO_FRAGMENT:
-				if (m->m_len < eoff + sizeof(struct ip6_frag)) {
-					m = m_pullup(m, eoff +
-					    sizeof(struct ip6_frag));
-					if (m == NULL) {
-						IP6STAT_INC(ip6s_exthdrtoolong);
-						*mp = m;
-						return (-1);
-					}
+				if ((m = m_pullup(m, eoff +
+				    sizeof(struct ip6_frag))) == NULL) {
+					IP6STAT_INC(ip6s_exthdrtoolong);
+					return (-1);
 				}
 				fh = (struct ip6_frag *)(mtod(m, char *) +
 				    eoff);
@@ -1126,7 +1081,6 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 
   freeit:
 	m_freem(m);
-	*mp = NULL;
 	return (-1);
 }
 
@@ -1322,14 +1276,10 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 			mtx_unlock(&pr->pr_mtx);
 			if (!n || n->m_next || n->m_len == 0)
 				goto bad;
-			if (m->m_len < off + sizeof(struct icmp6_nodeinfo) +
-			    subjlen) {
-				m = m_pullup(m, off +
-				    sizeof(struct icmp6_nodeinfo) + subjlen);
-				if (m == NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					goto bad;
-				}
+			if ((m = m_pullup(m, off +
+			    sizeof(struct icmp6_nodeinfo) + subjlen)) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				goto bad;
 			}
 			/* ip6 possibly invalid but not used after. */
 			ni6 = (struct icmp6_nodeinfo *)(mtod(m, char *) + off);
@@ -2036,18 +1986,14 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		m_copydata(m, 0, sizeof(nip6), &nip6);
 		m_adj(m, l);
 		l = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
-		if (m->m_len < l) {
-			if ((m = m_pullup(m, l)) == NULL)
-				return;
-		}
+		if ((m = m_pullup(m, l)) == NULL)
+			return;
 		bcopy(&nip6, mtod(m, void *), sizeof(nip6));
 	} else /* off == sizeof(struct ip6_hdr) */ {
 		size_t l;
 		l = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
-		if (m->m_len < l) {
-			if ((m = m_pullup(m, l)) == NULL)
-				return;
-		}
+		if ((m = m_pullup(m, l)) == NULL)
+			return;
 	}
 	plen = m->m_pkthdr.len - sizeof(struct ip6_hdr);
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -2187,12 +2133,9 @@ icmp6_redirect_input(struct mbuf *m, int off)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	icmp6len = ntohs(ip6->ip6_plen);
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	nd_rd = (struct nd_redirect *)((char *)ip6 + off);

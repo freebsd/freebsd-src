@@ -294,11 +294,10 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 		goto send;
 
 #define	M_CHECK(length) do {					\
-	pullup_len += length;					\
-	if ((m)->m_pkthdr.len < pullup_len)			\
+	pullup_len += (length);					\
+	if (m->m_pkthdr.len < pullup_len)			\
 		goto send;					\
-	if ((m)->m_len < pullup_len &&				\
-	   (((m) = m_pullup((m), pullup_len)) == NULL))		\
+	if ((m = m_pullup(m, pullup_len)) == NULL)		\
 		ERROUT(ENOBUFS);				\
 	} while (0)
 

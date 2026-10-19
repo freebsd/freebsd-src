@@ -401,12 +401,9 @@ ng_vlanrotate_rcvdata(hook_p hook, item_p item)
 		size_t expected_len = sizeof(struct ether_vlan_stack_header)
 		    + vlans * sizeof(struct ether_vlan_stack_entry);
 
-		if (m->m_len < expected_len) {
-			m = m_pullup(m, expected_len);
-			if (m == NULL) {
-				error = EINVAL;
-				goto fail;
-			}
+		if ((m = m_pullup(m, expected_len)) == NULL) {
+			error = EINVAL;
+			goto fail;
 		}
 
 		evsh = mtod(m, struct ether_vlan_stack_header *);

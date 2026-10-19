@@ -1196,17 +1196,15 @@ mld_input(struct mbuf **mp, int off, int icmp6len)
 	int		 mldlen;
 
 	m = *mp;
+	*mp = NULL;
 	CTR3(KTR_MLD, "%s: called w/mbuf (%p,%d)", __func__, m, off);
 
 	ifp = m->m_pkthdr.rcvif;
 
 	/* Pullup to appropriate size. */
-	if (m->m_len < off + sizeof(*mld)) {
-		m = m_pullup(m, off + sizeof(*mld));
-		if (m == NULL) {
-			ICMP6STAT_INC(icp6s_badlen);
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, off + sizeof(*mld))) == NULL) {
+		ICMP6STAT_INC(icp6s_badlen);
+		return (IPPROTO_DONE);
 	}
 	mld = (struct mld_hdr *)(mtod(m, uint8_t *) + off);
 	if (mld->mld_type == MLD_LISTENER_QUERY &&
@@ -1215,12 +1213,9 @@ mld_input(struct mbuf **mp, int off, int icmp6len)
 	} else {
 		mldlen = sizeof(struct mld_hdr);
 	}
-	if (m->m_len < off + mldlen) {
-		m = m_pullup(m, off + mldlen);
-		if (m == NULL) {
-			ICMP6STAT_INC(icp6s_badlen);
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, off + mldlen)) == NULL) {
+		ICMP6STAT_INC(icp6s_badlen);
+		return (IPPROTO_DONE);
 	}
 	*mp = m;
 	ip6 = mtod(m, struct ip6_hdr *);

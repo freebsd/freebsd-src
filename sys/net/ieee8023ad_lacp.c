@@ -279,12 +279,8 @@ lacp_pdu_input(struct lacp_port *lp, struct mbuf *m)
 		goto bad;
 	}
 
-	if (m->m_len < sizeof(*du)) {
-		m = m_pullup(m, sizeof(*du));
-		if (m == NULL) {
-			return (ENOMEM);
-		}
-	}
+	if ((m = m_pullup(m, sizeof(*du))) == NULL)
+		return (ENOMEM);
 
 	du = mtod(m, struct lacpdu *);
 
@@ -1922,12 +1918,8 @@ lacp_marker_input(struct lacp_port *lp, struct mbuf *m)
 		goto bad;
 	}
 
-	if (m->m_len < sizeof(*mdu)) {
-		m = m_pullup(m, sizeof(*mdu));
-		if (m == NULL) {
-			return (ENOMEM);
-		}
-	}
+	if ((m = m_pullup(m, sizeof(*mdu))) == NULL)
+		return (ENOMEM);
 
 	mdu = mtod(m, struct markerdu *);
 

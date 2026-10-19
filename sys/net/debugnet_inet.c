@@ -93,13 +93,9 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 		DNETDEBUG("dropping packet too small for IP header\n");
 		return;
 	}
-	if (m->m_len < sizeof(struct ip)) {
-		m = m_pullup(m, sizeof(struct ip));
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("m_pullup failed\n");
-			return;
-		}
+	if ((*mb = m = m_pullup(m, sizeof(struct ip))) == NULL) {
+		DNETDEBUG("m_pullup failed\n");
+		return;
 	}
 	ip = mtod(m, struct ip *);
 
@@ -115,15 +111,11 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 		DNETDEBUG("bad IP header length (%hu)\n", hlen);
 		return;
 	}
-	if (hlen > m->m_len) {
-		m = m_pullup(m, hlen);
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("m_pullup failed\n");
-			return;
-		}
-		ip = mtod(m, struct ip *);
+	if ((*mb = m = m_pullup(m, hlen)) == NULL) {
+		DNETDEBUG("m_pullup failed\n");
+		return;
 	}
+	ip = mtod(m, struct ip *);
 	/* Ignore packets with IP options. */
 	if (hlen > sizeof(struct ip)) {
 		DNETDEBUG("drop packet with IP options\n");
@@ -287,13 +279,9 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 
 	m = *mb;
 	ifp = m->m_pkthdr.rcvif;
-	if (m->m_len < sizeof(struct arphdr)) {
-		m = m_pullup(m, sizeof(struct arphdr));
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("runt packet: m_pullup failed\n");
-			return;
-		}
+	if ((*mb = m = m_pullup(m, sizeof(struct arphdr))) == NULL) {
+		DNETDEBUG("runt packet: m_pullup failed\n");
+		return;
 	}
 
 	ah = mtod(m, struct arphdr *);
@@ -308,13 +296,9 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 		return;
 	}
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-	if (m->m_len < req_len) {
-		m = m_pullup(m, req_len);
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("runt packet: m_pullup failed\n");
-			return;
-		}
+	if ((*mb = m = m_pullup(m, req_len)) == NULL) {
+		DNETDEBUG("runt packet: m_pullup failed\n");
+		return;
 	}
 	ah = mtod(m, struct arphdr *);
 

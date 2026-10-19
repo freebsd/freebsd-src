@@ -365,8 +365,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 	 *     mbuf has the 802.3 header present (and contiguous).
 	 */
 	ni = NULL;
-	if (m->m_len < sizeof(struct ether_header) &&
-	   (m = m_pullup(m, sizeof(struct ether_header))) == NULL) {
+	if ((m = m_pullup(m, sizeof(struct ether_header))) == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
 		    "discard frame, %s\n", "m_pullup failed");
 		vap->iv_stats.is_tx_nobuf++;	/* XXX */

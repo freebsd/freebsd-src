@@ -469,12 +469,9 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
 			return (ENOMEM);
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
-		if (m->m_len < hlen) {
-			m = m_pullup(m, hlen);
-			if (m == NULL)
-				return (EINVAL);
-			ip = mtod(m, struct ip *);
-		}
+		if ((m = m_pullup(m, hlen)) == NULL)
+			return (EINVAL);
+		ip = mtod(m, struct ip *);
 		if (V_fib_hash_outbound) {
 			uint32_t hash_type, hash_val;
 

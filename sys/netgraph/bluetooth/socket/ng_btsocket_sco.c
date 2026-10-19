@@ -721,11 +721,8 @@ ng_btsocket_sco_data_input(struct mbuf *m, hook_p hook)
 		goto drop;
 	}
 
-	if (m->m_len < sizeof(*hdr)) { 
-		m = m_pullup(m, sizeof(*hdr));
-		if (m == NULL)
-			goto drop;
-	}
+	if ((m = m_pullup(m, sizeof(*hdr))) == NULL)
+		goto drop;
 
 	/* Strip SCO packet header and verify packet length */
 	hdr = mtod(m, ng_hci_scodata_pkt_t *);
@@ -1736,8 +1733,7 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
 		/* Create SCO packet header */
 		M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 		if (m != NULL)
-			if (m->m_len < sizeof(*hdr))
-				m = m_pullup(m, sizeof(*hdr));
+			m = m_pullup(m, sizeof(*hdr));
 
 		if (m == NULL) {
 			error = ENOBUFS;

@@ -263,8 +263,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		if (oiphlen + sizeof(struct tcphdr) > n->m_len &&
 		    n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + sizeof(struct tcphdr) &&
-		    (n = m_pullup(n, oiphlen + sizeof(struct tcphdr))) == NULL)
+		if ((n = m_pullup(n, oiphlen + sizeof(struct tcphdr))) == NULL)
 			goto freeit;
 		oip = mtod(n, struct ip *);
 		th = mtodo(n, oiphlen);
@@ -275,8 +274,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 			goto freeit;
 		if (oiphlen + tcphlen > n->m_len && n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + tcphlen &&
-		    (n = m_pullup(n, oiphlen + tcphlen)) == NULL)
+		if ((n = m_pullup(n, oiphlen + tcphlen)) == NULL)
 			goto freeit;
 		oip = mtod(n, struct ip *);
 		icmpelen = max(tcphlen, min(V_icmp_quotelen,
@@ -290,8 +288,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		if (oiphlen + sizeof(struct sctphdr) > n->m_len &&
 		    n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + sizeof(struct sctphdr) &&
-		    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
+		if ((n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
 			goto freeit;
 		oip = mtod(n, struct ip *);
 		icmpelen = max(sizeof(struct sctphdr),
@@ -302,9 +299,8 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		    sizeof(struct sctphdr) + 8 &&
 		    (n->m_len >= oiphlen + sizeof(struct sctphdr) + 8 ||
 		     n->m_next != NULL)) {
-			if (n->m_len < oiphlen + sizeof(struct sctphdr) + 8 &&
-			    (n = m_pullup(n, oiphlen +
-			    sizeof(struct sctphdr) + 8)) == NULL)
+			if ((n = m_pullup(n, oiphlen + sizeof(struct sctphdr) +
+			    8)) == NULL)
 				goto freeit;
 			oip = mtod(n, struct ip *);
 			sh = mtodo(n, oiphlen);
@@ -487,7 +483,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		goto freeit;
 	}
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
-	if (m->m_len < i && (m = m_pullup(m, i)) == NULL)  {
+	if ((m = m_pullup(m, i)) == NULL)  {
 		ICMPSTAT_INC(icps_tooshort);
 		return (IPPROTO_DONE);
 	}
@@ -570,7 +566,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		i = sizeof(struct ip) + min(icmplen, ICMP_ADVLENPREF(icp));
 		ip_stripoptions(m);
-		if (m->m_len < i && (m = m_pullup(m, i)) == NULL) {
+		if ((m = m_pullup(m, i)) == NULL) {
 			/* This should actually not happen */
 			ICMPSTAT_INC(icps_tooshort);
 			return (IPPROTO_DONE);

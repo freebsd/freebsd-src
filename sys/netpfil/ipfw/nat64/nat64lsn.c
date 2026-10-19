@@ -421,8 +421,7 @@ inspect_icmp_mbuf(struct mbuf **mp, uint8_t *proto, uint32_t *addr,
 
 	ip = mtod(*mp, struct ip *); /* Outer IP header */
 	off = (ip->ip_hl << 2) + ICMP_MINLEN;
-	if ((*mp)->m_len < off)
-		*mp = m_pullup(*mp, off);
+	*mp = m_pullup(*mp, off);
 	if (*mp == NULL)
 		return (ENOMEM);
 
@@ -446,16 +445,14 @@ inspect_icmp_mbuf(struct mbuf **mp, uint8_t *proto, uint32_t *addr,
 	 */
 	if ((*mp)->m_pkthdr.len < off + sizeof(struct ip) + ICMP_MINLEN)
 		return (EINVAL);
-	if ((*mp)->m_len < off + sizeof(struct ip) + ICMP_MINLEN)
-		*mp = m_pullup(*mp, off + sizeof(struct ip) + ICMP_MINLEN);
+	*mp = m_pullup(*mp, off + sizeof(struct ip) + ICMP_MINLEN);
 	if (*mp == NULL)
 		return (ENOMEM);
 	ip = mtodo(*mp, off); /* Inner IP header */
 	inner_proto = ip->ip_p;
 	off += ip->ip_hl << 2; /* Skip inner IP header */
 	*addr = ntohl(ip->ip_src.s_addr);
-	if ((*mp)->m_len < off + ICMP_MINLEN)
-		*mp = m_pullup(*mp, off + ICMP_MINLEN);
+	*mp = m_pullup(*mp, off + ICMP_MINLEN);
 	if (*mp == NULL)
 		return (ENOMEM);
 	switch (inner_proto) {
@@ -578,14 +575,11 @@ nat64lsn_reassemble4(struct nat64lsn_cfg *cfg, struct mbuf *m,
 		NAT64STAT_INC(&cfg->base.stats, noproto);
 		return (NULL);
 	}
-	if (m->m_len < len) {
-		m = m_pullup(m, len);
-		if (m == NULL) {
-			NAT64STAT_INC(&cfg->base.stats, nomem);
-			return (NULL);
-		}
-		ip = mtod(m, struct ip *);
+	if ((m = m_pullup(m, len)) == NULL) {
+		NAT64STAT_INC(&cfg->base.stats, nomem);
+		return (NULL);
 	}
+	ip = mtod(m, struct ip *);
 	switch (ip->ip_p) {
 	case IPPROTO_TCP:
 		*port = ntohs(L3HDR(ip, struct tcphdr *)->th_dport);

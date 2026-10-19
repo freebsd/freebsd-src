@@ -323,8 +323,7 @@ ng_gif_demux_rcvdata(hook_p hook, item_p item)
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
-		if (m->m_len < sizeof(sa_family_t)
-		    && (m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
+		if ((m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
 			NG_FREE_ITEM(item);
 			return (ENOBUFS);
 		}

@@ -817,7 +817,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		NG_FREE_M(ctx.m);
 		return (EINVAL);
 	}
-	if (ctx.m->m_len < ETHER_HDR_LEN && !(ctx.m = m_pullup(ctx.m, ETHER_HDR_LEN))) {
+	if ((ctx.m = m_pullup(ctx.m, ETHER_HDR_LEN)) == NULL) {
 		counter_u64_add(ctx.incoming->stats.memoryFailures, 1);
 		NG_FREE_ITEM(item);
 		return (ENOBUFS);

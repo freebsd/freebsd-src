@@ -756,11 +756,8 @@ gre_input(struct mbuf *m, int off, int proto, void *arg)
 	hlen = off + sizeof(struct grehdr) + 4 * sizeof(uint32_t);
 	if (m->m_pkthdr.len < hlen)
 		goto drop;
-	if (m->m_len < hlen) {
-		m = m_pullup(m, hlen);
-		if (m == NULL)
-			goto drop;
-	}
+	if ((m = m_pullup(m, hlen)) == NULL)
+		goto drop;
 	gh = (struct grehdr *)mtodo(m, off);
 	flags = ntohs(gh->gre_flags);
 	if (flags & ~GRE_FLAGS_MASK)
