@@ -1037,7 +1037,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 {
 	struct nvme_request	*req;
 	struct nvme_controller	*ctrlr;
-	int timeout;
+	uint32_t timeout_ms;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
@@ -1045,14 +1045,19 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	qpair->act_tr[tr->cid] = tr;
 	ctrlr = qpair->ctrlr;
 
-	if (req->timeout) {
+	if (req->timeout_ms != NVME_TIMEOUT_NONE) {
 		if (req->cb_fn == nvme_completion_poll_cb)
-			timeout = 1;
+			timeout_ms = 1000;
+		else if (req->timeout_ms != NVME_TIMEOUT_DEFAULT)
+			timeout_ms = req->timeout_ms;
+		else if (qpair->id == 0 && req->cmd.opc == NVME_OPC_FORMAT_NVM)
+			timeout_ms = ctrlr->format_timeout_period * 1000;
 		else if (qpair->id == 0)
-			timeout = ctrlr->admin_timeout_period;
+			timeout_ms = ctrlr->admin_timeout_period * 1000;
 		else
-			timeout = ctrlr->timeout_period;
-		tr->deadline = getsbinuptime() + timeout * SBT_1S;
+			timeout_ms = ctrlr->timeout_period * 1000;
+		tr->deadline = getsbinuptime() +
+		    (sbintime_t)timeout_ms * SBT_1MS;
 		if (!qpair->timer_armed) {
 			qpair->timer_armed = true;
 			callout_reset_sbt_on(&qpair->timer, SBT_1S / 2, SBT_1S / 2,

@@ -795,7 +795,7 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 	 * Disable timeout here, since asynchronous event requests should by
 	 *  nature never be timed out.
 	 */
-	req->timeout = false;
+	req->timeout_ms = NVME_TIMEOUT_NONE;
 	req->cmd.opc = NVME_OPC_ASYNC_EVENT_REQUEST;
 	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }

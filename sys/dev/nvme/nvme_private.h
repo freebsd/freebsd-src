@@ -86,6 +86,9 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_MAX_TIMEOUT_PERIOD		(120)
 #define NVME_MAX_FORMAT_TIMEOUT_PERIOD	(60 * 60)
 
+#define NVME_TIMEOUT_DEFAULT		0U
+#define NVME_TIMEOUT_NONE		UINT32_MAX
+
 #define NVME_DEFAULT_RETRY_COUNT	(4)
 
 /* Maximum log page size to fetch for AERs. */
@@ -115,12 +118,11 @@ struct nvme_request {
 	struct memdesc			payload;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
+	uint32_t			timeout_ms;
 	int16_t				retries;
 	uint16_t			ioq;
 #define NVME_IOQ_DEFAULT		0xffff
 	bool				payload_valid;
-	bool				timeout;
-	bool				spare[2];		/* Future use */
 	STAILQ_ENTRY(nvme_request)	stailq;
 };
 
@@ -544,7 +546,7 @@ _nvme_allocate_request(const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 		req->ioq = NVME_IOQ_DEFAULT;
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
-		req->timeout = true;
+		req->timeout_ms = NVME_TIMEOUT_DEFAULT;
 	}
 	return (req);
 }
