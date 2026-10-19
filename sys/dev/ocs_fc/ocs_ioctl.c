@@ -41,6 +41,8 @@
 #include <sys/firmware.h>
 #include <sys/priv.h>
 
+#include <dev/pci/pcireg.h>
+
 static d_open_t		ocs_open;
 static d_close_t	ocs_close;
 static d_ioctl_t	ocs_ioctl;
@@ -300,6 +302,28 @@ no_support:
 }
 
 /**
+ * @brief return the access width in bytes of an ECD helper BAR/config command
+ */
+static uint32_t
+ocs_ecd_helper_width(ocs_ecd_helper_cmd_t cmd)
+{
+	switch (cmd) {
+	case OCS_ECD_HELPER_BAR_READ8:
+	case OCS_ECD_HELPER_BAR_WRITE8:
+	case OCS_ECD_HELPER_CFG_READ8:
+	case OCS_ECD_HELPER_CFG_WRITE8:
+		return (sizeof(uint8_t));
+	case OCS_ECD_HELPER_BAR_READ16:
+	case OCS_ECD_HELPER_BAR_WRITE16:
+	case OCS_ECD_HELPER_CFG_READ16:
+	case OCS_ECD_HELPER_CFG_WRITE16:
+		return (sizeof(uint16_t));
+	default:
+		return (sizeof(uint32_t));
+	}
+}
+
+/**
  * @brief perform requested Elx CoreDump helper function
  *
  * The Elx CoreDump facility used for BE3 diagnostics uses the OCS_IOCTL_CMD_ECD_HELPER
@@ -318,6 +342,7 @@ ocs_process_ecd_helper (ocs_t *ocs, ocs_ioctl_ecd_helper_t *req)
 	uint8_t v8;
 	uint16_t v16;
 	uint32_t v32;
+	uint32_t width;
 
 	/* Check the BAR read/write commands for valid bar */
 	switch(req->cmd) {
@@ -327,6 +352,7 @@ ocs_process_ecd_helper (ocs_t *ocs, ocs_ioctl_ecd_helper_t *req)
 	case OCS_ECD_HELPER_BAR_WRITE8:
 	case OCS_ECD_HELPER_BAR_WRITE16:
 	case OCS_ECD_HELPER_BAR_WRITE32:
+		width = ocs_ecd_helper_width(req->cmd);
 		if (req->bar >= PCI_MAX_BAR) {
 			device_printf(ocs->dev, "Error: bar %d out of range\n", req->bar);
 			return -EFAULT;
@@ -335,10 +361,24 @@ ocs_process_ecd_helper (ocs_t *ocs, ocs_ioctl_ecd_helper_t *req)
 			device_printf(ocs->dev, "Error: bar %d not defined\n", req->bar);
 			return -EFAULT;
 		}
-		if ((uint64_t)req->offset + sizeof(uint32_t) >
+		if ((uint64_t)req->offset + width >
 		    rman_get_size(ocs->reg[req->bar].res)) {
 			device_printf(ocs->dev, "Error: bar %d offset 0x%x out of range\n",
 				      req->bar, req->offset);
+			return -EFAULT;
+		}
+		break;
+	case OCS_ECD_HELPER_CFG_READ8:
+	case OCS_ECD_HELPER_CFG_READ16:
+	case OCS_ECD_HELPER_CFG_READ32:
+	case OCS_ECD_HELPER_CFG_WRITE8:
+	case OCS_ECD_HELPER_CFG_WRITE16:
+	case OCS_ECD_HELPER_CFG_WRITE32:
+		width = ocs_ecd_helper_width(req->cmd);
+		if ((uint64_t)req->offset + width - 1 > PCIE_REGMAX) {
+			device_printf(ocs->dev,
+			    "Error: config offset 0x%x out of range\n",
+			    req->offset);
 			return -EFAULT;
 		}
 		break;
