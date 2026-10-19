@@ -20,7 +20,9 @@
 #   -a ARCH	Architecture to test; repeat -a to test several
 #		(default: host arch)
 #		Supported: amd64, aarch64, armv7, riscv64, powerpc, powerpc64,
-#		powerpc64le
+#		powerpc64le, loongarch64
+#		(loongarch64 is disabled/excluded from -A until the LoongArch
+#		port lands in-tree; usable directly via -a once it has)
 #   -A		Test every supported architecture
 #   -b		Skip build/install phase (reuse existing tree)
 #   -B		Skip build/install and image creation (reuse existing images)
@@ -82,6 +84,9 @@ have_file() {
 # --------------------------------------------------------------------------
 
 # Test whether the current arch declares a capability, e.g. "has efi".
+# "no_release" is special: it means the arch has never had a FreeBSD
+# release, so there's no ISO to pull a minimal userland from -- see
+# install_minimal_userland_world().
 has() {
     case " ${ARCH_CAPS} " in
 	*" $1 "*) return 0 ;;
@@ -317,39 +322,81 @@ find_iso() {
     die "No ISO found for ${ARCH}: ${isoname} not found"
 }
 
-install_minimal_userland() {
+# Paths (binaries + their libraries + rtld) to pull into DESTDIR for a minimal
+# userland. Library *names* are discovered via ldd on the HOST's own copies of
+# USERLAND_BINS: those paths (e.g. /lib/libc.so.7) are the same across
+# architectures, only the file contents differ, so this works even when the
+# files themselves are about to come from a foreign-arch source.
+userland_extract_list() {
+    local host_bins=""
+    for b in ${USERLAND_BINS}; do
+	host_bins="${host_bins} /${b}"
+    done
+    local lib_paths=$(ldd ${host_bins} 2>/dev/null \
+	| awk 'NF == 4 { print $3 }' | sort -u)
+
+    local list=""
+    for b in ${USERLAND_BINS}; do
+	list="${list} ./${b}"
+    done
+    for l in ${lib_paths}; do
+	list="${list} .${l}"
+    done
+    list="${list} ./libexec/ld-elf.so.1"
+
+    # Some architectures (e.g., armv7) need libgcc_s.so.1 even though the host
+    # binaries don't. Always try to extract it. We'll ignore it if not there.
+    list="${list} ./lib/libgcc_s.so.1"
+    echo "${list}"
+}
+
+# Extract the minimal userland from a release ISO -- the normal path for any
+# arch that has actually shipped a FreeBSD release.
+install_minimal_userland_iso() {
     # Split the declaration from the assignment: `local iso=$(find_iso)` would
     # swallow find_iso's exit status (local returns 0), so its die() -- which
     # runs in the $() subshell -- would not stop this script.
     local iso
     iso=$(find_iso) || exit 1
     echo "  Extracting minimal userland from release ISO ${iso}..."
-
-    # Determine library paths from host equivalents of our binaries
-    local host_bins=""
-    for b in ${USERLAND_BINS}; do
-	host_bins="${host_bins} /${b}"
-    done
-    lib_paths=$(ldd ${host_bins} 2>/dev/null \
-	| awk 'NF == 4 { print $3 }' | sort -u)
-
-    # Build the list of paths to extract: binaries + libraries + rtld
-    local extract_list=""
-    for b in ${USERLAND_BINS}; do
-	extract_list="${extract_list} ./${b}"
-    done
-    for l in ${lib_paths}; do
-	extract_list="${extract_list} .${l}"
-    done
-    extract_list="${extract_list} ./libexec/ld-elf.so.1"
-
-    # Some architectures (e.g., armv7) need libgcc_s.so.1 even though the host
-    # binaries don't. Always try to extract it. We'll ignore it if not there.
-    extract_list="${extract_list} ./lib/libgcc_s.so.1"
-
-    # Extract the files from the tarball.
-    tar -C ${DESTDIR} -xf ${iso} ${extract_list} \
+    tar -C ${DESTDIR} -xf ${iso} $(userland_extract_list) \
 	>> ${LOGDIR}/installuserland.log 2>&1 || true
+}
+
+# Cross-build the minimal userland via installworld instead of an ISO -- for
+# architectures that have never had a FreeBSD release (no_release cap), so no
+# ISO exists or ever will for the current version. Assumes buildworld has
+# already been done for TARGET/TARGET_ARCH, same precondition build_tree
+# already has for buildkernel.
+install_minimal_userland_world() {
+    echo "  Cross-installing minimal userland via installworld (no release for ${ARCH})..."
+    local worlddir=${OUTDIR}/world
+    rm -rf ${worlddir}
+    mkdir -p ${worlddir}
+    (cd ${SRCTOP} && ${MK} installworld \
+	DESTDIR=${worlddir} \
+	MK_MAN=no \
+	MK_TESTS=no \
+	MK_DEBUG_FILES=no \
+	MK_INSTALL_AS_USER=yes) > ${LOGDIR}/installworld.log 2>&1 \
+	|| die "installworld failed (see ${LOGDIR}/installworld.log)"
+
+    local item src
+    for item in $(userland_extract_list); do
+	src=${worlddir}/${item#.}
+	[ -f "${src}" ] || continue
+	mkdir -p ${DESTDIR}/$(dirname ${item#.})
+	cp -p ${src} ${DESTDIR}/${item#.}
+    done
+    rm -rf ${worlddir}
+}
+
+install_minimal_userland() {
+    if has no_release; then
+	install_minimal_userland_world
+    else
+	install_minimal_userland_iso
+    fi
 }
 
 # --------------------------------------------------------------------------
