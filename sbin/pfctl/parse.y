@@ -5937,6 +5937,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 	struct pfr_uktable	*ukt;
 	unsigned long		 maxcount;
 	size_t			 s = sizeof(maxcount);
+	int			 error;
 
 	bzero(&ab, sizeof(ab));
 	ab.pfrb_type = PFRB_ADDRS;
@@ -5982,8 +5983,8 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 	} else
 		ukt = NULL;
 	if (!(pf->opts & PF_OPT_NOACTION) &&
-	    pfctl_define_table(name, opts->flags, opts->init_addr,
-	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket, ukt)) {
+	    (error = pfctl_define_table(name, opts->flags, opts->init_addr,
+	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket, ukt)) != 0) {
 
 		if (sysctlbyname("net.pf.request_maxcount", &maxcount, &s,
 		    NULL, 0) == -1)
@@ -5995,7 +5996,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 			    name);
 		else
 			yyerror("cannot define table %s: %s", name,
-			    pf_strerror(errno));
+			    pf_strerror(error));
 
 		goto _error;
 	}
