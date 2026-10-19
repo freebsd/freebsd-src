@@ -375,11 +375,15 @@ initializecpu(void)
 	 * returns inaccurate values. That case is handled entirely by the
 	 * family/model check above.
 	 *
+	 * Released versions of vmm erroneously advertise IRPERF support, so
+	 * ignore it when running under bhyve.
+	 *
 	 * This runs on every core (BSP and each AP) via initializecpu();
 	 * pmc_amd_initialize() later assumes IRPERF's enabled/disabled state
 	 * is consistent across all cores.
 	 */
 	if ((amd_extended_feature_extensions & AMDFEID_IRPERF) &&
+	    vm_guest != VM_GUEST_BHYVE &&
 	    ((CPUID_TO_FAMILY(cpu_id) > 0x17) ||
 	    (CPUID_TO_FAMILY(cpu_id) == 0x17 && CPUID_TO_MODEL(cpu_id) >= 0x30))) {
 		wrmsr(MSR_HWCR, rdmsr(MSR_HWCR) | HWCR_IRPERFEN);
