@@ -384,4 +384,6 @@ struct uexterror;
 int __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz);
 int __libc_uexterr_gettext(char *buf, size_t bufsz);
 
+extern int __libsys_errno;
+
 #endif /* _LIBC_PRIVATE_H_ */
