@@ -148,6 +148,7 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT} ${PKGBASE_REPO_DIR}
 		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
 		NOPKGBASE=${NOPKGBASE} \
 		PKGBASE_REPO_DIR=${.OBJDIR}/pkgbase-repo-dir \
+		PORTSDIR=${PORTSDIR} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
