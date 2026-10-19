@@ -447,6 +447,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_mutex_unlock.3 \
 		pthread_np.3 \
 		pthread_once.3 \
+		pthread_query_np.3 \
 		pthread_resume_all_np.3 \
 		pthread_resume_np.3 \
 		pthread_rwlockattr_destroy.3 \
@@ -543,5 +544,6 @@ PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 PTHREAD_MLINKS+=pthread_join.3 pthread_peekjoin_np.3 \
 		pthread_join.3 pthread_timedjoin_np.3 \
 		pthread_join.3 pthread_tryjoin_np.3
+PTHREAD_MLINKS+=pthread_query_np.3 pthread_query_all_np.3
 
 .include <bsd.prog.mk>
