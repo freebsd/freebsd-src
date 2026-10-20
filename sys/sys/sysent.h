@@ -187,6 +187,9 @@ struct sysentvec {
 #define	SV_ABI_FREEBSD 	9
 #define	SV_ABI_UNDEF	255
 
+#define	SV_ABI_FREEBSD_FLAGS	(SV_ABI_FREEBSD | SV_ASLR | SV_SHP | \
+    SV_TIMEKEEP | SV_RNG_SEED_VER | SV_SIGSYS)
+
 /* sv_coredump flags */
 #define	SVC_PT_COREDUMP	0x00000001	/* dump requested by ptrace(2) */
 #define	SVC_NOCOMPRESS	0x00000002	/* disable compression. */
