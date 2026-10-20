@@ -43,8 +43,8 @@ typedef int prt_connect_wait_t(void *, int);
 typedef int prt_server_t(const char *, void **);
 typedef int prt_accept_t(void *, void **);
 typedef int prt_wrap_t(int, bool, void **);
-typedef int prt_send_t(void *, const unsigned char *, size_t, int);
-typedef int prt_recv_t(void *, unsigned char *, size_t, int *);
+typedef int prt_send_t(void *, const void *, size_t, int);
+typedef int prt_recv_t(void *, void *, size_t, int *);
 typedef int prt_descriptor_t(const void *);
 typedef bool prt_address_match_t(const void *, const char *);
 typedef void prt_local_address_t(const void *, char *, size_t);
@@ -75,7 +75,7 @@ void proto_register(struct proto *proto, bool isdefault);
 int proto_wrap(const char *protoname, bool client, int fd,
     struct proto_conn **newconnp);
 
-int proto_common_send(int sock, const unsigned char *data, size_t size, int fd);
-int proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp);
+int proto_common_send(int sock, const void *data, size_t size, int fd);
+int proto_common_recv(int sock, void *data, size_t size, int *fdp);
 
 #endif	/* !_PROTO_IMPL_H_ */
