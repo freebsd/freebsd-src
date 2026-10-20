@@ -139,8 +139,6 @@ efi_1t1_l3(vm_offset_t va)
 
 	l3 = PHYS_TO_DMAP(mphys);
 	l3 += pmap_l3_index(va);
-	KASSERT(*l3 == 0, ("%s: Already mapped: va %#jx *pt %#jx", __func__,
-	    va, *l3));
 
 	return (l3);
 }
@@ -167,10 +165,9 @@ bool
 efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 {
 	struct efi_md *p;
-	pt_entry_t *l3, l3_attr;
-	vm_offset_t va;
+	pt_entry_t *l3, l3_attr, l3_entry;
+	vm_offset_t va, end;
 	vm_page_t efi_l0_page;
-	uint64_t idx;
 	int i, mode;
 	uint64_t pa;
 
@@ -230,8 +227,9 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			l3_attr |= ATTR_S1_XN;
 
 		VM_OBJECT_WLOCK(obj_1t1_pt);
-		for (va = p->md_phys, idx = 0; idx < p->md_pages;
-		    idx += (PAGE_SIZE / EFI_PAGE_SIZE), va += PAGE_SIZE) {
+		/* EFI regions can start and end within a kernel page. */
+		end = p->md_phys + p->md_pages * EFI_PAGE_SIZE;
+		for (va = trunc_page(p->md_phys); va < end; va += PAGE_SIZE) {
 			l3 = efi_1t1_l3(va);
 
 			if (mode == VM_MEMATTR_DEVICE && in_realm())
@@ -239,7 +237,24 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			else
 				pa = va;
 
-			*l3 = PHYS_TO_PTE(pa) | l3_attr;
+			l3_entry = PHYS_TO_PTE(pa) | l3_attr;
+			if (*l3 != 0) {
+				/*
+				 * Multiple EFI regions can share a kernel page.
+				 * Their memory attributes must agree, but the
+				 * page must be executable if any region needs it.
+				 */
+				if (((*l3 ^ l3_entry) & ~ATTR_S1_PXN) != 0) {
+					VM_OBJECT_WUNLOCK(obj_1t1_pt);
+					printf("EFI Runtime entry %d has conflicting "
+					    "mapping at %#jx: %#jx != %#jx\n", i,
+					    (uintmax_t)va, (uintmax_t)*l3,
+					    (uintmax_t)l3_entry);
+					goto fail;
+				}
+				l3_entry &= *l3 | ~ATTR_S1_PXN;
+			}
+			*l3 = l3_entry;
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	}
