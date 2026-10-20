@@ -52,6 +52,13 @@
 # done
 
 # 20261020: Regenerate trust store
+OLD_FILES+=usr/share/certs/trusted/SecureSign_Root_CA12.pem
+OLD_FILES+=usr/share/certs/trusted/ePKI_Root_Certification_Authority.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_ECC_Root_CA_-_C3.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_Root_CA_-_C1.pem
+OLD_FILES+=usr/share/certs/untrusted/Entrust_Root_Certification_Authority.pem
+
+# 20260430: Regenerate trust store
 OLD_FILES+=usr/share/certs/trusted/Entrust_net_Premium_2048_Secure_Server_CA.pem
 OLD_FILES+=usr/share/certs/trusted/AffirmTrust_Premium.pem
 OLD_FILES+=usr/share/certs/trusted/Starfield_Class_2_CA.pem
