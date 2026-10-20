@@ -335,12 +335,18 @@ _pam_exec(pam_handle_t *pamh,
 		OUT(PAM_SYSTEM_ERR);
 	}
 	/* use poll() to watch the process and stdin / stdout / stderr */
-	if (chin[0] >= 0)
+	if (chin[0] >= 0) {
 		close(chin[0]);
-	if (chout[1] >= 0)
+		chin[0] = -1;
+	}
+	if (chout[1] >= 0) {
 		close(chout[1]);
-	if (cherr[1] >= 0)
+		chout[1] = -1;
+	}
+	if (cherr[1] >= 0) {
 		close(cherr[1]);
+		cherr[1] = -1;
+	}
 	memset(pfd, 0, sizeof pfd);
 	pfd[0].fd = pd;
 	pfd[0].events = POLLHUP;
@@ -451,7 +457,7 @@ out:
 		close(chout[1]);
 	if (cherr[0] >= 0)
 		close(cherr[0]);
-	if (cherr[0] >= 0)
+	if (cherr[1] >= 0)
 		close(cherr[1]);
 	if (envlist != NULL)
 		openpam_free_envlist(envlist);
