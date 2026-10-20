@@ -308,7 +308,7 @@ dev/dpaa2/memac_mdio_fdt.c			optional soc_nxp_ls dpaa2 fdt
 dev/dpaa2/memac_mdio_if.m			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa2 fdt
 
 # Synopsys DesignWare Ethernet Controller
-dev/dwc/if_dwc_rk.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
+dev/dwc/if_dwc_rk.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_rk soc_rockchip_rk3568
 dev/dwc/if_dwc_socfpga.c			optional fdt dwc_socfpga
 
 dev/enetc/enetc_mdio.c				optional enetc soc_nxp_ls

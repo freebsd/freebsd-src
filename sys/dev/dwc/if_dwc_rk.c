@@ -41,6 +41,7 @@
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_subr.h>
 
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
@@ -103,14 +104,29 @@
 #define	 SOC_CON6_GMAC_RXCLK_DLY_ENA		(1 << 15)
 #define	 SOC_CON6_RX_DL_CFG_SHIFT		8
 
+#define	RK3568_GMAC0_BASE		0xfe2a0000
+#define	RK3568_GMAC1_BASE		0xfe010000
+#define	RK3568_GRF_GMAC0_CON0		0x0380
+#define	RK3568_GRF_GMAC1_CON0		0x0388
+#define	RK3568_GRF_GMAC_CON1		4	/* offset from CON0 */
+#define	 RK3568_GMAC_PHY_INTF_SEL_RGMII	0x00fc0010
+#define	 RK3568_GMAC_PHY_INTF_SEL_RMII	0x00fc0040
+#define	 RK3568_GMAC_RXCLK_DLY_ENABLE	0x00020002
+#define	 RK3568_GMAC_TXCLK_DLY_ENABLE	0x00010001
+#define	 RK3568_GMAC_CLK_RX_DL_CFG(val)	(0x7f000000 | ((val) << 8))
+#define	 RK3568_GMAC_CLK_TX_DL_CFG(val)	(0x007f0000 | (val))
+
 struct if_dwc_rk_softc;
 
+typedef int (*if_dwc_rk_initfn_t)(struct if_dwc_rk_softc *);
 typedef void (*if_dwc_rk_set_delaysfn_t)(struct if_dwc_rk_softc *);
 typedef int (*if_dwc_rk_set_speedfn_t)(struct if_dwc_rk_softc *, int);
 typedef void (*if_dwc_rk_set_phy_modefn_t)(struct if_dwc_rk_softc *);
 typedef void (*if_dwc_rk_phy_powerupfn_t)(struct if_dwc_rk_softc *);
 
 struct if_dwc_rk_ops {
+	if_dwc_rk_initfn_t		init;
+	int				dwc_flags;	/* DWC_HAS_GMAC* */
 	if_dwc_rk_set_delaysfn_t	set_delays;
 	if_dwc_rk_set_speedfn_t		set_speed;
 	if_dwc_rk_set_phy_modefn_t	set_phy_mode;
@@ -125,6 +141,7 @@ struct if_dwc_rk_softc {
 	bool			clock_in;
 	phandle_t		phy_node;
 	struct syscon		*grf;
+	uint32_t		grf_offset;	/* RK3568: GMAC0/1 CON0 */
 	struct if_dwc_rk_ops	*ops;
 	/* Common clocks */
 	clk_t			mac_clk_rx;
@@ -148,6 +165,11 @@ static void rk3328_phy_powerup(struct if_dwc_rk_softc *sc);
 static void rk3399_set_delays(struct if_dwc_rk_softc *sc);
 static int rk3399_set_speed(struct if_dwc_rk_softc *sc, int speed);
 
+static int rk3568_init(struct if_dwc_rk_softc *sc);
+static void rk3568_set_delays(struct if_dwc_rk_softc *sc);
+static int rk3568_set_speed(struct if_dwc_rk_softc *sc, int speed);
+static void rk3568_set_phy_mode(struct if_dwc_rk_softc *sc);
+
 static struct if_dwc_rk_ops rk3288_ops = {
 };
 
@@ -163,10 +185,20 @@ static struct if_dwc_rk_ops rk3399_ops = {
 	.set_speed = rk3399_set_speed,
 };
 
+/* The RK3568 GMAC is a DWC Ethernet QoS core (version 5.x). */
+static struct if_dwc_rk_ops rk3568_ops = {
+	.init = rk3568_init,
+	.dwc_flags = DWC_HAS_GMAC5,
+	.set_delays = rk3568_set_delays,
+	.set_speed = rk3568_set_speed,
+	.set_phy_mode = rk3568_set_phy_mode,
+};
+
 static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk3288-gmac", (uintptr_t)&rk3288_ops},
 	{"rockchip,rk3328-gmac", (uintptr_t)&rk3328_ops},
 	{"rockchip,rk3399-gmac", (uintptr_t)&rk3399_ops},
+	{"rockchip,rk3568-gmac", (uintptr_t)&rk3568_ops},
 	{NULL,			 0}
 };
 
@@ -384,16 +416,126 @@ if_dwc_rk_init_sysctl(struct if_dwc_rk_softc *sc)
 }
 
 static int
+rk3568_init(struct if_dwc_rk_softc *sc)
+{
+	bus_addr_t paddr;
+	bus_size_t size;
+
+	if (ofw_reg_to_paddr(ofw_bus_get_node(sc->base.dev), 0, &paddr, &size,
+	    NULL) != 0)
+		return (ENXIO);
+
+	switch (paddr) {
+	case RK3568_GMAC0_BASE:
+		sc->grf_offset = RK3568_GRF_GMAC0_CON0;
+		break;
+	case RK3568_GMAC1_BASE:
+		sc->grf_offset = RK3568_GRF_GMAC1_CON0;
+		break;
+	default:
+		device_printf(sc->base.dev, "unknown GMAC address %#jx\n",
+		    (uintmax_t)paddr);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static void
+rk3568_set_delays(struct if_dwc_rk_softc *sc)
+{
+
+	if (!mii_contype_is_rgmii(sc->base.phy_mode))
+		return;
+
+	if (bootverbose)
+		device_printf(sc->base.dev,
+		    "setting RK3568 RX/TX delays: %u/%u\n",
+		    sc->rx_delay, sc->tx_delay);
+
+	SYSCON_WRITE_4(sc->grf, sc->grf_offset,
+	    RK3568_GMAC_CLK_RX_DL_CFG(sc->rx_delay) |
+	    RK3568_GMAC_CLK_TX_DL_CFG(sc->tx_delay));
+	SYSCON_WRITE_4(sc->grf, sc->grf_offset + RK3568_GRF_GMAC_CON1,
+	    RK3568_GMAC_RXCLK_DLY_ENABLE | RK3568_GMAC_TXCLK_DLY_ENABLE);
+}
+
+static void
+rk3568_set_phy_mode(struct if_dwc_rk_softc *sc)
+{
+
+	switch (sc->base.phy_mode) {
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
+		SYSCON_WRITE_4(sc->grf, sc->grf_offset + RK3568_GRF_GMAC_CON1,
+		    RK3568_GMAC_PHY_INTF_SEL_RGMII);
+		break;
+	case MII_CONTYPE_RMII:
+		SYSCON_WRITE_4(sc->grf, sc->grf_offset + RK3568_GRF_GMAC_CON1,
+		    RK3568_GMAC_PHY_INTF_SEL_RMII);
+		break;
+	}
+}
+
+static int
+rk3568_set_speed(struct if_dwc_rk_softc *sc, int speed)
+{
+	uint64_t rate;
+	int error;
+
+	/*
+	 * The device tree selects the 125MHz clock for gigabit.  The other
+	 * speeds need the RGMII speed clock to be switched.
+	 */
+	if (sc->clk_mac_speed == NULL ||
+	    !mii_contype_is_rgmii(sc->base.phy_mode))
+		return (0);
+
+	switch (speed) {
+	case IFM_1000_T:
+	case IFM_1000_SX:
+		rate = 125000000;
+		break;
+	case IFM_100_TX:
+		rate = 25000000;
+		break;
+	case IFM_10_T:
+		rate = 2500000;
+		break;
+	default:
+		device_printf(sc->base.dev, "unsupported media %u\n", speed);
+		return (-1);
+	}
+
+	error = clk_set_freq(sc->clk_mac_speed, rate, 0);
+	if (error != 0) {
+		device_printf(sc->base.dev,
+		    "cannot set the speed clock to %ju Hz: %d\n",
+		    (uintmax_t)rate, error);
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
 if_dwc_rk_probe(device_t dev)
 {
+	struct if_dwc_rk_ops *ops;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+	ops = (struct if_dwc_rk_ops *)
+	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	if (ops == NULL)
 		return (ENXIO);
+
 	device_set_desc(dev, "Rockchip Gigabit Ethernet Controller");
 
-	return (BUS_PROBE_DEFAULT);
+	/* eqos(4) also matches the RK3568 GMAC, take precedence over it. */
+	return (ops == &rk3568_ops ? BUS_PROBE_VENDOR : BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -494,6 +636,9 @@ if_dwc_rk_init(device_t dev)
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
 	sc->ops = (struct if_dwc_rk_ops *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->base.flags |= sc->ops->dwc_flags;
+	if (sc->ops->init != NULL && sc->ops->init(sc) != 0)
+		return (ENXIO);
 	if (OF_hasprop(node, "rockchip,grf") &&
 	    syscon_get_by_ofw_property(dev, node,
 	    "rockchip,grf", &sc->grf) != 0) {
@@ -582,10 +727,17 @@ if_dwc_rk_mii_clk(device_t dev)
 {
 	struct if_dwc_rk_softc *sc;
 	uint64_t freq;
+	clk_t clk;
 	int rv;
 
 	sc = device_get_softc(dev);
-	if ((rv = clk_get_freq(sc->pclk_mac, &freq)) != 0)
+
+	/* The QoS cores get the MDIO clock range from the main clock. */
+	if ((sc->base.flags & (DWC_HAS_GMAC4 | DWC_HAS_GMAC5)) != 0)
+		clk = sc->base.clk_stmmaceth;
+	else
+		clk = sc->pclk_mac;
+	if ((rv = clk_get_freq(clk, &freq)) != 0)
 		return (-rv);
 	freq = freq / 1000 / 1000;
 
