@@ -177,7 +177,16 @@ sdhci_fdt_rockchip_set_clock(device_t dev, struct sdhci_slot *slot, int clock)
 			clock = 375000;
 
 		if (clock) {
-			clk_set_freq(sc->clk_core, clock, 0);
+			/*
+			 * The divider of the controller is not functional, the
+			 * card clock is the rate of the core clock.
+			 */
+			i = clk_set_freq(sc->clk_core, clock,
+			    CLK_SET_ROUND_DOWN);
+			if (i != 0 && bootverbose)
+				device_printf(dev,
+				    "cannot set the core clock to %d Hz: %d\n",
+				    clock, i);
 
 			if (clock <= 52000000) {
 				bus_write_4(sc->mem_res[slot->num],
