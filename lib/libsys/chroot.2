@@ -264,6 +264,15 @@ The argument
 is not a valid file descriptor.
 .It Bq Er ENOTDIR
 The file descriptor does not reference a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Fa fd
+file descriptor has the
+.Dv FD_RESOLVE_BENEATH
+flag set.
+In particular, it was opened with the
+.Dv O_RESOLVE_BENEATH
+flag.
 .El
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
