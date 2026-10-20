@@ -1349,9 +1349,9 @@ ipi_bitmap_handler(struct trapframe *frame)
 	td->td_intr_frame = frame;
 
 #ifdef COUNT_IPIS
-	if (ipi_bitmap & (1 << IPI_AST)) {
+	if (ipi_bitmap & (1 << IPI_AST))
 		(*ipi_ast_counts[cpu])++;
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
 		(*ipi_hardclock_counts[cpu])++;
 	if (ipi_bitmap & (1 << IPI_PREEMPT))
 		(*ipi_preempt_counts[cpu])++;
