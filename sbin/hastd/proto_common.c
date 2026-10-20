@@ -145,7 +145,7 @@ proto_common_send(int sock, const void *data, size_t size, int fd)
 				errno = ETIMEDOUT;
 			return (errno);
 		}
-		data += done;
+		data = (const char *)data + done;
 		size -= done;
 	} while (size > 0);
 	if (errcount > 0) {
