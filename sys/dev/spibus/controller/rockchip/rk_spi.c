@@ -158,6 +158,31 @@ rk_spi_set_cs(struct rk_spi_softc *sc, uint32_t cs, bool active)
 	return (0);
 }
 
+/*
+ * Raise the SPI clock if needed.  The clock framework can sleep, so this must
+ * be called without the driver lock held.
+ */
+static void
+rk_spi_set_clock(struct rk_spi_softc *sc, uint32_t freq)
+{
+	uint64_t max_freq;
+
+	RK_SPI_LOCK(sc);
+	max_freq = sc->max_freq;
+	RK_SPI_UNLOCK(sc);
+
+	/* minimum divider is 2 */
+	if (max_freq >= freq * 2)
+		return;
+
+	clk_set_freq(sc->clk_spi, 2 * freq, CLK_SET_ROUND_DOWN);
+	clk_get_freq(sc->clk_spi, &max_freq);
+
+	RK_SPI_LOCK(sc);
+	sc->max_freq = max_freq;
+	RK_SPI_UNLOCK(sc);
+}
+
 static void
 rk_spi_hw_setup(struct rk_spi_softc *sc, uint32_t mode, uint32_t freq)
 {
@@ -172,12 +197,6 @@ rk_spi_hw_setup(struct rk_spi_softc *sc, uint32_t mode, uint32_t freq)
 		cr0 |= CTRLR0_SCPH;
 	if (mode & SPIBUS_MODE_CPOL)
 		cr0 |= CTRLR0_SCPOL;
-
-	/* minimum divider is 2 */
-	if (sc->max_freq < freq*2) {
-		clk_set_freq(sc->clk_spi, 2 * freq, CLK_SET_ROUND_DOWN);
-		clk_get_freq(sc->clk_spi, &sc->max_freq);
-	}
 
 	div = ((sc->max_freq + freq - 1) / freq);
 	div = (div + 1) & 0xfffe;
@@ -421,6 +440,8 @@ rk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	spibus_get_cs(child, &cs);
 	spibus_get_clock(child, &clock);
 	spibus_get_mode(child, &mode);
+
+	rk_spi_set_clock(sc, clock);
 
 	RK_SPI_LOCK(sc);
 	rk_spi_hw_setup(sc, mode, clock);
