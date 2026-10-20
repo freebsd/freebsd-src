@@ -2442,6 +2442,7 @@ struct pfioc_trans {
 #define PFR_FLAG_ALLMASK	0x000000FF
 #ifdef _KERNEL
 #define PFR_FLAG_USERIOCTL	0x10000000
+#define PFR_FLAG_APPEND		0x20000000
 #endif
 
 struct pfioc_table {

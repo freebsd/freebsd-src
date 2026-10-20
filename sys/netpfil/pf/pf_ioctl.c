@@ -6152,7 +6152,8 @@ DIOCCHANGEADDR_error:
 		PF_RULES_WLOCK();
 		error = pfr_ina_define(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nadd, &io->pfrio_naddr,
-		    io->pfrio_ticket, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		    io->pfrio_ticket,
+		    (io->pfrio_flags & PFR_FLAG_ALLMASK) | PFR_FLAG_USERIOCTL);
 		PF_RULES_WUNLOCK();
 		free(pfras, M_PF);
 		break;

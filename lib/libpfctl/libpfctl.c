@@ -4044,7 +4044,7 @@ SNL_DECLARE_PARSER(ina_define_parser, struct genlmsghdr, snl_f_p_empty, ap_ina_d
 static int
 _pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
     struct pfr_addr *addr, int size, int *nadd, int *naddr,
-    int ticket, int flags)
+    int ticket, int flags, bool append)
 {
 	struct snl_writer nw;
 	struct snl_errmsg_data e = {};
@@ -4061,6 +4061,7 @@ _pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
 	snl_add_msg_attr_table(&nw, PF_ID_TABLE, tbl);
 	snl_add_msg_attr_u32(&nw, PF_ID_TICKET, ticket);
 	snl_add_msg_attr_u32(&nw, PF_ID_FLAGS, flags);
+	snl_add_msg_attr_bool(&nw, PF_ID_APPEND, append);
 	for (int i = 0; i < size; i++)
 		snl_add_msg_attr_pfr_addr(&nw, PF_ID_ADDR, &addr[i]);
 
@@ -4106,10 +4107,15 @@ pfctl_ina_define(struct pfctl_handle *h, struct pfr_table *tbl,
 	if (naddr)
 		*naddr = 0;
 
+	/*
+	 * The addresses go in chunks.  The first one defines the table, the
+	 * others add to it; without that, each would define it anew and
+	 * only the last would be left.
+	 */
 	do {
 		chunk_size = MIN(size - off, 256);
 		ret = _pfctl_ina_define(h, tbl, &addr[off], chunk_size,
-		    &partial_add, &partial_addr, ticket, flags);
+		    &partial_add, &partial_addr, ticket, flags, off > 0);
 		if (ret != 0)
 			break;
 		if (nadd)

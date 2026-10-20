@@ -1544,6 +1544,53 @@ pfr_ina_begin(struct pfr_table *trs, u_int32_t *ticket, int *ndel, int flags)
 	return (0);
 }
 
+/*
+ * Add addresses to the shadow table of a definition that is in progress.
+ * The shadow is left as it was unless all of them are valid and there is
+ * memory for them.
+ */
+static int
+pfr_ina_append(struct pfr_ktable *shadow, struct pfr_addr *addr, int size,
+    int *nadd, int *naddr)
+{
+	struct pfr_kentryworkq	 addrq;
+	struct pfr_kentry	*p;
+	struct pfr_addr		*ad;
+	int			 i, xaddr = 0;
+
+	PF_RULES_WASSERT();
+
+	if (shadow->pfrkt_cnt == NO_ADDRESSES)
+		return (EINVAL);
+	for (i = 0, ad = addr; i < size; i++, ad++)
+		if (pfr_validate_addr(ad))
+			return (EINVAL);
+	SLIST_INIT(&addrq);
+	for (i = 0, ad = addr; i < size; i++, ad++) {
+		if (pfr_lookup_addr(shadow, ad, 1) != NULL)
+			continue;
+		p = pfr_create_kentry(ad,
+		    (shadow->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
+		if (p == NULL) {
+			pfr_clean_node_mask(shadow, &addrq);
+			pfr_destroy_kentries(&addrq);
+			return (ENOMEM);
+		}
+		if (pfr_route_kentry(shadow, p)) {
+			pfr_destroy_kentry(p);
+			continue;
+		}
+		SLIST_INSERT_HEAD(&addrq, p, pfrke_workq);
+		xaddr++;
+	}
+	shadow->pfrkt_cnt += xaddr;
+	if (nadd != NULL)
+		*nadd = 0;
+	if (naddr != NULL)
+		*naddr = xaddr;
+	return (0);
+}
+
 int
 pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nadd, int *naddr, u_int32_t ticket, int flags)
@@ -1570,6 +1617,18 @@ pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	tbl->pfrt_flags |= PFR_TFLAG_INACTIVE;
 	SLIST_INIT(&tableq);
 	kt = RB_FIND(pfr_ktablehead, &V_pfr_ktables, (struct pfr_ktable *)tbl);
+	/*
+	 * The addresses of one definition may arrive in several requests.
+	 * All but the first ask for theirs to be added to the shadow table
+	 * that the first one made, instead of replacing it.  A dry run makes
+	 * no shadow table; it only checks the addresses, below.
+	 */
+	if ((flags & (PFR_FLAG_APPEND | PFR_FLAG_DUMMY)) == PFR_FLAG_APPEND) {
+		if (kt == NULL || kt->pfrkt_shadow == NULL)
+			return (EINVAL);
+		return (pfr_ina_append(kt->pfrkt_shadow, addr, size, nadd,
+		    naddr));
+	}
 	if (kt == NULL) {
 		kt = pfr_create_ktable(tbl, 0, 1);
 		if (kt == NULL)

@@ -949,6 +949,75 @@ load_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "define_large" "cleanup"
+define_large_head()
+{
+	atf_set descr 'Define a table of more addresses than fit in one request'
+	atf_set require.user root
+}
+
+define_large_body()
+{
+	pft_init
+	pwd=$(pwd)
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+
+	for i in `seq 1 4`; do
+		for j in `seq 1 250`; do
+			echo "192.0.${i}.${j}" >> ${pwd}/foo.lst
+		done
+	done
+	expected=$(wc -l < ${pwd}/foo.lst | awk '{ print $1; }')
+
+	# libpfctl passes the addresses of a definition to the kernel in
+	# chunks of 256.  The kernel used to start the table over with each
+	# of them, so that only the last chunk was left.  The second pass
+	# redefines a table that is in use, which the kernel commits by
+	# merging instead of swapping.
+	for pass in 1 2; do
+		pft_set_rules noflush alcatraz \
+		    "table <foo> persist file \"${pwd}/foo.lst\"" \
+		    "pass in from <foo>"
+		actual=$(jexec alcatraz pfctl -t foo -T show | wc -l | \
+		    awk '{ print $1; }')
+		if [ ${actual} -ne ${expected} ]; then
+			atf_fail "pass ${pass}: ${actual} of ${expected} addresses"
+		fi
+	done
+	atf_check -s exit:0 -o match:"192.0.1.1" -o match:"192.0.4.250" \
+	    jexec alcatraz pfctl -t foo -T show
+
+	# The tables of an anchor are defined after its rules were loaded,
+	# by another path through pfctl.
+	pft_set_rules alcatraz \
+	    "anchor \"bar\" {" \
+	    "	table <baz> persist file \"${pwd}/foo.lst\"" \
+	    "	pass in from <baz>" \
+	    "}"
+	actual=$(jexec alcatraz pfctl -a bar -t baz -T show | wc -l | \
+	    awk '{ print $1; }')
+	if [ ${actual} -ne ${expected} ]; then
+		atf_fail "anchor: ${actual} of ${expected} addresses"
+	fi
+
+	# A table defined twice in one ruleset is its last definition: the
+	# first request of a definition replaces what is there, only the
+	# later chunks of the same definition add to it.
+	pft_set_rules alcatraz \
+	    "table <foo> { 192.0.2.1 }" \
+	    "table <foo> { 192.0.2.2 }" \
+	    "pass in from <foo>"
+	atf_check -s exit:0 -o match:"192.0.2.2" -o not-match:"192.0.2.1" \
+	    jexec alcatraz pfctl -t foo -T show
+}
+
+define_large_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "test" "cleanup"
 test_head()
 {
@@ -1095,6 +1164,7 @@ atf_init_test_cases()
 	atf_add_test_case "replace_verbose"
 	atf_add_test_case "replace_create"
 	atf_add_test_case "load"
+	atf_add_test_case "define_large"
 	atf_add_test_case "test"
 	atf_add_test_case "test_verbose"
 	atf_add_test_case "show_no_counters"

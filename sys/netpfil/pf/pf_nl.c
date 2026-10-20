@@ -2911,6 +2911,7 @@ struct nl_parsed_ina_define {
 	size_t addr_count;
 	uint32_t ticket;
 	uint32_t flags;
+	bool append;
 };
 
 #define	_OUT(_field)	offsetof(struct nl_parsed_ina_define, _field)
@@ -2919,6 +2920,7 @@ static const struct nlattr_parser nla_ina_define_parser[] = {
 	{ .type = PF_ID_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
 	{ .type = PF_ID_FLAGS, .off = _OUT(flags), .cb = nlattr_get_uint32 },
 	{ .type = PF_ID_ADDR, .off = _OUT(addrs), .cb = nlattr_get_pfr_addr },
+	{ .type = PF_ID_APPEND, .off = _OUT(append), .cb = nlattr_get_bool },
 };
 #undef _OUT
 NL_DECLARE_PARSER(ina_define_parser, struct genlmsghdr, nlf_p_empty, nla_ina_define_parser);
@@ -2935,6 +2937,9 @@ pf_handle_ina_define(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	error = nl_parse_nlmsg(hdr, &ina_define_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
+	attrs.flags &= PFR_FLAG_ALLMASK;
+	if (attrs.append)
+		attrs.flags |= PFR_FLAG_APPEND;
 
 	PF_RULES_WLOCK();
 	error = pfr_ina_define(&attrs.table, attrs.addrs.addrs,
