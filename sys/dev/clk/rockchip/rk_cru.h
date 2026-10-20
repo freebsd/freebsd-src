@@ -38,6 +38,7 @@
 #include <dev/clk/rockchip/rk_clk_composite.h>
 #include <dev/clk/rockchip/rk_clk_fract.h>
 #include <dev/clk/rockchip/rk_clk_gate.h>
+#include <dev/clk/rockchip/rk_clk_mmc.h>
 #include <dev/clk/rockchip/rk_clk_mux.h>
 #include <dev/clk/rockchip/rk_clk_pll.h>
 
@@ -117,6 +118,21 @@
 		.alt_parent = _ap,					\
 		.rates = _r,						\
 		.nrates = nitems(_r),					\
+	},								\
+}
+
+/* MMC drive/sample phase clock. */
+#define	MMCPHASE(_id, _name, _pname, _o, _s)				\
+{									\
+	.type = RK_CLK_MMC,						\
+	.clk.mmc = &(struct rk_clk_mmc_def) {				\
+		.clkdef.id = _id,					\
+		.clkdef.name = _name,					\
+		.clkdef.parent_names = (const char *[]){_pname},	\
+		.clkdef.parent_cnt = 1,					\
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
+		.offset = _o,						\
+		.shift = _s,						\
 	},								\
 }
 
@@ -227,6 +243,7 @@ enum rk_clk_type {
 	RK_CLK_MUX,
 	RK_CLK_ARMCLK,
 	RK_CLK_LINK,
+	RK_CLK_MMC,
 };
 
 struct rk_clk {
@@ -239,6 +256,7 @@ struct rk_clk {
 		struct clk_fixed_def		*fixed;
 		struct rk_clk_fract_def		*fract;
 		struct clk_link_def		*link;
+		struct rk_clk_mmc_def		*mmc;
 	} clk;
 };
 
