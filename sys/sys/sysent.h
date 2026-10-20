@@ -189,6 +189,8 @@ struct sysentvec {
 
 #define	SV_ABI_FREEBSD_FLAGS	(SV_ABI_FREEBSD | SV_ASLR | SV_SHP | \
     SV_TIMEKEEP | SV_RNG_SEED_VER | SV_SIGSYS)
+#define	SV_ABI_LINUX_FLAGS	(SV_ABI_LINUX | SV_SHP | SV_SIG_DISCIGN | \
+    SV_SIG_WAITNDQ | SV_TIMEKEEP | SV_PERSISTENT_CTTY)
 
 /* sv_coredump flags */
 #define	SVC_PT_COREDUMP	0x00000001	/* dump requested by ptrace(2) */
