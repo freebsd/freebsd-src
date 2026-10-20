@@ -480,7 +480,8 @@ static struct rk_clk rk3568_clks[] = {
 	/* 7 Reserved */
 	MUX(0, "bclk_emmc_sel", gpll200_gpll150_cpll125_p, 0, 28, 8, 2),
 	/* 10:11 Reserved */
-	MUX(0, "cclk_emmc_sel", cclk_emmc_p, 0, 28, 12, 3),
+	MUX(0, "cclk_emmc_sel", cclk_emmc_p,
+	    RK_CLK_MUX_ROUND_PARENT, 28, 12, 3),
 	/* 15 Reserved */
 
 	/*  CRU_CLKSEL_CON29 */
