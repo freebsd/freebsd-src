@@ -635,9 +635,12 @@ dma4_init(struct dwc_softc *sc)
 		reg |= DMACCR_PBLX8;
 	WRITE4(sc, ETH_DMACCR(0), reg);
 
-	WRITE4(sc, ETH_DMACTXCR(0), 0);
+	/* Programmable burst lengths, multiplied by 8 unless snps,no-pbl-x8. */
+	reg = (sc->txpbl << DMACTXCR_TXPBL_S) & DMACTXCR_TXPBL_M;
+	WRITE4(sc, ETH_DMACTXCR(0), reg);
 
 	reg = (MCLBYTES << DMACRXCR_RBSZ_S);
+	reg |= (sc->rxpbl << DMACRXCR_RXPBL_S) & DMACRXCR_RXPBL_M;
 	WRITE4(sc, ETH_DMACRXCR(0), reg);
 
 	reg = DMASBMR_BLEN4;
