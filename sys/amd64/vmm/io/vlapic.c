@@ -60,8 +60,6 @@
 
 #define VLAPIC_VERSION		(0x14)
 
-#define	x2apic(vlapic)	(((vlapic)->msr_apicbase & APICBASE_X2APIC) ? 1 : 0)
-
 /*
  * The 'vlapic->timer_mtx' is used to provide mutual exclusion between the
  * vlapic_callout_handler() and vcpu accesses to:
@@ -83,11 +81,37 @@ static void vlapic_set_error(struct vlapic *, uint32_t, bool);
 static void vlapic_callout_handler(void *arg);
 static void vlapic_reset(struct vlapic *vlapic);
 
+static __inline bool
+vlapic_x2mode(const struct vlapic *vlapic)
+{
+	return ((vlapic->msr_apicbase & APICBASE_X2APIC) != 0);
+}
+
+static __inline bool
+vlapic_hw_disabled(const struct vlapic *vlapic)
+{
+	return ((vlapic->msr_apicbase & APICBASE_ENABLED) == 0);
+}
+
+static __inline bool
+vlapic_sw_disabled(const struct vlapic *vlapic)
+{
+	const struct LAPIC *lapic = vlapic->apic_page;
+
+	return ((lapic->svr & APIC_SVR_ENABLE) == 0);
+}
+
+static __inline bool
+vlapic_enabled(const struct vlapic *vlapic)
+{
+	return (!vlapic_hw_disabled(vlapic) && !vlapic_sw_disabled(vlapic));
+}
+
 static __inline uint32_t
 vlapic_get_id(struct vlapic *vlapic)
 {
 
-	if (x2apic(vlapic))
+	if (vlapic_x2mode(vlapic))
 		return (vlapic->vcpuid);
 	else
 		return (vlapic->vcpuid << 24);
@@ -111,7 +135,7 @@ vlapic_dfr_write_handler(struct vlapic *vlapic)
 	struct LAPIC *lapic;
 
 	lapic = vlapic->apic_page;
-	if (x2apic(vlapic)) {
+	if (vlapic_x2mode(vlapic)) {
 		VM_CTR1(vlapic->vm, "ignoring write to DFR in x2apic mode: %#x",
 		    lapic->dfr);
 		lapic->dfr = 0;
@@ -137,7 +161,7 @@ vlapic_ldr_write_handler(struct vlapic *vlapic)
 	lapic = vlapic->apic_page;
 
 	/* LDR is read-only in x2apic mode */
-	if (x2apic(vlapic)) {
+	if (vlapic_x2mode(vlapic)) {
 		VLAPIC_CTR1(vlapic, "ignoring write to LDR in x2apic mode: %#x",
 		    lapic->ldr);
 		lapic->ldr = x2apic_ldr(vlapic);
@@ -669,7 +693,7 @@ int
 vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 {
 
-	if (vlapic_enabled(vlapic) == false) {
+	if (!vlapic_enabled(vlapic)) {
 		/*
 		 * When the local APIC is global/hardware disabled,
 		 * LINT[1:0] pins are configured as INTR and NMI pins,
@@ -873,7 +897,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 				mda_ldest = mda_flat_ldest;
 			} else if ((dfr & APIC_DFR_MODEL_MASK) ==
 			    APIC_DFR_MODEL_CLUSTER) {
-				if (x2apic(vlapic)) {
+				if (vlapic_x2mode(vlapic)) {
 					cluster = ldr >> 16;
 					ldest = ldr & 0xffff;
 				} else {
@@ -1045,7 +1069,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	lapic->icr_lo &= ~APIC_DELSTAT_PEND;
 	icrval = ((uint64_t)lapic->icr_hi << 32) | lapic->icr_lo;
 
-	if (x2apic(vlapic))
+	if (vlapic_x2mode(vlapic))
 		dest = icrval >> 32;
 	else
 		dest = icrval >> (32 + 24);
@@ -1058,7 +1082,8 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 
 	switch (shorthand) {
 	case APIC_DEST_DESTFLD:
-		vlapic_calcdest(vlapic->vm, &dmask, dest, phys, false, x2apic(vlapic));
+		vlapic_calcdest(vlapic->vm, &dmask, dest, phys, false,
+		    vlapic_x2mode(vlapic));
 		break;
 	case APIC_DEST_SELF:
 		CPU_SETOF(vlapic->vcpuid, &dmask);
@@ -1218,7 +1243,8 @@ vlapic_self_ipi_handler(struct vlapic *vlapic, uint64_t val)
 {
 	int vec;
 
-	KASSERT(x2apic(vlapic), ("SELF_IPI does not exist in xAPIC mode"));
+	KASSERT(vlapic_x2mode(vlapic),
+	    ("SELF_IPI does not exist in xAPIC mode"));
 
 	vec = val & 0xff;
 	lapic_intr_edge(vlapic->vcpu, vec);
@@ -1340,14 +1366,14 @@ vlapic_read(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 	int		 i;
 
 	/* Ignore MMIO accesses in x2APIC mode */
-	if (x2apic(vlapic) && mmio_access) {
+	if (vlapic_x2mode(vlapic) && mmio_access) {
 		VLAPIC_CTR1(vlapic, "MMIO read from offset %#lx in x2APIC mode",
 		    offset);
 		*data = 0;
 		goto done;
 	}
 
-	if (!x2apic(vlapic) && !mmio_access) {
+	if (!vlapic_x2mode(vlapic) && !mmio_access) {
 		/*
 		 * XXX Generate GP fault for MSR accesses in xAPIC mode
 		 */
@@ -1412,7 +1438,7 @@ vlapic_read(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			break;
 		case APIC_OFFSET_ICR_LOW:
 			*data = lapic->icr_lo;
-			if (x2apic(vlapic))
+			if (vlapic_x2mode(vlapic))
 				*data |= (uint64_t)lapic->icr_hi << 32;
 			break;
 		case APIC_OFFSET_ICR_HI:
@@ -1470,7 +1496,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 		return (0);
 
 	/* Ignore MMIO accesses in x2APIC mode */
-	if (x2apic(vlapic) && mmio_access) {
+	if (vlapic_x2mode(vlapic) && mmio_access) {
 		VLAPIC_CTR2(vlapic, "MMIO write of %#lx to offset %#lx "
 		    "in x2APIC mode", data, offset);
 		return (0);
@@ -1479,7 +1505,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 	/*
 	 * XXX Generate GP fault for MSR accesses in xAPIC mode
 	 */
-	if (!x2apic(vlapic) && !mmio_access) {
+	if (!vlapic_x2mode(vlapic) && !mmio_access) {
 		VLAPIC_CTR2(vlapic, "x2APIC MSR write of %#lx to offset %#lx "
 		    "in xAPIC mode", data, offset);
 		return (0);
@@ -1512,7 +1538,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			break;
 		case APIC_OFFSET_ICR_LOW:
 			lapic->icr_lo = data;
-			if (x2apic(vlapic))
+			if (vlapic_x2mode(vlapic))
 				lapic->icr_hi = data >> 32;
 			retval = vlapic_icrlo_write_handler(vlapic, retu);
 			break;
@@ -1540,7 +1566,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			break;
 
 		case APIC_OFFSET_SELF_IPI:
-			if (x2apic(vlapic))
+			if (vlapic_x2mode(vlapic))
 				vlapic_self_ipi_handler(vlapic, data);
 			break;
 
@@ -1661,7 +1687,7 @@ vlapic_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state)
 	 */
 	lapic = vlapic->apic_page;
 	lapic->id = vlapic_get_id(vlapic);
-	if (x2apic(vlapic)) {
+	if (vlapic_x2mode(vlapic)) {
 		lapic->ldr = x2apic_ldr(vlapic);
 		lapic->dfr = 0;
 	} else {
@@ -1725,18 +1751,6 @@ vlapic_post_intr(struct vlapic *vlapic, int hostcpu, int ipinum)
 		(*vlapic->ops.post_intr)(vlapic, hostcpu);
 	else
 		ipi_cpu(hostcpu, ipinum);
-}
-
-bool
-vlapic_enabled(struct vlapic *vlapic)
-{
-	struct LAPIC *lapic = vlapic->apic_page;
-
-	if ((vlapic->msr_apicbase & APICBASE_ENABLED) != 0 &&
-	    (lapic->svr & APIC_SVR_ENABLE) != 0)
-		return (true);
-	else
-		return (false);
 }
 
 static void
