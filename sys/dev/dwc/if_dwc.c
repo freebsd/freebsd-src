@@ -67,6 +67,7 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii_fdt.h>
+#include <dev/fdt/fdt_common.h>
 
 #include <dev/dwc/if_dwcvar.h>
 #include <dev/dwc/dwc1000_core.h>
@@ -682,6 +683,12 @@ dwc_attach(device_t dev)
 		return (ENXIO);
 	}
 	sc->mii_softc = device_get_softc(sc->miibus);
+
+	/*
+	 * Prefer the address from the device tree (set by the bootloader)
+	 * over the one read from the hardware or generated.
+	 */
+	fdt_ether_get_addr(sc->node, ifp, macaddr);
 
 	/* All ready to run, attach the ethernet interface. */
 	ether_ifattach(ifp, macaddr);
