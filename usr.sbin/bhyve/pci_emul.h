@@ -39,6 +39,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <assert.h>
+#include <stdbool.h>
 
 #define	PCI_BARMAX	PCIR_MAX_BAR_0	/* BAR registers in a Type 0 header */
 #define PCI_BARMAX_WITH_ROM (PCI_BARMAX + 1)
@@ -97,6 +98,7 @@ struct pcibar {
 	uint64_t		size;
 	uint64_t		addr;
 	uint8_t			lobits;
+	bool			registered;	/* io region is registered */
 };
 
 #define PI_NAMESZ	40
