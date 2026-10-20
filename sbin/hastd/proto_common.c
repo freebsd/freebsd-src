@@ -90,7 +90,7 @@ proto_descriptor_send(int sock, int fd)
 }
 
 int
-proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
+proto_common_send(int sock, const void *data, size_t size, int fd)
 {
 	ssize_t done;
 	size_t sendsize;
@@ -146,7 +146,7 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 				errno = ETIMEDOUT;
 			return (errno);
 		}
-		data += done;
+		data = (const char *)data + done;
 		size -= done;
 	} while (size > 0);
 	if (errcount > 0) {
@@ -191,7 +191,7 @@ proto_descriptor_recv(int sock, int *fdp)
 }
 
 int
-proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
+proto_common_recv(int sock, void *data, size_t size, int *fdp)
 {
 	ssize_t done;
 
