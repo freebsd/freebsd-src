@@ -620,18 +620,24 @@ pfctl_flush_nat(int dev, int opts, char *anchorname)
 int
 pfctl_clear_altq(int dev, int opts)
 {
-	struct pfr_buffer t;
+	struct pfctl_trans *t;
 
 	if (!altqsupport)
 		return (-1);
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_add_trans(&t, PF_RULESET_ALTQ, "") ||
-	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
-	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+
+	t = pfctl_trans_alloc();
+	if (t == NULL)
+		return (ENOMEM);
+
+	if (pfctl_trans_add(t, PF_RULESET_ALTQ, "") ||
+	    pfctl_trans_begin(pfh, t, 0) ||
+	    pfctl_trans_commit(pfh, t, 0))
 		err(1, "pfctl_clear_altq");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "altq cleared\n");
+
+	pfctl_trans_free(t);
+
 	return (0);
 }
 
@@ -2234,13 +2240,13 @@ int
 pfctl_eth_ruleset_trans(struct pfctl *pf, char *path,
     struct pfctl_eth_anchor *a)
 {
-	int osize = pf->trans->pfrb_size;
+	int osize = pfctl_trans_size(pf->trans);
 
 	if ((pf->loadopt & PFCTL_FLAG_ETH) != 0) {
-		if (pfctl_add_trans(pf->trans, PF_RULESET_ETH, path))
+		if (pfctl_trans_add(pf->trans, PF_RULESET_ETH, path))
 			return (1);
 	}
-	if (pfctl_trans(pf->dev, pf->trans, DIOCXBEGIN, osize))
+	if (pfctl_trans_begin(pf->h, pf->trans, osize))
 		return (5);
 
 	return (0);
@@ -2249,32 +2255,32 @@ pfctl_eth_ruleset_trans(struct pfctl *pf, char *path,
 int
 pfctl_ruleset_trans(struct pfctl *pf, char *path, struct pfctl_anchor *a, bool do_eth)
 {
-	int osize = pf->trans->pfrb_size;
+	int osize = pfctl_trans_size(pf->trans);
 
 	if ((pf->loadopt & PFCTL_FLAG_ETH) != 0 && do_eth) {
-		if (pfctl_add_trans(pf->trans, PF_RULESET_ETH, path))
+		if (pfctl_trans_add(pf->trans, PF_RULESET_ETH, path))
 			return (1);
 	}
 	if ((pf->loadopt & PFCTL_FLAG_NAT) != 0) {
-		if (pfctl_add_trans(pf->trans, PF_RULESET_NAT, path) ||
-		    pfctl_add_trans(pf->trans, PF_RULESET_BINAT, path) ||
-		    pfctl_add_trans(pf->trans, PF_RULESET_RDR, path))
+		if (pfctl_trans_add(pf->trans, PF_RULESET_NAT, path) ||
+		    pfctl_trans_add(pf->trans, PF_RULESET_BINAT, path) ||
+		    pfctl_trans_add(pf->trans, PF_RULESET_RDR, path))
 			return (1);
 	}
 	if (a == pf->astack[0] && ((altqsupport &&
 	    (pf->loadopt & PFCTL_FLAG_ALTQ) != 0))) {
-		if (pfctl_add_trans(pf->trans, PF_RULESET_ALTQ, path))
+		if (pfctl_trans_add(pf->trans, PF_RULESET_ALTQ, path))
 			return (2);
 	}
 	if ((pf->loadopt & PFCTL_FLAG_FILTER) != 0) {
-		if (pfctl_add_trans(pf->trans, PF_RULESET_SCRUB, path) ||
-		    pfctl_add_trans(pf->trans, PF_RULESET_FILTER, path))
+		if (pfctl_trans_add(pf->trans, PF_RULESET_SCRUB, path) ||
+		    pfctl_trans_add(pf->trans, PF_RULESET_FILTER, path))
 			return (3);
 	}
 	if (pf->loadopt & PFCTL_FLAG_TABLE)
-		if (pfctl_add_trans(pf->trans, PF_RULESET_TABLE, path))
+		if (pfctl_trans_add(pf->trans, PF_RULESET_TABLE, path))
 			return (4);
-	if (pfctl_trans(pf->dev, pf->trans, DIOCXBEGIN, osize))
+	if (pfctl_trans_begin(pf->h, pf->trans, osize))
 		return (5);
 
 	return (0);
@@ -2657,12 +2663,12 @@ pfctl_add_altq(struct pfctl *pf, struct pf_altq *a)
 
 int
 pfctl_rules(int dev, char *filename, int opts, int optimize,
-    char *anchorname, struct pfr_buffer *trans)
+    char *anchorname, struct pfctl_trans *trans)
 {
 #define ERR(...) do { warn(__VA_ARGS__); goto _error; } while(0)
 #define ERRX(...) do { warnx(__VA_ARGS__); goto _error; } while(0)
 
-	struct pfr_buffer	*t, buf;
+	struct pfctl_trans	*t;
 	struct pfioc_altq	 pa;
 	struct pfctl		 pf;
 	struct pfctl_ruleset	*rs;
@@ -2683,14 +2689,11 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	pf_eth_main_anchor.ruleset.anchor = &pf_eth_main_anchor;
 
 	if (trans == NULL) {
-		bzero(&buf, sizeof(buf));
-		buf.pfrb_type = PFRB_TRANS;
-		pf.trans = &buf;
-		t = &buf;
+		t = pfctl_trans_alloc();
 		osize = 0;
 	} else {
 		t = trans;
-		osize = t->pfrb_size;
+		osize = pfctl_trans_size(t);
 	}
 
 	memset(&pa, 0, sizeof(pa));
@@ -2812,9 +2815,10 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 		if ((opts & PF_OPT_NOACTION) == 0) {
 			if (!anchorname[0] && pfctl_load_options(&pf))
 				goto _error;
-			if (pfctl_trans(dev, t, DIOCXCOMMIT, osize))
+			if (pfctl_trans_commit(pfh, t, osize))
 				ERR("DIOCXCOMMIT");
 		}
+		pfctl_trans_free(t);
 	}
 	free(path);
 	return (0);
@@ -2822,7 +2826,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 _error:
 	if (trans == NULL) {	/* main ruleset */
 		if ((opts & PF_OPT_NOACTION) == 0)
-			if (pfctl_trans(dev, t, DIOCXROLLBACK, osize))
+			if (pfctl_trans_rollback(pfh, t, osize))
 				err(1, "DIOCXROLLBACK");
 		exit(1);
 	} else {		/* sub ruleset */
@@ -3618,7 +3622,7 @@ void
 pfctl_reset(int dev, int opts)
 {
 	struct pfctl pf;
-	struct pfr_buffer t;
+	struct pfctl_trans *t;
 	int i;
 
 	memset(&pf, 0, sizeof(pf));
@@ -3635,9 +3639,11 @@ pfctl_reset(int dev, int opts)
 		err(1, "%s: strdup", __func__);
 	pf.ifname_set = 1;
 
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_trans(dev, &t, DIOCXBEGIN, 0))
+	t = pfctl_trans_alloc();
+	if (t == NULL)
+		err(1, "%s: pfctl_trans_alloc()", __func__);
+
+	if (pfctl_trans_begin(pfh, t, 0))
 		err(1, "%s: DIOCXBEGIN", __func__);
 
 	for (i = 0; pf_limits[i].name; i++)
@@ -3648,8 +3654,10 @@ pfctl_reset(int dev, int opts)
 
 	pfctl_load_options(&pf);
 
-	if (pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+	if (pfctl_trans_commit(pfh, t, 0))
 		err(1, "%s: DIOCXCOMMIT", __func__);
+
+	pfctl_trans_free(t);
 
 	pfctl_clear_interface_flags(dev, opts);
 }

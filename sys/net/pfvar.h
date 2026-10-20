@@ -3186,6 +3186,24 @@ int	  inet_nat46(int, const void *, void *, const void *, u_int8_t);
 int	  inet_nat46_inet(const void *, void *, const void *, u_int8_t);
 int	  inet_nat46_inet6(const void *, void *, const void *, u_int8_t);
 
+struct pf_trans_e {
+	int rs_num;
+	char anchor[MAXPATHLEN];
+	uint32_t ticket;
+	TAILQ_ENTRY(pf_trans_e) entry;
+};
+
+struct pf_trans {
+	struct pf_trans_e tmp;
+	TAILQ_HEAD(, pf_trans_e) elms;
+	size_t count;
+};
+
+int	 pf_begin(struct pf_trans *);
+int	 pf_commit(struct pf_trans *);
+int	 pf_rollback(struct pf_trans *);
+void	 pf_trans_free(struct pf_trans *);
+
 #endif /* _KERNEL */
 
 #endif /* _NET_PFVAR_H_ */

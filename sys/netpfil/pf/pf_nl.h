@@ -87,6 +87,9 @@ enum {
 	PFNL_CMD_OSFP_FLUSH = 49,
 	PFNL_CMD_OSFP_GET = 50,
 	PFNL_CMD_OSFP_ADD = 51,
+	PFNL_CMD_BEGIN = 52,
+	PFNL_CMD_COMMIT = 53,
+	PFNL_CMD_ROLLBACK = 54,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -626,6 +629,18 @@ enum pf_osfp_t {
 	PF_OFP_OPTCNT		= 12, /* u8 */
 	PF_OFP_WSCALE		= 13, /* u8 */
 	PF_OFP_TTL		= 14, /* u8 */
+};
+
+enum pf_trans_e_t {
+	PF_TE_UNSPEC,
+	PF_TE_RULESET_NUM	= 1, /* u32 */
+	PF_TE_ANCHOR		= 2, /* string */
+	PF_TE_TICKET		= 3, /* u32 */
+};
+
+enum pf_trans_t {
+	PF_TR_UNSPEC,
+	PF_TR_TRANS		= 1, /* pf_trans_e */
 };
 
 #ifdef _KERNEL

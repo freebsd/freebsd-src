@@ -3088,6 +3088,126 @@ pf_handle_osfp_add(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+#define _OUT(_field)	offsetof(struct pf_trans_e, _field)
+static const struct nlattr_parser nla_p_trans_e[] = {
+	{ .type = PF_TE_RULESET_NUM, .off = _OUT(rs_num), .cb = nlattr_get_uint32 },
+	{ .type = PF_TE_ANCHOR, .off = _OUT(anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_TE_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+};
+#undef _OUT
+static bool
+nl_trans_e_post_parse(void *parsed_attrs, struct nl_pstate *npt)
+{
+	struct pf_trans *attrs = (struct pf_trans *)parsed_attrs;
+	struct pf_trans_e *e;
+
+	e = malloc(sizeof (*e), M_PF, M_WAITOK);
+
+	memcpy(e, &attrs->tmp, sizeof(*e));
+
+	TAILQ_INSERT_TAIL(&attrs->elms, e, entry);
+
+	/* Limit number of entries we accept. */
+	attrs->count++;
+	if (attrs->count > pf_ioctl_maxcount) {
+		return (false);
+	}
+
+	return (true);
+}
+
+NL_DECLARE_ATTR_PARSER_EXT(trans_e_parser, nla_p_trans_e, nl_trans_e_post_parse);
+
+static const struct nlattr_parser nla_p_trans[] = {
+	{ .type = PF_TR_TRANS, .arg = &trans_e_parser, .cb = nlattr_get_nested },
+};
+NL_DECLARE_PARSER(trans_parser, struct genlmsghdr, nlf_p_empty, nla_p_trans);
+
+static bool
+nlattr_add_trans(struct nl_writer *nw, int attr,
+    const struct pf_trans_e *e)
+{
+	int off = nlattr_add_nested(nw, attr);
+	if (off == 0)
+		return (false);
+
+	nlattr_add_u32(nw, PF_TE_RULESET_NUM, e->rs_num);
+	nlattr_add_string(nw, PF_TE_ANCHOR, e->anchor);
+	nlattr_add_u32(nw, PF_TE_TICKET, e->ticket);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+static int
+pf_handle_trans(struct nlmsghdr *hdr, struct nl_pstate *npt, int cmd)
+{
+	struct pf_trans attrs = { 0 };
+	struct pf_trans_e *e;
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error = 0;
+
+	TAILQ_INIT(&attrs.elms);
+
+	error = nl_parse_nlmsg(hdr, &trans_parser, npt, &attrs);
+	if (error != 0)
+		goto out;
+
+	switch (cmd) {
+	case PFNL_CMD_BEGIN:
+		error = pf_begin(&attrs);
+		break;
+	case PFNL_CMD_COMMIT:
+		error = pf_commit(&attrs);
+		break;
+	case PFNL_CMD_ROLLBACK:
+		error = pf_rollback(&attrs);
+		break;
+	default:
+		panic("Unexpected command %d", cmd);
+	}
+
+	if (! nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = cmd;
+
+	// Send the transaction info back, plus ticket info
+	nlattr_add_u32(nw, PF_TR_UNSPEC, 0);
+	TAILQ_FOREACH(e, &attrs.elms, entry) {
+		nlattr_add_trans(nw, PF_TR_TRANS, e);
+	}
+
+	if (! nlmsg_end(nw))
+		return (ENOMEM);
+
+out:
+	pf_trans_free(&attrs);
+
+	return (error);
+}
+
+static int
+pf_handle_begin(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	return (pf_handle_trans(hdr, npt, PFNL_CMD_BEGIN));
+}
+
+static int
+pf_handle_rollback(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	return (pf_handle_trans(hdr, npt, PFNL_CMD_ROLLBACK));
+}
+
+static int
+pf_handle_commit(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	return (pf_handle_trans(hdr, npt, PFNL_CMD_COMMIT));
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -3104,6 +3224,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&table_parser,
 	&table_addr_parser,
 	&table_astats_parser,
+	&trans_parser,
 	&state_limiter_parser,
 	&source_limiter_parser,
 	&source_parser,
@@ -3519,6 +3640,30 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_OSFP_ADD,
 		.cmd_name = "OSFP_ADD",
 		.cmd_cb = pf_handle_osfp_add,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
+	},
+	{
+		.cmd_num = PFNL_CMD_BEGIN,
+		.cmd_name = "BEGIN",
+		.cmd_cb = pf_handle_begin,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
+	},
+	{
+		.cmd_num = PFNL_CMD_ROLLBACK,
+		.cmd_name = "ROLLBACK",
+		.cmd_cb = pf_handle_rollback,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+		.cmd_securelevel = 3,
+	},
+	{
+		.cmd_num = PFNL_CMD_COMMIT,
+		.cmd_name = "COMMIT",
+		.cmd_cb = pf_handle_commit,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 		.cmd_securelevel = 3,

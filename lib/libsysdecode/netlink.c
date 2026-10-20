@@ -347,6 +347,18 @@ static const struct nlattr_decoder nla_d_ruleset[] = {
 };
 NL_DECLARE_ATTR_DECODER(ruleset_decoder, nla_d_ruleset);
 
+static const struct nlattr_decoder nla_d_trans_e[] = {
+	{ .type = PF_TE_RULESET_NUM, .attr_name = "rs_num", .cb = nlattr_decode_uint32 },
+	{ .type = PF_TE_ANCHOR, .attr_name="anchor", .cb = nlattr_decode_string },
+	{ .type = PF_TE_TICKET, .attr_name = "ticket", .cb = nlattr_decode_uint32 },
+};
+NL_DECLARE_ATTR_DECODER(trans_e_decoder, nla_d_trans_e);
+
+static const struct nlattr_decoder nla_d_trans[] = {
+	{ .type = PF_TR_TRANS, .attr_name = "trans", .cb = nlattr_decode_nested, .args = &trans_e_decoder },
+};
+NL_DECLARE_ATTR_DECODER(trans_decoder, nla_d_trans);
+
 static inline void
 nl_verify_decoders(const struct nlattr_decoder_set **decoder, size_t count)
 {
@@ -368,6 +380,7 @@ static const struct nlattr_decoder_set *all_decoders[] = {
 	&rule_addr_decoder,
 	&killclear_states_decoder,
 	&ruleset_decoder,
+	&trans_decoder,
 };
 
 static const struct pfnl_cmd_decoder cmd_decoder[] = {
@@ -378,6 +391,9 @@ static const struct pfnl_cmd_decoder cmd_decoder[] = {
 	{ .cmd_num = PFNL_CMD_GET_ADDR, .ds = &addr_decoder },
 	{ .cmd_num = PFNL_CMD_GET_RULESETS, .ds = &ruleset_decoder },
 	{ .cmd_num = PFNL_CMD_GET_RULESET, .ds = &ruleset_decoder },
+	{ .cmd_num = PFNL_CMD_BEGIN, .ds = &trans_decoder },
+	{ .cmd_num = PFNL_CMD_COMMIT, .ds = &trans_decoder },
+	{ .cmd_num = PFNL_CMD_ROLLBACK, .ds = &trans_decoder },
 };
 
 static inline void

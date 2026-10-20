@@ -699,4 +699,16 @@ int	pfctl_flush_fingerprints(struct pfctl_handle *h);
 int	pfctl_get_fingerprint(struct pfctl_handle *h, int idx, struct pf_osfp_ioctl *fp);
 int	pfctl_add_fingerprint(struct pfctl_handle *h, struct pf_osfp_ioctl *fp);
 
+struct pfctl_trans;
+
+struct pfctl_trans*	pfctl_trans_alloc(void);
+void			pfctl_trans_free(struct pfctl_trans *t);
+size_t			pfctl_trans_size(struct pfctl_trans *t);
+int			pfctl_trans_add(struct pfctl_trans *t, int rs_num, const char *anchor);
+uint32_t		pfctl_get_ticket(struct pfctl_trans *t, int rs_num, const char *anchor);
+
+int			pfctl_trans_begin(struct pfctl_handle *h, struct pfctl_trans *t, size_t off);
+int			pfctl_trans_commit(struct pfctl_handle *h, struct pfctl_trans *t, size_t off);
+int			pfctl_trans_rollback(struct pfctl_handle *h, struct pfctl_trans *t, size_t off);
+
 #endif

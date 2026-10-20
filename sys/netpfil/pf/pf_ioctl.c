@@ -3840,6 +3840,230 @@ pf_ioctl_natlook(struct pfioc_natlook *pnl)
 	return (0);
 }
 
+int
+pf_begin(struct pf_trans *t)
+{
+	struct pf_trans_e *e;
+	int error = 0;
+
+	PF_RULES_WLOCK();
+
+	TAILQ_FOREACH(e, &t->elms, entry) {
+		switch (e->rs_num) {
+		case PF_RULESET_ETH:
+			error = pf_begin_eth(&e->ticket, e->anchor);
+			if (error)
+				goto out;
+			break;
+#ifdef ALTQ
+		case PF_RULESET_ALTQ:
+			if (e->anchor[0]) {
+				error = EINVAL;
+				goto out;
+			}
+			if ((error = pf_begin_altq(&e->ticket)))
+				goto out;
+			break;
+#endif
+		case PF_RULESET_TABLE: {
+			struct pfr_table table;
+
+			bzero(&table, sizeof(table));
+			strlcpy(table.pfrt_anchor, e->anchor,
+			    sizeof(table.pfrt_anchor));
+			if ((error = pfr_ina_begin(&table,
+			    &e->ticket, NULL, 0)))
+				goto out;
+			break;
+		}
+		default:
+			if ((error = pf_begin_rules(&e->ticket, e->rs_num,
+			    e->anchor)))
+				goto out;
+			break;
+		}
+	}
+
+out:
+	PF_RULES_WUNLOCK();
+
+	return (error);
+}
+
+int
+pf_commit(struct pf_trans *t)
+{
+	struct pf_trans_e	*e;
+	struct pf_kruleset	*rs;
+	struct pf_keth_ruleset	*ers;
+	int			 error = 0;
+
+	PF_RULES_WLOCK();
+
+	/* First makes sure everything will succeed. */
+	TAILQ_FOREACH(e, &t->elms, entry) {
+		switch (e->rs_num) {
+		case PF_RULESET_ETH:
+			ers = pf_find_keth_ruleset(e->anchor);
+			if (ers == NULL || e->ticket == 0 ||
+			    e->ticket != ers->inactive.ticket) {
+				error = EINVAL;
+				goto out;
+			}
+			break;
+#ifdef ALTQ
+		case PF_RULESET_ALTQ:
+			if (e->anchor[0]) {
+				error = EINVAL;
+				goto out;
+			}
+			if (!V_altqs_inactive_open || e->ticket !=
+			    V_ticket_altqs_inactive) {
+				error = EBUSY;
+				goto out;
+			}
+			break;
+#endif /* ALTQ */
+		case PF_RULESET_TABLE:
+			rs = pf_find_kruleset(e->anchor);
+			if (rs == NULL || !rs->topen || e->ticket !=
+			    rs->tticket) {
+				error = EBUSY;
+				goto out;
+			}
+			break;
+		default:
+			if (e->rs_num < 0 || e->rs_num >=
+			    PF_RULESET_MAX) {
+				error = EINVAL;
+				goto out;
+			}
+			rs = pf_find_kruleset(e->anchor);
+			if (rs == NULL ||
+			    !rs->rules[e->rs_num].inactive.open ||
+			    rs->rules[e->rs_num].inactive.ticket !=
+			    e->ticket) {
+				error = EBUSY;
+				goto out;
+			}
+			break;
+		}
+	}
+
+	/* Now do the commit - no errors should happen here. */
+	TAILQ_FOREACH(e, &t->elms, entry) {
+		switch (e->rs_num) {
+		case PF_RULESET_ETH:
+			if ((error = pf_commit_eth(e->ticket, e->anchor))) {
+				goto out; /* really bad */
+			}
+			break;
+#ifdef ALTQ
+		case PF_RULESET_ALTQ:
+			if ((error = pf_commit_altq(e->ticket))) {
+				goto out; /* really bad */
+			}
+			break;
+#endif /* ALTQ */
+		case PF_RULESET_TABLE:
+		    {
+			struct pfr_table table;
+
+			bzero(&table, sizeof(table));
+			(void)strlcpy(table.pfrt_anchor, e->anchor,
+			    sizeof(table.pfrt_anchor));
+			if ((error = pfr_ina_commit(&table,
+			    e->ticket, NULL, NULL, 0))) {
+				goto out; /* really bad */
+			}
+			break;
+		    }
+		default:
+			if ((error = pf_commit_rules(e->ticket,
+			    e->rs_num, e->anchor))) {
+				goto out; /* really bad */
+			}
+			break;
+		}
+		}
+
+out:
+	PF_RULES_WUNLOCK();
+
+	/* Only hook into EtherNet taffic if we've got rules for it. */
+	if (! TAILQ_EMPTY(V_pf_keth->active.rules))
+		hook_pf_eth();
+	else
+		dehook_pf_eth();
+
+	return (error);
+}
+
+int
+pf_rollback(struct pf_trans *t)
+{
+	struct pf_trans_e	*e;
+	int			 error = 0;
+
+	PF_RULES_WLOCK();
+	TAILQ_FOREACH(e, &t->elms, entry) {
+		e->anchor[sizeof(e->anchor) - 1] = '\0';
+		switch (e->rs_num) {
+		case PF_RULESET_ETH:
+			if ((error = pf_rollback_eth(e->ticket,
+			    e->anchor))) {
+				goto out; /* really bad */
+			}
+			break;
+#ifdef ALTQ
+		case PF_RULESET_ALTQ:
+			if (e->anchor[0]) {
+				error = EINVAL;
+				goto out;
+			}
+			if ((error = pf_rollback_altq(e->ticket))) {
+				goto out; /* really bad */
+			}
+			break;
+#endif /* ALTQ */
+		case PF_RULESET_TABLE:
+		    {
+			struct pfr_table table;
+
+			bzero(&table, sizeof(table));
+			strlcpy(table.pfrt_anchor, e->anchor,
+			    sizeof(table.pfrt_anchor));
+			if ((error = pfr_ina_rollback(&table,
+			    e->ticket, NULL, 0))) {
+				goto out; /* really bad */
+			}
+			break;
+		    }
+		default:
+			if ((error = pf_rollback_rules(e->ticket,
+			    e->rs_num, e->anchor))) {
+				goto out; /* really bad */
+			}
+			break;
+		}
+	}
+
+out:
+	PF_RULES_WUNLOCK();
+
+	return (error);
+}
+
+void
+pf_trans_free(struct pf_trans *t)
+{
+	struct pf_trans_e *e, *tmp;
+
+	TAILQ_FOREACH_SAFE(e, &t->elms, entry, tmp) {
+		free(e, M_PF);
+	}
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {

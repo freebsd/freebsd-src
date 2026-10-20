@@ -170,10 +170,6 @@ void	 print_seq(struct pfctl_state_peer *);
 void	 print_state(struct pfctl_state *, int);
 
 int	 pfctl_cmdline_symset(char *);
-int	 pfctl_add_trans(struct pfr_buffer *, int, const char *);
-u_int32_t
-	 pfctl_get_ticket(struct pfr_buffer *, int, const char *);
-int	 pfctl_trans(int, struct pfr_buffer *, u_long, int);
 
 int	 pf_get_ruleset_number(u_int8_t);
 void	 pf_init_ruleset(struct pfctl_ruleset *);
