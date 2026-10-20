@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20261021:
+	15.1-RELEASE-p6	SA-26:73.caroot
+
+	TLS certificate store updates. [SA-26:73.caroot]
+
 20261014:
 	15.1-RELEASE-p5	EN-26:25.tzdata
 			EN-26:26.hastd
