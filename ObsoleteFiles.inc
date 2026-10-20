@@ -51,6 +51,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20261020: Regenerate trust store
+OLD_FILES+=usr/share/certs/trusted/SecureSign_Root_CA12.pem
+OLD_FILES+=usr/share/certs/trusted/ePKI_Root_Certification_Authority.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_ECC_Root_CA_-_C3.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_Root_CA_-_C1.pem
+OLD_FILES+=usr/share/certs/untrusted/Entrust_Root_Certification_Authority.pem
+
 # 20260602: Removed by 0a36787e4c1f on 20210723
 OLD_FILES+=usr/share/locale/hr_HR.ISO8859-2/LC_MESSAGES
 OLD_FILES+=usr/share/locale/nl_BE.ISO8859-1/LC_MESSAGES
