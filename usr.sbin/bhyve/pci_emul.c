@@ -639,12 +639,16 @@ static void
 modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 {
 	struct pci_devemu *pe;
+	struct pcibar *bar;
 	int error;
-	enum pcibar_type type;
 
 	pe = pi->pi_d;
-	type = pi->pi_bar[idx].type;
-	switch (type) {
+	bar = &pi->pi_bar[idx];
+
+	if (!registration && !bar->registered)
+		return;
+
+	switch (bar->type) {
 	case PCIBAR_IO:
 	{
 #ifdef __amd64__
@@ -652,30 +656,34 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 
 		bzero(&iop, sizeof(struct inout_port));
 		iop.name = pi->pi_name;
-		iop.port = pi->pi_bar[idx].addr;
-		iop.size = pi->pi_bar[idx].size;
+		iop.port = bar->addr;
+		iop.size = bar->size;
 		if (registration) {
 			iop.flags = IOPORT_F_INOUT;
 			iop.handler = pci_emul_io_handler;
 			iop.arg = pi;
 			error = register_inout(&iop);
-		} else
+		} else {
 			error = unregister_inout(&iop);
+			assert(error == 0);
+		}
 #else
 		struct mem_range mr;
 
 		bzero(&mr, sizeof(struct mem_range));
 		mr.name = pi->pi_name;
-		mr.base = pi->pi_bar[idx].addr;
-		mr.size = pi->pi_bar[idx].size;
+		mr.base = bar->addr;
+		mr.size = bar->size;
 		if (registration) {
 			mr.flags = MEM_F_RW;
 			mr.handler = pci_emul_iomem_handler;
 			mr.arg1 = pi;
 			mr.arg2 = idx;
 			error = register_mem(&mr);
-		} else
+		} else {
 			error = unregister_mem(&mr);
+			assert(error == 0);
+		}
 #endif
 		break;
 	}
@@ -686,16 +694,18 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 
 		bzero(&mr, sizeof(struct mem_range));
 		mr.name = pi->pi_name;
-		mr.base = pi->pi_bar[idx].addr;
-		mr.size = pi->pi_bar[idx].size;
+		mr.base = bar->addr;
+		mr.size = bar->size;
 		if (registration) {
 			mr.flags = MEM_F_RW;
 			mr.handler = pci_emul_mem_handler;
 			mr.arg1 = pi;
 			mr.arg2 = idx;
 			error = register_mem(&mr);
-		} else
+		} else {
 			error = unregister_mem(&mr);
+			assert(error == 0);
+		}
 		break;
 	}
 	case PCIBAR_ROM:
@@ -705,10 +715,16 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 		error = EINVAL;
 		break;
 	}
-	assert(error == 0);
 
-	if (pe->pe_baraddr != NULL)
-		(*pe->pe_baraddr)(pi, idx, registration, pi->pi_bar[idx].addr);
+	/*
+	 * An error may legitimately occur if the guest is probing BARs and
+	 * leaves decoding enabled.  Keep track of this if it happens so that we
+	 * can skip unregistration.
+	 */
+	bar->registered = (registration && error == 0);
+
+	if (error == 0 && pe->pe_baraddr != NULL)
+		(*pe->pe_baraddr)(pi, idx, registration, bar->addr);
 }
 
 static void
