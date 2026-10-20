@@ -116,6 +116,8 @@ int clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
     int enablecnt);
 int clknode_test_freq(struct clknode *clknode, uint64_t freq, int flags,
     int enablecnt, uint64_t *out_freq);
+int clknode_set_phase(struct clknode *clknode, int degrees);
+int clknode_get_phase(struct clknode *clknode, int *degrees);
 int clknode_enable(struct clknode *clknode);
 int clknode_disable(struct clknode *clknode);
 int clknode_stop(struct clknode *clknode, int depth);
@@ -129,6 +131,8 @@ int clk_release(clk_t clk);
 int clk_get_freq(clk_t clk, uint64_t *freq);
 int clk_set_freq(clk_t clk, uint64_t freq, int flags);
 int clk_test_freq(clk_t clk, uint64_t freq, int flags);
+int clk_set_phase(clk_t clk, int degrees);
+int clk_get_phase(clk_t clk, int *degrees);
 int clk_enable(clk_t clk);
 int clk_disable(clk_t clk);
 int clk_stop(clk_t clk);

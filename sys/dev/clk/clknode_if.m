@@ -87,3 +87,23 @@ METHOD int set_mux {
 	struct clknode	*clk;
 	int		idx;
 };
+
+#
+# Set clock phase (in degrees)
+#   Return: ENXIO - method is not implemented
+#	    0 - success
+#
+METHOD int set_phase {
+	struct clknode	*clk;
+	int		degrees;
+};
+
+#
+# Get clock phase (in degrees)
+#   Return: ENXIO - method is not implemented
+#	    0 - success
+#
+METHOD int get_phase {
+	struct clknode	*clk;
+	int		*degrees;
+};
