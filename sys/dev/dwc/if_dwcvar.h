@@ -120,6 +120,8 @@ struct dwc_softc {
 	/* DMA config */
 	uint32_t		txpbl;	/* TX Burst lenght */
 	uint32_t		rxpbl;	/* RX Burst lenght */
+	uint32_t		axi_rd_osr_lmt;	/* AXI max outstanding reads */
+	uint32_t		axi_wr_osr_lmt;	/* AXI max outstanding writes */
 	bool			nopblx8;
 	bool			fixed_burst;
 	bool			mixed_burst;

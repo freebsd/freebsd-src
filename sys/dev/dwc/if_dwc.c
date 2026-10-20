@@ -549,6 +549,8 @@ dwc_attach(device_t dev)
 	if_t ifp;
 	int error;
 	uint32_t pbl;
+	phandle_t axi;
+	pcell_t xref;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -585,6 +587,20 @@ dwc_attach(device_t dev)
 		sc->mixed_burst = true;
 	if (OF_hasprop(sc->node, "snps,aal"))
 		sc->aal = true;
+
+	/* Maximum number of outstanding AXI requests. */
+	sc->axi_rd_osr_lmt = 1;
+	sc->axi_wr_osr_lmt = 1;
+	if (OF_getencprop(sc->node, "snps,axi-config", &xref,
+	    sizeof(xref)) > 0) {
+		axi = OF_node_from_xref(xref);
+		OF_getencprop(axi, "snps,rd_osr_lmt", &sc->axi_rd_osr_lmt,
+		    sizeof(uint32_t));
+		OF_getencprop(axi, "snps,wr_osr_lmt", &sc->axi_wr_osr_lmt,
+		    sizeof(uint32_t));
+	}
+	sc->axi_rd_osr_lmt = MIN(MAX(sc->axi_rd_osr_lmt, 1), 16);
+	sc->axi_wr_osr_lmt = MIN(MAX(sc->axi_wr_osr_lmt, 1), 16);
 
 	error = clk_set_assigned(dev, ofw_bus_get_node(dev));
 	if (error != 0 && error != ENOENT) {

@@ -29,7 +29,11 @@
 #define	ETH_DMAMR				0x1000
 #define	 DMAMR_SWR	(1 << 0) /* Software Reset */
 #define	ETH_DMASBMR				0x1004
+#define	 DMASBMR_WR_OSR_LMT_S	24 /* AXI Maximum Write Outstanding Req Limit */
+#define	 DMASBMR_WR_OSR_LMT_M	(0xf << DMASBMR_WR_OSR_LMT_S)
 #define	 DMASBMR_RD_OSR_LMT_S	16 /* AXI Maximum Read Outstanding Req Limit */
+#define	 DMASBMR_RD_OSR_LMT_M	(0xf << DMASBMR_RD_OSR_LMT_S)
+#define	 DMASBMR_MB	(1 << 14) /* Mixed Burst */
 #define	 DMASBMR_AAL	(1 << 12) /* Address-Aligned Beats */
 #define	 DMASBMR_EAME	(1 << 11) /* Enhanced Address Mode Enable */
 #define	 DMASBMR_BLEN16	(1 << 3) /* Fixed Burst Length */

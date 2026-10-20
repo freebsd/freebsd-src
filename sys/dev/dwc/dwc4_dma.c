@@ -644,6 +644,11 @@ dma4_init(struct dwc_softc *sc)
 	reg |= DMASBMR_BLEN8;
 	reg |= DMASBMR_BLEN16;
 	reg |= DMASBMR_EAME;
+	/* The hardware fields hold the limits minus one. */
+	reg |= ((sc->axi_rd_osr_lmt - 1) << DMASBMR_RD_OSR_LMT_S) &
+	    DMASBMR_RD_OSR_LMT_M;
+	reg |= ((sc->axi_wr_osr_lmt - 1) << DMASBMR_WR_OSR_LMT_S) &
+	    DMASBMR_WR_OSR_LMT_M;
 	WRITE4(sc, ETH_DMASBMR, reg);
 
 	reg = READ4(sc, ETH_DMASBMR);
@@ -651,6 +656,10 @@ dma4_init(struct dwc_softc *sc)
 		reg |= DMASBMR_FB;
 	else
 		reg &= ~DMASBMR_FB;
+	if (sc->mixed_burst)
+		reg |= DMASBMR_MB;
+	else
+		reg &= ~DMASBMR_MB;
 	if (sc->aal)
 		reg |= DMASBMR_AAL;
 	else
