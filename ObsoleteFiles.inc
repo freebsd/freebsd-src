@@ -51,6 +51,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20261020: Regenerate trust store
+OLD_FILES+=usr/share/certs/trusted/SecureSign_Root_CA12.pem
+OLD_FILES+=usr/share/certs/trusted/ePKI_Root_Certification_Authority.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_ECC_Root_CA_-_C3.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_Root_CA_-_C1.pem
+OLD_FILES+=usr/share/certs/untrusted/Entrust_Root_Certification_Authority.pem
+
 # 20260925: lesskey(1) removed, lesskey(5) man page added
 OLD_FILES+=usr/bin/lesskey
 OLD_FILES+=usr/share/man/man1/lesskey.1.gz
