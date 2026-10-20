@@ -387,6 +387,7 @@ void
 dwc4_harvest_stats(struct dwc_softc *sc)
 {
 	if_t ifp __unused;
+	uint32_t good_bad, good;
 	int val;
 
 	/* We don't need to harvest too often. */
@@ -399,9 +400,14 @@ dwc4_harvest_stats(struct dwc_softc *sc)
 	val = READ4(sc, ETH_RX_RECEIVE_ERROR);
 	if_inc_counter(ifp, IFCOUNTER_IERRORS, val);
 
-	val = READ4(sc, ETH_TX_PACKET_COUNT_GOOD_BAD);
-	val -= READ4(sc, ETH_TX_PACKET_COUNT_GOOD);
-	if_inc_counter(ifp, IFCOUNTER_OERRORS, val);
+	/*
+	 * The two counters are not read atomically, a packet can complete
+	 * between the reads.
+	 */
+	good_bad = READ4(sc, ETH_TX_PACKET_COUNT_GOOD_BAD);
+	good = READ4(sc, ETH_TX_PACKET_COUNT_GOOD);
+	if (good_bad > good)
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, good_bad - good);
 
 	val = READ4(sc, ETH_TX_SINGLE_COLLISION_GOOD_PACKETS);
 	val += READ4(sc, ETH_TX_MULTIPLE_COLLISION_GOOD_PACKETS);
