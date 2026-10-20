@@ -143,10 +143,13 @@ struct idmac_desc {
  */
 #define	IDMAC_MAX_SIZE	2048
 /*
- * Busdma may bounce buffers, so we must reserve 2 descriptors
- * (on start and on end) for bounced fragments.
+ * Busdma may bounce buffers and split them at page boundaries, so a transfer
+ * can need more than one descriptor per IDMAC_MAX_SIZE bytes.  Only use half
+ * of the ring for the data, and keep 2 descriptors in reserve (on start and
+ * on end) for bounced fragments.
  */
-#define DWMMC_MAX_DATA	(IDMAC_MAX_SIZE * (IDMAC_DESC_SEGS - 2)) / MMC_SECTOR_SIZE
+#define	DWMMC_MAX_DATA	\
+	((IDMAC_MAX_SIZE * (IDMAC_DESC_SEGS / 2 - 2)) / MMC_SECTOR_SIZE)
 
 static void dwmmc_next_operation(struct dwmmc_softc *);
 static int dwmmc_setup_bus(struct dwmmc_softc *, int);
@@ -155,6 +158,7 @@ static int dma_stop(struct dwmmc_softc *);
 static void pio_read(struct dwmmc_softc *, struct mmc_command *);
 static void pio_write(struct dwmmc_softc *, struct mmc_command *);
 static void dwmmc_handle_card_present(struct dwmmc_softc *sc, bool is_present);
+static void dwmmc_req_timeout(void *arg);
 
 static struct resource_spec dwmmc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -164,6 +168,22 @@ static struct resource_spec dwmmc_spec[] = {
 
 #define	HWTYPE_MASK		(0x0000ffff)
 #define	HWFLAG_MASK		(0xffff << 16)
+
+/*
+ * Cards can legitimately take seconds to accept data or to finish a command
+ * (writes to a card that is busy programming its flash, CMD6 with a long
+ * switch time), so the watchdog must be generous: it only needs to prevent
+ * a wedged controller from hanging the system forever.
+ */
+#define	DWMMC_REQ_TIMEOUT	10	/* seconds */
+
+/*
+ * A command with neither data nor a busy signal completes in microseconds
+ * (or times out in hardware), so don't wait long for it: a dead bus, such
+ * as an SDIO controller with no working card, must not stall the probing of
+ * the other buses, which CAM scans one after the other.
+ */
+#define	DWMMC_SIMPLE_REQ_TIMEOUT	1	/* seconds */
 
 static void
 dwmmc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -184,9 +204,9 @@ dwmmc_ring_setup(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	int idx;
 
 	sc = arg;
-	dprintf("nsegs %d seg0len %lu\n", nsegs, segs[0].ds_len);
 	if (error != 0)
 		panic("%s: error != 0 (%d)\n", __func__, error);
+	dprintf("nsegs %d seg0len %lu\n", nsegs, segs[0].ds_len);
 
 	for (idx = 0; idx < nsegs; idx++) {
 		sc->desc_ring[idx].des0 = DES0_DIC | DES0_CH;
@@ -376,7 +396,28 @@ dwmmc_intr(void *arg)
 	DWMMC_LOCK(sc);
 
 	cmd = sc->curcmd;
-	KASSERT(cmd != NULL, ("%s: sc %p curcmd %p == NULL", __func__, sc, cmd));
+	if (cmd == NULL) {
+		/*
+		 * No command is active: a command that we gave up on (for
+		 * instance a tuning command) completed late, or this is a
+		 * card detect interrupt.  Acknowledge everything.
+		 */
+		reg = READ4(sc, SDMMC_MINTSTS);
+		if (reg & SDMMC_INTMASK_CD)
+			dwmmc_handle_card_present(sc,
+			    READ4(sc, SDMMC_CDETECT) == 0 ? true : false);
+		WRITE4(sc, SDMMC_RINTSTS, reg);
+		if (!sc->use_pio) {
+			reg = READ4(sc, SDMMC_IDSTS);
+			if (reg) {
+				WRITE4(sc, SDMMC_IDSTS, (SDMMC_IDINTEN_TI |
+				    SDMMC_IDINTEN_RI));
+				WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_NI);
+			}
+		}
+		DWMMC_UNLOCK(sc);
+		return;
+	}
 
 	/* First handle SDMMC controller interrupts */
 	reg = READ4(sc, SDMMC_MINTSTS);
@@ -387,6 +428,8 @@ dwmmc_intr(void *arg)
 			dprintf("cmd err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_TIMEOUT;
+			/* The command is over, don't wait for CMD_DONE. */
+			sc->cmd_done = 1;
 		}
 
 		if (reg & DWMMC_DATA_ERR_FLAGS) {
@@ -675,6 +718,7 @@ dwmmc_attach(device_t dev)
 	}
 
 	DWMMC_LOCK_INIT(sc);
+	callout_init_mtx(&sc->req_callout, &sc->sc_mtx, 0);
 
 	if (bus_alloc_resources(dev, dwmmc_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -746,6 +790,8 @@ dwmmc_attach(device_t dev)
 
 #ifdef MMCCAM
 	sc->ccb = NULL;
+	sc->tune_buf = malloc(MMC_TUNING_LEN_HS200, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 	if (mmc_cam_sim_alloc(dev, "dw_mmc", &sc->mmc_sim) != 0) {
 		device_printf(dev, "cannot alloc cam sim\n");
 		dwmmc_detach(dev);
@@ -772,6 +818,7 @@ dwmmc_detach(device_t dev)
 	if (ret != 0)
 		return (ret);
 
+	callout_drain(&sc->req_callout);
 	taskqueue_drain(taskqueue_bus, &sc->card_task);
 	taskqueue_drain_timeout(taskqueue_bus, &sc->card_delayed_task);
 
@@ -798,6 +845,7 @@ dwmmc_detach(device_t dev)
 
 #ifdef MMCCAM
 	mmc_cam_sim_free(&sc->mmc_sim);
+	free(sc->tune_buf, M_DEVBUF);
 #endif
 
 	return (0);
@@ -857,12 +905,27 @@ dwmmc_setup_bus(struct dwmmc_softc *sc, int freq)
 	return (0);
 }
 
+/* Select the DDR or SDR data sampling for the bus timing. */
+static void
+dwmmc_set_ddr(struct dwmmc_softc *sc, enum mmc_bus_timing timing)
+{
+	uint32_t reg;
+
+	reg = READ4(sc, SDMMC_UHS_REG);
+	if (timing == bus_timing_uhs_ddr50 ||
+	    timing == bus_timing_mmc_ddr52 ||
+	    timing == bus_timing_mmc_hs400)
+		reg |= (SDMMC_UHS_REG_DDR);
+	else
+		reg &= ~(SDMMC_UHS_REG_DDR);
+	WRITE4(sc, SDMMC_UHS_REG, reg);
+}
+
 static int
 dwmmc_update_ios(device_t brdev, device_t reqdev)
 {
 	struct dwmmc_softc *sc;
 	struct mmc_ios *ios;
-	uint32_t reg;
 	int ret = 0;
 
 	sc = device_get_softc(brdev);
@@ -896,15 +959,7 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 		WRITE4(sc, SDMMC_CLKSEL, sc->sdr_timing);
 	}
 
-	/* Set DDR mode */
-	reg = READ4(sc, SDMMC_UHS_REG);
-	if (ios->timing == bus_timing_uhs_ddr50 ||
-	    ios->timing == bus_timing_mmc_ddr52 ||
-	    ios->timing == bus_timing_mmc_hs400)
-		reg |= (SDMMC_UHS_REG_DDR);
-	else
-		reg &= ~(SDMMC_UHS_REG_DDR);
-	WRITE4(sc, SDMMC_UHS_REG, reg);
+	dwmmc_set_ddr(sc, ios->timing);
 
 	if (sc->update_ios)
 		ret = sc->update_ios(sc, ios);
@@ -1079,6 +1134,112 @@ pio_write(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_TXDR);
 }
 
+/*
+ * Card read threshold: only start a read when the RX FIFO has room for
+ * a whole block, so that the card clock is never stopped in the middle
+ * of a block.  Needed when the round trip delay is longer than the
+ * cclk_in period, as it can be at HS200 speeds.  See SDMMC_CARDTHRCTL
+ * and "Card Read Threshold" in the Rockchip RK3568 TRM (Mobile Storage
+ * Host Controller).
+ */
+static void
+dwmmc_ctrl_thld(struct dwmmc_softc *sc, struct mmc_data *data, uint32_t blksz)
+{
+	uint32_t enable, verid;
+	int timing;
+
+	verid = READ4(sc, SDMMC_VERID) & 0xffff;
+
+	/* CARDTHRCTL doesn't exist before 2.40a. */
+	if (verid < SDMMC_VERID_240A ||
+	    (verid < SDMMC_VERID_280A && (data->flags & MMC_DATA_WRITE) != 0))
+		return;
+
+	timing = sc->host.ios.timing;
+
+	/* The write threshold (2.80a and later) is only used for HS400. */
+	if ((data->flags & MMC_DATA_WRITE) != 0 &&
+	    timing != bus_timing_mmc_hs400)
+		goto disable;
+	enable = (data->flags & MMC_DATA_WRITE) != 0 ?
+	    SDMMC_CARD_WR_THR_EN : SDMMC_CARD_RD_THR_EN;
+
+	if (timing != bus_timing_mmc_hs200 &&
+	    timing != bus_timing_uhs_sdr104 &&
+	    timing != bus_timing_mmc_hs400)
+		goto disable;
+
+	if (blksz / 4 > sc->fifo_depth)
+		goto disable;
+
+	WRITE4(sc, SDMMC_CARDTHRCTL, SDMMC_SET_THLD(blksz, enable));
+	return;
+
+disable:
+	WRITE4(sc, SDMMC_CARDTHRCTL, 0);
+}
+
+/*
+ * Bring the controller back to idle after a failed data command: the
+ * command interface can be left waiting for data that the card will never
+ * send, which blocks every following command.  Reset the controller state
+ * machines and restart the card clock.
+ */
+static void
+dwmmc_recover(struct dwmmc_softc *sc)
+{
+
+	DWMMC_ASSERT_LOCKED(sc);
+
+	dwmmc_ctrl_reset(sc, SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET |
+	    SDMMC_CTRL_DMA_RESET);
+	WRITE4(sc, SDMMC_RINTSTS, 0xffffffff);
+	if (!sc->use_pio) {
+		WRITE4(sc, SDMMC_IDSTS, 0xffffffff);
+		WRITE4(sc, SDMMC_DBADDR, sc->desc_ring_paddr);
+		WRITE4(sc, SDMMC_IDINTEN, (SDMMC_IDINTEN_NI |
+		    SDMMC_IDINTEN_RI | SDMMC_IDINTEN_TI));
+	}
+	/* The clock and bus mode registers must be reloaded after a reset. */
+	dwmmc_set_ddr(sc, sc->host.ios.timing);
+	dwmmc_setup_bus(sc, sc->host.ios.clock);
+}
+
+/*
+ * Watchdog for commands whose completion interrupt never arrives: dump the
+ * controller state, reset the data path and fail the command.
+ */
+static void
+dwmmc_req_timeout(void *arg)
+{
+	struct dwmmc_softc *sc = arg;
+	struct mmc_command *cmd;
+
+	DWMMC_ASSERT_LOCKED(sc);
+
+	cmd = sc->curcmd;
+	if (cmd == NULL)
+		return;
+
+	device_printf(sc->dev, "request timeout: cmd %u arg %#x "
+	    "RINTSTS %#x MINTSTS %#x STATUS %#x IDSTS %#x CMD %#x "
+	    "BYTCNT %u TCBCNT %u TBBCNT %u CLKDIV %#x\n", cmd->opcode,
+	    cmd->arg, READ4(sc, SDMMC_RINTSTS), READ4(sc, SDMMC_MINTSTS),
+	    READ4(sc, SDMMC_STATUS), READ4(sc, SDMMC_IDSTS),
+	    READ4(sc, SDMMC_CMD), READ4(sc, SDMMC_BYTCNT),
+	    READ4(sc, SDMMC_TCBCNT), READ4(sc, SDMMC_TBBCNT),
+	    READ4(sc, SDMMC_CLKDIV));
+
+	cmd->error = MMC_ERR_TIMEOUT;
+	if (cmd->data != NULL && !sc->use_pio) {
+		dma_done(sc, cmd);
+		dma_stop(sc);
+	}
+	dwmmc_recover(sc);
+	sc->flags &= ~(PENDING_CMD | PENDING_STOP);
+	dwmmc_next_operation(sc);
+}
+
 static void
 dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 {
@@ -1156,6 +1317,8 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 			WRITE4(sc, SDMMC_BLKSIZ, blksz);
 		}
 
+		dwmmc_ctrl_thld(sc, data, READ4(sc, SDMMC_BLKSIZ));
+
 		if (sc->use_pio) {
 			pio_prepare(sc, cmd);
 		} else {
@@ -1166,6 +1329,10 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 
 	dprintf("cmdr 0x%08x\n", cmdr);
 
+	callout_reset_sbt(&sc->req_callout,
+	    (data != NULL || (cmd->flags & MMC_RSP_BUSY) != 0 ?
+	    DWMMC_REQ_TIMEOUT : DWMMC_SIMPLE_REQ_TIMEOUT) * SBT_1S, 0,
+	    dwmmc_req_timeout, sc, 0);
 	WRITE4(sc, SDMMC_CMDARG, cmd->arg);
 	wmb();
 	WRITE4(sc, SDMMC_CMD, cmdr | SDMMC_CMD_START);
@@ -1180,15 +1347,19 @@ dwmmc_next_operation(struct dwmmc_softc *sc)
 	struct mmc_request *req;
 #endif
 	struct mmc_command *cmd;
+	int busy;
 
 	dprintf("%s\n", __func__);
 	DWMMC_ASSERT_LOCKED(sc);
 
 #ifdef MMCCAM
 	ccb = sc->ccb;
-	if (ccb == NULL)
+	if (ccb != NULL)
+		cmd = &ccb->mmcio.cmd;
+	else if (sc->tune_cmd != NULL)
+		cmd = sc->tune_cmd;
+	else
 		return;
-	cmd = &ccb->mmcio.cmd;
 #else
 	req = sc->req;
 	if (req == NULL)
@@ -1206,8 +1377,11 @@ dwmmc_next_operation(struct dwmmc_softc *sc)
 	 * mostly caused by multi-block write command
 	 * followed by single-read.
 	 */
-	while (READ4(sc, SDMMC_STATUS) & (SDMMC_STATUS_DATA_BUSY))
-		continue;
+	for (busy = 0; busy < 100000 &&
+	    (READ4(sc, SDMMC_STATUS) & SDMMC_STATUS_DATA_BUSY) != 0; busy++)
+		DELAY(10);
+	if (busy == 100000)
+		panic("%s: card still busy after 1s\n", __func__);
 
 	if (sc->flags & PENDING_CMD) {
 		sc->flags &= ~PENDING_CMD;
@@ -1220,8 +1394,15 @@ dwmmc_next_operation(struct dwmmc_softc *sc)
 		return;
 	}
 
+	callout_stop(&sc->req_callout);
 	sc->curcmd = NULL;
 #ifdef MMCCAM
+	if (ccb == NULL) {
+		/* Internal tuning command, wake up the waiter. */
+		sc->tune_done = 1;
+		wakeup(&sc->tune_done);
+		return;
+	}
 	ccb->ccb_h.status =
 		(ccb->mmcio.cmd.error == 0 ? CAM_REQ_CMP : CAM_REQ_CMP_ERR);
 	xpt_done(ccb);
@@ -1410,10 +1591,162 @@ dwmmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 #ifdef MMCCAM
 /* Note: this function likely belongs to the specific driver impl */
 static int
-dwmmc_switch_vccq(device_t dev, device_t child)
+dwmmc_switch_vccq(device_t dev, device_t child __unused)
 {
-	device_printf(dev, "This is a default impl of switch_vccq() that always fails\n");
-	return EINVAL;
+	struct dwmmc_softc *sc;
+	int error, max_uvolt, min_uvolt;
+
+	sc = device_get_softc(dev);
+
+	switch (sc->host.ios.vccq) {
+	case vccq_120:
+		min_uvolt = 1100000;
+		max_uvolt = 1300000;
+		break;
+	case vccq_180:
+		min_uvolt = 1700000;
+		max_uvolt = 1950000;
+		break;
+	case vccq_330:
+		min_uvolt = 2700000;
+		max_uvolt = 3600000;
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	/*
+	 * Without a VQMMC regulator the signaling voltage is fixed by the
+	 * board; only assume the default 3.3V is available.
+	 */
+	if (sc->vqmmc == NULL)
+		return (sc->host.ios.vccq == vccq_330 ? 0 : EOPNOTSUPP);
+
+	error = regulator_set_voltage(sc->vqmmc, min_uvolt, max_uvolt);
+	if (error != 0) {
+		device_printf(dev, "cannot set vqmmc to %d-%d uV: %d\n",
+		    min_uvolt, max_uvolt, error);
+		return (error);
+	}
+
+	return (0);
+}
+
+/*
+ * Standard JEDEC eMMC tuning block patterns.  These could be shared with
+ * other host drivers and may be moved to a generic MMC helper later.
+ */
+static const uint8_t tuning_blk_pattern_4bit[MMC_TUNING_LEN] = {
+	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
+	0xc3, 0x3c, 0xcc, 0xff, 0xfe, 0xff, 0xfe, 0xef,
+	0xff, 0xdf, 0xff, 0xdd, 0xff, 0xfb, 0xff, 0xfb,
+	0xbf, 0xff, 0x7f, 0xff, 0x77, 0xf7, 0xbd, 0xef,
+	0xff, 0xf0, 0xff, 0xf0, 0x0f, 0xfc, 0xcc, 0x3c,
+	0xcc, 0x33, 0xcc, 0xcf, 0xff, 0xef, 0xff, 0xee,
+	0xff, 0xfd, 0xff, 0xfd, 0xdf, 0xff, 0xbf, 0xff,
+	0xbb, 0xff, 0xf7, 0xff, 0xf7, 0x7f, 0x7b, 0xde,
+};
+
+static const uint8_t tuning_blk_pattern_8bit[MMC_TUNING_LEN_HS200] = {
+	0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00,
+	0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc, 0xcc,
+	0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff, 0xff,
+	0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee, 0xff,
+	0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd, 0xdd,
+	0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff, 0xbb,
+	0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff, 0xff,
+	0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee, 0xff,
+	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
+	0x00, 0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc,
+	0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff,
+	0xff, 0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee,
+	0xff, 0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd,
+	0xdd, 0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff,
+	0xbb, 0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff,
+	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
+};
+
+int
+dwmmc_send_tuning(struct dwmmc_softc *sc, uint32_t opcode)
+{
+	struct mmc_command cmd;
+	struct mmc_data data;
+	const uint8_t *pattern;
+	size_t len;
+	int error, rv;
+
+	switch (sc->host.ios.bus_width) {
+	case bus_width_8:
+		pattern = tuning_blk_pattern_8bit;
+		len = sizeof(tuning_blk_pattern_8bit);
+		break;
+	case bus_width_4:
+		pattern = tuning_blk_pattern_4bit;
+		len = sizeof(tuning_blk_pattern_4bit);
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
+	memset(sc->tune_buf, 0, len);
+	cmd.opcode = opcode;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	cmd.data = &data;
+	data.data = sc->tune_buf;
+	data.len = len;
+	data.flags = MMC_DATA_READ;
+
+	DWMMC_LOCK(sc);
+	if (sc->ccb != NULL || sc->tune_cmd != NULL) {
+		DWMMC_UNLOCK(sc);
+		return (EBUSY);
+	}
+	sc->tune_cmd = &cmd;
+	sc->tune_done = 0;
+	sc->flags |= PENDING_CMD;
+	dwmmc_next_operation(sc);
+
+	/*
+	 * Wait for the interrupt handler.  A tuning block takes microseconds
+	 * to transfer and errors complete the command, so give up after 50ms.
+	 */
+	error = 0;
+	while (sc->tune_done == 0 && error == 0)
+		error = msleep(&sc->tune_done, &sc->sc_mtx, 0, "dwmmctune",
+		    hz / 20 + 1);
+
+	if (sc->tune_done == 0) {
+		/*
+		 * The command never completed: abort it and tear down the
+		 * DMA mapping.  If it did complete, the interrupt handler
+		 * has already done that.
+		 */
+		callout_stop(&sc->req_callout);
+		sc->flags &= ~PENDING_CMD;
+		sc->curcmd = NULL;
+		cmd.error = MMC_ERR_TIMEOUT;
+		if (!sc->use_pio) {
+			dma_done(sc, &cmd);
+			dma_stop(sc);
+		}
+	}
+	/* Leave the controller in a clean state for the next try. */
+	if (cmd.error != MMC_ERR_NONE)
+		dwmmc_recover(sc);
+	sc->tune_cmd = NULL;
+	DWMMC_UNLOCK(sc);
+
+	if (cmd.error == MMC_ERR_TIMEOUT)
+		rv = ETIMEDOUT;
+	else if (cmd.error != MMC_ERR_NONE)
+		rv = EIO;
+	else if (memcmp(sc->tune_buf, pattern, len) != 0)
+		rv = EBADMSG;
+	else
+		rv = 0;
+	return (rv);
 }
 
 static int
@@ -1487,10 +1820,23 @@ dwmmc_set_tran_settings(device_t dev, struct ccb_trans_settings_mmc *cts)
 		if (bootverbose)
 			device_printf(sc->dev, "VCCQ => %d\n", ios->vccq);
 		res = dwmmc_switch_vccq(sc->dev, NULL);
-		device_printf(sc->dev, "VCCQ switch result: %d\n", res);
 	}
 
-	return (dwmmc_update_ios(sc->dev, NULL));
+	res = dwmmc_update_ios(sc->dev, NULL);
+
+	/*
+	 * Tune the sampling point once the clock has been raised for HS200.
+	 */
+	if (res == 0 && (cts->ios_valid & MMC_CLK) != 0 &&
+	    ios->timing == bus_timing_mmc_hs200 && ios->clock > 0 &&
+	    sc->execute_tuning != NULL) {
+		res = sc->execute_tuning(sc, MMC_SEND_TUNING_BLOCK_HS200);
+		if (res != 0)
+			device_printf(sc->dev, "HS200 tuning failed: %d\n",
+			    res);
+	}
+
+	return (res);
 }
 
 static int
