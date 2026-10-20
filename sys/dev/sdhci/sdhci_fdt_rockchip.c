@@ -52,6 +52,7 @@
 #include <dev/phy/phy.h>
 
 #include <dev/mmc/bridge.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 
 #include <dev/sdhci/sdhci.h>
 #include <dev/sdhci/sdhci_fdt.h>
@@ -108,6 +109,11 @@ static struct ofw_compat_data compat_data[] = {
 	{ "rockchip,rk3399-sdhci-5.1",	SDHCI_FDT_RK3399 },
 	{ "rockchip,rk3568-dwcmshc",	SDHCI_FDT_RK3568 },
 	{ NULL, 0 }
+};
+
+struct sdhci_fdt_rockchip_softc {
+	struct sdhci_fdt_softc	sc;
+	struct mmc_helper	helper;
 };
 
 static int
@@ -219,9 +225,60 @@ sdhci_fdt_rockchip_set_clock(device_t dev, struct sdhci_slot *slot, int clock)
 }
 
 static int
+sdhci_fdt_rockchip_switch_vccq(device_t dev, device_t reqdev)
+{
+	struct sdhci_fdt_rockchip_softc *rsc;
+	struct sdhci_slot *slot;
+	int error, max_uvolt, min_uvolt;
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data !=
+	    SDHCI_FDT_RK3399)
+		return (sdhci_generic_switch_vccq(dev, reqdev));
+
+	/*
+	 * The Arasan 5.1 state machine must not be forced through an S18
+	 * voltage switch, but the eMMC I/O supply is board-dependent.  Set
+	 * it through the regulator framework when the DT describes it.
+	 */
+	slot = device_get_ivars(reqdev);
+	switch (slot->host.ios.vccq) {
+	case vccq_120:
+		min_uvolt = 1100000;
+		max_uvolt = 1300000;
+		break;
+	case vccq_180:
+		min_uvolt = 1700000;
+		max_uvolt = 1950000;
+		break;
+	case vccq_330:
+		min_uvolt = 2700000;
+		max_uvolt = 3600000;
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	rsc = device_get_softc(dev);
+	if (rsc->helper.vqmmc_supply == NULL)
+		return (0);
+
+	error = regulator_set_voltage(rsc->helper.vqmmc_supply,
+	    min_uvolt, max_uvolt);
+	if (error != 0) {
+		if (bootverbose)
+			device_printf(dev, "cannot set vqmmc to %d-%d uV: %d\n",
+			    min_uvolt, max_uvolt, error);
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
 sdhci_fdt_rockchip_attach(device_t dev)
 {
-	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+	struct sdhci_fdt_rockchip_softc *rsc = device_get_softc(dev);
+	struct sdhci_fdt_softc *sc = &rsc->sc;
 	int err, compat;
 
 	sc->dev = dev;
@@ -233,6 +290,34 @@ sdhci_fdt_rockchip_attach(device_t dev)
 			device_printf(dev, "Cannot init clocks\n");
 			return (err);
 		}
+
+		/*
+		 * The capabilities register does not report the real base
+		 * clock on RK3399, so pin clk_xin (and thus the divider base)
+		 * to the 200MHz used for HS200 and HS400.
+		 */
+		err = clk_set_freq(sc->clk_xin, 200000000, CLK_SET_ROUND_EXACT);
+		if (err != 0) {
+			device_printf(dev,
+			    "Cannot set xin clock to 200MHz: %d\n", err);
+			return (err);
+		}
+		sc->max_clk = 200000000;
+		sc->slots[0].opt |= SDHCI_MAX_CLK_FIXED;
+
+		/*
+		 * HS200 is limited to 100MHz on the RockPro64: tuning fails
+		 * at the 148.5MHz the CRU produces for 150MHz and commands
+		 * time out at 200MHz.
+		 */
+		if (ofw_bus_node_is_compatible(OF_finddevice("/"),
+		    "pine64,rockpro64"))
+			sc->slots[0].host_max_clk = 100000000;
+
+		/* Pick up eMMC modes and the VQMMC supply from the DT. */
+		mmc_fdt_parse(dev, ofw_bus_get_node(dev), &rsc->helper,
+		    &sc->slots[0].host);
+
 		sdhci_export_clocks(sc);
 		if ((err = sdhci_init_phy(sc)) != 0) {
 			device_printf(dev, "Cannot init phy\n");
@@ -270,11 +355,15 @@ static device_method_t sdhci_fdt_rockchip_methods[] = {
 
 	/* SDHCI methods */
 	DEVMETHOD(sdhci_set_clock,	sdhci_fdt_rockchip_set_clock),
+	DEVMETHOD(sdhci_set_uhs_timing,	sdhci_generic_set_uhs_timing),
+	DEVMETHOD(mmcbr_tune,		sdhci_generic_tune),
+	DEVMETHOD(mmcbr_retune,		sdhci_generic_retune),
+	DEVMETHOD(mmcbr_switch_vccq,	sdhci_fdt_rockchip_switch_vccq),
 
 	DEVMETHOD_END
 };
 extern driver_t sdhci_fdt_driver;
 
 DEFINE_CLASS_1(sdhci_rockchip, sdhci_fdt_rockchip_driver, sdhci_fdt_rockchip_methods,
-    sizeof(struct sdhci_fdt_softc), sdhci_fdt_driver);
+    sizeof(struct sdhci_fdt_rockchip_softc), sdhci_fdt_driver);
 DRIVER_MODULE(sdhci_rockchip, simplebus, sdhci_fdt_rockchip_driver, NULL, NULL);
