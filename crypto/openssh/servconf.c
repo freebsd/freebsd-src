@@ -325,7 +325,7 @@ fill_default_server_options(ServerOptions *options)
 #endif
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_ED25519_KEY_FILE, 0);
-		servconf_add_hostkey("[default]", 0, options,
+		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_MLDSA44_ED25519_KEY_FILE, 0);
 	}
 	if (options->num_host_key_files == 0)
