@@ -3550,13 +3550,13 @@ dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/watchdog/watchdog.c		standard
-dev/wg/if_wg.c			optional wg				\
+dev/wg/if_wg.c			optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
-dev/wg/wg_cookie.c		optional wg				\
+dev/wg/wg_cookie.c		optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
-dev/wg/wg_crypto.c		optional wg				\
+dev/wg/wg_crypto.c		optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
-dev/wg/wg_noise.c		optional wg				\
+dev/wg/wg_noise.c		optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
 dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
