@@ -52,9 +52,11 @@
 # done
 
 # 20261020: Regenerate trust store
+OLD_FILES+=usr/share/certs/trusted/Atos_TrustedRoot_2011.pem
 OLD_FILES+=usr/share/certs/trusted/SecureSign_Root_CA12.pem
 OLD_FILES+=usr/share/certs/trusted/ePKI_Root_Certification_Authority.pem
 OLD_FILES+=usr/share/certs/trusted/emSign_ECC_Root_CA_-_C3.pem
+OLD_FILES+=usr/share/certs/trusted/emSign_ECC_Root_CA_-_G3.pem
 OLD_FILES+=usr/share/certs/trusted/emSign_Root_CA_-_C1.pem
 OLD_FILES+=usr/share/certs/untrusted/Entrust_Root_Certification_Authority.pem
 
