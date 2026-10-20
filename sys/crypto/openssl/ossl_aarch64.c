@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2026 Netflix, Inc
  * Copyright (c) 2020 The FreeBSD Foundation
  *
  * This software was developed by Mitchell Horne <mhorne@FreeBSD.org>
@@ -29,9 +30,10 @@
  */
 
 #include <sys/types.h>
+#include <sys/stdint.h>
 
-#include <machine/elf.h>
-#include <machine/md_var.h>
+#include <machine/armreg.h>
+#include <machine/cpu.h>
 
 #include <crypto/openssl/ossl.h>
 #include <crypto/openssl/ossl_cipher.h>
@@ -41,9 +43,13 @@
  * Feature bits defined in arm_arch.h
  */
 unsigned int OPENSSL_armcap_P;
+#define	AES_PMULL_CAPABLE					\
+	((OPENSSL_armcap_P & (ARMV8_AES | ARMV8_PMULL)) ==	\
+	    (ARMV8_AES | ARMV8_PMULL))
 
 ossl_cipher_setkey_t aes_v8_set_encrypt_key;
 ossl_cipher_setkey_t aes_v8_set_decrypt_key;
+ossl_cipher_setkey_t ossl_aes_gcm_setkey;
 
 ossl_cipher_setkey_t vpaes_set_encrypt_key;
 ossl_cipher_setkey_t vpaes_set_decrypt_key;
@@ -51,18 +57,23 @@ ossl_cipher_setkey_t vpaes_set_decrypt_key;
 void
 ossl_cpuid(struct ossl_softc *sc)
 {
+	uint64_t isar0;
+
+	/* Use sanitized kernel features, available before elf_hwcap is set. */
+	get_kernel_reg(ID_AA64ISAR0_EL1, &isar0);
+
 	/* SHA features */
-	if ((elf_hwcap & HWCAP_SHA1) != 0)
+	if (ID_AA64ISAR0_SHA1_VAL(isar0) >= ID_AA64ISAR0_SHA1_BASE)
 		OPENSSL_armcap_P |= ARMV8_SHA1;
-	if ((elf_hwcap & HWCAP_SHA2) != 0)
+	if (ID_AA64ISAR0_SHA2_VAL(isar0) >= ID_AA64ISAR0_SHA2_BASE)
 		OPENSSL_armcap_P |= ARMV8_SHA256;
-	if ((elf_hwcap & HWCAP_SHA512) != 0)
+	if (ID_AA64ISAR0_SHA2_VAL(isar0) >= ID_AA64ISAR0_SHA2_512)
 		OPENSSL_armcap_P |= ARMV8_SHA512;
 
 	/* AES features */
-	if ((elf_hwcap & HWCAP_AES) != 0)
+	if (ID_AA64ISAR0_AES_VAL(isar0) >= ID_AA64ISAR0_AES_BASE)
 		OPENSSL_armcap_P |= ARMV8_AES;
-	if ((elf_hwcap & HWCAP_PMULL) != 0)
+	if (ID_AA64ISAR0_AES_VAL(isar0) >= ID_AA64ISAR0_AES_PMULL)
 		OPENSSL_armcap_P |= ARMV8_PMULL;
 
 	if ((OPENSSL_armcap_P & ARMV8_AES) == 0 &&
@@ -77,5 +88,11 @@ ossl_cpuid(struct ossl_softc *sc)
 	} else {
 		ossl_cipher_aes_cbc.set_encrypt_key = vpaes_set_encrypt_key;
 		ossl_cipher_aes_cbc.set_decrypt_key = vpaes_set_decrypt_key;
+	}
+
+	if (AES_PMULL_CAPABLE) {
+		ossl_cipher_aes_gcm.set_encrypt_key = ossl_aes_gcm_setkey;
+		ossl_cipher_aes_gcm.set_decrypt_key = ossl_aes_gcm_setkey;
+		sc->has_aes_gcm = true;
 	}
 }

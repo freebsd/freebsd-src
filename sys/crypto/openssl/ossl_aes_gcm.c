@@ -10,10 +10,10 @@
  */
 
 /*
- * This file contains an AES-GCM wrapper implementation from OpenSSL, using
- * AES-NI (x86) or POWER8 Crypto Extensions (ppc). It was ported from
- * cipher_aes_gcm_hw_aesni.inc and it makes use of a generic C implementation
- * for partial blocks, ported from gcm128.c with OPENSSL_SMALL_FOOTPRINT defined.
+ * This file contains AES-GCM wrapper implementations from OpenSSL, using
+ * AES-NI (x86), ARMv8 Crypto Extensions, or POWER8 Crypto Extensions.  It
+ * makes use of a generic C implementation for partial blocks, ported from
+ * gcm128.c with OPENSSL_SMALL_FOOTPRINT defined.
  */
 
 #include <sys/endian.h>
@@ -52,6 +52,86 @@ void GCM_init(__uint128_t Htable[16], uint64_t Xi[2]);
 void GCM_gmult(uint64_t Xi[2], const __uint128_t Htable[16]);
 void GCM_ghash(uint64_t Xi[2], const __uint128_t Htable[16], const void *in,
     size_t len);
+
+#elif defined(__aarch64__)
+#define	AES_set_encrypt_key	aes_v8_set_encrypt_key
+#define	AES_gcm_encrypt		armv8_aes_gcm_encrypt
+#define	AES_gcm_decrypt		armv8_aes_gcm_decrypt
+#define	AES_encrypt		aes_v8_encrypt
+#define	AES_ctr32_encrypt_blocks	aes_v8_ctr32_encrypt_blocks
+#define	GCM_init		gcm_init_v8
+#define	GCM_gmult		gcm_gmult_v8
+#define	GCM_ghash		gcm_ghash_v8
+
+int AES_set_encrypt_key(const unsigned char *key, int bits, void *ctx);
+void AES_encrypt(const unsigned char *in, unsigned char *out, const void *ks);
+void AES_ctr32_encrypt_blocks(const unsigned char *in, unsigned char *out,
+    size_t blocks, const void *ks, const unsigned char *iv);
+
+void GCM_init(__uint128_t Htable[16], uint64_t Xi[2]);
+void GCM_gmult(uint64_t Xi[2], const __uint128_t Htable[16]);
+void GCM_ghash(uint64_t Xi[2], const __uint128_t Htable[16], const void *in,
+    size_t len);
+
+typedef size_t armv8_gcm_kernel_t(const unsigned char *, uint64_t,
+    unsigned char *, uint64_t *, unsigned char *, const void *);
+
+armv8_gcm_kernel_t aes_gcm_enc_128_kernel;
+armv8_gcm_kernel_t aes_gcm_enc_192_kernel;
+armv8_gcm_kernel_t aes_gcm_enc_256_kernel;
+armv8_gcm_kernel_t aes_gcm_dec_128_kernel;
+armv8_gcm_kernel_t aes_gcm_dec_192_kernel;
+armv8_gcm_kernel_t aes_gcm_dec_256_kernel;
+
+static size_t
+armv8_aes_gcm_encrypt(const unsigned char *in, unsigned char *out, size_t len,
+    const void *key, unsigned char ivec[16], uint64_t Xi[2])
+{
+	const struct ossl_aes_keysched *aes_key;
+	size_t bulk;
+
+	aes_key = key;
+	bulk = len - len % AES_BLOCK_LEN;
+	switch (aes_key->rounds) {
+	case 10:
+		(void)aes_gcm_enc_128_kernel(in, bulk * 8, out, Xi, ivec, key);
+		break;
+	case 12:
+		(void)aes_gcm_enc_192_kernel(in, bulk * 8, out, Xi, ivec, key);
+		break;
+	case 14:
+		(void)aes_gcm_enc_256_kernel(in, bulk * 8, out, Xi, ivec, key);
+		break;
+	default:
+		return (0);
+	}
+	return (bulk);
+}
+
+static size_t
+armv8_aes_gcm_decrypt(const unsigned char *in, unsigned char *out, size_t len,
+    const void *key, unsigned char ivec[16], uint64_t Xi[2])
+{
+	const struct ossl_aes_keysched *aes_key;
+	size_t bulk;
+
+	aes_key = key;
+	bulk = len - len % AES_BLOCK_LEN;
+	switch (aes_key->rounds) {
+	case 10:
+		(void)aes_gcm_dec_128_kernel(in, bulk * 8, out, Xi, ivec, key);
+		break;
+	case 12:
+		(void)aes_gcm_dec_192_kernel(in, bulk * 8, out, Xi, ivec, key);
+		break;
+	case 14:
+		(void)aes_gcm_dec_256_kernel(in, bulk * 8, out, Xi, ivec, key);
+		break;
+	default:
+		return (0);
+	}
+	return (bulk);
+}
 
 #elif defined(__powerpc64__)
 #define	AES_set_encrypt_key	aes_p8_set_encrypt_key
