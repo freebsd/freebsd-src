@@ -500,35 +500,35 @@ FreeBSD 16 -current   |  NetBSD -current    OpenBSD -current   DragonFly -curren
  |                    |      |                      |                  |
  v                    v      v                      v                  v
 
-Time
-----------------
+Dates and Sources
+-----------------
 
-Time tolerance +/- 6 months, depending on which book/article you read; if it was
-the announcement in Usenet or if it was available as tape.
+Date tolerance: +/-6 months, depending on which book or article you read,
+and whether it refers to the Usenet announcement or the tape release.
 
-[44B]  McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
+[44B]  McKusick, Marshall Kirk, Keith Bostic, Michael J. Karels, and John
 	Quarterman. The Design and Implementation of the 4.4BSD Operating System.
-[APL]  Apple website [https://www.apple.com/macosx/]
+[APL]  Apple website https://www.apple.com/macos/
 [BSDI] Berkeley Software Design, Inc.
-[DFB]  DragonFlyBSD Project, The.
-[DOC]  README, COPYRIGHT on tape.
-[FBD]  FreeBSD Project, The.
+[DFB]  The DragonFly BSD Project
+[DOC]  README, COPYRIGHT on tape
+[FBD]  The FreeBSD Project
 [KB]   Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources, Volume 11,
-	Info 4, April, 1987.
-[KKK]  Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
+	Info 4, April 1987.
+[KKK]  Mike Karels, Kirk McKusick, and Keith Bostic. Tahoe announcement.
 	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
 [KSJ]  Michael J. Karels, Carl F. Smith, and William F. Jolitz. Changes in the
 	Kernel in 2.9BSD. Second Berkeley Software Distribution UNIX Version 2.9,
-	July, 1983.
-[NBD]  NetBSD Project, The.
-[OBD]  OpenBSD Project, The.
-[QCU]  Salus, Peter H. A quarter century of UNIX. ISBN 0201547775, EAN
+	July 1983.
+[NBD]  The NetBSD Project
+[OBD]  The OpenBSD Project
+[QCU]  Salus, Peter H. A Quarter Century of UNIX. ISBN 0201547775, EAN
 	9780201547771
 [SMS]  Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
-[TUHS] The Unix Historical Society. https://minnie.tuhs.org/Unix_History/
-[USE]  Usenet announcement.
+[TUHS] The Unix Heritage Society, Inc. https://www.tuhs.org
+[USE]  Usenet announcement
 [WRS]  Wind River Systems, Inc.
-[dmr]  Dennis Ritchie, via E-Mail
+[dmr]  Dennis Ritchie, via email
 
 Multics                 1965
 UNIX                    Summer 1969
@@ -954,16 +954,16 @@ NetBSD 10.2		2026-09-15 [NBD]
 OpenBSD 8.0		2026-10-19 [OBD]
 
 Bibliography
-------------------------
+------------
 
-Leffler, Samuel J., Marshall Kirk McKusick, Michael J Karels and John
+Leffler, Samuel J., Marshall Kirk McKusick, Michael J. Karels and John
 Quarterman. The Design and Implementation of the 4.3BSD UNIX Operating
 System. Reading, Mass. Addison-Wesley, 1989. ISBN 0-201-06196-1
 
-Salus, Peter H. A quarter century of UNIX. Addison-Wesley Publishing
+Salus, Peter H. A Quarter Century of UNIX. Addison-Wesley Publishing
 Company, Inc., 1994. ISBN 0-201-54777-5
 
-McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
+McKusick, Marshall Kirk, Keith Bostic, Michael J. Karels, and John
 Quarterman. The Design and Implementation of the 4.4BSD Operating
 System. Reading, Mass. Addison-Wesley, 1996. ISBN 0-201-54979-4
 
@@ -997,7 +997,7 @@ FreeBSD Documentation Archive
 URL: https://docs-archive.freebsd.org/doc/
 
 UNIX history graphing project
-URL: https://minnie.tuhs.org/Unix_History/
+URL: https://web.archive.org/web/20260330150338/https://minnie.tuhs.org/Unix_History/
 
 UNIX history
 URL: https://www.levenez.com/unix/
@@ -1011,8 +1011,10 @@ End-of-Life (EOL)
 -----------------
 The FreeBSD family tree shows when a release was published.
 If you would like to know when the support ends, just look at
-https://www.freebsd.org/security/#sup and
-https://www.freebsd.org/security/unsupported
+
+  https://www.freebsd.org/security/#sup 
+  https://www.freebsd.org/security/unsupported
+
 For other operating systems, see https://endoflife.date
 
 
@@ -1025,5 +1027,5 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-2025 Wolfram Schneider <wosch@FreeBSD.org>
+Copyright (c) 1997-2026 Wolfram Schneider <wosch@FreeBSD.org>
 URL: https://cgit.freebsd.org/src/tree/share/misc/bsd-family-tree
