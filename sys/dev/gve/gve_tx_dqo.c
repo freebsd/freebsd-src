@@ -437,7 +437,7 @@ gve_map_mbuf_dqo(struct gve_tx_ring *tx,
 	    *mbuf, segs, nsegs, BUS_DMA_NOWAIT);
 
 	switch (err) {
-	case __predict_true(0):
+	case 0:
 		break;
 	case EFBIG:
 		if (__predict_false(attempt > 0))

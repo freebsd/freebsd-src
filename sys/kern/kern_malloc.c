@@ -916,7 +916,7 @@ _free(void *addr, struct malloc_type *mtp, bool dozero)
 		    dozero, addr, (void *)((uintptr_t)addr & (~UMA_SLAB_MASK)));
 
 	switch (GET_SLAB_COOKIE(slab)) {
-	case __predict_true(SLAB_COOKIE_SLAB_PTR):
+	case SLAB_COOKIE_SLAB_PTR:
 		size = zone->uz_size;
 #if defined(INVARIANTS) && !defined(KASAN)
 		free_save_type(addr, mtp, size);
@@ -1014,7 +1014,7 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 
 	/* Get the size of the original block */
 	switch (GET_SLAB_COOKIE(slab)) {
-	case __predict_true(SLAB_COOKIE_SLAB_PTR):
+	case SLAB_COOKIE_SLAB_PTR:
 		alloc = zone->uz_size;
 		break;
 	case SLAB_COOKIE_MALLOC_LARGE:
@@ -1109,7 +1109,7 @@ malloc_usable_size(const void *addr)
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
 	switch (GET_SLAB_COOKIE(slab)) {
-	case __predict_true(SLAB_COOKIE_SLAB_PTR):
+	case SLAB_COOKIE_SLAB_PTR:
 		size = zone->uz_size;
 		break;
 	case SLAB_COOKIE_MALLOC_LARGE:
