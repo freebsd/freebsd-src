@@ -364,9 +364,11 @@ struct sdhci_slot {
 #define	SDHCI_TUNING_ENABLED		0x10
 #define	SDHCI_SDR50_NEEDS_TUNING	0x20
 #define	SDHCI_SLOT_EMBEDDED		0x40
+#define	SDHCI_MAX_CLK_FIXED		0x80
 	u_char		version;
 	int		timeout;	/* Transfer timeout */
 	uint32_t	max_clk;	/* Max possible freq */
+	uint32_t	host_max_clk;	/* Max freq advertised, 0 = max_clk */
 	uint32_t	timeout_clk;	/* Timeout freq */
 	bus_dma_tag_t	dmatag;
 	bus_dmamap_t	dmamap;
@@ -416,6 +418,9 @@ struct sdhci_slot {
 	struct cam_devq	*devq;
 	struct cam_sim	*sim;
 	struct mtx	sim_mtx;
+	struct taskqueue *tq;		/* Runs requests that may sleep */
+	struct task	settran_task;
+	union ccb	*settran_ccb;	/* Pending settings request */
 	u_char		card_present;	/* XXX Maybe derive this from elsewhere? */
 #endif
 };

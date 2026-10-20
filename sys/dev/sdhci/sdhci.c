@@ -96,6 +96,7 @@ static void sdhci_card_task(void *arg, int pending);
 static void sdhci_cmd_irq(struct sdhci_slot *slot, uint32_t intmask);
 static void sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask);
 static int sdhci_exec_tuning(struct sdhci_slot *slot, bool reset);
+static int sdhci_tune_slot(struct sdhci_slot *slot, bool hs400);
 static void sdhci_handle_card_present_locked(struct sdhci_slot *slot,
     bool is_present);
 static void sdhci_finish_command(struct sdhci_slot *slot);
@@ -125,6 +126,7 @@ static int sdhci_cam_get_possible_host_clock(const struct sdhci_slot *slot,
 static void sdhci_cam_poll(struct cam_sim *sim);
 static int sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb);
 static int sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb);
+static void sdhci_cam_settran_task(void *arg, int pending);
 static int sdhci_cam_update_ios(struct sdhci_slot *slot);
 #endif
 
@@ -913,7 +915,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	else
 		freq = (caps & SDHCI_CLOCK_BASE_MASK) >>
 		    SDHCI_CLOCK_BASE_SHIFT;
-	if (freq != 0)
+	if (freq != 0 && !(slot->opt & SDHCI_MAX_CLK_FIXED))
 		slot->max_clk = freq * 1000000;
 	/*
 	 * If the frequency wasn't in the capabilities and the hardware driver
@@ -950,6 +952,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 
 	slot->host.f_min = SDHCI_MIN_FREQ(slot->bus, slot);
 	slot->host.f_max = slot->max_clk;
+	if (slot->host_max_clk != 0 && slot->host_max_clk < slot->host.f_max)
+		slot->host.f_max = slot->host_max_clk;
 	slot->host.host_ocr = 0;
 	if (caps & SDHCI_CAN_VDD_330)
 	    slot->host.host_ocr |= MMC_OCR_320_330 | MMC_OCR_330_340;
@@ -1193,6 +1197,13 @@ sdhci_cleanup_slot(struct sdhci_slot *slot)
 	callout_drain(&slot->retune_callout);
 	taskqueue_drain(taskqueue_bus, &slot->card_task);
 	taskqueue_drain_timeout(taskqueue_bus, &slot->card_delayed_task);
+#ifdef MMCCAM
+	if (slot->tq != NULL) {
+		taskqueue_drain(slot->tq, &slot->settran_task);
+		taskqueue_free(slot->tq);
+		slot->tq = NULL;
+	}
+#endif
 
 	SDHCI_LOCK(slot);
 	d = slot->dev;
@@ -1460,10 +1471,9 @@ done:
 	return (err);
 }
 
-int
-sdhci_generic_tune(device_t brdev __unused, device_t reqdev, bool hs400)
+static int
+sdhci_tune_slot(struct sdhci_slot *slot, bool hs400)
 {
-	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	const struct mmc_ios *ios = &slot->host.ios;
 	struct mmc_command *tune_cmd;
 	struct mmc_data *tune_data;
@@ -1531,6 +1541,14 @@ sdhci_generic_tune(device_t brdev __unused, device_t reqdev, bool hs400)
 	}
 	SDHCI_UNLOCK(slot);
 	return (err);
+}
+
+int
+sdhci_generic_tune(device_t brdev __unused, device_t reqdev, bool hs400)
+{
+	struct sdhci_slot *slot = device_get_ivars(reqdev);
+
+	return (sdhci_tune_slot(slot, hs400));
 }
 
 int
@@ -1660,10 +1678,19 @@ sdhci_retune(void *arg)
 static void
 sdhci_req_done(struct sdhci_slot *slot)
 {
+	struct mmc_request *req;
 	union ccb *ccb;
 
 	if (__predict_false(sdhci_debug > 1))
 		slot_printf(slot, "%s\n", __func__);
+	if (slot->req != NULL && slot->curcmd != NULL) {
+		callout_stop(&slot->timeout_callout);
+		req = slot->req;
+		slot->req = NULL;
+		slot->curcmd = NULL;
+		req->done(req);
+		return;
+	}
 	if (slot->ccb != NULL && slot->curcmd != NULL) {
 		callout_stop(&slot->timeout_callout);
 		ccb = slot->ccb;
@@ -1733,6 +1760,7 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot, const struct mmc_data *data)
 		mode |= SDHCI_TRNS_MULTI;
 		if (data->block_count == 0 && __predict_true(
 #ifdef MMCCAM
+		    slot->ccb != NULL &&
 		    slot->ccb->mmcio.stop.opcode == MMC_STOP_TRANSMISSION &&
 #else
 		    slot->req->stop != NULL &&
@@ -1792,7 +1820,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	 * be set below but no actual data is ever read from the controller.
 	*/
 #ifdef MMCCAM
-	if (cmd == &slot->ccb->mmcio.stop ||
+	if ((slot->ccb != NULL && cmd == &slot->ccb->mmcio.stop) ||
 #else
 	if (cmd == slot->req->stop ||
 #endif
@@ -2064,8 +2092,33 @@ sdhci_finish_data(struct sdhci_slot *slot)
 static void
 sdhci_start(struct sdhci_slot *slot)
 {
+	const struct mmc_request *req;
 	union ccb *ccb;
 	struct ccb_mmcio *mmcio;
+
+	req = slot->req;
+	if (req != NULL) {
+		if (!(slot->flags & CMD_STARTED)) {
+			slot->flags |= CMD_STARTED;
+			sdhci_start_command(slot, req->cmd);
+			return;
+		}
+		if ((slot->quirks & SDHCI_QUIRK_BROKEN_AUTO_STOP) &&
+		    !(slot->flags & STOP_STARTED) && req->stop) {
+			slot->flags |= STOP_STARTED;
+			sdhci_start_command(slot, req->stop);
+			return;
+		}
+		if (__predict_false(sdhci_debug > 1))
+			slot_printf(slot, "result: %d\n", req->cmd->error);
+		if (req->cmd->error == 0 &&
+		    (slot->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
+			SDHCI_RESET(slot->bus, slot, SDHCI_RESET_CMD);
+			SDHCI_RESET(slot->bus, slot, SDHCI_RESET_DATA);
+		}
+		sdhci_req_done(slot);
+		return;
+	}
 
 	ccb = slot->ccb;
 	if (ccb == NULL)
@@ -2618,6 +2671,18 @@ sdhci_start_slot(struct sdhci_slot *slot)
 	if ((slot->devq = cam_simq_alloc(1)) == NULL)
 		goto fail;
 
+	/*
+	 * Changing the bus settings can sleep (clock changes, tuning), so
+	 * it is done from a thread of our own with no CAM locks held.  Don't
+	 * use taskqueue_thread, as the peripheral driver runs the card
+	 * initialization from there and waits for these requests.
+	 */
+	TASK_INIT(&slot->settran_task, 0, sdhci_cam_settran_task, slot);
+	slot->tq = taskqueue_create("sdhci_slot", M_WAITOK,
+	    taskqueue_thread_enqueue, &slot->tq);
+	taskqueue_start_threads(&slot->tq, 1, PI_DISK, "%s taskq",
+	    device_get_nameunit(slot->bus));
+
 	mtx_init(&slot->sim_mtx, "sdhcisim", NULL, MTX_DEF);
 	slot->sim = cam_sim_alloc(sdhci_cam_action, sdhci_cam_poll,
 	    "sdhci_slot", slot, device_get_unit(slot->bus),
@@ -2654,6 +2719,12 @@ fail:
 
 	if (slot->devq != NULL)
 		cam_simq_free(slot->devq);
+
+	if (slot->tq != NULL) {
+		taskqueue_drain(slot->tq, &slot->settran_task);
+		taskqueue_free(slot->tq);
+		slot->tq = NULL;
+	}
 }
 
 void
@@ -2711,11 +2782,24 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_MMC_SET_TRAN_SETTINGS:
+		if (sdhci_debug > 1)
+			slot_printf(slot, "Got XPT_MMC_SET_TRAN_SETTINGS\n");
+		if (slot->settran_ccb != NULL) {
+			ccb->ccb_h.status = CAM_BUSY;
+			break;
+		}
+		/* Complete the request from the taskqueue, see above. */
+		ccb->ccb_h.status = CAM_SIM_QUEUED;
+		slot->settran_ccb = ccb;
+		taskqueue_enqueue(slot->tq, &slot->settran_task);
+		return;
 	case XPT_SET_TRAN_SETTINGS:
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Got XPT_SET_TRAN_SETTINGS\n");
-		sdhci_cam_settran_settings(slot, ccb);
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		if (sdhci_cam_settran_settings(slot, ccb) != 0)
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+		else
+			ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_RESET_BUS:
 		if (sdhci_debug > 1)
@@ -2741,6 +2825,26 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	xpt_done(ccb);
 	return;
+}
+
+static void
+sdhci_cam_settran_task(void *arg, int pending)
+{
+	struct sdhci_slot *slot = arg;
+	union ccb *ccb;
+	int error;
+
+	ccb = slot->settran_ccb;
+	if (ccb == NULL)
+		return;
+
+	error = sdhci_cam_settran_settings(slot, ccb);
+	ccb->ccb_h.status = error != 0 ? CAM_REQ_INVALID : CAM_REQ_CMP;
+
+	mtx_lock(&slot->sim_mtx);
+	slot->settran_ccb = NULL;
+	mtx_unlock(&slot->sim_mtx);
+	xpt_done(ccb);
 }
 
 void
@@ -2830,7 +2934,16 @@ sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb)
 	}
 
 	/* XXX Provide a way to call a chip-specific IOS update, required for TI */
-	return (sdhci_cam_update_ios(slot));
+	if (sdhci_cam_update_ios(slot) != 0)
+		return (EINVAL);
+
+	if (ios->timing != bus_timing_mmc_hs200 || ios->clock <= SD_SDR50_MAX)
+		slot->opt &= ~SDHCI_TUNING_ENABLED;
+	else if ((slot->opt & SDHCI_TUNING_SUPPORTED) &&
+	    !(slot->opt & SDHCI_TUNING_ENABLED))
+		return (sdhci_tune_slot(slot, false));
+
+	return (0);
 }
 
 static int
@@ -2862,12 +2975,13 @@ sdhci_cam_update_ios(struct sdhci_slot *slot)
 	} else {
 		panic("Invalid bus width: %d", ios->bus_width);
 	}
-	if (ios->timing == bus_timing_hs &&
+	if (ios->clock > SD_SDR12_MAX &&
 	    !(slot->quirks & SDHCI_QUIRK_DONT_SET_HISPD_BIT))
 		slot->hostctrl |= SDHCI_CTRL_HISPD;
 	else
 		slot->hostctrl &= ~SDHCI_CTRL_HISPD;
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl);
+	SDHCI_SET_UHS_TIMING(slot->bus, slot);
 	/* Some controllers like reset after bus changes. */
 	if(slot->quirks & SDHCI_QUIRK_RESET_ON_IOS)
 		SDHCI_RESET(slot->bus, slot,
