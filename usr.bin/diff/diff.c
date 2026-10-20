@@ -139,7 +139,7 @@ main(int argc, char **argv)
 {
 	const char *errstr;
 	char **oargv;
-	int ch, dflags, lastch, gotstdin, prevoptind, newarg;
+	int ch, dflags, error, lastch, gotstdin, prevoptind, newarg;
 
 	oargv = argv;
 	gotstdin = 0;
@@ -480,9 +480,9 @@ main(int argc, char **argv)
 				err(2, "%s", argv[1]);
 		}
 
+		error = diffreg(argv[0], argv[1], dflags, 1);
 		if (diff_format != D_QUIET)
-			print_status(diffreg(argv[0], argv[1], dflags, 1),
-			    argv[0], argv[1], "");
+			print_status(error, argv[0], argv[1], "");
 	}
 	if (fflush(stdout) != 0)
 		err(2, "stdout");
