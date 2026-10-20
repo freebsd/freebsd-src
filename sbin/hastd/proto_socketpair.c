@@ -82,7 +82,7 @@ sp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 }
 
 static int
-sp_send(void *ctx, const unsigned char *data, size_t size, int fd)
+sp_send(void *ctx, const void *data, size_t size, int fd)
 {
 	struct sp_ctx *spctx = ctx;
 	int sock;
@@ -121,7 +121,7 @@ sp_send(void *ctx, const unsigned char *data, size_t size, int fd)
 }
 
 static int
-sp_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+sp_recv(void *ctx, void *data, size_t size, int *fdp)
 {
 	struct sp_ctx *spctx = ctx;
 	int fd;
