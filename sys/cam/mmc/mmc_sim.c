@@ -52,36 +52,44 @@ mmc_sim_task(void *arg, int pending)
 {
 	struct mmc_sim *mmc_sim;
 	struct ccb_trans_settings *cts;
+	union ccb *ccb;
 	int rv;
 
 	mmc_sim = arg;
 
-	if (mmc_sim->ccb == NULL)
+	ccb = mmc_sim->ccb;
+	if (ccb == NULL)
 		return;
 
-	cts = &mmc_sim->ccb->cts;
-	switch (mmc_sim->ccb->ccb_h.func_code) {
+	cts = &ccb->cts;
+	switch (ccb->ccb_h.func_code) {
 	case XPT_MMC_GET_TRAN_SETTINGS:
 		rv = MMC_SIM_GET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
 		if (rv != 0)
-			mmc_sim->ccb->ccb_h.status = CAM_REQ_INVALID;
+			ccb->ccb_h.status = CAM_REQ_INVALID;
 		else
-			mmc_sim->ccb->ccb_h.status = CAM_REQ_CMP;
+			ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_MMC_SET_TRAN_SETTINGS:
 		rv = MMC_SIM_SET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
 		if (rv != 0)
-			mmc_sim->ccb->ccb_h.status = CAM_REQ_INVALID;
+			ccb->ccb_h.status = CAM_REQ_INVALID;
 		else
-			mmc_sim->ccb->ccb_h.status = CAM_REQ_CMP;
+			ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	default:
-		panic("Unsupported ccb func %x\n", mmc_sim->ccb->ccb_h.func_code);
+		panic("Unsupported ccb func %x\n", ccb->ccb_h.func_code);
 		break;
 	}
 
-	xpt_done(mmc_sim->ccb);
+	/*
+	 * Free the pending request slot before completing the request: once
+	 * xpt_done() runs, the requester may submit the next one right away
+	 * and mmc_cam_sim_default_action() returns CAM_BUSY while the slot is
+	 * still in use.
+	 */
 	mmc_sim->ccb = NULL;
+	xpt_done(ccb);
 }
 
 
@@ -133,7 +141,7 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		ccb->ccb_h.status = CAM_SIM_QUEUED;
 		mmc_sim->ccb = ccb;
-		taskqueue_enqueue(taskqueue_thread, &mmc_sim->sim_task);
+		taskqueue_enqueue(mmc_sim->tq, &mmc_sim->sim_task);
 		return;
 		/* NOTREACHED */
 		break;
@@ -153,7 +161,7 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		ccb->ccb_h.status = CAM_SIM_QUEUED;
 		mmc_sim->ccb = ccb;
-		taskqueue_enqueue(taskqueue_thread, &mmc_sim->sim_task);
+		taskqueue_enqueue(mmc_sim->tq, &mmc_sim->sim_task);
 		return;
 		/* NOTREACHED */
 		break;
@@ -193,6 +201,18 @@ mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 	snprintf(mmc_sim->name, sizeof(mmc_sim->name), "%s_sim", name);
 	mtx_init(&mmc_sim->mtx, mmc_sim->name, NULL, MTX_DEF);
 
+	/*
+	 * Requests that can sleep (such as changing the bus settings, which
+	 * may involve tuning) are run from a thread of our own.  Don't share
+	 * taskqueue_thread: it is also used by the peripheral driver to run
+	 * the card initialization, which waits for these requests.
+	 */
+	TASK_INIT(&mmc_sim->sim_task, 0, mmc_sim_task, mmc_sim);
+	mmc_sim->tq = taskqueue_create(mmc_sim->name, M_WAITOK,
+	    taskqueue_thread_enqueue, &mmc_sim->tq);
+	taskqueue_start_threads(&mmc_sim->tq, 1, PI_DISK, "%s taskq",
+	    mmc_sim->name);
+
 	/* Provide sim_poll hook only if the device has the poll method. */
 	kobj_desc = &mmc_sim_cam_poll_desc;
 	kobj_method = kobj_lookup_method(((kobj_t)dev)->ops->cls, NULL,
@@ -218,7 +238,6 @@ mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 	}
 
 	mtx_unlock(&mmc_sim->mtx);
-	TASK_INIT(&mmc_sim->sim_task, 0, mmc_sim_task, mmc_sim);
 
 	return (0);
 
@@ -230,6 +249,16 @@ fail:
 void
 mmc_cam_sim_free(struct mmc_sim *mmc_sim)
 {
+
+	/*
+	 * Quiesce the thread first: a pending settings request completes
+	 * through the SIM, so the bus must still be registered.
+	 */
+	if (mmc_sim->tq != NULL) {
+		taskqueue_drain(mmc_sim->tq, &mmc_sim->sim_task);
+		taskqueue_free(mmc_sim->tq);
+		mmc_sim->tq = NULL;
+	}
 
 	if (mmc_sim->sim != NULL) {
 		mtx_lock(&mmc_sim->mtx);
