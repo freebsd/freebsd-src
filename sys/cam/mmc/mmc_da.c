@@ -1030,6 +1030,22 @@ mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 	return (err);
 }
 
+/*
+ * Send the host settings of the ccb (ios, with ios_valid telling which ones
+ * to change) to the controller.
+ */
+static void
+sdda_set_host_ios(union ccb *ccb)
+{
+
+	ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+	ccb->ccb_h.flags = CAM_DIR_NONE;
+	ccb->ccb_h.retry_count = 0;
+	ccb->ccb_h.timeout = 100;
+	ccb->ccb_h.cbfcnp = NULL;
+	xpt_action(ccb);
+}
+
 static int
 mmc_set_timing(struct cam_periph *periph,
 	       union ccb *ccb,
@@ -1063,14 +1079,9 @@ mmc_set_timing(struct cam_periph *periph,
 	/* Set high-speed timing on the host */
 	struct ccb_trans_settings_mmc *cts;
 	cts = &ccb->cts.proto_specific.mmc;
-	ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-	ccb->ccb_h.flags = CAM_DIR_NONE;
-	ccb->ccb_h.retry_count = 0;
-	ccb->ccb_h.timeout = 100;
-	ccb->ccb_h.cbfcnp = NULL;
 	cts->ios.timing = timing;
 	cts->ios_valid = MMC_BT;
-	xpt_action(ccb);
+	sdda_set_host_ios(ccb);
 
 	return (err);
 }
@@ -1139,14 +1150,9 @@ sdda_set_bus_width(struct cam_periph *periph, union ccb *ccb, int width)
 	/* Now card is done, set the host to the same width */
 	struct ccb_trans_settings_mmc *cts;
 	cts = &ccb->cts.proto_specific.mmc;
-	ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-	ccb->ccb_h.flags = CAM_DIR_NONE;
-	ccb->ccb_h.retry_count = 0;
-	ccb->ccb_h.timeout = 100;
-	ccb->ccb_h.cbfcnp = NULL;
 	cts->ios.bus_width = width;
 	cts->ios_valid = MMC_BW;
-	xpt_action(ccb);
+	sdda_set_host_ios(ccb);
 }
 
 static inline const char
@@ -1393,49 +1399,29 @@ finish_hs_tests:
 	for (timing = bus_timing_mmc_ddr52; timing > bus_timing_normal; timing--) {
 		if (isset(&softc->vccq_120, timing)) {
 			/* Set VCCQ = 1.2V */
-			start_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-			start_ccb->ccb_h.flags = CAM_DIR_NONE;
-			start_ccb->ccb_h.retry_count = 0;
-			start_ccb->ccb_h.timeout = 100;
-			start_ccb->ccb_h.cbfcnp = NULL;
 			cts->ios.vccq = vccq_120;
 			cts->ios_valid = MMC_VCCQ;
-			xpt_action(start_ccb);
+			sdda_set_host_ios(start_ccb);
 			break;
 		} else if (isset(&softc->vccq_180, timing)) {
 			/* Set VCCQ = 1.8V */
-			start_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-			start_ccb->ccb_h.flags = CAM_DIR_NONE;
-			start_ccb->ccb_h.retry_count = 0;
-			start_ccb->ccb_h.timeout = 100;
-			start_ccb->ccb_h.cbfcnp = NULL;
 			cts->ios.vccq = vccq_180;
 			cts->ios_valid = MMC_VCCQ;
-			xpt_action(start_ccb);
+			sdda_set_host_ios(start_ccb);
 			break;
 		} else {
 			/* Set VCCQ = 3.3V */
-			start_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-			start_ccb->ccb_h.flags = CAM_DIR_NONE;
-			start_ccb->ccb_h.retry_count = 0;
-			start_ccb->ccb_h.timeout = 100;
-			start_ccb->ccb_h.cbfcnp = NULL;
 			cts->ios.vccq = vccq_330;
 			cts->ios_valid = MMC_VCCQ;
-			xpt_action(start_ccb);
+			sdda_set_host_ios(start_ccb);
 			break;
 		}
 	}
 
 	/* Set frequency on the controller */
-	start_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-	start_ccb->ccb_h.flags = CAM_DIR_NONE;
-	start_ccb->ccb_h.retry_count = 0;
-	start_ccb->ccb_h.timeout = 100;
-	start_ccb->ccb_h.cbfcnp = NULL;
 	cts->ios.clock = f_max;
 	cts->ios_valid = MMC_CLK;
-	xpt_action(start_ccb);
+	sdda_set_host_ios(start_ccb);
 
 	/* Set bus width */
 	enum mmc_bus_width desired_bus_width = bus_width_1;
