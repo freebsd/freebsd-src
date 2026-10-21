@@ -110,6 +110,22 @@ int query_dname_compare(uint8_t* d1, uint8_t* d2);
 size_t pkt_dname_len(struct sldns_buffer* pkt);
 
 /**
+ * Determine correct, compressed, dname present in packet.
+ * Checks for parse errors. Has a budget and limit for decompression,
+ * if the limit is exceeded, this is an error.
+ * @param pkt: packet to read from (from current start position).
+ * @param budget: the budget of decompression pointer follows.
+ *	It is updated with the additional count (if any) of pointer follows,
+ *	so that a running total can be kept over a number of dnames.
+ * @param limit: the limit of decompression pointer follows.
+ * @return: 0 on parse error.
+ *	At exit the position is right after the (compressed) dname.
+ *	Compression pointers are followed and checked for loops.
+ *	The uncompressed wireformat length is returned.
+ */
+size_t pkt_dname_len_budget(struct sldns_buffer* pkt, int* budget, int limit);
+
+/**
  * Compare dnames in packet (compressed). Dnames must be valid.
  * routine performs lowercasing, so the packet casing is preserved.
  * @param pkt: packet, used to resolve compression pointers.
