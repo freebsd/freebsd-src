@@ -236,6 +236,61 @@ fail:
 	return 0;
 }
 
+size_t
+pkt_dname_len_budget(struct sldns_buffer* pkt, int* budget, int limit)
+{
+	size_t len = 0;
+	int ptrcount = 0;
+	uint8_t labellen;
+	size_t endpos = 0;
+
+	/* read dname and determine length */
+	/* check compression pointers, loops, out of bounds */
+	while(1) {
+		/* read next label */
+		if(sldns_buffer_remaining(pkt) < 1)
+			return 0;
+		labellen = sldns_buffer_read_u8(pkt);
+		if(LABEL_IS_PTR(labellen)) {
+			/* compression ptr */
+			uint16_t ptr;
+			if(sldns_buffer_remaining(pkt) < 1)
+				return 0;
+			ptr = PTR_OFFSET(labellen, sldns_buffer_read_u8(pkt));
+			if(++(*budget) > limit) {
+				verbose(VERB_ALGO, "The decompression pointer "
+					"limit of %d has been exceeded", limit);
+				return 0; /* too many decompression pointers */
+			}
+			if(ptrcount++ > MAX_COMPRESS_PTRS)
+				return 0; /* loop! */
+			if(sldns_buffer_limit(pkt) <= ptr)
+				return 0; /* out of bounds! */
+			if(!endpos)
+				endpos = sldns_buffer_position(pkt);
+			sldns_buffer_set_position(pkt, ptr);
+		} else {
+			/* label contents */
+			if(labellen > 0x3f)
+				return 0; /* label too long */
+			len += 1 + labellen;
+			if(len > LDNS_MAX_DOMAINLEN)
+				return 0;
+			if(labellen == 0) {
+				/* end of dname */
+				break;
+			}
+			if(sldns_buffer_remaining(pkt) < labellen)
+				return 0;
+			sldns_buffer_skip(pkt, (ssize_t)labellen);
+		}
+	}
+	if(endpos)
+		sldns_buffer_set_position(pkt, endpos);
+
+	return len;
+}
+
 int 
 dname_pkt_compare(sldns_buffer* pkt, uint8_t* d1, uint8_t* d2)
 {
