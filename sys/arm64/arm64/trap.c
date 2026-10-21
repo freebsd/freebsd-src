@@ -249,6 +249,11 @@ external_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		return;
 	}
 
+	if (td->td_intr_nesting_level == 0 && td->td_pcb->pcb_onfault != 0) {
+		frame->tf_elr = td->td_pcb->pcb_onfault;
+		return;
+	}
+
 	/*
 	 * Try to handle synchronous external aborts caused by
 	 * bus_space_peek() and/or bus_space_poke() functions.
