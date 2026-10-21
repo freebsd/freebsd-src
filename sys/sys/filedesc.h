@@ -103,7 +103,8 @@ typedef SMR_POINTER(struct pwd *) smrpwd_t;
 struct pwddesc {
 	struct mtx	pd_lock;	/* protects members of this struct */
 	smrpwd_t	pd_pwd;		/* directories */
-	u_int		pd_refcount;
+	u_int		pd_refcount;	/* lifetime */
+	u_int		pd_sharecount;	/* processes sharing the descriptor */
 	u_short		pd_cmask;	/* mask for file creation */
 };
 

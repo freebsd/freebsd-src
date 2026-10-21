@@ -2446,6 +2446,7 @@ pdinit(struct pwddesc *pdp, bool keeplock)
 
 	PWDDESC_LOCK_INIT(newpdp);
 	refcount_init(&newpdp->pd_refcount, 1);
+	refcount_init(&newpdp->pd_sharecount, 1);
 	newpdp->pd_cmask = CMASK;
 
 	if (pdp == NULL) {
@@ -2527,6 +2528,7 @@ pddrop(struct pwddesc *pdp)
 		PWDDESC_XUNLOCK(pdp);
 		return;
 	}
+	MPASS(refcount_load(&pdp->pd_sharecount) == 0);
 	pwd = PWDDESC_XLOCKED_LOAD_PWD(pdp);
 	pwd_set(pdp, NULL);
 	PWDDESC_XUNLOCK(pdp);
@@ -2553,7 +2555,11 @@ fdshare(struct filedesc *fdp)
 struct pwddesc *
 pdshare(struct pwddesc *pdp)
 {
+	u_int old __diagused;
+
 	refcount_acquire(&pdp->pd_refcount);
+	old = refcount_acquire(&pdp->pd_sharecount);
+	MPASS(old > 0);
 	return (pdp);
 }
 
@@ -2585,7 +2591,7 @@ pdunshare(struct thread *td)
 
 	p = td->td_proc;
 	/* Not shared. */
-	if (refcount_load(&p->p_pd->pd_refcount) == 1)
+	if (refcount_load(&p->p_pd->pd_sharecount) == 1)
 		return;
 
 	pdp = pdcopy(p->p_pd);
@@ -2871,6 +2877,7 @@ pdescfree(struct thread *td)
 	atomic_thread_fence_seq_cst();
 	PROC_WAIT_UNLOCKED(p);
 
+	(void)refcount_release(&pdp->pd_sharecount);
 	pddrop(pdp);
 }
 
