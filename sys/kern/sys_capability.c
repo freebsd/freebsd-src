@@ -102,19 +102,35 @@ sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct proc *p;
+	int error;
 
 	if (IN_CAPABILITY_MODE(td))
 		return (0);
 
-	newcred = crget();
+	error = 0;
+	oldcred = newcred = crget();
 	p = td->td_proc;
 	PROC_LOCK(p);
+	if ((p->p_flag & P_HADTHREADS) != 0 &&
+	    thread_single(p, SINGLE_BOUNDARY)) {
+		error = ERESTART;
+		goto out1;
+	}
+	if (refcount_load(&p->p_pd->pd_sharecount) > 1 ||
+	    refcount_load(&p->p_fd->fd_refcnt) > 1) {
+		error = EBUSY;
+		goto out;
+	}
 	oldcred = crcopysafe(p, newcred);
 	newcred->cr_flags |= CRED_FLAG_CAPMODE;
 	proc_set_cred(p, newcred);
+out:
+	if ((p->p_flag & P_HADTHREADS) != 0)
+		thread_single_end(p, SINGLE_BOUNDARY);
+out1:
 	PROC_UNLOCK(p);
 	crfree(oldcred);
-	return (0);
+	return (error);
 }
 
 /*
