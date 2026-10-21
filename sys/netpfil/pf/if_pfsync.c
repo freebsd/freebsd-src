@@ -861,12 +861,20 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	st->expire = pf_get_uptime();
 	if (sp->pfs_1301.expire) {
 		uint32_t timeout;
+		uint32_t expire;
+
 		timeout = r->timeout[st->timeout];
 		if (!timeout)
 			timeout = V_pf_default_rule.timeout[st->timeout];
 
-		/* sp->expire may have been adaptively scaled by export. */
-		st->expire -= (timeout - ntohl(sp->pfs_1301.expire)) * 1000;
+		expire = ntohl(sp->pfs_1301.expire);
+		/*
+		 * Ensure we don't over/under flow if our local timeout or
+		 * uptime is lower than the remote timeout.
+		 */
+		if (timeout > expire && st->expire > (timeout - expire))
+			st->expire -= (timeout - expire)
+			    * 1000;
 	}
 
 	if (! (st->act.rtableid == -1 ||

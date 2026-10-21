@@ -1882,6 +1882,95 @@ stack_key_collision_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "expire_underflow" "cleanup"
+expire_underflow_head()
+{
+	atf_set descr 'pfsync test for expiration underflow'
+	atf_set require.user root
+}
+
+expire_underflow_body()
+{
+	pfsynct_init
+
+	epair_sync=$(vnet_mkepair)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair_one}a ${epair_sync}a
+	vnet_mkjail two ${epair_two}a ${epair_sync}b
+
+	# pfsync interface
+	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair_one}a 198.51.100.1/24 up
+	jexec one ifconfig pfsync0 \
+		syncdev ${epair_sync}a \
+		maxupd 1 \
+		up
+	jexec two ifconfig ${epair_two}a 198.51.100.2/24 up
+
+	# Enable pf!
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set timeout tcp.closed 5000" \
+		"set skip on ${epair_sync}a" \
+		"pass out keep state"
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set timeout tcp.closed 5" \
+		"set skip on ${epair_sync}b" \
+		"pass out keep state (tcp.closed 5)"
+
+	hostid_one=$(jexec one pfctl -si -v | awk '/Hostid:/ { gsub(/0x/, "", $2); printf($2); }')
+
+	ifconfig ${epair_one}b 198.51.100.254/24 up
+	/usr/sbin/inetd -p ${PWD}/inetd.pid \
+	    $(atf_get_srcdir)/echo_inetd.conf
+
+	echo one | jexec one nc -N 198.51.100.254 7
+
+	sleep 15
+
+	# Allow for a bulk update
+	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
+	jexec two ifconfig pfsync0 \
+		syncdev ${epair_sync}b \
+		maxupd 1 \
+		up
+
+	# Give pfsync time to do its thing
+	sleep 2
+
+	echo "One"
+	jexec one pfctl -s states -vv
+	echo "Two"
+	jexec two pfctl -s states -vv
+
+	if ! jexec two pfctl -s states | grep tcp | grep 198.51.100.1 | \
+	    grep 198.51.100.254 ; then
+		atf_fail "state not found on synced host"
+	fi
+
+	if ! jexec two pfctl -sc | grep ""${hostid_one}"";
+	then
+		jexec two pfctl -sc
+		atf_fail "HostID for host one not found on two"
+	fi
+
+	sleep 10
+
+	jexec two pfctl -s states -vv
+	if jexec two pfctl -s states | grep tcp | grep 198.51.100.1 | \
+	    grep 198.51.100.254 ; then
+		atf_fail "state failed to expire on two"
+	fi
+}
+
+expire_underflow_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -1908,4 +1997,5 @@ atf_init_test_cases()
 	atf_add_test_case "rt_af"
 	atf_add_test_case "flush_by_intf"
 	atf_add_test_case "stack_key_collision"
+	atf_add_test_case "expire_underflow"
 }
