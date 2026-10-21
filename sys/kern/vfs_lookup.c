@@ -453,6 +453,13 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	if (error == 0 && (ndp->ni_lcf & NI_LCF_STRICTREL) != 0) {
 		ndp->ni_rbeneath_dpp = *dpp;
 		vholdnz(*dpp);
+
+		/*
+		 * Prevent use of the alternative root and restarting
+		 * the lookup on ENOENT.
+		 */
+		cnp->cn_flags |= ISRESTARTED;
+		ndp->ni_rootdir = pwd->pwd_rdir;
 	}
 
 	/*
