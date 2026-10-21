@@ -733,13 +733,11 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
 		 * as usual.
 		 */
 		if (lport == 0 && fport == 0 && flowinfo &&
-		    inp->inp_socket != NULL &&
 		    flowinfo == (inp->inp_flow & IPV6_FLOWLABEL_MASK) &&
 		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &sa6_src.sin6_addr))
 			goto do_notify;
 		else if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr,
 					     &sa6_dst->sin6_addr) ||
-			 inp->inp_socket == 0 ||
 			 (lport && inp->inp_lport != lport) ||
 			 (!IN6_IS_ADDR_UNSPECIFIED(&sa6_src.sin6_addr) &&
 			  !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr,
