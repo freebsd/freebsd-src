@@ -891,11 +891,17 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 static int
 icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 {
+	struct sockaddr_in6 icmp6src, icmp6dst;
+	struct ip6ctlparam ip6cp;
 	struct mbuf *m;
 	struct icmp6_hdr *icmp6;
 	struct ip6_hdr *eip6;
-	u_int32_t notifymtu;
-	struct sockaddr_in6 icmp6src, icmp6dst;
+	struct ip6_frag *fh;
+	struct ip6_rthdr *rth;
+	struct ip6_rthdr0 *rth0;
+	uint32_t notifymtu;
+	int eoff, rthlen;
+	uint8_t nxt;
 
 	m = *mp;
 	*mp = NULL;	/* Consumed in most cases. */
@@ -915,171 +921,152 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 	bzero(&icmp6dst, sizeof(icmp6dst));
 
 	/* Detect the upper level protocol */
-	{
-		u_int8_t nxt = eip6->ip6_nxt;
-		int eoff = off + sizeof(struct icmp6_hdr) +
-		    sizeof(struct ip6_hdr);
-		struct ip6ctlparam ip6cp;
-		int icmp6type = icmp6->icmp6_type;
-		struct ip6_frag *fh;
-		struct ip6_rthdr *rth;
-		struct ip6_rthdr0 *rth0;
-		int rthlen;
+	nxt = eip6->ip6_nxt;
+	eoff = off + sizeof(struct icmp6_hdr) + sizeof(struct ip6_hdr);
 
-		while (1) { /* XXX: should avoid infinite loop explicitly? */
-			struct ip6_ext *eh;
+	while (1) { /* XXX: should avoid infinite loop explicitly? */
+		struct ip6_ext *eh;
 
-			switch (nxt) {
-			case IPPROTO_HOPOPTS:
-			case IPPROTO_DSTOPTS:
-			case IPPROTO_AH:
-				if ((m = m_pullup(m, eoff +
-				    sizeof(struct ip6_ext))) == NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					return (-1);
-				}
-				eh = (struct ip6_ext *)
-				    (mtod(m, char *) + eoff);
-				if (nxt == IPPROTO_AH)
-					eoff += (eh->ip6e_len + 2) << 2;
-				else
-					eoff += (eh->ip6e_len + 1) << 3;
-				nxt = eh->ip6e_nxt;
-				break;
-			case IPPROTO_ROUTING:
-				/*
-				 * When the erroneous packet contains a
-				 * routing header, we should examine the
-				 * header to determine the final destination.
-				 * Otherwise, we can't properly update
-				 * information that depends on the final
-				 * destination (e.g. path MTU).
-				 */
-				if ((m = m_pullup(m, eoff + sizeof(*rth))) ==
-				    NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					return (-1);
-				}
-				rth = (struct ip6_rthdr *)
-				    (mtod(m, char *) + eoff);
-				rthlen = (rth->ip6r_len + 1) << 3;
-				/*
-				 * XXX: currently there is no
-				 * officially defined type other
-				 * than type-0.
-				 * Note that if the segment left field
-				 * is 0, all intermediate hops must
-				 * have been passed.
-				 */
-				if (rth->ip6r_segleft &&
-				    rth->ip6r_type == IPV6_RTHDR_TYPE_0) {
-					int hops;
-
-					if ((m = m_pullup(m, eoff + rthlen)) ==
-					    NULL) {
-						IP6STAT_INC(ip6s_exthdrtoolong);
-						return (-1);
-					}
-					rth0 = (struct ip6_rthdr0 *)
-					    (mtod(m, char *) + eoff);
-
-					/* just ignore a bogus header */
-					if ((rth0->ip6r0_len % 2) == 0 &&
-					    (hops = rth0->ip6r0_len/2))
-						icmp6dst.sin6_addr = *((struct in6_addr *)(rth0 + 1) + (hops - 1));
-				}
-				eoff += rthlen;
-				nxt = rth->ip6r_nxt;
-				break;
-			case IPPROTO_FRAGMENT:
-				if ((m = m_pullup(m, eoff +
-				    sizeof(struct ip6_frag))) == NULL) {
-					IP6STAT_INC(ip6s_exthdrtoolong);
-					return (-1);
-				}
-				fh = (struct ip6_frag *)(mtod(m, char *) +
-				    eoff);
-				/*
-				 * Data after a fragment header is meaningless
-				 * unless it is the first fragment, but
-				 * we'll go to the notify label for path MTU
-				 * discovery.
-				 */
-				if (fh->ip6f_offlg & IP6F_OFF_MASK)
-					goto notify;
-
-				eoff += sizeof(struct ip6_frag);
-				nxt = fh->ip6f_nxt;
-				break;
-			default:
-				/*
-				 * This case includes ESP and the No Next
-				 * Header.  In such cases going to the notify
-				 * label does not have any meaning
-				 * (i.e. ctlfunc will be NULL), but we go
-				 * anyway since we might have to update
-				 * path MTU information.
-				 */
-				goto notify;
+		switch (nxt) {
+		case IPPROTO_HOPOPTS:
+		case IPPROTO_DSTOPTS:
+		case IPPROTO_AH:
+			if ((m = m_pullup(m, eoff +
+			    sizeof(struct ip6_ext))) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				return (-1);
 			}
+			eh = (struct ip6_ext *)(mtod(m, char *) + eoff);
+			if (nxt == IPPROTO_AH)
+				eoff += (eh->ip6e_len + 2) << 2;
+			else
+				eoff += (eh->ip6e_len + 1) << 3;
+			nxt = eh->ip6e_nxt;
+			break;
+		case IPPROTO_ROUTING:
+			/*
+			 * When the erroneous packet contains a routing header,
+			 * we should examine the header to determine the final
+			 * destination.  Otherwise, we can't properly update
+			 * information that depends on the final destination
+			 * (e.g. path MTU).
+			 */
+			if ((m = m_pullup(m, eoff + sizeof(*rth))) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				return (-1);
+			}
+			rth = (struct ip6_rthdr *)(mtod(m, char *) + eoff);
+			rthlen = (rth->ip6r_len + 1) << 3;
+			/*
+			 * XXX: currently there is no officially defined type
+			 * other than type-0.  Note that if the segment left
+			 * field is 0, all intermediate hops must have been
+			 * passed.
+			 */
+			if (rth->ip6r_segleft &&
+			    rth->ip6r_type == IPV6_RTHDR_TYPE_0) {
+				int hops;
+
+				if ((m = m_pullup(m, eoff + rthlen)) == NULL) {
+					IP6STAT_INC(ip6s_exthdrtoolong);
+					return (-1);
+				}
+				rth0 = (struct ip6_rthdr0 *)
+				    (mtod(m, char *) + eoff);
+
+				/* just ignore a bogus header */
+				if ((rth0->ip6r0_len % 2) == 0 &&
+				    (hops = rth0->ip6r0_len/2))
+					icmp6dst.sin6_addr = *((struct in6_addr *)(rth0 + 1) + (hops - 1));
+			}
+			eoff += rthlen;
+			nxt = rth->ip6r_nxt;
+			break;
+		case IPPROTO_FRAGMENT:
+			if ((m = m_pullup(m, eoff +
+			    sizeof(struct ip6_frag))) == NULL) {
+				IP6STAT_INC(ip6s_exthdrtoolong);
+				return (-1);
+			}
+			fh = (struct ip6_frag *)(mtod(m, char *) + eoff);
+			/*
+			 * Data after a fragment header is meaningless unless
+			 * it is the first fragment, but we'll go to the notify
+			 * label for path MTU discovery.
+			 */
+			if (fh->ip6f_offlg & IP6F_OFF_MASK)
+				goto notify;
+
+			eoff += sizeof(struct ip6_frag);
+			nxt = fh->ip6f_nxt;
+			break;
+		default:
+			/*
+			 * This case includes ESP and the No Next Header.  In
+			 * such cases going to the notify label does not have
+			 * any meaning (i.e. ctlfunc will be NULL), but we go
+			 * anyway since we might have to update path MTU
+			 * information.
+			 */
+			goto notify;
 		}
-	  notify:
-		icmp6 = (struct icmp6_hdr *)(mtod(m, char *) + off);
-
-		/*
-		 * retrieve parameters from the inner IPv6 header, and convert
-		 * them into sockaddr structures.
-		 * XXX: there is no guarantee that the source or destination
-		 * addresses of the inner packet are in the same scope as
-		 * the addresses of the icmp packet.  But there is no other
-		 * way to determine the zone.
-		 */
-		eip6 = (struct ip6_hdr *)(icmp6 + 1);
-
-		/*
-		 * Protocol layers can't do anything useful with unspecified
-		 * addresses.
-		 */
-		if (IN6_IS_ADDR_UNSPECIFIED(&eip6->ip6_src) ||
-		    IN6_IS_ADDR_UNSPECIFIED(&eip6->ip6_dst))
-			goto freeit;
-
-		icmp6dst.sin6_len = sizeof(struct sockaddr_in6);
-		icmp6dst.sin6_family = AF_INET6;
-		if (IN6_IS_ADDR_UNSPECIFIED(&icmp6dst.sin6_addr))
-			icmp6dst.sin6_addr = eip6->ip6_dst;
-		if (in6_setscope(&icmp6dst.sin6_addr, m->m_pkthdr.rcvif, NULL))
-			goto freeit;
-		bzero(&icmp6src, sizeof(icmp6src));
-		icmp6src.sin6_len = sizeof(struct sockaddr_in6);
-		icmp6src.sin6_family = AF_INET6;
-		icmp6src.sin6_addr = eip6->ip6_src;
-		if (in6_setscope(&icmp6src.sin6_addr, m->m_pkthdr.rcvif, NULL))
-			goto freeit;
-		icmp6src.sin6_flowinfo =
-		    (eip6->ip6_flow & IPV6_FLOWLABEL_MASK);
-
-		ip6cp.ip6c_m = m;
-		ip6cp.ip6c_icmp6 = icmp6;
-		ip6cp.ip6c_ip6 = (struct ip6_hdr *)(icmp6 + 1);
-		ip6cp.ip6c_off = eoff;
-		ip6cp.ip6c_finaldst = &icmp6dst;
-		ip6cp.ip6c_src = &icmp6src;
-		ip6cp.ip6c_nxt = nxt;
-
-		if (icmp6type == ICMP6_PACKET_TOO_BIG) {
-			notifymtu = ntohl(icmp6->icmp6_mtu);
-			ip6cp.ip6c_cmdarg = (void *)&notifymtu;
-			icmp6_mtudisc_update(&ip6cp);
-		}
-
-		if (ip6_ctlprotox[nxt] != NULL)
-			ip6_ctlprotox[nxt](&ip6cp);
 	}
+
+notify:
+	icmp6 = (struct icmp6_hdr *)(mtod(m, char *) + off);
+
+	/*
+	 * Retrieve parameters from the inner IPv6 header, and convert them
+	 * into sockaddr structures.
+	 * XXX: there is no guarantee that the source or destination addresses
+	 * of the inner packet are in the same scope as the addresses of the
+	 * icmp packet.  But there is no other way to determine the zone.
+	 */
+	eip6 = (struct ip6_hdr *)(icmp6 + 1);
+
+	/*
+	 * Protocol layers can't do anything useful with unspecified addresses.
+	 */
+	if (IN6_IS_ADDR_UNSPECIFIED(&eip6->ip6_src) ||
+	    IN6_IS_ADDR_UNSPECIFIED(&eip6->ip6_dst))
+		goto freeit;
+
+	icmp6dst.sin6_len = sizeof(struct sockaddr_in6);
+	icmp6dst.sin6_family = AF_INET6;
+	if (IN6_IS_ADDR_UNSPECIFIED(&icmp6dst.sin6_addr))
+		icmp6dst.sin6_addr = eip6->ip6_dst;
+	if (in6_setscope(&icmp6dst.sin6_addr, m->m_pkthdr.rcvif, NULL))
+		goto freeit;
+	bzero(&icmp6src, sizeof(icmp6src));
+	icmp6src.sin6_len = sizeof(struct sockaddr_in6);
+	icmp6src.sin6_family = AF_INET6;
+	icmp6src.sin6_addr = eip6->ip6_src;
+	if (in6_setscope(&icmp6src.sin6_addr, m->m_pkthdr.rcvif, NULL))
+		goto freeit;
+	icmp6src.sin6_flowinfo =
+	    (eip6->ip6_flow & IPV6_FLOWLABEL_MASK);
+
+	ip6cp.ip6c_m = m;
+	ip6cp.ip6c_icmp6 = icmp6;
+	ip6cp.ip6c_ip6 = (struct ip6_hdr *)(icmp6 + 1);
+	ip6cp.ip6c_off = eoff;
+	ip6cp.ip6c_finaldst = &icmp6dst;
+	ip6cp.ip6c_src = &icmp6src;
+	ip6cp.ip6c_nxt = nxt;
+
+	if (icmp6->icmp6_type == ICMP6_PACKET_TOO_BIG) {
+		notifymtu = ntohl(icmp6->icmp6_mtu);
+		ip6cp.ip6c_cmdarg = (void *)&notifymtu;
+		icmp6_mtudisc_update(&ip6cp);
+	}
+
+	if (ip6_ctlprotox[nxt] != NULL)
+		ip6_ctlprotox[nxt](&ip6cp);
+
 	*mp = m;
 	return (0);
 
-  freeit:
+freeit:
 	m_freem(m);
 	return (-1);
 }
