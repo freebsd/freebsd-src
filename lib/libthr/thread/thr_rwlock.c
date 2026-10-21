@@ -217,6 +217,9 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		return (ret);
 	}
 
+	if (__predict_false(prwlock->owner == TID(curthread)))
+		return (EDEADLK);
+
 	if (__predict_false(abstime_invalid(abstime)))
 		return (EINVAL);
 
@@ -310,6 +313,9 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		prwlock->owner = TID(curthread);
 		return (ret);
 	}
+
+	if (__predict_false(prwlock->owner == TID(curthread)))
+		return (EDEADLK);
 
 	if (__predict_false(abstime_invalid(abstime)))
 		return (EINVAL);
