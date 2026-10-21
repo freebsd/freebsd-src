@@ -522,6 +522,10 @@ struct pthread {
 	/* Number rwlocks rdlocks held. */
 	int			rdlock_count;
 
+	void			*pshared_key;
+	void			*pshared_val;
+	unsigned long		pshared_gen;
+
 	/*
 	 * Current locks bitmap for rtld. */
 	int			rtld_bits;
