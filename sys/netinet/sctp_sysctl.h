@@ -118,6 +118,7 @@ struct sctp_sysctl {
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
+	uint32_t sctp_ignore_loopback_iftype;
 };
 
 /*
@@ -548,6 +549,11 @@ struct sctp_sysctl {
 #define SCTPCTL_OOTB_WITH_ZERO_CKSUM_MIN	0
 #define SCTPCTL_OOTB_WITH_ZERO_CKSUM_MAX	1
 #define SCTPCTL_OOTB_WITH_ZERO_CKSUM_DEFAULT	0
+
+#define SCTPCTL_IGNORE_LOOPBACK_IFTYPE_DESC	"Ignore interface type when determining loopback address scope"
+#define SCTPCTL_IGNORE_LOOPBACK_IFTYPE_MIN		0
+#define SCTPCTL_IGNORE_LOOPBACK_IFTYPE_MAX		1
+#define SCTPCTL_IGNORE_LOOPBACK_IFTYPE_DEFAULT	1
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
