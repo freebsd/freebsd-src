@@ -1013,8 +1013,9 @@ _clknode_set_freq(struct clknode *clknode, uint64_t *freq, int flags,
 	/* Set frequency for this clock. */
 	rv = CLKNODE_SET_FREQ(clknode, parent_freq, freq, flags, &done);
 	if (rv != 0) {
-		printf("Cannot set frequency for clk: %s, error: %d\n",
-		    clknode->name, rv);
+		if ((flags & CLK_SET_DRYRUN) == 0 || bootverbose)
+			printf("Cannot set frequency for clk: %s, error: %d\n",
+			    clknode->name, rv);
 		if ((flags & CLK_SET_DRYRUN) == 0)
 			clknode_refresh_cache(clknode, parent_freq);
 		return (rv);
@@ -1040,8 +1041,9 @@ _clknode_set_freq(struct clknode *clknode, uint64_t *freq, int flags,
 		    enablecnt);
 	} else {
 		/* End of chain without action. */
-		printf("Cannot set frequency for clk: %s, end of chain\n",
-		    clknode->name);
+		if ((flags & CLK_SET_DRYRUN) == 0 || bootverbose)
+			printf("Cannot set frequency for clk: %s, end of chain\n",
+			    clknode->name);
 		rv = ENXIO;
 	}
 
