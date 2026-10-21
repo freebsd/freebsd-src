@@ -64,6 +64,10 @@ When combined with
 may be used to create kernel-enforced sandboxes in which
 appropriately-crafted applications or application components may be run.
 .Pp
+Other threads are stopped while the call runs, so some of their
+interrupted system calls may return
+.Er EINTR .
+.Pp
 .Fn cap_getmode
 returns a flag indicating whether or not the process is in a capability mode
 sandbox.
@@ -113,6 +117,18 @@ will fail if:
 .It Bq Er ENOSYS
 The running kernel was compiled without
 .Cd "options CAPABILITY_MODE" .
+.El
+.Pp
+The
+.Fn cap_enter
+system call may also return the following error:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The file descriptor table or the current/root directory state of the
+process is shared with another process, see
+.Xr rfork 2 .
+Sharing would allow the other process to grant additional privileges
+to the process after it entered capability mode, without its consent.
 .El
 .Pp
 The
