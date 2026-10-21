@@ -512,7 +512,7 @@ static struct rk_clk rk3568_clks[] = {
 	MUX(SCLK_GMAC0_RMII_SPEED, "clk_gmac0_rmii_speed",
 	    mux_gmac0_rmii_speed_p, 0, 31, 3, 1),
 	MUX(SCLK_GMAC0_RGMII_SPEED, "clk_gmac0_rgmii_speed",
-	    mux_gmac0_rgmii_speed_p, 0, 31, 4, 2),
+	    mux_gmac0_rgmii_speed_p, RK_CLK_MUX_REPARENT, 31, 4, 2),
 	MUX(0, "clk_mac0_2top_sel", clk_mac_2top_p, 0, 31, 8, 2),
 	MUX(0, "clk_gmac0_ptp_ref_sel", clk_gmac_ptp_p, 0, 31, 12, 2),
 	MUX(0, "clk_mac0_out_sel", cpll125_cpll50_cpll25_xin24m_p, 0, 31, 14, 2),
@@ -537,7 +537,7 @@ static struct rk_clk rk3568_clks[] = {
 	MUX(SCLK_GMAC1_RMII_SPEED, "clk_gmac1_rmii_speed",
 	    mux_gmac1_rmii_speed_p, 0, 33, 3, 1),
 	MUX(SCLK_GMAC1_RGMII_SPEED, "clk_gmac1_rgmii_speed",
-	    mux_gmac1_rgmii_speed_p, 0, 33, 4, 2),
+	    mux_gmac1_rgmii_speed_p, RK_CLK_MUX_REPARENT, 33, 4, 2),
 	/* 6:7 Reserved */
 	MUX(0, "clk_mac1_2top_sel", clk_mac_2top_p, 0, 33, 8, 2),
 	MUX(0, "clk_gmac1_ptp_ref_sel", clk_gmac_ptp_p, 0, 33, 12, 2),
