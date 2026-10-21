@@ -113,8 +113,6 @@ vmm_hyp_reg_store_pmu_debug(struct hypctx *hypctx, bool guest)
 	    READ_SPECIALREG(pmuserenr_el0));
 	hypctx_write_sys_reg(hypctx, PMSELR_EL0,
 	    READ_SPECIALREG(pmselr_el0));
-	hypctx_write_sys_reg(hypctx, PMXEVCNTR_EL0,
-	    READ_SPECIALREG(pmxevcntr_el0));
 	hypctx_write_sys_reg(hypctx, PMCNTENSET_EL0,
 	    READ_SPECIALREG(pmcntenset_el0));
 	hypctx_write_sys_reg(hypctx, PMINTENSET_EL1,
@@ -467,8 +465,6 @@ vmm_hyp_reg_restore_pmu_debug(struct hypctx *hypctx)
 	    hypctx_read_sys_reg(hypctx, PMUSERENR_EL0));
 	WRITE_SPECIALREG(pmselr_el0,
 	    hypctx_read_sys_reg(hypctx, PMSELR_EL0));
-	WRITE_SPECIALREG(pmxevcntr_el0,
-	    hypctx_read_sys_reg(hypctx, PMXEVCNTR_EL0));
 	/* Clear all events/interrupts then enable them */
 	WRITE_SPECIALREG(pmcntenclr_el0, ~0ul);
 	WRITE_SPECIALREG(pmcntenset_el0,
