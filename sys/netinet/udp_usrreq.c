@@ -746,8 +746,7 @@ udp_common_ctlinput(struct icmp *icmp, struct inpcbinfo *pcbinfo)
 	    uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL) {
 		INP_WLOCK_ASSERT(inp);
-		if (inp->inp_socket != NULL)
-			udp_notify(inp, icmp_errmap(icmp));
+		udp_notify(inp, icmp_errmap(icmp));
 		INP_WUNLOCK(inp);
 	} else {
 		inp = in_pcblookup(pcbinfo, ip->ip_dst, uh->uh_dport,
