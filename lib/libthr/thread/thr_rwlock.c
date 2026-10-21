@@ -166,18 +166,9 @@ _thr_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 }
 
 static int
-rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
+rdlock_flags(struct pthread *curthread)
 {
-	struct pthread *curthread = _get_curthread();
-	pthread_rwlock_t prwlock;
-	int flags;
-	int ret;
-
-	ret = check_and_init_rwlock(rwlock, &prwlock);
-	if (ret != 0)
-		return (ret);
-
-	if (curthread->rdlock_count) {
+	if (curthread->rdlock_count != 0) {
 		/*
 		 * To avoid having to track all the rdlocks held by
 		 * a thread or all of the threads that hold a rdlock,
@@ -190,10 +181,31 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		 * when it already has one or more rdlocks avoids the
 		 * deadlock.  I hope the reader can follow that logic ;-)
 		 */
-		flags = URWLOCK_PREFER_READER;
-	} else {
-		flags = 0;
+		return (URWLOCK_PREFER_READER);
 	}
+	return (0);
+}
+
+static bool
+abstime_invalid(const struct timespec *abstime)
+{
+	return (abstime != NULL &&
+	    (abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000));
+}
+
+static int
+rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
+{
+	struct pthread *curthread = _get_curthread();
+	pthread_rwlock_t prwlock;
+	int flags;
+	int ret;
+
+	ret = check_and_init_rwlock(rwlock, &prwlock);
+	if (ret != 0)
+		return (ret);
+
+	flags = rdlock_flags(curthread);
 
 	/*
 	 * POSIX said the validity of the abstimeout parameter need
@@ -205,8 +217,7 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		return (ret);
 	}
 
-	if (__predict_false(abstime && 
-		(abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0)))
+	if (__predict_false(abstime_invalid(abstime)))
 		return (EINVAL);
 
 	for (;;) {
@@ -246,7 +257,6 @@ _Tthr_rwlock_tryrdlock(pthread_rwlock_t *rwlock)
 {
 	struct pthread *curthread;
 	pthread_rwlock_t prwlock;
-	int flags;
 	int ret;
 
 	_thr_check_init();
@@ -255,25 +265,7 @@ _Tthr_rwlock_tryrdlock(pthread_rwlock_t *rwlock)
 		return (ret);
 
 	curthread = _get_curthread();
-	if (curthread->rdlock_count) {
-		/*
-		 * To avoid having to track all the rdlocks held by
-		 * a thread or all of the threads that hold a rdlock,
-		 * we keep a simple count of all the rdlocks held by
-		 * a thread.  If a thread holds any rdlocks it is
-		 * possible that it is attempting to take a recursive
-		 * rdlock.  If there are blocked writers and precedence
-		 * is given to them, then that would result in the thread
-		 * deadlocking.  So allowing a thread to take the rdlock
-		 * when it already has one or more rdlocks avoids the
-		 * deadlock.  I hope the reader can follow that logic ;-)
-		 */
-		flags = URWLOCK_PREFER_READER;
-	} else {
-		flags = 0;
-	}
-
-	ret = _thr_rwlock_tryrdlock(&prwlock->lock, flags);
+	ret = _thr_rwlock_tryrdlock(&prwlock->lock, rdlock_flags(curthread));
 	if (ret == 0)
 		curthread->rdlock_count++;
 	return (ret);
@@ -319,8 +311,7 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		return (ret);
 	}
 
-	if (__predict_false(abstime && 
-	    (abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0)))
+	if (__predict_false(abstime_invalid(abstime)))
 		return (EINVAL);
 
 	for (;;) {
