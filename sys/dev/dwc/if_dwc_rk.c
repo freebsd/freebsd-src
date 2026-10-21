@@ -613,7 +613,16 @@ if_dwc_rk_init_clocks(device_t dev)
 		clk_enable(sc->pclk_mac);
 	if (sc->mac_clk_tx)
 		clk_enable(sc->mac_clk_tx);
-	if (sc->clk_mac_speed)
+	/*
+	 * Some SoCs reference the same clock from several clock-names.  On
+	 * the RK3568 both mac_clk_tx and clk_mac_speed are SCLK_GMAC0_RX_TX
+	 * (resp. SCLK_GMAC1_RX_TX), do not enable it twice or the clk
+	 * framework will refuse to change its rate.
+	 */
+	if (sc->clk_mac_speed != NULL &&
+	    (sc->mac_clk_tx == NULL ||
+	     strcmp(clk_get_name(sc->mac_clk_tx),
+	        clk_get_name(sc->clk_mac_speed)) != 0))
 		clk_enable(sc->clk_mac_speed);
 
 	DELAY(50);
