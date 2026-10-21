@@ -128,6 +128,7 @@ sctp_init_sysctls(void)
 #if defined(SCTP_DEBUG)
 	SCTP_BASE_SYSCTL(sctp_debug_on) = SCTPCTL_DEBUG_DEFAULT;
 #endif
+	SCTP_BASE_SYSCTL(sctp_ignore_loopback_iftype) = SCTPCTL_IGNORE_LOOPBACK_IFTYPE_DEFAULT;
 }
 
 /* It returns an upper limit. No filtering is done here */
@@ -284,6 +285,10 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						    &sin->sin_addr) != 0) {
 							continue;
 						}
+						if (loopback_scope == 0 &&
+						    IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr)) {
+							continue;
+						}
 						if ((ipv4_local_scope == 0) && (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
 							continue;
 						}
@@ -303,6 +308,10 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						}
 						if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
 						    &sin6->sin6_addr) != 0) {
+							continue;
+						}
+						if (loopback_scope == 0 &&
+						    IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
@@ -989,6 +998,7 @@ SCTP_UINT_SYSCTL(blackhole, sctp_blackhole, SCTPCTL_BLACKHOLE);
 SCTP_UINT_SYSCTL(sendall_limit, sctp_sendall_limit, SCTPCTL_SENDALL_LIMIT);
 SCTP_UINT_SYSCTL(diag_info_code, sctp_diag_info_code, SCTPCTL_DIAG_INFO_CODE);
 SCTP_UINT_SYSCTL(ootb_with_zero_cksum, sctp_ootb_with_zero_cksum, SCTPCTL_OOTB_WITH_ZERO_CKSUM);
+SCTP_UINT_SYSCTL_RDTUN(ignore_loopback_iftype, sctp_ignore_loopback_iftype, SCTPCTL_IGNORE_LOOPBACK_IFTYPE);
 #ifdef SCTP_DEBUG
 SCTP_UINT_SYSCTL(debug, sctp_debug_on, SCTPCTL_DEBUG);
 #endif

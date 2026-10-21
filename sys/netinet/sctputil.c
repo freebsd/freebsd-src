@@ -7016,6 +7016,10 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 						    &sin->sin_addr) != 0) {
 							continue;
 						}
+						if (loopback_scope == 0 &&
+						    IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr)) {
+							continue;
+						}
 						if ((ipv4_local_scope == 0) &&
 						    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
 							continue;
@@ -7038,6 +7042,10 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 						}
 						if (prison_check_ip6(stcb->sctp_ep->ip_inp.inp.inp_cred,
 						    &sin6->sin6_addr) != 0) {
+							continue;
+						}
+						if (loopback_scope == 0 &&
+						    IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {

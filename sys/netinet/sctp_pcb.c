@@ -768,6 +768,10 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 
 						sin = &sctp_ifa->address.sin;
 						rsin = (struct sockaddr_in *)to;
+						if (loopback_scope == 0 &&
+						    IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr)) {
+							continue;
+						}
 						if ((ipv4_local_scope == 0) &&
 						    IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
 							continue;
@@ -793,6 +797,10 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 						rsin6 = (struct sockaddr_in6 *)to;
 						if (prison_check_ip6(stcb->sctp_ep->ip_inp.inp.inp_cred,
 						    &sin6->sin6_addr) != 0) {
+							continue;
+						}
+						if (loopback_scope == 0 &&
+						    IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
@@ -3659,7 +3667,10 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				}
 			} else {
 				/* Validate the address is in scope */
-				if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) &&
+				if (IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr) &&
+				    (stcb->asoc.scope.loopback_scope == 0)) {
+					addr_inscope = 0;
+				} else if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) &&
 				    (stcb->asoc.scope.ipv4_local_scope == 0)) {
 					addr_inscope = 0;
 				}
@@ -5607,9 +5618,12 @@ sctp_pcb_init(void)
 	TUNABLE_INT_FETCH("net.inet.sctp.tcbhashsize", &SCTP_BASE_SYSCTL(sctp_hashtblsize));
 	TUNABLE_INT_FETCH("net.inet.sctp.pcbhashsize", &SCTP_BASE_SYSCTL(sctp_pcbtblsize));
 	TUNABLE_INT_FETCH("net.inet.sctp.chunkscale", &SCTP_BASE_SYSCTL(sctp_chunkscale));
+	TUNABLE_INT_FETCH("net.inet.sctp.ignore_loopback_iftype",
+	    &SCTP_BASE_SYSCTL(sctp_ignore_loopback_iftype));
 	VALIDATE_LOADER_TUNABLE(sctp_hashtblsize, SCTPCTL_TCBHASHSIZE);
 	VALIDATE_LOADER_TUNABLE(sctp_pcbtblsize, SCTPCTL_PCBHASHSIZE);
 	VALIDATE_LOADER_TUNABLE(sctp_chunkscale, SCTPCTL_CHUNKSCALE);
+	VALIDATE_LOADER_TUNABLE(sctp_ignore_loopback_iftype, SCTPCTL_IGNORE_LOOPBACK_IFTYPE);
 	SCTP_BASE_INFO(sctp_asochash) = SCTP_HASH_INIT((SCTP_BASE_SYSCTL(sctp_hashtblsize) * 31),
 	    &SCTP_BASE_INFO(hashasocmark));
 	SCTP_BASE_INFO(sctp_ephash) = SCTP_HASH_INIT(SCTP_BASE_SYSCTL(sctp_hashtblsize),
