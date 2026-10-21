@@ -1524,6 +1524,49 @@ outnet_send_wait_udp(struct outside_network* outnet)
 	}
 }
 
+/** Clear out all pending requests that are on the port. */
+static void
+clear_pending_from_port(struct outside_network* outnet, struct comm_point* c)
+{
+	/* Otherwise, the clear the cache action of unwanted_threshold, can
+	 * have revealed this communication port. */
+	struct pending* p, *np, *list = NULL, *last = NULL;
+	/* First, remove the entries from the tree. */
+	/* The rbtree rbnode.right is used to build the temporary list here.
+	 * Otherwise the list could be malloced. */
+	p = (struct pending*)rbtree_first(outnet->pending);
+	while((rbnode_type*)p != RBTREE_NULL) {
+		np = (struct pending*)rbtree_next((rbnode_type*)p);
+		if(p->pc->cp == c) {
+			comm_timer_disable(p->timer);
+			(void)rbtree_delete(outnet->pending, p->node.key);
+			if(last)
+				last->node.right = (rbnode_type*)p;
+			else	list = p;
+			last = p;
+			p->node.right = NULL;
+		}
+		p = np;
+	}
+
+	/* The entries are removed from the tree, call their callbacks. */
+	p = list;
+	while(p) {
+		np = (struct pending*)p->node.right;
+		p->node.right = RBTREE_NULL;
+		/* callback error on pending */
+		if(p->cb) {
+			fptr_ok(fptr_whitelist_pending_udp(p->cb));
+			(void)(*p->cb)(p->pc->cp, p->cb_arg,
+				NETEVENT_CLOSED, NULL);
+		}
+		portcomm_loweruse(outnet, p->pc);
+		pending_delete(NULL, p);
+		outnet_send_wait_udp(outnet);
+		p = np;
+	}
+}
+
 int 
 outnet_udp_cb(struct comm_point* c, void* arg, int error,
 	struct comm_reply *reply_info)
@@ -1568,6 +1611,7 @@ outnet_udp_cb(struct comm_point* c, void* arg, int error,
 				outnet->unwanted_action));
 			(*outnet->unwanted_action)(outnet->unwanted_param);
 			outnet->unwanted_total = 0;
+			clear_pending_from_port(outnet, c);
 		}
 		return 0;
 	}
@@ -1588,6 +1632,7 @@ outnet_udp_cb(struct comm_point* c, void* arg, int error,
 				outnet->unwanted_action));
 			(*outnet->unwanted_action)(outnet->unwanted_param);
 			outnet->unwanted_total = 0;
+			clear_pending_from_port(outnet, c);
 		}
 		return 0;
 	}

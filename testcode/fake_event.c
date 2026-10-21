@@ -2046,6 +2046,10 @@ void doq_stream_remove_mesh_state(struct doq_stream* ATTR_UNUSED(stream))
 {
 }
 
+void doq_find_stream_remove_mesh_state(struct comm_reply* ATTR_UNUSED(repinfo))
+{
+}
+
 void fast_reload_service_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(event),
 	void* ATTR_UNUSED(arg))
 {

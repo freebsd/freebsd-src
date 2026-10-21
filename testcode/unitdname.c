@@ -269,6 +269,55 @@ dname_test_pkt_dname_len(sldns_buffer* buff)
 	unit_assert( pkt_dname_len(buff) == 0 );
 }
 
+/** test pkt_dname_len_budget */
+static void
+dname_test_pkt_dname_len_budget(sldns_buffer* buff)
+{
+	int budget = 0, limit = 20;
+	unit_show_func("util/data/dname.c", "pkt_dname_len_budget");
+
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\000", 1);
+	sldns_buffer_flip(buff);
+	unit_assert( pkt_dname_len_budget(buff, &budget, limit) == 1 );
+	unit_assert( sldns_buffer_position(buff) == 1);
+	unit_assert( budget == 0);
+
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\007example\003com\000", 13);
+	sldns_buffer_flip(buff);
+	unit_assert( pkt_dname_len_budget(buff, &budget, limit) == 13 );
+	unit_assert( sldns_buffer_position(buff) == 13);
+	unit_assert( budget == 0);
+
+	sldns_buffer_clear(buff);
+	sldns_buffer_skip(buff, 12); /* skip header */
+	sldns_buffer_write(buff, "\007example\003com\000", 13);
+	sldns_buffer_skip(buff, 10); /* more packet content */
+	sldns_buffer_write(buff, "\003www", 4);
+	sldns_buffer_write_u8(buff, 0xc0);
+	sldns_buffer_write_u8(buff, 0x0c);
+	sldns_buffer_flip(buff);
+	sldns_buffer_set_position(buff, 35);
+	unit_assert( pkt_dname_len_budget(buff, &budget, limit) == 17 );
+	unit_assert( sldns_buffer_position(buff) == 41);
+	unit_assert( budget == 1);
+
+	sldns_buffer_clear(buff);
+	sldns_buffer_skip(buff, 12); /* skip header */
+	sldns_buffer_write(buff, "\001a", 2);
+	sldns_buffer_write_u8(buff, 0xc0);
+	sldns_buffer_write_u8(buff, 0x0c);
+	sldns_buffer_skip(buff, 10); /* more packet content */
+	sldns_buffer_write(buff, "\003www", 4);
+	sldns_buffer_write_u8(buff, 0xc0);
+	sldns_buffer_write_u8(buff, 0x0c);
+	sldns_buffer_flip(buff);
+	sldns_buffer_set_position(buff, 26);
+	unit_assert( pkt_dname_len_budget(buff, &budget, limit) == 0 );
+	unit_assert( budget == 21);
+}
+
 /** test dname_lab_cmp */
 static void
 dname_test_dname_lab_cmp(void)
@@ -1296,6 +1345,7 @@ void dname_test(void)
 	dname_test_count_size_labels();
 	dname_test_dname_lab_cmp();
 	dname_test_pkt_dname_len(buff);
+	dname_test_pkt_dname_len_budget(buff);
 	dname_test_strict_subdomain();
 	dname_test_subdomain();
 	dname_test_isroot();

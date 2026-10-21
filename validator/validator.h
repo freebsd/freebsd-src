@@ -244,6 +244,10 @@ struct val_qstate {
 	int num_nsec_attempts;
 	/** The nsec attempts have been exceeded. */
 	int num_nsec_attempts_exceeded;
+
+	/** if validation must be secure, (else bogus) for NXDOMAIN
+	 * from signed parent to (removed) trust anchor subdomain. */
+	int parent_denial_must_be_secure;
 };
 
 /**
