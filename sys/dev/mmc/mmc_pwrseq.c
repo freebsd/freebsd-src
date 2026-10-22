@@ -58,6 +58,7 @@ struct mmc_pwrseq_softc {
 
 	uint32_t		post_power_on_delay_ms;
 	uint32_t		power_off_delay_us;
+	bool			powered;
 };
 
 static int
@@ -99,6 +100,23 @@ mmc_pwrseq_attach(device_t dev)
 				    "Node have a clocks property but no clocks named \"ext_clock\"\n");
 				return (ENXIO);
 			}
+			/*
+			 * The external clock is a free-running low-power
+			 * oscillator (typically a PMIC 32kHz output) that the
+			 * attached device needs for its whole lifetime.  On
+			 * several boards it is also shared with other users of
+			 * the same module (e.g. the companion Bluetooth
+			 * controller), so gating it from set_power() disturbs
+			 * the other consumers.  Enable it once here and leave
+			 * it running rather than toggling it on every MMC
+			 * power_mode transition.
+			 */
+			rv = clk_enable(sc->ext_clock);
+			if (rv != 0) {
+				device_printf(dev,
+				    "Cannot enable \"ext_clock\"\n");
+				return (ENXIO);
+			}
 		}
 		OF_getencprop(node, "post-power-on-delay-ms", &sc->post_power_on_delay_ms, sizeof(uint32_t));
 		OF_getencprop(node, "power-off-delay-us", &sc->power_off_delay_us, sizeof(uint32_t));
@@ -133,13 +151,17 @@ mmv_pwrseq_set_power(device_t dev, bool power_on)
 
 	sc = device_get_softc(dev);
 
-	if (power_on) {
-		if (sc->ext_clock) {
-			rv = clk_enable(sc->ext_clock);
-			if (rv != 0)
-				return (rv);
-		}
+	/*
+	 * set_power() is driven from the MMC power_mode IOS and can be
+	 * called repeatedly for the same state during probing and tuning.
+	 * Only act on real transitions.  The external clock is handled once
+	 * at attach (see mmc_pwrseq_attach()); here we only drive the reset
+	 * line, which is what actually sequences the device's power.
+	 */
+	if (power_on == sc->powered)
+		return (0);
 
+	if (power_on) {
 		if (sc->reset_gpio) {
 			rv = gpio_pin_set_active(sc->reset_gpio, false);
 			if (rv != 0)
@@ -155,15 +177,11 @@ mmv_pwrseq_set_power(device_t dev, bool power_on)
 				return (rv);
 		}
 
-		if (sc->ext_clock) {
-			rv = clk_stop(sc->ext_clock);
-			if (rv != 0)
-				return (rv);
-		}
 		if (sc->power_off_delay_us)
 			DELAY(sc->power_off_delay_us);
 	}
 
+	sc->powered = power_on;
 	return (0);
 }
 
