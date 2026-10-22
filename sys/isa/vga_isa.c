@@ -132,6 +132,14 @@ vga_resume(device_t dev)
 static void
 isavga_identify(driver_t *driver, device_t parent)
 {
+	/*
+	 * Honour hint.vga.0.disabled here: the device is created by this
+	 * identify routine rather than from hints, so the generic check in
+	 * device_attach() only skips the attach while the probe (which
+	 * touches CMOS and legacy VGA registers) would still run.
+	 */
+	if (resource_disabled(VGA_DRIVER_NAME, 0))
+		return;
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, VGA_DRIVER_NAME, 0);
 }
 
