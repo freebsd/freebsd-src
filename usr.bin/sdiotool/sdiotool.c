@@ -421,7 +421,7 @@ probe_bcrm(struct cam_device *dev) {
 }
 
 __unused static uint8_t*
-mmap_fw() {
+mmap_fw(void) {
 	const char fw_path[] = "/home/kibab/repos/fbsd-bbb/brcm-firmware/brcmfmac4330-sdio.bin";
 	struct stat sb;
 	uint8_t *fw_ptr;
@@ -439,7 +439,7 @@ mmap_fw() {
 }
 
 static void
-usage() {
+usage(void) {
 	printf("sdiotool -u <pass_dev_unit>\n");
 	exit(0);
 }
