@@ -2154,7 +2154,7 @@ tcp_autosndbuf(struct tcpcb *tp, u_int sendwin)
 	struct socket *so = tptosocket(tp);
 	u_int lowat, newsize;
 
-	SOCK_RECVBUF_LOCK_ASSERT(so);
+	SOCK_SENDBUF_LOCK_ASSERT(so);
 
 	if (!V_tcp_do_autosndbuf || (so->so_snd.sb_flags & SB_AUTOSIZE) == 0)
 		return;
