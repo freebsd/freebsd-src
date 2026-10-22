@@ -486,7 +486,6 @@ int
 main(int argc, char **argv) {
 	char device[] = "pass";
 	int unit = 0;
-	int func = 0;
 	__unused uint8_t *fw_ptr;
 	int ch;
 	struct cam_device *cam_dev;
@@ -495,13 +494,10 @@ main(int argc, char **argv) {
 
 	//fw_ptr = mmap_fw();
 
-	while ((ch = getopt(argc, argv, "fu:")) != -1) {
+	while ((ch = getopt(argc, argv, "u:")) != -1) {
 		switch (ch) {
 		case 'u':
 			unit = (int) strtol(optarg, NULL, 10);
-			break;
-		case 'f':
-			func = (int) strtol(optarg, NULL, 10);
 			break;
 		case '?':
 		default:
