@@ -1304,12 +1304,12 @@ VNET_DECLARE(int, tcp_abc_l_var);
 VNET_DECLARE(uint32_t, tcp_ack_war_cnt);
 VNET_DECLARE(uint32_t, tcp_ack_war_time_window);
 VNET_DECLARE(u_int, tcp_autorcvbuf_max);
-VNET_DECLARE(int, tcp_autosndbuf_inc);
-VNET_DECLARE(int, tcp_autosndbuf_max);
+VNET_DECLARE(u_int, tcp_autosndbuf_inc);
+VNET_DECLARE(u_int, tcp_autosndbuf_max);
 VNET_DECLARE(int, tcp_bind_all_fibs);
 VNET_DECLARE(int, tcp_delack_enabled);
-VNET_DECLARE(int, tcp_do_autosndbuf);
 VNET_DECLARE(bool, tcp_do_autorcvbuf);
+VNET_DECLARE(bool, tcp_do_autosndbuf);
 VNET_DECLARE(int, tcp_do_ecn);
 VNET_DECLARE(int, tcp_do_lrd);
 VNET_DECLARE(int, tcp_do_prr);
@@ -1343,7 +1343,7 @@ VNET_DECLARE(int, tcp_sack_globalmaxholes);
 VNET_DECLARE(int, tcp_sack_maxholes);
 VNET_DECLARE(int, tcp_sack_tso);
 VNET_DECLARE(int, tcp_sc_rst_sock_fail);
-VNET_DECLARE(int, tcp_sendspace);
+VNET_DECLARE(u_int, tcp_sendspace);
 VNET_DECLARE(int, tcp_udp_tunneling_overhead);
 VNET_DECLARE(int, tcp_udp_tunneling_port);
 VNET_DECLARE(struct inpcbinfo, tcbinfo);
@@ -1404,6 +1404,7 @@ VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #endif
 
 void	tcp_autorcvbuf(struct tcpcb *, u_int);
+void	tcp_autosndbuf(struct tcpcb *, u_int);
 void	tcp_account_for_send(struct tcpcb *, uint32_t, uint8_t, uint8_t, bool);
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *
@@ -1553,7 +1554,6 @@ void	 tcp_sack_lost_retransmission(struct tcpcb *, struct tcphdr *);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 int	 tcp_compute_pipe(struct tcpcb *);
 uint32_t tcp_compute_initwnd(uint32_t);
-void	 tcp_sndbuf_autoscale(struct tcpcb *, struct socket *, uint32_t);
 int	 tcp_stats_sample_rollthedice(struct tcpcb *tp, void *seed_bytes,
     size_t seed_len);
 int tcp_can_enable_pacing(void);

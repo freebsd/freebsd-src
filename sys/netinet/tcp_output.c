@@ -107,31 +107,31 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_tso), 0,
 	"Enable TCP Segmentation Offload");
 
-VNET_DEFINE(int, tcp_sendspace) = 1024*32;
+VNET_DEFINE(u_int, tcp_sendspace) = 1024*32;
 #define	V_tcp_sendspace	VNET(tcp_sendspace)
-SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
+SYSCTL_UINT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_sendspace), 0,
+    "Initial send socket buffer size");
 
-VNET_DEFINE(int, tcp_do_autosndbuf) = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(tcp_do_autosndbuf), 0,
-	"Enable automatic send buffer sizing");
+VNET_DEFINE(bool, tcp_do_autosndbuf) = true;
+SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_autosndbuf), 0, "Enable automatic send buffer sizing");
 
-VNET_DEFINE(int, tcp_autosndbuf_inc) = 8*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(tcp_autosndbuf_inc), 0,
-	"Incrementor step size of automatic send buffer");
+VNET_DEFINE(u_int, tcp_autosndbuf_inc) = 8*1024;
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_autosndbuf_inc), 0,
+    "Incrementor step size of automatic send buffer");
 
-VNET_DEFINE(int, tcp_autosndbuf_max) = 8*1024*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(tcp_autosndbuf_max), 0,
-	"Max size of automatic send buffer");
+VNET_DEFINE(u_int, tcp_autosndbuf_max) = 8*1024*1024;
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_autosndbuf_max), 0, "Max size of automatic send buffer");
 
-VNET_DEFINE(int, tcp_sendbuf_auto_lowat) = 0;
+/* See D11016, used by LimeLight. */
+VNET_DEFINE_STATIC(bool, tcp_sendbuf_auto_lowat) = false;
 #define	V_tcp_sendbuf_auto_lowat	VNET(tcp_sendbuf_auto_lowat)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto_lowat, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(tcp_sendbuf_auto_lowat), 0,
-	"Modify threshold for auto send buffer growth to account for SO_SNDLOWAT");
+SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, sendbuf_auto_lowat,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_sendbuf_auto_lowat), 0,
+    "Modify threshold for auto send buffer growth to account for SO_SNDLOWAT");
 
 /*
  * Make sure that either retransmit or persist timer is set for SYN, FIN and
@@ -508,7 +508,7 @@ after_sack_rexmit:
 	/* len will be >= 0 after this point. */
 	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
 
-	tcp_sndbuf_autoscale(tp, so, sendwin);
+	tcp_autosndbuf(tp, sendwin);
 
 	/*
 	 * Decide if we can use TCP Segmentation Offloading (if supported by
@@ -2119,61 +2119,59 @@ nospace:
 	return (NULL);
 }
 
+/*
+ * Automatic sizing of send socket buffer.  Often the send buffer size is not
+ * optimally adjusted to the actual network conditions at hand (delay bandwidth
+ * product).  Setting the buffer size too small limits throughput on links with
+ * high bandwidth and high delay (eg. trans-continental/oceanic links).
+ * Setting the buffer size too big consumes too much real kernel memory,
+ * especially with many connections on busy servers.
+ *
+ * The criteria to step up the send buffer one notch are:
+ *  1. receive window of remote host is larger than send buffer
+ *     (with a fudge factor of 5/4th);
+ *  2. send buffer is filled to 7/8th with data (so we actually
+ *     have data to make use of it);
+ *  3. send buffer fill has not hit maximal automatic size;
+ *  4. our send window (slow start and cogestion controlled) is
+ *     larger than sent but unacknowledged data in send buffer.
+ *
+ * The remote host receive window scaling factor may limit the growing of the
+ * send buffer before it reaches its allowed maximum.
+ *
+ * It scales directly with slow start or congestion window and does at most one
+ * step per received ACK.  This fast scaling has the drawback of growing the
+ * send buffer beyond what is strictly necessary to make full use of a given
+ * delay*bandwidth product.  However testing has shown this not to be much of
+ * an problem.  At worst we are trading wasting of available bandwidth (the
+ * non-use of it) for wasting some socket buffer memory.
+ *
+ * TODO: Shrink send buffer during idle periods together with congestion window.
+ */
 void
-tcp_sndbuf_autoscale(struct tcpcb *tp, struct socket *so, uint32_t sendwin)
+tcp_autosndbuf(struct tcpcb *tp, u_int sendwin)
 {
+	struct socket *so = tptosocket(tp);
+	u_int lowat, newsize;
 
-	/*
-	 * Automatic sizing of send socket buffer.  Often the send buffer
-	 * size is not optimally adjusted to the actual network conditions
-	 * at hand (delay bandwidth product).  Setting the buffer size too
-	 * small limits throughput on links with high bandwidth and high
-	 * delay (eg. trans-continental/oceanic links).  Setting the
-	 * buffer size too big consumes too much real kernel memory,
-	 * especially with many connections on busy servers.
-	 *
-	 * The criteria to step up the send buffer one notch are:
-	 *  1. receive window of remote host is larger than send buffer
-	 *     (with a fudge factor of 5/4th);
-	 *  2. send buffer is filled to 7/8th with data (so we actually
-	 *     have data to make use of it);
-	 *  3. send buffer fill has not hit maximal automatic size;
-	 *  4. our send window (slow start and cogestion controlled) is
-	 *     larger than sent but unacknowledged data in send buffer.
-	 *
-	 * The remote host receive window scaling factor may limit the
-	 * growing of the send buffer before it reaches its allowed
-	 * maximum.
-	 *
-	 * It scales directly with slow start or congestion window
-	 * and does at most one step per received ACK.  This fast
-	 * scaling has the drawback of growing the send buffer beyond
-	 * what is strictly necessary to make full use of a given
-	 * delay*bandwidth product.  However testing has shown this not
-	 * to be much of an problem.  At worst we are trading wasting
-	 * of available bandwidth (the non-use of it) for wasting some
-	 * socket buffer memory.
-	 *
-	 * TODO: Shrink send buffer during idle periods together
-	 * with congestion window.  Requires another timer.  Has to
-	 * wait for upcoming tcp timer rewrite.
-	 *
-	 * XXXGL: should there be used sbused() or sbavail()?
-	 */
-	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
-		int lowat;
+	SOCK_RECVBUF_LOCK_ASSERT(so);
 
-		lowat = V_tcp_sendbuf_auto_lowat ? so->so_snd.sb_lowat : 0;
-		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - lowat &&
-		    sbused(&so->so_snd) >=
-		    (so->so_snd.sb_hiwat / 8 * 7) - lowat &&
-		    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
-		    sendwin >= (sbused(&so->so_snd) -
-		    (tp->snd_nxt - tp->snd_una))) {
-			if (!sbreserve_locked(so, SO_SND,
-			    min(so->so_snd.sb_hiwat + V_tcp_autosndbuf_inc,
-			     V_tcp_autosndbuf_max), curthread))
-				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
+	if (!V_tcp_do_autosndbuf || (so->so_snd.sb_flags & SB_AUTOSIZE) == 0)
+		return;
+
+
+	lowat = V_tcp_sendbuf_auto_lowat ? so->so_snd.sb_lowat : 0;
+	if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - lowat &&
+	    sbused(&so->so_snd) >=
+	    (so->so_snd.sb_hiwat / 8 * 7) - lowat &&
+	    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
+	    sendwin >= (sbused(&so->so_snd) - (tp->snd_nxt - tp->snd_una))) {
+		newsize = min(so->so_snd.sb_hiwat + V_tcp_autosndbuf_inc,
+		    V_tcp_autosndbuf_max);
+		if (sbreserve_locked(so, SO_SND, newsize, curthread)) {
+			TCP_PROBE2(send__autoresize, tp, newsize);
+		} else {
+			so->so_snd.sb_flags &= ~SB_AUTOSIZE;
 		}
 	}
 }

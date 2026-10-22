@@ -18915,8 +18915,11 @@ rack_sndbuf_autoscale(struct tcp_rack *rack)
 			scaleup += so->so_snd.sb_hiwat;
 			if (scaleup > V_tcp_autosndbuf_max)
 				scaleup = V_tcp_autosndbuf_max;
-			if (!sbreserve_locked(so, SO_SND, scaleup, curthread))
+			if (sbreserve_locked(so, SO_SND, scaleup, curthread)) {
+				TCP_PROBE2(send__autoresize, tp, scaleup);
+			} else {
 				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
+			}
 		}
 	}
 }

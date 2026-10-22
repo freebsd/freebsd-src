@@ -12510,7 +12510,7 @@ recheck_resend:
 	}
 	/* len will be >= 0 after this point. */
 	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
-	tcp_sndbuf_autoscale(tp, so, sendwin);
+	tcp_autosndbuf(tp, sendwin);
 	/*
 	 *
 	 */

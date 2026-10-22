@@ -543,6 +543,10 @@ SDT_PROBE_DEFINE2_XLATE(tcp, , , receive__autoresize,
     "struct tcpcb *", "tcpsinfo_t *" ,
     "u_int", "u_int");
 
+SDT_PROBE_DEFINE2_XLATE(tcp, , , send__autoresize,
+    "struct tcpcb *", "tcpsinfo_t *" ,
+    "u_int", "u_int");
+
 SDT_PROBE_DEFINE5_XLATE(udp, , , receive,
     "void *", "pktinfo_t *",
     "struct inpcb *", "csinfo_t *",
