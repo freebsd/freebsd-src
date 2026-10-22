@@ -208,18 +208,19 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_ack, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_ack), 0,
     "Follow RFC793 criteria for validating SEG.ACK");
 
-VNET_DEFINE(int, tcp_recvspace) = 1024*64;
+VNET_DEFINE(u_int, tcp_recvspace) = 1024*64;
 #define	V_tcp_recvspace	VNET(tcp_recvspace)
-SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
+SYSCTL_UINT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_recvspace), 0,
+    "Initial receive socket buffer size");
 
-VNET_DEFINE(int, tcp_do_autorcvbuf) = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
+VNET_DEFINE(bool, tcp_do_autorcvbuf) = true;
+SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_autorcvbuf), 0,
     "Enable automatic receive buffer sizing");
 
-VNET_DEFINE(int, tcp_autorcvbuf_max) = 8*1024*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
+VNET_DEFINE(u_int, tcp_autorcvbuf_max) = 8*1024*1024;
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
 
@@ -1415,11 +1416,12 @@ drop:
  * TODO: Only step up if the application is actually serving
  * the buffer to better manage the socket buffer resources.
  */
-int
-tcp_autorcvbuf(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int tlen)
+void
+tcp_autorcvbuf(struct tcpcb *tp, u_int tlen)
 {
-	int newsize = 0;
+	struct socket *so = tptosocket(tp);
+
+	SOCK_RECVBUF_LOCK_ASSERT(so);
 
 	if (V_tcp_do_autorcvbuf && (so->so_rcv.sb_flags & SB_AUTOSIZE) &&
 	    tp->t_srtt != 0 && tp->rfbuf_ts != 0 &&
@@ -1427,17 +1429,22 @@ tcp_autorcvbuf(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    ((tp->t_srtt >> TCP_RTT_SHIFT)/2)) {
 		if (tp->rfbuf_cnt > ((so->so_rcv.sb_hiwat / 2)/ 4 * 3) &&
 		    so->so_rcv.sb_hiwat < V_tcp_autorcvbuf_max) {
-			newsize = min((so->so_rcv.sb_hiwat + (so->so_rcv.sb_hiwat/2)), V_tcp_autorcvbuf_max);
-		}
-		TCP_PROBE6(receive__autoresize, NULL, tp, m, tp, th, newsize);
+			u_int newsize;
 
+			newsize = min((so->so_rcv.sb_hiwat +
+			    (so->so_rcv.sb_hiwat / 2)), V_tcp_autorcvbuf_max);
+			if (sbreserve_locked(so, SO_RCV, newsize, NULL)) {
+				TCP_PROBE2(receive__autoresize, tp, newsize);
+			} else {
+				so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
+			}
+		}
 		/* Start over with next RTT. */
 		tp->rfbuf_ts = 0;
 		tp->rfbuf_cnt = 0;
 	} else {
 		tp->rfbuf_cnt += tlen;	/* add up */
 	}
-	return (newsize);
 }
 
 int
@@ -1838,8 +1845,6 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			}
 		} else if (th->th_ack == tp->snd_una &&
 		    tlen <= sbspace(&so->so_rcv)) {
-			int newsize = 0;	/* automatic sockbuf scaling */
-
 			/*
 			 * This is a pure, in-sequence data packet with
 			 * nothing on the reassembly queue and we have enough
@@ -1873,21 +1878,12 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			TCP_PROBE3(debug__input, tp, th, m);
 
-			newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
-
 			/* Add data to socket buffer. */
 			SOCK_RECVBUF_LOCK(so);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
-				/*
-				 * Set new socket buffer size.
-				 * Give up when limit is reached.
-				 */
-				if (newsize)
-					if (!sbreserve_locked(so, SO_RCV,
-					    newsize, NULL))
-						so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
+				tcp_autorcvbuf(tp, tlen);
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m, 0);
 			}

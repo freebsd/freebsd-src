@@ -539,13 +539,9 @@ SDT_PROBE_DEFINE6_XLATE(tcp, , , state__change,
     "void *", "void *",
     "int", "tcplsinfo_t *");
 
-SDT_PROBE_DEFINE6_XLATE(tcp, , , receive__autoresize,
-    "void *", "void *",
-    "struct tcpcb *", "csinfo_t *",
-    "struct mbuf *", "ipinfo_t *",
+SDT_PROBE_DEFINE2_XLATE(tcp, , , receive__autoresize,
     "struct tcpcb *", "tcpsinfo_t *" ,
-    "struct tcphdr *", "tcpinfoh_t *",
-    "int", "int");
+    "u_int", "u_int");
 
 SDT_PROBE_DEFINE5_XLATE(udp, , , receive,
     "void *", "pktinfo_t *",

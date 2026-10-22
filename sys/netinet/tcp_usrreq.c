@@ -2884,7 +2884,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog,
 	/* Skip sackblks, sackhint. */
 
 	db_print_indent(indent);
-	db_printf("t_rttlow: %d   rfbuf_ts: %u   rfbuf_cnt: %d\n",
+	db_printf("t_rttlow: %d   rfbuf_ts: %u   rfbuf_cnt: %u\n",
 	    tp->t_rttlow, tp->rfbuf_ts, tp->rfbuf_cnt);
 
 	db_print_indent(indent);

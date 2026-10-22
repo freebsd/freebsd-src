@@ -12250,14 +12250,8 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
-				int32_t newsize;
-
-				if (tlen > 0) {
-					newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
-					if (newsize)
-						if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
-							so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
-				}
+				if (tlen > 0)
+					tcp_autorcvbuf(tp, tlen);
 #ifdef NETFLIX_SB_LIMITS
 				appended =
 #endif
@@ -12407,7 +12401,6 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
     uint32_t tiwin, int32_t nxt_pkt, uint8_t iptos)
 {
 	int32_t nsegs;
-	int32_t newsize = 0;	/* automatic sockbuf scaling */
 	struct tcp_rack *rack;
 #ifdef NETFLIX_SB_LIMITS
 	u_int mcnt, appended;
@@ -12485,20 +12478,13 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	tp->rcv_up = tp->rcv_nxt;
 	KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
 	KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
-	newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
 
 	/* Add data to socket buffer. */
 	SOCK_RECVBUF_LOCK(so);
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		m_freem(m);
 	} else {
-		/*
-		 * Set new socket buffer size. Give up when limit is
-		 * reached.
-		 */
-		if (newsize)
-			if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
-				so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
+		tcp_autorcvbuf(tp, tlen);
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
 #ifdef NETFLIX_SB_LIMITS
 		appended =
