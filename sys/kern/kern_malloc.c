@@ -981,7 +981,7 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 	uma_zone_t zone;
 	uma_slab_t slab;
 #endif
-	unsigned long alloc;
+	size_t alloc;
 	void *newaddr;
 
 	KASSERT(mtp->ks_version == M_VERSION,
@@ -1045,7 +1045,7 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 	 * valid before performing the copy.
 	 */
 	kasan_mark(addr, alloc, alloc, 0);
-	bcopy(addr, newaddr, min(size, alloc));
+	bcopy(addr, newaddr, MIN(size, alloc));
 	free(addr, mtp);
 	return (newaddr);
 }
