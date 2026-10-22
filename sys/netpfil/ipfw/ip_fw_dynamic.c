@@ -48,6 +48,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/taskqueue.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -210,7 +211,7 @@ VNET_DEFINE_STATIC(struct dyn_ipv6_slist, dyn_expired_ipv6);
 
 /*
  * Per-CPU pointer indicates that specified state is currently in use
- * and must not be reclaimed by expiration callout.
+ * and must not be reclaimed by expiration taskqueue.
  */
 static void **dyn_hp_cache;
 DPCPU_DEFINE_STATIC(void *, dyn_hp);
@@ -296,7 +297,7 @@ VNET_DEFINE_STATIC(uint32_t *, dyn_ipv6_parent_del);
 
 VNET_DEFINE_STATIC(uint32_t, dyn_buckets_max);
 VNET_DEFINE_STATIC(uint32_t, curr_dyn_buckets);
-VNET_DEFINE_STATIC(struct callout, dyn_timeout);
+VNET_DEFINE_STATIC(struct timeout_task, dyn_timeout);
 #define	V_dyn_buckets_max		VNET(dyn_buckets_max)
 #define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
 #define	V_dyn_timeout			VNET(dyn_timeout)
@@ -532,7 +533,7 @@ static struct dyn_parent *dyn_alloc_parent(void *, uint32_t, uint32_t,
 static struct dyn_ipv4_state *dyn_add_ipv4_parent(void *, uint32_t, uint32_t,
     const struct ipfw_flow_id *, uint32_t, uint32_t, uint32_t);
 
-static void dyn_tick(void *);
+static void dyn_tick(void *, int);
 static void dyn_expire_states(struct ip_fw_chain *, ipfw_range_tlv *);
 static void dyn_free_states(struct ip_fw_chain *);
 static void dyn_export_parent(const struct dyn_parent *, uint32_t, uint8_t,
@@ -2749,7 +2750,7 @@ bad:
  * on dynamic hash lists. Currently it is called every second.
  */
 static void
-dyn_tick(void *vnetx)
+dyn_tick(void *vnetx, int pending __unused)
 {
 	struct epoch_tracker et;
 	uint32_t buckets;
@@ -2759,7 +2760,9 @@ dyn_tick(void *vnetx)
 	 * First free states unlinked in previous passes.
 	 */
 	dyn_free_states(&V_layer3_chain);
+	IPFW_UH_WLOCK(&V_layer3_chain);
 	dyn_expire_states(&V_layer3_chain, NULL);
+	IPFW_UH_WUNLOCK(&V_layer3_chain);
 
 	/*
 	 * Send keepalives if they are enabled and the time has come.
@@ -2790,7 +2793,7 @@ dyn_tick(void *vnetx)
 		dyn_grow_hashtable(&V_layer3_chain, buckets, M_NOWAIT);
 	}
 
-	callout_reset_on(&V_dyn_timeout, hz, dyn_tick, vnetx, 0);
+	taskqueue_enqueue_timeout(taskqueue_swi, &V_dyn_timeout, hz);
 	CURVNET_RESTORE();
 }
 
@@ -3061,7 +3064,7 @@ ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
 
 	/*
 	 * IPFW_UH_RLOCK garantees that another userland request
-	 * and callout thread will not delete entries from states
+	 * and dyn_tick thread will not delete entries from states
 	 * lists.
 	 */
 	IPFW_UH_RLOCK_ASSERT(chain);
@@ -3195,8 +3198,8 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
 		    M_WAITOK | M_ZERO);
 
 	DYN_EXPIRED_LOCK_INIT();
-	callout_init(&V_dyn_timeout, 1);
-	callout_reset(&V_dyn_timeout, hz, dyn_tick, curvnet);
+	TIMEOUT_TASK_INIT(taskqueue_swi, &V_dyn_timeout, 0, dyn_tick, curvnet);
+	taskqueue_enqueue_timeout(taskqueue_swi, &V_dyn_timeout, hz);
 	IPFW_ADD_OBJ_REWRITER(IS_DEFAULT_VNET(curvnet), dyn_opcodes);
 
 	dyn_add_protected_rule(chain);
@@ -3212,7 +3215,7 @@ ipfw_dyn_uninit(int pass)
 	int bucket;
 
 	if (pass == 0) {
-		callout_drain(&V_dyn_timeout);
+		taskqueue_drain_timeout(taskqueue_swi, &V_dyn_timeout);
 		return;
 	}
 	IPFW_DEL_OBJ_REWRITER(IS_DEFAULT_VNET(curvnet), dyn_opcodes);
