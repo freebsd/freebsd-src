@@ -539,10 +539,11 @@ main(int argc, char **argv) {
 
 	ret = sdio_func_enable(cam_dev, 1, 1);bailout(ret);
 	uint32_t magic = brcmf_sdiod_regrl(&brcmf_dev, 0x18000000, &ret);
-	printf("Magic = %08x\n", magic);
-	if (magic != REPLY_MAGIC) {
-		errx(1, "Reply magic is incorrect: expected %08x, got %08x",
-		     REPLY_MAGIC, magic);
-	}
+	printf("Chip ID at 0x18000000 = %08x\n", magic);
+	if (ret != 0)
+		errx(1, "Backplane read failed: %d", ret);
+	if (magic != REPLY_MAGIC)
+		printf("Unknown chip ID (expected %08x for BCM4330)\n",
+		    REPLY_MAGIC);
 	cam_close_spec_device(cam_dev);
 }
