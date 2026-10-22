@@ -1480,7 +1480,6 @@ bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
 
 static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 {
-	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_type *ctxm;
 	struct bnxt_ctx_mem_info *ctx;
 	u32 l2_qps, qp1_qps, max_qps;
@@ -1558,21 +1557,22 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 		goto skip_rdma;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
-	ctx_pg = ctxm->pg_info;
-	/* 128K extra is needed to accomodate static AH context
-	 * allocation by f/w.
-	 */
-	num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
-	num_ah = min_t(u32, num_mr, 1024 * 128);
+	if (BNXT_SW_RES_LMT(softc) &&
+	    ctxm->split_entry_cnt == BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1) {
+		num_ah = ctxm->mrav_av_entries;
+		num_mr = ctxm->max_entries - num_ah;
+	} else {
+		/* 128K extra for static AH contexts allocated by f/w. */
+		num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
+		num_ah = min_t(u32, num_mr, 1024 * 128);
+		ctxm->split_entry_cnt = BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1;
+		if (!ctxm->mrav_av_entries || ctxm->mrav_av_entries > num_ah)
+			ctxm->mrav_av_entries = num_ah;
+	}
 	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, num_mr + num_ah, 2);
 	if (rc)
 		return rc;
-	ctx_pg->entries = num_mr + num_ah;
 	ena = HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_MRAV;
-	if (ctxm->mrav_num_entries_units)
-		ctx_pg->entries =
-			((num_mr / ctxm->mrav_num_entries_units) << 16) |
-			 (num_ah / ctxm->mrav_num_entries_units);
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
 	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, l2_qps + qp1_qps + extra_qps, 1);
