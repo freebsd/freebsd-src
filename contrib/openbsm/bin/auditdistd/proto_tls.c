@@ -679,10 +679,10 @@ tls_exec_server(const char *user, int startfd, const char *privkey,
 	if (ssl == NULL)
 		pjdlog_exitx(EX_TEMPFAIL, "SSL_new() failed.");
 
-	if (SSL_use_RSAPrivateKey_file(ssl, privkey, SSL_FILETYPE_PEM) != 1) {
+	if (SSL_use_PrivateKey_file(ssl, privkey, SSL_FILETYPE_PEM) != 1) {
 		ssl_log_errors();
 		pjdlog_exitx(EX_CONFIG,
-		    "SSL_use_RSAPrivateKey_file(%s) failed.", privkey);
+		    "SSL_use_PrivateKey_file(%s) failed.", privkey);
 	}
 
 	if (SSL_use_certificate_file(ssl, cert, SSL_FILETYPE_PEM) != 1) {
