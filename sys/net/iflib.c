@@ -3675,7 +3675,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 	case ETHERTYPE_IP:
 	{
 		struct ip *ip;
-		struct tcphdr *th;
+		struct tcphdr *th = NULL;
 		uint8_t hlen;
 
 		hlen = pi->ipi_ehdrlen + sizeof(*ip);
@@ -3686,7 +3686,13 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		}
 		ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
 		hlen = pi->ipi_ehdrlen + (ip->ip_hl << 2);
-		if (ip->ip_p == IPPROTO_TCP) {
+		if ((ip->ip_off & htons(IP_OFFMASK)) != 0) {
+			/*
+			 * Only the first fragment carries the TCP/UDP header,
+			 * so do not extend hlen beyond the IP header.
+			 */
+			MPASS(!IS_TSO4(pi));
+		} else if (ip->ip_p == IPPROTO_TCP) {
 			hlen += sizeof(*th);
 			th = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
 		} else if (ip->ip_p == IPPROTO_UDP) {
@@ -3698,7 +3704,8 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				return (ENOMEM);
 			/* reset pointers after pullup */
 			ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
-			th = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
+			if (th != NULL)
+				th = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
 		}
 		pi->ipi_ip_hlen = ip->ip_hl << 2;
 		pi->ipi_ipproto = ip->ip_p;
@@ -3707,7 +3714,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 
 		/* TCP checksum offload may require TCP header length */
 		if (IS_TX_OFFLOAD4(pi)) {
-			if (__predict_true(pi->ipi_ipproto == IPPROTO_TCP)) {
+			if (__predict_true(th != NULL)) {
 				pi->ipi_tcp_hflags = tcp_get_flags(th);
 				pi->ipi_tcp_hlen = th->th_off << 2;
 				pi->ipi_tcp_seq = th->th_seq;
