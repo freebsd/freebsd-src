@@ -262,15 +262,20 @@ get_ubuf(struct sysctl_req *req, char *ubuf)
 	return (0);
 }
 
+#define	AXGBE_SYSCTL_NOPS	32
+#define	AXGBE_SYSCTL_OPLEN	32
+
 char**
 alloc_sysctl_buffer(void)
 {
 	char **buffer;
 	int i;
 
-	buffer = malloc(sizeof(char *)*32, M_AXGBE, M_WAITOK | M_ZERO);
-	for(i = 0; i < 32; i++)
-		buffer[i] = malloc(sizeof(char)*32, M_AXGBE, M_WAITOK | M_ZERO);
+	buffer = malloc(sizeof(char *) * AXGBE_SYSCTL_NOPS, M_AXGBE,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < AXGBE_SYSCTL_NOPS; i++)
+		buffer[i] = malloc(sizeof(char) * AXGBE_SYSCTL_OPLEN, M_AXGBE,
+		    M_WAITOK | M_ZERO);
 
 	return (buffer);
 }
@@ -283,26 +288,26 @@ get_val(char *buf, char **op, char **val, int *n_op)
 	int i, j;
 
 	*n_op = 0;
-	for (i = 0; i < blen; i++) {
+	for (i = 0; i < blen && count < AXGBE_SYSCTL_NOPS; i++) {
 		count++;
 		/* Get sysctl command option */
-		for (j = 0; buf[i] != ' '; j++) {
+		for (j = 0; j < AXGBE_SYSCTL_OPLEN - 1 && buf[i] != ' '; j++) {
 			if (i >= blen)
 				break;
 			op[*n_op][j] = buf[i++];
 		}
-		op[*n_op][j+1] = '\0';
+		op[*n_op][j] = '\0';
 		if (i >= strlen(buf))
 			goto out;
 
 		/* Get sysctl value*/
 		i++;
-		for (j = 0; buf[i] != ' '; j++) {
+		for (j = 0; j < AXGBE_SYSCTL_OPLEN - 1 && buf[i] != ' '; j++) {
 			if (i >= blen)
 				break;
 			val[*n_op][j] = buf[i++]; 
 		}
-		val[*n_op][j+1] = '\0';
+		val[*n_op][j] = '\0';
 		if (i >= strlen(buf))
 			goto out;
 
