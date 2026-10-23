@@ -704,3 +704,19 @@ efinet_dev_print(int verbose)
 	}
 	return (ret);
 }
+
+int
+efinet_handle_lookup(EFI_HANDLE h, int *unit)
+{
+	int nif;
+
+	for (nif = 0; nif < efinetif.netif_nifs; nif++) {
+		if (efinetif.netif_ifs[nif].dif_private != h)
+			continue;
+		if (unit != NULL)
+			*unit = efinetif.netif_ifs[nif].dif_unit;
+		return (0);
+	}
+
+	return (ENOENT);
+}
