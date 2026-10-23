@@ -63,7 +63,7 @@ struct vmspace;
 	uint32_t pc_original_actlr;					\
 	uint64_t pc_clock;						\
 	uint32_t pc_mpidr;						\
-	char __pad[135]
+	char __pad[188]
 
 #ifdef _KERNEL
 
