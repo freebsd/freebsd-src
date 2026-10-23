@@ -323,7 +323,11 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 
 	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
 		return;
-	if (m->s0i3_last_entry_status != 0) {
+	/*
+	 * XXX For some reason, s0i3_last_entry_status sometimes reports 1 when
+	 * system didn't enter S0i3 during the last suspend.
+	 */
+	if (m->time_last_in_s0i3 != 0) {
 		device_printf(dev,
 		    "spent %lu seconds in S0i3 during last suspend\n",
 		    m->time_last_in_s0i3 / 1000000);
