@@ -388,7 +388,7 @@ FRAC_CLK(pll_gpu_clk,
     8, 7, 0, 0,					/* n factor */
     0, 4, 0, 0,					/* m factor */
     31, 28, 1000,				/* gate, lock, lock retries */
-    AW_CLK_HAS_LOCK,				/* flags */
+    AW_CLK_HAS_LOCK | AW_CLK_HAS_GATE,		/* flags */
     270000000, 297000000,			/* freq0, freq1 */
     24, 25,					/* mode sel, freq sel */
     192000000, 600000000);			/* min freq, max freq */
