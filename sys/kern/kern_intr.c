@@ -530,8 +530,10 @@ int
 intr_event_destroy(struct intr_event *ie)
 {
 
-	if (ie == NULL)
-		return (EINVAL);
+	if (ie == NULL) {
+		printf("ERROR: %s(): passed NULL event!\n", __func__);
+		return (0);
+	}
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
