@@ -382,7 +382,7 @@ struct inpcb {
 	};
 	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (r:e/w:h) port list */
 	uint64_t	inp_gencnt;	/* (c) generation count */
-	struct lport_cache *inp_lport_cache;
+	void		*spare_ptr;	/* Spare pointer. */
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
 	union {				/* cached L3 information */
 		struct route inp_route;
