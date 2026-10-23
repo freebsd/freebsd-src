@@ -26,8 +26,10 @@
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -255,6 +257,74 @@ ATF_TC_BODY(lookup_cap_dotdot__root, tc)
 	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "..", O_DIRECTORY));
 }
 
+/*
+ * ".." from a directory that is a mount root: the lookup must not cross
+ * to the covered vnode and leave its starting directory.
+ */
+static char mntpath[MAXPATHLEN];
+
+static void
+mount_tmpfs(void)
+{
+	struct iovec iov[4];
+	char cwd[MAXPATHLEN];
+
+	ATF_REQUIRE(getcwd(cwd, sizeof(cwd)) != NULL);
+	snprintf(mntpath, sizeof(mntpath), "%s/mnt", cwd);
+	ATF_REQUIRE(mkdir(mntpath, 0777) == 0);
+	iov[0].iov_base = __DECONST(char *, "fstype");
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = __DECONST(char *, "tmpfs");
+	iov[1].iov_len = sizeof("tmpfs");
+	iov[2].iov_base = __DECONST(char *, "fspath");
+	iov[2].iov_len = sizeof("fspath");
+	iov[3].iov_base = mntpath;
+	iov[3].iov_len = strlen(mntpath) + 1;
+	ATF_REQUIRE_MSG(nmount(iov, nitems(iov), 0) == 0, "nmount: %s",
+	    strerror(errno));
+}
+
+ATF_TC_WITH_CLEANUP(lookup_cap_dotdot__mountroot);
+ATF_TC_HEAD(lookup_cap_dotdot__mountroot, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Validate that .. from a mount root stays beneath it");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(lookup_cap_dotdot__mountroot, tc)
+{
+	int dfd;
+
+	check_capsicum();
+	mount_tmpfs();
+
+	ATF_REQUIRE((dfd = open(mntpath, O_RDONLY | O_DIRECTORY)) >= 0);
+	ATF_REQUIRE(mkdirat(dfd, "sub", 0777) == 0);
+
+	/* A ".." that ends at the start is fine. */
+	ATF_REQUIRE_MSG(openat(dfd, "sub/..", O_RDONLY | O_DIRECTORY |
+	    O_RESOLVE_BENEATH) >= 0, "%s", strerror(errno));
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "..", O_RDONLY |
+	    O_DIRECTORY | O_RESOLVE_BENEATH) < 0);
+
+	ATF_REQUIRE(cap_enter() >= 0);
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    openat(dfd, "..", O_RDONLY | O_DIRECTORY) < 0);
+}
+
+ATF_TC_CLEANUP(lookup_cap_dotdot__mountroot, tc)
+{
+	char cwd[MAXPATHLEN];
+
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
+		return;
+	snprintf(mntpath, sizeof(mntpath), "%s/mnt", cwd);
+	(void)unmount(mntpath, MNT_FORCE);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -267,6 +337,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__advanced);
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__negative);
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__root);
+	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__mountroot);
 
 	return (atf_no_error());
 }
