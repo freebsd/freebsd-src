@@ -154,7 +154,7 @@ pf_match_translation_rule(int rs_num, struct pf_test_ctx *ctx, struct pf_krulese
 			dst = &r->dst;
 		}
 
-		pf_counter_u64_add(&r->evaluations, 1);
+		counter_u64_add(r->evaluations, 1);
 		PF_TEST_ATTRIB(pfi_kkif_match(r->kif, pd->kif) == r->ifnot,
 			r->skip[PF_SKIP_IFP]);
 		PF_TEST_ATTRIB(r->direction && r->direction != pd->dir,

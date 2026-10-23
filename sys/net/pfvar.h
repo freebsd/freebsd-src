@@ -72,237 +72,6 @@
 
 #define        PF_PFIL_NOREFRAGMENT    0x80000000
 
-#if defined(__arm__)
-#define PF_WANT_32_TO_64_COUNTER
-#endif
-
-/*
- * A hybrid of 32-bit and 64-bit counters which can be used on platforms where
- * counter(9) is very expensive.
- *
- * As 32-bit counters are expected to overflow, a periodic job sums them up to
- * a saved 64-bit state. Fetching the value still walks all CPUs to get the most
- * current snapshot.
- */
-#ifdef PF_WANT_32_TO_64_COUNTER
-struct pf_counter_u64_pcpu {
-	u_int32_t current;
-	u_int32_t snapshot;
-};
-
-struct pf_counter_u64 {
-	struct pf_counter_u64_pcpu *pfcu64_pcpu;
-	u_int64_t pfcu64_value;
-	seqc_t	pfcu64_seqc;
-};
-
-static inline int
-pf_counter_u64_init(struct pf_counter_u64 *pfcu64, int flags)
-{
-
-	pfcu64->pfcu64_value = 0;
-	pfcu64->pfcu64_seqc = 0;
-	pfcu64->pfcu64_pcpu = uma_zalloc_pcpu(pcpu_zone_8, flags | M_ZERO);
-	if (__predict_false(pfcu64->pfcu64_pcpu == NULL))
-		return (ENOMEM);
-	return (0);
-}
-
-static inline void
-pf_counter_u64_deinit(struct pf_counter_u64 *pfcu64)
-{
-
-	uma_zfree_pcpu(pcpu_zone_8, pfcu64->pfcu64_pcpu);
-}
-
-static inline void
-pf_counter_u64_critical_enter(void)
-{
-
-	critical_enter();
-}
-
-static inline void
-pf_counter_u64_critical_exit(void)
-{
-
-	critical_exit();
-}
-
-static inline void
-pf_counter_u64_rollup_protected(struct pf_counter_u64 *pfcu64, uint64_t n)
-{
-
-	MPASS(curthread->td_critnest > 0);
-	pfcu64->pfcu64_value += n;
-}
-
-static inline void
-pf_counter_u64_add_protected(struct pf_counter_u64 *pfcu64, uint32_t n)
-{
-	struct pf_counter_u64_pcpu *pcpu;
-	u_int32_t val;
-
-	MPASS(curthread->td_critnest > 0);
-	pcpu = zpcpu_get(pfcu64->pfcu64_pcpu);
-	val = atomic_load_int(&pcpu->current);
-	atomic_store_int(&pcpu->current, val + n);
-}
-
-static inline void
-pf_counter_u64_add(struct pf_counter_u64 *pfcu64, uint32_t n)
-{
-
-	critical_enter();
-	pf_counter_u64_add_protected(pfcu64, n);
-	critical_exit();
-}
-
-static inline u_int64_t
-pf_counter_u64_periodic(struct pf_counter_u64 *pfcu64)
-{
-	struct pf_counter_u64_pcpu *pcpu;
-	u_int64_t sum;
-	u_int32_t val;
-	int cpu;
-
-	MPASS(curthread->td_critnest > 0);
-	seqc_write_begin(&pfcu64->pfcu64_seqc);
-	sum = pfcu64->pfcu64_value;
-	CPU_FOREACH(cpu) {
-		pcpu = zpcpu_get_cpu(pfcu64->pfcu64_pcpu, cpu);
-		val = atomic_load_int(&pcpu->current);
-		sum += (uint32_t)(val - pcpu->snapshot);
-		pcpu->snapshot = val;
-	}
-	pfcu64->pfcu64_value = sum;
-	seqc_write_end(&pfcu64->pfcu64_seqc);
-	return (sum);
-}
-
-static inline u_int64_t
-pf_counter_u64_fetch(const struct pf_counter_u64 *pfcu64)
-{
-	struct pf_counter_u64_pcpu *pcpu;
-	u_int64_t sum;
-	seqc_t seqc;
-	int cpu;
-
-	for (;;) {
-		seqc = seqc_read(&pfcu64->pfcu64_seqc);
-		sum = 0;
-		CPU_FOREACH(cpu) {
-			pcpu = zpcpu_get_cpu(pfcu64->pfcu64_pcpu, cpu);
-			sum += (uint32_t)(atomic_load_int(&pcpu->current) -pcpu->snapshot);
-		}
-		sum += pfcu64->pfcu64_value;
-		if (seqc_consistent(&pfcu64->pfcu64_seqc, seqc))
-			break;
-	}
-	return (sum);
-}
-
-static inline void
-pf_counter_u64_zero_protected(struct pf_counter_u64 *pfcu64)
-{
-	struct pf_counter_u64_pcpu *pcpu;
-	int cpu;
-
-	MPASS(curthread->td_critnest > 0);
-	seqc_write_begin(&pfcu64->pfcu64_seqc);
-	CPU_FOREACH(cpu) {
-		pcpu = zpcpu_get_cpu(pfcu64->pfcu64_pcpu, cpu);
-		pcpu->snapshot = atomic_load_int(&pcpu->current);
-	}
-	pfcu64->pfcu64_value = 0;
-	seqc_write_end(&pfcu64->pfcu64_seqc);
-}
-
-static inline void
-pf_counter_u64_zero(struct pf_counter_u64 *pfcu64)
-{
-
-	critical_enter();
-	pf_counter_u64_zero_protected(pfcu64);
-	critical_exit();
-}
-#else
-struct pf_counter_u64 {
-	counter_u64_t counter;
-};
-
-static inline int
-pf_counter_u64_init(struct pf_counter_u64 *pfcu64, int flags)
-{
-
-	pfcu64->counter = counter_u64_alloc(flags);
-	if (__predict_false(pfcu64->counter == NULL))
-		return (ENOMEM);
-	return (0);
-}
-
-static inline void
-pf_counter_u64_deinit(struct pf_counter_u64 *pfcu64)
-{
-
-	counter_u64_free(pfcu64->counter);
-}
-
-static inline void
-pf_counter_u64_critical_enter(void)
-{
-
-}
-
-static inline void
-pf_counter_u64_critical_exit(void)
-{
-
-}
-
-static inline void
-pf_counter_u64_rollup_protected(struct pf_counter_u64 *pfcu64, uint64_t n)
-{
-
-	counter_u64_add(pfcu64->counter, n);
-}
-
-static inline void
-pf_counter_u64_add_protected(struct pf_counter_u64 *pfcu64, uint32_t n)
-{
-
-	counter_u64_add(pfcu64->counter, n);
-}
-
-static inline void
-pf_counter_u64_add(struct pf_counter_u64 *pfcu64, uint32_t n)
-{
-
-	pf_counter_u64_add_protected(pfcu64, n);
-}
-
-static inline u_int64_t
-pf_counter_u64_fetch(const struct pf_counter_u64 *pfcu64)
-{
-
-	return (counter_u64_fetch(pfcu64->counter));
-}
-
-static inline void
-pf_counter_u64_zero_protected(struct pf_counter_u64 *pfcu64)
-{
-
-	counter_u64_zero(pfcu64->counter);
-}
-
-static inline void
-pf_counter_u64_zero(struct pf_counter_u64 *pfcu64)
-{
-
-	pf_counter_u64_zero_protected(pfcu64);
-}
-#endif
-
 #define pf_get_timestamp(prule)({					\
 	uint32_t _ts = 0;						\
 	uint32_t __ts;							\
@@ -817,9 +586,9 @@ struct pf_krule {
 	struct pf_kpool		 route;
 	struct pf_kthreshold	 pktrate;
 
-	struct pf_counter_u64	 evaluations;
-	struct pf_counter_u64	 packets[2];
-	struct pf_counter_u64	 bytes[2];
+	counter_u64_t		 evaluations;
+	counter_u64_t		 packets[2];
+	counter_u64_t		 bytes[2];
 	time_t			*timestamp;
 
 	struct pfi_kkif		*kif;
@@ -912,10 +681,6 @@ struct pf_krule {
 	u_int8_t		 md5sum[PF_MD5_DIGEST_LENGTH];
 	RB_ENTRY(pf_krule)	 entry_global;
 
-#ifdef PF_WANT_32_TO_64_COUNTER
-	LIST_ENTRY(pf_krule)	 allrulelist;
-	bool			 allrulelinked;
-#endif
 	time_t			 exptime;
 };
 
@@ -1907,17 +1672,14 @@ struct pfi_kkif {
 	} _pfik_glue;
 #define	pfik_tree	_pfik_glue._pfik_tree
 #define	pfik_list	_pfik_glue._pfik_list
-	struct pf_counter_u64		 pfik_packets[2][2][2];
-	struct pf_counter_u64		 pfik_bytes[2][2][2];
+	counter_u64_t			 pfik_packets[2][2][2];
+	counter_u64_t			 pfik_bytes[2][2][2];
 	time_t				 pfik_tzero;
 	u_int				 pfik_flags;
 	struct ifnet			*pfik_ifp;
 	struct ifg_group		*pfik_group;
 	u_int				 pfik_rulerefs;
 	TAILQ_HEAD(, pfi_dynaddr)	 pfik_dynaddrs;
-#ifdef PF_WANT_32_TO_64_COUNTER
-	LIST_ENTRY(pfi_kkif)		 pfik_allkiflist;
-#endif
 };
 #endif
 
@@ -2198,7 +1960,7 @@ int pf_source_clr(struct pfioc_source_kill *);
 struct pf_kstatus {
 	counter_u64_t	counters[PFRES_MAX]; /* reason for passing/dropping */
 	counter_u64_t	lcounters[KLCNT_MAX]; /* limit counters */
-	struct pf_counter_u64	fcounters[FCNT_MAX]; /* state operation counters */
+	counter_u64_t	fcounters[FCNT_MAX]; /* state operation counters */
 	counter_u64_t	scounters[SCNT_MAX]; /* src_node operation counters */
 	counter_u64_t	ncounters[NCNT_MAX];
 	uint32_t	states;
@@ -2702,24 +2464,6 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altq_ifs_inactive);
 
 VNET_DECLARE(struct pf_krulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
-
-#ifdef PF_WANT_32_TO_64_COUNTER
-LIST_HEAD(allkiflist_head, pfi_kkif);
-VNET_DECLARE(struct allkiflist_head, pf_allkiflist);
-#define V_pf_allkiflist     VNET(pf_allkiflist)
-VNET_DECLARE(size_t, pf_allkifcount);
-#define V_pf_allkifcount     VNET(pf_allkifcount)
-VNET_DECLARE(struct pfi_kkif *, pf_kifmarker);
-#define V_pf_kifmarker     VNET(pf_kifmarker)
-
-LIST_HEAD(allrulelist_head, pf_krule);
-VNET_DECLARE(struct allrulelist_head, pf_allrulelist);
-#define V_pf_allrulelist     VNET(pf_allrulelist)
-VNET_DECLARE(size_t, pf_allrulecount);
-#define V_pf_allrulecount     VNET(pf_allrulecount)
-VNET_DECLARE(struct pf_krule *, pf_rulemarker);
-#define V_pf_rulemarker     VNET(pf_rulemarker)
-#endif
 
 int				 pf_start(void);
 int				 pf_stop(void);

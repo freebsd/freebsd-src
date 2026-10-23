@@ -991,11 +991,11 @@ nlattr_add_rule(struct nl_writer *nw, const struct pf_krule *rule)
 	nlattr_add_in6_addr(nw, PF_RT_DIVERT_ADDRESS, &rule->divert.addr.v6);
 	nlattr_add_u16(nw, PF_RT_DIVERT_PORT, rule->divert.port);
 
-	nlattr_add_u64(nw, PF_RT_PACKETS_IN, pf_counter_u64_fetch(&rule->packets[0]));
-	nlattr_add_u64(nw, PF_RT_PACKETS_OUT, pf_counter_u64_fetch(&rule->packets[1]));
-	nlattr_add_u64(nw, PF_RT_BYTES_IN, pf_counter_u64_fetch(&rule->bytes[0]));
-	nlattr_add_u64(nw, PF_RT_BYTES_OUT, pf_counter_u64_fetch(&rule->bytes[1]));
-	nlattr_add_u64(nw, PF_RT_EVALUATIONS, pf_counter_u64_fetch(&rule->evaluations));
+	nlattr_add_u64(nw, PF_RT_PACKETS_IN, counter_u64_fetch(rule->packets[0]));
+	nlattr_add_u64(nw, PF_RT_PACKETS_OUT, counter_u64_fetch(rule->packets[1]));
+	nlattr_add_u64(nw, PF_RT_BYTES_IN, counter_u64_fetch(rule->bytes[0]));
+	nlattr_add_u64(nw, PF_RT_BYTES_OUT, counter_u64_fetch(rule->bytes[1]));
+	nlattr_add_u64(nw, PF_RT_EVALUATIONS, counter_u64_fetch(rule->evaluations));
 	nlattr_add_u64(nw, PF_RT_TIMESTAMP, pf_get_timestamp(rule));
 	nlattr_add_u64(nw, PF_RT_STATES_CUR, counter_u64_fetch(rule->states_cur));
 	nlattr_add_u64(nw, PF_RT_STATES_TOTAL, counter_u64_fetch(rule->states_tot));
@@ -1240,25 +1240,6 @@ nlattr_add_counters(struct nl_writer *nw, int attr, size_t number, char **names,
 }
 
 static bool
-nlattr_add_fcounters(struct nl_writer *nw, int attr, size_t number, char **names,
-    struct pf_counter_u64 *counters)
-{
-	for (int i = 0; i < number; i++) {
-		int off = nlattr_add_nested(nw, attr);
-
-		if (off == 0)
-			return (false);
-
-		nlattr_add_u32(nw, PF_C_ID, i);
-		nlattr_add_string(nw, PF_C_NAME, names[i]);
-		nlattr_add_u64(nw, PF_C_COUNTER, pf_counter_u64_fetch(&counters[i]));
-		nlattr_set_len(nw, off);
-	}
-
-	return (true);
-}
-
-static bool
 nlattr_add_u64_array(struct nl_writer *nw, int attr, size_t number, const uint64_t *array)
 {
 	int off = nlattr_add_nested(nw, attr);
@@ -1312,7 +1293,7 @@ pf_handle_get_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	    V_pf_status.counters);
 	nlattr_add_counters(nw, PF_GS_LCOUNTERS, KLCNT_MAX, pf_lcounter,
 	    V_pf_status.lcounters);
-	nlattr_add_fcounters(nw, PF_GS_FCOUNTERS, FCNT_MAX, pf_fcounter,
+	nlattr_add_counters(nw, PF_GS_FCOUNTERS, FCNT_MAX, pf_fcounter,
 	    V_pf_status.fcounters);
 	nlattr_add_counters(nw, PF_GS_SCOUNTERS, SCNT_MAX, pf_fcounter,
 	    V_pf_status.scounters);

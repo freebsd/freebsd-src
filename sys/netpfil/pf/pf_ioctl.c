@@ -352,10 +352,10 @@ pfattach_vnet(void)
 	V_pf_default_rule.nr = (uint32_t)-1;
 	V_pf_default_rule.rtableid = -1;
 
-	pf_counter_u64_init(&V_pf_default_rule.evaluations, M_WAITOK);
+	V_pf_default_rule.evaluations = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_init(&V_pf_default_rule.packets[i], M_WAITOK);
-		pf_counter_u64_init(&V_pf_default_rule.bytes[i], M_WAITOK);
+		V_pf_default_rule.packets[i] = counter_u64_alloc(M_WAITOK);
+		V_pf_default_rule.bytes[i] = counter_u64_alloc(M_WAITOK);
 	}
 	V_pf_default_rule.states_cur = counter_u64_alloc(M_WAITOK);
 	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
@@ -364,17 +364,6 @@ pfattach_vnet(void)
 
 	V_pf_default_rule.timestamp = uma_zalloc_pcpu(pf_timestamp_pcpu_zone,
 	    M_WAITOK | M_ZERO);
-
-#ifdef PF_WANT_32_TO_64_COUNTER
-	V_pf_kifmarker = malloc(sizeof(*V_pf_kifmarker), PFI_MTYPE, M_WAITOK | M_ZERO);
-	V_pf_rulemarker = malloc(sizeof(*V_pf_rulemarker), M_PFRULE, M_WAITOK | M_ZERO);
-	PF_RULES_WLOCK();
-	LIST_INSERT_HEAD(&V_pf_allkiflist, V_pf_kifmarker, pfik_allkiflist);
-	LIST_INSERT_HEAD(&V_pf_allrulelist, &V_pf_default_rule, allrulelist);
-	V_pf_allrulecount++;
-	LIST_INSERT_HEAD(&V_pf_allrulelist, V_pf_rulemarker, allrulelist);
-	PF_RULES_WUNLOCK();
-#endif
 
 	/* initialize default timeouts */
 	my_timeout[PFTM_TCP_FIRST_PACKET] = PFTM_TCP_FIRST_PACKET_VAL;
@@ -424,7 +413,7 @@ pfattach_vnet(void)
 	for (int i = 0; i < KLCNT_MAX; i++)
 		V_pf_status.lcounters[i] = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < FCNT_MAX; i++)
-		pf_counter_u64_init(&V_pf_status.fcounters[i], M_WAITOK);
+		V_pf_status.fcounters[i] = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < NCNT_MAX; i++)
@@ -1577,18 +1566,16 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 			if (old_rule == NULL) {
 				continue;
 			}
-			pf_counter_u64_critical_enter();
-			pf_counter_u64_rollup_protected(&rule->evaluations,
-			    pf_counter_u64_fetch(&old_rule->evaluations));
-			pf_counter_u64_rollup_protected(&rule->packets[0],
-			    pf_counter_u64_fetch(&old_rule->packets[0]));
-			pf_counter_u64_rollup_protected(&rule->packets[1],
-			    pf_counter_u64_fetch(&old_rule->packets[1]));
-			pf_counter_u64_rollup_protected(&rule->bytes[0],
-			    pf_counter_u64_fetch(&old_rule->bytes[0]));
-			pf_counter_u64_rollup_protected(&rule->bytes[1],
-			    pf_counter_u64_fetch(&old_rule->bytes[1]));
-			pf_counter_u64_critical_exit();
+			counter_u64_add(rule->evaluations,
+			    counter_u64_fetch(old_rule->evaluations));
+			counter_u64_add(rule->packets[0],
+			    counter_u64_fetch(old_rule->packets[0]));
+			counter_u64_add(rule->packets[1],
+			    counter_u64_fetch(old_rule->packets[1]));
+			counter_u64_add(rule->bytes[0],
+			    counter_u64_fetch(old_rule->bytes[0]));
+			counter_u64_add(rule->bytes[1],
+			    counter_u64_fetch(old_rule->bytes[1]));
 		}
 	}
 
@@ -2735,29 +2722,13 @@ pf_krule_alloc(void)
 void
 pf_krule_free(struct pf_krule *rule)
 {
-#ifdef PF_WANT_32_TO_64_COUNTER
-	bool wowned;
-#endif
-
 	if (rule == NULL)
 		return;
 
-#ifdef PF_WANT_32_TO_64_COUNTER
-	if (rule->allrulelinked) {
-		wowned = PF_RULES_WOWNED();
-		if (!wowned)
-			PF_RULES_WLOCK();
-		LIST_REMOVE(rule, allrulelist);
-		V_pf_allrulecount--;
-		if (!wowned)
-			PF_RULES_WUNLOCK();
-	}
-#endif
-
-	pf_counter_u64_deinit(&rule->evaluations);
+	counter_u64_free(rule->evaluations);
 	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_deinit(&rule->packets[i]);
-		pf_counter_u64_deinit(&rule->bytes[i]);
+		counter_u64_free(rule->packets[i]);
+		counter_u64_free(rule->bytes[i]);
 	}
 	counter_u64_free(rule->states_cur);
 	counter_u64_free(rule->states_tot);
@@ -2775,10 +2746,10 @@ pf_krule_free(struct pf_krule *rule)
 void
 pf_krule_clear_counters(struct pf_krule *rule)
 {
-	pf_counter_u64_zero(&rule->evaluations);
+	counter_u64_zero(rule->evaluations);
 	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_zero(&rule->packets[i]);
-		pf_counter_u64_zero(&rule->bytes[i]);
+		counter_u64_zero(rule->packets[i]);
+		counter_u64_zero(rule->bytes[i]);
 	}
 	counter_u64_zero(rule->states_tot);
 }
@@ -3060,10 +3031,10 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		kif = pf_kkif_create(M_WAITOK);
 	if (rule->rcv_ifname[0])
 		rcv_kif = pf_kkif_create(M_WAITOK);
-	pf_counter_u64_init(&rule->evaluations, M_WAITOK);
+	rule->evaluations = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_init(&rule->packets[i], M_WAITOK);
-		pf_counter_u64_init(&rule->bytes[i], M_WAITOK);
+		rule->packets[i] = counter_u64_alloc(M_WAITOK);
+		rule->bytes[i] = counter_u64_alloc(M_WAITOK);
 	}
 	rule->states_cur = counter_u64_alloc(M_WAITOK);
 	rule->states_tot = counter_u64_alloc(M_WAITOK);
@@ -3077,12 +3048,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	PF_CONFIG_LOCK();
 	PF_RULES_WLOCK();
-#ifdef PF_WANT_32_TO_64_COUNTER
-	LIST_INSERT_HEAD(&V_pf_allrulelist, rule, allrulelist);
-	MPASS(!rule->allrulelinked);
-	rule->allrulelinked = true;
-	V_pf_allrulecount++;
-#endif
 	ruleset = pf_find_kruleset(anchor);
 	if (ruleset == NULL)
 		ERROUT(EINVAL);
@@ -3445,7 +3410,7 @@ pf_ioctl_clear_status(void)
 	for (int i = 0; i < PFRES_MAX; i++)
 		counter_u64_zero(V_pf_status.counters[i]);
 	for (int i = 0; i < FCNT_MAX; i++)
-		pf_counter_u64_zero(&V_pf_status.fcounters[i]);
+		counter_u64_zero(V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_zero(V_pf_status.scounters[i]);
 	for (int i = 0; i < NCNT_MAX; i++)
@@ -4939,10 +4904,12 @@ DIOCGETRULENV_error:
 			}
 			if (newrule->ifname[0])
 				kif = pf_kkif_create(M_WAITOK);
-			pf_counter_u64_init(&newrule->evaluations, M_WAITOK);
+			newrule->evaluations = counter_u64_alloc(M_WAITOK);
 			for (int i = 0; i < 2; i++) {
-				pf_counter_u64_init(&newrule->packets[i], M_WAITOK);
-				pf_counter_u64_init(&newrule->bytes[i], M_WAITOK);
+				newrule->packets[i] =
+				    counter_u64_alloc(M_WAITOK);
+				newrule->bytes[i] =
+				    counter_u64_alloc(M_WAITOK);
 			}
 			newrule->states_cur = counter_u64_alloc(M_WAITOK);
 			newrule->states_tot = counter_u64_alloc(M_WAITOK);
@@ -4958,14 +4925,6 @@ DIOCGETRULENV_error:
 
 		PF_CONFIG_LOCK();
 		PF_RULES_WLOCK();
-#ifdef PF_WANT_32_TO_64_COUNTER
-		if (newrule != NULL) {
-			LIST_INSERT_HEAD(&V_pf_allrulelist, newrule, allrulelist);
-			newrule->allrulelinked = true;
-			V_pf_allrulecount++;
-		}
-#endif
-
 		if (!(pcr->action == PF_CHANGE_REMOVE ||
 		    pcr->action == PF_CHANGE_GET_TICKET) &&
 		    pcr->pool_ticket != V_ticket_pabuf)
@@ -5446,10 +5405,10 @@ DIOCGETSTATESV2_full:
 		PF_RULES_WLOCK();
 		TAILQ_FOREACH(rule,
 		    ruleset->rules[PF_RULESET_FILTER].active.ptr, entries) {
-			pf_counter_u64_zero(&rule->evaluations);
+			counter_u64_zero(rule->evaluations);
 			for (int i = 0; i < 2; i++) {
-				pf_counter_u64_zero(&rule->packets[i]);
-				pf_counter_u64_zero(&rule->bytes[i]);
+				counter_u64_zero(rule->packets[i]);
+				counter_u64_zero(rule->bytes[i]);
 			}
 		}
 		PF_RULES_WUNLOCK();
@@ -6964,21 +6923,10 @@ pf_getstatus(struct pfioc_nv *nv)
 		ERROUT(error);
 
 	/* fcounters */
-	nvc = nvlist_create(0);
-	if (nvc == NULL)
-		ERROUT(ENOMEM);
-
-	for (int i = 0; i < FCNT_MAX; i++) {
-		nvlist_append_number_array(nvc, "counters",
-		    pf_counter_u64_fetch(&V_pf_status.fcounters[i]));
-		nvlist_append_string_array(nvc, "names",
-		    pf_fcounter[i]);
-		nvlist_append_number_array(nvc, "ids",
-		    i);
-	}
-	nvlist_add_nvlist(nvl, "fcounters", nvc);
-	nvlist_destroy(nvc);
-	nvc = NULL;
+	error = pf_add_status_counters(nvl, "fcounters", V_pf_status.fcounters,
+	    FCNT_MAX, pf_fcounter);
+	if (error != 0)
+		ERROUT(error);
 
 	/* scounters */
 	error = pf_add_status_counters(nvl, "scounters", V_pf_status.scounters,
@@ -7903,31 +7851,11 @@ pf_unload_vnet(void)
 #endif
 	uma_zdestroy(V_pf_tag_z);
 
-#ifdef PF_WANT_32_TO_64_COUNTER
-	PF_RULES_WLOCK();
-	LIST_REMOVE(V_pf_kifmarker, pfik_allkiflist);
-
-	MPASS(LIST_EMPTY(&V_pf_allkiflist));
-	MPASS(V_pf_allkifcount == 0);
-
-	LIST_REMOVE(&V_pf_default_rule, allrulelist);
-	V_pf_allrulecount--;
-	LIST_REMOVE(V_pf_rulemarker, allrulelist);
-
-	MPASS(LIST_EMPTY(&V_pf_allrulelist));
-	MPASS(V_pf_allrulecount == 0);
-
-	PF_RULES_WUNLOCK();
-
-	free(V_pf_kifmarker, PFI_MTYPE);
-	free(V_pf_rulemarker, M_PFRULE);
-#endif
-
 	/* Free counters last as we updated them during shutdown. */
-	pf_counter_u64_deinit(&V_pf_default_rule.evaluations);
+	counter_u64_free(V_pf_default_rule.evaluations);
 	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_deinit(&V_pf_default_rule.packets[i]);
-		pf_counter_u64_deinit(&V_pf_default_rule.bytes[i]);
+		counter_u64_free(V_pf_default_rule.packets[i]);
+		counter_u64_free(V_pf_default_rule.bytes[i]);
 	}
 	counter_u64_free(V_pf_default_rule.states_cur);
 	counter_u64_free(V_pf_default_rule.states_tot);
@@ -7940,7 +7868,7 @@ pf_unload_vnet(void)
 	for (int i = 0; i < KLCNT_MAX; i++)
 		counter_u64_free(V_pf_status.lcounters[i]);
 	for (int i = 0; i < FCNT_MAX; i++)
-		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
+		counter_u64_free(V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_free(V_pf_status.scounters[i]);
 	for (int i = 0; i < NCNT_MAX; i++)
