@@ -338,7 +338,11 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 	    "failed to enter S0i3 during last suspend; "
 	    "battery drain will be excessive\n");
 
-	if (sc->product->amdsmu_deviceid != PCI_DEVICEID_AMD_PHOENIX_ROOT) {
+	switch (sc->product->amdsmu_deviceid) {
+	case PCI_DEVICEID_AMD_PHOENIX_ROOT:
+	case PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT:
+		break;
+	default:
 		device_printf(dev, "only limited diagnostic information "
 		    "available for %x:%x; check dev.amdsmu.0 sysctl tree\n",
 		    sc->product->amdsmu_vendorid,
