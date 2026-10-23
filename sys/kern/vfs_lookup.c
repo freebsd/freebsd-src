@@ -258,6 +258,10 @@ nameicap_cleanup(struct nameidata *ndp, int error)
 		vfs_rel(mp);
 		ndp->ni_nctrack_mnt = NULL;
 	}
+	if (ndp->ni_rbeneath_dpp != NULL) {
+		vdrop(ndp->ni_rbeneath_dpp);
+		ndp->ni_rbeneath_dpp = NULL;
+	}
 }
 
 /*
@@ -419,8 +423,10 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			    NI_LCF_CAP_DOTDOT;
 		}
 	}
-	if (error == 0 && (ndp->ni_lcf & NI_LCF_STRICTREL) != 0)
+	if (error == 0 && (ndp->ni_lcf & NI_LCF_STRICTREL) != 0) {
 		ndp->ni_rbeneath_dpp = *dpp;
+		vholdnz(*dpp);
+	}
 
 	/*
 	 * If we are auditing the kernel pathname, save the user pathname.
