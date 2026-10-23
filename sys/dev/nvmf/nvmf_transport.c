@@ -66,8 +66,11 @@ nvmf_allocate_qpair(enum nvmf_trtype trtype, bool controller,
 		}
 	}
 	sx_sunlock(&nvmf_transports_lock);
-	if (qp == NULL)
-		return (NULL);
+  if (qp == NULL) {
+    printf("NVMF: No transport registered for trtype %u\n",
+           trtype);
+    return (NULL);
+  }
 
 	qp->nq_transport = nt;
 	qp->nq_ops = nt->nt_ops;
