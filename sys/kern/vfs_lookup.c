@@ -931,6 +931,18 @@ vfs_lookup_isroot(struct nameidata *ndp, struct vnode *dvp)
 	    dvp == rootvnode);
 }
 
+static bool
+vfs_lookup_invalid_boundary(struct nameidata *ndp, struct vnode *dvp)
+{
+	struct vnode *ndpp;
+
+	ndpp = ndp->ni_rbeneath_dpp;
+	/* The doomed check prevents escape through the startdir reclaim. */
+	if (dvp == ndpp || (ndpp != NULL && VN_IS_DOOMED(ndpp)))
+		return (true);
+	return (vfs_lookup_isroot(ndp, dvp));
+}
+
 /*
  * FAILIFEXISTS handling.
  *
@@ -1276,7 +1288,7 @@ dirloop:
 		for (;;) {
 			bool isroot;
 
-			isroot = vfs_lookup_isroot(ndp, dp);
+			isroot = vfs_lookup_invalid_boundary(ndp, dp);
 			if (__predict_false(isroot && (ndp->ni_lcf &
 			    (NI_LCF_STRICTREL | NI_LCF_STRICTREL_KTR)) != 0)) {
 				if ((ndp->ni_lcf & NI_LCF_STRICTREL_KTR) != 0)
