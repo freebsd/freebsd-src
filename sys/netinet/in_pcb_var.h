@@ -131,6 +131,7 @@ void    in_pcbrehash(struct inpcb *, struct inpcbinfo_ctx *);
 void    in_pcbremhash(struct inpcb *);
 struct inpcblbgroup *in_pcblbgroup_find(struct inpcb *inp,
 	    struct lbgroupbucket **bucket);
+void	in_pcb_lport_cache_free(struct inpcb *);
 
 /*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group

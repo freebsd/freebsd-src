@@ -565,6 +565,7 @@ in6_pcbdisconnect(struct inpcb *inp)
 	if (inp->inp_flags & INP_UNCONNECTED)
 		return;
 
+	in_pcb_lport_cache_free(inp);
 	in_pcbremhash(inp);
 	IPI_LOCK(inp->inp_pcbinfo);
 	CK_LIST_INSERT_HEAD(&inp->inp_pcbinfo->ipi_list_unconn.head, inp,
