@@ -972,14 +972,34 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_chroot, CTLFLAG_RW,
 static int
 chroot_check_priv(struct thread *td)
 {
+	struct proc *p;
+
 	if (priv_check(td, PRIV_VFS_CHROOT) == 0)
 		return (0);
 	if (unprivileged_chroot == 0)
 		return (EXTERROR(EPERM,
 		    "security.bsd.unprivileged_chroot sysctl not enabled"));
-	if ((td->td_proc->p_flag2 & P2_NO_NEW_PRIVS) == 0)
+	p = td->td_proc;
+	if ((p->p_flag2 & P2_NO_NEW_PRIVS) == 0)
 		return (EXTERROR(EPERM,
 		    "PROC_NO_NEW_PRIVS not enabled"));
+
+	/*
+	 * Refuse chroot() when the pwd is shared with other
+	 * processes, since they might have been created before
+	 * P2_NO_NEW_PRIVS was set.
+	 *
+	 * The check races with fork(), but the race is harmless.  If
+	 * pd_sharecount was observed as 1 and another thread forked
+	 * in the meantime, the child inherited P2_NO_NEW_PRIVS.  Then
+	 * neither the parent nor the child can gain privileges by
+	 * executing a set-ID image, which prevents the issues
+	 * otherwise possible due to the pwd sharing.
+	 */
+	atomic_thread_fence_acq();
+	if (refcount_load(&p->p_pd->pd_sharecount) > 1)
+		return (EXTERROR(EPERM,
+		    "root/current directory shared with another process"));
 	return (0);
 }
 
