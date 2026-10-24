@@ -1255,6 +1255,10 @@ struct bnxt_bs_trace_info {
 
 struct bnxt_logger;
 
+#define BNXT_HWRM_VER_CODE_EXT(maj, mnr, upd, rsv)			\
+	(((uint32_t)(maj) << 24) | ((uint32_t)(mnr) << 16) |		\
+	((uint32_t)(upd) << 8) | (uint32_t)(rsv))
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -1328,6 +1332,7 @@ struct bnxt_softc {
 	uint16_t		hwrm_max_req_len;
 	uint16_t		hwrm_max_ext_req_len;
 	uint32_t		hwrm_spec_code;
+	uint32_t		hwrm_spec_code_ext;
 
 #define BNXT_MAX_QUEUE	8
 	uint8_t			max_tc;
@@ -1598,6 +1603,7 @@ struct bnxt_softc {
 	struct sysctl_ctx_list	mpc_cmp_time_stats;
 	struct sysctl_oid	*mpc_cmp_time_stats_oid;
 	uint32_t		max_ktls_entries;
+	bool			disable_hw_ktls;
 
 #define BNXT_CAGR_CQCOAL_OFFSET			0xc00
 #define BNXT_CAGR_NQAGG_MAXTIMER		0x5930000

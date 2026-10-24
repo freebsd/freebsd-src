@@ -2736,6 +2736,12 @@ bnxt_ktls_sysctls(struct bnxt_softc *softc)
 	if (!oid)
 		return ENOMEM;
 
+	oid = SYSCTL_ADD_BOOL(ctx, children, OID_AUTO, "disable_hw_ktls",
+			      CTLFLAG_RDTUN, &softc->disable_hw_ktls, 0,
+			      "Disable hardware kTLS offload on this device");
+	if (!oid)
+		return (ENOMEM);
+
 	return 0;
 }
 

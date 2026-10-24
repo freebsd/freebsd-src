@@ -973,6 +973,9 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	 softc->hwrm_spec_code = resp->hwrm_intf_maj_8b << 16 |
                              resp->hwrm_intf_min_8b << 8 |
                              resp->hwrm_intf_upd_8b;
+	softc->hwrm_spec_code_ext = BNXT_HWRM_VER_CODE_EXT(
+	    resp->hwrm_intf_maj_8b, resp->hwrm_intf_min_8b,
+	    resp->hwrm_intf_upd_8b, resp->hwrm_intf_rsvd_8b);
 	if (resp->hwrm_intf_maj_8b < 1) {
 		 device_printf(softc->dev, "HWRM interface %d.%d.%d is older "
 			       "than 1.0.0.\n", resp->hwrm_intf_maj_8b,
