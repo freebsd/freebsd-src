@@ -451,6 +451,9 @@ riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 	struct hyptrap trap;
 	uint64_t insn;
 	uint64_t gpa;
+	uint64_t spp;
+	uint64_t vsie;
+	uint64_t vsstatus;
 	bool handled;
 	int ret;
 	int i;
@@ -488,13 +491,31 @@ riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 		break;
 	case SCAUSE_ILLEGAL_INSTRUCTION:
 		/*
-		 * TODO: handle illegal instruction properly.
+		 * Inject an illegal instruction exception back to the guest.
 		 */
-		printf("%s: Illegal instruction at %lx stval 0x%lx htval "
-		    "0x%lx\n", __func__, vme->sepc, vme->stval, vme->htval);
-		vmm_stat_incr(hypctx->vcpu, VMEXIT_UNHANDLED, 1);
-		vme->exitcode = VM_EXITCODE_BOGUS;
-		handled = false;
+		vsstatus = csr_read(vsstatus);
+		vsie = (vsstatus & SSTATUS_SIE) ? SSTATUS_SPIE : 0;
+		spp = (hypctx->guest_regs.hyp_hstatus & HSTATUS_SPVP) ?
+		    SSTATUS_SPP : 0;
+		vsstatus &= ~(SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP);
+		vsstatus |= (vsie | spp);
+		csr_write(vsstatus, vsstatus);
+		hypctx->guest_csrs.vsstatus = vsstatus;
+
+		csr_write(vsepc, vme->sepc);
+		hypctx->guest_csrs.vsepc = vme->sepc;
+
+		csr_write(vscause, SCAUSE_ILLEGAL_INSTRUCTION);
+		hypctx->guest_csrs.vscause = SCAUSE_ILLEGAL_INSTRUCTION;
+
+		csr_write(vstval, vme->stval);
+		hypctx->guest_csrs.vstval = vme->stval;
+
+		hypctx->guest_regs.hyp_sepc = csr_read(vstvec) & ~0x3ULL;
+		hypctx->guest_regs.hyp_hstatus |= HSTATUS_SPVP;
+
+		vme->inst_length = 0;
+		handled = true;
 		break;
 	case SCAUSE_VIRTUAL_SUPERVISOR_ECALL:
 		handled = vmm_sbi_ecall(hypctx->vcpu);
