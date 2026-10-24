@@ -3429,24 +3429,30 @@ zfs_do_rename_impl(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 			goto out;
 		}
 
-		/*
-		 * Source and target must be the same type.
-		 */
-		if ((*svpp)->v_type == VDIR) {
-			if ((*tvpp)->v_type != VDIR) {
-				error = SET_ERROR(ENOTDIR);
-				goto out;
+		if ((at_flags & AT_RENAME_EXCHANGE) == 0) {
+			/*
+			 * Source and target must be the same type.
+			 */
+			if ((*svpp)->v_type == VDIR) {
+				if ((*tvpp)->v_type != VDIR) {
+					error = SET_ERROR(ENOTDIR);
+					goto out;
+				} else {
+					cache_purge(tdvp);
+					if (sdvp != tdvp)
+						cache_purge(sdvp);
+				}
 			} else {
-				cache_purge(tdvp);
-				if (sdvp != tdvp)
-					cache_purge(sdvp);
-			}
-		} else {
-			if ((*tvpp)->v_type == VDIR) {
-				error = SET_ERROR(EISDIR);
-				goto out;
+				if ((*tvpp)->v_type == VDIR) {
+					error = SET_ERROR(EISDIR);
+					goto out;
+				}
 			}
 		}
+	} else if ((at_flags & AT_RENAME_EXCHANGE) != 0) {
+		/* Target must exist for RENAME_EXCHANGE. */
+		error = SET_ERROR(ENOENT);
+		goto out;
 	}
 
 	vn_seqc_write_begin(*svpp);
@@ -3471,7 +3477,8 @@ zfs_do_rename_impl(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, szp->z_sa_hdl, ZFS_SEQ_MAY_GROW(szp));
 	dmu_tx_hold_sa(tx, sdzp->z_sa_hdl, ZFS_SEQ_MAY_GROW(sdzp));
-	dmu_tx_hold_zap(tx, sdzp->z_id, FALSE, snm);
+	dmu_tx_hold_zap(tx, sdzp->z_id,
+	    (at_flags & AT_RENAME_EXCHANGE) ? TRUE : FALSE, snm);
 	dmu_tx_hold_zap(tx, tdzp->z_id, TRUE, tnm);
 	if (sdzp != tdzp) {
 		dmu_tx_hold_sa(tx, tdzp->z_sa_hdl, ZFS_SEQ_MAY_GROW(tdzp));
@@ -3490,8 +3497,13 @@ zfs_do_rename_impl(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 		goto out_seq;
 	}
 
-	if (tzp)	/* Attempt to remove the existing target */
-		error = zfs_link_destroy(tdzp, tnm, tzp, tx, 0, NULL);
+	if (tzp) {
+		int tzflg = 0;
+		if ((at_flags & AT_RENAME_EXCHANGE) != 0) {
+			tzflg |= ZRENAMING;
+		}
+		error = zfs_link_destroy(tdzp, tnm, tzp, tx, tzflg, NULL);
+	}
 
 	if (error == 0) {
 		error = zfs_link_create(tdzp, tnm, szp, tx, ZRENAMING);
@@ -3505,8 +3517,17 @@ zfs_do_rename_impl(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 			error = zfs_link_destroy(sdzp, snm, szp, tx, ZRENAMING,
 			    NULL);
 			if (error == 0) {
-				zfs_log_rename(zilog, tx, TX_RENAME, sdzp,
-				    snm, tdzp, tnm, szp);
+				if ((at_flags & AT_RENAME_EXCHANGE) != 0) {
+					error = zfs_link_create(sdzp, snm, tzp,
+					    tx, ZRENAMING);
+					ASSERT0(error);
+					zfs_log_rename_exchange(zilog, tx,
+					    TX_RENAME, sdzp, snm, tdzp, tnm,
+					    szp);
+				} else {
+					zfs_log_rename(zilog, tx, TX_RENAME,
+					    sdzp, snm, tdzp, tnm, szp);
+				}
 			} else {
 				/*
 				 * At this point, we have successfully created
@@ -5528,8 +5549,17 @@ zfs_freebsd_rename(struct vop_rename_args *ap)
 	}
 #endif
 
+#if __FreeBSD_version >= 1502000
+	if (error == 0 && (ap->a_flags & ~(AT_RENAME_NOREPLACE |
+	    AT_RENAME_EXCHANGE)) != 0)
+		error = EOPNOTSUPP;
+	if (error == 0 && (~ap->a_flags & (AT_RENAME_NOREPLACE |
+	    AT_RENAME_EXCHANGE)) == 0)
+		error = EINVAL;
+#else
 	if (error == 0 && (ap->a_flags & ~(AT_RENAME_NOREPLACE)) != 0)
 		error = EOPNOTSUPP;
+#endif
 
 	if (error == 0) {
 		error = zfs_do_rename(fdvp, &fvp, ap->a_fcnp, tdvp, &tvp,
