@@ -2950,7 +2950,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (BNXT_CHIP_P7(softc)) {
 		rc = bnxt_ktls_sysctls(softc);
 		if (rc) {
-			device_printf(softc->dev, "attach: max_ktls_entries sysctl creation failed\n");
+			device_printf(softc->dev,
+			    "attach: kTLS sysctl creation failed\n");
 			goto failed;
 		}
 
