@@ -135,7 +135,7 @@ struct turnstile_chain {
 	u_int	tc_depth;			/* Length of tc_queues. */
 	u_int	tc_max_depth;			/* Max length of tc_queues. */
 #endif
-};
+} __aligned(CACHE_LINE_SIZE);
 
 #ifdef TURNSTILE_PROFILING
 u_int turnstile_max_depth;
