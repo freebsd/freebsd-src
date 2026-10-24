@@ -839,6 +839,7 @@ initarm(struct arm64_bootparams *abp)
 			panic("Cannot get physical memory regions");
 	}
 	fdt_foreach_reserved_mem(fdt_physmem_exclude_region_cb, NULL);
+	fdt_foreach_memreserve(fdt_physmem_exclude_region_cb, NULL);
 #endif
 
 	/* Exclude the EFI framebuffer from our view of physical memory. */

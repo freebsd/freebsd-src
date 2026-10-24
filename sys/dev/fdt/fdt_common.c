@@ -493,6 +493,41 @@ fdt_foreach_reserved_mem(fdt_mem_region_cb cb, void *arg)
 	return (0);
 }
 
+/*
+ * The devicetree /memreserve/ entries are not part of the tree itself, but the
+ * OF layer creates an "fdtmemreserv" property in the "chosen" node for it.
+ */
+int
+fdt_foreach_memreserve(fdt_mem_region_cb cb, void *arg)
+{
+	struct mem_region mr;
+	uint64_t rsv[2 * FDT_MEM_REGIONS];
+	phandle_t chosen;
+	ssize_t len;
+	size_t i, n;
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		return (ENXIO);
+
+	len = OF_getprop(chosen, "fdtmemreserv", rsv, sizeof(rsv));
+	if (len <= 0 || (size_t)len > sizeof(rsv))
+		return (ERANGE);
+
+	n = len / sizeof(rsv[0]);
+	for (i = 0; i + 1 < n; i += 2) {
+		memset(&mr, 0, sizeof(mr));
+		mr.mr_start = fdt64_to_cpu(rsv[i]);
+		mr.mr_size = fdt64_to_cpu(rsv[i + 1]);
+		if (mr.mr_size == 0)
+			continue;
+
+		cb(&mr, arg);
+	}
+
+	return (0);
+}
+
 int
 fdt_foreach_mem_region(fdt_mem_region_cb cb, void *arg)
 {
