@@ -609,7 +609,7 @@ exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
 }
 
 #ifdef FDT
-static void
+static void *
 try_load_dtb(void)
 {
 	vm_offset_t dtbp;
@@ -628,7 +628,7 @@ try_load_dtb(void)
 #ifndef TSLOG
 		printf("ERROR loading DTB\n");
 #endif
-		return;
+		return (NULL);
 	}
 
 	if (!OF_install(OFW_FDT, 0))
@@ -638,6 +638,8 @@ try_load_dtb(void)
 		panic("OF_init failed with the found device tree");
 
 	parse_fdt_bootargs();
+
+	return ((void *)dtbp);
 }
 #endif
 
@@ -784,6 +786,7 @@ initarm(struct arm64_bootparams *abp)
 #ifdef FDT
 	phandle_t root;
 	char dts_version[255];
+	const void *dtbp;
 #endif
 	vm_offset_t lastaddr;
 	bool valid;
@@ -820,7 +823,7 @@ initarm(struct arm64_bootparams *abp)
 	PCPU_SET(midr, get_midr());
 
 #ifdef FDT
-	try_load_dtb();
+	dtbp = try_load_dtb();
 #endif
 
 	efi_systbl_phys = MD_FETCH(preload_kmdp, MODINFOMD_FW_HANDLE,
@@ -839,6 +842,7 @@ initarm(struct arm64_bootparams *abp)
 			panic("Cannot get physical memory regions");
 	}
 	fdt_foreach_reserved_mem(fdt_physmem_exclude_region_cb, NULL);
+	fdt_foreach_memreserve(dtbp, fdt_physmem_exclude_region_cb, NULL);
 #endif
 
 	/* Exclude the EFI framebuffer from our view of physical memory. */
