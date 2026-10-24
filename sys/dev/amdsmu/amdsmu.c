@@ -320,6 +320,7 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 	struct amdsmu_metrics *m = &sc->metrics;
 	bool any_blocking = false;
 	const struct amdsmu_diagnostics *d;
+	devclass_t dc;
 
 	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
 		return;
@@ -380,11 +381,13 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 
 		if (d == NULL)
 			continue;
-		if (d->expected_module != NULL &&
-		    devclass_find(d->expected_module) == NULL)
-			device_printf(dev,
-			    "    hint: load %s to allow this block to "
-			    "suspend\n", d->expected_module);
+		if (d->expected_devclass != NULL) {
+			dc = devclass_find(d->expected_devclass);
+			if (dc == NULL || devclass_get_count(dc) == 0)
+				device_printf(dev,
+				    "    hint: load %s to allow this block to "
+				    "suspend\n", d->mod_to_load);
+		}
 		if (d->extra != NULL)
 			device_printf(dev, "    hint: %s\n", d->extra);
 	}

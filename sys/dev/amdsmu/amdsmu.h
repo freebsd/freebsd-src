@@ -123,26 +123,28 @@ static const struct amdsmu_product {
 static const struct amdsmu_diagnostics {
 	const char	*blocking_ip_block;
 	bool		ignore;
-	const char	*expected_module;
+	const char	*expected_devclass;
+	/* mod_to_load must not be NULL if expected_devclass is not NULL. */
+	const char	*mod_to_load;
 	const char	*extra;
 } amdsmu_diagnostics[] = {
-	{ "CPU", false, NULL, "this can happen due to other IP blocks or "
+	{ "CPU", false, NULL, NULL, "this can happen due to other IP blocks or "
 	    "because the system was on AC power" },
-	{ "MPM", false, NULL, "this can happen due to other IP blocks or "
-	    "because the system was on AC power" },
-	{ "GFX", false, "amdgpu", NULL },
-	{ "DISPLAY", false, "amdgpu", NULL },
+	{ "MPM", false, NULL, NULL, "this can happen due to other IP blocks or "
+	    "because the CPU didn't properly idle" },
+	{ "GFX", false, "drmn", "amdgpu", NULL },
+	{ "DISPLAY", false, "drmn", "amdgpu", NULL },
 	/*
 	 * On Phoenix and Krackan Point, these seem to report USB4, not USB3 as
 	 * their names would suggest.
 	 */
-	{ "USB3_0", false, "tb", "see thunderbolt(4)" },
-	{ "USB3_1", false, "tb", "see thunderbolt(4)" },
+	{ "USB3_0", false, "nhi", "tb", "see thunderbolt(4)" },
+	{ "USB3_1", false, "nhi", "tb", "see thunderbolt(4)" },
 	/*
 	 * On Phoenix and Krackan Point, the SMU seems to report garbage for
 	 * this IP block.
 	 */
-	{ "USB4_0", true, NULL, NULL },
+	{ "USB4_0", true, NULL, NULL, NULL },
 };
 
 struct amdsmu_softc {
