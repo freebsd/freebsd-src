@@ -632,15 +632,14 @@ sbuf_cpy(struct sbuf *s, const char *str)
 #ifdef _KERNEL
 
 /*
- * Append a non-NUL character to an sbuf.  This prototype signature is
+ * Append a character to an sbuf.  This prototype signature is
  * suitable for use with kvprintf(9).
  */
 static void
 sbuf_putc_func(int c, void *arg)
 {
 
-	if (__predict_true(c != '\0'))
-		sbuf_put_byte(arg, c);
+	sbuf_put_byte(arg, c);
 }
 
 int
