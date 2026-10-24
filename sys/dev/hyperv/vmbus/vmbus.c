@@ -57,7 +57,7 @@
 #else
 #include <dev/hyperv/vmbus/x86/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/x86/hyperv_reg.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/include/apicvar.h>
 #endif
 #include <machine/metadata.h>

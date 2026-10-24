@@ -50,7 +50,7 @@
 #include <dev/sound/macio/aoa.h>
 #include <dev/sound/macio/davbusreg.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 

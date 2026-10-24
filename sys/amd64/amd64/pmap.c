@@ -158,7 +158,7 @@
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/ifunc.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/msan.h>
 #include <machine/pcb.h>

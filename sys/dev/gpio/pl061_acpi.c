@@ -36,8 +36,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <machine/intr.h>
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 
