@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20261029:
+	The net.inet.{tcp,udp,raw}.bind_all_fibs sysctls now default to 0.
+	This allows applications to bind to the same port in different
+	FIBs.  As a result, a socket bound to a specific address only
+	receives traffic from the FIB it was created in (see setfib(1)).
+	Sockets bound to the wildcard address are not affected.  If you
+	use multiple FIBs and rely on such a service accepting traffic
+	from all of them, set these sysctls to 1 to restore the previous
+	behavior.
+
 20260919:
 	less(1) has been updated to version 710, which removes the obsolete
 	lesskey(1) utility.  It is no longer built or installed, and the
