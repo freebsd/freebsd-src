@@ -126,6 +126,11 @@ process has not enabled the
 .Dv PROC_NO_NEW_PRIVS_CTL
 .Xr procctl 2 .
 .It Bq Er EPERM
+The effective user ID is not the super-user and the
+current/root directory state of the process is shared with
+another process, see
+.Xr rfork 2 .
+.It Bq Er EPERM
 One or more file descriptors are open directories and the
 .Ql Va kern.chroot_allow_open_directories
 sysctl is not set to permit this.
