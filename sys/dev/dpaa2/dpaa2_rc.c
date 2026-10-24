@@ -46,6 +46,7 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
+#include <sys/conf.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -56,6 +57,7 @@
 #include "dpaa2_mcp.h"
 #include "dpaa2_mc.h"
 #include "dpaa2_ni.h"
+#include "dpaa2_ioctl.h"
 #include "dpaa2_mc_if.h"
 #include "dpaa2_cmd_if.h"
 
@@ -79,9 +81,13 @@ static int dpaa2_rc_add_managed_child(struct dpaa2_rc_softc *,
 static int dpaa2_rc_enable_irq(struct dpaa2_mcp *, struct dpaa2_cmd *, uint8_t,
     bool, uint16_t);
 static int dpaa2_rc_configure_irq(device_t, device_t, int, uint64_t, uint32_t);
-static int dpaa2_rc_add_res(device_t, device_t, enum dpaa2_dev_type, int, int);
+static int dpaa2_rc_add_res(device_t, device_t, enum dpaa2_dev_type, int *, int);
 static int dpaa2_rc_print_type(struct resource_list *, enum dpaa2_dev_type);
 static struct dpaa2_mcp *dpaa2_rc_select_portal(device_t, device_t);
+
+/* Userland control device (/dev/dpaa2rcN) for dpaa2ctl(8). */
+static d_ioctl_t dpaa2_rc_ioctl;
+static struct cdevsw dpaa2_rc_cdevsw;
 
 /* Routines to send commands to MC. */
 static int dpaa2_rc_exec_cmd(struct dpaa2_mcp *, struct dpaa2_cmd *, uint16_t);
@@ -100,8 +106,12 @@ dpaa2_rc_probe(device_t dev)
 static int
 dpaa2_rc_detach(device_t dev)
 {
+	struct dpaa2_rc_softc *sc = device_get_softc(dev);
 	struct dpaa2_devinfo *dinfo;
 	int error;
+
+	if (sc != NULL && sc->cdev != NULL)
+		destroy_dev(sc->cdev);
 
 	error = bus_generic_detach(dev);
 	if (error)
@@ -180,6 +190,12 @@ dpaa2_rc_attach(device_t dev)
 		return (error);
 	}
 
+	/* Control device (/dev/dpaa2rcN) for the dpaa2ctl(8) userland tool. */
+	sc->cdev = make_dev(&dpaa2_rc_cdevsw, device_get_unit(dev), UID_ROOT,
+	    GID_WHEEL, 0600, "dpaa2rc%d", device_get_unit(dev));
+	if (sc->cdev != NULL)
+		sc->cdev->si_drv1 = sc;
+
 	return (0);
 }
 
@@ -225,7 +241,7 @@ dpaa2_rc_delete_resource(device_t rcdev, device_t child, int type, int rid)
 }
 
 static struct resource *
-dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int rid,
+dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
@@ -243,7 +259,7 @@ dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int rid,
 	 *	 dedicated software portal interrupt wire.
 	 *	 See registers SWP_INTW0_CFG to SWP_INTW3_CFG for details.
 	 */
-	if (type == SYS_RES_IRQ && rid == 0)
+	if (type == SYS_RES_IRQ && *rid == 0)
 		return (NULL);
 
 	return (resource_list_alloc(rl, rcdev, child, type, rid,
@@ -251,7 +267,7 @@ dpaa2_rc_alloc_multi_resource(device_t rcdev, device_t child, int type, int rid,
 }
 
 static struct resource *
-dpaa2_rc_alloc_resource(device_t rcdev, device_t child, int type, int rid,
+dpaa2_rc_alloc_resource(device_t rcdev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	if (device_get_parent(child) != rcdev)
@@ -2736,6 +2752,476 @@ dpaa2_rc_mcp_reset(device_t dev, device_t child, struct dpaa2_cmd *cmd)
 }
 
 /**
+ * @brief Create a new DPNI object in this resource container.
+ *
+ * A minimal configuration is requested (the MC fills in defaults for the
+ * zeroed fields); this mirrors what Linux'es "restool ls-addni" does in order
+ * to wire a DPNI to a DPMAC (e.g. an SFP port) at run-time. On success the id
+ * of the freshly created DPNI is returned in *ni_id.
+ *
+ * NOTE: 'cmd' must already carry an open DPRC token (the parent container).
+ */
+static int
+dpaa2_rc_ni_create(device_t dev, device_t child, struct dpaa2_cmd *cmd,
+    uint8_t num_queues, uint32_t *ni_id)
+{
+	struct __packed ni_create_args {
+		uint32_t options;
+		uint8_t  num_queues;
+		uint8_t  num_tcs;
+		uint8_t  mac_filter_entries;
+		uint8_t  num_rx_tcs;
+		uint8_t  vlan_filter_entries;
+		uint8_t  qos_entries;
+		uint16_t fs_entries;
+		uint8_t  num_cgs;
+		uint8_t  num_opr;
+		uint8_t  dist_key_size;
+		uint8_t  num_channels;
+	} *args;
+	struct dpaa2_mcp *portal = dpaa2_rc_select_portal(dev, child);
+	int error;
+
+	if (portal == NULL || cmd == NULL || ni_id == NULL)
+		return (DPAA2_CMD_STAT_ERR);
+
+	args = (struct ni_create_args *) &cmd->params[0];
+	args->options = 0;
+	args->num_queues = num_queues;	/* Rx/Tx queues == channels */
+	args->num_tcs = 1;
+	args->mac_filter_entries = 16;
+	args->num_rx_tcs = 1;
+	args->vlan_filter_entries = 0;
+	args->qos_entries = 0;
+	args->fs_entries = 0;
+	args->num_cgs = 0;
+	args->num_opr = 0;
+	args->dist_key_size = 0;
+	args->num_channels = 0;
+
+	error = dpaa2_rc_exec_cmd(portal, cmd, CMDID_NI_CREATE);
+	if (error == 0) {
+		/*
+		 * The MC returns the new object id in the low 32 bits of the
+		 * first response parameter (mc_cmd_read_object_id()).
+		 */
+		*ni_id = (uint32_t) cmd->params[0];
+		if (bootverbose)
+			device_printf(dev, "%s: dpni created, raw resp "
+			    "params[0]=%#jx -> id=%u\n", __func__,
+			    (uintmax_t) cmd->params[0], *ni_id);
+	}
+	return (error);
+}
+
+/**
+ * @brief Connect two endpoints (e.g. a DPNI and a DPMAC) inside the container.
+ *
+ * 'cmd' must already carry an open DPRC token.
+ */
+static int
+dpaa2_rc_connect(device_t dev, device_t child, struct dpaa2_cmd *cmd,
+    const struct dpaa2_ep_desc *ep1, const struct dpaa2_ep_desc *ep2)
+{
+	struct __packed connect_args {
+		uint32_t ep1_id;
+		uint32_t ep1_ifid;
+		uint32_t ep2_id;
+		uint32_t ep2_ifid;
+		uint8_t  ep1_type[16];
+		uint32_t max_rate;
+		uint32_t committed_rate;
+		uint8_t  ep2_type[16];
+	} *args;
+	struct dpaa2_mcp *portal = dpaa2_rc_select_portal(dev, child);
+
+	if (portal == NULL || cmd == NULL || ep1 == NULL || ep2 == NULL)
+		return (DPAA2_CMD_STAT_ERR);
+
+	args = (struct connect_args *) &cmd->params[0];
+	args->ep1_id = ep1->obj_id;
+	args->ep1_ifid = ep1->if_id;
+	args->ep2_id = ep2->obj_id;
+	args->ep2_ifid = ep2->if_id;
+	args->max_rate = 0;		/* let the MC use the link's default rate */
+	args->committed_rate = 0;
+	strncpy(args->ep1_type, dpaa2_ttos(ep1->type), sizeof(args->ep1_type));
+	strncpy(args->ep2_type, dpaa2_ttos(ep2->type), sizeof(args->ep2_type));
+
+	return (dpaa2_rc_exec_cmd(portal, cmd, CMDID_RC_CONNECT));
+}
+
+/**
+ * @brief Break the connection between an endpoint (e.g. a DPNI) and its peer.
+ *
+ * dprc_disconnect() takes a single endpoint; the MC tears down the link to
+ * whatever it is connected to. A DPNI must be disconnected from its DPMAC
+ * before it can be destroyed. 'cmd' must carry an open DPRC token.
+ */
+static int
+dpaa2_rc_disconnect(device_t dev, device_t child, struct dpaa2_cmd *cmd,
+    const struct dpaa2_ep_desc *ep)
+{
+	struct __packed disconnect_args {
+		uint32_t id;
+		uint32_t if_id;
+		uint8_t  type[16];
+	} *args;
+	struct dpaa2_mcp *portal = dpaa2_rc_select_portal(dev, child);
+	int i;
+
+	if (portal == NULL || cmd == NULL || ep == NULL)
+		return (DPAA2_CMD_STAT_ERR);
+
+	for (i = 0; i < DPAA2_CMD_PARAMS_N; i++)
+		cmd->params[i] = 0;
+	args = (struct disconnect_args *) &cmd->params[0];
+	args->id = ep->obj_id;
+	args->if_id = ep->if_id;
+	strncpy(args->type, dpaa2_ttos(ep->type), sizeof(args->type));
+
+	return (dpaa2_rc_exec_cmd(portal, cmd, CMDID_RC_DISCONNECT));
+}
+
+/**
+ * @brief Create a managed DPAA2 object (DPBP or DPCON) and add it to the
+ *        container's pool of allocatable resources.
+ *
+ * Minimal firmware DPLs hand all of their DPBPs/DPCONs to the DPL-defined
+ * DPNI(s), leaving no spares for a run-time created DPNI. Create a fresh one
+ * here so the new network interface has the buffer pool / concentrator it
+ * needs. 'cmd' must carry an open DPRC token.
+ */
+static int
+dpaa2_rc_create_managed(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
+    enum dpaa2_dev_type type, uint8_t num_prio)
+{
+	device_t rcdev = sc->dev;
+	device_t child = sc->dev;
+	struct dpaa2_mcp *portal = dpaa2_rc_select_portal(rcdev, child);
+	struct dpaa2_obj obj;
+	uint32_t id;
+	uint16_t cmdid;
+	int i, error;
+
+	if (portal == NULL)
+		return (DPAA2_CMD_STAT_ERR);
+
+	/* Clear the parameter area but keep the open DPRC token. */
+	for (i = 0; i < DPAA2_CMD_PARAMS_N; i++)
+		cmd->params[i] = 0;
+
+	switch (type) {
+	case DPAA2_DEV_BP:
+		cmdid = CMDID_BP_CREATE;	/* dpbp_create: no meaningful cfg */
+		break;
+	case DPAA2_DEV_CON:
+		cmdid = CMDID_CON_CREATE;	/* dpcon_create: 1-byte cfg */
+		((uint8_t *) &cmd->params[0])[0] = num_prio;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	error = dpaa2_rc_exec_cmd(portal, cmd, cmdid);
+	if (error) {
+		device_printf(rcdev, "%s: failed to create %s: error=%d\n",
+		    __func__, dpaa2_ttos(type), error);
+		return (error);
+	}
+	id = (uint32_t) cmd->params[0];	/* mc_cmd_read_object_id() */
+
+	/* Fetch the full descriptor (region/IRQ counts) of the new object. */
+	memset(&obj, 0, sizeof(obj));
+	error = dpaa2_rc_get_obj_descriptor(rcdev, child, cmd, id, type, &obj);
+	if (error) {
+		device_printf(rcdev, "%s: failed to get descriptor of %s "
+		    "(id=%u): error=%d\n", __func__, dpaa2_ttos(type), id,
+		    error);
+		return (error);
+	}
+	obj.id = id;
+	obj.type = type;
+	device_printf(rcdev, "created %s (id=%u) for run-time dpni\n",
+	    dpaa2_ttos(type), id);
+
+	return (dpaa2_rc_add_managed_child(sc, cmd, &obj));
+}
+
+/**
+ * @brief Create a DPNI, wire it to a DPMAC and add it as a child interface.
+ *
+ * Creates a DPBP and a full set (one per CPU) of DPCONs for the new interface
+ * -- the minimal DPL leaves no spares, and a single channel does not steer Rx
+ * frames correctly -- then creates the DPNI, connects it to the DPMAC and adds
+ * the network-interface child. 'cmd' must carry an open DPRC token. The id of
+ * the created DPNI is returned in *ni_id_out.
+ *
+ * This is FreeBSD's equivalent of Linux'es "restool ls-addni dpmac.N".
+ */
+static int
+dpaa2_rc_create_ni_locked(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
+    int dpmac_id, uint32_t *ni_id_out)
+{
+	device_t rcdev = sc->dev;
+	device_t child = sc->dev;
+	struct dpaa2_ep_desc ep_ni, ep_mac;
+	struct dpaa2_obj obj;
+	uint32_t ni_id;
+	int ncon = 0;
+	int i, error;
+
+	error = dpaa2_rc_create_managed(sc, cmd, DPAA2_DEV_BP, 0);
+	if (error) {
+		device_printf(rcdev, "%s: failed to create a dpbp: error=%d\n",
+		    __func__, error);
+		return (error);
+	}
+	for (i = 0; i < mp_ncpus; i++) {
+		if (dpaa2_rc_create_managed(sc, cmd, DPAA2_DEV_CON, 2) != 0)
+			break;	/* ran out of MC resources; use what we have */
+		ncon++;
+	}
+	if (ncon == 0) {
+		device_printf(rcdev, "%s: failed to create any dpcon\n",
+		    __func__);
+		return (ENXIO);
+	}
+	/* Probe/attach the new DPBP/DPCONs so they register as free resources. */
+	bus_identify_children(rcdev);
+	bus_attach_children(rcdev);
+
+	error = dpaa2_rc_ni_create(rcdev, child, cmd, (uint8_t) ncon, &ni_id);
+	if (error) {
+		device_printf(rcdev, "%s: dpni_create failed: error=%d\n",
+		    __func__, error);
+		return (error);
+	}
+	device_printf(rcdev, "created dpni (id=%u) to attach to dpmac (id=%d)\n",
+	    ni_id, dpmac_id);
+
+	ep_ni.obj_id = ni_id;
+	ep_ni.if_id = 0;
+	ep_ni.type = DPAA2_DEV_NI;
+	ep_mac.obj_id = (uint32_t) dpmac_id;
+	ep_mac.if_id = 0;
+	ep_mac.type = DPAA2_DEV_MAC;
+
+	error = dpaa2_rc_connect(rcdev, child, cmd, &ep_ni, &ep_mac);
+	if (error) {
+		device_printf(rcdev, "%s: failed to connect dpni (id=%u) to "
+		    "dpmac (id=%d): error=%d\n", __func__, ni_id, dpmac_id,
+		    error);
+		return (error);
+	}
+	device_printf(rcdev, "connected dpni (id=%u) to dpmac (id=%d)\n", ni_id,
+	    dpmac_id);
+
+	/* Add the freshly created DPNI as a child network interface. */
+	memset(&obj, 0, sizeof(obj));
+	obj.id = ni_id;
+	obj.type = DPAA2_DEV_NI;
+	obj.irq_count = 1;	/* DPNI exposes a single (link-change) IRQ */
+	error = dpaa2_rc_add_child(sc, cmd, &obj);
+	if (error)
+		return (error);
+
+	if (ni_id_out != NULL)
+		*ni_id_out = ni_id;
+	return (0);
+}
+
+/**
+ * @brief Boot-time hook: create a DPNI on the DPMAC named by the
+ *        "hw.dpaa2.add_dpmac" loader tunable (if set).
+ *
+ * Called from dpaa2_rc_discover() with an open DPRC token, before RC_CLOSE.
+ */
+static void
+dpaa2_rc_add_dpni_to_dpmac(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd)
+{
+	uint32_t ni_id;
+	int dpmac_id = -1;
+
+	TUNABLE_INT_FETCH("hw.dpaa2.add_dpmac", &dpmac_id);
+	if (dpmac_id < 0)
+		return;	/* feature disabled */
+
+	(void) dpaa2_rc_create_ni_locked(sc, cmd, dpmac_id, &ni_id);
+}
+
+/**
+ * @brief Run-time create: open the container, create + wire a DPNI to a DPMAC
+ *        and attach it. Used by the dpaa2ctl(8) control interface.
+ */
+static int
+dpaa2_rc_create_ni(struct dpaa2_rc_softc *sc, int dpmac_id, uint32_t *ni_id_out)
+{
+	device_t rcdev = sc->dev;
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token;
+	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+	error = DPAA2_CMD_RC_OPEN(rcdev, rcdev, &cmd, sc->cont_id, &rc_token);
+	if (error)
+		return (error);
+	error = dpaa2_rc_create_ni_locked(sc, &cmd, dpmac_id, ni_id_out);
+	(void) DPAA2_CMD_RC_CLOSE(rcdev, rcdev, &cmd);
+
+	/* Probe and attach the new network interface. */
+	bus_identify_children(rcdev);
+	bus_attach_children(rcdev);
+	return (error);
+}
+
+/**
+ * @brief Destroy a DPNI object in the MC (issued to the parent DPRC token).
+ */
+static int
+dpaa2_rc_ni_destroy(device_t dev, device_t child, struct dpaa2_cmd *cmd,
+    uint32_t ni_id)
+{
+	struct dpaa2_mcp *portal = dpaa2_rc_select_portal(dev, child);
+	int i;
+
+	if (portal == NULL || cmd == NULL)
+		return (DPAA2_CMD_STAT_ERR);
+	for (i = 0; i < DPAA2_CMD_PARAMS_N; i++)
+		cmd->params[i] = 0;
+	cmd->params[0] = (uint64_t) ni_id;	/* dpni_destroy: object id */
+	return (dpaa2_rc_exec_cmd(portal, cmd, CMDID_NI_DESTROY));
+}
+
+/**
+ * @brief Run-time destroy: detach the network-interface child and destroy the
+ *        DPNI object. Used by the dpaa2ctl(8) control interface.
+ */
+static int
+dpaa2_rc_destroy_ni(struct dpaa2_rc_softc *sc, uint32_t ni_id)
+{
+	device_t rcdev = sc->dev;
+	device_t *children, target = NULL;
+	struct dpaa2_devinfo *dinfo;
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token;
+	int nchild, i, error;
+
+	error = device_get_children(rcdev, &children, &nchild);
+	if (error)
+		return (error);
+	for (i = 0; i < nchild; i++) {
+		dinfo = device_get_ivars(children[i]);
+		if (dinfo != NULL && dinfo->dtype == DPAA2_DEV_NI &&
+		    dinfo->id == ni_id) {
+			target = children[i];
+			break;
+		}
+	}
+	free(children, M_TEMP);
+	if (target == NULL)
+		return (ENOENT);
+
+	/* Detach the ifnet and release its resources back to the container. */
+	device_delete_child(rcdev, target);
+
+	/* Disconnect from the DPMAC, then destroy the DPNI object itself. */
+	DPAA2_CMD_INIT(&cmd);
+	error = DPAA2_CMD_RC_OPEN(rcdev, rcdev, &cmd, sc->cont_id, &rc_token);
+	if (error == 0) {
+		struct dpaa2_ep_desc ep_ni;
+
+		ep_ni.obj_id = ni_id;
+		ep_ni.if_id = 0;
+		ep_ni.type = DPAA2_DEV_NI;
+		/* A connected DPNI cannot be destroyed; ignore "not connected". */
+		(void) dpaa2_rc_disconnect(rcdev, rcdev, &cmd, &ep_ni);
+
+		error = dpaa2_rc_ni_destroy(rcdev, rcdev, &cmd, ni_id);
+		(void) DPAA2_CMD_RC_CLOSE(rcdev, rcdev, &cmd);
+	}
+	if (error)
+		device_printf(rcdev, "%s: dpni_destroy (id=%u) returned "
+		    "error=%d\n", __func__, ni_id, error);
+	else
+		device_printf(rcdev, "destroyed dpni (id=%u)\n", ni_id);
+	return (error);
+}
+
+/**
+ * @brief List the DPNI network interfaces present in this container.
+ */
+static int
+dpaa2_rc_list_ni(struct dpaa2_rc_softc *sc, struct dpaa2_listni_args *list)
+{
+	device_t rcdev = sc->dev;
+	device_t *children;
+	struct dpaa2_devinfo *dinfo;
+	struct dpaa2_ni_softc *nisc;
+	int nchild, i, error;
+	uint32_t n = 0;
+
+	bzero(list, sizeof(*list));
+	error = device_get_children(rcdev, &children, &nchild);
+	if (error)
+		return (error);
+	for (i = 0; i < nchild && n < DPAA2_NI_LIST_MAX; i++) {
+		dinfo = device_get_ivars(children[i]);
+		if (dinfo == NULL || dinfo->dtype != DPAA2_DEV_NI)
+			continue;
+		list->ni[n].ni_id = dinfo->id;
+		nisc = device_get_softc(children[i]);
+		list->ni[n].dpmac_id = (nisc != NULL) ? nisc->mac.dpmac_id : ~0u;
+		strlcpy(list->ni[n].name, device_get_nameunit(children[i]),
+		    DPAA2_NI_NAME_LEN);
+		n++;
+	}
+	free(children, M_TEMP);
+	list->count = n;
+	return (0);
+}
+
+/* ------------------------- /dev/dpaa2rcN control device ------------------- */
+
+static int
+dpaa2_rc_ioctl(struct cdev *cdev, u_long ucmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	struct dpaa2_rc_softc *sc = cdev->si_drv1;
+	int error;
+
+	if (sc == NULL)
+		return (ENXIO);
+
+	switch (ucmd) {
+	case DPAA2IOC_ADDNI: {
+		struct dpaa2_addni_args *a = (struct dpaa2_addni_args *) data;
+		uint32_t ni_id = 0;
+
+		error = dpaa2_rc_create_ni(sc, (int) a->dpmac_id, &ni_id);
+		a->ni_id = ni_id;
+		break;
+	}
+	case DPAA2IOC_DELNI:
+		error = dpaa2_rc_destroy_ni(sc, *(uint32_t *) data);
+		break;
+	case DPAA2IOC_LISTNI:
+		error = dpaa2_rc_list_ni(sc, (struct dpaa2_listni_args *) data);
+		break;
+	default:
+		error = ENOTTY;
+		break;
+	}
+	return (error);
+}
+
+static struct cdevsw dpaa2_rc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_ioctl =	dpaa2_rc_ioctl,
+	.d_name =	"dpaa2",
+};
+
+/**
  * @brief Create and add devices for DPAA2 objects in this resource container.
  */
 static int
@@ -2869,6 +3355,12 @@ dpaa2_rc_discover(struct dpaa2_rc_softc *sc)
 		dpaa2_rc_add_child(sc, &cmd, &obj);
 	}
 
+	/*
+	 * Optionally create a DPNI and wire it to a DPMAC (e.g. an SFP port)
+	 * when requested via the "hw.dpaa2.add_dpmac" tunable.
+	 */
+	dpaa2_rc_add_dpni_to_dpmac(sc, &cmd);
+
 	DPAA2_CMD_RC_CLOSE(rcdev, child, &cmd);
 
 	/* Probe and attach the rest of devices. */
@@ -2891,7 +3383,7 @@ dpaa2_rc_add_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 	const char *devclass;
 	int dpio_n = 0; /* to limit DPIOs by # of CPUs */
 	int dpcon_n = 0; /* to limit DPCONs by # of CPUs */
-	int error;
+	int rid, error;
 
 	rcdev = sc->dev;
 	rcinfo = device_get_ivars(rcdev);
@@ -2945,6 +3437,7 @@ dpaa2_rc_add_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 	for (; res_spec && res_spec->type != -1; res_spec++) {
 		if (res_spec->type < DPAA2_DEV_MC)
 			continue; /* Skip non-DPAA2 resource. */
+		rid = res_spec->rid;
 
 		/* Limit DPIOs and DPCONs by number of CPUs. */
 		if (res_spec->type == DPAA2_DEV_IO && dpio_n >= mp_ncpus) {
@@ -2956,8 +3449,8 @@ dpaa2_rc_add_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 			continue;
 		}
 
-		error = dpaa2_rc_add_res(rcdev, dev, res_spec->type,
-		    res_spec->rid, res_spec->flags);
+		error = dpaa2_rc_add_res(rcdev, dev, res_spec->type, &rid,
+		    res_spec->flags);
 		if (error)
 			device_printf(rcdev, "%s: dpaa2_rc_add_res() failed: "
 			    "error=%d\n", __func__, error);
@@ -2993,7 +3486,7 @@ dpaa2_rc_add_managed_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 	const char *devclass;
 	uint64_t start, end, count;
 	uint32_t flags = 0;
-	int error;
+	int rid, error;
 
 	rcdev = sc->dev;
 	child = sc->dev;
@@ -3088,9 +3581,10 @@ dpaa2_rc_add_managed_child(struct dpaa2_rc_softc *sc, struct dpaa2_cmd *cmd,
 	for (; res_spec && res_spec->type != -1; res_spec++) {
 		if (res_spec->type < DPAA2_DEV_MC)
 			continue; /* Skip non-DPAA2 resource. */
+		rid = res_spec->rid;
 
-		error = dpaa2_rc_add_res(rcdev, dev, res_spec->type,
-		    res_spec->rid, res_spec->flags);
+		error = dpaa2_rc_add_res(rcdev, dev, res_spec->type, &rid,
+		    res_spec->flags);
 		if (error)
 			device_printf(rcdev, "%s: dpaa2_rc_add_res() failed: "
 			    "error=%d\n", __func__, error);
@@ -3284,7 +3778,7 @@ dpaa2_rc_wait_for_cmd(struct dpaa2_mcp *mcp, struct dpaa2_cmd *cmd)
  */
 static int
 dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
-    int rid, int flags)
+    int *rid, int flags)
 {
 	device_t dpaa2_dev;
 	struct dpaa2_devinfo *dinfo = device_get_ivars(child);
@@ -3296,7 +3790,7 @@ dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
 	error = DPAA2_MC_GET_FREE_DEV(rcdev, &dpaa2_dev, devtype);
 	if (error && !(flags & RF_SHAREABLE)) {
 		device_printf(rcdev, "%s: failed to obtain a free %s (rid=%d) "
-		    "for: %s (id=%u)\n", __func__, dpaa2_ttos(devtype), rid,
+		    "for: %s (id=%u)\n", __func__, dpaa2_ttos(devtype), *rid,
 		    dpaa2_ttos(dinfo->dtype), dinfo->id);
 		return (error);
 	}
@@ -3307,7 +3801,7 @@ dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
 		if (error) {
 			device_printf(rcdev, "%s: failed to obtain a shared "
 			    "%s (rid=%d) for: %s (id=%u)\n", __func__,
-			    dpaa2_ttos(devtype), rid, dpaa2_ttos(dinfo->dtype),
+			    dpaa2_ttos(devtype), *rid, dpaa2_ttos(dinfo->dtype),
 			    dinfo->id);
 			return (error);
 		}
@@ -3315,7 +3809,7 @@ dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
 	}
 
 	/* Add DPAA2 device to the resource list of the child device. */
-	resource_list_add(&dinfo->resources, devtype, rid,
+	resource_list_add(&dinfo->resources, devtype, *rid,
 	    (rman_res_t) dpaa2_dev, (rman_res_t) dpaa2_dev, 1);
 
 	/* Reserve a newly added DPAA2 resource. */
@@ -3324,7 +3818,7 @@ dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
 	    flags & ~RF_ACTIVE);
 	if (!res) {
 		device_printf(rcdev, "%s: failed to reserve %s (rid=%d) for: %s "
-		    "(id=%u)\n", __func__, dpaa2_ttos(devtype), rid,
+		    "(id=%u)\n", __func__, dpaa2_ttos(devtype), *rid,
 		    dpaa2_ttos(dinfo->dtype), dinfo->id);
 		return (EBUSY);
 	}
@@ -3335,7 +3829,7 @@ dpaa2_rc_add_res(device_t rcdev, device_t child, enum dpaa2_dev_type devtype,
 		if (error) {
 			device_printf(rcdev, "%s: failed to reserve a shared "
 			    "%s (rid=%d) for: %s (id=%u)\n", __func__,
-			    dpaa2_ttos(devtype), rid, dpaa2_ttos(dinfo->dtype),
+			    dpaa2_ttos(devtype), *rid, dpaa2_ttos(dinfo->dtype),
 			    dinfo->id);
 			return (error);
 		}
