@@ -305,7 +305,7 @@ glxsb_attach(device_t dev)
 	    taskqueue_thread_enqueue, &sc->sc_tq);
 	if (sc->sc_tq == NULL) {
 		device_printf(dev, "cannot create task queue\n");
-		goto fail0;
+		goto fail_dma;
 	}
 	if (taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev)) != 0) {
@@ -330,6 +330,8 @@ glxsb_attach(device_t dev)
 
 fail1:
 	taskqueue_free(sc->sc_tq);
+fail_dma:
+	glxsb_dma_free(sc, &sc->sc_dma);
 fail0:
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_sr);
 	return (ENXIO);
