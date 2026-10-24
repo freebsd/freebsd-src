@@ -37,6 +37,11 @@
 #include "stand.h"
 #include <smbios.h>
 
+#ifdef KBOOT_HTTP_TEST
+#include "http.h"
+#include "http_file_sink.h"
+#endif
+
 int kboot_getdev(void **vdev, const char *devspec, const char **path);
 ssize_t kboot_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t kboot_copyout(vm_offset_t src, void *dest, const size_t len);
@@ -381,6 +386,53 @@ out:
 	close(fd);
 }
 
+#ifdef KBOOT_HTTP_TEST
+static void
+http_test_progress(size_t received, size_t total)
+{
+	if (total != 0)
+		printf("\r%zu/%zu", received, total);
+	else
+		printf("\r%zu", received);
+}
+
+static int
+http_test_get(int argc, const char **argv)
+{
+	struct http_file_sink fs;
+	http_req_t req;
+	const char *url;
+	bool progress;
+
+	progress = false;
+	if (argc == 3) {
+		url = argv[2];
+	} else if (argc == 4 && strcmp(argv[2], "--progress") == 0) {
+		progress = true;
+		url = argv[3];
+	} else {
+		printf("http_client: %s: usage: "
+		       "loader.kboot --http-test-get [--progress] URL\n",
+		    http_error_name(HTTP_ERR_USAGE));
+		return (HTTP_ERR_USAGE);
+	}
+
+	http_file_sink_init(&fs, ".");
+	req = (http_req_t) {
+		.url = url,
+		.sink = &fs.sink,
+		.on_progress = progress ? http_test_progress : NULL,
+	};
+
+	printf("Downloading...\n");
+	int err = http_get(req);
+	if (progress)
+		printf("\n");
+	if (err == HTTP_OK)
+		printf("Finished\n");
+	return (err);
+}
+#endif
 
 int
 main(int argc, const char **argv)
@@ -402,6 +454,11 @@ main(int argc, const char **argv)
 	 * Set up console so we get error messages.
 	 */
 	cons_probe();
+
+#ifdef KBOOT_HTTP_TEST
+	if (argc >= 2 && strcmp(argv[1], "--http-test-get") == 0)
+		exit(http_test_get(argc, argv));
+#endif
 
 	/*
 	 * Find acpi and smbios, if they exists. This allows command line and

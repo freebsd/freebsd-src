@@ -4,7 +4,7 @@
 .\" Copyright (c) 2026 Netflix, Inc.
 .\"
 .\"
-.Dd September 1, 2026
+.Dd September 3, 2026
 .Dt LOADER.KBOOT 8
 .Os
 .Sh NAME
@@ -88,6 +88,9 @@ are tried in turn, followed by any ZFS pools found on them; failing
 all of that,
 .Dq host:/
 is used.
+.Ss HTTP client
+.Nm
+includes an internal HTTP and HTTPS client for retrieving files.
 .Ss Firmware tables
 Since there is no direct firmware access, ACPI's RSDP and the SMBIOS
 entry point are recovered from the Linux EFI system table exposed at
