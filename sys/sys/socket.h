@@ -114,7 +114,7 @@ typedef	__uintptr_t	uintptr_t;
 #define	SOCK_CLOFORK	0x40000000
 #ifdef _KERNEL
 /*
- * Flags for accept1(), kern_accept4() and solisten_dequeue, in addition
+ * Flags for user_accept(), kern_accept4() and solisten_dequeue, in addition
  * to SOCK_CLOEXEC, SOCK_CLOFORK and SOCK_NONBLOCK.
  */
 #define ACCEPT4_INHERIT 0x1
