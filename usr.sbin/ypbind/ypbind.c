@@ -993,7 +993,7 @@ verify(struct in_addr addr)
 void
 yp_restricted_mode(char *args)
 {
-	struct hostent *h;
+	struct addrinfo hints, *res;
 	int i = 0;
 	char *s;
 
@@ -1004,10 +1004,13 @@ yp_restricted_mode(char *args)
 
 	/* Get the addresses of the servers. */
 	while ((s = strsep(&args, ",")) != NULL && i < RESTRICTED_SERVERS) {
-		if ((h = gethostbyname(s)) == NULL)
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_INET;
+		if (getaddrinfo(s, NULL, &hints, &res) != 0)
 			return;
-		bcopy (h->h_addr_list[0], &restricted_addrs[i],
+		bcopy (&((struct sockaddr_in *)res->ai_addr)->sin_addr, &restricted_addrs[i],
 		    sizeof(struct in_addr));
+		freeaddrinfo(res);
 		i++;
 	}
 
