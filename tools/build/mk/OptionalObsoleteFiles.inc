@@ -160,6 +160,9 @@ OLD_FILES+=usr/share/examples/bhyve/vmrun.sh
 OLD_FILES+=usr/share/man/man8/bhyve.8.gz
 OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
 OLD_DIRS+=usr/share/examples/bhyve
+OLD_FILES+=usr/tests/usr.sbin/bhyve/Kyuafile
+OLD_FILES+=usr/tests/usr.sbin/bhyve/bhyve_test
+OLD_DIRS+=usr/tests/usr.sbin/bhyve
 .endif
 
 .if ${MK_BLOCKLIST} == no

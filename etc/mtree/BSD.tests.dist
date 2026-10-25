@@ -1299,6 +1299,8 @@
         ..
     ..
     usr.sbin
+        bhyve
+        ..
         certctl
         ..
         chown

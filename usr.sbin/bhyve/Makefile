@@ -137,4 +137,7 @@ NO_WTHREAD_SAFETY=
 
 NO_WCAST_ALIGN=
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+=	tests
+
 .include <bsd.prog.mk>
