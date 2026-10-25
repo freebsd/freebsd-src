@@ -38,7 +38,7 @@
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <machine/bus.h>
 #include <machine/pl310.h>

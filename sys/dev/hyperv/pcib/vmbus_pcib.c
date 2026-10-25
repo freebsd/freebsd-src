@@ -48,12 +48,10 @@
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
-#if defined(__aarch64__)
-#include <arm64/include/intr.h>
-#endif
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/frame.h>
+#include <machine/interrupt.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/resource.h>
 
@@ -64,7 +62,6 @@
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 #if defined(__i386__) || defined(__amd64__)
-#include <machine/intr_machdep.h>
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
 #endif

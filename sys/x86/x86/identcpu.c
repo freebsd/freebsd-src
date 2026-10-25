@@ -58,7 +58,7 @@
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>

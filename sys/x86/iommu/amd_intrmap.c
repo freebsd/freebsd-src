@@ -63,7 +63,7 @@
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/include/apicreg.h>
 #include <x86/include/apicvar.h>
 #include <machine/specialreg.h>

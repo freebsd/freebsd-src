@@ -58,11 +58,9 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <machine/resource.h>
 
-#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
-#include <machine/intr_machdep.h>
-#endif
+#include <machine/interrupt.h>
+#include <machine/resource.h>
 
 #include <sys/pciio.h>
 #include <dev/pci/pcireg.h>

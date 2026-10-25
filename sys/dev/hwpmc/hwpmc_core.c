@@ -37,7 +37,7 @@
 #include <sys/smp.h>
 #include <sys/systm.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>

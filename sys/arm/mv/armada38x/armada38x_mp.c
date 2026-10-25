@@ -32,7 +32,7 @@
 
 #include <machine/smp.h>
 #include <machine/fdt.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/platformvar.h>
 
 #include <dev/ofw/ofw_bus.h>
