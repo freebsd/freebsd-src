@@ -1,5 +1,24 @@
 # Major changes between releases
 
+## Changes in version 0.15.1
+
+**Released on 2026/10/25.**
+
+### Bugfixes
+
+* #324: googletest: fix "failed without a reason" scenario
+* #328: utils::sqlite: restore static on test helpers
+* #330: Address a number of issues with the GoogleTest parser
+* #331: GoogleTest: licensing and style cleanup
+* #332: model/metadata: source code cleanup post-748e27bb
+* #339: Guard dynamic_cast results before dereferencing
+
+### Developer Workflow Changes
+
+* #338: add 30 minutes timeout for Distcheck step of CI
+
+**Full Changelog**: https://github.com/freebsd/lutok/compare/kyua-0.15.0...kyua-0.15.1
+
 ## Changes in version 0.15.0
 
 **Released on 2026/10/07.**

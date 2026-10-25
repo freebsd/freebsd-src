@@ -914,7 +914,7 @@ fi
 # List of tests.
 if $at_list_p; then
   cat <<_ATEOF || at_write_fail=1
-Kyua 0.15.0 test suite: bootstrapping tests test groups:
+Kyua 0.15.1 test suite: bootstrapping tests test groups:
 
  NUM: FILE-NAME:LINE     TEST-GROUP-NAME
       KEYWORDS
@@ -955,7 +955,7 @@ _ATEOF
   exit $at_write_fail
 fi
 if $at_version_p; then
-  printf '%s\n' "$as_me (Kyua 0.15.0)" &&
+  printf '%s\n' "$as_me (Kyua 0.15.1)" &&
   cat <<\_ATEOF || at_write_fail=1
 
 Copyright (C) 2026 Free Software Foundation, Inc.
@@ -1137,11 +1137,11 @@ exec 5>>"$at_suite_log"
 
 # Banners and logs.
 printf '%s\n' "## -------------------------------------------- ##
-## Kyua 0.15.0 test suite: bootstrapping tests. ##
+## Kyua 0.15.1 test suite: bootstrapping tests. ##
 ## -------------------------------------------- ##"
 {
   printf '%s\n' "## -------------------------------------------- ##
-## Kyua 0.15.0 test suite: bootstrapping tests. ##
+## Kyua 0.15.1 test suite: bootstrapping tests. ##
 ## -------------------------------------------- ##"
   echo
 
@@ -2003,7 +2003,7 @@ _ASBOX
   printf '%s\n' "Please send $at_msg and all information you think might help:
 
    To: <freebsd-testing@FreeBSD.org>
-   Subject: [Kyua 0.15.0] $as_me: $at_msg1$at_msg2
+   Subject: [Kyua 0.15.1] $as_me: $at_msg1$at_msg2
 
 You may investigate any problem if you feel able to do so, in which
 case the test suite provides a good starting point.  Its output may

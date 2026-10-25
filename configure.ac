@@ -26,7 +26,7 @@ dnl THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 dnl (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 dnl OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-AC_INIT([Kyua], [0.15.0], [freebsd-testing@FreeBSD.org], [kyua],
+AC_INIT([Kyua], [0.15.1], [freebsd-testing@FreeBSD.org], [kyua],
         [https://github.com/freebsd/kyua/])
 AC_PREREQ([2.65])
 

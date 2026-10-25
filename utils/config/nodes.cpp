@@ -227,10 +227,8 @@ config::detail::inner_node::lookup_rw(const tree_key& key,
     if (child_iter == _children.end()) {
         if (_dynamic) {
             base_node* const child = (key_pos == key.size() - 1) ?
-                dynamic_cast< base_node* >(new_node()) :
-                dynamic_cast< base_node* >(new dynamic_inner_node());
-	    // The types for `new_node`
-            INV_MSG(child != nullptr, "check the return type for the function called");
+                new_node() : new dynamic_inner_node();
+            INV_MSG(child != nullptr, "Node factory returned a null pointer");
             _children.insert(children_map::value_type(key[key_pos], child));
             child_iter = _children.find(key[key_pos]);
         } else {

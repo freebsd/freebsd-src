@@ -327,6 +327,7 @@ ATF_TEST_CASE_BODY(scanner__no_filters__verify_lazy_loads)
          iter != results.end(); ++iter) {
         const mock_test_program* mock_program =
             dynamic_cast< const mock_test_program* >((*iter).first.get());
+        ATF_REQUIRE(mock_program != nullptr);
         ATF_REQUIRE_EQ(1, mock_program->num_calls());
     }
 }
