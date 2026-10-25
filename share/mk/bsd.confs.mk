@@ -1,6 +1,6 @@
 
 .if !target(__<bsd.init.mk>__)
-.  error bsd.conf.mk cannot be included directly.
+.  error bsd.confs.mk cannot be included directly.
 .endif
 
 .if !target(__<bsd.confs.mk>__)
