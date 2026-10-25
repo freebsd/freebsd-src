@@ -4436,8 +4436,12 @@ rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 	phdr_info->dlpi_phdr = obj->phdr;
 	phdr_info->dlpi_phnum = obj->phnum;
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
-	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(_tcb_get(),
-	    obj->tlsindex, 0, true);
+	if (obj->tlsindex != 0) {
+		phdr_info->dlpi_tls_data = tls_get_addr_slow(_tcb_get(),
+		    obj->tlsindex, 0, true);
+	} else {
+		phdr_info->dlpi_tls_data = NULL;
+	}
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
 }
