@@ -1034,20 +1034,20 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 /*
  * Fill in a DoneList with an allocation large enough to hold all of
- * the currently-loaded   Keep this as a macro since it calls
- * alloca and we want that to occur within the scope of the caller.
+ * the currently-loaded objects.  Keep this as a macro since it calls
+ * alloca() and we want that to occur within the scope of the caller.
  */
 #define	DLP_ALLOCA_LIMIT	100	/* 800 bytes on LP64 */
-#define donelist_init(_DLP, _REQ)	do {				\
+#define	donelist_init(_DLP, _REQ)	do {				\
 	DoneList *_dlp = _DLP;						\
 	SymLook *_r = _REQ;						\
-	_dlp->num_alloc = obj_count,					\
+	_dlp->num_alloc = obj_count;					\
 	_dlp->req = NULL;						\
 	if (_dlp->num_alloc > DLP_ALLOCA_LIMIT) {			\
 		_dlp->objs = xcalloc(_dlp->num_alloc, sizeof(_dlp->objs[0])); \
 		if (_r != NULL && _r->donelist_mem == NULL) {		\
 			_r->donelist_mem = _dlp->objs;			\
-			_dlp->req = _r;				\
+			_dlp->req = _r;					\
 		}							\
 	} else {							\
 		_dlp->objs = alloca(_dlp->num_alloc * sizeof(_dlp->objs[0])); \
