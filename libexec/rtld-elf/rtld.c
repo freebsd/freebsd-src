@@ -4775,8 +4775,9 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
 	symlook_init(&req, name);
 	req.lockstate = lockstate;
 	donelist_init(&donelist, NULL);
+	res = NULL;
 	if (symlook_global(&req, &donelist) != 0)
-		return (NULL);
+		goto out;
 	if (ELF_ST_TYPE(req.sym_out->st_info) == STT_FUNC)
 		res = (const void **)make_function_pointer(req.sym_out,
 		    req.defobj_out);
@@ -4786,6 +4787,7 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
 	else
 		res = (const void **)(req.defobj_out->relocbase +
 		    req.sym_out->st_value);
+out:
 	donelist_free(&donelist);
 	return (res);
 }
