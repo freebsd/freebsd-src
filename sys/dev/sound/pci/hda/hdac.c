@@ -201,6 +201,7 @@ static const struct {
 	{ HDA_AMD_X370,      "AMD X370",	0, 0 },
 	{ HDA_AMD_X570,      "AMD X570",	0, 0 },
 	{ HDA_AMD_STONEY,    "AMD Stoney",	0, 0 },
+	{ HDA_AMD_ACP,	     "AMD ACP",		0, 0 },
 	{ HDA_AMD_RAVEN,     "AMD Raven",	0, 0 },
 	{ HDA_AMD_HUDSON2,   "AMD Hudson-2",	0, 0 },
 	{ HDA_RDC_M3010,     "RDC M3010",	0, 0 },
