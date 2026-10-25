@@ -248,6 +248,7 @@ void
 lockstate_init(RtldLockState *lockstate)
 {
 	memset(lockstate, 0, sizeof(*lockstate));
+	TAILQ_INIT(&lockstate->donelists);
 }
 
 void

@@ -1039,35 +1039,64 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
  * alloca() and we want that to occur within the scope of the caller.
  */
 #define	DLP_ALLOCA_LIMIT	100	/* 800 bytes on LP64 */
-#define	donelist_init(_DLP, _REQ)	do {				\
+#define	donelist_init(_DLP, _LOCKSTATE)	do {				\
 	DoneList *_dlp = _DLP;						\
 	_dlp->num_alloc = obj_count;					\
-	_dlp->req = NULL;						\
 	if (_dlp->num_alloc > DLP_ALLOCA_LIMIT) {			\
-		donelist_alloc(_dlp, _REQ);				\
+		donelist_alloc(_dlp, _LOCKSTATE);			\
 	} else {							\
 		_dlp->objs = alloca(_dlp->num_alloc * sizeof(_dlp->objs[0])); \
+		_dlp->mem = NULL;					\
 	}								\
 	_dlp->num_used = 0;						\
 } while (0)
 
+/*
+ * A lookup done under the read-locked rtld_bind_lock might be
+ * restarted by lock_restart_for_upgrade(), which unwinds the stack
+ * with siglongjmp() and skips donelist_free().  Link the heap
+ * memory into the list owned by the lockstate, so that
+ * donelist_free_abandoned() frees it after the restart.
+ */
 static void
-donelist_alloc(DoneList *dlp, SymLook *req)
+donelist_alloc(DoneList *dlp, RtldLockState *lockstate)
 {
-	dlp->objs = xcalloc(dlp->num_alloc, sizeof(dlp->objs[0]));
-	if (req != NULL && req->donelist_mem == NULL) {
-		req->donelist_mem = dlp->objs;
-		dlp->req = req;
+	struct donelist_mem *dm;
+
+	dm = xmalloc(sizeof(*dm) + dlp->num_alloc * sizeof(dm->objs[0]));
+	dlp->objs = dm->objs;
+	dlp->mem = dm;
+	if (lockstate != NULL && lockstate_rlocked(lockstate)) {
+		TAILQ_INSERT_HEAD(&lockstate->donelists, dm, next);
+		dlp->lockstate = lockstate;
+	} else {
+		dlp->lockstate = NULL;
 	}
 }
 
 static void
 donelist_free(DoneList *dlp)
 {
-	if (dlp->num_alloc > DLP_ALLOCA_LIMIT)
-		free(dlp->objs);
-	if (dlp->req != NULL)
-		dlp->req->donelist_mem = NULL;
+	struct donelist_mem *dm;
+	RtldLockState *lockstate;
+
+	dm = dlp->mem;
+	if (dm != NULL) {
+		lockstate = dlp->lockstate;
+		if (lockstate != NULL)
+			TAILQ_REMOVE(&lockstate->donelists, dm, next);
+	}
+	free(dm);
+}
+
+static void
+donelist_free_abandoned(RtldLockState *lockstate)
+{
+	struct donelist_mem *dm, *dm1;
+
+	TAILQ_FOREACH_SAFE(dm, &lockstate->donelists, next, dm1)
+		free(dm);
+	TAILQ_INIT(&lockstate->donelists);
 }
 
 void *
@@ -1094,8 +1123,10 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	lockstate_init(&lockstate);
 relock:
 	rlock_acquire(rtld_bind_lock, &lockstate);
-	if (sigsetjmp(lockstate.env, 0) != 0)
+	if (sigsetjmp(lockstate.env, 0) != 0) {
 		lock_upgrade(rtld_bind_lock, &lockstate);
+		donelist_free_abandoned(&lockstate);
+	}
 	if (obj->pltrel)
 		rel = (const Elf_Rel *)((const char *)obj->pltrel + reloff);
 	else
@@ -3952,8 +3983,10 @@ rtld_dlopen(const char *name, int fd, int mode)
 	if (ld_tracing != NULL) {
 		lockstate_init(&lockstate);
 		rlock_acquire(rtld_bind_lock, &lockstate);
-		if (sigsetjmp(lockstate.env, 0) != 0)
+		if (sigsetjmp(lockstate.env, 0) != 0) {
 			lock_upgrade(rtld_bind_lock, &lockstate);
+			donelist_free_abandoned(&lockstate);
+		}
 		environ = __DECONST(char **,
 		    *get_program_var_addr("environ", &lockstate));
 		lock_release(rtld_bind_lock, &lockstate);
@@ -4152,8 +4185,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	rlock_acquire(rtld_bind_lock, &lockstate);
 	if (sigsetjmp(lockstate.env, 0) != 0) {
 		lock_upgrade(rtld_bind_lock, &lockstate);
-		free(req.donelist_mem);
-		req.donelist_mem = NULL;
+		donelist_free_abandoned(&lockstate);
 	}
 	if (handle == NULL || handle == RTLD_NEXT || handle == RTLD_DEFAULT ||
 	    handle == RTLD_SELF) {
@@ -4223,7 +4255,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 			return (NULL);
 		}
 
-		donelist_init(&donelist, &req);
+		donelist_init(&donelist, &lockstate);
 		if (obj->mainprog) {
 			/* Handle obtained by dlopen(NULL, ...) implies global
 			 * scope. */
@@ -4795,7 +4827,7 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
 
 	symlook_init(&req, name);
 	req.lockstate = lockstate;
-	donelist_init(&donelist, NULL);
+	donelist_init(&donelist, lockstate);
 	res = NULL;
 	if (symlook_global(&req, &donelist) != 0)
 		goto out;
@@ -4885,7 +4917,7 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 	SymLook req1;
 	int res;
 
-	donelist_init(&donelist, req);
+	donelist_init(&donelist, req->lockstate);
 	symlook_init_from_req(&req1, req);
 
 	/*
@@ -5024,7 +5056,7 @@ symlook_obj_load_filtees(SymLook *req, SymLook *req1, const Obj_Entry *obj,
 
 	flags = (req->flags & SYMLOOK_EARLY) != 0 ? RTLD_LO_EARLY : 0;
 	load_filtees(__DECONST(Obj_Entry *, obj), flags, req->lockstate);
-	donelist_init(&donelist, NULL);
+	donelist_init(&donelist, req->lockstate);
 	symlook_init_from_req(req1, req);
 	res = symlook_needed(req1, needed, &donelist);
 	donelist_free(&donelist);
@@ -6382,7 +6414,6 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 	dst->defobj_out = NULL;
 	dst->sym_out = NULL;
 	dst->lockstate = src->lockstate;
-	dst->donelist_mem = NULL;
 }
 
 static int
