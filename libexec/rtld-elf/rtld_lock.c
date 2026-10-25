@@ -333,6 +333,12 @@ lock_restart_for_upgrade(RtldLockState *lockstate)
 }
 
 bool
+lockstate_rlocked(const RtldLockState *lockstate)
+{
+	return (lockstate->lockstate == RTLD_LOCK_RLOCKED);
+}
+
+bool
 lockstate_wlocked(const RtldLockState *lockstate)
 {
 	return (lockstate->lockstate == RTLD_LOCK_WLOCKED);
