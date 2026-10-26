@@ -26,7 +26,7 @@ jobs:
     - name: Configure
       run: ./build/ci/build.sh -a configure
       env:
-        CMAKE_ARGS: -GNinja -DENABLE_CLANG_TIDY=YES -DCLANG_TIDY_PATH=la-lint
+        CMAKE_ARGS: -GNinja -DENABLE_CLANG_TIDY=YES -DCLANG_TIDY_PATH=la-lint;--extra-arg=-Werror=newline-eof
     - name: Build
       run: ./build/ci/build.sh -a build
       env:

@@ -96,7 +96,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	size_t size, bytes_to_write;
 	ssize_t bytes_written;
 	int64_t fd_offset;
-	int64_t target_offset;
+	int64_t target_offset = 0;
 	int64_t actual_offset = 0;
 	int64_t declared_size;
 	int can_lseek;

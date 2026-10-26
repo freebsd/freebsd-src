@@ -16,6 +16,8 @@ IF(ENABLE_UNZIP)
     la_queue.h
     ../libarchive_fe/lafe_err.c
     ../libarchive_fe/lafe_err.h
+    ../libarchive_fe/lafe_explicit_bzero.c
+    ../libarchive_fe/lafe_explicit_bzero.h
     ../libarchive_fe/lafe_fnmatch.c
     ../libarchive_fe/lafe_fnmatch.h
     ../libarchive_fe/lafe_getline.c

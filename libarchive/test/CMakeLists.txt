@@ -9,6 +9,7 @@ IF(ENABLE_TEST)
     ../../test_utils/test_main.c
     read_open_memory.c
     test.h
+    test_archive_crc32.c
     test_7zip_filename_encoding.c
     test_acl_from_text_overread.c
     test_acl_nfs4.c
@@ -28,15 +29,18 @@ IF(ENABLE_TEST)
     test_archive_match_owner.c
     test_archive_match_path.c
     test_archive_match_time.c
+    test_archive_ntfs_time.c
     test_archive_parse_date.c
     test_archive_pathmatch.c
     test_archive_pathmatch_oob.c
     test_archive_read.c
     test_archive_read_add_passphrase.c
+    test_archive_read_append_filter.c
     test_archive_read_close_twice.c
     test_archive_read_multiple_data_objects.c
     test_archive_read_next_header_empty.c
     test_archive_read_next_header_raw.c
+    test_archive_read_open_filenames.c
     test_archive_read_open2.c
     test_archive_read_set_options.c
     test_archive_read_support.c
@@ -74,6 +78,7 @@ IF(ENABLE_TEST)
     test_compat_xz.c
     test_compat_zip.c
     test_compat_zstd.c
+    test_create_child_environment.c
     test_empty_write.c
     test_entry.c
     test_entry_strmode.c
@@ -88,6 +93,8 @@ IF(ENABLE_TEST)
     test_open_filename.c
     test_pax_filename_encoding.c
     test_pax_xattr_header.c
+    test_read_data_block_offset_at_eof.c
+    test_read_data_into_fd_no_offset_reported.c
     test_read_data_into_fd_size_exceeds_declared.c
     test_read_data_large.c
     test_read_disk.c
@@ -106,6 +113,7 @@ IF(ENABLE_TEST)
     test_read_filter_program.c
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c
+    test_read_filter_uudecode_newlines.c
     test_read_filter_uudecode_raw.c
     test_read_filter_zstd_raw.c
     test_read_format_7zip.c
@@ -122,9 +130,11 @@ IF(ENABLE_TEST)
     test_read_format_cab_filename.c
     test_read_format_cab_lzx_16bit.c
     test_read_format_cab_lzx_e8.c
+    test_read_format_cab_lzx_invalid_history.c
     test_read_format_cab_lzx_oob.c
     test_read_format_cab_mszip_oob.c
     test_read_format_cab_multi.c
+    test_read_format_cab_skip_across_folders.c
     test_read_format_cab_skip_malformed.c
     test_read_format_cpio_afio.c
     test_read_format_cpio_bin.c
@@ -149,6 +159,7 @@ IF(ENABLE_TEST)
     test_read_format_gtar_lzma.c
     test_read_format_gtar_redundant_L.c
     test_read_format_gtar_sparse.c
+    test_read_format_gtar_sparse_exceeds_length.c
     test_read_format_gtar_sparse_length.c
     test_read_format_gtar_sparse_skip_entry.c
     test_read_format_huge_rpm.c
@@ -166,9 +177,12 @@ IF(ENABLE_TEST)
     test_read_format_isorr_new_compress.c
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_compress.c
+    test_read_format_iso_rockridge_ce_overflow.c
+    test_read_format_iso_rockridge_cl_re_cycle.c
     test_read_format_iso_rockridge_zf_overflow.c
     test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
+    test_read_format_lha_amiga_script.c
     test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c
     test_read_format_lha_filename_utf16.c
@@ -176,6 +190,7 @@ IF(ENABLE_TEST)
     test_read_format_lha_symlink_missing_target.c
     test_read_format_mtree.c
     test_read_format_mtree_crash747.c
+    test_read_format_mtree_size.c
     test_read_format_pax_bz2.c
     test_read_format_rar.c
     test_read_format_rar_encryption.c
@@ -184,12 +199,18 @@ IF(ENABLE_TEST)
     test_read_format_rar_encryption_partially.c
     test_read_format_rar_invalid1.c
     test_read_format_rar_filter.c
+    test_read_format_rar_filter_incomplete_block.c
     test_read_format_rar_overflow.c
     test_read_format_rar5.c
     test_read_format_rar5_bad_filter.c
     test_read_format_rar5_bad_tables.c
     test_read_format_rar5_block_hdr_fail_loop.c
+    test_read_format_rar5_extra_field_underflow.c
+    test_read_format_rar5_header_size_wraparound.c
     test_read_format_rar5_loop_bug.c
+    test_read_format_rar5_redir_overflow.c
+    test_read_format_rar5_truncated_htime.c
+    test_read_format_rar5_varint_near_eof.c
     test_read_format_raw.c
     test_read_format_tar.c
     test_read_format_tar_acl_oob_read.c
@@ -202,6 +223,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_invalid_pax_size.c
     test_read_format_tar_mac_metadata.c
     test_read_format_tar_pax_g_large.c
+    test_read_format_tar_pax_global_header.c
     test_read_format_tar_pax_large_attr.c
     test_read_format_tar_pax_negative_time.c
     test_read_format_tar_pax_sun_holesdata.c
@@ -218,7 +240,10 @@ IF(ENABLE_TEST)
     test_read_format_xar_doublelink.c
     test_read_format_zip.c
     test_read_format_zip_7075_utf8_paths.c
+    test_read_format_zip_ambiguous_timestamps.c
     test_read_format_zip_comment_stored.c
+    test_read_format_zip_dos_mtime_precedence.c
+    test_read_format_zip_empty.c
     test_read_format_zip_encryption_data.c
     test_read_format_zip_encryption_header.c
     test_read_format_zip_encryption_partially.c
@@ -226,17 +251,22 @@ IF(ENABLE_TEST)
     test_read_format_zip_filename.c
     test_read_format_zip_high_compression.c
     test_read_format_zip_jar.c
+    test_read_format_zip_lzma_alone_large_size.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c
     test_read_format_zip_msdos.c
+    test_read_format_zip_negative_timestamps.c
     test_read_format_zip_nested.c
     test_read_format_zip_nofiletype.c
+    test_read_format_zip_ntfs_precedence.c
+    test_read_format_zip_ntfs_timestamp.c
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
     test_read_format_zip_symlink_unsupported_compression.c
     test_read_format_zip_traditional_encryption_data.c
     test_read_format_zip_uncompressed_size_off_by_4gib.c
+    test_read_format_zip_unset_times.c
     test_read_format_zip_winzip_aes.c
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
@@ -273,6 +303,7 @@ IF(ENABLE_TEST)
     test_write_disk_perms.c
     test_write_disk_secure.c
     test_write_disk_secure_noabsolutepaths.c
+    test_write_disk_secure_physicaldrive.c
     test_write_disk_secure744.c
     test_write_disk_secure745.c
     test_write_disk_secure746.c
@@ -311,6 +342,7 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_joliet_id.c
     test_write_format_iso9660_rockridge.c
     test_write_format_iso9660_rockridge_overflow.c
+    test_write_format_iso9660_rr_moved_notdir.c
     test_write_format_iso9660_zisofs.c
     test_write_format_iso9660_zisofs_overflow.c
     test_write_format_iso9660_bugs.c

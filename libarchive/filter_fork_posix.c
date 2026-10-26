@@ -70,6 +70,15 @@
 
 #include "filter_fork.h"
 
+#ifdef __APPLE__
+/*
+ * On Apple platforms, shared libraries cannot access the environ global
+ * variable directly (it isn't exported the same way as on other Unix systems),
+ * so it must be retrieved via _NSGetEnviron() instead.
+ */
+#include <crt_externs.h>
+#endif
+
 int
 __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 		pid_t *out_child)
@@ -154,8 +163,23 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 		if (r != 0)
 			goto actions_inited;
 	}
+
+	/*
+	 * Pass the current environment to the filter program. Without this,
+	 * posix_spawnp() would be called with a NULL envp, which spawns the filter
+	 * program with an empty environment instead of inheriting ours, on any
+	 * platform where posix_spawnp() is actually used (see the HAVE_POSIX_SPAWNP
+	 * #undef above: most systems fall back to fork()+exec(), which inherits the
+	 * environment regardless of what we do here).
+	 */
+#ifdef __APPLE__
+	char** env = *_NSGetEnviron();
+#else
+	char** env = environ;
+#endif
+
 	r = posix_spawnp(&child, cmdline->path, &actions, &attr,
-		cmdline->argv, NULL);
+		cmdline->argv, env);
 	if (r != 0)
 		goto actions_inited;
 	posix_spawn_file_actions_destroy(&actions);
@@ -264,6 +288,22 @@ __archive_check_child(int in, int out)
 #else
 	sleep(1);
 #endif
+}
+
+#elif !(defined(_WIN32) && !defined(__CYGWIN__))
+
+#include "archive.h"
+
+int
+__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
+		pid_t *out_child)
+{
+	return (ARCHIVE_FAILED);
+}
+
+void
+__archive_check_child(int in, int out)
+{
 }
 
 #endif /* defined(HAVE_PIPE) && defined(HAVE_VFORK) && defined(HAVE_FCNTL) */

@@ -30,6 +30,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_t_bad.c
     test_u.c
     test_version.c
+    test_windows_paths.c
     test_x.c
     test_Z1.c
     test_P_encryption.c

@@ -35,7 +35,7 @@ DEFINE_TEST(test_read_format_cpio_filename_eucJP_UTF8)
 	/*
 	 * Read eucJP filename in en_US.UTF-8 with "hdrcharset=eucJP" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -143,7 +143,7 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_eucJP)
 	/*
 	 * Read UTF-8 filename in ja_JP.eucJP with "hdrcharset=UTF-8" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
+	if (!setCheckedLocale("ja_JP.eucJP", "\xA4\xA2", L'\x3042')) {
 		skipping("ja_JP.eucJP locale not available on this system.");
 		return;
 	}
@@ -201,7 +201,7 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_jp)
 	/*
 	 * Read UTF-8 filename in en_US.UTF-8 without "hdrcharset=UTF-8" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -249,8 +249,11 @@ DEFINE_TEST(test_read_format_cpio_filename_CP866_KOI8R)
 	/*
 	 * Read CP866 filename in ru_RU.KOI8-R with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
+#endif
+	    !setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
@@ -302,7 +305,7 @@ DEFINE_TEST(test_read_format_cpio_filename_CP866_UTF8)
 	/*
 	 * Read CP866 filename in en_US.UTF-8 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -354,8 +357,11 @@ DEFINE_TEST(test_read_format_cpio_filename_KOI8R_CP866)
 	/*
 	 * Read KOI8-R filename in ru_RU.CP866 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP866", "\x80", L'\x0410')) {
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
@@ -407,7 +413,7 @@ DEFINE_TEST(test_read_format_cpio_filename_KOI8R_UTF8)
 	/*
 	 * Read KOI8-R filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -459,8 +465,11 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_KOI8R)
 	/*
 	 * Read UTF-8 filename in ru_RU.KOI8-R with "hdrcharset=UTF-8" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
+#endif
+	    !setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
@@ -512,8 +521,11 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP866)
 	/*
 	 * Read UTF-8 filename in ru_RU.CP866 with "hdrcharset=UTF-8" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
-		NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP866", "\x80", L'\x0410')) {
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
@@ -570,7 +582,7 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_ru)
 	/*
 	 * Read UTF-8 filename in en_US.UTF-8 without "hdrcharset=UTF-8" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -617,8 +629,11 @@ DEFINE_TEST(test_read_format_cpio_filename_eucJP_CP932)
 	/*
 	 * Read eucJP filename in CP932/SJIS with "hdrcharset=eucJP" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
-	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
+	    !setCheckedLocale("ja_JP.SJIS", "\x82\xA0", L'\x3042')) {
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
@@ -668,8 +683,11 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP932)
 	/*
 	 * Read UTF-8 filename in CP932/SJIS with "hdrcharset=UTF-8" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
-	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
+	    !setCheckedLocale("ja_JP.SJIS", "\x82\xA0", L'\x3042')) {
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
@@ -720,8 +738,11 @@ DEFINE_TEST(test_read_format_cpio_filename_CP866_CP1251)
 	/*
 	 * Read CP866 filename in CP1251 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -779,7 +800,10 @@ DEFINE_TEST(test_read_format_cpio_filename_CP866_CP1251_win)
 	/*
 	 * Read CP866 filename in CP1251 without "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia")) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (NULL == setlocale(LC_ALL, "Russian_Russia"))
+#endif
+	{
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
@@ -825,8 +849,11 @@ DEFINE_TEST(test_read_format_cpio_filename_KOI8R_CP1251)
 	/*
 	 * Read KOI8-R filename in CP1251 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -878,8 +905,11 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP1251)
 	/*
 	 * Read KOI8-R filename in CP1251 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}

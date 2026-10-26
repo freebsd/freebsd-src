@@ -1,3 +1,13 @@
+This is test_compat_lz4_B4.tar.lz4 prefixed with two skippable
+frames, each with a different magic number in the lz4/zstd magic
+number range. The first one contains no user data, the second
+one contains 10 bytes of user data (the values 0 through 9).
+
+This is useful to test lz4/zstd detection, because they share
+the same format for skippable frames. We should scan a reasonable
+amount of data looking for a non-skippable frame to decide if
+it is lz4 or zstd data.
+
 begin 664 test_compat_lz4_skippable_frames_B4.tar.lz4.uu
 M4"I-&`````!1*DT8"@`````!`@,$!08'"`D$(DT89$"GE1$``&]X9FEL90`!
 M`$OA,#`P-C0T(``P,#`W-C4(`"(P,A``(C(P`0#_!R`Q,C,U,S4U,S4Q,B`P

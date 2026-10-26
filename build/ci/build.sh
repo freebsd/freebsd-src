@@ -4,6 +4,7 @@
 #
 # Variables that can be passed via environment:
 # BS=			# build system (autotools or cmake)
+# BUILD_SYSTEM=	# alias for BS, overrides BS if set
 # CRYPTO=		# cryptography provider (openssl, nettle or mbedtls)
 # BUILDDIR=		# build directory
 # SRCDIR=		# source directory
@@ -26,10 +27,9 @@ CMAKE_ARGS="${CMAKE_ARGS:-}"
 CONFIGURE_ARGS="${CONFIGURE_ARGS:-}"
 CURDIR=`pwd`
 SRCDIR="${SRCDIR:-`pwd`}"
-RET=0
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-c openssl|nettle|mbedtls] [-s srcdir ]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck|artifact|dist-artifact ] [ -a ... ] [ -d builddir ] [-c openssl|nettle|mbedtls] [-s srcdir ]"
 }
 inputerror () {
 	echo $1
@@ -117,6 +117,15 @@ fi
 if [ -z "${BUILDDIR:-}" ]; then
 	BUILDDIR="${CURDIR}/build_ci/${BS}"
 fi
+# The loop below cd's around, so make these absolute.
+case "${SRCDIR}" in
+	/*) ;;
+	*) SRCDIR="${CURDIR}/${SRCDIR}" ;;
+esac
+case "${BUILDDIR}" in
+	/*) ;;
+	*) BUILDDIR="${CURDIR}/${BUILDDIR}" ;;
+esac
 mkdir -p "${BUILDDIR}"
 for action in ${ACTIONS}; do
 	cd "${BUILDDIR}"
@@ -126,7 +135,6 @@ for action in ${ACTIONS}; do
 				autotools)
 					cd "${SRCDIR}"
 					sh build/autogen.sh
-					RET="$?"
 				;;
 			esac
 		;;
@@ -135,38 +143,27 @@ for action in ${ACTIONS}; do
 				autotools) "${SRCDIR}/configure" ${CONFIGURE_ARGS} ;;
 				cmake) ${CMAKE} ${CMAKE_ARGS} "${SRCDIR}" ;;
 			esac
-			RET="$?"
 		;;
 		build)
 			${MAKE} ${MAKE_ARGS}
-			RET="$?"
 		;;
 		test)
 			case "${BS}" in
 				autotools)
-					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci/test_driver"
+					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci/test_driver" _VERBOSITY_LEVEL=2
 					;;
 				cmake)
-					${MAKE} ${MAKE_ARGS} test
+					${MAKE} ${MAKE_ARGS} test _VERBOSITY_LEVEL=2
 					;;
 			esac
-			RET="$?"
-			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \; 2>/dev/null || /bin/true
 		;;
 		install)
 			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
-			RET="$?"
 			cd "${BUILDDIR}/destdir" && ls -lR .
 			./usr/local/bin/bsdtar --version
 		;;
 		distcheck)
-			${MAKE} ${MAKE_ARGS} distcheck || (
-				RET="$?"
-				find . -name 'test-suite.log' -print -exec cat {} \;
-				find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \; 2>/dev/null || /bin/true
-				exit "${RET}"
-			)
-			RET="$?"
+			${MAKE} ${MAKE_ARGS} distcheck _VERBOSITY_LEVEL=2
 		;;
 		artifact)
 			tar -c -J -C "${BUILDDIR}/destdir" -f "${CURDIR}/libarchive.tar.xz" usr
@@ -178,9 +175,5 @@ for action in ${ACTIONS}; do
 			ls -l "${CURDIR}/libarchive-dist.tar"
 		;;
 	esac
-	if [ "${RET}" != "0" ]; then
-		exit "${RET}"
-	fi
 	cd "${CURDIR}"
 done
-exit "${RET}"

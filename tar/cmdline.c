@@ -95,6 +95,7 @@ static const struct bsdtar_option {
 	{ "lzma",                 0, OPTION_LZMA },
 	{ "lzop",                 0, OPTION_LZOP },
 	{ "mac-metadata",         0, OPTION_MAC_METADATA },
+	{ "mode",                 1, OPTION_MODE },
 	{ "modification-time",    0, 'm' },
 	{ "mtime",                1, OPTION_MTIME },
 	{ "newer",		  1, OPTION_NEWER_CTIME },

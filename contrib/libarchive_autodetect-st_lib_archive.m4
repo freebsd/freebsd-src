@@ -3,7 +3,7 @@ dnl @synopsis ST_LIB_ARCHIVE([ENABLED-DEFAULT])
 dnl
 dnl This macro figures out what's necessary to link a program against an
 dnl instance of the BSD libarchive package by Tim Kientzle.
-dnl 
+dnl
 dnl See http://people.freebsd.org/~kientzle/libarchive/ for more info.
 dnl
 dnl It exports and substitutes the variables LIBARCHIVE_LIBS, LIBARCHIVE_LDFLAGS,
@@ -29,26 +29,25 @@ dnl @author Andre Stechert <andre@splunk.com>
 dnl @version 2006-04-20
 dnl @license GPLWithACException
 
-AC_DEFUN([ST_LIB_ARCHIVE],
-[
-#
-# Handle input from the configurer and blend with the requirements from the maintainer.
-# We go through the trouble of creating a second set of variables other than the with_foo
-# variables in order to be sure that error/corner cases have been cleaned up.
-#
-# After this statement, three trusted variable are defined.
-#
-# st_lib_archive_ENABLED will be either "yes" or "no".  its value determines whether
-# or not we bother with the rest of the checks and whether or not we export a
-# bunch of variables.
-#
-# st_lib_archive_LOCATION will be either "auto" or "defined".  if it is "auto", then
-# we try a bunch of standard locations.  if it is "defined", then we just try the value
-# provided in st_lib_archive_DIR.
-#
-# st_lib_archive_DIR will contain the string provided by the user, provided that it's
-# actually a directory.
-#
+AC_DEFUN([ST_LIB_ARCHIVE], [dnl
+dnl
+dnl Handle input from the configurer and blend with the requirements from the maintainer.
+dnl We go through the trouble of creating a second set of variables other than the with_foo
+dnl variables in order to be sure that error/corner cases have been cleaned up.
+dnl
+dnl After this statement, three trusted variable are defined.
+dnl
+dnl st_lib_archive_ENABLED will be either "yes" or "no".  its value determines whether
+dnl or not we bother with the rest of the checks and whether or not we export a
+dnl bunch of variables.
+dnl
+dnl st_lib_archive_LOCATION will be either "auto" or "defined".  if it is "auto", then
+dnl we try a bunch of standard locations.  if it is "defined", then we just try the value
+dnl provided in st_lib_archive_DIR.
+dnl
+dnl st_lib_archive_DIR will contain the string provided by the user, provided that it's
+dnl actually a directory.
+dnl
 AC_MSG_CHECKING([if libarchive is wanted])
 AC_ARG_WITH([libarchive],
 	AS_HELP_STRING([--with-libarchive=DIR], [libarchive installation directory]),
@@ -76,12 +75,12 @@ AC_ARG_WITH([libarchive],
 
 if test "$st_lib_archive_ENABLED" = "yes" ; then
 	AC_MSG_RESULT([yes])
-#
-# After this statement, one trusted variable is defined.
-#
-# st_lib_archive_LIB will be either "lib" or "lib64", depending on whether the configurer
-# specified 32, 64.  The default is "lib".
-#
+dnl
+dnl After this statement, one trusted variable is defined.
+dnl
+dnl st_lib_archive_LIB will be either "lib" or "lib64", depending on whether the configurer
+dnl specified 32, 64.  The default is "lib".
+dnl
 	AC_MSG_CHECKING([whether to use lib or lib64])
 	AC_ARG_WITH([libarchive-bits],
 		AS_HELP_STRING([--with-libarchive-bits=32/64], [if 64, look in /lib64 on hybrid systems]),
@@ -94,9 +93,9 @@ if test "$st_lib_archive_ENABLED" = "yes" ; then
 		fi],
 		[st_lib_archive_LIB=lib])
 	AC_MSG_RESULT($st_lib_archive_LIB)
-#
-# Save the environment before verifying libarchive availability
-#
+dnl
+dnl Save the environment before verifying libarchive availability
+dnl
 	st_lib_archive_SAVECPPFLAGS="$CPPFLAGS"
 	st_lib_archive_SAVELDFLAGS="$LDFLAGS"
 	AC_LANG_SAVE
@@ -114,9 +113,9 @@ if test "$st_lib_archive_ENABLED" = "yes" ; then
 			AC_MSG_ERROR([could not find libarchive in the requested location])
 		fi
 	else
-		#
-		# These are the common install directories for Linux, FreeBSD, Solaris, and Mac.
-		#
+		dnl
+		dnl These are the common install directories for Linux, FreeBSD, Solaris, and Mac.
+		dnl
 		for dir in /usr /usr/local /usr/sfw /opt/csw /opt/local /sw
 		do
 			if test -d "$dir" ; then
@@ -141,9 +140,9 @@ if test "$st_lib_archive_ENABLED" = "yes" ; then
 		AC_SUBST(LIBARCHIVE_LDFLAGS)
 	fi
 
-#
-# Restore the environment now that we're done.
-#
+dnl
+dnl Restore the environment now that we're done.
+dnl
 	AC_LANG_RESTORE
 	CPPFLAGS="$st_lib_archive_SAVECPPFLAGS"
 	LDFLAGS="$st_lib_archive_SAVELDFLAGS"

@@ -34,7 +34,7 @@ then
 	fi
 	BUILDDIR="${CURDIR}/build_ci/${BS}"
 	cd "$BUILDDIR"
-	TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
+	_VERBOSITY_LEVEL=2 TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 else
 	echo "Usage: $0 prepare | test"
 	exit 1

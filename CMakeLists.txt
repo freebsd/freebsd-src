@@ -223,6 +223,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 OPTION(ENABLE_MBEDTLS "Enable use of mbed TLS" OFF)
 OPTION(ENABLE_NETTLE "Enable use of Nettle" OFF)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
+OPTION(ENABLE_MD "Enable use of Message Digest" ON)
 OPTION(ENABLE_LIBB2 "Enable the use of the system LIBB2 library if found" ON)
 OPTION(ENABLE_LZ4 "Enable the use of the system LZ4 library if found" ON)
 OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
@@ -232,13 +233,14 @@ OPTION(ENABLE_ZSTD "Enable the use of the system zstd library if found" ON)
 OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
+OPTION(ENABLE_BSDXML "Enable the use of the system bsdxml library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
 OPTION(ENABLE_WIN32_XMLLITE "Enable the use of the Windows XmlLite library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
 OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if found" ON)
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
-OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
+OPTION(ENABLE_CNG "Enable the use of Windows CNG (Crypto Next Generation) if found" ON)
 
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
@@ -316,8 +318,8 @@ IF("${CMAKE_C_PLATFORM_ID}" MATCHES "^(HP-UX)$")
 ENDIF()
 
 IF(MINGW)
-  ADD_DEFINITIONS(-D__USE_MINGW_ANSI_STDIO)
-  ADD_DEFINITIONS(-D__MINGW_USE_VC2005_COMPAT)
+  ADD_DEFINITIONS(-D__USE_MINGW_ANSI_STDIO=1)
+  ADD_DEFINITIONS(-D__MINGW_USE_VC2005_COMPAT=1)
 ENDIF()
 
 #
@@ -801,9 +803,11 @@ LA_CHECK_INCLUDE_FILE("sys/param.h" HAVE_SYS_PARAM_H)
 LA_CHECK_INCLUDE_FILE("sys/poll.h" HAVE_SYS_POLL_H)
 LA_CHECK_INCLUDE_FILE("sys/richacl.h" HAVE_SYS_RICHACL_H)
 LA_CHECK_INCLUDE_FILE("sys/select.h" HAVE_SYS_SELECT_H)
+LA_CHECK_INCLUDE_FILE("sys/single_threaded.h" HAVE_SYS_SINGLE_THREADED_H)
 LA_CHECK_INCLUDE_FILE("sys/stat.h" HAVE_SYS_STAT_H)
 LA_CHECK_INCLUDE_FILE("sys/statfs.h" HAVE_SYS_STATFS_H)
 LA_CHECK_INCLUDE_FILE("sys/statvfs.h" HAVE_SYS_STATVFS_H)
+LA_CHECK_INCLUDE_FILE("sys/sysctl.h" HAVE_SYS_SYSCTL_H)
 LA_CHECK_INCLUDE_FILE("sys/sysmacros.h" HAVE_SYS_SYSMACROS_H)
 LA_CHECK_INCLUDE_FILE("sys/time.h" HAVE_SYS_TIME_H)
 LA_CHECK_INCLUDE_FILE("sys/utime.h" HAVE_SYS_UTIME_H)
@@ -817,10 +821,11 @@ LA_CHECK_INCLUDE_FILE("utime.h" HAVE_UTIME_H)
 LA_CHECK_INCLUDE_FILE("wchar.h" HAVE_WCHAR_H)
 LA_CHECK_INCLUDE_FILE("wctype.h" HAVE_WCTYPE_H)
 LA_CHECK_INCLUDE_FILE("windows.h" HAVE_WINDOWS_H)
-IF(ENABLE_CNG)
-  LA_CHECK_INCLUDE_FILE("bcrypt.h" HAVE_BCRYPT_H)
-  IF(HAVE_BCRYPT_H)
-    LIST(APPEND ADDITIONAL_LIBS "bcrypt")
+LA_CHECK_INCLUDE_FILE("bcrypt.h" HAVE_BCRYPT_H)
+IF(HAVE_BCRYPT_H)
+  LIST(APPEND ADDITIONAL_LIBS "bcrypt")
+  IF(ENABLE_CNG)
+    SET(ARCHIVE_CRYPTO_WIN        1)
     # bcrypt supports these algorithms on all available versions
     SET(ARCHIVE_CRYPTO_MD5        1)
     SET(ARCHIVE_CRYPTO_MD5_WIN    1)
@@ -832,10 +837,8 @@ IF(ENABLE_CNG)
     SET(ARCHIVE_CRYPTO_SHA384_WIN 1)
     SET(ARCHIVE_CRYPTO_SHA512     1)
     SET(ARCHIVE_CRYPTO_SHA512_WIN 1)
-  ENDIF(HAVE_BCRYPT_H)
-ELSE(ENABLE_CNG)
-  UNSET(HAVE_BCRYPT_H CACHE)
-ENDIF(ENABLE_CNG)
+  ENDIF(ENABLE_CNG)
+ENDIF(HAVE_BCRYPT_H)
 # Following files need windows.h, so we should test it after windows.h test.
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
@@ -895,6 +898,8 @@ IF(ENABLE_NETTLE)
     LA_CHECK_INCLUDE_FILE("nettle/pbkdf2.h" HAVE_NETTLE_PBKDF2_H)
     LA_CHECK_INCLUDE_FILE("nettle/ripemd160.h" HAVE_NETTLE_RIPEMD160_H)
     LA_CHECK_INCLUDE_FILE("nettle/sha.h" HAVE_NETTLE_SHA_H)
+    LA_CHECK_INCLUDE_FILE("nettle/sha1.h" HAVE_NETTLE_SHA1_H)
+    LA_CHECK_INCLUDE_FILE("nettle/sha2.h" HAVE_NETTLE_SHA2_H)
     LA_CHECK_INCLUDE_FILE("nettle/version.h" HAVE_NETTLE_VERSION_H)
     CMAKE_POP_CHECK_STATE()
 
@@ -928,7 +933,7 @@ ELSE()
 ENDIF()
 
 # FreeBSD libmd
-IF(NOT OPENSSL_FOUND)
+IF(ENABLE_MD AND NOT OPENSSL_FOUND)
   CHECK_LIBRARY_EXISTS(md "MD5Init" "" LIBMD_FOUND)
   IF(LIBMD_FOUND)
     CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
@@ -937,7 +942,7 @@ IF(NOT OPENSSL_FOUND)
     LIST(APPEND ADDITIONAL_LIBS ${LIBMD_LIBRARY})
     CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(LIBMD_FOUND)
-ENDIF(NOT OPENSSL_FOUND)
+ENDIF(ENABLE_MD AND NOT OPENSSL_FOUND)
 
 # libbsd for readpassphrase on Haiku
 IF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
@@ -1145,7 +1150,6 @@ IF(ENABLE_ICONV)
       CHECK_ICONV("libiconv" "const")
       CHECK_ICONV("libiconv" "")
       IF (HAVE_ICONV)
-        SET(HAVE_LIBICONV 1)
         LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
       ENDIF(HAVE_ICONV)
     ENDIF(NOT HAVE_ICONV AND LIBICONV_PATH)
@@ -1189,7 +1193,6 @@ ELSE(ENABLE_ICONV)
   # (once enabled).
   UNSET(HAVE_LOCALE_CHARSET CACHE)
   UNSET(HAVE_ICONV CACHE)
-  UNSET(HAVE_LIBICONV CACHE)
   UNSET(HAVE_ICONV_libc_ CACHE)
   UNSET(HAVE_ICONV_libc_const CACHE)
   UNSET(HAVE_ICONV_libiconv_ CACHE)
@@ -1206,7 +1209,7 @@ ENDIF(ENABLE_ICONV)
 # Find Libxml2
 #
 IF(ENABLE_LIBXML2 AND HAVE_ICONV)
-  FIND_PACKAGE(LibXml2)
+  FIND_PACKAGE(LibXml2 2.7.3)
 ELSE()
   SET(LIBXML2_FOUND FALSE)
 ENDIF()
@@ -1233,40 +1236,61 @@ IF(LIBXML2_FOUND)
   CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 ELSE(LIBXML2_FOUND)
   #
-  # Find Expat
+  # Find XmlLite
   #
-  IF(ENABLE_EXPAT)
-    FIND_PACKAGE(EXPAT)
-  ELSE()
-    SET(EXPAT_FOUND FALSE)
-  ENDIF()
-  IF(EXPAT_FOUND)
-    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-    INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIR})
-    LIST(APPEND ADDITIONAL_LIBS ${EXPAT_LIBRARIES})
-    SET(HAVE_LIBEXPAT 1)
-    LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
-    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
-  ELSE(EXPAT_FOUND)
-    IF(WIN32 AND ENABLE_WIN32_XMLLITE)
-      # Check linkage as well; versions of mingw-w64 before v11.0.0
-      # do not contain an import library for xmllite.
-      cmake_push_check_state()
-      SET(CMAKE_REQUIRED_LIBRARIES "xmllite" "uuid")
-      check_c_source_compiles("
-      #include <initguid.h>
-      #include <xmllite.h>
-      int main() {
-        return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
-      }
-      " HAVE_XMLLITE_H)
-      cmake_pop_check_state()
-      IF(HAVE_XMLLITE_H)
-        SET(XMLLITE_FOUND TRUE)
-        LIST(APPEND ADDITIONAL_LIBS "xmllite" "uuid")
-      ENDIF()
-    ENDIF()
-  ENDIF(EXPAT_FOUND)
+  IF(WIN32 AND ENABLE_WIN32_XMLLITE)
+    # Check linkage as well; versions of mingw-w64 before v11.0.0
+    # do not contain an import library for XmlLite.
+    cmake_push_check_state()
+    SET(CMAKE_REQUIRED_LIBRARIES "xmllite" "uuid")
+    check_c_source_compiles("
+    #include <initguid.h>
+    #include <xmllite.h>
+    int main() {
+      return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
+    }
+    " HAVE_XMLLITE_H)
+    cmake_pop_check_state()
+    IF(HAVE_XMLLITE_H)
+      SET(HAVE_LIBXMLLITE 1)
+      SET(XMLLITE_FOUND TRUE)
+      LIST(APPEND ADDITIONAL_LIBS "xmllite" "uuid")
+    ENDIF(HAVE_XMLLITE_H)
+  ENDIF(WIN32 AND ENABLE_WIN32_XMLLITE)
+  IF(NOT XMLLITE_FOUND)
+    #
+    # Find Expat
+    #
+    IF(ENABLE_EXPAT)
+      FIND_PACKAGE(EXPAT)
+    ELSE(ENABLE_EXPAT)
+      SET(EXPAT_FOUND FALSE)
+    ENDIF(ENABLE_EXPAT)
+    IF(EXPAT_FOUND)
+      CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
+      INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIRS})
+      LIST(APPEND CMAKE_REQUIRED_INCLUDES ${EXPAT_INCLUDE_DIR})
+      LIST(APPEND ADDITIONAL_LIBS ${EXPAT_LIBRARIES})
+      SET(HAVE_LIBEXPAT 1)
+      LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
+      CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
+    ENDIF(EXPAT_FOUND)
+    #
+    # Find bsdxml
+    #
+    IF(NOT EXPAT_FOUND)
+      IF(ENABLE_BSDXML)
+        FIND_PATH(BSDXML_INCLUDE_DIR NAMES bsdxml.h)
+        FIND_LIBRARY(BSDXML_LIBRARY NAMES bsdxml)
+        IF(BSDXML_INCLUDE_DIR AND BSDXML_LIBRARY)
+          INCLUDE_DIRECTORIES(${BSDXML_INCLUDE_DIR})
+          LIST(APPEND ADDITIONAL_LIBS ${BSDXML_LIBRARY})
+          SET(HAVE_LIBBSDXML 1)
+          LA_CHECK_INCLUDE_FILE("bsdxml.h" HAVE_BSDXML_H)
+        ENDIF(BSDXML_INCLUDE_DIR AND BSDXML_LIBRARY)
+      ENDIF(ENABLE_BSDXML)
+    ENDIF(NOT EXPAT_FOUND)
+  ENDIF(NOT XMLLITE_FOUND)
 ENDIF(LIBXML2_FOUND)
 MARK_AS_ADVANCED(CLEAR LIBXML2_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR LIBXML2_LIBRARIES)
@@ -1462,6 +1486,17 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fno-builtin")
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
        CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+IF (MSVC)
+  #
+  # The Windows CRT marks a number of standard functions (e.g. wcscpy) as
+  # deprecated. All source files in this project are compiled with those
+  # deprecations suppressed, so suppress these warnings for the following
+  # symbol checks as well. Otherwise, the deprecation warnings get turned into
+  # errors by ENABLE_WERROR's /WX flag and the check fails even when the
+  # function exists.
+  #
+  LIST(APPEND CMAKE_REQUIRED_DEFINITIONS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS)
+ENDIF (MSVC)
 CHECK_SYMBOL_EXISTS(_CrtSetReportMode "crtdbg.h" HAVE__CrtSetReportMode)
 CHECK_FUNCTION_EXISTS_GLIBC(arc4random_buf HAVE_ARC4RANDOM_BUF)
 CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
@@ -1470,6 +1505,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(chroot HAVE_CHROOT)
 CHECK_FUNCTION_EXISTS_GLIBC(closefrom HAVE_CLOSEFROM)
 CHECK_FUNCTION_EXISTS_GLIBC(close_range HAVE_CLOSE_RANGE)
 CHECK_FUNCTION_EXISTS_GLIBC(ctime_r HAVE_CTIME_R)
+CHECK_FUNCTION_EXISTS_GLIBC(explicit_bzero HAVE_EXPLICIT_BZERO)
 CHECK_FUNCTION_EXISTS_GLIBC(fchdir HAVE_FCHDIR)
 CHECK_FUNCTION_EXISTS_GLIBC(fchflags HAVE_FCHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(fchmod HAVE_FCHMOD)
@@ -1510,6 +1546,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(lstat HAVE_LSTAT)
 CHECK_FUNCTION_EXISTS_GLIBC(lutimes HAVE_LUTIMES)
 CHECK_FUNCTION_EXISTS_GLIBC(mbrtowc HAVE_MBRTOWC)
 CHECK_FUNCTION_EXISTS_GLIBC(memmove HAVE_MEMMOVE)
+CHECK_FUNCTION_EXISTS_GLIBC(memset_explicit HAVE_MEMSET_EXPLICIT)
 CHECK_FUNCTION_EXISTS_GLIBC(mkdir HAVE_MKDIR)
 CHECK_FUNCTION_EXISTS_GLIBC(mkfifo HAVE_MKFIFO)
 CHECK_FUNCTION_EXISTS_GLIBC(mknod HAVE_MKNOD)
@@ -1564,6 +1601,7 @@ CHECK_FUNCTION_EXISTS(fseeko HAVE_FSEEKO)
 CHECK_FUNCTION_EXISTS(strerror_r HAVE_STRERROR_R)
 CHECK_FUNCTION_EXISTS(strftime HAVE_STRFTIME)
 CHECK_FUNCTION_EXISTS(vprintf HAVE_VPRINTF)
+CHECK_FUNCTION_EXISTS(waitpid HAVE_WAITPID)
 CHECK_FUNCTION_EXISTS(wmemcmp HAVE_WMEMCMP)
 CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
 CHECK_FUNCTION_EXISTS(wmemmove HAVE_WMEMMOVE)
@@ -2218,7 +2256,10 @@ ENDIF(WIN32 AND NOT CYGWIN AND ENABLE_INSTALL)
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 #
 IF(MSVC)
-  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
+  ADD_DEFINITIONS(
+    -D_CRT_NONSTDC_NO_WARNINGS
+    -D_CRT_SECURE_NO_DEPRECATE
+  )
 ENDIF(MSVC)
 
 OPTION(DONT_FAIL_ON_CRC_ERROR "Ignore CRC errors during parsing (For fuzzing)" OFF)

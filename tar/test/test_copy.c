@@ -323,8 +323,8 @@ copy_ustar(void)
 	/*
 	 * Use the tar program to create an archive.
 	 */
-	r = systemf("%s cf archive --format=ustar -C ../original f d l m s >pack.out 2>pack.err",
-	    testprog);
+	r = systemf("%s cf archive --uid=0 --gid=0 --format=ustar "
+	    "-C ../original f d l m s >pack.out 2>pack.err", testprog);
 	failure("Error invoking \"%s cf archive --format=ustar\"", testprog);
 	assertEqualInt(r, 0);
 
@@ -354,7 +354,7 @@ DEFINE_TEST(test_copy)
 	create_tree(); /* Create sample files in "original" dir. */
 
 	/* Test simple "tar -c | tar -x" pipeline copy. */
-	copy_basic("", "default");
+	copy_basic("--uid=0 --gid=0", "default");
 
 	/* Same, but constrain to ustar format. */
 	copy_ustar();

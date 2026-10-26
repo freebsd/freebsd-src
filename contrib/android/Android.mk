@@ -98,6 +98,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_string.c \
 						libarchive/archive_string_sprintf.c \
 						libarchive/archive_time.c \
+						libarchive/archive_umask.c \
 						libarchive/archive_util.c \
 						libarchive/archive_version_details.c \
 						libarchive/archive_virtual.c \

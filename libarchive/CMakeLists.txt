@@ -22,7 +22,7 @@ SET(libarchive_SOURCES
   archive_check_magic.c
   archive_cmdline.c
   archive_cmdline_private.h
-  archive_crc32.h
+  archive_crc32.c
   archive_cryptor.c
   archive_cryptor_private.h
   archive_digest.c
@@ -120,6 +120,8 @@ SET(libarchive_SOURCES
   archive_string_sprintf.c
   archive_time.c
   archive_time_private.h
+  archive_umask.c
+  archive_umask_private.h
   archive_util.c
   archive_version_details.c
   archive_virtual.c
@@ -170,6 +172,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_zip.c
   archive_write_set_options.c
   archive_write_set_passphrase.c
+  archive_xml_private.h
   archive_xxhash.h
   filter_fork_posix.c
   filter_fork.h

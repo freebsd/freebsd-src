@@ -56,7 +56,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_read_disk_open "struct archive *" "const char *"
 .Ft int
-.Fn archive_read_disk_open_w "struct archive *" "const wchar_t *" 
+.Fn archive_read_disk_open_w "struct archive *" "const wchar_t *"
 .Ft int
 .Fn archive_read_disk_set_behavior "struct archive *" "int"
 .Ft int
@@ -109,7 +109,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "void (*excluded_func)(struct archive *, void *, struct archive entry *)"
 .Fa "void *"
 .Fc
-.Ft int 
+.Ft int
 .Fo archive_read_disk_set_metadata_filter_callback
 .Fa "struct archive *"
 .Fa "int (*metadata_filter_func)(struct archive *, void*, struct archive_entry *)"
@@ -191,15 +191,19 @@ By default, sparse file information is read from disk.
 This sets the mode used for handling symbolic links.
 The
 .Dq logical
-mode follows all symbolic links.
+mode follows all symbolic links, except that a symbolic link whose
+target is an ancestor directory of the link is archived as a symbolic
+link rather than being followed, to avoid loops.
 The
 .Dq physical
 mode does not follow any symbolic links.
 The
 .Dq hybrid
-mode currently behaves identically to the
-.Dq logical
-mode.
+mode follows symbolic links specified as the target of
+.Fn archive_read_disk_open
+or
+.Fn archive_read_disk_open_w
+but does not follow symbolic links anywhere else.
 .It Xo
 .Fn archive_read_disk_gname ,
 .Fn archive_read_disk_uname
@@ -267,13 +271,13 @@ This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
 .It Fn archive_read_disk_descend
-If the current entry can be descended, this function will mark the directory as the next entry for 
+If the current entry can be descended, this function will mark the directory as the next entry for
 .Xr archive_read_header 3
 to visit.
 .It Fn archive_read_disk_can_descend
 Returns 1 if the current entry is an unvisited directory and 0 otherwise.
 .It Fn archive_read_disk_current_filesystem
-Returns the index of the most recent filesystem entry that has been visited through archive_read_disk
+Returns the index of the most recent filesystem entry that has been visited through archive_read_disk.
 .It Fn archive_read_disk_current_filesystem_is_synthetic
 Returns 1 if the current filesystem is a virtual filesystem. Returns 0 if the current filesystem is not a virtual filesystem. Returns -1 if it is unknown.
 .It Fn archive_read_disk_current_filesystem_is_remote
@@ -294,7 +298,7 @@ Allows the caller to set a callback function during calls to
 .Xr archive_read_header 3
 to filter out metadata for each entry. The callback function receives the
 .Tn struct archive
-object, void* custom filter data, and the 
+object, void* custom filter data, and the
 .Tn struct archive_entry .
 If the callback function returns an error, ARCHIVE_RETRY will be returned and the entry will not be further processed.
 .El
@@ -316,12 +320,12 @@ file_to_archive(struct archive *a, const char *name)
   struct archive_entry *entry;
   int fd;
 
+  fd = open(name, O_RDONLY);
+  if (fd < 0)
+    return;
   ard = archive_read_disk_new();
   archive_read_disk_set_standard_lookup(ard);
   entry = archive_entry_new();
-  fd = open(name, O_RDONLY);
-  if (fd < 0)
-     return;
   archive_entry_copy_pathname(entry, name);
   archive_read_disk_entry_from_file(ard, entry, fd, NULL);
   archive_write_header(a, entry);

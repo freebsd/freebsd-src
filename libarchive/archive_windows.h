@@ -125,6 +125,7 @@
 #endif
 #define	waitpid		__la_waitpid
 #define	write		__la_write
+#define	HAVE_WAITPID	1
 
 #if !defined(__WATCOMC__)
 

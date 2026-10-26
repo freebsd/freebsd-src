@@ -598,9 +598,9 @@ __hstat(HANDLE handle, struct ustat *st)
 		mode |= S_IFREG;
 	st->st_mode = mode;
 
-	ntfs_to_unix(FILETIME_to_ntfs(&info.ftLastAccessTime), &st->st_atime, &st->st_atime_nsec);
-	ntfs_to_unix(FILETIME_to_ntfs(&info.ftLastWriteTime), &st->st_mtime, &st->st_mtime_nsec);
-	ntfs_to_unix(FILETIME_to_ntfs(&info.ftCreationTime), &st->st_ctime, &st->st_ctime_nsec);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&info.ftLastAccessTime), &st->st_atime, &st->st_atime_nsec);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&info.ftLastWriteTime), &st->st_mtime, &st->st_mtime_nsec);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&info.ftCreationTime), &st->st_ctime, &st->st_ctime_nsec);
 	st->st_size =
 	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
 		+ (int64_t)(info.nFileSizeLow);

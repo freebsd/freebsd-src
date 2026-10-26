@@ -285,4 +285,16 @@ DEFINE_TEST(test_option_s)
 	    testprog);
 	assertFileContents("foo", 3, "test14/in/d1/fzo");
 	assertFileContents("bar", 3, "test14/in/d1/baz");
+
+	/*
+	 * Test 15: Directory substitution with escaped delimiter
+	 */
+	assertMakeDir("test15", 0755);
+	systemf("%s -cf test15.tar in/d1/foo", testprog);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	systemf("%s -xf test15.tar -s /d1/d2\\/d3/ -C test15", testprog);
+#else
+	systemf("%s -xf test15.tar -s /d1/d2\\\\/d3/ -C test15", testprog);
+#endif
+	assertFileContents("foo", 3, "test15/in/d2/d3/foo");
 }

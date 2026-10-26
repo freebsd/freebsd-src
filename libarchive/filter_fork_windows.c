@@ -77,7 +77,7 @@ load_WaitForInputIdle(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
 	(void)Parameter; /* UNUSED */
 
 	*Context = (user32 != NULL) ?
-	    (PVOID)GetProcAddress(user32, "WaitForInputIdle") : failing_wait;
+	    (PVOID)GetProcAddress(user32, "WaitForInputIdle") : (PVOID)failing_wait;
 
 	return TRUE;
 }

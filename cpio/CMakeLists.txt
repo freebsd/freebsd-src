@@ -15,6 +15,8 @@ IF(ENABLE_CPIO)
     cpio_platform.h
     ../libarchive_fe/lafe_err.c
     ../libarchive_fe/lafe_err.h
+    ../libarchive_fe/lafe_explicit_bzero.c
+    ../libarchive_fe/lafe_explicit_bzero.h
     ../libarchive_fe/lafe_getline.c
     ../libarchive_fe/lafe_getline.h
     ../libarchive_fe/lafe_platform.h

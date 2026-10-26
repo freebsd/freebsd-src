@@ -38,6 +38,20 @@ DEFINE_TEST(test_write_format_pax)
 	int64_t offset, length;
 	char long_slashes[300 + 1];
 
+	/* Only archive_write_free() is valid once the archive is fatal. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax(a));
+	archive_write_fail(a);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_write_open_memory(a, buff2, sizeof(buff2), &used));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
 	buff = malloc(buffsize); /* million bytes of work area */
 	assert(buff != NULL);
 

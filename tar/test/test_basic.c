@@ -76,7 +76,8 @@ run_tar(const char *target, const char *pack_options,
 	assertMakeDir(target, 0775);
 
 	/* Use the tar program to create an archive. */
-	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
+	r = systemf("%s cf - --uid=0 --gid=0 %s %s >%s/archive 2>%s/pack.err",
+	    testprog, pack_options, flist, target, target);
 	failure("Error invoking %s cf -%s", testprog, pack_options);
 	assertEqualInt(r, 0);
 

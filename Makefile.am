@@ -108,7 +108,6 @@ include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 noinst_HEADERS= \
 	libarchive/archive_acl_private.h \
 	libarchive/archive_cmdline_private.h \
-	libarchive/archive_crc32.h \
 	libarchive/archive_cryptor_private.h \
 	libarchive/archive_digest_private.h \
 	libarchive/archive_endian.h \
@@ -137,9 +136,11 @@ noinst_HEADERS= \
 	libarchive/archive_string.h \
 	libarchive/archive_string_composition.h \
 	libarchive/archive_time_private.h \
+	libarchive/archive_umask_private.h \
 	libarchive/archive_write_disk_private.h \
 	libarchive/archive_write_private.h \
 	libarchive/archive_write_set_format_private.h \
+	libarchive/archive_xml_private.h \
 	libarchive/archive_xxhash.h \
 	libarchive/config_freebsd.h \
 	libarchive/filter_fork.h
@@ -148,6 +149,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_acl.c \
 	libarchive/archive_check_magic.c \
 	libarchive/archive_cmdline.c \
+	libarchive/archive_crc32.c \
 	libarchive/archive_cryptor.c \
 	libarchive/archive_digest.c \
 	libarchive/archive_entry.c \
@@ -217,6 +219,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_string.c \
 	libarchive/archive_string_sprintf.c \
 	libarchive/archive_time.c \
+	libarchive/archive_umask.c \
 	libarchive/archive_util.c \
 	libarchive/archive_version_details.c \
 	libarchive/archive_virtual.c \
@@ -302,7 +305,10 @@ endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
-libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(DEAD_CODE_REMOVAL)
+# For Windows, set libtool bindir.
+libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) \
+	$(DEAD_CODE_REMOVAL) $(DLL_BINDIR)
+
 libarchive_la_LIBADD= $(LTLIBICONV)
 
 # Manpages to install
@@ -382,6 +388,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test_7zip_filename_encoding.c \
 	libarchive/test/test_acl_from_text_overread.c \
+	libarchive/test/test_archive_crc32.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_nfs4_null_id_overflow.c \
 	libarchive/test/test_acl_nfs4_text.c \
@@ -399,15 +406,18 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_match_owner.c \
 	libarchive/test/test_archive_match_path.c \
 	libarchive/test/test_archive_match_time.c \
+	libarchive/test/test_archive_ntfs_time.c \
 	libarchive/test/test_archive_parse_date.c \
 	libarchive/test/test_archive_pathmatch.c \
 	libarchive/test/test_archive_pathmatch_oob.c \
 	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
+	libarchive/test/test_archive_read_append_filter.c \
 	libarchive/test/test_archive_read_close_twice.c \
 	libarchive/test/test_archive_read_multiple_data_objects.c \
 	libarchive/test/test_archive_read_next_header_empty.c \
 	libarchive/test/test_archive_read_next_header_raw.c \
+	libarchive/test/test_archive_read_open_filenames.c \
 	libarchive/test/test_archive_read_open2.c \
 	libarchive/test/test_archive_read_set_options.c \
 	libarchive/test/test_archive_read_support.c \
@@ -445,6 +455,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_xz.c \
 	libarchive/test/test_compat_zip.c \
 	libarchive/test/test_compat_zstd.c \
+	libarchive/test/test_create_child_environment.c \
 	libarchive/test/test_empty_write.c \
 	libarchive/test/test_entry.c \
 	libarchive/test/test_entry_strmode.c \
@@ -459,6 +470,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_open_filename.c \
 	libarchive/test/test_pax_filename_encoding.c \
 	libarchive/test/test_pax_xattr_header.c \
+	libarchive/test/test_read_data_block_offset_at_eof.c \
+	libarchive/test/test_read_data_into_fd_no_offset_reported.c \
 	libarchive/test/test_read_data_into_fd_size_exceeds_declared.c \
 	libarchive/test/test_read_data_large.c \
 	libarchive/test/test_read_disk.c \
@@ -478,6 +491,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_program_signature.c \
 	libarchive/test/test_read_filter_zstd_raw.c \
 	libarchive/test/test_read_filter_uudecode.c \
+	libarchive/test/test_read_filter_uudecode_newlines.c \
 	libarchive/test/test_read_filter_uudecode_raw.c \
 	libarchive/test/test_read_format_7zip.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
@@ -493,9 +507,11 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cab_filename.c \
 	libarchive/test/test_read_format_cab_lzx_16bit.c \
 	libarchive/test/test_read_format_cab_lzx_e8.c \
+	libarchive/test/test_read_format_cab_lzx_invalid_history.c \
 	libarchive/test/test_read_format_cab_lzx_oob.c \
 	libarchive/test/test_read_format_cab_mszip_oob.c \
 	libarchive/test/test_read_format_cab_multi.c \
+	libarchive/test/test_read_format_cab_skip_across_folders.c \
 	libarchive/test/test_read_format_cab_skip_malformed.c \
 	libarchive/test/test_read_format_cpio_afio.c \
 	libarchive/test/test_read_format_cpio_bin.c \
@@ -520,6 +536,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_gtar_lzma.c \
 	libarchive/test/test_read_format_gtar_redundant_L.c \
 	libarchive/test/test_read_format_gtar_sparse.c \
+	libarchive/test/test_read_format_gtar_sparse_exceeds_length.c \
 	libarchive/test/test_read_format_gtar_sparse_length.c \
 	libarchive/test/test_read_format_gtar_sparse_skip_entry.c \
 	libarchive/test/test_read_format_huge_rpm.c \
@@ -537,9 +554,12 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_isorr_new_compress.c \
 	libarchive/test/test_read_format_isorr_rr_moved.c \
 	libarchive/test/test_read_format_isozisofs_compress.c \
+	libarchive/test/test_read_format_iso_rockridge_ce_overflow.c \
+	libarchive/test/test_read_format_iso_rockridge_cl_re_cycle.c \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
 	libarchive/test/test_read_format_lha.c \
+	libarchive/test/test_read_format_lha_amiga_script.c \
 	libarchive/test/test_read_format_lha_bugfix_0.c \
 	libarchive/test/test_read_format_lha_filename.c \
 	libarchive/test/test_read_format_lha_filename_utf16.c \
@@ -547,6 +567,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_lha_symlink_missing_target.c \
 	libarchive/test/test_read_format_mtree.c \
 	libarchive/test/test_read_format_mtree_crash747.c \
+	libarchive/test/test_read_format_mtree_size.c \
 	libarchive/test/test_read_format_pax_bz2.c \
 	libarchive/test/test_read_format_rar.c \
 	libarchive/test/test_read_format_rar_encryption.c \
@@ -554,13 +575,19 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
 	libarchive/test/test_read_format_rar_filter.c \
+	libarchive/test/test_read_format_rar_filter_incomplete_block.c \
 	libarchive/test/test_read_format_rar_invalid1.c \
 	libarchive/test/test_read_format_rar_overflow.c \
 	libarchive/test/test_read_format_rar5.c \
 	libarchive/test/test_read_format_rar5_bad_filter.c \
 	libarchive/test/test_read_format_rar5_bad_tables.c \
 	libarchive/test/test_read_format_rar5_block_hdr_fail_loop.c \
+	libarchive/test/test_read_format_rar5_extra_field_underflow.c \
+	libarchive/test/test_read_format_rar5_header_size_wraparound.c \
 	libarchive/test/test_read_format_rar5_loop_bug.c \
+	libarchive/test/test_read_format_rar5_redir_overflow.c \
+	libarchive/test/test_read_format_rar5_truncated_htime.c \
+	libarchive/test/test_read_format_rar5_varint_near_eof.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_acl_oob_read.c \
@@ -573,6 +600,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_invalid_pax_size.c \
 	libarchive/test/test_read_format_tar_mac_metadata.c \
 	libarchive/test/test_read_format_tar_pax_g_large.c \
+	libarchive/test/test_read_format_tar_pax_global_header.c \
 	libarchive/test/test_read_format_tar_pax_large_attr.c \
 	libarchive/test/test_read_format_tar_pax_negative_time.c \
 	libarchive/test/test_read_format_tar_pax_sun_holesdata.c \
@@ -589,7 +617,10 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_xar_doublelink.c \
 	libarchive/test/test_read_format_zip.c \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.c \
+	libarchive/test/test_read_format_zip_ambiguous_timestamps.c \
 	libarchive/test/test_read_format_zip_comment_stored.c \
+	libarchive/test/test_read_format_zip_dos_mtime_precedence.c \
+	libarchive/test/test_read_format_zip_empty.c \
 	libarchive/test/test_read_format_zip_encryption_data.c \
 	libarchive/test/test_read_format_zip_encryption_partially.c \
 	libarchive/test/test_read_format_zip_encryption_header.c \
@@ -597,17 +628,22 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_high_compression.c \
 	libarchive/test/test_read_format_zip_jar.c \
+	libarchive/test/test_read_format_zip_lzma_alone_large_size.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
 	libarchive/test/test_read_format_zip_msdos.c \
+	libarchive/test/test_read_format_zip_negative_timestamps.c \
 	libarchive/test/test_read_format_zip_nested.c \
 	libarchive/test/test_read_format_zip_nofiletype.c \
+	libarchive/test/test_read_format_zip_ntfs_precedence.c \
+	libarchive/test/test_read_format_zip_ntfs_timestamp.c \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
 	libarchive/test/test_read_format_zip_uncompressed_size_off_by_4gib.c \
+	libarchive/test/test_read_format_zip_unset_times.c \
 	libarchive/test/test_read_format_zip_winzip_aes.c \
 	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
@@ -644,6 +680,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk_perms.c \
 	libarchive/test/test_write_disk_secure.c \
 	libarchive/test/test_write_disk_secure_noabsolutepaths.c \
+	libarchive/test/test_write_disk_secure_physicaldrive.c \
 	libarchive/test/test_write_disk_secure744.c \
 	libarchive/test/test_write_disk_secure745.c \
 	libarchive/test/test_write_disk_secure746.c \
@@ -683,6 +720,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_iso9660_joliet_id.c \
 	libarchive/test/test_write_format_iso9660_rockridge.c \
 	libarchive/test/test_write_format_iso9660_rockridge_overflow.c \
+	libarchive/test/test_write_format_iso9660_rr_moved_notdir.c \
 	libarchive/test/test_write_format_iso9660_zisofs.c \
 	libarchive/test/test_write_format_iso9660_zisofs_overflow.c \
 	libarchive/test/test_write_format_mtree.c \
@@ -747,8 +785,8 @@ libarchive_test_LDADD= $(LTLIBICONV)
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
 libarchive/test/list.h: $(libarchive_test_SOURCES)
-	$(MKDIR_P) libarchive/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) libarchive/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
@@ -757,6 +795,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz_consumer.h \
 	libarchive/test/test_acl_pax_posix1e.tar.uu \
 	libarchive/test/test_acl_pax_nfs4.tar.uu \
+	libarchive/test/test_archive_read_open_filenames_split_uaf_1.tar.uu \
+	libarchive/test/test_archive_read_open_filenames_split_uaf_2.tar.uu \
 	libarchive/test/test_archive_string_conversion.txt.Z.uu \
 	libarchive/test/test_archive_pathmatch_oob_bracket.bin.uu \
 	libarchive/test/test_archive_pathmatch_oob_strchr.bin.uu \
@@ -813,6 +853,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_8.zip.uu \
 	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_compat_zstd_2.tar.zst.uu \
+	libarchive/test/test_compat_zstd_3.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
@@ -873,7 +914,13 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_arm64_large.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_arm_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_armthumb.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_delta.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_ia64.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_powerpc.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_riscv.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta4_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma2.7z.uu \
@@ -891,6 +938,13 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_arm.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_armthumb.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_ia64.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_powerpc.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_riscv.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_sparc.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
@@ -902,8 +956,12 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_malformed3.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed4.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed_numfiles_oom.7z.uu \
+	libarchive/test/test_read_format_7zip_null_client_next.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
+	libarchive/test/test_read_format_7zip_ppmd_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_ppmd_bcj.7z.uu \
+	libarchive/test/test_read_format_7zip_ppmd_small_block.7z.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_elf.elf.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_sfx_elf.elf.uu \
@@ -925,9 +983,12 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_16bit.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_e8.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_invalid_history.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_literal_control.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_oob.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p1.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p2.cab.uu \
+	libarchive/test/test_read_format_cab_skip_across_folders.cab.uu \
 	libarchive/test/test_read_format_cab_skip_malformed.cab.uu \
 	libarchive/test/test_read_format_cpio_afio_header.part1.cpio.uu \
 	libarchive/test/test_read_format_cpio_afio_header.part2.cpio.uu \
@@ -951,6 +1012,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix01.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
+	libarchive/test/test_read_format_gtar_sparse_exceeds_length.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_sparse_reuse.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_length.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_sparse_skip_entry.tar.Z.uu \
@@ -967,12 +1029,16 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_rockridge.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_ce.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_ce_loop.iso.Z.uu \
+	libarchive/test/test_read_format_iso_rockridge_ce_overflow.iso.Z.uu \
+	libarchive/test/test_read_format_iso_rockridge_cl_re_control.iso.Z.uu \
+	libarchive/test/test_read_format_iso_rockridge_cl_re_cycle.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_new.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.iso.uu \
 	libarchive/test/test_read_format_iso_xorriso.iso.Z.uu \
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu \
 	libarchive/test/test_read_format_iso_zisofs_overflow.iso.uu \
+	libarchive/test/test_read_format_lha_amiga_script.lha.uu \
 	libarchive/test/test_read_format_lha_bugfix_0.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_cp932.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_utf16.lzh.uu \
@@ -999,6 +1065,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_encryption_partially.rar.uu \
 	libarchive/test/test_read_format_rar_endarc_huge.rar.uu \
 	libarchive/test/test_read_format_rar_filter.rar.uu \
+	libarchive/test/test_read_format_rar_filter_incomplete_block.rar.uu \
 	libarchive/test/test_read_format_rar_invalid1.rar.uu \
 	libarchive/test/test_read_format_rar_multi_lzss_blocks.rar.uu \
 	libarchive/test/test_read_format_rar3_lowdist_reset.rar.uu \
@@ -1040,13 +1107,17 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_different_window_size.rar.uu \
 	libarchive/test/test_read_format_rar5_different_solid_window_size.rar.uu \
 	libarchive/test/test_read_format_rar5_distance_overflow.rar.uu \
+	libarchive/test/test_read_format_rar5_extra_data_size_toolong.rar.Z.uu \
+	libarchive/test/test_read_format_rar5_extra_field_underflow.rar.uu \
 	libarchive/test/test_read_format_rar5_extra_field_version.rar.uu \
 	libarchive/test/test_read_format_rar5_fileattr.rar.uu \
+	libarchive/test/test_read_format_rar5_group_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_hardlink.rar.uu \
 	libarchive/test/test_read_format_rar5_invalid_dict_reference.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift1.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift2.rar.uu \
 	libarchive/test/test_read_format_rar5_loop_bug.rar.uu \
+	libarchive/test/test_read_format_rar5_redir_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part01.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part02.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part03.rar.uu \
@@ -1064,7 +1135,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
 	libarchive/test/test_read_format_rar5_dirdata.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
+	libarchive/test/test_read_format_rar5_owner_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
+	libarchive/test/test_read_format_rar5_redir_varint_2byte.rar.uu \
 	libarchive/test/test_read_format_rar5_sfx.exe.uu \
 	libarchive/test/test_read_format_rar5_solid.rar.uu \
 	libarchive/test/test_read_format_rar5_stored.rar.uu \
@@ -1082,6 +1155,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_bad_tables.rar.uu \
 	libarchive/test/test_read_format_rar5_bad_window_sz_in_mltarc_file.rar.uu \
 	libarchive/test/test_read_format_rar5_data_ready_pointer_leak.rar.uu \
+	libarchive/test/test_read_format_rar5_zip_in_rar.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
@@ -1096,6 +1170,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_invalid_pax_size.tar.uu \
 	libarchive/test/test_read_format_tar_mac_metadata_1.tar.uu \
 	libarchive/test/test_read_format_tar_pax_g_large.tar.uu \
+	libarchive/test/test_read_format_tar_pax_global_header.tar.uu \
+	libarchive/test/test_read_format_tar_pax_global_header_ignorable.tar.uu \
 	libarchive/test/test_read_format_tar_pax_large_attr.tar.Z.uu \
 	libarchive/test/test_read_format_tar_pax_negative_time.tar.uu \
 	libarchive/test/test_read_format_tar_pax_sun_holesdata.tar.uu \
@@ -1104,14 +1180,18 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_ustar_filename_cp866.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_eucjp.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_koi8r.tar.Z.uu \
-	libarchive/test/test_read_format_warc.warc.uu \
+	libarchive/test/test_read_format_warc_uri_nul.warc.uu \
 	libarchive/test/test_read_format_warc_incomplete.warc.uu \
+	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_xar_atou64_overread.xar.uu \
 	libarchive/test/test_read_format_xar_base64_oob.xar.uu \
 	libarchive/test/test_read_format_xar_doublelink.xar.uu \
 	libarchive/test/test_read_format_xar_duplicate_filename_node.xar.uu \
+	libarchive/test/test_read_format_xar_empty_xattr.xar.uu \
 	libarchive/test/test_read_format_xar_large_mode.xar.uu \
 	libarchive/test/test_read_format_xar_parse_time_overread.xar.uu \
+	libarchive/test/test_read_format_xar_toc_premature_stream_end.xar.uu \
+	libarchive/test/test_read_format_xar_toc_premature_stream_end_control.xar.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
 	libarchive/test/test_read_format_zip_7z_deflate.zip.uu \
@@ -1134,6 +1214,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_high_compression.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_lzma.zipx.uu \
+	libarchive/test/test_read_format_zip_lzma_alone_large_size.zip.uu \
 	libarchive/test/test_read_format_zip_lzma_alone_leak.zipx.uu \
 	libarchive/test/test_read_format_zip_lzma_multi.zipx.uu \
 	libarchive/test/test_read_format_zip_lzma_stream_end.zipx.uu \
@@ -1211,15 +1292,19 @@ libarchive_test_EXTRA_DIST=\
 #
 noinst_HEADERS+= \
 	libarchive_fe/lafe_err.h \
+	libarchive_fe/lafe_explicit_bzero.h \
 	libarchive_fe/lafe_fnmatch.h \
 	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
+	libarchive_fe/lafe_setmode.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
 libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_err.c \
+	libarchive_fe/lafe_explicit_bzero.c \
 	libarchive_fe/lafe_fnmatch.c \
 	libarchive_fe/lafe_getline.c \
+	libarchive_fe/lafe_setmode.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
 
@@ -1315,6 +1400,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_extract_tar_lzo.c \
 	tar/test/test_extract_tar_xz.c \
 	tar/test/test_extract_tar_zstd.c \
+	tar/test/test_edit_pathname_hardlink.c \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
@@ -1347,6 +1433,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_lz4.c \
 	tar/test/test_option_lzma.c \
 	tar/test/test_option_lzop.c \
+	tar/test/test_option_mode.c \
 	tar/test/test_option_mtime.c \
 	tar/test/test_option_n.c \
 	tar/test/test_option_newer_than.c \
@@ -1381,8 +1468,8 @@ bsdtar_test_CPPFLAGS=\
 	$(PLATFORMCPPFLAGS)
 
 tar/test/list.h: $(bsdtar_test_SOURCES)
-	$(MKDIR_P) tar/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) tar/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
@@ -1406,6 +1493,7 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_extract.tar.lzo.uu \
 	tar/test/test_extract.tar.xz.uu \
 	tar/test/test_leading_slash.tar.uu \
+	tar/test/test_edit_pathname_hardlink.tar.Z.uu \
 	tar/test/test_list_item.tar.uu \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
 	tar/test/test_option_passphrase.zip.uu \
@@ -1539,8 +1627,8 @@ bsdcpio_test_CPPFLAGS= \
 bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: $(bsdcpio_test_SOURCES)
-	$(MKDIR_P) cpio/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) cpio/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
@@ -1662,8 +1750,8 @@ bsdcat_test_CPPFLAGS= \
 bsdcat_test_LDADD=libarchive_fe.la
 
 cat/test/list.h: $(bsdcat_test_SOURCES)
-	$(MKDIR_P) cat/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) cat/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCAT
 bsdcat_test_programs= bsdcat_test
@@ -1780,6 +1868,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_t_bad.c \
 	unzip/test/test_u.c \
 	unzip/test/test_version.c \
+	unzip/test/test_windows_paths.c \
 	unzip/test/test_x.c \
 	unzip/test/test_Z1.c \
 	unzip/test/test_P_encryption.c \
@@ -1794,8 +1883,8 @@ bsdunzip_test_CPPFLAGS= \
 bsdunzip_test_LDADD=libarchive_fe.la
 
 unzip/test/list.h: $(bsdunzip_test_SOURCES)
-	$(MKDIR_P) unzip/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) unzip/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDUNZIP
 bsdunzip_test_programs= bsdunzip_test
@@ -1815,6 +1904,7 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_symlink_1.zip.uu \
 	unzip/test/test_symlink_2.zip.uu \
 	unzip/test/test_symlink_dotdot.zip.uu \
+	unzip/test/test_windows_paths.zip.uu \
 	unzip/test/test_t_bad.zip.uu \
 	unzip/test/test_u_new.zip.uu \
 	unzip/test/test_u_old.zip.uu \

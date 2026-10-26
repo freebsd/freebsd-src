@@ -33,7 +33,7 @@ DEFINE_TEST(test_zip_filename_encoding_UTF8)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -124,7 +124,7 @@ DEFINE_TEST(test_zip_filename_encoding_KOI8R)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+	if (!setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("KOI8-R locale not available on this system.");
 		return;
 	}
@@ -224,7 +224,7 @@ DEFINE_TEST(test_zip_filename_encoding_ru_RU_CP1251)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (!setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
@@ -267,7 +267,10 @@ DEFINE_TEST(test_zip_filename_encoding_Russian_Russia)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Russian_Russia")) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (NULL == setlocale(LC_ALL, "Russian_Russia"))
+#endif
+	{
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
@@ -336,7 +339,7 @@ DEFINE_TEST(test_zip_filename_encoding_EUCJP)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
+	if (!setCheckedLocale("ja_JP.eucJP", "\xA4\xA2", L'\x3042')) {
 		skipping("eucJP locale not available on this system.");
 		return;
 	}
@@ -435,8 +438,11 @@ DEFINE_TEST(test_zip_filename_encoding_CP932)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
-	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
+	    !setCheckedLocale("ja_JP.SJIS", "\x82\xA0", L'\x3042')) {
 		skipping("CP932/SJIS locale not available on this system.");
 		return;
 	}
