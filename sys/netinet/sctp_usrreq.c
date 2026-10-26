@@ -6869,15 +6869,23 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 
 	if ((sopt->sopt_level == SOL_SOCKET) &&
 	    (sopt->sopt_name == SO_SETFIB)) {
+		int optval;
+
+		error = sooptcopyin(sopt, &optval, sizeof(optval),
+		    sizeof(optval));
+		if (error != 0)
+			return (error);
 		inp = (struct sctp_inpcb *)so->so_pcb;
 		if (inp == NULL) {
 			SCTP_LTRACE_ERR_RET(so->so_pcb, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOBUFS);
 			return (EINVAL);
 		}
 		SCTP_INP_WLOCK(inp);
-		inp->fibnum = so->so_fibnum;
+		error = sosetfib(so, optval);
+		if (error == 0)
+			inp->fibnum = optval;
 		SCTP_INP_WUNLOCK(inp);
-		return (0);
+		return (error);
 	}
 	if (sopt->sopt_level != IPPROTO_SCTP) {
 		/* wrong proto level... send back up to IP */
