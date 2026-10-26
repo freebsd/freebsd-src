@@ -111,11 +111,6 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(0, archive_entry_mtime(ae));
-	assertEqualString("//", archive_entry_pathname(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_entry_mtime(ae));
 	assertEqualString("abcdefghijklmn.o", archive_entry_pathname(ae));
 	assertEqualInt(8, archive_entry_size(ae));

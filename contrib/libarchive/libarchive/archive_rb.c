@@ -152,7 +152,7 @@ __archive_rb_tree_find_node_leq(struct archive_rb_tree *rbt, const void *key)
 
 	return last;
 }
-
+
 int
 __archive_rb_tree_insert_node(struct archive_rb_tree *rbt,
     struct archive_rb_node *self)
@@ -218,7 +218,7 @@ __archive_rb_tree_insert_node(struct archive_rb_tree *rbt,
 
 	return T;
 }
-
+
 /*
  * Swap the location and colors of 'self' and its child @ which.  The child
  * can not be a sentinel node.  This is our rotation function.  However,
@@ -268,7 +268,7 @@ __archive_rb_tree_reparent_nodes(
 	}
 
 }
-
+
 static void
 __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
     struct archive_rb_node *self)
@@ -343,7 +343,7 @@ __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
 	 */
 	RB_MARK_BLACK(rbt->rbt_root);
 }
-
+
 static void
 __archive_rb_tree_prune_node(struct archive_rb_tree *rbt,
     struct archive_rb_node *self, int rebalance)
@@ -363,7 +363,7 @@ __archive_rb_tree_prune_node(struct archive_rb_tree *rbt,
 	if (rebalance)
 		__archive_rb_tree_removal_rebalance(rbt, father, which);
 }
-
+
 /*
  * When deleting an interior node
  */

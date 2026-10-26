@@ -42,6 +42,24 @@ is_hex(const char *p, size_t l)
 	return (1);
 }
 
+static void
+write_newc_entry(struct archive *a, const char *path, int64_t dev, int64_t ino,
+    int nlink)
+{
+	struct archive_entry *entry;
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(entry, path);
+	archive_entry_set_mode(entry, AE_IFREG | 0644);
+	archive_entry_set_size(entry, 0);
+	archive_entry_set_dev(entry, dev);
+	archive_entry_set_ino64(entry, ino);
+	archive_entry_set_nlink(entry, nlink);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+	archive_entry_free(entry);
+}
+
 /*
  * Detailed verification that cpio 'newc' archives are written with
  * the correct format.
@@ -202,6 +220,51 @@ DEFINE_TEST(test_write_format_cpio_newc)
 	e += 124; /* Must be multiple of four here! */
 
 	assertEqualInt((int)used, e - buff);
+
+	free(buff);
+}
+
+DEFINE_TEST(test_write_format_cpio_newc_large_inode)
+{
+	struct archive *a;
+	char *buff;
+	const char *first, *again, *other, *small_inode, *different_device;
+	size_t buffsize = 10000;
+	size_t used;
+
+	buff = malloc(buffsize);
+	assert(buff != NULL);
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_cpio_newc(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+
+	write_newc_entry(a, "first", 12, INT64_C(0x100000001), 2);
+	write_newc_entry(a, "again", 12, INT64_C(0x100000001), 2);
+	write_newc_entry(a, "other", 12, INT64_C(0x200000001), 2);
+	write_newc_entry(a, "small", 12, 1, 1);
+	write_newc_entry(a, "dev13", 13, INT64_C(0x100000001), 2);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Each entry is a 110-byte header plus a padded six-byte name. */
+	first = buff + 6;
+	again = buff + 116 + 6;
+	other = buff + 232 + 6;
+	small_inode = buff + 348 + 6;
+	different_device = buff + 464 + 6;
+	assertEqualMem(first, again, 8);
+	assert(memcmp(first, other, 8) != 0);
+	assert(memcmp(first, small_inode, 8) != 0);
+	assert(memcmp(first, different_device, 8) != 0);
+	assert(memcmp(other, small_inode, 8) != 0);
+	assert(memcmp(other, different_device, 8) != 0);
+	assert(memcmp(small_inode, different_device, 8) != 0);
+	assert(memcmp(first, "00000000", 8) != 0);
+	assert(memcmp(other, "00000000", 8) != 0);
+	assert(memcmp(small_inode, "00000000", 8) != 0);
+	assert(memcmp(different_device, "00000000", 8) != 0);
 
 	free(buff);
 }

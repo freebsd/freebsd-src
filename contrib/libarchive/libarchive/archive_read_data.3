@@ -70,6 +70,21 @@ will not overlap.
 Note that the blocks returned from this function can be much larger
 than the block size read from disk, due to compression
 and internal buffer optimizations.
+All three of
+.Fa buff ,
+.Fa len
+and
+.Fa offset
+are written whenever the function returns
+.Cm ARCHIVE_OK
+or
+.Cm ARCHIVE_EOF .
+At the end of an entry
+.Fa len
+is zero and
+.Fa offset
+is the end of the entry's data, which is how a trailing sparse hole is
+reported.
 .It Fn archive_read_data_skip
 A convenience function that repeatedly calls
 .Fn archive_read_data_block

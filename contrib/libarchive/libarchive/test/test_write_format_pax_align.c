@@ -129,10 +129,15 @@ write_archive(char *buff, size_t buffsize, size_t *used, int gzip)
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax_restricted(a));
-	if (gzip)
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_gzip(a));
-	else
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	if (gzip) {
+		int r;
+
+		r = archive_write_add_filter_gzip(a);
+		if (r != ARCHIVE_WARN)
+			assertEqualIntA(a, ARCHIVE_OK, r);
+	} else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_none(a));
 	/* Small blocks so the writer doesn't tail-pad past our offsets. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 512));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -178,10 +183,15 @@ verify_archive(const char *buff, size_t used, int gzip)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
-	if (gzip)
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_gzip(a));
-	else
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_none(a));
+	if (gzip) {
+		int r;
+
+		r = archive_read_support_filter_gzip(a);
+		if (r != ARCHIVE_WARN)
+			assertEqualIntA(a, ARCHIVE_OK, r);
+	} else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, buff, used));
 

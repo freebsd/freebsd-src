@@ -257,8 +257,22 @@ DEFINE_TEST(test_read_format_zip_zipx_zstd_encrypted_streaming)
 DEFINE_TEST(test_read_format_zip_ppmd8_aes256_streaming)
 {
 	const char *refname = "test_read_format_zip_ppmd8_aes256_streaming.zipx";
+	struct archive *a;
 	size_t used;
 	char buff[600];
+
+	/* Check if running system has cryptographic functionality. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	if (ARCHIVE_OK != archive_write_set_options(a,
+			"zip:encryption=aes256")) {
+		skipping("This system does not have cryptographic library");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
+
 	extract_reference_file(refname);
 	FILE *f = fopen(refname, "rb");
 	used = fread(buff, 1, sizeof(buff), f);

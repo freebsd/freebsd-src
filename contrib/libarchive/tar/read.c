@@ -58,6 +58,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 
 struct progress_data {
 	struct bsdtar *bsdtar;
@@ -127,8 +128,8 @@ progress_func(void *cookie)
 		    archive_file_count(a), (uintmax_t)uncomp);
 	}
 	if (entry != NULL) {
-		safe_fprintf(stderr, "Current: %s",
-		    archive_entry_pathname(entry));
+		fputs("Current: ", stderr);
+		safe_fputs(archive_entry_pathname(entry), stderr);
 		fprintf(stderr, " (%jd bytes)\n",
 		    (intmax_t)archive_entry_size(entry));
 	}
@@ -278,6 +279,12 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
 
+		if (bsdtar->file_mode) {
+			mode_t m = archive_entry_mode(entry);
+			m = lafe_getmode(bsdtar->file_mode, m);
+			archive_entry_set_mode(entry, m);
+		}
+
 		/*
 		 * Note that pattern exclusions are checked before
 		 * pathname rewrites are handled.  This gives more
@@ -307,8 +314,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			 * you cannot easily preview rewrites.
 			 */
 			if (bsdtar->verbose < 2)
-				safe_fprintf(out, "%s",
-				    archive_entry_pathname(entry));
+				safe_fputs(archive_entry_pathname(entry), out);
 			else
 				list_item_verbose(bsdtar, out, entry);
 			fflush(out);
@@ -342,14 +348,15 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 			if (bsdtar->verbose > 1) {
 				/* GNU tar uses -tv format with -xvv */
-				safe_fprintf(stderr, "x ");
+				fputs("x ", stderr);
 				list_item_verbose(bsdtar, stderr, entry);
 				fflush(stderr);
 			} else if (bsdtar->verbose > 0) {
 				/* Format follows SUSv2, including the
 				 * deferred '\n'. */
-				safe_fprintf(stderr, "x %s",
-				    archive_entry_pathname(entry));
+				fputs("x ", stderr);
+				safe_fputs(archive_entry_pathname(entry),
+				    stderr);
 				fflush(stderr);
 			}
 
@@ -361,9 +368,12 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 				r = archive_read_extract2(a, entry, writer);
 			if (r != ARCHIVE_OK) {
 				if (!bsdtar->verbose)
-					safe_fprintf(stderr, "%s", archive_entry_pathname(entry));
-				safe_fprintf(stderr, ": %s: %s",
-				    archive_error_string(a),
+					safe_fputs(
+					    archive_entry_pathname(entry),
+					    stderr);
+				fputs(": ", stderr);
+				safe_fputs(archive_error_string(a), stderr);
+				fprintf(stderr, ": %s",
 				    strerror(archive_errno(a)));
 				if (!bsdtar->verbose)
 					fprintf(stderr, "\n");

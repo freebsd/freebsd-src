@@ -35,7 +35,7 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 	/*
 	 * Read LHA filename in en_US.UTF-8.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}

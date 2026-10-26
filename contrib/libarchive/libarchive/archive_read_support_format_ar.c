@@ -106,8 +106,7 @@ archive_read_support_format_ar(struct archive *_a)
 
 	ar = calloc(1, sizeof(*ar));
 	if (ar == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate ar data");
+		archive_set_error(_a, ENOMEM, "Can't allocate ar data");
 		return (ARCHIVE_FATAL);
 	}
 	ar->strtab = NULL;
@@ -125,11 +124,9 @@ archive_read_support_format_ar(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(ar);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -252,55 +249,65 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 	ar_parse_common_header(ar, entry, h);
 
 	/*
+	 * '/' is the ranlib index.
+	 * Ignore it since it contains linker information.
+	 */
+	if (strcmp(filename, "/") == 0) {
+		/* This is not a file entry. Ignore. */
+		archive_entry_copy_pathname(entry, NULL);
+
+		/* Skip special file entry. */
+		return (archive_read_format_ar_skip(a));
+	}
+
+	/*
 	 * '//' is the GNU filename table.
 	 * Later entries can refer to names in this table.
 	 */
 	if (strcmp(filename, "//") == 0) {
 		char *st;
-		size_t entry_size;
+		int64_t entry_size;
+		size_t strtab_size;
 
-		archive_entry_copy_pathname(entry, filename);
+		/* This is not a file entry. Ignore. */
+		archive_entry_copy_pathname(entry, NULL);
+
 		/* Get the size of the filename table. */
-		number = ar_atol10(h + AR_size_offset, AR_size_size);
-		if (number > SIZE_MAX || number > 1024 * 1024 * 1024) {
+		entry_size = archive_entry_size(entry);
+		if (entry_size == 0 || entry_size > 1024 * 1024 * 1024) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Filename table too large");
+			    "Invalid filename table size");
 			return (ARCHIVE_FATAL);
 		}
-		entry_size = (size_t)number;
-		if (entry_size == 0) {
-			archive_set_error(&a->archive, EINVAL,
-			    "Invalid string table");
-			return (ARCHIVE_FATAL);
-		}
+		strtab_size = (size_t)entry_size;
 		if (ar->strtab != NULL) {
 			archive_set_error(&a->archive, EINVAL,
-			    "More than one string table exists");
+			    "More than one filename table exists");
 			return (ARCHIVE_FATAL);
 		}
 
 		/* Read the filename table into memory. */
-		st = malloc(entry_size);
+		st = malloc(strtab_size);
 		if (st == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate filename table buffer");
 			return (ARCHIVE_FATAL);
 		}
 		ar->strtab = st;
-		ar->strtab_size = entry_size;
+		ar->strtab_size = strtab_size;
 
 		if (*unconsumed) {
 			__archive_read_consume(a, *unconsumed);
 			*unconsumed = 0;
 		}
 
-		if ((b = __archive_read_ahead(a, entry_size, NULL)) == NULL)
+		if ((b = __archive_read_ahead(a, strtab_size, NULL)) == NULL)
 			return (ARCHIVE_FATAL);
-		memcpy(st, b, entry_size);
-		__archive_read_consume(a, entry_size);
-		/* All contents are consumed. */
-		ar->entry_bytes_remaining = 0;
-		archive_entry_set_size(entry, ar->entry_bytes_remaining);
+		memcpy(st, b, strtab_size);
+
+		/* Skip special file entry. */
+		if (archive_read_format_ar_skip(a) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 
 		/* Parse the filename table. */
 		return (ar_parse_gnu_filename_table(a));
@@ -415,17 +422,20 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		a->archive.archive_format = ARCHIVE_FORMAT_AR;
 	}
 
-	/* Read the header for the next file entry. */
-	if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
-		/* Broken header. */
-		return (ARCHIVE_EOF);
+	do {
+		/* Read the header for the next file entry. */
+		if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
+			/* Broken header. */
+			return (ARCHIVE_EOF);
 
-	unconsumed = 60;
+		unconsumed = 60;
 
-	ret = _ar_read_header(a, entry, ar, (const char *)header_data, &unconsumed);
+		ret = _ar_read_header(a, entry, ar, (const char *)header_data,
+		    &unconsumed);
 
-	if (unconsumed)
-		__archive_read_consume(a, unconsumed);
+		if (unconsumed)
+			__archive_read_consume(a, unconsumed);
+	} while (ret == ARCHIVE_OK && archive_entry_pathname(entry) == NULL);
 
 	return ret;
 }
@@ -522,18 +532,20 @@ ar_parse_gnu_filename_table(struct archive_read *a)
 	size = ar->strtab_size;
 
 	for (p = ar->strtab; p < ar->strtab + size - 1; ++p) {
-		if (*p == '/') {
+		/* Normalize backslash, even before separator check. */
+		if (*p == '\\')
+			*p = '/';
+		if (*p == '/' && *(p + 1) == '\n') {
 			*p++ = '\0';
-			if (*p != '\n')
-				goto bad_string_table;
 			*p = '\0';
 		}
 	}
 	/*
 	 * GNU ar always pads the table to an even size.
 	 * The pad character is either '\n' or '`'.
+	 * For Windows Archive files, the pad character can be '\0'.
 	 */
-	if (p != ar->strtab + size && *p != '\n' && *p != '`')
+	if (p != ar->strtab + size && *p != '\n' && *p != '`' && *p != '\0')
 		goto bad_string_table;
 
 	/* Enforce zero termination. */

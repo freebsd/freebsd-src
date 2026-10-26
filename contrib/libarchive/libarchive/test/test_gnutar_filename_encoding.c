@@ -32,7 +32,7 @@ DEFINE_TEST(test_gnutar_filename_encoding_UTF8_CP866)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -73,7 +73,7 @@ DEFINE_TEST(test_gnutar_filename_encoding_KOI8R_UTF8)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+	if (!setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("KOI8-R locale not available on this system.");
 		return;
 	}
@@ -114,7 +114,7 @@ DEFINE_TEST(test_gnutar_filename_encoding_KOI8R_CP866)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+	if (!setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("KOI8-R locale not available on this system.");
 		return;
 	}
@@ -155,8 +155,11 @@ DEFINE_TEST(test_gnutar_filename_encoding_CP1251_UTF8)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -200,7 +203,7 @@ DEFINE_TEST(test_gnutar_filename_encoding_ru_RU_CP1251)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (!setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -240,7 +243,10 @@ DEFINE_TEST(test_gnutar_filename_encoding_Russian_Russia)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Russian_Russia")) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (NULL == setlocale(LC_ALL, "Russian_Russia"))
+#endif
+	{
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
@@ -275,7 +281,7 @@ DEFINE_TEST(test_gnutar_filename_encoding_EUCJP_UTF8)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
+	if (!setCheckedLocale("ja_JP.eucJP", "\xA4\xA2", L'\x3042')) {
 		skipping("eucJP locale not available on this system.");
 		return;
 	}
@@ -315,7 +321,7 @@ DEFINE_TEST(test_gnutar_filename_encoding_EUCJP_CP932)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
+	if (!setCheckedLocale("ja_JP.eucJP", "\xA4\xA2", L'\x3042')) {
 		skipping("eucJP locale not available on this system.");
 		return;
 	}
@@ -355,8 +361,11 @@ DEFINE_TEST(test_gnutar_filename_encoding_CP932_UTF8)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
-	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
+	    !setCheckedLocale("ja_JP.SJIS", "\x82\xA0", L'\x3042')) {
 		skipping("CP932/SJIS locale not available on this system.");
 		return;
 	}
@@ -579,4 +588,42 @@ DEFINE_TEST(test_gnutar_filename_encoding_fail_UTF16_win)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 #endif
+}
+
+DEFINE_TEST(test_gnutar_filename_encoding_UTF32_substitute)
+{
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
+		skipping("en_US.UTF-8 locale not available on this system.");
+		return;
+	}
+
+	/*
+	 * Verify that a filename mixing valid and untranslatable bytes does
+	 * not overrun the conversion buffer while substituting '?' for the
+	 * untranslatable characters under a four-byte hdrcharset (UTF-32).
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-32") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-8 to UTF-32.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry,
+	    "aaaaaaa\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualIntA(a, ARCHIVE_WARN, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

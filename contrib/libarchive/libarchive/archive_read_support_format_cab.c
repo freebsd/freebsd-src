@@ -187,6 +187,8 @@ struct lzx_dec {
 	uint8_t			*w_buff;
 	/* The insert position to the window. */
 	size_t			 w_pos;
+	/* The number of initialized bytes in the window. */
+	size_t			 w_filled;
 	/* The position where we can copy decoded code from the window. */
 	size_t			 copy_pos;
 	/* The length how many bytes we can copy decoded code from
@@ -284,6 +286,7 @@ struct lzx_stream {
 #define MAX_UNCOMPRESS_SIZE	0x8000
 #define MAX_FILE_SIZE		(UINT16_MAX * MAX_UNCOMPRESS_SIZE)
 #define MAX_E8_TRANSLATION	(0x8000 * MAX_UNCOMPRESS_SIZE)
+#define SFX_MAX_READAHEAD	(1024 * 512)
 
 static const char * const compression_name[] = {
 	"NONE",
@@ -459,14 +462,13 @@ archive_read_support_format_cab(struct archive *_a)
 
 	cab = calloc(1, sizeof(*cab));
 	if (cab == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
+		archive_set_error(_a, ENOMEM,
 		    "Can't allocate CAB data");
 		return (ARCHIVE_FATAL);
 	}
 	archive_string_init(&cab->ws);
 	if (archive_wstring_ensure(&cab->ws, 256) == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory");
+		archive_set_error(_a, ENOMEM, "Can't allocate memory");
 		free(cab);
 		return (ARCHIVE_FATAL);
 	}
@@ -488,10 +490,10 @@ archive_read_support_format_cab(struct archive *_a)
 		archive_wstring_free(&cab->ws);
 		free(cab);
 	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
-static int
+static size_t
 find_cab_magic(const char *p)
 {
 	switch (p[4]) {
@@ -517,46 +519,54 @@ find_cab_magic(const char *p)
 static int
 archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 {
-	const char *p;
-	ssize_t bytes_avail, offset, window;
+	const char *h;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 64)
 		return (-1);
 
-	if ((p = __archive_read_ahead(a, 8, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 16, NULL)) == NULL)
 		return (-1);
 
-	if (memcmp(p, "MSCF\0\0\0\0", 8) == 0)
-		return (64);
+	if (memcmp(h, "MSCF", 4) == 0) {
+		if (memcmp(h + 4, "\0\0\0\0", 4) == 0)
+			return (64);
+		/* Some archives do not have all reserved bits set to zero. */
+		if (memcmp(h + 12, "\0\0\0\0", 4) == 0)
+			return (32);
+	}
 
 	/*
 	 * Attempt to handle self-extracting archives
 	 * by noting a PE header and searching forward
 	 * up to 128k for an 'MSCF' marker.
 	 */
-	if (p[0] == 'M' && p[1] == 'Z') {
+	if (h[0] == 'M' && h[1] == 'Z') {
+		ssize_t bytes_avail;
+		ssize_t offset, window;
+
 		offset = 0;
 		window = 4096;
-		while (offset < (1024 * 128)) {
-			const char *h = __archive_read_ahead(a, offset + window,
+		while (offset + window <= SFX_MAX_READAHEAD) {
+			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 128)
-					return (0);
-				continue;
+				if (bytes_avail >= offset + 8) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return (0);
 			}
-			p = h + offset;
-			while (p + 8 < h + bytes_avail) {
-				int next;
-				if ((next = find_cab_magic(p)) == 0)
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
+			while (offset <= bytes_avail - 8) {
+				size_t next = find_cab_magic(h + offset);
+				if (next == 0)
 					return (64);
-				p += next;
+				offset += next;
 			}
-			offset = p - h;
 		}
 	}
 	return (0);
@@ -619,8 +629,8 @@ cab_skip_sfx(struct archive_read *a)
 		 * like the cab header.
 		 */
 		while (p + 8 < q) {
-			int next;
-			if ((next = find_cab_magic(p)) == 0) {
+			size_t next = find_cab_magic(p);
+			if (next == 0) {
 				skip = p - h;
 				__archive_read_consume(a, skip);
 				return (ARCHIVE_OK);
@@ -1048,8 +1058,16 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	}
 	/* If a cffolder of this file is changed, reset a cfdata to read
 	 * file contents from next cfdata. */
-	if (prev_folder != cab->entry_cffolder)
+	if (prev_folder != cab->entry_cffolder) {
 		cab->entry_cfdata = NULL;
+		/*
+		 * Bytes of files we skipped so far belong to folders we
+		 * are done with; reading this file will seek directly to
+		 * the data of the new folder, so we must not charge the
+		 * skipped bytes against the new folder's data.
+		 */
+		cab->bytes_skipped = 0;
+	}
 
 	/* If a pathname is UTF-8, prepare a string conversion object
 	 * for UTF-8 and use it. */
@@ -2252,6 +2270,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	}
 
 	ds->w_pos = 0;
+	ds->w_filled = 0;
 	ds->state = ST_RD_TRANSLATION;
 	ds->br.cache_buffer = 0;
 	ds->br.cache_avail = 0;
@@ -2707,6 +2726,11 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 				strm->avail_out -= l;
 				strm->total_out += l;
 				ds->w_pos = (ds->w_pos + l) & ds->w_mask;
+				if (ds->w_filled < ds->w_size) {
+					ds->w_filled += l;
+					if (ds->w_filled > ds->w_size)
+						ds->w_filled = ds->w_size;
+				}
 				ds->block_bytes_avail -= l;
 			}
 			/* FALL THROUGH */
@@ -2753,7 +2777,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Read Pre-tree for first 256 elements of main tree.
 			 */
-			if (lzx_read_pre_tree(strm) < 0) {
+			if (lzx_read_pre_tree(strm) == ARCHIVE_EOF) {
 				ds->state = ST_RD_PRE_MAIN_TREE_256;
 				if (last)
 					goto failed;
@@ -2781,7 +2805,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Read Pre-tree for remaining elements of main tree.
 			 */
-			if (lzx_read_pre_tree(strm) < 0) {
+			if (lzx_read_pre_tree(strm) == ARCHIVE_EOF) {
 				ds->state = ST_RD_PRE_MAIN_TREE_REM;
 				if (last)
 					goto failed;
@@ -2811,7 +2835,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Read Pre-tree for remaining elements of main tree.
 			 */
-			if (lzx_read_pre_tree(strm) < 0) {
+			if (lzx_read_pre_tree(strm) == ARCHIVE_EOF) {
 				ds->state = ST_RD_PRE_LENGTH_TREE;
 				if (last)
 					goto failed;
@@ -2862,6 +2886,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 	uint8_t mt_lookup_bits = mt->lookup_bits;
 	size_t copy_len = ds->copy_len, copy_pos = ds->copy_pos;
 	size_t w_pos = ds->w_pos, w_mask = ds->w_mask, w_size = ds->w_size;
+	size_t w_filled = ds->w_filled;
 	uint8_t length_header = ds->length_header;
 	uint8_t offset_bits = ds->offset_bits;
 	uint16_t position_slot = ds->position_slot;
@@ -2886,6 +2911,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 					ds->position_slot = position_slot;
 					ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
 					ds->w_pos = w_pos;
+					ds->w_filled = w_filled;
 					strm->avail_out = endp - noutp;
 					return (ARCHIVE_EOF);
 				}
@@ -2922,6 +2948,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				 * afterward. */
 				w_buff[w_pos] = c;
 				w_pos = (w_pos + 1) & w_mask;
+				if (w_filled < w_size)
+					w_filled++;
 				/* Store the decoded code to output buffer. */
 				*noutp++ = c;
 				block_bytes_avail--;
@@ -3049,6 +3077,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Compute a real position in window.
 			 */
+			if (copy_pos == 0 || copy_pos > w_filled)
+				goto failed;
 			copy_pos = (w_pos - copy_pos) & w_mask;
 			/* FALL THROUGH */
 		case ST_COPY:
@@ -3086,6 +3116,11 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				noutp += l;
 				copy_pos = (copy_pos + l) & w_mask;
 				w_pos = (w_pos + l) & w_mask;
+				if (w_filled < w_size) {
+					w_filled += l;
+					if (w_filled > w_size)
+						w_filled = w_size;
+				}
 				block_bytes_avail -= l;
 				if (copy_len <= l)
 					/* A copy of current pattern ended. */
@@ -3114,6 +3149,7 @@ next_data:
 	ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
 	ds->state = state;
 	ds->w_pos = w_pos;
+	ds->w_filled = w_filled;
 	strm->avail_out = endp - noutp;
 	return (ARCHIVE_OK);
 }
@@ -3240,7 +3276,8 @@ lzx_huffman_init(struct huffman *hf, uint16_t symbol_count, uint8_t tbl_bits)
 			return (ARCHIVE_FATAL);
 		hf->tbl_bits = tbl_bits;
 	} else
-		memset(hf->tbl, 0, tbl_size * sizeof(hf->bitlen[0]));
+		memset(hf->tbl, 0,
+		    ((size_t)1 << hf->tbl_bits) * sizeof(hf->tbl[0]));
 	return (ARCHIVE_OK);
 }
 

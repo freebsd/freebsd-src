@@ -52,7 +52,6 @@
 
 struct lz4 {
 	int		 compression_level;
-	unsigned	 header_written:1;
 	unsigned	 version_number:1;
 	unsigned	 block_independence:1;
 	unsigned	 block_checksum:1;
@@ -292,7 +291,10 @@ archive_filter_lz4_open(struct archive_write_filter *f)
 		return (ARCHIVE_FATAL);
 	}
 
-	return (ARCHIVE_OK);
+	/* Write the stream descriptor now so that the stream checksum
+	 * state is initialized and the stream is well-formed even if
+	 * no data is ever written through this filter. */
+	return (lz4_write_stream_descriptor(f));
 }
 
 /*
@@ -309,14 +311,6 @@ archive_filter_lz4_write(struct archive_write_filter *f,
 	const char *p;
 	size_t remaining;
 	ssize_t size;
-
-	/* If we haven't written a stream descriptor, we have to do it first. */
-	if (!lz4->header_written) {
-		ret = lz4_write_stream_descriptor(f);
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		lz4->header_written = 1;
-	}
 
 	p = (const char *)buff;
 	remaining = length;

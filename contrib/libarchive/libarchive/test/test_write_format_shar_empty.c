@@ -51,3 +51,40 @@ DEFINE_TEST(test_write_format_shar_empty)
 	failure("Empty shar archive should be exactly 0 bytes, was %zu.", used);
 	assert(used == 0);
 }
+
+DEFINE_TEST(test_write_format_shar_invalid_pathname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[2048];
+	size_t used;
+	int dump, empty;
+
+	for (dump = 0; dump <= 1; dump++) {
+		for (empty = 0; empty <= 1; empty++) {
+			assert((a = archive_write_new()) != NULL);
+			if (dump)
+				assertEqualInt(ARCHIVE_OK,
+				    archive_write_set_format_shar_dump(a));
+			else
+				assertEqualInt(ARCHIVE_OK,
+				    archive_write_set_format_shar(a));
+			assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a,
+			    buff, sizeof(buff), &used));
+
+			assert((ae = archive_entry_new()) != NULL);
+			if (empty)
+				archive_entry_set_pathname(ae, "");
+			archive_entry_set_filetype(ae, AE_IFREG);
+			archive_entry_set_perm(ae, 0644);
+			archive_entry_set_size(ae, 0);
+			assertEqualIntA(a, ARCHIVE_FAILED,
+			    archive_write_header(a, ae));
+			archive_entry_free(ae);
+
+			assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+			assertEqualInt(0, used);
+		}
+	}
+}

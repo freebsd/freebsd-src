@@ -29,6 +29,8 @@
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 
+#include "archive_umask_private.h"
+
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -646,7 +648,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * user edits their umask during the extraction for some
 	 * reason.
 	 */
-	umask(a->user_umask = umask(0));
+	a->user_umask = __archive_get_umask();
 
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
@@ -995,8 +997,11 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	}
 
 	/* If this write would run beyond the file size, truncate it. */
-	if (a->filesize >= 0 && (int64_t)(a->offset + size) > a->filesize)
-		start_size = size = (size_t)(a->filesize - a->offset);
+	if (a->filesize >= 0 && a->filesize - a->offset < (int64_t)size) {
+		int64_t diff = a->filesize - a->offset;
+
+		start_size = size = diff < 0 ? 0 : (size_t)diff;
+	}
 
 	/* Write the data. */
 	while (size > 0) {
@@ -1612,8 +1617,11 @@ hfs_write_data_block(struct archive_write_disk *a, const char *buff,
 	}
 
 	/* If this write would run beyond the file size, truncate it. */
-	if (a->filesize >= 0 && (int64_t)(a->offset + size) > a->filesize)
-		start_size = size = (size_t)(a->filesize - a->offset);
+	if (a->filesize >= 0 && a->filesize - a->offset < (int64_t)size) {
+		int64_t diff = a->filesize - a->offset;
+
+		start_size = size = diff < 0 ? 0 : (size_t)diff;
+	}
 
 	/* Write the data. */
 	while (size > 0) {
@@ -2014,8 +2022,8 @@ archive_write_disk_new(void)
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->archive.vtable = &archive_write_disk_vtable;
 	a->start_time = time(NULL);
-	/* Query and restore the umask. */
-	umask(a->user_umask = umask(0));
+	/* Query the umask. */
+	a->user_umask = __archive_get_umask();
 #ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
 #endif /* HAVE_GETEUID */
