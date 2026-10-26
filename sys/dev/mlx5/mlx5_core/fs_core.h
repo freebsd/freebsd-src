@@ -216,6 +216,8 @@ struct fs_fte {
 	u32				dests_size;
 	u32				fwd_dests;
 	u32				index;
+	u32				hash;
+	struct hlist_node		hnode;
 	struct mlx5_flow_context	flow_context;
 	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
@@ -244,6 +246,8 @@ struct mlx5_flow_group_mask {
 	u32	match_criteria[MLX5_ST_SZ_DW_MATCH_PARAM];
 };
 
+#define	FS_FTE_HASH_MAX_BUCKETS	(1U << 14)
+
 /* Type of children is fs_fte */
 struct mlx5_flow_group {
 	struct fs_node			node;
@@ -253,6 +257,9 @@ struct mlx5_flow_group {
 	struct ida			fte_allocator;
 	u32				id;
 	struct xarray			ftes_xa;
+	/* match value -> FTE hash, protected by the group node lock */
+	struct hlist_head		*fte_hash;
+	u32				fte_hash_mask;
 };
 
 struct mlx5_flow_root_namespace {
