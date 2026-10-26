@@ -133,12 +133,15 @@ static const struct amdsmu_diagnostics {
 	{ "GFX", false, "amdgpu", NULL },
 	{ "DISPLAY", false, "amdgpu", NULL },
 	/*
-	 * On Phoenix, these seem to report USB4, not USB3 as their names would
-	 * suggest.
+	 * On Phoenix and Krackan Point, these seem to report USB4, not USB3 as
+	 * their names would suggest.
 	 */
 	{ "USB3_0", false, "tb", "see thunderbolt(4)" },
 	{ "USB3_1", false, "tb", "see thunderbolt(4)" },
-	/* On Phoenix, the SMU seems to report garbage for this IP block. */
+	/*
+	 * On Phoenix and Krackan Point, the SMU seems to report garbage for
+	 * this IP block.
+	 */
 	{ "USB4_0", true, NULL, NULL },
 };
 
