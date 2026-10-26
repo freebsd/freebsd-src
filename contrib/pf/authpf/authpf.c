@@ -748,16 +748,17 @@ static int
 change_filter(int add, const char *l_user, const char *ip_src)
 {
 	char	*fdpath = NULL, *userstr = NULL, *ipstr = NULL;
-	char	*rsn = NULL, *fn = NULL;
+	char	*rsn = NULL, *fn = NULL, *nlfdstr = NULL;
 	pid_t	pid;
 	gid_t   gid;
 	int	s;
 
 	if (add) {
 		struct stat sb;
-		char *pargv[13] = {
-			"pfctl", "-p", "/dev/pf", "-q", "-a", "anchor/ruleset",
-			"-D", "user_id=X", "-D", "user_ip=X", "-f", "file", NULL
+		char *pargv[15] = {
+			"pfctl", "-p", "/dev/pf", "-l", "nlfd", "-q", "-a",
+			"anchor/ruleset", "-D", "user_id=X", "-D", "user_ip=X",
+			"-f", "file", NULL
 		};
 
 		if (l_user == NULL || !l_user[0] || ip_src == NULL || !ip_src[0]) {
@@ -768,6 +769,8 @@ change_filter(int add, const char *l_user, const char *ip_src)
 		if (asprintf(&rsn, "%s/%s", anchorname, rulesetname) == -1)
 			goto no_mem;
 		if (asprintf(&fdpath, "/dev/fd/%d", pfctl_fd(pfh)) == -1)
+			goto no_mem;
+		if (asprintf(&nlfdstr, "%d", pfctl_nl_fd(pfh)) == -1)
 			goto no_mem;
 		if (asprintf(&ipstr, "user_ip=%s", ip_src) == -1)
 			goto no_mem;
@@ -782,15 +785,16 @@ change_filter(int add, const char *l_user, const char *ip_src)
 				goto no_mem;
 		}
 		pargv[2] = fdpath;
-		pargv[5] = rsn;
-		pargv[7] = userstr;
+		pargv[4] = nlfdstr;
+		pargv[7] = rsn;
+		pargv[9] = userstr;
 		if (user_ip) {
-			pargv[9] = ipstr;
-			pargv[11] = fn;
+			pargv[11] = ipstr;
+			pargv[13] = fn;
 		} else {
-			pargv[8] = "-f";
-			pargv[9] = fn;
-			pargv[10] = NULL;
+			pargv[10] = "-f";
+			pargv[11] = fn;
+			pargv[12] = NULL;
 		}
 
 		switch (pid = fork()) {
@@ -802,6 +806,14 @@ change_filter(int add, const char *l_user, const char *ip_src)
 			gid = getgid();
 			if (setregid(gid, gid) == -1) {
 				err(1, "setregid");
+			}
+			/*
+			 * pfctl inherits both descriptors; do not rely on how
+			 * libpfctl happened to open them.
+			 */
+			if (fcntl(pfctl_fd(pfh), F_SETFD, 0) == -1 ||
+			    fcntl(pfctl_nl_fd(pfh), F_SETFD, 0) == -1) {
+				err(1, "fcntl");
 			}
 			execvp(PATH_PFCTL, pargv);
 			warn("exec of %s failed", PATH_PFCTL);
@@ -829,6 +841,7 @@ no_mem:
 	syslog(LOG_ERR, "malloc failed");
 error:
 	free(fdpath);
+	free(nlfdstr);
 	free(rsn);
 	free(userstr);
 	free(ipstr);
