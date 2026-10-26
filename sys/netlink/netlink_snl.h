@@ -269,13 +269,11 @@ snl_free(struct snl_state *ss)
 }
 
 static inline bool
-snl_init(struct snl_state *ss, int netlink_family)
+snl_init_fd(struct snl_state *ss, int fd)
 {
 	memset(ss, 0, sizeof(*ss));
 
-	ss->fd = socket(AF_NETLINK, SOCK_RAW, netlink_family);
-	if (ss->fd == -1)
-		return (false);
+	ss->fd = fd;
 	ss->init_done = true;
 
 	int val = 1;
@@ -305,6 +303,16 @@ snl_init(struct snl_state *ss, int netlink_family)
 	}
 
 	return (true);
+}
+
+static inline bool
+snl_init(struct snl_state *ss, int netlink_family)
+{
+	memset(ss, 0, sizeof(*ss));
+	ss->fd = socket(AF_NETLINK, SOCK_RAW, netlink_family);
+	if (ss->fd == -1)
+		return (false);
+	return (snl_init_fd(ss, ss->fd));
 }
 
 static inline bool
