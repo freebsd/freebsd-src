@@ -73,7 +73,7 @@ static int	_pfctl_clear_states(int , const struct pfctl_kill *,
 static void	_pfctl_verify_parsers(void);
 
 struct pfctl_handle *
-pfctl_open(const char *pf_device)
+pfctl_open_from_nl_fd(const char *pf_device, int nl_fd)
 {
 	struct pfctl_handle *h;
 
@@ -85,8 +85,18 @@ pfctl_open(const char *pf_device)
 	if (h->fd < 0)
 		goto error;
 
-	if (!snl_init(&h->ss, NETLINK_GENERIC))
-		goto error;
+	if (nl_fd >= 0) {
+		if (!snl_init_fd(&h->ss, nl_fd))
+			goto error;
+		/*
+		 * Replies are matched by sequence number; a random start makes
+		 * a collision with an earlier owner's counter improbable.
+		 */
+		h->ss.seq = arc4random();
+	} else {
+		if (!snl_init(&h->ss, NETLINK_GENERIC))
+			goto error;
+	}
 
 	h->family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	if (h->family_id == 0)
@@ -102,6 +112,12 @@ error:
 	return (NULL);
 }
 
+struct pfctl_handle *
+pfctl_open(const char *pf_device)
+{
+	return (pfctl_open_from_nl_fd(pf_device, -1));
+}
+
 void
 pfctl_close(struct pfctl_handle *h)
 {
@@ -114,6 +130,12 @@ int
 pfctl_fd(struct pfctl_handle *h)
 {
 	return (h->fd);
+}
+
+int
+pfctl_nl_fd(struct pfctl_handle *h)
+{
+	return (h->ss.fd);
 }
 
 static int
