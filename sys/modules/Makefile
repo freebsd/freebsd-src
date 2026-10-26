@@ -88,6 +88,7 @@ SUBDIR=	\
 	${_cfi} \
 	${_chromebook_platform} \
 	${_ciss} \
+	${_cnlhgpio} \
 	${_coreboot} \
 	${_coretemp} \
 	${_cpsw} \
@@ -817,6 +818,7 @@ _blake2=	blake2
 _bytgpio=	bytgpio
 _chvgpio=	chvgpio
 _ciss=		ciss
+_cnlhgpio=	cnlhgpio
 _chromebook_platform=	chromebook_platform
 _coreboot=	coreboot
 _coretemp=	coretemp
