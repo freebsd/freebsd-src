@@ -56,6 +56,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000 && !defined(_PATH_DEFTAPE)
 // Libarchive 4.0 and later will NOT define _PATH_DEFTAPE
@@ -511,6 +512,14 @@ main(int argc, char **argv)
 			bsdtar->readdisk_flags |= ARCHIVE_READDISK_MAC_COPYFILE;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_MAC_METADATA;
 			bsdtar->flags |= OPTFLAG_MAC_METADATA;
+			break;
+		case OPTION_MODE: /* GNU tar */
+			free(bsdtar->file_mode);
+			bsdtar->file_mode = lafe_setmode(bsdtar->argument);
+			if (bsdtar->file_mode == NULL)
+				lafe_errc(1, 0,
+					"Invalid file mode: %s",
+					bsdtar->argument);
 			break;
 		case 'n': /* GNU tar */
 			bsdtar->flags |= OPTFLAG_NO_SUBDIRS;
@@ -1023,6 +1032,7 @@ main(int argc, char **argv)
 #endif
 	cset_free(bsdtar->cset);
 	passphrase_free(bsdtar->ppbuff);
+	free(bsdtar->file_mode);
 
 	if (bsdtar->return_value != 0)
 		lafe_warnc(0,

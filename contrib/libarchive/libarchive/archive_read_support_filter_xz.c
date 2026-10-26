@@ -115,7 +115,7 @@ archive_read_support_filter_xz(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "xz",
+	if (__archive_read_register_bidder(a, NULL,
 				&xz_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -147,7 +147,7 @@ archive_read_support_filter_lzma(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "lzma",
+	if (__archive_read_register_bidder(a, NULL,
 				&lzma_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -180,7 +180,7 @@ archive_read_support_filter_lzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "lzip",
+	if (__archive_read_register_bidder(a, NULL,
 				&lzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 

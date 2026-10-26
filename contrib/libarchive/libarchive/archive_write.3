@@ -174,7 +174,7 @@ myclose(struct archive *a, void *client_data)
 void
 write_archive(const char *outname, const char **filename)
 {
-  struct mydata *mydata = malloc(sizeof(struct mydata));
+  struct mydata *mydata = malloc(sizeof(*mydata));
   struct archive *a;
   struct archive_entry *entry;
   struct stat st;
@@ -185,7 +185,7 @@ write_archive(const char *outname, const char **filename)
   a = archive_write_new();
   mydata->name = outname;
   /* Set archive format and filter according to output file extension.
-   * If it fails, set default format. Platform depended function.
+   * If it fails, set default format. Platform dependent function.
    * See supported formats in archive_write_set_format_filter_by_ext.c */
   if (archive_write_set_format_filter_by_ext(a, outname) != ARCHIVE_OK)  {
     archive_write_add_filter_gzip(a);

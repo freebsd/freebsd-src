@@ -202,3 +202,61 @@ DEFINE_TEST(test_read_format_warc_truncated_body)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_warc_uri_nul)
+{
+	const char reffile[] = "test_read_format_warc_uri_nul.warc";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 10240));
+
+	/* Entry cannot be parsed */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
+
+	/* Verify closing and resource freeing */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_warc_future_date)
+{
+	static const char warc[] =
+	    "WARC/1.0\r\n"
+	    "WARC-Type: resource\r\n"
+	    "WARC-Date: 2039-01-01T00:00:00Z\r\n"
+	    "WARC-Target-URI: file://test.txt\r\n"
+	    "Content-Length: 0\r\n"
+	    "\r\n"
+	    "\r\n\r\n";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	if (sizeof(time_t) < 8) {
+		skipping("This test requires a 64-bit time_t");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, warc, sizeof(warc) - 1U));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualInt(2177452800LL, archive_entry_mtime(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

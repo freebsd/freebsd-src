@@ -173,9 +173,7 @@ struct links_entry {
         char                    *name;
 };
 
-#define	CPIO_MAGIC   0x13141516
 struct cpio {
-	int			  magic;
 	int			(*read_header)(struct archive_read *, struct cpio *,
 				     struct archive_entry *, size_t *, size_t *);
 	struct links_entry	 *links_head;
@@ -234,10 +232,9 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
+		archive_set_error(_a, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
-	cpio->magic = CPIO_MAGIC;
 
 	r = __archive_read_register_format(a,
 	    cpio,
@@ -254,7 +251,7 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(cpio);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 
@@ -262,16 +259,16 @@ static int
 archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 {
 	struct cpio *cpio = a->format->data;
-	const unsigned char *p;
+	const void *h;
 	int bid;
 
 	(void)best_bid; /* UNUSED */
 
-	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 6, NULL)) == NULL)
 		return (-1);
 
 	bid = 0;
-	if (memcmp(p, "070707", 6) == 0) {
+	if (memcmp(h, "070707", 6) == 0) {
 		/* ASCII cpio archive (odc, POSIX.1) */
 		cpio->read_header = header_odc;
 		bid += 48;
@@ -279,7 +276,7 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		 * XXX TODO:  More verification; Could check that only octal
 		 * digits appear in appropriate header locations. XXX
 		 */
-	} else if (memcmp(p, "070727", 6) == 0) {
+	} else if (memcmp(h, "070727", 6) == 0) {
 		/* afio large ASCII cpio archive */
 		cpio->read_header = header_odc;
 		bid += 48;
@@ -287,7 +284,7 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		 * XXX TODO:  More verification; Could check that almost hex
 		 * digits appear in appropriate header locations. XXX
 		 */
-	} else if (memcmp(p, "070701", 6) == 0) {
+	} else if (memcmp(h, "070701", 6) == 0) {
 		/* ASCII cpio archive (SVR4 without CRC) */
 		cpio->read_header = header_newc;
 		bid += 48;
@@ -295,7 +292,7 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		 * XXX TODO:  More verification; Could check that only hex
 		 * digits appear in appropriate header locations. XXX
 		 */
-	} else if (memcmp(p, "070702", 6) == 0) {
+	} else if (memcmp(h, "070702", 6) == 0) {
 		/* ASCII cpio archive (SVR4 with CRC) */
 		/* XXX TODO: Flag that we should check the CRC. XXX */
 		cpio->read_header = header_newc;
@@ -304,12 +301,12 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		 * XXX TODO:  More verification; Could check that only hex
 		 * digits appear in appropriate header locations. XXX
 		 */
-	} else if (archive_be16dec(p) == 070707) {
+	} else if (archive_be16dec(h) == 070707) {
 		/* big-endian binary cpio archives */
 		cpio->read_header = header_bin_be;
 		bid += 16;
 		/* Is more verification possible here? */
-	} else if (archive_le16dec(p) == 070707) {
+	} else if (archive_le16dec(h) == 070707) {
 		/* little-endian binary cpio archives */
 		cpio->read_header = header_bin_le;
 		bid += 16;

@@ -31,20 +31,6 @@
 #include "archive.h"
 #include "archive_hmac_private.h"
 
-/*
- * On systems that do not support any recognized crypto libraries,
- * the archive_hmac.c file is expected to define no usable symbols.
- *
- * But some compilers and linkers choke on empty object files, so
- * define a public symbol that will always exist.  This could
- * be removed someday if this file gains another always-present
- * symbol definition.
- */
-int __libarchive_hmac_build_hack(void) {
-	return 0;
-}
-
-
 #ifdef ARCHIVE_HMAC_USE_Apple_CommonCrypto
 
 static int
@@ -74,7 +60,7 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 }
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(ARCHIVE_CRYPTO_WIN)
 
 #ifndef BCRYPT_HASH_REUSABLE_FLAG
 # define BCRYPT_HASH_REUSABLE_FLAG 0x00000020

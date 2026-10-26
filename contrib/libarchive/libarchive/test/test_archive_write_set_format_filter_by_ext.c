@@ -27,7 +27,7 @@
 #include "test.h"
 
 static void
-test_format_filter_by_ext(const char *output_file, 
+test_format_filter_by_ext(const char *output_file,
     int format_id, int filter_id, int dot_stored, const char * def_ext)
 {
 	struct archive_entry *ae;
@@ -70,7 +70,7 @@ test_format_filter_by_ext(const char *output_file,
 			return;
 		}
 	}
-        
+
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
@@ -196,6 +196,11 @@ DEFINE_TEST(test_archive_write_set_format_filter_by_ext_tar_bz2)
 DEFINE_TEST(test_archive_write_set_format_filter_by_ext_tar_xz)
 {
 	test_format_filter_by_ext("./data/test.tar.xz", ARCHIVE_FORMAT_TAR, ARCHIVE_FILTER_XZ, 0, NULL);
+}
+
+DEFINE_TEST(test_archive_write_set_format_filter_by_ext_tar_zst)
+{
+	test_format_filter_by_ext("./data/test.tar.zst", ARCHIVE_FORMAT_TAR, ARCHIVE_FILTER_ZSTD, 0, NULL);
 }
 
 DEFINE_TEST(test_archive_write_set_format_filter_by_no_ext_def_zip)

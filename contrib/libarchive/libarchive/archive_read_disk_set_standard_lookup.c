@@ -47,11 +47,11 @@
 #include "archive.h"
 #include "archive_integer.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) || defined(__wasi__)
 int
 archive_read_disk_set_standard_lookup(struct archive *a)
 {
-	archive_set_error(a, -1, "Standard lookups not available on Windows");
+	archive_set_error(a, -1, "Standard lookups not available on this platform");
 	return (ARCHIVE_FATAL);
 }
 #else /* ! (_WIN32 && !__CYGWIN__) */
@@ -312,4 +312,4 @@ lookup_gname_helper(struct name_cache *cache, id_t id)
 }
 #endif
 
-#endif /* ! (_WIN32 && !__CYGWIN__) */
+#endif /* ! (_WIN32 && !__CYGWIN__ || __wasi__) */

@@ -92,7 +92,7 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualMem(err, "Raw format only supports one entry per archive", 47);
 	archive_entry_free(ae);
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Create a new archive */
@@ -111,7 +111,7 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualMem(err, "Raw format only supports filetype AE_IFREG", 43);
 	archive_entry_free(ae);
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	free(buff);

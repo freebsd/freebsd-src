@@ -61,7 +61,7 @@ archive_read_support_filter_lrzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "lrzip",
+	if (__archive_read_register_bidder(a, NULL,
 				&lrzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -79,14 +79,12 @@ lrzip_bidder_bid(struct archive_read_filter_bidder *b,
     struct archive_read_filter *f)
 {
 	const unsigned char *p;
-	ssize_t len;
 	int i;
 
 	(void)b; /* UNUSED */
 	/* Start by looking at the first six bytes of the header, which
 	 * is all fixed layout. */
-	len = 6;
-	p = __archive_read_filter_ahead(f, len, NULL);
+	p = __archive_read_filter_ahead(f, 6, NULL);
 	if (p == NULL)
 		return (0);
 
@@ -101,7 +99,7 @@ lrzip_bidder_bid(struct archive_read_filter_bidder *b,
 	if ((i < 6) || (i > 10))
 		return 0;
 
-	return (int)len;
+	return (48);
 }
 
 static int

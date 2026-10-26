@@ -206,7 +206,7 @@ to register an error code and message and return -1.
 .Fn archive_close_callback "struct archive *" "void *client_data"
 .El
 .Pp
-The close callback is invoked by archive_close when
+The close callback is invoked by archive_write_close when
 the archive processing is complete. If the open callback fails, the close
 callback is not invoked.
 The callback should return

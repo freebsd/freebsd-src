@@ -166,7 +166,7 @@ The callback functions must match the following prototypes:
 .El
 .Pp
 The open callback is invoked by
-.Fn archive_open .
+.Fn archive_read_open .
 It should return
 .Cm ARCHIVE_OK
 if the underlying file or data source is successfully
@@ -210,7 +210,7 @@ performance gains when reading uncompressed
 archives from slow disk drives or other media
 that can skip quickly.
 .Pp
-The close callback is invoked by archive_close when
+The close callback is invoked by archive_read_close when
 the archive processing is complete.
 The callback should return
 .Cm ARCHIVE_OK

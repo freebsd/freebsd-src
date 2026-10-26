@@ -96,7 +96,7 @@ archive_read_support_filter_gzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "gzip",
+	if (__archive_read_register_bidder(a, NULL,
 				&gzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -344,7 +344,7 @@ consume_header(struct archive_read_filter *f)
 	__archive_read_filter_consume(f->upstream, len);
 
 	/* Initialize CRC accumulator. */
-	gzip->crc = crc32(0L, NULL, 0);
+	gzip->crc = __archive_crc32(0L, NULL, 0);
 
 	/* Initialize compression library. */
 	gzip->stream.next_in = (unsigned char *)(uintptr_t)
@@ -416,8 +416,12 @@ consume_trailer(struct archive_read_filter *f)
 
 	/* GZip trailer is a fixed 8 byte structure. */
 	p = __archive_read_filter_ahead(f->upstream, 8, NULL);
-	if (p == NULL)
+	if (p == NULL) {
+		archive_set_error(&f->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Truncated gzip input");
 		return (ARCHIVE_FATAL);
+	}
 
 	/* XXX TODO: Verify the length and CRC. */
 

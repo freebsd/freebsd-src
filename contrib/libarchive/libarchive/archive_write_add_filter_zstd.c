@@ -70,7 +70,6 @@ struct zstd {
 	size_t		 max_frame_in;
 	size_t		 min_frame_out;
 	size_t		 max_frame_out;
-	size_t		 cur_frame;
 	size_t		 cur_frame_in;
 	size_t		 cur_frame_out;
 	ZSTD_CStream	*cstream;
@@ -494,7 +493,6 @@ drive_compressor(struct archive_write_filter *f,
 			break;
 		case resetting:
 			ZSTD_CCtx_reset(zstd->cstream, ZSTD_reset_session_only);
-			zstd->cur_frame++;
 			zstd->cur_frame_in = 0;
 			zstd->cur_frame_out = 0;
 			zstd->state = running;

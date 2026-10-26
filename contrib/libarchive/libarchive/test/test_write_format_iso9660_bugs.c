@@ -27,6 +27,28 @@
 
 #include <stdlib.h>
 
+struct iso9660_capture {
+	unsigned char data[64 * 1024];
+	size_t used;
+};
+
+static la_ssize_t
+capture_iso9660(struct archive *a, void *client_data, const void *buffer,
+    size_t length)
+{
+	struct iso9660_capture *capture = client_data;
+	size_t copy = length;
+
+	(void)a;
+	if (copy > sizeof(capture->data) - capture->used)
+		copy = sizeof(capture->data) - capture->used;
+	if (copy > 0) {
+		memcpy(capture->data + capture->used, buffer, copy);
+		capture->used += copy;
+	}
+	return ((la_ssize_t)length);
+}
+
 /*
  * Replay a fuzzer binary through the ISO9660 writer, matching the protocol
  * in fuzzers/custom/fuzz_writer_iso9660.cc.
@@ -247,6 +269,43 @@ DEFINE_TEST(test_write_format_iso9660_duplicate_identifier_truncation)
 	free(buff);
 }
 
+DEFINE_TEST(test_write_format_iso9660_boot_image_size_overflow)
+{
+	static const unsigned char expected_volume_size[] = {
+	    0x21, 0x00, 0x10, 0x00, 0x00, 0x10, 0x00, 0x21
+	};
+	struct iso9660_capture capture = {{0}, 0};
+	struct archive_entry *entry;
+	struct archive *a;
+	const size_t pvd = 16 * 2048;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_iso9660(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_option(a, NULL, "boot", "boot.img"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_option(a, NULL, "boot-type", "no-emulation"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_option(a, NULL, "pad", NULL));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open(a, &capture, NULL, capture_iso9660, NULL));
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(entry, "boot.img");
+	archive_entry_set_mode(entry, AE_IFREG | 0644);
+	archive_entry_set_size(entry, INT32_MAX);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	/* The missing file body fails after the volume descriptors are written. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
+	assert(capture.used >= pvd + 0x58);
+	assertEqualMem(capture.data + pvd, "\001CD001\001", 7);
+	assertEqualMem(capture.data + pvd + 0x50, expected_volume_size,
+	    sizeof(expected_volume_size));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
 
 DEFINE_TEST(test_write_format_iso9660_symlink)
 {

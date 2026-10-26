@@ -320,9 +320,6 @@ struct heap_queue {
 };
 
 struct iso9660 {
-	int	magic;
-#define ISO9660_MAGIC   0x96609660
-
 	int opt_support_joliet;
 	int opt_support_rockridge;
 
@@ -423,7 +420,7 @@ static struct file_info *
 static int	parse_rockridge(struct archive_read *a,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
-static int	register_CE(struct archive_read *a, int32_t location,
+static int	register_CE(struct archive_read *a, uint32_t location,
 		    struct file_info *file);
 static int	read_CE(struct archive_read *a, struct iso9660 *iso9660);
 static void	parse_rockridge_NM1(struct file_info *,
@@ -464,11 +461,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 
 	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate iso9660 data");
+		archive_set_error(_a, ENOMEM, "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
 	}
-	iso9660->magic = ISO9660_MAGIC;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
 	iso9660->re_files.first = NULL;
@@ -491,11 +486,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(iso9660);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 
@@ -504,7 +497,7 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 {
 	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
-	const unsigned char *p;
+	const unsigned char *h;
 	int seenTerminator;
 
 	/* If there's already a better bid than we can ever
@@ -518,41 +511,41 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	 * if the I/O layer gives us more, we'll take it.
 	 */
 #define RESERVED_AREA	(SYSTEM_AREA_BLOCK * LOGICAL_BLOCK_SIZE)
-	p = __archive_read_ahead(a,
+	h = __archive_read_ahead(a,
 	    RESERVED_AREA + 8 * LOGICAL_BLOCK_SIZE,
 	    &bytes_read);
-	if (p == NULL)
+	if (h == NULL)
 	    return (-1);
 
 	/* Skip the reserved area. */
 	bytes_read -= RESERVED_AREA;
-	p += RESERVED_AREA;
+	h += RESERVED_AREA;
 
 	/* Check each volume descriptor. */
 	seenTerminator = 0;
 	for (; bytes_read > LOGICAL_BLOCK_SIZE;
-	    bytes_read -= LOGICAL_BLOCK_SIZE, p += LOGICAL_BLOCK_SIZE) {
+	    bytes_read -= LOGICAL_BLOCK_SIZE, h += LOGICAL_BLOCK_SIZE) {
 		/* Do not handle undefined Volume Descriptor Type. */
-		if (p[0] >= 4 && p[0] <= 254)
+		if (h[0] >= 4 && h[0] <= 254)
 			return (0);
 		/* Standard Identifier must be "CD001" */
-		if (memcmp(p + 1, "CD001", 5) != 0)
+		if (memcmp(h + 1, "CD001", 5) != 0)
 			return (0);
-		if (isPVD(iso9660, p))
+		if (isPVD(iso9660, h))
 			continue;
 		if (!iso9660->joliet.location) {
-			if (isJolietSVD(iso9660, p))
+			if (isJolietSVD(iso9660, h))
 				continue;
 		}
-		if (isBootRecord(p))
+		if (isBootRecord(h))
 			continue;
-		if (isEVD(p))
+		if (isEVD(h))
 			continue;
-		if (isSVD(p))
+		if (isSVD(h))
 			continue;
-		if (isVolumePartition(iso9660, p))
+		if (isVolumePartition(iso9660, h))
 			continue;
-		if (isVDSetTerminator(p)) {
+		if (isVDSetTerminator(h)) {
 			seenTerminator = 1;
 			break;
 		}
@@ -1517,8 +1510,7 @@ zisofs_read_data(struct archive_read *a,
 		if (zisofs->block_pointers_alloc < xsize) {
 			size_t alloc;
 
-			if (zisofs->block_pointers != NULL)
-				free(zisofs->block_pointers);
+			free(zisofs->block_pointers);
 			alloc = ((xsize >> 10) + 1) << 10;
 			zisofs->block_pointers = malloc(alloc);
 			if (zisofs->block_pointers == NULL) {
@@ -1533,8 +1525,7 @@ zisofs_read_data(struct archive_read *a,
 		/* Allocate uncompressed data buffer. */
 		xsize = (size_t)1UL << zisofs->pz_log2_bs;
 		if (zisofs->uncompressed_buffer_size < xsize) {
-			if (zisofs->uncompressed_buffer != NULL)
-				free(zisofs->uncompressed_buffer);
+			free(zisofs->uncompressed_buffer);
 			zisofs->uncompressed_buffer = malloc(xsize);
 			if (zisofs->uncompressed_buffer == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
@@ -2194,7 +2185,7 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 					 *   8 byte offset w/in above sector
 					 *   8 byte length of continuation
 					 */
-					int32_t location =
+					uint32_t location =
 					    archive_le32dec(data);
 					file->ce_offset =
 					    archive_le32dec(data+8);
@@ -2341,22 +2332,24 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 }
 
 static int
-register_CE(struct archive_read *a, int32_t location,
+register_CE(struct archive_read *a, uint32_t location,
     struct file_info *file)
 {
 	struct iso9660 *iso9660 = a->format->data;
 	struct read_ce_queue *heap;
-	uint64_t offset, parent_offset;
+	uint64_t offset, parent_offset, ce_end;
 	size_t hole, parent;
 
-	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
-	if (((file->mode & AE_IFMT) == AE_IFREG &&
+	if (archive_ckd_mul_u64(&offset, (uint64_t)location,
+	      (uint64_t)iso9660->logical_block_size) ||
+	    archive_ckd_add_u64(&ce_end, offset,
+	      ((uint64_t)file->ce_offset) + file->ce_size) ||
+	    ((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
 	    offset < iso9660->current_position ||
 	    (((uint64_t)file->ce_offset) + file->ce_size)
 	      > (uint64_t)iso9660->logical_block_size ||
-	    offset + file->ce_offset + file->ce_size
-		  > iso9660->volume_size) {
+	    ce_end > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid parameter in SUSP \"CE\" extension");
 		return (ARCHIVE_FATAL);
@@ -3061,14 +3054,28 @@ re_get_entry(struct iso9660 *iso9660)
 static inline int
 rede_add_entry(struct file_info *file)
 {
-	struct file_info *re;
+	struct file_info *re, *slow;
+	int slow_turn = 0;
 
 	/*
 	 * Find "RE" entry.
+	 *
+	 * A malformed image can chain "CL"/"RE" reparenting so that the
+	 * parent pointers form a cycle in which no node carries the "re"
+	 * flag.  Advance a second pointer at half speed (Floyd's cycle
+	 * detection) so such a loop is reported as a malformed archive
+	 * instead of spinning forever.
 	 */
-	re = file->parent;
-	while (re != NULL && !re->re)
+	re = slow = file->parent;
+	while (re != NULL && !re->re) {
 		re = re->parent;
+		if (slow_turn) {
+			slow = slow->parent;
+			if (re == slow)
+				return (-1);	/* Cyclic parent chain. */
+		}
+		slow_turn = !slow_turn;
+	}
 	if (re == NULL)
 		return (-1);
 

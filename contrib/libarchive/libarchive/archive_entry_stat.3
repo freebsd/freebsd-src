@@ -251,18 +251,18 @@ is the preferred interface.
 Block and character devices are characterised either using a device number
 or a pair of major and minor number.
 The combined device number can be obtained with
-.Fn archive_device_rdev
+.Fn archive_entry_rdev
 and set with
-.Fn archive_device_set_rdev .
+.Fn archive_entry_set_rdev .
 The major and minor numbers are accessed by
-.Fn archive_device_rdevmajor ,
-.Fn archive_device_rdevminor
-.Fn archive_device_set_rdevmajor
+.Fn archive_entry_rdevmajor ,
+.Fn archive_entry_rdevminor
+.Fn archive_entry_set_rdevmajor
 and
-.Fn archive_device_set_rdevminor .
+.Fn archive_entry_set_rdevminor .
 .Pp
 The process of splitting the combined device number into major and
-minor number and the reverse process of combing them differs between
+minor number and the reverse process of combining them differs between
 platforms.
 Some archive formats use the combined form, while other formats use
 the split form.

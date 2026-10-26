@@ -9,6 +9,7 @@
 #include "bsdunzip_platform.h"
 
 #include "la_queue.h"
+#include "lafe_explicit_bzero.h"
 #include "lafe_fnmatch.h"
 #include "lafe_getline.h"
 #ifdef HAVE_SYS_STAT_H
@@ -45,6 +46,12 @@
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#elif defined(HAVE_IO_H)
+/*
+ * Windows has no <unistd.h>; close(), isatty(), open() and write() are
+ * made available by including io.h instead.
+ */
+#include <io.h>
 #endif
 #if ((!defined(HAVE_UTIMENSAT) && defined(HAVE_LUTIMES)) || \
     (!defined(HAVE_FUTIMENS) && defined(HAVE_FUTIMES)))
@@ -56,6 +63,13 @@
 #include "bsdunzip.h"
 #include "passphrase.h"
 #include "lafe_err.h"
+
+#ifndef O_BINARY
+#define O_BINARY	0
+#endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
 
 /* command-line options */
 static int		 a_opt;		/* convert EOL */
@@ -389,32 +403,32 @@ make_parent(char *path)
 {
 	struct stat sb;
 	char *sep;
+	size_t len;
 
+	/* Retrieve string length of parent directory. */
 	sep = strrchr(path, '/');
 	if (sep == NULL || sep == path)
 		return;
-	*sep = '\0';
-	if (lstat(path, &sb) == 0) {
-		if (S_ISDIR(sb.st_mode)) {
-			*sep = '/';
-			return;
-		}
-		system_unlink(path);
-	}
-	make_parent(path);
-	system_mkdir(path, 0755);
-	*sep = '/';
+	len = sep - path;
 
-#if 0
-	for (sep = path; (sep = strchr(sep, '/')) != NULL; sep++) {
-		/* root in case of absolute d_arg */
-		if (sep == path)
-			continue;
+	/* Find deepest already existing directory. */
+	do {
 		*sep = '\0';
-		make_dir(path, 0755);
-		*sep = '/';
+		if (lstat(path, &sb) == 0) {
+			if (S_ISDIR(sb.st_mode)) {
+				*sep = '/';
+				break;
+			}
+			system_unlink(path);
+		}
+		sep = strrchr(path, '/');
+	} while (sep != NULL && sep != path);
+
+	/* Create missing directories and restore path. */
+	while (strlen(path) <= len) {
+		system_mkdir(path, 0755);
+		path[strlen(path)] = '/';
 	}
-#endif
 }
 
 /*
@@ -733,7 +747,7 @@ recheck:
 		return;
 	}
 
-	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
+	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, mode)) < 0)
 		error("open('%s')", *path);
 
 	info(" extracting: %s", *path);
@@ -763,11 +777,31 @@ static int
 pathname_is_insecure(const char* pathname)
 {
 	size_t len = strlen(pathname);
-	return (pathname[0] == '/' ||
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	const char *p;
+#endif
+
+	if (pathname[0] == '/' ||
 	    strcmp(pathname, "..") == 0 ||
 	    strncmp(pathname, "../", 3) == 0 ||
 	    strstr(pathname, "/../") != NULL ||
-	    (len >= 3 && strcmp(pathname + len - 3, "/..") == 0));
+	    (len >= 3 && strcmp(pathname + len - 3, "/..") == 0))
+		return 1;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (pathname[0] == '\\' ||
+	    (isalpha((unsigned char)pathname[0]) && pathname[1] == ':'))
+		return 1;
+
+	/* Windows treats both slash characters as path separators. */
+	for (p = pathname; *p != '\0'; ++p) {
+		if (p[0] == '.' && p[1] == '.' &&
+		    (p[2] == '\0' || p[2] == '/' || p[2] == '\\') &&
+		    (p == pathname || p[-1] == '/' || p[-1] == '\\'))
+			return 1;
+	}
+#endif
+	return 0;
 }
 
 /*
@@ -1013,7 +1047,8 @@ unzip(const char *fn)
 {
 	struct archive *a;
 	struct archive_entry *e;
-	int ret;
+	char *buf;
+	int fd, ret;
 	uintmax_t total_size, file_count, error_count;
 
 	if ((a = archive_read_new()) == NULL)
@@ -1030,7 +1065,29 @@ unzip(const char *fn)
 		archive_read_set_passphrase_callback(a, NULL,
 			&passphrase_callback);
 
-	ac(archive_read_open_filename(a, fn, 8192));
+	buf = NULL;
+	fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
+	if (fd == -1) {
+		size_t s;
+
+		s = strlen(fn) + 5;
+		buf = malloc(s);
+		if (buf == NULL)
+			error("Failed to construct filename");
+		if (snprintf(buf, s, "%s.zip", fn) < 0)
+			errorx("Failed to construct filename");
+		fd = open(buf, O_RDONLY | O_BINARY | O_CLOEXEC);
+		if (fd == -1) {
+			if (snprintf(buf, s, "%s.ZIP", fn) < 0)
+				errorx("Failed to construct filename");
+			fd = open(buf, O_RDONLY | O_BINARY | O_CLOEXEC);
+		}
+		if (fd != -1)
+			fn = buf;
+	}
+	if (fd == -1)
+		errorx("Failed to open '%s'", fn);
+	ac(archive_read_open_fd(a, fd, 64 * 1024));
 
 	if (!zipinfo_mode) {
 		if (!p_opt && !q_opt)
@@ -1083,10 +1140,11 @@ unzip(const char *fn)
 		}
 	}
 
-	ac(archive_read_free(a));
+	ac(archive_read_close(a));
+	archive_read_free(a);
 
 	if (passphrase_buf != NULL) {
-		memset(passphrase_buf, 0, PPBUFF_SIZE);
+		explicit_bzero(passphrase_buf, PPBUFF_SIZE);
 		free(passphrase_buf);
 	}
 
@@ -1099,6 +1157,9 @@ unzip(const char *fn)
 			       fn);
 		}
 	}
+
+	close(fd);
+	free(buf);
 }
 
 static void
@@ -1200,7 +1261,8 @@ getopts(int argc, char *argv[])
 		case 'Z':
 			zipinfo_mode = 1;
 			if (bsdunzip->argument != NULL &&
-			    strcmp(bsdunzip->argument, "1") == 0) {
+			    (strcmp(bsdunzip->argument, "1") == 0 ||
+			    strcmp(bsdunzip->argument, "-1") == 0)) {
 				Z1_opt = 1;
 			}
 			break;
@@ -1306,6 +1368,13 @@ main(int argc, char *argv[])
 
 	if (n_opt + o_opt + u_opt > 1)
 		errorx("-n, -o and -u are contradictory");
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (c_opt || p_opt) {
+		if (_setmode(STDOUT_FILENO, _O_BINARY) == -1)
+			errorx("unable to set binary output mode");
+	}
+#endif
 
 	unzip(zipfile);
 

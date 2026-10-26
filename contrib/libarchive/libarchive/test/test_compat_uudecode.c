@@ -25,7 +25,7 @@
  */
 #include "test.h"
 
-static char archive_data[] = {
+static char archive_data_1[] = {
 "begin 644 test_read_uu.Z\n"
 "M'YV0+@`('$BPH,&#\"!,J7,BP(4(8$&_4J`$\"`,08$F%4O)AQ(\\2/(#7&@#%C\n"
 "M!@T8-##.L`$\"QL@:-F(``%'#H<V;.'/J!%!G#ITP<BS\"H).FS<Z$1(T>/1A2\n"
@@ -38,11 +38,21 @@ static char archive_data[] = {
 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 };
 
-/*
- * Compatibility: uudecode command ignores junk data placed after the "end"
- * marker.
- */
-DEFINE_TEST(test_compat_uudecode)
+static char archive_data_2[] = {
+"begin 644 test_read_uu.Z\n"
+"M'YV0+@`('$BPH,&#\"!,J7,BP(4(8$&_4J`$\"`,08$F%4O)AQ(\\2/(#7&@#%C\n"
+"M!@T8-##.L`$\"QL@:-F(``%'#H<V;.'/J!%!G#ITP<BS\"H).FS<Z$1(T>/1A2\n"
+"IHU\"0%9=*G4JUJM6K6+-JW<JUJ]>O8,.*'4NVK-FS:-.J7<NVK=NW9P$`\n"
+"`\n"
+"end\n"
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+};
+
+static void
+test_data(const char *data, size_t len)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -51,7 +61,7 @@ DEFINE_TEST(test_compat_uudecode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    read_open_memory(a, archive_data, sizeof(archive_data), 2));
+	    read_open_memory(a, data, len, 2));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_COMPRESS);
 	assertEqualInt(archive_filter_code(a, 1), ARCHIVE_FILTER_UU);
@@ -60,3 +70,12 @@ DEFINE_TEST(test_compat_uudecode)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Compatibility: uudecode command ignores junk data placed after the "end"
+ * marker.
+ */
+DEFINE_TEST(test_compat_uudecode)
+{
+	test_data(archive_data_1, sizeof(archive_data_1));
+	test_data(archive_data_2, sizeof(archive_data_2));
+}

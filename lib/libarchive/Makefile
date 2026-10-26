@@ -29,6 +29,7 @@ SRCS=	archive_acl.c					\
 	archive_blake2s_ref.c				\
 	archive_check_magic.c				\
 	archive_cmdline.c				\
+	archive_crc32.c					\
 	archive_cryptor.c				\
 	archive_disk_acl_freebsd.c			\
 	archive_digest.c				\
@@ -99,6 +100,7 @@ SRCS=	archive_acl.c					\
 	archive_string.c				\
 	archive_string_sprintf.c			\
 	archive_time.c					\
+	archive_umask.c					\
 	archive_util.c					\
 	archive_version_details.c			\
 	archive_virtual.c				\

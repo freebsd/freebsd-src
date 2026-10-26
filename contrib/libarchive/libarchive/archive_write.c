@@ -58,6 +58,7 @@
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
@@ -88,6 +89,25 @@ archive_write_vtable = {
 	.archive_write_finish_entry = _archive_write_finish_entry,
 	.archive_write_data = _archive_write_data,
 };
+
+int
+__archive_write_option_header_charset(struct archive_write *a,
+    const char *key, const char *val,
+    struct archive_string_conv **opt_sconv)
+{
+	if (strcmp(key, "hdrcharset") != 0)
+		return (ARCHIVE_WARN);
+	if (val == NULL || val[0] == '\0') {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "%s: hdrcharset option needs a character-set name",
+		    a->format_name);
+		return (ARCHIVE_FAILED);
+	}
+
+	*opt_sconv = archive_string_conversion_to_charset(
+	    &a->archive, val, 0);
+	return (*opt_sconv != NULL ? ARCHIVE_OK : ARCHIVE_FATAL);
+}
 
 /*
  * Allocate, initialize and return an archive object.
@@ -621,8 +641,7 @@ _archive_write_close(struct archive *_a)
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL,
-	    "archive_write_close");
+	    ARCHIVE_STATE_ANY, "archive_write_close");
 	if (a->archive.state == ARCHIVE_STATE_NEW
 	    || a->archive.state == ARCHIVE_STATE_CLOSED)
 		return (ARCHIVE_OK); /* Okay to close() when not open. */

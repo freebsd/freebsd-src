@@ -40,16 +40,6 @@ DEFINE_TEST(test_read_format_ar)
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_filename(a, reffile, 7));
 
-	/* Filename table.  */
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("//", archive_entry_pathname(ae));
-	assertEqualInt(0, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_uid(ae));
-	assertEqualInt(0, archive_entry_gid(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
-
 	/* First Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("yyytttsssaaafff.o", archive_entry_pathname(ae));
@@ -86,7 +76,7 @@ DEFINE_TEST(test_read_format_ar)
 
 	/* Test EOF */
 	assertA(1 == archive_read_next_header(a, &ae));
-	assertEqualInt(4, archive_file_count(a));
+	assertEqualInt(3, archive_file_count(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

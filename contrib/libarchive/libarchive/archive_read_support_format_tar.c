@@ -187,6 +187,8 @@ static int	header_old_tar(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *);
 static int	header_pax_extension(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *, int64_t *);
+static int	header_pax_records(struct archive_read *, struct tar *,
+		    struct archive_entry *, const void *h, int64_t *, int);
 static int	header_pax_global(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
 static int	header_gnu_longlink(struct archive_read *, struct tar *,
@@ -272,8 +274,7 @@ archive_read_support_format_tar(struct archive *_a)
 
 	tar = calloc(1, sizeof(*tar));
 	if (tar == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate tar data");
+		archive_set_error(_a, ENOMEM, "Can't allocate tar data");
 		return (ARCHIVE_FATAL);
 	}
 #ifdef HAVE_COPYFILE_H
@@ -281,7 +282,9 @@ archive_read_support_format_tar(struct archive *_a)
 	tar->process_mac_extensions = 1;
 #endif
 
-	r = __archive_read_register_format(a, tar, "tar",
+	r = __archive_read_register_format(a,
+	    tar,
+	    "tar",
 	    archive_read_format_tar_bid,
 	    archive_read_format_tar_options,
 	    archive_read_format_tar_read_header,
@@ -294,7 +297,7 @@ archive_read_support_format_tar(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(tar);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -568,11 +571,21 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 	} else {
 		struct sparse_block *sb;
+		size_t added = 0;
+		int count;
 
 		for (sb = tar->sparse_list; sb != NULL; sb = sb->next) {
-			if (!sb->hole)
+			if (!sb->hole) {
 				archive_entry_sparse_add_entry(entry,
 				    sb->offset, sb->remaining);
+				added++;
+			}
+		}
+		count = archive_entry_sparse_count(entry);
+		if (count < 0 || (size_t)count != added) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Malformed sparse map data");
+			return (ARCHIVE_FATAL);
 		}
 	}
 
@@ -1737,34 +1750,102 @@ read_mac_metadata_blob(struct archive_read *a,
 }
 
 /*
- * Parse a file header for a pax extended archive entry.
+ * Attributes that we act on when we see them in an `x` header.
+ *
+ * A `g` header supplies defaults for every following member, which we
+ * do not implement.  Silently ignoring one of these would therefore
+ * change how those members are interpreted, so we reject the archive
+ * instead.  Anything not listed here we already ignore wherever it
+ * appears, so ignoring it in a `g` header is no less correct; that
+ * keeps well-formed archives readable, in particular the `g` headers
+ * that star always writes for its `exustar` format.
+ */
+#define	PAX_GLOBAL_EXACT(k)	{ k, sizeof(k) - 1, 0 }
+#define	PAX_GLOBAL_PREFIX(k)	{ k, sizeof(k) - 1, 1 }
+static const struct pax_global_unsupported_attr {
+	const char *key;
+	size_t length;
+	int is_prefix;
+} pax_global_unsupported_attrs[] = {
+	/* POSIX-standard attributes that describe the member. */
+	PAX_GLOBAL_EXACT("atime"),
+	PAX_GLOBAL_EXACT("ctime"),
+	PAX_GLOBAL_EXACT("gid"),
+	PAX_GLOBAL_EXACT("gname"),
+	PAX_GLOBAL_EXACT("hdrcharset"),
+	PAX_GLOBAL_EXACT("linkpath"),
+	PAX_GLOBAL_EXACT("mtime"),
+	PAX_GLOBAL_EXACT("path"),
+	PAX_GLOBAL_EXACT("size"),
+	PAX_GLOBAL_EXACT("uid"),
+	PAX_GLOBAL_EXACT("uname"),
+	/* Vendor attributes that we honor. */
+	PAX_GLOBAL_EXACT("GNU.sparse"),
+	PAX_GLOBAL_PREFIX("GNU.sparse."),
+	PAX_GLOBAL_EXACT("LIBARCHIVE.creationtime"),
+	PAX_GLOBAL_EXACT("LIBARCHIVE.symlinktype"),
+	PAX_GLOBAL_PREFIX("LIBARCHIVE.xattr."),
+	PAX_GLOBAL_EXACT("RHT.security.selinux"),
+	PAX_GLOBAL_EXACT("SCHILY.acl.access"),
+	PAX_GLOBAL_EXACT("SCHILY.acl.ace"),
+	PAX_GLOBAL_EXACT("SCHILY.acl.default"),
+	PAX_GLOBAL_EXACT("SCHILY.dev"),
+	PAX_GLOBAL_EXACT("SCHILY.devmajor"),
+	PAX_GLOBAL_EXACT("SCHILY.devminor"),
+	PAX_GLOBAL_EXACT("SCHILY.fflags"),
+	PAX_GLOBAL_EXACT("SCHILY.ino"),
+	PAX_GLOBAL_EXACT("SCHILY.nlink"),
+	PAX_GLOBAL_EXACT("SCHILY.realsize"),
+	PAX_GLOBAL_PREFIX("SCHILY.xattr."),
+	PAX_GLOBAL_EXACT("SUN.holesdata"),
+};
+
+/*
+ * TODO: This is a linear scan over the table above.  It runs once per
+ * attribute in a `g` header, and `g` headers are rare, so the cost is
+ * not measurable today.  If that ever changes -- or if the table grows
+ * much larger -- a sorted table with a binary search, or a hash of the
+ * exact keys with a separate short prefix list, would be worth doing.
+ */
+static int
+pax_global_attribute_unsupported(const char *key, size_t key_length)
+{
+	const struct pax_global_unsupported_attr *attr;
+	size_t i;
+
+	for (i = 0; i < sizeof(pax_global_unsupported_attrs)
+	    / sizeof(pax_global_unsupported_attrs[0]); i++) {
+		attr = &pax_global_unsupported_attrs[i];
+		if (attr->is_prefix) {
+			if (key_length > attr->length
+			    && memcmp(key, attr->key, attr->length) == 0)
+				return (1);
+		} else if (key_length == attr->length
+		    && memcmp(key, attr->key, attr->length) == 0) {
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Parse a file header for a pax global archive entry.
  */
 static int
 header_pax_global(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, int64_t *unconsumed)
 {
-	const struct archive_entry_header_ustar *header;
-	int64_t size, to_consume;
+	return (header_pax_records(a, tar, entry, h, unconsumed, 1));
+}
 
-	(void)tar; /* UNUSED */
-	(void)entry; /* UNUSED */
-
-	header = (const struct archive_entry_header_ustar *)h;
-	size = tar_atol(header->size, sizeof(header->size));
-	if (size < 0 || size > entry_limit) {
-		archive_set_error(&a->archive, EINVAL,
-		    "Special header has invalid size: %lld",
-		    (long long)size);
-		return (ARCHIVE_FATAL);
-	}
-	if (size == 0) {
-		archive_set_error(&a->archive, EINVAL,
-		    "Invalid empty pax global extended header");
-		return (ARCHIVE_FATAL);
-	}
-	to_consume = ((size + 511) & ~511);
-	*unconsumed += to_consume;
-	return (ARCHIVE_OK);
+/*
+ * Parse a file header for a pax extended archive entry.
+ */
+static int
+header_pax_extension(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const void *h, int64_t *unconsumed)
+{
+	return (header_pax_records(a, tar, entry, h, unconsumed, 0));
 }
 
 /*
@@ -1863,9 +1944,18 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	return (err);
 }
 
+/*
+ * Parse the attribute records in the body of an `x` or `g` header.
+ *
+ * With global == 0 each attribute is applied to the entry.  With
+ * global == 1 the attributes are only inspected: we do not implement
+ * global defaults, so we reject any attribute that we would otherwise
+ * have honored and ignore the rest.
+ */
 static int
-header_pax_extension(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, const void *h, int64_t *unconsumed)
+header_pax_records(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const void *h, int64_t *unconsumed,
+    int global)
 {
 	/* Sanity checks: The largest `x` body I've ever heard of was
 	 * a little over 4MB.  So I doubt there has ever been a
@@ -1910,7 +2000,8 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 	}
 	if (ext_size == 0) {
 		archive_set_error(&a->archive, EINVAL,
-		    "Invalid empty pax extended header");
+		    global ? "Invalid empty pax global extended header"
+			   : "Invalid empty pax extended header");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -2034,8 +2125,25 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			return (ARCHIVE_WARN);
 		}
 
-		/* pax_attribute will consume value_length - 1 */
-		r = pax_attribute(a, tar, entry, attr_name.s, archive_strlen(&attr_name), value_length - 1, unconsumed);
+		if (global) {
+			if (pax_global_attribute_unsupported(attr_name.s,
+				archive_strlen(&attr_name))) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Unsupported pax global extended header attribute '%s'",
+				    attr_name.s);
+				archive_string_free(&attr_name);
+				*unconsumed += ext_size + ext_padding;
+				return (ARCHIVE_FATAL);
+			}
+			/* Not an attribute we would have acted on, so
+			 * ignoring it here changes nothing. */
+			__archive_read_consume(a, value_length - 1);
+			r = ARCHIVE_OK;
+		} else {
+			/* pax_attribute will consume value_length - 1 */
+			r = pax_attribute(a, tar, entry, attr_name.s, archive_strlen(&attr_name), value_length - 1, unconsumed);
+		}
 		ext_size -= value_length - 1;
 
 		// Release the allocated attr_name (either here or before every return in this function)
@@ -3136,6 +3244,8 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 {
 	struct sparse_block *p;
 
+	if (remaining == 0)
+		return (ARCHIVE_OK);
 	p = calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");

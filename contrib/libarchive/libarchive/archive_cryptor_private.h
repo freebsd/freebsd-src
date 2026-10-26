@@ -29,16 +29,6 @@
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-/*
- * On systems that do not support any recognized crypto libraries,
- * the archive_cryptor.c file will normally define no usable symbols.
- *
- * But some compilers and linkers choke on empty object files, so
- * define a public symbol that will always exist.  This could
- * be removed someday if this file gains another always-present
- * symbol definition.
- */
-int __libarchive_cryptor_build_hack(void);
 
 #ifdef __APPLE__
 # include <AvailabilityMacros.h>
@@ -62,7 +52,7 @@ typedef struct {
 	size_t		encr_pos;
 } archive_crypto_ctx;
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(ARCHIVE_CRYPTO_WIN)
 #include <bcrypt.h>
 #define	ARCHIVE_CRYPTOR_USE_CNG 1
 

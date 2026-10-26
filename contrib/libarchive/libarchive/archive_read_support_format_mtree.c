@@ -91,6 +91,7 @@ struct mtree_option {
 struct mtree_entry {
 	struct archive_rb_node rbnode;
 	struct mtree_entry *next_dup;
+	struct mtree_entry *last_dup;
 	struct mtree_entry *next;
 	struct mtree_option *options;
 	char *name;
@@ -108,7 +109,6 @@ struct mtree {
 	const char		*archive_format_name;
 	struct mtree_entry	*entries;
 	struct mtree_entry	*this_entry;
-	struct archive_rb_tree	 entry_rbtree;
 	struct archive_string	 current_dir;
 	struct archive_string	 contents_name;
 
@@ -224,8 +224,7 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	mtree = calloc(1, sizeof(*mtree));
 	if (mtree == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate mtree data");
+		archive_set_error(_a, ENOMEM, "Can't allocate mtree data");
 		return (ARCHIVE_FATAL);
 	}
 	mtree->checkfs = 0;
@@ -233,12 +232,22 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);
 
-	r = __archive_read_register_format(a, mtree, "mtree",
-           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL);
+	r = __archive_read_register_format(a,
+	    mtree,
+	    "mtree",
+	    mtree_bid,
+	    archive_read_format_mtree_options,
+	    read_header,
+	    read_data,
+	    skip,
+	    NULL,
+	    cleanup,
+	    NULL,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(mtree);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -620,16 +629,16 @@ static int
 mtree_bid(struct archive_read *a, int best_bid)
 {
 	const char *signature = "#mtree";
-	const char *p;
+	const void *h;
 
 	(void)best_bid; /* UNUSED */
 
 	/* Now let's look at the actual header and see if it matches. */
-	p = __archive_read_ahead(a, strlen(signature), NULL);
-	if (p == NULL)
+	h = __archive_read_ahead(a, strlen(signature), NULL);
+	if (h == NULL)
 		return (-1);
 
-	if (memcmp(p, signature, strlen(signature)) == 0)
+	if (memcmp(h, signature, strlen(signature)) == 0)
 		return (8 * (int)strlen(signature));
 
 	/*
@@ -940,15 +949,15 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	parse_escapes(entry->name, entry);
 
 	entry->next_dup = NULL;
+	entry->last_dup = entry;
 	if (entry->full) {
 		if (!__archive_rb_tree_insert_node(&mtree->rbtree, &entry->rbnode)) {
 			struct mtree_entry *alt;
 			alt = (struct mtree_entry *)__archive_rb_tree_find_node(
 			    &mtree->rbtree, entry->name);
 			if (alt != NULL) {
-				while (alt->next_dup)
-					alt = alt->next_dup;
-				alt->next_dup = entry;
+				alt->last_dup->next_dup = entry;
+				alt->last_dup = entry;
 			}
 		}
 	}
@@ -1067,7 +1076,6 @@ static int
 read_header(struct archive_read *a, struct archive_entry *entry)
 {
 	struct mtree *mtree = a->format->data;
-	char *p;
 	int r, use_next;
 
 	if (mtree->fd >= 0) {
@@ -1096,14 +1104,9 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 			mtree->this_entry->used = 1;
 			if (archive_strlen(&mtree->current_dir) > 0) {
 				/* Roll back current path. */
-				p = mtree->current_dir.s
-				    + mtree->current_dir.length - 1;
-				while (p >= mtree->current_dir.s && *p != '/')
-					--p;
-				if (p >= mtree->current_dir.s)
-					--p;
-				mtree->current_dir.length
-				    = p - mtree->current_dir.s + 1;
+				archive_string_dirname(&mtree->current_dir);
+				if (strcmp(mtree->current_dir.s, ".") == 0)
+					archive_string_empty(&mtree->current_dir);
 			}
 		}
 		if (!mtree->this_entry->used) {
@@ -1429,7 +1432,7 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 		 * Decode and pack it accordingly.
 		 */
 		*dev++ = '\0';
-		if ((pack = pack_find(val)) == NULL) {
+		if ((pack = __archive_pack_find(val)) == NULL) {
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Unknown format `%s'", val);
 			return ARCHIVE_WARN;
@@ -1709,6 +1712,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			    ARCHIVE_ENTRY_DIGEST_SHA512);
 		}
 		if (strcmp(key, "size") == 0) {
+			*parsed_kws |= MTREE_HAS_SIZE;
 			archive_entry_set_size(entry, mtree_atol(&val, 10));
 			return (ARCHIVE_OK);
 		}

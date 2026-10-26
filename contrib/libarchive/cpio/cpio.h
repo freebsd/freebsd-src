@@ -34,7 +34,6 @@ struct cpio {
 	int		  dot;  /* -V */
 	int		  quiet;   /* --quiet */
 	int		  extract_flags; /* Flags for extract operation */
-	const char	 *compress_program;
 	int		  option_append; /* -A, only relevant for -o */
 	int		  option_atime_restore; /* -a */
 	int		  option_follow_links; /* -L */

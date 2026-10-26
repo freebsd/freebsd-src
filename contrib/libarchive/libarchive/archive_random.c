@@ -83,12 +83,16 @@ archive_random(void *buf, size_t nbytes)
 	BCRYPT_ALG_HANDLE hAlg;
 
 	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RNG_ALGORITHM, NULL, 0);
-	if (!BCRYPT_SUCCESS(status))
+	if (!BCRYPT_SUCCESS(status)) {
+		la_dosmaperr(GetLastError());
 		return ARCHIVE_FAILED;
+	}
 	status = BCryptGenRandom(hAlg, buf, (ULONG)nbytes, 0);
 	BCryptCloseAlgorithmProvider(hAlg, 0);
-	if (!BCRYPT_SUCCESS(status))
+	if (!BCRYPT_SUCCESS(status)) {
+		la_dosmaperr(GetLastError());
 		return ARCHIVE_FAILED;
+	}
 
 	return ARCHIVE_OK;
 #elif !defined(HAVE_ARC4RANDOM_BUF) && (!defined(_WIN32) || defined(__CYGWIN__))

@@ -41,24 +41,28 @@
 // strips the 'Guest' information from the string to help ensure
 // consistent results on different machines.
 //
-static char _acl_temp[256];
-static const char *
-clean_acl(const char *acl) {
-	char *p, *q;
-	if (strlen(acl) >= sizeof(_acl_temp))
-		return acl;
+static char *
+acl_clean(char *acl)
+{
+	char *end, *p, *q;
 
-	strcpy(_acl_temp, acl);
-	p = strstr(_acl_temp, ":Guest:");
-	if (p != NULL) {
-		fprintf(stderr, "Shortening: %s\n", p + 1);
-		memmove(p + 1, p + 6, strlen(p + 6) + 1);
-		q = strstr(p + 2, ":");
-		fprintf(stderr, "Shortening: %s\n", q);
-		memmove(p + 2, q, strlen(q) + 1);
-		return _acl_temp;
+	end = strchr(acl, '\0') + 1;
+	/* find occurrence of Guest user */
+	while ((p = strstr(acl, ":Guest:")) != NULL) {
+		/* replace user name with empty string */
+		p++;		/* now points to user name */
+		q = p + 5;	/* points to colon after user name */
+		memmove(p, q, end - q);
+		end -= q - p;	/* shorten */
+		p++;		/* points to colon after user name */
+		/* find colon after group name */
+		if ((q = strchr(p, ':')) != NULL && q > p) {
+			/* replace group name with empty string */
+			memmove(p, q, end - q);
+			end -= q - p; /* shorten */
+		}
 	}
-	return _acl_temp;
+	return (acl);
 }
 
 static int
@@ -111,6 +115,7 @@ DEFINE_TEST(test_write_disk_appledouble)
 	struct archive_entry *ae;
 	struct stat st;
 	acl_t acl;
+	char *acl_text;
 
 	extract_reference_file(refname);
 
@@ -161,13 +166,15 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertEqualInt(0, has_xattr("file3", "com.apple.ResourceFork"));
 	failure("'%s' should have decompfs xattr", "file3");
 	assertEqualInt(1, has_xattr("file3", "com.apple.decmpfs"));
-	assert(NULL != (acl = acl_get_file("file3", ACL_TYPE_EXTENDED)));
-	assertEqualString(clean_acl(acl_to_text(acl, NULL)),
+	assert((acl = acl_get_file("file3", ACL_TYPE_EXTENDED)) != NULL);
+	acl_text = acl_clean(acl_to_text(acl, NULL));
+	assertEqualString(acl_text,
 	    "!#acl 1\n"
 	    "user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000000C9:::deny:read\n"
 	    "group:ABCDEFAB-CDEF-ABCD-EFAB-CDEF00000050:admin:80:allow:write\n"
 	);
-	if (acl) acl_free(acl);
+	acl_free(acl);
+	free(acl_text);
 	/* Test ._file3. */
 	failure("'file3' should be merged and removed");
 	assertFileNotExists("._file3");
@@ -220,13 +227,15 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertEqualInt(0, has_xattr("file3", "com.apple.ResourceFork"));
 	failure("'%s' should not have decmpfs", "file3");
 	assertEqualInt(0, has_xattr("file3", "com.apple.decmpfs"));
-	assert(NULL != (acl = acl_get_file("file3", ACL_TYPE_EXTENDED)));
-	assertEqualString(clean_acl(acl_to_text(acl, NULL)),
+	assert((acl = acl_get_file("file3", ACL_TYPE_EXTENDED)) != NULL);
+	acl_text = acl_clean(acl_to_text(acl, NULL));
+	assertEqualString(acl_text,
 	    "!#acl 1\n"
 	    "user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000000C9:::deny:read\n"
 	    "group:ABCDEFAB-CDEF-ABCD-EFAB-CDEF00000050:admin:80:allow:write\n"
 	);
-	if (acl) acl_free(acl);
+	acl_free(acl);
+	free(acl_text);
 	/* Test ._file3. */
 	failure("'file3' should be merged and removed");
 	assertFileNotExists("._file3");

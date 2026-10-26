@@ -81,6 +81,8 @@ archive_read_support_filter_program(struct archive *a, const char *cmd)
 	return (archive_read_support_filter_program_signature(a, cmd, NULL, 0));
 }
 
+#ifdef HAVE_WAITPID
+
 /*
  * The bidder object stores the command and the signature to watch for.
  * The 'inhibit' entry here is used to ensure that unchecked filters never
@@ -149,6 +151,11 @@ archive_read_support_filter_program_signature(struct archive *_a,
 	archive_strcat(&state->description, cmd);
 
 	if (signature != NULL && signature_len > 0) {
+		if (signature_len > (size_t)INT_MAX / 8) {
+			free_state(state);
+			archive_set_error(_a, EINVAL, "Signature too large");
+			return (ARCHIVE_FATAL);
+		}
 		state->signature_len = signature_len;
 		state->signature = malloc(signature_len);
 		if (state->signature == NULL)
@@ -156,7 +163,7 @@ archive_read_support_filter_program_signature(struct archive *_a,
 		memcpy(state->signature, signature, signature_len);
 	}
 
-	if (__archive_read_register_bidder(a, state, NULL,
+	if (__archive_read_register_bidder(a, state,
 				&program_bidder_vtable) != ARCHIVE_OK) {
 		free_state(state);
 		return (ARCHIVE_FATAL);
@@ -257,7 +264,7 @@ child_stop(struct archive_read_filter *f, struct program *program)
 		return (ARCHIVE_WARN);
 	}
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
+#ifdef WIFSIGNALED
 	if (WIFSIGNALED(program->exit_status)) {
 #ifdef SIGPIPE
 		/* If the child died because we stopped reading before
@@ -274,7 +281,7 @@ child_stop(struct archive_read_filter *f, struct program *program)
 		    WTERMSIG(program->exit_status));
 		return (ARCHIVE_WARN);
 	}
-#endif /* !_WIN32 || __CYGWIN__ */
+#endif /* WIFSIGNALED */
 
 	if (WIFEXITED(program->exit_status)) {
 		if (WEXITSTATUS(program->exit_status) == 0)
@@ -495,3 +502,26 @@ program_filter_close(struct archive_read_filter *f)
 
 	return (e);
 }
+
+#else
+
+int
+archive_read_support_filter_program_signature(struct archive *a,
+    const char *cmd, const void *signature, size_t signature_len)
+{
+	(void)cmd; /* UNUSED */
+	(void)signature; /* UNUSED */
+	(void)signature_len; /* UNUSED */
+	archive_set_error(a, ENOSYS, "Processes not supported");
+	return (ARCHIVE_FATAL);
+}
+
+int
+__archive_read_program(struct archive_read_filter *f, const char *cmd)
+{
+	(void)f; /* UNUSED */
+	(void)cmd; /* UNUSED */
+	return (ARCHIVE_FATAL);
+}
+
+#endif

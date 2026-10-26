@@ -58,7 +58,7 @@
 #include "archive_rb.h"
 #include "archive_write_private.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) || defined(__wasi__)
 #define getuid()			0
 #define getgid()			0
 #endif
@@ -2525,7 +2525,9 @@ get_tmfromtime(struct tm *tm, time_t *t)
 #if HAVE_LOCALTIME_S
 	localtime_s(tm, t);
 #elif HAVE_LOCALTIME_R
+# ifdef HAVE_TZSET
 	tzset();
+# endif
 	localtime_r(t, tm);
 #else
 	memcpy(tm, localtime(t), sizeof(*tm));
@@ -2886,52 +2888,39 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		 *    +----+----+----+----+----+----+----+----+
 		 *    <----------------- len ----------------->
 		 */
-		size_t nmlen = file->basename.length;
+		size_t reclen, nmlen = file->basename.length;
 		const char *nm = file->basename.s;
 		size_t nmmax;
 
-		if (extra_space(&ctl) < 6)
-			bp = extra_next_record(&ctl, 6);
-		if (bp != NULL) {
-			bp[1] = 'N';
-			bp[2] = 'M';
-			bp[4] = 1;	    /* version	*/
-		}
-		nmmax = extra_space(&ctl);
-		if (nmmax > 0xff)
-			nmmax = 0xff;
-		while (nmlen + 5 > nmmax) {
-			length = (int)nmmax;
-			if (bp != NULL) {
-				bp[3] = length;
-				bp[5] = 0x01;/* Alternate Name continues
-					       * in next "NM" field */
-				memcpy(bp+6, nm, length - 5);
-				bp += length;
-			}
-			nmlen -= length - 5;
-			nm += length - 5;
-			extra_tell_used_size(&ctl, length);
-			if (extra_space(&ctl) < 6) {
+		while (nmlen) {
+			/* We need at least six bytes (five header, one content) */
+			if (extra_space(&ctl) < 6)
 				bp = extra_next_record(&ctl, 6);
+			reclen = extra_space(&ctl);
+			if (reclen > 0xff)
+				reclen = 0xff; /* We can only fit 255 bytes in each NM record */
+			nmmax = reclen - 5; /* Record length is guaranteed to be >= 6 */
+			if (nmmax > nmlen) {
+				/* ... but the name is shorter. */
+				nmmax = nmlen;
+				reclen = nmmax + 5;
 			}
-			nmmax = extra_space(&ctl);
-			if (nmmax > 0xff)
-				nmmax = 0xff;
+
 			if (bp != NULL) {
+				/* Fill out the new record */
 				bp[1] = 'N';
 				bp[2] = 'M';
-				bp[4] = 1;    /* version */
+				bp[3] = reclen;  /* record length */
+				bp[4] = 1;       /* version */
+				bp[5] = (nmlen > nmmax) ? 0x01 : 0x00; /* continues in next NM record */
+				memcpy(bp + 6, nm, nmmax);
+				bp += reclen;
 			}
+
+			nmlen -= nmmax;
+			nm += nmmax;
+			extra_tell_used_size(&ctl, reclen);
 		}
-		length = 5 + (int)nmlen;
-		if (bp != NULL) {
-			bp[3] = length;
-			bp[5] = 0;
-			memcpy(bp+6, nm, nmlen);
-			bp += length;
-		}
-		extra_tell_used_size(&ctl, length);
 	}
 
 	/* Write "PX" System Use Entry. */
@@ -5464,8 +5453,8 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 		size = fd_boot_image_size(iso9660->el_torito.media_type);
 		if (size == 0)
 			size = (size_t)archive_entry_size(isoent->file->entry);
-		block = ((int)size + LOGICAL_BLOCK_SIZE -1)
-		    >> LOGICAL_BLOCK_BITS;
+		block = (int)((size >> LOGICAL_BLOCK_BITS)
+		    + ((size & (LOGICAL_BLOCK_SIZE - 1)) != 0));
 		location += block;
 		iso9660->total_file_block += block;
 		isoent->file->content.blocks = block;
@@ -6787,17 +6776,24 @@ isoent_rr_move(struct archive_write *a)
 	/* If "rr_moved" directory is already existing,
 	 * we have to use it. */
 	rr_moved = isoent_find_child(rootent, "rr_moved");
-	if (rr_moved != NULL &&
-	    rr_moved != rootent->children.first) {
-		/*
-		 * It's necessary that rr_move is the first entry
-		 * of the root.
-		 */
-		/* Remove "rr_moved" entry from children chain. */
-		isoent_remove_child(rootent, rr_moved);
+	if (rr_moved != NULL) {
+		if (!rr_moved->dir) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Unable to relocate directories into rr_moved:"
+			    " the existing entry is not a directory");
+			return (ARCHIVE_FATAL);
+		}
+		if (rr_moved != rootent->children.first) {
+			/*
+			 * It's necessary that rr_move is the first entry
+			 * of the root.
+			 */
+			/* Remove "rr_moved" entry from children chain. */
+			isoent_remove_child(rootent, rr_moved);
 
-		/* Add "rr_moved" entry into the head of children chain. */
-		isoent_add_child_head(rootent, rr_moved);
+			/* Add "rr_moved" entry to the head of children chain. */
+			isoent_add_child_head(rootent, rr_moved);
+		}
 	}
 
 	/*

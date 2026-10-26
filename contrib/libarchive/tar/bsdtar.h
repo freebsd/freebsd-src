@@ -47,6 +47,7 @@ struct bsdtar {
 	const char	 *gname; /* --gname */
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
+	void 		 *file_mode; /* --mode */
 	const char	 *passphrase; /* --passphrase */
 	int		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
@@ -81,15 +82,9 @@ struct bsdtar {
 	 */
 	struct archive		*diskreader;	/* for write.c */
 	struct archive_entry_linkresolver *resolver; /* for write.c */
-	struct archive_dir	*archive_dir;	/* for write.c */
-	struct name_cache	*gname_cache;	/* for write.c */
 	char			*buff;		/* for write.c */
 	size_t			 buff_size;	/* for write.c */
-	int			 first_fs;	/* for write.c */
 	struct archive		*matching;	/* for matching.c */
-	struct security		*security;	/* for read.c */
-	struct name_cache	*uname_cache;	/* for write.c */
-	struct siginfo_data	*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
 	char			*ppbuff;	/* for util.c */
 };
@@ -186,6 +181,7 @@ enum {
 	OPTION_ZSTD,
 	OPTION_MTIME,
 	OPTION_CLAMP_MTIME,
+	OPTION_MODE,
 };
 
 int	bsdtar_getopt(struct bsdtar *);
@@ -194,7 +190,7 @@ int	edit_pathname(struct bsdtar *, struct archive_entry *);
 void	edit_mtime(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
 int	pathcmp(const char *a, const char *b);
-void	safe_fprintf(FILE * ARCHIVE_RESTRICT, const char * ARCHIVE_RESTRICT fmt, ...) __LA_PRINTF(2, 3);
+void	safe_fputs(const char * ARCHIVE_RESTRICT s, FILE * ARCHIVE_RESTRICT);
 void	set_chdir(struct bsdtar *, const char *newdir);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);

@@ -997,7 +997,7 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 
 	keys = get_global_set_keys(mtree, me);
 	if ((keys & F_NLINK) != 0 &&
-	    me->nlink != 1 && me->filetype != AE_IFDIR)
+	    me->nlink != 0 && me->nlink != 1 && me->filetype != AE_IFDIR)
 		archive_string_sprintf(str, " nlink=%u", me->nlink);
 
 	if ((keys & F_GNAME) != 0 && archive_strlen(&me->gname) > 0) {
@@ -1613,7 +1613,11 @@ sum_update(struct mtree *mtree, const void *buff, size_t n)
 static void
 sum_final(struct mtree *mtree, struct reg_info *reg)
 {
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
 	struct ae_digest digest;
+#endif
 
 	if (mtree->compute_sum & F_CKSUM) {
 		uint64_t len;
@@ -1932,15 +1936,8 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 		len = archive_strlen(&file->parentdir);
 	}
 
-	/*
-	 * Find out the position which points to the last position of
-	 * path separator('/').
-	 */
-	slash = NULL;
-	for (; *p != '\0'; p++) {
-		if (*p == '/')
-			slash = p;
-	}
+	/* Find the last path separator. */
+	slash = strrchr(p, '/');
 	if (slash == NULL) {
 		/* The pathname doesn't have a parent directory. */
 		file->parentdir.length = len;

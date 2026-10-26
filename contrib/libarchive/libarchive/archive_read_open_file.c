@@ -106,8 +106,11 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	archive_read_set_seek_callback(a, FILE_seek);
 	archive_read_set_close_callback(a, FILE_close);
 	r = archive_read_set_callback_data(a, mine);
-	if (r < 0)
+	if (r < 0) {
+		free(mine->buffer);
+		free(mine);
 		return (r);
+	}
 	return (archive_read_open1(a));
 }
 
