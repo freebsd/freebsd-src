@@ -196,6 +196,7 @@ static const char	*debugopt;
 static char		*anchoropt;
 static const char	*optiopt = NULL;
 static const char	*pf_device = PF_DEVICE;
+static int		 nl_fd = -1;
 static char		*ifaceopt;
 static char		*tableopt;
 static const char	*tblcmdopt;
@@ -349,8 +350,9 @@ usage(void)
 	fprintf(stderr,
 "usage: %s [-AdeghMmNnOPqRSrvz] [-a anchor] [-D macro=value] [-F modifier]\n"
 	"\t[-f file] [-i interface] [-K host | network]\n"
-	"\t[-k host | network | gateway | label | id] [-o level] [-p device]\n"
-	"\t[-s modifier] [-t table -T command [address ...]] [-x level]\n",
+	"\t[-k host | network | gateway | label | id] [-l fd] [-o level]\n"
+	"\t[-p device] [-s modifier] [-t table -T command [address ...]]\n"
+	"\t[-x level]\n",
 	    __progname);
 
 	exit(1);
@@ -3670,7 +3672,7 @@ main(int argc, char *argv[])
 		usage();
 
 	while ((ch = getopt(argc, argv,
-	    "a:AdD:eqf:F:ghi:I:k:K:mMnNOo:Pp:rRs:St:T:vx:z")) != -1) {
+	    "a:AdD:eqf:F:ghi:I:k:K:l:mMnNOo:Pp:rRs:St:T:vx:z")) != -1) {
 		switch (ch) {
 		case 'a':
 			anchoropt = optarg;
@@ -3723,6 +3725,15 @@ main(int argc, char *argv[])
 			src_node_kill[src_node_killers++] = optarg;
 			mode = O_RDWR;
 			break;
+		case 'l': {
+			const char *errstr;
+
+			nl_fd = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "invalid netlink descriptor: %s",
+				    errstr);
+			break;
+		}
 		case 'm':
 			opts |= PF_OPT_MERGE;
 			break;
@@ -3886,7 +3897,7 @@ main(int argc, char *argv[])
 		altqsupport = 1;
 #endif
 	}
-	pfh = pfctl_open(pf_device);
+	pfh = pfctl_open_from_nl_fd(pf_device, nl_fd);
 	if (pfh == NULL)
 		err(1, "Failed to open netlink");
 
