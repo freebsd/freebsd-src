@@ -6,6 +6,7 @@
 # JSONLDDIR	Destination directory for the SPDX version 3 files
 # SBOMDATA	Location for the SBOM meta-data
 # SBOMDIR	Destination directory for the SBOM files
+# SBOMBASE	Prefix for the SBOM files belonging to the base system
 # SPDXDIR	Destination directory for the SPDX version 2 files
 # SPDXTOOL	Tool converting pkg-config files into SPDX version 3 files
 
@@ -13,11 +14,12 @@
 
 BOMTOOL?=	bomtool
 JSONLDDIR?=	${SBOMDIR}/spdx-3.0.1
+SBOMBASE?=	FreeBSD-
+SBOMDATA?=	Makefile.sbom
 SBOMDIR?=	/usr/share/sbom
 SPDXDIR?=	${SBOMDIR}/spdx-2.2
 SPDXTOOL?=	spdxtool
 TOOLARGS=
-SBOMDATA?=	Makefile.sbom
 
 # meta-data
 . if exists(${.CURDIR}/${SBOMDATA})
@@ -32,19 +34,19 @@ SBOM_URL?=	https://www.FreeBSD.org
 SBOM_SOURCE?=	https://cgit.FreeBSD.org/src/tree/${RELDIR}
 
 .  if defined(LIB)
-SBOM_NAME?=	lib${LIB}
+SBOM_NAME?=	${SBOMBASE}lib${LIB}
 SBOM_KIND?=
 SBOMTAGS=	package=${PACKAGE:Uutilities},lib
 .  elif defined(SHLIB)
-SBOM_NAME?=	lib${SHLIB}
+SBOM_NAME?=	${SBOMBASE}lib${SHLIB}
 SBOM_KIND?=
 SBOMTAGS=	package=${PACKAGE:Uutilities},lib
 .  elif defined(PROG)
-SBOM_NAME?=	${PROG}
+SBOM_NAME?=	${SBOMBASE}${PROG}
 SBOM_KIND?=	tool
 SBOMTAGS=	package=${PACKAGE:Uutilities}
 .  elif defined(SCRIPTS) && defined(PACKAGE)
-SBOM_NAME?=	${PACKAGE}
+SBOM_NAME?=	${SBOMBASE}${PACKAGE}
 SBOM_KIND?=	tool
 SBOMTAGS=	package=${PACKAGE}
 .  else
@@ -65,7 +67,7 @@ SBOM_TAG_ARGS=	-T ${SBOMTAGS:ts,:[*]}
 _SBOMREQUIRES=
 .   for l in ${LIBADD}
 .    if ${_INTERNALLIBS:M${l}} != ${l}
-_SBOMREQUIRES+=	lib${l}
+_SBOMREQUIRES+=	${SBOMBASE}lib${l}
 .    endif #${_INTERNALLIBS:M${l}} != ${l}
 .   endfor
 SBOM_REQUIRES?=	${_SBOMREQUIRES:S/ /,/gW}
@@ -89,8 +91,8 @@ ${SBOMFILE}: ${.CURDIR}/${SBOMDATA}
 	> ${.TARGET}
 # Libraries installing symlinks to themselves also need a .pc file
 .   for s t in ${SYMLINKS}
-.    if defined(LIB) && ${s} == lib${LIB}.so && ${t:T:C/\.so$/.pc/} != ${SBOMFILE:T}
-	ln -sf ${SBOMFILE:T} ${SBOMFILE:H}/${t:T:C/\.so$/.pc/}
+.    if defined(LIB) && ${s} == lib${LIB}.so && ${SBOMBASE}${t:T:C/\.so$/.pc/} != ${SBOMFILE:T}
+	ln -sf ${SBOMFILE:T} ${SBOMFILE:H}/${SBOMBASE}${t:T:C/\.so$/.pc/}
 .    endif
 .   endfor
 
