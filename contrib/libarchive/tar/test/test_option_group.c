@@ -15,11 +15,11 @@ DEFINE_TEST(test_option_group)
 	assertUmask(0);
 	assertMakeFile("file", 0644, "1234567890");
 
-	/* Create archive with no special options. */
+	/* Create archive with simple uid/gid options. */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive1 --format=ustar file >stdout1.txt 2>stderr1.txt",
-		testprog));
+	    systemf("%s cf archive1 --uid=0 --gid=0 --format=ustar file "
+		">stdout1.txt 2>stderr1.txt", testprog));
 	assertEmptyFile("stdout1.txt");
 	assertEmptyFile("stderr1.txt");
 	reference = slurpfile(&s, "archive1");
@@ -27,8 +27,8 @@ DEFINE_TEST(test_option_group)
 	/* Create archive with --group (numeric) */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive2 --group=17 --format=ustar file >stdout2.txt 2>stderr2.txt",
-		testprog));
+	    systemf("%s cf archive2 --uid=0 --gid=0 --group=17 --format=ustar "
+		"file >stdout2.txt 2>stderr2.txt", testprog));
 	assertEmptyFile("stdout2.txt");
 	assertEmptyFile("stderr2.txt");
 	data = slurpfile(&s, "archive2");
@@ -40,8 +40,8 @@ DEFINE_TEST(test_option_group)
 	/* Again with --group (name) */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive3 --group=foofoofoo --format=ustar file >stdout3.txt 2>stderr3.txt",
-		testprog));
+	    systemf("%s cf archive3 --uid=0 --gid=0 --group=foofoofoo "
+		"--format=ustar file >stdout3.txt 2>stderr3.txt", testprog));
 	assertEmptyFile("stdout3.txt");
 	assertEmptyFile("stderr3.txt");
 	data = slurpfile(&s, "archive3");
@@ -53,8 +53,8 @@ DEFINE_TEST(test_option_group)
 	/* Again with --group (name:id) */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive4 --group=foofoofoo:17 --format=ustar file >stdout4.txt 2>stderr4.txt",
-		testprog));
+	    systemf("%s cf archive4 --uid=0 --gid=0 --group=foofoofoo:17 "
+		"--format=ustar file >stdout4.txt 2>stderr4.txt", testprog));
 	assertEmptyFile("stdout4.txt");
 	assertEmptyFile("stderr4.txt");
 	data = slurpfile(&s, "archive4");

@@ -165,6 +165,13 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	const char *name;
 	char *p, *pp;
 
+	name = archive_entry_pathname(entry);
+	if (name == NULL || *name == '\0') {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't record entry in shar file without pathname");
+		return (ARCHIVE_FAILED);
+	}
+
 	if (!shar->wrote_header) {
 		archive_strcat(&shar->work, "#!/bin/sh\n");
 		archive_strcat(&shar->work, "# This is a shell archive\n");
@@ -178,7 +185,6 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
 		return (ARCHIVE_FATAL);
 	}
-	name = archive_entry_pathname(entry);
 
 	/* Handle some preparatory issues. */
 	switch(archive_entry_filetype(entry)) {

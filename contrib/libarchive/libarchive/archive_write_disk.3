@@ -327,13 +327,13 @@ is created as well as the final object
 In theory, this can be exploited to create an entire directory hierarchy
 with a single request.
 Of course, this does not work if the
-.Cm ARCHIVE_EXTRACT_NODOTDOT
+.Cm ARCHIVE_EXTRACT_SECURE_NODOTDOT
 option is specified.
 .Pp
 Implicit directories are always created obeying the current umask.
 Explicit objects are created obeying the current umask unless
 .Cm ARCHIVE_EXTRACT_PERM
-is specified, in which case they current umask is ignored.
+is specified, in which case the current umask is ignored.
 .Pp
 SGID and SUID bits are restored only if the correct user and
 group could be set.

@@ -30,7 +30,10 @@
  * The goal of this file (and the matching test.c) is to
  * simplify the very repetitive test-*.c test programs.
  */
-#if defined(HAVE_CONFIG_H)
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#elif defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
 #include "config.h"
 #elif defined(__FreeBSD__)
@@ -386,8 +389,8 @@ void *getXattr(const char *, const char *, size_t *);
 /* Set extended attribute */
 int setXattr(const char *, const char *, const void *, size_t);
 
-/* Return true if the file has large i-node number(>0xffffffff). */
-int is_LargeInode(const char *);
+/* Set locale and check its usability. */
+int setCheckedLocale(const char *, const char *, wchar_t);
 
 #if ARCHIVE_ACL_SUNOS
 /* Fetch ACLs on Solaris using acl() or facl() */

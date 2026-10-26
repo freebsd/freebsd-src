@@ -6,7 +6,7 @@
  */
 #include "test.h"
 
-#define USTAR_OPT " --format=ustar"
+#define USTAR_OPT " --uid=0 --gid=0 --format=ustar"
 
 DEFINE_TEST(test_option_b)
 {

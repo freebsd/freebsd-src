@@ -75,9 +75,7 @@
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
-#ifndef HAVE_ZLIB_H
-#include "archive_crc32.h"
-#endif
+
 
 #define ZIP_ENTRY_FLAG_ENCRYPTED	(1 << 0)
 #define ZIP_ENTRY_FLAG_LZMA_EOPM	(1 << 1)
@@ -322,7 +320,7 @@ cd_alloc(struct zip *zip, size_t length)
 static unsigned long
 real_crc32(unsigned long crc, const void *buff, size_t len)
 {
-	return crc32(crc, buff, (unsigned int)len);
+	return __archive_crc32(crc, buff, (unsigned int)len);
 }
 
 static unsigned long
@@ -517,23 +515,6 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->crc32func = fake_crc32;
 		}
 		return (ARCHIVE_OK);
-	} else if (strcmp(key, "hdrcharset")  == 0) {
-		/*
-		 * Set the character set used in translating filenames.
-		 */
-		if (val == NULL || val[0] == 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "%s: hdrcharset option needs a character-set name",
-			    a->format_name);
-		} else {
-			zip->opt_sconv = archive_string_conversion_to_charset(
-			    &a->archive, val, 0);
-			if (zip->opt_sconv != NULL)
-				ret = ARCHIVE_OK;
-			else
-				ret = ARCHIVE_FATAL;
-		}
-		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
 		/*
 		 * Bias decisions about Zip64: force them to be
@@ -554,7 +535,8 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
 	 * a suitable error if no one used this option. */
-	return (ARCHIVE_WARN);
+	return (__archive_write_option_header_charset(a, key, val,
+	    &zip->opt_sconv));
 }
 
 int
@@ -1171,7 +1153,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10,
-		unix_to_dos(archive_entry_mtime(zip->entry)));
+		__archive_unix_to_dos(archive_entry_mtime(zip->entry)));
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) == 0) {
 		archive_le32enc(local_header + 14, zip->entry_crc32);
 		archive_le32enc(local_header + 18, (uint32_t)zip->entry_compressed_size);
@@ -1202,7 +1184,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(zip->file_header + 10, zip->entry_compression);
 	archive_le32enc(zip->file_header + 12,
-		unix_to_dos(archive_entry_mtime(zip->entry)));
+		__archive_unix_to_dos(archive_entry_mtime(zip->entry)));
 	archive_le16enc(zip->file_header + 28, (uint16_t)filename_length);
 	/* Following Info-Zip, store mode in the "external attributes" field. */
 	archive_le32enc(zip->file_header + 38,
@@ -2354,7 +2336,7 @@ static void
 trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 {
 	uint8_t t;
-#define CRC32(c, b) (crc32(c ^ 0xffffffffUL, &b, 1) ^ 0xffffffffUL)
+#define CRC32(c, b) (__archive_crc32(c ^ 0xffffffffUL, &b, 1) ^ 0xffffffffUL)
 
 	ctx->keys[0] = CRC32(ctx->keys[0], c);
 	ctx->keys[1] = (ctx->keys[1] + (ctx->keys[0] & 0xff)) * 134775813L + 1;

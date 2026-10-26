@@ -238,9 +238,17 @@ output_byte(struct archive_write_filter *f, unsigned char c)
 	if (compress->compressed_buffer_size == compress->compressed_offset) {
 		int ret = __archive_write_filter(f->next_filter,
 		    compress->compressed, compress->compressed_buffer_size);
+		/*
+		 * Empty the buffer whether or not the downstream write
+		 * succeeded.  Otherwise a failed flush would leave
+		 * compressed_offset at compressed_buffer_size, and the next
+		 * output_byte() (callers such as output_code() keep going
+		 * without checking the return value) would write one byte
+		 * past the end of the buffer.
+		 */
+		compress->compressed_offset = 0;
 		if (ret != ARCHIVE_OK)
 			return ARCHIVE_FATAL;
-		compress->compressed_offset = 0;
 	}
 
 	return ARCHIVE_OK;
@@ -260,13 +268,17 @@ output_code(struct archive_write_filter *f, int ocode)
 	 */
 	bit_offset = compress->bit_offset % 8;
 	compress->bit_buf |= (ocode << bit_offset) & 0xff;
-	output_byte(f, compress->bit_buf);
+	ret = output_byte(f, compress->bit_buf);
+	if (ret != ARCHIVE_OK)
+		return ret;
 
 	bits = compress->code_len - (8 - bit_offset);
 	ocode >>= 8 - bit_offset;
 	/* Get any 8 bit parts in the middle (<=1 for up to 16 bits). */
 	if (bits >= 8) {
-		output_byte(f, ocode & 0xff);
+		ret = output_byte(f, ocode & 0xff);
+		if (ret != ARCHIVE_OK)
+			return ret;
 		ocode >>= 8;
 		bits -= 8;
 	}

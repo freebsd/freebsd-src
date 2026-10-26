@@ -59,7 +59,7 @@ than 2013.
 .It Fn archive_read_free
 Invokes
 .Fn archive_read_close
-if it was not invoked manually, then release all resources.
+if it was not invoked manually, then releases all resources.
 Note: In libarchive 1.x, this function was declared to return
 .Ft void ,
 which made it impossible to detect certain errors when

@@ -74,7 +74,7 @@ DEFINE_TEST(test_read_format_zip_utf8_paths)
 
 	extract_reference_file(refname);
 
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}

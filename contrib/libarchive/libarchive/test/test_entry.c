@@ -181,7 +181,6 @@ DEFINE_TEST(test_entry)
 	wcscpy(wbuff, L"wgroup");
 	archive_entry_copy_gname_w(e, wbuff);
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
-	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
 	assertEqualString(archive_entry_gname_utf8(e), "wgroup");
 	assertEqualString(archive_entry_gname(e), "wgroup");
@@ -204,7 +203,6 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_hardlink(e), "hardlinkname2");
 	assertEqualWString(archive_entry_hardlink_w(e), L"hardlinkname2");
 	assertEqualString(archive_entry_hardlink_utf8(e), "hardlinkname2");
-	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_hardlink(e), "hardlinkname2");
 	assertEqualString(archive_entry_hardlink_utf8(e), "hardlinkname2");
 	assertEqualWString(archive_entry_hardlink_w(e), L"hardlinkname2");
@@ -217,7 +215,6 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
 	assertEqualString(archive_entry_hardlink_utf8(e), "whardlink");
 	assertEqualString(archive_entry_hardlink(e), "whardlink");
-	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
 	archive_entry_copy_hardlink_w(e, NULL);
 	assertEqualString(archive_entry_hardlink(e), NULL);
@@ -309,7 +306,6 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_pathname(e), "path2");
 	assertEqualWString(archive_entry_pathname_w(e), L"path2");
 	assertEqualString(archive_entry_pathname_utf8(e), "path2");
-	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_pathname(e), "path2");
 	assertEqualString(archive_entry_pathname_utf8(e), "path2");
 	assertEqualWString(archive_entry_pathname_w(e), L"path2");
@@ -318,7 +314,6 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
 	assertEqualString(archive_entry_pathname_utf8(e), "wpath");
 	assertEqualString(archive_entry_pathname(e), "wpath");
-	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
 	assertEqualString(archive_entry_pathname(e), "wpath");
 	assertEqualString(archive_entry_pathname_utf8(e), "wpath");
@@ -357,7 +352,6 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_symlink(e), "symlinkname2");
 	assertEqualWString(archive_entry_symlink_w(e), L"symlinkname2");
 	assertEqualString(archive_entry_symlink_utf8(e), "symlinkname2");
-	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_symlink(e), "symlinkname2");
 	assertEqualString(archive_entry_symlink_utf8(e), "symlinkname2");
 	assertEqualWString(archive_entry_symlink_w(e), L"symlinkname2");
@@ -394,7 +388,6 @@ DEFINE_TEST(test_entry)
 	wcscpy(wbuff, L"wuser");
 	archive_entry_copy_uname_w(e, wbuff);
 	assertEqualWString(archive_entry_uname_w(e), L"wuser");
-	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_uname_w(e), L"wuser");
 	assertEqualString(archive_entry_uname_utf8(e), "wuser");
 	assertEqualString(archive_entry_uname(e), "wuser");
@@ -931,7 +924,7 @@ DEFINE_TEST(test_entry)
 	/*
 	 * Exercise the character-conversion logic, if we can.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("Can't exercise charset-conversion logic without"
 			" a suitable locale.");
 	} else {

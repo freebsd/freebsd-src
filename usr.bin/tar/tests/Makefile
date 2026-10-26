@@ -40,6 +40,7 @@ TESTS_SRCS=	\
 	test_extract_tar_lzo.c			\
 	test_extract_tar_xz.c			\
 	test_extract_tar_zstd.c			\
+	test_edit_pathname_hardlink.c		\
 	test_format_newc.c			\
 	test_help.c				\
 	test_leading_slash.c			\
@@ -71,6 +72,7 @@ TESTS_SRCS=	\
 	test_option_lz4.c			\
 	test_option_lzma.c			\
 	test_option_lzop.c			\
+	test_option_mode.c			\
 	test_option_mtime.c			\
 	test_option_n.c				\
 	test_option_newer_than.c		\
@@ -124,6 +126,7 @@ ${PACKAGE}FILES+=	test_extract.tar.lzo.uu
 ${PACKAGE}FILES+=	test_extract.tar.xz.uu
 ${PACKAGE}FILES+=	test_extract.tar.zst.uu
 ${PACKAGE}FILES+=	test_leading_slash.tar.uu
+${PACKAGE}FILES+=	test_edit_pathname_hardlink.tar.Z.uu
 ${PACKAGE}FILES+=	test_list_item.tar.uu
 ${PACKAGE}FILES+=	test_option_keep_newer_files.tar.Z.uu
 ${PACKAGE}FILES+=	test_option_passphrase.zip.uu

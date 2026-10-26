@@ -1,0 +1,22 @@
+This is test_compat_zstd_1.tar.zst prefixed with two skippable
+frames, each with a different magic number in the lz4/zstd magic
+number range. The first one contains no user data, the second
+one contains 10 bytes of user data (the values 0 through 9).
+
+This is useful to test lz4/zstd detection, because they share
+the same format for skippable frames. We should scan a reasonable
+amount of data looking for a non-skippable frame to decide if
+it is lz4 or zstd data.
+
+begin 664 test_compat_zstd_3.tar.zst
+M4"I-&`````!1*DT8"@`````!`@,$!08'"`DHM2_]!%`E`P"BQ`X5L#$9Y[P\
+M1+L.G&;MQ$OI/1Q"/CT%=<9"#(Y8L^8Q`NDX1&$3&5("H$LK];O_G1G_?^U&
+MN,V6<K9Y%`X`RT`5,J`.8/P`V;0.II$/5$("A$$;(-P$YP*`-."U5CCE$Q@"
+M2VV3R"BU+_T$4%T#`"(%$!6@.0%`$[.6RH)4-5!FDK0_G'[U^@]/1&1Z%7PH
+M<*KFFIN,91V)*.PBPDJ4VFK0_+9\YJ'_W^Z(;M?.2=L]U08/`)M`%61`!UC1
+M`;(9%DPE'ZB$!`B#-D"X"<X%`&G`:ZUPRL$T-@$6'W7VM%`J31@$`````0(#
+M!"BU+_T$4'T#`")%$!:@L0D(7V`SI:^@`*RT3)*V&X8JW.<#=^^I<M3`J)IK
+M;C("ZTA$81<95@*HK4?\;;[,0_^_W5&X73LG;=>H<M0&$`#]007[0#TRH!C`
+CY`&R"19,)1^HA`0(@S9`N`G.!0!IP&NM<&K!5'8"6`%F.0,`
+`
+end

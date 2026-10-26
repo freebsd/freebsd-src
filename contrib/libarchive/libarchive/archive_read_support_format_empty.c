@@ -87,9 +87,10 @@ archive_read_format_empty_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
 	(void)a; /* UNUSED */
-	(void)buff; /* UNUSED */
-	(void)size; /* UNUSED */
-	(void)offset; /* UNUSED */
+
+	*buff = NULL;
+	*size = 0;
+	*offset = 0;
 
 	return (ARCHIVE_EOF);
 }

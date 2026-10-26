@@ -3313,28 +3313,6 @@ copy_reference_file(const char *name)
 	fclose(in);
 }
 
-int
-is_LargeInode(const char *file)
-{
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	BY_HANDLE_FILE_INFORMATION bhfi;
-	int r;
-
-	r = my_GetFileInformationByName(file, &bhfi);
-	if (r != 0)
-		return (0);
-	return (bhfi.nFileIndexHigh & 0x0000FFFFUL);
-#else
-	struct stat st;
-	int64_t ino;
-
-	if (stat(file, &st) < 0)
-		return (0);
-	ino = (int64_t)st.st_ino;
-	return (ino > 0xffffffff);
-#endif
-}
-
 void
 extract_reference_files(const char **names)
 {
@@ -3615,6 +3593,29 @@ set_environment(const char *key, const char *value)
 			fprintf(stderr, "setenv: %s\n", strerror(errno));
 	}
 #endif
+}
+
+int
+setCheckedLocale(const char *locale, const char *mbc, wchar_t expected_wc)
+{
+#ifdef HAVE_MBRTOWC
+	mbstate_t state;
+	size_t len;
+	wchar_t wc;
+#endif
+
+	if (setlocale(LC_ALL, locale) == NULL)
+		return (0);
+
+#ifdef HAVE_MBRTOWC
+	memset(&state, 0, sizeof(state));
+	len = strlen(mbc);
+	if (mbrtowc(&wc, mbc, len, &state) != len ||
+	    wc != expected_wc)
+		return (0);
+#endif
+
+	return (1);
 }
 
 /*

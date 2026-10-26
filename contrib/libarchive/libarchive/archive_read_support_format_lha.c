@@ -206,9 +206,11 @@ struct lha {
  * LHA header common member offset.
  */
 #define H_METHOD_OFFSET	2	/* Compress type. */
-#define H_ATTR_OFFSET	19	/* DOS attribute. */
+#define H_ATTR_OFFSET	19	/* AmigaDOS or DOS attributes. */
 #define H_LEVEL_OFFSET	20	/* Header Level.  */
 #define H_SIZE		22	/* Minimum header size. */
+
+#define SFX_MAX_READAHEAD	(1024 * 512)
 
 static int      archive_read_format_lha_bid(struct archive_read *, int);
 static int      archive_read_format_lha_options(struct archive_read *,
@@ -228,7 +230,7 @@ static int	lha_read_file_header_2(struct archive_read *, struct lha *);
 static int	lha_read_file_header_3(struct archive_read *, struct lha *);
 static int	lha_read_file_extended_header(struct archive_read *,
 		    struct lha *, uint16_t *, int, uint64_t, size_t *);
-static size_t	lha_check_header_format(const void *);
+static size_t	lha_check_header_format(const char *);
 static int	lha_skip_sfx(struct archive_read *);
 static unsigned char	lha_calcsum(unsigned char, const void *,
 		    int, size_t);
@@ -264,8 +266,7 @@ archive_read_support_format_lha(struct archive *_a)
 
 	lha = calloc(1, sizeof(*lha));
 	if (lha == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate lha data");
+		archive_set_error(_a, ENOMEM, "Can't allocate lha data");
 		return (ARCHIVE_FATAL);
 	}
 	archive_string_init(&lha->ws);
@@ -285,16 +286,15 @@ archive_read_support_format_lha(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(lha);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static size_t
-lha_check_header_format(const void *h)
+lha_check_header_format(const char *h)
 {
-	const unsigned char *p = h;
 	size_t next_skip_bytes;
 
-	switch (p[H_METHOD_OFFSET+3]) {
+	switch (h[H_METHOD_OFFSET + 3]) {
 	/*
 	 * "-lh0-" ... "-lh7-" "-lhd-"
 	 * "-lzs-" "-lz5-"
@@ -305,29 +305,27 @@ lha_check_header_format(const void *h)
 	case 's':
 		next_skip_bytes = 4;
 
-		/* b0 == 0 means the end of an LHa archive file.	*/
-		if (p[0] == 0)
+		/* 0 means the end of an LHa archive file. */
+		if (h[0] == 0)
 			break;
-		if (p[H_METHOD_OFFSET] != '-' || p[H_METHOD_OFFSET+1] != 'l'
-		    ||  p[H_METHOD_OFFSET+4] != '-')
+		if (h[H_METHOD_OFFSET] != '-' || h[H_METHOD_OFFSET + 1] != 'l'
+		    ||  h[H_METHOD_OFFSET + 4] != '-')
 			break;
 
-		if (p[H_METHOD_OFFSET+2] == 'h') {
+		if (h[H_METHOD_OFFSET + 2] == 'h') {
 			/* "-lh?-" */
-			if (p[H_METHOD_OFFSET+3] == 's')
+			if (h[H_METHOD_OFFSET + 3] == 's')
 				break;
-			if (p[H_LEVEL_OFFSET] == 0)
-				return (0);
-			if (p[H_LEVEL_OFFSET] <= 3 && p[H_ATTR_OFFSET] == 0x20)
+			if (h[H_LEVEL_OFFSET] <= 3)
 				return (0);
 		}
-		if (p[H_METHOD_OFFSET+2] == 'z') {
+		if (h[H_METHOD_OFFSET + 2] == 'z') {
 			/* LArc extensions: -lzs-,-lz4- and -lz5- */
-			if (p[H_LEVEL_OFFSET] != 0)
+			if (h[H_LEVEL_OFFSET] != 0)
 				break;
-			if (p[H_METHOD_OFFSET+3] == 's'
-			    || p[H_METHOD_OFFSET+3] == '4'
-			    || p[H_METHOD_OFFSET+3] == '5')
+			if (h[H_METHOD_OFFSET + 3] == 's'
+			    || h[H_METHOD_OFFSET + 3] == '4'
+			    || h[H_METHOD_OFFSET + 3] == '5')
 				return (0);
 		}
 		break;
@@ -344,43 +342,46 @@ lha_check_header_format(const void *h)
 static int
 archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 {
-	const char *p;
-	const void *buff;
-	ssize_t bytes_avail, offset, window;
-	size_t next;
+	const char *h;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 30)
 		return (-1);
 
-	if ((p = __archive_read_ahead(a, H_SIZE, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, H_SIZE, NULL)) == NULL)
 		return (-1);
 
-	if (lha_check_header_format(p) == 0)
+	if (lha_check_header_format(h) == 0)
 		return (30);
 
-	if (p[0] == 'M' && p[1] == 'Z') {
+	if (h[0] == 'M' && h[1] == 'Z') {
+		ssize_t offset, window;
+
 		/* PE file */
 		offset = 0;
 		window = 4096;
-		while (offset < (1024 * 20)) {
-			buff = __archive_read_ahead(a, offset + window,
+		while (offset + window <= SFX_MAX_READAHEAD) {
+			ssize_t bytes_avail;
+
+			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
-			if (buff == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < (H_SIZE + 3))
-					return (0);
-				continue;
+			if (h == NULL) {
+				if (bytes_avail >= offset + H_SIZE) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return (0);
 			}
-			p = (const char *)buff + offset;
-			while (p + H_SIZE < (const char *)buff + bytes_avail) {
-				if ((next = lha_check_header_format(p)) == 0)
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
+			while (offset <= bytes_avail - H_SIZE) {
+				size_t next = lha_check_header_format(h + offset);
+				if (next == 0)
 					return (30);
-				p += next;
+				offset += next;
 			}
-			offset = p - (const char *)buff;
 		}
 	}
 	return (0);
@@ -474,7 +475,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	struct lha *lha = a->format->data;
 	struct archive_wstring linkname;
 	struct archive_wstring pathname;
-	const unsigned char *p;
+	const char *p;
 	const char *signature;
 	int err;
 	struct archive_mstring conv_buffer;
@@ -500,7 +501,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		return (truncated_error(a));
 	}
 
-	signature = (const char *)p;
+	signature = p;
 	if (lha->found_first_header == 0 &&
 	    signature[0] == 'M' && signature[1] == 'Z') {
                 /* This is an executable?  Must be self-extracting... 	*/
@@ -510,7 +511,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 
 		if ((p = __archive_read_ahead(a, sizeof(*p), NULL)) == NULL)
 			return (truncated_error(a));
-		signature = (const char *)p;
+		signature = p;
 	}
 	/* signature[0] == 0 means the end of an LHa archive file. */
 	if (signature[0] == 0)
@@ -588,6 +589,9 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	if (err < ARCHIVE_WARN)
 		return (err);
 
+	if (!lha->directory && archive_strlen(&lha->filename) == 0)
+		if (memcmp(lha->method, "lh0", 3) == 0 && archive_strlen(&lha->dirname) > 0)
+			lha->directory = 1; /* empty directory entry */
 
 	if (!lha->directory && archive_strlen(&lha->filename) == 0)
 		/* The filename has not been set */
@@ -812,7 +816,7 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 	headersum = p[H0_HEADER_SUM_OFFSET];
 	lha->compsize = archive_le32dec(p + H0_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H0_ORIG_SIZE_OFFSET);
-	lha->mtime = dos_to_unix(archive_le32dec(p + H0_DOS_TIME_OFFSET));
+	lha->mtime = __archive_dos_to_unix(archive_le32dec(p + H0_DOS_TIME_OFFSET));
 	namelen = p[H0_NAME_LEN_OFFSET];
 	extdsize = (int)lha->header_size - H0_FIXED_SIZE - namelen;
 	if ((namelen > 221 || extdsize < 0) && extdsize != -2) {
@@ -912,7 +916,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	/* Note: An extended header size is included in a compsize. */
 	lha->compsize = archive_le32dec(p + H1_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H1_ORIG_SIZE_OFFSET);
-	lha->mtime = dos_to_unix(archive_le32dec(p + H1_DOS_TIME_OFFSET));
+	lha->mtime = __archive_dos_to_unix(archive_le32dec(p + H1_DOS_TIME_OFFSET));
 	namelen = p[H1_NAME_LEN_OFFSET];
 	/* Calculate a padding size. The result will be normally 0 only(?) */
 	padding = ((int)lha->header_size) - H1_FIXED_SIZE - namelen;
@@ -1325,15 +1329,15 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			break;
 		case EXT_TIMESTAMP:
 			if (datasize == (sizeof(uint64_t) * 3)) {
-				ntfs_to_unix(archive_le64dec(extdheader),
+				__archive_ntfs_to_unix(archive_le64dec(extdheader),
 					&lha->birthtime,
 				    &lha->birthtime_tv_nsec);
 				extdheader += sizeof(uint64_t);
-				ntfs_to_unix(archive_le64dec(extdheader),
+				__archive_ntfs_to_unix(archive_le64dec(extdheader),
 					&lha->mtime,
 				    &lha->mtime_tv_nsec);
 				extdheader += sizeof(uint64_t);
-				ntfs_to_unix(archive_le64dec(extdheader),
+				__archive_ntfs_to_unix(archive_le64dec(extdheader),
 					&lha->atime,
 				    &lha->atime_tv_nsec);
 				lha->setflag |= BIRTHTIME_IS_SET |
@@ -1342,11 +1346,19 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			break;
 		case EXT_FILESIZE:
 			if (datasize == sizeof(uint64_t) * 2) {
-				lha->compsize = archive_le64dec(extdheader);
+				uint64_t compsize, origsize;
+
+				/* Range-check before the conversion to the
+				 * signed type rather than relying on the
+				 * implementation-defined result of it. */
+				compsize = archive_le64dec(extdheader);
 				extdheader += sizeof(uint64_t);
-				lha->origsize = archive_le64dec(extdheader);
-				if (lha->compsize < 0 || lha->origsize < 0)
+				origsize = archive_le64dec(extdheader);
+				if (compsize > INT64_MAX ||
+				    origsize > INT64_MAX)
 					goto invalid;
+				lha->compsize = (int64_t)compsize;
+				lha->origsize = (int64_t)origsize;
 			}
 			break;
 		case EXT_CODEPAGE:
@@ -1551,7 +1563,7 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct lha *lha = a->format->data;
-	ssize_t bytes_avail;
+	ssize_t bytes_avail, max_in;
 	int r;
 
 	/* If we haven't yet read any data, initialize the decompressor. */
@@ -1597,6 +1609,17 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 	}
 	if (bytes_avail > lha->entry_bytes_remaining)
 		bytes_avail = (ssize_t)lha->entry_bytes_remaining;
+
+	/* Setup buffer boundaries.  strm.avail_in is an int, and the
+	 * compressed size it is bounded by comes straight from the LHa
+	 * header, so clamp the available byte count before the
+	 * assignment. */
+	if (INT_MAX >= SSIZE_MAX)
+		max_in = SSIZE_MAX;
+	else
+		max_in = INT_MAX;
+	if (bytes_avail > max_in)
+		bytes_avail = max_in;
 
 	lha->strm.avail_in = (int)bytes_avail;
 	lha->strm.total_in = 0;

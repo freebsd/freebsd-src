@@ -1,0 +1,58 @@
+This archive was created by extracting hw-powerpc from test_read_format_7zip_lzma2_powerpc.7z.uu,
+chmodding it to 0775 and then creating the archive with 7zip 26.02:
+
+rm -f libarchive/test/test_read_format_7zip_lzma1_powerpc.7z
+7z a -m0=PPC -m1=LZMA -mhc=off -mtm=off libarchive/test/test_read_format_7zip_lzma1_powerpc.7z hw-powerpc -y
+
+-mtm=off keeps the result reproducible: without it the stored mtime
+changes on every regeneration. The test does not check the mtime.
+
+And then uuencoding the resulting archive.
+
+begin 644 test_read_format_7zip_lzma1_powerpc.7z
+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
+`
+end

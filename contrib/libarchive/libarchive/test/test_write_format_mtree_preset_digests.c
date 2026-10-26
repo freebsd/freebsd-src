@@ -50,7 +50,12 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_no_data)
 	size_t used = 0;
 	struct archive *a;
 	struct archive_entry *entry;
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
 	struct expected_digests ed;
+#endif
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -139,7 +144,12 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_empty_data)
 	size_t used = 0;
 	struct archive *a;
 	struct archive_entry *entry;
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
 	struct expected_digests ed;
+#endif
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -229,8 +239,13 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_non_empty_data)
 	size_t used = 0;
 	struct archive *a;
 	struct archive_entry *entry;
-	struct expected_digests ed;
 	char *data = "abcd";
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
+	struct expected_digests ed;
+#endif
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));

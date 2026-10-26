@@ -6,10 +6,6 @@
  */
 #include "test.h"
 
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
-
 /* Test I arg - file name encoding */
 DEFINE_TEST(test_I)
 {
@@ -19,14 +15,10 @@ DEFINE_TEST(test_I)
 	    "LC_CTYPE=en_US.UTF-8";
 	int r;
 
-#if HAVE_SETLOCALE
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
-#else
-	skipping("setlocale() not available on this system.");
-#endif
 
 	extract_reference_file(reffile);
 	r = systemf("%s %s -I UTF-8 %s >test.out 2>test.err", envstr, testprog,

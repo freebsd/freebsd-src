@@ -20,13 +20,17 @@ DEFINE_TEST(test_extract_tar_absolute_paths)
 	int r;
 
 	// Create an absolute path for a test file inside testworkdir.
-	char *entry_suffix = "/tar-noabs";
+	char *entry_suffix = "/work/tar-noabs";
 	size_t entry_suffix_length = strlen(entry_suffix);
 	size_t testworkdir_length = strlen(testworkdir);
 	size_t temp_absolute_file_name_length = testworkdir_length + entry_suffix_length;
 	char *temp_absolute_file_name = calloc(1, temp_absolute_file_name_length + 1); // +1 for null character.
 	assertEqualInt(snprintf(temp_absolute_file_name, temp_absolute_file_name_length + 1, "%s%s", testworkdir, entry_suffix),
 		temp_absolute_file_name_length);
+
+	// Use a directory owned by the unprivileged test user.
+	assertMakeDir("work", 0755);
+	assertChdir("work");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	// I'm unsure how to specify paths with spaces for the test invocation on windows.
@@ -55,21 +59,26 @@ DEFINE_TEST(test_extract_tar_absolute_paths)
 	UNLINK(temp_absolute_file_name);
 
 	// Extracting the archive without -P / --absolute-paths should strip leading drive letter or slash
-	r = systemf("%s -xf test.tar 2>test.err", testprog);
+	// inside its own extraction directory.
+	assertMakeDir("without-P", 0755);
+	assertChdir("without-P");
+	r = systemf("%s -xf ../test.tar 2>test.err", testprog);
 	assertEqualInt(r, 0);
 	assertFileNotExists(temp_absolute_file_name);
 
 	// Check that the mangled path exists.
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	assertFileExists(temp_absolute_file_name + 3); // Skip the drive letter, colon and slash.
-	UNLINK(temp_absolute_file_name + 3);
 #else
 	assertFileExists(temp_absolute_file_name + 1); // Skip the slash.
-	UNLINK(temp_absolute_file_name + 1);
 #endif
 
-	// Extracting the archive with -P / --absolute-paths should create the file.
-	r = systemf("%s --absolute-paths -xf test.tar", testprog);
+	// Extracting the archive with -P / --absolute-paths in a separate directory should
+	// create the file without creating a mangled path.
+	assertChdir("..");
+	assertMakeDir("with-P", 0755);
+	assertChdir("with-P");
+	r = systemf("%s --absolute-paths -xf ../test.tar", testprog);
 	assertEqualInt(r, 0);
 	assertFileExists(temp_absolute_file_name);
 

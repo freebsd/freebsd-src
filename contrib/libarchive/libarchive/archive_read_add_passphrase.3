@@ -47,7 +47,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Sh DESCRIPTION
 .Bl -tag -width indent
 .It Fn archive_read_add_passphrase
-Register passphrases for reading an encryption archive.
+Register passphrases for reading an encrypted archive.
 If
 .Ar passphrase
 is
@@ -59,7 +59,7 @@ Otherwise,
 .Cm ARCHIVE_OK
 will be returned.
 .It Fn archive_read_set_passphrase_callback
-Register a callback function that will be invoked to get a passphrase 
+Register a callback function that will be invoked to get a passphrase
 for decryption after trying all the passphrases registered by the
 .Fn archive_read_add_passphrase
 function failed.

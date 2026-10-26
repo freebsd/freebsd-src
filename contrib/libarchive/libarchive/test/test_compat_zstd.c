@@ -80,4 +80,8 @@ DEFINE_TEST(test_compat_zstd)
 
 	/* The same sample compressed with pzstd */
 	compat_zstd("test_compat_zstd_2.tar.zst");
+
+	/* test_compat_zstd_1.tar.zst prefixed with two skippable frames, one with
+       no user data, followed by one with ten bytes of user data. */
+	compat_zstd("test_compat_zstd_3.tar.zst");
 }

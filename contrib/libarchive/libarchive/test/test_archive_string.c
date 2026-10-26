@@ -350,6 +350,22 @@ test_archive_string_sprintf(void)
 	archive_string_sprintf(&s, "%d", 1234567890);
 	assertExactString(10, 8 * EXTENT, "1234567890", s);
 
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%u", 1000000000);
+	assertExactString(10, 8 * EXTENT, "1000000000", s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%o", 0777);
+	assertExactString(3, 8 * EXTENT, "777", s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%x", 0xdeadbeef);
+	assertExactString(8, 8 * EXTENT, "deadbeef", s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%X", 0xdeadbeef);
+	assertExactString(8, 8 * EXTENT, "DEADBEEF", s);
+
 	archive_string_free(&s);
 }
 

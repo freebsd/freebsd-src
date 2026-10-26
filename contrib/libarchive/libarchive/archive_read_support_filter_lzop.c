@@ -109,7 +109,7 @@ archive_read_support_filter_lzop(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "lzop",
+	if (__archive_read_register_bidder(a, NULL,
 				&lzop_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -274,7 +274,7 @@ consume_header(struct archive_read_filter *f)
 	if (p == NULL)
 		goto truncated;
 	if (flags & CRC32_HEADER)
-		checksum = crc32(crc32(0, NULL, 0), p, len);
+		checksum = __archive_crc32(__archive_crc32(0, NULL, 0), p, len);
 	else
 		checksum = adler32(adler32(0, NULL, 0), p, len);
 #ifndef DONT_FAIL_ON_CRC_ERROR
@@ -414,7 +414,7 @@ lzop_filter_read(struct archive_read_filter *f, const void **p)
 		return (ARCHIVE_FATAL);
 	}
 	if (lzop->flags & CRC32_COMPRESSED)
-		cksum = crc32(crc32(0, NULL, 0), b, lzop->compressed_size);
+		cksum = __archive_crc32(__archive_crc32(0, NULL, 0), b, lzop->compressed_size);
 	else if (lzop->flags & ADLER32_COMPRESSED)
 		cksum = adler32(adler32(0, NULL, 0), b, lzop->compressed_size);
 	else
@@ -459,7 +459,7 @@ lzop_filter_read(struct archive_read_filter *f, const void **p)
 	}
 
 	if (lzop->flags & CRC32_UNCOMPRESSED)
-		cksum = crc32(crc32(0, NULL, 0), lzop->out_block,
+		cksum = __archive_crc32(__archive_crc32(0, NULL, 0), lzop->out_block,
 		    lzop->uncompressed_size);
 	else if (lzop->flags & ADLER32_UNCOMPRESSED)
 		cksum = adler32(adler32(0, NULL, 0), lzop->out_block,

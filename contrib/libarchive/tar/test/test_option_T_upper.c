@@ -70,8 +70,8 @@ DEFINE_TEST(test_option_T_upper)
 
 	/* Use -x -T to dearchive the files */
 	if (!assertMakeDir("test1", 0755)) return;
-	systemf("%s -x -f test1.tar -T filelist -C test1"
-	    " > test1b.out 2> test1b.err", testprog);
+	assertEqualInt(0, systemf("%s -x -f test1.tar -T filelist -C test1"
+	    " > test1b.out 2> test1b.err", testprog));
 	assertEmptyFile("test1b.out");
 	assertEmptyFile("test1b.err");
 
@@ -88,15 +88,15 @@ DEFINE_TEST(test_option_T_upper)
 	}
 
 	/* Use -r -T to add more files to the archive. */
-	systemf("%s -r -f test1.tar --null -T filelist2 > test2.out 2> test2.err",
-	    testprog);
+	assertEqualInt(0, systemf("%s -r -f test1.tar --null -T filelist2 > test2.out 2> test2.err",
+	    testprog));
 	assertEmptyFile("test2.out");
 	assertEmptyFile("test2.err");
 
 	/* Use -x without -T to dearchive the files (ensure -r worked) */
 	if (!assertMakeDir("test3", 0755)) return;
-	systemf("%s -x -f test1.tar -C test3"
-	    " > test3.out 2> test3.err", testprog);
+	assertEqualInt(0, systemf("%s -x -f test1.tar -C test3"
+	    " > test3.out 2> test3.err", testprog));
 	assertEmptyFile("test3.out");
 	assertEmptyFile("test3.err");
 	/* Verify the files were extracted.*/
@@ -113,8 +113,8 @@ DEFINE_TEST(test_option_T_upper)
 
 	/* Use -x -T to dearchive the files (verify -x -T together) */
 	if (!assertMakeDir("test2", 0755)) return;
-	systemf("%s -x -f test1.tar -T filelist -C test2"
-	    " > test2b.out 2> test2b.err", testprog);
+	assertEqualInt(0, systemf("%s -x -f test1.tar -T filelist -C test2"
+	    " > test2b.out 2> test2b.err", testprog));
 	assertEmptyFile("test2b.out");
 	assertEmptyFile("test2b.err");
 	/* Verify the files were extracted.*/

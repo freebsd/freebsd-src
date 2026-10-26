@@ -28,4 +28,11 @@ DEFINE_TEST(test_option_l)
 
 	/* Check that this is a link and not a copy. */
 	assertIsHardlink("f", "link/f");
+
+	/* A failed hard link must make pass mode fail. */
+	r = systemf("echo f | %s -pl missing/parent >invalid.out 2>invalid.err",
+	    testprog);
+	assert(r != 0);
+	assertFileNotExists("missing/parent/f");
+	assertNonEmptyFile("invalid.err");
 }

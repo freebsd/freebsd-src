@@ -269,6 +269,7 @@ archive_match_free(struct archive *_a)
 	free(a->inclusion_gids.ids);
 	match_list_free(&(a->inclusion_unames));
 	match_list_free(&(a->inclusion_gnames));
+	archive_string_free(&a->archive.error_string);
 	free(a);
 	return (ARCHIVE_OK);
 }
@@ -1172,8 +1173,8 @@ set_timefilter_find_data(struct archive_match *a, int timetype,
 	time_t ctime_sec, mtime_sec;
 	uint32_t ctime_ns, mtime_ns;
 
-	ntfs_to_unix(FILETIME_to_ntfs(ftLastWriteTime), &mtime_sec, &mtime_ns);
-	ntfs_to_unix(FILETIME_to_ntfs(ftCreationTime), &ctime_sec, &ctime_ns);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(ftLastWriteTime), &mtime_sec, &mtime_ns);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(ftCreationTime), &ctime_sec, &ctime_ns);
 	return set_timefilter(a, timetype,
 			mtime_sec, mtime_ns, ctime_sec, ctime_ns);
 }

@@ -34,6 +34,11 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_string.h"
+#include "archive_write_private.h"
+
+int __archive_write_option_header_charset(struct archive_write *,
+    const char *, const char *, struct archive_string_conv **);
 
 void __archive_write_entry_filetype_unsupported(struct archive *a,
     struct archive_entry *entry, const char *format);

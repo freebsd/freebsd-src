@@ -179,10 +179,8 @@ verify(const char *refname, enum comp_type comp)
 	struct archive_entry *ae;
 	struct archive *a;
 	char buff[128];
-	char zero[128];
 	size_t s;
 
-	memset(zero, 0, sizeof(zero));
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -221,10 +219,10 @@ verify(const char *refname, enum comp_type comp)
 				goto finish;
 			}
 			assertEqualInt(sizeof(buff), rsize);
-			assertEqualMem(buff, zero, sizeof(buff));
+			assertMemoryFilledWith(buff, sizeof(buff), 0);
 		}
 		assertEqualInt(33000 - s, archive_read_data(a, buff, 33000 - s));
-		assertEqualMem(buff, zero, 33000 - s);
+		assertMemoryFilledWith(buff, 33000 - s, 0);
 	}
 
 	/* Verify regular file1. */
@@ -279,14 +277,12 @@ verify2(const char *refname, enum comp_type comp)
 	struct archive_entry *ae;
 	struct archive *a;
 	char buff[128];
-	char zero[128];
 
 	if (comp == MSZIP && archive_zlib_version() == NULL) {
 		skipping("Skipping CAB format(MSZIP) check for %s",
 		  refname);
 		return;
 	}
-	memset(zero, 0, sizeof(zero));
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -344,9 +340,7 @@ verify3(const char *refname, enum comp_type comp)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	char zero[128];
 
-	memset(zero, 0, sizeof(zero));
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));

@@ -28,10 +28,6 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -87,7 +83,7 @@ archive_read_support_filter_zstd(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "zstd",
+	if (__archive_read_register_bidder(a, NULL,
 				&zstd_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -109,6 +105,7 @@ zstd_bidder_bid(struct archive_read_filter_bidder *b,
 {
 	const unsigned char *buffer;
 	ssize_t avail;
+	int bits_checked = 0;
 	/*
 	 * Zstandard skippable frames contain a 4 byte magic number followed
 	 * by a 4 byte frame data size, then that number of bytes of data.
@@ -147,6 +144,7 @@ zstd_bidder_bid(struct archive_read_filter_bidder *b,
 		uint32_t frame_data_size;
 
 		/* Skip over the magic number */
+		bits_checked += 28;
 		offset_in_buffer += 4;
 
 		/* Ensure that we can read another 4 bytes. */
@@ -172,12 +170,10 @@ zstd_bidder_bid(struct archive_read_filter_bidder *b,
 		 * if this is zstd data.
 		 */
 		if (archive_ckd_add_size(&min,
-		    offset_in_buffer, min_zstd_frame_size))
+		    offset_in_buffer, min_zstd_frame_size) ||
+		    min > max_lookahead)
 			return (0);
 		if (min > (size_t)avail) {
-			if (min > max_lookahead)
-				return (0);
-
 			buffer = __archive_read_filter_ahead(f,
 			    min, &avail);
 			if (buffer == NULL)
@@ -193,7 +189,7 @@ zstd_bidder_bid(struct archive_read_filter_bidder *b,
 	 */
 
 	if (magic_number == zstd_magic)
-		return (offset_in_buffer + 4);
+		return (bits_checked + 32);
 
 	return (0);
 }

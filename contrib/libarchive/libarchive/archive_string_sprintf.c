@@ -50,11 +50,15 @@
  * them to an archive_string.
  */
 static void
-append_uint(struct archive_string *as, uintmax_t d, unsigned base)
+append_uint(struct archive_string *as, uintmax_t d, unsigned base,
+    int upper)
 {
-	static const char digits[] = "0123456789abcdef";
+	static const char digits_lower[] = "0123456789abcdef";
+	static const char digits_upper[] = "0123456789ABCDEF";
+	const char *digits = upper ? digits_upper : digits_lower;
+
 	if (d >= base)
-		append_uint(as, d/base, base);
+		append_uint(as, d/base, base, upper);
 	archive_strappend_char(as, digits[d % base]);
 }
 
@@ -68,7 +72,7 @@ append_int(struct archive_string *as, intmax_t d, unsigned base)
 		ud = (d == INTMAX_MIN) ? (uintmax_t)(INTMAX_MAX) + 1 : (uintmax_t)(-d);
 	} else
 		ud = d;
-	append_uint(as, ud, base);
+	append_uint(as, ud, base, 0);
 }
 
 
@@ -186,9 +190,10 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			}
 			/* Format it in the correct base. */
 			switch (*p) {
-			case 'o': append_uint(as, u, 8); break;
-			case 'u': append_uint(as, u, 10); break;
-			default: append_uint(as, u, 16); break;
+			case 'o': append_uint(as, u, 8, 0); break;
+			case 'u': append_uint(as, u, 10, 0); break;
+			case 'x': append_uint(as, u, 16, 0); break;
+			case 'X': append_uint(as, u, 16, 1); break;
 			}
 			break;
 		default:
