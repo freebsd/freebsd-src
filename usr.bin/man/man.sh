@@ -748,7 +748,7 @@ man_setup_locale() {
 				man_country="${lang_cc#*_}"
 				man_charset="${locstr#*.}"
 				locpaths="$locstr"
-				locpaths="$locpaths:$man_lang.$man_charset"
+				locpaths="$locpaths:$man_lang.$man_charset:$man_lang"
 				if [ "$man_lang" != "en" ]; then
 					locpaths="$locpaths:en.$man_charset"
 				fi
