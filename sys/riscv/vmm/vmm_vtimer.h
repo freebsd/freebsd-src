@@ -37,11 +37,12 @@ struct hypctx;
 
 struct vtimer {
 	struct callout	callout;
-	struct mtx	mtx;
 	uint32_t	freq;
 };
 
 void vtimer_cpuinit(struct hypctx *hypctx);
 int vtimer_set_timer(struct hypctx *hypctx, uint64_t next_val);
+void vtimer_wfi_enter(struct hypctx *hypctx);
+void vtimer_wfi_exit(struct hypctx *hypctx);
 
 #endif /* !_VMM_VTIMER_H_ */
