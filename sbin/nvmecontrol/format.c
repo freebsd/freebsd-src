@@ -120,10 +120,10 @@ static int
 find_lbaf(const struct nvme_namespace_data *nsd, uint32_t sector_size,
     bool require_unique)
 {
-	uint32_t format;
-	int best, best_rp, i, lbads, matches, rp;
+	uint32_t format, lbads;
+	int best, best_rp, i, matches, rp;
 
-	lbads = fls(sector_size) - 1;
+	lbads = (uint32_t)fls(sector_size) - 1;
 	best = -1;
 	best_rp = 4;
 	matches = 0;
