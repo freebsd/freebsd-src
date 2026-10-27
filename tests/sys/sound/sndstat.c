@@ -196,7 +196,7 @@ ATF_TC_BODY(sndstat_nv, tc)
 
 	free(arg.buf);
 	nvlist_destroy(nvl);
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 #define UDEV_PROVIDER	"sndstat_udev"
@@ -374,7 +374,7 @@ ATF_TC_BODY(sndstat_udev, tc)
 
 	free(arg.buf);
 	nvlist_destroy(nvl);
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)

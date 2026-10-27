@@ -98,7 +98,7 @@ ATF_TC_BODY(poll_kqueue, tc)
 	ATF_REQUIRE_MSG(read(fd, buf, sizeof(buf)) > 0, FMT_ERR("read"));
 
 	EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-	close(kq);
+	ATF_REQUIRE(close(kq) == 0);
 
 	kq = kqueue();
 	ATF_REQUIRE_MSG(kq >= 0, FMT_ERR("kqueue"));
@@ -113,9 +113,9 @@ ATF_TC_BODY(poll_kqueue, tc)
 	ATF_REQUIRE_MSG(write(fd, buf, sizeof(buf)) > 0, FMT_ERR("write"));
 
 	EV_SET(&ev, fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
-	close(kq);
+	ATF_REQUIRE(close(kq) == 0);
 
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 ATF_TC(poll_poll);
@@ -154,7 +154,7 @@ ATF_TC_BODY(poll_poll, tc)
 			wr = true;
 		}
 	}
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 ATF_TC(poll_select);
@@ -192,7 +192,7 @@ ATF_TC_BODY(poll_select, tc)
 			wr = true;
 		}
 	}
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
