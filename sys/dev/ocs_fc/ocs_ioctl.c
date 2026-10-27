@@ -194,7 +194,7 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			break;
 		}
 	} else {
-		uint64_t max_bytes = max(mcmd->in_bytes, mcmd->out_bytes);
+		uint64_t max_bytes = MAX(mcmd->in_bytes, mcmd->out_bytes);
 		if (max_bytes > OCS_MAX_DMA_ALLOC) {
 			device_printf(ocs->dev, "%s: non-embedded - %llu exceeds max\n",
 			    __func__, (unsigned long long)max_bytes);
