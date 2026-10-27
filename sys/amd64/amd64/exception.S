@@ -1650,10 +1650,10 @@ fred_events_handlers:
 	movq	%rsi,TF_RSI(%rsp)
 	movl	TF_FRED_EVINFO2(%rsp),%edi
 	movl	%edi,%eax
-	andl	$TF_FRED_EVINFO2_TYPEMASK,%edi
-	cmpl	$TF_FRED_EVINFO2_TYPE_SYSCALL,%edi
-	je	user_fred_syscall
-	jmp	user_fred_non_syscall
+	andl	$TF_FRED_EVINFO2_SYSCALLMASK,%edi
+	cmpl	$TF_FRED_EVINFO2_SYSCALLVAL,%edi
+	jne	user_fred_non_syscall
+	jmp	user_fred_syscall
 
 	. = fred_events_handlers + 256
 	subq	$TF_ERR,%rsp
