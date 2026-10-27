@@ -1573,6 +1573,24 @@ fred_inst_len(const struct trapframe_fred *frame)
 	    TF_FRED_EVINFO2_INSTLENSHIFT);
 }
 
+/*
+ * Reaction to userspace having no permissions to generate the event.
+ * Report T_PROTFLT and rewind %rip back to emulate fault instead of
+ * trap.
+ */
+static void
+trap_fred_u_noperm(struct trapframe_fred *frame, ksiginfo_t *ksi)
+{
+	frame->tf_idt.tf_rip -= fred_inst_len(frame);
+	frame->tf_idt.tf_addr = 0;
+	frame->tf_idt.tf_trapno = T_PROTFLT;
+	ksiginfo_init_trap(ksi);
+	ksi->ksi_signo = SIGBUS;
+	ksi->ksi_code = BUS_OBJERR;
+	ksi->ksi_trapno = T_PROTFLT;
+	ksi->ksi_addr = (void *)frame->tf_idt.tf_rip;
+}
+
 int fred_verbose_events;
 
 void trap_fred_u(struct trapframe_fred *frame);
@@ -1648,12 +1666,9 @@ trap_fred_u(struct trapframe_fred *frame)
 			break;
 		}
 #endif
-		frame->tf_idt.tf_trapno = vec;
-		ksiginfo_init_trap(&ksi);
-		ksi.ksi_signo = SIGBUS;
-		ksi.ksi_code = BUS_OBJERR;
-		ksi.ksi_trapno = frame->tf_idt.tf_trapno;
-		ksi.ksi_addr = (void *)frame->tf_idt.tf_rip;
+		trap_fred_u_noperm(frame, &ksi);
+		/* error code: gate selector from IDT */
+		frame->tf_idt.tf_err = (vec * 8) | 2;
 		do_trapsig = true;
 		break;
 	case TF_FRED_EVINFO2_TYPE_SYSCALL:
@@ -1665,7 +1680,8 @@ trap_fred_u(struct trapframe_fred *frame)
 			amd64_syscall(td, (frame->tf_idt.tf_rflags & PSL_T) !=
 			    0);
 		} else {
-			/* SYSENTER returns without action */
+			trap_fred_u_noperm(frame, &ksi);
+			do_trapsig = true;
 		}
 		break;
 	default:
