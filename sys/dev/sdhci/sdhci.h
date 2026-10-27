@@ -392,6 +392,7 @@ struct sdhci_slot {
 	uint32_t	retune_ticks;	/* Re-tuning callout ticks [hz] */
 	uint32_t	intmask;	/* Current interrupt mask */
 	uint32_t	clock;		/* Current clock freq. */
+	uint32_t	req_clock;	/* Last requested clock freq. */
 	size_t		offset;		/* Data buffer offset */
 	uint8_t		hostctrl;	/* Current host control register */
 	uint8_t		retune_count;	/* Controller re-tuning count [s] */

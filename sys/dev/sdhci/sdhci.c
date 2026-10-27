@@ -416,8 +416,9 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	uint16_t div;
 	int timeout;
 
-	if (clock == slot->clock)
+	if (clock == slot->req_clock)
 		return;
+	slot->req_clock = clock;
 	clock = SDHCI_SET_CLOCK(slot->bus, slot, clock);
 	slot->clock = clock;
 
@@ -1275,11 +1276,13 @@ sdhci_generic_reset(device_t brdev __unused, struct sdhci_slot *slot,
 		/* This is to force an update */
 		clock = slot->clock;
 		slot->clock = 0;
+		slot->req_clock = 0;
 		sdhci_set_clock(slot, clock);
 	}
 
 	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
+		slot->req_clock = 0;
 		slot->power = 0;
 	}
 
