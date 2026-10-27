@@ -40,9 +40,7 @@ ATF_TC_BODY(mmap_offset_overflow, tc)
 	buf = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, off);
 	ATF_REQUIRE_MSG(buf == MAP_FAILED, FMT_ERR("mmap"));
 
-	munmap(buf, len);
-
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 /*
@@ -124,9 +122,7 @@ ATF_TC_BODY(mmap_reject_prot_exec, tc)
 	    fd, 0);
 	ATF_REQUIRE_MSG(buf == MAP_FAILED, FMT_ERR("mmap"));
 
-	munmap(buf, len);
-
-	close(fd);
+	ATF_REQUIRE(close(fd) == 0);
 }
 
 /*
