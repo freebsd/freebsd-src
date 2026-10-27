@@ -125,7 +125,7 @@
  * space.
  */
 bool
-kernacc(void *addr, int len, int rw)
+kernacc(void *addr, size_t len, int rw)
 {
 	boolean_t rv;
 	vm_offset_t saddr, eaddr;
@@ -157,7 +157,7 @@ kernacc(void *addr, int len, int rw)
  * used in conjunction with this call.
  */
 bool
-useracc(void *addr, int len, int rw)
+useracc(void *addr, size_t len, int rw)
 {
 	boolean_t rv;
 	vm_prot_t prot;
