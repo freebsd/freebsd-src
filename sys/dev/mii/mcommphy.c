@@ -68,6 +68,8 @@
 #define	 CLK_25M_SEL			0x0006
 #define	 CLK_25M_SEL_125M		3
 #define	 TX_CLK_DELAY_SEL		0x00f0
+#define	PHY_DELAY_DRIVE_REG		0x0d
+#define	 FE_TX_CLK_DELAY_SEL		0xf000
 #define	PHY_SLEEP_CONTROL1_REG		0x27
 #define	 PLLON_IN_SLP			0x4000
 
@@ -199,6 +201,17 @@ mcommphy_yt8511_setup(struct mii_softc *sc)
 		data |= SHIFTIN(0xf, TX_CLK_DELAY_SEL);
 	} else {
 		data |= SHIFTIN(0x2, TX_CLK_DELAY_SEL);
+	}
+	PHY_WRITE(sc, EXT_REG_DATA, data);
+
+	/* The delay of the 10/100 modes is in another page. */
+	PHY_WRITE(sc, EXT_REG_ADDR, PHY_DELAY_DRIVE_REG);
+	data = PHY_READ(sc, EXT_REG_DATA);
+	data &= ~FE_TX_CLK_DELAY_SEL;
+	if (sc->mii_flags & MIIF_TX_DELAY) {
+		data |= SHIFTIN(0xf, FE_TX_CLK_DELAY_SEL);
+	} else {
+		data |= SHIFTIN(0x2, FE_TX_CLK_DELAY_SEL);
 	}
 	PHY_WRITE(sc, EXT_REG_DATA, data);
 
