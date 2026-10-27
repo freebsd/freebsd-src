@@ -1182,15 +1182,16 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	    "rockchip,rk3568-pinctrl")) {
 		uint32_t value;
 		if (OF_getencprop(pin_conf, "drive-strength", &value,
-		    sizeof(value)) == 0) {
+		    sizeof(value)) == sizeof(value)) {
 			if (bank)
 				reg = 0x01c0 + (bank * 0x40) + (pin / 2 * 4);
 			else
 				reg = 0x0070 + (pin / 2 * 4);
 
-			drive = ((1 << (value + 1)) - 1) << (pin % 2);
-
-			mask = 0x3f << (pin % 2);
+			/* Each pin has an 8 bits field, two pins per register */
+			bit = (pin % 2) * 8;
+			drive = ((1 << (value + 1)) - 1) << bit;
+			mask = 0xff << bit;
 
 			SYSCON_WRITE_4(syscon, reg, drive | (mask << 16));
 		}
