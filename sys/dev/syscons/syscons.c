@@ -72,6 +72,7 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/psl.h>
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #endif
 
 #if defined(__amd64__) || defined(__i386__)
@@ -1338,6 +1339,8 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 #ifdef __i386__
 		td->td_frame->tf_eflags |= PSL_IOPL;
 #elif defined(__amd64__)
+		if (fred)
+			return (EINVAL);
 		td->td_frame->tf_rflags |= PSL_IOPL;
 #endif
 		return 0;
