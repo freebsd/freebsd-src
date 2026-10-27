@@ -6399,181 +6399,19 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 
-	case DIOCXBEGIN: {
-		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
-		struct pfioc_trans_e	*ioes, *ioe;
-		size_t			 totlen;
-		int			 i;
-
-		if (io->esize != sizeof(*ioe)) {
-			error = ENODEV;
-			goto fail;
-		}
-		if (io->size < 0 ||
-		    io->size > pf_ioctl_maxcount ||
-		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
-			error = EINVAL;
-			goto fail;
-		}
-		totlen = sizeof(struct pfioc_trans_e) * io->size;
-		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
-		    M_PF, M_WAITOK);
-		error = copyin(io->array, ioes, totlen);
-		if (error) {
-			free(ioes, M_PF);
-			goto fail;
-		}
-		PF_RULES_WLOCK();
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
-			switch (ioe->rs_num) {
-			case PF_RULESET_ETH:
-				if ((error = pf_begin_eth(&ioe->ticket, ioe->anchor))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail;
-				}
-				break;
-#ifdef ALTQ
-			case PF_RULESET_ALTQ:
-				if (ioe->anchor[0]) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EINVAL;
-					goto fail;
-				}
-				if ((error = pf_begin_altq(&ioe->ticket))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail;
-				}
-				break;
-#endif /* ALTQ */
-			case PF_RULESET_TABLE:
-			    {
-				struct pfr_table table;
-
-				bzero(&table, sizeof(table));
-				strlcpy(table.pfrt_anchor, ioe->anchor,
-				    sizeof(table.pfrt_anchor));
-				if ((error = pfr_ina_begin(&table,
-				    &ioe->ticket, NULL, 0))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail;
-				}
-				break;
-			    }
-			default:
-				if ((error = pf_begin_rules(&ioe->ticket,
-				    ioe->rs_num, ioe->anchor))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail;
-				}
-				break;
-			}
-		}
-		PF_RULES_WUNLOCK();
-		error = copyout(ioes, io->array, totlen);
-		free(ioes, M_PF);
-		break;
-	}
-
-	case DIOCXROLLBACK: {
-		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
-		struct pfioc_trans_e	*ioe, *ioes;
-		size_t			 totlen;
-		int			 i;
-
-		if (io->esize != sizeof(*ioe)) {
-			error = ENODEV;
-			goto fail;
-		}
-		if (io->size < 0 ||
-		    io->size > pf_ioctl_maxcount ||
-		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
-			error = EINVAL;
-			goto fail;
-		}
-		totlen = sizeof(struct pfioc_trans_e) * io->size;
-		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
-		    M_PF, M_WAITOK);
-		error = copyin(io->array, ioes, totlen);
-		if (error) {
-			free(ioes, M_PF);
-			goto fail;
-		}
-		PF_RULES_WLOCK();
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
-			switch (ioe->rs_num) {
-			case PF_RULESET_ETH:
-				if ((error = pf_rollback_eth(ioe->ticket,
-				    ioe->anchor))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-#ifdef ALTQ
-			case PF_RULESET_ALTQ:
-				if (ioe->anchor[0]) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EINVAL;
-					goto fail;
-				}
-				if ((error = pf_rollback_altq(ioe->ticket))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-#endif /* ALTQ */
-			case PF_RULESET_TABLE:
-			    {
-				struct pfr_table table;
-
-				bzero(&table, sizeof(table));
-				strlcpy(table.pfrt_anchor, ioe->anchor,
-				    sizeof(table.pfrt_anchor));
-				if ((error = pfr_ina_rollback(&table,
-				    ioe->ticket, NULL, 0))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-			    }
-			default:
-				if ((error = pf_rollback_rules(ioe->ticket,
-				    ioe->rs_num, ioe->anchor))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-			}
-		}
-		PF_RULES_WUNLOCK();
-		free(ioes, M_PF);
-		break;
-	}
-
+	case DIOCXBEGIN:
+	case DIOCXROLLBACK:
 	case DIOCXCOMMIT: {
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
-		struct pfioc_trans_e	*ioe, *ioes;
-		struct pf_kruleset	*rs;
-		struct pf_keth_ruleset	*ers;
-		size_t			 totlen;
+		struct pfioc_trans_e	*ioe;
+		struct pf_trans		 trans;
+		struct pf_trans_e	*e;
 		int			 i;
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
 			goto fail;
 		}
-
 		if (io->size < 0 ||
 		    io->size > pf_ioctl_maxcount ||
 		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
@@ -6581,130 +6419,46 @@ DIOCCHANGEADDR_error:
 			goto fail;
 		}
 
-		totlen = sizeof(struct pfioc_trans_e) * io->size;
-		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
-		    M_PF, M_WAITOK);
-		error = copyin(io->array, ioes, totlen);
-		if (error) {
-			free(ioes, M_PF);
-			goto fail;
-		}
-		PF_RULES_WLOCK();
-		/* First makes sure everything will succeed. */
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
-			switch (ioe->rs_num) {
-			case PF_RULESET_ETH:
-				ers = pf_find_keth_ruleset(ioe->anchor);
-				if (ers == NULL || ioe->ticket == 0 ||
-				    ioe->ticket != ers->inactive.ticket) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EINVAL;
-					goto fail;
-				}
-				break;
-#ifdef ALTQ
-			case PF_RULESET_ALTQ:
-				if (ioe->anchor[0]) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EINVAL;
-					goto fail;
-				}
-				if (!V_altqs_inactive_open || ioe->ticket !=
-				    V_ticket_altqs_inactive) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EBUSY;
-					goto fail;
-				}
-				break;
-#endif /* ALTQ */
-			case PF_RULESET_TABLE:
-				rs = pf_find_kruleset(ioe->anchor);
-				if (rs == NULL || !rs->topen || ioe->ticket !=
-				    rs->tticket) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EBUSY;
-					goto fail;
-				}
-				break;
-			default:
-				if (ioe->rs_num < 0 || ioe->rs_num >=
-				    PF_RULESET_MAX) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EINVAL;
-					goto fail;
-				}
-				rs = pf_find_kruleset(ioe->anchor);
-				if (rs == NULL ||
-				    !rs->rules[ioe->rs_num].inactive.open ||
-				    rs->rules[ioe->rs_num].inactive.ticket !=
-				    ioe->ticket) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					error = EBUSY;
-					goto fail;
-				}
-				break;
+		TAILQ_INIT(&trans.elms);
+		trans.count = 0;
+		for (int i = 0; i < io->size; i++) {
+			struct pfioc_trans_e ie;
+
+			error = copyin(&io->array[i], &ie, sizeof(ie));
+			if (error != 0) {
+				pf_trans_free(&trans);
+				goto fail;
 			}
+
+			e = malloc(sizeof(*e), M_PF, M_WAITOK);
+
+			e->rs_num = ie.rs_num;
+			strlcpy(e->anchor, ie.anchor, sizeof(e->anchor));
+			e->ticket = ie.ticket;
+
+			TAILQ_INSERT_TAIL(&trans.elms, e, entry);
 		}
-		/* Now do the commit - no errors should happen here. */
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			switch (ioe->rs_num) {
-			case PF_RULESET_ETH:
-				if ((error = pf_commit_eth(ioe->ticket, ioe->anchor))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-#ifdef ALTQ
-			case PF_RULESET_ALTQ:
-				if ((error = pf_commit_altq(ioe->ticket))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-#endif /* ALTQ */
-			case PF_RULESET_TABLE:
-			    {
-				struct pfr_table table;
 
-				bzero(&table, sizeof(table));
-				(void)strlcpy(table.pfrt_anchor, ioe->anchor,
-				    sizeof(table.pfrt_anchor));
-				if ((error = pfr_ina_commit(&table,
-				    ioe->ticket, NULL, NULL, 0))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-			    }
-			default:
-				if ((error = pf_commit_rules(ioe->ticket,
-				    ioe->rs_num, ioe->anchor))) {
-					PF_RULES_WUNLOCK();
-					free(ioes, M_PF);
-					goto fail; /* really bad */
-				}
-				break;
-			}
+		switch (cmd) {
+		case DIOCXBEGIN:
+			error = pf_begin(&trans);
+			break;
+		case DIOCXROLLBACK:
+			error = pf_rollback(&trans);
+			break;
+		case DIOCXCOMMIT:
+			error = pf_commit(&trans);
+			break;
 		}
-		PF_RULES_WUNLOCK();
 
-		/* Only hook into EtherNet taffic if we've got rules for it. */
-		if (! TAILQ_EMPTY(V_pf_keth->active.rules))
-			hook_pf_eth();
-		else
-			dehook_pf_eth();
+		i = 0;
+		TAILQ_FOREACH(e, &trans.elms, entry) {
+			error = copyout(&e->ticket, &io->array[i].ticket, sizeof(e->ticket));
+			i++;
+		}
 
-		free(ioes, M_PF);
+		pf_trans_free(&trans);
+
 		break;
 	}
 
