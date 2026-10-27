@@ -621,9 +621,27 @@ int
 dma4_init(struct dwc_softc *sc)
 {
 	struct mbuf *m;
+	bus_addr_t lowaddr;
 	uint32_t reg;
+	u_int addr_bits;
 	int error;
 	int idx;
+
+	/* The address width of the DMA is a synthesis option of the core. */
+	reg = READ4(sc, ETH_MACHWF1R);
+	switch ((reg & MACHWF1R_ADDR64_M) >> MACHWF1R_ADDR64_S) {
+	case 1:
+		addr_bits = 40;
+		break;
+	case 2:
+		addr_bits = 48;
+		break;
+	default:
+		addr_bits = 32;
+		break;
+	}
+	lowaddr = (bus_addr_t)MIN(((uint64_t)1 << addr_bits) - 1,
+	    (uint64_t)BUS_SPACE_MAXADDR);
 
 	WRITE4(sc, ETH_MACQ0TXFCR, 0xffff << 16 | 1);
 	WRITE4(sc, ETH_MACRXFCR, 1);
@@ -692,7 +710,7 @@ dma4_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    DWC_DESC_RING_ALIGN, 0,	/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    TX_DESC_SIZE, 1, 		/* maxsize, nsegments */
@@ -727,7 +745,7 @@ dma4_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    MCLBYTES * TX_MAP_MAX_SEGS,	/* maxsize */
@@ -766,7 +784,7 @@ dma4_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    DWC_DESC_RING_ALIGN, 0,	/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    RX_DESC_SIZE, 1, 		/* maxsize, nsegments */
@@ -801,7 +819,7 @@ dma4_init(struct dwc_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    MCLBYTES, 1, 		/* maxsize, nsegments */

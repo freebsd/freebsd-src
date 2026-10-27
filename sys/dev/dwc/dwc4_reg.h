@@ -76,6 +76,8 @@
 #define	ETH_MACDR		0x0114
 #define	ETH_MACHWF0R		0x011C
 #define	ETH_MACHWF1R		0x0120
+#define	 MACHWF1R_ADDR64_S	14 /* Address Width */
+#define	 MACHWF1R_ADDR64_M	(0x3 << MACHWF1R_ADDR64_S)
 #define	ETH_MACHWF2R		0x0124
 #define	ETH_MACHWF3R		0x0128
 #define	ETH_MACMDIOAR		0x0200
