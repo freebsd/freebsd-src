@@ -646,10 +646,6 @@ FEATURE(compat_freebsd6, "Compatible with FreeBSD 6");
 FEATURE(compat_freebsd7, "Compatible with FreeBSD 7");
 #endif
 
-#ifdef COMPAT_FREEBSD8
-FEATURE(compat_freebsd8, "Compatible with FreeBSD 8");
-#endif
-
 #ifdef COMPAT_FREEBSD9
 FEATURE(compat_freebsd9, "Compatible with FreeBSD 9");
 #endif
