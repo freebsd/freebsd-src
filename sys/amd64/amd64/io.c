@@ -31,21 +31,29 @@
 
 #include <machine/frame.h>
 #include <machine/iodev.h>
+#include <machine/md_var.h>
 #include <machine/psl.h>
 
 int
 iodev_open(struct thread *td)
 {
-
-	td->td_frame->tf_rflags |= PSL_IOPL;
+	/*
+	 * SDM rev. 93 vol.3 8.4.2.1 Loading and Checking the Return State:
+	 * Checking IOPL ensures that, when FRED transitions are
+	 * enabled, IOPL is always 0 when CPL = 3.
+	 *
+	 * As result, io(4) cannot enable the IOPL for usermode on FRED.
+	 */
+	if (!fred)
+		td->td_frame->tf_rflags |= PSL_IOPL;
 	return (0);
 }
 
 int
 iodev_close(struct thread *td)
 {
-
-	td->td_frame->tf_rflags &= ~PSL_IOPL;
+	if (!fred)
+		td->td_frame->tf_rflags &= ~PSL_IOPL;
 	return (0);
 }
 
