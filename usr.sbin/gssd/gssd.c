@@ -28,6 +28,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/linker.h>
 #include <sys/module.h>
@@ -939,7 +940,8 @@ gssd_accept_sec_context_lucid_v1_1_svc(accept_sec_context_lucid_v1_args *argp,
 					result->gidlist.gidlist_val[i] =
 					    groups[i];
 			} else {
-				result->gid = 65534;
+				result->uid = UID_NOBODY;
+				result->gid = GID_NOBODY;
 				result->gidlist.gidlist_len = 0;
 				result->gidlist.gidlist_val = NULL;
 				gssd_verbose_out("gssd_pname_to_uid: mapped"
@@ -1172,7 +1174,7 @@ gssd_pname_to_uid_1_svc(pname_to_uid_args *argp, pname_to_uid_res *result, struc
 				    " to uid=%d, gid=%d\n", (int)result->uid,
 				    (int)result->gid);
 			} else {
-				result->gid = 65534;
+				result->gid = GID_NOBODY;
 				result->gidlist.gidlist_len = 0;
 				result->gidlist.gidlist_val = NULL;
 				gssd_verbose_out("gssd_pname_to_uid: mapped"
