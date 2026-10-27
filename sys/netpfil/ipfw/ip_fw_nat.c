@@ -1194,6 +1194,24 @@ ipfw_nat_destroy(void *dummy __unused)
 	ipfw_nat_get_log_ptr = NULL;
 }
 
+static int
+ipfw_nat_modevent(module_t mod, int type, void *unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+	case MOD_UNLOAD:
+		return (0);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static moduledata_t ipfw_nat_mod = {
+	.name = "ipfw_nat",
+	.evhand = ipfw_nat_modevent,
+};
+
+DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND);
 MODULE_DEPEND(ipfw_nat, libalias, 1, 1, 1);
 MODULE_DEPEND(ipfw_nat, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nat, 1);
