@@ -2784,9 +2784,12 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
+	case XPT_SET_TRAN_SETTINGS:
 	case XPT_MMC_SET_TRAN_SETTINGS:
 		if (sdhci_debug > 1)
-			slot_printf(slot, "Got XPT_MMC_SET_TRAN_SETTINGS\n");
+			slot_printf(slot, "Got XPT_%sSET_TRAN_SETTINGS\n",
+			    ccb->ccb_h.func_code == XPT_MMC_SET_TRAN_SETTINGS ?
+			    "MMC_" : "");
 		if (slot->settran_ccb != NULL) {
 			ccb->ccb_h.status = CAM_BUSY;
 			break;
@@ -2796,14 +2799,6 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		slot->settran_ccb = ccb;
 		taskqueue_enqueue(slot->tq, &slot->settran_task);
 		return;
-	case XPT_SET_TRAN_SETTINGS:
-		if (sdhci_debug > 1)
-			slot_printf(slot, "Got XPT_SET_TRAN_SETTINGS\n");
-		if (sdhci_cam_settran_settings(slot, ccb) != 0)
-			ccb->ccb_h.status = CAM_REQ_INVALID;
-		else
-			ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
 	case XPT_RESET_BUS:
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Got XPT_RESET_BUS, ACK it...\n");
