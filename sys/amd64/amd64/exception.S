@@ -1428,7 +1428,7 @@ gsbase_load_fault:
 	ALIGN_TEXT
 user_fred_syscall:
 	movq	%rdx,TF_RDX(%rsp)
-	movq	%rcx,TF_RCX(%rsp)
+	movq	%r11,TF_R11(%rsp)
 	SAVE_SEGS
 	movq	PCPU(CURPCB),%r11
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
@@ -1439,6 +1439,7 @@ user_fred_syscall:
 	movq	%r9,TF_R9(%rsp)
 	movq	%rbx,TF_RBX(%rsp)
 	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_RCX(%rsp)
 	movq	%r12,TF_R12(%rsp)
 	movq	%r13,TF_R13(%rsp)
 	movq	%r14,TF_R14(%rsp)
@@ -1462,10 +1463,11 @@ user_fred_syscall:
 	movq	TF_RSI(%rsp),%rsi
 	movq	TF_RDX(%rsp),%rdx
 	movq	TF_RAX(%rsp),%rax
+	movq	TF_RIP(%rsp),%rcx
+	movq	TF_RFLAGS(%rsp),%r11
 	xorl	%r8d,%r8d
 	xorl	%r9d,%r9d
 	xorl	%r10d,%r10d
-	xorl	%r11d,%r11d
 	addq	$TF_ERR,%rsp
 	.globl	fred_syscall_eretu
 fred_syscall_eretu:
