@@ -54,11 +54,11 @@ class TestIGMP(VnetTestTemplate):
         packets = self.sp.sniff(iface=ifname, timeout=5)
         for r in packets:
             r.show()
-            igmp = r.getlayer(self.sc.igmp.IGMP)
+            igmp = r.getlayer(self.sl.igmp.IGMP)
             if not igmp:
                 continue
             igmp.show()
-            if not igmp.gaddr == "230.0.0.1":
+            if getattr(igmp, 'gaddr', '0.0.0.0') != "230.0.0.1":
                 continue
             found = True
         return found
@@ -69,33 +69,32 @@ class TestIGMP(VnetTestTemplate):
         """Verify that we allow IGMP packets with IP options"""
         ifname = self.vnet.iface_alias_map["if1"].name
 
-        # Import in the correct vnet, so at to not confuse Scapy
+        # Import in the correct vnet, so as to not confuse Scapy
         import scapy.all as sp
-        import scapy.contrib as sc
-        import scapy.contrib.igmp
+        import scapy.layers as sl
         self.sp = sp
-        self.sc = sc
+        self.sl = sl
 
         # We allow IGMP packets with the router alert option
         pkt = sp.IP(dst="224.0.0.1%%%s" % ifname, ttl=1,
             options=[sp.IPOption_Router_Alert()]) \
-            / sc.igmp.IGMP(type=0x11, mrcode=1)
+            / sl.igmp.IGMP(type=0x11, mrcode=1)
         assert self.find_igmp_reply(pkt, ifname)
 
         # But not with other options
         pkt = sp.IP(dst="224.0.0.1%%%s" % ifname, ttl=1,
             options=[sp.IPOption_NOP()]) \
-            / sc.igmp.IGMP(type=0x11, mrcode=1)
+            / sl.igmp.IGMP(type=0x11, mrcode=1)
         assert not self.find_igmp_reply(pkt, ifname)
 
         # Or with the wrong TTL
         pkt = sp.IP(dst="224.0.0.1%%%s" % ifname, ttl=2,
             options=[sp.IPOption_Router_Alert()]) \
-            / sc.igmp.IGMP(type=0x11, mrcode=1)
+            / sl.igmp.IGMP(type=0x11, mrcode=1)
         assert not self.find_igmp_reply(pkt, ifname)
 
         # Or with the wrong destination address
         pkt = sp.IP(dst="224.0.0.2%%%s" % ifname, ttl=2,
             options=[sp.IPOption_Router_Alert()]) \
-            / sc.igmp.IGMP(type=0x11, mrcode=1)
+            / sl.igmp.IGMP(type=0x11, mrcode=1)
         assert not self.find_igmp_reply(pkt, ifname)
