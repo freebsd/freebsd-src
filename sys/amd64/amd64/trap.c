@@ -1815,6 +1815,10 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	case IDT_MF:
 		break;
 	case IDT_AC:
+		if (curpcb->pcb_onfault != NULL) {
+			frame->tf_idt.tf_rip = (long)curpcb->pcb_onfault;
+			return;
+		}
 		break;
 	case IDT_MC:
 		mca_intr();
