@@ -180,6 +180,7 @@ struct hkbd_softc {
 	uint32_t sc_buffered_char[2];
 #endif
 	uint32_t sc_flags;		/* flags */
+	bool sc_no_leds;
 #define	HKBD_FLAG_COMPOSE	0x00000001
 #define	HKBD_FLAG_POLLING	0x00000002
 #define	HKBD_FLAG_ATTACHED	0x00000010
@@ -996,6 +997,7 @@ hkbd_attach(device_t dev)
 #endif
 
 	sc->sc_dev = dev;
+	sc->sc_no_leds = hid_test_quirk(hw, HQ_KBD_NO_LEDS);
 	SYSCONS_LOCK_ASSERT();
 
 	kbd_init_struct(kbd, HKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
@@ -1889,7 +1891,7 @@ hkbd_set_leds(struct hkbd_softc *sc, uint8_t leds)
 	SYSCONS_LOCK_ASSERT();
 	DPRINTF("leds=0x%02x\n", leds);
 
-	if (hkbd_no_leds)
+	if (hkbd_no_leds || sc->sc_no_leds)
 		return (0);
 
 	memset(sc->sc_buffer, 0, HKBD_BUFFER_SIZE);
