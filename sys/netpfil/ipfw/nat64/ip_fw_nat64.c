@@ -114,6 +114,24 @@ vnet_ipfw_nat64_uninit(const void *arg __unused)
 	return (0);
 }
 
+static int
+ipfw_nat64_modevent(module_t mod, int type, void *unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+	case MOD_UNLOAD:
+		return (0);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static moduledata_t ipfw_nat_mod = {
+	.name = "ipfw_nat64",
+	.evhand = ipfw_nat64_modevent,
+};
+
+DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND);
 MODULE_DEPEND(ipfw_nat64, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nat64, 1);
 
