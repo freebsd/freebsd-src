@@ -271,7 +271,24 @@ tasklet_unlock_wait(struct tasklet_struct *ts)
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
 
-	/* wait until tasklet is no longer busy */
-	while (TASKLET_ST_GET(ts) != TASKLET_ST_IDLE)
+	/*
+	 * Wait until the tasklet is no longer running, like Linux which only
+	 * waits for TASKLET_STATE_RUN.  A tasklet which is only scheduled and
+	 * is disabled will not be run until it is enabled again, so waiting for
+	 * it to become idle would block forever (for example i915 disables the
+	 * engine tasklets while a reset is pending and waits for them).
+	 */
+	while (1) {
+		switch (TASKLET_ST_GET(ts)) {
+		case TASKLET_ST_IDLE:
+			return;
+		case TASKLET_ST_BUSY:
+			if (atomic_read(&ts->count) != 0)
+				return;
+			break;
+		default:
+			break;
+		}
 		pause("W", 1);
+	}
 }
