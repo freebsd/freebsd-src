@@ -20,8 +20,6 @@ def mac_to_chaddr(mac_str):
     return mac_bytes + b"\x00" * (16 - len(mac_bytes))
 
 
-
-
 class TestDhclient(VnetTestTemplate):
     _SERVER_IP = "192.0.2.1"
     _CLIENT_IP = "192.0.2.10"
@@ -169,6 +167,7 @@ class TestDhclient(VnetTestTemplate):
         )
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_classless_routes_truncated(self):
         """
         Verify that dhclient rejects a DHCPOFFER containing a truncated
@@ -198,6 +197,7 @@ class TestDhclient(VnetTestTemplate):
         assert "inet {}".format(self._CLIENT_IP) in result["ifconfig"]
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_filename_backslash(self):
         """
         Verify that backslashes in the BOOTP filename don't cause the
@@ -212,6 +212,7 @@ class TestDhclient(VnetTestTemplate):
         assert "inet {}".format(self._CLIENT_IP) in result["ifconfig"]
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_sname_valid(self):
         """
         Verify that a valid server name is preserved in the lease file.
@@ -225,6 +226,7 @@ class TestDhclient(VnetTestTemplate):
         assert "dhcp.example.com" in result["lease"]
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_sname_quote(self):
         """
         Verify that a double quote in the BOOTP server name causes the
