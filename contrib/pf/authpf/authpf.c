@@ -19,6 +19,9 @@
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#ifdef __FreeBSD__
+#include <sys/procctl.h>
+#endif
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -752,6 +755,9 @@ change_filter(int add, const char *l_user, const char *ip_src)
 	pid_t	pid;
 	gid_t   gid;
 	int	s;
+#ifdef __FreeBSD__
+	int	tc = PROC_TRACE_CTL_DISABLE_EXEC;
+#endif
 
 	if (add) {
 		struct stat sb;
@@ -815,6 +821,14 @@ change_filter(int add, const char *l_user, const char *ip_src)
 			    fcntl(pfctl_nl_fd(pfh), F_SETFD, 0) == -1) {
 				err(1, "fcntl");
 			}
+#ifdef __FreeBSD__
+			/*
+			 * The exec clears P_SUGID, so the user could attach to
+			 * pfctl and take the root-opened descriptors.
+			 */
+			if (procctl(P_PID, getpid(), PROC_TRACE_CTL, &tc) == -1)
+				err(1, "procctl");
+#endif
 			execvp(PATH_PFCTL, pargv);
 			warn("exec of %s failed", PATH_PFCTL);
 			_exit(1);
