@@ -143,12 +143,30 @@ isavga_skip(void)
 {
 	uint16_t flags;
 	int ignore;
+#ifdef __amd64__
+	int probe;
+#endif
 
 	if (resource_disabled(VGA_DRIVER_NAME, 0)) {
 		if (bootverbose)
 			printf("isavga: disabled by hint, not probing\n");
 		return (true);
 	}
+#ifdef __amd64__
+	/*
+	 * A UEFI boot draws its console on the EFI framebuffer and has no use
+	 * for legacy VGA.  Not every machine that hangs on the probe sets the
+	 * FADT flag, so do not probe at all unless asked to with
+	 * hw.vga.efi_probe=1 (for example, to use syscons through a CSM).
+	 */
+	probe = 0;
+	TUNABLE_INT_FETCH("hw.vga.efi_probe", &probe);
+	if (efi_boot && !probe) {
+		if (bootverbose)
+			printf("isavga: UEFI boot, not probing legacy VGA\n");
+		return (true);
+	}
+#endif
 	if (!acpi_get_fadt_bootflags(&flags))
 		return (false);
 	ignore = 0;
