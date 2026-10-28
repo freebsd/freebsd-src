@@ -649,7 +649,7 @@ inotify_log_one(struct inotify_watch *watch, const char *name, size_t namelen,
 		 * responsible for freeing it.
 		 */
 		key.wd = watch->wd;
-		if (RB_FIND(inotify_watch_tree, &sc->watches, &key) != NULL) {
+		if (RB_FIND(inotify_watch_tree, &sc->watches, &key) == watch) {
 			RB_REMOVE(inotify_watch_tree, &sc->watches, watch);
 			inotify_unlink_watch_locked(sc, watch);
 
