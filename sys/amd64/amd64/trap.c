@@ -1766,8 +1766,17 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	 * there is no sense to enable interrupts.
 	 */
 
-	if (exc != IDT_PF && trap_check_pcb_onfault(td, &frame->tf_idt))
-		return;
+	if (exc != IDT_DF && exc != IDT_MC) {
+#ifdef KDB
+		if (kdb_active) {
+			kdb_reenter();
+			return;
+		}
+#endif
+		if (exc != IDT_PF && trap_check_pcb_onfault(td,
+		    &frame->tf_idt))
+			return;
+	}
 
 	switch (exc) {
 	case IDT_DE:
