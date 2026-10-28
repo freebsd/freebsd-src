@@ -1583,7 +1583,7 @@ retry_waitok2:
 		ha.mflags = M_WAITOK;
 		goto retry_waitok2;
 	}
-	V_pf_srchashmask = ha.size;
+	V_pf_srchashsize = ha.size;
 	V_pf_srchashmask = V_pf_srchashsize - 1;
 
 	/* UDP endpoint mappings. */
