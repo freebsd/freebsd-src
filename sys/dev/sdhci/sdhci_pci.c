@@ -151,6 +151,8 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_MMC_DDR52 |
 	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
+	{ 0x9d2d8086,   0xffff, "Intel Sunrise Point-LP SDXC Controller",
+	    SDHCI_QUIRK_BROKEN_TIMEOUT_VAL },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
