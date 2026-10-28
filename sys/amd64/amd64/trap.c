@@ -1674,7 +1674,8 @@ trap_fred_u(struct trapframe_fred *frame)
 	case TF_FRED_EVINFO2_TYPE_SYSCALL:
 		/* Excessive */
 		enable_intr();
-		if (vec == TF_FRED_EVINFO2_VEC_SYSCALL) {
+		if (vec == TF_FRED_EVINFO2_VEC_SYSCALL &&
+		    (frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_LM) != 0) {
 			frame->tf_idt.tf_err = fred_inst_len(frame);
 			td->td_frame = &frame->tf_idt;
 			amd64_syscall(td, (frame->tf_idt.tf_rflags & PSL_T) !=
