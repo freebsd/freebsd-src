@@ -2063,7 +2063,7 @@ bdel(const void *key, void *base, size_t nmemb, size_t size,
 	if (item == NULL)
 		return (0);
 
-	sz = (caddr_t)base + nmemb * size - item;
+	sz = (caddr_t)base + nmemb * size - item - size;
 
 	if (sz > 0)
 		memmove(item, item + size, sz);
