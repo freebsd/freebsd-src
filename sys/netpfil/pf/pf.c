@@ -1872,12 +1872,11 @@ keyattach:
 						    PF_SK_WIRE);
 					PF_HASHROW_UNLOCK(ih);
 					KEYS_UNLOCK();
-					if (idx == PF_SK_WIRE)
-						/*
-						 * We've not inserted either key.
-						 * Free both.
-						 */
-						uma_zfree(V_pf_state_key_z, skw);
+					/*
+					 * sk, this pass's key, is not in the
+					 * hash; sks is NULL on the stack pass.
+					 */
+					uma_zfree(V_pf_state_key_z, sk);
 					if (skw != sks)
 						uma_zfree(
 						    V_pf_state_key_z,

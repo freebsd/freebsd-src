@@ -1742,6 +1742,146 @@ flush_by_intf_cleanup()
 	pfsynct_cleanup
 }
 
+# The state key zones of all vnets, by sysctl name.
+key_zones()
+{
+	sysctl -N vm.uma | \
+	    sed -n 's/^vm\.uma\.\(pf_state_keys[_0-9]*\)\.size$/\1/p'
+}
+
+# Count of the states in jail $1 from source ports 40000-40031 whose output
+# line matches $2.
+port_states()
+{
+	jexec $1 pfctl -ss | grep '198.51.100.254:400[0-3][0-9]' | \
+	    grep -c -- "$2"
+}
+
+# Wait up to 10 seconds for "eval $1" to print a number of at least $2.
+wait_for()
+{
+	for i in $(seq 1 20); do
+		[ "$(eval "$1")" -ge "$2" ] && return 0
+		sleep 0.5
+	done
+	atf_fail "Timed out waiting for '$1' to reach $2 (is $(eval "$1"))"
+}
+
+# Send one UDP packet to 198.51.100.1:$1 from each of the source ports
+# 40000-40031.
+send_flows()
+{
+	python3 -c '
+import socket, sys
+for sport in range(40000, 40032):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("198.51.100.254", sport))
+    s.sendto(b"x", ("198.51.100.1", int(sys.argv[1])))
+    s.close()
+' $1
+}
+
+# Number of state records jail $1 has received over pfsync.
+state_records()
+{
+	jexec $1 netstat -s -p pfsync | awk '$2 == "state" &&
+	    $3 ~ /^(insert|update)s?$/ && $4 == "received" { n += $1 }
+	    END { print n + 0 }'
+}
+
+atf_test_case "stack_key_collision" "cleanup"
+stack_key_collision_head()
+{
+	atf_set descr 'Failing to import a state must not leak its keys'
+	atf_set require.user root
+	atf_set require.progs python3
+	# key_zones() would see the zones of vnets other tests create.
+	atf_set is.exclusive true
+}
+
+stack_key_collision_body()
+{
+	pfsynct_init
+
+	epair_sync=$(vnet_mkepair)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair_one}a ${epair_sync}a
+	# Each vnet gets its own state key zone: find two's.
+	zones=$(key_zones)
+	vnet_mkjail two ${epair_two}a ${epair_sync}b
+	zone=$(key_zones | grep -vx "${zones}")
+	if [ -z "${zone}" ] || [ $(echo "${zone}" | wc -l) -ne 1 ]; then
+		atf_fail "No unique state key zone for jail two: '${zone}'"
+	fi
+
+	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair_one}a 198.51.100.1/24 up
+	jexec one ifconfig pfsync0 \
+		syncdev ${epair_sync}a \
+		up
+	jexec two ifconfig ${epair_two}a 198.51.100.2/24 up
+	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
+
+	rdr="rdr on ${epair_one}a inet proto udp to port 9999"
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"${rdr} -> 198.51.100.1 port 7" \
+		"pass keep state"
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set skip on { ${epair_sync}b ${epair_two}a }" \
+		"pass keep state"
+
+	ifconfig ${epair_one}b 198.51.100.254/24 up
+	# Resolve one's address before sending more than ARP holds.
+	atf_check -s exit:0 -o ignore ping -c 1 198.51.100.1
+
+	# Plain states to port 7, which two gets in a bulk update.
+	send_flows 7
+	wait_for "port_states one ." 32
+	jexec two ifconfig pfsync0 \
+		syncdev ${epair_sync}b \
+		up
+	wait_for "port_states two ." 32
+
+	# two stops listening and keeps them; one forgets them.
+	jexec two ifconfig pfsync0 -syncdev down
+	jexec one pfctl -F states
+
+	# Redirected states whose stack keys are the plain states' keys.
+	send_flows 9999
+	wait_for "port_states one 9999" 32
+
+	# two gets them in a second bulk update and cannot import any of
+	# them: each one's stack key collides with a plain state.  Wait for
+	# the 32 state records themselves: the bulk update's end mark can
+	# arrive before some of them.
+	before=$(state_records two)
+	jexec two ifconfig pfsync0 \
+		syncdev ${epair_sync}b \
+		up
+	wait_for "echo \$((\$(state_records two) - ${before}))" 32
+	if [ "$(port_states two 9999)" -ne 0 ]; then
+		atf_fail "two imported a colliding state"
+	fi
+
+	# With every state gone, so must be every state key.
+	jexec two ifconfig pfsync0 -syncdev down
+	jexec two pfctl -F states
+	keys=$(sysctl -n vm.uma.${zone}.stats.current)
+	if [ "${keys}" -ne 0 ]; then
+		atf_fail "${keys} state keys left on two without states"
+	fi
+}
+
+stack_key_collision_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -1767,4 +1907,5 @@ atf_init_test_cases()
 	atf_add_test_case "altq_queues"
 	atf_add_test_case "rt_af"
 	atf_add_test_case "flush_by_intf"
+	atf_add_test_case "stack_key_collision"
 }
