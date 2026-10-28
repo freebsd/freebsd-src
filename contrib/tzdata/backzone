@@ -1577,27 +1577,6 @@ Zone	Europe/Tiraspol	1:58:32	-	LMT	1880
 			2:00	Russia	EE%sT	1992 Jan 19  2:00
 			3:00	Russia	MSK/MSD
 
-# Ukraine
-#
-# Although Shanks & Pottenger say Transcarpathia used CET 1990/1991,
-# this unreliable source contradicts contemporaneous government resolutions
-# (see the commentary for Ukraine in the 'europe' file)
-# so for now this dubious zone is in 'backzone'.
-# "Uzhhorod" is the transliteration of the Ukrainian spelling, but
-# "Uzhgorod" was a common English spelling when this dubious zone was
-# added to TZDB in 1999.
-Zone Europe/Uzhgorod	1:29:12 -	LMT	1890 Oct
-			1:00	-	CET	1940
-			1:00	C-Eur	CE%sT	1944 Oct
-			1:00	1:00	CEST	1944 Oct 26
-			1:00	-	CET	1945 Jun 29
-			3:00	Russia	MSK/MSD	1990
-			3:00	-	MSK	1990 Jul  1  2:00
-			1:00	-	CET	1991 Mar 31  3:00
-			2:00	-	EET	1992 Mar 20
-			2:00	C-Eur	EE%sT	1996 May 13
-			2:00	EU	EE%sT
-
 # Liechtenstein
 
 # From Paul Eggert (2022-07-21):
@@ -1619,25 +1598,6 @@ Zone	Europe/Zagreb	1:03:52	-	LMT	1884
 			1:00	1:00	CEST	1945 Sep 16  2:00s
 			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
-
-# Ukraine
-
-# Although Shanks & Pottenger say Zaporizhzhia and eastern Lugansk
-# observed DST 1990/1991, this unreliable source contradicts contemporaneous
-# government resolutions (see the commentary for Ukraine in the 'europe' file)
-# so for now this dubious zone is in 'backzone'.
-# "Zaporizhzhia" is the transliteration of the Ukrainian name, but
-# "Zaporozhye" was a common English spelling when this dubious zone was
-# added to TZDB in 1999.
-Zone Europe/Zaporozhye	2:20:40 -	LMT	1880
-			2:20	-	+0220	1924 May  2
-			2:00	-	EET	1930 Jun 21
-			3:00	-	MSK	1941 Aug 25
-			1:00	C-Eur	CE%sT	1943 Oct 25
-			3:00	Russia	MSK/MSD	1991 Mar 31  2:00
-			2:00	E-Eur	EE%sT	1992 Mar 20
-			2:00	C-Eur	EE%sT	1996 May 13
-			2:00	EU	EE%sT
 
 # Madagascar
 Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
