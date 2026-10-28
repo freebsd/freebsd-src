@@ -1,0 +1,5 @@
+Tool: pccritic
+ToolArgs: --quiet polluted
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-pccritic
+ExpectedStdout: polluted: 80/100 (B)
+ExpectedExitCode: 0

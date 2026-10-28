@@ -1,0 +1,3 @@
+SBOM_DESC=	Command scheduling facility
+SBOM_LICENSE=	BSD-4.3TAHOE AND BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright 1988,1990,1993,1994 by Paul Vixie

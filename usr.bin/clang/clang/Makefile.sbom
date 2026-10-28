@@ -1,0 +1,6 @@
+SBOM_DESC=	The Clang C, C++, and Objective-C compiler
+SBOM_VERSION=	21.1.8
+SBOM_LICENSE=	Apache-2.0
+SBOM_COPYRIGHT=	Copyright (c) 2007-2023, The Clang Team
+SBOM_URL=	https://llvm.org
+SBOM_SOURCE=	https://github.com/llvm/llvm-project

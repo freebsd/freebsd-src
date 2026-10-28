@@ -1,0 +1,2 @@
+.include "../../usr.bin/clang/clang/Makefile.sbom"
+SBOM_DESC=	LLVM compiler_rt library

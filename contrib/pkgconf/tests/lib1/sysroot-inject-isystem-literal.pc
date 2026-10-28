@@ -1,0 +1,6 @@
+prefix=/usr
+Cflags: -isystem/sysroot/opt/x
+
+Name: sysroot-inject-isystem-literal
+Description: test fixture
+Version: 1.0.0

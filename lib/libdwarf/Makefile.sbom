@@ -1,0 +1,2 @@
+.include "../libelf/Makefile.sbom"
+SBOM_COPYRIGHT=	Copyright (c) 2007 John Birrell (jb@freebsd.org)

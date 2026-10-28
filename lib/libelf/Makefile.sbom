@@ -1,0 +1,5 @@
+SBOM_DESC=	BSD licensed ELF toolchain
+SBOM_VERSION=	4912
+SBOM_COPYRIGHT=	Copyright (c) 2006,2008,2011 Joseph Koshy
+SBOM_URL=	https://sourceforge.net/projects/elftoolchain/
+SBOM_SOURCE=	https://sourceforge.net/p/elftoolchain/code/

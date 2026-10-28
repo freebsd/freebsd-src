@@ -1,0 +1,3 @@
+SBOM_DESC=	TELNET client
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1991, 1993 Dave Safford

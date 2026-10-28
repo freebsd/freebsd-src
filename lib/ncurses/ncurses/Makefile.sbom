@@ -1,0 +1,5 @@
+SBOM_DESC=	ncurses terminal control library
+SBOM_VERSION=	6.5
+SBOM_LICENSE=	X11
+SBOM_URL=	https://invisible-island.net/ncurses
+SBOM_SOURCE=	https://invisible-island.net/archives/ncurses/ncurses-${SBOM_VERSION}.tar.gz

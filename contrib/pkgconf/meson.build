@@ -1,5 +1,5 @@
 project('pkgconf', 'c',
-  version : '2.9.93',
+  version : '3.0.8',
   license : 'ISC',
   default_options : [
     'c_std=c99',
@@ -18,6 +18,7 @@ if cc.get_argument_syntax() != 'msvc'
     )
   endif
   add_project_arguments(
+    '-D_ATFILE_SOURCE',
     '-D_BSD_SOURCE',
     '-D_DARWIN_C_SOURCE',
     '-D_DEFAULT_SOURCE',
@@ -65,6 +66,7 @@ endif
 cdata = configuration_data()
 
 check_functions = [
+  ['getc_unlocked', 'stdio.h'],
   ['strndup', 'string.h'],
   ['strdup', 'string.h'],
   ['strncasecmp', 'strings.h'],
@@ -73,11 +75,13 @@ check_functions = [
   ['pledge', 'unistd.h'],
   ['unveil', 'unistd.h'],
   ['readlinkat', 'unistd.h'],
+  ['mkdtemp', 'stdlib.h'],
 ]
 
 # Feature-test macros mirroring those defined globally by the build, so that
 # the function probes below see the same declarations as the actual sources.
 feature_macros = {
+  '_ATFILE_SOURCE': '',
   '_BSD_SOURCE': '',
   '_DARWIN_C_SOURCE': '',
   '_DEFAULT_SOURCE': '',
@@ -128,10 +132,14 @@ else
   cdata.set('HAVE_DECL_NL_LANGINFO_L', 0)
 endif
 
-default_path = []
-foreach f : ['libdir', 'datadir']
-  default_path += [join_paths(get_option('prefix'), get_option(f), 'pkgconfig')]
-endforeach
+PKG_DEFAULT_PATH = get_option('with-pkg-config-dir')
+if PKG_DEFAULT_PATH == ''
+  default_path = []
+  foreach f : ['libdir', 'datadir']
+    default_path += [join_paths(get_option('prefix'), get_option(f), 'pkgconfig')]
+  endforeach
+  PKG_DEFAULT_PATH = ':'.join(default_path)
+endif
 
 personality_path = []
 foreach f : ['libdir', 'datadir']
@@ -150,11 +158,11 @@ if SYSTEM_INCLUDEDIR != ''
 else
   cdata.set_quoted('SYSTEM_INCLUDEDIR', join_paths(get_option('prefix'), get_option('includedir')))
 endif
-cdata.set_quoted('PKG_DEFAULT_PATH', ':'.join(default_path))
+cdata.set_quoted('PKG_DEFAULT_PATH', PKG_DEFAULT_PATH)
 cdata.set_quoted('PERSONALITY_PATH', ':'.join(personality_path))
 cdata.set_quoted('PACKAGE_NAME', meson.project_name())
 cdata.set_quoted('PACKAGE_VERSION', meson.project_version())
-cdata.set_quoted('PACKAGE_BUGREPORT', 'https://todo.sr.ht/~kaniini/pkgconf')
+cdata.set_quoted('PACKAGE_BUGREPORT', 'https://github.com/pkgconf/pkgconf/issues')
 cdata.set('abs_top_srcdir', meson.current_source_dir())
 cdata.set('abs_top_builddir', meson.current_build_dir())
 
@@ -210,11 +218,9 @@ if fuzzing
   subdir('fuzzer')
 endif
 
-# If we have a new enough meson override the dependency so that only
-# `dependency('libpkgconf')` is required from the consumer
-if meson.version().version_compare('>= 0.54.0')
-  meson.override_dependency('libpkgconf', dep_libpkgconf)
-endif
+# override the dependency so that only `dependency('libpkgconf')` is
+# required from the consumer
+meson.override_dependency('libpkgconf', dep_libpkgconf)
 
 pkg = import('pkgconfig')
 pkg.generate(libpkgconf,
@@ -278,6 +284,16 @@ spdxtool_exe = executable('spdxtool',
   include_directories : include_directories('cli', 'cli/spdxtool'),
   install : true)
 
+pccritic_exe = executable('pccritic',
+  'cli/pccritic/main.c',
+  'cli/pccritic/critic.c',
+  'cli/getopt_long.c',
+  windows_manifest,
+  link_with : libpkgconf,
+  c_args : build_static,
+  include_directories : include_directories('cli', 'cli/pccritic'),
+  install : true)
+
 test_runner_exe = executable('test-runner',
   'cli/core.c',
   'cli/getopt_long.c',
@@ -287,7 +303,8 @@ test_runner_exe = executable('test-runner',
   link_with : libpkgconf,
   c_args : build_static,
   include_directories : cli_include,
-  install : false)
+  install : false,
+  build_by_default : false)
 
 api_tests = [
   'audit',
@@ -313,7 +330,8 @@ foreach t : api_tests
     link_with : libpkgconf,
     c_args : build_static,
     include_directories : [include_directories('.'), include_directories('tests/api')],
-    install : false)
+    install : false,
+    build_by_default : false)
   test('api-' + t, exe)
 endforeach
 
@@ -330,8 +348,26 @@ test_api_serialize_exe = executable('test-api-serialize',
   link_with : libpkgconf,
   c_args : build_static,
   include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool')],
-  install : false)
+  install : false,
+  build_by_default : false)
 test('api-serialize', test_api_serialize_exe)
+
+# Unit test for spdxtool's util uri encode.
+test_api_util_exe = executable('test-api-util',
+  'tests/api/test-util.c',
+  'cli/spdxtool/core.c',
+  'cli/spdxtool/software.c',
+  'cli/spdxtool/serialize.c',
+  'cli/spdxtool/simplelicensing.c',
+  'cli/spdxtool/util.c',
+  windows_manifest,
+  link_with : libpkgconf,
+  c_args : build_static,
+  include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool')],
+  install : false,
+  build_by_default : false)
+test('api-util', test_api_util_exe)
+
 
 # Allocation-failure (OOM) tests.  These drive the shared fuzzer/alloc-inject
 # fault injector through the linker's --wrap, so they are built wherever --wrap
@@ -352,24 +388,29 @@ oom_wrap_args = [
 ]
 
 if build_oom_tests
-  # Unit test: fault-inject spdxtool's own allocations.  It links libpkgconf
-  # normally (shared); only spdxtool's compiled-in allocations are wrapped,
-  # which is exactly what we want to fail here.
-  test_api_oom_spdxtool_exe = executable('test-api-oom-spdxtool',
-    'tests/api/test-oom-spdxtool.c',
-    'fuzzer/alloc-inject.c',
-    'cli/spdxtool/core.c',
-    'cli/spdxtool/software.c',
-    'cli/spdxtool/serialize.c',
-    'cli/spdxtool/simplelicensing.c',
-    'cli/spdxtool/util.c',
-    windows_manifest,
-    link_with : libpkgconf,
-    c_args : build_static,
-    link_args : oom_wrap_args,
-    include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool'), include_directories('fuzzer')],
-    install : false)
-  test('api-oom-spdxtool', test_api_oom_spdxtool_exe)
+  # Unit test: fault-inject spdxtool's own allocations.  It requires a shared
+  # libpkgconf so that the linker's --wrap only reaches spdxtool's compiled-in
+  # allocations.  With a static libpkgconf its allocations are wrapped too,
+  # invalidating the test's expectation that every injected failure makes the
+  # spdxtool operation fail.
+  if libtype != 'static'
+    test_api_oom_spdxtool_exe = executable('test-api-oom-spdxtool',
+      'tests/api/test-oom-spdxtool.c',
+      'fuzzer/alloc-inject.c',
+      'cli/spdxtool/core.c',
+      'cli/spdxtool/software.c',
+      'cli/spdxtool/serialize.c',
+      'cli/spdxtool/simplelicensing.c',
+      'cli/spdxtool/util.c',
+      windows_manifest,
+      link_with : libpkgconf,
+      c_args : build_static,
+      link_args : oom_wrap_args,
+      include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool'), include_directories('fuzzer')],
+      install : false,
+      build_by_default : false)
+    test('api-oom-spdxtool', test_api_oom_spdxtool_exe)
+  endif
 
   # Replay the existing parser/solver fuzz targets over their seed corpus,
   # deterministically and without libFuzzer, so the libpkgconf OOM paths they
@@ -394,7 +435,8 @@ if build_oom_tests
       c_args : build_static,
       link_args : oom_wrap_args,
       include_directories : [include_directories('.'), include_directories('fuzzer')],
-      install : false)
+      install : false,
+      build_by_default : false)
     # The exhaustive per-input injection loop is slow under ASAN; give it room.
     test('fuzz-replay-' + r[0], replay_exe, args : [r[1]], timeout : 120)
   endforeach
@@ -416,13 +458,14 @@ test_suites = [
   'tuple',
   'bomtool',
   'spdxtool',
+  'pccritic',
   'symlink'
 ]
 
 foreach t : test_suites
   test(t, test_runner_exe,
     args : ['--test-fixtures', fixtures_dir, '--tool-dir', tool_dir, join_paths(meson.current_source_dir(), 't', t)],
-    depends : [pkgconf_exe, spdxtool_exe, bomtool_exe])
+    depends : [pkgconf_exe, spdxtool_exe, bomtool_exe, pccritic_exe])
 endforeach
 
 install_man('man/bomtool.1')
@@ -431,6 +474,7 @@ install_man('man/pkg.m4.7')
 install_man('man/pc.5')
 install_man('man/pkgconf-personality.5')
 install_man('man/spdxtool.1')
+install_man('man/pccritic.1')
 install_data('pkg.m4', install_dir: 'share/aclocal')
 install_data('AUTHORS', install_dir: 'share/doc/pkgconf')
 install_data('README.md', install_dir: 'share/doc/pkgconf')
@@ -440,6 +484,9 @@ if host_machine.system() == 'windows'
   conf_data = configuration_data()
   conf_data.set('VERSION', meson.project_version())
   conf_data.set('EXE', pkgconf_exe.full_path())
+  conf_data.set('BOMTOOL_EXE', bomtool_exe.full_path())
+  conf_data.set('SPDXTOOL_EXE', spdxtool_exe.full_path())
+  conf_data.set('PCCRITIC_EXE', pccritic_exe.full_path())
   conf_data.set('DLL', libpkgconf.full_path())
   conf_data.set('BUILD_TYPE', libtype)
 
@@ -470,7 +517,7 @@ if host_machine.system() == 'windows'
   if wix.found()
     msi = custom_target(
       msi_filename,
-      input: [wxsfile, licensefile, pkgconf_exe],
+      input: [wxsfile, licensefile, pkgconf_exe, bomtool_exe, spdxtool_exe, pccritic_exe],
       output: msi_filename,
       command: [wix, 'build', wxsfile, '-arch', wix_arch, '-ext', 'WixToolset.UI.wixext', '-o', msi_filename],
     )

@@ -1,0 +1,3 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Utilities for the Unified Extensible Firmware Interface (UEFI)
+SBOM_COPYRIGHT=	Copyright (c) 2021 3mdeb Embedded Systems Consulting <contact@3mdeb.com>

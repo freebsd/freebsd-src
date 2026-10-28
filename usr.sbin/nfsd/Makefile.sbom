@@ -1,0 +1,4 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	NFS client and server utilities
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1989, 1993, 1994 The Regents of the University of California

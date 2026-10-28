@@ -1,0 +1,2 @@
+.include "../../lib/libbluetooth/Makefile.sbom"
+SBOM_NAME=	${SBOMBASE}${PACKAGE}

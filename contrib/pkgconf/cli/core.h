@@ -96,7 +96,7 @@ typedef struct {
 	bool opened_error_msgout;
 } pkgconf_cli_state_t;
 
-extern void path_list_to_buffer(const pkgconf_list_t *list, pkgconf_buffer_t *buffer, char delim);
+extern bool path_list_to_buffer(const pkgconf_list_t *list, pkgconf_buffer_t *buffer, char delim);
 extern int pkgconf_cli_run(pkgconf_cli_state_t *state, int argc, char *argv[], int last_argc);
 extern void pkgconf_cli_state_reset(pkgconf_cli_state_t *state);
 

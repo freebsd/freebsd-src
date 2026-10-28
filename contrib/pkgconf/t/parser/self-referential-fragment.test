@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: self-referential-fragment
+WantedFlags: cflags
+ExpectedStdout: $\{x\}

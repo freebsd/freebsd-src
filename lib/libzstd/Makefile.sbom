@@ -1,0 +1,6 @@
+SBOM_DESC=	Fast, lossless compression algorithm
+SBOM_VERSION=	1.5.7
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) Meta Platforms, Inc. and affiliates
+SBOM_URL=	https://facebook.github.io/zstd/
+SBOM_SOURCE=	https://github.com/facebook/zstd

@@ -8,11 +8,20 @@
             "name": "My Agent"
         },
         {
+            "type": "Tool",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Tool/spdxtool",
+            "name": "spdxtool"
+        },
+        {
             "type": "CreationInfo",
             "@id": "_:creationinfo_1",
             "created": "test",
             "createdBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/my_agent"
+            ],
+            "createUsing": [
+                "https://github.com/pkgconf/pkgconf/Tool/spdxtool"
             ],
             "specVersion": "3.0.1"
         },
@@ -51,9 +60,7 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/my_agent"
             ],
-            "suppliedBy": [
-                "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer"
-            ],
+            "suppliedBy": "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer",
             "software_copyrightText": "Test3 copyright text",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
             "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",

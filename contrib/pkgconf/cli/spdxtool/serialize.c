@@ -18,48 +18,60 @@
 #include "simplelicensing.h"
 #include "serialize.h"
 
-static void
+static bool
 serialize_escape_string(pkgconf_buffer_t *buffer, const char *s)
 {
 	for (const char *p = s; *p; p++)
 	{
+		bool ret;
+
 		switch (*p)
 		{
 		case '\"':
-			pkgconf_buffer_append(buffer, "\\\"");
+			ret = pkgconf_buffer_append(buffer, "\\\"");
 			break;
 		case '\\':
-			pkgconf_buffer_append(buffer, "\\\\");
+			ret = pkgconf_buffer_append(buffer, "\\\\");
 			break;
 		case '\b':
-			pkgconf_buffer_append(buffer, "\\b");
+			ret = pkgconf_buffer_append(buffer, "\\b");
 			break;
 		case '\f':
-			pkgconf_buffer_append(buffer, "\\f");
+			ret = pkgconf_buffer_append(buffer, "\\f");
 			break;
 		case '\n':
-			pkgconf_buffer_append(buffer, "\\n");
+			ret = pkgconf_buffer_append(buffer, "\\n");
 			break;
 		case '\r':
-			pkgconf_buffer_append(buffer, "\\r");
+			ret = pkgconf_buffer_append(buffer, "\\r");
 			break;
 		case '\t':
-			pkgconf_buffer_append(buffer, "\\t");
+			ret = pkgconf_buffer_append(buffer, "\\t");
 			break;
 		default:
 			if ((unsigned char) *p < 0x20)
-				pkgconf_buffer_append_fmt(buffer, "\\u%04x", (unsigned int)(unsigned char) *p);
+				ret = pkgconf_buffer_append_fmt(buffer, "\\u%04x", (unsigned int)(unsigned char) *p);
 			else
-				pkgconf_buffer_push_byte(buffer, *p);
+				ret = pkgconf_buffer_push_byte(buffer, *p);
 		}
+
+		if (!ret)
+			return false;
 	}
+
+	return true;
 }
 
-static inline void
+static inline bool
 serialize_add_indent(pkgconf_buffer_t *buffer, unsigned int level)
 {
 	for (; level; level--)
-		pkgconf_buffer_append(buffer, "    ");
+	{
+		if (!pkgconf_buffer_append(buffer, "    "))
+			return false;
+	}
+
+	return true;
 }
 
 /*
@@ -82,62 +94,67 @@ spdxtool_serialize_value_to_buf(pkgconf_buffer_t *buffer, spdxtool_serialize_val
 
 	switch(value->type) {
 		case SPDXTOOL_SERIALIZE_TYPE_STRING:
-			pkgconf_buffer_push_byte(buffer, '"');
-			serialize_escape_string(buffer, value->value.s ? value->value.s : "");
-			pkgconf_buffer_push_byte(buffer, '"');
-			break;
+			return pkgconf_buffer_push_byte(buffer, '"') &&
+				serialize_escape_string(buffer, value->value.s ? value->value.s : "") &&
+				pkgconf_buffer_push_byte(buffer, '"');
 		case SPDXTOOL_SERIALIZE_TYPE_INT:
-			pkgconf_buffer_append_fmt(buffer, "%d", value->value.i);
-			break;
+			return pkgconf_buffer_append_fmt(buffer, "%d", value->value.i);
 		case SPDXTOOL_SERIALIZE_TYPE_BOOL:
-			pkgconf_buffer_append(buffer, value->value.b ? "true" : "false");
-			break;
+			return pkgconf_buffer_append(buffer, value->value.b ? "true" : "false");
 		case SPDXTOOL_SERIALIZE_TYPE_NULL:
-			pkgconf_buffer_append(buffer, "null");
-			break;
+			return pkgconf_buffer_append(buffer, "null");
 		case SPDXTOOL_SERIALIZE_TYPE_OBJECT:
 		{
 			pkgconf_node_t *iter;
-			pkgconf_buffer_push_byte(buffer, '{');
-			pkgconf_buffer_push_byte(buffer, '\n');
+
+			if (value->value.o == NULL ||
+				!pkgconf_buffer_push_byte(buffer, '{') ||
+				!pkgconf_buffer_push_byte(buffer, '\n'))
+				return false;
 
 			PKGCONF_FOREACH_LIST_ENTRY(value->value.o->entries.head, iter)
 			{
 				spdxtool_serialize_object_t *entry = iter->data;
-				serialize_add_indent(buffer, indent + 1);
-				pkgconf_buffer_append_fmt(buffer, "\"%s\": ", entry->key);
-				spdxtool_serialize_value_to_buf(buffer, entry->value, indent + 1);
-				if (iter->next)
-					pkgconf_buffer_push_byte(buffer, ',');
-				pkgconf_buffer_push_byte(buffer, '\n');
+
+				if (!serialize_add_indent(buffer, indent + 1) ||
+					!pkgconf_buffer_push_byte(buffer, '"') ||
+					!serialize_escape_string(buffer, entry->key ? entry->key : "") ||
+					!pkgconf_buffer_append(buffer, "\": ") ||
+					!spdxtool_serialize_value_to_buf(buffer, entry->value, indent + 1) ||
+					(iter->next && !pkgconf_buffer_push_byte(buffer, ',')) ||
+					!pkgconf_buffer_push_byte(buffer, '\n'))
+					return false;
 			}
 
-			serialize_add_indent(buffer, indent);
-			pkgconf_buffer_push_byte(buffer, '}');
-			break;
+			return serialize_add_indent(buffer, indent) &&
+				pkgconf_buffer_push_byte(buffer, '}');
 		}
 		case SPDXTOOL_SERIALIZE_TYPE_ARRAY:
 		{
 			pkgconf_node_t *iter;
-			pkgconf_buffer_push_byte(buffer, '[');
-			pkgconf_buffer_push_byte(buffer, '\n');
+
+			if (value->value.a == NULL ||
+				!pkgconf_buffer_push_byte(buffer, '[') ||
+				!pkgconf_buffer_push_byte(buffer, '\n'))
+				return false;
 
 			PKGCONF_FOREACH_LIST_ENTRY(value->value.a->items.head, iter)
 			{
 				spdxtool_serialize_value_t *entry = iter->data;
-				serialize_add_indent(buffer, indent + 1);
-				spdxtool_serialize_value_to_buf(buffer, entry, indent + 1);
-				if (iter->next)
-					pkgconf_buffer_push_byte(buffer, ',');
-				pkgconf_buffer_push_byte(buffer, '\n');
+
+				if (!serialize_add_indent(buffer, indent + 1) ||
+					!spdxtool_serialize_value_to_buf(buffer, entry, indent + 1) ||
+					(iter->next && !pkgconf_buffer_push_byte(buffer, ',')) ||
+					!pkgconf_buffer_push_byte(buffer, '\n'))
+					return false;
 			}
-			serialize_add_indent(buffer, indent);
-			pkgconf_buffer_push_byte(buffer, ']');
-			break;
+
+			return serialize_add_indent(buffer, indent) &&
+				pkgconf_buffer_push_byte(buffer, ']');
 		}
 	}
 
-	return true;
+	return false;
 }
 
 /*
@@ -375,7 +392,7 @@ spdxtool_serialize_array_free(spdxtool_serialize_array_t *array)
  *    :return: spdxtool_serialize_value_t * representing the complete JSON-LD document, or a null string value on allocation failure.
  */
 spdxtool_serialize_value_t *
-spdxtool_serialize_sbom(pkgconf_client_t *client, spdxtool_core_agent_t *agent, spdxtool_core_creation_info_t *creation, spdxtool_core_spdx_document_t *spdx)
+spdxtool_serialize_sbom(pkgconf_client_t *client, spdxtool_core_agent_t *agent, spdxtool_core_tool_t *tool, spdxtool_core_creation_info_t *creation, spdxtool_core_spdx_document_t *spdx)
 {
 	const char *errstr = "out of memory";
 	spdxtool_serialize_value_t *ret = NULL;
@@ -392,6 +409,9 @@ spdxtool_serialize_sbom(pkgconf_client_t *client, spdxtool_core_agent_t *agent, 
 		goto err;
 
 	if (!spdxtool_serialize_array_add_take(graph, spdxtool_core_agent_to_object(client, agent)))
+		goto err;
+
+	if (!spdxtool_serialize_array_add_take(graph, spdxtool_core_tool_to_object(client, tool)))
 		goto err;
 
 	if (!spdxtool_serialize_array_add_take(graph, spdxtool_core_creation_info_to_object(client, creation)))

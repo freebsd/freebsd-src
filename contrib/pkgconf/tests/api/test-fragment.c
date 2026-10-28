@@ -47,6 +47,51 @@ fragment_at(const pkgconf_list_t *list, size_t index)
 }
 
 /*
+ * Assert that a list is internally consistent: it holds `expect` nodes, its
+ * cached length agrees, the terminators are NULL, and it walks to the same
+ * length in both directions.  Relinking nodes between lists is easy to get
+ * subtly wrong in a way that only a structural check like this catches.
+ */
+static void
+assert_list_integrity(const pkgconf_list_t *list, size_t expect)
+{
+	const pkgconf_node_t *iter;
+	size_t forward = 0, reverse = 0;
+
+	TEST_ASSERT_EQ(list->length, expect);
+
+	PKGCONF_FOREACH_LIST_ENTRY(list->head, iter)
+	{
+		if (iter->next == NULL)
+			TEST_ASSERT_TRUE(iter == list->tail);
+
+		forward++;
+	}
+
+	PKGCONF_FOREACH_LIST_ENTRY_REVERSE(list->tail, iter)
+	{
+		if (iter->prev == NULL)
+			TEST_ASSERT_TRUE(iter == list->head);
+
+		reverse++;
+	}
+
+	TEST_ASSERT_EQ(forward, expect);
+	TEST_ASSERT_EQ(reverse, expect);
+
+	if (expect == 0)
+	{
+		TEST_ASSERT_NULL(list->head);
+		TEST_ASSERT_NULL(list->tail);
+	}
+	else
+	{
+		TEST_ASSERT_NULL(list->head->prev);
+		TEST_ASSERT_NULL(list->tail->next);
+	}
+}
+
+/*
  * Render a fragment list to a newly-allocated C string for assertions.
  * Caller frees.
  */
@@ -306,6 +351,91 @@ test_fragment_filter_keeps_nothing(void)
 }
 
 static void
+test_fragment_filter_splice_moves_matches(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t src = PKGCONF_LIST_INITIALIZER;
+	pkgconf_list_t dst = PKGCONF_LIST_INITIALIZER;
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	/* the trailing fragment deliberately does not match: a moved node which
+	 * keeps a stale forward link would splice the rest of src onto dst. */
+	pkgconf_fragment_parse(client, &src, &vars, "-I/usr/include -L/usr/lib -I/opt/include -lfoo", 0);
+
+	pkgconf_fragment_filter_splice(client, &dst, &src, filter_only_includes, NULL);
+
+	/* the matches move out of src, in order; the rest stay behind */
+	assert_list_integrity(&dst, 2);
+	assert_list_integrity(&src, 2);
+	TEST_ASSERT_EQ(fragment_count(&dst), 2);
+	TEST_ASSERT_EQ(fragment_count(&src), 2);
+
+	const pkgconf_fragment_t *f0 = fragment_at(&dst, 0);
+	const pkgconf_fragment_t *f1 = fragment_at(&dst, 1);
+	TEST_ASSERT_NONNULL(f0);
+	TEST_ASSERT_NONNULL(f1);
+	TEST_ASSERT_EQ(f0->type, 'I');
+	TEST_ASSERT_STRCMP_EQ(f0->data, "/usr/include");
+	TEST_ASSERT_EQ(f1->type, 'I');
+	TEST_ASSERT_STRCMP_EQ(f1->data, "/opt/include");
+
+	const pkgconf_fragment_t *r0 = fragment_at(&src, 0);
+	const pkgconf_fragment_t *r1 = fragment_at(&src, 1);
+	TEST_ASSERT_NONNULL(r0);
+	TEST_ASSERT_NONNULL(r1);
+	TEST_ASSERT_EQ(r0->type, 'L');
+	TEST_ASSERT_EQ(r1->type, 'l');
+
+	pkgconf_fragment_free(&dst);
+	pkgconf_fragment_free(&src);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
+test_fragment_splice_list(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t src = PKGCONF_LIST_INITIALIZER;
+	pkgconf_list_t dst = PKGCONF_LIST_INITIALIZER;
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_fragment_parse(client, &dst, &vars, "-I/usr/include", 0);
+	pkgconf_fragment_parse(client, &src, &vars, "-lfoo -lbar", 0);
+
+	/* splicing onto a non-empty list appends and empties the source */
+	pkgconf_list_splice(&dst, &src);
+
+	assert_list_integrity(&dst, 3);
+	assert_list_integrity(&src, 0);
+	TEST_ASSERT_EQ(fragment_count(&dst), 3);
+	TEST_ASSERT_EQ(fragment_count(&src), 0);
+
+	char *rendered = render_to_string(&dst);
+	TEST_ASSERT_STRCMP_EQ(rendered, "-I/usr/include -lfoo -lbar");
+	free(rendered);
+
+	TEST_ASSERT_STRCMP_EQ(((const pkgconf_fragment_t *) dst.tail->data)->data, "bar");
+
+	/* splicing an empty source, or a list onto itself, is a no-op */
+	pkgconf_list_splice(&dst, &src);
+	pkgconf_list_splice(&dst, &dst);
+	assert_list_integrity(&dst, 3);
+
+	/* splicing onto an empty destination adopts the source wholesale */
+	pkgconf_list_splice(&src, &dst);
+	assert_list_integrity(&src, 3);
+	assert_list_integrity(&dst, 0);
+	pkgconf_list_splice(&dst, &src);
+	assert_list_integrity(&dst, 3);
+
+	pkgconf_fragment_free(&dst);
+	pkgconf_fragment_free(&src);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
 test_fragment_has_system_dir_matches(void)
 {
 	pkgconf_client_t *client = test_client_new();
@@ -369,6 +499,8 @@ main(int argc, char *argv[])
 	TEST_RUN(basename, test_fragment_filter_only_includes);
 	TEST_RUN(basename, test_fragment_filter_only_libnames);
 	TEST_RUN(basename, test_fragment_filter_keeps_nothing);
+	TEST_RUN(basename, test_fragment_filter_splice_moves_matches);
+	TEST_RUN(basename, test_fragment_splice_list);
 	TEST_RUN(basename, test_fragment_has_system_dir_matches);
 	TEST_RUN(basename, test_fragment_has_system_dir_libs);
 

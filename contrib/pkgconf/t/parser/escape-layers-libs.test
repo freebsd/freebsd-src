@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: escape-layers
+WantedFlags: libs
+ExpectedStdout: -L/test/a\ dir/lib -L/test/lit\ eral -la

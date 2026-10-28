@@ -24,11 +24,15 @@ pkgconf_output_putbuf(pkgconf_output_t *output, pkgconf_output_stream_t stream, 
 	bool ret;
 	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
 
-	if (pkgconf_buffer_len(buffer) != 0)
-		pkgconf_buffer_append(&buf, pkgconf_buffer_str(buffer));
+	if (pkgconf_buffer_len(buffer) != 0 &&
+		!pkgconf_buffer_append(&buf, pkgconf_buffer_str(buffer)))
+		return false;
 
-	if (newline)
-		pkgconf_buffer_push_byte(&buf, '\n');
+	if (newline && !pkgconf_buffer_push_byte(&buf, '\n'))
+	{
+		pkgconf_buffer_finalize(&buf);
+		return false;
+	}
 
 	ret = output->write(output, stream, &buf);
 	pkgconf_buffer_finalize(&buf);
@@ -42,8 +46,13 @@ pkgconf_output_puts(pkgconf_output_t *output, pkgconf_output_stream_t stream, co
 	bool ret;
 	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
 
-	pkgconf_buffer_append(&buf, str);
-	pkgconf_buffer_push_byte(&buf, '\n');
+	if (!pkgconf_buffer_append(&buf, str) ||
+		!pkgconf_buffer_push_byte(&buf, '\n'))
+	{
+		pkgconf_buffer_finalize(&buf);
+		return false;
+	}
+
 	ret = output->write(output, stream, &buf);
 	pkgconf_buffer_finalize(&buf);
 
@@ -71,10 +80,11 @@ pkgconf_output_vfmt(pkgconf_output_t *output, pkgconf_output_stream_t stream, co
 	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
 
 	va_copy(va, src_va);
-	pkgconf_buffer_append_vfmt(&buf, fmt, va);
+	ret = pkgconf_buffer_append_vfmt(&buf, fmt, va);
 	va_end(va);
 
-	ret = output->write(output, stream, &buf);
+	if (ret)
+		ret = output->write(output, stream, &buf);
 	pkgconf_buffer_finalize(&buf);
 
 	return ret;

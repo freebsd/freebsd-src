@@ -1,0 +1,13 @@
+prefix=/test/a\ dir
+libdir=${prefix}/lib
+backslash=x\\y
+quoted_dq="item1 item2 item\ with\ spaces"
+quoted_sq='item1 item2 item\ with\ spaces'
+unquoted=item1 item2 item\ with\ spaces
+
+Name: escape-layers
+Description: test fixture
+Version: 1.0.0
+
+Libs: -L${libdir} -L/test/lit\ eral -la
+Cflags: -I${prefix} -DBS=${backslash} -DLIT=p\\q -DLITSP=p\ q

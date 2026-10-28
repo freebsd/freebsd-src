@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --print-variables maxpkg-first maxpkg-second
+ExpectedStdoutFile: single-package-limit.out
+ExpectedExitCode: 0

@@ -1,0 +1,5 @@
+SBOM_DESC=	IP Filter (ipf) packet filter management tools
+SBOM_VERSION=	5.1.2
+SBOM_LICENSE=	BSD-4-Clause
+SBOM_COPYRIGHT=	Copyright (C) 2012 by Darren Reed
+SBOM_URL=	https://www.phildev.net/ipf/

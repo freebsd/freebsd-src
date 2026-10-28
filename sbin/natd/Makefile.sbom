@@ -1,0 +1,2 @@
+SBOM_DESC=	Userland Network Address Translation (NAT) for ipfw
+SBOM_COPYRIGHT=	Copyright (c) Ari Suutari <suutari@iki.fi>

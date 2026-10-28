@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: escape-layers
+WantVariable: prefix
+ExpectedStdout: /test/a\ dir

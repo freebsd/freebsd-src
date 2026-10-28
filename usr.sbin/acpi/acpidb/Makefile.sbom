@@ -1,0 +1,4 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Advanced Configuration and Power Interface (ACPI) utilities
+SBOM_LICENSE=	BSD-3-Clause AND BSD-2-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1999-2002 Mitsuru IWASAKI <iwasaki@FreeBSD.org>

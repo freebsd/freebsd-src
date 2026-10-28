@@ -1,0 +1,2 @@
+SBOM_DESC=	Kernel-side iconv library
+SBOM_COPYRIGHT=	Copyright (c) 2003 Ryuichiro Imura

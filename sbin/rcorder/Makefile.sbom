@@ -1,0 +1,4 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	rc(8) subsystem
+SBOM_LICENSE=	BSD-4-Clause AND BSD-2-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1998, 1999 Matthew R. Green

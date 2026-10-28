@@ -1,0 +1,5 @@
+SBOM_DESC=	Network Time Protocol (NTP) daemon
+SBOM_VERSION=	ntp-4.2.8p18
+SBOM_COPYRIGHT=	Copyright (c) 2011-2024 Network Time Foundation
+SBOM_URL=	https://www.ntp.org
+SBOM_SOURCE=	https://downloads.nwtime.org/ntp/4.2.8/${SBOM_VERSION}.tar.gz
