@@ -11279,7 +11279,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 static void
 pf_init_pdesc(struct pf_pdesc *pd, struct mbuf *m)
 {
-	memset(pd, 0, sizeof(*pd));
+	memset(pd, 0, offsetof(struct pf_pdesc, pd_endzero));
 	pd->pf_mtag = pf_find_mtag(m);
 	pd->m = m;
 }
@@ -11301,6 +11301,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	TAILQ_INIT(&pd->sctp_multihome_jobs);
 	if (default_actions != NULL)
 		memcpy(&pd->act, default_actions, sizeof(pd->act));
+	else
+		memset(&pd->act, 0, sizeof(pd->act));
 
 	if (pd->pf_mtag && pd->pf_mtag->dnpipe) {
 		pd->act.dnpipe = pd->pf_mtag->dnpipe;

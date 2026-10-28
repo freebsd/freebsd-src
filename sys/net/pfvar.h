@@ -1950,9 +1950,6 @@ struct pf_pdesc {
 	struct pf_addr	 nsaddr;	/* src address after NAT */
 	struct pf_addr	 ndaddr;	/* dst address after NAT */
 
-	struct pfi_kkif	*kif;		/* incomming interface */
-	struct mbuf	*m;
-
 	struct pf_addr	*src;		/* src address */
 	struct pf_addr	*dst;		/* dst address */
 	struct pf_addr	 osrc;
@@ -1964,8 +1961,6 @@ struct pf_pdesc {
 	u_int16_t	 odport;
 	u_int16_t	 nsport;	/* src port after NAT */
 	u_int16_t	 ndport;	/* dst port after NAT */
-	struct pf_mtag	*pf_mtag;
-	struct pf_rule_actions	act;
 
 	u_int32_t	 off;		/* protocol header offset */
 	bool		 df;		/* IPv4 Don't fragment flag. */
@@ -2011,6 +2006,15 @@ struct pf_pdesc {
 	u_int16_t	 sctp_dummy_sum;
 	struct pf_krule	*related_rule;
 
+	/*
+	 * pf_init_pdesc() zeroes the members above this point only; those
+	 * below are set before they are read.
+	 */
+#define	pd_endzero	kif
+	struct pfi_kkif	*kif;		/* incoming interface */
+	struct mbuf	*m;
+	struct pf_mtag	*pf_mtag;
+	struct pf_rule_actions	 act;
 	struct pf_sctp_multihome_jobs	sctp_multihome_jobs;
 };
 
