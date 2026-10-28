@@ -467,22 +467,10 @@ ENTRY(resumectx)
 	movl	PCB_SFMASK(%rdi),%eax
 	wrmsr
 
-	/* Restore CR0, CR2, CR4 and CR3. */
-	movq	PCB_CR0(%rdi),%rax
-	movq	%rax,%cr0
-	movq	PCB_CR2(%rdi),%rax
-	movq	%rax,%cr2
-	movq	PCB_CR4(%rdi),%rax
-	movq	%rax,%cr4
-	movq	PCB_CR3(%rdi),%rax
-	movq	%rax,%cr3
-
-	/* Restore descriptor tables. */
+	/* Restore FRED state before reloading %cr4. */
 	cmpb	$0,fred
-	jne	1f
-	lidt	PCB_IDT(%rdi)
-	jmp	2f
-1:	movl	$MSR_FRED_RSP0,%ecx
+	je	1f
+	movl	$MSR_FRED_RSP0,%ecx
 	movl	PCB_FRED_RSP0(%rdi),%eax
 	movl	4 + PCB_FRED_RSP0(%rdi),%edx
 	wrmsr
@@ -506,7 +494,22 @@ ENTRY(resumectx)
 	movl	PCB_FRED_CONFIG(%rdi),%eax
 	movl	4 + PCB_FRED_CONFIG(%rdi),%edx
 	wrmsr
-2:	lldt	PCB_LDT(%rdi)
+1:
+	/* Restore CR0, CR2, CR4 and CR3. */
+	movq	PCB_CR0(%rdi),%rax
+	movq	%rax,%cr0
+	movq	PCB_CR2(%rdi),%rax
+	movq	%rax,%cr2
+	movq	PCB_CR4(%rdi),%rax
+	movq	%rax,%cr4
+	movq	PCB_CR3(%rdi),%rax
+	movq	%rax,%cr3
+
+	/* Restore descriptor tables. */
+	cmpb	$0,fred
+	jne	1f
+	lidt	PCB_IDT(%rdi)
+1:	lldt	PCB_LDT(%rdi)
 
 #define	SDT_SYSTSS	9
 #define	SDT_SYSBSY	11
