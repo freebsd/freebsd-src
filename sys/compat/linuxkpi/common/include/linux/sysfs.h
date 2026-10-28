@@ -403,9 +403,22 @@ sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 static inline void
 sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 {
+	struct attribute **attr;
+	struct bin_attribute **bin_attr;
 
-	if (kobj->oidp)
+	if (kobj->oidp == NULL)
+		return;
+
+	/* Mirror sysfs_create_group(): unnamed groups live directly under kobj. */
+	if (grp->name != NULL) {
 		sysctl_remove_name(kobj->oidp, grp->name, 1, 1);
+		return;
+	}
+	for (attr = grp->attrs; attr != NULL && *attr != NULL; attr++)
+		sysctl_remove_name(kobj->oidp, (*attr)->name, 1, 1);
+	for (bin_attr = grp->bin_attrs; bin_attr != NULL && *bin_attr != NULL;
+	    bin_attr++)
+		sysctl_remove_name(kobj->oidp, (*bin_attr)->attr.name, 1, 1);
 }
 
 static inline int
