@@ -735,6 +735,14 @@ linux_pci_detach_device(struct pci_dev *pdev)
 	if (pdev->pdrv != NULL)
 		pdev->pdrv->remove(pdev);
 
+	/*
+	 * As on Linux when a driver is unbound, release the devres actions now.
+	 * Waiting for the last reference to go away is wrong: devres actions
+	 * (e.g. the drm_dev_put() of devm_drm_dev_alloc()) may hold references
+	 * on this very device, which then never gets released.
+	 */
+	lkpi_devres_release_free_list(&pdev->dev);
+
 	pci_dev_put(pdev);
 
 	/*
