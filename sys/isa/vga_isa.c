@@ -49,6 +49,7 @@
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
+#include <contrib/dev/acpica/include/acpi.h>
 #ifdef __i386__
 #include <machine/pc/bios.h>
 #endif
@@ -129,9 +130,31 @@ vga_resume(device_t dev)
 	}
 }
 
+static int isavga_acpi_ignore_no_vga = 0;
+TUNABLE_INT("hw.vga.acpi_ignore_no_vga", &isavga_acpi_ignore_no_vga);
+
+/*
+ * vga_probe() touches the legacy VGA registers and frame buffer, which hangs
+ * some machines.  Honour a disabled hint and the FADT "no VGA" flag first.
+ */
+static bool
+isavga_skip(void)
+{
+	uint16_t flags;
+
+	if (resource_disabled(VGA_DRIVER_NAME, 0))
+		return (true);
+	if (!acpi_get_fadt_bootflags(&flags))
+		return (false);
+	return (!isavga_acpi_ignore_no_vga &&
+	    (flags & ACPI_FADT_NO_VGA) != 0);
+}
+
 static void
 isavga_identify(driver_t *driver, device_t parent)
 {
+	if (isavga_skip())
+		return;
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, VGA_DRIVER_NAME, 0);
 }
 
