@@ -838,12 +838,12 @@ href="https://dissentmagazine.org/online_articles/booked-a-global-history-of-tim
     The relationship between POSIX time (that is, <abbr>UTC</abbr> but
     ignoring <a href="https://en.wikipedia.org/wiki/Leap_second">leap
     seconds</a>) and <abbr>UTC</abbr> is not agreed upon.
-    This affects time stamps during the leap second era (1972–2035).
+    This affects time stamps during the leap second era (1972–2016).
     Although the POSIX
-    clock officially stops during an inserted leap second, at least one
-    proposed standard has it jumping back a second instead; and in
-    practice POSIX clocks more typically either progress glacially during
-    a leap second, or are slightly slowed while near a leap second.
+    clock officially stopped during an inserted leap second,
+    at least one proposed standard had it jumping back a second instead;
+    and in practice POSIX clocks more typically either progressed glacially
+    during a leap second, or were slightly slowed while near a leap second.
   </li>
   <li>
     The <code><abbr>tz</abbr></code> database does not represent how
@@ -1347,35 +1347,33 @@ between now and the future time.
 <p>
 Leap seconds were introduced in 1972 to accommodate the
 difference between atomic time and the less regular rotation of the earth.
-Unfortunately they have caused so many problems with civil
-timekeeping that there are
-<a href="https://www.bipm.org/en/cgpm-2022/resolution-4">plans
-to discontinue them by 2035</a>.
-Even if these plans come to fruition, a record of leap seconds will still be
-needed to resolve timestamps from 1972 through 2035,
-and there may also be a need to record whatever mechanism replaces them.
+Unfortunately they caused so many problems with civil
+timekeeping that the last leap second was in 2016.
+A record of leap seconds is still
+needed to resolve timestamps from 1972 through 2016,
+and there may also be a need to record whatever mechanism replaces them
+in the likely-distant future.
 </p>
 
 <p>
 The <code><abbr>tz</abbr></code> code and data can account for leap seconds,
 thanks to code contributed by Bradley White.
-However, the leap second support of this package is rarely used directly
+However, the leap second support of this package's code was rarely used
+even before leap seconds were discontinued,
 because POSIX requires leap seconds to be excluded and many
 software packages would mishandle leap seconds if they were present.
-Instead, leap seconds are more commonly handled by occasionally adjusting
+Instead, leap seconds were more commonly handled by occasionally adjusting
 the operating system kernel clock as described in
-<a href="tz-link.html#precision">Precision timekeeping</a>,
+<a href="tz-link.html#leaps">Leap seconds</a>,
 and this package by default installs a <samp>leapseconds</samp> file
 commonly used by
 <a href="https://www.ntp.org"><abbr title="Network Time Protocol">NTP</abbr></a>
-software that adjusts the kernel clock.
-However, kernel-clock twiddling approximates UTC only roughly,
-and systems needing more precise UTC can use this package’s leap
-second support directly.
+software that adjusted the kernel clock.
 </p>
 
 <p>
-The directly supported mechanism assumes that <code>time_t</code>
+In the rare case where this package's code is configured to support
+leap seconds, it assumes that <code>time_t</code>
 counts of seconds since the POSIX epoch normally include leap seconds,
 as opposed to POSIX <code>time_t</code> counts which exclude leap seconds.
 This modified timescale is converted to <abbr>UTC</abbr>
