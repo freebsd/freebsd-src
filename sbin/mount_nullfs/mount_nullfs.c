@@ -45,6 +45,11 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+static struct mntopt mopts[] = {
+	MOPT_STDOPTS,
+	MOPT_END
+};
+
 static void	usage(void) __dead2;
 
 static int
@@ -59,29 +64,44 @@ int
 main(int argc, char *argv[])
 {
 	struct iovec *iov;
-	char *p, *val;
+	char *opt, *opts, *val;
 	char mountpoint[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	char errmsg[255];
-	int ch, iovlen;
+	int ch, iovlen, mntflags;
 	char nullfs[] = "nullfs";
+	char empty[] = "";
 	struct stat target_stat;
 	struct stat mountpoint_stat;
 
 	iov = NULL;
 	iovlen = 0;
+	mntflags = 0;
 	errmsg[0] = '\0';
+	getmnt_silent = 1;
 	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch(ch) {
 		case 'o':
-			val = strdup("");
-			p = strchr(optarg, '=');
-			if (p != NULL) {
-				free(val);
-				*p = '\0';
-				val = p + 1;
+			/*
+			 * Translate standard options into mount flags and
+			 * pass each comma-separated option to nmount(2) as
+			 * its own name/value pair, so that options such as
+			 * "ro,nosuid" are applied rather than being handed
+			 * to the kernel as a single unknown option.
+			 */
+			getmntopts(optarg, mopts, &mntflags, NULL);
+			opts = optarg;
+			while ((opt = strsep(&opts, ",")) != NULL) {
+				if (*opt == '\0')
+					continue;
+				val = strchr(opt, '=');
+				if (val != NULL)
+					*val++ = '\0';
+				else
+					val = empty;
+				build_iovec(&iov, &iovlen, opt, val,
+				    (size_t)-1);
 			}
-			build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
 			break;
 		case '?':
 		default:
@@ -111,7 +131,7 @@ main(int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "fspath", mountpoint, (size_t)-1);
 	build_iovec(&iov, &iovlen, "target", target, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
-	if (nmount(iov, iovlen, 0) < 0) {
+	if (nmount(iov, iovlen, mntflags) < 0) {
 		if (errmsg[0] != 0)
 			err(1, "%s: %s", mountpoint, errmsg);
 		else
