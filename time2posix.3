@@ -27,15 +27,15 @@ IEEE Standard 1003.1
 (POSIX)
 says that
 .B time_t
-values cannot count leap
+values do not count leap
 seconds and,
 therefore,
-that the system time must be adjusted as each leap occurs.
+that the system time was adjusted as each leap occurred.
 .PP
 If the time package is configured with leap-second support
 enabled,
 however,
-no such adjustment is needed and
+no such adjustment was needed and
 .B time_t
 values continue to increase over leap events
 (as a true
@@ -120,7 +120,8 @@ DATE	TIME	T	X	Y
 .in
 .fi
 .PP
-A leap second deletion would look like the following, and
+No leap second deletion ever occurred.
+However, if one had occurred it would have looked like the following, and
 posix2time(B+1) would return either A or A+1.
 .PP
 .in +2
