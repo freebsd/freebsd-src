@@ -6699,6 +6699,7 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	s->nat_rule = ctx->nr;
 	s->anchor = ctx->a;
 	s->match_rules = *ctx->match_rules;
+	SLIST_INIT(ctx->match_rules); /* The state owns these now. */
 	SLIST_INIT(&s->linkage);
 	memcpy(&s->act, &pd->act, sizeof(struct pf_rule_actions));
 
@@ -11519,7 +11520,7 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 
 	/* If the rule has failed to apply, don't increase its counters */
 	if (!(op_pass || r->action == PF_DROP)) {
-		return;
+		goto out;
 	}
 
 	if (s != NULL) {
@@ -11617,6 +11618,7 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 		    src_host, dst_host);
 	}
 
+out:
 	if (s == NULL) {
 		pf_free_match_rules(mr);
 	}
