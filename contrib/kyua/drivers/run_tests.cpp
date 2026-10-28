@@ -50,6 +50,7 @@
 #include "utils/noncopyable.hpp"
 #include "utils/optional.ipp"
 #include "utils/passwd.hpp"
+#include "utils/sanity.hpp"
 #include "utils/text/operations.ipp"
 
 namespace config = utils::config;
@@ -202,6 +203,8 @@ finish_test(scheduler::result_handle_ptr result_handle,
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    if (test_result_handle == nullptr)
+        UNREACHABLE_MSG("Expected a test result handle from the scheduler");
 
     put_test_result(test_case_id, *test_result_handle, tx);
 

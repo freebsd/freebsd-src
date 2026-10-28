@@ -577,6 +577,7 @@ ATF_TEST_CASE_BODY(integration__run_one)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(exec_handle, result_handle->original_pid());
     ATF_REQUIRE_EQ(model::test_result(model::test_result_passed, "Exit 41"),
                    test_result_handle->test_result());
@@ -659,6 +660,7 @@ ATF_TEST_CASE_BODY(integration__run_many)
         const scheduler::test_result_handle* test_result_handle =
             dynamic_cast< const scheduler::test_result_handle* >(
                 result_handle.get());
+        ATF_REQUIRE(test_result_handle != nullptr);
 
         const scheduler::exec_handle exec_handle =
             result_handle->original_pid();
@@ -714,6 +716,7 @@ ATF_TEST_CASE_BODY(integration__run_check_paths)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
 
     ATF_REQUIRE_EQ(model::test_result(model::test_result_passed, "Exit 0"),
                    test_result_handle->test_result());
@@ -745,6 +748,7 @@ ATF_TEST_CASE_BODY(integration__parameters_and_output)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
 
     ATF_REQUIRE_EQ(exec_handle, result_handle->original_pid());
     ATF_REQUIRE_EQ(program, test_result_handle->test_program());
@@ -796,6 +800,7 @@ ATF_TEST_CASE_BODY(integration__fake_result)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(fake_result, test_result_handle->test_result());
     result_handle->cleanup();
     result_handle.reset();
@@ -826,6 +831,7 @@ ATF_TEST_CASE_BODY(integration__cleanup__head_skips)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(model::test_result(
                        model::test_result_skipped,
                        "Required configuration property "
@@ -864,6 +870,7 @@ do_cleanup_test(const char* test_case,
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(exp_result, test_result_handle->test_result());
     ATF_REQUIRE(atf::utils::compare_file(
         result_handle->stdout_file().str(),
@@ -943,6 +950,7 @@ ATF_TEST_CASE_BODY(integration__check_requirements)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(model::test_result(
                        model::test_result_skipped,
                        "Required configuration property 'abcde' not defined"),
@@ -973,6 +981,7 @@ ATF_TEST_CASE_BODY(integration__stacktrace)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(model::test_result(model::test_result_failed,
                                       F("Signal %s") % SIGABRT),
                    test_result_handle->test_result());
@@ -1053,6 +1062,7 @@ ATF_TEST_CASE_BODY(integration__prevent_clobbering_control_files)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
     ATF_REQUIRE_EQ(model::test_result(model::test_result_passed, "Exit 0"),
                    test_result_handle->test_result());
     result_handle->cleanup();
@@ -1083,6 +1093,7 @@ ATF_TEST_CASE_BODY(debug_test)
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    ATF_REQUIRE(test_result_handle != nullptr);
 
     ATF_REQUIRE_EQ(program, test_result_handle->test_program());
     ATF_REQUIRE_EQ("print_params", test_result_handle->test_case_name());

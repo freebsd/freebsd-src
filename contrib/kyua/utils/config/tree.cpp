@@ -32,6 +32,7 @@
 #include "utils/config/keys.hpp"
 #include "utils/config/nodes.ipp"
 #include "utils/format/macros.hpp"
+#include "utils/sanity.hpp"
 
 namespace config = utils::config;
 
@@ -69,6 +70,8 @@ config::tree::deep_copy(void) const
 {
     detail::static_inner_node* new_root =
         dynamic_cast< detail::static_inner_node* >(_root->deep_copy());
+    if (new_root == nullptr)
+        UNREACHABLE_MSG("Expected a static inner node from deep_copy()");
     return config::tree(_strict, new_root);
 }
 
@@ -92,13 +95,11 @@ config::tree::deep_copy(void) const
 config::tree
 config::tree::combine(const tree& overrides) const
 {
-    const detail::static_inner_node* other_root =
-        dynamic_cast< const detail::static_inner_node * >(
-            overrides._root.get());
-
     detail::static_inner_node* new_root =
         dynamic_cast< detail::static_inner_node* >(
-            _root->combine(detail::tree_key(), other_root));
+            _root->combine(detail::tree_key(), overrides._root.get()));
+    if (new_root == nullptr)
+        UNREACHABLE_MSG("Expected a static inner node from combine()");
     return config::tree(_strict, new_root);
 }
 
