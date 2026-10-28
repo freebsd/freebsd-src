@@ -184,7 +184,8 @@ src.txz:
 	mkdir -p ${DISTDIR}/usr
 	rm -f ${DISTDIR}/usr/src
 	ln -s ${WORLDDIR} ${DISTDIR}/usr/src
-	( cd ${DISTDIR} && ${TAR_XZ_CMD} -cLvf ${.OBJDIR}/src.txz \
+	( cd ${DISTDIR} && ${TAR_XZ_CMD} -cHvf ${.OBJDIR}/src.txz \
+	    --uid 0 --gid 0 --uname root --gname wheel \
 	    --exclude .svn --exclude .zfs \
 	    --exclude .git --exclude .got --exclude @ --exclude usr/src/release/dist \
 	    --exclude usr/src/release/obj usr/src )
@@ -193,7 +194,8 @@ ports.txz:
 	mkdir -p ${DISTDIR}/usr
 	rm -f ${DISTDIR}/usr/ports
 	ln -s ${PORTSDIR} ${DISTDIR}/usr/ports
-	( cd ${DISTDIR} && ${TAR_XZ_CMD} -cLvf ${.OBJDIR}/ports.txz \
+	( cd ${DISTDIR} && ${TAR_XZ_CMD} -cHvf ${.OBJDIR}/ports.txz \
+	    --uid 0 --gid 0 --uname root --gname wheel \
 	    --exclude .git --exclude .got --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports )
