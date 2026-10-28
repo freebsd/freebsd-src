@@ -2872,9 +2872,9 @@ _other_bootstrap_tools+=usr.bin/bmake
 _other_bootstrap_tools+=lib/libbz2
 ${_bt}-usr.bin/grep: ${_bt}-lib/libbz2
 
-# libdwarf depends on libz
+# libdwarf and mandoc depend on libz
 _other_bootstrap_tools+=lib/libz
-${_bt}-lib/libdwarf: ${_bt}-lib/libz
+${_bt}-lib/libdwarf ${_bt}-usr.bin/mandoc: ${_bt}-lib/libz
 
 # libroken depends on libcrypt
 _other_bootstrap_tools+=lib/libcrypt
