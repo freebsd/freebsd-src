@@ -252,13 +252,19 @@ snl_clear_lb(struct snl_state *ss)
 static void
 snl_free(struct snl_state *ss)
 {
-	if (ss->init_done)
+	if (ss->init_done) {
 		close(ss->fd);
-	if (ss->buf != NULL)
+		ss->fd = -1;
+		ss->init_done = false;
+	}
+	if (ss->buf != NULL) {
 		free(ss->buf);
+		ss->buf = NULL;
+	}
 	if (ss->lb != NULL) {
 		snl_clear_lb(ss);
 		lb_free(ss->lb);
+		ss->lb = NULL;
 	}
 }
 
