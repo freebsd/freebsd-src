@@ -1602,6 +1602,9 @@ trap_fred_u(struct trapframe_fred *frame)
 	u_int type, vec;
 	bool do_trapsig;
 
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 	td = curthread;
 	type = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_TYPEMASK;
 	vec = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_VECMASK;
@@ -1864,6 +1867,9 @@ trap_fred_k(struct trapframe_fred *frame)
 {
 	struct thread *td;
 	u_int vec;
+
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 
 	td = curthread;
 	vec = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_VECMASK;
