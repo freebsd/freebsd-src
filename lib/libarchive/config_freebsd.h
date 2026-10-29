@@ -129,6 +129,7 @@
 #define HAVE_EFTYPE 1
 #define HAVE_EILSEQ 1
 #define HAVE_ERRNO_H 1
+#define HAVE_EXPLICIT_BZERO 1
 #define HAVE_EXTATTR_GET_FD 1
 #define HAVE_EXTATTR_GET_FILE 1
 #define HAVE_EXTATTR_GET_LINK 1
@@ -166,6 +167,7 @@
 #define HAVE_GETPWUID_R 1
 #define HAVE_GETRESGID 1
 #define HAVE_GETRESUID 1
+#define HAVE_GETTIMEOFDAY 1
 #define HAVE_GETVFSBYNAME 1
 #define HAVE_GMTIME_R 1
 #define HAVE_GRP_H 1
@@ -193,6 +195,7 @@
 #define HAVE_MBRTOWC 1
 #define HAVE_MEMMOVE 1
 #define HAVE_MEMSET 1
+#define HAVE_MEMSET_EXPLICIT 1
 #define HAVE_MKDIR 1
 #define HAVE_MKFIFO 1
 #define HAVE_MKNOD 1
@@ -288,6 +291,7 @@
 #define HAVE_UTIME_H 1
 #define HAVE_VFORK 1
 #define HAVE_VPRINTF 1
+#define HAVE_WAITPID 1
 #define HAVE_WCHAR_H 1
 #define HAVE_WCHAR_T 1
 #define HAVE_WCRTOMB 1
