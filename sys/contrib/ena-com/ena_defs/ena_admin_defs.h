@@ -868,6 +868,11 @@ struct ena_admin_feature_offload_desc {
 	uint32_t rx_enabled;
 };
 
+enum ena_admin_rss_feature_version {
+	/* Support RSS configuration based on device advertised values */
+	ENA_ADMIN_RSS_FEATURE_VERSION_1             = 1,
+};
+
 enum ena_admin_hash_functions {
 	ENA_ADMIN_TOEPLITZ                          = 1,
 	ENA_ADMIN_CRC32                             = 2,
