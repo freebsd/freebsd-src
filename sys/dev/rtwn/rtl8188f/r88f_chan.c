@@ -249,7 +249,6 @@ r88f_spur_calibration(struct rtwn_softc *sc, struct ieee80211_channel *c,
 void
 r88f_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
-	struct r92c_softc *rs = sc->sc_priv;
 	uint32_t reg;
 	uint8_t chan, subchannel;
 	bool sec_ch_above;
@@ -302,10 +301,8 @@ r88f_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		if (IEEE80211_IS_CHAN_HT40U(c) ||
 			IEEE80211_IS_CHAN_VHT40U(c)) {
 			sec_ch_above = 1;
-			chan += 2;
 		} else {
 			sec_ch_above = 0;
-			chan -= 2;
 		}
 
 		/* Set Control channel to upper or lower. */
@@ -353,6 +350,4 @@ r88f_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 	rtwn_rf_write(sc, 0, R92C_RF_RX_G2, 0x1c6c);
 	rtwn_rf_write(sc, 0, R88F_RF_GAIN_CCA,
 	    R88F_RF_PKTBUF_DBG_CTRL);
-	rtwn_rf_write(sc, 0, R92C_RF_CHNLBW,
-		(rs->rf_chnlbw[0] & ~0xfff) | chan | R88E_RF_CHNLBW_BW20);
 }
