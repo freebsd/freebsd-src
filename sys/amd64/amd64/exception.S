@@ -1639,6 +1639,10 @@ fred_eretu_fault:
 	.globl	fred_events_handlers, fred_events_handlers_end
 fred_events_handlers:
 	subq	$TF_ERR,%rsp
+	/*
+	 * %rax is saved early both to provide a free register and to
+	 * show the right syscall number in ddb backtrace.
+	 */
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
