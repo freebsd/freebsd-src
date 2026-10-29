@@ -1863,7 +1863,7 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	case IDT_XF:
 		break;
 	default:
-		printf("Missing FRED handler for exception %d", exc);
+		printf("Missing FRED handler for exception %d\n", exc);
 		trap_fatal(&frame->tf_idt, 0);
 	}
 	trap_fatal(&frame->tf_idt, 0);
