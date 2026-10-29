@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 23, 2026
+.Dd October 30, 2026
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -68,16 +68,17 @@ Phabricator reviews based on git commits.
 It is geared towards
 .Fx
 development.
-It requires the
-.Pa devel/git ,
-.Pa devel/arcanist-lib
+It requires
+.Pa arc ,
+.Pa git ,
 and
-.Pa textproc/jq
-packages; these will be installed automatically if
+.Pa jq .
+The dependencies will be installed automatically if
 .Nm
 is installed via the
 .Pa devel/freebsd-git-arc
-package.
+package on
+.Fx .
 .Pp
 .Nm
 assumes a one-to-one relationship between git commits and
