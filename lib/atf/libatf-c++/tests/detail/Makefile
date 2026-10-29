@@ -29,5 +29,5 @@ BINDIR.${p}=	${TESTSDIR}
 .endfor
 version_helper.o: atf-version
 
-.include "../../../common.mk"
+.include "${SRCTOP}/lib/atf/common.mk"
 .include <bsd.test.mk>

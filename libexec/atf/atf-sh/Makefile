@@ -75,5 +75,5 @@ SUBR=		libatf-sh.subr
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
-.include "../../../lib/atf/common.mk"
+.include "${SRCTOP}/lib/atf/common.mk"
 .include <bsd.prog.mk>
