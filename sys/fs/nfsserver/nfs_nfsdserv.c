@@ -6021,7 +6021,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = ret;
 	if (nd->nd_repstat == 0 && (at.na_uid != nd->nd_cred->cr_uid ||
-	     NFSVNO_EXSTRICTACCESS(exp)))
+	     NFSVNO_EXSTRICTACCESS(toexp)))
 		nd->nd_repstat = nfsvno_accchk(tovp, VWRITE, nd->nd_cred, toexp,
 		    curthread, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED,
 		    NULL);
@@ -6250,7 +6250,7 @@ nfsrvd_clone(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = ret;
 	if (nd->nd_repstat == 0 && (at.na_uid != nd->nd_cred->cr_uid ||
-	     NFSVNO_EXSTRICTACCESS(exp)))
+	     NFSVNO_EXSTRICTACCESS(toexp)))
 		nd->nd_repstat = nfsvno_accchk(tovp, VWRITE, nd->nd_cred, toexp,
 		    curthread, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED,
 		    NULL);
