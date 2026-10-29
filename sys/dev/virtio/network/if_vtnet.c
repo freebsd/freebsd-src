@@ -1314,6 +1314,8 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	}
 
 	ether_ifattach(ifp, sc->vtnet_hwaddr);
+	if (if_getmtu(ifp) > sc->vtnet_max_mtu)
+		if_setmtu(ifp, sc->vtnet_max_mtu);
 
 	/* Tell the upper layer(s) we support long frames. */
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
