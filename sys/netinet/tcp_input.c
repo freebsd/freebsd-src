@@ -131,7 +131,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_log_in_vain), 0,
     "Log all incoming TCP segments to closed ports");
 
-VNET_DEFINE(int, tcp_bind_all_fibs) = 0;
+VNET_DEFINE(int, tcp_bind_all_fibs) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, bind_all_fibs, CTLFLAG_VNET | CTLFLAG_RDTUN,
     &VNET_NAME(tcp_bind_all_fibs), 0,
     "Bound sockets receive traffic from all FIBs");

@@ -103,7 +103,7 @@
  * Per RFC 3828, July, 2004.
  */
 
-VNET_DEFINE(int, udp_bind_all_fibs) = 0;
+VNET_DEFINE(int, udp_bind_all_fibs) = 1;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, bind_all_fibs, CTLFLAG_VNET | CTLFLAG_RDTUN,
     &VNET_NAME(udp_bind_all_fibs), 0,
     "Bound sockets receive traffic from all FIBs");

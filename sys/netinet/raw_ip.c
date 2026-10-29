@@ -128,7 +128,7 @@ void (*ip_rsvp_force_done)(struct socket *);
 #endif /* INET */
 
 #define	V_rip_bind_all_fibs	VNET(rip_bind_all_fibs)
-VNET_DEFINE(int, rip_bind_all_fibs) = 0;
+VNET_DEFINE(int, rip_bind_all_fibs) = 1;
 SYSCTL_INT(_net_inet_raw, OID_AUTO, bind_all_fibs, CTLFLAG_VNET | CTLFLAG_RDTUN,
     &VNET_NAME(rip_bind_all_fibs), 0,
     "Bound sockets receive traffic from all FIBs");
