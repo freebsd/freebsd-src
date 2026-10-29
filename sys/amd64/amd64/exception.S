@@ -1488,12 +1488,6 @@ user_fred_non_syscall:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	SAVE_SEGS
-	movq	PCPU(CURTHREAD),%r9
-	movq	TD_PCB(%r9),%r8
-	rdfsbase %rax
-	movq	%rax,PCB_FSBASE(%r8)
-	rdgsbase %rax
-	movq	%rax,PCB_GSBASE(%r8)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	KMSAN_ENTER
 	movq	%rsp, %rdi
