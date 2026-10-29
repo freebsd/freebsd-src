@@ -1016,16 +1016,17 @@ rk_pinctrl_parse_drive(struct rk_pinctrl_softc *sc, phandle_t node,
 	int i;
 
 	if (OF_getencprop(node, "drive-strength", &value,
-	    sizeof(value)) != 0)
+	    sizeof(value)) != sizeof(value))
 		return (-1);
 
 	/* Map to the correct drive value */
 	for (i = 0; i < sc->conf->npin_drive; i++) {
-		if (sc->conf->pin_drive[i].bank != bank &&
+		if (sc->conf->pin_drive[i].bank != bank ||
 		    sc->conf->pin_drive[i].subbank != subbank)
 			continue;
 		if (sc->conf->pin_drive[i].ma == value) {
 			*drive = sc->conf->pin_drive[i].value;
+			*offset = sc->conf->pin_drive[i].offset;
 			return (0);
 		}
 	}
