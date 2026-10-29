@@ -1676,6 +1676,22 @@ trap_fred_u(struct trapframe_fred *frame)
 			frame->tf_idt.tf_err = fred_inst_len(frame);
 			ia32_syscall(&frame->tf_idt);
 			break;
+		} else
+#endif
+		if (vec == IDT_BP || vec == IDT_OF) {
+			trap_fred_ev_to_trapno(frame, vec);
+			trap_fred_update_thread(td, frame);
+			trap_fred_handle_u_exc(td, frame, vec, &ksi,
+			    &do_trapsig);
+			break;
+		}
+#ifdef KDTRACE_HOOKS
+		else if (vec == IDT_DTRACE_RET) {
+			frame->tf_idt.tf_trapno = T_DTRACE_RET;
+			trap_fred_update_thread(td, frame);
+			(void)trap_user_dtrace(&frame->tf_idt,
+			    &dtrace_return_probe_ptr);
+			return;
 		}
 #endif
 		trap_fred_u_noperm(frame, &ksi);
