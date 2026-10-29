@@ -101,7 +101,7 @@ get_bool_config()
 #
 setup()
 {
-    [ -x "${ARC_CMD}" ] || err "arc is required, install devel/arcanist-lib"
+    [ -x "${ARC_CMD}" ] || err "arc is required, install devel/phorgeit-arcanist-lib"
     which jq >/dev/null 2>&1 || err "jq is required, install textproc/jq"
 
     if [ "$VERBOSE" ]; then
@@ -152,9 +152,7 @@ setup()
 # the devel/arcanist-port, which installs a symlink in ${LOCALBASE}/bin
 # but conflicts with the archivers/arc port.
 #
-: "${LOCALBASE:=$(sysctl -n user.localbase)}"
-: "${LOCALBASE:=/usr/local}"
-: "${ARC_CMD:=${LOCALBASE}/lib/php/arcanist/bin/arc}"
+: "${ARC_CMD:="$(command -v arc)"}"
 arc()
 {
     ${ARC_CMD} "$@"
