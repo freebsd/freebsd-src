@@ -452,7 +452,7 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 	struct cam_path *path;
 	struct cam_periph *periph = NULL;
 	uint64_t scsi_lun;
-	uint64_t timeout;
+	sbintime_t timeout;
 
 	/* The reset path can get here before the SIM is attached. */
 	if (ctrlr->ufshci_sim == NULL)
@@ -466,7 +466,7 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 	}
 
 	/* Wait for the perip device to be found */
-	timeout = ticks + MSEC_2_TICKS(ctrlr->device_init_timeout_in_ms);
+	timeout = sbinuptime() + mstosbt(ctrlr->device_init_timeout_in_ms);
 
 	while (1) {
 		xpt_path_lock(path);
@@ -478,7 +478,7 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 		if (periph)
 			break;
 
-		if (timeout - ticks < 0) {
+		if (sbinuptime() >= timeout) {
 			ufshci_printf(ctrlr,
 			    "Failed to find the Well known LUN(0x%x)\n", wlun);
 			break;
