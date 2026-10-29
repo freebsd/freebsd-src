@@ -1671,6 +1671,18 @@ fred_events_handlers:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	movq	%rsp, %rdi
+#ifdef KDTRACE_HOOKS
+	movl	TF_FRED_EVINFO2(%rsp),%eax
+	andl	$TF_FRED_EVINFO2_EXCMASK,%eax
+	cmpl	$(TF_FRED_EVINFO2_TYPE_INT3 | IDT_BP),%eax
+	jne	2f
+	cmpq	$0,dtrace_invop_jump_addr
+	je	1f
+	movq	$1f,dtrace_invop_calltrap_addr(%rip)
+	jmpq	*dtrace_invop_jump_addr
+1:	movq	%rsp,%rdi
+2:
+#endif
 	KMSAN_ENTER
 	call	trap_fred_k
 	KMSAN_LEAVE
