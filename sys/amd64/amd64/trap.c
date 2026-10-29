@@ -356,6 +356,15 @@ static const struct sfhandler sfhandlers[] = {
 	},
 };
 
+static void
+trap_update_thread(struct thread *td, struct trapframe *frame)
+{
+	td->td_pticks = 0;
+	td->td_frame = frame;
+	if (td->td_cowgen != atomic_load_int(&td->td_proc->p_cowgen))
+		thread_cow_update(td);
+}
+
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
@@ -404,11 +413,8 @@ trap(struct trapframe *frame)
 		/* user trap */
 		trap_check_intr_user(td, frame);
 
-		td->td_pticks = 0;
-		td->td_frame = frame;
+		trap_update_thread(td, frame);
 		addr = frame->tf_rip;
-		if (td->td_cowgen != atomic_load_int(&p->p_cowgen))
-			thread_cow_update(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -1591,6 +1597,12 @@ trap_fred_u_noperm(struct trapframe_fred *frame, ksiginfo_t *ksi)
 	ksi->ksi_addr = (void *)frame->tf_idt.tf_rip;
 }
 
+static void
+trap_fred_update_thread(struct thread *td, struct trapframe_fred *frame)
+{
+	trap_update_thread(td, &frame->tf_idt);
+}
+
 int fred_verbose_events;
 
 void trap_fred_u(struct trapframe_fred *frame);
@@ -1654,10 +1666,7 @@ trap_fred_u(struct trapframe_fred *frame)
 		    &frame->tf_idt, frame->tf_idt.tf_trapno) != 0)
 			return;
 #endif
-		td->td_pticks = 0;
-		td->td_frame = &frame->tf_idt;
-		if (td->td_cowgen != atomic_load_int(&td->td_proc->p_cowgen))
-			thread_cow_update(td);
+		trap_fred_update_thread(td, frame);
 		trap_fred_handle_u_exc(td, frame, vec, &ksi, &do_trapsig);
 		break;
 	case TF_FRED_EVINFO2_TYPE_INTn:
