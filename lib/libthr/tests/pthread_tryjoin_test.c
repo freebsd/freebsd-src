@@ -7,6 +7,9 @@
  * under sponsorship from the FreeBSD Foundation.
  */
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 #include <atf-c.h>
 #include <err.h>
 #include <errno.h>
