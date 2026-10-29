@@ -1392,14 +1392,14 @@ trap_fred_extint(struct trapframe_fred *frame, u_int vec)
 			}
 			break;
 		}
-#ifdef DEV_ISA
-#ifdef DEV_ATPIC
 		if (vec >= IDT_IO_INTS && vec < IDT_IO_INTS + NUM_ISA_IRQS) {
+#if defined(DEV_ISA) && defined(DEV_ATPIC)
 			atpic_handle_intr(vec - IDT_IO_INTS, &frame->tf_idt);
+#else
+			/* spuriousint() */
+#endif
 			break;
 		}
-#endif
-#endif
 		/* apic ioint */
 		lapic_handle_intr(vec, &frame->tf_idt);
 		break;
