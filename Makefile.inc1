@@ -2779,7 +2779,7 @@ ${_bt}-${_tool}: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
 .endfor
 .endif
 
-${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
+${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libz
 
 # The tools listed in _basic_bootstrap_tools will generally not be
 # bootstrapped unless BOOTSTRAP_ALL_TOOL is set. However, when building on a
