@@ -995,6 +995,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		(void)sysctl(mib, 4, &old_osrel, &sz, &osrel, sizeof(osrel));
 	}
 
+	lockstate_init(&lockstate);
 	wlock_acquire(rtld_bind_lock, &lockstate);
 
 	dbg("resolving ifuncs");
@@ -1090,6 +1091,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	Elf_Addr target;
 	RtldLockState lockstate;
 
+	lockstate_init(&lockstate);
 relock:
 	rlock_acquire(rtld_bind_lock, &lockstate);
 	if (sigsetjmp(lockstate.env, 0) != 0)
@@ -3623,6 +3625,7 @@ rtld_exit(void)
 {
 	RtldLockState lockstate;
 
+	lockstate_init(&lockstate);
 	wlock_acquire(rtld_bind_lock, &lockstate);
 	dbg("rtld_exit()");
 	objlist_call_fini(&list_fini, NULL, &lockstate);
@@ -3855,6 +3858,7 @@ dlclose(void *handle)
 	RtldLockState lockstate;
 	int error;
 
+	lockstate_init(&lockstate);
 	wlock_acquire(rtld_bind_lock, &lockstate);
 	error = dlclose_locked(handle, &lockstate);
 	lock_release(rtld_bind_lock, &lockstate);
@@ -3946,6 +3950,7 @@ rtld_dlopen(const char *name, int fd, int mode)
 	LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
 	ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
 	if (ld_tracing != NULL) {
+		lockstate_init(&lockstate);
 		rlock_acquire(rtld_bind_lock, &lockstate);
 		if (sigsetjmp(lockstate.env, 0) != 0)
 			lock_upgrade(rtld_bind_lock, &lockstate);
@@ -3990,6 +3995,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	    name != NULL ? name : "<null>", fd,
 	    refobj == NULL ? "<null>" : refobj->path, lo_flags, mode);
 	objlist_init(&initlist);
+	lockstate_init(&mlockstate);
 
 	if (lockstate == NULL && !(lo_flags & RTLD_LO_EARLY)) {
 		wlock_acquire(rtld_bind_lock, &mlockstate);
@@ -4134,6 +4140,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	void *sym;
 	int res;
 
+	lockstate_init(&lockstate);
 	def = NULL;
 	defobj = NULL;
 	symlook_init(&req, name);
@@ -4318,6 +4325,7 @@ _rtld_addr_phdr(const void *addr, struct dl_phdr_info *phdr_info)
 	const Obj_Entry *obj;
 	RtldLockState lockstate;
 
+	lockstate_init(&lockstate);
 	rlock_acquire(rtld_bind_lock, &lockstate);
 	obj = obj_from_addr(addr);
 	if (obj == NULL) {
@@ -4339,6 +4347,7 @@ dladdr(const void *addr, Dl_info *info)
 	unsigned long symoffset;
 	RtldLockState lockstate;
 
+	lockstate_init(&lockstate);
 	rlock_acquire(rtld_bind_lock, &lockstate);
 	obj = obj_from_addr(addr);
 	if (obj == NULL) {
@@ -4393,6 +4402,7 @@ dlinfo(void *handle, int request, void *p)
 	RtldLockState lockstate;
 	int error;
 
+	lockstate_init(&lockstate);
 	rlock_acquire(rtld_bind_lock, &lockstate);
 
 	if (handle == NULL || handle == RTLD_SELF) {
@@ -4484,6 +4494,8 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 
 	init_marker(&marker);
 	error = 0;
+	lockstate_init(&bind_lockstate);
+	lockstate_init(&phdr_lockstate);
 
 	wlock_acquire(rtld_phdr_lock, &phdr_lockstate);
 	wlock_acquire(rtld_bind_lock, &bind_lockstate);
@@ -5494,6 +5506,7 @@ tls_get_addr_slow(struct tcb *tcb, int index, size_t offset, bool locked)
 	RtldLockState lockstate;
 	int to_copy;
 
+	lockstate_init(&lockstate);
 	dtv = tcb->tcb_dtv;
 	/* Check dtv generation in case new modules have arrived */
 	if (dtv->dtv_gen != tls_dtv_generation) {
@@ -5968,6 +5981,7 @@ _rtld_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 	void *ret;
 	RtldLockState lockstate;
 
+	lockstate_init(&lockstate);
 	wlock_acquire(rtld_bind_lock, &lockstate);
 	ret = allocate_tls(globallist_curr(TAILQ_FIRST(&obj_list)), oldtcb,
 	    tcbsize, tcbalign);
@@ -5980,6 +5994,7 @@ _rtld_free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
 {
 	RtldLockState lockstate;
 
+	lockstate_init(&lockstate);
 	wlock_acquire(rtld_bind_lock, &lockstate);
 	free_tls(tcb, tcbsize, tcbalign);
 	lock_release(rtld_bind_lock, &lockstate);
@@ -6252,6 +6267,7 @@ _rtld_is_dlopened(void *arg)
 	RtldLockState lockstate;
 	int res;
 
+	lockstate_init(&lockstate);
 	rlock_acquire(rtld_bind_lock, &lockstate);
 	obj = dlcheck(arg);
 	if (obj == NULL)
@@ -6875,6 +6891,7 @@ rtld_set_var(const char *name, const char *val)
 	int error;
 
 	error = ENOENT;
+	lockstate_init(&lockstate);
 	wlock_acquire(rtld_bind_lock, &lockstate);
 	for (i = 0; i < nitems(ld_env_vars); i++) {
 		lvd = &ld_env_vars[i];
