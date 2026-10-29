@@ -169,7 +169,6 @@ db_nextframe(db_addr_t *fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "nmi_calltrap") == 0 ||
 		    strcmp(name, "Xdblfault") == 0 ||
 		    strcmp(name, "fred_events_handlers") == 0 ||
-		    strcmp(name, "user_fred_syscall") == 0 ||
 		    strcmp(name, "user_fred_non_syscall") == 0)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
@@ -183,7 +182,8 @@ db_nextframe(db_addr_t *fp, db_addr_t *ip, struct thread *td)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xfast_syscall") == 0 ||
 		    strcmp(name, "Xfast_syscall_pti") == 0 ||
-		    strcmp(name, "fast_syscall_common") == 0)
+		    strcmp(name, "fast_syscall_common") == 0 ||
+		    strcmp(name, "user_fred_syscall") == 0)
 			frame_type = SYSCALL;
 #ifdef COMPAT_FREEBSD32
 		else if (strcmp(name, "Xint0x80_syscall") == 0)
