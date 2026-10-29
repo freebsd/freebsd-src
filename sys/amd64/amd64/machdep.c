@@ -1398,6 +1398,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 && !pti) {
 		fred = 1;
 		TUNABLE_INT_FETCH("hw.fred", &fred);
+		if (fred != 0)
+			fred = 1;
 	}
 
 	sched_instance_select();
