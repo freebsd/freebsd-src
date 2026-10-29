@@ -1787,9 +1787,9 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	case IDT_DB:
 		/*
 		 * Clear %dr6 when #DB trapped from kernel mode, so
-		 * that PT_GETDBREGS does not report stale value.  FRED updates
-		 * %dr6 despite providing the same information in the
-		 * tf_fred_evdata field.
+		 * that PT_GETDBREGS does not report stale value.
+		 * FRED updates %dr6 despite providing the same
+		 * information in the tf_fred_evdata field.
 		 */
 		load_dr6(0);
 
