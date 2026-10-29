@@ -102,7 +102,7 @@ static cn_ungrab_t	riscv_cnungrab;
 
 CONSOLE_DRIVER(riscv);
 
-#define	MAX_BURST_LEN		1
+#define	MAX_BURST_LEN		256
 #define	PUTC_BUFSZ		128
 
 static char putc_buf[PUTC_BUFSZ] __aligned(128);
@@ -156,17 +156,13 @@ riscvtty_outwakeup(struct tty *tp)
 {
 	u_char buf[MAX_BURST_LEN];
 	int len;
-	int i;
 
 	for (;;) {
 		len = ttydisc_getc(tp, buf, sizeof(buf));
 		if (len == 0)
 			break;
 
-		KASSERT(len == 1, ("tty error"));
-
-		for (i = 0; i < len; i++)
-			riscv_putc(buf[i]);
+		sbi_console_write(buf, len);
 	}
 }
 
