@@ -27,6 +27,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/event.h>
+#include <sys/ioctl.h>
 #include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -1579,6 +1581,54 @@ ATF_TC_BODY(resolve_beneath_preserved, tc)
 	closesocketpair(fd);
 }
 
+/*
+ * FIONREAD, fstat(2) st_size and EVFILT_READ data report data bytes only,
+ * also while a control message is queued.
+ */
+static void
+check_pending(int fd, int expect)
+{
+	struct timespec zero = { 0, 0 };
+	struct kevent kev;
+	struct stat sb;
+	int kq, n;
+
+	ATF_REQUIRE(ioctl(fd, FIONREAD, &n) == 0);
+	ATF_REQUIRE_INTEQ(expect, n);
+	dofstat(fd, &sb);
+	ATF_REQUIRE_INTEQ(expect, sb.st_size);
+	ATF_REQUIRE((kq = kqueue()) >= 0);
+	EV_SET(&kev, fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+	ATF_REQUIRE(kevent(kq, &kev, 1, &kev, 1, &zero) == 1);
+	ATF_REQUIRE_INTEQ(expect, kev.data);
+	ATF_REQUIRE(close(kq) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(pending_data_with_rights);
+ATF_TC_BODY(pending_data_with_rights, tc)
+{
+	char buf[16], payload[] = "hello";
+	int fd[2], putfd, getfd;
+	ssize_t rlen;
+
+	domainsocketpair(fd);
+	devnull(&putfd);
+
+	ATF_REQUIRE(sendfd_payload(fd[0], putfd, payload, 5) == 5);
+	check_pending(fd[1], 5);
+	ATF_REQUIRE(send(fd[0], payload, 5, 0) == 5);
+	check_pending(fd[1], 10);
+
+	rlen = recvfd_payload(fd[1], &getfd, buf, 5, CMSG_SPACE(sizeof(int)),
+	    0);
+	ATF_REQUIRE_INTEQ(5, rlen);
+	ATF_REQUIRE(close(getfd) == 0);
+	check_pending(fd[1], 5);
+
+	ATF_REQUIRE(close(putfd) == 0);
+	closesocketpair(fd);
+}
+
 ATF_TC_WITHOUT_HEAD(listening_socket);
 ATF_TC_BODY(listening_socket, tc)
 {
@@ -1635,6 +1685,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, control_creates_records);
 	ATF_TP_ADD_TC(tp, cross_jail_dirfd);
 	ATF_TP_ADD_TC(tp, resolve_beneath_preserved);
+	ATF_TP_ADD_TC(tp, pending_data_with_rights);
 	ATF_TP_ADD_TC(tp, listening_socket);
 
 	return (atf_no_error());

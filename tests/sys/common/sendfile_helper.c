@@ -26,6 +26,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -160,10 +161,90 @@ receiver(void *arg)
 	return NULL;
 }
 
+/*
+ * Queue a byte with SCM_RIGHTS on a unix(4) socket right behind the sendfile
+ * data, which isn't ready yet if the disk I/O is slow, then receive everything
+ * and check that the socket is empty and reports so.
+ */
+static void
+unix_rights(int fd, off_t start, size_t len, int flags)
+{
+	char cbuf[CMSG_SPACE(sizeof(int))], rcbuf[CMSG_SPACE(sizeof(int))];
+	struct cmsghdr *cmsg;
+	struct iovec iov;
+	struct msghdr msg;
+	off_t sbytes;
+	size_t total;
+	ssize_t rv;
+	int n, nfd, rights, ss[2];
+
+	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, ss) != 0)
+		err(1, "socketpair");
+	nfd = open("/dev/null", O_RDONLY);
+	if (nfd < 0)
+		err(1, "open /dev/null");
+
+	if (sendfile(fd, ss[0], start, len, NULL, &sbytes, flags) < 0)
+		err(3, "sendfile");
+
+	memset(cbuf, 0, sizeof(cbuf));
+	iov.iov_base = "x";
+	iov.iov_len = 1;
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+	memcpy(CMSG_DATA(cmsg), &nfd, sizeof(int));
+	if (sendmsg(ss[0], &msg, 0) != 1)
+		err(1, "sendmsg");
+
+	rights = 0;
+	for (total = 0; total < (size_t)sbytes + 1; total += rv) {
+		iov.iov_base = buf;
+		iov.iov_len = sizeof(buf);
+		memset(&msg, 0, sizeof(msg));
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_control = rcbuf;
+		msg.msg_controllen = sizeof(rcbuf);
+		rv = recvmsg(ss[1], &msg, 0);
+		if (rv == -1)
+			err(2, "recvmsg");
+		if (rv == 0)
+			errx(4, "unexpected EOF after %zu of %jd bytes", total,
+			    (intmax_t)sbytes + 1);
+		cmsg = CMSG_FIRSTHDR(&msg);
+		if (cmsg != NULL && cmsg->cmsg_level == SOL_SOCKET &&
+		    cmsg->cmsg_type == SCM_RIGHTS) {
+			memcpy(&n, CMSG_DATA(cmsg), sizeof(int));
+			close(n);
+			rights++;
+		}
+	}
+	if (rights != 1)
+		errx(4, "received %d SCM_RIGHTS messages", rights);
+
+	/* Check the count before reading from the empty socket. */
+	if (ioctl(ss[1], FIONREAD, &n) == -1)
+		err(1, "FIONREAD");
+	if (n != 0)
+		errx(4, "FIONREAD %d after receiving everything", n);
+	rv = recv(ss[1], buf, sizeof(buf), MSG_DONTWAIT);
+	if (rv != -1 || errno != EAGAIN)
+		errx(4, "recv on the empty socket returned %zd", rv);
+
+	exit(0);
+}
+
 static void
 usage(void)
 {
-	errx(1, "usage: %s [-u] [-c host] [-p port] "
+	errx(1, "usage: %s [-u [-r]] [-c host] [-p port] "
 	    "<file> <start> <len> <flags>", getprogname());
 }
 
@@ -174,10 +255,11 @@ main(int argc, char **argv)
 	off_t start;
 	int ch, fd, ss[2], flags, error;
 	bool pf_unix = false;
+	bool rights = false;
 	bool tcp_client = false;
 	const char *host, *port;
 
-	while ((ch = getopt(argc, argv, "c:p:u")) != -1)
+	while ((ch = getopt(argc, argv, "c:p:ru")) != -1)
 		switch (ch) {
 		case 'c':
 			host = optarg;
@@ -186,6 +268,9 @@ main(int argc, char **argv)
 		case 'p':
 			port = optarg;
 			tcp_client = true;
+			break;
+		case 'r':
+			rights = true;
 			break;
 		case 'u':
 			pf_unix = true;
@@ -200,6 +285,8 @@ main(int argc, char **argv)
 		usage();
 	if (tcp_client && (host == NULL || port == NULL))
 		errx(1, "Need to specify host and port.");
+	if (rights && !pf_unix)
+		usage();
 
 	start = strtoull(argv[1], NULL, 0);
 	readlen = strtoull(argv[2], NULL, 0);
@@ -208,6 +295,9 @@ main(int argc, char **argv)
 	fd = open(argv[0], O_RDONLY);
 	if (fd < 0)
 		err(1, "open");
+
+	if (rights)
+		unix_rights(fd, start, readlen, flags);
 
 	if (pf_unix) {
 		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, ss) != 0)
