@@ -312,15 +312,15 @@ fdt_add_pcie(int intrs[static 4])
 		pin = i % 4;
 		slot = i / 4;
 		intr = intrs[(pin + slot) % 4];
-		SET_PROP_U32(prop, 10 * i + 0, slot << 11);
-		SET_PROP_U32(prop, 10 * i + 1, 0);
-		SET_PROP_U32(prop, 10 * i + 2, 0);
-		SET_PROP_U32(prop, 10 * i + 3, pin + 1);
-		SET_PROP_U32(prop, 10 * i + 4, aplic_phandle);
-		SET_PROP_U32(prop, 10 * i + 5, 0);
-		SET_PROP_U32(prop, 10 * i + 6, 0);
-		SET_PROP_U32(prop, 10 * i + 7, intr);
-		SET_PROP_U32(prop, 10 * i + 8, IRQ_TYPE_LEVEL_HIGH);
+		SET_PROP_U32(prop, 9 * i + 0, slot << 11);
+		SET_PROP_U32(prop, 9 * i + 1, 0);
+		SET_PROP_U32(prop, 9 * i + 2, 0);
+		SET_PROP_U32(prop, 9 * i + 3, pin + 1);
+		SET_PROP_U32(prop, 9 * i + 4, aplic_phandle);
+		SET_PROP_U32(prop, 9 * i + 5, 0);
+		SET_PROP_U32(prop, 9 * i + 6, 0);
+		SET_PROP_U32(prop, 9 * i + 7, intr);
+		SET_PROP_U32(prop, 9 * i + 8, IRQ_TYPE_LEVEL_HIGH);
 	}
 
 	fdt_end_node(fdt);
