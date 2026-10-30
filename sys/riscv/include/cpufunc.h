@@ -127,6 +127,35 @@ hfence_gvma(void)
 }
 
 static __inline void
+hfence_vma(void)
+{
+
+	__asm __volatile("hfence.vvma" : : : "memory");
+}
+
+static __inline void
+hfence_vma_page(uintptr_t addr)
+{
+
+	__asm __volatile("hfence.vvma %0" :: "r" (addr) : "memory");
+}
+
+static __inline void
+hfence_vma_asid(uint64_t asid)
+{
+
+	__asm __volatile("hfence.vvma x0, %0" :: "r" (asid) : "memory");
+}
+
+static __inline void
+hfence_vma_asid_page(uint64_t asid, uintptr_t addr)
+{
+
+	__asm __volatile("hfence.vvma %0, %1" :: "r" (addr), "r" (asid)
+	    : "memory");
+}
+
+static __inline void
 sfence_inval_ir(void)
 {
 
