@@ -91,14 +91,52 @@ static const time_t CumulativeDays[2][14] = {
 	31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
 	31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31 }};
 
+static EFI_EVENT time_event;
+static volatile time_t current_time;
+static int EFI_GetTimeOfDay(struct timeval *, struct timezone *);
+
+static void EFIAPI
+time_update(EFI_EVENT event, void *context)
+{
+
+	(void)event;
+	(void)context;
+	current_time++;
+}
+
 void
 efi_time_init(void)
 {
+	struct timeval tv = { 0 };
+	EFI_STATUS status;
+
+	if (time_event != NULL)
+		return;
+	/* Start from the wall clock, but do not time deadlines with it. */
+	EFI_GetTimeOfDay(&tv, NULL);
+	current_time = tv.tv_sec;
+	status = BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
+	    time_update, NULL, &time_event);
+	if (!EFI_ERROR(status)) {
+		status = BS->SetTimer(time_event, TimerPeriodic, 10000000);
+		if (EFI_ERROR(status))
+			BS->CloseEvent(time_event);
+	}
+	if (EFI_ERROR(status)) {
+		time_event = NULL;
+		printf("EFI timer unavailable; using firmware wall clock\n");
+	}
 }
 
 void
 efi_time_fini(void)
 {
+
+	if (time_event == NULL)
+		return;
+	BS->SetTimer(time_event, TimerCancel, 0);
+	BS->CloseEvent(time_event);
+	time_event = NULL;
 }
 
 void
@@ -265,7 +303,10 @@ time(time_t *tloc)
 	struct timeval tv;
 
 	memset(&tv, 0, sizeof(tv));
-	EFI_GetTimeOfDay(&tv, NULL);
+	if (time_event != NULL)
+		tv.tv_sec = current_time;
+	else
+		EFI_GetTimeOfDay(&tv, NULL);
 
 	if (tloc)
 		*tloc = tv.tv_sec;

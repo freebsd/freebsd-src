@@ -55,9 +55,12 @@ void
 efi_time_fini(void)
 {
 
+	if (time_event == NULL)
+		return;
 	/* Cancel the timer */
 	BS->SetTimer(time_event, TimerCancel, 0);
 	BS->CloseEvent(time_event);
+	time_event = NULL;
 }
 
 time_t

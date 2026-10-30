@@ -38,6 +38,7 @@ efi_exit(EFI_STATUS exit_code)
 {
 
 	if (boot_services_active) {
+		efi_time_fini();
 		BS->FreePages(heap, EFI_SIZE_TO_PAGES(heapsize));
 		BS->Exit(IH, exit_code, 0, NULL);
 	} else {
