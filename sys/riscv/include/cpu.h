@@ -89,6 +89,10 @@
 /* SpacemiT marchid values */
 #define	MARCHID_SPACEMIT_K1	MARCHID_COMMERCIAL(0x58000001)
 
+/* T-Head marchid values */
+#define	MARCHID_THEAD_C908	MARCHID_COMMERCIAL(0x09140d00)
+#define	MARCHID_THEAD_C920V2	MARCHID_COMMERCIAL(0x090c0d00)
+
 /*
  * MMU virtual-addressing modes. Support for each level implies the previous,
  * so Sv48-enabled systems MUST support Sv39, etc.

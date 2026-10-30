@@ -140,6 +140,12 @@ static const struct marchid_entry spacemit_marchids[] = {
 	MARCHID_END
 };
 
+static const struct marchid_entry thead_marchids[] = {
+	{ MARCHID_THEAD_C908,	"C908" },
+	{ MARCHID_THEAD_C920V2,	"C920v2" },
+	MARCHID_END
+};
+
 /*
  * Known CPU vendor/manufacturer table.
  */
@@ -150,7 +156,7 @@ static const struct {
 } mvendor_ids[] = {
 	{ MVENDORID_UNIMPL,	"Unspecified",		NULL		},
 	{ MVENDORID_SIFIVE,	"SiFive",		sifive_marchids	},
-	{ MVENDORID_THEAD,	"T-Head",		NULL		},
+	{ MVENDORID_THEAD,	"T-Head",		thead_marchids	},
 	{ MVENDORID_SPACEMIT,	"SpacemiT",		spacemit_marchids	},
 };
 
