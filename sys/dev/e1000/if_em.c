@@ -5227,6 +5227,7 @@ em_initialize_rss_mapping(struct e1000_softc *sc)
 {
 	uint8_t rss_key[4 * RSSKEYLEN];
 	uint32_t reta = 0;
+	uint32_t rss_hash_config, mrqc;
 	struct e1000_hw *hw = &sc->hw;
 	int i;
 
@@ -5257,12 +5258,22 @@ em_initialize_rss_mapping(struct e1000_softc *sc)
 	for (i = 0; i < 32; ++i)
 		E1000_WRITE_REG(hw, E1000_RETA(i), reta);
 
-	E1000_WRITE_REG(hw, E1000_MRQC, E1000_MRQC_RSS_ENABLE_2Q |
-			E1000_MRQC_RSS_FIELD_IPV4_TCP |
-			E1000_MRQC_RSS_FIELD_IPV4 |
-			E1000_MRQC_RSS_FIELD_IPV6_TCP_EX |
-			E1000_MRQC_RSS_FIELD_IPV6_EX |
-			E1000_MRQC_RSS_FIELD_IPV6);
+	/* Configure the hash fields supported by the 82574. */
+	rss_hash_config = rss_gethashconfig();
+	mrqc = E1000_MRQC_RSS_ENABLE_2Q;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_EX;
+	/* On 82574, bit 18 selects TCP/IPv6; bit 21 is reserved. */
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_TCP_EX;
+
+	E1000_WRITE_REG(hw, E1000_MRQC, mrqc);
 }
 
 static void
@@ -5273,6 +5284,7 @@ igb_initialize_rss_mapping(struct e1000_softc *sc)
 	int queue_id;
 	u32 reta;
 	u32 rss_key[10], mrqc, shift = 0;
+	u32 rss_hash_config;
 
 	/* XXX? */
 	if (hw->mac.type == e1000_82575)
@@ -5342,16 +5354,28 @@ igb_initialize_rss_mapping(struct e1000_softc *sc)
 		E1000_WRITE_REG_ARRAY(hw, E1000_RSSRK(0), i, rss_key[i]);
 
 	/*
-	 * Configure the RSS fields to hash upon.
+	 * Match the stack's hash fields, including its UDP 4-tuple policy,
+	 * even when the kernel is built without options RSS.
 	 */
-	mrqc |= (E1000_MRQC_RSS_FIELD_IPV4 |
-	    E1000_MRQC_RSS_FIELD_IPV4_TCP);
-	mrqc |= (E1000_MRQC_RSS_FIELD_IPV6 |
-	    E1000_MRQC_RSS_FIELD_IPV6_TCP);
-	mrqc |=( E1000_MRQC_RSS_FIELD_IPV4_UDP |
-	    E1000_MRQC_RSS_FIELD_IPV6_UDP);
-	mrqc |=( E1000_MRQC_RSS_FIELD_IPV6_UDP_EX |
-	    E1000_MRQC_RSS_FIELD_IPV6_TCP_EX);
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_EX;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6_EX)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_TCP_EX;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_UDP_EX;
 
 	E1000_WRITE_REG(hw, E1000_MRQC, mrqc);
 }
