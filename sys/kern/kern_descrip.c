@@ -2644,13 +2644,16 @@ fdcopy(struct filedesc *fdp, struct proc *p1)
 		if ((ops->fo_flags & DFLAG_FORK) != 0 &&
 		    (ofde->fde_flags & UF_FOCLOSE) == 0) {
 			if (ops->fo_fork(newfdp, ofde->fde_file, &fp, p1,
-			    curthread) != 0)
+			    curthread) != 0) {
+				if (newfdp->fd_freefile > i)
+					newfdp->fd_freefile = i;
 				continue;
+			}
 			fork_pass = true;
 		} else if ((ops->fo_flags & DFLAG_PASSABLE) == 0 ||
 		    (ofde->fde_flags & UF_FOCLOSE) != 0 ||
 		    !fhold(ofde->fde_file)) {
-			if (newfdp->fd_freefile == fdp->fd_freefile)
+			if (newfdp->fd_freefile > i)
 				newfdp->fd_freefile = i;
 			continue;
 		}
