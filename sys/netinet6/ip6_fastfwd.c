@@ -145,19 +145,6 @@ ip6_tryforward(struct mbuf *m)
 			    m->m_pkthdr.len);
 	}
 
-	/*
-	 * Hop limit.
-	 */
-#ifdef IPSTEALTH
-	if (!V_ip6stealth)
-#endif
-	if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
-		icmp6_error(m, ICMP6_TIME_EXCEEDED,
-		    ICMP6_TIME_EXCEED_TRANSIT, 0);
-		m = NULL;
-		goto dropin;
-	}
-
 	bzero(&dst, sizeof(dst));
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(dst);
@@ -197,6 +184,19 @@ ip6_tryforward(struct mbuf *m)
 		dst.sin6_addr = ip6->ip6_dst;
 	}
 passin:
+	/*
+	 * Hop limit, checked after the inbound hooks as on the other
+	 * forwarding paths: a packet they drop gets no time exceeded error.
+	 */
+#ifdef IPSTEALTH
+	if (!V_ip6stealth)
+#endif
+	if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
+		icmp6_error(m, ICMP6_TIME_EXCEEDED,
+		    ICMP6_TIME_EXCEED_TRANSIT, 0);
+		m = NULL;
+		goto dropin;
+	}
 	/*
 	 * Find route to destination.
 	 */

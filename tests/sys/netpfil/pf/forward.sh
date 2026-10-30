@@ -163,8 +163,57 @@ v6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_hlim" "cleanup"
+v6_hlim_head()
+{
+	atf_set descr 'Test that packets pf blocks get no time exceeded error'
+	atf_set require.user root
+}
+
+v6_hlim_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	epair_recv=$(vnet_mkepair)
+
+	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
+	ifconfig ${epair_recv}a up
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_recv}b
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 up no_dad
+	jexec alcatraz ifconfig ${epair_recv}b inet6 2001:db8:43::2/64 up no_dad
+	jexec alcatraz sysctl net.inet6.ip6.forwarding=1
+	jexec alcatraz ndp -s 2001:db8:43::3 00:01:02:03:04:05
+	route add -6 2001:db8:43::/64 2001:db8:42::2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"block in inet6 proto icmp6 icmp6-type echoreq"
+
+	for redirect in 0 1; do
+		jexec alcatraz sysctl net.inet6.ip6.redirect=${redirect}
+		atf_check -s exit:2 -o ignore \
+		    ping -6 -c 1 -m 1 -W 1 2001:db8:43::3
+		atf_check -o match:"[[:space:]]0 time exceed transit" \
+		    jexec alcatraz netstat -s -p icmp6
+	done
+
+	pft_set_rules alcatraz "pass"
+	atf_check -s exit:2 -o ignore ping -6 -c 1 -m 1 -W 1 2001:db8:43::3
+	atf_check -o match:"[[:space:]]1 time exceed transit" \
+	    jexec alcatraz netstat -s -p icmp6
+}
+
+v6_hlim_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
+	atf_add_test_case "v6_hlim"
 }
