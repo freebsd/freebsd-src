@@ -1643,11 +1643,11 @@ trap_fred_u(struct trapframe_fred *frame)
 	case TF_FRED_EVINFO2_TYPE_NMI:
 		frame->tf_idt.tf_trapno = T_NMI;
 		nmi_handle_intr(&frame->tf_idt);
+		fred_out_of_nmi();
 #ifdef HWPMC_HOOKS
 		if ((td->td_pflags & TDP_CALLCHAIN) != 0) {
 			int (*ph)(struct thread *, int, void *);
 
-			fred_out_of_nmi();
 			ph = atomic_load_ptr(&pmc_hook);
 			if (ph != NULL) {
 				enable_intr();
