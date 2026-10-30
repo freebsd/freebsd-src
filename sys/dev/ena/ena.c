@@ -1302,6 +1302,7 @@ static void
 ena_set_io_queue_count(struct ena_adapter *adapter, uint32_t num)
 {
 	adapter->num_io_queues = num;
+	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
 	/* Force indirection table to be reinitialized */
 	ena_com_rss_destroy(adapter->ena_dev);
 }
