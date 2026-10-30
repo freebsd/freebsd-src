@@ -317,10 +317,8 @@ sdhci_dumpcaps_buf(struct sdhci_slot *slot, struct sbuf *s)
 		    (host_caps & MMC_CAP_MMC_DDR52) ? " DDR52" : "",
 		    (host_caps & MMC_CAP_MMC_HS200) ? " HS200" : "",
 		    (host_caps & MMC_CAP_MMC_HS400) ? " HS400" : "",
-		    ((host_caps &
-		    (MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE)) ==
-		    (MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE)) ?
-		    " HS400ES" : "");
+		    ((host_caps & MMC_CAP_MMC_HS400) &&
+		    (host_caps & MMC_CAP_MMC_ENH_STROBE)) ? " HS400ES" : "");
 	if (host_caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
 	    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104))
 		slot_sprintf(slot, s, "UHS-I:%s%s%s%s%s\n",
