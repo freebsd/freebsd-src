@@ -1439,6 +1439,7 @@ ure_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 	sc = if_getsoftc(ifp);
 	if (sc->sc_flags & (URE_FLAG_8156 | URE_FLAG_8156B)) {
 		URE_LOCK(sc);
+		ifmr->ifm_active = IFM_ETHER;
 		ifmr->ifm_status = IFM_AVALID;
 		if (ure_get_link_status(sc)) {
 			ifmr->ifm_status |= IFM_ACTIVE;
@@ -1457,6 +1458,8 @@ ure_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 				ifmr->ifm_active |= IFM_1000_T;
 			else if (status & URE_PHYSTATUS_2500MBPS)
 				ifmr->ifm_active |= IFM_2500_T;
+		} else {
+			ifmr->ifm_active |= IFM_NONE;
 		}
 		URE_UNLOCK(sc);
 		return;
