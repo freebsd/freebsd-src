@@ -571,6 +571,11 @@ _rtw89=		rtw89
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "riscv"
+_iwm=		iwm
+.endif
+
 .if ${MACHINE_CPUARCH} != "arm"
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=	ibcore
@@ -838,7 +843,6 @@ _ips=		ips
 _isci=		isci
 _ipw=		ipw
 _iwi=		iwi
-_iwm=		iwm
 _iwn=		iwn
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
