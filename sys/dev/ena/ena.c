@@ -2140,7 +2140,6 @@ ena_up_complete(struct ena_adapter *adapter)
 		    "Failed to configure RSS\n");
 		return (rc);
 	}
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
 
 	rc = ena_change_mtu(adapter->ifp, if_getmtu(adapter->ifp));
 	if (unlikely(rc != 0))

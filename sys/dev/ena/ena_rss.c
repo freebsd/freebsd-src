@@ -180,6 +180,11 @@ ena_rss_configure(struct ena_adapter *adapter)
 		}
 	}
 
+	if (ena_dev->rss.tbl_log_size == 0) {
+		ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
+		return (0);
+	}
+
 	/* Set indirect table */
 	rc = ena_com_indirect_table_set(ena_dev);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
@@ -194,6 +199,8 @@ ena_rss_configure(struct ena_adapter *adapter)
 	rc = ena_com_set_hash_ctrl(ena_dev);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
 		return (rc);
+
+	ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
 
 	return (0);
 }
