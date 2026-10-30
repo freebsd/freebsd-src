@@ -436,6 +436,10 @@ jm_osd_method_get(void *obj, void *data, const struct meta *meta)
 		p = osd;
 		key = opt->name + strlen(meta->name) + 1;
 		keylen = strlen(key);
+		if (keylen < 1) {
+			error = EINVAL;
+			break;
+		}
 		while ((p = strstr(p, key)) != NULL) {
 			if ((p == osd || *(p - 1) == '\n')
 			    && p[keylen] == '=') {
