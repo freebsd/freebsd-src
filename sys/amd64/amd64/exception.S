@@ -1699,7 +1699,8 @@ fred_out_of_nmi:
 	pushq	$0
 	pushq	$0
 	movw	%ss,%ax
-	orl	$(1<<18),%eax	/* NMI block release for ERETS */
+	/* NMI block release for ERETS */
+	orl	$(TF_FRED_EVINFO1_NMI << 16),%eax
 	pushq	%rax
 	pushq	%rbp
 	pushfq
