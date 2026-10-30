@@ -1639,20 +1639,20 @@ trap_fred_u(struct trapframe_fred *frame)
 	switch (type) {
 	case TF_FRED_EVINFO2_TYPE_EXTINT:
 		trap_fred_extint(frame, vec);
+		enable_intr();
 		break;
 	case TF_FRED_EVINFO2_TYPE_NMI:
 		frame->tf_idt.tf_trapno = T_NMI;
 		nmi_handle_intr(&frame->tf_idt);
 		fred_out_of_nmi();
+		enable_intr();
 #ifdef HWPMC_HOOKS
 		if ((td->td_pflags & TDP_CALLCHAIN) != 0) {
 			int (*ph)(struct thread *, int, void *);
 
 			ph = atomic_load_ptr(&pmc_hook);
-			if (ph != NULL) {
-				enable_intr();
+			if (ph != NULL)
 				ph(td, PMC_FN_USER_CALLCHAIN, &frame->tf_idt);
-			}
 		}
 #endif
 		break;
