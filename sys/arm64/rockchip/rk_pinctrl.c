@@ -1191,6 +1191,9 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 
 			/* Each pin has an 8 bits field, two pins per register */
 			bit = (pin % 2) * 8;
+			/* The field is full from level 7 */
+			if (value > 7)
+				value = 7;
 			drive = ((1 << (value + 1)) - 1) << bit;
 			mask = 0xff << bit;
 
