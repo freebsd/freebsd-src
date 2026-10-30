@@ -1583,6 +1583,7 @@ ure_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->sc_flags & (URE_FLAG_8156 | URE_FLAG_8156B))
 			error = ifmedia_ioctl(ifp, ifr, &sc->sc_ifmedia, cmd);
