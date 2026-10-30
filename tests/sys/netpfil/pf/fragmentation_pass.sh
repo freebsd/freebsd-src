@@ -155,6 +155,60 @@ v6_cleanup()
 	pft_cleanup
 }
 
+# refrag_hlim REDIRECT: with net.inet6.ip6.redirect at REDIRECT on the router
+# (0: ip6_tryforward(), 1: ip6_forward()), a forwarded packet that pf
+# reassembles and refragments loses one hop: the echo reply comes back
+# through alcatraz in fragments, with the hop limit singsing sent minus one.
+refrag_hlim()
+{
+	jexec alcatraz sysctl net.inet6.ip6.redirect=$1
+	atf_check -o match:"icmp_seq=0 hlim=63 " \
+	    ping -6 -c 1 -m 64 -s 4500 2001:db8:43::3
+}
+
+atf_test_case "v6_refrag_hlim" "cleanup"
+v6_refrag_hlim_head()
+{
+	atf_set descr 'Refragmented forwarded IPv6 loses one hop'
+	atf_set require.user root
+}
+
+v6_refrag_hlim_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_link}a
+	vnet_mkjail singsing ${epair_link}b
+
+	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 no_dad up
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 no_dad up
+	jexec alcatraz ifconfig ${epair_link}a inet6 2001:db8:43::2/64 no_dad up
+	jexec alcatraz sysctl net.inet6.ip6.forwarding=1
+
+	jexec singsing ifconfig ${epair_link}b inet6 2001:db8:43::3/64 no_dad up
+	jexec singsing route add -6 2001:db8:42::/64 2001:db8:43::2
+	route add -6 2001:db8:43::/64 2001:db8:42::2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set reassemble yes" \
+		"pass"
+
+	atf_check -o ignore ping -6 -c 1 2001:db8:43::3
+
+	# The fast path: pf must refragment through ip6_forward().
+	refrag_hlim 0
+}
+
+v6_refrag_hlim_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "v6_route_to" "cleanup"
 v6_route_to_head()
 {
@@ -718,6 +772,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
 	atf_add_test_case "v6"
+	atf_add_test_case "v6_refrag_hlim"
 	atf_add_test_case "v6_route_to"
 	atf_add_test_case "mtu_diff"
 	atf_add_test_case "overreplace"

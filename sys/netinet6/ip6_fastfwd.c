@@ -218,7 +218,7 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (pfil_mbuf_out(V_inet6_pfil_head, &m, nh->nh_ifp,
+	if (pfil_mbuf_fwd(V_inet6_pfil_head, &m, nh->nh_ifp,
 	    NULL) != PFIL_PASS)
 		goto dropout;
 
