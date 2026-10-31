@@ -198,7 +198,7 @@ xctrl_suspend(void)
 	KASSERT((PCPU_GET(cpuid) == 0), ("Not running on CPU#0"));
 
 	/*
-	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME.
+	 * Be sure to hold the bus topology lock across DEVICE_SUSPEND/RESUME.
 	 */
 	bus_topo_lock();
 	if (DEVICE_SUSPEND(root_bus) != 0) {
