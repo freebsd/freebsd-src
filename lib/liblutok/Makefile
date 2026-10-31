@@ -18,4 +18,6 @@ CFLAGS+=	-I${SRCTOP}/contrib/lutok/include \
 WARNS?=	3
 SHLIB_MAJOR=	0
 
+CXXSTD=		gnu++20
+
 .include <bsd.lib.mk>
