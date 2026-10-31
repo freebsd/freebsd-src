@@ -242,11 +242,11 @@ struct bus_space memmap_bus = {
 	.bs_c_4 = NULL,
 	.bs_c_8 = NULL,
 
-	/* read single stream */
-	.bs_r_1_s = NULL,
-	.bs_r_2_s = NULL,
-	.bs_r_4_s = NULL,
-	.bs_r_8_s = NULL,
+	/* read single stream (LE CPU + LE bus: no swap, same as non-stream) */
+	.bs_r_1_s = generic_bs_r_1,
+	.bs_r_2_s = generic_bs_r_2,
+	.bs_r_4_s = generic_bs_r_4,
+	.bs_r_8_s = generic_bs_r_8,
 
 	/* read multiple stream */
 	.bs_rm_1_s = generic_bs_rm_1,
@@ -254,17 +254,17 @@ struct bus_space memmap_bus = {
 	.bs_rm_4_s = generic_bs_rm_4,
 	.bs_rm_8_s = generic_bs_rm_8,
 
-	/* read region stream */
-	.bs_rr_1_s = NULL,
-	.bs_rr_2_s = NULL,
-	.bs_rr_4_s = NULL,
-	.bs_rr_8_s = NULL,
+	/* read region stream (LE CPU + LE bus: no swap, same as non-stream) */
+	.bs_rr_1_s = generic_bs_rr_1,
+	.bs_rr_2_s = generic_bs_rr_2,
+	.bs_rr_4_s = generic_bs_rr_4,
+	.bs_rr_8_s = generic_bs_rr_8,
 
-	/* write single stream */
-	.bs_w_1_s = NULL,
-	.bs_w_2_s = NULL,
-	.bs_w_4_s = NULL,
-	.bs_w_8_s = NULL,
+	/* write single stream (LE CPU + LE bus: no swap, same as non-stream) */
+	.bs_w_1_s = generic_bs_w_1,
+	.bs_w_2_s = generic_bs_w_2,
+	.bs_w_4_s = generic_bs_w_4,
+	.bs_w_8_s = generic_bs_w_8,
 
 	/* write multiple stream */
 	.bs_wm_1_s = generic_bs_wm_1,
@@ -272,11 +272,11 @@ struct bus_space memmap_bus = {
 	.bs_wm_4_s = generic_bs_wm_4,
 	.bs_wm_8_s = generic_bs_wm_8,
 
-	/* write region stream */
-	.bs_wr_1_s = NULL,
-	.bs_wr_2_s = NULL,
-	.bs_wr_4_s = NULL,
-	.bs_wr_8_s = NULL,
+	/* write region stream (LE CPU + LE bus: no swap, same as non-stream) */
+	.bs_wr_1_s = generic_bs_wr_1,
+	.bs_wr_2_s = generic_bs_wr_2,
+	.bs_wr_4_s = generic_bs_wr_4,
+	.bs_wr_8_s = generic_bs_wr_8,
 
 	/* peek */
 	.bs_peek_1 = generic_bs_peek_1,
