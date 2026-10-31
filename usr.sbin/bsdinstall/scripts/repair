@@ -1,0 +1,267 @@
+#!/bin/sh
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+: ${BSDDIALOG_HELP=2}
+: ${BSDDIALOG_EXTRA=3}
+: ${BSDDIALOG_ESC=5}
+: ${BSDDIALOG_ERROR=255}
+
+# msgbox
+#
+# For reporting a failure the user needs to act on
+#
+msgbox() {
+	bsddialog --backtitle "$OSNAME Installer" --title "$1" --msgbox "$2" 0 0
+}
+
+# teardown
+#
+# Unwind the mounts made for $part, in reverse order
+#
+teardown() {
+	if [ "$fs" = "freebsd-ufs" ]; then
+		umount /mnt || return 1
+	else
+		zpool export $part || return 1
+		umount /mnt || return 1
+	fi
+	return 0
+}
+
+# mount_selected
+#
+# Mount the selected partition/pool at /mnt for inspection. Returns 0 with
+# the filesystem mounted, or non-zero with /mnt left clean so the caller can
+# fall through to the action menu unmounted.
+#
+mount_selected() {
+	if [ "$fs" = "freebsd-ufs" ]; then
+		mount /dev/$part /mnt
+		if [ $? -ne 0 ]; then
+			msgbox 'Mount failed' "Failed to mount /dev/$part on /mnt."
+			return 1
+		fi
+		return 0
+	fi
+
+	mount -t tmpfs tmpfs /mnt
+	if [ $? -ne 0 ]; then
+		msgbox 'Mount failed' 'Failed to mount tmpfs on /mnt.'
+		return 1
+	fi
+
+	zpool import -N -R /mnt $part
+	if [ $? -ne 0 ]; then
+		bsddialog --backtitle "$OSNAME Installer" --title 'Import failed' \
+			--yesno "The pool $part could not be imported. It may not have been cleanly exported. Force the import? This is unsafe if the pool is in use by another system." 0 0
+		if [ $? -ne $BSDDIALOG_OK ]; then
+			umount /mnt
+			return 1
+		fi
+
+		zpool import -f -N -R /mnt $part
+		if [ $? -ne 0 ]; then
+			msgbox 'Import failed' "The pool $part could not be imported."
+			umount /mnt
+			return 1
+		fi
+	fi
+
+	bootfs=$(zpool get -H -o value bootfs $part)
+	if [ -z "$bootfs" -o "$bootfs" = "-" ]; then
+		msgbox 'No boot environment' \
+			"The pool $part has no bootfs property set."
+		zpool export $part
+		umount /mnt
+		return 1
+	fi
+
+	zfs mount $bootfs
+	zfs mount -a
+	if [ $? -ne 0 ]; then
+		msgbox 'Mount failed' "Failed to mount $bootfs on /mnt."
+		zpool export $part
+		umount /mnt
+		return 1
+	fi
+
+	return 0
+}
+
+#
+# option chroot parameters and check function
+#
+chroot_name="chroot"
+chroot_desc="shell into the installed system"
+option_chroot() {
+	if [ ! -x /mnt/bin/sh ]; then
+		msgbox 'Shell unavailable' \
+			'No usable /bin/sh was found on the selected partition.'
+		return
+	fi
+
+	mount -t devfs devfs /mnt/dev
+	if [ $? -ne 0 ]; then
+		msgbox 'Mount failed' 'Failed to mount devfs on /mnt/dev.'
+		return
+	fi
+
+	clear
+	echo "When finished, type 'exit' to return to the repair menu."
+	chroot /mnt /bin/sh
+
+	umount /mnt/dev
+	if [ $? -ne 0 ]; then
+		msgbox 'Unmount failed' \
+			'Failed to unmount /mnt/dev. Exit any process still running under the chroot, then try again.'
+	fi
+}
+
+#
+# option shell parameters and check function
+#
+shell_name="shell"
+shell_desc="shell into the live environment"
+option_shell() {
+	clear
+	echo "When finished, type 'exit' to return to the repair menu."
+	/bin/sh
+}
+
+#
+# option fsck parameters and check function
+#
+fsck_name="fsck"
+fsck_desc="fsck partition"
+option_fsck() {
+	clear
+	echo "<=== FSCK ===>"
+	fsck /dev/$part
+	echo "When finished, type 'exit' to return to the action menu."
+	/bin/sh
+}
+
+while :; do
+	#
+	# Initialize by grepping ufs partitions and zfs pools on the system
+	#
+	partitions=$(gpart show -p | grep 'freebsd-ufs' | grep -v diskid |  awk '{ print $3, $4 }')
+	pools=$(zpool import | grep pool: | awk '{ print $2, "zpool" }')
+	if [ -z "$partitions" -a -z "$pools" ]; then
+		msgbox 'No partition detected' 'No partition detected. Exiting to live system.'
+		exit 1
+	fi
+
+	exec 5>&1
+	part=$(echo $partitions $pools | xargs -o bsddialog --backtitle "${OSNAME} Installer" \
+		--title "Mount a partition" --cancel-label "Back" \
+		--menu "Select one of the partitions to mount" 0 0 0 2>&1 1>&5)
+	retval=$?
+	exec 5>&-
+
+	case $retval in
+	$BSDDIALOG_OK)
+		;;
+	$BSDDIALOG_CANCEL|$BSDDIALOG_ESC)
+		exit 0
+		;;
+	*)
+		echo "bsddialog failed with status $retval" >&2
+		exit 1
+		;;
+	esac
+
+	#
+	# Depending on the selected partition/pool, mount it for inspection
+	#
+	fs=$(echo $partitions $pools | xargs -n 2 | grep $part | awk '{ print $2 }')
+	mounted=no
+	if [ "$fs" = "freebsd-ufs" ]; then
+		bsddialog --backtitle "$OSNAME Installer" --title 'Mount partition' \
+			--ok-label "Mount" --cancel-label "No mount" \
+			--yesno "/dev/$part will be mounted at /mnt." 0 0
+		# On No, or on a failed mount, fall through to the action menu unmounted
+		if [ $? -eq $BSDDIALOG_OK ]; then
+			mount_selected && mounted=yes
+		fi
+	elif [ "$fs" = "zpool" ]; then
+		bsddialog --backtitle "$OSNAME Installer" --title 'Import pool' \
+			--ok-label "Mount" --cancel-label "No mount" \
+			--yesno "The pool $part will be imported with its altroot set to /mnt, and its boot environment will be mounted there." 0 0
+		# On No, or on a failed import, fall through to the action menu unmounted
+		if [ $? -eq $BSDDIALOG_OK ]; then
+			mount_selected && mounted=yes
+		fi
+	else
+		continue
+	fi
+
+	#
+	# Inspect and repair the mounted partition until the user goes back
+	#
+	while :; do
+		# Build the option list; some options depend on mount state and fs type
+		set --
+		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
+		set -- "$@" "$shell_name" "$shell_desc"
+		[ "$fs" = "freebsd-ufs" ] && set -- "$@" "$fsck_name" "$fsck_desc"
+
+		exec 5>&1
+		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
+			--cancel-label "Back" \
+			--menu 'Choose from the below commands to inspect partition' 0 0 0 \
+			"$@" \
+			2>&1 1>&5 )
+		retval=$?
+		exec 5>&-
+
+		case $retval in
+		$BSDDIALOG_OK)
+			;;
+		$BSDDIALOG_CANCEL|$BSDDIALOG_ESC)
+			# Nothing was mounted this pass; return without teardown
+			if [ "$mounted" != yes ]; then
+				break
+			fi
+
+			if [ "$fs" = "freebsd-ufs" ]; then
+				prompt="/mnt will be unmounted before returning to the partition menu."
+			else
+				prompt="The pool $part will be exported and /mnt unmounted before returning to the partition menu."
+			fi
+			bsddialog --backtitle "$OSNAME Installer" --title 'Unmount partition' \
+				--ok-label "Unmount" --cancel-label "Cancel" \
+				--yesno "$prompt" 0 0
+			[ $? -eq $BSDDIALOG_OK ] || continue
+
+			teardown
+			if [ $? -ne 0 ]; then
+				msgbox 'Unmount failed' \
+					'Failed to unmount the selected partition. Exit any process still using /mnt, then try again.'
+				continue
+			fi
+			break
+			;;
+		*)
+			echo "bsddialog failed with status $retval" >&2
+			exit 1
+			;;
+		esac
+
+		case "$action" in
+		$chroot_name)
+			option_chroot
+			;;
+		$shell_name)
+			option_shell
+			;;
+		$fsck_name)
+			option_fsck
+			;;
+		esac
+	done
+done
