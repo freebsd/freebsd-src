@@ -82,6 +82,8 @@ include "std.debug"
 #options 	KCOV			# Kernel Coverage Sanitizer
 # Warning: KUBSAN can result in a kernel too large for loader to load
 #options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options 	KUBSAN_BOUNDS		# Trap on C array bounds violations
+#options 	KUBSAN_BOUNDS_MERGE	# Merge array bounds trap instructions
 #options 	KCSAN			# Kernel Concurrency Sanitizer
 
 # Compression support
