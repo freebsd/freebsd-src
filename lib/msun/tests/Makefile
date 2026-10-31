@@ -70,6 +70,7 @@ ATF_TESTS_C+=	nan_test
 ATF_TESTS_C+=	nearbyint_test
 ATF_TESTS_C+=	next_test
 ATF_TESTS_C+=	rem_test
+ATF_TESTS_C+=	round_fenv_test
 ATF_TESTS_C+=	trig_test
 
 .if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
@@ -99,6 +100,7 @@ ARCH_SUBDIR= ${MACHINE_CPUARCH}
 CFLAGS+=	-DLDBL_PREC=${LDBL_PREC}
 
 CFLAGS.fe_round_test+=	-D__HAVE_FENV
+CFLAGS.round_fenv_test.c+=	-std=c23
 
 .include <bsd.compiler.mk>
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 120000
