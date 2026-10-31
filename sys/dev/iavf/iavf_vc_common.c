@@ -723,8 +723,10 @@ int
 iavf_config_rss_key(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_key *rss_key_msg;
-	int msg_len, key_length;
+	int error, msg_len, key_length;
 	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0};
+
+	mtx_assert(&sc->vc_mtx, MA_NOTOWNED);
 
 	/* Fetch the configured RSS key */
 	rss_getkey((uint8_t *) &rss_seed);
@@ -746,11 +748,21 @@ iavf_config_rss_key(struct iavf_sc *sc)
 	iavf_dbg_vc(sc, "%s: vsi_id %d, key_len %d\n", __func__,
 	    rss_key_msg->vsi_id, rss_key_msg->key_len);
 
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
+	IAVF_VC_LOCK(sc);
+	sc->rss_configured &= ~IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	sc->rss_pending |= IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	/* Standard IPv4/IPv6 tuples use the first 40 bytes of the 52-byte key. */
+	sc->rss_key_size = MIN(key_length, sizeof(sc->rss_key));
+	bzero(sc->rss_key, sizeof(sc->rss_key));
+	memcpy(sc->rss_key, rss_seed, sc->rss_key_size);
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
 			  (u8 *)rss_key_msg, msg_len);
+	if (error != 0)
+		sc->rss_pending &= ~IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	IAVF_VC_UNLOCK(sc);
 
 	free(rss_key_msg, M_IAVF);
-	return (0);
+	return (error);
 }
 
 /**
@@ -761,13 +773,16 @@ iavf_config_rss_key(struct iavf_sc *sc)
  *
  * @remark the reply from the PF is not checked by this function.
  *
- * @returns zero
+ * @returns zero on success, or an error code on failure.
  */
 int
 iavf_set_rss_hena(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_hena hena;
 	struct iavf_hw *hw = &sc->hw;
+	int error;
+
+	mtx_assert(&sc->vc_mtx, MA_NOTOWNED);
 
 	if (hw->mac.type == IAVF_MAC_VF)
 		hena.hena = IAVF_DEFAULT_RSS_HENA_AVF;
@@ -776,9 +791,16 @@ iavf_set_rss_hena(struct iavf_sc *sc)
 	else
 		hena.hena = IAVF_DEFAULT_RSS_HENA_BASE;
 
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_SET_RSS_HENA,
+	IAVF_VC_LOCK(sc);
+	sc->rss_configured &= ~IAVF_FLAG_AQ_SET_RSS_HENA;
+	sc->rss_pending |= IAVF_FLAG_AQ_SET_RSS_HENA;
+	sc->rss_hena = hena.hena;
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_SET_RSS_HENA,
 	    (u8 *)&hena, sizeof(hena));
-	return (0);
+	if (error != 0)
+		sc->rss_pending &= ~IAVF_FLAG_AQ_SET_RSS_HENA;
+	IAVF_VC_UNLOCK(sc);
+	return (error);
 }
 
 /**
@@ -1207,6 +1229,9 @@ iavf_vc_completion(struct iavf_sc *sc,
     enum virtchnl_status_code v_retval, u8 *msg, u16 msglen __unused)
 {
 	device_t	dev = sc->dev;
+	u32 rss_op;
+
+	IAVF_VC_LOCK_ASSERT(sc);
 
 	if (v_opcode != VIRTCHNL_OP_GET_STATS)
 		iavf_dbg_vc(sc, "%s: opcode %s\n", __func__,
@@ -1223,6 +1248,8 @@ iavf_vc_completion(struct iavf_sc *sc,
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
 			device_printf(dev, "PF initiated reset!\n");
 			iavf_set_state(&sc->state, IAVF_STATE_RESET_PENDING);
+			sc->rss_pending = 0;
+			sc->rss_configured = 0;
 			break;
 		default:
 			iavf_dbg_vc(sc, "Unknown event %d from AQ\n",
@@ -1231,6 +1258,17 @@ iavf_vc_completion(struct iavf_sc *sc,
 		}
 
 		return;
+	}
+
+	rss_op = 0;
+	if (v_opcode == VIRTCHNL_OP_CONFIG_RSS_KEY)
+		rss_op = IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	else if (v_opcode == VIRTCHNL_OP_SET_RSS_HENA)
+		rss_op = IAVF_FLAG_AQ_SET_RSS_HENA;
+	if (sc->rss_pending & rss_op) {
+		sc->rss_pending &= ~rss_op;
+		if (v_retval == VIRTCHNL_STATUS_SUCCESS)
+			sc->rss_configured |= rss_op;
 	}
 
 	/* Catch-all error response */
