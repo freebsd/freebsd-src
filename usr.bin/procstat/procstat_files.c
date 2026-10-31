@@ -291,6 +291,37 @@ print_capability(cap_rights_t *rightsp, u_int capwidth)
 	xo_close_list("capabilities");
 }
 
+static void
+ntsync_kinfo_path(const struct kinfo_file *kif, char *buf, size_t buflen)
+{
+
+	if (kif == NULL || kif->kf_type != KF_TYPE_NTSYNC) {
+		strlcpy(buf, "-", buflen);
+		return;
+	}
+
+	switch (kif->kf_un.kf_ntsync.kf_ntsync_type) {
+	case KF_NTSYNC_TYPE_SEM:
+		snprintf(buf, buflen, "sem %u/%u",
+		    kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_sem.count,
+		    kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_sem.max);
+		break;
+	case KF_NTSYNC_TYPE_MUTEX:
+		snprintf(buf, buflen, "mutex owner=%u count=%u",
+		    kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_mutex.owner,
+		    kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_mutex.count);
+		break;
+	case KF_NTSYNC_TYPE_EVENT:
+		snprintf(buf, buflen, "event manual=%u signaled=%u",
+		    kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_event.manual,
+		    kif->kf_un.kf_ntsync.kf_ntsync_un.kf_ntsync_event.signaled);
+		break;
+	default:
+		strlcpy(buf, "ntsync", buflen);
+		break;
+	}
+}
+
 void
 procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 {
@@ -423,6 +454,11 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		case PS_FST_TYPE_INOTIFY:
 			str = "i";
 			xo_emit("{eq:fd_type/inotify}");
+			break;
+
+		case PS_FST_TYPE_NTSYNC:
+			str = "N";
+			xo_emit("{eq:fd_type/ntsync}");
 			break;
 
 		case PS_FST_TYPE_NONE:
@@ -589,6 +625,17 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 				addr_to_string(&sock.sa_peer, dst_addr,
 				    sizeof(dst_addr));
 				xo_emit("{:path/%s %s}", src_addr, dst_addr);
+			}
+			break;
+
+		case PS_FST_TYPE_NTSYNC:
+			if (fst->fs_typedep != NULL) {
+				ntsync_kinfo_path(fst->fs_typedep, src_addr,
+				    sizeof(src_addr));
+				xo_emit("{:path/%s}", src_addr);
+			} else {
+				xo_emit("{:path/%-18s/%s}", fst->fs_path !=
+				    NULL ? fst->fs_path : "-");
 			}
 			break;
 

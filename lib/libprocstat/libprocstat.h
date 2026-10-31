@@ -72,6 +72,7 @@
 #define	PS_FST_TYPE_DEV		14
 #define	PS_FST_TYPE_EVENTFD	15
 #define	PS_FST_TYPE_INOTIFY	16
+#define	PS_FST_TYPE_NTSYNC	17
 
 /*
  * Special descriptor numbers.
