@@ -16,3 +16,5 @@ atf-version-real: .PHONY
 	@grep 'define VERSION' ${ATF}/config.h \
 	    | cut -d '"' -f 2 >atf-version-real
 CLEANFILES+= atf-version atf-version-real
+
+CXXSTD=		gnu++20
