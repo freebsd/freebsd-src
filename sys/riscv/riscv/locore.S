@@ -230,6 +230,10 @@ pagetables:
 	or	s2, s2, t0
 	sfence.vma
 	csrw	satp, s2
+	/*
+	 * Ensure old translations are flushed.
+	 */
+	sfence.vma
 
 	.align 2
 va:
@@ -390,6 +394,7 @@ ENTRY(mpentry)
 	ld	s2, PM_SATP(t2)
 	sfence.vma
 	csrw	satp, s2
+	sfence.vma
 
 	.align 2
 mpva:
