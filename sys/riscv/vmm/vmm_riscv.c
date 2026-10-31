@@ -77,6 +77,8 @@ MALLOC_DEFINE(M_HYP, "RISC-V VMM HYP", "RISC-V VMM HYP");
 
 DPCPU_DEFINE_STATIC(struct hypctx *, vcpu);
 
+#define	VSTVEC_MODE_MASK	0x3ULL
+
 static int
 m_op(uint32_t insn, int match, int mask)
 {
@@ -444,6 +446,54 @@ riscv_gen_inst_emul_data(struct hypctx *hypctx, struct vm_exit *vme_ret,
 	return (0);
 }
 
+static void
+riscv_inject_exception(struct hypctx *hypctx, uint64_t scause, uint64_t stval,
+    uint64_t sepc)
+{
+	uint64_t spp;
+	uint64_t vsie;
+	uint64_t vsstatus;
+	uint64_t vstvec;
+	int running, hostcpu;
+
+	running = vcpu_is_running(hypctx->vcpu, &hostcpu);
+	if (running && hostcpu == curcpu) {
+		vsstatus = csr_read(vsstatus);
+		vstvec = csr_read(vstvec);
+	} else {
+		vsstatus = hypctx->guest_csrs.vsstatus;
+		vstvec = hypctx->guest_csrs.vstvec;
+	}
+
+	vsie = (vsstatus & SSTATUS_SIE) ? SSTATUS_SPIE : 0;
+	spp = (hypctx->guest_regs.hyp_hstatus & HSTATUS_SPVP) ? SSTATUS_SPP : 0;
+	vsstatus &= ~(SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP);
+	vsstatus |= (vsie | spp);
+
+	hypctx->guest_csrs.vsstatus = vsstatus;
+	hypctx->guest_csrs.vsepc = sepc;
+	hypctx->guest_csrs.vscause = scause;
+	hypctx->guest_csrs.vstval = stval;
+
+	/*
+	 * Destination for sret must be the guest trap handler (vstvec)
+	 * running in Virtual Supervisor (VS) mode. Clear the mode bits to
+	 * ensure the PC is 4-byte aligned.
+	 *
+	 * When executing sret from HS-mode with hstatus.SPV=1, the return
+	 * privilege mode is governed by sstatus.SPP (SSTATUS_SPP -> VS-mode).
+	 */
+	hypctx->guest_regs.hyp_sepc = vstvec & ~VSTVEC_MODE_MASK;
+	hypctx->guest_regs.hyp_sstatus |= SSTATUS_SPP;
+
+	if (running && hostcpu == curcpu) {
+		csr_write(vsstatus, vsstatus);
+		csr_write(vsepc, sepc);
+		csr_write(vscause, scause);
+		csr_write(vstval, stval);
+	}
+}
+
 static bool
 riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
     pmap_t pmap)
@@ -488,13 +538,15 @@ riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 		break;
 	case SCAUSE_ILLEGAL_INSTRUCTION:
 		/*
-		 * TODO: handle illegal instruction properly.
+		 * Typically delegated directly to VS-mode via hedeleg in
+		 * vmmops_delegate(). If an illegal instruction trap reaches
+		 * the hypervisor, inject it back into the guest rather than
+		 * terminating the VM.
 		 */
-		printf("%s: Illegal instruction at %lx stval 0x%lx htval "
-		    "0x%lx\n", __func__, vme->sepc, vme->stval, vme->htval);
-		vmm_stat_incr(hypctx->vcpu, VMEXIT_UNHANDLED, 1);
-		vme->exitcode = VM_EXITCODE_BOGUS;
-		handled = false;
+		riscv_inject_exception(hypctx, SCAUSE_ILLEGAL_INSTRUCTION,
+		    vme->stval, vme->sepc);
+		vme->inst_length = 0;
+		handled = true;
 		break;
 	case SCAUSE_VIRTUAL_SUPERVISOR_ECALL:
 		handled = vmm_sbi_ecall(hypctx->vcpu);
