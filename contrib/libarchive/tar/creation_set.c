@@ -26,88 +26,64 @@ struct creation_set {
 	int		  filter_count;
 };
 
-struct suffix_code_t {
+struct suffix_codes_t {
 	const char *suffix;
-	const char *form;
+	const char *format;
+	const char *filter;
 };
 
-static const char *
-get_suffix_code(const struct suffix_code_t *tbl, const char *suffix)
+static int
+get_filter_format_codes(const char *suffix, const char **format,
+    const char **filter)
 {
-	int i;
+	/* Resolver table of suffix to format and filter. */
+	static const struct suffix_codes_t table[] = {
+		{ ".7z",		"7zip",		NULL },
+		{ ".ar",		"arbsd",	NULL },
+		{ ".bz2",		NULL,		"bzip2" },
+		{ ".cpio",		"cpio",		NULL },
+		{ ".grz",		NULL,		"grzip" },
+		{ ".gz",		NULL,		"gzip" },
+		{ ".iso",		"iso9660",	NULL },
+		{ ".lrz",		NULL,		"lrzip" },
+		{ ".lz4",		NULL,		"lz4" },
+		{ ".lzma",		NULL,		"lzma" },
+		{ ".lz",		NULL,		"lzip" },
+		{ ".lzo",		NULL,		"lzop" },
+		{ ".mtree",		"mtree",	NULL },
+		{ ".shar",		"shar",		NULL },
+		{ ".tar",		"paxr",		NULL },
+		{ ".taZ",		"paxr",		"compress" },
+		{ ".taz",		"paxr",		"gzip" },
+		{ ".tbz2",		"paxr",		"bzip2" },
+		{ ".tbz",		"paxr",		"bzip2" },
+		{ ".tgz",		"paxr",		"gzip" },
+		{ ".tlz",		"paxr",		"lzma" },
+		{ ".txz",		"paxr",		"xz" },
+		{ ".tz2",		"paxr",		"bzip2" },
+		{ ".tzo",		"paxr",		"lzop" },
+		{ ".tZ",		"paxr",		"compress" },
+		{ ".tzst",		"paxr",		"zstd" },
+		{ ".uu",		NULL,		"uuencode" },
+		{ ".warc",		"warc",		NULL },
+		{ ".xar",		"xar",		NULL },
+		{ ".xz",		NULL,		"xz" },
+		{ ".zip",		"zip",		NULL },
+		{ ".Z",			NULL,		"compress" },
+		{ ".zst",		NULL,		"zstd"},
+		{ NULL,			NULL,		NULL }
+	};
+	size_t i;
 
-	if (suffix == NULL)
-		return (NULL);
-	for (i = 0; tbl[i].suffix != NULL; i++) {
-		if (strcmp(tbl[i].suffix, suffix) == 0)
-			return (tbl[i].form);
+	for (i = 0; table[i].suffix != NULL; i++) {
+		if (strcmp(table[i].suffix, suffix) == 0) {
+			*format = table[i].format;
+			*filter = table[i].filter;
+			return (ARCHIVE_OK);
+		}
 	}
-	return (NULL);
-}
 
-static const char *
-get_filter_code(const char *suffix)
-{
-	/* A pair of suffix and compression/filter. */
-	static const struct suffix_code_t filters[] = {
-		{ ".Z",		"compress" },
-		{ ".bz2",	"bzip2" },
-		{ ".gz",	"gzip" },
-		{ ".grz",	"grzip" },
-		{ ".lrz",	"lrzip" },
-		{ ".lz",	"lzip" },
-		{ ".lz4",	"lz4" },
-		{ ".lzo",	"lzop" },
-		{ ".lzma",	"lzma" },
-		{ ".uu",	"uuencode" },
-		{ ".xz",	"xz" },
-		{ ".zst",	"zstd"},
-		{ NULL,		NULL }
-	};
-
-	return get_suffix_code(filters, suffix);
-}
-
-static const char *
-get_format_code(const char *suffix)
-{
-	/* A pair of suffix and format. */
-	static const struct suffix_code_t formats[] = {
-		{ ".7z",	"7zip" },
-		{ ".ar",	"arbsd" },
-		{ ".cpio",	"cpio" },
-		{ ".iso",	"iso9660" },
-		{ ".mtree",	"mtree" },
-		{ ".shar",	"shar" },
-		{ ".tar",	"paxr" },
-		{ ".warc",	"warc" },
-		{ ".xar",	"xar" },
-		{ ".zip",	"zip" },
-		{ NULL,		NULL }
-	};
-
-	return get_suffix_code(formats, suffix);
-}
-
-static const char *
-decompose_alias(const char *suffix)
-{
-	static const struct suffix_code_t alias[] = {
-		{ ".taz",	".tar.gz" },
-		{ ".tgz",	".tar.gz" },
-		{ ".tbz",	".tar.bz2" },
-		{ ".tbz2",	".tar.bz2" },
-		{ ".tz2",	".tar.bz2" },
-		{ ".tlz",	".tar.lzma" },
-		{ ".txz",	".tar.xz" },
-		{ ".tzo",	".tar.lzo" },
-		{ ".taZ",	".tar.Z" },
-		{ ".tZ",	".tar.Z" },
-		{ ".tzst",	".tar.zst" },
-		{ NULL,		NULL }
-	};
-
-	return get_suffix_code(alias, suffix);
+	return (ARCHIVE_EOF);
 }
 
 static void
@@ -230,8 +206,7 @@ int
 cset_auto_compress(struct creation_set *cset, const char *filename)
 {
 	struct filter_set *old_filters;
-	char *name, *p;
-	const char *code;
+	char *name;
 	int old_filter_count;
 
 	name = strdup(filename);
@@ -244,34 +219,26 @@ cset_auto_compress(struct creation_set *cset, const char *filename)
 	cset->filter_count = 0;
 
 	for (;;) {
+		const char *format, *filter;
+		char *p;
+		int r;
+
 		/* Get the suffix. */
 		p = strrchr(name, '.');
 		if (p == NULL)
 			break;
-		/* Suppose it indicates compression/filter type
-		 * such as ".gz". */
-		code = get_filter_code(p);
-		if (code != NULL) {
-			cset_add_filter(cset, code);
-			*p = '\0';
-			continue;
-		}
-		/* Suppose it indicates format type such as ".tar". */
-		code = get_format_code(p);
-		if (code != NULL) {
-			cset_set_format(cset, code);
+		/* Resolve suffix to format and filter information. */
+		r = get_filter_format_codes(p, &format, &filter);
+		if (r != ARCHIVE_OK)
+			break;
+		if (filter != NULL)
+			cset_add_filter(cset, filter);
+		if (format != NULL) {
+			cset_set_format(cset, format);
 			break;
 		}
-		/* Suppose it indicates alias such as ".tgz". */
-		code = decompose_alias(p);
-		if (code == NULL)
-			break;
-		/* Replace the suffix. */
+		/* Remove the resolved suffix. */
 		*p = '\0';
-		name = realloc(name, strlen(name) + strlen(code) + 1);
-		if (name == NULL)
-			lafe_errc(1, 0, "No memory");
-		strcat(name, code);
 	}
 	free(name);
 	if (cset->filters) {

@@ -581,6 +581,10 @@ find_newc_header(struct archive_read *a)
 				}
 				p += 2;
 				break;
+			case '7':
+				/* A header may start two bytes on. */
+				p += 2;
+				break;
 			case '0':
 				p++;
 				break;

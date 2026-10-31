@@ -34,7 +34,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3008010
+#define	ARCHIVE_VERSION_NUMBER 3008011
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -177,7 +177,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.8.10"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.8.11"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -323,6 +323,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_GRZIP	12
 #define	ARCHIVE_FILTER_LZ4	13
 #define	ARCHIVE_FILTER_ZSTD	14
+#define	ARCHIVE_FILTER_B64	15
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -336,6 +337,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_COMPRESSION_RPM		ARCHIVE_FILTER_RPM
 #define	ARCHIVE_COMPRESSION_LZIP	ARCHIVE_FILTER_LZIP
 #define	ARCHIVE_COMPRESSION_LRZIP	ARCHIVE_FILTER_LRZIP
+#define	ARCHIVE_COMPRESSION_B64		ARCHIVE_FILTER_B64
 #endif
 
 /*

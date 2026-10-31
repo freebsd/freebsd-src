@@ -142,7 +142,11 @@ canAlways(void)
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_b64encode)
 {
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	test_filter_by_name("b64encode", ARCHIVE_FILTER_UU, canAlways);
+#else
+	test_filter_by_name("b64encode", ARCHIVE_FILTER_B64, canAlways);
+#endif
 }
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_bzip2)

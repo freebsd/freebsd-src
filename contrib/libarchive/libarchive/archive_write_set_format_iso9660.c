@@ -1239,16 +1239,16 @@ get_num_opt(struct archive_write *a, int *num, int high, int low,
 			    "option ``%s''", high, key);
 			return (ARCHIVE_FATAL);
 		}
-		if (data < low) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Invalid value(under %d) for "
-			    "option ``%s''", low, key);
-			return (ARCHIVE_FATAL);
-		}
 		p++;
 	}
 	if (neg)
 		data *= -1;
+	if (data < low) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid value(under %d) for "
+		    "option ``%s''", low, key);
+		return (ARCHIVE_FATAL);
+	}
 	*num = data;
 
 	return (ARCHIVE_OK);
