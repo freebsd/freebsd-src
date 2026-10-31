@@ -40,6 +40,7 @@ nanl(const char *s)
 	} u;
 
 	_scan_nan(u.bits, 3, s);
+	u.ieee.bits.sign = 0;	/* a long payload must not reach the sign */
 	u.ieee.bits.exp = 0x7fff;
 	u.ieee.bits.manh |= 0xc0000000;	/* make it a quiet NaN */
 	return (u.ieee.e);
