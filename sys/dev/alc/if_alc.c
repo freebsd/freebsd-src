@@ -3636,6 +3636,8 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 	rdinfo = le32toh(rrd->rdinfo);
 	rx_cons = RRD_RD_IDX(rdinfo);
 	nsegs = RRD_RD_CNT(rdinfo);
+	if (rx_cons >= ALC_RX_RING_CNT)
+		return;
 
 	sc->alc_cdata.alc_rxlen = RRD_BYTES(status);
 	if ((status & (RRD_ERR_SUM | RRD_ERR_LENGTH)) != 0) {
