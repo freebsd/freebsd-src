@@ -1838,7 +1838,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	mbflag = 0;
 	if (NFSHASRDMA(nmp) && tsiz > 0) {
 		/* Assume the rest of the RPC without data is <= 1024 bytes. */
-		if ((uiop->uio_offset & PAGE_MASK) == 0 &&
+		if (pgp != NULL && (uiop->uio_offset & PAGE_MASK) == 0 &&
 		    uiop->uio_segflg == UIO_SYSSPACE &&
 		    !NFSHASNOREADREDUCE(nmp))
 			did_rdma = true;
@@ -1884,11 +1884,8 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 		 * (See the comment in nfsrpc_writerpc() for more info.)
 		 */
 		error = nfscl_request(nd, vp, p, cred);
-		if (error) {
-			if (mr != NULL)
-				rpc_free_rdma_reduction(mr);
+		if (error)
 			return (error);
-		}
 		reduced = false;
 		if ((nd->nd_mrep->m_flags & M_PROTO6) != 0)
 			reduced = true;
@@ -1919,10 +1916,6 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 				error = rpc_copy_uio_pages(mr, uiop, retlen,
 				    true);
 		}
-		if (mr != NULL) {
-			rpc_free_rdma_reduction(mr);
-			mr = NULL;
-		}
 		if (error)
 			goto nfsmout;
 		m_freem(nd->nd_mrep);
@@ -1936,8 +1929,6 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	}
 	return (0);
 nfsmout:
-	if (mr != NULL)
-		rpc_free_rdma_reduction(mr);
 	if (nd->nd_mrep != NULL)
 		m_freem(nd->nd_mrep);
 	return (error);
@@ -2057,7 +2048,8 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
 	did_rdma = false;
-	if (NFSHASRDMA(nmp) && (uiop->uio_offset & PAGE_MASK) == 0 &&
+	if (NFSHASRDMA(nmp) && !NFSHASNOWRITEREDUCE(nmp) && pgp != NULL &&
+	    (uiop->uio_offset & PAGE_MASK) == 0 &&
 	    uiop->uio_segflg == UIO_SYSSPACE)
 		did_rdma = true;
 	tmp_off = uiop->uio_offset + tsiz;
@@ -2074,7 +2066,6 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK);
 	nd->nd_mrep = NULL;	/* NFSv2 sometimes does a write with */
 	nd->nd_repstat = 0;	/* uio_resid == 0, so the while is not done */
-	mr = NULL;
 	while (tsiz > 0) {
 		*attrflagp = 0;
 		len = (tsiz > wsize) ? wsize : tsiz;
@@ -2125,15 +2116,11 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 			*tl = x;        /* size of this write */
 		}
 		/* For RDMA, make the data a separate chunk. */
-		if (did_rdma && !NFSHASNOWRITEREDUCE(nmp)) {
+		if (did_rdma) {
 			rlen = m_length(nd->nd_mreq, NULL);
 			mr = nfsm_build_rdma_reduction(pgp, nd, len, rlen,
 			    false);
 			error = rpc_copy_uio_pages(mr, uiop, len, false);
-			if (error != 0) {
-				rpc_free_rdma_reduction(mr);
-				mr = NULL;
-			}
 		} else {
 			error = nfsm_uiombuf(nd, uiop, len);
 		}
@@ -2171,16 +2158,8 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 		}
 		error = nfscl_request(nd, vp, p, cred);
 		if (error) {
-			if (mr != NULL)
-				rpc_free_rdma_reduction(mr);
 			free(nd, M_TEMP);
 			return (error);
-		}
-		if (did_rdma && !NFSHASNOWRITEREDUCE(nmp)) {
-			KASSERT(mr != NULL, ("nfsrpc_writerpc: Null mr"));
-
-			rpc_free_rdma_reduction(mr);
-			mr = NULL;
 		}
 		if (nd->nd_repstat) {
 			/*
