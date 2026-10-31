@@ -275,11 +275,10 @@ The output contains a truncated leap second table,
 which can cause some older TZif readers to misbehave.
 This can occur if the
 .Fl L
-option is used, and either an Expires line is present or
-the
+and
 .Fl r
-option is also used.
-.It
+options are both used.
+.PP
 The output file contains more than 1200 transitions,
 which may be mishandled by some clients.
 The current reference client supports at most 2000 transitions;
@@ -755,8 +754,7 @@ lines may appear in any order in the input.
 However, the behavior is unspecified if multiple zone or link lines
 define the same name.
 .Pp
-The file that describes leap seconds can have leap lines and an
-expiration line.
+The file that describes leap seconds can have leap lines.
 Leap lines have the following form:
 .Bd -literal -offset indent
 Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
@@ -808,24 +806,11 @@ However, rolling leap seconds are not supported if the
 .Fl r
 option is used.
 .Pp
-The expiration line, if present, has the form:
-.Bd -literal -offset indent
-Expires	YEAR	MONTH	DAY	HH:MM:SS
-.Ed
-.Pp
-For example:
-.Bd -literal -offset indent
-Expires	2020	Dec	28	00:00:00
-.Ed
-.Pp
-The
-.Ar YEAR ,
-.Ar MONTH ,
-.Ar DAY ,
-and
-.Ar HH:MM:SS
-fields give the expiration timestamp in UTC for the leap second table.
-.Sh "EXTENDED EXAMPLE"
+Any expiration line is ignored, as the last leap second was in 2016
+and there is no longer any reason for leap second tables to expire.
+The ignored expiration line, if present, begins with the word
+.Li "Expires" .
+.Ss "EXTENDED EXAMPLE"
 Here is an extended example of
 .Nm
 input, intended to illustrate many of its features.
