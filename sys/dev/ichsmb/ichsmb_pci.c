@@ -120,6 +120,7 @@
 #define	ID_METEORLAKE2			0x7f23
 #define	ID_METEORLAKE3			0xae22
 #define	ID_PANTHERLAKE			0xe422
+#define ID_LUNARLAKE_M 			0xa822
 
 static const struct pci_device_table ichsmb_devices[] = {
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_82801AA),
@@ -284,6 +285,9 @@ static const struct pci_device_table ichsmb_devices[] = {
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_PANTHERLAKE),
 	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
 	  PCI_DESCR("Intel Panther Lake SMBus controller") },
+	{ PCI_DEV(PCI_VENDOR_INTEL, ID_LUNARLAKE_M),
+	  .driver_data = (uintptr_t)ICHSMB_FEATURE_BLOCK_BUFFER,
+	  PCI_DESCR("Intel Lunar Lake-M SMBus controller") },
 };
 
 /* Internal functions */
