@@ -129,6 +129,9 @@ TIME_T_ALTERNATIVES_TAIL = int_least32_t.ck uint_least32_t.ck \
 
 # What kind of TZif data files to generate.  (TZif is the binary time
 # zone data format that zic generates; see Internet RFC 9636.)
+# Although TZif files with leap second info are rarely used and the last
+# leap second was in 2016, they are still supported for compatibility
+# with historical timestamps generated via TZif files with leap seconds.
 # If you want only POSIX time, with time values interpreted as
 # seconds since the epoch (not counting leap seconds), use
 #	REDO=		posix_only
@@ -151,14 +154,17 @@ TIME_T_ALTERNATIVES_TAIL = int_least32_t.ck uint_least32_t.ck \
 REDO=		posix_only
 
 # Whether to put an "Expires" line in the leapseconds file.
-# Use EXPIRES_LINE=1 to put the line in, 0 to omit it.
-# The EXPIRES_LINE value matters only if REDO's value contains "right".
+# Use EXPIRES_LINE=1 to put the "Expires" line in, 0 to omit it.
+# This variable is obsolescent and should be removed in a future release.
+# It defaults to 0 because the circa 2020 effort to support it
+# became obsolete after the 2026 decision to discontinue leap seconds.
+# The EXPIRES_LINE value does not affect the contents of TZif files;
+# it affects only the leapseconds file itself, so it matters only if
+# the leapseconds file is used directly by third-party software.
 # If you change EXPIRES_LINE, remove the leapseconds file before running "make".
 # zic's support for the Expires line was introduced in tzdb 2020a,
-# and was modified in tzdb 2021b to generate version 4 TZif files.
-# EXPIRES_LINE defaults to 0 for now so that the leapseconds file
-# can be given to pre-2020a zic implementations and so that TZif files
-# built by newer zic implementations can be read by pre-2021b libraries.
+# was modified in tzdb 2021b to generate version 4 TZif files,
+# and was removed after tzdb 2026e was released.
 EXPIRES_LINE=	0
 
 # To install data in text form that has all the information of the TZif data,
@@ -317,6 +323,8 @@ LDLIBS=
 #	    It also costs CPU time and memory.
 #  -Dtime_tz=\"T\" to use T as the time_t type, rather than the system time_t
 #	This is intended for internal use only; it mangles external names.
+#  -DMIN_TRANSITION_GAP=N to reject TZif files containing transitions
+#	separated by fewer than N seconds.  See localtime.c.
 #  -DTZ_CHANGE_INTERVAL=N if functions depending on TZ should check
 #	no more often than every N seconds for TZif file changes.
 #	If N is negative (the default), no such checking is done.
