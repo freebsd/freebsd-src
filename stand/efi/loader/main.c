@@ -1294,6 +1294,31 @@ is_efi_netboot(void)
 	return (efi_devpath_get_mac(devpath, mac));
 }
 
+/*
+ * Find the net unit that booted us, so DHCP-triggered downloads (e.g., the
+ * initmd) go out the same NIC, not just whichever one enumerated first.
+ */
+int
+boot_nic_unit(int *unitp)
+{
+	EFI_DEVICE_PATH *devpath, *dp_ptr;
+	EFI_HANDLE h;
+
+	if (efinet_handle_lookup(boot_img->DeviceHandle, unitp) == 0)
+		return (0);
+
+	devpath = efi_lookup_image_devpath(IH);
+	if (devpath == NULL)
+		return (ENOENT);
+
+	dp_ptr = devpath;
+	if (BS->LocateDevicePath(&netid, &dp_ptr, &h) == EFI_SUCCESS
+			&& efinet_handle_lookup(h, unitp) == 0)
+		return (0);
+
+	return (ENOENT);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {

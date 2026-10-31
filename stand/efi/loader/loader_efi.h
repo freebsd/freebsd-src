@@ -62,6 +62,7 @@ void	efi_copy_finish_nop(void);
 bool maybe_download_ramdisk(int argc, CHAR16 **argv);
 int download_md_image(const char *url);
 void maybe_download_initmd(void);
+int boot_nic_unit(int *unitp);
 
 #if defined(__amd64__) || defined(__i386__)
 /* Need this to setup page tables */
