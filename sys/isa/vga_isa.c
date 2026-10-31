@@ -49,6 +49,7 @@
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
+#include <contrib/dev/acpica/include/acpi.h>
 #ifdef __i386__
 #include <machine/pc/bios.h>
 #endif
@@ -129,9 +130,60 @@ vga_resume(device_t dev)
 	}
 }
 
+/*
+ * Decide whether to leave the legacy VGA ports and memory alone.  vga_probe()
+ * touches 0x3c0-0x3df and 0xa0000 directly, and some machines hang or reset
+ * on that access.  A disabled hint is otherwise only checked at attach time,
+ * after the probe has already run, so honour it here.  Also honour the FADT
+ * "VGA Not Present" boot flag, as vt_vga(4) does; hw.vga.acpi_ignore_no_vga=1
+ * overrides it for firmware that sets the flag wrongly.
+ */
+static bool
+isavga_skip(void)
+{
+	uint16_t flags;
+	int ignore;
+#ifdef __amd64__
+	int probe;
+#endif
+
+	if (resource_disabled(VGA_DRIVER_NAME, 0)) {
+		if (bootverbose)
+			printf("isavga: disabled by hint, not probing\n");
+		return (true);
+	}
+#ifdef __amd64__
+	/*
+	 * A UEFI boot draws its console on the EFI framebuffer and has no use
+	 * for legacy VGA.  Not every machine that hangs on the probe sets the
+	 * FADT flag, so do not probe at all unless asked to with
+	 * hw.vga.efi_probe=1 (for example, to use syscons through a CSM).
+	 */
+	probe = 0;
+	TUNABLE_INT_FETCH("hw.vga.efi_probe", &probe);
+	if (efi_boot && !probe) {
+		if (bootverbose)
+			printf("isavga: UEFI boot, not probing legacy VGA\n");
+		return (true);
+	}
+#endif
+	if (!acpi_get_fadt_bootflags(&flags))
+		return (false);
+	ignore = 0;
+	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
+	if (!ignore && (flags & ACPI_FADT_NO_VGA) != 0) {
+		if (bootverbose)
+			printf("isavga: FADT reports no VGA, not probing\n");
+		return (true);
+	}
+	return (false);
+}
+
 static void
 isavga_identify(driver_t *driver, device_t parent)
 {
+	if (isavga_skip())
+		return;
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, VGA_DRIVER_NAME, 0);
 }
 
