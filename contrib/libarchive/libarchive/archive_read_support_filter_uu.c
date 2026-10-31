@@ -44,6 +44,11 @@
 /* Maximum lookahead during bid phase */
 #define MAX_LINE_LENGTH 128*1024 /* in bytes */
 
+struct uu_bidder {
+	int		code;
+	const char	*name;
+};
+
 struct uu {
 	unsigned char	*out_buff;
 #define OUT_BUFF_SIZE	(64 * 1024)
@@ -61,6 +66,7 @@ struct uu {
 static int	uudecode_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *f);
 static int	uudecode_bidder_init(struct archive_read_filter *);
+static void	uudecode_bidder_free(struct archive_read_filter_bidder *);
 
 static int	uudecode_read_header(struct archive_read_filter *,
 		    struct archive_entry *entry);
@@ -81,15 +87,27 @@ static const struct archive_read_filter_bidder_vtable
 uudecode_bidder_vtable = {
 	.bid = uudecode_bidder_bid,
 	.init = uudecode_bidder_init,
+	.free = uudecode_bidder_free
 };
 
 int
 archive_read_support_filter_uu(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
+	struct uu_bidder *data;
 
-	return __archive_read_register_bidder(a, NULL,
-			&uudecode_bidder_vtable);
+	data = calloc(1, sizeof(*data));
+	if (data == NULL) {
+		archive_set_error(_a, ENOMEM, "Can't allocate memory");
+		return ARCHIVE_FATAL;
+	}
+
+	if (__archive_read_register_bidder(a, data,
+			&uudecode_bidder_vtable) != ARCHIVE_OK) {
+		free(data);
+		return (ARCHIVE_FATAL);
+	}
+	return (ARCHIVE_OK);
 }
 
 static const unsigned char uuchar[256] = {
@@ -214,6 +232,17 @@ read_line_ahead(struct archive_read_filter *f, ssize_t parsed,
 			line = b + start;
 			*len = p - line;
 			*unconsumed = *len + nl;
+
+			/* Only ASCII lines are valid. */
+			while (p > line) {
+				unsigned char c = *--p;
+
+				if (c < 0x20 || c > 0x7F) {
+					*len = 0;
+					*unconsumed = 0;
+					return (NULL);
+				}
+			}
 		} else {
 			/* Keep offset for check of possibly missing \n in \r\n. */
 			if (step != 1)
@@ -276,6 +305,7 @@ static int
 uudecode_bidder_bid(struct archive_read_filter_bidder *b,
     struct archive_read_filter *f)
 {
+	struct uu_bidder *data = b->data;
 	const unsigned char *p;
 	size_t l;
 	int firstline;
@@ -329,9 +359,14 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 		}
 		offset += unconsumed;
 		p = read_line_ahead(f, 0, offset, &len, &unconsumed);
-		if (p != NULL && uuchar[*p])
+		if (p != NULL && uuchar[*p]) {
+			data->code = ARCHIVE_FILTER_UU;
+			data->name = "uu";
 			return (firstline+30);
+		}
 	} else if (l == 13) {
+		int bid = 0;
+
 		/* "begin-base64 " */
 		while (len > 0) {
 			if (!base64[*p++])
@@ -339,9 +374,19 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 			len--;
 		}
 		if (len == 0)
-			return (firstline+30);
+			bid = firstline + 30;
 		if (len == 4 && memcmp(p, "====", 4) == 0)
-			return (firstline+40);
+			bid = firstline + 40;
+		if (bid > 0) {
+#if ARCHIVE_VERSION_NUMBER < 4000000
+			data->code = ARCHIVE_FILTER_UU;
+			data->name = "uu";
+#else
+			data->code = ARCHIVE_FILTER_B64;
+			data->name = "b64";
+#endif
+			return (bid);
+		}
 	}
 
 	return (0);
@@ -357,11 +402,12 @@ uudecode_reader_vtable = {
 static int
 uudecode_bidder_init(struct archive_read_filter *f)
 {
+	struct uu_bidder *data = f->bidder->data;
 	struct uu *uu;
 	void *out_buff;
 
-	f->code = ARCHIVE_FILTER_UU;
-	f->name = "uu";
+	f->code = data->code;
+	f->name = data->name;
 
 	uu = calloc(1, sizeof(*uu));
 	out_buff = malloc(OUT_BUFF_SIZE);
@@ -381,6 +427,13 @@ uudecode_bidder_init(struct archive_read_filter *f)
 	f->vtable = &uudecode_reader_vtable;
 
 	return (ARCHIVE_OK);
+}
+
+static void
+uudecode_bidder_free(struct archive_read_filter_bidder *b)
+{
+	free(b->data);
+	b->data = NULL;
 }
 
 static int

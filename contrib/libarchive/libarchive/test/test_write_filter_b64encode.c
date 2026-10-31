@@ -55,7 +55,11 @@ DEFINE_TEST(test_write_filter_b64encode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
 	assertEqualString("b64encode", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used1));
@@ -84,7 +88,11 @@ DEFINE_TEST(test_write_filter_b64encode)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -133,7 +141,11 @@ DEFINE_TEST(test_write_filter_b64encode)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -169,4 +181,52 @@ DEFINE_TEST(test_write_filter_b64encode)
 	 */
 	free(data);
 	free(buff);
+}
+
+/*
+ * A write callback that fails once, on its third call.  The block that
+ * could not be written must not be dropped silently.
+ */
+static ssize_t
+fail_once_write(struct archive *a, void *client_data, const void *buff,
+    size_t length)
+{
+	int *calls = client_data;
+
+	(void)buff; /* UNUSED */
+	if (++*calls == 3) {
+		archive_set_error(a, EIO, "Simulated write error");
+		return (-1);
+	}
+	return ((ssize_t)length);
+}
+
+DEFINE_TEST(test_write_filter_b64encode_write_error)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char *data;
+	size_t datasize = 500000;
+	int calls = 0;
+
+	assert(NULL != (data = malloc(datasize)));
+	memset(data, 'a', datasize);
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open2(a, &calls, NULL, fail_once_write, NULL, NULL));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, datasize);
+	archive_entry_copy_pathname(ae, "file");
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_write_data(a, data, datasize));
+	assert(calls >= 3);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	free(data);
 }

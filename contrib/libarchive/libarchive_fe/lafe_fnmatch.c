@@ -259,7 +259,7 @@ rangematch(const char *pattern, wchar_t test, int flags, const char **newp,
 	 * consistency with the regular expression syntax.
 	 * J.T. Conklin (conklin@ngai.kaleida.com)
 	 */
-	if ((negate = (*pattern == '!' || *pattern == '^')))
+	if ((negate = (*pattern == '!' || *pattern == '^')) != 0)
 		++pattern;
 
 	if (flags & FNM_CASEFOLD)

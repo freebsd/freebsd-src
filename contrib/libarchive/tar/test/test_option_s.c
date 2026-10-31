@@ -297,4 +297,24 @@ DEFINE_TEST(test_option_s)
 	systemf("%s -xf test15.tar -s /d1/d2\\\\/d3/ -C test15", testprog);
 #endif
 	assertFileContents("foo", 3, "test15/in/d2/d3/foo");
+
+	/*
+	 * Test 16: Escapes other than the delimiter reach the substitution.
+	 * "\\~" is a literal '~', "\\1" a backreference and "\\\\" a backslash.
+	 */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	assertMakeDir("test16", 0755);
+	assertMakeDir("test16/in", 0755);
+	assertMakeFile("test16/in/foo", 0644, "foo");
+	systemf("%s -cf test16.tar -C test16 in/foo", testprog);
+	assertMakeDir("test16/a", 0755);
+	assertMakeDir("test16/b", 0755);
+	assertMakeDir("test16/c", 0755);
+	systemf("%s -xf test16.tar -C test16/a -s \",^in,x\\~y,\"", testprog);
+	assertFileContents("foo", 3, "test16/a/x~y/foo");
+	systemf("%s -xf test16.tar -C test16/b -s \",^\\(i\\)n,x\\1y,\"", testprog);
+	assertFileContents("foo", 3, "test16/b/xiy/foo");
+	systemf("%s -xf test16.tar -C test16/c -s \",^in,x\\~y\\,z,\"", testprog);
+	assertFileContents("foo", 3, "test16/c/x~y,z/foo");
+#endif
 }

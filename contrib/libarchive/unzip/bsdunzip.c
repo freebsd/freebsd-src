@@ -477,29 +477,34 @@ static char spinner[] = { '|', '/', '-', '\\' };
 static int
 handle_existing_file(char **path)
 {
-	size_t alen;
+	char *answer = NULL;
+	size_t alen, answer_size = 0;
 	ssize_t len;
-	char buf[4];
+	int ret;
 
 	for (;;) {
 		fprintf(stderr,
 		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
 		    *path);
-		if (fgets(buf, sizeof(buf), stdin) == NULL)
+		/* Read the whole line, so that an answer such as "yes"
+		 * does not leave characters behind for the next prompt. */
+		if (getline(&answer, &answer_size, stdin) < 1)
 			goto stdin_err;
-		switch (*buf) {
+		switch (*answer) {
 		case 'A':
 			o_opt = 1;
 			/* FALLTHROUGH */
 		case 'y':
 		case 'Y':
 			system_unlink(*path);
-			return 1;
+			ret = 1;
+			goto out;
 		case 'N':
 			n_opt = 1;
 			/* FALLTHROUGH */
 		case 'n':
-			return -1;
+			ret = -1;
+			goto out;
 		case 'r':
 		case 'R':
 			printf("New name: ");
@@ -512,7 +517,8 @@ handle_existing_file(char **path)
 				goto stdin_err;
 			if ((*path)[len - 1] == '\n')
 				(*path)[len - 1] = '\0';
-			return 0;
+			ret = 0;
+			goto out;
 		default:
 			break;
 		}
@@ -522,7 +528,10 @@ stdin_err:
 	printf("NULL\n(EOF or read error, "
 		"treating as \"[N]one\"...)\n");
 	n_opt = 1;
-	return -1;
+	ret = -1;
+out:
+	free(answer);
+	return ret;
 }
 
 /*
@@ -1048,7 +1057,7 @@ unzip(const char *fn)
 	struct archive *a;
 	struct archive_entry *e;
 	char *buf;
-	int fd, ret;
+	int fd, ret, use_stdin;
 	uintmax_t total_size, file_count, error_count;
 
 	if ((a = archive_read_new()) == NULL)
@@ -1065,8 +1074,17 @@ unzip(const char *fn)
 		archive_read_set_passphrase_callback(a, NULL,
 			&passphrase_callback);
 
+	use_stdin = strcmp(fn, "-") == 0;
+
 	buf = NULL;
-	fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
+	if (use_stdin) {
+		fd = STDIN_FILENO;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		if (_setmode(STDIN_FILENO, _O_BINARY) == -1)
+			errorx("unable to set binary input mode");
+#endif
+	} else
+		fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
 	if (fd == -1) {
 		size_t s;
 
@@ -1158,7 +1176,8 @@ unzip(const char *fn)
 		}
 	}
 
-	close(fd);
+	if (!use_stdin)
+		close(fd);
 	free(buf);
 }
 
@@ -1338,9 +1357,6 @@ main(int argc, char *argv[])
 	if (argc <= nopts)
 		usage();
 	zipfile = argv[nopts++];
-
-	if (strcmp(zipfile, "-") == 0)
-		zipfile = NULL; /* STDIN */
 
 	unzip_exclude_mode = 0;
 

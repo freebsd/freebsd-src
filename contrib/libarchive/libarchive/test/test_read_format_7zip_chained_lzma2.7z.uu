@@ -1,0 +1,13 @@
+This archive has one folder with two chained LZMA2 coders, which
+libarchive doesn't support. It was created with 7-Zip 26.04:
+
+echo hello > file1
+7zz a -m0=LZMA2 -m1=LZMA2 -mhc=off -mtm=off -mtc=off -mta=off \
+    test_read_format_7zip_chained_lzma2.7z file1
+
+begin 664 test_read_format_7zip_chained_lzma2.7z.uu
+M-WJ\KR<<``3E!RFS#@````````!&`````````'%1.DL!``D!``5H96QL;PH`
+M``$$!@`!"0X`!PL!``(A(0$`(2$!``$`#`H&``@*`2`P.C8```4!&04`````
+:`!$-`&8`:0!L`&4`,0```!4&`0`@@+2!````
+`
+end

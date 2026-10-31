@@ -2050,10 +2050,23 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 	for (;;) {
 		/* Read some more. */
 		t = __archive_read_ahead(a, 1, &bytes_read);
-		if (t == NULL)
-			return (0);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
+		if (t == NULL) {
+			if (total_size == 0)
+				return (0);
+			/* Last line lacks a newline; add one. */
+			if (archive_string_ensure(&mtree->line,
+				total_size + 2) == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate working buffer");
+				return (ARCHIVE_FATAL);
+			}
+			mtree->line.s[total_size++] = '\n';
+			mtree->line.s[total_size] = '\0';
+			*start = mtree->line.s;
+			return total_size;
+		}
 		nl = memchr(t, '\n', bytes_read);
 		/* If we found '\n', trim the read to end exactly there. */
 		if (nl != NULL) {

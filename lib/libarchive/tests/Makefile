@@ -69,6 +69,7 @@ TESTS_SRCS= \
 	test_archive_string_conversion_overread.c	\
 	test_archive_write_add_filter.c		\
 	test_archive_write_add_filter_by_name.c	\
+	test_archive_write_close_callback.c	\
 	test_archive_write_set_format_by_name.c	\
 	test_archive_write_set_format_filter_by_ext.c \
 	test_archive_write_set_options.c	\
@@ -164,6 +165,7 @@ TESTS_SRCS= \
 	test_read_format_cpio_bin_lzma.c	\
 	test_read_format_cpio_bin_xz.c		\
 	test_read_format_cpio_filename.c	\
+	test_read_format_cpio_newc_resync.c	\
 	test_read_format_cpio_odc.c		\
 	test_read_format_cpio_svr4_gzip.c	\
 	test_read_format_cpio_svr4_bzip2_rpm.c	\
@@ -181,6 +183,7 @@ TESTS_SRCS= \
 	test_read_format_gtar_sparse_skip_entry.c \
 	test_read_format_huge_rpm.c		\
 	test_read_format_iso_Z.c		\
+	test_read_format_iso_joliet_utf16be_cycle.c	\
 	test_read_format_iso_joliet_utf16be_overflow.c	\
 	test_read_format_iso_multi_extent.c	\
 	test_read_format_iso_xorriso.c		\
@@ -195,8 +198,9 @@ TESTS_SRCS= \
 	test_read_format_isorr_ce_loop.c	\
 	test_read_format_isorr_new_compress.c	\
 	test_read_format_isozisofs_compress.c	\
-	test_read_format_iso_rockridge_ce_overflow.c \
-	test_read_format_iso_rockridge_cl_re_cycle.c \
+	test_read_format_iso_rockridge_ce_overflow.c	\
+	test_read_format_iso_rockridge_cl_re_cycle.c	\
+	test_read_format_iso_rockridge_sl_leak.c	\
 	test_read_format_iso_rockridge_zf_overflow.c	\
 	test_read_format_lha.c			\
 	test_read_format_lha_amiga_script.c \
@@ -237,6 +241,7 @@ TESTS_SRCS= \
 	test_read_format_tar_empty_pax.c	\
 	test_read_format_tar_empty_with_gnulabel.c	\
 	test_read_format_tar_filename.c		\
+	test_read_format_tar_gnu_sparse_map.c	\
 	test_read_format_tar_invalid_pax_size.c \
 	test_read_format_tar_mac_metadata.c	\
 	test_read_format_tar_pax_g_large.c	\
@@ -280,6 +285,7 @@ TESTS_SRCS= \
 	test_read_format_zip_padded.c		\
 	test_read_format_zip_sfx.c		\
 	test_read_format_zip_size_exceeds_declared.c	\
+	test_read_format_zip_streamable_skip.c	\
 	test_read_format_zip_symlink_unsupported_compression.c	\
 	test_read_format_zip_traditional_encryption_data.c	\
 	test_read_format_zip_uncompressed_size_off_by_4gib.c	\
@@ -354,6 +360,7 @@ TESTS_SRCS= \
 	test_write_format_gnutar_huge.c		\
 	test_write_format_iso9660.c		\
 	test_write_format_iso9660_boot.c	\
+	test_write_format_iso9660_boot_load_size.c	\
 	test_write_format_iso9660_bugs.c	\
 	test_write_format_iso9660_empty.c	\
 	test_write_format_iso9660_filename.c	\
@@ -374,8 +381,10 @@ TESTS_SRCS= \
 	test_write_format_mtree_preset_digests.c	\
 	test_write_format_mtree_quoted_filename.c	\
 	test_write_format_mtree_null_deref.c	\
+	test_write_format_option_missing_value.c	\
 	test_write_format_pax.c			\
 	test_write_format_pax_align.c		\
+	test_write_format_pax_mac_meta.c	\
 	test_write_format_raw.c			\
 	test_write_format_raw_b64.c		\
 	test_write_format_shar_empty.c		\
@@ -545,6 +554,9 @@ ${PACKAGE}FILES+=	test_read_data_into_fd_size_exceeds_declared_deflate.zip.uu
 ${PACKAGE}FILES+=	test_read_data_into_fd_size_exceeds_declared_stored.zip.uu
 ${PACKAGE}FILES+=	test_read_files_compressed.part01.uu
 ${PACKAGE}FILES+=	test_read_files_compressed.part02.uu
+${PACKAGE}FILES+=	test_read_filter_compress_multi_volume.part01.uu
+${PACKAGE}FILES+=	test_read_filter_compress_multi_volume.part02.uu
+${PACKAGE}FILES+=	test_read_filter_compress_multi_volume.part03.uu
 ${PACKAGE}FILES+=	test_read_filter_grzip.tar.grz.uu
 ${PACKAGE}FILES+=	test_read_filter_gzip_recursive.gz.uu
 ${PACKAGE}FILES+=	test_read_filter_lrzip.tar.lrz.uu
@@ -577,6 +589,7 @@ ${PACKAGE}FILES+=	test_read_format_7zip_bcj_deflate.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_bcj_lzma1.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_bcj_lzma2.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_bzip2.7z.uu
+${PACKAGE}FILES+=	test_read_format_7zip_chained_lzma2.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_copy.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_copy_2.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_deflate.7z.uu
@@ -682,7 +695,9 @@ ${PACKAGE}FILES+=	test_read_format_iso_3.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_joliet.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_joliet_by_nero.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_joliet_long.iso.Z.uu
+${PACKAGE}FILES+=	test_read_format_iso_joliet_overlong.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_joliet_rockridge.iso.Z.uu
+${PACKAGE}FILES+=	test_read_format_iso_joliet_utf16be_cycle.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_joliet_utf16be_overflow.iso.uu
 ${PACKAGE}FILES+=	test_read_format_iso_multi_extent.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_rockridge.iso.Z.uu
@@ -693,6 +708,7 @@ ${PACKAGE}FILES+=	test_read_format_iso_rockridge_cl_re_control.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_rockridge_cl_re_cycle.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_rockridge_new.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_rockridge_rr_moved.iso.Z.uu
+${PACKAGE}FILES+=	test_read_format_iso_rockridge_sl_leak.iso.uu
 ${PACKAGE}FILES+=	test_read_format_iso_rockridge_zf_overflow.iso.uu
 ${PACKAGE}FILES+=	test_read_format_iso_xorriso.iso.Z.uu
 ${PACKAGE}FILES+=	test_read_format_iso_zisofs_overflow.iso.uu
@@ -828,6 +844,8 @@ ${PACKAGE}FILES+=	test_read_format_tar_empty_filename.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_empty_with_gnulabel.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_empty_pax.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_tar_filename_koi8r.tar.Z.uu
+${PACKAGE}FILES+=	test_read_format_tar_gnu_sparse_map_invalid.tar.uu
+${PACKAGE}FILES+=	test_read_format_tar_gnu_sparse_map_overflow.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_invalid_pax_size.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_mac_metadata_1.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_pax_g_large.tar.uu
@@ -849,6 +867,7 @@ ${PACKAGE}FILES+=	test_read_format_xar_base64_oob.xar.uu
 ${PACKAGE}FILES+=	test_read_format_xar_doublelink.xar.uu
 ${PACKAGE}FILES+=	test_read_format_xar_duplicate_filename_node.xar.uu
 ${PACKAGE}FILES+=	test_read_format_xar_empty_xattr.xar.uu
+${PACKAGE}FILES+=	test_read_format_xar_invalid_seek_offset.xar.uu
 ${PACKAGE}FILES+=	test_read_format_xar_large_mode.xar.uu
 ${PACKAGE}FILES+=	test_read_format_xar_parse_time_overread.xar.uu
 ${PACKAGE}FILES+=	test_read_format_xar_toc_premature_stream_end.xar.uu

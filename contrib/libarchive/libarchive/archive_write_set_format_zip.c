@@ -435,8 +435,11 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		char *endptr;
 		unsigned long v;
 
-		if (val == NULL)
+		if (val == NULL) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "Option 'threads' requires an argument");
 			return (ARCHIVE_FAILED);
+		}
 		errno = 0;
 		v = strtoul(val, &endptr, 10);
 		if (errno != 0 || *endptr != '\0' || v > SHRT_MAX) {

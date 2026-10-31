@@ -34,7 +34,6 @@ DEFINE_TEST(test_archive_read_open_filenames_null)
 	};
 	char *buf;
 	struct archive *a;
-	struct archive_entry *ae;
 
 	/* Create a file sufficiently large for bidders to not reach EOF. */
 	buf = calloc(512, 1024);
@@ -47,12 +46,9 @@ DEFINE_TEST(test_archive_read_open_filenames_null)
 	assert(a != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 
-	/* Verify that archive can be opened. */
-	assertEqualIntA(a, ARCHIVE_OK,
+	/* Verify that archive cannot be opened. */
+	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_filenames(a, filenames, 4096));
-
-	/* Verify that no entry is found. */
-	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -83,7 +79,7 @@ DEFINE_TEST(test_archive_read_open_filenames_split_uaf)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 	/* Verify that no further entry can be found. */
-	assertEqualIntA(a, ARCHIVE_RETRY, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

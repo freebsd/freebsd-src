@@ -123,6 +123,11 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "compression-level", "25")); /* too big */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "compression-level", "9"));
+	/* An errno value left over from an earlier call must not
+	 * make a valid value fail. */
+	errno = EOVERFLOW;
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "compression-level", "9"));
 	/* Following is disabled as it will fail on library versions < 1.3.4 */
 	/* assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "compression-level", "-1")); */
@@ -203,6 +208,14 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1G"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1GB"));
+	/* values that overflow must be rejected */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "18446744073709551616"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "99999999999999999999"));
+	errno = EOVERFLOW;
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1M"));
 	/* max-frame-out: >= 1024 */
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_write_set_filter_option(a, NULL, "max-frame-out", ""));
@@ -234,6 +247,10 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "long", "23"));
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_write_set_filter_option(a, NULL, "long", "-1")); /* negative */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "long", "4294967319")); /* 2^32 + 23 */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "long", "99999999999999999999"));
 #endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {

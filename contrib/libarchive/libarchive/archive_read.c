@@ -378,7 +378,7 @@ archive_read_set_callback_data2(struct archive *_a, void *client_data,
 		return ARCHIVE_FATAL;
 	}
 	a->client.dataset[iindex].data = client_data;
-	a->client.dataset[iindex].begin_position = -1;
+	a->client.dataset[iindex].begin_position = 0;
 	a->client.dataset[iindex].total_size = -1;
 	return ARCHIVE_OK;
 }
@@ -422,11 +422,11 @@ archive_read_add_callback_data(struct archive *_a, void *client_data,
 
 	for (i = a->client.nodes - 1; i > iindex; i--) {
 		a->client.dataset[i].data = a->client.dataset[i-1].data;
-		a->client.dataset[i].begin_position = -1;
+		a->client.dataset[i].begin_position = 0;
 		a->client.dataset[i].total_size = -1;
 	}
 	a->client.dataset[iindex].data = client_data;
-	a->client.dataset[iindex].begin_position = -1;
+	a->client.dataset[iindex].begin_position = 0;
 	a->client.dataset[iindex].total_size = -1;
 	return ARCHIVE_OK;
 }
@@ -454,7 +454,7 @@ int
 archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter *f, *tmp;
+	struct archive_read_filter *f;
 	int slot, e = ARCHIVE_OK;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
@@ -510,11 +510,41 @@ archive_read_open1(struct archive *_a)
 	}
 	else
 	{
+		size_t count;
+		struct archive_read_filter *f2;
+
 		/* Need to add "NONE" type filter at the end of the filter chain */
-		tmp = a->filter;
-		while (tmp->upstream)
-			tmp = tmp->upstream;
-		tmp->upstream = f;
+		count = 1;
+		for (f2 = a->filter; f2->upstream != NULL; f2 = f2->upstream)
+			count++;
+		f2->upstream = f;
+
+		while (count-- > 0) {
+			struct archive_read_filter_bidder *bidder;
+			size_t i;
+			int r;
+
+			f2 = a->filter;
+			for (i = 0; i < count; i++)
+				f2 = f2->upstream;
+			bidder = f2->bidder;
+
+			r = (bidder->vtable->bid)(bidder, f2->upstream);
+			if (r < 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Registered filter does not match");
+				close_filters(a);
+				a->archive.state = ARCHIVE_STATE_FATAL;
+				return (ARCHIVE_FATAL);
+			}
+			r = (bidder->vtable->init)(f2);
+			if (r != ARCHIVE_OK) {
+				close_filters(a);
+				a->archive.state = ARCHIVE_STATE_FATAL;
+				return (ARCHIVE_FATAL);
+			}
+		}
 	}
 
 	if (!a->format)
@@ -541,8 +571,6 @@ archive_read_open1(struct archive *_a)
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
 
-	/* Ensure libarchive starts from the first node in a multivolume set */
-	client_switch_proxy(f, 0);
 	return (e);
 }
 
@@ -1692,6 +1720,44 @@ advance_file_pointer(struct archive_read_filter *f, int64_t request)
 	}
 }
 
+static int64_t
+get_archive_size(struct archive_read_filter *f)
+{
+	struct archive_read_client *client = &(f->archive->client);
+	int64_t size;
+	unsigned int cursor;
+
+	/* Try to calculate size without switching client objects. */
+	size = 0;
+	for (cursor = 0; cursor < client->nodes; cursor++) {
+		int64_t total_size = client->dataset[cursor].total_size;
+
+		if (total_size < 0)
+			break;
+		if (archive_ckd_add_i64(&size, size, total_size))
+			return (ARCHIVE_FATAL);
+	}
+
+	/* Seek through remaining client objects to calculate size. */
+	for (; cursor < client->nodes; cursor++) {
+		int64_t r;
+
+		client->dataset[cursor].begin_position = size;
+		r = client_switch_proxy(f, cursor);
+		if (r != ARCHIVE_OK)
+			return (r);
+		r = client_seek_proxy(f, 0, SEEK_END);
+		if (r < 0)
+			return (r);
+		client->dataset[cursor].total_size = r;
+		if (archive_ckd_add_i64(&size, size, r))
+			return (ARCHIVE_FATAL);
+		f->position = size;
+	}
+
+	return (size);
+}
+
 /**
  * Returns ARCHIVE_FAILED if seeking isn't supported.
  */
@@ -1706,9 +1772,8 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
     int whence)
 {
 	struct archive_read_client *client;
-	int64_t r;
+	int64_t old_position, r;
 	unsigned int cursor, old_cursor;
-	int sought = 0;
 
 	if (f->closed || f->fatal)
 		return (ARCHIVE_FATAL);
@@ -1717,6 +1782,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 
 	client = &(f->archive->client);
 	old_cursor = client->cursor;
+	old_position = f->position;
 
 	switch (whence) {
 	case SEEK_CUR:
@@ -1727,8 +1793,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		cursor = 0;
 		while (1)
 		{
-			if (client->dataset[cursor].begin_position < 0 ||
-			    client->dataset[cursor].total_size < 0 ||
+			if (client->dataset[cursor].total_size < 0 ||
 			    client->dataset[cursor].begin_position +
 			      client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
@@ -1741,10 +1806,14 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 			r = client_switch_proxy(f, cursor);
 			if (r != ARCHIVE_OK)
 				goto clear_buffer;
-			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
-				goto clear_buffer;
-			sought = 1;
-			client->dataset[cursor].total_size = r;
+			if (client->dataset[cursor].total_size < 0) {
+				if ((r = client_seek_proxy(f,
+				    0, SEEK_END)) < 0)
+					goto clear_buffer;
+				client->dataset[cursor].total_size = r;
+				f->position = r +
+				    client->dataset[cursor].begin_position;
+			}
 			if (client->dataset[cursor].begin_position +
 			    client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
@@ -1761,34 +1830,13 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		}
 		if ((r = client_seek_proxy(f, offset, SEEK_SET)) < 0)
 			goto clear_buffer;
-		sought = 1;
 		break;
 
 	case SEEK_END:
-		cursor = 0;
-		while (1) {
-			if (client->dataset[cursor].begin_position < 0 ||
-			    client->dataset[cursor].total_size < 0 ||
-			    cursor + 1 >= client->nodes)
-				break;
-			r = client->dataset[cursor].begin_position +
-				client->dataset[cursor].total_size;
-			client->dataset[++cursor].begin_position = r;
-		}
-		while (1) {
-			r = client_switch_proxy(f, cursor);
-			if (r != ARCHIVE_OK)
-				goto clear_buffer;
-			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
-				goto clear_buffer;
-			sought = 1;
-			client->dataset[cursor].total_size = r;
-			r = client->dataset[cursor].begin_position +
-				client->dataset[cursor].total_size;
-			if (cursor + 1 >= client->nodes)
-				break;
-			client->dataset[++cursor].begin_position = r;
-		}
+		r = get_archive_size(f);
+		if (r < 0)
+			goto clear_buffer;
+		cursor = client->nodes - 1;
 		while (1) {
 			if (r + offset >=
 			    client->dataset[cursor].begin_position)
@@ -1806,16 +1854,17 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		r = client_seek_proxy(f, offset, SEEK_SET);
 		if (r < ARCHIVE_OK)
 			goto clear_buffer;
-		sought = 1;
 		break;
 
 	default:
 		return (ARCHIVE_FATAL);
 	}
 	r += client->dataset[cursor].begin_position;
+	f->position = r;
 
 clear_buffer:
-	if (r == ARCHIVE_FAILED && !sought && old_cursor == client->cursor) {
+	if (r == ARCHIVE_FAILED &&
+	    old_cursor == client->cursor && old_position == f->position) {
 		/* Seek failed without moving position: keep buffer */
 		return (r);
 	}
@@ -1839,11 +1888,12 @@ clear_buffer:
 	*/
 	f->avail = f->client_avail = 0;
 	f->next = f->buffer;
-	if (r >= 0) {
-		f->position = r;
+	if (r >= 0)
 		f->end_of_file = 0;
-	} else
+	else {
+		f->position = -1;
 		f->fatal = 1;
+	}
 
 	return r;
 }
