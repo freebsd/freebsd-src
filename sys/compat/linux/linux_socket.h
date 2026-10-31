@@ -235,6 +235,12 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_IP_BIND_ADDRESS_NO_PORT	24
 #define	LINUX_IP_RECVFRAGSIZE	25
 
+struct l_in_pktinfo {
+	l_int		ipi_ifindex;
+	l_uint		ipi_spec_dst;
+	l_uint		ipi_addr;
+};
+
 #define	LINUX_IP_MULTICAST_IF		32
 #define	LINUX_IP_MULTICAST_TTL		33
 #define	LINUX_IP_MULTICAST_LOOP		34
