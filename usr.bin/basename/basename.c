@@ -77,10 +77,6 @@ main(int argc, char **argv)
 	if (argc < 1)
 		usage();
 
-	if (!*argv[0]) {
-		printf("\n");
-		exit(0);
-	}
 	if ((p = basename(argv[0])) == NULL)
 		err(1, "%s", argv[0]);
 	if ((suffix == NULL && !aflag) && argc == 2) {
@@ -90,11 +86,15 @@ main(int argc, char **argv)
 	if (suffix != NULL)
 		suffixlen = strlen(suffix);
 	while (argc--) {
-		if ((p = basename(*argv)) == NULL)
-			err(1, "%s", argv[0]);
-		stripsuffix(p, suffix, suffixlen);
+		if (**argv == '\0')
+			(void)printf("\n");
+		else {
+			if ((p = basename(*argv)) == NULL)
+				err(1, "%s", argv[0]);
+			stripsuffix(p, suffix, suffixlen);
+			(void)printf("%s\n", p);
+		}
 		argv++;
-		(void)printf("%s\n", p);
 	}
 	exit(0);
 }
