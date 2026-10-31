@@ -693,9 +693,8 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 
 		if (hypctx->has_exception) {
 			hypctx->has_exception = false;
-			/*
-			 * TODO: implement exception injection.
-			 */
+			riscv_inject_exception(hypctx, hypctx->exception_scause,
+			    hypctx->exception_stval, hypctx->exception_sepc);
 		}
 
 		val = intr_disable();
@@ -967,9 +966,12 @@ vmmops_exception(void *vcpui, uint64_t scause)
 		panic("%s: %s%d is running", __func__, vm_name(hypctx->hyp->vm),
 		    vcpu_vcpuid(hypctx->vcpu));
 
-	/* TODO: implement me. */
+	hypctx->exception_scause = scause;
+	hypctx->exception_stval = 0;
+	hypctx->exception_sepc = hypctx->guest_regs.hyp_sepc;
+	hypctx->has_exception = true;
 
-	return (ENOSYS);
+	return (0);
 }
 
 int
