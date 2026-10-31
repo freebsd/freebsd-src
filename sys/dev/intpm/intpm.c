@@ -857,6 +857,7 @@ static int
 intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct intsmb_softc *sc = device_get_softc(dev);
+	uint32_t val;
 	int error, i;
 	u_char nread;
 
@@ -875,10 +876,33 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	intsmb_start(sc, PIIX4_SMBHSTCNT_PROT_BLOCK, 0);
 	error = intsmb_stop(sc);
 	if (error == 0) {
-		nread = bus_read_1(sc->io_res, PIIX4_SMBHSTDAT0);
+		i = 0;
+		if (sc->type == SYS_RES_MEMORY) {
+			/*
+			 * The 32 bit aligned word at PIIX4_SMBHSTADD (0x04)
+			 * ends with PIIX4_SMBBLKDAT (0x07). The AMD FCH
+			 * SMBus controller (PCI 1022:790b, revision 0x61)
+			 * widens a byte read within that word into a 32 bit
+			 * read. PIIX4_SMBBLKDAT is a FIFO which advances on
+			 * every bus cycle touching it, so reading the length
+			 * also pops the first data byte. Take that byte from
+			 * the word instead of reading PIIX4_SMBBLKDAT again.
+			 *
+			 * The read has to start at PIIX4_SMBHSTADD to stay
+			 * 32 bit aligned. PIIX4_SMBHSTDAT0 holds the length
+			 * at byte 1 and PIIX4_SMBBLKDAT the first data byte
+			 * at byte 3 of the word.
+			 */
+			val = bus_read_4(sc->io_res, PIIX4_SMBHSTADD);
+			nread = (val >> 8) & 0xff;
+			if (nread != 0 && nread <= SMBBLOCKTRANS_MAX)
+				buf[i++] = (val >> 24) & 0xff;
+		} else
+			nread = bus_read_1(sc->io_res, PIIX4_SMBHSTDAT0);
+
 		if (nread != 0 && nread <= SMBBLOCKTRANS_MAX) {
 			*count = nread;
-			for (i = 0; i < nread; i++)
+			for (; i < nread; i++)
 				buf[i] = bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
 		} else
 			error = SMB_EBUSERR;
