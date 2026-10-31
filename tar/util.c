@@ -427,6 +427,12 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	char *subst_name;
 	int r;
 
+	/* Check if entry pathname can be processed. */
+	if (name == NULL) {
+		lafe_warnc(0, "Archive entry has empty or unreadable filename ... skipping");
+		return 1;
+	}
+
 	/* Apply user-specified substitution to pathname. */
 	r = apply_substitution(bsdtar, name, &subst_name, 0, 0);
 	if (r == -1) {

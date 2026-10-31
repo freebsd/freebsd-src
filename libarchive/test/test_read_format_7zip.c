@@ -2241,3 +2241,34 @@ DEFINE_TEST(test_read_format_7zip_lzma1_powerpc)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * A folder which chains two compressors (7zz a -m0=LZMA2 -m1=LZMA2)
+ * isn't supported, and should be rejected with a clear error.
+ */
+DEFINE_TEST(test_read_format_7zip_chained_lzma2)
+{
+	const char *refname = "test_read_format_7zip_chained_lzma2.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[16];
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file1", archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_data(a, buff, sizeof(buff)));
+	assert(archive_error_string(a) != NULL &&
+	    strstr(archive_error_string(a), "chained compressors") != NULL);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

@@ -22,15 +22,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "archive.h"
 #include "test.h"
 
 DEFINE_TEST(test_archive_read_append_filter)
 {
+	char *buff = "begin 644 test\n"
+	    "%=&5S=`H`\n"
+	    "`\n"
+	    "end\n";
 	struct archive *a;
-	int r;
 
+	/* Create a new archive reader. */
 	a = archive_read_new();
 	assert(a != NULL);
 
@@ -38,17 +40,30 @@ DEFINE_TEST(test_archive_read_append_filter)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_program(a, "prog1"));
 
-	/* Append a filter program which comes with its own bidder. */
-	r = archive_read_append_filter_program(a, "prog2");
+	/* Append a filter which comes with its own bidder. */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_append_filter(a, ARCHIVE_FILTER_UU));
 
 	/* Verify that filter uses its own bidder. */
-	if (r == ARCHIVE_FATAL) {
-		assertEqualStringA(a, "Can't initialize filter; unable to run program \"prog2\"",
-			archive_error_string(a));
-	} else {
-		assertEqualIntA(a, ARCHIVE_OK, r);
-		assertEqualStringA(a, "Program: prog2", archive_filter_name(a, 0));
-	}
-
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, strlen(buff)));
+	assertEqualStringA(a, "uu", archive_filter_name(a, 0));
 	archive_read_free(a);
+
+	/* Create a new archive reader. */
+	a = archive_read_new();
+	assert(a != NULL);
+
+	/* Append non-matching filter chain for archive (.uu.Z). */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_append_filter(a, ARCHIVE_FILTER_COMPRESS));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_append_filter(a, ARCHIVE_FILTER_UU));
+
+	/* Verify that archive cannot be opened. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_memory(a, buff, strlen(buff)));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

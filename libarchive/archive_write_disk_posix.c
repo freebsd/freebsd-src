@@ -1581,7 +1581,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		memcpy(a->uncompressed_buffer +
 		    MAX_DECMPFS_BLOCK_SIZE - a->block_remaining_bytes,
 		    buff, bytes_to_write);
-		buffer_to_write = a->uncompressed_buffer;
+		buffer_to_write = (const char *)a->uncompressed_buffer;
 	}
 	a->block_remaining_bytes -= bytes_to_write;
 	a->file_remaining_bytes -= bytes_to_write;

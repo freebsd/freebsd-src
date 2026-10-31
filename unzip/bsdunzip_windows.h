@@ -38,6 +38,9 @@
 #define	S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK) /* symbolic link */
 #endif
 
+#ifndef STDIN_FILENO
+#define STDIN_FILENO 0
+#endif
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
 #endif

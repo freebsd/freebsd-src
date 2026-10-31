@@ -29,9 +29,6 @@
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-#ifndef __LIBARCHIVE_CONFIG_H_INCLUDED
-#error "Should have include config.h first!"
-#endif
 
 /*
  * Choose XML support from third party libraries in this order of preference:

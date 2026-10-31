@@ -6,19 +6,27 @@ permissions:
   contents: read
 
 jobs:
-  debian-i386:
-    name: Debian (cmake, i386)
+  Alpine:
+    name: Alpine (${{ matrix.bs }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - { arch: x86_64, bs: autotools, image: alpine:3.24 }
+        - { arch: x86_64, bs: cmake, image: alpine:3.24 }
+        - { arch: i386, bs: autotools, image: i386/alpine:3.24 }
+        - { arch: i386, bs: cmake, image: i386/alpine:3.24 }
     container:
-      image: i386/debian:bookworm
+      image: ${{ matrix.image }}
     steps:
     - name: Install dependencies
       run: |
-        apt-get update
-        apt-get install -y --no-install-recommends \
-          build-essential ca-certificates cmake git pkg-config \
-          libacl1-dev libbz2-dev liblz4-dev liblzma-dev \
-          libssl-dev libzstd-dev zlib1g-dev
+        apk add --no-cache \
+          autoconf automake build-base ca-certificates cmake git libtool \
+          lzop perl pkgconf tar xz \
+          acl-dev bzip2-dev libxml2-dev lz4-dev \
+          openssl-dev xz-dev zlib-dev zstd-dev
     # Plain git instead of the checkout action: the runner executes
     # actions with its own 64-bit node, which cannot run inside a
     # 32-bit container.
@@ -29,31 +37,34 @@ jobs:
         git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
         git fetch -q --depth 1 origin "$GITHUB_SHA"
         git checkout -q FETCH_HEAD
+    - name: Autogen
+      run: ./build/ci/build.sh -a autogen
+      env:
+        BS: ${{ matrix.bs }}
     - name: Configure
       run: ./build/ci/build.sh -a configure
       env:
-        BS: cmake
+        BS: ${{ matrix.bs }}
     - name: Build
       run: ./build/ci/build.sh -a build
       env:
-        BS: cmake
+        BS: ${{ matrix.bs }}
         MAKE_ARGS: -j4
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
-        BS: cmake
+        BS: ${{ matrix.bs }}
         CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
-        BS: cmake
-    # The artifact is built like in the other jobs, but not uploaded:
-    # the upload-artifact action cannot run in this container either,
-    # for the same reason as the checkout action above.
+        BS: ${{ matrix.bs }}
+    # Build the artifact without uploading it: upload-artifact also
+    # requires a JavaScript runtime unavailable in the i386 container.
     - name: Artifact
       run: ./build/ci/build.sh -a artifact
       env:
-        BS: cmake
+        BS: ${{ matrix.bs }}
 
   FreeBSD:
     runs-on: ubuntu-latest
@@ -143,6 +154,7 @@ jobs:
       env:
         BS: ${{ matrix.bs }}
         CRYPTO: ${{ matrix.crypto }}
+        DEBUG: 1
     - name: Build
       run: ./build/ci/build.sh -a build
       env:

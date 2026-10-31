@@ -39,9 +39,6 @@
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
 #include "config_freebsd.h"
-#elif defined(__NetBSD__)
-/* Building as part of NetBSD system requires a pre-built config.h. */
-#include "config_netbsd.h"
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
 #include "config_windows.h"

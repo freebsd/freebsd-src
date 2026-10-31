@@ -26,8 +26,6 @@
 #ifndef ARCHIVE_PLATFORM_H_ANDROID_INCLUDED
 #define	ARCHIVE_PLATFORM_H_ANDROID_INCLUDED
 
-#define __LIBARCHIVE_CONFIG_H_INCLUDED 1
-
 #include <android/api-level.h>
 #ifdef __ANDROID_API__
 #if __ANDROID_API__ > 20
@@ -106,7 +104,6 @@
 #define HAVE_LSTAT 1
 #define HAVE_MBRTOWC 1
 #define HAVE_MEMMOVE 1
-#define HAVE_MEMORY_H 1
 #define HAVE_MEMSET 1
 #define HAVE_MKDIR 1
 #define HAVE_MKFIFO 1

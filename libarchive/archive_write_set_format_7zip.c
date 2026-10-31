@@ -334,7 +334,7 @@ string_to_number(const char *string, intmax_t *numberp)
 		return (ARCHIVE_WARN);
 	errno = 0;
 	*numberp = strtoimax(string, &end, 10);
-	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+	if (end == string || *end != '\0' || errno == ERANGE) {
 		*numberp = 0;
 		return (ARCHIVE_WARN);
 	}
@@ -479,7 +479,7 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 	if (strcmp(key, "compression-level") == 0) {
 		if (value == NULL || *value == '\0') {
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-				"Invalid compression-level option value `%s'", value);
+				"Option 'compression-level' requires an argument");
 			return (ARCHIVE_FAILED);
 		}
 

@@ -388,9 +388,9 @@ static int	archive_read_format_iso9660_read_data(struct archive_read *,
 static int	archive_read_format_iso9660_read_data_skip(struct archive_read *);
 static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
-static const char *build_pathname(struct archive_string *, struct file_info *, int);
+static int	build_pathname(struct archive_string *, struct file_info *, int);
 static int	build_pathname_utf16be(unsigned char *, size_t, size_t *,
-		    struct file_info *);
+		    struct file_info *, int);
 #if DEBUG
 static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 #endif
@@ -432,6 +432,7 @@ static void	parse_rockridge_TF1(struct file_info *,
 static void	parse_rockridge_ZF1(struct file_info *,
 		    const unsigned char *, int);
 static void	register_file(struct iso9660 *, struct file_info *);
+static void	release_file(struct file_info *);
 static void	release_files(struct iso9660 *);
 static inline void re_add_entry(struct iso9660 *, struct file_info *);
 static inline struct file_info * re_get_entry(struct iso9660 *);
@@ -1280,8 +1281,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		}
 
 		iso9660->utf16be_path_len = 0;
-		if (build_pathname_utf16be(iso9660->utf16be_path,
-		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file) != 0) {
+		r = build_pathname_utf16be(iso9660->utf16be_path,
+		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file, 0);
+		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname is too long");
@@ -1308,16 +1310,15 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			rd_r = ARCHIVE_WARN;
 		}
 	} else {
-		const char *path = build_pathname(&iso9660->pathname, file, 0);
-		if (path == NULL) {
+		archive_string_empty(&iso9660->pathname);
+		r = build_pathname(&iso9660->pathname, file, 0);
+		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname is too long");
 			return (ARCHIVE_FATAL);
-		} else {
-			archive_string_empty(&iso9660->pathname);
-			archive_entry_set_pathname(entry, path);
 		}
+		archive_entry_set_pathname(entry, iso9660->pathname.s);
 	}
 
 	iso9660->entry_bytes_remaining = file->size;
@@ -1901,12 +1902,12 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	if (iso9660->seenJoliet) {
 		/* Joliet names are max 64 chars (128 bytes) according to spec,
-		 * but genisoimage/mkisofs allows recording longer Joliet
-		 * names which are 103 UCS2 characters(206 bytes) by their
-		 * option '-joliet-long'.
+		 * but authoring tools record longer ones: genisoimage/mkisofs
+		 * up to 103 UCS2 characters (206 bytes) with '-joliet-long',
+		 * Windows tools up to what the directory record holds. The
+		 * record already bounds name_len (checked above), so the
+		 * whole name is kept.
 		 */
-		if (name_len > 206)
-			name_len = 206;
 		name_len &= ~1;
 
 		/* trim trailing first version and dot from filename.
@@ -2154,8 +2155,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	register_file(iso9660, file);
 	return (file);
 fail:
-	archive_string_free(&file->name);
-	free(file);
+	release_file(file);
 	return (NULL);
 }
 
@@ -2758,25 +2758,31 @@ register_file(struct iso9660 *iso9660, struct file_info *file)
 }
 
 static void
-release_files(struct iso9660 *iso9660)
+release_file(struct file_info *file)
 {
 	struct content *con, *connext;
+
+	archive_string_free(&file->name);
+	archive_string_free(&file->symlink);
+	free(file->utf16be_name);
+	con = file->contents.first;
+	while (con != NULL) {
+		connext = con->next;
+		free(con);
+		con = connext;
+	}
+	free(file);
+}
+
+static void
+release_files(struct iso9660 *iso9660)
+{
 	struct file_info *file;
 
 	file = iso9660->use_files;
 	while (file != NULL) {
 		struct file_info *next = file->use_next;
-
-		archive_string_free(&file->name);
-		archive_string_free(&file->symlink);
-		free(file->utf16be_name);
-		con = file->contents.first;
-		while (con != NULL) {
-			connext = con->next;
-			free(con);
-			con = connext;
-		}
-		free(file);
+		release_file(file);
 		file = next;
 	}
 }
@@ -3446,53 +3452,64 @@ time_from_tm(struct tm *t)
 #endif
 }
 
-static const char *
+static int
 build_pathname(struct archive_string *as, struct file_info *file, int depth)
 {
 	// Plain ISO9660 only allows 8 dir levels; if we get
 	// to 1000, then something is very, very wrong.
-	if (depth > 1000) {
-		return NULL;
-	}
+	if (depth > 1000)
+		return (ARCHIVE_FATAL);
 	if (file->parent != NULL && archive_strlen(&file->parent->name) > 0) {
-		if (build_pathname(as, file->parent, depth + 1) == NULL) {
-			return NULL;
-		}
+		int r = build_pathname(as, file->parent, depth + 1);
+
+		if (r != ARCHIVE_OK)
+			return (r);
 		archive_strcat(as, "/");
 	}
 	if (archive_strlen(&file->name) == 0)
 		archive_strcat(as, ".");
 	else
 		archive_string_concat(as, &file->name);
-	return (as->s);
+	return (ARCHIVE_OK);
 }
 
 static int
 build_pathname_utf16be(unsigned char *p, size_t max, size_t *len,
-    struct file_info *file)
+    struct file_info *file, int depth)
 {
+	/*
+	 * Plain ISO9660 only allows 8 dir levels; if we get
+	 * to 1000, then something is very, very wrong.  A malformed
+	 * image can also form a cycle in the parent chain via Rock
+	 * Ridge "CL"/"RE" relocation, which without this limit would
+	 * recurse until the stack is exhausted.  Mirrors the cap in
+	 * build_pathname().
+	 */
+	if (depth > 1000)
+		return (ARCHIVE_FATAL);
 	if (file->parent != NULL && file->parent->utf16be_bytes > 0) {
-		if (build_pathname_utf16be(p, max, len, file->parent) != 0)
-			return (-1);
+		if (build_pathname_utf16be(p, max, len, file->parent,
+		    depth + 1) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 		if (*len + 2 > max)
-			return (-1);/* Path is too long! */
+			return (ARCHIVE_FATAL);/* Path is too long! */
 		p[*len] = 0;
 		p[*len + 1] = '/';
 		*len += 2;
 	}
 	if (file->utf16be_bytes == 0) {
 		if (*len + 2 > max)
-			return (-1);/* Path is too long! */
+			return (ARCHIVE_FATAL);/* Path is too long! */
 		p[*len] = 0;
 		p[*len + 1] = '.';
 		*len += 2;
 	} else {
 		if (*len + file->utf16be_bytes > max)
-			return (-1);/* Path is too long! */
+			return (ARCHIVE_FATAL);/* Path is too long! */
 		memcpy(p + *len, file->utf16be_name, file->utf16be_bytes);
 		*len += file->utf16be_bytes;
 	}
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 #if DEBUG

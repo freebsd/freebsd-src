@@ -1,5 +1,4 @@
 /* config.h.  Generated from build/cmake/config.h.in by cmake configure */
-#define __LIBARCHIVE_CONFIG_H_INCLUDED 1
 
 /*
  * Ensure we have C99-style int64_t, etc, all defined.
@@ -924,9 +923,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the 'memset_explicit' function. */
 #cmakedefine HAVE_MEMSET_EXPLICIT 1
-
-/* Define to 1 if you have the <memory.h> header file. */
-#cmakedefine HAVE_MEMORY_H 1
 
 /* Define to 1 if you have the 'mkdir' function. */
 #cmakedefine HAVE_MKDIR 1

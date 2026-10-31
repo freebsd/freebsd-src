@@ -910,3 +910,81 @@ DEFINE_TEST(test_read_format_mtree_global_set_no_value)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * The last line of a hand-written specification often lacks a newline.
+ * It must not be dropped.
+ */
+DEFINE_TEST(test_read_format_mtree_no_final_newline)
+{
+	static const char archive[] =
+	    "#mtree\n"
+	    "a type=file\n"
+	    "b type=file";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive) - 1));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "a");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "b");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_file_count(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * A read error while the specification is parsed must be reported,
+ * not treated as the end of the specification.
+ */
+static const char *read_error_chunks[] = {
+	"#mtree\n"
+	"a type=file\n",
+	"b type=file\n",
+	NULL
+};
+
+static ssize_t
+read_error_cb(struct archive *a, void *client_data, const void **buff)
+{
+	int *next = (int *)client_data;
+	const char *chunk = read_error_chunks[*next];
+
+	if (chunk == NULL) {
+		archive_set_error(a, EIO, "Simulated read error");
+		return (ARCHIVE_FATAL);
+	}
+	++*next;
+	*buff = chunk;
+	return ((ssize_t)strlen(chunk));
+}
+
+DEFINE_TEST(test_read_format_mtree_read_error)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	int next = 0;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_mtree(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open(a, &next, NULL, read_error_cb, NULL));
+
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualString("Simulated read error", archive_error_string(a));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

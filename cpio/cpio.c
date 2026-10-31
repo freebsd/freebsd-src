@@ -886,6 +886,8 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 
 	if (r == ARCHIVE_FATAL)
 		exit(1);
+	if (r == ARCHIVE_FAILED)
+		cpio->return_value = 1;
 
 	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
 		static char buff[16384];
@@ -905,6 +907,10 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 				    "grown while being archived");
 			}
 			bytes_read = read(fd, buff, sizeof(buff));
+		}
+		if (bytes_read < 0) {
+			lafe_warnc(errno, "%s: read error", srcpath);
+			cpio->return_value = 1;
 		}
 	}
 

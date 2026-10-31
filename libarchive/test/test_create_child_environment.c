@@ -56,9 +56,9 @@ DEFINE_TEST(test_create_child_environment)
 	struct archive *a;
 	struct archive_entry *ae;
 	char buf[8192];
-	size_t total;
+	size_t total, needle_len, overlap, keep;
 	ssize_t n;
-	int r;
+	int r, found;
 
 	if (!canRunCommand("env", NULL)) {
 		skipping("Can't run the \"env\" program on this platform");
@@ -84,16 +84,32 @@ DEFINE_TEST(test_create_child_environment)
 	    archive_read_open_memory(a, input, sizeof(input)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
+	needle_len = strlen(needle);
+	overlap = needle_len > 1 ? needle_len - 1 : 0;
+	assert(needle_len < sizeof(buf));
+
+	/* Scan the complete output, even if the environment exceeds buf. */
 	total = 0;
-	while (total < sizeof(buf) - 1) {
-		n = archive_read_data(a, buf + total, sizeof(buf) - 1 - total);
-		if (n < 0)
-			break;
-		if (n == 0)
-			break;
+	found = 0;
+	while ((n = archive_read_data(a, buf + total,
+		sizeof(buf) - 1 - total)) > 0) {
 		total += (size_t)n;
+		buf[total] = '\0';
+		if (!found) {
+			if (strstr(buf, needle) != NULL) {
+				found = 1;
+			} else {
+				/* Retain bytes for matches across read
+				 * boundaries. */
+				keep = total < overlap ? total : overlap;
+				memmove(buf, buf + total - keep, keep);
+				total = keep;
+			}
+		}
+		if (found)
+			total = 0;
 	}
-	buf[total] = '\0';
+	assertEqualIntA(a, 0, n);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -103,6 +119,6 @@ DEFINE_TEST(test_create_child_environment)
 	/* The filter program's output should list our marker variable:
 	 * if it doesn't, it was spawned with an empty (or at least
 	 * incomplete) environment. */
-	assert(strstr(buf, needle) != NULL);
+	assertEqualInt(1, found);
 #endif
 }

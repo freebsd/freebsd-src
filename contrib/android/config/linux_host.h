@@ -98,7 +98,6 @@
 #define HAVE_LUTIMES 1
 #define HAVE_MBRTOWC 1
 #define HAVE_MEMMOVE 1
-#define HAVE_MEMORY_H 1
 #define HAVE_MEMSET 1
 #define HAVE_MKDIR 1
 #define HAVE_MKFIFO 1

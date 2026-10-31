@@ -551,8 +551,11 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 		char *endptr;
 		unsigned long val;
 
-		if (value == NULL)
+		if (value == NULL) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "Option 'threads' requires an argument");
 			return (ARCHIVE_FAILED);
+		}
 		errno = 0;
 		val = strtoul(value, &endptr, 10);
 		if (errno != 0 || *endptr != '\0' || val > (unsigned)INT_MAX) {
@@ -571,6 +574,7 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			xar->opt_threads = 1;
 #endif
 		}
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options

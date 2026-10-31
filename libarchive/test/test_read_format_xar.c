@@ -1172,3 +1172,60 @@ DEFINE_TEST(test_read_format_xar_parse_time_overread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * The XAR archive in this test has an xattr entry with an offset of
+ * 18446744073709551377. When offset by the header size, we would
+ * seek back to position 0 and re-read the TOC.
+ *
+ * This has made a lot of people very angry and been widely regarded
+ * as a bad move.
+ *
+ * <toc>
+ *   <file id="1">
+ *     <name>a</name>
+ *     <type link="original">file</type>
+ *     <ea id="1">
+ *       <name>x1</name>
+ *       <offset>18446744073709551377</offset>
+ *       ...
+ *     </ea>
+ *   </file>
+ * </toc>
+ *
+ * The ASan failure can only be triggered by two header reads,
+ * but our fix prevents the first header read from completing.
+ */
+DEFINE_TEST(test_read_format_xar_invalid_seek_offset)
+{
+	const char *reffile = "test_read_format_xar_invalid_seek_offset.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, reffile, 10240));
+
+	/* The first header positions the file pointer... */
+	r = archive_read_next_header(a, &ae);
+	/* ...so the next header read re-reads the TOC. */
+	assertA(0 != archive_read_next_header(a, &ae));
+	/* Check in reverse order so that either we abort
+	 * with an ASan failure before this assertion _or_
+	 * it passes.
+	 */
+	assertA(0 != r);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

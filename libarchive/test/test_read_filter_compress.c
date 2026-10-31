@@ -78,3 +78,44 @@ DEFINE_TEST(test_read_filter_compress_invalid)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+
+DEFINE_TEST(test_read_filter_compress_multi_volume)
+{
+	const char *reffiles[] =
+	{
+		"test_read_filter_compress_multi_volume.part01",
+		"test_read_filter_compress_multi_volume.part02",
+		"test_read_filter_compress_multi_volume.part03",
+		NULL
+	};
+
+	char *buff;
+	const size_t buffsize = 64 * 1024;
+	struct archive *a;
+	struct archive_entry *entry = NULL;
+
+	buff = malloc(buffsize);
+	assert(buff != NULL);
+
+	extract_reference_files(reffiles);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_compress(a));
+	assertA(0 == archive_read_support_format_raw(a));
+	assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+
+	/* Read 65 KB of 0 bytes from archive. */
+	assertEqualIntA(a, 64 * 1024, archive_read_data(a, buff, buffsize));
+	assertMemoryFilledWith(buff, 64 * 1024, 0);
+	assertEqualIntA(a, 1024, archive_read_data(a, buff, buffsize));
+	assertMemoryFilledWith(buff, 1024, 0);
+	assertEqualIntA(a, 0, archive_read_data(a, buff, buffsize));
+
+	/* Close archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(buff);
+}

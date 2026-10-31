@@ -11,7 +11,7 @@
 # CONFIGURE_ARGS=	# configure arguments
 # CMAKE_ARGS=		# cmake arguments
 # MAKE_ARGS=		# make arguments
-# DEBUG=		# set -g -fsanitize=address flags
+# DEBUG=		# set -g -fsanitize=address.undefined flags
 
 set -eu
 
@@ -103,9 +103,9 @@ if [ -d /opt/homebrew/lib ]; then
 fi
 if [ -n "${DEBUG:-}" ]; then
 	if [ -n "${CFLAGS:-}" ]; then
-		export CFLAGS="${CFLAGS} -g -fsanitize=address"
+		export CFLAGS="${CFLAGS} -g -fsanitize=address,undefined"
 	else
-		export CFLAGS="-g -fsanitize=address"
+		export CFLAGS="-g -fsanitize=address,undefined"
 	fi
 fi
 if [ -z "${ACTIONS}" ]; then
