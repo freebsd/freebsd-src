@@ -56,7 +56,7 @@ nexttoward(double x, long double y)
 	    if(lx==0) hx += 1;
 	}
 	ix = hx&0x7ff00000;
-	if(ix>=0x7ff00000) return x+x;	/* overflow  */
+	if(ix>=0x7ff00000) t = x+x;	/* overflow  */
 	if(ix<0x00100000) {		/* underflow */
 	    t = x*x;
 	    if(t!=x) {		/* raise underflow flag */
