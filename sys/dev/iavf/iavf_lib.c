@@ -1083,6 +1083,11 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0};
 	u32		rss_hash_config;
 
+	IAVF_VC_LOCK_ASSERT(sc);
+	sc->rss_hena = 0;
+	sc->rss_key_size = 0;
+	sc->rss_configured = IAVF_FLAG_AQ_CONFIG_RSS_KEY |
+	    IAVF_FLAG_AQ_SET_RSS_HENA;
 	/* Don't set up RSS if using a single queue */
 	if (IAVF_NRXQS(vsi) == 1) {
 		wr32(hw, IAVF_VFQF_HENA(0), 0);
@@ -1097,6 +1102,12 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 	/* Fill out hash function seed */
 	for (i = 0; i < IAVF_RSS_KEY_SIZE_REG; i++)
                 wr32(hw, IAVF_VFQF_HKEY(i), rss_seed[i]);
+	/* Report the register byte order, not the host's u32 representation. */
+	_Static_assert(sizeof(rss_seed) >= sizeof(sc->rss_key),
+	    "RSS register key too small");
+	for (i = 0; i < RSS_KEYSIZE / sizeof(u32); i++)
+		le32enc(sc->rss_key + i * sizeof(u32), rss_seed[i]);
+	sc->rss_key_size = sizeof(sc->rss_key);
 
 	/* Enable PCTYPES for RSS: */
 	rss_hash_config = rss_gethashconfig();
@@ -1119,6 +1130,7 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 	hena |= set_hena;
 	wr32(hw, IAVF_VFQF_HENA(0), (u32)hena);
 	wr32(hw, IAVF_VFQF_HENA(1), (u32)(hena >> 32));
+	sc->rss_hena = hena;
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
 	for (i = 0, j = 0; i < IAVF_RSS_VSI_LUT_SIZE; i++, j++) {
@@ -1177,12 +1189,25 @@ iavf_config_rss(struct iavf_sc *sc)
 {
 	if (sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_RSS_REG) {
 		iavf_dbg_info(sc, "Setting up RSS using VF registers...\n");
+		IAVF_VC_LOCK(sc);
 		iavf_config_rss_reg(sc);
+		IAVF_VC_UNLOCK(sc);
 	} else if (sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_RSS_PF) {
 		iavf_dbg_info(sc, "Setting up RSS using messages to PF...\n");
 		iavf_config_rss_pf(sc);
 	} else
 		device_printf(sc->dev, "VF does not support RSS capability sent by PF.\n");
+}
+
+/* Discard RSS query state when leaving the current running instance. */
+void
+iavf_invalidate_rss(struct iavf_sc *sc)
+{
+
+	IAVF_VC_LOCK(sc);
+	sc->rss_pending = 0;
+	sc->rss_configured = 0;
+	IAVF_VC_UNLOCK(sc);
 }
 
 /**

@@ -85,6 +85,8 @@ static void	 iavf_if_timer(if_ctx_t ctx, uint16_t qid);
 static void	 iavf_if_vlan_register(if_ctx_t ctx, u16 vtag);
 static void	 iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
 static uint64_t	 iavf_if_get_counter(if_ctx_t ctx, ift_counter cnt);
+static int	 iavf_if_get_rss_key(if_ctx_t, struct ifrsskey *);
+static int	 iavf_if_get_rss_hash(if_ctx_t, struct ifrsshash *);
 static void	 iavf_if_init(if_ctx_t ctx);
 static void	 iavf_if_stop(if_ctx_t ctx);
 static bool	 iavf_if_needs_restart(if_ctx_t, enum iflib_restart_event);
@@ -195,6 +197,8 @@ static device_method_t iavf_if_methods[] = {
 	DEVMETHOD(ifdi_vlan_register, iavf_if_vlan_register),
 	DEVMETHOD(ifdi_vlan_unregister, iavf_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, iavf_if_get_counter),
+	DEVMETHOD(ifdi_get_rss_key, iavf_if_get_rss_key),
+	DEVMETHOD(ifdi_get_rss_hash, iavf_if_get_rss_hash),
 	DEVMETHOD(ifdi_needs_restart, iavf_if_needs_restart),
 	DEVMETHOD_END
 };
@@ -881,6 +885,7 @@ iavf_mbx_lost(struct iavf_sc *sc)
 	atomic_store_rel_32(&sc->vc_reinit_required, 1);
 	if (atomic_readandclear_32(&sc->mbx_ready) == 0)
 		return;
+	iavf_invalidate_rss(sc);
 	vsi = &sc->vsi;
 	iavf_clear_state(&sc->state, IAVF_STATE_RUNNING);
 	sc->link_up = false;
@@ -1032,6 +1037,7 @@ iavf_if_init(if_ctx_t ctx)
 	INIT_DBG_IF(ifp, "begin");
 
 	sx_assert(iflib_ctx_lock_get(ctx), SA_XLOCKED);
+	iavf_invalidate_rss(sc);
 	iavf_mbx_retry_prepare(sc);
 	replay_filters = atomic_load_acq_32(&sc->vc_reinit_required) != 0;
 
@@ -1118,6 +1124,83 @@ iavf_if_init(if_ctx_t ctx)
 fail:
 	atomic_store_rel_32(&sc->vc_reinit_required, 1);
 	iavf_mbx_retry_failed(ctx);
+}
+
+/* Query only a complete configuration from the current running instance. */
+static int
+iavf_rss_query_status(struct iavf_sc *sc)
+{
+
+	sx_assert(iflib_ctx_lock_get(sc->vsi.ctx), SA_XLOCKED);
+	IAVF_VC_LOCK_ASSERT(sc);
+	if (sc->vf_res == NULL)
+		return (ENXIO);
+	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == 0)
+		return (EOPNOTSUPP);
+	if (!iavf_test_state(&sc->state, IAVF_STATE_RUNNING) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_REQUIRED) ||
+	    atomic_load_acq_32(&sc->mbx_ready) == 0 ||
+	    atomic_load_acq_32(&sc->vc_reinit_required) != 0 ||
+	    sc->rss_configured != (IAVF_FLAG_AQ_CONFIG_RSS_KEY |
+	    IAVF_FLAG_AQ_SET_RSS_HENA))
+		return (ENXIO);
+	return (0);
+}
+
+static int
+iavf_if_get_rss_key(if_ctx_t ctx, struct ifrsskey *ifrk)
+{
+	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
+	int error;
+
+	IAVF_VC_LOCK(sc);
+	error = iavf_rss_query_status(sc);
+	if (error == 0) {
+		ifrk->ifrk_func = sc->rss_hena == 0 ? RSS_FUNC_NONE :
+		    RSS_FUNC_TOEPLITZ;
+		ifrk->ifrk_keylen = sc->rss_hena == 0 ? 0 : sc->rss_key_size;
+		_Static_assert(sizeof(ifrk->ifrk_key) >= sizeof(sc->rss_key),
+		    "RSS query buffer too small");
+		bzero(ifrk->ifrk_key, sizeof(ifrk->ifrk_key));
+		memcpy(ifrk->ifrk_key, sc->rss_key, ifrk->ifrk_keylen);
+	}
+	IAVF_VC_UNLOCK(sc);
+	return (error);
+}
+
+static int
+iavf_if_get_rss_hash(if_ctx_t ctx, struct ifrsshash *ifrh)
+{
+	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
+	u64 hena;
+	int error;
+
+	IAVF_VC_LOCK(sc);
+	error = iavf_rss_query_status(sc);
+	if (error == 0) {
+		hena = sc->rss_hena;
+		ifrh->ifrh_func = hena == 0 ? RSS_FUNC_NONE : RSS_FUNC_TOEPLITZ;
+		ifrh->ifrh_types = 0;
+		/* Fragment PCTYPEs are not IPv6 extension-header selections. */
+		if (hena & (BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV4_OTHER) |
+		    BIT_ULL(IAVF_FILTER_PCTYPE_FRAG_IPV4)))
+			ifrh->ifrh_types |= RSS_TYPE_IPV4;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV4_TCP))
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV4_UDP))
+			ifrh->ifrh_types |= RSS_TYPE_UDP_IPV4;
+		if (hena & (BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV6_OTHER) |
+		    BIT_ULL(IAVF_FILTER_PCTYPE_FRAG_IPV6)))
+			ifrh->ifrh_types |= RSS_TYPE_IPV6;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV6_TCP))
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV6_UDP))
+			ifrh->ifrh_types |= RSS_TYPE_UDP_IPV6;
+	}
+	IAVF_VC_UNLOCK(sc);
+	return (error);
 }
 
 /**
@@ -2129,6 +2212,7 @@ iavf_stop(struct iavf_sc *sc)
 	vsi = &sc->vsi;
 	iavf_mbx_retry_stop(sc);
 	iavf_clear_state(&sc->state, IAVF_STATE_RUNNING);
+	iavf_invalidate_rss(sc);
 
 	iavf_disable_intr(vsi);
 

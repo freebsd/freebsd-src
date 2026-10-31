@@ -366,6 +366,13 @@ struct iavf_sc {
 	struct virtchnl_vf_resource *vf_res;
 	struct virtchnl_vsi_resource *vsi_res;
 
+	/* RSS query snapshot and outstanding requests, protected by vc_mtx. */
+	u8			rss_key[RSS_KEYSIZE];
+	u16			rss_key_size;
+	u64			rss_hena;
+	u32			rss_pending;
+	u32			rss_configured;
+
 	/* Misc stats maintained by the driver */
 	u64			admin_irq;
 
@@ -407,4 +414,5 @@ void		iavf_add_queues_sysctls(device_t dev, struct iavf_vsi *vsi);
 
 void	iavf_enable_intr(struct iavf_vsi *);
 void	iavf_disable_intr(struct iavf_vsi *);
+void	iavf_invalidate_rss(struct iavf_sc *);
 #endif /* _IAVF_IFLIB_H_ */
