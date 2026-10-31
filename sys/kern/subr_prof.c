@@ -37,6 +37,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
@@ -59,14 +60,22 @@ struct profil_args {
 int
 sys_profil(struct thread *td, struct profil_args *uap)
 {
+	return (kern_profil(td, uap->samples, uap->size, uap->offset,
+	    uap->scale));
+}
+
+int
+kern_profil(struct thread *td, char *samples, size_t size, size_t offset,
+    u_int scale)
+{
 	struct uprof *upp;
 	struct proc *p;
 
-	if (uap->scale > (1 << 16))
+	if (scale > (1 << 16))
 		return (EINVAL);
 
 	p = td->td_proc;
-	if (uap->scale == 0) {
+	if (scale == 0) {
 		PROC_LOCK(p);
 		stopprofclock(p);
 		PROC_UNLOCK(p);
@@ -75,10 +84,10 @@ sys_profil(struct thread *td, struct profil_args *uap)
 	PROC_LOCK(p);
 	upp = &td->td_proc->p_stats->p_prof;
 	PROC_PROFLOCK(p);
-	upp->pr_off = uap->offset;
-	upp->pr_scale = uap->scale;
-	upp->pr_base = uap->samples;
-	upp->pr_size = uap->size;
+	upp->pr_off = offset;
+	upp->pr_scale = scale;
+	upp->pr_base = samples;
+	upp->pr_size = size;
 	PROC_PROFUNLOCK(p);
 	startprofclock(p);
 	PROC_UNLOCK(p);

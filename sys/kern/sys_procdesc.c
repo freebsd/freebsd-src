@@ -156,13 +156,19 @@ kern_pdgetpid(struct thread *td, int fd, const cap_rights_t *rightsp,
 int
 sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 {
+	return (user_pdgetpid(td, uap->fd, uap->pidp));
+}
+
+int
+user_pdgetpid(struct thread *td, int fd, pid_t *pidp)
+{
 	pid_t pid;
 	int error;
 
-	AUDIT_ARG_FD(uap->fd);
-	error = kern_pdgetpid(td, uap->fd, &cap_pdgetpid_rights, &pid);
+	AUDIT_ARG_FD(fd);
+	error = kern_pdgetpid(td, fd, &cap_pdgetpid_rights, &pid);
 	if (error == 0)
-		error = copyout(&pid, uap->pidp, sizeof(pid));
+		error = copyout(&pid, pidp, sizeof(pid));
 	return (error);
 }
 
