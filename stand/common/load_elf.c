@@ -30,6 +30,7 @@
 #include <sys/exec.h>
 #include <sys/linker.h>
 #include <sys/module.h>
+#include <sys/stdint.h>
 #include <machine/elf.h>
 #include <stand.h>
 
@@ -925,6 +926,11 @@ nosyms:
 
 		if (__elfN(parse_modmetadata)(fp, ef, p_start, p_end) != 0)
 			goto out;
+	} else if (ef->kernel) {
+		/* No usable dynsym bounds for the metadata set; read it from the
+		 * file directly, as the multiboot loaders do. */
+		if (__elfN(load_modmetadata)(fp, 0) != 0)
+			printf("warning: cannot load kernel module metadata\n");
 	}
 
 	ret = lastaddr - firstaddr;
@@ -987,6 +993,185 @@ struct mod_metadata32 {
 };
 #endif
 
+/* Saturating 64-bit add: returns UINT64_MAX when a + b overflows. */
+static uint64_t
+add64(uint64_t a, uint64_t b)
+{
+	uint64_t r = a + b;
+
+	return (r >= a) ? r : UINT64_MAX;
+}
+
+/* Map a VMA to a file offset via the PT_LOAD segments; 0 if not file-backed. */
+static int
+__elfN(file_off_of)(const Elf_Phdr *ph, int phnum, Elf_Addr v,
+    uint64_t *offp)
+{
+	int i;
+
+	for (i = 0; i < phnum; i++) {
+		if (ph[i].p_type != PT_LOAD || ph[i].p_filesz == 0)
+			continue;
+		if (v >= ph[i].p_vaddr && v - ph[i].p_vaddr < ph[i].p_filesz) {
+			*offp = (uint64_t)ph[i].p_offset + v - ph[i].p_vaddr;
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/* Copy a NUL-terminated string from the on-disk image at VMA v into buf;
+ * -1 if not file-backed or not terminated within bufsz. */
+static int
+__elfN(read_disk_cstr)(elf_file_t ef, const Elf_Phdr *ph, int phnum,
+    Elf_Addr v, char *buf, size_t bufsz)
+{
+	uint64_t off;
+
+	if (bufsz == 0 || __elfN(file_off_of)(ph, phnum, v, &off) == 0)
+		return (-1);
+	if (kern_pread(VECTX_HANDLE(ef), (vm_offset_t)buf, bufsz - 1, off) != 0)
+		return (-1);
+	buf[bufsz - 1] = '\0';
+	if (memchr(buf, '\0', bufsz - 1) == NULL)
+		return (-1);
+	return (0);
+}
+
+/* Read one mod_metadata record from the on-disk image at VMA v. */
+static int
+__elfN(read_disk_mmetadata)(elf_file_t ef, const Elf_Phdr *ph, int phnum,
+    Elf_Addr v, struct mod_metadata *md)
+{
+	uint64_t off;
+	int error;
+
+	if (__elfN(file_off_of)(ph, phnum, v, &off) == 0)
+		return (-1);
+#if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
+	{
+		struct mod_metadata64 md64;
+
+		error = kern_pread(VECTX_HANDLE(ef), (vm_offset_t)&md64,
+		    sizeof(md64), off);
+		if (error != 0)
+			return (error);
+		md->md_version = md64.md_version;
+		md->md_type = md64.md_type;
+		md->md_cval = (const char *)(uintptr_t)md64.md_cval;
+		md->md_data = (void *)(uintptr_t)md64.md_data;
+	}
+#elif defined(__amd64__) && __ELF_WORD_SIZE == 32
+	{
+		struct mod_metadata32 md32;
+
+		error = kern_pread(VECTX_HANDLE(ef), (vm_offset_t)&md32,
+		    sizeof(md32), off);
+		if (error != 0)
+			return (error);
+		md->md_version = md32.md_version;
+		md->md_type = md32.md_type;
+		md->md_cval = (const char *)(uintptr_t)md32.md_cval;
+		md->md_data = (void *)(uintptr_t)md32.md_data;
+	}
+#else
+	error = kern_pread(VECTX_HANDLE(ef), (vm_offset_t)md, sizeof(*md), off);
+	if (error != 0)
+		return (error);
+#endif
+	return (0);
+}
+
+/* Register built-in modules by reading the set_modmetadata_set records
+ * straight from the file: small per-record reads instead of copying the
+ * .rodata-to-.data span. */
+static int
+__elfN(load_modmetadata_disk)(struct preloaded_file *fp, elf_file_t ef,
+    Elf_Shdr *sh_meta)
+{
+	struct mod_metadata md;
+	struct mod_version mver;
+	Elf_Phdr		*ph = NULL;
+	char			*set = NULL, name[128];
+	uint64_t		 chunk, off;
+	int			 err, i, nrec, modcnt;
+
+	chunk = (uint64_t)ef->ehdr->e_phnum * (uint64_t)ef->ehdr->e_phentsize;
+	if (chunk == 0 || chunk > ~(uint64_t)(size_t)0)
+		return (EFTYPE);
+	ph = alloc_pread(VECTX_HANDLE(ef), ef->ehdr->e_phoff, (size_t)chunk);
+	if (ph == NULL)
+		return (ENOMEM);
+
+	chunk = sh_meta->sh_size;
+	if ((chunk % sizeof(Elf_Addr)) != 0 ||
+	    chunk > ~(uint64_t)(size_t)0) {
+		err = EFTYPE;
+		goto out;
+	}
+	set = alloc_pread(VECTX_HANDLE(ef), sh_meta->sh_offset, (size_t)chunk);
+	if (set == NULL) {
+		err = ENOMEM;
+		goto out;
+	}
+	nrec = chunk / sizeof(Elf_Addr);
+
+	/* Pass 1: MDT_VERSION records carry the real module version. */
+	modcnt = 0;
+	for (i = 0; i < nrec; i++) {
+		Elf_Addr v;
+
+		memcpy(&v, set + i * sizeof(Elf_Addr), sizeof(v));
+		if (__elfN(read_disk_mmetadata)(ef, ph,
+		    ef->ehdr->e_phnum, v, &md) != 0 ||
+		    md.md_type != MDT_VERSION)
+			continue;
+		if (__elfN(file_off_of)(ph, ef->ehdr->e_phnum,
+		    (Elf_Addr)(uintptr_t)md.md_data, &off) == 0 ||
+		    kern_pread(VECTX_HANDLE(ef), (vm_offset_t)&mver,
+		        sizeof(mver), off) != 0)
+			continue;
+		if (__elfN(read_disk_cstr)(ef, ph, ef->ehdr->e_phnum,
+		    (Elf_Addr)(uintptr_t)md.md_cval, name, sizeof(name)) != 0 ||
+		    name[0] == '\0')
+			continue;
+		file_addmodule(fp, name, mver.mv_version, NULL);
+		modcnt++;
+	}
+	if (modcnt == 0) {
+		/* No versioned modules: mirror the in-memory parser, which
+		 * registers a name derived from the file itself. */
+		char *s = fake_modname(fp->f_name);
+
+		file_addmodule(fp, s, 1, NULL);
+		free(s);
+	}
+
+	/* Pass 2: MDT_MODULE records carry no version; register names not
+	 * seen in pass 1 at v1. */
+	for (i = 0; i < nrec; i++) {
+		Elf_Addr v;
+
+		memcpy(&v, set + i * sizeof(Elf_Addr), sizeof(v));
+		if (__elfN(read_disk_mmetadata)(ef, ph,
+		    ef->ehdr->e_phnum, v, &md) != 0 ||
+		    md.md_type != MDT_MODULE)
+			continue;
+		if (__elfN(read_disk_cstr)(ef, ph, ef->ehdr->e_phnum,
+		    (Elf_Addr)(uintptr_t)md.md_cval, name, sizeof(name)) != 0 ||
+		    name[0] == '\0')
+			continue;
+		if (file_findmodule(fp, name, NULL) == NULL)
+			file_addmodule(fp, name, 1, NULL);
+	}
+
+	err = 0;
+out:
+	free(set);
+	free(ph);
+	return (err);
+}
+
 int
 __elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest)
 {
@@ -996,6 +1181,7 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest)
 	Elf_Shdr		*sh_data[2];
 	char			*shstrtab = NULL;
 	size_t			 size;
+	uint64_t		 chunk, total;
 	Elf_Addr		 p_start, p_end;
 
 	bzero(&ef, sizeof(struct elf_file));
@@ -1012,7 +1198,14 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest)
 		goto out;
 	}
 
-	size = (size_t)ef.ehdr->e_shnum * (size_t)ef.ehdr->e_shentsize;
+	/* Compute the table size in 64 bits: on a 32-bit build a corrupt
+	 * header could wrap the product and under-size the allocation. */
+	chunk = (uint64_t)ef.ehdr->e_shnum * (uint64_t)ef.ehdr->e_shentsize;
+	if (chunk == 0 || chunk > ~(uint64_t)(size_t)0) {
+		err = EFTYPE;
+		goto out;
+	}
+	size = (size_t)chunk;
 	shdr = alloc_pread(VECTX_HANDLE(&ef), ef.ehdr->e_shoff, size);
 	if (shdr == NULL) {
 		err = ENOMEM;
@@ -1020,6 +1213,10 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest)
 	}
 
 	/* Load shstrtab. */
+	if (ef.ehdr->e_shstrndx >= ef.ehdr->e_shnum) {
+		err = EFTYPE;
+		goto out;
+	}
 	shstrtab = alloc_pread(VECTX_HANDLE(&ef), shdr[ef.ehdr->e_shstrndx].sh_offset,
 	    shdr[ef.ehdr->e_shstrndx].sh_size);
 	if (shstrtab == NULL) {
@@ -1038,12 +1235,44 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest)
 		}
 		if ((strcmp(&shstrtab[shdr[i].sh_name], ".data") == 0) ||
 		    (strcmp(&shstrtab[shdr[i].sh_name], ".rodata") == 0)) {
+			/* sh_data[] has two slots; a third match would overflow it. */
+			if (j >= 2) {
+				err = EFTYPE;
+				goto out;
+			}
 			sh_data[j++] = &shdr[i];
 		}
 	}
-	if (sh_meta == NULL || sh_data[0] == NULL || sh_data[1] == NULL) {
+	/* dest == 0: caller gave no buffer, so the records are resolved
+	 * from the file directly; only the set section is needed. */
+	if (dest == 0) {
+		if (sh_meta == NULL) {
+			printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+    "load_modmetadata: unable to find set_modmetadata_set\n");
+			err = EFTYPE;
+			goto out;
+		}
+		err = __elfN(load_modmetadata_disk)(fp, &ef, sh_meta);
+		goto out;
+	}
+
+	/* The in-memory copy path needs both data sections; j == 2 rejects
+	 * missing or duplicated names. */
+	if (sh_meta == NULL || j != 2) {
 		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
     "load_modmetadata: unable to find set_modmetadata_set or data sections\n");
+		err = EFTYPE;
+		goto out;
+	}
+
+	/* Overflow-checked sum of the copied extents; a wrap would
+	 * under-size the copy into dest. */
+	total = sh_meta->sh_size;
+	total = add64(total, (uint64_t)sh_data[0]->sh_size);
+	total = add64(total, (uint64_t)sh_data[1]->sh_addr -
+	    (uint64_t)sh_data[0]->sh_addr);
+	total = add64(total, sh_data[1]->sh_size);
+	if (total == UINT64_MAX || total > ~(uint64_t)(size_t)0) {
 		err = EFTYPE;
 		goto out;
 	}
@@ -1114,65 +1343,79 @@ out:
 	return (err);
 }
 
-int
-__elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
-    Elf_Addr p_start, Elf_Addr p_end)
+/* Read one mod_metadata record at p into *md, relocating pointers. */
+static int
+__elfN(parse_modmetadata_entry)(struct preloaded_file *fp, elf_file_t ef,
+    Elf_Addr p, struct mod_metadata *md)
 {
-	struct mod_metadata md;
 #if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
 	struct mod_metadata64 md64;
 #elif defined(__amd64__) && __ELF_WORD_SIZE == 32
 	struct mod_metadata32 md32;
 #endif
+	Elf_Addr v;
+	int error;
+
+	COPYOUT(p, &v, sizeof(v));
+	error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
+	if (error == EOPNOTSUPP)
+		v += ef->off;
+	else if (error != 0)
+		return (error);
+#if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
+	COPYOUT(v, &md64, sizeof(md64));
+	error = __elfN(reloc_ptr)(fp, ef, v, &md64, sizeof(md64));
+	if (error == EOPNOTSUPP) {
+		md64.md_cval += ef->off;
+		md64.md_data += ef->off;
+	} else if (error != 0)
+		return (error);
+	md->md_version = md64.md_version;
+	md->md_type = md64.md_type;
+	md->md_cval = (const char *)(uintptr_t)md64.md_cval;
+	md->md_data = (void *)(uintptr_t)md64.md_data;
+#elif defined(__amd64__) && __ELF_WORD_SIZE == 32
+	COPYOUT(v, &md32, sizeof(md32));
+	error = __elfN(reloc_ptr)(fp, ef, v, &md32, sizeof(md32));
+	if (error == EOPNOTSUPP) {
+		md32.md_cval += ef->off;
+		md32.md_data += ef->off;
+	} else if (error != 0)
+		return (error);
+	md->md_version = md32.md_version;
+	md->md_type = md32.md_type;
+	md->md_cval = (const char *)(uintptr_t)md32.md_cval;
+	md->md_data = (void *)(uintptr_t)md32.md_data;
+#else
+	COPYOUT(v, md, sizeof(*md));
+	error = __elfN(reloc_ptr)(fp, ef, v, md, sizeof(*md));
+	if (error == EOPNOTSUPP) {
+		md->md_cval += ef->off;
+		md->md_data = (void *)((uintptr_t)md->md_data +
+		    (uintptr_t)ef->off);
+	} else if (error != 0)
+		return (error);
+#endif
+	return (0);
+}
+
+int
+__elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
+    Elf_Addr p_start, Elf_Addr p_end)
+{
+	struct mod_metadata md;
 	struct mod_depend *mdepend;
 	struct mod_version mver;
 	char *s;
 	int error, modcnt, minfolen;
-	Elf_Addr v, p;
+	Elf_Addr p;
 
 	modcnt = 0;
 	p = p_start;
 	while (p < p_end) {
-		COPYOUT(p, &v, sizeof(v));
-		error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
-		if (error == EOPNOTSUPP)
-			v += ef->off;
-		else if (error != 0)
+		error = __elfN(parse_modmetadata_entry)(fp, ef, p, &md);
+		if (error != 0)
 			return (error);
-#if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
-		COPYOUT(v, &md64, sizeof(md64));
-		error = __elfN(reloc_ptr)(fp, ef, v, &md64, sizeof(md64));
-		if (error == EOPNOTSUPP) {
-			md64.md_cval += ef->off;
-			md64.md_data += ef->off;
-		} else if (error != 0)
-			return (error);
-		md.md_version = md64.md_version;
-		md.md_type = md64.md_type;
-		md.md_cval = (const char *)(uintptr_t)md64.md_cval;
-		md.md_data = (void *)(uintptr_t)md64.md_data;
-#elif defined(__amd64__) && __ELF_WORD_SIZE == 32
-		COPYOUT(v, &md32, sizeof(md32));
-		error = __elfN(reloc_ptr)(fp, ef, v, &md32, sizeof(md32));
-		if (error == EOPNOTSUPP) {
-			md32.md_cval += ef->off;
-			md32.md_data += ef->off;
-		} else if (error != 0)
-			return (error);
-		md.md_version = md32.md_version;
-		md.md_type = md32.md_type;
-		md.md_cval = (const char *)(uintptr_t)md32.md_cval;
-		md.md_data = (void *)(uintptr_t)md32.md_data;
-#else
-		COPYOUT(v, &md, sizeof(md));
-		error = __elfN(reloc_ptr)(fp, ef, v, &md, sizeof(md));
-		if (error == EOPNOTSUPP) {
-			md.md_cval += ef->off;
-			md.md_data = (void *)((uintptr_t)md.md_data +
-			    (uintptr_t)ef->off);
-		} else if (error != 0)
-			return (error);
-#endif
 		p += sizeof(Elf_Addr);
 		switch(md.md_type) {
 		case MDT_DEPEND:
@@ -1205,6 +1448,27 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
 		file_addmodule(fp, s, 1, NULL);
 		free(s);
 	}
+	/* Built-in modules emit MDT_MODULE records without version info;
+	 * register unseen names at v1 so loads treat them as already loaded. */
+	if (ef->kernel) {
+		p = p_start;
+		while (p < p_end) {
+			error = __elfN(parse_modmetadata_entry)(fp, ef, p, &md);
+			if (error != 0)
+				return (error);
+			if (md.md_type == MDT_MODULE) {
+				s = strdupout((vm_offset_t)md.md_cval);
+				/* A corrupt record can point at an empty
+				 * string; never register a nameless module. */
+				if (s[0] != '\0' &&
+				    file_findmodule(fp, s, NULL) == NULL)
+					file_addmodule(fp, s, 1, NULL);
+				free(s);
+			}
+			p += sizeof(Elf_Addr);
+		}
+	}
+
 	return 0;
 }
 
