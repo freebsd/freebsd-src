@@ -589,16 +589,17 @@ handle_thead_quirks(u_int cpu, struct cpu_desc *desc)
 		return;
 
 	/*
-	 * For now, it is assumed that T-HEAD CPUs have both marchid and mimpid
-	 * values of zero (although we leave this unchecked). It is true in
-	 * practice for the early generations of this hardware (C906, C910,
-	 * C920). In the future, the identity checks may need to become more
-	 * granular, but until then all known T-HEAD quirks are applied
-	 * indiscriminantly.
+	 * The early generations of this hardware (C906, C910, C920) report
+	 * marchid and mimpid values of zero and need the XTheadMae page
+	 * attributes and the vendor cache operations. Later cores, such as
+	 * the C908 and C920v2, report non-zero values and implement the
+	 * standard Svpbmt and Zicbom extensions instead.
 	 *
 	 * Note: any changes in this function relating to has_errata_thead_pbmt
 	 * may need to be applied to get_pte_fixup_bits (in locore.S) as well.
 	 */
+	if (marchid != 0 || mimpid != 0)
+		return;
 
 	has_errata_thead_pbmt = true;
 	thead_setup_cache();
