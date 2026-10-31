@@ -378,7 +378,24 @@ local function loadModule(mod, silent)
 	local status = true
 	local blacklist = getBlacklist()
 	local pstatus
-	for k, v in pairs(mod) do
+	-- Load in name order, not in pairs() order: the iteration order of a
+	-- table changes from run to run, and with it the order the modules
+	-- are loaded and verified in. With LOADER_VERIEXEC the verification
+	-- order is observable -- libsecureboot's pseudo PCR (loader.ve.pcr)
+	-- is a running hash over it -- and two boots of the same files should
+	-- measure the same. The loader's Lua has no table library, so an
+	-- insertion sort.
+	local names = {}
+	for k in pairs(mod) do
+		local i = #names
+		while i > 0 and names[i] > k do
+			names[i + 1] = names[i]
+			i = i - 1
+		end
+		names[i + 1] = k
+	end
+	for _, k in ipairs(names) do
+		local v = mod[k]
 		if v.load ~= nil and v.load:lower() == "yes" then
 			local module_name = v.name or k
 			if not v.force and blacklist[module_name] ~= nil then
