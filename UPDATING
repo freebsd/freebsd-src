@@ -12,6 +12,19 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20261031:
+	The Intel 82576 and I350 Virtual Function devices now use the igbv(4)
+	driver.  VF interfaces previously named igbN are now named igbvN.
+	Before booting the new kernel, update interface references in rc.conf,
+	firewall rules, and other network configuration, and change VF device
+	tunables from dev.igb.N to dev.igbv.N.  Systems with both PFs and VFs
+	should also check PF unit numbers after the driver split.
+
+	The drivers remain in if_em.ko; existing if_em_load and if_igb_load
+	settings still load them.  if_igbv_load is also supported.
+	The igb(4) PF driver now supports SR-IOV on these controllers; see
+	igb(4) for the PCI_IOV, MSI-X, and single-queue requirements.
+
 20261029:
 	struct if_rxd_info now carries a receive timestamp.  iflib drivers
 	must be rebuilt.  __FreeBSD_version has been bumped to 1501506.

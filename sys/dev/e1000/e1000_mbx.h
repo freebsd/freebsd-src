@@ -77,6 +77,8 @@
 
 #define E1000_VF_RESET			0x01 /* VF requests reset */
 #define E1000_VF_SET_MAC_ADDR		0x02 /* VF requests to set MAC addr */
+#define E1000_VF_MAC_FILTER_CLR		(0x01 << E1000_VT_MSGINFO_SHIFT)
+#define E1000_VF_MAC_FILTER_ADD		(0x02 << E1000_VT_MSGINFO_SHIFT)
 #define E1000_VF_SET_MULTICAST		0x03 /* VF requests to set MC addr */
 #define E1000_VF_SET_MULTICAST_COUNT_MASK (0x1F << E1000_VT_MSGINFO_SHIFT)
 #define E1000_VF_SET_MULTICAST_OVERFLOW	(0x80 << E1000_VT_MSGINFO_SHIFT)
@@ -92,13 +94,14 @@
 #define E1000_VF_MBX_INIT_TIMEOUT	2000 /* number of retries on mailbox */
 #define E1000_VF_MBX_INIT_DELAY		500  /* microseconds between retries */
 
-s32 e1000_read_mbx(struct e1000_hw *, u32 *, u16, u16);
+s32 e1000_read_mbx(struct e1000_hw *, u32 *, u16, u16, bool);
 s32 e1000_write_mbx(struct e1000_hw *, u32 *, u16, u16);
 s32 e1000_read_posted_mbx(struct e1000_hw *, u32 *, u16, u16);
 s32 e1000_write_posted_mbx(struct e1000_hw *, u32 *, u16, u16);
 s32 e1000_check_for_msg(struct e1000_hw *, u16);
 s32 e1000_check_for_ack(struct e1000_hw *, u16);
 s32 e1000_check_for_rst(struct e1000_hw *, u16);
+s32 e1000_unlock_mbx(struct e1000_hw *, u16);
 void e1000_init_mbx_ops_generic(struct e1000_hw *hw);
 s32 e1000_init_mbx_params_vf(struct e1000_hw *);
 s32 e1000_init_mbx_params_pf(struct e1000_hw *);
