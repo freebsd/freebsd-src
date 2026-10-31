@@ -401,6 +401,13 @@ wdayom (int day, int offset, int month, int year)
 	 * meaningless, but that's OK.  Offset 5 may or may not be meaningless,
 	 * so there's no point in complaining for complaining's sake.
 	 */
+	if (offset == 0) {
+	    warnx("Invalid offset 0");
+	    return -1;
+	}
+	if (offset > 5 || offset < -5) {
+	    return -1;   /* meaningless offset */
+	}
 	if (offset < 0) {			/* back from end of month */
 						/* FIXME */
 		wdayn = d;
@@ -412,8 +419,6 @@ wdayom (int day, int offset, int month, int year)
 			d += offset * 7 - 7;
 		else
 			d += offset * 7;
-	} else
-		warnx ("Invalid offset 0");
 	return (d);
 }
 
