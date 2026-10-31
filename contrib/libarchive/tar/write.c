@@ -838,6 +838,12 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 		    archive_error_string(in_a));
 		return (-1);
 	}
+	if (r == ARCHIVE_WARN) {
+		lafe_warnc(archive_errno(in_a), "%s: %s",
+		    archive_entry_pathname(entry),
+		    archive_error_string(in_a));
+		bsdtar->return_value = 1;
+	}
 	return (0);
 }
 

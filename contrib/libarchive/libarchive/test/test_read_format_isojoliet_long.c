@@ -58,7 +58,7 @@ exit 1
 DEFINE_TEST(test_read_format_isojoliet_long)
 {
 	const char *refname = "test_read_format_iso_joliet_long.iso.Z";
-	char pathname[104];
+	char pathname[105];
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *p;
@@ -142,6 +142,35 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_COMPRESS);
 
 	/* Close the archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* The fixture has a 104-character Joliet filename. */
+	for (i = 0; i < 100; i++)
+		pathname[i] = '0' + ((i + 1) % 10);
+	pathname[100] = '1';
+	pathname[101] = '2';
+	pathname[102] = '3';
+	pathname[103] = '4';
+	pathname[104] = '\0';
+
+	extract_reference_file(
+	    "test_read_format_iso_joliet_overlong.iso.Z");
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, 0, archive_read_support_filter_all(a));
+	assertEqualIntA(a, 0, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "iso9660:!rockridge"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a,
+	    "test_read_format_iso_joliet_overlong.iso.Z", 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(".", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(pathname, archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

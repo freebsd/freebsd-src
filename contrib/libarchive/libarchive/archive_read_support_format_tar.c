@@ -3246,6 +3246,10 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 
 	if (remaining == 0)
 		return (ARCHIVE_OK);
+	if (remaining < 0 || offset < 0 || offset > INT64_MAX - remaining) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Malformed sparse map data");
+		return (ARCHIVE_FATAL);
+	}
 	p = calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -3256,10 +3260,6 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 	else
 		tar->sparse_list = p;
 	tar->sparse_last = p;
-	if (remaining < 0 || offset < 0 || offset > INT64_MAX - remaining) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Malformed sparse map data");
-		return (ARCHIVE_FATAL);
-	}
 	p->offset = offset;
 	p->remaining = remaining;
 	return (ARCHIVE_OK);
@@ -3379,18 +3379,18 @@ gnu_sparse_01_parse(struct archive_read *a, struct tar *tar, const char *p, size
 		e = p;
 		while (length > 0 && *e != ',') {
 			if (*e < '0' || *e > '9')
-				return (ARCHIVE_WARN);
+				goto malformed;
 			e++;
 			length--;
 		}
 		if (offset < 0) {
 			offset = tar_atol10(p, e - p);
 			if (offset < 0)
-				return (ARCHIVE_WARN);
+				goto malformed;
 		} else {
 			size = tar_atol10(p, e - p);
 			if (size < 0)
-				return (ARCHIVE_WARN);
+				goto malformed;
 			if (gnu_add_sparse_entry(a, tar, offset, size)
 			    != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
@@ -3401,6 +3401,10 @@ gnu_sparse_01_parse(struct archive_read *a, struct tar *tar, const char *p, size
 		p = e + 1;
 		length--;
 	}
+malformed:
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Malformed sparse map data");
+	return (ARCHIVE_WARN);
 }
 
 /*

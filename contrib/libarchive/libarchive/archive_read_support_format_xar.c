@@ -1001,14 +1001,22 @@ move_reading_point(struct archive_read *a, uint64_t offset)
 				return ((int)step);
 			xar->offset += step;
 		} else {
-			int64_t pos = __archive_read_seek(a, xar->h_base + offset, SEEK_SET);
-			if (pos == ARCHIVE_FAILED) {
+			if (archive_ckd_add_u64(&offset, offset, xar->h_base) ||
+			    (int64_t)offset < 0) {
+				archive_set_error(&(a->archive),
+					ARCHIVE_ERRNO_FILE_FORMAT,
+					"Too many bytes to skip");
+				return (ARCHIVE_FATAL);
+			}
+
+			int64_t r = __archive_read_seek(a, offset, SEEK_SET);
+			if (r < ARCHIVE_OK) {
 				archive_set_error(&(a->archive),
 				    ARCHIVE_ERRNO_MISC,
 				    "Cannot seek");
-				return (ARCHIVE_FAILED);
+				return ((int)r);
 			}
-			xar->offset = pos;
+			xar->offset = r;
 		}
 	}
 	return (ARCHIVE_OK);
@@ -3294,7 +3302,6 @@ xml2_read_toc(struct archive_read *a)
 			xmlattr_cleanup(&list);
 			if (r != ARCHIVE_OK) {
 				xmlFreeTextReader(reader);
-				xmlCleanupParser();
 				return (r);
 			}
 			if (empty)
@@ -3308,7 +3315,6 @@ xml2_read_toc(struct archive_read *a)
 			r = xml_data(a, value, strlen(value));
 			if (r != ARCHIVE_OK) {
 				xmlFreeTextReader(reader);
-				xmlCleanupParser();
 				return (r);
 			}
 			break;
@@ -3320,7 +3326,6 @@ xml2_read_toc(struct archive_read *a)
 			break;
 	}
 	xmlFreeTextReader(reader);
-	xmlCleanupParser();
 
 	return ((r == 0)?ARCHIVE_OK:ARCHIVE_FATAL);
 }

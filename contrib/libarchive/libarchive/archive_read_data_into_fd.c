@@ -31,6 +31,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -86,11 +89,30 @@ pad_to(struct archive *a, int fd, int can_lseek,
 	return (ARCHIVE_OK);
 }
 
+static int
+lseek_available(int fd)
+{
+	struct stat st;
+	int ret;
+
+	/* Support holes only with regular files. */
+	ret = (fstat(fd, &st) == 0) && S_ISREG(st.st_mode);
+#ifdef HAVE_FCNTL
+	if (ret) {
+		int flags = fcntl(fd, F_GETFL);
+
+		/* O_APPEND defeats lseek's sparse file purpose. */
+		if (flags != -1 && flags & O_APPEND)
+			ret = 0;
+	}
+#endif
+
+	return (ret);
+}
 
 int
 archive_read_data_into_fd(struct archive *a, int fd)
 {
-	struct stat st;
 	int r, r2;
 	const void *buff;
 	size_t size, bytes_to_write;
@@ -107,7 +129,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 
 	declared_size = ((struct archive_read *)a)->entry_bytes_declared;
 
-	can_lseek = (fstat(fd, &st) == 0) && S_ISREG(st.st_mode);
+	can_lseek = lseek_available(fd);
 	if (can_lseek) {
 		fd_offset = lseek(fd, 0, SEEK_CUR);
 		if (fd_offset == -1)

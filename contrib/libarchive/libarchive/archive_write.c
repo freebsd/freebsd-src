@@ -528,7 +528,7 @@ archive_write_client_close(struct archive_write_filter *f)
 	ssize_t bytes_written;
 	size_t to_write;
 	char *p;
-	int ret = ARCHIVE_OK;
+	int ret = ARCHIVE_OK, ret1;
 
 	/* If there's pending data, pad and write the last block */
 	if (client->next != client->buffer) {
@@ -569,8 +569,11 @@ archive_write_client_close(struct archive_write_filter *f)
 			to_write -= bytes_written;
 		}
 	}
-	if (a->client_closer)
-		(*a->client_closer)(&a->archive, a->client_data);
+	if (a->client_closer) {
+		ret1 = (*a->client_closer)(&a->archive, a->client_data);
+		if (ret1 < ret)
+			ret = ret1;
+	}
 
 	/* Clear the close handler myself not to be called again. */
 	f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;

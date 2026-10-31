@@ -184,8 +184,9 @@ string_to_number(const char *string, intmax_t *numberp)
 
 	if (string == NULL || *string == '\0')
 		return (ARCHIVE_WARN);
+	errno = 0;
 	*numberp = strtoimax(string, &end, 10);
-	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+	if (end == string || *end != '\0' || errno == ERANGE) {
 		*numberp = 0;
 		return (ARCHIVE_WARN);
 	}
@@ -202,6 +203,7 @@ string_to_size(const char *string, size_t *numberp)
 
 	if (string == NULL || *string == '\0' || *string == '-')
 		return (ARCHIVE_WARN);
+	errno = 0;
 	number = strtoumax(string, &end, 10);
 	if (end > string) {
 		if (*end == 'K' || *end == 'k') {
@@ -218,7 +220,7 @@ string_to_size(const char *string, size_t *numberp)
 			end++;
 		}
 	}
-	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+	if (end == string || *end != '\0' || errno == ERANGE) {
 		return (ARCHIVE_WARN);
 	}
 	if (number > (uintmax_t)SIZE_MAX >> shift) {
@@ -343,13 +345,13 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		ZSTD_bounds bounds = ZSTD_cParam_getBounds(ZSTD_c_windowLog);
 		if (ZSTD_isError(bounds.error)) {
 			int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
-			if (((int)long_distance) < 10 || (int)long_distance > max_distance) {
+			if (long_distance < 10 || long_distance > max_distance) {
 				archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
 			    "long out of range");
 				return (ARCHIVE_FAILED);
 			}
 		} else {
-			if ((int)long_distance < bounds.lowerBound || (int)long_distance > bounds.upperBound) {
+			if (long_distance < bounds.lowerBound || long_distance > bounds.upperBound) {
 				archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
 			    "long out of range");
 				return (ARCHIVE_FAILED);
@@ -357,7 +359,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		}
 #else
 		int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
-		if (((int)long_distance) < 10 || (int)long_distance > max_distance)
+		if (long_distance < 10 || long_distance > max_distance)
 		    return (ARCHIVE_FAILED);
 #endif
 		zstd->long_distance = (int)long_distance;

@@ -47,6 +47,28 @@ get_last_bidder(struct archive_read *a)
   return a->bidders + (i - 1);
 }
 
+static int
+archive_read_append_filter_last_bidder(struct archive *_a)
+{
+  struct archive_read *a = (struct archive_read *)_a;
+  struct archive_read_filter_bidder *b;
+  struct archive_read_filter *f;
+
+  f = calloc(1, sizeof(*f));
+  if (f == NULL)
+  {
+    archive_set_error(&a->archive, ENOMEM, "Out of memory");
+    return (ARCHIVE_FATAL);
+  }
+  b = get_last_bidder(a);
+  f->bidder = b;
+  f->archive = a;
+  f->upstream = a->filter;
+  a->filter = f;
+  a->bypass_filter_bidding = 1;
+  return (ARCHIVE_OK);
+}
+
 int
 archive_read_append_filter(struct archive *_a, int code)
 {
@@ -82,6 +104,7 @@ archive_read_append_filter(struct archive *_a, int code)
     case ARCHIVE_FILTER_XZ:
       r1 = archive_read_support_filter_xz(_a);
       break;
+    case ARCHIVE_FILTER_B64:
     case ARCHIVE_FILTER_UU:
       r1 = archive_read_support_filter_uu(_a);
       break;
@@ -114,28 +137,9 @@ archive_read_append_filter(struct archive *_a, int code)
 
   if (r1 > ARCHIVE_FATAL && code != ARCHIVE_FILTER_NONE)
   {
-    struct archive_read_filter_bidder *b;
-    struct archive_read_filter *f;
-
-    f = calloc(1, sizeof(*f));
-    if (f == NULL)
-    {
-      archive_set_error(&a->archive, ENOMEM, "Out of memory");
-      return (ARCHIVE_FATAL);
-    }
-    b = get_last_bidder(a);
-    f->bidder = b;
-    f->archive = a;
-    f->upstream = a->filter;
-    a->filter = f;
-    r2 = (b->vtable->init)(a->filter);
-    if (r2 != ARCHIVE_OK) {
-      __archive_read_free_filters(a);
-      return (ARCHIVE_FATAL);
-    }
+    r2 = archive_read_append_filter_last_bidder(_a);
   }
 
-  a->bypass_filter_bidding = 1;
   return (r1 < r2) ? r1 : r2;
 }
 
@@ -149,32 +153,9 @@ int
 archive_read_append_filter_program_signature(struct archive *_a,
   const char *cmd, const void *signature, size_t signature_len)
 {
-  struct archive_read *a = (struct archive_read *)_a;
-  struct archive_read_filter_bidder *b;
-  struct archive_read_filter *f;
-  int r;
-
   if (archive_read_support_filter_program_signature(_a, cmd, signature,
     signature_len) != (ARCHIVE_OK))
     return (ARCHIVE_FATAL);
 
-  f = calloc(1, sizeof(*f));
-  if (f == NULL)
-  {
-    archive_set_error(&a->archive, ENOMEM, "Out of memory");
-    return (ARCHIVE_FATAL);
-  }
-  b = get_last_bidder(a);
-  f->bidder = b;
-  f->archive = a;
-  f->upstream = a->filter;
-  a->filter = f;
-  r = (b->vtable->init)(a->filter);
-  if (r != ARCHIVE_OK) {
-    __archive_read_free_filters(a);
-    return (ARCHIVE_FATAL);
-  }
-
-  a->bypass_filter_bidding = 1;
-  return r;
+  return (archive_read_append_filter_last_bidder(_a));
 }

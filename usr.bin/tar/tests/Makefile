@@ -28,6 +28,7 @@ TESTS_SRCS=	\
 	test_0.c				\
 	test_basic.c				\
 	test_copy.c				\
+	test_copy_data_warning.c		\
 	test_crlf_mtree.c			\
 	test_empty_mtree.c			\
 	test_extract_tar_bz2.c			\
@@ -114,6 +115,7 @@ list.h: ${TESTS_SRCS} Makefile
 
 CLEANFILES+=	list.h list.h.tmp
 
+${PACKAGE}FILES+=	test_copy_data_warning.lzh.uu
 ${PACKAGE}FILES+=	test_extract.tar.Z.uu
 ${PACKAGE}FILES+=	test_extract.tar.bz2.uu
 ${PACKAGE}FILES+=	test_extract.tar.grz.uu

@@ -3944,6 +3944,22 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 	return (get_uncompressed_data(a, buff, size, minimum));
 }
 
+/* Returns the name of a compressor codec, or NULL if not a compressor. */
+static const char *
+compressor_name(int64_t codec)
+{
+	switch (codec) {
+	case _7Z_COPY:    return ("Copy");
+	case _7Z_LZMA:    return ("LZMA");
+	case _7Z_LZMA2:   return ("LZMA2");
+	case _7Z_DEFLATE: return ("Deflate");
+	case _7Z_BZ2:     return ("BZip2");
+	case _7Z_PPMD:    return ("PPMd");
+	case _7Z_ZSTD:    return ("Zstd");
+	default:          return (NULL);
+	}
+}
+
 static int
 setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
     int header)
@@ -4003,6 +4019,24 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		    ARCHIVE_ERRNO_MISC,
 		    "The %s is encoded with many filters, "
 		    "but currently not supported", cname);
+		return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
+	}
+
+	/*
+	 * 7-Zip can be asked to chain two compressors in one folder
+	 * (e.g. -m0=LZMA2 -m1=LZMA2). This is slow and gains nothing.
+	 * Our decoder intentionally only supports a compressor
+	 * followed by an optional filter.
+	 */
+	if (folder->numCoders == 2 && !found_bcj2 &&
+	    compressor_name(folder->coders[0].codec) != NULL &&
+	    compressor_name(folder->coders[1].codec) != NULL) {
+		archive_set_error(&(a->archive),
+		    ARCHIVE_ERRNO_MISC,
+		    "The %s is compressed twice with chained compressors "
+		    "(%s and %s), which is not supported", cname,
+		    compressor_name(folder->coders[0].codec),
+		    compressor_name(folder->coders[1].codec));
 		return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 	}
 

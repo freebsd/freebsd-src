@@ -56,10 +56,9 @@ DEFINE_TEST(test_v7tar_filename_encoding_fail_UTF16_win)
 	archive_entry_copy_pathname_w(entry, L"\u8868.txt");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
-	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, entry));
-	/* The pathname cannot even be represented in the current locale
-	   for inclusion in the error message.  */
-	assertEqualString("Can't translate pathname to CP437",
+	assertEqualInt(ARCHIVE_WARN, archive_write_header(a, entry));
+	assertEqualString(
+	    "Can't translate pathname '\xE8\xA1\xA8.txt' to CP437",
 	    archive_error_string(a));
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
