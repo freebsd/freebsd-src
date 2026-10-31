@@ -19,6 +19,7 @@ TESTS_SUBDIRS+=		fs
 TESTS_SUBDIRS+=		geom
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
+TESTS_SUBDIRS+=		${_linux}
 TESTS_SUBDIRS+=		mac
 TESTS_SUBDIRS+=		mqueue
 TESTS_SUBDIRS+=		net
@@ -45,6 +46,10 @@ _audit=	audit
 
 .if ${MK_CDDL} != "no"
 _cddl=	cddl
+.endif
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "aarch64"
+_linux=	linux
 .endif
 
 .if ${MK_NETGRAPH} != "no"
