@@ -175,6 +175,7 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 	struct sockaddr *mask = get_addr(so, rtm_addrs, RTAX_NETMASK);
 	struct sockaddr *gw = get_addr(so, rtm_addrs, RTAX_GATEWAY);
 	struct sockaddr *prefsrc = get_addr(so, rtm_addrs, RTAX_IFA);
+	struct sockaddr *ifp = get_addr(so, rtm_addrs, RTAX_IFP);
 
 	if (dst == NULL)
 		return (EINVAL);
@@ -231,6 +232,22 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
 	uint32_t rta_oif = 0;
+	if (ifp != NULL && cmd != RTSOCK_RTM_GET) {
+		struct sockaddr_dl *sdl = (struct sockaddr_dl *)ifp;
+		char ifname[IFNAMSIZ];
+
+		if (ifp->sa_family != AF_LINK)
+			return (EINVAL);
+		if (sdl->sdl_index != 0)
+			rta_oif = sdl->sdl_index;
+		else if (sdl->sdl_nlen > 0 && sdl->sdl_nlen < sizeof(ifname)) {
+			memcpy(ifname, sdl->sdl_data, sdl->sdl_nlen);
+			ifname[sdl->sdl_nlen] = '\0';
+			rta_oif = if_nametoindex(ifname);
+		}
+		if (rta_oif == 0)
+			return (ENXIO);
+	}
 
 	if (gw != NULL) {
 		if (rtm_flags & RTF_GATEWAY) {
@@ -238,7 +255,7 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 				snl_add_msg_attr_ip(&nw, RTA_GATEWAY, gw);
 			else
 				snl_add_msg_attr_ipvia(&nw, RTA_VIA, gw);
-			if (gw->sa_family == AF_INET6) {
+			if (gw->sa_family == AF_INET6 && rta_oif == 0) {
 				struct sockaddr_in6 *gw6 = (struct sockaddr_in6 *)gw;
 
 				if (IN6_IS_ADDR_LINKLOCAL(&gw6->sin6_addr))
@@ -247,7 +264,7 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		} else {
 			/* Should be AF_LINK */
 			struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
-			if (sdl->sdl_index != 0)
+			if (sdl->sdl_index != 0 && rta_oif == 0)
 				rta_oif = sdl->sdl_index;
 		}
 	}
