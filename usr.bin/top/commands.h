@@ -23,6 +23,7 @@ enum cmd_id {
 	CMD_quit,
 	CMD_help,
 	CMD_grep,
+	CMD_hl,
 	CMD_errors,
 	CMD_number,
 	CMD_delay,

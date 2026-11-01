@@ -65,6 +65,7 @@ const struct command all_commands[] =
 	{'J', "display processes for only one jail (+ selects all jails)", false, CMD_jail},
 	{'j', "toggle the display of jail ID", false, CMD_jidtog},
 	{'k', "kill processes; send a signal to a list of processes", false, CMD_kill},
+	{'L', "highlight one process (+ clears highlighting)", false, CMD_hl},
 	{'m', "toggle the display between 'cpu' and 'io' modes", false, CMD_viewtog},
 	{'n', "change number of processes to display", false, CMD_number},
 	{'#', NULL, false, CMD_number},
@@ -515,4 +516,3 @@ renice_procs(char *str)
     /* return appropriate error string */
     return(err_string());
 }
-

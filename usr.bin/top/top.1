@@ -1,4 +1,4 @@
-.Dd November 11, 2026
+.Dd November 15, 2026
 .Dt TOP 1
 .Os
 .Sh NAME
@@ -318,6 +318,13 @@ Send a signal
 to a list of processes.
 This acts similarly to the command
 .Xr kill 1 .
+.It Ic L
+Highlight a specific process.
+Prompt for
+.Ar PID
+or
+.Ql Ic +
+to clear highlighting.
 .It Ic m
 Toggle the display between 'cpu' and 'io' modes.
 .It Ic n No or Ic #
