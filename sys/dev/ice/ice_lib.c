@@ -783,6 +783,9 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 	}
 
 	ice_set_default_vsi_ctx(&ctx);
+	/* Match VSI loopback permission to the switch forwarding mode. */
+	if (hw->evb_veb)
+		ctx.info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
 	ice_set_rss_vsi_ctx(&ctx, vsi->type);
 
 	/* XXX: VSIs of other types may need different port info? */
