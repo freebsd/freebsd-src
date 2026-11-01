@@ -111,6 +111,8 @@ struct ice_vf {
 	/* VF-relative queue state, indexed by virtchnl queue ID. */
 	u32 txq_configured;
 	u32 rxq_configured;
+	/* Tx queues which are live or still require cleanup after an error. */
+	u32 txq_active;
 	u32 rxq_enabled;
 
 	u64 mdd_tx_events;
