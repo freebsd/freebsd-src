@@ -1531,7 +1531,7 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	vm_page_t *prev_td_ma;
 	vm_prot_t prot;
 	vm_offset_t addr, end;
-	size_t len, resid;
+	size_t len;
 	ssize_t adv;
 	int error, cnt, saveheld, prev_td_ma_cnt;
 
@@ -1553,7 +1553,6 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	 * point using UIO_NOCOPY below.
 	 */
 	uio_clone = cloneuio(uio);
-	resid = uio->uio_resid;
 
 	short_uio.uio_segflg = UIO_USERSPACE;
 	short_uio.uio_rw = uio->uio_rw;
@@ -1563,9 +1562,15 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	if (error != EFAULT)
 		goto out;
 
+	/*
+	 * Advance clone to the redo point.
+	 */
 	atomic_add_long(&vn_io_faults_cnt, 1);
 	uio_clone->uio_segflg = UIO_NOCOPY;
-	uiomove(NULL, resid - uio->uio_resid, uio_clone);
+	while (uio_clone->uio_resid > uio->uio_resid) {
+		len = MIN(uio_clone->uio_resid - uio->uio_resid, INT_MAX);
+		uiomove(NULL, len, uio_clone);
+	}
 	uio_clone->uio_segflg = uio->uio_segflg;
 
 	saveheld = curthread_pflags_set(TDP_UIOHELD);
@@ -1629,6 +1634,7 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	curthread_pflags_restore(saveheld);
 out:
 	freeuio(uio_clone);
+	MPASS(uio->uio_resid >= 0);
 	return (error);
 }
 
