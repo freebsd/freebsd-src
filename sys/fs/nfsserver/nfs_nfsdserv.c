@@ -4835,7 +4835,13 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 			printf("Consider increasing kern.ipc.maxsockbuf\n");
 		do_printf = false;
 	}
+	if (sep->sess_maxresp <= NFS_MAXXDR) {
+		nd->nd_repstat = NFSERR_TOOSMALL;
+		goto nfsmout;
+	}
 	sep->sess_maxrespcached = fxdr_unsigned(uint32_t, *tl++);
+	if (sep->sess_maxrespcached > sep->sess_maxresp)
+		sep->sess_maxrespcached = sep->sess_maxresp;
 	sep->sess_maxops = fxdr_unsigned(uint32_t, *tl++);
 	sep->sess_maxslots = fxdr_unsigned(uint32_t, *tl++);
 	if (sep->sess_maxslots > NFSV4_SLOTS)

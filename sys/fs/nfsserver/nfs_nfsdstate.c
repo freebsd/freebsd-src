@@ -6222,6 +6222,10 @@ nfsrv_cache_session(struct nfsrv_descript *nd, struct mbuf **m)
 		m_freem(*m);
 		return;
 	}
+	if (*m != NULL && m_length(*m, NULL) > sep->sess_maxrespcached) {
+		m_freem(*m);
+		*m = NULL;
+	}
 	nfsv4_seqsess_cacherep(nd->nd_slotid, sep->sess_slots, nd->nd_repstat,
 	    m);
 	NFSUNLOCKSESSION(shp);
