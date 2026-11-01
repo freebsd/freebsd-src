@@ -775,7 +775,8 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 #ifdef PCI_IOV
 	case ICE_VSI_VF:
 		ctx.flags = ICE_AQ_VSI_TYPE_VF;
-		ctx.vf_num = vsi->vf_num;
+		/* Add VSI requires the absolute VF number. */
+		ctx.vf_num = hw->func_caps.vf_base_id + vsi->vf_num;
 		break;
 #endif
 	default:
