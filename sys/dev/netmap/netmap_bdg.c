@@ -215,7 +215,8 @@ nm_find_bridge(const char *name, int create, struct netmap_bdg_ops *ops)
 			nm_prerr("failed to allocate hash table");
 			return NULL;
 		}
-		strncpy(b->bdg_basename, name, namelen);
+		strlcpy(b->bdg_basename, name, sizeof(b->bdg_basename));
+		b->bdg_basename[namelen] = '\0';
 		b->bdg_namelen = namelen;
 		b->bdg_active_ports = 0;
 		for (i = 0; i < NM_BDG_MAXPORTS; i++)
