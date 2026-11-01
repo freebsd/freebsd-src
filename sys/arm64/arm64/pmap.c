@@ -8369,6 +8369,8 @@ restart:
 			 */
 			va += VM_PAGE_TO_PHYS(m) - PTE_TO_PHYS(oldl2);
 			l3 = pmap_l2_to_l3(l2, va);
+			if ((pmap_load(l3) & ATTR_CONTIGUOUS) != 0)
+				(void)pmap_demote_l3c(pmap, l3, va);
 			oldl3 = pmap_load(l3);
 			while (!atomic_fcmpset_long(l3, &oldl3,
 			    (oldl3 & ~ATTR_SW_DBM) | ATTR_S1_AP(ATTR_S1_AP_RO)))
