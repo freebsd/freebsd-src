@@ -1069,12 +1069,15 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 				nfscl_freenfsclds(dsp);
 				dsp = NULL;
 				/*
-				 * If *retokp is true, return any error other
-				 * than NFSERR_STALECLIENTID,
+				 * A stale ClientID needs a full recovery.
+				 * Otherwise, if *retokp is true, return any
+				 * error other than NFSERR_STALECLIENTID,
 				 * NFSERR_BADSESSION or NFSERR_STALEDONTRECOVER
 				 * so that nfscl_recover() will not loop.
 				 */
-				if (*retokp)
+				if (error == NFSERR_STALECLIENTID)
+					*retokp = false;
+				else if (*retokp)
 					return (NFSERR_IO);
 			} else
 				*retokp = true;
