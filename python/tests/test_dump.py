@@ -64,3 +64,15 @@ class DumpTest(unittest.TestCase):
             '{\n    "b": "bleh;",\n    "a": 1\n}'
             ]
         self.assertIn(ucl.dump(data, ucl.UCL_EMIT_JSON), valid)
+
+    def test_msgpack(self):
+        # fixmap(1) { "a": 1 } - binary output must come back as bytes
+        data = { "a" : 1 }
+        self.assertEqual(ucl.dump(data, ucl.UCL_EMIT_MSGPACK),
+                         b"\x81\xa1a\x01")
+
+    def test_cbor(self):
+        # map(1) { "a": 1 } - binary output must come back as bytes
+        data = { "a" : 1 }
+        self.assertEqual(ucl.dump(data, ucl.UCL_EMIT_CBOR),
+                         b"\xa1\x61a\x01")

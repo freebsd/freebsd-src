@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-libucl is a C library for parsing UCL (Universal Configuration Language) — an nginx-inspired config format that is a superset of JSON. It also reads/writes MessagePack, emits YAML, and reads S-expressions. Version 0.9.4.
+libucl is a C library for parsing UCL (Universal Configuration Language) — an nginx-inspired config format that is a superset of JSON. It also reads/writes MessagePack and CBOR, emits YAML, and reads S-expressions. Version 0.10.0.
 
 ## Build Commands
 

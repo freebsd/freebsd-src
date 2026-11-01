@@ -13,6 +13,7 @@
 	- [Utility functions](#utility-functions)
 - [Parser functions](#parser-functions-1)
 	- [ucl_parser_new](#ucl_parser_new)
+	- [ucl_parser_set_limits](#ucl_parser_set_limits)
 	- [ucl_parser_register_macro](#ucl_parser_register_macro)
 	- [ucl_parser_register_variable](#ucl_parser_register_variable)
 	- [ucl_parser_add_chunk](#ucl_parser_add_chunk)
@@ -86,6 +87,35 @@ Creates new parser with the specified flags:
 - `UCL_PARSER_KEY_LOWERCASE` - lowercase keys parsed
 - `UCL_PARSER_ZEROCOPY` - try to use zero-copy mode when reading files (in zero-copy mode text chunk being parsed without copying strings so it should exist till any object parsed is used)
 - `UCL_PARSER_NO_TIME` - treat time values as strings without parsing them as floats
+- `UCL_PARSER_NO_IMPLICIT_ARRAYS` - create explicit arrays instead of implicit ones for duplicate keys
+- `UCL_PARSER_SAVE_COMMENTS` - save comments in the parser context
+- `UCL_PARSER_DISABLE_MACRO` - treat macros as comments
+- `UCL_PARSER_NO_FILEVARS` - do not set the `$CURDIR` and `$FILENAME` variables
+
+`UCL_PARSER_SAFE_FLAGS` is a shorthand for `UCL_PARSER_NO_TIME | UCL_PARSER_NO_IMPLICIT_ARRAYS | UCL_PARSER_DISABLE_MACRO | UCL_PARSER_NO_FILEVARS`, intended for input that did not come from a trusted local file.
+
+### ucl_parser_set_limits
+
+~~~C
+struct ucl_parser_limits {
+	uint64_t max_depth;
+	uint64_t max_nodes;
+	uint64_t max_alloc;
+	uint64_t max_key_length;
+	uint64_t max_string_length;
+};
+
+void ucl_parser_set_limits (struct ucl_parser *parser,
+    const struct ucl_parser_limits *limits);
+void ucl_parser_get_limits (struct ucl_parser *parser,
+    struct ucl_parser_limits *limits);
+~~~
+
+Bounds the structural cost of a parse. The input size alone is a poor proxy for that cost: a small document can describe a very deep or very fragmented tree, and every element of that tree costs an object, a copied key/value and hash bookkeeping.
+
+A zero value means "no limit" for that field, and passing `NULL` restores the defaults. Only `max_depth` is set by default, to `1024`; the remaining budgets would reject large but perfectly valid inputs, so callers handling untrusted data opt into them explicitly. Exceeding a limit aborts the parse with `UCL_ELIMIT`, or `UCL_ENESTED` for the depth limit.
+
+The limits apply to the UCL, JSON and MessagePack parsers alike.
 
 ### ucl_parser_register_macro
 
@@ -249,6 +279,8 @@ Libucl can transform UCL objects to a number of textual formats:
 - compact json: `UCL_EMIT_JSON_COMPACT` - single line valid json without spaces
 - formatted json: `UCL_EMIT_JSON` - pretty formatted JSON with newlines and spaces
 - compact yaml: `UCL_EMIT_YAML` - compact YAML output
+- messagepack: `UCL_EMIT_MSGPACK` - MessagePack binary output
+- cbor: `UCL_EMIT_CBOR` - CBOR (RFC 8949) binary output
 
 Moreover, libucl API allows to select a custom set of emitting functions allowing 
 efficient and zero-copy output of libucl objects. Libucl uses the following structure to support this feature:

@@ -1,4 +1,3 @@
-section {
-}
+section {}
 key = "value";
 

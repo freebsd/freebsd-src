@@ -68,5 +68,47 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "enum with strings that contain a NUL byte",
+        "schema": {"enum": ["a\u0000b"]},
+        "tests": [
+            {
+                "description": "the same string is valid",
+                "data": "a\u0000b",
+                "valid": true
+            },
+            {
+                "description": "a string that differs after the NUL byte is invalid",
+                "data": "a\u0000c",
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "enum with numbers",
+        "schema": {"enum": [1.5, 9007199254740993]},
+        "tests": [
+            {
+                "description": "the same fraction is valid",
+                "data": 1.5,
+                "valid": true
+            },
+            {
+                "description": "a fraction less than one apart is invalid",
+                "data": 1.2,
+                "valid": false
+            },
+            {
+                "description": "the same large integer is valid",
+                "data": 9007199254740993,
+                "valid": true
+            },
+            {
+                "description": "a large integer that a double cannot tell apart is invalid",
+                "data": 9007199254740992,
+                "valid": false
+            }
+        ]
     }
 ]

@@ -1,7 +1,7 @@
 m4_define([maj_ver], [0])
-m4_define([med_ver], [9])
-m4_define([min_ver], [4])
-m4_define([so_version], [9:0:4])
+m4_define([med_ver], [10])
+m4_define([min_ver], [0])
+m4_define([so_version], [10:0:5])
 m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_PREREQ([2.70])

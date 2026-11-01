@@ -46,6 +46,8 @@ func = "huh";
 
 > [`ucl.to_format(var, format)`](#function-uclto_formatvar-format)
 
+> [`ucl.untrusted_parser(limits)`](#function-ucluntrusted_parserlimits)
+
 
 
 **Methods**:
@@ -55,6 +57,10 @@ func = "huh";
 > [`parser:parse_string(input)`](#method-parserparse_stringinput)
 
 > [`parser:get_object()`](#method-parserget_object)
+
+> [`parser:set_limits(limits)`](#method-parserset_limitslimits)
+
+> [`parser:get_limits()`](#method-parserget_limits)
 
 
 ## Functions
@@ -132,6 +138,27 @@ func = "huh";
 Back to [module description](#module-ucl).
 
 
+### Function `ucl.untrusted_parser(limits)`
+
+Creates a parser with `UCL_PARSER_SAFE_FLAGS` and structural budgets suitable for
+input that did not come from the local configuration: a depth of 64, a million
+elements, 64MB of tree, 1KB keys and 16MB strings. Any of them can be overridden
+per call site, and zero still means unlimited.
+
+`ucl.parser()` is unchanged and keeps the libucl defaults, which only guard
+nesting depth.
+
+**Parameters:**
+
+- `limits {table or nil}`: optional overrides, any of `max_depth`, `max_nodes`, `max_alloc`, `max_key_length`, `max_string_length`
+
+**Returns:**
+
+- `{parser}`: new parser object
+
+Back to [module description](#module-ucl).
+
+
 ## Methods
 
 The module `ucl` defines the following methods.
@@ -188,6 +215,38 @@ Get top object from parser and export it to lua representation.
 **Returns:**
 
 - `{variant or nil}`: ucl object as lua native variable
+
+Back to [module description](#module-ucl).
+
+
+### Method `parser:set_limits(limits)`
+
+Overlays the given limits on the ones already in effect, so tightening a single
+field does not silently drop the rest. An unknown key is an error rather than a
+quiet no-op. Zero means unlimited for any field.
+
+**Parameters:**
+
+- `limits {table}`: any of `max_depth`, `max_nodes`, `max_alloc`, `max_key_length`, `max_string_length`
+
+**Returns:**
+
+- `{parser}`: the parser itself, for chaining
+
+Back to [module description](#module-ucl).
+
+
+### Method `parser:get_limits()`
+
+Returns the limits currently in effect for the parser.
+
+**Parameters:**
+
+	nothing
+
+**Returns:**
+
+- `{table}`: table with `max_depth`, `max_nodes`, `max_alloc`, `max_key_length` and `max_string_length`
 
 Back to [module description](#module-ucl).
 

@@ -6,6 +6,7 @@ UCL_EMIT_CONFIG = ... # type: int
 UCL_EMIT_JSON = ... # type: int
 UCL_EMIT_JSON_COMPACT = ... # type: int
 UCL_EMIT_MSGPACK = ... # type: int
+UCL_EMIT_CBOR = ... # type: int
 UCL_EMIT_YAML = ... # type: int
 
 def dump(*args, **kwargs): ...

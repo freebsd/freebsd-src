@@ -189,6 +189,34 @@ typedef khint_t khiter_t;
 #define kfree(P) free(P)
 #endif
 
+/* Validate the rounded bucket count and every backing allocation before
+ * realloc can change the table. Also used for implicit growth by kh_put. */
+static kh_inline int
+kh_resize_sizes(khint_t requested, size_t key_size, size_t val_size,
+				khint_t *buckets, size_t *flags_size,
+				size_t *keys_size, size_t *vals_size)
+{
+	khint_t n = requested;
+	size_t max_size = (size_t) -1;
+
+	if (n > ((khint_t) 1 << (sizeof(khint_t) * CHAR_BIT - 1))) {
+		return -1;
+	}
+	kroundup32(n);
+	if (n < 4) n = 4;
+	if ((key_size != 0 && n > max_size / key_size) ||
+		(val_size != 0 && n > max_size / val_size) ||
+		__ac_fsize(n) > max_size / sizeof(khint32_t)) {
+		return -1;
+	}
+
+	*buckets = n;
+	*flags_size = (size_t) __ac_fsize(n) * sizeof(khint32_t);
+	*keys_size = (size_t) n * key_size;
+	*vals_size = (size_t) n * val_size;
+	return 0;
+}
+
 static const double __ac_HASH_UPPER = 0.77;
 
 #define __KHASH_TYPE(name, khkey_t, khval_t) \
@@ -244,21 +272,23 @@ static const double __ac_HASH_UPPER = 0.77;
 	SCOPE int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets) \
 	{ /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */ \
 		khint32_t *new_flags = 0;										\
+		size_t flags_size, keys_size, vals_size; \
 		khint_t j = 1;													\
 		{																\
-			kroundup32(new_n_buckets); 									\
-			if (new_n_buckets < 4) new_n_buckets = 4;					\
+			if (kh_resize_sizes(new_n_buckets, sizeof(khkey_t), \
+				kh_is_map ? sizeof(khval_t) : 0, &new_n_buckets, \
+				&flags_size, &keys_size, &vals_size) < 0) return -1; \
 			if (h->size >= (khint_t)(new_n_buckets * __ac_HASH_UPPER + 0.5)) j = 0;	/* requested size is too small */ \
 			else { /* hash table size to be changed (shrink or expand); rehash */ \
-				new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));	\
+				new_flags = (khint32_t*)kmalloc(flags_size);	\
 				if (!new_flags) return -1;								\
-				memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t)); \
+				memset(new_flags, 0xaa, flags_size); \
 				if (h->n_buckets < new_n_buckets) {	/* expand */		\
-					khkey_t *new_keys = (khkey_t*)krealloc((void *)h->keys, new_n_buckets * sizeof(khkey_t)); \
+					khkey_t *new_keys = (khkey_t*)krealloc((void *)h->keys, keys_size); \
 					if (!new_keys) { kfree(new_flags); return -1; }		\
 					h->keys = new_keys;									\
 					if (kh_is_map) {									\
-						khval_t *new_vals = (khval_t*)krealloc((void *)h->vals, new_n_buckets * sizeof(khval_t)); \
+						khval_t *new_vals = (khval_t*)krealloc((void *)h->vals, vals_size); \
 						if (!new_vals) { kfree(new_flags); return -1; }	\
 						h->vals = new_vals;								\
 					}													\
@@ -293,8 +323,8 @@ static const double __ac_HASH_UPPER = 0.77;
 				}														\
 			}															\
 			if (h->n_buckets > new_n_buckets) { /* shrink the hash table */ \
-				h->keys = (khkey_t*)krealloc((void *)h->keys, new_n_buckets * sizeof(khkey_t)); \
-				if (kh_is_map) h->vals = (khval_t*)krealloc((void *)h->vals, new_n_buckets * sizeof(khval_t)); \
+				h->keys = (khkey_t*)krealloc((void *)h->keys, keys_size); \
+				if (kh_is_map) h->vals = (khval_t*)krealloc((void *)h->vals, vals_size); \
 			}															\
 			kfree(h->flags); /* free the working space */				\
 			h->flags = new_flags;										\

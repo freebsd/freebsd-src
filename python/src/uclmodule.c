@@ -237,14 +237,47 @@ ucl_dump (PyObject *self, PyObject *args)
 	root = _iterate_python(obj);
 	if (root) {
 		PyObject *ret;
-		char *buf;
+		unsigned char *buf;
+		size_t len = 0;
 
-		buf = (char *) ucl_object_emit (root, emitter);
+		if (emitter == UCL_EMIT_MSGPACK || emitter == UCL_EMIT_CBOR) {
+			/*
+			 * The binary emitters produce arbitrary bytes: container heads
+			 * are rarely valid utf-8 and a NUL can appear anywhere, so the
+			 * output has to be emitted by length and returned as bytes.
+			 * PyUnicode_FromString would raise on the first invalid byte
+			 * and truncate at the first NUL otherwise.
+			 */
+			buf = ucl_object_emit_len (root, emitter, &len);
+		}
+		else {
+			buf = ucl_object_emit (root, emitter);
+
+			if (buf != NULL) {
+				len = strlen ((char *)buf);
+			}
+		}
+
 		ucl_object_unref (root);
+
+		if (buf == NULL) {
+			return PyErr_NoMemory ();
+		}
+
 #if PY_MAJOR_VERSION < 3
-		ret = PyString_FromString (buf);
+		if (emitter == UCL_EMIT_MSGPACK || emitter == UCL_EMIT_CBOR) {
+			ret = PyString_FromStringAndSize ((char *)buf, (Py_ssize_t)len);
+		}
+		else {
+			ret = PyString_FromString ((char *)buf);
+		}
 #else
-		ret = PyUnicode_FromString (buf);
+		if (emitter == UCL_EMIT_MSGPACK || emitter == UCL_EMIT_CBOR) {
+			ret = PyBytes_FromStringAndSize ((char *)buf, (Py_ssize_t)len);
+		}
+		else {
+			ret = PyUnicode_FromStringAndSize ((char *)buf, (Py_ssize_t)len);
+		}
 #endif
 		free(buf);
 
@@ -303,6 +336,7 @@ init_macros(PyObject *mod)
 	PyModule_AddIntMacro(mod, UCL_EMIT_CONFIG);
 	PyModule_AddIntMacro(mod, UCL_EMIT_YAML);
 	PyModule_AddIntMacro(mod, UCL_EMIT_MSGPACK);
+	PyModule_AddIntMacro(mod, UCL_EMIT_CBOR);
 
 	SchemaError = PyErr_NewException("ucl.SchemaError", NULL, NULL);
 	Py_INCREF(SchemaError);

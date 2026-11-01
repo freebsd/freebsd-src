@@ -1,0 +1,27 @@
+# Comments before the first value of an array
+arr_indented [
+    # a comment
+    1,
+    2
+]
+arr_string = [
+  # a comment
+  "a",
+  "b"
+]
+arr_same_line = [ # a comment on the same line
+  1 ]
+arr_c_comment = [ /* a C comment */ 1 ]
+arr_mixed [
+  # a comment
+
+  /* and a C comment after an empty line */
+  {
+    key = value;
+  }
+]
+# A C comment right before a value
+obj =
+/* a C comment */{
+    key = value;
+}

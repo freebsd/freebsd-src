@@ -75,5 +75,31 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "uniqueItems with numbers",
+        "schema": {"uniqueItems": true},
+        "tests": [
+            {
+                "description": "fractions less than one apart are unique",
+                "data": [1.1, 1.2],
+                "valid": true
+            },
+            {
+                "description": "large integers that a double cannot tell apart are unique",
+                "data": [9007199254740992, 9007199254740993],
+                "valid": true
+            },
+            {
+                "description": "the same fractions are not unique",
+                "data": [1.1, 1.2, 1.1],
+                "valid": false
+            },
+            {
+                "description": "integers far apart are unique",
+                "data": [0, 4294967296, -4294967296],
+                "valid": true
+            }
+        ]
     }
 ]

@@ -73,3 +73,26 @@ jobs:
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest --progress --output-on-failure --build-config ${{ matrix.build_type }}
+
+  subproject:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure as a subproject
+      run: |
+        mkdir parent
+        cat > parent/CMakeLists.txt <<'EOF'
+        cmake_minimum_required(VERSION 3.5)
+        project(libucl-parent C)
+        enable_testing()
+        add_subdirectory(.. libucl)
+        EOF
+        cmake -S parent -B build-subproject -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build-subproject
+
+    - name: Test
+      working-directory: build-subproject
+      run: ctest --output-on-failure --no-tests=error

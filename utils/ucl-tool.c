@@ -25,7 +25,8 @@
 void usage(const char *name, FILE *out)
 {
 	fprintf(out, "Usage: %s [--help] [-i|--in file] [-o|--out file]\n", name);
-	fprintf(out, "    [-s|--schema file] [-f|--format format]\n\n");
+	fprintf(out, "    [-s|--schema file] [-f|--format format]\n");
+	fprintf(out, "    [--input-format format]\n\n");
 	fprintf(out, "  --help   - print this message and exit\n");
 	fprintf(out, "  --in     - specify input filename "
 				 "(default: standard input)\n");
@@ -33,7 +34,9 @@ void usage(const char *name, FILE *out)
 				 "(default: standard output)\n");
 	fprintf(out, "  --schema - specify schema file for validation\n");
 	fprintf(out, "  --format - output format. Options: ucl (default), "
-				 "json, compact_json, yaml, msgpack\n");
+				 "json, compact_json, yaml, msgpack, cbor\n");
+	fprintf(out, "  --input-format - input format. Options: auto (default), "
+				 "ucl, msgpack, cbor, sexp\n");
 }
 
 int main(int argc, char **argv)
@@ -47,6 +50,7 @@ int main(int argc, char **argv)
 	struct ucl_parser *parser = NULL;
 	ucl_object_t *obj = NULL;
 	ucl_emitter_t emitter = UCL_EMIT_CONFIG;
+	enum ucl_parse_type input_type = UCL_PARSE_AUTO;
 
 	for (i = 1; i < argc; ++i) {
 		parm = argv[i];
@@ -81,6 +85,34 @@ int main(int argc, char **argv)
 				goto err_val;
 			schema = val;
 		}
+		else if (strcmp(parm, "--input-format") == 0) {
+			if (!val)
+				goto err_val;
+
+			if (strcmp(val, "auto") == 0) {
+				input_type = UCL_PARSE_AUTO;
+			}
+			else if (strcmp(val, "ucl") == 0) {
+				input_type = UCL_PARSE_UCL;
+			}
+			else if (strcmp(val, "msgpack") == 0) {
+				input_type = UCL_PARSE_MSGPACK;
+			}
+			else if (strcmp(val, "cbor") == 0) {
+				/*
+				 * Cbor has to be asked for: its head bytes overlap msgpack's,
+				 * so auto detection only spots it behind the self-described tag
+				 */
+				input_type = UCL_PARSE_CBOR;
+			}
+			else if (strcmp(val, "sexp") == 0) {
+				input_type = UCL_PARSE_CSEXP;
+			}
+			else {
+				fprintf(stderr, "Unknown input format: %s\n", val);
+				exit(EXIT_FAILURE);
+			}
+		}
 		else if ((strcmp(parm, "--format") == 0) || (strcmp(parm, "-f") == 0)) {
 			if (!val)
 				goto err_val;
@@ -99,6 +131,9 @@ int main(int argc, char **argv)
 			}
 			else if (strcmp(val, "msgpack") == 0) {
 				emitter = UCL_EMIT_MSGPACK;
+			}
+			else if (strcmp(val, "cbor") == 0) {
+				emitter = UCL_EMIT_CBOR;
 			}
 			else {
 				fprintf(stderr, "Unknown output format: %s\n", val);
@@ -130,7 +165,8 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 	fclose(in);
-	if (!ucl_parser_add_chunk(parser, buf, r)) {
+	if (!ucl_parser_add_chunk_full(parser, buf, r, 0, UCL_DUPLICATE_APPEND,
+								   input_type)) {
 		fprintf(stderr, "Failed to parse input file: %s\n",
 				ucl_parser_get_error(parser));
 		exit(EXIT_FAILURE);
@@ -161,7 +197,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (emitter != UCL_EMIT_MSGPACK) {
+	if (emitter != UCL_EMIT_MSGPACK && emitter != UCL_EMIT_CBOR) {
 		fprintf(out, "%s\n", ucl_object_emit(obj, emitter));
 	}
 	else {

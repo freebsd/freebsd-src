@@ -62,8 +62,19 @@ e0:
 #define kv_size(v) ((v).n)
 #define kv_max(v) ((v).m)
 
+/*
+ * The ENOMEM-safe kv_xxx_safe macros below compute their sizes with the
+ * overflow checked ucl_size_add()/ucl_size_mul() helpers, so ucl_internal.h
+ * must be included before this header. A size that does not fit in a size_t
+ * takes the same error label as a failed realloc and leaves the vector as is.
+ */
 #define kv_resize_safe(type, v, s, el)  do { \
-		type *_tp = (type*)realloc((v).a, sizeof(type) * (s)); \
+		size_t _tsz; \
+		type *_tp; \
+		if (!ucl_size_mul(sizeof(type), (s), &_tsz)) { \
+			goto el; \
+		} \
+		_tp = (type*)realloc((v).a, _tsz); \
 		if (_tp == NULL) { \
 			goto el; \
 		} else { \
@@ -73,9 +84,17 @@ e0:
 	} while (0)
 
 #define kv_grow_factor 1.5
+/* Grows by kv_grow_factor, i.e. m + m / 2, computed without floating point */
 #define kv_grow_safe(type, v, el)  do { \
-		size_t _ts = ((v).m > 1 ? (v).m * kv_grow_factor : 2); \
-		type *_tp = (type*)realloc((v).a, sizeof(type) * _ts); \
+		size_t _ts = 2, _tsz; \
+		type *_tp; \
+		if ((v).m > 1 && !ucl_size_add((v).m, (v).m / 2, &_ts)) { \
+			goto el; \
+		} \
+		if (!ucl_size_mul(sizeof(type), _ts, &_tsz)) { \
+			goto el; \
+		} \
+		_tp = (type*)realloc((v).a, _tsz); \
 		if (_tp == NULL) { \
 			goto el; \
 		} else { \
@@ -107,10 +126,14 @@ e0:
 	} while (0)
 
 #define kv_concat_safe(type, v1, v0, el) do { \
-		if ((v1).m < (v0).n + (v1).n) \
-			kv_resize_safe(type, v1, (v0).n + (v1).n, el); \
+		size_t _tn; \
+		if (!ucl_size_add((v1).n, (v0).n, &_tn)) { \
+			goto el; \
+		} \
+		if ((v1).m < _tn) \
+			kv_resize_safe(type, v1, _tn, el); \
 		memcpy((v1).a + (v1).n, (v0).a, sizeof(type) * (v0).n);	\
-		(v1).n = (v0).n + (v1).n; \
+		(v1).n = _tn; \
 	} while (0)
 
 #define kv_del(type, v, i) do {												\

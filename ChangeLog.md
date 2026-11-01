@@ -1,5 +1,81 @@
 # Version history
 
+## Libucl 0.10.0
+
+### New features
+
+- Add a CBOR (RFC 8949) reader and writer: `UCL_PARSE_CBOR` and `UCL_EMIT_CBOR`
+- Add parser limits for untrusted input: `ucl_parser_set_limits()` and
+  `ucl_parser_get_limits()` bound depth, element count, allocated bytes, key
+  length and string length, and fail with the new `UCL_ELIMIT` error
+- Add `UCL_PARSER_SAFE_FLAGS` for parsing untrusted input
+- Lua: add `ucl.untrusted_parser([limits])`, `parser:set_limits()` and
+  `parser:get_limits()`
+
+### Behaviour changes
+
+- Lua: push each value of a repeated key as it is, so `a [1, 2]; a [3]` gives
+  `{{1, 2}, {3}}` rather than `{1, 2, 3}`
+- Reject nesting deeper than 1024 levels in every input format, not only in
+  msgpack and CSEXP
+- Fail signed includes (`.includes`, `.include(sign=true)`) when libucl is
+  built without OpenSSL, instead of loading them unverified
+- Treat macros as comments with `UCL_PARSER_DISABLE_MACRO`, as documented,
+  instead of failing on them
+- Merge only containers into containers with `UCL_DUPLICATE_MERGE`; a scalar
+  after a container follows the priority rules
+- Write every value of a repeated key as a JSON or YAML array, also when the
+  first value is an array
+- Parse a number followed by a comment, or by spaces and the end of the value,
+  as a number: `a = 1 /* c */` and `t = 1s }` no longer give strings
+- Fail on numbers whose suffix overflows them; `ucl_object_toint()` clamps
+  floats out of the integer range and returns 0 for NaN
+- Schema: report errors of the schema itself inside `anyOf`, `oneOf` and
+  `not`; reject malformed keywords, non-string or cyclic `$ref`, empty `anyOf`
+  or `oneOf` and `type` arrays with anything but type names
+- Keep comments inside an empty object or array inside it when emitting
+- Never use zero-copy for files and descriptors, whose mapping libucl releases
+
+### Security and robustness
+
+- Fix out-of-bounds reads in the parser, macro arguments and values, msgpack,
+  CSEXP, `ucl_strnstr`, `ucl_object_lookup_path_char` with a NUL separator and
+  the copy of strings with an embedded NUL
+- Fix use-after-free on merged duplicate keys and in merges across formats
+- Free trees iteratively, so freeing a deeply nested tree cannot exhaust the
+  stack
+- Check allocation size arithmetic and propagate allocation failures;
+  iterating an object no longer allocates
+- Fix undefined float-to-integer conversions in the parser, the emitters and
+  the Lua binding
+- Fix misaligned reads in msgpack and in the bundled mum hash
+
+### Bug fixes
+
+- Includes: restore file variables and context after a failed include, remove
+  its chunks, release fetched URLs, report a failed fetch of a required URL
+  and go on after a skipped `.try_include`
+- Fix `ucl_parser_insert_chunk()` with chunks that end inside a macro, leave
+  frames open, or start with a key in an array
+- Fix msgpack negative fixint encoding and decoding and several value bugs
+- `ucl_object_compare()`: compare numbers, string bytes and lengths without
+  overflow, and order NaN after every number
+- Fix config emitter roundtrip corruption and the placement of comments
+- Fix memory leaks on iterator early exit, array merges, nested
+  `ucl_object_free()`, comments left by parse errors and schema `$ref` fetching
+- Fix `ucl_object_iter_chk_excpn()` prototype to take the iterator, as the
+  implementation does
+- Fix the pointer returned by `ucl_object_pop_keyl()`
+- Schema: fix `additionalProperties` and `patternProperties` matching
+
+### Build and tests
+
+- Fix the CMake build when libucl is used as a subproject
+- Sync the automake test list with CMake and ignore in-tree build outputs
+- Add tests for limits, roundtrips, CBOR, malformed msgpack, CSEXP, schema
+  `$ref`, allocation failures, variables and the Lua binding (`ENABLE_LUA`)
+- Add a CBOR fuzzer
+
 ## Libucl 0.9.4
 
 - Fix double comma in JSON emission for consecutive implicit arrays (Fixes #312)

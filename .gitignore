@@ -28,6 +28,9 @@ Makefile.in
 # pkgconf
 libucl.pc
 
+# luarocks
+lua/libucl.rockspec
+
 # python extension
 python/build
 

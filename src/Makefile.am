@@ -12,6 +12,7 @@ libucl_la_SOURCES=	ucl_emitter.c \
 					ucl_schema.c \
 					ucl_util.c \
 					ucl_msgpack.c \
+					ucl_cbor.c \
 					ucl_sexp.c
 libucl_la_CFLAGS=	$(libucl_common_cflags) \
 					@CURL_CFLAGS@

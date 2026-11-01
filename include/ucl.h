@@ -122,7 +122,8 @@ typedef enum ucl_error {
 	UCL_EMACRO,    /**< Error processing a macro */
 	UCL_EINTERNAL, /**< Internal unclassified error */
 	UCL_ESSL,      /**< SSL error */
-	UCL_EMERGE     /**< A merge error occurred */
+	UCL_EMERGE,    /**< A merge error occurred */
+	UCL_ELIMIT     /**< Input exceeds one of the configured parser limits */
 } ucl_error_t;
 
 /**
@@ -152,6 +153,7 @@ typedef enum ucl_emitter {
 	UCL_EMIT_CONFIG,       /**< Emit human readable config format */
 	UCL_EMIT_YAML,         /**< Emit embedded YAML format */
 	UCL_EMIT_MSGPACK,      /**< Emit msgpack output */
+	UCL_EMIT_CBOR,         /**< Emit CBOR (RFC 8949) output */
 	UCL_EMIT_MAX           /**< Unsupported emitter type */
 } ucl_emitter_t;
 
@@ -171,6 +173,16 @@ typedef enum ucl_parser_flags {
 	UCL_PARSER_DISABLE_MACRO = (1 << 5),      /** Treat macros as comments */
 	UCL_PARSER_NO_FILEVARS = (1 << 6)         /** Do not set file vars */
 } ucl_parser_flags_t;
+
+/**
+ * Flags suitable for input that did not come from a trusted local file:
+ * no macros, no file variables, no time suffixes and no implicit arrays.
+ * Combine with ucl_parser_set_limits() to bound the structural cost as well.
+ */
+#define UCL_PARSER_SAFE_FLAGS (UCL_PARSER_NO_TIME |            \
+							   UCL_PARSER_NO_IMPLICIT_ARRAYS | \
+							   UCL_PARSER_DISABLE_MACRO |      \
+							   UCL_PARSER_NO_FILEVARS)
 
 /**
  * String conversion flags, that are used in #ucl_object_fromstring_common function.
@@ -223,7 +235,12 @@ enum ucl_parse_type {
 	UCL_PARSE_UCL = 0, /**< Default ucl format */
 	UCL_PARSE_MSGPACK, /**< Message pack input format */
 	UCL_PARSE_CSEXP,   /**< Canonical S-expressions */
-	UCL_PARSE_AUTO     /**< Try to detect parse type */
+	UCL_PARSE_AUTO,    /**< Try to detect parse type */
+	/*
+	 * Appended after UCL_PARSE_AUTO on purpose, so that the values of the
+	 * types that came before it stay what they have always been
+	 */
+	UCL_PARSE_CBOR /**< CBOR (RFC 8949) input format */
 };
 
 /**
@@ -620,10 +637,11 @@ UCL_EXTERN bool ucl_object_todouble_safe(const ucl_object_t *obj, double *target
 UCL_EXTERN double ucl_object_todouble(const ucl_object_t *obj);
 
 /**
- * Converts an object to integer value
+ * Converts an object to integer value, a float out of the int64_t range is
+ * clamped to INT64_MIN or INT64_MAX
  * @param obj CL object
  * @param target target integer variable
- * @return true if conversion was successful
+ * @return true if conversion was successful, false for NaN
  */
 UCL_EXTERN bool ucl_object_toint_safe(const ucl_object_t *obj, int64_t *target);
 
@@ -738,7 +756,8 @@ UCL_EXTERN const ucl_object_t *ucl_object_lookup_path(const ucl_object_t *obj,
  * Return object identified by object notation string using arbitrary delimiter
  * @param obj object to search in
  * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
- * @param sep the sepatorator to use in place of . (incase keys have . in them)
+ * @param sep the separator to use in place of . (in case keys have . in them);
+ * if sep is '\0', the whole path is looked up as a single key
  * @return object matched the specified path or NULL if path is not found
  */
 UCL_EXTERN const ucl_object_t *ucl_object_lookup_path_char(const ucl_object_t *obj,
@@ -898,7 +917,7 @@ UCL_EXTERN ucl_object_iter_t ucl_object_iterate_new(const ucl_object_t *obj)
  * @param iter opaque iterator
  * @return true if exception has occured, false otherwise
  */
-UCL_EXTERN bool ucl_object_iter_chk_excpn(ucl_object_iter_t *it);
+UCL_EXTERN bool ucl_object_iter_chk_excpn(ucl_object_iter_t it);
 
 /**
  * Reset initialized iterator to a new object
@@ -1006,6 +1025,42 @@ UCL_EXTERN bool ucl_parser_set_default_priority(struct ucl_parser *parser,
  * @return true default priority (0 .. 16), -1 for failure
  */
 UCL_EXTERN int ucl_parser_get_default_priority(struct ucl_parser *parser);
+
+/**
+ * Structural and allocation budgets applied while parsing.
+ *
+ * The input size alone is a poor proxy for the cost of parsing it: a small
+ * document can describe a very deep or very fragmented tree, and every
+ * element of that tree costs an object, a copied key/value and hash
+ * bookkeeping. These limits bound that amplification and should be set
+ * whenever the input is untrusted.
+ *
+ * A zero value means "no limit" for that particular field. Exceeding a limit
+ * aborts the parse with #UCL_ELIMIT (or #UCL_ENESTED for the depth limit).
+ */
+struct ucl_parser_limits {
+	uint64_t max_depth;         /**< Maximum nesting depth of objects and arrays */
+	uint64_t max_nodes;         /**< Maximum number of elements in the parsed tree */
+	uint64_t max_alloc;         /**< Maximum aggregate bytes attributed to the parsed tree */
+	uint64_t max_key_length;    /**< Maximum length of a single key */
+	uint64_t max_string_length; /**< Maximum length of a single string value */
+};
+
+/**
+ * Sets the parser limits, replacing all of them at once
+ * @param parser parser object
+ * @param limits limits to apply, NULL restores the defaults
+ */
+UCL_EXTERN void ucl_parser_set_limits(struct ucl_parser *parser,
+									  const struct ucl_parser_limits *limits);
+
+/**
+ * Gets the limits currently in effect for a parser
+ * @param parser parser object
+ * @param limits output, filled with the current limits
+ */
+UCL_EXTERN void ucl_parser_get_limits(struct ucl_parser *parser,
+									  struct ucl_parser_limits *limits);
 
 /**
  * Register new handler for a macro
@@ -1529,6 +1584,7 @@ UCL_EXTERN struct ucl_emitter_context *ucl_object_emit_streamline_new(
  * Start object or array container for the streamlined output
  * @param ctx streamlined context
  * @param obj container object
+ * @return true if the container was started, false if obj is not a container
  */
 UCL_EXTERN bool ucl_object_emit_streamline_start_container(
 	struct ucl_emitter_context *ctx, const ucl_object_t *obj);
