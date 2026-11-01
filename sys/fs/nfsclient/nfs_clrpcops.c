@@ -1830,25 +1830,10 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	struct nfsrv_descript *nd = &nfsd;
 	int rsize;
 	off_t tmp_off;
-	bool did_rdma, reduced;
+	bool did_rdma, reduced, first_loop;
 
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
-	did_rdma = false;
-	mbflag = 0;
-	if (NFSHASRDMA(nmp) && tsiz > 0) {
-		/* Assume the rest of the RPC without data is <= 1024 bytes. */
-		if (pgp != NULL && (uiop->uio_offset & PAGE_MASK) == 0 &&
-		    uiop->uio_segflg == UIO_SYSSPACE &&
-		    !NFSHASNOREADREDUCE(nmp))
-			did_rdma = true;
-		else if (tsiz <= PAGE_SIZE - 1024)
-			mbflag = M_PROTO7;
-		else if (tsiz <= NFS_DIRBLKSIZ + PAGE_SIZE - 1024)
-			mbflag = M_PROTO8;
-		else
-			mbflag = M_PROTO9;
-	}
 	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
 	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
@@ -1858,10 +1843,32 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	rsize = nmp->nm_rsize;
 	NFSUNLOCKMNT(nmp);
 	nd->nd_mrep = NULL;
-	mr = NULL;
+	first_loop = true;
 	while (tsiz > 0) {
+		mr = NULL;
 		*attrflagp = 0;
 		len = (tsiz > rsize) ? rsize : tsiz;
+		did_rdma = false;
+		mbflag = 0;
+		if (NFSHASRDMA(nmp) && len > 0) {
+			/*
+			 * Until nfsm_build_rdma_reduction() handles an offset
+			 * within the pages, this can only be done for the first
+			 * iteration.
+			 */
+			if (first_loop && pgp != NULL &&
+			    (uiop->uio_offset & PAGE_MASK) == 0 &&
+			    uiop->uio_segflg == UIO_SYSSPACE &&
+			    !NFSHASNOREADREDUCE(nmp))
+				did_rdma = true;
+			else if (len <= PAGE_SIZE - 1024)
+				mbflag = M_PROTO7;
+			else if (len <= NFS_DIRBLKSIZ + PAGE_SIZE - 1024)
+				mbflag = M_PROTO8;
+			else
+				mbflag = M_PROTO9;
+		}
+		first_loop = false;
 		NFSCL_REQSTART(nd, NFSPROC_READ, vp, cred);
 		nd->nd_mreq->m_flags |= mbflag;
 		if (nd->nd_flag & ND_NFSV4)
@@ -1916,6 +1923,9 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 				error = rpc_copy_uio_pages(mr, uiop, retlen,
 				    true);
 		}
+		if (mr != NULL)
+			m_free(mr);
+		mr = NULL;
 		if (error)
 			goto nfsmout;
 		m_freem(nd->nd_mrep);
@@ -1929,6 +1939,8 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	}
 	return (0);
 nfsmout:
+	if (mr != NULL)
+		m_free(mr);
 	if (nd->nd_mrep != NULL)
 		m_freem(nd->nd_mrep);
 	return (error);
@@ -2042,7 +2054,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 	nfsattrbit_t attrbits;
 	uint64_t tmp_off;
 	ssize_t tsiz, wsize;
-	bool do_append, did_rdma;
+	bool do_append, did_rdma, first_loop;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*attrflagp = 0;
@@ -2066,7 +2078,9 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK);
 	nd->nd_mrep = NULL;	/* NFSv2 sometimes does a write with */
 	nd->nd_repstat = 0;	/* uio_resid == 0, so the while is not done */
+	first_loop = true;
 	while (tsiz > 0) {
+		mr = NULL;
 		*attrflagp = 0;
 		len = (tsiz > wsize) ? wsize : tsiz;
 		if (do_append)
@@ -2116,7 +2130,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 			*tl = x;        /* size of this write */
 		}
 		/* For RDMA, make the data a separate chunk. */
-		if (did_rdma) {
+		if (did_rdma && first_loop) {
 			rlen = m_length(nd->nd_mreq, NULL);
 			mr = nfsm_build_rdma_reduction(pgp, nd, len, rlen,
 			    false);
@@ -2124,6 +2138,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 		} else {
 			error = nfsm_uiombuf(nd, uiop, len);
 		}
+		first_loop = false;
 		if (error != 0) {
 			nfsv4_freeunsentslot(nmp, NULL, nd);
 			m_freem(nd->nd_mreq);
@@ -2160,6 +2175,10 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 		if (error) {
 			free(nd, M_TEMP);
 			return (error);
+		}
+		if (mr != NULL) {
+			m_free(mr);
+			mr = NULL;
 		}
 		if (nd->nd_repstat) {
 			/*
