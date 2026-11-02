@@ -77,6 +77,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <xlocale.h>
 
 #ifdef WITH_SSL
 #include <openssl/md5.h>
@@ -121,6 +122,15 @@
 
 #define HTTP_ERROR(xyz) ((xyz) >= 400 && (xyz) <= 599)
 
+static locale_t
+fetch_time_locale(void)
+{
+	static locale_t loc;
+
+	if (loc == NULL)
+		loc = newlocale(LC_TIME_MASK, "C", NULL);
+	return (loc);
+}
 
 /*****************************************************************************
  * I/O functions for decoding chunked streams
@@ -854,20 +864,20 @@ out:
 static int
 http_parse_mtime(const char *p, time_t *mtime)
 {
-	char locale[64], *r;
 	struct tm tm;
+	char *r;
 
-	strlcpy(locale, setlocale(LC_TIME, NULL), sizeof(locale));
-	setlocale(LC_TIME, "C");
-	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+	r = strptime_l(p, "%a, %d %b %Y %H:%M:%S GMT", &tm,
+	    fetch_time_locale());
 	/*
 	 * Some proxies use UTC in response, but it should still be
 	 * parsed. RFC2616 states GMT and UTC are exactly equal for HTTP.
 	 */
-	if (r == NULL)
-		r = strptime(p, "%a, %d %b %Y %H:%M:%S UTC", &tm);
+	if (r == NULL) {
+		r = strptime_l(p, "%a, %d %b %Y %H:%M:%S UTC", &tm,
+		    fetch_time_locale());
+	}
 	/* XXX should add support for date-2 and date-3 */
-	setlocale(LC_TIME, locale);
 	if (r == NULL)
 		return (-1);
 	DEBUGF("last modified: [%04d-%02d-%02d %02d:%02d:%02d]\n",
@@ -1647,8 +1657,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 		if (ims && url->ims_time) {
 			timestruct = gmtime((time_t *)&url->ims_time);
-			(void)strftime(timebuf, 80, "%a, %d %b %Y %T GMT",
-			    timestruct);
+			(void)strftime_l(timebuf, 80, "%a, %d %b %Y %T GMT",
+			    timestruct, fetch_time_locale());
 			if (verbose)
 				fetch_info("If-Modified-Since: %s", timebuf);
 			http_cmd(conn, "If-Modified-Since: %s", timebuf);
