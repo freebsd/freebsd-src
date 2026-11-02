@@ -476,6 +476,9 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 						continue; /* Skip padding. */
 					}
 
+					/* The length byte must be in the header. */
+					if (count + 1 >= noff)
+						goto error6;
 					ad = ptr[count + 1] + 2;
 					if (count + ad > noff)
 						goto error6;
