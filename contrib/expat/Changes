@@ -21,6 +21,86 @@
 //                                   Sebastian Pipping -- Berlin, 2026-09-22 //
 ///////////////////////////////////////////////////////////////////////////////
 
+Release 2.10.0 Mon November 2 2026
+        Security fixes:
+           #1431  CVE-2026-113351 -- Fix denial of service with use of
+                    `XML_ParserReset`
+  #1433 #1436 ..
+  #1438 #1439 ..
+           #1442  CVE-2026-115506 -- Detect billion laughs attacks quicker
+                    and more of its variations. Related payload fuzzer at:
+                      https://github.com/hannob/lololol
+                    Please note that a layer of compression around XML can
+                    significantly reduce the minimum attack payload size.
+                    In case of backporting, please note pull request #1439
+                    in particular.
+           #1444  CVE-2026-117610 -- Fix initial non-final empty subparser
+                    parse calls. Was segfaulting previously.
+           #1450  CVE-2026-118370 -- Protect `attIndex` and `nPrefixes` in
+                    function `storeAtts` from signed integer overflow
+
+        Bug fixes:
+           #1452  lib: Initialize `m_parsingStatus.finalBuffer` in `parserInit`
+                    to fix calling `XML_GetParsingStatus` right after
+                    parser creation
+     #1457 #1459  lib: Improve `XML_Parse` for `XML_CONTEXT_BYTES == 0`
+                    including NULL pointer arithmetic undefined behavior
+                    and uninitialized variable access
+           #1458  lib: Use C99 length modifiers for `ptrdiff_t` and `size_t`
+                    to fix support for CHERI-RISC-V
+           #1461  lib: Check `isCalledFromInsideHandler` first in `XML_Parse`
+           #1467  lib: Add missing check for a character handler reset
+
+        Other changes:
+           #1441  Autotools: Move `-lm` from LDFLAGS to LIBADD/LDADD
+                    to better support compilation with `-Wl,--as-needed`
+           #1412  CMake: Support repeated `find_package` calls
+           #1413  lib: Address warning `XML_GE is not defined [-Werror=undef]`
+           #1415  lib: Stop delaying `callStoreEntityValue` error handling
+           #1415  lib: Add missing call to `poolDiscard`
+           #1437  lib: Add missing `NULL` check for `m_startDoctypeDeclHandler`
+           #1417  lib: Migrate `ENTITY.textLen` and `ENTITY.processed` from
+                         `int` to `size_t`
+           #1463  lib: Fix integer truncation in `XmlGetAttributes`/`getAtts`
+           #1420  lib: Some more `XML_Bool` to `bool` migration
+     #1449 #1460  lib: Document the memory reuse black magic that function
+                    `storeAtts` is doing
+           #1453  lib: Document failure to reject bad redefinitions of
+                    predefined entities
+           #1432  tests: Replace `XML_SetHashSalt` with
+                    `XML_SetHashSalt16Bytes`
+     #1416 #1435  Version info bumped from 14:0:13 (libexpat*.so.1.13.0)
+                    to 14:1:13 (libexpat*.so.1.13.1); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+           #1414  CI: Stop using about-to-be-removed image "macos-14"
+     #1418 #1434  CI: Bump MinGW Clang from 23.1.2 to 23.1.4
+           #1443  CI: Bump Fil-C from 0.686 to 0.687
+           #1456  Drop a `lib/xcsinc.c` leftover
+
+        Special thanks to:
+            Alexander Bluhm
+            Bartłomiej Dmitruk
+            Berkay Eren Ürün
+            Brooks Davis
+            brspoon
+            Funda Wang
+            Hanno Böck
+            Matthew Fernandez
+            Minkyung Park
+            Mirko Swillus
+            Pu Cheng
+            Scott Moore
+            Shani Yosef
+            Xisco Fauli
+                 and
+            City of Munich Open Source Sabbatical
+            echo.ai
+            Siemens
+            Striga
+            VulnCheck
+
 Release 2.9.0 Mon October 5 2026
         Security fixes:
            #1392  CVE-2026-102633 -- Integer overflow in function
@@ -106,6 +186,7 @@ Release 2.9.0 Mon October 5 2026
             Wade Sparks III
                  and
             City of Munich Open Source Sabbatical
+            Siemens
             VulnCheck
 
 Release 2.8.5 Tue September 22 2026
@@ -239,6 +320,7 @@ Release 2.8.4 Mon August 31 2026
                  and
             City of Munich Open Source Sabbatical
             Moonshot AI
+            Siemens
             VulnCheck
             Z.ai
 
@@ -425,6 +507,8 @@ Release 2.8.1 Sun May 10 2026
             Matthew Fernandez
             Nick Wellnhofer
             Tania Somanna
+                 and
+            Siemens
 
 Release 2.8.0 Fri April 24 2026
         Security fixes:
@@ -537,6 +621,7 @@ Release 2.7.5 Tue March 17 2026
             AddressSanitizer
             Buttercup
             OSS-Fuzz / ClusterFuzz
+            Siemens
             Trail of Bits
 
 Release 2.7.4 Sat January 31 2026
@@ -678,6 +763,7 @@ Release 2.7.3 Wed September 24 2025
                  and
             Clang/GCC UndefinedBehaviorSanitizer
             OSS-Fuzz / ClusterFuzz
+            Siemens
             Z3 Theorem Prover
 
 Release 2.7.2 Tue September 16 2025
@@ -791,6 +877,7 @@ Release 2.7.1 Thu March 27 2025
             Matthew Fernandez
                  and
             Perl XML::Parser
+            Siemens
 
 Release 2.7.0 Thu March 13 2025
         Security fixes:
@@ -950,6 +1037,8 @@ Release 2.6.3 Wed September 4 2024
             Dag-Erling Smørgrav
             Ferenc Géczi
             TaiYou
+                 and
+            Siemens
 
 Release 2.6.2 Wed March 13 2024
         Security fixes:
