@@ -564,15 +564,14 @@ buffer_copy(struct sc_chinfo *ch)
 			length -= offset;
 		}
 	} else {
-		/* Buffer position scaled down to a single channel. */
+		/* Snapshot the write position before synchronizing the buffer. */
 		pos = sndbuf_getfreeptr(ch->buffer) / channels;
-		/* Get DMA buffer write position. */
 		dma_pos = hdsp_read_2(sc, HDSP_STATUS_REG);
 		dma_pos &= HDSP_BUF_POSITION_MASK;
 		dma_pos %= buffer_size;
-		/* Copy what is newly available. */
 		length = (dma_pos + buffer_size) - pos;
 		length %= buffer_size;
+		bus_dmamap_sync(sc->dmat, sc->rmap, BUS_DMASYNC_POSTREAD);
 	}
 
 	/* Position and length in samples (4 bytes). */
@@ -607,6 +606,12 @@ buffer_copy(struct sc_chinfo *ch)
 		row = hdsp_slot_first_row(slots);
 	}
 
+	if (ch->dir == PCMDIR_PLAY && length > 0) {
+		bus_dmamap_sync(sc->dmat, sc->pmap, BUS_DMASYNC_PREWRITE);
+	} else if (ch->dir == PCMDIR_REC) {
+		bus_dmamap_sync(sc->dmat, sc->rmap, BUS_DMASYNC_PREREAD);
+	}
+
 	ch->position = ((pos + length) * 4) % buffer_size;
 }
 
@@ -626,6 +631,11 @@ clean(struct sc_chinfo *ch)
 	if (ch->dir == PCMDIR_PLAY)
 		buf = sc->pbuf;
 
+	if (ch->dir == PCMDIR_PLAY)
+		bus_dmamap_sync(sc->dmat, sc->pmap, BUS_DMASYNC_POSTWRITE);
+	else
+		bus_dmamap_sync(sc->dmat, sc->rmap, BUS_DMASYNC_POSTREAD);
+
 	/* Iterate through all of the channel's slots. */
 	slots = hdsp_port_slot_map(ch->ports, sc->speed);
 	slot = hdsp_slot_first(slots);
@@ -637,6 +647,12 @@ clean(struct sc_chinfo *ch)
 		slots &= ~slot;
 		slot = hdsp_slot_first(slots);
 	}
+
+	if (ch->dir == PCMDIR_PLAY)
+		bus_dmamap_sync(sc->dmat, sc->pmap, BUS_DMASYNC_PREWRITE);
+	else
+		bus_dmamap_sync(sc->dmat, sc->rmap,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 	ch->position = 0;
 
@@ -775,8 +791,8 @@ hdspchan_trigger(kobj_t obj, void *data, int go)
 #if 0
 		device_printf(scp->dev, "hdspchan_trigger(): stop or abort\n");
 #endif
-		clean(ch);
 		hdspchan_enable(ch, 0);
+		clean(ch);
 		hdsp_stop_audio(sc);
 		break;
 
