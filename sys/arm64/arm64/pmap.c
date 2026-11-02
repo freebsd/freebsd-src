@@ -9508,7 +9508,16 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 		switch (lvl) {
 		case 3:
 			mask = L3_OFFSET;
-			psind = (tpte & ATTR_CONTIGUOUS) != 0 ? 1 : 0;
+			if ((tpte & ATTR_CONTIGUOUS) != 0) {
+				/*
+				 * Only the accessed bit can differ among an
+				 * L3C superpage's PTEs.
+				 */
+				if ((tpte & ATTR_AF) == 0)
+					tpte = pmap_load_l3c(pte);
+				psind = 1;
+			} else
+				psind = 0;
 			break;
 		case 2:
 			mask = L2_OFFSET;
