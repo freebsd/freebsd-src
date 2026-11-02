@@ -315,8 +315,11 @@ iavf_reset(struct iavf_sc *sc)
 	int		error = 0;
 
 	/* Ask the PF to reset us if we are initiating */
-	if (!iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING))
-		iavf_request_reset(sc);
+	if (!iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING)) {
+		error = iavf_request_reset(sc);
+		if (error != 0)
+			return (error);
+	}
 
 	iavf_msec_pause(100);
 	error = iavf_reset_complete(hw);
@@ -325,6 +328,12 @@ iavf_reset(struct iavf_sc *sc)
 		    __func__);
 		return (error);
 	}
+	/*
+	 * The completed reset stopped the old queues.  Record that fact so
+	 * stop and initialization need not issue DISABLE_QUEUES again.
+	 */
+	iavf_set_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+	atomic_store_rel_32(&sc->queues_enabled, 0);
 	pci_enable_busmaster(dev);
 
 	error = iavf_shutdown_adminq(hw);
@@ -1488,8 +1497,9 @@ iavf_mark_del_vlan_filter(struct iavf_sc *sc, u16 vtag)
  * to IAVF_MAX_DIS_Q_RETRY times if the response says that it wasn't
  * successful. This is intended to workaround a bug that can appear on the PF.
  *
- * @returns zero on success, or an error code if the request could not be sent
- * or acknowledged.
+ * @returns zero on success, EBUSY when the PF replied but did not confirm
+ * that the queues were disabled, or another error if the request could not
+ * be sent or acknowledged.
  */
 int
 iavf_disable_queues_with_retries(struct iavf_sc *sc)
@@ -1498,9 +1508,9 @@ iavf_disable_queues_with_retries(struct iavf_sc *sc)
 	int max_attempts = IAVF_MAX_DIS_Q_RETRY;
 	int error = 0, msg_count = 0;
 
-	/* While the driver is detaching, it doesn't care if the queue
-	 * disable finishes successfully or not. Just send one message
-	 * to just notify the PF driver.
+	/*
+	 * The detach path cannot wait for a reply.  Send one request and let
+	 * the caller attempt a VF reset if the queues remain unconfirmed.
 	 */
 	if (in_detach)
 		max_attempts = 1;
@@ -1519,13 +1529,13 @@ iavf_disable_queues_with_retries(struct iavf_sc *sc)
 		iavf_dbg_vc(sc, "DISABLE_QUEUES messages sent: %d\n",
 		    msg_count);
 
-	if (!in_detach && msg_count >= max_attempts &&
+	if (msg_count >= max_attempts &&
 	    atomic_load_acq_32(&sc->queues_enabled)) {
-		if (iavf_mbx_log_allowed(sc))
+		if (!in_detach && iavf_mbx_log_allowed(sc))
 			device_printf(sc->dev,
 			    "%s: DISABLE_QUEUES may have failed\n", __func__);
 		if (error == 0)
-			error = EIO;
+			error = EBUSY;
 	}
 	return (error);
 }
