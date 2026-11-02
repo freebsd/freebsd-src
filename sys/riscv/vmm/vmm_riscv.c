@@ -548,6 +548,8 @@ riscv_send_ipi(struct hyp *hyp, cpuset_t *cpus)
 		if (!CPU_ISSET(i, cpus))
 			continue;
 		hypctx = hyp->ctx[i];
+		if (hypctx == NULL)
+			continue;
 		atomic_set_32(&hypctx->ipi_pending, 1);
 		vcpu_notify_event(vm_vcpu(vm, i));
 	}
