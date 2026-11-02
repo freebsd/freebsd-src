@@ -483,6 +483,11 @@ iavf_sync_vlans(struct iavf_sc *sc)
 	int error, first_error;
 
 	sx_assert(iflib_ctx_lock_get(sc->vsi.ctx), SA_XLOCKED);
+	/* Software VLANs need no PF filter configuration. */
+	if ((sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN) == 0) {
+		atomic_store_rel_32(&sc->vlan_batch_pending, 0);
+		return (0);
+	}
 	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING) ||
 	    iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY) ||
 	    iavf_test_state(&sc->state, IAVF_STATE_VC_POLLING) ||

@@ -414,7 +414,11 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
 	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == VIRTCHNL_VF_OFFLOAD_RSS_PF)
 		scctx->isc_rss_table_size = sc->vf_res->rss_lut_size;
-	scctx->isc_capabilities = scctx->isc_capenable = IAVF_CAPS;
+	scctx->isc_capabilities = IAVF_CAPS;
+	if ((sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN) == 0)
+		scctx->isc_capabilities &=
+		    ~(IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER);
+	scctx->isc_capenable = scctx->isc_capabilities;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
 
 	return (0);
@@ -1122,6 +1126,16 @@ iavf_reestablish_vc(struct iavf_sc *sc)
 	error = iavf_get_vsi_res_from_vf_res(sc);
 	if (error != 0)
 		goto fail;
+
+	/* Do not keep advertising an offload that the PF no longer provides. */
+	if ((vsi->shared->isc_capabilities & IFCAP_VLAN_HWTAGGING) != 0 &&
+	    (sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN) == 0) {
+		if (iavf_mbx_log_allowed(sc))
+			device_printf(sc->dev,
+			    "PF VLAN offload capabilities changed; reattach the VF\n");
+		error = ENOTSUP;
+		goto fail;
+	}
 
 	if (vsi->num_tx_queues > sc->vsi_res->num_queue_pairs ||
 	    vsi->num_rx_queues > sc->vsi_res->num_queue_pairs ||
@@ -2027,6 +2041,8 @@ iavf_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
 	struct iavf_vsi *vsi = &sc->vsi;
 
+	if ((vsi->shared->isc_capabilities & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
 
@@ -2054,6 +2070,8 @@ iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 	struct iavf_vsi *vsi = &sc->vsi;
 	int i = 0;
 
+	if ((vsi->shared->isc_capabilities & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 	if ((vtag == 0) || (vtag > 4095) || (vsi->num_vlans == 0))	/* Invalid */
 		return;
 
