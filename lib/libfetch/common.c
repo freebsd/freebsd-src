@@ -1219,7 +1219,9 @@ int
 fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 {
 #ifdef WITH_SSL
-	int ret, ssl_err;
+	struct timeval now, timeout, delta;
+	struct pollfd pfd;
+	int deltams, ret, ssl_err;
 	X509_NAME *name;
 	char *str;
 
@@ -1251,11 +1253,45 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 		return (-1);
 	}
 #endif
+	if (fetchTimeout > 0) {
+		gettimeofday(&timeout, NULL);
+		timeout.tv_sec += fetchTimeout;
+	}
+	deltams = INFTIM;
+	pfd.fd = conn->sd;
 	while ((ret = SSL_connect(conn->ssl)) == -1) {
 		ssl_err = SSL_get_error(conn->ssl, ret);
-		if (ssl_err != SSL_ERROR_WANT_READ &&
-		    ssl_err != SSL_ERROR_WANT_WRITE) {
+		switch (ssl_err) {
+		case SSL_ERROR_WANT_READ:
+			pfd.events = POLLIN;
+			break;
+		case SSL_ERROR_WANT_WRITE:
+			pfd.events = POLLOUT;
+			break;
+		default:
 			ERR_print_errors_fp(stderr);
+			return (-1);
+		}
+		/* check what's left of our timeout */
+		if (fetchTimeout > 0) {
+			gettimeofday(&now, NULL);
+			if (!timercmp(&timeout, &now, >)) {
+				errno = ETIMEDOUT;
+				fetch_syserr();
+				return (-1);
+			}
+			timersub(&timeout, &now, &delta);
+			deltams = delta.tv_sec * 1000 +
+			    delta.tv_usec / 1000;
+		}
+		ret = poll(&pfd, 1, deltams);
+		if (ret == 0) {
+			fetch_info("SSL handshake timed out");
+			return (-1);
+		}
+		if (ret < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
 			return (-1);
 		}
 	}
