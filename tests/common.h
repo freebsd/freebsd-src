@@ -140,4 +140,6 @@ extern void *duff_reallocator(void *ptr, size_t size);
 
 extern char *portable_strndup(const char *s, size_t n);
 
+extern XML_Char *xcsdup_str(const char *s);
+
 #endif /* XML_COMMON_H */
