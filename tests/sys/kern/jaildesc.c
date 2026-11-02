@@ -389,6 +389,45 @@ ATF_TC_BODY(at_desc_bad_fd, tc)
 	ATF_REQUIRE_MSG(close(jd) == 0, "close: %s", strerror(errno));
 }
 
+/*
+ * Look a jail up by descriptor and ask for a descriptor back.
+ */
+ATF_TC(use_desc_get_desc);
+ATF_TC_HEAD(use_desc_get_desc, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(use_desc_get_desc, tc)
+{
+	struct iovec iov[2];
+	int desc, jd, jid, n;
+
+	jd = create_jail("jaildesc_use_desc_get_desc");
+
+	desc = jd;
+	n = 0;
+	iov[n].iov_base = __DECONST(void *, "desc");
+	iov[n++].iov_len = strlen("desc") + 1;
+	iov[n].iov_base = &desc;
+	iov[n++].iov_len = sizeof(desc);
+	jid = jail_get(iov, n, JAIL_USE_DESC | JAIL_GET_DESC);
+	ATF_REQUIRE_MSG(jid >= 0, "jail_get: %s", strerror(errno));
+	ATF_REQUIRE_MSG(desc >= 0 && desc != jd,
+	    "jail_get returned descriptor %d, input was %d", desc, jd);
+
+	/* The returned descriptor must name the same jail. */
+	n = 0;
+	iov[n].iov_base = __DECONST(void *, "desc");
+	iov[n++].iov_len = strlen("desc") + 1;
+	iov[n].iov_base = &desc;
+	iov[n++].iov_len = sizeof(desc);
+	ATF_REQUIRE_MSG(jail_get(iov, n, JAIL_USE_DESC) == jid,
+	    "jail_get: %s", strerror(errno));
+
+	ATF_REQUIRE_MSG(close(desc) == 0, "close: %s", strerror(errno));
+	ATF_REQUIRE_MSG(close(jd) == 0, "close: %s", strerror(errno));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, poll_close_race);
@@ -397,6 +436,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, curjail_get);
 	ATF_TP_ADD_TC(tp, self_destruct);
 	ATF_TP_ADD_TC(tp, at_desc_bad_fd);
+	ATF_TP_ADD_TC(tp, use_desc_get_desc);
 
 	return (atf_no_error());
 }
