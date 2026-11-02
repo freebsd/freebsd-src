@@ -1601,6 +1601,7 @@ pfsync_in_bus(struct mbuf *m, int offset, int count, int flags, int action)
 	}
 
 	if (m->m_pkthdr.len < (offset + len)) {
+		PFSYNC_BUNLOCK(sc);
 		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
