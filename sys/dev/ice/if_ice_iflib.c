@@ -528,11 +528,11 @@ ice_if_attach_pre(if_ctx_t ctx)
 	/* Setup ControlQ lengths */
 	ice_set_ctrlq_len(hw);
 
-reinit_hw:
-
 	fw_mode = ice_get_fw_mode(hw);
 	if (fw_mode == ICE_FW_MODE_REC) {
-		device_printf(dev, "Firmware recovery mode detected. Limiting functionality. Refer to Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
+		device_printf(dev, "Firmware recovery mode detected. \
+			Limiting functionality. Refer to Intel(R) Ethernet Adapters and \
+			Devices User Guide for details on firmware recovery mode.\n");
 
 		err = ice_attach_pre_recovery_mode(sc);
 		if (err)
@@ -574,14 +574,11 @@ reinit_hw:
 	if (err)
 		goto deinit_hw;
 
-	/*
-	 * Success indicates a change was made that requires a reinitialization
-	 * of the hardware
-	 */
 	err = ice_load_pkg_file(sc);
-	if (!err) {
-		ice_deinit_hw(hw);
-		goto reinit_hw;
+	if (err == ICE_ERR_RESET_FAILED) {
+		device_printf(dev,
+                  "Failed to re-init hardware after setting Tx topology\n");
+		goto deinit_hw;
 	}
 
 	err = ice_init_link_events(sc);
