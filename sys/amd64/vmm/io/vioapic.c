@@ -370,12 +370,14 @@ vioapic_write(struct vioapic *vioapic, struct vcpu *vcpu, uint32_t addr,
 		    pin, vioapic->rtbl[pin].reg);
 
 		/*
-		 * If any fields in the redirection table entry (except mask
-		 * or polarity) have changed then rendezvous all the vcpus
-		 * to update their vlapic trigger-mode registers.
+		 * Only level-triggered pins contribute to the TMR. If fields
+		 * other than mask or polarity changed and the pin was or is
+		 * level-triggered, rendezvous all the vcpus to update their
+		 * vlapic trigger-mode registers.
 		 */
 		changed = last ^ vioapic->rtbl[pin].reg;
-		if (changed & ~(IOART_INTMASK | IOART_INTPOL)) {
+		if ((changed & ~(IOART_INTMASK | IOART_INTPOL)) != 0 &&
+		    ((last | vioapic->rtbl[pin].reg) & IOART_TRGRLVL) != 0) {
 			VIOAPIC_CTR1(vioapic, "ioapic pin%d: recalculate "
 			    "vlapic trigger-mode register", pin);
 			VIOAPIC_UNLOCK(vioapic);
