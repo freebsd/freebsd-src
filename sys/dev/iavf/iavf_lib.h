@@ -473,7 +473,7 @@ struct iavf_mac_filter *
 struct iavf_mac_filter *
     iavf_get_mac_filter(struct iavf_sc *sc);
 u64 iavf_baudrate_from_link_speed(struct iavf_sc *sc);
-void iavf_add_vlan_filter(struct iavf_sc *sc, u16 vtag);
+bool iavf_add_vlan_filter(struct iavf_sc *sc, u16 vtag);
 int iavf_mark_del_vlan_filter(struct iavf_sc *sc, u16 vtag);
 int iavf_disable_queues_with_retries(struct iavf_sc *);
 

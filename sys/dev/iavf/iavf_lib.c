@@ -918,8 +918,8 @@ iavf_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 	else {
 		SLIST_FOREACH(v, sc->vlan_filters, next) {
 			sbuf_printf(buf,
-			    "%d, flags %#06x",
-			    v->vlan, v->flags);
+			    "%d, desired %d, applied %d, uncertain %d",
+			    v->vlan, v->desired, v->applied, v->uncertain);
 			/* don't print '\n' for last entry */
 			if (++ftl_counter != ftl_len)
 				sbuf_printf(buf, "\n");
@@ -1447,18 +1447,34 @@ iavf_baudrate_from_link_speed(struct iavf_sc *sc)
  * @sc: device private softc
  * @vtag: the VLAN id to filter
  *
- * Allocate a new VLAN filter structure and insert it into the VLAN list.
+ * Record a desired membership, retaining any unacknowledged operation.
+ * Returns true only when a new membership was recorded.
  */
-void
+bool
 iavf_add_vlan_filter(struct iavf_sc *sc, u16 vtag)
 {
-	struct iavf_vlan_filter	*v;
+	struct iavf_vlan_filter *v, *first;
 
+	SLIST_FOREACH(v, sc->vlan_filters, next) {
+		if (v->vlan == vtag) {
+			v->rejected = false;
+			if (v->desired)
+				return (false);
+			v->desired = true;
+			return (true);
+		}
+	}
 	v = (struct iavf_vlan_filter *)malloc(sizeof(struct iavf_vlan_filter),
 	    M_IAVF, M_WAITOK | M_ZERO);
-	SLIST_INSERT_HEAD(sc->vlan_filters, v, next);
+	/* Admit untagged traffic before the first nonzero membership. */
+	first = SLIST_FIRST(sc->vlan_filters);
+	if (vtag != 0 && first != NULL && first->vlan == 0)
+		SLIST_INSERT_AFTER(first, v, next);
+	else
+		SLIST_INSERT_HEAD(sc->vlan_filters, v, next);
 	v->vlan = vtag;
-	v->flags = IAVF_FILTER_ADD;
+	v->desired = true;
+	return (true);
 }
 
 /**
@@ -1466,9 +1482,9 @@ iavf_add_vlan_filter(struct iavf_sc *sc, u16 vtag)
  * @sc: device private softc
  * @vtag: the VLAN id to delete
  *
- * Marks all VLAN filters matching the given vtag for deletion.
+ * Clear the desired membership, keeping the entry until deletion is confirmed.
  *
- * @returns the number of filters marked for deletion.
+ * @returns one if the membership changed, or zero if already absent.
  *
  * @remark the filters are not removed immediately, but will be removed from
  * the list by another function that synchronizes over the virtchnl interface.
@@ -1477,16 +1493,16 @@ int
 iavf_mark_del_vlan_filter(struct iavf_sc *sc, u16 vtag)
 {
 	struct iavf_vlan_filter	*v;
-	int i = 0;
 
 	SLIST_FOREACH(v, sc->vlan_filters, next) {
-		if (v->vlan == vtag) {
-			v->flags = IAVF_FILTER_DEL;
-			++i;
+		if (v->vlan == vtag && v->desired) {
+			v->desired = false;
+			v->rejected = false;
+			return (1);
 		}
 	}
 
-	return (i);
+	return (0);
 }
 
 /**
