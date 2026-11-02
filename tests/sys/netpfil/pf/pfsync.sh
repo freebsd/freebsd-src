@@ -1971,6 +1971,78 @@ expire_underflow_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "stale_upd_c" "cleanup"
+stale_upd_c_head()
+{
+	atf_set descr 'Stale dst peer in UPD_C must not regress the window'
+	atf_set require.user root
+	atf_set require.progs python3 scapy nc
+}
+
+stale_upd_c_body()
+{
+	pfsynct_init
+
+	epair_sync=$(vnet_mkepair)
+	epair_data=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair_sync}a ${epair_data}a
+
+	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair_data}a 198.51.100.1/24 up
+	jexec one ifconfig pfsync0 \
+		syncdev ${epair_sync}a \
+		syncpeer 192.0.2.2 \
+		maxupd 1 \
+		up
+	ifconfig ${epair_sync}b 192.0.2.2/24 up
+	ifconfig ${epair_data}b 198.51.100.2/24 up
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass keep state"
+
+	# The jail sends data, so the dst (responder) side of the state moves.
+	jexec one sh -c "(dd if=/dev/zero bs=1k count=256 2>/dev/null; \
+	    sleep 30) | nc -l 1234 >/dev/null" &
+	sleep 1
+	(sleep 30 | nc 198.51.100.1 1234 >/dev/null) &
+	sleep 3
+
+	state=$(jexec one pfctl -ss -vv | grep -A3 "198.51.100.1:1234 <-")
+	echo "${state}"
+	# The state was created inbound, so pfctl prints the dst peer first.
+	# Line 2 is "[seqlo + win] wscale N  [seqlo + win] wscale N".
+	set -- $(echo "${state}" | sed -n 2p | tr -d '[]+')
+	[ $# -eq 8 ] || atf_fail "Could not parse state"
+	dst_lo=$1; dst_hi=$(($1 + $2)); dst_ws=$4
+	src_lo=$5; src_hi=$(($5 + $6)); src_ws=$8
+	id=$(echo "${state}" | awk '/id:/ { print $2 }')
+	creatorid=$(echo "${state}" | awk '/id:/ { print $4 }')
+
+	# Current src peer, dst peer 100000 bytes behind: only dst is stale.
+	stale=$(( (dst_lo - 100000) & 0xffffffff ))
+	atf_check -s exit:0 env PYTHONPATH=${common_dir} \
+	    $(atf_get_srcdir)/pfsync_upd_c.py \
+	    --to 192.0.2.1 --id ${id} --creatorid ${creatorid} \
+	    --src ${src_lo} ${src_hi} ${src_ws} \
+	    --dst ${stale} ${dst_hi} ${dst_ws}
+	sleep 1
+
+	jexec one pfctl -ss -vv | grep -A3 "198.51.100.1:1234 <-"
+	jexec one netstat -s -p pfsync | grep -q "1 stale state" || \
+	    atf_fail "Update was not seen as stale"
+	jexec one pfctl -ss -vv | grep -A1 "198.51.100.1:1234 <-" | \
+	    grep -q "\[${dst_lo} + " || \
+	    atf_fail "Stale update regressed the dst sequence window"
+}
+
+stale_upd_c_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -1995,6 +2067,7 @@ atf_init_test_cases()
 	atf_add_test_case "tag"
 	atf_add_test_case "altq_queues"
 	atf_add_test_case "rt_af"
+	atf_add_test_case "stale_upd_c"
 	atf_add_test_case "flush_by_intf"
 	atf_add_test_case "stack_key_collision"
 	atf_add_test_case "expire_underflow"
