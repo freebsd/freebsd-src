@@ -139,6 +139,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 	char *lladdr;
 	int anycast, lladdrlen, proxy, rflag, tentative, tlladdr;
+	u_int lladdr_pad;
 
 	ifa = NULL;
 
@@ -226,8 +227,9 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	lladdr = NULL;
 	lladdrlen = 0;
+	lladdr_pad = nd6_lladdr_opt_pad(ifp);
 	if (ndopts.nd_opts_src_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1);
+		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1) + lladdr_pad;
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
@@ -559,6 +561,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		struct nd_opt_hdr *nd_opt;
 		char *mac;
 		int optlen;
+		u_int pad;
 
 		mac = NULL;
 		if (ifp->if_carp)
@@ -568,6 +571,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 
 		if (mac != NULL) {
 			nd_opt = (struct nd_opt_hdr *)(nd_ns + 1);
+			pad = nd6_lladdr_opt_pad(ifp);
 			optlen = sizeof(struct nd_opt_hdr) + ifp->if_addrlen;
 			/* 8 byte alignments... */
 			optlen = (optlen + 7) & ~7;
@@ -577,7 +581,8 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			bzero(nd_opt, optlen);
 			nd_opt->nd_opt_type = ND_OPT_SOURCE_LINKADDR;
 			nd_opt->nd_opt_len = optlen >> 3;
-			bcopy(mac, nd_opt + 1, ifp->if_addrlen);
+			memcpy((char *)(nd_opt + 1) + pad, mac,
+			    ifp->if_addrlen);
 		}
 	}
 	/*
@@ -662,6 +667,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	size_t linkhdrsize;
 	int flags, is_override, is_router, is_solicited;
 	int lladdr_off, lladdrlen, checklink;
+	u_int lladdr_pad;
 	bool flush_holdchain = false;
 
 	NET_EPOCH_ASSERT();
@@ -730,8 +736,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 
 	lladdr = NULL;
 	lladdrlen = 0;
+	lladdr_pad = nd6_lladdr_opt_pad(ifp);
 	if (ndopts.nd_opts_tgt_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_tgt_lladdr + 1);
+		lladdr = (char *)(ndopts.nd_opts_tgt_lladdr + 1) + lladdr_pad;
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
 	}
 
@@ -1072,6 +1079,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		}
 	}
 	if ((tlladdr & ND6_NA_OPT_LLA) && mac != NULL) {
+		u_int pad = nd6_lladdr_opt_pad(ifp);
 		int optlen = sizeof(struct nd_opt_hdr) + ifp->if_addrlen;
 		struct nd_opt_hdr *nd_opt = (struct nd_opt_hdr *)(nd_na + 1);
 
@@ -1084,7 +1092,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		bzero((caddr_t)nd_opt, optlen);
 		nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 		nd_opt->nd_opt_len = optlen >> 3;
-		bcopy(mac, (caddr_t)(nd_opt + 1), ifp->if_addrlen);
+		memcpy((char *)(nd_opt + 1) + pad, mac, ifp->if_addrlen);
 	} else
 		flags &= ~ND_NA_FLAG_OVERRIDE;
 
@@ -1138,6 +1146,25 @@ nd6_ifptomac(struct ifnet *ifp)
 		return IF_LLADDR(ifp);
 	default:
 		return NULL;
+	}
+}
+
+/*
+ * Number of reserved octets between the header of an ND link-layer
+ * address option and the link-layer address itself.  On IPoIB links
+ * two zero octets are prepended to the 20-octet link-layer address
+ * to fill the 24-octet option (RFC 4391, section 9.3); on all other
+ * link types the address immediately follows the option header.
+ */
+u_int
+nd6_lladdr_opt_pad(struct ifnet *ifp)
+{
+	switch (ifp->if_type) {
+	case IFT_INFINIBAND:
+	case IFT_INFINIBANDLAG:
+		return (2);
+	default:
+		return (0);
 	}
 }
 

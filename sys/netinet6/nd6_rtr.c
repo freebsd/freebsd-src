@@ -169,6 +169,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 	char *lladdr;
 	int lladdrlen;
+	u_int lladdr_pad;
 
 	ifp = m->m_pkthdr.rcvif;
 
@@ -223,8 +224,9 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 
 	lladdr = NULL;
 	lladdrlen = 0;
+	lladdr_pad = nd6_lladdr_opt_pad(ifp);
 	if (ndopts.nd_opts_src_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1);
+		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1) + lladdr_pad;
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
@@ -577,9 +579,10 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
     {
 	char *lladdr = NULL;
 	int lladdrlen = 0;
+	u_int lladdr_pad = nd6_lladdr_opt_pad(ifp);
 
 	if (ndopts.nd_opts_src_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1);
+		lladdr = (char *)(ndopts.nd_opts_src_lladdr + 1) + lladdr_pad;
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
