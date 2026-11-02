@@ -340,14 +340,23 @@
 #define DW_FORM_loclistx		0x22
 #define DW_FORM_rnglistx		0x23
 #define DW_FORM_ref_sup8		0x24
-#define DW_FORM_ref_strx1		0x25
-#define DW_FORM_ref_strx2		0x26
-#define DW_FORM_ref_strx3		0x27
-#define DW_FORM_ref_strx4		0x28
-#define DW_FORM_ref_addrx1		0x29
-#define DW_FORM_ref_addrx2		0x2a
-#define DW_FORM_ref_addrx3		0x2b
-#define DW_FORM_ref_addrx4		0x2c
+#define DW_FORM_strx1		0x25
+#define DW_FORM_strx2		0x26
+#define DW_FORM_strx3		0x27
+#define DW_FORM_strx4		0x28
+#define DW_FORM_addrx1		0x29
+#define DW_FORM_addrx2		0x2a
+#define DW_FORM_addrx3		0x2b
+#define DW_FORM_addrx4		0x2c
+/* Misspellings of the eight above, kept for source compatibility. */
+#define DW_FORM_ref_strx1		DW_FORM_strx1
+#define DW_FORM_ref_strx2		DW_FORM_strx2
+#define DW_FORM_ref_strx3		DW_FORM_strx3
+#define DW_FORM_ref_strx4		DW_FORM_strx4
+#define DW_FORM_ref_addrx1		DW_FORM_addrx1
+#define DW_FORM_ref_addrx2		DW_FORM_addrx2
+#define DW_FORM_ref_addrx3		DW_FORM_addrx3
+#define DW_FORM_ref_addrx4		DW_FORM_addrx4
 #define	DW_FORM_GNU_ref_alt		0x1f20
 #define	DW_FORM_GNU_strp_alt		0x1f21
 
@@ -609,6 +618,8 @@
 #define DW_LANG_Fortran08		0x0023
 #define DW_LANG_RenderScript		0x0024
 #define DW_LANG_BLISS			0x0025
+#define DW_LANG_C17			0x002c
+#define DW_LANG_C23			0x003e
 #define DW_LANG_lo_user		 	0x8000
 #define DW_LANG_Mips_Assembler		0x8001
 #define DW_LANG_hi_user		 	0xffff
