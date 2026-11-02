@@ -638,19 +638,32 @@ iavf_del_ether_filters(struct iavf_sc *sc)
  *
  * Request that the PF reset this VF. No response is expected.
  *
- * @returns zero
+ * @returns zero on success, or an error code if the request could not be
+ * submitted.
  */
 int
 iavf_request_reset(struct iavf_sc *sc)
 {
+	struct iavf_hw *hw;
+	u32 old_rstat;
+	int error;
+
+	hw = &sc->hw;
+	old_rstat = rd32(hw, IAVF_VFGEN_RSTAT) &
+	    IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
 	/*
-	** Set the reset status to "in progress" before
-	** the request, this avoids any possibility of
-	** a mistaken early detection of completion.
-	*/
-	wr32(&sc->hw, IAVF_VFGEN_RSTAT, VIRTCHNL_VFR_INPROGRESS);
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_RESET_VF, NULL, 0);
-	return (0);
+	 * The VF must publish INPROGRESS before asking the PF to reset it.  This
+	 * also prevents a stale VFACTIVE value from looking like completion.
+	 */
+	wr32(hw, IAVF_VFGEN_RSTAT, VIRTCHNL_VFR_INPROGRESS);
+	iavf_flush(hw);
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_RESET_VF, NULL, 0);
+	if (error != 0) {
+		/* No reset was submitted; do not leave a synthetic reset behind. */
+		wr32(hw, IAVF_VFGEN_RSTAT, old_rstat);
+		iavf_flush(hw);
+	}
+	return (error);
 }
 
 /**
