@@ -45,6 +45,9 @@
 #ifndef XML_DUMMY_H
 #define XML_DUMMY_H
 
+#include "expat.h"          // for XML_Content
+#include "expat_external.h" // for XMLCALL, XML_Char
+
 #define DUMMY_START_DOCTYPE_HANDLER_FLAG (1UL << 0)
 #define DUMMY_END_DOCTYPE_HANDLER_FLAG (1UL << 1)
 #define DUMMY_ENTITY_DECL_HANDLER_FLAG (1UL << 2)

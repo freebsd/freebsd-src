@@ -23,6 +23,7 @@
 #                               |_| XML parser
 #
 # Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2026      Funda Wang <fundawang@yeah.net>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -378,7 +379,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-xmlwf_LDADD = ../lib/libexpat.la
+xmlwf_LDADD = ../lib/libexpat.la @LIBM@
 xmlwf_SOURCES = \
     ../lib/xcs.c \
     xmlwf.c \
@@ -387,7 +388,7 @@ xmlwf_SOURCES = \
     @FILEMAP@.c
 
 xmlwf_CPPFLAGS = @AM_CPPFLAGS@ -I$(srcdir)/../lib $(am__append_1)
-xmlwf_LDFLAGS = @AM_LDFLAGS@ @LIBM@ $(am__append_2)
+xmlwf_LDFLAGS = @AM_LDFLAGS@ $(am__append_2)
 EXTRA_DIST = \
     codepage.h \
     ct.c \
