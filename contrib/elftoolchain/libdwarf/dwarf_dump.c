@@ -670,22 +670,22 @@ dwarf_get_FORM_name(unsigned form, const char **s)
 		*s = "DW_FORM_rnglistx"; break;
 	case DW_FORM_ref_sup8:
 		*s = "DW_FORM_ref_sup8"; break;
-	case DW_FORM_ref_strx1:
-		*s = "DW_FORM_ref_strx1"; break;
-	case DW_FORM_ref_strx2:
-		*s = "DW_FORM_ref_strx2"; break;
-	case DW_FORM_ref_strx3:
-		*s = "DW_FORM_ref_strx3"; break;
-	case DW_FORM_ref_strx4:
-		*s = "DW_FORM_ref_strx4"; break;
-	case DW_FORM_ref_addrx1:
-		*s = "DW_FORM_ref_addrx1"; break;
-	case DW_FORM_ref_addrx2:
-		*s = "DW_FORM_ref_addrx2"; break;
-	case DW_FORM_ref_addrx3:
-		*s = "DW_FORM_ref_addrx3"; break;
-	case DW_FORM_ref_addrx4:
-		*s = "DW_FORM_ref_addrx4"; break;
+	case DW_FORM_strx1:
+		*s = "DW_FORM_strx1"; break;
+	case DW_FORM_strx2:
+		*s = "DW_FORM_strx2"; break;
+	case DW_FORM_strx3:
+		*s = "DW_FORM_strx3"; break;
+	case DW_FORM_strx4:
+		*s = "DW_FORM_strx4"; break;
+	case DW_FORM_addrx1:
+		*s = "DW_FORM_addrx1"; break;
+	case DW_FORM_addrx2:
+		*s = "DW_FORM_addrx2"; break;
+	case DW_FORM_addrx3:
+		*s = "DW_FORM_addrx3"; break;
+	case DW_FORM_addrx4:
+		*s = "DW_FORM_addrx4"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}
