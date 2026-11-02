@@ -74,8 +74,6 @@ sbi_ipi_pic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 			mask |= (1ul << pc->pc_hart);
 		}
 	}
-	if (mask == 0)
-		return;
 	sbi_send_ipi(&mask);
 }
 

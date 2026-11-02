@@ -52,7 +52,7 @@ vmm_sbi_handle_rfnc(struct vcpu *vcpu, struct hypctx *hypctx)
 	struct hyp *hyp;
 	uint16_t maxcpus;
 	cpuset_t cpus;
-	u_int i;
+	int i;
 
 	func_id = hypctx->guest_regs.hyp_a[6];
 	hart_mask = hypctx->guest_regs.hyp_a[0];
@@ -83,29 +83,27 @@ vmm_sbi_handle_rfnc(struct vcpu *vcpu, struct hypctx *hypctx)
 	hyp = hypctx->hyp;
 	active_cpus = vm_active_cpus(hyp->vm);
 	maxcpus = vm_get_maxcpus(hyp->vm);
-
-	if (hart_mask_base == (uint64_t)-1) {
-		CPU_COPY(&active_cpus, &cpus);
-	} else {
-		if (hart_mask == 0)
-			return (SBI_SUCCESS);
-		if (hart_mask_base >= maxcpus)
-			return (SBI_ERR_INVALID_PARAM);
-
-		while (hart_mask != 0) {
-			i = ffsl(hart_mask) - 1;
-			hart_mask &= ~(1UL << i);
-
-			if (hart_mask_base + i >= maxcpus)
-				return (SBI_ERR_INVALID_PARAM);
-			if (!CPU_ISSET(hart_mask_base + i, &active_cpus))
-				return (SBI_ERR_INVALID_PARAM);
-			CPU_SET(hart_mask_base + i, &cpus);
+	for (i = 0; i < maxcpus; i++) {
+		vcpu = vm_vcpu(hyp->vm, i);
+		if (vcpu == NULL)
+			continue;
+		if (hart_mask_base != -1UL) {
+			if (i < hart_mask_base)
+				continue;
+			if (!(hart_mask & (1UL << (i - hart_mask_base))))
+				continue;
 		}
+		/*
+		 * If either hart_mask_base or at least one hartid from
+		 * hart_mask is not valid, then return error.
+		 */
+		if (!CPU_ISSET(i, &active_cpus))
+			return (SBI_ERR_INVALID_PARAM);
+		CPU_SET(i, &cpus);
 	}
 
 	if (CPU_EMPTY(&cpus))
-		return (SBI_SUCCESS);
+		return (SBI_ERR_INVALID_PARAM);
 
 	vmm_fence_add(hyp->vm, &cpus, &fence);
 
@@ -140,9 +138,9 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 	uint64_t hart_mask;
 	uint64_t hart_mask_base;
 	uint64_t func_id;
-	uint16_t maxcpus;
 	cpuset_t cpus;
-	u_int i;
+	int hart_id;
+	int bit;
 
 	func_id = hypctx->guest_regs.hyp_a[6];
 	hart_mask = hypctx->guest_regs.hyp_a[0];
@@ -153,30 +151,18 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 	hyp = hypctx->hyp;
 
 	active_cpus = vm_active_cpus(hyp->vm);
-	maxcpus = vm_get_maxcpus(hyp->vm);
 
 	CPU_ZERO(&cpus);
 	switch (func_id) {
 	case SBI_IPI_SEND_IPI:
-		if (hart_mask_base == (uint64_t)-1) {
-			CPU_COPY(&active_cpus, &cpus);
-		} else {
-			if (hart_mask == 0)
-				return (SBI_SUCCESS);
-			if (hart_mask_base >= maxcpus)
+		while ((bit = ffs(hart_mask))) {
+			hart_id = (bit - 1);
+			hart_mask &= ~(1u << hart_id);
+			if (hart_mask_base != -1)
+				hart_id += hart_mask_base;
+			if (!CPU_ISSET(hart_id, &active_cpus))
 				return (SBI_ERR_INVALID_PARAM);
-
-			while (hart_mask != 0) {
-				i = ffsl(hart_mask) - 1;
-				hart_mask &= ~(1UL << i);
-
-				if (hart_mask_base + i >= maxcpus)
-					return (SBI_ERR_INVALID_PARAM);
-				if (!CPU_ISSET(hart_mask_base + i,
-				    &active_cpus))
-					return (SBI_ERR_INVALID_PARAM);
-				CPU_SET(hart_mask_base + i, &cpus);
-			}
+			CPU_SET(hart_id, &cpus);
 		}
 		break;
 	default:
@@ -185,7 +171,7 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 	}
 
 	if (CPU_EMPTY(&cpus))
-		return (SBI_SUCCESS);
+		return (SBI_ERR_INVALID_PARAM);
 
 	riscv_send_ipi(hyp, &cpus);
 
@@ -228,7 +214,6 @@ vmm_sbi_ecall(struct vcpu *vcpu)
 	}
 
 	hypctx->guest_regs.hyp_a[0] = error;
-	hypctx->guest_regs.hyp_a[1] = 0;
 
 	/* Request is handled in kernel mode. */
 	return (true);
