@@ -75,6 +75,7 @@ s32 ixgbe_update_link_info(struct ixgbe_hw *hw);
 s32 ixgbe_get_link_status(struct ixgbe_hw *hw, bool *link_up);
 s32 ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 			    struct ixgbe_link_status *link);
+s32 ixgbe_force_link_state(struct ixgbe_hw *hw, bool link_up);
 s32 ixgbe_aci_set_event_mask(struct ixgbe_hw *hw, u8 port_num, u16 mask);
 s32 ixgbe_configure_lse(struct ixgbe_hw *hw, bool activate, u16 mask);
 
@@ -232,6 +233,9 @@ s32 ixgbe_write_ee_aci_buffer_E610(struct ixgbe_hw *hw, u16 offset,
 s32 ixgbe_calc_eeprom_checksum_E610(struct ixgbe_hw *hw);
 s32 ixgbe_update_eeprom_checksum_E610(struct ixgbe_hw *hw);
 s32 ixgbe_validate_eeprom_checksum_E610(struct ixgbe_hw *hw, u16 *checksum_val);
+/* Reads LDO TLV 0x134; callers consume only IXGBE_LINK_OVERRIDE_PORT_DIS. */
+s32 ixgbe_get_link_default_override(struct ixgbe_hw *hw,
+				    struct ixgbe_link_default_override_tlv *ldo);
 s32 ixgbe_read_pba_string_E610(struct ixgbe_hw *hw, u8 *pba_num, u32 pba_num_size);
 
 #endif /* _IXGBE_E610_H_ */

@@ -307,6 +307,9 @@ static u32  ixgbe_handle_fw_event(void *);
 static int ixgbe_enable_lse(struct ixgbe_softc *sc);
 static int ixgbe_disable_lse(struct ixgbe_softc *sc);
 
+static void ixgbe_cache_ldo_policy(struct ixgbe_softc *sc);
+static void ixgbe_apply_ldo_link_state(struct ixgbe_softc *sc, bool link_up);
+
 /************************************************************************
  *  FreeBSD Device Interface Entry Points
  ************************************************************************/
@@ -360,6 +363,62 @@ ixgbe_device_iov_init(device_t dev, uint16_t num_vfs,
 	return (iflib_device_iov_init_restart(dev, num_vfs, params));
 }
 #endif
+
+/************************************************************************
+ * ixgbe_cache_ldo_policy
+ ************************************************************************/
+static void
+ixgbe_cache_ldo_policy(struct ixgbe_softc *sc)
+{
+	struct ixgbe_link_default_override_tlv ldo = {0};
+	struct ixgbe_hw *hw = &sc->hw;
+	s32 error;
+
+	sc->ldo_valid = false;
+	sc->ldo_port_disabled = false;
+
+	error = ixgbe_get_link_default_override(hw, &ldo);
+	if (error) {
+		device_printf(sc->dev,
+		    "Failed to read E610 Link Default Override TLV, error: %d\n",
+		    error);
+		return;
+	}
+
+	sc->ldo_valid = true;
+	sc->ldo_port_disabled =
+	    !!(ldo.link_options & IXGBE_LINK_OVERRIDE_PORT_DIS);
+} /* ixgbe_cache_ldo_policy */
+
+/************************************************************************
+ * ixgbe_apply_ldo_link_state
+ ************************************************************************/
+static void
+ixgbe_apply_ldo_link_state(struct ixgbe_softc *sc, bool link_up)
+{
+	struct ixgbe_hw *hw = &sc->hw;
+	s32 error;
+
+	if (!sc->ldo_valid || !sc->ldo_port_disabled)
+		return;
+
+	error = ixgbe_force_link_state(hw, link_up);
+	if (!error)
+		return;
+
+	if (!link_up && error == IXGBE_ERR_ACI_ERROR &&
+	    hw->aci.last_status == IXGBE_ACI_RC_EMODE) {
+		device_printf(sc->dev,
+		    "Firmware vetoed link shutdown, "
+		    "last ACI status: %d\n", hw->aci.last_status);
+		return;
+	}
+
+	device_printf(sc->dev,
+	    "Failed to force link %s, error: %d, "
+	    "last aci status: %d\n", link_up ? "up" : "down", error,
+	    hw->aci.last_status);
+} /* ixgbe_apply_ldo_link_state */
 
 static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, ixgbe_if_attach_pre),
@@ -1175,6 +1234,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		hw->phy.smart_speed = ixgbe_smart_speed;
 
 	ixgbe_init_device_features(sc);
+	ixgbe_cache_ldo_policy(sc);
 
 	/* Verify adapter fan is still functional (if applicable) */
 	if (sc->feat_en & IXGBE_FEATURE_FAN_FAIL) {
@@ -2061,9 +2121,14 @@ ixgbe_config_link(if_ctx_t ctx)
 				    "error: %d", err);
 		}
 
-		if (hw->mac.ops.setup_link)
+		if (hw->mac.ops.setup_link) {
 			err = hw->mac.ops.setup_link(hw, autoneg,
 			    sc->link_up);
+			if (err)
+				return;
+		}
+
+		ixgbe_apply_ldo_link_state(sc, true);
 	}
 } /* ixgbe_config_link */
 
@@ -3730,6 +3795,20 @@ ixgbe_add_debug_sysctls(struct ixgbe_softc *sc)
 
 	if (sc->feat_en & IXGBE_FEATURE_FW_LOGGING)
 		ixgbe_add_fw_logging_tunables(sc, sc->debug_sysctls);
+
+	if (sc->hw.mac.type == ixgbe_mac_E610) {
+		struct sysctl_oid_list *debug_list;
+		debug_list = SYSCTL_CHILDREN(sc->debug_sysctls);
+
+		SYSCTL_ADD_BOOL(ctx, debug_list, OID_AUTO, "ldo_valid",
+		    CTLFLAG_RD, &sc->ldo_valid, 0,
+		    "E610 Link Default Override policy valid");
+
+		SYSCTL_ADD_BOOL(ctx, debug_list, OID_AUTO,
+		    "ldo_port_disabled", CTLFLAG_RD, &sc->ldo_port_disabled,
+		    0, "E610 Link Default Override PORT_DIS set");
+	}
+
 } /* ixgbe_add_debug_sysctls */
 
 /************************************************************************
@@ -5120,6 +5199,8 @@ ixgbe_if_stop(if_ctx_t ctx)
 		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 		sc->link_active = false;
 	}
+	ixgbe_if_update_admin_status(ctx);
+	ixgbe_apply_ldo_link_state(sc, false);
 
 	/* reprogram the RAR[0] in case user changed it. */
 	ixgbe_set_rar(&sc->hw, 0, sc->hw.mac.addr, 0, IXGBE_RAH_AV);

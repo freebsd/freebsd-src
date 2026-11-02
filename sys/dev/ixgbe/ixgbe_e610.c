@@ -1644,6 +1644,38 @@ s32 ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 }
 
 /**
+ * ixgbe_force_link_state - force phy link to get up/down
+ * @hw: pointer to hardware structure
+ * @link_up: if true: force link up, if false: force link down
+ *
+ * Send 0x0601 with the IXGBE_ACI_PHY_ENA_LINK bit set/cleared.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_force_link_state(struct ixgbe_hw *hw, bool link_up)
+{
+	struct ixgbe_aci_cmd_set_phy_cfg_data pcfg = {0};
+	struct ixgbe_aci_cmd_get_phy_caps_data pcaps;
+	s32 err;
+
+	err = ixgbe_aci_get_phy_caps(hw, false, IXGBE_ACI_REPORT_ACTIVE_CFG,
+				     &pcaps);
+	if (err) {
+		return err;
+	}
+
+	ixgbe_copy_phy_caps_to_cfg(&pcaps, &pcfg);
+
+	if (link_up)
+		pcfg.caps |= IXGBE_ACI_PHY_ENA_LINK;
+	else
+		pcfg.caps &= ~IXGBE_ACI_PHY_ENA_LINK;
+	pcfg.caps |= IXGBE_ACI_PHY_ENA_AUTO_LINK_UPDT;
+
+	return ixgbe_aci_set_phy_cfg(hw, &pcfg);
+}
+
+/**
  * ixgbe_aci_set_event_mask - set event mask
  * @hw: pointer to the HW struct
  * @port_num: port number of the physical function
@@ -5971,6 +6003,53 @@ static s32 ixgbe_get_pfa_module_tlv(struct ixgbe_hw *hw, u16 *module_tlv,
 	}
 	/* Module does not exist */
 	return IXGBE_ERR_DOES_NOT_EXIST;
+}
+
+/**
+ * ixgbe_get_link_default_override - Get link default override from NVM
+ * @hw: pointer to hardware structure
+ * @ldo: pointer to link default override struct to populate
+ *
+ * Read the Link Default Override TLV (0x134) from the NVM PFA and return
+ * the full per-port override configuration. The caller must consume only
+ * IXGBE_LINK_OVERRIDE_PORT_DIS from link_options for force-link policy.
+ * All port data is read in a single bulk NVM access.
+ *
+ * Return: the exit code of the operation.
+ */
+s32 ixgbe_get_link_default_override(struct ixgbe_hw *hw,
+				    struct ixgbe_link_default_override_tlv *ldo)
+{
+	u16 min_tlv_len;
+	u16 tlv, tlv_len, tlv_start;
+	s32 status;
+
+	DEBUGFUNC("ixgbe_get_link_default_override");
+
+	if (!ldo)
+		return IXGBE_ERR_PARAM;
+
+	status = ixgbe_get_pfa_module_tlv(hw, &tlv, &tlv_len,
+					  E610_SR_LINK_DEFAULT_OVERRIDE_PTR);
+	if (status)
+		return status;
+
+	/* tlv_len covers value words only, don't add header offset. */
+	min_tlv_len = (hw->bus.func + 1) * E610_SR_PFA_LINK_OVERRIDE_WORDS;
+	if (tlv_len < min_tlv_len)
+		return IXGBE_ERR_INVAL_SIZE;
+
+	tlv_start = tlv + E610_SR_PFA_LINK_OVERRIDE_OFFSET +
+		    hw->bus.func * E610_SR_PFA_LINK_OVERRIDE_WORDS;
+
+	/* Read all port-specific words in a single NVM access */
+	status = ixgbe_read_ee_aci_buffer_E610(hw, tlv_start,
+					       E610_SR_PFA_LINK_OVERRIDE_WORDS,
+					       (u16 *)ldo);
+	if (status)
+		return status;
+
+	return IXGBE_SUCCESS;
 }
 
 /**
