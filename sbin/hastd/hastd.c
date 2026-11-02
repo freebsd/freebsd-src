@@ -1173,6 +1173,7 @@ main_loop(void)
 	}
 	terminate_workers();
 	proto_close(cfg->hc_controlconn);
+	(void)pidfile_remove(pfh);
 	exit(EX_OK);
 }
 
