@@ -173,6 +173,8 @@ tarfs_alloc_node(struct tarfs_mount *tmp, const char *name, size_t namelen,
 
 	if (parent != NULL && parent->type != VDIR)
 		return (ENOTDIR);
+	if (namelen > NAME_MAX)
+		return (ENAMETOOLONG);
 	tnp = malloc(sizeof(struct tarfs_node), M_TARFSNODE, M_WAITOK | M_ZERO);
 	mtx_init(&tnp->lock, "tarfs node lock", NULL, MTX_DEF);
 	tnp->gen = arc4random();
