@@ -872,9 +872,9 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 		 * Ensure we don't over/under flow if our local timeout or
 		 * uptime is lower than the remote timeout.
 		 */
-		if (timeout > expire && st->expire > (timeout - expire))
-			st->expire -= (timeout - expire)
-			    * 1000;
+		if (timeout > expire &&
+		    st->expire > ((timeout - expire) * 1000))
+			st->expire -= (timeout - expire) * 1000;
 	}
 
 	if (! (st->act.rtableid == -1 ||
