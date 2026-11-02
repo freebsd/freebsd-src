@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+6e575d08a5f5..20b19982545e:
+	The USB stack and xhci(4) now support SuperSpeedPlus links: USB 3.1
+	Gen 2x1 and USB 3.2 Gen 1x2 at 10 Gbps, and USB 3.2 Gen 2x2 at
+	20 Gbps, both on root ports and behind hubs.  Controllers that do
+	not use the default Protocol Speed IDs continue to run at USB 3.0
+	speed.  usbconfig(8) and usbdump(8) report the new speeds.
+
 4523eebc6c18:
 	less(1) has been updated to version 710.  The obsolete lesskey(1)
 	utility has been removed; less(1) reads plain-text lesskey files

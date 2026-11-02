@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20261102:
+	The USB stack now supports SuperSpeedPlus links.  This adds new values
+	to enum usb_dev_speed and enum usb_revision, turns USB_SPEED_MAX and
+	the other USB_*_MAX macros into enum values, and changes the layout
+	of struct usb_port.  Out-of-tree USB kernel modules must be rebuilt.
+	__FreeBSD_version has been bumped to 1600030 for ports that need to
+	detect these changes.
+
 20261018:
 	The FreeBSD-base repository is now enabled in /etc/pkg/FreeBSD.conf.
 	To disable it, edit that file or put "FreeBSD-base: { enabled: no }"
