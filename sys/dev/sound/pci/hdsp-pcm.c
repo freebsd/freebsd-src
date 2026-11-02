@@ -851,6 +851,8 @@ hdspchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	device_printf(scp->dev, "hdspchan_setspeed(%d)\n", speed);
 #endif
 
+	mtx_lock(&sc->lock);
+
 	if (hdsp_running(sc) == 1)
 		goto end;
 
@@ -890,8 +892,10 @@ hdspchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 
 	sc->speed = hr->speed;
 end:
+	speed = sc->speed;
+	mtx_unlock(&sc->lock);
 
-	return (sc->speed);
+	return (speed);
 }
 
 static uint32_t
@@ -912,6 +916,8 @@ hdspchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 #if 0
 	device_printf(scp->dev, "hdspchan_setblocksize(%d)\n", blocksize);
 #endif
+
+	mtx_lock(&sc->lock);
 
 	if (hdsp_running(sc) == 1)
 		goto end;
@@ -943,16 +949,23 @@ hdspchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		}
 	}
 
+	/* sndbuf_resize() may sleep. */
+	mtx_unlock(&sc->lock);
 	if (sndbuf_resize(ch->buffer, 2,
 	    (hl->period * AFMT_CHANNEL(ch->format) * sizeof(uint32_t))) != 0)
 		return (0);
 
 	mtx_lock(&sc->lock);
+	/* A channel may have started while the lock was dropped. */
+	if (hdsp_running(sc) == 1) {
+		mtx_unlock(&sc->lock);
+		return (0);
+	}
+
 	sc->ctrl_register &= ~HDSP_LAT_MASK;
 	sc->ctrl_register |= hdsp_encode_latency(hl->n);
 	hdsp_write_4(sc, HDSP_CONTROL_REG, sc->ctrl_register);
 	sc->period = hl->period;
-	mtx_unlock(&sc->lock);
 
 #if 0
 	device_printf(scp->dev, "New period=%d\n", sc->period);
@@ -963,6 +976,7 @@ hdspchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	if (sc->type == HDSP_9632)
 		hdsp_write_4(sc, HDSP_FREQ_REG, hdsp_freq_reg_value(sc->speed));
 end:
+	mtx_unlock(&sc->lock);
 
 	return (ch->buffer->blksz);
 }
