@@ -39,6 +39,7 @@
 ARCHFUNCS(strrchr)
 	ARCHFUNC(strrchr, scalar)
 	ARCHFUNC(strrchr, baseline)
+	ARCHFUNC(strrchr, avx2)
 ENDARCHFUNCS(strrchr)
 
 ARCHENTRY(strrchr, scalar)
@@ -180,4 +181,150 @@ ARCHENTRY(strrchr, baseline)
 	lea		(%r8, %rsi, 1), %rax	# pointer to match
 	ret
 ARCHEND(strrchr, baseline)
+
+ARCHENTRY(strrchr, avx2)
+	/* handle c == 0 */
+	test		%esi, %esi
+	jz		.Lfind_nul
+
+	/* align pointer to 32 bytes */
+	mov		%edi, %ecx
+	and		$~0x1f, %rdi
+	vmovdqu		(%rdi), %ymm1
+
+	/* offset within aligned block */
+	and		$0x1f, %ecx
+
+	/* zero vector (used for all NUL compares) */
+	vpxor		%ymm2, %ymm2, %ymm2
+
+	/* broadcast search character */
+	mov		$-1, %edx
+	movd		%esi, %xmm0
+	vpbroadcastb	%xmm0, %ymm0
+
+	/* mask out bytes before start */
+	shl		%cl, %edx
+
+	/* last match pointer */
+	xor		%r8, %r8
+
+	/* current block base */
+	mov		%rdi, %r9
+	add		$32, %rdi
+
+	/* compare first block */
+	vpcmpeqb	%ymm2, %ymm1, %ymm3	# NUL
+	vpcmpeqb	%ymm0, %ymm1, %ymm4	# match
+
+	vpmovmskb	%ymm3, %eax
+	vpmovmskb	%ymm4, %ecx
+
+	and		%edx, %ecx
+	and		%edx, %eax
+
+	/* NUL in first block */
+	jz		.Lhead_no_nul
+
+	tzcnt		%eax, %edx		# first NUL
+	mov		$-1, %r11d
+	bzhi		%edx, %r11d, %r11d	# mask before NUL
+	and		%r11d, %ecx
+
+	bsr		%ecx, %edx		# last match
+	lea		(%r9,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	/* return last match */
+	mov		%r8, %rax
+	vzeroupper
+	ret
+
+.Lhead_no_nul:
+	/* match in first block */
+	test		%ecx, %ecx
+	jz		.Lloop
+
+	bsr		%ecx, %edx
+	lea		(%r9,%rdx,1), %r8
+
+	/* main loop */
+	ALIGN_TEXT
+.Lloop:
+	/* first 32-byte block */
+	vmovdqu		(%rdi), %ymm1
+
+	vpcmpeqb	%ymm2, %ymm1, %ymm3
+	vpcmpeqb	%ymm0, %ymm1, %ymm4
+
+	vpmovmskb	%ymm3, %eax
+	vpmovmskb	%ymm4, %ecx
+
+	test		%eax, %eax
+	jnz		.Lhandle_nul_first
+
+	bsr		%ecx, %edx
+	lea		(%rdi,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	/* second 32-byte block */
+	vmovdqu		32(%rdi), %ymm1
+
+	vpcmpeqb	%ymm2, %ymm1, %ymm3
+	vpcmpeqb	%ymm0, %ymm1, %ymm4
+
+	vpmovmskb	%ymm3, %eax
+	vpmovmskb	%ymm4, %ecx
+
+	test		%eax, %eax
+	jnz		.Lhandle_nul_second
+
+	bsr		%ecx, %edx
+	lea		32(%rdi,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	add		$64, %rdi
+	jmp		.Lloop
+
+.Lhandle_nul_first:
+	tzcnt		%eax, %edx
+	mov		$-1, %r11d
+	bzhi		%edx, %r11d, %r11d
+	and		%r11d, %ecx
+
+	bsr		%ecx, %edx
+	lea		(%rdi,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	mov		%r8, %rax
+	vzeroupper
+	ret
+
+.Lhandle_nul_second:
+	tzcnt		%eax, %edx
+	mov		$-1, %r11d
+	bzhi		%edx, %r11d, %r11d
+	and		%r11d, %ecx
+
+	bsr		%ecx, %edx
+	lea		32(%rdi,%rdx,1), %rdx
+	cmovnz		%rdx, %r8
+
+	mov		%r8, %rax
+	vzeroupper
+	ret
+
+	/* find NUL (c == 0) */
+.Lfind_nul:
+	mov		%rdi, %rax
+
+.Lnul_loop:
+	cmpb		$0, (%rax)
+	je		.Lnul_done
+	inc		%rax
+	jmp		.Lnul_loop
+
+.Lnul_done:
+	ret
+ARCHEND(strrchr, avx2)
 	.section .note.GNU-stack,"",%progbits
