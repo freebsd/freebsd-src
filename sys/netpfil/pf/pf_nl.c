@@ -3150,8 +3150,10 @@ pf_handle_trans(struct nlmsghdr *hdr, struct nl_pstate *npt, int cmd)
 		panic("Unexpected command %d", cmd);
 	}
 
-	if (! nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
-		return (ENOMEM);
+	if (! nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+		error = ENOMEM;
+		goto out;
+	}
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
 	ghdr_new->cmd = cmd;
@@ -3162,8 +3164,10 @@ pf_handle_trans(struct nlmsghdr *hdr, struct nl_pstate *npt, int cmd)
 		nlattr_add_trans(nw, PF_TR_TRANS, e);
 	}
 
-	if (! nlmsg_end(nw))
-		return (ENOMEM);
+	if (! nlmsg_end(nw)) {
+		error = ENOMEM;
+		goto out;
+	}
 
 out:
 	pf_trans_free(&attrs);
