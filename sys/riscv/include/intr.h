@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -36,7 +36,12 @@
 #define	_MACHINE_INTR_MACHDEP_H_
 
 #ifndef	NIRQ
-#define	NIRQ			1024
+/*
+ * Max interrupts per spec:
+ * APLIC is 1023 total
+ * IMSIC is 2047 per core
+ */
+#define	NIRQ		8192
 #endif
 
 #ifndef LOCORE

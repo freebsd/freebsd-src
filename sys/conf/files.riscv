@@ -71,6 +71,7 @@ riscv/riscv/exception.S		standard
 riscv/riscv/exec_machdep.c	standard
 riscv/riscv/fpe.c		standard
 riscv/riscv/gdb_machdep.c	optional	gdb
+riscv/riscv/imsic.c		standard
 riscv/riscv/intc.c		standard
 riscv/riscv/identcpu.c		standard
 riscv/riscv/locore.S		standard	no-obj
