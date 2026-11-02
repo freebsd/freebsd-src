@@ -211,7 +211,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		 * to be a neighbor otherwise.  This point is expected to be
 		 * clarified in future revisions of the specification.
 		 */
-		bzero(&src_sa6, sizeof(src_sa6));
+		memset(&src_sa6, 0, sizeof(src_sa6));
 		src_sa6.sin6_family = AF_INET6;
 		src_sa6.sin6_len = sizeof(src_sa6);
 		src_sa6.sin6_addr = saddr6;
@@ -405,7 +405,7 @@ nd6_proxy_fill_sdl(struct ifnet *ifp, const struct in6_addr *taddr6,
 	if ((ln->la_flags & (LLE_PUB | LLE_VALID)) == (LLE_PUB | LLE_VALID)) {
 		link_init_sdl(ifp, (struct sockaddr *)sdl, ifp->if_type);
 		sdl->sdl_alen = ifp->if_addrlen;
-		bcopy(ln->ll_addr, &sdl->sdl_data, ifp->if_addrlen);
+		memcpy(&sdl->sdl_data, ln->ll_addr, ifp->if_addrlen);
 		LLE_RUNLOCK(ln);
 		ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
 		    IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
@@ -556,7 +556,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		 * above), but we do so here explicitly to make the intention
 		 * clearer.
 		 */
-		bzero(&ip6->ip6_src, sizeof(ip6->ip6_src));
+		memset(&ip6->ip6_src, 0, sizeof(ip6->ip6_src));
 	}
 	nd_ns = (struct nd_neighbor_solicit *)(ip6 + 1);
 	nd_ns->nd_ns_type = ND_NEIGHBOR_SOLICIT;
@@ -598,7 +598,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			m->m_pkthdr.len += optlen;
 			m->m_len += optlen;
 			icmp6len += optlen;
-			bzero(nd_opt, optlen);
+			memset(nd_opt, 0, optlen);
 			nd_opt->nd_opt_type = ND_OPT_SOURCE_LINKADDR;
 			nd_opt->nd_opt_len = optlen >> 3;
 			memcpy((char *)(nd_opt + 1) + pad, mac,
@@ -855,7 +855,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			llchange = 0;
 		else {
 			if (ln->la_flags & LLE_VALID) {
-				if (bcmp(lladdr, ln->ll_addr, ifp->if_addrlen))
+				if (memcmp(lladdr, ln->ll_addr,
+				    ifp->if_addrlen))
 					llchange = 1;
 				else
 					llchange = 0;
@@ -1098,7 +1099,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		m->m_pkthdr.len += optlen;
 		m->m_len += optlen;
 		icmp6len += optlen;
-		bzero(nd_opt, optlen);
+		memset(nd_opt, 0, optlen);
 		nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 		nd_opt->nd_opt_len = optlen >> 3;
 		memcpy((char *)(nd_opt + 1) + pad, mac, ifp->if_addrlen);

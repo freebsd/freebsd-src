@@ -2206,7 +2206,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	is_router = is_onlink = 0;
 	if (IN6_IS_ADDR_LINKLOCAL(&redtgt6))
 		is_router = 1;	/* router case */
-	if (bcmp(&redtgt6, &reddst6, sizeof(redtgt6)) == 0)
+	if (memcmp(&redtgt6, &reddst6, sizeof(redtgt6)) == 0)
 		is_onlink = 1;	/* on-link destination case */
 	if (!is_router && !is_onlink) {
 		nd6log((LOG_ERR,
@@ -2259,18 +2259,18 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		struct sockaddr *gw;
 		int rt_flags;
 
-		bzero(&sdst, sizeof(sdst));
-		bzero(&ssrc, sizeof(ssrc));
+		memset(&sdst, 0, sizeof(sdst));
+		memset(&ssrc, 0, sizeof(ssrc));
 		sdst.sin6_family = ssrc.sin6_family = AF_INET6;
 		sdst.sin6_len = ssrc.sin6_len = sizeof(struct sockaddr_in6);
-		bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
-		bcopy(&src6, &ssrc.sin6_addr, sizeof(struct in6_addr));
+		memcpy(&sdst.sin6_addr, &reddst6, sizeof(struct in6_addr));
+		memcpy(&ssrc.sin6_addr, &src6, sizeof(struct in6_addr));
 		rt_flags = 0;
 		if (is_router) {
-			bzero(&sgw, sizeof(sgw));
+			memset(&sgw, 0, sizeof(sgw));
 			sgw.sin6_family = AF_INET6;
 			sgw.sin6_len = sizeof(struct sockaddr_in6);
-			bcopy(&redtgt6, &sgw.sin6_addr,
+			memcpy(&sgw.sin6_addr, &redtgt6,
 				sizeof(struct in6_addr));
 			gw = (struct sockaddr *)&sgw;
 			rt_flags |= RTF_GATEWAY;
@@ -2324,7 +2324,7 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 	 *  [RFC 2461, sec 8.2]
 	 */
 	sip6 = mtod(m0, struct ip6_hdr *);
-	bzero(&src_sa, sizeof(src_sa));
+	memset(&src_sa, 0, sizeof(src_sa));
 	src_sa.sin6_family = AF_INET6;
 	src_sa.sin6_len = sizeof(src_sa);
 	src_sa.sin6_addr = sip6->ip6_src;
@@ -2364,7 +2364,7 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 						 IN6_IFF_NOTREADY|
 						 IN6_IFF_ANYCAST)) == NULL)
 			goto fail;
-		bcopy(&ia->ia_addr.sin6_addr, &ifp_ll6, sizeof(ifp_ll6));
+		memcpy(&ifp_ll6, &ia->ia_addr.sin6_addr, sizeof(ifp_ll6));
 		ifa_free(&ia->ia_ifa);
 	}
 
@@ -2387,8 +2387,8 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 	ip6->ip6_nxt = IPPROTO_ICMPV6;
 	ip6->ip6_hlim = 255;
 	/* ip6->ip6_src must be linklocal addr for my outgoing if. */
-	bcopy(&ifp_ll6, &ip6->ip6_src, sizeof(struct in6_addr));
-	bcopy(&sip6->ip6_src, &ip6->ip6_dst, sizeof(struct in6_addr));
+	memcpy(&ip6->ip6_src, &ifp_ll6, sizeof(struct in6_addr));
+	memcpy(&ip6->ip6_dst, &sip6->ip6_src, sizeof(struct in6_addr));
 
 	/* ND Redirect */
 	nd_rd = (struct nd_redirect *)(ip6 + 1);
@@ -2402,15 +2402,15 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 		 */
 		if (!router_ll6)
 			goto fail;
-		bcopy(router_ll6, &nd_rd->nd_rd_target,
+		memcpy(&nd_rd->nd_rd_target, router_ll6,
 		    sizeof(nd_rd->nd_rd_target));
-		bcopy(&sip6->ip6_dst, &nd_rd->nd_rd_dst,
+		memcpy(&nd_rd->nd_rd_dst, &sip6->ip6_dst,
 		    sizeof(nd_rd->nd_rd_dst));
 	} else {
 		/* make sure redtgt == reddst */
-		bcopy(&sip6->ip6_dst, &nd_rd->nd_rd_target,
+		memcpy(&nd_rd->nd_rd_target, &sip6->ip6_dst,
 		    sizeof(nd_rd->nd_rd_target));
-		bcopy(&sip6->ip6_dst, &nd_rd->nd_rd_dst,
+		memcpy(&nd_rd->nd_rd_dst, &sip6->ip6_dst,
 		    sizeof(nd_rd->nd_rd_dst));
 	}
 
@@ -2443,7 +2443,7 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
 			lladdr = (char *)(nd_opt + 1) + pad;
-			bcopy(ln->ll_addr, lladdr, ifp->if_addrlen);
+			memcpy(lladdr, ln->ll_addr, ifp->if_addrlen);
 			p += len;
 		}
 	}
@@ -2510,7 +2510,8 @@ nolladdropt:
 				/* pad if easy enough, truncate if not */
 				if (8 - extra <= M_TRAILINGSPACE(m0)) {
 					/* pad */
-					bzero(m0->m_data + m0->m_len, 8 - extra);
+					memset(m0->m_data + m0->m_len, 0,
+					    8 - extra);
 					m0->m_len += (8 - extra);
 					m0->m_pkthdr.len += (8 - extra);
 				} else {
@@ -2525,7 +2526,7 @@ nolladdropt:
 		}
 
 		nd_opt_rh = (struct nd_opt_rd_hdr *)p;
-		bzero(nd_opt_rh, sizeof(*nd_opt_rh));
+		memset(nd_opt_rh, 0, sizeof(*nd_opt_rh));
 		nd_opt_rh->nd_opt_rh_type = ND_OPT_REDIRECTED_HEADER;
 		nd_opt_rh->nd_opt_rh_len = len >> 3;
 		p += sizeof(*nd_opt_rh);

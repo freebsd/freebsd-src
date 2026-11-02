@@ -298,7 +298,7 @@ nd6_ra_opt_pi(struct nd_opt_hdr *pt, struct ifnet *ifp,
 		return;
 	}
 
-	bzero(&pr, sizeof(pr));
+	memset(&pr, 0, sizeof(pr));
 	pr.ndpr_prefix.sin6_family = AF_INET6;
 	pr.ndpr_prefix.sin6_len = sizeof(pr.ndpr_prefix);
 	pr.ndpr_prefix.sin6_addr = pi->nd_opt_pi_prefix;
@@ -569,7 +569,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
 		mcast = true;
 
-	bzero(&dr0, sizeof(dr0));
+	memset(&dr0, 0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
 	dr0.raflags = nd_ra->nd_ra_flags_reserved;
 	/*
@@ -2793,7 +2793,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	bzero(&d, sizeof(d));
+	memset(&d, 0, sizeof(d));
 	d.rtaddr.sin6_family = AF_INET6;
 	d.rtaddr.sin6_len = sizeof(d.rtaddr);
 
