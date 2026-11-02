@@ -93,9 +93,11 @@ static void	 iavf_if_stop(if_ctx_t ctx);
 static bool	 iavf_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 static void	iavf_mbx_lost(struct iavf_sc *);
+static void	iavf_update_vlan_filters(struct iavf_sc *);
 static void	iavf_enter_reset_recovery(struct iavf_sc *);
 static void	iavf_mbx_retry_detach(struct iavf_sc *);
 static void	iavf_mbx_retry_failed(if_ctx_t);
+static void	iavf_init_retry(if_ctx_t, bool);
 static void	iavf_mbx_retry_prepare(struct iavf_sc *);
 static void	iavf_mbx_retry_stop(struct iavf_sc *);
 static void	iavf_mbx_retry_succeeded(struct iavf_sc *);
@@ -776,7 +778,8 @@ iavf_mbx_retry_callout(void *arg)
 
 	sc = arg;
 	if (atomic_readandclear_32(&sc->mbx_retry_pending) == 0 ||
-	    atomic_load_acq_32(&sc->mbx_ready) != 0 ||
+	    (atomic_load_acq_32(&sc->mbx_ready) != 0 &&
+	    atomic_load_acq_32(&sc->vlan_batch_pending) == 0) ||
 	    iflib_in_detach(sc->vsi.ctx))
 		return;
 	ifp = iflib_get_ifp(sc->vsi.ctx);
@@ -964,6 +967,14 @@ iavf_quiesce_queues(struct iavf_sc *sc)
 static void
 iavf_mbx_retry_failed(if_ctx_t ctx)
 {
+
+	iavf_init_retry(ctx, false);
+}
+
+/* Retry either a failed mailbox or a bounded, still-healthy filter batch. */
+static void
+iavf_init_retry(if_ctx_t ctx, bool mailbox_ready)
+{
 	struct iavf_sc *sc;
 	struct iavf_vsi *vsi;
 	if_t ifp;
@@ -972,7 +983,13 @@ iavf_mbx_retry_failed(if_ctx_t ctx)
 
 	sc = iavf_sc_from_ctx(ctx);
 	vsi = &sc->vsi;
-	atomic_store_rel_32(&sc->mbx_ready, 0);
+	atomic_store_rel_32(&sc->mbx_ready, mailbox_ready);
+	if (mailbox_ready) {
+		atomic_store_rel_32(&sc->vc_reinit_required, 0);
+		iavf_clear_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+	} else {
+		atomic_store_rel_32(&sc->vlan_batch_pending, 0);
+	}
 	iavf_clear_state(&sc->state, IAVF_STATE_RUNNING);
 	sc->link_up = false;
 	if (vsi->link_active) {
@@ -985,11 +1002,12 @@ iavf_mbx_retry_failed(if_ctx_t ctx)
 	if (!sc->mbx_retry_initialized ||
 	    (if_getflags(ifp) & IFF_UP) == 0)
 		return;
-	stage = sc->mbx_retry_stage;
+	stage = mailbox_ready ? 0 : sc->mbx_retry_stage;
 	if (stage >= nitems(iavf_mbx_retry_delay))
 		stage = nitems(iavf_mbx_retry_delay) - 1;
 	delay = iavf_mbx_retry_delay[stage];
-	if (sc->mbx_retry_stage + 1 < nitems(iavf_mbx_retry_delay))
+	if (!mailbox_ready &&
+	    sc->mbx_retry_stage + 1 < nitems(iavf_mbx_retry_delay))
 		sc->mbx_retry_stage++;
 	atomic_set_32(&sc->mbx_retry_pending, 1);
 	callout_reset_sbt(&sc->mbx_retry, delay, 0,
@@ -1127,6 +1145,8 @@ iavf_reestablish_vc(struct iavf_sc *sc)
 	 * replacement AdminQ is established.  This permits ordinary AdminQ
 	 * processing while making the following quiesce check a no-op.
 	 */
+	iavf_reset_vlan_filters(sc,
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY));
 	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY)) {
 		atomic_store_rel_32(&sc->queues_enabled, 0);
 		iavf_clear_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
@@ -1145,15 +1165,10 @@ static void
 iavf_replay_filters(struct iavf_sc *sc)
 {
 	struct iavf_mac_filter *mac;
-	struct iavf_vlan_filter *vlan;
 
 	SLIST_FOREACH(mac, sc->mac_filters, next) {
 		if ((mac->flags & IAVF_FILTER_DEL) == 0)
 			mac->flags |= IAVF_FILTER_ADD | IAVF_FILTER_USED;
-	}
-	SLIST_FOREACH(vlan, sc->vlan_filters, next) {
-		if ((vlan->flags & IAVF_FILTER_DEL) == 0)
-			vlan->flags = IAVF_FILTER_ADD;
 	}
 }
 
@@ -1232,9 +1247,18 @@ iavf_if_init(if_ctx_t ctx)
 		iavf_replay_filters(sc);
 	if (!error || error == EEXIST || replay_filters)
 		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_MAC_FILTER);
-	if (replay_filters)
-		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_VLAN_FILTER);
 	iflib_set_mac(ctx, hw->mac.addr);
+
+	/* Finish filter changes before queued traffic can reach PF anti-spoof. */
+	error = iavf_sync_vlans(sc);
+	if (error == EAGAIN) {
+		/* Continue a bounded batch without forgetting acknowledged work. */
+		iavf_init_retry(ctx, true);
+		return;
+	}
+	if (error != 0 && error != EIO)
+		goto fail;
+	/* A completed policy rejection must not reset unrelated traffic forever. */
 
 	/* Prepare the queues for operation */
 	iavf_init_queues(vsi);
@@ -1817,6 +1841,8 @@ iavf_if_update_admin_status(if_ctx_t ctx)
 	}
 
 	iavf_process_adminq(sc, &pending);
+	if (atomic_load_acq_32(&sc->vlan_batch_pending) != 0)
+		iavf_update_vlan_filters(sc);
 	iavf_update_link_status(sc);
 
 	/*
@@ -1970,6 +1996,24 @@ iavf_if_timer(if_ctx_t ctx, uint16_t qid)
 	iavf_request_stats(sc);
 }
 
+/* Reconcile live memberships without restarting otherwise healthy queues. */
+static void
+iavf_update_vlan_filters(struct iavf_sc *sc)
+{
+	int error;
+
+	/* Down and recovering VFs replay their desired state at initialization. */
+	if (!iflib_is_running(sc->vsi.ctx) ||
+	    atomic_load_acq_32(&sc->mbx_ready) == 0 ||
+	    atomic_load_acq_32(&sc->vc_reinit_required) != 0)
+		return;
+	error = iavf_sync_vlans(sc);
+	if (error == EAGAIN)
+		iflib_admin_intr_deferred(sc->vsi.ctx);
+	else if (error != 0 && error != EIO)
+		iavf_mbx_lost(sc);
+}
+
 /**
  * iavf_if_vlan_register - Register a VLAN
  * @ctx: iflib context
@@ -1990,11 +2034,10 @@ iavf_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	if (vsi->num_vlans == 0)
 		iavf_add_vlan_filter(sc, 0);
 
-	iavf_add_vlan_filter(sc, vtag);
+	if (iavf_add_vlan_filter(sc, vtag))
+		++vsi->num_vlans;
 
-	++vsi->num_vlans;
-
-	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_VLAN_FILTER);
+	iavf_update_vlan_filters(sc);
 }
 
 /**
@@ -2022,7 +2065,7 @@ iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 		i += iavf_mark_del_vlan_filter(sc, 0);
 
 	if (i > 0)
-		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DEL_VLAN_FILTER);
+		iavf_update_vlan_filters(sc);
 }
 
 /**
@@ -2085,7 +2128,8 @@ iavf_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
-		return (true);
+		/* Membership changes use the mailbox without resetting queues. */
+		return (false);
 	default:
 		return (false);
 	}
