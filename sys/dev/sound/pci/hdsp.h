@@ -238,7 +238,7 @@ struct sc_info {
 	bus_space_handle_t	csh;
 
 	struct resource		*irq;
-	int			irqid;
+	int			rid;
 	void			*ih;
 	bus_dma_tag_t		dmat;
 
