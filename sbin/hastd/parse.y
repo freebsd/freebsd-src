@@ -55,6 +55,8 @@ extern int lineno;
 extern FILE *yyin;
 extern char *yytext;
 
+const char *nodename;
+
 static struct hastd_config *lconfig;
 static struct hast_resource *curres;
 static bool mynode, hadmynode;
@@ -731,7 +733,23 @@ isitme(const char *name)
 	char buf[MAXHOSTNAMELEN];
 	unsigned long hostid;
 	char *pos;
-	size_t bufsize;
+	size_t bufsize, len;
+
+	/*
+	 * A static node name overrides all others.
+	 */
+	if (nodename != NULL) {
+		if (strcmp(nodename, name) == 0)
+			return (1);
+		pos = strchr(nodename, '.');
+		if (pos != NULL && pos != nodename) {
+			len = pos - nodename;
+			if (len == strlen(name) &&
+			    strncmp(nodename, name, len) == 0)
+				return (1);
+		}
+		return (0);
+	}
 
 	/*
 	 * First check if the given name matches our full hostname.
@@ -747,9 +765,10 @@ isitme(const char *name)
 	 * Check if it matches first part of the host name.
 	 */
 	pos = strchr(buf, '.');
-	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
-	    strncmp(buf, name, pos - buf) == 0) {
-		return (1);
+	if (pos != NULL && pos != buf) {
+		len = pos - buf;
+		if (len == strlen(name) && strncmp(buf, name, len) == 0)
+			return (1);
 	}
 
 	/*
@@ -801,7 +820,20 @@ node_names(char **namesp)
 	char buf[MAXHOSTNAMELEN];
 	unsigned long hostid;
 	char *pos;
-	size_t bufsize;
+	size_t bufsize, len;
+
+	/* A static node name overrides all others. */
+	if (nodename != NULL) {
+		pos = strchr(nodename, '.');
+		if (pos != NULL && pos != nodename) {
+			len = pos - nodename;
+			(void)strlcpy(names, nodename, MIN(len + 1, sizeof(names)));
+			(void)strlcat(names, ", ", sizeof(names));
+		}
+		(void)strlcat(names, nodename, sizeof(names));
+		*namesp = names;
+		return (0);
+	}
 
 	if (gethostname(buf, sizeof(buf)) < 0) {
 		pjdlog_errno(LOG_ERR, "gethostname() failed");
@@ -811,8 +843,8 @@ node_names(char **namesp)
 	/* First component of the host name. */
 	pos = strchr(buf, '.');
 	if (pos != NULL && pos != buf) {
-		(void)strlcpy(names, buf, MIN((size_t)(pos - buf + 1),
-		    sizeof(names)));
+		len = pos - buf;
+		(void)strlcpy(names, buf, MIN(len + 1, sizeof(names)));
 		(void)strlcat(names, ", ", sizeof(names));
 	}
 
