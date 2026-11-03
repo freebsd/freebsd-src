@@ -481,10 +481,10 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 
 	/* TODO: Flush In-flight IOs */
 
-	/* Release resources */
-	ufshci_utmr_req_queue_destroy(ctrlr);
-	ufshci_utr_req_queue_destroy(ctrlr);
-
+	/*
+	 * Tear the interrupt down first, so the handler cannot touch a
+	 * queue while it is being freed.
+	 */
 	if (ctrlr->tag)
 		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
 
@@ -493,13 +493,28 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
 	/*
-	 * The interrupt and the timers are gone, so nothing enqueues new
-	 * tasks. Free the taskqueue before the SIM teardown below.
+	 * A watchdog escalates a timeout to a reset on the taskqueue, so
+	 * stop the watchdogs before the taskqueue goes away.
+	 */
+	ufshci_req_queue_stop_watchdog(&ctrlr->task_mgmt_req_queue);
+	ufshci_req_queue_stop_watchdog(&ctrlr->transfer_req_queue);
+
+	/*
+	 * Free the taskqueue next, which waits for a reset already
+	 * running. Only then destroy the queues, because that running
+	 * reset walks them.
 	 */
 	if (ctrlr->taskqueue != NULL) {
 		taskqueue_free(ctrlr->taskqueue);
 		ctrlr->taskqueue = NULL;
 	}
+
+	/* Quiet the hardware, so no DMA or interrupt outlives the queues. */
+	ufshci_ctrlr_disable(ctrlr);
+
+	/* Release resources */
+	ufshci_utmr_req_queue_destroy(ctrlr);
+	ufshci_utr_req_queue_destroy(ctrlr);
 
 	ufshci_sim_release_wlun_periph(ctrlr);
 
@@ -526,6 +541,13 @@ nores:
 void
 ufshci_ctrlr_reset(struct ufshci_controller *ctrlr)
 {
+	/*
+	 * Detach frees the taskqueue before it tears the rest down, so a
+	 * request that arrives after that has nowhere to go.
+	 */
+	if (ctrlr->taskqueue == NULL)
+		return;
+
 	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
 }
 

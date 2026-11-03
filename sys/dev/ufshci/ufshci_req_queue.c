@@ -138,6 +138,32 @@ ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr)
 	    &ctrlr->transfer_req_queue));
 }
 
+/*
+ * Stop the watchdog of the hardware queue. The trackers stay in
+ * place, so a reset that is still running can finish with them.
+ */
+void
+ufshci_req_queue_stop_watchdog(struct ufshci_req_queue *req_queue)
+{
+	struct ufshci_hw_queue *hwq;
+
+	/* Attach may fail before the queue is set up. */
+	if (req_queue->hwq == NULL)
+		return;
+
+	hwq = req_queue->qops.get_hw_queue(req_queue);
+
+	/* Submits arm the timer under qlock. None can after this. */
+	mtx_lock(&hwq->qlock);
+	hwq->watchdog_stopped = true;
+	mtx_unlock(&hwq->qlock);
+
+	mtx_lock(&hwq->recovery_lock);
+	hwq->timer_armed = false;
+	mtx_unlock(&hwq->recovery_lock);
+	callout_drain(&hwq->timer);
+}
+
 static bool
 ufshci_req_queue_response_is_error(struct ufshci_req_queue *req_queue,
     uint8_t ocs, union ufshci_reponse_upiu *response)
@@ -550,15 +576,14 @@ ufshci_req_queue_timeout(void *arg)
 	}
 
 	/*
-	 * Shutdown condition: We set hwq->timer_armed to false in
-	 * ufshci_req_sdb_destroy before calling callout_drain. When we call
-	 * that, this routine might get called one last time. Exit w/o setting a
-	 * timeout. None of the watchdog stuff needs to be done since we're
-	 * destroying the hwq.
+	 * Shutdown condition: timer_armed is cleared before callout_drain
+	 * when the watchdog stops and when the hwq is destroyed. This
+	 * routine might get called one last time then. Exit w/o setting a
+	 * timeout.
 	 */
 	if (!hwq->timer_armed) {
 		ufshci_printf(ctrlr,
-		    "Timeout fired during ufshci_utr_req_queue_destroy\n");
+		    "Timeout fired while the watchdog stopped\n");
 		return;
 	}
 
@@ -722,7 +747,7 @@ ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
 	else
 		timeout = ctrlr->timeout_period;
 	tr->deadline = getsbinuptime() + timeout * SBT_1S;
-	if (!hwq->timer_armed) {
+	if (!hwq->timer_armed && !hwq->watchdog_stopped) {
 		hwq->timer_armed = true;
 		/*
 		 * It wakes up once every 0.5 seconds to check if the deadline
