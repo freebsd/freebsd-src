@@ -287,7 +287,7 @@ ufshci_ctrlr_disable(struct ufshci_controller *ctrlr)
 int
 ufshci_ctrlr_enable(struct ufshci_controller *ctrlr)
 {
-	uint32_t ie, hcs;
+	uint32_t ie, hcs, attempt;
 	int error;
 
 	error = ufshci_ctrlr_enable_host_ctrlr(ctrlr);
@@ -295,18 +295,27 @@ ufshci_ctrlr_enable(struct ufshci_controller *ctrlr)
 		return (error);
 
 	/* Send DME_LINKSTARTUP command to start the link startup procedure */
-	error = ufshci_uic_send_dme_link_startup(ctrlr);
-	if (error)
-		return (error);
+	for (attempt = 0; attempt < UFSHCI_MAX_LINK_STARTUP_ATTEMPTS;
+	    attempt++) {
+		error = ufshci_uic_send_dme_link_startup(ctrlr);
+		if (error) {
+			ufshci_printf(ctrlr,
+			    "DME_LINKSTARTUP attempt %u failed: %d\n",
+			    attempt + 1, error);
+			continue;
+		}
 
-	/*
-	 * The device_present(UFSHCI_HCS_REG_DP) bit becomes true if the host
-	 * controller has successfully received a Link Startup UIC command
-	 * response and the UFS device has found a physical link to the
-	 * controller.
-	 */
-	hcs = ufshci_mmio_read_4(ctrlr, hcs);
-	if (!UFSHCIV(UFSHCI_HCS_REG_DP, hcs)) {
+		/*
+		 * The device_present(UFSHCI_HCS_REG_DP) bit becomes true if
+		 * the host controller has successfully received a Link
+		 * Startup UIC command response and the UFS device has found
+		 * a physical link to the controller.
+		 */
+		hcs = ufshci_mmio_read_4(ctrlr, hcs);
+		if (UFSHCIV(UFSHCI_HCS_REG_DP, hcs))
+			break;
+	}
+	if (attempt == UFSHCI_MAX_LINK_STARTUP_ATTEMPTS) {
 		ufshci_printf(ctrlr, "UFS device not found\n");
 		return (ENXIO);
 	}

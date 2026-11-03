@@ -47,6 +47,9 @@ MALLOC_DECLARE(M_UFSHCI);
 
 #define UFSHCI_DEFAULT_RETRY_COUNT    (4)
 
+/* A device that is still powering on does not answer the first one. */
+#define UFSHCI_MAX_LINK_STARTUP_ATTEMPTS (3)
+
 #define UFSHCI_UTR_ENTRIES	      (32)
 #define UFSHCI_UTRM_ENTRIES	      (8)
 
