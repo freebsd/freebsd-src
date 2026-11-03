@@ -4367,6 +4367,7 @@ bnxt_media_change(if_ctx_t ctx)
 
 	case IFM_400G_AUI8_AC:
 	case IFM_400G_DR4:
+	case IFM_400G_FR4:
 		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
 
 		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_400GB_PAM4_112) {
@@ -5325,6 +5326,11 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
 			break;
 
+		case BNXT_MEDIA_FR:
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_FR4);
+			break;
+
 		case BNXT_MEDIA_KR:
 			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_KR_PAM4);
 			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_KR2_PAM4);
@@ -5477,6 +5483,10 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
 		media_type = BNXT_MEDIA_KR;
+		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEFR4:
+		media_type = BNXT_MEDIA_FR;
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
