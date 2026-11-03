@@ -2304,6 +2304,9 @@ xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata, unsigned int cmd,
 
 	axgbe_printf(3, "firmware mailbox command did not complete\n");
 
+	/* Reset on error */
+	xgbe_phy_rx_reset(pdata);
+
 reenable_pll:
 	xgbe_phy_pll_ctrl(pdata, true);
 }
