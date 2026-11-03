@@ -46,7 +46,15 @@ ufshci_sim_scsiio_done(void *ccb_arg, const struct ufshci_completion *cpl,
 	    min(sense_data_len, sense_data_max_size));
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-	if (error) {
+	if (cpl->ocs == UFSHCI_DESC_ABORTED) {
+		/*
+		 * A reset took the request back, so requeue it without a
+		 * retry. A failed controller rejects the resubmit, so
+		 * this cannot loop.
+		 */
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		xpt_done(ccb);
+	} else if (error) {
 		printf("ufshci: SCSI command completion error, Status(0x%x)"
 		       " Key(0x%x), ASC(0x%x), ASCQ(0x%x)\n",
 		    cpl->response_upiu.cmd_response_upiu.header

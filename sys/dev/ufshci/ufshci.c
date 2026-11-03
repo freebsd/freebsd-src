@@ -59,6 +59,7 @@ ufshci_completion_poll_cb(void *arg, const struct ufshci_completion *cpl,
 	 * or failed.
 	 */
 	memcpy(&status->cpl.response_upiu, &cpl->response_upiu, cpl->size);
+	status->cpl.ocs = cpl->ocs;
 	status->error = error;
 	atomic_store_rel_int(&status->done, 1);
 }

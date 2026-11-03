@@ -39,7 +39,7 @@ struct ufshci_pt_command {
 	uint32_t flags;		      /* [in] UFSHCI_PT_FLAG_* */
 	uint32_t timeout_ms;	      /* [in] reserved, must be 0 */
 	uint32_t xfer_len;	      /* [out] bytes the request carried */
-	uint8_t ocs;		      /* [out] reserved, always 0 for now */
+	uint8_t ocs;		      /* [out] overall command status */
 	uint8_t reserved[7];
 };
 
