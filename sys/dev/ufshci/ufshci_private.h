@@ -180,6 +180,8 @@ struct ufshci_hw_queue {
 
 	TAILQ_HEAD(, ufshci_tracker) free_tr;
 	TAILQ_HEAD(, ufshci_tracker) outstanding_tr;
+	/* I/O held back while the queue is in recovery (qlock). */
+	STAILQ_HEAD(, ufshci_request) queued_req;
 
 	/*
 	 * A Request List using the single doorbell method uses a dedicated
@@ -412,6 +414,12 @@ struct ufshci_controller {
 	uint32_t max_rx_lanes;
 
 	uint32_t is_failed;
+	/*
+	 * The bring-up finished, so I/O may go to the device. Cleared when
+	 * a reset is requested. Read under qlock, written without it, so a
+	 * stale read costs at most one doorbell that the disable path claims.
+	 */
+	bool io_ready;
 
 	/* Debug aids: requests left to drop, per I/O and admin. */
 	uint32_t debug_drop_ios;
@@ -514,6 +522,8 @@ void ufshci_utr_req_queue_disable(struct ufshci_controller *ctrlr);
 int ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr);
 void ufshci_req_queue_stop_watchdog(struct ufshci_req_queue *req_queue);
 void ufshci_req_queue_complete_aborted_hwq(struct ufshci_hw_queue *hwq);
+void ufshci_req_queue_resume(struct ufshci_req_queue *req_queue);
+void ufshci_req_queue_submit_queued(struct ufshci_hw_queue *hwq);
 void ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 int ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,

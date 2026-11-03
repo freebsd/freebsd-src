@@ -257,6 +257,7 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 
 	TAILQ_INIT(&hwq->free_tr);
 	TAILQ_INIT(&hwq->outstanding_tr);
+	STAILQ_INIT(&hwq->queued_req);
 
 	for (i = 0; i < req_queue->num_trackers; i++) {
 		tr = malloc_domainset(sizeof(struct ufshci_tracker), M_UFSHCI,

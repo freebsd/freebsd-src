@@ -168,6 +168,15 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 	/* TODO: Configure Background Operations */
 
 	/*
+	 * The device is ready for I/O now, so let the held I/O go out. The
+	 * steps below need I/O to flow: a bus scan and the lookup of the
+	 * well-known LUN that it creates.
+	 */
+	ctrlr->io_ready = true;
+	ufshci_req_queue_resume(&ctrlr->task_mgmt_req_queue);
+	ufshci_req_queue_resume(&ctrlr->transfer_req_queue);
+
+	/*
 	 * A reset normally arrives after the SIM is attached. But if the
 	 * first start attempt failed early, the reset path runs without a
 	 * SIM. Attach it whenever it does not exist yet.
@@ -359,6 +368,7 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	int error;
 
 	ctrlr->device_init_timeout_in_ms = UFSHCI_DEVICE_INIT_TIMEOUT_MS;
+	ctrlr->io_ready = false;
 	ctrlr->uic_cmd_timeout_in_ms = UFSHCI_UIC_CMD_TIMEOUT_MS;
 	ctrlr->dev = dev;
 	ctrlr->sc_unit = device_get_unit(dev);
@@ -548,6 +558,8 @@ ufshci_ctrlr_reset(struct ufshci_controller *ctrlr)
 	if (ctrlr->taskqueue == NULL)
 		return;
 
+	/* I/O waits from here until the reset has brought the device up. */
+	ctrlr->io_ready = false;
 	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
 }
 

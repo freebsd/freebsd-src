@@ -138,6 +138,17 @@ ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr)
 	    &ctrlr->transfer_req_queue));
 }
 
+/* Let the held I/O go out, once the controller is ready for I/O. */
+void
+ufshci_req_queue_resume(struct ufshci_req_queue *req_queue)
+{
+	struct ufshci_hw_queue *hwq = req_queue->qops.get_hw_queue(req_queue);
+
+	mtx_lock(&hwq->qlock);
+	ufshci_req_queue_submit_queued(hwq);
+	mtx_unlock(&hwq->qlock);
+}
+
 /*
  * Stop the watchdog of the hardware queue. The trackers stay in
  * place, so a reset that is still running can finish with them.
@@ -221,6 +232,28 @@ ufshci_req_queue_manual_complete_tracker(struct ufshci_tracker *tr, uint8_t ocs,
 }
 
 /*
+ * Complete a request that never got a tracker, so there is no
+ * descriptor to write the response into. The caller must not hold
+ * the queue lock, because the callback may submit a request.
+ */
+static void
+ufshci_req_queue_manual_complete_request(struct ufshci_request *req,
+    uint8_t ocs, uint8_t rc)
+{
+	struct ufshci_completion cpl;
+
+	memset(&cpl, 0, sizeof(cpl));
+	cpl.size = req->response_size;
+	cpl.response_upiu.header.response = rc;
+	cpl.ocs = ocs;
+
+	if (req->cb_fn)
+		req->cb_fn(req->cb_arg, &cpl, true);
+
+	ufshci_free_request(req);
+}
+
+/*
  * Complete every tracker the reset claimed. The claim keeps the
  * completion scan away, so no tracker completes twice.
  */
@@ -260,6 +293,7 @@ ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
 {
 	struct ufshci_hw_queue *hwq = req_queue->qops.get_hw_queue(req_queue);
 	struct ufshci_tracker *tr;
+	struct ufshci_request *req;
 	int i;
 
 	if (!mtx_initialized(&hwq->qlock))
@@ -290,6 +324,16 @@ ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
 		tr->slot_state = UFSHCI_SLOT_STATE_COMPLETING;
 		mtx_unlock(&hwq->qlock);
 		ufshci_req_queue_manual_complete_tracker(tr,
+		    UFSHCI_DESC_ABORTED,
+		    UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
+		mtx_lock(&hwq->qlock);
+	}
+
+	/* The held I/O never reached the hardware, so no slot to clear. */
+	while ((req = STAILQ_FIRST(&hwq->queued_req)) != NULL) {
+		STAILQ_REMOVE_HEAD(&hwq->queued_req, stailq);
+		mtx_unlock(&hwq->qlock);
+		ufshci_req_queue_manual_complete_request(req,
 		    UFSHCI_DESC_ABORTED,
 		    UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
 		mtx_lock(&hwq->qlock);
@@ -380,6 +424,10 @@ ufshci_req_queue_complete_tracker(struct ufshci_tracker *tr)
 
 		TAILQ_REMOVE(&hwq->outstanding_tr, tr, tailq);
 		TAILQ_INSERT_HEAD(&hwq->free_tr, tr, tailq);
+
+		/* A slot came free, so the next held I/O can go out. */
+		if (req_queue->ctrlr->io_ready && !req_queue->ctrlr->is_failed)
+			ufshci_req_queue_submit_queued(hwq);
 	}
 
 	mtx_unlock(&tr->hwq->qlock);
@@ -860,13 +908,26 @@ static int
 _ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
     struct ufshci_request *req)
 {
+	struct ufshci_hw_queue *hwq = req_queue->qops.get_hw_queue(req_queue);
 	struct ufshci_tracker *tr = NULL;
 	int error;
 
-	mtx_assert(&req_queue->qops.get_hw_queue(req_queue)->qlock, MA_OWNED);
+	mtx_assert(&hwq->qlock, MA_OWNED);
 
 	if (req_queue->ctrlr->is_failed)
 		return (ENXIO);
+
+	/*
+	 * The controller is not ready for I/O: a reset was asked for, or
+	 * the bring-up has not finished. Hold the I/O until it is. Admin
+	 * and task management requests still go out, because the reset
+	 * task waits on its own commands and the watchdog sends the aborts.
+	 */
+	if (!req->is_admin && !req_queue->is_task_mgmt &&
+	    !req_queue->ctrlr->io_ready) {
+		STAILQ_INSERT_TAIL(&hwq->queued_req, req, stailq);
+		return (0);
+	}
 
 	error = req_queue->qops.reserve_slot(req_queue, &tr,
 	    req->is_admin);
@@ -894,6 +955,38 @@ _ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
 	ufshci_req_queue_submit_tracker(req_queue, tr, req->data_direction);
 
 	return (0);
+}
+
+/*
+ * Send the held I/O in order, as far as the free slots go. The rest
+ * waits for the next completion.
+ */
+void
+ufshci_req_queue_submit_queued(struct ufshci_hw_queue *hwq)
+{
+	struct ufshci_req_queue *req_queue = hwq->req_queue;
+	struct ufshci_request *req;
+	struct ufshci_tracker *tr;
+
+	mtx_assert(&hwq->qlock, MA_OWNED);
+
+	while ((req = STAILQ_FIRST(&hwq->queued_req)) != NULL) {
+		/*
+		 * A reset can start while this runs. The submit would then put
+		 * each request back at the tail, and this loop would never end.
+		 */
+		if (!req_queue->ctrlr->io_ready || req_queue->ctrlr->is_failed)
+			break;
+		/* Probe for an I/O slot first, so a full queue stays quiet. */
+		if (req_queue->qops.reserve_slot(req_queue, &tr, false) != 0)
+			break;
+		STAILQ_REMOVE_HEAD(&hwq->queued_req, stailq);
+		if (_ufshci_req_queue_submit_request(req_queue, req) != 0) {
+			/* The failure path completes what is left here. */
+			STAILQ_INSERT_HEAD(&hwq->queued_req, req, stailq);
+			break;
+		}
+	}
 }
 
 int
