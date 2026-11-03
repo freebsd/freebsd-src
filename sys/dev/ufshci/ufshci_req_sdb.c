@@ -595,7 +595,7 @@ ufshci_req_sdb_process_cpl(struct ufshci_req_queue *req_queue)
 	bus_dmamap_sync(hwq->dma_tag_queue, hwq->queuemem_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	for (slot = 0; slot < req_queue->num_entries; slot++) {
+	for (slot = 0; slot < hwq->num_trackers; slot++) {
 		bool completed;
 
 		tr = hwq->act_tr[slot];
@@ -609,6 +609,12 @@ ufshci_req_sdb_process_cpl(struct ufshci_req_queue *req_queue)
 		mtx_lock(&hwq->qlock);
 		completed = tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED &&
 		    req_queue->qops.is_completed(req_queue->ctrlr, slot);
+		/*
+		 * Claim the slot while the lock is held, so no other path
+		 * completes this request as well.
+		 */
+		if (completed)
+			tr->slot_state = UFSHCI_SLOT_STATE_COMPLETING;
 		mtx_unlock(&hwq->qlock);
 		if (completed) {
 			ufshci_req_queue_complete_tracker(tr);

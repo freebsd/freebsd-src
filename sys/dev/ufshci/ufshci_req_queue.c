@@ -209,7 +209,7 @@ ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
 
 	mtx_lock(&hwq->qlock);
 
-	for (i = 0; i < req_queue->num_trackers; i++) {
+	for (i = 0; i < hwq->num_trackers; i++) {
 		tr = hwq->act_tr[i];
 
 		/*
@@ -222,11 +222,11 @@ ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
 			continue;
 
 		/*
-		 * Claim the tracker under the lock. The completion
-		 * scan only completes SCHEDULED slots, so it will
-		 * skip this one while the lock is dropped.
+		 * Claim the tracker under the lock. Every other walker
+		 * skips a slot in this state, so the tracker cannot
+		 * complete twice while the lock is dropped.
 		 */
-		tr->slot_state = UFSHCI_SLOT_STATE_NEED_ERROR_HANDLING;
+		tr->slot_state = UFSHCI_SLOT_STATE_COMPLETING;
 		mtx_unlock(&hwq->qlock);
 		ufshci_req_queue_manual_complete_tracker(tr,
 		    UFSHCI_DESC_ABORTED,
@@ -491,7 +491,12 @@ ufshci_abort_complete(void *arg, const struct ufshci_completion *status,
 	 * complete the command manually.
 	 */
 	mtx_lock(&tr->hwq->qlock);
-	if (tr->slot_state != UFSHCI_SLOT_STATE_FREE) {
+	/*
+	 * Only a scheduled slot still waits on the controller. Claim it
+	 * before the unlock, so no other path completes it as well.
+	 */
+	if (tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED) {
+		tr->slot_state = UFSHCI_SLOT_STATE_COMPLETING;
 		mtx_unlock(&tr->hwq->qlock);
 		/*
 		 * An I/O has timed out, and the controller was unable to abort
