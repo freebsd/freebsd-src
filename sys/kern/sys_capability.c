@@ -121,6 +121,11 @@ sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 		error = EBUSY;
 		goto out;
 	}
+	PROC_UNLOCK(p);
+	error = pwd_altroot(td, NULL);
+	PROC_LOCK(p);
+	if (error != 0)
+		goto out;
 	oldcred = crcopysafe(p, newcred);
 	newcred->cr_flags |= CRED_FLAG_CAPMODE;
 	proc_set_cred(p, newcred);
