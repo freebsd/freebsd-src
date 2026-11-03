@@ -1459,6 +1459,8 @@ mqfs_readdir(struct vop_readdir_args *ap)
 	sx_xunlock(&mi->mi_lock);
 
 	uio->uio_offset = offset;
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = (pn == NULL);
 
 	if (tmp_ncookies != NULL)
 		ap->a_ncookies = tmp_ncookies;
