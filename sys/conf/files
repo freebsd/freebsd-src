@@ -4721,7 +4721,7 @@ kern/sched_4bsd.c		optional sched_4bsd
 sched_4bsd_ns.h			optional sched_4bsd \
 	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
 	$S/tools/sched_impl_ns.awk" \
-	compile-with		"${CPP} -DSCHED_IMPLEMENTATION=4bsd \
+	compile-with		"${CPP} ${INCLUDES} -DSCHED_IMPLEMENTATION=4bsd \
 	$S/kern/sched_ns.h | \
 	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend local \
@@ -4730,7 +4730,7 @@ kern/sched_ule.c		optional sched_ule
 sched_ule_ns.h			optional sched_ule \
 	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
 	$S/tools/sched_impl_ns.awk" \
-	compile-with		"${CPP} -DSCHED_IMPLEMENTATION=ule \
+	compile-with		"${CPP} ${INCLUDES} -DSCHED_IMPLEMENTATION=ule \
 	$S/kern/sched_ns.h | \
 	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend local \
