@@ -1,4 +1,4 @@
-.Dd June 9, 2025
+.Dd November 11, 2026
 .Dt TOP 1
 .Os
 .Sh NAME
@@ -8,6 +8,7 @@
 .Nm
 .Op Fl abCHIijnPqSTtuvwz
 .Op Fl d Ar count
+.Op Fl g Ar string
 .Op Fl J Ar jail
 .Op Fl m Ar cpu | io
 .Op Fl o Ar field
@@ -95,6 +96,13 @@ Note that for
 .Ar count
 = 1
 no information is available about the percentage of time spent by the CPU in every state.
+.It Fl g Ar string
+Display only processes that contain
+.Ar string
+in their command name.
+If displaying of arguments is enabled with
+.Fl a ,
+the arguments are searched too.
 .It Fl H
 Display each thread for a multithreaded process individually.
 By default a single summary line is displayed for each process.

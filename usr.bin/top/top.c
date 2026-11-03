@@ -98,6 +98,7 @@ static const struct option longopts[] = {
     { "batch", no_argument, NULL, 'b' },
     /* c reserved */
     { "displays", required_argument, NULL, 'd' },
+    { "grep", required_argument, NULL, 'g' },
     { "interactive", no_argument, NULL, 'i' },
     { "jail-id", no_argument, NULL, 'j' },
     { "display-mode", required_argument, NULL, 'm' },
@@ -311,7 +312,8 @@ main(int argc, const char *argv[])
 	    optind = 1;
 	}
 
-	while ((i = getopt_long(ac, __DECONST(char * const *, av), "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
+	while ((i = getopt_long(ac, __DECONST(char * const *, av),
+	    "CSIHPabg:ijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
 	{
 	    switch(i)
 	    {
@@ -349,6 +351,7 @@ main(int argc, const char *argv[])
 
 	      case 'a':
 		fmt_flags ^= FMT_SHOWARGS;
+		show_args = fmt_flags & FMT_SHOWARGS;
 		break;
 
 	      case 'd':			/* number of displays to show */
@@ -362,6 +365,13 @@ main(int argc, const char *argv[])
 		    displays = i;
 		}
 		break;
+
+	      case 'g':			/* grep command name */
+		free(ps.command);
+		if ((ps.command = strdup(optarg)) == NULL)
+			err(1, NULL);
+		break;
+
 	      case 'p': {
 		unsigned long long num;
 		const char *errstr;
@@ -463,7 +473,7 @@ main(int argc, const char *argv[])
 
 	      default:
 		errx(1, 
-"[-abCHIijnPqSTtuvwz] [-d count] [-J jail] [-m cpu | io] [-o field]\n"
+"[-abCHIijnPqSTtuvwz] [-d count] [-g string] [-J jail] [-m cpu | io] [-o field]\n"
 "     [-p pid] [-s time] [-U username] [number]");
 	    }
 	}
