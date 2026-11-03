@@ -382,6 +382,20 @@ ufshci_req_sdb_disable(struct ufshci_controller *ctrlr,
 	hwq->recovery_state = RECOVERY_WAITING;
 	TAILQ_FOREACH_SAFE(tr, &hwq->outstanding_tr, tailq, tr_temp) {
 		tr->deadline = SBT_MAX;
+
+		/*
+		 * A failed controller never enables the queue again, so
+		 * the failure path owns the requests.
+		 */
+		if (ctrlr->is_failed)
+			continue;
+
+		/*
+		 * The reset wipes the request list, so nothing completes
+		 * an unclaimed slot.
+		 */
+		if (tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED)
+			tr->slot_state = UFSHCI_SLOT_STATE_NEED_ERROR_HANDLING;
 	}
 
 	mtx_unlock(&hwq->qlock);
@@ -485,6 +499,11 @@ ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
 out:
 	mtx_unlock(&hwq->qlock);
 	mtx_unlock(&hwq->recovery_lock);
+
+	/* The queue is back, so an aborted request can retry right away. */
+	if (error == 0)
+		ufshci_req_queue_complete_aborted_hwq(hwq);
+
 	return (error);
 }
 
