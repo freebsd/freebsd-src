@@ -12,7 +12,7 @@
 #include "ufshci_private.h"
 #include "ufshci_reg.h"
 
-static void
+void
 ufshci_ctrlr_fail(struct ufshci_controller *ctrlr)
 {
 	/*
@@ -591,7 +591,7 @@ ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr)
 	if (error)
 		return (error);
 
-	ufshci_completion_poll(&status);
+	ufshci_completion_poll(ctrlr, &status);
 	if (status.error) {
 		ufshci_printf(ctrlr, "ufshci_ctrlr_send_nop failed!\n");
 		return (ENXIO);

@@ -458,6 +458,7 @@ int ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
 int ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_reset(struct ufshci_controller *ctrlr);
+void ufshci_ctrlr_fail(struct ufshci_controller *ctrlr);
 int ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr,
     enum power_stype stype);
 int ufshci_ctrlr_resume(struct ufshci_controller *ctrlr,
@@ -588,10 +589,13 @@ int ufshci_detach(device_t dev);
  * Wait for a command to complete using the ufshci_completion_poll_cb. Used in
  * limited contexts where the caller knows it's OK to block briefly while the
  * command runs. The ISR will run the callback which will set status->done to
- * true, usually within microseconds. If not, then after one second timeout
- * handler should reset the controller and abort all outstanding requests
- * including this polled one. If still not after ten seconds, then something is
- * wrong with the driver, and panic is the only way to recover.
+ * true, usually within microseconds.
+ *
+ * A command that does not complete within ten seconds is lost, and the reset
+ * task cannot rescue its own bring-up command. Returning would leave status,
+ * which lives on the caller's stack, to a late completion. Instead, fail the
+ * controller from here: the failure path completes every outstanding request,
+ * including this one, so the callback runs and the loop ends with an error.
  *
  * Most commands using this interface aren't actual I/O to the drive's media so
  * complete within a few microseconds. Adaptively spin for one tick to catch the
@@ -599,15 +603,28 @@ int ufshci_detach(device_t dev);
  * Since these are on startup, this drastically reduces startup time.
  */
 static __inline void
-ufshci_completion_poll(struct ufshci_completion_poll_status *status)
+ufshci_completion_poll(struct ufshci_controller *ctrlr,
+    struct ufshci_completion_poll_status *status)
 {
 	int timeout = ticks + 10 * hz;
 	sbintime_t delta_t = SBT_1US;
+	bool failed = false;
 
 	while (!atomic_load_acq_int(&status->done)) {
-		if (timeout - ticks < 0)
-			panic(
-			    "UFSHCI polled command failed to complete within 10s.");
+		if (timeout - ticks < 0) {
+			if (failed)
+				panic(
+				    "UFSHCI polled command stuck after controller failure.");
+			/*
+			 * The failure path completes every outstanding
+			 * request, including this one. It skips a request
+			 * that another path is completing right now, so
+			 * give that path a second to finish.
+			 */
+			ufshci_ctrlr_fail(ctrlr);
+			failed = true;
+			timeout = ticks + hz;
+		}
 		pause_sbt("ufshci_cpl", delta_t, 0, C_PREL(1));
 		delta_t = min(SBT_1MS, delta_t * 3 / 2);
 	}
