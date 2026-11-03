@@ -129,9 +129,7 @@ struct ufshci_qops {
 	void (*disable)(struct ufshci_controller *ctrlr,
 	    struct ufshci_req_queue *req_queue);
 	int (*reserve_slot)(struct ufshci_req_queue *req_queue,
-	    struct ufshci_tracker **tr);
-	int (*reserve_admin_slot)(struct ufshci_req_queue *req_queue,
-	    struct ufshci_tracker **tr);
+	    struct ufshci_tracker **tr, bool admin);
 	void (*ring_doorbell)(struct ufshci_controller *ctrlr,
 	    struct ufshci_tracker *tr);
 	bool (*is_completed)(struct ufshci_controller *ctrlr,
@@ -532,7 +530,7 @@ void ufshci_req_sdb_disable(struct ufshci_controller *ctrlr,
 int ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 int ufshci_req_sdb_reserve_slot(struct ufshci_req_queue *req_queue,
-    struct ufshci_tracker **tr);
+    struct ufshci_tracker **tr, bool admin);
 void ufshci_req_sdb_utmr_ring_doorbell(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);
 void ufshci_req_sdb_utr_ring_doorbell(struct ufshci_controller *ctrlr,

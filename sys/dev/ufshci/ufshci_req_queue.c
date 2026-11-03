@@ -26,7 +26,6 @@ static const struct ufshci_qops sdb_utmr_qops = {
 	.enable = ufshci_req_sdb_enable,
 	.disable = ufshci_req_sdb_disable,
 	.reserve_slot = ufshci_req_sdb_reserve_slot,
-	.reserve_admin_slot = ufshci_req_sdb_reserve_slot,
 	.ring_doorbell = ufshci_req_sdb_utmr_ring_doorbell,
 	.is_completed = ufshci_req_sdb_utmr_is_completed,
 	.clear_cpl_ntf = ufshci_req_sdb_utmr_clear_cpl_ntf,
@@ -41,7 +40,6 @@ static const struct ufshci_qops sdb_utr_qops = {
 	.enable = ufshci_req_sdb_enable,
 	.disable = ufshci_req_sdb_disable,
 	.reserve_slot = ufshci_req_sdb_reserve_slot,
-	.reserve_admin_slot = ufshci_req_sdb_reserve_slot,
 	.ring_doorbell = ufshci_req_sdb_utr_ring_doorbell,
 	.is_completed = ufshci_req_sdb_utr_is_completed,
 	.clear_cpl_ntf = ufshci_req_sdb_utr_clear_cpl_ntf,
@@ -805,7 +803,8 @@ _ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
 	if (req_queue->ctrlr->is_failed)
 		return (ENXIO);
 
-	error = req_queue->qops.reserve_slot(req_queue, &tr);
+	error = req_queue->qops.reserve_slot(req_queue, &tr,
+	    req->is_admin);
 	if (error != 0) {
 		ufshci_printf(req_queue->ctrlr, "Failed to get tracker");
 		return (error);

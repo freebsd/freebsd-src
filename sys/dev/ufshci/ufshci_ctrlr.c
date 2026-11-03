@@ -446,13 +446,16 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	if (error)
 		return (error);
 
-	/* TODO: Separate IO and Admin slot */
-
 	/*
-	 * max_hw_pend_io is the number of slots in the transfer_req_queue.
-	 * Reduce num_entries by one to reserve an admin slot.
+	 * Two of the slots stay out of the count handed to CAM. The
+	 * reserve step keeps the last one for admin requests, so a
+	 * reset's bring-up command always has somewhere to land. The one
+	 * after it is headroom the queue needs to stay busy. Giving CAM
+	 * as many openings as there are slots that I/O can use measured
+	 * at about a seventh of the throughput, so do not raise this
+	 * without testing it under load.
 	 */
-	ctrlr->max_hw_pend_io = ctrlr->transfer_req_queue.num_entries - 1;
+	ctrlr->max_hw_pend_io = ctrlr->transfer_req_queue.num_entries - 2;
 
 	/* Create a thread for the taskqueue. */
 	ctrlr->taskqueue = taskqueue_create("ufshci_taskq", M_WAITOK,
