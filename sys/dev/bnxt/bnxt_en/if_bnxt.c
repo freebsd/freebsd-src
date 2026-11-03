@@ -4353,6 +4353,8 @@ bnxt_media_change(if_ctx_t ctx)
 
 		break;
 
+	case IFM_400G_CR8:
+	case IFM_400G_SR8:
 	case IFM_400G_FR8:
 	case IFM_400G_LR8:
 	case IFM_400G_AUI8:
@@ -5250,7 +5252,7 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_CP);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_CP2);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_CR4_PAM4);
-			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_CR8);
 			/* thor2 PAM112 */
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_CR_PAM4);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
@@ -5260,6 +5262,7 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 
 		case BNXT_MEDIA_LR:
 			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_AUI2);
 			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_LR4);
 			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_LR4);
 			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_LR2);
@@ -5305,11 +5308,12 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_SR);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_SR2);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_SR4);
-			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_SR8);
 			/* thor2 PAM112 */
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
-			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_DR4);
+			/* No IFM_400G_SR4; use the generic media type. */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
 			break;
 
 		case BNXT_MEDIA_ER:
@@ -5324,6 +5328,11 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4_AC);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
+			break;
+
+		case BNXT_MEDIA_DR:
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_DR4);
 			break;
 
 		case BNXT_MEDIA_FR:
@@ -5483,6 +5492,10 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
 		media_type = BNXT_MEDIA_KR;
+		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEDR4:
+		media_type = BNXT_MEDIA_DR;
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEFR4:
