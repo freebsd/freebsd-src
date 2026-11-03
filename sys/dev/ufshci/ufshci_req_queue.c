@@ -187,12 +187,19 @@ ufshci_req_queue_response_is_error(struct ufshci_req_queue *req_queue,
 		is_error = true;
 	}
 
-	/* Check response UPIU header */
+	/*
+	 * Check response UPIU header. A SCSI command that ends in CHECK
+	 * CONDITION reports a target failure here, which is a normal
+	 * answer rather than a driver problem. The status and the sense
+	 * in that response say what happened, so do not log it.
+	 */
 	if (response->header.response != UFSHCI_RESPONSE_CODE_TARGET_SUCCESS) {
-		ufshci_printf(req_queue->ctrlr,
-		    "Function(0x%x) Invalid response code = 0x%x\n",
-		    response->header.ext_iid_or_function,
-		    response->header.response);
+		if (response->header.trans_code !=
+		    UFSHCI_UPIU_TRANSACTION_CODE_RESPONSE)
+			ufshci_printf(req_queue->ctrlr,
+			    "Function(0x%x) Invalid response code = 0x%x\n",
+			    response->header.ext_iid_or_function,
+			    response->header.response);
 		is_error = true;
 	}
 

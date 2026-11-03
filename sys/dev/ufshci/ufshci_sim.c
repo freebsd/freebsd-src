@@ -21,31 +21,23 @@
 
 #define sim2ctrlr(sim) ((struct ufshci_controller *)cam_sim_softc(sim))
 
+/*
+ * The transport says whether the command reached the device, and the
+ * response says what the device made of it. The SCSI result is read out
+ * of the response here, so the error flag is not used.
+ */
 static void
 ufshci_sim_scsiio_done(void *ccb_arg, const struct ufshci_completion *cpl,
     bool error)
 {
-	const uint8_t *sense_data;
-	uint16_t sense_data_max_size;
-	uint16_t sense_data_len;
-
 	union ccb *ccb = (union ccb *)ccb_arg;
-
-	/*
-	 * Let the periph know the completion, and let it sort out what
-	 * it means. Report an error or success based on OCS and UPIU
-	 * response code. And We need to copy the sense data to be handled
-	 * by the CAM.
-	 */
-	sense_data = cpl->response_upiu.cmd_response_upiu.sense_data;
-	sense_data_max_size = sizeof(
-	    cpl->response_upiu.cmd_response_upiu.sense_data);
-	sense_data_len = be16toh(
-	    cpl->response_upiu.cmd_response_upiu.sense_data_len);
-	memcpy(&ccb->csio.sense_data, sense_data,
-	    min(sense_data_len, sense_data_max_size));
+	struct ccb_scsiio *csio = &ccb->csio;
+	const struct ufshci_cmd_response_upiu *resp =
+	    &cpl->response_upiu.cmd_response_upiu;
+	uint16_t sense_len;
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+
 	if (cpl->ocs == UFSHCI_DESC_ABORTED) {
 		/*
 		 * A reset took the request back, so requeue it without a
@@ -54,18 +46,52 @@ ufshci_sim_scsiio_done(void *ccb_arg, const struct ufshci_completion *cpl,
 		 */
 		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		xpt_done(ccb);
-	} else if (error) {
-		printf("ufshci: SCSI command completion error, Status(0x%x)"
-		       " Key(0x%x), ASC(0x%x), ASCQ(0x%x)\n",
-		    cpl->response_upiu.cmd_response_upiu.header
-			.ext_iid_or_status,
-		    sense_data[2], sense_data[12], sense_data[13]);
+		return;
+	}
+
+	if (cpl->ocs != UFSHCI_DESC_SUCCESS) {
+		/* The command never reached the device intact. */
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		xpt_done(ccb);
-	} else {
+		return;
+	}
+
+	csio->scsi_status = resp->header.ext_iid_or_status;
+
+	/* A failed response with a GOOD status carries no result. */
+	if (csio->scsi_status == SCSI_STATUS_OK &&
+	    resp->header.response != UFSHCI_RESPONSE_CODE_TARGET_SUCCESS) {
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		xpt_done(ccb);
+		return;
+	}
+
+	if (csio->scsi_status == SCSI_STATUS_OK) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done_direct(ccb);
+		return;
 	}
+
+	ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
+
+	if (csio->scsi_status == SCSI_STATUS_CHECK_COND) {
+		sense_len = be16toh(resp->sense_data_len);
+		sense_len = min(sense_len, sizeof(resp->sense_data));
+		sense_len = min(sense_len, csio->sense_len);
+		memcpy(&csio->sense_data, resp->sense_data, sense_len);
+		csio->sense_resid = csio->sense_len - sense_len;
+		if (sense_len > 0)
+			ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
+	}
+
+	/*
+	 * Hold the device queue until CAM has read this. Without the
+	 * freeze it reissues at once and spends its retries on a device
+	 * that is telling it to wait.
+	 */
+	ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	xpt_freeze_devq(ccb->ccb_h.path, 1);
+	xpt_done(ccb);
 }
 
 /*
