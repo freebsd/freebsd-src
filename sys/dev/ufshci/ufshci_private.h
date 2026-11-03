@@ -133,7 +133,7 @@ struct ufshci_qops {
 	    struct ufshci_tracker **tr);
 	void (*ring_doorbell)(struct ufshci_controller *ctrlr,
 	    struct ufshci_tracker *tr);
-	bool (*is_doorbell_cleared)(struct ufshci_controller *ctrlr,
+	bool (*is_completed)(struct ufshci_controller *ctrlr,
 	    uint8_t slot);
 	void (*clear_cpl_ntf)(struct ufshci_controller *ctrlr,
 	    struct ufshci_tracker *tr);
@@ -532,9 +532,9 @@ void ufshci_req_sdb_utmr_ring_doorbell(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);
 void ufshci_req_sdb_utr_ring_doorbell(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);
-bool ufshci_req_sdb_utmr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+bool ufshci_req_sdb_utmr_is_completed(struct ufshci_controller *ctrlr,
     uint8_t slot);
-bool ufshci_req_sdb_utr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+bool ufshci_req_sdb_utr_is_completed(struct ufshci_controller *ctrlr,
     uint8_t slot);
 void ufshci_req_sdb_utmr_clear_cpl_ntf(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);

@@ -551,21 +551,31 @@ ufshci_req_sdb_utr_ring_doorbell(struct ufshci_controller *ctrlr,
 }
 
 bool
-ufshci_req_sdb_utmr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+ufshci_req_sdb_utmr_is_completed(struct ufshci_controller *ctrlr,
     uint8_t slot)
 {
 	uint32_t utmrldbr;
 
+	/* The task management list has no completion notification. */
 	utmrldbr = ufshci_mmio_read_4(ctrlr, utmrldbr);
 	return (!(utmrldbr & (1 << slot)));
 }
 
 bool
-ufshci_req_sdb_utr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+ufshci_req_sdb_utr_is_completed(struct ufshci_controller *ctrlr,
     uint8_t slot)
 {
-	uint32_t utrldbr;
+	uint32_t utrlcnr, utrldbr;
 
+	/*
+	 * Since UFSHCI 3.0 the controller sets a notification bit when it
+	 * completes a request. Before that, a cleared doorbell bit was the
+	 * only sign, and a slot that was never rung looks the same.
+	 */
+	if (ctrlr->major_version >= 3) {
+		utrlcnr = ufshci_mmio_read_4(ctrlr, utrlcnr);
+		return ((utrlcnr & (1 << slot)) != 0);
+	}
 	utrldbr = ufshci_mmio_read_4(ctrlr, utrldbr);
 	return (!(utrldbr & (1 << slot)));
 }
@@ -592,15 +602,13 @@ ufshci_req_sdb_process_cpl(struct ufshci_req_queue *req_queue)
 
 		KASSERT(tr, ("there is no tracker assigned to the slot"));
 		/*
-		 * When the response is delivered from the device, the doorbell
-		 * is cleared. Check it under qlock so that a slot whose
+		 * Check the completion under qlock so that a slot whose
 		 * doorbell write is still in flight in the submit path is not
 		 * mistaken for a completed one.
 		 */
 		mtx_lock(&hwq->qlock);
 		completed = tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED &&
-		    req_queue->qops.is_doorbell_cleared(req_queue->ctrlr,
-			slot);
+		    req_queue->qops.is_completed(req_queue->ctrlr, slot);
 		mtx_unlock(&hwq->qlock);
 		if (completed) {
 			ufshci_req_queue_complete_tracker(tr);
