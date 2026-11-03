@@ -123,6 +123,26 @@ ufshci_sysctl_ahit(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_64(oidp, &timer, 0, req));
 }
 
+/*
+ * Debug aid. Reset the controller on demand so a test can drive the
+ * recovery path without waiting for a real failure.
+ */
+static int
+ufshci_sysctl_force_reset(SYSCTL_HANDLER_ARGS)
+{
+	struct ufshci_controller *ctrlr = arg1;
+	int error, val = 0;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (val != 0)
+		ufshci_ctrlr_reset(ctrlr);
+
+	return (0);
+}
+
 static void
 ufshci_sysctl_initialize_queue(struct ufshci_hw_queue *hwq,
     struct sysctl_ctx_list *ctrlr_ctx, struct sysctl_oid *que_tree)
@@ -261,6 +281,21 @@ ufshci_sysctl_initialize_ctrlr(struct ufshci_controller *ctrlr)
 	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, &ctrlr->timeout_period,
 	    0, ufshci_sysctl_timeout_period, "IU",
 	    "Timeout period for I/O queues (in seconds)");
+
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO, "force_reset",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr, 0,
+	    ufshci_sysctl_force_reset, "I",
+	    "Reset the controller now (debug aid)");
+
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "drop_next_ios",
+	    CTLFLAG_RW, &ctrlr->debug_drop_ios, 0,
+	    "Drop the doorbell for this many I/O requests so they time out "
+	    "(debug aid)");
+
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "drop_next_admins",
+	    CTLFLAG_RW, &ctrlr->debug_drop_admins, 0,
+	    "Drop the doorbell for this many admin requests so the driver's "
+	    "own bring-up stalls (debug aid)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO, "num_cmds",
 	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE, ctrlr, 0,

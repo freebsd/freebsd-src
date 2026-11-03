@@ -412,6 +412,10 @@ struct ufshci_controller {
 	uint32_t max_rx_lanes;
 
 	uint32_t is_failed;
+
+	/* Debug aids: requests left to drop, per I/O and admin. */
+	uint32_t debug_drop_ios;
+	uint32_t debug_drop_admins;
 };
 
 #define ufshci_mmio_offsetof(reg) offsetof(struct ufshci_registers, reg)
