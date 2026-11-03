@@ -33,7 +33,6 @@
  * machinery.
  */
 
-#define _KERNEL
 #include <sys/cdefs.h>
 #include <sys/sched.h>
 
