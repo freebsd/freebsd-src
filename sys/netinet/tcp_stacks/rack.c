@@ -382,6 +382,7 @@ counter_u64_t rack_alloc_limited_conns;
 counter_u64_t rack_split_limited;
 counter_u64_t rack_rxt_clamps_cwnd;
 counter_u64_t rack_rxt_clamps_cwnd_uniq;
+counter_u64_t rack_dbl_recovery;
 
 counter_u64_t rack_multi_single_eq;
 counter_u64_t rack_proc_non_comp_ack;
@@ -815,6 +816,7 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_alloc_limited_conns);
 		counter_u64_zero(rack_split_limited);
 		counter_u64_zero(rack_rxt_clamps_cwnd);
+		counter_u64_zero(rack_dbl_recovery);
 		counter_u64_zero(rack_rxt_clamps_cwnd_uniq);
 		counter_u64_zero(rack_multi_single_eq);
 		counter_u64_zero(rack_proc_non_comp_ack);
@@ -1734,6 +1736,12 @@ rack_init_sysctls(void)
 	    OID_AUTO, "split_limited", CTLFLAG_RD,
 	    &rack_split_limited,
 	    "Split allocations dropped due to limit");
+	rack_dbl_recovery = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_counters),
+	    OID_AUTO, "rxt_dbl_recovery", CTLFLAG_RD,
+	    &rack_dbl_recovery,
+	    "Number of times that we saw a double recovery scenario");
 	rack_rxt_clamps_cwnd = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -3228,6 +3236,7 @@ rack_counter_destroy(void)
 	counter_u64_free(rack_split_limited);
 	counter_u64_free(rack_multi_single_eq);
 	counter_u64_free(rack_rxt_clamps_cwnd);
+	counter_u64_free(rack_dbl_recovery);
 	counter_u64_free(rack_rxt_clamps_cwnd_uniq);
 	counter_u64_free(rack_proc_non_comp_ack);
 	counter_u64_free(rack_sack_proc_all);
@@ -5600,6 +5609,8 @@ rack_cong_signal(struct tcpcb *tp, uint32_t type, uint32_t ack, int line)
 		tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_flags &= ~TF_WASCRECOVERY;
 		if (!IN_FASTRECOVERY(tp->t_flags)) {
+			struct rack_sendmap *rsm;
+
 			/* Check if this is the end of the initial Start-up i.e. initial slow-start */
 			if (rack->rc_initial_ss_comp == 0) {
 				/* Yep it is the end of the initial slowstart */
@@ -5609,6 +5620,27 @@ rack_cong_signal(struct tcpcb *tp, uint32_t type, uint32_t ack, int line)
 			rack->r_ctl.rc_prr_out = 0;
 			rack->r_fast_output = 0;
 			rack->r_ctl.recovery_rxt_cnt = 0;
+			/* Now to protect against a double entry to recovery (exit and re-enter)
+			 * lets go through the outstanding and update the recovery_rxt_cnt to
+			 * account for retransmitted packets.
+			 */
+			TAILQ_FOREACH(rsm, &rack->r_ctl.rc_tmap, r_tnext) {
+				if ((rsm->r_flags & RACK_WAS_SACKPASS) &&
+				    (rsm->r_rtr_cnt > 1)) {
+					/*
+					 * A double entry into recovery where we
+					 * retransmitted this rsm in the previous recovery.
+					 * Note the counter should be used to see if it ever occurs.
+					 * If it never is found anywnhere then we should remove this
+					 * code i.e the TAILQ_FOREACH block. Note we use r_rtr_cnt in
+					 * the multiply since we don't need the actual count to be accurate
+					 * we just need either 1 or >1 since once its >1 the recovery_rxt_cnt
+					 * will prevent a false postive on bad entries to recovery.
+					 */
+					rack->r_ctl.recovery_rxt_cnt += ((rsm->r_end - rsm->r_start) * (rsm->r_rtr_cnt - 1));
+					counter_u64_add(rack_dbl_recovery, 1);
+				}
+			}
 			if (rack->rack_no_prr == 0) {
 				rack->r_ctl.rc_prr_sndcnt = ctf_fixed_maxseg(tp);
 				rack_log_to_prr(rack, 2, in_rec_at_entry, line);
@@ -9883,7 +9915,7 @@ do_rest_ofb:
 			}
 			nrsm->r_dupack = 0;
 			/* Check if the ack was too soon i.e. reordering + ack arrives too quickly */
-			prohibit_marking = rack_check_reorder_ack(tp, rack, nrsm, nrsm->r_end, cts, 0, __LINE__);
+			prohibit_marking = rack_check_reorder_ack(tp, rack, rsm, rsm->r_end, cts, 0, __LINE__);
 			rack_log_retran_reason(rack, nrsm, __LINE__, 0, 2);
 			rack_update_rtt(tp, rack, rsm, to, cts, SACKED, 0);
 			changed += (rsm->r_end - rsm->r_start);
