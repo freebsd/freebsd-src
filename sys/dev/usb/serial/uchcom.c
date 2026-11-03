@@ -628,9 +628,6 @@ uchcom_calc_baudrate(struct uchcom_softc *sc, uint32_t rate, uint8_t *divisor,
 		*divisor = 0;
 	}
 
-	if (rate == 0)
-		rate = 1;
-
 	*factor = 256 - clk / rate;
 
 	if (rate == 921600 && sc->sc_chiptype != TYPE_CH343) {
@@ -712,24 +709,24 @@ static int
 uchcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uchcom_softc *sc = ucom->sc_parent;
+	uint32_t maxspeed;
 
 	/* 
-	 * Check requested baud rate.
 	 * The CH340/CH341 can set any baud rate up to 2Mb.
 	 * The CH9102/CH343 can set any baud rate up to 6Mb.
 	 */
 	switch (sc->sc_chiptype) {
 	case TYPE_CH343:
-		if (t->c_ospeed <= 6000000)
-			return (0);
+		maxspeed = 6000000;
 		break;
 	default:
-		if (t->c_ospeed <= 2000000)
-			return (0);
+		maxspeed = 2000000;
 		break;
 	}
 
-	return (EIO);
+	if (t->c_ospeed <= 0 || t->c_ospeed > maxspeed)
+		return (EINVAL);
+	return (0);
 }
 
 static void
