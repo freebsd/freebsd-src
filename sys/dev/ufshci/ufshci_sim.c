@@ -424,6 +424,25 @@ ufshci_sim_release_wlun_periph(struct ufshci_controller *ctrlr)
 }
 
 void
+ufshci_sim_controller_failed(struct ufshci_controller *ctrlr)
+{
+	/* Attach may fail before the path is set up. */
+	if (ctrlr->ufshci_path == NULL)
+		return;
+
+	/*
+	 * Hand the loss to CAM. The event goes to every periph on the
+	 * devices under the path, where cam_periph_async() invalidates
+	 * each one, so da(4) detaches and the disk node goes away rather
+	 * than pointing at a controller that answers nothing. The path
+	 * stored at attach covers the whole bus, so one post reaches
+	 * every logical unit. xpt_async clones the path, so the stored
+	 * one survives the call.
+	 */
+	xpt_async(AC_LOST_DEVICE, ctrlr->ufshci_path, NULL);
+}
+
+void
 ufshci_sim_detach(struct ufshci_controller *ctrlr)
 {
 	int error;
