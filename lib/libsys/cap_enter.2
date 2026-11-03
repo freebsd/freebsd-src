@@ -64,6 +64,8 @@ When combined with
 may be used to create kernel-enforced sandboxes in which
 appropriately-crafted applications or application components may be run.
 .Pp
+Entering capability mode clears the alternative root set by
+.Xr chaltroot 2 .
 Other threads are stopped while the call runs, so some of their
 interrupted system calls may return
 .Er EINTR .
