@@ -93,7 +93,8 @@
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static const Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
-    const Elf_Phdr *phdr, const char *interp, int32_t *osrel, uint32_t *fctl0);
+    const Elf_Phdr *phdr, const char *interp, int32_t *osrel, uint32_t *fctl0,
+    const Elf_Ehdr *hdr);
 static int __elfN(load_interp_file)(struct thread *td, const char *file, u_long *addr,
     u_long *entry);
 static int __elfN(load_section)(const struct image_params *imgp,
@@ -105,7 +106,7 @@ static bool __elfN(freebsd_trans_osrel)(const Elf_Note *note,
 static bool kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static bool __elfN(check_note)(struct image_params *imgp, const Elf_Phdr *phdr,
     const Elf_Brandnote *checknote, int32_t *osrel, bool *has_fctl0,
-    uint32_t *fctl0);
+    uint32_t *fctl0, const Elf_Ehdr *hdr);
 static vm_prot_t __elfN(trans_prot)(Elf_Word);
 static Elf_Word __elfN(untrans_prot)(vm_prot_t);
 static size_t __elfN(prepare_register_notes)(struct thread *td,
@@ -345,9 +346,9 @@ __elfN(brand_inuse)(const Elf_Brandinfo *entry)
 
 static const Elf_Brandinfo *
 __elfN(get_brandinfo)(struct image_params *imgp, const Elf_Phdr *phdr,
-    const char *interp, int32_t *osrel, uint32_t *fctl0)
+    const char *interp, int32_t *osrel, uint32_t *fctl0,
+    const Elf_Ehdr *hdr)
 {
-	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	const Elf_Brandinfo *bi, *bi_m;
 	bool ret, has_fctl0;
 	int i, interp_name_len;
@@ -375,7 +376,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const Elf_Phdr *phdr,
 			*fctl0 = 0;
 			*osrel = 0;
 			ret = __elfN(check_note)(imgp, phdr, bi->brand_note,
-			    osrel, &has_fctl0, fctl0);
+			    osrel, &has_fctl0, fctl0, hdr);
 			/* Give brand a chance to veto check_note's guess */
 			if (ret && bi->header_supported) {
 				ret = bi->header_supported(imgp, osrel,
@@ -1013,6 +1014,78 @@ __elfN(enforce_limits)(struct image_params *imgp, const Elf_Ehdr *hdr,
 }
 
 static int
+__elfN(ape_find_printf)(const char *page, int i)
+{
+	uint64_t want, got;
+	memcpy(&want, "printf '", 8);
+	for (; i + 8 <= PAGE_SIZE; ++i) {
+		memcpy(&got, page + i, 8);
+		if (want == got)
+			return (i + 8);
+	}
+	return (-1);
+}
+
+static int
+__elfN(ape_parse_octal)(const char *page, int i, int *pc)
+{
+	int c;
+	if ('0' <= page[i] && page[i] <= '7') {
+		c = page[i++] - '0';
+		if ('0' <= page[i] && page[i] <= '7') {
+			c *= 8;
+			c += page[i++] - '0';
+			if ('0' <= page[i] && page[i] <= '7') {
+				c *= 8;
+				c += page[i++] - '0';
+			}
+		}
+		*pc = c;
+	}
+	return (i);
+}
+
+/*
+ * Files beginning with "MZqFpD" are Actually Portable Executables,
+ * which have a printf statement in the first 4096 bytes with octal
+ * codes that specify the ELF header. APE also specifies `jartsr='`
+ * as an alternative prefix, intended for binaries that do not want
+ * to be identified as Windows executables. Like the \177ELF magic,
+ * all these prefixes decode as x86 jump instructions that could be
+ * used for 16-bit bootloaders or 32-bit / 64-bit flat executables.
+ * Most importantly they provide a fallback path for Thompson shell
+ * compatible command interpreters, which do not require a shebang,
+ * e.g. bash, zsh, fish, bourne, almquist, etc. Please note that in
+ * order to meet the requirements of POSIX.1, the single quote must
+ * be followed by a newline character, before any null bytes occur.
+ * See also: https://www.austingroupbugs.net/view.php?id=1250
+ */
+static int
+__elfN(ape_decode_elf)(const char *page, char *ebuf)
+{
+	int c, i, n;
+
+	for (i = 0;;) {
+		if ((i = __elfN(ape_find_printf)(page, i)) < 0)
+			return (-1);
+		for (n = 0;;) {
+			if (i + 4 > PAGE_SIZE)
+				return (-1);
+			c = page[i++] & 255;
+			if (c == '\'' || n >= sizeof(Elf_Ehdr))
+				break;
+			if (c == '\\')
+				i = __elfN(ape_parse_octal)(page, i, &c);
+			ebuf[n++] = c;
+		}
+		if (n == sizeof(Elf_Ehdr) &&
+		    memcmp(ebuf, ELFMAG, SELFMAG) == 0 &&
+		    ((Elf_Ehdr *)ebuf)->e_machine == ELF_ARCH)
+			return (0);
+	}
+}
+
+static int
 __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
     char **interpp, bool *free_interpp)
 {
@@ -1122,8 +1195,20 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	int32_t osrel;
 	bool free_interp;
 	int error, i, n;
+	union {
+		char buf[64];
+		Elf_Ehdr hdr;
+	} ape;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
+
+	/*
+	 * Check if this is an Actually Portable Executable.
+	 */
+	if ((memcmp(imgp->image_header, "MZqFpD='", 8) == 0 ||
+	     memcmp(imgp->image_header, "jartsr='", 8) == 0) &&
+	    __elfN(ape_decode_elf)(imgp->image_header, ape.buf) == 0)
+		hdr = &ape.hdr;
 
 	/*
 	 * Do we have a valid ELF header ?
@@ -1254,7 +1339,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 	}
 
-	brand_info = __elfN(get_brandinfo)(imgp, phdr, interp, &osrel, &fctl0);
+	brand_info = __elfN(get_brandinfo)(
+		imgp, phdr, interp, &osrel, &fctl0, hdr);
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
@@ -2958,14 +3044,12 @@ note_fctl_cb(const Elf_Note *note, void *arg0, bool *res)
 static bool
 __elfN(check_note)(struct image_params *imgp, const Elf_Phdr *phdr,
     const Elf_Brandnote *brandnote, int32_t *osrel, bool *has_fctl0,
-    uint32_t *fctl0)
+    uint32_t *fctl0, const Elf_Ehdr *hdr)
 {
-	const Elf_Ehdr *hdr;
 	struct brandnote_cb_arg b_arg;
 	struct fctl_cb_arg f_arg;
 	int i, j;
 
-	hdr = (const Elf_Ehdr *)imgp->image_header;
 	b_arg.brandnote = brandnote;
 	b_arg.osrel = osrel;
 	f_arg.has_fctl0 = has_fctl0;
