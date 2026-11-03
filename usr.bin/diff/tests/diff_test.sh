@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-2-Clause
+
 atf_test_case simple
 atf_test_case unified
 atf_test_case header
