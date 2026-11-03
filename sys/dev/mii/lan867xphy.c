@@ -20,9 +20,9 @@
  * - Link status (D0 and later)
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 
