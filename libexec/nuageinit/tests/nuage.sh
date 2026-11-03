@@ -12,6 +12,7 @@ atf_test_case settimezone
 atf_test_case addsshkey
 atf_test_case adduser
 atf_test_case adduser_passwd
+atf_test_case adduser_uid
 atf_test_case addgroup
 atf_test_case addfile
 atf_test_case decode_base64
@@ -80,6 +81,23 @@ adduser_passwd_body()
 		$(atf_get_srcdir)/crypt $passhash "barcrypted"
 }
 
+adduser_uid_head()
+{
+	atf_set "require.user" root
+}
+
+adduser_uid_body()
+{
+	mkdir etc
+	printf "root:*:0:0::0:0:Charlie &:/root:/bin/sh\n" > etc/master.passwd
+	pwd_mkdb -d etc etc/master.passwd
+	printf "wheel:*:0:root\n" > etc/group
+	atf_check -e inline:"nuageinit: invalid uid for user baduser\n" /usr/libexec/flua $(atf_get_srcdir)/adduser_uid.lua
+	atf_check -s exit:1 grep '^baduser:' etc/master.passwd
+	atf_check -o inline:"1600\n" awk -F ':' '/^numericuser:/ {print $3}' etc/master.passwd
+	atf_check -o inline:"1601\n" awk -F ':' '/^stringuser:/ {print $3}' etc/master.passwd
+}
+
 addgroup_body()
 {
 	mkdir etc
@@ -122,6 +140,7 @@ atf_init_test_cases()
 	atf_add_test_case addsshkey
 	atf_add_test_case adduser
 	atf_add_test_case adduser_passwd
+	atf_add_test_case adduser_uid
 	atf_add_test_case addgroup
 	atf_add_test_case addfile
 	atf_add_test_case decode_base64
