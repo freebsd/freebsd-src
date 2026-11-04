@@ -103,7 +103,7 @@ gve_rx_alloc_ring_dqo(struct gve_priv *priv, int i)
 
 	err = gve_dma_alloc_coherent(priv,
 	    sizeof(struct gve_rx_desc_dqo) * priv->rx_desc_cnt,
-	    CACHE_LINE_SIZE, &rx->desc_ring_mem);
+	    PAGE_SIZE, &rx->desc_ring_mem);
 	if (err != 0) {
 		device_printf(priv->dev,
 		    "Failed to alloc desc ring for rx ring %d", i);
@@ -114,7 +114,7 @@ gve_rx_alloc_ring_dqo(struct gve_priv *priv, int i)
 
 	err = gve_dma_alloc_coherent(priv,
 	    sizeof(struct gve_rx_compl_desc_dqo) * priv->rx_desc_cnt,
-	    CACHE_LINE_SIZE, &rx->dqo.compl_ring_mem);
+	    PAGE_SIZE, &rx->dqo.compl_ring_mem);
 	if (err != 0) {
 		device_printf(priv->dev,
 		    "Failed to alloc compl ring for rx ring %d", i);

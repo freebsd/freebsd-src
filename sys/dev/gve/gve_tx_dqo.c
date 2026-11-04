@@ -173,7 +173,7 @@ gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	/* Descriptor ring */
 	err = gve_dma_alloc_coherent(priv,
 	    sizeof(union gve_tx_desc_dqo) * priv->tx_desc_cnt,
-	    CACHE_LINE_SIZE, &tx->desc_ring_mem);
+	    PAGE_SIZE, &tx->desc_ring_mem);
 	if (err != 0) {
 		device_printf(priv->dev,
 		    "Failed to alloc desc ring for tx ring %d", i);
@@ -184,7 +184,7 @@ gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	/* Completion ring */
 	err = gve_dma_alloc_coherent(priv,
 	    sizeof(struct gve_tx_compl_desc_dqo) * priv->tx_desc_cnt,
-	    CACHE_LINE_SIZE, &tx->dqo.compl_ring_mem);
+	    PAGE_SIZE, &tx->dqo.compl_ring_mem);
 	if (err != 0) {
 		device_printf(priv->dev,
 		    "Failed to alloc compl ring for tx ring %d", i);
