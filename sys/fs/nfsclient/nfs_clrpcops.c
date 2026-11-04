@@ -1861,7 +1861,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 			 * within the pages, this can only be done for the first
 			 * iteration.
 			 */
-			tmp_off = start_off - uiop->uio_offset;
+			tmp_off = uiop->uio_offset - start_off;
 			if (pgp != NULL && (tmp_off & PAGE_MASK) == 0 &&
 			    (start_off & PAGE_MASK) == 0 &&
 			    uiop->uio_segflg == UIO_SYSSPACE &&
