@@ -651,7 +651,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case SW_EGAMONO80x25:
 	if (!(adp->va_flags & V_ADP_MODECHANGE))
  	    return ENODEV;
-	return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0, 0);
+	return sc_set_text_mode(scp, tp, IOCNUM(cmd), 0, 0, 0, 0);
 
     /* GRAPHICS MODES */
     case SW_BG320:     case SW_BG640:
@@ -661,7 +661,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case SW_VGA_MODEX:
 	if (!(adp->va_flags & V_ADP_MODECHANGE))
 	    return ENODEV;
-	return sc_set_graphics_mode(scp, tp, cmd & 0xff);
+	return sc_set_graphics_mode(scp, tp, IOCNUM(cmd));
 #endif /* SC_NO_MODE_CHANGE */
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \

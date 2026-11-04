@@ -332,7 +332,7 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 	    ifp->if_xname,
 	    str,
 	    IOCGROUP(command),
-	    command & 0xff,
+	    IOCNUM(command),
 	    IOCPARM_LEN(command));
 }
 #endif /* DEBUG */

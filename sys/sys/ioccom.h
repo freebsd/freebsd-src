@@ -47,6 +47,7 @@
 #define	IOCPARM_LEN(x)	(((x) >> 16) & IOCPARM_MASK)
 #define	IOCBASECMD(x)	((x) & ~(IOCPARM_MASK << 16))
 #define	IOCGROUP(x)	(((x) >> 8) & 0xff)
+#define	IOCNUM(x)	((x) & 0xff)
 
 #define	IOCPARM_MAX	(1 << IOCPARM_SHIFT) /* max size of ioctl */
 
