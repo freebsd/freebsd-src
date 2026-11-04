@@ -221,6 +221,19 @@ Incoming TCP and UDP connections are distributed among the participating
 listening sockets based on a hash function of local port number, and foreign IP
 address and port number.
 A maximum of 256 sockets can be bound to the same load-balancing group.
+.Pp
+IPv6 sockets with
+.Dv IPV6_V6ONLY
+disabled may participate in a load-balancing group and receive both IPv4 and
+IPv6 traffic.
+For otherwise equivalent wildcard matches, IPv6-only groups take precedence
+over dual-stack groups for IPv6 traffic, and IPv4 sockets take precedence over
+dual-stack groups for IPv4 traffic.
+Bindings to a specific local IPv6 address retain precedence over dual-stack
+wildcard groups.
+For jail-owned destinations, matching jailed groups retain precedence over
+host groups regardless of whether the groups are IPv4-only, IPv6-only, or
+dual-stack.
 .Dv PF_DIVERT
 sockets may also be bound to a group, see the
 .Xr divert 4

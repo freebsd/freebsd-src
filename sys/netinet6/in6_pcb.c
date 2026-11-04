@@ -924,10 +924,11 @@ in6_pcblookup_lb_match(const struct inpcblbgroup *grp, int domain, int fib)
 static struct inpcb *
 in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
     const struct in6_addr *faddr, uint16_t fport, const struct in6_addr *laddr,
-    uint16_t lport, uint8_t domain, int fib, struct lbgroupbucket **bucketp)
+    uint16_t lport, uint8_t domain, int fib, bool dualstack,
+    struct lbgroupbucket **bucketp)
 {
 	struct lbgroupbucket *bucket;
-	struct inpcblbgroup *grp;
+	struct inpcblbgroup *grp, **candidate;
 	struct inpcblbgroup *jail_exact, *jail_wild, *local_exact, *local_wild;
 	struct inpcb *inp;
 	u_int count;
@@ -939,6 +940,7 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	 * Search for an LB group match based on the following criteria:
 	 * - prefer jailed groups to non-jailed groups
 	 * - prefer exact source address matches to wildcard matches
+	 * - prefer IPv6-only groups to dual-stack groups
 	 * - prefer groups bound to the specified NUMA domain 
 	 */
 	jail_exact = jail_wild = local_exact = local_wild = NULL;
@@ -950,7 +952,7 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 		INPBUCKET_LOCK(bucket);
 	}
 	CK_LIST_FOREACH(grp, &bucket->head, il_list) {
-		bool injail;
+		bool injail, isdual;
 
 #ifdef INET
 		if (!(grp->il_vflag & INP_IPV6))
@@ -958,32 +960,26 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 #endif
 		if (grp->il_lport != lport)
 			continue;
-
 		injail = prison_flag(grp->il_cred, PR_IP6) != 0;
+		isdual = (grp->il_vflag & INP_IPV4) != 0;
+		/* Jail priority must hold across both address-family passes. */
+		if (isdual != dualstack && (dualstack || !injail))
+			continue;
 		if (injail && prison_check_ip6_locked(grp->il_cred->cr_prison,
 		    laddr) != 0)
 			continue;
 
 		if (IN6_ARE_ADDR_EQUAL(&grp->il6_laddr, laddr)) {
-			if (injail) {
-				jail_exact = grp;
-				if (in6_pcblookup_lb_match(grp, domain, fib))
-					/* This is a perfect match. */
-					goto out;
-			} else if (local_exact == NULL ||
-			    in6_pcblookup_lb_match(grp, domain, fib)) {
-				local_exact = grp;
-			}
+			candidate = injail ? &jail_exact : &local_exact;
 		} else if (IN6_IS_ADDR_UNSPECIFIED(&grp->il6_laddr)) {
-			if (injail) {
-				if (jail_wild == NULL ||
-				    in6_pcblookup_lb_match(grp, domain, fib))
-					jail_wild = grp;
-			} else if (local_wild == NULL ||
-			    in6_pcblookup_lb_match(grp, domain, fib)) {
-				local_wild = grp;
-			}
+			candidate = injail ? &jail_wild : &local_wild;
+		} else {
+			continue;
 		}
+		if (*candidate == NULL ||
+		    (isdual == (((*candidate)->il_vflag & INP_IPV4) != 0) ?
+		    in6_pcblookup_lb_match(grp, domain, fib) : !isdual))
+			*candidate = grp;
 	}
 
 	if (jail_exact != NULL)
@@ -996,7 +992,6 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 		grp = local_wild;
 	if (grp == NULL)
 		return (NULL);
-out:
 	/*
 	 * Synchronize with in_pcblbgroup_insert().
 	 */
@@ -1074,15 +1069,79 @@ in6_pcblookup_wild_match(const struct inpcb *inp, const struct in6_addr *laddr,
 	return (INPLOOKUP_MATCH_NONE);
 }
 
-#define	INP_LOOKUP_AGAIN	((struct inpcb *)(uintptr_t)-1)
-
-static struct inpcb *
-in6_pcblookup_wild_smr(struct inpcbinfo *pcbinfo,
-    const struct in6_addr *laddr, u_short lport, int fib,
-    const inp_lookup_t lockflags)
+static bool
+in6_pcblookup_jail_wild_smr(struct inpcbinfo *pcbinfo,
+    const struct in6_addr *laddr, u_short lport, int fib)
 {
 	struct inpbucket *bucket;
 	struct inpcb *inp;
+
+	KASSERT(SMR_ENTERED(pcbinfo->ipi_smr),
+	    ("%s: not in SMR read section", __func__));
+
+	bucket = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
+	    pcbinfo->ipi_hashmask)];
+	CK_LIST_FOREACH(inp, &bucket->head, inp_hash_wild) {
+		if (in6_pcblookup_wild_match(inp, laddr, lport, fib) !=
+		    INPLOOKUP_MATCH_NONE &&
+		    prison_flag(inp->inp_cred, PR_IP6) != 0)
+			return (true);
+	}
+	return (false);
+}
+
+#define	INP_LOOKUP_AGAIN	((struct inpcb *)(uintptr_t)-1)
+
+static struct inpcb *
+in6_pcblookup_dualstack_lb_smr(struct inpcbinfo *pcbinfo,
+    const struct in6_addr *faddr, u_short fport, const struct in6_addr *laddr,
+    u_short lport, uint8_t numa_domain, int fib, const inp_lookup_t lockflags)
+{
+	struct inpbucket *bucket;
+	struct inpcb *inp, *other;
+
+	KASSERT(SMR_ENTERED(pcbinfo->ipi_smr),
+	    ("%s: not in SMR read section", __func__));
+
+	inp = in6_pcblookup_lbgroup(pcbinfo, faddr, fport, laddr, lport,
+	    numa_domain, fib, true, NULL);
+	if (inp == NULL)
+		return (NULL);
+
+	bucket = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
+	    pcbinfo->ipi_hashmask)];
+	CK_LIST_FOREACH(other, &bucket->head, inp_hash_wild) {
+		if (in6_pcblookup_wild_match(other, laddr, lport, fib) ==
+		    INPLOOKUP_MATCH_NONE)
+			continue;
+		if ((other->inp_flags & INP_INLBGROUP) == 0 ||
+		    (other->inp_vflag & INP_IPV4) == 0) {
+			smr_exit(pcbinfo->ipi_smr);
+			return (INP_LOOKUP_AGAIN);
+		}
+	}
+
+	if (__predict_true(inp_smr_lock(inp, lockflags))) {
+		if ((inp->inp_flags & INP_INLBGROUP) != 0 &&
+		    (inp->inp_vflag & INP_IPV4) != 0 &&
+		    in6_pcblookup_wild_match(inp, laddr, lport, RT_ALL_FIBS) !=
+		    INPLOOKUP_MATCH_NONE &&
+		    prison_check_ip6_locked(inp->inp_cred->cr_prison,
+		    laddr) == 0)
+			return (inp);
+		inp_unlock(inp, lockflags);
+	}
+
+	return (INP_LOOKUP_AGAIN);
+}
+
+static struct inpcb *
+in6_pcblookup_wild_smr(struct inpcbinfo *pcbinfo,
+    const struct in6_addr *faddr, u_short fport, const struct in6_addr *laddr,
+    u_short lport, uint8_t numa_domain, int fib, const inp_lookup_t lockflags)
+{
+	struct inpbucket *bucket;
+	struct inpcb *inp, *other;
 
 	KASSERT(SMR_ENTERED(pcbinfo->ipi_smr),
 	    ("%s: not in SMR read section", __func__));
@@ -1096,6 +1155,26 @@ in6_pcblookup_wild_smr(struct inpcbinfo *pcbinfo,
 		if (match == INPLOOKUP_MATCH_NONE)
 			continue;
 
+		if ((inp->inp_vflag & INP_IPV4) != 0 &&
+		    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+			other = in6_pcblookup_dualstack_lb_smr(pcbinfo, faddr,
+			    fport, laddr, lport, numa_domain, fib, lockflags);
+			if (other != NULL)
+				return (other);
+		}
+		if ((inp->inp_vflag & INP_IPV4) != 0 &&
+		    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+			for (other = CK_LIST_NEXT(inp, inp_hash_wild);
+			    other != NULL;
+			    other = CK_LIST_NEXT(other, inp_hash_wild)) {
+				if ((other->inp_vflag & INP_IPV4) == 0 &&
+				    in6_pcblookup_wild_match(other, laddr,
+				    lport, fib) != INPLOOKUP_MATCH_NONE) {
+					smr_exit(pcbinfo->ipi_smr);
+					return (INP_LOOKUP_AGAIN);
+				}
+			}
+		}
 		if (__predict_true(inp_smr_lock(inp, lockflags))) {
 			match = in6_pcblookup_wild_match(inp, laddr, lport,
 			    fib);
@@ -1121,7 +1200,7 @@ in6_pcblookup_wild_locked(struct inpcbinfo *pcbinfo,
     struct inpbucket **bucketp)
 {
 	struct inpbucket *bucket;
-	struct inpcb *inp, *jail_wild, *local_exact, *local_wild;
+	struct inpcb *inp, *jail_wild, *local_exact, *local_wild, **wild;
 
 	MPASS(bucketp != NULL);
 
@@ -1131,6 +1210,7 @@ in6_pcblookup_wild_locked(struct inpcbinfo *pcbinfo,
 	 *      2. jailed, wild.
 	 *      3. non-jailed, non-wild.
 	 *      4. non-jailed, wild.
+	 * Within each wildcard tier, prefer IPv6-only sockets.
 	 */
 	local_wild = local_exact = jail_wild = NULL;
 	bucket = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
@@ -1162,10 +1242,11 @@ in6_pcblookup_wild_locked(struct inpcbinfo *pcbinfo,
 			else
 				local_exact = inp;
 		} else {
-			if (injail)
-				jail_wild = inp;
-			else
-				local_wild = inp;
+			wild = injail ? &jail_wild : &local_wild;
+			if (*wild == NULL ||
+			    ((*wild)->inp_vflag & INP_IPV4) != 0 ||
+			    (inp->inp_vflag & INP_IPV4) == 0)
+				*wild = inp;
 		}
 	}
 
@@ -1184,8 +1265,9 @@ in6_pcblookup_internal(struct inpcbinfo_ctx *ipictx,
     const struct in6_addr *laddr, u_int lport_arg, int lookupflags,
     uint8_t numa_domain, int fib)
 {
-	struct inpcb *inp;
+	struct inpcb *inp, *lbinp;
 	u_short fport = fport_arg, lport = lport_arg;
+	bool use_lb;
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD | INPLOOKUP_FIB)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
@@ -1201,13 +1283,51 @@ in6_pcblookup_internal(struct inpcbinfo_ctx *ipictx,
 
 	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		inp = in6_pcblookup_lbgroup(ipictx->pcbinfo, faddr, fport,
-		    laddr, lport, numa_domain, fib, &ipictx->lbbucket);
-		if (inp == NULL) {
+		    laddr, lport, numa_domain, fib, false, &ipictx->lbbucket);
+		if (inp != NULL && (inp->inp_vflag & INP_IPV4) == 0 &&
+		    prison_flag(inp->inp_cred, PR_IP6) == 0) {
+			INPBUCKET_UNLOCK(ipictx->lbbucket);
+			ipictx->lbbucket = NULL;
+			lbinp = in6_pcblookup_wild_locked(ipictx->pcbinfo,
+			    laddr, lport, fib, &ipictx->wbucket);
+			if (lbinp != NULL &&
+			    prison_flag(lbinp->inp_cred, PR_IP6) != 0)
+				return (lbinp);
+			INPBUCKET_UNLOCK(ipictx->wbucket);
+			ipictx->wbucket = NULL;
+			inp = in6_pcblookup_lbgroup(ipictx->pcbinfo, faddr,
+			    fport, laddr, lport, numa_domain, fib, false,
+			    &ipictx->lbbucket);
+		}
+		if (inp == NULL || (inp->inp_vflag & INP_IPV4) != 0) {
 			/* See comment in in_pcblookup_internal(). */
 			INPBUCKET_UNLOCK(ipictx->lbbucket);
 			ipictx->lbbucket = NULL;
 			inp = in6_pcblookup_wild_locked(ipictx->pcbinfo, laddr,
 			    lport, fib, &ipictx->wbucket);
+			/* Lock the wild bucket before the LB bucket. */
+			lbinp = in6_pcblookup_lbgroup(ipictx->pcbinfo,
+			    faddr, fport, laddr, lport, numa_domain, fib, true,
+			    &ipictx->lbbucket);
+			use_lb = inp == NULL;
+			if (inp != NULL && lbinp != NULL) {
+				if (prison_flag(inp->inp_cred, PR_IP6) !=
+				    prison_flag(lbinp->inp_cred, PR_IP6)) {
+					use_lb = prison_flag(lbinp->inp_cred,
+					    PR_IP6) != 0;
+				} else {
+					use_lb =
+					    (inp->inp_vflag & INP_IPV4) != 0 &&
+					    IN6_IS_ADDR_UNSPECIFIED(
+					    &inp->in6p_laddr);
+				}
+			}
+			if (lbinp != NULL && use_lb)
+				inp = lbinp;
+			else {
+				INPBUCKET_UNLOCK(ipictx->lbbucket);
+				ipictx->lbbucket = NULL;
+			}
 		}
 	}
 	return (inp);
@@ -1218,27 +1338,35 @@ in6_pcblookup_with_lock(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
     u_int fport, const struct in6_addr *laddr, u_int lport, int lookupflags,
     uint8_t numa_domain, int fib)
 {
-	struct inpcbinfo_ctx ipictx = {
-		.pcbinfo = pcbinfo
-	};
 	struct inpcb *inp;
 	const inp_lookup_t lockflags = lookupflags & INPLOOKUP_LOCKMASK;
 
 	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
 	    ("%s: LOCKPCB not set", __func__));
 
-	inp = in6_pcblookup_internal(&ipictx, faddr, fport, laddr, lport,
-	    lookupflags & ~INPLOOKUP_LOCKMASK, numa_domain, fib);
-	if (inp != NULL && !inp_trylock(inp, lockflags)) {
+	for (;;) {
+		struct inpcbinfo_ctx ipictx = {
+			.pcbinfo = pcbinfo
+		};
+
+		inp = in6_pcblookup_internal(&ipictx, faddr, fport, laddr,
+		    lport, lookupflags & ~INPLOOKUP_LOCKMASK, numa_domain,
+		    fib);
+		if (inp == NULL || inp_trylock(inp, lockflags)) {
+			inpcbinfo_ctx_release(&ipictx);
+			return (inp);
+		}
+
+		/*
+		 * Dropping the bucket locks invalidates the lookup.  Wait for
+		 * the PCB lock, then restart with a fresh context.
+		 */
 		in_pcbref(inp);
 		inpcbinfo_ctx_release(&ipictx);
 		inp_lock(inp, lockflags);
-		if (in_pcbrele(inp, lockflags))
-			/* XXX-MJ or retry until we get a negative match? */
-			inp = NULL;
-	} else
-		inpcbinfo_ctx_release(&ipictx);
-	return (inp);
+		if (!in_pcbrele(inp, lockflags))
+			inp_unlock(inp, lockflags);
+	}
 }
 
 static struct inpcb *
@@ -1274,8 +1402,31 @@ in6_pcblookup_smr(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
 
 	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		inp = in6_pcblookup_lbgroup(pcbinfo, faddr, fport,
-		    laddr, lport, numa_domain, fib, NULL);
+		    laddr, lport, numa_domain, fib, false, NULL);
+		if (inp != NULL && (inp->inp_vflag & INP_IPV4) != 0) {
+			inp = in6_pcblookup_dualstack_lb_smr(pcbinfo, faddr,
+			    fport, laddr, lport, numa_domain, fib, lockflags);
+			if (inp == INP_LOOKUP_AGAIN)
+				return (in6_pcblookup_with_lock(pcbinfo, faddr,
+				    fport, laddr, lport, lookupflags,
+				    numa_domain, fib));
+			if (inp == NULL) {
+				smr_exit(pcbinfo->ipi_smr);
+				return (in6_pcblookup_with_lock(pcbinfo, faddr,
+				    fport, laddr, lport, lookupflags,
+				    numa_domain, fib));
+			}
+			return (inp);
+		}
 		if (inp != NULL) {
+			if (prison_flag(inp->inp_cred, PR_IP6) == 0 &&
+			    in6_pcblookup_jail_wild_smr(pcbinfo, laddr, lport,
+			    fib)) {
+				smr_exit(pcbinfo->ipi_smr);
+				return (in6_pcblookup_with_lock(pcbinfo, faddr,
+				    fport, laddr, lport, lookupflags,
+				    numa_domain, fib));
+			}
 			if (__predict_true(inp_smr_lock(inp, lockflags))) {
 				if (__predict_true(in6_pcblookup_wild_match(inp,
 				    laddr, lport, fib) != INPLOOKUP_MATCH_NONE))
@@ -1284,8 +1435,12 @@ in6_pcblookup_smr(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
 			}
 			inp = INP_LOOKUP_AGAIN;
 		} else {
-			inp = in6_pcblookup_wild_smr(pcbinfo, laddr, lport,
-			    fib, lockflags);
+			inp = in6_pcblookup_wild_smr(pcbinfo, faddr, fport,
+			    laddr, lport, numa_domain, fib, lockflags);
+			if (inp == NULL)
+				inp = in6_pcblookup_dualstack_lb_smr(pcbinfo,
+				    faddr, fport, laddr, lport, numa_domain,
+				    fib, lockflags);
 		}
 		if (inp == INP_LOOKUP_AGAIN) {
 			return (in6_pcblookup_with_lock(pcbinfo, faddr, fport,
