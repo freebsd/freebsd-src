@@ -1156,6 +1156,13 @@ vtpci_modern_probe_and_attach_child(struct vtpci_modern_softc *sc)
 		/* Reset state for later attempt. */
 		vtpci_modern_child_detached(dev, child);
 	} else {
+		/*
+		 * It may be the case that the device will only be polled and
+		 * an interrupt never configured, so enable our virtqueues here
+		 * if they hadn't been already.
+		 */
+		vtpci_modern_enable_virtqueues(sc);
+
 		vtpci_modern_set_status(sc, VIRTIO_CONFIG_STATUS_DRIVER_OK);
 		VIRTIO_ATTACH_COMPLETED(child);
 	}
@@ -1307,6 +1314,9 @@ vtpci_modern_enable_virtqueues(struct vtpci_modern_softc *sc)
 
 	for (idx = 0; idx < sc->vtpci_common.vtpci_nvqs; idx++) {
 		vtpci_modern_select_virtqueue(sc, idx);
+		if (vtpci_modern_read_common_2(sc,
+		    VIRTIO_PCI_COMMON_Q_ENABLE) != 0)
+			continue;
 		vtpci_modern_write_common_2(sc, VIRTIO_PCI_COMMON_Q_ENABLE, 1);
 	}
 }
