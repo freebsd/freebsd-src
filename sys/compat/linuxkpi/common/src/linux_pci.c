@@ -521,6 +521,8 @@ lkpi_pci_dev_init_common(device_t dev, struct pci_dev *pdev)
 		 */
 		pdev->bus->self = pdev;
 	}
+	pdev->msi_cap = dinfo->cfg.msi.msi_location;
+	pdev->msix_cap = dinfo->cfg.msix.msix_location;
 	pdev->dev.bsddev = dev;
 	pdev->dev.parent = &linux_root_device;
 
