@@ -380,7 +380,7 @@ static driver_t bnxt_iflib_driver = {
 /*
  * iflib shared context
  */
-#define BNXT_DRIVER_VERSION	"230.0.133.0"
+#define BNXT_DRIVER_VERSION	"239.1.153.0"
 const char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 
 static char drv_version_msg[] =
