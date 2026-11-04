@@ -72,6 +72,7 @@
 #define	CP2112_PART_NUM			0x0c
 #define	CP2112_GPIO_COUNT		8
 #define	CP2112_REPORT_SIZE		64
+#define	CP2112_IIC_TIMEOUT		(USB_DEFAULT_TIMEOUT * SBT_1MS)
 
 #define	CP2112_REQ_RESET		0x1
 #define	CP2112_REQ_GPIO_CFG		0x2
@@ -257,7 +258,7 @@ static int cp2112iic_detach(device_t dev);
 
 static const STRUCT_USB_HOST_ID cp2112_devs[] = {
 	{ USB_VP(USB_VENDOR_SILABS, USB_PRODUCT_SILABS_CP2112) },
-	{ USB_VP(0x1009, USB_PRODUCT_SILABS_CP2112) }, /* XXX */
+	{ USB_VP(USB_VENDOR_LUMANATE, USB_PRODUCT_SILABS_CP2112) },
 };
 
 static int
@@ -760,6 +761,7 @@ cp2112iic_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		device_printf(sc->dev, "write intr state %d error %d\n",
 		    USB_GET_STATE(xfer), error);
 		sc->io.out.error = IIC_EBUSERR;
+		sc->io.out.done = 1;
 		cv_signal(&sc->io.cv);
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -871,6 +873,8 @@ static int
 cp2112iic_send_req(struct cp2112iic_softc *sc, const void *data,
     uint16_t len)
 {
+	sbintime_t deadline;
+	bool timedout = false;
 	int err;
 
 	mtx_assert(&sc->io.lock, MA_OWNED);
@@ -881,17 +885,23 @@ cp2112iic_send_req(struct cp2112iic_softc *sc, const void *data,
 
 	DTRACE_PROBE1(send__req, uint8_t, *(const uint8_t *)data);
 
+	deadline = sbinuptime() + CP2112_IIC_TIMEOUT;
 	usbd_transfer_start(sc->xfers[CP2112_INTR_OUT]);
 
-	while (!sc->io.out.done)
-		cv_wait(&sc->io.cv, &sc->io.lock);
+	while (!sc->io.out.done) {
+		if (cv_timedwait_sbt(&sc->io.cv, &sc->io.lock, deadline, 0,
+		    C_ABSOLUTE) == EWOULDBLOCK && !sc->io.out.done) {
+			timedout = true;
+			break;
+		}
+	}
 
 	usbd_transfer_stop(sc->xfers[CP2112_INTR_OUT]);
 
 	sc->io.out.done = 0;
 	sc->io.out.data = NULL;
 	sc->io.out.len = 0;
-	err = sc->io.out.error;
+	err = timedout ? IIC_ETIMEOUT : sc->io.out.error;
 	if (err != 0) {
 		device_printf(sc->dev, "output report 0x%02x failed: %d\n",
 		    *(const uint8_t*)data, err);
@@ -903,6 +913,7 @@ static int
 cp2112iic_req_resp(struct cp2112iic_softc *sc, const void *req_data,
     uint16_t req_len, void *resp_data, uint16_t resp_len)
 {
+	sbintime_t deadline;
 	int err;
 
 	mtx_assert(&sc->io.lock, MA_OWNED);
@@ -917,13 +928,26 @@ cp2112iic_req_resp(struct cp2112iic_softc *sc, const void *req_data,
 
 	err = cp2112iic_send_req(sc, req_data, req_len);
 	if (err != 0) {
+		sc->io.in.done = 0;
+		sc->io.in.error = 0;
 		sc->io.in.len = 0;
 		sc->io.in.data = NULL;
 		return (err);
 	}
 
-	while (!sc->io.in.done)
-		cv_wait(&sc->io.cv, &sc->io.lock);
+	deadline = sbinuptime() + CP2112_IIC_TIMEOUT;
+	while (!sc->io.in.done) {
+		if (cv_timedwait_sbt(&sc->io.cv, &sc->io.lock, deadline, 0,
+		    C_ABSOLUTE) == EWOULDBLOCK && !sc->io.in.done) {
+			/*
+			 * A response arriving after this is unsolicited and
+			 * ignored by the interrupt callback, since in.len is
+			 * cleared below.
+			 */
+			sc->io.in.error = IIC_ETIMEOUT;
+			break;
+		}
+	}
 
 	err = sc->io.in.error;
 	sc->io.in.done = 0;
@@ -938,9 +962,11 @@ cp2112iic_check_req_status(struct cp2112iic_softc *sc)
 {
 	struct i2c_xfer_status_req xfer_status_req;
 	struct i2c_xfer_status_resp xfer_status_resp;
+	sbintime_t deadline;
 	int err;
 
 	mtx_assert(&sc->io.lock, MA_OWNED);
+	deadline = sbinuptime() + CP2112_IIC_TIMEOUT;
 
 	do {
 		xfer_status_req.id = CP2112_REQ_SMB_XFER_STATUS_REQ;
@@ -948,6 +974,8 @@ cp2112iic_check_req_status(struct cp2112iic_softc *sc)
 		err = cp2112iic_req_resp(sc,
 		    &xfer_status_req, sizeof(xfer_status_req),
 		    &xfer_status_resp, sizeof(xfer_status_resp));
+		if (err != 0)
+			goto out;
 
 		if (xfer_status_resp.id != CP2112_REQ_SMB_XFER_STATUS_RESP) {
 			device_printf(sc->dev,
@@ -998,6 +1026,8 @@ cp2112iic_check_req_status(struct cp2112iic_softc *sc)
 			err = IIC_EBUSERR;
 			break;
 		}
+		if (err == ERESTART && sbinuptime() >= deadline)
+			err = IIC_ETIMEOUT;
 
 	} while (err == ERESTART);
 out:

@@ -589,6 +589,7 @@ vendor KONTRON		0x0fe6	Kontron AG
 vendor DVICO		0x0fe9	DViCO
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
+vendor LUMANATE		0x1009	Lumanate
 vendor MOTOROLA4	0x100d	Motorola
 vendor HP3		0x103c	Hewlett Packard
 vendor AIRPLUS		0x1011  Airplus
