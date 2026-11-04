@@ -250,7 +250,7 @@ amd_init_policy(void)
 	amd_l3_allowed_mask = (family <= 0x17) ?
 	    AMD_PMC_L3_FAMILY17_MASK : AMD_PMC_L3_FAMILY19_MASK;
 
-	amd_df_allowed_mask = (family <= 0x19) ?
+	amd_df_allowed_mask = (family <= 0x19 && !amd_perfmon_v2) ?
 	    AMD_PMC_DF_FAMILY17_MASK : AMD_PMC_DF_FAMILY1A_MASK;
 
 	amd_umc_allowed_mask = AMD_PMC_UMC_MASK;

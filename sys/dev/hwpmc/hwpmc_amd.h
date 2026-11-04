@@ -158,8 +158,8 @@
 	PMC_CAP_QUALIFIER | PMC_CAP_DOMWIDE)
 
 /*
- * DF counters change their encoding between Family 19h and Family 1Ah
- * processors.
+ * DF counters change their encoding between Family 19h processors without
+ * PerfMonV2 and later processors.
  *
  * Refer to the same documents as the L3 counters.
  */

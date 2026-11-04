@@ -34,6 +34,12 @@
 #include <sys/errno.h>
 #include <sys/pmc.h>
 #include <sys/sysctl.h>
+
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/cpufunc.h>
+#endif
+
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -520,6 +526,18 @@ pmc_pmu_print_counter_full(const char *ev)
 }
 
 #if defined(__amd64__) || defined(__i386__)
+static bool
+pmu_events_amd_perfmonv2(void)
+{
+	u_int regs[4];
+
+	do_cpuid(0x80000000, regs);
+	if (regs[0] < CPUID_EXTPERFMON)
+		return (false);
+	do_cpuid(CPUID_EXTPERFMON, regs);
+	return (EXTPERFMON_PERFMONV2(regs[0]) != 0);
+}
+
 static int
 pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	struct pmu_event_desc *ped)
@@ -581,7 +599,8 @@ pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 		}
 	} else if (strcmp("amd_df", pe->pmu) == 0) {
 		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_DATA_FABRIC;
-		if (cpu_family <= 0x19) {
+		if (cpu_family < 0x19 ||
+		    (cpu_family == 0x19 && !pmu_events_amd_perfmonv2())) {
 			amd->pm_amd_config |=
 			    AMD_PMC_DF1_TO_EVENTMASK(ped->ped_event);
 			amd->pm_amd_config |=
