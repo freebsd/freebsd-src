@@ -552,10 +552,33 @@ tpmcrb_request_locality(struct tpmcrb_sc *crb_sc, int locality)
 static void
 tpmcrb_relinquish_locality(struct tpmcrb_sc *crb_sc)
 {
+	struct resource *res = crb_sc->base.mem_res;
+	uint32_t mask;
+	int timeout;
 
-	if (crb_sc->has_locality)
-		bus_write_4(crb_sc->base.mem_res, TPM_LOC_CTRL,
-		    TPM_LOC_CTRL_RELINQUISH);
+	if (!crb_sc->has_locality)
+		return;
+
+	/* PTP 1.07, Table 37: the other fields mean something only if valid. */
+	mask = TPM_LOC_STATE_VALID | TPM_LOC_STATE_ASSIGNED;
+
+	bus_write_4(res, TPM_LOC_CTRL, TPM_LOC_CTRL_RELINQUISH);
+
+	/*
+	 * Wait for the TPM to act on the request.  Otherwise a following
+	 * tpmcrb_request_locality() can see the stale assignment and proceed
+	 * just before the locality goes away.  Read once more after the last
+	 * pause so a release during it is not reported as a failure.
+	 */
+	for (timeout = TPM_TIMEOUT_C;; timeout -= tick) {
+		if ((bus_read_4(res, TPM_LOC_STATE) & mask) ==
+		    TPM_LOC_STATE_VALID)
+			return;
+		if (timeout <= 0)
+			break;
+		pause("TPM locality", 1);
+	}
+	device_printf(crb_sc->base.dev, "Failed to relinquish locality\n");
 }
 
 static bool
@@ -783,12 +806,14 @@ out:
 		    (tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_START) &
 		    TPM_CRB_CTRL_START_CMD) != 0)
 			(void)tpmcrb_cancel_cmd(crb_sc);
-		if (!tpmcrb_state_idle(crb_sc, false)) {
+		/*
+		 * Let the TPM finish going idle before giving up the locality.
+		 * The next transmit requests idle again if needed, so a timeout
+		 * here must not discard the response of a completed command.
+		 */
+		if (!tpmcrb_state_idle(crb_sc, true))
 			device_printf(dev,
 			    "Failed to transition to idle state post-send\n");
-			if (error == 0)
-				error = EIO;
-		}
 		tpmcrb_relinquish_locality(crb_sc);
 	}
 
