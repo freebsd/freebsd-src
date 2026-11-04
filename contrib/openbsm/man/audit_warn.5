@@ -47,6 +47,11 @@ Administrators may replace this script: a more comprehensive one would take
 different actions based on the type of warning.
 For example, a low-space warning
 could result in an email message being sent to the administrator.
+.Pp
+If the script does not exist or is not executable,
+.Xr auditd 8
+will log directly to
+.Xr syslogd 8 .
 .Sh FILES
 .Bl -tag -width "/etc/security/audit_warn" -compact
 .It Pa /etc/security/audit_warn
@@ -54,7 +59,8 @@ could result in an email message being sent to the administrator.
 .Sh SEE ALSO
 .Xr logger 1 ,
 .Xr audit 4 ,
-.Xr auditd 8
+.Xr auditd 8 ,
+.Xr syslogd 8
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
