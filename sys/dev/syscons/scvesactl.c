@@ -54,9 +54,10 @@ static int
 vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
 	scr_stat *scp;
-	int mode;
+	int mode, num;
 
 	scp = SC_STAT(tp);
+	num = IOCNUM(cmd);
 
 	switch (cmd) {
 	/* generic text modes */
@@ -65,7 +66,7 @@ vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	case SW_TEXT_132x60:
 		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
-		return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0, 0);
+		return sc_set_text_mode(scp, tp, num, 0, 0, 0, 0);
 
 	/* text modes */
 	case SW_VESA_C80x60:
@@ -75,7 +76,7 @@ vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	case SW_VESA_C132x60:
 		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
-		mode = (cmd & 0xff) + M_VESA_BASE;
+		mode = num + M_VESA_BASE;
 		return sc_set_text_mode(scp, tp, mode, 0, 0, 0, 0);
 
 	/* graphics modes */
@@ -101,14 +102,14 @@ vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	case SW_VESA_FULL_1280:
 		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
-		mode = (cmd & 0xff) + M_VESA_BASE;
+		mode = num + M_VESA_BASE;
 		return sc_set_graphics_mode(scp, tp, mode);
 	default:
 		if (IOCGROUP(cmd) == 'V') {
 			if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 				return ENODEV;
 
-			mode = (cmd & 0xff) + M_VESA_BASE;
+			mode = num + M_VESA_BASE;
 
 			if (((cmd & IOC_DIRMASK) == IOC_VOID) &&
 			    (mode > M_VESA_FULL_1280) &&
