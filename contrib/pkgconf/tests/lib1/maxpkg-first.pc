@@ -1,0 +1,5 @@
+qux=first-value
+
+Name: maxpkg-first
+Description: test fixture
+Version: 1.0.0

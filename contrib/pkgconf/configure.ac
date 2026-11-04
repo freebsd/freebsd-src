@@ -12,7 +12,7 @@ dnl implied.  In no event shall the authors be liable for any damages arising
 dnl from the use of this software.
 
 AC_PREREQ([2.71])
-AC_INIT([pkgconf],[2.9.93],[https://github.com/pkgconf/pkgconf/issues/new])
+AC_INIT([pkgconf],[3.0.9],[https://github.com/pkgconf/pkgconf/issues/new])
 AC_MSG_WARN([
 ===================================================================
 Autotools support is deprecated and will be removed in pkgconf 3.1.
@@ -25,12 +25,14 @@ AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"])
 AX_CHECK_COMPILE_FLAG([-Wextra], [CFLAGS="$CFLAGS -Wextra"])
 AX_CHECK_COMPILE_FLAG([-Wformat=2], [CFLAGS="$CFLAGS -Wformat=2"])
 AX_CHECK_COMPILE_FLAG([-std=c99], [CFLAGS="$CFLAGS -std=c99"])
-CPPFLAGS="$CPPFLAGS -D_BSD_SOURCE -D_DARWIN_C_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
+CPPFLAGS="$CPPFLAGS -D_ATFILE_SOURCE -D_BSD_SOURCE -D_DARWIN_C_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 AC_CONFIG_HEADERS([libpkgconf/config.h])
 AC_CHECK_DECLS([strndup], [], [], [[#include <string.h>]])
 AC_CHECK_DECLS([pledge, unveil], [], [], [[#include <unistd.h>]])
 AC_CHECK_DECLS([readlinkat], [], [], [[#include <unistd.h>]])
 AC_CHECK_DECLS([reallocarray], [], [], [[#include <stdlib.h>]])
+AC_CHECK_DECLS([mkdtemp], [], [], [[#include <stdlib.h>]])
+AC_CHECK_DECLS([getc_unlocked], [], [], [[#include <stdio.h>]])
 AC_CHECK_DECLS([nl_langinfo_l], [], [], [[
 #ifdef __APPLE__
 #include <xlocale.h>

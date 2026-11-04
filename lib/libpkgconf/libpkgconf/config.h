@@ -1,6 +1,14 @@
 /* libpkgconf/config.h.  Generated from config.h.in by configure.  */
 /* libpkgconf/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have the declaration of 'getc_unlocked', and to 0 if you
+   don't. */
+#define HAVE_DECL_GETC_UNLOCKED 1
+
+/* Define to 1 if you have the declaration of 'mkdtemp', and to 0 if you
+   don't. */
+#define HAVE_DECL_MKDTEMP 1
+
 /* Define to 1 if you have the declaration of 'nl_langinfo_l', and to 0 if you
    don't. */
 #define HAVE_DECL_NL_LANGINFO_L 1
@@ -68,16 +76,16 @@
 #define PACKAGE_NAME "pkgconf"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "pkgconf 2.9.93"
+#define PACKAGE_STRING "pkgconf 3.0.9"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "pkgconf"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL ""
+#define PACKAGE_URL "https://github.com/pkgconf/pkgconf"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.9.93"
+#define PACKAGE_VERSION "3.0.9"
 
 /* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
@@ -85,7 +93,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "2.9.93"
+#define VERSION "3.0.9"
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

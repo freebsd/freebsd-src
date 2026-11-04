@@ -21,6 +21,22 @@
 #include "getopt_long.h"
 #include "core.h"
 
+static bool
+parse_maximum_traverse_depth(const char *value, int *depth)
+{
+	char *end;
+	long parsed;
+
+	errno = 0;
+	parsed = strtol(value, &end, 10);
+
+	if (value == end || *end != '\0' || errno == ERANGE || parsed < -1 || parsed > INT_MAX)
+		return false;
+
+	*depth = (int) parsed;
+	return true;
+}
+
 static const char *
 environ_lookup_handler(const pkgconf_client_t *client, const char *key)
 {
@@ -66,7 +82,7 @@ deduce_personality(char *argv[])
 	if (i != NULL)
 		argv0 = i + 1;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64) || defined(__OS2__)
 	i = strrchr(argv0, '\\');
 	if (i != NULL)
 		argv0 = i + 1;
@@ -166,7 +182,7 @@ usage(void)
 	printf("  --uninstalled                     check whether or not an uninstalled module will be used\n");
 	printf("  --no-uninstalled                  never use uninstalled modules when satisfying dependencies\n");
 	printf("  --no-provides                     do not use 'provides' rules to resolve dependencies\n");
-	printf("  --maximum-traverse-depth          maximum allowed depth for dependency graph\n");
+	printf("  --maximum-traverse-depth          maximum allowed depth for dependency graph (-1 for unlimited)\n");
 	printf("  --static                          be more aggressive when computing dependency graph\n");
 	printf("                                    (for static linking)\n");
 	printf("  --shared                          use a simplified dependency graph (usually default)\n");
@@ -240,6 +256,7 @@ main(int argc, char *argv[])
 	int ret;
 	pkgconf_cli_state_t state = {
 		.want_flags = 0,
+		.maximum_traverse_depth = 256,
 	};
 	pkgconf_list_t dir_list = PKGCONF_LIST_INITIALIZER;
 	char *env_traverse_depth;
@@ -252,7 +269,7 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__OS2__)
 	/* When running regression tests in cygwin, and building native
 	 * executable, tests fail unless native executable outputs unix
 	 * line endings.  Come to think of it, this will probably help
@@ -365,7 +382,12 @@ main(int argc, char *argv[])
 			state.want_variable = pkg_optarg;
 			break;
 		case 11:
-			state.maximum_traverse_depth = atoi(pkg_optarg);
+			if (!parse_maximum_traverse_depth(pkg_optarg, &state.maximum_traverse_depth))
+			{
+				pkgconf_output_file_fmt(stderr, "pkgconf: invalid maximum traverse depth: %s\n", pkg_optarg);
+				ret = EXIT_FAILURE;
+				goto out;
+			}
 			break;
 		case 27:
 			pkgconf_tuple_define_global(&state.pkg_client, pkg_optarg);
@@ -417,16 +439,28 @@ main(int argc, char *argv[])
 	}
 
 	/* now, bring up the client.  settings are preserved since the client is prealloced */
-	pkgconf_client_init(&state.pkg_client, error_handler, &state, personality, &state, environ_lookup_handler);
-	pkgconf_client_set_unveil_handler(&state.pkg_client, unveil_handler);
+	pkgconf_client_options_t client_options = {
+		.error_handler = error_handler,
+		.error_handler_data = &state,
+		.personality = personality,
+		.client_data = &state,
+		.environ_lookup_handler = environ_lookup_handler,
+		.unveil_handler = unveil_handler,
+	};
+	pkgconf_client_init_with_options(&state.pkg_client, &client_options);
 
 #ifndef PKGCONF_LITE
 	if (getenv("PKG_CONFIG_MSVC_SYNTAX") != NULL)
 		state.want_flags |= PKG_MSVC_SYNTAX;
 #endif
 
-	if ((env_traverse_depth = getenv("PKG_CONFIG_MAXIMUM_TRAVERSE_DEPTH")) != NULL)
-		state.maximum_traverse_depth = atoi(env_traverse_depth);
+	if ((env_traverse_depth = getenv("PKG_CONFIG_MAXIMUM_TRAVERSE_DEPTH")) != NULL &&
+		!parse_maximum_traverse_depth(env_traverse_depth, &state.maximum_traverse_depth))
+	{
+		pkgconf_output_file_fmt(stderr, "pkgconf: invalid maximum traverse depth: %s\n", env_traverse_depth);
+		ret = EXIT_FAILURE;
+		goto out;
+	}
 
 	if ((state.want_flags & PKG_PRINT_ERRORS) != PKG_PRINT_ERRORS)
 		state.want_flags |= (PKG_SILENCE_ERRORS);

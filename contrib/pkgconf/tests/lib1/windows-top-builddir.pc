@@ -1,0 +1,4 @@
+Name: windows-top-builddir
+Description: regression test for issue #574 (pc_top_builddir separators)
+Version: 1
+Libs: -L${pc_top_builddir}/lib -ltbd

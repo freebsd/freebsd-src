@@ -1,0 +1,7 @@
+prefix=/usr
+libs_list=-L${pc_sysrootdir}/a -L/b
+
+Name: sysroot-inject-multi-fragment
+Description: test fixture
+Version: 1.0.0
+Libs: ${libs_list}

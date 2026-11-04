@@ -1,0 +1,7 @@
+PackageSearchPath: lib1
+Query: conflicts, foo
+WantedFlags: dump-license
+ExpectedStdout: conflicts: NOASSERTION
+ExpectedStdout: foo: ISC
+ExpectedExitCode: 0
+MatchStdout: partial

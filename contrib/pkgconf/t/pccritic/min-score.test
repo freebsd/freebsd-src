@@ -1,0 +1,4 @@
+Tool: pccritic
+ToolArgs: --quiet --min-score 90 polluted
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-pccritic
+ExpectedExitCode: 1

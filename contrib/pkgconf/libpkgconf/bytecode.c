@@ -64,6 +64,21 @@ pkgconf_bytecode_eval_append(pkgconf_bytecode_eval_ctx_t *ctx, pkgconf_buffer_t 
 static bool
 pkgconf_bytecode_eval_internal(pkgconf_bytecode_eval_ctx_t *ctx, const pkgconf_bytecode_t *bc, pkgconf_buffer_t *out, bool *saw_sysroot);
 
+static bool
+pkgconf_bytecode_read_op(const uint8_t *p, size_t remaining,
+	const pkgconf_bytecode_op_t **op, size_t *op_size)
+{
+	if (p == NULL || remaining < sizeof(**op))
+		return false;
+
+	*op = (const pkgconf_bytecode_op_t *) p;
+	if ((size_t) (*op)->size > remaining - sizeof(**op))
+		return false;
+
+	*op_size = sizeof(**op) + (size_t) (*op)->size;
+	return true;
+}
+
 static pkgconf_variable_t *
 pkgconf_bytecode_eval_scan(const pkgconf_list_t *vars, const char *name, size_t nlen, unsigned int require_flags, unsigned int forbid_flags)
 {
@@ -139,8 +154,11 @@ pkgconf_bytecode_eval_internal(pkgconf_bytecode_eval_ctx_t *ctx, const pkgconf_b
 	if (bc == NULL || out == NULL)
 		return false;
 
+	if (bc->len != 0 && bc->base == NULL)
+		return false;
+
 	const uint8_t *p = bc->base;
-	const uint8_t *end = bc->base + bc->len;
+	size_t remaining = bc->len;
 
 	if (++ctx->expansions > PKGCONF_EVAL_MAX_ITERATIONS)
 	{
@@ -150,15 +168,12 @@ pkgconf_bytecode_eval_internal(pkgconf_bytecode_eval_ctx_t *ctx, const pkgconf_b
 		return false;
 	}
 
-	while (p < end)
+	while (remaining != 0)
 	{
-		const pkgconf_bytecode_op_t *op =
-			(const pkgconf_bytecode_op_t *)p;
+		const pkgconf_bytecode_op_t *op;
+		size_t op_size;
 
-		if ((const uint8_t *)op + sizeof(*op) > end)
-			return false;
-
-		if ((const uint8_t *)op + sizeof(*op) + op->size > end)
+		if (!pkgconf_bytecode_read_op(p, remaining, &op, &op_size))
 			return false;
 
 		switch (op->tag)
@@ -186,7 +201,8 @@ pkgconf_bytecode_eval_internal(pkgconf_bytecode_eval_ctx_t *ctx, const pkgconf_b
 			return false;
 		}
 
-		p = (const uint8_t *)pkgconf_bytecode_op_next(op);
+		p += op_size;
+		remaining -= op_size;
 	}
 
 	return true;
@@ -301,7 +317,7 @@ void
 pkgconf_bytecode_from_buffer(pkgconf_bytecode_t *bc, const pkgconf_buffer_t *buf)
 {
 	bc->base = (const uint8_t *)buf->base;
-	bc->len = (size_t)(buf->end - buf->base);
+	bc->len = buf->base != NULL ? (size_t)(buf->end - buf->base) : 0;
 }
 
 bool
@@ -446,24 +462,23 @@ pkgconf_bytecode_eval_str(const pkgconf_client_t *client, const pkgconf_list_t *
 bool
 pkgconf_bytecode_references_var(const pkgconf_buffer_t *buf, const char *key)
 {
-	const uint8_t *p, *end;
+	const uint8_t *p;
+	size_t remaining;
 	size_t klen;
 
 	if (buf == NULL || key == NULL)
 		return false;
 
 	klen = strlen(key);
-	p = (uint8_t *) buf->base;
-	end = (uint8_t *) buf->end;
+	p = (const uint8_t *) buf->base;
+	remaining = pkgconf_buffer_len(buf);
 
-	while (p < end)
+	while (remaining != 0)
 	{
-		const pkgconf_bytecode_op_t *op = (const pkgconf_bytecode_op_t *)p;
+		const pkgconf_bytecode_op_t *op;
+		size_t op_size;
 
-		if (p + sizeof(*op) > end)
-			return false;
-
-		if (p + sizeof(*op) + op->size > end)
+		if (!pkgconf_bytecode_read_op(p, remaining, &op, &op_size))
 			return false;
 
 		if (op->tag == PKGCONF_BYTECODE_OP_VAR)
@@ -472,7 +487,8 @@ pkgconf_bytecode_references_var(const pkgconf_buffer_t *buf, const char *key)
 				return true;
 		}
 
-		p += sizeof(*op) + op->size;
+		p += op_size;
+		remaining -= op_size;
 	}
 
 	return false;
@@ -504,17 +520,18 @@ pkgconf_bytecode_append_stream(pkgconf_buffer_t *dst, const pkgconf_buffer_t *bc
 bool
 pkgconf_bytecode_rewrite_selfrefs(pkgconf_buffer_t *out, const pkgconf_buffer_t *rhs, const char *key, const pkgconf_buffer_t *prev)
 {
-	const uint8_t *p = (uint8_t *) rhs->base;
-	const uint8_t *end = (uint8_t *) rhs->end;
+	if (out == NULL || rhs == NULL || key == NULL || prev == NULL)
+		return false;
 
-	while (p < end)
+	const uint8_t *p = (const uint8_t *) rhs->base;
+	size_t remaining = pkgconf_buffer_len(rhs);
+
+	while (remaining != 0)
 	{
-		const pkgconf_bytecode_op_t *op = (const pkgconf_bytecode_op_t *)p;
+		const pkgconf_bytecode_op_t *op;
+		size_t op_size;
 
-		if (p + sizeof(*op) > end)
-			return false;
-
-		if (p + sizeof(*op) + op->size > end)
+		if (!pkgconf_bytecode_read_op(p, remaining, &op, &op_size))
 			return false;
 
 		if (pkgconf_bytecode_op_is_selfref(op, key))
@@ -524,11 +541,12 @@ pkgconf_bytecode_rewrite_selfrefs(pkgconf_buffer_t *out, const pkgconf_buffer_t 
 		}
 		else
 		{
-			if (!pkgconf_buffer_append_slice(out, (const char *) op, sizeof(*op) + op->size))
+			if (!pkgconf_buffer_append_slice(out, (const char *) op, op_size))
 				return false;
 		}
 
-		p += sizeof(*op) + op->size;
+		p += op_size;
+		remaining -= op_size;
 	}
 
 	return true;

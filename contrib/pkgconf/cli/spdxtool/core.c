@@ -127,6 +127,116 @@ err:
 /*
  * !doc
  *
+ * .. c:function:: spdxtool_core_tool_t *spdxtool_core_tool_new(pkgconf_client_t *client, const char *creation_info_id, const char *short_name, const char *name)
+ *
+ *    Create new /Core/Tool struct
+ *
+ *    :param pkgconf_client_t *client: The pkgconf client being accessed.
+ *    :param char *creation_info_id: CreationInfo spdxId
+ *    :param char *short_name Shorter name for tool used in SPDX id (default: 'spdxtool')
+ *    :param char *name: Long name of tool (default: 'spdxtool')
+ *    :return: NULL if some problem occurs and Tool struct if not
+ */
+spdxtool_core_tool_t *
+spdxtool_core_tool_new(pkgconf_client_t *client, const char *creation_info_id, const char *short_name, const char *name)
+{
+	if (!client || !creation_info_id || !name)
+		return NULL;
+
+	spdxtool_core_tool_t *tool = calloc(1, sizeof(spdxtool_core_tool_t));
+	if (!tool)
+		goto err;
+
+	tool->type = "Tool";
+
+	char *spdx_id_name = strdup(short_name);
+	if (!spdx_id_name)
+		goto err;
+
+	spdxtool_util_string_correction(spdx_id_name);
+
+	tool->spdx_id = spdxtool_util_get_spdx_id_string(client, tool->type, spdx_id_name);
+	free(spdx_id_name);
+
+	tool->creation_info = strdup(creation_info_id);
+	tool->name = strdup(name);
+
+	if (!tool->spdx_id || !tool->creation_info || !tool->name)
+		goto err;
+
+	return tool;
+
+	err:
+	pkgconf_error(client, "spdxtool_core_agent_new: out of memory");
+	spdxtool_core_tool_free(tool);
+	return NULL;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void spdxtool_core_tool_free(spdxtool_core_tool_t *tool)
+ *
+ *    Free /Core/Tool struct
+ *
+ *    :param spdxtool_core_tool_t *tool: Tool struct to be freed.
+ *    :return: nothing
+ */
+void
+spdxtool_core_tool_free(spdxtool_core_tool_t *tool)
+{
+	if (!tool)
+		return;
+
+	free(tool->creation_info);
+	free(tool->spdx_id);
+	free(tool->name);
+
+	free(tool);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: spdxtool_serialize_value_t *spdxtool_core_tool_to_object(pkgconf_client_t *client, const spdxtool_core_tool_t *tool)
+ *
+ *    Serialize /Core/Tool struct to a JSON value tree.
+ *
+ *    :param pkgconf_client_t *client: The pkgconf client being accessed.
+ *    :param const spdxtool_core_tool_t *tool: Tool struct to be serialized.
+ *    :return: spdxtool_serialize_value_t * representing the Agent object.
+ */
+spdxtool_serialize_value_t *
+spdxtool_core_tool_to_object(pkgconf_client_t *client, const spdxtool_core_tool_t *tool)
+{
+	spdxtool_serialize_value_t *ret = NULL;
+	spdxtool_serialize_object_list_t *object_list = spdxtool_serialize_object_list_new();
+	if (!object_list)
+		goto err;
+
+	if (!(spdxtool_serialize_object_add_string(object_list, "type", tool->type) &&
+		spdxtool_serialize_object_add_string(object_list, "creationInfo", tool->creation_info) &&
+		spdxtool_serialize_object_add_string(object_list, "spdxId", tool->spdx_id) &&
+		spdxtool_serialize_object_add_string(object_list, "name", tool->name)))
+	{
+		goto err;
+	}
+
+	ret = spdxtool_serialize_value_object(object_list);
+	object_list = NULL;
+
+	err:
+	if (!ret)
+		pkgconf_error(client, "spdxtool_core_agent_to_object: out of memory");
+
+	spdxtool_serialize_object_list_free(object_list);
+	return ret;
+}
+
+
+/*
+ * !doc
+ *
  * .. c:function:: spdxtool_core_creation_info_t *spdxtool_core_creation_info_new(pkgconf_client_t *client, const char *agent_id, const char *id, const char *time)
  *
  *    Create new /Core/CreationInfo struct
@@ -140,9 +250,9 @@ err:
  *    :return: NULL if some problem occurs and CreationInfo struct if not
  */
 spdxtool_core_creation_info_t *
-spdxtool_core_creation_info_new(pkgconf_client_t *client, const char *agent_id, const char *id, const char *time)
+spdxtool_core_creation_info_new(pkgconf_client_t *client, const char *agent_id, const char *tool_id, const char *id, const char *time)
 {
-	if (!client || !agent_id || !id)
+	if (!client || !agent_id || !id || !tool_id)
 		return NULL;
 
 	spdxtool_core_creation_info_t *creation = calloc(1, sizeof(spdxtool_core_creation_info_t));
@@ -154,9 +264,10 @@ spdxtool_core_creation_info_new(pkgconf_client_t *client, const char *agent_id, 
 	creation->id = strdup(id);
 	creation->created = time ? strdup(time) : spdxtool_util_get_current_iso8601_time();
 	creation->created_by = strdup(agent_id);
+	creation->created_using = strdup(tool_id);
 	creation->spec_version = strdup(spdxtool_util_get_spdx_version(client));
 
-	if (!creation->id || !creation->created || !creation->created_by || !creation->spec_version)
+	if (!creation->id || !creation->created || !creation->created_by || !creation->created_using | !creation->spec_version)
 		goto err;
 
 	return creation;
@@ -186,6 +297,7 @@ spdxtool_core_creation_info_free(spdxtool_core_creation_info_t *creation)
 	free(creation->id);
 	free(creation->created);
 	free(creation->created_by);
+	free(creation->created_using);
 	free(creation->spec_version);
 
 	free(creation);
@@ -220,17 +332,39 @@ spdxtool_core_creation_info_to_object(pkgconf_client_t *client, const spdxtool_c
 		goto err;
 	}
 
-	if (!(spdxtool_serialize_object_add_string(object_list, "type", creation->type) &&
-		spdxtool_serialize_object_add_string(object_list, "@id", creation->id) &&
-		spdxtool_serialize_object_add_string(object_list, "created", creation->created)))
+	spdxtool_serialize_array_t *created_using = spdxtool_serialize_array_new();
+	if (!created_using)
 	{
-		/* created_by has not been handed to the object list yet */
 		spdxtool_serialize_array_free(created_by);
 		goto err;
 	}
 
+	if (!spdxtool_serialize_array_add_string(created_using, creation->created_using))
+	{
+		spdxtool_serialize_array_free(created_by);
+		spdxtool_serialize_array_free(created_using);
+		goto err;
+	}
+
+	if (!(spdxtool_serialize_object_add_string(object_list, "type", creation->type) &&
+		spdxtool_serialize_object_add_string(object_list, "@id", creation->id) &&
+		spdxtool_serialize_object_add_string(object_list, "created", creation->created)))
+	{
+		/* created_by or created_using has not been handed to the object list yet */
+		spdxtool_serialize_array_free(created_by);
+		spdxtool_serialize_array_free(created_using);
+		goto err;
+	}
+
 	/* object_add_array takes ownership of created_by, freeing it on failure */
-	if (!(spdxtool_serialize_object_add_array(object_list, "createdBy", created_by) &&
+	if (!spdxtool_serialize_object_add_array(object_list, "createdBy", created_by))
+	{
+		spdxtool_serialize_array_free(created_using);
+		goto err;
+	}
+
+	/* object_add_array takes ownership of created_using, freeing it on failure */
+	if (!(spdxtool_serialize_object_add_array(object_list, "createUsing", created_using) &&
 		spdxtool_serialize_object_add_string(object_list, "specVersion", creation->spec_version)))
 	{
 		goto err;
@@ -523,10 +657,14 @@ spdxtool_core_spdx_document_add_license(pkgconf_client_t *client, spdxtool_core_
 		return false;
 	}
 
-	pkgconf_node_insert_tail(node, expression, &spdx->licenses);
 	if (!spdxtool_core_spdx_document_add_element(client, spdx, expression->spdx_id))
+	{
+		spdxtool_simplelicensing_licenseExpression_free(expression);
+		free(node);
 		return false;
+	}
 
+	pkgconf_node_insert_tail(node, expression, &spdx->licenses);
 	return true;
 }
 
@@ -613,11 +751,14 @@ spdxtool_core_spdx_document_add_maintainer(pkgconf_client_t *client, spdxtool_co
 		return NULL;
 	}
 
-	pkgconf_node_insert_tail(node, agent, &spdx->maintainers);
-
 	if (!spdxtool_core_spdx_document_add_element(client, spdx, agent->spdx_id))
+	{
+		free(node);
+		spdxtool_core_agent_free(agent);
 		return NULL;
+	}
 
+	pkgconf_node_insert_tail(node, agent, &spdx->maintainers);
 	return agent->spdx_id;
 }
 
@@ -710,12 +851,12 @@ spdxtool_core_relationship_new(pkgconf_client_t *client, const char *creation_in
 	relationship->creation_info = strdup(creation_info_id);
 	relationship->spdx_id = strdup(spdx_id);
 	relationship->from = strdup(from);
-	relationship->to = to;
 	relationship->relationship_type = strdup(relationship_type);
 
 	if (!relationship->creation_info || !relationship->spdx_id || !relationship->from || !relationship->relationship_type)
 		goto err;
 
+	relationship->to = to;
 	return relationship;
 
 err:

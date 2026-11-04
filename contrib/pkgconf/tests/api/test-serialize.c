@@ -138,6 +138,20 @@ test_serialize_object_mixed_types(void)
 	spdxtool_serialize_object_list_free(o);
 }
 
+static void
+test_serialize_object_key_escaping(void)
+{
+	spdxtool_serialize_object_list_t *o = spdxtool_serialize_object_list_new();
+	TEST_ASSERT_NONNULL(o);
+	TEST_ASSERT_NONNULL(spdxtool_serialize_object_add_string(o, "\"\\\n\x01", "x"));
+
+	char *s = render_object(o);
+	TEST_ASSERT_STRCMP_EQ(s, "{\n    \"\\\"\\\\\\n\\u0001\": \"x\"\n}");
+
+	free(s);
+	spdxtool_serialize_object_list_free(o);
+}
+
 // Mixed-type array exercises the int/bool/null array helpers
 static void
 test_serialize_array_mixed_types(void)
@@ -196,6 +210,7 @@ main(int argc, const char **argv)
 	TEST_RUN(basename, test_serialize_value_null);
 	TEST_RUN(basename, test_serialize_escape_sequences);
 	TEST_RUN(basename, test_serialize_object_mixed_types);
+	TEST_RUN(basename, test_serialize_object_key_escaping);
 	TEST_RUN(basename, test_serialize_array_mixed_types);
 	TEST_RUN(basename, test_serialize_null_guards);
 

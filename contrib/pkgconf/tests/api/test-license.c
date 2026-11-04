@@ -48,7 +48,7 @@ test_license_insert_and_free(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_insert(client, &licenses, PKGCONF_LICENSE_EXPRESSION, "BSD-3-Clause");
+	TEST_ASSERT_TRUE(pkgconf_license_insert(client, &licenses, PKGCONF_LICENSE_EXPRESSION, "BSD-3-Clause"));
 	TEST_ASSERT_EQ(license_count(&licenses), 1);
 
 	const pkgconf_license_t *l = licenses.head->data;
@@ -78,7 +78,7 @@ test_license_evaluate_single(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "BSD-3-Clause", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "BSD-3-Clause", 0));
 
 	TEST_ASSERT_EQ(license_count(&licenses), 1);
 	const pkgconf_license_t *l = licenses.head->data;
@@ -95,7 +95,7 @@ test_license_evaluate_or(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "MIT OR ISC", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "MIT OR ISC", 0));
 
 	TEST_ASSERT_EQ(license_count(&licenses), 3);
 
@@ -113,7 +113,7 @@ test_license_evaluate_and(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "LGPL-2.1-only AND MIT", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "LGPL-2.1-only AND MIT", 0));
 
 	char *rendered = render_to_string(client, &licenses);
 	TEST_ASSERT_STRCMP_EQ(rendered, "LGPL-2.1-only AND MIT");
@@ -129,8 +129,8 @@ test_license_evaluate_multiple_keys_implicit_and(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "BSD-3-Clause", 0);
-	pkgconf_license_evaluate_str(client, &licenses, "BSD-2-Clause", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "BSD-3-Clause", 0));
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "BSD-2-Clause", 0));
 
 	char *rendered = render_to_string(client, &licenses);
 	TEST_ASSERT_STRCMP_EQ(rendered, "BSD-3-Clause AND BSD-2-Clause");
@@ -146,7 +146,7 @@ test_license_evaluate_brackets(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "ISC AND (BSD-3-Clause AND BSD-2-Clause)", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "ISC AND (BSD-3-Clause AND BSD-2-Clause)", 0));
 
 	char *rendered = render_to_string(client, &licenses);
 	TEST_ASSERT_STRCMP_EQ(rendered, "ISC AND (BSD-3-Clause AND BSD-2-Clause)");
@@ -162,7 +162,7 @@ test_license_evaluate_empty(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "", 0));
 	TEST_ASSERT_EQ(license_count(&licenses), 0);
 
 	pkgconf_license_free(&licenses);
@@ -178,7 +178,7 @@ test_license_evaluate_sanitizes(void)
 	/* The sanitiser strips characters outside the allowed set
 	 * (alnum, '-', '+', '(', ')', '.', ':').  A token of pure
 	 * junk should sanitise to empty and be skipped. */
-	pkgconf_license_evaluate_str(client, &licenses, "BSD-3-Clause", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "BSD-3-Clause", 0));
 
 	const pkgconf_license_t *l = licenses.head->data;
 	TEST_ASSERT_STRCMP_EQ(l->data, "BSD-3-Clause");
@@ -207,7 +207,7 @@ test_license_render_single(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_insert(client, &licenses, PKGCONF_LICENSE_EXPRESSION, "MIT");
+	TEST_ASSERT_TRUE(pkgconf_license_insert(client, &licenses, PKGCONF_LICENSE_EXPRESSION, "MIT"));
 
 	char *rendered = render_to_string(client, &licenses);
 	TEST_ASSERT_STRCMP_EQ(rendered, "MIT");
@@ -224,10 +224,10 @@ test_license_copy_list(void)
 	pkgconf_list_t src = PKGCONF_LIST_INITIALIZER;
 	pkgconf_list_t dst = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &src, "MIT OR ISC", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &src, "MIT OR ISC", 0));
 	size_t src_count = license_count(&src);
 
-	pkgconf_license_copy_list(client, &dst, &src);
+	TEST_ASSERT_TRUE(pkgconf_license_copy_list(client, &dst, &src));
 	TEST_ASSERT_EQ(license_count(&dst), src_count);
 
 	/* The copy is independent: freeing the source must not affect
@@ -253,7 +253,7 @@ test_license_evaluate_long_sanitized_token(void)
 	memset(token + 1, '_', 400);
 	token[401] = '\0';
 
-	pkgconf_license_evaluate_str(client, &licenses, token, 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, token, 0));
 
 	TEST_ASSERT_EQ(license_count(&licenses), 1);
 	const pkgconf_license_t *l = licenses.head->data;
@@ -270,13 +270,13 @@ test_license_evaluate_unterminated_quote(void)
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t licenses = PKGCONF_LIST_INITIALIZER;
 
-	pkgconf_license_evaluate_str(client, &licenses, "\"", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "\"", 0));
 	TEST_ASSERT_EQ(license_count(&licenses), 0);
 
-	pkgconf_license_evaluate_str(client, &licenses, "MIT \"unterminated", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "MIT \"unterminated", 0));
 	TEST_ASSERT_EQ(license_count(&licenses), 0);
 
-	pkgconf_license_evaluate_str(client, &licenses, "\\", 0);
+	TEST_ASSERT_TRUE(pkgconf_license_evaluate_str(client, &licenses, "\\", 0));
 	TEST_ASSERT_EQ(license_count(&licenses), 0);
 
 	pkgconf_license_free(&licenses);

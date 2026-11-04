@@ -1,0 +1,4 @@
+Name: windows-system-libdir
+Description: regression test for issue #574 (system libdir filtering separators)
+Version: 1
+Libs: -LC:/sys/lib -lfoo

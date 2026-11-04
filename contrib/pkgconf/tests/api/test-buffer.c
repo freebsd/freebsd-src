@@ -174,6 +174,26 @@ test_buffer_copy(void)
 }
 
 static void
+test_buffer_rejects_aliasing(void)
+{
+	static const pkgconf_span_t spans[] = {
+		{ 'a', 'z' },
+	};
+	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
+
+	TEST_ASSERT_TRUE(pkgconf_buffer_append(&buf, "abc"));
+	TEST_ASSERT_FALSE(pkgconf_buffer_append(&buf, pkgconf_buffer_str(&buf)));
+	TEST_ASSERT_FALSE(pkgconf_buffer_append_slice(&buf, pkgconf_buffer_str(&buf), 1));
+	TEST_ASSERT_FALSE(pkgconf_buffer_prepend(&buf, pkgconf_buffer_str(&buf)));
+	TEST_ASSERT_FALSE(pkgconf_buffer_copy(&buf, &buf));
+	TEST_ASSERT_FALSE(pkgconf_buffer_subst(&buf, &buf, "a", "x"));
+	TEST_ASSERT_FALSE(pkgconf_buffer_escape(&buf, &buf, spans, PKGCONF_ARRAY_SIZE(spans)));
+	TEST_ASSERT_STRCMP_EQ(pkgconf_buffer_str(&buf), "abc");
+
+	pkgconf_buffer_finalize(&buf);
+}
+
+static void
 test_buffer_join(void)
 {
 	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
@@ -319,6 +339,123 @@ test_buffer_escape(void)
 }
 
 static void
+test_buffer_escape_charset(void)
+{
+	pkgconf_buffer_t src = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_buffer_t dst = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_charset_t charset;
+
+	static const pkgconf_span_t spans[] = {
+		{ ' ', ' ' },
+		{ '\t', '\t' },
+	};
+
+	pkgconf_charset_from_spans(&charset, spans, PKGCONF_ARRAY_SIZE(spans));
+
+	pkgconf_buffer_append(&src, "a b\tc");
+	TEST_ASSERT_TRUE(pkgconf_buffer_escape_charset(&dst, &src, &charset));
+	TEST_ASSERT_STRCMP_EQ(pkgconf_buffer_str(&dst), "a\\ b\\\tc");
+
+	/* escaping into the source buffer must still be rejected */
+	TEST_ASSERT_FALSE(pkgconf_buffer_escape_charset(&src, &src, &charset));
+
+	pkgconf_buffer_finalize(&src);
+	pkgconf_buffer_finalize(&dst);
+}
+
+/*
+ * A charset is built a 64-bit word at a time, so every combination of span
+ * endpoints relative to a word boundary needs to agree with a plain span walk.
+ * Check each such combination, including lo > hi (an empty span).
+ */
+static void
+test_charset_word_boundaries(void)
+{
+	/* every boundary class: word start/end, either side of one, and the extremes */
+	static const unsigned char interesting[] = {
+		0x00, 0x01, 0x3e, 0x3f, 0x40, 0x41, 0x7e, 0x7f,
+		0x80, 0x81, 0xbe, 0xbf, 0xc0, 0xc1, 0xfe, 0xff,
+	};
+
+	for (size_t i = 0; i < PKGCONF_ARRAY_SIZE(interesting); i++)
+	{
+		for (size_t j = 0; j < PKGCONF_ARRAY_SIZE(interesting); j++)
+		{
+			pkgconf_charset_t charset;
+			const pkgconf_span_t span = { interesting[i], interesting[j] };
+
+			pkgconf_charset_from_spans(&charset, &span, 1);
+
+			for (unsigned int c = 0; c <= 0xff; c++)
+			{
+				TEST_ASSERT_EQ(pkgconf_charset_contains(&charset, (unsigned char) c),
+					pkgconf_span_contains((unsigned char) c, &span, 1));
+			}
+		}
+	}
+}
+
+/*
+ * A charset must agree with a span walk for every one of the 256 byte values,
+ * since it exists purely to hoist that walk out of per-byte loops.  Covers the
+ * span sets fragment quoting uses plus the awkward edges: a span reaching 0xff,
+ * an empty set, and lo > hi.
+ */
+static void
+test_charset_matches_spans(void)
+{
+	static const pkgconf_span_t quote_spans[] = {
+		{ 0x00, 0x1f }, { ' ', '#' }, { '%', '\'' }, { '*', '*' }, { ';', '<' },
+		{ '>', '?' }, { '[', ']' }, { '`', '`' }, { '{', '}' }, { 0x7f, 0xff },
+	};
+	static const pkgconf_span_t quote_spans_utf8[] = {
+		{ 0x00, 0x1f }, { ' ', '#' }, { '%', '\'' }, { '*', '*' }, { ';', '<' },
+		{ '>', '?' }, { '[', ']' }, { '`', '`' }, { '{', '}' }, { 0x7f, 0x7f },
+	};
+	static const pkgconf_span_t boundaries[] = {
+		{ 0xff, 0xff }, { 0x00, 0x00 }, { 0x3f, 0x40 }, { 0x40, 0x41 },
+	};
+	static const pkgconf_span_t everything[] = { { 0x00, 0xff } };
+	static const pkgconf_span_t inverted[] = { { 0x80, 0x7f } };
+	/* spans which each cover exactly one word, and one which straddles all four */
+	static const pkgconf_span_t words[] = {
+		{ 0x00, 0x3f }, { 0x40, 0x7f }, { 0x80, 0xbf }, { 0xc0, 0xff },
+	};
+	static const pkgconf_span_t straddle[] = { { 0x01, 0xfe } };
+
+	const struct {
+		const pkgconf_span_t *spans;
+		size_t nspans;
+	} cases[] = {
+		{ quote_spans, PKGCONF_ARRAY_SIZE(quote_spans) },
+		{ quote_spans_utf8, PKGCONF_ARRAY_SIZE(quote_spans_utf8) },
+		{ boundaries, PKGCONF_ARRAY_SIZE(boundaries) },
+		{ everything, PKGCONF_ARRAY_SIZE(everything) },
+		{ inverted, PKGCONF_ARRAY_SIZE(inverted) },
+		{ words, PKGCONF_ARRAY_SIZE(words) },
+		{ words, 1 },
+		{ words + 1, 1 },
+		{ words + 2, 1 },
+		{ words + 3, 1 },
+		{ straddle, PKGCONF_ARRAY_SIZE(straddle) },
+		{ quote_spans, 0 },
+	};
+
+	for (size_t i = 0; i < PKGCONF_ARRAY_SIZE(cases); i++)
+	{
+		pkgconf_charset_t charset;
+
+		pkgconf_charset_from_spans(&charset, cases[i].spans, cases[i].nspans);
+
+		for (unsigned int c = 0; c <= 0xff; c++)
+		{
+			TEST_ASSERT_EQ(pkgconf_charset_contains(&charset, (unsigned char) c),
+				pkgconf_span_contains((unsigned char) c, cases[i].spans, cases[i].nspans));
+		}
+	}
+}
+
+static void
 test_str_eq_slice(void)
 {
 	TEST_ASSERT_TRUE(pkgconf_str_eq_slice("hello", "hello", 5));
@@ -401,6 +538,7 @@ main(int argc, const char **argv)
 	TEST_RUN(basename, test_buffer_reset);
 	TEST_RUN(basename, test_buffer_freeze);
 	TEST_RUN(basename, test_buffer_copy);
+	TEST_RUN(basename, test_buffer_rejects_aliasing);
 	TEST_RUN(basename, test_buffer_join);
 	TEST_RUN(basename, test_buffer_contains);
 	TEST_RUN(basename, test_buffer_match);
@@ -408,6 +546,9 @@ main(int argc, const char **argv)
 	TEST_RUN(basename, test_buffer_subst);
 	TEST_RUN(basename, test_buffer_subst_empty_pattern);
 	TEST_RUN(basename, test_buffer_escape);
+	TEST_RUN(basename, test_buffer_escape_charset);
+	TEST_RUN(basename, test_charset_matches_spans);
+	TEST_RUN(basename, test_charset_word_boundaries);
 	TEST_RUN(basename, test_str_eq_slice);
 	TEST_RUN(basename, test_span_contains);
 	TEST_RUN(basename, test_buffer_fputs_nonempty);

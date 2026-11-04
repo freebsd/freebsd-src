@@ -209,8 +209,10 @@ write_copyright_lines(pkgconf_client_t *client, const pkgconf_list_t *copyright_
 }
 
 static void
-write_sbom_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
+write_sbom_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused, unsigned int iter_flags)
 {
+	(void) iter_flags;
+
 	pkgconf_buffer_t license_buf = PKGCONF_BUFFER_INITIALIZER;
 	(void) client;
 	(void) unused;
@@ -222,9 +224,8 @@ write_sbom_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
 	OUTPUT_OR_RET(client, sbom_out, "PackageName: %s\n", sbom_identity(pkg));
 	OUTPUT_OR_RET(client, sbom_out, "SPDXID: SPDXRef-Package-%s\n", sbom_spdx_identity(pkg));
 	OUTPUT_OR_RET(client, sbom_out, "PackageVersion: %s\n", pkg->version);
-	OUTPUT_OR_RET(client, sbom_out, "PackageDownloadLocation: NOASSERTION\n");
 
-	/* NOASSERTION is not a valide value for PackageVerificationCode. It
+	/* NOASSERTION is not a valid value for PackageVerificationCode. It
 	 * expect 40 lowercase hexadecimal digits.
 	 */
 #if 0
@@ -240,7 +241,13 @@ write_sbom_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
 
 	if (pkg->license.head != NULL)
 	{
-		pkgconf_license_render(client, &pkg->license, &license_buf);
+		if (!pkgconf_license_render(client, &pkg->license, &license_buf))
+		{
+			pkgconf_buffer_finalize(&license_buf);
+			pkgconf_error(client, "bomtool: could not render package license");
+			return;
+		}
+
 		bool ret = pkgconf_output_file_fmt(sbom_out, "PackageLicenseDeclared: %s\n", pkgconf_buffer_str_or_empty(&license_buf));
 		int errno_save = errno;
 		pkgconf_buffer_finalize(&license_buf);
@@ -269,8 +276,10 @@ write_sbom_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
 }
 
 static void
-write_sbom_relationships(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
+write_sbom_relationships(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused, unsigned int iter_flags)
 {
+	(void) iter_flags;
+
 	(void) client;
 	(void) unused;
 
@@ -433,7 +442,12 @@ main(int argc, char *argv[])
 		}
 	}
 
-	pkgconf_client_init(&pkg_client, error_handler, NULL, personality, NULL, environ_lookup_handler);
+	pkgconf_client_options_t client_options = {
+		.error_handler = error_handler,
+		.personality = personality,
+		.environ_lookup_handler = environ_lookup_handler,
+	};
+	pkgconf_client_init_with_options(&pkg_client, &client_options);
 
 	/* we have determined what features we want most likely.  in some cases, we override later. */
 	pkgconf_client_set_flags(&pkg_client, want_client_flags);
@@ -458,10 +472,15 @@ main(int argc, char *argv[])
 
 	while (pkg_optind < argc && argv[pkg_optind] != NULL)
 	{
-		if (pkgconf_buffer_len(&queryparams) > 0)
-			pkgconf_buffer_push_byte(&queryparams, ' ');
+		if ((pkgconf_buffer_len(&queryparams) > 0 &&
+			 !pkgconf_buffer_push_byte(&queryparams, ' ')) ||
+			!pkgconf_buffer_append(&queryparams, argv[pkg_optind]))
+		{
+			pkgconf_buffer_finalize(&queryparams);
+			ret = EXIT_FAILURE;
+			goto out;
+		}
 
-		pkgconf_buffer_append(&queryparams, argv[pkg_optind]);
 		pkg_optind++;
 	}
 

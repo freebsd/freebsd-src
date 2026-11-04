@@ -1,0 +1,14 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: perfect
+Description: A perfectly well-formed test package
+Version: 1.0.0
+URL: https://example.org/perfect
+Maintainer: Example Maintainer <maint@example.org>
+Source: https://example.org/perfect-1.0.0.tar.gz
+License: ISC
+Cflags: -I${includedir}
+Libs: -L${libdir} -lperfect
