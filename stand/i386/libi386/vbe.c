@@ -1125,6 +1125,9 @@ vbe_default_mode(void)
 	int modenum;
 	uint32_t width, height;
 
+	if (!vbe_check())
+		return (0);
+
 	modenum = 0;
 	vbe_get_max_resolution(&width, &height);
 	if (width != 0 && height != 0)
