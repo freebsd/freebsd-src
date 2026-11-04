@@ -202,7 +202,7 @@ static int
 vtrnd_detach(device_t dev)
 {
 	struct vtrnd_softc *sc;
-	uint32_t rdlen;
+	int last;
 
 	sc = device_get_softc(dev);
 	KASSERT(
@@ -216,8 +216,14 @@ vtrnd_detach(device_t dev)
 	}
 	random_source_deregister(&random_vtrnd);
 
-	/* clear the queue */
-	virtqueue_poll(sc->vtrnd_vq, &rdlen);
+	/*
+	 * Just reset the device; if it's hanging, for some reason, then polling
+	 * may put us in a bad position.
+	 */
+	virtio_stop(dev);
+	last = 0;
+	while (virtqueue_drain(sc->vtrnd_vq, &last) != NULL)
+		;
 
 	atomic_store_explicit(&g_vtrnd_softc, NULL, memory_order_release);
 	sglist_free(sc->vtrnd_sg);
