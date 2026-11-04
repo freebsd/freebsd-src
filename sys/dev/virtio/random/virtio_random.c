@@ -185,8 +185,15 @@ vtrnd_attach(device_t dev)
 	vtrnd_enqueue(sc);
 
 fail:
-	if (error)
-		vtrnd_detach(dev);
+	if (error != 0) {
+		/* Parent will free the virtqueue. */
+		if (g_vtrnd_softc == sc) {
+			atomic_store_explicit(&g_vtrnd_softc, NULL,
+			    memory_order_release);
+		}
+		sglist_free(sc->vtrnd_sg);
+		zfree(sc->vtrnd_value, M_DEVBUF);
+	}
 
 	return (error);
 }
