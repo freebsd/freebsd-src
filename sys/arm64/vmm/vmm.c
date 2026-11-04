@@ -479,11 +479,18 @@ static const struct vmm_special_reg vmm_special_regs[] = {
 	}
 
 	/* ID registers */
+	ID_SPECIAL_REG(ID_AA64AFR0_EL1, id_aa64afr0),
+	ID_SPECIAL_REG(ID_AA64AFR1_EL1, id_aa64afr1),
 	ID_SPECIAL_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
+	ID_SPECIAL_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
 	ID_SPECIAL_REG(ID_AA64DFR0_EL1, id_aa64dfr0),
+	ID_SPECIAL_REG(ID_AA64DFR1_EL1, id_aa64dfr1),
 	ID_SPECIAL_REG(ID_AA64ISAR0_EL1, id_aa64isar0),
+	ID_SPECIAL_REG(ID_AA64ISAR1_EL1, id_aa64isar1),
+	ID_SPECIAL_REG(ID_AA64ISAR2_EL1, id_aa64isar2),
 	ID_SPECIAL_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0),
 	ID_SPECIAL_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1),
+	ID_SPECIAL_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2),
 
 	/*
 	 * All other ID registers are read as zero.
