@@ -32,6 +32,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <ifaddrs.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -268,9 +269,85 @@ ATF_TC_BODY(v4mapped, tc)
 	close(s);
 }
 
+/*
+ * An IPv4 wildcard socket takes precedence over a later dual-stack wildcard
+ * socket, even when the IPv4 PCB lookup uses the SMR path.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_wildcard_precedence);
+ATF_TC_BODY(dualstack_wildcard_precedence, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_ANY) },
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_ANY_INIT,
+	};
+	struct pollfd pfds[2] = {0};
+	socklen_t slen;
+	char ch;
+	int error, one, s4, s6, tx;
+
+	one = 1;
+	s4 = socket(PF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	ATF_REQUIRE_MSG(s4 >= 0, "socket(AF_INET) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s4, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_REUSEPORT) failed: %s",
+	    strerror(errno));
+	error = bind(s4, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind(AF_INET) failed: %s",
+	    strerror(errno));
+	slen = sizeof(sin);
+	error = getsockname(s4, (struct sockaddr *)&sin, &slen);
+	ATF_REQUIRE_MSG(error == 0, "getsockname(AF_INET) failed: %s",
+	    strerror(errno));
+
+	s6 = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	ATF_REQUIRE_MSG(s6 >= 0, "socket(AF_INET6) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s6, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_REUSEPORT) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s6, IPPROTO_IPV6, IPV6_V6ONLY, &(int){0},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(IPV6_V6ONLY) failed: %s",
+	    strerror(errno));
+	sin6.sin6_port = sin.sin_port;
+	error = bind(s6, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind(AF_INET6) failed: %s",
+	    strerror(errno));
+
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	tx = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE_MSG(tx >= 0, "socket(sender) failed: %s", strerror(errno));
+	ch = 'x';
+	ATF_REQUIRE_MSG(sendto(tx, &ch, sizeof(ch), 0,
+	    (struct sockaddr *)&sin, sizeof(sin)) == sizeof(ch),
+	    "sendto() failed: %s", strerror(errno));
+	pfds[0] = (struct pollfd){ .fd = s4, .events = POLLIN };
+	pfds[1] = (struct pollfd){ .fd = s6, .events = POLLIN };
+	error = poll(pfds, 2, 1000);
+	ATF_REQUIRE_MSG(error == 1 && (pfds[0].revents & POLLIN) != 0 &&
+	    (pfds[1].revents & POLLIN) == 0,
+	    "unexpected wildcard socket selection: revents 0x%x, 0x%x",
+	    pfds[0].revents, pfds[1].revents);
+	ATF_REQUIRE_MSG(recv(s4, &ch, sizeof(ch), 0) == sizeof(ch),
+	    "IPv4 wildcard socket did not receive the datagram: %s",
+	    strerror(errno));
+
+	ATF_REQUIRE(close(tx) == 0);
+	ATF_REQUIRE(close(s6) == 0);
+	ATF_REQUIRE(close(s4) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, v4mapped);
+	ATF_TP_ADD_TC(tp, dualstack_wildcard_precedence);
 	ATF_TP_ADD_TC(tp, gethostname);
 	ATF_TP_ADD_TC(tp, gethostname_jailed);
 	ATF_TP_ADD_TC(tp, connect_bound_socket_from_2address_jail);

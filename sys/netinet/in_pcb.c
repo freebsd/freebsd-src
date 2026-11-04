@@ -2737,6 +2737,21 @@ _in6_pcbinshash_wild(struct inpbucket *bucket, struct inpcb *inp)
 	last = NULL;
 	bound = !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr);
 	injail = in_pcbjailed(inp, PR_IP6);
+	/*
+	 * A non-jailed unbound dual-stack PCB has to stay behind all IPv4 PCBs,
+	 * see _in_pcbinshash_wild().  The tail is also a valid position among
+	 * IPv6 PCBs, since it has the lowest rank there too.
+	 */
+	if (!bound && !injail && (inp->inp_vflag & INP_IPV4) != 0) {
+		CK_LIST_FOREACH(last, &bucket->head, inp_hash_wild) {
+			if (CK_LIST_NEXT(last, inp_hash_wild) == NULL) {
+				CK_LIST_INSERT_AFTER(last, inp, inp_hash_wild);
+				return;
+			}
+		}
+		CK_LIST_INSERT_HEAD(&bucket->head, inp, inp_hash_wild);
+		return;
+	}
 	if (!injail) {
 		CK_LIST_FOREACH(last, &bucket->head, inp_hash_wild) {
 			if (!in_pcbjailed(last, PR_IP6))
