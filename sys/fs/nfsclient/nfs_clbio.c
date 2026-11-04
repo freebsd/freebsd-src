@@ -1693,8 +1693,13 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		else
 		    iomode = NFSWRITE_FILESYNC;
 
-		error = ncl_writerpc(vp, uiop, bp->b_pages, cr, &iomode,
-		    &must_commit, called_from_strategy, 0);
+		if ((bp->b_dirtyoff % PAGE_SIZE) == 0)
+			error = ncl_writerpc(vp, uiop,
+			    &bp->b_pages[bp->b_dirtyoff / PAGE_SIZE], cr,
+			    &iomode, &must_commit, called_from_strategy, 0);
+		else
+			error = ncl_writerpc(vp, uiop, NULL, cr, &iomode,
+			    &must_commit, called_from_strategy, 0);
 
 		/*
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try
