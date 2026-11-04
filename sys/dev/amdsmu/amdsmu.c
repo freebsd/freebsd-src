@@ -14,6 +14,8 @@
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
+#include <machine/_inttypes.h>
+
 #include "opt_acpi.h"
 
 #if defined(DEV_ACPI)
@@ -330,7 +332,7 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 	 */
 	if (m->time_last_in_s0i3 != 0) {
 		device_printf(dev,
-		    "spent %lu seconds in S0i3 during last suspend\n",
+		    "spent %" PRIu64 " seconds in S0i3 during last suspend\n",
 		    m->time_last_in_s0i3 / 1000000);
 		return;
 	}
