@@ -640,10 +640,12 @@ out:
 	KASSERT(error >= 0, ("TCP stack %s requested tcp_drop(%p) at connect()"
 	    ", error code %d", tp->t_fb->tfb_tcp_block_name, tp, -error));
 	/*
-	 * If the implicit bind in the connect call fails, restore
-	 * the flags we modified.
+	 * If the connect call fails, restore the flags we modified.  The PCB
+	 * is left untouched until the connection is established, so this also
+	 * covers a bound socket, which may still be a dual-stack member of a
+	 * load balance group.
 	 */
-	if (error != 0 && inp->inp_lport == 0) {
+	if (error != 0 && IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		inp->inp_vflag = vflagsav;
 		inp->inp_inc.inc_flags = incflagsav;
 	}

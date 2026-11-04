@@ -344,10 +344,57 @@ ATF_TC_BODY(dualstack_wildcard_precedence, tc)
 	ATF_REQUIRE(close(s4) == 0);
 }
 
+/*
+ * A failed connect to a v4-mapped address must leave a regular dual-stack UDP
+ * socket able to connect to an IPv6 peer.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_connect_fail);
+ATF_TC_BODY(dualstack_connect_fail, tc)
+{
+	struct sockaddr_in6 peer4 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(peer4),
+		.sin6_port = htons(9),
+		.sin6_addr = IN6ADDR_ANY_INIT,
+	};
+	struct sockaddr_in6 peer6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(peer6),
+		.sin6_port = htons(9),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	struct sockaddr_in6 local6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(local6),
+		.sin6_addr = IN6ADDR_ANY_INIT,
+	};
+	int error, s;
+
+	peer4.sin6_addr.s6_addr[10] = peer4.sin6_addr.s6_addr[11] = 0xff;
+	memset(&peer4.sin6_addr.s6_addr[12], 0xff, 4);
+	s = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE_MSG(s >= 0, "socket() failed: %s", strerror(errno));
+	error = setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &(int){0},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(IPV6_V6ONLY) failed: %s",
+	    strerror(errno));
+	error = bind(s, (struct sockaddr *)&local6, sizeof(local6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+	error = connect(s, (struct sockaddr *)&peer4, sizeof(peer4));
+	ATF_REQUIRE_MSG(error == -1 && errno == ENETUNREACH,
+	    "connect(v4-mapped broadcast) returned %d: %s",
+	    error, strerror(errno));
+	error = connect(s, (struct sockaddr *)&peer6, sizeof(peer6));
+	ATF_REQUIRE_MSG(error == 0, "connect(IPv6) after failure failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE(close(s) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, v4mapped);
 	ATF_TP_ADD_TC(tp, dualstack_wildcard_precedence);
+	ATF_TP_ADD_TC(tp, dualstack_connect_fail);
 	ATF_TP_ADD_TC(tp, gethostname);
 	ATF_TP_ADD_TC(tp, gethostname_jailed);
 	ATF_TP_ADD_TC(tp, connect_bound_socket_from_2address_jail);
