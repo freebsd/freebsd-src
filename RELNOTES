@@ -104,7 +104,7 @@ d69fc3a9dc71:
 d14e018024bb,b125c4d13095,1322760fd127,0730a05cd383:
 	Permit both SCHED_ULE and SCHED_4BSD to be compiled into the
 	same kernel.  The scheduler can be selected at boot time by
-	setting the kern.sched_name tunable to the scheduler name
+	setting the kern.sched.name tunable to the scheduler name
 	("4BSD" or "ULE").  The default scheduler is ULE.  This is
 	currently enabled in amd64 kernels by default.
 
