@@ -2511,6 +2511,48 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
 
 #ifdef BHYVE_SNAPSHOT
 /*
+ * Register or unregister the regions of the BARs that the device decodes.
+ */
+static void
+pci_restore_register_bars(struct pci_devinst *pi, int registration)
+{
+	int decode, i;
+
+	for (i = 0; i <= PCI_BARMAX; i++) {
+		switch (pi->pi_bar[i].type) {
+		case PCIBAR_IO:
+			decode = porten(pi);
+			break;
+		case PCIBAR_MEM32:
+		case PCIBAR_MEM64:
+			decode = memen(pi);
+			break;
+		default:
+			continue;
+		}
+		if (decode && pi->pi_bar[i].size != 0)
+			modify_bar_registration(pi, i, registration);
+	}
+}
+
+/*
+ * To be called before the devices are restored.  The regions of the BARs are
+ * registered at the addresses pci_emul_alloc_bar() chose; the restore of a
+ * device registers them at the addresses the guest had given them.  All
+ * devices give up their regions first, because a restored BAR may be where
+ * the BAR of another device is now.
+ */
+void
+pci_restore_prepare(void)
+{
+	struct pci_devinst *pi;
+
+	pi = NULL;
+	while ((pi = pci_next(pi)) != NULL)
+		pci_restore_register_bars(pi, 0);
+}
+
+/*
  * Saves/restores PCI device emulated state. Returns 0 on success.
  */
 static int
@@ -2544,6 +2586,8 @@ pci_snapshot_pci_dev(struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].size, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].addr, meta, ret, done);
 	}
+	if (meta->op == VM_SNAPSHOT_RESTORE)
+		pci_restore_register_bars(pi, 1);
 
 	/* Restore MSI-X table. */
 	for (i = 0; i < pi->pi_msix.table_count; i++) {
