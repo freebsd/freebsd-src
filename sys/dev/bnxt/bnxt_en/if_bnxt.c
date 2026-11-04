@@ -5526,12 +5526,12 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
 		/* Only Autoneg is supported for TYPE_UNKNOWN */
-		break;
+		return;
 
         default:
 		/* Only Autoneg is supported for new phy type values */
 		device_printf(softc->dev, "phy type %d not supported by driver\n", phy_type);
-		break;
+		return;
 	}
 
 	switch (link_info->sig_mode) {
