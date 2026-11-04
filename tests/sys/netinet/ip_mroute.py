@@ -163,7 +163,7 @@ class Test1RBasicINET(MRouteINETTestTemplate):
         super().setup_method(method)
 
         ifaces = [self.vnet.iface_alias_map[i].name for i in ["if1", "if2"]]
-        self.pimd = self.run_pimd("test", ifaces, "127.0.0.1", self.MULTICAST_ADDR + "/32")
+        self.pimd = self.run_pimd("test", ifaces, "192.168.1.1", self.MULTICAST_ADDR + "/32")
         time.sleep(3)  # Give pimd a bit of time to get itself together.
 
     def vnet_host1_handler(self, vnet):
@@ -241,10 +241,10 @@ class Test1RCrissCrossINET(MRouteINETCrissCrossTestTemplate):
 
         # Start a pimd instance per FIB.
         ifaces = [self.vnet.iface_alias_map[i].name for i in ["if1", "if2"]]
-        self.pimd0 = self.run_pimd("test0", ifaces, "127.0.0.1", self.MULTICAST_ADDR + "/32",
+        self.pimd0 = self.run_pimd("test0", ifaces, "192.168.1.1", self.MULTICAST_ADDR + "/32",
                                    fib=0)
         ifaces = [self.vnet.iface_alias_map[i].name for i in ["if3", "if4"]]
-        self.pimd1 = self.run_pimd("test1", ifaces, "127.0.0.1", self.MULTICAST_ADDR + "/32",
+        self.pimd1 = self.run_pimd("test1", ifaces, "192.168.3.1", self.MULTICAST_ADDR + "/32",
                                    fib=1)
         time.sleep(3)  # Give pimd a bit of time to get itself together.
 
@@ -302,7 +302,7 @@ class Test1RCrissCrossINETMissingRouter(MRouteINETCrissCrossTestTemplate):
 
         # Only start a pimd instance in FIB 0.
         ifaces = [self.vnet.iface_alias_map[i].name for i in ["if1", "if2"]]
-        self.pimd0 = self.run_pimd("test0", ifaces, "127.0.0.1",
+        self.pimd0 = self.run_pimd("test0", ifaces, "192.168.1.1",
                                    self.MULTICAST_ADDR + "/32", fib=0)
 
         time.sleep(3)  # Give pimd a bit of time to get itself together.
