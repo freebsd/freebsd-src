@@ -521,6 +521,7 @@ dev/spibus/controller/allwinner/aw_spi.c	optional fdt aw_spi
 dev/spibus/controller/rockchip/rk_spi.c		optional fdt rk_spi
 
 dev/uart/uart_cpu_arm64.c			optional uart
+dev/uart/uart_dev_mtk.c				optional uart uart_ns8250 fdt soc_mediatek
 dev/uart/uart_dev_mu.c				optional uart uart_mu fdt
 dev/uart/uart_dev_pl011.c			optional uart pl011
 
