@@ -56,7 +56,7 @@ static MALLOC_DEFINE(M_SGLIST, "sglist", "scatter/gather lists");
  * that can occur to the ending segment is that it can be extended.
  */
 struct sgsave {
-	u_short sg_nseg;
+	u_int sg_nseg;
 	size_t ss_len;
 };
 

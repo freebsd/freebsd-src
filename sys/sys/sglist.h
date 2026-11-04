@@ -49,8 +49,8 @@ struct sglist_seg {
 struct sglist {
 	struct sglist_seg *sg_segs;
 	u_int		sg_refs;
-	u_short		sg_nseg;
-	u_short		sg_maxseg;
+	u_int		sg_nseg;
+	u_int		sg_maxseg;
 };
 
 struct bio;
@@ -59,7 +59,7 @@ struct thread;
 struct uio;
 
 static __inline void
-sglist_init(struct sglist *sg, u_short maxsegs, struct sglist_seg *segs)
+sglist_init(struct sglist *sg, u_int maxsegs, struct sglist_seg *segs)
 {
 
 	sg->sg_segs = segs;
