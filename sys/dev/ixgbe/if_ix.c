@@ -367,6 +367,10 @@ ixgbe_cache_ldo_policy(struct ixgbe_softc *sc)
 	sc->ldo_valid = false;
 	sc->ldo_port_disabled = false;
 
+	/* Link Default Override uses the E610-only Admin Command Interface. */
+	if (hw->mac.type != ixgbe_mac_E610)
+		return;
+
 	error = ixgbe_get_link_default_override(hw, &ldo);
 	if (error) {
 		device_printf(sc->dev,
