@@ -77,6 +77,7 @@ static ssize_t	socksetup(const char *, const char *, const char *,
 		    struct socks **);
 static void	logmessage(int, const char *, const char *, const char *,
 		    struct socks *, ssize_t, const char *);
+static void	closesyslog(void);
 static void	usage(void);
 
 static cap_channel_t *capsyslog;
@@ -187,6 +188,7 @@ main(int argc, char *argv[])
 	if (capsyslog == NULL)
 		err(1, "Unable to open system.syslog service");
 	cap_close(capcas);
+	atexit(closesyslog);
 
 	if (pristr != NULL)
 		pri = pencode(pristr);
@@ -440,6 +442,12 @@ decode(char *name, const CODE *codetab)
 			return (c->c_val);
 
 	return (-1);
+}
+
+static void
+closesyslog(void)
+{
+	cap_close(capsyslog);
 }
 
 static void
