@@ -33,7 +33,7 @@
 
 /* XXX workaround for bool type for tools/build/test-includes */
 #if !defined(_KERNEL) && !defined(_STANDALONE)
-#include <stdbool.h> 
+#include <stdbool.h>
 #endif
 
 /*
@@ -131,7 +131,7 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
 #define DEFINE_CLASS_0(name, classvar, methods, size)	\
 							\
 struct kobj_class classvar = {				\
-	#name, methods, size, NULL, 0, false		\
+	#name, methods, size, NULL			\
 }
 
 /*
@@ -146,8 +146,7 @@ struct kobj_class classvar = {				\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1, NULL };				\
 struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+	#name, methods, size, name ## _baseclasses	\
 }
 
 /*
@@ -163,8 +162,7 @@ static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2, NULL };				\
 struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+	#name, methods, size, name ## _baseclasses	\
 }
 
 /*
@@ -181,8 +179,7 @@ static kobj_class_t name ## _baseclasses[] =		\
 	  &base2,					\
 	  &base3, NULL };				\
 struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+	#name, methods, size, name ## _baseclasses	\
 }
 
 /*
