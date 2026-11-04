@@ -469,8 +469,10 @@ static void	em_finish_fatal_error_reset(struct e1000_softc *);
 static void	em_configure_peind_memory_errors(struct e1000_softc *);
 static void	em_configure_82575_memory_errors(struct e1000_softc *);
 static void	em_configure_82580_memory_errors(struct e1000_softc *);
+static void	em_configure_dh89xxcc_memory_errors(struct e1000_softc *);
 static void	em_update_82580_ecc_stats(struct e1000_softc *, u32, u32,
 		    u32);
+static void	em_update_dh89xxcc_ecc_stats(struct e1000_softc *);
 static void	em_if_multi_set(if_ctx_t);
 static void	em_if_update_admin_status(if_ctx_t);
 static void	em_if_debug(if_ctx_t);
@@ -2096,6 +2098,7 @@ em_if_init(if_ctx_t ctx)
 	em_configure_peind_memory_errors(sc);
 	em_configure_82575_memory_errors(sc);
 	em_configure_82580_memory_errors(sc);
+	em_configure_dh89xxcc_memory_errors(sc);
 	if (sc->vf_ifp) {
 		sc->vf_reset_pending = false;
 	} else {
@@ -2383,18 +2386,36 @@ em_configure_82576_memory_errors(struct e1000_softc *sc)
 }
 
 static bool
+em_has_dh89xxcc_memory_errors(const struct e1000_hw *hw)
+{
+
+	if (hw->mac.type != e1000_82580)
+		return (false);
+	switch (hw->device_id) {
+	case E1000_DEV_ID_DH89XXCC_SGMII:
+	case E1000_DEV_ID_DH89XXCC_SERDES:
+	case E1000_DEV_ID_DH89XXCC_BACKPLANE:
+	case E1000_DEV_ID_DH89XXCC_SFP:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
+static bool
 em_has_82580_memory_errors(const struct e1000_hw *hw)
 {
 
-	return (hw->mac.type == e1000_82580);
+	return (hw->mac.type == e1000_82580 &&
+	    !em_has_dh89xxcc_memory_errors(hw));
 }
 
 static void
-em_clear_82580_memory_error_status(struct e1000_hw *hw, u32 reg)
+em_clear_memory_error_status(struct e1000_hw *hw, u32 reg, u32 mask)
 {
 	u32 status;
 
-	status = E1000_READ_REG(hw, reg);
+	status = E1000_READ_REG(hw, reg) & mask;
 	if (status != 0)
 		E1000_WRITE_REG(hw, reg, status);
 }
@@ -2411,10 +2432,10 @@ em_configure_82580_memory_errors(struct e1000_softc *sc)
 
 	/* Clear status left before the driver completed its memory tables. */
 	(void)E1000_READ_REG(hw, E1000_PEIND);
-	em_clear_82580_memory_error_status(hw, E1000_DTPARS_82580);
-	em_clear_82580_memory_error_status(hw, E1000_DRPARS_82580);
-	em_clear_82580_memory_error_status(hw, E1000_DDPARS_82580);
-	em_clear_82580_memory_error_status(hw, E1000_PCIEERRSTS);
+	em_clear_memory_error_status(hw, E1000_DTPARS_82580, ~0U);
+	em_clear_memory_error_status(hw, E1000_DRPARS_82580, ~0U);
+	em_clear_memory_error_status(hw, E1000_DDPARS_82580, ~0U);
+	em_clear_memory_error_status(hw, E1000_PCIEERRSTS, ~0U);
 	(void)E1000_READ_REG(hw, E1000_LANPERRSTS);
 	em_update_82580_ecc_stats(sc,
 	    E1000_READ_REG(hw, E1000_RPBECCSTS),
@@ -2449,6 +2470,43 @@ em_configure_82580_memory_errors(struct e1000_softc *sc)
 	reg = E1000_READ_REG(hw, E1000_PEINDM);
 	E1000_WRITE_REG(hw, E1000_PEINDM,
 	    reg | E1000_PEIND_FATAL_MASK);
+	E1000_WRITE_FLUSH(hw);
+}
+
+static void
+em_clear_dh89xxcc_parity_status(struct e1000_hw *hw)
+{
+
+	em_clear_memory_error_status(hw, E1000_DTPARS_82580,
+	    E1000_DTPARS_DH89XXCC_ERROR_MASK);
+	em_clear_memory_error_status(hw, E1000_DRPARS_82580,
+	    E1000_DRPARS_DH89XXCC_ERROR_MASK);
+	em_clear_memory_error_status(hw, E1000_DDPARS_82580,
+	    E1000_DDPARS_DH89XXCC_ERROR_MASK);
+}
+
+static void
+em_configure_dh89xxcc_memory_errors(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+
+	hw = &sc->hw;
+	if (!em_has_dh89xxcc_memory_errors(hw))
+		return;
+
+	/*
+	 * Intel 89xx datasheet, section 28.22: the DMA parity status layout
+	 * matches 82580, but its parity controls, receive-buffer ECC and PCIe
+	 * error registers are reserved.  LANPERRCTL only controls management
+	 * flex filters whose memories are not initialized by this driver.
+	 */
+	em_clear_dh89xxcc_parity_status(hw);
+	(void)E1000_READ_REG(hw, E1000_PEIND);
+	em_update_dh89xxcc_ecc_stats(sc);
+	E1000_WRITE_REG(hw, E1000_TPBECCSTS,
+	    E1000_TPBECCSTS_DH89XXCC_ECC_ENABLE);
+	/* All other PEINDM bits are reserved; do not preserve read values. */
+	E1000_WRITE_REG(hw, E1000_PEINDM, E1000_PEIND_FATAL_MASK);
 	E1000_WRITE_FLUSH(hw);
 }
 
@@ -2493,6 +2551,7 @@ em_has_peind_memory_errors(const struct e1000_hw *hw)
 {
 
 	return (em_has_82580_memory_errors(hw) ||
+	    em_has_dh89xxcc_memory_errors(hw) ||
 	    em_has_i350_i354_memory_errors(hw) ||
 	    em_has_i210_memory_errors(hw));
 }
@@ -2561,6 +2620,15 @@ em_update_82580_ecc_stats(struct e1000_softc *sc, u32 rpbeccsts,
 	sc->uncorrected_error_pcie_count += bitcount32(status);
 	if (status != 0)
 		E1000_WRITE_REG(&sc->hw, E1000_PCIEECCSTS, status);
+}
+
+static void
+em_update_dh89xxcc_ecc_stats(struct e1000_softc *sc)
+{
+
+	sc->corrected_error_packet_buffer_count +=
+	    E1000_READ_REG(&sc->hw, E1000_TPBECCSTS) &
+	    E1000_TPBECCSTS_DH89XXCC_CORR_CNT_MASK;
 }
 
 static void
@@ -2788,6 +2856,27 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 		    E1000_READ_REG(hw, E1000_TDHESTS_82575);
 	} else if (em_has_82576_memory_errors(hw)) {
 		sc->fatal_error_peind = E1000_READ_REG(hw, E1000_PEIND);
+	} else if (em_has_dh89xxcc_memory_errors(hw)) {
+		/* PCIe and management errors have no subordinate status CSR. */
+		peind = E1000_READ_REG(hw, E1000_PEIND) &
+		    E1000_PEIND_FATAL_MASK;
+		dma_tx = E1000_READ_REG(hw, E1000_DTPARS_82580) &
+		    E1000_DTPARS_DH89XXCC_ERROR_MASK;
+		dma_rx = E1000_READ_REG(hw, E1000_DRPARS_82580) &
+		    E1000_DRPARS_DH89XXCC_ERROR_MASK;
+		dma_host = E1000_READ_REG(hw, E1000_DDPARS_82580) &
+		    E1000_DDPARS_DH89XXCC_ERROR_MASK;
+		lanerr = E1000_READ_REG(hw, E1000_LANPERRSTS) &
+		    E1000_LANPERRSTS_DH89XXCC_ERROR_MASK;
+		if (dma_tx != 0 || dma_rx != 0 || dma_host != 0)
+			peind |= E1000_PEIND_DMA_PARITY_FATAL;
+		if (lanerr != 0)
+			peind |= E1000_PEIND_LANPORT_PARITY_FATAL;
+		sc->fatal_error_peind = peind;
+		sc->fatal_error_dma_tx = dma_tx;
+		sc->fatal_error_dma_rx = dma_rx;
+		sc->fatal_error_dma_host = dma_host;
+		sc->fatal_error_lan = lanerr;
 	} else {
 		peind = E1000_READ_REG(hw, E1000_PEIND) &
 		    E1000_PEIND_FATAL_MASK;
@@ -2906,7 +2995,9 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 			    E1000_READ_REG(&sc->hw, E1000_RPBECCSTS),
 			    E1000_READ_REG(&sc->hw, E1000_TPBECCSTS),
 			    pcieecc);
-		} else if (em_has_i350_i354_memory_errors(&sc->hw))
+		} else if (em_has_dh89xxcc_memory_errors(&sc->hw))
+			em_update_dh89xxcc_ecc_stats(sc);
+		else if (em_has_i350_i354_memory_errors(&sc->hw))
 			em_update_i350_i354_ecc_stats(sc);
 		if (peind & E1000_PEIND_LANPORT_PARITY_FATAL)
 			sc->fatal_error_lan_count++;
@@ -2926,6 +3017,15 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 			    "LANPERRSTS %#x\n", peind,
 			    sc->fatal_error_pcie,
 			    sc->fatal_error_pcie_ecc,
+			    sc->fatal_error_dma_tx,
+			    sc->fatal_error_dma_rx,
+			    sc->fatal_error_dma_host,
+			    sc->fatal_error_lan);
+		} else if (em_has_dh89xxcc_memory_errors(&sc->hw)) {
+			device_printf(sc->dev,
+			    "fatal internal memory error: PEIND %#x, "
+			    "DTPARS %#x, DRPARS %#x, DDPARS %#x, "
+			    "LANPERRSTS %#x\n", peind,
 			    sc->fatal_error_dma_tx,
 			    sc->fatal_error_dma_rx,
 			    sc->fatal_error_dma_host,
@@ -3186,6 +3286,8 @@ igb_finish_device_reset(struct e1000_softc *sc, u32 icr)
  * 82580 stops PCIe traffic for a fatal error in any host-owned region, so use
  * the same order for every 82580 recovery.  This differs from the normal
  * reset path, which disables the bus master first.
+ * DH89xxCC uses the same port-reset sequence without the 82580 PCIe status
+ * registers.  Like 82580, it has no STATUS.RST_DONE bit.
  *
  * Indications that relatch after admin accounting are discarded during
  * reset; sticky bits cannot distinguish them from the saved event.
@@ -3203,11 +3305,13 @@ em_prepare_fatal_error_reset(struct e1000_softc *sc)
 	    EM_FATAL_ERROR_RESET_REQUESTED)
 		return;
 
-	pcieerr = sc->fatal_error_pcie |
-	    (E1000_READ_REG(&sc->hw, E1000_PCIEERRSTS) &
-	    em_pcie_fatal_error_mask(&sc->hw));
+	pcieerr = sc->fatal_error_pcie;
+	if (!em_has_dh89xxcc_memory_errors(&sc->hw))
+		pcieerr |= E1000_READ_REG(&sc->hw, E1000_PCIEERRSTS) &
+		    em_pcie_fatal_error_mask(&sc->hw);
 	pcieecc = sc->fatal_error_pcie_ecc;
 	if (!em_has_82580_memory_errors(&sc->hw) &&
+	    !em_has_dh89xxcc_memory_errors(&sc->hw) &&
 	    (sc->fatal_error_peind & E1000_PEIND_PCIE_PARITY_FATAL) == 0 &&
 	    pcieerr == 0)
 		return;
@@ -3220,7 +3324,7 @@ em_prepare_fatal_error_reset(struct e1000_softc *sc)
 	for (i = 0; i < AUTO_READ_DONE_TIMEOUT; i++) {
 		if ((E1000_READ_REG(hw, E1000_EECD) &
 		    E1000_EECD_AUTO_RD) != 0 &&
-		    (em_has_82580_memory_errors(hw) ||
+		    (hw->mac.type == e1000_82580 ||
 		    (E1000_READ_REG(hw, E1000_STATUS) &
 		    E1000_STATUS_RST_DONE) != 0))
 			break;
@@ -3234,10 +3338,12 @@ em_prepare_fatal_error_reset(struct e1000_softc *sc)
 		device_printf(sc->dev,
 		    "PCIe master disable failed during parity recovery: %d\n",
 		    error);
-	pcieerr |= E1000_READ_REG(hw, E1000_PCIEERRSTS) &
-	    em_pcie_fatal_error_mask(hw);
-	if (pcieerr != 0)
-		E1000_WRITE_REG(hw, E1000_PCIEERRSTS, pcieerr);
+	if (!em_has_dh89xxcc_memory_errors(hw)) {
+		pcieerr |= E1000_READ_REG(hw, E1000_PCIEERRSTS) &
+		    em_pcie_fatal_error_mask(hw);
+		if (pcieerr != 0)
+			E1000_WRITE_REG(hw, E1000_PCIEERRSTS, pcieerr);
+	}
 	if (em_has_82580_memory_errors(hw)) {
 		pcieecc |= E1000_READ_REG(hw, E1000_PCIEECCSTS) &
 		    E1000_PCIEECCSTS_82580_ERROR_MASK;
@@ -3301,6 +3407,21 @@ em_finish_fatal_error_reset(struct e1000_softc *sc)
 		sc->fatal_error_peind = 0;
 		sc->fatal_error_pcie = 0;
 		sc->fatal_error_pcie_ecc = 0;
+		sc->fatal_error_lan = 0;
+		sc->fatal_error_dma_tx = 0;
+		sc->fatal_error_dma_rx = 0;
+		sc->fatal_error_dma_host = 0;
+	} else if (em_has_dh89xxcc_memory_errors(hw)) {
+		em_clear_dh89xxcc_parity_status(hw);
+		/* LANPERRSTS is read-only and is cleared by the port reset. */
+		lanerr = E1000_READ_REG(hw, E1000_LANPERRSTS) &
+		    E1000_LANPERRSTS_DH89XXCC_ERROR_MASK;
+		if (lanerr != 0)
+			device_printf(sc->dev,
+			    "LAN parity status remained set after reset: %#x\n",
+			    lanerr);
+		(void)E1000_READ_REG(hw, E1000_PEIND);
+		sc->fatal_error_peind = 0;
 		sc->fatal_error_lan = 0;
 		sc->fatal_error_dma_tx = 0;
 		sc->fatal_error_dma_rx = 0;
@@ -7441,6 +7562,8 @@ em_update_stats_counters(struct e1000_softc *sc)
 		    E1000_READ_REG(&sc->hw, E1000_RPBECCSTS),
 		    E1000_READ_REG(&sc->hw, E1000_TPBECCSTS),
 		    E1000_READ_REG(&sc->hw, E1000_PCIEECCSTS));
+	else if (em_has_dh89xxcc_memory_errors(&sc->hw))
+		em_update_dh89xxcc_ecc_stats(sc);
 	else if (em_has_i350_i354_memory_errors(&sc->hw))
 		em_update_i350_i354_ecc_stats(sc);
 	else if (em_has_i210_memory_errors(&sc->hw))
@@ -8008,6 +8131,11 @@ em_add_hw_stats(struct e1000_softc *sc)
 				    "uncorrected_pcie", CTLFLAG_RD,
 				    &sc->uncorrected_error_pcie_count,
 				    "Uncorrected PCIe command-memory ECC indications");
+			} else if (em_has_dh89xxcc_memory_errors(&sc->hw)) {
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_packet_buffer", CTLFLAG_RD,
+				    &sc->corrected_error_packet_buffer_count,
+				    "Corrected transmit packet-buffer ECC errors");
 			} else if (em_has_i210_memory_errors(&sc->hw)) {
 				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 				    "corrected_dma", CTLFLAG_RD,
