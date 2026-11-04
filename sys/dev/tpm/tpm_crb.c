@@ -199,6 +199,30 @@ tpmcrb_ctrl_write_barrier(struct tpmcrb_sc *crb_sc, bus_size_t off,
 	    BUS_SPACE_BARRIER_WRITE);
 }
 
+/* Capture registers on failure, before cancellation changes their state. */
+static void
+tpmcrb_dump_state(struct tpmcrb_sc *crb_sc)
+{
+	device_t dev;
+
+	dev = crb_sc->base.dev;
+	device_printf(dev, "CRB req=%#x sts=%#x start=%#x cancel=%#x\n",
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_REQ),
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_STS),
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_START),
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_CANCEL));
+	if (crb_sc->has_locality)
+		device_printf(dev, "CRB loc_state=%#x loc_sts=%#x\n",
+		    bus_read_4(crb_sc->base.mem_res, TPM_LOC_STATE),
+		    bus_read_4(crb_sc->base.mem_res, TPM_LOC_STS));
+	if (crb_sc->sm_cfg->sm_attach == pluton_attach)
+		device_printf(dev, "Pluton mailbox start=%#x reply=%#x\n",
+		    bus_space_read_4(crb_sc->pluton.bst,
+		    crb_sc->pluton.start_bsh, 0),
+		    bus_space_read_4(crb_sc->pluton.bst,
+		    crb_sc->pluton.reply_bsh, 0));
+}
+
 char *tpmcrb_ids[] = {"MSFT0101", NULL};
 
 static const struct tpmcrb_sm_cfg_map *
@@ -701,7 +725,8 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 
 	if (!tpmcrb_notify_cmdready(crb_sc, timeout)) {
 		device_printf(dev,
-		    "Timeout while waiting for device to ready\n");
+		    "Timeout while waiting for device to ready (cmd=%#x)\n",
+		    curr_cmd);
 		if (!tpmcrb_cancel_cmd(crb_sc)) {
 			error = EIO;
 			goto out;
@@ -711,7 +736,9 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	mask = ~0;
 	if (!tpmcrb_ctrl_wait(crb_sc, TPM_CRB_CTRL_START, mask, ~mask, timeout)) {
 		device_printf(dev,
-		    "Timeout while waiting for device to process cmd\n");
+		    "Timeout while waiting for device to process cmd "
+		    "(cmd=%#x timeout=%d us)\n", curr_cmd, timeout);
+		tpmcrb_dump_state(crb_sc);
 		if (!tpmcrb_cancel_cmd(crb_sc)) {
 			error = EIO;
 			goto out;
@@ -862,6 +889,7 @@ pluton_doorbell(struct tpmcrb_sc *crb_sc, int timeout)
 	    TPM_TIMEOUT_C)) {
 		device_printf(crb_sc->base.dev,
 		    "Pluton mailbox readiness timed out\n");
+		tpmcrb_dump_state(crb_sc);
 		return (false);
 	}
 
@@ -875,6 +903,7 @@ pluton_doorbell(struct tpmcrb_sc *crb_sc, int timeout)
 	if (!pluton_wait_reg(crb_sc, crb_sc->pluton.start_bsh, 0, timeout)) {
 		device_printf(crb_sc->base.dev,
 		    "Pluton mailbox acknowledgement timed out\n");
+		tpmcrb_dump_state(crb_sc);
 		return (false);
 	}
 	return (true);
