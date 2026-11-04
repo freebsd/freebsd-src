@@ -704,7 +704,7 @@ static int iflib_simple_txbr_size = IFLIB_SIMPLE_TXBR_SIZE;
 SYSCTL_INT(_net_iflib, OID_AUTO, simple_txbr_size, CTLFLAG_RDTUN,
     &iflib_simple_txbr_size, 0,
     "number of entries in the simple tx deferral ring");
-static bool iflib_prefer_mpring = true;
+static bool iflib_prefer_mpring = false;
 SYSCTL_BOOL(_net_iflib, OID_AUTO, prefer_mpring, CTLFLAG_RDTUN,
     &iflib_prefer_mpring, 0,
     "prefer the mp_ring transmit path by default");
