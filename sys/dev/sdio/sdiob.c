@@ -890,8 +890,15 @@ sdiob_get_card_info(struct sdiob_softc *sc)
 		    sc->cardinfo.f[fn].vendor, sc->cardinfo.f[fn].device,
 		    sc->cardinfo.f[fn].max_blksize);
 		if (sc->cardinfo.f[fn].vendor == 0) {
-			DPRINTF("%s: F%d doesn't exist\n", __func__, fn);
-			break;
+			/*
+			 * If a function doesn't provide a vendor/device ID,
+			 * copy it from the card common CIS.
+			 */
+			DPRINTF("%s: F%d: "
+			    "Copying vendor and device IDs from F0\n",
+			    __func__, fn);
+			sc->cardinfo.f[fn].vendor = sc->cardinfo.f[0].vendor;
+			sc->cardinfo.f[fn].device = sc->cardinfo.f[0].device;
 		}
 		sc->cardinfo.num_funcs++;
 	}
