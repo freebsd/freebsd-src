@@ -27,6 +27,8 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -108,10 +110,127 @@ ATF_TC_BODY(getsockname_disconnected, tc)
 	close(s);
 }
 
+/*
+ * A failed connect to an in-use v4-mapped tuple must leave a bound,
+ * dual-stack TCP socket able to connect to an IPv6 listener.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_connect_fail);
+ATF_TC_BODY(dualstack_connect_fail, tc)
+{
+	struct sockaddr_in6 addr6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(addr6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+	};
+	struct sockaddr_in6 peer4 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(peer4),
+	};
+	struct sockaddr_in6 local6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(local6),
+		.sin6_addr = IN6ADDR_ANY_INIT,
+	};
+	int error, listener4, listener6, one, s1, s2, accepted;
+	socklen_t len;
+
+	listener4 = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(listener4 >= 0, "socket(AF_INET listener) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_MSG(bind(listener4, (struct sockaddr *)&sin,
+	    sizeof(sin)) == 0, "bind(AF_INET listener) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_MSG(listen(listener4, 1) == 0,
+	    "listen(AF_INET) failed: %s", strerror(errno));
+	len = sizeof(sin);
+	ATF_REQUIRE_MSG(getsockname(listener4, (struct sockaddr *)&sin,
+	    &len) == 0, "getsockname(AF_INET) failed: %s", strerror(errno));
+
+	listener6 = socket(PF_INET6, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(listener6 >= 0, "socket(AF_INET6 listener) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_MSG(bind(listener6, (struct sockaddr *)&addr6,
+	    sizeof(addr6)) == 0, "bind(listener) failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(listen(listener6, 1) == 0, "listen(IPv6) failed: %s",
+	    strerror(errno));
+	len = sizeof(addr6);
+	ATF_REQUIRE_MSG(getsockname(listener6, (struct sockaddr *)&addr6,
+	    &len) == 0, "getsockname(listener) failed: %s", strerror(errno));
+
+	error = inet_pton(AF_INET6, "::ffff:127.0.0.1",
+	    &peer4.sin6_addr);
+	ATF_REQUIRE_MSG(error == 1, "inet_pton() failed");
+	peer4.sin6_port = sin.sin_port;
+
+	one = 0;
+	s1 = socket(PF_INET6, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(s1 >= 0, "socket(first client) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s1, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_REUSEPORT) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s1, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(IPV6_V6ONLY) failed: %s",
+	    strerror(errno));
+	error = bind(s1, (struct sockaddr *)&local6, sizeof(local6));
+	ATF_REQUIRE_MSG(error == 0, "bind(first client) failed: %s",
+	    strerror(errno));
+	len = sizeof(local6);
+	ATF_REQUIRE_MSG(getsockname(s1, (struct sockaddr *)&local6, &len) == 0,
+	    "getsockname(first client) failed: %s", strerror(errno));
+
+	s2 = socket(PF_INET6, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(s2 >= 0, "socket(second client) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s2, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_REUSEPORT) failed: %s",
+	    strerror(errno));
+	error = setsockopt(s2, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(IPV6_V6ONLY) failed: %s",
+	    strerror(errno));
+	error = bind(s2, (struct sockaddr *)&local6, sizeof(local6));
+	ATF_REQUIRE_MSG(error == 0, "bind(second client) failed: %s",
+	    strerror(errno));
+
+	error = connect(s1, (struct sockaddr *)&peer4, sizeof(peer4));
+	ATF_REQUIRE_MSG(error == 0, "first connect(v4-mapped) failed: %s",
+	    strerror(errno));
+	accepted = accept(listener4, NULL, NULL);
+	ATF_REQUIRE_MSG(accepted >= 0, "accept(AF_INET) failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE(close(accepted) == 0);
+
+	error = connect(s2, (struct sockaddr *)&peer4, sizeof(peer4));
+	ATF_REQUIRE_MSG(error == -1 && errno == EADDRINUSE,
+	    "second connect(v4-mapped) returned %d: %s",
+	    error, strerror(errno));
+
+	error = connect(s2, (struct sockaddr *)&addr6, sizeof(addr6));
+	ATF_REQUIRE_MSG(error == 0, "connect(IPv6) after failure failed: %s",
+	    strerror(errno));
+	accepted = accept(listener6, NULL, NULL);
+	ATF_REQUIRE_MSG(accepted >= 0, "accept(IPv6) failed: %s",
+	    strerror(errno));
+
+	ATF_REQUIRE(close(accepted) == 0);
+	ATF_REQUIRE(close(s2) == 0);
+	ATF_REQUIRE(close(s1) == 0);
+	ATF_REQUIRE(close(listener6) == 0);
+	ATF_REQUIRE(close(listener4) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, implied_connect);
 	ATF_TP_ADD_TC(tp, getsockname_disconnected);
+	ATF_TP_ADD_TC(tp, dualstack_connect_fail);
 
 	return (atf_no_error());
 }

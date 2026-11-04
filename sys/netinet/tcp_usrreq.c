@@ -640,10 +640,12 @@ out:
 	KASSERT(error >= 0, ("TCP stack %s requested tcp_drop(%p) at connect()"
 	    ", error code %d", tp->t_fb->tfb_tcp_block_name, tp, -error));
 	/*
-	 * If the implicit bind in the connect call fails, restore
-	 * the flags we modified.
+	 * If the connect call fails, restore the flags we modified.  The PCB
+	 * is left untouched until the connection is established, so this also
+	 * covers a bound socket, which may still be a dual-stack member of a
+	 * load balance group.
 	 */
-	if (error != 0 && inp->inp_lport == 0) {
+	if (error != 0 && IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		inp->inp_vflag = vflagsav;
 		inp->inp_inc.inc_flags = incflagsav;
 	}
@@ -1046,11 +1048,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				error = tcp_connect(tp, sinp, td);
 #endif
 			/*
-			 * The bind operation in tcp_connect succeeded. We
-			 * no longer want to restore the flags if later
-			 * operations fail.
+			 * Keep the flags once a foreign address is assigned,
+			 * but restore them if a bound socket cannot connect.
 			 */
-			if (error == 0 || inp->inp_lport != 0)
+			if (error == 0 ||
+			    !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 				restoreflags = false;
 
 			if (error) {
@@ -1136,11 +1138,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				error = tcp_connect(tp, sinp, td);
 #endif
 			/*
-			 * The bind operation in tcp_connect succeeded. We
-			 * no longer want to restore the flags if later
-			 * operations fail.
+			 * Keep the flags once a foreign address is assigned,
+			 * but restore them if a bound socket cannot connect.
 			 */
-			if (error == 0 || inp->inp_lport != 0)
+			if (error == 0 ||
+			    !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 				restoreflags = false;
 
 			if (error != 0) {

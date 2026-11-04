@@ -1162,13 +1162,13 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		NET_EPOCH_EXIT(et);
 		/*
 		 * If connect succeeds, mark socket as connected. If
-		 * connect fails and socket is unbound, reset inp_vflag
-		 * field.
+		 * connect fails, reset inp_vflag field: the PCB is unchanged,
+		 * and a bound one may still be a dual-stack member of a load
+		 * balance group.
 		 */
 		if (error == 0)
 			soisconnected(so);
-		else if (inp->inp_laddr.s_addr == INADDR_ANY &&
-		    inp->inp_lport == 0)
+		else if (inp->inp_faddr.s_addr == INADDR_ANY)
 			inp->inp_vflag = vflagsav;
 		goto out;
 	} else {
@@ -1193,13 +1193,11 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	NET_EPOCH_EXIT(et);
 	/*
 	 * If connect succeeds, mark socket as connected. If
-	 * connect fails and socket is unbound, reset inp_vflag
-	 * field.
+	 * connect fails, reset inp_vflag field, see above.
 	 */
 	if (error == 0)
 		soisconnected(so);
-	else if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
-	    inp->inp_lport == 0)
+	else if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 		inp->inp_vflag = vflagsav;
 out:
 	INP_WUNLOCK(inp);
