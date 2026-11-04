@@ -502,7 +502,7 @@ gve_adminq_describe_device(struct gve_priv *priv)
 	    GVE_ADMINQ_DEVICE_DESCRIPTOR_VERSION);
 	aq_cmd.describe_device.available_length = htobe32(ADMINQ_SIZE);
 
-	bus_dmamap_sync(desc_mem.tag, desc_mem.map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(desc_mem.tag, desc_mem.map, BUS_DMASYNC_PREREAD);
 
 	rc = gve_adminq_execute_cmd(priv, &aq_cmd);
 	if (rc != 0)
@@ -703,9 +703,13 @@ gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
 		.ptype_map_addr = htobe64(dma.bus_addr),
 	};
 
+	bus_dmamap_sync(dma.tag, dma.map, BUS_DMASYNC_PREREAD);
+
 	err = gve_adminq_execute_cmd(priv, &aq_cmd);
 	if (err)
 		goto err;
+
+	bus_dmamap_sync(dma.tag, dma.map, BUS_DMASYNC_POSTREAD);
 
 	/* Populate ptype_lut_dqo. */
 	for (i = 0; i < GVE_NUM_PTYPES; i++) {

@@ -88,7 +88,7 @@ gve_verify_driver_compatibility(struct gve_priv *priv)
 	    "FreeBSD %u", __FreeBSD_version);
 
 	bus_dmamap_sync(driver_info_mem.tag, driver_info_mem.map,
-	    BUS_DMASYNC_PREREAD);
+	    BUS_DMASYNC_PREWRITE);
 
 	err = gve_adminq_verify_driver_compatibility(priv,
 	    sizeof(struct gve_driver_info), driver_info_mem.bus_addr);
