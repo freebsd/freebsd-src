@@ -3,6 +3,7 @@ libsecureboot
 
 This library depends one way or another on verifying detached digital
 signatures. 
+
 To do that, the necessary trust anchors need to be available.
 
 The simplest (and most attractive for an embedded system) is to
@@ -12,17 +13,57 @@ The makefile ``local.trust.mk`` is responsible for doing that.
 The file provided is just an example and depends on the environment
 here at Juniper.
 
-Within Juniper we use signing servers, which apart from signing things
+We expect ``local.trust.mk`` to set ``VE_SIGNATURE_LIST`` to a set of
+tuples as below, in order of preference.
+Each entry contains sig/alg/hash/flags:
+
+	r3sig/RSA/sha384/0
+	esig/ECDSA/sha256/1
+	acc/OPENPGP/sha256/0
+
+If using a signing server (such as that referenced below), it
+may instead define ``VE_SIGN_URL_LIST`` which is the same
+as the above, but with an extra element for the url to
+contact.  Thus, ``VE_SIGNATURE_LIST`` can be derrived from
+``${VE_SIGN_URL_LIST:H}``.
+
+From ``VE_SIGNATURE_LIST`` we derrive:
+
+``VE_SUPPORTED_LIST``
+
+	a list of hash and signature methods to support.
+	Each results in ``-DVE_<thing>_SUPPORT`` being added to ``CFLAGS``.
+
+``VE_SIGNATURE_EXT_LIST``
+
+	A list of signature extensions in order of preference.
+	This is used to populate ``signature_ext_list`` used by
+	``verify_signed()`` to find the most preferred signature
+	available.
+
+Finally use ``VE_SIGNATURE_LIST`` to populate ``signature_info_list``
+used by ``verify_sig()`` to lookup the ``signature_info``, 
+which provides the hash to use and whether the hash should be hashed
+again.
+
+Within Juniper/HPE we use signing servers, which apart from signing things
 provide access to the necessary trust anchors.
 That signing server is freely available - see
 http://www.crufty.net/sjg/docs/signing-server.htm
+
+The entry above for ``esig`` has non-zero ``flags`` to indicate
+that the hash needs to re-hashed.
+This is to deal with a quirk of our orignal ECDSA signature.  Since
+the signing sever expects to receive a hash, and the signature methods
+insist on hashing the input, the data is actually hashed twice.  Since
+then, I added a FakeHash class to avoid that.
 
 X.509 certificate chains offer a lot of flexibility over time and are
 a great solution for an embedded vendor like Juniper or even
 FreeBSD.org, but are probably overkill for personal or small site use.
 
-Setting up a CA for this is rather involved so I'll just provide a
-link below to suitable tutorial below.
+Setting up a CA for this is rather involved, so I'll just provide a
+link to a suitable tutorial below.
 
 Using OpenPGP is much simpler.
 

@@ -44,15 +44,11 @@ verify_signed(const char *filename, int flags)
 	char buf[MAXPATHLEN];
 	const char **se;
 
-	for (se = signature_exts; *se; se++) {
+	for (se = signature_ext_list; *se; se++) {
 		snprintf(buf, sizeof(buf), "%s.%s", filename, *se);
 		if (stat(buf, &st) < 0 || !S_ISREG(st.st_mode))
 			continue;
 		DEBUG_PRINTF(5, ("verify_signed: %s\n", buf));
-#ifdef VE_OPENPGP_SUPPORT
-		if (strncmp(*se, "asc", 3) == 0)
-			return (verify_asc(buf, flags));
-#endif
 		return (verify_sig(buf, flags));
 	}
 	return (NULL);

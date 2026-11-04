@@ -37,6 +37,24 @@ typedef struct {
 	size_t		hash_size;
 } hash_data;
 
+/*
+ * When supporting multiple signature formats
+ * we need a mapping from sig (ext) to hash_id
+ * and a clue about the method doesn't hurt.
+ * flags can indicate whether we need to hash the hash
+ * (to match a potential use of signing server; to-date
+ * only our original use of ECDSA requires this).
+ */
+typedef struct {
+	const char	*sig;		/* extension */
+	const char	*method;	/* ECDSA,RSA */
+	int		hash_id;	/* br_<hash>_ID */
+	int		flags;
+} signature_info;
+
+/* signature_info flags */
+#define SIF_HASH_TWICE	1
+
 int ve_check_hash(br_hash_compat_context *, const br_hash_class *,
     const char *, const char *, size_t);
 

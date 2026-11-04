@@ -36,6 +36,7 @@
 #include "libsecureboot-priv.h"
 #include <brssl.h>
 #include <ta.h>
+#include <vsi.h>
 
 #ifndef TRUST_ANCHOR_STR
 # define TRUST_ANCHOR_STR ta_PEM
@@ -779,15 +780,15 @@ hexdigest(char *buf, size_t bufsz, unsigned char *foo, size_t foo_len)
  */
 #ifdef VE_ECDSA_SUPPORT
 static unsigned char *
-verify_ec(br_x509_pkey *pk, const char *file, const char *sigfile)
+verify_ec(br_x509_pkey *pk, const char *file, const char *sigfile,
+    signature_info *sip)
 {
-#ifdef VE_ECDSA_HASH_AGAIN
 	char *hex, hexbuf[br_sha512_SIZE * 2 + 2];
-#endif
 	unsigned char rhbuf[br_sha512_SIZE];
-	br_sha256_context ctx;
+	const br_hash_class *md;
+	br_hash_compat_context mctx;
 	unsigned char *fcp, *scp;
-	size_t flen, slen, plen;
+	size_t flen, hlen, plen, slen;
 	pem_object *po;
 	const br_ec_impl *ec;
 	br_ecdsa_vrfy vrfy;
@@ -803,21 +804,39 @@ verify_ec(br_x509_pkey *pk, const char *file, const char *sigfile)
 		free(scp);
 		return (NULL);
 	}
-	br_sha256_init(&ctx);
-	br_sha256_update(&ctx, fcp, flen);
-	br_sha256_out(&ctx, rhbuf);
-#ifdef VE_ECDSA_HASH_AGAIN
-	hex = hexdigest(hexbuf, sizeof(hexbuf), rhbuf, br_sha256_SIZE);
-	/* now hash that */
-	if (hex) {
-		br_sha256_init(&ctx);
-		br_sha256_update(&ctx, hex, strlen(hex));
-		br_sha256_out(&ctx, rhbuf);
+	switch (sip->hash_id) {
+	case br_sha256_ID:
+		md = &br_sha256_vtable;
+		hlen = br_sha256_SIZE;
+		break;
+	case br_sha384_ID:
+		md = &br_sha384_vtable;
+		hlen = br_sha384_SIZE;
+		break;
+	case br_sha512_ID:
+		md = &br_sha512_vtable;
+		hlen = br_sha512_SIZE;
+		break;
+	default:
+		free(fcp);
+		free(scp);
+		return (NULL);
 	}
-#endif
+	md->init(&mctx.vtable);
+	md->update(&mctx.vtable, fcp, flen);
+	md->out(&mctx.vtable, rhbuf);
+	if ((sip->flags & SIF_HASH_TWICE) != 0) {
+		hex = hexdigest(hexbuf, sizeof(hexbuf), rhbuf, hlen);
+		/* now hash that */
+		if (hex) {
+			md->init(&mctx.vtable);
+			md->update(&mctx.vtable, hex, strlen(hex));
+			md->out(&mctx.vtable, rhbuf);
+		}
+	}
 	ec = br_ec_get_default();
 	vrfy = br_ecdsa_vrfy_asn1_get_default();
-	if (!vrfy(ec, rhbuf, br_sha256_SIZE, &pk->key.ec, po->data,
+	if (!vrfy(ec, rhbuf, hlen, &pk->key.ec, po->data,
 		po->data_len)) {
 		free(fcp);
 		fcp = NULL;
@@ -877,8 +896,10 @@ verify_rsa_digest (br_rsa_public_key *pkey,
  */
 #ifdef VE_RSA_SUPPORT
 static unsigned char *
-verify_rsa(br_x509_pkey *pk,  const char *file, const char *sigfile)
+verify_rsa(br_x509_pkey *pk,  const char *file, const char *sigfile,
+    signature_info *sip)
 {
+	char *hex, hexbuf[br_sha512_SIZE * 2 + 2];
 	unsigned char rhbuf[br_sha512_SIZE];
 	const unsigned char *hash_oid;
 	const br_hash_class *md;
@@ -899,24 +920,46 @@ verify_rsa(br_x509_pkey *pk,  const char *file, const char *sigfile)
 		return (NULL);
 	}
 
-	switch (po->data_len) {
-#if defined(UNIT_TEST) && defined(VE_DEPRECATED_RSA_SHA1_SUPPORT)
-	case 256:
-		// this is our old deprecated sig method
+	switch (sip->hash_id) {
+#ifdef VE_SHA1_SUPPORT			/* deprecated */
+	case br_sha1_ID:
 		md = &br_sha1_vtable;
 		hlen = br_sha1_SIZE;
 		hash_oid = BR_HASH_OID_SHA1;
 		break;
 #endif
-	default:
+	case br_sha256_ID:
 		md = &br_sha256_vtable;
 		hlen = br_sha256_SIZE;
 		hash_oid = BR_HASH_OID_SHA256;
 		break;
+	case br_sha384_ID:
+		md = &br_sha384_vtable;
+		hlen = br_sha384_SIZE;
+		hash_oid = BR_HASH_OID_SHA384;
+		break;
+	case br_sha512_ID:
+		md = &br_sha512_vtable;
+		hlen = br_sha512_SIZE;
+		hash_oid = BR_HASH_OID_SHA512;
+		break;
+	default:
+		free(fcp);
+		free(scp);
+		return (NULL);
 	}
 	md->init(&mctx.vtable);
 	md->update(&mctx.vtable, fcp, flen);
 	md->out(&mctx.vtable, rhbuf);
+	if ((sip->flags & SIF_HASH_TWICE) != 0) {
+		hex = hexdigest(hexbuf, sizeof(hexbuf), rhbuf, hlen);
+		/* now hash that */
+		if (hex) {
+			md->init(&mctx.vtable);
+			md->update(&mctx.vtable, hex, strlen(hex));
+			md->out(&mctx.vtable, rhbuf);
+		}
+	}
 	if (!verify_rsa_digest(&pk->key.rsa, hash_oid,
 		rhbuf, hlen, po->data, po->data_len)) {
 		free(fcp);
@@ -951,9 +994,31 @@ verify_sig(const char *sigfile, int flags)
 	char pbuf[MAXPATHLEN];
 	char *cp;
 	unsigned char *ucp;
+	signature_info *sip;
+	const char *sig;
 	size_t n;
 
 	DEBUG_PRINTF(5, ("verify_sig: %s\n", sigfile));
+
+	/* find the signature_info for this signature ext */
+	if ((sig = strrchr(sigfile, '.')) != NULL) {
+		sig++;
+
+		for (sip = signature_info_list; sip->sig != NULL; sip++) {
+			if (strcmp(sig, sip->sig) == 0)
+				break;
+		}
+	} else
+		sip = NULL;
+
+	if (sip == NULL || sip->sig == NULL)
+		return NULL;		/* not valid */
+	if (strcmp(sig, "asc") == 0)
+#ifdef VE_OPENPGP_SUPPORT
+		return verify_asc(sigfile, flags);
+#else
+		return NULL;		/* we shouldn't get here */
+#endif
 	n = strlcpy(pbuf, sigfile, sizeof(pbuf));
 	if (n > (sizeof(pbuf) - 5) || strcmp(&sigfile[n - 3], "sig") != 0)
 		return (NULL);
@@ -984,12 +1049,12 @@ verify_sig(const char *sigfile, int flags)
 	switch (pk->key_type) {
 #ifdef VE_ECDSA_SUPPORT
 	case BR_KEYTYPE_EC:
-		ucp = verify_ec(pk, pbuf, sigfile);
+		ucp = verify_ec(pk, pbuf, sigfile, sip);
 		break;
 #endif
 #ifdef VE_RSA_SUPPORT
 	case BR_KEYTYPE_RSA:
-		ucp = verify_rsa(pk, pbuf, sigfile);
+		ucp = verify_rsa(pk, pbuf, sigfile, sip);
 		break;
 #endif
 	default:
