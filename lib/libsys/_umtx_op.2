@@ -190,36 +190,10 @@ member provides the clock identifier to use for timeout, when the
 request has both the
 .Dv CVWAIT_CLOCKID
 flag and the timeout specified.
-Valid clock identifiers are a subset of those for
-.Xr clock_gettime 2 :
-.Bl -bullet -compact
-.It
-.Dv CLOCK_MONOTONIC
-.It
-.Dv CLOCK_MONOTONIC_FAST
-.It
-.Dv CLOCK_MONOTONIC_PRECISE
-.It
-.Dv CLOCK_PROF
-.It
-.Dv CLOCK_REALTIME
-.It
-.Dv CLOCK_REALTIME_FAST
-.It
-.Dv CLOCK_REALTIME_PRECISE
-.It
-.Dv CLOCK_SECOND
-.It
-.Dv CLOCK_TAI
-.It
-.Dv CLOCK_UPTIME
-.It
-.Dv CLOCK_UPTIME_FAST
-.It
-.Dv CLOCK_UPTIME_PRECISE
-.It
-.Dv CLOCK_VIRTUAL
-.El
+Valid clock identifiers are the same as for the
+.Dv _clockid
+member of the
+.Vt struct _umtx_time .
 .It Sy Reader/writer lock
 .Bd -literal
 struct urwlock {
@@ -357,14 +331,45 @@ The
 member specifies the time when the timeout should occur.
 Legal values for clock identifier
 .Dv _clockid
-are shared with the
+are a subset of the valid values for the
 .Fa clock_id
 argument to the
 .Xr clock_gettime 2
-function,
-and use the same underlying clocks.
+function, and use the same underlying clocks.
 The specified clock is used to obtain the current time value.
 Interval counting is always performed by the monotonic wall clock.
+.Pp
+Currently accepted clocks are:
+.Bl -bullet -compact
+.It
+.Dv CLOCK_MONOTONIC
+.It
+.Dv CLOCK_MONOTONIC_FAST
+.It
+.Dv CLOCK_MONOTONIC_PRECISE
+.It
+.Dv CLOCK_PROCESS_CPUTIME_ID
+.It
+.Dv CLOCK_PROF
+.It
+.Dv CLOCK_REALTIME
+.It
+.Dv CLOCK_REALTIME_FAST
+.It
+.Dv CLOCK_REALTIME_PRECISE
+.It
+.Dv CLOCK_SECOND
+.It
+.Dv CLOCK_TAI
+.It
+.Dv CLOCK_UPTIME
+.It
+.Dv CLOCK_UPTIME_FAST
+.It
+.Dv CLOCK_UPTIME_PRECISE
+.It
+.Dv CLOCK_VIRTUAL
+.El
 .Pp
 The
 .Dv _flags
