@@ -2008,19 +2008,31 @@ tryagain:
 
 	      if (error == 0) {
 		    if (new_stp->ls_flags & NFSLCK_OPENTOLOCK) {
+			if (stp->ls_flags & NFSLCK_OPEN)
+			    nfsrv_getowner(&stp->ls_open, new_stp, &lckstp);
 			/*
 			 * If haslock set, we've already checked the seqid.
 			 */
 			if (!haslock) {
-			    if (stp->ls_flags & NFSLCK_OPEN)
-				error = nfsrv_checkseqid(nd, new_stp->ls_seq,
-				    stp->ls_openowner, new_stp->ls_op);
-			    else
+			    if (stp->ls_flags & NFSLCK_OPEN) {
+				/*
+				 * A new NFSv4.0 request cannot reuse a lock
+				 * owner.  Reject it before checkseqid consumes
+				 * the open seqid and replaces the cached reply.
+				 * The current seqid may be a retransmission of
+				 * the original LOCK; let checkseqid validate it.
+				 */
+				if (lckstp != NULL &&
+				    (nd->nd_flag & ND_NFSV41) == 0 &&
+				    new_stp->ls_seq != stp->ls_openowner->ls_seq)
+				    error = NFSERR_BADSEQID;
+				else
+				    error = nfsrv_checkseqid(nd, new_stp->ls_seq,
+					stp->ls_openowner, new_stp->ls_op);
+			    } else
 				error = NFSERR_BADSTATEID;
 			}
-			if (!error)
-			    nfsrv_getowner(&stp->ls_open, new_stp, &lckstp);
-			if (lckstp) {
+			if (!error && lckstp) {
 			    /*
 			     * For NFSv4.1 and NFSv4.2 allow an
 			     * open_to_lock_owner when the lock_owner already
@@ -2033,7 +2045,7 @@ tryagain:
 				new_stp->ls_flags &= ~NFSLCK_OPENTOLOCK;
 			    else
 				error = NFSERR_BADSEQID;
-			} else
+			} else if (lckstp == NULL)
 			    lckstp = new_stp;
 		    } else if (new_stp->ls_flags&(NFSLCK_LOCK|NFSLCK_UNLOCK)) {
 			/*
