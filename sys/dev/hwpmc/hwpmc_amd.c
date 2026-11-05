@@ -797,7 +797,10 @@ amd_start_pmc_v2(int cpu __diagused, int ri, struct pmc *pm)
 	}
 
 	/* Enable EVSEL while the virtual slot's global bit is off. */
-	config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_ENABLE;
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC)
+		config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_UMC_ENABLE;
+	else
+		config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_ENABLE;
 	wrmsr(pd->pm_evsel, config);
 
 	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_CORE &&
@@ -868,6 +871,7 @@ amd_stop_pmc_v2(int cpu __diagused, int ri, struct pmc *pm)
 {
 	const struct amd_descr *pd;
 	enum pmc_mode mode;
+	uint64_t config;
 	int i;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -888,8 +892,11 @@ amd_stop_pmc_v2(int cpu __diagused, int ri, struct pmc *pm)
 	}
 
 	/* Disable EVSEL after the counter's global bit is off. */
-	wrmsr(pd->pm_evsel,
-	    pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE);
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC)
+		config = pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_UMC_ENABLE;
+	else
+		config = pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE;
+	wrmsr(pd->pm_evsel, config);
 
 	/* Wait out an in-flight overflow NMI.  The handler clears the status bit. */
 	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_CORE &&
