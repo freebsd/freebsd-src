@@ -763,7 +763,7 @@ e6000sw_write_xmdio(device_t dev, int phy, int devaddr, int devreg, int val)
 	}
 
 	/* Load data and start the C45 write operation. */
-	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG, devreg);
+	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG, val);
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG,
 	    reg | SMI_CMD_OP_C45_WRITE);
 
