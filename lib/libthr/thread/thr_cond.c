@@ -442,6 +442,8 @@ __pthread_cond_clockwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
+	if (_thr_check_clockid(clockid) != 0)
+		return (EINVAL);
 
 	return (cond_wait_common(cond, mutex, clockid, abstime, true, true));
 }
