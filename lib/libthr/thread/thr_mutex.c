@@ -64,6 +64,8 @@ _Static_assert(sizeof(struct pthread_mutex) <= THR_PAGE_SIZE_MIN,
  */
 int	__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
 		const struct timespec * __restrict abstime);
+int	__pthread_mutex_clocklock(pthread_mutex_t * __restrict mutex,
+		clockid_t clock, const struct timespec * __restrict abstime);
 int	_pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
 int	_pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
@@ -73,10 +75,10 @@ int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
-				const struct timespec *abstime);
+		    const struct timespec *abstime, clockid_t clockid);
 static int	mutex_unlock_common(struct pthread_mutex *, bool, int *);
 static int	mutex_lock_sleep(struct pthread *, pthread_mutex_t,
-				const struct timespec *);
+		    const struct timespec *, clockid_t clockid);
 static void	mutex_init_robust(struct pthread *curthread);
 static int	mutex_qidx(struct pthread_mutex *m);
 static bool	is_robust_mutex(struct pthread_mutex *m);
@@ -90,6 +92,7 @@ __weak_reference(__Tthr_mutex_lock, __pthread_mutex_lock);
 __strong_reference(__Tthr_mutex_lock, _pthread_mutex_lock);
 __weak_reference(__pthread_mutex_timedlock, pthread_mutex_timedlock);
 __strong_reference(__pthread_mutex_timedlock, _pthread_mutex_timedlock);
+__weak_reference(__pthread_mutex_clocklock, pthread_mutex_clocklock);
 __weak_reference(__Tthr_mutex_trylock, pthread_mutex_trylock);
 __weak_reference(__Tthr_mutex_trylock, __pthread_mutex_trylock);
 __strong_reference(__Tthr_mutex_trylock, _pthread_mutex_trylock);
@@ -654,14 +657,14 @@ __Tthr_mutex_trylock(pthread_mutex_t *mutex)
 
 static int
 mutex_lock_sleep(struct pthread *curthread, struct pthread_mutex *m,
-    const struct timespec *abstime)
+    const struct timespec *abstime, clockid_t clockid)
 {
 	uint32_t id, owner;
 	int count, ret;
 
 	id = TID(curthread);
 	if (PMUTEX_OWNER_ID(m) == id)
-		return (mutex_self_lock(m, abstime));
+		return (mutex_self_lock(m, abstime, clockid));
 
 	/*
 	 * For adaptive mutexes, spin for a bit in the expectation
@@ -707,10 +710,11 @@ sleep_in_kernel:
 	if (abstime == NULL)
 		ret = __thr_umutex_lock(&m->m_lock, id);
 	else if (__predict_false(abstime->tv_nsec < 0 ||
-	    abstime->tv_nsec >= 1000000000))
+	    abstime->tv_nsec >= 1000000000) ||
+	    _thr_check_clockid(clockid) != 0)
 		ret = EINVAL;
 	else
-		ret = __thr_umutex_timedlock(&m->m_lock, id, abstime);
+		ret = __thr_umutex_timedlock(&m->m_lock, id, abstime, clockid);
 done:
 	if (ret == 0 || ret == EOWNERDEAD) {
 		enqueue_mutex(curthread, m, ret);
@@ -722,7 +726,7 @@ done:
 
 static __always_inline int
 mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
-    bool cvattach, bool rb_onlist)
+    clockid_t clockid, bool cvattach, bool rb_onlist)
 {
 	struct pthread *curthread;
 	int ret, robust;
@@ -739,7 +743,7 @@ mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
 		if (ret == EOWNERDEAD)
 			m->m_lock.m_flags |= UMUTEX_NONCONSISTENT;
 	} else {
-		ret = mutex_lock_sleep(curthread, m, abstime);
+		ret = mutex_lock_sleep(curthread, m, abstime, clockid);
 	}
 	if (!rb_onlist && robust)
 		_mutex_leave_robust(curthread, m);
@@ -758,12 +762,12 @@ __Tthr_mutex_lock(pthread_mutex_t *mutex)
 	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
-		ret = mutex_lock_common(m, NULL, false, false);
+		ret = mutex_lock_common(m, NULL, CLOCK_REALTIME, false, false);
 	return (ret);
 }
 
 int
-__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
+__pthread_mutex_clocklock(pthread_mutex_t * __restrict mutex, clockid_t clockid,
     const struct timespec * __restrict abstime)
 {
 	struct pthread_mutex *m;
@@ -772,8 +776,15 @@ __pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
 	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
-		ret = mutex_lock_common(m, abstime, false, false);
+		ret = mutex_lock_common(m, abstime, clockid, false, false);
 	return (ret);
+}
+
+int
+__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
+    const struct timespec * __restrict abstime)
+{
+	return (__pthread_mutex_clocklock(mutex, CLOCK_REALTIME, abstime));
 }
 
 int
@@ -797,7 +808,7 @@ _mutex_cv_lock(struct pthread_mutex *m, int count, bool rb_onlist)
 {
 	int error;
 
-	error = mutex_lock_common(m, NULL, true, rb_onlist);
+	error = mutex_lock_common(m, NULL, CLOCK_REALTIME, true, rb_onlist);
 	if (error == 0 || error == EOWNERDEAD)
 		m->m_count = count;
 	return (error);
@@ -889,7 +900,8 @@ mutex_self_trylock(struct pthread_mutex *m)
 }
 
 static int
-mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
+mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime,
+    clockid_t clockid)
 {
 	struct timespec	ts1, ts2;
 	int ret;
@@ -914,8 +926,10 @@ mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
 			if (abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 			    abstime->tv_nsec >= 1000000000) {
 				ret = EINVAL;
+			} else if (_thr_check_clockid(clockid) != 0 ||
+			    clock_gettime(clockid, &ts1) == -1) {
+				ret = EINVAL;
 			} else {
-				clock_gettime(CLOCK_REALTIME, &ts1);
 				TIMESPEC_SUB(&ts2, abstime, &ts1);
 				__sys_nanosleep(&ts2, NULL);
 				ret = ETIMEDOUT;

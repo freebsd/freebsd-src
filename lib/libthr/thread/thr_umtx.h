@@ -42,7 +42,7 @@
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
-	const struct timespec *timeout) __hidden;
+	const struct timespec *timeout, clockid_t clockid) __hidden;
 int __thr_umutex_unlock(struct umutex *mtx) __hidden;
 int __thr_umutex_trylock(struct umutex *mtx) __hidden;
 int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
@@ -145,7 +145,7 @@ _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 
 	if (_thr_umutex_trylock2(mtx, id) == 0)
 		return (0);
-	return (__thr_umutex_timedlock(mtx, id, timeout));
+	return (__thr_umutex_timedlock(mtx, id, timeout, CLOCK_REALTIME));
 }
 
 static inline int
