@@ -12,6 +12,15 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20261112:
+	iflib now uses a single TX DMA map.  Drivers must request non-TSO
+	DMA segment limits explicitly with IFLIB_SPARSE_TX.  Rebuild and
+	install iflib together with the updated ice(4), ixl(4), and iavf(4)
+	drivers.  Older driver modules may still load but do not request
+	the required segment limits.  Out-of-tree iflib drivers must be
+	reviewed for this requirement; rebuilding unchanged sources is
+	not sufficient.  __FreeBSD_version has been bumped to 1502501.
+
 20261031:
 	The Intel 82576 and I350 Virtual Function devices now use the igbv(4)
 	driver.  VF interfaces previously named igbN are now named igbvN.

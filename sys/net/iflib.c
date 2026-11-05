@@ -365,7 +365,6 @@ typedef struct iflib_sw_rx_desc_array {
 
 typedef struct iflib_sw_tx_desc_array {
 	bus_dmamap_t	*ifsd_map;	/* bus_dma maps for packet */
-	bus_dmamap_t	*ifsd_tso_map;	/* bus_dma maps for TSO packet */
 	struct mbuf	**ifsd_m;	/* pkthdr mbufs */
 	struct mbuf	**ifsd_m_defer;	/* deferred mbuf ptr */
 	struct mbuf	**ifsd_m_deferb;/* deferred mbuf backing ptr */
@@ -385,19 +384,6 @@ typedef struct iflib_sw_tx_desc_array {
 #define TX_BATCH_SIZE			32
 
 #define IFLIB_RESTART_BUDGET		8
-
-
-/*
- * Encode TSO or !TSO in the low bits of the tx ifsd_m pointer so as
- * to avoid defref'ing the mbuf to determine the correct busdma resources
- * to release
- */
-#define IFLIB_TSO		(1ULL << 0)
-#define IFLIB_NO_TSO		(2ULL << 0)
-#define IFLIB_FLAGS_MASK	(0x3ULL)
-#define IFLIB_SAVE_MBUF(mbuf, flags)	((void *)(((uintptr_t)mbuf) | flags))
-#define IFLIB_GET_FLAGS(a)	((uintptr_t)a & IFLIB_FLAGS_MASK)
-#define IFLIB_GET_MBUF(a)	((struct mbuf *)((uintptr_t)a & ~IFLIB_FLAGS_MASK))
 
 
 #define	IFC_LEGACY		0x001
@@ -427,7 +413,8 @@ struct iflib_txq {
 	uint8_t		ift_spare0;
 	uint8_t		ift_br_offset:1,
 			ift_defer_mfree:1,
-			ift_spare_bits0:6;
+			ift_sparse_check:1,
+			ift_spare_bits0:5;
 	uint16_t	ift_npending;
 	uint16_t	ift_db_pending;
 	uint16_t	ift_rs_pending;
@@ -493,7 +480,6 @@ struct iflib_txq {
 	uint8_t		ift_spare1[2];	/* pad to the next pointer boundary */
 	struct iflib_filter_info ift_filter_info;
 	bus_dma_tag_t	ift_buf_tag;
-	bus_dma_tag_t	ift_tso_buf_tag;
 	iflib_dma_info_t	ift_ifdi;
 #define	MTX_NAME_LEN	32
 	char		ift_mtx_name[MTX_NAME_LEN];
@@ -1846,11 +1832,7 @@ _iflib_irq_alloc(if_ctx_t ctx, if_irq_t irq, int rid,
 
 /*********************************************************************
  *
- *  Allocate DMA resources for TX buffers as well as memory for the TX
- *  mbuf map.  TX DMA maps (non-TSO/TSO) and TX mbuf map are kept in a
- *  iflib_sw_tx_desc_array structure, storing all the information that
- *  is needed to transmit a packet on the wire.  This is called only
- *  once at attach, setup is done every reset.
+ *  Allocate DMA resources for TX buffers and the TX mbuf map.
  *
  **********************************************************************/
 static int
@@ -1860,12 +1842,14 @@ iflib_txsd_alloc(iflib_txq_t txq)
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
 	device_t dev = ctx->ifc_dev;
-	bus_size_t tsomaxsize;
+	bus_size_t maxsegsize, maxsize, tsomaxsize;
 	bus_addr_t lowaddr;
 	int err, nsegments, ntsosegments;
 	bool tso;
 
 	nsegments = scctx->isc_tx_nsegments;
+	maxsize = sctx->isc_tx_maxsize;
+	maxsegsize = sctx->isc_tx_maxsegsize;
 	ntsosegments = scctx->isc_tx_tso_segments_max;
 	tsomaxsize = scctx->isc_tx_tso_size_max;
 	if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_VLAN_MTU)
@@ -1873,48 +1857,33 @@ iflib_txsd_alloc(iflib_txq_t txq)
 	MPASS(scctx->isc_ntxd[0] > 0);
 	MPASS(scctx->isc_ntxd[txq->ift_br_offset] > 0);
 	MPASS(nsegments > 0);
-	if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) {
+	tso = (if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) != 0;
+	if (tso) {
 		MPASS(ntsosegments > 0);
 		MPASS(sctx->isc_tso_maxsize >= tsomaxsize);
+		maxsize = MAX(maxsize, tsomaxsize);
+		nsegments = MAX(nsegments, ntsosegments);
+		maxsegsize = MAX(maxsegsize, sctx->isc_tso_maxsegsize);
 	}
 
 	lowaddr = DMA_WIDTH_TO_BUS_LOWADDR(scctx->isc_dma_width);
 
-	/*
-	 * Set up DMA tags for TX buffers.
-	 */
+	/* Set up the TX buffer DMA tag. */
 	if ((err = bus_dma_tag_create(bus_get_dma_tag(dev),
 		    1, 0,			/* alignment, bounds */
 		    lowaddr,			/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
-		    sctx->isc_tx_maxsize,	/* maxsize */
+		    maxsize,			/* maxsize */
 		    nsegments,			/* nsegments */
-		    sctx->isc_tx_maxsegsize,	/* maxsegsize */
+		    maxsegsize,			/* maxsegsize */
 		    0,				/* flags */
 		    NULL,			/* lockfunc */
 		    NULL,			/* lockfuncarg */
 		    &txq->ift_buf_tag))) {
 		device_printf(dev, "Unable to allocate TX DMA tag: %d\n", err);
 		device_printf(dev, "maxsize: %ju nsegments: %d maxsegsize: %ju\n",
-		    (uintmax_t)sctx->isc_tx_maxsize, nsegments, (uintmax_t)sctx->isc_tx_maxsegsize);
-		goto fail;
-	}
-	tso = (if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) != 0;
-	if (tso && (err = bus_dma_tag_create(bus_get_dma_tag(dev),
-		    1, 0,			/* alignment, bounds */
-		    lowaddr,			/* lowaddr */
-		    BUS_SPACE_MAXADDR,		/* highaddr */
-		    NULL, NULL,			/* filter, filterarg */
-		    tsomaxsize,			/* maxsize */
-		    ntsosegments,		/* nsegments */
-		    sctx->isc_tso_maxsegsize,	/* maxsegsize */
-		    0,				/* flags */
-		    NULL,			/* lockfunc */
-		    NULL,			/* lockfuncarg */
-		    &txq->ift_tso_buf_tag))) {
-		device_printf(dev, "Unable to allocate TSO TX DMA tag: %d\n",
-		    err);
+		    (uintmax_t)maxsize, nsegments, (uintmax_t)maxsegsize);
 		goto fail;
 	}
 
@@ -1947,27 +1916,11 @@ iflib_txsd_alloc(iflib_txq_t txq)
 		err = ENOMEM;
 		goto fail;
 	}
-	if (tso && (txq->ift_sds.ifsd_tso_map = (bus_dmamap_t *)malloc(
-	    sizeof(bus_dmamap_t) * scctx->isc_ntxd[txq->ift_br_offset],
-	    M_IFLIB, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev,
-		    "Unable to allocate TSO TX buffer map memory\n");
-		err = ENOMEM;
-		goto fail;
-	}
 	for (int i = 0; i < scctx->isc_ntxd[txq->ift_br_offset]; i++) {
 		err = bus_dmamap_create(txq->ift_buf_tag, 0,
 		    &txq->ift_sds.ifsd_map[i]);
 		if (err != 0) {
 			device_printf(dev, "Unable to create TX DMA map\n");
-			goto fail;
-		}
-		if (!tso)
-			continue;
-		err = bus_dmamap_create(txq->ift_tso_buf_tag, 0,
-		    &txq->ift_sds.ifsd_tso_map[i]);
-		if (err != 0) {
-			device_printf(dev, "Unable to create TSO TX DMA map\n");
 			goto fail;
 		}
 	}
@@ -1989,15 +1942,6 @@ iflib_txsd_destroy(if_ctx_t ctx, iflib_txq_t txq, int i)
 		bus_dmamap_unload(txq->ift_buf_tag, map);
 		bus_dmamap_destroy(txq->ift_buf_tag, map);
 		txq->ift_sds.ifsd_map[i] = NULL;
-	}
-
-	if (txq->ift_sds.ifsd_tso_map != NULL) {
-		map = txq->ift_sds.ifsd_tso_map[i];
-		bus_dmamap_sync(txq->ift_tso_buf_tag, map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(txq->ift_tso_buf_tag, map);
-		bus_dmamap_destroy(txq->ift_tso_buf_tag, map);
-		txq->ift_sds.ifsd_tso_map[i] = NULL;
 	}
 }
 
@@ -2045,10 +1989,6 @@ iflib_txq_destroy(iflib_txq_t txq)
 		free(txq->ift_sds.ifsd_map, M_IFLIB);
 		txq->ift_sds.ifsd_map = NULL;
 	}
-	if (txq->ift_sds.ifsd_tso_map != NULL) {
-		free(txq->ift_sds.ifsd_tso_map, M_IFLIB);
-		txq->ift_sds.ifsd_tso_map = NULL;
-	}
 	if (txq->ift_sds.ifsd_m != NULL) {
 		free(txq->ift_sds.ifsd_m, M_IFLIB);
 		txq->ift_sds.ifsd_m = NULL;
@@ -2061,10 +2001,6 @@ iflib_txq_destroy(iflib_txq_t txq)
 		bus_dma_tag_destroy(txq->ift_buf_tag);
 		txq->ift_buf_tag = NULL;
 	}
-	if (txq->ift_tso_buf_tag != NULL) {
-		bus_dma_tag_destroy(txq->ift_tso_buf_tag);
-		txq->ift_tso_buf_tag = NULL;
-	}
 	if (txq->ift_ifdi != NULL) {
 		free(txq->ift_ifdi, M_IFLIB);
 	}
@@ -2075,7 +2011,7 @@ iflib_txsd_free(if_ctx_t ctx, iflib_txq_t txq, int i)
 {
 	struct mbuf *m;
 
-	m = IFLIB_GET_MBUF(txq->ift_sds.ifsd_m[i]);
+	m = txq->ift_sds.ifsd_m[i];
 	if (m == NULL)
 		return;
 
@@ -2083,12 +2019,6 @@ iflib_txsd_free(if_ctx_t ctx, iflib_txq_t txq, int i)
 		bus_dmamap_sync(txq->ift_buf_tag,
 		    txq->ift_sds.ifsd_map[i], BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(txq->ift_buf_tag, txq->ift_sds.ifsd_map[i]);
-	}
-	if (txq->ift_sds.ifsd_tso_map != NULL) {
-		bus_dmamap_sync(txq->ift_tso_buf_tag,
-		    txq->ift_sds.ifsd_tso_map[i], BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(txq->ift_tso_buf_tag,
-		    txq->ift_sds.ifsd_tso_map[i]);
 	}
 	txq->ift_sds.ifsd_m[i] = NULL;
 	m_freem(m);
@@ -3824,12 +3754,9 @@ iflib_remove_mbuf(iflib_txq_t txq)
 	ntxd = txq->ift_size;
 	pidx = txq->ift_pidx & (ntxd - 1);
 	ifsd_m = txq->ift_sds.ifsd_m;
-	m = IFLIB_GET_MBUF(ifsd_m[pidx]);
+	m = ifsd_m[pidx];
 	ifsd_m[pidx] = NULL;
 	bus_dmamap_unload(txq->ift_buf_tag, txq->ift_sds.ifsd_map[pidx]);
-	if (txq->ift_sds.ifsd_tso_map != NULL)
-		bus_dmamap_unload(txq->ift_tso_buf_tag,
-		    txq->ift_sds.ifsd_tso_map[pidx]);
 #if MEMORY_LOGGING
 	txq->ift_dequeued++;
 #endif
@@ -3891,7 +3818,6 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp, int *obytes, int *opkts)
 	struct mbuf		*m_head, **ifsd_m;
 	bus_dmamap_t		map;
 	struct if_pkt_info	pi;
-	uintptr_t		flags;
 	int remap = 0;
 	int err, nsegs, ndesc, max_segs, pidx;
 
@@ -3900,6 +3826,7 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp, int *obytes, int *opkts)
 	scctx = &ctx->ifc_softc_ctx;
 	segs = txq->ift_segs;
 	m_head = *m_headp;
+	buf_tag = txq->ift_buf_tag;
 	map = NULL;
 
 	/*
@@ -3909,19 +3836,6 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp, int *obytes, int *opkts)
 	map = txq->ift_sds.ifsd_map[pidx];
 	ifsd_m = txq->ift_sds.ifsd_m;
 
-	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-		buf_tag = txq->ift_tso_buf_tag;
-		max_segs = scctx->isc_tx_tso_segments_max;
-		map = txq->ift_sds.ifsd_tso_map[pidx];
-		MPASS(buf_tag != NULL);
-		MPASS(max_segs > 0);
-		flags = IFLIB_TSO;
-	} else {
-		buf_tag = txq->ift_buf_tag;
-		max_segs = scctx->isc_tx_nsegments;
-		map = txq->ift_sds.ifsd_map[pidx];
-		flags = IFLIB_NO_TSO;
-	}
 	if ((sctx->isc_flags & IFLIB_NEED_ETHER_PAD) &&
 	    __predict_false(m_head->m_pkthdr.len < scctx->isc_min_frame_size)) {
 		err = iflib_ether_pad(ctx->ifc_dev, m_headp, scctx->isc_min_frame_size);
@@ -3952,10 +3866,20 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp, int *obytes, int *opkts)
 retry:
 	err = bus_dmamap_load_mbuf_sg(buf_tag, map, m_head, segs, &nsegs,
 	    BUS_DMA_NOWAIT);
+	if (__predict_false(err == 0 && txq->ift_sparse_check &&
+	    (pi.ipi_csum_flags & CSUM_TSO) == 0 &&
+	    nsegs > scctx->isc_tx_nsegments)) {
+		bus_dmamap_unload(buf_tag, map);
+		err = EFBIG;
+	}
 defrag:
 	if (__predict_false(err)) {
 		switch (err) {
 		case EFBIG:
+			if (pi.ipi_csum_flags & CSUM_TSO)
+				max_segs = scctx->isc_tx_tso_segments_max;
+			else
+				max_segs = scctx->isc_tx_nsegments;
 			/* try collapse once and defrag once */
 			if (remap == 0) {
 				m_head = m_collapse(*m_headp, M_NOWAIT, max_segs);
@@ -3992,7 +3916,7 @@ defrag:
 		DBG_COUNTER_INC(encap_txd_encap_fail);
 		return (err);
 	}
-	ifsd_m[pidx] = IFLIB_SAVE_MBUF(m_head, flags);
+	ifsd_m[pidx] = m_head;
 	if (m_head->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		pi.ipi_mbuf = m_head;
 	else
@@ -4072,7 +3996,7 @@ defrag:
 		/*
 		 * Update packets / bytes sent
 		 */
-		if (flags & IFLIB_TSO) {
+		if (pi.ipi_csum_flags & CSUM_TSO) {
 			int hlen = pi.ipi_ehdrlen + pi.ipi_ip_hlen + pi.ipi_tcp_hlen;
 			int tsolen = pi.ipi_len - hlen;
 			int nsegs = (tsolen + pi.ipi_tso_segsz - 1) / pi.ipi_tso_segsz;
@@ -4120,29 +4044,17 @@ iflib_tx_desc_free(iflib_txq_t txq, int n, struct mbuf **m_defer)
 {
 	uint32_t qsize, cidx;
 	struct mbuf *m, **ifsd_m;
-	uintptr_t flags;
 
 	cidx = txq->ift_cidx;
 	qsize = txq->ift_size;
 	ifsd_m =txq->ift_sds.ifsd_m;
 
 	while (n-- > 0) {
-		if ((m = IFLIB_GET_MBUF(ifsd_m[cidx])) != NULL) {
-			flags = IFLIB_GET_FLAGS(ifsd_m[cidx]);
-			MPASS(flags != 0);
-			if (flags & IFLIB_TSO) {
-				bus_dmamap_sync(txq->ift_tso_buf_tag,
-				    txq->ift_sds.ifsd_tso_map[cidx],
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(txq->ift_tso_buf_tag,
-				    txq->ift_sds.ifsd_tso_map[cidx]);
-			} else {
-				bus_dmamap_sync(txq->ift_buf_tag,
-				    txq->ift_sds.ifsd_map[cidx],
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(txq->ift_buf_tag,
-				    txq->ift_sds.ifsd_map[cidx]);
-			}
+		if ((m = ifsd_m[cidx]) != NULL) {
+			bus_dmamap_sync(txq->ift_buf_tag,
+			    txq->ift_sds.ifsd_map[cidx], BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(txq->ift_buf_tag,
+			    txq->ift_sds.ifsd_map[cidx]);
 			/* XXX we don't support any drivers that batch packets yet */
 			MPASS(m->m_nextpkt == NULL);
 			if (m_defer == NULL) {
@@ -6636,6 +6548,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 		}
 		txq->ift_ctx = ctx;
 		txq->ift_id = i;
+		txq->ift_sparse_check = (sctx->isc_flags & IFLIB_SPARSE_TX) != 0;
 		if (sctx->isc_flags & IFLIB_HAS_TXCQ) {
 			txq->ift_br_offset = 1;
 		} else {
