@@ -171,7 +171,7 @@ static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD | CTLFLAG_MPSAFE, 0
     "umtx chain stats");
 #endif
 
-static inline void umtx_abs_timeout_init2(struct umtx_abs_timeout *timo,
+static inline int umtx_abs_timeout_init2(struct umtx_abs_timeout *timo,
     const struct _umtx_time *umtxtime);
 
 static void umtx_shm_init(void);
@@ -678,15 +678,58 @@ tstohz(const struct timespec *tsp)
 	return tvtohz(&tv);
 }
 
-void
+/*
+ * Clocks that umtx_abs_timeout_getsbt() can wait on.
+ *
+ * The process CPU-time clocks CLOCK_VIRTUAL, CLOCK_PROF, and
+ * CLOCK_PROCESS_CPUTIME_ID advance while other threads of the process
+ * run.  CLOCK_THREAD_CPUTIME_ID is not accepted because the CPU time
+ * of the sleeping thread does not advance.
+ *
+ * The clock ids from clock_getcpuclockid(3) and
+ * pthread_getcpuclockid(3) are not accepted, at least for now.
+ * Reading the CPU time of another process takes sleepable locks,
+ * while the timeout is checked with the umtx chain lock held.
+ */
+static int
+umtx_check_clockid(clockid_t clockid)
+{
+	switch (clockid) {
+	case CLOCK_REALTIME:
+	case CLOCK_REALTIME_PRECISE:
+	case CLOCK_REALTIME_FAST:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_PRECISE:
+	case CLOCK_MONOTONIC_FAST:
+	case CLOCK_UPTIME:
+	case CLOCK_UPTIME_PRECISE:
+	case CLOCK_UPTIME_FAST:
+	case CLOCK_SECOND:
+	case CLOCK_VIRTUAL:
+	case CLOCK_PROF:
+	case CLOCK_PROCESS_CPUTIME_ID:
+	case CLOCK_TAI:
+		return (0);
+	default:
+		return (EINVAL);
+	}
+}
+
+int
 umtx_abs_timeout_init(struct umtx_abs_timeout *timo, int clockid,
     int absolute, const struct timespec *timeout)
 {
+	int error;
 
+	error = umtx_check_clockid(clockid);
+	if (error != 0)
+		return (error);
+	error = kern_clock_gettime(curthread, clockid, &timo->cur);
+	if (error != 0)
+		return (error);
 	timo->clockid = clockid;
 	if (!absolute) {
 		timo->is_abs_real = false;
-		kern_clock_gettime(curthread, timo->clockid, &timo->cur);
 		timespecadd(&timo->cur, timeout, &timo->end);
 	} else {
 		timo->end = *timeout;
@@ -696,15 +739,17 @@ umtx_abs_timeout_init(struct umtx_abs_timeout *timo, int clockid,
 		    clockid == CLOCK_TAI ||
 		    clockid == CLOCK_SECOND;
 	}
+	return (0);
 }
 
-static void
+static int
 umtx_abs_timeout_init2(struct umtx_abs_timeout *timo,
     const struct _umtx_time *umtxtime)
 {
-
-	umtx_abs_timeout_init(timo, umtxtime->_clockid,
-	    (umtxtime->_flags & UMTX_ABSTIME) != 0, &umtxtime->_timeout);
+	if (umtxtime == NULL)
+		return (0);
+	return (umtx_abs_timeout_init(timo, umtxtime->_clockid,
+	    (umtxtime->_flags & UMTX_ABSTIME) != 0, &umtxtime->_timeout));
 }
 
 static void
@@ -727,6 +772,7 @@ umtx_abs_timeout_getsbt(struct umtx_abs_timeout *timo, sbintime_t *sbt,
 	struct bintime bt, bbt;
 	struct timespec tts;
 	sbintime_t rem;
+	int error;
 
 	switch (timo->clockid) {
 
@@ -790,7 +836,10 @@ umtx_abs_timeout_getsbt(struct umtx_abs_timeout *timo, sbintime_t *sbt,
 	case CLOCK_PROCESS_CPUTIME_ID:
 	case CLOCK_TAI: /* Boot time is not necessarily stable in TAI */
 	default:
-		kern_clock_gettime(curthread, timo->clockid, &timo->cur);
+		error = kern_clock_gettime(curthread, timo->clockid,
+		    &timo->cur);
+		if (error != 0)
+			return (error);
 		if (timespeccmp(&timo->end, &timo->cur, <=))
 			return (ETIMEDOUT);
 		timespecsub(&timo->end, &timo->cur, &tts);
@@ -927,8 +976,12 @@ do_lock_umtx(struct thread *td, struct umtx *umtx, u_long id,
 	int error = 0;
 
 	uq = td->td_umtxq;
-	if (timeout != NULL)
-		umtx_abs_timeout_init(&timo, CLOCK_REALTIME, 0, timeout);
+	if (timeout != NULL) {
+		error = umtx_abs_timeout_init(&timo, CLOCK_REALTIME, 0,
+		    timeout);
+		if (error != 0)
+			return (error);
+	}
 
 	/*
 	 * Care must be exercised when dealing with umtx structure. It
@@ -1109,8 +1162,12 @@ do_lock_umtx32(struct thread *td, uint32_t *m, uint32_t id,
 
 	uq = td->td_umtxq;
 
-	if (timeout != NULL)
-		umtx_abs_timeout_init(&timo, CLOCK_REALTIME, 0, timeout);
+	if (timeout != NULL) {
+		error = umtx_abs_timeout_init(&timo, CLOCK_REALTIME, 0,
+		    timeout);
+		if (error != 0)
+			return (error);
+	}
 
 	/*
 	 * Care must be exercised when dealing with umtx structure. It
@@ -1288,13 +1345,14 @@ do_wait(struct thread *td, void *addr, u_long id,
 	uint32_t tmp32;
 	int error = 0;
 
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
+
 	uq = td->td_umtxq;
 	if ((error = umtx_key_get(addr, TYPE_SIMPLE_WAIT,
 	    is_private ? THREAD_SHARE : AUTO_SHARE, &uq->uq_key)) != 0)
 		return (error);
-
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_insert(uq);
@@ -1362,9 +1420,9 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
-	error = 0;
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Care must be exercised when dealing with umtx structure. It
@@ -2250,6 +2308,10 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 	uint32_t id, old_owner, owner, old;
 	int error, rv;
 
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
+
 	id = td->td_tid;
 	uq = td->td_umtxq;
 
@@ -2257,9 +2319,6 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 	    TYPE_PI_ROBUST_UMUTEX : TYPE_PI_UMUTEX, GET_SHARE(flags),
 	    &uq->uq_key)) != 0)
 		return (error);
-
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
 
 	umtxq_lock(&uq->uq_key);
 	pi = umtx_pi_lookup(&uq->uq_key);
@@ -2547,15 +2606,16 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 	int error, pri, old_inherited_pri, new_pri, rv;
 	bool su;
 
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
+
 	id = td->td_tid;
 	uq = td->td_umtxq;
 	if ((error = umtx_key_get(m, (flags & UMUTEX_ROBUST) != 0 ?
 	    TYPE_PP_ROBUST_UMUTEX : TYPE_PP_UMUTEX, GET_SHARE(flags),
 	    &uq->uq_key)) != 0)
 		return (error);
-
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
 
 	su = (priv_check(td, PRIV_SCHED_RTPRIO) == 0);
 	for (;;) {
@@ -3090,6 +3150,10 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag,
 	int32_t blocked_readers;
 	int error, error1, rv;
 
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
+
 	uq = td->td_umtxq;
 	error = fueword32(&rwlock->rw_flags, &flags);
 	if (error == -1)
@@ -3097,9 +3161,6 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag,
 	error = umtx_key_get(rwlock, TYPE_RWLOCK, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
 		return (error);
-
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
 
 	wrflags = URWLOCK_WRITE_OWNER;
 	if (!(fflag & URWLOCK_PREFER_READER) && !(flags & URWLOCK_PREFER_READER))
@@ -3278,6 +3339,10 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 	int32_t blocked_readers;
 	int error, error1, rv;
 
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
+
 	uq = td->td_umtxq;
 	error = fueword32(&rwlock->rw_flags, &flags);
 	if (error == -1)
@@ -3285,9 +3350,6 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 	error = umtx_key_get(rwlock, TYPE_RWLOCK, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
 		return (error);
-
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
 
 	blocked_readers = 0;
 	for (;;) {
@@ -3572,6 +3634,10 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 	uint32_t flags, count, count1;
 	int error, rv, rv1;
 
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
+
 	uq = td->td_umtxq;
 	error = fueword32(&sem->_flags, &flags);
 	if (error == -1)
@@ -3579,9 +3645,6 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 	error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
 		return (error);
-
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
 
 again:
 	umtxq_lock(&uq->uq_key);
@@ -3683,9 +3746,9 @@ do_sem2_wait(struct thread *td, struct _usem2 *sem, struct _umtx_time *timeout)
 
 	uq = td->td_umtxq;
 	flags = fuword32(&sem->_flags);
-	if (timeout != NULL)
-		umtx_abs_timeout_init2(&timo, timeout);
-
+	error = umtx_abs_timeout_init2(&timo, timeout);
+	if (error != 0)
+		return (error);
 again:
 	error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
@@ -4143,6 +4206,7 @@ __umtx_op_cv_wait(struct thread *td, struct _umtx_op_args *uap,
 	    (wflags & CVWAIT_UMTX_TIME) != 0))
 		return (EINVAL);
 
+	error = 0;
 	if ((wflags & CVWAIT_UMTX_TIME) == 0) {
 		/* Allow a null timespec (wait forever). */
 		if (uap->uaddr2 == NULL) {
@@ -4161,8 +4225,10 @@ __umtx_op_cv_wait(struct thread *td, struct _umtx_op_args *uap,
 			clockid = CLOCK_REALTIME;
 		}
 		if (ts != NULL) {
-			umtx_abs_timeout_init(&timo, clockid,
+			error = umtx_abs_timeout_init(&timo, clockid,
 			    (wflags & CVWAIT_ABSTIME) != 0, ts);
+			if (error != 0)
+				return (error);
 			timop = &timo;
 		} else {
 			timop = NULL;
@@ -4175,13 +4241,10 @@ __umtx_op_cv_wait(struct thread *td, struct _umtx_op_args *uap,
 		if (error != 0)
 			return (error);
 		timop = &timo;
-		umtx_abs_timeout_init2(timop, &umtime);
+		error = umtx_abs_timeout_init2(timop, &umtime);
+		if (error != 0)
+			return (error);
 	}
-	/* only HW clock id will work. */
-	if (timop != NULL && (timop->clockid < CLOCK_REALTIME ||
-	    timop->clockid >= CLOCK_THREAD_CPUTIME_ID) &&
-	    timop->clockid != CLOCK_TAI)
-		return (EINVAL);
 
 	return (do_cv_wait(td, cv, uap->uaddr1, timop, wflags));
 }
