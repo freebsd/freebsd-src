@@ -257,6 +257,16 @@ int		pthread_mutex_timedlock(pthread_mutex_t * __restrict __mutex,
 int		pthread_mutex_unlock(pthread_mutex_t * __mutex)
 		    __unlocks(*__mutex);
 int		pthread_once(pthread_once_t *, void (*) (void));
+#if __POSIX_VISIBLE >= 202405
+int		pthread_rwlock_clockrdlock(
+		    pthread_rwlock_t * __restrict __rwlock,
+		    clockid_t, const struct timespec * __restrict)
+		    __trylocks_shared(0, *__rwlock);
+int		pthread_rwlock_clockwrlock(
+		    pthread_rwlock_t * __restrict __rwlock,
+		    clockid_t, const struct timespec * __restrict)
+		    __trylocks_exclusive(0, *__rwlock);
+#endif
 int		pthread_rwlock_destroy(pthread_rwlock_t * __rwlock)
 		    __requires_unlocked(*__rwlock);
 int		pthread_rwlock_init(pthread_rwlock_t * __restrict __rwlock,

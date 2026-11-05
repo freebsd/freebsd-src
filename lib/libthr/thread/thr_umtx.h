@@ -66,9 +66,9 @@ int _thr_ucond_signal(struct ucond *cv) __hidden;
 int _thr_ucond_broadcast(struct ucond *cv) __hidden;
 
 int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
-	const struct timespec *tsp) __hidden;
+	const struct timespec *tsp, clockid_t clockid) __hidden;
 int __thr_rwlock_wrlock(struct urwlock *rwlock,
-	const struct timespec *tsp) __hidden;
+	const struct timespec *tsp, clockid_t clockid) __hidden;
 int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
 
 /* Internal used only */
@@ -233,7 +233,7 @@ _thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp)
 
 	if (_thr_rwlock_tryrdlock(rwlock, flags) == 0)
 		return (0);
-	return (__thr_rwlock_rdlock(rwlock, flags, tsp));
+	return (__thr_rwlock_rdlock(rwlock, flags, tsp, CLOCK_REALTIME));
 }
 
 static inline int
@@ -242,7 +242,7 @@ _thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp)
 
 	if (_thr_rwlock_trywrlock(rwlock) == 0)
 		return (0);
-	return (__thr_rwlock_wrlock(rwlock, tsp));
+	return (__thr_rwlock_wrlock(rwlock, tsp, CLOCK_REALTIME));
 }
 
 static inline int

@@ -39,6 +39,11 @@
 _Static_assert(sizeof(struct pthread_rwlock) <= THR_PAGE_SIZE_MIN,
     "pthread_rwlock is too large for off-page");
 
+int _pthread_rwlock_clockrdlock(pthread_rwlock_t * __restrict rwlock,
+    clockid_t clockid, const struct timespec * __restrict abstime);
+int _pthread_rwlock_clockwrlock(pthread_rwlock_t * __restrict rwlock,
+    clockid_t clockid, const struct timespec * __restrict abstime);
+
 __weak_reference(_thr_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_thr_rwlock_destroy, _pthread_rwlock_destroy);
 __weak_reference(_thr_rwlock_init, pthread_rwlock_init);
@@ -46,6 +51,7 @@ __weak_reference(_thr_rwlock_init, _pthread_rwlock_init);
 __weak_reference(_Tthr_rwlock_rdlock, pthread_rwlock_rdlock);
 __weak_reference(_Tthr_rwlock_rdlock, _pthread_rwlock_rdlock);
 __weak_reference(_pthread_rwlock_timedrdlock, pthread_rwlock_timedrdlock);
+__weak_reference(_pthread_rwlock_clockrdlock, pthread_rwlock_clockrdlock);
 __weak_reference(_Tthr_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
 __weak_reference(_Tthr_rwlock_tryrdlock, _pthread_rwlock_tryrdlock);
 __weak_reference(_Tthr_rwlock_trywrlock, pthread_rwlock_trywrlock);
@@ -55,6 +61,7 @@ __weak_reference(_Tthr_rwlock_unlock, _pthread_rwlock_unlock);
 __weak_reference(_Tthr_rwlock_wrlock, pthread_rwlock_wrlock);
 __weak_reference(_Tthr_rwlock_wrlock, _pthread_rwlock_wrlock);
 __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
+__weak_reference(_pthread_rwlock_clockwrlock, pthread_rwlock_clockwrlock);
 
 static int init_static(struct pthread *thread, pthread_rwlock_t *rwlock);
 static int init_rwlock(pthread_rwlock_t *rwlock, pthread_rwlock_t *rwlock_out);
@@ -194,7 +201,8 @@ abstime_invalid(const struct timespec *abstime)
 }
 
 static int
-rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
+rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime,
+    clockid_t clockid)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
@@ -225,7 +233,8 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 
 	for (;;) {
 		/* goto kernel and lock it */
-		ret = __thr_rwlock_rdlock(&prwlock->lock, flags, abstime);
+		ret = __thr_rwlock_rdlock(&prwlock->lock, flags, abstime,
+		    clockid);
 		if (ret != EINTR)
 			break;
 
@@ -244,7 +253,7 @@ int
 _Tthr_rwlock_rdlock(pthread_rwlock_t *rwlock)
 {
 	_thr_check_init();
-	return (rwlock_rdlock_common(rwlock, NULL));
+	return (rwlock_rdlock_common(rwlock, NULL, CLOCK_REALTIME));
 }
 
 int
@@ -252,7 +261,15 @@ _pthread_rwlock_timedrdlock(pthread_rwlock_t * __restrict rwlock,
     const struct timespec * __restrict abstime)
 {
 	_thr_check_init();
-	return (rwlock_rdlock_common(rwlock, abstime));
+	return (rwlock_rdlock_common(rwlock, abstime, CLOCK_REALTIME));
+}
+
+int
+_pthread_rwlock_clockrdlock(pthread_rwlock_t * __restrict rwlock,
+    clockid_t clockid, const struct timespec * __restrict abstime)
+{
+	_thr_check_init();
+	return (rwlock_rdlock_common(rwlock, abstime, clockid));
 }
 
 int
@@ -294,7 +311,8 @@ _Tthr_rwlock_trywrlock(pthread_rwlock_t *rwlock)
 }
 
 static int
-rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
+rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime,
+    clockid_t clockid)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
@@ -322,7 +340,7 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 
 	for (;;) {
 		/* goto kernel and lock it */
-		ret = __thr_rwlock_wrlock(&prwlock->lock, abstime);
+		ret = __thr_rwlock_wrlock(&prwlock->lock, abstime, clockid);
 		if (ret == 0) {
 			prwlock->owner = TID(curthread);
 			break;
@@ -345,7 +363,7 @@ int
 _Tthr_rwlock_wrlock(pthread_rwlock_t *rwlock)
 {
 	_thr_check_init();
-	return (rwlock_wrlock_common(rwlock, NULL));
+	return (rwlock_wrlock_common(rwlock, NULL, CLOCK_REALTIME));
 }
 
 int
@@ -353,7 +371,15 @@ _pthread_rwlock_timedwrlock(pthread_rwlock_t * __restrict rwlock,
     const struct timespec * __restrict abstime)
 {
 	_thr_check_init();
-	return (rwlock_wrlock_common(rwlock, abstime));
+	return (rwlock_wrlock_common(rwlock, abstime, CLOCK_REALTIME));
+}
+
+int
+_pthread_rwlock_clockwrlock(pthread_rwlock_t * __restrict rwlock,
+    clockid_t clockid, const struct timespec * __restrict abstime)
+{
+	_thr_check_init();
+	return (rwlock_wrlock_common(rwlock, abstime, clockid));
 }
 
 int
