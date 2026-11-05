@@ -35,7 +35,7 @@
 #define	XHCI_MAX_EVENTS		232
 #define	XHCI_MAX_COMMANDS	(16 * 1)
 #define	XHCI_MAX_RSEG		1
-#define	XHCI_MAX_TRANSFERS	4
+#define	XHCI_MAX_TRANSFERS	8
 #if USB_MAX_EP_STREAMS == 8
 #define	XHCI_MAX_STREAMS	8
 #define	XHCI_MAX_STREAMS_LOG	3
@@ -354,6 +354,9 @@ struct xhci_dev_endpoint_trbs {
 	struct xhci_trb		trb[(XHCI_MAX_STREAMS *
 	    XHCI_MAX_TRANSFERS) + XHCI_MAX_STREAMS];
 };
+
+/* The endpoint rings are addressed from a single physical page */
+CTASSERT(sizeof(struct xhci_dev_endpoint_trbs) <= 4096);
 
 #if (USB_PAGE_SIZE < 4096)
 #error "The XHCI driver needs a pagesize above or equal to 4K"
