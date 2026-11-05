@@ -42,6 +42,7 @@ ATF_TESTS_C+=		scandir_blocks_test
 .endif
 ATF_TESTS_C+=		sig2str_test
 ATF_TESTS_C+=		sigsetops_test
+ATF_TESTS_C+=		timespec_getres_test
 ATF_TESTS_C+=		wordexp_test
 
 # TODO: t_closefrom, t_fmtcheck, t_randomid,
