@@ -230,8 +230,13 @@ main(int argc, char **argv)
 
 	filetd = tdata_new();
 
-	if (!file_read(filetd, infile, ignore_non_c))
-		terminate("%s doesn't have type data to convert\n", infile);
+	/*
+	 * asm files may legitimately not have debug info.
+	 */
+	if (!file_read(filetd, infile, ignore_non_c)) {
+		warning("%s doesn't have type data to convert\n", infile);
+		exit(0);
+	}
 
 	if (verbose)
 		iidesc_stats(filetd->td_iihash);
