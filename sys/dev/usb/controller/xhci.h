@@ -409,10 +409,12 @@ struct xhci_hw_root {
 };
 
 CTASSERT(sizeof(struct xhci_hw_root) == XHCI_PAGE_SIZE);
+CTASSERT(XHCI_MAX_TRANSFERS <= 32);
 
 struct xhci_endpoint_ext {
 	struct xhci_trb		*trb;
 	struct usb_xfer		*xfer[XHCI_MAX_TRANSFERS * XHCI_MAX_STREAMS];
+	uint32_t		xfer_mask[XHCI_MAX_STREAMS];
 	struct usb_page_cache	*page_cache;
 	uint64_t		physaddr;
 	uint8_t			trb_used[XHCI_MAX_STREAMS];
