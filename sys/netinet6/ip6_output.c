@@ -1634,7 +1634,9 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 						inp->in6p_hops = optval;
 						if ((inp->inp_vflag &
 						     INP_IPV4) != 0)
-							inp->inp_ip_ttl = optval;
+							inp->inp_ip_ttl =
+							    optval == -1 ?
+							    V_ip_defttl : optval;
 					}
 					break;
 #define OPTSET(bit) \

@@ -268,9 +268,103 @@ ATF_TC_BODY(v4mapped, tc)
 	close(s);
 }
 
+static void
+send_v4mapped_and_check_ttl(int s, int r, in_port_t port, const char *setting,
+    const int *hops, int expected_ttl)
+{
+	struct sockaddr_in6 dst6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_port = port,
+	};
+	struct iovec iov;
+	struct msghdr msg;
+	struct cmsghdr *cmsg;
+	char cbuf[CMSG_SPACE(sizeof(u_char))];
+	char rbuf[sizeof(buf)];
+	int ttl;
+	bool ttl_found;
+
+	ATF_REQUIRE(inet_pton(AF_INET6, "::ffff:127.0.0.1",
+	    &dst6.sin6_addr) == 1);
+	if (hops != NULL)
+		ATF_REQUIRE(setsockopt(s, IPPROTO_IPV6, IPV6_UNICAST_HOPS,
+		    hops, sizeof(*hops)) == 0);
+	ATF_REQUIRE(sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&dst6,
+	    sizeof(dst6)) == sizeof(buf));
+
+	iov = (struct iovec) {
+		.iov_base = rbuf,
+		.iov_len = sizeof(rbuf),
+	};
+	msg = (struct msghdr) {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = cbuf,
+		.msg_controllen = sizeof(cbuf),
+	};
+	ATF_REQUIRE(recvmsg(r, &msg, 0) == sizeof(rbuf));
+
+	ttl_found = false;
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level != IPPROTO_IP ||
+		    cmsg->cmsg_type != IP_RECVTTL)
+			continue;
+		ATF_REQUIRE(cmsg->cmsg_len >= CMSG_LEN(sizeof(u_char)));
+		ttl = *(u_char *)CMSG_DATA(cmsg);
+		ttl_found = true;
+		break;
+	}
+	ATF_CHECK_MSG(ttl_found, "IP_RECVTTL control message missing");
+	if (ttl_found)
+		ATF_CHECK_MSG(ttl == expected_ttl,
+		    "IPv4 TTL %d, expected %d for %s",
+		    ttl, expected_ttl, setting);
+}
+
+ATF_TC_WITHOUT_HEAD(v4mapped_unicast_hops);
+ATF_TC_BODY(v4mapped_unicast_hops, tc)
+{
+	int default_ttl, s, r;
+	int hops;
+	socklen_t optlen;
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+
+	ATF_REQUIRE((s = socket(PF_INET6, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &(int){0},
+	    sizeof(int)) == 0);
+	ATF_REQUIRE((r = socket(PF_INET, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(setsockopt(r, IPPROTO_IP, IP_RECVTTL, &(int){1},
+	    sizeof(int)) == 0);
+	ATF_REQUIRE(bind(r, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	optlen = sizeof(sin);
+	ATF_REQUIRE(getsockname(r, (struct sockaddr *)&sin, &optlen) == 0);
+
+	optlen = sizeof(default_ttl);
+	ATF_REQUIRE(getsockopt(r, IPPROTO_IP, IP_TTL, &default_ttl,
+	    &optlen) == 0);
+	send_v4mapped_and_check_ttl(s, r, sin.sin_port, "socket default", NULL,
+	    default_ttl);
+	hops = 42;
+	send_v4mapped_and_check_ttl(s, r, sin.sin_port, "IPV6_UNICAST_HOPS=42",
+	    &hops, 42);
+	hops = -1;
+	send_v4mapped_and_check_ttl(s, r, sin.sin_port, "IPV6_UNICAST_HOPS=-1",
+	    &hops, default_ttl);
+
+	close(r);
+	close(s);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, v4mapped);
+	ATF_TP_ADD_TC(tp, v4mapped_unicast_hops);
 	ATF_TP_ADD_TC(tp, gethostname);
 	ATF_TP_ADD_TC(tp, gethostname_jailed);
 	ATF_TP_ADD_TC(tp, connect_bound_socket_from_2address_jail);
