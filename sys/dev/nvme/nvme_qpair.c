@@ -340,6 +340,7 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 	struct nvme_completion	cpl;
+	uint32_t		acked_head = UINT32_MAX;
 	bool done = false;
 	bool in_panic = dumping || SCHEDULER_STOPPED();
 
@@ -441,6 +442,20 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 
 		done = true;
 		if (tr != NULL) {
+			/*
+			 * The Apple T2 (ANS2) controller faults (CSTS.CFS)
+			 * under concurrent I/O unless each completion is
+			 * acknowledged through the CQ head doorbell before
+			 * its command ID can be handed out again.  Ring the
+			 * doorbell for this entry before running the
+			 * completion, which frees the tracker.
+			 */
+			if (qpair->ack_each_cpl) {
+				acked_head = (qpair->cq_head + 1) %
+				    qpair->num_entries;
+				bus_write_4(qpair->ctrlr->resource,
+				    qpair->cq_hdbl_off, acked_head);
+			}
 			nvme_qpair_complete_tracker(tr, &cpl, ERROR_PRINT_ALL);
 			qpair->sq_head = cpl.sqhd;
 		} else if (!in_panic) {
@@ -476,7 +491,12 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		}
 	}
 
-	if (done) {
+	/*
+	 * Don't repeat a doorbell write that already covered every entry: the
+	 * T2 also faults when the CQ head doorbell is rewritten with the
+	 * value it already holds.
+	 */
+	if (done && acked_head != qpair->cq_head) {
 		bus_write_4(qpair->ctrlr->resource, qpair->cq_hdbl_off,
 		    qpair->cq_head);
 	}
@@ -541,6 +561,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 		qpair->cid_base = ctrlr->adminq.num_trackers;
 	else
 		qpair->cid_base = 0;
+	qpair->ack_each_cpl = (ctrlr->quirks & QUIRK_APPLE_ACK_EACH_CPL) != 0;
 
 	mtx_init(&qpair->lock, "nvme qpair lock", NULL, MTX_DEF);
 	mtx_init(&qpair->recovery, "nvme qpair recovery", NULL, MTX_DEF);

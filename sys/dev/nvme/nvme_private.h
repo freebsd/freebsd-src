@@ -178,6 +178,7 @@ struct nvme_qpair {
 	uint32_t		num_trackers;
 	uint32_t		sqe_shift;
 	uint16_t		cid_base;	/* CID offset for SHARED_TAGS IO queues */
+	bool			ack_each_cpl;	/* QUIRK_APPLE_ACK_EACH_CPL */
 	uint32_t		sq_tdbl_off;
 	uint32_t		cq_hdbl_off;
 
@@ -249,6 +250,7 @@ struct nvme_controller {
 #define	QUIRK_APPLE_128_BYTE_SQES		0x400	/* T2 uses 128-byte I/O SQEs */
 #define	QUIRK_PCIE_FLR_ON_FATAL			0x800	/* Use FLR for a fatal controller */
 #define	QUIRK_APPLE_S3X_SERIALIZE		0x1000	/* One S3X I/O at a time */
+#define	QUIRK_APPLE_ACK_EACH_CPL		0x2000	/* T2: ack each CQE */
 
 /* Values programmed into CC.IOSQES (log2 of the SQE size in bytes). */
 #define	NVME_IOSQES_64				6
