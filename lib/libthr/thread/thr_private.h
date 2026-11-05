@@ -945,7 +945,7 @@ _thr_is_inited(void)
 static inline void
 _thr_check_init(void)
 {
-	if (_thr_initial == NULL)
+	if (__predict_false(_thr_initial == NULL))
 		_libpthread_init(NULL);
 }
 
