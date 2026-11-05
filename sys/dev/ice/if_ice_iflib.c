@@ -312,7 +312,7 @@ static struct if_shared_ctx ice_sctx = {
 	 * vectors manually instead of relying on iflib code to do this.
 	 */
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP |
-		IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SKIP_MSIX,
+		IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SKIP_MSIX | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {ICE_MIN_DESC_COUNT},
 	.isc_ntxd_min = {ICE_MIN_DESC_COUNT},
@@ -3760,7 +3760,7 @@ static struct if_shared_ctx ice_subif_sctx = {
 
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP |
 		IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SKIP_MSIX |
-		IFLIB_IS_VF,
+		IFLIB_IS_VF | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {ICE_MIN_DESC_COUNT},
 	.isc_ntxd_min = {ICE_MIN_DESC_COUNT},

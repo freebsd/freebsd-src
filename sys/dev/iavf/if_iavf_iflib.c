@@ -234,7 +234,8 @@ static struct if_shared_ctx iavf_sctx = {
 	.isc_vendor_info = iavf_vendor_info_array,
 	.isc_driver_version = __DECONST(char *, iavf_driver_version),
 	.isc_driver = &iavf_if_driver,
-	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM | IFLIB_TSO_INIT_IP | IFLIB_IS_VF,
+	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM |
+		IFLIB_TSO_INIT_IP | IFLIB_IS_VF | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {IAVF_MIN_RING},
 	.isc_ntxd_min = {IAVF_MIN_RING},
