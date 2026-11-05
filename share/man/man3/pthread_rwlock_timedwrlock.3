@@ -26,6 +26,7 @@
 .Dt PTHREAD_RWLOCK_TIMEDWRLOCK 3
 .Os
 .Sh NAME
+.Nm pthread_rwlock_clockwrlock ,
 .Nm pthread_rwlock_timedwrlock
 .Nd "acquire a read-write lock for writing or give up after a specified period"
 .Sh LIBRARY
@@ -33,53 +34,58 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
+.Fo pthread_rwlock_clockwrlock
+.Fa "pthread_rwlock_t *restrict rwlock"
+.Fa "clockid_t clockid"
+.Fa "const struct timespec *restrict abs_timeout"
+.Fc
+.Ft int
 .Fo pthread_rwlock_timedwrlock
 .Fa "pthread_rwlock_t *restrict rwlock"
 .Fa "const struct timespec *restrict abs_timeout"
 .Fc
 .Sh DESCRIPTION
-This function acquires a write lock on the read-write lock
+These functions acquire a write lock on the read-write lock
 .Fa rwlock .
 However, if the lock cannot be
 acquired without waiting for another thread to
 unlock the lock,
-this wait shall be terminated when
+this wait is terminated when
 .Fa abs_timeout
 expires.
+The
+.Fa abs_timeout
+value is an absolute time, measured on
+.Fa clockid
+for the clock variant and on
+.Dv CLOCK_REALTIME
+for the timed variant.
 .Pp
 If the thread should be interrupted by a signal,
-the
-.Fn pthread_rwlock_timedwrlock
-function will be automatically restarted after the thread returns from
-the signal handler.
+the functions are automatically restarted after the thread
+returns from the signal handler.
 .Pp
 The calling thread may deadlock if
 at the time the call is made it holds
 .Fa rwlock .
-The results are undefined if this function is called with
+The results are undefined if these functions are called with
 an uninitialized read-write lock.
 .Sh IMPLEMENTATION NOTES
 To prevent writer starvation, writers are favored over readers.
 .Sh RETURN VALUES
-If successful, the
-.Fn pthread_rwlock_timedwrlock
-function will return zero.
+If successful, the functions will return zero.
 Otherwise, an error number will be returned to indicate the error.
 .Pp
-This function shall not return an error code of
+These functions do not return an error code of
 .Er EINTR .
 .Sh ERRORS
-The
-.Fn pthread_rwlock_timedwrlock
-function shall fail if:
+The functions will fail if:
 .Bl -tag -width Er
 .It Bq Er ETIMEDOUT
 The lock could not be acquired before the specified timeout expired.
 .El
 .Pp
-The
-.Fn pthread_rwlock_timedwrlock
-function may fail if:
+The functions may fail if:
 .Bl -tag -width Er
 .It Bq Er EDEADLK
 The calling thread already holds
@@ -91,7 +97,17 @@ does not refer to an initialized read-write lock object,
 or the
 .Fa abs_timeout
 nanosecond value is less than zero or
-greater than or equal to 1 billion.
+greater than or equal to 1 billion, or the
+.Fa clockid
+parameter is invalid.
+.Pp
+The
+.Dv CLOCK_REALTIME
+and
+.Dv CLOCK_MONOTONIC
+clocks are always supported; see
+.Xr _umtx_op 2
+for the full list of accepted clocks.
 .El
 .Sh SEE ALSO
 .Xr pthread_rwlock_init 3 ,
@@ -100,10 +116,18 @@ greater than or equal to 1 billion.
 .Sh STANDARDS
 The
 .Fn pthread_rwlock_timedwrlock
-function is expected to conform to
+function conforms to
 .St -p1003.1-96 .
+The
+.Fn pthread_rwlock_clockwrlock
+function conforms to
+.St -p1003.1-2024 .
 .Sh HISTORY
 The
 .Fn pthread_rwlock_timedwrlock
 function first appeared in
 .Fx 5.2 .
+The
+.Fn pthread_rwlock_clockwrlock
+function first appeared in
+.Fx 16.0 .
