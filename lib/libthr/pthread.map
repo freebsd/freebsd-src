@@ -348,5 +348,7 @@ FBSD_1.9 {
 	 pthread_mutex_clocklock;
 	 pthread_query_np;
 	 pthread_query_all_np;
+	 pthread_rwlock_clockrdlock;
+	 pthread_rwlock_clockwrlock;
 	 pthread_tryjoin_np;
 };
