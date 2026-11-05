@@ -108,7 +108,7 @@ __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id)
 
 int
 __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
-	const struct timespec *abstime)
+    const struct timespec *abstime, clockid_t clockid)
 {
 	struct _umtx_time *tm_p, timeout;
 	size_t tm_size;
@@ -119,7 +119,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 		tm_p = NULL;
 		tm_size = 0;
 	} else {
-		timeout._clockid = CLOCK_REALTIME;
+		timeout._clockid = clockid;
 		timeout._flags = UMTX_ABSTIME;
 		timeout._timeout = *abstime;
 		tm_p = &timeout;
@@ -151,7 +151,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 			    ret == ENOTRECOVERABLE)
 				break;
 		}
-		if (ret == ETIMEDOUT)
+		if (ret == ETIMEDOUT || ret == EINVAL)
 			break;
 	}
 	return (ret);

@@ -235,6 +235,11 @@ int		pthread_mutexattr_gettype(
 		    const pthread_mutexattr_t * __restrict, int * __restrict);
 int		pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 int		pthread_mutexattr_setpshared(pthread_mutexattr_t *, int);
+#if __POSIX_VISIBLE >= 202405
+int		pthread_mutex_clocklock(pthread_mutex_t * __restrict __mutex,
+		    clockid_t, const struct timespec * __restrict)
+		    __trylocks_exclusive(0, *__mutex);
+#endif
 int		pthread_mutex_consistent(pthread_mutex_t * __mutex)
 		    __requires_exclusive(*__mutex);
 int		pthread_mutex_destroy(pthread_mutex_t * __mutex)
