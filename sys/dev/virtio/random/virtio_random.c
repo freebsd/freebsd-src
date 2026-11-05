@@ -47,6 +47,8 @@
 #include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
 
+#include "virtio_if.h"
+
 struct vtrnd_softc {
 	device_t		 vtrnd_dev;
 	uint64_t		 vtrnd_features;
@@ -69,6 +71,7 @@ static int	vtrnd_setup_features(struct vtrnd_softc *);
 static int	vtrnd_alloc_virtqueue(struct vtrnd_softc *);
 static int	vtrnd_harvest(struct vtrnd_softc *, void *, size_t *);
 static void	vtrnd_enqueue(struct vtrnd_softc *sc);
+static int	vtrnd_attach_completed(device_t);
 static unsigned	vtrnd_read(void *, unsigned);
 
 #define VTRND_FEATURES	0
@@ -92,6 +95,9 @@ static device_method_t vtrnd_methods[] = {
 	DEVMETHOD(device_attach,	vtrnd_attach),
 	DEVMETHOD(device_detach,	vtrnd_detach),
 	DEVMETHOD(device_shutdown,	vtrnd_shutdown),
+
+	/* Virtio methods. */
+	DEVMETHOD(virtio_attach_completed,	vtrnd_attach_completed),
 
 	DEVMETHOD_END
 };
@@ -180,8 +186,6 @@ vtrnd_attach(device_t dev)
 
 	sc->inactive = false;
 	random_source_register(&random_vtrnd);
-
-	vtrnd_enqueue(sc);
 
 fail:
 	if (error != 0) {
@@ -339,4 +343,14 @@ vtrnd_read(void *buf, unsigned usz)
 		return (0);
 
 	return (sz);
+}
+
+static int
+vtrnd_attach_completed(device_t dev)
+{
+	struct vtrnd_softc *sc;
+
+	sc = device_get_softc(dev);
+	vtrnd_enqueue(sc);
+	return (0);
 }
