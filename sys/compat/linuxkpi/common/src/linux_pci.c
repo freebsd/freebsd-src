@@ -722,6 +722,14 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	return (0);
 
 out_err:
+	/*
+	 * As on Linux when a probe fails, release the devres actions.  Waiting
+	 * for the last reference to go away is wrong: devres actions (e.g. the
+	 * drm_dev_put() of devm_drm_dev_alloc()) may hold references on this
+	 * very device, which then never gets released, nor does the object
+	 * which holds the reference.
+	 */
+	lkpi_devres_release_free_list(&pdev->dev);
 	put_device(&pdev->dev);
 	return (-error);
 }
