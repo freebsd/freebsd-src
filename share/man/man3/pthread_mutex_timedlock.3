@@ -34,7 +34,10 @@
 .In pthread.h
 .In time.h
 .Ft int
-.Fn pthread_mutex_timedlock "pthread_mutex_t *restrict mutex" "const struct timespec *restrict abs_timeout"
+.Fo pthread_mutex_timedlock
+.Fa "pthread_mutex_t *restrict mutex"
+.Fa "const struct timespec *restrict abs_timeout"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pthread_mutex_timedlock

@@ -33,7 +33,10 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_rwlock_timedrdlock "pthread_rwlock_t *restrict rwlock" "const struct timespec *restrict abs_timeout"
+.Fo pthread_rwlock_timedrdlock
+.Fa "pthread_rwlock_t *restrict rwlock"
+.Fa "const struct timespec *restrict abs_timeout"
+.Fc
 .Sh DESCRIPTION
 This function acquires a read lock on the read-write lock
 .Fa rwlock .
