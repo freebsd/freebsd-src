@@ -66,6 +66,10 @@ const char machine[] = "riscv";
 SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
     machine, "Machine class");
 
+static char cpu_model[64];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,
+    cpu_model, sizeof(cpu_model), "Machine model");
+
 /* Hardware implementation info. These values may be empty. */
 register_t mvendorid;	/* The CPU's JEDEC vendor ID */
 register_t marchid;	/* The architecture ID */
@@ -91,6 +95,7 @@ static char isa_extensions[PAGE_SIZE];
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
 	const char	*cpu_march_name;
+	bool		cpu_march_known;
 	u_int		isa_extensions;		/* Single-letter extensions. */
 	u_int		mmu_caps;
 	u_int		smode_extensions;
@@ -437,6 +442,18 @@ parse_riscv_isa_legacy(phandle_t node, u_int cpu, struct cpu_desc *desc)
 }
 
 static void
+parse_model_fdt(phandle_t node)
+{
+	char compat[64];
+
+	if (OF_getprop(node, "compatible", compat, sizeof(compat)) <= 0)
+		return;
+	compat[sizeof(compat) - 1] = '\0';
+	if (strcmp(compat, "riscv") != 0)
+		strlcpy(cpu_model, compat, sizeof(cpu_model));
+}
+
+static void
 identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 {
 	phandle_t node;
@@ -482,6 +499,14 @@ identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 
 		/* Cache-block operations (CBO). */
 		parse_cbo_fdt(desc, node);
+
+		/*
+		 * Without a known marchid, describe the boot CPU by the first
+		 * compatible string of its node, which Linux reports as the
+		 * microarchitecture.
+		 */
+		if (cpu == 0 && !desc->cpu_march_known)
+			parse_model_fdt(node);
 
 		/* We are done. */
 		break;
@@ -551,6 +576,7 @@ identify_cpu_ids(struct cpu_desc *desc)
 
 	desc->cpu_mvendor_name = "Unknown";
 	desc->cpu_march_name = "Unknown";
+	desc->cpu_march_known = false;
 
 	/*
 	 * Search for a recognized vendor, and possibly obtain the secondary
@@ -577,6 +603,7 @@ identify_cpu_ids(struct cpu_desc *desc)
 	for (i = 0; table[i].march_name != NULL; i++) {
 		if (marchid == table[i].march_id) {
 			desc->cpu_march_name = table[i].march_name;
+			desc->cpu_march_known = true;
 			break;
 		}
 	}
@@ -621,6 +648,11 @@ identify_cpu(u_int cpu)
 
 	identify_cpu_ids(desc);
 	identify_cpu_features(cpu, desc);
+
+	/* hw.model describes the boot CPU, as on other architectures. */
+	if (cpu == 0 && cpu_model[0] == '\0')
+		snprintf(cpu_model, sizeof(cpu_model), "%s %s",
+		    desc->cpu_mvendor_name, desc->cpu_march_name);
 
 	update_global_capabilities(cpu, desc);
 	handle_cpu_quirks(cpu, desc);
