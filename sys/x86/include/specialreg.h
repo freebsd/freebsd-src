@@ -1317,6 +1317,10 @@
 #define	MSR_LS_CFG	0xc0011020
 #define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
 #define	MSR_DE_CFG	0xc0011029	/* Decode Configuration */
+#define	MSR_AMD_IBS_FETCH_CTL	0xc0011030
+#define	MSR_AMD_IBS_OP_CTL	0xc0011033
+#define	MSR_AMD_IBS_OP_CTL2	0xc001103e
+#define	MSR_AMD_IBS_FETCH_CTL2	0xc001103f
 
 /* MSR_AMDK8_IPM */
 #define	AMDK8_SMIONCMPHALT	(1ULL << 27)
