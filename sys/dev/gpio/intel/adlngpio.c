@@ -56,7 +56,7 @@ static const struct intelgpio_community adln_communities[] = {
 	{ .ngroups = nitems(adln_com5_groups), .groups = adln_com5_groups },
 };
 
-static char *adln_hids[] = { "INTC1056", "INTC1057", "INTC1085", NULL };
+static char *adln_hids[] = { "INTC1057", NULL };
 
 static const struct intelgpio_platform adln_platform = {
 	.communities = adln_communities,
