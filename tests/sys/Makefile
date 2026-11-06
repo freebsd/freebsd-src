@@ -12,6 +12,7 @@ TESTS_SUBDIRS+=		capsicum
 TESTS_SUBDIRS+=		${_cddl}
 # XXX: Currently broken in CI
 #TESTS_SUBDIRS+=		compat32
+TESTS_SUBDIRS+=		${_cpuctl}
 TESTS_SUBDIRS+=		devrandom
 TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
@@ -45,6 +46,10 @@ _audit=	audit
 
 .if ${MK_CDDL} != "no"
 _cddl=	cddl
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+_cpuctl=	cpuctl
 .endif
 
 .if ${MK_NETGRAPH} != "no"

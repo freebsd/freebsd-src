@@ -819,6 +819,8 @@
         ..
         compat32
         ..
+        cpuctl
+        ..
         devrandom
         ..
         dtrace
