@@ -74,7 +74,7 @@
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1501507
+#define __FreeBSD_version 1502000
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
