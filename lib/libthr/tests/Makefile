@@ -38,6 +38,7 @@ ATF_TESTS_C+=		umtx_op_test
 ATF_TESTS_C+=		pthread_sigqueue_test
 ATF_TESTS_C+=		pthread_tryjoin_test
 ATF_TESTS_C+=		pthread_query_test
+ATF_TESTS_C+=		pthread_mutex_clocklock_test
 
 LIBADD+=		pthread
 LIBADD.fpu_test+=	m
