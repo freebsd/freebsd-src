@@ -32,7 +32,7 @@ load_rc_config
 usage () {
 	echo ''
 	echo 'Usage:'
-	echo "${0##*/} [-j <jail name or id>] -e"
+	echo "${0##*/} [-j <jail name or id>] [-q] -e"
 	echo "${0##*/} [-j <jail name or id>] [-q] -R"
 	echo "${0##*/} [-j <jail name or id>] [-v] -l"
 	echo "${0##*/} [-j <jail name or id>] [-v] -r"
@@ -146,6 +146,12 @@ if [ -n "$ENABLED" -o -n "$RCORDER" ]; then
 fi
 
 if [ -n "$ENABLED" ]; then
+	# checkyesno() warns, and logs the warning via logger(1), about
+	# variables that are unset or hold a value it does not understand.
+	# That is noise when we are only listing, so honor -q.
+	if [ -n "$QUIET" ]; then
+		warn() { :; }
+	fi
 	for file in $files; do
 		if grep -q ^rcvar $file; then
 			eval `grep ^name= $file`
