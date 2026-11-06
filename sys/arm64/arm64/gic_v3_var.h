@@ -99,8 +99,8 @@ struct gic_v3_softc {
 };
 
 struct gic_v3_devinfo {
+	intptr_t msi_xref;
 	int gic_domain;
-	int msi_xref;
 	int is_vgic;
 };
 

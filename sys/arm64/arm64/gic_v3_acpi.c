@@ -392,7 +392,7 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	struct gic_v3_acpi_devinfo *di;
 	struct gic_v3_softc *sc;
 	device_t child, dev;
-	u_int xref;
+	intptr_t xref;
 	int err, pxm;
 
 	if (entry->Type == ACPI_MADT_TYPE_GENERIC_TRANSLATOR) {

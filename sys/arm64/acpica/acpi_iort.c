@@ -46,7 +46,7 @@
 /*
  * Track next XREF available for ITS groups.
  */
-static u_int acpi_its_xref = ACPI_MSI_XREF;
+static intptr_t acpi_its_xref = ACPI_MSI_XREF;
 
 /*
  * Some types of IORT nodes have a set of mappings.  Each of them map
@@ -70,8 +70,8 @@ struct iort_map_entry {
  * data here, so that it can be retrieved together.
  */
 struct iort_its_entry {
+	intptr_t		xref;
 	u_int			its_id;
-	u_int			xref;
 	int			pxm;
 };
 
@@ -470,7 +470,7 @@ madt_resolve_its_xref(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_MADT_GICv5_ITS *gicv5_its;
 	struct iort_node *its_node;
 	struct iort_its_entry *its_entry;
-	u_int xref;
+	intptr_t xref;
 	int i, matches;
 
 	switch (entry->Type) {
@@ -638,7 +638,7 @@ SYSINIT(acpi_parse_iort, SI_SUB_DRIVERS, SI_ORDER_FIRST, acpi_parse_iort, NULL);
  * Provide ITS ID to PIC xref mapping.
  */
 int
-acpi_iort_its_lookup(u_int its_id, u_int *xref, int *pxm)
+acpi_iort_its_lookup(u_int its_id, intptr_t *xref, int *pxm)
 {
 	struct iort_node *its_node;
 	struct iort_its_entry *its_entry;
@@ -663,7 +663,7 @@ acpi_iort_its_lookup(u_int its_id, u_int *xref, int *pxm)
  * use for the interrupt setup
  */
 int
-acpi_iort_map_pci_msi(u_int seg, u_int rid, u_int *xref, u_int *devid)
+acpi_iort_map_pci_msi(u_int seg, u_int rid, intptr_t *xref, u_int *devid)
 {
 	struct iort_node *node;
 
@@ -703,7 +703,7 @@ acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, uint64_t *xref, u_int *sid)
  * XREF for MSI interrupt setup and the device ID to use for the interrupt setup.
  */
 int
-acpi_iort_map_named_msi(const char *devname, u_int rid, u_int *xref,
+acpi_iort_map_named_msi(const char *devname, u_int rid, intptr_t *xref,
     u_int *devid)
 {
 	struct iort_node *node;
@@ -803,11 +803,11 @@ int
 acpi_iort_alloc_msi(device_t bus, device_t dev, int *count)
 {
         int *irqs;
+        intptr_t xref;
         int irq_count;
         int error;
         int i;
         int its_id;
-        u_int xref;
         int pxm;
 
         irq_count = *count;

@@ -113,7 +113,7 @@ static struct resource_spec dpaa2_mc_spec[] = {
 	RESOURCE_SPEC_END
 };
 
-static u_int dpaa2_mc_get_xref(device_t, device_t);
+static intptr_t dpaa2_mc_get_xref(device_t, device_t);
 static u_int dpaa2_mc_map_id(device_t, device_t, uintptr_t *);
 
 static int dpaa2_mc_alloc_msi_impl(device_t, device_t, int, int, int *);
@@ -644,13 +644,14 @@ dpaa2_mc_release_dev(device_t mcdev, device_t dpaa2_dev,
 /**
  * @internal
  */
-static u_int
+static intptr_t
 dpaa2_mc_get_xref(device_t mcdev, device_t child)
 {
 	struct dpaa2_mc_softc *sc = device_get_softc(mcdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(child);
 #ifdef DEV_ACPI
-	u_int xref, devid;
+	intptr_t xref;
+	u_int devid;
 #endif
 #ifdef FDT
 	phandle_t msi_parent;
@@ -678,7 +679,7 @@ dpaa2_mc_get_xref(device_t mcdev, device_t child)
 			    &msi_parent, NULL);
 			if (error)
 				return (0);
-			return ((u_int) msi_parent);
+			return ((intptr_t) msi_parent);
 		}
 #endif
 	}
@@ -693,7 +694,8 @@ dpaa2_mc_map_id(device_t mcdev, device_t child, uintptr_t *id)
 {
 	struct dpaa2_devinfo *dinfo;
 #ifdef DEV_ACPI
-	u_int xref, devid;
+	intptr_t xref;
+	u_int devid;
 	int error;
 #endif
 
