@@ -132,6 +132,10 @@ vga_resume(device_t dev)
 
 static int isavga_acpi_ignore_no_vga = 0;
 TUNABLE_INT("hw.vga.acpi_ignore_no_vga", &isavga_acpi_ignore_no_vga);
+#ifdef __amd64__
+static int isavga_efi_probe = 0;
+TUNABLE_INT("hw.vga.efi_probe", &isavga_efi_probe);
+#endif
 
 /*
  * vga_probe() touches the legacy VGA registers and frame buffer, which hangs
@@ -144,6 +148,11 @@ isavga_skip(void)
 
 	if (resource_disabled(VGA_DRIVER_NAME, 0))
 		return (true);
+#ifdef __amd64__
+	/* Only BIOS boot needs legacy VGA. */
+	if (efi_boot && !isavga_efi_probe)
+		return (true);
+#endif
 	if (!acpi_get_fadt_bootflags(&flags))
 		return (false);
 	return (!isavga_acpi_ignore_no_vga &&
