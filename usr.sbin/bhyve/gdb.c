@@ -521,6 +521,30 @@ parse_digit(uint8_t v)
 	return (0xF);
 }
 
+static uintmax_t
+bytes_to_beuint(const uint8_t **p, size_t *l, size_t len)
+{
+	uintmax_t v;
+	uint8_t q;
+
+	v = 0;
+	while (len > 0) {
+		q = *(*p);
+		/* escaped byte (0x23, 0x24, 0x2a, 0x7d) */
+		if (q == 0x7d) {
+			(*p)++;
+			q = 0x20 ^ *(*p);
+			(*l)--;
+		}
+		v <<= 8;
+		v |= q;
+		(*p)++;
+		len--;
+		(*l)--;
+	}
+	return (v);
+}
+
 /* Parses big-endian hexadecimal. */
 static uintmax_t
 parse_integer(const uint8_t *p, size_t len)
@@ -1358,10 +1382,14 @@ gdb_write_mem(const uint8_t *data, size_t len)
 	uint8_t *cp;
 	size_t resid, todo, bytes;
 	int error;
+	int is_bin = 0;
 
 	assert(len >= 1);
 
-	/* Skip 'M' */
+	if (*data == 'X')
+		is_bin = 1;
+
+	/* Skip 'M' or 'X' */
 	data += 1;
 	len -= 1;
 
@@ -1386,7 +1414,12 @@ gdb_write_mem(const uint8_t *data, size_t len)
 	data += (cp - data) + 1;
 
 	/* Verify the available bytes match the length. */
-	if (len != resid * 2) {
+	if (!is_bin && len != resid * 2) {
+		send_error(EINVAL);
+		return;
+	}
+	/* In binary mode, some bytes may be escaped; len must be >= resid */
+	if (is_bin && len < resid) {
 		send_error(EINVAL);
 		return;
 	}
@@ -1414,10 +1447,14 @@ gdb_write_mem(const uint8_t *data, size_t len)
 			 * at a time.
 			 */
 			while (todo > 0) {
-				assert(len >= 2);
-				*cp = parse_byte(data);
-				data += 2;
-				len -= 2;
+				assert(is_bin && (len >= 1) || !is_bin && (len >= 2));
+				if (is_bin) {
+					*cp = bytes_to_beuint(&data, &len, 1);
+				} else {
+					*cp = parse_byte(data);
+					data += 2;
+					len -= 2;
+				}
 				cp++;
 				gpa++;
 				gva++;
@@ -1433,13 +1470,22 @@ gdb_write_mem(const uint8_t *data, size_t len)
 			while (todo > 0) {
 				if (gpa & 1 || todo == 1) {
 					bytes = 1;
-					val = parse_byte(data);
+					if (is_bin)
+						val = bytes_to_beuint(&data, &len, 2);
+					else
+						val = parse_byte(data);
 				} else if (gpa & 2 || todo == 2) {
 					bytes = 2;
-					val = be16toh(parse_integer(data, 4));
+					if (is_bin)
+						val = be16toh(bytes_to_beuint(&data, &len, 2));
+					else
+						val = be16toh(parse_integer(data, 4));
 				} else {
 					bytes = 4;
-					val = be32toh(parse_integer(data, 8));
+					if (is_bin)
+						val = be32toh(bytes_to_beuint(&data, &len, 4));
+					else
+						val = be32toh(parse_integer(data, 8));
 				}
 				error = write_mem(vcpus[cur_vcpu], gpa, val,
 				    bytes);
@@ -1448,8 +1494,10 @@ gdb_write_mem(const uint8_t *data, size_t len)
 					gva += bytes;
 					resid -= bytes;
 					todo -= bytes;
-					data += 2 * bytes;
-					len -= 2 * bytes;
+					if (!is_bin) {
+						data += 2 * bytes;
+						len -= 2 * bytes;
+					}
 				} else {
 					send_error(EFAULT);
 					return;
@@ -1946,6 +1994,9 @@ handle_command(const uint8_t *data, size_t len)
 			break;
 		}
 		break;
+	case 'X':
+		gdb_write_mem(data, len);
+		break;
 	case 'z':
 	case 'Z':
 		parse_breakpoint(data, len);
@@ -1960,7 +2011,6 @@ handle_command(const uint8_t *data, size_t len)
 	case 'P': /* TODO */
 	case 'Q': /* TODO */
 	case 't': /* TODO */
-	case 'X': /* TODO */
 	default:
 		send_empty_response();
 	}
@@ -2129,7 +2179,7 @@ new_connection(int fd, enum ev_type event __unused, void *arg)
 	pthread_mutex_lock(&gdb_lock);
 	if (cur_fd != -1) {
 		close(s);
-		warnx("Ignoring additional GDB connection.");
+		warnx("Ignoring ahnh eitional GDB connection.");
 	}
 
 	read_event = mevent_add(s, EVF_READ, gdb_readable, NULL);
