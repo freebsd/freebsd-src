@@ -66,11 +66,9 @@ extern void	yyrestart(FILE *);
 %union
 {
 	char *str;
-	double floating;
 }
 
 %token <str> STR
-%token <floating> FLOAT
 
 %%
 
@@ -383,16 +381,7 @@ ping_timeout:	PINGTIMEOUT EQUALS STR
 			free($3);
 			return(1);
 		}
-		target->t_pingtimeout = tmp * 1000;
-	}
-	|	PINGTIMEOUT EQUALS FLOAT
-	{
-		float tmp;
-
-		if (target->t_pingtimeout != -1)
-			xo_errx(1, "duplicated PingTimeout at line %d", lineno);
-		tmp = $3;
-		target->t_pingtimeout = roundup((int)(tmp * 1000), 100);
+		target->t_pingtimeout = tmp;
 	}
 	;
 
@@ -408,17 +397,7 @@ login_timeout:	LOGINTIMEOUT EQUALS STR
 			free($3);
 			return(1);
 		}
-		target->t_logintimeout = tmp * 1000;
-	}
-	|	LOGINTIMEOUT EQUALS FLOAT
-	{
-		float tmp;
-
-		if (target->t_logintimeout != -1)
-			xo_errx(1, "duplicated LoginTimeout at line %d", lineno);
-
-		tmp = $3;
-		target->t_logintimeout = roundup((int)(tmp * 1000), 100);
+		target->t_logintimeout = tmp;
 	}
 	;
 
