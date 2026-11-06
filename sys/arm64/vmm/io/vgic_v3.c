@@ -2136,6 +2136,13 @@ vgic_v3_init(device_t dev)
 	virt_features.ich_lr_num = ICH_VTR_EL2_LISTREGS(ich_vtr_el2);
 }
 
+struct vgic_v3_softc {
+	device_t	gic_dev;
+	struct  resource	*maint_irq;
+	void	*maint_cookie;
+	int	maint_rid;
+};
+
 static int
 vgic_v3_probe(device_t dev)
 {
@@ -2151,8 +2158,81 @@ vgic_v3_probe(device_t dev)
 }
 
 static int
+vgic_v3_release_maint_irq(struct vgic_v3_softc *sc)
+{
+	int error;
+
+	if (sc->maint_cookie != NULL) {
+		error = bus_teardown_intr(sc->gic_dev, sc->maint_irq,
+		    sc->maint_cookie);
+		if (error != 0)
+			return (error);
+
+		sc->maint_cookie = NULL;
+	}
+
+	if (sc->maint_irq != NULL) {
+		error = bus_release_resource(sc->gic_dev, SYS_RES_IRQ,
+		    sc->maint_rid, sc->maint_irq);
+		if (error != 0)
+			return (error);
+
+		sc->maint_irq = NULL;
+	}
+
+	return (0);
+}
+
+static int
+vgic_v3_maint_filter(void *arg)
+{
+	return (FILTER_HANDLED);
+}
+
+static int
 vgic_v3_attach(device_t dev)
 {
+	struct vgic_v3_softc *sc;
+	rman_res_t irq_map, count;
+	int error, cleanup_error;
+
+	sc = device_get_softc(dev);
+	sc->gic_dev = device_get_parent(dev);
+	sc->maint_rid = 0;
+
+	error = bus_get_resource(sc->gic_dev, SYS_RES_IRQ, sc->maint_rid,
+	    &irq_map, &count);
+
+	if (error)
+		goto fail;
+
+	if (count != 1) {
+		error = EINVAL;
+		goto fail;
+	}
+
+	sc->maint_irq = bus_alloc_resource_any(sc->gic_dev, SYS_RES_IRQ,
+	    &sc->maint_rid, RF_ACTIVE);
+	if (sc->maint_irq == NULL) {
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(sc->gic_dev, sc->maint_irq,
+	    INTR_TYPE_MISC | INTR_MPSAFE, vgic_v3_maint_filter, NULL, sc,
+	    &sc->maint_cookie);
+	if (error) {
+		sc->maint_cookie = NULL;
+		goto fail;
+	}
+
+	goto out;
+fail:
+	device_printf(dev, "Maintenance IRQ setup failed (%d)\n", error);
+	cleanup_error = vgic_v3_release_maint_irq(sc);
+	if (cleanup_error)
+		device_printf(dev, "IRQ cleanup failed: %d\n", cleanup_error);
+out:
 	vgic_dev = dev;
 	return (0);
 }
@@ -2160,7 +2240,18 @@ vgic_v3_attach(device_t dev)
 static int
 vgic_v3_detach(device_t dev)
 {
-	vgic_dev = NULL;
+	struct vgic_v3_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	error = vgic_v3_release_maint_irq(sc);
+	if (error)
+		return (error);
+
+	if (vgic_dev == dev)
+		vgic_dev = NULL;
+
 	return (0);
 }
 
@@ -2190,6 +2281,7 @@ static device_method_t vgic_v3_methods[] = {
 };
 
 /* TODO: Create a vgic base class? */
-DEFINE_CLASS_0(vgic, vgic_v3_driver, vgic_v3_methods, 0);
+DEFINE_CLASS_0(vgic, vgic_v3_driver, vgic_v3_methods,
+    sizeof(struct vgic_v3_softc));
 
 DRIVER_MODULE(vgic_v3, gic, vgic_v3_driver, 0, 0);
