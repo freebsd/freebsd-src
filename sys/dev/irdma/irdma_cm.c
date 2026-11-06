@@ -822,13 +822,20 @@ irdma_event_connect_error(struct irdma_cm_event *event)
  */
 static int
 irdma_process_options(struct irdma_cm_node *cm_node, u8 *optionsloc,
-		      u32 optionsize, u32 syn_pkt)
+		      int optionsize, u32 syn_pkt)
 {
 	u32 tmp;
-	u32 offset = 0;
+	int offset = 0;
 	union all_known_options *all_options;
 	char got_mss_option = 0;
 
+	if ((optionsize < 0) || (optionsize > MAX_TCPOPTLEN)) {
+		irdma_debug(&cm_node->iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
+			    "Option Size: %d out of bound\n",
+			    optionsize);
+		/* return silently */
+		return 0;
+	}
 	while (offset < optionsize) {
 		all_options = (union all_known_options *)(optionsloc + offset);
 		switch (all_options->base.optionnum) {
@@ -2668,7 +2675,11 @@ irdma_handle_syn_pkt(struct irdma_cm_node *cm_node,
 	u32 inc_sequence;
 	int optionsize;
 
+	if (tcph->th_off < 5) {
+		return;
+	}
 	optionsize = (tcph->th_off << 2) - sizeof(*tcph);
+
 	inc_sequence = ntohl(tcph->th_seq);
 
 	switch (cm_node->state) {
@@ -2736,7 +2747,11 @@ irdma_handle_synack_pkt(struct irdma_cm_node *cm_node,
 	u32 inc_sequence;
 	int optionsize;
 
+	if (tcph->th_off < 5) {
+		return;
+	}
 	optionsize = (tcph->th_off << 2) - sizeof(*tcph);
+
 	inc_sequence = ntohl(tcph->th_seq);
 	switch (cm_node->state) {
 	case IRDMA_CM_STATE_SYN_SENT:
@@ -2811,6 +2826,9 @@ irdma_handle_ack_pkt(struct irdma_cm_node *cm_node,
 	int optionsize;
 	u32 datasize = rbuf->datalen;
 
+	if (tcph->th_off < 5) {
+		return -EINVAL;
+	}
 	optionsize = (tcph->th_off << 2) - sizeof(*tcph);
 
 	if (irdma_check_seq(cm_node, tcph))
