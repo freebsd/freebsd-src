@@ -1278,8 +1278,18 @@ getaddr(int idx, char *str, int nrflags)
 		}
 		break;
 	case RTAX_IFP:
+	{
+		unsigned int ifindex;
+
 		sa->sa_family = AF_LINK;
+		/* A bare interface name is the usual spelling of -ifp. */
+		ifindex = if_nametoindex(str);
+		if (ifindex != 0) {
+			((struct sockaddr_dl *)(void *)sa)->sdl_index = ifindex;
+			return (1);
+		}
 		break;
+	}
 	}
 	if (strcmp(str, "default") == 0) {
 		/*
