@@ -21,21 +21,9 @@
 # The rules here work on a "First match wins" basis.
 ALL : ALL : allow
 
-# Wrapping sshd(8) is not normally a good idea, but if you
-# need to do it, here's how
-#sshd : .evil.cracker.example.com : deny
-
-# Protect against simple DNS spoofing attacks by checking that the
-# forward and reverse records for the remote host match. If a mismatch
-# occurs, access is denied, and any positive ident response within
-# 20 seconds is logged. No protection is afforded against DNS poisoning,
-# IP spoofing or more complicated attacks. Hosts with no reverse DNS
-# pass this rule.
-ALL : PARANOID : RFC931 20 : deny
-
 # Allow anything from localhost.  Note that an IP address (not a host
 # name) *MUST* be specified for rpcbind(8).
-ALL : localhost 127.0.0.1 : allow
+ALL : 127.0.0.1 : allow
 # Comment out next line if you build libwrap without IPv6 support.
 ALL : [::1] : allow
 #ALL : my.machine.example.com 192.0.2.35 : allow
@@ -46,46 +34,60 @@ ALL : [::1] : allow
 #ALL : [2001:db8:2:1:2:3:4:3fe1] : deny
 #ALL : [2001:db8:2:1::]/64 : allow
 
+# Protect against simple DNS spoofing attacks by checking that the
+# forward and reverse records for the remote host match. If a mismatch
+# occurs, access is denied, and any positive ident response within
+# 20 seconds is logged. No protection is afforded against DNS poisoning,
+# IP spoofing or more complicated attacks. Hosts with no reverse DNS
+# pass this rule.
+#ALL : PARANOID : RFC931 20 : deny
+
+# Wrapping sshd(8) is not normally a good idea, but if you
+# need to do it, here's how
+#sshd : .evil.cracker.example.com : deny
+sshd : ALL : allow
+
 # Sendmail can help protect you against spammers and relay-rapers
-sendmail : localhost : allow
+#sendmail : localhost : allow
 #sendmail : .nice.guy.example.com : allow
 #sendmail : .evil.cracker.example.com : deny
-sendmail : ALL : allow
+#sendmail : ALL : allow
 
 # Exim is an alternative to sendmail, available in the ports tree
-exim : localhost : allow
+#exim : localhost : allow
 #exim : .nice.guy.example.com : allow
 #exim : .evil.cracker.example.com : deny
-exim : ALL : allow
+#exim : ALL : allow
 
 # Rpcbind is used for all RPC services; protect your NFS!
 # Rpcbind should be running with -W option to support this.
 # (IP addresses rather than hostnames *MUST* be used here)
 #rpcbind : 192.0.2.32/255.255.255.224 : allow
 #rpcbind : 192.0.2.96/255.255.255.224 : allow
-rpcbind : ALL : deny
+#rpcbind : ALL : deny
 
 # NIS master server. Only local nets should have access
 # (Since this is an RPC service, rpcbind needs to be considered)
-ypserv : localhost : allow
+#ypserv : localhost : allow
 #ypserv : .unsafe.my.net.example.com : deny
 #ypserv : .my.net.example.com : allow
-ypserv : ALL : deny
+#ypserv : ALL : deny
 
 # Provide a small amount of protection for ftpd
-ftpd : localhost : allow
+#ftpd : localhost : allow
 #ftpd : .nice.guy.example.com : allow
 #ftpd : .evil.cracker.example.com : deny
-ftpd : ALL : allow
+#ftpd : ALL : allow
 
 # You need to be clever with finger; do _not_ backfinger!! You can easily
 # start a "finger war".
-fingerd : ALL \
-	: spawn (echo Finger. | \
-	 /usr/bin/mail -s "tcpd\: %u@%h[%a] fingered me!" root) & \
-	: deny
+#fingerd : ALL \
+#	: spawn (echo Finger. | \
+#	 /usr/bin/mail -s "tcpd\: %u@%h[%a] fingered me!" root) & \
+#	: deny
 
 # The rest of the daemons are protected.
-ALL : ALL \
-	: severity auth.info \
-	: twist /bin/echo "You are not welcome to use %d from %h."
+#ALL : ALL \
+#	: severity auth.info \
+#	: twist /bin/echo "You are not welcome to use %d from %h."
+ALL : ALL : deny
