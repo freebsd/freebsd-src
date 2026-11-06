@@ -73,11 +73,12 @@ static vop_readdir_t	fdesc_readdir;
 static vop_readlink_t	fdesc_readlink;
 static vop_reclaim_t	fdesc_reclaim;
 static vop_setattr_t	fdesc_setattr;
+static vop_access_t	fdesc_access;
 
 static struct vop_vector fdesc_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
-	.vop_access =		VOP_NULL,
+	.vop_access =		fdesc_access,
 	.vop_getattr =		fdesc_getattr,
 	.vop_lookup =		fdesc_lookup,
 	.vop_open =		fdesc_open,
@@ -702,5 +703,36 @@ fdesc_readlink(struct vop_readlink_args *va)
 
 out:
 	vn_lock(vn, lockflags | LK_RETRY);
+	return (error);
+}
+
+static int
+fdesc_access(struct vop_access_args *va)
+{
+	struct vnode *vp;
+	struct fdescnode *fd;
+	struct file *fp;
+	int error, flags, locked;
+
+	vp = va->a_vp;
+	fd = VTOFDESC(vp);
+	if (fd->fd_type == Froot)
+		return (0);
+	error = fget(va->a_td, fd->fd_fd, &cap_no_rights, &fp);
+	if (error != 0)
+		return (error);
+	flags = 0;
+	if ((va->a_accmode & VREAD) != 0)
+		flags |= FREAD;
+	if ((va->a_accmode & (VWRITE | VAPPEND)) != 0)
+		flags |= FWRITE;
+	if ((va->a_accmode & VEXEC) != 0)
+		flags |= FEXEC;
+	if ((flags & fp->f_flag) != flags)
+		error = EACCES;
+	locked = VOP_ISLOCKED(vp);
+	VOP_UNLOCK(vp);
+	fdrop(fp, va->a_td);
+	vn_lock(vp, locked | LK_RETRY);
 	return (error);
 }
