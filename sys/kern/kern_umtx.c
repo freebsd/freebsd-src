@@ -888,6 +888,15 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg,
 			error = umtx_abs_timeout_getsbt(timo, &sbt, &flags);
 			if (error != 0)
 				break;
+
+			/*
+			 * msleep() treats zero timeout as no timeout,
+			 * return ETIMEDOUT right away.
+			 */
+			if ((flags & C_ABSOLUTE) != 0 && sbt == 0) {
+				error = ETIMEDOUT;
+				break;
+			}
 		}
 		error = msleep_sbt(uq, &uc->uc_lock, PCATCH | PDROP, wmesg,
 		    sbt, 0, flags);
