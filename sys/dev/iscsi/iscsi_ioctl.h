@@ -142,6 +142,8 @@ struct iscsi_daemon_handoff {
 	int				idh_max_send_data_segment_length;
 	int				idh_max_burst_length;
 	int				idh_first_burst_length;
+	int				idh_ping_timeout;
+	int				idh_login_timeout;
 };
 
 struct iscsi_daemon_fail {

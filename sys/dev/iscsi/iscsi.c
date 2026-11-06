@@ -104,15 +104,15 @@ static int debug = 1;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 0, "Enable debug messages");
 
-static int ping_timeout = 5;
+static int ping_timeout = 5000;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RWTUN, &ping_timeout,
-    0, "Timeout for ping (NOP-Out) requests, in seconds");
-static int iscsid_timeout = 60;
+    0, "Timeout for ping (NOP-Out) requests, in milliseconds");
+static int iscsid_timeout = 60000;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, iscsid_timeout, CTLFLAG_RWTUN, &iscsid_timeout,
-    0, "Time to wait for iscsid(8) to handle reconnection, in seconds");
-static int login_timeout = 60;
+    0, "Time to wait for iscsid(8) to handle reconnection, in milliseconds");
+static int login_timeout = 60000;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, login_timeout, CTLFLAG_RWTUN, &login_timeout,
-    0, "Time to wait for iscsid(8) to finish Login Phase, in seconds");
+    0, "Time to wait for iscsid(8) to finish Login Phase, in milliseconds");
 static int maxtags = 255;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN, &maxtags,
     0, "Max number of IO requests queued");
@@ -585,6 +585,8 @@ iscsi_callout(void *context)
 	struct iscsi_session *is;
 	bool reconnect_needed = false;
 	sbintime_t sbt, pr;
+	bool fast_timer = false;
+	char tmpstr[5];
 
 	is = context;
 
@@ -594,29 +596,38 @@ iscsi_callout(void *context)
 		return;
 	}
 
-	sbt = mstosbt(995);
+	fast_timer = ((is->is_ping_timeout <= 2000) ||
+			(is->is_login_timeout <= 2000));
+	sbt = mstosbt(fast_timer ? 95 : 995);
 	pr  = mstosbt(10);
 	callout_schedule_sbt(&is->is_callout, sbt, pr, 0);
 
 	if (is->is_conf.isc_enable == 0)
 		goto out;
 
-	is->is_timeout++;
+	is->is_timeout += (fast_timer ? 100 : 1000);
 
+	tmpstr[0] = '\0';
 	if (is->is_waiting_for_iscsid) {
-		if (iscsid_timeout > 0 && is->is_timeout > iscsid_timeout) {
+		if (iscsid_timeout > 0 && is->is_timeout >= iscsid_timeout) {
+			if (fast_timer && ((is->is_timeout % 1000) != 0))
+				snprintf(tmpstr, sizeof(tmpstr), ".%d",
+					(is->is_timeout % 1000) / 100);
 			ISCSI_SESSION_WARN(is, "timed out waiting for iscsid(8) "
-			    "for %d seconds; reconnecting",
-			    is->is_timeout);
+			    "for %d%s seconds; reconnecting",
+			    is->is_timeout / 1000, tmpstr);
 			reconnect_needed = true;
 		}
 		goto out;
 	}
 
 	if (is->is_login_phase) {
-		if (is->is_login_timeout > 0 && is->is_timeout > is->is_login_timeout) {
-			ISCSI_SESSION_WARN(is, "login timed out after %d seconds; "
-			    "reconnecting", is->is_timeout);
+		if (is->is_login_timeout > 0 && is->is_timeout >= is->is_login_timeout) {
+			if (fast_timer && ((is->is_timeout % 1000) != 0))
+				snprintf(tmpstr, sizeof(tmpstr), ".%d",
+					(is->is_timeout % 1000) / 100);
+			ISCSI_SESSION_WARN(is, "login timed out after %d%s seconds; "
+			    "reconnecting", is->is_timeout / 1000, tmpstr);
 			reconnect_needed = true;
 		}
 		goto out;
@@ -633,8 +644,11 @@ iscsi_callout(void *context)
 	}
 
 	if (is->is_timeout >= is->is_ping_timeout) {
-		ISCSI_SESSION_WARN(is, "no ping reply (NOP-In) after %d seconds; "
-		    "reconnecting", is->is_ping_timeout);
+		if (fast_timer && ((is->is_timeout % 1000) != 0))
+			snprintf(tmpstr, sizeof(tmpstr), ".%d",
+				(is->is_timeout % 1000) / 100);
+		ISCSI_SESSION_WARN(is, "no ping reply (NOP-In) after %d%s seconds; "
+		    "reconnecting", is->is_timeout / 1000, tmpstr);
 		reconnect_needed = true;
 		goto out;
 	}
@@ -649,7 +663,7 @@ iscsi_callout(void *context)
 	 * (It's 2 - one for one second, and one for incrementing is_timeout
 	 * earlier in this routine.)
 	 */
-	if (is->is_timeout < 2)
+	if (is->is_timeout < (fast_timer ? 200 : 2000))
 		return;
 
 	request = icl_pdu_new(is->is_conn, M_NOWAIT);
@@ -1965,6 +1979,7 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	const struct iscsi_session *is2;
 	int error;
 	sbintime_t sbt, pr;
+	bool fast_timer;
 
 	iscsi_sanitize_session_conf(&isa->isa_conf);
 	if (iscsi_valid_session_conf(&isa->isa_conf) == false)
@@ -2048,7 +2063,9 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	if (is->is_login_timeout < 0)
 		is->is_login_timeout = login_timeout;
 
-	sbt = mstosbt(995);
+	fast_timer = ((is->is_ping_timeout <= 2000) ||
+			(is->is_ping_timeout <= 2000));
+	sbt = mstosbt(fast_timer ? 95 : 995);
 	pr = mstosbt(10);
 	callout_reset_sbt(&is->is_callout, sbt, pr, iscsi_callout, is, 0);
 	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);

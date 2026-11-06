@@ -357,7 +357,7 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	int keepinit = 0;
 	if (conn->conn_conf.isc_login_timeout > 0) {
 		keepinit = conn->conn_conf.isc_login_timeout;
-		log_debugx("session specific LoginTimeout at %d sec",
+		log_debugx("session specific LoginTimeout at %d ms",
 			keepinit);
 	}
 	if (conn->conn_conf.isc_login_timeout == -1) {
@@ -366,11 +366,13 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 		if (sysctlbyname("kern.iscsi.login_timeout",
 		    &value, &size, NULL, 0) == 0) {
 			keepinit = value;
-			log_debugx("global login_timeout at %d sec",
+			log_debugx("global login_timeout at %d ms",
 				keepinit);
 		}
 	}
 	if (keepinit > 0) {
+		/* setsockopt only supports full seconds */
+		keepinit = roundup(keepinit, 1000);
 		if (setsockopt(conn->conn.conn_socket,
 		    IPPROTO_TCP, TCP_KEEPINIT,
 		    &keepinit, sizeof(keepinit)) == -1)
@@ -476,6 +478,8 @@ handoff(struct iscsid_connection *conn)
 	    conn->conn.conn_max_send_data_segment_length;
 	idh.idh_max_burst_length = conn->conn.conn_max_burst_length;
 	idh.idh_first_burst_length = conn->conn.conn_first_burst_length;
+	idh.idh_ping_timeout = conn->conn_conf.isc_ping_timeout;
+	idh.idh_login_timeout = conn->conn_conf.isc_login_timeout;
 
 	error = ioctl(conn->conn_iscsi_fd, ISCSIDHANDOFF, &idh);
 	if (error != 0)
