@@ -1377,6 +1377,16 @@ amd_v2_hwcheck_cpu(void *arg)
 	int error, i;
 
 	state = arg;
+
+	/*
+	 * A buggy hypervisor can advertise the PerfMonV2 CPUID bit without
+	 * implementing GLOBAL_CTL.
+	 */
+	if (rdmsr_safe(AMD_PMC_GLOBAL_CTL, &reg) != 0) {
+		atomic_set_int(&state->avh_read_error, 1);
+		return;
+	}
+
 	for (i = 0; i < amd_core_npmcs; i++) {
 		error = rdmsr_safe(amd_pmcdesc[i].pm_evsel, &reg);
 		if (error != 0) {
@@ -1407,7 +1417,7 @@ amd_hwcheck(void)
 		smp_rendezvous_cpus(all_cpus, smp_no_rendezvous_barrier,
 		    amd_v2_hwcheck_cpu, smp_no_rendezvous_barrier, &state);
 		if (state.avh_read_error != 0) {
-			printf("hwpmc: AMD PerfMonV2 EVSEL read failed on one "
+			printf("hwpmc: AMD PerfMonV2 MSR read failed on one "
 			    "or more CPUs!\n");
 			return (-1);
 		}
@@ -1585,8 +1595,12 @@ pmc_amd_initialize(void)
 			pmcs_per_umc = amd_umc_npmcs / popcntq(regs[2]);
 		}
 
-		/* EAX bit 0 holds the PerfMonV2 flag. */
-		if (EXTPERFMON_PERFMONV2(regs[0]) && family >= 0x19)
+		/*
+		 * EAX bit 0 holds the PerfMonV2 flag.  PerfMonV2 requires
+		 * PerfCtrExtCore; reject inconsistent CPUID (e.g. bhyve).
+		 */
+		if (EXTPERFMON_PERFMONV2(regs[0]) && family >= 0x19 &&
+		    (amd_feature2 & AMDID2_PCXC) != 0)
 			amd_perfmon_v2 = true;
 	}
 
