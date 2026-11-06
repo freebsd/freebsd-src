@@ -341,6 +341,21 @@ link_elf_protect(elf_file_t ef)
 }
 
 static int
+link_elf_obj_check_symtab(elf_file_t ef, const char *filename)
+{
+	const Elf_Sym *symp;
+	long i;
+
+	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
+		if (symp->st_name >= ef->ddbstrcnt) {
+			link_elf_error(filename, "corrupt symbol name offset");
+			return (ENOEXEC);
+		}
+	}
+	return (0);
+}
+
+static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
     linker_file_t *result)
 {
@@ -475,6 +490,9 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	ef->ddbsymtab = (Elf_Sym *)shdr[symtabindex].sh_addr;
 	ef->ddbstrcnt = shdr[symstrindex].sh_size;
 	ef->ddbstrtab = (char *)shdr[symstrindex].sh_addr;
+	error = link_elf_obj_check_symtab(ef, filename);
+	if (error != 0)
+		goto out;
 	ef->shstrcnt = shdr[shstrindex].sh_size;
 	ef->shstrtab = (char *)shdr[shstrindex].sh_addr;
 
@@ -933,6 +951,9 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = EINVAL;
 		goto out;
 	}
+	error = link_elf_obj_check_symtab(ef, filename);
+	if (error != 0)
+		goto out;
 
 	/* Do we have a string table for the section names?  */
 	shstrindex = -1;
