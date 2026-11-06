@@ -89,12 +89,15 @@ struct madt_table_data {
 	int count;
 	bool rdist_use_gicc;
 	bool have_vgic;
+	u_int maint_irq;
+	bool maint_irq_valid;
 };
 
 static void
 madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	struct madt_table_data *madt_data;
+	ACPI_MADT_GENERIC_INTERRUPT *gicc;
 
 	madt_data = (struct madt_table_data *)arg;
 
@@ -110,6 +113,30 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		break;
 
 	case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
+		break;
+
+	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
+		gicc = (ACPI_MADT_GENERIC_INTERRUPT *)entry;
+		if (!(gicc->Flags &
+		    (ACPI_MADT_ENABLED | ACPI_MADT_GICC_ONLINE_CAPABLE)))
+			break;
+
+		if (gicc->Flags & ACPI_MADT_VGIC_IRQ_MODE)
+			device_printf(madt_data->parent,
+			    "gic: Maintenance interrupt configured as edge-triggered, ignoring\n");
+
+		/* Require the maintenance IRQ to be an ordinary PPI */
+		if (gicc->VgicInterrupt < GIC_FIRST_PPI ||
+		    gicc->VgicInterrupt > GIC_LAST_PPI) {
+			madt_data->maint_irq_valid = false;
+			break;
+		}
+
+		if (madt_data->maint_irq == 0)
+			madt_data->maint_irq = gicc->VgicInterrupt;
+		/* Require consistency between CPUs */
+		else if (madt_data->maint_irq != gicc->VgicInterrupt)
+			madt_data->maint_irq_valid = false;
 		break;
 
 	default:
@@ -171,6 +198,7 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 	vm_paddr_t physaddr;
 	uintptr_t private;
 	device_t dev;
+	int error;
 
 	physaddr = acpi_find_table(ACPI_SIG_MADT);
 	if (physaddr == 0)
@@ -182,9 +210,9 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 		return;
 	}
 
+	memset(&madt_data, 0, sizeof(madt_data));
 	madt_data.parent = parent;
-	madt_data.dist = NULL;
-	madt_data.count = 0;
+	madt_data.maint_irq_valid = true;
 
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    madt_handler, &madt_data);
@@ -230,9 +258,24 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 	}
 
 	private = madt_data.dist->Version;
-	/* Flag that the VGIC is in use */
-	if (madt_data.have_vgic)
+	if (madt_data.have_vgic) {
+		/* Flag that the VGIC is in use */
 		private |= GICV3_PRIV_VGIC;
+
+		if (madt_data.maint_irq_valid && madt_data.maint_irq != 0) {
+			error = BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
+			    madt_data.maint_irq, 1);
+
+			if (error) {
+				device_printf(dev,
+				    "Could not add maintenance IRQ resource: %d\n",
+				    error);
+			}
+		} else {
+			device_printf(dev,
+			    "No consistent maintenance PPI in MADT\n");
+		}
+	}
 
 	acpi_set_private(dev, (void *)private);
 
