@@ -33,7 +33,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <libgeom.h>
 #include <err.h>
@@ -306,12 +305,7 @@ virstor_label(struct gctl_req *req)
 		fflush(stdout);
 	}
 
-	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-		fd = open(name, O_RDWR);
-	else {
-		sprintf(param, "%s%s", _PATH_DEV, name);
-		fd = open(param, O_RDWR);
-	}
+	fd = g_open(name, 1);
 	if (fd < 0) {
 		gctl_error(req, "Cannot open provider %s to write map", name);
 		return;
@@ -467,12 +461,7 @@ virstor_clear(struct gctl_req *req)
 			    "Not fully done (can't clear metadata).");
 			continue;
 		}
-		if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-			fd = open(name, O_RDWR);
-		else {
-			sprintf(param, "%s%s", _PATH_DEV, name);
-			fd = open(param, O_RDWR);
-		}
+		fd = g_open(name, 1);
 		if (fd < 0) {
 			gctl_error(req, "Cannot clear header sector for %s",
 			    name);
