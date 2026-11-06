@@ -347,7 +347,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 				_pthread_exit(PTHREAD_CANCELED);
 			else /* this should not happen */
 				return (error2);
-		} else if (error == ETIMEDOUT) {
+		} else if (error != 0 && error != EINTR) {
 			sq = _sleepq_lookup(cvp);
 			cvp->__has_user_waiters =
 			    _sleepq_remove(sq, curthread);
