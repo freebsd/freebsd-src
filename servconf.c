@@ -280,7 +280,7 @@ fill_default_server_options(ServerOptions *options)
 		logit("StreamlocalForwarding is not supported on this system");
 	options->allow_streamlocal_forwarding = 0;
 	if (options->fwd_opts.gateway_ports != -1 &&
-	    options->fwd_opts.gateway_ports == 0)
+	    options->fwd_opts.gateway_ports != 0)
 		logit("GatewayPorts is not supported on this system");
 	options->fwd_opts.gateway_ports = 0;
 #endif

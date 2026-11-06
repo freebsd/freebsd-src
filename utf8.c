@@ -339,7 +339,7 @@ msetlocale(void)
 			continue;
 		if (strncasecmp(cp, "tr", 2) != 0 &&
 		    strncasecmp(cp, "crh", 3) != 0 &&
-		    strncasecmp(cp, "az", 3) != 0)
+		    strncasecmp(cp, "az", 2) != 0)
 			break;
 		/*
 		 * If we're in a UTF-8 locale then prefer to use

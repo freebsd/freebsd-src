@@ -92,6 +92,8 @@ jobs:
           - { target: nbsd10, config: pam, host: libvirt }
           - { target: nbsd11, config: pam, host: libvirt }
           - { target: omnios, config: pam, host: libvirt }
+          # ARM32 VMs
+          - { target: debian-arm,     config: default, host: libvirt-arm}
           # ARM64 VMs
           - { target: obsdsnap-arm64, config: default, host: libvirt-arm64 }
           # VMs with persistent disks that have their own runner.
@@ -101,7 +103,6 @@ jobs:
           - { target: ARM64, config: default, host: ARM64 }
           - { target: ARM64, config: pam, host: ARM64 }
           # Physical hosts with remote runners.
-          - { target: debian-arm, config: default, host: remote-debian-arm}
           - { target: debian-riscv64, config: default, host: remote-debian-riscv64 }
           - { target: openwrt-mips, config: default, host: remote-openwrt-mips }
           - { target: openwrt-mipsel, config: default, host: remote-openwrt-mipsel }

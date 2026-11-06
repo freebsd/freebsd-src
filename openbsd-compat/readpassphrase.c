@@ -1,4 +1,4 @@
-/*	$OpenBSD: readpassphrase.c,v 1.30 2026/09/16 01:24:59 djm Exp $	*/
+/*	$OpenBSD: readpassphrase.c,v 1.31 2026/10/15 05:55:06 djm Exp $	*/
 
 /*
  * Copyright (c) 2000-2002, 2007, 2010
@@ -133,11 +133,11 @@ restart:
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;		/* don't restart system calls */
 	sa.sa_handler = handler;
+	sigaction(SIGINT, &sa, &saveint);
+	sigaction(SIGQUIT, &sa, &savequit);
 	sigaction_except_ign(SIGALRM, &sa, &savealrm);
 	sigaction_except_ign(SIGHUP, &sa, &savehup);
-	sigaction_except_ign(SIGINT, &sa, &saveint);
 	sigaction_except_ign(SIGPIPE, &sa, &savepipe);
-	sigaction_except_ign(SIGQUIT, &sa, &savequit);
 	sigaction_except_ign(SIGTERM, &sa, &saveterm);
 	sigaction_except_ign(SIGTSTP, &sa, &savetstp);
 	sigaction_except_ign(SIGTTIN, &sa, &savettin);
@@ -175,10 +175,10 @@ restart:
 			continue;
 		signo[SIGTTOU] = sigttou;
 	}
+	sigaction(SIGINT, &saveint, NULL);
+	sigaction(SIGQUIT, &savequit, NULL);
 	sigaction_except_ign(SIGALRM, &savealrm, NULL);
 	sigaction_except_ign(SIGHUP, &savehup, NULL);
-	sigaction_except_ign(SIGINT, &saveint, NULL);
-	sigaction_except_ign(SIGQUIT, &savequit, NULL);
 	sigaction_except_ign(SIGPIPE, &savepipe, NULL);
 	sigaction_except_ign(SIGTERM, &saveterm, NULL);
 	sigaction_except_ign(SIGTSTP, &savetstp, NULL);
