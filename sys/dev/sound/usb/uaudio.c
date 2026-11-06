@@ -231,6 +231,7 @@ struct uaudio_chan_alt {
 	uint16_t sample_size;
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
+	uint8_t	sync_feed_ep;
 	uint8_t channels;
 };
 
@@ -1508,29 +1509,22 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 			/*
 			 * Shared-clock guard.  If this clock entity is
-			 * shared between the playback and capture paths,
-			 * and the OTHER direction is already streaming at
-			 * a different rate, do not reprogram the clock --
-			 * the rate that is already locked wins.  This
-			 * stops an idle or secondary stream from yanking
-			 * the shared clock out from under an active
-			 * stream and dropping USB stream lock.  The first
-			 * active stream owns the clock; a later one
-			 * follows it (see uaudio_chan_start(), which
-			 * re-aligns the jitter-info record stream to the
-			 * playback rate before it is started).
+			 * shared between the playback and capture paths
+			 * and the OTHER direction is already streaming,
+			 * that direction owns the clock: do not write it,
+			 * even with the same rate.  Some devices reload
+			 * their clock on every SET_CUR and drop the stream
+			 * that is already running.
 			 */
 			if (uaudio20_clock_is_shared(sc, x)) {
 				uint32_t other = (dir == PCMDIR_PLAY) ?
 				    uaudio_dir_running_rate(sc->sc_rec_chan) :
 				    uaudio_dir_running_rate(sc->sc_play_chan);
 
-				if (other != 0 &&
-				    other != chan_alt->sample_rate) {
+				if (other != 0) {
 					DPRINTF("shared clock ID=%u busy at "
-					    "%u Hz; not reprogramming to "
-					    "%u Hz\n", x, other,
-					    chan_alt->sample_rate);
+					    "%u Hz; not writing %u Hz\n",
+					    x, other, chan_alt->sample_rate);
 					continue;
 				}
 			}
@@ -1813,6 +1807,27 @@ uaudio_get_chan(struct uaudio_softc *sc, struct uaudio_chan *chan,
 			return (chan);
 	}
 	return (NULL);
+}
+
+/*
+ * Return the explicit feedback endpoint of the alternate setting holding
+ * the data endpoint "ed1", or zero if there is none.
+ */
+static uint8_t
+uaudio_chan_find_sync_feed_ep(struct usb_config_descriptor *cd,
+    usb_endpoint_descriptor_audio_t *ed1)
+{
+	struct usb_endpoint_descriptor *ed = (void *)ed1;
+
+	while ((ed = usb_edesc_foreach(cd, ed)) != NULL) {
+		if (UE_GET_XFERTYPE(ed->bmAttributes) == UE_ISOCHRONOUS &&
+		    UE_GET_ISO_USAGE(ed->bmAttributes) ==
+		    UE_ISO_USAGE_FEEDBACK &&
+		    UE_GET_DIR(ed->bEndpointAddress) !=
+		    UE_GET_DIR(ed1->bEndpointAddress))
+			return (ed->bEndpointAddress);
+	}
+	return (0);
 }
 
 static void
@@ -2151,6 +2166,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->p_sed = sed;
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
+		chan_alt->sync_feed_ep = uaudio_chan_find_sync_feed_ep(cd, ed1);
 
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
@@ -2389,10 +2405,11 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		    (int)temp, (int)sample_rate);
 
 		/*
-		 * Use feedback value as fallback when there is no
-		 * recording channel:
+		 * Use the feedback value unless the recording channel is
+		 * streaming and providing jitter information:
 		 */
-		if (ch->priv_sc->sc_rec_chan[i].num_alt == 0) {
+		if (ch->priv_sc->sc_rec_chan[i].cur_alt >=
+		    ch->priv_sc->sc_rec_chan[i].num_alt) {
 			int32_t jitter_max = howmany(sample_rate, 16000);
 
 			/*
@@ -2433,6 +2450,12 @@ uaudio_chan_is_async(struct uaudio_chan *ch, uint8_t alt)
 {
 	uint8_t attr = ch->usb_alt[alt].p_ed1->bmAttributes;
 	return (UE_GET_ISO_TYPE(attr) == UE_ISO_ASYNC);
+}
+
+static int
+uaudio_chan_has_sync_feed_ep(struct uaudio_chan *ch, uint8_t alt)
+{
+	return (alt < ch->num_alt && ch->usb_alt[alt].sync_feed_ep != 0);
 }
 
 static void
@@ -2917,6 +2940,7 @@ uaudio_chan_need_both(struct uaudio_chan *pchan, struct uaudio_chan *rchan)
 	return (pchan->num_alt > 0 &&
 	    pchan->running != 0 &&
 	    uaudio_chan_is_async(pchan, pchan->set_alt) != 0 &&
+	    uaudio_chan_has_sync_feed_ep(pchan, pchan->set_alt) == 0 &&
 	    rchan->num_alt > 0 &&
 	    rchan->running == 0);
 }
@@ -2975,15 +2999,22 @@ uaudio_chan_start(struct uaudio_chan *ch)
 			 */
 			if (uaudio_chan_match_rate(ch_rec,
 			    ch_play->usb_alt[ch_play->set_alt].sample_rate,
-			    &rec_alt))
+			    &rec_alt)) {
 				ch_rec->set_alt = rec_alt;
 
-			/*
-			 * Start both endpoints because of need for
-			 * jitter information:
-			 */
-			uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
-			uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+				/*
+				 * Start both endpoints because of need for
+				 * jitter information:
+				 */
+				uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			} else {
+				/*
+				 * No capture rate matches playback; do not
+				 * start capture at a stale rate.
+				 */
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			}
 		} else {
 			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
