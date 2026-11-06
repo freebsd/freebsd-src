@@ -32,6 +32,7 @@
 #include <sys/capsicum.h>
 #include <sys/domain.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -48,6 +49,8 @@
 #include <security/audit/audit.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -189,11 +192,6 @@ linux_to_bsd_ip_sockopt(int opt)
 	case LINUX_IP_ROUTER_ALERT:
 		LINUX_RATELIMIT_MSG_OPT1(
 		    "unsupported IPv4 socket option IP_ROUTER_ALERT (%d), you can not do user-space routing from linux programs",
-		    opt);
-		return (-2);
-	case LINUX_IP_PKTINFO:
-		LINUX_RATELIMIT_MSG_OPT1(
-		    "unsupported IPv4 socket option IP_PKTINFO (%d), you can not get extended packet info for datagram sockets in linux programs",
 		    opt);
 		return (-2);
 	case LINUX_IP_PKTOPTIONS:
@@ -682,8 +680,39 @@ linux_to_bsd_msg_flags(int flags)
 }
 
 static int
-linux_to_bsd_cmsg_type(int cmsg_type)
+linux_to_bsd_ip_cmsg_type(int cmsg_type)
 {
+	switch (cmsg_type) {
+	case LINUX_IP_PKTINFO:
+		return (IP_SENDSRCADDR);
+	}
+	return (-1);
+}
+
+static int
+linux_to_bsd_ip6_cmsg_type(int cmsg_type)
+{
+	switch (cmsg_type) {
+	case LINUX_IPV6_PKTINFO:
+		return (IPV6_PKTINFO);
+	}
+	return (-1);
+}
+
+static int
+linux_to_bsd_cmsg_type(int cmsg_type, int cmsg_level)
+{
+
+	switch (cmsg_level) {
+	case IPPROTO_IP:
+		return (linux_to_bsd_ip_cmsg_type(cmsg_type));
+	case IPPROTO_IPV6:
+		return (linux_to_bsd_ip6_cmsg_type(cmsg_type));
+	case SOL_SOCKET:
+		break;
+	default:
+		return (-1);
+	}
 
 	switch (cmsg_type) {
 	case LINUX_SCM_RIGHTS:
@@ -694,6 +723,13 @@ linux_to_bsd_cmsg_type(int cmsg_type)
 	return (-1);
 }
 
+/*
+ * Returned by the bsd_to_linux_*_cmsg_type() functions for a control
+ * message which is folded into another one and must be neither delivered
+ * nor counted as unsupported.
+ */
+#define	LINUX_CMSG_CONSUMED	(-2)
+
 static int
 bsd_to_linux_ip_cmsg_type(int cmsg_type)
 {
@@ -703,6 +739,11 @@ bsd_to_linux_ip_cmsg_type(int cmsg_type)
 		return (LINUX_IP_RECVORIGDSTADDR);
 	case IP_RECVTOS:
 		return (LINUX_IP_TOS);
+	case IP_RECVDSTADDR:
+		return (LINUX_IP_PKTINFO);
+	case IP_RECVIF:
+		/* Merged into IP_PKTINFO by recvmsg_scm_ip_pktinfo(). */
+		return (LINUX_CMSG_CONSUMED);
 	}
 	return (-1);
 }
@@ -712,6 +753,8 @@ static int
 bsd_to_linux_ip6_cmsg_type(int cmsg_type)
 {
 	switch (cmsg_type) {
+	case IPV6_PKTINFO:
+		return (LINUX_IPV6_PKTINFO);
 	case IPV6_2292HOPLIMIT:
 		return (LINUX_IPV6_2292HOPLIMIT);
 	case IPV6_HOPLIMIT:
@@ -1410,6 +1453,49 @@ out:
 	return (error);
 }
 
+/*
+ * Translate the payload of a Linux IP_PKTINFO control message in place
+ * into an IP_SENDSRCADDR one.  *lenp is set to 0 when the message carries
+ * no source address and is to be dropped.  There is no IPv4 unicast
+ * equivalent of ipi_ifindex, so it is ignored.
+ */
+static int
+sendmsg_scm_ip_pktinfo(void *data, l_size_t *lenp)
+{
+	struct l_in_pktinfo lpi;
+	struct in_addr src;
+
+	if (*lenp != sizeof(lpi))
+		return (EINVAL);
+	memcpy(&lpi, data, sizeof(lpi));
+	if (lpi.ipi_ifindex != 0)
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "sendmsg IP_PKTINFO ipi_ifindex %d ignored",
+		    lpi.ipi_ifindex);
+	if (lpi.ipi_spec_dst == INADDR_ANY) {
+		*lenp = 0;
+		return (0);
+	}
+	src.s_addr = lpi.ipi_spec_dst;
+	memcpy(data, &src, sizeof(src));
+	*lenp = sizeof(src);
+	return (0);
+}
+
+static int
+sendmsg_scm_ipproto_ip(int msg_type, void *data, l_size_t *lenp)
+{
+	int error;
+
+	error = 0;
+	switch (msg_type) {
+	case IP_SENDSRCADDR:
+		error = sendmsg_scm_ip_pktinfo(data, lenp);
+		break;
+	}
+	return (error);
+}
+
 static int
 linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags)
@@ -1506,16 +1592,16 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				goto bad;
 
 			/*
-			 * Now we support only SCM_RIGHTS and SCM_CRED,
-			 * so return EINVAL in any other cmsg_type
+			 * Return EINVAL for any cmsg_type which is not
+			 * translated.
 			 */
 			cmsg = data;
-			cmsg->cmsg_type =
-			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type);
 			cmsg->cmsg_level =
 			    linux_to_bsd_sockopt_level(linux_cmsg.cmsg_level);
-			if (cmsg->cmsg_type == -1
-			    || cmsg->cmsg_level != SOL_SOCKET) {
+			cmsg->cmsg_type =
+			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type,
+			    cmsg->cmsg_level);
+			if (cmsg->cmsg_type == -1) {
 				linux_msg(curthread,
 				    "unsupported sendmsg cmsg level %d type %d",
 				    linux_cmsg.cmsg_level, linux_cmsg.cmsg_type);
@@ -1526,10 +1612,20 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			 * Some applications (e.g. pulseaudio) attempt to
 			 * send ancillary data even if the underlying protocol
 			 * doesn't support it which is not allowed in the
-			 * FreeBSD system call interface.
+			 * FreeBSD system call interface.  Pass control
+			 * messages only to the address family they belong to.
 			 */
-			if (sa_family != AF_UNIX)
-				goto next;
+			switch (cmsg->cmsg_level) {
+			case SOL_SOCKET:
+				if (sa_family != AF_UNIX)
+					goto next;
+				break;
+			default:
+				if (sa_family != AF_INET &&
+				    sa_family != AF_INET6)
+					goto next;
+				break;
+			}
 
 			if (cmsg->cmsg_type == SCM_CREDS) {
 				len = sizeof(struct cmsgcred);
@@ -1550,6 +1646,17 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				    CMSG_DATA(data), len);
 				if (error != 0)
 					goto bad;
+
+				/* Translate payloads differing from Linux. */
+				if (cmsg->cmsg_level == IPPROTO_IP) {
+					error = sendmsg_scm_ipproto_ip(
+					    cmsg->cmsg_type, CMSG_DATA(data),
+					    &len);
+					if (error != 0)
+						goto bad;
+					if (len == 0)
+						goto next;
+				}
 			}
 
 			cmsg->cmsg_len = CMSG_LEN(len);
@@ -1811,9 +1918,115 @@ recvmsg_scm_ip_origdstaddr(socklen_t *datalen, void **data, void **udata)
 	return (error);
 }
 
+/*
+ * Return the interface index carried by an IP_RECVIF control message
+ * following the current one, or 0 if there is none.  ip_savecontrol()
+ * appends IP_RECVDSTADDR before IP_RECVIF, one control message per mbuf.
+ */
 static int
-recvmsg_scm_ipproto_ip(l_int msg_type, l_int lmsg_type, socklen_t *datalen,
+recvmsg_scm_ip_recvif(struct mbuf *m)
+{
+	struct sockaddr_dl *sdl;
+	struct cmsghdr *cm;
+
+	for (; m != NULL; m = m->m_next) {
+		if (m->m_len < sizeof(*cm))
+			continue;
+		cm = mtod(m, struct cmsghdr *);
+		if (cm->cmsg_level != IPPROTO_IP || cm->cmsg_type != IP_RECVIF)
+			continue;
+		if (cm->cmsg_len <
+		    CMSG_LEN(offsetof(struct sockaddr_dl, sdl_data)))
+			return (0);
+		sdl = (struct sockaddr_dl *)CMSG_DATA(cm);
+		return (sdl->sdl_index);
+	}
+	return (0);
+}
+
+struct linux_ip_pktinfo_cb_arg {
+	in_addr_t	dst;
+	in_addr_t	spec_dst;
+};
+
+/*
+ * Linux reports in ipi_spec_dst the local address a reply to the sender
+ * would use.  For unicast this is the header destination, which is what
+ * IP_RECVDSTADDR supplies.  For broadcast and multicast datagrams pick an
+ * address of the receiving interface instead, preferring one which is not
+ * link-local, and fall back to the header destination.
+ */
+static u_int
+linux_ip_pktinfo_ifa_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct linux_ip_pktinfo_cb_arg *cba = arg;
+	in_addr_t addr;
+
+	/* A non-link-local address has already been chosen. */
+	if (count > 0)
+		return (0);
+	addr = satosin(ifa->ifa_addr)->sin_addr.s_addr;
+	if (IN_LINKLOCAL(ntohl(addr))) {
+		if (cba->spec_dst == cba->dst)
+			cba->spec_dst = addr;
+		return (0);
+	}
+	cba->spec_dst = addr;
+	return (1);
+}
+
+static in_addr_t
+linux_ip_pktinfo_spec_dst(struct thread *td, struct in_addr dst, int ifindex)
+{
+	struct linux_ip_pktinfo_cb_arg cba;
+	struct epoch_tracker et;
+	if_t ifp;
+
+	cba.dst = cba.spec_dst = dst.s_addr;
+	if (ifindex == 0)
+		return (cba.spec_dst);
+
+	CURVNET_SET(TD_TO_VNET(td));
+	NET_EPOCH_ENTER(et);
+	ifp = ifnet_byindex(ifindex);
+	if (ifp != NULL && (IN_MULTICAST(ntohl(dst.s_addr)) ||
+	    in_ifnet_broadcast(dst, ifp)))
+		if_foreach_addr_type(ifp, AF_INET, linux_ip_pktinfo_ifa_cb,
+		    &cba);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
+	return (cba.spec_dst);
+}
+
+/*
+ * Build a Linux IP_PKTINFO control message from the IP_RECVDSTADDR one
+ * and the IP_RECVIF one which follows it.
+ */
+static int
+recvmsg_scm_ip_pktinfo(struct thread *td, struct mbuf *m, socklen_t *datalen,
     void **data, void **udata)
+{
+	struct l_in_pktinfo *lpi;
+	struct in_addr dst;
+
+	if (*datalen != sizeof(dst))
+		return (EINVAL);
+	memcpy(&dst, *data, sizeof(dst));
+	lpi = malloc(sizeof(*lpi), M_LINUX, M_WAITOK);
+	lpi->ipi_ifindex = recvmsg_scm_ip_recvif(m->m_next);
+	lpi->ipi_spec_dst = linux_ip_pktinfo_spec_dst(td, dst,
+	    lpi->ipi_ifindex);
+	lpi->ipi_addr = dst.s_addr;
+	*data = *udata = lpi;
+	*datalen = sizeof(*lpi);
+	return (0);
+}
+_Static_assert(sizeof(struct l_in_pktinfo) == 12,
+    "scm_ip_pktinfo sizeof l_in_pktinfo");
+
+static int
+recvmsg_scm_ipproto_ip(struct thread *td, struct mbuf *m, l_int msg_type,
+    l_int lmsg_type, socklen_t *datalen, void **data, void **udata)
 {
 	int error;
 
@@ -1822,6 +2035,9 @@ recvmsg_scm_ipproto_ip(l_int msg_type, l_int lmsg_type, socklen_t *datalen,
 	case IP_ORIGDSTADDR:
 		error = recvmsg_scm_ip_origdstaddr(datalen, data,
 		    udata);
+		break;
+	case IP_RECVDSTADDR:
+		error = recvmsg_scm_ip_pktinfo(td, m, datalen, data, udata);
 		break;
 	}
 
@@ -1915,6 +2131,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		    cm->cmsg_level);
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
 
+		if (lcm->cmsg_type == LINUX_CMSG_CONSUMED)
+			continue;
 		if (lcm->cmsg_type == -1 ||
 		    lcm->cmsg_level == -1) {
 			LINUX_RATELIMIT_MSG_OPT2(
@@ -1929,9 +2147,14 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		udata = NULL;
 		error = 0;
 
+		/*
+		 * IPPROTO_IPV6 control messages need no conversion, the
+		 * payloads mapped by bsd_to_linux_ip6_cmsg_type() have the
+		 * same layout on both systems.
+		 */
 		switch (cm->cmsg_level) {
 		case IPPROTO_IP:
-			error = recvmsg_scm_ipproto_ip(cm->cmsg_type,
+			error = recvmsg_scm_ipproto_ip(td, m, cm->cmsg_type,
 			    lcm->cmsg_type, &datalen, &data, &udata);
  			break;
 		case SOL_SOCKET:
@@ -2110,6 +2333,30 @@ linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
 	return (kern_shutdown(td, args->s, args->how));
 }
 
+/*
+ * Linux IP_PKTINFO is the union of IP_RECVDSTADDR and IP_RECVIF.  The
+ * two resulting control messages are folded back into one IP_PKTINFO by
+ * recvmsg_scm_ip_pktinfo().
+ */
+static int
+linux_setsockopt_ip_pktinfo(struct thread *td,
+    struct linux_setsockopt_args *args)
+{
+	int error, val;
+
+	if (args->optlen < sizeof(val))
+		return (EINVAL);
+	error = copyin(PTRIN(args->optval), &val, sizeof(val));
+	if (error != 0)
+		return (error);
+	error = kern_setsockopt(td, args->s, IPPROTO_IP, IP_RECVDSTADDR,
+	    &val, UIO_SYSSPACE, sizeof(val));
+	if (error != 0)
+		return (error);
+	return (kern_setsockopt(td, args->s, IPPROTO_IP, IP_RECVIF,
+	    &val, UIO_SYSSPACE, sizeof(val)));
+}
+
 int
 linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 {
@@ -2176,6 +2423,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			 */
 			return (0);
 		}
+		if (args->optname == LINUX_IP_PKTINFO)
+			return (linux_setsockopt_ip_pktinfo(td, args));
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:
@@ -2445,6 +2694,21 @@ linux_getsockopt_tcp_info(struct thread *td,
 	return (linux_sockopt_copyout(td, &l_tinfo, len, args));
 }
 
+static int
+linux_getsockopt_ip_pktinfo(struct thread *td,
+    struct linux_getsockopt_args *args)
+{
+	socklen_t len;
+	int error, val;
+
+	len = sizeof(val);
+	error = kern_getsockopt(td, args->s, IPPROTO_IP, IP_RECVDSTADDR,
+	    &val, UIO_SYSSPACE, &len);
+	if (error != 0)
+		return (error);
+	return (linux_sockopt_copyout(td, &val, len, args));
+}
+
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 {
@@ -2537,6 +2801,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		}
 		break;
 	case IPPROTO_IP:
+		if (args->optname == LINUX_IP_PKTINFO)
+			return (linux_getsockopt_ip_pktinfo(td, args));
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:

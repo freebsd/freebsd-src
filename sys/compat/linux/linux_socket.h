@@ -124,6 +124,12 @@ struct l_ucred {
 	uint32_t	gid;
 };
 
+struct l_in_pktinfo {
+	l_int		ipi_ifindex;
+	uint32_t	ipi_spec_dst;	/* struct in_addr */
+	uint32_t	ipi_addr;	/* struct in_addr */
+};
+
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 struct linux_accept_args {
