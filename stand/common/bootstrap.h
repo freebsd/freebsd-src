@@ -276,6 +276,8 @@ void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *, int, size_t, void *);
 int file_addmodule(struct preloaded_file *, char *, int,
     struct kernel_module **);
+struct kernel_module *file_findmodule(struct preloaded_file *, char *,
+    struct mod_depend *);
 void file_removemetadata(struct preloaded_file *fp);
 int file_addbuf(const char *name, const char *type, size_t len, void *buf);
 int tslog_init(void);

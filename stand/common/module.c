@@ -59,7 +59,7 @@ struct moduledir {
 static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
 static int			file_load_dependencies(struct preloaded_file *base_mod);
 static char *			file_search(const char *name, char **extlist);
-static struct kernel_module *	file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
+struct kernel_module *		file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
 static int			file_havepath(const char *name);
 static char			*mod_searchmodule(char *name, struct mod_depend *verinfo);
 static char *			mod_searchmodule_pnpinfo(const char *bus, const char *pnpinfo);
@@ -927,7 +927,7 @@ file_findfile(const char *name, const char *type)
  * Find a module matching (name) inside of given file.
  * NULL may be passed as a wildcard.
  */
-static struct kernel_module *
+struct kernel_module *
 file_findmodule(struct preloaded_file *fp, char *modname,
 	struct mod_depend *verinfo)
 {
