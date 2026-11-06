@@ -774,6 +774,64 @@ ATF_TC_BODY(peek, tc)
 }
 
 /*
+ * MSG_PEEK must not copy out the internalized SCM_RIGHTS (kernel pointers):
+ * each descriptor is returned as -1.  Other control messages, here
+ * SCM_CREDS, are still returned.
+ */
+ATF_TC_WITHOUT_HEAD(peek_rights);
+ATF_TC_BODY(peek_rights, tc)
+{
+	char buf[1], cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
+	    CMSG_SPACE(sizeof(void *) * 2)];
+	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+	struct msghdr msghdr;
+	struct cmsghdr *cmsghdr;
+	int fd[2], getfd, on, peekfd, putfd;
+	bool foundcreds, foundrights;
+
+	domainsocketpair(fd);
+	on = 1;
+	ATF_REQUIRE_MSG(setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on)) == 0,
+	    "setsockopt(LOCAL_CREDS) failed: %s", strerror(errno));
+	tempfile(&putfd);
+	sendfd(fd[0], putfd);
+
+	memset(&msghdr, 0, sizeof(msghdr));
+	msghdr.msg_iov = &iov;
+	msghdr.msg_iovlen = 1;
+	msghdr.msg_control = cbuf;
+	msghdr.msg_controllen = sizeof(cbuf);
+	ATF_REQUIRE(recvmsg(fd[1], &msghdr, MSG_PEEK) == 1);
+	ATF_REQUIRE((msghdr.msg_flags & MSG_CTRUNC) == 0);
+	foundcreds = foundrights = false;
+	for (cmsghdr = CMSG_FIRSTHDR(&msghdr); cmsghdr != NULL;
+	    cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
+		if (cmsghdr->cmsg_level != SOL_SOCKET)
+			continue;
+		if (cmsghdr->cmsg_type == SCM_CREDS)
+			foundcreds = true;
+		if (cmsghdr->cmsg_type == SCM_RIGHTS) {
+			ATF_REQUIRE_MSG(cmsghdr->cmsg_len ==
+			    CMSG_LEN(sizeof(int)),
+			    "MSG_PEEK returned SCM_RIGHTS with len %u",
+			    cmsghdr->cmsg_len);
+			memcpy(&peekfd, CMSG_DATA(cmsghdr), sizeof(peekfd));
+			ATF_REQUIRE_MSG(peekfd == -1,
+			    "MSG_PEEK returned descriptor %d", peekfd);
+			foundrights = true;
+		}
+	}
+	ATF_REQUIRE_MSG(foundcreds, "MSG_PEEK did not return SCM_CREDS");
+	ATF_REQUIRE_MSG(foundrights, "MSG_PEEK did not return SCM_RIGHTS");
+
+	ATF_REQUIRE(recvfd_payload(fd[1], &getfd, buf, sizeof(buf),
+	    sizeof(cbuf), 0) == 1);
+	close(putfd);
+	close(getfd);
+	closesocketpair(fd);
+}
+
+/*
  * Send two files.  Then receive them.  Make sure they are returned in the
  * right order, and both get there.
  */
@@ -1622,6 +1680,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_rejected_late);
 	ATF_TP_ADD_TC(tp, send_rejected_noinherit);
 	ATF_TP_ADD_TC(tp, peek);
+	ATF_TP_ADD_TC(tp, peek_rights);
 	ATF_TP_ADD_TC(tp, two_files);
 	ATF_TP_ADD_TC(tp, bundle);
 	ATF_TP_ADD_TC(tp, bundle_cancel);
