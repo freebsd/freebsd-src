@@ -98,6 +98,28 @@ create_container() {
 	fi
 }
 
+# Add a static os-release file to the image.
+#
+# OCI images do not necessarily run rc.d scripts before they are inspected
+# by container tooling.
+install_os_release() {
+       local rootdir=$1; shift
+       local version="${rev}-${branch}"
+       mkdir -p ${rootdir}/var/run
+       cat > ${rootdir}/var/run/os-release <<EOF
+NAME=FreeBSD
+VERSION="${version}"
+VERSION_ID="${rev}"
+ID=freebsd
+ANSI_COLOR="0;31"
+PRETTY_NAME="FreeBSD ${version}"
+CPE_NAME="cpe:/o:freebsd:freebsd:${rev}"
+HOME_URL="https://FreeBSD.org/"
+BUG_REPORT_URL="https://bugs.FreeBSD.org/"
+EOF
+       chmod 444 ${rootdir}/var/run/os-release
+}
+
 commit_container() {
 	local workdir=$1; shift
 	local image=$1; shift
@@ -154,4 +176,5 @@ fi
 
 create_container ${workdir} ${base_workdir}
 oci_image_build
+install_os_release ${workdir}/rootfs
 commit_container ${workdir} ${image} ${output}
