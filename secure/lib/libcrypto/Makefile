@@ -1,3 +1,9 @@
+# Reminders: do the following when upgrading to the next
+# major/minor OpenSSL version:
+# - bump `SHLIB_MAJOR`.
+# - remove `compat.c`.
+# - look at using the `Version.map` file provided by upstream.
+#    - test the upgrade path to make sure it works.
 SHLIBDIR?=	/lib
 .if !defined(LIBCRYPTO_WITHOUT_SUBDIRS) && !defined(BOOTSTRAPPING)
 SUBDIR=		engines modules
@@ -622,6 +628,9 @@ SRCS+=	x509_acert.c x509aset.c t_acert.c x_ietfatt.c v3_ac_tgt.c v3_sda.c
 SRCS+=	v3_usernotice.c v3_battcons.c v3_audit_id.c v3_iobo.c v3_authattid.c
 SRCS+=	v3_rolespec.c v3_attrdesc.c v3_timespec.c v3_attrmap.c v3_aaa.c
 SRCS+=	x509type.c
+
+# FreeBSD compatibility symbols for consumers of libcrypto.so.35
+SRCS+=	compat.c
 
 INCS=	aes.h asn1.h asn1err.h asn1t.h async.h asyncerr.h bio.h
 INCS+=	bioerr.h blowfish.h bn.h bnerr.h buffer.h buffererr.h byteorder.h camellia.h
