@@ -1541,6 +1541,13 @@ irdma_gen1_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 	}
 
 	buf->tcphlen = tcph->th_off << 2;
+	if (buf->tcphlen < 20) {
+		irdma_debug(buf->vsi->dev, IRDMA_DEBUG_ERR,
+			    "tcp hlen too small 0x%x\n",
+			    buf->tcphlen);
+		return -EINVAL;
+	}
+
 	buf->datalen = pkt_len - iphlen - buf->tcphlen;
 	buf->data = buf->datalen ? buf->tcph + buf->tcphlen : NULL;
 	buf->hdrlen = buf->maclen + iphlen + buf->tcphlen;
@@ -1581,6 +1588,12 @@ irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 	pkt_len = info->payload_len;
 	buf->totallen = pkt_len;
 	buf->tcphlen = tcph->th_off << 2;
+	if (buf->tcphlen < 20) {
+		irdma_debug(buf->vsi->dev, IRDMA_DEBUG_ERR,
+			    "tcp hlen too small 0x%x\n",
+			    buf->tcphlen);
+		return -EINVAL;
+	}
 	buf->datalen = pkt_len - IRDMA_TCP_OFFSET - buf->tcphlen;
 	buf->data = buf->datalen ? buf->tcph + buf->tcphlen : NULL;
 	buf->hdrlen = IRDMA_TCP_OFFSET + buf->tcphlen;
