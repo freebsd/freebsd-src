@@ -156,6 +156,64 @@ ATF_TC_BODY(exp2l, tc)
 	}
 }
 
+ATF_TC_WITHOUT_HEAD(powl_extreme);
+ATF_TC_BODY(powl_extreme, tc)
+{
+#if LDBL_MANT_DIG == 64
+	const int rmodes[] = { FE_TONEAREST, FE_UPWARD, FE_DOWNWARD,
+	    FE_TOWARDZERO };
+	long double actual, expected;
+	int i, j;
+
+	struct {
+		long double x, y;
+		long double exp_nearest, exp_upward, exp_downward, exp_towardzero;
+		int excepts;
+	} tests[] = {
+		{ 0x1.98p-3072L, 0xa.ab43b6dba9a6383p+16364L,
+		  0.0L, 0x1p-16445L, 0.0L, 0.0L,
+		  FE_UNDERFLOW | FE_INEXACT },
+		{ 2.0L, 0x1p15L,
+		  INFINITY, INFINITY, LDBL_MAX, LDBL_MAX,
+		  FE_OVERFLOW | FE_INEXACT },
+		{ -2.0L, 0x1p15L + 1.0L,
+		  -INFINITY, -LDBL_MAX, -INFINITY, -LDBL_MAX,
+		  FE_OVERFLOW | FE_INEXACT },
+		{ -2.0L, -(0x1p15L + 1.0L),
+		  -0.0L, -0.0L, -0x1p-16445L, -0.0L,
+		  FE_UNDERFLOW | FE_INEXACT },
+		{ -2.0L, 0x1p15L,
+		  INFINITY, INFINITY, LDBL_MAX, LDBL_MAX,
+		  FE_OVERFLOW | FE_INEXACT },
+		{ 0.5L, 0x1p15L,
+		  0.0L, 0x1p-16445L, 0.0L, 0.0L,
+		  FE_UNDERFLOW | FE_INEXACT },
+	};
+
+	for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
+		for (j = 0; j < (int)(sizeof(rmodes) / sizeof(rmodes[0])); j++) {
+			ATF_REQUIRE_EQ(0, fesetround(rmodes[j]));
+			ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+			actual = powl(tests[i].x, tests[i].y);
+
+			switch (rmodes[j]) {
+			case FE_TONEAREST: expected = tests[i].exp_nearest; break;
+			case FE_UPWARD: expected = tests[i].exp_upward; break;
+			case FE_DOWNWARD: expected = tests[i].exp_downward; break;
+			case FE_TOWARDZERO: expected = tests[i].exp_towardzero; break;
+			}
+
+			CHECK_FPEQUAL(actual, expected);
+			ATF_CHECK_EQ_MSG(signbit(actual) != 0, signbit(expected) != 0,
+			    "signbit mismatch for x=%La y=%La mode=%d",
+			    tests[i].x, tests[i].y, rmodes[j]);
+			CHECK_FP_EXCEPTIONS(tests[i].excepts, ALL_STD_EXCEPT);
+		}
+	}
+	fesetround(FE_TONEAREST);
+#endif
+}
+
 ATF_TC_WITHOUT_HEAD(generic);
 ATF_TC_BODY(generic, tc)
 {
@@ -183,6 +241,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, exp2);
 	ATF_TP_ADD_TC(tp, exp2f);
 	ATF_TP_ADD_TC(tp, exp2l);
+	ATF_TP_ADD_TC(tp, powl_extreme);
 
 	return (atf_no_error());
 }
