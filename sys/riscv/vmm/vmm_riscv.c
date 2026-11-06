@@ -174,6 +174,8 @@ vmmops_vcpu_restore_csrs(struct hypctx *hypctx)
 	csr_write(vstval, csrs->vstval);
 	csr_write(hvip, csrs->hvip);
 	csr_write(vsatp, csrs->vsatp);
+	if (has_sstc)
+		csr_write(vstimecmp, csrs->vstimecmp);
 }
 
 static void
@@ -192,6 +194,8 @@ vmmops_vcpu_save_csrs(struct hypctx *hypctx)
 	csrs->vstval = csr_read(vstval);
 	csrs->hvip = csr_read(hvip);
 	csrs->vsatp = csr_read(vsatp);
+	if (has_sstc)
+		csrs->vstimecmp = csr_read(vstimecmp);
 }
 
 void *
@@ -230,6 +234,7 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 
 	hypctx->cpu_id = vcpuid;
 	hyp->ctx[vcpuid] = hypctx;
+	hypctx->guest_csrs.vstimecmp = (uint64_t)-1;
 
 	aplic_cpuinit(hypctx);
 	vtimer_cpuinit(hypctx);
@@ -573,6 +578,10 @@ riscv_check_interrupts_pending(struct hypctx *hypctx)
 	if (hypctx->interrupts_pending)
 		return (true);
 
+	if (has_sstc && hypctx->guest_csrs.vstimecmp != (uint64_t)-1 &&
+	    rdtime() >= hypctx->guest_csrs.vstimecmp)
+		return (true);
+
 	return (false);
 }
 
@@ -591,10 +600,14 @@ riscv_sync_interrupts(struct hypctx *hypctx)
 	if (riscv_check_ipi(hypctx, true))
 		hypctx->guest_csrs.hvip |= HVIP_VSSIP;
 
-	if (riscv_check_interrupts_pending(hypctx))
-		hypctx->guest_csrs.hvip |= HVIP_VSTIP;
-	else
+	if (!has_sstc) {
+		if (riscv_check_interrupts_pending(hypctx))
+			hypctx->guest_csrs.hvip |= HVIP_VSTIP;
+		else
+			hypctx->guest_csrs.hvip &= ~HVIP_VSTIP;
+	} else {
 		hypctx->guest_csrs.hvip &= ~HVIP_VSTIP;
+	}
 
 	csr_write(hvip, hypctx->guest_csrs.hvip);
 }
@@ -844,6 +857,8 @@ hypctx_regptr(struct hypctx *hypctx, int reg)
 		return (&hypctx->guest_regs.hyp_t[6]);
 	case VM_REG_GUEST_SEPC:
 		return (&hypctx->guest_regs.hyp_sepc);
+	case VM_REG_GUEST_VSTIMECMP:
+		return (&hypctx->guest_csrs.vstimecmp);
 	default:
 		break;
 	}
