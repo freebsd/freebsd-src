@@ -556,6 +556,9 @@ long double	fminimum_numl(long double, long double);
 double		rsqrt(double);
 float		rsqrtf(float);
 long double	rsqrtl(long double);
+double		roundeven(double);
+float		roundevenf(float);
+long double	roundevenl(long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS
