@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <linux/bitops.h>
 #include <linux/list.h>
@@ -49,6 +50,12 @@ MALLOC_DEFINE(M_NETDEV, "lkpindev", "Linux KPI netdevice compat");
 
 #define LKPI_NAPI_FLAGS \
         "\20\1DISABLE_PENDING\2IS_SCHEDULED\3LOST_RACE_TRY_AGAIN"
+
+SYSCTL_DECL(_compat_linuxkpi);
+static int lkpi_napi_stale_ms = 5000;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, napi_stale_ms, CTLFLAG_RWTUN,
+    &lkpi_napi_stale_ms, 0, "NAPI disable/synchronize: clear IS_SCHEDULED "
+    "once no poll was queued or running for this many ms (0 = wait forever)");
 
 /* #define	NAPI_DEBUG */
 #ifdef NAPI_DEBUG
@@ -253,13 +260,91 @@ linuxkpi_napi_complete(struct napi_struct *napi)
 	return (napi_complete_done(napi, 0));
 }
 
+/*
+ * Atomically clear IS_SCHEDULED and LOST_RACE_TRY_AGAIN.  Returns the
+ * previous state.
+ */
+static unsigned long
+lkpi_napi_clear_scheduled(struct napi_struct *napi)
+{
+	unsigned long old, new;
+
+	do {
+		new = old = READ_ONCE(napi->state);
+		clear_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &new);
+		clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &new);
+	} while (atomic_cmpset_acq_long(&napi->state, old, new) == 0);
+
+	return (old);
+}
+
+static bool
+lkpi_napi_elapsed(int since, int ms)
+{
+
+	return ((int64_t)(ticks - since) * 1000 >= (int64_t)ms * hz);
+}
+
+/*
+ * Sleep until no poll is scheduled.  Callers (driver stop paths) may hold
+ * wiphy and driver locks, so if IS_SCHEDULED stays set while the poll task
+ * is neither queued nor running, nobody is left to clear it and we would
+ * sleep forever.  Once that has been the case for lkpi_napi_stale_ms
+ * without interruption, complain and clear it.  A poll that is queued or
+ * running is waited for as before (and reported once if it takes long).
+ */
+static void
+lkpi_napi_wait_idle(struct napi_struct *napi, const char *wmesg)
+{
+	unsigned long old;
+	int idle_start, start, stale_ms;
+	bool idle, warned;
+
+	start = ticks;
+	idle_start = 0;
+	idle = warned = false;
+	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state)) {
+		pause_sbt(wmesg, SBT_1MS, 0, C_HARDCLOCK);
+
+		stale_ms = lkpi_napi_stale_ms;
+		if (stale_ms <= 0)
+			continue;
+
+		if (taskqueue_poll_is_busy(napi->dev->napi_tq,
+		    &napi->napi_task) != 0) {
+			idle = false;
+			if (!warned && lkpi_napi_elapsed(start, stale_ms)) {
+				printf("%s: %s: napi %p poll still busy after "
+				    "%d ms (state %#jx)\n", __func__, wmesg,
+				    napi, stale_ms, (uintmax_t)napi->state);
+				warned = true;
+			}
+			continue;
+		}
+
+		if (!idle) {
+			idle = true;
+			idle_start = ticks;
+			continue;
+		}
+		if (!lkpi_napi_elapsed(idle_start, stale_ms))
+			continue;
+
+		old = lkpi_napi_clear_scheduled(napi);
+		if ((old & BIT(LKPI_NAPI_FLAG_IS_SCHEDULED)) != 0)
+			printf("%s: %s: napi %p cleared stale IS_SCHEDULED "
+			    "after %d ms (state %#jx)\n", __func__, wmesg,
+			    napi, stale_ms, (uintmax_t)old);
+		break;
+	}
+}
+
 void
 linuxkpi_napi_disable(struct napi_struct *napi)
 {
 	NAPI_TRACE(napi);
 	set_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->state);
-	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state))
-		pause_sbt("napidslp", SBT_1MS, 0, C_HARDCLOCK);
+	lkpi_napi_wait_idle(napi, "napidslp");
 	clear_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->state);
 }
 
@@ -281,8 +366,7 @@ linuxkpi_napi_synchronize(struct napi_struct *napi)
 	NAPI_TRACE(napi);
 #if defined(SMP)
 	/* Check & sleep while a napi is scheduled. */
-	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state))
-		pause_sbt("napisslp", SBT_1MS, 0, C_HARDCLOCK);
+	lkpi_napi_wait_idle(napi, "napisslp");
 #else
 	mb();
 #endif
@@ -313,6 +397,16 @@ lkpi_napi_task(void *ctx, int pending)
 	 * would make us re-schedule ourseless for ever.
 	 */
 	if (count >= napi->budget) {
+		/*
+		 * A napi_disable() is waiting: like Linux's __napi_poll(),
+		 * complete instead of re-polling so the wait can finish
+		 * even if the (dead) device keeps returning a full budget.
+		 */
+		if (test_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->state)) {
+			lkpi_napi_clear_scheduled(napi);
+			return;
+		}
+
 		/*
 		 * Have to re-schedule ourselves.  napi_complete() was not run
 		 * in this case which means we are still SCHEDULED.
