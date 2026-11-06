@@ -791,10 +791,13 @@ fetchupgrade_check_params () {
 	esac
 
 	# Figure out what directory contains the running kernel
-	BOOTFILE=`sysctl -n kern.bootfile`
+	if ! BOOTFILE=`sysctl -n kern.bootfile`; then
+		echo "Cannot determine running kernel from kern.bootfile"
+		exit 1
+	fi
 	KERNELDIR=${BOOTFILE%/kernel}
-	if ! [ -d ${KERNELDIR} ]; then
-		echo "Cannot identify running kernel"
+	if ! [ -d "${KERNELDIR}" ]; then
+		echo "Cannot find kernel directory at '${KERNELDIR:-<empty>}'"
 		exit 1
 	fi
 
