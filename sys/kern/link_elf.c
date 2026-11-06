@@ -596,7 +596,14 @@ parse_dynamic(elf_file_t ef)
 		case DT_HASH:
 		{
 			/* From src/libexec/rtld-elf/rtld.c */
-			const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
+			const Elf_Hashelt *hashtab;
+
+			if (ef->lf.size != 0 &&
+			    (dp->d_un.d_ptr >= ef->lf.size ||
+			    ef->lf.size - dp->d_un.d_ptr <
+			    2 * sizeof(Elf_Hashelt)))
+				return (ENOEXEC);
+			hashtab = (const Elf_Hashelt *)
 			    (ef->address + dp->d_un.d_ptr);
 			ef->nbuckets = hashtab[0];
 			ef->nchains = hashtab[1];
