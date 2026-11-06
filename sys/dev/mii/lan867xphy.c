@@ -10,7 +10,6 @@
  * This driver is sufficient for basic connectivity with CSMA/CD.
  *
  * TODO:
- * - Revision-specific configuration for D0 silicon
  * - PHY-Level Collision Avoidance (PLCA) configuration
  * - Sleep mode (C2, D0 and later)
  * - Topology discovery (D0 and later)
@@ -48,6 +47,7 @@
 
 /* Silicon revisions. */
 #define	LAN867X_REV_C2			5
+#define	LAN867X_REV_D0			6
 
 struct lan867x_cfg_fixup {
 	uint16_t address;
@@ -161,6 +161,32 @@ lan867xphy_config_revc(struct mii_softc *sc)
 	    nitems(lan867x_cfgdata_revc_part2));
 }
 
+/*
+ * Hardware revision D0 configuration parameters.
+ *
+ * From Microchip AN1699 LAN8670/1/2 Configuration Application Note
+ * (Revision G, October 2025).
+ */
+static const struct lan867x_cfg_fixup lan867x_cfgdata_revd[] = {
+	{ 0x0037, 0x0800 },
+	{ 0x008a, 0xbfc0 },
+	{ 0x0118, 0x029c },
+	{ 0x00d6, 0x1001 },
+	{ 0x0082, 0x001c },
+	/* Per AN1699, write 0x00fd twice with different values. */
+	{ 0x00fd, 0x0c0b },
+	{ 0x00fd, 0x8c07 },
+	{ 0x0091, 0x9660 },
+	/* 0x0012 (LSCTL) to be added along with link state reporting. */
+};
+
+static void
+lan867xphy_config_revd(struct mii_softc *sc)
+{
+	lan867xphy_config(sc, lan867x_cfgdata_revd,
+	    nitems(lan867x_cfgdata_revd));
+}
+
 static int lan867x_probe(device_t);
 static int lan867x_attach(device_t);
 
@@ -201,6 +227,9 @@ lan867xphy_reset(struct mii_softc *sc)
 	switch (sc->mii_mpd_rev) {
 	case LAN867X_REV_C2:
 		lan867xphy_config_revc(sc);
+		break;
+	case LAN867X_REV_D0:
+		lan867xphy_config_revd(sc);
 		break;
 	}
 
@@ -247,6 +276,7 @@ lan867x_attach(device_t dev)
 
 	switch (sc->mii_mpd_rev) {
 	case LAN867X_REV_C2:
+	case LAN867X_REV_D0:
 		break;
 	default:
 		device_printf(dev,
