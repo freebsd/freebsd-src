@@ -55,6 +55,7 @@ static int	check(const char *, const char *, struct stat *);
 static int	check2(char **);
 static void	checkdot(char **);
 static void	checkslash(char **);
+static void	checkhazard(char **);
 static void	rm_file(char **);
 static void	rm_tree(char **);
 static void siginfo(int __unused);
@@ -141,6 +142,7 @@ main(int argc, char *argv[])
 
 	checkdot(argv);
 	checkslash(argv);
+	checkhazard(argv);
 	uid = geteuid();
 
 	(void)signal(SIGINFO, siginfo);
@@ -440,6 +442,31 @@ checkslash(char **argv)
 				u[0] = u[1];
 		} else {
 			++t;
+		}
+	}
+}
+
+/*
+ * Block removal of root-asterisk or /dev to
+ * prevent catastrophic system damage; added
+ * by Zhang Qiyue.
+ */
+/* Match literal "/dev", also matches root‑asterisk argument */
+#define ISDEV(a)	(strcmp((a), "/dev") == 0)
+/* Match literal "/dev/", also matches root‑asterisk‑slash argument */
+#define ISDEVSLASH(a)	(strcmp((a), "/dev/") == 0)
+static void
+checkhazard(char **argv)
+{
+	char **t;
+
+	for (t = argv; *t; ++t) {
+		if (ISDEV(*t)) {
+			errx(1, "/* or /dev may not be removed; "
+				"aborting entire removal");
+		} else if (ISDEVSLASH(*t)) {
+			errx(1, "/*/ or /dev/ may not be removed; "
+				"aborting entire removal");
 		}
 	}
 }
