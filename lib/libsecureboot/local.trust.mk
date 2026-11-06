@@ -102,9 +102,18 @@ VE_SIGNATURE_EXT_LIST?= ${TRUST_ANCHORS:T:Mt*.pem:R:S/ta_//}
 .endif
 
 .if ${TRUST_ANCHORS:T:Mt*.asc} != ""
-VE_SIGNATURE_LIST+= asc/OPENPGP/sha256/0
+VE_SIGNATURE_EXT_LIST+= asc
 ta_asc.h: ${TRUST_ANCHORS:M*.asc}
 .endif
+
+.if empty(VE_SIGNATURE_LIST)
+method.asc?= OPENPGP/sha256/0
+method.esig?= ECDSA/sha256/0
+.for ext in ${VE_SIGNATURE_EXT_LIST}
+VE_SIGNATURE_LIST+= ${ext}/${method.${ext}:URSA/sha256/0}
+.endfor
+.endif
+
 # we take the mtime of this as our baseline time
 BUILD_UTC_FILE?= ${TRUST_ANCHORS:[1]}
 .endif
