@@ -195,6 +195,18 @@ struct timespec {
 	long    tv_nsec;        /* and nanoseconds */
 };
 .Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn poll
+and
+.Fn ppoll
+system calls are not restarted after a signal handler returns,
+regardless of the
+.Dv SA_RESTART
+flag on the interrupting signal;
+they fail with
+.Er EINTR
+instead.
 .Sh RETURN VALUES
 The
 .Fn poll
