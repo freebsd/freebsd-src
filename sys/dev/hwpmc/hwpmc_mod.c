@@ -4367,6 +4367,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 
 		error = copyout(&pa, arg, sizeof(pa));
+		/*
+		 * The caller never learns the ID of an unpublished PMC; do
+		 * not leave it (and the row it holds) behind.
+		 */
+		if (error != 0)
+			(void)pmc_do_op_pmcrelease(pa.pm_pmcid);
 	}
 	break;
 
