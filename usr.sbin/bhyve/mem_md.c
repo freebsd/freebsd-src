@@ -29,16 +29,24 @@
  */
 
 #include <sys/types.h>
+#define	_WANT_KERNEL_ERRNO	1
 #include <sys/errno.h>
 #include <sys/tree.h>
+
+#include <machine/riscvreg.h>
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
+
+#include <vmmapi.h>
 
 #include "mem.h"
 
 int
-mmio_handle_non_backed_mem(struct vcpu *vcpu __unused, uint64_t paddr __unused,
+mmio_handle_non_backed_mem(struct vcpu *vcpu, uint64_t paddr __unused,
     struct mem_range **mr_paramp __unused)
 {
-	return (ESRCH);
+	int err;
+
+	err = vm_inject_exception(vcpu, SCAUSE_LOAD_ACCESS_FAULT);
+	return (err != 0 ? err : EJUSTRETURN);
 }

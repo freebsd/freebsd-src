@@ -92,6 +92,9 @@ struct hypctx {
 	struct hyp *hyp;
 	struct vcpu *vcpu;
 	bool has_exception;
+	uint64_t exception_scause;
+	uint64_t exception_stval;
+	uint64_t exception_sepc;
 	int cpu_id;
 	int ipi_pending;
 	int interrupts_pending;
