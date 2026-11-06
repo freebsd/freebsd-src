@@ -210,10 +210,29 @@ int ia32_splitlock = 0;
 SYSCTL_INT(_hw, OID_AUTO, splitlock, CTLFLAG_RD,
     &ia32_splitlock, 0,
     "splitlock prevention supported");
+
 int ia32_splitlock_force = 1;
-SYSCTL_INT(_hw, OID_AUTO, splitlock_force, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &ia32_splitlock_force, 0,
-    "splitlock prevention enabled by default");
+
+static int
+sysctl_hw_splitlock_force_proc(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = ia32_splitlock_force;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val != 0 && !ia32_splitlock)
+		error = ENOTSUP;
+	else
+		ia32_splitlock_force = val != 0;
+	return (error);
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, splitlock_force,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_hw_splitlock_force_proc, "I",
+    "Splitlock prevention enabled on exec");
 
 int __read_frequently fred = 0;
 SYSCTL_INT(_hw, OID_AUTO, fred, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
