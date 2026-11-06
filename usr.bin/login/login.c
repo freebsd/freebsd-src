@@ -110,9 +110,10 @@ static u_int		timeout = 300;
 /* Buffer for signal handling of timeout */
 static jmp_buf		 timeout_buf;
 
-char			 pwbuf[1024];
 struct passwd		 pwres;
 struct passwd		*pwd;
+char			*pwbuf;
+static size_t		 pwbufsize = 1024;
 static int		 failures;
 
 static char		*envinit[1];	/* empty environment list */
@@ -317,7 +318,16 @@ main(int argc, char *argv[])
 			bail(NO_SLEEP_EXIT, 1);
 		}
 
-		(void)getpwnam_r(username, &pwres, pwbuf, sizeof(pwbuf), &pwd);
+		for (;;) {
+			pwbuf = malloc(pwbufsize);
+			if (pwbuf == NULL)
+				err(1, "malloc()");
+			if (getpwnam_r(username, &pwres, pwbuf, pwbufsize,
+			    &pwd) != ERANGE)
+				break;
+			free(pwbuf);
+			pwbufsize += 1024;
+		}
 		if (pwd != NULL && pwd->pw_uid == 0)
 			rootlogin = 1;
 
@@ -357,6 +367,7 @@ main(int argc, char *argv[])
 		failures++;
 
 		pwd = NULL;
+		free(pwbuf);
 
 		/*
 		 * Allow up to 'retry' (10) attempts, but start
@@ -705,8 +716,17 @@ auth_pam(void)
 		if (pam_err == PAM_SUCCESS) {
 			tmpl_user = (const char *)item;
 			if (strcmp(username, tmpl_user) != 0) {
-				(void)getpwnam_r(tmpl_user, &pwres, pwbuf,
-				    sizeof(pwbuf), &pwd);
+				free(pwbuf);
+				for (;;) {
+					pwbuf = malloc(pwbufsize);
+					if (pwbuf == NULL)
+						err(1, "malloc()");
+					if (getpwnam_r(tmpl_user, &pwres, pwbuf,
+					    pwbufsize, &pwd) != ERANGE)
+						break;
+					free(pwbuf);
+					pwbufsize += 1024;
+				}
 			}
 		} else {
 			pam_syslog("pam_get_item(PAM_USER)");
