@@ -409,8 +409,6 @@ ACPI_MODULE_NAME("ASMC")
 /* NB: can't be const */
 static char *asmc_ids[] = { "APP0001", NULL };
 
-static unsigned int light_control = 0;
-
 ACPI_PNP_INFO(asmc_ids);
 DRIVER_MODULE(asmc, acpi, asmc_driver, NULL, NULL);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
@@ -936,9 +934,10 @@ asmc_detach(device_t dev)
 static int
 asmc_resume(device_t dev)
 {
+	struct asmc_softc *sc = device_get_softc(dev);
 	uint8_t buf[2];
 
-	buf[0] = light_control;
+	buf[0] = sc->sc_light_control;
 	buf[1] = 0x00;
 	asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
 
@@ -2352,15 +2351,15 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 	int error;
 	int v;
 
-	v = light_control;
+	v = sc->sc_light_control;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	if (error == 0 && req->newptr != NULL) {
 		if (v < 0 || v > 255)
 			return (EINVAL);
-		light_control = v;
+		sc->sc_light_control = v;
 		sc->sc_kbd_bkl_level = v * 100 / 255;
-		buf[0] = light_control;
+		buf[0] = sc->sc_light_control;
 		buf[1] = 0x00;
 		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
 	}
@@ -2465,8 +2464,8 @@ asmc_backlight_update_status(device_t dev, struct backlight_props *props)
 	uint8_t buf[2];
 
 	sc->sc_kbd_bkl_level = props->brightness;
-	light_control = props->brightness * 255 / 100;
-	buf[0] = light_control;
+	sc->sc_light_control = props->brightness * 255 / 100;
+	buf[0] = sc->sc_light_control;
 	buf[1] = 0x00;
 	asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
 

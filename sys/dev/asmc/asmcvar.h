@@ -64,6 +64,7 @@ struct asmc_softc {
 	uint8_t			sc_sms_intr_works;
 	struct cdev		*sc_kbd_bkl;
 	uint32_t		sc_kbd_bkl_level;
+	unsigned int		sc_light_control;
 #ifdef ASMC_DEBUG
 	/* Raw key access */
 	struct sysctl_oid	*sc_raw_tree;
