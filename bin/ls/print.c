@@ -281,7 +281,7 @@ printstream(const DISPLAY *dp)
 		if (p->fts_number == NO_PRINT)
 			continue;
 		/* XXX strlen does not take octal escapes into account. */
-		if (strlen(p->fts_name) + chcnt +
+		if (chcnt > 0 && strlen(p->fts_name) + chcnt +
 		    (p->fts_link ? 2 : 0) >= (unsigned)termwidth) {
 			putchar('\n');
 			chcnt = 0;
