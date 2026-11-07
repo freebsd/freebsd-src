@@ -1205,6 +1205,68 @@ _Static_assert(sizeof(struct nvme_timestamp_data) == 8,
 #define NVME_TIMESTAMP_ORIGIN_RESET			(0x0)
 #define NVME_TIMESTAMP_ORIGIN_SET_FEATURES		(0x1)
 
+enum nvme_format_ses {
+	NVME_FORMAT_SES_NONE			= 0x00,
+	NVME_FORMAT_SES_USER			= 0x01,
+	NVME_FORMAT_SES_CRYPTO			= 0x02
+};
+
+/*
+ * Ignore Existing Key
+ */
+#define NVME_RESV_IEKEY_MASK 0x01
+
+/*
+ * Actions for Reservation Acquire
+ */
+#define NVME_RESV_ACQUIRE_MASK 0x07
+enum nvme_resv_acquire_action {
+	NVME_RESV_ACQUIRE_ACQUIRE		= 0x00,
+	NVME_RESV_ACQUIRE_PREEMPT		= 0x01,
+	NVME_RESV_ACQUIRE_PREEMPT_ABT		= 0x02
+};
+
+/*
+ * Reservation types for Reservation Acquire.
+ */
+enum nvme_resv_type {
+	NVME_RESV_TYPE_WR_EX			= 0x01,
+	NVME_RESV_TYPE_EX_AC			= 0x02,
+	NVME_RESV_TYPE_WR_EX_RO			= 0x03,
+	NVME_RESV_TYPE_EX_AC_RO			= 0x04,
+	NVME_RESV_TYPE_WR_EX_AR			= 0x05,
+	NVME_RESV_TYPE_EX_AC_AR			= 0x06
+};
+
+
+/*
+ * Values for Reservation Register Change Persist Through Power Loss State
+ */
+#define NVME_RESV_CPTPL_MASK 0x03
+enum nvme_resv_cptpl {
+	NVME_RESV_CPTPL_NOCHANGE		= 0x00,
+	NVME_RESV_CPTPL_0			= 0x02,
+	NVME_RESV_CPTPL_1			= 0x03
+};
+
+/*
+ * Actions for Reservation Register
+ */
+#define NVME_RESV_REG_MASK 0x07
+enum nvme_resv_register_action {
+	NVME_RESV_REG_REGISTER			= 0x00,
+	NVME_RESV_REG_UNREGISTER		= 0x01,
+	NVME_RESV_REG_REPLACE			= 0x02
+};
+
+/*
+ * Actions for Reservation Release
+ */
+enum nvme_resv_release_action {
+	NVME_RESV_REL_RELEASE			= 0x00,
+	NVME_RESV_REL_CLEAR			= 0x01
+};
+
 struct nvme_power_state {
 	/** Maximum Power */
 	uint16_t	mp;			/* Maximum Power */
@@ -1259,6 +1321,10 @@ struct nvme_controller_data {
 	uint8_t			ieee[3];
 
 	/** multi-interface capabilities */
+#define NVME_CD_MIC_MPORT	0x01
+#define NVME_CD_MIC_MCTRL	0x02
+#define NVME_CD_MIC_SRIOV	0x04
+#define NVME_CD_MIC_ANAR	0x08
 	uint8_t			mic;
 
 	/** maximum data transfer size */
@@ -1280,7 +1346,17 @@ struct nvme_controller_data {
 	uint32_t		oaes;	/* bitfield really */
 
 	/** Controller Attributes */
-	uint32_t		ctratt;	/* bitfield really */
+#define NVME_CD_CTRATT_EXHID	0x001
+#define NVME_CD_CTRATT_NOPSPM	0x002
+#define NVME_CD_CTRATT_NVMSETS	0x004
+#define NVME_CD_CTRATT_RRLVLS	0x008
+#define NVME_CD_CTRATT_ENDGRPS	0x010
+#define NVME_CD_CTRATT_PREDLM	0x020
+#define NVME_CD_CTRATT_TBKAS	0x040
+#define NVME_CD_CTRATT_NSGRAN	0x080
+#define NVME_CD_CTRATT_SQASSOC	0x100
+#define NVME_CD_CTRATT_UUIDLIST	0x200
+	uint32_t		ctratt;
 
 	/** Read Recovery Levels Supported */
 	uint16_t		rrls;
@@ -1865,11 +1941,25 @@ struct intel_log_temp_stats {
 
 _Static_assert(sizeof(struct intel_log_temp_stats) == 13 * 8, "bad size for intel_log_temp_stats");
 
+struct nvme_resv_acq_data {
+	uint64_t	crkey;
+	uint64_t	prkey;
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_resv_acq_data) == 2 * 8, "bad size for nvme_resv_acq_data");
+
+struct nvme_resv_reg_data {
+	uint64_t	crkey;
+	uint64_t	nrkey;
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_resv_reg_data) == 2 * 8, "bad size for nvme_resv_reg_data");
+
 struct nvme_resv_reg_ctrlr {
 	uint16_t		ctrlr_id;	/* Controller ID */
 	uint8_t			rcsts;		/* Reservation Status */
 	uint8_t			reserved3[5];
-	uint64_t		hostid;		/* Host Identifier */
+	uint64_t		hostid;		/* Host Identifier (little endian) */
 	uint64_t		rkey;		/* Reservation Key */
 } __packed __aligned(4);
 
@@ -1880,7 +1970,7 @@ struct nvme_resv_reg_ctrlr_ext {
 	uint8_t			rcsts;		/* Reservation Status */
 	uint8_t			reserved3[5];
 	uint64_t		rkey;		/* Reservation Key */
-	uint64_t		hostid[2];	/* Host Identifier */
+	uint64_t		hostid[2];	/* Host Identifier (little endian) */
 	uint8_t			reserved32[32];
 } __packed __aligned(4);
 
@@ -1998,6 +2088,7 @@ struct nvme_hmb_desc {
 	(NVME_STATUS_GET_SC((cpl)->status) != 0 || NVME_STATUS_GET_SCT((cpl)->status) != 0)
 
 void	nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
+void	nvme_hostid_sbuf(struct sbuf *sb, const uint8_t *hostid, bool exhid);
 void	nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb);
 void	nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
@@ -2031,13 +2122,13 @@ int	nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
 				      bool is_admin);
 
 /* Admin functions */
-void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,
-				   uint8_t feature, uint32_t cdw11,
+void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr, uint32_t nsid,
+				   int sv, uint8_t feature, uint32_t cdw11,
 				   uint32_t cdw12, uint32_t cdw13,
 				   uint32_t cdw14, uint32_t cdw15,
 				   void *payload, uint32_t payload_size,
 				   nvme_cb_fn_t cb_fn, void *cb_arg);
-void	nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr,
+void	nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr, uint32_t nsid,
 				   uint8_t feature, uint32_t cdw11,
 				   void *payload, uint32_t payload_size,
 				   nvme_cb_fn_t cb_fn, void *cb_arg);
@@ -2175,6 +2266,83 @@ nvme_ns_data_format_index(const struct nvme_namespace_data *nsdata)
 		fmt |= NVMEV(NVME_NS_DATA_FLBAS_FORMAT_MSB, nsdata->flbas) <<
 		    NVME_NS_DATA_FLBAS_FIDXL_BITS;
 	return (fmt);
+}
+
+static inline
+void	nvme_ns_resv_report_cmd(struct nvme_command *cmd, uint32_t nsid,
+    uint32_t length, uint32_t report_type)
+{
+	cmd->opc = NVME_OPC_RESERVATION_REPORT;
+	cmd->nsid = htole32(nsid);
+	cmd->cdw10 = htole32(length);
+	cmd->cdw11 = htole32(report_type);
+}
+
+static inline
+void	nvme_ns_resv_register_cmd(struct nvme_command *cmd, uint32_t nsid,
+    int cptpl, int iekey, int rrega)
+{
+	cmd->opc = NVME_OPC_RESERVATION_REGISTER;
+	cmd->nsid = htole32(nsid);
+	cmd->cdw10 = htole32((rrega & NVME_RESV_REG_MASK) | ((iekey & NVME_RESV_IEKEY_MASK) << 3) |
+	    ((cptpl & NVME_RESV_CPTPL_MASK) << 30));
+}
+
+static inline
+void	nvme_ns_resv_acquire_cmd(struct nvme_command *cmd, uint32_t nsid,
+     int rtype, int iekey, int racqa)
+{
+	cmd->opc = NVME_OPC_RESERVATION_ACQUIRE;
+	cmd->nsid = htole32(nsid);
+	cmd->cdw10 = htole32(((rtype & 0x0f) << 8) | ((iekey & NVME_RESV_IEKEY_MASK) << 3) |
+	    (racqa & NVME_RESV_ACQUIRE_MASK));
+}
+
+static inline
+void	nvme_ns_resv_release_cmd(struct nvme_command *cmd, uint32_t nsid,
+     int rtype, int iekey, int rrela)
+{
+	cmd->opc = NVME_OPC_RESERVATION_RELEASE;
+	cmd->nsid = htole32(nsid);
+	cmd->cdw10 = htole32(((rtype & 0x0f) << 8) | ((iekey & NVME_RESV_IEKEY_MASK) << 3) |
+	    (rrela & 0x07));
+}
+
+
+static inline
+void	nvme_admin_format_cmd(struct nvme_command *cmd, uint32_t nsid,
+    int ses, int pil, int pi, int mset, int lbaf)
+{
+	cmd->opc = NVME_OPC_FORMAT_NVM;
+	cmd->nsid = htole32(nsid);
+	cmd->cdw10 = htole32((ses << 9) | (pil << 8) | (pi << 5) | (mset << 4) |
+			      lbaf);
+}
+
+static inline
+void	nvme_admin_get_feature_cmd(struct nvme_command *cmd, uint32_t nsid,
+    int sel, uint8_t feature, uint32_t cdw11, int uuid_idx) {
+	cmd->opc = NVME_OPC_GET_FEATURES;
+	cmd->nsid = nsid;
+	cmd->cdw10 = htole32(((sel & 0x7) << 8) | feature);
+	cmd->cdw11 = htole32(cdw11);
+	cmd->cdw14 = htole32(uuid_idx & 0x7f);
+}
+
+
+static inline
+void	nvme_admin_set_feature_cmd(struct nvme_command *cmd, uint32_t nsid,
+    int sv, uint8_t feature, uint32_t cdw11, uint32_t cdw12,
+    uint32_t cdw13, uint32_t cdw14, uint32_t cdw15)
+{
+	cmd->opc = NVME_OPC_SET_FEATURES;
+	cmd->nsid = nsid;
+	cmd->cdw10 = htole32(((sv & 0x1) << 31) | feature);
+	cmd->cdw11 = htole32(cdw11);
+	cmd->cdw12 = htole32(cdw12);
+	cmd->cdw13 = htole32(cdw13);
+	cmd->cdw14 = htole32(cdw14);
+	cmd->cdw15 = htole32(cdw15);
 }
 
 /* Endianess conversion functions for NVMe structs */
@@ -2413,10 +2581,9 @@ void	nvme_resv_status_swapbytes(struct nvme_resv_status *s __unused,
 
 	s->gen = le32toh(s->gen);
 	n = (s->regctl[1] << 8) | s->regctl[0];
-	n = MIN(n, (size - sizeof(s)) / sizeof(s->ctrlr[0]));
+	n = MIN(n, (size - sizeof(*s)) / sizeof(s->ctrlr[0]));
 	for (i = 0; i < n; i++) {
 		s->ctrlr[i].ctrlr_id = le16toh(s->ctrlr[i].ctrlr_id);
-		s->ctrlr[i].hostid = le64toh(s->ctrlr[i].hostid);
 		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
 	}
 #endif
@@ -2431,11 +2598,10 @@ void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s __unused,
 
 	s->gen = le32toh(s->gen);
 	n = (s->regctl[1] << 8) | s->regctl[0];
-	n = MIN(n, (size - sizeof(s)) / sizeof(s->ctrlr[0]));
+	n = MIN(n, (size - sizeof(*s)) / sizeof(s->ctrlr[0]));
 	for (i = 0; i < n; i++) {
 		s->ctrlr[i].ctrlr_id = le16toh(s->ctrlr[i].ctrlr_id);
 		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
-		nvme_le128toh((void *)s->ctrlr[i].hostid);
 	}
 #endif
 }

@@ -417,8 +417,9 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 			    e->ctrlr[i].rcsts);
 			printf("  Reservation Key:                0x%08jx\n",
 			    e->ctrlr[i].rkey);
-			printf("  Host Identifier:                0x%08jx%08jx\n",
-			    e->ctrlr[i].hostid[0], e->ctrlr[i].hostid[1]);
+			printf("  Host Identifier:                0x%016jx%016jx\n",
+			    le64toh(e->ctrlr[i].hostid[1]),
+			    le64toh(e->ctrlr[i].hostid[0]));
 		}
 	} else {
 		n = MIN(n, (sizeof(data) - sizeof(s)) / sizeof(s->ctrlr[0]));
@@ -427,8 +428,8 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 			    s->ctrlr[i].ctrlr_id);
 			printf("  Reservation Status:             %u\n",
 			    s->ctrlr[i].rcsts);
-			printf("  Host Identifier:                0x%08jx\n",
-			    s->ctrlr[i].hostid);
+			printf("  Host Identifier:                0x%016jx\n",
+			    le64toh(s->ctrlr[i].hostid));
 			printf("  Reservation Key:                0x%08jx\n",
 			    s->ctrlr[i].rkey);
 		}
