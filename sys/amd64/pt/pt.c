@@ -699,8 +699,10 @@ pt_backend_alloc_thread(struct hwt_thread *thr)
 		return (ENOMEM);
 
 	error = pt_init_ctx(pt_ctx, thr->vm, thr->thread_id);
-	if (error)
+	if (error) {
+		free(pt_ctx, M_PT);
 		return (error);
+	}
 
 	thr->private = pt_ctx;
 	return (0);
