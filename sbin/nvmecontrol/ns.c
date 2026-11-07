@@ -41,6 +41,7 @@
 #include <unistd.h>
 
 #include "nvmecontrol.h"
+#include "nvmecontrol_ext.h"
 
 /* Tables for command line parsing */
 
@@ -964,7 +965,7 @@ nsidentify(const struct cmd *f, int argc, char *argv[])
 		exit(0);
 	}
 
-	print_namespace(&nsdata);
+	nvme_print_namespace(&nsdata);
 	exit(0);
 }
 
