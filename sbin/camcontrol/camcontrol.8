@@ -375,6 +375,15 @@
 .Op generic args
 .Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
 .Nm
+.Ic feature
+.Op device id
+.Op generic args
+.Aq Fl a Cm get | set
+.Fl f Ar feature
+.Op Fl d Ar data
+.Op Fl s Ar arg
+.Op Fl U
+.Nm
 .Ic devtype
 .Op device id
 .Nm
@@ -2808,6 +2817,179 @@ option.
 .It Fl U
 Set the timestamp to the host system's time in UTC.
 .El
+.El
+.It Ic feature
+Issue
+.Tn NVMe
+Get Features and Set Features commands.
+Only supported for
+.Tn NVMe
+devices.
+.Bl -tag -width 10n
+.It Fl a Ar action
+Specify the action to perform.
+.Bl -tag -width 8n
+.It Cm get
+Issue a Get Features command.
+.It Cm set
+Issue a Set Features command.
+.El
+.It Fl d Ar data
+Specify the data for the feature being set.
+.It Fl f Ar feature
+Specify the feature to get or set.
+.Bl -tag -width 15n
+.It Cm arbitration
+(not yet implemented)
+.Pp
+Command arbitration.
+.It Cm powermgmt
+(not yet implemented)
+.Pp
+Power management.
+.It Cm lbaranget
+(not yet implemented)
+.Pp
+LBA range type.
+.It Cm tempthresh
+(not yet implemented)
+.Pp
+Temperature threshold.
+.It Cm erecover
+(not yet implemented)
+.Pp
+Error recovery.
+.It Cm volatilewc
+(not yet implemented)
+.Pp
+Volatile write cache.
+.It Cm nqueues
+(not yet implemented)
+.Pp
+Number of queues.
+.It Cm intrcoalesc
+(not yet implemented)
+.Pp
+Interrupt coalescing.
+.It Cm intrvectcfg
+(not yet implemented)
+.Pp
+Interrupt vector configuration.
+.It Cm wratomicity
+(not yet implemented)
+.Pp
+Write atomicity normal.
+.It Cm asyncevcfg
+(not yet implemented)
+.Pp
+Asynchronous event configuration.
+.It Cm autopwrstate
+(not yet implemented)
+.Pp
+Autonomous power state transition.
+.It Cm hostmem
+(not yet implemented)
+.Pp
+Host memory buffer.
+.It Cm timestamp
+(not yet implemented)
+.Pp
+Timestamp.
+.It Cm keepalive
+(not yet implemented)
+.Pp
+Keep alive timer.
+.It Cm hctherm
+(not yet implemented)
+.Pp
+Host controlled thermal management.
+.It Cm noppwrstate
+(not yet implemented)
+.Pp
+Non-operational power state config.
+.It Cm rdreclvl
+(not yet implemented)
+.Pp
+Read recovery level config.
+.It Cm prdlatencycfg
+(not yet implemented)
+.Pp
+Predictable latency mode config.
+.It Cm prdlatencywin
+(not yet implemented)
+.Pp
+Predictable latency mode window.
+.It Cm lbastatinfattrs
+(not yet implemented)
+.Pp
+LBA status information attributes.
+.It Cm hostbehavior
+(not yet implemented)
+.Pp
+Host behavior support.
+.It Cm sanitizecfg
+(not yet implemented)
+.Pp
+Sanitize config.
+.It Cm egroupevcfg
+(not yet implemented)
+.Pp
+Endurance group event configuration.
+.It Cm swprogmarker
+(not yet implemented)
+.Pp
+Software progress marker.
+.It Cm hostid
+Host identifier.
+The hostid value is specified with
+.Fl d Ar data
+as a UUID or an integer in decimal, hex, or octal.
+.It Cm rsvnotmask
+(not yet implemented)
+.Pp
+Reservation notification mask.
+.It Cm rsvpersist
+(not yet implemented)
+.Pp
+Reservation persistence.
+.It Cm nswpcfg
+(not yet implemented)
+.Pp
+Namespace write protection config.
+.It Cm raw
+(not yet implemented)
+.Pp
+Raw feature identified by id and represented in hex.
+.El
+.It Fl s Ar arg
+Specifies an optional, numeric argument for feature get and set.
+Not all features or implementations support these options.
+.Bl -tag -width 4n
+.It Cm get
+When getting a feature value, specifies the feature select mask as follows:
+.Bl -tag -width 4n
+.It Cm 0x0
+Get the feature's current value.
+.It Cm 0x1
+Get the feature's default value.
+.It Cm 0x2
+Get the feature's saved value.
+.It Cm 0x3
+Get the feature's capability mask.
+.El
+.It Cm set
+When setting a feature value, specifies the feature save flag as follows:
+.Bl -tag -width 4n
+.It Cm 0x0
+Do not set the feature's save flag; this modifies the current feature value
+if the feature's capabilities allow.
+.It Cm 0x1
+Set the feature's save flag; this modifies the saved and current feature
+values if the feature's capabilities allow.
+.El
+.El
+.It Fl U
+Output the hostid feature as a UUID.
 .El
 .It Ic devtype
 Print out the device type for specified device.
