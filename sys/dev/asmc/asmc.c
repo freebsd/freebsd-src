@@ -514,6 +514,42 @@ static const struct {
 	    CTLTYPE_INT | CTLFLAG_RW, asmc_mb_sysctl_fanmanual, 0, false },
 };
 
+static void
+asmc_sysctl_add_fan(device_t dev, struct sysctl_ctx_list *ctx)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	char name[2];
+
+	sc->sc_fan_tree[0] = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "fan",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Fan Root Tree");
+
+	for (int i = 1; i <= sc->sc_nfan; i++) {
+		int j = i - 1;
+
+		name[0] = '0' + j;
+		name[1] = 0;
+		sc->sc_fan_tree[i] = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(sc->sc_fan_tree[0]), OID_AUTO, name,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Fan Subtree");
+
+		for (unsigned int k = 0; k < nitems(asmc_fan_sysctls); k++) {
+			if (asmc_fan_sysctls[k].needs_safespeed &&
+			    !sc->sc_has_safespeed)
+				continue;
+
+			/* SYSCTL_ADD_PROC() asserts flags at compile time. */
+			sysctl_add_oid(ctx,
+			    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
+			    OID_AUTO, asmc_fan_sysctls[k].name,
+			    asmc_fan_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
+			    dev, ASMC_FAN_ARG2(asmc_fan_sysctls[k].which, j),
+			    asmc_fan_sysctls[k].handler, "I",
+			    asmc_fan_sysctls[k].desc, NULL);
+		}
+	}
+}
+
 /* The dev.asmc.n.sms axes, selected by arg2. */
 static const struct {
 	const char	*name;
@@ -524,6 +560,25 @@ static const struct {
 	{ "y", ASMC_KEY_SMS_Y, "Sudden Motion Sensor Y value" },
 	{ "z", ASMC_KEY_SMS_Z, "Sudden Motion Sensor Z value" },
 };
+
+static void
+asmc_sysctl_add_sms(device_t dev, struct sysctl_ctx_list *ctx)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	sc->sc_sms_tree = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "sms",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Sudden Motion Sensor");
+
+	for (unsigned int k = 0; k < nitems(asmc_sms_sysctls); k++) {
+		SYSCTL_ADD_PROC(ctx,
+		    SYSCTL_CHILDREN(sc->sc_sms_tree),
+		    OID_AUTO, asmc_sms_sysctls[k].name,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    dev, k, asmc_mb_sysctl_sms, "I",
+		    asmc_sms_sysctls[k].desc);
+	}
+}
 
 /* Every key asmc_sms_init() touches; all must be present for SMS. */
 static const char * const asmc_sms_required_keys[] = {
@@ -579,6 +634,44 @@ static const struct {
 	    "IU", CTLTYPE_UINT | CTLFLAG_RD, 0, asmc_rgen_sysctl, 0, 0 },
 };
 
+static int
+asmc_sysctl_add_system(device_t dev, struct sysctl_ctx_list *ctx)
+{
+	struct sysctl_oid *sys_tree;
+
+	sys_tree = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "system", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+	    "System state and board identity");
+	if (sys_tree == NULL) {
+		device_printf(dev, "failed to create system sysctl node\n");
+		return (ENXIO);
+	}
+
+	for (unsigned int k = 0; k < nitems(asmc_system_sysctls); k++) {
+		uint8_t len = 0;
+
+		if (asmc_key_getinfo(dev, asmc_system_sysctls[k].key,
+		    &len, NULL) != 0)
+			continue;
+		if (asmc_system_sysctls[k].len_min != 0 &&
+		    (len < asmc_system_sysctls[k].len_min ||
+		    len > asmc_system_sysctls[k].len_max))
+			continue;
+
+		/* SYSCTL_ADD_PROC() asserts flags at compile time. */
+		sysctl_add_oid(ctx, SYSCTL_CHILDREN(sys_tree),
+		    OID_AUTO, asmc_system_sysctls[k].name,
+		    asmc_system_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
+		    dev, asmc_system_sysctls[k].arg2,
+		    asmc_system_sysctls[k].handler,
+		    asmc_system_sysctls[k].fmt,
+		    asmc_system_sysctls[k].desc, NULL);
+	}
+
+	return (0);
+}
+
 /* Platform toggles under dev.asmc.n, each present only if its key reads. */
 static const struct {
 	const char	*key;
@@ -593,12 +686,29 @@ static const struct {
 	    asmc_sil_sysctl },
 };
 
+static void
+asmc_sysctl_add_platform(device_t dev, struct sysctl_ctx_list *ctx)
+{
+	uint8_t buf[1];
+
+	for (unsigned int k = 0; k < nitems(asmc_platform_sysctls); k++) {
+		if (asmc_key_read(dev, asmc_platform_sysctls[k].key,
+		    buf, 1) != 0)
+			continue;
+
+		SYSCTL_ADD_PROC(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, asmc_platform_sysctls[k].name,
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    dev, 0, asmc_platform_sysctls[k].handler, "I",
+		    asmc_platform_sysctls[k].desc);
+	}
+}
+
 static int
 asmc_attach(device_t dev)
 {
-	int i, j;
 	int ret;
-	char name[2];
 	struct asmc_softc *sc = device_get_softc(dev);
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *sysctlnode;
@@ -627,36 +737,7 @@ asmc_attach(device_t dev)
 	/* Auto-detect and register voltage/current/power/ambient/temp sensors */
 	asmc_detect_sensors(dev);
 
-	/*
-	 * dev.asmc.n.fan.* tree.
-	 */
-	sc->sc_fan_tree[0] = SYSCTL_ADD_NODE(sysctlctx,
-	    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "fan",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Fan Root Tree");
-
-	for (i = 1; i <= sc->sc_nfan; i++) {
-		j = i - 1;
-		name[0] = '0' + j;
-		name[1] = 0;
-		sc->sc_fan_tree[i] = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[0]), OID_AUTO, name,
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Fan Subtree");
-
-		for (unsigned int k = 0; k < nitems(asmc_fan_sysctls); k++) {
-			if (asmc_fan_sysctls[k].needs_safespeed &&
-			    !sc->sc_has_safespeed)
-				continue;
-
-			/* SYSCTL_ADD_PROC() asserts flags at compile time. */
-			sysctl_add_oid(sysctlctx,
-			    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-			    OID_AUTO, asmc_fan_sysctls[k].name,
-			    asmc_fan_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
-			    dev, ASMC_FAN_ARG2(asmc_fan_sysctls[k].which, j),
-			    asmc_fan_sysctls[k].handler, "I",
-			    asmc_fan_sysctls[k].desc, NULL);
-		}
-	}
+	asmc_sysctl_add_fan(dev, sysctlctx);
 
 	/*
 	 * dev.asmc.n.temp tree.
@@ -665,7 +746,7 @@ asmc_attach(device_t dev)
 	    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "temp",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Temperature sensors");
 
-	for (i = 0; i < sc->sc_temp_count; i++) {
+	for (int i = 0; i < sc->sc_temp_count; i++) {
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sc->sc_temp_tree),
 		    OID_AUTO, sc->sc_temp_sensors[i],
@@ -770,40 +851,8 @@ asmc_attach(device_t dev)
 	}
 
 	/* System state / board identity subtree. */
-	{
-		struct sysctl_oid *sys_tree;
-
-		sys_tree = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "system", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-		    "System state and board identity");
-		if (sys_tree == NULL) {
-			device_printf(dev,
-			    "failed to create system sysctl node\n");
-			goto nosms;
-		}
-
-		for (unsigned int k = 0; k < nitems(asmc_system_sysctls); k++) {
-			uint8_t len = 0;
-
-			if (asmc_key_getinfo(dev, asmc_system_sysctls[k].key,
-			    &len, NULL) != 0)
-				continue;
-			if (asmc_system_sysctls[k].len_min != 0 &&
-			    (len < asmc_system_sysctls[k].len_min ||
-			    len > asmc_system_sysctls[k].len_max))
-				continue;
-
-			/* SYSCTL_ADD_PROC() asserts flags at compile time. */
-			sysctl_add_oid(sysctlctx, SYSCTL_CHILDREN(sys_tree),
-			    OID_AUTO, asmc_system_sysctls[k].name,
-			    asmc_system_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
-			    dev, asmc_system_sysctls[k].arg2,
-			    asmc_system_sysctls[k].handler,
-			    asmc_system_sysctls[k].fmt,
-			    asmc_system_sysctls[k].desc, NULL);
-		}
-	}
+	if (asmc_sysctl_add_system(dev, sysctlctx) != 0)
+		goto nosms;
 
 	if (asmc_key_getinfo(dev, ASMC_KEY_MBSS, NULL, NULL) == 0)
 		sc->sc_shutdown_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync,
@@ -817,21 +866,7 @@ asmc_attach(device_t dev)
 	 */
 	asmc_sms_init(dev);
 
-	/*
-	 * dev.asmc.n.sms tree.
-	 */
-	sc->sc_sms_tree = SYSCTL_ADD_NODE(sysctlctx,
-	    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "sms",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Sudden Motion Sensor");
-
-	for (unsigned int k = 0; k < nitems(asmc_sms_sysctls); k++) {
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_sms_tree),
-		    OID_AUTO, asmc_sms_sysctls[k].name,
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    dev, k, asmc_mb_sysctl_sms, "I",
-		    asmc_sms_sysctls[k].desc);
-	}
+	asmc_sysctl_add_sms(dev, sysctlctx);
 
 	/*
 	 * Need a taskqueue to send devctl_notify() events
@@ -1008,18 +1043,7 @@ asmc_init(device_t dev)
 		    ntohs(*(uint16_t *)buf + 4));
 	}
 
-	for (unsigned int k = 0; k < nitems(asmc_platform_sysctls); k++) {
-		if (asmc_key_read(dev, asmc_platform_sysctls[k].key,
-		    buf, 1) != 0)
-			continue;
-
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, asmc_platform_sysctls[k].name,
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    dev, 0, asmc_platform_sysctls[k].handler, "I",
-		    asmc_platform_sysctls[k].desc);
-	}
+	asmc_sysctl_add_platform(dev, sysctlctx);
 
 	sc->sc_nfan = asmc_fan_count(dev);
 	if (sc->sc_nfan > ASMC_MAXFANS) {
