@@ -246,16 +246,6 @@ intr_restore(register_t msr)
 	mtmsr(msr);
 }
 
-static __inline struct pcpu *
-get_pcpu(void)
-{
-	struct pcpu *ret;
-
-	__asm __volatile("mfsprg %0, 0" : "=r"(ret));
-
-	return (ret);
-}
-
 /* "NOP" operations to signify priorities to the kernel. */
 static __inline void
 nop_prio_vlow(void)
