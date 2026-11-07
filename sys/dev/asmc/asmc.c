@@ -127,11 +127,8 @@ static int 	asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fanspeed(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS);
 static int 	asmc_temp_sysctl(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_sms_y(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS);
+static int 	asmc_mb_sysctl_sms(SYSCTL_HANDLER_ARGS);
+static int 	asmc_mbp_sysctl_light(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
 static int	asmc_aupo_sysctl(SYSCTL_HANDLER_ARGS);
@@ -519,6 +516,26 @@ static const struct {
 	    CTLTYPE_INT | CTLFLAG_RW, asmc_mb_sysctl_fanmanual, 0, false },
 };
 
+/* The dev.asmc.n.sms axes, selected by arg2. */
+static const struct {
+	const char	*name;
+	const char	*key;
+	const char	*desc;
+} asmc_sms_sysctls[] = {
+	{ "x", ASMC_KEY_SMS_X, "Sudden Motion Sensor X value" },
+	{ "y", ASMC_KEY_SMS_Y, "Sudden Motion Sensor Y value" },
+	{ "z", ASMC_KEY_SMS_Z, "Sudden Motion Sensor Z value" },
+};
+
+/* The ambient light sensors, selected by arg2. */
+#define	ASMC_LIGHT_LEFT		0
+#define	ASMC_LIGHT_RIGHT	1
+
+static const char * const asmc_light_keys[] = {
+	[ASMC_LIGHT_LEFT]	= ASMC_KEY_LIGHTLEFT,
+	[ASMC_LIGHT_RIGHT]	= ASMC_KEY_LIGHTRIGHT,
+};
+
 static int
 asmc_attach(device_t dev)
 {
@@ -613,10 +630,10 @@ asmc_attach(device_t dev)
 		    SYSCTL_CHILDREN(sc->sc_light_tree),
 		    OID_AUTO, "left",
 		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    dev, 0,
+		    dev, ASMC_LIGHT_LEFT,
 		    sc->sc_light_len == ASMC_LIGHT_LONGLEN ?
 		        asmc_mbp_sysctl_light_left_10byte :
-		        asmc_mbp_sysctl_light_left,
+		        asmc_mbp_sysctl_light,
 		    "I", "Keyboard backlight left sensor");
 
 		if (sc->sc_light_len != ASMC_LIGHT_LONGLEN &&
@@ -626,8 +643,8 @@ asmc_attach(device_t dev)
 			    SYSCTL_CHILDREN(sc->sc_light_tree),
 			    OID_AUTO, "right",
 			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0,
-			    asmc_mbp_sysctl_light_right, "I",
+			    dev, ASMC_LIGHT_RIGHT,
+			    asmc_mbp_sysctl_light, "I",
 			    "Keyboard backlight right sensor");
 		}
 
@@ -780,26 +797,14 @@ asmc_attach(device_t dev)
 	    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "sms",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Sudden Motion Sensor");
 
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_sms_tree),
-	    OID_AUTO, "x",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_mb_sysctl_sms_x, "I",
-	    "Sudden Motion Sensor X value");
-
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_sms_tree),
-	    OID_AUTO, "y",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_mb_sysctl_sms_y, "I",
-	    "Sudden Motion Sensor Y value");
-
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_sms_tree),
-	    OID_AUTO, "z",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_mb_sysctl_sms_z, "I",
-	    "Sudden Motion Sensor Z value");
+	for (unsigned int k = 0; k < nitems(asmc_sms_sysctls); k++) {
+		SYSCTL_ADD_PROC(sysctlctx,
+		    SYSCTL_CHILDREN(sc->sc_sms_tree),
+		    OID_AUTO, asmc_sms_sysctls[k].name,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    dev, k, asmc_mb_sysctl_sms, "I",
+		    asmc_sms_sysctls[k].desc);
+	}
 
 	/*
 	 * Need a taskqueue to send devctl_notify() events
@@ -2314,14 +2319,14 @@ asmc_sms_task(void *arg, int pending)
 }
 
 static int
-asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS)
+asmc_mb_sysctl_sms(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
 	int error;
 	int16_t val;
 	int32_t v;
 
-	asmc_sms_read(dev, ASMC_KEY_SMS_X, &val);
+	asmc_sms_read(dev, asmc_sms_sysctls[arg2].key, &val);
 	v = (int32_t)val;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
@@ -2329,59 +2334,14 @@ asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-asmc_mb_sysctl_sms_y(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int error;
-	int16_t val;
-	int32_t v;
-
-	asmc_sms_read(dev, ASMC_KEY_SMS_Y, &val);
-	v = (int32_t)val;
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	return (error);
-}
-
-static int
-asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int error;
-	int16_t val;
-	int32_t v;
-
-	asmc_sms_read(dev, ASMC_KEY_SMS_Z, &val);
-	v = (int32_t)val;
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	return (error);
-}
-
-static int
-asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS)
+asmc_mbp_sysctl_light(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
 	uint8_t buf[6];
 	int error;
 	int32_t v;
 
-	asmc_key_read(dev, ASMC_KEY_LIGHTLEFT, buf, sizeof(buf));
-	v = buf[2];
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	return (error);
-}
-
-static int
-asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	uint8_t buf[6];
-	int error;
-	int32_t v;
-
-	asmc_key_read(dev, ASMC_KEY_LIGHTRIGHT, buf, sizeof(buf));
+	asmc_key_read(dev, asmc_light_keys[arg2], buf, sizeof(buf));
 	v = buf[2];
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
