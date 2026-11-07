@@ -6829,7 +6829,7 @@ static void
 rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, struct rack_sendmap *rsm)
 {
 	struct mbuf *m;
-	uint32_t soff;
+	uint32_t soff, start;
 
 	if (src_rsm->m &&
 	    ((src_rsm->orig_m_len != src_rsm->m->m_len) ||
@@ -6838,7 +6838,10 @@ rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, s
 		rack_adjust_orig_mlen(src_rsm);
 	}
 	m = src_rsm->m;
-	soff = src_rsm->soff + (src_rsm->r_end - src_rsm->r_start);
+	start = src_rsm->r_start;
+	if ((src_rsm->r_flags & RACK_HAS_SYN) != 0)
+		start++;
+	soff = src_rsm->soff + (src_rsm->r_end - start);
 	while (soff >= m->m_len) {
 		/* Move out past this mbuf */
 		soff -= m->m_len;
@@ -6860,6 +6863,14 @@ rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, s
 			rsm->orig_t_space = M_TRAILINGROOM(rsm->m);
 			return;
 		}
+	}
+	if ((src_rsm->r_flags & RACK_HAS_SYN) != 0 &&
+	    src_rsm->r_end == src_rsm->r_start + 1) {
+		/* src_rsm is a SYN segment without data */
+		src_rsm->m = NULL;
+		src_rsm->soff = 0;
+		src_rsm->orig_m_len = 0;
+		src_rsm->orig_t_space = 0;
 	}
 	rsm->m = m;
 	rsm->soff = soff;
