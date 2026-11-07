@@ -185,7 +185,7 @@ static char pwd_opt;
 static struct camcontrol_opts option_table[] = {
 	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
 	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
-	{"identify", CAM_CMD_IDENTIFY, CAM_ARG_NONE, NULL},
+	{"identify", CAM_CMD_IDENTIFY, CAM_ARG_NONE, "N"},
 	{"start", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT, NULL},
 	{"stop", CAM_CMD_STARTSTOP, CAM_ARG_NONE, NULL},
 	{"load", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
@@ -779,11 +779,34 @@ print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 	return (0);
 }
 
-static int
-nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
+int
+nvme_get_data(struct cam_device *dev, int nvme_data_type, void *data,
+	      size_t data_len)
 {
 	union ccb *ccb;
+	struct nvme_controller_data *cdata;
+	struct nvme_namespace_data *nsdata;
 	struct ccb_dev_advinfo *advi;
+
+	switch (nvme_data_type) {
+	case CDAI_TYPE_NVME_CNTRL:
+		if (data_len != sizeof(*cdata)) {
+			warnx("%s: supplied data length %zu != controller data "
+			    "length %zu", __func__, data_len, sizeof(*nsdata));
+			goto bailout_error;
+		}
+		break;
+	case CDAI_TYPE_NVME_NS:
+		if (data_len != sizeof(*nsdata)) {
+			warnx("%s: supplied data length %zu != namespace data "
+			    "length %zu", __func__, data_len, sizeof(*nsdata));
+			goto bailout_error;
+		}
+		break;
+	default:
+		warnx("Unknown NVMe data type %d", nvme_data_type);
+		goto bailout_error;
+	}
 
 	ccb = cam_getccb(dev);
 	if (ccb == NULL) {
@@ -792,28 +815,31 @@ nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
 		return (1);
 	}
 
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cdai);
 	advi = &ccb->cdai;
 	advi->ccb_h.flags = CAM_DIR_IN;
 	advi->ccb_h.func_code = XPT_DEV_ADVINFO;
 	advi->flags = CDAI_FLAG_NONE;
-	advi->buftype = CDAI_TYPE_NVME_CNTRL;
-	advi->bufsiz = sizeof(struct nvme_controller_data);
-	advi->buf = (uint8_t *)cdata;
+	advi->buftype = nvme_data_type;
+	advi->bufsiz = data_len;
+	advi->buf = data;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
-		warn("error sending XPT_DEV_ADVINFO CCB");
+		warn("%s: error sending XPT_DEV_ADVINFO CCB", __func__);
 		cam_freeccb(ccb);
-		cam_close_device(dev);
-		return(1);
+		goto bailout_error;
 	}
-	if (advi->ccb_h.status != CAM_REQ_CMP) {
-		warnx("got CAM error %#x", advi->ccb_h.status);
+	if ((advi->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(dev, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
 		cam_freeccb(ccb);
-		cam_close_device(dev);
-		return(1);
+		goto bailout_error;
 	}
 	cam_freeccb(ccb);
 	return 0;
+
+bailout_error:
+	cam_close_device(dev);
+	return (1);
 }
 
 static int
@@ -830,7 +856,7 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 		return (1);
 	}
 
-	if (nvme_get_cdata(dev, &cdata))
+	if (nvme_get_data(dev, CDAI_TYPE_NVME_CNTRL, &cdata, sizeof(cdata)))
 		return (1);
 
 	cam_strvis(vendor, cdata.mn, sizeof(cdata.mn), sizeof(vendor));
@@ -2470,7 +2496,8 @@ retry:
 
 
 static int
-ataidentify(struct cam_device *device, int retry_count, int timeout)
+ataidentify(struct cam_device *device, int argc __unused, char **argv __unused,
+	    char *combinedopt __unused, int retry_count, int timeout)
 {
 	union ccb *ccb;
 	struct ata_params *ident_buf;
@@ -2515,19 +2542,47 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 }
 
 static int
-nvmeidentify(struct cam_device *device, int retry_count __unused, int timeout __unused)
+nvmeidentify(struct cam_device *device, int argc, char **argv,
+	     char *combinedopt, int retry_count __unused, int timeout __unused)
 {
-	struct nvme_controller_data cdata;
+	int ns_identify = 0;
+	int c;
 
-	if (nvme_get_cdata(device, &cdata))
-		return (1);
-	nvme_print_controller(&cdata);
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'N':
+			ns_identify = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (ns_identify == 0) {
+		struct nvme_controller_data cdata;
+
+		if (nvme_get_data(device, CDAI_TYPE_NVME_CNTRL, &cdata,
+				  sizeof(cdata)))
+			return (1);
+
+		nvme_print_controller(&cdata);
+	} else {
+		struct nvme_namespace_data ns_data;
+
+		if (nvme_get_data(device, CDAI_TYPE_NVME_NS, &ns_data,
+				  sizeof(ns_data)))
+			return (1);
+
+		nvme_print_namespace(&ns_data);
+	}
 
 	return (0);
 }
 
 static int
-identify(struct cam_device *device, int retry_count, int timeout)
+identify(struct cam_device *device, int argc, char **argv, char *combinedopt,
+	 int retry_count, int timeout)
 {
 	struct ccb_pathinq cpi;
 
@@ -2537,9 +2592,12 @@ identify(struct cam_device *device, int retry_count, int timeout)
 	}
 
 	if (cpi.protocol == PROTO_NVME) {
-		return (nvmeidentify(device, retry_count, timeout));
+		return (nvmeidentify(device, argc, argv, combinedopt,
+				     retry_count, timeout));
+	} else {
+		return (ataidentify(device, argc, argv, combinedopt,
+				    retry_count, timeout));
 	}
-	return (ataidentify(device, retry_count, timeout));
 }
 
 
@@ -10030,7 +10088,7 @@ usage(int printlong)
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol sense      [dev_id][generic args][-D][-x]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
-"        camcontrol identify   [dev_id][generic args] [-v]\n"
+"        camcontrol identify   [dev_id][generic args] [-N] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
 "                              [-q] [-s] [-l]\n"
@@ -10120,7 +10178,7 @@ usage(int printlong)
 "sense       send a request sense command to the named device\n"
 "tur         send a test unit ready to the named device\n"
 "inquiry     send a SCSI inquiry command to the named device\n"
-"identify    send a ATA identify command to the named device\n"
+"identify    send a ATA or NVMe identify command to the named device\n"
 "reportluns  send a SCSI report luns command to the device\n"
 "readcap     send a SCSI read capacity command to the device\n"
 "start       send a Start Unit command to the device\n"
@@ -10189,6 +10247,8 @@ usage(int printlong)
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"
 "-R                get the transfer rate, etc.\n"
+"identify arguments:\n"
+"-N                send identify to the NVMe namespace\n"
 "reportluns arguments:\n"
 "-c                only report a count of available LUNs\n"
 "-l                only print out luns, and not a count\n"
@@ -10668,7 +10728,8 @@ main(int argc, char **argv)
 				      task_attr, retry_count, timeout);
 		break;
 	case CAM_CMD_IDENTIFY:
-		error = identify(cam_dev, retry_count, timeout);
+		error = identify(cam_dev, argc, argv, combinedopt, retry_count,
+				 timeout);
 		break;
 	case CAM_CMD_STARTSTOP:
 		error = scsistart(cam_dev, arglist & CAM_ARG_START_UNIT,

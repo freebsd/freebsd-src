@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 28, 2023
+.Dd August 21, 2026
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -67,6 +67,7 @@
 .Ic identify
 .Op device id
 .Op generic args
+.Op Fl N
 .Op Fl v
 .Nm
 .Ic reportluns
@@ -524,7 +525,15 @@ This is to aid in script writing.
 Print out transfer rate information.
 .El
 .It Ic identify
-Send an ATA identify command (0xec) to a device.
+Send a ATA identify command (0xec) or NVMe identify command to a device.
+For NVMe devices, this displays Identify data cached in the kernel, and
+does not send commands to the drive.
+.Bl -tag -width 8n
+.It Fl N
+Display NVMe Identify Namespace data.
+This shows the capacity of the namespace (CAM peripheral drivers are attached
+to a NVMe namespace) as opposed to the entire drive.
+.El
 .It Ic reportluns
 Send the SCSI REPORT LUNS (0xA0) command to the given device.
 By default,
@@ -2935,6 +2944,7 @@ camcontrol timestamp sa0 -s -f "%a, %d %b %Y %T %z" \e
 .Xr pass 4 ,
 .Xr xpt 4 ,
 .Xr diskinfo 8 ,
+.Xr nvmecontrol 8 ,
 .Xr trim 8 ,
 .Xr zonectl 8
 .Sh HISTORY
