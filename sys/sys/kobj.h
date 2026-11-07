@@ -128,10 +128,12 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
  *
  * DEFINE_CLASS_0(foo, foo_class, foo_methods, sizeof(foo_softc));
  */
-#define DEFINE_CLASS_0(name, classvar, methods, size)	\
-							\
-struct kobj_class classvar = {				\
-	#name, methods, size, NULL			\
+#define DEFINE_CLASS_0(_name, classvar, _methods, _size)	\
+								\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
 }
 
 /*
@@ -140,13 +142,16 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_1(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar);
  */
-#define DEFINE_CLASS_1(name, classvar, methods, size,	\
-		       base1)				\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses	\
+#define DEFINE_CLASS_1(_name, classvar, _methods, _size,	\
+		       base1)					\
+								\
+static kobj_class_t _name ## _baseclasses[] =			\
+	{ &base1, NULL };					\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
+	.baseclasses = _name ## _baseclasses,			\
 }
 
 /*
@@ -155,14 +160,16 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
  */
-#define DEFINE_CLASS_2(name, classvar, methods, size,	\
-	               base1, base2)			\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1,					\
-	  &base2, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses	\
+#define DEFINE_CLASS_2(_name, classvar, _methods, _size,	\
+	               base1, base2)				\
+								\
+static kobj_class_t _name ## _baseclasses[] =			\
+	{ &base1, &base2, NULL };				\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
+	.baseclasses = _name ## _baseclasses,			\
 }
 
 /*
@@ -171,15 +178,16 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz, foobar);
  */
-#define DEFINE_CLASS_3(name, classvar, methods, size,	\
-		       base1, base2, base3)		\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1,					\
-	  &base2,					\
-	  &base3, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses	\
+#define DEFINE_CLASS_3(_name, classvar, _methods, _size,	\
+		       base1, base2, base3)			\
+								\
+static kobj_class_t _name ## _baseclasses[] =			\
+	{ &base1, &base2, &base3, NULL };			\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
+	.baseclasses = _name ## _baseclasses,			\
 }
 
 /*
