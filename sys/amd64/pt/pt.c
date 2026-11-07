@@ -802,6 +802,7 @@ pt_topa_intr(struct trapframe *tf)
 	}
 
 	if (pt_cpu_get_state(curcpu) != PT_ACTIVE) {
+		pt_topa_status_clear();
 		return (1);
 	}
 	atomic_set_int(&cpu->in_pcint_handler, 1);
