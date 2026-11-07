@@ -448,13 +448,15 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 				xo_emit("{L:/%-26s}{V:pcp/0x%02x}\n",
 				    "Target PCP:", conf->isc_pcp);
 			if (conf->isc_ping_timeout != -1)
-				xo_emit("{L:/%-26s}{V:PingTimeout/%d}\n",
-				    "Target PingTimeout:",
-				    conf->isc_ping_timeout);
+				xo_emit("{L:/%-26s}{V:PingTimeout/%d.%d}\n",
+				    "Target Ping Timeout:",
+				    conf->isc_ping_timeout / 1000,
+				    (conf->isc_ping_timeout % 1000) / 100);
 			if (conf->isc_login_timeout != -1)
-				xo_emit("{L:/%-26s}{V:LoginTimeout/%d}\n",
-				    "Target LoginTimeout:",
-				    conf->isc_login_timeout);
+				xo_emit("{L:/%-26s}{V:LoginTimeout/%d.%d}\n",
+				    "Target Login Timeout:",
+				    conf->isc_login_timeout / 1000,
+				    (conf->isc_login_timeout % 1000) / 100);
 			xo_close_container("target");
 
 			xo_open_container("auth");
