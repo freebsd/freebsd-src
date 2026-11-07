@@ -22,9 +22,9 @@
  * the second instance's attach/detach doesn't reinstall or rip out the
  * first instance's hooks.
  */
-static struct mtx	acpi_apple_platform_mtx;
-MTX_SYSINIT(acpi_apple_platform_mtx_init, &acpi_apple_platform_mtx,
-    "acpi_apple_platform", MTX_DEF);
+static struct sx	acpi_apple_platform_sx;
+SX_SYSINIT(acpi_apple_platform_sx_init, &acpi_apple_platform_sx,
+    "acpi_apple_platform");
 static int		acpi_apple_platform_refs;
 static eventhandler_tag	acpi_apple_shutdown_tag;
 static eventhandler_tag	acpi_apple_lid_tag;
@@ -88,7 +88,7 @@ acpi_apple_lid_event(void *arg __unused, int lid_open)
 int
 acpi_apple_platform_attach(struct acpi_apple_softc *sc __unused)
 {
-	mtx_lock(&acpi_apple_platform_mtx);
+	sx_xlock(&acpi_apple_platform_sx);
 	if (acpi_apple_platform_refs++ == 0) {
 		acpi_apple_shutdown_tag = EVENTHANDLER_REGISTER(
 		    shutdown_final, acpi_apple_arm_wol, NULL,
@@ -96,7 +96,7 @@ acpi_apple_platform_attach(struct acpi_apple_softc *sc __unused)
 		acpi_apple_lid_tag = EVENTHANDLER_REGISTER(acpi_lid_event,
 		    acpi_apple_lid_event, NULL, EVENTHANDLER_PRI_ANY);
 	}
-	mtx_unlock(&acpi_apple_platform_mtx);
+	sx_unlock(&acpi_apple_platform_sx);
 
 	return (0);
 }
@@ -104,7 +104,7 @@ acpi_apple_platform_attach(struct acpi_apple_softc *sc __unused)
 void
 acpi_apple_platform_detach(struct acpi_apple_softc *sc __unused)
 {
-	mtx_lock(&acpi_apple_platform_mtx);
+	sx_xlock(&acpi_apple_platform_sx);
 	KASSERT(acpi_apple_platform_refs > 0,
 	    ("acpi_apple: platform refcount underflow"));
 	if (acpi_apple_platform_refs > 0 && --acpi_apple_platform_refs == 0) {
@@ -119,5 +119,5 @@ acpi_apple_platform_detach(struct acpi_apple_softc *sc __unused)
 			acpi_apple_shutdown_tag = NULL;
 		}
 	}
-	mtx_unlock(&acpi_apple_platform_mtx);
+	sx_unlock(&acpi_apple_platform_sx);
 }
