@@ -311,7 +311,7 @@ pt_topa_prepare(struct pt_ctx *ctx, struct hwt_vm *vm)
 
 	KASSERT(buf->topa_hw == NULL,
 	    ("%s: ToPA info already exists", __func__));
-	buf->topa_hw = mallocarray(vm->npages + 1, sizeof(uint64_t), M_PT,
+	buf->topa_hw = malloc_aligned((vm->npages + 1) * sizeof(uint64_t), PAGE_SIZE, M_PT,
 	    M_ZERO | M_WAITOK);
 	dprintf("%s: ToPA virt addr %p\n", __func__, buf->topa_hw);
 	buf->size = vm->npages * PAGE_SIZE;
