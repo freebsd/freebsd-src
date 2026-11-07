@@ -94,6 +94,12 @@ static int	asmc_pio_send(device_t dev, const uint8_t *buf, int len,
 		    uint8_t status);
 static int	asmc_pio_recv(device_t dev, uint8_t *buf, int len,
 		    uint8_t status);
+static int	asmc_pio_getbyindex_locked(device_t dev, int index,
+		    uint8_t *key);
+static int	asmc_pio_getinfo_locked(device_t dev, const uint8_t *key,
+		    uint8_t *info);
+static void	asmc_keyinfo_decode(const uint8_t *info, uint8_t *len,
+		    char *type);
 static int 	asmc_key_write(device_t dev, const char *key, uint8_t *buf,
     uint8_t len);
 static int 	asmc_key_read(device_t dev, const char *key, uint8_t *buf,
@@ -1242,6 +1248,59 @@ asmc_pio_recv(device_t dev, uint8_t *buf, int len, uint8_t status)
 	return (0);
 }
 
+/* Fetch the name of the index'th key; the caller holds sc_mtx. */
+static int
+asmc_pio_getbyindex_locked(device_t dev, int index, uint8_t *key)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	uint8_t index_buf[ASMC_KEYLEN];
+
+	index_buf[0] = (index >> 24) & 0xff;
+	index_buf[1] = (index >> 16) & 0xff;
+	index_buf[2] = (index >> 8) & 0xff;
+	index_buf[3] = index & 0xff;
+
+	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
+		return (1);
+
+	if (asmc_pio_send(dev, index_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+		return (1);
+
+	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
+
+	return (asmc_pio_recv(dev, key, ASMC_KEYLEN, ASMC_STATUS_DATA_READY));
+}
+
+/* Fetch the raw key info response; the caller holds sc_mtx. */
+static int
+asmc_pio_getinfo_locked(device_t dev, const uint8_t *key, uint8_t *info)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	if (asmc_command(dev, ASMC_CMDGETINFO))
+		return (1);
+
+	if (asmc_pio_send(dev, key, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+		return (1);
+
+	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
+
+	return (asmc_pio_recv(dev, info, ASMC_KEYINFO_RESPLEN,
+	    ASMC_STATUS_DATA_READY));
+}
+
+/* Split a key info response; type needs ASMC_TYPELEN + 1 bytes. */
+static void
+asmc_keyinfo_decode(const uint8_t *info, uint8_t *len, char *type)
+{
+	if (len != NULL)
+		*len = info[0];
+	if (type != NULL) {
+		memcpy(type, &info[1], ASMC_TYPELEN);
+		type[ASMC_TYPELEN] = '\0';
+	}
+}
+
 static int
 asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
@@ -1325,42 +1384,26 @@ asmc_key_getinfo(device_t dev, const char *key, uint8_t *len, char *type)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 	uint8_t info[ASMC_KEYINFO_RESPLEN];
-	int i, error = -1, try = 0;
+	int error = -1, try = 0;
 
 	if (sc->sc_is_mmio)
 		return (asmc_mmio_key_getinfo(dev, key, len, type));
 
 	mtx_lock_spin(&sc->sc_mtx);
 
-begin:
-	if (asmc_command(dev, ASMC_CMDGETINFO))
-		goto out;
+	do {
+		if (asmc_pio_getinfo_locked(dev, (const uint8_t *)key,
+		    info) == 0) {
+			error = 0;
+			break;
+		}
+	} while (++try < ASMC_MAXRETRIES);
 
-	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
-
-	if (asmc_pio_recv(dev, info, ASMC_KEYINFO_RESPLEN,
-	    ASMC_STATUS_DATA_READY))
-		goto out;
-
-	error = 0;
-out:
-	if (error && ++try < ASMC_MAXRETRIES)
-		goto begin;
 	mtx_unlock_spin(&sc->sc_mtx);
 
-	if (error == 0) {
-		if (len != NULL)
-			*len = info[0];
-		if (type != NULL) {
-			for (i = 0; i < ASMC_TYPELEN; i++)
-				type[i] = info[i + 1];
-			type[ASMC_TYPELEN] = '\0';
-		}
-	}
+	if (error == 0)
+		asmc_keyinfo_decode(info, len, type);
+
 	return (error);
 }
 
@@ -1798,7 +1841,6 @@ asmc_key_dump_by_index(device_t dev, int index, char *key_out,
     char *type_out, uint8_t *len_out)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	uint8_t index_buf[ASMC_KEYLEN];
 	uint8_t key_buf[ASMC_KEYLEN];
 	uint8_t info_buf[ASMC_KEYINFO_RESPLEN];
 	int error = ENXIO, try = 0;
@@ -1813,50 +1855,24 @@ asmc_key_dump_by_index(device_t dev, int index, char *key_out,
 
 	mtx_lock_spin(&sc->sc_mtx);
 
-	index_buf[0] = (index >> 24) & 0xff;
-	index_buf[1] = (index >> 16) & 0xff;
-	index_buf[2] = (index >> 8) & 0xff;
-	index_buf[3] = index & 0xff;
+	do {
+		if (asmc_pio_getbyindex_locked(dev, index, key_buf) == 0 &&
+		    asmc_pio_getinfo_locked(dev, key_buf, info_buf) == 0) {
+			error = 0;
+			break;
+		}
+	} while (++try < ASMC_MAXRETRIES);
 
-begin:
-	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
-		goto out;
+	mtx_unlock_spin(&sc->sc_mtx);
 
-	if (asmc_pio_send(dev, index_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
-
-	if (asmc_pio_recv(dev, key_buf, ASMC_KEYLEN, ASMC_STATUS_DATA_READY))
-		goto out;
-
-	if (asmc_command(dev, ASMC_CMDGETINFO))
-		goto out;
-
-	if (asmc_pio_send(dev, key_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
-
-	if (asmc_pio_recv(dev, info_buf, ASMC_KEYINFO_RESPLEN,
-	    ASMC_STATUS_DATA_READY))
-		goto out;
+	if (error != 0)
+		return (error);
 
 	memcpy(key_out, key_buf, ASMC_KEYLEN);
 	key_out[ASMC_KEYLEN] = '\0';
-	*len_out = info_buf[0];
-	memcpy(type_out, &info_buf[1], ASMC_TYPELEN);
-	type_out[ASMC_TYPELEN] = '\0';
-	error = 0;
+	asmc_keyinfo_decode(info_buf, len_out, type_out);
 
-out:
-	if (error) {
-		if (++try < ASMC_MAXRETRIES)
-			goto begin;
-	}
-
-	mtx_unlock_spin(&sc->sc_mtx);
-	return (error);
+	return (0);
 }
 
 /*
