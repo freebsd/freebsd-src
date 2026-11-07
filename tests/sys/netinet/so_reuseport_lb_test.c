@@ -32,6 +32,7 @@
 #include <sys/filio.h>
 #include <sys/ioccom.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -702,6 +703,424 @@ ATF_TC_BODY(connect_udp6, tc)
 	ATF_REQUIRE_MSG(len == 1, "expected data available");
 }
 
+static int
+lb_dualstack_socket(int type, uint16_t *portp, int fib)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_ANY_INIT,
+		.sin6_port = *portp,
+	};
+	socklen_t slen;
+	int error, sd;
+
+	sd = socket(PF_INET6, type | SOCK_NONBLOCK, 0);
+	ATF_REQUIRE_MSG(sd >= 0, "socket() failed: %s", strerror(errno));
+	if (fib >= 0) {
+		error = setsockopt(sd, SOL_SOCKET, SO_SETFIB, &fib,
+		    sizeof(fib));
+		ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_SETFIB) failed: %s",
+		    strerror(errno));
+	}
+	error = setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, (int[]){0},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(IPV6_V6ONLY) failed: %s",
+	    strerror(errno));
+	error = setsockopt(sd, SOL_SOCKET, SO_REUSEPORT_LB, (int[]){1},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_REUSEPORT_LB) failed: %s",
+	    strerror(errno));
+	error = bind(sd, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+	if (*portp == 0) {
+		slen = sizeof(sin6);
+		error = getsockname(sd, (struct sockaddr *)&sin6, &slen);
+		ATF_REQUIRE_MSG(error == 0, "getsockname() failed: %s",
+		    strerror(errno));
+		*portp = sin6.sin6_port;
+	}
+	return (sd);
+}
+
+static int
+lb_v6only_socket(int type, uint16_t *portp)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_ANY_INIT,
+		.sin6_port = *portp,
+	};
+	socklen_t slen;
+	int error, sd, one;
+
+	sd = socket(PF_INET6, type | SOCK_NONBLOCK, 0);
+	ATF_REQUIRE_MSG(sd >= 0, "socket() failed: %s", strerror(errno));
+	one = 1;
+	error = setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(IPV6_V6ONLY) failed: %s",
+	    strerror(errno));
+	error = setsockopt(sd, SOL_SOCKET, SO_REUSEPORT_LB, (int[]){1},
+	    sizeof(int));
+	ATF_REQUIRE_MSG(error == 0, "setsockopt(SO_REUSEPORT_LB) failed: %s",
+	    strerror(errno));
+	error = bind(sd, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+	if (*portp == 0) {
+		slen = sizeof(sin6);
+		error = getsockname(sd, (struct sockaddr *)&sin6, &slen);
+		ATF_REQUIRE_MSG(error == 0, "getsockname() failed: %s",
+		    strerror(errno));
+		*portp = sin6.sin6_port;
+	}
+	return (sd);
+}
+
+/*
+ * Send one datagram from each of "nclients" sockets with distinct source
+ * ports, and return the number of datagrams queued on each of "sds".
+ */
+static void
+lb_udp_spray(const struct sockaddr *dst, const int sds[], int counts[],
+    size_t nsds, int nclients)
+{
+	size_t i;
+	ssize_t n;
+	int error, len, sd;
+	char ch;
+
+	for (i = 0; i < nsds; i++)
+		counts[i] = 0;
+	ch = 42;
+	for (int c = 0; c < nclients; c++) {
+		sd = socket(dst->sa_family, SOCK_DGRAM, 0);
+		ATF_REQUIRE_MSG(sd >= 0, "socket() failed: %s",
+		    strerror(errno));
+		n = sendto(sd, &ch, sizeof(ch), 0, dst, dst->sa_len);
+		ATF_REQUIRE_MSG(n == 1, "sendto() failed: %s",
+		    strerror(errno));
+		error = close(sd);
+		ATF_REQUIRE_MSG(error == 0, "close() failed: %s",
+		    strerror(errno));
+	}
+	usleep(100000);
+	for (i = 0; i < nsds; i++) {
+		while (recv(sds[i], &ch, sizeof(ch), 0) == 1)
+			counts[i]++;
+		error = ioctl(sds[i], FIONREAD, &len);
+		ATF_REQUIRE(error == 0);
+		ATF_REQUIRE(len == 0);
+	}
+}
+
+/*
+ * Dual-stack sockets bound to the unspecified address form a load balance
+ * group for both IPv4 and IPv6 traffic.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_udp);
+ATF_TC_BODY(dualstack_udp, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	size_t i;
+	int counts[16], sds[16];
+	uint16_t port;
+
+	port = 0;
+	for (i = 0; i < nitems(sds); i++)
+		sds[i] = lb_dualstack_socket(SOCK_DGRAM, &port, -1);
+	sin.sin_port = sin6.sin6_port = port;
+
+	lb_udp_spray((struct sockaddr *)&sin, sds, counts, nitems(sds), 512);
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE_MSG(counts[i] > 0,
+		    "IPv4 datagrams not balanced, socket %zu got none", i);
+
+	lb_udp_spray((struct sockaddr *)&sin6, sds, counts, nitems(sds), 512);
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE_MSG(counts[i] > 0,
+		    "IPv6 datagrams not balanced, socket %zu got none", i);
+
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(dualstack_tcp);
+ATF_TC_BODY(dualstack_tcp, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	size_t i;
+	int error, sds[16];
+	uint16_t port;
+
+	port = 0;
+	for (i = 0; i < nitems(sds); i++) {
+		sds[i] = lb_dualstack_socket(SOCK_STREAM, &port, -1);
+		error = listen(sds[i], 1);
+		ATF_REQUIRE_MSG(error == 0, "listen() failed: %s",
+		    strerror(errno));
+	}
+	sin.sin_port = sin6.sin6_port = port;
+
+	lb_simple_accept_loop(PF_INET, (struct sockaddr *)&sin, sds,
+	    nitems(sds), 4096);
+	lb_simple_accept_loop(PF_INET6, (struct sockaddr *)&sin6, sds,
+	    nitems(sds), 4096);
+
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
+/*
+ * An IPv4 socket takes precedence over a dual-stack load balance group for
+ * IPv4 traffic, as it does over a single dual-stack socket.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_udp_ipv4_precedence);
+ATF_TC_BODY(dualstack_udp_ipv4_precedence, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_ANY) },
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	socklen_t slen;
+	size_t i;
+	int counts[5], error, sds[5];
+	uint16_t port;
+
+	sds[0] = socket(PF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	ATF_REQUIRE_MSG(sds[0] >= 0, "socket() failed: %s", strerror(errno));
+	error = bind(sds[0], (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+	slen = sizeof(sin);
+	error = getsockname(sds[0], (struct sockaddr *)&sin, &slen);
+	ATF_REQUIRE_MSG(error == 0, "getsockname() failed: %s",
+	    strerror(errno));
+	port = sin.sin_port;
+	for (i = 1; i < nitems(sds); i++)
+		sds[i] = lb_dualstack_socket(SOCK_DGRAM, &port, -1);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	sin6.sin6_port = port;
+
+	lb_udp_spray((struct sockaddr *)&sin, sds, counts, nitems(sds), 64);
+	ATF_REQUIRE_MSG(counts[0] == 64,
+	    "IPv4 socket got %d of 64 IPv4 datagrams", counts[0]);
+
+	lb_udp_spray((struct sockaddr *)&sin6, sds, counts, nitems(sds), 64);
+	ATF_REQUIRE_MSG(counts[0] == 0, "IPv4 socket got IPv6 datagrams");
+
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
+/*
+ * IPv6-only load balance groups take precedence over dual-stack groups.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_udp_ipv6_precedence);
+ATF_TC_BODY(dualstack_udp_ipv6_precedence, tc)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	size_t i;
+	int counts[8], sds[8];
+	uint16_t port;
+
+	port = 0;
+	for (i = 0; i < nitems(sds) / 2; i++)
+		sds[i] = lb_dualstack_socket(SOCK_DGRAM, &port, -1);
+	for (; i < nitems(sds); i++)
+		sds[i] = lb_v6only_socket(SOCK_DGRAM, &port);
+	sin6.sin6_port = port;
+
+	lb_udp_spray((struct sockaddr *)&sin6, sds, counts, nitems(sds), 256);
+	for (i = 0; i < nitems(sds) / 2; i++)
+		ATF_REQUIRE_MSG(counts[i] == 0,
+		    "dual-stack group socket %zu received IPv6 datagrams", i);
+	for (; i < nitems(sds); i++)
+		ATF_REQUIRE_MSG(counts[i] > 0,
+		    "IPv6-only group socket %zu received no datagrams",
+		    i - nitems(sds) / 2);
+
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
+/*
+ * Dual-stack groups must receive IPv4 traffic even when bind_all_fibs is
+ * disabled and the group belongs to another FIB.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_udp_other_fib);
+ATF_TC_BODY(dualstack_udp_other_fib, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	size_t i, len;
+	int bind_all_fibs, counts[8], error, nfibs, sds[8];
+	uint16_t port;
+
+	len = sizeof(nfibs);
+	error = sysctlbyname("net.fibs", &nfibs, &len, NULL, 0);
+	ATF_REQUIRE_MSG(error == 0, "sysctlbyname(net.fibs) failed: %s",
+	    strerror(errno));
+	if (nfibs < 2)
+		atf_tc_skip("requires at least two FIBs");
+	len = sizeof(bind_all_fibs);
+	error = sysctlbyname("net.inet.udp.bind_all_fibs", &bind_all_fibs,
+	    &len, NULL, 0);
+	ATF_REQUIRE_MSG(error == 0,
+	    "sysctlbyname(net.inet.udp.bind_all_fibs) failed: %s",
+	    strerror(errno));
+	if (bind_all_fibs != 0)
+		atf_tc_skip("requires net.inet.udp.bind_all_fibs=0");
+
+	port = 0;
+	for (i = 0; i < nitems(sds); i++)
+		sds[i] = lb_dualstack_socket(SOCK_DGRAM, &port, 1);
+	sin.sin_port = port;
+
+	lb_udp_spray((struct sockaddr *)&sin, sds, counts, nitems(sds), 512);
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE_MSG(counts[i] > 0,
+		    "IPv4 datagrams not balanced across FIBs, socket %zu got none",
+		    i);
+
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
+/*
+ * A failed connect() must leave a dual-stack group member able to receive
+ * traffic of both address families.
+ */
+ATF_TC_WITHOUT_HEAD(dualstack_udp_connect_fail);
+ATF_TC_BODY(dualstack_udp_connect_fail, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	struct sockaddr_in6 peer6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(peer6),
+		.sin6_port = htons(9),
+	};
+	size_t i;
+	int counts[8], error, sds[8], tmp;
+	uint16_t port;
+
+	port = 0;
+	for (i = 0; i < nitems(sds); i++)
+		sds[i] = lb_dualstack_socket(SOCK_DGRAM, &port, -1);
+	sin.sin_port = sin6.sin6_port = port;
+
+	/* Leaves the group, the next attempt fails with a duplicate tuple. */
+	tmp = lb_dualstack_socket(SOCK_DGRAM, &port, -1);
+	peer6.sin6_addr.s6_addr[10] = peer6.sin6_addr.s6_addr[11] = 0xff;
+	peer6.sin6_addr.s6_addr[12] = 127;
+	peer6.sin6_addr.s6_addr[15] = 1;
+	error = connect(tmp, (struct sockaddr *)&peer6, sizeof(peer6));
+	ATF_REQUIRE_MSG(error == 0, "connect() failed: %s", strerror(errno));
+	error = connect(sds[0], (struct sockaddr *)&peer6, sizeof(peer6));
+	ATF_REQUIRE_MSG(error == -1 && errno == EADDRINUSE,
+	    "connect() returned %d: %s", error, strerror(errno));
+
+	lb_udp_spray((struct sockaddr *)&sin6, sds, counts, nitems(sds), 256);
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE_MSG(counts[i] > 0,
+		    "IPv6 datagrams not balanced, socket %zu got none", i);
+	lb_udp_spray((struct sockaddr *)&sin, sds, counts, nitems(sds), 256);
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE_MSG(counts[i] > 0,
+		    "IPv4 datagrams not balanced, socket %zu got none", i);
+
+	ATF_REQUIRE(close(tmp) == 0);
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(dualstack_tcp_connect_fail);
+ATF_TC_BODY(dualstack_tcp_connect_fail, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	struct sockaddr_in6 sin6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(sin6),
+		.sin6_addr = IN6ADDR_LOOPBACK_INIT,
+	};
+	struct sockaddr_in6 peer6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(peer6),
+		.sin6_port = htons(9),
+	};
+	size_t i;
+	int error, sds[8];
+	uint16_t port;
+
+	peer6.sin6_addr.s6_addr[10] = peer6.sin6_addr.s6_addr[11] = 0xff;
+	peer6.sin6_addr.s6_addr[12] = 127;
+	peer6.sin6_addr.s6_addr[15] = 1;
+	port = 0;
+	for (i = 0; i < nitems(sds); i++) {
+		sds[i] = lb_dualstack_socket(SOCK_STREAM, &port, -1);
+		/* SO_REUSEPORT_LB sockets can't connect. */
+		error = connect(sds[i], (struct sockaddr *)&peer6,
+		    sizeof(peer6));
+		ATF_REQUIRE_MSG(error == -1 && errno == EOPNOTSUPP,
+		    "connect() returned %d: %s", error, strerror(errno));
+		error = listen(sds[i], 1);
+		ATF_REQUIRE_MSG(error == 0, "listen() failed: %s",
+		    strerror(errno));
+	}
+	sin.sin_port = sin6.sin6_port = port;
+
+	lb_simple_accept_loop(PF_INET6, (struct sockaddr *)&sin6, sds,
+	    nitems(sds), 2048);
+	lb_simple_accept_loop(PF_INET, (struct sockaddr *)&sin, sds,
+	    nitems(sds), 2048);
+
+	for (i = 0; i < nitems(sds); i++)
+		ATF_REQUIRE(close(sds[i]) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, basic_ipv4);
@@ -714,6 +1133,13 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, connect_bound);
 	ATF_TP_ADD_TC(tp, connect_udp);
 	ATF_TP_ADD_TC(tp, connect_udp6);
+	ATF_TP_ADD_TC(tp, dualstack_udp);
+	ATF_TP_ADD_TC(tp, dualstack_tcp);
+	ATF_TP_ADD_TC(tp, dualstack_udp_ipv4_precedence);
+	ATF_TP_ADD_TC(tp, dualstack_udp_ipv6_precedence);
+	ATF_TP_ADD_TC(tp, dualstack_udp_other_fib);
+	ATF_TP_ADD_TC(tp, dualstack_udp_connect_fail);
+	ATF_TP_ADD_TC(tp, dualstack_tcp_connect_fail);
 
 	return (atf_no_error());
 }

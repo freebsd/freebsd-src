@@ -927,6 +927,8 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	struct lbgroupbucket *bucket;
 	struct inpcblbgroup *grp;
 	struct inpcblbgroup *jail_exact, *jail_wild, *local_exact, *local_wild;
+	struct inpcblbgroup *dual_jail_exact, *dual_jail_wild;
+	struct inpcblbgroup *dual_local_exact, *dual_local_wild;
 	struct inpcb *inp;
 	u_int count;
 
@@ -940,6 +942,8 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	 * - prefer groups bound to the specified NUMA domain 
 	 */
 	jail_exact = jail_wild = local_exact = local_wild = NULL;
+	dual_jail_exact = dual_jail_wild = NULL;
+	dual_local_exact = dual_local_wild = NULL;
 	bucket = &pcbinfo->ipi_lbgrouphashbase[
 	    INP_PCBPORTHASH(lport, pcbinfo->ipi_lbgrouphashmask)];
 	if (bucketp != NULL) {
@@ -949,6 +953,8 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	}
 	CK_LIST_FOREACH(grp, &bucket->head, il_list) {
 		bool injail;
+		struct inpcblbgroup **jail_exactp, **jail_wildp;
+		struct inpcblbgroup **local_exactp, **local_wildp;
 
 #ifdef INET
 		if (!(grp->il_vflag & INP_IPV6))
@@ -957,6 +963,18 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 		if (grp->il_lport != lport)
 			continue;
 
+		if (grp->il_vflag & INP_IPV4) {
+			jail_exactp = &dual_jail_exact;
+			jail_wildp = &dual_jail_wild;
+			local_exactp = &dual_local_exact;
+			local_wildp = &dual_local_wild;
+		} else {
+			jail_exactp = &jail_exact;
+			jail_wildp = &jail_wild;
+			local_exactp = &local_exact;
+			local_wildp = &local_wild;
+		}
+
 		injail = prison_flag(grp->il_cred, PR_IP6) != 0;
 		if (injail && prison_check_ip6_locked(grp->il_cred->cr_prison,
 		    laddr) != 0)
@@ -964,34 +982,43 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 
 		if (IN6_ARE_ADDR_EQUAL(&grp->il6_laddr, laddr)) {
 			if (injail) {
-				jail_exact = grp;
-				if (in6_pcblookup_lb_match(grp, domain, fib))
+				*jail_exactp = grp;
+				if ((grp->il_vflag & INP_IPV4) == 0 &&
+				    in6_pcblookup_lb_match(grp, domain, fib))
 					/* This is a perfect match. */
 					goto out;
-			} else if (local_exact == NULL ||
+			} else if (*local_exactp == NULL ||
 			    in6_pcblookup_lb_match(grp, domain, fib)) {
-				local_exact = grp;
+				*local_exactp = grp;
 			}
 		} else if (IN6_IS_ADDR_UNSPECIFIED(&grp->il6_laddr)) {
 			if (injail) {
-				if (jail_wild == NULL ||
+				if (*jail_wildp == NULL ||
 				    in6_pcblookup_lb_match(grp, domain, fib))
-					jail_wild = grp;
-			} else if (local_wild == NULL ||
+					*jail_wildp = grp;
+			} else if (*local_wildp == NULL ||
 			    in6_pcblookup_lb_match(grp, domain, fib)) {
-				local_wild = grp;
+				*local_wildp = grp;
 			}
 		}
 	}
 
 	if (jail_exact != NULL)
 		grp = jail_exact;
+	else if (dual_jail_exact != NULL)
+		grp = dual_jail_exact;
 	else if (jail_wild != NULL)
 		grp = jail_wild;
+	else if (dual_jail_wild != NULL)
+		grp = dual_jail_wild;
 	else if (local_exact != NULL)
 		grp = local_exact;
-	else
+	else if (dual_local_exact != NULL)
+		grp = dual_local_exact;
+	else if (local_wild != NULL)
 		grp = local_wild;
+	else
+		grp = dual_local_wild;
 	if (grp == NULL)
 		return (NULL);
 out:
