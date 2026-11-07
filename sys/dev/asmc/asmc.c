@@ -125,10 +125,6 @@ static int	asmc_key_dump(device_t, int);
  */
 static int 	asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fanspeed(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_fansafespeed(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_fanmaxspeed(SYSCTL_HANDLER_ARGS);
-static int 	asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS);
 static int 	asmc_temp_sysctl(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_sms_x(SYSCTL_HANDLER_ARGS);
@@ -473,6 +469,56 @@ asmc_try_probe(device_t dev)
 	return (ENOMEM);
 }
 
+/*
+ * The per-fan speed keys, selected by the high byte of a fan sysctl's arg2.
+ * Writable keys accept a new speed; the rest are reported only.
+ */
+#define	ASMC_FAN_ARG2(which, fan)	(((which) << 8) | (fan))
+#define	ASMC_FAN_ARG2_WHICH(arg2)	(((arg2) >> 8) & 0xff)
+#define	ASMC_FAN_ARG2_FAN(arg2)		((arg2) & 0xff)
+
+#define	ASMC_FANSPEED_CUR	0
+#define	ASMC_FANSPEED_SAFE	1
+#define	ASMC_FANSPEED_MIN	2
+#define	ASMC_FANSPEED_MAX	3
+#define	ASMC_FANSPEED_TARGET	4
+
+static const struct {
+	const char	*key;
+	bool		writable;
+} asmc_fan_speed_keys[] = {
+	[ASMC_FANSPEED_CUR]	= { ASMC_KEY_FANSPEED,		false },
+	[ASMC_FANSPEED_SAFE]	= { ASMC_KEY_FANSAFESPEED,	false },
+	[ASMC_FANSPEED_MIN]	= { ASMC_KEY_FANMINSPEED,	true },
+	[ASMC_FANSPEED_MAX]	= { ASMC_KEY_FANMAXSPEED,	true },
+	[ASMC_FANSPEED_TARGET]	= { ASMC_KEY_FANTARGETSPEED,	true },
+};
+
+/* The dev.asmc.n.fan.m leaves, in registration order. */
+static const struct {
+	const char	*name;
+	const char	*desc;
+	int		ctlflags;
+	int		(*handler)(SYSCTL_HANDLER_ARGS);
+	int		which;
+	bool		needs_safespeed;
+} asmc_fan_sysctls[] = {
+	{ "id", "Fan ID", CTLTYPE_STRING | CTLFLAG_RD,
+	    asmc_mb_sysctl_fanid, 0, false },
+	{ "speed", "Fan speed in RPM", CTLTYPE_INT | CTLFLAG_RD,
+	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_CUR, false },
+	{ "safespeed", "Fan safe speed in RPM", CTLTYPE_INT | CTLFLAG_RD,
+	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_SAFE, true },
+	{ "minspeed", "Fan minimum speed in RPM", CTLTYPE_INT | CTLFLAG_RW,
+	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_MIN, false },
+	{ "maxspeed", "Fan maximum speed in RPM", CTLTYPE_INT | CTLFLAG_RW,
+	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_MAX, false },
+	{ "targetspeed", "Fan target speed in RPM", CTLTYPE_INT | CTLFLAG_RW,
+	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_TARGET, false },
+	{ "manual", "Fan manual mode (0=auto, 1=manual)",
+	    CTLTYPE_INT | CTLFLAG_RW, asmc_mb_sysctl_fanmanual, 0, false },
+};
+
 static int
 asmc_attach(device_t dev)
 {
@@ -522,54 +568,20 @@ asmc_attach(device_t dev)
 		    SYSCTL_CHILDREN(sc->sc_fan_tree[0]), OID_AUTO, name,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Fan Subtree");
 
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-		    OID_AUTO, "id",
-		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, j,
-		    asmc_mb_sysctl_fanid, "I", "Fan ID");
+		for (unsigned int k = 0; k < nitems(asmc_fan_sysctls); k++) {
+			if (asmc_fan_sysctls[k].needs_safespeed &&
+			    !sc->sc_has_safespeed)
+				continue;
 
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-		    OID_AUTO, "speed",
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, j,
-		    asmc_mb_sysctl_fanspeed, "I", "Fan speed in RPM");
-
-		if (sc->sc_has_safespeed) {
-			SYSCTL_ADD_PROC(sysctlctx,
+			/* SYSCTL_ADD_PROC() asserts flags at compile time. */
+			sysctl_add_oid(sysctlctx,
 			    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-			    OID_AUTO, "safespeed",
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, j,
-			    asmc_mb_sysctl_fansafespeed, "I",
-			    "Fan safe speed in RPM");
+			    OID_AUTO, asmc_fan_sysctls[k].name,
+			    asmc_fan_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
+			    dev, ASMC_FAN_ARG2(asmc_fan_sysctls[k].which, j),
+			    asmc_fan_sysctls[k].handler, "I",
+			    asmc_fan_sysctls[k].desc, NULL);
 		}
-
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-		    OID_AUTO, "minspeed",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, j,
-		    asmc_mb_sysctl_fanminspeed, "I",
-		    "Fan minimum speed in RPM");
-
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-		    OID_AUTO, "maxspeed",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, j,
-		    asmc_mb_sysctl_fanmaxspeed, "I",
-		    "Fan maximum speed in RPM");
-
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-		    OID_AUTO, "targetspeed",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, j,
-		    asmc_mb_sysctl_fantargetspeed, "I",
-		    "Fan target speed in RPM");
-
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_fan_tree[i]),
-		    OID_AUTO, "manual",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, j,
-		    asmc_mb_sysctl_fanmanual, "I",
-		    "Fan manual mode (0=auto, 1=manual)");
 	}
 
 	/*
@@ -2046,12 +2058,20 @@ static int
 asmc_mb_sysctl_fanspeed(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
-	int fan = arg2;
+	int which = ASMC_FAN_ARG2_WHICH(arg2);
+	int fan = ASMC_FAN_ARG2_FAN(arg2);
 	int error;
 	int32_t v;
 
-	v = asmc_fan_getvalue(dev, ASMC_KEY_FANSPEED, fan);
+	v = asmc_fan_getvalue(dev, asmc_fan_speed_keys[which].key, fan);
 	error = sysctl_handle_int(oidp, &v, 0, req);
+
+	if (error == 0 && req->newptr != NULL &&
+	    asmc_fan_speed_keys[which].writable) {
+		unsigned int newspeed = v;
+		asmc_fan_setvalue(dev, asmc_fan_speed_keys[which].key, fan,
+		    newspeed);
+	}
 
 	return (error);
 }
@@ -2061,7 +2081,7 @@ asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS)
 {
 	uint8_t buf[16];
 	device_t dev = (device_t)arg1;
-	int fan = arg2;
+	int fan = ASMC_FAN_ARG2_FAN(arg2);
 	int error = true;
 	char *desc;
 
@@ -2074,82 +2094,11 @@ asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-asmc_mb_sysctl_fansafespeed(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int fan = arg2;
-	int error;
-	int32_t v;
-
-	v = asmc_fan_getvalue(dev, ASMC_KEY_FANSAFESPEED, fan);
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	return (error);
-}
-
-static int
-asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int fan = arg2;
-	int error;
-	int32_t v;
-
-	v = asmc_fan_getvalue(dev, ASMC_KEY_FANMINSPEED, fan);
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	if (error == 0 && req->newptr != NULL) {
-		unsigned int newspeed = v;
-		asmc_fan_setvalue(dev, ASMC_KEY_FANMINSPEED, fan, newspeed);
-	}
-
-	return (error);
-}
-
-static int
-asmc_mb_sysctl_fanmaxspeed(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int fan = arg2;
-	int error;
-	int32_t v;
-
-	v = asmc_fan_getvalue(dev, ASMC_KEY_FANMAXSPEED, fan);
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	if (error == 0 && req->newptr != NULL) {
-		unsigned int newspeed = v;
-		asmc_fan_setvalue(dev, ASMC_KEY_FANMAXSPEED, fan, newspeed);
-	}
-
-	return (error);
-}
-
-static int
-asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int fan = arg2;
-	int error;
-	int32_t v;
-
-	v = asmc_fan_getvalue(dev, ASMC_KEY_FANTARGETSPEED, fan);
-	error = sysctl_handle_int(oidp, &v, 0, req);
-
-	if (error == 0 && req->newptr != NULL) {
-		unsigned int newspeed = v;
-		asmc_fan_setvalue(dev, ASMC_KEY_FANTARGETSPEED, fan, newspeed);
-	}
-
-	return (error);
-}
-
-static int
 asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
 	struct asmc_softc *sc = device_get_softc(dev);
-	int fan = arg2;
+	int fan = ASMC_FAN_ARG2_FAN(arg2);
 	int error;
 	int32_t v;
 	uint8_t buf[2];
