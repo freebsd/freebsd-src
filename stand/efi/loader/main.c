@@ -73,8 +73,16 @@
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
+
+#if defined(__amd64__) && LACPI
+#include <init_acpi.h>
+#include <lacpi.h>
+#else
+#include <acpi.h>
+#endif
 #include "actypes.h"
 #include "actbl.h"
+#include <acpi_detect.h>
 
 #include <acpi_detect.h>
 
@@ -1393,6 +1401,17 @@ main(int argc, CHAR16 *argv[])
 	 * working.
 	 */
 	devinit();
+
+#ifdef LOADER_ACPI_SUPPORT
+	int ret = 0;
+
+	/* Initialize ACPI Subsystem and Tables. */
+	if ((ret = init_acpi()) != 0) {
+		printf("Failed to initialize ACPI\n.");
+	}
+
+	lacpi_interp_ref();
+#endif
 
 	/*
 	 * If we didn't find a ipxe image, and we're netbooting, try to

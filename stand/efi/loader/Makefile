@@ -8,6 +8,12 @@ LOADER_BZIP2_SUPPORT?=  yes
 LOADER_XZ_SUPPORT?=     yes
 LOADER_MD_SUPPORT?=	yes
 
+.if ${MACHINE} == "amd64" && ${D032:U0} == 0
+LOADER_ACPI_SUPPORT?=	yes
+.else
+LOADER_ACPI_SUPPORT?= 	no
+.endif
+
 .include <bsd.init.mk>
 
 .if ${MACHINE} == "amd64" && ${DO32:U0} == 1
@@ -81,8 +87,14 @@ CFLAGS+=	-I${EFISRC}/include
 CFLAGS+=	-I${EFISRC}/include/${__arch}
 CFLAGS+=	-I${EDK2INC}
 CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
+CFLAGS+=	-I${EFISRC}/libacpi
 CFLAGS+=	-I${BOOTSRC}/i386/libi386
 CFLAGS+=	-DEFI
+
+.if ${MACHINE} == "amd64" && ${DO32:U0} == 0
+CFLAGS+=	-I${EFISRC}/libacpi/acpi/include
+CFLAGS+=	-I${EFISRC}/../liblua/acpi/include
+.endif
 
 .if defined(HAVE_FDT) && ${MK_FDT} != "no"
 .include	"${BOOTSRC}/fdt.mk"
@@ -137,6 +149,13 @@ LDFLAGS+=	-Wl,--threads=1
 
 CLEANFILES+=	${LOADER}.efi
 
+# ACPI Lua bindings compile set
+.if ${__arch} == "amd64" && ${DO32:U0} == 0 && ${LOADER} == "loader_lua"
+LACPI_COMPILE_SET= -j set_lua_acpi_modules
+.else
+LACPI_COMPILE_SET=
+.endif
+
 ${LOADER}.efi: ${PROG}
 	@if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
@@ -147,17 +166,22 @@ ${LOADER}.efi: ${PROG}
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
 		-j set_X${LOADER_INTERP}_compile_set \
+		${LACPI_COMPILE_SET} \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
 LIBEFI32=	${BOOTOBJ}/efi/libefi32/libefi.a
+LIBACPI=	${BOOTOBJ}/efi/libacpi/libacpi.a
+LIBACPI32=	${BOOTOBJ}/efi/libacpi32/libacpi.a
 
 .if ${__arch} == "i386"
-DPADD=		${LDR_INTERP32} ${LIBEFI32} ${LIBSA32} ${LDSCRIPT}
-LDADD=		${LDR_INTERP32} ${LIBEFI32} ${LIBSA32}
+DPADD=		${LDR_INTERP32} ${LIBEFI32} ${LIBSA32} ${LIBACPI32} ${LDSCRIPT}
+LDADD=		${LDR_INTERP32} ${LIBEFI32} ${LIBSA32} ${LIBACPI32}
 .else
-DPADD=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA} ${LDSCRIPT}
-LDADD=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA} \
+		${LIBACPI} ${LDSCRIPT}
+LDADD=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA} \
+		${LIBACPI}
 .endif
 
 .include <bsd.prog.mk>
