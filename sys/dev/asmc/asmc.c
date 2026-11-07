@@ -527,6 +527,20 @@ static const struct {
 	{ "z", ASMC_KEY_SMS_Z, "Sudden Motion Sensor Z value" },
 };
 
+/* Every key asmc_sms_init() touches; all must be present for SMS. */
+static const char * const asmc_sms_required_keys[] = {
+	ASMC_KEY_SMS,
+	ASMC_KEY_SMS_X,
+	ASMC_KEY_SMS_Y,
+	ASMC_KEY_SMS_Z,
+	ASMC_KEY_SMS_LOW,
+	ASMC_KEY_SMS_HIGH,
+	ASMC_KEY_SMS_LOW_INT,
+	ASMC_KEY_SMS_HIGH_INT,
+	ASMC_KEY_SMS_FLAG,
+	ASMC_KEY_INTOK,
+};
+
 /* The ambient light sensors, selected by arg2. */
 #define	ASMC_LIGHT_LEFT		0
 #define	ASMC_LIGHT_RIGHT	1
@@ -1123,27 +1137,14 @@ asmc_detect_capabilities(device_t dev)
 	char type[ASMC_TYPELEN + 1];
 
 	/* SMS: require all keys used by asmc_sms_init() */
-	sc->sc_has_sms =
-	    (asmc_key_getinfo(dev, ASMC_KEY_SMS,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_X,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_Y,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_Z,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_LOW,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_HIGH,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_LOW_INT,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_HIGH_INT,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_SMS_FLAG,
-	    &len, type) == 0 &&
-	    asmc_key_getinfo(dev, ASMC_KEY_INTOK,
-	    &len, type) == 0);
+	sc->sc_has_sms = 1;
+	for (unsigned int k = 0; k < nitems(asmc_sms_required_keys); k++) {
+		if (asmc_key_getinfo(dev, asmc_sms_required_keys[k],
+		    &len, type) != 0) {
+			sc->sc_has_sms = 0;
+			break;
+		}
+	}
 
 	/* Light sensor: require ALV0 (len 6 or 10) and LKSB */
 	if (asmc_key_getinfo(dev, ASMC_KEY_LIGHTLEFT,
@@ -1667,27 +1668,46 @@ asmc_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
-/*
- * Scan a range of SMC key indices, adding matching sensors.
- * Only considers 2-byte keys with a supported type.
- */
+static bool
+asmc_match_sp78(const char *key __unused, const char *type)
+{
+
+	return (strncmp(type, "sp78", 4) == 0);
+}
+
+static bool
+asmc_match_supported(const char *key __unused, const char *type)
+{
+
+	return (asmc_sensor_type_supported(type));
+}
+
+static bool
+asmc_match_light(const char *key, const char *type)
+{
+
+	return (key[1] == 'L' && (key[2] == 'V' || key[2] == 'S') &&
+	    asmc_sensor_type_supported(type));
+}
+
+/* Scan key indices for 2-byte keys passing prefix (if set) and match. */
 static void
 asmc_scan_sensor_range(device_t dev, unsigned int start,
-    unsigned int end, char prefix, int *countp, char **sensors,
-    int maxcount)
+    unsigned int end, char prefix,
+    bool (*match)(const char *key, const char *type), int *countp,
+    char **sensors, int maxcount)
 {
 	char key[ASMC_KEYLEN + 1];
 	char type[ASMC_TYPELEN + 1];
 	uint8_t len;
-	unsigned int i;
 	char *sensor_key;
 
-	for (i = start; i < end; i++) {
+	for (unsigned int i = start; i < end; i++) {
 		if (asmc_key_dump_by_index(dev, i, key, type, &len))
 			continue;
-		if (key[0] != prefix || len != 2)
+		if (len != 2 || (prefix != '\0' && key[0] != prefix))
 			continue;
-		if (!asmc_sensor_type_supported(type))
+		if (!match(key, type))
 			continue;
 		if (*countp >= maxcount)
 			break;
@@ -1704,12 +1724,8 @@ asmc_detect_sensors(device_t dev)
 	struct asmc_softc *sc = device_get_softc(dev);
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *tree_node;
-	char key[ASMC_KEYLEN + 1];
-	char type[ASMC_TYPELEN + 1];
-	uint8_t len;
 	unsigned int start, end, i;
 	int error;
-	char *sensor_key;
 
 	sc->sc_voltage_count = 0;
 	sc->sc_current_count = 0;
@@ -1727,23 +1743,9 @@ asmc_detect_sensors(device_t dev)
 	error = asmc_key_search(dev, "T\0\0\0", &start);
 	if (error == 0)
 		error = asmc_key_search(dev, "U\0\0\0", &end);
-	if (error == 0) {
-		for (i = start; i < end; i++) {
-			if (asmc_key_dump_by_index(dev, i,
-			    key, type, &len))
-				continue;
-			if (len != 2 ||
-			    strncmp(type, "sp78", 4) != 0)
-				continue;
-			if (sc->sc_temp_count >= ASMC_TEMP_MAX)
-				break;
-			sensor_key = malloc(ASMC_KEYLEN + 1,
-			    M_DEVBUF, M_WAITOK);
-			memcpy(sensor_key, key, ASMC_KEYLEN + 1);
-			sc->sc_temp_sensors[sc->sc_temp_count++] =
-			    sensor_key;
-		}
-	}
+	if (error == 0)
+		asmc_scan_sensor_range(dev, start, end, '\0', asmc_match_sp78,
+		    &sc->sc_temp_count, sc->sc_temp_sensors, ASMC_TEMP_MAX);
 
 	/* Voltage/Current/Power sensors */
 	static const struct {
@@ -1772,34 +1774,19 @@ asmc_detect_sensors(device_t dev)
 			    sensor_ranges[r].range_end, &end);
 		if (error == 0)
 			asmc_scan_sensor_range(dev, start, end,
-			    sensor_ranges[r].prefix, sensor_counts[r],
-			    sensor_arrays[r], ASMC_MAX_SENSORS);
+			    sensor_ranges[r].prefix, asmc_match_supported,
+			    sensor_counts[r], sensor_arrays[r],
+			    ASMC_MAX_SENSORS);
 	}
 
 	/* Ambient light sensors: AL* in A..B range */
 	error = asmc_key_search(dev, "A\0\0\0", &start);
 	if (error == 0)
 		error = asmc_key_search(dev, "B\0\0\0", &end);
-	if (error == 0) {
-		for (i = start; i < end; i++) {
-			if (asmc_key_dump_by_index(dev, i,
-			    key, type, &len))
-				continue;
-			if (key[0] != 'A' || key[1] != 'L' ||
-			    (key[2] != 'V' && key[2] != 'S') ||
-			    len != 2)
-				continue;
-			if (!asmc_sensor_type_supported(type))
-				continue;
-			if (sc->sc_light_count >= ASMC_MAX_SENSORS)
-				break;
-			sensor_key = malloc(ASMC_KEYLEN + 1,
-			    M_DEVBUF, M_WAITOK);
-			memcpy(sensor_key, key, ASMC_KEYLEN + 1);
-			sc->sc_light_sensors[sc->sc_light_count++] =
-			    sensor_key;
-		}
-	}
+	if (error == 0)
+		asmc_scan_sensor_range(dev, start, end, 'A', asmc_match_light,
+		    &sc->sc_light_count, sc->sc_light_sensors,
+		    ASMC_MAX_SENSORS);
 
 	if (bootverbose)
 		device_printf(dev,
