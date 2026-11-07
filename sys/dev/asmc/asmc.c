@@ -1284,99 +1284,28 @@ out:
 static int
 asmc_key_dump(device_t dev, int number)
 {
-	struct asmc_softc *sc = device_get_softc(dev);
 	char key[ASMC_KEYLEN + 1] = { 0 };
-	char type[ASMC_KEYINFO_RESPLEN + 1] = { 0 };
-	uint8_t index[4];
+	char type[ASMC_TYPELEN + 1] = { 0 };
 	uint8_t v[ASMC_MAXVAL];
-	uint8_t maxlen;
-	int i, error = 1, try = 0;
-
-	if (sc->sc_is_mmio) {
-		uint8_t len = 0;
-		char mmio_type[ASMC_TYPELEN + 1] = { 0 };
-		if (asmc_key_dump_by_index(dev, number, key, mmio_type, &len))
-			return (1);
-		memset(v, 0, sizeof(v));
-		len = MIN(len, sizeof(v));
-		asmc_key_read(dev, key, v, len);
-		struct sbuf sb;
-		char buf[128];
-		sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-		sbuf_printf(&sb, "key %d: %s, type %s (len %d), data",
-		    number, key, mmio_type, len);
-		for (i = 0; i < len; i++)
-			sbuf_printf(&sb, " %02x", v[i]);
-		sbuf_finish(&sb);
-		device_printf(dev, "%s\n", sbuf_data(&sb));
-		sbuf_delete(&sb);
-		return (0);
-	}
-
-	mtx_lock_spin(&sc->sc_mtx);
-
-	index[0] = (number >> 24) & 0xff;
-	index[1] = (number >> 16) & 0xff;
-	index[2] = (number >> 8) & 0xff;
-	index[3] = number & 0xff;
-
-begin:
-	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
-		goto out;
-
-	if (asmc_pio_send(dev, index, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
-
-	if (asmc_pio_recv(dev, (uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_DATA_READY))
-		goto out;
-
-	/* Get key info (length + type). */
-	if (asmc_command(dev, ASMC_CMDGETINFO))
-		goto out;
-
-	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
-
-	if (asmc_pio_recv(dev, (uint8_t *)type, ASMC_KEYINFO_RESPLEN,
-	    ASMC_STATUS_DATA_READY))
-		goto out;
-
-	error = 0;
-out:
-	if (error) {
-		if (++try < ASMC_MAXRETRIES)
-			goto begin;
-		device_printf(dev,
-		    "%s for key %d failed %d times, giving up\n",
-		    __func__, number, try);
-	}
-	mtx_unlock_spin(&sc->sc_mtx);
-
-	if (error)
-		return (error);
-
-	maxlen = type[0];
-	type[0] = ' ';
-	type[5] = '\0';
-	maxlen = MIN(maxlen, sizeof(v));
-
-	memset(v, 0, sizeof(v));
-	error = asmc_key_read(dev, key, v, maxlen);
-	if (error)
-		return (error);
-
 	struct sbuf sb;
 	char buf[128];
+	uint8_t len = 0;
+	int error;
+
+	error = asmc_key_dump_by_index(dev, number, key, type, &len);
+	if (error)
+		return (error);
+
+	len = MIN(len, sizeof(v));
+	memset(v, 0, sizeof(v));
+	error = asmc_key_read(dev, key, v, len);
+	if (error)
+		return (error);
+
 	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "key %d: %s, type%s (len %d), data",
-	    number, key, type, maxlen);
-	for (i = 0; i < maxlen; i++)
+	sbuf_printf(&sb, "key %d: %s, type %s (len %d), data",
+	    number, key, type, len);
+	for (int i = 0; i < len; i++)
 		sbuf_printf(&sb, " %02x", v[i]);
 	sbuf_finish(&sb);
 	device_printf(dev, "%s\n", sbuf_data(&sb));
