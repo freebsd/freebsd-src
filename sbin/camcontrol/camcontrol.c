@@ -228,7 +228,7 @@ static struct camcontrol_opts option_table[] = {
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
 	{"ama", CAM_CMD_AMA, CAM_ARG_NONE, "fqs:"},
-	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
+	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ac:i:I:k:K:o:ps:ST:U"},
 	{"attrib", CAM_CMD_ATTRIB, CAM_ARG_NONE, "a:ce:F:p:r:s:T:w:V:"},
 	{"opcodes", CAM_CMD_OPCODES, CAM_ARG_NONE, "No:s:T"},
 	{"zone", CAM_CMD_ZONE, CAM_ARG_NONE, "ac:l:No:P:"},
@@ -10144,8 +10144,8 @@ usage(int printlong)
 "                              [-q] [-s max_sectors] [-U pwd] [-y]\n"
 "        camcontrol ama        [dev_id][generic args] [-f] [-q] [-s max_sectors]\n"
 "        camcontrol persist    [dev_id][generic args] <-i action|-o action>\n"
-"                              [-a][-I tid][-k key][-K sa_key][-p][-R rtp]\n"
-"                              [-s scope][-S][-T type][-U]\n"
+"                              [-a][-c state][-I tid][-k key][-K sa_key][-p]\n"
+"                              [-R rtp][-s scope][-S][-T type][-U]\n"
 "        camcontrol attrib     [dev_id][generic args] <-r action|-w attr>\n"
 "                              [-a attr_num][-c][-e elem][-F form1,form1]\n"
 "                              [-p part][-s start][-T type][-V vol]\n"
@@ -10207,7 +10207,7 @@ usage(int printlong)
 "powermode   send the ATA CHECK POWER MODE command to the named device\n"
 "fwdownload  program firmware of the named device with the given image\n"
 "security    report or send ATA security commands to the named device\n"
-"persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
+"persist     send SCSI PERSISTENT RESERVE or NVMe reservation commands\n"
 "attrib      send the SCSI READ or WRITE ATTRIBUTE commands\n"
 "opcodes     send the SCSI REPORT SUPPORTED OPCODES command\n"
 "zone        manage Zoned Block (Shingled) devices\n"
@@ -10829,12 +10829,26 @@ main(int argc, char **argv)
 		error = sanitize(cam_dev, argc, argv, combinedopt, task_attr,
 				 retry_count, timeout);
 		break;
-	case CAM_CMD_PERSIST:
-		error = scsipersist(cam_dev, argc, argv, combinedopt,
-		    task_attr, retry_count, timeout,
-		    arglist & CAM_ARG_VERBOSE,
-		    arglist & CAM_ARG_ERR_RECOVER);
+	case CAM_CMD_PERSIST: {
+		struct ccb_pathinq cpi;
+
+		if (get_cpi(cam_dev, &cpi) != 0) {
+			warnx("couldn't get CPI");
+			error = 1;
+			break;
+		}
+		if (cpi.protocol == PROTO_NVME)
+			error = nvmepersist(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout,
+			    arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
+		else
+			error = scsipersist(cam_dev, argc, argv, combinedopt,
+			    task_attr, retry_count, timeout,
+			    arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
 		break;
+	}
 	case CAM_CMD_ATTRIB:
 		error = scsiattrib(cam_dev, argc, argv, combinedopt,
 		    task_attr, retry_count, timeout,

@@ -312,6 +312,7 @@
 .Op generic args
 .Aq Fl i Ar action | Fl o Ar action
 .Op Fl a
+.Op Fl c Ar state
 .Op Fl I Ar trans_id
 .Op Fl k Ar key
 .Op Fl K Ar sa_key
@@ -1801,12 +1802,23 @@ register values that would be used for the firmware download command.
 Do not ask for confirmation.
 .El
 .It Ic persist
-Persistent reservation support.
+Persistent reservation support for
+.Tn SCSI
+and
+.Tn NVMe
+devices.
 Persistent reservations are a way to reserve a particular
 .Tn SCSI
-LUN for use by one or more
+LUN or
+.Tn NVMe
+namespace for use by one or more initiators (hosts).
+The
+.Tn NVMe
+reservation model is closely patterned after
 .Tn SCSI
-initiators.
+Persistent Reservations, so the two share this interface;
+.Nm
+issues the commands appropriate for the device given.
 If the
 .Fl i
 option is specified,
@@ -1814,7 +1826,9 @@ option is specified,
 will issue the
 .Tn SCSI
 PERSISTENT RESERVE IN
-command using the requested service action.
+command using the requested service action, or the
+.Tn NVMe
+Reservation Report command.
 If the
 .Fl o
 option is specified,
@@ -1822,18 +1836,25 @@ option is specified,
 will issue the
 .Tn SCSI
 PERSISTENT RESERVE OUT
-command using the requested service action.
+command using the requested service action, or the corresponding
+.Tn NVMe
+reservation command.
 One of those two options is required.
 .Pp
 Persistent reservations are complex, and fully explaining them is outside
 the scope of this manual.
 Please visit
 https://www.t10.org
-and download the latest SPC spec for a full explanation of persistent
-reservations.
+and download the latest SPC spec, or visit
+https://www.nvmexpress.org
+and download the latest NVMe Base Specification, for a full explanation of
+persistent reservations.
 .Bl -tag -width 8n
 .It Fl i Ar mode
 Specify the service action for the PERSISTENT RESERVE IN command.
+For
+.Tn NVMe
+devices, all of the supported modes issue the Reservation Report command.
 Supported service actions:
 .Bl -tag -width 19n
 .It read_keys
@@ -1843,11 +1864,24 @@ registered keys.
 Report the persistent reservation, if any.
 .It report_capabilities
 Report the persistent reservation capabilities of the LUN.
+Not supported for
+.Tn NVMe
+devices; the reservation capabilities of a namespace are in the Identify
+Namespace data.
 .It read_full_status
 Report the full status of persistent reservations on the LUN.
+For
+.Tn NVMe
+devices, this requests the extended data structure, which contains 128-bit
+Host Identifiers.
 .El
 .It Fl o Ar mode
 Specify the service action for the PERSISTENT RESERVE OUT command.
+For
+.Tn NVMe
+devices, each service action maps to the corresponding
+.Tn NVMe
+reservation operation.
 For service actions like register that are components of other service
 action names, the entire name must be specified.
 Otherwise, enough of the service action name must be specified to
@@ -1867,6 +1901,19 @@ This is similar to the register subcommand, except that the Reservation Key
 is ignored.
 The Service Action Reservation Key will overwrite any previous key
 registered for the initiator.
+.It unregister
+Unregister the key specified as the Reservation Key.
+This action is only supported for
+.Tn NVMe
+devices; on
+.Tn SCSI
+devices a key is unregistered with the register action.
+.It replace
+Replace the key specified as the Reservation Key with the key specified as
+the Service Action Reservation Key.
+This action is only supported for
+.Tn NVMe
+devices.
 .It reserve
 Create a reservation.
 A key must be registered with the LUN before the LUN can be reserved, and
@@ -1894,16 +1941,39 @@ operation being performed.
 Register another initiator with the LUN, and establish a reservation on the
 LUN for that initiator.
 The Reservation Key and Service Action Reservation Key must be specified.
+Not supported for
+.Tn NVMe
+devices.
 .It replace_lost
 Replace Lost Reservation information.
+Not supported for
+.Tn NVMe
+devices.
 .El
 .It Fl a
 Set the All Target Ports (ALL_TG_PT) bit.
 This requests that the key registration be applied to all target ports and
 not just the particular target port that receives the command.
 This only applies to the register and register_ignore actions.
+Not supported for
+.Tn NVMe
+devices.
+.It Fl c Ar state
+Change the Persist Through Power Loss State for the namespace.
+The state may be set to
+.Dq enable
+or
+.Dq disable .
+By default, no change is made to the current setting.
+This option is only supported for
+.Tn NVMe
+devices, and only applies to the register, register_ignore, unregister and
+replace actions.
 .It Fl I Ar tid
 Specify a Transport ID.
+Not supported for
+.Tn NVMe
+devices.
 This only applies to the Register and Register and Move service actions for
 Persistent Reserve Out.
 Multiple Transport IDs may be specified with multiple
@@ -1993,12 +2063,25 @@ Specify the Service Action Reservation Key.
 This may be in decimal, octal or hexadecimal format.
 The value is zero by default if not otherwise specified.
 The value must be between 0 and 2^64 - 1, inclusive.
+For
+.Tn NVMe
+devices, this is the new reservation key for the register, register_ignore
+and replace actions, and the key to preempt for the preempt and
+preempt_abort actions.
 .It Fl p
 Enable the Activate Persist Through Power Loss bit.
 This is only used for the register and register_ignore actions.
 This requests that the reservation persist across power loss events.
+For
+.Tn NVMe
+devices, this enables Persist Through Power Loss State, and is equivalent
+to specifying
+.Fl c Cm enable .
 .It Fl s Ar scope
 Specify the scope of the reservation.
+Not supported for
+.Tn NVMe
+devices.
 The scope may be specified by name or by number.
 The scope is ignored for register, register_ignore and clear.
 If the desired scope isn't available by name, you may specify the number.
@@ -2018,6 +2101,9 @@ Reserve Out command.
 .It Fl S
 Enable the SPEC_I_PT bit.
 This only applies to the Register service action of Persistent Reserve Out.
+Not supported for
+.Tn NVMe
+devices.
 You must also specify at least one Transport ID with
 .Fl I
 if this option is set.
@@ -2029,10 +2115,18 @@ Specify the reservation type.
 The reservation type may be specified by name or by number.
 If the desired reservation type isn't available by name, you may specify
 the number.
+The same names are used for
+.Tn SCSI
+and
+.Tn NVMe
+devices.
 Supported reservation type names:
 .Bl -tag -width 11n
 .It read_shared
 Read Shared mode.
+Not supported for
+.Tn NVMe
+devices.
 .It wr_ex
 Write Exclusive mode.
 May also be specified as
@@ -2041,6 +2135,9 @@ May also be specified as
 Read Exclusive mode.
 May also be specified as
 .Dq read_exclusive .
+Not supported for
+.Tn NVMe
+devices.
 .It ex_ac
 Exclusive access mode.
 May also be specified as
@@ -2069,6 +2166,9 @@ By default, the target will not unregister the initiator that sends the
 Register and Move request.
 This option only applies to the Register and Move service action of the
 Persistent Reserve Out command.
+Not supported for
+.Tn NVMe
+devices.
 .El
 .It Ic attrib
 Issue the
