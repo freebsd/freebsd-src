@@ -112,7 +112,8 @@ typedef enum {
 	CAM_CMD_DEVTYPE,
 	CAM_CMD_AMA,
 	CAM_CMD_DEPOP,
-	CAM_CMD_REQSENSE
+	CAM_CMD_REQSENSE,
+	CAM_CMD_FEATURE
 } cam_cmd;
 
 typedef enum {
@@ -234,6 +235,7 @@ static struct camcontrol_opts option_table[] = {
 	{"zone", CAM_CMD_ZONE, CAM_ARG_NONE, "ac:l:No:P:"},
 	{"epc", CAM_CMD_EPC, CAM_ARG_NONE, "c:dDeHp:Pr:sS:T:"},
 	{"timestamp", CAM_CMD_TIMESTAMP, CAM_ARG_NONE, "f:mrsUT:"},
+	{"feature", CAM_CMD_FEATURE, CAM_ARG_NONE, "a:d:f:s:U"},
 	{"depop", CAM_CMD_DEPOP, CAM_ARG_NONE, "ac:de:ls"},
 	{"sense", CAM_CMD_REQSENSE, CAM_ARG_NONE, "Dx"},
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -10160,6 +10162,8 @@ usage(int printlong)
 "                              [-S power_src] [-T timer]\n"
 "        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
 "                              <-s <-f format -T time | -U >>\n"
+"        camcontrol feature    [dev_id][generic args]<-a action> <-f feature>\n"
+"                              [-d data][-s arg][-U]\n"
 "        camcontrol devtype    [dev_id]\n"
 "        camcontrol depop      [dev_id] [-d | -l | -r] [-e element] [-c capacity]\n"
 "        camcontrol mmcsdcmd   [dev_id] [[-c mmc_opcode] [-a mmc_arg]\n"
@@ -10215,6 +10219,7 @@ usage(int printlong)
 "zone        manage Zoned Block (Shingled) devices\n"
 "epc         send ATA Extended Power Conditions commands\n"
 "timestamp   report or set the device's timestamp\n"
+"feature     get or set NVMe device features\n"
 "devtype     report the type of device\n"
 "depop       manage drive storage elements\n"
 "mmcsdcmd    send the given MMC command, needs -c and -a as well\n"
@@ -10437,6 +10442,13 @@ usage(int printlong)
 "-f format         the format of the time string passed into strptime(3)\n"
 "-T time           the time value passed into strptime(3)\n"
 "-U                set the timestamp of the device to UTC time\n"
+"feature arguments:\n"
+"-a get | set      specify get or set features command\n"
+"-d data           specify the data for the feature to set\n"
+"-f feature        specify the feature to get or set\n"
+"-s num            get: select 0=current, 1=default, 2=saved, 3=capabilities\n"
+"                  set: save flag, 1 = persist feature across reset\n"
+"-U                output the hostid attribute as a UUID\n"
 "depop arguments:\n"
 "-d                remove an element from service\n"
 "-l                list status of all elements of drive\n"
@@ -10899,6 +10911,25 @@ main(int argc, char **argv)
 		    task_attr, retry_count, timeout,
 		    arglist & CAM_ARG_VERBOSE);
 		break;
+	case CAM_CMD_FEATURE: {
+		struct ccb_pathinq cpi;
+
+		if (get_cpi(cam_dev, &cpi) != 0) {
+			warnx("couldn't get CPI");
+			error = 1;
+			break;
+		}
+		if (cpi.protocol != PROTO_NVME) {
+			warnx("the feature subcommand is only supported for "
+			    "NVMe devices");
+			error = 1;
+			break;
+		}
+		error = nvmefeature(cam_dev, argc, argv, combinedopt,
+		    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
+		    arglist & CAM_ARG_ERR_RECOVER);
+		break;
+	}
 	case CAM_CMD_DEPOP:
 		error = depop(cam_dev, argc, argv, combinedopt,
 		    task_attr, retry_count, timeout,

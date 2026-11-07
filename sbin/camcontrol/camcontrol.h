@@ -83,6 +83,9 @@ int nvmepersist(struct cam_device *device, int argc, char **argv,
 int nvmeformat(struct cam_device *device, int argc, char **argv,
 	       char *combinedopt, int retry_count, int timeout,
 	       int verbosemode, int err_recover);
+int nvmefeature(struct cam_device *device, int argc, char **argv,
+		char *combinedopt, int retry_count, int timeout,
+		int verbosemode, int err_recover);
 int camxferrate(struct cam_device *device);
 int fwdownload(struct cam_device *device, int argc, char **argv,
 	       char *combinedopt, int printerrors, int task_attr,
