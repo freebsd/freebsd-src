@@ -80,6 +80,9 @@ int nvme_get_data(struct cam_device *dev, int nvme_data_type, void *data,
 int nvmepersist(struct cam_device *device, int argc, char **argv,
 		char *combinedopt, int retry_count, int timeout,
 		int verbosemode, int err_recover);
+int nvmeformat(struct cam_device *device, int argc, char **argv,
+	       char *combinedopt, int retry_count, int timeout,
+	       int verbosemode, int err_recover);
 int camxferrate(struct cam_device *device);
 int fwdownload(struct cam_device *device, int argc, char **argv,
 	       char *combinedopt, int printerrors, int task_attr,
