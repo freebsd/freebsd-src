@@ -536,6 +536,51 @@ static const char * const asmc_light_keys[] = {
 	[ASMC_LIGHT_RIGHT]	= ASMC_KEY_LIGHTRIGHT,
 };
 
+/* The dev.asmc.n.system leaves, in registration order; len_min 0 = any. */
+static const struct {
+	const char	*key;
+	const char	*name;
+	const char	*desc;
+	const char	*fmt;
+	int		ctlflags;
+	int		arg2;
+	int		(*handler)(SYSCTL_HANDLER_ARGS);
+	uint8_t		len_min;
+	uint8_t		len_max;
+} asmc_system_sysctls[] = {
+	{ ASMC_KEY_MSSD, "shutdown_cause", "Last shutdown cause (MSSD)",
+	    "A", CTLTYPE_STRING | CTLFLAG_RD, 0, asmc_cause_sysctl, 0, 0 },
+	{ ASMC_KEY_MSSP, "sleep_cause", "Last sleep cause (MSSP)",
+	    "A", CTLTYPE_STRING | CTLFLAG_RD, 1, asmc_cause_sysctl, 0, 0 },
+	{ ASMC_KEY_MSAL, "thermal_status",
+	    "Thermal subsystem status flags (MSAL)",
+	    "A", CTLTYPE_STRING | CTLFLAG_RD, 0, asmc_msal_sysctl, 0, 0 },
+	{ ASMC_KEY_CLKT, "time_of_day",
+	    "Seconds since midnight per SMC clock (CLKT)",
+	    "IU", CTLTYPE_UINT | CTLFLAG_RD, 0, asmc_clkt_sysctl, 0, 0 },
+	{ ASMC_KEY_MSPS, "power_state", "SMC power state index (MSPS)",
+	    "IU", CTLTYPE_UINT | CTLFLAG_RD, 0, asmc_msps_sysctl, 1, 2 },
+	{ ASMC_KEY_RPLT, "board_id", "Apple internal board codename (RPlt)",
+	    "A", CTLTYPE_STRING | CTLFLAG_RD, 0, asmc_rplt_sysctl, 0, 0 },
+	{ ASMC_KEY_RGEN, "chip_gen",
+	    "Apple security chip generation (RGEN; 3=T2)",
+	    "IU", CTLTYPE_UINT | CTLFLAG_RD, 0, asmc_rgen_sysctl, 0, 0 },
+};
+
+/* Platform toggles under dev.asmc.n, each present only if its key reads. */
+static const struct {
+	const char	*key;
+	const char	*name;
+	const char	*desc;
+	int		(*handler)(SYSCTL_HANDLER_ARGS);
+} asmc_platform_sysctls[] = {
+	{ ASMC_KEY_AUPO, "auto_poweron",
+	    "Auto power-on after AC power loss (0=off, 1=on)",
+	    asmc_aupo_sysctl },
+	{ ASMC_KEY_MSLD, "sil", "Sleep indicator LED (0=off, 1=on)",
+	    asmc_sil_sysctl },
+};
+
 static int
 asmc_attach(device_t dev)
 {
@@ -715,7 +760,6 @@ asmc_attach(device_t dev)
 	/* System state / board identity subtree. */
 	{
 		struct sysctl_oid *sys_tree;
-		uint8_t msps_len;
 
 		sys_tree = SYSCTL_ADD_NODE(sysctlctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
@@ -727,55 +771,26 @@ asmc_attach(device_t dev)
 			goto nosms;
 		}
 
-		if (asmc_key_getinfo(dev, ASMC_KEY_MSSD, NULL, NULL) == 0)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "shutdown_cause",
-			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_cause_sysctl, "A",
-			    "Last shutdown cause (MSSD)");
+		for (unsigned int k = 0; k < nitems(asmc_system_sysctls); k++) {
+			uint8_t len = 0;
 
-		if (asmc_key_getinfo(dev, ASMC_KEY_MSSP, NULL, NULL) == 0)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "sleep_cause",
-			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 1, asmc_cause_sysctl, "A",
-			    "Last sleep cause (MSSP)");
+			if (asmc_key_getinfo(dev, asmc_system_sysctls[k].key,
+			    &len, NULL) != 0)
+				continue;
+			if (asmc_system_sysctls[k].len_min != 0 &&
+			    (len < asmc_system_sysctls[k].len_min ||
+			    len > asmc_system_sysctls[k].len_max))
+				continue;
 
-		if (asmc_key_getinfo(dev, ASMC_KEY_MSAL, NULL, NULL) == 0)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "thermal_status",
-			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_msal_sysctl, "A",
-			    "Thermal subsystem status flags (MSAL)");
-
-		if (asmc_key_getinfo(dev, ASMC_KEY_CLKT, NULL, NULL) == 0)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "time_of_day",
-			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_clkt_sysctl, "IU",
-			    "Seconds since midnight per SMC clock (CLKT)");
-
-		if (asmc_key_getinfo(dev, ASMC_KEY_MSPS, &msps_len, NULL) == 0 &&
-		    (msps_len == 1 || msps_len == 2))
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "power_state",
-			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_msps_sysctl, "IU",
-			    "SMC power state index (MSPS)");
-
-		if (asmc_key_getinfo(dev, ASMC_KEY_RPLT, NULL, NULL) == 0)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "board_id",
-			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_rplt_sysctl, "A",
-			    "Apple internal board codename (RPlt)");
-
-		if (asmc_key_getinfo(dev, ASMC_KEY_RGEN, NULL, NULL) == 0)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "chip_gen",
-			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_rgen_sysctl, "IU",
-			    "Apple security chip generation (RGEN; 3=T2)");
+			/* SYSCTL_ADD_PROC() asserts flags at compile time. */
+			sysctl_add_oid(sysctlctx, SYSCTL_CHILDREN(sys_tree),
+			    OID_AUTO, asmc_system_sysctls[k].name,
+			    asmc_system_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
+			    dev, asmc_system_sysctls[k].arg2,
+			    asmc_system_sysctls[k].handler,
+			    asmc_system_sysctls[k].fmt,
+			    asmc_system_sysctls[k].desc, NULL);
+		}
 	}
 
 	if (asmc_key_getinfo(dev, ASMC_KEY_MBSS, NULL, NULL) == 0)
@@ -980,24 +995,17 @@ asmc_init(device_t dev)
 		    ntohs(*(uint16_t *)buf + 4));
 	}
 
-	/* Auto power-on after AC power loss (AUPO). */
-	if (asmc_key_read(dev, ASMC_KEY_AUPO, buf, 1) == 0) {
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "auto_poweron",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    dev, 0, asmc_aupo_sysctl, "I",
-		    "Auto power-on after AC power loss (0=off, 1=on)");
-	}
+	for (unsigned int k = 0; k < nitems(asmc_platform_sysctls); k++) {
+		if (asmc_key_read(dev, asmc_platform_sysctls[k].key,
+		    buf, 1) != 0)
+			continue;
 
-	/* Sleep Indicator LED (SIL) control via MSLD/MSLS keys. */
-	if (asmc_key_read(dev, ASMC_KEY_MSLD, buf, 1) == 0) {
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "sil",
+		    OID_AUTO, asmc_platform_sysctls[k].name,
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    dev, 0, asmc_sil_sysctl, "I",
-		    "Sleep indicator LED (0=off, 1=on)");
+		    dev, 0, asmc_platform_sysctls[k].handler, "I",
+		    asmc_platform_sysctls[k].desc);
 	}
 
 	sc->sc_nfan = asmc_fan_count(dev);
