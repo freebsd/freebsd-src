@@ -57,133 +57,6 @@ static struct options {
 	.nsid = NONE,
 };
 
-void
-print_namespace(struct nvme_namespace_data *nsdata)
-{
-	char cbuf[UINT128_DIG + 1];
-	uint32_t	i;
-	uint32_t	lbaf, lbads, ms, rp;
-	uint8_t		thin_prov, ptype;
-	uint8_t		flbas_fmt, t;
-
-	thin_prov = NVMEV(NVME_NS_DATA_NSFEAT_THIN_PROV, nsdata->nsfeat);
-
-	flbas_fmt = nvme_ns_data_format_index(nsdata);
-
-	printf("Size:                        %lld blocks\n",
-	    (long long)nsdata->nsze);
-	printf("Capacity:                    %lld blocks\n",
-	    (long long)nsdata->ncap);
-	printf("Utilization:                 %lld blocks\n",
-	    (long long)nsdata->nuse);
-	printf("Thin Provisioning:           %s\n",
-		thin_prov ? "Supported" : "Not Supported");
-	printf("Number of LBA Formats:       %d\n", nsdata->nlbaf+1);
-	printf("Current LBA Format:          LBA Format #%02d", flbas_fmt);
-	if (NVMEV(NVME_NS_DATA_LBAF_MS, nsdata->lbaf[flbas_fmt]) != 0)
-		printf(" %s metadata\n",
-		    NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsdata->flbas) != 0 ?
-		    "Extended" : "Separate");
-	else
-		printf("\n");
-	printf("Metadata Capabilities\n");
-	printf("  Extended:                  %s\n",
-	    NVMEV(NVME_NS_DATA_MC_EXTENDED, nsdata->mc) != 0 ? "Supported" :
-	    "Not Supported");
-	printf("  Separate:                  %s\n",
-	    NVMEV(NVME_NS_DATA_MC_POINTER, nsdata->mc) != 0 ? "Supported" :
-	    "Not Supported");
-	printf("Data Protection Caps:        %s%s%s%s%s%s\n",
-	    (nsdata->dpc == 0) ? "Not Supported" : "",
-	    NVMEV(NVME_NS_DATA_DPC_MD_END, nsdata->dpc) != 0 ? "Last Bytes, " :
-	    "",
-	    NVMEV(NVME_NS_DATA_DPC_MD_START, nsdata->dpc) != 0 ?
-	    "First Bytes, " : "",
-	    NVMEV(NVME_NS_DATA_DPC_PIT3, nsdata->dpc) != 0 ? "Type 3, " : "",
-	    NVMEV(NVME_NS_DATA_DPC_PIT2, nsdata->dpc) != 0 ? "Type 2, " : "",
-	    NVMEV(NVME_NS_DATA_DPC_PIT1, nsdata->dpc) != 0 ? "Type 1" : "");
-	printf("Data Protection Settings:    ");
-	ptype = NVMEV(NVME_NS_DATA_DPS_PIT, nsdata->dps);
-	if (ptype != 0) {
-		printf("Type %d, %s Bytes\n", ptype,
-		    NVMEV(NVME_NS_DATA_DPS_MD_START, nsdata->dps) != 0 ?
-		    "First" : "Last");
-	} else {
-		printf("Not Enabled\n");
-	}
-	printf("Multi-Path I/O Capabilities: %s%s\n",
-	    (nsdata->nmic == 0) ? "Not Supported" : "",
-	    NVMEV(NVME_NS_DATA_NMIC_MAY_BE_SHARED, nsdata->nmic) != 0 ?
-	    "May be shared" : "");
-	printf("Reservation Capabilities:    %s%s%s%s%s%s%s%s%s\n",
-	    (nsdata->rescap == 0) ? "Not Supported" : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_IEKEY13, nsdata->rescap) != 0 ?
-	    "IEKEY13, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_EX_AC_AR, nsdata->rescap) != 0 ?
-	    "EX_AC_AR, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_WR_EX_AR, nsdata->rescap) != 0 ?
-	    "WR_EX_AR, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_EX_AC_RO, nsdata->rescap) != 0 ?
-	    "EX_AC_RO, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_WR_EX_RO, nsdata->rescap) != 0 ?
-	    "WR_EX_RO, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_EX_AC, nsdata->rescap) != 0 ?
-	    "EX_AC, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_WR_EX, nsdata->rescap) != 0 ?
-	    "WR_EX, " : "",
-	    NVMEV(NVME_NS_DATA_RESCAP_PTPL, nsdata->rescap) != 0 ? "PTPL" : "");
-	printf("Format Progress Indicator:   ");
-	if (NVMEV(NVME_NS_DATA_FPI_SUPP, nsdata->fpi) != 0) {
-		printf("%u%% remains\n",
-		    NVMEV(NVME_NS_DATA_FPI_PERC, nsdata->fpi));
-	} else
-		printf("Not Supported\n");
-	t = NVMEV(NVME_NS_DATA_DLFEAT_READ, nsdata->dlfeat);
-	printf("Deallocate Logical Block:    Read %s%s%s\n",
-	    (t == NVME_NS_DATA_DLFEAT_READ_NR) ? "Not Reported" :
-	    (t == NVME_NS_DATA_DLFEAT_READ_00) ? "00h" :
-	    (t == NVME_NS_DATA_DLFEAT_READ_FF) ? "FFh" : "Unknown",
-	    NVMEV(NVME_NS_DATA_DLFEAT_DWZ, nsdata->dlfeat) != 0 ?
-	    ", Write Zero" : "",
-	    NVMEV(NVME_NS_DATA_DLFEAT_GCRC, nsdata->dlfeat) != 0 ?
-	    ", Guard CRC" : "");
-	printf("Optimal I/O Boundary:        %u blocks\n", nsdata->noiob);
-	printf("NVM Capacity:                %s bytes\n",
-	   uint128_to_str(to128(nsdata->nvmcap), cbuf, sizeof(cbuf)));
-	if (NVMEV(NVME_NS_DATA_NSFEAT_NPVALID, nsdata->nsfeat) != 0) {
-		printf("Preferred Write Granularity: %u blocks\n",
-		    nsdata->npwg + 1);
-		printf("Preferred Write Alignment:   %u blocks\n",
-		    nsdata->npwa + 1);
-		printf("Preferred Deallocate Granul: %u blocks\n",
-		    nsdata->npdg + 1);
-		printf("Preferred Deallocate Align:  %u blocks\n",
-		    nsdata->npda + 1);
-		printf("Optimal Write Size:          %u blocks\n",
-		    nsdata->nows + 1);
-	}
-	printf("Globally Unique Identifier:  ");
-	for (i = 0; i < sizeof(nsdata->nguid); i++)
-		printf("%02x", nsdata->nguid[i]);
-	printf("\n");
-	printf("IEEE EUI64:                  ");
-	for (i = 0; i < sizeof(nsdata->eui64); i++)
-		printf("%02x", nsdata->eui64[i]);
-	printf("\n");
-	for (i = 0; i <= nsdata->nlbaf; i++) {
-		lbaf = nsdata->lbaf[i];
-		lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, lbaf);
-		if (lbads == 0)
-			continue;
-		ms = NVMEV(NVME_NS_DATA_LBAF_MS, lbaf);
-		rp = NVMEV(NVME_NS_DATA_LBAF_RP, lbaf);
-		printf("LBA Format #%02d: Data Size: %5d  Metadata Size: %5d"
-		    "  Performance: %s\n",
-		    i, 1 << lbads, ms, (rp == 0) ? "Best" :
-		    (rp == 1) ? "Better" : (rp == 2) ? "Good" : "Degraded");
-	}
-}
-
 static void
 identify_ctrlr(int fd)
 {
@@ -228,7 +101,7 @@ identify_ns(int fd, uint32_t nsid)
 		exit(0);
 	}
 
-	print_namespace(&nsdata);
+	nvme_print_namespace(&nsdata);
 	exit(0);
 }
 

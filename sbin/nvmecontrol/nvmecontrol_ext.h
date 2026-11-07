@@ -26,3 +26,4 @@
  */
 
 void nvme_print_controller(struct nvme_controller_data *cdata);
+void nvme_print_namespace(struct nvme_namespace_data *nsdata);
