@@ -46,6 +46,17 @@ The memory balloon allows the guest to, at the request of the
 hypervisor, return memory allocated to the hypervisor so it can
 be made available to other guests.
 The hypervisor can later signal the balloon to return the memory.
+.Pp
+When supported by the hypervisor,
+.Nm
+negotiates the statistics virtqueue
+.Pq Dv VIRTIO_BALLOON_F_STATS_VQ
+to report guest memory statistics (including free, available,
+total memory, and page fault counters) to the host.
+Free and inactive pages are reported as an estimate of available memory;
+note that inactive pages may include dirty pages prior to laundering.
+Memory allocated to the ZFS Adaptive Replacement Cache (ARC) is wired
+and is not reported as available.
 .Sh SEE ALSO
 .Xr virtio 4
 .Sh HISTORY
