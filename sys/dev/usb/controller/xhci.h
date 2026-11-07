@@ -562,6 +562,8 @@ struct xhci_softc {
 	uint8_t			sc_noslot;
 	/* Enhanced SuperSpeed speed IDs of the controller, see XHCI_PSIV_BIT */
 	uint16_t		sc_ss_psiv;
+	/* xHCI interface version, see XHCI_HCIVERSION_* */
+	uint16_t		sc_hcversion;
 	/* number of ports on root HUB */
 	uint8_t			sc_noport;
 	/* root HUB device configuration */

@@ -46,6 +46,8 @@
 #define	XHCI_HCIVERSION		0x02	/* RO Interface version number */
 #define	XHCI_HCIVERSION_0_9	0x0090	/* xHCI version 0.9 */
 #define	XHCI_HCIVERSION_1_0	0x0100	/* xHCI version 1.0 */
+#define	XHCI_HCIVERSION_1_1	0x0110	/* xHCI version 1.1 */
+#define	XHCI_HCIVERSION_1_2	0x0120	/* xHCI version 1.2 */
 #define	XHCI_HCSPARAMS1		0x04	/* RO structural parameters 1 */
 #define	XHCI_HCS1_DEVSLOT_MAX(x)((x) & 0xFF)
 #define	XHCI_HCS1_IRQ_MAX(x)	(((x) >> 8) & 0x3FF)

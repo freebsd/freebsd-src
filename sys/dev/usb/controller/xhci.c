@@ -574,7 +574,9 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 	DPRINTF("RUNTIMEOFFSET=0x%x\n", sc->sc_runt_off);
 	DPRINTF("DOOROFFSET=0x%x\n", sc->sc_door_off);
 
-	DPRINTF("xHCI version = 0x%04x\n", XREAD2(sc, capa, XHCI_HCIVERSION));
+	sc->sc_hcversion = XREAD2(sc, capa, XHCI_HCIVERSION);
+
+	DPRINTF("xHCI version = 0x%04x\n", sc->sc_hcversion);
 
 	if (!(XREAD4(sc, oper, XHCI_PAGESIZE) & XHCI_PAGESIZE_4K)) {
 		device_printf(sc->sc_bus.parent, "Controller does "
@@ -713,7 +715,8 @@ xhci_get_xecp(struct xhci_softc *sc)
 	 * documented in Table 7.2 of eXtensible Host Controller Interface for
 	 * Universal Serial Bus (xHCI) Rev 1.2b 2023.
 	 */
-	device_printf(sc->sc_bus.parent, "xECP capabilities <");
+	device_printf(sc->sc_bus.parent, "xHCI %u.%u, xECP capabilities <",
+	    sc->sc_hcversion >> 8, (sc->sc_hcversion >> 4) & 0xF);
 
 	eec = -1;
 	for (eecp = XHCI_HCS0_XECP(hccp1) << 2;
@@ -2763,6 +2766,10 @@ xhci_ss_parent_hub(struct xhci_softc *sc, struct usb_device *udev,
 {
 	struct usb_device *adev = udev;
 	struct usb_device *hubdev = udev->parent_hub;
+
+	/* These fields have no Enhanced SuperSpeed meaning before xHCI 1.2. */
+	if (sc->sc_hcversion < XHCI_HCIVERSION_1_2)
+		return (NULL);
 
 	if (udev->speed >= xhci_ss_highest(sc))
 		return (NULL);
