@@ -90,6 +90,10 @@ static int 	asmc_init(device_t dev);
 static int 	asmc_command(device_t dev, uint8_t command);
 static int 	asmc_wait(device_t dev, uint8_t val);
 static int 	asmc_wait_ack(device_t dev, uint8_t val, int amount);
+static int	asmc_pio_send(device_t dev, const uint8_t *buf, int len,
+		    uint8_t status);
+static int	asmc_pio_recv(device_t dev, uint8_t *buf, int len,
+		    uint8_t status);
 static int 	asmc_key_write(device_t dev, const char *key, uint8_t *buf,
     uint8_t len);
 static int 	asmc_key_read(device_t dev, const char *key, uint8_t *buf,
@@ -1208,11 +1212,41 @@ asmc_command(device_t dev, uint8_t command)
 	return (1);
 }
 
+/* Push len bytes out the data port, awaiting status after each. */
+static int
+asmc_pio_send(device_t dev, const uint8_t *buf, int len, uint8_t status)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	for (int i = 0; i < len; i++) {
+		ASMC_DATAPORT_WRITE(sc, buf[i]);
+		if (asmc_wait(dev, status))
+			return (1);
+	}
+
+	return (0);
+}
+
+/* Await status then pull each of len bytes from the data port. */
+static int
+asmc_pio_recv(device_t dev, uint8_t *buf, int len, uint8_t status)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	for (int i = 0; i < len; i++) {
+		if (asmc_wait(dev, status))
+			return (1);
+		buf[i] = ASMC_DATAPORT_READ(sc);
+	}
+
+	return (0);
+}
+
 static int
 asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int i, error = 1, try = 0;
+	int error = 1, try = 0;
 
 	if (sc->sc_is_mmio)
 		return (asmc_mmio_key_read(dev, key, buf, len));
@@ -1223,19 +1257,14 @@ begin:
 	if (asmc_command(dev, ASMC_CMDREAD))
 		goto out;
 
-	for (i = 0; i < 4; i++) {
-		ASMC_DATAPORT_WRITE(sc, key[i]);
-		if (asmc_wait(dev, 0x04))
-			goto out;
-	}
+	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
+	    ASMC_STATUS_AWAIT_DATA))
+		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, len);
 
-	for (i = 0; i < len; i++) {
-		if (asmc_wait(dev, 0x05))
-			goto out;
-		buf[i] = ASMC_DATAPORT_READ(sc);
-	}
+	if (asmc_pio_recv(dev, buf, len, ASMC_STATUS_DATA_READY))
+		goto out;
 
 	error = 0;
 out:
@@ -1295,37 +1324,28 @@ begin:
 	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
 		goto out;
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		ASMC_DATAPORT_WRITE(sc, index[i]);
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
-			goto out;
-	}
+	if (asmc_pio_send(dev, index, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
-			goto out;
-		key[i] = ASMC_DATAPORT_READ(sc);
-	}
+	if (asmc_pio_recv(dev, (uint8_t *)key, ASMC_KEYLEN,
+	    ASMC_STATUS_DATA_READY))
+		goto out;
 
 	/* Get key info (length + type). */
 	if (asmc_command(dev, ASMC_CMDGETINFO))
 		goto out;
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		ASMC_DATAPORT_WRITE(sc, key[i]);
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
-			goto out;
-	}
+	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
+	    ASMC_STATUS_AWAIT_DATA))
+		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
 
-	for (i = 0; i < ASMC_KEYINFO_RESPLEN; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
-			goto out;
-		type[i] = ASMC_DATAPORT_READ(sc);
-	}
+	if (asmc_pio_recv(dev, (uint8_t *)type, ASMC_KEYINFO_RESPLEN,
+	    ASMC_STATUS_DATA_READY))
+		goto out;
 
 	error = 0;
 out:
@@ -1387,19 +1407,15 @@ begin:
 	if (asmc_command(dev, ASMC_CMDGETINFO))
 		goto out;
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		ASMC_DATAPORT_WRITE(sc, key[i]);
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
-			goto out;
-	}
+	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
+	    ASMC_STATUS_AWAIT_DATA))
+		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
 
-	for (i = 0; i < ASMC_KEYINFO_RESPLEN; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
-			goto out;
-		info[i] = ASMC_DATAPORT_READ(sc);
-	}
+	if (asmc_pio_recv(dev, info, ASMC_KEYINFO_RESPLEN,
+	    ASMC_STATUS_DATA_READY))
+		goto out;
 
 	error = 0;
 out:
@@ -1857,7 +1873,6 @@ asmc_key_dump_by_index(device_t dev, int index, char *key_out,
 	uint8_t key_buf[ASMC_KEYLEN];
 	uint8_t info_buf[ASMC_KEYINFO_RESPLEN];
 	int error = ENXIO, try = 0;
-	int i;
 
 	if (sc->sc_is_mmio) {
 		error = asmc_mmio_key_getbyindex(dev, index, key_out);
@@ -1878,36 +1893,25 @@ begin:
 	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
 		goto out;
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		ASMC_DATAPORT_WRITE(sc, index_buf[i]);
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
-			goto out;
-	}
+	if (asmc_pio_send(dev, index_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
-			goto out;
-		key_buf[i] = ASMC_DATAPORT_READ(sc);
-	}
+	if (asmc_pio_recv(dev, key_buf, ASMC_KEYLEN, ASMC_STATUS_DATA_READY))
+		goto out;
 
 	if (asmc_command(dev, ASMC_CMDGETINFO))
 		goto out;
 
-	for (i = 0; i < ASMC_KEYLEN; i++) {
-		ASMC_DATAPORT_WRITE(sc, key_buf[i]);
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
-			goto out;
-	}
+	if (asmc_pio_send(dev, key_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
 
-	for (i = 0; i < ASMC_KEYINFO_RESPLEN; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_DATA_READY))
-			goto out;
-		info_buf[i] = ASMC_DATAPORT_READ(sc);
-	}
+	if (asmc_pio_recv(dev, info_buf, ASMC_KEYINFO_RESPLEN,
+	    ASMC_STATUS_DATA_READY))
+		goto out;
 
 	memcpy(key_out, key_buf, ASMC_KEYLEN);
 	key_out[ASMC_KEYLEN] = '\0';
@@ -1974,17 +1978,16 @@ begin:
 		goto out;
 
 	ASMC_DPRINTF(("data port: key\n"));
-	for (i = 0; i < 4; i++) {
-		ASMC_DATAPORT_WRITE(sc, key[i]);
-		if (asmc_wait(dev, 0x04))
-			goto out;
-	}
+	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
+	    ASMC_STATUS_AWAIT_DATA))
+		goto out;
+
 	ASMC_DPRINTF(("data port: length\n"));
 	ASMC_DATAPORT_WRITE(sc, len);
 
 	ASMC_DPRINTF(("data port: buffer\n"));
 	for (i = 0; i < len; i++) {
-		if (asmc_wait(dev, 0x04))
+		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
 			goto out;
 		ASMC_DATAPORT_WRITE(sc, buf[i]);
 	}
