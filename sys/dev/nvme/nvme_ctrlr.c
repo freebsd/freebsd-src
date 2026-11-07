@@ -854,7 +854,7 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 		    NVME_ASYNC_EVENT_FW_ACTIVATE;
 
 	status.done = 0;
-	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
+	nvme_ctrlr_cmd_get_feature(ctrlr, 0, NVME_FEAT_TEMPERATURE_THRESHOLD,
 	    0, NULL, 0, nvme_completion_poll_cb, &status);
 	nvme_completion_poll(&status);
 	if (nvme_completion_is_error(&status.cpl) ||
@@ -1056,11 +1056,10 @@ nvme_ctrlr_hmb_enable(struct nvme_controller *ctrlr, bool enable, bool memret)
 	if (memret)
 		cdw11 |= 2;
 	status.done = 0;
-	nvme_ctrlr_cmd_set_feature(ctrlr, NVME_FEAT_HOST_MEMORY_BUFFER, cdw11,
-	    ctrlr->hmb_nchunks * ctrlr->hmb_chunk / ctrlr->page_size,
+	nvme_ctrlr_cmd_set_feature(ctrlr, 0, 0, NVME_FEAT_HOST_MEMORY_BUFFER,
+	    cdw11, ctrlr->hmb_nchunks * ctrlr->hmb_chunk / 4096,
 	    ctrlr->hmb_desc_paddr, ctrlr->hmb_desc_paddr >> 32,
-	    ctrlr->hmb_nchunks, NULL, 0,
-	    nvme_completion_poll_cb, &status);
+	    ctrlr->hmb_nchunks, NULL, 0, nvme_completion_poll_cb, &status);
 	nvme_completion_poll(&status);
 	if (nvme_completion_is_error(&status.cpl))
 		nvme_printf(ctrlr, "nvme_ctrlr_hmb_enable failed!\n");
