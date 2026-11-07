@@ -40,11 +40,13 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/endian.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -70,6 +72,7 @@ static int 	asmc_probe(device_t dev);
 static int 	asmc_attach(device_t dev);
 static int 	asmc_detach(device_t dev);
 static int 	asmc_resume(device_t dev);
+static void	asmc_shutdown(void *arg, int howto);
 
 /*
  * Backlight interface.
@@ -736,6 +739,10 @@ asmc_attach(device_t dev)
 			    "Apple security chip generation (RGEN; 3=T2)");
 	}
 
+	if (asmc_key_getinfo(dev, ASMC_KEY_MBSS, NULL, NULL) == 0)
+		sc->sc_shutdown_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+		    asmc_shutdown, dev, SHUTDOWN_PRI_FIRST);
+
 	if (!sc->sc_has_sms)
 		goto nosms;
 
@@ -821,6 +828,11 @@ asmc_detach(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 
+	if (sc->sc_shutdown_tag != NULL) {
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->sc_shutdown_tag);
+		sc->sc_shutdown_tag = NULL;
+	}
+
 	if (sc->sc_kbd_bkl != NULL)
 		backlight_destroy(sc->sc_kbd_bkl);
 
@@ -875,6 +887,17 @@ asmc_resume(device_t dev)
 	asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
 
 	return (0);
+}
+
+static void
+asmc_shutdown(void *arg, int howto)
+{
+	device_t dev = (device_t)arg;
+	uint8_t buf[2];
+
+	be16enc(buf, (howto & (RB_POWEROFF | RB_HALT)) != 0 ?
+	    ASMC_MBSS_POWEROFF : ASMC_MBSS_RESTART);
+	asmc_key_write(dev, ASMC_KEY_MBSS, buf, sizeof(buf));
 }
 
 #ifdef ASMC_DEBUG

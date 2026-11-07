@@ -90,6 +90,7 @@ struct asmc_softc {
 	int			sc_light_len;	/* ASMC_LIGHT_{SHORT,LONG}LEN */
 	int			sc_has_safespeed;
 	int			sc_has_alsl;	/* ALSL interrupt source */
+	eventhandler_tag	sc_shutdown_tag;
 };
 
 /*
@@ -196,6 +197,12 @@ struct asmc_softc {
  * after an unclean power loss.  This is NOT Wake-on-LAN.
  */
 #define ASMC_KEY_AUPO		"AUPO"	/* RW; 1 byte */
+
+/* Mac Boot State Status. */
+#define ASMC_KEY_MBSS		"MBSS"	/* RW; 2 bytes */
+
+#define ASMC_MBSS_POWEROFF	0x0001
+#define ASMC_MBSS_RESTART	0x0003
 
 /*
  * Interrupt keys.
