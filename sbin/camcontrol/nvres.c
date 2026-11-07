@@ -308,7 +308,11 @@ static int
 nvmeres_report(struct cam_device *device, int verbosemode, int err_recover,
 	       int eds, int retry_count, int timeout)
 {
-	uint8_t report_data[8192];
+	union {
+		struct nvme_resv_status status;
+		struct nvme_resv_status_ext ext;
+		uint8_t bytes[8192];
+	} report_data;
 	union ccb *ccb = NULL;
 	struct nvme_resv_status *rstatus;
 	struct nvme_resv_status_ext *extstatus;
@@ -326,14 +330,14 @@ nvmeres_report(struct cam_device *device, int verbosemode, int err_recover,
 	}
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->nvmeio);
 
-	bzero(report_data, sizeof(report_data));
+	bzero(&report_data, sizeof(report_data));
 
 	nvme_resv_report(/*nvmeio*/ &ccb->nvmeio,
 			 /*retries*/ retry_count,
 			 /*cbfcnp*/ NULL,
 			 /*nsid*/ device->target_lun,
 			 /*report_type*/ eds,
-			 /*data_ptr*/ report_data,
+			 /*data_ptr*/ report_data.bytes,
 			 /*dxfer_len */ sizeof(report_data),
 			 /*timeout*/ timeout ? timeout : 30000);
 
@@ -362,15 +366,15 @@ nvmeres_report(struct cam_device *device, int verbosemode, int err_recover,
 		error = 1;
 		goto bailout;
 	}
-	rstatus = (struct nvme_resv_status *)report_data;
+	rstatus = &report_data.status;
 	/*
 	 * XXX KDM evidently there is no concept of a residual in NVMe.
 	 */
 	if (eds == 0)
 		nvme_resv_status_swapbytes(rstatus,sizeof(report_data));
 	else
-		nvme_resv_status_ext_swapbytes((struct nvme_resv_status_ext *)
-		    report_data,sizeof(report_data));
+		nvme_resv_status_ext_swapbytes(&report_data.ext,
+		    sizeof(report_data));
 
 	num_ents = (rstatus->regctl[1] << 8) | rstatus->regctl[0];
 	printf("Generation: %u\n", rstatus->gen);
@@ -391,7 +395,7 @@ nvmeres_report(struct cam_device *device, int verbosemode, int err_recover,
 	 * device reports more.
 	 */
 	if (eds == 1) {
-		extstatus = (struct nvme_resv_status_ext *)report_data;
+		extstatus = &report_data.ext;
 		if (num_ents > (int)((sizeof(report_data) -
 		    sizeof(*extstatus)) / sizeof(extstatus->ctrlr[0])))
 			num_ents = (sizeof(report_data) -
