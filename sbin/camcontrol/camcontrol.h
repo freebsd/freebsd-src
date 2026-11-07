@@ -75,6 +75,8 @@ int build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
 int get_ata_status(struct cam_device *dev, union ccb *ccb, uint8_t *error,
 		   uint16_t *count, uint64_t *lba, uint8_t *device,
 		   uint8_t *status);
+int nvme_get_data(struct cam_device *dev, int nvme_data_type, void *data,
+		  size_t data_len);
 int camxferrate(struct cam_device *device);
 int fwdownload(struct cam_device *device, int argc, char **argv,
 	       char *combinedopt, int printerrors, int task_attr,
