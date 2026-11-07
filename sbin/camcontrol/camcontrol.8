@@ -223,6 +223,12 @@
 .Op Fl r
 .Op Fl w
 .Op Fl y
+.Op Fl e Ar ses
+.Op Fl G
+.Op Fl f Ar lbaf
+.Op Fl l Ar pil
+.Op Fl m Ar mset
+.Op Fl p Ar pi
 .Nm
 .Ic sanitize
 .Op device id
@@ -1229,7 +1235,17 @@ negotiation parameters will take effect.
 .It Ic format
 Issue the
 .Tn SCSI
-FORMAT UNIT command to the named device.
+FORMAT UNIT command or the
+.Tn NVMe
+FORMAT NVM command to the named device;
+.Nm
+issues the command appropriate for the device given.
+For
+.Tn NVMe
+devices, the format applies to the namespace addressed by the command,
+unless the
+.Fl G
+option is given.
 .Pp
 .Em WARNING! WARNING! WARNING!
 .Pp
@@ -1259,6 +1275,17 @@ This is often because the drive
 does not really support the FORMAT UNIT command -- it just accepts the
 command, waits a few minutes and then returns it.
 .Pp
+For
+.Tn NVMe
+devices, the default timeout is 30 seconds for a cryptographic erase, and
+30 minutes otherwise.
+Most
+.Tn NVMe
+devices format very quickly, but for drives that take longer, you can see
+format progress in the
+.Tn NVMe
+namespace Identify data if the drive supports it.
+.Pp
 The
 .Sq format
 subcommand takes several arguments that modify its default behavior.
@@ -1280,6 +1307,9 @@ Run in
 .Dq report only
 mode.
 This will report status on a format that is already running on the drive.
+Not supported for
+.Tn NVMe
+devices.
 .It Fl w
 Issue a non-immediate format command.
 By default,
@@ -1301,6 +1331,10 @@ argument is specified,
 will issue a non-immediate format command, and will be unable to print any
 information to let the user know what percentage of the disk has been
 formatted.
+For
+.Tn NVMe
+devices, the format command does not complete until the format is
+finished, so this option has no effect.
 .It Fl y
 Do not ask any questions.
 By default,
@@ -1310,6 +1344,85 @@ and also if the default format command timeout is acceptable.
 The user
 will not be asked about the timeout if a timeout is specified on the
 command line.
+For
+.Tn NVMe
+devices, only the first question is asked.
+.It Fl e Ar ses
+Specify the
+.Tn NVMe
+Secure Erase Setting.
+Only supported for
+.Tn NVMe
+devices.
+.Bl -tag -width 8n
+.It none
+This is the default.
+It indicates that no specific erase option is requested.
+.It user
+This requests that all user data be erased.
+The controller can use any method to erase the user data.
+.It crypto
+This requests that the controller erase the data cryptographically by
+deleting the encryption key.
+.It num
+Specify a numeric (decimal or hexadecimal) value
+.El
+.It Fl G
+Some
+.Tn NVMe
+controllers only allow formatting all namespaces attached to the
+controller.
+By default,
+.Nm
+will format the
+.Tn NVMe
+namespace addressed by the command.
+If you get an error message saying that the controller doesn't support
+per-NS format, you can try this option.
+Only supported for
+.Tn NVMe
+devices.
+.It Fl f Ar lbaf
+Use the specified LBA format number.
+Only supported for
+.Tn NVMe
+devices.
+You can use this option to change the sector size of the drive.
+To see a list of allowed LBA formats (combination of sector size and
+metadata size), and the current LBA format, look at
+the NVMe Namespace Identify data.
+You can see it with:
+.Pp
+.Dl camcontrol identify ndaX -N
+.It Fl l Ar pil
+Specify the protection information location.
+Only supported for
+.Tn NVMe
+devices.
+If set to 1, and protection information is enabled (see the
+.Fl p
+option), protection information is transferred as the first 8 bytes of
+metadata.
+If set to 0 (the default) and protection information is enabled, protection
+information is transferred as the last 8 bytes of metadata.
+.It Fl m Ar mset
+If set to 1, metadata is transferred as part of an extended LBA.
+If set to 0 (the default), metadata is transferred as part of a separate
+buffer.
+Only supported for
+.Tn NVMe
+devices.
+.It Fl p Ar pi
+This specifies whether protection information is enabled, and if so, the
+type of protection information.
+Only supported for
+.Tn NVMe
+devices.
+The default is 0, no protection information enabled.
+You may specify Type 1, 2 or 3 protection with a numeric argument of 1, 2
+or 3 respectively.
+Other types are allowed up to 7, but the only values currently defined in
+the NVMe 1.4 specification are 0-3.
 .El
 .It Ic sanitize
 Issue the SANITIZE command to the named device.

@@ -216,7 +216,7 @@ static struct camcontrol_opts option_table[] = {
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXcp"},
-	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
+	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "e:f:Gl:m:p:qrwy"},
 	{"sanitize", CAM_CMD_SANITIZE, CAM_ARG_NONE, "a:c:IP:qrUwy"},
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
@@ -10124,6 +10124,8 @@ usage(int printlong)
 "                              [-q][-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
 "        camcontrol format     [dev_id][generic args][-q][-r][-w][-y]\n"
+"                              [-e <user|crypto|num>][-G][-f format][-l pil]\n"
+"                              [-m mset][-p pi]\n"
 "        camcontrol sanitize   [dev_id][generic args]\n"
 "                              [-a overwrite|block|crypto|exitfailure]\n"
 "                              [-c passes][-I][-P pattern][-q][-U][-r][-w]\n"
@@ -10199,7 +10201,7 @@ usage(int printlong)
 "debug       turn debugging on/off for a bus, target, or lun, or all devices\n"
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
-"format      send the SCSI FORMAT UNIT command to the named device\n"
+"format      send the SCSI FORMAT UNIT or NVMe FORMAT NVM command\n"
 "sanitize    send the SCSI SANITIZE command to the named device\n"
 "idle        send the ATA IDLE command to the named device\n"
 "standby     send the ATA STANDBY command to the named device\n"
@@ -10309,9 +10311,15 @@ usage(int printlong)
 "-v                also print a Path Inquiry CCB for the controller\n"
 "format arguments:\n"
 "-q                be quiet, don't print status messages\n"
-"-r                run in report only mode\n"
-"-w                don't send immediate format command\n"
+"-r                run in report only mode (SCSI only)\n"
+"-w                don't send immediate format command (SCSI only)\n"
 "-y                don't ask any questions\n"
+"-e ses            secure erase setting: user, crypto (NVMe only)\n"
+"-G                global format, formats all Namespaces (NVMe only)\n"
+"-f num            specify format number, see Namespace Identify (NVMe only)\n"
+"-l pil            Protection Information Location, 1 = start, 0 = end (NVMe)\n"
+"-m mset           metadata setting, 0 = separate buffer, 1 ext. LBA (NVMe)\n"
+"-p pi             Protection Information type (NVMe only)\n"
 "sanitize arguments:\n"
 "-a operation      operation mode: overwrite, block, crypto or exitfailure\n"
 "-c passes         overwrite passes to perform (1 to 31)\n"
@@ -10789,11 +10797,25 @@ main(int argc, char **argv)
 		error = ratecontrol(cam_dev, task_attr, retry_count,
 				    timeout, argc, argv, combinedopt);
 		break;
-	case CAM_CMD_FORMAT:
-		error = scsiformat(cam_dev, argc, argv,
-				   combinedopt, task_attr, retry_count,
-				   timeout);
+	case CAM_CMD_FORMAT: {
+		struct ccb_pathinq cpi;
+
+		if (get_cpi(cam_dev, &cpi) != 0) {
+			warnx("couldn't get CPI");
+			error = 1;
+			break;
+		}
+		if (cpi.protocol == PROTO_NVME)
+			error = nvmeformat(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout,
+			    arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
+		else
+			error = scsiformat(cam_dev, argc, argv,
+					   combinedopt, task_attr, retry_count,
+					   timeout);
 		break;
+	}
 	case CAM_CMD_REPORTLUNS:
 		error = scsireportluns(cam_dev, argc, argv,
 				       combinedopt, task_attr,
