@@ -890,7 +890,8 @@ cpu_idle_power9(sbintime_t sbt)
 	}
 
 	/* Set the stop state to lowest latency, wake up to next instruction */
-	mtspr(SPR_PSSCR, (max_stop_state << PSSCR_MTL_S) | (0 << PSSCR_RL_S));
+	mtspr(SPR_PSSCR,
+	    (max_stop_state << PSSCR_MTL_S) | (max_stop_state << PSSCR_RL_S));
 
 	/* Shut down core using "stop" instruction (PowerISA 3.0) */
 	__asm __volatile (".long 0x4c0002e4");
