@@ -2131,7 +2131,12 @@ g_md_init(struct g_class *mp __unused)
 			(long *) &paddr) != 0 ||
 		    resource_int_value("md", i, "len", &len) != 0)
 		        break;
-		ptr = pmap_map(NULL, paddr, paddr + len, VM_PROT_READ);
+		/*
+		 * Map the memory into the kernel pmap, if not already present.
+		 * Some RamDisks reside in reserved memory without mappings, so
+		 * a simple pmap_map() won't always work.
+		 */
+		ptr = pmap_mapdev_attr(paddr, len, VM_MEMATTR_DEFAULT);
 		if (ptr != NULL && len != 0) {
 			sprintf(scratch, "preload%d 0x%016jx", i,
 			    (uintmax_t)paddr);
