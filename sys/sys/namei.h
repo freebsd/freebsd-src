@@ -216,6 +216,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 /*
  * Initialization of a nameidata structure.
  */
+#define	AT_ATVP		(-101)		/* NDINIT_ATVP dirfd */
 #define	NDINIT(ndp, op, flags, segflg, namep)				\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, &cap_no_rights)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd)			\
@@ -223,7 +224,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rightsp) 	\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, &cap_no_rights)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_ATVP, vp, &cap_no_rights)
 
 /*
  * Note the constant pattern may *hide* bugs.
