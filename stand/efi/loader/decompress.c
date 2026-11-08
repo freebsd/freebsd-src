@@ -20,13 +20,14 @@
 #define ULL(x) ((unsigned long long)(x))
 
 /*
- * While memdisk_uefi.efi used EfiReservedMemoryType, we need to use
- * EfiLoaderData instead, the standard memory type the loader uses to pass
- * memory to the kernel. This is also safe if we're chain booting to another efi
- * progarm since the memory will be available to that program. The other type
- * isn't necessarily in the pmap, so the md driver fails.
+ * RamDisks live for the life of the next stage or longer. ACPI requires this
+ * for disks registered with the RamDisk protocol, and most operating systems
+ * will ignore this memory if not given other instructions. The FreeBSD
+ * kernel will skip it, but will properly use reserved memory for ram disks
+ * when told about them by the boot loader.
  */
-static EFI_MEMORY_TYPE mem_type = EfiLoaderData;
+
+static EFI_MEMORY_TYPE mem_type = EfiReservedMemoryType;
 
 struct decomp_state
 {
