@@ -130,6 +130,28 @@ free_buffer(decomp_state *dctx)
 }
 
 /*
+ * The buffer size is a guess, so once the image is complete, give the pages
+ * past its end back to the firmware.
+ */
+static void
+trim_buffer(decomp_state *dctx)
+{
+	size_t used = roundup2((uintptr_t)dctx->buf_cur - (uintptr_t)dctx->buf,
+	    EFI_PAGE_SIZE);
+	size_t pages = used / EFI_PAGE_SIZE;
+
+	if (dctx->buf == 0 || pages == 0 || pages >= dctx->pages)
+		return;
+	if (EFI_ERROR(BS->FreePages(dctx->buf + used, dctx->pages - pages)))
+		return;
+	printf("Freed %llu unused bytes of the decompression buffer\n",
+	    ULL(dctx->alloc_size - used));
+	dctx->pages = pages;
+	dctx->alloc_size = used;
+	dctx->buf_end = (uint8_t *)(uintptr_t)dctx->buf + used;
+}
+
+/*
  * zlib supprot
  */
 static EFI_STATUS
@@ -504,7 +526,9 @@ decomp_step(decomp_state *dctx, uint8_t *buf, size_t len, size_t offset)
 void
 decomp_fini(decomp_state *dctx, bool flush)
 {
-	return (dctx->fini(dctx, flush));
+	dctx->fini(dctx, flush);
+	if (!flush)
+		trim_buffer(dctx);
 }
 
 EFI_PHYSICAL_ADDRESS
