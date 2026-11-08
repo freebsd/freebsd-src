@@ -6868,6 +6868,54 @@ pci_cfg_restore_pcix(device_t dev, struct pci_devinfo *dinfo)
 	    dinfo->cfg.pcix.pcix_command,  2);
 }
 
+static void
+pci_restore_bar_sizes(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+	struct pci_map *pm;
+	uint32_t ctrl;
+	uint16_t cmd;
+	int cur, i, nbars, ptr, size;
+
+	dinfo = device_get_ivars(dev);
+	if (pci_find_extcap(dev, PCIZ_RESIZE_BAR, &ptr) != 0)
+		return;
+	ctrl = pci_read_config(dev, ptr + PCIR_REBAR_CTRL(0), 4);
+	nbars = (ctrl & PCIM_REBAR_CTRL_NBAR_MASK) >>
+	    PCIM_REBAR_CTRL_NBAR_SHIFT;
+	if (nbars < 1 || nbars > PCI_MAXMAPS_0)
+		return;
+
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+	for (i = 0; i < nbars; i++) {
+		ctrl = pci_read_config(dev, ptr + PCIR_REBAR_CTRL(i), 4);
+		if ((ctrl & PCIM_REBAR_CTRL_BAR_IDX) > PCIR_MAX_BAR_0)
+			continue;
+		pm = pci_find_bar(dev,
+		    PCIR_BAR(ctrl & PCIM_REBAR_CTRL_BAR_IDX));
+		if (pm == NULL || pm->pm_size < 20 || pm->pm_size > 63)
+			continue;
+		size = pm->pm_size - 20;
+		cur = (ctrl & PCIM_REBAR_CTRL_SIZE_MASK) >>
+		    PCIM_REBAR_CTRL_SIZE_SHIFT;
+		if (cur == size)
+			continue;
+		/* Disable decoding before resizing. */
+		if ((cmd & PCIM_CMD_MEMEN) != 0) {
+			cmd &= ~PCIM_CMD_MEMEN;
+			pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+		}
+		ctrl &= ~PCIM_REBAR_CTRL_SIZE_MASK;
+		ctrl |= size << PCIM_REBAR_CTRL_SIZE_SHIFT;
+		pci_write_config(dev, ptr + PCIR_REBAR_CTRL(i), ctrl, 4);
+		if (bootverbose)
+			pci_printf(&dinfo->cfg,
+			    "map[%02x]: resized to %ju MB from %ju MB\n",
+			    pm->pm_reg, (uintmax_t)1 << size,
+			    (uintmax_t)1 << cur);
+	}
+}
+
 void
 pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 {
@@ -6918,6 +6966,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 		    dinfo->cfg.bridge.br_control, 2);
 		break;
 	}
+	pci_restore_bar_sizes(dev);
 	pci_restore_bars(dev);
 
 	if ((dinfo->cfg.hdrtype & PCIM_HDRTYPE) != PCIM_HDRTYPE_BRIDGE)

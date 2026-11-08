@@ -1080,6 +1080,15 @@
 #define	PCIR_SRIOV_BARS		0x24
 #define	PCIR_SRIOV_BAR(x)	(PCIR_SRIOV_BARS + (x) * 4)
 
+/* Resizable BAR definitions */
+#define	PCIR_REBAR_CAP(n)	(0x04 + (n) * 8)
+#define	PCIR_REBAR_CTRL(n)	(0x08 + (n) * 8)
+#define	PCIM_REBAR_CTRL_BAR_IDX		0x00000007
+#define	PCIM_REBAR_CTRL_NBAR_MASK	0x000000e0
+#define	PCIM_REBAR_CTRL_NBAR_SHIFT	5
+#define	PCIM_REBAR_CTRL_SIZE_MASK	0x00003f00
+#define	PCIM_REBAR_CTRL_SIZE_SHIFT	8
+
 /* Extended Capability Vendor-Specific definitions */
 #define PCIR_VSEC_HEADER	0x04
 #define PCIR_VSEC_ID(hdr)	((hdr) & 0xffff)
