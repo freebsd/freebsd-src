@@ -9554,8 +9554,10 @@ do_rest_ofb:
 				}
 				rack_log_map_chg(tp, rack, NULL, rsm, nrsm, MAP_SACK_M2, end, __LINE__);
 				rsm->r_flags &= (~RACK_HAS_FIN);
-				/* Check if the ack was too soon i.e. reordering + ack arrives too quickly */
-				prohibit_marking = rack_check_reorder_ack(tp, rack, nrsm, nrsm->r_end, cts, 0, __LINE__);
+				/* Don't do a rack_check_reorder_ack() here since this block just gets
+				 * us so the new rsm can be handled down below in the if(SEQ_GEQ(end, rsm->r_end) below.
+				 * It will be called in that block.
+				 */
 				/* Position us to point to the new nrsm that starts the sack blk */
 				rsm = nrsm;
 			}
