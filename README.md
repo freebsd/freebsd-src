@@ -1,4 +1,39 @@
-FreeBSD Source:
+AmeOS
+=====
+
+AmeOS — экспериментальная настольная система на базе FreeBSD с концепцией
+собственного окружения AmeDE: верхняя панель, док, быстрый терминал и темы
+Amaterasu, Sakura и OLED.
+
+**Стадия: подготовка базовой сборки.** AmeDE пока не реализована, проверенного
+установочного образа нет. Изображение рабочего стола на сайте — дизайн-концепт.
+
+- [Сайт проекта](https://ameos.umi-kujou.ru/)
+- [Репозиторий](https://github.com/ntych/AmeOS)
+- [Собственные компоненты AmeOS](ameos/README.md)
+- [Инструкция сборки](ameos/docs/build.md)
+- [Архитектура](ameos/docs/architecture.md)
+- [План разработки и критерии готовности](ameos/docs/roadmap.md)
+
+Текущая база — FreeBSD 16.0-CURRENT. Исходная ревизия зафиксирована в
+[ameos/base-revision](ameos/base-revision); эта запись не обновляет исходники
+автоматически. Первый профиль `base-amd64` использует ядро GENERIC и штатные
+средства создания ISO/USB-образов без внешних пакетов. Полная сборка требует
+отдельной FreeBSD/amd64 VM; Windows/Git Bash подходят для просмотра плана
+и проверки управляющих скриптов.
+
+Предварительный просмотр из корня клона в POSIX shell, без создания файлов:
+
+```sh
+sh ameos/scripts/build-release.sh --plan --workdir /var/tmp/ameos-base-001
+```
+
+Для этой команды родительский каталог должен существовать, а сам рабочий
+каталог — ещё не существовать. Изменения AmeOS размещаются отдельно от
+унаследованного дерева FreeBSD. Лицензии и уведомления исходных авторов
+сохраняются; см. [COPYRIGHT](COPYRIGHT).
+
+FreeBSD Source (upstream reference):
 ---------------
 This is the top level of the FreeBSD source directory.
 
