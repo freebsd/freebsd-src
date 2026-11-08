@@ -76,12 +76,15 @@ static void NDVALIDATE_impl(struct nameidata *, int);
 
 /*
  * Reset ndp to its original state.
+ * namei() supplies the starting directory again on restart, so unlike
+ * NDREINIT(), NAMEI_DBG_HADSTARTDIR can be set there.
  */
 #define	NDRESET(ndp) do {						\
-	NDREINIT_DBG(ndp);						\
+	NDRESET_DBG(ndp);						\
 	ndp->ni_resflags = 0;						\
 	ndp->ni_cnd.cn_flags &= ~NAMEI_INTERNAL_FLAGS;			\
 } while (0)
+
 /*
  * Prepare namei() to restart. Reset components to its original state and set
  * ISRESTARTED flag which signals the underlying lookup code to change the root
@@ -610,6 +613,7 @@ int
 namei(struct nameidata *ndp)
 {
 	struct vnode *dp;	/* the directory we are searching */
+	struct vnode *atvp;	/* NDINIT_ATVP() starting directory */
 	struct componentname *cnp;
 	struct thread *td;
 	struct pwd *pwd;
@@ -627,6 +631,7 @@ namei(struct nameidata *ndp)
 
 	cnp = &ndp->ni_cnd;
 	td = curthread;
+	atvp = ndp->ni_startdir;
 	abi_symlink = NULL;
 	abi_symlink_len = 0;
 	abi_suffix_len = 0;
@@ -701,6 +706,8 @@ restart:
 	 * We may need to start from scratch or pick up where it left off.
 	 */
 	error = cache_fplookup(ndp, &status, &pwd);
+	/* cache_can_fplookup() rejects ni_startdir. */
+	MPASS(atvp == NULL || status == CACHE_FPL_STATUS_ABORTED);
 	switch (status) {
 	case CACHE_FPL_STATUS_UNSET:
 		__assert_unreachable();
@@ -743,8 +750,17 @@ restart:
 			    false, ndp);
 			return (ENOENT);
 		}
+		/*
+		 * namei_setup() and vfs_lookup() consume the reference
+		 * on ni_startdir.  Hold the NDINIT_ATVP() vnode so that
+		 * a restart can reference it again.
+		 */
+		if (atvp != NULL)
+			vhold(atvp);
 		error = namei_setup(ndp, &dp, &pwd);
 		if (error != 0) {
+			if (atvp != NULL)
+				vdrop(atvp);
 			namei_cleanup_cnp(cnp);
 			nameicap_cleanup(ndp, error);
 			return (error);
@@ -823,6 +839,11 @@ restart:
 			if (abi_restart)
 				was_restarted = ISRESTARTED;
 			ndp->ni_cnd.cn_flags |= was_restarted;
+			if (atvp != NULL) {
+				vref(atvp);
+				ndp->ni_startdir = atvp;
+				vdrop(atvp);
+			}
 			goto restart;
 		}
 
@@ -835,6 +856,8 @@ restart:
 			nameicap_cleanup(ndp, 0);
 			pwd_drop(pwd);
 			uma_zfree(namei_zone, abi_symlink);
+			if (atvp != NULL)
+				vdrop(atvp);
 			NDVALIDATE(ndp);
 			return (0);
 		}
@@ -908,6 +931,8 @@ out:
 	nameicap_cleanup(ndp, error);
 	pwd_drop(pwd);
 	uma_zfree(namei_zone, abi_symlink);
+	if (atvp != NULL)
+		vdrop(atvp);
 	return (error);
 }
 
