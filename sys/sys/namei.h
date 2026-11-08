@@ -235,19 +235,23 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define NDINIT_PREFILL(arg)	memset(arg, 0xff, offsetof(struct nameidata,	\
     ni_dvp_seqc))
 #define NDINIT_DBG(arg)		{ (arg)->ni_debugflags = NAMEI_DBG_INITED; }
-#define NDREINIT_DBG(arg)	{						\
+#define NDRESET_DBG(arg)	{						\
 	if (((arg)->ni_debugflags & NAMEI_DBG_INITED) == 0)			\
 		panic("namei data not inited");					\
-	if (((arg)->ni_debugflags & NAMEI_DBG_HADSTARTDIR) != 0)		\
-		panic("NDREINIT on namei data with NAMEI_DBG_HADSTARTDIR");	\
 	if ((arg)->ni_nctrack_mnt != NULL)			\
 		panic("NDREINIT on namei data with leaked ni_nctrack_mnt");	\
 	if (!TAILQ_EMPTY(&(arg)->ni_cap_tracker))				\
 		panic("NDREINIT on namei data with leaked ni_cap_tracker");	\
+}
+#define NDREINIT_DBG(arg)	{						\
+	NDRESET_DBG(arg);							\
+	if (((arg)->ni_debugflags & NAMEI_DBG_HADSTARTDIR) != 0)		\
+		panic("NDREINIT on namei data with NAMEI_DBG_HADSTARTDIR");	\
 	(arg)->ni_debugflags = NAMEI_DBG_INITED;				\
 }
 #else
 #define NDINIT_PREFILL(arg)	do { } while (0)
+#define NDRESET_DBG(arg)	do { } while (0)
 #define NDINIT_DBG(arg)		do { } while (0)
 #define NDREINIT_DBG(arg)	do { } while (0)
 #endif
