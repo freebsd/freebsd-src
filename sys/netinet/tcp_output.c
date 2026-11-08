@@ -1192,6 +1192,7 @@ send:
 	if (flags & TH_FIN && tp->t_flags & TF_SENTFIN &&
 	    tp->snd_nxt == tp->snd_max)
 		tp->snd_nxt--;
+	KASSERT(SEQ_LEQ(tp->snd_nxt, tp->snd_max), ("SEG_GT(snd_nxt, snd_max)"));
 	/*
 	 * If we are starting a connection, send ECN setup
 	 * SYN packet. If we are on a retransmit, we may
@@ -1543,8 +1544,16 @@ out:
 				tp->t_flags |= TF_SENTFIN;
 			}
 		}
-		if (sack_rxmit)
+		if (sack_rxmit) {
+			/*
+			 * Retransmitted bytes are already in snd_max.
+			 * A FIN on this segment is not. snd_nxt was
+			 * advanced for it above.
+			 */
+			if (SEQ_GT(tp->snd_nxt, tp->snd_max))
+				tp->snd_max = tp->snd_nxt;
 			goto timer;
+		}
 		tp->snd_nxt += len;
 		if (SEQ_GT(tp->snd_nxt, tp->snd_max)) {
 			/*
