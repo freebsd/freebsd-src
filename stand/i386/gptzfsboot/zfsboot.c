@@ -553,7 +553,7 @@ fs_list(char *arg)
 		return;
 	pager_open();
 	while ((d = readdirfd(fd)) != NULL) {
-		sprintf(line, "%s\n", d->d_name);
+		(void)snprintf(line, sizeof(line), "%s\n", d->d_name);
 		if (pager_output(line))
 			break;
 	}
