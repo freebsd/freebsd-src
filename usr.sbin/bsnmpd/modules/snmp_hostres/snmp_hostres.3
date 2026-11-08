@@ -32,7 +32,7 @@
 .Sh NAME
 .Nm snmp_hostres
 .Nd host resources module for
-.Xr bsnmpd 8
+.Xr bsnmpd 1
 .Sh LIBRARY
 .Pq begemotSnmpdModulePath."hostres" = "/usr/lib/snmp_hostres.so"
 .Sh DESCRIPTION
@@ -40,7 +40,7 @@ The
 .Nm
 module implements the HOST-RESOURCES-MIB as standardized in RFC 2790.
 .Sh RESTRICTIONS
-Not all information in the MIB is meaningful in FreeBSD or is available.
+Not all information in the MIB is meaningful in .Fx or is available.
 The following variables are not implemented or carry no information:
 .Bl -tag -width indent
 .It Va hrFSType
