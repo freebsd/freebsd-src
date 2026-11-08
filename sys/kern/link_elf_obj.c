@@ -397,6 +397,14 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	symtabindex = -1;
 	symstrindex = -1;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if ((shdr[i].sh_type == SHT_REL ||
+		    shdr[i].sh_type == SHT_RELA) &&
+		    shdr[i].sh_info >= hdr->e_shnum) {
+			link_elf_error(filename,
+			    "file has an invalid relocation section");
+			error = ENOEXEC;
+			goto out;
+		}
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
@@ -836,6 +844,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	for (i = 0; i < hdr->e_shnum; i++) {
 		if (shdr[i].sh_size == 0)
 			continue;
+		if ((shdr[i].sh_type == SHT_REL ||
+		    shdr[i].sh_type == SHT_RELA) &&
+		    shdr[i].sh_info >= hdr->e_shnum) {
+			link_elf_error(filename,
+			    "file has an invalid relocation section");
+			error = ENOEXEC;
+			goto out;
+		}
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
