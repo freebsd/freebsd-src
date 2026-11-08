@@ -899,7 +899,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = ENOEXEC;
 		goto out;
 	}
-	if (symstrindex < 0 || symstrindex > hdr->e_shnum ||
+	if (symstrindex < 0 || symstrindex >= hdr->e_shnum ||
 	    shdr[symstrindex].sh_type != SHT_STRTAB) {
 		link_elf_error(filename, "file has invalid symbol strings");
 		error = ENOEXEC;
