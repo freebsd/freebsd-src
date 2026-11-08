@@ -204,9 +204,9 @@ magic(PKCS7 *pkcs7, const char *digest, size_t digest_len)
 	 * the actual signing.
 	 */
 	len = i2d_ASN1_TYPE(t, NULL);
-	tmp = buf = calloc(1, len);
+	tmp = buf = OPENSSL_zalloc(len);
 	if (tmp == NULL)
-		err(1, "calloc");
+		err(1, "OPENSSL_zalloc");
 	i2d_ASN1_TYPE(t, &tmp);
 
 	/*
@@ -231,7 +231,8 @@ magic(PKCS7 *pkcs7, const char *digest, size_t digest_len)
 
 	t = ASN1_TYPE_new();
 	s = ASN1_STRING_new();
-	ASN1_STRING_set(s, buf, len);
+	/* s takes ownership of buf. */
+	ASN1_STRING_set0(s, buf, len);
 	ASN1_TYPE_set(t, V_ASN1_SEQUENCE, s);
 
 	PKCS7_set0_type_other(pkcs7->d.sign->contents, nid, t);
