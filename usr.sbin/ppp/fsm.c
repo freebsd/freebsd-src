@@ -1040,10 +1040,22 @@ FsmRecvResetAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   m_freem(bp);
 }
 
+static int
+FsmCheckOptions(const u_char *cp, const u_char *end)
+{
+  while (end - cp >= (int)sizeof(struct fsm_opt_hdr)) {
+    if (cp[1] < sizeof(struct fsm_opt_hdr) || cp[1] > end - cp)
+      return 0;
+    cp += cp[1];
+  }
+  return cp == end;
+}
+
 void
 fsm_Input(struct fsm *fp, struct mbuf *bp)
 {
   size_t len;
+  u_char *cp;
   struct fsmheader lh;
   const struct fsmcodedesc *codep;
 
@@ -1083,6 +1095,18 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   }
 
   codep = FsmCodes + lh.code - 1;
+  if (lh.code >= CODE_CONFIGREQ && lh.code <= CODE_CONFIGREJ &&
+      ntohs(lh.length) > sizeof lh) {
+    bp = m_pullup(bp);
+    cp = MBUF_CTOP(bp);
+    if (!FsmCheckOptions(cp, cp + ntohs(lh.length) - sizeof lh)) {
+      log_Printf(LogWARN, "%s: Recv%s(%d): bad option length - dropped\n",
+                 fp->link->name, codep->name, lh.id);
+      m_freem(bp);
+      return;
+    }
+  }
+
   if (lh.id != fp->reqid && codep->check_reqid &&
       Enabled(fp->bundle, OPT_IDCHECK)) {
     log_Printf(fp->LogLevel, "%s: Recv%s(%d), dropped (expected %d)\n",
