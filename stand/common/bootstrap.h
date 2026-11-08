@@ -387,5 +387,8 @@ void set_currdev(const char *devname);
 extern struct devsw md_dev;
 int md_register(void *image, size_t size, unsigned int flags);
 void md_export_to_kernel(uint64_t start, uint64_t len);
+int md_get_size(int unit, uint64_t *size);
+
+#define	MD_BLOCK_SIZE	512
 
 #endif /* !_BOOTSTRAP_H_ */

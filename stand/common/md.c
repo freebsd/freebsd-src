@@ -32,7 +32,6 @@
 
 #include "bootstrap.h"
 
-#define	MD_BLOCK_SIZE	512
 #define	MD_FLAG_MASK	MD_FLAG_KERNEL
 
 struct md_info {
@@ -93,6 +92,22 @@ md_get_info(int unit)
 			return (md);
 	}
 	return (NULL);
+}
+
+/*
+ * Report a registered md's size, so probe_md_currdev() can hand it to
+ * disk_open() without reaching into the private struct md_info.
+ */
+int
+md_get_size(int unit, uint64_t *size)
+{
+	struct md_info *md;
+
+	md = md_get_info(unit);
+	if (md == NULL)
+		return (ENXIO);
+	*size = md->md_size;
+	return (0);
 }
 
 int
