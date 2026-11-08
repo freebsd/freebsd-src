@@ -31,6 +31,7 @@
 #include <sys/stdarg.h>
 
 #include "bootstrap.h"
+#include "disk.h"
 
 #define	MD_FLAG_MASK	MD_FLAG_KERNEL
 
@@ -61,6 +62,8 @@ struct devsw md_dev = {
 	.dv_ioctl = noioctl,
 	.dv_print = md_print,
 	.dv_cleanup = nullsys,
+	.dv_fmtdev = disk_fmtdev,
+	.dv_parsedev = disk_parsedev,
 };
 
 /*
@@ -172,13 +175,15 @@ static int
 md_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     char *buf, size_t *rsize)
 {
-	struct devdesc *dev = (struct devdesc *)devdata;
+	struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
 	struct md_info *md;
 	size_t ofs;
 
-	md = md_get_info(dev->d_unit);
+	md = md_get_info(dev->dd.d_unit);
 	if (md == NULL)
 		return (ENXIO);
+
+	blk += dev->d_offset;
 
 	if (blk < 0 || (uintmax_t)blk >= md->md_size / MD_BLOCK_SIZE)
 		return (EIO);
@@ -209,25 +214,35 @@ static int
 md_open(struct open_file *f, ...)
 {
 	va_list ap;
-	struct devdesc *dev;
+	struct disk_devdesc *dev;
+	struct md_info *md;
 
 	va_start(ap, f);
-	dev = va_arg(ap, struct devdesc *);
+	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
 
-	if (md_get_info(dev->d_unit) == NULL)
+	md = md_get_info(dev->dd.d_unit);
+	if (md == NULL)
 		return (ENXIO);
 
-	return (0);
+	/*
+	 * The image may be partitioned, as the memstick images used with
+	 * memdisk= are. Without this only offset 0 is reachable, where
+	 * there is no filesystem.
+	 */
+	return (disk_open(dev, md->md_size, MD_BLOCK_SIZE));
 }
 
 static int
 md_close(struct open_file *f)
 {
-	struct devdesc *dev;
+	struct disk_devdesc *dev;
 
-	dev = (struct devdesc *)(f->f_devdata);
-	return (md_get_info(dev->d_unit) == NULL ? ENXIO : 0);
+	dev = (struct disk_devdesc *)(f->f_devdata);
+	if (md_get_info(dev->dd.d_unit) == NULL)
+		return (ENXIO);
+
+	return (disk_close(dev));
 }
 
 static int
