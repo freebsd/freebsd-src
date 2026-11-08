@@ -1349,12 +1349,16 @@ link_elf_unload_file(linker_file_t file)
 		return;
 	}
 
-	for (i = 0; i < ef->nreltab; i++)
-		free(ef->reltab[i].rel, M_LINKER);
-	for (i = 0; i < ef->nrelatab; i++)
-		free(ef->relatab[i].rela, M_LINKER);
-	free(ef->reltab, M_LINKER);
-	free(ef->relatab, M_LINKER);
+	if (ef->reltab != NULL) {
+		for (i = 0; i < ef->nreltab; i++)
+			free(ef->reltab[i].rel, M_LINKER);
+		free(ef->reltab, M_LINKER);
+	}
+	if (ef->relatab != NULL) {
+		for (i = 0; i < ef->nrelatab; i++)
+			free(ef->relatab[i].rela, M_LINKER);
+		free(ef->relatab, M_LINKER);
+	}
 	free(ef->progtab, M_LINKER);
 
 	if (ef->object != NULL)
