@@ -951,6 +951,12 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 
 	/* Do we have a string table for the section names?  */
+	if (hdr->e_shstrndx >= hdr->e_shnum) {
+		link_elf_error(filename,
+		    "file has an invalid section name string table");
+		error = ENOEXEC;
+		goto out;
+	}
 	shstrindex = -1;
 	if (hdr->e_shstrndx != 0 &&
 	    shdr[hdr->e_shstrndx].sh_type == SHT_STRTAB) {
