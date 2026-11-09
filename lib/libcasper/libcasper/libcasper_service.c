@@ -223,8 +223,9 @@ service_register_core(int fd)
 void
 casper_main_loop(int fd)
 {
+	int pfd, ret = 0;
 
-	if (zygote_init() < 0)
+	if ((pfd = zygote_init()) < 0)
 		_exit(1);
 
 	/*
@@ -233,9 +234,12 @@ casper_main_loop(int fd)
 	service_register_core(fd);
 
 	while (service_have_connections()) {
-		if (!service_poll_dispatch())
-			_exit(1);
+		if (!service_poll_dispatch()) {
+			ret = 1;
+			break;
+		}
 	}
 
-	_exit(0);
+	(void)close(pfd);
+	_exit(ret);
 }
