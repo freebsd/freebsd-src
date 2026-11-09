@@ -450,7 +450,7 @@ nvmepersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int eds = 0, cptpl = 0, iekey = 0;
 	int error = 0;
 	int in = 0, out = 0;
-	int opc = -1, op_action = -1, res_type = 0;
+	int opc = -1, op_action = -1, res_type = -1;
 	int c;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
@@ -659,6 +659,9 @@ nvmepersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 				error = 1;
 				goto bailout;
 			}
+			/* The reservation type is ignored for a clear. */
+			if (res_type == -1)
+				res_type = 0;
 			break;
 		}
 
