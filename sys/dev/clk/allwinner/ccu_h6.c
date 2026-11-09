@@ -638,7 +638,12 @@ NM_CLK(apb2_clk,
 
 /* Missing MBUS clock */
 
-static const char *mod_parents[] = {"osc24M", "pll_periph0_2x", "pll_periph1_2x"};
+/*
+ * The mux of the module clocks takes the doubled PLL_PERIPH outputs, but they
+ * have a fixed post divider of 2 that is not modeled: use the 1x PLLs, which
+ * gives the same rate with the same mux selection.
+ */
+static const char *mod_parents[] = {"osc24M", "pll_periph0", "pll_periph1"};
 NM_CLK(mmc0_clk,
     CLK_MMC0, "mmc0", mod_parents,		/* id, name, parents */
     0x830,					/* offset */
