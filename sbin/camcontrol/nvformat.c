@@ -246,6 +246,12 @@ nvmeformat(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			ses = 0;
 		if (lbaf < 0)
 			lbaf = 0;
+		else if (lbaf > 63) {
+			warnx("%s: LBA format %d is out of range", __func__,
+			    lbaf);
+			error = 1;
+			goto bailout;
+		}
 		if (mset < 0)
 			mset = 0;
 		if (pi < 0)
