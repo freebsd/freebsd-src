@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.168 2026/06/14 03:59:34 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.170 2026/08/10 23:24:03 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -110,6 +110,9 @@ typedef struct Connection {
 	char *c_namelist;	/* Pointer to other possible addresses */
 	char *c_output_name;	/* Hostname of connection for output */
 	struct ssh *c_ssh;	/* SSH-connection */
+	char c_banner[256];	/* Partial server greeting */
+	size_t c_banner_len;	/* Length of partial server greeting */
+	int c_banner_sent;	/* Client greeting has been sent */
 	struct timespec c_ts;	/* Time at which connection gets aborted */
 	TAILQ_ENTRY(Connection) c_link;	/* List of connections in timeout order. */
 } con;
@@ -290,13 +293,12 @@ keygrab_ssh2(con *c)
 	c->c_ssh->kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_client;
 	c->c_ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	c->c_ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
-# ifdef OPENSSL_HAS_ECC
 	c->c_ssh->kex->kex[KEX_ECDH_SHA2] = kex_gen_client;
-# endif
 #endif
 	c->c_ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_client;
 	c->c_ssh->kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_client;
 	c->c_ssh->kex->kex[KEX_KEM_MLKEM768X25519_SHA256] = kex_gen_client;
+	c->c_ssh->kex->kex[KEX_KEM_MLKEM768ECDH_SHA256] = kex_gen_client;
 	ssh_set_verify_host_key_callback(c->c_ssh, key_print_wrapper);
 	/*
 	 * do the key-exchange until an error occurs or until
@@ -414,6 +416,8 @@ conalloc(const char *iname, const char *oname, int keytype)
 	fdcon[s].c_namelist = namelist;
 	fdcon[s].c_output_name = xstrdup(oname);
 	fdcon[s].c_keytype = keytype;
+	fdcon[s].c_banner_len = 0;
+	fdcon[s].c_banner_sent = 0;
 	monotime_ts(&fdcon[s].c_ts);
 	fdcon[s].c_ts.tv_sec += timeout;
 	TAILQ_INSERT_TAIL(&tq, &fdcon[s], c_link);
@@ -458,52 +462,48 @@ conrecycle(int s)
 static void
 congreet(int s)
 {
-	int n = 0, remote_major = 0, remote_minor = 0;
-	char buf[256], *cp;
+	int remote_major = 0, remote_minor = 0;
+	ssize_t n;
+	char buf[256], ch;
 	char remote_version[sizeof buf];
-	size_t bufsiz;
 	con *c = &fdcon[s];
 
-	/* send client banner */
-	n = snprintf(buf, sizeof buf, "SSH-%d.%d-OpenSSH-keyscan\r\n",
-	    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2);
-	if (n < 0 || (size_t)n >= sizeof(buf)) {
-		error("snprintf: buffer too small");
-		confree(s);
-		return;
-	}
-	if (atomicio(vwrite, s, buf, n) != (size_t)n) {
-		error("write (%s): %s", c->c_name, strerror(errno));
-		confree(s);
-		return;
+	if (!c->c_banner_sent) {
+		/* send client banner */
+		n = snprintf(buf, sizeof buf, "SSH-%d.%d-OpenSSH-keyscan\r\n",
+		    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2);
+		if (n < 0 || (size_t)n >= sizeof(buf)) {
+			error("snprintf: buffer too small");
+			confree(s);
+			return;
+		}
+		if (atomicio(vwrite, s, buf, n) != (size_t)n) {
+			error("write (%s): %s", c->c_name, strerror(errno));
+			confree(s);
+			return;
+		}
+		c->c_banner_sent = 1;
 	}
 
 	/*
 	 * Read the server banner as per RFC4253 section 4.2.  The "SSH-"
 	 * protocol identification string may be preceded by an arbitrarily
-	 * large banner which we must read and ignore.  Loop while reading
-	 * newline-terminated lines until we have one starting with "SSH-".
-	 * The ID string cannot be longer than 255 characters although the
-	 * preceding banner lines may (in which case they'll be discarded
-	 * in multiple iterations of the outer loop).
+	 * large banner which we must read and ignore.  Read a single byte
+	 * at a time so that the event loop retains control of connection
+	 * timeouts.  Partial lines are retained in the connection state
+	 * between calls.
 	 */
-	for (;;) {
-		memset(buf, '\0', sizeof(buf));
-		bufsiz = sizeof(buf);
-		cp = buf;
-		while (bufsiz-- &&
-		    (n = atomicio(read, s, cp, 1)) == 1 && *cp != '\n') {
-			if (*cp == '\r')
-				*cp = '\n';
-			cp++;
-		}
-		if (n != 1 || strncmp(buf, "SSH-", 4) == 0)
-			break;
-	}
-	if (n == 0) {
+	n = read(s, &ch, sizeof(ch));
+	if (n == -1 && (errno == EAGAIN || errno == EWOULDBLOCK ||
+	    errno == EINTR))
+		return;
+	if (n != 1) {
+		if (n == 0)
+			errno = EPIPE;
 		switch (errno) {
 		case EPIPE:
-			error("%s: Connection closed by remote host", c->c_name);
+			error("%s: Connection closed by remote host",
+			    c->c_name);
 			break;
 		case ECONNREFUSED:
 			break;
@@ -514,17 +514,28 @@ congreet(int s)
 		conrecycle(s);
 		return;
 	}
-	if (cp >= buf + sizeof(buf)) {
-		error("%s: greeting exceeds allowable length", c->c_name);
-		confree(s);
+	c->c_banner[c->c_banner_len++] = ch == '\r' ? '\n' : ch;
+	if (ch != '\n') {
+		if (c->c_banner_len < sizeof(c->c_banner) - 1)
+			return; /* incomplete line */
+		if (strncmp(c->c_banner, "SSH-", 4) == 0) {
+			/* banner exceeds RFC 4253 s4.2 length limit */
+			error("%s: greeting exceeds allowable length",
+			    c->c_name);
+			confree(s);
+			return;
+		}
+		/* Discard an oversized pre-identification banner chunk. */
+		c->c_banner_len = 0;
 		return;
 	}
-	if (*cp != '\n' && *cp != '\r') {
-		error("%s: bad greeting", c->c_name);
-		confree(s);
+	if (strncmp(c->c_banner, "SSH-", 4) != 0) {
+		/* Ignore non-banner lines */
+		c->c_banner_len = 0;
 		return;
 	}
-	*cp = '\0';
+	c->c_banner[c->c_banner_len++] = '\0';
+	memcpy(buf, c->c_banner, c->c_banner_len);
 	if ((c->c_ssh = ssh_packet_set_connection(NULL, s, s)) == NULL)
 		fatal("ssh_packet_set_connection failed");
 	ssh_packet_set_timeout(c->c_ssh, timeout, 1);

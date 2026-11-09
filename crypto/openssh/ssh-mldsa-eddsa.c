@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-mldsa-eddsa.c,v 1.1 2026/06/14 03:59:34 djm Exp $ */
+/* $OpenBSD: ssh-mldsa-eddsa.c,v 1.4 2026/07/30 07:40:48 brynet Exp $ */
 /*
  * Copyright (c) 2026 Damien Miller <djm@mindrot.org>
  *
@@ -48,7 +48,8 @@ int
 crypto_sign_mldsa44_ed25519_keygen(uint8_t pk[MLDSA44_ED25519_PK_SZ],
     uint8_t sk[MLDSA44_ED25519_SK_SZ])
 {
-	uint8_t mldsa_seed[32], ed25519_seed[32];
+	uint8_t mldsa_seed[MLDSA44_SEEDBYTES];
+	uint8_t ed25519_seed[crypto_sign_ed25519_SEEDBYTES];
 	int r;
 
 	arc4random_buf(mldsa_seed, sizeof(mldsa_seed));
@@ -63,10 +64,12 @@ crypto_sign_mldsa44_ed25519_keygen(uint8_t pk[MLDSA44_ED25519_PK_SZ],
 
 int
 crypto_sign_mldsa44_ed25519_keygen_seeded(uint8_t pk[MLDSA44_ED25519_PK_SZ],
-    uint8_t sk[MLDSA44_ED25519_SK_SZ], const uint8_t mldsa_seed[32],
-    const uint8_t ed25519_seed[32])
+    uint8_t sk[MLDSA44_ED25519_SK_SZ],
+    const uint8_t mldsa_seed[MLDSA44_SEEDBYTES],
+    const uint8_t ed25519_seed[crypto_sign_ed25519_SEEDBYTES])
 {
-	uint8_t ed25519_pk[32], ed25519_sk[64];
+	uint8_t ed25519_pk[MLDSA44_SEEDBYTES];
+	uint8_t ed25519_sk[crypto_sign_ed25519_SECRETKEYBYTES];
 	uint8_t mldsa_sk[MLDSA44_SECRETKEYBYTES];
 	int ret = -1;
 
@@ -77,11 +80,13 @@ crypto_sign_mldsa44_ed25519_keygen_seeded(uint8_t pk[MLDSA44_ED25519_PK_SZ],
 		goto out;
 
 	/* Serialize PK: mldsaPK || ed25519PK */
-	memcpy(pk + MLDSA44_PUBLICKEYBYTES, ed25519_pk, 32);
+	memcpy(pk + MLDSA44_PUBLICKEYBYTES, ed25519_pk,
+	    crypto_sign_ed25519_SEEDBYTES);
 
 	/* Serialize SK: mldsaSeed || ed25519Seed */
-	memcpy(sk, mldsa_seed, 32);
-	memcpy(sk + 32, ed25519_seed, 32);
+	memcpy(sk, mldsa_seed, MLDSA44_SEEDBYTES);
+	memcpy(sk + MLDSA44_SEEDBYTES, ed25519_seed,
+	    crypto_sign_ed25519_SEEDBYTES);
 
 	/* success */
 	ret = 0;
@@ -141,8 +146,9 @@ crypto_sign_mldsa44_ed25519_sign(uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 	size_t m_prime_len = 0;
 	uint8_t mldsa_sk[MLDSA44_SECRETKEYBYTES];
 	uint8_t mldsa_pk_dummy[MLDSA44_PUBLICKEYBYTES];
-	uint8_t ed25519_pk[32], ed25519_sk[64];
-	uint8_t mldsa_rnd[32];
+	uint8_t ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES];
+	uint8_t ed25519_sk[crypto_sign_ed25519_SECRETKEYBYTES];
+	uint8_t mldsa_rnd[MLDSA44_SEEDBYTES];
 	unsigned long long smlen;
 	int r = -1;
 
@@ -163,11 +169,11 @@ crypto_sign_mldsa44_ed25519_sign(uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 
 	/* Expand Ed25519 key from seed */
 	if (crypto_sign_ed25519_keypair_from_seed(ed25519_pk, ed25519_sk,
-	    sk + 32) != 0)
+	    sk + MLDSA44_SEEDBYTES) != 0)
 		goto out;
 
 	/* Sign with Ed25519 */
-	uint8_t *sm = malloc(m_prime_len + 64);
+	uint8_t *sm = malloc(m_prime_len + crypto_sign_ed25519_BYTES);
 	if (sm == NULL)
 		goto out;
 
@@ -176,7 +182,7 @@ crypto_sign_mldsa44_ed25519_sign(uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 		free(sm);
 		goto out;
 	}
-	memcpy(sig + MLDSA44_SIGBYTES, sm, 64);
+	memcpy(sig + MLDSA44_SIGBYTES, sm, crypto_sign_ed25519_BYTES);
 	free(sm);
 
 	r = 0;
@@ -211,12 +217,12 @@ crypto_sign_mldsa44_ed25519_verify(const uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 		goto out;
 
 	/* Verify Ed25519 */
-	smlen = m_prime_len + 64;
+	smlen = m_prime_len + crypto_sign_ed25519_BYTES;
 	mlen = smlen;
 	if ((sm = malloc(smlen)) == NULL || (m = malloc(mlen)) == NULL)
 		goto out;
-	memcpy(sm, sig + MLDSA44_SIGBYTES, 64);
-	memcpy(sm + 64, m_prime, m_prime_len);
+	memcpy(sm, sig + MLDSA44_SIGBYTES, crypto_sign_ed25519_BYTES);
+	memcpy(sm + crypto_sign_ed25519_BYTES, m_prime, m_prime_len);
 
 	if (crypto_sign_ed25519_open(m, &mlen, sm, smlen,
 	    pk + MLDSA44_PUBLICKEYBYTES) != 0)
@@ -337,19 +343,15 @@ ssh_mldsa44_ed25519_deserialize_private(const char *ktype, struct sshbuf *b,
 static int
 ssh_mldsa44_ed25519_generate(struct sshkey *k, int bits)
 {
-	free(k->mldsa_ed25519_pk);
-	free(k->mldsa_ed25519_sk);
-	k->mldsa_ed25519_pk = NULL;
-	k->mldsa_ed25519_sk = NULL;
+	ssh_mldsa44_ed25519_cleanup(k);
 	if ((k->mldsa_ed25519_pk = malloc(MLDSA44_ED25519_PK_SZ)) == NULL ||
 	    (k->mldsa_ed25519_sk = malloc(MLDSA44_ED25519_SK_SZ)) == NULL) {
-		free(k->mldsa_ed25519_pk);
+		ssh_mldsa44_ed25519_cleanup(k);
 		return SSH_ERR_ALLOC_FAIL;
 	}
 	if (crypto_sign_mldsa44_ed25519_keygen(k->mldsa_ed25519_pk,
 	    k->mldsa_ed25519_sk) != 0) {
-		free(k->mldsa_ed25519_pk);
-		free(k->mldsa_ed25519_sk);
+		ssh_mldsa44_ed25519_cleanup(k);
 		return SSH_ERR_CRYPTO_ERROR;
 	}
 	return 0;

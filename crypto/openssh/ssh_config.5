@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.426 2026/07/01 00:52:31 djm Exp $
-.Dd $Mdocdate: July 1 2026 $
+.\" $OpenBSD: ssh_config.5,v 1.428 2026/07/11 11:15:03 naddy Exp $
+.Dd $Mdocdate: July 11 2026 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -476,7 +476,8 @@ ssh-ed25519,ecdsa-sha2-nistp256,
 ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
-rsa-sha2-512,rsa-sha2-256
+rsa-sha2-512,rsa-sha2-256,
+ssh-mldsa44-ed25519@openssh.com
 .Ed
 .Pp
 If the specified list begins with a
@@ -1060,12 +1061,14 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
+ssh-mldsa44-ed25519-cert-v01@openssh.com,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
-rsa-sha2-512,rsa-sha2-256
+rsa-sha2-512,rsa-sha2-256,
+ssh-mldsa44-ed25519@openssh.com
 .Ed
 .Pp
 The
@@ -1108,12 +1111,14 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
+ssh-mldsa44-ed25519-cert-v01@openssh.com,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ecdsa-sha2-nistp256@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256@openssh.com
 sk-ssh-ed25519@openssh.com,
-rsa-sha2-512,rsa-sha2-256
+rsa-sha2-512,rsa-sha2-256,
+ssh-mldsa44-ed25519@openssh.com
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
@@ -1203,9 +1208,10 @@ The default is
 .Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ecdsa_sk ,
-.Pa ~/.ssh/id_ed25519
+.Pa ~/.ssh/id_ed25519 ,
+.Pa ~/.ssh/id_ed25519_sk
 and
-.Pa ~/.ssh/id_ed25519_sk .
+.Pa ~/.ssh/id_mldsa44_ed25519 .
 Additionally, any identities represented by the authentication agent
 will be used for authentication unless
 .Cm IdentitiesOnly
@@ -1708,12 +1714,14 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
+ssh-mldsa44-ed25519-cert-v01@openssh.com,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
-rsa-sha2-512,rsa-sha2-256
+rsa-sha2-512,rsa-sha2-256,
+ssh-mldsa44-ed25519@openssh.com
 .Ed
 .Pp
 The list of available signature algorithms may also be obtained using

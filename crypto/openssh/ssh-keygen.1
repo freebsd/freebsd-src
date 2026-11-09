@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.238 2026/07/01 01:14:39 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.240 2026/08/07 05:49:53 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: July 1 2026 $
+.Dd $Mdocdate: August 7 2026 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -209,7 +209,7 @@ key in
 .Pa ~/.ssh/id_ecdsa_sk ,
 .Pa ~/.ssh/id_ed25519 ,
 .Pa ~/.ssh/id_ed25519_sk ,
-.Pa ~/.ssh/id_mldsa44-ed25519
+.Pa ~/.ssh/id_mldsa44_ed25519
 or
 .Pa ~/.ssh/id_rsa .
 Additionally, the system administrator may use this to generate host keys,
@@ -492,6 +492,11 @@ When generating FIDO authenticator-backed keys, the options listed in the
 .Sx FIDO AUTHENTICATOR
 section may be specified.
 .Pp
+When changing the passphrase for an existing key, the options listed in the
+documentation for the
+.Fl p
+flag may be used.
+.Pp
 When performing signature-related options using the
 .Fl Y
 flag, the following options are accepted:
@@ -542,6 +547,32 @@ creating a new private key.
 The program will prompt for the file
 containing the private key, for the old passphrase, and twice for the
 new passphrase.
+.Pp
+Updating the passphrase will cause encrypted keys to be reencrypted,
+allowing the cipher and/or number of KDF rounds (the
+.Fl Z
+and
+.Fl a
+options respectively) to be changed.
+.Pp
+This option may also be used to set or clear FIDO related options via the
+.Fl O
+flag.
+The following FIDO options may be modified:
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm touch-required
+.It Cm no-touch-required
+Add or remove the requirement that signatures made using this key include
+demonstration of user presence (e.g. by having the user touch the
+authenticator).
+.Pp
+.It Cm verify-required
+.It Cm no-verify-required
+Add or remove the requirement for signatures made using this key to first
+verify the user identity, e.g. by PIN or on-token biometrics.
+.El
+.Pp
 .It Fl Q
 Test whether keys have been revoked in a KRL.
 If the
@@ -1301,7 +1332,7 @@ the built-in USB HID support.
 .It Pa ~/.ssh/id_ecdsa_sk
 .It Pa ~/.ssh/id_ed25519
 .It Pa ~/.ssh/id_ed25519_sk
-.It Pa ~/.ssh/id_mldsa44-ed25519
+.It Pa ~/.ssh/id_mldsa44_ed25519
 .It Pa ~/.ssh/id_rsa
 Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
 authenticator-hosted Ed25519 or RSA authentication identity of the user.
@@ -1319,7 +1350,7 @@ will read this file when a login attempt is made.
 .It Pa ~/.ssh/id_ecdsa_sk.pub
 .It Pa ~/.ssh/id_ed25519.pub
 .It Pa ~/.ssh/id_ed25519_sk.pub
-.It Pa ~/.ssh/id_mldsa44-ed25519.pub
+.It Pa ~/.ssh/id_mldsa44_ed25519.pub
 .It Pa ~/.ssh/id_rsa.pub
 Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
 authenticator-hosted Ed25519 or RSA public key for authentication.

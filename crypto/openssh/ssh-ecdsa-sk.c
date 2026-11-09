@@ -32,34 +32,20 @@
 #include <sys/types.h>
 
 #ifdef WITH_OPENSSL
+#include "openbsd-compat/openssl-compat.h"
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
-#endif
 
 #include <string.h>
 #include <stdio.h> /* needed for DEBUG_SK only */
-
-#include "openbsd-compat/openssl-compat.h"
 
 #include "sshbuf.h"
 #include "ssherr.h"
 #include "digest.h"
 #define SSHKEY_INTERNAL
 #include "sshkey.h"
-
-#ifndef OPENSSL_HAS_ECC
-/* ARGSUSED */
-int
-ssh_ecdsa_sk_verify(const struct sshkey *key,
-    const u_char *signature, size_t signaturelen,
-    const u_char *data, size_t datalen, u_int compat,
-    struct sshkey_sig_details **detailsp)
-{
-	return SSH_ERR_FEATURE_UNSUPPORTED;
-}
-#else /* OPENSSL_HAS_ECC */
 
 /* Reuse some ECDSA internals */
 extern struct sshkey_impl_funcs sshkey_ecdsa_funcs;
@@ -502,5 +488,4 @@ const struct sshkey_impl sshkey_ecdsa_sk_webauthn_cert_impl = {
 	/* .keybits = */	256,
 	/* .funcs = */		&sshkey_ecdsa_sk_funcs,
 };
-
-#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */

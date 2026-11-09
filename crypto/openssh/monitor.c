@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.256 2026/05/31 11:30:50 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.258 2026/07/27 12:28:52 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -726,6 +726,7 @@ mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 	int r, is_proof = 0, keyid;
 	u_int compat;
 	const char proof_req[] = "hostkeys-prove-00@openssh.com";
+	static int nhostkey_proofs_done, *hostkey_proofs_done;
 
 	debug3_f("entering");
 
@@ -764,6 +765,17 @@ mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 			fatal_f("bad data length: %zu", datlen);
 		if ((key = get_hostkey_public_by_index(keyid, ssh)) == NULL)
 			fatal_f("no hostkey for index %d", keyid);
+		if (keyid >= nhostkey_proofs_done) {
+			hostkey_proofs_done = xrecallocarray(
+			    hostkey_proofs_done, nhostkey_proofs_done,
+			    keyid + 1, sizeof(*hostkey_proofs_done));
+			nhostkey_proofs_done = keyid + 1;
+		}
+		if (hostkey_proofs_done[keyid]) {
+			fatal_f("hostkeys proof requested for %s key %d "
+			    "multiple times", sshkey_type(key), keyid);
+		}
+		hostkey_proofs_done[keyid] = 1;
 		if ((sigbuf = sshbuf_new()) == NULL)
 			fatal_f("sshbuf_new");
 		if ((r = sshbuf_put_cstring(sigbuf, proof_req)) != 0 ||
@@ -1872,10 +1884,9 @@ monitor_apply_keystate(struct ssh *ssh, struct monitor *pmonitor)
 	kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_server;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 	kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
-# ifdef OPENSSL_HAS_ECC
 	kex->kex[KEX_ECDH_SHA2] = kex_gen_server;
-# endif
-#endif /* WITH_OPENSSL */
+	kex->kex[KEX_KEM_MLKEM768ECDH_SHA256] = kex_gen_server;
+#endif
 	kex->kex[KEX_C25519_SHA256] = kex_gen_server;
 	kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_server;
 	kex->kex[KEX_KEM_MLKEM768X25519_SHA256] = kex_gen_server;
