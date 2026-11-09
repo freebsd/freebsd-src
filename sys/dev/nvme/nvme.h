@@ -2315,8 +2315,9 @@ void	nvme_admin_format_cmd(struct nvme_command *cmd, uint32_t nsid,
 {
 	cmd->opc = NVME_OPC_FORMAT_NVM;
 	cmd->nsid = htole32(nsid);
-	cmd->cdw10 = htole32((ses << 9) | (pil << 8) | (pi << 5) | (mset << 4) |
-			      lbaf);
+	cmd->cdw10 = htole32(((lbaf & 0x30) << 8) | ((ses & 0x7) << 9) |
+	    ((pil & 0x1) << 8) | ((pi & 0x7) << 5) | ((mset & 0x1) << 4) |
+	    (lbaf & 0x0f));
 }
 
 static inline
