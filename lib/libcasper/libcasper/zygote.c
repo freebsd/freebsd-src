@@ -194,7 +194,7 @@ zygote_init(void)
 	if (socketpair(PF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sp) == -1)
 		return (-1);
 
-	pid = pdfork(&pfd, PD_NOWAITPID);
+	pid = casper_pdfork(&pfd);
 	switch (pid) {
 	case -1:
 		/* Failure. */
