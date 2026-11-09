@@ -813,7 +813,6 @@ nvme_get_data(struct cam_device *dev, int nvme_data_type, void *data,
 	ccb = cam_getccb(dev);
 	if (ccb == NULL) {
 		warnx("couldn't allocate CCB");
-		cam_close_device(dev);
 		return (1);
 	}
 
@@ -840,7 +839,6 @@ nvme_get_data(struct cam_device *dev, int nvme_data_type, void *data,
 	return 0;
 
 bailout_error:
-	cam_close_device(dev);
 	return (1);
 }
 
@@ -858,8 +856,10 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 		return (1);
 	}
 
-	if (nvme_get_data(dev, CDAI_TYPE_NVME_CNTRL, &cdata, sizeof(cdata)))
+	if (nvme_get_data(dev, CDAI_TYPE_NVME_CNTRL, &cdata, sizeof(cdata))) {
+		cam_close_device(dev);
 		return (1);
+	}
 
 	cam_strvis(vendor, cdata.mn, sizeof(cdata.mn), sizeof(vendor));
 	cam_strvis(product, cdata.fr, sizeof(cdata.fr), sizeof(product));
