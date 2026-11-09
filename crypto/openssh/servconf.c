@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.451 2026/07/07 01:00:22 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.452 2026/07/11 11:16:47 naddy Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -319,10 +319,8 @@ fill_default_server_options(ServerOptions *options)
 		/* fill default hostkeys */
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_RSA_KEY_FILE, 0);
-#ifdef OPENSSL_HAS_ECC
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_ECDSA_KEY_FILE, 0);
-#endif
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_ED25519_KEY_FILE, 0);
 		servconf_add_hostkey(defaultkey, 0, options,
@@ -4161,13 +4159,13 @@ format_listen_addrs(struct listenaddr *la)
 		}
 		laddr2 = laddr1;
 		if (ai->ai_family == AF_INET6) {
-			xasprintf(&laddr1, "listenaddress [%s]:%s%s%s\n%s",
+			xasprintf(&laddr1, "ListenAddress [%s]:%s%s%s\n%s",
 			    addr, port,
 			    la->rdomain == NULL ? "" : " rdomain ",
 			    la->rdomain == NULL ? "" : la->rdomain,
 			    laddr2);
 		} else {
-			xasprintf(&laddr1, "listenaddress %s:%s%s%s\n%s",
+			xasprintf(&laddr1, "ListenAddress %s:%s%s%s\n%s",
 			    addr, port,
 			    la->rdomain == NULL ? "" : " rdomain ",
 			    la->rdomain == NULL ? "" : la->rdomain,
@@ -4186,7 +4184,7 @@ dump_config(ServerOptions *o)
 
 	/* these are usually at the top of the config */
 	for (i = 0; i < o->num_ports; i++)
-		printf("port %d\n", o->ports[i]);
+		printf("Port %d\n", o->ports[i]);
 	dump_cfg_fmtint(sAddressFamily, o->address_family);
 
 	for (i = 0; i < o->num_listen_addrs; i++) {
@@ -4318,17 +4316,17 @@ dump_config(ServerOptions *o)
 
 	/* other arguments */
 	for (i = 0; i < o->num_subsystems; i++)
-		printf("subsystem %s %s\n", o->subsystem_name[i],
+		printf("Subsystem %s %s\n", o->subsystem_name[i],
 		    o->subsystem_args[i]);
 
-	printf("maxstartups %d:%d:%d\n", o->max_startups_begin,
+	printf("MaxStartups %d:%d:%d\n", o->max_startups_begin,
 	    o->max_startups_rate, o->max_startups);
-	printf("persourcemaxstartups ");
+	printf("PerSourceMaxStartups ");
 	if (o->per_source_max_startups == INT_MAX)
 		printf("none\n");
 	else
 		printf("%d\n", o->per_source_max_startups);
-	printf("persourcenetblocksize %d:%d\n", o->per_source_masklen_ipv4,
+	printf("PerSourceNetBlockSize %d:%d\n", o->per_source_masklen_ipv4,
 	    o->per_source_masklen_ipv6);
 
 	s = NULL;
@@ -4340,13 +4338,13 @@ dump_config(ServerOptions *o)
 	}
 	dump_cfg_string(sPermitTunnel, s);
 
-	printf("ipqos %s ", iptos2str(o->ip_qos_interactive));
+	printf("IPQoS %s ", iptos2str(o->ip_qos_interactive));
 	printf("%s\n", iptos2str(o->ip_qos_bulk));
 
-	printf("rekeylimit %llu %d\n", (unsigned long long)o->rekey_limit,
+	printf("RekeyLimit %llu %d\n", (unsigned long long)o->rekey_limit,
 	    o->rekey_interval);
 
-	printf("permitopen");
+	printf("PermitOpen");
 	if (o->num_permitted_opens == 0)
 		printf(" any");
 	else {
@@ -4354,7 +4352,7 @@ dump_config(ServerOptions *o)
 			printf(" %s", o->permitted_opens[i]);
 	}
 	printf("\n");
-	printf("permitlisten");
+	printf("PermitListen");
 	if (o->num_permitted_listens == 0)
 		printf(" any");
 	else {
@@ -4366,11 +4364,11 @@ dump_config(ServerOptions *o)
 	if (o->permit_user_env_allowlist == NULL) {
 		dump_cfg_fmtint(sPermitUserEnvironment, o->permit_user_env);
 	} else {
-		printf("permituserenvironment %s\n",
+		printf("PermitUserEnvironment %s\n",
 		    o->permit_user_env_allowlist);
 	}
 
-	printf("pubkeyauthoptions");
+	printf("PubkeyAuthOptions");
 	if (o->pubkey_auth_options == 0)
 		printf(" none");
 	if (o->pubkey_auth_options & PUBKEYAUTH_TOUCH_REQUIRED)
@@ -4380,7 +4378,7 @@ dump_config(ServerOptions *o)
 	printf("\n");
 
 	if (o->per_source_penalty.enabled) {
-		printf("persourcepenalties crash:%f authfail:%f noauth:%f "
+		printf("PerSourcePenalties crash:%f authfail:%f noauth:%f "
 		    "invaliduser:%f "
 		    "grace-exceeded:%f refuseconnection:%f max:%f min:%f "
 		    "max-sources4:%d max-sources6:%d "
@@ -4402,5 +4400,5 @@ dump_config(ServerOptions *o)
 		    PER_SOURCE_PENALTY_OVERFLOW_DENY_ALL ?
 		    "deny-all" : "permissive");
 	} else
-		printf("persourcepenalties no\n");
+		printf("PerSourcePenalties no\n");
 }

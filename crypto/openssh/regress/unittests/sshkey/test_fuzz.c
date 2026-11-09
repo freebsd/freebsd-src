@@ -18,11 +18,9 @@
 
 #ifdef WITH_OPENSSL
 #include <openssl/bn.h>
+#include <openssl/ec.h>
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
-#ifdef OPENSSL_HAS_NISTP256
-# include <openssl/ec.h>
-#endif
 #endif
 
 #include "../test_helper/test_helper.h"
@@ -160,7 +158,7 @@ sshkey_fuzz_tests(void)
 	fuzz_cleanup(fuzz);
 	TEST_DONE();
 
-#ifdef OPENSSL_HAS_ECC
+
 	TEST_START("fuzz ECDSA private");
 	buf = load_file("ecdsa_1");
 	fuzz = fuzz_begin(FUZZ_BASE64, sshbuf_mutable_ptr(buf),
@@ -204,7 +202,6 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
 	TEST_DONE();
-#endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 
 	TEST_START("fuzz Ed25519 private");
@@ -270,7 +267,7 @@ sshkey_fuzz_tests(void)
 	sshkey_free(k1);
 	TEST_DONE();
 
-#ifdef OPENSSL_HAS_ECC
+
 	TEST_START("fuzz ECDSA public");
 	buf = load_file("ecdsa_1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
@@ -284,7 +281,6 @@ sshkey_fuzz_tests(void)
 	public_fuzz(k1);
 	sshkey_free(k1);
 	TEST_DONE();
-#endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 
 	TEST_START("fuzz Ed25519 public");
@@ -341,7 +337,7 @@ sshkey_fuzz_tests(void)
 	sshkey_free(k1);
 	TEST_DONE();
 
-#ifdef OPENSSL_HAS_ECC
+
 	TEST_START("fuzz ECDSA sig");
 	buf = load_file("ecdsa_1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
@@ -349,7 +345,6 @@ sshkey_fuzz_tests(void)
 	sig_fuzz(k1, NULL);
 	sshkey_free(k1);
 	TEST_DONE();
-#endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 
 	TEST_START("fuzz Ed25519 sig");

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd-session.c,v 1.24 2026/06/14 03:59:34 djm Exp $ */
+/* $OpenBSD: sshd-session.c,v 1.25 2026/07/09 02:20:19 djm Exp $ */
 /*
  * SSH2 implementation:
  * Privilege Separation:
@@ -1251,6 +1251,8 @@ main(int ac, char **av)
 		fatal("privsep_preauth failed");
 
 	/* Now user is authenticated */
+
+	setproctitle("%s [postauth]", authctxt->user);
 
 	/*
 	 * Cancel the alarm we set to limit the time taken for

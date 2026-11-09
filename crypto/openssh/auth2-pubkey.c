@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.126 2026/04/02 07:48:13 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.127 2026/07/30 03:37:39 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -140,6 +140,11 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		verbose_f("unsupported public key algorithm: %s", pkalg);
 		goto done;
 	}
+	if (match_pattern_list(pkalg, options.pubkey_accepted_algos, 0) != 1) {
+		logit_f("signature algorithm %s not in "
+		    "PubkeyAcceptedAlgorithms", pkalg);
+		goto done;
+	}
 	if ((r = sshkey_from_blob(pkblob, blen, &key)) != 0) {
 		error_fr(r, "parse key");
 		goto done;
@@ -156,11 +161,6 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 	}
 	if (auth2_key_already_used(authctxt, key)) {
 		logit("refusing previously-used %s key", sshkey_type(key));
-		goto done;
-	}
-	if (match_pattern_list(pkalg, options.pubkey_accepted_algos, 0) != 1) {
-		logit_f("signature algorithm %s not in "
-		    "PubkeyAcceptedAlgorithms", pkalg);
 		goto done;
 	}
 	if ((r = sshkey_check_cert_sigtype(key,

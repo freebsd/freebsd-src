@@ -13,9 +13,9 @@ name: CI
 
 on:
   push:
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/*.sh', '.github/workflows/c-cpp.yml' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', 'regress/Makefile', '.github/configs', '.github/*.sh', '.github/workflows/c-cpp.yml' ]
   pull_request:
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/*.sh', '.github/workflows/c-cpp.yml' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', 'regress/Makefile', '.github/configs', '.github/*.sh', '.github/workflows/c-cpp.yml' ]
 
 jobs:
   ci:
@@ -86,7 +86,6 @@ jobs:
           - { target: ubuntu-latest, config: libressl-4.2.0 }
           - { target: ubuntu-latest, config: libressl-4.3.2 }
           - { target: ubuntu-latest, config: openssl-master }
-          - { target: ubuntu-latest, config: openssl-noec }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
           - { target: ubuntu-latest, config: openssl-1.1.1t }
           - { target: ubuntu-latest, config: openssl-1.1.1w }

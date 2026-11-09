@@ -147,18 +147,14 @@ for TARGET in $TARGETS; do
 	;;
     hardenedmalloc)
 	INSTALL_HARDENED_MALLOC=yes
-	# Need clang >= 19 for constexpr.
-	PACKAGES="$PACKAGES clang-19"
+	# Need clang >= 19 for constexpr and >= 20 for avx10.1-512
+	PACKAGES="$PACKAGES clang-20"
 	;;
     musl)
 	PACKAGES="$PACKAGES musl-tools"
 	;;
     tcmalloc)
 	PACKAGES="$PACKAGES libgoogle-perftools-dev"
-	;;
-    openssl-noec)
-	INSTALL_OPENSSL=OpenSSL_1_1_1k
-	SSLCONFOPTS="no-ec"
 	;;
     openssl-*)
 	INSTALL_OPENSSL=$(echo ${TARGET} | cut -f2 -d-)
@@ -247,7 +243,8 @@ if [ "${INSTALL_HARDENED_MALLOC}" = "yes" ]; then
     (cd ${HOME} &&
      git clone https://github.com/GrapheneOS/hardened_malloc.git &&
      cd ${HOME}/hardened_malloc &&
-     make CC=clang-19 && sudo cp out/libhardened_malloc.so /usr/lib/)
+     clang-20 --version &&
+     make CC=clang-20 && sudo cp out/libhardened_malloc.so /usr/lib/)
 fi
 
 if [ ! -z "${INSTALL_OPENSSL}" ]; then

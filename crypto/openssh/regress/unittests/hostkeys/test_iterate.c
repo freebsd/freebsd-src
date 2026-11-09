@@ -87,11 +87,6 @@ check(struct hostkey_foreach_line *l, void *_ctx)
 	expected_keytype = (parse_key || expected->no_parse_keytype < 0) ?
 	    expected->l.keytype : expected->no_parse_keytype;
 
-#ifndef OPENSSL_HAS_ECC
-	if (expected->l.keytype == KEY_ECDSA ||
-	    expected->no_parse_keytype == KEY_ECDSA)
-		skip = 1;
-#endif /* OPENSSL_HAS_ECC */
 #ifndef WITH_OPENSSL
 	if (expected->l.keytype == KEY_RSA ||
 	    expected->no_parse_keytype == KEY_RSA ||
@@ -147,10 +142,6 @@ prepare_expected(struct expected *expected, size_t n)
 	for (i = 0; i < n; i++) {
 		if (expected[i].key_file == NULL)
 			continue;
-#ifndef OPENSSL_HAS_ECC
-		if (expected[i].l.keytype == KEY_ECDSA)
-			continue;
-#endif /* OPENSSL_HAS_ECC */
 #ifndef WITH_OPENSSL
 		switch (expected[i].l.keytype) {
 		case KEY_RSA:

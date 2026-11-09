@@ -25,9 +25,7 @@
 #include <openssl/evp.h>
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
-#ifdef OPENSSL_HAS_ECC
 #include <openssl/ecdsa.h>
-#endif
 #include <openssl/dh.h>
 
 int ssh_compatible_openssl(long, long);

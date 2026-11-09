@@ -1,7 +1,7 @@
 #!/bin/sh
 #
-# fixciphers - remove unsupported ciphers from man pages.
-# Usage: fixpaths /path/to/sed cipher1 [cipher2] <infile >outfile 
+# fixalgorithms - remove unsupported ciphers from man pages.
+# Usage: fixalgorithms /path/to/sed cipher1 [cipher2] <infile >outfile
 #
 # Author: Darren Tucker (dtucker at zip com.au).  Placed in the public domain.
 

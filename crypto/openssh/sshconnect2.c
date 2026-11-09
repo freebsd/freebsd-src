@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.388 2026/07/06 07:49:58 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.393 2026/08/08 07:25:55 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -227,9 +227,8 @@ ssh_kex2(struct ssh *ssh, char *host, struct sockaddr_storage *hostaddr,
 	xxx_hostaddr = *hostaddr;
 	xxx_conn_info = ssh_conn_info_dup(cinfo);
 
-	if (options.rekey_limit || options.rekey_interval)
-		ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
-		    options.rekey_interval);
+	ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
+	    options.rekey_interval);
 
 	/*
 	 * If the user has not specified HostkeyAlgorithms, or has only
@@ -271,13 +270,12 @@ ssh_kex2(struct ssh *ssh, char *host, struct sockaddr_storage *hostaddr,
 	ssh->kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_client;
 	ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
-# ifdef OPENSSL_HAS_ECC
 	ssh->kex->kex[KEX_ECDH_SHA2] = kex_gen_client;
-# endif
 #endif
 	ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_client;
 	ssh->kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_client;
 	ssh->kex->kex[KEX_KEM_MLKEM768X25519_SHA256] = kex_gen_client;
+	ssh->kex->kex[KEX_KEM_MLKEM768ECDH_SHA256] = kex_gen_client;
 	ssh->kex->verify_host_key=&verify_host_key_callback;
 
 	ssh_dispatch_run_fatal(ssh, DISPATCH_BLOCK, &ssh->kex->done);
@@ -1650,11 +1648,13 @@ get_agent_identities(struct ssh *ssh, int *agent_fdp,
 			debug_fr(r, "ssh_get_authentication_socket");
 		return r;
 	}
-	if ((r = ssh_agent_bind_hostkey(agent_fd, ssh->kex->initial_hostkey,
-	    ssh->kex->session_id, ssh->kex->initial_sig, 0)) == 0)
-		debug_f("bound agent to hostkey");
-	else
-		debug2_fr(r, "ssh_agent_bind_hostkey");
+	if (ssh != NULL && ssh->kex != NULL) {
+		if ((r = ssh_agent_bind_hostkey(agent_fd, ssh->kex->initial_hostkey,
+		    ssh->kex->session_id, ssh->kex->initial_sig, 0)) == 0)
+			debug_f("bound agent to hostkey");
+		else
+			debug2_fr(r, "ssh_agent_bind_hostkey");
+	}
 
 	if ((r = ssh_fetch_identitylist(agent_fd, &idlist)) != 0) {
 		debug_fr(r, "ssh_fetch_identitylist");
@@ -1669,18 +1669,108 @@ get_agent_identities(struct ssh *ssh, int *agent_fdp,
 }
 
 /*
+ * Returns nonzero if the certificate extensions/critical-options section
+ * has the specified option present, zero otherwise.
+ */
+static int
+cert_has_option(struct sshbuf *oblob, const char *target)
+{
+	struct sshbuf *c = NULL, *data = NULL;
+	char *name = NULL;
+	int r, found = 0;
+
+	if (oblob == NULL || (c = sshbuf_fromb(oblob)) == NULL)
+		return 0;
+	while (sshbuf_len(c) > 0) {
+		sshbuf_free(data);
+		data = NULL;
+		free(name);
+		name = NULL;
+		if ((r = sshbuf_get_cstring(c, &name, NULL)) != 0 ||
+		    (r = sshbuf_froms(c, &data)) != 0)
+			break;
+		if (strcmp(name, target) == 0) {
+			found = 1;
+			break;
+		}
+	}
+	sshbuf_free(data);
+	free(name);
+	sshbuf_free(c);
+	return found;
+}
+
+/*
+ * Returns an integer describing the priority of the identity
+ * within its group. Lower numbers are higher priority.
+ */
+#define MAX_ID_PRIORITY 3
+static int
+identity_prioritise(struct identity *id)
+{
+	if (id == NULL || id->key == NULL)
+		return 3;
+	if (!sshkey_is_cert(id->key) || id->key->cert == NULL)
+		return 3;
+	if (sshkey_is_sk(id->key) &&
+	    cert_has_option(id->key->cert->critical, "verify-required"))
+		return 2;
+	if (sshkey_is_sk(id->key) &&
+	    cert_has_option(id->key->cert->extensions, "no-touch-required"))
+		return 0;
+	return 1;
+}
+
+static void
+order_identities_by_prio(struct idlist *list)
+{
+	struct idlist prio[MAX_ID_PRIORITY + 1], sorted;
+	struct identity *id, *tmp, *dummy;
+	int p;
+
+	for (p = 0; p <= MAX_ID_PRIORITY; p++)
+		TAILQ_INIT(&prio[p]);
+	TAILQ_INIT(&sorted);
+
+	TAILQ_FOREACH_SAFE(id, list, next, tmp) {
+		if (id->userprovided)
+			continue;
+		dummy = xcalloc(1, sizeof(*dummy));
+		dummy->userprovided = -1;
+		TAILQ_INSERT_BEFORE(id, dummy, next);
+		TAILQ_REMOVE(list, id, next);
+		p = identity_prioritise(id);
+		if (p < 0 || p > MAX_ID_PRIORITY)
+			fatal_f("internal error: bad priority");
+		TAILQ_INSERT_TAIL(&prio[p], id, next);
+	}
+	for (p = 0; p <= MAX_ID_PRIORITY; p++)
+		TAILQ_CONCAT(&sorted, &prio[p], next);
+
+	TAILQ_FOREACH_SAFE(id, list, next, tmp) {
+		if (id->userprovided != -1)
+			continue;
+		struct identity *s = TAILQ_FIRST(&sorted);
+		TAILQ_REMOVE(&sorted, s, next);
+		TAILQ_INSERT_BEFORE(id, s, next);
+		TAILQ_REMOVE(list, id, next);
+		free(id);
+	}
+}
+
+/*
  * try keys in the following order:
  *	1. certificates listed in the config file
- *	2. other input certificates
- *	3. agent keys that are found in the config file
- *	4. other agent keys
+ *	2. agent keys that are found in the config file
+ *	3. other agent keys
+ *	4. PKCS#11 keys that are found in the config file
  *	5. keys that are only listed in the config file
  */
 static void
 pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 {
 	struct identity *id, *id2, *tmp;
-	struct idlist agent, files, *preferred;
+	struct idlist agent, files, certs, agent_keys, *preferred;
 	struct sshkey *key;
 	int disallowed, agent_fd = -1, i, r, found;
 	size_t j;
@@ -1689,6 +1779,8 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 
 	TAILQ_INIT(&agent);	/* keys from the agent */
 	TAILQ_INIT(&files);	/* keys from the config file */
+	TAILQ_INIT(&certs);	/* certificates specified by user */
+	TAILQ_INIT(&agent_keys); /* keys supported by the agent */
 	preferred = &authctxt->keys;
 	TAILQ_INIT(preferred);	/* preferred order of keys */
 
@@ -1715,6 +1807,7 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 		id->userprovided = options.identity_file_userprovided[i];
 		TAILQ_INSERT_TAIL(&files, id, next);
 	}
+
 	/* list of certificates specified by user */
 	for (i = 0; i < options.num_certificate_files; i++) {
 		key = options.certificates[i];
@@ -1736,8 +1829,11 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 		id->key = key;
 		id->filename = xstrdup(options.certificate_files[i]);
 		id->userprovided = options.certificate_file_userprovided[i];
-		TAILQ_INSERT_TAIL(preferred, id, next);
+		TAILQ_INSERT_TAIL(&certs, id, next);
 	}
+	order_identities_by_prio(&certs);
+	TAILQ_CONCAT(preferred, &certs, next);
+
 	/* list of keys supported by the agent */
 	if ((r = get_agent_identities(ssh, &agent_fd, &idlist)) == 0) {
 		for (j = 0; j < idlist->nkeys; j++) {
@@ -1755,7 +1851,7 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 				 */
 				if (sshkey_equal(idlist->keys[j], id->key)) {
 					TAILQ_REMOVE(&files, id, next);
-					TAILQ_INSERT_TAIL(preferred, id, next);
+					TAILQ_INSERT_TAIL(&agent_keys, id, next);
 					id->agent_fd = agent_fd;
 					found = 1;
 					break;
@@ -1774,7 +1870,9 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 		}
 		ssh_free_identitylist(idlist);
 		/* append remaining agent keys */
-		TAILQ_CONCAT(preferred, &agent, next);
+		TAILQ_CONCAT(&agent_keys, &agent, next);
+		order_identities_by_prio(&agent_keys);
+		TAILQ_CONCAT(preferred, &agent_keys, next);
 		authctxt->agent_fd = agent_fd;
 	}
 	/* Prefer PKCS11 keys that are explicitly listed */
@@ -1799,6 +1897,7 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 			freezero(id, sizeof(*id));
 		}
 	}
+	order_identities_by_prio(&files);
 	/* append remaining keys from the config file */
 	TAILQ_CONCAT(preferred, &files, next);
 	/* finally, filter by PubkeyAcceptedAlgorithms */
@@ -1812,7 +1911,8 @@ pubkey_prepare(struct ssh *ssh, Authctxt *authctxt)
 			    "not in PubkeyAcceptedAlgorithms",
 			    sshkey_ssh_name(id->key), id->filename);
 			disallowed = 1;
-		} else if (ssh->kex->server_sig_algs != NULL &&
+		} else if (ssh != NULL && ssh->kex != NULL &&
+		    ssh->kex->server_sig_algs != NULL &&
 		    (cp = key_sig_algorithm(ssh, id->key)) == NULL) {
 			debug("Skipping %s key %s - corresponding algorithm "
 			    "not supported by server",
@@ -1854,6 +1954,27 @@ pubkey_cleanup(struct ssh *ssh)
 		free(id->filename);
 		free(id);
 	}
+}
+
+void
+pubkey_dump(struct ssh *ssh)
+{
+	Authctxt authctxt;
+	Identity *id;
+	char *ident;
+
+	memset(&authctxt, 0, sizeof(authctxt));
+	authctxt.agent_fd = -1;
+	ssh->authctxt = &authctxt;
+
+	pubkey_prepare(ssh, &authctxt);
+	TAILQ_FOREACH(id, &authctxt.keys, next) {
+		ident = format_identity(id);
+		fprintf(stdout, "%s\n", ident);
+		free(ident);
+	}
+	pubkey_cleanup(ssh);
+	ssh->authctxt = NULL;
 }
 
 static void

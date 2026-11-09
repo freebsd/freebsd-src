@@ -31,15 +31,6 @@
 #include <sha2.h>
 #endif
 
-/*
- * Almost every use of OpenSSL in this file is for ECDSA-NISTP256.
- * This is strictly a larger hammer than necessary, but it reduces changes
- * with upstream.
- */
-#ifndef OPENSSL_HAS_ECC
-# undef WITH_OPENSSL
-#endif
-
 #ifdef WITH_OPENSSL
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
