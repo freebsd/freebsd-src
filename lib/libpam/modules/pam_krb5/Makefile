@@ -61,7 +61,7 @@ SRCS=	account.c \
 MANNODEV=	pam_krb5.8
 MANSRC.pam_krb5.8=pam-krb5.8
 
-CFLAGS=	-I${SRCDIR} \
+CFLAGS+=-I${SRCDIR} \
 	-I${.CURDIR} \
 	-I${OBJTOP}/krb5/util/profile \
 	-fno-strict-aliasing \
