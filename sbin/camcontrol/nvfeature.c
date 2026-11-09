@@ -208,8 +208,7 @@ nvfeature_print_caps(union ccb *ccb, const char *msg)
 }
 
 static int
-nvfeature_print_hostid(struct cam_device *device, uint8_t *hostid,
-	int sel, int output_uuid)
+nvfeature_print_hostid(uint8_t *hostid, int sel, int exhid, int output_uuid)
 {
 	int error = 0;
 	char *hostid_str = NULL;
@@ -226,16 +225,7 @@ nvfeature_print_hostid(struct cam_device *device, uint8_t *hostid,
 			goto bailout;
 		}
 	} else {
-		int exhid;
 		struct sbuf *hostid_sbuf;
-		struct nvme_controller_data cdata;
-
-		error = nvme_get_data(device, CDAI_TYPE_NVME_CNTRL,
-				&cdata, sizeof(cdata));
-		if (error != 0) {
-			goto bailout;
-		}
-		exhid = cdata.ctratt & NVME_CD_CTRATT_EXHID;
 
 		hostid_sbuf = sbuf_new(NULL, NULL, 64, SBUF_FIXEDLEN);
 		if (hostid_sbuf == NULL) {
@@ -265,14 +255,46 @@ nvmefeature_get_hostid(struct cam_device *device, int sel, int verbosemode,
 		       int timeout)
 {
 	union ccb *ccb = NULL;
+	struct nvme_controller_data cdata;
 	uint8_t hostid[16];
 	uint8_t *data = NULL;
 	uint32_t datalen = 0;
+	int exhid = 0;
 	int error = 0;
 
 	if (! nvfeature_validate_select(sel)) {
 		error = 1;
 		goto bailout;
+	}
+
+	/* Getting capabilities does not output as uuid nor
+	 * is the data buffer (hostid) used/needed
+	 */
+	if (sel == NVME_FEAT_SEL_CAPABILITIES) {
+		output_uuid = 0;
+	} else {
+		/*
+		 * Request and decode the form of the host identifier
+		 * (64-bit or extended 128-bit) that the controller
+		 * supports.
+		 */
+		error = nvme_get_data(device, CDAI_TYPE_NVME_CNTRL, &cdata,
+		    sizeof(cdata));
+		if (error != 0)
+			goto bailout;
+		exhid = (cdata.ctratt & NVME_CD_CTRATT_EXHID) ? 1 : 0;
+
+		if (output_uuid == 1 && exhid == 0) {
+			warnx("%s: -U requires a 128-bit host identifier, "
+			    "which this controller does not support",
+			    __func__);
+			error = 1;
+			goto bailout;
+		}
+
+		bzero(hostid, sizeof(hostid));
+		data = hostid;
+		datalen = exhid ? 16 : 8;
 	}
 
 	ccb = cam_getccb(device);
@@ -283,20 +305,11 @@ nvmefeature_get_hostid(struct cam_device *device, int sel, int verbosemode,
 	}
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
-	/* Getting capabilities does not output as uuid nor
-	 * is the data buffer (hostid) used/needed
-	 */
-	if (sel == NVME_FEAT_SEL_CAPABILITIES) {
-		output_uuid = 0;
-	} else {
-		bzero(hostid, sizeof(hostid));
-		data = hostid;
-		datalen = sizeof(hostid);
-	}
 	nvme_get_feature_hostid(/*nvmeio*/ &ccb->nvmeio,
 				/*retries*/ retry_count,
 				/*cbfcnp*/ NULL,
 				/*sel*/ sel,
+				/*exhid*/ exhid,
 				/*uuid_idx*/ 0,
 				/*hostid*/ data,
 				/*dxfer_len*/ datalen,
@@ -322,7 +335,7 @@ nvmefeature_get_hostid(struct cam_device *device, int sel, int verbosemode,
 	if (sel == NVME_FEAT_SEL_CAPABILITIES) {
 		error = nvfeature_print_caps(ccb, "Host ID capabilities:");
 	} else {
-		error = nvfeature_print_hostid(device, hostid, sel,
+		error = nvfeature_print_hostid(hostid, sel, exhid,
 				output_uuid);
 	}
 
