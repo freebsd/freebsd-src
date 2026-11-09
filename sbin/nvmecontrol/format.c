@@ -190,7 +190,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	struct nvme_pt_command		pt;
 	char				*path;
 	const char			*target;
-	uint32_t			cdw10, nsid, scan_nsid;
+	uint32_t			nsid, scan_nsid;
 	int				lbaf, ms, pi, pil, ses, fd;
 	u_int				i;
 	uint32_t			sector_size;
@@ -312,6 +312,8 @@ format(const struct cmd *f, int argc, char *argv[])
 		}
 		if (lbaf < 0)
 			lbaf = 0;
+		else if (lbaf > 63)
+			errx(EX_USAGE, "LBA format is out of range");
 		if (ms < 0)
 			ms = 0;
 		if (pi < 0)
@@ -320,19 +322,16 @@ format(const struct cmd *f, int argc, char *argv[])
 			pil = 0;
 	}
 
-	cdw10 = (ses << 9) + (pil << 8) + (pi << 5) + (ms << 4) + lbaf;
+	memset(&pt, 0, sizeof(pt));
+	nvme_admin_format_cmd(&pt.cmd, nsid, ses, pil, pi, ms, lbaf);
 	if (opt.dry_run) {
 		printf("Format NVM: opc=%#x nsid=%#010x cdw10=%#010x "
 		    "(lbaf=%d mset=%d pi=%d pil=%d ses=%d)\n",
-		    NVME_OPC_FORMAT_NVM, nsid, cdw10, lbaf, ms, pi, pil, ses);
+		    NVME_OPC_FORMAT_NVM, nsid, le32toh(pt.cmd.cdw10), lbaf,
+		    ms, pi, pil, ses);
 		close(fd);
 		exit(0);
 	}
-
-	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_FORMAT_NVM;
-	pt.cmd.nsid = htole32(nsid);
-	pt.cmd.cdw10 = htole32(cdw10);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "format request failed");
