@@ -5156,7 +5156,6 @@ ipf_nat_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 
 		if (ip->ip_p == IPPROTO_UDP) {
 			uh = (udphdr_t *)(ip + 1);
-			uh->uh_ulen = ntohs(uh->uh_ulen);
 			uh->uh_ulen += fin->fin_plen;
 			uh->uh_ulen = htons(uh->uh_ulen);
 		}
