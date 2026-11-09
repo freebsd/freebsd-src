@@ -2274,7 +2274,8 @@ void	nvme_ns_resv_report_cmd(struct nvme_command *cmd, uint32_t nsid,
 {
 	cmd->opc = NVME_OPC_RESERVATION_REPORT;
 	cmd->nsid = htole32(nsid);
-	cmd->cdw10 = htole32(length);
+	/* NUMD is a 0's based count of dwords; length is in bytes. */
+	cmd->cdw10 = htole32(length / 4 - 1);
 	cmd->cdw11 = htole32(report_type);
 }
 
