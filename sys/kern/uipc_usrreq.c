@@ -2659,6 +2659,7 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 	struct unpcb *unp = sotounpcb(so);
 	int error;
 
+	UNP_PCB_LOCK(unp);
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
 		if (how != SHUT_WR) {
@@ -2666,6 +2667,7 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 			solisten_wakeup(so);    /* unlocks so */
 		} else
 			SOCK_UNLOCK(so);
+		UNP_PCB_UNLOCK(unp);
 		return (ENOTCONN);
 	} else if ((so->so_state &
 	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
@@ -2685,36 +2687,30 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 		error = ENOTCONN;
 		if (so->so_type != SOCK_DGRAM) {
 			SOCK_UNLOCK(so);
+			UNP_PCB_UNLOCK(unp);
 			return (error);
 		}
 	} else
 		error = 0;
 	SOCK_UNLOCK(so);
 
-	switch (how) {
-	case SHUT_RD:
-		if (so->so_type == SOCK_DGRAM)
-			socantrcvmore(so);
-		else
-			uipc_cantrcvmore(so);
-		unp_dispose(so);
-		break;
-	case SHUT_RDWR:
-		if (so->so_type == SOCK_DGRAM)
-			socantrcvmore(so);
-		else
-			uipc_cantrcvmore(so);
-		unp_dispose(so);
-		/* FALLTHROUGH */
-	case SHUT_WR:
+	if (how == SHUT_WR || how == SHUT_RDWR) {
 		if (so->so_type == SOCK_DGRAM) {
 			socantsendmore(so);
 		} else {
-			UNP_PCB_LOCK(unp);
 			if (unp->unp_conn != NULL)
 				uipc_cantrcvmore(unp->unp_conn->unp_socket);
-			UNP_PCB_UNLOCK(unp);
 		}
+	}
+	if (how == SHUT_RD || how == SHUT_RDWR) {
+		if (so->so_type == SOCK_DGRAM)
+			socantrcvmore(so);
+		else
+			uipc_cantrcvmore(so);
+		UNP_PCB_UNLOCK(unp);
+		unp_dispose(so);
+	} else {
+		UNP_PCB_UNLOCK(unp);
 	}
 	wakeup(&so->so_timeo);
 
@@ -4290,18 +4286,21 @@ unp_dispose(struct socket *so)
 	struct mbuf *m;
 	int error __diagused;
 
-	MPASS(!SOLISTENING(so));
+	/*
+	 * Grab our special mbufs before calling sbrelease().
+	 */
+	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
+	if (error != 0) {
+		KASSERT(SOLISTENING(so),
+		    ("%s: socket %p is not listening", __func__, so));
+		return;
+	}
 
 	unp = sotounpcb(so);
 	UNP_LINK_WLOCK();
 	unp->unp_gcflag |= UNPGC_IGNORE_RIGHTS;
 	UNP_LINK_WUNLOCK();
 
-	/*
-	 * Grab our special mbufs before calling sbrelease().
-	 */
-	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
-	MPASS(!error);
 	SOCK_RECVBUF_LOCK(so);
 	switch (so->so_type) {
 	case SOCK_DGRAM:
