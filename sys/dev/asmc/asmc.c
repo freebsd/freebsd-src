@@ -47,7 +47,6 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/reboot.h>
-#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
@@ -61,6 +60,7 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
 #include <dev/asmc/asmcmmio.h>
+#include <dev/asmc/asmc_debug.h>
 
 #include <dev/backlight/backlight.h>
 #include "backlight_if.h"
@@ -100,10 +100,6 @@ static int	asmc_pio_getinfo_locked(device_t dev, const uint8_t *key,
 		    uint8_t *info);
 static void	asmc_keyinfo_decode(const uint8_t *info, uint8_t *len,
 		    char *type);
-static int 	asmc_key_write(device_t dev, const char *key, uint8_t *buf,
-    uint8_t len);
-static int 	asmc_key_read(device_t dev, const char *key, uint8_t *buf,
-    uint8_t);
 static int 	asmc_fan_count(device_t dev);
 static int 	asmc_fan_getvalue(device_t dev, const char *key, int fan);
 static int 	asmc_fan_setvalue(device_t dev, const char *key, int fan, int speed);
@@ -115,10 +111,6 @@ static void 	asmc_sms_printintr(device_t dev, uint8_t);
 static void 	asmc_sms_task(void *arg, int pending);
 static void	asmc_sms_init(device_t dev);
 static void	asmc_detect_capabilities(device_t dev);
-#ifdef ASMC_DEBUG
-void		asmc_dumpall(device_t);
-static int	asmc_key_dump(device_t, int);
-#endif
 
 /*
  * Sysctl handlers.
@@ -134,8 +126,6 @@ static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
 static int	asmc_aupo_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_sil_sysctl(SYSCTL_HANDLER_ARGS);
 
-static int	asmc_key_getinfo(device_t, const char *, uint8_t *, char *);
-
 /* System state / board identity sysctls */
 static int	asmc_cause_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_msal_sysctl(SYSCTL_HANDLER_ARGS);
@@ -144,19 +134,10 @@ static int	asmc_msps_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_rplt_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_rgen_sysctl(SYSCTL_HANDLER_ARGS);
 
-#ifdef ASMC_DEBUG
-/* Raw key access */
-static int	asmc_raw_key_sysctl(SYSCTL_HANDLER_ARGS);
-static int	asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS);
-static int	asmc_raw_len_sysctl(SYSCTL_HANDLER_ARGS);
-static int	asmc_raw_type_sysctl(SYSCTL_HANDLER_ARGS);
-#endif
-
 /* Voltage/Current/Power/Light sensor support */
 static int	asmc_sensor_read(device_t, const char *, int *);
 static int	asmc_sensor_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_detect_sensors(device_t);
-static int	asmc_key_dump_by_index(device_t, int, char *, char *, uint8_t *);
 static int	asmc_key_search(device_t, const char *, unsigned int *);
 static const char *asmc_temp_desc(const char *key);
 
@@ -400,11 +381,6 @@ static driver_t	asmc_driver = {
  */
 #define	_COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASMC")
-#ifdef ASMC_DEBUG
-#define ASMC_DPRINTF(str, ...)	device_printf(dev, str, ##__VA_ARGS__)
-#else
-#define ASMC_DPRINTF(str, ...)
-#endif
 
 /* NB: can't be const */
 static char *asmc_ids[] = { "APP0001", NULL };
@@ -801,42 +777,7 @@ asmc_attach(device_t dev)
 		}
 	}
 
-#ifdef ASMC_DEBUG
-	/*
-	 * Raw SMC key access for debugging.
-	 */
-	sc->sc_raw_tree = SYSCTL_ADD_NODE(sysctlctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "raw", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Raw SMC key access");
-
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_raw_tree),
-	    OID_AUTO, "key",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_raw_key_sysctl, "A",
-	    "SMC key name (4 chars)");
-
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_raw_tree),
-	    OID_AUTO, "value",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_raw_value_sysctl, "A",
-	    "SMC key value (hex string)");
-
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_raw_tree),
-	    OID_AUTO, "len",
-	    CTLTYPE_U8 | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_raw_len_sysctl, "CU",
-	    "SMC key value length");
-
-	SYSCTL_ADD_PROC(sysctlctx,
-	    SYSCTL_CHILDREN(sc->sc_raw_tree),
-	    OID_AUTO, "type",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    dev, 0, asmc_raw_type_sysctl, "A",
-	    "SMC key type (4 chars)");
-#endif
+	asmc_debug_sysctl_add(dev, sysctlctx);
 
 	/*
 	 * Battery charge limit (T2 Macs).
@@ -990,24 +931,6 @@ asmc_shutdown(void *arg, int howto)
 	asmc_key_write(dev, ASMC_KEY_MBSS, buf, sizeof(buf));
 }
 
-#ifdef ASMC_DEBUG
-void
-asmc_dumpall(device_t dev)
-{
-	struct asmc_softc *sc = device_get_softc(dev);
-	int i;
-
-	if (sc->sc_nkeys == 0) {
-		device_printf(dev, "asmc_dumpall: key count not available\n");
-		return;
-	}
-
-	device_printf(dev, "asmc_dumpall: dumping %d keys\n", sc->sc_nkeys);
-	for (i = 0; i < sc->sc_nkeys; i++)
-		asmc_key_dump(dev, i);
-}
-#endif
-
 /*
  * Initialize SMC: read revision, key count, fan count.
  * SMS initialization is handled separately in asmc_sms_init().
@@ -1066,9 +989,7 @@ asmc_init(device_t dev)
 	}
 
 out:
-#ifdef ASMC_DEBUG
 	asmc_dumpall(dev);
-#endif
 	return (error);
 }
 
@@ -1350,7 +1271,7 @@ asmc_keyinfo_decode(const uint8_t *info, uint8_t *len, char *type)
 	}
 }
 
-static int
+int
 asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
@@ -1388,47 +1309,13 @@ out:
 	return (error);
 }
 
-#ifdef ASMC_DEBUG
-static int
-asmc_key_dump(device_t dev, int number)
-{
-	char key[ASMC_KEYLEN + 1] = { 0 };
-	char type[ASMC_TYPELEN + 1] = { 0 };
-	uint8_t v[ASMC_MAXVAL];
-	struct sbuf sb;
-	char buf[128];
-	uint8_t len = 0;
-	int error;
-
-	error = asmc_key_dump_by_index(dev, number, key, type, &len);
-	if (error)
-		return (error);
-
-	len = MIN(len, sizeof(v));
-	memset(v, 0, sizeof(v));
-	error = asmc_key_read(dev, key, v, len);
-	if (error)
-		return (error);
-
-	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "key %d: %s, type %s (len %d), data",
-	    number, key, type, len);
-	for (int i = 0; i < len; i++)
-		sbuf_printf(&sb, " %02x", v[i]);
-	sbuf_finish(&sb);
-	device_printf(dev, "%s\n", sbuf_data(&sb));
-	sbuf_delete(&sb);
-
-	return (0);
-}
-#endif /* ASMC_DEBUG */
 
 /*
  * Get key info (length and type) from SMC using command 0x13.
  * If len is non-NULL, stores the key's value length.
  * If type is non-NULL, stores the 4-char type string (must be at least 5 bytes).
  */
-static int
+int
 asmc_key_getinfo(device_t dev, const char *key, uint8_t *len, char *type)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
@@ -1455,109 +1342,6 @@ asmc_key_getinfo(device_t dev, const char *key, uint8_t *len, char *type)
 
 	return (error);
 }
-
-#ifdef ASMC_DEBUG
-/*
- * Raw SMC key access sysctls - enables reading/writing any SMC key by name
- * Usage:
- *   sysctl dev.asmc.0.raw.key=TC0P   # Set key, auto-detects length
- *   sysctl dev.asmc.0.raw.value      # Read current value (hex bytes)
- *   sysctl dev.asmc.0.raw.value=01   # Write new value
- */
-static int
-asmc_raw_key_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t) arg1;
-	struct asmc_softc *sc = device_get_softc(dev);
-	char newkey[ASMC_KEYLEN + 1];
-	uint8_t keylen;
-	int error;
-
-	strlcpy(newkey, sc->sc_rawkey, sizeof(newkey));
-	error = sysctl_handle_string(oidp, newkey, sizeof(newkey), req);
-	if (error || req->newptr == NULL)
-		return (error);
-
-	if (strlen(newkey) != ASMC_KEYLEN)
-		return (EINVAL);
-
-	/* Get key info to auto-detect length and type */
-	if (asmc_key_getinfo(dev, newkey, &keylen, sc->sc_rawtype) != 0)
-		return (ENOENT);
-
-	if (keylen > ASMC_MAXVAL)
-		keylen = ASMC_MAXVAL;
-
-	strlcpy(sc->sc_rawkey, newkey, sizeof(sc->sc_rawkey));
-	sc->sc_rawlen = keylen;
-	memset(sc->sc_rawval, 0, sizeof(sc->sc_rawval));
-
-	/* Read the key value */
-	asmc_key_read(dev, sc->sc_rawkey, sc->sc_rawval, sc->sc_rawlen);
-
-	return (0);
-}
-
-static int
-asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t) arg1;
-	struct asmc_softc *sc = device_get_softc(dev);
-	char hexbuf[ASMC_MAXVAL * 2 + 1];
-	int error, i;
-
-	/* Refresh from SMC if a key has been selected. */
-	if (sc->sc_rawkey[0] != '\0') {
-		asmc_key_read(dev, sc->sc_rawkey, sc->sc_rawval,
-		    sc->sc_rawlen > 0 ? sc->sc_rawlen : ASMC_MAXVAL);
-	}
-
-	/* Format as hex string */
-	for (i = 0; i < sc->sc_rawlen && i < ASMC_MAXVAL; i++)
-		snprintf(hexbuf + i * 2, 3, "%02x", sc->sc_rawval[i]);
-	hexbuf[i * 2] = '\0';
-
-	error = sysctl_handle_string(oidp, hexbuf, sizeof(hexbuf), req);
-	if (error || req->newptr == NULL)
-		return (error);
-
-	/* Reject writes until a key is selected via raw.key. */
-	if (sc->sc_rawkey[0] == '\0')
-		return (EINVAL);
-
-	memset(sc->sc_rawval, 0, sizeof(sc->sc_rawval));
-	for (i = 0; i < sc->sc_rawlen && hexbuf[i*2] && hexbuf[i*2+1]; i++) {
-		unsigned int val;
-		char tmp[3] = { hexbuf[i*2], hexbuf[i*2+1], 0 };
-		if (sscanf(tmp, "%02x", &val) == 1)
-			sc->sc_rawval[i] = (uint8_t)val;
-	}
-
-	if (asmc_key_write(dev, sc->sc_rawkey, sc->sc_rawval, sc->sc_rawlen) != 0)
-		return (EIO);
-
-	return (0);
-}
-
-static int
-asmc_raw_len_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t) arg1;
-	struct asmc_softc *sc = device_get_softc(dev);
-
-	return (sysctl_handle_8(oidp, &sc->sc_rawlen, 0, req));
-}
-
-static int
-asmc_raw_type_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t) arg1;
-	struct asmc_softc *sc = device_get_softc(dev);
-
-	return (sysctl_handle_string(oidp, sc->sc_rawtype,
-	    sizeof(sc->sc_rawtype), req));
-}
-#endif
 
 /* SMC sensor type table: type string to fixed-point divisor. */
 static const struct {
@@ -1871,7 +1655,7 @@ asmc_detect_sensors(device_t dev)
 /*
  * Helper function to get key info by index (for sensor detection).
  */
-static int
+int
 asmc_key_dump_by_index(device_t dev, int index, char *key_out,
     char *type_out, uint8_t *len_out)
 {
@@ -1941,7 +1725,7 @@ asmc_key_search(device_t dev, const char *prefix, unsigned int *idx)
 	return (0);
 }
 
-static int
+int
 asmc_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
 	struct asmc_softc *sc = device_get_softc(dev);

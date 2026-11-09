@@ -27,6 +27,13 @@
  *
  */
 
+/* Expands to nothing without the option; expects a `dev' in scope. */
+#ifdef ASMC_DEBUG
+#define ASMC_DPRINTF(str, ...)	device_printf(dev, str, ##__VA_ARGS__)
+#else
+#define ASMC_DPRINTF(str, ...)
+#endif
+
 #define ASMC_MAXFANS	6
 #define ASMC_MAXVAL	32	/* Maximum SMC value size */
 #define ASMC_KEYLEN	4	/* SMC key name length */
@@ -293,3 +300,15 @@ static const struct asmc_cause asmc_cause_table[] = {
 	{ -127,	"pmu-forced-shutdown",		NULL },
 	{ -128,	"unknown",			NULL },
 };
+
+/*
+ * SMC key transport, implemented in asmc.c on top of the PIO and MMIO
+ * backends.
+ */
+int	asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len);
+int	asmc_key_write(device_t dev, const char *key, uint8_t *buf,
+	    uint8_t len);
+int	asmc_key_getinfo(device_t dev, const char *key, uint8_t *len,
+	    char *type);
+int	asmc_key_dump_by_index(device_t dev, int index, char *key, char *type,
+	    uint8_t *len);
