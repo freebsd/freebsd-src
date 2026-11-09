@@ -3,6 +3,9 @@ LIB_PACKAGE=
 
 SHLIBDIR=	${LIBDIR}/engines-3
 
+# Export only the dynamic-engine entry points, as upstream engines/*.ld do.
+VERSION_MAP=	${.CURDIR:H}/Version.map
+
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 
 CFLAGS+=	-I${LCRYPTO_SRC}/engines
