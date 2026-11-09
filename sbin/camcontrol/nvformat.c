@@ -232,12 +232,12 @@ nvmeformat(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			    & NVME_NS_DATA_FLBAS_EXTENDED_MASK;
 		}
 		if (pi < 0) {
-			pi = (nsdata.dps >> NVME_NS_DATA_DPS_MD_START_SHIFT)
-			    & NVME_NS_DATA_DPS_MD_START_MASK;
+			pi = (nsdata.dps >> NVME_NS_DATA_DPS_PIT_SHIFT) &
+			    NVME_NS_DATA_DPS_PIT_MASK;
 		}
 		if (pil < 0) {
-			pil = (nsdata.dps >> NVME_NS_DATA_DPS_PIT_SHIFT) &
-			    NVME_NS_DATA_DPS_PIT_MASK;
+			pil = (nsdata.dps >> NVME_NS_DATA_DPS_MD_START_SHIFT)
+			    & NVME_NS_DATA_DPS_MD_START_MASK;
 		}
 		if (ses < 0)
 			ses = 0;
