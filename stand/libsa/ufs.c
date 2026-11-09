@@ -78,7 +78,6 @@
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 #include "stand.h"
-#include "string.h"
 
 static int	ufs_open(const char *path, struct open_file *f);
 static int	ufs_write(struct open_file *f, const void *buf, size_t size,
@@ -444,8 +443,9 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 }
 
 /*
- * Search a directory for a name and return its
- * i_number.
+ * Search a directory for a name and return its i_number.
+ * Light corruption sanity checks avoid buffer overruns and infinite
+ * loops, but we avoid being very strict.
  */
 static int
 search_directory(char *name, struct open_file *f, ino_t *inumber_p)
@@ -469,6 +469,8 @@ search_directory(char *name, struct open_file *f, ino_t *inumber_p)
 		dp = (struct direct *)buf;
 		edp = (struct direct *)(buf + buf_size);
 		while (dp < edp) {
+			if ((uintptr_t)&dp->d_name > (uintptr_t)edp)
+				return (EIO);
 			if (dp->d_ino == (ino_t)0)
 				goto next;
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -477,13 +479,17 @@ search_directory(char *name, struct open_file *f, ino_t *inumber_p)
 			else
 #endif
 				namlen = dp->d_namlen;
+			if ((uintptr_t)&dp->d_name[namlen] > (uintptr_t)edp)
+				goto next;
 			if (namlen == length &&
-			    !strcmp(name, dp->d_name)) {
+			    bcmp(dp->d_name, name, length) == 0) {
 				/* found entry */
 				*inumber_p = dp->d_ino;
 				return (0);
 			}
 		next:
+			if (dp->d_reclen == 0)
+				return (EIO);
 			dp = (struct direct *)((char *)dp + dp->d_reclen);
 		}
 		fp->f_seekp += buf_size;
