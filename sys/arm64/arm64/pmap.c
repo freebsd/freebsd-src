@@ -538,8 +538,7 @@ void (*pmap_stage2_invalidate_all)(uint64_t);
 
 #define	TLBI_RANGE_FIELDS(va, va_shift, num, scale, ttl)		\
 	(TLBI_RANGE_TG | ((u_long)(scale) << TLBI_RANGE_SCALE_SHIFT) |	\
-	((u_long)(num) << TLBI_RANGE_NUM_SHIFT) |			\
-	(pmap_ttl_support ? TLBI_RANGE_TTL(ttl) : 0) |			\
+	((u_long)(num) << TLBI_RANGE_NUM_SHIFT) | TLBI_RANGE_TTL(ttl) |	\
 	(((va) >> (va_shift)) & TLBI_RANGE_BADDR_MASK))
 
 static bool __read_frequently pmap_tlbi_range_support = false;
@@ -2230,7 +2229,7 @@ pmap_s1_invalidate_loop(vm_offset_t sva, vm_offset_t eva, vm_offset_t stride,
     int va_shift, vm_offset_t va_mask, uint64_t asid, bool kernel,
     bool final_only, int ttl)
 {
-	uint64_t units;
+	uint64_t r, units;
 	vm_size_t pages;
 	int scale, unit_shift;
 
@@ -2254,12 +2253,13 @@ pmap_s1_invalidate_loop(vm_offset_t sva, vm_offset_t eva, vm_offset_t stride,
 				continue;
 			}
 		}
+		r = asid | TLBI_VA(va);
+		if (pmap_ttl_support)
+			r |= TLBI_VA_TTL(ttl);
 		if (kernel)
-			pmap_s1_invalidate_kernel(asid | TLBI_VA(va),
-			    final_only);
+			pmap_s1_invalidate_kernel(r, final_only);
 		else
-			pmap_s1_invalidate_user(asid | TLBI_VA(va),
-			    final_only);
+			pmap_s1_invalidate_user(r, final_only);
 		va += stride;
 	}
 }
