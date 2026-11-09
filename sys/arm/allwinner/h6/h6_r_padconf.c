@@ -44,11 +44,11 @@ const static struct allwinner_pins h6_r_pins[] = {
 	{"PL9",  0, 9,  {"gpio_in", "gpio_out", "s_cir", NULL, NULL, NULL, "pl_eint9", NULL}, 6, 9, 0},
 	{"PL10", 0, 10, {"gpio_in", "gpio_out", "s_spdif", NULL, NULL, NULL, "pl_eint10", NULL}, 6, 10, 0},
 
-	{"PM0",  0, 0,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint0", NULL}, 6, 0, 1},
-	{"PM1",  0, 0,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint1", NULL}, 6, 1, 1},
-	{"PM2",  0, 0,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint2", NULL}, 6, 2, 1},
-	{"PM3",  0, 0,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint3", NULL}, 6, 3, 1},
-	{"PM4",  0, 0,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint4", NULL}, 6, 4, 1},
+	{"PM0",  1, 0,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint0", NULL}, 6, 0, 1},
+	{"PM1",  1, 1,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint1", NULL}, 6, 1, 1},
+	{"PM2",  1, 2,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint2", NULL}, 6, 2, 1},
+	{"PM3",  1, 3,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint3", NULL}, 6, 3, 1},
+	{"PM4",  1, 4,  {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, "pm_eint4", NULL}, 6, 4, 1},
 };
 
 const struct allwinner_padconf h6_r_padconf = {
