@@ -94,26 +94,42 @@ vmm_fence_enqueue(struct hypctx *hypctx, struct vmm_fence *new_fence)
 static void
 vmm_fence_process_one(struct vmm_fence *fence)
 {
-	uint64_t va;
+	uint64_t va, start, end;
 
-	KASSERT(fence->type == VMM_RISCV_FENCE_VMA ||
+	KASSERT(fence->type == VMM_RISCV_FENCE_I ||
+	    fence->type == VMM_RISCV_FENCE_VMA ||
 	    fence->type == VMM_RISCV_FENCE_VMA_ASID,
 	    ("%s: wrong fence type %d", __func__, fence->type));
 
+	if (fence->type == VMM_RISCV_FENCE_I) {
+		fence_i();
+		return;
+	}
+
+	/*
+	 * If both start and size are 0, size is -1, or the range exceeds
+	 * the threshold, invalidate the entire address space.
+	 */
+	if ((fence->start == 0 && fence->size == 0) ||
+	    fence->size == (uint64_t)-1 || fence->size >= (128 * PAGE_SIZE)) {
+		if (fence->type == VMM_RISCV_FENCE_VMA_ASID)
+			hfence_vma_asid(fence->asid);
+		else
+			hfence_vma();
+		return;
+	}
+
+	start = rounddown2(fence->start, PAGE_SIZE);
+	end = roundup2(fence->start + fence->size, PAGE_SIZE);
+
 	switch (fence->type) {
 	case VMM_RISCV_FENCE_VMA:
-		for (va = fence->start; va < fence->start + fence->size;
-		    va += PAGE_SIZE)
-			sfence_vma_page(va);
+		for (va = start; va < end; va += PAGE_SIZE)
+			hfence_vma_page(va);
 		break;
 	case VMM_RISCV_FENCE_VMA_ASID:
-		if ((fence->start == 0 && fence->size == 0) ||
-		    fence->size == -1)
-			sfence_vma_asid(fence->asid);
-		else
-			for (va = fence->start; va < fence->start + fence->size;
-			    va += PAGE_SIZE)
-				sfence_vma_asid_page(fence->asid, va);
+		for (va = start; va < end; va += PAGE_SIZE)
+			hfence_vma_asid_page(fence->asid, va);
 		break;
 	default:
 		break;
@@ -135,10 +151,19 @@ vmm_fence_process(struct hypctx *hypctx)
 		fence_i();
 
 	if (pending & FENCE_REQ_VMA)
-		sfence_vma();
+		hfence_vma();
 
 	while (vmm_fence_dequeue(hypctx, &fence) == true)
 		vmm_fence_process_one(&fence);
+}
+
+static void
+vmm_fence_rendezvous_action(void *arg)
+{
+	struct vmm_fence *fence;
+
+	fence = arg;
+	vmm_fence_process_one(fence);
 }
 
 void
@@ -201,12 +226,13 @@ vmm_fence_add(struct vm *vm, cpuset_t *cpus, struct vmm_fence *fence)
 	}
 
 	/*
-	 * Interrupt other cores. On reception of IPI they will leave guest.
-	 * On entry back to the guest they will process fence request.
-	 *
-	 * If vcpu migrates to another cpu right here, it should process
-	 * all fences on entry to the guest as well.
+	 * Synchronously execute the fence on all running target CPUs via
+	 * SMP rendezvous, ensuring the fence has taken effect before the
+	 * SBI remote fence call returns to the calling hart.
 	 */
-	if (!CPU_EMPTY(&running_cpus))
-		smp_rendezvous_cpus(running_cpus, NULL, NULL, NULL, NULL);
+	if (!CPU_EMPTY(&running_cpus)) {
+		smp_rendezvous_cpus(running_cpus, smp_no_rendezvous_barrier,
+		    vmm_fence_rendezvous_action, smp_no_rendezvous_barrier,
+		    fence);
+	}
 }
