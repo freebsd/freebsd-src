@@ -3,22 +3,28 @@
 .\"
 .\" Copyright (c) 2026 Abdelkader Boudih <seuros@FreeBSD.org>
 .\"
-.Dd September 7, 2026
+.Dd September 11, 2026
 .Dt INTEL_PMC 4
 .Os
 .Sh NAME
 .Nm intel_pmc
 .Nd Intel Performance Management Controller driver
 .Sh SYNOPSIS
-.Cd "device intel_pmc"
+.Cd device intel_pmc
 .Sh DESCRIPTION
 The
 .Nm
 driver exposes information and controls from the Performance
-Management Controller (PMC) of Intel platforms.
-Presently, it supports the Intel Sunrise Point platform (Skylake CPU
-generation), providing access to debug information and controls
-related to S0ix (Modern Standby).
+Management Controller (PMC) of Intel platforms, providing access to
+debug information and controls related to S0ix (Modern Standby).
+.Pp
+On Sunrise Point (Skylake and Kaby Lake generations) the PMC is a PCI
+function and the driver attaches to it.
+Later generations do not enumerate the PMC on PCI; there the driver
+identifies the platform by CPU model and maps the register space at
+the architectural base address.
+The residency counter address in the ACPI LPIT table is compared
+against that window and a mismatch is reported.
 .Pp
 The cumulative time spent in low power mode while in S0 is reported,
 and the administrator can force the platform to ignore IP blocks
@@ -32,10 +38,19 @@ Controller Hubs:
 .Pp
 .Bl -bullet -compact
 .It
-Intel Sunrise Point-LP PMC (6th/7th Gen Core mobile, PCI ID 0x8086:0x9d21)
+Sunrise Point-LP (6th/7th Gen Core mobile)
 .It
-Intel Sunrise Point-H PMC (6th/7th Gen Core desktop/server,
-PCI ID 0x8086:0xa121)
+Sunrise Point-H (6th/7th Gen Core desktop/server)
+.It
+Cannon Lake, Comet Lake
+.It
+Ice Lake, Jasper Lake
+.It
+Tiger Lake, Elkhart Lake, Rocket Lake
+.It
+Alder Lake, Raptor Lake
+.It
+Meteor Lake
 .El
 .Sh SYSCTLS
 The following
@@ -44,25 +59,17 @@ variables are available:
 .Bl -tag -width indent
 .It Va dev.intel_pmc.%d.ltr_ignore Pq read-write
 Latency Tolerance Reporting (LTR) ignore mask.
-Each bit corresponds to one IP block (bits 0-16).
-Setting a bit tells the PMC to ignore that IP's LTR requirements,
+Setting a bit tells the PMC to ignore that IP block's LTR requirements,
 allowing S0ix entry even if the IP would otherwise block it.
-A clear bit means the IP's requirements are considered and can
-prevent S0ix.
-.Pp
-Sunrise Point bit assignments:
-SOUTHPORT_A, SOUTHPORT_B, SATA, GIGABIT_ETHERNET, XHCI, reserved,
-ME, EVA, SOUTHPORT_C, HD_AUDIO, LPSS, SOUTHPORT_D, SOUTHPORT_E,
-CAMERA, ESPI, SCC, ISH.
+The number and meaning of the bits vary by platform; consult the
+datasheet listed in
+.Sx SEE ALSO .
 .It Va dev.intel_pmc.%d.slp_s0_residency Pq read-only
-Cumulative time in microseconds that the SLP_S0 signal has been
-asserted (100\ us per counter step).
-Per the datasheet, SLP_S0 asserts when the PCH is idle and the
-processor is in C10 state.
-A value that never advances indicates S0ix transitions are not occurring.
-.Pp
-The counter is 32-bit and wraps after approximately 5 days of
-cumulative S0ix residency.
+Cumulative time in microseconds that the platform has been in S0ix.
+A value that never advances indicates S0ix transitions are not
+occurring.
+This value wraps after a few days, as the counter is 32-bit and
+updated approximately every 100us (platform-dependent).
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
@@ -78,6 +85,6 @@ driver first appeared in
 .Sh AUTHORS
 .An Abdelkader Boudih Aq Mt seuros@FreeBSD.org
 .Sh CAVEATS
-Only Sunrise Point PCH is supported.
-Other PCH generations (Cannon Point, Tiger Lake, etc.) have different
-register layouts and are not handled by this driver.
+Desktop firmware frequently does not implement S0ix; the driver still
+attaches there, but the residency counter never advances.
+Lunar Lake and later are not yet supported.
