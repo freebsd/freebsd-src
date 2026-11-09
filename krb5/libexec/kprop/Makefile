@@ -11,7 +11,7 @@
 
 PROG=	kprop
 
-LIBADD=	kprop_util krb5 k5crypto com_err krb5profile krb5support util sys
+LIBADD=	kprop_util krb5 k5crypto com_err krb5profile krb5support util
 
 SRCS=	kprop.c
 

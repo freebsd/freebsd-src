@@ -9,7 +9,7 @@
 
 PROG=	ktutil
 
-LIBADD=	krb5 k5crypto com_err krb5profile krb5support krb5ss sys
+LIBADD=	krb5 k5crypto com_err krb5profile krb5support krb5ss
 
 SRCS=	ktutil.c \
 	ktutil_ct.c \
