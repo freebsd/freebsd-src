@@ -2323,7 +2323,7 @@ static inline
 void	nvme_admin_get_feature_cmd(struct nvme_command *cmd, uint32_t nsid,
     int sel, uint8_t feature, uint32_t cdw11, int uuid_idx) {
 	cmd->opc = NVME_OPC_GET_FEATURES;
-	cmd->nsid = nsid;
+	cmd->nsid = htole32(nsid);
 	cmd->cdw10 = htole32(((sel & 0x7) << 8) | feature);
 	cmd->cdw11 = htole32(cdw11);
 	cmd->cdw14 = htole32(uuid_idx & 0x7f);
@@ -2336,7 +2336,7 @@ void	nvme_admin_set_feature_cmd(struct nvme_command *cmd, uint32_t nsid,
     uint32_t cdw13, uint32_t cdw14, uint32_t cdw15)
 {
 	cmd->opc = NVME_OPC_SET_FEATURES;
-	cmd->nsid = nsid;
+	cmd->nsid = htole32(nsid);
 	cmd->cdw10 = htole32(((sv & 0x1) << 31) | feature);
 	cmd->cdw11 = htole32(cdw11);
 	cmd->cdw12 = htole32(cdw12);
