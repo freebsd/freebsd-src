@@ -40,13 +40,13 @@ asmc_key_dump(device_t dev, int number)
 	int error;
 
 	error = asmc_key_dump_by_index(dev, number, key, type, &len);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	len = MIN(len, sizeof(v));
 	memset(v, 0, sizeof(v));
 	error = asmc_key_read(dev, key, v, len);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
@@ -94,7 +94,7 @@ asmc_raw_key_sysctl(SYSCTL_HANDLER_ARGS)
 
 	strlcpy(newkey, sc->sc_rawkey, sizeof(newkey));
 	error = sysctl_handle_string(oidp, newkey, sizeof(newkey), req);
-	if (error || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 
 	if (strlen(newkey) != ASMC_KEYLEN)
@@ -137,7 +137,7 @@ asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS)
 	hexbuf[i * 2] = '\0';
 
 	error = sysctl_handle_string(oidp, hexbuf, sizeof(hexbuf), req);
-	if (error || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 
 	/* Reject writes until a key is selected via raw.key. */

@@ -151,7 +151,8 @@ asmc_probe(device_t dev)
 	if (rv > 0)
 		return (rv);
 	product = kern_getenv("smbios.system.product");
-	device_set_descf(dev, "Apple %s", product ? product : "SMC");
+	device_set_descf(dev, "Apple %s",
+	    product != NULL ? product : "SMC");
 	freeenv(product);
 	return (rv);
 }
@@ -316,7 +317,7 @@ asmc_attach(device_t dev)
 
 	ret = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_MPSAFE,
 	    asmc_sms_intrfast, NULL, dev, &sc->sc_cookie);
-	if (ret) {
+	if (ret != 0) {
 		device_printf(dev, "unable to setup SMS IRQ\n");
 		goto err;
 	}
@@ -735,7 +736,7 @@ asmc_scan_sensor_range(device_t dev, unsigned int start,
 	char *sensor_key;
 
 	for (unsigned int i = start; i < end; i++) {
-		if (asmc_key_dump_by_index(dev, i, key, type, &len))
+		if (asmc_key_dump_by_index(dev, i, key, type, &len) != 0)
 			continue;
 		if (len != 2 || (prefix != '\0' && key[0] != prefix))
 			continue;

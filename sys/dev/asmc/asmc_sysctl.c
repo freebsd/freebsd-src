@@ -788,7 +788,7 @@ asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 		error = asmc_key_read(dev, fmkey, buf, 1);
 		if (error != 0)
 			return (error);
-		v = buf[0] ? 1 : 0;
+		v = buf[0] != 0 ? 1 : 0;
 
 		error = sysctl_handle_int(oidp, &v, 0, req);
 		if (error == 0 && req->newptr != NULL) {
@@ -823,7 +823,7 @@ asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 			val = (buf[0] << 8) | buf[1];
 
 			/* Modify single bit */
-			if (v) {
+			if (v != 0) {
 				val |= (1 << fan);   /* Set to manual */
 			} else {
 				val &= ~(1 << fan);  /* Set to auto */

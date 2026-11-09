@@ -105,7 +105,7 @@ asmc_pio_send(device_t dev, const uint8_t *buf, int len, uint8_t status)
 
 	for (int i = 0; i < len; i++) {
 		ASMC_DATAPORT_WRITE(sc, buf[i]);
-		if (asmc_wait(dev, status))
+		if (asmc_wait(dev, status) != 0)
 			return (1);
 	}
 
@@ -119,7 +119,7 @@ asmc_pio_recv(device_t dev, uint8_t *buf, int len, uint8_t status)
 	struct asmc_softc *sc = device_get_softc(dev);
 
 	for (int i = 0; i < len; i++) {
-		if (asmc_wait(dev, status))
+		if (asmc_wait(dev, status) != 0)
 			return (1);
 		buf[i] = ASMC_DATAPORT_READ(sc);
 	}
@@ -139,10 +139,11 @@ asmc_pio_getbyindex_locked(device_t dev, int index, uint8_t *key)
 	index_buf[2] = (index >> 8) & 0xff;
 	index_buf[3] = index & 0xff;
 
-	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
+	if (asmc_command(dev, ASMC_CMDGETBYINDEX) != 0)
 		return (1);
 
-	if (asmc_pio_send(dev, index_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+	if (asmc_pio_send(dev, index_buf, ASMC_KEYLEN,
+	    ASMC_STATUS_AWAIT_DATA) != 0)
 		return (1);
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
@@ -156,10 +157,10 @@ asmc_pio_getinfo_locked(device_t dev, const uint8_t *key, uint8_t *info)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 
-	if (asmc_command(dev, ASMC_CMDGETINFO))
+	if (asmc_command(dev, ASMC_CMDGETINFO) != 0)
 		return (1);
 
-	if (asmc_pio_send(dev, key, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
+	if (asmc_pio_send(dev, key, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA) != 0)
 		return (1);
 
 	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
@@ -189,21 +190,21 @@ asmc_pio_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 	mtx_lock_spin(&sc->sc_mtx);
 
 begin:
-	if (asmc_command(dev, ASMC_CMDREAD))
+	if (asmc_command(dev, ASMC_CMDREAD) != 0)
 		goto out;
 
 	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_AWAIT_DATA))
+	    ASMC_STATUS_AWAIT_DATA) != 0)
 		goto out;
 
 	ASMC_DATAPORT_WRITE(sc, len);
 
-	if (asmc_pio_recv(dev, buf, len, ASMC_STATUS_DATA_READY))
+	if (asmc_pio_recv(dev, buf, len, ASMC_STATUS_DATA_READY) != 0)
 		goto out;
 
 	error = 0;
 out:
-	if (error) {
+	if (error != 0) {
 		if (++try < 10)
 			goto begin;
 		device_printf(dev, "%s for key %s failed %d times, giving up\n",
@@ -289,12 +290,12 @@ asmc_pio_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 
 begin:
 	ASMC_DPRINTF(("cmd port: cmd write\n"));
-	if (asmc_command(dev, ASMC_CMDWRITE))
+	if (asmc_command(dev, ASMC_CMDWRITE) != 0)
 		goto out;
 
 	ASMC_DPRINTF(("data port: key\n"));
 	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_AWAIT_DATA))
+	    ASMC_STATUS_AWAIT_DATA) != 0)
 		goto out;
 
 	ASMC_DPRINTF(("data port: length\n"));
@@ -302,14 +303,14 @@ begin:
 
 	ASMC_DPRINTF(("data port: buffer\n"));
 	for (int i = 0; i < len; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
+		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA) != 0)
 			goto out;
 		ASMC_DATAPORT_WRITE(sc, buf[i]);
 	}
 
 	error = 0;
 out:
-	if (error) {
+	if (error != 0) {
 		if (++try < 10)
 			goto begin;
 		device_printf(dev, "%s for key %s failed %d times, giving up\n",

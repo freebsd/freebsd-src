@@ -65,7 +65,7 @@ asmc_mmio_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 	mtx_lock_spin(&sc->sc_mtx);
 
 	/* Clear status if non-zero */
-	if (bus_read_1(sc->sc_iomem, ASMC_MMIO_STATUS))
+	if (bus_read_1(sc->sc_iomem, ASMC_MMIO_STATUS) != 0)
 		bus_write_1(sc->sc_iomem, ASMC_MMIO_STATUS, 0);
 
 	/* Write key name as raw 4 bytes */
