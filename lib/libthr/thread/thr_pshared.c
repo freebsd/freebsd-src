@@ -301,7 +301,7 @@ __thr_pshared_offpage(void *key, int doalloc)
 	if (fd == -1)
 		return (NULL);
 	res = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	close(fd);
+	__sys_close(fd);
 	if (res == MAP_FAILED)
 		return (NULL);
 	pshared_wlock(curthread);
