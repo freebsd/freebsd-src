@@ -39,11 +39,10 @@
 #include <unistd.h>
 
 /*
- * sbrk is obsolete, and libc only provides it on a subset of
- * architectures.
+ * sbrk is obsolete, and doesn't test what the test author expects with
+ * jemalloc as the allocator.
  */
-#if defined(__amd64__) || defined(__arm__) || defined(__i386__) || \
-    defined(__powerpc__)
+#ifndef __FreeBSD__
 #define	HAVE_SBRK
 #endif
 
