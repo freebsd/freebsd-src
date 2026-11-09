@@ -972,11 +972,11 @@ aw_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 		if (sc->conf->padconf->pins[i].port == gpios[0] &&
 		    sc->conf->padconf->pins[i].pin == gpios[1]) {
 			*pin = i;
-			break;
+			*flags = gpios[gcells - 1];
+			return (0);
 		}
-	*flags = gpios[gcells - 1];
 
-	return (0);
+	return (EINVAL);
 }
 
 static int
