@@ -363,6 +363,8 @@ buf_write_file(struct open_file *f, const char *buf_p, size_t *size_p)
 			block_size, fp->f_buf, &fp->f_buf_size);
 		if (rc)
 			return (rc);
+		if (fp->f_buf_size != block_size)
+			return (EIO);
 
 		fp->f_buf_blkno = file_block;
 	}
@@ -420,6 +422,8 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 				block_size, fp->f_buf, &fp->f_buf_size);
 			if (rc)
 				return (rc);
+			if (fp->f_buf_size != block_size)
+				return (EIO);
 		}
 
 		fp->f_buf_blkno = file_block;
@@ -663,6 +667,10 @@ ufs_open(const char *upath, struct open_file *f)
 					fs->fs_bsize, buf, &buf_size);
 				if (rc)
 					goto out;
+				if (buf_size != fs->fs_bsize) {
+					rc = EIO;
+					goto out;
+				}
 
 				bcopy((char *)buf, namebuf, (unsigned)link_len);
 			}
