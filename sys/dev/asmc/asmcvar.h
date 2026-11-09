@@ -51,7 +51,7 @@ struct asmc_softc {
 	int16_t			sms_rest_x;
 	int16_t			sms_rest_y;
 	int16_t			sms_rest_z;
-	struct sysctl_oid 	*sc_fan_tree[ASMC_MAXFANS+1];
+	struct sysctl_oid 	*sc_fan_tree[ASMC_MAXFANS + 1];
 	struct sysctl_oid 	*sc_temp_tree;
 	struct sysctl_oid 	*sc_sms_tree;
 	struct sysctl_oid 	*sc_light_tree;

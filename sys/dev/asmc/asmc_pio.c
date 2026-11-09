@@ -218,7 +218,7 @@ out:
 /*
  * Get key info (length and type) from SMC using command 0x13.
  * If len is non-NULL, stores the key's value length.
- * If type is non-NULL, stores the 4-char type string (must be at least 5 bytes).
+ * If type is non-NULL, stores the 4-char type string; it needs 5 bytes.
  */
 int
 asmc_pio_key_getinfo(device_t dev, const char *key, uint8_t *len, char *type)

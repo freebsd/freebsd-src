@@ -81,7 +81,8 @@ static int	asmc_backlight_update_status(device_t dev,
     struct backlight_props *props);
 static int	asmc_backlight_get_status(device_t dev,
     struct backlight_props *props);
-static int	asmc_backlight_get_info(device_t dev, struct backlight_info *info);
+static int	asmc_backlight_get_info(device_t dev,
+    struct backlight_info *info);
 
 /*
  * SMC functions.
@@ -236,7 +237,7 @@ asmc_attach(device_t dev)
 	/* Probe SMC keys to detect capabilities */
 	asmc_detect_capabilities(dev);
 
-	/* Auto-detect and register voltage/current/power/ambient/temp sensors */
+	/* Auto-detect voltage/current/power/ambient/temp sensors */
 	asmc_detect_sensors(dev);
 
 	asmc_sysctl_add_fan(dev, sysctlctx);

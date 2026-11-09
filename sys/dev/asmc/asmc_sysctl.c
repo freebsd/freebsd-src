@@ -56,7 +56,7 @@ static const struct asmc_cause asmc_cause_table[] = {
 	{   -2,	"power-supply",			NULL },
 	{   -3,	"temperature-multisleep",	NULL },
 	{   -4,	"sensor-fan",			NULL },
-	{  -30,	"temperature-overlimit-timeout",NULL },
+	{  -30,	"temperature-overlimit-timeout", NULL },
 	{  -40,	"pswr-smrst",			NULL },	/* power supply watchdog reset */
 	{  -50,	"unmapped",			NULL },
 	{  -60,	"low-battery",			NULL },
@@ -823,10 +823,11 @@ asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
 			val = (buf[0] << 8) | buf[1];
 
 			/* Modify single bit */
-			if (v)
+			if (v) {
 				val |= (1 << fan);   /* Set to manual */
-			else
+			} else {
 				val &= ~(1 << fan);  /* Set to auto */
+			}
 
 			/* Write back */
 			buf[0] = val >> 8;

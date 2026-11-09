@@ -145,9 +145,10 @@ asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	memset(sc->sc_rawval, 0, sizeof(sc->sc_rawval));
-	for (i = 0; i < sc->sc_rawlen && hexbuf[i*2] && hexbuf[i*2+1]; i++) {
+	for (i = 0; i < sc->sc_rawlen && hexbuf[i * 2] &&
+	    hexbuf[i * 2 + 1]; i++) {
 		unsigned int val;
-		char tmp[3] = { hexbuf[i*2], hexbuf[i*2+1], 0 };
+		char tmp[3] = { hexbuf[i * 2], hexbuf[i * 2 + 1], 0 };
 		if (sscanf(tmp, "%02x", &val) == 1)
 			sc->sc_rawval[i] = (uint8_t)val;
 	}
