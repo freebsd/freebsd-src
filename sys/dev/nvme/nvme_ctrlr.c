@@ -1180,7 +1180,7 @@ nvme_ctrlr_hmb_enable(struct nvme_controller *ctrlr, bool enable, bool memret)
 		cdw11 |= 2;
 	status.done = 0;
 	nvme_ctrlr_cmd_set_feature(ctrlr, 0, 0, NVME_FEAT_HOST_MEMORY_BUFFER,
-	    cdw11, ctrlr->hmb_nchunks * ctrlr->hmb_chunk / 4096,
+	    cdw11, ctrlr->hmb_nchunks * ctrlr->hmb_chunk / ctrlr->page_size,
 	    ctrlr->hmb_desc_paddr, ctrlr->hmb_desc_paddr >> 32,
 	    ctrlr->hmb_nchunks, NULL, 0, nvme_completion_poll_cb, &status);
 	nvme_completion_poll(&status);
