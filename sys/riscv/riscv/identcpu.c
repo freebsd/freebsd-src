@@ -125,6 +125,7 @@ static const struct marchid_entry global_marchids[] = {
 	{ MARCHID_UCB_BOOM,	"UC Berkeley Boom"		},
 	{ MARCHID_UCB_SPIKE,	"UC Berkeley Spike"		},
 	{ MARCHID_UCAM_RVBS,	"University of Cambridge RVBS"	},
+	{ MARCHID_QEMU,		"QEMU"				},
 	MARCHID_END
 };
 
