@@ -73,6 +73,16 @@ __thr_pshared_init(void)
 		LIST_INIT(&pshared_hash[i]);
 }
 
+/*
+ * The pshared locking bumps locklevel of the thread.  This prevents
+ * async cancellation from terminating a thread that owns
+ * pshared_lock.  Similarly, it prevents libthr suspension from
+ * stopping a thread that owns pshared_lock, which would cause a lock
+ * cascade.
+ *
+ * It also provides async signal safety, which is not needed, since
+ * locking primitives cannot be used in signal handlers safely.
+ */
 static void
 pshared_rlock(struct pthread *curthread)
 {
