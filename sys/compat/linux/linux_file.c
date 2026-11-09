@@ -451,7 +451,15 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	int buflen, error;
 	size_t retval;
 
-	buflen = min(roundup2(args->count, DEV_BSIZE), MAXBSIZE);
+	/*
+	 * Linux dirent records are no larger than native dirents.
+	 * For counts of at least DEV_BSIZE, keep the native batch
+	 * within the caller's buffer size.
+	 */
+	if (args->count >= DEV_BSIZE)
+		buflen = min(args->count, MAXBSIZE);
+	else
+		buflen = roundup2(args->count, DEV_BSIZE);
 	bufsav = buf = malloc(buflen, M_LINUX, M_WAITOK);
 
 	error = linux_getdirentries(td, args->fd, &buf, buflen,
@@ -529,7 +537,15 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	int buflen, error;
 	size_t retval;
 
-	buflen = min(roundup2(args->count, DEV_BSIZE), MAXBSIZE);
+	/*
+	 * Linux dirent64 records are no larger than native dirents.
+	 * For counts of at least DEV_BSIZE, keep the native batch
+	 * within the caller's buffer size.
+	 */
+	if (args->count >= DEV_BSIZE)
+		buflen = min(args->count, MAXBSIZE);
+	else
+		buflen = roundup2(args->count, DEV_BSIZE);
 	bufsav = buf = malloc(buflen, M_LINUX, M_WAITOK);
 
 	error = linux_getdirentries(td, args->fd, &buf, buflen,
