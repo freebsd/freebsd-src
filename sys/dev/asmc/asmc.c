@@ -60,6 +60,7 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
 #include <dev/asmc/asmcmmio.h>
+#include <dev/asmc/asmc_pio.h>
 #include <dev/asmc/asmc_debug.h>
 
 #include <dev/backlight/backlight.h>
@@ -87,19 +88,6 @@ static int	asmc_backlight_get_info(device_t dev, struct backlight_info *info);
  * SMC functions.
  */
 static int 	asmc_init(device_t dev);
-static int 	asmc_command(device_t dev, uint8_t command);
-static int 	asmc_wait(device_t dev, uint8_t val);
-static int 	asmc_wait_ack(device_t dev, uint8_t val, int amount);
-static int	asmc_pio_send(device_t dev, const uint8_t *buf, int len,
-		    uint8_t status);
-static int	asmc_pio_recv(device_t dev, uint8_t *buf, int len,
-		    uint8_t status);
-static int	asmc_pio_getbyindex_locked(device_t dev, int index,
-		    uint8_t *key);
-static int	asmc_pio_getinfo_locked(device_t dev, const uint8_t *key,
-		    uint8_t *info);
-static void	asmc_keyinfo_decode(const uint8_t *info, uint8_t *len,
-		    char *type);
 static int 	asmc_fan_count(device_t dev);
 static int 	asmc_fan_getvalue(device_t dev, const char *key, int fan);
 static int 	asmc_fan_setvalue(device_t dev, const char *key, int fan, int speed);
@@ -1120,227 +1108,26 @@ asmc_detect_capabilities(device_t dev)
 		    sc->sc_has_safespeed, sc->sc_has_alsl);
 }
 
-/*
- * We need to make sure that the SMC acks the byte sent.
- * Just wait up to (amount * 10)  ms.
- */
-static int
-asmc_wait_ack(device_t dev, uint8_t val, int amount)
-{
-	struct asmc_softc *sc = device_get_softc(dev);
-	u_int i;
-
-	val = val & ASMC_STATUS_MASK;
-
-	for (i = 0; i < amount; i++) {
-		if ((ASMC_CMDPORT_READ(sc) & ASMC_STATUS_MASK) == val)
-			return (0);
-		DELAY(10);
-	}
-
-	return (1);
-}
-
-/*
- * We need to make sure that the SMC acks the byte sent.
- * Just wait up to 100 ms.
- */
-static int
-asmc_wait(device_t dev, uint8_t val)
-{
-#ifdef ASMC_DEBUG
-	struct asmc_softc *sc;
-#endif
-
-	if (asmc_wait_ack(dev, val, 1000) == 0)
-		return (0);
-
-#ifdef ASMC_DEBUG
-	sc = device_get_softc(dev);
-
-	device_printf(dev, "%s failed: 0x%x, 0x%x\n", __func__,
-	    val & ASMC_STATUS_MASK, ASMC_CMDPORT_READ(sc));
-#endif
-	return (1);
-}
-
-/*
- * Send the given command, retrying up to 10 times if
- * the acknowledgement fails.
- */
-static int
-asmc_command(device_t dev, uint8_t command)
-{
-	int i;
-	struct asmc_softc *sc = device_get_softc(dev);
-
-	for (i = 0; i < 10; i++) {
-		ASMC_CMDPORT_WRITE(sc, command);
-		if (asmc_wait_ack(dev, 0x0c, 100) == 0) {
-			return (0);
-		}
-	}
-
-#ifdef ASMC_DEBUG
-	device_printf(dev, "%s failed: 0x%x, 0x%x\n", __func__, command,
-	    ASMC_CMDPORT_READ(sc));
-#endif
-	return (1);
-}
-
-/* Push len bytes out the data port, awaiting status after each. */
-static int
-asmc_pio_send(device_t dev, const uint8_t *buf, int len, uint8_t status)
-{
-	struct asmc_softc *sc = device_get_softc(dev);
-
-	for (int i = 0; i < len; i++) {
-		ASMC_DATAPORT_WRITE(sc, buf[i]);
-		if (asmc_wait(dev, status))
-			return (1);
-	}
-
-	return (0);
-}
-
-/* Await status then pull each of len bytes from the data port. */
-static int
-asmc_pio_recv(device_t dev, uint8_t *buf, int len, uint8_t status)
-{
-	struct asmc_softc *sc = device_get_softc(dev);
-
-	for (int i = 0; i < len; i++) {
-		if (asmc_wait(dev, status))
-			return (1);
-		buf[i] = ASMC_DATAPORT_READ(sc);
-	}
-
-	return (0);
-}
-
-/* Fetch the name of the index'th key; the caller holds sc_mtx. */
-static int
-asmc_pio_getbyindex_locked(device_t dev, int index, uint8_t *key)
-{
-	struct asmc_softc *sc = device_get_softc(dev);
-	uint8_t index_buf[ASMC_KEYLEN];
-
-	index_buf[0] = (index >> 24) & 0xff;
-	index_buf[1] = (index >> 16) & 0xff;
-	index_buf[2] = (index >> 8) & 0xff;
-	index_buf[3] = index & 0xff;
-
-	if (asmc_command(dev, ASMC_CMDGETBYINDEX))
-		return (1);
-
-	if (asmc_pio_send(dev, index_buf, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
-		return (1);
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYLEN);
-
-	return (asmc_pio_recv(dev, key, ASMC_KEYLEN, ASMC_STATUS_DATA_READY));
-}
-
-/* Fetch the raw key info response; the caller holds sc_mtx. */
-static int
-asmc_pio_getinfo_locked(device_t dev, const uint8_t *key, uint8_t *info)
-{
-	struct asmc_softc *sc = device_get_softc(dev);
-
-	if (asmc_command(dev, ASMC_CMDGETINFO))
-		return (1);
-
-	if (asmc_pio_send(dev, key, ASMC_KEYLEN, ASMC_STATUS_AWAIT_DATA))
-		return (1);
-
-	ASMC_DATAPORT_WRITE(sc, ASMC_KEYINFO_RESPLEN);
-
-	return (asmc_pio_recv(dev, info, ASMC_KEYINFO_RESPLEN,
-	    ASMC_STATUS_DATA_READY));
-}
-
-/* Split a key info response; type needs ASMC_TYPELEN + 1 bytes. */
-static void
-asmc_keyinfo_decode(const uint8_t *info, uint8_t *len, char *type)
-{
-	if (len != NULL)
-		*len = info[0];
-	if (type != NULL) {
-		memcpy(type, &info[1], ASMC_TYPELEN);
-		type[ASMC_TYPELEN] = '\0';
-	}
-}
-
 int
 asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int error = 1, try = 0;
 
 	if (sc->sc_is_mmio)
 		return (asmc_mmio_key_read(dev, key, buf, len));
 
-	mtx_lock_spin(&sc->sc_mtx);
-
-begin:
-	if (asmc_command(dev, ASMC_CMDREAD))
-		goto out;
-
-	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DATAPORT_WRITE(sc, len);
-
-	if (asmc_pio_recv(dev, buf, len, ASMC_STATUS_DATA_READY))
-		goto out;
-
-	error = 0;
-out:
-	if (error) {
-		if (++try < 10)
-			goto begin;
-		device_printf(dev, "%s for key %s failed %d times, giving up\n",
-		    __func__, key, try);
-	}
-
-	mtx_unlock_spin(&sc->sc_mtx);
-
-	return (error);
+	return (asmc_pio_key_read(dev, key, buf, len));
 }
 
-
-/*
- * Get key info (length and type) from SMC using command 0x13.
- * If len is non-NULL, stores the key's value length.
- * If type is non-NULL, stores the 4-char type string (must be at least 5 bytes).
- */
 int
 asmc_key_getinfo(device_t dev, const char *key, uint8_t *len, char *type)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	uint8_t info[ASMC_KEYINFO_RESPLEN];
-	int error = -1, try = 0;
 
 	if (sc->sc_is_mmio)
 		return (asmc_mmio_key_getinfo(dev, key, len, type));
 
-	mtx_lock_spin(&sc->sc_mtx);
-
-	do {
-		if (asmc_pio_getinfo_locked(dev, (const uint8_t *)key,
-		    info) == 0) {
-			error = 0;
-			break;
-		}
-	} while (++try < ASMC_MAXRETRIES);
-
-	mtx_unlock_spin(&sc->sc_mtx);
-
-	if (error == 0)
-		asmc_keyinfo_decode(info, len, type);
-
-	return (error);
+	return (asmc_pio_key_getinfo(dev, key, len, type));
 }
 
 /* SMC sensor type table: type string to fixed-point divisor. */
@@ -1660,9 +1447,7 @@ asmc_key_dump_by_index(device_t dev, int index, char *key_out,
     char *type_out, uint8_t *len_out)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	uint8_t key_buf[ASMC_KEYLEN];
-	uint8_t info_buf[ASMC_KEYINFO_RESPLEN];
-	int error = ENXIO, try = 0;
+	int error;
 
 	if (sc->sc_is_mmio) {
 		error = asmc_mmio_key_getbyindex(dev, index, key_out);
@@ -1672,26 +1457,8 @@ asmc_key_dump_by_index(device_t dev, int index, char *key_out,
 		    type_out));
 	}
 
-	mtx_lock_spin(&sc->sc_mtx);
-
-	do {
-		if (asmc_pio_getbyindex_locked(dev, index, key_buf) == 0 &&
-		    asmc_pio_getinfo_locked(dev, key_buf, info_buf) == 0) {
-			error = 0;
-			break;
-		}
-	} while (++try < ASMC_MAXRETRIES);
-
-	mtx_unlock_spin(&sc->sc_mtx);
-
-	if (error != 0)
-		return (error);
-
-	memcpy(key_out, key_buf, ASMC_KEYLEN);
-	key_out[ASMC_KEYLEN] = '\0';
-	asmc_keyinfo_decode(info_buf, len_out, type_out);
-
-	return (0);
+	return (asmc_pio_key_dump_by_index(dev, index, key_out, type_out,
+	    len_out));
 }
 
 /*
@@ -1729,45 +1496,11 @@ int
 asmc_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int i, error = -1, try = 0;
 
 	if (sc->sc_is_mmio)
 		return (asmc_mmio_key_write(dev, key, buf, len));
 
-	mtx_lock_spin(&sc->sc_mtx);
-
-begin:
-	ASMC_DPRINTF(("cmd port: cmd write\n"));
-	if (asmc_command(dev, ASMC_CMDWRITE))
-		goto out;
-
-	ASMC_DPRINTF(("data port: key\n"));
-	if (asmc_pio_send(dev, (const uint8_t *)key, ASMC_KEYLEN,
-	    ASMC_STATUS_AWAIT_DATA))
-		goto out;
-
-	ASMC_DPRINTF(("data port: length\n"));
-	ASMC_DATAPORT_WRITE(sc, len);
-
-	ASMC_DPRINTF(("data port: buffer\n"));
-	for (i = 0; i < len; i++) {
-		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
-			goto out;
-		ASMC_DATAPORT_WRITE(sc, buf[i]);
-	}
-
-	error = 0;
-out:
-	if (error) {
-		if (++try < 10)
-			goto begin;
-		device_printf(dev, "%s for key %s failed %d times, giving up\n",
-		    __func__, key, try);
-	}
-
-	mtx_unlock_spin(&sc->sc_mtx);
-
-	return (error);
+	return (asmc_pio_key_write(dev, key, buf, len));
 }
 
 /*

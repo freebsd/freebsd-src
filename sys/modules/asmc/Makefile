@@ -1,7 +1,7 @@
 .PATH: ${SRCTOP}/sys/dev/asmc
 
 KMOD=	asmc
-SRCS=	asmc.c asmcmmio.c opt_acpi.h opt_asmc.h
+SRCS=	asmc.c asmc_pio.c asmcmmio.c opt_acpi.h opt_asmc.h
 SRCS+=	acpi_if.h backlight_if.h bus_if.h device_if.h
 
 .if defined(ASMC_DEBUG)
