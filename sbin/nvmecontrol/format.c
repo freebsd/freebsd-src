@@ -191,6 +191,8 @@ format(const struct cmd *f, int argc, char *argv[])
 		/* We have no previous parameters, so default to zeroes. */
 		if (lbaf < 0)
 			lbaf = 0;
+		else if (lbaf > 63)
+			errx(EX_USAGE, "LBA format is out of range");
 		if (ms < 0)
 			ms = 0;
 		if (pi < 0)
@@ -200,10 +202,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	}
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_FORMAT_NVM;
-	pt.cmd.nsid = htole32(nsid);
-	pt.cmd.cdw10 = htole32((ses << 9) + (pil << 8) + (pi << 5) +
-	    (ms << 4) + lbaf);
+	nvme_admin_format_cmd(&pt.cmd, nsid, ses, pil, pi, ms, lbaf);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "format request failed");
