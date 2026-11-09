@@ -67,9 +67,9 @@ class TestReturn(VnetTestTemplate):
         ToolsHelper.print_output("/sbin/route add default 192.0.2.1")
 
         # Sanity check
-        check("/sbin/ping -c 1 192.0.2.1")
-        check("/sbin/ping -c 1 198.51.100.1")
-        check("/sbin/ping -c 2 198.51.100.2")
+        check("/sbin/ping -c 3 192.0.2.1")
+        check("/sbin/ping -c 3 198.51.100.1")
+        check("/sbin/ping -c 3 198.51.100.2")
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["scapy"])
