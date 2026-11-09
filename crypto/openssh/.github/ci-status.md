@@ -8,6 +8,11 @@ master :
 [![Coverity Status](https://scan.coverity.com/projects/21341/badge.svg)](https://scan.coverity.com/projects/openssh-portable)
 <br>
 
+10.4 :
+[![C/C++ CI](../../../actions/workflows/c-cpp.yml/badge.svg?branch=V_10_4)](../../../actions/workflows/c-cpp.yml?query=branch:V_10_4)
+[![VM CI](../../../actions/workflows/vm.yml/badge.svg?branch=V_10_4)](../../../actions/workflows/vm.yml?query=branch:V_10_4)
+[![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_10_4)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_10_4)
+
 10.3 :
 [![C/C++ CI](../../../actions/workflows/c-cpp.yml/badge.svg?branch=V_10_3)](../../../actions/workflows/c-cpp.yml?query=branch:V_10_3)
 [![VM CI](../../../actions/workflows/vm.yml/badge.svg?branch=V_10_3)](../../../actions/workflows/vm.yml?query=branch:V_10_3)

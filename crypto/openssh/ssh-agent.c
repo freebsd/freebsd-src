@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.330 2026/07/05 02:46:44 dtucker Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.331 2026/08/07 05:18:05 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1820,12 +1820,22 @@ process_extension(SocketEntry *e)
 		return;
 	}
 
-	if (strcmp(name, "query") == 0)
-		replied = success = process_ext_query(e);
-	else if (strcmp(name, "session-bind@openssh.com") == 0)
+	/*
+	 * This function can be called while the agent is locked to allow
+	 * session binds to be processed for new channels.
+	 * Other operations should be refused when locked.
+	 */
+
+	if (strcmp(name, "session-bind@openssh.com") == 0) {
 		success = process_ext_session_bind(e);
-	else {
+	} else if (locked) {
+		debug_f("attempt to use extension \"%s\" while locked", name);
+		goto generic_fail;
+	} else if (strcmp(name, "query") == 0) {
+		replied = success = process_ext_query(e);
+	} else {
 		debug_f("unsupported extension \"%s\"", name);
+ generic_fail:
 		free(name);
 		send_status(e, 0);
 		return;
@@ -1883,16 +1893,19 @@ process_message(u_int socknum)
 
 	/* check whether agent is locked */
 	if (locked && type != SSH_AGENTC_UNLOCK) {
-		sshbuf_reset(e->request);
 		switch (type) {
 		case SSH2_AGENTC_REQUEST_IDENTITIES:
 			/* send empty lists */
 			no_identities(e);
 			break;
+		case SSH_AGENTC_EXTENSION:
+			process_extension(e);
+			break;
 		default:
 			/* send a fail message for all other request types */
 			send_status(e, 0);
 		}
+		sshbuf_reset(e->request);
 		return 1;
 	}
 

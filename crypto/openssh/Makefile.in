@@ -105,7 +105,7 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	libcrux-mlkem-mldsa.o ssh-mldsa-eddsa.o \
 	hmac.o ed25519.o ed25519-openssl.o \
 	kex.o kex-names.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
-	kexgexc.o kexgexs.o \
+	kexgexc.o kexgexs.o kexmlkem768ecdh.o \
 	kexsntrup761x25519.o kexmlkem768x25519.o sntrup761.o kexgen.o \
 	sftp-realpath.o platform-pledge.o platform-tracing.o platform-misc.o \
 	sshbuf-io.o misc-agent.o ssherr-libcrypto.o

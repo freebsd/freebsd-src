@@ -51,7 +51,7 @@ int getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	struct hostent *hp;
 	char tmpserv[16];
 
-	if (sa->sa_family != AF_UNSPEC && sa->sa_family != AF_INET ||
+	if ((sa->sa_family != AF_UNSPEC && sa->sa_family != AF_INET) ||
 	    salen < sizeof(struct sockaddr_in))
 		return (EAI_FAMILY);
 	if (serv != NULL) {

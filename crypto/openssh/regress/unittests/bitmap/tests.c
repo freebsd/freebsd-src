@@ -138,9 +138,9 @@ tests(void)
 	TEST_DONE();
 #endif
 }
+
 void
 benchmarks(void)
 {
 	printf("no benchmarks\n");
 }
-

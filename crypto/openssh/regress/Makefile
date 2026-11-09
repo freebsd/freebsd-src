@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.144 2026/03/30 07:19:02 djm Exp $
+#	$OpenBSD: Makefile,v 1.146 2026/08/04 02:48:00 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
