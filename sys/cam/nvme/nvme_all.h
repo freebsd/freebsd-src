@@ -78,8 +78,9 @@ void nvme_set_feature(struct ccb_nvmeio *nvmeio, uint32_t retries,
 		      uint32_t timeout);
 void nvme_get_feature_hostid(struct ccb_nvmeio *nvmeio, uint32_t retries,
 			     void (*cbfcnp)(struct cam_periph *, union ccb *),
-			     int sel, int uuid_idx, uint8_t *data_ptr,
-			     uint32_t dxfer_len, uint32_t timeout);
+			     int sel, int exhid, int uuid_idx,
+			     uint8_t *data_ptr, uint32_t dxfer_len,
+			     uint32_t timeout);
 void nvme_set_feature_hostid(struct ccb_nvmeio *nvmeio, uint32_t retries,
 			     void (*cbfcnp)(struct cam_periph *, union ccb *),
 			     int sv, int exhid, uint8_t *data_ptr,
