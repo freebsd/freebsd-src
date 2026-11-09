@@ -39,11 +39,10 @@ static int
 asmc_wait_ack(device_t dev, uint8_t val, int amount)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	u_int i;
 
 	val = val & ASMC_STATUS_MASK;
 
-	for (i = 0; i < amount; i++) {
+	for (u_int i = 0; i < amount; i++) {
 		if ((ASMC_CMDPORT_READ(sc) & ASMC_STATUS_MASK) == val)
 			return (0);
 		DELAY(10);
@@ -82,10 +81,9 @@ asmc_wait(device_t dev, uint8_t val)
 static int
 asmc_command(device_t dev, uint8_t command)
 {
-	int i;
 	struct asmc_softc *sc = device_get_softc(dev);
 
-	for (i = 0; i < 10; i++) {
+	for (int i = 0; i < 10; i++) {
 		ASMC_CMDPORT_WRITE(sc, command);
 		if (asmc_wait_ack(dev, 0x0c, 100) == 0) {
 			return (0);
@@ -285,7 +283,7 @@ int
 asmc_pio_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int i, error = -1, try = 0;
+	int error = -1, try = 0;
 
 	mtx_lock_spin(&sc->sc_mtx);
 
@@ -303,7 +301,7 @@ begin:
 	ASMC_DATAPORT_WRITE(sc, len);
 
 	ASMC_DPRINTF(("data port: buffer\n"));
-	for (i = 0; i < len; i++) {
+	for (int i = 0; i < len; i++) {
 		if (asmc_wait(dev, ASMC_STATUS_AWAIT_DATA))
 			goto out;
 		ASMC_DATAPORT_WRITE(sc, buf[i]);

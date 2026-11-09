@@ -478,7 +478,6 @@ asmc_sms_init(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 	uint8_t buf[2];
-	int i;
 
 	/*
 	 * We are ready to receive interrupts from the SMS.
@@ -528,7 +527,7 @@ asmc_sms_init(device_t dev)
 	 * Retry SMS initialization 1000 times
 	 * (takes approx. 2 seconds in worst case)
 	 */
-	for (i = 0; i < 1000; i++) {
+	for (int i = 0; i < 1000; i++) {
 		if (asmc_key_read(dev, ASMC_KEY_SMS, buf, 2) == 0 &&
 		    (buf[0] == ASMC_SMS_INIT1 && buf[1] == ASMC_SMS_INIT2)) {
 			sc->sc_sms_intr_works = 1;
@@ -638,9 +637,7 @@ static const struct {
 static bool
 asmc_sensor_convert(const char *type, const uint8_t *buf, int *millivalue)
 {
-	int i;
-
-	for (i = 0; asmc_sensor_types[i].divisor != 0; i++) {
+	for (int i = 0; asmc_sensor_types[i].divisor != 0; i++) {
 		if (strncmp(type, asmc_sensor_types[i].type, 4) != 0)
 			continue;
 		if (asmc_sensor_types[i].divisor == 1)
@@ -656,9 +653,7 @@ asmc_sensor_convert(const char *type, const uint8_t *buf, int *millivalue)
 static bool
 asmc_sensor_type_supported(const char *type)
 {
-	int i;
-
-	for (i = 0; asmc_sensor_types[i].divisor != 0; i++)
+	for (int i = 0; asmc_sensor_types[i].divisor != 0; i++)
 		if (strncmp(type, asmc_sensor_types[i].type, 4) == 0)
 			return (true);
 	return (false);

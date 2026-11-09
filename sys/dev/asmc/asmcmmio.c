@@ -36,11 +36,10 @@ static int
 asmc_mmio_wait(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int i;
 	uint8_t status;
 	int delay_us = 10;
 
-	for (i = 0; i < ASMC_MMIO_MAX_WAIT; i++) {
+	for (int i = 0; i < ASMC_MMIO_MAX_WAIT; i++) {
 		status = bus_read_1(sc->sc_iomem, ASMC_MMIO_STATUS);
 		if (status & ASMC_MMIO_STATUS_READY)
 			return (0);

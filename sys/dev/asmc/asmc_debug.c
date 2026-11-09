@@ -65,7 +65,6 @@ void
 asmc_dumpall(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int i;
 
 	if (sc->sc_nkeys == 0) {
 		device_printf(dev, "asmc_dumpall: key count not available\n");
@@ -73,7 +72,7 @@ asmc_dumpall(device_t dev)
 	}
 
 	device_printf(dev, "asmc_dumpall: dumping %d keys\n", sc->sc_nkeys);
-	for (i = 0; i < sc->sc_nkeys; i++)
+	for (int i = 0; i < sc->sc_nkeys; i++)
 		asmc_key_dump(dev, i);
 }
 

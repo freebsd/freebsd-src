@@ -310,9 +310,7 @@ static const struct {
 static const char *
 asmc_temp_desc(const char *key)
 {
-	unsigned int i;
-
-	for (i = 0; i < nitems(asmc_temp_descs); i++) {
+	for (unsigned int i = 0; i < nitems(asmc_temp_descs); i++) {
 		if (strcmp(asmc_temp_descs[i].key, key) == 0)
 			return (asmc_temp_descs[i].desc);
 	}
@@ -1022,9 +1020,7 @@ asmc_sil_sysctl(SYSCTL_HANDLER_ARGS)
 static const char *
 asmc_cause_str(int8_t cause, bool is_sleep)
 {
-	size_t i;
-
-	for (i = 0; i < nitems(asmc_cause_table); i++) {
+	for (size_t i = 0; i < nitems(asmc_cause_table); i++) {
 		if (asmc_cause_table[i].code != cause)
 			continue;
 		if (is_sleep && asmc_cause_table[i].sleep_desc != NULL)
