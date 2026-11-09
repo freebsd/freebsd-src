@@ -167,12 +167,66 @@ vmm_sbi_probe_extension(int ext_id)
 	case SBI_EXT_ID_SRST:
 	case SBI_CONSOLE_PUTCHAR:
 	case SBI_CONSOLE_GETCHAR:
+	case SBI_EXT_ID_DBCN:
 		break;
 	default:
 		return (0);
 	}
 
 	return (1);
+}
+
+static int
+vmexit_ecall_dbcn(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vme)
+{
+	static bool dbcn_active = false;
+	int func_id;
+	uint64_t num_bytes, base_addr_lo;
+	uint8_t byte;
+	char *buf;
+	int ret = SBI_SUCCESS;
+	uint64_t ret_val = 0;
+
+	if (!dbcn_active) {
+		dbcn_active = true;
+		fprintf(stderr, "bhyve: guest activated SBI DBCN\n");
+	}
+
+	func_id = vme->u.ecall.args[6];
+
+	switch (func_id) {
+	case SBI_DBCN_CONSOLE_WRITE:
+		num_bytes = vme->u.ecall.args[0];
+		base_addr_lo = vme->u.ecall.args[1];
+
+		if (num_bytes > 0) {
+			buf = paddr_guest2host(ctx, base_addr_lo, num_bytes);
+			if (buf == NULL) {
+				ret = SBI_ERR_INVALID_PARAM;
+				break;
+			}
+			fwrite(buf, 1, num_bytes, stdout);
+			fflush(stdout);
+			ret_val = num_bytes;
+		}
+		break;
+	case SBI_DBCN_CONSOLE_READ:
+		ret = SBI_SUCCESS;
+		ret_val = 0;
+		break;
+	case SBI_DBCN_CONSOLE_WRITE_BYTE:
+		byte = (uint8_t)vme->u.ecall.args[0];
+		putchar(byte);
+		fflush(stdout);
+		ret_val = 0;
+		break;
+	default:
+		ret = SBI_ERR_NOT_SUPPORTED;
+		break;
+	}
+
+	vm_set_register(vcpu, VM_REG_GUEST_A1, ret_val);
+	return (ret);
 }
 
 static int
@@ -326,6 +380,9 @@ vmexit_ecall(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 		break;
 	case SBI_EXT_ID_HSM:
 		ret = vmexit_ecall_hsm(ctx, vcpu, vme);
+		break;
+	case SBI_EXT_ID_DBCN:
+		ret = vmexit_ecall_dbcn(ctx, vcpu, vme);
 		break;
 	case SBI_CONSOLE_PUTCHAR:
 	case SBI_CONSOLE_GETCHAR:
