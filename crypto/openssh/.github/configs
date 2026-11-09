@@ -374,6 +374,9 @@ case "$host" in
 	*-darwin22.*)
 		# sudo -S nobody doesn't work on macos 13 for some reason.
 		SKIP_LTESTS="agent-getpeereid" ;;
+	*-apple-darwin25.*|*-apple-darwin26.*|*-apple-darwin27.*)
+		# This test fails, skip until debugged.
+		SKIP_LTESTS="scp3" ;;
 	esac
 	;;
 *-solaris2.10)

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-mldsa-eddsa.c,v 1.4 2026/07/30 07:40:48 brynet Exp $ */
+/* $OpenBSD: ssh-mldsa-eddsa.c,v 1.7 2026/10/01 04:17:39 djm Exp $ */
 /*
  * Copyright (c) 2026 Damien Miller <djm@mindrot.org>
  *
@@ -36,7 +36,7 @@
 
 #define COMPOSITE_PREFIX "CompositeAlgorithmSignatures2025"
 #define COMPOSITE_LABEL  "COMPSIG-MLDSA44-Ed25519-SHA512"
-#define SSH_MLDSA44_ED25519_ALG_NAME   "ssh-mldsa44-ed25519@openssh.com"
+#define SSH_MLDSA44_ED25519_ALG_NAME   "ssh-mldsa44-ed25519"
 
 /*
  * raw_* functions implement the draft-ietf-lamps-pq-composite-sigs-18
@@ -75,7 +75,7 @@ crypto_sign_mldsa44_ed25519_keygen_seeded(uint8_t pk[MLDSA44_ED25519_PK_SZ],
 
 	if (crypto_sign_mldsa44_keypair_seeded(pk, mldsa_sk, mldsa_seed) != 0)
 		goto out;
-	if (crypto_sign_ed25519_keypair_from_seed(ed25519_pk, ed25519_sk,
+	if (crypto_sign_ed25519_seed_keypair(ed25519_pk, ed25519_sk,
 	    ed25519_seed) != 0)
 		goto out;
 
@@ -168,22 +168,15 @@ crypto_sign_mldsa44_ed25519_sign(uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 		goto out;
 
 	/* Expand Ed25519 key from seed */
-	if (crypto_sign_ed25519_keypair_from_seed(ed25519_pk, ed25519_sk,
+	if (crypto_sign_ed25519_seed_keypair(ed25519_pk, ed25519_sk,
 	    sk + MLDSA44_SEEDBYTES) != 0)
 		goto out;
 
 	/* Sign with Ed25519 */
-	uint8_t *sm = malloc(m_prime_len + crypto_sign_ed25519_BYTES);
-	if (sm == NULL)
+	if (crypto_sign_ed25519_detached(sig + MLDSA44_SIGBYTES, &smlen,
+	    m_prime, m_prime_len, ed25519_sk) != 0 ||
+	    smlen != crypto_sign_ed25519_BYTES)
 		goto out;
-
-	if (crypto_sign_ed25519(sm, &smlen, m_prime, m_prime_len,
-	    ed25519_sk) != 0) {
-		free(sm);
-		goto out;
-	}
-	memcpy(sig + MLDSA44_SIGBYTES, sm, crypto_sign_ed25519_BYTES);
-	free(sm);
 
 	r = 0;
  out:
@@ -202,8 +195,6 @@ crypto_sign_mldsa44_ed25519_verify(const uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 {
 	uint8_t *m_prime = NULL;
 	size_t m_prime_len = 0;
-	uint8_t *sm = NULL, *m = NULL;
-	unsigned long long smlen, mlen;
 	int r = -1;
 
 	if (construct_m_prime(&m_prime, &m_prime_len, msg, msglen,
@@ -217,24 +208,13 @@ crypto_sign_mldsa44_ed25519_verify(const uint8_t sig[MLDSA44_ED25519_SIG_SZ],
 		goto out;
 
 	/* Verify Ed25519 */
-	smlen = m_prime_len + crypto_sign_ed25519_BYTES;
-	mlen = smlen;
-	if ((sm = malloc(smlen)) == NULL || (m = malloc(mlen)) == NULL)
-		goto out;
-	memcpy(sm, sig + MLDSA44_SIGBYTES, crypto_sign_ed25519_BYTES);
-	memcpy(sm + crypto_sign_ed25519_BYTES, m_prime, m_prime_len);
-
-	if (crypto_sign_ed25519_open(m, &mlen, sm, smlen,
-	    pk + MLDSA44_PUBLICKEYBYTES) != 0)
-		goto out;
-	if (mlen != m_prime_len)
+	if (crypto_sign_ed25519_verify_detached(sig + MLDSA44_SIGBYTES,
+	    m_prime, m_prime_len, pk + MLDSA44_PUBLICKEYBYTES) != 0)
 		goto out;
 
 	r = 0;
  out:
 	free(m_prime);
-	free(sm);
-	free(m);
 	return r;
 }
 
@@ -483,26 +463,26 @@ const struct sshkey_impl_funcs sshkey_mldsa44_ed25519_funcs = {
 };
 
 const struct sshkey_impl sshkey_mldsa44_ed25519_impl = {
-	/* .name = */		"ssh-mldsa44-ed25519@openssh.com",
+	/* .name = */		"ssh-mldsa44-ed25519",
 	/* .shortname = */	"MLDSA44-ED25519",
 	/* .sigalg = */		NULL,
 	/* .type = */		KEY_MLDSA44_ED25519,
 	/* .nid = */		0,
 	/* .cert = */		0,
 	/* .sigonly = */	0,
-	/* .keybits = */	256,
+	/* .keybits = */	512, /* size of the private key */
 	/* .funcs = */		&sshkey_mldsa44_ed25519_funcs,
 };
 
 const struct sshkey_impl sshkey_mldsa44_ed25519_cert_impl = {
-	/* .name = */		"ssh-mldsa44-ed25519-cert-v01@openssh.com",
+	/* .name = */		"ssh-mldsa44-ed25519-cert",
 	/* .shortname = */	"MLDSA44-ED25519-CERT",
 	/* .sigalg = */		NULL,
 	/* .type = */		KEY_MLDSA44_ED25519_CERT,
 	/* .nid = */		0,
 	/* .cert = */		1,
 	/* .sigonly = */	0,
-	/* .keybits = */	256,
+	/* .keybits = */	512, /* size of the private key */
 	/* .funcs = */		&sshkey_mldsa44_ed25519_funcs,
 };
 #endif /* USE_MLDSA */

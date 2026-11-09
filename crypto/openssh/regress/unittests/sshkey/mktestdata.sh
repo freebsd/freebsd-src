@@ -1,5 +1,5 @@
 #!/bin/sh
-# $OpenBSD: mktestdata.sh,v 1.13 2026/06/14 04:08:06 djm Exp $
+# $OpenBSD: mktestdata.sh,v 1.14 2026/09/02 00:39:18 djm Exp $
 
 PW=mekmitasdigoat
 
@@ -68,7 +68,7 @@ rm -f pw *.pub *.bn.* *.param.* *.fp *.fp.bb
 ssh-keygen -t rsa -b 1024 -C "RSA test key #1" -N "" -f rsa_1 -m PEM
 ssh-keygen -t ecdsa -b 256 -C "ECDSA test key #1" -N "" -f ecdsa_1 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #1" -N "" -f ed25519_1
-ssh-keygen -t ssh-mldsa44-ed25519@openssh.com -C "MLDSA44-ED25519 test key #1" -N "" -f mldsa44_ed25519_1
+ssh-keygen -t ssh-mldsa44-ed25519 -C "MLDSA44-ED25519 test key #1" -N "" -f mldsa44_ed25519_1
 ssh-keygen -w "$SK_DUMMY" -t ecdsa-sk -C "ECDSA-SK test key #1" \
     -N "" -f ecdsa_sk1
 ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #1" \
@@ -78,7 +78,7 @@ ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #1" \
 ssh-keygen -t rsa -b 2048 -C "RSA test key #2" -N "" -f rsa_2 -m PEM
 ssh-keygen -t ecdsa -b 521 -C "ECDSA test key #2" -N "" -f ecdsa_2 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #2" -N "" -f ed25519_2
-ssh-keygen -t ssh-mldsa44-ed25519@openssh.com -C "MLDSA44-ED25519 test key #2" -N "" -f mldsa44_ed25519_2
+ssh-keygen -t ssh-mldsa44-ed25519 -C "MLDSA44-ED25519 test key #2" -N "" -f mldsa44_ed25519_2
 ssh-keygen -w "$SK_DUMMY" -t ecdsa-sk -C "ECDSA-SK test key #2" \
     -N "" -f ecdsa_sk2
 ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #2" \

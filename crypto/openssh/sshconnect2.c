@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.393 2026/08/08 07:25:55 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.394 2026/09/16 00:31:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -683,27 +683,33 @@ input_userauth_pk_ok(int type, uint32_t seq, struct ssh *ssh)
 {
 	Authctxt *authctxt = ssh->authctxt;
 	struct sshkey *key = NULL;
+	struct sshbuf *keyblob = NULL;
 	Identity *id = NULL;
 	int pktype, found = 0, sent = 0;
-	size_t blen;
 	char *pkalg = NULL, *fp = NULL, *ident = NULL;
-	u_char *pkblob = NULL;
 	int r;
 
 	if (authctxt == NULL)
-		fatal("input_userauth_pk_ok: no authentication context");
+		fatal_f("no authentication context");
 
 	if ((r = sshpkt_get_cstring(ssh, &pkalg, NULL)) != 0 ||
-	    (r = sshpkt_get_string(ssh, &pkblob, &blen)) != 0 ||
+	    (r = sshpkt_getb_froms(ssh, &keyblob)) != 0 ||
 	    (r = sshpkt_get_end(ssh)) != 0)
 		goto done;
 
+	if (match_pattern_list(pkalg, options.pubkey_accepted_algos, 0) != 1) {
+		error_f("server replied to PK_OK with signature type %s not "
+		    "in PubkeyAcceptedAlgorithms", pkalg);
+		r = SSH_ERR_SIGN_ALG_UNSUPPORTED;
+		goto done;
+	}
 	if ((pktype = sshkey_type_from_name(pkalg)) == KEY_UNSPEC) {
 		debug_f("server sent unknown pkalg %s", pkalg);
 		r = SSH_ERR_INVALID_FORMAT;
 		goto done;
 	}
-	if ((r = sshkey_from_blob(pkblob, blen, &key)) != 0) {
+	/* inner key type should match signature type */
+	if ((r = sshkey_fromb_allowlist(keyblob, &key, pkalg, NULL)) != 0) {
 		debug_r(r, "no key from blob. pkalg %s", pkalg);
 		goto done;
 	}
@@ -740,10 +746,10 @@ input_userauth_pk_ok(int type, uint32_t seq, struct ssh *ssh)
 	r = 0;
  done:
 	sshkey_free(key);
+	sshbuf_free(keyblob);
 	free(ident);
 	free(fp);
 	free(pkalg);
-	free(pkblob);
 
 	/* try another method if we did not send a packet */
 	if (r == 0 && sent == 0)

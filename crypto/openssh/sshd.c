@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.628 2026/06/29 07:36:37 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.635 2026/09/16 07:47:29 jsg Exp $ */
 /*
  * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  * Copyright (c) 2002 Niels Provos.  All rights reserved.
@@ -118,6 +118,7 @@ ServerOptions options;
 int debug_flag = 0;
 
 /* Saved arguments to main(). */
+static char execpath[PATH_MAX];
 static char **saved_argv;
 static int saved_argc;
 
@@ -535,8 +536,8 @@ sighup_restart(void)
 	close_listen_socks();
 	close_startup_pipes();
 	ssh_signal(SIGHUP, SIG_IGN); /* will be restored after exec */
-	execv(saved_argv[0], saved_argv);
-	logit("RESTART FAILED: av[0]='%.100s', error: %.100s.", saved_argv[0],
+	execv(execpath, saved_argv);
+	logit("RESTART FAILED: execpath='%.100s', error: %.100s.", execpath,
 	    strerror(errno));
 	exit(1);
 }
@@ -627,7 +628,7 @@ drop_connection(int sock, int startups, int notify_pipe)
 		if (!should_drop_connection(startups) &&
 		    srclimit_check_allow(sock, notify_pipe) == 1)
 			return 0;
-		reason = "Maxstartups";
+		reason = "MaxStartups";
 		rl = &ratelimit_maxstartups;
 	}
 
@@ -1009,6 +1010,12 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s,
 				lameduck = 1;
 			}
 			if (listening <= 0) {
+				/*
+				 * Leave termination signals blocked, so
+				 * they don't get lost across a restart.
+				 */
+				sigaddset(&osigset, SIGTERM);
+				sigaddset(&osigset, SIGQUIT);
 				sigprocmask(SIG_SETMASK, &osigset, NULL);
 				sighup_restart();
 			}
@@ -1334,6 +1341,23 @@ prepare_proctitle(int ac, char **av)
 	return ret;
 }
 
+/* Disconnect from the controlling tty. */
+static void
+disconnect_controlling_tty(void)
+{
+#ifdef TIOCNOTTY
+# ifndef O_NOCTTY
+#  define O_NOCTTY 0
+# endif
+	int fd;
+
+	if ((fd = open(_PATH_TTY, O_RDWR | O_NOCTTY)) >= 0) {
+		(void) ioctl(fd, TIOCNOTTY, NULL);
+		close(fd);
+	}
+#endif /* TIOCNOTTY */
+}
+
 static void
 print_config(struct connection_info *connection_info)
 {
@@ -1492,7 +1516,8 @@ main(int ac, char **av)
 			have_connection_info = 1;
 			break;
 		case 'u':
-			utmp_len = (u_int)strtonum(optarg, 0, HOST_NAME_MAX+1+1, NULL);
+			utmp_len = (u_int)strtonum(optarg, 0,
+			    HOST_NAME_MAX+1+1, NULL);
 			if (utmp_len > HOST_NAME_MAX+1) {
 				fprintf(stderr, "Invalid utmp length.\n");
 				exit(1);
@@ -1514,7 +1539,15 @@ main(int ac, char **av)
 			break;
 		}
 	}
-	if (!test_flag && !inetd_flag && !do_dump_cfg && !path_absolute(av[0]))
+
+	if (getexecpath(execpath, sizeof execpath) != 0) {
+		if (strlcpy(execpath, av[0], sizeof execpath) >=
+		    sizeof execpath) {
+			fprintf(stderr, "execution path is too long\n");
+			exit(1);
+		}
+	}
+	if (!test_flag && !inetd_flag && !do_dump_cfg && !path_absolute(execpath))
 		fatal("sshd requires execution with an absolute path");
 
 	closefrom(STDERR_FILENO + 1);

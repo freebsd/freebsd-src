@@ -99,6 +99,7 @@ COMPAT= bsd-asprintf.o \
 PORTS=	port-aix.o \
 	port-irix.o \
 	port-linux.o \
+	port-linux-selinux.o \
 	port-prngd.o \
 	port-solaris.o \
 	port-net.o \

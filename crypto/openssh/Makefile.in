@@ -119,7 +119,7 @@ SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 
 SSHDOBJS=sshd.o \
 	platform-listen.o \
-	servconf.o sshpty.o srclimit.o groupaccess.o auth2-methods.o \
+	servconf.o srclimit.o groupaccess.o auth2-methods.o \
 	dns.o fatal.o compat.o utf8.o authfd.o canohost.o \
 	$(P11OBJS) $(SKOBJS)
 

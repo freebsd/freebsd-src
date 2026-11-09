@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.113 2026/04/02 07:39:57 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.116 2026/09/23 21:42:39 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -1446,7 +1446,7 @@ mux_session_confirm(struct ssh *ssh, int id, int success, void *arg)
 	}
 
 	if (cctx->want_agent_fwd && options.forward_agent)
-		client_channel_reqest_agent_forwarding(ssh, id);
+		client_channel_request_agent_forwarding(ssh, id);
 
 	client_session2_setup(ssh, id, cctx->want_tty, cctx->want_subsys,
 	    cctx->term, &cctx->tio, c->rfd, cctx->cmd, cctx->env);
