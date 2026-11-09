@@ -1007,4 +1007,20 @@ struct winsize {
 # endif
 #endif
 
+/*
+ * Hack for systems that don't support FD passing: retain privileges
+ * in the post-auth privsep process so it can allocate PTYs directly.
+ *
+ * Instead of doing what we did <= 9.7, which was to disable post-auth
+ * privsep entirely, we run with temporarily_use_uid, restoring root
+ * only to allocate ptys or in the child to permanently change UID.
+ *
+ * Cygwin doesn't need to drop privs here although it doesn't support
+ * fd passing, as AFAIK PTY allocation on this platform doesn't require
+ * special privileges to begin with.
+ */
+#if defined(DISABLE_FD_PASSING) && !defined(HAVE_CYGWIN)
+# define SKIP_PRIVDROP 1
+#endif
+
 #endif /* _DEFINES_H */

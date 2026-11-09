@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519-sk.c,v 1.16 2026/02/14 00:18:34 jsg Exp $ */
+/* $OpenBSD: ssh-ed25519-sk.c,v 1.17 2026/09/16 00:43:00 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -129,14 +129,11 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 	struct sshbuf *encoded = NULL;
 	char *ktype = NULL;
 	const u_char *sigblob;
-	const u_char *sm;
-	u_char *m = NULL;
 	u_char apphash[32];
 	u_char msghash[32];
 	u_char sig_flags;
 	u_int sig_counter;
 	size_t len;
-	unsigned long long smlen = 0, mlen = 0;
 	int r = SSH_ERR_INTERNAL_ERROR;
 	int ret;
 	struct sshkey_sig_details *details = NULL;
@@ -175,7 +172,7 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 		r = SSH_ERR_UNEXPECTED_TRAILING_DATA;
 		goto out;
 	}
-	if (len > crypto_sign_ed25519_BYTES) {
+	if (len != crypto_sign_ed25519_BYTES) {
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
@@ -202,8 +199,7 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if (sshbuf_put(encoded, sigblob, len) != 0 ||
-	    sshbuf_put(encoded, apphash, sizeof(apphash)) != 0 ||
+	if (sshbuf_put(encoded, apphash, sizeof(apphash)) != 0 ||
 	    sshbuf_put_u8(encoded, sig_flags) != 0 ||
 	    sshbuf_put_u32(encoded, sig_counter) != 0 ||
 	    sshbuf_put(encoded, msghash, sizeof(msghash)) != 0) {
@@ -214,22 +210,15 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 	fprintf(stderr, "%s: signed buf:\n", __func__);
 	sshbuf_dump(encoded, stderr);
 #endif
-	sm = sshbuf_ptr(encoded);
-	smlen = sshbuf_len(encoded);
-	mlen = smlen;
-	if ((m = malloc(smlen)) == NULL) {
-		r = SSH_ERR_ALLOC_FAIL;
-		goto out;
-	}
-	if ((ret = crypto_sign_ed25519_open(m, &mlen, sm, smlen,
+	if ((ret = crypto_sign_ed25519_verify_detached(sigblob,
+	    sshbuf_ptr(encoded), sshbuf_len(encoded),
 	    key->ed25519_pk)) != 0) {
-		debug2_f("crypto_sign_ed25519_open failed: %d", ret);
+		debug2_f("crypto_sign_ed25519_verify_detached failed: %d", ret);
 	}
-	if (ret != 0 || mlen != smlen - len) {
+	if (ret != 0) {
 		r = SSH_ERR_SIGNATURE_INVALID;
 		goto out;
 	}
-	/* XXX compare 'm' and 'sm + len' ? */
 	/* success */
 	r = 0;
 	if (detailsp != NULL) {
@@ -237,8 +226,6 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 		details = NULL;
 	}
  out:
-	if (m != NULL)
-		freezero(m, smlen); /* NB mlen may be invalid if r != 0 */
 	sshkey_sig_details_free(details);
 	sshbuf_free(b);
 	sshbuf_free(encoded);

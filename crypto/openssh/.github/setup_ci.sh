@@ -59,6 +59,7 @@ EOD
 	;;
 *)
 	PACKAGER=apt
+	PACKAGES="libcrypt-dev"
 esac
 
 TARGETS=${config}
@@ -140,7 +141,6 @@ for TARGET in $TARGETS; do
 	;;
     sk)
 	INSTALL_FIDO_PPA="yes"
-	PACKAGES="$PACKAGES libfido2-dev libu2f-host-dev libcbor-dev"
 	;;
     selinux)
 	PACKAGES="$PACKAGES libselinux1-dev selinux-policy-dev libaudit-dev"
@@ -203,7 +203,9 @@ done
 if [ "yes" = "$INSTALL_FIDO_PPA" ]; then
     sudo apt update -qq
     sudo apt install -qy software-properties-common
-    sudo apt-add-repository -y ppa:yubico/stable
+    # Not all release+arch combinations have this, so optionally install.
+    (sudo apt-add-repository -y ppa:yubico/stable && \
+	sudo apt install libfido2-dev libu2f-host-dev libcbor-dev) || true
 fi
 
 tries=3

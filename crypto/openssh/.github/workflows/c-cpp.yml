@@ -28,11 +28,16 @@ jobs:
         target:
           - ubuntu-22.04
           - ubuntu-latest
+          - ubuntu-26.04
           - ubuntu-22.04-arm
           - ubuntu-24.04-arm
+          - ubuntu-26.04-arm
           - macos-14
           - macos-15
           - macos-15-intel
+          - macos-26
+          - macos-26-intel
+          - xcode-27
           - windows-2022
           - windows-2025
         config: [default]
@@ -120,6 +125,8 @@ jobs:
           - { target: ubuntu-24.04-arm, config: kitchensink }
           - { target: macos-14, config: pam }
           - { target: macos-15, config: pam }
+          - { target: macos-26, config: pam }
+          - { target: xcode-27, config: pam }
     runs-on: ${{ matrix.target }}
     env:
       EPHEMERAL_VM: yes
@@ -172,7 +179,7 @@ jobs:
       run: sh -c 'SUDO="$(which sudo 2>/dev/null)"; $SUDO chown -R "${LOGNAME}" regress'
     - name: show logs
       if: failure()
-      run: sh -c "for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; cat $i; done"
+      run: sh -c 'for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; tail -50 $i; done'
     - name: save logs
       if: failure()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main

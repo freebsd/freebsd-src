@@ -1,4 +1,4 @@
-/* $OpenBSD: misc-agent.c,v 1.7 2026/02/11 17:05:32 dtucker Exp $ */
+/* $OpenBSD: misc-agent.c,v 1.11 2026/09/22 22:29:27 djm Exp $ */
 /*
  * Copyright (c) 2025 Damien Miller <djm@mindrot.org>
  *
@@ -30,6 +30,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "digest.h"
 #include "log.h"
@@ -78,7 +79,7 @@ hostname_hash(size_t len)
 	return xstrdup(p);
 }
 
-char *
+static char *
 agent_hostname_hash(void)
 {
 	return hostname_hash(SOCKET_HOSTNAME_HASHLEN);
@@ -154,71 +155,190 @@ unix_listener_tmp(char *path, int backlog)
 }
 
 /*
- * Create a subdirectory under the supplied home directory if it
- * doesn't already exist
+ * Shared directory case (e.g. /tmp): create a temporary directory
+ * for the socket.
  */
 static int
-ensure_mkdir(const char *homedir, const char *subdir)
+agent_listener_shared(const char *parent_dir, pid_t pid, const char *tag,
+    int *sockp, char **pathp, char **dirp)
 {
-	char *path;
+	char *dir = NULL, *path = NULL;
+	int sock, ret = -1;
+	mode_t prev_mask;
 
-	xasprintf(&path, "%s/%s", homedir, subdir);
-	if (mkdir(path, 0700) == 0)
-		debug("created directory %s", path);
-	else if (errno != EEXIST) {
-		error_f("mkdir %s: %s", path, strerror(errno));
-		free(path);
-		return -1;
+	*pathp = *dirp = NULL;
+	xasprintf(&dir, "%s/ssh-XXXXXXXXXXXX", parent_dir);
+	if (mkdtemp(dir) == NULL) {
+		error_f("failed to create temporary directory "
+		    "in \"%s\": %s", dir, strerror(errno));
+		goto out;
 	}
+	xasprintf(&path, "%s/agent.%s.%ld", dir, tag, (long)pid);
+	prev_mask = umask(0177);
+	if ((sock = unix_listener(path, SSH_LISTEN_BACKLOG, 0)) < 0) {
+		/* Error already logged */
+		umask(prev_mask);
+		if (rmdir(dir) != 0)
+			error_f("rmdir \"%s\": %s", dir, strerror(errno));
+		goto out;
+	}
+	umask(prev_mask);
+
+	/* Success */
+	*dirp = dir;
+	dir = NULL; /* transferred */
+	*pathp = path;
+	path = NULL; /* transferred */
+	*sockp = sock;
+	ret = 0;
+ out:
+	free(dir);
 	free(path);
-	return 0;
+	return ret;
 }
 
+/*
+ * User-specific directory case (e.g. ~/.ssh/agent): ensure directory
+ * exists, and use a temp socket name under it.
+ */
 static int
-agent_prepare_sockdir(const char *homedir)
+agent_listener_user(const char *dir, pid_t pid, const char *tag,
+    int *sockp, char **pathp)
 {
-	if (homedir == NULL || *homedir == '\0' ||
-	    ensure_mkdir(homedir, _PATH_SSH_USER_DIR) != 0 ||
-	    ensure_mkdir(homedir, _PATH_SSH_AGENT_SOCKET_DIR) != 0)
-		return -1;
-	return 0;
-}
-
-
-/* Get a path template for an agent socket in the user's homedir */
-static char *
-agent_socket_template(const char *homedir, const char *tag)
-{
-	char *hostnamehash, *ret;
+	char *hostnamehash = NULL, *path = NULL;
+	int sock, ret = -1;
 
 	if ((hostnamehash = hostname_hash(SOCKET_HOSTNAME_HASHLEN)) == NULL)
-		return NULL;
-	xasprintf(&ret, "%s/%s/s.%s.%s.XXXXXXXXXX",
-	    homedir, _PATH_SSH_AGENT_SOCKET_DIR, hostnamehash, tag);
+		return -1;
+	xasprintf(&path, "%s/s.%s.%s.%lld.XXXXXXXXXX",
+	    dir, hostnamehash, tag, (long long)pid);
+	if (mkdir_path(dir, 0700) != 0) {
+		error_f("failed to create agent socket parent directory");
+		goto out;
+	}
+	if ((sock = unix_listener_tmp(path, SSH_LISTEN_BACKLOG)) == -1) {
+		/* error already logged */
+		goto out;
+	}
+	/* Success */
+	*pathp = path;
+	path = NULL; /* transferred */
+	*sockp = sock;
+	ret = 0;
+ out:
 	free(hostnamehash);
+	free(path);
+	return ret;
+}
+
+static char *
+expand_pathspec(const char *path, const char *username,
+    uid_t uid, const char *homedir)
+{
+	char *uidbuf = NULL, *dir = NULL, *tmp = NULL;
+
+	xasprintf(&uidbuf, "%lld", (long long)uid);
+
+	if ((tmp = percent_expand(path, "u", username, "U", uidbuf,
+	    "h", homedir, NULL)) == NULL) {
+		error_f("failed to percent-expand agent socket directory");
+		goto out;
+	}
+	if (tilde_expand(tmp, uid, &dir) != 0) {
+		error_f("failed to user-expand agent socket directory");
+		goto out;
+	}
+	if (dir[0] != '/') {
+		/* Assume it's relative to the home directory */
+		free(tmp);
+		tmp = dir;
+		xasprintf(&dir, "%s/%s", homedir, tmp);
+	}
+ out:
+	free(uidbuf);
+	free(tmp);
+	return dir;
+}
+
+int
+agent_listener(const char *pathspec, const char *username, uid_t uid,
+    const char *homedir, pid_t pid, const char *tag, int *sockp,
+    char **pathp, char **dirp)
+{
+	int sock = -1, ret = -1;
+	char *path = NULL, *dir = NULL;
+
+	*sockp = -1;
+	*pathp = *dirp = NULL;
+
+	if (pathspec == NULL || pathspec[0] == '\0') {
+		error_f("no agent path specified");
+		return -1;
+	}
+	if (strncmp(pathspec, "shared:", 7) == 0) {
+		if (pathspec[7] != '/') {
+			error_f("shared agent socket paths must be absolute");
+			goto out;
+		}
+		if ((dir = expand_pathspec(pathspec + 7,
+		    username, uid, homedir)) == NULL) {
+			/* Error already logged */
+			goto out;
+		}
+		if (agent_listener_shared(dir, pid, tag,
+		    &sock, &path, dirp) != 0) {
+			/* Error already logged */
+			goto out;
+		}
+	} else if (strncmp(pathspec, "user:", 5) == 0) {
+		if ((dir = expand_pathspec(pathspec + 5,
+		    username, uid, homedir)) == NULL) {
+			/* Error already logged */
+			goto out;
+		}
+		if (agent_listener_user(dir, pid, tag, &sock, &path) != 0) {
+			/* Error already logged */
+			goto out;
+		}
+	} else {
+		/* Shouldn't happen */
+		error_f("unsupported agent path specification %s", pathspec);
+		goto out;
+	}
+
+	/* success */
+	ret = 0;
+	*sockp = sock;
+	*pathp = path;
+	path = NULL; /* transferred */
+ out:
+	free(path);
+	free(dir);
 	return ret;
 }
 
 int
-agent_listener(const char *homedir, const char *tag, int *sockp, char **pathp)
+agent_listener_cleanup(const char *pathspec, const char *sockpath,
+    const char *sockdir)
 {
-	int sock;
-	char *path;
-
-	*sockp = -1;
-	*pathp = NULL;
-
-	if (agent_prepare_sockdir(homedir) != 0)
-		return -1; /* error already logged */
-	if ((path = agent_socket_template(homedir, tag)) == NULL)
-		return -1; /* error already logged */
-	if ((sock = unix_listener_tmp(path, SSH_LISTEN_BACKLOG)) == -1) {
-		free(path);
-		return -1; /* error already logged */
+	if (sockpath == NULL)
+		return 0;
+	if (unlink(sockpath) != 0) {
+		error_f("unlink \"%s\": %s", sockpath, strerror(errno));
+		return -1;
 	}
-	/* success */
-	*sockp = sock;
-	*pathp = path;
+	debug3_f("removed socket %s", sockpath);
+
+	if (pathspec == NULL)
+		return 0;
+	if (strncmp(pathspec, "shared:", 7) == 0 && sockdir != NULL) {
+		if (rmdir(sockdir) != 0) {
+			error_f("rmdir \"%s\": %s", sockdir, strerror(errno));
+			return -1;
+		}
+		debug3_f("removed socket directory %s", sockdir);
+	}
+
 	return 0;
 }
 
@@ -271,18 +391,29 @@ socket_is_stale(const char *path)
 #endif
 
 void
-agent_cleanup_stale(const char *homedir, int ignore_hosthash)
+agent_cleanup_stale(const char *pathspec, const char *username, uid_t uid,
+    const char *homedir, int ignore_hosthash)
 {
 	DIR *d = NULL;
 	struct dirent *dp;
 	struct stat sb;
-	char *prefix = NULL, *dirpath = NULL, *path = NULL;
+	char *prefix = NULL, *dir = NULL, *path;
 	struct timespec now, sub, *mtimp = NULL;
+
+	/* Only clean up user socket directories */
+	if (pathspec == NULL || strncmp(pathspec, "user:", 5) != 0)
+		return;
+
+	if ((dir = expand_pathspec(pathspec + 5,
+	    username, uid, homedir)) == NULL)
+		return; /* error already logged */
+
+	debug_f("cleanup %s", dir);
 
 	/* Only consider sockets last modified > 1 hour ago */
 	if (clock_gettime(CLOCK_REALTIME, &now) != 0) {
 		error_f("clock_gettime: %s", strerror(errno));
-		return;
+		goto out;
 	}
 	sub.tv_sec = 60 * 60;
 	sub.tv_nsec = 0;
@@ -292,24 +423,18 @@ agent_cleanup_stale(const char *homedir, int ignore_hosthash)
 	if (!ignore_hosthash) {
 		if ((path = agent_hostname_hash()) == NULL) {
 			error_f("couldn't get hostname hash");
-			return;
+			goto out;
 		}
 		xasprintf(&prefix, "s.%s.", path);
 		free(path);
-		path = NULL;
 	}
 
-	xasprintf(&dirpath, "%s/%s", homedir, _PATH_SSH_AGENT_SOCKET_DIR);
-	if ((d = opendir(dirpath)) == NULL) {
+	if ((d = opendir(dir)) == NULL) {
 		if (errno != ENOENT)
-			error_f("opendir \"%s\": %s", dirpath, strerror(errno));
+			error_f("opendir \"%s\": %s", dir, strerror(errno));
 		goto out;
 	}
-
-	path = NULL;
 	while ((dp = readdir(d)) != NULL) {
-		free(path);
-		xasprintf(&path, "%s/%s", dirpath, dp->d_name);
 #ifdef HAVE_DIRENT_D_TYPE
 		if (dp->d_type != DT_SOCK && dp->d_type != DT_UNKNOWN)
 			continue;
@@ -317,7 +442,7 @@ agent_cleanup_stale(const char *homedir, int ignore_hosthash)
 		if (fstatat(dirfd(d), dp->d_name,
 		    &sb, AT_SYMLINK_NOFOLLOW) != 0 && errno != ENOENT) {
 			error_f("stat \"%s/%s\": %s",
-			    dirpath, dp->d_name, strerror(errno));
+			    dir, dp->d_name, strerror(errno));
 			continue;
 		}
 		if (!S_ISSOCK(sb.st_mode))
@@ -331,25 +456,26 @@ agent_cleanup_stale(const char *homedir, int ignore_hosthash)
 #endif
 		if (timespeccmp(mtimp, &now, >)) {
 			debug3_f("Ignoring recent socket \"%s/%s\"",
-			    dirpath, dp->d_name);
+			    dir, dp->d_name);
 			continue;
 		}
 		if (!ignore_hosthash &&
 		    strncmp(dp->d_name, prefix, strlen(prefix)) != 0) {
 			debug3_f("Ignoring socket \"%s/%s\" "
-			    "from different host", dirpath, dp->d_name);
+			    "from different host", dir, dp->d_name);
 			continue;
 		}
+		xasprintf(&path, "%s/%s", dir, dp->d_name);
 		if (socket_is_stale(path)) {
 			debug_f("cleanup stale socket %s", path);
 			unlinkat(dirfd(d), dp->d_name, 0);
 		}
+		free(path);
 	}
  out:
 	if (d != NULL)
 		closedir(d);
-	free(path);
-	free(dirpath);
+	free(dir);
 	free(prefix);
 }
 

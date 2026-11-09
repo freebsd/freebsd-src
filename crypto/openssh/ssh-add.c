@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.188 2026/07/11 11:15:03 naddy Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.191 2026/09/17 18:12:10 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -458,7 +458,7 @@ add_file(int agent_fd, const char *filename, int key_only, int cert_only,
 }
 
 static int
-update_card(int agent_fd, int add, const char *id, int qflag,
+update_card(int agent_fd, int add, const char *id, int qflag, int no_pin,
     int key_only, int cert_only,
     struct dest_constraint **dest_constraints, size_t ndest_constraints,
     struct sshkey **certs, size_t ncerts)
@@ -469,7 +469,7 @@ update_card(int agent_fd, int add, const char *id, int qflag,
 	if (key_only)
 		ncerts = 0;
 
-	if (add) {
+	if (add && !no_pin) {
 		if ((pin = read_passphrase("Enter passphrase for PKCS#11: ",
 		    RP_ALLOW_STDIN)) == NULL)
 			return -1;
@@ -595,21 +595,26 @@ lock_agent(int agent_fd, int lock)
 }
 
 static int
-load_resident_keys(int agent_fd, const char *skprovider, int qflag,
+load_resident_keys(int agent_fd, const char *skprovider, int qflag, int no_pin,
     struct dest_constraint **dest_constraints, size_t ndest_constraints)
 {
 	struct sshsk_resident_key **srks;
 	size_t nsrks, i;
 	struct sshkey *key;
 	int r, ok = 0;
-	char *fp;
+	char *fp, *pin = NULL;
 
-	pass = read_passphrase("Enter PIN for authenticator: ", RP_ALLOW_STDIN);
-	if ((r = sshsk_load_resident(skprovider, NULL, pass, 0,
-	    &srks, &nsrks)) != 0) {
+	if (!no_pin) {
+		pin = read_passphrase("Enter PIN for authenticator: ",
+		    RP_ALLOW_STDIN);
+	}
+	if ((r = sshsk_load_resident(skprovider, NULL, pin == NULL ? "" : pin,
+	    0, &srks, &nsrks)) != 0) {
 		error_r(r, "Unable to load resident keys");
+		free(pin);
 		return r;
 	}
+	free(pin);
 	for (i = 0; i < nsrks; i++) {
 		key = srks[i]->key;
 		if ((fp = sshkey_fingerprint(key,
@@ -817,7 +822,7 @@ main(int argc, char **argv)
 	char **dest_constraint_strings = NULL, **hostkey_files = NULL;
 	int r, i, ch, deleting = 0, ret = 0, key_only = 0, cert_only = 0;
 	int do_download = 0, xflag = 0, lflag = 0, Dflag = 0;
-	int Qflag = 0, qflag = 0, Tflag = 0, Nflag = 0;
+	int Qflag = 0, qflag = 0, Tflag = 0, Nflag = 0, no_pin = 0;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
 	LogLevel log_level = SYSLOG_LEVEL_INFO;
 	struct sshkey *k, **certs = NULL;
@@ -836,7 +841,7 @@ main(int argc, char **argv)
 
 	skprovider = getenv("SSH_SK_PROVIDER");
 
-	while ((ch = getopt(argc, argv, "vkKlLNCcdDTxXE:e:h:H:M:m:Qqs:S:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "vkKlLNPCcdDTxXE:e:h:H:M:m:Qqs:S:t:")) != -1) {
 		switch (ch) {
 		case 'v':
 			if (log_level == SYSLOG_LEVEL_INFO)
@@ -888,6 +893,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			deleting = 1;
+			break;
+		case 'P':
+			no_pin = 1;
 			break;
 		case 'D':
 			Dflag = 1;
@@ -1001,7 +1009,7 @@ main(int argc, char **argv)
 		}
 		debug2_f("loaded %zu certificates", ncerts);
 		if (update_card(agent_fd, !deleting, pkcs11provider,
-		    qflag, key_only, cert_only,
+		    qflag, no_pin, key_only, cert_only,
 		    dest_constraints, ndest_constraints,
 		    certs, ncerts) == -1)
 			ret = 1;
@@ -1013,7 +1021,7 @@ main(int argc, char **argv)
 	if (do_download) {
 		if (skprovider == NULL)
 			fatal("Cannot download keys without provider");
-		if (load_resident_keys(agent_fd, skprovider, qflag,
+		if (load_resident_keys(agent_fd, skprovider, qflag, no_pin,
 		    dest_constraints, ndest_constraints) != 0)
 			ret = 1;
 		goto done;

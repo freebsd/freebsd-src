@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.402 2026/08/08 07:27:54 djm Exp $
-.Dd $Mdocdate: August 8 2026 $
+.\" $OpenBSD: sshd_config.5,v 1.410 2026/09/17 15:32:07 schwarze Exp $
+.Dd $Mdocdate: September 17 2026 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -97,6 +97,32 @@ Valid arguments are
 (use IPv4 only), or
 .Cm inet6
 (use IPv6 only).
+.It Cm AgentSocketPath
+Specifies the filesystem path used for forwarded
+.Xr ssh-agent 1
+sockets.
+Sockets may be created in either a shared location or a user-specific
+directory.
+User-specific directories are specified by prefixing the path name with
+.Cm user:\& .
+.Xr sshd 8
+will ensure the directory exists and create the listening socket
+directly in it.
+Relative user-specific directory paths will be created relative to the user's
+.Pf $ Ev HOME
+directory.
+.Pp
+Shared directories may be specified by prefixing an absolute path name with
+.Cm shared:\& .
+In this case, a temporary subdirectory will be created under the specified
+directory and the listening agent socket will be created in that.
+.Pp
+.Cm AgentSocketPath
+accepts the tokens described in the
+.Sx TOKENS
+section.
+The default path specification is
+.Pa user:.ssh/agent .
 .It Cm AllowAgentForwarding
 Specifies whether
 .Xr ssh-agent 1
@@ -392,7 +418,7 @@ ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
 rsa-sha2-512,rsa-sha2-256,
-ssh-mldsa44-ed25519@openssh.com
+ssh-mldsa44-ed25519
 .Ed
 .Pp
 If the specified list begins with a
@@ -629,7 +655,7 @@ The argument must be
 .Cm yes ,
 .Cm delayed
 (a legacy synonym for
-.Cm yes )
+.Cm yes ) ,
 or
 .Cm no .
 The default is
@@ -804,14 +830,14 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
-ssh-mldsa44-ed25519-cert-v01@openssh.com,
+ssh-mldsa44-ed25519-cert,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
 rsa-sha2-512,rsa-sha2-256,
-ssh-mldsa44-ed25519@openssh.com
+ssh-mldsa44-ed2551
 .Ed
 .Pp
 The list of available signature algorithms may also be obtained using
@@ -854,7 +880,7 @@ used by SSH.
 The defaults are
 .Pa /etc/ssh/ssh_host_ecdsa_key ,
 .Pa /etc/ssh/ssh_host_ed25519_key ,
-.Pa /etc/ssh/ssh_host_mldsa44_ed25519_key
+.Pa /etc/ssh/ssh_host_mldsa44_ed25519_key ,
 and
 .Pa /etc/ssh/ssh_host_rsa_key .
 .Pp
@@ -893,14 +919,14 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
-ssh-mldsa44-ed25519-cert-v01@openssh.com,
+ssh-mldsa44-ed25519-cert,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
 rsa-sha2-512,rsa-sha2-256,
-ssh-mldsa44-ed25519@openssh.com
+ssh-mldsa44-ed25519
 .Ed
 .Pp
 The list of available signature algorithms may also be obtained using
@@ -1376,7 +1402,7 @@ Available keywords are
 .Cm TrustedUserCAKeys ,
 .Cm UnusedConnectionTimeout ,
 .Cm X11DisplayOffset ,
-.Cm X11Forwarding
+.Cm X11Forwarding ,
 and
 .Cm X11UseLocalhost .
 .It Cm MaxAuthTries
@@ -1776,14 +1802,14 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
-ssh-mldsa44-ed25519-cert-v01@openssh.com,
+ssh-mldsa44-ed25519-cert,
 ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
 webauthn-sk-ecdsa-sha2-nistp256@openssh.com,
 rsa-sha2-512,rsa-sha2-256,
-ssh-mldsa44-ed25519@openssh.com
+ssh-mldsa44-ed25519
 .Ed
 .Pp
 The list of available signature algorithms may also be obtained using
@@ -1793,9 +1819,10 @@ Sets one or more public key authentication options.
 The supported keywords are:
 .Cm none
 (the default; indicating no additional options are enabled),
-.Cm touch-required
+.Cm touch-required ,
+.Cm verify-required ,
 and
-.Cm verify-required .
+.Cm max-pk-ok .
 .Pp
 The
 .Cm touch-required
@@ -1823,6 +1850,19 @@ Neither the
 or
 .Cm verify-required
 options have any effect for other, non-FIDO, public key types.
+.Pp
+The
+.Cm max-pk-ok
+option takes a numeric argument separated by a colon character, e.g.\&
+.Sq max-pk-ok:4
+to specify the number of public key query attempts are permitted
+before the attempts are considered failed authentications that count against
+.Cm MaxAuthTries .
+Public key queries are a SSH protocol mechanism that allow a client to test
+whether a server accepts a given public key before an actual authentication
+attempt, to avoid the need to enter PINs/key passphrases or touch FIDO
+authenticators unnecessarily.
+The default is 6.
 .It Cm PubkeyAuthentication
 Specifies whether public key authentication is allowed.
 The default is
@@ -2004,26 +2044,32 @@ The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
 LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
 The default is AUTH.
 .It Cm TCPKeepAlive
-Specifies whether the system should send TCP keepalive messages to the
-other side.
-If they are sent, death of the connection or crash of one
-of the machines will be properly noticed.
+Specifies whether the system should send keepalive messages on TCP sockets it
+has opened.
+If they are sent, failure of the connection or crash of one
+of the endpoints may be more promptly detected.
 However, this means that
-connections will die if the route is down temporarily, and some people
-find it annoying.
-On the other hand, if TCP keepalives are not sent,
-sessions may hang indefinitely on the server, leaving
-.Qq ghost
-users and consuming server resources.
+connections may terminate if the connection is suffers a transient disruption.
 .Pp
-The default is
+The argument must be
+.Cm transport
+to enable TCP keepalive messages on the SSH transport connection to the client,
 .Cm yes
-(to send TCP keepalive messages), and the server will notice
-if the network goes down or the client host crashes.
-This avoids infinitely hanging sessions.
+which is an alias for
+.Cm transport ,
+.Cm all
+to enable TCP keepalive messages on all sockets opened by
+.Xr sshd 8 ,
+including sockets created for X11 or port forwarding, or
+.Cm no
+to disable TCP keepalive messages.
+The default is
+.Cm transport .
 .Pp
-To disable TCP keepalive messages, the value should be set to
-.Cm no .
+See also
+.Cm ClientAliveInterval
+for a more robust connection failure detection mechanism that works at the
+SSH protocol level.
 .It Cm TrustedUserCAKeys
 Specifies a file containing public keys of certificate authorities that are
 trusted to sign user certificates for authentication, or
@@ -2132,6 +2178,20 @@ The default is
 The value
 .Cm none
 may be used to disable this.
+.It Cm WarnWeakCrypto
+Controls whether warnings are logged when the cryptographic algorithms
+negotiated for the connection are weak or otherwise recommended against.
+Warnings may be disabled by turning off a specific warning or by disabling
+all warnings.
+Warnings about connections that don't use a post-quantum key exchange
+may be disabled using the
+.Cm no-pq-kex
+flag.
+.Cm no
+will disable all warnings.
+The default, equivalent to
+.Cm yes ,
+is to enable all warnings.
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's
@@ -2289,6 +2349,9 @@ The numeric user ID of the target user.
 The username.
 .El
 .Pp
+.Cm AgentSocketPath
+accepts the tokens %%, %h, %U, and %u.
+.Pp
 .Cm AuthorizedKeysCommand
 accepts the tokens %%, %C, %D, %f, %h, %k, %t, %U, and %u.
 .Pp
@@ -2323,7 +2386,7 @@ OpenSSH is a derivative of the original and free
 ssh 1.2.12 release by
 .An Tatu Ylonen .
 .An Aaron Campbell , Bob Beck , Markus Friedl , Niels Provos ,
-.An Theo de Raadt
+.An Theo de Raadt ,
 and
 .An Dug Song
 removed many bugs, re-added newer features and
