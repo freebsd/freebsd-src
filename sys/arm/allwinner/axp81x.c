@@ -758,6 +758,7 @@ axp8xx_regnode_init(struct regnode *regnode)
 	struct regnode_std_param *param;
 	int rv, udelay;
 
+	udelay = 0;
 	param = regnode_get_stdparam(regnode);
 	if (param->min_uvolt == 0)
 		return (0);
@@ -781,6 +782,7 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	struct axp8xx_softc *asc;
 	struct axp8xx_reg_sc *sc;
 	uint8_t val;
+	int error;
 
 	sc = regnode_get_softc(regnode);
 	asc = device_get_softc(sc->base_dev);
@@ -793,7 +795,11 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 
 	/* The regulators share the enable registers */
 	sx_xlock(&asc->reglock);
-	axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	if (axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1) != 0) {
+		/* Do not write back a value we do not know */
+		sx_xunlock(&asc->reglock);
+		return (EIO);
+	}
 	val &= ~sc->def->enable_mask;
 	if (enable)
 		val |= sc->def->enable_value;
@@ -803,8 +809,10 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 		else
 			val &= ~sc->def->enable_value;
 	}
-	axp8xx_write(sc->base_dev, sc->def->enable_reg, val);
+	error = axp8xx_write(sc->base_dev, sc->def->enable_reg, val);
 	sx_xunlock(&asc->reglock);
+	if (error != 0)
+		return (EIO);
 
 	*udelay = 0;
 
@@ -859,7 +867,8 @@ axp8xx_regnode_status(struct regnode *regnode, int *status)
 	sc = regnode_get_softc(regnode);
 
 	*status = 0;
-	axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	if (axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1) != 0)
+		return (EIO);
 	if (val & sc->def->enable_mask)
 		*status = REGULATOR_STATUS_ENABLED;
 
@@ -887,7 +896,8 @@ axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	if (axp8xx_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
 		return (ERANGE);
 
-	axp8xx_write(sc->base_dev, sc->def->voltage_reg, val);
+	if (axp8xx_write(sc->base_dev, sc->def->voltage_reg, val) != 0)
+		return (EIO);
 
 	*udelay = 0;
 
@@ -905,7 +915,8 @@ axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 	if (!sc->def->voltage_step1 || !sc->def->voltage_step2)
 		return (ENXIO);
 
-	axp8xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	if (axp8xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1) != 0)
+		return (EIO);
 	axp8xx_regnode_reg_to_voltage(sc, val & AXP_VOLTCTL_MASK, uvolt);
 
 	return (0);
