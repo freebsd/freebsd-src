@@ -57,6 +57,7 @@ static struct aw_ccung_reset ccu_sun50i_h6_r_resets[] = {
 	CCU_RESET(RST_R_APB1_PWM, 0x13c, 16)
 	CCU_RESET(RST_R_APB2_UART, 0x18c, 16)
 	CCU_RESET(RST_R_APB2_I2C, 0x19c, 16)
+	CCU_RESET(RST_R_APB2_RSB, 0x1bc, 16)
 	CCU_RESET(RST_R_APB1_IR, 0x1cc, 16)
 	CCU_RESET(RST_R_APB1_W1, 0x1ec, 16)
 };
@@ -67,8 +68,10 @@ static struct aw_ccung_gate ccu_sun50i_h6_r_gates[] = {
 	CCU_GATE(CLK_R_APB1_PWM, "r_apb1-pwm", "r_apb1", 0x13c, 0)
 	CCU_GATE(CLK_R_APB2_UART, "r_apb1-uart", "r_apb2", 0x18c, 0)
 	CCU_GATE(CLK_R_APB2_I2C, "r_apb1-i2c", "r_apb2", 0x19c, 0)
+	CCU_GATE(CLK_R_APB2_RSB, "r_apb2-rsb", "r_apb2", 0x1bc, 0)
 	CCU_GATE(CLK_R_APB1_IR, "r_apb1-ir", "r_apb1", 0x1cc, 0)
 	CCU_GATE(CLK_R_APB1_W1, "r_apb1-w1", "r_apb1", 0x1ec, 0)
+	CCU_GATE(CLK_R_APB1_RTC, "r_apb1-rtc", "r_apb1", 0x20c, 0)
 };
 
 static const char *ar100_parents[] = {"osc24M", "osc32k", "pll_periph0", "iosc"};
@@ -107,11 +110,36 @@ PREDIV_CLK(r_apb2_clk, CLK_R_APB2,				/* id */
     8, 5, 0, AW_CLK_FACTOR_HAS_COND,				/* prediv */
     16, 2, 2);							/* prediv condition */
 
+/*
+ * The IR and 1-wire module clocks. The information about the IR clock
+ * comes from the BSP and the 1-wire clock is the same.
+ */
+static const char *r_mod0_parents[] = {"osc32k", "osc24M"};
+NM_CLK(ir_clk,
+    CLK_IR, "ir", r_mod0_parents,		/* id, name, parents */
+    0x1c0,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 5, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+NM_CLK(w1_clk,
+    CLK_W1, "w1", r_mod0_parents,		/* id, name, parents */
+    0x1e0,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 5, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
 static struct aw_ccung_clk clks[] = {
 	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ar100_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &r_ahb_clk},
 	{ .type = AW_CLK_DIV, .clk.div = &r_apb1_clk},
 	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &r_apb2_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ir_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &w1_clk},
 };
 
 static struct ofw_compat_data compat_data[] = {
