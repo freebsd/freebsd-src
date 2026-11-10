@@ -1,8 +1,8 @@
-/*	$OpenBSD: readpassphrase.c,v 1.26 2016/10/18 12:47:18 millert Exp $	*/
+/*	$OpenBSD: readpassphrase.c,v 1.30 2026/09/16 01:24:59 djm Exp $	*/
 
 /*
  * Copyright (c) 2000-2002, 2007, 2010
- *	Todd C. Miller <Todd.Miller@courtesan.com>
+ *	Todd C. Miller <millert@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -50,6 +50,21 @@ static volatile sig_atomic_t signo[_NSIG];
 
 static void handler(int);
 
+/* Like sigaction(2) but preserves SIG_IGN */
+static void
+sigaction_except_ign(int signum, struct sigaction *act, struct sigaction *old)
+{
+	struct sigaction sabuf;
+
+	if (old == NULL)
+		old = &sabuf;
+
+	(void)sigaction(signum, act, old);
+	/* Reinstate SIG_IGN; we don't want to override this */
+	if (old->sa_handler == SIG_IGN && act->sa_handler != SIG_IGN)
+		(void)sigaction(signum, old, NULL);
+}
+
 char *
 readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 {
@@ -76,8 +91,11 @@ restart:
 	 * Read and write to /dev/tty if available.  If not, read from
 	 * stdin and write to stderr unless a tty is required.
 	 */
+#ifndef O_CLOEXEC
+# define O_CLOEXEC 0
+#endif
 	if ((flags & RPP_STDIN) ||
-	    (input = output = open(_PATH_TTY, O_RDWR)) == -1) {
+	    (input = output = open(_PATH_TTY, O_RDWR | O_CLOEXEC)) == -1) {
 		if (flags & RPP_REQUIRE_TTY) {
 			errno = ENOTTY;
 			return(NULL);
@@ -115,15 +133,15 @@ restart:
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;		/* don't restart system calls */
 	sa.sa_handler = handler;
-	(void)sigaction(SIGALRM, &sa, &savealrm);
-	(void)sigaction(SIGHUP, &sa, &savehup);
-	(void)sigaction(SIGINT, &sa, &saveint);
-	(void)sigaction(SIGPIPE, &sa, &savepipe);
-	(void)sigaction(SIGQUIT, &sa, &savequit);
-	(void)sigaction(SIGTERM, &sa, &saveterm);
-	(void)sigaction(SIGTSTP, &sa, &savetstp);
-	(void)sigaction(SIGTTIN, &sa, &savettin);
-	(void)sigaction(SIGTTOU, &sa, &savettou);
+	sigaction_except_ign(SIGALRM, &sa, &savealrm);
+	sigaction_except_ign(SIGHUP, &sa, &savehup);
+	sigaction_except_ign(SIGINT, &sa, &saveint);
+	sigaction_except_ign(SIGPIPE, &sa, &savepipe);
+	sigaction_except_ign(SIGQUIT, &sa, &savequit);
+	sigaction_except_ign(SIGTERM, &sa, &saveterm);
+	sigaction_except_ign(SIGTSTP, &sa, &savetstp);
+	sigaction_except_ign(SIGTTIN, &sa, &savettin);
+	sigaction_except_ign(SIGTTOU, &sa, &savettou);
 
 	if (!(flags & RPP_STDIN))
 		(void)write(output, prompt, strlen(prompt));
@@ -157,15 +175,15 @@ restart:
 			continue;
 		signo[SIGTTOU] = sigttou;
 	}
-	(void)sigaction(SIGALRM, &savealrm, NULL);
-	(void)sigaction(SIGHUP, &savehup, NULL);
-	(void)sigaction(SIGINT, &saveint, NULL);
-	(void)sigaction(SIGQUIT, &savequit, NULL);
-	(void)sigaction(SIGPIPE, &savepipe, NULL);
-	(void)sigaction(SIGTERM, &saveterm, NULL);
-	(void)sigaction(SIGTSTP, &savetstp, NULL);
-	(void)sigaction(SIGTTIN, &savettin, NULL);
-	(void)sigaction(SIGTTOU, &savettou, NULL);
+	sigaction_except_ign(SIGALRM, &savealrm, NULL);
+	sigaction_except_ign(SIGHUP, &savehup, NULL);
+	sigaction_except_ign(SIGINT, &saveint, NULL);
+	sigaction_except_ign(SIGQUIT, &savequit, NULL);
+	sigaction_except_ign(SIGPIPE, &savepipe, NULL);
+	sigaction_except_ign(SIGTERM, &saveterm, NULL);
+	sigaction_except_ign(SIGTSTP, &savetstp, NULL);
+	sigaction_except_ign(SIGTTIN, &savettin, NULL);
+	sigaction_except_ign(SIGTTOU, &savettou, NULL);
 	if (input != STDIN_FILENO)
 		(void)close(input);
 

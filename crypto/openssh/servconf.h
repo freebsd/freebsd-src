@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.179 2026/07/07 01:00:22 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.183 2026/09/16 00:29:44 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -56,6 +56,11 @@ struct sshbuf;
 #else
 #define SSHD_DEFAULT_COMPRESSION	COMP_NONE
 #endif
+
+/* TCPKeepAlive flags */
+#define SSH_KEEPALIVES_OFF		0
+#define SSH_KEEPALIVES_TRANSPORT	1
+#define SSH_KEEPALIVES_ALL		2
 
 struct ssh;
 
@@ -156,6 +161,7 @@ SSHCONF_CUSTOM(MaxStartups, maxstartups, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_CUSTOM(PerSourceNetBlockSize, persourcenetblocksize, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_CUSTOM(PerSourcePenalties, persourcepenalties, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_CUSTOM(RekeyLimit, rekeylimit, SSHCFG_ALL, SSHCFG_COPY_MATCH) \
+SSHCONF_CUSTOM(PubkeyAuthOptions, pubkey_auth_options, SSHCFG_ALL, SSHCFG_COPY_MATCH) \
 SSHCONF_NONCONF(timingsecret)
 
 #define SSHD_CONFIG_ENTRIES_MAIN \
@@ -177,7 +183,7 @@ SSHCONF_STRING(xauth_location, XAuthLocation, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_INTFLAG(permit_tty, PermitTTY, SSHCFG_ALL, 1, SSHCFG_COPY_MATCH) \
 SSHCONF_INTFLAG(permit_user_rc, PermitUserRC, SSHCFG_ALL, 1, SSHCFG_COPY_MATCH) \
 SSHCONF_INTFLAG(strict_modes, StrictModes, SSHCFG_GLOBAL, 1, SSHCFG_COPY_NONE) \
-SSHCONF_INTFLAG(tcp_keep_alive, TCPKeepAlive, SSHCFG_GLOBAL, 1, SSHCFG_COPY_NONE) \
+SSHCONF_INTFLAG(tcp_keep_alive, TCPKeepAlive, SSHCFG_GLOBAL, SSH_KEEPALIVES_TRANSPORT, SSHCFG_COPY_NONE) \
 SSHCONF_STRING(ciphers, Ciphers, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_STRING(macs, Macs, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_STRING(kex_algorithms, KexAlgorithms, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
@@ -187,7 +193,6 @@ SSHCONF_INTFLAG(hostbased_uses_name_from_packet_only, HostbasedUsesNameFromPacke
 SSHCONF_STRING(hostbased_accepted_algos, HostbasedAcceptedAlgorithms, SSHCFG_ALL, SSHCFG_COPY_MATCH) \
 SSHCONF_STRING(hostkeyalgorithms, HostKeyAlgorithms, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_STRING(ca_sign_algorithms, CASignatureAlgorithms, SSHCFG_ALL, SSHCFG_COPY_MATCH) \
-SSHCONF_INT(pubkey_auth_options, PubkeyAuthOptions, SSHCFG_ALL, NULL, 0, SSHCFG_COPY_MATCH) \
 SSHCONF_INTFLAG(pubkey_authentication, PubkeyAuthentication, SSHCFG_ALL, 1, SSHCFG_COPY_MATCH) \
 SSHCONF_STRING(pubkey_accepted_algos, PubkeyAcceptedAlgorithms, SSHCFG_ALL, SSHCFG_COPY_MATCH) \
 SSHCONF_INTFLAG(password_authentication, PasswordAuthentication, SSHCFG_ALL, 0, SSHCFG_COPY_MATCH) \
@@ -236,6 +241,8 @@ SSHCONF_INT(unused_connection_timeout, UnusedConnectionTimeout, SSHCFG_ALL, NULL
 SSHCONF_STRING(sshd_session_path, SshdSessionPath, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_STRING(sshd_auth_path, SshdAuthPath, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_INTFLAG(refuse_connection, RefuseConnection, SSHCFG_ALL, 0, SSHCFG_COPY_MATCH) \
+SSHCONF_STRING(agent_socket_path, AgentSocketPath, SSHCFG_ALL, SSHCFG_COPY_MATCH) \
+SSHCONF_INT(warn_weak_crypto, WarnWeakCrypto, SSHCFG_GLOBAL, multistate_warnweakcrypto, 1, SSHCFG_COPY_NONE) \
 SSHCONF_INTFLAG(use_blocklist, UseBlocklist, SSHCFG_GLOBAL, 0, SSHCFG_COPY_NONE)
 
 #define SSHD_CONFIG_ENTRIES_LEGACY \
@@ -275,7 +282,7 @@ SSHCONF_ALIAS(UseBlacklist, UseBlocklist, SSHCFG_GLOBAL)
 #ifdef USE_PAM
 #define SSHD_CONFIG_ENTRIES_PAM \
 SSHCONF_INTFLAG(use_pam, UsePAM, SSHCFG_GLOBAL, 1, SSHCFG_COPY_NONE) \
-SSHCONF_STRING(pam_service_name, PAMServiceName, SSHCFG_ALL, SSHCFG_COPY_NONE)
+SSHCONF_STRING(pam_service_name, PAMServiceName, SSHCFG_ALL, SSHCFG_COPY_MATCH)
 #else
 #define SSHD_CONFIG_ENTRIES_PAM \
 SSHCONF_UNSUPPORTED_INT(use_pam, UsePAM, SSHCFG_GLOBAL) \
@@ -391,6 +398,9 @@ typedef struct ServerOptions {
 	/* RekeyLimit */
 	int64_t rekey_limit;
 	int	rekey_interval;
+	/* PubkeyAuthOptions */
+	int	pubkey_auth_options;
+	int	max_pubkey_ok;
 	/* Passed by config but not keyword for this */
 	uint64_t timing_secret;
 }       ServerOptions;
@@ -426,7 +436,6 @@ struct include_item {
 	TAILQ_ENTRY(include_item) entry;
 };
 TAILQ_HEAD(include_list, include_item);
-
 
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);

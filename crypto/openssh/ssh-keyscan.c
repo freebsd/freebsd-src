@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.170 2026/08/10 23:24:03 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.171 2026/09/02 00:37:59 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -263,8 +263,8 @@ keygrab_ssh2(con *c)
 		break;
 	case KT_MLDSA44_ED25519:
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
-		    "ssh-mldsa44-ed25519-cert-v01@openssh.com" :
-		    "ssh-mldsa44-ed25519@openssh.com";
+		    "ssh-mldsa44-ed25519-cert" :
+		    "ssh-mldsa44-ed25519";
 		break;
 	case KT_ECDSA_SK:
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?

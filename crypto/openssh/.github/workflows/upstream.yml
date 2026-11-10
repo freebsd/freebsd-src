@@ -54,7 +54,7 @@ jobs:
         esac
         vmrun "echo $o | sudo tee -a /etc/mk.conf"
     - name: update netcat
-      run: vmrun "cd /usr/src/usr.bin/nc && make clean all && sudo make install"
+      run: vmrun "cd /usr/src/usr.bin/nc && make clean all && sudo make install || true"
     - name: make clean
       run: vmrun "make -C /usr/src/usr.bin/ssh obj clean && make -C /usr/src/regress/usr.bin/ssh obj clean && sudo chmod -R g-w /usr/src /usr/obj"
     - name: make

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_ed25519.c,v 1.4 2026/06/22 12:28:48 dtucker Exp $ */
+/* 	$OpenBSD: test_ed25519.c,v 1.5 2026/09/16 00:45:04 djm Exp $ */
 /*
  * Regress test for Ed25519 keypair from seed
  *
@@ -66,9 +66,9 @@ void ed25519_tests(void);
 void
 ed25519_tests(void)
 {
-	uint8_t pk[32], sk[64], seed[32];
+	uint8_t pk[32], sk[64], seed[32], sig[64];
 	uint8_t expected_pk[32], expected_sig[64];
-	uint8_t *msg, *tmp;
+	uint8_t *msg;
 	size_t i, msglen;
 	unsigned long long smlen;
 
@@ -76,24 +76,24 @@ ed25519_tests(void)
 		TEST_START("Ed25519 keypair from seed");
 		hex2bin(seed, ed25519_kats[i].sk, 32);
 		hex2bin(expected_pk, ed25519_kats[i].pk, 32);
-		ASSERT_INT_EQ(crypto_sign_ed25519_keypair_from_seed(pk, sk, seed), 0);
+		ASSERT_INT_EQ(crypto_sign_ed25519_seed_keypair(pk, sk, seed), 0);
 		ASSERT_MEM_EQ(pk, expected_pk, 32);
 		TEST_DONE();
 
 		TEST_START("Ed25519 sign/verify KAT");
 		msglen = strlen(ed25519_kats[i].msg) / 2;
-		ASSERT_PTR_NE(msg = malloc(msglen + 64), NULL);
-		ASSERT_PTR_NE(tmp = malloc(msglen + 64), NULL);
-		hex2bin(msg + 64, ed25519_kats[i].msg, msglen);
+		ASSERT_PTR_NE(msg = malloc(msglen == 0 ? 1 : msglen), NULL);
+		hex2bin(msg, ed25519_kats[i].msg, msglen);
 		hex2bin(expected_sig, ed25519_kats[i].sig, 64);
 
-		ASSERT_INT_EQ(crypto_sign_ed25519(msg, &smlen, msg + 64, msglen, sk), 0);
-		ASSERT_MEM_EQ(msg, expected_sig, 64);
+		ASSERT_INT_EQ(crypto_sign_ed25519_detached(sig, &smlen,
+		    msg, msglen, sk), 0);
+		ASSERT_INT_EQ(smlen, 64);
+		ASSERT_MEM_EQ(sig, expected_sig, 64);
 
-		ASSERT_INT_EQ(crypto_sign_ed25519_open(tmp, &smlen, msg, msglen + 64, pk), 0);
-		ASSERT_INT_EQ(smlen, msglen);
+		ASSERT_INT_EQ(crypto_sign_ed25519_verify_detached(sig,
+		    msg, msglen, pk), 0);
 		free(msg);
-		free(tmp);
 		TEST_DONE();
 	}
 }

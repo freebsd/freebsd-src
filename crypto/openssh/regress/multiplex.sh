@@ -1,4 +1,4 @@
-#	$OpenBSD: multiplex.sh,v 1.41 2025/12/07 02:59:53 dtucker Exp $
+#	$OpenBSD: multiplex.sh,v 1.43 2026/09/23 21:45:51 djm Exp $
 #	Placed in the Public Domain.
 
 tid="connection multiplexing"

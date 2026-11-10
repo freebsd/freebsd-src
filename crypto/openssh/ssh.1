@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.454 2026/08/04 22:47:07 naddy Exp $
-.Dd $Mdocdate: August 4 2026 $
+.\" $OpenBSD: ssh.1,v 1.456 2026/09/05 01:51:33 schwarze Exp $
+.Dd $Mdocdate: September 5 2026 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -485,22 +485,25 @@ option is specified, the
 .Ar ctl_cmd
 argument is interpreted and passed to the master process.
 Valid commands are:
-.Dq check
-(check that the master process is running),
-.Dq conninfo
-(report information about the master connection),
-.Dq channels
-(report information about open channels),
-.Dq forward
-(request forwardings without command execution),
-.Dq cancel
-(cancel forwardings),
-.Dq proxy
-(connect to a running multiplexing master in proxy mode),
-.Dq exit
-(request the master to exit), and
-.Dq stop
-(request the master to stop accepting further multiplexing requests).
+.Pp
+.Bl -tag -width channels -compact
+.It Cm check
+Check that the master process is running.
+.It Cm conninfo
+Report information about the master connection.
+.It Cm channels
+Report information about open channels.
+.It Cm forward
+Request forwardings without command execution.
+.It Cm cancel
+Cancel forwardings.
+.It Cm proxy
+Connect to a running multiplexing master in proxy mode.
+.It Cm exit
+Request the master to exit.
+.It Cm stop
+Request the master to stop accepting further multiplexing requests.
+.El
 .Pp
 .It Fl o Ar option
 Can be used to give options in the format used in the configuration file.
@@ -527,38 +530,42 @@ per-host basis in the configuration file.
 .Pp
 .It Fl Q Ar query_option
 Queries for the algorithms supported by one of the following features:
-.Ar cipher
-(supported symmetric ciphers),
-.Ar cipher-auth
-(supported symmetric ciphers that support authenticated encryption),
-.Ar help
-(supported query terms for use with the
+.Pp
+.Bl -tag -width protocol-version -compact
+.It Cm cipher
+supported symmetric ciphers
+.It Cm cipher-auth
+supported symmetric ciphers that support authenticated encryption
+.It Cm help
+supported query terms for use with the
 .Fl Q
-flag),
-.Ar mac
-(supported message integrity codes),
-.Ar kex
-(key exchange algorithms),
-.Ar key
-(key types),
-.Ar key-ca-sign
-(valid CA signature algorithms for certificates),
-.Ar key-cert
-(certificate key types),
-.Ar key-plain
-(non-certificate key types),
-.Ar key-sig
-(all key types and signature algorithms),
-.Ar protocol-version
-(supported SSH protocol versions), and
-.Ar sig
-(supported signature algorithms).
+flag
+.It Cm mac
+supported message integrity codes
+.It Cm kex
+key exchange algorithms
+.It Cm key
+key types
+.It Cm key-ca-sign
+valid CA signature algorithms for certificates
+.It Cm key-cert
+certificate key types
+.It Cm key-plain
+non-certificate key types
+.It Cm key-sig
+all key types and signature algorithms
+.It Cm protocol-version
+supported SSH protocol versions
+.It Cm sig
+supported signature algorithms
+.El
+.Pp
 Alternatively, any keyword from
 .Xr ssh_config 5
 or
 .Xr sshd_config 5
 that takes an algorithm list may be used as an alias for the corresponding
-query_option.
+.Ar query_option .
 .Pp
 .It Fl q
 Quiet mode.
@@ -873,35 +880,28 @@ flag).
 .Pp
 The user creates their key pair by running
 .Xr ssh-keygen 1 .
-This stores the private key in
-.Pa ~/.ssh/id_ecdsa
-(ECDSA),
-.Pa ~/.ssh/id_ecdsa_sk
-(authenticator-hosted ECDSA),
-.Pa ~/.ssh/id_ed25519
-(Ed25519),
-.Pa ~/.ssh/id_ed25519_sk
-(authenticator-hosted Ed25519),
-.Pa ~/.ssh/id_mldsa44_ed25519
-(MLDSA44-ED25519),
-or
-.Pa ~/.ssh/id_rsa
-(RSA)
-and stores the public key in
-.Pa ~/.ssh/id_ecdsa.pub
-(ECDSA),
-.Pa ~/.ssh/id_ecdsa_sk.pub
-(authenticator-hosted ECDSA),
-.Pa ~/.ssh/id_ed25519.pub
-(Ed25519),
-.Pa ~/.ssh/id_ed25519_sk.pub
-(authenticator-hosted Ed25519),
-.Pa ~/.ssh/id_mldsa44_ed25519.pub
-(MLDSA44-ED25519),
-or
-.Pa ~/.ssh/id_rsa.pub
-(RSA)
-in the user's home directory.
+This stores the private key in the following file in the user's home
+directory, and the public key in the same directory with an additional
+.Pa .pub
+file name suffix:
+.Pp
+.Bl -tag -width ~/.ssh/id_mldsa44_ed25519 -compact
+.It Sy private key file
+.Sy algorithm
+.It Pa ~/.ssh/id_ecdsa
+ECDSA
+.It Pa ~/.ssh/id_ecdsa_sk
+authenticator-hosted ECDSA
+.It Pa ~/.ssh/id_ed25519
+Ed25519
+.It Pa ~/.ssh/id_ed25519_sk
+authenticator-hosted Ed25519
+.It Pa ~/.ssh/id_mldsa44_ed25519
+MLDSA44-ED25519
+.It Pa ~/.ssh/id_rsa
+RSA
+.El
+.Pp
 The user should then copy the public key
 to
 .Pa ~/.ssh/authorized_keys
@@ -1188,7 +1188,7 @@ has been disabled).
 Fingerprints can be determined using
 .Xr ssh-keygen 1 :
 .Pp
-.Dl $ ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key
+.Dl $ ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key
 .Pp
 If the fingerprint is already known, it can be matched
 and the key can be accepted or rejected.

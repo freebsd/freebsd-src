@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.127 2026/07/30 03:37:39 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.131 2026/10/01 02:01:51 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -84,16 +84,41 @@ format_key(const struct sshkey *key)
 	return ret;
 }
 
+/*
+ * Verify that the hostkey in a publickey-hostbound-v00@openssh.com userauth
+ * request matches the hostkey that was negotiated during initial KEX.
+ */
+static void
+check_hostbound_hostkey(struct ssh *ssh)
+{
+	int r;
+	struct sshbuf *our_hostkey_blob, *their_hostkey_blob;
+
+	if (ssh->kex->initial_hostkey == NULL)
+		fatal_f("internal error: initial hostkey not recorded");
+	if ((our_hostkey_blob = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+	if ((r = sshpkt_getb_froms(ssh, &their_hostkey_blob)) != 0)
+		fatal_fr(r, "parse hostkey");
+	if ((r = sshkey_putb(ssh->kex->initial_hostkey, our_hostkey_blob)) != 0)
+		fatal_fr(r, "serialise hostkey");
+	if ((r = sshbuf_equals(our_hostkey_blob, their_hostkey_blob)) != 0)
+		fatal_f("packet contained wrong host key");
+	sshbuf_free(our_hostkey_blob);
+	sshbuf_free(their_hostkey_blob);
+}
+
 static int
 userauth_pubkey(struct ssh *ssh, const char *method)
 {
 	Authctxt *authctxt = ssh->authctxt;
 	struct passwd *pw = authctxt->pw;
-	struct sshbuf *b = NULL;
+	struct sshbuf *keyblob = NULL, *b = NULL;
 	struct sshkey *key = NULL, *hostkey = NULL;
 	char *pkalg = NULL, *userstyle = NULL, *key_s = NULL, *ca_s = NULL;
-	u_char *pkblob = NULL, *sig = NULL, have_sig;
-	size_t blen, slen;
+	char *keystring = NULL;
+	u_char *sig = NULL, have_sig;
+	size_t slen;
 	int hostbound, r, pktype;
 	int req_presence = 0, req_verify = 0, authenticated = 0;
 	struct sshauthopt *authopts = NULL;
@@ -103,35 +128,23 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 
 	if ((r = sshpkt_get_u8(ssh, &have_sig)) != 0 ||
 	    (r = sshpkt_get_cstring(ssh, &pkalg, NULL)) != 0 ||
-	    (r = sshpkt_get_string(ssh, &pkblob, &blen)) != 0)
+	    (r = sshpkt_getb_froms(ssh, &keyblob)) != 0)
 		fatal_fr(r, "parse %s packet", method);
 
 	/* hostbound auth includes the hostkey offered at initial KEX */
-	if (hostbound) {
-		if ((r = sshpkt_getb_froms(ssh, &b)) != 0 ||
-		    (r = sshkey_fromb(b, &hostkey)) != 0)
-			fatal_fr(r, "parse %s hostkey", method);
-		if (ssh->kex->initial_hostkey == NULL)
-			fatal_f("internal error: initial hostkey not recorded");
-		if (!sshkey_equal(hostkey, ssh->kex->initial_hostkey))
-			fatal_f("%s packet contained wrong host key", method);
-		sshbuf_free(b);
-		b = NULL;
-	}
+	if (hostbound)
+		check_hostbound_hostkey(ssh); /* fatals on error */
 
 	if (log_level_get() >= SYSLOG_LEVEL_DEBUG2) {
-		char *keystring;
-		struct sshbuf *pkbuf;
-
-		if ((pkbuf = sshbuf_from(pkblob, blen)) == NULL)
-			fatal_f("sshbuf_from failed");
-		if ((keystring = sshbuf_dtob64_string(pkbuf, 0)) == NULL)
+		if ((b = sshbuf_fromb(keyblob)) == NULL)
+			fatal_f("sshbuf_fromb failed");
+		if ((keystring = sshbuf_dtob64_string(b, 0)) == NULL)
 			fatal_f("sshbuf_dtob64 failed");
 		debug2_f("%s user %s %s public key %s %s",
 		    authctxt->valid ? "valid" : "invalid", authctxt->user,
 		    have_sig ? "attempting" : "querying", pkalg, keystring);
-		sshbuf_free(pkbuf);
-		free(keystring);
+		sshbuf_free(b);
+		b = NULL;
 	}
 
 	pktype = sshkey_type_from_name(pkalg);
@@ -145,14 +158,30 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		    "PubkeyAcceptedAlgorithms", pkalg);
 		goto done;
 	}
-	if ((r = sshkey_from_blob(pkblob, blen, &key)) != 0) {
+	if ((b = sshbuf_fromb(keyblob)) == NULL)
+		fatal_f("sshbuf_fromb failed");
+	switch ((r = sshkey_fromb_allowlist(b, &key,
+	    options.pubkey_accepted_algos, options.ca_sign_algorithms))) {
+	case 0:
+		/* ok */
+		break;
+	case SSH_ERR_KEY_ALG_UNSUPPORTED:
+		/* This shouldn't happen unless the client is being weird */
+		logit_f("key algorithm differs from signature algorithm %s and "
+		    "is not in PubkeyAcceptedAlgorithms", pkalg);
+		goto done;
+	case SSH_ERR_SIGN_ALG_UNSUPPORTED:
+		logit_fr(r, "certificate signature algorithm not in "
+		    "CASignatureAlgorithm");
+		goto done;
+	default:
 		error_fr(r, "parse key");
 		goto done;
 	}
-	if (key == NULL) {
-		error_f("cannot decode key: %s", pkalg);
-		goto done;
-	}
+	sshbuf_free(b);
+	b = NULL;
+
+	/* USERAUTH_REQUEST signature type should match key's type */
 	if (key->type != pktype || (sshkey_type_plain(pktype) == KEY_ECDSA &&
 	    sshkey_ecdsa_nid_from_name(pkalg) != key->ecdsa_nid)) {
 		error_f("key type mismatch for decoded key "
@@ -161,13 +190,6 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 	}
 	if (auth2_key_already_used(authctxt, key)) {
 		logit("refusing previously-used %s key", sshkey_type(key));
-		goto done;
-	}
-	if ((r = sshkey_check_cert_sigtype(key,
-	    options.ca_sign_algorithms)) != 0) {
-		logit_fr(r, "certificate signature algorithm %s",
-		    (key->cert == NULL || key->cert->signature_type == NULL) ?
-		    "(null)" : key->cert->signature_type);
 		goto done;
 	}
 	if ((r = sshkey_check_rsa_length(key,
@@ -210,7 +232,7 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		    (r = sshbuf_put_cstring(b, method)) != 0 ||
 		    (r = sshbuf_put_u8(b, have_sig)) != 0 ||
 		    (r = sshbuf_put_cstring(b, pkalg)) != 0 ||
-		    (r = sshbuf_put_string(b, pkblob, blen)) != 0)
+		    (r = sshbuf_put_stringb(b, keyblob)) != 0)
 			fatal_fr(r, "reconstruct %s packet", method);
 		if (hostbound &&
 		    (r = sshkey_puts(ssh->kex->initial_hostkey, b)) != 0)
@@ -270,10 +292,6 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		if ((r = sshpkt_get_end(ssh)) != 0)
 			fatal_fr(r, "parse packet");
 
-		if (!authctxt->valid || authctxt->user == NULL) {
-			debug2_f("disabled because of invalid user");
-			goto done;
-		}
 		/* XXX fake reply and always send PK_OK ? */
 		/*
 		 * XXX this allows testing whether a user is allowed
@@ -282,16 +300,34 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		 * if a user is not allowed to login. is this an
 		 * issue? -markus
 		 */
-		if (mm_user_key_allowed(ssh, pw, key, 0, NULL)) {
+		if (authctxt->valid && authctxt->user != NULL &&
+		    mm_user_key_allowed(ssh, pw, key, 0, NULL)) {
 			if ((r = sshpkt_start(ssh, SSH2_MSG_USERAUTH_PK_OK))
 			    != 0 ||
 			    (r = sshpkt_put_cstring(ssh, pkalg)) != 0 ||
-			    (r = sshpkt_put_string(ssh, pkblob, blen)) != 0 ||
+			    (r = sshpkt_put_stringb(ssh, keyblob)) != 0 ||
 			    (r = sshpkt_send(ssh)) != 0 ||
 			    (r = ssh_packet_write_wait(ssh)) != 0)
 				fatal_fr(r, "send packet");
 			authctxt->postponed = 1;
-		}
+		} else {
+			/*
+			 * NB. invalid users must be accounted for in exactly
+			 * the same way as valid users whose key was refused,
+			 * otherwise MaxAuthTries becomes a username oracle.
+			 */
+			/*
+			 * Don't count this as an authentication failure
+			 * unless we have already used up the separate
+			 * max-pk-ok budget (if any).
+			 */
+			if (authctxt->pk_ok_failures++ < options.max_pubkey_ok)
+				authctxt->auth_failure_already_counted = 1;
+			debug3_f("pubkey test %d of %d%s",
+			    authctxt->pk_ok_failures, options.max_pubkey_ok,
+			    authctxt->auth_failure_already_counted ?
+			    "" : ": treating as authentication failure");
+		 }
 	}
 done:
 	if (authenticated == 1 && auth_activate_options(ssh, authopts) != 0) {
@@ -301,12 +337,13 @@ done:
 	debug2_f("authenticated %d pkalg %s", authenticated, pkalg);
 
 	sshbuf_free(b);
+	sshbuf_free(keyblob);
 	sshauthopt_free(authopts);
 	sshkey_free(key);
 	sshkey_free(hostkey);
+	free(keystring);
 	free(userstyle);
 	free(pkalg);
-	free(pkblob);
 	free(key_s);
 	free(ca_s);
 	free(sig);

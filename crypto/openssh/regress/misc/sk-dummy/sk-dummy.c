@@ -1,4 +1,4 @@
-/* $OpenBSD: sk-dummy.c,v 1.16 2025/06/17 01:24:32 djm Exp $ */
+/* $OpenBSD: sk-dummy.c,v 1.17 2026/09/16 00:45:03 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl
  *
@@ -411,8 +411,8 @@ sig_ed25519(const uint8_t *message, size_t message_len,
 	uint8_t	apphash[SHA256_DIGEST_LENGTH];
 	uint8_t signbuf[sizeof(apphash) + sizeof(flags) +
 	    sizeof(counter) + SHA256_DIGEST_LENGTH];
-	uint8_t sig[crypto_sign_ed25519_BYTES + sizeof(signbuf)];
-	unsigned long long smlen;
+	uint8_t sig[crypto_sign_ed25519_BYTES];
+	unsigned long long siglen = 0;
 
 	if (key_handle_len != crypto_sign_ed25519_SECRETKEYBYTES) {
 		skdebug(__func__, "bad key handle length %zu", key_handle_len);
@@ -446,18 +446,16 @@ sig_ed25519(const uint8_t *message, size_t message_len,
 	}
 	dump("signbuf", signbuf, sizeof(signbuf));
 	/* create and encode signature */
-	smlen = sizeof(signbuf);
-	if (crypto_sign_ed25519(sig, &smlen, signbuf, sizeof(signbuf),
+	if (crypto_sign_ed25519_detached(sig, &siglen, signbuf, sizeof(signbuf),
 	    key_handle) != 0) {
-		skdebug(__func__, "crypto_sign_ed25519 failed");
+		skdebug(__func__, "crypto_sign_ed25519_detached failed");
 		goto out;
 	}
-	if (smlen <= sizeof(signbuf)) {
-		skdebug(__func__, "bad sign smlen %llu, expected min %zu",
-		    smlen, sizeof(signbuf) + 1);
+	if (siglen != sizeof(sig)) {
+		skdebug(__func__, "bad signature length %llu", siglen);
 		goto out;
 	}
-	response->sig_r_len = (size_t)(smlen - sizeof(signbuf));
+	response->sig_r_len = sizeof(sig);
 	if ((response->sig_r = calloc(1, response->sig_r_len)) == NULL) {
 		skdebug(__func__, "calloc signature failed");
 		goto out;

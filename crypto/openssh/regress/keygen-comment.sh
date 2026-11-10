@@ -1,4 +1,4 @@
-#	$OpenBSD: keygen-comment.sh,v 1.3 2025/10/01 00:30:19 dtucker Exp $
+#	$OpenBSD: keygen-comment.sh,v 1.4 2026/09/02 00:39:18 djm Exp $
 #	Placed in the Public Domain.
 
 tid="Comment extraction from private key"
@@ -30,7 +30,7 @@ for fmt in '' RFC4716 PKCS8 PEM; do
 		# Some key types like ssh-ed25519 and *@openssh.com are never
 		# stored in old formats.
 		case "$t" in
-		ssh-ed25519|*openssh.com) test -z "$oldfmt" || continue ;;
+		ssh-ed25519|ssh-mldsa44-ed25519|*openssh.com) test -z "$oldfmt" || continue ;;
 		esac
 		comment="foo bar"
 		fmtarg=""

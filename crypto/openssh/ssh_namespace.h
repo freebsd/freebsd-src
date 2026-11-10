@@ -41,8 +41,8 @@
 #define addr_pton_cidr				Fssh_addr_pton_cidr
 #define addr_sa_to_xaddr			Fssh_addr_sa_to_xaddr
 #define agent_cleanup_stale			Fssh_agent_cleanup_stale
-#define agent_hostname_hash			Fssh_agent_hostname_hash
 #define agent_listener				Fssh_agent_listener
+#define agent_listener_cleanup			Fssh_agent_listener_cleanup
 #define argv_assemble				Fssh_argv_assemble
 #define argv_consume				Fssh_argv_consume
 #define argv_free				Fssh_argv_free
@@ -175,6 +175,7 @@
 #define channel_send_window_changes		Fssh_channel_send_window_changes
 #define channel_set_af				Fssh_channel_set_af
 #define channel_set_fds				Fssh_channel_set_fds
+#define channel_set_tcp_keepalives		Fssh_channel_set_tcp_keepalives
 #define channel_set_tty				Fssh_channel_set_tty
 #define channel_set_x11_refuse_time		Fssh_channel_set_x11_refuse_time
 #define channel_set_xtype			Fssh_channel_set_xtype
@@ -233,10 +234,10 @@
 #define crypto_kem_sntrup761_enc		Fssh_crypto_kem_sntrup761_enc
 #define crypto_kem_sntrup761_keypair		Fssh_crypto_kem_sntrup761_keypair
 #define crypto_scalarmult_curve25519		Fssh_crypto_scalarmult_curve25519
-#define crypto_sign_ed25519			Fssh_crypto_sign_ed25519
+#define crypto_sign_ed25519_detached		Fssh_crypto_sign_ed25519_detached
 #define crypto_sign_ed25519_keypair		Fssh_crypto_sign_ed25519_keypair
-#define crypto_sign_ed25519_keypair_from_seed	Fssh_crypto_sign_ed25519_keypair_from_seed
-#define crypto_sign_ed25519_open		Fssh_crypto_sign_ed25519_open
+#define crypto_sign_ed25519_seed_keypair	Fssh_crypto_sign_ed25519_seed_keypair
+#define crypto_sign_ed25519_verify_detached	Fssh_crypto_sign_ed25519_verify_detached
 #define crypto_sign_mldsa44			Fssh_crypto_sign_mldsa44
 #define crypto_sign_mldsa44_ed25519_keygen	Fssh_crypto_sign_mldsa44_ed25519_keygen
 #define crypto_sign_mldsa44_ed25519_keygen_seeded Fssh_crypto_sign_mldsa44_ed25519_keygen_seeded
@@ -267,8 +268,8 @@
 #define dollar_expand				Fssh_dollar_expand
 #define encode_constraints			Fssh_encode_constraints
 #define encode_dest_constraint_hop		Fssh_encode_dest_constraint_hop
-#define ensure_mkdir				Fssh_ensure_mkdir
 #define exited_cleanly				Fssh_exited_cleanly
+#define expand_pathspec				Fssh_expand_pathspec
 #define export_dns_rr				Fssh_export_dns_rr
 #define extension_section			Fssh_extension_section
 #define fd_ready				Fssh_fd_ready
@@ -336,6 +337,7 @@
 #define kex_c25519_dec				Fssh_kex_c25519_dec
 #define kex_c25519_enc				Fssh_kex_c25519_enc
 #define kex_c25519_keypair			Fssh_kex_c25519_keypair
+#define kex_check_warn_weak_crypto		Fssh_kex_check_warn_weak_crypto
 #define kex_choose_conf				Fssh_kex_choose_conf
 #define kex_derive_keys				Fssh_kex_derive_keys
 #define kex_dh_compute_key			Fssh_kex_dh_compute_key
@@ -360,6 +362,9 @@
 #define kex_input_kexinit			Fssh_kex_input_kexinit
 #define kex_input_newkeys			Fssh_kex_input_newkeys
 #define kex_is_pq_from_name			Fssh_kex_is_pq_from_name
+#define kex_kem_mlkem768ecdh_dec		Fssh_kex_kem_mlkem768ecdh_dec
+#define kex_kem_mlkem768ecdh_enc		Fssh_kex_kem_mlkem768ecdh_enc
+#define kex_kem_mlkem768ecdh_keypair		Fssh_kex_kem_mlkem768ecdh_keypair
 #define kex_kem_mlkem768x25519_dec		Fssh_kex_kem_mlkem768x25519_dec
 #define kex_kem_mlkem768x25519_enc		Fssh_kex_kem_mlkem768x25519_enc
 #define kex_kem_mlkem768x25519_keypair		Fssh_kex_kem_mlkem768x25519_keypair
@@ -382,6 +387,7 @@
 #define kex_send_newkeys			Fssh_kex_send_newkeys
 #define kex_server_update_ext_info		Fssh_kex_server_update_ext_info
 #define kex_set_server_sig_algs			Fssh_kex_set_server_sig_algs
+#define kex_set_warn_weak_crypto		Fssh_kex_set_warn_weak_crypto
 #define kex_setup				Fssh_kex_setup
 #define kex_start_rekex				Fssh_kex_start_rekex
 #define kex_type_from_name			Fssh_kex_type_from_name
@@ -468,6 +474,7 @@
 #define match_pattern_list			Fssh_match_pattern_list
 #define match_user				Fssh_match_user
 #define match_usergroup_pattern_list		Fssh_match_usergroup_pattern_list
+#define mkdir_path				Fssh_mkdir_path
 #define mktemp_proto				Fssh_mktemp_proto
 #define mm_choose_dh				Fssh_mm_choose_dh
 #define mm_receive_fd				Fssh_mm_receive_fd
@@ -541,9 +548,11 @@
 #define private2_uudecode			Fssh_private2_uudecode
 #define proposals_match				Fssh_proposals_match
 #define ptimeout_deadline_monotime		Fssh_ptimeout_deadline_monotime
+#define ptimeout_deadline_monotime_double	Fssh_ptimeout_deadline_monotime_double
 #define ptimeout_deadline_monotime_tsp		Fssh_ptimeout_deadline_monotime_tsp
 #define ptimeout_deadline_ms			Fssh_ptimeout_deadline_ms
 #define ptimeout_deadline_sec			Fssh_ptimeout_deadline_sec
+#define ptimeout_deadline_sec_double		Fssh_ptimeout_deadline_sec_double
 #define ptimeout_get_ms				Fssh_ptimeout_get_ms
 #define ptimeout_get_tsp			Fssh_ptimeout_get_tsp
 #define ptimeout_init				Fssh_ptimeout_init
@@ -578,6 +587,7 @@
 #define scan_scaled				Fssh_scan_scaled
 #define seed_rng				Fssh_seed_rng
 #define send_error				Fssh_send_error
+#define set_keepalive				Fssh_set_keepalive
 #define set_log_handler				Fssh_set_log_handler
 #define set_nodelay				Fssh_set_nodelay
 #define set_nonblock				Fssh_set_nonblock
@@ -927,6 +937,7 @@
 #define sshkey_from_blob_internal		Fssh_sshkey_from_blob_internal
 #define sshkey_from_private			Fssh_sshkey_from_private
 #define sshkey_fromb				Fssh_sshkey_fromb
+#define sshkey_fromb_allowlist			Fssh_sshkey_fromb_allowlist
 #define sshkey_froms				Fssh_sshkey_froms
 #define sshkey_generate				Fssh_sshkey_generate
 #define sshkey_get_sigtype			Fssh_sshkey_get_sigtype

@@ -154,6 +154,8 @@ collect_ids_from_glob(glob_t *g, int user, u_int **idsp, u_int *nidsp)
 	u_int id, i, n = 0, *ids = NULL;
 
 	for (i = 0; g->gl_pathv[i] != NULL; i++) {
+		if (g->gl_statv[i] == NULL) /* no stat information */
+			continue;
 		if (user) {
 			if (ruser_name(g->gl_statv[i]->st_uid) != NULL)
 				continue; /* Already seen */

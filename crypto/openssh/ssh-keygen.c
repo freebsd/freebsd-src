@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.493 2026/08/07 05:49:53 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.496 2026/09/15 08:00:01 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -80,6 +80,8 @@
 #define DEFAULT_BITS		3072
 #define DEFAULT_BITS_ECDSA	256
 
+#define KEY_COMMENT_MAX		(NI_MAXHOST + 1024)
+
 static int quiet = 0;
 
 /* Flag indicating that we just want to see the key fingerprint */
@@ -139,7 +141,8 @@ static size_t ncert_ext;
 enum {
 	FMT_RFC4716,
 	FMT_PKCS8,
-	FMT_PEM
+	FMT_PEM,
+	FMT_HEXDUMP
 } convert_format = FMT_RFC4716;
 
 static char *key_type_name = NULL;
@@ -387,9 +390,33 @@ do_convert_to_pem(struct sshkey *k)
 }
 
 static void
+do_convert_to_hexdump(struct sshkey *k)
+{
+	struct sshbuf *b;
+	int r;
+
+	if ((b = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+	/* pubkey */
+	if ((r = sshkey_putb(k, b)) != 0)
+		fatal_fr(r, "serialise private");
+	printf("Public %s key:\n", sshkey_type(k));
+	sshbuf_dump(b, stdout);
+	sshbuf_reset(b);
+	if ((r = sshkey_private_serialize(k, b)) != 0) {
+		debug_fr(r, "serialise private");
+		goto out;
+	}
+	printf("\nPrivate %s key:\n", sshkey_type(k));
+	sshbuf_dump(b, stdout);
+ out:
+	sshbuf_free(b);
+}
+
+static void
 do_convert_to(struct passwd *pw)
 {
-	struct sshkey *k;
+	struct sshkey *k = NULL;
 	struct stat st;
 	int r;
 
@@ -397,8 +424,17 @@ do_convert_to(struct passwd *pw)
 		ask_filename(pw, "Enter file in which the key is");
 	if (stat(identity_file, &st) == -1)
 		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
-	if ((r = sshkey_load_public(identity_file, &k, NULL)) != 0)
+
+	/* If we're trying to hexdump, then prefer the private key */
+	if (convert_format == FMT_HEXDUMP) {
+		if ((r = sshkey_load_private(identity_file,
+		    NULL, &k, NULL)) != 0 &&
+		    r == SSH_ERR_KEY_WRONG_PASSPHRASE)
+			k = load_identity(identity_file, NULL);
+	}
+	if (k == NULL && (r = sshkey_load_public(identity_file, &k, NULL)) != 0)
 		k = load_identity(identity_file, NULL);
+
 	switch (convert_format) {
 	case FMT_RFC4716:
 		do_convert_to_ssh2(pw, k);
@@ -408,6 +444,9 @@ do_convert_to(struct passwd *pw)
 		break;
 	case FMT_PEM:
 		do_convert_to_pem(k);
+		break;
+	case FMT_HEXDUMP:
+		do_convert_to_hexdump(k);
 		break;
 	default:
 		fatal_f("unknown key format %d", convert_format);
@@ -1013,7 +1052,7 @@ do_gen_all_hostkeys(struct passwd *pw)
 	int first = 0;
 	struct stat st;
 	struct sshkey *private, *public;
-	char comment[1024], *prv_tmp, *pub_tmp, *prv_file, *pub_file;
+	char comment[KEY_COMMENT_MAX], *prv_tmp, *pub_tmp, *prv_file, *pub_file;
 	int i, type, fd, r;
 
 	for (i = 0; key_types[i].key_type; i++) {
@@ -1501,7 +1540,7 @@ do_print_resource_record(struct passwd *pw, char *fname, char *hname,
 static void
 do_change_comment(struct passwd *pw, const char *identity_comment)
 {
-	char new_comment[1024], *comment, *passphrase;
+	char new_comment[KEY_COMMENT_MAX], *comment, *passphrase;
 	struct sshkey *private;
 	struct sshkey *public;
 	struct stat st;
@@ -2139,6 +2178,8 @@ print_cert(struct sshkey *key)
 		printf("\n");
 		show_options(key->cert->extensions, 0);
 	}
+	free(key_fp);
+	free(ca_fp);
 }
 
 static void
@@ -3312,7 +3353,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	char comment[1024], *passphrase = NULL;
+	char comment[KEY_COMMENT_MAX], *passphrase = NULL;
 	char *rr_hostname = NULL, *ep, *fp, *ra;
 	struct sshkey *private = NULL, *public = NULL;
 	struct passwd *pw;
@@ -3416,6 +3457,10 @@ main(int argc, char **argv)
 			if (strcasecmp(optarg, "PEM") == 0) {
 				convert_format = FMT_PEM;
 				private_key_format = SSHKEY_PRIVATE_PEM;
+				break;
+			}
+			if (strcasecmp(optarg, "hexdump") == 0) {
+				convert_format = FMT_HEXDUMP;
 				break;
 			}
 			fatal("Unsupported conversion format \"%s\"", optarg);
@@ -3905,6 +3950,8 @@ main(int argc, char **argv)
 		/* Create default comment field for the passphrase. */
 		snprintf(comment, sizeof comment, "%s@%s", pw->pw_name, hostname);
 	}
+
+
 
 	/* Save the key with the given passphrase and comment. */
 	if ((r = sshkey_save_private(private, identity_file, passphrase,

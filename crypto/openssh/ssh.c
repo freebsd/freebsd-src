@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.637 2026/08/07 05:03:56 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.642 2026/09/23 21:42:39 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1713,16 +1713,20 @@ main(int ac, char **av)
 	/* Apply channels timeouts, if set */
 	channel_clear_timeouts(ssh);
 	for (j = 0; j < options.num_channel_timeouts; j++) {
+		double timeout;
+
 		debug3("applying channel timeout %s",
 		    options.channel_timeouts[j]);
 		if (parse_pattern_interval(options.channel_timeouts[j],
-		    &cp, &i) != 0) {
+		    &cp, &timeout) != 0) {
 			fatal_f("internal error: bad timeout %s",
 			    options.channel_timeouts[j]);
 		}
-		channel_add_timeout(ssh, cp, i);
+		channel_add_timeout(ssh, cp, timeout);
 		free(cp);
 	}
+	channel_set_tcp_keepalives(ssh,
+	    options.tcp_keep_alive == SSH_KEEPALIVES_ALL);
 
 	/* Open a connection to the remote host. */
 	if (ssh_connect(ssh, host, options.host_arg, addrs, &hostaddr,
@@ -2213,7 +2217,7 @@ ssh_session2_setup(struct ssh *ssh, int id, int success, void *arg)
 
 	check_agent_present();
 	if (options.forward_agent)
-		client_channel_reqest_agent_forwarding(ssh, id);
+		client_channel_request_agent_forwarding(ssh, id);
 
 	if ((term = lookup_env_in_list("TERM", options.setenv,
 	    options.num_setenv)) == NULL || *term == '\0')

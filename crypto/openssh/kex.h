@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.134 2026/08/08 07:27:54 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.135 2026/09/16 00:29:44 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -164,6 +164,9 @@ struct kex {
 	struct sshkey *initial_hostkey;
 	sig_atomic_t done;
 	u_int	flags;
+	u_int	warn_weak_crypto;
+	u_int	pq_kex_negotiated;
+	u_int	non_pq_kex_warned;
 	int	hash_alg;
 	int	ec_nid;
 	char	*failed_choice;
@@ -223,6 +226,8 @@ int	 kex_send_newkeys(struct ssh *);
 int	 kex_start_rekex(struct ssh *);
 int	 kex_server_update_ext_info(struct ssh *);
 void	 kex_set_server_sig_algs(struct ssh *, const char *);
+void	 kex_set_warn_weak_crypto(struct ssh *, int);
+void	 kex_check_warn_weak_crypto(struct ssh *);
 
 int	 kexgex_client(struct ssh *);
 int	 kexgex_server(struct ssh *);

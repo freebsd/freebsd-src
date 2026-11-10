@@ -24,7 +24,7 @@
  * Please crank SSH_SK_HELPER_VERSION in sshkey.h for any incompatible
  * protocol changes.
  */
- 
+
 #include "includes.h"
 
 #include <limits.h>

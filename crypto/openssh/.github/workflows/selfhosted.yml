@@ -40,11 +40,13 @@ jobs:
           - fbsd12
           - fbsd13
           - fbsd14
+          - fbsd15
           - nbsd3
           - nbsd4
           - nbsd8
           - nbsd9
           - nbsd10
+          - nbsd11
           - obsd51
           - obsd67
           - obsd72
@@ -84,9 +86,11 @@ jobs:
           - { target: fbsd12, config: pam, host: libvirt }
           - { target: fbsd13, config: pam, host: libvirt }
           - { target: fbsd14, config: pam, host: libvirt }
+          - { target: fbsd15, config: pam, host: libvirt }
           - { target: nbsd8,  config: pam, host: libvirt }
           - { target: nbsd9,  config: pam, host: libvirt }
           - { target: nbsd10, config: pam, host: libvirt }
+          - { target: nbsd11, config: pam, host: libvirt }
           - { target: omnios, config: pam, host: libvirt }
           # ARM64 VMs
           - { target: obsdsnap-arm64, config: default, host: libvirt-arm64 }
@@ -94,10 +98,10 @@ jobs:
           - { target: win10, config: default,        host: persist-win10 }
           - { target: win10, config: cygwin-release, host: persist-win10 }
           # Physical hosts with native runners.
-          - { target: ARM, config: default, host: ARM }
           - { target: ARM64, config: default, host: ARM64 }
           - { target: ARM64, config: pam, host: ARM64 }
           # Physical hosts with remote runners.
+          - { target: debian-arm, config: default, host: remote-debian-arm}
           - { target: debian-riscv64, config: default, host: remote-debian-riscv64 }
           - { target: openwrt-mips, config: default, host: remote-openwrt-mips }
           - { target: openwrt-mipsel, config: default, host: remote-openwrt-mipsel }
