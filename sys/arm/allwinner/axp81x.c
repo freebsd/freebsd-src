@@ -710,6 +710,7 @@ struct axp8xx_softc {
 #define	AXP_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
 static int axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay);
+static int axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt);
 
 static int
 axp8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
@@ -756,11 +757,19 @@ static int
 axp8xx_regnode_init(struct regnode *regnode)
 {
 	struct regnode_std_param *param;
-	int rv, udelay;
+	int rv, udelay, uvolt;
 
 	udelay = 0;
 	param = regnode_get_stdparam(regnode);
 	if (param->min_uvolt == 0)
+		return (0);
+
+	/*
+	 * Do not touch a regulator that is already in the range, the firmware
+	 * set it, and some of them are in use, like the one of the CPU.
+	 */
+	if (axp8xx_regnode_get_voltage(regnode, &uvolt) == 0 &&
+	    uvolt >= param->min_uvolt && uvolt <= param->max_uvolt)
 		return (0);
 
 	/* 
