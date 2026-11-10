@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 19, 2025
+.Dd November 10, 2026
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -55,6 +55,27 @@ The file must be in the correct format (see
 .Xr passwd 5 ) .
 It is important to note that the format used in this system is
 different from the historic Version 7 style format.
+.Pp
+Login names are subject to the same rules as in
+.Xr pw 8 :
+a name may not be empty, may not begin with a hyphen, and may not contain
+whitespace, control characters, 8-bit characters, or any of the following:
+.Bd -literal -offset indent
+, : + & # % $ ^ ( ) ! @ ~ * ? < > = | \e / " ; ' `
+.Ed
+.Pp
+As an exception, a
+.Ql $
+is permitted as the final character.
+For NIS compatibility entries
+.Pq Ql + , Ql +name , Ql -name , Ql +@netgroup , Ql -@netgroup
+the name is checked after the leading
+.Ql +
+or
+.Ql -
+and optional
+.Ql @ .
+A file containing an invalid login name is rejected.
 .Pp
 The options are as follows:
 .Bl -tag -width flag

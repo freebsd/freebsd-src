@@ -1325,6 +1325,8 @@
         ..
         pw
         ..
+	pwd_mkdb
+	..
         quot
         ..
         rpcbind

@@ -78,6 +78,7 @@ void	error(const char *);
 void	cp(char *, char *, mode_t mode);
 void	mv(char *, char *);
 int	scan(FILE *, struct passwd *);
+static int	name_ok(const char *);
 static void	usage(void);
 
 int
@@ -566,7 +567,43 @@ scan(FILE *fp, struct passwd *pw)
 fmt:		errno = EFTYPE;	/* XXX */
 		error(pname);
 	}
+	if (!name_ok(pw->pw_name)) {
+		warnx("invalid login name at line #%d", lcnt);
+		goto fmt;
+	}
 
+	return (1);
+}
+
+/*
+ * Apply the same character rules as pw_checkname() in usr.sbin/pw so that
+ * names pw(8) refuses cannot be introducde through vipw(8) or a hand edit.
+ * NIS compat entries (+, +name, -name, +@netgroup, -@netgroup) are checked
+ * after their prefix.
+ */
+static int
+name_ok(const char *name)
+{
+	static const char badchars[] = " ,\t:+&#%$^()!@~*?<>=|\\/\";'`";
+	const unsigned char *p;
+
+	p = (const unsigned char *)name;
+	if (*p == '+' || *p == '-') {
+		p++;
+		if (*p == '\0')
+			return (name[0] == '+');
+		if (*p == '@')
+			p++;
+	}
+	if (*p == '\0' || *p == '-')
+		return (0);
+	for (; *p != '\0'; p++) {
+		/* A trailing '$' is allowed for Samba machine accounts. */
+		if (*p == '$' && p[1] == '\0')
+			break;
+		if (*p < ' ' || *p >= 0x7f || strchr(badchars, *p) != NULL)
+			return (0);
+	}
 	return (1);
 }
 
