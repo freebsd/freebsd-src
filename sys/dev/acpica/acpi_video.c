@@ -1007,6 +1007,7 @@ struct enum_callback_arg {
 	void *context;
 	ACPI_OBJECT *dod_pkg;
 	int count;
+	bool panel_fallback;
 };
 
 static ACPI_STATUS
@@ -1016,7 +1017,6 @@ vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
 	ACPI_STATUS status;
 	UINT32 adr, val;
 	struct enum_callback_arg *argset;
-	size_t i;
 
 	ACPI_SERIAL_ASSERT(video);
 	argset = context;
@@ -1024,7 +1024,20 @@ vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
 	if (ACPI_FAILURE(status))
 		return (AE_OK);
 
-	for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
+	if (argset->panel_fallback) {
+		ACPI_HANDLE bcl_handle;
+
+		if (argset->count > 0 ||
+		    ACPI_FAILURE(AcpiGetHandle(handle, "_BCL", &bcl_handle)))
+			return (AE_OK);
+		argset->callback(handle,
+		    DOD_DEVID_INTDFP | (adr & DOD_DEVID_MASK_DISPIDX),
+		    argset->context);
+		argset->count++;
+		return (AE_OK);
+	}
+
+	for (size_t i = 0; i < argset->dod_pkg->Package.Count; i++) {
 		if (acpi_PkgInt32(argset->dod_pkg, i, &val) == 0 &&
 		    (val & DOD_DEVID_MASK_FULL) ==
 		    (adr & DOD_DEVID_MASK_FULL)) {
@@ -1071,11 +1084,20 @@ vid_enum_outputs(ACPI_HANDLE handle,
 	argset.context  = context;
 	argset.dod_pkg  = res;
 	argset.count    = 0;
+	argset.panel_fallback = false;
 	status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, handle, 1,
 	    vid_enum_outputs_subr, NULL, &argset, NULL);
+	if (ACPI_SUCCESS(status) && argset.count == 0) {
+		argset.panel_fallback = true;
+		status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, handle, 1,
+		    vid_enum_outputs_subr, NULL, &argset, NULL);
+		if (ACPI_SUCCESS(status) && argset.count > 0 && bootverbose)
+			printf("%s._DOD matches no output, using _BCL\n",
+			    acpi_name(handle));
+	}
 	if (ACPI_FAILURE(status))
 		printf("failed walking down %s - %s\n",
-		       acpi_name(handle), AcpiFormatException(status));
+		    acpi_name(handle), AcpiFormatException(status));
 out:
 	if (dod_buf.Pointer != NULL)
 		AcpiOsFree(dod_buf.Pointer);
