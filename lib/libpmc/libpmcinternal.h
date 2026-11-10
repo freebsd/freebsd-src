@@ -33,5 +33,6 @@
  * Prototypes.
  */
 const char *_pmc_name_of_event(enum pmc_event _ev, enum pmc_cputype _cpu);
+void	_pmc_cpuid_strip_model_zero(char *_buf);
 
 #endif	/* LIBPMC_INTERNAL_H */
