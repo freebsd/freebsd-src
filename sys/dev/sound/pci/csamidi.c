@@ -53,15 +53,6 @@
 
 #include "mpufoi_if.h"
 
-/* pulled from mpu401.c */
-#define	MPU_DATAPORT	0
-#define	MPU_CMDPORT	1
-#define	MPU_STATPORT	1
-#define	MPU_RESET	0xff
-#define	MPU_UART	0x3f
-#define	MPU_OUTPUTBUSY	0x40
-#define	MPU_INPUTBUSY	0x80
-
 /* device private data */
 struct csa_midi_softc {
 	/* hardware resources */
