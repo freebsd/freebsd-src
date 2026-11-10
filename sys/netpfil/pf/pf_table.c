@@ -1799,6 +1799,9 @@ pfr_fix_anchor(char *anchor)
 	size_t siz = MAXPATHLEN;
 	int i;
 
+	if (strnlen(anchor, MAXPATHLEN) >= MAXPATHLEN)
+		return (-1);
+
 	if (anchor[0] == '/') {
 		char *path;
 		int off;
@@ -1810,8 +1813,6 @@ pfr_fix_anchor(char *anchor)
 		bcopy(path, anchor, siz - off);
 		memset(anchor + siz - off, 0, off);
 	}
-	if (anchor[siz - 1])
-		return (-1);
 	for (i = strlen(anchor); i < siz; i++)
 		if (anchor[i])
 			return (-1);
