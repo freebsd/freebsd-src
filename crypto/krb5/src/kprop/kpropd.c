@@ -142,6 +142,8 @@ static const char *port = KPROP_SERVICE;
 static char **db_args = NULL;
 static size_t db_args_size = 0;
 
+static volatile sig_atomic_t signal_requests_exit = 0;
+
 static void parse_args(int argc, char **argv);
 static void do_standalone(void);
 static void doit(int fd);
@@ -233,6 +235,12 @@ kill_do_standalone(int sig)
                     (int)fullprop_child);
         }
         kill(fullprop_child, sig);
+        if (sig == SIGINT || sig == SIGTERM) {
+            /* Defer termination to avoid exiting in the middle of a critical
+             * DB or ulog section. */
+            signal_requests_exit = 1;
+            return;
+        }
     }
     /* Make sure our exit status code reflects our having been signaled */
     signal_wrapper(sig, SIG_DFL);
@@ -757,6 +765,9 @@ reinit:
         incr_ret = NULL;
         full_ret = NULL;
 
+        if (signal_requests_exit)
+            goto done;
+
         /*
          * Get the most recent ulog entry sno + ts, which
          * we package in the request to the primary KDC
@@ -999,7 +1010,7 @@ done:
     ulog_fini(kpropd_context);
     krb5_free_context(kpropd_context);
 
-    return (runonce == 1) ? 0 : 1;
+    return (runonce || signal_requests_exit) ? 0 : 1;
 }
 
 

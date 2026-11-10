@@ -254,7 +254,7 @@ clnttcp_call(
 {
 	struct ct_data *ct = h->cl_private;
 	XDR *xdrs = &ct->ct_xdrs;
-	struct rpc_msg reply_msg;
+	struct rpc_msg reply_msg = { 0 };
 	uint32_t x_id;
 	uint32_t *msg_x_id = &ct->ct_u.ct_mcalli;	/* yuk */
 	bool_t shipnow;
@@ -299,6 +299,11 @@ call_again:
 	 */
 	xdrs->x_op = XDR_DECODE;
 	while (TRUE) {
+		/* Free verifier buffer if set from previous decode. */
+		if (reply_msg.rm_reply.rp_stat == MSG_ACCEPTED) {
+		    xdr_free((xdrproc_t)xdr_opaque_auth,
+			     &reply_msg.acpted_rply.ar_verf);
+		}
 		reply_msg.acpted_rply.ar_verf = gssrpc__null_auth;
 		reply_msg.acpted_rply.ar_results.where = NULL;
 		reply_msg.acpted_rply.ar_results.proc = xdr_void;

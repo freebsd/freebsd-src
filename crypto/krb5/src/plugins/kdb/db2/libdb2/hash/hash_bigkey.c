@@ -69,8 +69,9 @@ static char sccsid[] = "@(#)hash_bigkey.c	8.5 (Berkeley) 11/2/95";
 #include "page.h"
 #include "extern.h"
 
-static int32_t collect_key __P((HTAB *, PAGE16 *, int32_t, db_pgno_t *));
-static int32_t collect_data __P((HTAB *, PAGE16 *, int32_t));
+static int32_t collect_key __P((HTAB *, PAGE16 *, int32_t, db_pgno_t *,
+				u_int32_t));
+static int32_t collect_data __P((HTAB *, PAGE16 *, int32_t, u_int32_t));
 
 /*
  * Big_insert
@@ -260,7 +261,7 @@ __big_keydata(HTAB *hashp, PAGE16 *pagep, DBT *key, DBT *val, int32_t ndx)
 	    __get_page(hashp, OADDR_TO_PAGE(DATA_OFF(pagep, ndx)), A_RAW);
 	if (!key_pagep)
 		return (-1);
-	key->size = collect_key(hashp, key_pagep, 0, &last_page);
+	key->size = collect_key(hashp, key_pagep, 0, &last_page, 0);
 	key->data = hashp->bigkey_buf;
 	__put_page(hashp, key_pagep, A_RAW, 0);
 
@@ -292,7 +293,7 @@ __get_bigkey(hashp, pagep, ndx, key)
 	    __get_page(hashp, OADDR_TO_PAGE(DATA_OFF(pagep, ndx)), A_RAW);
 	if (!key_pagep)
 		return (-1);
-	key->size = collect_key(hashp, key_pagep, 0, NULL);
+	key->size = collect_key(hashp, key_pagep, 0, NULL, 0);
 	key->data = hashp->bigkey_buf;
 
 	__put_page(hashp, key_pagep, A_RAW, 0);
@@ -331,7 +332,7 @@ __big_return(HTAB *hashp, ITEM_INFO *item_info, DBT *val,
 			return (-1);
 	}
 
-	val->size = collect_data(hashp, pagep, 0);
+	val->size = collect_data(hashp, pagep, 0, 0);
 	if (val->size < 1)
 		return (-1);
 	val->data = (void *)hashp->bigdata_buf;
@@ -352,7 +353,8 @@ __big_return(HTAB *hashp, ITEM_INFO *item_info, DBT *val,
  * Return total length of data; -1 if error.
  */
 static int32_t
-collect_key(HTAB *hashp, PAGE16 *pagep, int32_t len, db_pgno_t *last_page)
+collect_key(HTAB *hashp, PAGE16 *pagep, int32_t len, db_pgno_t *last_page,
+	    u_int32_t depth)
 {
 	PAGE16 *next_pagep;
 	int32_t totlen, retval;
@@ -360,6 +362,9 @@ collect_key(HTAB *hashp, PAGE16 *pagep, int32_t len, db_pgno_t *last_page)
 #ifdef DEBUG
 	db_pgno_t save_addr;
 #endif
+
+	if (depth > hashp->hdr.max_bucket)
+		return (-1);
 
 	/* If this is the last page with key. */
 	if (BIGDATALEN(pagep)) {
@@ -395,7 +400,7 @@ collect_key(HTAB *hashp, PAGE16 *pagep, int32_t len, db_pgno_t *last_page)
 #ifdef DEBUG
 	save_addr = ADDR(pagep);
 #endif
-	retval = collect_key(hashp, next_pagep, totlen, last_page);
+	retval = collect_key(hashp, next_pagep, totlen, last_page, depth + 1);
 
 #ifdef DEBUG
 	assert(save_addr == ADDR(pagep));
@@ -416,7 +421,7 @@ collect_key(HTAB *hashp, PAGE16 *pagep, int32_t len, db_pgno_t *last_page)
  * Return total length of data; -1 if error.
  */
 static int32_t
-collect_data(HTAB *hashp, PAGE16 *pagep, int32_t len)
+collect_data(HTAB *hashp, PAGE16 *pagep, int32_t len, u_int32_t depth)
 {
 	PAGE16 *next_pagep;
 	int32_t totlen, retval;
@@ -448,7 +453,7 @@ collect_data(HTAB *hashp, PAGE16 *pagep, int32_t len)
 #ifdef DEBUG
 	save_addr = ADDR(pagep);
 #endif
-	retval = collect_data(hashp, next_pagep, totlen);
+	retval = collect_data(hashp, next_pagep, totlen, depth + 1);
 #ifdef DEBUG
 	assert(save_addr == ADDR(pagep));
 #endif

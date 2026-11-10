@@ -20,6 +20,8 @@ schpw_util_wrapper(void *server_handle,
 {
     kadm5_ret_t                 ret;
     kadm5_server_handle_t       handle = server_handle;
+    kadm5_principal_ent_rec     rec;
+    int                         lockdown;
 
     /*
      * If no target is explicitly provided, then the target principal
@@ -42,18 +44,26 @@ schpw_util_wrapper(void *server_handle,
             return ret;
     }
 
-    if (auth(handle->context, OP_CPW, client, target,
-             NULL, NULL, NULL, NULL, 0)) {
-        ret = kadm5_chpass_principal_util(server_handle,
-                                          target,
-                                          new_pw, ret_pw,
-                                          msg_ret, msg_len);
-    } else {
-        ret = KADM5_AUTH_CHANGEPW;
+    if (!auth(handle->context, OP_CPW, client, target,
+              NULL, NULL, NULL, NULL, 0)) {
         strlcpy(msg_ret, "Unauthorized request", msg_len);
+        return KADM5_AUTH_CHANGEPW;
     }
 
-    return ret;
+    ret = kadm5_get_principal(handle, target, &rec, KADM5_ATTRIBUTES);
+    if (ret) {
+        strlcpy(msg_ret, "Target principal not found", msg_len);
+        return ret;
+    }
+    lockdown = (rec.attributes & KRB5_KDB_LOCKDOWN_KEYS) != 0;
+    kadm5_free_principal_ent(handle, &rec);
+    if (lockdown) {
+        strlcpy(msg_ret, "Principal keys are locked down", msg_len);
+        return KADM5_PROTECT_KEYS;
+    }
+
+    return kadm5_chpass_principal_util(server_handle, target, new_pw, ret_pw,
+                                       msg_ret, msg_len);
 }
 
 kadm5_ret_t

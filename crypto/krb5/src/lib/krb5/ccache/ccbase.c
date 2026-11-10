@@ -201,8 +201,8 @@ krb5_cc_register(krb5_context context, const krb5_cc_ops *ops,
 krb5_error_code KRB5_CALLCONV
 krb5_cc_resolve (krb5_context context, const char *name, krb5_ccache *cache)
 {
-    char *pfx, *cp;
-    const char *resid;
+    char *pfx;
+    const char *cp, *resid;
     unsigned int pfxlen;
     krb5_error_code err;
     const krb5_cc_ops *ops;

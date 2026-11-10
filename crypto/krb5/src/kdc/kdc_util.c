@@ -665,13 +665,13 @@ get_pac_princ_with_realm(krb5_context context, krb5_pac pac,
 
     ret = krb5_parse_name_flags(context, client_str, flags, princ_out);
     if (ret)
-        return ret;
+        goto cleanup;
 
     (*princ_out)->type = KRB5_NT_MS_PRINCIPAL;
 
 cleanup:
     free(client_str);
-    return 0;
+    return ret;
 }
 
 /* This probably wants to be updated if you support last_req stuff */
@@ -917,9 +917,7 @@ static int
 asn1length(unsigned char **astream)
 {
     int length;         /* resulting length */
-    int sublen;         /* sublengths */
     int blen;           /* bytes of length */
-    unsigned char *p;   /* substring searching */
 
     if (**astream & 0x80) {
         blen = **astream & 0x7f;
@@ -929,23 +927,9 @@ asn1length(unsigned char **astream)
         for (++*astream, length = 0; blen; ++*astream, blen--) {
             length = (length << 8) | **astream;
         }
+        /* Reject indefinite length form. */
         if (length == 0) {
-            /* indefinite length, figure out by hand */
-            p = *astream;
-            p++;
-            while (1) {
-                /* compute value length. */
-                if ((sublen = asn1length(&p)) < 0) {
-                    return(-1);
-                }
-                p += sublen;
-                /* check for termination */
-                if ((!*p++) && (!*p)) {
-                    p++;
-                    break;
-                }
-            }
-            length = p - *astream;
+            return(-1);
         }
     } else {
         length = **astream;
@@ -974,7 +958,6 @@ fetch_asn1_field(unsigned char *astream, unsigned int level,
     int lastlevel = 1000;       /* last level seen */
     int length;                 /* various lengths */
     int tag;                    /* tag number */
-    unsigned char savelen;      /* saved length of our field */
 
     classes = -1;
     /* we assume that the first identifier/length will tell us
@@ -989,6 +972,10 @@ fetch_asn1_field(unsigned char *astream, unsigned int level,
        until we hit the "level" we want, and then process that level for our
        subfield, always making sure we don't go off the end of the stream.  */
     while (astream < estream) {
+        /* The libkrb5 decoder supports multi-byte tag numbers, but we do not.
+         * Error out if we see one to prevent desynchronization. */
+        if (asn1_id_tag(*astream) == ASN1_ID_TAG)
+            return(-1);
         if (!asn1_id_constructed(*astream)) {
             return(-1);
         }
@@ -1003,18 +990,10 @@ fetch_asn1_field(unsigned char *astream, unsigned int level,
                 if (tag == (int)field) {
                     /* return length and data */
                     astream++;
-                    savelen = *astream;
                     if ((length = asn1length(&astream)) < 0) {
                         return(-1);
                     }
                     data->length = length;
-                    /* if the field length is indefinite, we will have to subtract two
-                       (terminating octets) from the length returned since we don't want
-                       to pass any info from the "wrapper" back.  asn1length will always return
-                       the *total* length of the field, not just what's contained in it */
-                    if ((savelen & 0xff) == 0x80) {
-                        data->length -=2 ;
-                    }
                     data->data = (char *)astream;
                     return(0);
                 } else if (tag <= classes) {

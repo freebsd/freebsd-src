@@ -122,6 +122,7 @@ krb5_ktkdb_get_entry(krb5_context in_context, krb5_keytab id,
     krb5_error_code       kerror = 0;
     krb5_key_data       * key_data;
     krb5_db_entry       * db_entry;
+    krb5_keyblock         kb = { 0 };
     int xrealm_tgt;
     krb5_boolean similar;
 
@@ -163,14 +164,13 @@ krb5_ktkdb_get_entry(krb5_context in_context, krb5_keytab id,
         goto error;
 
 
-    kerror = krb5_dbe_decrypt_key_data(context, NULL, key_data,
-                                       &entry->key, NULL);
+    kerror = krb5_dbe_decrypt_key_data(context, NULL, key_data, &kb, NULL);
     if (kerror)
         goto error;
 
     if (enctype > 0) {
-        kerror = krb5_c_enctype_compare(context, enctype,
-                                        entry->key.enctype, &similar);
+        kerror = krb5_c_enctype_compare(context, enctype, kb.enctype,
+                                        &similar);
         if (kerror)
             goto error;
 
@@ -183,14 +183,19 @@ krb5_ktkdb_get_entry(krb5_context in_context, krb5_keytab id,
      * Coerce the enctype of the output keyblock in case we got an
      * inexact match on the enctype.
      */
-    entry->key.enctype = enctype;
+    kb.enctype = enctype;
 
     kerror = krb5_copy_principal(context, principal, &entry->principal);
     if (kerror)
         goto error;
 
+    /* Transfer ownership of kb to entry. */
+    entry->key = kb;
+    memset(&kb, 0, sizeof(kb));
+
     /* Close database */
 error:
+    krb5_free_keyblock_contents(context, &kb);
     krb5_db_free_principal(context, db_entry);
     /*    krb5_db_close_database(context); */
     return(kerror);

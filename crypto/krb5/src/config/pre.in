@@ -413,6 +413,9 @@ TLS_IMPL_LIBS	= @TLS_IMPL_LIBS@
 # SPAKE preauth back-end libraries
 SPAKE_OPENSSL_LIBS = @SPAKE_OPENSSL_LIBS@
 
+# simple audit plugin module dependencies
+AUDIT_IMPL_LIBS = @AUDIT_IMPL_LIBS@
+
 # Whether we have the SASL header file for the LDAP KDB module
 HAVE_SASL = @HAVE_SASL@
 

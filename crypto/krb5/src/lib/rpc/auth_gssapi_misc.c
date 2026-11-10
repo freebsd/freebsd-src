@@ -35,20 +35,14 @@ bool_t xdr_gss_buf(
      XDR *xdrs,
      gss_buffer_t buf)
 {
-     /*
-      * On decode, xdr_bytes will only allocate buf->value if the
-      * length read in is < maxsize (last arg).  This is dumb, because
-      * the whole point of allocating memory is so that I don't *have*
-      * to know the maximum length.  -1 effectively disables this
-      * braindamage.
-      */
      bool_t result;
      /* Fix type mismatches between APIs.  */
      unsigned int length = buf->length;
      char *cp = buf->value;
      result = xdr_bytes(xdrs, &cp, &length,
 			(xdrs->x_op == XDR_DECODE && buf->value == NULL)
-			? (unsigned int) -1 : (unsigned int) buf->length);
+			? GSSRPC_MAX_MESSAGE_SIZE
+			: (unsigned int) buf->length);
      buf->value = cp;
      buf->length = length;
      return result;
@@ -202,11 +196,12 @@ bool_t auth_gssapi_wrap_data(
      xdrproc_t xdr_func,
      caddr_t xdr_ptr)
 {
-     gss_buffer_desc in_buf, out_buf;
+     gss_buffer_desc in_buf, out_buf = { 0 };
      XDR temp_xdrs;
      int conf_state;
      unsigned int length;
      char *cp;
+     bool_t success = FALSE;
 
      PRINTF(("gssapi_wrap_data: starting\n"));
 
@@ -219,15 +214,13 @@ bool_t auth_gssapi_wrap_data(
      PRINTF(("gssapi_wrap_data: encoding seq_num %d\n", seq_num));
      if (! xdr_u_int32(&temp_xdrs, &seq_num)) {
 	  PRINTF(("gssapi_wrap_data: serializing seq_num failed\n"));
-	  XDR_DESTROY(&temp_xdrs);
-	  return FALSE;
+	  goto cleanup;
      }
 
      /* serialize the arguments into local memory */
      if (!(*xdr_func)(&temp_xdrs, xdr_ptr)) {
 	  PRINTF(("gssapi_wrap_data: serializing arguments failed\n"));
-	  XDR_DESTROY(&temp_xdrs);
-	  return FALSE;
+	  goto cleanup;
      }
 
      in_buf.length = xdr_getpos(&temp_xdrs);
@@ -236,10 +229,8 @@ bool_t auth_gssapi_wrap_data(
      *major = gss_seal(minor, context, 1,
 		       GSS_C_QOP_DEFAULT, &in_buf, &conf_state,
 		       &out_buf);
-     if (*major != GSS_S_COMPLETE) {
-	  XDR_DESTROY(&temp_xdrs);
-	  return FALSE;
-     }
+     if (*major != GSS_S_COMPLETE)
+	  goto cleanup;
 
      PRINTF(("gssapi_wrap_data: %d bytes data, %d bytes sealed\n",
 	     (int) in_buf.length, (int) out_buf.length));
@@ -249,16 +240,17 @@ bool_t auth_gssapi_wrap_data(
      cp = out_buf.value;
      if (! xdr_bytes(out_xdrs, &cp, &length, out_buf.length)) {
 	  PRINTF(("gssapi_wrap_data: serializing encrypted data failed\n"));
-	  XDR_DESTROY(&temp_xdrs);
-	  return FALSE;
+	  goto cleanup;
      }
      out_buf.value = cp;
 
-     *major = gss_release_buffer(minor, &out_buf);
-
      PRINTF(("gssapi_wrap_data: succeeding\n\n"));
+     success = TRUE;
+
+cleanup:
+     gss_release_buffer(minor, &out_buf);
      XDR_DESTROY(&temp_xdrs);
-     return TRUE;
+     return success;
 }
 
 bool_t auth_gssapi_unwrap_data(
@@ -285,10 +277,10 @@ bool_t auth_gssapi_unwrap_data(
      in_buf.value = NULL;
      out_buf.value = NULL;
      cp = in_buf.value;
-     if (! xdr_bytes(in_xdrs, &cp, &length, (unsigned int) -1)) {
+     if (! xdr_bytes(in_xdrs, &cp, &length, GSSRPC_MAX_MESSAGE_SIZE)) {
 	 PRINTF(("gssapi_unwrap_data: deserializing encrypted data failed\n"));
 	 temp_xdrs.x_op = XDR_FREE;
-	 (void)xdr_bytes(&temp_xdrs, &cp, &length, (unsigned int) -1);
+	 (void)xdr_bytes(&temp_xdrs, &cp, &length, GSSRPC_MAX_MESSAGE_SIZE);
 	 in_buf.value = NULL;
 	 return FALSE;
      }

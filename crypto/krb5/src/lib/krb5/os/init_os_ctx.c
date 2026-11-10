@@ -165,11 +165,11 @@ cleanup:
 static krb5_error_code
 get_from_known_folder(
     int folderId,
+    const char* software_suffix,
     char** pbuffer
 )
 {
     char szPath[MAX_PATH];
-    const char * software_suffix = "\\MIT\\Kerberos5";
     krb5_error_code retval = 0;
     size_t size;
     struct _stat s;
@@ -260,12 +260,14 @@ os_get_default_config_files(profile_filespec_t **pfiles, krb5_boolean secure)
     }
 
     if (!name && !secure) {
-        retval = get_from_known_folder(CSIDL_APPDATA, &name);
+        retval = get_from_known_folder(CSIDL_APPDATA, "\\MIT\\Kerberos5",
+                                       &name);
         if (retval) return retval;
     }
 
     if (!name) {
-        retval = get_from_known_folder(CSIDL_COMMON_APPDATA, &name);
+        retval = get_from_known_folder(CSIDL_PROGRAM_FILES, "\\MIT\\Kerberos",
+                                       &name);
         if (retval) return retval;
     }
 
@@ -416,8 +418,11 @@ k5_os_init_context(krb5_context ctx, profile_t profile, krb5_flags flags)
     krb5_os_context os_ctx;
     krb5_error_code    retval = 0;
 #ifdef _WIN32
-    WORD wVersionRequested;
     WSADATA wsaData;
+
+    /* Initialize winsock to version 1.1.  Do this first so that we know it was
+     * done in k5_os_free_context(), and can safely call WSACleanup(). */
+    WSAStartup(0x0101, &wsaData);
 #endif /* _WIN32 */
 
     os_ctx = &ctx->os_context;
@@ -437,14 +442,6 @@ k5_os_init_context(krb5_context ctx, profile_t profile, krb5_flags flags)
         retval = os_init_paths(ctx, (flags & KRB5_INIT_CONTEXT_KDC) != 0);
     if (retval)
         return retval;
-
-#ifdef _WIN32
-    /* We initialize winsock to version 1.1 but
-     * we do not care if we succeed or fail.
-     */
-    wVersionRequested = 0x0101;
-    WSAStartup (wVersionRequested, &wsaData);
-#endif /* _WIN32 */
 
     return 0;
 }

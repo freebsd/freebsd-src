@@ -103,7 +103,7 @@ k5_internalize_checksum(krb5_checksum **argp,
     krb5_checksum       *checksum;
     krb5_int32          ibuf;
     krb5_octet          *bp;
-    size_t              remain;
+    size_t              remain, len;
 
     bp = *buffer;
     remain = *lenremain;
@@ -122,15 +122,13 @@ k5_internalize_checksum(krb5_checksum **argp,
             checksum->checksum_type = (krb5_cksumtype) ibuf;
 
             /* Get the length */
-            (void) krb5_ser_unpack_int32(&ibuf, &bp, &remain);
-            checksum->length = (int) ibuf;
+            (void) k5_ser_unpack_len(&len, &bp, &remain);
+            checksum->length = len;
 
             /* Get the string */
-            if (!ibuf ||
-                ((checksum->contents = (krb5_octet *)
-                  malloc((size_t) (ibuf))) &&
-                 !(kret = krb5_ser_unpack_bytes(checksum->contents,
-                                                (size_t) ibuf,
+            if (!len ||
+                ((checksum->contents = malloc(len)) &&
+                 !(kret = krb5_ser_unpack_bytes(checksum->contents, len,
                                                 &bp, &remain)))) {
 
                 /* Get the trailer */

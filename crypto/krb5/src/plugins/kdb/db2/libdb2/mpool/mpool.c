@@ -218,17 +218,17 @@ mpool_get(MPOOL *mp, db_pgno_t pgno, u_int flags)
 	    /* Run past the end of the file, or at least the part we
 	       can address without large-file support?  */
 	    errno = E2BIG;
-	    return NULL;
+	    goto err;
 	}
 	if (lseek(mp->fd, off, SEEK_SET) != off)
-		return (NULL);
+		goto err;
 
 	if ((nr = read(mp->fd, bp->page, mp->pagesize)) !=
 	    (ssize_t)mp->pagesize) {
 		if (nr > 0) {
 			/* A partial read is definitely bad. */
 			errno = EINVAL;
-			return (NULL);
+			goto err;
 		} else {
 			/*
 			 * A zero-length reads, means you need to create a
@@ -257,6 +257,13 @@ mpool_get(MPOOL *mp, db_pgno_t pgno, u_int flags)
 		(mp->pgin)(mp->pgcookie, bp->pgno, bp->page);
 
 	return (bp->page);
+
+err:
+	/* Only use this label after the mpool_bkt() call.  mpool_bkt()
+	 * returned a fresh or unlinked page; drop it. */
+	free(bp);
+	mp->curcache--;
+	return (NULL);
 }
 
 /*

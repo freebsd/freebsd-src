@@ -102,7 +102,7 @@ k5_internalize_authdata(krb5_authdata **argp,
     krb5_authdata       *authdata;
     krb5_int32          ibuf;
     krb5_octet          *bp;
-    size_t              remain;
+    size_t              remain, len;
 
     bp = *buffer;
     remain = *lenremain;
@@ -122,14 +122,13 @@ k5_internalize_authdata(krb5_authdata **argp,
             authdata->ad_type = (krb5_authdatatype) ibuf;
 
             /* Get the length */
-            (void) krb5_ser_unpack_int32(&ibuf, &bp, &remain);
-            authdata->length = (int) ibuf;
+            (void) k5_ser_unpack_len(&len, &bp, &remain);
+            authdata->length = len;
 
             /* Get the string */
-            if ((authdata->contents = (krb5_octet *)
-                 malloc((size_t) (ibuf))) &&
-                !(kret = krb5_ser_unpack_bytes(authdata->contents,
-                                               (size_t) ibuf,
+            authdata->contents = malloc(len);
+            if (authdata->contents != NULL &&
+                !(kret = krb5_ser_unpack_bytes(authdata->contents, len,
                                                &bp, &remain))) {
                 if ((kret = krb5_ser_unpack_int32(&ibuf, &bp, &remain)))
                     ibuf = 0;

@@ -1261,6 +1261,10 @@ create_policy_2_svc(cpol_arg *arg, generic_ret *ret, struct svc_req *rqstp)
         goto exit_func;
 
     prime_arg = arg->rec.policy;
+    if (prime_arg == NULL) {
+        ret->code = EINVAL;
+        goto exit_func;
+    }
 
     if (CHANGEPW_SERVICE(rqstp) ||
         !stub_auth_pol(handle, OP_ADDPOL, arg->rec.policy,
@@ -1274,8 +1278,7 @@ create_policy_2_svc(cpol_arg *arg, generic_ret *ret, struct svc_req *rqstp)
         if (ret->code != 0)
             errmsg = krb5_get_error_message(handle->context, ret->code);
 
-        log_done("kadm5_create_policy",
-                 ((prime_arg == NULL) ? "(null)" : prime_arg), errmsg,
+        log_done("kadm5_create_policy", prime_arg, errmsg,
                  &client_name, &service_name, rqstp);
 
         if (errmsg != NULL)
@@ -1303,6 +1306,10 @@ delete_policy_2_svc(dpol_arg *arg, generic_ret *ret, struct svc_req *rqstp)
         goto exit_func;
 
     prime_arg = arg->name;
+    if (prime_arg == NULL) {
+        ret->code = EINVAL;
+        goto exit_func;
+    }
 
     if (CHANGEPW_SERVICE(rqstp) ||
         !stub_auth(handle, OP_DELPOL, NULL, NULL, arg->name, NULL)) {
@@ -1314,8 +1321,7 @@ delete_policy_2_svc(dpol_arg *arg, generic_ret *ret, struct svc_req *rqstp)
         if (ret->code != 0)
             errmsg = krb5_get_error_message(handle->context, ret->code);
 
-        log_done("kadm5_delete_policy",
-                 ((prime_arg == NULL) ? "(null)" : prime_arg), errmsg,
+        log_done("kadm5_delete_policy", prime_arg, errmsg,
                  &client_name, &service_name, rqstp);
 
         if (errmsg != NULL)
@@ -1343,6 +1349,10 @@ modify_policy_2_svc(mpol_arg *arg, generic_ret *ret, struct svc_req *rqstp)
         goto exit_func;
 
     prime_arg = arg->rec.policy;
+    if (prime_arg == NULL) {
+        ret->code = EINVAL;
+        goto exit_func;
+    }
 
     if (CHANGEPW_SERVICE(rqstp) ||
         !stub_auth_pol(handle, OP_MODPOL, arg->rec.policy,
@@ -1355,8 +1365,7 @@ modify_policy_2_svc(mpol_arg *arg, generic_ret *ret, struct svc_req *rqstp)
         if (ret->code != 0)
             errmsg = krb5_get_error_message(handle->context, ret->code);
 
-        log_done("kadm5_modify_policy",
-                 ((prime_arg == NULL) ? "(null)" : prime_arg), errmsg,
+        log_done("kadm5_modify_policy", prime_arg, errmsg,
                  &client_name, &service_name, rqstp);
 
         if (errmsg != NULL)
@@ -1390,6 +1399,10 @@ get_policy_2_svc(gpol_arg *arg, gpol_ret *ret, struct svc_req *rqstp)
     funcname = "kadm5_get_policy";
 
     prime_arg = arg->name;
+    if (prime_arg == NULL) {
+        ret->code = EINVAL;
+        goto exit_func;
+    }
 
     /* Look up the client principal's policy value. */
     ret2 = kadm5_get_principal(handle->lhandle, handle->current_caller,
@@ -1408,9 +1421,8 @@ get_policy_2_svc(gpol_arg *arg, gpol_ret *ret, struct svc_req *rqstp)
         if (ret->code != 0)
             errmsg = krb5_get_error_message(handle->context, ret->code);
 
-        log_done(funcname,
-                 ((prime_arg == NULL) ? "(null)" : prime_arg), errmsg,
-                 &client_name, &service_name, rqstp);
+        log_done(funcname, prime_arg, errmsg, &client_name, &service_name,
+                 rqstp);
         if (errmsg != NULL)
             krb5_free_error_message(handle->context, errmsg);
     }

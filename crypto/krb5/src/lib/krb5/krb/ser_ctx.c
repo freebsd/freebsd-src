@@ -211,8 +211,7 @@ k5_internalize_context(krb5_context *argp,
     krb5_context        context;
     krb5_int32          ibuf;
     krb5_octet          *bp;
-    size_t              remain;
-    unsigned int        i, count;
+    size_t              remain, len, count, i;
 
     bp = *buffer;
     remain = *lenremain;
@@ -230,28 +229,29 @@ k5_internalize_context(krb5_context *argp,
         return (ENOMEM);
 
     /* Get the size of the default realm */
-    if ((kret = krb5_ser_unpack_int32(&ibuf, &bp, &remain)))
+    kret = k5_ser_unpack_len(&len, &bp, &remain);
+    if (kret)
         goto cleanup;
 
-    if (ibuf) {
-        context->default_realm = (char *) malloc((size_t) ibuf+1);
+    if (len > 0) {
+        context->default_realm = malloc(len + 1);
         if (!context->default_realm) {
             kret = ENOMEM;
             goto cleanup;
         }
 
         kret = krb5_ser_unpack_bytes((krb5_octet *) context->default_realm,
-                                     (size_t) ibuf, &bp, &remain);
+                                     len, &bp, &remain);
         if (kret)
             goto cleanup;
 
-        context->default_realm[ibuf] = '\0';
+        context->default_realm[len] = '\0';
     }
 
     /* Get the tgs_etypes */
-    if ((kret = krb5_ser_unpack_int32(&ibuf, &bp, &remain)))
+    kret = k5_ser_unpack_len(&count, &bp, &remain);
+    if (kret)
         goto cleanup;
-    count = ibuf;
     if (count > 0) {
         context->tgs_etypes = calloc(count + 1, sizeof(krb5_enctype));
         if (!context->tgs_etypes) {

@@ -126,6 +126,13 @@ CCOPTS=-nologo /EHsc /W3 /we4020 /we4024 /we4047 $(PDB_OPTS) $(DLL_FILE_DEF)
 LOPTS=-nologo -incremental:no -manifest
 
 CCLINKOPTION=
+MIDL_ENV=
+!if "$(CPU)" == "AMD64"
+MIDL_ENV=/env x64
+!elseif "$(CPU)" == "ARM64"
+MIDL_ENV=/env arm64
+!endif
+
 DEBUGOPT=/guard:cf /Zi
 
 #if the compiler is vstudio 8, generate manifest
