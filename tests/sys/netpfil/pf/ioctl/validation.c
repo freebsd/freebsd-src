@@ -1005,6 +1005,38 @@ ATF_TC_CLEANUP(addstate, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(anchor);
+ATF_TC_HEAD(anchor, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.kmods", "pf");
+}
+
+ATF_TC_BODY(anchor, tc)
+{
+	struct pfioc_table io;
+	struct pfr_table tbl;
+
+	COMMON_HEAD();
+
+	memset(&tbl, 0, sizeof(tbl));
+	memset(&io, '/', sizeof(io)); /* anchor + name all slashes */
+	io.pfrio_esize = sizeof(struct pfr_table);
+	io.pfrio_size = 1000;
+	io.pfrio_flags = PFR_FLAG_ALLRSETS;
+	io.pfrio_buffer = &tbl;
+
+	ATF_CHECK_ERRNO(EINVAL, ioctl(dev, DIOCRGETTABLES, &io) == -1);
+
+	io.pfrio_table.pfrt_anchor[MAXPATHLEN - 1] = 0;
+	ATF_CHECK(ioctl(dev, DIOCRGETTABLES, &io) == 0);
+}
+
+ATF_TC_CLEANUP(anchor, tc)
+{
+	COMMON_CLEANUP();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, addtables);
@@ -1032,6 +1064,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rpool_mtx2);
 	ATF_TP_ADD_TC(tp, natlook);
 	ATF_TP_ADD_TC(tp, addstate);
+	ATF_TP_ADD_TC(tp, anchor);
 
 	return (atf_no_error());
 }
