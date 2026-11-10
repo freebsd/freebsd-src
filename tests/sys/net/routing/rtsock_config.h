@@ -127,21 +127,9 @@ config_setup(const atf_tc_t *tc, struct rtsock_config_options *co)
 	ATF_CHECK_ERRNO(0, true);
 
 	if (co->num_interfaces > 0) {
-		/**
-		 * Attempt to blindly load `if_epair`. If that fails (and
-		 * `if_epair` isn't already loaded), fail the test via
-		 * `atf_require_kmod(..)`.
-		 *
-		 * - TODO(igoro,ngie): `kyua prepare` support will clean this
-		 *   up a bit, but it requires plumbing on the kyua side, the
-		 *   CI side, and a few other areas.
-		 *
-		 * - TODO(ngie): replace this with `require.kmods` atf-c-api(3)
-		 *   property to restore prior behavior of skipping test
-		 *   instead of failing if `if_epair` is not loaded.
-		 */
-		(void)kldload("if_epair");
-		atf_require_kmod("if_epair");
+		/* Try loading if_epair and if that fails skip the test. */
+		kldload("if_epair");
+		ATF_REQUIRE_KERNEL_MODULE("if_epair");
 		/* Clear errno for the following tests. */
 		errno = 0;
 

@@ -24,11 +24,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * TODO(ngie): replace these macros with first-class metadata properties via
- * `atf` and `kyua`, much like `require.kmods`.
- */
-
 #ifndef	_FREEBSD_TEST_MACROS_H_
 #define	_FREEBSD_TEST_MACROS_H_
 
@@ -49,10 +44,12 @@
 	}								\
 } while(0)
 
-/*
- * ATF_REQUIRE_KERNEL_MODULE was replaced by `require.kmods` (ATF property),
- * et al.
- */
+#define	ATF_REQUIRE_KERNEL_MODULE(_mod_name) do {			\
+	if (modfind(_mod_name) == -1) {					\
+		atf_tc_skip("module %s could not be resolved: %s",	\
+		    _mod_name, strerror(errno));			\
+	}								\
+} while(0)
 
 #define	ATF_REQUIRE_SYSCTL_BOOL(_mib_name, _required_value) do {	\
 	bool value;							\
@@ -86,9 +83,12 @@
 	}								\
 } while(0)
 
-/*
- * PLAIN_REQUIRE_KERNEL_MODULE was replaced by the `required_kmods` metadata
- * property in Kyuafile.
- */
+#define	PLAIN_REQUIRE_KERNEL_MODULE(_mod_name, _exit_code) do {		\
+	if (modfind(_mod_name) == -1) {					\
+		printf("module %s could not be resolved: %s\n",		\
+		    _mod_name, strerror(errno));			\
+		_exit(_exit_code);					\
+	}								\
+} while(0)
 
 #endif

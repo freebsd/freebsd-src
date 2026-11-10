@@ -116,6 +116,10 @@ ATF_TC_BODY(mqueue, tc)
 	char template[32];
 	char mq_name[64];
 
+#ifdef __FreeBSD__
+	ATF_REQUIRE_KERNEL_MODULE("mqueuefs");
+#endif
+
 	strlcpy(template, "./t_mqueue.XXXXXX", sizeof(template));
 	tmpdir = mkdtemp(template);
 	ATF_REQUIRE_MSG(tmpdir != NULL, "mkdtemp failed: %d", errno);
