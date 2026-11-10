@@ -92,13 +92,13 @@ TEST(Sctp, Socket) {
   addr.sin_family = AF_INET;
   addr.sin_port = htons(0);
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  socklen_t len = sizeof(addr);
+  socklen_t srv_addr_len = sizeof(addr);
 
   // Can only bind the fully-capable socket.
-  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, len));
-  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, len));
+  EXPECT_NOTCAPABLE(bind(cap_sock_rw, (struct sockaddr *)&addr, srv_addr_len));
+  EXPECT_OK(bind(cap_sock_all, (struct sockaddr *)&addr, srv_addr_len));
 
-  EXPECT_OK(getsockname(cap_sock_all, (struct sockaddr *)&addr, &len));
+  EXPECT_OK(getsockname(cap_sock_all, (struct sockaddr *)&addr, &srv_addr_len));
   int port = ntohs(addr.sin_port);
 
   // Now we know the port involved, fork off children to run clients.
@@ -128,26 +128,26 @@ TEST(Sctp, Socket) {
   EXPECT_OK(listen(cap_sock_all, 3));
 
   // Can only do socket operations on the fully-capable socket.
-  len = sizeof(addr);
-  EXPECT_NOTCAPABLE(getsockname(cap_sock_rw, (struct sockaddr*)&addr, &len));
+  srv_addr_len = sizeof(addr);
+  EXPECT_NOTCAPABLE(getsockname(cap_sock_rw, (struct sockaddr*)&addr, &srv_addr_len));
 
   struct sctp_event_subscribe events;
   memset(&events, 0, sizeof(events));
   events.sctp_association_event = 1;
   events.sctp_data_io_event = 1;
   EXPECT_NOTCAPABLE(setsockopt(cap_sock_rw, IPPROTO_SCTP, SCTP_EVENTS, &events, sizeof(events)));
-  len = sizeof(events);
-  EXPECT_NOTCAPABLE(getsockopt(cap_sock_rw, IPPROTO_SCTP, SCTP_EVENTS, &events, &len));
+  socklen_t eventslen = sizeof(events);
+  EXPECT_NOTCAPABLE(getsockopt(cap_sock_rw, IPPROTO_SCTP, SCTP_EVENTS, &events, &eventslen));
   memset(&events, 0, sizeof(events));
   events.sctp_association_event = 1;
   events.sctp_data_io_event = 1;
   EXPECT_OK(setsockopt(cap_sock_all, IPPROTO_SCTP, SCTP_EVENTS, &events, sizeof(events)));
-  len = sizeof(events);
-  EXPECT_OK(getsockopt(cap_sock_all, IPPROTO_SCTP, SCTP_EVENTS, &events, &len));
+  eventslen = sizeof(events);
+  EXPECT_OK(getsockopt(cap_sock_all, IPPROTO_SCTP, SCTP_EVENTS, &events, &eventslen));
 
-  len = sizeof(addr);
+  srv_addr_len = sizeof(addr);
   memset(&addr, 0, sizeof(addr));
-  EXPECT_OK(getsockname(cap_sock_all, (struct sockaddr*)&addr, &len));
+  EXPECT_OK(getsockname(cap_sock_all, (struct sockaddr*)&addr, &srv_addr_len));
   EXPECT_EQ(AF_INET, addr.sin_family);
   EXPECT_EQ(htons(port), addr.sin_port);
 

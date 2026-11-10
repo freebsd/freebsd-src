@@ -32,9 +32,9 @@ class Execve : public ::testing::Test {
     if (exec_fd_ < 0) {
       fprintf(stderr, "Error! Failed to open %s\n", exec_prog_.c_str());
     }
-    argv_checkroot_[0] = (char*)exec_prog_.c_str();
-    argv_fail_[0] = (char*)exec_prog_.c_str();
-    argv_pass_[0] = (char*)exec_prog_.c_str();
+    argv_checkroot_[0] = __DECONST(char*, exec_prog_.c_str());
+    argv_fail_[0] = __DECONST(char*, exec_prog_.c_str());
+    argv_pass_[0] = __DECONST(char*, exec_prog_.c_str());
   }
   ~Execve() {
     if (exec_fd_ >= 0) {
@@ -43,9 +43,9 @@ class Execve : public ::testing::Test {
     }
   }
 protected:
-  char* argv_checkroot_[3] = {nullptr, (char*)"--checkroot", nullptr};
-  char* argv_fail_[3] = {nullptr, (char*)"--fail", nullptr};
-  char* argv_pass_[3] = {nullptr, (char*)"--pass", nullptr};
+  char* argv_checkroot_[3] = {nullptr, __DECONST(char*, "--checkroot"), nullptr};
+  char* argv_fail_[3] = {nullptr, __DECONST(char*, "--fail"), nullptr};
+  char* argv_pass_[3] = {nullptr, __DECONST(char*, "--pass"), nullptr};
   std::string exec_prog_, exec_prog_noexec_, exec_prog_setuid_;
   int exec_fd_;
 };

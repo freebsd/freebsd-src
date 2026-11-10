@@ -166,26 +166,26 @@ TEST(Socket, TCP) {
     AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_CHILD_SHOULD_RUN);
 
     // Create sockets
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    EXPECT_OK(sock);
-    if (sock < 0) return;
-    int cap_sock_rw = dup(sock);
+    int sock2 = socket(AF_INET, SOCK_STREAM, 0);
+    EXPECT_OK(sock2);
+    if (sock2 < 0) return;
+    int cap_sock_rw2 = dup(sock2);
     EXPECT_OK(cap_sock_rw);
-    EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
-    int cap_sock_all = dup(sock);
+    EXPECT_OK(cap_rights_limit(cap_sock_rw2, &r_rw));
+    int cap_sock_all2 = dup(sock2);
     EXPECT_OK(cap_sock_all);
     EXPECT_OK(cap_rights_limit(cap_sock_all, &r_all));
-    close(sock);
+    close(sock2);
 
     // Connect socket
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);  // Pick unused port
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    socklen_t len = sizeof(addr);
-    EXPECT_NOTCAPABLE(connect_(cap_sock_rw, (struct sockaddr *)&addr, len));
-    EXPECT_OK(connect_(cap_sock_all, (struct sockaddr *)&addr, len));
+    struct sockaddr_in addr2;
+    memset(&addr2, 0, sizeof(addr2));
+    addr2.sin_family = AF_INET;
+    addr2.sin_port = htons(port);  // Pick unused port
+    addr2.sin_addr.s_addr = inet_addr("127.0.0.1");
+    socklen_t len2 = sizeof(addr2);
+    EXPECT_NOTCAPABLE(connect_(cap_sock_rw2, (struct sockaddr *)&addr2, len2));
+    EXPECT_OK(connect_(cap_sock_all2, (struct sockaddr *)&addr2, len2));
 
     exit(HasFailure());
   }
@@ -291,15 +291,15 @@ TEST(Socket, UDP) {
 
   pid_t child = fork();
   if (child == 0) {
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    int sock2 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     EXPECT_OK(sock);
-    int cap_sock_rw = dup(sock);
-    EXPECT_OK(cap_sock_rw);
-    EXPECT_OK(cap_rights_limit(cap_sock_rw, &r_rw));
-    int cap_sock_connect = dup(sock);
+    int cap_sock_rw2 = dup(sock2);
+    EXPECT_OK(cap_sock_rw2);
+    EXPECT_OK(cap_rights_limit(cap_sock_rw2, &r_rw));
+    int cap_sock_connect = dup(sock2);
     EXPECT_OK(cap_sock_connect);
     EXPECT_OK(cap_rights_limit(cap_sock_connect, &r_connect));
-    close(sock);
+    close(sock2);
 
     // Can only sendmsg(2) to an address over a socket with CAP_CONNECT.
     unsigned char buffer[256];
@@ -313,13 +313,13 @@ TEST(Socket, UDP) {
     mh.msg_iov = &iov;
     mh.msg_iovlen = 1;
 
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    mh.msg_name = &addr;
-    mh.msg_namelen = sizeof(addr);
+    struct sockaddr_in addr2;
+    memset(&addr, 0, sizeof(addr2));
+    addr2.sin_family = AF_INET;
+    addr2.sin_port = htons(port);
+    addr2.sin_addr.s_addr = inet_addr("127.0.0.1");
+    mh.msg_name = &addr2;
+    mh.msg_namelen = sizeof(addr2);
 
     EXPECT_NOTCAPABLE(sendmsg(cap_sock_rw, &mh, 0));
     EXPECT_OK(sendmsg(cap_sock_connect, &mh, 0));
@@ -328,7 +328,7 @@ TEST(Socket, UDP) {
     struct mmsghdr mv;
     memset(&mv, 0, sizeof(mv));
     memcpy(&mv.msg_hdr, &mh, sizeof(struct msghdr));
-    EXPECT_NOTCAPABLE(sendmmsg(cap_sock_rw, &mv, 1, 0));
+    EXPECT_NOTCAPABLE(sendmmsg(child_cap_sock_rw, &mv, 1, 0));
     EXPECT_OK(sendmmsg(cap_sock_connect, &mv, 1, 0));
 #endif
     close(cap_sock_rw);
