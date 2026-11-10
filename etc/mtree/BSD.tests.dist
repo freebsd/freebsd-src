@@ -988,6 +988,8 @@
             ..
         ..
         pmc
+            amd
+            ..
         ..
         posixshm
         ..
