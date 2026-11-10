@@ -47,12 +47,8 @@
 #define MPU_STATPORT   1
 #define MPU_RESET      0xff
 #define MPU_UART       0x3f
-#define MPU_ACK        0xfe
-#define MPU_STATMASK   0xc0
 #define MPU_OUTPUTBUSY 0x40
 #define MPU_INPUTBUSY  0x80
-#define MPU_TRYDATA 50
-#define MPU_DELAY   2500
 
 #define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
 #define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
@@ -105,8 +101,6 @@ mpu401_intr(struct mpu401 *m)
 	int i;
 	int s;
 
-#define RXRDY(m) ( (STATUS(m) & MPU_INPUTBUSY) == 0)
-#define TXRDY(m) ( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
 	i = 0;
 	s = STATUS(m);
 	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
@@ -166,42 +160,24 @@ err:
 int
 mpu401_uninit(struct mpu401 *m)
 {
-	int retval;
-
 	CMD(m, MPU_RESET);
-	retval = midi_uninit(m->mid);
-	if (retval)
-		return retval;
+	midi_uninit(m->mid);
 	free(m, M_MIDI);
 	return 0;
 }
 
 static int
-mpu401_minit(struct snd_midi *sm, void *arg)
+mpu401_minit(struct snd_midi *sm __unused, void *arg)
 {
 	struct mpu401 *m = arg;
-	int i;
 
 	CMD(m, MPU_RESET);
 	CMD(m, MPU_UART);
 	return 0;
-	i = 0;
-	while (++i < 2000) {
-		if (RXRDY(m))
-			if (READ(m) == MPU_ACK)
-				break;
-	}
-
-	if (i < 2000) {
-		CMD(m, MPU_UART);
-		return 0;
-	}
-	printf("mpu401_minit failed active sensing\n");
-	return 1;
 }
 
 static int
-mpu401_muninit(struct snd_midi *sm, void *arg)
+mpu401_muninit(struct snd_midi *sm __unused, void *arg)
 {
 	struct mpu401 *m = arg;
 
@@ -209,19 +185,19 @@ mpu401_muninit(struct snd_midi *sm, void *arg)
 }
 
 static int
-mpu401_minqsize(struct snd_midi *sm, void *arg)
+mpu401_minqsize(struct snd_midi *sm __unused, void *arg __unused)
 {
 	return 128;
 }
 
 static int
-mpu401_moutqsize(struct snd_midi *sm, void *arg)
+mpu401_moutqsize(struct snd_midi *sm __unused, void *arg __unused)
 {
 	return 128;
 }
 
 static void
-mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
+mpu401_mcallback(struct snd_midi *sm __unused, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
 

@@ -59,8 +59,6 @@
 #define	MPU_STATPORT	1
 #define	MPU_RESET	0xff
 #define	MPU_UART	0x3f
-#define	MPU_ACK		0xfe
-#define	MPU_STATMASK	0xc0
 #define	MPU_OUTPUTBUSY	0x40
 #define	MPU_INPUTBUSY	0x80
 

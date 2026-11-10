@@ -63,7 +63,6 @@ struct midi_queue {
 	int	used;			/* Bytes queued. */
 };
 
-#define MIDI_NAMELEN   16
 struct snd_midi {
 	KOBJ_FIELDS;
 	struct mtx lock;
@@ -517,8 +516,8 @@ err0:	return retval;
 }
 
 int
-midi_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
-    struct thread *td)
+midi_ioctl(struct cdev *i_dev __unused, unsigned long cmd __unused,
+    caddr_t arg __unused, int mode __unused, struct thread *td __unused)
 {
 	return ENXIO;
 }
