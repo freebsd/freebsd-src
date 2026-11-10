@@ -275,13 +275,18 @@ NMM_CLK(pll_gpu_clk,
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
 
+/*
+ * The output divider of the video PLLs, bit 0, is only used for testing and
+ * is not a part of their rate, which is 1188MHz at reset when it is set.  It
+ * is not used.
+ */
 static const char *pll_video0_4x_parents[] = {"osc24M"};
 NMM_CLK(pll_video0_4x_clk,
     CLK_PLL_VIDEO0_4X,				/* id */
     "pll_video0_4x", pll_video0_4x_parents,	/* name, parents */
     0x40,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_MIN_VALUE, 12,	/* n factor */
-    0, 1, 0, 0,					/* m0 factor */
+    0, 0, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
     28, 1000,					/* lock */
@@ -302,7 +307,7 @@ NMM_CLK(pll_video1_4x_clk,
     "pll_video1_4x", pll_video1_4x_parents,	/* name, parents */
     0x48,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_MIN_VALUE, 12,	/* n factor */
-    0, 1, 0, 0,					/* m0 factor */
+    0, 0, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
     28, 1000,					/* lock */
