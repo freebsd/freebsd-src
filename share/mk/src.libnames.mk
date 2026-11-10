@@ -367,9 +367,8 @@ _DP_edit=	tinfow
 _DP_execinfo=	elf
 .if ${MK_OPENSSL} != "no"
 _DP_fetch=	ssl crypto
-.else
-_DP_fetch=	md
 .endif
+_DP_fetch+=	md
 .if ${MK_OPENSSH} != "no"
 _DP_fido2+=	crypto z
 .endif

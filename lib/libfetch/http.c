@@ -65,10 +65,14 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <locale.h>
+#include <md5.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -78,18 +82,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <xlocale.h>
-
-#ifdef WITH_SSL
-#include <openssl/md5.h>
-#define MD5Init(c) MD5_Init(c)
-#define MD5Update(c, data, len) MD5_Update(c, data, len)
-#define MD5Final(md, c) MD5_Final(md, c)
-#else
-#include <md5.h>
-#endif
-
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 
 #include "fetch.h"
 #include "common.h"

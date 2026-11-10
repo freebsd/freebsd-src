@@ -1009,7 +1009,11 @@ fetch_ssl_verify_altname(STACK_OF(GENERAL_NAME) *altnames,
 	for (i = 0; i < sk_GENERAL_NAME_num(altnames); ++i) {
 		name = sk_GENERAL_NAME_value(altnames, i);
 		ns = (const char *)ASN1_STRING_get0_data(name->d.ia5);
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L
+		nslen = ASN1_STRING_get_length(name->d.ia5);
+#else
 		nslen = (size_t)ASN1_STRING_length(name->d.ia5);
+#endif
 
 		if (name->type == GEN_DNS && ip == NULL &&
 		    fetch_ssl_hname_match(host, strlen(host), ns, nslen))
