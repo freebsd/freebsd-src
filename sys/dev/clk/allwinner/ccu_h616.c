@@ -168,7 +168,7 @@ NP_CLK(pll_cpux_clk,
     CLK_PLL_CPUX,				/* id */
     "pll_cpux", pll_cpux_parents,		/* name, parents */
     0x00,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     16, 2, 0, 0,				/* p factor */
     31,						/* gate */
     28, 1000,					/* lock */
@@ -179,7 +179,7 @@ NMM_CLK(pll_ddr0_clk,
     CLK_PLL_DDR0,				/* id */
     "pll_ddr0", pll_ddr0_parents,		/* name, parents */
     0x10,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -191,7 +191,7 @@ NMM_CLK(pll_ddr1_clk,
     CLK_PLL_DDR1,				/* id */
     "pll_ddr1", pll_ddr1_parents,		/* name, parents */
     0x18,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -203,7 +203,7 @@ NMM_CLK(pll_peri0_2x_clk,
     CLK_PLL_PERIPH0_2X,				/* id */
     "pll_periph0_2x", pll_peri0_2x_parents,	/* name, parents */
     0x20,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -224,7 +224,7 @@ NMM_CLK(pll_peri1_2x_clk,
     CLK_PLL_PERIPH1_2X,				/* id */
     "pll_periph1_2x", pll_peri1_2x_parents,	/* name, parents */
     0x28,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -245,7 +245,7 @@ NMM_CLK(pll_gpu_clk,
     CLK_PLL_GPU,				/* id */
     "pll_gpu", pll_gpu_parents,			/* name, parents */
     0x30,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -257,7 +257,7 @@ NMM_CLK(pll_video0_4x_clk,
     CLK_PLL_VIDEO0_4X,				/* id */
     "pll_video0_4x", pll_video0_4x_parents,	/* name, parents */
     0x40,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -278,7 +278,7 @@ NMM_CLK(pll_video1_4x_clk,
     CLK_PLL_VIDEO1_4X,				/* id */
     "pll_video1_4x", pll_video1_4x_parents,	/* name, parents */
     0x48,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -299,7 +299,7 @@ NMM_CLK(pll_video2_4x_clk,
     CLK_PLL_VIDEO1_4X,				/* id */
     "pll_video2_4x", pll_video2_4x_parents,	/* name, parents */
     0x50,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -320,7 +320,7 @@ NMM_CLK(pll_ve_clk,
     CLK_PLL_VE,					/* id */
     "pll_ve", pll_ve_parents,			/* name, parents */
     0x58,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
@@ -332,7 +332,7 @@ NMM_CLK(pll_de_clk,
     CLK_PLL_DE,					/* id */
     "pll_de", pll_de_parents,			/* name, parents */
     0x60,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */

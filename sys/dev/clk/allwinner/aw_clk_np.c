@@ -240,6 +240,7 @@ aw_clk_np_register(struct clkdom *clkdom, struct aw_clk_np_def *clkdef)
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
 	sc->n.value = clkdef->n.value;
 	sc->n.flags = clkdef->n.flags;
+	sc->n.min_value = clkdef->n.min_value;
 
 	sc->p.shift = clkdef->p.shift;
 	sc->p.width = clkdef->p.width;

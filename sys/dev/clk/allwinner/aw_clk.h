@@ -446,7 +446,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 
 #define NMM_CLK(_clkname, _id, _name, _pnames,		\
      _offset,						\
-     _nshift, _nwidth, _nvalue, _nflags,		\
+     _nshift, _nwidth, _nvalue, _nflags, _nmin,	\
     _m0shift, _m0width, _m0value, _m0flags,		\
     _m1shift, _m1width, _m1value, _m1flags,		\
     _gate_shift,					\
@@ -464,6 +464,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.n.width = _nwidth,			\
 		.n.value = _nvalue,			\
 		.n.flags = _nflags,			\
+		.n.min_value = _nmin,			\
 		.m0.shift = _m0shift,			\
 		.m0.width = _m0width,			\
 		.m0.value = _m0value,			\
@@ -480,7 +481,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 
 #define NP_CLK(_clkname, _id, _name, _pnames,		\
      _offset,						\
-     _nshift, _nwidth, _nvalue, _nflags,		\
+     _nshift, _nwidth, _nvalue, _nflags, _nmin,	\
      _pshift, _pwidth, _pvalue, _pflags,		\
     _gate_shift,					\
     _lock, _lock_retries,				\
@@ -497,6 +498,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.n.width = _nwidth,			\
 		.n.value = _nvalue,			\
 		.n.flags = _nflags,			\
+		.n.min_value = _nmin,			\
 		.p.shift = _pshift,			\
 		.p.width = _pwidth,			\
 		.p.value = _pvalue,			\

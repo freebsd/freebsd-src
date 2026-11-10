@@ -252,6 +252,7 @@ aw_clk_nmm_register(struct clkdom *clkdom, struct aw_clk_nmm_def *clkdef)
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
 	sc->n.value = clkdef->n.value;
 	sc->n.flags = clkdef->n.flags;
+	sc->n.min_value = clkdef->n.min_value;
 
 	sc->m0.shift = clkdef->m0.shift;
 	sc->m0.width = clkdef->m0.width;

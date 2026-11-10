@@ -200,7 +200,7 @@ NP_CLK(pll_cpux_clk,
     "pll_cpux",					/* name */
     pll_cpux_parents,				/* parents */
     0x0,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 2, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -212,7 +212,7 @@ NMM_CLK(pll_ddr0_clk,
     "pll_ddr0",					/* name */
      pll_ddr0_parents,				/* parents */
     0x10,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -226,7 +226,7 @@ NMM_CLK(pll_periph0_4x_clk,
     "pll_periph0_4x",				/* name */
     pll_periph0_4x_parents,			/* parents */
     0x20,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -275,7 +275,7 @@ NP_CLK(pll_video0_clk,
     "pll_video0",				/* name */
     pll_video0_parents,				/* parents */
     0x40,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     1, 1, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -312,7 +312,7 @@ NP_CLK(pll_video1_clk,
     "pll_video1", 				/* name */
     pll_video1_parents,				/* parents */
     0x48,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     1, 1, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -348,7 +348,7 @@ NMM_CLK(pll_ve_clk,
     "pll_ve",					/* name */
     pll_ve_parents,				/* parents */
     0x58,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -362,7 +362,7 @@ NMM_CLK(pll_audio0_4x_clk,
     "pll_audio0_4x",				/* name */
     pll_audio0_4x_parents,			/* parents */
     0x78,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -398,7 +398,7 @@ NP_CLK(pll_audio1_clk,
     "pll_audio1", 				/* name */
     pll_audio1_parents,				/* parents */
     0x80,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     1, 1, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
