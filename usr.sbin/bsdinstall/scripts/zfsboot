@@ -253,6 +253,7 @@ msg_disk_info="Disk Info"
 msg_disk_info_help="Get detailed information on disk device(s)"
 msg_disk_plural="disks"
 msg_disk_singular="disk"
+msg_disks_in_use="The following disk(s) are in use and cannot be configured:\n\n  %s\n\nExport any ZFS pool, disable swap, and detach geli(8)\nproviders on them, or choose a different disk."
 msg_encrypt_disks="Encrypt Disks?"
 msg_encrypt_disks_help="Use geli(8) to encrypt all data partitions"
 msg_error="Error"
@@ -539,11 +540,20 @@ dialog_menu_layout()
 	disks="${new_list# }"
 
 	# Prune out disks that are not available to install to
-	local avail_disks=
+	local avail_disks= busy_disks=
 	for disk in $disks; do
 		debug= $disk get name name
 		geom disk list $name | awk '$1 == "Mode:" && $2 != "r0w0e0" { exit 1 }'
-		[ $? -eq 0 ] && avail_disks="$avail_disks $disk"
+		if [ $? -eq 0 ]; then
+			avail_disks="$avail_disks $disk"
+		else
+			# Remember busy disks the user asked for (or all of
+			# them if none were named) to explain why they are
+			# missing.
+			case " $ZFSBOOT_DISKS " in
+			"  "|*" $name "*) busy_disks="$busy_disks $name" ;;
+			esac
+		fi
 	done
 	disks="${avail_disks# }"
 
@@ -558,6 +568,11 @@ dialog_menu_layout()
 	fi
 
 	if [ ! "$disks" ]; then
+		if [ -n "$busy_disks" ]; then
+			f_dprintf "Disk(s) in use: %s" "${busy_disks# }"
+			f_show_err "$msg_disks_in_use" "${busy_disks# }"
+			return $FAILURE
+		fi
 		f_dprintf "No disk(s) present to configure"
 		f_show_err "$msg_no_disks_present_to_configure"
 		return $FAILURE
