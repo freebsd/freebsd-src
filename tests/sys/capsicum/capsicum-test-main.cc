@@ -75,12 +75,16 @@ std::string capsicum_test_bindir;
 // Adds a directory to $PATH.
 static void AddDirectoryToPath(const char *dir) {
   char *new_path, *old_path;
+  int rc [[maybe_unused]];
 
   old_path = getenv("PATH");
   assert(old_path);
 
-  assert(asprintf(&new_path, "%s:%s", dir, old_path) > 0);
-  assert(setenv("PATH", new_path, 1) == 0);
+  rc = asprintf(&new_path, "%s:%s", dir, old_path);
+  assert(rc != -1);
+  rc = setenv("PATH", new_path, 1);
+  assert(rc == 0);
+  free(new_path);
 }
 
 int main(int argc, char* argv[]) {

@@ -4,15 +4,15 @@
  * FreeBSD Capsicum Functionality.
  ************************************************************/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
 
 /* FreeBSD definitions. */
-#include <errno.h>
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
+#include <errno.h>
 
 #define AT_SYSCALLS_IN_CAPMODE
 #define HAVE_CAP_RIGHTS_GET
@@ -27,9 +27,7 @@ typedef unsigned long cap_ioctl_t;
 
 #define HAVE_OPENAT_INTERMEDIATE_DOTDOT
 
-#ifdef __cplusplus
-}
-#endif
+__END_DECLS
 
 // Use fexecve_() in tests to allow Linux variant to bypass glibc version.
 #define fexecve_(F, A, E) fexecve(F, A, E)
@@ -49,5 +47,8 @@ typedef unsigned long cap_ioctl_t;
 // As of commit 91a9e4e01dab ("capsicum: propagate rights on sctp_peeloff")
 // FreeBSD generates a capability from sctp_peeloff(cap_fd,...).
 #define CAP_FROM_PEELOFF
+
+#define	HAVE_PIPE2
+#define	HAVE_SEND_RECV_MMSG
 
 #endif /*__CAPSICUM_FREEBSD_H__*/
