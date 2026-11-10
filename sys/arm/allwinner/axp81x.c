@@ -25,7 +25,7 @@
  */
 
 /*
- * X-Powers AXP803/813/818 PMU for Allwinner SoCs
+ * X-Powers AXP803/805/806/813/818 PMU for Allwinner SoCs
  */
 
 #include <sys/param.h>
@@ -156,6 +156,36 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	 AXP_IRQSTAT5_POKSIRQ	(1 << 4)
 #define	 AXP_IRQEN5_POKLIRQ	(1 << 3)
 #define	AXP_IRQSTAT6		0x4d
+
+/*
+ * AXP805/806: the registers are not the same as the AXP803/813 ones.
+ * There is no battery, the interrupts are the power key and the temperature.
+ */
+#define	AXP805_POWERCTL1	0x10
+#define	AXP805_POWERCTL2	0x11
+#define	AXP805_VOLTCTL_DCDCA	0x12
+#define	AXP805_VOLTCTL_DCDCB	0x13
+#define	AXP805_VOLTCTL_DCDCC	0x14
+#define	AXP805_VOLTCTL_DCDCD	0x15
+#define	AXP805_VOLTCTL_DCDCE	0x16
+#define	AXP805_VOLTCTL_ALDO1	0x17
+#define	AXP805_VOLTCTL_ALDO2	0x18
+#define	AXP805_VOLTCTL_ALDO3	0x19
+#define	AXP805_VOLTCTL_BLDO1	0x20
+#define	AXP805_VOLTCTL_BLDO2	0x21
+#define	AXP805_VOLTCTL_BLDO3	0x22
+#define	AXP805_VOLTCTL_BLDO4	0x23
+#define	AXP805_VOLTCTL_CLDO1	0x24
+#define	AXP805_VOLTCTL_CLDO2	0x25
+#define	AXP805_VOLTCTL_CLDO3	0x26
+#define	AXP805_IRQEN1		0x40
+#define	 AXP805_IRQ1_TEMP_LV2	(1 << 1)
+#define	 AXP805_IRQ1_TEMP_LV1	(1 << 0)
+#define	AXP805_IRQEN2		0x41
+#define	 AXP805_IRQ2_POK_SHORT	(1 << 1)
+#define	 AXP805_IRQ2_POK_LONG	(1 << 0)
+#define	AXP805_IRQSTAT1		0x48
+#define	AXP805_IRQSTAT2		0x49
 #define	AXP_BATSENSE_HI		0x78
 #define	AXP_BATSENSE_LO		0x79
 #define	AXP_BATCHG_HI		0x7a
@@ -211,10 +241,13 @@ static const struct {
 enum AXP8XX_TYPE {
 	AXP803 = 1,
 	AXP813,
+	AXP805,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{ "x-powers,axp803",			AXP803 },
+	{ "x-powers,axp805",			AXP805 },
+	{ "x-powers,axp806",			AXP805 },
 	{ "x-powers,axp813",			AXP813 },
 	{ "x-powers,axp818",			AXP813 },
 	{ NULL,					0 }
@@ -266,6 +299,22 @@ enum axp8xx_reg_id {
 	AXP813_REG_ID_FLDO3,
 	AXP8XX_REG_ID_GPIO0_LDO,
 	AXP8XX_REG_ID_GPIO1_LDO,
+	AXP805_REG_ID_DCDCA,
+	AXP805_REG_ID_DCDCB,
+	AXP805_REG_ID_DCDCC,
+	AXP805_REG_ID_DCDCD,
+	AXP805_REG_ID_DCDCE,
+	AXP805_REG_ID_ALDO1,
+	AXP805_REG_ID_ALDO2,
+	AXP805_REG_ID_ALDO3,
+	AXP805_REG_ID_BLDO1,
+	AXP805_REG_ID_BLDO2,
+	AXP805_REG_ID_BLDO3,
+	AXP805_REG_ID_BLDO4,
+	AXP805_REG_ID_CLDO1,
+	AXP805_REG_ID_CLDO2,
+	AXP805_REG_ID_CLDO3,
+	AXP805_REG_ID_SW,
 };
 
 static struct axp8xx_regdef axp803_regdefs[] = {
@@ -293,6 +342,61 @@ static struct axp8xx_regdef axp813_regdefs[] = {
 		.voltage_step2 = 20,
 		.voltage_nstep2 = 21,
 	},
+};
+
+/*
+ * The AXP805 and AXP806 regulators. The values are in mV, nstep1 is the
+ * number of steps of the first range, then step2 is used for nstep2 steps.
+ */
+#define	AXP805_REG(_id, _name, _ereg, _ebit, _vreg, _min, _step1, _nstep1,\
+    _step2, _nstep2)							\
+	{								\
+		.id = AXP805_REG_ID_##_id,				\
+		.name = _name,						\
+		.enable_reg = _ereg,					\
+		.enable_mask = (1 << (_ebit)),				\
+		.enable_value = (1 << (_ebit)),				\
+		.voltage_reg = _vreg,					\
+		.voltage_min = _min,					\
+		.voltage_step1 = _step1,				\
+		.voltage_nstep1 = _nstep1,				\
+		.voltage_step2 = _step2,				\
+		.voltage_nstep2 = _nstep2,				\
+	}
+
+static struct axp8xx_regdef axp805_regdefs[] = {
+	AXP805_REG(DCDCA, "dcdca", AXP805_POWERCTL1, 0,
+	    AXP805_VOLTCTL_DCDCA, 600, 10, 50, 20, 21),
+	AXP805_REG(DCDCB, "dcdcb", AXP805_POWERCTL1, 1,
+	    AXP805_VOLTCTL_DCDCB, 1000, 50, 31, 0, 0),
+	AXP805_REG(DCDCC, "dcdcc", AXP805_POWERCTL1, 2,
+	    AXP805_VOLTCTL_DCDCC, 600, 10, 50, 20, 21),
+	AXP805_REG(DCDCD, "dcdcd", AXP805_POWERCTL1, 3,
+	    AXP805_VOLTCTL_DCDCD, 600, 20, 45, 100, 18),
+	AXP805_REG(DCDCE, "dcdce", AXP805_POWERCTL1, 4,
+	    AXP805_VOLTCTL_DCDCE, 1100, 100, 23, 0, 0),
+	AXP805_REG(ALDO1, "aldo1", AXP805_POWERCTL1, 5,
+	    AXP805_VOLTCTL_ALDO1, 700, 100, 26, 0, 0),
+	AXP805_REG(ALDO2, "aldo2", AXP805_POWERCTL1, 6,
+	    AXP805_VOLTCTL_ALDO2, 700, 100, 27, 0, 0),
+	AXP805_REG(ALDO3, "aldo3", AXP805_POWERCTL1, 7,
+	    AXP805_VOLTCTL_ALDO3, 700, 100, 26, 0, 0),
+	AXP805_REG(BLDO1, "bldo1", AXP805_POWERCTL2, 0,
+	    AXP805_VOLTCTL_BLDO1, 700, 100, 12, 0, 0),
+	AXP805_REG(BLDO2, "bldo2", AXP805_POWERCTL2, 1,
+	    AXP805_VOLTCTL_BLDO2, 700, 100, 12, 0, 0),
+	AXP805_REG(BLDO3, "bldo3", AXP805_POWERCTL2, 2,
+	    AXP805_VOLTCTL_BLDO3, 700, 100, 12, 0, 0),
+	AXP805_REG(BLDO4, "bldo4", AXP805_POWERCTL2, 3,
+	    AXP805_VOLTCTL_BLDO4, 700, 100, 12, 0, 0),
+	AXP805_REG(CLDO1, "cldo1", AXP805_POWERCTL2, 4,
+	    AXP805_VOLTCTL_CLDO1, 700, 100, 26, 0, 0),
+	AXP805_REG(CLDO2, "cldo2", AXP805_POWERCTL2, 5,
+	    AXP805_VOLTCTL_CLDO2, 700, 100, 27, 200, 4),
+	AXP805_REG(CLDO3, "cldo3", AXP805_POWERCTL2, 6,
+	    AXP805_VOLTCTL_CLDO3, 700, 100, 26, 0, 0),
+	/* Switch, no voltage control */
+	AXP805_REG(SW, "sw", AXP805_POWERCTL2, 7, 0, 0, 0, 0, 0, 0),
 };
 
 static struct axp8xx_regdef axp8xx_common_regdefs[] = {
@@ -1186,6 +1290,40 @@ axp8xx_intr(void *arg)
 	}
 }
 
+static void
+axp805_intr(void *arg)
+{
+	device_t dev;
+	uint8_t val;
+
+	dev = arg;
+
+	if (axp8xx_read(dev, AXP805_IRQSTAT1, &val, 1) != 0)
+		return;
+	if (val != 0) {
+		if (bootverbose)
+			device_printf(dev, "AXP805_IRQSTAT1 val: %x\n", val);
+		if ((val & AXP805_IRQ1_TEMP_LV1) != 0)
+			devctl_notify("PMU", "Temperature", "high-level1", NULL);
+		if ((val & AXP805_IRQ1_TEMP_LV2) != 0)
+			devctl_notify("PMU", "Temperature", "high-level2", NULL);
+		/* Acknowledge */
+		axp8xx_write(dev, AXP805_IRQSTAT1, val);
+	}
+
+	if (axp8xx_read(dev, AXP805_IRQSTAT2, &val, 1) != 0)
+		return;
+	if (val != 0) {
+		if ((val & AXP805_IRQ2_POK_SHORT) != 0) {
+			if (bootverbose)
+				device_printf(dev, "Power button pressed\n");
+			shutdown_nice(RB_POWEROFF);
+		}
+		/* Acknowledge */
+		axp8xx_write(dev, AXP805_IRQSTAT2, val);
+	}
+}
+
 static device_t
 axp8xx_gpio_get_bus(device_t dev)
 {
@@ -1476,6 +1614,9 @@ axp8xx_probe(device_t dev)
 	case AXP803:
 		device_set_desc(dev, "X-Powers AXP803 Power Management Unit");
 		break;
+	case AXP805:
+		device_set_desc(dev, "X-Powers AXP805 Power Management Unit");
+		break;
 	case AXP813:
 		device_set_desc(dev, "X-Powers AXP813 Power Management Unit");
 		break;
@@ -1490,6 +1631,9 @@ static struct axp8xx_regdef *
 axp8xx_get_regdef(struct axp8xx_softc *sc, int idx)
 {
 	int off;
+
+	if (sc->type == AXP805)
+		return (&axp805_regdefs[idx]);
 
 	if (idx < nitems(axp8xx_common_regdefs))
 		return (&axp8xx_common_regdefs[idx]);
@@ -1566,33 +1710,46 @@ static int
 axp8xx_setup_intr(device_t dev)
 {
 	struct axp8xx_softc *sc;
+	driver_intr_t *handler;
 	int error;
 
 	sc = device_get_softc(dev);
 
-	/* Enable interrupts */
-	axp8xx_write(dev, AXP_IRQEN1,
-	    AXP_IRQEN1_VBUS_LO |
-	    AXP_IRQEN1_VBUS_HI |
-	    AXP_IRQEN1_ACIN_LO |
-	    AXP_IRQEN1_ACIN_HI);
-	axp8xx_write(dev, AXP_IRQEN2,
-	    AXP_IRQEN2_BATCHGD |
-	    AXP_IRQEN2_BATCHGC |
-	    AXP_IRQEN2_BAT_NO |
-	    AXP_IRQEN2_BAT_IN);
-	axp8xx_write(dev, AXP_IRQEN3, 0);
-	axp8xx_write(dev, AXP_IRQEN4,
-	    AXP_IRQEN4_BATLVL_LO0 |
-	    AXP_IRQEN4_BATLVL_LO1);
-	axp8xx_write(dev, AXP_IRQEN5,
-	    AXP_IRQEN5_POKSIRQ |
-	    AXP_IRQEN5_POKLIRQ);
-	axp8xx_write(dev, AXP_IRQEN6, 0);
+	if (sc->type == AXP805) {
+		/* Acknowledge what is pending, then enable */
+		axp8xx_write(dev, AXP805_IRQSTAT1, 0xff);
+		axp8xx_write(dev, AXP805_IRQSTAT2, 0xff);
+		axp8xx_write(dev, AXP805_IRQEN1,
+		    AXP805_IRQ1_TEMP_LV1 | AXP805_IRQ1_TEMP_LV2);
+		axp8xx_write(dev, AXP805_IRQEN2,
+		    AXP805_IRQ2_POK_SHORT | AXP805_IRQ2_POK_LONG);
+		handler = axp805_intr;
+	} else {
+		/* Enable interrupts */
+		axp8xx_write(dev, AXP_IRQEN1,
+		    AXP_IRQEN1_VBUS_LO |
+		    AXP_IRQEN1_VBUS_HI |
+		    AXP_IRQEN1_ACIN_LO |
+		    AXP_IRQEN1_ACIN_HI);
+		axp8xx_write(dev, AXP_IRQEN2,
+		    AXP_IRQEN2_BATCHGD |
+		    AXP_IRQEN2_BATCHGC |
+		    AXP_IRQEN2_BAT_NO |
+		    AXP_IRQEN2_BAT_IN);
+		axp8xx_write(dev, AXP_IRQEN3, 0);
+		axp8xx_write(dev, AXP_IRQEN4,
+		    AXP_IRQEN4_BATLVL_LO0 |
+		    AXP_IRQEN4_BATLVL_LO1);
+		axp8xx_write(dev, AXP_IRQEN5,
+		    AXP_IRQEN5_POKSIRQ |
+		    AXP_IRQEN5_POKLIRQ);
+		axp8xx_write(dev, AXP_IRQEN6, 0);
+		handler = axp8xx_intr;
+	}
 
 	/* Install interrupt handler */
 	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, axp8xx_intr, dev, &sc->ih);
+	    NULL, handler, dev, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (error);
@@ -1627,19 +1784,26 @@ axp8xx_attach(device_t dev)
 		device_printf(dev, "chip ID 0x%02x\n", chip_id);
 	}
 
-	sc->nregs = nitems(axp8xx_common_regdefs);
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	switch (sc->type) {
 	case AXP803:
-		sc->nregs += nitems(axp803_regdefs);
+		sc->nregs = nitems(axp8xx_common_regdefs) +
+		    nitems(axp803_regdefs);
+		break;
+	case AXP805:
+		/* Only regulators, no battery, sensors or GPIO */
+		sc->nregs = nitems(axp805_regdefs);
 		break;
 	case AXP813:
-		sc->nregs += nitems(axp813_regdefs);
+		sc->nregs = nitems(axp8xx_common_regdefs) +
+		    nitems(axp813_regdefs);
 		break;
 	}
-	sc->config = &axp803_config;
-	sc->sensors = axp8xx_common_sensors;
-	sc->nsensors = nitems(axp8xx_common_sensors);
+	if (sc->type != AXP805) {
+		sc->config = &axp803_config;
+		sc->sensors = axp8xx_common_sensors;
+		sc->nsensors = nitems(axp8xx_common_sensors);
+	}
 
 	sc->regs = malloc(sizeof(struct axp8xx_reg_sc *) * sc->nregs,
 	    M_AXP8XX_REG, M_WAITOK | M_ZERO);
@@ -1676,18 +1840,21 @@ axp8xx_attach(device_t dev)
 		}
 	}
 
-	axp8xx_add_sensors(dev);
-	axp8xx_add_sysctls(dev);
-	axp8xx_get_thresholds(dev);
+	if (sc->type != AXP805) {
+		axp8xx_add_sensors(dev);
+		axp8xx_add_sysctls(dev);
+		axp8xx_get_thresholds(dev);
+	}
 
 	error = axp8xx_setup_intr(dev);
 	if (error != 0)
 		return (error);
 
-	EVENTHANDLER_REGISTER(shutdown_final, axp8xx_shutdown, dev,
-	    SHUTDOWN_PRI_LAST);
-
-	sc->gpiodev = gpiobus_add_bus(dev);
+	if (sc->type != AXP805) {
+		EVENTHANDLER_REGISTER(shutdown_final, axp8xx_shutdown, dev,
+		    SHUTDOWN_PRI_LAST);
+		sc->gpiodev = gpiobus_add_bus(dev);
+	}
 	bus_attach_children(dev);
 
 	return (0);
