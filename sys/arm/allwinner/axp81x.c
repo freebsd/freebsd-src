@@ -1477,6 +1477,25 @@ axp8xx_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static struct axp8xx_regdef *
+axp8xx_get_regdef(struct axp8xx_softc *sc, int idx)
+{
+	int off;
+
+	if (idx < nitems(axp8xx_common_regdefs))
+		return (&axp8xx_common_regdefs[idx]);
+
+	off = idx - nitems(axp8xx_common_regdefs);
+	switch (sc->type) {
+	case AXP803:
+		return (&axp803_regdefs[off]);
+	case AXP813:
+		return (&axp813_regdefs[off]);
+	}
+
+	return (NULL);
+}
+
 static void
 axp8xx_add_sensors(device_t dev)
 {
@@ -1620,29 +1639,12 @@ axp8xx_attach(device_t dev)
 	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
 	if (rnode > 0) {
 		for (i = 0; i < sc->nregs; i++) {
-			char *regname;
 			struct axp8xx_regdef *regdef;
 
-			if (i <= nitems(axp8xx_common_regdefs)) {
-				regname = axp8xx_common_regdefs[i].name;
-				regdef = &axp8xx_common_regdefs[i];
-			} else {
-				int off;
-
-				off = i - nitems(axp8xx_common_regdefs);
-				switch (sc->type) {
-				case AXP803:
-					regname = axp803_regdefs[off].name;
-					regdef = &axp803_regdefs[off];
-					break;
-				case AXP813:
-					regname = axp813_regdefs[off].name;
-					regdef = &axp813_regdefs[off];
-					break;
-				}
-			}
-			child = ofw_bus_find_child(rnode,
-			    regname);
+			regdef = axp8xx_get_regdef(sc, i);
+			if (regdef == NULL)
+				continue;
+			child = ofw_bus_find_child(rnode, regdef->name);
 			if (child == 0)
 				continue;
 			reg = axp8xx_reg_attach(dev, child,
@@ -1650,7 +1652,7 @@ axp8xx_attach(device_t dev)
 			if (reg == NULL) {
 				device_printf(dev,
 				    "cannot attach regulator %s\n",
-				    regname);
+				    regdef->name);
 				continue;
 			}
 			sc->regs[i] = reg;
