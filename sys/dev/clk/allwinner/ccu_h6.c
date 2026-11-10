@@ -168,13 +168,20 @@ FIXED_CLK(osc12m_clk,
     2,					/* div */
     0);					/* flags */
 
+/*
+ * The P factor, bits 17:16, is /1, /2 or /4 and should only be used for
+ * frequencies lower than 288MHz, which the minimum of N does not allow.  It
+ * is read but the rate is always searched with it at 1.  The bits 1:0 are
+ * the M factor which is only used for testing, it is not used.
+ */
 static const char *pll_cpux_parents[] = {"osc24M"};
 NP_CLK(pll_cpux_clk,
     CLK_PLL_CPUX,				/* id */
     "pll_cpux", pll_cpux_parents,		/* name, parents */
     0x00,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_MIN_VALUE, 12,	/* n factor */
-    0, 2, 0, 0,					/* p factor */
+    16, 2, 1, AW_CLK_FACTOR_POWER_OF_TWO |
+    AW_CLK_FACTOR_SEARCH_VALUE,			/* p factor */
     31,						/* gate */
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
