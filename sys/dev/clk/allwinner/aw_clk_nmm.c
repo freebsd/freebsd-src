@@ -119,7 +119,8 @@ aw_clk_nmm_find_best(struct aw_clk_nmm_sc *sc, uint64_t fparent, uint64_t *fout,
 		for (m1 = min_m1; m1 <= max_m1; ) {
 			for (n = min_n; n <= max_n; ) {
 				cur = fparent * n / m0 / m1;
-				if (abs(*fout - cur) < abs(*fout - best)) {
+				if (clk_freq_diff(*fout, cur) <
+				    clk_freq_diff(*fout, best)) {
 					best = cur;
 					*factor_n = n;
 					*factor_m0 = m0;

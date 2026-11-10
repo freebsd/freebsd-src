@@ -113,7 +113,8 @@ aw_clk_np_find_best(struct aw_clk_np_sc *sc, uint64_t fparent, uint64_t *fout,
 	for (p = min_p; p <= max_p; ) {
 		for (n = min_n; n <= max_n; ) {
 			cur = fparent * n / p;
-			if (abs(*fout - cur) < abs(*fout - best)) {
+			if (clk_freq_diff(*fout, cur) <
+			    clk_freq_diff(*fout, best)) {
 				best = cur;
 				*factor_n = n;
 				*factor_p = p;

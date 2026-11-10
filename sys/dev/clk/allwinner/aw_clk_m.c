@@ -144,7 +144,8 @@ aw_clk_m_find_best(struct aw_clk_m_sc *sc, uint64_t fparent, uint64_t *fout,
 
 	for (m = min_m; m <= max_m; ) {
 		cur = fparent / m;
-		if (abs(*fout - cur) < abs(*fout - best)) {
+		if (clk_freq_diff(*fout, cur) <
+		    clk_freq_diff(*fout, best)) {
 			best = cur;
 			*factor_m = m;
 		}
