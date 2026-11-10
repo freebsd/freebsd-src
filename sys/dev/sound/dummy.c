@@ -98,9 +98,6 @@ dummy_chan_io(void *arg)
 	struct dummy_chan *ch;
 	int i = 0;
 
-	if (sc->mpu_intr)
-		(sc->mpu_intr)(sc->mpu);
-
 	if (sc->stopped)
 		return;
 
@@ -324,6 +321,15 @@ dummy_mpu_uninit(struct mpu401 *arg, void *cookie)
 	return (0);
 }
 
+static void
+dummy_mpu_intr(void *arg)
+{
+	struct dummy_softc *sc = arg;
+
+	if (sc->mpu_intr != NULL)
+		(sc->mpu_intr)(sc->mpu);
+}
+
 static kobj_method_t dummy_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_read,		dummy_mpu_read),
 	KOBJMETHOD(mpufoi_write,	dummy_mpu_write),
@@ -393,7 +399,7 @@ dummy_attach(device_t dev)
 	 */
 	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
 
-	sc->mpu = mpu401_init(&dummy_mpu_class, sc, dummy_chan_io,
+	sc->mpu = mpu401_init(&dummy_mpu_class, sc, dummy_mpu_intr,
 	    &sc->mpu_intr);
 	if (sc->mpu == NULL)
 		return (ENXIO);
