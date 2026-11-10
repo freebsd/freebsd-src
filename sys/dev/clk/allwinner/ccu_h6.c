@@ -71,6 +71,8 @@
 #define	CLK_AHB3		25
 #define	CLK_APB2		27
 #define	CLK_MBUS		28
+#define	CLK_DRAM		52
+#define	CLK_BUS_DRAM		60
 
 static struct aw_ccung_reset h6_ccu_resets[] = {
 	/* MBUS_CFG_REG */
@@ -103,6 +105,9 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	 * bit cannot be written.
 	 */
 	CCU_RESET(RST_BUS_IOMMU, 0x7bc, 16)
+
+	/* DRAM_BGR_REG */
+	CCU_RESET(RST_BUS_DRAM, 0x80c, 16)
 
 	/* SMHC_BGR_REG */
 	CCU_RESET(RST_BUS_MMC0, 0x84c, 16)
@@ -182,6 +187,9 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	CCU_GATE(CLK_MBUS_NAND, "mbus-nand", "mbus", 0x804, 5)
 	CCU_GATE(CLK_MBUS_CSI, "mbus-csi", "mbus", 0x804, 8)
 	CCU_GATE(CLK_MBUS_DEINTERLACE, "mbus-deinterlace", "mbus", 0x804, 11)
+
+	/* DRAM_BGR_REG */
+	CCU_GATE(CLK_BUS_DRAM, "bus-dram", "psi_ahb1_ahb2", 0x80c, 0)
 
 	/* SMHC_BGR_REG */
 	CCU_GATE(CLK_BUS_MMC0, "bus-mmc0", "ahb3", 0x84c, 0)
@@ -535,6 +543,16 @@ M_CLK(mbus_clk,
     31,						/* gate */
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
+/* The DRAM is set up by the firmware, its rate should not be changed */
+static const char *dram_parents[] = {"pll_ddr0"};
+M_CLK(dram_clk,
+    CLK_DRAM, "dram", dram_parents,		/* id, name, parents */
+    0x800,					/* offset */
+    0, 2, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    0,						/* gate */
+    AW_CLK_HAS_MUX);				/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -556,6 +574,7 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &apb1_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb2_clk},
 	{ .type = AW_CLK_M, .clk.m = &mbus_clk},
+	{ .type = AW_CLK_M, .clk.m = &dram_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
