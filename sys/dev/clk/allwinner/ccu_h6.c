@@ -78,6 +78,27 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	/* MBUS_CFG_REG */
 	CCU_RESET(RST_MBUS, 0x540, 30)
 
+	/* DE_BGR_REG */
+	CCU_RESET(RST_BUS_DE, 0x60c, 16)
+
+	/* DI_BGR_REG */
+	CCU_RESET(RST_BUS_DEINTERLACE, 0x62c, 16)
+
+	/* GPU_BGR_REG */
+	CCU_RESET(RST_BUS_GPU, 0x67c, 16)
+
+	/* CE_BGR_REG */
+	CCU_RESET(RST_BUS_CE, 0x68c, 16)
+
+	/* VE_BGR_REG */
+	CCU_RESET(RST_BUS_VE, 0x69c, 16)
+
+	/* EMCE_BGR_REG */
+	CCU_RESET(RST_BUS_EMCE, 0x6bc, 16)
+
+	/* VP9_BGR_REG */
+	CCU_RESET(RST_BUS_VP9, 0x6cc, 16)
+
 	/* DMA_BGR_REG */
 	CCU_RESET(RST_BUS_DMA, 0x70c, 16)
 
@@ -169,6 +190,27 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 };
 
 static struct aw_ccung_gate h6_ccu_gates[] = {
+	/* DE_BGR_REG */
+	CCU_GATE(CLK_BUS_DE, "bus-de", "psi_ahb1_ahb2", 0x60c, 0)
+
+	/* DI_BGR_REG */
+	CCU_GATE(CLK_BUS_DEINTERLACE, "bus-deinterlace", "psi_ahb1_ahb2", 0x62c, 0)
+
+	/* GPU_BGR_REG */
+	CCU_GATE(CLK_BUS_GPU, "bus-gpu", "psi_ahb1_ahb2", 0x67c, 0)
+
+	/* CE_BGR_REG */
+	CCU_GATE(CLK_BUS_CE, "bus-ce", "psi_ahb1_ahb2", 0x68c, 0)
+
+	/* VE_BGR_REG */
+	CCU_GATE(CLK_BUS_VE, "bus-ve", "psi_ahb1_ahb2", 0x69c, 0)
+
+	/* EMCE_BGR_REG */
+	CCU_GATE(CLK_BUS_EMCE, "bus-emce", "psi_ahb1_ahb2", 0x6bc, 0)
+
+	/* VP9_BGR_REG */
+	CCU_GATE(CLK_BUS_VP9, "bus-vp9", "psi_ahb1_ahb2", 0x6cc, 0)
+
 	/* DMA_BGR_REG */
 	CCU_GATE(CLK_BUS_DMA, "bus-dma", "psi_ahb1_ahb2", 0x70c, 0)
 
@@ -651,6 +693,70 @@ NM_CLK(ir_tx_clk,
     AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
     AW_CLK_REPARENT);				/* flags */
 
+static const char *de_parents[] = {"pll_de", "pll_periph0_2x"};
+M_CLK(de_clk,
+    CLK_DE, "de", de_parents,		/* id, name, parents */
+    0x600,					/* offset */
+    0, 4, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *deinterlace_parents[] = {"pll_periph0", "pll_periph1"};
+M_CLK(deinterlace_clk,
+    CLK_DEINTERLACE, "deinterlace", deinterlace_parents,		/* id, name, parents */
+    0x620,					/* offset */
+    0, 4, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *gpu_parents[] = {"pll_gpu"};
+M_CLK(gpu_clk,
+    CLK_GPU, "gpu", gpu_parents,		/* id, name, parents */
+    0x670,					/* offset */
+    0, 3, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *ce_parents[] = {"osc24M", "pll_periph0_2x"};
+NM_CLK(ce_clk,
+    CLK_CE, "ce", ce_parents,		/* id, name, parents */
+    0x680,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *ve_parents[] = {"pll_ve"};
+M_CLK(ve_clk,
+    CLK_VE, "ve", ve_parents,		/* id, name, parents */
+    0x690,					/* offset */
+    0, 3, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+NM_CLK(emce_clk,
+    CLK_EMCE, "emce", ce_parents,		/* id, name, parents */
+    0x6b0,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *vp9_parents[] = {"pll_ve", "pll_periph0_2x"};
+M_CLK(vp9_clk,
+    CLK_VP9, "vp9", vp9_parents,		/* id, name, parents */
+    0x6c0,					/* offset */
+    0, 3, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -680,6 +786,14 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &spi1_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &ts_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &ir_tx_clk},
+
+	{ .type = AW_CLK_M, .clk.m = &de_clk},
+	{ .type = AW_CLK_M, .clk.m = &deinterlace_clk},
+	{ .type = AW_CLK_M, .clk.m = &gpu_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ce_clk},
+	{ .type = AW_CLK_M, .clk.m = &ve_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &emce_clk},
+	{ .type = AW_CLK_M, .clk.m = &vp9_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
