@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.258 2026/07/27 12:28:52 markus Exp $ */
+/* $OpenBSD: monitor.c,v 1.259 2026/09/16 00:37:07 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -1986,6 +1986,8 @@ mm_answer_gss_setup_ctx(struct ssh *ssh, int sock, struct sshbuf *m)
 
 	if (!options.gss_authentication)
 		fatal_f("GSSAPI authentication not enabled");
+
+	ssh_gssapi_cleanup_global_client();
 
 	if ((r = sshbuf_get_string(m, &p, &len)) != 0)
 		fatal_fr(r, "parse");

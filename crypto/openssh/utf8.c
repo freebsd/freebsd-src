@@ -316,11 +316,12 @@ mprintf(const char *fmt, ...)
 /*
  * Set up libc for multibyte output in the user's chosen locale.
  *
- * XXX: we are known to have problems with Turkish (i/I confusion) so we
- *      deliberately fall back to the C locale for now. Longer term we should
- *      always prefer to select C.[encoding] if possible, but there's no
- *      standardisation in locales between systems, so we'll need to survey
+ * XXX: we are known to have problems with Turkic languahes (i/I confusion) so
+ *      we deliberately fall back to the C locale for now. Longer term we
+ *      should always prefer to select C.[encoding] if possible, but there's
+ *      no standardisation in locales between systems, so we'll need to survey
  *      what's out there first.
+ * XXX: alternately runtime probe that toupper('i') != 'I' and vice-versa?
  */
 void
 msetlocale(void)
@@ -330,13 +331,15 @@ msetlocale(void)
 	int i;
 
 	/*
-	 * We can't yet cope with dotless/dotted I in Turkish locales,
+	 * We can't yet cope with dotless/dotted I in Turkic locales,
 	 * so fall back to the C locale for these.
 	 */
 	for (i = 0; vars[i] != NULL; i++) {
 		if ((cp = getenv(vars[i])) == NULL)
 			continue;
-		if (strncasecmp(cp, "TR", 2) != 0)
+		if (strncasecmp(cp, "tr", 2) != 0 &&
+		    strncasecmp(cp, "crh", 3) != 0 &&
+		    strncasecmp(cp, "az", 3) != 0)
 			break;
 		/*
 		 * If we're in a UTF-8 locale then prefer to use

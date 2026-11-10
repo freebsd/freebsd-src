@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd-session.c,v 1.25 2026/07/09 02:20:19 djm Exp $ */
+/* $OpenBSD: sshd-session.c,v 1.26 2026/09/16 00:13:58 djm Exp $ */
 /*
  * SSH2 implementation:
  * Privilege Separation:
@@ -372,21 +372,6 @@ privsep_preauth(struct ssh *ssh)
 static void
 privsep_postauth(struct ssh *ssh, Authctxt *authctxt)
 {
-	int skip_privdrop = 0;
-
-	/*
-	 * Hack for systems that don't support FD passing: retain privileges
-	 * in the post-auth privsep process so it can allocate PTYs directly.
-	 * This is basically equivalent to what we did <= 9.7, which was to
-	 * disable post-auth privsep entirely.
-	 * Cygwin doesn't need to drop privs here although it doesn't support
-	 * fd passing, as AFAIK PTY allocation on this platform doesn't require
-	 * special privileges to begin with.
-	 */
-#if defined(DISABLE_FD_PASSING) && !defined(HAVE_CYGWIN)
-	skip_privdrop = 1;
-#endif
-
 	/* New socket pair */
 	monitor_reinit(pmonitor);
 
@@ -413,9 +398,10 @@ privsep_postauth(struct ssh *ssh, Authctxt *authctxt)
 
 	reseed_prngs();
 
+#ifndef SKIP_PRIVDROP
 	/* Drop privileges */
-	if (!skip_privdrop)
-		do_setusercontext(authctxt->pw);
+	do_setusercontext(authctxt->pw);
+#endif
 
 	/* It is safe now to apply the key state */
 	monitor_apply_keystate(ssh, pmonitor);
@@ -787,7 +773,7 @@ main(int ac, char **av)
 	struct ssh *ssh = NULL;
 	extern char *optarg;
 	extern int optind;
-	int devnull, r, opt, on = 1, remote_port;
+	int devnull, r, opt, remote_port;
 	int sock_in = -1, sock_out = -1, rexeced_flag = 0, have_key = 0;
 	const char *remote_ip, *rdomain;
 	char *line, *laddr, *logfile = NULL;
@@ -1168,13 +1154,14 @@ main(int ac, char **av)
 	/* Prepare the channels layer */
 	channel_init_channels(ssh);
 	channel_set_af(ssh, options.address_family);
+	channel_set_tcp_keepalives(ssh,
+	    options.tcp_keep_alive == SSH_KEEPALIVES_ALL);
 	server_process_channel_timeouts(ssh);
 	server_process_permitopen(ssh);
 
 	/* Set SO_KEEPALIVE if requested. */
-	if (options.tcp_keep_alive && ssh_packet_connection_is_on_socket(ssh) &&
-	    setsockopt(sock_in, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) == -1)
-		error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
+	if (options.tcp_keep_alive && ssh_packet_connection_is_on_socket(ssh))
+		set_keepalive(sock_in); /* logs errors */
 
 	if ((remote_port = ssh_remote_port(ssh)) < 0) {
 		debug("ssh_remote_port failed");

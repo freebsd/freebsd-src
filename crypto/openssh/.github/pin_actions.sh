@@ -33,3 +33,6 @@ done
 
 # Output actions for allowlist.
 awk 'BEGIN{IFS=":"} /^ +uses:.*@/{print $2","}' workflows/*.yml | sort -u
+echo
+echo "Update allowlist at https://github.com/organizations/openssh/settings/actions"
+echo "Don't remove any old entries that might be in use by release branches."

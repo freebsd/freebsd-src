@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.110 2026/07/06 07:44:48 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.111 2026/09/16 00:16:52 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -59,6 +59,8 @@ struct Authctxt {
 	int		 valid;		/* user exists and is allowed to login */
 	int		 attempt;
 	int		 failures;
+	int		 pk_ok_failures;
+	int		 auth_failure_already_counted;
 	int		 server_caused_failure;
 	int		 force_pwchange;
 	char		*user;		/* username sent by the client */
