@@ -76,12 +76,14 @@ struct aw_clk_init {
 #define	AW_CLK_FACTOR_ZERO_IS_ONE	0x0010
 #define	AW_CLK_FACTOR_MIN_VALUE		0x0020
 #define	AW_CLK_FACTOR_MAX_VALUE		0x0040
+#define	AW_CLK_FACTOR_SEARCH_VALUE	0x0080
 
 struct aw_clk_factor {
 	uint32_t	shift;		/* Shift bits for the factor */
 	uint32_t	mask;		/* Mask to get the factor, will be override by the clk methods */
 	uint32_t	width;		/* Number of bits for the factor */
-	uint32_t	value;		/* Fixed value, depends on AW_CLK_FACTOR_FIXED */
+	uint32_t	value;		/* Fixed value, depends on AW_CLK_FACTOR_FIXED
+				 * or AW_CLK_FACTOR_SEARCH_VALUE */
 
 	uint32_t	cond_shift;
 	uint32_t	cond_mask;
@@ -169,7 +171,8 @@ aw_clk_factor_get_max(struct aw_clk_factor *factor)
 {
 	uint32_t max;
 
-	if (factor->flags & AW_CLK_FACTOR_FIXED)
+	if (factor->flags &
+	    (AW_CLK_FACTOR_FIXED | AW_CLK_FACTOR_SEARCH_VALUE))
 		max = factor->value;
 	else if (factor->flags & AW_CLK_FACTOR_POWER_OF_TWO)
 		max = 1 << ((1 << factor->width) - 1);
@@ -185,7 +188,8 @@ aw_clk_factor_get_min(struct aw_clk_factor *factor)
 {
 	uint32_t min;
 
-	if (factor->flags & AW_CLK_FACTOR_FIXED)
+	if (factor->flags &
+	    (AW_CLK_FACTOR_FIXED | AW_CLK_FACTOR_SEARCH_VALUE))
 		min = factor->value;
 	else if (factor->flags & AW_CLK_FACTOR_ZERO_BASED)
 		min = 0;
