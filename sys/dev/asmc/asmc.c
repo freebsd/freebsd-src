@@ -557,13 +557,17 @@ asmc_detect_capabilities(device_t dev)
 	uint8_t len;
 	char type[ASMC_TYPELEN + 1];
 
-	/* SMS: require all keys used by asmc_sms_init() */
-	sc->sc_has_sms = 1;
-	for (unsigned int k = 0; k < nitems(asmc_sms_required_keys); k++) {
-		if (asmc_key_getinfo(dev, asmc_sms_required_keys[k],
-		    &len, type) != 0) {
-			sc->sc_has_sms = 0;
-			break;
+	/* SMS: PIO only, the filter reads the PIO interrupt port. */
+	sc->sc_has_sms = 0;
+	if (!sc->sc_is_mmio) {
+		sc->sc_has_sms = 1;
+		for (unsigned int k = 0;
+		    k < nitems(asmc_sms_required_keys); k++) {
+			if (asmc_key_getinfo(dev, asmc_sms_required_keys[k],
+			    &len, type) != 0) {
+				sc->sc_has_sms = 0;
+				break;
+			}
 		}
 	}
 
@@ -1001,7 +1005,8 @@ asmc_sms_intrfast(void *arg)
 	uint8_t type;
 	device_t dev = (device_t)arg;
 	struct asmc_softc *sc = device_get_softc(dev);
-	if (!sc->sc_sms_intr_works)
+
+	if (sc->sc_is_mmio || !sc->sc_sms_intr_works)
 		return (FILTER_HANDLED);
 
 	mtx_lock_spin(&sc->sc_mtx);
