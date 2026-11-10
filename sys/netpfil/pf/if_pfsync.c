@@ -1621,7 +1621,14 @@ pfsync_in_bus(struct mbuf *m, int offset, int count, int flags, int action)
 		break;
 
 	case PFSYNC_BUS_END:
-		if (time_uptime - ntohl(bus.endtime) >=
+		/*
+		 * Both ends count in whole seconds of their own uptime, so a
+		 * complete update can appear to have taken a second longer
+		 * than we have waited.  Allow for it: the marker is not sent
+		 * again, and we would stay demoted until the bulk fail
+		 * timeout.
+		 */
+		if (time_uptime - ntohl(bus.endtime) + 1 >=
 		    sc->sc_ureq_sent) {
 			/* that's it, we're happy */
 			sc->sc_ureq_sent = 0;
