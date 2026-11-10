@@ -100,7 +100,7 @@ static uint64_t
 aw_clk_np_find_best(struct aw_clk_np_sc *sc, uint64_t fparent, uint64_t *fout,
     uint32_t *factor_n, uint32_t *factor_p)
 {
-	uint64_t cur, best;
+	uint64_t cur, best = 0;
 	uint32_t n, p, max_n, max_p, min_n, min_p;
 
 	*factor_n = *factor_p = 0;
