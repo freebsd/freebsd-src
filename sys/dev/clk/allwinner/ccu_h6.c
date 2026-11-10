@@ -187,6 +187,22 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	CCU_RESET(RST_BUS_XHCI, 0xa8c, 21)
 	CCU_RESET(RST_BUS_EHCI3, 0xa8c, 23)
 	CCU_RESET(RST_BUS_OTG, 0xa8c, 24)
+
+	/* HDMI_BGR_REG */
+	CCU_RESET(RST_BUS_HDMI, 0xb1c, 16)
+	CCU_RESET(RST_BUS_HDMI_SUB, 0xb1c, 17)
+
+	/* DISPLAY_IF_TOP_BGR_REG */
+	CCU_RESET(RST_BUS_TCON_TOP, 0xb5c, 16)
+
+	/* TCON_LCD_BGR_REG */
+	CCU_RESET(RST_BUS_TCON_LCD0, 0xb7c, 16)
+
+	/* TCON_TV_BGR_REG */
+	CCU_RESET(RST_BUS_TCON_TV0, 0xb9c, 16)
+
+	/* HDMI_HDCP_BGR_REG */
+	CCU_RESET(RST_BUS_HDCP, 0xc4c, 16)
 };
 
 static struct aw_ccung_gate h6_ccu_gates[] = {
@@ -310,6 +326,24 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	CCU_GATE(CLK_BUS_XHCI, "bus-xhci", "ahb3", 0xa8c, 5)
 	CCU_GATE(CLK_BUS_EHCI3, "bus-ehci3", "ahb3", 0xa8c, 7)
 	CCU_GATE(CLK_BUS_OTG, "bus-otg", "ahb3", 0xa8c, 8)
+
+	/* HDMI_SLOW_CLK_REG */
+	CCU_GATE(CLK_HDMI_SLOW, "hdmi-slow", "osc24M", 0xb04, 31)
+
+	/* HDMI_BGR_REG */
+	CCU_GATE(CLK_BUS_HDMI, "bus-hdmi", "ahb3", 0xb1c, 0)
+
+	/* DISPLAY_IF_TOP_BGR_REG */
+	CCU_GATE(CLK_BUS_TCON_TOP, "bus-tcon-top", "ahb3", 0xb5c, 0)
+
+	/* TCON_LCD_BGR_REG */
+	CCU_GATE(CLK_BUS_TCON_LCD0, "bus-tcon-lcd0", "ahb3", 0xb7c, 0)
+
+	/* TCON_TV_BGR_REG */
+	CCU_GATE(CLK_BUS_TCON_TV0, "bus-tcon-tv0", "ahb3", 0xb9c, 0)
+
+	/* HDMI_HDCP_BGR_REG */
+	CCU_GATE(CLK_BUS_HDCP, "bus-hdcp", "ahb3", 0xc4c, 0)
 };
 
 static const char *osc12m_parents[] = {"osc24M"};
@@ -757,6 +791,47 @@ M_CLK(vp9_clk,
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
 
+static const char *hdmi_parents[] = {"pll_video0", "pll_video1",
+    "pll_video1_4x"};
+M_CLK(hdmi_clk,
+    CLK_HDMI, "hdmi", hdmi_parents,		/* id, name, parents */
+    0xb00,					/* offset */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+/* The TCON LCD clock has no divider */
+static const char *tcon_lcd0_parents[] = {"pll_video0", "pll_video0_4x",
+    "pll_video1"};
+M_CLK(tcon_lcd0_clk,
+    CLK_TCON_LCD0, "tcon-lcd0", tcon_lcd0_parents, /* id, name, parents */
+    0xb60,					/* offset */
+    0, 0, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *tcon_tv0_parents[] = {"pll_video0", "pll_video0_4x",
+    "pll_video1", "pll_video1_4x"};
+NM_CLK(tcon_tv0_clk,
+    CLK_TCON_TV0, "tcon-tv0", tcon_tv0_parents,	/* id, name, parents */
+    0xb80,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *hdcp_parents[] = {"pll_periph0", "pll_periph1"};
+M_CLK(hdcp_clk,
+    CLK_HDCP, "hdcp", hdcp_parents,		/* id, name, parents */
+    0xc40,					/* offset */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -794,6 +869,11 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_M, .clk.m = &ve_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &emce_clk},
 	{ .type = AW_CLK_M, .clk.m = &vp9_clk},
+
+	{ .type = AW_CLK_M, .clk.m = &hdmi_clk},
+	{ .type = AW_CLK_M, .clk.m = &tcon_lcd0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &tcon_tv0_clk},
+	{ .type = AW_CLK_M, .clk.m = &hdcp_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
