@@ -1459,12 +1459,69 @@ axp8xx_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static void
+axp8xx_add_sensors(device_t dev)
+{
+	struct axp8xx_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < sc->nsensors; i++) {
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, sc->sensors[i].name,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		    dev, sc->sensors[i].id, axp8xx_sysctl,
+		    sc->sensors[i].format,
+		    sc->sensors[i].desc);
+	}
+}
+
+static void
+axp8xx_add_sysctls(device_t dev)
+{
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "batchargecurrentstep",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    dev, 0, axp8xx_sysctl_chargecurrent,
+	    "I", "Battery Charging Current Step, "
+	    "0: 200mA, 1: 400mA, 2: 600mA, 3: 800mA, "
+	    "4: 1000mA, 5: 1200mA, 6: 1400mA, 7: 1600mA, "
+	    "8: 1800mA, 9: 2000mA, 10: 2200mA, 11: 2400mA, "
+	    "12: 2600mA, 13: 2800mA");
+}
+
+static void
+axp8xx_get_thresholds(device_t dev)
+{
+	struct axp8xx_softc *sc;
+	uint8_t val;
+
+	sc = device_get_softc(dev);
+
+	if (axp8xx_read(dev, AXP_BAT_CAP_WARN, &val, 1) == 0) {
+		sc->warn_thres = (val & AXP_BAT_CAP_WARN_LV1) >> 4;
+		sc->warn_thres += AXP_BAP_CAP_WARN_LV1BASE;
+		sc->shut_thres = (val & AXP_BAT_CAP_WARN_LV2);
+		if (bootverbose) {
+			device_printf(dev,
+			    "Raw reg val: 0x%02x\n", val);
+			device_printf(dev,
+			    "Warning threshold: 0x%02x\n", sc->warn_thres);
+			device_printf(dev,
+			    "Shutdown threshold: 0x%02x\n", sc->shut_thres);
+		}
+	}
+}
+
 static int
 axp8xx_attach(device_t dev)
 {
 	struct axp8xx_softc *sc;
 	struct axp8xx_reg_sc *reg;
-	uint8_t chip_id, val;
+	uint8_t chip_id;
 	phandle_t rnode, child;
 	int error, i;
 
@@ -1542,41 +1599,9 @@ axp8xx_attach(device_t dev)
 		}
 	}
 
-	/* Add sensors */
-	for (i = 0; i < sc->nsensors; i++) {
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, sc->sensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-		    dev, sc->sensors[i].id, axp8xx_sysctl,
-		    sc->sensors[i].format,
-		    sc->sensors[i].desc);
-	}
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "batchargecurrentstep",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    dev, 0, axp8xx_sysctl_chargecurrent,
-	    "I", "Battery Charging Current Step, "
-	    "0: 200mA, 1: 400mA, 2: 600mA, 3: 800mA, "
-	    "4: 1000mA, 5: 1200mA, 6: 1400mA, 7: 1600mA, "
-	    "8: 1800mA, 9: 2000mA, 10: 2200mA, 11: 2400mA, "
-	    "12: 2600mA, 13: 2800mA");
-
-	/* Get thresholds */
-	if (axp8xx_read(dev, AXP_BAT_CAP_WARN, &val, 1) == 0) {
-		sc->warn_thres = (val & AXP_BAT_CAP_WARN_LV1) >> 4;
-		sc->warn_thres += AXP_BAP_CAP_WARN_LV1BASE;
-		sc->shut_thres = (val & AXP_BAT_CAP_WARN_LV2);
-		if (bootverbose) {
-			device_printf(dev,
-			    "Raw reg val: 0x%02x\n", val);
-			device_printf(dev,
-			    "Warning threshold: 0x%02x\n", sc->warn_thres);
-			device_printf(dev,
-			    "Shutdown threshold: 0x%02x\n", sc->shut_thres);
-		}
-	}
+	axp8xx_add_sensors(dev);
+	axp8xx_add_sysctls(dev);
+	axp8xx_get_thresholds(dev);
 
 	/* Enable interrupts */
 	axp8xx_write(dev, AXP_IRQEN1,
