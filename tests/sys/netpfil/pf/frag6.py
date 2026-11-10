@@ -1,6 +1,7 @@
 import pytest
 import logging
 import random
+import socket
 logging.getLogger("scapy").setLevel(logging.CRITICAL)
 from utils import DelayedSend
 from atf_python.sys.net.tools import ToolsHelper
@@ -273,3 +274,52 @@ class TestFrag6_RouteTo(VnetTestTemplate):
         assert err_ip6
         assert err_ip6.src == "2001:db8::1"
         assert err_ip6.dst == "2001:db8:666::1"
+
+class TestFrag6NoReassembly(VnetTestTemplate):
+    REQUIRED_MODULES = ["pf"]
+    TOPOLOGY = {
+        "vnet1": {"ifaces": ["if1"]},
+        "vnet2": {"ifaces": ["if1"]},
+        "if1": {"prefixes6": [("2001:db8::1/64", "2001:db8::2/64")]},
+    }
+
+    def vnet2_handler(self, vnet):
+        ifname = vnet.iface_alias_map["if1"].name
+        ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.pf_rules([
+            "scrub in on lo0 from 2001:db8::99 to any", # just to put pf into scrub compat mode
+            "pass",
+            "block in inet6 proto tcp from any to port 1234",
+        ])
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_tcp(self):
+        import scapy.all as sp
+
+        # This gets dropped by pf, because it blocks port 1234
+        packet = sp.IPv6(src="2001:db8::1", dst="2001:db8::2") \
+            / sp.TCP(dport=1234, flags="S")
+        reply = sp.sr1(packet, timeout=3)
+        assert reply is None
+
+        # However, if we fragment the SYN...
+        frags = sp.fragment6(packet, 60)
+        frags[0].show()
+        frags[1].show()
+        assert len(frags) == 2
+
+        s = DelayedSend(frags)
+
+        replies = sp.sniff(iface=self.vnet.iface_alias_map["if1"].name,
+            timeout=3)
+        for p in replies:
+            if not sp.IPv6 in p:
+                continue
+            ip6 = p[sp.IPv6]
+            if ip6.dst != "2001:db8::1":
+                continue
+
+            # We should not get a TCP RST here
+            p.show()
+            assert ip6.nh != socket.IPPROTO_TCP
