@@ -4,7 +4,7 @@
  * Copyright (c) 2003 Mathew Kanner
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
- * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -52,11 +52,16 @@
 #endif
 
 #include <dev/sound/midi/midi.h>
-#include <dev/sound/midi/midiq.h>
 
 #include "mpu_if.h"
 
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
+
+struct midi_queue {
+	uint8_t	*buf;
+	int	size;
+	int	used;			/* Bytes queued. */
+};
 
 #define MIDI_NAMELEN   16
 struct snd_midi {
@@ -68,7 +73,7 @@ struct snd_midi {
 	int	channel;
 
 	int	flags;			/* File flags */
-	MIDIQ_HEAD(, char) inq, outq;
+	struct midi_queue inq, outq;
 	int	rchan, wchan;
 	struct selinfo rsel, wsel;
 	int	hiwat;			/* QLEN(outq)>High-water -> disable
@@ -96,6 +101,33 @@ static struct cdevsw midi_cdevsw = {
 
 struct unrhdr *dev_unr = NULL;
 struct unrhdr *chn_unr = NULL;
+
+static int
+midi_queue_avail(struct midi_queue *q)
+{
+	return (q->size - q->used);
+}
+
+static void
+midi_queue_enq(struct midi_queue *q, uint8_t *src, int n)
+{
+	KASSERT(n >= 0 && n <= midi_queue_avail(q),
+	    ("%s: bad length %d", __func__, n));
+
+	memcpy(q->buf + q->used, src, n);
+	q->used += n;
+}
+
+static void
+midi_queue_deq(struct midi_queue *q, uint8_t *dst, int n)
+{
+	KASSERT(n >= 0 && n <= q->used,
+	    ("%s: bad length %d", __func__, n));
+
+	memcpy(dst, q->buf, n);
+	q->used -= n;
+	memmove(q->buf, q->buf + n, q->used);
+}
 
 /*
  * Register a new midi device.
@@ -130,8 +162,10 @@ midi_init(kobj_class_t cls, void *cookie)
 
 	m->hiwat = outqsize / 2;
 
-	MIDIQ_INIT(m->inq, ibuf, inqsize);
-	MIDIQ_INIT(m->outq, obuf, outqsize);
+	m->inq.buf = ibuf;
+	m->inq.size = inqsize;
+	m->outq.buf = obuf;
+	m->outq.size = outqsize;
 
 	m->flags = 0;
 	m->unit = alloc_unr(dev_unr);
@@ -152,8 +186,8 @@ midi_init(kobj_class_t cls, void *cookie)
 err2:
 	mtx_destroy(&m->lock);
 
-	free(MIDIQ_BUF(m->inq), M_MIDI);
-	free(MIDIQ_BUF(m->outq), M_MIDI);
+	free(m->inq.buf, M_MIDI);
+	free(m->outq.buf, M_MIDI);
 err1:
 	free(m, M_MIDI);
 	return NULL;
@@ -176,8 +210,8 @@ midi_uninit(struct snd_midi *m)
 	destroy_dev(m->dev);
 	free_unr(dev_unr, m->unit);
 	free_unr(chn_unr, m->channel);
-	free(MIDIQ_BUF(m->inq), M_MIDI);
-	free(MIDIQ_BUF(m->outq), M_MIDI);
+	free(m->inq.buf, M_MIDI);
+	free(m->outq.buf, M_MIDI);
 	mtx_destroy(&m->lock);
 	free(m, M_MIDI);
 
@@ -205,9 +239,9 @@ midi_in(struct snd_midi *m, uint8_t *buf, int size)
 
 	used = 0;
 
-	if (MIDIQ_AVAIL(m->inq) > size) {
+	if (size <= midi_queue_avail(&m->inq)) {
 		used = size;
-		MIDIQ_ENQ(m->inq, buf, size);
+		midi_queue_enq(&m->inq, buf, size);
 	} else {
 		mtx_unlock(&m->lock);
 		return 0;
@@ -236,14 +270,14 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 		return (0);
 	}
 
-	used = min(size, MIDIQ_LEN(m->outq));
+	used = min(size, m->outq.used);
 	if (used)
-		MIDIQ_DEQ(m->outq, buf, used);
-	if (MIDIQ_EMPTY(m->outq)) {
+		midi_queue_deq(&m->outq, buf, used);
+	if (m->outq.used == 0) {
 		m->flags &= ~M_TXEN;
 		MPU_CALLBACK(m, m->cookie, m->flags);
 	}
-	if (used && MIDIQ_AVAIL(m->outq) > m->hiwat) {
+	if (used && midi_queue_avail(&m->outq) > m->hiwat) {
 		if (m->wchan) {
 			wakeup(&m->wchan);
 			m->wchan = 0;
@@ -268,7 +302,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	retval = 0;
 
 	if (flags & FREAD) {
-		if (MIDIQ_SIZE(m->inq) == 0)
+		if (m->inq.size == 0)
 			retval = ENXIO;
 		else if (m->flags & M_RX)
 			retval = EBUSY;
@@ -276,7 +310,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			goto err;
 	}
 	if (flags & FWRITE) {
-		if (MIDIQ_SIZE(m->outq) == 0)
+		if (m->outq.size == 0)
 			retval = ENXIO;
 		else if (m->flags & M_TX)
 			retval = EBUSY;
@@ -293,7 +327,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	         * Only clear the inq, the outq might still have data to drain
 	         * from a previous session
 	         */
-		MIDIQ_CLEAR(m->inq);
+		m->inq.used = 0;
 	}
 
 	if (flags & FWRITE)
@@ -350,7 +384,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval;
 	int used;
-	char buf[MIDI_RSIZE];
+	uint8_t buf[MIDI_RSIZE];
 
 	retval = EIO;
 
@@ -363,7 +397,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 		goto err1;
 
 	while (uio->uio_resid > 0) {
-		while (MIDIQ_EMPTY(m->inq)) {
+		while (m->inq.used == 0) {
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
@@ -387,10 +421,10 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         * At this point, it is certain that m->inq has data
 	         */
 
-		used = min(MIDIQ_LEN(m->inq), uio->uio_resid);
+		used = min(m->inq.used, uio->uio_resid);
 		used = min(used, MIDI_RSIZE);
 
-		MIDIQ_DEQ(m->inq, buf, used);
+		midi_queue_deq(&m->inq, buf, used);
 		mtx_unlock(&m->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
@@ -419,7 +453,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval;
 	int used;
-	char buf[MIDI_WSIZE];
+	uint8_t buf[MIDI_WSIZE];
 
 	retval = EIO;
 	if (m == NULL)
@@ -431,7 +465,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		goto err1;
 
 	while (uio->uio_resid > 0) {
-		while (MIDIQ_AVAIL(m->outq) == 0) {
+		while (midi_queue_avail(&m->outq) == 0) {
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
@@ -456,7 +490,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         * We are certain than data can be placed on the queue
 	         */
 
-		used = min(MIDIQ_AVAIL(m->outq), uio->uio_resid);
+		used = min(midi_queue_avail(&m->outq), uio->uio_resid);
 		used = min(used, MIDI_WSIZE);
 
 		mtx_unlock(&m->lock);
@@ -464,7 +498,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		if (retval)
 			goto err0;
 		mtx_lock(&m->lock);
-		MIDIQ_ENQ(m->outq, buf, used);
+		midi_queue_enq(&m->outq, buf, used);
 		/*
 	         * Inform the bottom half that data can be written
 	         */
@@ -503,13 +537,13 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	mtx_lock(&m->lock);
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (!MIDIQ_EMPTY(m->inq))
+		if (m->inq.used != 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &m->rsel);
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
-		if (MIDIQ_AVAIL(m->outq) < m->hiwat)
+		if (midi_queue_avail(&m->outq) < m->hiwat)
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
 			selrecord(td, &m->wsel);
