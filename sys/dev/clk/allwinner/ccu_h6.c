@@ -188,6 +188,10 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	CCU_RESET(RST_BUS_EHCI3, 0xa8c, 23)
 	CCU_RESET(RST_BUS_OTG, 0xa8c, 24)
 
+	/* PCIE_BGR_REG */
+	CCU_RESET(RST_BUS_PCIE, 0xabc, 16)
+	CCU_RESET(RST_PCIE_POWERUP, 0xabc, 17)
+
 	/* HDMI_BGR_REG */
 	CCU_RESET(RST_BUS_HDMI, 0xb1c, 16)
 	CCU_RESET(RST_BUS_HDMI_SUB, 0xb1c, 17)
@@ -326,6 +330,13 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	CCU_GATE(CLK_BUS_XHCI, "bus-xhci", "ahb3", 0xa8c, 5)
 	CCU_GATE(CLK_BUS_EHCI3, "bus-ehci3", "ahb3", 0xa8c, 7)
 	CCU_GATE(CLK_BUS_OTG, "bus-otg", "ahb3", 0xa8c, 8)
+
+	/* PCIE_REF_CLK_REG */
+	CCU_GATE(CLK_PCIE_REF, "pcie-ref", "pcie-ref-100M", 0xab0, 31)
+	CCU_GATE(CLK_PCIE_REF_OUT, "pcie-ref-out", "pcie-ref", 0xab0, 30)
+
+	/* PCIE_BGR_REG */
+	CCU_GATE(CLK_BUS_PCIE, "bus-pcie", "psi_ahb1_ahb2", 0xabc, 0)
 
 	/* HDMI_SLOW_CLK_REG */
 	CCU_GATE(CLK_HDMI_SLOW, "hdmi-slow", "osc24M", 0xb04, 31)
@@ -832,6 +843,35 @@ M_CLK(hdcp_clk,
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
 
+/* PLL_PERIPH0(4X) divided by 24 is the 100MHz reference clock of PCIe */
+static const char *pcie_ref_100m_parents[] = {"pll_periph0_4x"};
+FIXED_CLK(pcie_ref_100m_clk,
+    CLK_PCIE_REF_100M,			/* id */
+    "pcie-ref-100M",			/* name */
+    pcie_ref_100m_parents,		/* parent */
+    0,					/* freq */
+    1,					/* mult */
+    24,					/* div */
+    0);					/* flags */
+
+static const char *pcie_maxi_parents[] = {"pll_periph0"};
+M_CLK(pcie_maxi_clk,
+    CLK_PCIE_MAXI, "pcie-maxi", pcie_maxi_parents, /* id, name, parents */
+    0xab4,					/* offset */
+    0, 4, 0, 0,					/* m factor */
+    0, 0,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE);				/* flags */
+
+static const char *pcie_aux_parents[] = {"osc24M"};
+M_CLK(pcie_aux_clk,
+    CLK_PCIE_AUX, "pcie-aux", pcie_aux_parents, /* id, name, parents */
+    0xab8,					/* offset */
+    0, 5, 0, 0,					/* m factor */
+    0, 0,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE);				/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -869,6 +909,10 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_M, .clk.m = &ve_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &emce_clk},
 	{ .type = AW_CLK_M, .clk.m = &vp9_clk},
+
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pcie_ref_100m_clk},
+	{ .type = AW_CLK_M, .clk.m = &pcie_maxi_clk},
+	{ .type = AW_CLK_M, .clk.m = &pcie_aux_clk},
 
 	{ .type = AW_CLK_M, .clk.m = &hdmi_clk},
 	{ .type = AW_CLK_M, .clk.m = &tcon_lcd0_clk},
