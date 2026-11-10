@@ -97,7 +97,7 @@ jobs:
         usesh: true
         prepare: |
           case $(uname -r) in
-          12.*)
+          12.*|13.*)
             timeout 600 ftp ftp://ftp.sudo.ws/pub/sudo/sudo-1.8.32.tar.gz || \
               ftp ftp://ftp.sudo.ws/pub/sudo/sudo-1.8.32.tar.gz
             tar xfz sudo-1.8.32.tar.gz
