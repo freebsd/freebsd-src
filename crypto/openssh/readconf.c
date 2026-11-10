@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.415 2026/07/21 05:21:29 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.419 2026/10/05 06:03:40 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1089,6 +1089,15 @@ static const struct multistate multistate_compression[] = {
 	{ "no",				COMP_NONE },
 	{ NULL, -1 }
 };
+static const struct multistate multistate_keepalives[] = {
+	{ "true",			SSH_KEEPALIVES_TRANSPORT },
+	{ "false",			SSH_KEEPALIVES_OFF },
+	{ "yes",			SSH_KEEPALIVES_TRANSPORT },
+	{ "no",				SSH_KEEPALIVES_OFF },
+	{ "transport",			SSH_KEEPALIVES_TRANSPORT },
+	{ "all",			SSH_KEEPALIVES_ALL },
+	{ NULL, -1 }
+};
 /* XXX this will need to be replaced with a bitmask if we add more flags */
 static const struct multistate multistate_warnweakcrypto[] = {
 	{ "true",			1 },
@@ -1348,7 +1357,8 @@ parse_time:
 
 	case oTCPKeepAlive:
 		intptr = &options->tcp_keep_alive;
-		goto parse_flag;
+		multistate_ptr = multistate_keepalives;
+		goto parse_multistate;
 
 	case oNoHostAuthenticationForLocalhost:
 		intptr = &options->no_host_authentication_for_localhost;
@@ -2312,7 +2322,9 @@ parse_pubkey_algos:
 			error("%.200s line %d: Bad mask.", filename, linenum);
 			goto out;
 		}
-		options->fwd_opts.streamlocal_bind_mask = (mode_t)value;
+		if (*activep &&
+		    options->fwd_opts.streamlocal_bind_mask == (mode_t)-1)
+			options->fwd_opts.streamlocal_bind_mask = (mode_t)value;
 		break;
 
 	case oStreamLocalBindUnlink:
@@ -2901,7 +2913,7 @@ fill_default_options(Options * options)
 	if (options->compression == -1)
 		options->compression = 0;
 	if (options->tcp_keep_alive == -1)
-		options->tcp_keep_alive = 1;
+		options->tcp_keep_alive = SSH_KEEPALIVES_TRANSPORT;
 	if (options->port == -1)
 		options->port = 0;	/* Filled in ssh_connect. */
 	if (options->address_family == -1)
@@ -3449,13 +3461,10 @@ ssh_valid_ruser(const char *s)
 	for (i = 0; s[i] != 0; i++) {
 		if (iscntrl((u_char)s[i]))
 			return 0;
-		if (strchr("'`\";&<>|(){}", s[i]) != NULL)
+		if (strchr("'`\";&<>|(){}$\\", s[i]) != NULL)
 			return 0;
 		/* Disallow '-' after whitespace */
 		if (isspace((u_char)s[i]) && s[i + 1] == '-')
-			return 0;
-		/* Disallow \ in last position */
-		if (s[i] == '\\' && s[i + 1] == '\0')
 			return 0;
 	}
 	return 1;
@@ -3609,6 +3618,8 @@ fmt_intarg(OpCodes code, int val)
 		return fmt_multistate_int(val, multistate_yesnoaskconfirm);
 	case oPubkeyAuthentication:
 		return fmt_multistate_int(val, multistate_pubkey_auth);
+	case oTCPKeepAlive:
+		return fmt_multistate_int(val, multistate_keepalives);
 	case oFingerprintHash:
 		return ssh_digest_alg_name(val);
 	default:
@@ -3891,7 +3902,7 @@ dump_client_config(Options *o, const char *host)
 	printf("\n");
 
 	/* oCanonicalizePermittedCNAMEs */
-	printf("canonicalizePermittedcnames");
+	printf("canonicalizepermittedcnames");
 	if (o->num_permitted_cnames == 0)
 		printf(" none");
 	for (i = 0; i < o->num_permitted_cnames; i++) {

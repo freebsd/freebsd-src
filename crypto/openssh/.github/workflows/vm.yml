@@ -161,19 +161,19 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - "9.0"
           - "9.4"
           - "10.0"
           - "10.1"
+          - "11.0"
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
+    - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start NetBSD ${{ matrix.target }} VM
-      uses: vmactions/netbsd-vm@99816dccf75edf233ed6cd00a159e3a5b85ea373 # v1
+      uses: vmactions/netbsd-vm@00081e82b14bc40114eb97f32b4455306828516b # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
@@ -181,7 +181,7 @@ jobs:
         copyback: false
         prepare: |
           case "$(uname -r)" in
-          9.*) export PKG_PATH="ftp://ftp.NetBSD.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/9.0_2026Q1/All" ;;
+          9.*) export PKG_PATH="http://archive.NetBSD.org/pub/pkgsrc-archive/packages/NetBSD/$(uname -p)/9.0_2026Q1/All" ;;
           esac
           timeout 600 /usr/sbin/pkg_add sudo || /usr/sbin/pkg_add sudo
           openssl rand -base64 9 >$GITHUB_WORKSPACE/regress/password

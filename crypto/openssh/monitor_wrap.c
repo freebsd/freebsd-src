@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.148 2026/07/21 06:17:42 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.151 2026/09/16 06:23:16 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -383,7 +383,10 @@ out:
 	mm_decode_activate_server_options(ssh, m);
 	server_process_permitopen(ssh);
 	server_process_channel_timeouts(ssh);
+	channel_set_tcp_keepalives(ssh,
+	    options.tcp_keep_alive == SSH_KEEPALIVES_ALL);
 	kex_set_server_sig_algs(ssh, options.pubkey_accepted_algos);
+	kex_set_warn_weak_crypto(ssh, options.warn_weak_crypto);
 	ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
 	    options.rekey_interval);
 	sshbuf_free(m);
@@ -1168,7 +1171,8 @@ server_process_permitopen(struct ssh *ssh)
 void
 server_process_channel_timeouts(struct ssh *ssh)
 {
-	u_int i, secs;
+	u_int i;
+	double secs;
 	char *type;
 
 	debug3_f("setting %u timeouts", options.num_channel_timeouts);

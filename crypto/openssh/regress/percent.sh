@@ -1,4 +1,4 @@
-#	$OpenBSD: percent.sh,v 1.23 2026/04/02 07:52:15 djm Exp $
+#	$OpenBSD: percent.sh,v 1.24 2026/10/03 05:08:49 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="percent expansions"
@@ -28,6 +28,22 @@ trial()
 		${SSH} -F $OBJ/ssh_proxy -o $opt="echo '$arg' >$OBJ/actual" \
 		    somehost true
 		got=`cat $OBJ/actual`
+		;;
+	proxycommand)
+		case "$arg" in
+		*%C*|*%i*|*%L*|*%l*|*%u*|*%d*)
+			# Not supported, skip
+			got="$expect"
+			;;
+		*)
+			# extract original proxycommand
+			pc=`${SSH} -F $OBJ/ssh_proxy -G somehost | \
+			    awk '$1=="proxycommand"' | sed 's/proxycommand //'`
+			${SSH} -o"proxycommand sh -c 'echo $arg >$OBJ/actual;$pc'" \
+			    -F $OBJ/ssh_proxy somehost true
+			got=`cat $OBJ/actual`
+			;;
+		esac
 		;;
 	user|user-l|user-at)
 		if [ "$arg" = '%r' ] || [ "$arg" = '%C' ]; then
@@ -89,12 +105,12 @@ trial()
 	fi
 }
 
-for i in matchexec localcommand remotecommand controlpath identityagent \
-    forwardagent localforward remoteforward revokedhostkeys \
+for i in matchexec localcommand proxycommand remotecommand controlpath \
+    identityagent forwardagent localforward remoteforward revokedhostkeys \
     user setenv userknownhostsfile; do
 	verbose $tid $i percent
 	case "$i" in
-	localcommand|userknownhostsfile)
+	localcommand|proxycommand|userknownhostsfile)
 		# Any test that's going to actually make a connection needs
 		# to use the real username.
 		REMUSER=$USER ;;

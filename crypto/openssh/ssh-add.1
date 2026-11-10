@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.90 2026/07/11 11:15:03 naddy Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.91 2026/09/16 05:10:12 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: July 11 2026 $
+.Dd $Mdocdate: September 16 2026 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd adds private key identities to the OpenSSH authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl CcDdKkLlNqvXx
+.Op Fl CcDdKkLlNPqvXx
 .Op Fl E Ar fingerprint_hash
 .Op Fl H Ar hostkey_file
 .Op Fl h Ar destination_constraint
@@ -224,6 +224,11 @@ keys only and skip certificates.
 .It Fl L
 Lists public key parameters of all identities currently represented
 by the agent.
+.It Fl P
+When loading PKCS#11 or FIDO keys from a token, do not request a PIN.
+This will cause the operation to fail if the token requires additional
+authentication and has no other way to obtain it, such as a keypad or
+biometric reader.
 .It Fl l
 Lists fingerprints of all identities currently represented by the agent.
 .It Fl N

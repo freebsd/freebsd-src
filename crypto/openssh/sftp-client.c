@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.186 2026/06/29 01:53:21 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.188 2026/10/01 03:11:49 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -791,7 +791,8 @@ sftp_lsreaddir(struct sftp_conn *conn, const char *path, int print_flag,
 			 * These can be used to attack recursive ops
 			 * (e.g. send '../../../../etc/passwd')
 			 */
-			if (strpbrk(filename, SFTP_DIRECTORY_CHARS) != NULL) {
+			if (*filename == '\0' ||
+			    strpbrk(filename, SFTP_DIRECTORY_CHARS) != NULL) {
 				error("Server sent suspect path \"%s\" "
 				    "during readdir of \"%s\"", filename, path);
 			} else if (dir) {
@@ -878,6 +879,39 @@ sftp_mkdir(struct sftp_conn *conn, const char *path, Attrib *a, int print_flag)
 		error("remote mkdir \"%s\": %s", path, fx2txt(status));
 
 	return status == SSH2_FX_OK ? 0 : -1;
+}
+
+int
+sftp_mkpath(struct sftp_conn *conn, const char *path, Attrib *a, int print_flag)
+{
+	char *slash, *tmp_path;
+	int done;
+
+	tmp_path = xstrdup(path);
+	slash = tmp_path;
+
+	for (;;) {
+		slash += strspn(slash, "/");
+		slash += strcspn(slash, "/");
+
+		done = (*slash == '\0');
+		*slash = '\0';
+
+		if (!sftp_remote_is_dir(conn, tmp_path)) {
+			if (sftp_mkdir(conn, tmp_path, a, print_flag) != 0) {
+				free(tmp_path);
+				return -1;
+			}
+		}
+
+		if (done)
+			break;
+
+		*slash = '/';
+	}
+
+	free(tmp_path);
+	return 0;
 }
 
 int

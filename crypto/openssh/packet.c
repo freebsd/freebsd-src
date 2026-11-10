@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.341 2026/07/23 06:33:06 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.346 2026/09/22 22:51:43 job Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -87,6 +87,7 @@
 #include "packet.h"
 #include "ssherr.h"
 #include "sshbuf.h"
+#include "version.h"
 
 #ifdef PACKET_DEBUG
 #define DBG(x) x
@@ -451,22 +452,22 @@ ssh_packet_connection_is_on_socket(struct ssh *ssh)
 	state = ssh->state;
 	if (state->connection_in == -1 || state->connection_out == -1)
 		return 0;
-	/* filedescriptors in and out are the same, so it's a socket */
-	if (state->connection_in == state->connection_out)
-		return 1;
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));
 	if (getpeername(state->connection_in, (struct sockaddr *)&from,
 	    &fromlen) == -1)
 		return 0;
+	if (from.ss_family != AF_INET && from.ss_family != AF_INET6)
+		return 0;
+	/* filedescriptors in and out are the same, so it's a socket */
+	if (state->connection_in == state->connection_out)
+		return 1;
 	tolen = sizeof(to);
 	memset(&to, 0, sizeof(to));
 	if (getpeername(state->connection_out, (struct sockaddr *)&to,
 	    &tolen) == -1)
 		return 0;
 	if (fromlen != tolen || memcmp(&from, &to, fromlen) != 0)
-		return 0;
-	if (from.ss_family != AF_INET && from.ss_family != AF_INET6)
 		return 0;
 	return 1;
 }
@@ -804,14 +805,13 @@ ssh_packet_init_compression(struct ssh *ssh)
 
 #ifdef WITH_ZLIB
 static int
-start_compression_out(struct ssh *ssh, int level)
+start_compression_out(struct ssh *ssh)
 {
-	if (level < 1 || level > 9)
-		return SSH_ERR_INVALID_ARGUMENT;
-	debug("Enabling compression at level %d.", level);
+	debug("Enabling compression.");
 	if (ssh->state->compression_out_started == 1)
 		deflateEnd(&ssh->state->compression_out_stream);
-	switch (deflateInit(&ssh->state->compression_out_stream, level)) {
+	switch (deflateInit2(&ssh->state->compression_out_stream,
+	    Z_BEST_SPEED, Z_DEFLATED, 15, 8, Z_HUFFMAN_ONLY)) {
 	case Z_OK:
 		ssh->state->compression_out_started = 1;
 		break;
@@ -913,6 +913,8 @@ uncompress_buffer(struct ssh *ssh, struct sshbuf *in, struct sshbuf *out)
 			if ((r = sshbuf_put(out, buf, sizeof(buf) -
 			    ssh->state->compression_in_stream.avail_out)) != 0)
 				return r;
+			if (sshbuf_len(out) >= PACKET_MAX_SIZE)
+				return SSH_ERR_INVALID_FORMAT;
 			break;
 		case Z_BUF_ERROR:
 			/*
@@ -937,7 +939,7 @@ uncompress_buffer(struct ssh *ssh, struct sshbuf *in, struct sshbuf *out)
 #else	/* WITH_ZLIB */
 
 static int
-start_compression_out(struct ssh *ssh, int level)
+start_compression_out(struct ssh *ssh)
 {
 	return SSH_ERR_INTERNAL_ERROR;
 }
@@ -1043,7 +1045,7 @@ ssh_set_newkeys(struct ssh *ssh, int mode)
 		if ((r = ssh_packet_init_compression(ssh)) < 0)
 			return r;
 		if (mode == MODE_OUT) {
-			if ((r = start_compression_out(ssh, 6)) != 0)
+			if ((r = start_compression_out(ssh)) != 0)
 				return r;
 		} else {
 			if ((r = start_compression_in(ssh)) != 0)
@@ -1188,7 +1190,7 @@ ssh_packet_enable_delayed_compress(struct ssh *ssh)
 			if ((r = ssh_packet_init_compression(ssh)) != 0)
 				return r;
 			if (mode == MODE_OUT) {
-				if ((r = start_compression_out(ssh, 6)) != 0)
+				if ((r = start_compression_out(ssh)) != 0)
 					return r;
 			} else {
 				if ((r = start_compression_in(ssh)) != 0)
@@ -2432,7 +2434,10 @@ kex_to_blob(struct sshbuf *m, struct kex *kex)
 	    (r = sshbuf_put_stringb(m, kex->client_version)) != 0 ||
 	    (r = sshbuf_put_stringb(m, kex->server_version)) != 0 ||
 	    (r = sshbuf_put_stringb(m, kex->session_id)) != 0 ||
-	    (r = sshbuf_put_u32(m, kex->flags)) != 0)
+	    (r = sshbuf_put_u32(m, kex->flags)) != 0 ||
+	    (r = sshbuf_put_u32(m, kex->warn_weak_crypto)) != 0 ||
+	    (r = sshbuf_put_u32(m, kex->pq_kex_negotiated)) != 0 ||
+	    (r = sshbuf_put_u32(m, kex->non_pq_kex_warned)) != 0)
 		return r;
 	return 0;
 }
@@ -2606,7 +2611,10 @@ kex_from_blob(struct sshbuf *m, struct kex **kexp)
 	    (r = sshbuf_get_stringb(m, kex->client_version)) != 0 ||
 	    (r = sshbuf_get_stringb(m, kex->server_version)) != 0 ||
 	    (r = sshbuf_get_stringb(m, kex->session_id)) != 0 ||
-	    (r = sshbuf_get_u32(m, &kex->flags)) != 0)
+	    (r = sshbuf_get_u32(m, &kex->flags)) != 0 ||
+	    (r = sshbuf_get_u32(m, &kex->warn_weak_crypto)) != 0 ||
+	    (r = sshbuf_get_u32(m, &kex->pq_kex_negotiated)) != 0 ||
+	    (r = sshbuf_get_u32(m, &kex->non_pq_kex_warned)) != 0)
 		goto out;
 	if (kex->we_need > 1024) {
 		r = SSH_ERR_INVALID_FORMAT;
@@ -3098,6 +3106,7 @@ connection_info_message(struct ssh *ssh)
 	comp_info = comp_status_message(ssh);
 
 	xasprintf(&ret, "Connection information for %s pid %lld\r\n"
+	    "  versions %s -> %s\r\n"
 	    "%s"
 	    "  duration %s\r\n"
 	    "  kexalgorithm %s\r\n  hostkeyalgorithm %s\r\n"
@@ -3106,6 +3115,7 @@ connection_info_message(struct ssh *ssh)
 	    "  traffic %s in, %s out\r\n"
 	    "%s",
 	    thishost, (long long)getpid(),
+	    SSH_RELEASE, ssh->remote_version,
 	    tcp_info,
 	    fmt_timeframe(monotime() - state->start_time),
 	    kex->name, kex->hostkey_alg,
