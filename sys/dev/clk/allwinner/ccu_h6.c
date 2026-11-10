@@ -109,6 +109,9 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	/* DRAM_BGR_REG */
 	CCU_RESET(RST_BUS_DRAM, 0x80c, 16)
 
+	/* NAND_BGR_REG */
+	CCU_RESET(RST_BUS_NAND, 0x82c, 16)
+
 	/* SMHC_BGR_REG */
 	CCU_RESET(RST_BUS_MMC0, 0x84c, 16)
 	CCU_RESET(RST_BUS_MMC1, 0x84c, 17)
@@ -126,8 +129,22 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	CCU_RESET(RST_BUS_I2C2, 0x91c, 18)
 	CCU_RESET(RST_BUS_I2C3, 0x91c, 19)
 
+	/* SCR_BGR_REG */
+	CCU_RESET(RST_BUS_SCR0, 0x93c, 16)
+	CCU_RESET(RST_BUS_SCR1, 0x93c, 17)
+
+	/* SPI_BGR_REG */
+	CCU_RESET(RST_BUS_SPI0, 0x96c, 16)
+	CCU_RESET(RST_BUS_SPI1, 0x96c, 17)
+
 	/* EMAC_BGR_REG */
 	CCU_RESET(RST_BUS_EMAC, 0x97c, 16)
+
+	/* TS_BGR_REG */
+	CCU_RESET(RST_BUS_TS, 0x9bc, 16)
+
+	/* CIRTX_BGR_REG */
+	CCU_RESET(RST_BUS_IR_TX, 0x9cc, 16)
 
 	/* THS_BGR_REG */
 	CCU_RESET(RST_BUS_THS, 0x9fc, 16)
@@ -191,6 +208,9 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	/* DRAM_BGR_REG */
 	CCU_GATE(CLK_BUS_DRAM, "bus-dram", "psi_ahb1_ahb2", 0x80c, 0)
 
+	/* NAND_BGR_REG */
+	CCU_GATE(CLK_BUS_NAND, "bus-nand", "ahb3", 0x82c, 0)
+
 	/* SMHC_BGR_REG */
 	CCU_GATE(CLK_BUS_MMC0, "bus-mmc0", "ahb3", 0x84c, 0)
 	CCU_GATE(CLK_BUS_MMC1, "bus-mmc1", "ahb3", 0x84c, 1)
@@ -208,8 +228,22 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	CCU_GATE(CLK_BUS_I2C2, "bus-i2c2", "apb2", 0x91c, 2)
 	CCU_GATE(CLK_BUS_I2C3, "bus-i2c3", "apb2", 0x91c, 3)
 
+	/* SCR_BGR_REG */
+	CCU_GATE(CLK_BUS_SCR0, "bus-scr0", "apb2", 0x93c, 0)
+	CCU_GATE(CLK_BUS_SCR1, "bus-scr1", "apb2", 0x93c, 1)
+
+	/* SPI_BGR_REG */
+	CCU_GATE(CLK_BUS_SPI0, "bus-spi0", "ahb3", 0x96c, 0)
+	CCU_GATE(CLK_BUS_SPI1, "bus-spi1", "ahb3", 0x96c, 1)
+
 	/* EMAC_BGR_REG */
 	CCU_GATE(CLK_BUS_EMAC, "bus-emac", "ahb3", 0x97c, 0)
+
+	/* TS_BGR_REG */
+	CCU_GATE(CLK_BUS_TS, "bus-ts", "ahb3", 0x9bc, 0)
+
+	/* CIRTX_BGR_REG */
+	CCU_GATE(CLK_BUS_IR_TX, "bus-ir-tx", "apb1", 0x9cc, 0)
 
 	/* THS_BGR_REG */
 	CCU_GATE(CLK_BUS_THS, "bus-ths", "apb1", 0x9fc, 0)
@@ -553,6 +587,70 @@ M_CLK(dram_clk,
     0,						/* gate */
     AW_CLK_HAS_MUX);				/* flags */
 
+static const char *nand_spi_parents[] = {"osc24M", "pll_periph0", "pll_periph1",
+    "pll_periph0_2x", "pll_periph1_2x"};
+NM_CLK(nand0_clk,
+    CLK_NAND0, "nand0", nand_spi_parents,		/* id, name, parents */
+    0x810,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+NM_CLK(nand1_clk,
+    CLK_NAND1, "nand1", nand_spi_parents,		/* id, name, parents */
+    0x814,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+NM_CLK(spi0_clk,
+    CLK_SPI0, "spi0", nand_spi_parents,		/* id, name, parents */
+    0x940,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+NM_CLK(spi1_clk,
+    CLK_SPI1, "spi1", nand_spi_parents,		/* id, name, parents */
+    0x944,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+static const char *ts_parents[] = {"osc24M", "pll_periph0"};
+NM_CLK(ts_clk,
+    CLK_TS, "ts", ts_parents,		/* id, name, parents */
+    0x9b0,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+static const char *ir_tx_parents[] = {"osc32k", "osc24M"};
+NM_CLK(ir_tx_clk,
+    CLK_IR_TX, "ir-tx", ir_tx_parents,		/* id, name, parents */
+    0x9c0,					/* offset */
+    8, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 1,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -575,6 +673,13 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &apb2_clk},
 	{ .type = AW_CLK_M, .clk.m = &mbus_clk},
 	{ .type = AW_CLK_M, .clk.m = &dram_clk},
+
+	{ .type = AW_CLK_NM, .clk.nm = &nand0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &nand1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi0_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &spi1_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ts_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &ir_tx_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
