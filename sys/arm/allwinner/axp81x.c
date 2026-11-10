@@ -912,7 +912,7 @@ axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 	sc = regnode_get_softc(regnode);
 
-	if (!sc->def->voltage_step1 || !sc->def->voltage_step2)
+	if (sc->def->voltage_step1 == 0)
 		return (ENXIO);
 
 	if (axp8xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1) != 0)
