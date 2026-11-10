@@ -67,7 +67,7 @@ const char *TmpFile(const char *pathname);
 // Implemented as a macro to allow access to the test case instance's
 // HasFailure() method, which is reported as the forked process's
 // exit status.
-#define _RUN_FORKED(INNERCODE, TESTCASENAME, TESTNAME) do {    \
+#define _RUN_FORKED(INNERCODE, TESTCASENAME, TESTNAME)         \
     pid_t pid = force_nofork ? 0 : fork();                     \
     if (pid == 0) {                                            \
       INNERCODE;                                               \
@@ -95,13 +95,10 @@ const char *TmpFile(const char *pathname);
                         strerror(errno), errno);               \
         ADD_FAILURE() << "Failed to wait for child";           \
       } else {                                                 \
-        int exit_status =                                      \
-          WIFEXITED(status) ? WEXITSTATUS(status) : -1;        \
-        EXPECT_EQ(0, exit_status);                             \
+        int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1; \
+        EXPECT_EQ(0, rc);                                      \
       }                                                        \
-    }                                                          \
-} while (0)
-
+    }
 #define _RUN_FORKED_MEM(THIS, TESTFN, TESTCASENAME, TESTNAME)  \
   _RUN_FORKED(MaybeRunWithThread(THIS, &TESTFN), TESTCASENAME, TESTNAME);
 #define _RUN_FORKED_FN(TESTFN, TESTCASENAME, TESTNAME)   \
@@ -140,26 +137,13 @@ const char *TmpFile(const char *pathname);
 // Emit errno information on failure
 #define EXPECT_OK(v) EXPECT_LE(0, v) << "   errno " << errno << " " << strerror(errno)
 
-// Expect a syscall to fail with the given error (inner).
-//
-// This is required because unfortunately googletest "computes" trace variables
-// using line numbers instead of another unique ID and 2 calls to
-// `SCOPED_TRACE(..)` via the same macro results in `-Wshadow`-related compiler
-// errors: https://github.com/google/googletest/issues/5143
-#define EXPECT_SYSCALL_FAIL_NO_TRACE(E, C) \
-    do { \
-      EXPECT_GT(0, C); \
-      EXPECT_EQ(E, errno) << "expected '" << strerror(E) \
-                          << "' but got '" << strerror(errno) << "'"; \
-    } while (0)
-
-// Expect a syscall to fail with the given error (with tracing).
-//
-// See the comment above (for `EXPECT_SYSCALL_FAIL_NO_TRACE`).
+// Expect a syscall to fail with the given error.
 #define EXPECT_SYSCALL_FAIL(E, C) \
     do { \
       SCOPED_TRACE(#C); \
-      EXPECT_SYSCALL_FAIL_NO_TRACE((E), (C)); \
+      EXPECT_GT(0, C); \
+      EXPECT_EQ(E, errno) << "expected '" << strerror(E) \
+                          << "' but got '" << strerror(errno) << "'"; \
     } while (0)
 
 // Expect a syscall to fail with anything other than the given error.
@@ -185,9 +169,9 @@ const char *TmpFile(const char *pathname);
       SCOPED_TRACE(GTEST_STRINGIFY_(openat((fd), (path), (flags)))); \
       const int result = openat((fd), (path), (flags)); \
       if (((flags) & O_BENEATH) == O_BENEATH) { \
-        EXPECT_SYSCALL_FAIL_NO_TRACE(E_NO_TRAVERSE_O_BENEATH, result); \
+        EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_O_BENEATH, result); \
       } else { \
-        EXPECT_SYSCALL_FAIL_NO_TRACE(E_NO_TRAVERSE_CAPABILITY, result); \
+        EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
       } \
       if (result >= 0) { close(result); } \
     } while (0)
@@ -196,7 +180,7 @@ const char *TmpFile(const char *pathname);
     do { \
       SCOPED_TRACE(GTEST_STRINGIFY_(openat((fd), (path), (flags)))); \
       const int result = openat((fd), (path), (flags)); \
-      EXPECT_SYSCALL_FAIL_NO_TRACE(E_NO_TRAVERSE_CAPABILITY, result); \
+      EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
       if (result >= 0) { close(result); } \
     } while (0)
 #endif

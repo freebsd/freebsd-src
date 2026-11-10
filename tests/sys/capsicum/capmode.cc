@@ -158,7 +158,7 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
   if (rc < 0) {
     EXPECT_EQ(EAGAIN, errno);
   }
-  char ch = 'a';
+  char ch;
   EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
 
   // These calls will fail for lack of e.g. a proper name to send to,

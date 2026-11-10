@@ -56,6 +56,8 @@ BINDIR=	${TESTSDIR}
 BINMODE.mini-me.noexec=	${NOBINMODE}
 BINMODE.mini-me.setuid=	4555
 
+WARNS.capsicum-test=	3
+
 .endif # MK_GOOGLETEST
 
 .include <bsd.test.mk>
