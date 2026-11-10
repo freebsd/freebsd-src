@@ -9,11 +9,14 @@ CFLAGS+=	-I${SRCTOP}/tests
 
 .if ${MK_GOOGLETEST} != no
 
-GTESTS+=	capsicum-test_privileged
-GTESTS+=	capsicum-test_unprivileged
+GTESTS+=	capsicum-test
+# This test script runs the same test suite twice, once as root and once as an
+# unprivileged user.  Serialize them since some tests access global namespaces,
+# e.g., mqueuefs, and can trample on each other.
+TEST_METADATA.functional+=	is_exclusive="true"
+TEST_METADATA.functional+=	required_kmods="mqueuefs"
 
-# SRCS required for `capsicum-test*`.
-SRCS.capsicum-test=	\
+SRCS.capsicum-test+=	\
 	capsicum-test-main.cc \
 	capsicum-test.cc \
 	capability-fd.cc \
@@ -33,20 +36,8 @@ SRCS.capsicum-test=	\
 	overhead.cc \
 	rename.cc
 
-.for gtest in ${GTESTS}
-SRCS.${gtest}=			${SRCS.capsicum-test}
-
-LIBADD.${gtest}+=		gtest pthread procstat
-
-# This test script runs the same test suite twice, once as root and once as an
-# unprivileged user.  Serialize them since some tests access global namespaces,
-# e.g., mqueuefs, and can trample on each other.
-TEST_METADATA.${gtest}+=	is_exclusive="true"
-TEST_METADATA.${gtest}+=	required_kmods="mqueuefs"
-.endfor
-
-TEST_METADATA.capsicum-test_privileged+=	required_user="root"
-TEST_METADATA.capsicum-test_unprivileged+=	required_user="unprivileged"
+LIBADD.capsicum-test+=	gtest pthread procstat
+TEST_METADATA.capsicum-test=	required_user="unprivileged"
 
 .for p in mini-me mini-me.noexec mini-me.setuid
 PROGS+=		$p
