@@ -120,6 +120,9 @@ twsi_control_clear(struct twsi_softc *sc, uint32_t mask)
 	val = TWSI_READ(sc, sc->reg_control);
 	debugf(sc, "read val=%x\n", val);
 	val &= ~(TWSI_CONTROL_STOP | TWSI_CONTROL_START);
+	/* Do not clear the interrupt flag by writing it back */
+	if (sc->iflag_w1c)
+		val &= ~TWSI_CONTROL_IFLG;
 	val &= ~mask;
 	debugf(sc, "write val=%x\n", val);
 	TWSI_WRITE(sc, sc->reg_control, val);
@@ -133,6 +136,9 @@ twsi_control_set(struct twsi_softc *sc, uint32_t mask)
 	val = TWSI_READ(sc, sc->reg_control);
 	debugf(sc, "read val=%x\n", val);
 	val &= ~(TWSI_CONTROL_STOP | TWSI_CONTROL_START);
+	/* Do not clear the interrupt flag by writing it back */
+	if (sc->iflag_w1c)
+		val &= ~TWSI_CONTROL_IFLG;
 	val |= mask;
 	debugf(sc, "write val=%x\n", val);
 	TWSI_WRITE(sc, sc->reg_control, val);
