@@ -233,7 +233,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 #define XGBE_STATS_COUNT	ARRAY_SIZE(xgbe_gstring_stats)
 
 char** alloc_sysctl_buffer(void);
-void get_val(char *buf, char **op, char **val, int *n_op);
+int get_val(char *buf, char **op, char **val, int *n_op);
 void fill_data(struct sysctl_op *sys_op, int flag, unsigned int value);
 
 static int
@@ -262,20 +262,25 @@ get_ubuf(struct sysctl_req *req, char *ubuf)
 	return (0);
 }
 
+#define	AXGBE_SYSCTL_NOPS	32
+#define	AXGBE_SYSCTL_OPLEN	32
+
 char**
 alloc_sysctl_buffer(void)
 {
 	char **buffer;
 	int i;
 
-	buffer = malloc(sizeof(char *)*32, M_AXGBE, M_WAITOK | M_ZERO);
-	for(i = 0; i < 32; i++)
-		buffer[i] = malloc(sizeof(char)*32, M_AXGBE, M_WAITOK | M_ZERO);
+	buffer = mallocarray(AXGBE_SYSCTL_NOPS, sizeof(char *), M_AXGBE,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < AXGBE_SYSCTL_NOPS; i++)
+		buffer[i] = mallocarray(AXGBE_SYSCTL_OPLEN, sizeof(char), M_AXGBE,
+		    M_WAITOK | M_ZERO);
 
 	return (buffer);
 }
 
-void
+int
 get_val(char *buf, char **op, char **val, int *n_op)
 {
 	int blen = strlen(buf);
@@ -283,34 +288,41 @@ get_val(char *buf, char **op, char **val, int *n_op)
 	int i, j;
 
 	*n_op = 0;
-	for (i = 0; i < blen; i++) {
+	for (i = 0; i < blen && count < AXGBE_SYSCTL_NOPS; i++) {
 		count++;
 		/* Get sysctl command option */
-		for (j = 0; buf[i] != ' '; j++) {
+		for (j = 0; j < AXGBE_SYSCTL_OPLEN - 1 && buf[i] != ' '; j++) {
 			if (i >= blen)
 				break;
 			op[*n_op][j] = buf[i++];
 		}
-		op[*n_op][j+1] = '\0';
+		if (i < blen && buf[i] != ' ')
+			return (-EINVAL);
+		op[*n_op][j] = '\0';
 		if (i >= strlen(buf))
 			goto out;
 
 		/* Get sysctl value*/
 		i++;
-		for (j = 0; buf[i] != ' '; j++) {
+		for (j = 0; j < AXGBE_SYSCTL_OPLEN - 1 && buf[i] != ' '; j++) {
 			if (i >= blen)
 				break;
 			val[*n_op][j] = buf[i++]; 
 		}
-		val[*n_op][j+1] = '\0';
+		if (i < blen && buf[i] != ' ')
+			return (-EINVAL);
+		val[*n_op][j] = '\0';
 		if (i >= strlen(buf))
 			goto out;
 
 		*n_op = count;
 	}
+	if (i < blen)
+		return (-EINVAL);
 
 out:
 	*n_op = count;
+	return (0);
 }
 
 void
@@ -429,9 +441,9 @@ parse_generic_sysctl(struct xgbe_prv_data *pdata, char *buf,
 
 	op = alloc_sysctl_buffer();
 	val = alloc_sysctl_buffer();
-	get_val(buf, op, val, &n_op);
+	rc = get_val(buf, op, val, &n_op);
 
-	for (i = 0; i < n_op; i++) {
+	for (i = 0; rc == 0 && i < n_op; i++) {
 		for (idx = 0; idx < n_info; idx++) {
 			if (strcmp(info[idx].name, op[i]) == 0) {
 				if (strcmp(info[idx].support,
@@ -453,8 +465,12 @@ parse_generic_sysctl(struct xgbe_prv_data *pdata, char *buf,
 					break;
 				}
 				case SYSL_S32:
-					sscanf(val[i], "%u", &value);
-					fill_data(sys_op, info[idx].flag, value);
+				case SYSL_U32:
+					if (sscanf(val[i], "%u", &value) != 1)
+						rc = exit_bad_op();
+					else
+						fill_data(sys_op,
+						    info[idx].flag, value);
 					break;
 				case SYSL_U8:
 					if (!strcmp(val[i], "half"))
@@ -464,7 +480,8 @@ parse_generic_sysctl(struct xgbe_prv_data *pdata, char *buf,
 						fill_data(sys_op,
 						    info[idx].flag, DUPLEX_FULL);
 					else
-						exit_bad_op();
+						rc = exit_bad_op();
+					break;
 				default:
 					rc = exit_bad_op();
 				}
@@ -687,8 +704,10 @@ sysctl_coalesce_handler(SYSCTL_HANDLER_ARGS)
 
 	rc = get_ubuf(req, buf);
 	if (rc == 0) {
-		parse_generic_sysctl(pdata, buf, sysctl_coalesce,
-		    ARRAY_SIZE(sysctl_coalesce)); 
+		rc = parse_generic_sysctl(pdata, buf, sysctl_coalesce,
+		    ARRAY_SIZE(sysctl_coalesce));
+		if (rc != 0)
+			return (rc);
 
 		rx_riwt = hw_if->usec_to_riwt(pdata, sys_op->rx_coalesce_usecs);
 		rx_usecs = sys_op->rx_coalesce_usecs;
@@ -794,8 +813,10 @@ sysctl_pauseparam_handler(SYSCTL_HANDLER_ARGS)
 
 	rc = get_ubuf(req, buf);
 	if (rc == 0) {
-		parse_generic_sysctl(pdata, buf, sysctl_pauseparam,
+		rc = parse_generic_sysctl(pdata, buf, sysctl_pauseparam,
 		    ARRAY_SIZE(sysctl_pauseparam));
+		if (rc != 0)
+			return (rc);
 
 		if (sys_op->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE)) {
 			axgbe_error("autoneg disabled, pause autoneg not available\n");
@@ -862,6 +883,7 @@ sysctl_link_ksettings_handler(SYSCTL_HANDLER_ARGS)
 
 		switch (sys_op->speed) {
 		case 1:
+		default:
 			strcpy(link_modes, "Unknown");
 			strcpy(speed_modes, "Unknown");
 			break;
@@ -913,8 +935,10 @@ sysctl_link_ksettings_handler(SYSCTL_HANDLER_ARGS)
 
 	rc = get_ubuf(req, buf);
 	if (rc == 0) {
-		parse_generic_sysctl(pdata, buf, sysctl_linksettings,
+		rc = parse_generic_sysctl(pdata, buf, sysctl_linksettings,
 		    ARRAY_SIZE(sysctl_linksettings));
+		if (rc != 0)
+			return (rc);
 
 		speed = sys_op->speed;
 
@@ -1011,8 +1035,10 @@ sysctl_ringparam_handler(SYSCTL_HANDLER_ARGS)
 
 	rc = get_ubuf(req, buf);
 	if (rc == 0) {
-		parse_generic_sysctl(pdata, buf, sysctl_ringparam,
+		rc = parse_generic_sysctl(pdata, buf, sysctl_ringparam,
 		    ARRAY_SIZE(sysctl_ringparam));
+		if (rc != 0)
+			return (rc);
 
 		if (sys_op->rx_mini_pending || sys_op->rx_jumbo_pending) {
 			axgbe_error("unsupported ring parameter\n");
@@ -1131,8 +1157,10 @@ sysctl_channels_handler(SYSCTL_HANDLER_ARGS)
 
 	rc = get_ubuf(req, buf);
 	if (rc == 0) {
-		parse_generic_sysctl(pdata, buf, sysctl_channels,
+		rc = parse_generic_sysctl(pdata, buf, sysctl_channels,
 		    ARRAY_SIZE(sysctl_channels));
+		if (rc != 0)
+			return (rc);
 
 		axgbe_error( "channel inputs: combined=%u, rx-only=%u,"
 		    " tx-only=%u\n", sys_op->combined_count,
