@@ -1517,6 +1517,45 @@ axp8xx_get_thresholds(device_t dev)
 }
 
 static int
+axp8xx_setup_intr(device_t dev)
+{
+	struct axp8xx_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	/* Enable interrupts */
+	axp8xx_write(dev, AXP_IRQEN1,
+	    AXP_IRQEN1_VBUS_LO |
+	    AXP_IRQEN1_VBUS_HI |
+	    AXP_IRQEN1_ACIN_LO |
+	    AXP_IRQEN1_ACIN_HI);
+	axp8xx_write(dev, AXP_IRQEN2,
+	    AXP_IRQEN2_BATCHGD |
+	    AXP_IRQEN2_BATCHGC |
+	    AXP_IRQEN2_BAT_NO |
+	    AXP_IRQEN2_BAT_IN);
+	axp8xx_write(dev, AXP_IRQEN3, 0);
+	axp8xx_write(dev, AXP_IRQEN4,
+	    AXP_IRQEN4_BATLVL_LO0 |
+	    AXP_IRQEN4_BATLVL_LO1);
+	axp8xx_write(dev, AXP_IRQEN5,
+	    AXP_IRQEN5_POKSIRQ |
+	    AXP_IRQEN5_POKLIRQ);
+	axp8xx_write(dev, AXP_IRQEN6, 0);
+
+	/* Install interrupt handler */
+	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE,
+	    NULL, axp8xx_intr, dev, &sc->ih);
+	if (error != 0) {
+		device_printf(dev, "cannot setup interrupt handler\n");
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
 axp8xx_attach(device_t dev)
 {
 	struct axp8xx_softc *sc;
@@ -1603,33 +1642,9 @@ axp8xx_attach(device_t dev)
 	axp8xx_add_sysctls(dev);
 	axp8xx_get_thresholds(dev);
 
-	/* Enable interrupts */
-	axp8xx_write(dev, AXP_IRQEN1,
-	    AXP_IRQEN1_VBUS_LO |
-	    AXP_IRQEN1_VBUS_HI |
-	    AXP_IRQEN1_ACIN_LO |
-	    AXP_IRQEN1_ACIN_HI);
-	axp8xx_write(dev, AXP_IRQEN2,
-	    AXP_IRQEN2_BATCHGD |
-	    AXP_IRQEN2_BATCHGC |
-	    AXP_IRQEN2_BAT_NO |
-	    AXP_IRQEN2_BAT_IN);
-	axp8xx_write(dev, AXP_IRQEN3, 0);
-	axp8xx_write(dev, AXP_IRQEN4,
-	    AXP_IRQEN4_BATLVL_LO0 |
-	    AXP_IRQEN4_BATLVL_LO1);
-	axp8xx_write(dev, AXP_IRQEN5,
-	    AXP_IRQEN5_POKSIRQ |
-	    AXP_IRQEN5_POKLIRQ);
-	axp8xx_write(dev, AXP_IRQEN6, 0);
-
-	/* Install interrupt handler */
-	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, axp8xx_intr, dev, &sc->ih);
-	if (error != 0) {
-		device_printf(dev, "cannot setup interrupt handler\n");
+	error = axp8xx_setup_intr(dev);
+	if (error != 0)
 		return (error);
-	}
 
 	EVENTHANDLER_REGISTER(shutdown_final, axp8xx_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
