@@ -441,6 +441,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_uname
 	SC_ALLOW(__NR_uname),
 #endif
+#ifdef __NR_restart_syscall
+	SC_ALLOW(__NR_restart_syscall),
+#endif
 #ifdef __NR_setsockopt
 	SC_ALLOW_SETSOCKOPT(IPPROTO_IPV6, IPV6_TCLASS),
 	SC_ALLOW_SETSOCKOPT(IPPROTO_IP, IP_TOS),

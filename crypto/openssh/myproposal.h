@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.82 2026/09/02 09:04:11 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.83 2026/10/07 22:29:49 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -93,7 +93,8 @@
 	"sk-ecdsa-sha2-nistp256@openssh.com," \
 	"webauthn-sk-ecdsa-sha2-nistp256@openssh.com," \
 	"rsa-sha2-512," \
-	"rsa-sha2-256" \
+	"rsa-sha2-256," \
+	"ssh-mldsa44-ed25519"
 
 #define	KEX_DEFAULT_COMP	"none,zlib@openssh.com"
 #define	KEX_DEFAULT_LANG	""
