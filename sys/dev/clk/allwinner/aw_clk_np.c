@@ -178,7 +178,7 @@ aw_clk_np_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
-	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
+	if (aw_clk_has_lock_to_wait(sc->flags, sc->gate_shift, val)) {
 		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
 		    sc->lock_retries);
 	}

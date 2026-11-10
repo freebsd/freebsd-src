@@ -122,6 +122,21 @@ aw_clk_wait_for_lock(struct clknode *clk, uint32_t offset, uint32_t lock_shift,
 	    clknode_get_name(clk));
 }
 
+/*
+ * A PLL that is disabled cannot lock, so there is nothing to wait for after
+ * its rate has been changed, the lock is waited for when it is enabled.
+ */
+static inline bool
+aw_clk_has_lock_to_wait(uint32_t flags, uint32_t gate_shift, uint32_t val)
+{
+	if ((flags & AW_CLK_HAS_LOCK) == 0)
+		return (false);
+	if ((flags & AW_CLK_HAS_GATE) == 0)
+		return (true);
+
+	return ((val & (1 << gate_shift)) != 0);
+}
+
 static inline uint32_t
 aw_clk_get_factor(uint32_t val, struct aw_clk_factor *factor)
 {

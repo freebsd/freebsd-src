@@ -238,7 +238,7 @@ aw_clk_nkmp_set_freq_scale(struct clknode *clk, struct aw_clk_nkmp_sc *sc,
 		DELAY(2000);
 	}
 
-	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
+	if (aw_clk_has_lock_to_wait(sc->flags, sc->gate_shift, val)) {
 		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
 		    sc->lock_retries);
 	}
@@ -302,7 +302,7 @@ aw_clk_nkmp_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 			DEVICE_UNLOCK(clk);
 		}
 
-		if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
+		if (aw_clk_has_lock_to_wait(sc->flags, sc->gate_shift, val)) {
 			aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
 			    sc->lock_retries);
 		}
