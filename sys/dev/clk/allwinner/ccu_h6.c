@@ -70,8 +70,12 @@
 #define	CLK_PSI_AHB1_AHB2	24
 #define	CLK_AHB3		25
 #define	CLK_APB2		27
+#define	CLK_MBUS		28
 
 static struct aw_ccung_reset h6_ccu_resets[] = {
+	/* MBUS_CFG_REG */
+	CCU_RESET(RST_MBUS, 0x540, 30)
+
 	/* DMA_BGR_REG */
 	CCU_RESET(RST_BUS_DMA, 0x70c, 16)
 
@@ -169,6 +173,15 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 
 	/* IOMMU_BGR_REG */
 	CCU_GATE(CLK_BUS_IOMMU, "bus-iommu", "apb1", 0x7bc, 0)
+
+	/* MBUS_MAT_CLK_GATING_REG */
+	CCU_GATE(CLK_MBUS_DMA, "mbus-dma", "mbus", 0x804, 0)
+	CCU_GATE(CLK_MBUS_VE, "mbus-ve", "mbus", 0x804, 1)
+	CCU_GATE(CLK_MBUS_CE, "mbus-ce", "mbus", 0x804, 2)
+	CCU_GATE(CLK_MBUS_TS, "mbus-ts", "mbus", 0x804, 3)
+	CCU_GATE(CLK_MBUS_NAND, "mbus-nand", "mbus", 0x804, 5)
+	CCU_GATE(CLK_MBUS_CSI, "mbus-csi", "mbus", 0x804, 8)
+	CCU_GATE(CLK_MBUS_DEINTERLACE, "mbus-deinterlace", "mbus", 0x804, 11)
 
 	/* SMHC_BGR_REG */
 	CCU_GATE(CLK_BUS_MMC0, "bus-mmc0", "ahb3", 0x84c, 0)
@@ -512,6 +525,16 @@ NM_CLK(mmc2_clk,
     AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
     AW_CLK_REPARENT);				/* flags */
 
+static const char *mbus_parents[] = {"osc24M", "pll_periph0_2x", "pll_ddr0",
+    "pll_periph0_4x"};
+M_CLK(mbus_clk,
+    CLK_MBUS, "mbus", mbus_parents,		/* id, name, parents */
+    0x540,					/* offset */
+    0, 3, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -532,6 +555,7 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &ahb3_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb1_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb2_clk},
+	{ .type = AW_CLK_M, .clk.m = &mbus_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
