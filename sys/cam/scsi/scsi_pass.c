@@ -2074,11 +2074,14 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		/*
 		 * If this is not a queued CCB (i.e. it is an immediate CCB),
 		 * then it is already done.  We need to put it on the done
-		 * queue for the user to fetch.
+		 * queue for the user to fetch, and notify any waiters so
+		 * they know there is a completed CCB to collect.
 		 */
 		if ((fc & XPT_FC_QUEUED) == 0) {
 			TAILQ_REMOVE(&softc->active_queue, io_req, links);
 			TAILQ_INSERT_TAIL(&softc->done_queue, io_req, links);
+			selwakeuppri(&softc->read_select, PRIBIO);
+			KNOTE_LOCKED(&softc->read_select.si_note, 0);
 		}
 		break;
 
