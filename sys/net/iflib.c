@@ -197,6 +197,7 @@ static int  iflib_simple_transmit_txq_select(if_t ifp, struct mbuf *m);
 static int  iflib_simple_transmit_txq_select_v2(if_t ifp, struct mbuf *m);
 static void iflib_simple_if_start(if_t ifp);
 static void iflib_simple_txq_drain(iflib_txq_t txq);
+static void iflib_tx_drain_schedule(iflib_txq_t txq);
 
 typedef struct iflib_filter_info {
 	driver_filter_t *ifi_filter;
@@ -458,6 +459,7 @@ struct iflib_txq {
 	qidx_t		ift_pad;
 	uint16_t	ift_id;
 	struct callout	ift_timer;
+	struct callout	ift_drain_timer;
 #ifdef DEV_NETMAP
 	struct callout	ift_netmap_timer;
 #endif /* DEV_NETMAP */
@@ -703,6 +705,10 @@ static u_int iflib_simple_drain_quota_thread = 65536;
 SYSCTL_UINT(_net_iflib, OID_AUTO, simple_drain_quota_thread, CTLFLAG_RWTUN,
     &iflib_simple_drain_quota_thread, 0,
     "maximum packets sent per simple tx deferral ring drain from another thread");
+static u_int iflib_tx_drain_min_us = 1;
+SYSCTL_UINT(_net_iflib, OID_AUTO, tx_drain_min_us, CTLFLAG_RWTUN,
+    &iflib_tx_drain_min_us, 0,
+    "Minimum time to wait to run tx drain callout");
 static u_int iflib_max_producers = 8;
 static bool iflib_single_llc __read_mostly;
 static bool iflib_producer_gate __read_mostly;
@@ -2700,6 +2706,8 @@ iflib_init_locked(if_ctx_t ctx)
 	STATE_LOCK(ctx);
 	iflib_set_running(ctx, false);
 	STATE_UNLOCK(ctx);
+	for (i = 0; i < scctx->isc_ntxqsets; i++)
+		callout_drain(&ctx->ifc_txqs[i].ift_drain_timer);
 	IFDI_INTR_DISABLE(ctx);
 
 	/*
@@ -2871,6 +2879,8 @@ iflib_stop(if_ctx_t ctx)
 	STATE_LOCK(ctx);
 	iflib_set_running(ctx, false);
 	STATE_UNLOCK(ctx);
+	for (i = 0; i < scctx->isc_ntxqsets; i++)
+		callout_drain(&txq[i].ift_drain_timer);
 
 	if (stop_hardware) {
 		ctx->ifc_datapath_state = IFLIB_DP_STOPPING;
@@ -3928,8 +3938,9 @@ defrag:
 				m_freem(*m_headp);
 				DBG_COUNTER_INC(tx_frees);
 				*m_headp = NULL;
-			}
-			if ((txq->ift_task.gt_task.ta_flags & TASK_ENQUEUED) == 0)
+				iflib_tx_drain_schedule(txq);
+			} else if ((txq->ift_task.gt_task.ta_flags &
+			    TASK_ENQUEUED) == 0)
 				GROUPTASK_ENQUEUE(&txq->ift_task);
 			return (ENOBUFS);
 		}
@@ -5977,6 +5988,7 @@ iflib_tqg_detach(if_ctx_t ctx)
 	tqg = qgroup_if_io_tqg;
 	for (txq = ctx->ifc_txqs, i = 0; i < NTXQSETS(ctx); i++, txq++) {
 		callout_drain(&txq->ift_timer);
+		callout_drain(&txq->ift_drain_timer);
 #ifdef DEV_NETMAP
 		callout_drain(&txq->ift_netmap_timer);
 #endif /* DEV_NETMAP */
@@ -6554,6 +6566,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 		    device_get_nameunit(dev), txq->ift_id);
 		mtx_init(&txq->ift_mtx, txq->ift_mtx_name, NULL, MTX_DEF);
 		callout_init_mtx(&txq->ift_timer, &txq->ift_mtx, 0);
+		callout_init(&txq->ift_drain_timer, 1);
 		txq->ift_timer.c_cpu = cpu;
 #ifdef DEV_NETMAP
 		callout_init_mtx(&txq->ift_netmap_timer, &txq->ift_mtx, 0);
@@ -8077,6 +8090,44 @@ iflib_txq_producer_exit(iflib_txq_t txq, bool pinned)
 	sched_unpin();
 }
 
+static void
+iflib_tx_drain_timer(void *arg)
+{
+	iflib_txq_t txq = arg;
+
+	if (iflib_is_running(txq->ift_ctx))
+		iflib_simple_txq_drain(txq);
+}
+
+static void
+iflib_tx_drain_schedule(iflib_txq_t txq)
+{
+	uint64_t baudrate, usec;
+	if_t ifp;
+
+	mtx_assert(&txq->ift_mtx, MA_OWNED);
+	if (!iflib_is_running(txq->ift_ctx) ||
+	    callout_pending(&txq->ift_drain_timer))
+		return;
+
+	/*
+	 * Leave time for half a full ring to drain: one MTU per
+	 * descriptor.  Assume worst case of 1 ring handling all
+	 * traffic.  Cap at 1/2 of the iflib timer period.
+	 */
+	ifp = txq->ift_ctx->ifc_ifp;
+	baudrate = if_getbaudrate(ifp);
+	baudrate = MAX(UINT64_C(1), baudrate);
+	usec = (uint64_t)txq->ift_size * if_getmtu(ifp) *
+	    8 * sbttous(SBT_1S) / baudrate / 2;
+	usec = MIN(usec, TICKS_2_USEC(iflib_timer_default / 2));
+	usec = MAX(usec, 1);
+	callout_reset_sbt_on(&txq->ift_drain_timer,
+	    ustosbt(MAX(usec, iflib_tx_drain_min_us)), 0,
+	    iflib_tx_drain_timer, txq,
+	    txq->ift_task.gt_cpu, C_PREL(2));
+}
+
 /* Consumes the mbuf in all cases */
 static int
 iflib_simple_encap(iflib_txq_t txq, struct mbuf *m, int *bytes, int *pkts,
@@ -8135,9 +8186,7 @@ iflib_simple_drbr_drain(iflib_txq_t txq, u_int quota, int *bytes, int *pkts,
 	}
 	if (!drbr_empty(ifp, txq->ift_drbr)) {
 		txq->ift_drbr_stall++;
-		if (quota != iflib_simple_drain_quota &&
-		    (txq->ift_task.gt_task.ta_flags & TASK_ENQUEUED) == 0)
-			GROUPTASK_ENQUEUE(&txq->ift_task);
+		iflib_tx_drain_schedule(txq);
 	}
 }
 
@@ -8386,7 +8435,6 @@ iflib_simple_if_start(if_t ifp)
 {
 	if_ctx_t ctx;
 	iflib_txq_t txq;
-	bool retry;
 	int bytes_sent = 0, pkt_sent = 0, mcast_sent = 0;
 
 	ctx = if_getsoftc(ifp);
@@ -8398,11 +8446,7 @@ iflib_simple_if_start(if_t ifp)
 	    &mcast_sent);
 	if (txq->ift_db_pending != 0)
 		(void)iflib_txd_db_check(txq, true);
-	retry = !drbr_empty(ifp, txq->ift_drbr);
 	mtx_unlock(&txq->ift_mtx);
-
-	if (retry)
-		GROUPTASK_ENQUEUE(&txq->ift_task);
 
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, bytes_sent);
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, pkt_sent);
