@@ -155,6 +155,9 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	/* HSTIMER_BGR_REG */
 	CCU_GATE(CLK_BUS_HSTIMER, "bus-hstimer", "psi_ahb1_ahb2", 0x73c, 0)
 
+	/* AVS_CLK_REG */
+	CCU_GATE(CLK_AVS, "avs", "osc24M", 0x740, 31)
+
 	/* DBGSYS_BGR_REG */
 	CCU_GATE(CLK_BUS_DBG, "bus-dbg", "psi_ahb1_ahb2", 0x78c, 0)
 
