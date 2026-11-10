@@ -1656,6 +1656,14 @@ axp8xx_attach(device_t dev)
 			child = ofw_bus_find_child(rnode, regdef->name);
 			if (child == 0)
 				continue;
+			/* An unused regulator has no name in the FDT */
+			if (!OF_hasprop(child, "regulator-name")) {
+				if (bootverbose)
+					device_printf(dev,
+					    "no regulator-name for %s, "
+					    "skipping it\n", regdef->name);
+				continue;
+			}
 			reg = axp8xx_reg_attach(dev, child,
 			    regdef);
 			if (reg == NULL) {
