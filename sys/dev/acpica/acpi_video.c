@@ -64,6 +64,7 @@ struct acpi_video_output {
 	int		vo_economy;
 	int		vo_numlevels;
 	int		*vo_levels;
+	int		vo_lid_level;	/* Level saved across a lid close. */
 	struct sysctl_ctx_list vo_sysctl_ctx;
 	struct sysctl_oid *vo_sysctl_tree;
 #ifdef EVDEV_SUPPORT
@@ -78,9 +79,15 @@ struct acpi_video_softc {
 	ACPI_HANDLE		handle;
 	struct acpi_video_output_queue vid_outputs;
 	eventhandler_tag	vid_pwr_evh;
+	eventhandler_tag	vid_lid_evh;
 #ifdef EVDEV_SUPPORT
 	struct evdev_dev	*evdev;
 #endif
+};
+
+struct acpi_video_lid_ctx {
+	struct acpi_video_softc	*sc;
+	int			lid_open;
 };
 
 /* interfaces */
@@ -98,6 +105,7 @@ static struct acpi_video_output *acpi_video_vo_init(UINT32);
 static void	acpi_video_vo_bind(struct acpi_video_output *, ACPI_HANDLE);
 static void	acpi_video_vo_destroy(struct acpi_video_output *);
 static int	acpi_video_vo_check_level(struct acpi_video_output *, int);
+static void	acpi_video_lid_event(void *, int);
 static void	acpi_video_vo_notify_handler(ACPI_HANDLE, UINT32, void *);
 static int	acpi_video_vo_active_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_video_vo_bright_sysctl(SYSCTL_HANDLER_ARGS);
@@ -155,6 +163,7 @@ static void	vo_set_device_state(ACPI_HANDLE, UINT32);
 /* _BCL related constants */
 #define	BCL_FULLPOWER		0
 #define	BCL_ECONOMY		1
+#define	BCL_FIRST_LEVEL		2
 
 /* _DCS (Device Currrent Status) value bits and masks. */
 #define	DCS_EXISTS		(1 << 0)
@@ -195,6 +204,7 @@ static struct sysctl_ctx_list	acpi_video_sysctl_ctx;
 static struct sysctl_oid	*acpi_video_sysctl_tree;
 static struct acpi_video_output_queue crt_units, tv_units,
     ext_units, lcd_units, other_units;
+static int			acpi_video_lid_blank;
 
 /*
  * The 'video' lock protects the hierarchy of video output devices
@@ -331,6 +341,10 @@ acpi_video_attach(device_t dev)
 		    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO,
 		    "video", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 		    "video extension control");
+		SYSCTL_ADD_INT(&acpi_video_sysctl_ctx,
+		    SYSCTL_CHILDREN(acpi_video_sysctl_tree), OID_AUTO,
+		    "lid_blank", CTLFLAG_RWTUN, &acpi_video_lid_blank, 0,
+		    "dim the internal panel while the lid is closed");
 	}
 	ACPI_SERIAL_END(video);
 
@@ -342,6 +356,9 @@ acpi_video_attach(device_t dev)
 				 acpi_video_notify_handler, sc);
 	sc->vid_pwr_evh = EVENTHANDLER_REGISTER(power_profile_change,
 				 acpi_video_power_profile, sc, 0);
+	sc->vid_lid_evh = EVENTHANDLER_REGISTER(acpi_lid_event,
+				 acpi_video_lid_event, sc,
+				 EVENTHANDLER_PRI_ANY);
 
 	ACPI_SERIAL_BEGIN(video);
 	acpi_video_bind_outputs(sc);
@@ -368,9 +385,11 @@ acpi_video_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	vid_set_switch_policy(sc->handle, DOS_SWITCH_BY_BIOS);
+	EVENTHANDLER_DEREGISTER(acpi_lid_event, sc->vid_lid_evh);
 	EVENTHANDLER_DEREGISTER(power_profile_change, sc->vid_pwr_evh);
 	AcpiRemoveNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
 				acpi_video_notify_handler);
+	AcpiOsWaitEventsComplete();
 
 	ACPI_SERIAL_BEGIN(video);
 	STAILQ_FOREACH_SAFE(vo, &sc->vid_outputs, vo_next, vn) {
@@ -522,6 +541,84 @@ acpi_video_power_profile(void *context)
 	ACPI_SERIAL_END(video);
 }
 
+static int
+acpi_video_vo_min_level(struct acpi_video_output *vo)
+{
+	int min;
+
+	ACPI_SERIAL_ASSERT(video_output);
+	if (vo->vo_levels == NULL || vo->vo_numlevels <= BCL_FIRST_LEVEL)
+		return (-1);
+	min = 0;
+	for (int i = BCL_FIRST_LEVEL; i < vo->vo_numlevels; i++)
+		if (vo->vo_levels[i] > 0 &&
+		    (min == 0 || vo->vo_levels[i] < min))
+			min = vo->vo_levels[i];
+
+	return (min > 0 ? min : -1);
+}
+
+static void
+acpi_video_lid_task(void *context)
+{
+	struct acpi_video_lid_ctx *ctx;
+	struct acpi_video_softc *sc;
+	struct acpi_video_output *vo;
+	int level;
+
+	ctx = context;
+	sc = ctx->sc;
+
+	ACPI_SERIAL_BEGIN(video);
+	ACPI_SERIAL_BEGIN(video_output);
+	STAILQ_FOREACH(vo, &sc->vid_outputs, vo_next) {
+		if ((vo->adr & DOD_DEVID_MASK_FULL) != DOD_DEVID_LCD &&
+		    (vo->adr & DOD_DEVID_MASK) != DOD_DEVID_INTDFP)
+			continue;
+
+		if (ctx->lid_open) {
+			if (vo->vo_lid_level == -1)
+				continue;
+			vo_set_brightness(vo, vo->vo_lid_level);
+			vo->vo_lid_level = -1;
+			continue;
+		}
+
+		if (vo->vo_lid_level != -1)
+			continue;
+		level = acpi_video_vo_min_level(vo);
+		if (level == -1)
+			continue;
+		vo->vo_lid_level = vo_get_brightness(vo);
+		if (vo->vo_lid_level == -1)
+			continue;
+		vo_set_brightness(vo, level);
+	}
+	ACPI_SERIAL_END(video_output);
+	ACPI_SERIAL_END(video);
+
+	free(ctx, M_ACPIVIDEO);
+}
+
+static void
+acpi_video_lid_event(void *arg, int lid_open)
+{
+	struct acpi_video_lid_ctx *ctx;
+
+	if (!acpi_video_lid_blank)
+		return;
+
+	ctx = malloc(sizeof(*ctx), M_ACPIVIDEO, M_NOWAIT);
+	if (ctx == NULL)
+		return;
+	ctx->sc = arg;
+	ctx->lid_open = lid_open;
+
+	if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	    acpi_video_lid_task, ctx)))
+		free(ctx, M_ACPIVIDEO);
+}
+
 static void
 acpi_video_bind_outputs_subr(ACPI_HANDLE handle, UINT32 adr, void *context)
 {
@@ -623,6 +720,7 @@ acpi_video_vo_init(UINT32 adr)
 		vo->vo_economy = -1;
 		vo->vo_numlevels = 0;
 		vo->vo_levels = NULL;
+		vo->vo_lid_level = -1;
 		snprintf(env, sizeof(env), "hw.acpi.video.%s.fullpower", name);
 		if (getenv_int(env, &x))
 			vo->vo_fullpower = x;
