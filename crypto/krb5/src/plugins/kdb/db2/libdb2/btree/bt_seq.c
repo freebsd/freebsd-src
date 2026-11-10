@@ -218,6 +218,10 @@ __bt_seqset(BTREE *t, EPG *ep, DBT *key, int flags)
 			pg = GETBINTERNAL(h, 0)->pgno;
 			BT_PUSH(t, h->pgno, 0);
 			mpool_put(t->bt_mp, h, 0);
+			if (BT_STACKFULL(t)) {
+				errno = E2BIG;
+				return (RET_ERROR);
+			}
 		}
 		ep->page = h;
 		ep->index = 0;
@@ -242,6 +246,10 @@ __bt_seqset(BTREE *t, EPG *ep, DBT *key, int flags)
 			pg = GETBINTERNAL(h, NEXTINDEX(h) - 1)->pgno;
 			BT_PUSH(t, h->pgno, NEXTINDEX(h) - 1);
 			mpool_put(t->bt_mp, h, 0);
+			if (BT_STACKFULL(t)) {
+				errno = E2BIG;
+				return (RET_ERROR);
+			}
 		}
 
 		ep->page = h;

@@ -803,6 +803,7 @@ __pgin_routine(void *pg_cookie, db_pgno_t pgno, void *page)
 	HTAB *hashp;
 	PAGE16 *pagep;
 	int32_t max, i;
+	u_int16_t num_ent; /* byte-swapped NUM_ENT, used to validate before swap */
 
 	pagep = (PAGE16 *)page;
 	hashp = (HTAB *)pg_cookie;
@@ -822,6 +823,18 @@ __pgin_routine(void *pg_cookie, db_pgno_t pgno, void *page)
 		/* XXX check for !0 LSN */
 		page_init(hashp, pagep, pgno, HASH_PAGE);
 		return;
+	}
+
+	if (!is_bitmap_pgno(hashp, pgno)) {
+		if (hashp->hdr.lorder == DB_BYTE_ORDER)
+			num_ent = NUM_ENT(pagep);
+		else
+			P_16_COPY(NUM_ENT(pagep), num_ent);
+		if (num_ent >
+		    (hashp->hdr.bsize - PAGE_OVERHEAD) / PAIR_OVERHEAD) {
+			page_init(hashp, pagep, pgno, HASH_PAGE);
+			return;
+		}
 	}
 
 	if (hashp->hdr.lorder == DB_BYTE_ORDER)

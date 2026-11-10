@@ -75,14 +75,15 @@ gssrpc__svcauth_unix(
 	aup->aup_machname = area->area_machname;
 	aup->aup_gids = area->area_gids;
 	auth_len = msg->rm_call.cb_cred.oa_length;
-	if (auth_len > INT_MAX)
+	if (auth_len < 5 * BYTES_PER_XDR_UNIT || auth_len > INT_MAX)
 		return AUTH_BADCRED;
 	xdrmem_create(&xdrs, msg->rm_call.cb_cred.oa_base, auth_len,XDR_DECODE);
 	buf = XDR_INLINE(&xdrs, (int)auth_len);
 	if (buf != NULL) {
 		aup->aup_time = IXDR_GET_LONG(buf);
 		str_len = IXDR_GET_U_LONG(buf);
-		if (str_len > MAX_MACHINE_NAME) {
+		if (str_len > MAX_MACHINE_NAME ||
+		    RNDUP(str_len) > auth_len - 5 * BYTES_PER_XDR_UNIT) {
 			stat = AUTH_BADCRED;
 			goto done;
 		}
@@ -93,23 +94,14 @@ gssrpc__svcauth_unix(
 		aup->aup_uid = IXDR_GET_LONG(buf);
 		aup->aup_gid = IXDR_GET_LONG(buf);
 		gid_len = IXDR_GET_U_LONG(buf);
-		if (gid_len > NGRPS) {
+		if (gid_len > NGRPS ||
+		    gid_len > (auth_len - str_len) / BYTES_PER_XDR_UNIT - 5) {
 			stat = AUTH_BADCRED;
 			goto done;
 		}
 		aup->aup_len = gid_len;
 		for (i = 0; i < gid_len; i++) {
 			aup->aup_gids[i] = IXDR_GET_LONG(buf);
-		}
-		/*
-		 * five is the smallest unix credentials structure -
-		 * timestamp, hostname len (0), uid, gid, and gids len (0).
-		 */
-		if ((5 + gid_len) * BYTES_PER_XDR_UNIT + str_len > auth_len) {
-			(void) printf("bad auth_len gid %u str %u auth %u\n",
-			    gid_len, str_len, auth_len);
-			stat = AUTH_BADCRED;
-			goto done;
 		}
 	} else if (! xdr_authunix_parms(&xdrs, aup)) {
 		xdrs.x_op = XDR_FREE;

@@ -92,7 +92,7 @@ k5_internalize_principal(krb5_principal *argp,
     krb5_principal      principal = NULL;
     krb5_int32          ibuf;
     krb5_octet          *bp;
-    size_t              remain;
+    size_t              remain, len;
     char                *tmpname = NULL;
 
     *argp = NULL;
@@ -104,15 +104,14 @@ k5_internalize_principal(krb5_principal *argp,
         return EINVAL;
 
     /* Read the principal name */
-    kret = krb5_ser_unpack_int32(&ibuf, &bp, &remain);
+    kret = k5_ser_unpack_len(&len, &bp, &remain);
     if (kret)
         return kret;
-    tmpname = malloc(ibuf + 1);
-    kret = krb5_ser_unpack_bytes((krb5_octet *) tmpname, (size_t) ibuf,
-                                 &bp, &remain);
+    tmpname = malloc(len + 1);
+    kret = krb5_ser_unpack_bytes((krb5_octet *) tmpname, len, &bp, &remain);
     if (kret)
         goto cleanup;
-    tmpname[ibuf] = '\0';
+    tmpname[len] = '\0';
 
     /* Parse the name to a principal structure */
     kret = krb5_parse_name_flags(NULL, tmpname,

@@ -33,6 +33,7 @@
  */
 
 #include "k5-int.h"
+#include "authdata.h"
 
 #define U(x) (uint8_t *)x
 
@@ -816,6 +817,87 @@ test_pac_ticket_signature(krb5_context context)
     krb5_free_ticket(context, ticket);
 }
 
+/* Check that krb5_pac_verify() marks a PAC as verified only if every
+ * requested check passes. */
+static void
+test_pac_verify_marks_verified(krb5_context context, krb5_const_principal p)
+{
+    krb5_error_code ret;
+    krb5_pac pac;
+    krb5_data data;
+    krb5_principal wrong;
+    uint32_t i;
+
+    ret = krb5_parse_name(context, "wrong@WIN2K3.THINKER.LOCAL", &wrong);
+    if (ret)
+        err(context, ret, "krb5_parse_name");
+
+    ret = krb5_pac_init(context, &pac);
+    if (ret)
+        err(context, ret, "krb5_pac_init");
+    ret = krb5_pac_sign(context, pac, authtime, p, &member_keyblock,
+                        &kdc_keyblock, &data);
+    if (ret)
+        err(context, ret, "krb5_pac_sign");
+    krb5_pac_free(context, pac);
+
+    ret = krb5_pac_parse(context, data.data, data.length, &pac);
+    if (ret)
+        err(context, ret, "krb5_pac_parse");
+    ret = krb5_pac_verify(context, pac, authtime, p, &member_keyblock,
+                          &kdc_keyblock);
+    if (ret)
+        err(context, ret, "krb5_pac_verify");
+    if (!pac->verified)
+        err(context, 0, "PAC not marked verified");
+    krb5_pac_free(context, pac);
+
+    /* A wrong server key must fail even if the privsvr checksum is good. */
+    ret = krb5_pac_parse(context, data.data, data.length, &pac);
+    if (ret)
+        err(context, ret, "krb5_pac_parse");
+    ret = krb5_pac_verify(context, pac, authtime, p, &kdc_keyblock,
+                          &kdc_keyblock);
+    if (ret != KRB5KRB_AP_ERR_MODIFIED)
+        err(context, ret, "krb5_pac_verify with wrong server key");
+    if (pac->verified)
+        err(context, 0, "PAC marked verified with wrong server key");
+    krb5_pac_free(context, pac);
+
+    /* A client principal mismatch must not mark the PAC as verified. */
+    ret = krb5_pac_parse(context, data.data, data.length, &pac);
+    if (ret)
+        err(context, ret, "krb5_pac_parse");
+    ret = krb5_pac_verify(context, pac, authtime, wrong, &member_keyblock,
+                          NULL);
+    if (ret != KRB5KRB_AP_WRONG_PRINC)
+        err(context, ret, "krb5_pac_verify with wrong principal");
+    if (pac->verified)
+        err(context, 0, "PAC marked verified with wrong principal");
+    krb5_pac_free(context, pac);
+
+    /* Corrupt the server checksum and verify with only the server key. */
+    ret = krb5_pac_parse(context, data.data, data.length, &pac);
+    if (ret)
+        err(context, ret, "krb5_pac_parse");
+    for (i = 0; i < pac->nbuffers; i++) {
+        if (pac->buffers[i].type == KRB5_PAC_SERVER_CHECKSUM)
+            break;
+    }
+    if (i == pac->nbuffers)
+        err(context, 0, "no server checksum buffer");
+    pac->data.data[pac->buffers[i].offset + PAC_SIGNATURE_DATA_LENGTH] ^= 1;
+    ret = krb5_pac_verify(context, pac, authtime, p, &member_keyblock, NULL);
+    if (ret != KRB5KRB_AP_ERR_MODIFIED)
+        err(context, ret, "krb5_pac_verify with bad server checksum");
+    if (pac->verified)
+        err(context, 0, "PAC marked verified with bad server checksum");
+    krb5_pac_free(context, pac);
+
+    krb5_free_data_contents(context, &data);
+    krb5_free_principal(context, wrong);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1143,6 +1225,8 @@ main(int argc, char **argv)
     }
 
     krb5_pac_free(context, pac);
+
+    test_pac_verify_marks_verified(context, p);
 
     krb5_free_principal(context, p);
     krb5_free_context(context);

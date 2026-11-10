@@ -215,7 +215,7 @@ klmdb_decode_princ(krb5_context context, const void *key, size_t key_len,
         kd = &entry->key_data[i];
         kd->key_data_ver = k5_input_get_uint16_le(&in);
         kd->key_data_kvno = k5_input_get_uint16_le(&in);
-        if (kd->key_data_ver < 0 &&
+        if (kd->key_data_ver < 0 ||
             kd->key_data_ver > KRB5_KDB_V1_KEY_DATA_ARRAY) {
             ret = KRB5_KDB_BAD_VERSION;
             goto cleanup;

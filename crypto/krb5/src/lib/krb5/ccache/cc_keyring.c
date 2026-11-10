@@ -1053,14 +1053,15 @@ krcc_next_cred(krb5_context context, krb5_ccache id, krb5_cc_cursor *cursor,
             ret = k5_unmarshal_cred(payload, psize, 4, creds);
             free(payload);
             return ret;
-        } else if (errno != ENOKEY && errno != EACCES) {
+        } else if (errno != ENOKEY && errno != EACCES &&
+                   errno != EKEYEXPIRED) {
             DEBUG_PRINT(("Error reading key %d: %s\n",
                          krcursor->keys[krcursor->currkey], strerror(errno)));
             return KRB5_FCC_NOFILE;
         }
 
-        /* The current key was unlinked, probably by a remove_cred call; move
-         * on to the next one. */
+        /* The current key was unlinked, probably by a remove_cred call, or has
+         * expired; move on to the next one. */
         krcursor->currkey++;
     }
 

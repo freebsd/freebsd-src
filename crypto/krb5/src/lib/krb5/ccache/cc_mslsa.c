@@ -207,15 +207,17 @@ UnicodeStringToMITPrinc(UNICODE_STRING *service, UNICODE_STRING *realm,
     char aname[512];
 
     /* Convert the realm to a wchar string. */
-    realmbuf[0] = '\0';
-    wcsncpy(realmbuf, realm->Buffer, realm->Length / sizeof(WCHAR));
-    realmbuf[realm->Length / sizeof(WCHAR)] = 0;
+    if (wcsncpy_s(realmbuf, sizeof(realmbuf) / sizeof(WCHAR),
+                  realm->Buffer, realm->Length / sizeof(WCHAR)) != 0)
+        return FALSE;
     /* Convert the principal components to a wchar string. */
-    princbuf[0]=0;
-    wcsncpy(princbuf, service->Buffer, service->Length/sizeof(WCHAR));
-    princbuf[service->Length/sizeof(WCHAR)]=0;
-    wcscat(princbuf, L"@");
-    wcscat(princbuf, realmbuf);
+    if (wcsncpy_s(princbuf, sizeof(princbuf) / sizeof(WCHAR),
+                  service->Buffer, service->Length / sizeof(WCHAR)) != 0)
+        return FALSE;
+    if (wcscat_s(princbuf, sizeof(princbuf) / sizeof(WCHAR), L"@") != 0)
+        return FALSE;
+    if (wcscat_s(princbuf, sizeof(princbuf) / sizeof(WCHAR), realmbuf) != 0)
+        return FALSE;
     if (UnicodeToANSI(princbuf, aname, sizeof(aname))) {
         if (krb5_parse_name(context, aname, principal) == 0)
             return TRUE;
@@ -233,15 +235,22 @@ KerbExternalNameToMITPrinc(KERB_EXTERNAL_NAME *msprinc, WCHAR *realm, krb5_conte
     USHORT i;
     princbuf[0]=0;
     for (i=0;i<msprinc->NameCount;i++) {
-        wcsncpy(tmpbuf, msprinc->Names[i].Buffer,
-                msprinc->Names[i].Length/sizeof(WCHAR));
-        tmpbuf[msprinc->Names[i].Length/sizeof(WCHAR)]=0;
-        if (princbuf[0])
-            wcscat(princbuf, L"/");
-        wcscat(princbuf, tmpbuf);
+        if (wcsncpy_s(tmpbuf, sizeof(tmpbuf) / sizeof(WCHAR),
+                      msprinc->Names[i].Buffer,
+                      msprinc->Names[i].Length / sizeof(WCHAR)) != 0)
+            return FALSE;
+        if (princbuf[0] != '\0') {
+            if (wcscat_s(princbuf, sizeof(princbuf) / sizeof(WCHAR),
+                         L"/") != 0)
+                return FALSE;
+        }
+        if (wcscat_s(princbuf, sizeof(princbuf) / sizeof(WCHAR), tmpbuf) != 0)
+            return FALSE;
     }
-    wcscat(princbuf, L"@");
-    wcscat(princbuf, realm);
+    if (wcscat_s(princbuf, sizeof(princbuf) / sizeof(WCHAR), L"@") != 0)
+        return FALSE;
+    if (wcscat_s(princbuf, sizeof(princbuf) / sizeof(WCHAR), realm) != 0)
+        return FALSE;
     if (UnicodeToANSI(princbuf, aname, sizeof(aname))) {
         if (krb5_parse_name(context, aname, principal) == 0)
             return TRUE;
@@ -323,15 +332,17 @@ MSCredToMITCred(KERB_EXTERNAL_TICKET *msticket, UNICODE_STRING ClientRealm,
     creds->magic=KV5M_CREDS;
 
     // construct Client Principal
-    wcsncpy(wrealm, ClientRealm.Buffer, ClientRealm.Length/sizeof(WCHAR));
-    wrealm[ClientRealm.Length/sizeof(WCHAR)]=0;
+    if (wcsncpy_s(wrealm, sizeof(wrealm) / sizeof(WCHAR),
+                  ClientRealm.Buffer, ClientRealm.Length / sizeof(WCHAR)) != 0)
+        return FALSE;
     if (!KerbExternalNameToMITPrinc(msticket->ClientName, wrealm, context, &creds->client))
         return FALSE;
 
     // construct Service Principal
-    wcsncpy(wrealm, msticket->DomainName.Buffer,
-            msticket->DomainName.Length/sizeof(WCHAR));
-    wrealm[msticket->DomainName.Length/sizeof(WCHAR)]=0;
+    if (wcsncpy_s(wrealm, sizeof(wrealm) / sizeof(WCHAR),
+                  msticket->DomainName.Buffer,
+                  msticket->DomainName.Length / sizeof(WCHAR)) != 0)
+        return FALSE;
     if (!KerbExternalNameToMITPrinc(msticket->ServiceName, wrealm, context, &creds->server))
         return FALSE;
     MSSessionKeyToMITKeyblock(&msticket->SessionKey, context,

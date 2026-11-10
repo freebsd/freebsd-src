@@ -149,7 +149,7 @@ __kdb2_hash_open(const char *file, int flags, int mode, const HASHINFO *info,
 		    sizeof(HASHHDR))
 			RETURN_ERROR(EFTYPE, error1);
 
-		/* Verify file type, versions and hash function */
+		/* Verify file type, versions, hash function, block size */
 		if (hashp->hdr.magic != HASHMAGIC)
 			RETURN_ERROR(EFTYPE, error1);
 #define	OLDHASHVERSION	1
@@ -159,11 +159,17 @@ __kdb2_hash_open(const char *file, int flags, int mode, const HASHINFO *info,
 		if (hashp->hash(CHARKEY, sizeof(CHARKEY))
 		    != hashp->hdr.h_charkey)
 			RETURN_ERROR(EFTYPE, error1);
+		if (hashp->hdr.bsize == 0)
+			RETURN_ERROR(EFTYPE, error1);
 		/*
 		 * Figure out how many segments we need.  Max_Bucket is the
 		 * maximum bucket number, so the number of buckets is
 		 * max_bucket + 1.
 		 */
+
+		if (hashp->hdr.ovfl_point < 0 ||
+		    hashp->hdr.ovfl_point >= NCACHED)
+			RETURN_ERROR(EFTYPE, error1);
 
 		/* Read in bitmaps */
 		bpages = (hashp->hdr.spares[hashp->hdr.ovfl_point] +

@@ -144,7 +144,7 @@ cammac_check_kdcver(krb5_context context, krb5_cammac *cammac,
 
     memset(&tgtkey, 0, sizeof(tgtkey));
 
-    if (ver == NULL)
+    if (ver == NULL || !krb5_c_is_keyed_cksum(ver->checksum.checksum_type))
         goto cleanup;
 
     /* Fetch the krbtgt key indicated by the KDC verifier.  Only allow the

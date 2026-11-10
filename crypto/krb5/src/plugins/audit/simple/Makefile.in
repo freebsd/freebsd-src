@@ -8,7 +8,7 @@ RELDIR=../plugins/audit/simple
 
 #Depends on libkrb5 and libkrb5support.
 SHLIB_EXPDEPS= $(KRB5_BASE_DEPLIBS)
-SHLIB_EXPLIBS= $(KRB5_BASE_LIBS)
+SHLIB_EXPLIBS= $(KRB5_BASE_LIBS) $(AUDIT_IMPL_LIBS)
 
 STOBJLISTS= OBJS.ST ../OBJS.ST
 STLIBOBJS= au_simple_main.o
