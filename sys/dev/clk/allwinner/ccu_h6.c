@@ -90,6 +90,16 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	/* PSI_BGR_REG */
 	CCU_RESET(RST_BUS_PSI, 0x79c, 16)
 
+	/* PWM_BGR_REG */
+	CCU_RESET(RST_BUS_PWM, 0x7ac, 16)
+
+	/*
+	 * IOMMU_BGR_REG, the manual has no reset in this register but the
+	 * binding has RST_BUS_IOMMU and Linux uses the bit 16 for it.  This
+	 * bit cannot be written.
+	 */
+	CCU_RESET(RST_BUS_IOMMU, 0x7bc, 16)
+
 	/* SMHC_BGR_REG */
 	CCU_RESET(RST_BUS_MMC0, 0x84c, 16)
 	CCU_RESET(RST_BUS_MMC1, 0x84c, 17)
@@ -109,6 +119,9 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 
 	/* EMAC_BGR_REG */
 	CCU_RESET(RST_BUS_EMAC, 0x97c, 16)
+
+	/* THS_BGR_REG */
+	CCU_RESET(RST_BUS_THS, 0x9fc, 16)
 
 	/* USB0_CLK_REG */
 	CCU_RESET(RST_USB_PHY0, 0xa70, 30)
@@ -148,6 +161,12 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	/* PSI_BGR_REG */
 	CCU_GATE(CLK_BUS_PSI, "bus-psi", "psi_ahb1_ahb2", 0x79c, 0)
 
+	/* PWM_BGR_REG */
+	CCU_GATE(CLK_BUS_PWM, "bus-pwm", "apb1", 0x7ac, 0)
+
+	/* IOMMU_BGR_REG */
+	CCU_GATE(CLK_BUS_IOMMU, "bus-iommu", "apb1", 0x7bc, 0)
+
 	/* SMHC_BGR_REG */
 	CCU_GATE(CLK_BUS_MMC0, "bus-mmc0", "ahb3", 0x84c, 0)
 	CCU_GATE(CLK_BUS_MMC1, "bus-mmc1", "ahb3", 0x84c, 1)
@@ -167,6 +186,9 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 
 	/* EMAC_BGR_REG */
 	CCU_GATE(CLK_BUS_EMAC, "bus-emac", "ahb3", 0x97c, 0)
+
+	/* THS_BGR_REG */
+	CCU_GATE(CLK_BUS_THS, "bus-ths", "apb1", 0x9fc, 0)
 
 	/* USB0_CLK_REG */
 	CCU_GATE(CLK_USB_PHY0, "usb-phy0", "ahb3", 0xa70, 29)
