@@ -205,6 +205,9 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 	/* TCON_TV_BGR_REG */
 	CCU_RESET(RST_BUS_TCON_TV0, 0xb9c, 16)
 
+	/* CSI_BGR_REG */
+	CCU_RESET(RST_BUS_CSI, 0xc2c, 16)
+
 	/* HDMI_HDCP_BGR_REG */
 	CCU_RESET(RST_BUS_HDCP, 0xc4c, 16)
 };
@@ -352,6 +355,12 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 
 	/* TCON_TV_BGR_REG */
 	CCU_GATE(CLK_BUS_TCON_TV0, "bus-tcon-tv0", "ahb3", 0xb9c, 0)
+
+	/* CSI_MISC_CLK_REG */
+	CCU_GATE(CLK_CSI_CCI, "csi-cci", "osc24M", 0xc00, 0)
+
+	/* CSI_BGR_REG */
+	CCU_GATE(CLK_BUS_CSI, "bus-csi", "ahb3", 0xc2c, 0)
 
 	/* HDMI_HDCP_BGR_REG */
 	CCU_GATE(CLK_BUS_HDCP, "bus-hdcp", "ahb3", 0xc4c, 0)
@@ -872,6 +881,26 @@ M_CLK(pcie_aux_clk,
     31,						/* gate */
     AW_CLK_HAS_GATE);				/* flags */
 
+static const char *csi_top_parents[] = {"pll_video0", NULL, "pll_ve",
+    "pll_periph0"};
+M_CLK(csi_top_clk,
+    CLK_CSI_TOP, "csi-top", csi_top_parents,	/* id, name, parents */
+    0xc04,					/* offset */
+    0, 4, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+static const char *csi_mclk_parents[] = {"osc24M", "pll_video0", "pll_periph0",
+    "pll_periph1"};
+M_CLK(csi_mclk_clk,
+    CLK_CSI_MCLK, "csi-mclk", csi_mclk_parents,	/* id, name, parents */
+    0xc08,					/* offset */
+    0, 5, 0, 0,					/* m factor */
+    24, 3,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -918,6 +947,9 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_M, .clk.m = &tcon_lcd0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &tcon_tv0_clk},
 	{ .type = AW_CLK_M, .clk.m = &hdcp_clk},
+
+	{ .type = AW_CLK_M, .clk.m = &csi_top_clk},
+	{ .type = AW_CLK_M, .clk.m = &csi_mclk_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc1_clk},
