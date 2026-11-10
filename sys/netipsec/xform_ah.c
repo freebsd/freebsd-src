@@ -832,7 +832,6 @@ ah_input_cb(struct cryptop *crp)
 	return error;
 bad:
 	ipsec_sahtree_runlock(&sahtree_tracker);
-	CURVNET_RESTORE();
 	if (sav)
 		key_freesav(&sav);
 	if (m != NULL)
@@ -841,6 +840,7 @@ bad:
 		free(xd, M_AH);
 	if (crp != NULL)
 		crypto_freereq(crp);
+	CURVNET_RESTORE();
 	return error;
 }
 
@@ -1166,11 +1166,11 @@ ah_output_cb(struct cryptop *crp)
 	CURVNET_RESTORE();
 	return (error);
 bad:
-	CURVNET_RESTORE();
 	free(xd, M_AH);
 	crypto_freereq(crp);
 	key_freesav(&sav);
 	key_freesp(&sp);
+	CURVNET_RESTORE();
 	return (error);
 }
 
