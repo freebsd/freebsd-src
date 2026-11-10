@@ -301,9 +301,11 @@ restart:
 	fmode = *flagp;
 	if ((fmode & (O_CREAT | O_EXCL | O_DIRECTORY)) == (O_CREAT |
 	    O_EXCL | O_DIRECTORY) ||
-	    (fmode & (O_CREAT | O_EMPTY_PATH)) == (O_CREAT | O_EMPTY_PATH))
+	    (fmode & (O_CREAT | O_EMPTY_PATH)) == (O_CREAT | O_EMPTY_PATH)) {
+		if (ndp->ni_startdir != NULL)
+			vrele(ndp->ni_startdir);
 		return (EINVAL);
-	else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
+	} else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags,
 		    ndp->ni_cnd.cn_flags);
