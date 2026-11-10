@@ -241,7 +241,7 @@ exit_bad_op(void)
 {
 
 	printf("SYSCTL: bad command line option (s)\n");
-	return(-EINVAL);
+	return (EINVAL);
 }
 
 static inline int
@@ -252,7 +252,7 @@ get_ubuf(struct sysctl_req *req, char *ubuf)
 	printf("%s: len:0x%li idx:0x%li\n", __func__, req->newlen,
 	    req->newidx);
 	if (req->newlen >= SYSCTL_BUF_LEN)
-		return (-EINVAL);
+		return (EINVAL);
 
 	rc = SYSCTL_IN(req, ubuf, req->newlen);
 	if (rc)
@@ -297,7 +297,7 @@ get_val(char *buf, char **op, char **val, int *n_op)
 			op[*n_op][j] = buf[i++];
 		}
 		if (i < blen && buf[i] != ' ')
-			return (-EINVAL);
+			return (EINVAL);
 		op[*n_op][j] = '\0';
 		if (i >= strlen(buf))
 			goto out;
@@ -310,7 +310,7 @@ get_val(char *buf, char **op, char **val, int *n_op)
 			val[*n_op][j] = buf[i++]; 
 		}
 		if (i < blen && buf[i] != ' ')
-			return (-EINVAL);
+			return (EINVAL);
 		val[*n_op][j] = '\0';
 		if (i >= strlen(buf))
 			goto out;
@@ -318,7 +318,7 @@ get_val(char *buf, char **op, char **val, int *n_op)
 		*n_op = count;
 	}
 	if (i < blen)
-		return (-EINVAL);
+		return (EINVAL);
 
 out:
 	*n_op = count;
@@ -567,7 +567,7 @@ sysctl_get_drv_info_handler(SYSCTL_HANDLER_ARGS)
 		return (rc);
 	}
 
-	return (-EINVAL);
+	return (EINVAL);
 }
 
 static int
@@ -591,7 +591,7 @@ sysctl_get_link_info_handler(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 
-	return (-EINVAL);
+	return (EINVAL);
 }
 
 #define COALESCE_SYSCTL_INFO(__coalop)							\
@@ -721,12 +721,12 @@ sysctl_coalesce_handler(SYSCTL_HANDLER_ARGS)
 		if (rx_riwt > XGMAC_MAX_DMA_RIWT) {
 			axgbe_printf(2, "rx-usec is limited to %d usecs\n",
 			    hw_if->riwt_to_usec(pdata, XGMAC_MAX_DMA_RIWT));
-			return (-EINVAL);
+			return (EINVAL);
 		}
 		if (rx_frames > pdata->rx_desc_count) {
 			axgbe_printf(2, "rx-frames is limited to %d frames\n",
 			    pdata->rx_desc_count);
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		tx_frames = sys_op->tx_max_coalesced_frames;
@@ -735,7 +735,7 @@ sysctl_coalesce_handler(SYSCTL_HANDLER_ARGS)
 		if (tx_frames > pdata->tx_desc_count) {
 			axgbe_printf(2, "tx-frames is limited to %d frames\n",
 			    pdata->tx_desc_count);
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		pdata->rx_riwt = rx_riwt;
@@ -820,7 +820,7 @@ sysctl_pauseparam_handler(SYSCTL_HANDLER_ARGS)
 
 		if (sys_op->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE)) {
 			axgbe_error("autoneg disabled, pause autoneg not available\n");
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		pdata->phy.pause_autoneg = sys_op->autoneg;
@@ -844,7 +844,7 @@ sysctl_pauseparam_handler(SYSCTL_HANDLER_ARGS)
 		}
 
 		if (test_bit(XGBE_LINK_INIT, &pdata->dev_state))
-			rc = pdata->phy_if.phy_config_aneg(pdata);
+			rc = -pdata->phy_if.phy_config_aneg(pdata);
 
 	}
 
@@ -946,19 +946,19 @@ sysctl_link_ksettings_handler(SYSCTL_HANDLER_ARGS)
 		    (sys_op->autoneg != AUTONEG_DISABLE)) {
 			axgbe_error("unsupported autoneg %hhu\n",
 			    (unsigned char)sys_op->autoneg);
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		if (sys_op->autoneg == AUTONEG_DISABLE) {
 			if (!pdata->phy_if.phy_valid_speed(pdata, speed)) {
 				axgbe_error("unsupported speed %u\n", speed);
-				return (-EINVAL);
+				return (EINVAL);
 			}
 
 			if (sys_op->duplex != DUPLEX_FULL) {
 				axgbe_error("unsupported duplex %hhu\n",
 				    (unsigned char)sys_op->duplex);
-				return (-EINVAL);
+				return (EINVAL);
 			}
 		}
 
@@ -972,7 +972,7 @@ sysctl_link_ksettings_handler(SYSCTL_HANDLER_ARGS)
 			XGBE_CLR_ADV(&pdata->phy, Autoneg);
 
 		if (test_bit(XGBE_LINK_INIT, &pdata->dev_state))
-			rc = pdata->phy_if.phy_config_aneg(pdata);
+			rc = -pdata->phy_if.phy_config_aneg(pdata);
 	}
 
 	return (rc);
@@ -1042,21 +1042,21 @@ sysctl_ringparam_handler(SYSCTL_HANDLER_ARGS)
 
 		if (sys_op->rx_mini_pending || sys_op->rx_jumbo_pending) {
 			axgbe_error("unsupported ring parameter\n");
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		if ((sys_op->rx_pending < XGBE_RX_DESC_CNT_MIN) ||
 				(sys_op->rx_pending > XGBE_RX_DESC_CNT_MAX)) {
 			axgbe_error("rx ring param must be between %u and %u\n",
 			    XGBE_RX_DESC_CNT_MIN, XGBE_RX_DESC_CNT_MAX);
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		if ((sys_op->tx_pending < XGBE_TX_DESC_CNT_MIN) ||
 				(sys_op->tx_pending > XGBE_TX_DESC_CNT_MAX)) {
 			axgbe_error("tx ring param must be between %u and %u\n",
 			    XGBE_TX_DESC_CNT_MIN, XGBE_TX_DESC_CNT_MAX);
-			return (-EINVAL);
+			return (EINVAL);
 		}
 
 		rx = rounddown_pow_of_two(sys_op->rx_pending);
@@ -1213,7 +1213,7 @@ sysctl_mac_stats_handler(SYSCTL_HANDLER_ARGS)
 		return (rc);
 	}
 
-	return (-EINVAL);
+	return (EINVAL);
 }
 
 static int
