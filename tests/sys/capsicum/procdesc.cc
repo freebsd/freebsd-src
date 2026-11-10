@@ -983,6 +983,8 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
   if (verbose) fprintf(stderr, "[%d] about to fork()\n", getpid_());
   pid_t child2 = fork();
   if (child2 == 0) {
+    int pd;
+
     // Child: close our copy of the original process descriptor.
     close(pd_);
     SEND_INT_MESSAGE(sock_fds[0], MSG_CHILD_STARTED);
@@ -992,7 +994,7 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
     EXPECT_OK(rc);
     EXPECT_LE(CMSG_LEN(sizeof(int)), mh.msg_controllen);
     cmptr = CMSG_FIRSTHDR(&mh);
-    int pd = *(int*)CMSG_DATA(cmptr);
+    memcpy(&pd, CMSG_DATA(cmptr), sizeof(pd));
     EXPECT_EQ(CMSG_LEN(sizeof(int)), cmptr->cmsg_len);
     cmptr = CMSG_NXTHDR(&mh, cmptr);
     EXPECT_TRUE(cmptr == NULL);
@@ -1024,7 +1026,7 @@ TEST_F(PipePdfork, PassProcessDescriptor) {
   cmptr->cmsg_level = SOL_SOCKET;
   cmptr->cmsg_type = SCM_RIGHTS;
   cmptr->cmsg_len = CMSG_LEN(sizeof(int));
-  *(int *)CMSG_DATA(cmptr) = pd_;
+  memcpy(CMSG_DATA(cmptr), &pd_, sizeof(pd_));
   buffer1[0] = 0;
   iov[0].iov_len = 1;
   if (verbose) fprintf(stderr, "[%d] send process descriptor %d on socket\n", getpid_(), pd_);
