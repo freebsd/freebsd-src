@@ -65,6 +65,8 @@
 #define	CLK_PLL_DE		14
 #define	CLK_PLL_HSIC		16
 
+#define	CLK_AXI			22
+#define	CLK_CPUX_APB		23
 #define	CLK_PSI_AHB1_AHB2	24
 #define	CLK_AHB3		25
 #define	CLK_APB2		27
@@ -360,7 +362,27 @@ NMM_CLK(pll_hsic_clk,
 
 /* PLL_AUDIO missing */
 
-/* CPUX_AXI missing */
+static const char *cpux_parents[] = {"osc24M", "osc32k", "iosc", "pll_cpux"};
+MUX_CLK(cpux_clk,
+    CLK_CPUX,			/* id */
+    "cpux", cpux_parents,	/* name, parents */
+    0x500, 24, 2);		/* offset, shift, width */
+
+static const char *axi_parents[] = {"cpux"};
+DIV_CLK(axi_clk,
+    CLK_AXI,			/* id */
+    "axi", axi_parents,		/* name, parents */
+    0x500,			/* offset */
+    0, 2,			/* shift, width */
+    0, NULL);			/* flags, div table */
+
+static const char *cpux_apb_parents[] = {"cpux"};
+DIV_CLK(cpux_apb_clk,
+    CLK_CPUX_APB,		/* id */
+    "cpux_apb", cpux_apb_parents,	/* name, parents */
+    0x500,			/* offset */
+    8, 2,			/* shift, width */
+    0, NULL);			/* flags, div table */
 
 static const char *psi_ahb1_ahb2_parents[] = {"osc24M", "osc32k", "iosc", "pll_periph0"};
 NM_CLK(psi_ahb1_ahb2_clk,
@@ -446,6 +468,10 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ve_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_de_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_hsic_clk},
+
+	{ .type = AW_CLK_MUX, .clk.mux = &cpux_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &axi_clk},
+	{ .type = AW_CLK_DIV, .clk.div = &cpux_apb_clk},
 
 	{ .type = AW_CLK_NM, .clk.nm = &psi_ahb1_ahb2_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &ahb3_clk},
