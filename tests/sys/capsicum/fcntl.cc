@@ -332,17 +332,17 @@ TEST(Fcntl, FLSubRights) {
 
   // Check operations that need CAP_FCNTL with specific subrights.
   int fd_get = dup(fd);
-  int fd_set = dup(fd);
+  int fd_set_ = dup(fd);
   EXPECT_OK(cap_fcntls_limit(fd_get, CAP_FCNTL_GETFL));
-  EXPECT_OK(cap_fcntls_limit(fd_set, CAP_FCNTL_SETFL));
+  EXPECT_OK(cap_fcntls_limit(fd_set_, CAP_FCNTL_SETFL));
 
   fd_flag = fcntl(fd_get, F_GETFL, 0);
   EXPECT_OK(fd_flag);
-  EXPECT_NOTCAPABLE(fcntl(fd_set, F_GETFL, 0));
-  EXPECT_OK(fcntl(fd_set, F_SETFL, fd_flag));
+  EXPECT_NOTCAPABLE(fcntl(fd_set_, F_GETFL, 0));
+  EXPECT_OK(fcntl(fd_set_, F_SETFL, fd_flag));
   EXPECT_NOTCAPABLE(fcntl(fd_get, F_SETFL, fd_flag));
   close(fd_get);
-  close(fd_set);
+  close(fd_set_);
 
   // Check operations that need CAP_FCNTL with no subrights => ENOTCAPABLE.
   EXPECT_OK(cap_fcntls_limit(fd, 0));
