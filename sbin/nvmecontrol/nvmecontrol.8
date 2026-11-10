@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd September 21, 2026
+.Dd November 10, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -573,6 +573,24 @@ physically erase the underlying media.
 Enables Cryptographic Erase during format.
 All user data is erased  cryptographically by deleting the encryption key,
 rendering it unintelligible.
+.It Fl Fl ses Ar ses
+Secure Erase Settings.
+.Bl -tag -compact -width 6n
+.It Dv 0
+Do not perform a secure erase.
+.It Dv 1
+User Data Erase, as with
+.Fl E .
+.It Dv 2
+Cryptographic Erase, as with
+.Fl C .
+.El
+Only one of
+.Fl E ,
+.Fl C ,
+or
+.Fl Fl ses
+may be specified.
 .El
 .Pp
 When formatting specific namespace, existing values are used as defaults.

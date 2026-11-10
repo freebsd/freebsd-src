@@ -204,6 +204,16 @@ format(const struct cmd *f, int argc, char *argv[])
 		    "Only one of -E, -C or --ses may be specified\n");
 		arg_help(argc, argv, f);
 	}
+	if (opt.ms != NONE && opt.ms > 1)
+		errx(EX_USAGE, "metadata setting must be 0 or 1");
+	if (opt.pi != NONE && opt.pi > 3)
+		errx(EX_USAGE,
+		    "protection information type must be between 0 and 3");
+	if (opt.pil != NONE && opt.pil > 1)
+		errx(EX_USAGE,
+		    "protection information location must be 0 or 1");
+	if (opt.ses > SES_CRYPTO)
+		errx(EX_USAGE, "secure erase setting must be between 0 and 2");
 
 	target = opt.dev;
 	lbaf = opt.lbaf;
