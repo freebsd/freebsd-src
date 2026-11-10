@@ -170,6 +170,7 @@ check-pytests: responder s2p s4u2proxy unlockiter s4u2self
 	$(RUNPYTEST) $(srcdir)/t_cve-2013-1416.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_cve-2013-1417.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_cve-2021-36222.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_cve-2026-107364.py $(PYTESTFLAGS)
 	$(RM) au.log
 	$(RUNPYTEST) $(srcdir)/t_audit.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/jsonwalker.py -d $(srcdir)/au_dict.json \

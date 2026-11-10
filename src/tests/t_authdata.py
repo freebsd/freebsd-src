@@ -26,6 +26,14 @@ if ' -5: test1' not in out or '?-6: test2' not in out:
 if 'fake' in out:
     fail('KDC-only authdata not filtered for request with authdata')
 
+# Nested if-relevant containers are also filtered, whether or not they
+# contain KDC-only authdata types.
+mark('request authdata nested')
+out = realm.run(['./adata', realm.host_princ, '??-7', 'nested',
+                 '??128', 'nestedfakepac', '???^-8', 'nestedfakekdcissued'])
+if 'nested' in out or 'fake' in out:
+    fail('Nested authdata not filtered for request with authdata')
+
 mark('AD-MANDATORY-FOR-KDC')
 realm.run(['./adata', realm.host_princ, '!-1', 'mandatoryforkdc'],
           expected_code=1, expected_msg='KDC policy rejects request')

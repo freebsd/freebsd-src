@@ -97,6 +97,159 @@ removed.
 Beginning with the krb5-1.18 release, all support for single-DES
 encryption types has been removed.
 
+Major changes in 1.22.3 (2026-11-09)
+------------------------------------
+
+This is a bug fix release, with a focus on security issues discovered
+with the aid of large language models.  See
+https://web.mit.edu/kerberos/advisories/MITKRB5-SA-2026-001.txt for
+information on the risks of continuing to use unpatched releases.
+
+* Fix a logic error when checking PAC server checksums
+  [CVE-2026-111423].
+
+* Check for unkeyed checksums when validating CAMMAC verifiers
+  [CVE-2026-71199].
+
+* Fix a loophole in the KDC's client authdata filtering which could
+  allow clients to include fake PAC and CAMMAC authdata values when
+  requesting service tickets.  These fake values would be rejected by
+  application servers, were it not for the two bugs noted above.
+
+* Check for the lockdown_keys attribute when processing password
+  change protocol requests in kadmind [CVE-2026-107884].
+
+* In libgssrpc, when processing RPC messages using the RPCSEC_GSS
+  flavor, use the verified service type included in the RPC request to
+  determine how to unwrap arguments and wrap return values, instead of
+  the unverified service type included during authentication
+  [CVE-2026-118380].
+
+* In libgssrpc, disable the AUTH_GSSAPI server auth flavor unless the
+  "GSSRPC_ALLOW_AUTH_GSSAPI" environment variable is set.  AUTH_GSSAPI
+  is only needed for very old (pre-1.4) clients [CVE-2026-112322]
+  [CVE-2026-112323].
+
+* Fix numerous null pointer deferences, read overruns, unbounded
+  memory allocations, and memory leaks that could be used as denial of
+  service attacks against the KDC, kadmind, application servers, or
+  client programs [CVE-2026-40355] [CVE-2026-40356] [CVE-2026-71200]
+  [CVE-2026-107364] [CVE-2026-107708] [CVE-2026-107778]
+  [CVE-2026-112314] [CVE-2026-112315] [CVE-2026-112316]
+  [CVE-2026-112317] [CVE-2026-112318] [CVE-2026-112319]
+  [CVE-2026-112320] [CVE-2026-112321] [CVE-2026-112323]
+  [CVE-2026-119079].
+
+* Fix a client crash when a KKDCP proxy daemon closes the TLS session
+  without supplying any response data.
+
+* Shut down kpropd gracefully when a termination signal is received,
+  when operating in incremental propagation mode.
+
+* Detect when an incremental propagation update is applied to a
+  nonexistent principal; when this happens, force a full resync
+  instead of crashing.
+
+* Fix a KDC crash when the LDAP KDB module loses its connection to the
+  LDAP server.
+
+* Avoid a crash on macOS when the native API ccache type is used
+  before and after forking a process.
+
+* When an application accepts a GSS context without asking for
+  delegated credentials, discard any credentials sent by the initiator
+  without parsing them first.
+
+* On Windows, prevent buffer overflows when the KDC sends an
+  unexpectedly long prompt string via OTP preauthentication.
+
+* On Windows, move the default per-machine krb5.ini location from
+  C:\ProgramData\MIT\Kerberos to C:\Program Files\MIT\Kerberos5, as
+  the former location could be pre-created by an unutrusted user
+  before KfW installation.
+
+* On Windows, add error checking to kfwlogon to ensure that it does
+  not set ACLs on a cache file it did not create.
+
+* On Windows, prevent several buffer overflows that could occur if an
+  application passes a large principal name to leashdll APIs.
+
+* On Windows, prevent buffer overflows when the LSA cache contains
+  credentials with long principal name components.
+
+krb5-1.22.3 changes by ticket ID
+--------------------------------
+
+9191    Fix strchr() conformance to C23
+9201    Prevent read overrun in svc_auth_gssapi
+9205    Fix two NegoEx parsing vulnerabilities
+9206    Prevent read overrun in libkdb_ldap
+9209    Validate lengths when deserializing
+9210    Avoid asymmetric WSACleanup() in libkrb5
+9211    Avoid null dereference in krb5_rd_cred()
+9212    Fix error handling in KDC PAC processing
+9213    Fix null dereference in SPNEGO token processing
+9214    Fix gss_add_cred() extension fallback path
+9216    Always copy mech name_type for GSS union names
+9217    Fix triggerable assertion failure in gss_import_name()
+9218    Better validate key_data_ver in iprop decoding
+9219    Avoid another null dereference in krb5_rd_cred()
+9220    Check for empty forwarded creds in krb5 GSS mech
+9221    Propagate -laudit to simple audit module build
+9224    Prevent integer overrun in keytab parsing
+9227    Prevent null dereference in PKINIT CMS processing
+9228    Check for keyed checksums in CAMMAC verifiers
+9229    Exclude nested AD-IF-RELEVANT authdata in KDC
+9232    Prevent dangling result in tl_data2berval()
+9233    Prevent buffer overrun in old leashdll functions
+9234    Prevent read overruns in GSSRPC svcauth_unix
+9235    Free small client memory leak on OTP failure
+9236    Check for cache copy error in kfwlogon
+9238    Prevent null deref in KDC dispatch corner case
+9239    Check type of otherName value in PKINIT SAN code
+9240    Add space checks in Leash_krb5_kinit() prompter
+9241    Remove unsafe principal parsing from Leashdll
+9242    Check TXT lookup results on Windows
+9243    Fix gssalloc mismatches
+9244    Use safe string copies in MSLSA ccache type
+9245    Move krb5.ini from ProgramData to Program Files
+9246    Free call_arg on all AUTH_GSSAPI exit paths
+9247    Fix RPC leak when client switches from RPCSEC_GSS
+9248    Validate lengths when deserializing profiles
+9249    Improve libdb2 data validation
+9250    Fix two KDB data validation issues
+9251    Prevent KDC read overrun in ASN.1 decoder
+9252    Enforce lockdown bit in password change server
+9253    Correctly abort parse on invalid JSON array
+9254    Skip expired keys when iterating a KEYRING ccache
+9255    Free partial tl-data on XDR decode failure
+9256    Fix leaks when decoding GSS buffers in libgssrpc
+9257    Enforce XDR decode size limits
+9258    Fix leak in RPC client on mismatched ID
+9259    Check PAC server checksum verification result
+9260    Disable GSSRPC AUTH_GSSAPI flavor by default
+9261    Fix leak on error in xdr_krb5_keyblock()
+9262    Fix leak on error in xdr_krb5_principal()
+9263    Fix leak on error in process_chpw_request()
+9264    Fix memory leak in auth_gssapi_wrap_data()
+9265    Prevent null dereferences in kadmind server stubs
+9266    Avoid repeated reallocation when decoding ASN.1
+9267    Fix leaks in lifecycle of RPCSEC_GSS context
+9268    Fix leak on error in krb5_ktkdb_get_entry()
+9269    Fix leak on krb5 gss_accept_sec_context() failure
+9270    Pass through null deleg_cred from SPNEGO to mech
+9271    Fix leaks on error in PKINIT signed-data creation
+9272    Properly verify RPCSEC_GSS call arguments
+9273    Fix memory leak in mpool_get() error paths
+9274    Check reply length before V4 reply check
+9276    macOS API ccache crashes a child forked after the parent used it
+9277    Fix hex key input handling in ktutil addent
+9278    Prevent unsigned integer overflow in IAKERB
+9279    Fix use-after-free of LDAP handle after rebind
+9280    Detect iprop update of nonexistent principal
+9281    Shut down kpropd gracefully when in iprop mode
+9725    Terminate HTTPS read buffer when allocating it
+
 Major changes in 1.22.2 (2026-01-29)
 ------------------------------------
 
@@ -370,6 +523,7 @@ reports, suggestions, and valuable resources:
     Jeff Blaine
     Toby Blake
     Radoslav Bodo
+    Bogdan Boguslavskij
     Alexander Bokovoy
     Zoltan Borbely
     Sumit Bose
@@ -380,9 +534,11 @@ reports, suggestions, and valuable resources:
     Philip Brown
     Samuel Cabrero
     Michael Calmer
+    Luigino Camastra
     Andrea Campi
     Julien Chaffraix
     Jacob Champion
+    Arthur Chan
     Puran Chand
     Ravi Channavajhala
     Srinivas Cheruku
@@ -417,6 +573,7 @@ reports, suggestions, and valuable resources:
     Francis Dupont
     Viktor Dukhovni
     Jason Edgecombe
+    Douglas Eichelberger
     Mark Eichin
     Shawn M. Emery
     Douglas E. Engert
@@ -431,12 +588,14 @@ reports, suggestions, and valuable resources:
     Remi Ferrand
     Paul Fertser
     Fabiano Fidêncio
+    Osvaldo Janeri Filho
     Frank Filz
     William Fiveash
     Jacques Florent
     Oliver Freyermuth
     Ákos Frohner
     Sebastian Galiano
+    Vidal Segura García
     Ilya Gladyshev
     Marcus Granado
     Dylan Gray
@@ -455,12 +614,14 @@ reports, suggestions, and valuable resources:
     Jochen Hein
     Paul B. Henson
     Kihong Heo
+    Jeremy Hitt
     Jeff Hodges
     Christopher Hogan
     Love Hörnquist Åstrand
     Ken Hornstein
     Henry B. Hotz
     Luke Howard
+    Rahul Hoysala
     Jakub Hrozek
     Shumon Huque
     Jeffrey Hutzelman
@@ -471,10 +632,12 @@ reports, suggestions, and valuable resources:
     Diogenes S. Jesus
     Mike Jetzer
     Pavel Jindra
+    Alexandru-Ionut Jipa
     Brian Johannesmeyer
     Joel Johnson
     Lutz Justen
     Ganesh Kamath
+    Cem Onat Karagun
     Alexander Karaivanov
     Anders Kaseorg
     Bar Katz
@@ -486,6 +649,8 @@ reports, suggestions, and valuable resources:
     Martin Kittel
     Thomas Klausner
     Tomasz Kłoczko
+    Brian Knoll
+    David Korczynski
     Ivan Korytov
     Matthew Krupcale
     Mikkel Kruse
@@ -498,6 +663,7 @@ reports, suggestions, and valuable resources:
     Chris Leick
     Volker Lendecke
     Jan iankko Lieskovsky
+    Erin Liman
     Todd Lipcon
     Oliver Loch
     Chris Long
@@ -508,6 +674,7 @@ reports, suggestions, and valuable resources:
     Todd Lubin
     Ryan Lynch
     Glenn Machin
+    Tristan Madani
     Roland Mainz
     Sorin Manolache
     Robert Marshall
@@ -517,6 +684,7 @@ reports, suggestions, and valuable resources:
     Greg McClement
     Cameron Meadors
     Vipul Mehta
+    Zvika Meiseles
     Alexey Melnikov
     Ivan A. Melnikov
     Franklyn Mendez
@@ -524,9 +692,11 @@ reports, suggestions, and valuable resources:
     Mantas Mikulėnas
     Markus Moeller
     Kyle Moffett
+    Alex Moore
     Jon Moore
     Paul Moore
     Keiichi Mori
+    David Morash
     Michael Morony
     Robert Morris
     Sam Morris
@@ -540,6 +710,8 @@ reports, suggestions, and valuable resources:
     Michael Osipov
     Andrej Ota
     Dmitry Ovsyannikov
+    Haruki Oyama
+    Alejandro Pacheco
     Dmitri Pal
     Javier Palacios
     Dilyan Palauzov
@@ -567,6 +739,7 @@ reports, suggestions, and valuable resources:
     Solly Ross
     Mike Roszkowski
     Guillaume Rousse
+    Daniel Sands
     Joshua Schaeffer
     Alexander Scheel
     Jens Schleusener
@@ -575,11 +748,14 @@ reports, suggestions, and valuable resources:
     Eli Schwartz
     Paul Seyfert
     Tom Shaw
+    Ao Shen
+    Ze Sheng
     Jim Shi
     Jerry Shipman
     Peter Shoults
     Richard Silverman
     Cel Skeggs
+    Tigran Sogomonian
     Simo Sorce
     Anthony Sottile
     Michael Spang
@@ -587,14 +763,19 @@ reports, suggestions, and valuable resources:
     Bjørn Tore Sund
     Ondřej Surý
     Joseph Sutton
+    Moritz Theile
     Alexey Tikhonov
     Joe Travaglini
+    Dmitrijs Trizna
     Sergei Trofimovich
     Greg Troxel
     Fraser Tweedale
     Tim Uglow
     Rathor Vipin
+    Rickey Visinski
     Denis Vlasenko
+    Guido Vranken
+    Sargun Vohra
     Thomas Wagner
     Jorgen Wahlsten
     Stef Walter
@@ -606,6 +787,7 @@ reports, suggestions, and valuable resources:
     Kevin Wasserman
     Margaret Wasserman
     Marcus Watts
+    Frederik Wedel-Heinen
     Andreas Wiese
     Simon Wilkinson
     Nicolas Williams

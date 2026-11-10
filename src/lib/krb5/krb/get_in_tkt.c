@@ -1115,6 +1115,9 @@ init_creds_validate_reply(krb5_context context,
         /* check here for V4 reply */
         unsigned int t_switch;
 
+        if (reply->length < 2)
+            return KRB5KRB_AP_ERR_MSG_TYPE;
+
         /* From v4 g_in_tkt.c: This used to be
            switch (pkt_msg_type(rpkt) & ~1) {
            but SCO 3.2v4 cc compiled that incorrectly.  */

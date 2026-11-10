@@ -550,7 +550,7 @@ PasswordProc(
 
         SetProp(hDialog, "HANDLES_HELP", (HANDLE)1);
 
-        if (lpdi->principal)
+        if (lpdi->principal && lstrlen(lpdi->principal) < sizeof(principal))
             lstrcpy(principal, lpdi->principal);
         else
 	{

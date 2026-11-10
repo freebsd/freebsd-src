@@ -158,8 +158,7 @@ gss_import_name(OM_uint32 * minor_status, gss_buffer_t input_name_buffer,
 allocation_failure:
     if (union_name) {
 	if (union_name->external_name) {
-	    if (union_name->external_name->value)
-		free(union_name->external_name->value);
+	    (void) gss_release_buffer(&tmp, union_name->external_name);
 	    free(union_name->external_name);
 	}
 	if (union_name->name_type)

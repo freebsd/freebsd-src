@@ -61,13 +61,14 @@ static void mswap __P((PAGE *));
 void
 __bt_pgin(void *t, db_pgno_t pg, void *pp)
 {
+	BTREE *bt = t;
 	PAGE *h;
 	indx_t i, top;
 	u_char flags;
 	char *p;
 	u_int32_t ksize;
 
-	if (!F_ISSET(((BTREE *)t), B_NEEDSWAP))
+	if (!F_ISSET(bt, B_NEEDSWAP))
 		return;
 	if (pg == P_META) {
 		mswap(pp);
@@ -81,6 +82,13 @@ __bt_pgin(void *t, db_pgno_t pg, void *pp)
 	M_32_SWAP(h->flags);
 	M_16_SWAP(h->lower);
 	M_16_SWAP(h->upper);
+
+	/* Do nothing if the page appears uninitialized (h->lower == 0).  Treat
+	 * the page as having no entries if h->lower is invalid. */
+	if (h->lower < BTDATAOFF || h->lower > bt->bt_psize) {
+		h->lower = (h->lower == 0) ? 0 : BTDATAOFF;
+		return;
+	}
 
 	top = NEXTINDEX(h);
 	if ((h->flags & P_TYPE) == P_BINTERNAL)

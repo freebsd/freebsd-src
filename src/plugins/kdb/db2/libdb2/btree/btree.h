@@ -87,7 +87,9 @@ typedef struct _page {
 #define	BTDATAOFF							\
 	(sizeof(db_pgno_t) + sizeof(db_pgno_t) + sizeof(db_pgno_t) +		\
 	    sizeof(u_int32_t) + sizeof(indx_t) + sizeof(indx_t))
-#define	NEXTINDEX(p)	(((p)->lower - BTDATAOFF) / sizeof(indx_t))
+#define NEXTINDEX(p)						\
+	((p)->lower < BTDATAOFF ? 0 :				\
+	 (((p)->lower - BTDATAOFF) / sizeof(indx_t)))
 
 /*
  * For pages other than overflow pages, there is an array of offsets into the
@@ -311,6 +313,7 @@ typedef struct _btree {
 
 	CURSOR	  bt_cursor;		/* cursor */
 
+#define	BT_STACKSIZE 50
 #define	BT_PUSH(t, p, i) {						\
 	t->bt_sp->pgno = p; 						\
 	t->bt_sp->index = i; 						\
@@ -318,7 +321,8 @@ typedef struct _btree {
 }
 #define	BT_POP(t)	(t->bt_sp == t->bt_stack ? NULL : --t->bt_sp)
 #define	BT_CLR(t)	(t->bt_sp = t->bt_stack)
-	EPGNO	  bt_stack[50];		/* stack of parent pages */
+#define	BT_STACKFULL(t)	(t->bt_sp == t->bt_stack + BT_STACKSIZE)
+	EPGNO	  bt_stack[BT_STACKSIZE]; /* stack of parent pages */
 	EPGNO	 *bt_sp;		/* current stack pointer */
 
 	DBT	  bt_rkey;		/* returned key */

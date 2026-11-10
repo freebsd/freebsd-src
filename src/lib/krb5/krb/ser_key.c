@@ -99,7 +99,7 @@ k5_internalize_keyblock(krb5_keyblock **argp,
     krb5_keyblock       *keyblock;
     krb5_int32          ibuf;
     krb5_octet          *bp;
-    size_t              remain;
+    size_t              remain, len;
 
     bp = *buffer;
     remain = *lenremain;
@@ -118,13 +118,12 @@ k5_internalize_keyblock(krb5_keyblock **argp,
             keyblock->enctype = (krb5_enctype) ibuf;
 
             /* Get the length */
-            (void) krb5_ser_unpack_int32(&ibuf, &bp, &remain);
-            keyblock->length = (int) ibuf;
+            (void) k5_ser_unpack_len(&len, &bp, &remain);
+            keyblock->length = len;
 
             /* Get the string */
-            if ((keyblock->contents = (krb5_octet *) malloc((size_t) (ibuf)))&&
-                !(kret = krb5_ser_unpack_bytes(keyblock->contents,
-                                               (size_t) ibuf,
+            if ((keyblock->contents = malloc(len)) &&
+                !(kret = krb5_ser_unpack_bytes(keyblock->contents, len,
                                                &bp, &remain))) {
                 kret = krb5_ser_unpack_int32(&ibuf, &bp, &remain);
                 if (!kret && (ibuf == KV5M_KEYBLOCK)) {

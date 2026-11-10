@@ -84,6 +84,20 @@ enum xdr_op {
 	XDR_FREE=2
 };
 
+/* Maximum byte size for a message wrapped with RPCSEC_GSS. */
+#define GSSRPC_MAX_MESSAGE_SIZE	(64U * 1024U * 1024U)
+
+/*
+ * Suggested maximum byte size for a single XDR element (xdr_bytes,
+ * xdr_string), to limit up-front allocation during decoding.  This limit
+ * applies to xdr_wrapstring().
+ */
+#define GSSRPC_MAX_ELEMENT_SIZE	(64U * 1024U)
+
+/* Suggested maximum element count for XDR arrays (xdr_array), to limit
+ * up-front allocation during decoding. */
+#define GSSRPC_MAX_ARRAY_COUNT	8192U
+
 /*
  * This is the number of bytes per unit of external data.
  */

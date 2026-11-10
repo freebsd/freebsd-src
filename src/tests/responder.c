@@ -282,8 +282,7 @@ responder(krb5_context ctx, void *rawdata, krb5_responder_context rctx)
     /* Provide a particular response for an OTP challenge. */
     if (data->otp_answer != NULL) {
         if (krb5_responder_otp_get_challenge(ctx, rctx, &ochl) == 0) {
-            key = strchr(data->otp_answer, '=');
-            if (key != NULL) {
+            if (strchr(data->otp_answer, '=') != NULL) {
                 /* Make a copy of the answer that we can chop up. */
                 key = strdup(data->otp_answer);
                 if (key == NULL)

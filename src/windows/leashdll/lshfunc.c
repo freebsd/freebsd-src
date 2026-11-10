@@ -457,19 +457,8 @@ Leash_int_kinit_ex(
     int displayErrors
     )
 {
-    char    aname[ANAME_SZ];
-    char    inst[INST_SZ];
-    char    realm[REALM_SZ];
-    char    first_part[256];
-    char    second_part[256];
-    char    temp[1024];
     char*   custom_msg;
-    int     count;
-    int     i;
-    int rc5 = 0;
-    int rcA = 0;
-    int rcB = 0;
-    int rcL = 0;
+    int     count, i, r, rc;
 
     if (lifetime < 5)
         lifetime = 1;
@@ -487,70 +476,13 @@ Leash_int_kinit_ex(
     if (lifetime > 255)
         lifetime = 255;
 
-    err_context = "parsing principal";
-
-    memset(temp, '\0', sizeof(temp));
-    memset(inst, '\0', sizeof(inst));
-    memset(realm, '\0', sizeof(realm));
-    memset(first_part, '\0', sizeof(first_part));
-    memset(second_part, '\0', sizeof(second_part));
-
-    sscanf(principal, "%[/0-9a-zA-Z._-]@%[/0-9a-zA-Z._-]", first_part, second_part);
-    strcpy(temp, first_part);
-    strcpy(realm, second_part);
-    memset(first_part, '\0', sizeof(first_part));
-    memset(second_part, '\0', sizeof(second_part));
-    if (sscanf(temp, "%[@0-9a-zA-Z._-]/%[@0-9a-zA-Z._-]", first_part, second_part) == 2)
-    {
-        strcpy(aname, first_part);
-        strcpy(inst, second_part);
-    }
-    else
-    {
-        count = 0;
-        i = 0;
-        for (i = 0; temp[i]; i++)
-        {
-            if (temp[i] == '.')
-                ++count;
-        }
-        if (count > 1)
-        {
-            strcpy(aname, temp);
-        }
-        else
-        {
-            {
-                strcpy(aname, temp);
-            }
-        }
-    }
-
-    memset(temp, '\0', sizeof(temp));
-    strcpy(temp, aname);
-    if (strlen(inst) != 0)
-    {
-        strcat(temp, "/");
-        strcat(temp, inst);
-    }
-    if (strlen(realm) != 0)
-    {
-        strcat(temp, "@");
-        strcat(temp, realm);
-    }
-
-    rc5 = Leash_krb5_kinit(ctx, hParent,
-                            temp, password, lifetime,
-                            forwardable,
-                            proxiable,
-                            renew_life,
-                            addressless,
-                            publicip
-                            );
-    custom_msg = (rc5 == KRB5KRB_AP_ERR_BAD_INTEGRITY) ? "Password incorrect" : NULL;
+    rc = Leash_krb5_kinit(ctx, hParent, principal, password, lifetime,
+			  forwardable, proxiable, renew_life, addressless,
+			  publicip);
+    custom_msg = (rc == KRB5KRB_AP_ERR_BAD_INTEGRITY) ? "Password incorrect" :
+	NULL;
     return leash_error_message("Ticket initialization failed.",
-                               rcL, rc5, rcA, custom_msg,
-                               displayErrors);
+			       0, rc, 0, custom_msg, displayErrors);
 }
 
 long FAR

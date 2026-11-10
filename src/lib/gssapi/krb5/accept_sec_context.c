@@ -170,6 +170,10 @@ rd_and_store_for_creds(krb5_context context, krb5_auth_context auth_context,
     krb5_auth_context new_auth_ctx = NULL;
     krb5_int32 flags_org;
 
+    /* Ignore the forwarded creds if the application doesn't want them. */
+    if (out_cred == NULL)
+        return 0;
+
     if ((retval = krb5_auth_con_getflags(context, auth_context, &flags_org)))
         return retval;
     krb5_auth_con_setflags(context, auth_context,
@@ -205,6 +209,9 @@ rd_and_store_for_creds(krb5_context context, krb5_auth_context auth_context,
             goto cleanup;
     }
 
+    if (creds[0] == NULL)
+        goto cleanup;
+
     if ((retval = krb5_cc_new_unique(context, "MEMORY", NULL, &ccache))) {
         ccache = NULL;
         goto cleanup;
@@ -216,50 +223,32 @@ rd_and_store_for_creds(krb5_context context, krb5_auth_context auth_context,
     if ((retval = k5_cc_store_primary_cred(context, ccache, creds[0])))
         goto cleanup;
 
-    /* generate a delegated credential handle */
-    if (out_cred) {
-        /* allocate memory for a cred_t... */
-        if (!(cred =
-              (krb5_gss_cred_id_t) xmalloc(sizeof(krb5_gss_cred_id_rec)))) {
-            retval = ENOMEM; /* out of memory? */
-            goto cleanup;
-        }
+    cred = k5alloc(sizeof(*cred), &retval);
+    if (cred == NULL)
+        goto cleanup;
 
-        /* zero it out... */
-        memset(cred, 0, sizeof(krb5_gss_cred_id_rec));
+    retval = k5_mutex_init(&cred->lock);
+    if (retval)
+        goto cleanup;
 
-        retval = k5_mutex_init(&cred->lock);
-        if (retval) {
-            xfree(cred);
-            cred = NULL;
-            goto cleanup;
-        }
-
-        /* copy the client principle into it... */
-        if ((retval =
-             kg_init_name(context, creds[0]->client, NULL, NULL, NULL, 0,
-                          &cred->name))) {
-            k5_mutex_destroy(&cred->lock);
-            retval = ENOMEM; /* out of memory? */
-            xfree(cred); /* clean up memory on failure */
-            cred = NULL;
-            goto cleanup;
-        }
-
-        cred->usage = GSS_C_INITIATE; /* we can't accept with this */
-        /* cred->name already set */
-        cred->keytab = NULL; /* no keytab associated with this... */
-        cred->expire = creds[0]->times.endtime; /* store the end time */
-        cred->ccache = ccache; /* the ccache containing the credential */
-        cred->destroy_ccache = 1;
-        ccache = NULL; /* cred takes ownership so don't destroy */
+    retval = kg_init_name(context, creds[0]->client, NULL, NULL, NULL, 0,
+                          &cred->name);
+    if (retval) {
+        k5_mutex_destroy(&cred->lock);
+        goto cleanup;
     }
 
-    /* If there were errors, there might have been a memory leak
-       if (!cred)
-       if ((retval = krb5_cc_close(context, ccache)))
-       goto cleanup;
-    */
+    cred->usage = GSS_C_INITIATE;
+    cred->keytab = NULL;
+    cred->expire = creds[0]->times.endtime;
+    /* Transfer ownership of ccache to cred. */
+    cred->ccache = ccache;
+    cred->destroy_ccache = 1;
+    ccache = NULL;
+
+    *out_cred = cred;
+    cred = NULL;
+
 cleanup:
     if (creds)
         krb5_free_tgt_creds(context, creds);
@@ -267,8 +256,7 @@ cleanup:
     if (ccache)
         (void)krb5_cc_destroy(context, ccache);
 
-    if (out_cred)
-        *out_cred = cred; /* return credential */
+    free(cred);
 
     if (new_auth_ctx)
         krb5_auth_con_free(context, new_auth_ctx);
@@ -1173,12 +1161,9 @@ fail:
     if (ctx)
         (void) krb5_gss_delete_sec_context(&tmp_minor_status,
                                            (gss_ctx_id_t *) &ctx, NULL);
-    if (deleg_cred) { /* free memory associated with the deleg credential */
-        if (deleg_cred->ccache)
-            (void)krb5_cc_close(context, deleg_cred->ccache);
-        if (deleg_cred->name)
-            kg_release_name(context, &deleg_cred->name);
-        xfree(deleg_cred);
+    {
+        gss_cred_id_t dcred = (gss_cred_id_t) deleg_cred;
+        (void) krb5_gss_release_cred(&tmp_minor_status, &dcred);
     }
     if (token.value)
         xfree(token.value);

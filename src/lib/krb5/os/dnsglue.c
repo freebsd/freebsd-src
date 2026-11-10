@@ -409,7 +409,7 @@ k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
 {
     krb5_error_code ret = 0;
     char *txtname = NULL;
-    PDNS_RECORD rr = NULL;
+    PDNS_RECORD records = NULL, rr;
     DNS_STATUS st;
 
     *realm = NULL;
@@ -419,13 +419,21 @@ k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
         return ENOMEM;
 
     st = DnsQuery_UTF8(txtname, DNS_TYPE_TEXT, DNS_QUERY_STANDARD, NULL,
-                       &rr, NULL);
-    if (st != ERROR_SUCCESS || rr == NULL) {
+                       &records, NULL);
+    if (st != ERROR_SUCCESS || records == NULL) {
         TRACE_TXT_LOOKUP_NOTFOUND(context, txtname);
         ret = KRB5_ERR_HOST_REALM_UNKNOWN;
         goto cleanup;
     }
 
+    for (rr = records; rr != NULL; rr = rr->pNext) {
+        if (rr->wType == DNS_TYPE_TEXT && rr->Data.TXT.dwStringCount >= 1)
+            break;
+    }
+    if (rr == NULL) {
+        ret = KRB5_ERR_HOST_REALM_UNKNOWN;
+        goto cleanup;
+    }
     *realm = strdup(rr->Data.TXT.pStringArray[0]);
     if (*realm == NULL)
         ret = ENOMEM;
@@ -433,8 +441,8 @@ k5_try_realm_txt_rr(krb5_context context, const char *prefix, const char *name,
 
 cleanup:
     free(txtname);
-    if (rr != NULL)
-        DnsRecordListFree(rr, DnsFreeRecordList);
+    if (records != NULL)
+        DnsRecordListFree(records, DnsFreeRecordList);
     return ret;
 }
 

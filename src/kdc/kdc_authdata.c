@@ -106,10 +106,9 @@ unload_authdata_plugins(krb5_context context)
 }
 
 /* Return true if authdata should be filtered when copying from untrusted
- * authdata.  If desired_type is non-zero, look only for that type. */
+ * authdata. */
 static krb5_boolean
-is_kdc_issued_authdatum(krb5_authdata *authdata,
-                        krb5_authdatatype desired_type)
+is_kdc_issued_authdatum(krb5_authdata *authdata)
 {
     krb5_boolean result = FALSE;
     krb5_authdatatype ad_type;
@@ -134,7 +133,12 @@ is_kdc_issued_authdatum(krb5_authdata *authdata,
         case KRB5_AUTHDATA_WIN2K_PAC:
         case KRB5_AUTHDATA_CAMMAC:
         case KRB5_AUTHDATA_AUTH_INDICATOR:
-            result = desired_type ? (desired_type == ad_types[i]) : TRUE;
+            result = TRUE;
+            break;
+        case KRB5_AUTHDATA_IF_RELEVANT:
+            /* Assume nested AD-IF-RELEVANT containers are trying to hide
+             * KDC-issued authdata and filter them out. */
+            result = TRUE;
             break;
         default:
             result = FALSE;
@@ -216,7 +220,7 @@ add_filtered_authdata(krb5_authdata ***existing_list,
     /* Remove KDC-issued elements from copy. */
     j = 0;
     for (i = 0; copy[i] != NULL; i++) {
-        if (is_kdc_issued_authdatum(copy[i], 0)) {
+        if (is_kdc_issued_authdatum(copy[i])) {
             free(copy[i]->contents);
             free(copy[i]);
         } else {

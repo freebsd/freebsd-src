@@ -207,4 +207,5 @@ negoex_init(OM_uint32 *minor, spnego_gss_ctx_id_t ctx, gss_cred_id_t cred,
 OM_uint32
 negoex_accept(OM_uint32 *minor, spnego_gss_ctx_id_t ctx, gss_cred_id_t cred,
               gss_buffer_t input_token, gss_channel_bindings_t bindings,
-              gss_buffer_t output_token, OM_uint32 *time_rec);
+              gss_buffer_t output_token, OM_uint32 *time_rec,
+              gss_cred_id_t *deleg_cred);

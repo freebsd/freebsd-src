@@ -31,16 +31,25 @@
 from k5test import *
 from queue import Empty
 import io
+import multiprocessing
 import struct
 
 try:
     from pyrad import packet, dictionary
 except ImportError:
     skip_rest('OTP tests', 'Python pyrad module not found')
-try:
-    from multiprocessing import Process, Queue
-except ImportError:
-    skip_rest('OTP tests', 'Python version 2.6 required')
+
+# Since Python 3.14 (3.8 on macOS), "forkserver" replaces "fork" as
+# default method on POSIX, because forking and continuing execution is
+# inherently unsafe in threaded processes, and because system
+# libraries may have created threads without specific direction from
+# the main process (this is most often seen on macOS so far).
+#
+# "forkserver" relies on being able to re-import the invoking module.
+# That doesn't work for k5test scripts as we don't use __name__ ==
+# 'main' guards and because k5test installs an atexit handler.  For
+# now, switch back to using the "fork" method.
+multiprocessing.set_start_method('fork', force=True)
 
 # We could use a dictionary file, but since we need so few attributes,
 # we'll just include them here.
@@ -52,7 +61,7 @@ ATTRIBUTE    NAS-Identifier  32    string
 ATTRIBUTE    Message-Authenticator 80 octets
 '''
 
-class RadiusDaemon(Process):
+class RadiusDaemon(multiprocessing.Process):
     MAX_PACKET_SIZE = 4096
     DICTIONARY = dictionary.Dictionary(io.StringIO(radius_attributes))
 
@@ -186,7 +195,7 @@ conf = {'plugins': {'kdcpreauth': {'enable_only': 'otp'}},
                 'unix': {'server': socket_file,
                          'strip_realm': 'false'}}}
 
-queue = Queue()
+queue = multiprocessing.Queue()
 
 realm = K5Realm(kdc_conf=conf)
 realm.run([kadminl, 'modprinc', '+requires_preauth', realm.user_princ])
@@ -259,7 +268,7 @@ verify(daemon, queue, True, realm.user_princ, 'accept')
 ## tokens configured, with the first rejecting and the second
 ## accepting.  With the bug, the KDC incorrectly rejects the request
 ## and then performs invalid memory accesses, most likely crashing.
-queue2 = Queue()
+queue2 = multiprocessing.Queue()
 daemon1 = UDPRadiusDaemon(args=(server_addr, secret_file, 'accept1', queue))
 daemon2 = UnixRadiusDaemon(args=(socket_file, None, 'accept2', queue2))
 daemon1.start()

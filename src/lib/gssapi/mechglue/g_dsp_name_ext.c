@@ -120,7 +120,7 @@ gss_display_name_ext (OM_uint32 *minor_status,
         return GSS_S_UNAVAILABLE;
 
     if ((output_name_buffer->value =
-         malloc(union_name->external_name->length + 1)) == NULL) {
+         gssalloc_malloc(union_name->external_name->length + 1)) == NULL) {
         return GSS_S_FAILURE;
     }
     output_name_buffer->length = union_name->external_name->length;

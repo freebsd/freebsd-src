@@ -110,13 +110,12 @@ error), or if you are not building the graphical ticket manager.
 Running Kerberos 5 Apps:
 -----------------------
 
-Make sure you have a valid krb5.ini file.
-By default, an empty krb5.ini is installed in CSIDL_COMMON_APPDATA
-(that is, %SystemDrive%\ProgramData\MIT\Kerberos5\ on newer-than-XP).
-(ProgramData is a hidden folder.)  You may need to customize it with
-settings for your site, but since DNS lookups are enabled for locating
-KDCs, many sites will not need further customization.  The file format is
-identical to that of a Unix krb5.conf file.
+Make sure you have a valid krb5.ini file.  By default, an empty
+krb5.ini is installed in %SystemDrive%\Program Files\MIT\Kerberos5\ .
+You may need to customize it with settings for your site, but since
+DNS lookups are enabled for locating KDCs, many sites will not need
+further customization.  The file format is identical to that of a Unix
+krb5.conf file.
 
 
 krb5.ini File:

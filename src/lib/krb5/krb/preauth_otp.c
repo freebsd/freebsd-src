@@ -989,7 +989,7 @@ otp_client_prep_questions(krb5_context context, krb5_clpreauth_moddata moddata,
                           krb5_data *encoded_previous_request,
                           krb5_pa_data *pa_data)
 {
-    krb5_pa_otp_challenge *chl;
+    krb5_pa_otp_challenge *chl, **chp = (krb5_pa_otp_challenge **)modreq;
     krb5_error_code retval;
     krb5_data tmp;
     char *json;
@@ -997,13 +997,17 @@ otp_client_prep_questions(krb5_context context, krb5_clpreauth_moddata moddata,
     if (modreq == NULL)
         return ENOMEM;
 
+    /* We shouldn't normally be called twice during the same initial
+     * credentials request, but if we are, free the previous challenge. */
+    k5_free_pa_otp_challenge(context, *chp);
+    *chp = NULL;
+
     /* Decode the challenge. */
     tmp = make_data(pa_data->contents, pa_data->length);
-    retval = decode_krb5_pa_otp_challenge(&tmp,
-                                          (krb5_pa_otp_challenge **)modreq);
+    retval = decode_krb5_pa_otp_challenge(&tmp, chp);
     if (retval != 0)
         return retval;
-    chl = *(krb5_pa_otp_challenge **)modreq;
+    chl = *chp;
 
     /* Remove unsupported tokeninfos. */
     retval = filter_supported_tokeninfos(context, chl->tokeninfo);
