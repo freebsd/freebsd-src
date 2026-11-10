@@ -22,14 +22,14 @@ ATF_TESTS_SH+=	pmcstat_tsc_test
 TESTS_SUBDIRS+=	amd
 .endif
 
-TEST_METADATA.pmc_exterr_test+=	required_user="root"
+TEST_METADATA.pmc_exterr_test+=		required_user="root"
 TEST_METADATA.pmc_callchain_ur_test+=	is_exclusive="true"
-TEST_METADATA.pmc_cli_test+=	is_exclusive="true"
+TEST_METADATA.pmc_cli_test+=		is_exclusive="true"
 TEST_METADATA.pmc_pidtrack_test+=	is_exclusive="true"
-TEST_METADATA.pmc_rapl_test+=	is_exclusive="true"
+TEST_METADATA.pmc_rapl_test+=		is_exclusive="true"
 TEST_METADATA.pmcstat_tsc_test+=	required_kmods="hwpmc"
 
-LIBADD+=	pmc
+LIBADD+=			pmc
 LIBADD.pmc_detach_test+=	pthread
 
 CFLAGS.pmc_exterr_test.c+=	-I${SRCTOP}/tests
