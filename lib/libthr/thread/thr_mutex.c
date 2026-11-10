@@ -905,8 +905,9 @@ static int
 mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime,
     clockid_t clockid)
 {
-	struct timespec	ts1, ts2;
+	struct timespec	ts1;
 	int ret;
+	u_int dummy;
 
 	switch (PMUTEX_TYPE(m->m_flags)) {
 	case PTHREAD_MUTEX_ERRORCHECK:
@@ -932,8 +933,11 @@ mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime,
 			    clock_gettime(clockid, &ts1) == -1) {
 				ret = EINVAL;
 			} else {
-				TIMESPEC_SUB(&ts2, abstime, &ts1);
-				__sys_nanosleep(&ts2, NULL);
+				dummy = 0;
+				do {
+					ret = _thr_umtx_timedwait_uint(&dummy,
+					    0, clockid, abstime, 0);
+				} while (ret == 0 || ret == EINTR);
 				ret = ETIMEDOUT;
 			}
 		} else {
