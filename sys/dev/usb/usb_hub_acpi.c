@@ -584,7 +584,7 @@ static device_method_t acpi_uhub_root_methods[] = {
 };
 
 extern driver_t uhub_driver;
-static kobj_class_t uhub_baseclasses[] = {&uhub_driver, NULL};
+static const kobj_class_t uhub_baseclasses[] = {&uhub_driver, NULL};
 
 static driver_t acpi_uhub_driver = {
 	.name = "uhub",

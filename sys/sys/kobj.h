@@ -62,7 +62,7 @@ struct kobj_method {
 	const char	*name;		/* class name */		\
 	kobj_method_t	*methods;	/* method table */		\
 	size_t		size;		/* object size */		\
-	kobj_class_t	*baseclasses;	/* base classes */		\
+	const kobj_class_t *baseclasses;/* base classes */		\
 	u_int		refs;		/* reference count */		\
 	kobj_ops_t	ops;		/* compiled method table */	\
 	size_t		total_size;	/* total object size */		\
@@ -145,7 +145,7 @@ struct kobj_class classvar = {					\
 #define DEFINE_CLASS_1(_name, classvar, _methods, _size,	\
 		       base1)					\
 								\
-static kobj_class_t _name ## _baseclasses[] =			\
+static const kobj_class_t _name ## _baseclasses[] =		\
 	{ &base1, NULL };					\
 struct kobj_class classvar = {					\
 	.name = #_name,						\
@@ -163,7 +163,7 @@ struct kobj_class classvar = {					\
 #define DEFINE_CLASS_2(_name, classvar, _methods, _size,	\
 	               base1, base2)				\
 								\
-static kobj_class_t _name ## _baseclasses[] =			\
+static const kobj_class_t _name ## _baseclasses[] =		\
 	{ &base1, &base2, NULL };				\
 struct kobj_class classvar = {					\
 	.name = #_name,						\
@@ -181,7 +181,7 @@ struct kobj_class classvar = {					\
 #define DEFINE_CLASS_3(_name, classvar, _methods, _size,	\
 		       base1, base2, base3)			\
 								\
-static kobj_class_t _name ## _baseclasses[] =			\
+static const kobj_class_t _name ## _baseclasses[] =		\
 	{ &base1, &base2, &base3, NULL };			\
 struct kobj_class classvar = {					\
 	.name = #_name,						\
