@@ -140,6 +140,13 @@ struct sockbuf {
 			STAILQ_HEAD(, mbuf)	uxst_mbq;
 			struct mbuf		*uxst_fnrdy;
 			struct socket		*uxst_peer;
+			/*
+			 * Control bytes in uxst_mbq.  sb_acc and sb_ccc count
+			 * data only, and sb_ctl stays 0, so that the generic
+			 * "sbavail() - sb_ctl" in FIONREAD, fstat(2) and
+			 * EVFILT_READ reports the data bytes ready to read.
+			 */
+			u_int			uxst_ctl;
 			u_int			uxst_flags;
 #define	UXST_PEER_AIO	0x1
 #define	UXST_PEER_SEL	0x2
