@@ -423,7 +423,7 @@ struct iflib_txq {
 	qidx_t		ift_cidx;
 	qidx_t		ift_cidx_processed;
 	qidx_t		ift_pidx;
-	uint8_t		ift_gen;
+	uint8_t		ift_spare0;
 	uint8_t		ift_br_offset:1,
 			ift_defer_mfree:1,
 			ift_spare_bits0:6;
@@ -488,7 +488,7 @@ struct iflib_txq {
 	uint16_t	ift_wdog_armed;
 	uint8_t		ift_closed;
 	uint8_t		ift_update_freq;
-	uint8_t		ift_spare0[2];	/* pad to the next pointer boundary */
+	uint8_t		ift_spare1[2];	/* pad to the next pointer boundary */
 	struct iflib_filter_info ift_filter_info;
 	bus_dma_tag_t	ift_buf_tag;
 	bus_dma_tag_t	ift_tso_buf_tag;
@@ -530,6 +530,7 @@ struct iflib_fl {
 	qidx_t		ifl_rxd_idxs[IFLIB_MAX_RX_REFRESH];
 }  __aligned(CACHE_LINE_SIZE);
 
+#ifdef INVARIANTS
 static inline qidx_t
 get_inuse(int size, qidx_t cidx, qidx_t pidx, uint8_t gen)
 {
@@ -548,9 +549,9 @@ get_inuse(int size, qidx_t cidx, qidx_t pidx, uint8_t gen)
 
 	return (used);
 }
+#endif
 
-#define TXQ_AVAIL(txq) ((txq->ift_size - txq->ift_pad) -\
-	    get_inuse(txq->ift_size, txq->ift_cidx, txq->ift_pidx, txq->ift_gen))
+#define TXQ_AVAIL(txq) (txq->ift_size - txq->ift_pad - txq->ift_in_use)
 
 #define	MAX_TX_DESC(ctx) MAX((ctx)->ifc_softc_ctx.isc_tx_tso_segments_max, \
     (ctx)->ifc_softc_ctx.isc_tx_nsegments)
@@ -2985,7 +2986,7 @@ iflib_stop(if_ctx_t ctx)
 		txq->ift_processed_prev = 0;
 		txq->ift_outstanding_prev = 0;
 		txq->ift_wdog_armed = 0;
-		txq->ift_in_use = txq->ift_gen = txq->ift_no_desc_avail = 0;
+		txq->ift_in_use = txq->ift_no_desc_avail = 0;
 		txq->ift_npending = txq->ift_db_pending = 0;
 		txq->ift_rs_pending = 0;
 		if (sctx->isc_flags & IFLIB_PRESERVE_TX_INDICES)
@@ -4035,7 +4036,6 @@ defrag:
 		ndesc = pi.ipi_new_pidx - pi.ipi_pidx;
 		if (pi.ipi_new_pidx < pi.ipi_pidx) {
 			ndesc += txq->ift_size;
-			txq->ift_gen = 1;
 		}
 
 		if (pi.ipi_flags & IPI_TX_INTR)
@@ -4107,12 +4107,11 @@ out_with_error:
 static void
 iflib_tx_desc_free(iflib_txq_t txq, int n, struct mbuf **m_defer)
 {
-	uint32_t qsize, cidx, gen;
+	uint32_t qsize, cidx;
 	struct mbuf *m, **ifsd_m;
 	uintptr_t flags;
 
 	cidx = txq->ift_cidx;
-	gen = txq->ift_gen;
 	qsize = txq->ift_size;
 	ifsd_m =txq->ift_sds.ifsd_m;
 
@@ -4149,11 +4148,9 @@ iflib_tx_desc_free(iflib_txq_t txq, int n, struct mbuf **m_defer)
 		}
 		if (__predict_false(++cidx == qsize)) {
 			cidx = 0;
-			gen = 0;
 		}
 	}
 	txq->ift_cidx = cidx;
-	txq->ift_gen = gen;
 }
 
 static __inline int
