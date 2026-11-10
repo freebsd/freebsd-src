@@ -34,9 +34,11 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/reboot.h>
 #include <sys/gpio.h>
 #include <sys/module.h>
+#include <sys/sx.h>
 #include <machine/bus.h>
 
 #include <dev/iicbus/iicbus.h>
@@ -683,6 +685,7 @@ struct axp8xx_softc {
 	void			*ih;
 	device_t		gpiodev;
 	struct mtx		mtx;
+	struct sx		reglock;
 	int			busy;
 
 	int			type;
@@ -726,7 +729,7 @@ axp8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 	msg[1].len = size;
 	msg[1].buf = data;
 
-	return (iicbus_transfer(dev, msg, 2));
+	return (iicbus_transfer_excl(dev, msg, 2, IIC_WAIT));
 }
 
 static int
@@ -746,7 +749,7 @@ axp8xx_write(device_t dev, uint8_t reg, uint8_t val)
 	msg.len = sizeof(buf);
 	msg.buf = buf;
 
-	return (iicbus_transfer(dev, &msg, 1));
+	return (iicbus_transfer_excl(dev, &msg, 1, IIC_WAIT));
 }
 
 static int
@@ -775,10 +778,12 @@ axp8xx_regnode_init(struct regnode *regnode)
 static int
 axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 {
+	struct axp8xx_softc *asc;
 	struct axp8xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
+	asc = device_get_softc(sc->base_dev);
 
 	if (bootverbose)
 		device_printf(sc->base_dev, "%sable %s (%s)\n",
@@ -786,6 +791,8 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 		    regnode_get_name(regnode),
 		    sc->def->name);
 
+	/* The regulators share the enable registers */
+	sx_xlock(&asc->reglock);
 	axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
 	val &= ~sc->def->enable_mask;
 	if (enable)
@@ -797,6 +804,7 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 			val &= ~sc->def->enable_value;
 	}
 	axp8xx_write(sc->base_dev, sc->def->enable_reg, val);
+	sx_xunlock(&asc->reglock);
 
 	*udelay = 0;
 
@@ -1567,6 +1575,7 @@ axp8xx_attach(device_t dev)
 
 	sc->addr = iicbus_get_addr(dev);
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
+	sx_init(&sc->reglock, "axp8xx regulators");
 
 	error = bus_alloc_resources(dev, axp8xx_spec, &sc->res);
 	if (error != 0) {
