@@ -686,6 +686,8 @@ restart:
 	if (__predict_false(error != 0)) {
 		namei_cleanup_cnp(cnp);
 		nameicap_cleanup(ndp, error);
+		if (ndp->ni_startdir != NULL)
+			vrele(ndp->ni_startdir);
 		SDT_PROBE4(vfs, namei, lookup, return, error, NULL,
 		    false, ndp);
 		return (error);
@@ -746,6 +748,8 @@ restart:
 			}
 			namei_cleanup_cnp(cnp);
 			nameicap_cleanup(ndp, ENOENT);
+			if (ndp->ni_startdir != NULL)
+				vrele(ndp->ni_startdir);
 			SDT_PROBE4(vfs, namei, lookup, return, ENOENT, NULL,
 			    false, ndp);
 			return (ENOENT);
