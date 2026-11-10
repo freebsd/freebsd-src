@@ -367,9 +367,10 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if ((m->flags & (M_TXEN | M_RXEN)) != (oldflags & (M_RXEN | M_TXEN)))
 		MPU_CALLBACK(m, m->cookie, m->flags);
 
-	mtx_unlock(&m->lock);
 	retval = 0;
-err:	return retval;
+err:
+	mtx_unlock(&m->lock);
+	return retval;
 }
 
 /*
