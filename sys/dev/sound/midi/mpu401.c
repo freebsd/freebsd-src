@@ -158,6 +158,7 @@ mpu401_uninit(struct mpu401 *m)
 {
 	CMD(m, MPU_RESET);
 	midi_uninit(m->mid);
+	callout_drain(&m->timer);
 	free(m, M_MIDI);
 	return 0;
 }
