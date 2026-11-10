@@ -717,7 +717,7 @@ axp8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 	sc = device_get_softc(dev);
 
 	msg[0].slave = sc->addr;
-	msg[0].flags = IIC_M_WR;
+	msg[0].flags = IIC_M_WR | IIC_M_NOSTOP;
 	msg[0].len = 1;
 	msg[0].buf = &reg;
 
@@ -733,21 +733,20 @@ static int
 axp8xx_write(device_t dev, uint8_t reg, uint8_t val)
 {
 	struct axp8xx_softc *sc;
-	struct iic_msg msg[2];
+	struct iic_msg msg;
+	uint8_t buf[2];
 
 	sc = device_get_softc(dev);
 
-	msg[0].slave = sc->addr;
-	msg[0].flags = IIC_M_WR;
-	msg[0].len = 1;
-	msg[0].buf = &reg;
+	buf[0] = reg;
+	buf[1] = val;
 
-	msg[1].slave = sc->addr;
-	msg[1].flags = IIC_M_WR;
-	msg[1].len = 1;
-	msg[1].buf = &val;
+	msg.slave = sc->addr;
+	msg.flags = IIC_M_WR;
+	msg.len = sizeof(buf);
+	msg.buf = buf;
 
-	return (iicbus_transfer(dev, msg, 2));
+	return (iicbus_transfer(dev, &msg, 1));
 }
 
 static int
