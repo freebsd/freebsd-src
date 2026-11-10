@@ -543,7 +543,7 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 			selrecord(td, &m->rsel);
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
-		if (midi_queue_avail(&m->outq) < m->hiwat)
+		if (midi_queue_avail(&m->outq) > m->hiwat)
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
 			selrecord(td, &m->wsel);
