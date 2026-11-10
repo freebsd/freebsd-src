@@ -1594,6 +1594,14 @@ esac
 #
 while :; do
 	if ! f_interactive; then
+		# Without a user to change the settings, a failed attempt
+		# would fail again forever, so give up after the first one.
+		if [ ! "$attempted" ]; then
+			attempted=1
+		else
+			f_dprintf "Non-interactive install failed, not retrying"
+			f_die
+		fi
 		retval=$DIALOG_OK
 		mtag=">>> $msg_install"
 	else
