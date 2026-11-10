@@ -109,7 +109,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #PermitTunnel no
 #ChrootDirectory none
 #UseBlocklist no
-#VersionAddendum FreeBSD-20261109
+#VersionAddendum FreeBSD-20261110
 
 # no default banner path
 #Banner none

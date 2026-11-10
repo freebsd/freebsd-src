@@ -2774,7 +2774,7 @@ channel_handler(struct ssh *ssh, int table, struct timespec *timeout)
 				if (timeout != NULL &&
 				    c->type == SSH_CHANNEL_OPEN &&
 				    channel_get_expiry(ssh, c) != 0) {
-					ptimeout_deadline_monotime(timeout,
+					ptimeout_deadline_monotime_double(timeout,
 					    channel_get_expiry(ssh, c));
 				}
 			} else if (timeout != NULL) {
@@ -2782,7 +2782,7 @@ channel_handler(struct ssh *ssh, int table, struct timespec *timeout)
 				 * Arrange for poll() wakeup when channel pause
 				 * timer expires.
 				 */
-				ptimeout_deadline_monotime(timeout,
+				ptimeout_deadline_monotime_double(timeout,
 				    c->notbefore);
 			}
 		}
@@ -4347,8 +4347,7 @@ check_rfwd_permission(struct ssh *ssh, struct Forward *fwd)
 #ifdef SKIP_PRIVDROP
 	if (fwd->listen_path != NULL)
 		return 0;
-	if (allowed_open->listen_port != FWD_PERMIT_ANY_PORT &&
-	    allowed_open->listen_port < 1024)
+	if (fwd->listen_port != 0 && fwd->listen_port < 1024)
 		return 0;
 #endif
 

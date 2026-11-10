@@ -3330,7 +3330,9 @@ mkdir_path(const char *target, mode_t mode)
 	}
 
 	/* Work through the path, component-wise */
-	while ((p = strsep(&dir, "/")) && p != '\0') {
+	while ((p = strsep(&dir, "/"))) {
+		if (*p == '\0')
+			continue;
 		if (strlcat(path, "/", plen) >= plen ||
 		    strlcat(path, p, plen) >= plen)
 			goto out;

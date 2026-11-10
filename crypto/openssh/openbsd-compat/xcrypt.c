@@ -25,6 +25,8 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
@@ -59,6 +61,8 @@
 #  define crypt DES_crypt
 # endif
 
+#include "xmalloc.h"
+
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 
 /*
@@ -71,7 +75,7 @@ static const char *
 pick_salt(void)
 {
 	struct passwd *pw;
-	char *passwd, *p;
+	char *passwd = NULL, *p;
 	size_t typelen;
 	static char salt[32];
 
@@ -80,6 +84,8 @@ pick_salt(void)
 	strlcpy(salt, "xx", sizeof(salt));
 	setpwent();
 	while ((pw = getpwent()) != NULL) {
+		if (passwd != NULL)
+			freezero(passwd, strlen(passwd));
 		if ((passwd = shadow_pw(pw)) == NULL)
 			continue;
 		if (passwd[0] == '$' && (p = strrchr(passwd+1, '$')) != NULL) {
@@ -90,6 +96,8 @@ pick_salt(void)
 		}
 	}
  out:
+	if (passwd != NULL)
+		freezero(passwd, strlen(passwd));
 	endpwent();
 	return salt;
 }
@@ -122,9 +130,8 @@ xcrypt(const char *password, const char *salt)
 
 /*
  * Handle shadowed password systems in a cleaner way for portable
- * version.
+ * version. Caller must free returned value.
  */
-
 char *
 shadow_pw(struct passwd *pw)
 {
@@ -138,7 +145,8 @@ shadow_pw(struct passwd *pw)
 # endif
 
 #ifdef USE_LIBIAF
-	return(get_iaf_password(pw));
+	pw_password = get_iaf_password(pw);
+	return pw_password == NULL ? NULL : xstrdup(pw_password);
 #endif
 
 # if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
@@ -152,5 +160,5 @@ shadow_pw(struct passwd *pw)
 		pw_password = spw->ufld.fd_encrypt;
 # endif
 
-	return pw_password;
+	return pw_password == NULL ? NULL : xstrdup(pw_password);
 }
