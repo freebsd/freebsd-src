@@ -72,6 +72,21 @@
 #define	CLK_APB2		27
 
 static struct aw_ccung_reset h6_ccu_resets[] = {
+	/* DMA_BGR_REG */
+	CCU_RESET(RST_BUS_DMA, 0x70c, 16)
+
+	/* MSGBOX_BGR_REG */
+	CCU_RESET(RST_BUS_MSGBOX, 0x71c, 16)
+
+	/* SPINLOCK_BGR_REG */
+	CCU_RESET(RST_BUS_SPINLOCK, 0x72c, 16)
+
+	/* HSTIMER_BGR_REG */
+	CCU_RESET(RST_BUS_HSTIMER, 0x73c, 16)
+
+	/* DBGSYS_BGR_REG */
+	CCU_RESET(RST_BUS_DBG, 0x78c, 16)
+
 	/* PSI_BGR_REG */
 	CCU_RESET(RST_BUS_PSI, 0x79c, 16)
 
@@ -115,6 +130,21 @@ static struct aw_ccung_reset h6_ccu_resets[] = {
 };
 
 static struct aw_ccung_gate h6_ccu_gates[] = {
+	/* DMA_BGR_REG */
+	CCU_GATE(CLK_BUS_DMA, "bus-dma", "psi_ahb1_ahb2", 0x70c, 0)
+
+	/* MSGBOX_BGR_REG */
+	CCU_GATE(CLK_BUS_MSGBOX, "bus-msgbox", "psi_ahb1_ahb2", 0x71c, 0)
+
+	/* SPINLOCK_BGR_REG */
+	CCU_GATE(CLK_BUS_SPINLOCK, "bus-spinlock", "psi_ahb1_ahb2", 0x72c, 0)
+
+	/* HSTIMER_BGR_REG */
+	CCU_GATE(CLK_BUS_HSTIMER, "bus-hstimer", "psi_ahb1_ahb2", 0x73c, 0)
+
+	/* DBGSYS_BGR_REG */
+	CCU_GATE(CLK_BUS_DBG, "bus-dbg", "psi_ahb1_ahb2", 0x78c, 0)
+
 	/* PSI_BGR_REG */
 	CCU_GATE(CLK_BUS_PSI, "bus-psi", "psi_ahb1_ahb2", 0x79c, 0)
 
