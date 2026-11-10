@@ -33,6 +33,7 @@
 ;	COMPAT12 included on COMPAT_FREEBSD12 #ifdef (FreeBSD 12 compat)
 ;	COMPAT13 included on COMPAT_FREEBSD13 #ifdef (FreeBSD 13 compat)
 ;	COMPAT14 included on COMPAT_FREEBSD14 #ifdef (FreeBSD 14 compat)
+;	COMPAT15 included on COMPAT_FREEBSD15 #ifdef (FreeBSD 15 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	RESERVED reserved for local or vendor use (not for FreeBSD)
 ;	UNIMPL	not implemented, placeholder only
