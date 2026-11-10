@@ -251,13 +251,18 @@ FIXED_CLK(pll_peri1_clk,
     4,					/* div */
     0);					/* flags */
 
+/*
+ * Changing the output divider (bit 0) of the GPU PLL to scale its frequency
+ * makes the system fail.  It is set at reset so it is read but the rate is
+ * always searched with it at 1, like Linux which also clears it.
+ */
 static const char *pll_gpu_parents[] = {"osc24M"};
 NMM_CLK(pll_gpu_clk,
     CLK_PLL_GPU,				/* id */
     "pll_gpu", pll_gpu_parents,			/* name, parents */
     0x30,					/* offset */
     8, 8, 0, AW_CLK_FACTOR_MIN_VALUE, 12,	/* n factor */
-    0, 1, 0, 0,					/* m0 factor */
+    0, 1, 1, AW_CLK_FACTOR_SEARCH_VALUE,	/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     31,						/* gate */
     28, 1000,					/* lock */
