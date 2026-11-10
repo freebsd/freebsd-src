@@ -140,6 +140,30 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // Last ditch effort to get an unprivileged user on the fly from /etc/passwd
+  // for testcases that need it.
+  //
+  // This must be done this way because the typical way of handling this (via
+  // the `-u` argument) isn't supported yet with kyua:
+  // https://github.com/freebsd/kyua/issues/354 .
+  //
+  // IMPORTANT:
+  // - this doesn't honor `unprivileged_user` in `kyua.conf`.
+  // - this doesn't fail because doing that could break all testing on systems
+  //   where the `tests` user isn't available.
+  if (other_uid == 0) {
+    const char *test_user = "tests";
+
+    struct passwd *test_user_entry = getpwnam(test_user);
+
+    if (test_user_entry) {
+       other_uid = test_user_entry->pw_uid;
+    } else {
+       std::cerr << "Failed to get entry for " << test_user << ", errno=" << errno << "; some tests may fail" << std::endl;
+    }
+
+  }
+
   testing::AddGlobalTestEnvironment(new SetupEnvironment());
   return RUN_ALL_TESTS();
 }
