@@ -345,10 +345,15 @@ local function pkgbase()
 		assert(os.execute("cp -R /usr/share/keys/* " .. chroot .. "/usr/share/keys/"))
 	end
 
+	-- Create <chroot>/tmp and point at it with TMPDIR; otherwise pkg uses
+	-- /tmp which is a small tmpfs in the installer environment and fails
+	-- to extract data.pkg.
 	-- We must use --repo-conf-dir rather than -o REPOS_DIR here as the latter
 	-- is interpreted relative to the --rootdir. BSDINSTALL_PKG_REPOS_DIR must
 	-- be allowed to point to a path outside the chroot.
-	local pkg = "pkg --rootdir " .. chroot ..
+	assert(os.execute("mkdir -p " .. chroot .. "/tmp"))
+	assert(os.execute("chmod 1777 " .. chroot .. "/tmp"))
+	local pkg = "env TMPDIR=" .. chroot .. "/tmp pkg --rootdir " .. chroot ..
 		" --repo-conf-dir " .. repos_dir .. " -o IGNORE_OSVERSION=yes "
 
 	while not os.execute(pkg .. "update") do
