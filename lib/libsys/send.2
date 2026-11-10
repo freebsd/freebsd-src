@@ -111,9 +111,48 @@ They are given by the
 vector along with
 .Fa vlen
 specifying the vector size.
+The socket and its descriptor capability rights are acquired once for
+the entire batch.
+Closing or reusing the descriptor concurrently does not redirect
+subsequent messages to another socket.
 The number of octets sent per each message is placed in the
 .Fa msg_len
 field of each processed element of the vector after transmission.
+If
+.Fa vlen
+exceeds
+.Dv UIO_MAXIOV ,
+only the first
+.Dv UIO_MAXIOV
+elements of
+.Fa msgvec
+are considered; the remaining elements are not processed.
+Exceeding this limit does not itself cause an error.
+Applications can obtain this limit by calling
+.Xr sysconf 3
+with
+.Dv _SC_IOV_MAX .
+Only messages whose lengths have been successfully written back to
+.Fa msgvec
+are included in the returned count.
+If an error occurs before any message is counted,
+.Fn sendmmsg
+returns -1.
+Otherwise, the count is returned and the subsequent error is not reported
+by that call.
+If copying a message's length to user memory fails, that message is
+not included in the returned count, even though its data may already
+have been sent.
+Retrying that message may therefore send the data again.
+.Pp
+On kernels without the native system call, the library falls back to
+individual send calls.
+The library checks the running kernel version before attempting the
+native system call.
+Each send call resolves the descriptor separately.
+The fallback does not impose the
+.Dv UIO_MAXIOV
+batch limit.
 .Pp
 No indication of failure to deliver is implicit in a
 .Fn send .
@@ -275,6 +314,7 @@ is not connected.
 .Xr socket 2 ,
 .Xr write 2 ,
 .Xr CMSG_DATA 3 ,
+.Xr sysconf 3 ,
 .Xr unix 4
 .Sh HISTORY
 The

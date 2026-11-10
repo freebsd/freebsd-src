@@ -74,7 +74,7 @@
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1600031
+#define __FreeBSD_version 1600032
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -110,6 +110,7 @@
 #define	P_OSREL_TLSBASE			1500044
 #define	P_OSREL_EXTERRCTL		1500045
 #define	P_OSREL_AMD64_TF_FRED		1600014
+#define	P_OSREL_MMSG			1600032
 
 #define	P_OSREL_MAJOR(x)		((x) / 100000)
 #endif

@@ -27,8 +27,10 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#define	_WANT_P_OSREL
+#include <sys/param.h>
 #include <sys/socket.h>
+#include <errno.h>
 #include "libc_private.h"
 
 ssize_t
@@ -37,16 +39,20 @@ sendmmsg(int s, struct mmsghdr *__restrict msgvec, size_t vlen, int flags)
 	size_t i, sent;
 	ssize_t ret;
 
+	if (__getosreldate() >= P_OSREL_MMSG) {
+		ret = __sys_sendmmsg(s, msgvec, vlen, flags);
+		if (ret != -1 || errno != ENOSYS)
+			return (ret);
+	}
+
 	sent = 0;
 	for (i = 0; i < vlen; i++, sent++) {
 		ret = __sys_sendmsg(s, &msgvec[i].msg_hdr, flags);
 		if (ret == -1) {
 			if (sent != 0) {
 				/*
-				 * We have sent messages. Let caller
-				 * know about the data sent, socket
-				 * error is returned on next
-				 * invocation.
+				 * Return the number of messages sent without
+				 * reporting the subsequent error.
 				 */
 				return (sent);
 			}

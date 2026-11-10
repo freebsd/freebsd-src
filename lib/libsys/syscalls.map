@@ -831,4 +831,8 @@ FBSDprivate_1.0 {
 	__sys_pddupfd;
 	_pdptrace;
 	__sys_pdptrace;
+	_sendmmsg;
+	__sys_sendmmsg;
+	_recvmmsg;
+	__sys_recvmmsg;
 };

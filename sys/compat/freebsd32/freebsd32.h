@@ -197,6 +197,11 @@ struct msghdr32 {
 	int		 msg_flags;
 };
 
+struct mmsghdr32 {
+	struct msghdr32 msg_hdr;
+	int32_t	msg_len;
+};
+
 #if defined(__amd64__)
 #define	__STAT32_TIME_T_EXT	1
 #endif

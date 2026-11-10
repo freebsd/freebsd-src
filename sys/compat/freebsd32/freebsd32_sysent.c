@@ -673,4 +673,6 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(pdopenpid_args), .sy_call = (sy_call_t *)sys_pdopenpid, .sy_auevent = AUE_PDOPENPID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 603 = pdopenpid */
 	{ .sy_narg = AS(pddupfd_args), .sy_call = (sy_call_t *)sys_pddupfd, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 604 = pddupfd */
 	{ .sy_narg = AS(freebsd32_pdptrace_args), .sy_call = (sy_call_t *)freebsd32_pdptrace, .sy_auevent = AUE_PDPTRACE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 605 = freebsd32_pdptrace */
+	{ .sy_narg = AS(freebsd32_sendmmsg_args), .sy_call = (sy_call_t *)freebsd32_sendmmsg, .sy_auevent = AUE_SENDMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 606 = freebsd32_sendmmsg */
+	{ .sy_narg = AS(freebsd32_recvmmsg_args), .sy_call = (sy_call_t *)freebsd32_recvmmsg, .sy_auevent = AUE_RECVMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 607 = freebsd32_recvmmsg */
 };

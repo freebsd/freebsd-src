@@ -56,6 +56,7 @@
 #ifdef COMPAT_43
 #include <sys/sysent.h>
 #endif
+#include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
@@ -72,6 +73,8 @@
 #include <security/mac/mac_framework.h>
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
+static int sendit_impl(struct thread *td, int s, struct socket *so,
+    const cap_rights_t *rights, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
 static int accept1(struct thread *td, int s, struct sockaddr *uname,
@@ -660,6 +663,13 @@ sys_socketpair(struct thread *td, struct socketpair_args *uap)
 static int
 sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 {
+	return (sendit_impl(td, s, NULL, NULL, mp, flags));
+}
+
+static int
+sendit_impl(struct thread *td, int s, struct socket *so,
+    const cap_rights_t *rights, struct msghdr *mp, int flags)
+{
 	struct mbuf *control;
 	struct sockaddr *to;
 	int error;
@@ -713,7 +723,11 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 		control = NULL;
 	}
 
-	error = kern_sendit(td, s, mp, flags, control, UIO_USERSPACE);
+	if (so == NULL)
+		error = kern_sendit(td, s, mp, flags, control, UIO_USERSPACE);
+	else
+		error = kern_sendit_socket(td, s, so, rights, mp, flags,
+		    control, UIO_USERSPACE);
 
 bad:
 	free(to, M_SONAME);
@@ -725,10 +739,33 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
     struct mbuf *control, enum uio_seg segflg)
 {
 	struct file *fp;
+	const cap_rights_t *rights;
+	int error;
+
+	AUDIT_ARG_FD(s);
+	if (mp->msg_name != NULL)
+		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
+	rights = mp->msg_name != NULL ?
+	    &cap_send_connect_rights : &cap_send_rights;
+	error = getsock(td, s, rights, &fp);
+	if (error != 0) {
+		m_freem(control);
+		return (error);
+	}
+	error = kern_sendit_socket(td, s, fp->f_data, rights, mp, flags,
+	    control, segflg);
+	fdrop(fp, td);
+	return (error);
+}
+
+/* The caller must hold a reference to so and supply its checked rights. */
+int
+kern_sendit_socket(struct thread *td, int s, struct socket *so,
+    const cap_rights_t *rights, struct msghdr *mp, int flags,
+    struct mbuf *control, enum uio_seg segflg)
+{
 	struct uio auio;
 	struct iovec *iov;
-	struct socket *so;
-	const cap_rights_t *rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -736,17 +773,16 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	int i, error;
 
 	AUDIT_ARG_FD(s);
-	rights = &cap_send_rights;
-	if (mp->msg_name != NULL) {
+	if (mp->msg_name != NULL)
 		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
-		rights = &cap_send_connect_rights;
-	}
-	error = getsock(td, s, rights, &fp);
+#ifdef CAPABILITIES
+	error = cap_check(rights, mp->msg_name != NULL ?
+	    &cap_send_connect_rights : &cap_send_rights);
 	if (error != 0) {
 		m_freem(control);
 		return (error);
 	}
-	so = (struct socket *)fp->f_data;
+#endif
 
 #ifdef KTRACE
 	if (mp->msg_name != NULL && KTRPOINT(td, KTR_STRUCT))
@@ -799,7 +835,6 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	}
 #endif
 bad:
-	fdrop(fp, td);
 	return (error);
 }
 
@@ -886,15 +921,113 @@ sys_sendmsg(struct thread *td, struct sendmsg_args *uap)
 }
 
 int
+sys_sendmmsg(struct thread *td, struct sendmmsg_args *uap)
+{
+	struct file *fp;
+	struct filecaps fcaps;
+	struct mmsghdr mmsg;
+	struct iovec *iov;
+	size_t i, sent;
+	ssize_t len;
+	int error;
+
+	if (uap->vlen == 0) {
+		td->td_retval[0] = 0;
+		return (0);
+	}
+	if (uap->vlen > UIO_MAXIOV)
+		uap->vlen = UIO_MAXIOV;
+	AUDIT_ARG_FD(uap->s);
+	error = getsock_cap(td, uap->s, &cap_send_rights, &fp, &fcaps);
+	if (error != 0)
+		return (error);
+	sent = 0;
+	for (i = 0; i < uap->vlen; i++) {
+		error = copyin(&uap->msgvec[i], &mmsg, sizeof(mmsg));
+		if (error != 0)
+			break;
+		error = copyiniov(mmsg.msg_hdr.msg_iov,
+		    mmsg.msg_hdr.msg_iovlen, &iov, EMSGSIZE);
+		if (error != 0)
+			break;
+		mmsg.msg_hdr.msg_iov = iov;
+#ifdef COMPAT_OLDSOCK
+		if (SV_PROC_FLAG(td->td_proc, SV_AOUT))
+			mmsg.msg_hdr.msg_flags = 0;
+#endif
+		error = sendit_impl(td, uap->s, fp->f_data, &fcaps.fc_rights,
+		    &mmsg.msg_hdr, uap->flags);
+		free(iov, M_IOV);
+		if (error != 0)
+			break;
+		len = td->td_retval[0];
+		error = copyout(&len, &uap->msgvec[i].msg_len, sizeof(len));
+		if (error != 0)
+			break;
+		sent++;
+	}
+	filecaps_free(&fcaps);
+	fdrop(fp, td);
+	if (sent != 0 || error == 0) {
+		td->td_retval[0] = sent;
+		return (0);
+	}
+	return (error);
+}
+
+int
 kern_recvit(struct thread *td, int s, struct msghdr *mp, enum uio_seg fromseg,
     struct mbuf **controlp)
 {
+	struct file *fp;
+	int error;
+
+	if (controlp != NULL)
+		*controlp = NULL;
+
+	AUDIT_ARG_FD(s);
+	error = getsock(td, s, &cap_recv_rights, &fp);
+	if (error != 0)
+		return (error);
+	error = kern_recvit_socket(td, s, fp->f_data, mp, fromseg, controlp);
+	fdrop(fp, td);
+	return (error);
+}
+
+static int
+copyout_control(struct msghdr *mp, struct mbuf *control)
+{
+	struct mbuf *m;
+	caddr_t ctlbuf;
+	ssize_t len;
+	int error;
+
+	ctlbuf = mp->msg_control;
+	len = mp->msg_controllen;
+	mp->msg_controllen = 0;
+	for (m = control; m != NULL && len >= m->m_len; m = m->m_next) {
+		error = copyout(mtod(m, caddr_t), ctlbuf, m->m_len);
+		if (error != 0)
+			return (error);
+		ctlbuf += m->m_len;
+		len -= m->m_len;
+		mp->msg_controllen += m->m_len;
+	}
+	if (m != NULL) {
+		mp->msg_flags |= MSG_CTRUNC;
+		m_dispose_extcontrolm(m);
+	}
+	return (0);
+}
+
+/* The caller must hold a reference to so and have checked CAP_RECV. */
+int
+kern_recvit_socket(struct thread *td, int s, struct socket *so,
+    struct msghdr *mp, enum uio_seg fromseg, struct mbuf **controlp)
+{
 	struct uio auio;
 	struct iovec *iov;
-	struct mbuf *control, *m;
-	caddr_t ctlbuf;
-	struct file *fp;
-	struct socket *so;
+	struct mbuf *control;
 	struct sockaddr *fromsa = NULL;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
@@ -905,18 +1038,10 @@ kern_recvit(struct thread *td, int s, struct msghdr *mp, enum uio_seg fromseg,
 	if (controlp != NULL)
 		*controlp = NULL;
 
-	AUDIT_ARG_FD(s);
-	error = getsock(td, s, &cap_recv_rights, &fp);
-	if (error != 0)
-		return (error);
-	so = fp->f_data;
-
 #ifdef MAC
 	error = mac_socket_check_receive(td->td_ucred, so);
-	if (error != 0) {
-		fdrop(fp, td);
+	if (error != 0)
 		return (error);
-	}
 #endif
 
 	auio.uio_iov = mp->msg_iov;
@@ -928,10 +1053,8 @@ kern_recvit(struct thread *td, int s, struct msghdr *mp, enum uio_seg fromseg,
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, td);
+		if ((auio.uio_resid += iov->iov_len) < 0)
 			return (EINVAL);
-		}
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO))
@@ -1004,25 +1127,9 @@ kern_recvit(struct thread *td, int s, struct msghdr *mp, enum uio_seg fromseg,
 			control->m_data += sizeof (struct cmsghdr);
 		}
 #endif
-		ctlbuf = mp->msg_control;
-		len = mp->msg_controllen;
-		mp->msg_controllen = 0;
-		for (m = control; m != NULL && len >= m->m_len; m = m->m_next) {
-			if ((error = copyout(mtod(m, caddr_t), ctlbuf,
-			    m->m_len)) != 0)
-				goto out;
-
-			ctlbuf += m->m_len;
-			len -= m->m_len;
-			mp->msg_controllen += m->m_len;
-		}
-		if (m != NULL) {
-			mp->msg_flags |= MSG_CTRUNC;
-			m_dispose_extcontrolm(m);
-		}
+		error = copyout_control(mp, control);
 	}
 out:
-	fdrop(fp, td);
 #ifdef KTRACE
 	if (fromsa && KTRPOINT(td, KTR_STRUCT))
 		ktrsockaddr(fromsa);
@@ -1178,6 +1285,124 @@ sys_recvmsg(struct thread *td, struct recvmsg_args *uap)
 	}
 	free(iov, M_IOV);
 	return (error);
+}
+
+int
+kern_recvmmsg(struct thread *td, int s, size_t vlen, int flags,
+    const struct timespec *timeout, void *msgvec,
+    int (*recvmsg_one)(struct thread *, int, struct socket *, void *, size_t,
+    int, int *))
+{
+	struct file *fp;
+	struct socket *so;
+	sbintime_t deadline, delta, now;
+	size_t received;
+	int error, msgflags;
+
+	if (vlen == 0) {
+		td->td_retval[0] = 0;
+		return (0);
+	}
+	if (vlen > UIO_MAXIOV)
+		vlen = UIO_MAXIOV;
+	deadline = 0;
+	if (timeout != NULL) {
+		if (!timespecvalid_interval(timeout))
+			return (EINVAL);
+		now = sbinuptime();
+		if (timeout->tv_sec >= SBT_MAX / SBT_1S)
+			deadline = SBT_MAX;
+		else {
+			delta = tstosbt(*timeout);
+			deadline = delta > SBT_MAX - now ?
+			    SBT_MAX : now + delta;
+		}
+	}
+	AUDIT_ARG_FD(s);
+	error = getsock(td, s, &cap_recv_rights, &fp);
+	if (error != 0)
+		return (error);
+	so = fp->f_data;
+	for (received = 0; received < vlen;) {
+		error = recvmsg_one(td, s, so, msgvec, received,
+		    flags & ~MSG_WAITFORONE, &msgflags);
+		if (error != 0)
+			break;
+		received++;
+		if ((msgflags & MSG_OOB) != 0)
+			break;
+		if (timeout != NULL && sbinuptime() >= deadline)
+			break;
+		if ((flags & MSG_WAITFORONE) != 0)
+			flags |= MSG_DONTWAIT;
+	}
+	fdrop(fp, td);
+	if (received != 0 || error == 0) {
+		td->td_retval[0] = received;
+		return (0);
+	}
+	return (error);
+}
+
+static int
+recvmmsg_one(struct thread *td, int s, struct socket *so, void *msgvec,
+    size_t i, int flags, int *msgflags)
+{
+	struct mmsghdr *umsg = &((struct mmsghdr *)msgvec)[i];
+	struct mmsghdr mmsg;
+	struct iovec *uiov, *iov;
+	struct mbuf *control = NULL;
+	int error;
+
+	error = copyin(umsg, &mmsg, sizeof(mmsg));
+	if (error != 0)
+		return (error);
+	error = copyiniov(mmsg.msg_hdr.msg_iov, mmsg.msg_hdr.msg_iovlen,
+	    &iov, EMSGSIZE);
+	if (error != 0)
+		return (error);
+	uiov = mmsg.msg_hdr.msg_iov;
+	mmsg.msg_hdr.msg_iov = iov;
+	mmsg.msg_hdr.msg_flags = flags;
+#ifdef COMPAT_OLDSOCK
+	if (SV_PROC_FLAG(td->td_proc, SV_AOUT))
+		mmsg.msg_hdr.msg_flags &= ~MSG_COMPAT;
+#endif
+	error = kern_recvit_socket(td, s, so, &mmsg.msg_hdr, UIO_USERSPACE,
+	    mmsg.msg_hdr.msg_control != NULL ? &control : NULL);
+	free(iov, M_IOV);
+	if (error == 0 && mmsg.msg_hdr.msg_control != NULL)
+		error = copyout_control(&mmsg.msg_hdr, control);
+	if (error == 0) {
+		mmsg.msg_hdr.msg_iov = uiov;
+		mmsg.msg_len = td->td_retval[0];
+		error = copyout(&mmsg, umsg, sizeof(mmsg));
+		if (error == 0)
+			*msgflags = mmsg.msg_hdr.msg_flags;
+	}
+	if (control != NULL) {
+		if (error != 0)
+			m_dispose_extcontrolm(control);
+		m_freem(control);
+	}
+	return (error);
+}
+
+int
+sys_recvmmsg(struct thread *td, struct recvmmsg_args *uap)
+{
+	struct timespec ts, *tsp;
+	int error;
+
+	tsp = NULL;
+	if (uap->vlen != 0 && uap->timeout != NULL) {
+		error = copyin(uap->timeout, &ts, sizeof(ts));
+		if (error != 0)
+			return (error);
+		tsp = &ts;
+	}
+	return (kern_recvmmsg(td, uap->s, uap->vlen, uap->flags, tsp,
+	    uap->msgvec, recvmmsg_one));
 }
 
 int

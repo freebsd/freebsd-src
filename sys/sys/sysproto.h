@@ -1948,6 +1948,19 @@ struct pdptrace_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char data_l_[PADL_(int)]; int data; char data_r_[PADR_(int)];
 };
+struct sendmmsg_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char msgvec_l_[PADL_(struct mmsghdr *)]; struct mmsghdr * msgvec; char msgvec_r_[PADR_(struct mmsghdr *)];
+	char vlen_l_[PADL_(size_t)]; size_t vlen; char vlen_r_[PADR_(size_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct recvmmsg_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char msgvec_l_[PADL_(struct mmsghdr *)]; struct mmsghdr * msgvec; char msgvec_r_[PADR_(struct mmsghdr *)];
+	char vlen_l_[PADL_(size_t)]; size_t vlen; char vlen_r_[PADR_(size_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
+};
 int	sys__exit(struct thread *, struct _exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2361,6 +2374,8 @@ int	sys_renameat2(struct thread *, struct renameat2_args *);
 int	sys_pdopenpid(struct thread *, struct pdopenpid_args *);
 int	sys_pddupfd(struct thread *, struct pddupfd_args *);
 int	sys_pdptrace(struct thread *, struct pdptrace_args *);
+int	sys_sendmmsg(struct thread *, struct sendmmsg_args *);
+int	sys_recvmmsg(struct thread *, struct recvmmsg_args *);
 
 #ifdef COMPAT_43
 
@@ -3366,6 +3381,8 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 #define	SYS_AUE_pdopenpid	AUE_PDOPENPID
 #define	SYS_AUE_pddupfd	AUE_NULL
 #define	SYS_AUE_pdptrace	AUE_PDPTRACE
+#define	SYS_AUE_sendmmsg	AUE_SENDMSG
+#define	SYS_AUE_recvmmsg	AUE_RECVMSG
 
 #undef PAD_
 #undef PADL_

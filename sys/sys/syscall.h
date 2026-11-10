@@ -544,4 +544,6 @@
 #define	SYS_pdopenpid	603
 #define	SYS_pddupfd	604
 #define	SYS_pdptrace	605
-#define	SYS_MAXSYSCALL	606
+#define	SYS_sendmmsg	606
+#define	SYS_recvmmsg	607
+#define	SYS_MAXSYSCALL	608

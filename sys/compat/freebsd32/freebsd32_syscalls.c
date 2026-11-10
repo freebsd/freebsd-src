@@ -611,4 +611,6 @@ const char *freebsd32_syscallnames[] = {
 	"pdopenpid",			/* 603 = pdopenpid */
 	"pddupfd",			/* 604 = pddupfd */
 	"freebsd32_pdptrace",			/* 605 = freebsd32_pdptrace */
+	"freebsd32_sendmmsg",			/* 606 = freebsd32_sendmmsg */
+	"freebsd32_recvmmsg",			/* 607 = freebsd32_recvmmsg */
 };

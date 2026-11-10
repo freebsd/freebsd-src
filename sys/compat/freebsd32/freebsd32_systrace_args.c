@@ -3486,6 +3486,27 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* freebsd32_sendmmsg */
+	case 606: {
+		struct freebsd32_sendmmsg_args *p = params;
+		iarg[a++] = p->s; /* int */
+		uarg[a++] = (intptr_t)p->msgvec; /* struct mmsghdr32 * */
+		uarg[a++] = p->vlen; /* size_t */
+		iarg[a++] = p->flags; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* freebsd32_recvmmsg */
+	case 607: {
+		struct freebsd32_recvmmsg_args *p = params;
+		iarg[a++] = p->s; /* int */
+		uarg[a++] = (intptr_t)p->msgvec; /* struct mmsghdr32 * */
+		uarg[a++] = p->vlen; /* size_t */
+		iarg[a++] = p->flags; /* int */
+		uarg[a++] = (intptr_t)p->timeout; /* const struct timespec32 * */
+		*n_args = 5;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9426,6 +9447,47 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_sendmmsg */
+	case 606:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland struct mmsghdr32 *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_recvmmsg */
+	case 607:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland struct mmsghdr32 *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "userland const struct timespec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -11373,6 +11435,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 605:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
+		break;
+	/* freebsd32_sendmmsg */
+	case 606:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_recvmmsg */
+	case 607:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
 		break;
 	default:
 		break;

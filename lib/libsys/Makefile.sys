@@ -54,7 +54,9 @@ PSEUDO= \
 	clock_gettime \
 	getlogin \
 	gettimeofday \
-	sched_getcpu
+	recvmmsg \
+	sched_getcpu \
+	sendmmsg
 
 INTERPOSED = \
 	accept \

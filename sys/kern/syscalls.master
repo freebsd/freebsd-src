@@ -3451,5 +3451,22 @@
 			int data
 		);
 	}
+606	AUE_SENDMSG	STD|CAPENABLED {
+		ssize_t sendmmsg(
+		    int s,
+		    _Inout_updates_(vlen) _Contains_ptr_ struct mmsghdr *msgvec,
+		    size_t vlen,
+		    int flags
+		);
+	}
+607	AUE_RECVMSG	STD|CAPENABLED {
+		ssize_t recvmmsg(
+		    int s,
+		    _Inout_updates_(vlen) _Contains_ptr_ struct mmsghdr *msgvec,
+		    size_t vlen,
+		    int flags,
+		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
+		);
+	}
 
 ; vim: syntax=off

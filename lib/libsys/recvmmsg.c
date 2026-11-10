@@ -27,7 +27,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#define	_WANT_P_OSREL
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <poll.h>
@@ -44,6 +45,20 @@ __ssp_real(recvmmsg)(int s, struct mmsghdr *__restrict msgvec, size_t vlen,
 	ssize_t ret;
 	int res;
 	short ev;
+	int msgflags;
+
+	if (__getosreldate() >= P_OSREL_MMSG) {
+		if (timeout != NULL && vlen != 0)
+			_pthread_cancel_enter(1);
+		ret = __sys_recvmmsg(s, msgvec, vlen, flags, timeout);
+		if (timeout != NULL && vlen != 0)
+			_pthread_cancel_leave(ret == -1);
+		if (ret != -1 || errno != ENOSYS)
+			return (ret);
+	}
+
+	if (vlen == 0)
+		return (0);
 
 	if (timeout != NULL) {
 		pfd[0].fd = s;
@@ -57,13 +72,14 @@ __ssp_real(recvmmsg)(int s, struct mmsghdr *__restrict msgvec, size_t vlen,
 			errno = EBADF;
 			return (-1);
 		}
-		if ((pfd[0].revents & ev) == 0) {
+		if ((pfd[0].revents & (ev | POLLERR | POLLHUP)) == 0) {
 			errno = ETIMEDOUT;
 			return (-1);
 		}
 	}
 
-	ret = __sys_recvmsg(s, &msgvec[0].msg_hdr, flags);
+	msgflags = flags & ~MSG_WAITFORONE;
+	ret = __sys_recvmsg(s, &msgvec[0].msg_hdr, msgflags);
 	if (ret == -1)
 		return (ret);
 
@@ -74,15 +90,15 @@ __ssp_real(recvmmsg)(int s, struct mmsghdr *__restrict msgvec, size_t vlen,
 	 * WAITFORONE is set.
 	 */
 	if (flags & MSG_WAITFORONE)
-		flags |= MSG_DONTWAIT;
+		msgflags |= MSG_DONTWAIT;
 
 	rcvd = 1;
 	for (i = rcvd; i < vlen; i++, rcvd++) {
-		ret = __sys_recvmsg(s, &msgvec[i].msg_hdr, flags);
+		ret = __sys_recvmsg(s, &msgvec[i].msg_hdr, msgflags);
 		if (ret == -1) {
-			/* We have received messages. Let caller know
-			 * about the data received, socket error is
-			 * returned on next invocation.
+			/*
+			 * Return the number of messages received without
+			 * reporting the subsequent error.
 			 */
 			return (rcvd);
 		}

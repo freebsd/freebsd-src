@@ -672,4 +672,6 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(pdopenpid_args), .sy_call = (sy_call_t *)sys_pdopenpid, .sy_auevent = AUE_PDOPENPID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 603 = pdopenpid */
 	{ .sy_narg = AS(pddupfd_args), .sy_call = (sy_call_t *)sys_pddupfd, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 604 = pddupfd */
 	{ .sy_narg = AS(pdptrace_args), .sy_call = (sy_call_t *)sys_pdptrace, .sy_auevent = AUE_PDPTRACE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 605 = pdptrace */
+	{ .sy_narg = AS(sendmmsg_args), .sy_call = (sy_call_t *)sys_sendmmsg, .sy_auevent = AUE_SENDMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 606 = sendmmsg */
+	{ .sy_narg = AS(recvmmsg_args), .sy_call = (sy_call_t *)sys_recvmmsg, .sy_auevent = AUE_RECVMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 607 = recvmmsg */
 };

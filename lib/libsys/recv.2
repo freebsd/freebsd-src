@@ -97,16 +97,72 @@ The size of each received message is placed in the
 .Fa msg_len
 field of each element of the vector.
 If
+.Fa vlen
+exceeds
+.Dv UIO_MAXIOV ,
+only the first
+.Dv UIO_MAXIOV
+elements of
+.Fa msgvec
+are considered; the remaining elements are not processed.
+Exceeding this limit does not itself cause an error.
+Applications can obtain this limit by calling
+.Xr sysconf 3
+with
+.Dv _SC_IOV_MAX .
+If
 .Fa timeout
 is NULL the call blocks until the data is available for each
 supplied message buffer.
-Otherwise it waits for data for the specified amount of time.
-If the timeout expired and there is no data received,
-a value 0 is returned.
-The
-.Xr ppoll 2
-system call is used to implement the timeout mechanism,
-before first receive is performed.
+Otherwise the call checks the elapsed time after each
+successfully received message and stops the batch when
+.Fa timeout
+has expired.
+The timeout is measured using a monotonic clock.
+It does not interrupt an individual blocking receive, including a
+.Dv MSG_WAITALL
+receive.
+Consequently, the call may block beyond the specified timeout, even
+when no messages have been received.
+Individual receives use the socket's
+.Dv SO_RCVTIMEO
+setting, which is not changed by this call.
+If
+.Dv MSG_DONTWAIT
+is specified or the socket is non-blocking, the call does not wait for
+data, regardless of
+.Fa timeout .
+After the first message is received, the call may block for subsequent
+messages unless
+.Dv MSG_WAITFORONE
+is specified.
+The batch stops after a message is successfully received with
+.Dv MSG_OOB
+set in its returned
+.Fa msg_flags ;
+that message is included in the returned count.
+Only messages whose results have been successfully written back to
+.Fa msgvec
+are included in the returned count.
+If an error occurs before any message is counted,
+.Fn recvmmsg
+returns -1.
+Otherwise, the count is returned and the subsequent error is not reported
+by that call.
+If copying a message's results to user memory fails, that message is
+not included in the returned count, even though its data may already
+have been consumed.
+.Pp
+On kernels without the native system call, the library falls back to
+waiting for readiness followed by individual receive calls.
+The library checks the running kernel version before attempting the
+native system call.
+The timeout in this fallback applies to the initial readiness wait,
+not to the batch or to individual receives.
+The fallback does not impose the
+.Dv UIO_MAXIOV
+batch limit.
+It also does not stop the batch after receiving an out-of-band message.
 .Pp
 The
 .Fn recv ,
@@ -327,9 +383,24 @@ and
 functions return the number of bytes received, while the
 .Fn recvmmsg
 function returns the number of messages received.
-If no messages are available to be received and the peer has
-performed an orderly shutdown, 0 is returned.
-Otherwise, -1 is returned and
+If no data are available and the peer has performed an orderly shutdown,
+.Fn recv ,
+.Fn recvfrom ,
+and
+.Fn recvmsg
+return 0.
+For
+.Fn recvmmsg ,
+each successful zero-byte receive, including an end-of-file indication
+on a stream socket, is counted as a message with
+.Fa msg_len
+set to 0.
+If
+.Fa vlen
+is 0,
+.Fn recvmmsg
+returns 0.
+On failure, -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
@@ -381,6 +452,12 @@ and the timeout expired before data were received.
 .It Bq Er EINTR
 The receive was interrupted by delivery of a signal before
 any data were available.
+.It Bq Er EINVAL
+For
+.Fn recvmmsg ,
+.Fa timeout
+specifies a negative number of seconds, or its nanoseconds field is
+less than zero or greater than or equal to 1000000000.
 .It Bq Er EFAULT
 The receive buffer pointer(s) point outside the process's
 address space.
@@ -392,6 +469,7 @@ address space.
 .Xr select 2 ,
 .Xr socket 2 ,
 .Xr CMSG_DATA 3 ,
+.Xr sysconf 3 ,
 .Xr unix 4
 .Sh HISTORY
 The

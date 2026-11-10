@@ -8,6 +8,7 @@ ATF_TESTS_C+=			brk_test
 .endif
 ATF_TESTS_C+=			cpuset_test
 ATF_TESTS_C+=			errno_test
+ATF_TESTS_C+=			mmsg_test
 ATF_TESTS_C+=			swapcontext_test
 ATF_TESTS_C+=			queue_test
 ATF_TESTS_C+=			sendfile_test
@@ -73,6 +74,7 @@ NETBSD_ATF_TESTS_C+=		wait_noproc_wnohang_test
 NETBSD_ATF_TESTS_C+=		write_test
 
 LIBADD.getpid_test+=		pthread
+LIBADD.mmsg_test+=		    pthread
 LIBADD.timer_create_test+=	rt
 
 # Message queue IPC tests need to be executed serially since they variously

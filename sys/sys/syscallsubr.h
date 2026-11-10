@@ -64,6 +64,7 @@ struct sembuf;
 union semun;
 struct shmfd;
 struct sockaddr;
+struct socket;
 struct spacectl_range;
 struct stat;
 struct thr_param;
@@ -362,6 +363,10 @@ int	kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,
 int	kern_poll_kfds(struct thread *td, struct pollfd *fds, u_int nfds,
 	    struct timespec *tsp, sigset_t *uset);
 bool	kern_poll_maxfds(u_int nfds);
+int	kern_recvmmsg(struct thread *td, int s, size_t vlen, int flags,
+	    const struct timespec *timeout, void *msgvec,
+	    int (*recvmsg_one)(struct thread *, int, struct socket *, void *,
+	    size_t, int, int *));
 int	kern_posix_error(struct thread *td, int error);
 int	kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	    int advice);
@@ -388,6 +393,8 @@ int	kern_readlinkat(struct thread *td, int fd, const char *path,
 int	kern_readv(struct thread *td, int fd, struct uio *auio);
 int	kern_recvit(struct thread *td, int s, struct msghdr *mp,
 	    enum uio_seg fromseg, struct mbuf **controlp);
+int	kern_recvit_socket(struct thread *td, int s, struct socket *so,
+	    struct msghdr *mp, enum uio_seg fromseg, struct mbuf **controlp);
 int	kern_renameat(struct thread *td, int fromfd, const char *from,
 	    int tofd, const char *to, enum uio_seg pathseg, u_int flags);
 int	kern_sched_getparam(struct thread *td, struct thread *targettd,
@@ -411,6 +418,9 @@ int	kern_sendfile(struct thread *td, int fd, int s, off_t offset,
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
+	    struct mbuf *control, enum uio_seg segflg);
+int	kern_sendit_socket(struct thread *td, int s, struct socket *so,
+	    const cap_rights_t *rights, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setaudit(struct thread *td, struct auditinfo *auditinfo);
 int	kern_setaudit_addr(struct thread *td,

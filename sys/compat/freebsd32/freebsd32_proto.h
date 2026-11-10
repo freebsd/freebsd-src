@@ -713,6 +713,19 @@ struct freebsd32_pdptrace_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char data_l_[PADL_(int)]; int data; char data_r_[PADR_(int)];
 };
+struct freebsd32_sendmmsg_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char msgvec_l_[PADL_(struct mmsghdr32 *)]; struct mmsghdr32 * msgvec; char msgvec_r_[PADR_(struct mmsghdr32 *)];
+	char vlen_l_[PADL_(size_t)]; size_t vlen; char vlen_r_[PADR_(size_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct freebsd32_recvmmsg_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char msgvec_l_[PADL_(struct mmsghdr32 *)]; struct mmsghdr32 * msgvec; char msgvec_r_[PADR_(struct mmsghdr32 *)];
+	char vlen_l_[PADL_(size_t)]; size_t vlen; char vlen_r_[PADR_(size_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
+};
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
 int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
 int	freebsd32_recvmsg(struct thread *, struct freebsd32_recvmsg_args *);
@@ -833,6 +846,8 @@ int	freebsd32_timerfd_settime(struct thread *, struct freebsd32_timerfd_settime_
 int	freebsd32_setcred(struct thread *, struct freebsd32_setcred_args *);
 int	freebsd32_pdwait(struct thread *, struct freebsd32_pdwait_args *);
 int	freebsd32_pdptrace(struct thread *, struct freebsd32_pdptrace_args *);
+int	freebsd32_sendmmsg(struct thread *, struct freebsd32_sendmmsg_args *);
+int	freebsd32_recvmmsg(struct thread *, struct freebsd32_recvmmsg_args *);
 
 #ifdef COMPAT_43
 
@@ -1337,6 +1352,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_setcred	AUE_SETCRED
 #define	FREEBSD32_SYS_AUE_freebsd32_pdwait	AUE_PDWAIT
 #define	FREEBSD32_SYS_AUE_freebsd32_pdptrace	AUE_PDPTRACE
+#define	FREEBSD32_SYS_AUE_freebsd32_sendmmsg	AUE_SENDMSG
+#define	FREEBSD32_SYS_AUE_freebsd32_recvmmsg	AUE_RECVMSG
 
 #undef PAD_
 #undef PADL_

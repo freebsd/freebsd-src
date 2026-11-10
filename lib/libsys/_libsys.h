@@ -35,6 +35,7 @@ struct kevent;
 struct kexec_segment;
 struct kld_file_stat;
 struct mac;
+struct mmsghdr;
 struct module_stat;
 struct mq_attr;
 struct msghdr;
@@ -478,6 +479,8 @@ typedef int (__sys_renameat2_t)(int, const char *, int, const char *, int);
 typedef int (__sys_pdopenpid_t)(pid_t, int);
 typedef int (__sys_pddupfd_t)(int, int, int);
 typedef int (__sys_pdptrace_t)(int, int, int, void *, int);
+typedef ssize_t (__sys_sendmmsg_t)(int, struct mmsghdr *, size_t, int);
+typedef ssize_t (__sys_recvmmsg_t)(int, struct mmsghdr *, size_t, int, const struct timespec *);
 
 _Noreturn void __sys__exit(int rval);
 int __sys_fork(void);
@@ -891,6 +894,8 @@ int __sys_renameat2(int oldfd, const char * old, int newfd, const char * new, in
 int __sys_pdopenpid(pid_t pid, int flags);
 int __sys_pddupfd(int pd, int fd, int flags);
 int __sys_pdptrace(int req, int pfd, int lwpid, void * addr, int data);
+ssize_t __sys_sendmmsg(int s, struct mmsghdr * msgvec, size_t vlen, int flags);
+ssize_t __sys_recvmmsg(int s, struct mmsghdr * msgvec, size_t vlen, int flags, const struct timespec * timeout);
 __END_DECLS
 
 #endif /* __LIBSYS_H_ */

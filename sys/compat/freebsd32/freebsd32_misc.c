@@ -27,6 +27,7 @@
  */
 
 #include <sys/cdefs.h>
+#include "opt_capsicum.h"
 #include "opt_ffclock.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -185,6 +186,7 @@ CTASSERT(sizeof(struct kevent32) == 64);
 #endif
 CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
+CTASSERT(sizeof(struct mmsghdr32) == 32);
 #ifdef __amd64__
 CTASSERT(sizeof(struct stat32) == 208);
 CTASSERT(sizeof(struct freebsd11_stat32) == 96);
@@ -1598,13 +1600,15 @@ exit:
 	return (error);
 }
 
-int
-freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
+static int
+freebsd32_recvmsg_impl(struct thread *td, struct freebsd32_recvmsg_args *uap,
+    struct socket *so, int *msgflags, int32_t *msglenp)
 {
 	struct msghdr msg;
 	struct iovec *uiov, *iov;
 	struct mbuf *control = NULL;
 	struct mbuf **controlp;
+	int32_t len;
 	int error;
 
 	error = freebsd32_copyinmsghdr(uap->msg, &msg);
@@ -1619,7 +1623,11 @@ freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
 	msg.msg_iov = iov;
 
 	controlp = (msg.msg_control != NULL) ?  &control : NULL;
-	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, controlp);
+	if (so == NULL)
+		error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, controlp);
+	else
+		error = kern_recvit_socket(td, uap->s, so, &msg, UIO_USERSPACE,
+		    controlp);
 	if (error == 0) {
 		msg.msg_iov = uiov;
 
@@ -1630,6 +1638,12 @@ freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
 
 		if (error == 0)
 			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
+		if (error == 0 && msglenp != NULL) {
+			len = td->td_retval[0];
+			error = copyout(&len, msglenp, sizeof(len));
+		}
+		if (error == 0 && msgflags != NULL)
+			*msgflags = msg.msg_flags;
 	}
 	free(iov, M_IOV);
 
@@ -1640,6 +1654,46 @@ freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
 	}
 
 	return (error);
+}
+
+int
+freebsd32_recvmsg(struct thread *td, struct freebsd32_recvmsg_args *uap)
+{
+	return (freebsd32_recvmsg_impl(td, uap, NULL, NULL, NULL));
+}
+
+static int
+freebsd32_recvmmsg_one(struct thread *td, int s, struct socket *so,
+    void *msgvec, size_t i, int flags, int *msgflags)
+{
+	struct mmsghdr32 *umsg = &((struct mmsghdr32 *)msgvec)[i];
+	struct freebsd32_recvmsg_args recvmsg_args;
+
+	recvmsg_args.s = s;
+	recvmsg_args.msg = &umsg->msg_hdr;
+	recvmsg_args.flags = flags;
+	return (freebsd32_recvmsg_impl(td, &recvmsg_args, so, msgflags,
+	    &umsg->msg_len));
+}
+
+int
+freebsd32_recvmmsg(struct thread *td, struct freebsd32_recvmmsg_args *uap)
+{
+	struct timespec32 ts32;
+	struct timespec ts, *tsp;
+	int error;
+
+	tsp = NULL;
+	if (uap->vlen != 0 && uap->timeout != NULL) {
+		error = copyin(uap->timeout, &ts32, sizeof(ts32));
+		if (error != 0)
+			return (error);
+		ts.tv_sec = ts32.tv_sec;
+		ts.tv_nsec = ts32.tv_nsec;
+		tsp = &ts;
+	}
+	return (kern_recvmmsg(td, uap->s, uap->vlen, uap->flags, tsp,
+	    uap->msgvec, freebsd32_recvmmsg_one));
 }
 
 #ifdef COMPAT_43
@@ -1752,8 +1806,10 @@ out:
 	return (error);
 }
 
-int
-freebsd32_sendmsg(struct thread *td, struct freebsd32_sendmsg_args *uap)
+static int
+freebsd32_sendmsg_impl(struct thread *td,
+    struct freebsd32_sendmsg_args *uap, struct socket *so,
+    const cap_rights_t *rights)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -1776,6 +1832,16 @@ freebsd32_sendmsg(struct thread *td, struct freebsd32_sendmsg_args *uap)
 			goto out;
 		}
 		msg.msg_name = to;
+#ifdef CAPABILITY_MODE
+		if (so != NULL) {
+			if (CAP_TRACING(td))
+				ktrcapfail(CAPFAIL_SOCKADDR, msg.msg_name);
+			if (IN_CAPABILITY_MODE(td)) {
+				error = ECAPMODE;
+				goto out;
+			}
+		}
+#endif
 	}
 
 	if (msg.msg_control) {
@@ -1793,13 +1859,72 @@ freebsd32_sendmsg(struct thread *td, struct freebsd32_sendmsg_args *uap)
 		msg.msg_controllen = 0;
 	}
 
-	error = kern_sendit(td, uap->s, &msg, uap->flags, control,
-	    UIO_USERSPACE);
+	if (so == NULL)
+		error = kern_sendit(td, uap->s, &msg, uap->flags, control,
+		    UIO_USERSPACE);
+	else
+		error = kern_sendit_socket(td, uap->s, so, rights, &msg,
+		    uap->flags, control, UIO_USERSPACE);
 
 out:
 	free(iov, M_IOV);
 	if (to)
 		free(to, M_SONAME);
+	return (error);
+}
+
+int
+freebsd32_sendmsg(struct thread *td, struct freebsd32_sendmsg_args *uap)
+{
+	return (freebsd32_sendmsg_impl(td, uap, NULL, NULL));
+}
+
+int
+freebsd32_sendmmsg(struct thread *td, struct freebsd32_sendmmsg_args *uap)
+{
+	struct file *fp;
+	struct filecaps fcaps;
+	struct freebsd32_sendmsg_args sendmsg_args;
+	struct mmsghdr32 mmsg;
+	int32_t len;
+	size_t i, sent;
+	int error;
+
+	if (uap->vlen == 0) {
+		td->td_retval[0] = 0;
+		return (0);
+	}
+	if (uap->vlen > UIO_MAXIOV)
+		uap->vlen = UIO_MAXIOV;
+	AUDIT_ARG_FD(uap->s);
+	error = getsock_cap(td, uap->s, &cap_send_rights, &fp, &fcaps);
+	if (error != 0)
+		return (error);
+	sendmsg_args.s = uap->s;
+	sendmsg_args.flags = uap->flags;
+	sent = 0;
+	for (i = 0; i < uap->vlen; i++) {
+		error = copyin(&uap->msgvec[i], &mmsg, sizeof(mmsg));
+		if (error != 0)
+			break;
+		sendmsg_args.msg = (const struct msghdr32 *)
+		    &uap->msgvec[i].msg_hdr;
+		error = freebsd32_sendmsg_impl(td, &sendmsg_args, fp->f_data,
+		    &fcaps.fc_rights);
+		if (error != 0)
+			break;
+		len = td->td_retval[0];
+		error = copyout(&len, &uap->msgvec[i].msg_len, sizeof(len));
+		if (error != 0)
+			break;
+		sent++;
+	}
+	filecaps_free(&fcaps);
+	fdrop(fp, td);
+	if (sent != 0 || error == 0) {
+		td->td_retval[0] = sent;
+		return (0);
+	}
 	return (error);
 }
 
