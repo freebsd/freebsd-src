@@ -26,6 +26,10 @@
 #ifndef	__AW_CLK_H__
 #define __AW_CLK_H__
 
+#include <dev/clk/clk.h>
+
+#include "clkdev_if.h"
+
 /*
   Allwinner clocks formula :
 
@@ -96,6 +100,27 @@ struct aw_clk_frac {
 	uint32_t	mode_sel;
 	uint32_t	freq_sel;
 };
+
+/*
+ * Wait for a PLL to report that it is locked, the hardware sets the lock
+ * bit once the output is stable.
+ */
+static inline void
+aw_clk_wait_for_lock(struct clknode *clk, uint32_t offset, uint32_t lock_shift,
+    uint32_t retries)
+{
+	uint32_t retry, val;
+
+	for (retry = 0; retry < retries; retry++) {
+		CLKDEV_READ_4(clknode_get_device(clk), offset, &val);
+		if ((val & (1 << lock_shift)) != 0)
+			return;
+		DELAY(1000);
+	}
+
+	device_printf(clknode_get_device(clk), "%s did not lock\n",
+	    clknode_get_name(clk));
+}
 
 static inline uint32_t
 aw_clk_get_factor(uint32_t val, struct aw_clk_factor *factor)

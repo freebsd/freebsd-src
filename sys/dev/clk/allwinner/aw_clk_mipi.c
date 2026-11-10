@@ -149,7 +149,6 @@ aw_clk_mipi_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	uint32_t best_k, best_m, best_n;
 	uint32_t k, m, n;
 	uint32_t val;
-	uint32_t retry;
 
 	sc = clknode_get_softc(clk);
 
@@ -192,12 +191,8 @@ aw_clk_mipi_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
-	for (retry = 0; retry < sc->lock_retries; retry++) {
-		READ4(clk, sc->offset, &val);
-		if ((val & (1 << sc->lock_shift)) != 0)
-			break;
-		DELAY(1000);
-	}
+	aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+	    sc->lock_retries);
 
 	*fout = best;
 	*stop = 1;

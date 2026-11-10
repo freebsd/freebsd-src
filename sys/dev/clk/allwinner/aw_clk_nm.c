@@ -107,6 +107,11 @@ aw_clk_nm_set_gate(struct clknode *clk, bool enable)
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
+	if (enable && (sc->flags & AW_CLK_HAS_LOCK) != 0) {
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
+	}
+
 	return (0);
 }
 
@@ -178,7 +183,7 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	const char **p_names;
 	uint64_t cur, best;
 	uint32_t val, m, n, best_m, best_n;
-	int p_idx, best_parent, retry;
+	int p_idx, best_parent;
 
 	sc = clknode_get_softc(clk);
 
@@ -247,12 +252,8 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	DEVICE_UNLOCK(clk);
 
 	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
-		for (retry = 0; retry < sc->lock_retries; retry++) {
-			READ4(clk, sc->offset, &val);
-			if ((val & (1 << sc->lock_shift)) != 0)
-				break;
-			DELAY(1000);
-		}
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
 	}
 
 	*fout = best;

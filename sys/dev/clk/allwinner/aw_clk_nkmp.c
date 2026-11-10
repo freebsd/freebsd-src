@@ -111,6 +111,11 @@ aw_clk_nkmp_set_gate(struct clknode *clk, bool enable)
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
+	if (enable && (sc->flags & AW_CLK_HAS_LOCK) != 0) {
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
+	}
+
 	return (0);
 }
 
@@ -191,7 +196,6 @@ aw_clk_nkmp_set_freq_scale(struct clknode *clk, struct aw_clk_nkmp_sc *sc,
     uint32_t factor_n, uint32_t factor_k, uint32_t factor_m, uint32_t factor_p)
 {
 	uint32_t val, m, p;
-	int retry;
 
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->offset, &val);
@@ -235,12 +239,8 @@ aw_clk_nkmp_set_freq_scale(struct clknode *clk, struct aw_clk_nkmp_sc *sc,
 	}
 
 	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
-		for (retry = 0; retry < sc->lock_retries; retry++) {
-			READ4(clk, sc->offset, &val);
-			if ((val & (1 << sc->lock_shift)) != 0)
-				break;
-			DELAY(1000);
-		}
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
 	}
 
 	DEVICE_UNLOCK(clk);
@@ -253,7 +253,6 @@ aw_clk_nkmp_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct aw_clk_nkmp_sc *sc;
 	uint64_t best;
 	uint32_t val, best_n, best_k, best_m, best_p;
-	int retry;
 
 	sc = clknode_get_softc(clk);
 
@@ -304,12 +303,8 @@ aw_clk_nkmp_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		}
 
 		if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
-			for (retry = 0; retry < sc->lock_retries; retry++) {
-				READ4(clk, sc->offset, &val);
-				if ((val & (1 << sc->lock_shift)) != 0)
-					break;
-				DELAY(1000);
-			}
+			aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+			    sc->lock_retries);
 		}
 	}
 

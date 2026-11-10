@@ -188,7 +188,7 @@ aw_clk_frac_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct aw_clk_frac_sc *sc;
 	uint64_t cur, best, best_frac;
 	uint32_t val, m, n, best_m, best_n;
-	int retry, multiple, max_mult, best_mult;
+	int multiple, max_mult, best_mult;
 
 	sc = clknode_get_softc(clk);
 
@@ -293,12 +293,8 @@ aw_clk_frac_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
-	for (retry = 0; retry < sc->lock_retries; retry++) {
-		READ4(clk, sc->offset, &val);
-		if ((val & (1 << sc->lock_shift)) != 0)
-			break;
-		DELAY(1000);
-	}
+	aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+	    sc->lock_retries);
 
 	*fout = best;
 	*stop = 1;
