@@ -62,7 +62,7 @@
 #define	CLK_PLL_VIDEO1		12
 #define	CLK_PLL_VIDEO1_4X	13
 #define	CLK_PLL_VE		14
-#define	CLK_PLL_DE		14
+#define	CLK_PLL_DE		15
 #define	CLK_PLL_HSIC		16
 
 #define	CLK_AXI			22
