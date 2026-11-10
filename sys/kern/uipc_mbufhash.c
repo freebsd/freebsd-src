@@ -103,7 +103,9 @@ m_tcpip_hash(const uint32_t flags, const struct mbuf *m,
 			p = fnv_32_buf(&ip->ip_src, sizeof(struct in_addr), p);
 			p = fnv_32_buf(&ip->ip_dst, sizeof(struct in_addr), p);
 		}
-		if (flags & MBUF_HASHFLAG_L4) {
+		/* Fragments carry no ports past the first: hash them as L3. */
+		if ((flags & MBUF_HASHFLAG_L4) &&
+		    (ip->ip_off & htons(IP_MF | IP_OFFMASK)) == 0) {
 			const uint32_t *ports;
 			int iphlen;
 
