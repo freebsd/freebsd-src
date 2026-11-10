@@ -64,6 +64,9 @@
     <Directory Id="$(var.PIProgramFilesFolder)">
         <Directory Id="dirMIT" Name="MIT" SourceName=".">
             <Directory Id="KERBEROSDIR" Name="Kerberos">
+                <Component Id="cmf_krb5_ini" Guid="C1AF0670-BBF1-4AA6-B2A6-6C8B1584A1F4" NeverOverwrite="yes" Permanent="yes" DiskId="1">
+		  <File Id="fil_krb5_ini" Name="krb5.ini" Source="$(var.ConfigDir)krb5.ini" KeyPath="yes" />
+                </Component>
                 <Directory Id="dirbin" Name="bin" FileSource="$(var.BinDir)">
                 
 		    <!-- Kerberos V options -->
@@ -379,16 +382,6 @@
             </Directory> <!-- /Kerberos -->
         </Directory> <!-- /MIT -->
     </Directory> <!-- /Program Files -->
-    <Directory Id="CommonAppDataFolder" Name="CommonAppDataFolder">
-      <Directory Id="APPDATAMITDIR" Name="MIT">
-        <Directory Id="APPDATAKERBEROS5DIR" Name="Kerberos5">
-          <Component Id="cmf_krb5_ini" Guid="C1AF0670-BBF1-4AA6-B2A6-6C8B1584A1F4" NeverOverwrite="yes" Permanent="yes" DiskId="1">
-            <File Id="fil_krb5_ini" Name="krb5.ini" Source="$(var.ConfigDir)krb5.ini" KeyPath="yes" />
-            <CreateFolder/>
-          </Component>
-        </Directory>
-      </Directory>
-    </Directory>
     
     <!-- Start Menu shortcut -->
     <Directory Id="ProgramMenuFolder">

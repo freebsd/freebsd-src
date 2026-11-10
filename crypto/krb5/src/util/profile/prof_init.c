@@ -631,6 +631,8 @@ errcode_t profile_ser_internalize(profile_t *profilep,
     (void) unpack_int32(&fcount, &bp, &remain);
     retval = ENOMEM;
 
+    if (fcount < 0 || (size_t)fcount > remain)
+        goto cleanup;
     flist = (profile_filespec_t *) malloc(sizeof(profile_filespec_t) * (size_t) (fcount + 1));
     if (!flist)
         goto cleanup;
@@ -638,6 +640,8 @@ errcode_t profile_ser_internalize(profile_t *profilep,
     memset(flist, 0, sizeof(char *) * (size_t) (fcount+1));
     for (i=0; i<fcount; i++) {
         if (!unpack_int32(&tmp, &bp, &remain)) {
+            if (tmp < 0 || (size_t)tmp > remain)
+                goto cleanup;
             flist[i] = (char *) malloc((size_t) (tmp+1));
             if (!flist[i])
                 goto cleanup;

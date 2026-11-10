@@ -201,7 +201,7 @@ static BOOL WINAPI UnicodeStringToANSI(UNICODE_STRING uInputString, LPSTR lpszOu
 
 int KFW_is_available(void);
 int KFW_get_cred( char * username, char * password, int lifetime, char ** reasonP );
-void KFW_copy_cache_to_system_file(const char * user, const char * filename);
+int KFW_copy_cache_to_system_file(const char * user, const char * filename, char **reason_out);
 int KFW_destroy_tickets_for_principal(char * user);
 int KFW_set_ccache_dacl(char *filename, HANDLE hUserToken);
 int KFW_set_ccache_dacl_with_user_sid(char *filename, PSID pUserSID);

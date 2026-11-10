@@ -1460,40 +1460,42 @@ decode_sequence_of(const uint8_t *asn1, size_t len,
                    size_t *count_out)
 {
     krb5_error_code ret;
-    void *seq = NULL, *elem, *newseq;
-    const uint8_t *contents;
-    size_t clen, count = 0;
+    void *seq = NULL, *elem;
+    const uint8_t *p, *contents;
+    size_t l, clen, count = 0, n = 0;
     taginfo t;
 
     *seq_out = NULL;
     *count_out = 0;
-    while (len > 0) {
+
+    /* Count the elements in the sequence and check their tags. */
+    for (p = asn1, l = len, count = 0; l > 0; count++) {
+        ret = get_tag(p, l, &t, &contents, &clen, &p, &l);
+        if (ret)
+            return ret;
+        if (!check_atype_tag(elemtype, &t))
+            return ASN1_BAD_ID;
+    }
+
+    seq = k5calloc(count, elemtype->size, &ret);
+    if (seq == NULL)
+        return ret;
+
+    for (n = 0; n < count; n++) {
         ret = get_tag(asn1, len, &t, &contents, &clen, &asn1, &len);
         if (ret)
             goto error;
-        if (!check_atype_tag(elemtype, &t)) {
-            ret = ASN1_BAD_ID;
-            goto error;
-        }
-        newseq = realloc(seq, (count + 1) * elemtype->size);
-        if (newseq == NULL) {
-            ret = ENOMEM;
-            goto error;
-        }
-        seq = newseq;
-        elem = (char *)seq + count * elemtype->size;
-        memset(elem, 0, elemtype->size);
+        elem = (char *)seq + n * elemtype->size;
         ret = decode_atype(&t, contents, clen, elemtype, elem);
         if (ret)
             goto error;
-        count++;
     }
     *seq_out = seq;
     *count_out = count;
     return 0;
 
 error:
-    free_sequence_of(elemtype, seq, count);
+    free_sequence_of(elemtype, seq, n);
     free(seq);
     return ret;
 }

@@ -473,7 +473,7 @@ process_option_ca_crl(krb5_context context,
                       const char *value,
                       int catype)
 {
-    char *residual;
+    const char *residual;
     unsigned int typelen;
     int idtype;
 

@@ -1882,6 +1882,9 @@ krb5_ser_pack_int64(int64_t, krb5_octet **, size_t *);
 krb5_error_code KRB5_CALLCONV
 krb5_ser_unpack_int64(int64_t *, krb5_octet **, size_t *);
 
+krb5_error_code
+k5_ser_unpack_len(size_t *len_out, krb5_octet **bufp, size_t *remainp);
+
 /* [De]serialize byte string */
 krb5_error_code KRB5_CALLCONV
 krb5_ser_pack_bytes(krb5_octet *, size_t, krb5_octet **, size_t *);

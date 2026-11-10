@@ -128,6 +128,8 @@ __bt_search(BTREE *t, const DBT *key, int *exactp)
 next:		BT_PUSH(t, h->pgno, idx);
 		pg = GETBINTERNAL(h, idx)->pgno;
 		mpool_put(t->bt_mp, h, 0);
+		if (BT_STACKFULL(t))
+			return (NULL);
 	}
 }
 

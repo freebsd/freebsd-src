@@ -18,6 +18,7 @@
 #include <gssapi/gssapi_krb5.h>
 #include <gssrpc/rpc.h>
 #include <gssrpc/auth_gssapi.h>
+#include <gssrpc/auth_gss.h>
 #include "rpc_test.h"
 
 #define BIG_BUF 4096
@@ -44,9 +45,79 @@ __attribute__((noreturn))
 #endif
 static void usage(void)
 {
-     fprintf(stderr, "usage: %s {-t|-u} [-a] [-s num] [-m num] host service [count]\n",
+     fprintf(stderr, "usage: %s {-t|-u} [-a] [-g] [-s num] [-m num] host service [count]\n",
 	     whoami);
      exit(1);
+}
+
+/*
+ * Establish an RPCSEC_GSS context using the service init_svc, then make
+ * an echo call with each service level.  Return the number of failed
+ * calls.
+ */
+static int
+rpcsec_gss_svc_test(CLIENT *clnt, char *target, rpc_gss_svc_t init_svc)
+{
+     static const rpc_gss_svc_t svcs[] = {
+	  RPCSEC_GSS_SVC_NONE, RPCSEC_GSS_SVC_INTEGRITY,
+	  RPCSEC_GSS_SVC_PRIVACY
+     };
+     struct rpc_gss_sec sec = { 0 };
+     char buf[64], *echo_arg = buf, **echo_resp;
+     int failures = 0;
+     size_t i;
+
+     sec.mech = (gss_OID)gss_mech_krb5;
+     sec.qop = GSS_C_QOP_DEFAULT;
+     sec.svc = init_svc;
+     sec.cred = GSS_C_NO_CREDENTIAL;
+     sec.req_flags = GSS_C_MUTUAL_FLAG | GSS_C_REPLAY_FLAG;
+     clnt->cl_auth = authgss_create_default(clnt, target, &sec);
+     if (clnt->cl_auth == NULL) {
+	  clnt_pcreateerror(whoami);
+	  exit(2);
+     }
+
+     for (i = 0; i < sizeof(svcs) / sizeof(*svcs); i++) {
+	  if (!authgss_service(clnt->cl_auth, svcs[i])) {
+	       fprintf(stderr, "authgss_service %d failed\n", (int)svcs[i]);
+	       failures++;
+	       continue;
+	  }
+	  snprintf(buf, sizeof(buf), "init svc %d, call svc %d",
+		   (int)init_svc, (int)svcs[i]);
+	  echo_resp = rpc_test_echo_1(&echo_arg, clnt);
+	  if (echo_resp == NULL) {
+	       fprintf(stderr, "RPCSEC_GSS echo (%s)%s", buf,
+		       clnt_sperror(clnt, ""));
+	       failures++;
+	       continue;
+	  }
+	  if (strncmp(*echo_resp, "Echo: ", 6) != 0 ||
+	      strcmp(echo_arg, *echo_resp + 6) != 0) {
+	       fprintf(stderr, "RPCSEC_GSS echo (%s) response wrong: %s\n",
+		       buf, *echo_resp);
+	       failures++;
+	  }
+	  gssrpc_xdr_free((xdrproc_t)xdr_wrapstring, echo_resp);
+     }
+
+     AUTH_DESTROY(clnt->cl_auth);
+     clnt->cl_auth = NULL;
+     return failures;
+}
+
+/* Check that each RPCSEC_GSS call is protected with the service level
+ * it names, whatever level was used to establish the context. */
+static int
+rpcsec_gss_test(CLIENT *clnt, char *target)
+{
+     int failures = 0;
+
+     failures += rpcsec_gss_svc_test(clnt, target, RPCSEC_GSS_SVC_NONE);
+     failures += rpcsec_gss_svc_test(clnt, target, RPCSEC_GSS_SVC_INTEGRITY);
+     failures += rpcsec_gss_svc_test(clnt, target, RPCSEC_GSS_SVC_PRIVACY);
+     return failures;
 }
 
 int
@@ -56,7 +127,7 @@ main(int argc, char **argv)
      CLIENT      *clnt;
      AUTH	 *tmp_auth;
      struct rpc_err e;
-     int auth_once, sock, use_tcp;
+     int auth_once, sock, use_tcp, use_rpcsec_gss;
      unsigned int count, i;
      extern int optind;
      extern char *optarg;
@@ -73,11 +144,15 @@ main(int argc, char **argv)
      count = 1026;
      auth_once = 0;
      use_tcp = -1;
+     use_rpcsec_gss = 0;
 
-     while ((c = getopt(argc, argv, "a:m:os:tu")) != -1) {
+     while ((c = getopt(argc, argv, "a:gm:os:tu")) != -1) {
 	  switch (c) {
 	  case 'a':
 	       auth_debug_gssapi = atoi(optarg);
+	       break;
+	  case 'g':
+	       use_rpcsec_gss = 1;
 	       break;
 	  case 'm':
 	       misc_debug_gssapi = atoi(optarg);
@@ -146,6 +221,13 @@ main(int argc, char **argv)
      if (clnt == NULL) {
 	  clnt_pcreateerror(whoami);
 	  exit(1);
+     }
+
+     if (use_rpcsec_gss) {
+	  if (rpcsec_gss_test(clnt, target) != 0)
+	       exit(1);
+	  CLNT_DESTROY(clnt);
+	  exit(0);
      }
 
      clnt->cl_auth = auth_gssapi_create_default(clnt, target);

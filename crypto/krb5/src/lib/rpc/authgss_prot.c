@@ -150,8 +150,11 @@ xdr_rpc_gss_wrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	databuf.value = xdralloc_getdata(&tmpxdrs);
 
 	if (svc == RPCSEC_GSS_SVC_INTEGRITY) {
-		if (!xdr_rpc_gss_buf(xdrs, &databuf, (unsigned int)-1))
+		u_int mem_budget = GSSRPC_MAX_MESSAGE_SIZE;
+
+		if (!xdr_rpc_gss_buf(xdrs, &databuf, mem_budget))
 			goto errout;
+		mem_budget -= databuf.length;
 
 		/* Checksum rpc_gss_data_t. */
 		maj_stat = gss_get_mic(&min_stat, ctx, qop,
@@ -161,7 +164,7 @@ xdr_rpc_gss_wrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 			goto errout;
 		}
 		/* Marshal checksum. */
-		xdr_stat = xdr_rpc_gss_buf(xdrs, &wrapbuf, (unsigned int)-1);
+		xdr_stat = xdr_rpc_gss_buf(xdrs, &wrapbuf, mem_budget);
 		gss_release_buffer(&min_stat, &wrapbuf);
 	}
 	else if (svc == RPCSEC_GSS_SVC_PRIVACY) {
@@ -173,7 +176,8 @@ xdr_rpc_gss_wrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 			goto errout;
 		}
 		/* Marshal databody_priv. */
-		xdr_stat = xdr_rpc_gss_buf(xdrs, &wrapbuf, (unsigned int)-1);
+		xdr_stat = xdr_rpc_gss_buf(xdrs, &wrapbuf,
+					   GSSRPC_MAX_MESSAGE_SIZE);
 		gss_release_buffer(&min_stat, &wrapbuf);
 	}
 errout:
@@ -201,14 +205,19 @@ xdr_rpc_gss_unwrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	memset(&wrapbuf, 0, sizeof(wrapbuf));
 
 	if (svc == RPCSEC_GSS_SVC_INTEGRITY) {
+		u_int mem_budget = GSSRPC_MAX_MESSAGE_SIZE;
+
 		/* Decode databody_integ. */
-		if (!xdr_rpc_gss_buf(xdrs, &databuf, (unsigned int)-1)) {
+		if (!xdr_rpc_gss_buf(xdrs, &databuf, mem_budget)) {
+			xdr_free((xdrproc_t)xdr_rpc_gss_buf, &databuf);
 			log_debug("xdr decode databody_integ failed");
 			return (FALSE);
 		}
+		mem_budget -= databuf.length;
 		/* Decode checksum. */
-		if (!xdr_rpc_gss_buf(xdrs, &wrapbuf, (unsigned int)-1)) {
-			gss_release_buffer(&min_stat, &databuf);
+		if (!xdr_rpc_gss_buf(xdrs, &wrapbuf, mem_budget)) {
+			xdr_free((xdrproc_t)xdr_rpc_gss_buf, &wrapbuf);
+			xdr_free((xdrproc_t)xdr_rpc_gss_buf, &databuf);
 			log_debug("xdr decode checksum failed");
 			return (FALSE);
 		}
@@ -218,14 +227,15 @@ xdr_rpc_gss_unwrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 		free(wrapbuf.value);
 
 		if (maj_stat != GSS_S_COMPLETE || qop_state != qop) {
-			gss_release_buffer(&min_stat, &databuf);
+			xdr_free((xdrproc_t)xdr_rpc_gss_buf, &databuf);
 			log_status("gss_verify_mic", maj_stat, min_stat);
 			return (FALSE);
 		}
 	}
 	else if (svc == RPCSEC_GSS_SVC_PRIVACY) {
 		/* Decode databody_priv. */
-		if (!xdr_rpc_gss_buf(xdrs, &wrapbuf, (unsigned int)-1)) {
+		if (!xdr_rpc_gss_buf(xdrs, &wrapbuf, GSSRPC_MAX_MESSAGE_SIZE)) {
+			xdr_free((xdrproc_t)xdr_rpc_gss_buf, &wrapbuf);
 			log_debug("xdr decode databody_priv failed");
 			return (FALSE);
 		}
@@ -248,7 +258,10 @@ xdr_rpc_gss_unwrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	xdr_stat = (xdr_u_int32(&tmpxdrs, &seq_num) &&
 		    (*xdr_func)(&tmpxdrs, xdr_ptr));
 	XDR_DESTROY(&tmpxdrs);
-	gss_release_buffer(&min_stat, &databuf);
+	if (svc == RPCSEC_GSS_SVC_INTEGRITY)
+		xdr_free((xdrproc_t)xdr_rpc_gss_buf, &databuf);
+	else if (svc == RPCSEC_GSS_SVC_PRIVACY)
+		gss_release_buffer(&min_stat, &databuf);
 
 	/* Verify sequence number. */
 	if (xdr_stat == TRUE && seq_num != seq) {

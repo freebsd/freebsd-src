@@ -72,12 +72,12 @@ LFLAGS	= /nologo $(LOPTS)
 all: Makefile copysrc midl $(OUTPRE)ccapiserver.exe finish
 
 ccs_request.h ccs_request_c.c ccs_request_s.c : ccs_request.idl ccs_request.acf
-    midl $(MIDL_OPTIMIZATION) $(MIDLI) -oldnames -cpp_cmd $(CC) -cpp_opt "-E" \
-    ccs_request.idl
+    midl $(MIDL_OPTIMIZATION) $(MIDLI) $(MIDL_ENV) -oldnames -cpp_cmd $(CC) \
+    -cpp_opt "-E" ccs_request.idl
 
 ccs_reply.h   ccs_reply_c.c   ccs_reply_s.c   : ccs_reply.idl   ccs_reply.acf
-    midl $(MIDL_OPTIMIZATION) $(MIDLI) -oldnames -cpp_cmd $(CC) -cpp_opt "-E" \
-    ccs_reply.idl
+    midl $(MIDL_OPTIMIZATION) $(MIDLI) $(MIDL_ENV) -oldnames -cpp_cmd $(CC) \
+    -cpp_opt "-E" ccs_reply.idl
 
 copysrc :
     echo "Copying all sources needed to build ccapiserver.exe to $(SRCTMP)"

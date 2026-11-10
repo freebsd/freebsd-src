@@ -39,6 +39,8 @@
 
 #include <gssrpc/rpc.h>
 
+extern struct svc_auth_ops svc_auth_gss_ops;
+
 /*
  * Server side authenticators are called from authenticate by
  * using the client auth struct flavor field to index into svcauthsw.
@@ -93,6 +95,16 @@ gssrpc__authenticate(
 	rqst->rq_xprt->xp_verf.oa_length = 0;
 	cred_flavor = rqst->rq_cred.oa_flavor;
 	*no_dispatch = FALSE;
+
+	/* xp_auth is currently retained across calls for RPCSEC_GSS.  If the
+	 * client switched to a different auth flavor, destroy it. */
+	if (rqst->rq_xprt->xp_auth != NULL &&
+	    rqst->rq_xprt->xp_auth->svc_ah_ops == &svc_auth_gss_ops &&
+	    cred_flavor != RPCSEC_GSS) {
+	    SVCAUTH_DESTROY(rqst->rq_xprt->xp_auth);
+	    rqst->rq_xprt->xp_auth = NULL;
+	}
+
 	for (i = 0; i < svcauthnum; i++) {
 	     if (cred_flavor == svcauthsw[i].flavor &&
 		 svcauthsw[i].authenticator != NULL) {

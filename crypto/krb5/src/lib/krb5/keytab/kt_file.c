@@ -935,6 +935,8 @@ krb5_ktfileint_internal_read_entry(krb5_context context, krb5_keytab id, krb5_ke
     }
 
     start_pos = ftell(KTFILEP(id));
+    if (size > INT32_MAX - start_pos)
+        return KRB5_KT_FORMAT;
 
     /* deal with guts of parsing... */
 

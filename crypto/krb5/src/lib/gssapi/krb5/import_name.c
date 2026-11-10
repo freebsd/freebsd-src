@@ -298,7 +298,7 @@ import_name(OM_uint32 *minor_status, gss_buffer_t input_name_buffer,
                 cp += length;
             }
             if (cp != end)
-		goto fail_name;
+                goto fail_name;
         } else {
             status = GSS_S_BAD_NAMETYPE;
             goto cleanup;

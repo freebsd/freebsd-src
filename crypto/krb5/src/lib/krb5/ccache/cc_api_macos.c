@@ -64,6 +64,29 @@ struct api_macos_ptcursor {
     cc_ccache_iterator_t iter;
 };
 
+/*
+ * The macOS CCAPI framework and XPC are not safe to use in a child process
+ * forked from a multithreaded parent.  Record the pid of the first use.  In a
+ * child forked after that, report the collection as empty and caches as not
+ * found, and leave CCAPI objects inherited from the parent unreleased.
+ */
+static k5_once_t first_use_once = K5_ONCE_INIT;
+static pid_t first_use_pid;
+
+static void
+record_first_use(void)
+{
+    first_use_pid = getpid();
+}
+
+static krb5_boolean
+forked_after_first_use(void)
+{
+    if (k5_once(&first_use_once, record_first_use) != 0)
+        return FALSE;
+    return first_use_pid != getpid();
+}
+
 /* Map a CCAPI error code to a com_err code. */
 static krb5_error_code
 ccerr2mit(uint32_t err)
@@ -96,6 +119,8 @@ make_cache(const char *residual, cc_context_t cc_context,
     *ccache_out = NULL;
 
     if (cc_context == NULL) {
+        if (forked_after_first_use())
+            return KRB5_FCC_NOFILE;
         err = cc_initialize(&cc_context, ccapi_version_max, NULL, NULL);
         if (err != ccNoError)
             return KRB5_FCC_INTERNAL;
@@ -133,6 +158,8 @@ oom:
 static uint32_t
 open_cache(struct api_macos_cache_data *data)
 {
+    if (forked_after_first_use())
+        return ccErrCCacheNotFound;
     if (data->cache != NULL)
         return ccNoError;
     return cc_context_open_ccache(data->cc_context, data->residual,
@@ -170,6 +197,9 @@ get_primary_name(krb5_context context, char **name_out)
     long release;
 
     *name_out = NULL;
+
+    if (forked_after_first_use())
+        return KRB5_FCC_NOFILE;
 
     if (uname(&un) == 0) {
         release = strtol(un.release, &end, 10);
@@ -253,6 +283,9 @@ api_macos_gen_new(krb5_context context, krb5_ccache *cache_out)
 
     *cache_out = NULL;
 
+    if (forked_after_first_use())
+        return KRB5_FCC_NOFILE;
+
     err = cc_initialize(&cc_context, ccapi_version_max, NULL, NULL);
     if (err)
         goto cleanup;
@@ -291,6 +324,9 @@ api_macos_initialize(krb5_context context, krb5_ccache cache,
     uint32_t err;
     char *princstr = NULL, *prefix_name = NULL;
 
+    if (forked_after_first_use())
+        return KRB5_FCC_NOFILE;
+
     /* Apple's cc_context_create_ccache() requires a name with type prefix. */
     if (asprintf(&prefix_name, "API:%s", data->residual) < 0)
         return ENOMEM;
@@ -319,9 +355,11 @@ api_macos_close(krb5_context context, krb5_ccache cache)
 {
     struct api_macos_cache_data *data = cache->data;
 
-    if (data->cache != NULL)
-        cc_ccache_release(data->cache);
-    cc_context_release(data->cc_context);
+    if (!forked_after_first_use()) {
+        if (data->cache != NULL)
+            cc_ccache_release(data->cache);
+        cc_context_release(data->cc_context);
+    }
     free(data->residual);
     free(data);
     free(cache);
@@ -333,8 +371,7 @@ api_macos_destroy(krb5_context context, krb5_ccache cache)
 {
     struct api_macos_cache_data *data = cache->data;
 
-    open_cache(data);
-    if (data->cache != NULL) {
+    if (open_cache(data) == ccNoError) {
         cc_ccache_destroy(data->cache);
         data->cache = NULL;
     }
@@ -441,7 +478,8 @@ api_macos_end_seq_get(krb5_context context, krb5_ccache cache,
 {
     cc_credentials_iterator_t iter = *cursor;
 
-    cc_credentials_iterator_release(iter);
+    if (!forked_after_first_use())
+        cc_credentials_iterator_release(iter);
     *cursor = NULL;
     return 0;
 }
@@ -576,6 +614,8 @@ api_macos_ptcursor_next(krb5_context context, krb5_cc_ptcursor ptcursor,
     defname = krb5_cc_default_name(context);
     if (defname == NULL || strncmp(defname, "API:", 4) != 0)
         return 0;
+    if (forked_after_first_use())
+        return 0;
     defresidual = defname + 4;
 
     /* If the default cache name is a subsidiary cache, yield that cache if it
@@ -640,10 +680,12 @@ api_macos_ptcursor_free(krb5_context context, krb5_cc_ptcursor *ptcursor)
     struct api_macos_ptcursor *apt = (*ptcursor)->data;
 
     if (apt != NULL) {
-        if (apt->iter != NULL)
-            cc_ccache_iterator_release(apt->iter);
-        if (apt->cc_context != NULL)
-            cc_context_release(apt->cc_context);
+        if (!forked_after_first_use()) {
+            if (apt->iter != NULL)
+                cc_ccache_iterator_release(apt->iter);
+            if (apt->cc_context != NULL)
+                cc_context_release(apt->cc_context);
+        }
         free(apt->primary);
         free(apt);
     }

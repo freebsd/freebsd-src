@@ -84,6 +84,10 @@ kg_oid_internalize(gss_OID *argp, krb5_octet **buffer, size_t *lenremain)
         free(oid);
         return EINVAL;
     }
+    if (ibuf < 0 || (size_t)ibuf > remain) {
+        free(oid);
+        return EINVAL;
+    }
     oid->length = ibuf;
     oid->elements = malloc((size_t)ibuf);
     if (oid->elements == 0) {
@@ -632,6 +636,8 @@ kg_ctx_internalize(krb5_context kcontext, krb5_gss_ctx_id_t *argp,
             /* authdata */
             if (!kret)
                 kret = krb5_ser_unpack_int32(&ibuf, &bp, &remain);
+            if (!kret && (ibuf < 0 || (size_t)ibuf > remain))
+                kret = ENOMEM;
             if (!kret) {
                 krb5_int32 nadata = ibuf, i;
 
