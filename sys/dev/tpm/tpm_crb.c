@@ -359,7 +359,12 @@ tpmcrb_attach_acpi(struct tpmcrb_sc *crb_sc)
 		AcpiPutTable((ACPI_TABLE_HEADER *)tbl);
 		return (false);
 	}
-	crb_sc->has_locality = tbl->ControlAddress >= TPM_CRB_LOCALITY_SIZE &&
+	/*
+	 * Only the plain CRB start method uses the locality registers: Pluton
+	 * firmware keeps LOC_STATE assigned after a release.
+	 */
+	crb_sc->has_locality = tbl->StartMethod == TPM2_START_METHOD_CRB &&
+	    tbl->ControlAddress >= TPM_CRB_LOCALITY_SIZE &&
 	    tbl->ControlAddress - TPM_CRB_LOCALITY_SIZE ==
 	    rman_get_start(crb_sc->base.mem_res);
 
@@ -553,7 +558,7 @@ static void
 tpmcrb_relinquish_locality(struct tpmcrb_sc *crb_sc)
 {
 	struct resource *res = crb_sc->base.mem_res;
-	uint32_t mask;
+	uint32_t mask, state;
 	int timeout;
 
 	if (!crb_sc->has_locality)
@@ -571,14 +576,15 @@ tpmcrb_relinquish_locality(struct tpmcrb_sc *crb_sc)
 	 * pause so a release during it is not reported as a failure.
 	 */
 	for (timeout = TPM_TIMEOUT_C;; timeout -= tick) {
-		if ((bus_read_4(res, TPM_LOC_STATE) & mask) ==
-		    TPM_LOC_STATE_VALID)
+		state = bus_read_4(res, TPM_LOC_STATE);
+		if ((state & mask) == TPM_LOC_STATE_VALID)
 			return;
 		if (timeout <= 0)
 			break;
 		pause("TPM locality", 1);
 	}
-	device_printf(crb_sc->base.dev, "Failed to relinquish locality\n");
+	device_printf(crb_sc->base.dev,
+	    "Failed to relinquish locality (loc_state=%#x)\n", state);
 }
 
 static bool
