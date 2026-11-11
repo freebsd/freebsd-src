@@ -330,7 +330,7 @@ man_check_for_so() {
 		case "$line" in
                '.so /'*) break ;; # ignore absolute path
                '.so '*) trim "${line#.so}"
-			decho "$manpage includes $tstri level=$counter_so"
+			decho "$manpage includes $tstr level=$counter_so"
 
 			# Glob and check for the file.
 			if ! check_man "$1/$tstr" ""; then
