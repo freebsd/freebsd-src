@@ -6394,6 +6394,8 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 			MPASS(pmap != kernel_pmap); /* XXXKIB */
 			MPASS((*pdpe & (PG_MANAGED | PG_G)) == 0);
 			anyvalid = 1;
+			if ((*pdpe & PG_W) != 0)
+				pmap->pm_stats.wired_count -= NBPDP / PAGE_SIZE;
 			*pdpe = 0;
 			pmap_resident_count_adj(pmap, -NBPDP / PAGE_SIZE);
 			mt = PHYS_TO_VM_PAGE(*pmap_pml4e(pmap, sva) & PG_FRAME);

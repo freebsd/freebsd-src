@@ -4598,6 +4598,9 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 			    pmap_load(l1), sva, eva, va_next));
 			MPASS(pmap != kernel_pmap);
 			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
+			if ((pmap_load(l1) & ATTR_SW_WIRED) != 0)
+				pmap->pm_stats.wired_count -=
+				    L1_SIZE / PAGE_SIZE;
 			pmap_clear(l1);
 			pmap_s1_invalidate_page(pmap, sva, true, TLBI_TTL_L1);
 			pmap_resident_count_dec(pmap, L1_SIZE / PAGE_SIZE);

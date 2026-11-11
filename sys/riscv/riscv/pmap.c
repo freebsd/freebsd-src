@@ -4069,6 +4069,8 @@ retry:
 					panic("pmap_unwire: l2 %#jx is missing "
 					    "PTE_SW_WIRED", (uintmax_t)l2e);
 				pmap_clear_bits(l2, PTE_SW_WIRED);
+				pmap->pm_stats.wired_count -= L2_SIZE /
+				    PAGE_SIZE;
 				continue;
 			} else {
 				if (!pv_lists_locked) {
