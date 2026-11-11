@@ -87,6 +87,7 @@ static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 static int msginit(void);
 static int msgunload(void);
 static int sysvmsg_modload(struct module *, int, void *);
+static int msgvalid(int, struct prison *, struct msqid_kernel *);
 static void msq_remove(struct msqid_kernel *);
 static struct prison *msg_find_prison(struct ucred *);
 static int msq_prison_cansee(struct prison *, struct msqid_kernel *);
@@ -168,6 +169,7 @@ static char *msgpool;		/* MSGMAX byte long msg buffer pool */
 static struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
 static struct msg *msghdrs;	/* MSGTQL msg headers */
 static struct msqid_kernel *msqids;	/* MSGMNI msqid_kernel struct's */
+static uint64_t *msqseq;		/* MSGMNI sequence numbers */
 static struct mtx msq_mtx;	/* global mutex for message queues. */
 static unsigned msg_prison_slot;/* prison OSD slot */
 
@@ -224,6 +226,8 @@ msginit(void)
 	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
 	msqids = malloc(sizeof(struct msqid_kernel) * msginfo.msgmni, M_MSG,
+	    M_WAITOK | M_ZERO);
+	msqseq = malloc(sizeof(uint64_t) * msginfo.msgmni, M_MSG,
 	    M_WAITOK | M_ZERO);
 
 	/*
@@ -344,6 +348,7 @@ msgunload(void)
 	free(msgmaps, M_MSG);
 	free(msghdrs, M_MSG);
 	free(msqids, M_MSG);
+	free(msqseq, M_MSG);
 	mtx_destroy(&msq_mtx);
 	return (0);
 }
@@ -404,6 +409,15 @@ msg_freehdr(struct msg *msghdr)
 #ifdef MAC
 	mac_sysvmsg_cleanup(msghdr);
 #endif
+}
+
+static int
+msgvalid(int msqid, struct prison *rpr, struct msqid_kernel *msqkptr)
+{
+
+	return (msqkptr->u.msg_qbytes == 0 ||
+	    msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid) ||
+	    msq_prison_cansee(rpr, msqkptr) ? EINVAL : 0);
 }
 
 static void
@@ -516,22 +530,8 @@ kern_msgctl(struct thread *td, int msqid, int cmd, struct msqid_ds *msqbuf)
 	msqkptr = &msqids[msqix];
 
 	mtx_lock(&msq_mtx);
-	if (msqkptr->u.msg_qbytes == 0) {
-		DPRINTF(("no such msqid\n"));
-		error = EINVAL;
+	if ((error = msgvalid(msqid, rpr, msqkptr)) != 0)
 		goto done2;
-	}
-	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
-		DPRINTF(("wrong sequence number\n"));
-		error = EINVAL;
-		goto done2;
-	}
-
-	error = msq_prison_cansee(rpr, msqkptr);
-	if (error != 0) {
-		DPRINTF(("requester can't see prison\n"));
-		goto done2;
-	}
 
 #ifdef MAC
 	error = mac_sysvmsq_check_msqctl(td->td_ucred, msqkptr, cmd);
@@ -725,7 +725,8 @@ sys_msgget(struct thread *td, struct msgget_args *uap)
 		msqkptr->u.msg_perm.mode = (msgflg & 0777);
 		msqkptr->cred = crhold(cred);
 		/* Make sure that the returned msqid is unique */
-		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
+		msqseq[msqid]++;
+		msqkptr->u.msg_perm.seq = msqseq[msqid] & 0x7fff;
 		msqkptr->u.__msg_first = NULL;
 		msqkptr->u.__msg_last = NULL;
 		msqkptr->u.msg_cbytes = 0;
@@ -770,6 +771,7 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 	struct msqid_kernel *msqkptr;
 	struct msg *msghdr;
 	struct prison *rpr;
+	uint64_t seq;
 	short next;
 #ifdef RACCT
 	size_t saved_msgsz = 0;
@@ -792,21 +794,8 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 
 	msqkptr = &msqids[msqix];
 	AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
-	if (msqkptr->u.msg_qbytes == 0) {
-		DPRINTF(("no such message queue id\n"));
-		error = EINVAL;
+	if ((error = msgvalid(msqid, rpr, msqkptr)) != 0)
 		goto done2;
-	}
-	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
-		DPRINTF(("wrong sequence number\n"));
-		error = EINVAL;
-		goto done2;
-	}
-
-	if ((error = msq_prison_cansee(rpr, msqkptr))) {
-		DPRINTF(("requester can't see prison\n"));
-		goto done2;
-	}
 
 	if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_W))) {
 		DPRINTF(("requester doesn't have write access\n"));
@@ -841,8 +830,9 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 	segs_needed = howmany(msgsz, msginfo.msgssz);
 	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
 	    msginfo.msgssz, segs_needed));
+	seq = msqseq[msqix];
 	for (;;) {
-		int need_more_resources = 0;
+		bool need_more_resources = false;
 
 		/*
 		 * check msgsz
@@ -857,23 +847,23 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 
 		if (msqkptr->u.msg_perm.mode & MSG_LOCKED) {
 			DPRINTF(("msqid is locked\n"));
-			need_more_resources = 1;
+			need_more_resources = true;
 		}
 		if (msgsz + msqkptr->u.msg_cbytes > msqkptr->u.msg_qbytes) {
 			DPRINTF(("msgsz + msg_cbytes > msg_qbytes\n"));
-			need_more_resources = 1;
+			need_more_resources = true;
 		}
 		if (segs_needed > nfree_msgmaps) {
 			DPRINTF(("segs_needed > nfree_msgmaps\n"));
-			need_more_resources = 1;
+			need_more_resources = true;
 		}
 		if (free_msghdrs == NULL) {
 			DPRINTF(("no more msghdrs\n"));
-			need_more_resources = 1;
+			need_more_resources = true;
 		}
 
 		if (need_more_resources) {
-			int we_own_it;
+			bool we_own_it;
 
 			if ((msgflg & IPC_NOWAIT) != 0) {
 				DPRINTF(("need more resources but caller "
@@ -884,20 +874,35 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 
 			if ((msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0) {
 				DPRINTF(("we don't own the msqid_ds\n"));
-				we_own_it = 0;
+				we_own_it = false;
 			} else {
 				/* Force later arrivals to wait for our
 				   request */
 				DPRINTF(("we own the msqid_ds\n"));
 				msqkptr->u.msg_perm.mode |= MSG_LOCKED;
-				we_own_it = 1;
+				we_own_it = true;
 			}
+
 			DPRINTF(("msgsnd:  goodnight\n"));
 			error = msleep(msqkptr, &msq_mtx, PVFS | PCATCH,
 			    "msgsnd", hz);
 			DPRINTF(("msgsnd:  good morning, error=%d\n", error));
+
 			if (we_own_it)
 				msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
+
+			/*
+			 * Make sure that the msq queue still exists.
+			 * The embedded sequence number check isn't
+			 * sufficient to detect reallocation since it's
+			 * too narrow.
+			 */
+			if (msqkptr->u.msg_qbytes == 0 ||
+			    msqseq[msqix] != seq) {
+				DPRINTF(("msqid deleted\n"));
+				error = EIDRM;
+				goto done3;
+			}
 			if (error == EWOULDBLOCK) {
 				DPRINTF(("msgsnd:  timed out\n"));
 				continue;
@@ -905,16 +910,6 @@ kern_msgsnd(struct thread *td, int msqid, const void *msgp,
 			if (error != 0) {
 				DPRINTF(("msgsnd:  interrupted system call\n"));
 				error = EINTR;
-				goto done3;
-			}
-
-			/*
-			 * Make sure that the msq queue still exists
-			 */
-
-			if (msqkptr->u.msg_qbytes == 0) {
-				DPRINTF(("msqid deleted\n"));
-				error = EIDRM;
 				goto done3;
 			}
 
@@ -1140,6 +1135,7 @@ kern_msgrcv(struct thread *td, int msqid, void *msgp, size_t msgsz, long msgtyp,
 	struct msqid_kernel *msqkptr;
 	struct msg *msghdr;
 	struct prison *rpr;
+	uint64_t seq;
 	int msqix, error = 0;
 	short next;
 
@@ -1159,21 +1155,8 @@ kern_msgrcv(struct thread *td, int msqid, void *msgp, size_t msgsz, long msgtyp,
 	msqkptr = &msqids[msqix];
 	mtx_lock(&msq_mtx);
 	AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
-	if (msqkptr->u.msg_qbytes == 0) {
-		DPRINTF(("no such message queue id\n"));
-		error = EINVAL;
+	if ((error = msgvalid(msqid, rpr, msqkptr)) != 0)
 		goto done2;
-	}
-	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
-		DPRINTF(("wrong sequence number\n"));
-		error = EINVAL;
-		goto done2;
-	}
-
-	if ((error = msq_prison_cansee(rpr, msqkptr))) {
-		DPRINTF(("requester can't see prison\n"));
-		goto done2;
-	}
 
 	if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_R))) {
 		DPRINTF(("requester doesn't have read access\n"));
@@ -1186,6 +1169,7 @@ kern_msgrcv(struct thread *td, int msqid, void *msgp, size_t msgsz, long msgtyp,
 		goto done2;
 #endif
 
+	seq = msqseq[msqix];
 	msghdr = NULL;
 	while (msghdr == NULL) {
 		if (msgtyp == 0) {
@@ -1313,11 +1297,14 @@ kern_msgrcv(struct thread *td, int msqid, void *msgp, size_t msgsz, long msgtyp,
 		}
 
 		/*
-		 * Make sure that the msq queue still exists
+		 * Make sure that the msq queue still exists.
+		 * The embedded sequence number check isn't
+		 * sufficient to detect reallocation since it's
+		 * too narrow.
 		 */
 
 		if (msqkptr->u.msg_qbytes == 0 ||
-		    msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
+		    msqseq[msqix] != seq) {
 			DPRINTF(("msqid deleted\n"));
 			error = EIDRM;
 			goto done2;
