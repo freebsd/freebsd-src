@@ -7,7 +7,7 @@ modulesdir=${libdir}/ossl-modules
 
 Name: OpenSSL-libcrypto
 Description: OpenSSL cryptography library
-Version: 3.0.21
+Version: 3.0.22
 Libs: -L${libdir} -lcrypto
 Libs.private: -pthread
 Cflags: -I${includedir}
