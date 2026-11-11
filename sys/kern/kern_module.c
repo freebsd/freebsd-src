@@ -392,24 +392,25 @@ kern_modstat(struct thread *td, int modid, struct module_stat *stat)
 	MOD_SLOCK;
 	mod = module_lookupbyid(modid);
 	if (mod == NULL) {
-		MOD_SUNLOCK;
-		return (ENOENT);
+		error = ENOENT;
+		goto out;
 	}
 	id = mod->id;
 	refs = mod->refs;
 	name = mod->name;
 	data = mod->data;
-	MOD_SUNLOCK;
 
 	/*
 	 * Check the version of the user's structure.
 	 */
 	if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
-		return (error);
+		goto out;
 	is_v1v2 = (version == sizeof(struct module_stat_v1) ||
 	    version == sizeof(struct module_stat_v2));
-	if (!is_v1v2 && version != sizeof(struct module_stat))
-		return (EINVAL);
+	if (!is_v1v2 && version != sizeof(struct module_stat)) {
+		error = EINVAL;
+		goto out;
+	}
 	if (is_v1v2)
 		user_namep = ((struct module_stat_v1 *)stat)->name;
 	else
@@ -420,20 +421,20 @@ kern_modstat(struct thread *td, int modid, struct module_stat *stat)
 	else if (namelen > MAXMODNAMEV3)
 		namelen = MAXMODNAMEV3;
 	if ((error = copyout(name, user_namep, namelen)) != 0)
-		return (error);
+		goto out;
 
 	/* Extending MAXMODNAME gives an offset change for v3. */
 	if (is_v1v2) {
 		stat_v2 = (struct module_stat_v2 *)stat;
 		if ((error = copyout(&refs, &stat_v2->refs, sizeof(int))) != 0)
-			return (error);
+			goto out;
 		if ((error = copyout(&id, &stat_v2->id, sizeof(int))) != 0)
-			return (error);
+			goto out;
 	} else {
 		if ((error = copyout(&refs, &stat->refs, sizeof(int))) != 0)
-			return (error);
+			goto out;
 		if ((error = copyout(&id, &stat->id, sizeof(int))) != 0)
-			return (error);
+			goto out;
 	}
 
 	/*
@@ -442,13 +443,15 @@ kern_modstat(struct thread *td, int modid, struct module_stat *stat)
 	if (version == sizeof(struct module_stat_v2)) {
 		if ((error = copyout(&data, &stat_v2->data,
 		    sizeof(data))) != 0)
-			return (error);
+			goto out;
 	} else if (version == sizeof(struct module_stat)) {
 		if ((error = copyout(&data, &stat->data, 
 		    sizeof(data))) != 0)
-			return (error);
+			goto out;
 	}
 	td->td_retval[0] = 0;
+out:
+	MOD_SUNLOCK;
 	return (error);
 }
 
@@ -525,8 +528,8 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	MOD_SLOCK;
 	mod = module_lookupbyid(uap->modid);
 	if (mod == NULL) {
-		MOD_SUNLOCK;
-		return (ENOENT);
+		error = ENOENT;
+		goto out;
 	}
 
 	id = mod->id;
@@ -535,35 +538,36 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	_Static_assert(sizeof(data32) == sizeof(data32.uintval),
 	    "bad modspecific32_t size");
 	CP(mod->data, data32, uintval);
-	MOD_SUNLOCK;
 	stat32 = uap->stat;
 
 	if ((error = copyin(&stat32->version, &version, sizeof(version))) != 0)
-		return (error);
+		goto out;
 	is_v1v2 = (version == sizeof(struct module_stat_v1) ||
 	    version == sizeof(struct module_stat32_v2));
-	if (!is_v1v2 && version != sizeof(struct module_stat32))
-		return (EINVAL);
+	if (!is_v1v2 && version != sizeof(struct module_stat32)) {
+		error = EINVAL;
+		goto out;
+	}
 	namelen = strlen(mod->name) + 1;
 	if (is_v1v2 && namelen > MAXMODNAMEV1V2)
 		namelen = MAXMODNAMEV1V2;
 	else if (namelen > MAXMODNAMEV3)
 		namelen = MAXMODNAMEV3;
 	if ((error = copyout(name, &stat32->name[0], namelen)) != 0)
-		return (error);
+		goto out;
 
 	/* Extending MAXMODNAME gives an offset change for v3. */
 	if (is_v1v2) {
 		stat32_v2 = (struct module_stat32_v2 *)stat32;
 		if ((error = copyout(&refs, &stat32_v2->refs, sizeof(int))) != 0)
-			return (error);
+			goto out;
 		if ((error = copyout(&id, &stat32_v2->id, sizeof(int))) != 0)
-			return (error);
+			goto out;
 	} else {
 		if ((error = copyout(&refs, &stat32->refs, sizeof(int))) != 0)
-			return (error);
+			goto out;
 		if ((error = copyout(&id, &stat32->id, sizeof(int))) != 0)
-			return (error);
+			goto out;
 	}
 
 	/*
@@ -572,13 +576,15 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	if (version == sizeof(struct module_stat32_v2)) {
 		if ((error = copyout(&data32, &stat32_v2->data,
 		    sizeof(data32))) != 0)
-			return (error);
+			goto out;
 	} else if (version == sizeof(struct module_stat32)) {
 		if ((error = copyout(&data32, &stat32->data,
 		    sizeof(data32))) != 0)
-			return (error);
+			goto out;
 	}
 	td->td_retval[0] = 0;
+out:
+	MOD_SUNLOCK;
 	return (error);
 }
 #endif
