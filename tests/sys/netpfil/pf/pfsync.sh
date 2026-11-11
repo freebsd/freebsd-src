@@ -264,6 +264,107 @@ bulk_cleanup()
 	pfsynct_cleanup
 }
 
+# Print the whole seconds of uptime.  With an argument, first wait for a
+# second of uptime to be between 0.05 and 0.35 s old: the kernel's time_uptime
+# is that same number there, and it leaves time to act before the next one.
+uptime_seconds()
+{
+	python3 -c '
+import sys, time
+
+def uptime():
+    return time.clock_gettime(time.CLOCK_UPTIME)
+
+while len(sys.argv) > 1 and not 0.05 < uptime() % 1 < 0.35:
+    time.sleep(0.02)
+print(int(uptime()))
+' $1
+}
+
+# Send a bulk update end mark to 192.0.2.1.  It reports an update that took
+# $2 seconds more than the whole seconds of uptime that have passed since
+# uptime $1.  Fail if uptime ticked over meanwhile: the mark may then have
+# been judged against the next second.
+send_bulk_end()
+{
+	python3 -c '
+import socket, struct, sys, time
+
+def uptime():
+    return time.clock_gettime(time.CLOCK_UPTIME)
+
+while not 0.05 < uptime() % 1 < 0.35:
+    time.sleep(0.02)
+now = int(uptime())
+endtime = now - int(sys.argv[1]) + int(sys.argv[2])
+# struct pfsync_subheader, then struct pfsync_bus with PFSYNC_BUS_END
+body = struct.pack("!BxH", 10, 1) + struct.pack("!IIB3x", 0, endtime, 2)
+# struct pfsync_header
+header = struct.pack("!BxH16x", 5, 20 + len(body))
+s = socket.socket(socket.AF_INET, socket.SOCK_RAW, 240)
+s.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, 255)
+s.sendto(header + body, ("192.0.2.1", 0))
+sys.exit(int(uptime()) != now)
+' $1 $2
+}
+
+atf_test_case "bulk_end" "cleanup"
+bulk_end_head()
+{
+	atf_set descr 'Bulk update end mark from a peer whose clock ticked over'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+
+bulk_end_body()
+{
+	pfsynct_init
+
+	epair_sync=$(vnet_mkepair)
+
+	vnet_mkjail one ${epair_sync}a
+	ifconfig ${epair_sync}b 192.0.2.2/24 up
+	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass keep state"
+
+	# Nothing answers the bulk update request, so one keeps waiting.  Find
+	# the second of uptime in which it sent the request.
+	for try in $(seq 1 5); do
+		sent=$(uptime_seconds early)
+		jexec one ifconfig pfsync0 syncdev ${epair_sync}a up
+		[ "$(uptime_seconds)" -eq "${sent}" ] && break
+		jexec one ifconfig pfsync0 -syncdev
+		sent=
+	done
+	if [ -z "${sent}" ]; then
+		atf_skip "Could not request a bulk update within one second"
+	fi
+	if ! jexec one ifconfig pfsync0 | grep -q 'syncok: 0'; then
+		atf_fail "Not waiting for a bulk update"
+	fi
+
+	# An update that took two seconds longer than our wait is not ours.
+	send_bulk_end ${sent} 2 || atf_skip "Uptime ticked over during a send"
+	sleep 1
+	if ! jexec one ifconfig pfsync0 | grep -q 'syncok: 0'; then
+		atf_fail "Accepted the end mark of another bulk update"
+	fi
+
+	# One second longer is: both ends count whole seconds of their own
+	# uptime, and the peer's can tick over during the update when ours
+	# does not.
+	send_bulk_end ${sent} 1 || atf_skip "Uptime ticked over during a send"
+	wait_for "jexec one ifconfig pfsync0 | grep -c 'syncok: 1'" 1
+}
+
+bulk_end_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_test_case "pbr" "cleanup"
 pbr_head()
 {
@@ -1977,6 +2078,7 @@ atf_init_test_cases()
 	atf_add_test_case "basic_defer"
 	atf_add_test_case "defer"
 	atf_add_test_case "bulk"
+	atf_add_test_case "bulk_end"
 	atf_add_test_case "pbr"
 	atf_add_test_case "pfsync_pbr"
 	atf_add_test_case "ipsec"
