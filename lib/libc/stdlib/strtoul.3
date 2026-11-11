@@ -104,10 +104,12 @@ or
 sign.
 If
 .Fa base
-is zero or 16,
+is zero or 2,
 the string may then include a
 .Dq Li 0b
-prefix, and the number will be read in base 2; or it may include a
+prefix, and the number will be read in base 2; if
+.Fa base
+is zero or 16, it may include a
 .Dq Li 0x
 prefix,
 and the number will be read in base 16; otherwise, a zero
