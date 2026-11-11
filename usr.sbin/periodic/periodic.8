@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 18, 2020
+.Dd November 11, 2026
 .Dt PERIODIC 8
 .Os
 .Sh NAME
@@ -136,11 +136,10 @@ value does not begin with a
 .Ql /
 and is not empty, it is assumed to contain a list of email addresses, and
 the output is mailed to them.
-If
+If the script did not produce any output, no email is sent, unless
 .Ao Ar basedir Ac Ns Va _show_empty_output
 is set to
-.Dq Li NO ,
-then no mail will be sent if the output was empty.
+.Dq Li YES .
 .Pp
 If
 .Ao Ar basedir Ac Ns Va _output

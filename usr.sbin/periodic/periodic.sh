@@ -98,7 +98,7 @@ export PERIODIC="$arg${PERIODIC:+ }${PERIODIC}"
 # set, assume the user didn't really want us to muck with it (it's a
 # README file or has been disabled).
 
-success=YES info=YES badconfig=NO empty_output=YES	# Defaults when ${run}_* aren't YES/NO
+success=YES info=YES badconfig=NO empty_output=NO	# Defaults when ${run}_* aren't YES/NO
 for var in success info badconfig empty_output; do
     case $(eval echo "\$${arg##*/}_show_$var") in
     [Yy][Ee][Ss]) eval $var=YES;;
@@ -144,7 +144,7 @@ esac
         done
     done
     if [ $empty = TRUE ]; then
-        if [ $empty_output = TRUE ]; then
+        if [ $empty_output = YES ]; then
             [ $processed = 1 ] && plural= || plural=s
             echo "No output from the $processed file$plural processed"
         fi
