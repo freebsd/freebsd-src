@@ -1828,7 +1828,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	struct make_dev_args	md_args;
 	uint32_t	cap_lo;
 	uint32_t	cap_hi;
-	uint32_t	to, vs, pmrcap;
+	uint32_t	crto, to, vs, pmrcap;
 	int		status, timeout_period;
 
 	ctrlr->dev = dev;
@@ -1891,7 +1891,11 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->page_size = 1 << (NVME_MPS_SHIFT + ctrlr->mps);
 
 	/* Get ready timeout value from controller, in units of 500ms. */
-	to = NVME_CAP_LO_TO(cap_lo) + 1;
+	if (NVME_CAP_HI_CRWMS(cap_hi)) {
+		crto = nvme_mmio_read_4(ctrlr, crto);
+		to = max(NVME_CRTO_CRWMT(crto), NVME_CAP_LO_TO(cap_lo)) + 1;
+	} else
+		to = NVME_CAP_LO_TO(cap_lo) + 1;
 	ctrlr->ready_timeout_in_ms = to * 500;
 
 	timeout_period = NVME_ADMIN_TIMEOUT_PERIOD;
