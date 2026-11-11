@@ -729,6 +729,7 @@ ah_input_cb(struct cryptop *crp)
 			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
 			xd->cryptoid = crp->crp_session;
+			ipsec_sahtree_runlock(&sahtree_tracker);
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
