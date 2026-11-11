@@ -533,6 +533,27 @@ link_elf_init(void* arg)
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_THIRD, link_elf_init, NULL);
 
 static int
+link_elf_check_symtab(const char *filename, const Elf_Sym *symtab,
+    long symcnt, const char *strtab, long strcnt)
+{
+	long i;
+
+	if (symcnt == 0)
+		return (0);
+	if (strcnt <= 0 || strtab[strcnt - 1] != '\0') {
+		link_elf_error(filename, "corrupt symbol string table");
+		return (ENOEXEC);
+	}
+	for (i = 0; i < symcnt; i++) {
+		if (symtab[i].st_name >= strcnt) {
+			link_elf_error(filename, "corrupt symbol name offset");
+			return (ENOEXEC);
+		}
+	}
+	return (0);
+}
+
+static int
 link_elf_preload_parse_symbols(elf_file_t ef)
 {
 	caddr_t pointer;
@@ -576,6 +597,10 @@ link_elf_preload_parse_symbols(elf_file_t ef)
 		printf("Symbols are corrupt!\n");
 		return (EINVAL);
 	}
+
+	if (link_elf_check_symtab(ef->lf.filename, symtab,
+	    symcnt / sizeof(Elf_Sym), strtab, strcnt) != 0)
+		return (EINVAL);
 
 	ef->ddbsymtab = symtab;
 	ef->ddbsymcnt = symcnt / sizeof(Elf_Sym);
@@ -718,6 +743,10 @@ parse_dynamic(elf_file_t ef)
 		ef->pltrelasize = ef->pltrelsize;
 		ef->pltrelsize = 0;
 	}
+
+	if (ef->lf.size != 0 && link_elf_check_symtab(ef->lf.filename,
+	    ef->symtab, ef->nchains, ef->strtab, ef->strsz) != 0)
+		return (ENOEXEC);
 
 	ef->ddbsymtab = ef->symtab;
 	ef->ddbsymcnt = ef->nchains;
@@ -1400,6 +1429,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	    ef->strbase, strcnt, shdr[symstrindex].sh_offset,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
 	    &resid, td);
+	if (error != 0)
+		goto out;
+
+	error = link_elf_check_symtab(filename, (const Elf_Sym *)ef->symbase,
+	    symcnt / sizeof(Elf_Sym), ef->strbase, strcnt);
 	if (error != 0)
 		goto out;
 
