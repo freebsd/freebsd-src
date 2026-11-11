@@ -853,6 +853,7 @@ pci_nvme_aen_init(struct pci_nvme_softc *sc)
 	pci_nvme_aen_reset(sc);
 
 	pthread_mutex_init(&sc->aen_mtx, NULL);
+	pthread_cond_init(&sc->aen_cond, NULL);
 	pthread_create(&sc->aen_tid, NULL, aen_thr, sc);
 	snprintf(nstr, sizeof(nstr), "nvme-aen-%d:%d", sc->nsc_pi->pi_slot,
 	    sc->nsc_pi->pi_func);
