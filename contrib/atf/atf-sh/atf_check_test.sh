@@ -207,6 +207,17 @@ flush_stdout_on_death_body()
         || atf_fail 'Second command not in output'
 }
 
+atf_test_case negate
+negate_body()
+{
+	atf_check true
+	atf_check ! false
+	atf_check ! ! true
+	atf_check ! ! ! false
+	atf_check true !
+	atf_check -o inline:'!\n' echo !
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case info_ok
@@ -216,6 +227,7 @@ atf_init_test_cases()
     atf_add_test_case null_stderr
     atf_add_test_case equal
     atf_add_test_case flush_stdout_on_death
+    atf_add_test_case negate
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

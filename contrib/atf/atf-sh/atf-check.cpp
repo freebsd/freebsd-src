@@ -910,13 +910,21 @@ atf_check::process_option(int ch, const char* arg)
 int
 atf_check::main(void)
 {
+    bool negate = false;
+
+    while (m_argc > 0 && strcmp(m_argv[0], "!") == 0) {
+        negate = !negate;
+        m_argc--;
+        m_argv++;
+    }
+
     if (m_argc < 1)
         throw atf::application::usage_error("No command specified");
 
     int status = EXIT_FAILURE;
 
     if (m_status_checks.empty()) {
-        m_status_checks.push_back(status_check(sc_exit, false, EXIT_SUCCESS,
+        m_status_checks.push_back(status_check(sc_exit, negate, EXIT_SUCCESS,
             false));
     } else if (m_status_checks.size() > 1) {
         // TODO: Remove this restriction.

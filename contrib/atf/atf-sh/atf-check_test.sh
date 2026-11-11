@@ -90,11 +90,17 @@ sflag_exit_body()
     h_pass 'false' -s not-exit:0
     h_pass 'exit 255' -s exit:255
     h_pass 'exit 0' -s not-exit:255
+    h_pass 'false' !
+    h_pass 'true' ! !
+    h_pass 'false' ! ! !
 
     h_fail 'exit 256' -s exit:256
     h_fail 'exit -1' -s exit:-1
     h_fail 'true' -s not-exit:256
     h_fail 'true' -s not-exit:-1
+    h_fail 'true' !
+    h_fail 'false' ! !
+    h_fail 'true' ! ! !
 
     h_pass 'true' -s exit
     h_pass 'false' -s exit
