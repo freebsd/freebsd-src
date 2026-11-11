@@ -458,9 +458,9 @@ fetch_socks5_init(conn_t *conn, const char *host, int port, int verbose)
 	memcpy(ptr, host, strlen(host));
 	ptr = ptr + strlen(host);
 
-	port = htons(port);
-	*ptr++ = port & 0x00ff;
-	*ptr++ = (port & 0xff00) >> 8;
+	/* port in network byte order, independent of the host's */
+	*ptr++ = (port >> 8) & 0xff;
+	*ptr++ = port & 0xff;
 
 	if (fetch_write(conn, buf, ptr - buf) != ptr - buf) {
 		ret = SOCKS5_ERR_REQUEST;
