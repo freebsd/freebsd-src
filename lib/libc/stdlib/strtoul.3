@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 21, 2023
+.Dd November 11, 2026
 .Dt STRTOUL 3
 .Os
 .Sh NAME
@@ -153,11 +153,19 @@ but
 is
 .Ql \e0
 on return, the entire string was valid.)
+.Pp
+Extended locale versions of the
+.Fn strtoul ,
+.Fn strtoull ,
+and
+.Fn strtoumax
+functions are documented in
+.Xr xlocale 3 .
 .Sh RETURN VALUES
 The
 .Fn strtoul ,
 .Fn strtoull ,
-.Fn strtoumax
+.Fn strtoumax ,
 and
 .Fn strtouq
 functions

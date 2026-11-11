@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 22, 2003
+.Dd November 11, 2026
 .Dt WCSTOD 3
 .Os
 .Sh NAME
@@ -46,18 +46,21 @@ or
 .Sh DESCRIPTION
 The
 .Fn wcstof ,
-.Fn wcstod
+.Fn wcstod ,
 and
 .Fn wcstold
 functions are the wide-character versions of the
 .Fn strtof ,
-.Fn strtod
+.Fn strtod ,
 and
 .Fn strtold
 functions.
 Refer to
 .Xr strtod 3
 for details.
+.Pp
+Extended locale versions of these functions are documented in
+.Xr xlocale 3 .
 .Sh SEE ALSO
 .Xr strtod 3 ,
 .Xr wcstol 3

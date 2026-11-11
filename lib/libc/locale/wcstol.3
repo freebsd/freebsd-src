@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 7, 2002
+.Dd November 11, 2026
 .Dt WCSTOL 3
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ The
 .Fn wcstoul ,
 .Fn wcstoll ,
 .Fn wcstoull ,
-.Fn wcstoimax
+.Fn wcstoimax ,
 and
 .Fn wcstoumax
 functions are wide-character versions of the
@@ -69,13 +69,16 @@ functions are wide-character versions of the
 .Fn strtoul ,
 .Fn strtoll ,
 .Fn strtoull ,
-.Fn strtoimax
+.Fn strtoimax ,
 and
 .Fn strtoumax
 functions, respectively.
 Refer to their manual pages (for example
 .Xr strtol 3 )
 for details.
+.Pp
+Extended locale versions of these functions are documented in
+.Xr xlocale 3 .
 .Sh SEE ALSO
 .Xr strtol 3 ,
 .Xr strtoul 3
@@ -85,7 +88,7 @@ The
 .Fn wcstoul ,
 .Fn wcstoll ,
 .Fn wcstoull ,
-.Fn wcstoimax
+.Fn wcstoimax ,
 and
 .Fn wcstoumax
 functions conform to
