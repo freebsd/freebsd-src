@@ -277,10 +277,13 @@ tpm20_init(struct tpm_sc *sc)
 		return (result);
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
-	random_source_register(&random_tpm);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->harvest_task, 0,
 	    tpm20_harvest, sc);
-	taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task, 0);
+	if (!sc->no_harvest) {
+		random_source_register(&random_tpm);
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task,
+		    0);
+	}
 #endif
 	sc->common_initialized = true;
 
@@ -306,7 +309,8 @@ tpm20_release(struct tpm_sc *sc)
 		goto out;
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
-	random_source_deregister(&random_tpm);
+	if (!sc->no_harvest)
+		random_source_deregister(&random_tpm);
 #endif
 	sc->common_initialized = false;
 out:
@@ -338,8 +342,9 @@ out:
 		return (error);
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
-	taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task,
-	    hz * TPM_HARVEST_INTERVAL);
+	if (!sc->no_harvest)
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task,
+		    hz * TPM_HARVEST_INTERVAL);
 #endif
 	return (0);
 }
@@ -369,7 +374,7 @@ tpm20_suspend(device_t dev)
 out:
 	sx_xunlock(&sc->dev_lock);
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
-	if (error != 0)
+	if (error != 0 && !sc->no_harvest)
 		taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task,
 		    hz * TPM_HARVEST_INTERVAL);
 #endif
