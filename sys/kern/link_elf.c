@@ -1098,6 +1098,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	int symtabindex;
 	int symstrindex;
 	int shstrindex;
+	int shstrsz;
 	int symcnt;
 	int strcnt;
 	char *shstrs;
@@ -1105,6 +1106,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	shdr = NULL;
 	lf = NULL;
 	shstrs = NULL;
+	shstrsz = 0;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename);
 	flags = FREAD;
@@ -1376,6 +1378,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	nbytes = hdr->e_shnum * hdr->e_shentsize;
 	if (nbytes == 0 || hdr->e_shoff == 0)
 		goto nosyms;
+	if (hdr->e_shentsize != sizeof(Elf_Shdr)) {
+		link_elf_error(filename, "Unsupported section header size");
+		error = ENOEXEC;
+		goto out;
+	}
 	shdr = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
 	error = vn_rdwr(UIO_READ, nd.ni_vp,
 	    (caddr_t)shdr, nbytes, hdr->e_shoff,
@@ -1386,6 +1393,12 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
 	/* Read section string table */
 	shstrindex = hdr->e_shstrndx;
+	if (shstrindex >= hdr->e_shnum) {
+		link_elf_error(filename,
+		    "file has an invalid section name string table");
+		error = ENOEXEC;
+		goto out;
+	}
 	if (shstrindex != 0 && shdr[shstrindex].sh_type == SHT_STRTAB &&
 	    shdr[shstrindex].sh_size != 0) {
 		nbytes = shdr[shstrindex].sh_size;
@@ -1395,6 +1408,21 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		    td->td_ucred, NOCRED, &resid, td);
 		if (error)
 			goto out;
+		shstrsz = nbytes;
+		if (shstrs[shstrsz - 1] != '\0') {
+			link_elf_error(filename,
+			    "corrupt section name string table");
+			error = ENOEXEC;
+			goto out;
+		}
+		for (i = 0; i < hdr->e_shnum; i++) {
+			if (shdr[i].sh_name >= shstrsz) {
+				link_elf_error(filename,
+				    "corrupt section name offset");
+				error = ENOEXEC;
+				goto out;
+			}
+		}
 	}
 
 	symtabindex = -1;
@@ -1413,6 +1441,12 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	}
 	if (symtabindex < 0 || symstrindex < 0)
 		goto nosyms;
+	if (symstrindex >= hdr->e_shnum ||
+	    shdr[symstrindex].sh_type != SHT_STRTAB) {
+		link_elf_error(filename, "file has invalid symbol strings");
+		error = ENOEXEC;
+		goto out;
+	}
 
 	symcnt = shdr[symtabindex].sh_size;
 	ef->symbase = malloc(symcnt, M_LINKER, M_WAITOK);
