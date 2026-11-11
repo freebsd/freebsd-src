@@ -281,7 +281,12 @@ static struct aw_ccung_gate h6_ccu_gates[] = {
 	CCU_GATE(CLK_BUS_MMC1, "bus-mmc1", "ahb3", 0x84c, 1)
 	CCU_GATE(CLK_BUS_MMC2, "bus-mmc2", "ahb3", 0x84c, 2)
 
-	/* UART_BGR_REG Enabling the gate enable weir behavior ... */
+	/*
+	 * UART_BGR_REG
+	 * The gates are not enabled, the firmware leaves the UART0 one on.
+	 * With them uart_snps gets the clock rate and detects a 256 bytes
+	 * FIFO, and the input of the console is delayed.
+	 */
 	/* CCU_GATE(CLK_BUS_UART0, "bus-uart0", "apb2", 0x90c, 0) */
 	/* CCU_GATE(CLK_BUS_UART1, "bus-uart1", "apb2", 0x90c, 1) */
 	/* CCU_GATE(CLK_BUS_UART2, "bus-uart2", "apb2", 0x90c, 2) */
