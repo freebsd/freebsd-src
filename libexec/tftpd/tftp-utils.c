@@ -109,16 +109,15 @@ get_field(int peer, char *buffer, size_t size)
 {
 	char *cp = buffer;
 
-	while (cp < buffer + size) {
-		if (*cp == '\0') break;
+	while (size > 0) {
+		if (*cp == '\0')
+			return (cp - buffer + 1);
 		cp++;
+		size--;
 	}
-	if (*cp != '\0') {
-		tftp_log(LOG_ERR, "Bad option - no trailing \\0 found");
-		send_error(peer, EBADOP);
-		exit(1);
-	}
-	return (cp - buffer + 1);
+	tftp_log(LOG_ERR, "Bad option - no trailing \\0 found");
+	send_error(peer, EBADOP);
+	exit(1);
 }
 
 /*
