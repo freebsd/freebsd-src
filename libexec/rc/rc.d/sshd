@@ -23,6 +23,7 @@ extra_commands="configtest keygen reload"
 : ${sshd_rsa_enable:="yes"}
 : ${sshd_ecdsa_enable:="yes"}
 : ${sshd_ed25519_enable:="yes"}
+: ${sshd_mldsa44_ed25519_enable:="yes"}
 
 # sshd in a jail would not see other jails. As such exclude it from
 # svcj_all_enable="YES" by setting sshd_svcj to NO. This allows to
@@ -34,15 +35,16 @@ sshd_keygen_alg()
 {
 	local alg=$1
 	local ALG="$(echo $alg | tr a-z A-Z)"
+	local rcalg="$(echo "$alg" | tr - _)"
 	local keyfile
 
-	if ! checkyesno "sshd_${alg}_enable" ; then
+	if ! checkyesno "sshd_${rcalg}_enable" ; then
 		return 0
 	fi
 
 	case $alg in
-	rsa|ecdsa|ed25519)
-		keyfile="/etc/ssh/ssh_host_${alg}_key"
+	rsa|ecdsa|ed25519|mldsa44-ed25519)
+		keyfile="/etc/ssh/ssh_host_${rcalg}_key"
 		;;
 	*)
 		return 1
@@ -69,6 +71,7 @@ sshd_keygen()
 	sshd_keygen_alg rsa
 	sshd_keygen_alg ecdsa
 	sshd_keygen_alg ed25519
+	sshd_keygen_alg mldsa44-ed25519
 }
 
 sshd_configtest()
