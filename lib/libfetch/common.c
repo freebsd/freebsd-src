@@ -554,7 +554,8 @@ fetch_socks5_getenv(char **host, int *port)
 			return (0);
 		}
 	} else {
-		*host = strndup(socks5env, ext - socks5env);
+		*host = ext == NULL ? strdup(socks5env) :
+		    strndup(socks5env, ext - socks5env);
 	}
 
 	if (*host == NULL)
