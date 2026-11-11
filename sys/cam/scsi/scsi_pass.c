@@ -2191,9 +2191,9 @@ passpoll(struct cdev *dev, int poll_events, struct thread *td)
 		if (!TAILQ_EMPTY(&softc->done_queue)) {
 			revents |= poll_events & (POLLIN | POLLRDNORM);
 		}
-		cam_periph_unlock(periph);
 		if (revents == 0)
 			selrecord(td, &softc->read_select);
+		cam_periph_unlock(periph);
 	}
 
 	return (revents);
