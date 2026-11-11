@@ -190,6 +190,10 @@ local function users(obj, metadata)
 				goto unext
 			end
 			local homedir = nuage.adduser(u)
+			if homedir == nil then
+				nuage.warn("error creating user " .. u.name)
+				goto unext
+			end
 			if u.ssh_authorized_keys then
 				for _, v in ipairs(u.ssh_authorized_keys) do
 					nuage.addsshkey(homedir, v)
