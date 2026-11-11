@@ -710,7 +710,7 @@ merge_nhgrps(struct nh_control *ctl, const struct nhgrp_object *gr_orig,
 
 	*perror = 0;
 
-	sz = (orig_priv->nhg_nh_count + orig_priv->nhg_nh_count) *
+	sz = (orig_priv->nhg_nh_count + add_priv->nhg_nh_count) *
 		sizeof(struct weightened_nhop);
 	/* optimize for <= 4 paths, each path=16 bytes */
 	if (sz <= sizeof(storage))
