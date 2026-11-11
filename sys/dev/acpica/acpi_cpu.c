@@ -169,6 +169,7 @@ static device_t	acpi_cpu_add_child(device_t dev, u_int order, const char *name,
 static int	acpi_cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
 static int	acpi_cpu_shutdown(device_t dev);
+static int	acpi_cpu_resume(device_t dev);
 static void	acpi_cpu_cx_probe(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
@@ -198,7 +199,7 @@ static device_method_t acpi_cpu_methods[] = {
     DEVMETHOD(device_detach,	bus_generic_detach),
     DEVMETHOD(device_shutdown,	acpi_cpu_shutdown),
     DEVMETHOD(device_suspend,	bus_generic_suspend),
-    DEVMETHOD(device_resume,	bus_generic_resume),
+    DEVMETHOD(device_resume,	acpi_cpu_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_add_child,	acpi_cpu_add_child),
@@ -511,13 +512,18 @@ disable_idle(struct acpi_cpu_softc *sc)
 }
 
 static void
+set_bm_rld(struct acpi_cpu_softc *sc)
+{
+	if (sc->cpu_cx_count > sc->cpu_non_c3 + 1 &&
+	    (cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0)
+		AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
+}
+
+static void
 enable_idle(struct acpi_cpu_softc *sc)
 {
-
-    if (sc->cpu_cx_count > sc->cpu_non_c3 + 1 &&
-	(cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0)
-	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
-    sc->cpu_disable_idle = FALSE;
+	set_bm_rld(sc);
+	sc->cpu_disable_idle = FALSE;
 }
 
 #if defined(__i386__) || defined(__amd64__)
@@ -528,6 +534,18 @@ is_idle_disabled(struct acpi_cpu_softc *sc)
     return (sc->cpu_disable_idle);
 }
 #endif
+
+static int
+acpi_cpu_resume(device_t dev)
+{
+	/*
+	 * XXX It probably makes more sense to do this once in the S3/S4 resume
+	 * path, as BM_RLD is a global PM1_CNT bit only lost there, rather than
+	 * for each acpi_cpu.
+	 */
+	set_bm_rld(device_get_softc(dev));
+	return (bus_generic_resume(dev));
+}
 
 /*
  * Find the processor associated with a given ACPI ID.
