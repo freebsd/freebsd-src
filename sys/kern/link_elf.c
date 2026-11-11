@@ -585,69 +585,82 @@ link_elf_preload_parse_symbols(elf_file_t ef)
 	return (0);
 }
 
+#define	DYN_ABSENT	((Elf_Addr)-1)
+
+static bool
+dyn_table_ok(elf_file_t ef, Elf_Addr off, uint64_t len)
+{
+	/* The kernel's own dynamic section is parsed before its size is set. */
+	if (ef->lf.size == 0)
+		return (true);
+	if (off == DYN_ABSENT)
+		return (len == 0);
+	return (off < ef->lf.size && len <= ef->lf.size - off);
+}
+
+static caddr_t
+dyn_table(elf_file_t ef, Elf_Addr off)
+{
+	return (off == DYN_ABSENT ? NULL : ef->address + off);
+}
+
 static int
 parse_dynamic(elf_file_t ef)
 {
 	Elf_Dyn *dp;
+	const Elf_Hashelt *hashtab;
+	Elf_Addr hash, strtab, symtab, got, rel, jmprel, rela;
+	Elf_Size strsz, relsz, pltrelsz, relasz;
 	int plttype = DT_REL;
 
-	for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
+	hash = strtab = symtab = got = rel = jmprel = rela = DYN_ABSENT;
+	strsz = relsz = pltrelsz = relasz = 0;
+	for (dp = ef->dynamic;; dp++) {
+		if (!dyn_table_ok(ef, (caddr_t)dp - ef->address, sizeof(*dp)))
+			goto bad;
+		if (dp->d_tag == DT_NULL)
+			break;
 		switch (dp->d_tag) {
 		case DT_HASH:
-		{
-			/* From src/libexec/rtld-elf/rtld.c */
-			const Elf_Hashelt *hashtab;
-
-			if (ef->lf.size != 0 &&
-			    (dp->d_un.d_ptr >= ef->lf.size ||
-			    ef->lf.size - dp->d_un.d_ptr <
-			    2 * sizeof(Elf_Hashelt)))
-				return (ENOEXEC);
-			hashtab = (const Elf_Hashelt *)
-			    (ef->address + dp->d_un.d_ptr);
-			ef->nbuckets = hashtab[0];
-			ef->nchains = hashtab[1];
-			ef->buckets = hashtab + 2;
-			ef->chains = ef->buckets + ef->nbuckets;
+			hash = dp->d_un.d_ptr;
 			break;
-		}
 		case DT_STRTAB:
-			ef->strtab = (caddr_t) (ef->address + dp->d_un.d_ptr);
+			strtab = dp->d_un.d_ptr;
 			break;
 		case DT_STRSZ:
-			ef->strsz = dp->d_un.d_val;
+			strsz = dp->d_un.d_val;
 			break;
 		case DT_SYMTAB:
-			ef->symtab = (Elf_Sym*) (ef->address + dp->d_un.d_ptr);
+			symtab = dp->d_un.d_ptr;
 			break;
 		case DT_SYMENT:
 			if (dp->d_un.d_val != sizeof(Elf_Sym))
 				return (ENOEXEC);
 			break;
 		case DT_PLTGOT:
-			ef->got = (Elf_Addr *) (ef->address + dp->d_un.d_ptr);
+			got = dp->d_un.d_ptr;
 			break;
 		case DT_REL:
-			ef->rel = (const Elf_Rel *) (ef->address + dp->d_un.d_ptr);
+			rel = dp->d_un.d_ptr;
 			break;
 		case DT_RELSZ:
-			ef->relsize = dp->d_un.d_val;
+			relsz = dp->d_un.d_val;
 			break;
 		case DT_RELENT:
 			if (dp->d_un.d_val != sizeof(Elf_Rel))
 				return (ENOEXEC);
 			break;
 		case DT_JMPREL:
-			ef->pltrel = (const Elf_Rel *) (ef->address + dp->d_un.d_ptr);
+			jmprel = dp->d_un.d_ptr;
 			break;
 		case DT_PLTRELSZ:
-			ef->pltrelsize = dp->d_un.d_val;
+			pltrelsz = dp->d_un.d_val;
 			break;
 		case DT_RELA:
-			ef->rela = (const Elf_Rela *) (ef->address + dp->d_un.d_ptr);
+			rela = dp->d_un.d_ptr;
 			break;
 		case DT_RELASZ:
-			ef->relasize = dp->d_un.d_val;
+			relasz = dp->d_un.d_val;
 			break;
 		case DT_RELAENT:
 			if (dp->d_un.d_val != sizeof(Elf_Rela))
@@ -666,6 +679,39 @@ parse_dynamic(elf_file_t ef)
 		}
 	}
 
+	if (hash != DYN_ABSENT) {
+		/* From src/libexec/rtld-elf/rtld.c */
+		if (!dyn_table_ok(ef, hash, 2 * sizeof(Elf_Hashelt)))
+			goto bad;
+		hashtab = (const Elf_Hashelt *)(ef->address + hash);
+		ef->nbuckets = hashtab[0];
+		ef->nchains = hashtab[1];
+		if (!dyn_table_ok(ef, hash, (2 + (uint64_t)ef->nbuckets +
+		    ef->nchains) * sizeof(Elf_Hashelt)))
+			goto bad;
+		ef->buckets = hashtab + 2;
+		ef->chains = ef->buckets + ef->nbuckets;
+	}
+	if (!dyn_table_ok(ef, symtab, (uint64_t)ef->nchains *
+	    sizeof(Elf_Sym)) ||
+	    !dyn_table_ok(ef, strtab, strsz) ||
+	    !dyn_table_ok(ef, got, got == DYN_ABSENT ? 0 : sizeof(Elf_Addr)) ||
+	    !dyn_table_ok(ef, rel, relsz) ||
+	    !dyn_table_ok(ef, jmprel, pltrelsz) ||
+	    !dyn_table_ok(ef, rela, relasz))
+		goto bad;
+
+	ef->strtab = dyn_table(ef, strtab);
+	ef->strsz = strsz;
+	ef->symtab = (const Elf_Sym *)dyn_table(ef, symtab);
+	ef->got = (Elf_Addr *)dyn_table(ef, got);
+	ef->rel = (const Elf_Rel *)dyn_table(ef, rel);
+	ef->relsize = relsz;
+	ef->pltrel = (const Elf_Rel *)dyn_table(ef, jmprel);
+	ef->pltrelsize = pltrelsz;
+	ef->rela = (const Elf_Rela *)dyn_table(ef, rela);
+	ef->relasize = relasz;
+
 	if (plttype == DT_RELA) {
 		ef->pltrela = (const Elf_Rela *)ef->pltrel;
 		ef->pltrel = NULL;
@@ -679,6 +725,10 @@ parse_dynamic(elf_file_t ef)
 	ef->ddbstrcnt = ef->strsz;
 
 	return elf_cpu_parse_dynamic(ef->address, ef->dynamic);
+
+bad:
+	link_elf_error(ef->lf.filename, "invalid dynamic section");
+	return (ENOEXEC);
 }
 
 #define	LS_PADDING	0x90909090
