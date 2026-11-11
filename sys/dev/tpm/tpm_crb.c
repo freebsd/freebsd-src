@@ -28,6 +28,10 @@
 #include <sys/cdefs.h>
 #include "tpm20.h"
 
+#if defined(__amd64__) || defined(__i386__)
+#include <x86/cputypes.h>
+#endif
+
 /*
  * PTP locality registers, relative to the start of the ACPI memory resource.
  * TCG PC Client PTP 1.03, section 5.5.3.1, Table 23.
@@ -89,8 +93,12 @@ struct tpmcrb_sm_cfg {
 	sm_detach_t		*sm_detach;
 	sm_statechange_t	*sm_statechange;
 	sm_statechange_t	*sm_cmdready;
+	sm_statechange_t	*sm_cancel;
+	bool			no_idle_states;	/* CTRL_REQ is not acknowledged */
 };
 
+static sm_attach_t		acpi_start_attach;
+static sm_statechange_t		acpi_start_invoke;
 static sm_attach_t		pluton_attach;
 static sm_detach_t		pluton_detach;
 static sm_statechange_t		pluton_doorbell;
@@ -105,6 +113,16 @@ static const struct tpmcrb_sm_cfg_map {
 		.acpi_sm = TPM2_START_METHOD_CRB,
 		.desc = "Trusted Platform Module 2.0, CRB mode",
 		.sm_cfg = { NULL },	/* No notifications required */
+	},
+	{
+		.acpi_sm = TPM2_START_METHOD_ACPI,
+		.desc = "Trusted Platform Module 2.0, CRB mode (ACPI start)",
+		.sm_cfg = {
+			.sm_attach = &acpi_start_attach,
+			.sm_cmdready = &acpi_start_invoke,
+			.sm_cancel = &acpi_start_invoke,
+			.no_idle_states = true,
+		},
 	},
 	{
 		.acpi_sm = ACPI_TPM2_COMMAND_BUFFER_WITH_PLUTON,
@@ -138,6 +156,7 @@ struct tpmcrb_sc {
 			bus_space_handle_t	start_bsh;
 			bus_space_handle_t	reply_bsh;
 		} pluton;
+		ACPI_HANDLE	acpi_start_handle;
 	};
 	bus_space_tag_t	bst;
 	struct tpmcrb_mapping ctrl;
@@ -593,6 +612,8 @@ tpmcrb_cancel_cmd(struct tpmcrb_sc *crb_sc)
 	uint32_t mask = ~0;
 
 	tpmcrb_ctrl_write_4(crb_sc, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CMD);
+	if (crb_sc->sm_cfg->sm_cancel != NULL)
+		(void)(*crb_sc->sm_cfg->sm_cancel)(crb_sc, 0);
 	if (!tpmcrb_ctrl_wait(crb_sc, TPM_CRB_CTRL_START,
 		    mask, ~mask, TPM_TIMEOUT_B)) {
 		device_printf(crb_sc->base.dev,
@@ -633,6 +654,8 @@ tpmcrb_state_idle(struct tpmcrb_sc *crb_sc, bool wait)
 {
 	int mask, timeout;
 
+	if (crb_sc->sm_cfg->no_idle_states)
+		return (true);
 	timeout = wait ? TPM_TIMEOUT_C : 0;
 
 	tpmcrb_ctrl_write_4(crb_sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_IDLE);
@@ -656,6 +679,8 @@ tpmcrb_state_ready(struct tpmcrb_sc *crb_sc, bool wait)
 {
 	int mask, timeout;
 
+	if (crb_sc->sm_cfg->no_idle_states)
+		return (true);
 	timeout = wait ? TPM_TIMEOUT_C : 0;
 
 	tpmcrb_ctrl_write_4(crb_sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_READY);
@@ -753,9 +778,7 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	command_started = true;
 
 	if (!tpmcrb_notify_cmdready(crb_sc, timeout)) {
-		device_printf(dev,
-		    "Timeout while waiting for device to ready (cmd=%#x)\n",
-		    curr_cmd);
+		device_printf(dev, "Start method failed (cmd=%#x)\n", curr_cmd);
 		if (!tpmcrb_cancel_cmd(crb_sc)) {
 			error = EIO;
 			goto out;
@@ -827,6 +850,72 @@ out:
 }
 
 /* StartMethod Implementation Details */
+
+/*
+ * ACPI start method: TCG ACPI Specification 1.4, section 4.1.  After setting
+ * CTRL_START or CTRL_CANCEL, the driver evaluates _DSM function 1 to ask the
+ * firmware to act on the control area.  Some firmware using this method
+ * never acknowledges CTRL_REQ, so the idle and ready states are skipped.
+ */
+#define	TPM_ACPI_START_REV		0
+#define	TPM_ACPI_START_FUNC_START	1
+
+/* 6BBF6CAB-5463-4714-B7CD-F0203C0368D4 */
+static const uint8_t tpm_acpi_start_uuid[ACPI_UUID_LENGTH] = {
+	0xab, 0x6c, 0xbf, 0x6b, 0x63, 0x54, 0x14, 0x47,
+	0xb7, 0xcd, 0xf0, 0x20, 0x3c, 0x03, 0x68, 0xd4
+};
+
+static bool
+acpi_start_attach(struct tpmcrb_sc *crb_sc, void *smdataregion __unused,
+    size_t datasz __unused)
+{
+	ACPI_HANDLE handle;
+
+	handle = acpi_get_handle(crb_sc->base.dev);
+	if (handle == NULL || (acpi_DSMQuery(handle, tpm_acpi_start_uuid,
+	    TPM_ACPI_START_REV) & (1 << TPM_ACPI_START_FUNC_START)) == 0) {
+		device_printf(crb_sc->base.dev, "No ACPI start method in _DSM\n");
+		return (false);
+	}
+	crb_sc->acpi_start_handle = handle;
+#if defined(__amd64__) || defined(__i386__)
+	/* AMD advisory PA-410: fTPM commands can stall every CPU. */
+	if (cpu_vendor_id == CPU_VENDOR_AMD) {
+		device_printf(crb_sc->base.dev,
+		    "Not used as an entropy source (AMD PA-410)\n");
+		crb_sc->base.no_harvest = true;
+	}
+#endif
+	return (true);
+}
+
+static bool
+acpi_start_invoke(struct tpmcrb_sc *crb_sc, int timeout __unused)
+{
+	ACPI_BUFFER buf;
+	ACPI_OBJECT *obj;
+	ACPI_STATUS status;
+	bool ret;
+
+	status = acpi_EvaluateDSMTyped(crb_sc->acpi_start_handle,
+	    tpm_acpi_start_uuid, TPM_ACPI_START_REV, TPM_ACPI_START_FUNC_START,
+	    NULL, &buf, ACPI_TYPE_INTEGER);
+	if (ACPI_FAILURE(status)) {
+		device_printf(crb_sc->base.dev,
+		    "ACPI start method failed: %s\n",
+		    AcpiFormatException(status));
+		return (false);
+	}
+	obj = buf.Pointer;
+	ret = obj->Integer.Value == 0;
+	if (!ret)
+		device_printf(crb_sc->base.dev,
+		    "ACPI start method returned %ju\n",
+		    (uintmax_t)obj->Integer.Value);
+	AcpiOsFree(buf.Pointer);
+	return (ret);
+}
 
 /** Pluton **/
 struct tpmcrb_startmethod_pluton {
