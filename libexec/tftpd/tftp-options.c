@@ -365,13 +365,12 @@ option_windowsize(int peer)
 /*
  * Append the available options to the header
  */
-uint16_t
-make_options(int peer __unused, char *buffer, uint16_t size) {
-	int	i;
+size_t
+make_options(int peer __unused, char *buffer, size_t size)
+{
 	char	*value;
 	const char *option;
-	uint16_t length;
-	uint16_t returnsize = 0;
+	size_t	 i, length, returnsize = 0;
 
 	if (!options_rfc_enabled) return (0);
 
@@ -392,7 +391,7 @@ make_options(int peer __unused, char *buffer, uint16_t size) {
 			tftp_log(LOG_ERR,
 			    "Running out of option space for "
 			    "option '%s' with value '%s': "
-			    "needed %d bytes, got %d bytes",
+			    "needed %zu bytes, got %zu bytes",
 			    option, value, size, length);
 			continue;
 		}
@@ -410,24 +409,26 @@ make_options(int peer __unused, char *buffer, uint16_t size) {
  * Parse the received options in the header
  */
 int
-parse_options(int peer, char *buffer, uint16_t size)
+parse_options(int peer, char *buffer, size_t size)
 {
+	char	*c, *cp, *end, *option, *value;
+	size_t	len;
 	int	i, options_failed;
-	char	*c, *cp, *option, *value;
 
 	if (!options_rfc_enabled) return (0);
 
 	/* Parse the options */
 	cp = buffer;
+	end = buffer + size;
 	options_failed = 0;
-	while (size > 0) {
+	while (cp < end) {
 		option = cp;
-		i = get_field(peer, cp, size);
-		cp += i;
+		len = get_field(peer, cp, end - cp);
+		cp += len;
 
 		value = cp;
-		i = get_field(peer, cp, size);
-		cp += i;
+		len = get_field(peer, cp, end - cp);
+		cp += len;
 
 		/* We are at the end */
 		if (*option == '\0') break;
@@ -459,8 +460,6 @@ parse_options(int peer, char *buffer, uint16_t size)
 		if (options[i].o_type == NULL)
 			tftp_log(LOG_WARNING,
 			    "Unknown option: '%s'", option);
-
-		size -= strlen(option) + strlen(value) + 2;
 	}
 
 	return (options_failed);
