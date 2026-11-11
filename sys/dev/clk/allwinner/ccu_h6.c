@@ -73,6 +73,7 @@
 #define	CLK_MBUS		28
 #define	CLK_DRAM		52
 #define	CLK_BUS_DRAM		60
+#define	CLK_HDMI_CEC_PERIPH0	17
 
 static struct aw_ccung_reset h6_ccu_resets[] = {
 	/* MBUS_CFG_REG */
@@ -906,6 +907,26 @@ M_CLK(csi_mclk_clk,
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
 
+/* PLL_PERIPH0(2X) divided by 36621 is about 32.768kHz */
+static const char *hdmi_cec_periph0_parents[] = {"pll_periph0_2x"};
+FIXED_CLK(hdmi_cec_periph0_clk,
+    CLK_HDMI_CEC_PERIPH0,		/* id */
+    "hdmi-cec-periph0",			/* name */
+    hdmi_cec_periph0_parents,		/* parent */
+    0,					/* freq */
+    1,					/* mult */
+    36621,				/* div */
+    0);					/* flags */
+
+static const char *hdmi_cec_parents[] = {"osc32k", "hdmi-cec-periph0"};
+M_CLK(hdmi_cec_clk,
+    CLK_HDMI_CEC, "hdmi-cec", hdmi_cec_parents,	/* id, name, parents */
+    0xb10,					/* offset */
+    0, 0, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
@@ -949,6 +970,8 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_M, .clk.m = &pcie_aux_clk},
 
 	{ .type = AW_CLK_M, .clk.m = &hdmi_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &hdmi_cec_periph0_clk},
+	{ .type = AW_CLK_M, .clk.m = &hdmi_cec_clk},
 	{ .type = AW_CLK_M, .clk.m = &tcon_lcd0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &tcon_tv0_clk},
 	{ .type = AW_CLK_M, .clk.m = &hdcp_clk},
