@@ -402,6 +402,11 @@ witness_body()
 	if [ `sysctl -n debug.witness.watch` -ne 1 ]; then
 		atf_skip "witness(4) is not enabled"
 	fi
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_expect_fail \
+		    "Test fails reliably in CI: " \
+		    "https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=300697"
+	fi
 	if `sysctl -n debug.witness.badstacks | grep -q 'at lagg_'`; then
 		sysctl debug.witness.badstacks
 		atf_fail "Lock-order reversals involving if_lagg.c detected"
