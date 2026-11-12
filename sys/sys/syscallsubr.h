@@ -566,8 +566,7 @@ int	kern_timerfd_settime(struct thread *td, int fd, int flags,
 	    const struct itimerspec *new_value, struct itimerspec *old_value);
 int	kern_truncate(struct thread *td, const char *path,
 	    enum uio_seg pathseg, off_t length);
-int	kern_undelete(struct thread *td, const char *path,
-	    enum uio_seg pathseg);
+int	kern_undelete(struct thread *td, const char *path);
 int	kern_utimesat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, const struct timeval *tptr,
 	    enum uio_seg tptrseg);

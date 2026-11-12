@@ -1962,11 +1962,11 @@ struct undelete_args {
 int
 sys_undelete(struct thread *td, struct undelete_args *uap)
 {
-	return (kern_undelete(td, uap->path, UIO_USERSPACE));
+	return (kern_undelete(td, uap->path));
 }
 
 int
-kern_undelete(struct thread *td, const char *path, enum uio_seg pathseg)
+kern_undelete(struct thread *td, const char *path)
 {
 	struct mount *mp;
 	struct nameidata nd;
