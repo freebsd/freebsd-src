@@ -1748,7 +1748,8 @@ axp8xx_setup_intr(device_t dev)
 	}
 
 	/* Install interrupt handler */
-	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->res,
+	    INTR_TYPE_MISC | INTR_MPSAFE | INTR_EXCL | INTR_SLEEPABLE,
 	    NULL, handler, dev, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "cannot setup interrupt handler\n");
