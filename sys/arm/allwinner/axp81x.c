@@ -358,6 +358,8 @@ static struct axp8xx_regdef axp813_regdefs[] = {
 		.enable_value = (1 << (_ebit)),				\
 		.voltage_reg = _vreg,					\
 		.voltage_min = _min,					\
+		.voltage_max = (_min) + (_step1) * (_nstep1) +		\
+		    (_step2) * (_nstep2),				\
 		.voltage_step1 = _step1,				\
 		.voltage_nstep1 = _nstep1,				\
 		.voltage_step2 = _step2,				\
