@@ -41,9 +41,11 @@
 
 #include <dev/vmm/vmm_vm.h>
 
+#include <machine/md_var.h>
+
 #include "riscv.h"
 
-#define	VTIMER_DEFAULT_FREQ	1000000
+#define	VTIMER_DEFAULT_FREQ	10000000
 
 static int
 vtimer_get_timebase(uint32_t *freq)
@@ -72,8 +74,7 @@ vtimer_cpuinit(struct hypctx *hypctx)
 	int error;
 
 	vtimer = &hypctx->vtimer;
-	mtx_init(&vtimer->mtx, "vtimer callout mutex", NULL, MTX_DEF);
-	callout_init_mtx(&vtimer->callout, &vtimer->mtx, 0);
+	callout_init(&vtimer->callout, 1);
 
 	error = vtimer_get_timebase(&freq);
 	if (error)
@@ -91,7 +92,8 @@ vtimer_inject_irq_callout(void *arg)
 	hypctx = arg;
 	hyp = hypctx->hyp;
 
-	atomic_set_32(&hypctx->interrupts_pending, HVIP_VSTIP);
+	if (!has_sstc)
+		atomic_set_32(&hypctx->interrupts_pending, HVIP_VSTIP);
 	vcpu_notify_event(vm_vcpu(hyp->vm, hypctx->cpu_id));
 }
 
@@ -116,4 +118,42 @@ vtimer_set_timer(struct hypctx *hypctx, uint64_t next_val)
 		atomic_set_32(&hypctx->interrupts_pending, HVIP_VSTIP);
 
 	return (0);
+}
+
+void
+vtimer_wfi_enter(struct hypctx *hypctx)
+{
+	struct vtimer *vtimer;
+	sbintime_t time;
+	uint64_t curtime;
+	uint64_t delta;
+	uint64_t vstimecmp;
+
+	if (!has_sstc)
+		return;
+
+	vstimecmp = hypctx->guest_csrs.vstimecmp;
+	if (vstimecmp == (uint64_t)-1)
+		return;
+
+	vtimer = &hypctx->vtimer;
+	curtime = rdtime();
+	if (curtime < vstimecmp) {
+		delta = vstimecmp - curtime;
+		time = delta * SBT_1S / vtimer->freq;
+		callout_reset_sbt(&vtimer->callout, time, 0,
+		    vtimer_inject_irq_callout, hypctx, 0);
+	}
+}
+
+void
+vtimer_wfi_exit(struct hypctx *hypctx)
+{
+	struct vtimer *vtimer;
+
+	if (!has_sstc)
+		return;
+
+	vtimer = &hypctx->vtimer;
+	callout_stop(&vtimer->callout);
 }
