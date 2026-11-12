@@ -1266,8 +1266,8 @@ tdq_notify(struct tdq *tdq, int lowpri)
 }
 
 struct runq_steal_pred_data {
-	struct thread	*td;
-	int		cpu;
+	int		cpu;	/* Destination CPU. */
+	struct thread	*td;	/* Found thread. */
 };
 
 static bool
@@ -1294,8 +1294,8 @@ runq_steal_range(struct runq *const rq, const int lvl_min, const int lvl_max,
     int cpu)
 {
 	struct runq_steal_pred_data data = {
-		.td = NULL,
 		.cpu = cpu,
+		.td = NULL,
 	};
 	int idx;
 
