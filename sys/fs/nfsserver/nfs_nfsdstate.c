@@ -1754,7 +1754,7 @@ nfsrv_freenfslockfile(struct nfslockfile *lfp)
  * This function looks up an nfsstate structure via stateid.
  */
 static int
-nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp, __unused u_int32_t flags,
+nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp, u_int32_t flags,
     struct nfsstate **stpp)
 {
 	struct nfsstate *stp;
@@ -1772,7 +1772,8 @@ nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp, __unused u_int32
 	/*
 	 * If no state id in list, return NFSERR_BADSTATEID.
 	 */
-	if (stp == LIST_END(hp)) {
+	if (stp == LIST_END(hp) || (flags == NFSLCK_DELEGRETURN &&
+	    (stp->ls_flags & (NFSLCK_DELEGREAD | NFSLCK_DELEGWRITE)) == 0)) {
 		error = NFSERR_BADSTATEID;
 		goto out;
 	}
@@ -1959,8 +1960,7 @@ tryagain:
 		/*
 		 * Look up the stateid
 		 */
-		error = nfsrv_getstate(clp, &new_stp->ls_stateid,
-		  new_stp->ls_flags, &stp);
+		error = nfsrv_getstate(clp, &new_stp->ls_stateid, 0, &stp);
 	      /*
 	       * do some sanity checks for an unconfirmed open or a
 	       * stateid that refers to the wrong file, for an open stateid
@@ -3481,8 +3481,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	error = nfsrv_getclient(clientid, CLOPS_RENEW, &clp, NULL,
 	    (nfsquad_t)((u_quad_t)0), 0, nd, p);
 	if (!error)
-		error = nfsrv_getstate(clp, &new_stp->ls_stateid,
-		    new_stp->ls_flags, &stp);
+		error = nfsrv_getstate(clp, &new_stp->ls_stateid, 0, &stp);
 
 	/*
 	 * Sanity check the open.
