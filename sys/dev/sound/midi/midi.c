@@ -144,24 +144,19 @@ midi_destroy(struct snd_midi *m)
  * softc.
  */
 struct snd_midi *
-midi_init(kobj_class_t cls, void *cookie)
+midi_init(kobj_class_t cls, void *cookie, size_t inqsize, size_t outqsize)
 {
 	struct make_dev_args args;
 	struct snd_midi *m;
-	size_t inqsize, outqsize;
 	uint8_t *ibuf = NULL;
 	uint8_t *obuf = NULL;
 	int err;
 
+	if (!inqsize && !outqsize)
+		return (NULL);
+
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 	kobj_init((kobj_t)m, cls);
-	inqsize = MPU_INQSIZE(m, cookie);
-	outqsize = MPU_OUTQSIZE(m, cookie);
-
-	if (!inqsize && !outqsize) {
-		kobj_delete((kobj_t)m, M_MIDI);
-		return (NULL);
-	}
 
 	mtx_init(&m->lock, "raw midi", NULL, 0);
 

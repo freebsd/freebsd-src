@@ -44,7 +44,8 @@ MALLOC_DECLARE(M_MIDI);
 
 struct snd_midi;
 
-struct snd_midi *midi_init(kobj_class_t _mpu_cls, void *cookie);
+struct snd_midi *midi_init(kobj_class_t _mpu_cls, void *_cookie,
+    size_t _inqsize, size_t _outqsize);
 int	midi_uninit(struct snd_midi *_m);
 size_t	midi_out(struct snd_midi *_m, uint8_t *_buf, size_t _size);
 size_t	midi_in(struct snd_midi *_m, uint8_t *_buf, size_t _size);

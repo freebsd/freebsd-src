@@ -1,6 +1,10 @@
 #-
 # Copyright (c) 2003 Mathew Kanner
 # All rights reserved.
+# Copyright (c) 2026 The FreeBSD Foundation
+#
+# Portions of this software were developed by Christos Margiolis
+# <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,16 +32,6 @@
 #include <dev/sound/midi/midi.h>
 
 INTERFACE mpu;
-
-METHOD size_t inqsize {
-	struct snd_midi *_kobj;
-	void   *_cookie;
-};
-
-METHOD size_t outqsize {
-	struct snd_midi *_kobj;
-	void   *_cookie;
-};
 
 METHOD int init {
 	struct snd_midi *_kobj;

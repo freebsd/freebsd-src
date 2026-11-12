@@ -46,6 +46,8 @@
 #include "mpu_if.h"
 #include "mpufoi_if.h"
 
+#define MPU_QUEUE_SIZE	128
+
 #define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
 #define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
 #define READ(m)		MPUFOI_READ(m, m->cookie, MPU_DATAPORT)
@@ -65,15 +67,11 @@ static mpu401_intr_t mpu401_intr;
 
 static int mpu401_minit(struct snd_midi *, void *);
 static int mpu401_muninit(struct snd_midi *, void *);
-static size_t mpu401_minqsize(struct snd_midi *, void *);
-static size_t mpu401_moutqsize(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
 	KOBJMETHOD(mpu_uninit, mpu401_muninit),
-	KOBJMETHOD(mpu_inqsize, mpu401_minqsize),
-	KOBJMETHOD(mpu_outqsize, mpu401_moutqsize),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
 	KOBJMETHOD_END
 };
@@ -141,7 +139,7 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 	m->si = softintr;
 	m->cookie = cookie;
 
-	m->mid = midi_init(&mpu401_class, m);
+	m->mid = midi_init(&mpu401_class, m, MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
 	if (!m->mid)
 		goto err;
 	*cb = mpu401_intr;
@@ -178,18 +176,6 @@ mpu401_muninit(struct snd_midi *sm __unused, void *arg)
 	struct mpu401 *m = arg;
 
 	return MPUFOI_UNINIT(m, m->cookie);
-}
-
-static size_t
-mpu401_minqsize(struct snd_midi *sm __unused, void *arg __unused)
-{
-	return 128;
-}
-
-static size_t
-mpu401_moutqsize(struct snd_midi *sm __unused, void *arg __unused)
-{
-	return 128;
 }
 
 static void
