@@ -770,6 +770,14 @@ struct ctl_lun_map {
  *
  * ERROR:		An error occurred, look at the error string for a
  *			description of the error.
+ *
+ * LIST_NEED_MORE_SPACE:
+ * 			User has to pass larger buffer for CTL_NVMF_LIST
+ *			request.
+ *
+ * ASSOCIATION_NOT_FOUND:
+ *			No matching association found for CTL_NVMF_TERMINATE
+ *			request.
  */
 typedef enum {
 	CTL_NVMF_OK,
