@@ -426,6 +426,7 @@ static void
 zstd_fini(decomp_state *dctx, bool flush)
 {
 	ZSTD_freeDStream(dctx->zstdstrm);
+	dctx->zstdstrm = NULL;
 	if (!flush)
 		return;
 	free_buffer(dctx);
