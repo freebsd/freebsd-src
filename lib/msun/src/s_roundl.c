@@ -30,16 +30,41 @@
 #ifdef __i386__
 #include <ieeefp.h>
 #endif
+#include <stdint.h>
 
 #include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
 
+#ifdef LDBL_IMPLICIT_NBIT
+#define	MANH_SIZE	(LDBL_MANH_SIZE + 1)
+#define	INC_MANH(u, c)	do {					\
+	uint64_t o = u.bits.manh;				\
+	u.bits.manh += (c);					\
+	if (u.bits.manh < o)					\
+		u.bits.exp++;					\
+} while (0)
+#else
+#define	MANH_SIZE	LDBL_MANH_SIZE
+#define	INC_MANH(u, c)	do {					\
+	uint64_t o = u.bits.manh;				\
+	u.bits.manh += (c);					\
+	if (u.bits.manh < o) {					\
+		u.bits.exp++;					\
+		u.bits.manh |= 1llu << (LDBL_MANH_SIZE - 1);	\
+	}							\
+} while (0)
+#endif
+
+static const long double huge = 1.0e300L;
+
 long double
 roundl(long double x)
 {
-	long double t;
+	union IEEEl2bits u = { .e = x };
+	uint64_t m, o, round_bit;
 	uint16_t hx;
+	int e;
 
 	GET_LDBL_EXPSIGN(hx, x);
 	if ((hx & 0x7fff) == 0x7fff)
@@ -47,17 +72,100 @@ roundl(long double x)
 
 	ENTERI();
 
-	if (!(hx & 0x8000)) {
-		t = floorl(x);
-		if (t - x <= -0.5L)
-			t += 1;
-		RETURNI(t);
-	} else {
-		t = floorl(-x);
-		if (t + x <= -0.5L)
-			t += 1;
-		RETURNI(-t);
+	e = u.bits.exp - LDBL_MAX_EXP + 1;
+	if (e < MANH_SIZE - 1) {
+		if (e < 0) {
+			if ((u.bits.exp > 0 || (u.bits.manh | u.bits.manl) != 0) &&
+			    huge + x > 0.0L)
+				u.e = e == -1 ?
+				    (u.bits.sign ? -1.0L : 1.0L) :
+				    (u.bits.sign ? -0.0L : 0.0L);
+		} else {
+			m = (uint64_t)-1 >> (64 - MANH_SIZE + e + 1);
+			if (((u.bits.manh & m) | u.bits.manl) == 0)
+				RETURNI(x);
+			round_bit = 1llu << (MANH_SIZE - e - 2);
+			INC_MANH(u, round_bit);
+			if (huge + x > 0.0L) {
+				u.bits.manh &= ~m;
+				u.bits.manl = 0;
+			}
+		}
+	} else if (e < LDBL_MANT_DIG - 1) {
+		m = (uint64_t)-1 >> (64 - LDBL_MANT_DIG + e + 1);
+		if ((u.bits.manl & m) == 0)
+			RETURNI(x);
+		round_bit = 1llu << (LDBL_MANT_DIG - e - 2);
+		o = u.bits.manl;
+		u.bits.manl += round_bit;
+		if (u.bits.manl < o)
+			INC_MANH(u, 1);
+		if (huge + x > 0.0L)
+			u.bits.manl &= ~m;
 	}
+	RETURNI(u.e);
+}
+
+long double
+roundevenl(long double x)
+{
+	union IEEEl2bits u = { .e = x };
+	uint64_t fraction, m, o, round_bit;
+	uint16_t hx;
+	int e, shift;
+
+	GET_LDBL_EXPSIGN(hx, x);
+	if ((hx & 0x7fff) == 0x7fff)
+		return (x + x);
+
+	ENTERI();
+
+	e = u.bits.exp - LDBL_MAX_EXP + 1;
+	if (e < MANH_SIZE - 1) {
+		if (e < 0) {
+			fraction = u.bits.manh | u.bits.manl;
+#ifndef LDBL_IMPLICIT_NBIT
+			fraction = (u.bits.manh &
+			    ~(1llu << (MANH_SIZE - 1))) | u.bits.manl;
+#endif
+			if (u.bits.exp > 0 || fraction != 0)
+				u.e = e == -1 && fraction != 0 ?
+				    (u.bits.sign ? -1.0L : 1.0L) :
+				    (u.bits.sign ? -0.0L : 0.0L);
+		} else {
+			m = (uint64_t)-1 >> (64 - MANH_SIZE + e + 1);
+			if (((u.bits.manh & m) | u.bits.manl) == 0)
+				RETURNI(x);
+			shift = MANH_SIZE - e - 1;
+			round_bit = 1llu << (shift - 1);
+			fraction = u.bits.manh & m;
+			o = (u.bits.manh >> shift) & 1;
+#ifdef LDBL_IMPLICIT_NBIT
+			if (e == 0)
+				o = 1;
+#endif
+			if (fraction > round_bit ||
+			    (fraction == round_bit && (u.bits.manl != 0 ||
+			    o != 0)))
+				INC_MANH(u, round_bit);
+			u.bits.manh &= ~m;
+			u.bits.manl = 0;
+		}
+	} else if (e < LDBL_MANT_DIG - 1) {
+		m = (uint64_t)-1 >> (64 - LDBL_MANT_DIG + e + 1);
+		if ((u.bits.manl & m) == 0)
+			RETURNI(x);
+		shift = LDBL_MANT_DIG - e - 1;
+		round_bit = 1llu << (shift - 1);
+		fraction = shift == LDBL_MANL_SIZE ? u.bits.manh & 1 :
+		    (u.bits.manl >> shift) & 1;
+		o = u.bits.manl;
+		u.bits.manl += round_bit - 1 + fraction;
+		if (u.bits.manl < o)
+			INC_MANH(u, 1);
+		u.bits.manl &= ~m;
+	}
+	RETURNI(u.e);
 }
 
 #if LDBL_MANT_DIG == 113
