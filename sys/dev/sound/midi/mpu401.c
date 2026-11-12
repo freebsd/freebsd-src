@@ -119,10 +119,10 @@ mpu401_intr(struct mpu401 *m)
 		s = STATUS(m);
 	}
 
-	if ((m->flags & M_TXEN) && (m->si)) {
+	if ((m->flags & M_TXPEND) && (m->si)) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
-	return (m->flags & M_TXEN) == M_TXEN;
+	return (m->flags & M_TXPEND) == M_TXPEND;
 }
 
 struct mpu401 *
@@ -197,7 +197,7 @@ mpu401_mcallback(struct snd_midi *sm __unused, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXEN && m->si) {
+	if (flags & M_TXPEND && m->si) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
 	m->flags = flags;

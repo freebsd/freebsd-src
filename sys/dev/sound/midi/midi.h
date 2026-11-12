@@ -40,7 +40,7 @@ MALLOC_DECLARE(M_MIDI);
 
 #define M_RX		0x01
 #define M_TX		0x02
-#define M_TXEN		0x04
+#define M_TXPEND	0x04
 
 struct snd_midi;
 

@@ -252,7 +252,7 @@ midi_in(struct snd_midi *m, uint8_t *buf, int size)
 }
 
 /*
- * midi_out: The only clearer of the M_TXEN flag.
+ * midi_out: The only clearer of the M_TXPEND flag.
  */
 int
 midi_out(struct snd_midi *m, uint8_t *buf, int size)
@@ -261,7 +261,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 
 	mtx_lock(&m->lock);
 
-	if (!(m->flags & M_TXEN)) {
+	if (!(m->flags & M_TXPEND)) {
 		mtx_unlock(&m->lock);
 		return (0);
 	}
@@ -270,7 +270,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 	if (used)
 		midi_queue_deq(&m->outq, buf, used);
 	if (m->outq.used == 0) {
-		m->flags &= ~M_TXEN;
+		m->flags &= ~M_TXPEND;
 		MPU_CALLBACK(m, m->cookie, m->flags);
 	}
 	if (used && midi_queue_avail(&m->outq) > m->hiwat) {
@@ -434,7 +434,7 @@ err0:
 }
 
 /*
- * midi_write: The only setter of M_TXEN
+ * midi_write: The only setter of M_TXPEND
  */
 
 int
@@ -493,8 +493,8 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		/*
 	         * Inform the bottom half that data can be written
 	         */
-		if (!(m->flags & M_TXEN)) {
-			m->flags |= M_TXEN;
+		if (!(m->flags & M_TXPEND)) {
+			m->flags |= M_TXPEND;
 			MPU_CALLBACK(m, m->cookie, m->flags);
 		}
 	}
