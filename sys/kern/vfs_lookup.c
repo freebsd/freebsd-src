@@ -266,11 +266,12 @@ nameicap_cleanup(struct nameidata *ndp, int error)
 
 /*
  * For dotdot lookups in capability mode, disallow walking over the
- * directory no_rbeneath_dpp that was used as the starting point of
- * the lookup.  Since we take the mnt_renamelocks of all mounts we
- * ever walked over during lookup, parallel renames are disabled.
- * This prevents the situation where we circumvent walk over
- * ni_rbeneath_dpp following dotdots.
+ * directory ni_rbeneath_dpp that was used as the starting point of
+ * the lookup, or over the directory it covers, see
+ * nameicap_union_fallthrough().  Since we take the mnt_renamelocks
+ * of all mounts we ever walked over during lookup, parallel renames
+ * are disabled.  This prevents the situation where we circumvent
+ * walk over ni_rbeneath_dpp following dotdots.
  *
  * Also allow to force failure of dotdot lookups for non-local
  * filesystems, where external agents might assist local lookups to
@@ -301,6 +302,29 @@ violation:
 	if (__predict_false((ndp->ni_lcf & NI_LCF_STRICTREL_KTR) != 0))
 		NI_CAP_VIOLATION(ndp, ndp->ni_cnd.cn_pnbuf);
 	return (ENOTCAPABLE);
+}
+
+/*
+ * A name not found in the root of a union mount is looked up in the
+ * covered directory, which is the same directory in the union view.
+ * If the union root is ni_rbeneath_dpp, move ni_rbeneath_dpp to the
+ * covered vnode.  A relative symlink found in the covered directory
+ * is resolved from the covered vnode without crossing back into the
+ * union root, so dotdot from it must be refused as from the starting
+ * directory.  Dotdot from the union root steps over mnt_vnodecovered
+ * in the vfs_lookup() dotdot loop and meets the moved ni_rbeneath_dpp
+ * there.  The mount holds a reference on the covered vnode until it
+ * is unmounted.
+ */
+static void
+nameicap_union_fallthrough(struct nameidata *ndp, struct vnode *rootvp,
+    struct vnode *coveredvp)
+{
+	if (ndp->ni_rbeneath_dpp != rootvp)
+		return;
+	vholdnz(coveredvp);
+	ndp->ni_rbeneath_dpp = coveredvp;
+	vdrop(rootvp);
 }
 
 static void
@@ -1361,7 +1385,8 @@ unionlookup:
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			VREF(dp);
+			vref(dp);
+			nameicap_union_fallthrough(ndp, tdp, dp);
 			vput(tdp);
 			vn_lock(dp,
 			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |
