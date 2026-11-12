@@ -134,7 +134,7 @@ midi_destroy(struct snd_midi *m)
 	free(m->inq.buf, M_MIDI);
 	free(m->outq.buf, M_MIDI);
 	mtx_destroy(&m->lock);
-	free(m, M_MIDI);
+	kobj_delete((kobj_t)m, M_MIDI);
 }
 
 /*
@@ -157,7 +157,7 @@ midi_init(kobj_class_t cls, void *cookie)
 	outqsize = MPU_OUTQSIZE(m, cookie);
 
 	if (!inqsize && !outqsize) {
-		free(m, M_MIDI);
+		kobj_delete((kobj_t)m, M_MIDI);
 		return (NULL);
 	}
 

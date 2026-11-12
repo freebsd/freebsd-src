@@ -148,7 +148,7 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 	return m;
 err:
 	printf("mpu401_init error\n");
-	free(m, M_MIDI);
+	kobj_delete((kobj_t)m, M_MIDI);
 	return NULL;
 }
 
@@ -158,7 +158,7 @@ mpu401_uninit(struct mpu401 *m)
 	CMD(m, MPU_RESET);
 	midi_uninit(m->mid);
 	callout_drain(&m->timer);
-	free(m, M_MIDI);
+	kobj_delete((kobj_t)m, M_MIDI);
 	return 0;
 }
 
