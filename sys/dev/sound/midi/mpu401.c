@@ -140,7 +140,6 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 
 	m->si = softintr;
 	m->cookie = cookie;
-	m->flags = 0;
 
 	m->mid = midi_init(&mpu401_class, m);
 	if (!m->mid)

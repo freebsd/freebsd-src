@@ -166,7 +166,6 @@ midi_init(kobj_class_t cls, void *cookie)
 	m->outq.buf = obuf;
 	m->outq.size = outqsize;
 
-	m->flags = 0;
 	m->unit = alloc_unr(dev_unr);
 	m->channel = alloc_unr(chn_unr);
 	m->cookie = cookie;
@@ -226,7 +225,7 @@ midi_uninit(struct snd_midi *m)
 int
 midi_in(struct snd_midi *m, uint8_t *buf, int size)
 {
-	int used;
+	int used = 0;
 
 	mtx_lock(&m->lock);
 
@@ -235,8 +234,6 @@ midi_in(struct snd_midi *m, uint8_t *buf, int size)
 		mtx_unlock(&m->lock);
 		return (size);
 	}
-
-	used = 0;
 
 	if (size <= midi_queue_avail(&m->inq)) {
 		used = size;
@@ -291,14 +288,12 @@ int
 midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_midi *m = i_dev->si_drv1;
-	int retval;
+	int retval = 0;
 
 	if (m == NULL)
 		return ENXIO;
 
 	mtx_lock(&m->lock);
-
-	retval = 0;
 
 	if (flags & FREAD) {
 		if (m->inq.size == 0)
@@ -343,7 +338,7 @@ int
 midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_midi *m = i_dev->si_drv1;
-	int retval;
+	int retval = 0;
 	int oldflags;
 
 	if (m == NULL)
@@ -367,7 +362,6 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if ((m->flags & (M_TXEN | M_RXEN)) != (oldflags & (M_RXEN | M_TXEN)))
 		MPU_CALLBACK(m, m->cookie, m->flags);
 
-	retval = 0;
 err:
 	mtx_unlock(&m->lock);
 	return retval;
@@ -527,12 +521,10 @@ int
 midi_poll(struct cdev *i_dev, int events, struct thread *td)
 {
 	struct snd_midi *m = i_dev->si_drv1;
-	int revents;
+	int revents = 0;
 
 	if (m == NULL)
 		return 0;
-
-	revents = 0;
 
 	mtx_lock(&m->lock);
 
