@@ -523,6 +523,13 @@ snmp_pdu_decode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 			snmp_error("cannot decode msg flags");
 			return (SNMP_CODE_FAILED);
 		}
+		/*
+		 * msgFlags is attacker-controlled.  Keep only the three
+		 * defined wire bits, so a client cannot forge an internal
+		 * marker that shares this byte (SNMP_MSG_AUTODISCOVER).
+		 */
+		pdu->flags &= (SNMP_MSG_AUTH_FLAG | SNMP_MSG_PRIV_FLAG |
+		    SNMP_MSG_REPORT_FLAG);
 
 		if (asn_get_integer(b, &pdu->security_model) != ASN_ERR_OK) {
 			snmp_error("cannot decode msg size");
