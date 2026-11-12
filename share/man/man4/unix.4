@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 5, 2026
+.Dd October 22, 2026
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -263,6 +263,17 @@ depending on whether
 is passed in the
 .Xr recvmsg 2
 call.
+.Pp
+If a message carrying
+.Dv SCM_RIGHTS
+is received with
+.Dv MSG_PEEK ,
+no descriptors are created in the receiving process and each element of
+the array is returned as \-1.
+The descriptors stay queued and are delivered by a later
+.Xr recvmsg 2
+call without
+.Dv MSG_PEEK .
 .Pp
 Descriptors that are awaiting delivery, or that are
 purposely not received, are automatically closed by the system
