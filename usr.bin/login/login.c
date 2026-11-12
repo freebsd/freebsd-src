@@ -797,7 +797,7 @@ export(const char *s)
 		return (0);
 	for (pp = noexport; *pp != NULL; pp++) {
 		n = strlen(*pp);
-		if (s[n] == '=' && strncmp(s, *pp, n) == 0)
+		if (strncmp(s, *pp, n) == 0 && s[n] == '=')
 			return (0);
 	}
 	*p = '\0';
