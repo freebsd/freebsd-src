@@ -1270,7 +1270,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 
 	/* Enable EEE power saving */
 	if (sc->feat_en & IXGBE_FEATURE_EEE)
-		hw->mac.ops.setup_eee(hw, true);
+		ixgbe_setup_eee(hw, true);
 
 	/* Set an initial default flow control value */
 	hw->fc.requested_mode = ixgbe_flow_control;
@@ -6433,8 +6433,6 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_SRIOV;
 		sc->feat_cap |= IXGBE_FEATURE_FDIR;
-		if (sc->hw.device_id == IXGBE_DEV_ID_X550EM_X_KR)
-			sc->feat_cap |= IXGBE_FEATURE_EEE;
 		break;
 	case ixgbe_mac_X550EM_a:
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
