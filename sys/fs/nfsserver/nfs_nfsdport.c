@@ -718,6 +718,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
 	ndp->ni_topdir = NULL;
+	ndp->ni_rbeneath_dpp = NULL;
 
 	if (!lockleaf)
 		cnp->cn_flags |= LOCKLEAF;
