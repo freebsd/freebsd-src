@@ -400,9 +400,9 @@ struct thread0_storage {
 };
 
 struct mtx *thread_lock_block(struct thread *);
+void thread_lock_unblock(struct thread *, struct mtx *);
 void thread_lock_block_wait(struct thread *);
 void thread_lock_set(struct thread *, struct mtx *);
-void thread_lock_unblock(struct thread *, struct mtx *);
 #define	THREAD_LOCK_ASSERT(td, type)					\
 	mtx_assert((td)->td_lock, (type))
 
