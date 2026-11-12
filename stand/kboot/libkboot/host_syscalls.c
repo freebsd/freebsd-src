@@ -159,6 +159,12 @@ host_symlink(const char *path1, const char *path2)
 }
 
 int
+host_unlink(const char *path)
+{
+	return host_syscall(SYS_unlinkat, HOST_AT_FDCWD, path, 0);
+}
+
+int
 host_uname(struct old_utsname *uts)
 {
 	return host_syscall(SYS_uname, (uintptr_t)uts);
