@@ -11,7 +11,8 @@ ATF_TESTS_SH+=	empty \
 		aesni_aes_cbc_256_hmac_sha2_256 \
 		aesni_aes_gcm_128 \
 		aesni_aes_gcm_256 \
-		chacha20_poly1305
+		chacha20_poly1305 \
+		esp_iv
 
 # Each test uses the same names for its jails, so they must be run serially.
 TEST_METADATA+=	is_exclusive=true
