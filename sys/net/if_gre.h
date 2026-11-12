@@ -87,7 +87,8 @@ struct gre_softc {
 	int			gre_family;	/* AF of delivery header */
 	uint32_t		gre_iseq;
 	uint32_t		gre_oseq;
-	uint32_t		gre_key;
+	uint32_t		gre_okey;
+	uint32_t		gre_ikey;
 	uint32_t		gre_options;
 	uint32_t		gre_csumflags;
 	uint32_t		gre_port;
@@ -133,6 +134,7 @@ MALLOC_DECLARE(M_GRE);
 struct gre_list *gre_hashinit(void);
 void gre_hashdestroy(struct gre_list *);
 
+bool	gre_getkey(const struct mbuf *, int, uint32_t *);
 int	gre_input(struct mbuf *, int, int, void *);
 void	gre_update_hdr(struct gre_softc *, struct grehdr *);
 void	gre_update_udphdr(struct gre_softc *, struct udphdr *, uint16_t);
@@ -149,6 +151,10 @@ void	in6_gre_uninit(void);
 int	in6_gre_setopts(struct gre_softc *, u_long, uint32_t);
 int	in6_gre_ioctl(struct gre_softc *, u_long, caddr_t);
 int	in6_gre_output(struct mbuf *, int, int, uint32_t);
+
+VNET_DECLARE(bool, gre_key_fallback);
+#define	V_gre_key_fallback	VNET(gre_key_fallback)
+
 /*
  * CISCO uses special type for GRE tunnel created as part of WCCP
  * connection, while in fact those packets are just IPv4 encapsulated
@@ -170,6 +176,8 @@ int	in6_gre_output(struct mbuf *, int, int, uint32_t);
 #define	GRESOPTS	_IOW('i', 110, struct ifreq)
 #define	GREGPORT	_IOWR('i', 111, struct ifreq)
 #define	GRESPORT	_IOW('i', 112, struct ifreq)
+#define	GREGIKEY	_IOWR('i', 113, struct ifreq)
+#define	GRESIKEY	_IOW('i', 114, struct ifreq)
 
 /* GRE-in-UDP encapsulation destination port as defined in RFC8086 */
 #define	GRE_UDPPORT		4754

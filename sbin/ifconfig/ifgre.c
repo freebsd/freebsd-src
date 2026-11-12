@@ -33,6 +33,7 @@
 #include <net/if_gre.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,6 +56,7 @@ static const char *GREBITS[] = {
 struct nl_parsed_gre {
 	uint32_t		ifla_flags;
 	uint32_t		ifla_okey;
+	uint32_t		ifla_ikey;
 	uint32_t		ifla_encap_type;
 	uint16_t		ifla_encap_sport;
 };
@@ -92,7 +94,8 @@ gre_nl_fini(if_ctx *ctx, struct snl_writer *nw)
 		err(1, "unable to send netlink message");
 
 	if (!snl_read_reply_code(ctx->io_ss, hdr->nlmsg_seq, &errmsg))
-		errx(errmsg.error, "%s", errmsg.error_str);
+		errx(errmsg.error, "%s", errmsg.error_str != NULL ?
+		    errmsg.error_str : strerror(errmsg.error));
 }
 
 #define _OUT(_field)	offsetof(struct nl_parsed_gre, _field)
@@ -103,6 +106,7 @@ static const struct snl_attr_parser nla_p_gre[] = {
 		.cb = snl_attr_get_uint32 },
 	{ .type = IFLA_GRE_ENCAP_SPORT, .off = _OUT(ifla_encap_sport),
 		.cb = snl_attr_get_uint16 },
+	{ .type = IFLA_GRE_IKEY, .off = _OUT(ifla_ikey), .cb = snl_attr_get_uint32 },
 };
 #undef _OUT
 SNL_DECLARE_ATTR_PARSER(gre_linkinfo_data_parser, nla_p_gre);
@@ -173,8 +177,11 @@ gre_status_nl(if_ctx *ctx)
 	struct nl_parsed_gre gre_data = gre_info.data;
 
 	if (gre_data.ifla_okey != 0)
-		printf("\tgrekey: 0x%x (%u)\n",
+		printf("\tgreokey: 0x%x (%u)\n",
 		    gre_data.ifla_okey, gre_data.ifla_okey);
+	if (gre_data.ifla_ikey != 0)
+		printf("\tgreikey: 0x%x (%u)\n",
+		    gre_data.ifla_ikey, gre_data.ifla_ikey);
 
 	if (gre_data.ifla_flags == 0)
 		return;
@@ -200,6 +207,47 @@ setifgrekey_nl(if_ctx *ctx, const char *val, int dummy __unused)
 
 	off2 = snl_add_msg_attr_nested(&nw, IFLA_INFO_DATA);
 	snl_add_msg_attr_u32(&nw, IFLA_GRE_OKEY, grekey);
+	snl_add_msg_attr_u32(&nw, IFLA_GRE_IKEY, grekey);
+
+	snl_end_attr_nested(&nw, off2);
+	snl_end_attr_nested(&nw, off);
+
+	gre_nl_fini(ctx, &nw);
+}
+
+static void
+setifgreokey_nl(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	struct snl_writer nw = {};
+	int off, off2;
+	uint32_t grekey = strtol(val, NULL, 0);
+
+	gre_nl_init(ctx, &nw, 0);
+	off = snl_add_msg_attr_nested(&nw, IFLA_LINKINFO);
+	snl_add_msg_attr_string(&nw, IFLA_INFO_KIND, "gre");
+
+	off2 = snl_add_msg_attr_nested(&nw, IFLA_INFO_DATA);
+	snl_add_msg_attr_u32(&nw, IFLA_GRE_OKEY, grekey);
+
+	snl_end_attr_nested(&nw, off2);
+	snl_end_attr_nested(&nw, off);
+
+	gre_nl_fini(ctx, &nw);
+}
+
+static void
+setifgreikey_nl(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	struct snl_writer nw = {};
+	int off, off2;
+	uint32_t grekey = strtol(val, NULL, 0);
+
+	gre_nl_init(ctx, &nw, 0);
+	off = snl_add_msg_attr_nested(&nw, IFLA_LINKINFO);
+	snl_add_msg_attr_string(&nw, IFLA_INFO_KIND, "gre");
+
+	off2 = snl_add_msg_attr_nested(&nw, IFLA_INFO_DATA);
+	snl_add_msg_attr_u32(&nw, IFLA_GRE_IKEY, grekey);
 
 	snl_end_attr_nested(&nw, off2);
 	snl_end_attr_nested(&nw, off);
@@ -302,6 +350,8 @@ setifgretype_nl(if_ctx *ctx, const char *val __unused, int d)
 
 static struct cmd gre_cmds[] = {
 	DEF_CMD_ARG("grekey",			setifgrekey_nl),
+	DEF_CMD_ARG("greokey",			setifgreokey_nl),
+	DEF_CMD_ARG("greikey",			setifgreikey_nl),
 	DEF_CMD_ARG("udpport",			setifgreport_nl),
 	DEF_CMD("enable_csum", GRE_ENABLE_CSUM,	setifgreopts_nl),
 	DEF_CMD("-enable_csum",-GRE_ENABLE_CSUM,setifgreopts_nl),
@@ -320,7 +370,11 @@ gre_status(if_ctx *ctx)
 
 	if (ioctl_ctx_ifr(ctx, GREGKEY, &ifr) == 0)
 		if (opts != 0)
-			printf("\tgrekey: 0x%x (%u)\n", opts, opts);
+			printf("\tgreokey: 0x%x (%u)\n", opts, opts);
+	opts = 0;
+	if (ioctl_ctx_ifr(ctx, GREGIKEY, &ifr) == 0)
+		if (opts != 0)
+			printf("\tgreikey: 0x%x (%u)\n", opts, opts);
 	opts = 0;
 	if (ioctl_ctx_ifr(ctx, GREGOPTS, &ifr) != 0 || opts == 0)
 		return;
@@ -340,9 +394,32 @@ setifgrekey(if_ctx *ctx, const char *val, int dummy __unused)
 	uint32_t grekey = strtol(val, NULL, 0);
 	struct ifreq ifr = { .ifr_data = (caddr_t)&grekey };
 
+	/* Kernels without GRESIKEY return EINVAL, only set the outgoing key. */
+	if (ioctl_ctx_ifr(ctx, GRESIKEY, &ifr) < 0 && errno != EINVAL)
+		err(1, "ioctl (set greikey)");
+	if (ioctl_ctx_ifr(ctx, GRESKEY, &ifr) < 0)
+		warn("ioctl (set greokey)");
+}
+
+static void
+setifgreokey(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	uint32_t grekey = strtol(val, NULL, 0);
+	struct ifreq ifr = { .ifr_data = (caddr_t)&grekey };
+
 	ifr.ifr_data = (caddr_t)&grekey;
 	if (ioctl_ctx_ifr(ctx, GRESKEY, &ifr) < 0)
-		warn("ioctl (set grekey)");
+		warn("ioctl (set greokey)");
+}
+
+static void
+setifgreikey(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	uint32_t grekey = strtol(val, NULL, 0);
+	struct ifreq ifr = { .ifr_data = (caddr_t)&grekey };
+
+	if (ioctl_ctx_ifr(ctx, GRESIKEY, &ifr) < 0)
+		err(1, "ioctl (set greikey)");
 }
 
 static void
@@ -380,6 +457,8 @@ setifgreopts(if_ctx *ctx, const char *val __unused, int d)
 
 static struct cmd gre_cmds[] = {
 	DEF_CMD_ARG("grekey",			setifgrekey),
+	DEF_CMD_ARG("greokey",			setifgreokey),
+	DEF_CMD_ARG("greikey",			setifgreikey),
 	DEF_CMD_ARG("udpport",			setifgreport),
 	DEF_CMD("enable_csum", GRE_ENABLE_CSUM,	setifgreopts),
 	DEF_CMD("-enable_csum",-GRE_ENABLE_CSUM,setifgreopts),
