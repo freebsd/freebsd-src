@@ -18,6 +18,7 @@
  * Copyright (c) 2019, Allan Jude
  * Copyright (c) 2021, Datto, Inc.
  * Copyright (c) 2021, 2024 by George Melikov. All rights reserved.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #include <sys/sysmacros.h>
@@ -27,6 +28,7 @@
 #include <sys/txg.h>
 #include <sys/spa_impl.h>
 #include <sys/vdev_impl.h>
+#include <sys/vdev_raidz.h>
 #include <sys/vdev_trim.h>
 #include <sys/zio_impl.h>
 #include <sys/zio_compress.h>
@@ -1483,7 +1485,6 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 
 	metaslab_check_free(spa, bp);
 	arc_freed(spa, bp);
-	dsl_scan_freed(spa, bp);
 
 	if (BP_IS_GANG(bp) ||
 	    BP_GET_DEDUP(bp) ||
@@ -1501,6 +1502,7 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 		    ZIO_TYPE_FREE, ZIO_PRIORITY_NOW,
 		    flags, NULL, 0, NULL, ZIO_STAGE_OPEN, stage));
 	} else {
+		dsl_scan_freed(spa, bp);
 		metaslab_free(spa, bp, txg, B_FALSE);
 		return (NULL);
 	}
@@ -1736,11 +1738,11 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 			 * The batch is dispatched to the taskq chosen for
 			 * whichever member arrives last, so they all have to
 			 * choose the same one.  The flags that steer the choice
-			 * are vdev-inherited, and type and priority come from
-			 * the parent at every call site.
+			 * are vdev-inherited, and type comes from the parent at
+			 * every call site.  Priority can mismatch though, since
+			 * zio_change_priority() may change it at any time.
 			 */
 			ASSERT3U(zio->io_type, ==, pio->io_type);
-			ASSERT3U(zio->io_priority, ==, pio->io_priority);
 			zio_batch_join(pio->io_child_batch, zio);
 		}
 	}
@@ -1931,7 +1933,12 @@ zio_write_bp_init(zio_t *zio)
 		 */
 		if (!BP_IS_HOLE(bp) && zp->zp_nopwrite) {
 			ASSERT(!zp->zp_dedup);
-			ASSERT3U(BP_GET_CHECKSUM(bp), ==, zp->zp_checksum);
+			/*
+			 * A data-less override (Direct I/O) is written with
+			 * the WP_NOFILL policy, whose checksum is off.
+			 */
+			IMPLY(zio->io_abd != NULL,
+			    BP_GET_CHECKSUM(bp) == zp->zp_checksum);
 			zio->io_flags |= ZIO_FLAG_NOPWRITE;
 			return (zio);
 		}
@@ -2943,6 +2950,14 @@ zio_reexecute(void *arg)
 	pio->io_state[ZIO_WAIT_DONE] = (pio->io_stage >= ZIO_STAGE_DONE);
 
 	/*
+	 * Start a fresh allocation trace.  A write that keeps failing is
+	 * reexecuted indefinitely, and each attempt would otherwise add to
+	 * the same list until it reaches its limit.
+	 */
+	metaslab_trace_fini(ZIO_ALLOC_LIST(pio));
+	metaslab_trace_init(ZIO_ALLOC_LIST(pio));
+
+	/*
 	 * It's possible for a failed ZIO to be a descendant of more than one
 	 * ZIO tree. When reexecuting it, we have to be sure to add its wait
 	 * states to all parent wait counts.
@@ -3000,6 +3015,11 @@ zio_reexecute(void *arg)
 void
 zio_suspend(spa_t *spa, zio_t *zio, zio_suspend_reason_t reason)
 {
+	if (reason == ZIO_SUSPEND_IOERR)
+		spa_misc_stats_bump_suspended_ioerr(spa);
+	else if (reason == ZIO_SUSPEND_MMP)
+		spa_misc_stats_bump_suspended_mmp(spa);
+
 	if (spa_get_failmode(spa) == ZIO_FAILURE_MODE_PANIC)
 		fm_panic("Pool '%s' has encountered an uncorrectable I/O "
 		    "failure and the failure mode property for this pool "
@@ -3040,20 +3060,26 @@ int
 zio_resume(spa_t *spa)
 {
 	zio_t *pio;
+	boolean_t resuming = B_FALSE;
 
 	/*
 	 * Reexecute all previously suspended i/o.
 	 */
 	mutex_enter(&spa->spa_suspend_lock);
-	if (spa->spa_suspended != ZIO_SUSPEND_NONE)
+	if (spa->spa_suspended != ZIO_SUSPEND_NONE) {
 		cmn_err(CE_WARN, "Pool '%s' was suspended and is being "
 		    "resumed. Failed I/O will be retried.",
 		    spa_name(spa));
+		resuming = B_TRUE;
+	}
 	spa->spa_suspended = ZIO_SUSPEND_NONE;
 	cv_broadcast(&spa->spa_suspend_cv);
 	pio = spa->spa_suspend_zio_root;
 	spa->spa_suspend_zio_root = NULL;
 	mutex_exit(&spa->spa_suspend_lock);
+
+	if (resuming)
+		spa_misc_stats_bump_resumed(spa);
 
 	if (pio == NULL)
 		return (0);
@@ -3288,8 +3314,7 @@ static void
 zio_gang_tree_assemble(zio_t *gio, blkptr_t *bp, zio_gang_node_t **gnpp)
 {
 	uint64_t gangblocksize = UINT64_MAX;
-	if (spa_feature_is_active(gio->io_spa,
-	    SPA_FEATURE_DYNAMIC_GANG_HEADER)) {
+	if (spa_dynamic_gang_header(gio->io_spa)) {
 		spa_config_enter(gio->io_spa, SCL_VDEV, FTAG, RW_READER);
 		for (int dva = 0; dva < BP_GET_NDVAS(bp); dva++) {
 			vdev_t *vd = vdev_lookup_top(gio->io_spa,
@@ -3323,8 +3348,11 @@ zio_gang_tree_assemble_done(zio_t *zio)
 	ASSERT(gio == zio_unique_parent(zio));
 	ASSERT(list_is_empty(&zio->io_child_list));
 
-	if (zio->io_error)
+	if (zio->io_error) {
+		/* free the ABD from zio_gang_tree_assemble() on failure too */
+		abd_free(zio->io_abd);
 		return;
+	}
 
 	/* this ABD was created from a linear buf in zio_gang_tree_assemble */
 	if (BP_SHOULD_BYTESWAP(bp))
@@ -3484,6 +3512,20 @@ zio_update_feature(void *arg, dmu_tx_t *tx)
 	spa_feature_incr(spa, (spa_feature_t)(uintptr_t)arg, tx);
 }
 
+/*
+ * An allocation fails with ENOSPC when no vdev in the class can be
+ * written, too. Report that as EIO to a zio that may fail. Other
+ * zios keep ENOSPC, which makes zio_done() suspend the pool.
+ */
+static int
+zio_alloc_error(zio_t *zio, metaslab_class_t *mc, int error)
+{
+	if (error == ENOSPC && (zio->io_flags & ZIO_FLAG_CANFAIL) &&
+	    metaslab_class_unwritable(mc))
+		return (SET_ERROR(EIO));
+	return (error);
+}
+
 static zio_t *
 zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 {
@@ -3535,7 +3577,7 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	    bp, gbh_copies, txg, pio == gio ? NULL : gio->io_bp, flags,
 	    ZIO_ALLOC_LIST(pio), pio->io_allocator, pio, &candidate);
 	if (error) {
-		pio->io_error = error;
+		pio->io_error = zio_alloc_error(pio, mc, error);
 		return (pio);
 	}
 	if (spa_feature_is_active(spa, SPA_FEATURE_DYNAMIC_GANG_HEADER))
@@ -3578,22 +3620,16 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	for (g = 0; resid != 0; g++) {
 		flags &= METASLAB_ASYNC_ALLOC;
 		flags |= METASLAB_GANG_CHILD;
+		/* Fields added to zio_prop_t later default to zero here. */
+		memset(&zp, 0, sizeof (zp));
 		zp.zp_checksum = gio->io_prop.zp_checksum;
 		zp.zp_compress = ZIO_COMPRESS_OFF;
 		zp.zp_complevel = gio->io_prop.zp_complevel;
 		zp.zp_type = zp.zp_storage_type = DMU_OT_NONE;
-		zp.zp_level = 0;
 		zp.zp_copies = gio->io_prop.zp_copies;
 		zp.zp_gang_copies = gio->io_prop.zp_gang_copies;
-		zp.zp_dedup = B_FALSE;
-		zp.zp_dedup_verify = B_FALSE;
-		zp.zp_nopwrite = B_FALSE;
 		zp.zp_encrypt = gio->io_prop.zp_encrypt;
 		zp.zp_byteorder = gio->io_prop.zp_byteorder;
-		zp.zp_direct_write = B_FALSE;
-		memset(zp.zp_salt, 0, ZIO_DATA_SALT_LEN);
-		memset(zp.zp_iv, 0, ZIO_DATA_IV_LEN);
-		memset(zp.zp_mac, 0, ZIO_DATA_MAC_LEN);
 
 		uint64_t min_size = zio_roundup_alloc_size(spa,
 		    resid / (gbh_nblkptrs(gangblocksize) - g));
@@ -4036,7 +4072,7 @@ zio_ddt_child_write_done(zio_t *zio)
 	if (dde->dde_io->dde_lead_zio[p] == zio)
 		dde->dde_io->dde_lead_zio[p] = NULL;
 
-	ddt_univ_phys_t *orig = &dde->dde_io->dde_orig_phys;
+	ddt_univ_phys_t *orig = &dde->dde_io->dde_rollback_phys;
 
 	if (zio->io_error != 0) {
 		/*
@@ -4045,7 +4081,8 @@ zio_ddt_child_write_done(zio_t *zio)
 		 * the last time it was successfully extended.
 		 */
 		ddt_phys_unextend(ddp, orig, v);
-		ddt_phys_clear(orig, v);
+		if (dde->dde_io->dde_lead_zio[p] == NULL)
+			ddt_phys_clear(orig, v);
 
 		mutex_exit(&dde->dde_io->dde_io_lock);
 
@@ -4068,14 +4105,85 @@ zio_ddt_child_write_done(zio_t *zio)
 	/*
 	 * We've successfully added new DVAs to the entry. Clear the saved
 	 * state or, if there's still outstanding IO, remember it so we can
-	 * revert to a known good state if that IO fails.
+	 * revert to a known good state if that IO fails. A DDT child owns a
+	 * private BP, so it contains only this child's newly allocated DVAs.
 	 */
 	if (dde->dde_io->dde_lead_zio[p] == NULL)
 		ddt_phys_clear(orig, v);
 	else
-		ddt_phys_copy(orig, ddp, v);
+		ddt_phys_extend(orig, v, zio->io_bp);
 
 	mutex_exit(&dde->dde_io->dde_io_lock);
+}
+
+static boolean_t
+zio_ddt_child_write_layout_matches(zio_t *zio, uint64_t phys_birth)
+{
+	blkptr_t *bp = zio->io_bp;
+
+	ASSERT3U(phys_birth, !=, 0);
+	ASSERT3U(BP_GET_PHYSICAL_BIRTH(bp), ==, zio->io_txg);
+
+	/*
+	 * DDT writes run only in syncing context, under spa_sync()'s
+	 * SCL_CONFIG hold, so the vdev configuration is stable and
+	 * vdev_lookup_top() is safe without taking the lock here.
+	 */
+	for (int d = 0; d < BP_GET_NDVAS(bp); d++) {
+		vdev_t *vd = vdev_lookup_top(zio->io_spa,
+		    DVA_GET_VDEV(&bp->blk_dva[d]));
+		ASSERT3P(vd, !=, NULL);
+
+		if (vd->vdev_ops == &vdev_raidz_ops &&
+		    !vdev_raidz_same_logical_width(vd, phys_birth,
+		    zio->io_txg))
+			return (B_FALSE);
+	}
+
+	return (B_TRUE);
+}
+
+static void
+zio_ddt_child_write_reject(zio_t *zio)
+{
+	/*
+	 * READY truncates the pipeline before top-vdev children are issued.
+	 * Release queue-depth holds that those children's DONE callbacks would
+	 * normally release.
+	 *
+	 * At this DDT-child callsite, ALLOC_THROTTLED precisely identifies an
+	 * async allocation into a throttle-enabled class. Synchronous and
+	 * unthrottled allocations did not add these holds.
+	 */
+	if (zio->io_flags & ZIO_FLAG_ALLOC_THROTTLED) {
+		for (int d = 0; d < BP_GET_NDVAS(zio->io_bp); d++) {
+			dva_t *dva = &zio->io_bp->blk_dva[d];
+			metaslab_group_alloc_decrement(zio->io_spa,
+			    DVA_GET_VDEV(dva), zio->io_allocator,
+			    METASLAB_ASYNC_ALLOC, zio->io_size, zio);
+		}
+	}
+
+	zio->io_error = EAGAIN;
+}
+
+/*
+ * Fill a dedup BP from its DDT entry.  A physical rewrite keeps the
+ * original logical birth, as zio_dva_allocate() does for other blocks, but
+ * only when the entry was written in this txg: the physical birth must be
+ * the entry's, and with the rewrite flag BP_GET_BIRTH() takes it as the
+ * allocation time that space accounting needs.
+ */
+static void
+zio_ddt_bp_fill(zio_t *zio, const ddt_univ_phys_t *ddp, ddt_phys_variant_t v)
+{
+	uint64_t txg = zio->io_txg;
+	uint64_t logical_birth = BP_GET_LOGICAL_BIRTH(&zio->io_bp_orig);
+	boolean_t rewrite = zio->io_prop.zp_rewrite && logical_birth != 0 &&
+	    logical_birth < txg && ddt_phys_birth(ddp, v) == txg;
+
+	ddt_bp_fill(ddp, v, zio->io_bp, rewrite ? logical_birth : txg);
+	BP_SET_REWRITE(zio->io_bp, rewrite);
 }
 
 static void
@@ -4090,20 +4198,21 @@ zio_ddt_child_write_ready(zio_t *zio)
 	int p = DDT_PHYS_FOR_COPIES(ddt, zio->io_prop.zp_copies);
 	ddt_phys_variant_t v = DDT_PHYS_VARIANT(ddt, p);
 
-	if (ddt_phys_is_gang(dde->dde_phys, v)) {
-		for (int i = 0; i < BP_GET_NDVAS(zio->io_bp); i++) {
-			dva_t *d = &zio->io_bp->blk_dva[i];
-			metaslab_group_alloc_decrement(zio->io_spa,
-			    DVA_GET_VDEV(d), zio->io_allocator,
-			    METASLAB_ASYNC_ALLOC, zio->io_size, zio);
-		}
-		zio->io_error = EAGAIN;
-	}
-
 	if (zio->io_error != 0)
 		return;
 
 	mutex_enter(&dde->dde_io->dde_io_lock);
+
+	uint64_t phys_birth = ddt_phys_birth(dde->dde_phys, v);
+	boolean_t reject = ddt_phys_is_gang(dde->dde_phys, v) ||
+	    (phys_birth != 0 &&
+	    !zio_ddt_child_write_layout_matches(zio, phys_birth));
+
+	if (reject) {
+		mutex_exit(&dde->dde_io->dde_io_lock);
+		zio_ddt_child_write_reject(zio);
+		return;
+	}
 
 	ddt_phys_extend(dde->dde_phys, v, zio->io_bp);
 
@@ -4111,7 +4220,7 @@ zio_ddt_child_write_ready(zio_t *zio)
 	zl = NULL;
 	while ((pio = zio_walk_parents(zio, &zl)) != NULL) {
 		if (!(pio->io_flags & ZIO_FLAG_DDT_CHILD))
-			ddt_bp_fill(dde->dde_phys, v, pio->io_bp, zio->io_txg);
+			zio_ddt_bp_fill(pio, dde->dde_phys, v);
 	}
 
 	mutex_exit(&dde->dde_io->dde_io_lock);
@@ -4291,13 +4400,15 @@ zio_ddt_write(zio_t *zio)
 
 			/*
 			 * For rewrite operations, try preserving the original
-			 * logical birth time.  If the result matches the
-			 * original BP, this becomes a NOP.
+			 * logical birth time and rewrite flag.  If the result
+			 * matches the original BP, this becomes a NOP.
 			 */
 			if (zp->zp_rewrite) {
 				uint64_t orig_logical_birth =
 				    BP_GET_LOGICAL_BIRTH(&zio->io_bp_orig);
 				ddt_bp_fill(ddp, v, bp, orig_logical_birth);
+				BP_SET_REWRITE(bp,
+				    BP_GET_REWRITE(&zio->io_bp_orig));
 				if (BP_EQUAL(bp, &zio->io_bp_orig)) {
 					/* We can skip accounting. */
 					ddt_exit(ddt);
@@ -4306,7 +4417,7 @@ zio_ddt_write(zio_t *zio)
 				}
 			}
 
-			ddt_bp_fill(ddp, v, bp, txg);
+			zio_ddt_bp_fill(zio, ddp, v);
 			ddt_phys_addref(ddp, v);
 			ddt_exit(ddt);
 			return (zio);
@@ -4362,7 +4473,7 @@ zio_ddt_write(zio_t *zio)
 			 * after the in-flight write has passed READY, and so
 			 * missed out.
 			 */
-			ddt_bp_fill(ddp, v, bp, txg);
+			zio_ddt_bp_fill(zio, ddp, v);
 piggyback:
 			zio_add_child(zio, dde_io->dde_lead_zio[p]);
 
@@ -4457,7 +4568,7 @@ piggyback:
 		 * First time out, take a copy of the stable entry to revert
 		 * to if there's an error (see zio_ddt_child_write_done())
 		 */
-		ddt_phys_copy(&dde_io->dde_orig_phys, dde->dde_phys, v);
+		ddt_phys_copy(&dde_io->dde_rollback_phys, dde->dde_phys, v);
 		dde_io->dde_lead_zio[p] = cio;
 	} else {
 		if (dde_io->dde_lead_zio[p] == NULL) {
@@ -4466,7 +4577,7 @@ piggyback:
 			 * to revert to if there's an error (see
 			 * zio_ddt_child_write_done())
 			 */
-			ddt_phys_copy(&dde_io->dde_orig_phys, dde->dde_phys,
+			ddt_phys_copy(&dde_io->dde_rollback_phys, dde->dde_phys,
 			    v);
 		} else {
 			/*
@@ -4694,6 +4805,8 @@ zio_dva_allocate(zio_t *zio)
 		flags |= METASLAB_GANG_CHILD;
 	if (zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE)
 		flags |= METASLAB_ASYNC_ALLOC;
+	if (zio->io_flags & ZIO_FLAG_ZILWRITE)
+		flags |= METASLAB_ZIL;
 
 	/*
 	 * If not already chosen, choose an appropriate allocation class.
@@ -4805,7 +4918,7 @@ again:
 			    spa_name(spa), zio, (u_longlong_t)zio->io_size,
 			    error);
 		}
-		zio->io_error = error;
+		zio->io_error = zio_alloc_error(zio, mc, error);
 	} else if (zio->io_prop.zp_rewrite) {
 		/*
 		 * For rewrite operations, preserve the logical birth time
@@ -4823,6 +4936,11 @@ again:
 static zio_t *
 zio_dva_free(zio_t *zio)
 {
+	/*
+	 * A dedup or cloned block may still have other references, so its
+	 * queued scan I/O is dropped only once its space is freed here.
+	 */
+	dsl_scan_freed(zio->io_spa, zio->io_bp);
 	metaslab_free(zio->io_spa, zio->io_bp, zio->io_txg, B_FALSE);
 
 	return (zio);
@@ -5593,8 +5711,6 @@ zio_checksum_generate(zio_t *zio)
 
 		if (checksum == ZIO_CHECKSUM_OFF)
 			return (zio);
-
-		ASSERT(checksum == ZIO_CHECKSUM_LABEL);
 	} else {
 		if (BP_IS_GANG(bp) && zio->io_child_type == ZIO_CHILD_GANG) {
 			ASSERT(!IO_IS_ALLOCATING(zio));
@@ -5625,8 +5741,6 @@ zio_checksum_verify(zio_t *zio)
 		 */
 		if (zio->io_prop.zp_checksum == ZIO_CHECKSUM_OFF)
 			return (zio);
-
-		ASSERT3U(zio->io_prop.zp_checksum, ==, ZIO_CHECKSUM_LABEL);
 	}
 
 	ASSERT0(zio->io_post & ZIO_POST_DIO_CHKSUM_ERR);
@@ -6015,6 +6129,24 @@ zio_done(zio_t *zio)
 	zio_pop_transforms(zio);	/* note: may set zio->io_error */
 
 	/*
+	 * The DDT extension path deliberately produces EAGAIN at two
+	 * sites: at allocation, when extending would require ganging
+	 * (zio_write_gang_block()), and at READY, when the live phys is
+	 * already ganged or RAIDZ geometry differs across an expansion
+	 * boundary. Disable dedup and reexecute as a plain write;
+	 * zp_dedup transitions monotonically to false, so the retry
+	 * terminates. A backend EAGAIN can also take this path; it gets
+	 * one non-dedup retry before ordinary error handling.
+	 */
+	if (zio->io_error == EAGAIN &&
+	    zio == zio->io_logical && IO_IS_ALLOCATING(zio) &&
+	    zio->io_prop.zp_dedup) {
+		zio->io_prop.zp_dedup = B_FALSE;
+		zio->io_post |= ZIO_POST_REEXECUTE;
+		zio->io_error = 0;
+	}
+
+	/*
 	 * During thorough scrub, if the dataset key is not loaded, decryption
 	 * or MAC verification fails with EACCES (spa_do_crypt_abd() and the
 	 * MAC helpers). Since the block's checksum was already successfully
@@ -6099,15 +6231,6 @@ zio_done(zio_t *zio)
 
 	if (zio->io_error && zio == zio->io_logical) {
 
-		/*
-		 * A DDT child tried to create a mixed gang/non-gang BP. We're
-		 * going to have to just retry as a non-dedup IO.
-		 */
-		if (zio->io_error == EAGAIN && IO_IS_ALLOCATING(zio) &&
-		    zio->io_prop.zp_dedup) {
-			zio->io_post |= ZIO_POST_REEXECUTE;
-			zio->io_prop.zp_dedup = B_FALSE;
-		}
 		/*
 		 * Determine whether zio should be reexecuted.  This will
 		 * propagate all the way to the root via zio_notify_parent().

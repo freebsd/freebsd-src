@@ -47,11 +47,11 @@
 #include <sys/arc.h>
 #include <sys/zil.h>
 #include <sys/dsl_scan.h>
-#include <sys/vdev_raidz.h>
 #include <sys/abd.h>
 #include <sys/vdev_initialize.h>
 #include <sys/vdev_trim.h>
 #include <sys/vdev_raidz.h>
+#include <sys/vdev_anyraid.h>
 #include <sys/zvol.h>
 #include <sys/zfs_ratelimit.h>
 #include "zfs_prop.h"
@@ -271,6 +271,7 @@ static vdev_ops_t *const vdev_ops_table[] = {
 	&vdev_missing_ops,
 	&vdev_hole_ops,
 	&vdev_indirect_ops,
+	&vdev_anyraid_ops,
 	NULL
 };
 
@@ -338,6 +339,21 @@ vdev_derive_alloc_bias(const char *bias)
 }
 
 uint64_t
+vdev_default_min_attach_size(vdev_t *vd)
+{
+	return (vdev_get_min_asize(vd));
+}
+
+uint64_t
+vdev_get_min_attach_size(vdev_t *vd)
+{
+	vdev_t *pvd = vd->vdev_parent;
+	if (vd == vd->vdev_top)
+		pvd = vd;
+	return (pvd->vdev_ops->vdev_op_min_attach_size(pvd));
+}
+
+uint64_t
 vdev_default_psize(vdev_t *vd, uint64_t asize, uint64_t txg)
 {
 	ASSERT0(asize % (1ULL << vd->vdev_top->vdev_ashift));
@@ -369,9 +385,10 @@ vdev_default_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
 }
 
 uint64_t
-vdev_default_min_asize(vdev_t *vd)
+vdev_default_min_asize(vdev_t *pvd, vdev_t *cvd)
 {
-	return (vd->vdev_min_asize);
+	(void) cvd;
+	return (pvd->vdev_min_asize);
 }
 
 /*
@@ -400,7 +417,7 @@ vdev_get_min_asize(vdev_t *vd)
 		return (P2ALIGN_TYPED(vd->vdev_asize, 1ULL << vd->vdev_ms_shift,
 		    uint64_t));
 
-	return (pvd->vdev_ops->vdev_op_min_asize(pvd));
+	return (pvd->vdev_ops->vdev_op_min_asize(pvd, vd));
 }
 
 void
@@ -870,6 +887,8 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 	if (ops != &vdev_root_ops && spa->spa_root_vdev == NULL)
 		return (SET_ERROR(EINVAL));
 
+	if (ops == &vdev_anyraid_ops && parent->vdev_ops != &vdev_root_ops)
+		return (SET_ERROR(EINVAL));
 	/*
 	 * Determine whether we're a log vdev.
 	 */
@@ -904,6 +923,13 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		if (ops == &vdev_draid_ops &&
 		    spa->spa_load_state != SPA_LOAD_CREATE &&
 		    !spa_feature_is_enabled(spa, SPA_FEATURE_DRAID)) {
+			return (SET_ERROR(ENOTSUP));
+		}
+
+		/* spa_vdev_add() expects feature to be enabled */
+		if (ops == &vdev_anyraid_ops &&
+		    spa->spa_load_state != SPA_LOAD_CREATE &&
+		    !spa_feature_is_enabled(spa, SPA_FEATURE_ANYRAID)) {
 			return (SET_ERROR(ENOTSUP));
 		}
 	}
@@ -1746,6 +1772,12 @@ vdev_metaslab_init(vdev_t *vd, uint64_t txg)
 		metaslab_fini(slog_ms);
 		VERIFY0(metaslab_init(vd->vdev_log_mg, slog_msid, sm_obj, txg,
 		    &vd->vdev_ms[slog_msid]));
+
+		metaslab_t *msp = vd->vdev_ms[slog_msid];
+		if (vd->vdev_ops == &vdev_anyraid_ops &&
+		    !vdev_anyraid_mapped(vd, msp->ms_start, txg)) {
+			vdev_anyraid_map(vd, msp->ms_start);
+		}
 	}
 
 	if (txg == 0)
@@ -1777,8 +1809,8 @@ vdev_metaslab_fini(vdev_t *vd)
 	if (vd->vdev_checkpoint_sm != NULL) {
 		ASSERT(spa_feature_is_active(vd->vdev_spa,
 		    SPA_FEATURE_POOL_CHECKPOINT));
-		vd->vdev_spa->spa_checkpoint_info.sci_dspace -=
-		    vd->vdev_stat.vs_checkpoint_space;
+		atomic_sub_64(&vd->vdev_spa->spa_checkpoint_info.sci_dspace,
+		    vd->vdev_stat.vs_checkpoint_space);
 		vd->vdev_stat.vs_checkpoint_space = 0;
 		space_map_close(vd->vdev_checkpoint_sm);
 		/*
@@ -3120,6 +3152,8 @@ vdev_metaslab_set_size(vdev_t *vd)
 		if ((asize >> ms_shift) > zfs_vdev_ms_count_limit)
 			ms_shift = highbit64(asize / zfs_vdev_ms_count_limit);
 	}
+	if (vd->vdev_ops->vdev_op_metaslab_size)
+		vd->vdev_ops->vdev_op_metaslab_size(vd, &ms_shift);
 
 	vd->vdev_ms_shift = ms_shift;
 	ASSERT3U(vd->vdev_ms_shift, >=, SPA_MAXBLOCKSHIFT);
@@ -3538,8 +3572,9 @@ vdev_dtl_reassess_impl(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 			if (t == DTL_PARTIAL) {
 				/* i.e. non-zero */
 				minref = 1;
-			} else if (vdev_get_nparity(vd) != 0) {
-				/* RAIDZ, DRAID */
+			} else if (vdev_get_nparity(vd) != 0 ||
+			    vd->vdev_ops == &vdev_anyraid_ops) {
+				/* RAIDZ, DRAID, AnyRAID */
 				minref = vdev_get_nparity(vd) + 1;
 				if (vd->vdev_ops == &vdev_draid_ops) {
 					vdev_draid_config_t *vdc = vd->vdev_tsd;
@@ -4168,8 +4203,9 @@ vdev_load(vdev_t *vd)
 			 */
 			vd->vdev_stat.vs_checkpoint_space =
 			    -space_map_allocated(vd->vdev_checkpoint_sm);
-			vd->vdev_spa->spa_checkpoint_info.sci_dspace +=
-			    vd->vdev_stat.vs_checkpoint_space;
+			atomic_add_64(
+			    &vd->vdev_spa->spa_checkpoint_info.sci_dspace,
+			    vd->vdev_stat.vs_checkpoint_space);
 		} else if (error != 0) {
 			vdev_dbgmsg(vd, "vdev_load: failed to retrieve "
 			    "checkpoint space map object from vdev ZAP "
@@ -4448,6 +4484,27 @@ uint64_t
 vdev_psize_to_asize(vdev_t *vd, uint64_t psize)
 {
 	return (vdev_psize_to_asize_txg(vd, psize, 0));
+}
+
+/*
+ * All allocations are a multiple of 1 << the ashift of the vdev that they are
+ * being allocated in. Certain vdev types (currently raidz and draid) always
+ * request allocations that are a multiple of a larger size, in order to
+ * preserve alignment requirements or prevent fragmentation. This function
+ * exposes those requirements to the metaslab code, so that the dynamic
+ * allocation size feature can also respect it.
+ *
+ * Without this functionality, we can end up allocating sizes that are not
+ * aligned properly, which can result in sizes changing when passing back forth
+ * through the asize/psize conversion logic. This can lead to frees and
+ * allocations not matching in size, which is problematic.
+ */
+uint64_t
+vdev_alloc_factor(vdev_t *vd)
+{
+	if (vd->vdev_ops->vdev_op_alloc_factor == NULL)
+		return (1ULL << vd->vdev_ashift);
+	return (vd->vdev_ops->vdev_op_alloc_factor(vd));
 }
 
 /*
@@ -5295,14 +5352,6 @@ vdev_stat_update(zio_t *zio, uint64_t psize)
 	vdev_t *vd = zio->io_vd ? zio->io_vd : rvd;
 	vdev_t *pvd;
 	uint64_t txg = zio->io_txg;
-/* Suppress ASAN false positive */
-#ifdef __SANITIZE_ADDRESS__
-	vdev_stat_t *vs = vd ? &vd->vdev_stat : NULL;
-	vdev_stat_ex_t *vsx = vd ? &vd->vdev_stat_ex : NULL;
-#else
-	vdev_stat_t *vs = &vd->vdev_stat;
-	vdev_stat_ex_t *vsx = &vd->vdev_stat_ex;
-#endif
 	zio_type_t type = zio->io_type;
 	int flags = zio->io_flags;
 
@@ -5331,6 +5380,8 @@ vdev_stat_update(zio_t *zio, uint64_t psize)
 			return;
 
 		ASSERT(vd == zio->io_vd);
+		vdev_stat_t *vs = &vd->vdev_stat;
+		vdev_stat_ex_t *vsx = &vd->vdev_stat_ex;
 
 		if (flags & ZIO_FLAG_IO_BYPASS)
 			return;
@@ -6184,7 +6235,7 @@ vdev_xlate_walk(vdev_t *vd, const zfs_range_seg64_t *logical_rs,
 	}
 }
 
-static char *
+char *
 vdev_name(vdev_t *vd, char *buf, int buflen)
 {
 	if (vd->vdev_path == NULL) {
@@ -6398,7 +6449,7 @@ vdev_prop_set(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl)
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 	if ((vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE)) == NULL) {
 		spa_config_exit(spa, SCL_CONFIG, FTAG);
-		return (SET_ERROR(ENOENT));
+		return (SET_ERROR(ENODEV));
 	}
 
 	/* Check that vdev has a zap we can use */
@@ -6451,7 +6502,7 @@ vdev_prop_set(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl)
 			spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 			vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE);
 			if (vd == NULL && error == 0)
-				error = SET_ERROR(ENOENT);
+				error = SET_ERROR(ENODEV);
 			break;
 		case VDEV_PROP_ALLOCATING:
 			if (nvpair_value_uint64(elem, &intval) != 0) {
@@ -6472,7 +6523,7 @@ vdev_prop_set(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl)
 			spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 			vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE);
 			if (vd == NULL && error == 0)
-				error = SET_ERROR(ENOENT);
+				error = SET_ERROR(ENODEV);
 			break;
 		case VDEV_PROP_FAILFAST:
 			if (nvpair_value_uint64(elem, &intval) != 0 ||
@@ -6700,7 +6751,7 @@ vdev_prop_get(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl)
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 	if ((vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE)) == NULL) {
 		spa_config_exit(spa, SCL_CONFIG, FTAG);
-		return (SET_ERROR(ENOENT));
+		return (SET_ERROR(ENODEV));
 	}
 
 	/*
@@ -6782,9 +6833,23 @@ vdev_prop_get(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl)
 				    vd->vdev_stat.vs_esize, ZPROP_SRC_NONE);
 				continue;
 			case VDEV_PROP_FRAGMENTATION:
+				/*
+				 * vdev_stat.vs_fragmentation is never updated,
+				 * it's only filled in vdev_get_stats_ex() copy.
+				 * Report the same values as "zpool list -v".
+				 */
+				if (vd == spa->spa_root_vdev) {
+					intval = metaslab_class_fragmentation(
+					    spa_normal_class(spa));
+				} else if (vd == vd->vdev_top &&
+				    vd->vdev_mg != NULL &&
+				    vdev_is_concrete(vd)) {
+					intval = vd->vdev_mg->mg_fragmentation;
+				} else {
+					intval = ZFS_FRAG_INVALID;
+				}
 				vdev_prop_add_list(outnvl, propname, NULL,
-				    vd->vdev_stat.vs_fragmentation,
-				    ZPROP_SRC_NONE);
+				    intval, ZPROP_SRC_NONE);
 				continue;
 			case VDEV_PROP_PARITY:
 				vdev_prop_add_list(outnvl, propname, NULL,
@@ -7164,6 +7229,68 @@ vdev_prop_get(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl)
 					break;
 				}
 				break;
+			case VDEV_PROP_ANYRAID_CAP_TILES:
+			{
+				vdev_t *pvd = vd->vdev_parent;
+				uint64_t total = 0;
+				if (vd->vdev_ops == &vdev_anyraid_ops) {
+					vdev_anyraid_t *var = vd->vdev_tsd;
+					for (int i = 0; i < vd->vdev_children;
+					    i++) {
+						total += var->vd_children[i]
+						    ->van_capacity;
+					}
+				} else if (pvd && pvd->vdev_ops ==
+				    &vdev_anyraid_ops) {
+					vdev_anyraid_t *var = pvd->vdev_tsd;
+					total = var->vd_children[vd->vdev_id]
+					    ->van_capacity;
+				} else {
+					continue;
+				}
+				vdev_prop_add_list(outnvl, propname,
+				    NULL, total, ZPROP_SRC_NONE);
+				continue;
+			}
+			case VDEV_PROP_ANYRAID_NUM_TILES:
+			{
+				vdev_t *pvd = vd->vdev_parent;
+				uint64_t total = 0;
+				if (vd->vdev_ops == &vdev_anyraid_ops) {
+					vdev_anyraid_t *var = vd->vdev_tsd;
+					for (int i = 0; i < vd->vdev_children;
+					    i++) {
+						total += var->vd_children[i]
+						    ->van_next_offset;
+					}
+				} else if (pvd && pvd->vdev_ops ==
+				    &vdev_anyraid_ops) {
+					vdev_anyraid_t *var = pvd->vdev_tsd;
+					total = var->vd_children[vd->vdev_id]
+					    ->van_next_offset;
+				} else {
+					continue;
+				}
+				vdev_prop_add_list(outnvl, propname,
+				    NULL, total, ZPROP_SRC_NONE);
+				continue;
+			}
+			case VDEV_PROP_ANYRAID_TILE_SIZE:
+			{
+				vdev_t *pvd = vd->vdev_parent;
+				vdev_anyraid_t *var = NULL;
+				if (vd->vdev_ops == &vdev_anyraid_ops) {
+					var = vd->vdev_tsd;
+				} else if (pvd && pvd->vdev_ops ==
+				    &vdev_anyraid_ops) {
+					var = pvd->vdev_tsd;
+				} else {
+					continue;
+				}
+				vdev_prop_add_list(outnvl, propname,
+				    NULL, var->vd_tile_size, ZPROP_SRC_NONE);
+				continue;
+			}
 			default:
 				err = ENOENT;
 				break;

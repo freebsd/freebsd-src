@@ -22,18 +22,6 @@
 #include <stdint.h>
 #include <limits.h>
 
-#ifdef __linux__
-/*
- * On Linux, we need the system-provided sysmacros.h to get the makedev(),
- * major() and minor() definitions for makedevice() below. FreeBSD does not
- * have this header, so include_next won't find it and will abort. So, we
- * protect it with a platform check.
- */
-#ifndef IN_BASE
-#include_next <sys/sysmacros.h>
-#endif
-#endif
-
 #ifdef __FreeBSD__
 #include <sys/param.h>
 #endif
@@ -54,8 +42,10 @@
 #ifndef	DIV_ROUND_UP
 #define	DIV_ROUND_UP(n, d)	(((n) + (d) - 1) / (d))
 #endif
+#ifndef rounddown
+#define	rounddown(x, y)		(((x) / (y)) * (y))
+#endif
 
-#define	makedevice(maj, min)	makedev(maj, min)
 #define	_sysconf(a)		sysconf(a)
 
 /*

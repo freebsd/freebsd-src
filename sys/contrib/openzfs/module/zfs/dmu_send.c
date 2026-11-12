@@ -833,6 +833,24 @@ send_do_embed(const blkptr_t *bp, uint64_t featureflags)
 		return (B_FALSE);
 
 	/*
+	 * Spill blocks (DMU_OT_SA) are sent as DRR_SPILL, not
+	 * DRR_WRITE_EMBEDDED.
+	 */
+	if (BP_GET_TYPE(bp) == DMU_OT_SA)
+		return (B_FALSE);
+
+	/*
+	 * Without DMU_BACKUP_FEATURE_LARGE_BLOCKS the object's block size is
+	 * clamped to SPA_OLD_MAXBLOCKSIZE in the DRR_OBJECT record (see
+	 * dump_dnode()), so a larger embedded block cannot be represented on
+	 * the receiving side. Decline it here and let do_dump() split it
+	 * into SPA_OLD_MAXBLOCKSIZE chunks.
+	 */
+	if (BP_GET_LSIZE(bp) > SPA_OLD_MAXBLOCKSIZE &&
+	    !(featureflags & DMU_BACKUP_FEATURE_LARGE_BLOCKS))
+		return (B_FALSE);
+
+	/*
 	 * Compression function must be legacy, or explicitly enabled.
 	 */
 	if ((BP_GET_COMPRESS(bp) >= ZIO_COMPRESS_LEGACY_FUNCTIONS &&
@@ -1197,7 +1215,7 @@ send_traverse_thread(void *arg)
 
 	err = traverse_dataset_resume(st_arg->os->os_dsl_dataset,
 	    st_arg->fromtxg, &st_arg->resume,
-	    st_arg->flags | TRAVERSE_LOGICAL, send_cb, st_arg);
+	    st_arg->flags, send_cb, st_arg);
 
 	if (err != EINTR)
 		st_arg->error_code = err;
@@ -1661,6 +1679,19 @@ issue_data_read(struct send_reader_thread_arg *srta, struct send_range *range)
 	    arc_getbuf_func, &srdp->abuf, ZIO_PRIORITY_ASYNC_READ,
 	    zioflags, &aflags, &zb);
 	/*
+	 * The ARC only honors a request for compressed data if the header
+	 * is compressed, which is not the case for cached blocks when
+	 * zfs_compressed_arc_enabled=0.  Such a buffer holds the logical
+	 * data, while the record is sent with the block's compression and
+	 * psize, so read the block from disk instead.
+	 */
+	if (arc_err == 0 && srdp->io_compressed &&
+	    arc_get_compression(srdp->abuf) != BP_GET_COMPRESS(bp)) {
+		arc_buf_destroy(srdp->abuf, &srdp->abuf);
+		srdp->abuf = NULL;
+		arc_err = SET_ERROR(ENOENT);
+	}
+	/*
 	 * If the data is not already cached in the ARC, we read directly
 	 * from zio.  This avoids the performance overhead of adding a new
 	 * entry to the ARC, and we also avoid polluting the ARC cache with
@@ -2098,6 +2129,14 @@ setup_to_thread(struct send_thread_arg *to_arg, objset_t *to_os,
 	to_arg->flags = TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA;
 	if (rawok)
 		to_arg->flags |= TRAVERSE_NO_DECRYPT;
+	/*
+	 * zfs rewrite -P keeps a block's logical birth, but gives an encrypted
+	 * block a new IV and MAC.  The dnode block MACs in a raw stream
+	 * authenticate that MAC, so a raw send of an encrypted dataset has to
+	 * compare the physical birth to include such blocks.
+	 */
+	if (!(rawok && to_os->os_encrypted))
+		to_arg->flags |= TRAVERSE_LOGICAL;
 	if (zfs_send_corrupt_data)
 		to_arg->flags |= TRAVERSE_HARD;
 	to_arg->num_blocks_visited = &dssp->dss_blocks;

@@ -40,7 +40,6 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
-#include <libintl.h>
 #include <libgen.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -49,7 +48,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/dktp/fdisk.h>
 #include <sys/vdev_impl.h>
 #include <sys/fs/zfs.h>
 
@@ -575,7 +573,7 @@ udev_mpath_whole_disk(struct udev_device *dev)
 static int
 udev_device_is_ready(struct udev_device *dev)
 {
-#ifdef HAVE_LIBUDEV_UDEV_DEVICE_GET_IS_INITIALIZED
+#ifdef HAVE_UDEV_DEVICE_GET_IS_INITIALIZED
 	return (udev_device_get_is_initialized(dev));
 #else
 	/* wait for DEVLINKS property to be initialized */

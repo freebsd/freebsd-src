@@ -39,7 +39,16 @@ function cleanup
 	    log_must zpool detach $TESTPOOL $DISK2
 }
 
-typeset -r IN_PROGRESS_CHECK="is_pool_resilvering $TESTPOOL"
+function resilver_in_progress
+{
+	is_pool_resilvering $TESTPOOL && return 0
+	# Status reports completion before the finishing txg has synced.
+	# zpool wait also waits for that txg, including its delayed I/O.
+	sync_pool $TESTPOOL
+	return 1
+}
+
+typeset -r IN_PROGRESS_CHECK="resilver_in_progress"
 typeset pid
 
 log_onexit cleanup
@@ -50,7 +59,7 @@ add_io_delay $TESTPOOL
 log_must zpool attach $TESTPOOL $DISK1 $DISK2
 log_bkgrnd zpool wait -t resilver $TESTPOOL
 pid=$!
-check_while_waiting $pid "$IN_PROGRESS_CHECK"
+check_while_waiting $pid "$IN_PROGRESS_CHECK" $TESTPOOL
 
 log_must zpool detach $TESTPOOL $DISK2
 
@@ -60,6 +69,6 @@ pid=$!
 while ! is_pool_resilvering $TESTPOOL && proc_exists $pid; do
 	log_must sleep .5
 done
-check_while_waiting $pid "$IN_PROGRESS_CHECK"
+check_while_waiting $pid "$IN_PROGRESS_CHECK" $TESTPOOL
 
 log_pass "'zpool wait -t resilver' and 'zpool attach -w' work."

@@ -15,6 +15,7 @@
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright (c) 2018 Datto Inc.
  * Copyright (c) 2025, Klara, Inc.
+ * Copyright 2026 Oxide Computer Company
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -110,6 +111,8 @@ static zil_kstat_values_t zil_stats = {
 	{ "zil_itx_metaslab_slog_bytes",	KSTAT_DATA_UINT64 },
 	{ "zil_itx_metaslab_slog_write",	KSTAT_DATA_UINT64 },
 	{ "zil_itx_metaslab_slog_alloc",	KSTAT_DATA_UINT64 },
+	{ "zil_replay_split_merged",		KSTAT_DATA_UINT64 },
+	{ "zil_replay_split_dropped",		KSTAT_DATA_UINT64 },
 };
 
 static zil_sums_t zil_sums_global;
@@ -375,6 +378,8 @@ zil_sums_init(zil_sums_t *zs)
 	wmsum_init(&zs->zil_itx_metaslab_slog_bytes, 0);
 	wmsum_init(&zs->zil_itx_metaslab_slog_write, 0);
 	wmsum_init(&zs->zil_itx_metaslab_slog_alloc, 0);
+	wmsum_init(&zs->zil_replay_split_merged, 0);
+	wmsum_init(&zs->zil_replay_split_dropped, 0);
 }
 
 void
@@ -401,6 +406,8 @@ zil_sums_fini(zil_sums_t *zs)
 	wmsum_fini(&zs->zil_itx_metaslab_slog_bytes);
 	wmsum_fini(&zs->zil_itx_metaslab_slog_write);
 	wmsum_fini(&zs->zil_itx_metaslab_slog_alloc);
+	wmsum_fini(&zs->zil_replay_split_merged);
+	wmsum_fini(&zs->zil_replay_split_dropped);
 }
 
 void
@@ -448,6 +455,10 @@ zil_kstat_values_update(zil_kstat_values_t *zs, zil_sums_t *zil_sums)
 	    wmsum_value(&zil_sums->zil_itx_metaslab_slog_write);
 	zs->zil_itx_metaslab_slog_alloc.value.ui64 =
 	    wmsum_value(&zil_sums->zil_itx_metaslab_slog_alloc);
+	zs->zil_replay_split_merged.value.ui64 =
+	    wmsum_value(&zil_sums->zil_replay_split_merged);
+	zs->zil_replay_split_dropped.value.ui64 =
+	    wmsum_value(&zil_sums->zil_replay_split_dropped);
 }
 
 /*
@@ -937,13 +948,15 @@ zilog_is_dirty(zilog_t *zilog)
 	return (B_FALSE);
 }
 
+static void zil_crash(zilog_t *zilog);
+
 /*
  * Its called in zil_commit context (zil_process_commit_list()/zil_create()).
  * It activates SPA_FEATURE_ZILSAXATTR feature, if its enabled.
  * Check dsl_dataset_feature_is_active to avoid txg_wait_synced() on every
  * zil_commit.
  */
-static void
+static int
 zil_commit_activate_saxattr_feature(zilog_t *zilog)
 {
 	dsl_dataset_t *ds = dmu_objset_ds(zilog->zl_os);
@@ -963,8 +976,16 @@ zil_commit_activate_saxattr_feature(zilog_t *zilog)
 		    (void *)B_TRUE;
 		mutex_exit(&ds->ds_lock);
 		dmu_tx_commit(tx);
-		txg_wait_synced(zilog->zl_dmu_pool, txg);
+		int err = txg_wait_synced_flags(zilog->zl_dmu_pool,
+		    txg, TXG_WAIT_SUSPEND);
+		if (err != 0) {
+			ASSERT3U(err, ==, ESHUTDOWN);
+			zil_crash(zilog);
+			return (err);
+		}
 	}
+
+	return (0);
 }
 
 /*
@@ -986,7 +1007,13 @@ zil_create(zilog_t *zilog)
 	/*
 	 * Wait for any previous destroy to complete.
 	 */
-	txg_wait_synced(zilog->zl_dmu_pool, zilog->zl_destroy_txg);
+	error = txg_wait_synced_flags(zilog->zl_dmu_pool,
+	    zilog->zl_destroy_txg, TXG_WAIT_SUSPEND);
+	if (error != 0) {
+		ASSERT3U(error, ==, ESHUTDOWN);
+		zil_crash(zilog);
+		return (NULL);
+	}
 
 	ASSERT0(zh->zh_claim_txg);
 	ASSERT0(zh->zh_replay_seq);
@@ -1043,13 +1070,20 @@ zil_create(zilog_t *zilog)
 		}
 
 		dmu_tx_commit(tx);
-		txg_wait_synced(zilog->zl_dmu_pool, txg);
+		int err = txg_wait_synced_flags(zilog->zl_dmu_pool, txg,
+		    TXG_WAIT_SUSPEND);
+		if (err != 0) {
+			ASSERT3U(err, ==, ESHUTDOWN);
+			zil_crash(zilog);
+			return (NULL);
+		}
 	} else {
 		/*
 		 * This branch covers the case where we enable the feature on a
 		 * zpool that has existing ZIL headers.
 		 */
-		zil_commit_activate_saxattr_feature(zilog);
+		if (zil_commit_activate_saxattr_feature(zilog) != 0)
+			return (NULL);
 	}
 	IMPLY(spa_feature_is_enabled(zilog->zl_spa, SPA_FEATURE_ZILSAXATTR) &&
 	    dmu_objset_type(zilog->zl_os) != DMU_OST_ZVOL,
@@ -1319,6 +1353,22 @@ zil_check_log_chain(dsl_pool_t *dp, dsl_dataset_t *ds, void *tx)
 }
 
 /*
+ * Returns true if an lwb failed and the txg that frees it hasn't synced.
+ * Until then, the on-disk log may end at the failed lwb, so the waiters of
+ * lwbs written since then must wait for txg sync.
+ */
+static boolean_t
+zil_lwb_error_pending(zilog_t *zilog)
+{
+	ASSERT(MUTEX_HELD(&zilog->zl_lock));
+	uint64_t etxg = zilog->zl_lwb_error_txg;
+
+	/* In a frozen pool, txgs after the freeze never reach disk. */
+	return (etxg > spa_last_synced_txg(zilog->zl_spa) ||
+	    etxg > spa_freeze_txg(zilog->zl_spa));
+}
+
+/*
  * When an itx is "skipped", this function is used to properly mark the
  * waiter as "done, and signal any thread(s) waiting on it. An itx can
  * be skipped (and not committed to an lwb) for a variety of reasons,
@@ -1492,6 +1542,28 @@ zil_lwb_flush_vdevs_done(zio_t *zio)
 		zilog->zl_commit_lr_seq = zilog->zl_lr_seq;
 	}
 
+	/*
+	 * Everything this lwb's contents depend on is in or before its issue
+	 * txg, and the error handling below relies on this.
+	 */
+	ASSERT3U(lwb->lwb_max_txg, <=, lwb->lwb_issued_txg);
+
+	int error = zio->io_error;
+	if (error != 0) {
+		/*
+		 * This lwb may not be on disk, in which case the on-disk log
+		 * chain ends here.  If another lwb is issued, it will not
+		 * have a zio dependency on this lwb's flush zio, but it
+		 * still needs this lwb for the chain of log records.  Record
+		 * the txg that will eventually free this broken lwb; this
+		 * ensures that zil_commit() waits for it before returning.
+		 */
+		zilog->zl_lwb_error_txg = MAX(zilog->zl_lwb_error_txg,
+		    lwb->lwb_issued_txg);
+	} else if (zil_lwb_error_pending(zilog)) {
+		error = SET_ERROR(EIO);
+	}
+
 	while ((itx = list_remove_head(&lwb->lwb_itxs)) != NULL)
 		zil_itx_destroy(itx, 0);
 
@@ -1510,7 +1582,7 @@ zil_lwb_flush_vdevs_done(zio_t *zio)
 		 * errors not being handled correctly here. See the
 		 * comment above the call to "zio_flush" for details.
 		 */
-		zil_commit_waiter_done(zcw, zio->io_error);
+		zil_commit_waiter_done(zcw, error);
 	}
 
 	uint64_t txg = lwb->lwb_issued_txg;
@@ -2077,9 +2149,14 @@ next_lwb:
 		ASSERT3U(BP_GET_BIRTH(bp), ==, txg);
 		BP_SET_CHECKSUM(bp, (nlwb->lwb_flags & LWB_FLAG_SLIM) ?
 		    ZIO_CHECKSUM_ZILOG2 : ZIO_CHECKSUM_ZILOG);
-		bp->blk_cksum = lwb->lwb_blk.blk_cksum;
-		bp->blk_cksum.zc_word[ZIL_ZC_SEQ]++;
 	}
+	/*
+	 * zil_read_log_block() accepts this lwb only if zc_next_blk has the
+	 * next block's checksum verifier, so set it even if the allocation
+	 * failed.  This lwb then ends the on-disk log, and the next lwb fails.
+	 */
+	bp->blk_cksum = lwb->lwb_blk.blk_cksum;
+	bp->blk_cksum.zc_word[ZIL_ZC_SEQ]++;
 
 	/*
 	 * Reduce TXG open time by incrementing inflight counter and committing
@@ -2354,8 +2431,10 @@ cont:
 		clr = &citx->itx_lr;
 		lr_write_t *clrw = (lr_write_t *)clr;
 		clrw->lr_length = dnow;
+		clrw->lr_flags |= LR_WRITE_MORE;
 		lrw->lr_offset += dnow;
 		lrw->lr_length -= dnow;
+		lrw->lr_flags |= LR_WRITE_CONT;
 		zilog->zl_cur_left -= dnow;
 	} else {
 		citx = itx;
@@ -2387,8 +2466,6 @@ cont:
 
 	return (lwb);
 }
-
-static void zil_crash(zilog_t *zilog);
 
 /*
  * Fill the actual transaction data into the lwb, following zil_lwb_assign().
@@ -2461,6 +2538,27 @@ zil_lwb_commit(zilog_t *zilog, lwb_t *lwb, itx_t *itx)
 			error = zilog->zl_get_data(itx->itx_private,
 			    itx->itx_gen, lrwb, dbuf, lwb,
 			    lwb->lwb_child_zio);
+
+			/*
+			 * A piece of a split write can be gone even though
+			 * other pieces were not: after the write, the file
+			 * was removed or truncated below this piece's
+			 * offset.  Replay drops a write that is missing a
+			 * piece, which would lose the other pieces' data.
+			 * Log this piece as zeros instead; the TX_TRUNCATE
+			 * or TX_REMOVE that follows removes the zeros.  The
+			 * pieces are fetched independently, possibly by
+			 * different threads, so we can't tell whether the
+			 * others were logged; this applies to the first
+			 * piece too.
+			 */
+			if (error == ENOENT && (lrwb->lr_flags &
+			    (LR_WRITE_MORE | LR_WRITE_CONT)) != 0) {
+				ASSERT3P(dbuf, !=, NULL);
+				memset(dbuf, 0, lrwb->lr_length);
+				error = 0;
+			}
+
 			if (dbuf != NULL && error == 0) {
 				/* Zero any padding bytes in the last block. */
 				memset((char *)dbuf + lrwb->lr_length, 0,
@@ -2469,8 +2567,8 @@ zil_lwb_commit(zilog_t *zilog, lwb_t *lwb, itx_t *itx)
 
 			/*
 			 * Typically, the only return values we should see from
-			 * ->zl_get_data() are 0, EIO, ENOENT, EEXIST or
-			 *  EALREADY. However, it is also possible to see other
+			 * ->zl_get_data() are 0, EIO, ENOENT or EEXIST.
+			 *  However, it is also possible to see other
 			 *  error values such as ENOSPC or EINVAL from
 			 *  dmu_read() -> dnode_hold() -> dnode_hold_impl() or
 			 *  ENXIO as well as a multitude of others from the
@@ -2518,8 +2616,6 @@ zil_lwb_commit(zilog_t *zilog, lwb_t *lwb, itx_t *itx)
 			case ENOENT:
 				zfs_fallthrough;
 			case EEXIST:
-				zfs_fallthrough;
-			case EALREADY:
 				return (0);
 			}
 		}
@@ -2706,6 +2802,7 @@ zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx)
 	uint64_t txg;
 	itxg_t *itxg;
 	itxs_t *itxs, *clean = NULL;
+	boolean_t new_itxg = B_FALSE;
 
 	/*
 	 * Ensure the data of a renamed file is committed before the rename.
@@ -2732,6 +2829,7 @@ zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx)
 			    "txg %llu", (u_longlong_t)itxg->itxg_txg);
 			clean = itxg->itxg_itxs;
 		}
+		new_itxg = B_TRUE;
 		itxg->itxg_txg = txg;
 		itxs = itxg->itxg_itxs = kmem_zalloc(sizeof (itxs_t),
 		    KM_SLEEP);
@@ -2769,9 +2867,12 @@ zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx)
 	 * We don't want to dirty the ZIL using ZILTEST_TXG, because
 	 * zil_clean() will never be called using ZILTEST_TXG. Thus, we
 	 * need to be careful to always dirty the ZIL using the "real"
-	 * TXG (not itxg_txg) even when the SPA is frozen.
+	 * TXG (not itxg_txg) even when the SPA is frozen. Otherwise, the
+	 * ZIL was dirtied when itxg_txg was set, and it stays dirty until
+	 * zil_clean() resets itxg_txg under itxg_lock.
 	 */
-	zilog_dirty(zilog, dmu_tx_get_txg(tx));
+	if (new_itxg || txg == ZILTEST_TXG)
+		zilog_dirty(zilog, dmu_tx_get_txg(tx));
 	mutex_exit(&itxg->itxg_lock);
 
 	/* Release the old itxs now we've dropped the lock */
@@ -3047,9 +3148,12 @@ zil_prune_commit_list(zilog_t *zilog)
 			 * All of the itxs this waiter was waiting on
 			 * must have already completed (or there were
 			 * never any itx's for it to wait on), so it's
-			 * safe to skip this waiter and mark it done.
+			 * safe to skip this waiter and mark it done.  But
+			 * if a failed lwb ended the on-disk log, it must
+			 * wait for txg sync.
 			 */
-			zil_commit_waiter_done(itx->itx_private, 0);
+			zil_commit_waiter_done(itx->itx_private,
+			    zil_lwb_error_pending(zilog) ? SET_ERROR(EIO) : 0);
 		} else {
 			zil_commit_waiter_link_lwb(itx->itx_private, last_lwb);
 		}
@@ -3152,12 +3256,14 @@ zil_process_commit_list(zilog_t *zilog, zil_commit_waiter_t *zcw, list_t *ilwbs)
 			return;
 
 		lwb = zil_create(zilog);
-	} else {
+	} else if (zil_commit_activate_saxattr_feature(zilog) != 0) {
 		/*
-		 * Activate SPA_FEATURE_ZILSAXATTR for the cases where ZIL will
-		 * have already been created (zl_lwb_list not empty).
+		 * Activation failed because the pool suspended, and
+		 * zil_crash() took the lwb list. Drop the lwb so the
+		 * nolwb path below returns the error.
 		 */
-		zil_commit_activate_saxattr_feature(zilog);
+		lwb = NULL;
+	} else {
 		ASSERT(lwb->lwb_state == LWB_STATE_NEW ||
 		    lwb->lwb_state == LWB_STATE_OPENED);
 
@@ -3822,10 +3928,14 @@ zil_crash(zilog_t *zilog)
 
 	/*
 	 * Zero the ZIL header bp after the ZIL restarts. We'll free it in
-	 * zil_clean() when we clean up the lwbs.
+	 * zil_clean() when we clean up the lwbs. Without lwbs nothing will
+	 * free it: the header still owns the block, which a pending
+	 * zil_destroy() may be keeping, so leave it there.
 	 */
-	zil_header_t *zh = zil_header_in_syncing_context(zilog);
-	BP_ZERO(&zh->zh_log);
+	if (!list_is_empty(&zilog->zl_lwb_crash_list)) {
+		zil_header_t *zh = zil_header_in_syncing_context(zilog);
+		BP_ZERO(&zh->zh_log);
+	}
 
 	/*
 	 * Mark this ZIL dirty on the next txg, so that zil_clean() will be
@@ -4088,6 +4198,8 @@ zil_commit_impl(zilog_t *zilog, uint64_t foid)
 	zil_commit_itx_assign(zilog, zcw);
 
 	uint64_t wtxg = zil_commit_writer(zilog, zcw);
+	if (wtxg != 0)
+		txg_kick(zilog->zl_dmu_pool, wtxg);
 	zil_commit_waiter(zilog, zcw);
 
 	int err = 0;
@@ -4663,7 +4775,27 @@ typedef struct zil_replay_arg {
 	void		*zr_arg;
 	boolean_t	zr_byteswap;
 	char		*zr_lr;
+	lr_write_t	*zr_split_lr;	/* the pending write, minus its data */
+	uint64_t	zr_split_seq;	/* lrc_seq of last pending piece */
+	uint64_t	zr_split_pieces; /* num pieces of the pending write */
+	uint64_t	zr_split_bseq;	/* last piece below a boundary */
 } zil_replay_arg_t;
+
+/*
+ * The most data replay gathers for a split write: as much as one transaction
+ * of zfs_write() or zvol_write() writes and logs, and so as much as current
+ * software logs in one TX_WRITE record.
+ */
+#define	ZIL_REPLAY_WRITE_MAX	(DMU_MAX_ACCESS / 2)
+#define	ZIL_REPLAY_BUFSZ	(sizeof (lr_write_t) + ZIL_REPLAY_WRITE_MAX)
+
+typedef enum {
+	ZR_SPLIT_NONE,		/* not part of a split write: replay lr */
+	ZR_SPLIT_HELD,		/* held or dropped: nothing to replay now */
+	ZR_SPLIT_BAD,		/* malformed piece: stop replay */
+	ZR_SPLIT_CHUNK,		/* zr_lr holds the first part: replay it */
+	ZR_SPLIT_DONE		/* zr_lr holds the rest: replay it */
+} zr_split_t;
 
 static int
 zil_replay_error(zilog_t *zilog, const lr_t *lr, int error)
@@ -4681,6 +4813,235 @@ zil_replay_error(zilog_t *zilog, const lr_t *lr, int error)
 	    (lr->lrc_txtype & TX_CI) ? "CI" : "");
 
 	return (error);
+}
+
+/*
+ * Drop the pending split write, if any, and count the dropped pieces.
+ */
+static void
+zil_replay_split_drop(zilog_t *zilog, zil_replay_arg_t *zr,
+    uint64_t dropped_pieces)
+{
+	dropped_pieces += zr->zr_split_pieces;
+	zr->zr_split_seq = 0;
+	zr->zr_split_pieces = 0;
+	if (dropped_pieces != 0)
+		ZIL_STAT_INCR(zilog, zil_replay_split_dropped, dropped_pieces);
+}
+
+/*
+ * Prepare to replay (part of) a split write, by filling in zr->zr_lr
+ * with the header for the first len bytes of the pending write, as
+ * record seq.
+ */
+static void
+zil_replay_split_record(zil_replay_arg_t *zr, uint64_t len, uint64_t seq)
+{
+	lr_write_t *lrw = (lr_write_t *)zr->zr_lr;
+
+	memcpy(lrw, zr->zr_split_lr, sizeof (*lrw));
+	lrw->lr_common.lrc_reclen = sizeof (*lrw) +
+	    P2ROUNDUP_TYPED(len, sizeof (uint64_t), uint64_t);
+	lrw->lr_common.lrc_seq = seq;
+	lrw->lr_length = len;
+	lrw->lr_flags &= ~(LR_WRITE_MORE | LR_WRITE_CONT);
+}
+
+/*
+ * The leading chunk of the pending split write was replayed: move the rest
+ * of its data to the front of zr_lr.
+ */
+static void
+zil_replay_split_next(zil_replay_arg_t *zr)
+{
+	lr_write_t *slr = zr->zr_split_lr;
+	uint8_t *data = ((lr_write_t *)zr->zr_lr)->lr_data;
+	uint64_t chunk = P2ALIGN_TYPED(slr->lr_offset + slr->lr_length,
+	    SPA_MAXBLOCKSIZE, uint64_t) - slr->lr_offset;
+
+	memmove(data, data + chunk, slr->lr_length - chunk);
+	slr->lr_offset += chunk;
+	slr->lr_length -= chunk;
+	zr->zr_split_pieces = zr->zr_split_seq - zr->zr_split_bseq;
+}
+
+/*
+ * Copy len bytes of a piece's data to the pending write.  If the log block
+ * was byteswapped (as 8-byte words, which the data starts on), each byte is
+ * at the mirror position within its word: put it back.
+ */
+static void
+zil_replay_split_copy(uint8_t *dst, const uint8_t *src, uint64_t len,
+    boolean_t byteswap)
+{
+	if (!byteswap) {
+		memcpy(dst, src, len);
+		return;
+	}
+	for (uint64_t i = 0; i < len; i++)
+		dst[i] = src[i ^ (sizeof (uint64_t) - 1)];
+}
+
+/*
+ * A WR_NEED_COPY TX_WRITE that doesn't fit in a log block is split into
+ * pieces, which are consecutive records (in consecutive log blocks).  All
+ * but the last piece have LR_WRITE_MORE set, all but the first have
+ * LR_WRITE_CONT set.  Gather the pieces in zr_lr, and replay the write only
+ * once the last piece is there, so that it's never partly applied.  A write
+ * that is missing a piece (because the log ends inside it, or because
+ * zl_get_data() left a piece out) was never acknowledged, so drop it.
+ *
+ * Open context applies at most ZIL_REPLAY_WRITE_MAX (32M) at once, and
+ * replay can't apply more than DMU_MAX_ACCESS in one transaction.  If a
+ * piece doesn't fit in zr_lr, replay the gathered data up to its last
+ * multiple of SPA_MAXBLOCKSIZE, then gather the new piece.
+ *
+ * The pending write lives in zr_lr, which is otherwise only used while a
+ * record is replayed; a record that isn't a continuation drops it first.
+ */
+static zr_split_t
+zil_replay_split(zilog_t *zilog, zil_replay_arg_t *zr, const lr_t *lr)
+{
+	const lr_write_t *lrw = (const lr_write_t *)lr;
+	lr_write_t *slr = zr->zr_split_lr;
+	uint8_t *data = ((lr_write_t *)zr->zr_lr)->lr_data;
+	uint64_t txtype = lr->lrc_txtype & ~TX_CI;
+	uint64_t reclen = lr->lrc_reclen;
+	boolean_t more = B_FALSE;
+	boolean_t cont = B_FALSE;
+
+	if (txtype == TX_WRITE && reclen > sizeof (lr_write_t)) {
+		more = (lrw->lr_flags & LR_WRITE_MORE) != 0;
+		cont = (lrw->lr_flags & LR_WRITE_CONT) != 0;
+	}
+
+	/*
+	 * Older software replays the pieces one by one, and we replay a large
+	 * write in chunks.  If either replay was interrupted partway through
+	 * a write, this is the first piece still to be replayed.
+	 */
+	if (cont && zr->zr_split_seq == 0 &&
+	    lr->lrc_seq == zilog->zl_header->zh_replay_seq + 1)
+		cont = B_FALSE;
+
+	if (!cont) {
+		/* Anything but a continuation ends a pending write. */
+		zil_replay_split_drop(zilog, zr, 0);
+		if (!more)
+			return (ZR_SPLIT_NONE);
+
+		/* The first piece of a split write. */
+		memcpy(slr, lrw, sizeof (*slr));
+		slr->lr_length = 0;
+	} else if (zr->zr_split_seq == 0 ||
+	    lr->lrc_seq != zr->zr_split_seq + 1 ||
+	    lr->lrc_txg != slr->lr_common.lrc_txg ||
+	    lrw->lr_foid != slr->lr_foid ||
+	    lrw->lr_offset != slr->lr_offset + slr->lr_length) {
+		/*
+		 * A later piece must continue the pending write.  If it
+		 * doesn't, an earlier piece is missing: drop it, and the
+		 * pending write.
+		 */
+		zil_replay_split_drop(zilog, zr, 1);
+		return (ZR_SPLIT_HELD);
+	}
+	if (P2ROUNDUP_TYPED(lrw->lr_length, sizeof (uint64_t), uint64_t) >
+	    reclen - sizeof (lr_write_t) ||
+	    lrw->lr_offset + lrw->lr_length < lrw->lr_offset) {
+		zil_replay_split_drop(zilog, zr, 1);
+		return (ZR_SPLIT_BAD);
+	}
+
+	if (slr->lr_length + lrw->lr_length > ZIL_REPLAY_WRITE_MAX) {
+		uint64_t chunk = P2ALIGN_TYPED(slr->lr_offset +
+		    slr->lr_length, SPA_MAXBLOCKSIZE, uint64_t);
+		if (chunk <= slr->lr_offset) {
+			zil_replay_split_drop(zilog, zr, 1);
+			return (ZR_SPLIT_BAD);
+		}
+
+		/*
+		 * Replay the data up to the block boundary, as the last
+		 * piece below it, so that an interrupted replay resumes with
+		 * the piece after that.  Then gather this piece.
+		 */
+		zilog->zl_replaying_seq = zr->zr_split_bseq;
+		zil_replay_split_record(zr, chunk - slr->lr_offset,
+		    zr->zr_split_bseq);
+		return (ZR_SPLIT_CHUNK);
+	}
+
+	zil_replay_split_copy(&data[slr->lr_length], lrw->lr_data,
+	    lrw->lr_length, zr->zr_byteswap);
+	slr->lr_length += lrw->lr_length;
+	zr->zr_split_seq = lr->lrc_seq;
+	zr->zr_split_pieces++;
+
+	uint64_t end = lrw->lr_offset + lrw->lr_length;
+	uint64_t boundary = P2ALIGN_TYPED(end, SPA_MAXBLOCKSIZE, uint64_t);
+	if (boundary > lrw->lr_offset) {
+		zr->zr_split_bseq = (boundary == end) ?
+		    lr->lrc_seq : lr->lrc_seq - 1;
+	}
+
+	if (!more) {
+		/* That was the last piece: replay the remainder. */
+		zil_replay_split_record(zr, slr->lr_length, lr->lrc_seq);
+		zr->zr_split_seq = 0;
+		zr->zr_split_pieces = 0;
+		ZIL_STAT_BUMP(zilog, zil_replay_split_merged);
+		return (ZR_SPLIT_DONE);
+	}
+	return (ZR_SPLIT_HELD);
+}
+
+static int
+zil_replay_scan_blk(zilog_t *zilog, const blkptr_t *bp, void *arg,
+    uint64_t claim_txg)
+{
+	(void) zilog, (void) bp, (void) arg, (void) claim_txg;
+
+	return (0);
+}
+
+/*
+ * Before replay, look for a TX_WRITE2, which only older software logged.
+ * Stop at the first one.  Unlike zil_replay_log_record(), this doesn't skip
+ * records already replayed (lrc_seq <= zh_replay_seq): any TX_WRITE2 shows
+ * that the log was written by that software, and the records left to replay
+ * were too.
+ */
+static int
+zil_replay_scan_record(zilog_t *zilog, const lr_t *lr, void *arg,
+    uint64_t claim_txg)
+{
+	(void) arg;
+
+	if ((lr->lrc_txtype & ~TX_CI) == TX_WRITE2 &&
+	    lr->lrc_txg >= claim_txg) {
+		zilog->zl_replay_write2 = B_TRUE;
+		return (SET_ERROR(EEXIST));
+	}
+	return (0);
+}
+
+/*
+ * Return whether the log being replayed has a TX_WRITE2 (or couldn't be
+ * scanned), and therefore needs to be replayed as whole blocks, rather than
+ * just each record's range.
+ * Old software logged a TX_WRITE2, with no data or blkptr, when its data was
+ * in the block written for another WR_INDIRECT TX_WRITE in the same txg.
+ * Replaying that TX_WRITE's whole block restores the TX_WRITE2's data.
+ * (Since lwbs are filled outside zl_issuer_lock, that TX_WRITE can come
+ * later in the log, or be missing from it.)  Newer software logs every
+ * WR_INDIRECT as a TX_WRITE with a blkptr, and each record replays its own
+ * range.
+ */
+boolean_t
+zil_replay_whole_blocks(zilog_t *zilog)
+{
+	return (zilog->zl_replay_write2);
 }
 
 static int
@@ -4719,9 +5080,25 @@ zil_replay_log_record(zilog_t *zilog, const lr_t *lr, void *zra,
 	}
 
 	/*
-	 * Make a copy of the data so we can revise and extend it.
+	 * Make a copy of the data so we can revise and extend it.  The
+	 * pieces of a split write are gathered there until it's complete.
 	 */
-	memcpy(zr->zr_lr, lr, reclen);
+	zr_split_t split;
+again:
+	split = zil_replay_split(zilog, zr, lr);
+	switch (split) {
+	case ZR_SPLIT_NONE:
+		memcpy(zr->zr_lr, lr, reclen);
+		break;
+	case ZR_SPLIT_HELD:
+		return (0);
+	case ZR_SPLIT_BAD:
+		return (zil_replay_error(zilog, lr, EINVAL));
+	case ZR_SPLIT_CHUNK:
+	case ZR_SPLIT_DONE:
+		reclen = ((lr_t *)zr->zr_lr)->lrc_reclen;
+		break;
+	}
 
 	/*
 	 * If this is a TX_WRITE with a blkptr, suck in the data.
@@ -4740,8 +5117,14 @@ zil_replay_log_record(zilog_t *zilog, const lr_t *lr, void *zra,
 	 * replay vectors know how to byteswap their records.  Therefore, if
 	 * the lr was byteswapped, undo it before invoking the replay vector.
 	 */
-	if (zr->zr_byteswap)
-		byteswap_uint64_array(zr->zr_lr, reclen);
+	if (zr->zr_byteswap) {
+		/*
+		 * A split write's data was already put back in order as it
+		 * was gathered, so only its header is in log block order.
+		 */
+		byteswap_uint64_array(zr->zr_lr, split == ZR_SPLIT_NONE ?
+		    reclen : sizeof (lr_write_t));
+	}
 
 	/*
 	 * We must now do two things atomically: replay this log record,
@@ -4762,6 +5145,12 @@ zil_replay_log_record(zilog_t *zilog, const lr_t *lr, void *zra,
 		error = zr->zr_replay[txtype](zr->zr_arg, zr->zr_lr, B_FALSE);
 		if (error != 0)
 			return (zil_replay_error(zilog, lr, error));
+	}
+	if (split == ZR_SPLIT_CHUNK) {
+		/* Now gather this piece. */
+		zil_replay_split_next(zr);
+		zilog->zl_replaying_seq = lr->lrc_seq;
+		goto again;
 	}
 	return (0);
 }
@@ -4787,6 +5176,8 @@ zil_replay(objset_t *os, void *arg,
 	zilog_t *zilog = dmu_objset_zil(os);
 	const zil_header_t *zh = zilog->zl_header;
 	zil_replay_arg_t zr;
+	lr_write_t split_lr;
+	int err;
 
 	if ((zh->zh_flags & ZIL_REPLAY_NEEDED) == 0) {
 		return (zil_destroy(zilog, B_TRUE));
@@ -4795,19 +5186,39 @@ zil_replay(objset_t *os, void *arg,
 	zr.zr_replay = replay_func;
 	zr.zr_arg = arg;
 	zr.zr_byteswap = BP_SHOULD_BYTESWAP(&zh->zh_log);
-	zr.zr_lr = vmem_alloc(2 * SPA_MAXBLOCKSIZE, KM_SLEEP);
+	zr.zr_lr = vmem_alloc(ZIL_REPLAY_BUFSZ, KM_SLEEP);
+	zr.zr_split_lr = &split_lr;
+	zr.zr_split_seq = 0;
+	zr.zr_split_pieces = 0;
+	zr.zr_split_bseq = 0;
 
 	/*
 	 * Wait for in-progress removes to sync before starting replay.
 	 */
 	txg_wait_synced(zilog->zl_dmu_pool, 0);
 
+	/*
+	 * If the scan stops early on an error, such as a read error, we can't
+	 * tell whether the rest of the log has a TX_WRITE2, so replay whole
+	 * blocks, as older software did.  That replays any log correctly,
+	 * though without keeping write order within a block.  The scan reads
+	 * only record headers, which aren't encrypted, so it doesn't decrypt.
+	 */
+	zilog->zl_replay_write2 = B_FALSE;
+	err = zil_parse(zilog, zil_replay_scan_blk, zil_replay_scan_record,
+	    NULL, zh->zh_claim_txg, B_FALSE);
+	if (err != 0)
+		zilog->zl_replay_write2 = B_TRUE;
+
 	zilog->zl_replay = B_TRUE;
 	zilog->zl_replay_time = ddi_get_lbolt();
 	ASSERT0(zilog->zl_replay_blks);
 	(void) zil_parse(zilog, zil_incr_blks, zil_replay_log_record, &zr,
 	    zh->zh_claim_txg, B_TRUE);
-	vmem_free(zr.zr_lr, 2 * SPA_MAXBLOCKSIZE);
+	/* If the log ended inside a split write, count it as dropped. */
+	zil_replay_split_drop(zilog, &zr, 0);
+	vmem_free(zr.zr_lr, ZIL_REPLAY_BUFSZ);
+	zilog->zl_replay_write2 = B_FALSE;
 
 	zil_destroy(zilog, B_FALSE);
 	txg_wait_synced(zilog->zl_dmu_pool, zilog->zl_destroy_txg);
@@ -4852,6 +5263,7 @@ EXPORT_SYMBOL(zil_open);
 EXPORT_SYMBOL(zil_close);
 EXPORT_SYMBOL(zil_replay);
 EXPORT_SYMBOL(zil_replaying);
+EXPORT_SYMBOL(zil_replay_whole_blocks);
 EXPORT_SYMBOL(zil_destroy);
 EXPORT_SYMBOL(zil_destroy_sync);
 EXPORT_SYMBOL(zil_itx_create);

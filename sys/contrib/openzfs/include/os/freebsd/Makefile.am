@@ -25,17 +25,14 @@ noinst_HEADERS = \
 	%D%/spl/sys/file.h \
 	%D%/spl/sys/freebsd_rwlock.h \
 	%D%/spl/sys/idmap.h \
-	%D%/spl/sys/inttypes.h \
 	%D%/spl/sys/isa_defs.h \
 	%D%/spl/sys/kmem.h \
 	%D%/spl/sys/kmem_cache.h \
 	%D%/spl/sys/kstat.h \
 	%D%/spl/sys/list.h \
 	%D%/spl/sys/list_impl.h \
-	%D%/spl/sys/lock.h \
 	%D%/spl/sys/misc.h \
 	%D%/spl/sys/mod.h \
-	%D%/spl/sys/mode.h \
 	%D%/spl/sys/mount.h \
 	%D%/spl/sys/mutex.h \
 	%D%/spl/sys/param.h \
@@ -63,10 +60,10 @@ noinst_HEADERS = \
 	%D%/spl/sys/time.h \
 	%D%/spl/sys/timer.h \
 	%D%/spl/sys/trace.h \
+	%D%/spl/sys/tsd.h \
 	%D%/spl/sys/types.h \
 	%D%/spl/sys/types32.h \
 	%D%/spl/sys/uio.h \
-	%D%/spl/sys/uuid.h \
 	%D%/spl/sys/vfs.h \
 	%D%/spl/sys/vm.h \
 	%D%/spl/sys/vmsystm.h \

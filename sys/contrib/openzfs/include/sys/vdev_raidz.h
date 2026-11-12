@@ -54,6 +54,7 @@ void raidz_dtl_reassessed(vdev_t *);
 boolean_t vdev_sit_out_reads(vdev_t *, zio_flag_t);
 void vdev_raidz_sit_child(vdev_t *, uint64_t);
 void vdev_raidz_unsit_child(vdev_t *);
+boolean_t vdev_raidz_same_logical_width(vdev_t *, uint64_t, uint64_t);
 
 extern const zio_vsd_ops_t vdev_raidz_vsd_ops;
 
@@ -91,10 +92,14 @@ typedef struct vdev_raidz_expand {
 	 * Lowest offset of a failed expansion i/o.  The expansion will retry
 	 * from here.  Once the expansion thread notices the failure and exits,
 	 * vre_failed_offset is reset back to UINT64_MAX, and
-	 * vre_waiting_for_resilver will be set.
+	 * vre_waiting_for_resilver will be set, unless vre_dtl_gen shows
+	 * that the DTLs were reassessed during that pass.
 	 */
 	uint64_t vre_failed_offset;
 	boolean_t vre_waiting_for_resilver;
+
+	/* Incremented by raidz_dtl_reassessed() */
+	uint64_t vre_dtl_gen;
 
 	/*
 	 * Offset that is completing each txg
@@ -151,6 +156,7 @@ typedef struct vdev_raidz {
 } vdev_raidz_t;
 
 extern int vdev_raidz_attach_check(vdev_t *);
+extern uint64_t vdev_raidz_expand_child_min_asize(vdev_t *);
 extern void vdev_raidz_attach_sync(void *, dmu_tx_t *);
 extern void spa_start_raidz_expansion_thread(spa_t *);
 extern int spa_raidz_expand_get_stats(spa_t *, pool_raidz_expand_stat_t *);

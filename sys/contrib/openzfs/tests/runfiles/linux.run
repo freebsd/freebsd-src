@@ -33,7 +33,9 @@ tags = ['functional', 'acl', 'posix-sa']
 
 [tests/functional/block_cloning:Linux]
 tests = ['block_cloning_ficlone', 'block_cloning_ficlonerange',
-    'block_cloning_ficlonerange_partial', 'block_cloning_disabled_ficlone',
+    'block_cloning_ficlonerange_partial',
+    'block_cloning_ficlonerange_tail_past_eof',
+    'block_cloning_disabled_ficlone',
     'block_cloning_disabled_ficlonerange', 'block_cloning_fideduperange',
     'block_cloning_fideduperange_blksz',
     'block_cloning_fideduperange_compress',
@@ -45,7 +47,8 @@ tests = ['block_cloning_ficlone', 'block_cloning_ficlonerange',
     'block_cloning_fideduperange_sparse',
     'block_cloning_fideduperange_subblock',
     'block_cloning_fideduperange_tail',
-    'block_cloning_disabled_fideduperange']
+    'block_cloning_disabled_fideduperange',
+    'block_cloning_sparse_past_eof']
 tags = ['functional', 'block_cloning']
 
 [tests/functional/chattr:Linux]
@@ -60,6 +63,10 @@ tags = ['functional', 'cli_root', 'zfs']
 tests = ['zfs_mount_006_pos', 'zfs_mount_008_pos', 'zfs_mount_013_pos',
     'zfs_mount_014_neg', 'zfs_multi_mount']
 tags = ['functional', 'cli_root', 'zfs_mount']
+
+[tests/functional/cli_root/zfs_rollback:Linux]
+tests = ['zfs_rollback_held_unlinked']
+tags = ['functional', 'cli_root', 'zfs_rollback']
 
 [tests/functional/cli_root/zfs_share:Linux]
 tests = ['zfs_share_005_pos', 'zfs_share_007_neg', 'zfs_share_009_neg',
@@ -117,7 +124,8 @@ tests = ['devices_001_pos', 'devices_002_neg', 'devices_003_pos']
 tags = ['functional', 'devices']
 
 [tests/functional/direct:Linux]
-tests = ['dio_loopback_dev', 'dio_read_verify_decline', 'dio_write_verify']
+tests = ['dio_loopback_dev', 'dio_read_verify_decline', 'dio_write_verify',
+    'dio_write_verify_bounce']
 tags = ['functional', 'direct']
 
 [tests/functional/events:Linux]
@@ -125,11 +133,16 @@ tests = ['events_001_pos', 'events_002_pos', 'zed_rc_filter', 'zed_fd_spill',
     'zed_cksum_reported', 'zed_cksum_config', 'zed_io_config',
     'zed_slow_io', 'zed_slow_io_many_vdevs', 'zed_diagnose_multiple',
     'zed_synchronous_zedlet', 'slow_vdev_sit_out', 'slow_vdev_sit_out_neg',
-    'slow_vdev_degraded_sit_out']
+    'slow_vdev_degraded_sit_out', 'vdev_add_event']
 tags = ['functional', 'events']
 
+[tests/functional/failmode:Linux]
+tests = ['failmode_create_continue', 'failmode_nowait_wait']
+tags = ['functional', 'failmode']
+
 [tests/functional/fallocate:Linux]
-tests = ['fallocate_extend_timestamps', 'fallocate_prealloc', 'fallocate_zero-range']
+tests = ['fallocate_extend_timestamps', 'fallocate_odirect_append',
+    'fallocate_prealloc', 'fallocate_zero-range']
 tags = ['functional', 'fallocate']
 
 [tests/functional/fault:Linux]
@@ -140,6 +153,7 @@ tests = ['auto_offline_001_pos', 'auto_online_001_pos', 'auto_online_002_pos',
     'decrypt_fault',
     'decompress_fault', 'fault_limits', 'scrub_after_resilver',
     'suspend_on_probe_errors', 'suspend_resume_single', 'suspend_draid_fgroups',
+    'suspend_zil_keep_first',
     'zpool_status_-s']
 tags = ['functional', 'fault']
 
@@ -238,7 +252,8 @@ tests = ['snapdir_admin_create_destroy', 'snapdir_admin_rename_destroy',
     'snapdir_stat_no_mount', 'snapdir_mount_bind', 'snapdir_mount_move',
     'snapdir_mount_expire_bind', 'snapdir_mount_expire_move',
     'snapdir_mount_multiple', 'snapdir_mount_fd_hold', 'snapdir_mount_foreign',
-    'snapdir_mount_destroy_defer', 'snapdir_stat_btime', 'snapdir_statfs_fsid']
+    'snapdir_mount_destroy_defer', 'snapdir_readdir_ino', 'snapdir_stat_btime',
+    'snapdir_statfs_fsid', 'snapdir_lookup_stale', 'snapdir_fh_ctldir']
 tags = ['functional', 'snapdir']
 
 [tests/functional/syncfs:Linux]
@@ -268,7 +283,8 @@ tests = ['groupspace_001_pos', 'groupspace_002_pos', 'groupspace_003_pos',
 tags = ['functional', 'userquota']
 
 [tests/functional/zvol/zvol_misc:Linux]
-tests = ['zvol_misc_fua']
+tests = ['zvol_misc_fua', 'zvol_misc_rename_open', 'zvol_misc_rename_write',
+    'zvol_misc_write_zeroes']
 tags = ['functional', 'zvol', 'zvol_misc']
 
 [tests/functional/idmap_mount:Linux]

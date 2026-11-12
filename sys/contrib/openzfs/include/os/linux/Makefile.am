@@ -52,6 +52,7 @@ kernel_sys_HEADERS = \
 	%D%/zfs/sys/zfs_vnops_os.h \
 	%D%/zfs/sys/zfs_znode_impl.h \
 	%D%/zfs/sys/zio_crypt_os.h \
+	%D%/zfs/sys/zio_crypt_os_kcapi.h \
 	%D%/zfs/sys/zpl.h
 
 kernel_spl_rpcdir = $(kerneldir)/spl/rpc
@@ -65,7 +66,6 @@ kernel_spl_sys_HEADERS = \
 	%D%/spl/sys/atomic.h \
 	%D%/spl/sys/byteorder.h \
 	%D%/spl/sys/callb.h \
-	%D%/spl/sys/callo.h \
 	%D%/spl/sys/cmn_err.h \
 	%D%/spl/sys/condvar.h \
 	%D%/spl/sys/cred.h \
@@ -75,7 +75,6 @@ kernel_spl_sys_HEADERS = \
 	%D%/spl/sys/errno.h \
 	%D%/spl/sys/fcntl.h \
 	%D%/spl/sys/file.h \
-	%D%/spl/sys/inttypes.h \
 	%D%/spl/sys/isa_defs.h \
 	%D%/spl/sys/kmem.h \
 	%D%/spl/sys/kmem_cache.h \
@@ -109,12 +108,10 @@ kernel_spl_sys_HEADERS = \
 	%D%/spl/sys/types.h \
 	%D%/spl/sys/types32.h \
 	%D%/spl/sys/uio.h \
-	%D%/spl/sys/user.h \
 	%D%/spl/sys/vfs.h \
 	%D%/spl/sys/vmem.h \
 	%D%/spl/sys/vmsystm.h \
 	%D%/spl/sys/vnode.h \
-	%D%/spl/sys/wait.h \
 	%D%/spl/sys/wmsum.h \
 	%D%/spl/sys/zmod.h \
 	%D%/spl/sys/zone.h

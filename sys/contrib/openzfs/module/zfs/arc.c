@@ -457,8 +457,11 @@ static uint_t zfs_arc_dnode_limit_percent = 10;
  * These tunables are Linux-specific
  */
 static uint64_t zfs_arc_sys_free = 0;
-static uint_t zfs_arc_min_prefetch_ms = 0;
-static uint_t zfs_arc_min_prescient_prefetch_ms = 0;
+
+/* These next two vars are not static since they also get set by zdb */
+uint_t zfs_arc_min_prefetch_ms = 0;
+uint_t zfs_arc_min_prescient_prefetch_ms = 0;
+
 static uint_t zfs_arc_lotsfree_percent = 10;
 
 /*
@@ -877,7 +880,8 @@ typedef enum arc_fill_flags {
 	ARC_FILL_COMPRESSED	= 1 << 1, /* fill with compressed data */
 	ARC_FILL_ENCRYPTED	= 1 << 2, /* fill with encrypted data */
 	ARC_FILL_NOAUTH		= 1 << 3, /* don't attempt to authenticate */
-	ARC_FILL_IN_PLACE	= 1 << 4  /* fill in place (special case) */
+	ARC_FILL_IN_PLACE	= 1 << 4, /* fill in place (special case) */
+	ARC_FILL_EXISTING	= 1 << 5  /* buf already holds data */
 } arc_fill_flags_t;
 
 typedef enum arc_ovf_level {
@@ -1522,9 +1526,8 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 	 * generated using the correct checksum algorithm and accounts for the
 	 * logical I/O size and not just a gang fragment.
 	 */
-	return (zio_checksum_error_impl(zio->io_spa, zio->io_bp,
-	    BP_GET_CHECKSUM(zio->io_bp), zio->io_abd, zio->io_size,
-	    zio->io_offset, NULL) == 0);
+	return (zio_checksum_error_impl(zio, BP_GET_CHECKSUM(zio->io_bp),
+	    zio->io_abd, zio->io_size, zio->io_offset, NULL) == 0);
 }
 
 /*
@@ -2081,6 +2084,11 @@ arc_buf_fill(arc_buf_t *buf, spa_t *spa, const zbookmark_phys_t *zb,
 		}
 	}
 
+	if ((flags & ARC_FILL_EXISTING) != 0 &&
+	    (ARC_BUF_COMPRESSED(buf) != 0) == compressed &&
+	    (ARC_BUF_ENCRYPTED(buf) != 0) == encrypted)
+		return (0);
+
 	/*
 	 * There is a special case here for dnode blocks which are
 	 * decrypting their bonus buffers. These blocks may request to
@@ -2222,7 +2230,7 @@ arc_untransform(arc_buf_t *buf, spa_t *spa, const zbookmark_phys_t *zb,
     boolean_t in_place)
 {
 	int ret;
-	arc_fill_flags_t flags = 0;
+	arc_fill_flags_t flags = ARC_FILL_EXISTING;
 
 	if (in_place)
 		flags |= ARC_FILL_IN_PLACE;
@@ -6421,6 +6429,14 @@ top:
 				/* l2arc read error; goto zio_read() */
 				if (hash_lock != NULL)
 					mutex_enter(hash_lock);
+
+				/*
+				 * l2arc_read_done() may have replaced b_pabd
+				 * and freed the buffer hdr_abd points to.
+				 */
+				hdr_abd = encrypted_read ?
+				    hdr->b_crypt_hdr.b_rabd :
+				    hdr->b_l1hdr.b_pabd;
 			} else {
 				DTRACE_PROBE1(l2arc__miss,
 				    arc_buf_hdr_t *, hdr);
@@ -7064,8 +7080,13 @@ arc_write_done(zio_t *zio)
 				exists = buf_hash_insert(hdr, &hash_lock);
 				VERIFY0P(exists);
 			} else if (zio->io_flags & ZIO_FLAG_NOPWRITE) {
-				/* nopwrite */
-				ASSERT(zio->io_prop.zp_nopwrite);
+				/*
+				 * nopwrite, or a physical rewrite of a dedup
+				 * block that zio_ddt_write() left unchanged
+				 */
+				ASSERT(zio->io_prop.zp_nopwrite ||
+				    (zio->io_prop.zp_rewrite &&
+				    BP_GET_DEDUP(zio->io_bp)));
 				if (!BP_EQUAL(&zio->io_bp_orig, zio->io_bp))
 					panic("bad nopwrite, hdr=%p exists=%p",
 					    (void *)hdr, (void *)exists);
@@ -9602,8 +9623,17 @@ l2arc_apply_transforms(spa_t *spa, arc_buf_hdr_t *hdr, uint64_t asize,
 		if (psize != asize)
 			abd_zero_off(eabd, psize, asize - psize);
 
-		/* assert that the MAC we got here matches the one we saved */
-		ASSERT0(memcmp(mac, hdr->b_crypt_hdr.b_mac, ZIO_DATA_MAC_LEN));
+		/*
+		 * Only a recompression can give another MAC: one that differs
+		 * from the block on disk.  Such a copy would never pass its
+		 * checksum on read, so do not write it.
+		 */
+		if (memcmp(mac, hdr->b_crypt_hdr.b_mac,
+		    ZIO_DATA_MAC_LEN) != 0) {
+			ASSERT3P(to_write, ==, cabd);
+			ret = SET_ERROR(EIO);
+			goto error;
+		}
 		spa_keystore_dsl_key_rele(spa, dck, FTAG);
 
 		if (to_write == cabd)
@@ -10050,7 +10080,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 		    l2arc_next_sublist[pass];
 		int processed_sublists = 0;
 		while (processed_sublists < num_sublists && !full) {
-			if (consumed_headroom >= headroom)
+			if (l2arc_headroom != 0 &&
+			    consumed_headroom >= headroom)
 				break;
 
 			/*

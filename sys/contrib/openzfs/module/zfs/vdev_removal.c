@@ -309,7 +309,7 @@ spa_vdev_noalloc(spa_t *spa, uint64_t guid)
 	vd = spa_lookup_by_guid(spa, guid, B_FALSE);
 
 	if (vd == NULL)
-		error = SET_ERROR(ENOENT);
+		error = SET_ERROR(ENODEV);
 	else if (vd->vdev_mg == NULL)
 		error = SET_ERROR(ZFS_ERR_VDEV_NOTSUP);
 	else if (!vd->vdev_noalloc)
@@ -342,7 +342,7 @@ spa_vdev_alloc(spa_t *spa, uint64_t guid)
 	vd = spa_lookup_by_guid(spa, guid, B_FALSE);
 
 	if (vd == NULL)
-		error = SET_ERROR(ENOENT);
+		error = SET_ERROR(ENODEV);
 	else if (vd->vdev_mg == NULL)
 		error = SET_ERROR(ZFS_ERR_VDEV_NOTSUP);
 	else if (!vd->vdev_removing)
@@ -1678,13 +1678,22 @@ again:
 		 * If the metaslab has ever been synced (ms_sm != NULL),
 		 * read the allocated segments from the space map object
 		 * into svr_allocd_segs. Since we do this while holding
-		 * ms_lock and ms_sync_lock, concurrent frees (which
-		 * would have modified the space map) will wait for us
-		 * to finish loading the spacemap, and then take the
-		 * appropriate action (see free_from_removing_vdev()).
+		 * ms_sync_lock, the space map can not change under us.
+		 *
+		 * Do not hold ms_lock while reading it, as metaslab_load()
+		 * does not.  A read error makes the read wait for repair
+		 * writes, whose completion may be queued behind a ZIO
+		 * thread freeing a block in this metaslab, which needs
+		 * ms_lock.  Frees that happen meanwhile only add to
+		 * ms_freeing, which we subtract below, after taking
+		 * ms_lock again (see free_from_removing_vdev()).
 		 */
-		if (msp->ms_sm != NULL)
+		mutex_exit(&msp->ms_lock);
+		if (msp->ms_sm != NULL) {
+			ASSERT(!MUTEX_HELD(&msp->ms_lock));
 			VERIFY0(space_map_load(msp->ms_sm, segs, SM_ALLOC));
+		}
+		mutex_enter(&msp->ms_lock);
 
 		/*
 		 * We could not hold svr_lock while loading space map, or we
@@ -1966,8 +1975,17 @@ spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 			ASSERT0(zfs_range_tree_space(msp->ms_defer[i]));
 		ASSERT0(zfs_range_tree_space(msp->ms_freed));
 
-		if (msp->ms_sm != NULL)
+		/*
+		 * Do not hold ms_lock while reading the space map (see
+		 * spa_vdev_remove_thread()).  In syncing context nothing else
+		 * changes this metaslab's space map or trees meanwhile.
+		 */
+		mutex_exit(&msp->ms_lock);
+		if (msp->ms_sm != NULL) {
+			ASSERT(!MUTEX_HELD(&msp->ms_lock));
 			VERIFY0(space_map_load(msp->ms_sm, segs, SM_ALLOC));
+		}
+		mutex_enter(&msp->ms_lock);
 
 		zfs_range_tree_walk(msp->ms_unflushed_allocs,
 		    zfs_range_tree_add, segs);
@@ -2280,6 +2298,21 @@ spa_vdev_remove_top_check(vdev_t *vd)
 	 */
 	if (!vdev_dtl_empty(vd, DTL_MISSING) ||
 	    !vdev_dtl_empty(vd, DTL_OUTAGE))
+		return (SET_ERROR(EBUSY));
+
+	/*
+	 * DTL_MISSING of a mirror only records ranges missing from every
+	 * child, so it is empty while a single child is still being
+	 * resilvered or rebuilt.  The removal copy neither consults the
+	 * children's DTLs nor verifies checksums, so it may read stale data
+	 * from such a child.  Wait until no child's DTL_MISSING needs to be
+	 * resilvered; a sequential rebuild keeps it until it completes.
+	 * Children that can't be written (e.g. offline or faulted) are not
+	 * counted: the copy doesn't read them either, and a degraded mirror
+	 * can still be removed.  DTL_PARTIAL of the mirror would also
+	 * include the txgs only those children are missing.
+	 */
+	if (vdev_resilver_needed(vd, NULL, NULL))
 		return (SET_ERROR(EBUSY));
 
 	/*

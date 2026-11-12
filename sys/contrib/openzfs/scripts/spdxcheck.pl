@@ -125,8 +125,6 @@ my $untagged_patterns = q(
 
 	contrib/coverity/model.c
 	include/libzdb.h
-	include/os/freebsd/spl/sys/inttypes.h
-	include/os/freebsd/spl/sys/mode.h
 	include/os/freebsd/spl/sys/trace.h
 	include/os/freebsd/zfs/sys/trace_zfs.h
 	include/os/freebsd/zfs/sys/zpl.h
@@ -200,7 +198,7 @@ my @path_license_tags = (
 	# with exceptions, so we don't have a "generic" list as such, just
 	# a list of all the ones currently in use.
 	'config' => [
-	    'CDDL-1.0', 'LGPL-2.1-or-later', 'FSFAP', 'FSFULLR',
+	    'CDDL-1.0', 'LGPL-2.1-or-later', 'FSFAP',
 	    'GPL-2.0-or-later WITH Autoconf-exception-generic',
 	    'GPL-3.0-or-later WITH Autoconf-exception-macro',
 	],
@@ -271,7 +269,6 @@ my %override_file_license_tags = (
 		include/os/linux/spl/sys/misc.h
 		include/os/linux/spl/sys/procfs_list.h
 		include/os/linux/spl/sys/trace.h
-		include/os/linux/spl/sys/trace_spl.h
 		include/os/linux/spl/sys/trace_taskq.h
 		include/os/linux/spl/sys/wmsum.h
 		module/os/linux/spl/spl-procfs-list.c

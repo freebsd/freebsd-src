@@ -1423,7 +1423,7 @@ vdev_indirect_repair(zio_t *zio)
 {
 	indirect_vsd_t *iv = zio->io_vsd;
 
-	if (!spa_writeable(zio->io_spa))
+	if (!spa_self_heal_allowed(zio->io_spa))
 		return;
 
 	for (indirect_split_t *is = list_head(&iv->iv_splits);
@@ -1867,6 +1867,7 @@ vdev_ops_t vdev_indirect_ops = {
 	.vdev_op_psize_to_asize = vdev_default_asize,
 	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
+	.vdev_op_min_attach_size = vdev_default_min_attach_size,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_indirect_io_start,
 	.vdev_op_io_done = vdev_indirect_io_done,

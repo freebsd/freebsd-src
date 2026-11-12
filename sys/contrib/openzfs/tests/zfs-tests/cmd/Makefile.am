@@ -73,13 +73,11 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/libzfs_mnttab_cache_check
 scripts_zfs_tests_bin_PROGRAMS += %D%/manipulate_user_buffer
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/mkbusy %D%/mkfile %D%/mkfiles %D%/mktree
-%C%_mkfile_LDADD = $(LTLIBINTL)
-
 
 scripts_zfs_tests_bin_PROGRAMS += \
 	%D%/mmap_exec %D%/mmap_ftruncate %D%/mmap_seek \
 	%D%/mmap_sync %D%/mmapwrite %D%/readmmap %D%/mmap_write_sync \
-	%D%/mmap_read_truncate
+	%D%/mmap_read_truncate %D%/mmap_eof_extend %D%/mmap_stale_check
 
 if WANT_MMAP_LIBAIO
 scripts_zfs_tests_bin_PROGRAMS += %D%/mmap_libaio
@@ -140,6 +138,7 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/getversion
 scripts_zfs_tests_bin_PROGRAMS += %D%/user_ns_exec
 scripts_zfs_tests_bin_PROGRAMS += %D%/makedir
 scripts_zfs_tests_bin_PROGRAMS += %D%/mount_null_source
+scripts_zfs_tests_bin_PROGRAMS += %D%/open_by_fid
 scripts_zfs_tests_bin_PROGRAMS += %D%/renameat2
 scripts_zfs_tests_bin_PROGRAMS += %D%/statx
 scripts_zfs_tests_bin_PROGRAMS += %D%/statfs_nomount
@@ -147,6 +146,7 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/xattrtest
 scripts_zfs_tests_bin_PROGRAMS += %D%/zed_fd_spill-zedlet
 scripts_zfs_tests_bin_PROGRAMS += %D%/idmap_util
 scripts_zfs_tests_bin_PROGRAMS += %D%/setlease
+scripts_zfs_tests_bin_PROGRAMS += %D%/dio_append_fallocate
 
 %C%_idmap_util_LDADD = libspl.la
 

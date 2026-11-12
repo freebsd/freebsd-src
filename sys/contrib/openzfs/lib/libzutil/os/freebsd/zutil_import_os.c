@@ -43,7 +43,6 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
-#include <libintl.h>
 #include <libgen.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -51,7 +50,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <sys/efi_partition.h>
 #include <libgeom.h>
 
 #include <sys/vdev_impl.h>

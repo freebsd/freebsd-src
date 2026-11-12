@@ -29,6 +29,7 @@
 #include <sys/zio_checksum.h>
 #include <sys/abd.h>
 #include <sys/fs/zfs.h>
+#include <sys/vdev_mirror.h>
 
 /*
  * Vdev mirror kstats
@@ -89,31 +90,6 @@ vdev_mirror_stat_fini(void)
 	}
 }
 
-/*
- * Virtual device vector for mirroring.
- */
-typedef struct mirror_child {
-	vdev_t		*mc_vd;
-	abd_t		*mc_abd;
-	uint64_t	mc_offset;
-	int		mc_error;
-	int		mc_load;
-	uint8_t		mc_tried;
-	uint8_t		mc_skipped;
-	uint8_t		mc_speculative;
-	uint8_t		mc_rebuilding;
-} mirror_child_t;
-
-typedef struct mirror_map {
-	int		*mm_preferred;
-	int		mm_preferred_cnt;
-	int		mm_children;
-	boolean_t	mm_resilvering;
-	boolean_t	mm_rebuilding;
-	boolean_t	mm_root;
-	mirror_child_t	mm_child[];
-} mirror_map_t;
-
 static const int vdev_mirror_shift = 21;
 
 /*
@@ -142,7 +118,7 @@ vdev_mirror_map_size(int children)
 	    sizeof (int) * children);
 }
 
-static inline mirror_map_t *
+mirror_map_t *
 vdev_mirror_map_alloc(int children, boolean_t resilvering, boolean_t root)
 {
 	mirror_map_t *mm;
@@ -165,7 +141,7 @@ vdev_mirror_map_free(zio_t *zio)
 	kmem_free(mm, vdev_mirror_map_size(mm->mm_children));
 }
 
-static const zio_vsd_ops_t vdev_mirror_vsd_ops = {
+zio_vsd_ops_t vdev_mirror_vsd_ops = {
 	.vsd_free = vdev_mirror_map_free,
 };
 
@@ -275,6 +251,12 @@ vdev_mirror_map_init(zio_t *zio)
 		 * checked by their respective sorted IOs. Only if we
 		 * hit an error will we try all DVAs upon retrying.
 		 *
+		 * Gang blocks are not sorted: dsl_scan_enqueue() issues
+		 * them whole, and their gang headers and gang members
+		 * are read by gang children of that one IO. No other
+		 * IO checks their other DVAs, so gang children check
+		 * them all, as they would in a legacy scrub.
+		 *
 		 * Note: This check is safe even if the user switches
 		 * from a legacy scrub to a sequential one in the middle
 		 * of processing, since scn_is_sorted isn't updated until
@@ -283,6 +265,7 @@ vdev_mirror_map_init(zio_t *zio)
 		 */
 		if ((zio->io_flags & ZIO_FLAG_SCRUB) &&
 		    !(zio->io_flags & ZIO_FLAG_IO_RETRY) &&
+		    !(zio->io_flags & ZIO_FLAG_GANG_CHILD) &&
 		    dsl_scan_scrubbing(spa->spa_dsl_pool) &&
 		    scn->scn_is_sorted) {
 			c = 1;
@@ -506,6 +489,28 @@ vdev_mirror_child_missing(mirror_child_t *mc, uint64_t txg, uint64_t size)
 }
 
 /*
+ * A sequential rebuild read has no real birth txg (TXG_INITIAL) and no
+ * checksum, so vdev_mirror_child_missing() cannot tell whether a child
+ * holds current data for it.  A child that missed writes in any txg, e.g.
+ * one onlined during the rebuild but not yet resilvered, may return stale
+ * data that would be copied unverified to the child being rebuilt.
+ */
+static boolean_t
+vdev_mirror_child_complete(mirror_child_t *mc)
+{
+	vdev_t *vd = mc->mc_vd;
+
+	/*
+	 * dRAID is left as it was: its distributed spares must stay
+	 * preferred, see vdev_mirror_child_select().
+	 */
+	if (vd->vdev_top != NULL && vd->vdev_top->vdev_ops == &vdev_draid_ops)
+		return (B_TRUE);
+
+	return (vdev_dtl_empty(vd, DTL_MISSING));
+}
+
+/*
  * Try to find a vdev whose DTL doesn't contain the block we want to read
  * preferring vdevs based on determined load. If we can't, try the read on
  * any vdev we haven't already tried.
@@ -520,6 +525,8 @@ vdev_mirror_child_select(zio_t *zio)
 {
 	mirror_map_t *mm = zio->io_vsd;
 	uint64_t txg = zio->io_txg;
+	boolean_t rebuild = (zio->io_priority == ZIO_PRIORITY_REBUILD);
+	int incomplete = -1;
 	int c, lowest_load;
 
 	ASSERT(zio->io_bp == NULL || BP_GET_PHYSICAL_BIRTH(zio->io_bp) == txg);
@@ -545,6 +552,13 @@ vdev_mirror_child_select(zio_t *zio)
 			mc->mc_error = SET_ERROR(ESTALE);
 			mc->mc_skipped = 1;
 			mc->mc_speculative = 1;
+			continue;
+		}
+
+		/* For a rebuild read, prefer children missing no data. */
+		if (rebuild && !vdev_mirror_child_complete(mc)) {
+			if (incomplete == -1)
+				incomplete = c;
 			continue;
 		}
 
@@ -576,6 +590,9 @@ vdev_mirror_child_select(zio_t *zio)
 		return (vdev_mirror_preferred_child_randomize(zio));
 	}
 
+	if (incomplete != -1)
+		return (incomplete);
+
 	/*
 	 * Every device is either missing or has this txg in its DTL.
 	 * Look for any child we haven't already tried before giving up.
@@ -591,23 +608,11 @@ vdev_mirror_child_select(zio_t *zio)
 	return (-1);
 }
 
-static void
-vdev_mirror_io_start(zio_t *zio)
+void
+vdev_mirror_io_start_impl(zio_t *zio, mirror_map_t *mm)
 {
-	mirror_map_t *mm;
 	mirror_child_t *mc;
 	int c, children;
-
-	mm = vdev_mirror_map_init(zio);
-	zio->io_vsd = mm;
-	zio->io_vsd_ops = &vdev_mirror_vsd_ops;
-
-	if (mm == NULL) {
-		ASSERT(!spa_trust_config(zio->io_spa));
-		ASSERT(zio->io_type == ZIO_TYPE_READ);
-		zio_execute(zio);
-		return;
-	}
 
 	if (zio->io_type == ZIO_TYPE_READ) {
 		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_resilvering) {
@@ -645,7 +650,6 @@ vdev_mirror_io_start(zio_t *zio)
 				first = B_FALSE;
 			}
 
-			zio_execute(zio_batch_rele(zio));
 			return;
 		}
 		/*
@@ -689,6 +693,25 @@ vdev_mirror_io_start(zio_t *zio)
 		    zio->io_type, zio->io_priority, 0,
 		    vdev_mirror_child_done, mc));
 	}
+}
+
+static void
+vdev_mirror_io_start(zio_t *zio)
+{
+	mirror_map_t *mm;
+
+	mm = vdev_mirror_map_init(zio);
+	zio->io_vsd = mm;
+	zio->io_vsd_ops = &vdev_mirror_vsd_ops;
+
+	if (mm == NULL) {
+		ASSERT(!spa_trust_config(zio->io_spa));
+		ASSERT(zio->io_type == ZIO_TYPE_READ);
+		zio_execute(zio);
+		return;
+	}
+
+	vdev_mirror_io_start_impl(zio, mm);
 
 	zio_execute(zio_batch_rele(zio));
 }
@@ -707,7 +730,7 @@ vdev_mirror_worst_error(mirror_map_t *mm)
 	return (error[0] ? error[0] : error[1]);
 }
 
-static void
+void
 vdev_mirror_io_done(zio_t *zio)
 {
 	mirror_map_t *mm = zio->io_vsd;
@@ -878,7 +901,7 @@ vdev_mirror_io_done(zio_t *zio)
 		ASSERT(zio->io_error != 0);
 	}
 
-	if (good_copies && spa_writeable(zio->io_spa) &&
+	if (good_copies && spa_self_heal_allowed(zio->io_spa) &&
 	    (unexpected_errors ||
 	    (zio->io_flags & ZIO_FLAG_RESILVER) ||
 	    ((zio->io_flags & ZIO_FLAG_SCRUB) && mm->mm_resilvering))) {
@@ -974,6 +997,7 @@ vdev_ops_t vdev_mirror_ops = {
 	.vdev_op_psize_to_asize = vdev_default_asize,
 	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
+	.vdev_op_min_attach_size = vdev_default_min_attach_size,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_mirror_io_start,
 	.vdev_op_io_done = vdev_mirror_io_done,
@@ -1000,6 +1024,7 @@ vdev_ops_t vdev_replacing_ops = {
 	.vdev_op_psize_to_asize = vdev_default_asize,
 	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
+	.vdev_op_min_attach_size = vdev_default_min_attach_size,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_mirror_io_start,
 	.vdev_op_io_done = vdev_mirror_io_done,
@@ -1026,6 +1051,7 @@ vdev_ops_t vdev_spare_ops = {
 	.vdev_op_psize_to_asize = vdev_default_asize,
 	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
+	.vdev_op_min_attach_size = vdev_default_min_attach_size,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_mirror_io_start,
 	.vdev_op_io_done = vdev_mirror_io_done,

@@ -706,10 +706,11 @@ spa_namespace_broadcast(void)
 
 /*
  * Lookup the named spa_t in the AVL tree.  The spa_namespace_lock must be held.
- * Returns NULL if no matching spa_t is found.
+ * Returns NULL if no matching spa_t is found.  If busy is not NULL, set it
+ * instead of waiting for another thread to import or export the pool.
  */
-spa_t *
-spa_lookup(const char *name)
+static spa_t *
+spa_lookup_impl(const char *name, boolean_t *busy)
 {
 	static spa_t search;	/* spa_t is large; don't allocate on stack */
 	spa_t *spa;
@@ -741,11 +742,33 @@ retry:
 	    spa->spa_load_thread != curthread) ||
 	    (spa->spa_export_thread != NULL &&
 	    spa->spa_export_thread != curthread)) {
+		if (busy != NULL) {
+			*busy = B_TRUE;
+			return (spa);
+		}
 		spa_namespace_wait();
 		goto retry;
 	}
 
 	return (spa);
+}
+
+spa_t *
+spa_lookup(const char *name)
+{
+	return (spa_lookup_impl(name, NULL));
+}
+
+/*
+ * Return B_TRUE if spa_lookup() would wait for the named pool.
+ */
+boolean_t
+spa_lookup_would_wait(const char *name)
+{
+	boolean_t busy = B_FALSE;
+
+	(void) spa_lookup_impl(name, &busy);
+	return (busy);
 }
 
 /*
@@ -938,6 +961,7 @@ spa_remove(spa_t *spa)
 	ASSERT(spa_state(spa) == POOL_STATE_UNINITIALIZED);
 	ASSERT3U(zfs_refcount_count(&spa->spa_refcount), ==, 0);
 	ASSERT0(spa->spa_waiters);
+	ASSERT0(spa->spa_stats_holds);
 
 	nvlist_free(spa->spa_config_splitting);
 
@@ -1378,13 +1402,9 @@ spa_vdev_config_enter(spa_t *spa)
 	return (spa_last_synced_txg(spa) + 1);
 }
 
-/*
- * Used in combination with spa_vdev_config_enter() to allow the syncing
- * of multiple transactions without releasing the spa_namespace_lock.
- */
-void
-spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
-    const char *tag)
+static void
+spa_vdev_config_exit_impl(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
+    const char *tag, boolean_t final)
 {
 	ASSERT(spa_namespace_held());
 
@@ -1421,16 +1441,27 @@ spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
 	 * is useful for ensuring that configurations are updated
 	 * transactionally.
 	 */
-	if (zio_injection_enabled)
-		zio_handle_panic_injection(spa, tag, 0);
+	zio_handle_panic_injection(spa, tag, 0);
 
 	/*
 	 * Note: this txg_wait_synced() is important because it ensures
 	 * that there won't be more than one config change per txg.
 	 * This allows us to use the txg as the generation number.
+	 *
+	 * A suspended pool syncs nothing until zpool clear resumes it,
+	 * and the clear needs spa_namespace_lock.  At the end of the
+	 * operation, wait without the lock, as spa_sync_allpools() does.
+	 * spa_vdev_top_lock still keeps out other vdev changes, and the
+	 * hold makes an export fail with EBUSY.
 	 */
-	if (error == 0)
+	if (error == 0 && txg_wait_synced_flags(spa->spa_dsl_pool, txg,
+	    final ? TXG_WAIT_SUSPEND : TXG_WAIT_NONE) != 0) {
+		spa_open_ref(spa, FTAG);
+		spa_namespace_exit(FTAG);
 		txg_wait_synced(spa->spa_dsl_pool, txg);
+		spa_namespace_enter(FTAG);
+		spa_close(spa, FTAG);
+	}
 
 	if (vd != NULL) {
 		ASSERT(!vd->vdev_detached || vd->vdev_dtl_sm == NULL);
@@ -1463,6 +1494,17 @@ spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
 }
 
 /*
+ * Used in combination with spa_vdev_config_enter() to allow the syncing
+ * of multiple transactions without releasing the spa_namespace_lock.
+ */
+void
+spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
+    const char *tag)
+{
+	spa_vdev_config_exit_impl(spa, vd, txg, error, tag, B_FALSE);
+}
+
+/*
  * Unlock the spa_t after adding or removing a vdev.  Besides undoing the
  * locking of spa_vdev_enter(), we also want make sure the transactions have
  * synced to disk, and then update the global configuration cache with the new
@@ -1474,7 +1516,7 @@ spa_vdev_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error)
 	vdev_autotrim_restart(spa);
 	vdev_rebuild_restart(spa);
 
-	spa_vdev_config_exit(spa, vd, txg, error, FTAG);
+	spa_vdev_config_exit_impl(spa, vd, txg, error, FTAG, B_TRUE);
 	spa_namespace_exit(FTAG);
 	mutex_exit(&spa->spa_vdev_top_lock);
 
@@ -1546,8 +1588,16 @@ spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error)
 	 * are synchronous.  This is important for things like zpool offline:
 	 * when the command completes, you expect no further I/O from ZFS.
 	 */
-	if (vd != NULL)
-		txg_wait_synced(spa->spa_dsl_pool, 0);
+	if (vd != NULL) {
+		/*
+		 * A suspended pool cannot sync this txg. Report the
+		 * suspend instead of waiting for it.
+		 */
+		int werr = txg_wait_synced_flags(spa->spa_dsl_pool, 0,
+		    TXG_WAIT_SUSPEND);
+		if (werr != 0 && error == 0)
+			error = SET_ERROR(EAGAIN);
+	}
 
 	/*
 	 * If the config changed, update the config cache.
@@ -1942,6 +1992,18 @@ spa_open_txg(spa_t *spa)
 	return (spa->spa_dsl_pool->dp_tx.tx_open_txg);
 }
 
+uint64_t
+spa_load_max_txg(spa_t *spa)
+{
+	return (spa->spa_load_max_txg);
+}
+
+uint64_t
+spa_current_txg(spa_t *spa)
+{
+	return (spa->spa_uberblock.ub_txg);
+}
+
 /*
  * Return the last txg where data can be dirtied. The final txgs
  * will be used to just clear out any deferred frees that remain.
@@ -2153,6 +2215,23 @@ spa_dedup_class(spa_t *spa)
 	return (spa->spa_dedup_class);
 }
 
+/*
+ * Whether gang headers can be larger than SPA_OLD_GANGBLOCKSIZE.  While a
+ * pool is being loaded, the MOS is read before the feature refcounts are,
+ * so spa_feature_is_active() is still false; the label's features_for_read
+ * lists dynamic_gang_header (a ZFEATURE_FLAG_MOS feature) when it is active.
+ */
+boolean_t
+spa_dynamic_gang_header(spa_t *spa)
+{
+	if (spa_feature_is_active(spa, SPA_FEATURE_DYNAMIC_GANG_HEADER))
+		return (B_TRUE);
+	return (spa->spa_load_state != SPA_LOAD_NONE &&
+	    spa->spa_label_features != NULL &&
+	    nvlist_exists(spa->spa_label_features,
+	    spa_feature_table[SPA_FEATURE_DYNAMIC_GANG_HEADER].fi_guid));
+}
+
 boolean_t
 spa_special_has_ddt(spa_t *spa)
 {
@@ -2160,22 +2239,14 @@ spa_special_has_ddt(spa_t *spa)
 }
 
 /*
- * Locate an appropriate allocation class
+ * Choose the allocation class of a block of the given properties and size.
+ * tried_dedup and tried_special say whether an allocation already failed in
+ * the dedup or the special class.
  */
-metaslab_class_t *
-spa_preferred_class(spa_t *spa, const zio_t *zio)
+static metaslab_class_t *
+spa_class_select(spa_t *spa, const zio_prop_t *zp, uint64_t size,
+    boolean_t tried_dedup, boolean_t tried_special)
 {
-	metaslab_class_t *mc = zio->io_metaslab_class;
-	boolean_t tried_dedup = (mc == spa_dedup_class(spa));
-	boolean_t tried_special = (mc == spa_special_class(spa));
-	const zio_prop_t *zp = &zio->io_prop;
-
-	/* Gang children should always use the class of their parents. */
-	if (zio->io_flags & ZIO_FLAG_GANG_CHILD) {
-		ASSERT(mc != NULL);
-		return (mc);
-	}
-
 	/*
 	 * Override object type for the purposes of selecting a storage class.
 	 * Primarily for DMU_OTN_ types where we can't explicitly control their
@@ -2211,7 +2282,7 @@ spa_preferred_class(spa_t *spa, const zio_t *zio)
 	 * Allow small blocks in special class.  However, leave a reserve of
 	 * zfs_special_class_metadata_reserve_pct exclusively for metadata.
 	 */
-	if (zio->io_size <= zp->zp_zpl_smallblk) {
+	if (size <= zp->zp_zpl_smallblk) {
 		metaslab_class_t *special = spa_special_class(spa);
 		uint64_t limit = metaslab_class_get_space(special) *
 		    (100 - zfs_special_class_metadata_reserve_pct) / 100;
@@ -2221,6 +2292,36 @@ spa_preferred_class(spa_t *spa, const zio_t *zio)
 	}
 
 	return (spa_normal_class(spa));
+}
+
+/*
+ * Locate an appropriate allocation class
+ */
+metaslab_class_t *
+spa_preferred_class(spa_t *spa, const zio_t *zio)
+{
+	metaslab_class_t *mc = zio->io_metaslab_class;
+	boolean_t tried_dedup = (mc == spa_dedup_class(spa));
+	boolean_t tried_special = (mc == spa_special_class(spa));
+
+	/* Gang children should always use the class of their parents. */
+	if (zio->io_flags & ZIO_FLAG_GANG_CHILD) {
+		ASSERT(mc != NULL);
+		return (mc);
+	}
+
+	/*
+	 * Allocations fall back from the dedup class to the special class
+	 * to the normal class.  The normal class is the last resort: a
+	 * block there has either failed in the other classes already or
+	 * never belonged in them, so the caller must gang it rather than
+	 * fall back again, or it would bounce between the classes forever.
+	 */
+	if (mc == spa_normal_class(spa))
+		return (mc);
+
+	return (spa_class_select(spa, &zio->io_prop, zio->io_size,
+	    tried_dedup, tried_special));
 }
 
 void
@@ -2377,10 +2478,91 @@ bp_get_dsize(spa_t *spa, const blkptr_t *bp)
 	return (dsize);
 }
 
+/*
+ * Return B_TRUE if writing the block again in the given txg, with the write
+ * properties zp, would leave it as it is: same checksum, compression, number
+ * of copies and dedup, and on every DVA the same allocation class and, on a
+ * RAID-Z vdev, the logical width that the vdev has in that txg.  A block
+ * written at another width is not current even where the new width stores it
+ * in the same space: left in place, it would split the space that rewriting
+ * the blocks around it frees.  A deduplicated block keeps the DVAs of its DDT
+ * entry, and their width, and those of a flat entry can be more than zp asks
+ * for.  A gang block, and a block on an indirect vdev or on a vdev that takes
+ * no allocations, would move, so they are not current.  Holes and embedded
+ * blocks allocate nothing, so an embedded block is current if its compression
+ * is.
+ *
+ * A block stored uncompressed, embedded or not, may be one that compression
+ * did not shrink, so it is not taken as one to compress.  The compression
+ * level is not recorded in the block pointer, and is not compared.
+ */
+boolean_t
+bp_rewrite_is_current(spa_t *spa, const blkptr_t *bp, const zio_prop_t *zp,
+    uint64_t txg)
+{
+	if (BP_IS_GANG(bp))
+		return (B_FALSE);
+
+	enum zio_compress compress = BP_GET_COMPRESS(bp);
+	boolean_t compress_current = (compress == ZIO_COMPRESS_OFF ||
+	    compress == zp->zp_compress);
+
+	if (BP_IS_EMBEDDED(bp))
+		return (BPE_GET_ETYPE(bp) != BP_EMBEDDED_TYPE_DATA ||
+		    compress_current);
+	if (BP_GET_NDVAS(bp) == 0)
+		return (B_TRUE);
+
+	if (BP_GET_CHECKSUM(bp) != zp->zp_checksum || !compress_current ||
+	    BP_GET_DEDUP(bp) != zp->zp_dedup)
+		return (B_FALSE);
+
+	/*
+	 * A rewrite that deduplicates the block again gives it the DVAs of
+	 * its DDT entry.  A flat entry serves every copies value, so it can
+	 * hold more DVAs than requested, and the rewrite keeps them all.
+	 */
+	int ndvas = BP_GET_NDVAS(bp);
+	boolean_t flat = BP_GET_DEDUP(bp) &&
+	    (ddt_select(spa, bp)->ddt_flags & DDT_FLAG_FLAT);
+	if (ndvas < zp->zp_copies || (ndvas > zp->zp_copies && !flat))
+		return (B_FALSE);
+
+	boolean_t same = B_TRUE;
+	boolean_t dedup = BP_GET_DEDUP(bp);
+	uint64_t birth = BP_GET_PHYSICAL_BIRTH(bp);
+	uint64_t psize = BP_GET_PSIZE(bp);
+
+	spa_config_enter(spa, SCL_VDEV, FTAG, RW_READER);
+
+	metaslab_class_t *mc = spa_class_select(spa, zp, psize, B_FALSE,
+	    B_FALSE);
+	for (int d = 0; same && d < ndvas; d++) {
+		const dva_t *dva = &bp->blk_dva[d];
+		vdev_t *vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
+
+		same = vd != NULL && vdev_is_concrete(vd) &&
+		    !vd->vdev_noalloc && !vd->vdev_removing &&
+		    vd->vdev_mg != NULL && vd->vdev_mg->mg_class == mc &&
+		    (dedup || vd->vdev_ops != &vdev_raidz_ops ||
+		    vdev_raidz_same_logical_width(vd, birth, txg));
+	}
+
+	spa_config_exit(spa, SCL_VDEV, FTAG);
+
+	return (same);
+}
+
 uint64_t
 spa_dirty_data(spa_t *spa)
 {
 	return (spa->spa_dsl_pool->dp_dirty_total);
+}
+
+uint64_t
+spa_load_txg(spa_t *spa)
+{
+	return (spa->spa_load_txg);
 }
 
 /*
@@ -2646,7 +2828,7 @@ spa_import_progress_remove(uint64_t pool_guid)
 			if (sip->pool_name)
 				spa_strfree(sip->pool_name);
 			if (sip->spa_load_notes)
-				spa_strfree(sip->spa_load_notes);
+				kmem_strfree(sip->spa_load_notes);
 			list_remove(&shl->procfs_list.pl_list, sip);
 			shl->size--;
 			kmem_free(sip, sizeof (spa_import_progress_t));
@@ -2810,6 +2992,27 @@ boolean_t
 spa_writeable(spa_t *spa)
 {
 	return (!!(spa->spa_mode & SPA_MODE_WRITE) && spa->spa_trust_config);
+}
+
+/*
+ * Whether a read that found a damaged copy may rewrite it with the good data
+ * in hand (self-healing, and resilver or rebuild repairs).
+ *
+ * Not while loading a txg other than the newest one (an explicitly requested
+ * txg, a rewind, or a dry run probing either) until the load commits to it by
+ * starting to sync: the blocks of an older txg may have been freed and their
+ * space reused by later txgs, so a copy failing its checksum is expected, and
+ * rewriting it would overwrite live blocks of those later txgs.  A dry run
+ * would damage the pool it promised not to modify, and a rewind that rejects
+ * this txg would damage the newer txgs, which are all that is left if no
+ * older txg loads either.
+ */
+boolean_t
+spa_self_heal_allowed(spa_t *spa)
+{
+	return (spa_writeable(spa) &&
+	    (spa->spa_load_state == SPA_LOAD_NONE ||
+	    spa->spa_load_max_txg == UINT64_MAX || spa->spa_sync_on));
 }
 
 /*
@@ -3099,11 +3302,24 @@ spa_has_checkpoint(spa_t *spa)
 	return (spa->spa_checkpoint_txg != 0);
 }
 
+uint64_t
+spa_checkpoint_txg(spa_t *spa)
+{
+	return (spa->spa_checkpoint_txg);
+}
+
 boolean_t
 spa_importing_readonly_checkpoint(spa_t *spa)
 {
 	return ((spa->spa_import_flags & ZFS_IMPORT_CHECKPOINT) &&
 	    spa->spa_mode == SPA_MODE_READ);
+}
+
+boolean_t
+spa_importing_checkpoint(spa_t *spa)
+{
+	return ((spa->spa_import_flags & ZFS_IMPORT_CHECKPOINT) &&
+	    spa->spa_uberblock.ub_checkpoint_txg != 0);
 }
 
 uint64_t
@@ -3209,6 +3425,7 @@ EXPORT_SYMBOL(spa_syncing_txg);
 EXPORT_SYMBOL(spa_version);
 EXPORT_SYMBOL(spa_state);
 EXPORT_SYMBOL(spa_load_state);
+EXPORT_SYMBOL(spa_load_txg);
 EXPORT_SYMBOL(spa_freeze_txg);
 EXPORT_SYMBOL(spa_get_min_alloc_range); /* for Lustre */
 EXPORT_SYMBOL(spa_get_dspace);
@@ -3251,8 +3468,10 @@ EXPORT_SYMBOL(spa_missing_tvds_allowed);
 EXPORT_SYMBOL(spa_set_missing_tvds);
 EXPORT_SYMBOL(spa_state_to_name);
 EXPORT_SYMBOL(spa_importing_readonly_checkpoint);
+EXPORT_SYMBOL(spa_importing_checkpoint);
 EXPORT_SYMBOL(spa_min_claim_txg);
 EXPORT_SYMBOL(spa_suspend_async_destroy);
+EXPORT_SYMBOL(spa_checkpoint_txg);
 EXPORT_SYMBOL(spa_has_checkpoint);
 EXPORT_SYMBOL(spa_top_vdevs_spacemap_addressable);
 

@@ -458,6 +458,20 @@ vdev_raidz_map_free_vsd(zio_t *zio)
 {
 	raidz_map_t *rm = zio->io_vsd;
 
+	/*
+	 * Drop the expansion rangelock only now, after all of this zio's
+	 * child i/os are done.  vdev_raidz_io_done() issues repair and shadow
+	 * writes to the locations it read, and the reflow must not copy
+	 * these rows until those writes have landed: a copy that reads a
+	 * row before its repair would move the damaged data, and the late
+	 * repair would then overwrite whatever the reflow has since placed
+	 * at the old location.
+	 */
+	if (rm->rm_lr != NULL) {
+		zfs_rangelock_exit(rm->rm_lr);
+		rm->rm_lr = NULL;
+	}
+
 	vdev_raidz_map_free(rm);
 }
 
@@ -856,10 +870,12 @@ vdev_raidz_map_alloc_expanded(zio_t *zio,
 		 * double-writes but is safe and simpler to calculate.
 		 */
 		int row_phys_cols = physical_cols;
-		if (b + cols > reflow_offset_synced >> ashift)
+		if (b + cols > reflow_offset_synced >> ashift) {
 			row_phys_cols--;
-		else if (use_scratch)
+			rr->rr_old_layout = B_TRUE;
+		} else if (use_scratch) {
 			row_use_scratch = B_TRUE;
+		}
 
 		/* starting child of this row */
 		uint64_t child_id = b % row_phys_cols;
@@ -2272,15 +2288,16 @@ vdev_raidz_close(vdev_t *vd)
  * happened.
  */
 static uint64_t
-vdev_raidz_get_logical_width(vdev_raidz_t *vdrz, uint64_t txg)
+vdev_raidz_get_logical_width_locked(vdev_raidz_t *vdrz, uint64_t txg)
 {
+	ASSERT(MUTEX_HELD(&vdrz->vd_expand_lock));
+
 	reflow_node_t lookup = {
 		.re_txg = txg,
 	};
 	avl_index_t where;
 
 	uint64_t width;
-	mutex_enter(&vdrz->vd_expand_lock);
 	reflow_node_t *re = avl_find(&vdrz->vd_expand_txgs, &lookup, &where);
 	if (re != NULL) {
 		width = re->re_logical_width;
@@ -2291,9 +2308,43 @@ vdev_raidz_get_logical_width(vdev_raidz_t *vdrz, uint64_t txg)
 		else
 			width = vdrz->vd_original_width;
 	}
-	mutex_exit(&vdrz->vd_expand_lock);
 	return (width);
 }
+
+static uint64_t
+vdev_raidz_get_logical_width(vdev_raidz_t *vdrz, uint64_t txg)
+{
+	mutex_enter(&vdrz->vd_expand_lock);
+	uint64_t width = vdev_raidz_get_logical_width_locked(vdrz, txg);
+	mutex_exit(&vdrz->vd_expand_lock);
+
+	return (width);
+}
+
+/*
+ * Return whether allocations born in these txgs use the same logical
+ * RAIDZ column width.
+ */
+boolean_t
+vdev_raidz_same_logical_width(vdev_t *vd, uint64_t txg1, uint64_t txg2)
+{
+	ASSERT3P(vd->vdev_ops, ==, &vdev_raidz_ops);
+	ASSERT3U(txg1, !=, 0);
+	ASSERT3U(txg2, !=, 0);
+
+	if (txg1 == txg2)
+		return (B_TRUE);
+
+	vdev_raidz_t *vdrz = vd->vdev_tsd;
+	mutex_enter(&vdrz->vd_expand_lock);
+	boolean_t same = avl_is_empty(&vdrz->vd_expand_txgs) ||
+	    vdev_raidz_get_logical_width_locked(vdrz, txg1) ==
+	    vdev_raidz_get_logical_width_locked(vdrz, txg2);
+	mutex_exit(&vdrz->vd_expand_lock);
+
+	return (same);
+}
+
 /*
  * This code converts an asize into the largest psize that can safely be written
  * to an allocation of that size for this vdev.
@@ -2338,29 +2389,84 @@ vdev_raidz_asize_to_psize(vdev_t *vd, uint64_t asize, uint64_t txg)
  * allocate P+1 sectors regardless of width ("cols", which is at least P+1).
  */
 static uint64_t
-vdev_raidz_psize_to_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
+vdev_raidz_psize_to_asize_width(vdev_t *vd, uint64_t psize, uint64_t cols)
 {
 	vdev_raidz_t *vdrz = vd->vdev_tsd;
 	uint64_t asize;
 	uint64_t ashift = vd->vdev_top->vdev_ashift;
 	uint64_t nparity = vdrz->vd_nparity;
 
-	uint64_t cols = vdev_raidz_get_logical_width(vdrz, txg);
+	ASSERT3U(cols, >, nparity);
 
 	asize = ((psize - 1) >> ashift) + 1;
 	asize += nparity * ((asize + cols - nparity - 1) / (cols - nparity));
-	asize = roundup(asize, nparity + 1) << ashift;
+	return (roundup(asize, nparity + 1) << ashift);
+}
+
+static uint64_t
+vdev_raidz_psize_to_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
+{
+	vdev_raidz_t *vdrz = vd->vdev_tsd;
+	uint64_t cols = vdev_raidz_get_logical_width(vdrz, txg);
+	uint64_t asize =
+	    vdev_raidz_psize_to_asize_width(vd, psize, cols);
 
 #ifdef ZFS_DEBUG
-	uint64_t asize_new = ((psize - 1) >> ashift) + 1;
-	uint64_t ncols_new = vdrz->vd_physical_width;
-	asize_new += nparity * ((asize_new + ncols_new - nparity - 1) /
-	    (ncols_new - nparity));
-	asize_new = roundup(asize_new, nparity + 1) << ashift;
+	uint64_t asize_new = vdev_raidz_psize_to_asize_width(vd, psize,
+	    vdrz->vd_physical_width);
 	VERIFY3U(asize_new, <=, asize);
 #endif
 
 	return (asize);
+}
+
+static boolean_t
+vdev_raidz_io_exceeds_dva(zio_t *zio, uint64_t logical_width,
+    uint64_t *required_asizep, uint64_t *owned_asizep)
+{
+	vdev_t *vd = zio->io_vd;
+	vdev_t *tvd = vd->vdev_top;
+	const blkptr_t *bp = zio->io_bp;
+
+	ASSERT3P(bp, !=, NULL);
+	ASSERT(BP_GET_DEDUP(bp));
+
+	/*
+	 * Production RAIDZ expansion applies to a top-level RAIDZ; nested
+	 * ztest layouts are bypassed here. Indirect vdevs cannot coexist
+	 * with a RAIDZ top (device removal and vdev-add both refuse), so
+	 * remapped I/O never reaches this check.
+	 */
+	if (vd != tvd)
+		return (B_FALSE);
+
+	*required_asizep = vdev_raidz_psize_to_asize_width(vd, zio->io_size,
+	    logical_width);
+	*owned_asizep = 0;
+	for (int d = 0; d < BP_GET_NDVAS(bp); d++) {
+		const dva_t *dva = &bp->blk_dva[d];
+
+		if (DVA_GET_VDEV(dva) != tvd->vdev_id ||
+		    DVA_GET_OFFSET(dva) != zio->io_offset)
+			continue;
+
+		uint64_t asize = DVA_GET_GANG(dva) ?
+		    vdev_gang_header_asize(tvd) : DVA_GET_ASIZE(dva);
+		/*
+		 * A second DVA at the same top vdev and offset can only
+		 * occur in an already-malformed BP; keep the smallest owned
+		 * extent so the containment check stays conservative.
+		 */
+		if (*owned_asizep == 0)
+			*owned_asizep = asize;
+		else
+			*owned_asizep = MIN(*owned_asizep, asize);
+	}
+
+	/* Root-vdev dispatch derives the target and offset from a BP DVA. */
+	ASSERT3U(*owned_asizep, !=, 0);
+	/* A release build still fails closed if that invariant is violated. */
+	return (*owned_asizep == 0 || *required_asizep > *owned_asizep);
 }
 
 /*
@@ -2368,10 +2474,18 @@ vdev_raidz_psize_to_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
  * so each child must provide at least 1/Nth of its asize.
  */
 static uint64_t
-vdev_raidz_min_asize(vdev_t *vd)
+vdev_raidz_min_asize(vdev_t *pvd, vdev_t *cvd)
 {
-	return ((vd->vdev_min_asize + vd->vdev_children - 1) /
-	    vd->vdev_children);
+	(void) cvd;
+	return ((pvd->vdev_min_asize + pvd->vdev_children - 1) /
+	    pvd->vdev_children);
+}
+
+static uint64_t
+vdev_raidz_min_attach_size(vdev_t *vd)
+{
+	ASSERT3P(vd->vdev_ops, ==, &vdev_raidz_ops);
+	return (vdev_raidz_min_asize(vd, vd->vdev_child[0]));
 }
 
 /*
@@ -2487,8 +2601,13 @@ vdev_raidz_io_start_write(zio_t *zio, raidz_row_t *rr)
 		if (rc->rc_size == 0)
 			continue;
 
-		ASSERT3U(rc->rc_offset + rc->rc_size, <,
-		    cvd->vdev_psize - VDEV_LABEL_END_SIZE);
+		/*
+		 * rc_offset is relative to the end of the front labels.  For
+		 * scratch area columns it wraps below zero, so compare the
+		 * physical offset.
+		 */
+		ASSERT3U(VDEV_LABEL_START_SIZE + rc->rc_offset + rc->rc_size,
+		    <=, cvd->vdev_psize - VDEV_LABEL_END_SIZE);
 
 		ASSERT3P(rc->rc_abd, !=, NULL);
 		zio_nowait(zio_vdev_child_io(zio, NULL, cvd,
@@ -2499,8 +2618,8 @@ vdev_raidz_io_start_write(zio_t *zio, raidz_row_t *rr)
 		if (rc->rc_shadow_devidx != INT_MAX) {
 			vdev_t *cvd2 = vd->vdev_child[rc->rc_shadow_devidx];
 
-			ASSERT3U(
-			    rc->rc_shadow_offset + abd_get_size(rc->rc_abd), <,
+			ASSERT3U(VDEV_LABEL_START_SIZE + rc->rc_shadow_offset +
+			    abd_get_size(rc->rc_abd), <=,
 			    cvd2->vdev_psize - VDEV_LABEL_END_SIZE);
 
 			zio_nowait(zio_vdev_child_io(zio, NULL, cvd2,
@@ -2702,6 +2821,39 @@ vdev_raidz_io_start(zio_t *zio)
 	uint64_t logical_width = vdev_raidz_get_logical_width(vdrz,
 	    BP_GET_PHYSICAL_BIRTH(zio->io_bp));
 	if (logical_width != vdrz->vd_physical_width) {
+		if (BP_GET_DEDUP(zio->io_bp)) {
+			uint64_t required_asize;
+			uint64_t owned_asize;
+
+			if (vdev_raidz_io_exceeds_dva(zio, logical_width,
+			    &required_asize, &owned_asize)) {
+				if (owned_asize == 0) {
+					zfs_dbgmsg("%s: rejecting "
+					    "direct raidz vdev %llu at offset "
+					    "%llx size %llu: no BP DVA owns it",
+					    spa_name(zio->io_spa),
+					    (u_longlong_t)vd->vdev_guid,
+					    (u_longlong_t)zio->io_offset,
+					    (u_longlong_t)zio->io_size);
+				} else {
+					zfs_dbgmsg("%s: rejecting raidz "
+					    "vdev %llu at offset %llx "
+					    "size %llu: required birth-width "
+					    "ASIZE %llu "
+					    "exceeds DVA owned ASIZE %llu",
+					    spa_name(zio->io_spa),
+					    (u_longlong_t)vd->vdev_guid,
+					    (u_longlong_t)zio->io_offset,
+					    (u_longlong_t)zio->io_size,
+					    (u_longlong_t)required_asize,
+					    (u_longlong_t)owned_asize);
+				}
+				zio->io_error = SET_ERROR(EIO);
+				zio_execute(zio);
+				return;
+			}
+		}
+
 		zfs_locked_range_t *lr = NULL;
 		uint64_t synced_offset = UINT64_MAX;
 		uint64_t next_offset = UINT64_MAX;
@@ -3182,6 +3334,18 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 	 */
 	boolean_t parity_verify = (parity_errors + parity_untried) <
 	    (rr->rr_firstdatacol - data_errors);
+	/*
+	 * If we have only ndata columns, the data integrity will
+	 * be checked by the checksums normally, but not in case
+	 * of rebuild when we don't have checksums. In this case,
+	 * we add ZIO_FLAG_SPECULATIVE and try to not spread
+	 * unverified data. For example, when the target vdev happens
+	 * to be the mirroring spare vdev, we would repair only that
+	 * child in it which is being rebuilt.
+	 */
+	if (!parity_verify && zio->io_priority == ZIO_PRIORITY_REBUILD)
+		add_flags |= ZIO_FLAG_SPECULATIVE;
+
 	if (parity_verify || (parity_errors > 0 &&
 	    spa_writeable(zio->io_spa))) {
 		int n = raidz_parity_verify(zio, rr);
@@ -3194,21 +3358,10 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 		if (parity_verify && n > 0 &&
 		    zio->io_priority == ZIO_PRIORITY_REBUILD)
 			return;
-		/*
-		 * If we have only ndata columns, the data integrity will
-		 * be checked by the checksums normally, but not in case
-		 * of rebuild when we don't have checksums. In this case,
-		 * we add ZIO_FLAG_SPECULATIVE and try to not spread
-		 * unverified data. For example, when the target vdev happens
-		 * to be the mirroring spare vdev, we would repair only that
-		 * child in it which is being rebuilt.
-		 */
-		if (!parity_verify && zio->io_priority == ZIO_PRIORITY_REBUILD)
-			add_flags |= ZIO_FLAG_SPECULATIVE;
 		unexpected_errors += n;
 	}
 
-	if (spa_writeable(zio->io_spa) &&
+	if (spa_self_heal_allowed(zio->io_spa) &&
 	    (unexpected_errors > 0 || (zio->io_flags & ZIO_FLAG_RESILVER))) {
 		/*
 		 * Use the good data we have in hand to repair damaged children.
@@ -3261,7 +3414,7 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 	 * necessary, but since expansion is paused during scrub/resilver, at
 	 * most a single row will have a shadow location.
 	 */
-	if (spa_writeable(zio->io_spa) &&
+	if (spa_self_heal_allowed(zio->io_spa) &&
 	    (zio->io_flags & (ZIO_FLAG_RESILVER | ZIO_FLAG_SCRUB))) {
 		for (int c = 0; c < rr->rr_cols; c++) {
 			raidz_col_t *rc = &rr->rr_col[c];
@@ -3324,17 +3477,27 @@ raidz_restore_orig_data(raidz_map_t *rm)
  * current child failed; the next physical_width-1 values imagine that a
  * child failed before the most recent expansion; the next physical_width-2
  * values imagine a child failed in the expansion before that, etc.
+ *
+ * While an expansion is in progress, a row that the reflow has not copied yet
+ * is still at its old location, one child narrower (rr_old_layout), and its
+ * sectors are numbered by that width.  The expansion in progress has not
+ * moved them, so a child that failed before it is the child they are on now,
+ * the same as one that failed since.  A block that straddles the reflow
+ * offset has rows of both kinds, and the same failed child has to cover the
+ * damage the reflow copied into its new rows as well as its old rows.
  */
 static boolean_t
 raidz_simulate_failure(int physical_width, int original_width, int ashift,
-    int i, raidz_col_t *rc)
+    int i, raidz_row_t *rr, raidz_col_t *rc)
 {
-	uint64_t sector_id =
-	    physical_width * (rc->rc_offset >> ashift) +
+	int width = rr->rr_old_layout ? physical_width - 1 : physical_width;
+	uint64_t sector_id = width * (rc->rc_offset >> ashift) +
 	    rc->rc_devidx;
 
 	for (int w = physical_width; w >= original_width; w--) {
 		if (i < w) {
+			if (w > width)
+				return (rc->rc_devidx == i);
 			return (sector_id % w == i);
 		} else {
 			i -= w;
@@ -3396,7 +3559,7 @@ raidz_reconstruct(zio_t *zio, int *ltgts, int ntgts, int nparity)
 				if (raidz_simulate_failure(physical_width,
 				    original_width,
 				    zio->io_vd->vdev_top->vdev_ashift,
-				    ltgts[lt], rc)) {
+				    ltgts[lt], rr, rc)) {
 					if (rc->rc_orig_data == NULL) {
 						rc->rc_orig_data =
 						    abd_alloc_linear(
@@ -3882,6 +4045,11 @@ vdev_raidz_io_done(zio_t *zio)
 {
 	raidz_map_t *rm = zio->io_vsd;
 
+	if (rm == NULL) {
+		ASSERT(zio->io_error != 0);
+		return;
+	}
+
 	ASSERT(zio->io_bp != NULL);
 	if (zio->io_type == ZIO_TYPE_WRITE) {
 		for (int i = 0; i < rm->rm_nrows; i++) {
@@ -3914,8 +4082,8 @@ vdev_raidz_io_done(zio_t *zio)
 						char *physbuf = abd_to_buf(
 						    prc->rc_abd);
 						void *physloc = physbuf +
-						    rc->rc_offset -
-						    prc->rc_offset;
+						    (rc->rc_offset -
+						    prc->rc_offset);
 
 						abd_copy_from_buf(rc->rc_abd,
 						    physloc, rc->rc_size);
@@ -3932,7 +4100,7 @@ vdev_raidz_io_done(zio_t *zio)
 
 		if (raidz_checksum_verify(zio) == 0) {
 			if (zio->io_post & ZIO_POST_DIO_CHKSUM_ERR)
-				goto done;
+				return;
 
 			for (int i = 0; i < rm->rm_nrows; i++) {
 				raidz_row_t *rr = rm->rm_row[i];
@@ -4031,11 +4199,6 @@ vdev_raidz_io_done(zio_t *zio)
 			}
 		}
 	}
-done:
-	if (rm->rm_lr != NULL) {
-		zfs_rangelock_exit(rm->rm_lr);
-		rm->rm_lr = NULL;
-	}
 }
 
 static void
@@ -4089,7 +4252,20 @@ vdev_raidz_need_resilver(vdev_t *vd, const dva_t *dva, size_t psize,
 	if (s + nparity >= dcols)
 		return (B_TRUE);
 
-	for (uint64_t c = 0; c < s + nparity; c++) {
+	/*
+	 * The block is laid out in rows of the logical width it was born
+	 * with, each with nparity parity columns, over consecutive
+	 * children.  A block born before an expansion can need several
+	 * rows where a block of the vdev's width needs one.
+	 */
+	uint64_t ncols = s + nparity *
+	    howmany(s, vdev_raidz_get_logical_width(vdrz, phys_birth) -
+	    nparity);
+
+	if (ncols >= dcols)
+		return (B_TRUE);
+
+	for (uint64_t c = 0; c < ncols; c++) {
 		uint64_t devidx = (f + c) % dcols;
 		vdev_t *cvd = vd->vdev_child[devidx];
 
@@ -4744,7 +4920,7 @@ io_error_exit:
 	 */
 	RAIDZ_REFLOW_SET(&spa->spa_ubsync, RRSS_SCRATCH_VALID, logical_size);
 	spa->spa_ubsync.ub_timestamp++;
-	ASSERT0(vdev_uberblock_sync_list(spa, &spa->spa_root_vdev, 1,
+	VERIFY0(vdev_uberblock_sync_list(spa, &spa->spa_root_vdev, 1,
 	    &spa->spa_ubsync, ZIO_FLAG_CONFIG_WRITER));
 	if (spa_multihost(spa))
 		mmp_update_uberblock(spa, &spa->spa_ubsync);
@@ -4806,7 +4982,7 @@ overwrite:
 	RAIDZ_REFLOW_SET(&spa->spa_ubsync, RRSS_SCRATCH_INVALID_SYNCED,
 	    logical_size);
 	spa->spa_ubsync.ub_timestamp++;
-	ASSERT0(vdev_uberblock_sync_list(spa, &spa->spa_root_vdev, 1,
+	VERIFY0(vdev_uberblock_sync_list(spa, &spa->spa_root_vdev, 1,
 	    &spa->spa_ubsync, ZIO_FLAG_CONFIG_WRITER));
 	if (spa_multihost(spa))
 		mmp_update_uberblock(spa, &spa->spa_ubsync);
@@ -4841,6 +5017,10 @@ overwrite:
 /*
  * We crashed in the middle of raidz_reflow_scratch_sync(); complete its work
  * here.  No other i/o can be in progress, so we don't need the vre_rangelock.
+ *
+ * If any read or write fails, the scratch area stays RRSS_SCRATCH_VALID: i/o
+ * to the start of the vdev keeps using the scratch area, and the expansion
+ * thread retries the copy in raidz_reflow_scratch_sync().
  */
 void
 vdev_raidz_reflow_copy_scratch(spa_t *spa)
@@ -4855,6 +5035,7 @@ vdev_raidz_reflow_copy_scratch(spa_t *spa)
 	uint64_t write_size = logical_size / raidvd->vdev_children;
 
 	zio_t *pio;
+	int error;
 
 	/*
 	 * Read from scratch space.
@@ -4865,7 +5046,7 @@ vdev_raidz_reflow_copy_scratch(spa_t *spa)
 		abds[i] = abd_alloc_linear(write_size, B_FALSE);
 	}
 
-	pio = zio_root(spa, NULL, NULL, 0);
+	pio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 	for (int i = 0; i < raidvd->vdev_children; i++) {
 		/*
 		 * Note: zio_vdev_child_io() adds VDEV_LABEL_START_SIZE to
@@ -4874,22 +5055,37 @@ vdev_raidz_reflow_copy_scratch(spa_t *spa)
 		 */
 		zio_nowait(zio_vdev_child_io(pio, NULL, raidvd->vdev_child[i],
 		    VDEV_BOOT_OFFSET - VDEV_LABEL_START_SIZE, abds[i],
-		    write_size, ZIO_TYPE_READ, ZIO_PRIORITY_REMOVAL, 0,
-		    raidz_scratch_child_done, pio));
+		    write_size, ZIO_TYPE_READ, ZIO_PRIORITY_REMOVAL,
+		    ZIO_FLAG_CANFAIL, raidz_scratch_child_done, pio));
 	}
-	zio_wait(pio);
+	error = zio_wait(pio);
+	if (error != 0) {
+		zfs_dbgmsg("reflow recovery: error %d reading scratch "
+		    "location", error);
+		goto io_error_exit;
+	}
 
 	/*
 	 * Overwrite real location with reflow'ed data.
 	 */
-	pio = zio_root(spa, NULL, NULL, 0);
+	pio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 	for (int i = 0; i < raidvd->vdev_children; i++) {
 		zio_nowait(zio_vdev_child_io(pio, NULL, raidvd->vdev_child[i],
 		    0, abds[i], write_size, ZIO_TYPE_WRITE,
-		    ZIO_PRIORITY_REMOVAL, 0,
+		    ZIO_PRIORITY_REMOVAL, ZIO_FLAG_CANFAIL,
 		    raidz_scratch_child_done, pio));
 	}
-	zio_wait(pio);
+	error = zio_wait(pio);
+	if (error != 0) {
+		zfs_dbgmsg("reflow recovery: error %d writing real location",
+		    error);
+io_error_exit:
+		for (int i = 0; i < raidvd->vdev_children; i++)
+			abd_free(abds[i]);
+		kmem_free(abds, raidvd->vdev_children * sizeof (abd_t *));
+		spa_config_exit(spa, SCL_STATE, FTAG);
+		return;
+	}
 	pio = zio_root(spa, NULL, NULL, 0);
 	zio_flush(pio, raidvd);
 	zio_wait(pio);
@@ -4955,6 +5151,15 @@ spa_raidz_expand_thread(void *arg, zthr_t *zthr)
 	spa_t *spa = arg;
 	vdev_raidz_expand_t *vre = spa->spa_raidz_expand;
 
+	/*
+	 * raidz_dtl_reassessed() only wakes us up once we are waiting, so
+	 * if this pass fails, we must not wait for a reassessment that
+	 * happened while it ran.
+	 */
+	mutex_enter(&vre->vre_lock);
+	uint64_t dtl_gen = vre->vre_dtl_gen;
+	mutex_exit(&vre->vre_lock);
+
 	if (RRSS_GET_STATE(&spa->spa_ubsync) == RRSS_SCRATCH_VALID)
 		vre->vre_offset = 0;
 	else
@@ -4969,7 +5174,8 @@ spa_raidz_expand_thread(void *arg, zthr_t *zthr)
 		/* if we encountered errors then pause */
 		if (vre->vre_offset == 0) {
 			mutex_enter(&vre->vre_lock);
-			vre->vre_waiting_for_resilver = B_TRUE;
+			vre->vre_waiting_for_resilver =
+			    (vre->vre_dtl_gen == dtl_gen);
 			mutex_exit(&vre->vre_lock);
 			return;
 		}
@@ -5160,7 +5366,8 @@ spa_raidz_expand_thread(void *arg, zthr_t *zthr)
 			 */
 			vre->vre_offset = vre->vre_failed_offset;
 			vre->vre_failed_offset = UINT64_MAX;
-			vre->vre_waiting_for_resilver = B_TRUE;
+			vre->vre_waiting_for_resilver =
+			    (vre->vre_dtl_gen == dtl_gen);
 		}
 		mutex_exit(&vre->vre_lock);
 	}
@@ -5188,6 +5395,7 @@ raidz_dtl_reassessed(vdev_t *vd)
 		if (vd->vdev_top->vdev_id == vre->vre_vdev_id &&
 		    !vdev_raidz_expand_child_replacing(vd->vdev_top)) {
 			mutex_enter(&vre->vre_lock);
+			vre->vre_dtl_gen++;
 			if (vre->vre_waiting_for_resilver) {
 				vdev_dbgmsg(vd, "DTL reassessed, "
 				    "continuing raidz expansion");
@@ -5200,10 +5408,15 @@ raidz_dtl_reassessed(vdev_t *vd)
 }
 
 int
-vdev_raidz_attach_check(vdev_t *new_child)
+vdev_raidz_attach_check(vdev_t *raidvd)
 {
-	vdev_t *raidvd = new_child->vdev_parent;
-	uint64_t new_children = raidvd->vdev_children;
+	/*
+	 * The new child is not attached yet, so size up the raidz vdev as it
+	 * will be once the child has been added.
+	 */
+	uint64_t new_children = raidvd->vdev_children + 1;
+
+	ASSERT3P(raidvd->vdev_ops, ==, &vdev_raidz_ops);
 
 	/*
 	 * We use the "boot" space as scratch space to handle overwriting the
@@ -5212,9 +5425,39 @@ vdev_raidz_attach_check(vdev_t *new_child)
 	 * >200 children).
 	 */
 	if (new_children << raidvd->vdev_ashift > VDEV_BOOT_SIZE) {
-		return (EINVAL);
+		return (SET_ERROR(ZFS_ERR_RAIDZ_EXPAND_TOO_WIDE));
 	}
 	return (0);
+}
+
+/*
+ * Return the minimum asize of a device replacing a child of the raidz vdev
+ * "vd", while an expansion of it is in progress.
+ *
+ * The generic vdev_get_min_asize() check is not sufficient in this case:
+ * the part of the vdev that has not been reflowed yet is still laid out
+ * across the original (vdev_children - 1) children, and the reflow runs up
+ * to the end of the last metaslab.  The new device must therefore be able
+ * to hold every row of that layout, i.e. 1/(vdev_children - 1) of the
+ * metaslab space, rounded up to whole sectors.  The already reflowed part
+ * only needs 1/vdev_children of it.
+ *
+ * This is only applied to new devices, and not as part of the vdev's
+ * min_asize which every child is checked against when it is opened.
+ */
+uint64_t
+vdev_raidz_expand_child_min_asize(vdev_t *vd)
+{
+	ASSERT3P(vd->vdev_ops, ==, &vdev_raidz_ops);
+	ASSERT3P(vd->vdev_top, ==, vd);
+	ASSERT(vd->vdev_rz_expanding);
+	ASSERT3U(vd->vdev_children, >, 1);
+
+	uint64_t ashift = vd->vdev_ashift;
+	uint64_t ms_end = vd->vdev_ms_count << vd->vdev_ms_shift;
+
+	return (DIV_ROUND_UP(ms_end >> ashift, vd->vdev_children - 1) <<
+	    ashift);
 }
 
 void
@@ -5545,6 +5788,17 @@ vdev_raidz_ndisks(vdev_t *vd)
 	return (vd->vdev_children);
 }
 
+/*
+ * All RAID-z allocations are a multiple of the sector size times nparity + 1,
+ * in order to ensure that we don't end up with unusably small chunks left over
+ * between other allocations.
+ */
+static uint64_t
+vdev_raidz_alloc_factor(vdev_t *vd)
+{
+	return ((vdev_raidz_nparity(vd) + 1) << vd->vdev_ashift);
+}
+
 vdev_ops_t vdev_raidz_ops = {
 	.vdev_op_init = vdev_raidz_init,
 	.vdev_op_fini = vdev_raidz_fini,
@@ -5553,6 +5807,7 @@ vdev_ops_t vdev_raidz_ops = {
 	.vdev_op_psize_to_asize = vdev_raidz_psize_to_asize,
 	.vdev_op_asize_to_psize = vdev_raidz_asize_to_psize,
 	.vdev_op_min_asize = vdev_raidz_min_asize,
+	.vdev_op_min_attach_size = vdev_raidz_min_attach_size,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_raidz_io_start,
 	.vdev_op_io_done = vdev_raidz_io_done,
@@ -5567,6 +5822,7 @@ vdev_ops_t vdev_raidz_ops = {
 	.vdev_op_config_generate = vdev_raidz_config_generate,
 	.vdev_op_nparity = vdev_raidz_nparity,
 	.vdev_op_ndisks = vdev_raidz_ndisks,
+	.vdev_op_alloc_factor = vdev_raidz_alloc_factor,
 	.vdev_op_type = VDEV_TYPE_RAIDZ,	/* name of this vdev type */
 	.vdev_op_leaf = B_FALSE			/* not a leaf vdev */
 };

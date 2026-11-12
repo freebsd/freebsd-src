@@ -124,7 +124,6 @@ zpl_drop_inode(struct inode *ip)
  * end_writeback() which is responsible for completing all outstanding
  * write back.  In either case, once this is done it is safe to cleanup
  * any remaining inode specific data via zfs_inactive().
- * remaining filesystem specific data.
  */
 static void
 zpl_evict_inode(struct inode *ip)
@@ -611,7 +610,7 @@ static const struct fs_parameter_spec zpl_param_spec[] = {
  */
 static int
 zpl_fs_parse(struct fs_context *fc, struct fs_parameter *param,
-	struct fs_parse_result *result)
+    struct fs_parse_result *result)
 {
 #ifdef HAVE_FS_PARSE_TAKES_SPEC
 	return (fs_parse(fc, zpl_param_spec, param, result));

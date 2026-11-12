@@ -44,7 +44,6 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
-#include <libintl.h>
 #include <libgen.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -52,7 +51,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/dktp/fdisk.h>
 #include <sys/vdev_impl.h>
 #include <sys/fs/zfs.h>
 #include <sys/taskq.h>
@@ -70,19 +68,19 @@ libpc_error_description(libpc_handle_t *hdl)
 
 	switch (hdl->lpc_error) {
 	case LPC_BADCACHE:
-		return (dgettext(TEXT_DOMAIN, "invalid or missing cache file"));
+		return ("invalid or missing cache file");
 	case LPC_BADPATH:
-		return (dgettext(TEXT_DOMAIN, "must be an absolute path"));
+		return ("must be an absolute path");
 	case LPC_NOMEM:
-		return (dgettext(TEXT_DOMAIN, "out of memory"));
+		return ("out of memory");
 	case LPC_EACCESS:
-		return (dgettext(TEXT_DOMAIN, "some devices require root "
-		    "privileges"));
+		return ("some devices require root "
+		    "privileges");
 	case LPC_UNKNOWN:
-		return (dgettext(TEXT_DOMAIN, "unknown error"));
+		return ("unknown error");
 	default:
 		assert(hdl->lpc_error == 0);
-		return (dgettext(TEXT_DOMAIN, "no error"));
+		return ("no error");
 	}
 }
 
@@ -203,6 +201,7 @@ typedef struct pool_entry {
 typedef struct name_entry {
 	char			*ne_name;
 	uint64_t		ne_guid;
+	uint64_t		ne_pool_guid;	/* 0 for spares and l2cache */
 	uint64_t		ne_order;
 	uint64_t		ne_num_labels;
 	struct name_entry	*ne_next;
@@ -214,22 +213,69 @@ typedef struct pool_list {
 } pool_list_t;
 
 /*
+ * Find the best name for the leaf vdev with the given guid.  With
+ * pool_guid != 0, only consider devices whose label has that pool guid
+ * (or none: spares and l2cache devices).
+ */
+static name_entry_t *
+best_name(name_entry_t *names, uint64_t guid, const char *path,
+    uint64_t pool_guid)
+{
+	name_entry_t *ne, *best = NULL;
+
+	for (ne = names; ne != NULL; ne = ne->ne_next) {
+		if (ne->ne_guid != guid)
+			continue;
+		if (pool_guid != 0 && ne->ne_pool_guid != 0 &&
+		    ne->ne_pool_guid != pool_guid)
+			continue;
+
+		if (path == NULL)
+			return (ne);
+
+		if ((strlen(path) == strlen(ne->ne_name)) &&
+		    strncmp(path, ne->ne_name, strlen(path)) == 0)
+			return (ne);
+
+		if (best == NULL) {
+			best = ne;
+			continue;
+		}
+
+		/* Prefer paths with move vdev labels. */
+		if (ne->ne_num_labels > best->ne_num_labels) {
+			best = ne;
+			continue;
+		}
+
+		/* Prefer paths earlier in the search order. */
+		if (ne->ne_num_labels == best->ne_num_labels &&
+		    ne->ne_order < best->ne_order) {
+			best = ne;
+			continue;
+		}
+	}
+	return (best);
+}
+
+/*
  * Go through and fix up any path and/or devid information for the given vdev
- * configuration.
+ * configuration of the pool with the given guid.
  */
 static int
-fix_paths(libpc_handle_t *hdl, nvlist_t *nv, name_entry_t *names)
+fix_paths(libpc_handle_t *hdl, nvlist_t *nv, name_entry_t *names,
+    uint64_t pool_guid)
 {
 	nvlist_t **child;
 	uint_t c, children;
 	uint64_t guid;
-	name_entry_t *ne, *best;
+	name_entry_t *best;
 	const char *path;
 
 	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 	    &child, &children) == 0) {
 		for (c = 0; c < children; c++)
-			if (fix_paths(hdl, child[c], names) != 0)
+			if (fix_paths(hdl, child[c], names, pool_guid) != 0)
 				return (-1);
 		return (0);
 	}
@@ -245,44 +291,20 @@ fix_paths(libpc_handle_t *hdl, nvlist_t *nv, name_entry_t *names)
 	 * matches the ZPOOL_CONFIG_PATH.  If no matching entry is found we
 	 * use the lowest order device which corresponds to the first match
 	 * while traversing the ZPOOL_IMPORT_PATH search path.
+	 *
+	 * Vdev guids survive 'zpool reguid', so a stale copy of a device can
+	 * have the same vdev guid (and path) as a device of another pool.
+	 * Prefer devices whose label belongs to this pool; fall back to any
+	 * device, as a reguid interrupted by a crash leaves labels of the
+	 * same pool with different pool guids.
 	 */
 	verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) == 0);
 	if (nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) != 0)
 		path = NULL;
 
-	best = NULL;
-	for (ne = names; ne != NULL; ne = ne->ne_next) {
-		if (ne->ne_guid == guid) {
-			if (path == NULL) {
-				best = ne;
-				break;
-			}
-
-			if ((strlen(path) == strlen(ne->ne_name)) &&
-			    strncmp(path, ne->ne_name, strlen(path)) == 0) {
-				best = ne;
-				break;
-			}
-
-			if (best == NULL) {
-				best = ne;
-				continue;
-			}
-
-			/* Prefer paths with move vdev labels. */
-			if (ne->ne_num_labels > best->ne_num_labels) {
-				best = ne;
-				continue;
-			}
-
-			/* Prefer paths earlier in the search order. */
-			if (ne->ne_num_labels == best->ne_num_labels &&
-			    ne->ne_order < best->ne_order) {
-				best = ne;
-				continue;
-			}
-		}
-	}
+	best = best_name(names, guid, path, pool_guid);
+	if (best == NULL && pool_guid != 0)
+		best = best_name(names, guid, path, 0);
 
 	if (best == NULL)
 		return (0);
@@ -495,6 +517,7 @@ add_config(libpc_handle_t *hdl, pool_list_t *pl, const char *path,
 	}
 
 	ne->ne_guid = vdev_guid;
+	ne->ne_pool_guid = pool_guid;
 	ne->ne_order = order;
 	ne->ne_num_labels = num_labels;
 	ne->ne_next = pl->names;
@@ -564,6 +587,7 @@ get_configs(libpc_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
 	uint64_t guid;
 	uint_t children = 0;
 	nvlist_t **child = NULL;
+	uint64_t *child_txg = NULL;
 	uint64_t *hole_array, max_id;
 	uint_t c;
 	boolean_t isactive;
@@ -711,23 +735,50 @@ get_configs(libpc_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
 
 			if (id >= children) {
 				nvlist_t **newchild;
+				uint64_t *newtxg;
 
 				newchild = zutil_alloc(hdl, (id + 1) *
 				    sizeof (nvlist_t *));
 				if (newchild == NULL)
 					goto nomem;
+				newtxg = zutil_alloc(hdl, (id + 1) *
+				    sizeof (uint64_t));
+				if (newtxg == NULL) {
+					free(newchild);
+					goto nomem;
+				}
 
-				for (c = 0; c < children; c++)
+				for (c = 0; c < children; c++) {
 					newchild[c] = child[c];
+					newtxg[c] = child_txg[c];
+				}
 
 				free(child);
+				free(child_txg);
 				child = newchild;
+				child_txg = newtxg;
 				children = id + 1;
+			}
+
+			/*
+			 * A device can keep the label of a top-level vdev that
+			 * the pool no longer has, such as one added after a
+			 * checkpoint that the pool was then rewound to, while
+			 * a newer top-level vdev has the same id.  Keep the
+			 * one with the latest label.
+			 */
+			if (child[id] != NULL) {
+				if (child_txg[id] >= best_txg)
+					continue;
+				nvlist_free(child[id]);
+				child[id] = NULL;
 			}
 			if (nvlist_dup(nvtop, &child[id], 0) != 0)
 				goto nomem;
-
+			child_txg[id] = best_txg;
 		}
+		free(child_txg);
+		child_txg = NULL;
 
 		/*
 		 * If we have information about all the top-levels then
@@ -851,7 +902,7 @@ get_configs(libpc_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
 		 * Go through and fix up any paths and/or devids based on our
 		 * known list of vdev GUID -> path mappings.
 		 */
-		if (fix_paths(hdl, nvroot, pl->names) != 0) {
+		if (fix_paths(hdl, nvroot, pl->names, pe->pe_guid) != 0) {
 			nvlist_free(nvroot);
 			goto nomem;
 		}
@@ -922,7 +973,8 @@ get_configs(libpc_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
 					update_vdev_config_dev_strs(spares[i]);
 					continue;
 				}
-				if (fix_paths(hdl, spares[i], pl->names) != 0)
+				if (fix_paths(hdl, spares[i], pl->names,
+				    pe->pe_guid) != 0)
 					goto nomem;
 			}
 		}
@@ -938,7 +990,8 @@ get_configs(libpc_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
 					update_vdev_config_dev_strs(l2cache[i]);
 					continue;
 				}
-				if (fix_paths(hdl, l2cache[i], pl->names) != 0)
+				if (fix_paths(hdl, l2cache[i], pl->names,
+				    pe->pe_guid) != 0)
 					goto nomem;
 			}
 		}
@@ -981,6 +1034,7 @@ error:
 	for (c = 0; c < children; c++)
 		nvlist_free(child[c]);
 	free(child);
+	free(child_txg);
 
 	return (NULL);
 }
@@ -1016,8 +1070,8 @@ zpool_read_label_slow(int fd, nvlist_t **config, int *num_labels)
 		return (0);
 	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
 
-	label = (vdev_phys_t *)umem_alloc_aligned(sizeof (*label), PAGESIZE,
-	    UMEM_DEFAULT);
+	label = (vdev_phys_t *)kmem_alloc_aligned(sizeof (*label), PAGESIZE,
+	    KM_NOSLEEP);
 	if (label == NULL)
 		return (-1);
 
@@ -1067,7 +1121,7 @@ zpool_read_label_slow(int fd, nvlist_t **config, int *num_labels)
 	if (num_labels != NULL)
 		*num_labels = count;
 
-	umem_free_aligned(label, sizeof (*label));
+	kmem_free_aligned(label, sizeof (*label));
 	*config = expected_config;
 
 	return (0);
@@ -1098,8 +1152,8 @@ zpool_read_label(int fd, nvlist_t **config, int *num_labels)
 		return (0);
 	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
 
-	labels = (vdev_phys_t *)umem_alloc_aligned(
-	    VDEV_LABELS * sizeof (*labels), PAGESIZE, UMEM_DEFAULT);
+	labels = (vdev_phys_t *)kmem_alloc_aligned(
+	    VDEV_LABELS * sizeof (*labels), PAGESIZE, KM_NOSLEEP);
 	if (labels == NULL)
 		return (-1);
 
@@ -1165,7 +1219,7 @@ zpool_read_label(int fd, nvlist_t **config, int *num_labels)
 			error = zpool_read_label_slow(fd, config, num_labels);
 			saved_errno = errno;
 		}
-		umem_free_aligned(labels, VDEV_LABELS * sizeof (*labels));
+		kmem_free_aligned(labels, VDEV_LABELS * sizeof (*labels));
 		errno = saved_errno;
 		return (error);
 	}
@@ -1214,7 +1268,7 @@ zpool_read_label(int fd, nvlist_t **config, int *num_labels)
 	if (num_labels != NULL)
 		*num_labels = count;
 
-	umem_free_aligned(labels, VDEV_LABELS * sizeof (*labels));
+	kmem_free_aligned(labels, VDEV_LABELS * sizeof (*labels));
 	*config = expected_config;
 
 	return (0);
@@ -1367,8 +1421,8 @@ zpool_find_import_scan_dir(libpc_handle_t *hdl, pthread_mutex_t *lock,
 			return (0);
 
 		zutil_error_aux(hdl, "%s", zfs_strerror(error));
-		(void) zutil_error_fmt(hdl, LPC_BADPATH, dgettext(TEXT_DOMAIN,
-		    "cannot resolve path '%s'"), dir);
+		(void) zutil_error_fmt(hdl, LPC_BADPATH,
+		    "cannot resolve path '%s'", dir);
 		return (error);
 	}
 
@@ -1376,8 +1430,8 @@ zpool_find_import_scan_dir(libpc_handle_t *hdl, pthread_mutex_t *lock,
 	if (dirp == NULL) {
 		error = errno;
 		zutil_error_aux(hdl, "%s", zfs_strerror(error));
-		(void) zutil_error_fmt(hdl, LPC_BADPATH, dgettext(TEXT_DOMAIN,
-		    "cannot open '%s'"), path);
+		(void) zutil_error_fmt(hdl, LPC_BADPATH,
+		    "cannot open '%s'", path);
 		return (error);
 	}
 
@@ -1438,8 +1492,8 @@ zpool_find_import_scan_path(libpc_handle_t *hdl, pthread_mutex_t *lock,
 		}
 
 		zutil_error_aux(hdl, "%s", zfs_strerror(error));
-		(void) zutil_error_fmt(hdl, LPC_BADPATH, dgettext(TEXT_DOMAIN,
-		    "cannot resolve path '%s'"), dir);
+		(void) zutil_error_fmt(hdl, LPC_BADPATH,
+		    "cannot resolve path '%s'", dir);
 		goto out;
 	}
 
@@ -1476,8 +1530,8 @@ zpool_find_import_scan(libpc_handle_t *hdl, pthread_mutex_t *lock,
 				continue;
 
 			zutil_error_aux(hdl, "%s", zfs_strerror(error));
-			(void) zutil_error_fmt(hdl, LPC_BADPATH, dgettext(
-			    TEXT_DOMAIN, "cannot resolve path '%s'"), dir[i]);
+			(void) zutil_error_fmt(hdl, LPC_BADPATH,
+			    "cannot resolve path '%s'", dir[i]);
 			goto error;
 		}
 
@@ -1729,16 +1783,16 @@ zpool_find_import_cached(libpc_handle_t *hdl, importargs_t *iarg)
 
 	if ((fd = open(iarg->cachefile, O_RDONLY | O_CLOEXEC)) < 0) {
 		zutil_error_aux(hdl, "%s", zfs_strerror(errno));
-		(void) zutil_error(hdl, LPC_BADCACHE, dgettext(TEXT_DOMAIN,
-		    "failed to open cache file"));
+		(void) zutil_error(hdl, LPC_BADCACHE,
+		    "failed to open cache file");
 		return (NULL);
 	}
 
 	if (fstat64(fd, &statbuf) != 0) {
 		zutil_error_aux(hdl, "%s", zfs_strerror(errno));
 		(void) close(fd);
-		(void) zutil_error(hdl, LPC_BADCACHE, dgettext(TEXT_DOMAIN,
-		    "failed to get size of cache file"));
+		(void) zutil_error(hdl, LPC_BADCACHE,
+		    "failed to get size of cache file");
 		return (NULL);
 	}
 
@@ -1750,8 +1804,8 @@ zpool_find_import_cached(libpc_handle_t *hdl, importargs_t *iarg)
 	if (read(fd, buf, statbuf.st_size) != statbuf.st_size) {
 		(void) close(fd);
 		free(buf);
-		(void) zutil_error(hdl, LPC_BADCACHE, dgettext(TEXT_DOMAIN,
-		    "failed to read cache file contents"));
+		(void) zutil_error(hdl, LPC_BADCACHE,
+		    "failed to read cache file contents");
 		return (NULL);
 	}
 
@@ -1759,8 +1813,8 @@ zpool_find_import_cached(libpc_handle_t *hdl, importargs_t *iarg)
 
 	if (nvlist_unpack(buf, statbuf.st_size, &raw, 0) != 0) {
 		free(buf);
-		(void) zutil_error(hdl, LPC_BADCACHE, dgettext(TEXT_DOMAIN,
-		    "invalid or corrupt cache file contents"));
+		(void) zutil_error(hdl, LPC_BADCACHE,
+		    "invalid or corrupt cache file contents");
 		return (NULL);
 	}
 
@@ -1943,8 +1997,8 @@ zpool_search_import(libpc_handle_t *hdl, importargs_t *import)
 
 	if ((pools == NULL || nvlist_empty(pools)) &&
 	    hdl->lpc_open_access_error && geteuid() != 0) {
-		(void) zutil_error(hdl, LPC_EACCESS, dgettext(TEXT_DOMAIN,
-		    "no pools found"));
+		(void) zutil_error(hdl, LPC_EACCESS,
+		    "no pools found");
 	}
 
 	return (pools);
@@ -1987,9 +2041,9 @@ zpool_find_config(libpc_handle_t *hdl, const char *target, nvlist_t **configp,
 
 	pools = zpool_search_import(hdl, args);
 	if (pools == NULL) {
-		zutil_error_aux(hdl, dgettext(TEXT_DOMAIN, "no pools found"));
-		(void) zutil_error_fmt(hdl, LPC_UNKNOWN, dgettext(TEXT_DOMAIN,
-		    "failed to find config for pool '%s'"), targetdup);
+		zutil_error_aux(hdl, "no pools found");
+		(void) zutil_error_fmt(hdl, LPC_UNKNOWN,
+		    "failed to find config for pool '%s'", targetdup);
 		free(targetdup);
 		return (ENOENT);
 	}
@@ -2010,19 +2064,19 @@ zpool_find_config(libpc_handle_t *hdl, const char *target, nvlist_t **configp,
 	fnvlist_free(pools);
 
 	if (count == 0) {
-		zutil_error_aux(hdl, dgettext(TEXT_DOMAIN,
-		    "no matching pools"));
-		(void) zutil_error_fmt(hdl, LPC_UNKNOWN, dgettext(TEXT_DOMAIN,
-		    "failed to find config for pool '%s'"), targetdup);
+		zutil_error_aux(hdl,
+		    "no matching pools");
+		(void) zutil_error_fmt(hdl, LPC_UNKNOWN,
+		    "failed to find config for pool '%s'", targetdup);
 		free(targetdup);
 		return (ENOENT);
 	}
 
 	if (count > 1) {
-		zutil_error_aux(hdl, dgettext(TEXT_DOMAIN,
-		    "more than one matching pool"));
-		(void) zutil_error_fmt(hdl, LPC_UNKNOWN, dgettext(TEXT_DOMAIN,
-		    "failed to find config for pool '%s'"), targetdup);
+		zutil_error_aux(hdl,
+		    "more than one matching pool");
+		(void) zutil_error_fmt(hdl, LPC_UNKNOWN,
+		    "failed to find config for pool '%s'", targetdup);
 		free(targetdup);
 		fnvlist_free(match);
 		return (EINVAL);

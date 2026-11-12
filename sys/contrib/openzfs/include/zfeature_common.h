@@ -22,7 +22,6 @@
 #define	_ZFEATURE_COMMON_H extern __attribute__((visibility("default")))
 
 #include <sys/fs/zfs.h>
-#include <sys/inttypes.h>
 #include <sys/types.h>
 
 #ifdef	__cplusplus
@@ -81,6 +80,7 @@ typedef enum spa_feature {
 	SPA_FEATURE_BLOCK_CLONING_ENDIAN,
 	SPA_FEATURE_PHYSICAL_REWRITE,
 	SPA_FEATURE_DRAID_FAIL_DOMAINS,
+	SPA_FEATURE_ANYRAID,
 	SPA_FEATURES
 } spa_feature_t;
 

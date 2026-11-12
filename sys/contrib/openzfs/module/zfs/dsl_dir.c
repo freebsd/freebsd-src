@@ -19,6 +19,7 @@
  * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  * Copyright (c) 2023 Hewlett Packard Enterprise Development LP.
  * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
+ * Copyright 2026 Oxide Computer Company
  */
 
 #include <sys/dmu.h>
@@ -1652,7 +1653,7 @@ dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
 static void
 dsl_dir_diduse_transfer_space_impl(dsl_dir_t *dd, int64_t used,
     int64_t compressed, int64_t uncompressed, int64_t tonew,
-	dd_used_t oldtype, dd_used_t newtype, boolean_t nested, dmu_tx_t *tx)
+    dd_used_t oldtype, dd_used_t newtype, boolean_t nested, dmu_tx_t *tx)
 {
 	int64_t accounted_delta;
 
@@ -1748,6 +1749,8 @@ dsl_dir_set_quota_check(void *arg, dmu_tx_t *tx)
 	 */
 	towrite = dsl_dir_space_towrite(ds->ds_dir);
 	if ((dmu_tx_is_syncing(tx) || towrite == 0) &&
+	    (dsl_dir_phys(ds->ds_dir)->dd_quota == 0 ||
+	    newval < dsl_dir_phys(ds->ds_dir)->dd_quota) &&
 	    (newval < dsl_dir_phys(ds->ds_dir)->dd_reserved ||
 	    newval < dsl_dir_phys(ds->ds_dir)->dd_used_bytes + towrite)) {
 		error = SET_ERROR(ENOSPC);

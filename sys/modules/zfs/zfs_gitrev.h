@@ -1,1 +1,1 @@
-#define	ZFS_META_GITREV "zfs-2.4.99-1149-g1f380a4f3"
+#define	ZFS_META_GITREV "zfs-2.4.99-1603-g013c77e66"
