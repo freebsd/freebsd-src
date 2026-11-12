@@ -644,6 +644,15 @@ decoded:
 			pdu->engine.engine_boots = snmpd_engine.engine_boots;
 			pdu->engine.engine_time = snmpd_engine.engine_time;
 		}
+		/*
+		 * A discovery message may only elicit a Report.  Force GET
+		 * so the appended usmStats counter is read back as-is: a
+		 * GETNEXT or GETBULK would otherwise walk forward from it,
+		 * and a SET act on it, all with VACM skipped for the
+		 * AUTODISCOVER flag.
+		 */
+		if ((pdu->flags & SNMP_MSG_AUTODISCOVER) != 0)
+			pdu->type = SNMP_PDU_GET;
 	} else if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
 	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
 		snmpd_usmstats.not_in_time_windows++;
