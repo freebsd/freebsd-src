@@ -124,15 +124,14 @@ parse_number(const nvlist_t *nvl, const char *key, uint64_t def, uint64_t minv,
     uint64_t maxv)
 {
 	const char *value;
-	int64_t val;
+	uint64_t val;
 
 	if (!nvlist_exists_string(nvl, key))
 		return def;
 
 	value = nvlist_get_string(nvl, key);
-	if (expand_number(value, &val) == 0 && val >= 0 &&
-	    (uint64_t)val >= minv && (uint64_t)val <= maxv)
-		return (uint64_t)val;
+	if (expand_unsigned(value, &val) == 0 && val >= minv && val <= maxv)
+		return val;
 
 	log_warnx("Invalid value \"%s\" for numeric option %s", value, key);
 	return def;
