@@ -10,6 +10,8 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/rtprio.h>
+#include <sys/thr.h>
 #include <sys/ptrace.h>
 #include <dirent.h>
 #include <net/if.h>
@@ -731,4 +733,47 @@ FORK_TEST(Capmode, SelfKill) {
   EXPECT_EQ(2, signal_cnt);
 
   signal(SIGUSR1, original);
+}
+
+FORK_TEST(Capmode, SelfSched) {
+  pid_t me = getpid();
+  long my_tid, child_tid;
+  int pipefds[2];
+
+  EXPECT_OK(thr_self(&my_tid));
+  EXPECT_OK(pipe(pipefds));
+  pid_t child = fork();
+  if (child == 0) {
+    // Child: report thread ID, sleep and exit
+    thr_self(&child_tid);
+    write(pipefds[1], &child_tid, sizeof(child_tid));
+    sleep(1);
+    exit(0);
+  }
+  EXPECT_EQ((ssize_t)sizeof(child_tid),
+            read(pipefds[0], &child_tid, sizeof(child_tid)));
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // Can only query or modify scheduling parameters of own pid.
+  struct sched_param sp;
+  EXPECT_CAPMODE(sched_getparam(child, &sp));
+  EXPECT_OK(sched_getparam(me, &sp));
+  EXPECT_CAPMODE(sched_setparam(child, &sp));
+  EXPECT_CAPMODE(sched_getscheduler(child));
+  int policy = sched_getscheduler(me);
+  EXPECT_OK(policy);
+  EXPECT_CAPMODE(sched_setscheduler(child, policy, &sp));
+  struct timespec ts;
+  EXPECT_CAPMODE(sched_rr_get_interval(child, &ts));
+  EXPECT_OK(sched_rr_get_interval(me, &ts));
+
+  struct rtprio rtp;
+  EXPECT_CAPMODE(rtprio(RTP_LOOKUP, child, &rtp));
+  EXPECT_OK(rtprio(RTP_LOOKUP, me, &rtp));
+  EXPECT_CAPMODE(rtprio_thread(RTP_LOOKUP, child_tid, &rtp));
+  EXPECT_OK(rtprio_thread(RTP_LOOKUP, my_tid, &rtp));
+
+  close(pipefds[0]);
+  close(pipefds[1]);
 }
