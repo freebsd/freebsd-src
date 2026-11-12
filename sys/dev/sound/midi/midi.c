@@ -176,11 +176,6 @@ midi_init(kobj_class_t cls, void *cookie, size_t inqsize, size_t outqsize)
 	m->channel = alloc_unr(chn_unr);
 	m->cookie = cookie;
 
-	if (MPU_INIT(m, cookie)) {
-		midi_destroy(m);
-		return (NULL);
-	}
-
 	make_dev_args_init(&args);
 	args.mda_devsw = &midi_cdevsw;
 	args.mda_unit = m->unit;

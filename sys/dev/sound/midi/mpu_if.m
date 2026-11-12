@@ -33,11 +33,6 @@
 
 INTERFACE mpu;
 
-METHOD int init {
-	struct snd_midi *_kobj;
-	void   *_cookie;
-};
-
 METHOD void callback {
 	struct snd_midi *_kobj;
 	void   *_cookie;

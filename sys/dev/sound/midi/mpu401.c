@@ -61,11 +61,9 @@ struct mpu401 {
 	struct callout timer;
 };
 
-static int mpu401_minit(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 
 static kobj_method_t mpu401_methods[] = {
-	KOBJMETHOD(mpu_init, mpu401_minit),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
 	KOBJMETHOD_END
 };
@@ -118,6 +116,9 @@ mpu401_init(kobj_class_t cls, void *cookie)
 
 	m->cookie = cookie;
 
+	CMD(m, MPU_RESET);
+	CMD(m, MPU_UART);
+
 	m->mid = midi_init(&mpu401_class, m, MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
 	if (!m->mid)
 		goto err;
@@ -135,16 +136,6 @@ mpu401_uninit(struct mpu401 *m)
 	midi_uninit(m->mid);
 	callout_drain(&m->timer);
 	kobj_delete((kobj_t)m, M_MIDI);
-	return 0;
-}
-
-static int
-mpu401_minit(struct snd_midi *sm __unused, void *arg)
-{
-	struct mpu401 *m = arg;
-
-	CMD(m, MPU_RESET);
-	CMD(m, MPU_UART);
 	return 0;
 }
 
