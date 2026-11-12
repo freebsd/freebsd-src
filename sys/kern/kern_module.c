@@ -357,6 +357,7 @@ sys_modfnext(struct thread *td, struct modfnext_args *uap)
 	return (error);
 }
 
+#ifdef COMPAT_43	/* XXX - COMPAT_FREEBSD2 */
 struct module_stat_v1 {
 	int	version;		/* set to sizeof(struct module_stat) */
 	char	name[MAXMODNAMEV1V2];
@@ -364,6 +365,18 @@ struct module_stat_v1 {
 	int	id;
 };
 
+static void
+module2module_stat_v1(module_t mod, struct module_stat_v1 *stat)
+{
+	stat->version = sizeof(*stat);
+	/* Not necessarily NUL-terminated */
+	strncpy(stat->name, mod->name, sizeof(stat->name));
+	stat->refs = mod->refs;
+	stat->id = mod->id;
+}
+#endif
+
+#ifdef COMPAT_FREEBSD13
 struct module_stat_v2 {
 	int	version;		/* set to sizeof(struct module_stat) */
 	char	name[MAXMODNAMEV1V2];
@@ -371,6 +384,29 @@ struct module_stat_v2 {
 	int	id;
 	modspecific_t	data;
 };
+
+static void
+module2module_stat_v2(module_t mod, struct module_stat_v2 *stat)
+{
+	stat->version = sizeof(*stat);
+	/* Not necessarily NUL-terminated */
+	strncpy(stat->name, mod->name, sizeof(stat->name));
+	stat->refs = mod->refs;
+	stat->id = mod->id;
+	stat->data = mod->data;
+}
+#endif
+
+static void
+module2module_stat(module_t mod, struct module_stat *stat)
+{
+	stat->version = sizeof(*stat);
+	/* Not necessarily NUL-terminated */
+	strncpy(stat->name, mod->name, sizeof(stat->name));
+	stat->refs = mod->refs;
+	stat->id = mod->id;
+	stat->data = mod->data;
+}
 
 int
 sys_modstat(struct thread *td, struct modstat_args *uap)
@@ -382,76 +418,68 @@ int
 kern_modstat(struct thread *td, int modid, struct module_stat *stat)
 {
 	module_t mod;
-	modspecific_t data;
 	int error = 0;
-	int id, namelen, refs, version;
-	struct module_stat_v2 *stat_v2;
-	char *name, *user_namep;
-	bool is_v1v2;
+	int version;
+	void *statbuf;
 
+	/* Look up first to preserve historic error priority */
 	MOD_SLOCK;
 	mod = module_lookupbyid(modid);
-	if (mod == NULL) {
-		error = ENOENT;
-		goto out;
-	}
-	id = mod->id;
-	refs = mod->refs;
-	name = mod->name;
-	data = mod->data;
+	MOD_SUNLOCK;
+	if (mod == NULL)
+		return (ENOENT);
 
 	/*
 	 * Check the version of the user's structure.
 	 */
 	if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
-		goto out;
-	is_v1v2 = (version == sizeof(struct module_stat_v1) ||
-	    version == sizeof(struct module_stat_v2));
-	if (!is_v1v2 && version != sizeof(struct module_stat)) {
-		error = EINVAL;
-		goto out;
-	}
-	if (is_v1v2)
-		user_namep = ((struct module_stat_v1 *)stat)->name;
-	else
-		user_namep = stat->name;
-	namelen = strlen(mod->name) + 1;
-	if (is_v1v2 && namelen > MAXMODNAMEV1V2)
-		namelen = MAXMODNAMEV1V2;
-	else if (namelen > MAXMODNAMEV3)
-		namelen = MAXMODNAMEV3;
-	if ((error = copyout(name, user_namep, namelen)) != 0)
-		goto out;
+		return (error);
 
-	/* Extending MAXMODNAME gives an offset change for v3. */
-	if (is_v1v2) {
-		stat_v2 = (struct module_stat_v2 *)stat;
-		if ((error = copyout(&refs, &stat_v2->refs, sizeof(int))) != 0)
-			goto out;
-		if ((error = copyout(&id, &stat_v2->id, sizeof(int))) != 0)
-			goto out;
-	} else {
-		if ((error = copyout(&refs, &stat->refs, sizeof(int))) != 0)
-			goto out;
-		if ((error = copyout(&id, &stat->id, sizeof(int))) != 0)
-			goto out;
+	switch (version) {
+	case sizeof(struct module_stat):
+#ifdef COMPAT_FREEBSD13
+	case sizeof(struct module_stat_v2):
+#endif
+#ifdef COMPAT_43	/* XXX - COMPAT_FREEBSD2 */
+	case sizeof(struct module_stat_v1):
+#endif
+		statbuf = malloc(version, M_TEMP, M_WAITOK | M_ZERO);
+		break;
+	default:
+		return (EINVAL);
 	}
 
-	/*
-	 * >v1 stat includes module data.
-	 */
-	if (version == sizeof(struct module_stat_v2)) {
-		if ((error = copyout(&data, &stat_v2->data,
-		    sizeof(data))) != 0)
-			goto out;
-	} else if (version == sizeof(struct module_stat)) {
-		if ((error = copyout(&data, &stat->data, 
-		    sizeof(data))) != 0)
-			goto out;
+	MOD_SLOCK;
+	mod = module_lookupbyid(modid);
+	if (mod == NULL) {
+		MOD_SUNLOCK;
+		error = ENOENT;
+		goto out;
 	}
+
+	switch (version) {
+	case sizeof(struct module_stat):
+		module2module_stat(mod, statbuf);
+		break;
+#ifdef COMPAT_FREEBSD13
+	case sizeof(struct module_stat_v2):
+		module2module_stat_v2(mod, statbuf);
+		break;
+#endif
+#ifdef COMPAT_43	/* XXX - COMPAT_FREEBSD2 */
+	case sizeof(struct module_stat_v1):
+		module2module_stat_v1(mod, statbuf);
+		break;
+#endif
+	}
+	MOD_SUNLOCK;
+
+	if ((error = copyout(statbuf, stat, version)) != 0)
+		goto out;
+
 	td->td_retval[0] = 0;
 out:
-	MOD_SUNLOCK;
+	free(statbuf, M_TEMP);
 	return (error);
 }
 
@@ -497,6 +525,7 @@ typedef union modspecific32 {
 	uint32_t	ulongval;
 } modspecific32_t;
 
+#ifdef COMPAT_FREEBSD13
 struct module_stat32_v2 {
 	int		version;
 	char		name[MAXMODNAMEV1V2];
@@ -504,6 +533,18 @@ struct module_stat32_v2 {
 	int		id;
 	modspecific32_t	data;
 };
+
+static void
+module2module_stat32_v2(module_t mod, struct module_stat32_v2 *stat)
+{
+	stat->version = sizeof(*stat);
+	/* Not necessarily NUL-terminated */
+	strncpy(stat->name, mod->name, sizeof(stat->name));
+	stat->refs = mod->refs;
+	stat->id = mod->id;
+	stat->data.uintval = mod->data.uintval;
+}
+#endif
 
 struct module_stat32 {
 	int		version;
@@ -513,78 +554,82 @@ struct module_stat32 {
 	modspecific32_t	data;
 };
 
+static void
+module2module_stat32(module_t mod, struct module_stat32 *stat)
+{
+	stat->version = sizeof(*stat);
+	/* Not necessarily NUL-terminated */
+	strncpy(stat->name, mod->name, sizeof(stat->name));
+	stat->refs = mod->refs;
+	stat->id = mod->id;
+	stat->data.uintval = mod->data.uintval;
+}
+
 int
 freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 {
 	module_t mod;
-	modspecific32_t data32;
 	int error = 0;
-	int id, namelen, refs, version;
+	int version;
+	void *statbuf;
 	struct module_stat32 *stat32;
-	struct module_stat32_v2 *stat32_v2;
-	char *name;
-	bool is_v1v2;
+
+	/* Look up first to preserve historic error priority */
+	MOD_SLOCK;
+	mod = module_lookupbyid(uap->modid);
+	MOD_SUNLOCK;
+	if (mod == NULL)
+		return (ENOENT);
+
+	stat32 = uap->stat;
+	if ((error = copyin(&stat32->version, &version, sizeof(version))) != 0)
+		return (error);
+
+	switch (version) {
+	case sizeof(struct module_stat32):
+#ifdef COMPAT_FREEBSD13
+	case sizeof(struct module_stat32_v2):
+#endif
+#ifdef COMPAT_43	/* XXX - COMPAT_FREEBSD2 */
+	case sizeof(struct module_stat_v1):
+#endif
+		statbuf = malloc(version, M_TEMP, M_WAITOK | M_ZERO);
+		break;
+	default:
+		return (EINVAL);
+	}
 
 	MOD_SLOCK;
 	mod = module_lookupbyid(uap->modid);
 	if (mod == NULL) {
+		MOD_SUNLOCK;
 		error = ENOENT;
 		goto out;
 	}
 
-	id = mod->id;
-	refs = mod->refs;
-	name = mod->name;
-	_Static_assert(sizeof(data32) == sizeof(data32.uintval),
-	    "bad modspecific32_t size");
-	CP(mod->data, data32, uintval);
-	stat32 = uap->stat;
-
-	if ((error = copyin(&stat32->version, &version, sizeof(version))) != 0)
-		goto out;
-	is_v1v2 = (version == sizeof(struct module_stat_v1) ||
-	    version == sizeof(struct module_stat32_v2));
-	if (!is_v1v2 && version != sizeof(struct module_stat32)) {
-		error = EINVAL;
-		goto out;
+	switch (version) {
+	case sizeof(struct module_stat32):
+		module2module_stat32(mod, statbuf);
+		break;
+#ifdef COMPAT_FREEBSD13
+	case sizeof(struct module_stat32_v2):
+		module2module_stat32_v2(mod, statbuf);
+		break;
+#endif
+#ifdef COMPAT_43	/* XXX - COMPAT_FREEBSD2 */
+	case sizeof(struct module_stat_v1):
+		module2module_stat_v1(mod, statbuf);
+		break;
+#endif
 	}
-	namelen = strlen(mod->name) + 1;
-	if (is_v1v2 && namelen > MAXMODNAMEV1V2)
-		namelen = MAXMODNAMEV1V2;
-	else if (namelen > MAXMODNAMEV3)
-		namelen = MAXMODNAMEV3;
-	if ((error = copyout(name, &stat32->name[0], namelen)) != 0)
+	MOD_SUNLOCK;
+
+	if ((error = copyout(statbuf, stat32, version)) != 0)
 		goto out;
 
-	/* Extending MAXMODNAME gives an offset change for v3. */
-	if (is_v1v2) {
-		stat32_v2 = (struct module_stat32_v2 *)stat32;
-		if ((error = copyout(&refs, &stat32_v2->refs, sizeof(int))) != 0)
-			goto out;
-		if ((error = copyout(&id, &stat32_v2->id, sizeof(int))) != 0)
-			goto out;
-	} else {
-		if ((error = copyout(&refs, &stat32->refs, sizeof(int))) != 0)
-			goto out;
-		if ((error = copyout(&id, &stat32->id, sizeof(int))) != 0)
-			goto out;
-	}
-
-	/*
-	 * >v1 stat includes module data.
-	 */
-	if (version == sizeof(struct module_stat32_v2)) {
-		if ((error = copyout(&data32, &stat32_v2->data,
-		    sizeof(data32))) != 0)
-			goto out;
-	} else if (version == sizeof(struct module_stat32)) {
-		if ((error = copyout(&data32, &stat32->data,
-		    sizeof(data32))) != 0)
-			goto out;
-	}
 	td->td_retval[0] = 0;
 out:
-	MOD_SUNLOCK;
+	free(statbuf, M_TEMP);
 	return (error);
 }
 #endif
