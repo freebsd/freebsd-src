@@ -1096,7 +1096,6 @@ tdq_move(struct tdq *from, struct tdq *to)
 	 */
 	thread_lock_block_wait(td);
 	sched_rem(td);
-	THREAD_LOCKPTR_ASSERT(td, TDQ_LOCKPTR(from));
 	td->td_lock = TDQ_LOCKPTR(to);
 	td_get_sched(td)->ts_cpu = cpu;
 	return (tdq_add(to, td, SRQ_YIELDING));
