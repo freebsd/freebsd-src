@@ -897,6 +897,8 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	uint8_t val;
 	int error;
 
+	*udelay = 0;
+
 	sc = regnode_get_softc(regnode);
 	asc = device_get_softc(sc->base_dev);
 
@@ -926,8 +928,6 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	sx_xunlock(&asc->reglock);
 	if (error != 0)
 		return (EIO);
-
-	*udelay = 0;
 
 	return (0);
 }
@@ -995,6 +995,8 @@ axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	struct axp8xx_reg_sc *sc;
 	uint8_t val;
 
+	*udelay = 0;
+
 	sc = regnode_get_softc(regnode);
 
 	if (bootverbose)
@@ -1011,8 +1013,6 @@ axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 
 	if (axp8xx_write(sc->base_dev, sc->def->voltage_reg, val) != 0)
 		return (EIO);
-
-	*udelay = 0;
 
 	return (0);
 }
