@@ -801,7 +801,8 @@ struct kq_timer_cb_data {
 	sbintime_t to;		/* precalculated timer period, 0 for abs */
 };
 
-#define	KQ_TIMER_CB_ENQUEUED	0x01
+#define	KQ_TIMER_CB_ENQUEUED	0x01	/* in queue of stopped timers */
+#define	KQ_TIMER_CB_DETACHING	0x02	/* detach started, don't requeue */
 
 static void
 kqtimer_sched_callout(struct kq_timer_cb_data *kc)
@@ -869,7 +870,8 @@ filt_timerexpire_l(struct knote *kn, bool proc_locked)
 		if (!proc_locked)
 			PROC_LOCK(p);
 		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
-			if ((kc->flags & KQ_TIMER_CB_ENQUEUED) == 0) {
+			if ((kc->flags & (KQ_TIMER_CB_ENQUEUED |
+			    KQ_TIMER_CB_DETACHING)) == 0) {
 				/*
 				 * Insert into head so that
 				 * kqtimer_proc_continue() does not
@@ -976,7 +978,8 @@ filt_timercopy(struct knote *kn, struct proc *p)
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
 	kc->kn = kn;
 	kc->p = p;
-	kc->flags = kc_src->flags & ~KQ_TIMER_CB_ENQUEUED;
+	kc->flags = kc_src->flags &
+	    ~(KQ_TIMER_CB_ENQUEUED | KQ_TIMER_CB_DETACHING);
 	kc->next = kc_src->next;
 	kc->to = kc_src->to;
 	kc->cpuid = PCPU_GET(cpuid);
@@ -1006,24 +1009,16 @@ filt_timerdetach(struct knote *kn)
 {
 	struct kq_timer_cb_data *kc;
 	unsigned int old __unused;
-	bool pending;
 
 	kc = kn->kn_ptr.p_v;
-	do {
-		callout_drain(&kc->c);
-
-		/*
-		 * kqtimer_proc_continue() might have rescheduled this callout.
-		 * Double-check, using the process mutex as an interlock.
-		 */
-		PROC_LOCK(kc->p);
-		if ((kc->flags & KQ_TIMER_CB_ENQUEUED) != 0) {
-			kc->flags &= ~KQ_TIMER_CB_ENQUEUED;
-			TAILQ_REMOVE(&kc->p->p_kqtim_stop, kc, link);
-		}
-		pending = callout_pending(&kc->c);
-		PROC_UNLOCK(kc->p);
-	} while (pending);
+	PROC_LOCK(kc->p);
+	kc->flags |= KQ_TIMER_CB_DETACHING;
+	if ((kc->flags & KQ_TIMER_CB_ENQUEUED) != 0) {
+		kc->flags &= ~KQ_TIMER_CB_ENQUEUED;
+		TAILQ_REMOVE(&kc->p->p_kqtim_stop, kc, link);
+	}
+	PROC_UNLOCK(kc->p);
+	callout_drain(&kc->c);
 	free(kc, M_KQUEUE);
 	old = atomic_fetchadd_int(&kq_ncallouts, -1);
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
