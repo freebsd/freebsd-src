@@ -348,7 +348,13 @@ static uint32_t splice_index = 0;
 
 static void so_splice_timeout(void *arg, int pending);
 static void so_splice_xfer(struct so_splice *s);
-static int so_unsplice(struct socket *so, bool timeout);
+enum so_unsplice_reason {
+	SO_UNSPLICE_SETSOCKOPT,
+	SO_UNSPLICE_TIMEOUT,
+	SO_UNSPLICE_EXCEPTION,
+};
+static int so_unsplice(struct socket *so, struct so_splice *sp,
+    enum so_unsplice_reason why);
 
 static void
 splice_work_thread(void *ctx)
@@ -656,7 +662,7 @@ closing:
 			sp->state = SPLICE_EXCEPTION;
 			soref(so_src);
 			mtx_unlock(&sp->mtx);
-			(void)so_unsplice(so_src, false);
+			(void)so_unsplice(so_src, sp, SO_UNSPLICE_EXCEPTION);
 			sorele(so_src);
 		} else {
 			/*
@@ -1659,7 +1665,7 @@ so_splice_timeout(void *arg, int pending __unused)
 	struct so_splice *sp;
 
 	sp = arg;
-	(void)so_unsplice(sp->src, true);
+	(void)so_unsplice(sp->src, sp, SO_UNSPLICE_TIMEOUT);
 }
 
 /*
@@ -1732,7 +1738,7 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 		sp->dst = NULL;
 		sp->state = SPLICE_EXCEPTION;
 		mtx_unlock(&sp->mtx);
-		so_unsplice(so, false);
+		(void)so_unsplice(so, sp, SO_UNSPLICE_EXCEPTION);
 		return (error);
 	}
 	SOCK_SENDBUF_LOCK(so2);
@@ -1743,7 +1749,7 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 		sp->dst = NULL;
 		sp->state = SPLICE_EXCEPTION;
 		mtx_unlock(&sp->mtx);
-		so_unsplice(so, false);
+		(void)so_unsplice(so, sp, SO_UNSPLICE_EXCEPTION);
 		return (EINVAL);
 	}
 	so2->so_snd.sb_flags |= SB_SPLICED;
@@ -1769,10 +1775,11 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 }
 
 static int
-so_unsplice(struct socket *so, bool timeout)
+so_unsplice(struct socket *so, struct so_splice *sp,
+    enum so_unsplice_reason why)
 {
 	struct socket *so2;
-	struct so_splice *sp;
+	int error;
 	bool drain;
 
 	/*
@@ -1791,18 +1798,47 @@ so_unsplice(struct socket *so, bool timeout)
 		SOCK_UNLOCK(so);
 		return (ENOTCONN);
 	}
-	sp = so->so_splice;
+	if (sp == NULL) {
+		sp = so->so_splice;
+	} else if (sp != so->so_splice) {
+		SOCK_RECVBUF_UNLOCK(so);
+		SOCK_UNLOCK(so);
+		return (EINVAL);
+	}
+	error = 0;
 	mtx_lock(&sp->mtx);
-	if (sp->state == SPLICE_INIT) {
+	switch (sp->state) {
+	case SPLICE_INIT:
 		/*
 		 * A splice is in the middle of being set up.
 		 */
-		mtx_unlock(&sp->mtx);
-		SOCK_RECVBUF_UNLOCK(so);
-		SOCK_UNLOCK(so);
-		return (ENOTCONN);
+		error = ENOTCONN;
+		break;
+	case SPLICE_EXCEPTION:
+		/*
+		 * Make sure that unsplicing is serialized.
+		 */
+		if (why != SO_UNSPLICE_EXCEPTION) {
+			error = ENOTCONN;
+			break;
+		}
+		/* FALLTHROUGH */
+	case SPLICE_IDLE:
+		sp->state = SPLICE_CLOSED;
+		break;
+	case SPLICE_QUEUED:
+	case SPLICE_RUNNING:
+		sp->state = SPLICE_CLOSING;
+		break;
+	default:
+		__assert_unreachable();
 	}
 	mtx_unlock(&sp->mtx);
+	if (error != 0) {
+		SOCK_RECVBUF_UNLOCK(so);
+		SOCK_UNLOCK(so);
+		return (error);
+	}
 	so->so_rcv.sb_flags &= ~SB_SPLICED;
 	so->so_splice = NULL;
 	SOCK_RECVBUF_UNLOCK(so);
@@ -1829,22 +1865,11 @@ so_unsplice(struct socket *so, bool timeout)
 	 * finish before proceeding.
 	 */
 	mtx_lock(&sp->mtx);
-	switch (sp->state) {
-	case SPLICE_QUEUED:
-	case SPLICE_RUNNING:
-		sp->state = SPLICE_CLOSING;
-		while (sp->state == SPLICE_CLOSING)
-			msleep(sp, &sp->mtx, PSOCK, "unsplice", 0);
-		break;
-	case SPLICE_INIT:
-	case SPLICE_IDLE:
-	case SPLICE_EXCEPTION:
-		sp->state = SPLICE_CLOSED;
-		break;
-	default:
-		__assert_unreachable();
-	}
-	if (!timeout) {
+	while (sp->state == SPLICE_CLOSING)
+		msleep(sp, &sp->mtx, PSOCK, "unsplice", 0);
+	KASSERT(sp->state == SPLICE_CLOSED,
+	    ("%s: splice %p state %d", __func__, sp, sp->state));
+	if (why != SO_UNSPLICE_TIMEOUT) {
 		drain = taskqueue_cancel_timeout(taskqueue_thread, &sp->timeout,
 		    NULL) != 0;
 	} else {
@@ -4028,7 +4053,8 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				error = so_splice(so, so2, &splice);
 				fdrop(fp, sopt->sopt_td);
 			} else {
-				error = so_unsplice(so, false);
+				error = so_unsplice(so, NULL,
+				    SO_UNSPLICE_SETSOCKOPT);
 			}
 			break;
 		}
