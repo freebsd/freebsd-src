@@ -126,6 +126,17 @@ midi_queue_deq(struct midi_queue *q, uint8_t *dst, size_t n)
 	memmove(q->buf, q->buf + n, q->used);
 }
 
+static void
+midi_destroy(struct snd_midi *m)
+{
+	free_unr(dev_unr, m->unit);
+	free_unr(chn_unr, m->channel);
+	free(m->inq.buf, M_MIDI);
+	free(m->outq.buf, M_MIDI);
+	mtx_destroy(&m->lock);
+	free(m, M_MIDI);
+}
+
 /*
  * Register a new midi device.
  *
@@ -145,8 +156,10 @@ midi_init(kobj_class_t cls, void *cookie)
 	inqsize = MPU_INQSIZE(m, cookie);
 	outqsize = MPU_OUTQSIZE(m, cookie);
 
-	if (!inqsize && !outqsize)
-		goto err1;
+	if (!inqsize && !outqsize) {
+		free(m, M_MIDI);
+		return (NULL);
+	}
 
 	mtx_init(&m->lock, "raw midi", NULL, 0);
 
@@ -154,8 +167,6 @@ midi_init(kobj_class_t cls, void *cookie)
 		ibuf = malloc(inqsize, M_MIDI, M_WAITOK);
 	if (outqsize)
 		obuf = malloc(outqsize, M_MIDI, M_WAITOK);
-
-	mtx_lock(&m->lock);
 
 	m->hiwat = outqsize / 2;
 
@@ -168,25 +179,16 @@ midi_init(kobj_class_t cls, void *cookie)
 	m->channel = alloc_unr(chn_unr);
 	m->cookie = cookie;
 
-	if (MPU_INIT(m, cookie))
-		goto err2;
-
-	mtx_unlock(&m->lock);
+	if (MPU_INIT(m, cookie)) {
+		midi_destroy(m);
+		return (NULL);
+	}
 
 	m->dev = make_dev(&midi_cdevsw, m->unit, UID_ROOT, GID_AUDIO, 0660,
 	    "midi%d.%d", m->unit, m->channel);
 	m->dev->si_drv1 = m;
 
-	return m;
-
-err2:
-	mtx_destroy(&m->lock);
-
-	free(m->inq.buf, M_MIDI);
-	free(m->outq.buf, M_MIDI);
-err1:
-	free(m, M_MIDI);
-	return NULL;
+	return (m);
 }
 
 int
@@ -204,12 +206,7 @@ midi_uninit(struct snd_midi *m)
 	mtx_unlock(&m->lock);
 	MPU_UNINIT(m, m->cookie);
 	destroy_dev(m->dev);
-	free_unr(dev_unr, m->unit);
-	free_unr(chn_unr, m->channel);
-	free(m->inq.buf, M_MIDI);
-	free(m->outq.buf, M_MIDI);
-	mtx_destroy(&m->lock);
-	free(m, M_MIDI);
+	midi_destroy(m);
 
 	return (0);
 }
