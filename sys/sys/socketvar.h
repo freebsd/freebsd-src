@@ -362,6 +362,23 @@ soeventmtx(struct socket *so, const sb_which which)
 #define	_soreadable(so) \
 	(soreadabledata(so) || ((so)->so_rcv.sb_state & SBS_CANTRCVMORE))
 
+#define soerror(so) \
+	((so)->so_error ? (so)->so_error : (so)->so_rerror)
+static inline int
+soerrorfetch(struct socket *so)
+{
+	int error;
+
+	if (so->so_error) {
+		error = so->so_error;
+		so->so_error = 0;
+	} else {
+		error = so->so_rerror;
+		so->so_rerror = 0;
+	}
+	return (error);
+}
+
 static inline bool
 soreadable(struct socket *so)
 {
