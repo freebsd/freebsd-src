@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2003 Mathew Kanner
  * All rights reserved.
- * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -40,8 +40,7 @@ MALLOC_DECLARE(M_MIDI);
 
 #define M_RX		0x01
 #define M_TX		0x02
-#define M_RXEN		0x04
-#define M_TXEN		0x08
+#define M_TXEN		0x04
 
 struct snd_midi;
 

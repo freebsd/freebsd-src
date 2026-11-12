@@ -316,7 +316,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	m->wchan = 0;
 
 	if (flags & FREAD) {
-		m->flags |= M_RX | M_RXEN;
+		m->flags |= M_RX;
 		/*
 	         * Only clear the inq, the outq might still have data to drain
 	         * from a previous session
@@ -339,7 +339,6 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval = 0;
-	int oldflags;
 
 	if (m == NULL)
 		return ENXIO;
@@ -352,14 +351,12 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		goto err;
 	}
 
-	oldflags = m->flags;
-
 	if (flags & FREAD)
-		m->flags &= ~(M_RX | M_RXEN);
+		m->flags &= ~M_RX;
 	if (flags & FWRITE)
 		m->flags &= ~M_TX;
 
-	if ((m->flags & (M_TXEN | M_RXEN)) != (oldflags & (M_RXEN | M_TXEN)))
+	if (flags & FREAD)
 		MPU_CALLBACK(m, m->cookie, m->flags);
 
 err:
