@@ -35,6 +35,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
+#include <sys/capsicum.h>
 #include <sys/clock.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -302,6 +303,8 @@ get_cputime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		PROC_UNLOCK(td2->td_proc);
 	} else {
 		pid = clock_id & CPUCLOCK_ID_MASK;
+		if (IN_CAPABILITY_MODE(td) && pid != td->td_proc->p_pid)
+			return (ECAPMODE);
 		error = pget(pid, PGET_CANSEE, &p2);
 		if (error != 0)
 			return (EINVAL);
