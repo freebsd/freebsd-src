@@ -413,9 +413,9 @@ nvmf_controller::start_namespace(u_int id)
 		return nullptr;
 	}
 
-	std::string lun_label = "namespace ID " + std::to_string(id - 1);
+	std::string lun_label = "namespace ID " + std::to_string(id);
 	std::string lun_name = freebsd::stringf("%s,nsid,%u", name(), id);
-	return target::start_lun(id, lun_label.c_str(), lun_name.c_str());
+	return target::start_lun(id - 1, lun_label.c_str(), lun_name.c_str());
 }
 
 struct portal_group *
