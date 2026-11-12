@@ -356,8 +356,7 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (flags & FWRITE)
 		m->flags &= ~M_TX;
 
-	if (flags & FREAD)
-		MPU_CALLBACK(m, m->cookie, m->flags);
+	MPU_CALLBACK(m, m->cookie, m->flags);
 
 err:
 	mtx_unlock(&m->lock);
