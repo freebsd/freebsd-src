@@ -17,8 +17,7 @@
 # These tests require the Linux ABI (linux_enable=YES) and a Linux
 # userland (e.g. emulators/linux_base-rl9) providing ${emul_path}/bin/sh.
 # Without that, they skip, so CI jobs that lack a Linux base do not
-# fail.  The two native-only cases still fail on CURRENT namei(9) and
-# use atf_expect_fail until the native-root retry lands (PR 297426).
+# fail.
 # Each case comments the fixture so it can be rebuilt by hand.
 # $wd is any empty directory (the ATF work directory when kyua
 # runs).  $emul is compat.linux.emul_path, usually /compat/linux.
@@ -120,13 +119,10 @@ symlink_target_native_only_body()
 	# $wd/f-native.
 	#
 	# Expected result: the read returns "native".
-	# On CURRENT namei this is ENOENT (atf_expect_fail; PR 297426).
 	#
 	require_linux
 	printf native > "$wd/f-native"
 	atf_check ln -s "$wd/f-native" "$abiwd/link-native"
-	atf_expect_fail \
-	    "PR 297426: abs symlink to native-only target fails under ABI root"
 	atf_check -o inline:"native" "$lsh" -c "cat $wd/link-native"
 }
 symlink_target_native_only_cleanup()
@@ -170,14 +166,11 @@ symlink_target_native_only_midpath_body()
 	# /usr/local/etc/fonts).
 	#
 	# Expected result: the read returns "native".
-	# On CURRENT namei this is ENOENT (atf_expect_fail; PR 297426).
 	#
 	require_linux
 	atf_check mkdir "$wd/ndir"
 	printf native > "$wd/ndir/f"
 	atf_check ln -s "$wd/ndir" "$abiwd/dirlink"
-	atf_expect_fail \
-	    "PR 297426: abs dir symlink to native-only target fails under ABI root"
 	atf_check -o inline:"native" "$lsh" -c "cat $wd/dirlink/f"
 }
 symlink_target_native_only_midpath_cleanup()
