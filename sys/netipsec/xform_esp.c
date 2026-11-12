@@ -829,8 +829,12 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		SECREPLAY_UNLOCK(sav->replay);
 	}
 	cryptoid = sav->tdb_cryptoid;
+	/*
+	 * The SA lock is shared by every CPU sending on the SA; the IV
+	 * counter must still advance once per packet.
+	 */
 	if (SAV_ISCTRORGCM(sav) || SAV_ISCHACHA(sav))
-		cntr = sav->cntr++;
+		cntr = atomic_fetchadd_64(&sav->cntr, 1);
 	SECASVAR_RUNLOCK(sav);
 
 	/*
