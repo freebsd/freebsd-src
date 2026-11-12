@@ -1,0 +1,79 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# amede-session — start an AmeDE desktop session on a Wayland compositor.
+# Usage: run from a TTY login or via a display manager.
+# Requires: a Wayland compositor (wayfire, labwc, or weston),
+#           amede(1) installed in PATH, foot(1) for the terminal.
+
+set -e
+
+# --- XDG runtime directory ---
+if [ -z "$XDG_RUNTIME_DIR" ]; then
+    XDG_RUNTIME_DIR="/tmp/xdg-runtime-$(id -u)"
+    export XDG_RUNTIME_DIR
+    mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
+fi
+
+# --- Locate compositor ---
+COMPOSITOR=""
+for c in wayfire labwc weston; do
+    if command -v "$c" > /dev/null 2>&1; then
+        COMPOSITOR="$c"
+        break
+    fi
+done
+
+if [ -z "$COMPOSITOR" ]; then
+    echo "amede-session: no supported Wayland compositor found (wayfire, labwc, weston)" >&2
+    exit 1
+fi
+
+echo "amede-session: starting compositor: $COMPOSITOR"
+
+# --- Compositor-specific launch ---
+case "$COMPOSITOR" in
+    wayfire)
+        # Wayfire reads autostart from wayfire.ini
+        WAYFIRE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/wayfire.ini"
+        if [ ! -f "$WAYFIRE_CONFIG" ]; then
+            mkdir -p "$(dirname "$WAYFIRE_CONFIG")"
+            cat > "$WAYFIRE_CONFIG" << 'EOF'
+[output]
+mode = auto
+
+[core]
+plugins = autostart
+
+[autostart]
+amede = amede
+EOF
+        fi
+        exec wayfire
+        ;;
+    labwc)
+        # labwc reads autostart from ~/.config/labwc/autostart
+        LABWC_CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/labwc"
+        LABWC_AUTOSTART="$LABWC_CFG_DIR/autostart"
+        if [ ! -f "$LABWC_AUTOSTART" ]; then
+            mkdir -p "$LABWC_CFG_DIR"
+            echo 'amede &' > "$LABWC_AUTOSTART"
+            chmod +x "$LABWC_AUTOSTART"
+        fi
+        exec labwc
+        ;;
+    weston)
+        # Weston: launch amede after compositor starts
+        weston &
+        WESTON_PID=$!
+        # Wait for the socket to appear (up to 5 s)
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+            WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+            if [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+                break
+            fi
+            sleep 0.5
+        done
+        amede &
+        wait "$WESTON_PID"
+        ;;
+esac

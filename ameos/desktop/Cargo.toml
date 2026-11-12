@@ -1,0 +1,17 @@
+[package]
+name = "amede"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-2-Clause"
+description = "AmeDE desktop prototype"
+
+[features]
+default = ["window"]
+window = ["dep:softbuffer", "dep:winit"]
+
+[dependencies]
+ame-gfx = { path = "../graphics" }
+fontdue = "0.9.3"
+png = "0.17.16"
+softbuffer = { version = "0.4.8", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"], optional = true }
+winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen"], optional = true }

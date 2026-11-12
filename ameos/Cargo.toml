@@ -1,0 +1,3 @@
+[workspace]
+members = ["graphics", "desktop"]
+resolver = "2"
