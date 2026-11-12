@@ -146,10 +146,12 @@ midi_destroy(struct snd_midi *m)
 struct snd_midi *
 midi_init(kobj_class_t cls, void *cookie)
 {
+	struct make_dev_args args;
 	struct snd_midi *m;
 	size_t inqsize, outqsize;
 	uint8_t *ibuf = NULL;
 	uint8_t *obuf = NULL;
+	int err;
 
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 	kobj_init((kobj_t)m, cls);
@@ -184,9 +186,20 @@ midi_init(kobj_class_t cls, void *cookie)
 		return (NULL);
 	}
 
-	m->dev = make_dev(&midi_cdevsw, m->unit, UID_ROOT, GID_AUDIO, 0660,
-	    "midi%d.%d", m->unit, m->channel);
-	m->dev->si_drv1 = m;
+	make_dev_args_init(&args);
+	args.mda_devsw = &midi_cdevsw;
+	args.mda_unit = m->unit;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_AUDIO;
+	args.mda_mode = 0660;
+	args.mda_si_drv1 = m;
+	err = make_dev_s(&args, &m->dev, "midi%d.%d", m->unit, m->channel);
+	if (err != 0) {
+		printf("%s: failed to create midi%d.%d: error %d\n", __func__,
+		    m->unit, m->channel, err);
+		midi_destroy(m);
+		return (NULL);
+	}
 
 	return (m);
 }
