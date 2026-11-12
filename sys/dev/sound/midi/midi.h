@@ -46,7 +46,7 @@ struct snd_midi;
 
 struct snd_midi *midi_init(kobj_class_t _mpu_cls, void *cookie);
 int	midi_uninit(struct snd_midi *_m);
-int	midi_out(struct snd_midi *_m, uint8_t *_buf, int _size);
-int	midi_in(struct snd_midi *_m, uint8_t *_buf, int _size);
+size_t	midi_out(struct snd_midi *_m, uint8_t *_buf, size_t _size);
+size_t	midi_in(struct snd_midi *_m, uint8_t *_buf, size_t _size);
 
 #endif

@@ -65,8 +65,8 @@ static mpu401_intr_t mpu401_intr;
 
 static int mpu401_minit(struct snd_midi *, void *);
 static int mpu401_muninit(struct snd_midi *, void *);
-static int mpu401_minqsize(struct snd_midi *, void *);
-static int mpu401_moutqsize(struct snd_midi *, void *);
+static size_t mpu401_minqsize(struct snd_midi *, void *);
+static size_t mpu401_moutqsize(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 
 static kobj_method_t mpu401_methods[] = {
@@ -94,7 +94,7 @@ mpu401_intr(struct mpu401 *m)
 {
 #define MPU_INTR_BUF	16
 	uint8_t b[MPU_INTR_BUF];
-	int i;
+	size_t i;
 	int s;
 
 	i = 0;
@@ -180,13 +180,13 @@ mpu401_muninit(struct snd_midi *sm __unused, void *arg)
 	return MPUFOI_UNINIT(m, m->cookie);
 }
 
-static int
+static size_t
 mpu401_minqsize(struct snd_midi *sm __unused, void *arg __unused)
 {
 	return 128;
 }
 
-static int
+static size_t
 mpu401_moutqsize(struct snd_midi *sm __unused, void *arg __unused)
 {
 	return 128;

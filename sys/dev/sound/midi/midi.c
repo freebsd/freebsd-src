@@ -59,8 +59,8 @@ MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
 struct midi_queue {
 	uint8_t	*buf;
-	int	size;
-	int	used;			/* Bytes queued. */
+	size_t	size;
+	size_t	used;			/* Bytes queued. */
 };
 
 struct snd_midi {
@@ -75,8 +75,8 @@ struct snd_midi {
 	struct midi_queue inq, outq;
 	int	rchan, wchan;
 	struct selinfo rsel, wsel;
-	int	hiwat;			/* QLEN(outq)>High-water -> disable
-					 * writes from userland */
+	size_t	hiwat;			/* Free space below which writes from
+					 * userland are blocked. */
 	struct cdev *dev;
 };
 
@@ -101,27 +101,25 @@ static struct cdevsw midi_cdevsw = {
 struct unrhdr *dev_unr = NULL;
 struct unrhdr *chn_unr = NULL;
 
-static int
+static size_t
 midi_queue_avail(struct midi_queue *q)
 {
 	return (q->size - q->used);
 }
 
 static void
-midi_queue_enq(struct midi_queue *q, uint8_t *src, int n)
+midi_queue_enq(struct midi_queue *q, uint8_t *src, size_t n)
 {
-	KASSERT(n >= 0 && n <= midi_queue_avail(q),
-	    ("%s: bad length %d", __func__, n));
+	KASSERT(n <= midi_queue_avail(q), ("%s: bad length %zu", __func__, n));
 
 	memcpy(q->buf + q->used, src, n);
 	q->used += n;
 }
 
 static void
-midi_queue_deq(struct midi_queue *q, uint8_t *dst, int n)
+midi_queue_deq(struct midi_queue *q, uint8_t *dst, size_t n)
 {
-	KASSERT(n >= 0 && n <= q->used,
-	    ("%s: bad length %d", __func__, n));
+	KASSERT(n <= q->used, ("%s: bad length %zu", __func__, n));
 
 	memcpy(dst, q->buf, n);
 	q->used -= n;
@@ -138,7 +136,7 @@ struct snd_midi *
 midi_init(kobj_class_t cls, void *cookie)
 {
 	struct snd_midi *m;
-	int inqsize, outqsize;
+	size_t inqsize, outqsize;
 	uint8_t *ibuf = NULL;
 	uint8_t *obuf = NULL;
 
@@ -222,10 +220,10 @@ midi_uninit(struct snd_midi *m)
  * whack.  Process as much as possible.  It calls, wakeup, selnotify and
  * psignal at most once.
  */
-int
-midi_in(struct snd_midi *m, uint8_t *buf, int size)
+size_t
+midi_in(struct snd_midi *m, uint8_t *buf, size_t size)
 {
-	int used = 0;
+	size_t used = 0;
 
 	mtx_lock(&m->lock);
 
@@ -254,10 +252,10 @@ midi_in(struct snd_midi *m, uint8_t *buf, int size)
 /*
  * midi_out: The only clearer of the M_TXPEND flag.
  */
-int
-midi_out(struct snd_midi *m, uint8_t *buf, int size)
+size_t
+midi_out(struct snd_midi *m, uint8_t *buf, size_t size)
 {
-	int used;
+	size_t used;
 
 	mtx_lock(&m->lock);
 
@@ -266,7 +264,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, int size)
 		return (0);
 	}
 
-	used = min(size, m->outq.used);
+	used = ulmin(size, m->outq.used);
 	if (used)
 		midi_queue_deq(&m->outq, buf, used);
 	if (m->outq.used == 0) {
@@ -373,7 +371,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 #define MIDI_RSIZE 32
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval;
-	int used;
+	size_t used;
 	uint8_t buf[MIDI_RSIZE];
 
 	retval = EIO;
@@ -411,8 +409,8 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         * At this point, it is certain that m->inq has data
 	         */
 
-		used = min(m->inq.used, uio->uio_resid);
-		used = min(used, MIDI_RSIZE);
+		used = ulmin(m->inq.used, (size_t)uio->uio_resid);
+		used = ulmin(used, MIDI_RSIZE);
 
 		midi_queue_deq(&m->inq, buf, used);
 		mtx_unlock(&m->lock);
@@ -442,7 +440,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 #define MIDI_WSIZE 32
 	struct snd_midi *m = i_dev->si_drv1;
 	int retval;
-	int used;
+	size_t used;
 	uint8_t buf[MIDI_WSIZE];
 
 	retval = EIO;
@@ -480,8 +478,8 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         * We are certain than data can be placed on the queue
 	         */
 
-		used = min(midi_queue_avail(&m->outq), uio->uio_resid);
-		used = min(used, MIDI_WSIZE);
+		used = ulmin(midi_queue_avail(&m->outq), (size_t)uio->uio_resid);
+		used = ulmin(used, MIDI_WSIZE);
 
 		mtx_unlock(&m->lock);
 		retval = uiomove(buf, used, uio);

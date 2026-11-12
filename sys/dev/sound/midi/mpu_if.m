@@ -29,12 +29,12 @@
 
 INTERFACE mpu;
 
-METHOD int inqsize {
+METHOD size_t inqsize {
 	struct snd_midi *_kobj;
 	void   *_cookie;
 };
 
-METHOD int outqsize {
+METHOD size_t outqsize {
 	struct snd_midi *_kobj;
 	void   *_cookie;
 };
