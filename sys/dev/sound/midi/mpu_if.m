@@ -43,8 +43,3 @@ METHOD void callback {
 	void   *_cookie;
 	int	_flags;
 };
-
-METHOD int uninit {
-	struct snd_midi *_kobj;
-	void   *_cookie;
-};

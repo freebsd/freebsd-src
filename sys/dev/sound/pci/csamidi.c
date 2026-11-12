@@ -62,7 +62,6 @@ struct csa_midi_softc {
 	struct mtx	mtx;
 	device_t	dev;
 	struct mpu401	*mpu;
-	mpu401_intr_t	*mpu_intr;
 	int		mflags;		/* MIDI flags */
 };
 
@@ -82,15 +81,6 @@ csamidi_writeio(struct csa_midi_softc *scp, unsigned long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
 		bus_space_write_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset, data);
-}
-
-static void
-csamidi_midi_intr(void *arg)
-{
-	struct csa_midi_softc *scp = (struct csa_midi_softc *)arg;
-
-	if (scp->mpu_intr)
-		(scp->mpu_intr)(scp->mpu);
 }
 
 static unsigned char
@@ -157,18 +147,6 @@ csamidi_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char
 }
 
 static int
-csamidi_muninit(struct mpu401 *arg __unused, void *cookie)
-{
-	struct csa_midi_softc *scp = cookie;
-
-	mtx_lock(&scp->mtx);
-	scp->mpu_intr = NULL;
-	mtx_unlock(&scp->mtx);
-
-	return (0);
-}
-
-static int
 midicsa_probe(device_t dev)
 {
 	/* The parent device has already been probed. */
@@ -199,8 +177,7 @@ midicsa_attach(device_t dev)
 		goto err0;
 
 	/* init the fake MPU401 interface. */
-	scp->mpu = mpu401_init(&csamidi_mpu_class, scp, csamidi_midi_intr,
-	    &scp->mpu_intr);
+	scp->mpu = mpu401_init(&csamidi_mpu_class, scp);
 	if (scp->mpu == NULL) {
 		rc = ENOMEM;
 		goto err1;
@@ -245,7 +222,6 @@ midicsa_detach(device_t dev)
 static kobj_method_t csamidi_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_read, csamidi_mread),
 	KOBJMETHOD(mpufoi_write, csamidi_mwrite),
-	KOBJMETHOD(mpufoi_uninit, csamidi_muninit),
 	KOBJMETHOD_END
 };
 

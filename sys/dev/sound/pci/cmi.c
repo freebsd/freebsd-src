@@ -123,7 +123,6 @@ struct sc_info {
 	struct sc_chinfo	pch, rch;
 
 	struct mpu401	*mpu;
-	mpu401_intr_t		*mpu_intr;
 	struct resource *mpu_reg;
 	int mpu_regid;
 	bus_space_tag_t	mpu_bt;
@@ -570,9 +569,8 @@ cmi_intr(void *data)
 			cmi_set4(sc, CMPCI_REG_INTR_CTRL, toclear);
 		}
 	}
-	if(sc->mpu_intr) {
-		(sc->mpu_intr)(sc->mpu);
-	}
+	if (sc->mpu != NULL)
+		mpu401_intr(sc->mpu);
 	mtx_unlock(&sc->lock);
 	return;
 }
@@ -795,23 +793,9 @@ cmi_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
 	bus_space_write_1(0,0,0x330 + reg , b);
 }
 
-static int
-cmi_muninit(struct mpu401 *arg, void *cookie)
-{
-	struct sc_info *sc = cookie;
-
-	mtx_lock(&sc->lock);
-	sc->mpu_intr = NULL;
-	sc->mpu = NULL;
-	mtx_unlock(&sc->lock);
-
-	return 0;
-}
-
 static kobj_method_t cmi_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_read,		cmi_mread),
 	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
-	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
 	KOBJMETHOD_END
 };
 
@@ -837,7 +821,7 @@ cmi_midiattach(struct sc_info *sc) {
 	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL,
 			0 << CMPCI_REG_VMPUSEL_SHIFT );
 	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
-	sc->mpu = mpu401_init(&cmi_mpu_class, sc, cmi_intr, &sc->mpu_intr);
+	sc->mpu = mpu401_init(&cmi_mpu_class, sc);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -897,8 +881,6 @@ cmi_uninit(struct sc_info *sc)
 		 CMPCI_REG_CH0_ENABLE | CMPCI_REG_CH1_ENABLE);
 	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
 
-	if( sc->mpu )
-		sc->mpu_intr = NULL;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1031,8 +1013,10 @@ cmi_detach(device_t dev)
 	bus_dma_tag_destroy(sc->parent_dmat);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	if(sc->mpu)
+	if (sc->mpu != NULL) {
 		mpu401_uninit(sc->mpu);
+		sc->mpu = NULL;
+	}
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
 	if (sc->mpu_reg)
 	    bus_release_resource(dev, SYS_RES_IOPORT, sc->mpu_regid, sc->mpu_reg);

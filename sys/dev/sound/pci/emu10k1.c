@@ -229,7 +229,6 @@ struct sc_info {
 	struct sc_pchinfo pch[EMU_MAX_CHANS];
 	struct sc_rchinfo rch[3];
 	struct mpu401   *mpu;
-	mpu401_intr_t           *mpu_intr;
 	int mputx;
 };
 
@@ -1166,35 +1165,13 @@ emu_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
 	emu_wr((struct sc_info *)sc, 0x18 + reg, b, 1);
 }
 
-static int
-emu_muninit(struct mpu401 *arg, void *cookie)
-{
-	struct sc_info *sc = cookie;
-
-	mtx_lock(&sc->lock);
-	sc->mpu_intr = NULL;
-	mtx_unlock(&sc->lock);
-
-	return 0;
-}
-
 static kobj_method_t emu_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_read,		emu_mread),
 	KOBJMETHOD(mpufoi_write,	emu_mwrite),
-	KOBJMETHOD(mpufoi_uninit,	emu_muninit),
 	KOBJMETHOD_END
 };
 
 static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
-
-static void
-emu_intr2(void *p)
-{
-	struct sc_info *sc = (struct sc_info *)p;
-
-	if (sc->mpu_intr)
-	    (sc->mpu_intr)(sc->mpu);
-}
 
 static void
 emu_midiattach(struct sc_info *sc)
@@ -1205,7 +1182,7 @@ emu_midiattach(struct sc_info *sc)
 	i |= EMU_INTE_MIDIRXENABLE;
 	emu_wr(sc, EMU_INTE, i, 4);
 
-	sc->mpu = mpu401_init(&emu_mpu_class, sc, emu_intr2, &sc->mpu_intr);
+	sc->mpu = mpu401_init(&emu_mpu_class, sc);
 }
 /* -------------------------------------------------------------------- */
 /* The interrupt handler */
@@ -1250,8 +1227,8 @@ emu_intr(void *data)
 		}
 
 		if (stat & EMU_IPR_MIDIRECVBUFE) {
-			if (sc->mpu_intr) {
-				(sc->mpu_intr)(sc->mpu);
+			if (sc->mpu != NULL) {
+				mpu401_intr(sc->mpu);
 				ack |= EMU_IPR_MIDIRECVBUFE | EMU_IPR_MIDITRANSBUFE;
 			}
 		}

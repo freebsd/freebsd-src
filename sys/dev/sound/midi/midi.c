@@ -212,7 +212,6 @@ midi_uninit(struct snd_midi *m)
 		m->wchan = 0;
 	}
 	mtx_unlock(&m->lock);
-	MPU_UNINIT(m, m->cookie);
 	destroy_dev(m->dev);
 	midi_destroy(m);
 

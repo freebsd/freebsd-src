@@ -42,8 +42,3 @@ METHOD void write {
 	int	_reg;
 	unsigned char _d;
 };
-
-METHOD int uninit {
-	struct mpu401 *_kobj;
-	void   *_cookie;
-};

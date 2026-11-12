@@ -56,7 +56,6 @@ struct emu_midi_softc {
 	struct mtx	mtx;
 	device_t	dev;
 	struct mpu401	*mpu;
-	mpu401_intr_t	*mpu_intr;
 	struct emu_sc_info *card;
 	int		port;			/* I/O port or I/O ptr reg */
 	int		is_emu10k1;
@@ -92,22 +91,9 @@ emu_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
 		emu_wrptr(sc->card, 0, sc->port + reg, b);
 }
 
-static int
-emu_muninit(struct mpu401 *arg __unused, void *cookie)
-{
-	struct emu_midi_softc *sc = cookie;
-
-	mtx_lock(&sc->mtx);
-	sc->mpu_intr = NULL;
-	mtx_unlock(&sc->mtx);
-
-	return (0);
-}
-
 static kobj_method_t emu_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_read, emu_mread),
 	KOBJMETHOD(mpufoi_write, emu_mwrite),
-	KOBJMETHOD(mpufoi_uninit, emu_muninit),
 	KOBJMETHOD_END
 };
 static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
@@ -116,9 +102,9 @@ static uint32_t
 emu_midi_card_intr(void *p, uint32_t intr_status)
 {
 	struct emu_midi_softc *sc = (struct emu_midi_softc *)p;
-	if (sc->mpu_intr)
-		(sc->mpu_intr) (sc->mpu);
-	if (sc->mpu_intr == NULL) {
+	if (sc->mpu != NULL)
+		mpu401_intr(sc->mpu);
+	else {
 		/* We should read MIDI event to unlock card after
 		 * interrupt. XXX - check, why this happens.  */
 		if (bootverbose)
@@ -126,12 +112,6 @@ emu_midi_card_intr(void *p, uint32_t intr_status)
 		(void)emu_mread((void *)(NULL), sc, 0);
 	}
 	return (intr_status); /* Acknowledge everything */
-}
-
-static void
-emu_midi_intr(void *p)
-{
-	(void)emu_midi_card_intr(p, 0);
 }
 
 static int
@@ -192,7 +172,7 @@ emu_midi_attach(device_t dev)
 
 	scp->ihandle = emu_intr_register(scp->card, inte_val, ipr_val, &emu_midi_card_intr, scp);
 	/* Init the interface. */
-	scp->mpu = mpu401_init(&emu_mpu_class, scp, emu_midi_intr, &scp->mpu_intr);
+	scp->mpu = mpu401_init(&emu_mpu_class, scp);
 	if (scp->mpu == NULL) {
 		emu_intr_unregister(scp->card, scp->ihandle);
 		mtx_destroy(&scp->mtx);

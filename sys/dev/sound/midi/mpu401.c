@@ -57,21 +57,15 @@ struct mpu401 {
 	KOBJ_FIELDS;
 	struct snd_midi *mid;
 	int	flags;
-	driver_intr_t *si;
 	void   *cookie;
 	struct callout timer;
 };
 
-static void mpu401_timeout(void *m);
-static mpu401_intr_t mpu401_intr;
-
 static int mpu401_minit(struct snd_midi *, void *);
-static int mpu401_muninit(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
-	KOBJMETHOD(mpu_uninit, mpu401_muninit),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
 	KOBJMETHOD_END
 };
@@ -79,18 +73,10 @@ static kobj_method_t mpu401_methods[] = {
 DEFINE_CLASS(mpu401, mpu401_methods, 0);
 
 void
-mpu401_timeout(void *a)
-{
-	struct mpu401 *m = (struct mpu401 *)a;
-
-	if (m->si)
-		(m->si)(m->cookie);
-
-}
-static int
-mpu401_intr(struct mpu401 *m)
+mpu401_intr(void *arg)
 {
 #define MPU_INTR_BUF	16
+	struct mpu401 *m = arg;
 	uint8_t b[MPU_INTR_BUF];
 	size_t i;
 	int s;
@@ -106,43 +92,35 @@ mpu401_intr(struct mpu401 *m)
 		midi_in(m->mid, b, i);
 	i = 0;
 	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
-		if (midi_out(m->mid, b, 1)) {
-
+		if (midi_out(m->mid, b, 1))
 			WRITE(m, *b);
-		} else {
-			return 0;
-		}
+		else
+			return;
 		i++;
 		/* DELAY(100); */
 		s = STATUS(m);
 	}
 
-	if ((m->flags & M_TXPEND) && (m->si)) {
-		callout_reset(&m->timer, 1, mpu401_timeout, m);
-	}
-	return (m->flags & M_TXPEND) == M_TXPEND;
+	if (m->flags & M_TXPEND)
+		callout_reset(&m->timer, 1, mpu401_intr, m);
 }
 
 struct mpu401 *
-mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
-    mpu401_intr_t ** cb)
+mpu401_init(kobj_class_t cls, void *cookie)
 {
 	struct mpu401 *m;
 
-	*cb = NULL;
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 
 	kobj_init((kobj_t)m, cls);
 
 	callout_init(&m->timer, 1);
 
-	m->si = softintr;
 	m->cookie = cookie;
 
 	m->mid = midi_init(&mpu401_class, m, MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
 	if (!m->mid)
 		goto err;
-	*cb = mpu401_intr;
 	return m;
 err:
 	printf("mpu401_init error\n");
@@ -170,21 +148,12 @@ mpu401_minit(struct snd_midi *sm __unused, void *arg)
 	return 0;
 }
 
-static int
-mpu401_muninit(struct snd_midi *sm __unused, void *arg)
-{
-	struct mpu401 *m = arg;
-
-	return MPUFOI_UNINIT(m, m->cookie);
-}
-
 static void
 mpu401_mcallback(struct snd_midi *sm __unused, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXPEND && m->si) {
-		callout_reset(&m->timer, 1, mpu401_timeout, m);
-	}
+	if (flags & M_TXPEND)
+		callout_reset(&m->timer, 1, mpu401_intr, m);
 	m->flags = flags;
 }
