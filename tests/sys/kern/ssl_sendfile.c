@@ -25,15 +25,16 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/mman.h>
 #include <netinet/in.h>
 #include <fcntl.h>
-#include <stdlib.h>
 #include <poll.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -185,7 +186,8 @@ common_cleanup(struct ctx *c)
 }
 
 static void *
-server_thread(void *arg) {
+server_thread(void *arg)
+{
 	struct ctx *c = arg;
 	SSL_CTX *srv;
 	SSL *ssl;
