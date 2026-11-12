@@ -47,7 +47,6 @@
 
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/mpu401.h>
-#include "mpufoi_if.h"
 
 #include <dev/sound/pci/emuxkireg.h>
 #include <dev/sound/pci/emu10kx.h>
@@ -66,7 +65,7 @@ struct emu_midi_softc {
 static uint32_t	emu_midi_card_intr(void *p, uint32_t arg);
 
 static unsigned char
-emu_mread(struct mpu401 *arg __unused, void *cookie, int reg)
+emu_mread(void *cookie, int reg)
 {
 	struct emu_midi_softc *sc = cookie;
 	unsigned int d;
@@ -81,7 +80,7 @@ emu_mread(struct mpu401 *arg __unused, void *cookie, int reg)
 }
 
 static void
-emu_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
+emu_mwrite(void *cookie, int reg, uint8_t b)
 {
 	struct emu_midi_softc *sc = cookie;
 
@@ -91,12 +90,10 @@ emu_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
 		emu_wrptr(sc->card, 0, sc->port + reg, b);
 }
 
-static kobj_method_t emu_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read, emu_mread),
-	KOBJMETHOD(mpufoi_write, emu_mwrite),
-	KOBJMETHOD_END
+static const struct mpu401_ops emu_mpu_ops = {
+	emu_mread,
+	emu_mwrite,
 };
-static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
 
 static uint32_t
 emu_midi_card_intr(void *p, uint32_t intr_status)
@@ -109,7 +106,7 @@ emu_midi_card_intr(void *p, uint32_t intr_status)
 		 * interrupt. XXX - check, why this happens.  */
 		if (bootverbose)
 			device_printf(sc->dev, "midi interrupt %08x without interrupt handler, force mread!\n", intr_status);
-		(void)emu_mread((void *)(NULL), sc, 0);
+		(void)emu_mread(sc, 0);
 	}
 	return (intr_status); /* Acknowledge everything */
 }
@@ -172,7 +169,7 @@ emu_midi_attach(device_t dev)
 
 	scp->ihandle = emu_intr_register(scp->card, inte_val, ipr_val, &emu_midi_card_intr, scp);
 	/* Init the interface. */
-	scp->mpu = mpu401_init(&emu_mpu_class, scp);
+	scp->mpu = mpu401_init(&emu_mpu_ops, scp);
 	if (scp->mpu == NULL) {
 		emu_intr_unregister(scp->card, scp->ihandle);
 		mtx_destroy(&scp->mtx);

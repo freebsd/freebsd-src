@@ -59,7 +59,6 @@
 #include <dev/sound/midi/mpu401.h>
 
 #include "mixer_if.h"
-#include "mpufoi_if.h"
 
 /* Supported chip ID's */
 #define CMI8338A_PCI_ID   0x010013f6
@@ -776,7 +775,7 @@ MIXER_DECLARE(cmi_mixer);
  */
 
 static unsigned char
-cmi_mread(struct mpu401 *arg, void *sc, int reg)
+cmi_mread(void *sc, int reg)
 {
 	unsigned int d;
 
@@ -787,19 +786,16 @@ cmi_mread(struct mpu401 *arg, void *sc, int reg)
 }
 
 static void
-cmi_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+cmi_mwrite(void *sc, int reg, uint8_t b)
 {
 
 	bus_space_write_1(0,0,0x330 + reg , b);
 }
 
-static kobj_method_t cmi_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read,		cmi_mread),
-	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
-	KOBJMETHOD_END
+static const struct mpu401_ops cmi_mpu_ops = {
+	cmi_mread,
+	cmi_mwrite,
 };
-
-static DEFINE_CLASS(cmi_mpu, cmi_mpu_methods, 0);
 
 static void
 cmi_midiattach(struct sc_info *sc) {
@@ -821,7 +817,7 @@ cmi_midiattach(struct sc_info *sc) {
 	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL,
 			0 << CMPCI_REG_VMPUSEL_SHIFT );
 	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
-	sc->mpu = mpu401_init(&cmi_mpu_class, sc);
+	sc->mpu = mpu401_init(&cmi_mpu_ops, sc);
 }
 
 /* ------------------------------------------------------------------------- */

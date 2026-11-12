@@ -41,7 +41,6 @@
 #include <sys/queue.h>
 
 #include <dev/sound/midi/mpu401.h>
-#include "mpufoi_if.h"
 
 /* -------------------------------------------------------------------- */
 
@@ -1150,7 +1149,7 @@ static kobj_method_t emurchan_methods[] = {
 CHANNEL_DECLARE(emurchan);
 
 static unsigned char
-emu_mread(struct mpu401 *arg, void *sc, int reg)
+emu_mread(void *sc, int reg)
 {
 	unsigned int d;
 
@@ -1159,19 +1158,16 @@ emu_mread(struct mpu401 *arg, void *sc, int reg)
 }
 
 static void
-emu_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+emu_mwrite(void *sc, int reg, uint8_t b)
 {
 
 	emu_wr((struct sc_info *)sc, 0x18 + reg, b, 1);
 }
 
-static kobj_method_t emu_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read,		emu_mread),
-	KOBJMETHOD(mpufoi_write,	emu_mwrite),
-	KOBJMETHOD_END
+static const struct mpu401_ops emu_mpu_ops = {
+	emu_mread,
+	emu_mwrite,
 };
-
-static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
 
 static void
 emu_midiattach(struct sc_info *sc)
@@ -1182,7 +1178,7 @@ emu_midiattach(struct sc_info *sc)
 	i |= EMU_INTE_MIDIRXENABLE;
 	emu_wr(sc, EMU_INTE, i, 4);
 
-	sc->mpu = mpu401_init(&emu_mpu_class, sc);
+	sc->mpu = mpu401_init(&emu_mpu_ops, sc);
 }
 /* -------------------------------------------------------------------- */
 /* The interrupt handler */

@@ -39,7 +39,6 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/kobj.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -53,7 +52,6 @@
 
 #include <dev/sound/midi/midi.h>
 
-#include "mpu_if.h"
 
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
@@ -64,8 +62,8 @@ struct midi_queue {
 };
 
 struct snd_midi {
-	KOBJ_FIELDS;
 	struct mtx lock;
+	midi_callback_t *cb;
 	void   *cookie;
 
 	int	unit;
@@ -134,7 +132,7 @@ midi_destroy(struct snd_midi *m)
 	free(m->inq.buf, M_MIDI);
 	free(m->outq.buf, M_MIDI);
 	mtx_destroy(&m->lock);
-	kobj_delete((kobj_t)m, M_MIDI);
+	free(m, M_MIDI);
 }
 
 /*
@@ -144,7 +142,7 @@ midi_destroy(struct snd_midi *m)
  * softc.
  */
 struct snd_midi *
-midi_init(kobj_class_t cls, void *cookie, size_t inqsize, size_t outqsize)
+midi_init(midi_callback_t *cb, void *cookie, size_t inqsize, size_t outqsize)
 {
 	struct make_dev_args args;
 	struct snd_midi *m;
@@ -156,7 +154,7 @@ midi_init(kobj_class_t cls, void *cookie, size_t inqsize, size_t outqsize)
 		return (NULL);
 
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
-	kobj_init((kobj_t)m, cls);
+	m->cb = cb;
 
 	mtx_init(&m->lock, "raw midi", NULL, 0);
 
@@ -268,7 +266,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, size_t size)
 		midi_queue_deq(&m->outq, buf, used);
 	if (m->outq.used == 0) {
 		m->flags &= ~M_TXPEND;
-		MPU_CALLBACK(m, m->cookie, m->flags);
+		m->cb(m->cookie, m->flags);
 	}
 	if (used && midi_queue_avail(&m->outq) > m->hiwat) {
 		if (m->wchan) {
@@ -324,7 +322,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (flags & FWRITE)
 		m->flags |= M_TX;
 
-	MPU_CALLBACK(m, m->cookie, m->flags);
+	m->cb(m->cookie, m->flags);
 
 err:
 	mtx_unlock(&m->lock);
@@ -353,7 +351,7 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (flags & FWRITE)
 		m->flags &= ~M_TX;
 
-	MPU_CALLBACK(m, m->cookie, m->flags);
+	m->cb(m->cookie, m->flags);
 
 err:
 	mtx_unlock(&m->lock);
@@ -491,7 +489,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	         */
 		if (!(m->flags & M_TXPEND)) {
 			m->flags |= M_TXPEND;
-			MPU_CALLBACK(m, m->cookie, m->flags);
+			m->cb(m->cookie, m->flags);
 		}
 	}
 	/*

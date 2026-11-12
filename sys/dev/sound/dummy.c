@@ -43,7 +43,6 @@
 #include <dev/sound/midi/mpu401.h>
 
 #include <mixer_if.h>
-#include <mpufoi_if.h>
 
 #define DUMMY_NPCHAN	2
 #define DUMMY_NRCHAN	2
@@ -297,23 +296,20 @@ static kobj_method_t dummy_mixer_methods[] = {
 MIXER_DECLARE(dummy_mixer);
 
 static uint8_t
-dummy_mpu_read(struct mpu401 *arg, void *sc, int reg)
+dummy_mpu_read(void *sc, int reg)
 {
 	return (0);
 }
 
 static void
-dummy_mpu_write(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+dummy_mpu_write(void *sc, int reg, uint8_t b)
 {
 }
 
-static kobj_method_t dummy_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read,		dummy_mpu_read),
-	KOBJMETHOD(mpufoi_write,	dummy_mpu_write),
-	KOBJMETHOD_END
+static const struct mpu401_ops dummy_mpu_ops = {
+	dummy_mpu_read,
+	dummy_mpu_write,
 };
-
-static DEFINE_CLASS(dummy_mpu, dummy_mpu_methods, 0);
 
 static void
 dummy_identify(driver_t *driver, device_t parent)
@@ -375,7 +371,7 @@ dummy_attach(device_t dev)
 	 */
 	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
 
-	sc->mpu = mpu401_init(&dummy_mpu_class, sc);
+	sc->mpu = mpu401_init(&dummy_mpu_ops, sc);
 	if (sc->mpu == NULL)
 		return (ENXIO);
 

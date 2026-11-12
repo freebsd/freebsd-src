@@ -43,8 +43,13 @@
 
 struct mpu401;
 
-struct mpu401 *mpu401_init(kobj_class_t _cls, void *_cookie);
-void mpu401_intr(void *_m);
-int mpu401_uninit(struct mpu401 *_m);
+struct mpu401_ops {
+	uint8_t	(*read)(void *cookie, int reg);
+	void	(*write)(void *cookie, int reg, uint8_t val);
+};
+
+struct mpu401 *mpu401_init(const struct mpu401_ops *ops, void *cookie);
+void mpu401_intr(void *m);
+int mpu401_uninit(struct mpu401 *m);
 
 #endif

@@ -51,7 +51,6 @@
 #include <dev/sound/pci/csareg.h>
 #include <dev/sound/pci/csavar.h>
 
-#include "mpufoi_if.h"
 
 /* device private data */
 struct csa_midi_softc {
@@ -65,7 +64,7 @@ struct csa_midi_softc {
 	int		mflags;		/* MIDI flags */
 };
 
-static struct kobj_class csamidi_mpu_class;
+static const struct mpu401_ops csamidi_mpu_ops;
 
 static uint32_t
 csamidi_readio(struct csa_midi_softc *scp, unsigned long offset)
@@ -84,7 +83,7 @@ csamidi_writeio(struct csa_midi_softc *scp, unsigned long offset, uint32_t data)
 }
 
 static unsigned char
-csamidi_mread(struct mpu401 *arg __unused, void *cookie, int reg)
+csamidi_mread(void *cookie, int reg)
 {
 	struct csa_midi_softc *scp = cookie;
 	unsigned int rc;
@@ -111,7 +110,7 @@ csamidi_mread(struct mpu401 *arg __unused, void *cookie, int reg)
 }
 
 static void
-csamidi_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
+csamidi_mwrite(void *cookie, int reg, uint8_t b)
 {
 	struct csa_midi_softc *scp = cookie;
 	unsigned int val;
@@ -177,7 +176,7 @@ midicsa_attach(device_t dev)
 		goto err0;
 
 	/* init the fake MPU401 interface. */
-	scp->mpu = mpu401_init(&csamidi_mpu_class, scp);
+	scp->mpu = mpu401_init(&csamidi_mpu_ops, scp);
 	if (scp->mpu == NULL) {
 		rc = ENOMEM;
 		goto err1;
@@ -219,13 +218,10 @@ midicsa_detach(device_t dev)
 	return (rc);
 }
 
-static kobj_method_t csamidi_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read, csamidi_mread),
-	KOBJMETHOD(mpufoi_write, csamidi_mwrite),
-	KOBJMETHOD_END
+static const struct mpu401_ops csamidi_mpu_ops = {
+	csamidi_mread,
+	csamidi_mwrite,
 };
-
-static DEFINE_CLASS(csamidi_mpu, csamidi_mpu_methods, 0);
 
 static device_method_t midicsa_methods[] = {
 	DEVMETHOD(device_probe, midicsa_probe),

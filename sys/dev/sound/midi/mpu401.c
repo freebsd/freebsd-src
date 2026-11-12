@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/kobj.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_snd.h"
@@ -43,32 +42,31 @@
 #include <dev/sound/midi/mpu401.h>
 #include <dev/sound/midi/midi.h>
 
-#include "mpu_if.h"
-#include "mpufoi_if.h"
 
 #define MPU_QUEUE_SIZE	128
 
-#define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
-#define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
-#define READ(m)		MPUFOI_READ(m, m->cookie, MPU_DATAPORT)
-#define WRITE(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_DATAPORT,d)
+#define CMD(m,d)	(m)->ops->write((m)->cookie, MPU_CMDPORT, (d))
+#define STATUS(m)	(m)->ops->read((m)->cookie, MPU_STATPORT)
+#define READ(m)		(m)->ops->read((m)->cookie, MPU_DATAPORT)
+#define WRITE(m,d)	(m)->ops->write((m)->cookie, MPU_DATAPORT, (d))
 
 struct mpu401 {
-	KOBJ_FIELDS;
+	const struct mpu401_ops *ops;
 	struct snd_midi *mid;
 	int	flags;
 	void   *cookie;
 	struct callout timer;
 };
 
-static void mpu401_mcallback(struct snd_midi *, void *, int);
+static void
+mpu401_mcallback(void *arg, int flags)
+{
+	struct mpu401 *m = arg;
 
-static kobj_method_t mpu401_methods[] = {
-	KOBJMETHOD(mpu_callback, mpu401_mcallback),
-	KOBJMETHOD_END
-};
-
-DEFINE_CLASS(mpu401, mpu401_methods, 0);
+	if (flags & M_TXPEND)
+		callout_reset(&m->timer, 1, mpu401_intr, m);
+	m->flags = flags;
+}
 
 void
 mpu401_intr(void *arg)
@@ -104,14 +102,13 @@ mpu401_intr(void *arg)
 }
 
 struct mpu401 *
-mpu401_init(kobj_class_t cls, void *cookie)
+mpu401_init(const struct mpu401_ops *ops, void *cookie)
 {
 	struct mpu401 *m;
 
 	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
 
-	kobj_init((kobj_t)m, cls);
-
+	m->ops = ops;
 	callout_init(&m->timer, 1);
 
 	m->cookie = cookie;
@@ -119,13 +116,14 @@ mpu401_init(kobj_class_t cls, void *cookie)
 	CMD(m, MPU_RESET);
 	CMD(m, MPU_UART);
 
-	m->mid = midi_init(&mpu401_class, m, MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
+	m->mid = midi_init(mpu401_mcallback, m, MPU_QUEUE_SIZE,
+	    MPU_QUEUE_SIZE);
 	if (!m->mid)
 		goto err;
 	return m;
 err:
 	printf("mpu401_init error\n");
-	kobj_delete((kobj_t)m, M_MIDI);
+	free(m, M_MIDI);
 	return NULL;
 }
 
@@ -135,16 +133,6 @@ mpu401_uninit(struct mpu401 *m)
 	CMD(m, MPU_RESET);
 	midi_uninit(m->mid);
 	callout_drain(&m->timer);
-	kobj_delete((kobj_t)m, M_MIDI);
+	free(m, M_MIDI);
 	return 0;
-}
-
-static void
-mpu401_mcallback(struct snd_midi *sm __unused, void *arg, int flags)
-{
-	struct mpu401 *m = arg;
-
-	if (flags & M_TXPEND)
-		callout_reset(&m->timer, 1, mpu401_intr, m);
-	m->flags = flags;
 }
