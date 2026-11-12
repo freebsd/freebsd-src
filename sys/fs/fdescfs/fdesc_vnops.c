@@ -525,19 +525,24 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		return (EACCES);
 
 	fd = VTOFDESC(ap->a_vp)->fd_fd;
+	cap_rights_init(&rights, CAP_FUTIMES, CAP_FCHMOD, CAP_FCHOWN,
+	    CAP_FCHFLAGS);
 
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 * For O_PATH descriptors, disallow truncate.
 	 */
 	if (vap->va_size != VNOVAL) {
-		error = getvnode(td, fd,
-		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+		cap_rights_set(&rights, CAP_FTRUNCATE);
+		error = getvnode(td, fd, &rights, &fp);
+		if (error == 0 && (fp->f_flag & FWRITE) == 0) {
+			error = EACCES;
+			goto out;
+		}
 	} else {
-		error = getvnode_path(td, fd,
-		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), NULL, &fp);
+		error = getvnode_path(td, fd, &rights, NULL, &fp);
 	}
-	if (error) {
+	if (error != 0) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
 		 * backed by a vnode.  Silently drop all changes except
@@ -558,7 +563,10 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 	}
+out:
+	VOP_UNLOCK(ap->a_vp);
 	fdrop(fp, td);
+	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 	return (error);
 }
 
