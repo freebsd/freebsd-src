@@ -10,6 +10,8 @@ ATF_TESTS_SH+=	fwd \
 		table \
 		unmapped
 
+ATF_TESTS_C+=	nat_getlog
+
 ${PACKAGE}FILES+=	fwd_inetd.conf \
 			lookup_inetd.conf
 
