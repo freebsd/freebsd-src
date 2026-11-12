@@ -2975,11 +2975,14 @@ sched_rem(struct thread *td)
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "runq rem",
 	    "prio:%d", td->td_priority);
 	SDT_PROBE3(sched, , , dequeue, td, td->td_proc, NULL);
+
 	tdq = TDQ_CPU(td_get_sched(td)->ts_cpu);
+
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
-	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
+	THREAD_LOCKPTR_ASSERT(td, TDQ_LOCKPTR(tdq));
 	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: thread not on run queue"));
+
 	tdq_runq_rem(tdq, td);
 	tdq_load_rem(tdq, td);
 	TD_SET_CAN_RUN(td);
