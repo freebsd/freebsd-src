@@ -1,0 +1,9 @@
+[package]
+name = "ame-loader"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-2-Clause"
+description = "AmeOS terminal bootloader menu prototype"
+
+[dependencies]
+crossterm = "0.28.1"

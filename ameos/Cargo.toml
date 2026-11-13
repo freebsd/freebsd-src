@@ -1,3 +1,3 @@
 [workspace]
-members = ["graphics", "desktop", "compatibility"]
+members = ["graphics", "desktop", "compatibility", "loader"]
 resolver = "2"
