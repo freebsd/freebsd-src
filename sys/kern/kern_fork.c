@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 
@@ -57,6 +58,9 @@
 #include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/procdesc.h>
 #include <sys/ptrace.h>
@@ -1230,6 +1234,12 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	    td, td_get_sched(td), p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
+
+#ifdef HWPMC_HOOKS
+	/* First-run threads bypass the normal scheduler switch-in path. */
+	if (PMC_PROC_IS_USING_PMCS(p))
+		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
+#endif
 
 	/*
 	 * Processes normally resume in mi_switch() after being
