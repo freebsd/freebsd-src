@@ -699,6 +699,8 @@ m_flag_body()
 	atf_check -e empty -o save:$output -s exit:0 ls -m
 
 	atf_check_equal "$(cat $output)" ",,, a,b , c, d, e"
+
+	atf_check -e empty -o inline:",,\n" -s exit:0 env COLUMNS=2 ls -m ,,
 }
 
 atf_test_case n_flag
