@@ -41,6 +41,7 @@
 #include <isa/isavar.h>
 #include <dev/tpm/tpmvar.h>
 #include <dev/tpm/tpm_irq.h>
+#include <dev/tpm/tpm_eventlog.h>
 
 #include "tpm_if.h"
 
@@ -261,6 +262,7 @@ tpm_attach(device_t dev)
 	sc->intr_cookie = NULL;
 	sc->irq_res = NULL;
 	sc->sc_cdev = NULL;
+	sc->sc_eventlog = NULL;
 	sc->sc_capabilities = 0;
 	sc->sc_flags = 0;
 	sc->sc_suspend = 0;
@@ -394,6 +396,7 @@ tpm_attach_finish(struct tpm_softc *sc)
 	error = make_dev_s(&args, &sc->sc_cdev, "tpm");
 	if (error != 0)
 		return (error);
+	sc->sc_eventlog = tpm_eventlog_create(sc->sc_dev);
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->sc_harvest_task, 0,
@@ -456,6 +459,8 @@ tpm_detach(device_t dev)
 		destroy_dev(sc->sc_cdev);
 		sc->sc_cdev = NULL;
 	}
+	tpm_eventlog_destroy(sc->sc_eventlog);
+	sc->sc_eventlog = NULL;
 	sx_xlock(&sc->sc_lock);
 	if (sc->mem_res != NULL && sc->sc_init == tpm_tis12_init) {
 		/* Identified TIS devices may enable delivery while polling. */
