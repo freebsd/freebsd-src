@@ -253,6 +253,7 @@ again:
 	if (inzone != outzone) {
 		IP6STAT_INC(ip6s_cantforward);
 		IP6STAT_INC(ip6s_badscope);
+		m_freem(mcopy);
 		goto bad;
 	}
 
@@ -362,7 +363,7 @@ again:
 			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif
 		error = netisr_queue(NETISR_IPV6, m);
-		goto out;
+		goto freecopy;
 	}
 	/* Or forward to some other address? */
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
@@ -400,8 +401,11 @@ pass:
 	    ~nh->nh_ifp->if_hwassist)) {
 		int offset = ip6_lasthdr(m, 0, IPPROTO_IPV6, NULL);
 
-		if (offset < sizeof(struct ip6_hdr) || offset > m->m_pkthdr.len)
+		if (offset < sizeof(struct ip6_hdr) ||
+		    offset > m->m_pkthdr.len) {
+			m_freem(mcopy);
 			goto bad;
+		}
 		in6_delayed_cksum(m, m->m_pkthdr.len - offset, offset);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 	}
