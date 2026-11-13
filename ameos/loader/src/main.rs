@@ -1,8 +1,10 @@
 mod backend;
 mod menu;
 mod screen;
+mod theme;
+mod zfs;
 
-use backend::{BootBackend, StubBackend};
+use backend::BootBackend;
 use crossterm::{
     cursor::{Hide, Show},
     event::{self, Event, KeyEvent, KeyEventKind},
@@ -12,6 +14,11 @@ use crossterm::{
 use menu::Menu;
 use screen::{Action, Screen};
 use std::io;
+
+#[cfg(target_os = "freebsd")]
+use backend::FreeBSDBackend;
+#[cfg(not(target_os = "freebsd"))]
+use backend::StubBackend;
 
 struct TerminalGuard;
 
@@ -50,12 +57,18 @@ fn run_screen(screen: &mut dyn Screen) -> io::Result<Action> {
 
 fn main() -> io::Result<()> {
     let _terminal = TerminalGuard::enter()?;
+
+    #[cfg(target_os = "freebsd")]
+    let backend = FreeBSDBackend::new();
+    #[cfg(not(target_os = "freebsd"))]
     let backend = StubBackend;
+
     let main_menu = Menu::new(
         "AmeOS Loader",
         vec![
             "Boot AmeOS".to_owned(),
             "Boot profiles".to_owned(),
+            "Boot environments (ZFS)".to_owned(),
             "Boot recovery environment".to_owned(),
             "Hardware diagnostics".to_owned(),
             "Power off".to_owned(),
@@ -94,6 +107,23 @@ fn main() -> io::Result<()> {
                         }
                         2 => {
                             stack.push(current);
+                            let environments =
+                                zfs::list_boot_environments().unwrap_or_else(|_| vec![]);
+                            let mut items: Vec<String> = environments
+                                .iter()
+                                .map(|be| {
+                                    if be.active {
+                                        format!("{} (active)", be.name)
+                                    } else {
+                                        be.name.clone()
+                                    }
+                                })
+                                .collect();
+                            items.push("Back to main menu".to_owned());
+                            stack.push(Box::new(Menu::new("Boot Environments (ZFS)", items)));
+                        }
+                        3 => {
+                            stack.push(current);
                             stack.push(Box::new(Menu::new(
                                 "Recovery Environment",
                                 vec![
@@ -104,7 +134,7 @@ fn main() -> io::Result<()> {
                                 ],
                             )));
                         }
-                        3 => {
+                        4 => {
                             stack.push(current);
                             stack.push(Box::new(Menu::new(
                                 "Hardware Diagnostics",
@@ -116,7 +146,7 @@ fn main() -> io::Result<()> {
                                 ],
                             )));
                         }
-                        4 => break 'main,
+                        5 => break 'main,
                         _ => {}
                     }
                 } else if title == "Boot Profiles" {
@@ -178,6 +208,19 @@ fn main() -> io::Result<()> {
                         }
                         3 => {}
                         _ => {}
+                    }
+                } else if title == "Boot Environments (ZFS)" {
+                    let environments = zfs::list_boot_environments().unwrap_or_else(|_| vec![]);
+                    if selected < environments.len() {
+                        let be = &environments[selected];
+                        drop(_terminal);
+                        if let Err(e) = zfs::activate_boot_environment(&be.name) {
+                            eprintln!("Failed to activate boot environment: {}", e);
+                        } else {
+                            println!("Boot environment '{}' activated", be.name);
+                            println!("System will boot into this environment on next reboot");
+                        }
+                        break 'main;
                     }
                 } else if stack.is_empty() {
                     break;

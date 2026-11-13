@@ -1,8 +1,10 @@
 use crate::screen::{Action, Screen};
+use crate::theme::{Theme, LOGO};
 use crossterm::{
     cursor::MoveTo,
     event::KeyCode,
     execute,
+    style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{Clear, ClearType},
 };
 use std::io::{self, Write};
@@ -12,15 +14,20 @@ pub struct Menu {
     items: Vec<String>,
     selected: usize,
     status: String,
+    theme: Theme,
+    show_logo: bool,
 }
 
 impl Menu {
     pub fn new(title: &str, items: Vec<String>) -> Self {
+        let show_logo = title == "AmeOS Loader";
         Self {
             title: title.to_owned(),
             items,
             selected: 0,
             status: "Ready".to_owned(),
+            theme: Theme::ameos(),
+            show_logo,
         }
     }
 }
@@ -29,21 +36,95 @@ impl Screen for Menu {
     fn draw(&self) -> io::Result<()> {
         let mut stdout = io::stdout();
         execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
-        println!("{}", self.title);
-        println!("{}", "=".repeat(self.title.len()));
-        println!();
-        println!("Select an option with Up/Down and press Enter.");
-        println!("Esc goes back or exits the loader.");
-        println!();
+
+        let mut line = 0;
+
+        if self.show_logo {
+            execute!(stdout, SetForegroundColor(self.theme.border))?;
+            for logo_line in LOGO.lines() {
+                execute!(stdout, MoveTo(0, line), Print(logo_line))?;
+                line += 1;
+            }
+            execute!(stdout, ResetColor)?;
+            line += 1;
+        }
+
+        execute!(
+            stdout,
+            MoveTo(0, line),
+            SetForegroundColor(self.theme.border),
+            Print("╔"),
+            Print("═".repeat(self.title.len() + 2)),
+            Print("╗"),
+            ResetColor
+        )?;
+        line += 1;
+
+        execute!(
+            stdout,
+            MoveTo(0, line),
+            SetForegroundColor(self.theme.border),
+            Print("║ "),
+            SetForegroundColor(self.theme.title),
+            Print(&self.title),
+            SetForegroundColor(self.theme.border),
+            Print(" ║"),
+            ResetColor
+        )?;
+        line += 1;
+
+        execute!(
+            stdout,
+            MoveTo(0, line),
+            SetForegroundColor(self.theme.border),
+            Print("╚"),
+            Print("═".repeat(self.title.len() + 2)),
+            Print("╝"),
+            ResetColor
+        )?;
+        line += 2;
+
+        execute!(
+            stdout,
+            MoveTo(0, line),
+            SetForegroundColor(Color::DarkGrey),
+            Print("Use ↑/↓ to navigate, Enter to select, Esc to go back"),
+            ResetColor
+        )?;
+        line += 2;
+
         for (index, item) in self.items.iter().enumerate() {
             if index == self.selected {
-                println!("> {item}");
+                execute!(
+                    stdout,
+                    MoveTo(0, line),
+                    SetForegroundColor(self.theme.selected),
+                    Print("► "),
+                    Print(item),
+                    ResetColor
+                )?;
             } else {
-                println!("  {item}");
+                execute!(
+                    stdout,
+                    MoveTo(0, line),
+                    SetForegroundColor(self.theme.normal),
+                    Print("  "),
+                    Print(item),
+                    ResetColor
+                )?;
             }
+            line += 1;
         }
-        println!();
-        println!("{}", self.status);
+
+        line += 1;
+        execute!(
+            stdout,
+            MoveTo(0, line),
+            SetForegroundColor(self.theme.status),
+            Print(&self.status),
+            ResetColor
+        )?;
+
         stdout.flush()
     }
 
