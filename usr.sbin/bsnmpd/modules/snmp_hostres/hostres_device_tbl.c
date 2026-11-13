@@ -37,6 +37,7 @@
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -82,10 +83,11 @@ static uint64_t device_tick = 0;
 /* maximum number of ticks between updates of device table */
 uint32_t device_tbl_refresh = 10 * 100;
 
-/* socket for /var/run/devd.pipe */
+/* socket to devd(8) */
 static int devd_sock = -1;
+static size_t devd_maxrecord;
 
-/* used to wait notifications from /var/run/devd.pipe */
+/* used to wait notifications from devd(8) */
 static void *devd_fd;
 
 /* some constants */
@@ -401,29 +403,26 @@ device_collector(struct devinfo_dev *dev, void *arg)
 static int
 create_devd_socket(void)
 {
+	struct sockaddr_un devd_addr = {
+		.sun_family = AF_LOCAL,
+		.sun_len = sizeof(devd_addr),
+		.sun_path = _PATH_DEVD_SOCKET,
+	};
 	int d_sock;
- 	struct sockaddr_un devd_addr;
 
- 	bzero(&devd_addr, sizeof(struct sockaddr_un));
-
- 	if ((d_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+	if ((d_sock = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) < 0) {
  		syslog(LOG_ERR, "Failed to create the socket for %s: %m",
-		    PATH_DEVD_PIPE);
+		    devd_addr.sun_path);
  		return (-1);
  	}
-
- 	devd_addr.sun_family = PF_LOCAL;
-	devd_addr.sun_len = sizeof(devd_addr);
- 	strlcpy(devd_addr.sun_path, PATH_DEVD_PIPE,
-	    sizeof(devd_addr.sun_path) - 1);
 
  	if (connect(d_sock, (struct sockaddr *)&devd_addr,
 	    sizeof(devd_addr)) == -1) {
  		syslog(LOG_ERR,"Failed to connect socket for %s: %m",
-		    PATH_DEVD_PIPE);
+		    devd_addr.sun_path);
  		if (close(d_sock) < 0 )
  			syslog(LOG_ERR,"Failed to close socket for %s: %m",
-			    PATH_DEVD_PIPE);
+			    devd_addr.sun_path);
 		return (-1);
  	}
 
@@ -439,46 +438,29 @@ create_devd_socket(void)
 static void
 devd_socket_callback(int fd, void *arg __unused)
 {
-	char buf[512];
-	int read_len = -1;
+	char buf[devd_maxrecord];
+	ssize_t len;
 
 	assert(fd == devd_sock);
 
 	HRDBG("called");
 
-again:
-	read_len = read(fd, buf, sizeof(buf));
-	if (read_len < 0) {
-		if (errno == EBADF) {
-			devd_sock = -1;
-			if (devd_fd != NULL) {
-				fd_deselect(devd_fd);
-				devd_fd = NULL;
-			}
-			syslog(LOG_ERR, "Closing devd_fd, revert to "
-			    "devinfo polling");
-		}
-
-	} else if (read_len == 0) {
-		syslog(LOG_ERR, "zero bytes read from devd pipe... "
-		    "closing socket!");
-
-		if (close(devd_sock) < 0 )
- 			syslog(LOG_ERR, "Failed to close devd socket: %m");
-
+	if ((len = recv(fd, buf, devd_maxrecord, MSG_WAITALL)) > 0) {
+		/* Only refresh device table on a device add or remove event. */
+		if (buf[0] == '+' || buf[0] == '-')
+			refresh_device_tbl(1);
+	} else {
+		if (len == 0)
+			syslog(LOG_ERR, "zero bytes read(2) on devd socket");
+		else
+			syslog(LOG_ERR, "read(2) on devd socket: %m");
+		syslog(LOG_ERR, "Reverting to devinfo polling");
+		(void)close(devd_sock);
 		devd_sock = -1;
 		if (devd_fd != NULL) {
 			fd_deselect(devd_fd);
 			devd_fd = NULL;
 		}
-		syslog(LOG_ERR, "Closing devd_fd, revert to devinfo polling");
-
-	} else {
-		if (read_len == sizeof(buf))
-			goto again;
-		/* Only refresh device table on a device add or remove event. */
-		if (buf[0] == '+' || buf[0] == '-')
-			refresh_device_tbl(1);
 	}
 }
 
@@ -494,6 +476,8 @@ init_device_tbl(void)
 
 	/* no problem if that fails - just use polling mode */
 	devd_sock = create_devd_socket();
+
+	devd_maxrecord = sysconf(_SC_DEVCTL_MAXRECORD);
 }
 
 /**
