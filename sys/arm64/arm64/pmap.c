@@ -5645,8 +5645,26 @@ restart:
 			pmap_store(tl3p, newpte);
 			newpte += L3_SIZE;
 		}
+		/*
+		 * Revert to the last L3 entry within the L3C superpage to
+		 * detect wiring-only changes.
+		 */
+		newpte -= L3_SIZE;
 	}
-	dsb(ishst);
+
+	/*
+	 * A page fault does not automatically invalidate the TLB entry for a
+	 * valid mapping, so we must perform an invalidation on any change to
+	 * a valid mapping, including changes that add permissions.  The only
+	 * exception is a wiring-only change.  One TLB invalidation suffices
+	 * for L1 or L2 block mappings.
+	 */
+	if ((origpte & ATTR_DESCR_VALID) != 0 &&
+	    ((origpte ^ newpte) & ~ATTR_SW_WIRED) != 0)
+		pmap_invalidate_range(pmap, va, va + (psind == 1 ?
+		    L3C_SIZE : PAGE_SIZE), true);
+	else
+		dsb(ishst);
 
 	if ((origpte & ATTR_DESCR_VALID) == 0)
 		pmap_resident_count_inc(pmap, pagesizes[psind] / PAGE_SIZE);
