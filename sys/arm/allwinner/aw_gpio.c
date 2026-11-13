@@ -1413,7 +1413,7 @@ aw_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 
 	if (err == 0)
 		*isrcp = &sc->gpio_pic_irqsrc[irq].isrc;
-	return (0);
+	return (err);
 }
 
 static int
