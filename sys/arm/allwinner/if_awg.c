@@ -51,6 +51,8 @@
 
 #include <machine/bus.h>
 
+#include <dev/fdt/fdt_common.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -1991,6 +1993,9 @@ awg_attach(device_t dev)
 		device_printf(dev, "cannot attach PHY\n");
 		return (error);
 	}
+
+	/* The MAC address of the FDT, if any, is the one to use */
+	fdt_ether_get_addr(ofw_bus_get_node(dev), sc->ifp, eaddr);
 
 	/* Attach ethernet interface */
 	ether_ifattach(sc->ifp, eaddr);
