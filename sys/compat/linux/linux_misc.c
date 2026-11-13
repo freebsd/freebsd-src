@@ -1805,6 +1805,7 @@ int
 linux_prctl(struct thread *td, struct linux_prctl_args *args)
 {
 	int error = 0, max_size, arg;
+	struct linux_emuldata *em;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
 	int pdeath_signal, trace_state;
@@ -1906,13 +1907,20 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		if (error)
 			return (error);
 
+		/*
+		 * As on Linux, the name is per thread.  The main thread's
+		 * name is also the process name.
+		 */
+		em = em_find(td);
 		PROC_LOCK(p);
-		strlcpy(p->p_comm, comm, sizeof(p->p_comm));
+		strlcpy(td->td_name, comm, sizeof(td->td_name));
+		if (em == NULL || em->em_tid == p->p_pid)
+			strlcpy(p->p_comm, comm, sizeof(p->p_comm));
 		PROC_UNLOCK(p);
 		break;
 	case LINUX_PR_GET_NAME:
 		PROC_LOCK(p);
-		strlcpy(comm, p->p_comm, sizeof(comm));
+		strlcpy(comm, td->td_name, sizeof(comm));
 		PROC_UNLOCK(p);
 		error = copyout(comm, (void *)(register_t)args->arg2,
 		    strlen(comm) + 1);
