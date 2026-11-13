@@ -23,6 +23,20 @@ struct tpm_eventlog_algorithms {
 
 /* Return a complete record's size, or zero for an invalid/short record. */
 static inline size_t
+tpm_eventlog_event1(const uint8_t *p, size_t len)
+{
+	size_t size;
+
+	/* PCR index, event type, SHA-1 digest, event size, then event data. */
+	if (len < 32)
+		return (0);
+	size = le32dec(p + 28);
+	if (size > len - 32)
+		return (0);
+	return (32 + size);
+}
+
+static inline size_t
 tpm_eventlog_specid(const uint8_t *p, size_t len,
     struct tpm_eventlog_algorithms *algs)
 {
@@ -111,13 +125,21 @@ tpm_eventlog_valid(const uint8_t *p, size_t len, uint32_t format)
 	struct tpm_eventlog_algorithms algs;
 	size_t off, size;
 
-	if (format != TPM_EVENTLOG_TCG2 || len > TPM_EVENTLOG_MAX_SIZE)
+	if (len == 0 || len > TPM_EVENTLOG_MAX_SIZE)
 		return (0);
-	off = tpm_eventlog_specid(p, len, &algs);
-	if (off == 0)
+	if (format == TPM_EVENTLOG_TCG2) {
+		off = tpm_eventlog_specid(p, len, &algs);
+		if (off == 0)
+			return (0);
+	} else if (format == TPM_EVENTLOG_TCG12)
+		off = 0;
+	else
 		return (0);
 	while (off < len) {
-		size = tpm_eventlog_event2(p + off, len - off, &algs);
+		if (format == TPM_EVENTLOG_TCG12)
+			size = tpm_eventlog_event1(p + off, len - off);
+		else
+			size = tpm_eventlog_event2(p + off, len - off, &algs);
 		if (size == 0)
 			return (0);
 		off += size;

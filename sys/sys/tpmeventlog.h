@@ -11,6 +11,7 @@
 
 /* Loader metadata; the device exports only the unmodified log bytes. */
 #define TPM_EVENTLOG_VERSION	1
+#define TPM_EVENTLOG_TCG12	1
 #define TPM_EVENTLOG_TCG2		2
 #define TPM_EVENTLOG_TRUNCATED	0x00000001
 #define TPM_EVENTLOG_MAX_SIZE	(1024 * 1024)

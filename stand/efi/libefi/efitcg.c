@@ -15,6 +15,7 @@
 #include <efi.h>
 #include <efilib.h>
 #include <Protocol/Tcg2Protocol.h>
+#include <Protocol/TcgService.h>
 #include <dev/tpm/tpm_eventlog.h>
 
 struct efi_tpm_eventlog {
@@ -24,9 +25,11 @@ struct efi_tpm_eventlog {
 	size_t size;
 	uint64_t final_count;
 	uint32_t flags;
+	uint32_t format;
 };
 
 static EFI_GUID tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
+static EFI_GUID tcg_guid = EFI_TCG_PROTOCOL_GUID;
 static EFI_GUID final_guid = EFI_TCG2_FINAL_EVENTS_TABLE_GUID;
 
 /* Restrict every firmware read to a readable RAM descriptor and our cap. */
@@ -143,11 +146,15 @@ struct efi_tpm_eventlog *
 efi_tpm_log_prepare(struct preloaded_file *fp)
 {
 	EFI_TCG2_PROTOCOL *tcg2;
+	EFI_TCG_PROTOCOL *tcg;
+	TCG_EFI_BOOT_SERVICE_CAPABILITY cap;
 	EFI_MEMORY_DESCRIPTOR *map;
 	EFI_PHYSICAL_ADDRESS first, last;
 	EFI_STATUS status;
 	UINTN mapsize, descsize;
+	UINT32 features;
 	BOOLEAN truncated;
+	bool empty;
 	struct efi_tpm_eventlog *log;
 	struct file_metadata *md;
 	struct tpm_eventlog_header hdr;
@@ -155,9 +162,14 @@ efi_tpm_log_prepare(struct preloaded_file *fp)
 	size_t avail, off, size, end, start;
 
 	efi_tpm_log_remove(fp);
+	tcg = NULL;
 	status = BS->LocateProtocol(&tcg2_guid, NULL, (void **)&tcg2);
-	if (EFI_ERROR(status))
-		return (NULL);
+	if (EFI_ERROR(status)) {
+		tcg2 = NULL;
+		status = BS->LocateProtocol(&tcg_guid, NULL, (void **)&tcg);
+		if (EFI_ERROR(status))
+			return (NULL);
+	}
 	map = efi_tpm_log_map(&mapsize, &descsize);
 	if (map == NULL)
 		return (NULL);
@@ -168,15 +180,41 @@ efi_tpm_log_prepare(struct preloaded_file *fp)
 	}
 	first = last = 0;
 	truncated = false;
-	status = tcg2->GetEventLog(tcg2, EFI_TCG2_EVENT_LOG_FORMAT_TCG_2,
-	    &first, &last, &truncated);
+	if (tcg2 != NULL) {
+		log->format = TPM_EVENTLOG_TCG2;
+		status = tcg2->GetEventLog(tcg2,
+		    EFI_TCG2_EVENT_LOG_FORMAT_TCG_2, &first, &last, &truncated);
+		if (EFI_ERROR(status) || first == 0) {
+			empty = !EFI_ERROR(status) && first == 0;
+			log->format = TPM_EVENTLOG_TCG12;
+			first = last = 0;
+			truncated = false;
+			status = tcg2->GetEventLog(tcg2,
+			    EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2,
+			    &first, &last, &truncated);
+			if (EFI_ERROR(status) && empty)
+				goto absent;
+		}
+	} else {
+		log->format = TPM_EVENTLOG_TCG12;
+		memset(&cap, 0, sizeof(cap));
+		cap.Size = sizeof(cap);
+		features = 0;
+		status = tcg->StatusCheck(tcg, &cap, &features, &first, &last);
+		if (!EFI_ERROR(status) &&
+		    (!cap.TPMPresentFlag || cap.TPMDeactivatedFlag))
+			goto absent;
+	}
 	if (EFI_ERROR(status))
 		goto fail;
 	if (first == 0 || last == 0)
 		goto absent;
 	avail = efi_tpm_log_avail(first, map, mapsize, descsize);
 	data = (const void *)(uintptr_t)first;
-	off = tpm_eventlog_specid(data, avail, &log->algorithms);
+	if (log->format == TPM_EVENTLOG_TCG2)
+		off = tpm_eventlog_specid(data, avail, &log->algorithms);
+	else
+		off = tpm_eventlog_event1(data, avail);
 	if (off == 0 || last < first)
 		goto fail;
 	if (last > first) {
@@ -184,8 +222,12 @@ efi_tpm_log_prepare(struct preloaded_file *fp)
 			goto fail;
 		while (off <= last - first) {
 			start = off;
-			size = tpm_eventlog_event2(data + off, avail - off,
-			    &log->algorithms);
+			if (log->format == TPM_EVENTLOG_TCG2)
+				size = tpm_eventlog_event2(data + off,
+				    avail - off, &log->algorithms);
+			else
+				size = tpm_eventlog_event1(data + off,
+				    avail - off);
 			if (size == 0)
 				goto fail;
 			off += size;
@@ -199,7 +241,8 @@ efi_tpm_log_prepare(struct preloaded_file *fp)
 	}
 	log->size = off;
 	log->flags = truncated ? TPM_EVENTLOG_TRUNCATED : 0;
-	final = efi_get_table(&final_guid);
+	final = log->format == TPM_EVENTLOG_TCG2 ?
+	    efi_get_table(&final_guid) : NULL;
 	if (final != NULL) {
 		avail = efi_tpm_log_avail((uintptr_t)final, map, mapsize,
 		    descsize);
@@ -214,7 +257,7 @@ efi_tpm_log_prepare(struct preloaded_file *fp)
 	if (md == NULL)
 		goto fail;
 	hdr.version = TPM_EVENTLOG_VERSION;
-	hdr.format = TPM_EVENTLOG_TCG2;
+	hdr.format = log->format;
 	hdr.length = log->size;
 	hdr.flags = log->flags;
 	md->md_type = MODINFOMD_TPM_EVENTLOG;
@@ -255,7 +298,8 @@ efi_tpm_log_finish(struct efi_tpm_eventlog *log, EFI_MEMORY_DESCRIPTOR *map,
 	if (log == NULL)
 		return;
 	start = end = 0;
-	final = efi_get_table(&final_guid);
+	final = log->format == TPM_EVENTLOG_TCG2 ?
+	    efi_get_table(&final_guid) : NULL;
 	if (final != NULL) {
 		avail = efi_tpm_log_avail((uintptr_t)final, map, mapsize,
 		    descsize);

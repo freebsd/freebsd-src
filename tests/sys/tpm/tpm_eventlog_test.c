@@ -172,6 +172,43 @@ ATF_TC_BODY(final_events, tc)
 	ATF_CHECK_EQ(start, end);
 }
 
+ATF_TC_WITHOUT_HEAD(legacy_records);
+ATF_TC_BODY(legacy_records, tc)
+{
+	uint8_t buf[70], *map, *end;
+	size_t i, pagesize;
+
+	memset(buf, 0, sizeof(buf));
+	le32enc(buf, 8);
+	le32enc(buf + 4, 13);
+	memset(buf + 8, 0xa5, 20);
+	le32enc(buf + 28, 3);
+	memcpy(buf + 32, "abc", 3);
+	memcpy(buf + 35, buf, 35);
+	ATF_CHECK_EQ(tpm_eventlog_event1(buf, 35), 35);
+	ATF_CHECK(tpm_eventlog_valid(buf, 35, TPM_EVENTLOG_TCG12));
+	ATF_CHECK(tpm_eventlog_valid(buf, 70, TPM_EVENTLOG_TCG12));
+	ATF_CHECK(!tpm_eventlog_valid(buf, 0, TPM_EVENTLOG_TCG12));
+	ATF_CHECK(!tpm_eventlog_valid(buf, 69, TPM_EVENTLOG_TCG12));
+	ATF_CHECK(!tpm_eventlog_valid(buf, 70, TPM_EVENTLOG_TCG2));
+
+	pagesize = getpagesize();
+	map = mmap(NULL, pagesize * 2, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, 0);
+	ATF_REQUIRE(map != MAP_FAILED);
+	end = map + pagesize;
+	ATF_REQUIRE_EQ(mprotect(end, pagesize, PROT_NONE), 0);
+	for (i = 0; i < 35; i++) {
+		memcpy(end - i, buf, i);
+		ATF_CHECK_EQ(tpm_eventlog_event1(end - i, i), 0);
+	}
+	ATF_REQUIRE_EQ(munmap(map, pagesize * 2), 0);
+	le32enc(buf + 28, UINT32_MAX);
+	ATF_CHECK_EQ(tpm_eventlog_event1(buf, 35), 0);
+	le32enc(buf + 28, 0);
+	ATF_CHECK_EQ(tpm_eventlog_event1(buf, 32), 32);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -179,5 +216,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, malformed);
 	ATF_TP_ADD_TC(tp, short_records);
 	ATF_TP_ADD_TC(tp, final_events);
+	ATF_TP_ADD_TC(tp, legacy_records);
 	return (atf_no_error());
 }

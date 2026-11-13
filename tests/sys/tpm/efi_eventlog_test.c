@@ -12,6 +12,7 @@
 #include <efi.h>
 #include <efilib.h>
 #include <Protocol/Tcg2Protocol.h>
+#include <Protocol/TcgService.h>
 #include <dev/tpm/tpm_eventlog.h>
 #include <atf-c.h>
 
@@ -22,6 +23,8 @@ static EFI_MEMORY_DESCRIPTOR map[2];
 static EFI_PHYSICAL_ADDRESS first, last;
 static EFI_STATUS log_status;
 static bool absent, after_exit, truncated, omit_final;
+static bool legacy, present, deactivated, sha1_only, empty_tcg2;
+static unsigned int log_calls, table_calls;
 static unsigned int allocations, fail_at, outstanding, messages;
 
 void *
@@ -75,6 +78,7 @@ efi_get_table(EFI_GUID *guid)
 	EFI_GUID expected = EFI_TCG2_FINAL_EVENTS_TABLE_GUID;
 
 	ATF_REQUIRE_EQ(memcmp(guid, &expected, sizeof(expected)), 0);
+	table_calls++;
 	return (omit_final ? NULL : final);
 }
 
@@ -84,23 +88,63 @@ get_log(EFI_TCG2_PROTOCOL *protocol __unused, EFI_TCG2_EVENT_LOG_FORMAT format,
 {
 
 	ATF_REQUIRE(!after_exit);
-	ATF_REQUIRE_EQ(format, EFI_TCG2_EVENT_LOG_FORMAT_TCG_2);
+	ATF_REQUIRE_EQ(*start, 0);
+	ATF_REQUIRE_EQ(*end, 0);
+	ATF_REQUIRE_EQ(*shortlog, false);
+	log_calls++;
+	if (format == EFI_TCG2_EVENT_LOG_FORMAT_TCG_2) {
+		ATF_REQUIRE_EQ(log_calls, 1);
+		if (empty_tcg2)
+			return (EFI_SUCCESS);
+		if (sha1_only) {
+			/* Ignore any output arguments from a failed call. */
+			*start = *end = UINT64_MAX;
+			*shortlog = true;
+			return (EFI_UNSUPPORTED);
+		}
+	} else {
+		ATF_REQUIRE_EQ(format, EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2);
+		ATF_REQUIRE_EQ(log_calls, 2);
+	}
 	*start = first;
 	*end = last;
 	*shortlog = truncated;
 	return (log_status);
 }
 
+static EFI_STATUS EFIAPI
+status_check(EFI_TCG_PROTOCOL *protocol __unused,
+    TCG_EFI_BOOT_SERVICE_CAPABILITY *cap, UINT32 *features,
+    EFI_PHYSICAL_ADDRESS *start, EFI_PHYSICAL_ADDRESS *end)
+{
+
+	ATF_REQUIRE(!after_exit);
+	ATF_REQUIRE_EQ(cap->Size, sizeof(*cap));
+	ATF_REQUIRE_EQ(*features, 0);
+	cap->TPMPresentFlag = present;
+	cap->TPMDeactivatedFlag = deactivated;
+	*start = first;
+	*end = last;
+	return (log_status);
+}
+
 static EFI_TCG2_PROTOCOL tcg2 = { .GetEventLog = get_log };
+static EFI_TCG_PROTOCOL tcg = { .StatusCheck = status_check };
 
 static EFI_STATUS EFIAPI
 locate(EFI_GUID *guid, void *registration __unused, void **protocol)
 {
-	EFI_GUID expected = EFI_TCG2_PROTOCOL_GUID;
+	EFI_GUID expected2 = EFI_TCG2_PROTOCOL_GUID;
+	EFI_GUID expected1 = EFI_TCG_PROTOCOL_GUID;
 
 	ATF_REQUIRE(!after_exit);
-	ATF_REQUIRE_EQ(memcmp(guid, &expected, sizeof(expected)), 0);
-	*protocol = &tcg2;
+	if (memcmp(guid, &expected2, sizeof(expected2)) == 0) {
+		log_calls = 0;
+		*protocol = &tcg2;
+		return (absent || legacy ? EFI_NOT_FOUND : EFI_SUCCESS);
+	}
+	ATF_REQUIRE_EQ(memcmp(guid, &expected1, sizeof(expected1)), 0);
+	*protocol = &tcg;
 	return (absent ? EFI_NOT_FOUND : EFI_SUCCESS);
 }
 
@@ -149,6 +193,9 @@ setup(void)
 	absent = after_exit = truncated = omit_final = false;
 	allocations = fail_at = messages = 0;
 	log_status = EFI_SUCCESS;
+	legacy = deactivated = sha1_only = empty_tcg2 = false;
+	present = true;
+	log_calls = table_calls = 0;
 	memset(primary, 0, sizeof(primary));
 	le32enc(primary + 4, 3);
 	le32enc(primary + 28, 33);
@@ -375,6 +422,122 @@ ATF_TC_BODY(cleanup, tc)
 	ATF_CHECK_EQ(outstanding, 0);
 }
 
+/* Two legacy SHA-1 events with three-byte payloads. */
+static void
+setup_legacy(void)
+{
+
+	setup();
+	legacy = true;
+	memset(primary, 0, sizeof(primary));
+	le32enc(primary, 5);
+	le32enc(primary + 4, 5);
+	le32enc(primary + 28, 3);
+	memcpy(primary + 32, "abc", 3);
+	memcpy(primary + 35, primary, 35);
+	last = first + 35;
+	/* An unrelated final table must not be parsed for a legacy log. */
+	le64enc(final + 8, UINT64_MAX);
+}
+
+ATF_TC_WITHOUT_HEAD(legacy_log);
+ATF_TC_BODY(legacy_log, tc)
+{
+	struct preloaded_file fp = { 0 };
+	struct efi_tpm_eventlog *log;
+	unsigned int i;
+	size_t size;
+
+	for (i = 1; i <= 2; i++) {
+		setup_legacy();
+		size = 35 * i;
+		last = first + size - 35;
+		log = efi_tpm_log_prepare(&fp);
+		ATF_REQUIRE(log != NULL);
+		/* The legacy snapshot deliberately excludes later events. */
+		memcpy(primary + size, primary, 35);
+		after_exit = true;
+		efi_tpm_log_finish(log, map, sizeof(map), sizeof(map[0]));
+		check_log(&fp, size, TPM_EVENTLOG_TCG12, 0);
+		ATF_CHECK_EQ(memcmp(fp.f_metadata->md_data +
+		    sizeof(struct tpm_eventlog_header), primary, size), 0);
+		ATF_CHECK_EQ(table_calls, 0);
+		discard(&fp);
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(legacy_absent);
+ATF_TC_BODY(legacy_absent, tc)
+{
+	struct preloaded_file fp = { 0 };
+	unsigned int i;
+
+	for (i = 0; i < 4; i++) {
+		setup_legacy();
+		switch (i) {
+		case 0:
+			present = false;
+			break;
+		case 1:
+			deactivated = true;
+			break;
+		case 2:
+			last = 0;
+			memset(primary, 0, sizeof(primary));
+			break;
+		case 3:
+			first = 0;
+			break;
+		}
+		ATF_CHECK(efi_tpm_log_prepare(&fp) == NULL);
+		ATF_CHECK(fp.f_metadata == NULL);
+		ATF_CHECK_EQ(messages, 0);
+		ATF_CHECK_EQ(outstanding, 0);
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(tcg2_sha1);
+ATF_TC_BODY(tcg2_sha1, tc)
+{
+	struct preloaded_file fp = { 0 };
+	struct efi_tpm_eventlog *log;
+	unsigned int i;
+
+	for (i = 0; i < 2; i++) {
+		setup_legacy();
+		legacy = false;
+		sha1_only = i == 0;
+		empty_tcg2 = i == 1;
+		truncated = i == 1;
+		log = efi_tpm_log_prepare(&fp);
+		ATF_REQUIRE(log != NULL);
+		ATF_CHECK_EQ(log_calls, 2);
+		after_exit = true;
+		efi_tpm_log_finish(log, map, sizeof(map), sizeof(map[0]));
+		check_log(&fp, 70, TPM_EVENTLOG_TCG12,
+		    truncated ? TPM_EVENTLOG_TRUNCATED : 0);
+		ATF_CHECK_EQ(table_calls, 0);
+		discard(&fp);
+	}
+	setup();
+	empty_tcg2 = true;
+	log_status = EFI_UNSUPPORTED;
+	/* An absent TPM stays silent even if SHA-1 format is unsupported. */
+	ATF_CHECK(efi_tpm_log_prepare(&fp) == NULL);
+	ATF_CHECK(fp.f_metadata == NULL);
+	ATF_CHECK_EQ(messages, 0);
+	ATF_CHECK_EQ(outstanding, 0);
+
+	setup_legacy();
+	legacy = false;
+	sha1_only = true;
+	last = 0;
+	ATF_CHECK(efi_tpm_log_prepare(&fp) == NULL);
+	ATF_CHECK(fp.f_metadata == NULL);
+	ATF_CHECK_EQ(messages, 0);
+	ATF_CHECK_EQ(outstanding, 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -383,5 +546,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, invalid_log);
 	ATF_TP_ADD_TC(tp, size_limit);
 	ATF_TP_ADD_TC(tp, cleanup);
+	ATF_TP_ADD_TC(tp, legacy_log);
+	ATF_TP_ADD_TC(tp, legacy_absent);
+	ATF_TP_ADD_TC(tp, tcg2_sha1);
 	return (atf_no_error());
 }
