@@ -33,6 +33,8 @@
 #ifndef MPU401_H
 #define MPU401_H
 
+#include <sys/types.h>
+
 #define MPU_DATAPORT   0
 #define MPU_CMDPORT    1
 #define MPU_STATPORT   1
