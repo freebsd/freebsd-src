@@ -127,7 +127,7 @@ midi_destroy(struct midi_softc *sc)
 	struct midi_port *m;
 	int i;
 
-	mtx_lock(&sc->lock);
+	mtx_lock(sc->lock);
 	sc->dying = true;
 	for (i = 0; i < sc->nchan; i++) {
 		m = &sc->ports[i];
@@ -138,7 +138,7 @@ midi_destroy(struct midi_softc *sc)
 		KNOTE_LOCKED(&m->rsel.si_note, 0);
 		KNOTE_LOCKED(&m->wsel.si_note, 0);
 	}
-	mtx_unlock(&sc->lock);
+	mtx_unlock(sc->lock);
 
 	for (i = 0; i < sc->nchan; i++) {
 		m = &sc->ports[i];
@@ -159,15 +159,14 @@ midi_destroy(struct midi_softc *sc)
 	free(sc->ports, M_MIDI);
 	sc->ports = NULL;
 	sc->nchan = 0;
-	mtx_destroy(&sc->lock);
 }
 
 /*
  * Register a new midi device with nchan ports, each with its own cdev.
  */
 int
-midi_register(device_t dev, midi_callback_t *cb, void *devinfo, int nchan,
-    size_t inqsize, size_t outqsize)
+midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
+    void *devinfo, int nchan, size_t inqsize, size_t outqsize)
 {
 	struct make_dev_args args;
 	struct midi_softc *sc;
@@ -181,19 +180,19 @@ midi_register(device_t dev, midi_callback_t *cb, void *devinfo, int nchan,
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->lock = lock;
 	sc->cb = cb;
 	sc->devinfo = devinfo;
 	sc->nchan = nchan;
 	sc->ports = malloc(nchan * sizeof(*sc->ports), M_MIDI,
 	    M_WAITOK | M_ZERO);
-	mtx_init(&sc->lock, device_get_nameunit(dev), "raw midi", MTX_DEF);
 
 	for (i = 0; i < nchan; i++) {
 		m = &sc->ports[i];
 		m->sc = sc;
 		m->chan = i;
-		knlist_init_mtx(&m->rsel.si_note, &sc->lock);
-		knlist_init_mtx(&m->wsel.si_note, &sc->lock);
+		knlist_init_mtx(&m->rsel.si_note, sc->lock);
+		knlist_init_mtx(&m->wsel.si_note, sc->lock);
 		if (inqsize != 0) {
 			m->inq.buf = malloc(inqsize, M_MIDI, M_WAITOK);
 			m->inq.size = inqsize;
@@ -250,33 +249,30 @@ midi_in(device_t dev, int chan, uint8_t *buf, size_t size)
 	struct midi_port *m;
 	size_t used = 0;
 
+	mtx_assert(sc->lock, MA_OWNED);
+
 	if (chan < 0 || chan >= sc->nchan)
 		return (0);
 	m = &sc->ports[chan];
 
-	mtx_lock(&sc->lock);
-
 	if (!(m->flags & M_RX)) {
 		/* We should return 0 but this may stop receiving/sending. */
-		mtx_unlock(&m->sc->lock);
 		return (size);
 	}
 
 	if (size <= midi_queue_avail(&m->inq)) {
 		used = size;
 		midi_queue_enq(&m->inq, buf, size);
-	} else {
-		mtx_unlock(&m->sc->lock);
-		return 0;
-	}
+	} else
+		return (0);
 	if (m->rchan) {
 		wakeup(&m->rchan);
 		m->rchan = 0;
 	}
 	selwakeup(&m->rsel);
 	KNOTE_LOCKED(&m->rsel.si_note, 0);
-	mtx_unlock(&m->sc->lock);
-	return used;
+
+	return (used);
 }
 
 /*
@@ -289,16 +285,14 @@ midi_out(device_t dev, int chan, uint8_t *buf, size_t size)
 	struct midi_port *m;
 	size_t used;
 
+	mtx_assert(sc->lock, MA_OWNED);
+
 	if (chan < 0 || chan >= sc->nchan)
 		return (0);
 	m = &sc->ports[chan];
 
-	mtx_lock(&sc->lock);
-
-	if (!(m->flags & M_TXPEND)) {
-		mtx_unlock(&m->sc->lock);
+	if (!(m->flags & M_TXPEND))
 		return (0);
-	}
 
 	used = ulmin(size, m->outq.used);
 	if (used)
@@ -315,8 +309,8 @@ midi_out(device_t dev, int chan, uint8_t *buf, size_t size)
 		selwakeup(&m->wsel);
 		KNOTE_LOCKED(&m->wsel.si_note, 0);
 	}
-	mtx_unlock(&m->sc->lock);
-	return used;
+
+	return (used);
 }
 
 int
@@ -328,9 +322,9 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (m == NULL)
 		return ENXIO;
 
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
-		mtx_unlock(&m->sc->lock);
+		mtx_unlock(m->sc->lock);
 		return (ENXIO);
 	}
 
@@ -369,7 +363,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 
 err:
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 	return retval;
 }
 
@@ -382,9 +376,9 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (m == NULL)
 		return ENXIO;
 
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
-		mtx_unlock(&m->sc->lock);
+		mtx_unlock(m->sc->lock);
 		return (ENXIO);
 	}
 
@@ -402,7 +396,7 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 
 err:
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 	return retval;
 }
 
@@ -421,7 +415,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (m == NULL)
 		goto err0;
 
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 
 	if (!(m->flags & M_RX))
 		goto err1;
@@ -441,11 +435,11 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->rchan = 1;
-			retval = msleep(&m->rchan, &m->sc->lock,
+			retval = msleep(&m->rchan, m->sc->lock,
 			    PCATCH | PDROP, "midi RX", 0);
 			if (retval)
 				goto err0;
-			mtx_lock(&m->sc->lock);
+			mtx_lock(m->sc->lock);
 			m->rchan = 0;
 		}
 		/*
@@ -456,17 +450,17 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = ulmin(used, MIDI_RSIZE);
 
 		midi_queue_deq(&m->inq, buf, used);
-		mtx_unlock(&m->sc->lock);
+		mtx_unlock(m->sc->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
 			goto err0;
-		mtx_lock(&m->sc->lock);
+		mtx_lock(m->sc->lock);
 	}
 
 done:
 	retval = 0;
 err1:
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 err0:
 	return retval;
 }
@@ -488,7 +482,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (m == NULL)
 		goto err0;
 
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 
 	if (!(m->flags & M_TX))
 		goto err1;
@@ -503,11 +497,11 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->wchan = 1;
-			retval = msleep(&m->wchan, &m->sc->lock,
+			retval = msleep(&m->wchan, m->sc->lock,
 			    PCATCH | PDROP, "midi TX", 0);
 			if (retval)
 				goto err0;
-			mtx_lock(&m->sc->lock);
+			mtx_lock(m->sc->lock);
 			m->wchan = 0;
 		}
 
@@ -518,11 +512,11 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = ulmin(midi_queue_avail(&m->outq), (size_t)uio->uio_resid);
 		used = ulmin(used, MIDI_WSIZE);
 
-		mtx_unlock(&m->sc->lock);
+		mtx_unlock(m->sc->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
 			goto err0;
-		mtx_lock(&m->sc->lock);
+		mtx_lock(m->sc->lock);
 		midi_queue_enq(&m->outq, buf, used);
 		/*
 	         * Inform the bottom half that data can be written
@@ -537,7 +531,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	 */
 	retval = 0;
 err1:
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 err0:	return retval;
 }
 
@@ -557,9 +551,9 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	if (m == NULL)
 		return 0;
 
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
-		mtx_unlock(&m->sc->lock);
+		mtx_unlock(m->sc->lock);
 		/* XXX many clients do not understand POLLNVAL */
 		return (events & (POLLHUP | POLLPRI | POLLIN | POLLRDNORM |
 		    POLLOUT | POLLWRNORM));
@@ -578,7 +572,7 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 			selrecord(td, &m->wsel);
 	}
 
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 
 	return (revents);
 }
@@ -591,9 +585,9 @@ midi_kqdetach(struct knote *kn)
 
 	knl = (kn->kn_filter == EVFILT_READ) ? &m->rsel.si_note :
 	    &m->wsel.si_note;
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 	knlist_remove(knl, kn, 1);
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 }
 
 static int
@@ -601,7 +595,7 @@ midi_kqevent(struct knote *kn, long hint)
 {
 	struct midi_port *m = kn->kn_hook;
 
-	mtx_assert(&m->sc->lock, MA_OWNED);
+	mtx_assert(m->sc->lock, MA_OWNED);
 
 	if (m->sc->dying) {
 		kn->kn_flags |= EV_EOF;
@@ -643,14 +637,14 @@ midi_kqfilter(struct cdev *i_dev, struct knote *kn)
 	}
 	kn->kn_fop = &midi_filtops;
 
-	mtx_lock(&m->sc->lock);
+	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
-		mtx_unlock(&m->sc->lock);
+		mtx_unlock(m->sc->lock);
 		return (ENXIO);
 	}
 	kn->kn_hook = m;
 	knlist_add(knl, kn, 1);
-	mtx_unlock(&m->sc->lock);
+	mtx_unlock(m->sc->lock);
 
 	return (0);
 }

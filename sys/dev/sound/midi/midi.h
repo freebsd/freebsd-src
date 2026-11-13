@@ -48,7 +48,7 @@ typedef void midi_callback_t(void *devinfo, int chan, int flags);
 
 struct midi_softc {
 	device_t	dev;
-	struct mtx	lock;
+	struct mtx	*lock;
 	midi_callback_t	*cb;
 	void		*devinfo;
 	int		nchan;
@@ -56,9 +56,11 @@ struct midi_softc {
 	struct midi_port	*ports;
 };
 
-int	midi_register(device_t dev, midi_callback_t *cb, void *devinfo,
-	    int nchan, size_t inqsize, size_t outqsize);
+int	midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
+	    void *devinfo, int nchan, size_t inqsize, size_t outqsize);
 int	midi_unregister(device_t dev);
+
+/* Must be called with the lock held. */
 size_t	midi_in(device_t dev, int chan, uint8_t *buf, size_t size);
 size_t	midi_out(device_t dev, int chan, uint8_t *buf, size_t size);
 

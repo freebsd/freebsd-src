@@ -57,6 +57,7 @@ struct mpu401 {
 	 * device_get_softc().
 	 */
 	struct midi_softc	midi;
+	struct mtx		lock;
 	const struct mpu401_ops	*ops;
 	void			*devinfo;
 	int			flags;
@@ -82,6 +83,8 @@ mpu401_intr(void *arg)
 	size_t i;
 	int s;
 
+	mtx_lock(&m->lock);
+
 	i = 0;
 	s = STATUS(m);
 	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
@@ -93,10 +96,9 @@ mpu401_intr(void *arg)
 		midi_in(m->midi.dev, 0, b, i);
 	i = 0;
 	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
-		if (midi_out(m->midi.dev, 0, b, 1))
-			WRITE(m, *b);
-		else
-			return;
+		if (midi_out(m->midi.dev, 0, b, 1) == 0)
+			break;
+		WRITE(m, *b);
 		i++;
 		/* DELAY(100); */
 		s = STATUS(m);
@@ -104,6 +106,8 @@ mpu401_intr(void *arg)
 
 	if (m->flags & M_TXPEND)
 		callout_reset(&m->timer, 1, mpu401_intr, m);
+
+	mtx_unlock(&m->lock);
 }
 
 static int
@@ -129,15 +133,17 @@ mpu401_attach(device_t dev)
 
 	m->ops = ivars->ops;
 	m->devinfo = ivars->devinfo;
+	mtx_init(&m->lock, device_get_nameunit(dev), "mpu401", MTX_DEF);
 	callout_init(&m->timer, 1);
 
 	CMD(m, MPU_RESET);
 	CMD(m, MPU_UART);
 
-	err = midi_register(dev, mpu401_mcallback, m, 1, MPU_QUEUE_SIZE,
-	    MPU_QUEUE_SIZE);
+	err = midi_register(dev, &m->lock, mpu401_mcallback, m, 1,
+	    MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
 	if (err != 0) {
 		callout_drain(&m->timer);
+		mtx_destroy(&m->lock);
 		return (err);
 	}
 
@@ -156,8 +162,11 @@ mpu401_detach(device_t dev)
 	 * The ports are gone, but a driver interrupt handler can still
 	 * call mpu401_intr(), so stop it re-arming the callout.
 	 */
+	mtx_lock(&m->lock);
 	m->flags = 0;
+	mtx_unlock(&m->lock);
 	callout_drain(&m->timer);
+	mtx_destroy(&m->lock);
 
 	return (err);
 }
