@@ -1,17 +1,17 @@
-use crossterm::{
-    cursor::{Hide, MoveTo, Show},
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
-    execute,
-    terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use std::io::{self, Write};
+mod backend;
+mod menu;
+mod screen;
 
-const ITEMS: &[&str] = &[
-    "Boot AmeOS",
-    "Boot recovery environment",
-    "Hardware diagnostics",
-    "Power off",
-];
+use backend::{BootBackend, StubBackend};
+use crossterm::{
+    cursor::{Hide, Show},
+    event::{self, Event, KeyEvent, KeyEventKind},
+    execute,
+    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use menu::Menu;
+use screen::{Action, Screen};
+use std::io;
 
 struct TerminalGuard;
 
@@ -30,33 +30,8 @@ impl Drop for TerminalGuard {
     }
 }
 
-fn draw(selected: usize, status: &str) -> io::Result<()> {
-    let mut stdout = io::stdout();
-    execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
-    println!("AmeOS Loader");
-    println!("=============");
-    println!();
-    println!("Select an option with Up/Down and press Enter.");
-    println!("Esc exits the loader.");
-    println!();
-    for (index, item) in ITEMS.iter().enumerate() {
-        if index == selected {
-            println!("> {item}");
-        } else {
-            println!("  {item}");
-        }
-    }
-    println!();
-    println!("{status}");
-    stdout.flush()
-}
-
-fn main() -> io::Result<()> {
-    let _terminal = TerminalGuard::enter()?;
-    let mut selected = 0;
-    let mut status = "Ready";
-    draw(selected, status)?;
-
+fn run_screen(screen: &mut dyn Screen) -> io::Result<Action> {
+    screen.draw()?;
     loop {
         let Event::Key(KeyEvent {
             code,
@@ -66,30 +41,148 @@ fn main() -> io::Result<()> {
         else {
             continue;
         };
-        match code {
-            KeyCode::Up => {
-                selected = selected.checked_sub(1).unwrap_or(ITEMS.len() - 1);
-                status = "Ready";
-                draw(selected, status)?;
-            }
-            KeyCode::Down => {
-                selected = (selected + 1) % ITEMS.len();
-                status = "Ready";
-                draw(selected, status)?;
-            }
-            KeyCode::Enter => {
-                if selected == ITEMS.len() - 1 {
+        match screen.handle_key(code) {
+            Action::Continue => screen.draw()?,
+            action => return Ok(action),
+        }
+    }
+}
+
+fn main() -> io::Result<()> {
+    let _terminal = TerminalGuard::enter()?;
+    let backend = StubBackend;
+    let main_menu = Menu::new(
+        "AmeOS Loader",
+        vec![
+            "Boot AmeOS".to_owned(),
+            "Boot profiles".to_owned(),
+            "Boot recovery environment".to_owned(),
+            "Hardware diagnostics".to_owned(),
+            "Power off".to_owned(),
+        ],
+    );
+
+    let mut stack: Vec<Box<dyn Screen>> = vec![Box::new(main_menu)];
+
+    'main: while let Some(mut current) = stack.pop() {
+        let action = run_screen(&mut *current)?;
+        let title = current.title();
+        let selected = current.selected_index().unwrap_or(0);
+
+        match action {
+            Action::Continue => unreachable!(),
+            Action::Exit => break,
+            Action::Back => {
+                if title == "AmeOS Loader" {
+                    match selected {
+                        0 => {
+                            drop(_terminal);
+                            backend.boot_default()?;
+                            break 'main;
+                        }
+                        1 => {
+                            stack.push(current);
+                            stack.push(Box::new(Menu::new(
+                                "Boot Profiles",
+                                vec![
+                                    "Default".to_owned(),
+                                    "Single user mode".to_owned(),
+                                    "Safe mode".to_owned(),
+                                    "Back to main menu".to_owned(),
+                                ],
+                            )));
+                        }
+                        2 => {
+                            stack.push(current);
+                            stack.push(Box::new(Menu::new(
+                                "Recovery Environment",
+                                vec![
+                                    "Mount filesystems".to_owned(),
+                                    "Network configuration".to_owned(),
+                                    "Shell".to_owned(),
+                                    "Back to main menu".to_owned(),
+                                ],
+                            )));
+                        }
+                        3 => {
+                            stack.push(current);
+                            stack.push(Box::new(Menu::new(
+                                "Hardware Diagnostics",
+                                vec![
+                                    "Memory test".to_owned(),
+                                    "Disk test".to_owned(),
+                                    "CPU information".to_owned(),
+                                    "Back to main menu".to_owned(),
+                                ],
+                            )));
+                        }
+                        4 => break 'main,
+                        _ => {}
+                    }
+                } else if title == "Boot Profiles" {
+                    match selected {
+                        0 => {
+                            drop(_terminal);
+                            backend.boot_default()?;
+                            break 'main;
+                        }
+                        1 => {
+                            drop(_terminal);
+                            backend.boot_single_user()?;
+                            break 'main;
+                        }
+                        2 => {
+                            drop(_terminal);
+                            backend.boot_safe_mode()?;
+                            break 'main;
+                        }
+                        3 => {}
+                        _ => {}
+                    }
+                } else if title == "Recovery Environment" {
+                    match selected {
+                        0 => {
+                            drop(_terminal);
+                            backend.mount_filesystems()?;
+                            break 'main;
+                        }
+                        1 => {
+                            drop(_terminal);
+                            backend.configure_network()?;
+                            break 'main;
+                        }
+                        2 => {
+                            drop(_terminal);
+                            backend.spawn_shell()?;
+                            break 'main;
+                        }
+                        3 => {}
+                        _ => {}
+                    }
+                } else if title == "Hardware Diagnostics" {
+                    match selected {
+                        0 => {
+                            drop(_terminal);
+                            backend.run_memory_test()?;
+                            break 'main;
+                        }
+                        1 => {
+                            drop(_terminal);
+                            backend.run_disk_test()?;
+                            break 'main;
+                        }
+                        2 => {
+                            drop(_terminal);
+                            backend.show_cpu_info()?;
+                            break 'main;
+                        }
+                        3 => {}
+                        _ => {}
+                    }
+                } else if stack.is_empty() {
                     break;
                 }
-                status = match selected {
-                    0 => "Boot request selected (execution will be wired next)",
-                    1 => "Recovery request selected (execution will be wired next)",
-                    _ => "Diagnostics request selected (execution will be wired next)",
-                };
-                draw(selected, status)?;
             }
-            KeyCode::Esc => break,
-            _ => {}
         }
     }
 
