@@ -182,8 +182,6 @@ rdist_map(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		BUS_SET_RESOURCE(madt_data->parent, madt_data->dev,
 		    SYS_RES_MEMORY, madt_data->count, intr->GicrBaseAddress,
 		    count);
-		if (intr->VgicInterrupt == 0)
-			madt_data->have_vgic = false;
 
 	default:
 		break;
@@ -244,7 +242,6 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 
 	madt_data.dev = dev;
 	madt_data.rdist_use_gicc = false;
-	madt_data.have_vgic = true;
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    rdist_map, &madt_data);
 	if (madt_data.count == 0) {
@@ -257,12 +254,18 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 		    rdist_map, &madt_data);
 	}
 
+	/*
+	 * If the madt_handler walk encountered a gicc with a non-zero
+	 * VgicInterrupt, then we have a vgic.
+	 */
+	madt_data.have_vgic = madt_data.maint_irq != 0;
+
 	private = madt_data.dist->Version;
 	if (madt_data.have_vgic) {
 		/* Flag that the VGIC is in use */
 		private |= GICV3_PRIV_VGIC;
 
-		if (madt_data.maint_irq_valid && madt_data.maint_irq != 0) {
+		if (madt_data.maint_irq_valid) {
 			error = BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
 			    madt_data.maint_irq, 1);
 
