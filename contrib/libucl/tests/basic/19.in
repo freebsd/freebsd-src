@@ -15,6 +15,12 @@ akey_merge = ["value"];
 
 skey_merge = "value";
 
+okey_merge_esc = {
+	key = value;
+}
+
+akey_merge_esc = ["value"];
+
 okey_rewrite = {
 	key = value;
 }

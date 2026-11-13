@@ -4,7 +4,8 @@ PACKAGE=lib${LIB}
 LIB=		ucl
 PRIVATELIB=	true
 SHLIB_MAJOR=	1
-SRCS=		ucl_emitter_streamline.c \
+SRCS=		ucl_cbor.c \
+		ucl_emitter_streamline.c \
 		ucl_emitter_utils.c \
 		ucl_emitter.c \
 		ucl_hash.c \

@@ -64,5 +64,16 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "anyOf with no subschemas",
+        "schema": {"anyOf": []},
+        "tests": [
+            {
+                "description": "nothing is valid",
+                "data": 1,
+                "valid": false
+            }
+        ]
     }
 ]

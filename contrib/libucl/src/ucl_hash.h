@@ -32,7 +32,7 @@ struct ucl_hash_node_s;
 typedef struct ucl_hash_node_s ucl_hash_node_t;
 
 typedef int (*ucl_hash_cmp_func)(const void *void_a, const void *void_b);
-typedef void (*ucl_hash_free_func)(void *ptr);
+typedef void (*ucl_hash_free_func)(void *ptr, void *ud);
 typedef void *ucl_hash_iter_t;
 
 
@@ -50,8 +50,12 @@ ucl_hash_t *ucl_hash_create(bool ignore_case);
 
 /**
  * Deinitializes the hashtable.
+ * @param func called for every stored object (and every element of its
+ *   implicit-array chain) before the table itself is released; NULL leaves
+ *   the stored objects alone and only frees the table
+ * @param ud opaque context handed to `func`
  */
-void ucl_hash_destroy(ucl_hash_t *hashlin, ucl_hash_free_func func);
+void ucl_hash_destroy(ucl_hash_t *hashlin, ucl_hash_free_func func, void *ud);
 
 /**
  * Inserts an element in the the hashtable.
@@ -61,7 +65,8 @@ bool ucl_hash_insert(ucl_hash_t *hashlin, const ucl_object_t *obj, const char *k
 					 unsigned keylen);
 
 /**
- * Replace element in the hash
+ * Replace element in the hash with one that has the same key, keeping its
+ * position in the insertion order; nothing is allocated
  */
 void ucl_hash_replace(ucl_hash_t *hashlin, const ucl_object_t *old,
 					  const ucl_object_t *new);
@@ -82,7 +87,8 @@ const ucl_object_t *ucl_hash_search(ucl_hash_t *hashlin, const char *key,
  * Iterate over hash table
  * @param hashlin hash
  * @param iter iterator (must be NULL on first iteration)
- * @param ep pointer record exception (such as ENOMEM), could be NULL
+ * @param ep pointer record exception, could be NULL; iterating allocates
+ * nothing and sets it to 0 always
  * @return the next object
  */
 const void *ucl_hash_iterate2(ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *ep);
@@ -98,7 +104,8 @@ const void *ucl_hash_iterate2(ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *e
 bool ucl_hash_iter_has_next(ucl_hash_t *hashlin, ucl_hash_iter_t iter);
 
 /**
- * Free a hash iterator (used when iteration is abandoned early)
+ * Free a hash iterator (used when iteration is abandoned early), which holds
+ * nothing to free now
  * @param iter iterator to free, may be NULL
  */
 void ucl_hash_iterate_free(ucl_hash_iter_t iter);
