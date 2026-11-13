@@ -936,8 +936,6 @@ emulate_movs(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 			vm_restart_instruction(vcpu);
 	}
 done:
-	KASSERT(error == 0 || error == EFAULT, ("%s: unexpected error %d",
-	    __func__, error));
 	return (error);
 }
 
