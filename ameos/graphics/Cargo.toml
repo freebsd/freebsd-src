@@ -1,0 +1,6 @@
+[package]
+name = "ame-gfx"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-2-Clause"
+description = "CPU raster graphics for AmeOS"
