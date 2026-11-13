@@ -69,6 +69,8 @@ unsafe extern "C" {
         required_len: *mut usize,
     ) -> i32;
     fn ame_compat_setenv(name: *const c_char, value: *const c_char, overwrite: i32) -> i32;
+    fn ame_compat_memmove(destination: *mut u8, source: *const u8, length: usize) -> *mut u8;
+    fn ame_compat_memset(destination: *mut u8, value: i32, length: usize) -> *mut u8;
 }
 
 pub fn version() -> Result<Version, Error> {
@@ -128,6 +130,25 @@ pub fn setenv(name: &str, value: &str, overwrite: bool) -> Result<(), Error> {
         .ok_or_else(|| Error::Status(Status::from_raw(status)))
 }
 
+/// Moves bytes with overlap-safe semantics.
+pub fn memmove(destination: &mut [u8], source: &[u8]) {
+    assert!(destination.len() >= source.len());
+    unsafe {
+        ame_compat_memmove(destination.as_mut_ptr(), source.as_ptr(), source.len());
+    }
+}
+
+/// Fills a byte slice using the platform implementation.
+pub fn memset(destination: &mut [u8], value: u8) {
+    unsafe {
+        ame_compat_memset(
+            destination.as_mut_ptr(),
+            i32::from(value),
+            destination.len(),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,5 +172,21 @@ mod tests {
     #[test]
     fn missing_environment_is_not_an_error() {
         assert_eq!(getenv("AME_COMPAT_MISSING_VALUE").unwrap(), None);
+    }
+
+    #[test]
+    fn fills_bytes() {
+        let mut bytes = [0u8; 4096];
+        memset(&mut bytes, 0xa5);
+        assert!(bytes.iter().all(|&byte| byte == 0xa5));
+    }
+
+    #[test]
+    fn moves_overlapping_bytes_backward() {
+        let mut bytes = *b"0123456789";
+        unsafe {
+            ame_compat_memmove(bytes.as_mut_ptr().add(2), bytes.as_ptr(), 8);
+        }
+        assert_eq!(&bytes, b"0101234567");
     }
 }

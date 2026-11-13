@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__x86_64__) && !defined(_WIN32)
+extern void *ame_compat_memmove_asm(void *destination, const void *source, size_t length);
+extern void *ame_compat_memset_asm(void *destination, int value, size_t length);
+#endif
+
 static int valid_name(const char *name) {
     return name != NULL && name[0] != '\0' && strchr(name, '=') == NULL;
 }
@@ -69,5 +74,21 @@ ame_compat_status ame_compat_setenv(
     return setenv(name, value, overwrite != 0) == 0
         ? AME_COMPAT_OK
         : AME_COMPAT_INVALID_ARGUMENT;
+#endif
+}
+
+void *ame_compat_memmove(void *destination, const void *source, size_t length) {
+#if defined(__x86_64__) && !defined(_WIN32)
+    return ame_compat_memmove_asm(destination, source, length);
+#else
+    return memmove(destination, source, length);
+#endif
+}
+
+void *ame_compat_memset(void *destination, int value, size_t length) {
+#if defined(__x86_64__) && !defined(_WIN32)
+    return ame_compat_memset_asm(destination, value, length);
+#else
+    return memset(destination, value, length);
 #endif
 }

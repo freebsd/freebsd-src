@@ -41,6 +41,10 @@ ame_compat_status ame_compat_setenv(
     const char *value,
     int overwrite);
 
+/* libc-compatible byte operations. They return the destination pointer. */
+void *ame_compat_memmove(void *destination, const void *source, size_t length);
+void *ame_compat_memset(void *destination, int value, size_t length);
+
 #ifdef __cplusplus
 }
 #endif

@@ -53,6 +53,14 @@ inline void setenv(const char *name, const char *value, bool overwrite = true) {
     }
 }
 
+inline void *memmove(void *destination, const void *source, size_t length) {
+    return ame_compat_memmove(destination, source, length);
+}
+
+inline void *memset(void *destination, int value, size_t length) {
+    return ame_compat_memset(destination, value, length);
+}
+
 } // namespace ame::compat
 
 #endif
