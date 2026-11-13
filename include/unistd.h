@@ -161,6 +161,7 @@ typedef	__useconds_t	useconds_t;
  * Those that are marked `user' are implemented entirely in the C
  * library and never query the kernel.  pathconf() is implemented
  * directly by the kernel so those are not defined here.
+ * Please keep this list sorted by numeric value.
  */
 #define	_SC_ARG_MAX		 1
 #define	_SC_CHILD_MAX		 2
@@ -218,6 +219,15 @@ typedef	__useconds_t	useconds_t;
 #define	_SC_TIMER_MAX		52
 #endif
 
+#if __XSI_VISIBLE
+#define	_SC_IOV_MAX		56
+#endif
+
+#if __BSD_VISIBLE
+#define	_SC_NPROCESSORS_CONF	57
+#define	_SC_NPROCESSORS_ONLN	58
+#endif
+
 #if __POSIX_VISIBLE >= 200112
 #define	_SC_2_PBS		59 /* user */
 #define	_SC_2_PBS_ACCOUNTING	60 /* user */
@@ -267,14 +277,10 @@ typedef	__useconds_t	useconds_t;
 #define	_SC_V6_ILP32_OFFBIG	104 /* user */
 #define	_SC_V6_LP64_OFF64	105 /* user */
 #define	_SC_V6_LPBIG_OFFBIG	106 /* user */
-#define	_SC_IPV6		118
-#define	_SC_RAW_SOCKETS		119
-#define	_SC_SYMLOOP_MAX		120
 #endif
 
 #if __XSI_VISIBLE
 #define	_SC_ATEXIT_MAX		107 /* user */
-#define	_SC_IOV_MAX		56
 #define	_SC_PAGE_SIZE		_SC_PAGESIZE
 #define	_SC_XOPEN_CRYPT		108 /* user */
 #define	_SC_XOPEN_ENH_I18N	109 /* user */
@@ -288,9 +294,16 @@ typedef	__useconds_t	useconds_t;
 #define	_SC_XOPEN_XCU_VERSION	117 /* user */
 #endif
 
+#if __POSIX_VISIBLE >= 200112
+#define	_SC_IPV6		118
+#define	_SC_RAW_SOCKETS		119
+#define	_SC_SYMLOOP_MAX		120
+#endif
+
+/* Extensions found in Solaris and Linux. */
+#define	_SC_PHYS_PAGES		121
+
 #if __BSD_VISIBLE
-#define	_SC_NPROCESSORS_CONF	57
-#define	_SC_NPROCESSORS_ONLN	58
 #define	_SC_CPUSET_SIZE		122
 #define	_SC_UEXTERR_MAXLEN	123 /* user */
 #endif
@@ -298,9 +311,6 @@ typedef	__useconds_t	useconds_t;
 #if __POSIX_VISIBLE >= 202405
 #define	_SC_NSIG		124
 #endif
-
-/* Extensions found in Solaris and Linux. */
-#define	_SC_PHYS_PAGES		121
 
 /* Keys for the confstr(3) function. */
 #if __POSIX_VISIBLE >= 199209
