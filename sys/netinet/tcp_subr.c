@@ -3797,9 +3797,12 @@ tcp_maxseg(const struct tcpcb *tp)
 			optlen += PADTCPOLEN(TCPOLEN_SIGNATURE);
 #endif
 		if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks > 0) {
-			optlen += TCPOLEN_SACKHDR;
-			optlen += tp->rcv_numsacks * TCPOLEN_SACK;
-			optlen = PADTCPOLEN(optlen);
+			u_int sackblks;
+
+			sackblks = min(tp->rcv_numsacks, (TCP_MAXOLEN - optlen -
+			    PADTCPOLEN(TCPOLEN_SACKHDR)) / TCPOLEN_SACK);
+			optlen += PADTCPOLEN(TCPOLEN_SACKHDR +
+			    sackblks * TCPOLEN_SACK);
 		}
 	} else {
 		if (tp->t_flags & TF_REQ_TSTMP)
