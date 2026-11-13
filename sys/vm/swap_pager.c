@@ -2504,6 +2504,7 @@ kern_swapoff(struct thread *td, const char *name, enum uio_seg name_seg,
 			break;
 	}
 	mtx_unlock(&sw_dev_mtx);
+	vrele(vp);
 	if (sp == NULL) {
 		error = EINVAL;
 		goto done;
