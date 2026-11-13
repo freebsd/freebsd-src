@@ -490,6 +490,7 @@ op_vacm_view(struct snmp_context *ctx, struct snmp_value *val, uint32_t sub,
 		switch (val->var.subs[sub - 1]) {
 		case LEAF_vacmViewTreeFamilyMask:
 			if (val->v.octetstring.len > sizeof(view->mask))
+				return (SNMP_ERR_WRONG_VALUE);
 			ctx->scratch->ptr1 = malloc(sizeof(view->mask));
 			if (ctx->scratch->ptr1 == NULL)
 				return (SNMP_ERR_GENERR);
