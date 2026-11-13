@@ -1,4 +1,4 @@
-.\" $NetBSD: blocklistd.8,v 1.8 2025/02/25 22:13:34 christos Exp $
+.\" $NetBSD: blocklistd.8,v 1.9 2026/11/12 18:47:50 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 25, 2025
+.Dd November 12, 2026
 .Dt BLOCKLISTD 8
 .Os
 .Sh NAME
@@ -47,14 +47,13 @@
 .Nm
 is a daemon similar to
 .Xr syslogd 8
-that listens to sockets at paths specified in the
-.Ar sockpathsfile
-for notifications from other daemons about successful or failed connection
-attempts.
-If no such file is specified, then it only listens to the socket path
-specified by
-.Ar sockpath
-or if that is not specified to
+that listens to sockets for notifications from other daemons about
+successful or failed connection attempts.
+It listens to every socket given with
+.Fl s
+and every socket listed in the
+.Ar sockpathsfile .
+If neither is given, it listens to
 .Pa /var/run/blocklistd.sock .
 Each notification contains an (action, port, protocol, address, owner) tuple
 that identifies the remote connection and the action.
@@ -223,7 +222,8 @@ control flush <rulename>
 .It Fl P Ar sockpathsfile
 A file containing a list of pathnames, one per line that
 .Nm
-will create sockets to listen to.
+will create sockets to listen to, in addition to those given with
+.Fl s .
 This is useful for chrooted environments.
 .It Fl R Ar rulename
 Specify the default rule name for the packet filter rules, usually
@@ -238,6 +238,14 @@ Add
 to the list of Unix sockets
 .Nm
 listens to.
+This option can be given more than once.
+When any
+.Fl s
+or
+.Fl P
+option is given,
+.Pa /var/run/blocklistd.sock
+is not used unless it is listed explicitly.
 .It Fl t Ar timeout
 The interval in seconds
 .Nm
