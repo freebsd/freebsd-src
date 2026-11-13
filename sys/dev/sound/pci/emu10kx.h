@@ -36,6 +36,8 @@
 
 #ifdef _KERNEL
 
+#include <dev/sound/midi/mpu401.h>
+
 #define	EMUPAGESIZE	4096
 #define	NUM_G		64
 /* XXX some (empty) samples are played when play buffer is > EMUPAGESIZE */
@@ -135,7 +137,16 @@ struct emu_midiinfo {
 	struct emu_sc_info *card;
 	int		port;
 	int		portnr;
+	int		is_emu10k1;
+	int		ihandle;	/* interrupt manager handle */
+	device_t	dev;		/* midi child */
+	struct mpu401_ivars ivars;
 };
+
+extern const struct mpu401_ops emu_mpu_ops;
+uint32_t emu_midi_card_intr(void *p, uint32_t intr_status);
+void	emu_midi_attach(device_t dev, struct emu_midiinfo *mi, device_t *devp);
+void	emu_midi_detach(struct emu_midiinfo *mi);
 
 /* PCM device parameters */
 struct emu_pcminfo {

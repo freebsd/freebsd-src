@@ -3212,6 +3212,7 @@ dev/sound/pci/atiixp.c		optional snd_atiixp pci
 dev/sound/pci/cmi.c		optional snd_cmi pci
 dev/sound/pci/cs4281.c		optional snd_cs4281 pci
 dev/sound/pci/csa.c		optional snd_csa pci
+dev/sound/pci/csamidi.c		optional snd_csa pci
 dev/sound/pci/csapcm.c		optional snd_csa pci
 dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci
 dev/sound/pci/emu10kx.c		optional snd_emu10kx pci

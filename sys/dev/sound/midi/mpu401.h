@@ -41,15 +41,17 @@
 #define MPU_OUTPUTBUSY 0x40
 #define MPU_INPUTBUSY  0x80
 
-struct mpu401;
-
 struct mpu401_ops {
-	uint8_t	(*read)(void *cookie, int reg);
-	void	(*write)(void *cookie, int reg, uint8_t val);
+	uint8_t	(*read)(void *devinfo, int reg);
+	void	(*write)(void *devinfo, int reg, uint8_t val);
 };
 
-struct mpu401 *mpu401_init(const struct mpu401_ops *ops, void *cookie);
+struct mpu401_ivars {
+	const struct mpu401_ops	*ops;
+	void	*devinfo;
+	const char *desc;	/* Optional, for device_set_desc(). */
+};
+
 void mpu401_intr(void *m);
-int mpu401_uninit(struct mpu401 *m);
 
 #endif

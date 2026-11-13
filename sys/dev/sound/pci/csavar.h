@@ -28,6 +28,11 @@
 
 #ifndef _CSA_VAR_H
 #define _CSA_VAR_H
+struct mpu401_ops;
+
+extern const struct mpu401_ops csamidi_mpu_ops;
+void csamidi_init(struct resource *io);
+
 struct csa_card {
 	uint16_t subvendor, subdevice;
 	char *name;

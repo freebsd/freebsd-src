@@ -61,22 +61,17 @@ struct midi_queue {
 	size_t	used;			/* Bytes queued. */
 };
 
-struct snd_midi {
-	struct mtx lock;
-	midi_callback_t *cb;
-	void   *cookie;
-
-	int	unit;
-	int	channel;
+struct midi_port {
+	struct midi_softc *sc;
+	int	chan;
 
 	int	flags;			/* File flags */
-	bool	dying;			/* Set by midi_uninit(). */
 	struct midi_queue inq, outq;
 	int	rchan, wchan;
 	struct selinfo rsel, wsel;
 	size_t	hiwat;			/* Free space below which writes from
 					 * userland are blocked. */
-	struct cdev *dev;
+	struct cdev *cdev;
 };
 
 static d_open_t midi_open;
@@ -96,9 +91,6 @@ static struct cdevsw midi_cdevsw = {
 	.d_poll = midi_poll,
 	.d_name = "midi",
 };
-
-struct unrhdr *dev_unr = NULL;
-struct unrhdr *chn_unr = NULL;
 
 static size_t
 midi_queue_avail(struct midi_queue *q)
@@ -126,87 +118,109 @@ midi_queue_deq(struct midi_queue *q, uint8_t *dst, size_t n)
 }
 
 static void
-midi_destroy(struct snd_midi *m)
+midi_destroy(struct midi_softc *sc)
 {
-	free_unr(dev_unr, m->unit);
-	free_unr(chn_unr, m->channel);
-	free(m->inq.buf, M_MIDI);
-	free(m->outq.buf, M_MIDI);
-	mtx_destroy(&m->lock);
-	free(m, M_MIDI);
+	struct midi_port *m;
+	int i;
+
+	mtx_lock(&sc->lock);
+	sc->dying = true;
+	for (i = 0; i < sc->nchan; i++) {
+		m = &sc->ports[i];
+		wakeup(&m->rchan);
+		wakeup(&m->wchan);
+		m->rchan = 0;
+		m->wchan = 0;
+	}
+	mtx_unlock(&sc->lock);
+
+	for (i = 0; i < sc->nchan; i++) {
+		m = &sc->ports[i];
+		seldrain(&m->rsel);
+		seldrain(&m->wsel);
+		if (m->cdev != NULL)
+			destroy_dev(m->cdev);
+	}
+	for (i = 0; i < sc->nchan; i++) {
+		m = &sc->ports[i];
+		free(m->inq.buf, M_MIDI);
+		free(m->outq.buf, M_MIDI);
+	}
+	free(sc->ports, M_MIDI);
+	sc->ports = NULL;
+	sc->nchan = 0;
+	mtx_destroy(&sc->lock);
 }
 
 /*
- * Register a new midi device.
- *
- * "cookie" is passed to the MPU calls, and is normally set to the driver's
- * softc.
+ * Register a new midi device with nchan ports, each with its own cdev.
  */
-struct snd_midi *
-midi_init(midi_callback_t *cb, void *cookie, size_t inqsize, size_t outqsize)
+int
+midi_register(device_t dev, midi_callback_t *cb, void *devinfo, int nchan,
+    size_t inqsize, size_t outqsize)
 {
 	struct make_dev_args args;
-	struct snd_midi *m;
-	uint8_t *ibuf = NULL;
-	uint8_t *obuf = NULL;
-	int err;
+	struct midi_softc *sc;
+	struct midi_port *m;
+	int err, i, unit;
 
-	if (!inqsize && !outqsize)
-		return (NULL);
+	if (nchan <= 0 || (inqsize == 0 && outqsize == 0))
+		return (EINVAL);
 
-	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
-	m->cb = cb;
+	unit = device_get_unit(dev);
 
-	mtx_init(&m->lock, "raw midi", NULL, 0);
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sc->cb = cb;
+	sc->devinfo = devinfo;
+	sc->nchan = nchan;
+	sc->ports = malloc(nchan * sizeof(*sc->ports), M_MIDI,
+	    M_WAITOK | M_ZERO);
+	mtx_init(&sc->lock, device_get_nameunit(dev), "raw midi", MTX_DEF);
 
-	if (inqsize)
-		ibuf = malloc(inqsize, M_MIDI, M_WAITOK);
-	if (outqsize)
-		obuf = malloc(outqsize, M_MIDI, M_WAITOK);
-
-	m->hiwat = outqsize / 2;
-
-	m->inq.buf = ibuf;
-	m->inq.size = inqsize;
-	m->outq.buf = obuf;
-	m->outq.size = outqsize;
-
-	m->unit = alloc_unr(dev_unr);
-	m->channel = alloc_unr(chn_unr);
-	m->cookie = cookie;
-
-	make_dev_args_init(&args);
-	args.mda_devsw = &midi_cdevsw;
-	args.mda_unit = m->unit;
-	args.mda_uid = UID_ROOT;
-	args.mda_gid = GID_AUDIO;
-	args.mda_mode = 0660;
-	args.mda_si_drv1 = m;
-	err = make_dev_s(&args, &m->dev, "midi%d.%d", m->unit, m->channel);
-	if (err != 0) {
-		printf("%s: failed to create midi%d.%d: error %d\n", __func__,
-		    m->unit, m->channel, err);
-		midi_destroy(m);
-		return (NULL);
+	for (i = 0; i < nchan; i++) {
+		m = &sc->ports[i];
+		m->sc = sc;
+		m->chan = i;
+		if (inqsize != 0) {
+			m->inq.buf = malloc(inqsize, M_MIDI, M_WAITOK);
+			m->inq.size = inqsize;
+		}
+		if (outqsize != 0) {
+			m->outq.buf = malloc(outqsize, M_MIDI, M_WAITOK);
+			m->outq.size = outqsize;
+		}
+		m->hiwat = outqsize / 2;
 	}
 
-	return (m);
+	for (i = 0; i < nchan; i++) {
+		m = &sc->ports[i];
+		make_dev_args_init(&args);
+		args.mda_devsw = &midi_cdevsw;
+		args.mda_unit = unit;
+		args.mda_uid = UID_ROOT;
+		args.mda_gid = GID_AUDIO;
+		args.mda_mode = 0660;
+		args.mda_si_drv1 = m;
+		err = make_dev_s(&args, &m->cdev, "midi%d.%d", unit, i);
+		if (err != 0) {
+			device_printf(dev,
+			    "failed to create midi%d.%d: error %d\n",
+			    unit, i, err);
+			midi_destroy(sc);
+			return (err);
+		}
+	}
+
+	return (0);
 }
 
 int
-midi_uninit(struct snd_midi *m)
+midi_unregister(device_t dev)
 {
-	mtx_lock(&m->lock);
-	m->dying = true;
-	wakeup(&m->rchan);
-	wakeup(&m->wchan);
-	m->rchan = 0;
-	m->wchan = 0;
-	mtx_unlock(&m->lock);
-	seldrain(&m->rsel);
-	seldrain(&m->wsel);
-	destroy_dev(m->dev);
-	midi_destroy(m);
+	struct midi_softc *sc = device_get_softc(dev);
+
+	midi_destroy(sc);
 
 	return (0);
 }
@@ -218,15 +232,21 @@ midi_uninit(struct snd_midi *m)
  * psignal at most once.
  */
 size_t
-midi_in(struct snd_midi *m, uint8_t *buf, size_t size)
+midi_in(device_t dev, int chan, uint8_t *buf, size_t size)
 {
+	struct midi_softc *sc = device_get_softc(dev);
+	struct midi_port *m;
 	size_t used = 0;
 
-	mtx_lock(&m->lock);
+	if (chan < 0 || chan >= sc->nchan)
+		return (0);
+	m = &sc->ports[chan];
+
+	mtx_lock(&sc->lock);
 
 	if (!(m->flags & M_RX)) {
 		/* We should return 0 but this may stop receiving/sending. */
-		mtx_unlock(&m->lock);
+		mtx_unlock(&m->sc->lock);
 		return (size);
 	}
 
@@ -234,7 +254,7 @@ midi_in(struct snd_midi *m, uint8_t *buf, size_t size)
 		used = size;
 		midi_queue_enq(&m->inq, buf, size);
 	} else {
-		mtx_unlock(&m->lock);
+		mtx_unlock(&m->sc->lock);
 		return 0;
 	}
 	if (m->rchan) {
@@ -242,7 +262,7 @@ midi_in(struct snd_midi *m, uint8_t *buf, size_t size)
 		m->rchan = 0;
 	}
 	selwakeup(&m->rsel);
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 	return used;
 }
 
@@ -250,14 +270,20 @@ midi_in(struct snd_midi *m, uint8_t *buf, size_t size)
  * midi_out: The only clearer of the M_TXPEND flag.
  */
 size_t
-midi_out(struct snd_midi *m, uint8_t *buf, size_t size)
+midi_out(device_t dev, int chan, uint8_t *buf, size_t size)
 {
+	struct midi_softc *sc = device_get_softc(dev);
+	struct midi_port *m;
 	size_t used;
 
-	mtx_lock(&m->lock);
+	if (chan < 0 || chan >= sc->nchan)
+		return (0);
+	m = &sc->ports[chan];
+
+	mtx_lock(&sc->lock);
 
 	if (!(m->flags & M_TXPEND)) {
-		mtx_unlock(&m->lock);
+		mtx_unlock(&m->sc->lock);
 		return (0);
 	}
 
@@ -266,7 +292,7 @@ midi_out(struct snd_midi *m, uint8_t *buf, size_t size)
 		midi_queue_deq(&m->outq, buf, used);
 	if (m->outq.used == 0) {
 		m->flags &= ~M_TXPEND;
-		m->cb(m->cookie, m->flags);
+		m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 	}
 	if (used && midi_queue_avail(&m->outq) > m->hiwat) {
 		if (m->wchan) {
@@ -275,22 +301,22 @@ midi_out(struct snd_midi *m, uint8_t *buf, size_t size)
 		}
 		selwakeup(&m->wsel);
 	}
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 	return used;
 }
 
 int
 midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
-	struct snd_midi *m = i_dev->si_drv1;
+	struct midi_port *m = i_dev->si_drv1;
 	int retval = 0;
 
 	if (m == NULL)
 		return ENXIO;
 
-	mtx_lock(&m->lock);
-	if (m->dying) {
-		mtx_unlock(&m->lock);
+	mtx_lock(&m->sc->lock);
+	if (m->sc->dying) {
+		mtx_unlock(&m->sc->lock);
 		return (ENXIO);
 	}
 
@@ -326,25 +352,25 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (flags & FWRITE)
 		m->flags |= M_TX;
 
-	m->cb(m->cookie, m->flags);
+	m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 
 err:
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 	return retval;
 }
 
 int
 midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
-	struct snd_midi *m = i_dev->si_drv1;
+	struct midi_port *m = i_dev->si_drv1;
 	int retval = 0;
 
 	if (m == NULL)
 		return ENXIO;
 
-	mtx_lock(&m->lock);
-	if (m->dying) {
-		mtx_unlock(&m->lock);
+	mtx_lock(&m->sc->lock);
+	if (m->sc->dying) {
+		mtx_unlock(&m->sc->lock);
 		return (ENXIO);
 	}
 
@@ -359,10 +385,10 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (flags & FWRITE)
 		m->flags &= ~M_TX;
 
-	m->cb(m->cookie, m->flags);
+	m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 
 err:
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 	return retval;
 }
 
@@ -374,7 +400,7 @@ int
 midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
 #define MIDI_RSIZE 32
-	struct snd_midi *m = i_dev->si_drv1;
+	struct midi_port *m = i_dev->si_drv1;
 	int retval;
 	size_t used;
 	uint8_t buf[MIDI_RSIZE];
@@ -384,14 +410,14 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (m == NULL)
 		goto err0;
 
-	mtx_lock(&m->lock);
+	mtx_lock(&m->sc->lock);
 
 	if (!(m->flags & M_RX))
 		goto err1;
 
 	while (uio->uio_resid > 0) {
 		while (m->inq.used == 0) {
-			if (m->dying) {
+			if (m->sc->dying) {
 				retval = ENXIO;
 				goto err1;
 			}
@@ -399,11 +425,11 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->rchan = 1;
-			retval = msleep(&m->rchan, &m->lock,
+			retval = msleep(&m->rchan, &m->sc->lock,
 			    PCATCH | PDROP, "midi RX", 0);
 			if (retval)
 				goto err0;
-			mtx_lock(&m->lock);
+			mtx_lock(&m->sc->lock);
 			m->rchan = 0;
 		}
 		/*
@@ -414,11 +440,11 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = ulmin(used, MIDI_RSIZE);
 
 		midi_queue_deq(&m->inq, buf, used);
-		mtx_unlock(&m->lock);
+		mtx_unlock(&m->sc->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
 			goto err0;
-		mtx_lock(&m->lock);
+		mtx_lock(&m->sc->lock);
 	}
 
 	/*
@@ -426,7 +452,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	 */
 	retval = 0;
 err1:
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 err0:
 	return retval;
 }
@@ -439,7 +465,7 @@ int
 midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
 #define MIDI_WSIZE 32
-	struct snd_midi *m = i_dev->si_drv1;
+	struct midi_port *m = i_dev->si_drv1;
 	int retval;
 	size_t used;
 	uint8_t buf[MIDI_WSIZE];
@@ -448,14 +474,14 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (m == NULL)
 		goto err0;
 
-	mtx_lock(&m->lock);
+	mtx_lock(&m->sc->lock);
 
 	if (!(m->flags & M_TX))
 		goto err1;
 
 	while (uio->uio_resid > 0) {
 		while (midi_queue_avail(&m->outq) == 0) {
-			if (m->dying) {
+			if (m->sc->dying) {
 				retval = ENXIO;
 				goto err1;
 			}
@@ -463,11 +489,11 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->wchan = 1;
-			retval = msleep(&m->wchan, &m->lock,
+			retval = msleep(&m->wchan, &m->sc->lock,
 			    PCATCH | PDROP, "midi TX", 0);
 			if (retval)
 				goto err0;
-			mtx_lock(&m->lock);
+			mtx_lock(&m->sc->lock);
 			m->wchan = 0;
 		}
 
@@ -478,18 +504,18 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = ulmin(midi_queue_avail(&m->outq), (size_t)uio->uio_resid);
 		used = ulmin(used, MIDI_WSIZE);
 
-		mtx_unlock(&m->lock);
+		mtx_unlock(&m->sc->lock);
 		retval = uiomove(buf, used, uio);
 		if (retval)
 			goto err0;
-		mtx_lock(&m->lock);
+		mtx_lock(&m->sc->lock);
 		midi_queue_enq(&m->outq, buf, used);
 		/*
 	         * Inform the bottom half that data can be written
 	         */
 		if (!(m->flags & M_TXPEND)) {
 			m->flags |= M_TXPEND;
-			m->cb(m->cookie, m->flags);
+			m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 		}
 	}
 	/*
@@ -497,7 +523,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	 */
 	retval = 0;
 err1:
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 err0:	return retval;
 }
 
@@ -511,15 +537,15 @@ midi_ioctl(struct cdev *i_dev __unused, unsigned long cmd __unused,
 int
 midi_poll(struct cdev *i_dev, int events, struct thread *td)
 {
-	struct snd_midi *m = i_dev->si_drv1;
+	struct midi_port *m = i_dev->si_drv1;
 	int revents = 0;
 
 	if (m == NULL)
 		return 0;
 
-	mtx_lock(&m->lock);
-	if (m->dying) {
-		mtx_unlock(&m->lock);
+	mtx_lock(&m->sc->lock);
+	if (m->sc->dying) {
+		mtx_unlock(&m->sc->lock);
 		/* XXX many clients do not understand POLLNVAL */
 		return (events & (POLLHUP | POLLPRI | POLLIN | POLLRDNORM |
 		    POLLOUT | POLLWRNORM));
@@ -538,25 +564,7 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 			selrecord(td, &m->wsel);
 	}
 
-	mtx_unlock(&m->lock);
+	mtx_unlock(&m->sc->lock);
 
 	return (revents);
 }
-
-static void
-midi_sysinit(void *data __unused)
-{
-	dev_unr = new_unrhdr(0, INT_MAX, NULL);
-	chn_unr = new_unrhdr(0, INT_MAX, NULL);
-}
-SYSINIT(midi_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, midi_sysinit, NULL);
-
-static void
-midi_sysuninit(void *data __unused)
-{
-	if (dev_unr != NULL)
-		delete_unrhdr(dev_unr);
-	if (chn_unr != NULL)
-		delete_unrhdr(chn_unr);
-}
-SYSUNINIT(midi_sysuninit, SI_SUB_DRIVERS, SI_ORDER_ANY, midi_sysuninit, NULL);

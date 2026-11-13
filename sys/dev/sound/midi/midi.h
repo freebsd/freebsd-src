@@ -34,7 +34,10 @@
 #define MIDI_H
 
 #include <sys/types.h>
+#include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 MALLOC_DECLARE(M_MIDI);
 
@@ -42,14 +45,24 @@ MALLOC_DECLARE(M_MIDI);
 #define M_TX		0x02
 #define M_TXPEND	0x04
 
-struct snd_midi;
+struct midi_port;
 
-typedef void midi_callback_t(void *cookie, int flags);
+typedef void midi_callback_t(void *devinfo, int chan, int flags);
 
-struct snd_midi *midi_init(midi_callback_t *cb, void *cookie,
-    size_t inqsize, size_t outqsize);
-int	midi_uninit(struct snd_midi *m);
-size_t	midi_out(struct snd_midi *m, uint8_t *buf, size_t size);
-size_t	midi_in(struct snd_midi *m, uint8_t *buf, size_t size);
+struct midi_softc {
+	device_t	dev;
+	struct mtx	lock;
+	midi_callback_t	*cb;
+	void		*devinfo;
+	int		nchan;
+	bool		dying;
+	struct midi_port	*ports;
+};
+
+int	midi_register(device_t dev, midi_callback_t *cb, void *devinfo,
+	    int nchan, size_t inqsize, size_t outqsize);
+int	midi_unregister(device_t dev);
+size_t	midi_in(device_t dev, int chan, uint8_t *buf, size_t size);
+size_t	midi_out(device_t dev, int chan, uint8_t *buf, size_t size);
 
 #endif

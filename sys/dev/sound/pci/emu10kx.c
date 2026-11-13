@@ -313,6 +313,7 @@ struct emu_sc_info {
 	device_t	dev;
 	device_t	pcm[RT_COUNT];
 	device_t	midi[2];
+	struct emu_midiinfo *midiinfo[2];
 	uint32_t	type;
 	uint32_t	rev;
 
@@ -3273,8 +3274,9 @@ emu_pci_attach(device_t dev)
 			midiinfo->port = MUDATA;
 			midiinfo->portnr = 1;
 		}
-		sc->midi[0] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
-		device_set_ivars(sc->midi[0], midiinfo);
+		midiinfo->is_emu10k1 = sc->is_emu10k1;
+		sc->midiinfo[0] = midiinfo;
+		emu_midi_attach(dev, midiinfo, &sc->midi[0]);
 	}
 	/* Midi Interface 2: Audigy, Audigy 2 (on AudigyDrive) */
 	if (sc->is_emu10k2 || (sc->is_ca0102)) {
@@ -3284,8 +3286,9 @@ emu_pci_attach(device_t dev)
 		midiinfo->port = EMU_A_MUDATA2;
 		midiinfo->portnr = 2;
 
-		sc->midi[1] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
-		device_set_ivars(sc->midi[1], midiinfo);
+		midiinfo->is_emu10k1 = sc->is_emu10k1;
+		sc->midiinfo[1] = midiinfo;
+		emu_midi_attach(dev, midiinfo, &sc->midi[1]);
 	}
 #endif
 	bus_attach_children(dev);
@@ -3329,6 +3332,10 @@ emu_pci_detach(device_t dev)
 	r = bus_generic_detach(dev);
 	if (r != 0)
 		return (r);
+#if 0
+	emu_midi_detach(sc->midiinfo[0]);
+	emu_midi_detach(sc->midiinfo[1]);
+#endif
 
 	r = emu10kx_dev_uninit(sc);
 	if (r)

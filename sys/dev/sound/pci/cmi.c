@@ -121,7 +121,8 @@ struct sc_info {
 	unsigned int		bufsz;
 	struct sc_chinfo	pch, rch;
 
-	struct mpu401	*mpu;
+	struct mpu401_ivars mpu_ivars;
+	device_t	midi_dev;
 	struct resource *mpu_reg;
 	int mpu_regid;
 	bus_space_tag_t	mpu_bt;
@@ -568,8 +569,8 @@ cmi_intr(void *data)
 			cmi_set4(sc, CMPCI_REG_INTR_CTRL, toclear);
 		}
 	}
-	if (sc->mpu != NULL)
-		mpu401_intr(sc->mpu);
+	if (sc->midi_dev != NULL)
+		mpu401_intr(device_get_softc(sc->midi_dev));
 	mtx_unlock(&sc->lock);
 	return;
 }
@@ -817,7 +818,12 @@ cmi_midiattach(struct sc_info *sc) {
 	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL,
 			0 << CMPCI_REG_VMPUSEL_SHIFT );
 	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
-	sc->mpu = mpu401_init(&cmi_mpu_ops, sc);
+	sc->mpu_ivars.ops = &cmi_mpu_ops;
+	sc->mpu_ivars.devinfo = sc;
+	sc->midi_dev = device_add_child(sc->dev, "midi", DEVICE_UNIT_ANY);
+	if (sc->midi_dev != NULL)
+		device_set_ivars(sc->midi_dev, &sc->mpu_ivars);
+	bus_attach_children(sc->dev);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -999,20 +1005,19 @@ cmi_detach(device_t dev)
 	struct sc_info *sc;
 	int r;
 
+	r = bus_generic_detach(dev);
+	if (r) return r;
+	sc = pcm_getdevinfo(dev);
+	sc->midi_dev = NULL;
 	r = pcm_unregister(dev);
 	if (r) return r;
 
-	sc = pcm_getdevinfo(dev);
 	cmi_uninit(sc);
 	cmi_power(sc, 3);
 
 	bus_dma_tag_destroy(sc->parent_dmat);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	if (sc->mpu != NULL) {
-		mpu401_uninit(sc->mpu);
-		sc->mpu = NULL;
-	}
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
 	if (sc->mpu_reg)
 	    bus_release_resource(dev, SYS_RES_IOPORT, sc->mpu_regid, sc->mpu_reg);

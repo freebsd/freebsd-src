@@ -53,39 +53,27 @@
 
 
 /* device private data */
-struct csa_midi_softc {
-	/* hardware resources */
-	int		io_rid;		/* io rid */
-	struct resource	*io;		/* io */
-
-	struct mtx	mtx;
-	device_t	dev;
-	struct mpu401	*mpu;
-	int		mflags;		/* MIDI flags */
-};
-
-static const struct mpu401_ops csamidi_mpu_ops;
 
 static uint32_t
-csamidi_readio(struct csa_midi_softc *scp, unsigned long offset)
+csamidi_readio(struct resource *io, unsigned long offset)
 {
 	if (offset < BA0_AC97_RESET)
-		return bus_space_read_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset) & 0xffffffff;
+		return bus_space_read_4(rman_get_bustag(io), rman_get_bushandle(io), offset) & 0xffffffff;
 	else
 		return (0);
 }
 
 static void
-csamidi_writeio(struct csa_midi_softc *scp, unsigned long offset, uint32_t data)
+csamidi_writeio(struct resource *io, unsigned long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
-		bus_space_write_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset, data);
+		bus_space_write_4(rman_get_bustag(io), rman_get_bushandle(io), offset, data);
 }
 
 static unsigned char
-csamidi_mread(void *cookie, int reg)
+csamidi_mread(void *devinfo, int reg)
 {
-	struct csa_midi_softc *scp = cookie;
+	struct resource *io = devinfo;
 	unsigned int rc;
 	unsigned int uart_stat;
 
@@ -93,14 +81,14 @@ csamidi_mread(void *cookie, int reg)
 	/* hacks to convert hardware status to MPU compatible ones */
 	switch (reg) {
 	case MPU_STATPORT:
-		uart_stat = csamidi_readio(scp, BA0_MIDSR);
+		uart_stat = csamidi_readio(io, BA0_MIDSR);
 		if (uart_stat & MIDSR_TBF)
 			rc |= MPU_OUTPUTBUSY;	/* Tx buffer full */
 		if (uart_stat & MIDSR_RBE)
 			rc |= MPU_INPUTBUSY;
 		break;
 	case MPU_DATAPORT:
-		rc = csamidi_readio(scp, BA0_MIDRP);
+		rc = csamidi_readio(io, BA0_MIDRP);
 		break;
 	default:
 		printf("csamidi_mread: unknown register %d\n", reg);
@@ -110,9 +98,9 @@ csamidi_mread(void *cookie, int reg)
 }
 
 static void
-csamidi_mwrite(void *cookie, int reg, uint8_t b)
+csamidi_mwrite(void *devinfo, int reg, uint8_t b)
 {
-	struct csa_midi_softc *scp = cookie;
+	struct resource *io = devinfo;
 	unsigned int val;
 
 	switch (reg) {
@@ -121,13 +109,13 @@ csamidi_mwrite(void *cookie, int reg, uint8_t b)
 		{
 		case MPU_RESET:
 			/* preserve current operation mode */
-			val = csamidi_readio(scp, BA0_MIDCR);
+			val = csamidi_readio(io, BA0_MIDCR);
 			/* reset the MIDI port */
-			csamidi_writeio(scp, BA0_MIDCR, MIDCR_MRST);
-			csamidi_writeio(scp, BA0_MIDCR, MIDCR_MLB);
-			csamidi_writeio(scp, BA0_MIDCR, 0x00);
+			csamidi_writeio(io, BA0_MIDCR, MIDCR_MRST);
+			csamidi_writeio(io, BA0_MIDCR, MIDCR_MLB);
+			csamidi_writeio(io, BA0_MIDCR, 0x00);
 			/* restore previous operation mode */
-			csamidi_writeio(scp, BA0_MIDCR, val);
+			csamidi_writeio(io, BA0_MIDCR, val);
 			break;
 		case MPU_UART:
 			/* switch to UART mode, no-op */
@@ -137,7 +125,7 @@ csamidi_mwrite(void *cookie, int reg, uint8_t b)
 		break;
 	case MPU_DATAPORT:
 		/* put the MIDI databyte in the write port */
-		csamidi_writeio(scp, BA0_MIDWP, b);
+		csamidi_writeio(io, BA0_MIDWP, b);
 		break;
 	default:
 		printf("csamidi_mwrite: unknown register %d\n", reg);
@@ -145,98 +133,17 @@ csamidi_mwrite(void *cookie, int reg, uint8_t b)
 	}
 }
 
-static int
-midicsa_probe(device_t dev)
-{
-	/* The parent device has already been probed. */
-
-	if (device_get_ivars(dev) == NULL)
-		return (ENXIO);
-
-	device_set_desc(dev, "CS461x MIDI");
-	return (0);
-}
-
-static int
-midicsa_attach(device_t dev)
-{
-	struct csa_midi_softc *scp;
-	int rc = ENXIO;
-
-	scp = device_get_softc(dev);
-
-	bzero(scp, sizeof(struct csa_midi_softc));
-	scp->dev = dev;
-
-	/* allocate the required resources */
-	scp->io_rid = PCIR_BAR(0);
-	scp->io = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &scp->io_rid, RF_ACTIVE);
-	if (scp->io == NULL)
-		goto err0;
-
-	/* init the fake MPU401 interface. */
-	scp->mpu = mpu401_init(&csamidi_mpu_ops, scp);
-	if (scp->mpu == NULL) {
-		rc = ENOMEM;
-		goto err1;
-	}
-
-	mtx_init(&scp->mtx, device_get_nameunit(dev), "csamidi softc",
-	    MTX_DEF);
-
-	/* reset the MIDI port */
-	csamidi_writeio(scp, BA0_MIDCR, MIDCR_MRST);
-	/* MIDI transmit enable, no interrupt */
-	csamidi_writeio(scp, BA0_MIDCR, MIDCR_TXE | MIDCR_RXE);
-	csamidi_writeio(scp, BA0_HICR, HICR_IEV | HICR_CHGM);
-
-	return (0);
-err1:
-	bus_release_resource(dev, SYS_RES_MEMORY, scp->io_rid, scp->io);
-	scp->io = NULL;
-err0:
-	return (rc);
-}
-
-static int
-midicsa_detach(device_t dev)
-{
-	struct csa_midi_softc *scp;
-	int rc = 0;
-
-	scp = device_get_softc(dev);
-	rc = mpu401_uninit(scp->mpu);
-	if (rc)
-		return (rc);
-	if (scp->io != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, scp->io_rid,
-		    scp->io);
-		scp->io = NULL;
-	}
-	mtx_destroy(&scp->mtx);
-	return (rc);
-}
-
-static const struct mpu401_ops csamidi_mpu_ops = {
+const struct mpu401_ops csamidi_mpu_ops = {
 	csamidi_mread,
 	csamidi_mwrite,
 };
 
-static device_method_t midicsa_methods[] = {
-	DEVMETHOD(device_probe, midicsa_probe),
-	DEVMETHOD(device_attach, midicsa_attach),
-	DEVMETHOD(device_detach, midicsa_detach),
-
-	DEVMETHOD_END
-};
-
-static driver_t midicsa_driver = {
-	"midi",
-	midicsa_methods,
-	sizeof(struct csa_midi_softc),
-};
-DRIVER_MODULE(snd_csa_midi, csa, midicsa_driver, 0, 0);
-MODULE_DEPEND(snd_csa_midi, snd_csa, 1, 1, 1);
-MODULE_DEPEND(snd_csa_midi, sound, 1, 1, 1);
-MODULE_VERSION(snd_csa_midi, 1);
+void
+csamidi_init(struct resource *io)
+{
+	/* reset the MIDI port */
+	csamidi_writeio(io, BA0_MIDCR, MIDCR_MRST);
+	/* MIDI transmit enable, no interrupt */
+	csamidi_writeio(io, BA0_MIDCR, MIDCR_TXE | MIDCR_RXE);
+	csamidi_writeio(io, BA0_HICR, HICR_IEV | HICR_CHGM);
+}

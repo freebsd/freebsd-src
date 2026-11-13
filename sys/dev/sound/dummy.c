@@ -68,7 +68,8 @@ struct dummy_softc {
 	struct callout callout;
 	struct mtx lock;
 	bool stopped;
-	struct mpu401 *mpu;
+	struct mpu401_ivars mpu_ivars;
+	device_t midi_dev;
 };
 
 static bool
@@ -371,9 +372,13 @@ dummy_attach(device_t dev)
 	 */
 	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
 
-	sc->mpu = mpu401_init(&dummy_mpu_ops, sc);
-	if (sc->mpu == NULL)
-		return (ENXIO);
+	sc->mpu_ivars.ops = &dummy_mpu_ops;
+	sc->mpu_ivars.devinfo = sc;
+	sc->mpu_ivars.desc = "Dummy MPU-401 MIDI";
+	sc->midi_dev = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
+	if (sc->midi_dev != NULL)
+		device_set_ivars(sc->midi_dev, &sc->mpu_ivars);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -388,12 +393,14 @@ dummy_detach(device_t dev)
 	sc->stopped = true;
 	mtx_unlock(&sc->lock);
 	callout_drain(&sc->callout);
-	err = pcm_unregister(dev);
-	mpu401_uninit(sc->mpu);
-	sc->mpu = NULL;
+	if ((err = bus_generic_detach(dev)) != 0)
+		return (err);
+	sc->midi_dev = NULL;
+	if ((err = pcm_unregister(dev)) != 0)
+		return (err);
 	mtx_destroy(&sc->lock);
 
-	return (err);
+	return (0);
 }
 
 static device_method_t dummy_methods[] = {
