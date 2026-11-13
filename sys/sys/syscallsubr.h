@@ -461,7 +461,7 @@ int	kern_recvit(struct thread *td, int s, struct msghdr *mp,
 	    enum uio_seg fromseg, struct mbuf **controlp);
 int	kern_renameat(struct thread *td, int fromfd, const char *from,
 	    int tofd, const char *to, enum uio_seg pathseg, u_int flags);
-int	kern_revoke(struct thread *td, const char *path, enum uio_seg pathseg);
+int	kern_revoke(struct thread *td, const char *path);
 int	kern_rtprio(struct thread *td, int function, pid_t pid,
 	    struct rtprio *urtp);
 int	kern_rtprio_thread(struct thread *td, int function, lwpid_t lwpid,

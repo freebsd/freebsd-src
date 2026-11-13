@@ -4570,11 +4570,11 @@ struct revoke_args {
 int
 sys_revoke(struct thread *td, struct revoke_args *uap)
 {
-	return (kern_revoke(td, uap->path, UIO_USERSPACE));
+	return (kern_revoke(td, uap->path));
 }
 
 int
-kern_revoke(struct thread *td, const char *path, enum uio_seg pathseg)
+kern_revoke(struct thread *td, const char *path)
 {
 	struct vnode *vp;
 	struct vattr vattr;
