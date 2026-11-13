@@ -185,7 +185,7 @@ const static struct allwinner_pins a31s_pins[] = {
 	{"PH25", 7, 25, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
 	{"PH26", 7, 26, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
 	{"PH27", 7, 27, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
-	{"PH28", 7, 27, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
+	{"PH28", 7, 28, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
 };
 
 const struct allwinner_padconf a31s_padconf = {
