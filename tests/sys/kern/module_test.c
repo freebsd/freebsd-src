@@ -187,8 +187,8 @@ ATF_TC_BODY(modstat_v2, tc)
 		if (strnlen(ms.name, sizeof(ms.name)) < sizeof(ms.name))
 			ATF_REQUIRE(modfind(ms.name) == modid);
 	} else {
-		ATF_REQUIRE(!feature_present("compat_freebsd13"));
 		ATF_REQUIRE(errno == EINVAL);
+		ATF_REQUIRE(!feature_present("compat_freebsd13"));
 	}
 }
 
