@@ -693,7 +693,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, struct uio *auiop,
 	sizep = NULL;
 	cnt = 0;
 	if (auiop != NULL) {
-		if (auiop->uio_resid > IOSIZE_MAX)
+		if (auiop->uio_resid < 0 || auiop->uio_resid > IOSIZE_MAX)
 			return (EINVAL);
 		cnt = auiop->uio_resid;
 	} else
@@ -734,6 +734,9 @@ sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 {
 	struct uio auio, *auiop;
 	struct iovec aiov;
+
+	if (uap->nbytes > IOSIZE_MAX)
+		return (EINVAL);
 
 	if (uap->data != NULL) {
 		aiov.iov_base = uap->data;
@@ -812,6 +815,9 @@ user_extattr_list_path(struct thread *td, const char *path, int attrnamespace,
 {
 	struct uio auio, *auiop;
 	struct iovec aiov;
+
+	if (nbytes > IOSIZE_MAX)
+		return (EINVAL);
 
 	if (data != NULL) {
 		aiov.iov_base = data;
