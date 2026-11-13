@@ -1,6 +1,7 @@
 mod backend;
 mod menu;
 mod screen;
+mod snapshot;
 mod theme;
 mod zfs;
 
@@ -71,6 +72,7 @@ fn main() -> io::Result<()> {
             "Boot environments (ZFS)".to_owned(),
             "Boot recovery environment".to_owned(),
             "Hardware diagnostics".to_owned(),
+            "Snapshot info".to_owned(),
             "Power off".to_owned(),
         ],
     );
@@ -146,7 +148,22 @@ fn main() -> io::Result<()> {
                                 ],
                             )));
                         }
-                        5 => break 'main,
+                        5 => {
+                            drop(_terminal);
+                            match snapshot::SnapshotInfo::current() {
+                                Ok(info) => {
+                                    println!("{}", info.display());
+                                    println!("\nPress Enter to continue...");
+                                    let mut input = String::new();
+                                    std::io::stdin().read_line(&mut input)?;
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to get snapshot info: {}", e);
+                                }
+                            }
+                            break 'main;
+                        }
+                        6 => break 'main,
                         _ => {}
                     }
                 } else if title == "Boot Profiles" {
