@@ -3013,7 +3013,7 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	 * The length of the option fields, expressed in 4-byte multiples, not
 	 * including the 8-byte fixed tunnel header.
 	 */
-	optlen = ntohs(gnvh->geneve_optlen) * 4;
+	optlen = gnvh->geneve_optlen * 4;
 	error = geneve_next_option(gnvso, gnvh, &m);
 	if (error != 0)
 		return (false);
