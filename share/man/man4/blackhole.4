@@ -17,11 +17,15 @@
 .Nm blackhole
 .Nd quietly drop refused SCTP, TCP, or UDP packets
 .Sh SYNOPSIS
-.Cd sysctl net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
-.Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2 | 3"
-.Cd sysctl net.inet.tcp.blackhole_local Ns Op = Ns Brq "0 | 1"
-.Cd sysctl net.inet.udp.blackhole Ns Op = Ns Brq "0 | 1"
-.Cd sysctl net.inet.udp.blackhole_local Ns Op = Ns Brq "0 | 1"
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2 | 3"
+.Cd net.inet.tcp.blackhole_local Ns Op = Ns Brq "0 | 1"
+.Cd net.inet.udp.blackhole Ns Op = Ns Brq "0 | 1"
+.Cd net.inet.udp.blackhole_local Ns Op = Ns Brq "0 | 1"
 .Sh DESCRIPTION
 The
 .Nm
