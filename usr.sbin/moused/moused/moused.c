@@ -55,6 +55,7 @@
 #include <fnmatch.h>
 #include <libutil.h>
 #include <math.h>
+#include <paths.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -1169,7 +1170,7 @@ connect_devd(void)
 {
 	static const struct sockaddr_un sa = {
 		.sun_family = AF_UNIX,
-		.sun_path = "/var/run/devd.seqpacket.pipe",
+		.sun_path = _PATH_DEVD_SOCKET,
 	};
 	struct kevent kev;
 	int fd;

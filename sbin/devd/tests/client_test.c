@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <paths.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,7 +98,7 @@ ATF_TC_BODY(seqpacket, tc)
 	bool got_create_event = false;
 	bool got_destroy_event = false;
 
-	s = common_setup(SOCK_SEQPACKET, "/var/run/devd.seqpacket.pipe");
+	s = common_setup(SOCK_SEQPACKET, _PATH_DEVD_SOCKET);
 	/*
 	 * Loop until both events are detected on _different_ reads
 	 * There may be extra events due to unrelated system activity

@@ -100,7 +100,6 @@
 #include "devd.hh"		/* C++ class definitions */
 
 #define STREAMPIPE "/var/run/devd.pipe"
-#define SEQPACKETPIPE "/var/run/devd.seqpacket.pipe"
 #define CF "/etc/devd.conf"
 #define SYSCTL "hw.bus.devctl_queue"
 
@@ -1049,7 +1048,7 @@ event_loop(void)
 	if (fd == -1)
 		err(1, "Can't open devctl device %s", PATH_DEVCTL);
 	stream_fd = create_socket(STREAMPIPE, SOCK_STREAM);
-	seqpacket_fd = create_socket(SEQPACKETPIPE, SOCK_SEQPACKET);
+	seqpacket_fd = create_socket(_PATH_DEVD_SOCKET, SOCK_SEQPACKET);
 	accepting = 1;
 	max_fd = max(fd, max(stream_fd, seqpacket_fd)) + 1;
 	while (!romeo_must_die) {

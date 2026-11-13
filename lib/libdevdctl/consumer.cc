@@ -42,6 +42,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -68,7 +69,7 @@ namespace DevdCtl
 /*============================= Class Definitions ============================*/
 /*----------------------------- DevdCtl::Consumer ----------------------------*/
 //- Consumer Static Private Data -----------------------------------------------
-const char Consumer::s_devdSockPath[] = "/var/run/devd.seqpacket.pipe";
+const char Consumer::s_devdSockPath[] = _PATH_DEVD_SOCKET;
 
 //- Consumer Public Methods ----------------------------------------------------
 Consumer::Consumer(Event::BuildMethod *defBuilder,
