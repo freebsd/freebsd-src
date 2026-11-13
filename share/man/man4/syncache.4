@@ -125,7 +125,7 @@ MIB.
 Several of these may be tuned by setting the corresponding
 variable in the
 .Xr loader 8 .
-.Bl -tag -width ".Va bucketlimit"
+.Bl -tag -width "rst_on_sock_fail"
 .It Va hashsize
 Size of the
 .Nm
@@ -185,7 +185,7 @@ Statistics on the performance of the
 may be obtained via
 .Xr netstat 1 ,
 which provides the following counts:
-.Bl -tag -width ".Li cookies received"
+.Bl -tag -width "spurious cookies rejected"
 .It Li "syncache entries added"
 Entries successfully inserted in the
 .Nm .
