@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/module.h>
 #include <errno.h>
+#include <unistd.h>
 #include <atf-c.h>
 
 ATF_TC_WITHOUT_HEAD(modfind);
@@ -144,11 +145,14 @@ ATF_TC_BODY(modstat_v1, tc)
 	ATF_REQUIRE(modstat(modid, (struct module_stat *)&ms) == -1);
 	ATF_REQUIRE(errno == EINVAL);
 
+	/* Kernels only support module_stat_v1 when compiled with COMPAT_43 */
 	ms.version = sizeof(ms);
-	ATF_REQUIRE(modstat(modid, (struct module_stat *)&ms) == 0);
-	ATF_REQUIRE(ms.id == modid);
-	if (strnlen(ms.name, sizeof(ms.name)) < sizeof(ms.name))
-		ATF_REQUIRE(modfind(ms.name) == modid);
+	if (modstat(modid, (struct module_stat *)&ms) == 0) {
+		ATF_REQUIRE(ms.id == modid);
+		if (strnlen(ms.name, sizeof(ms.name)) < sizeof(ms.name))
+			ATF_REQUIRE(modfind(ms.name) == modid);
+	} else
+		ATF_REQUIRE(errno == EINVAL);
 }
 
 ATF_TC_WITHOUT_HEAD(modstat_v2);
@@ -178,10 +182,14 @@ ATF_TC_BODY(modstat_v2, tc)
 	ATF_REQUIRE(errno == EINVAL);
 
 	ms.version = sizeof(ms);
-	ATF_REQUIRE(modstat(modid, (struct module_stat *)&ms) == 0);
-	ATF_REQUIRE(ms.id == modid);
-	if (strnlen(ms.name, sizeof(ms.name)) < sizeof(ms.name))
-		ATF_REQUIRE(modfind(ms.name) == modid);
+	if (modstat(modid, (struct module_stat *)&ms) == 0) {
+		ATF_REQUIRE(ms.id == modid);
+		if (strnlen(ms.name, sizeof(ms.name)) < sizeof(ms.name))
+			ATF_REQUIRE(modfind(ms.name) == modid);
+	} else {
+		ATF_REQUIRE(!feature_present("compat_freebsd13"));
+		ATF_REQUIRE(errno == EINVAL);
+	}
 }
 
 ATF_TP_ADD_TCS(tp)
