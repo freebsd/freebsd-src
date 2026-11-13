@@ -70,6 +70,7 @@ struct snd_midi {
 	int	channel;
 
 	int	flags;			/* File flags */
+	bool	dying;			/* Set by midi_uninit(). */
 	struct midi_queue inq, outq;
 	int	rchan, wchan;
 	struct selinfo rsel, wsel;
@@ -196,15 +197,14 @@ int
 midi_uninit(struct snd_midi *m)
 {
 	mtx_lock(&m->lock);
-	if (m->rchan) {
-		wakeup(&m->rchan);
-		m->rchan = 0;
-	}
-	if (m->wchan) {
-		wakeup(&m->wchan);
-		m->wchan = 0;
-	}
+	m->dying = true;
+	wakeup(&m->rchan);
+	wakeup(&m->wchan);
+	m->rchan = 0;
+	m->wchan = 0;
 	mtx_unlock(&m->lock);
+	seldrain(&m->rsel);
+	seldrain(&m->wsel);
 	destroy_dev(m->dev);
 	midi_destroy(m);
 
@@ -289,6 +289,10 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		return ENXIO;
 
 	mtx_lock(&m->lock);
+	if (m->dying) {
+		mtx_unlock(&m->lock);
+		return (ENXIO);
+	}
 
 	if (flags & FREAD) {
 		if (m->inq.size == 0)
@@ -339,6 +343,10 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		return ENXIO;
 
 	mtx_lock(&m->lock);
+	if (m->dying) {
+		mtx_unlock(&m->lock);
+		return (ENXIO);
+	}
 
 	if ((flags & FREAD && !(m->flags & M_RX)) ||
 	    (flags & FWRITE && !(m->flags & M_TX))) {
@@ -383,20 +391,16 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 	while (uio->uio_resid > 0) {
 		while (m->inq.used == 0) {
+			if (m->dying) {
+				retval = ENXIO;
+				goto err1;
+			}
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->rchan = 1;
 			retval = msleep(&m->rchan, &m->lock,
 			    PCATCH | PDROP, "midi RX", 0);
-			/*
-			 * We slept, maybe things have changed since last
-			 * dying check
-			 */
-			if (retval == EINTR)
-				goto err0;
-			if (m != i_dev->si_drv1)
-				retval = ENXIO;
 			if (retval)
 				goto err0;
 			mtx_lock(&m->lock);
@@ -451,20 +455,16 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 	while (uio->uio_resid > 0) {
 		while (midi_queue_avail(&m->outq) == 0) {
+			if (m->dying) {
+				retval = ENXIO;
+				goto err1;
+			}
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
 			m->wchan = 1;
 			retval = msleep(&m->wchan, &m->lock,
 			    PCATCH | PDROP, "midi TX", 0);
-			/*
-			 * We slept, maybe things have changed since last
-			 * dying check
-			 */
-			if (retval == EINTR)
-				goto err0;
-			if (m != i_dev->si_drv1)
-				retval = ENXIO;
 			if (retval)
 				goto err0;
 			mtx_lock(&m->lock);
@@ -518,6 +518,12 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 		return 0;
 
 	mtx_lock(&m->lock);
+	if (m->dying) {
+		mtx_unlock(&m->lock);
+		/* XXX many clients do not understand POLLNVAL */
+		return (events & (POLLHUP | POLLPRI | POLLIN | POLLRDNORM |
+		    POLLOUT | POLLWRNORM));
+	}
 
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (m->inq.used != 0)
