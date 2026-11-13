@@ -1,4 +1,5 @@
 mod backend;
+mod kernel;
 mod menu;
 mod screen;
 mod snapshot;
@@ -68,6 +69,7 @@ fn main() -> io::Result<()> {
         "AmeOS Loader",
         vec![
             "Boot AmeOS".to_owned(),
+            "Select kernel".to_owned(),
             "Boot profiles".to_owned(),
             "Boot environments (ZFS)".to_owned(),
             "Boot recovery environment".to_owned(),
@@ -97,6 +99,26 @@ fn main() -> io::Result<()> {
                         }
                         1 => {
                             stack.push(current);
+                            let kernels = kernel::list_available_kernels();
+                            let current_kernel = kernel::get_current_kernel().unwrap_or_default();
+                            let mut items: Vec<String> = kernels
+                                .iter()
+                                .map(|k| {
+                                    let status = if !k.available {
+                                        " (unavailable)"
+                                    } else if k.path == current_kernel {
+                                        " (current)"
+                                    } else {
+                                        ""
+                                    };
+                                    format!("{} - {}{}", k.name, k.description, status)
+                                })
+                                .collect();
+                            items.push("Back to main menu".to_owned());
+                            stack.push(Box::new(Menu::new("Select Kernel", items)));
+                        }
+                        2 => {
+                            stack.push(current);
                             stack.push(Box::new(Menu::new(
                                 "Boot Profiles",
                                 vec![
@@ -107,7 +129,7 @@ fn main() -> io::Result<()> {
                                 ],
                             )));
                         }
-                        2 => {
+                        3 => {
                             stack.push(current);
                             let environments =
                                 zfs::list_boot_environments().unwrap_or_else(|_| vec![]);
@@ -124,7 +146,7 @@ fn main() -> io::Result<()> {
                             items.push("Back to main menu".to_owned());
                             stack.push(Box::new(Menu::new("Boot Environments (ZFS)", items)));
                         }
-                        3 => {
+                        4 => {
                             stack.push(current);
                             stack.push(Box::new(Menu::new(
                                 "Recovery Environment",
@@ -136,7 +158,7 @@ fn main() -> io::Result<()> {
                                 ],
                             )));
                         }
-                        4 => {
+                        5 => {
                             stack.push(current);
                             stack.push(Box::new(Menu::new(
                                 "Hardware Diagnostics",
@@ -148,7 +170,7 @@ fn main() -> io::Result<()> {
                                 ],
                             )));
                         }
-                        5 => {
+                        6 => {
                             drop(_terminal);
                             match snapshot::SnapshotInfo::current() {
                                 Ok(info) => {
@@ -163,8 +185,23 @@ fn main() -> io::Result<()> {
                             }
                             break 'main;
                         }
-                        6 => break 'main,
+                        7 => break 'main,
                         _ => {}
+                    }
+                } else if title == "Select Kernel" {
+                    let kernels = kernel::list_available_kernels();
+                    if selected < kernels.len() {
+                        let kernel = &kernels[selected];
+                        if kernel.available {
+                            #[cfg(target_os = "freebsd")]
+                            {
+                                backend.set_kernel(kernel.path.clone());
+                            }
+                            #[cfg(not(target_os = "freebsd"))]
+                            {
+                                println!("Selected kernel: {} ({})", kernel.name, kernel.path);
+                            }
+                        }
                     }
                 } else if title == "Boot Profiles" {
                     match selected {

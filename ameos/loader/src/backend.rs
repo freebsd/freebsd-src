@@ -77,6 +77,14 @@ impl FreeBSDBackend {
         Self { kernel_path }
     }
 
+    pub fn set_kernel(&mut self, kernel_path: String) {
+        self.kernel_path = kernel_path;
+    }
+
+    pub fn kernel_path(&self) -> &str {
+        &self.kernel_path
+    }
+
     fn boot_with_flags(&self, flags: &str) -> io::Result<()> {
         println!("Booting FreeBSD kernel: {}", self.kernel_path);
         println!("Boot flags: {}", flags);
