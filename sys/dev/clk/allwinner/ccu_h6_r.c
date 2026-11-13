@@ -122,7 +122,8 @@ NM_CLK(ir_clk,
     0, 5, 0, 0,					/* m factor */
     24, 1,					/* mux */
     31,						/* gate */
-    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
 
 NM_CLK(w1_clk,
     CLK_W1, "w1", r_mod0_parents,		/* id, name, parents */
@@ -131,7 +132,8 @@ NM_CLK(w1_clk,
     0, 5, 0, 0,					/* m factor */
     24, 1,					/* mux */
     31,						/* gate */
-    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
 
 static struct aw_ccung_clk clks[] = {
 	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ar100_clk},
