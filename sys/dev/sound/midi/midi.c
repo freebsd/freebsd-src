@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/event.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -81,6 +82,7 @@ static d_ioctl_t midi_ioctl;
 static d_read_t midi_read;
 static d_write_t midi_write;
 static d_poll_t midi_poll;
+static d_kqfilter_t midi_kqfilter;
 
 static struct cdevsw midi_cdevsw = {
 	.d_version = D_VERSION,
@@ -90,6 +92,7 @@ static struct cdevsw midi_cdevsw = {
 	.d_write = midi_write,
 	.d_ioctl = midi_ioctl,
 	.d_poll = midi_poll,
+	.d_kqfilter = midi_kqfilter,
 	.d_name = "midi",
 };
 
@@ -132,6 +135,8 @@ midi_destroy(struct midi_softc *sc)
 		wakeup(&m->wchan);
 		m->rchan = 0;
 		m->wchan = 0;
+		KNOTE_LOCKED(&m->rsel.si_note, 0);
+		KNOTE_LOCKED(&m->wsel.si_note, 0);
 	}
 	mtx_unlock(&sc->lock);
 
@@ -146,6 +151,10 @@ midi_destroy(struct midi_softc *sc)
 		m = &sc->ports[i];
 		free(m->inq.buf, M_MIDI);
 		free(m->outq.buf, M_MIDI);
+		knlist_clear(&m->rsel.si_note, 0);
+		knlist_clear(&m->wsel.si_note, 0);
+		knlist_destroy(&m->rsel.si_note);
+		knlist_destroy(&m->wsel.si_note);
 	}
 	free(sc->ports, M_MIDI);
 	sc->ports = NULL;
@@ -183,6 +192,8 @@ midi_register(device_t dev, midi_callback_t *cb, void *devinfo, int nchan,
 		m = &sc->ports[i];
 		m->sc = sc;
 		m->chan = i;
+		knlist_init_mtx(&m->rsel.si_note, &sc->lock);
+		knlist_init_mtx(&m->wsel.si_note, &sc->lock);
 		if (inqsize != 0) {
 			m->inq.buf = malloc(inqsize, M_MIDI, M_WAITOK);
 			m->inq.size = inqsize;
@@ -263,6 +274,7 @@ midi_in(device_t dev, int chan, uint8_t *buf, size_t size)
 		m->rchan = 0;
 	}
 	selwakeup(&m->rsel);
+	KNOTE_LOCKED(&m->rsel.si_note, 0);
 	mtx_unlock(&m->sc->lock);
 	return used;
 }
@@ -301,6 +313,7 @@ midi_out(device_t dev, int chan, uint8_t *buf, size_t size)
 			m->wchan = 0;
 		}
 		selwakeup(&m->wsel);
+		KNOTE_LOCKED(&m->wsel.si_note, 0);
 	}
 	mtx_unlock(&m->sc->lock);
 	return used;
@@ -568,4 +581,76 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 	mtx_unlock(&m->sc->lock);
 
 	return (revents);
+}
+
+static void
+midi_kqdetach(struct knote *kn)
+{
+	struct midi_port *m = kn->kn_hook;
+	struct knlist *knl;
+
+	knl = (kn->kn_filter == EVFILT_READ) ? &m->rsel.si_note :
+	    &m->wsel.si_note;
+	mtx_lock(&m->sc->lock);
+	knlist_remove(knl, kn, 1);
+	mtx_unlock(&m->sc->lock);
+}
+
+static int
+midi_kqevent(struct knote *kn, long hint)
+{
+	struct midi_port *m = kn->kn_hook;
+
+	mtx_assert(&m->sc->lock, MA_OWNED);
+
+	if (m->sc->dying) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	}
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_data = m->inq.used;
+		return (kn->kn_data > 0);
+	}
+	kn->kn_data = midi_queue_avail(&m->outq);
+
+	return (kn->kn_data > m->hiwat);
+}
+
+static const struct filterops midi_filtops = {
+	.f_isfd = 1,
+	.f_detach = midi_kqdetach,
+	.f_event = midi_kqevent,
+};
+
+static int
+midi_kqfilter(struct cdev *i_dev, struct knote *kn)
+{
+	struct midi_port *m = i_dev->si_drv1;
+	struct knlist *knl;
+
+	if (m == NULL)
+		return (ENXIO);
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		knl = &m->rsel.si_note;
+		break;
+	case EVFILT_WRITE:
+		knl = &m->wsel.si_note;
+		break;
+	default:
+		return (EINVAL);
+	}
+	kn->kn_fop = &midi_filtops;
+
+	mtx_lock(&m->sc->lock);
+	if (m->sc->dying) {
+		mtx_unlock(&m->sc->lock);
+		return (ENXIO);
+	}
+	kn->kn_hook = m;
+	knlist_add(knl, kn, 1);
+	mtx_unlock(&m->sc->lock);
+
+	return (0);
 }
