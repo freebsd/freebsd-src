@@ -74,6 +74,7 @@ SUBDIR=	\
 	bwi \
 	bwn \
 	${_adlngpio} \
+	${_aplgpio} \
 	${_bytgpio} \
 	${_chvgpio} \
 	cam \
@@ -810,6 +811,7 @@ _amdsmu=	amdsmu
 _amdsbwd=	amdsbwd
 _amdsmn=	amdsmn
 _amdtemp=	amdtemp
+_aplgpio=	aplgpio
 _arcmsr=	arcmsr
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _blake2=	blake2
