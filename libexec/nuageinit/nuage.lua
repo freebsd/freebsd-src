@@ -326,7 +326,7 @@ local function adduser(pwd)
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
-		return pwdstr:match("%a+:.+:%d+:%d+:.*:(.*):.*")
+		return pwdstr:match("[^:]*:[^:]*:%d+:%d+:[^:]*:([^:]*):")
 	end
 	if not pwd.gecos then
 		pwd.gecos = pwd.name .. " User"
