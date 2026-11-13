@@ -474,8 +474,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 */
 	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
 	sendme_locked_wait(&c, 0, FSIZE, true);
-	ATF_REQUIRE_MSG(c.sbytes > 0, "c.sbytes <= 0: %jd",
-	    (ossl_ssize_t)c.sbytes);
+	ATF_REQUIRE_MSG(c.sbytes > 0, "c.sbytes <= 0: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
 	ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
@@ -485,8 +484,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * Exercise second attempt on already full buffer.
 	 */
 	sendme_locked_wait(&c, 0, FSIZE, true);
-	ATF_REQUIRE_MSG(c.sbytes == -1, "c.sbytes != -1: %jd",
-	    (ossl_ssize_t)c.sbytes);
+	ATF_REQUIRE_MSG(c.sbytes == -1, "c.sbytes != -1: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_WANT_WRITE);
 	ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
 
@@ -507,8 +505,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * rather than asserts that this is a correct behavior.
 	 */
 	sendme_locked_wait(&c, FSIZE, 0, true);
-	ATF_REQUIRE_MSG(c.sbytes == 0, "c.sbytes != 0: %jd",
-	    (ossl_ssize_t)c.sbytes);
+	ATF_REQUIRE_MSG(c.sbytes == 0, "c.sbytes != 0: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_SYSCALL);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
 	ATF_REQUIRE(!BIO_should_retry(SSL_get_wbio(c.srv)));
@@ -518,8 +515,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * Exercise short write due to end of file.
 	 */
 	sendme_locked_wait(&c, FSIZE - 100, 0, true);
-	ATF_REQUIRE_MSG(c.sbytes == 100, "c.sbytes != 100: %jd",
-	    (ossl_ssize_t)c.sbytes);
+	ATF_REQUIRE_MSG(c.sbytes == 100, "c.sbytes != 100: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
 	ATF_REQUIRE(!BIO_should_retry(SSL_get_wbio(c.srv)));
