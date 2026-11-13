@@ -361,6 +361,7 @@ restart:
 			fmode &= ~O_CREAT;
 		}
 	} else {
+		fmode &= ~O_CREAT;
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags,
 		    ndp->ni_cnd.cn_flags);
