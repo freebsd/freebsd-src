@@ -59,6 +59,7 @@ struct midi_softc {
 int	midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
 	    void *devinfo, int nchan, size_t inqsize, size_t outqsize);
 int	midi_unregister(device_t dev);
+void	midi_alias(device_t dev, const char *name);
 
 /* Must be called with the lock held. */
 size_t	midi_in(device_t dev, int chan, uint8_t *buf, size_t size);

@@ -237,6 +237,21 @@ midi_unregister(device_t dev)
 }
 
 /*
+ * Keep backwards compatibility, for providers that created their device nodes
+ * themselves before they used this framework (e.g., snd_uaudio(4)).
+ */
+void
+midi_alias(device_t dev, const char *name)
+{
+	struct midi_softc *sc = device_get_softc(dev);
+	int i, unit;
+
+	unit = device_get_unit(dev);
+	for (i = 0; i < sc->nchan; i++)
+		make_dev_alias(sc->ports[i].cdev, "%s%d.%d", name, unit, i);
+}
+
+/*
  * midi_in: process all data until the queue is full, then discards the rest.
  * Since midi_in is a state machine, data discards can cause it to get out of
  * whack.  Process as much as possible.  It calls, wakeup, selnotify and
