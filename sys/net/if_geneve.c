@@ -123,7 +123,6 @@ struct geneve_socket_mc_info {
 #define GENEVE_BASIC_IFCAPS (IFCAP_LINKSTATE | IFCAP_JUMBO_MTU | IFCAP_NV)
 
 #define GENEVE_VERSION	0
-#define GENEVE_VNI_MASK	(GENEVE_VNI_MAX - 1)
 
 #define GENEVE_HDR_VNI_SHIFT	8
 
@@ -3005,8 +3004,7 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	 * Drop if there is a reserved bit or unknown version set in the header.
 	 * As defined in RFC 8926 3.4
 	 */
-	if (gnvh->geneve_ver != htons(GENEVE_VERSION) ||
-	    gnvh->geneve_vni & ~GENEVE_VNI_MASK)
+	if (gnvh->geneve_ver != GENEVE_VERSION)
 		return (false);
 
 	/*
