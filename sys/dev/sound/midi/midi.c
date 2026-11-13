@@ -406,15 +406,12 @@ err:
 	return retval;
 }
 
-/*
- * TODO: midi_read, per oss programmer's guide pg. 42 should return as soon
- * as data is available.
- */
 int
 midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
 #define MIDI_RSIZE 32
 	struct midi_port *m = i_dev->si_drv1;
+	ssize_t resid;
 	int retval;
 	size_t used;
 	uint8_t buf[MIDI_RSIZE];
@@ -429,12 +426,17 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (!(m->flags & M_RX))
 		goto err1;
 
+	resid = uio->uio_resid;
+
 	while (uio->uio_resid > 0) {
 		while (m->inq.used == 0) {
 			if (m->sc->dying) {
 				retval = ENXIO;
 				goto err1;
 			}
+			/* Return what we have instead of waiting for more. */
+			if (uio->uio_resid != resid)
+				goto done;
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
@@ -461,9 +463,7 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 		mtx_lock(&m->sc->lock);
 	}
 
-	/*
-	 * If we Made it here then transfer is good
-	 */
+done:
 	retval = 0;
 err1:
 	mtx_unlock(&m->sc->lock);
