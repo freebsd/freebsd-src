@@ -466,7 +466,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.voltage_min = 800,
 		.voltage_max = 1840,
 		.voltage_step1 = 10,
-		.voltage_nstep1 = 42,
+		.voltage_nstep1 = 32,
 		.voltage_step2 = 20,
 		.voltage_nstep2 = 36,
 	},
