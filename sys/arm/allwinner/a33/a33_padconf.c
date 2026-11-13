@@ -101,7 +101,7 @@ const static struct allwinner_pins a33_pins[] = {
 	{"PE14", 4, 14, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}, 0, 0},
 	{"PE15", 4, 15, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}, 0, 0},
 	{"PE16", 4, 16, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}, 0, 0},
-	{"PE17", 4, 16, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}, 0, 0},
+	{"PE17", 4, 17, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}, 0, 0},
 
 	{"PF0",  5, 0,  {"gpio_in", "gpio_out", "mmc0", "jtag", NULL, NULL, NULL}},
 	{"PF1",  5, 1,  {"gpio_in", "gpio_out", "mmc0", "jtag", NULL, NULL, NULL}},
