@@ -520,7 +520,7 @@ vgic_v3_queue_irq(struct hyp *hyp, struct vgic_v3_cpu *vgic_cpu,
 	mtx_assert(&irq->irq_spinmtx, MA_OWNED);
 
 	/* No need to queue the IRQ */
-	if (!irq->level && !irq->pending)
+	if (!irq->level && !irq->pending && !irq->active)
 		return (false);
 
 	if (!irq->on_aplist) {
