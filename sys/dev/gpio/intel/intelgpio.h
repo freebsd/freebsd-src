@@ -14,8 +14,18 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 
+#define INTELGPIO_REVID_REG	      0x000
+#define INTELGPIO_REVID_SHIFT	      16
+#define INTELGPIO_REVID_MASK	      0xffff0000
 #define INTELGPIO_PADBAR_REG	      0x00c
-#define INTELGPIO_PAD_SIZE	      16
+
+/*
+ * Communities with REVID >= 0x94 use four 32-bit PADCFG registers per pad,
+ * older ones (e.g. Broxton / Apollo Lake) only two.
+ */
+#define INTELGPIO_MIN_REVID_FOR_PADCFG_4DW	0x94
+#define INTELGPIO_PAD_SIZE_2DW	      8
+#define INTELGPIO_PAD_SIZE_4DW	      16
 
 #define INTELGPIO_PADCFG0_GPIOTXSTATE (1 << 0)
 #define INTELGPIO_PADCFG0_GPIORXSTATE (1 << 1)
@@ -54,6 +64,7 @@ struct intelgpio_softc {
 
 	struct resource *sc_mem_res[INTELGPIO_MAX_COMMUNITIES];
 	uint32_t sc_padbar[INTELGPIO_MAX_COMMUNITIES];
+	uint32_t sc_padsize[INTELGPIO_MAX_COMMUNITIES];
 };
 
 DECLARE_CLASS(intelgpio_driver);
