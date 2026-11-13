@@ -223,6 +223,77 @@ ATF_TC_BODY(nodup_ioctl_cap_intersection, tc)
 	ATF_REQUIRE_EQ(0, unmount("mnt", 0));
 }
 
+#define TEXT "Hello, world!\n"
+#define LEN 14
+
+FDESCFS_TC(truncate_ro,
+    "disallow truncating read-only files (plain)");
+ATF_TC_BODY(truncate_ro, tc)
+{
+	struct stat sb;
+	char fd_path[16];
+	int fd;
+
+	/* create read-only target file */
+	ATF_REQUIRE((fd = open("file", O_RDWR | O_CREAT, 0400)) >= 0);
+	ATF_REQUIRE_EQ(LEN, write(fd, TEXT, LEN));
+	ATF_REQUIRE_EQ(0, close(fd));
+
+	/* reopen the file read-only */
+	ATF_REQUIRE((fd = open("file", O_RDONLY)) >= 0);
+
+	/* mount fdescfs */
+	mount_fdescfs(NULL);
+
+	/* construct and stat path */
+	snprintf(fd_path, sizeof(fd_path), "mnt/%d", fd);
+	ATF_REQUIRE_EQ(0, stat(fd_path, &sb));
+	ATF_CHECK_EQ(S_IFCHR, sb.st_mode & S_IFMT);
+	ATF_CHECK_EQ(0555, sb.st_mode & ALLPERMS);
+	ATF_CHECK_EQ(0, sb.st_size);
+
+	/* attempt to truncate */
+	ATF_CHECK(truncate(fd_path, 0) < 0);
+	ATF_CHECK_EQ(LEN, lseek(fd, 0, SEEK_END));
+
+	/* done */
+	ATF_CHECK_EQ(0, close(fd));
+}
+
+FDESCFS_TC(nodup_truncate_ro,
+    "allow truncating read-only files (nodup)");
+ATF_TC_BODY(nodup_truncate_ro, tc)
+{
+	struct stat sb;
+	char fd_path[16];
+	int fd;
+
+	/* create read-only target file */
+	ATF_REQUIRE((fd = open("file", O_RDWR | O_CREAT, 0400)) >= 0);
+	ATF_REQUIRE_EQ(LEN, write(fd, TEXT, LEN));
+	ATF_REQUIRE_EQ(0, close(fd));
+
+	/* reopen the file read-only */
+	ATF_REQUIRE((fd = open("file", O_RDONLY)) >= 0);
+
+	/* mount fdescfs */
+	mount_fdescfs(nodup);
+
+	/* construct and stat path */
+	snprintf(fd_path, sizeof(fd_path), "mnt/%d", fd);
+	ATF_REQUIRE_EQ(0, stat(fd_path, &sb));
+	ATF_CHECK_EQ(S_IFREG, sb.st_mode & S_IFMT);
+	ATF_CHECK_EQ(0400, sb.st_mode & ALLPERMS);
+	ATF_CHECK_EQ(LEN, sb.st_size);
+
+	/* attempt to truncate */
+	ATF_CHECK(truncate(fd_path, LEN / 2) == 0);
+	ATF_CHECK_EQ(LEN / 2, lseek(fd, 0, SEEK_END));
+
+	/* done */
+	ATF_CHECK_EQ(0, close(fd));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, cap_rights);
@@ -232,5 +303,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ioctl_caps);
 	ATF_TP_ADD_TC(tp, nodup_ioctl_caps);
 	ATF_TP_ADD_TC(tp, nodup_ioctl_cap_intersection);
+	ATF_TP_ADD_TC(tp, truncate_ro);
+	ATF_TP_ADD_TC(tp, nodup_truncate_ro);
 	return (atf_no_error());
 }
