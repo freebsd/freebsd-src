@@ -899,10 +899,11 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 	uint8_t val;
 	int error;
 
-	*udelay = 0;
-
 	sc = regnode_get_softc(regnode);
 	asc = device_get_softc(sc->base_dev);
+
+	/* The consumers wait for the regulator to be ready after enabling it */
+	*udelay = enable ? sc->param->enable_delay : 0;
 
 	if (bootverbose)
 		device_printf(sc->base_dev, "%sable %s (%s)\n",
