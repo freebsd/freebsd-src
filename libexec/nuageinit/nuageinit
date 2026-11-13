@@ -165,7 +165,7 @@ local function create_default_user(obj, metadata)
 	if need_default_user() then
 		local du = default_user(obj, metadata)
 		local homedir = nuage.adduser(du)
-		if du.ssh_authorized_keys then
+		if du.ssh_authorized_keys and homedir ~= nil then
 			for _, k in ipairs(du.ssh_authorized_keys) do
 				nuage.addsshkey(homedir, k)
 			end
