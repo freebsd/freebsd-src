@@ -1,0 +1,11 @@
+[package]
+name = "ame-compat"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-2-Clause"
+description = "Compatibility layer for legacy applications on AmeOS"
+
+[build-dependencies]
+cc = "1.2"
+
+[dev-dependencies]
