@@ -354,7 +354,17 @@ ATF_TC_BODY(random, tc)
 }
 
 /* Truncate the file while sendfile(2) is working on it. */
-ATF_TC_WITHOUT_HEAD(truncate);
+ATF_TC(truncate);
+ATF_TC_HEAD(truncate, tc)
+{
+	/*
+	 * NOTE: Slow platforms (including CI) fail intermittently with the
+	 * default timeout. Double the default timeout to reduce false
+	 * positives.
+	 */
+	atf_tc_set_md_var(tc, "timeout", "600");
+}
+
 ATF_TC_BODY(truncate, tc)
 {
 	struct ctx c;
@@ -388,7 +398,16 @@ ATF_TC_BODY(truncate, tc)
 }
 
 /* Grow the file while sendfile(2) is working on it. */
-ATF_TC_WITHOUT_HEAD(grow);
+ATF_TC(grow);
+ATF_TC_HEAD(grow, tc) {
+	/*
+	 * NOTE: Slow platforms (including CI) fail intermittently with the
+	 * default timeout. Double the default timeout to reduce false
+	 * positives.
+	 */
+	atf_tc_set_md_var(tc, "timeout", "600");
+}
+
 ATF_TC_BODY(grow, tc)
 {
 	struct ctx c;
