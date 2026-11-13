@@ -1,0 +1,4 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	pkg(7) bootstrap utility
+SBOM_LICENSE=	BSD-2-Clause
+SBOM_COPYRIGHT=	Copyright (c) 2012-2014 Baptiste Daroussin <bapt@FreeBSD.org>

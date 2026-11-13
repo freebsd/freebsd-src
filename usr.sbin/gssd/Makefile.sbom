@@ -1,0 +1,2 @@
+SBOM_DESC=	gssd(8) daemon for kernel GSS-API
+SBOM_COPYRIGHT=	Copyright (c) 2008 Isilon Inc.

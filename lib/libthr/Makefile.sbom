@@ -1,0 +1,2 @@
+SBOM_NAME=	${SBOMBASE}libpthread
+SBOM_DESC=	Implementation of libpthread

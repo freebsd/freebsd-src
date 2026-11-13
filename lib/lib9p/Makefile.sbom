@@ -1,0 +1,6 @@
+SBOM_VERSION=	9d5aee77b
+SBOM_DESC=	9P network protocol library
+SBOM_LICENSE=	BSD-2-Clause AND MIT
+SBOM_COPYRIGHT=	Copyright 2016 Jakub Klama <jceel@FreeBSD.org>
+SBOM_URL=	https://github.com/conclusiveeng/lib9p
+SBOM_SOURCE=	${SBOM_URL}/tree/9d5aee77bcc1bf0e79b0a3bfefff5fdf2146283c

@@ -1,0 +1,3 @@
+SBOM_DESC=	Video Graphics Library
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1991-1997 Søren Schmidt

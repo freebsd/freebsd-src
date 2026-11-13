@@ -1,0 +1,2 @@
+.include "../../lib/libsmb/Makefile.sbom"
+SBOM_NAME=	${SBOMBASE}${PACKAGE}

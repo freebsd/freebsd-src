@@ -1,0 +1,4 @@
+SBOM_DESC=	Sample Rate Converter for audio
+SBOM_VERSION=	0.2.2
+SBOM_URL=	https://libsndfile.github.io/libsamplerate
+SBOM_SOURCE=	https://github.com/libsndfile/libsamplerate

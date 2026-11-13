@@ -1,0 +1,7 @@
+SBOM_NAME=	${SBOMBASE}nvi
+SBOM_DESC=	Text editor
+SBOM_VERSION=	2.2.2
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1991, 1992, 1993, 1994 The Regents of the University of California
+SBOM_URL=	https://github.com/lichray/nvi2
+SBOM_SOURCE=	${SBOM_URL}

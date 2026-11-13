@@ -1,0 +1,6 @@
+SBOM_DESC=	IEEE Std 802.11 Access Point authentication daemon
+SBOM_VERSION=	2.12
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 2002-2022, Jouni Malinen <j@w1.fi> and contributors
+SBOM_URL=	https://w1.fi/hostapd/
+SBOM_SOURCE=	https://w1.fi/releases/hostapd-${SBOM_VERSION}.tar.gz

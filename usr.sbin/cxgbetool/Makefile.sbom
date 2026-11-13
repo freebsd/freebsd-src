@@ -1,0 +1,3 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Configuration utility for Chelsio cxbge(4) network interfaces
+SBOM_COPYRIGHT=	Copyright (c) 2011, 2025 Chelsio Communications.

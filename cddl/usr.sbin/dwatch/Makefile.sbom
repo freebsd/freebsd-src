@@ -1,0 +1,2 @@
+SBOM_DESC=	Watch processes as they trigger a particular DTrace probe
+SBOM_COPYRIGHT=	Copyright (c) 2014-2018 Devin Teske

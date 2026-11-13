@@ -1,0 +1,1 @@
+.include "../libipf/Makefile.sbom"

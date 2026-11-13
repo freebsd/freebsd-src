@@ -1,0 +1,5 @@
+SBOM_DESC=	OpenSSH Secure Shell client and server
+SBOM_VERSION=	10.4p1
+SBOM_COPYRIGHT=	Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>
+SBOM_URL=	https://www.openssh.org
+SBOM_SOURCE=	https://github.com/openssh/openssh-portable

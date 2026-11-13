@@ -1,0 +1,5 @@
+SBOM_DESC=	Network blocklist daemon
+SBOM_VERSION=	2026-02-07
+SBOM_COPYRIGHT=	Copyright (c) 2015 The NetBSD Foundation, Inc.
+SBOM_URL=	https://www.NetBSD.org
+SBOM_SOURCE=	https://github.com/zoulasc/blocklist

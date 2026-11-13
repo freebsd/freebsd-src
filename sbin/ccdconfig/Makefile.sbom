@@ -1,0 +1,2 @@
+SBOM_DESC=	Concatenated disk driver (ccd) configuration utility
+SBOM_COPYRIGHT=	Copyright (c) 1996 The NetBSD Foundation, Inc.

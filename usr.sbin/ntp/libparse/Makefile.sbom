@@ -1,0 +1,1 @@
+.include "../libntp/Makefile.sbom"

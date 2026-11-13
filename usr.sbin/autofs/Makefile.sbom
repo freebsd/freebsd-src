@@ -1,0 +1,3 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	File system automounter
+SBOM_COPYRIGHT=	Copyright (c) 2014 The FreeBSD Foundation

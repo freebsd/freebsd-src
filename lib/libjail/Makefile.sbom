@@ -1,0 +1,2 @@
+SBOM_DESC=	FreeBSD libjail
+SBOM_COPYRIGHT=	Copyright (c) 2009 James Gritton

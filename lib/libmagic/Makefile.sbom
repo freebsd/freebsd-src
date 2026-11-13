@@ -1,0 +1,4 @@
+SBOM_DESC=	Magic number recognition library
+SBOM_COPYRIGHT=	Copyright (c) Ian F. Darwin 1986, 1987, 1989, 1990, 1991, 1992, 1994, 1995
+SBOM_URL=	https://darwinsys.com/file/
+SBOM_SOURCE=	https://github.com/file/file

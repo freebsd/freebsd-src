@@ -1,0 +1,5 @@
+SBOM_DESC=	Online manual page reader
+SBOM_VERSION=	2025-09-26
+SBOM_LICENSE=	BSD-3-Clause AND BSD-2-Clause AND 0BSD
+SBOM_COPYRIGHT=	Copyright (c) 2010-2022 Ingo Schwarze <schwarze@openbsd.org>
+SBOM_URL=	https://mandoc.bsd.lv

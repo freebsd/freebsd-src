@@ -1,0 +1,5 @@
+SBOM_DESC=	OpenSSL Transport Layer Security (TLS) library
+SBOM_VERSION=	3.5.7
+SBOM_URL=	https://openssl-library.org
+SBOM_SOURCE=	https://github.com/openssl/openssl/releases/download/openssl-${SBOM_VERSION}/openssl-${SBOM_VERSION}.tar.gz
+SBOM_COPYRIGHT=	Copyright (c) 1998-2026 The OpenSSL Project Authors

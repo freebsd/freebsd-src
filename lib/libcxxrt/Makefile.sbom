@@ -1,0 +1,4 @@
+SBOM_DESC=	C++ ABI implementation providing low-level support for a standard C++ library
+SBOM_VERSION=	6f2fdfebcd62
+SBOM_URL=	https://github.com/libcxxrt/libcxxrt
+SBOM_SOURCE=	${SBOM_URL}/tree/6f2fdfebcd6291d763de8b17740d636f01761890

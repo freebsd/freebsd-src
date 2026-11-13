@@ -13,10 +13,6 @@ SRCS+=		getopt_long.c
 
 LIBADD=		pkgconf
 
-.if defined(TOOLS_PREFIX)
-NO_SHARED=	yes
-.endif
-
 PKGCONFDIR=	${SRCTOP}/contrib/pkgconf
 
 WARNS?=		3

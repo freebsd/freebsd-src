@@ -1,0 +1,4 @@
+SBOM_DESC=	File type guesser
+SBOM_COPYRIGHT=	Copyright (c) Ian F. Darwin 1986-1995
+SBOM_URL=	https://darwinsys.com/file/
+SBOM_SOURCE=	https://github.com/file/file

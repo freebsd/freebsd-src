@@ -1,0 +1,4 @@
+SBOM_VERSION=	0.9.4
+SBOM_DESC=	Private Universal Configuration Library (UCL) library
+SBOM_COPYRIGHT=	Copyright (c) 2013-2014, Vsevolod Stakhov <vsevolod@highsecure.ru>
+SBOM_URL=	https://github.com/vstakhov/libucl

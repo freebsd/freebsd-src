@@ -1,0 +1,2 @@
+SBOM_DESC=	Automatically load kernel drivers for attached hardware
+SBOM_COPYRIGHT=	Copyright (c) 2017 Netflix, Inc.

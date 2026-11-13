@@ -1,0 +1,6 @@
+SBOM_DESC=	Private Lua implementation
+SBOM_VERSION=	5.4.8
+SBOM_LICENSE=	MIT
+SBOM_COPYRIGHT=	Copyright (C) 1994-2025 Lua.org, PUC-Rio
+SBOM_URL=	https://www.lua.org
+SBOM_SOURCE=	https://www.lua.org/ftp/
