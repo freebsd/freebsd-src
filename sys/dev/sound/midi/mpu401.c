@@ -154,10 +154,8 @@ int
 mpu401_uninit(struct mpu401 *m)
 {
 	CMD(m, MPU_RESET);
-	/* Clear M_TXPEND so that the callout does not re-arm itself. */
-	m->flags = 0;
-	callout_drain(&m->timer);
 	midi_uninit(m->mid);
+	callout_drain(&m->timer);
 	kobj_delete((kobj_t)m, M_MIDI);
 	return 0;
 }
