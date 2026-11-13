@@ -111,6 +111,15 @@ struct dev_event_info {
 	char dei_data[DEVCTL_BUFFER];
 };
 
+/*
+ * Used by sysconf(_SC_DEVCTL_MAXRECORD).  We suggest applications to use a
+ * slightly bigger buffer than DEVCTL_BUFFER, off just by size of a pointer.
+ * This is documented and allows applications to utilize this extra space for
+ * an optional NUL termination.  If this structure substantially changes, care
+ * should be taken to export proper size.
+ */
+SYSCTL_UINT(_hw_bus, OID_AUTO, devctl_maxrecord, CTLFLAG_RD,
+    SYSCTL_NULL_UINT_PTR, sizeof(struct dev_event_info), "");
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,

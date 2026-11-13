@@ -312,6 +312,10 @@ typedef	__useconds_t	useconds_t;
 #define	_SC_NSIG		124
 #endif
 
+#if __BSD_VISIBLE
+#define	_SC_DEVCTL_MAXRECORD	125
+#endif
+
 /* Keys for the confstr(3) function. */
 #if __POSIX_VISIBLE >= 199209
 #define	_CS_PATH		1	/* default value of PATH */
