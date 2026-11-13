@@ -205,6 +205,7 @@ struct awg_softc {
 	int			if_flags;
 	enum awg_type		type;
 	struct syscon		*syscon;
+	regulator_t		phy_supply;
 
 	struct awg_txring	tx;
 	struct awg_rxring	rx;
@@ -1710,6 +1711,7 @@ awg_setup_extres(device_t dev)
 			device_printf(dev, "cannot enable PHY regulator\n");
 			goto fail;
 		}
+		sc->phy_supply = reg;
 	}
 
 	/* Determine MDC clock divide ratio based on AHB clock */
@@ -2003,10 +2005,32 @@ awg_attach(device_t dev)
 	return (0);
 }
 
+static int
+awg_shutdown(device_t dev)
+{
+	struct awg_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	AWG_LOCK(sc);
+	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0)
+		awg_stop(sc);
+	AWG_UNLOCK(sc);
+
+	/*
+	 * Power down the PHY so that the next stage does not find it ready.
+	 */
+	if (sc->phy_supply != NULL)
+		regulator_disable(sc->phy_supply);
+
+	return (0);
+}
+
 static device_method_t awg_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		awg_probe),
 	DEVMETHOD(device_attach,	awg_attach),
+	DEVMETHOD(device_shutdown,	awg_shutdown),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	awg_miibus_readreg),
