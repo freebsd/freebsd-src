@@ -12,6 +12,86 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20261117:
+	15.1-RELEASE-p7	EN-26:28.watchdog
+			EN-26:29.tzdata
+			EN-26:30.vfs
+			EN-26:31.openssl
+			EN-26:32.zfs
+			SA-26:74.ktls
+			SA-26:75.linux
+			SA-26:76.ocs_fc
+			SA-26:77.netlink
+			SA-26:78.gssd
+			SA-26:79.nfs
+			SA-26:80.vfs
+			SA-26:81.vfs
+			SA-26:82.ipsec
+			SA-26:83.unix
+			SA-26:84.vmm
+			SA-26:85.kqueue
+			SA-26:86.freebsd32
+			SA-26:87.socket
+			SA-26:88.sound
+			SA-26:89.bsnmp
+			SA-26:90.vm
+			SA-26:91.fdescfs
+			SA-26:92.vfs
+			SA-26:93.tcp
+			SA-26:94.tmpfs
+
+	Spurious watchdog resets during upgrade. [EN-26:28.watchdog]
+
+	Timezone database information update. [EN-26:29.tzdata]
+
+	Large file reads produce incorrect return value. [EN-26:30.vfs]
+
+	Update OpenSSL to 3.0.22 and 3.5.9. [EN-26:31.openssl]
+
+	OpenZFS data corruption involving pending block frees. [EN-26:32.zfs]
+
+	Kernel memory disclosure via KTLS control messages. [SA-26:74.ktls]
+
+	Kernel memory disclosure via Linuxulator extattr syscalls. [SA-26:75.linux]
+
+	Multiple vulnerabilities in the ocs_fc(4) driver. [SA-26:76.ocs_fc]
+
+	Local privilege escalation via netlink heap buffer overflow. [SA-26:77.netlink]
+
+	gssd maps unrecognized Kerberos principals to UID 0. [SA-26:78.gssd]
+
+	NFSv4 server remote code execution via stateid type confusion. [SA-26:79.nfs]
+
+	Privilege escalation via inotify watch descriptor wraparound. [SA-26:80.vfs]
+
+	Capsicum and O_RESOLVE_BENEATH bypass at mount roots. [SA-26:81.vfs]
+
+	IPSec stream cipher counter reuse. [SA-26:82.ipsec]
+
+	Privilege escalation via shutdown(2) race on unix sockets. [SA-26:83.unix]
+
+	vmm guests can trigger host kernel resets on Intel CPUs. [SA-26:84.vmm]
+
+	Multiple vulnerabilities in kevent(2). [SA-26:85.kqueue]
+
+	Privilege escalation via cmsg corruption in compat32 syscalls. [SA-26:86.freebsd32]
+
+	Privilege escalation via socket unsplice timeout. [SA-26:87.socket]
+
+	Privilege escalation via sound software buffer resizing. [SA-26:88.sound]
+
+	Multiple vulnerabilities in bsnmpd. [SA-26:89.bsnmp]
+
+	Privilege escalation via prefaulting on largepage mappings. [SA-26:90.vm]
+
+	Privilege escalation via missing fdescfs access checks. [SA-26:91.fdescfs]
+
+	Directory read and search permission bypass. [SA-26:92.vfs]
+
+	Local privilege escalation via TCP MSG_OOB handling. [SA-26:93.tcp]
+
+	Missing setgid bit validation in tmpfs. [SA-26:94.tmpfs]
+
 20261021:
 	15.1-RELEASE-p6	SA-26:73.caroot
 
