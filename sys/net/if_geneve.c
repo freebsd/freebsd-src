@@ -2983,11 +2983,11 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	memset(&info, 0, sizeof(info));
 	info.ethertype = geneve_get_ethertype(m);
 	if (info.ethertype == ETHERTYPE_IP) {
-		iphdr = mtodo(m, offset - sizeof(struct ip));
+		iphdr = mtod(m, struct ip *);
 		info.ecn = (iphdr->ip_tos & IPTOS_ECN_MASK);
 		info.ttl = iphdr->ip_ttl;
 	} else if (info.ethertype == ETHERTYPE_IPV6) {
-		ip6hdr = mtodo(m, offset - sizeof(struct ip6_hdr));
+		ip6hdr = mtod(m, struct ip6_hdr *);
 		info.ecn = IPV6_ECN(ip6hdr);
 		info.ttl = ip6hdr->ip6_hlim;
 	}
