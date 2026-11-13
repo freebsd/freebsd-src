@@ -1839,7 +1839,8 @@ vm_map_insert1(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_try_merge_entries(map, prev_entry, new_entry);
 	*res = vm_map_try_merge_entries(map, new_entry, next_entry);
 
-	if ((cow & (MAP_PREFAULT | MAP_PREFAULT_PARTIAL)) != 0) {
+	if ((cow & (MAP_PREFAULT | MAP_PREFAULT_PARTIAL)) != 0 &&
+	    (cow & MAP_SPLIT_BOUNDARY_MASK) == 0) {
 		vm_map_pmap_enter(map, start, prot, object, OFF_TO_IDX(offset),
 		    end - start, cow & MAP_PREFAULT_PARTIAL);
 	}
@@ -3160,7 +3161,8 @@ vm_map_madvise(
 			vm_offset_t useEnd, useStart;
 
 			if ((entry->eflags & (MAP_ENTRY_IS_SUB_MAP |
-			    MAP_ENTRY_GUARD)) != 0)
+			    MAP_ENTRY_GUARD | MAP_ENTRY_SPLIT_BOUNDARY_MASK)) !=
+			    0)
 				continue;
 
 			/*

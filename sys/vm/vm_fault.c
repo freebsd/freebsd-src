@@ -2289,9 +2289,10 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	vm_object_t backing_object, dst_object, object, src_object;
 	vm_pindex_t dst_pindex, pindex, src_pindex;
 	vm_prot_t access, prot;
-	vm_offset_t vaddr;
-	vm_page_t dst_m;
-	vm_page_t src_m;
+	vm_offset_t va;
+	vm_page_t dst_m, m, src_m;
+	size_t psize;
+	int bdry_idx;
 	bool upgrade;
 
 	upgrade = src_entry == dst_entry;
@@ -2311,6 +2312,26 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	access = prot = dst_entry->protection;
 	if (!upgrade)
 		access &= ~VM_PROT_WRITE;
+
+	if ((bdry_idx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(dst_entry)) != 0) {
+		KASSERT(upgrade,
+		    ("%s: copying between largepage mappings", __func__));
+		KASSERT((dst_entry->eflags & MAP_ENTRY_USER_WIRED) != 0,
+		    ("%s: largepage mapping isn't wired", __func__));
+
+		object = dst_entry->object.vm_object;
+		psize = pagesizes[bdry_idx];
+		for (va = dst_entry->start,
+		    pindex = OFF_TO_IDX(dst_entry->offset);
+		    va < dst_entry->end; va += psize, pindex += atop(psize)) {
+			m = vm_page_lookup_unlocked(object, pindex);
+
+			(void)pmap_enter(dst_map->pmap, va, m, prot,
+			    access | PMAP_ENTER_WIRED | PMAP_ENTER_LARGEPAGE,
+			    bdry_idx);
+		}
+		return;
+	}
 
 	src_object = src_entry->object.vm_object;
 	src_pindex = OFF_TO_IDX(src_entry->offset);
@@ -2362,9 +2383,8 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	 * regardless of whether they can be written.
 	 */
 	vm_page_iter_init(&pages, dst_object);
-	for (vaddr = dst_entry->start, dst_pindex = 0;
-	    vaddr < dst_entry->end;
-	    vaddr += PAGE_SIZE, dst_pindex++) {
+	for (va = dst_entry->start, dst_pindex = 0; va < dst_entry->end;
+	    va += PAGE_SIZE, dst_pindex++) {
 again:
 		/*
 		 * Find the page in the source object, and copy it in.
@@ -2463,7 +2483,7 @@ again:
 		 */
 		if (vm_page_all_valid(dst_m)) {
 			VM_OBJECT_WUNLOCK(dst_object);
-			pmap_enter(dst_map->pmap, vaddr, dst_m, prot,
+			pmap_enter(dst_map->pmap, va, dst_m, prot,
 			    access | (upgrade ? PMAP_ENTER_WIRED : 0), 0);
 			VM_OBJECT_WLOCK(dst_object);
 		}
