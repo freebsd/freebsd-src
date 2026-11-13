@@ -6,6 +6,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace ame::compat {
 
@@ -60,6 +61,48 @@ inline void *memmove(void *destination, const void *source, size_t length) {
 inline void *memset(void *destination, int value, size_t length) {
     return ame_compat_memset(destination, value, length);
 }
+
+class File {
+public:
+    File(const char *path, bool write) {
+        const auto status = ame_compat_file_open(path, write ? 1 : 0, &raw_);
+        if (status != AME_COMPAT_OK) {
+            throw Error(status);
+        }
+    }
+
+    File(const File &) = delete;
+    File &operator=(const File &) = delete;
+
+    ~File() {
+        if (raw_ != nullptr) {
+            ame_compat_file_close(raw_);
+        }
+    }
+
+    std::vector<unsigned char> read(size_t capacity) {
+        std::vector<unsigned char> result(capacity);
+        size_t count = 0;
+        const auto status = ame_compat_file_read(raw_, result.data(), result.size(), &count);
+        if (status != AME_COMPAT_OK) {
+            throw Error(status);
+        }
+        result.resize(count);
+        return result;
+    }
+
+    size_t write(const void *data, size_t length) {
+        size_t count = 0;
+        const auto status = ame_compat_file_write(raw_, data, length, &count);
+        if (status != AME_COMPAT_OK) {
+            throw Error(status);
+        }
+        return count;
+    }
+
+private:
+    ame_compat_file *raw_ = nullptr;
+};
 
 } // namespace ame::compat
 

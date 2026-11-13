@@ -21,6 +21,8 @@ pub enum Status {
     InvalidArgument = 1,
     BufferTooSmall = 2,
     NotFound = 3,
+    IoError = 4,
+    InvalidHandle = 5,
 }
 
 impl Status {
@@ -30,6 +32,8 @@ impl Status {
             1 => Self::InvalidArgument,
             2 => Self::BufferTooSmall,
             3 => Self::NotFound,
+            4 => Self::IoError,
+            5 => Self::InvalidHandle,
             _ => Self::InvalidArgument,
         }
     }
@@ -71,6 +75,24 @@ unsafe extern "C" {
     fn ame_compat_setenv(name: *const c_char, value: *const c_char, overwrite: i32) -> i32;
     fn ame_compat_memmove(destination: *mut u8, source: *const u8, length: usize) -> *mut u8;
     fn ame_compat_memset(destination: *mut u8, value: i32, length: usize) -> *mut u8;
+    fn ame_compat_file_open(
+        path: *const c_char,
+        write: i32,
+        out: *mut *mut std::ffi::c_void,
+    ) -> i32;
+    fn ame_compat_file_read(
+        file: *mut std::ffi::c_void,
+        buffer: *mut u8,
+        buffer_len: usize,
+        bytes_read: *mut usize,
+    ) -> i32;
+    fn ame_compat_file_write(
+        file: *mut std::ffi::c_void,
+        buffer: *const u8,
+        buffer_len: usize,
+        bytes_written: *mut usize,
+    ) -> i32;
+    fn ame_compat_file_close(file: *mut std::ffi::c_void) -> i32;
 }
 
 pub fn version() -> Result<Version, Error> {
@@ -149,6 +171,54 @@ pub fn memset(destination: &mut [u8], value: u8) {
     }
 }
 
+pub struct File {
+    raw: *mut std::ffi::c_void,
+}
+
+impl File {
+    pub fn open(path: &str, write: bool) -> Result<Self, Error> {
+        let path = CString::new(path)?;
+        let mut raw = std::ptr::null_mut();
+        let status = unsafe { ame_compat_file_open(path.as_ptr(), write as i32, &mut raw) };
+        if status != Status::Ok as i32 {
+            return Err(Error::Status(Status::from_raw(status)));
+        }
+        Ok(Self { raw })
+    }
+
+    pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Error> {
+        let mut count = 0;
+        let status = unsafe {
+            ame_compat_file_read(self.raw, buffer.as_mut_ptr(), buffer.len(), &mut count)
+        };
+        if status == Status::Ok as i32 {
+            Ok(count)
+        } else {
+            Err(Error::Status(Status::from_raw(status)))
+        }
+    }
+
+    pub fn write(&mut self, buffer: &[u8]) -> Result<usize, Error> {
+        let mut count = 0;
+        let status =
+            unsafe { ame_compat_file_write(self.raw, buffer.as_ptr(), buffer.len(), &mut count) };
+        if status == Status::Ok as i32 {
+            Ok(count)
+        } else {
+            Err(Error::Status(Status::from_raw(status)))
+        }
+    }
+}
+
+impl Drop for File {
+    fn drop(&mut self) {
+        if !self.raw.is_null() {
+            unsafe { ame_compat_file_close(self.raw) };
+            self.raw = std::ptr::null_mut();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,5 +258,22 @@ mod tests {
             ame_compat_memmove(bytes.as_mut_ptr().add(2), bytes.as_ptr(), 8);
         }
         assert_eq!(&bytes, b"0101234567");
+    }
+
+    #[test]
+    fn round_trips_a_file() {
+        let path = std::env::temp_dir().join(format!("ame-compat-{}-file.bin", std::process::id()));
+        let path = path.to_string_lossy().into_owned();
+        {
+            let mut file = File::open(&path, true).unwrap();
+            assert_eq!(file.write(b"legacy-data").unwrap(), 11);
+        }
+        {
+            let mut file = File::open(&path, false).unwrap();
+            let mut buffer = [0u8; 32];
+            let count = file.read(&mut buffer).unwrap();
+            assert_eq!(&buffer[..count], b"legacy-data");
+        }
+        let _ = std::fs::remove_file(path);
     }
 }

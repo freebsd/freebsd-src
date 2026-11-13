@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 #include "ame_compat.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -8,6 +9,10 @@
 extern void *ame_compat_memmove_asm(void *destination, const void *source, size_t length);
 extern void *ame_compat_memset_asm(void *destination, int value, size_t length);
 #endif
+
+struct ame_compat_file {
+    FILE *stream;
+};
 
 static int valid_name(const char *name) {
     return name != NULL && name[0] != '\0' && strchr(name, '=') == NULL;
@@ -91,4 +96,76 @@ void *ame_compat_memset(void *destination, int value, size_t length) {
 #else
     return memset(destination, value, length);
 #endif
+}
+
+ame_compat_status ame_compat_file_open(
+    const char *path,
+    int write,
+    ame_compat_file **out) {
+    ame_compat_file *file;
+    if (path == NULL || path[0] == '\0' || out == NULL) {
+        return AME_COMPAT_INVALID_ARGUMENT;
+    }
+    file = (ame_compat_file *)calloc(1, sizeof(*file));
+    if (file == NULL) {
+        return AME_COMPAT_IO_ERROR;
+    }
+    file->stream = fopen(path, write != 0 ? "wb" : "rb");
+    if (file->stream == NULL) {
+        free(file);
+        return AME_COMPAT_NOT_FOUND;
+    }
+    *out = file;
+    return AME_COMPAT_OK;
+}
+
+ame_compat_status ame_compat_file_read(
+    ame_compat_file *file,
+    void *buffer,
+    size_t buffer_len,
+    size_t *bytes_read) {
+    size_t count;
+    if (file == NULL || file->stream == NULL || (buffer == NULL && buffer_len != 0)) {
+        return AME_COMPAT_INVALID_HANDLE;
+    }
+    count = fread(buffer, 1, buffer_len, file->stream);
+    if (bytes_read != NULL) {
+        *bytes_read = count;
+    }
+    if (ferror(file->stream)) {
+        clearerr(file->stream);
+        return AME_COMPAT_IO_ERROR;
+    }
+    return AME_COMPAT_OK;
+}
+
+ame_compat_status ame_compat_file_write(
+    ame_compat_file *file,
+    const void *buffer,
+    size_t buffer_len,
+    size_t *bytes_written) {
+    size_t count;
+    if (file == NULL || file->stream == NULL || (buffer == NULL && buffer_len != 0)) {
+        return AME_COMPAT_INVALID_HANDLE;
+    }
+    count = fwrite(buffer, 1, buffer_len, file->stream);
+    if (bytes_written != NULL) {
+        *bytes_written = count;
+    }
+    if (count != buffer_len || ferror(file->stream)) {
+        clearerr(file->stream);
+        return AME_COMPAT_IO_ERROR;
+    }
+    return AME_COMPAT_OK;
+}
+
+ame_compat_status ame_compat_file_close(ame_compat_file *file) {
+    int result;
+    if (file == NULL || file->stream == NULL) {
+        return AME_COMPAT_INVALID_HANDLE;
+    }
+    result = fclose(file->stream);
+    file->stream = NULL;
+    free(file);
+    return result == 0 ? AME_COMPAT_OK : AME_COMPAT_IO_ERROR;
 }

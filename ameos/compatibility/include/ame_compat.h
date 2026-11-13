@@ -15,7 +15,9 @@ typedef enum ame_compat_status {
     AME_COMPAT_OK = 0,
     AME_COMPAT_INVALID_ARGUMENT = 1,
     AME_COMPAT_BUFFER_TOO_SMALL = 2,
-    AME_COMPAT_NOT_FOUND = 3
+    AME_COMPAT_NOT_FOUND = 3,
+    AME_COMPAT_IO_ERROR = 4,
+    AME_COMPAT_INVALID_HANDLE = 5
 } ame_compat_status;
 
 typedef struct ame_compat_version {
@@ -44,6 +46,25 @@ ame_compat_status ame_compat_setenv(
 /* libc-compatible byte operations. They return the destination pointer. */
 void *ame_compat_memmove(void *destination, const void *source, size_t length);
 void *ame_compat_memset(void *destination, int value, size_t length);
+
+/* Portable file handle API for legacy applications. */
+typedef struct ame_compat_file ame_compat_file;
+
+ame_compat_status ame_compat_file_open(
+    const char *path,
+    int write,
+    ame_compat_file **out);
+ame_compat_status ame_compat_file_read(
+    ame_compat_file *file,
+    void *buffer,
+    size_t buffer_len,
+    size_t *bytes_read);
+ame_compat_status ame_compat_file_write(
+    ame_compat_file *file,
+    const void *buffer,
+    size_t buffer_len,
+    size_t *bytes_written);
+ame_compat_status ame_compat_file_close(ame_compat_file *file);
 
 #ifdef __cplusplus
 }
