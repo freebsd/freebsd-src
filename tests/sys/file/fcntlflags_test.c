@@ -25,6 +25,7 @@
  */
 
 #include <sys/filio.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -96,6 +97,37 @@ ATF_TC_BODY(exec_only_sh, tc)
 	basic_tests("/bin/sh", O_EXEC, "O_EXEC");
 }
 
+ATF_TC_WITH_CLEANUP(creat_directory_permissions);
+ATF_TC_HEAD(creat_directory_permissions, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "unprivileged");
+}
+ATF_TC_BODY(creat_directory_permissions, tc)
+{
+	const char *dir = "creat_directory_permissions";
+	int fd;
+
+	ATF_REQUIRE(mkdir(dir, 0700) == 0);
+	ATF_REQUIRE(chmod(dir, 0300) == 0);
+	ATF_REQUIRE_ERRNO(EACCES,
+	    open(dir, O_RDONLY | O_CREAT | O_DIRECTORY, 0) == -1);
+	fd = open(dir, O_SEARCH | O_CREAT | O_DIRECTORY, 0);
+	ATF_REQUIRE(fd >= 0);
+	ATF_REQUIRE(close(fd) == 0);
+
+	ATF_REQUIRE(chmod(dir, 0400) == 0);
+	ATF_REQUIRE_ERRNO(EACCES,
+	    open(dir, O_SEARCH | O_CREAT | O_DIRECTORY, 0) == -1);
+	fd = open(dir, O_RDONLY | O_CREAT | O_DIRECTORY, 0);
+	ATF_REQUIRE(fd >= 0);
+	ATF_REQUIRE(close(fd) == 0);
+}
+ATF_TC_CLEANUP(creat_directory_permissions, tc)
+{
+	(void)chmod("creat_directory_permissions", 0700);
+	(void)rmdir("creat_directory_permissions");
+}
+
 ATF_TC_WITHOUT_HEAD(fioasync_dev_null);
 ATF_TC_BODY(fioasync_dev_null, tc)
 {
@@ -127,6 +159,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, write_only_null);
 	ATF_TP_ADD_TC(tp, read_write_null);
 	ATF_TP_ADD_TC(tp, exec_only_sh);
+	ATF_TP_ADD_TC(tp, creat_directory_permissions);
 	ATF_TP_ADD_TC(tp, fioasync_dev_null);
 
 	return (atf_no_error());
