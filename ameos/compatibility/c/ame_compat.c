@@ -5,6 +5,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#include <errno.h>
+#include <process.h>
+#else
+#include <errno.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 #if defined(__x86_64__) && !defined(_WIN32)
 extern void *ame_compat_memmove_asm(void *destination, const void *source, size_t length);
 extern void *ame_compat_memset_asm(void *destination, int value, size_t length);
@@ -12,6 +21,14 @@ extern void *ame_compat_memset_asm(void *destination, int value, size_t length);
 
 struct ame_compat_file {
     FILE *stream;
+};
+
+struct ame_compat_process {
+#if defined(_WIN32)
+    intptr_t pid;
+#else
+    pid_t pid;
+#endif
 };
 
 static int valid_name(const char *name) {
@@ -168,4 +185,76 @@ ame_compat_status ame_compat_file_close(ame_compat_file *file) {
     file->stream = NULL;
     free(file);
     return result == 0 ? AME_COMPAT_OK : AME_COMPAT_IO_ERROR;
+}
+
+static int valid_argv(const char *const *argv) {
+    return argv != NULL && argv[0] != NULL && argv[0][0] != '\0';
+}
+
+ame_compat_status ame_compat_process_open(
+    const char *path,
+    const char *const *argv,
+    ame_compat_process **out) {
+    ame_compat_process *process;
+    if (path == NULL || path[0] == '\0' || !valid_argv(argv) || out == NULL) {
+        return AME_COMPAT_INVALID_ARGUMENT;
+    }
+    process = (ame_compat_process *)calloc(1, sizeof(*process));
+    if (process == NULL) {
+        return AME_COMPAT_IO_ERROR;
+    }
+#if defined(_WIN32)
+    process->pid = _spawnvp(_P_NOWAIT, path, argv);
+    if (process->pid == (intptr_t)-1) {
+        free(process);
+        return errno == ENOENT ? AME_COMPAT_NOT_FOUND : AME_COMPAT_IO_ERROR;
+    }
+#else
+    process->pid = fork();
+    if (process->pid < 0) {
+        free(process);
+        return AME_COMPAT_IO_ERROR;
+    }
+    if (process->pid == 0) {
+        execv(path, (char *const *)argv);
+        _exit(127);
+    }
+#endif
+    *out = process;
+    return AME_COMPAT_OK;
+}
+
+ame_compat_status ame_compat_process_wait(
+    ame_compat_process *process,
+    int32_t *exit_status) {
+    if (process == NULL || exit_status == NULL) {
+        return AME_COMPAT_INVALID_ARGUMENT;
+    }
+#if defined(_WIN32)
+    {
+        int status = 0;
+        if (_cwait(&status, process->pid, 0) == -1) {
+            return AME_COMPAT_IO_ERROR;
+        }
+        *exit_status = status;
+        return AME_COMPAT_OK;
+    }
+#else
+    {
+        int status;
+        if (waitpid(process->pid, &status, 0) < 0) {
+            return AME_COMPAT_IO_ERROR;
+        }
+        *exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+        return AME_COMPAT_OK;
+    }
+#endif
+}
+
+ame_compat_status ame_compat_process_close(ame_compat_process *process) {
+    if (process == NULL) {
+        return AME_COMPAT_INVALID_HANDLE;
+    }
+    free(process);
+    return AME_COMPAT_OK;
 }

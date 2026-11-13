@@ -66,6 +66,18 @@ ame_compat_status ame_compat_file_write(
     size_t *bytes_written);
 ame_compat_status ame_compat_file_close(ame_compat_file *file);
 
+/* Controlled process API. Arguments are passed directly, without a shell. */
+typedef struct ame_compat_process ame_compat_process;
+
+ame_compat_status ame_compat_process_open(
+    const char *path,
+    const char *const *argv,
+    ame_compat_process **out);
+ame_compat_status ame_compat_process_wait(
+    ame_compat_process *process,
+    int32_t *exit_status);
+ame_compat_status ame_compat_process_close(ame_compat_process *process);
+
 #ifdef __cplusplus
 }
 #endif

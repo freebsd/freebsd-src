@@ -93,6 +93,13 @@ unsafe extern "C" {
         bytes_written: *mut usize,
     ) -> i32;
     fn ame_compat_file_close(file: *mut std::ffi::c_void) -> i32;
+    fn ame_compat_process_open(
+        path: *const c_char,
+        argv: *const *const c_char,
+        out: *mut *mut std::ffi::c_void,
+    ) -> i32;
+    fn ame_compat_process_wait(file: *mut std::ffi::c_void, exit_status: *mut i32) -> i32;
+    fn ame_compat_process_close(file: *mut std::ffi::c_void) -> i32;
 }
 
 pub fn version() -> Result<Version, Error> {
@@ -219,6 +226,49 @@ impl Drop for File {
     }
 }
 
+pub struct Process {
+    raw: *mut std::ffi::c_void,
+}
+
+impl Process {
+    pub fn spawn(path: &str, args: &[&str]) -> Result<Self, Error> {
+        let path = CString::new(path)?;
+        let arguments = args
+            .iter()
+            .map(|arg| CString::new(*arg))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut argv = Vec::with_capacity(arguments.len() + 2);
+        argv.push(path.as_ptr());
+        argv.extend(arguments.iter().map(|arg| arg.as_ptr()));
+        argv.push(std::ptr::null());
+        let mut raw = std::ptr::null_mut();
+        let status = unsafe { ame_compat_process_open(path.as_ptr(), argv.as_ptr(), &mut raw) };
+        if status != Status::Ok as i32 {
+            return Err(Error::Status(Status::from_raw(status)));
+        }
+        Ok(Self { raw })
+    }
+
+    pub fn wait(&mut self) -> Result<i32, Error> {
+        let mut status_code = 0;
+        let status = unsafe { ame_compat_process_wait(self.raw, &mut status_code) };
+        if status == Status::Ok as i32 {
+            Ok(status_code)
+        } else {
+            Err(Error::Status(Status::from_raw(status)))
+        }
+    }
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        if !self.raw.is_null() {
+            unsafe { ame_compat_process_close(self.raw) };
+            self.raw = std::ptr::null_mut();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,6 +308,20 @@ mod tests {
             ame_compat_memmove(bytes.as_mut_ptr().add(2), bytes.as_ptr(), 8);
         }
         assert_eq!(&bytes, b"0101234567");
+    }
+
+    #[test]
+    fn runs_a_process_and_reads_exit_status() {
+        #[cfg(unix)]
+        {
+            let mut process = Process::spawn("/bin/sh", &["-c", "exit 7"]).unwrap();
+            assert_eq!(process.wait().unwrap(), 7);
+        }
+        #[cfg(windows)]
+        {
+            let mut process = Process::spawn("cmd.exe", &["/C", "exit", "7"]).unwrap();
+            assert_eq!(process.wait().unwrap(), 7);
+        }
     }
 
     #[test]

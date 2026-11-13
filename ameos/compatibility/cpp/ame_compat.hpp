@@ -62,6 +62,42 @@ inline void *memset(void *destination, int value, size_t length) {
     return ame_compat_memset(destination, value, length);
 }
 
+class Process {
+public:
+    Process(const char *path, const std::vector<const char *> &arguments = {}) {
+        argv_.reserve(arguments.size() + 2);
+        argv_.push_back(path);
+        argv_.insert(argv_.end(), arguments.begin(), arguments.end());
+        argv_.push_back(nullptr);
+        const auto status = ame_compat_process_open(path, argv_.data(), &raw_);
+        if (status != AME_COMPAT_OK) {
+            throw Error(status);
+        }
+    }
+
+    Process(const Process &) = delete;
+    Process &operator=(const Process &) = delete;
+
+    ~Process() {
+        if (raw_ != nullptr) {
+            ame_compat_process_close(raw_);
+        }
+    }
+
+    int32_t wait() {
+        int32_t status_code = 0;
+        const auto status = ame_compat_process_wait(raw_, &status_code);
+        if (status != AME_COMPAT_OK) {
+            throw Error(status);
+        }
+        return status_code;
+    }
+
+private:
+    ame_compat_process *raw_ = nullptr;
+    std::vector<const char *> argv_;
+};
+
 class File {
 public:
     File(const char *path, bool write) {
