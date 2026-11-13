@@ -41,6 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
@@ -53,7 +54,7 @@
 #include <dev/sound/midi/midi.h>
 
 
-MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
+static MALLOC_DEFINE(M_MIDI, "midi buffers", "MIDI data allocation area");
 
 struct midi_queue {
 	uint8_t	*buf;

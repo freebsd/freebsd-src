@@ -36,10 +36,7 @@
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
-
-MALLOC_DECLARE(M_MIDI);
 
 #define M_RX		0x01
 #define M_TX		0x02
