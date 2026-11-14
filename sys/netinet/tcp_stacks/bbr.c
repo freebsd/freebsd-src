@@ -4902,8 +4902,7 @@ bbr_remxt_tmr(struct tcpcb *tp)
 				 * With this option, we will rack out
 				 * in 1ms increments the rest of the packets.
 				 */
-				rsm->r_flags |= BBR_SACK_PASSED | BBR_MARKED_LOST;
-				rsm->r_flags &= ~BBR_WAS_SACKPASS;
+				rsm->r_flags |= BBR_SACK_PASSED;
 			} else {
 				/*
 				 * With this option we only mark them lost
@@ -4912,10 +4911,10 @@ bbr_remxt_tmr(struct tcpcb *tp)
 				 * us to eventually send more based on what
 				 * ack's come in.
 				 */
-				rsm->r_flags |= BBR_MARKED_LOST;
-				rsm->r_flags &= ~BBR_WAS_SACKPASS;
 				rsm->r_flags &= ~BBR_SACK_PASSED;
 			}
+			rsm->r_flags |= BBR_MARKED_LOST;
+			rsm->r_flags &= ~BBR_WAS_SACKPASS;
 		}
 		trsm = rsm;
 	}
