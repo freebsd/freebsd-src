@@ -356,13 +356,12 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		for (i = 0; i < link->l_num_irqs; i++) {
 			if (ext_irqs != NULL) {
 				link->l_irqs[i] = ext_irqs[i];
-				if (ext_irqs[i] >= NUM_ISA_INTERRUPTS)
-					link->l_isa_irq = false;
 			} else {
 				link->l_irqs[i] = irqs[i];
-				if (irqs[i] >= NUM_ISA_INTERRUPTS)
-					link->l_isa_irq = false;
 			}
+
+			if (link->l_irqs[i] >= NUM_ISA_INTERRUPTS)
+				link->l_isa_irq = false;
 		}
 
 		/*
