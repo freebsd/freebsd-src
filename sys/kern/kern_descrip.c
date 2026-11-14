@@ -3204,6 +3204,7 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 	struct file *fp;
 	int error;
 	bool copied __diagused;
+	bool drop_fp;
 
 	/*
 	 * Both fcaps and fd_flags must be either requested together,
@@ -3219,10 +3220,21 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 	PROC_UNLOCK(p);
 	if (fdp == NULL)
 		return (ENOENT);
+	drop_fp = false;
 	FILEDESC_SLOCK(fdp);
 	if (refcount_load(&fdp->fd_refcnt) != 0) {
 		fp = fget_noref(fdp, fd);
-		if (fp != NULL && fhold(fp)) {
+		error = fp != NULL && fhold(fp) ? 0 : EBADF;
+	} else {
+		error = ENOENT;
+	}
+	if (error == 0) {
+		PROC_LOCK(p);
+		/* Guard against a race with rfork(RFCFDG). */
+		if (fdp != atomic_load_ptr(&p->p_fd))
+			error = EBADF;
+		PROC_UNLOCK(p);
+		if (error == 0) {
 			*fpp = fp;
 			if (fd_flags != NULL) {
 				*fd_flags = fde_to_fd_flags(fdp->fd_ofiles[fd].
@@ -3233,14 +3245,13 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct filecaps *fcaps,
 				    &fdp->fd_ofiles[fd].fde_caps, fcaps, true);
 				MPASS(copied);
 			}
-			error = 0;
 		} else {
-			error = EBADF;
+			drop_fp = true;
 		}
-	} else {
-		error = ENOENT;
 	}
 	FILEDESC_SUNLOCK(fdp);
+	if (drop_fp)
+		fdrop(fp, td);
 	fddrop(fdp);
 	return (error);
 }
