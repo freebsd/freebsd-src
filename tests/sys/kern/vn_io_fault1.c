@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <sys/mman.h>
+
 #include <atf-c.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,6 +18,7 @@ ATF_TC_HEAD(big_unmapped_read, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Read a large amount of data "
 	    "into a partially unmapped buffer");
+	atf_tc_set_md_var(tc, "require.memory", "4G");
 }
 ATF_TC_BODY(big_unmapped_read, tc)
 {
@@ -24,12 +28,9 @@ ATF_TC_BODY(big_unmapped_read, tc)
 	int fd;
 
 	/* allocate a large buffer */
-	if ((buf = malloc(len)) == NULL)
+	buf = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+	if (buf == MAP_FAILED)
 		atf_tc_skip("failed to allocate buffer");
-
-	/* fault in just a tad more than the first 2 GB */
-	for (size_t i = 0; i <= 2LU << 30; i += 4096)
-		buf[i] = 0;
 
 	/* create a large file */
 	fd = open("big", O_RDWR | O_CREAT | O_TRUNC, 0600);
@@ -37,7 +38,16 @@ ATF_TC_BODY(big_unmapped_read, tc)
 	ATF_REQUIRE_EQ_MSG(0, ftruncate(fd, len),
 	    "failed to extend file: %m");
 
-	/* read the file into the buffer */
+	/* read part of the file into the buffer */
+	ATF_REQUIRE_EQ(0, lseek(fd, 0, SEEK_SET));
+	ret = read(fd, buf, INT_MAX);
+	ATF_REQUIRE_MSG(ret >= 0,
+	    "failed to read from file: %m");
+	ATF_REQUIRE_EQ_MSG(INT_MAX, (size_t)ret,
+	    "requested %zu bytes, got %zd", (size_t)INT_MAX, ret);
+
+	/* read the entire file into the buffer */
+	ATF_REQUIRE_EQ(0, lseek(fd, 0, SEEK_SET));
 	ret = read(fd, buf, len);
 	ATF_REQUIRE_MSG(ret >= 0,
 	    "failed to read from file: %m");
@@ -46,7 +56,7 @@ ATF_TC_BODY(big_unmapped_read, tc)
 
 	/* done */
 	ATF_CHECK_EQ(0, close(fd));
-	free(buf);
+	ATF_CHECK_EQ(0, munmap(buf, len));
 }
 
 ATF_TP_ADD_TCS(tp)
