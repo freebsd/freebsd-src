@@ -109,6 +109,7 @@
 #include <Protocol/SimpleTextInEx.h>
 #include <Protocol/SimpleTextOut.h>
 #include <Protocol/StatusCode.h>
+#include <Protocol/Tcg2Protocol.h>
 #include <Protocol/Tcp4.h>
 #include <Protocol/Tcp6.h>
 #include <Protocol/Timer.h>
@@ -365,7 +366,11 @@ static struct efi_uuid_mapping {
         { .efi_guid_name = "Active EDID",
 	    .efi_guid = EFI_EDID_ACTIVE_PROTOCOL_GUID },
         { .efi_guid_name = "Discovered EDID",
-	    .efi_guid = EFI_EDID_DISCOVERED_PROTOCOL_GUID }
+	    .efi_guid = EFI_EDID_DISCOVERED_PROTOCOL_GUID },
+        { .efi_guid_name = "Tpm events table",
+	    .efi_guid = EFI_TCG2_FINAL_EVENTS_TABLE_GUID },
+        { .efi_guid_name = "TCG2 Protocol",
+	    .efi_guid = EFI_TCG2_PROTOCOL_GUID }
 };
 
 bool

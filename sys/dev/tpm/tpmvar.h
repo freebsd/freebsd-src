@@ -61,6 +61,7 @@ struct tpm_softc {
 	int mem_rid, irq_rid;
 	struct resource *mem_res, *irq_res;
 	struct cdev *sc_cdev;
+	struct tpm_eventlog *sc_eventlog;
 	/* Serialize commands and lifecycle; sc_intr_lock nests inside. */
 	struct sx sc_lock;
 	struct mtx sc_intr_lock;

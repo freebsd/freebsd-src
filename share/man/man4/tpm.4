@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd August 27, 2026
+.Dd November 13, 2026
 .Dt TPM 4
 .Os
 .Sh NAME
@@ -50,6 +50,30 @@ When the kernel is configured with
 the driver periodically obtains random bytes from the TPM and supplies them
 to
 .Xr random 4 .
+.Pp
+On EFI systems with a TPM 1.2 or TPM 2.0 firmware event log,
+.Xr loader.efi 8
+preserves the log for the driver.
+The root-readable
+.Pa /dev/tpm0_eventlog
+device provides the raw TCG binary event log.
+TCG2-format logs include final events recorded while exiting EFI boot
+services.
+Legacy SHA-1 logs, including those obtained through the TCG2 protocol,
+are captured through the last entry reported before exiting boot services.
+Events appended afterward are omitted.
+In particular, EDK2 firmware measures the invocation and success of
+ExitBootServices into PCR 5 after this snapshot, so replaying the saved
+legacy log will not reproduce the final PCR 5 value on that firmware.
+The legacy EFI TCG protocol provides neither a final-events table nor a
+log truncation indicator.
+.Pp
+Each open has an independent read position and reaches end of file
+after the saved log.
+Reading the log does not issue TPM commands or change PCRs.
+No event-log device is created if the firmware log is absent or invalid.
+A firmware-reported truncated log is exported with a boot-time warning;
+it may not reproduce the TPM's PCR values when replayed.
 .Sh HARDWARE
 The
 .Nm
@@ -71,6 +95,16 @@ STM ST19WP18
 .It
 Winbond WEC WPCT200
 .El
+.Sh FILES
+.Bl -tag -width /dev/tpm0_eventlog
+.It Pa /dev/tpm0_eventlog
+Read-only snapshot of the firmware event log.
+.El
+.Sh EXAMPLES
+Save the raw log for decoding or PCR replay by an event-log tool:
+.Bd -literal -offset indent
+cat /dev/tpm0_eventlog > eventlog.bin
+.Ed
 .Sh SEE ALSO
 .Xr intro 4 ,
 .Xr random 4 ,
