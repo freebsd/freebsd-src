@@ -85,6 +85,7 @@ struct arch_switch archsw = {	/* MI/MD interface boundary */
 	.arch_getdev = efi_getdev,
 	.arch_copyin = efi_copyin,
 	.arch_copyout = efi_copyout,
+	.arch_file_measure = efi_tpm_measure_file,
 #if defined(__amd64__) || defined(__i386__)
 	.arch_hypervisor = x86_hypervisor,
 #endif

@@ -349,6 +349,9 @@ struct arch_switch
 	ssize_t	(*arch_copyout)(const vm_offset_t, void *, const size_t);
 	/* Read from file to module address space, same semantics as read() */
 	ssize_t	(*arch_readin)(readin_handle_t, vm_offset_t, const size_t);
+	/* Measure an initialized portion of a preloaded file, if supported. */
+	void (*arch_file_measure)(struct preloaded_file *, vm_offset_t,
+	    const size_t);
 	/* Perform ISA byte port I/O (only for systems with ISA) */
 	int (*arch_isainb)(int port);
 	void (*arch_isaoutb)(int port, int value);

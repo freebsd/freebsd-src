@@ -47,6 +47,8 @@ extern int copy_staging;
 
 extern EFI_LOADED_IMAGE *boot_img;
 
+struct preloaded_file;
+
 int	efi_autoload(void);
 
 int	efi_copy_init(void);

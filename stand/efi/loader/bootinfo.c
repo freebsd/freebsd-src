@@ -433,6 +433,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	/* Copy our environment. */
 	envp = addr;
 	addr = md_copyenv(addr);
+#ifdef EFI
+	efi_tpm_measure_boot();
+#endif
 
 	/* Pad to a page boundary. */
 	addr = md_align(addr);
