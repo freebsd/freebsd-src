@@ -397,38 +397,6 @@ device_collector(struct devinfo_dev *dev, void *arg)
 	return (devinfo_foreach_device_child(dev, device_collector, arg));
 }
 
-/**
- * Create the socket to the device daemon.
- */
-static int
-create_devd_socket(void)
-{
-	struct sockaddr_un devd_addr = {
-		.sun_family = AF_LOCAL,
-		.sun_len = sizeof(devd_addr),
-		.sun_path = _PATH_DEVD_SOCKET,
-	};
-	int d_sock;
-
-	if ((d_sock = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) < 0) {
- 		syslog(LOG_ERR, "Failed to create the socket for %s: %m",
-		    devd_addr.sun_path);
- 		return (-1);
- 	}
-
- 	if (connect(d_sock, (struct sockaddr *)&devd_addr,
-	    sizeof(devd_addr)) == -1) {
- 		syslog(LOG_ERR,"Failed to connect socket for %s: %m",
-		    devd_addr.sun_path);
- 		if (close(d_sock) < 0 )
- 			syslog(LOG_ERR,"Failed to close socket for %s: %m",
-			    devd_addr.sun_path);
-		return (-1);
- 	}
-
- 	return (d_sock);
-}
-
 /*
  * Event on the devd socket.
  *
@@ -470,14 +438,39 @@ devd_socket_callback(int fd, void *arg __unused)
 void
 init_device_tbl(void)
 {
+	struct sockaddr_un devd_addr = {
+		.sun_family = AF_LOCAL,
+		.sun_len = sizeof(devd_addr),
+		.sun_path = _PATH_DEVD_SOCKET,
+	};
+	long maxrecord;
+	int s;
 
 	/* initially populate table for the other tables */
 	refresh_device_tbl(1);
 
-	/* no problem if that fails - just use polling mode */
-	devd_sock = create_devd_socket();
+	/* No problem if devd socket creation fails - just use polling mode. */
+	if ((maxrecord = sysconf(_SC_DEVCTL_MAXRECORD)) == -1) {
+		syslog(LOG_ERR, "Failed to get devd maximum record size: %m");
+		return;
+	}
+	if ((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) < 0) {
+		syslog(LOG_ERR, "Failed to create the socket for %s: %m",
+		    devd_addr.sun_path);
+		return;
+	}
+	if (connect(s, (struct sockaddr *)&devd_addr, sizeof(devd_addr)) ==
+	    -1) {
+		syslog(LOG_ERR,"Failed to connect socket for %s: %m",
+		    devd_addr.sun_path);
+		if (close(s) < 0 )
+			syslog(LOG_ERR,"Failed to close socket for %s: %m",
+			    devd_addr.sun_path);
+		return;
+	}
 
-	devd_maxrecord = sysconf(_SC_DEVCTL_MAXRECORD);
+	devd_sock = s;
+	devd_maxrecord = maxrecord;
 }
 
 /**
