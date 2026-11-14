@@ -1727,6 +1727,7 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .endif
 
 .if ${MK_EFI} == no
+OLD_FILES+=usr/tests/stand/efi/tpm_test
 OLD_FILES+=usr/sbin/efibootmgr
 OLD_FILES+=usr/sbin/efidp
 OLD_FILES+=usr/sbin/efivar
