@@ -39,7 +39,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/sbuf.h>
 #include <sys/stdarg.h>
 
@@ -552,18 +554,29 @@ g_ctl_getxml(struct gctl_req *req, struct g_class *mp)
 	g_free(gps);
 }
 
+struct g_ctl_req_args {
+	struct gctl_req *req;
+	int fflag;
+};
+
 static void
 g_ctl_req(void *arg, int flag __unused)
 {
+	struct g_ctl_req_args *args = arg;
+	struct gctl_req *req = args->req;
 	struct g_class *mp;
-	struct gctl_req *req;
 	char const *verb;
+	int fflag = args->fflag;
 
 	g_topology_assert();
-	req = arg;
 	mp = gctl_get_class(req, "class");
 	if (mp == NULL)
 		return;
+	if ((fflag & FREAD) == 0) {
+		req->nerror = EPERM;
+		gctl_error(req, "Read access required");
+		return;
+	}
 	verb = gctl_get_param(req, "verb", NULL);
 	if (verb == NULL) {
 		gctl_error(req, "Verb missing");
@@ -574,18 +587,23 @@ g_ctl_req(void *arg, int flag __unused)
 	} else if (mp->ctlreq == NULL) {
 		gctl_error(req, "Class takes no requests");
 	} else {
+		if ((fflag & FWRITE) == 0) {
+			req->nerror = EPERM;
+			gctl_error(req, "Write access required");
+			return;
+		}
 		mp->ctlreq(req, mp, verb);
 	}
 	g_topology_assert();
 }
 
 static int
-g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, void *data, int fflag, struct thread *td)
 {
-	struct gctl_req *req;
+	struct g_ctl_req_args args = { .req = data, .fflag = fflag };
+	struct gctl_req *req = data;
 	int nerror;
 
-	req = (void *)data;
 	req->nerror = 0;
 	/* It is an error if we cannot return an error text */
 	if (req->lerror < 2)
@@ -606,7 +624,7 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 			gctl_dump(req, "request");
 
 		if (!req->nerror) {
-			g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
+			g_waitfor_event(g_ctl_req, &args, M_WAITOK, NULL);
 
 			if (g_debugflags & G_F_CTLDUMP)
 				gctl_dump(req, "result");
@@ -631,9 +649,21 @@ g_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 {
 	int error;
 
-	switch(cmd) {
+#ifdef COMPAT_FREEBSD14
+	/*
+	 * Prior to FreeBSD 15, read-only access to geom.ctl granted
+	 * unrestricted access to all GEOM verbs, and libgeom opened
+	 * geom.ctl read-only.  To avoid putting the user in a situation
+	 * where their older binaries cannot configure GEOM on a newer
+	 * kernel, we set the FWRITE bit if unset, but only for an
+	 * already-privileged process (e.g. geli(8) during boot).
+	 */
+	if ((fflag & FWRITE) == 0 && priv_check(td, PRIV_GEOM) == 0)
+		fflag |= FWRITE;
+#endif /* COMPAT_FREEBSD14 */
+	switch (cmd) {
 	case GEOM_CTL:
-		error = g_ctl_ioctl_ctl(dev, cmd, data, fflag, td);
+		error = g_ctl_ioctl_ctl(dev, cmd, (void *)data, fflag, td);
 		break;
 	default:
 		error = ENOIOCTL;

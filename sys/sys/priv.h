@@ -81,6 +81,7 @@
 #define	PRIV_SETTIMEOFDAY	18	/* Can call settimeofday. */
 #define	_PRIV_SETHOSTID		19	/* Removed. */
 #define	_PRIV_SETDOMAINNAME	20	/* Removed. */
+#define	PRIV_GEOM		21	/* Can modify GEOM configuration. */
 
 /*
  * Audit subsystem privileges.
