@@ -49,6 +49,15 @@ ACPI_MODULE_NAME("PCI_LINK")
 
 ACPI_SERIAL_DECL(pci_link, "ACPI PCI link");
 
+/*
+ * Link devices are (mostly) used for legacy INTx interrupts on x86
+ * systems.  The PCI config register for INTx interrupts is only an
+ * 8-bit register.  However, some non-x86 systems also use link
+ * devices (even for hardwired interrupts that can't be routed) with
+ * GSI values above 255.
+ *
+ * NB: Due to API constraints a GSI value of exactly 255 can't be used.
+ */
 #define NUM_ISA_INTERRUPTS	16
 #define NUM_ACPI_INTERRUPTS	256
 
@@ -95,12 +104,12 @@ struct acpi_pci_link_softc {
 struct link {
 	struct acpi_pci_link_softc *l_sc;
 	uint8_t	l_bios_irq;
-	uint8_t	l_irq;
-	uint8_t	l_initial_irq;
+	uint32_t l_irq;
+	uint32_t l_initial_irq;
 	UINT32	l_crs_type;
 	int	l_res_index;
-	int	l_num_irqs;
-	int	*l_irqs;
+	u_int	l_num_irqs;
+	uint32_t *l_irqs;
 	int	l_references;
 	bool	l_routed:1;
 	bool	l_isa_irq:1;
@@ -125,6 +134,26 @@ static int pci_link_interrupt_weights[NUM_ACPI_INTERRUPTS];
 static int pci_link_bios_isa_irqs;
 
 static char *pci_link_ids[] = { "PNP0C0F", NULL };
+
+/*
+ * For traditional INTx IRQ values, this driver maintains a set of
+ * weights to distribute IRQs more evenly.  For values > 255, just
+ * punt and treat the weights as always being zero.
+ */
+static void
+acpi_pci_link_add_weight(u_int irq, int refs)
+{
+	if (irq < nitems(pci_link_interrupt_weights))
+		pci_link_interrupt_weights[irq] += refs;
+}
+
+static int
+acpi_pci_link_interrupt_weight(u_int irq)
+{
+	if (irq < nitems(pci_link_interrupt_weights))
+		return (pci_link_interrupt_weights[irq]);
+	return (0);
+}
 
 /*
  * Fetch the short name associated with an ACPI handle and save it in the
@@ -385,7 +414,7 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 }
 
 static bool
-link_valid_irq(struct link *link, int irq)
+link_valid_irq(struct link *link, u_int irq)
 {
 	int i;
 
@@ -423,17 +452,17 @@ acpi_pci_link_dump(struct acpi_pci_link_softc *sc, int header, const char *tag)
 	if (header) {
 		snprintf(buf, sizeof(buf), "%s:",
 		    device_get_nameunit(sc->pl_dev));
-		printf("%-16.16s  Index  IRQ  Rtd  Ref  IRQs\n", buf);
+		printf("%-16.16s  Index    IRQ  Rtd  Ref  IRQs\n", buf);
 	}
 	for (i = 0; i < sc->pl_num_links; i++) {
 		link = &sc->pl_links[i];
-		printf("  %-14.14s  %5d  %3d   %c   %3d ", i == 0 ? tag : "", i,
+		printf("  %-14.14s  %5d  %5u   %c   %3d ", i == 0 ? tag : "", i,
 		    link->l_irq, link->l_routed ? 'Y' : 'N',
 		    link->l_references);
 		if (link->l_num_irqs == 0)
 			printf(" none");
 		else for (j = 0; j < link->l_num_irqs; j++)
-			printf(" %d", link->l_irqs[j]);
+			printf(" %u", link->l_irqs[j]);
 		printf("\n");
 	}
 }
@@ -664,7 +693,7 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	}
 	link->l_references++;
 	if (link->l_routed)
-		pci_link_interrupt_weights[link->l_irq]++;
+		acpi_pci_link_add_weight(link->l_irq, 1);
 
 	/*
 	 * The BIOS only routes interrupts via ISA IRQs using the ATPICs
@@ -907,8 +936,8 @@ acpi_pci_link_route_irqs(device_t dev)
 			    PCI_INTERRUPT_VALID(link->l_irq)) {
 				link->l_routed = true;
 				acpi_config_intr(dev, resource);
-				pci_link_interrupt_weights[link->l_irq] +=
-				    link->l_references;
+				acpi_pci_link_add_weight(link->l_irq,
+				    link->l_references);
 			}
 			link++;
 			i++;
@@ -955,11 +984,11 @@ acpi_pci_link_resume(device_t dev)
 /*
  * Pick an IRQ to use for this unrouted link.
  */
-static uint8_t
+static u_int
 acpi_pci_link_choose_irq(device_t dev, struct link *link)
 {
 	char tunable_buffer[64], link_name[5];
-	u_int8_t best_irq, pos_irq;
+	u_int best_irq, pos_irq;
 	int best_weight, pos_weight, i;
 
 	KASSERT(!link->l_routed, ("%s: link already routed", __func__));
@@ -1017,7 +1046,7 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 		if (pos_irq < NUM_ISA_INTERRUPTS &&
 		    (pci_link_bios_isa_irqs & 1 << pos_irq) == 0)
 			continue;
-		pos_weight = pci_link_interrupt_weights[pos_irq];
+		pos_weight = acpi_pci_link_interrupt_weight(pos_irq);
 		if (pos_weight < best_weight) {
 			best_weight = pos_weight;
 			best_irq = pos_irq;
@@ -1030,7 +1059,7 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 	 */
 	if (link->l_isa_irq) {
 		pos_irq = AcpiGbl_FADT.SciInterrupt;
-		pos_weight = pci_link_interrupt_weights[pos_irq];
+		pos_weight = acpi_pci_link_interrupt_weight(pos_irq);
 		if (pos_weight < best_weight) {
 			best_weight = pos_weight;
 			best_irq = pos_irq;
