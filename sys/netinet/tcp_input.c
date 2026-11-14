@@ -1486,6 +1486,62 @@ tcp_autorcvbuf(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	return (newsize);
 }
 
+/*
+ * Pull out of band byte out of a segment so
+ * it doesn't appear in the user's data queue.
+ * It is still reflected in the segment length for
+ * sequencing purposes.
+ */
+static int
+tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
+    int off)
+{
+	int cnt = off + th->th_urp - 1;
+
+	while (cnt >= 0) {
+		if (m->m_len > cnt) {
+			struct tcpcb *tp = sototcpcb(so);
+			char ub;
+
+			INP_WLOCK_ASSERT(tptoinpcb(tp));
+
+			m_copydata(m, cnt, 1, &ub);
+			if (cnt == 0) {
+				m->m_data++;
+				m->m_len--;
+			} else if (m->m_len - 1 == cnt) {
+				m->m_len--;
+			} else if (M_WRITABLE(m)) {
+				char *cp;
+
+				cp = mtodo(m, cnt);
+				memmove(cp, cp + 1, m->m_len - cnt - 1);
+				m->m_len--;
+			} else {
+				struct mbuf *n;
+
+				n = m_copym(m, cnt + 1, m->m_len - cnt - 1,
+				    M_NOWAIT);
+				if (n == NULL)
+					return (ENOBUFS);
+				n->m_next = m->m_next;
+				m->m_next = n;
+				m->m_len = cnt;
+			}
+			tp->t_iobc = ub;
+			tp->t_oobflags |= TCPOOB_HAVEDATA;
+			if ((m->m_flags & M_PKTHDR) != 0)
+				m->m_pkthdr.len--;
+			return (0);
+		}
+		cnt -= m->m_len;
+		m = m->m_next;
+		if (m == NULL)
+			break;
+	}
+	panic("tcp_pulloutofband");
+}
+
 int
 tcp_input(struct mbuf **mp, int *offp, int proto)
 {
@@ -3151,7 +3207,8 @@ step6:
 		if (th->th_urp <= (uint32_t)tlen &&
 		    !(so->so_options & SO_OOBINLINE)) {
 			/* hdr drop is delayed */
-			tcp_pulloutofband(so, th, m, drop_hdrlen);
+			if (tcp_pulloutofband(so, th, m, drop_hdrlen) != 0)
+				goto drop;
 		}
 	} else {
 		/*
@@ -3597,41 +3654,6 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 			continue;
 		}
 	}
-}
-
-/*
- * Pull out of band byte out of a segment so
- * it doesn't appear in the user's data queue.
- * It is still reflected in the segment length for
- * sequencing purposes.
- */
-void
-tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
-    int off)
-{
-	int cnt = off + th->th_urp - 1;
-
-	while (cnt >= 0) {
-		if (m->m_len > cnt) {
-			char *cp = mtod(m, caddr_t) + cnt;
-			struct tcpcb *tp = sototcpcb(so);
-
-			INP_WLOCK_ASSERT(tptoinpcb(tp));
-
-			tp->t_iobc = *cp;
-			tp->t_oobflags |= TCPOOB_HAVEDATA;
-			bcopy(cp+1, cp, (unsigned)(m->m_len - cnt - 1));
-			m->m_len--;
-			if (m->m_flags & M_PKTHDR)
-				m->m_pkthdr.len--;
-			return;
-		}
-		cnt -= m->m_len;
-		m = m->m_next;
-		if (m == NULL)
-			break;
-	}
-	panic("tcp_pulloutofband");
 }
 
 /*

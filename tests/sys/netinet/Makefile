@@ -14,6 +14,7 @@ ATF_TESTS_C=	broadcast \
 		tcp_connect_port_test \
 		tcp_implied_connect \
 		tcp_md5_getsockopt \
+		tcp_oob \
 		udp_bindings \
 		udp_io
 
