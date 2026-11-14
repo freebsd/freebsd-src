@@ -1167,6 +1167,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
     struct componentname *cnp, const char *target)
 {
 	int error;
+	mode_t mode;
 	struct tmpfs_dirent *de;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *dnode;
@@ -1195,9 +1196,15 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	} else
 		parent = NULL;
 
+	mode = vap->va_mode;
+	if ((mode & S_ISGID) != 0 &&
+	    !groupmember(dnode->tn_gid, cnp->cn_cred) &&
+	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID) != 0)
+		mode &= ~S_ISGID;
+
 	/* Allocate a node that represents the new file. */
 	error = tmpfs_alloc_node(dvp->v_mount, tmp, vap->va_type,
-	    cnp->cn_cred->cr_uid, dnode->tn_gid, vap->va_mode, parent,
+	    cnp->cn_cred->cr_uid, dnode->tn_gid, mode, parent,
 	    target, vap->va_rdev, &node);
 	if (error != 0)
 		return (error);
