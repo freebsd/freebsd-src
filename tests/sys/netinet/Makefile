@@ -12,7 +12,8 @@ ATF_TESTS_C=	fibs_multibind_test \
 		so_reuseport_lb_test \
 		socket_afinet \
 		tcp_connect_port_test \
-		tcp_md5_getsockopt
+		tcp_md5_getsockopt \
+		tcp_oob
 
 ATF_TESTS_SH=	arp \
 		carp \
