@@ -4,6 +4,11 @@
  * Copyright (c) 2025 Netflix, Inc.
  */
 
+/*
+ * tests/sys/tpm also compiles this source with loader shim headers. Build and
+ * run those tests when changing this file, including its header dependencies.
+ */
+
 #include <stand.h>
 #include <bootstrap.h>
 #include <sys/linker.h>
