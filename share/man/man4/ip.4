@@ -586,15 +586,15 @@ the host is multihomed.
 If
 .Va imr_ifindex
 is non-zero, value of
-.Va imr_interface
+.Va imr_address
 is ignored.
 Otherwise, if
 .Va imr_ifindex
 is 0, kernel will use IP address from
-.Va imr_interface
+.Va imr_address
 to lookup the interface.
 Value of
-.Va imr_interface
+.Va imr_address
 may be set to
 .Va INADDR_ANY
 to choose the default interface, although this is not recommended; this is
