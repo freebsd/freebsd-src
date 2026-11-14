@@ -30,6 +30,8 @@ static const char efi_tpm_file_identity_domain[] =
     "FreeBSD loader file identity v1";
 static const char efi_tpm_elf_metadata_domain[] =
     "FreeBSD loader ELF metadata v1";
+static const char efi_tpm_failure_event[] =
+    "FreeBSD loader measurement failure";
 
 struct efi_tpm_file_measurement {
 	vm_offset_t	addr;
@@ -46,13 +48,83 @@ enum efi_tpm_protocol {
 static enum efi_tpm_protocol tpm_protocol;
 static EFI_TCG_PROTOCOL *tcg;
 static EFI_TCG2_PROTOCOL *tcg2;
+static bool tpm_log_full;
+static bool tpm_uncapped;
+
+static bool
+efi_tpm_extended(EFI_STATUS status)
+{
+
+	/* TCG2 extends the PCR even when the event log is full. */
+	if (tpm_protocol == EFI_TPM_2 && status == EFI_VOLUME_FULL) {
+		if (!tpm_log_full) {
+			printf("TPM event log is full; "
+			    "continuing PCR measurements\n");
+			tpm_log_full = true;
+		}
+		return (true);
+	}
+	return (!EFI_ERROR(status));
+}
+
+static EFI_STATUS
+efi_tpm_cap(UINT32 pcr)
+{
+	uint8_t buf[MAX(offsetof(EFI_TCG2_EVENT, Event),
+	    offsetof(TCG_PCR_EVENT, Event)) + sizeof(efi_tpm_failure_event)];
+	EFI_TCG2_EVENT *event2;
+	TCG_PCR_EVENT *event1;
+	EFI_PHYSICAL_ADDRESS last;
+	UINT32 event_number;
+
+	/* This path must also work when the loader's allocator has failed. */
+	bzero(buf, sizeof(buf));
+	if (tpm_protocol == EFI_TPM_2) {
+		event2 = (void *)buf;
+		event2->Size = offsetof(EFI_TCG2_EVENT, Event) +
+		    sizeof(efi_tpm_failure_event);
+		event2->Header.HeaderSize = sizeof(event2->Header);
+		event2->Header.HeaderVersion = EFI_TCG2_EVENT_HEADER_VERSION;
+		event2->Header.PCRIndex = pcr;
+		event2->Header.EventType = EV_IPL;
+		bcopy(efi_tpm_failure_event, event2->Event,
+		    sizeof(efi_tpm_failure_event));
+		return (tcg2->HashLogExtendEvent(tcg2, 0,
+		    (EFI_PHYSICAL_ADDRESS)(uintptr_t)efi_tpm_failure_event,
+		    sizeof(efi_tpm_failure_event), event2));
+	}
+	event1 = (void *)buf;
+	event1->PCRIndex = pcr;
+	event1->EventType = EV_IPL;
+	event1->EventSize = sizeof(efi_tpm_failure_event);
+	bcopy(efi_tpm_failure_event, event1->Event,
+	    sizeof(efi_tpm_failure_event));
+	event_number = 0;
+	return (tcg->HashLogExtendEvent(tcg,
+	    (EFI_PHYSICAL_ADDRESS)(uintptr_t)efi_tpm_failure_event,
+	    sizeof(efi_tpm_failure_event), TPM_ALG_SHA, event1,
+	    &event_number, &last));
+}
 
 static void
 efi_tpm_disable(const char *description, EFI_STATUS status)
 {
+	UINT32 pcr;
 
+	if (tpm_protocol == EFI_TPM_NONE)
+		return;
 	printf("TPM measurement of %s failed: %lu\n", description,
 	    DECODE_ERROR(status));
+	/* Prevent later software from completing a known-good PCR prefix. */
+	for (pcr = FREEBSD_LOADER_CONFIG_PCR; pcr <= FREEBSD_LOADER_FILE_PCR;
+	    pcr++) {
+		status = efi_tpm_cap(pcr);
+		if (!efi_tpm_extended(status)) {
+			printf("Unable to cap TPM PCR %u: %lu\n", pcr,
+			    DECODE_ERROR(status));
+			tpm_uncapped = true;
+		}
+	}
 	tpm_protocol = EFI_TPM_NONE;
 }
 
@@ -212,7 +284,7 @@ efi_tpm_measure(UINT32 pcr, const void *buf, size_t len,
 	else
 		status = efi_tpm1_measure(pcr, buf, len, event_data,
 		    event_len);
-	if (EFI_ERROR(status))
+	if (!efi_tpm_extended(status))
 		efi_tpm_disable(description, status);
 }
 
@@ -474,7 +546,7 @@ efi_tpm_measure_file_contents(struct preloaded_file *fp)
 	free(measurements);
 }
 
-void
+int
 efi_tpm_measure_boot(void)
 {
 	struct env_var *ep;
@@ -484,7 +556,7 @@ efi_tpm_measure_boot(void)
 	size_t i, len, nfiles, nlen, vlen;
 
 	if (efi_tpm_probe() == EFI_TPM_NONE)
-		return;
+		goto out;
 
 	/*
 	 * Commit PCR 8 to the final environment passed to the kernel.  The
@@ -504,14 +576,14 @@ efi_tpm_measure_boot(void)
 		    len > SIZE_MAX - nlen - vlen - 2) {
 			efi_tpm_disable("kernel environment",
 			    EFI_BAD_BUFFER_SIZE);
-			return;
+			goto out;
 		}
 		len += nlen + vlen + 2;
 	}
 	config = malloc(len);
 	if (config == NULL) {
 		efi_tpm_disable("kernel environment", EFI_OUT_OF_RESOURCES);
-		return;
+		goto out;
 	}
 	cp = config;
 	bcopy(efi_tpm_environment_domain, cp,
@@ -537,6 +609,8 @@ efi_tpm_measure_boot(void)
 	efi_tpm_measure(FREEBSD_LOADER_CONFIG_PCR, config, cp - config,
 	    config, cp - config, "kernel environment");
 	free(config);
+	if (tpm_protocol == EFI_TPM_NONE)
+		goto out;
 
 	/*
 	 * The Lua module table has no defined traversal order.  Sort the final
@@ -544,17 +618,21 @@ efi_tpm_measure_boot(void)
 	 */
 	files = efi_tpm_sorted_files(&nfiles);
 	if (files == NULL)
-		return;
-	for (i = 0; i < nfiles; i++)
+		goto out;
+	for (i = 0; i < nfiles && tpm_protocol != EFI_TPM_NONE; i++)
 		efi_tpm_measure_file_identity(files[i]);
-	for (i = 0; i < nfiles; i++) {
+	for (i = 0; i < nfiles && tpm_protocol != EFI_TPM_NONE; i++) {
 		fp = files[i];
 		if (!efi_tpm_measureable(fp))
 			continue;
 		efi_tpm_measure_file_metadata(fp);
-		efi_tpm_measure_file_contents(fp);
+		if (tpm_protocol != EFI_TPM_NONE)
+			efi_tpm_measure_file_contents(fp);
 	}
 	free(files);
+out:
+	/* Firmware errors may prevent extending even the failure marker. */
+	return (tpm_uncapped ? EIO : 0);
 }
 
 void

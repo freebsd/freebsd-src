@@ -103,9 +103,17 @@ measured file contents.
 Cached and firmware-provided entropy, loader timing data, and GELI key files
 are deliberately not measured.
 .Pp
-Measurement is best effort.
-A failure is reported on the loader console and disables further measurements,
-but does not prevent booting.
+If the TCG2 event log fills, measurements continue extending the PCRs,
+but the log may be incomplete.
+Other measurement failures are reported on the loader console and disable
+further measurements after extending a failure marker into both PCR 8 and PCR 9.
+The marker is an
+.Dv EV_IPL
+event whose measured and logged data is the NUL-terminated string
+.Dq FreeBSD loader measurement failure .
+If either failure-marker extend fails, boot stops and returns to the loader
+prompt; a reboot is required before retrying measured boot.
+Systems without an available TPM continue booting without measurements.
 .Ss Console Considerations
 The UEFI firmware provides a generic console.
 In

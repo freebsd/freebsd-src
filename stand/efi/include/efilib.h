@@ -121,7 +121,7 @@ void efi_time_fini(void);
 
 struct preloaded_file;
 void efi_tpm_measure_file(struct preloaded_file *, vm_offset_t, size_t);
-void efi_tpm_measure_boot(void);
+int efi_tpm_measure_boot(void);
 
 int parse_uefi_con_out(void);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);

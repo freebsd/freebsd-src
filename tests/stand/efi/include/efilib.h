@@ -6,5 +6,5 @@
 
 extern EFI_BOOT_SERVICES *BS;
 
-void efi_tpm_measure_boot(void);
+int efi_tpm_measure_boot(void);
 void efi_tpm_measure_file(struct preloaded_file *, vm_offset_t, size_t);
