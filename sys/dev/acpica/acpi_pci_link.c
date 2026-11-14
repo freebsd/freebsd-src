@@ -275,7 +275,7 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 	struct link *link;
 	UINT8 *irqs = NULL;
 	UINT32 *ext_irqs = NULL;
-	int i, is_ext_irq = 1;
+	int i;
 
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
@@ -299,8 +299,6 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		req->in_dpf = DPF_OUTSIDE;
 		break;
 	case ACPI_RESOURCE_TYPE_IRQ:
-		is_ext_irq = 0;
-		/* fall through */
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		/*
 		 * Don't parse resources if we are in a DPF set that we are
@@ -325,7 +323,7 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		 * _SRS.
 		 */
 		tmp = &link->l_prs_template;
-		if (is_ext_irq) {
+		if (res->Type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
 			bcopy(res, tmp, ACPI_RS_SIZE(tmp->Data.ExtendedIrq));
 
 			/*
@@ -356,7 +354,7 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		link->l_irqs = malloc(sizeof(int) * link->l_num_irqs,
 		    M_PCI_LINK, M_WAITOK | M_ZERO);
 		for (i = 0; i < link->l_num_irqs; i++) {
-			if (is_ext_irq) {
+			if (ext_irqs != NULL) {
 				link->l_irqs[i] = ext_irqs[i];
 				if (ext_irqs[i] >= NUM_ISA_INTERRUPTS)
 					link->l_isa_irq = false;
