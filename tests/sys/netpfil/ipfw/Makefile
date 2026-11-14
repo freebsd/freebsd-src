@@ -7,6 +7,7 @@ ATF_TESTS_SH+=	fwd \
 		ipv6-flow-id \
 		log \
 		lookup \
+		nat \
 		table \
 		unmapped
 

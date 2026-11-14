@@ -1192,7 +1192,10 @@ ipfw_show_nat(int ac, char **av)
 	} else {
 		if (nat_get_cmd(name, cmd, &oh) != 0)
 			err(EX_OSERR, "Error getting nat %s instance info", name);
-		nat_show_cfg((struct nat44_cfg_nat *)(oh + 1), NULL);
+		if (cmd == IP_FW_NAT44_XGETLOG)
+			nat_show_log((struct nat44_cfg_nat *)(oh + 1), NULL);
+		else
+			nat_show_cfg((struct nat44_cfg_nat *)(oh + 1), NULL);
 		free(oh);
 	}
 }
