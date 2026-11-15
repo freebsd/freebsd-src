@@ -44,7 +44,6 @@
 #define ASMC_TEMP_MAX		80
 
 struct asmc_softc {
-	device_t 		sc_dev;
 	struct mtx 		sc_mtx;
 	int 			sc_nfan;
 	int 			sc_nkeys;
