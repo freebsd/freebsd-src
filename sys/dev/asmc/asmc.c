@@ -141,6 +141,7 @@ static char *asmc_ids[] = { "APP0001", NULL };
 
 ACPI_PNP_INFO(asmc_ids);
 DRIVER_MODULE(asmc, acpi, asmc_driver, NULL, NULL);
+MODULE_VERSION(asmc, 1);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
 MODULE_DEPEND(asmc, backlight, 1, 1, 1);
 
