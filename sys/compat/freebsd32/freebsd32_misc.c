@@ -1050,7 +1050,10 @@ freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
 	void *addr;
 	int data, error, i;
 
-	error = 0;
+	error = ptrace_check_allowed(td, req, pd_mode, pid);
+	if (error != 0)
+		return (error);
+
 	addr = &r;
 	data = udata;
 
