@@ -171,6 +171,10 @@ ATF_TC_BODY(snprintf_wN, tc)
 	SNPRINTF_TEST("wd", "%wd", 0);
 	SNPRINTF_TEST("w1d", "%w1d", 0);
 	SNPRINTF_TEST("w128d", "%w128d", 0);
+
+	SNPRINTF_TEST(" 1", "%1$*2$w16d", (int16_t)1, 2);
+	SNPRINTF_TEST(" 1", "%1$*2$w32d", (int32_t)1, 2);
+	SNPRINTF_TEST(" 1", "%1$*2$w64d", (int64_t)1, 2);
 }
 
 ATF_TC_WITHOUT_HEAD(snprintf_wfN);
@@ -203,6 +207,10 @@ ATF_TC_BODY(snprintf_wfN, tc)
 	SNPRINTF_TEST("wfd", "%wfd", 0);
 	SNPRINTF_TEST("wf1d", "%wf1d", 0);
 	SNPRINTF_TEST("wf128d", "%wf128d", 0);
+
+	SNPRINTF_TEST(" 1", "%1$*2$w16d", (int_fast16_t)1, 2);
+	SNPRINTF_TEST(" 1", "%1$*2$w32d", (int_fast32_t)1, 2);
+	SNPRINTF_TEST(" 1", "%1$*2$w64d", (int_fast64_t)1, 2);
 }
 
 ATF_TP_ADD_TCS(tp)
