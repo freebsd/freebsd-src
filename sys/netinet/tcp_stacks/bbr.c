@@ -594,8 +594,7 @@ activate_rxt:
 			if (tp->t_srtt == 0)
 				tov = BBR_INITIAL_RTO;
 			else
-				tov = ((uint64_t)(TICKS_2_USEC(tp->t_srtt) +
-				    ((uint64_t)TICKS_2_USEC(tp->t_rttvar) * (uint64_t)4)) >> TCP_RTT_SHIFT);
+				tov = TICKS_2_USEC(tp->t_srtt + (tp->t_rttvar << (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))) >> TCP_RTT_SHIFT;
 			if (tp->t_rxtshift)
 				tov *= tcp_backoff[tp->t_rxtshift];
 			if (tov > time_since_sent)
