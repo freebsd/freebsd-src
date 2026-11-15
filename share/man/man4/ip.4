@@ -507,7 +507,7 @@ or 0 to specify the default interface.
 The kernel differentiates between these two structures by their size.
 .Pp
 The use of
-.Vt IP_MULTICAST_IF
+.Dv IP_MULTICAST_IF
 is
 .Em not recommended ,
 as multicast memberships are scoped to each
@@ -596,7 +596,7 @@ to lookup the interface.
 Value of
 .Va imr_address
 may be set to
-.Va INADDR_ANY
+.Dv INADDR_ANY
 to choose the default interface, although this is not recommended; this is
 considered to be the first interface corresponding to the default route.
 Otherwise, the first multicast-capable interface configured in the system
