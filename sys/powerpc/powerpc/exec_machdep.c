@@ -128,7 +128,8 @@ static int	grab_mcontext(struct thread *, mcontext_t *, int);
 static void	cleanup_power_extras(struct thread *);
 
 #ifdef __powerpc64__
-extern struct sysentvec elf64_freebsd_sysvec_v2;
+extern struct sysentvec elf64_freebsd_sysvec_v2_la48;
+extern struct sysentvec elf64_freebsd_sysvec_v2_la52;
 #endif
 
 #ifdef __powerpc64__
@@ -1214,7 +1215,8 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		#endif
 	} else {
 	    #ifdef __powerpc64__
-		if (td->td_proc->p_sysent == &elf64_freebsd_sysvec_v2) {
+		if (td->td_proc->p_sysent == &elf64_freebsd_sysvec_v2_la48 ||
+		    td->td_proc->p_sysent == &elf64_freebsd_sysvec_v2_la52) {
 			tf->srr0 = (register_t)entry;
 			/* ELFv2 ABI requires that the global entry point be in r12. */
 			tf->fixreg[12] = (register_t)entry;
