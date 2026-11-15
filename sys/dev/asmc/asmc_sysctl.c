@@ -366,24 +366,27 @@ static const struct {
 	const char	*name;
 	const char	*desc;
 	int		ctlflags;
+	const char	*fmt;
 	int		(*handler)(SYSCTL_HANDLER_ARGS);
 	int		which;
 	bool		needs_safespeed;
 } asmc_fan_sysctls[] = {
-	{ "id", "Fan ID", CTLTYPE_STRING | CTLFLAG_RD,
+	{ "id", "Fan ID", CTLTYPE_STRING | CTLFLAG_RD, "A",
 	    asmc_mb_sysctl_fanid, 0, false },
-	{ "speed", "Fan speed in RPM", CTLTYPE_INT | CTLFLAG_RD,
+	{ "speed", "Fan speed in RPM", CTLTYPE_INT | CTLFLAG_RD, "I",
 	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_CUR, false },
-	{ "safespeed", "Fan safe speed in RPM", CTLTYPE_INT | CTLFLAG_RD,
+	{ "safespeed", "Fan safe speed in RPM", CTLTYPE_INT | CTLFLAG_RD, "I",
 	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_SAFE, true },
-	{ "minspeed", "Fan minimum speed in RPM", CTLTYPE_INT | CTLFLAG_RW,
+	{ "minspeed", "Fan minimum speed in RPM", CTLTYPE_INT | CTLFLAG_RW, "I",
 	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_MIN, false },
-	{ "maxspeed", "Fan maximum speed in RPM", CTLTYPE_INT | CTLFLAG_RW,
+	{ "maxspeed", "Fan maximum speed in RPM", CTLTYPE_INT | CTLFLAG_RW, "I",
 	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_MAX, false },
-	{ "targetspeed", "Fan target speed in RPM", CTLTYPE_INT | CTLFLAG_RW,
+	{ "targetspeed", "Fan target speed in RPM",
+	    CTLTYPE_INT | CTLFLAG_RW, "I",
 	    asmc_mb_sysctl_fanspeed, ASMC_FANSPEED_TARGET, false },
 	{ "manual", "Fan manual mode (0=auto, 1=manual)",
-	    CTLTYPE_INT | CTLFLAG_RW, asmc_mb_sysctl_fanmanual, 0, false },
+	    CTLTYPE_INT | CTLFLAG_RW, "I",
+	    asmc_mb_sysctl_fanmanual, 0, false },
 };
 
 void
@@ -416,7 +419,8 @@ asmc_sysctl_add_fan(device_t dev, struct sysctl_ctx_list *ctx)
 			    OID_AUTO, asmc_fan_sysctls[k].name,
 			    asmc_fan_sysctls[k].ctlflags | CTLFLAG_MPSAFE,
 			    dev, ASMC_FAN_ARG2(asmc_fan_sysctls[k].which, j),
-			    asmc_fan_sysctls[k].handler, "I",
+			    asmc_fan_sysctls[k].handler,
+			    asmc_fan_sysctls[k].fmt,
 			    asmc_fan_sysctls[k].desc, NULL);
 		}
 	}
