@@ -57,7 +57,7 @@ static int lmpid = 0;
 static int last_hi = 0;		/* used in u_process and u_endscreen */
 static int lastline = 0;
 
-#define lineindex(l) ((l)*screen_width)
+#define lineindex(l) ((l)*(screen_width + 1))
 
 
 /* things initialized by display_init and used thruout */
@@ -140,8 +140,8 @@ display_resize(void)
     if (lines < 0)
 	lines = 0;
 
-    /* now, allocate space for the screen buffer */
-    screenbuf = calloc(lines, screen_width);
+    /* allocate space for each line, including its terminating NUL */
+    screenbuf = calloc(lines, screen_width + 1);
     if (screenbuf == NULL)
     {
 	/* oops! */
