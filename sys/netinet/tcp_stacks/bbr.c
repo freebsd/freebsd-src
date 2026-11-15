@@ -4913,7 +4913,7 @@ bbr_remxt_tmr(struct tcpcb *tp)
 				rsm->r_flags &= ~BBR_SACK_PASSED;
 			}
 			rsm->r_flags |= BBR_MARKED_LOST;
-			rsm->r_flags &= ~BBR_WAS_SACKPASS;
+			rsm->r_flags &= ~(BBR_WAS_SACKPASS | BBR_RWND_COLLAPSED);
 		}
 		trsm = rsm;
 	}
