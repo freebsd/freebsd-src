@@ -7445,12 +7445,14 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 	pci_write_config(dev, cap + PCIER_DEVICE_CTL, ctl |
 	    PCIEM_CTL_INITIATE_FLR, 2);
 
-	/* Wait for 100ms. */
-	pause_sbt("pcieflr", (100 + compl_delay) * SBT_1MS, 0, C_HARDCLOCK);
+	/*
+	 * Some PCIe devices like Intel ARC GPUs lie about their
+	 * maximum completion timeout and can take multiple
+	 * seconds to finish FLR.
+	 */
+	if (!pcie_wait_for_pending_transactions(dev, 5000 + compl_delay))
+		pci_printf(&dinfo->cfg, "FLR timeout!\n");
 
-	if (pci_read_config(dev, cap + PCIER_DEVICE_STA, 2) &
-	    PCIEM_STA_TRANSACTION_PND)
-		pci_printf(&dinfo->cfg, "Transactions pending after FLR!\n");
 	return (true);
 }
 
