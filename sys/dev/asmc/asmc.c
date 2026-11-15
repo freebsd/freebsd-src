@@ -275,13 +275,12 @@ asmc_attach(device_t dev)
 		    "Battery charge limit (0-100)");
 	}
 
-	/* System state / board identity subtree. */
-	if (asmc_sysctl_add_system(dev, sysctlctx) != 0)
-		goto nosms;
-
 	if (asmc_key_getinfo(dev, ASMC_KEY_MBSS, NULL, NULL) == 0)
 		sc->sc_shutdown_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync,
 		    asmc_shutdown, dev, SHUTDOWN_PRI_FIRST);
+
+	/* System state / board identity subtree. */
+	(void)asmc_sysctl_add_system(dev, sysctlctx);
 
 	if (!sc->sc_has_sms)
 		goto nosms;
