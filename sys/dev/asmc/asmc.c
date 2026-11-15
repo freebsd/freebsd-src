@@ -469,8 +469,7 @@ asmc_init(device_t dev)
 		}
 	} else {
 		device_printf(dev, "SMC revision: %x.%x%x%x\n",
-		    buf[0], buf[1], buf[2],
-		    ntohs(*(uint16_t *)buf + 4));
+		    buf[0], buf[1], buf[2], be16dec(buf + 4));
 	}
 
 	asmc_sysctl_add_platform(dev, sysctlctx);
