@@ -48,11 +48,27 @@ enum mode {
 	MODE_KPTI,
 #endif
 #ifdef PROC_LA_CTL
-	MODE_LA57,
+	MODE_LA_WIDE,
 	MODE_LA48,
 #endif
 	MODE_LOGSIGEXIT,
 };
+
+#ifdef PROC_LA_CTL
+/*
+ * The wide address space mode is la57 on amd64 and la52 on powerpc64,
+ * the procctl(2) values are the same.
+ */
+#ifdef PROC_LA_CTL_LA57_ON_EXEC
+#define	LA_WIDE_NAME			"la57"
+#define	PROC_LA_CTL_LA_WIDE_ON_EXEC	PROC_LA_CTL_LA57_ON_EXEC
+#define	PROC_LA_STATUS_LA_WIDE		PROC_LA_STATUS_LA57
+#elif defined(PROC_LA_CTL_LA52_ON_EXEC)
+#define	LA_WIDE_NAME			"la52"
+#define	PROC_LA_CTL_LA_WIDE_ON_EXEC	PROC_LA_CTL_LA52_ON_EXEC
+#define	PROC_LA_STATUS_LA_WIDE		PROC_LA_STATUS_LA52
+#endif
+#endif
 
 static const struct {
 	enum mode mode;
@@ -69,7 +85,7 @@ static const struct {
 	{ MODE_KPTI, 		"kpti" },
 #endif
 #ifdef PROC_LA_CTL
-	{ MODE_LA57,		"la57" },
+	{ MODE_LA_WIDE,		LA_WIDE_NAME },
 	{ MODE_LA48,		"la48" },
 #endif
 	{ MODE_LOGSIGEXIT,	"logsigexit" },
@@ -191,7 +207,7 @@ main(int argc, char *argv[])
 			break;
 #endif
 #ifdef PROC_LA_CTL
-		case MODE_LA57:
+		case MODE_LA_WIDE:
 		case MODE_LA48:
 			error = procctl(P_PID, pid, PROC_LA_STATUS, &arg);
 			break;
@@ -317,15 +333,15 @@ main(int argc, char *argv[])
 			break;
 #endif
 #ifdef PROC_LA_CTL
-		case MODE_LA57:
+		case MODE_LA_WIDE:
 		case MODE_LA48:
 			switch (arg & ~(PROC_LA_STATUS_LA48 |
-			    PROC_LA_STATUS_LA57)) {
+			    PROC_LA_STATUS_LA_WIDE)) {
 			case PROC_LA_CTL_LA48_ON_EXEC:
 				printf("la48 on exec");
 				break;
-			case PROC_LA_CTL_LA57_ON_EXEC:
-				printf("la57 on exec");
+			case PROC_LA_CTL_LA_WIDE_ON_EXEC:
+				printf(LA_WIDE_NAME " on exec");
 				break;
 			case PROC_LA_CTL_DEFAULT_ON_EXEC:
 				printf("default on exec");
@@ -333,8 +349,8 @@ main(int argc, char *argv[])
 			}
 			if ((arg & PROC_LA_STATUS_LA48) != 0)
 				printf(", la48 active\n");
-			else if ((arg & PROC_LA_STATUS_LA57) != 0)
-				printf(", la57 active\n");
+			else if ((arg & PROC_LA_STATUS_LA_WIDE) != 0)
+				printf(", " LA_WIDE_NAME " active\n");
 			break;
 #endif
 		case MODE_LOGSIGEXIT:
@@ -398,8 +414,8 @@ main(int argc, char *argv[])
 			break;
 #endif
 #ifdef PROC_LA_CTL
-		case MODE_LA57:
-			arg = enable ? PROC_LA_CTL_LA57_ON_EXEC :
+		case MODE_LA_WIDE:
+			arg = enable ? PROC_LA_CTL_LA_WIDE_ON_EXEC :
 			    PROC_LA_CTL_DEFAULT_ON_EXEC;
 			error = procctl(P_PID, pid, PROC_LA_CTL, &arg);
 			break;
