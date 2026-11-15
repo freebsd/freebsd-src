@@ -1,0 +1,190 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd October 25, 2026
+.Dt SYSCONF-PKG 8
+.Os
+.Sh NAME
+.Nm "sysconf pkg"
+.Nd read and modify pkg.conf and repository files
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm pkg
+.Op Fl ceFinNqvx
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Ar name Ns Op Ns = Ns Ar value
+.Ar ...
+.Nm sysconf
+.Cm pkg
+.Op Fl eFnNqvV
+.Op Fl j Ar jail | Fl R Ar dir
+.Op Fl f Ar file
+.Fl a
+.Nm sysconf
+.Cm pkg
+.Op Fl E
+.Op Fl j Ar jail | Fl R Ar dir
+.Fl l | L
+.Sh DESCRIPTION
+The
+.Cm pkg
+target of
+.Xr sysconf 8
+is the
+.Cm ucl
+target
+.Pq see Xr sysconf-ucl 8
+with the collection of files
+.Xr pkg 8
+reads by default.
+The syntax, the typing of values, and the rewrite are those of
+.Xr libucl 3 ,
+the library
+.Xr pkg 8
+itself links;
+this target adds only the paths and the rules below.
+.Pp
+.Xr pkg 8
+has no setter of its own for these files:
+.Xr pkg-config 8
+prints one merged value without saying which file supplied it, and
+.Xr pkg-repositories 8
+records an enable or disable override under the package database
+rather than editing a repository file.
+That override is
+.Xr pkg 8 Ns 's
+and is never written here.
+.Pp
+Files are consulted in this order:
+.Bl -enum -compact
+.It
+.Pa /etc/pkg/*.conf
+.It
+.Pa /usr/local/etc/pkg.conf
+.It
+.Pa /usr/local/etc/pkg/repos/*.conf
+.El
+.Pp
+A later assignment of the same key wins.
+A repository file is a set of repository tags, which is
+.Xr pkg.conf 5
+language for a top-level group:
+.Bd -literal -offset indent
+FreeBSD-ports: {
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/latest",
+  enabled: yes
+}
+.Ed
+.Pp
+The tag is the object name.
+Address the inner key as
+.Ql FreeBSD-ports.enabled
+.Pq and Ql FreeBSD-ports.url , and so on .
+Global options in
+.Pa pkg.conf
+have no dot
+.Pq Ql PKG_ENABLE_PLUGINS .
+Booleans read back as
+.Ql true
+or
+.Ql false
+whatever spelling the file used, and are written in the spelling the
+file already uses;
+.Ql ${ABI}
+is not expanded.
+.Pp
+Files under
+.Pa /etc/pkg
+are the base repository definitions shipped with the system.
+They are read, and
+.Fl F
+names them, but they are not modified.
+A write of a repository key whose current value comes from one of those
+files goes to
+.Pa /usr/local/etc/pkg/repos/FreeBSD.conf
+instead, which is what the comment in
+.Pa /etc/pkg/FreeBSD.conf
+asks for;
+the file is created if need be.
+A key already set in a file under
+.Pa /usr/local/etc/pkg/repos
+is rewritten in that file.
+A new global key is written to
+.Pa /usr/local/etc/pkg.conf .
+Removing a key deletes it from the local files only;
+a definition that exists solely under
+.Pa /etc/pkg
+is left in place and the removal reports it as unknown.
+A write changes only the statement concerned, in the file's own style;
+a repository override file created here takes the style of the base
+file it overrides, so the two read alike.
+See
+.Xr sysconf-ucl 8 .
+.Pp
+.Ev REPOS_DIR
+is not chased.
+The directories above are the ones
+.Xr pkg 8
+uses when that list is left at its default.
+Shared options are in
+.Xr sysconf 8 .
+Cross-file write rules are in
+.Xr sysconf-targets 8 .
+.Sh FILES
+.Bl -tag -width "/usr/local/etc/pkg/repos/FreeBSD.conf" -compact
+.It Pa /etc/pkg/*.conf
+Base repository definitions.
+Read-only to
+.Nm .
+.It Pa /usr/local/etc/pkg.conf
+Global
+.Xr pkg 8
+options.
+Default write path for a key with no dot.
+.It Pa /usr/local/etc/pkg/repos/*.conf
+Local repository overrides.
+.It Pa /usr/local/etc/pkg/repos/FreeBSD.conf
+Default write path for a repository key.
+.El
+.Sh EXAMPLES
+Read and disable the ports repository without editing the base file:
+.Pp
+.Dl sysconf pkg FreeBSD-ports.enabled
+.Dl sysconf pkg FreeBSD-ports.enabled=no
+.Pp
+The second command adds
+.Bd -literal -offset indent
+FreeBSD-ports: {
+  enabled: no
+}
+.Ed
+.Pp
+to
+.Pa /usr/local/etc/pkg/repos/FreeBSD.conf
+when that tag is not already overridden there;
+.Pa /etc/pkg/FreeBSD.conf
+is untouched.
+.Pp
+Show which file supplies the repository URL:
+.Pp
+.Dl sysconf pkg -F FreeBSD-ports.url
+.Sh SEE ALSO
+.Xr libucl 3 ,
+.Xr pkg.conf 5 ,
+.Xr pkg 8 ,
+.Xr pkg-config 8 ,
+.Xr pkg-repositories 8 ,
+.Xr sysconf 8 ,
+.Xr sysconf-targets 8 ,
+.Xr sysconf-ucl 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

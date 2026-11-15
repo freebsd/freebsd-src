@@ -27,6 +27,10 @@ size_t		conf_scanidx;	/* file being parsed (scan_pass) */
 size_t		write_idx;	/* default write target index */
 int		defaults_idx = -1; /* defaults file index in conf_files
 		                    * (read-only, never listed); -1 if none */
+unsigned char	*conf_ro;	/* per-file read-only (pkg base repos) */
+bool		pkg_target;	/* pkg derivative is the active target */
+size_t		pkg_conf_idx;	/* /usr/local/etc/pkg.conf in conf_files */
+size_t		pkg_repos_idx;	/* local repos/FreeBSD.conf in conf_files */
 enum bsdconf_format format = BSDCONF_FORMAT_GENERIC;
 
 /* Extra display information */
@@ -606,6 +610,14 @@ help(void)
 	fprintf(stderr, TGTFMT, "rc",
 	    "pass-through: all other arguments go to sysrc(8) verbatim");
 	poudriere_help();
+	fprintf(stderr, TGTFMT, "pkg",
+	    "pkg.conf(5) plus /etc/pkg and repos/*.conf via libucl(3);");
+	fprintf(stderr, TGTFMT, "",
+	    "/etc/pkg is read-only; repository keys are overridden in");
+	fprintf(stderr, TGTFMT, "",
+	    "/usr/local/etc/pkg/repos/FreeBSD.conf");
+	fprintf(stderr, TGTFMT, "ucl",
+	    "UCL via libucl(3); no default files; requires -f file");
 	fprintf(stderr, TGTFMT, "generic",
 	    "no default files; requires -f file");
 	fprintf(stderr,

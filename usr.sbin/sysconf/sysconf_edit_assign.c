@@ -33,6 +33,12 @@ split_request(char *arg, struct request *req, int remove)
 
 	req->name = arg;
 	req->newvalue = NULL;
+	req->rawvalue = NULL;
+	req->ucl_base = NULL;
+	req->ucl_label = NULL;
+	req->ucl_idx = NULL;
+	req->ucl_res = NULL;
+	req->ucl_nidx = 0;
 	req->op = BSDCONF_OP_DEFAULT;
 	req->listop = '\0';
 	req->value = NULL;
@@ -184,7 +190,8 @@ list_merge(const char *current, const char *words, int op)
  * `name-=word ...') against the effective values recorded by scan_pass(),
  * rewriting each request's pending value in place so the ordinary write,
  * check, and echo machinery sees a plain assignment. Make/src `name-=word'
- * strikes are handled separately by do_make_strikes(). Appending to an
+ * strikes are handled separately by do_make_strikes(), and a UCL value
+ * that is an array by ucl_list_merge(). Appending to an
  * unset directive creates it; striking words from one is reported like any
  * other unknown directive (there is nothing to remove) and the request is
  * neutralized. Returns EXIT_SUCCESS or EXIT_FAILURE.
@@ -213,6 +220,9 @@ merge_list_requests(void)
 			reqs[n].name = "";
 			continue;
 		}
+		/* A UCL array takes elements, not words */
+		if (ucl_target && ucl_list_merge(&reqs[n]))
+			continue;
 		reqs[n].newvalue = list_merge(reqs[n].value,
 		    reqs[n].newvalue, reqs[n].listop);
 	}

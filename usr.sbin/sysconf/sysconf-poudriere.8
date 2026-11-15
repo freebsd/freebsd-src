@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 23, 2026
+.Dd October 25, 2026
 .Dt SYSCONF-POUDRIERE 8
 .Os
 .Sh NAME
@@ -79,7 +79,11 @@ handled by the same engine as
 A unique prefix of the
 .Cm poudriere
 keyword is accepted
-.Pq Ql p .
+.Pq Ql po .
+.Ql p
+also matches
+.Cm pkg
+and is rejected as ambiguous.
 A unique prefix of a sub-target is accepted the same way
 .Po
 .Ql m
@@ -342,12 +346,12 @@ Overlay directory
 .Sh EXAMPLES
 .Dl sysconf poudriere ZPOOL=zroot
 .Dl sysconf poudriere --jail 131amd64 PARALLEL_JOBS=8
-.Dl sysconf p ZPOOL
-.Dl sysconf p -- src
+.Dl sysconf po ZPOOL
+.Dl sysconf po -- src
 .Dl sysconf poudriere make --jail 131amd64 CFLAGS
-.Dl sysconf p m --jail 131amd64 CFLAGS+=-O2
+.Dl sysconf po m --jail 131amd64 CFLAGS+=-O2
 .Dl sysconf poudriere src --set dev WITHOUT_LLVM_BINUTILS=
-.Dl sysconf p src-env --jail 131amd64 SRC_ENV_VAR
+.Dl sysconf po src-env --jail 131amd64 SRC_ENV_VAR
 .Sh SEE ALSO
 .Xr poudriere 8 ,
 .Xr sysconf 8 ,

@@ -37,7 +37,7 @@
 #define __unused	/* not all compilers support attributes */
 #endif
 
-#define SYSCONF_VERSION	"2.2.1 2026-10-17"
+#define SYSCONF_VERSION	"2.3 2026-10-26"
 
 /* getopt(3) optstring; shared by parse_options() and find_target() */
 #define OPTSTRING	"AacdDEeFf:hij:k:lLnNqR:svVx"
@@ -63,10 +63,27 @@ struct make_assign {
 	char		*piece;
 };
 
+#define UCL_INDEX_COUNT	LONG_MIN	/* `name.#' read: the element count */
+#define UCL_INDEX_APPEND	(LONG_MIN + 1)	/* `name.#=value': one past the end */
+
 /* Requests to process (one per name argument) */
 struct request {
 	const char	*name;		/* directive name */
 	const char	*newvalue;	/* value to write (NULL for reads) */
+	const char	*rawvalue;	/* ucl: value as typed, before
+					   newvalue took the library's
+					   rendering (NULL otherwise) */
+	const char	*ucl_base;	/* ucl: path of the array behind a
+					   `name.i...' request (NULL if none) */
+	char		*ucl_label;	/* ucl: `name.i...' as typed, then as
+					   resolved; shown on reads */
+	long		*ucl_idx;	/* ucl: the indices as typed, outermost
+					   first; negative counts from the end,
+					   the last may be UCL_INDEX_COUNT or
+					   UCL_INDEX_APPEND */
+	long		*ucl_res;	/* ucl: the same, resolved against the
+					   arrays (negative: out of range) */
+	size_t		 ucl_nidx;
 	enum bsdconf_op	op;		/* assignment operator (writes) */
 	char		listop;		/* `+' append / `-' strike words */
 	char		*value;		/* value read from file(s) */
@@ -106,7 +123,14 @@ extern size_t		nconf_files;
 extern size_t		conf_scanidx;
 extern size_t		write_idx;
 extern int		defaults_idx;
+extern unsigned char	*conf_ro;
+extern bool		ucl_target;
+extern bool		pkg_target;
+extern size_t		pkg_conf_idx;
+extern size_t		pkg_repos_idx;
 extern enum bsdconf_format format;
+extern enum bsdconf_format ucl_format;
+extern enum bsdconf_format pkg_format;
 
 /* Display / mode flags */
 extern const char	*pgm;
@@ -162,6 +186,8 @@ int		 do_list(void);
 /* sysconf_scan.c */
 char		*make_apply(enum bsdconf_op _op, const char *_old,
 		    const char *_piece);
+int		 scan_record(uint32_t _line, const char *_directive,
+		    const char *_value);
 int		 scan_pass(int _sandbox);
 
 /* sysconf_edit_assign.c */
@@ -205,6 +231,28 @@ const char	*target_resolve(int *_argcp, char **_argv);
 /* sysconf.c */
 void		 usage(void);
 void		 help(void);
+
+/* sysconf_ucl.c (ucl_object_t is only known with <ucl.h>) */
+struct ucl_object_s;
+int		 ucl_register(void);
+int		 ucl_scan_fd(int _fd);
+void		 ucl_canon_requests(void);
+void		 ucl_index_requests(void);
+bool		 ucl_list_merge(struct request *_req);
+char		*ucl_render(const struct ucl_object_s *_obj);
+int		 ucl_do_writes(void);
+
+/* sysconf_ucl_text.c */
+char		*ucl_text_edit(const char *_text, size_t _len,
+		    const char *_name, const struct ucl_object_s *_val,
+		    const char *_raw, const char *_style_src,
+		    size_t _style_len, bool *_changed);
+char		*ucl_text_ready(const char *_text, size_t _len,
+		    size_t *_outlen);
+
+/* sysconf_pkg.c */
+int		 pkg_register(void);
+void		 pkg_prepare(void);
 
 /* sysconf_poudriere.c */
 int		 poudriere_longopt_p(const char *_arg);

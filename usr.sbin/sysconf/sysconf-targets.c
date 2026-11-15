@@ -15,16 +15,19 @@
 /*
  * Unified target keywords: libbsdconf formats plus pass-throughs. Exact
  * match wins; otherwise a unique prefix is accepted. Keep alphabetical so
- * ambiguous-match lists read naturally (e.g. `s' -> src, sysctl).
+ * ambiguous-match lists read naturally (e.g. `s' -> src, sysctl;
+ * `p' -> pkg, poudriere).
  */
 static const char *const target_keywords[] = {
 	"generic",
 	"loader",
 	"make",
+	"pkg",
 	"poudriere",
 	"rc",
 	"src",
 	"sysctl",
+	"ucl",
 	NULL
 };
 
