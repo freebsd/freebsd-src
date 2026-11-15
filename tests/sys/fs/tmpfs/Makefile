@@ -6,6 +6,9 @@ TESTSDIR=		${TESTSBASE}/sys/fs/${FILESYSTEM}
 
 TESTSRC=		${SRCTOP}/contrib/netbsd-tests/fs/${FILESYSTEM}
 
+ATF_TESTS_C+=		setgid_test
+LIBADD.setgid_test+=	util
+
 # XXX: uses /dev/MAKEDEV to create pseudo /dev/{null,zero} character devices
 #NETBSD_ATF_TESTS_SH+=	devices_test
 NETBSD_ATF_TESTS_SH+=	create_test
