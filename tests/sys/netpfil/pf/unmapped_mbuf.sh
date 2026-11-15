@@ -108,7 +108,7 @@ dummynet_head() {
 }
 
 dummynet_body() {
-	pft_init
+	dummynet_init
 
 	l=$(vnet_mkepair)
 	vnet_mkjail a ${l}a
