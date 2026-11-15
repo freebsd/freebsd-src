@@ -540,7 +540,7 @@ bbr_get_persists_timer_val(struct tcpcb *tp, struct tcp_bbr *bbr)
 		var = 0;
 	} else {
 		srtt = ((uint64_t)TICKS_2_USEC(tp->t_srtt) >> TCP_RTT_SHIFT);
-		var = ((uint64_t)TICKS_2_USEC(tp->t_rttvar) >> TCP_RTT_SHIFT);
+		var = ((uint64_t)TICKS_2_USEC(tp->t_rttvar) >> TCP_RTTVAR_SHIFT);
 	}
 	TCPT_RANGESET_NOSLOP(ret_val, ((srtt + var) * tcp_backoff[tp->t_rxtshift]),
 	    bbr_persist_min, bbr_persist_max);
