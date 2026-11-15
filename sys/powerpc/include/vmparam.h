@@ -87,24 +87,43 @@
  * kernel map should be able to start at 0xc008000000000000 -
  * but at least the functional simulator doesn't like it
  *
- * 0x0000000000000000 - 0x000fffffffffffff   user map
+ * 0x0000000000000000 - 0x00007fffffffffff   user map (default)
+ * 0x0000000000000000 - 0x000fffffffffffff   user map (la52)
  * 0xc000000000000000 - 0xc007ffffffffffff   direct map
  * 0xc008000000000000 - 0xc00fffffffffffff   kernel map
  *
  */
 #define	VM_MIN_ADDRESS		0x0000000000000000
-#define	VM_MAXUSER_ADDRESS	0x000fffffc0000000
+/*
+ * Radix lets user space address 52 bits, but a process only gets the low
+ * 48 bits (256 TiB) by default, like on arm64: lots of userland
+ * (SpiderMonkey, JavaScriptCore, QV4, ...) packs pointers into 48 bits and
+ * crashes once ASLR puts the heap above that.  The full 52 bits are
+ * available per process through the la52 feature control note or
+ * PROC_LA_CTL, see elf64_machdep.c.
+ */
+#define	VM_MAXUSER_ADDRESS_LA48	0x0001000000000000
+#define	VM_MAXUSER_ADDRESS_LA52	0x000fffffc0000000
+#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS_LA52
 #define	VM_MAX_ADDRESS		0xc00fffffffffffff
 #define	VM_MIN_KERNEL_ADDRESS	0xc008000000000000
 #define	VM_MAX_KERNEL_ADDRESS	0xc00801ffffffffff
 #define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
+
+#define	SHAREDPAGE_LA48		(VM_MAXUSER_ADDRESS_LA48 - PAGE_SIZE)
+#define	SHAREDPAGE_LA52		(VM_MAXUSER_ADDRESS_LA52 - PAGE_SIZE)
+#define	SHAREDPAGE		SHAREDPAGE_LA48
+#define	USRSTACK_LA48		SHAREDPAGE_LA48
+#define	USRSTACK_LA52		SHAREDPAGE_LA52
+#define	PS_STRINGS_LA48		(USRSTACK_LA48 - sizeof(struct ps_strings))
+#define	PS_STRINGS_LA52		(USRSTACK_LA52 - sizeof(struct ps_strings))
 #else
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS32
 #define	VM_MAX_ADDRESS		0xffffffff
-#endif
 
 #define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#endif
 
 #define	FREEBSD32_SHAREDPAGE	(VM_MAXUSER_ADDRESS32 - PAGE_SIZE)
 #define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE

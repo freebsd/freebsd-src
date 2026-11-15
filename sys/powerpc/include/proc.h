@@ -45,11 +45,11 @@ struct mdthread {
 };
 
 struct mdproc {
-	/*
-	 * Avoid empty structs because they are undefined behavior.
-	 */
-	long	md_spare;
+	u_int	md_flags;		/* (c) md process flags P_MD */
 };
+
+#define	P_MD_LA48		0x00000001	/* Request LA48 after exec */
+#define	P_MD_LA52		0x00000002	/* Request LA52 after exec */
 
 #ifdef __powerpc64__
 #define	KINFO_PROC_SIZE 1088

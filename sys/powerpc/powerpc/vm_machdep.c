@@ -79,9 +79,11 @@
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/procctl.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
 
 #include <machine/cpu.h>
 #include <machine/fpu.h>
@@ -127,6 +129,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Copy the pcb */
 	bcopy(td1->td_pcb, pcb, sizeof(struct pcb));
+
+	/* Inherit the machine-dependent process flags. */
+	bcopy(&td1->td_proc->p_md, &p2->p_md, sizeof(p2->p_md));
 
 	/*
 	 * Create a fresh stack for the new process.
@@ -214,12 +219,89 @@ cpu_exec_vmspace_reuse(struct proc *p __unused, vm_map_t map __unused)
 	return (true);
 }
 
-int
-cpu_procctl(struct thread *td __unused, int idtype __unused, id_t id __unused,
-    int com __unused, void *data __unused)
+#ifdef __powerpc64__
+static void
+cpu_procctl_la_ctl(struct proc *p, int val)
 {
 
+	switch (val) {
+	case PROC_LA_CTL_LA48_ON_EXEC:
+		p->p_md.md_flags |= P_MD_LA48;
+		p->p_md.md_flags &= ~P_MD_LA52;
+		break;
+	case PROC_LA_CTL_LA52_ON_EXEC:
+		p->p_md.md_flags &= ~P_MD_LA48;
+		p->p_md.md_flags |= P_MD_LA52;
+		break;
+	case PROC_LA_CTL_DEFAULT_ON_EXEC:
+		p->p_md.md_flags &= ~(P_MD_LA48 | P_MD_LA52);
+		break;
+	}
+}
+
+static void
+cpu_procctl_la_status(struct proc *p, int *val)
+{
+	int res;
+
+	if ((p->p_md.md_flags & P_MD_LA48) != 0)
+		res = PROC_LA_CTL_LA48_ON_EXEC;
+	else if ((p->p_md.md_flags & P_MD_LA52) != 0)
+		res = PROC_LA_CTL_LA52_ON_EXEC;
+	else
+		res = PROC_LA_CTL_DEFAULT_ON_EXEC;
+	if (p->p_sysent->sv_maxuser <= VM_MAXUSER_ADDRESS_LA48)
+		res |= PROC_LA_STATUS_LA48;
+	else
+		res |= PROC_LA_STATUS_LA52;
+	*val = res;
+}
+#endif
+
+int
+cpu_procctl(struct thread *td, int idtype, id_t id, int com, void *data)
+{
+#ifdef __powerpc64__
+	struct proc *p;
+	int error, val;
+
+	switch (com) {
+	case PROC_LA_CTL:
+	case PROC_LA_STATUS:
+		if (idtype != P_PID) {
+			error = EINVAL;
+			break;
+		}
+		if (com == PROC_LA_CTL) {
+			error = copyin(data, &val, sizeof(val));
+			if (error != 0)
+				break;
+			if (val != PROC_LA_CTL_LA48_ON_EXEC &&
+			    val != PROC_LA_CTL_LA52_ON_EXEC &&
+			    val != PROC_LA_CTL_DEFAULT_ON_EXEC) {
+				error = EINVAL;
+				break;
+			}
+		}
+		error = pget(id, PGET_CANSEE | PGET_NOTWEXIT | PGET_NOTID, &p);
+		if (error != 0)
+			break;
+		if (com == PROC_LA_CTL)
+			cpu_procctl_la_ctl(p, val);
+		else
+			cpu_procctl_la_status(p, &val);
+		PROC_UNLOCK(p);
+		if (com == PROC_LA_STATUS)
+			error = copyout(&val, data, sizeof(val));
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+#else
 	return (EINVAL);
+#endif
 }
 
 void

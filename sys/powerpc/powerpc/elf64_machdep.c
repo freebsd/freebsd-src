@@ -41,6 +41,7 @@
 #include <sys/jail.h>
 #include <sys/smp.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/linker.h>
@@ -61,7 +62,7 @@
 static void exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
     uintptr_t stack);
 
-struct sysentvec elf64_freebsd_sysvec_v1 = {
+struct sysentvec elf64_freebsd_sysvec_v1_la48 = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
 	.sv_fixup	= __elfN(freebsd_fixup),
@@ -75,9 +76,9 @@ struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
+	.sv_usrstack	= USRSTACK_LA48,
+	.sv_psstrings	= PS_STRINGS_LA48,
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
@@ -89,7 +90,7 @@ struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
-	.sv_shared_page_base = SHAREDPAGE,
+	.sv_shared_page_base = SHAREDPAGE_LA48,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
@@ -104,7 +105,50 @@ struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 
-struct sysentvec elf64_freebsd_sysvec_v2 = {
+struct sysentvec elf64_freebsd_sysvec_v1_la52 = {
+	.sv_size	= SYS_MAXSYSCALL,
+	.sv_table	= sysent,
+	.sv_fixup	= __elfN(freebsd_fixup),
+	.sv_sendsig	= sendsig,
+	.sv_sigcode	= sigcode64,
+	.sv_szsigcode	= &szsigcode64,
+	.sv_name	= "FreeBSD ELF64",
+	.sv_coredump	= __elfN(coredump),
+	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
+	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
+	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
+	.sv_minsigstksz	= MINSIGSTKSZ,
+	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA52,
+	.sv_usrstack	= USRSTACK_LA52,
+	.sv_psstrings	= PS_STRINGS_LA52,
+	.sv_psstringssz	= sizeof(struct ps_strings),
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs	= exec_setregs_funcdesc,
+	.sv_fixlimit	= NULL,
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_FREEBSD_FLAGS | SV_LP64,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = syscallnames,
+	.sv_shared_page_base = SHAREDPAGE_LA52,
+	.sv_shared_page_len = PAGE_SIZE,
+	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
+	.sv_hwcap	= &cpu_features,
+	.sv_hwcap2	= &cpu_features2,
+	.sv_hwcap3	= NULL,
+	.sv_hwcap4	= NULL,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
+	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
+	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
+};
+
+struct sysentvec elf64_freebsd_sysvec_v2_la48 = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
 	.sv_fixup	= __elfN(freebsd_fixup),
@@ -118,9 +162,9 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
+	.sv_usrstack	= USRSTACK_LA48,
+	.sv_psstrings	= PS_STRINGS_LA48,
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
@@ -132,7 +176,50 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
-	.sv_shared_page_base = SHAREDPAGE,
+	.sv_shared_page_base = SHAREDPAGE_LA48,
+	.sv_shared_page_len = PAGE_SIZE,
+	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
+	.sv_hwcap	= &cpu_features,
+	.sv_hwcap2	= &cpu_features2,
+	.sv_hwcap3	= NULL,
+	.sv_hwcap4	= NULL,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
+	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
+	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
+};
+
+struct sysentvec elf64_freebsd_sysvec_v2_la52 = {
+	.sv_size	= SYS_MAXSYSCALL,
+	.sv_table	= sysent,
+	.sv_fixup	= __elfN(freebsd_fixup),
+	.sv_sendsig	= sendsig,
+	.sv_sigcode	= sigcode64, /* Fixed up in ppc64_init_sysvecs(). */
+	.sv_szsigcode	= &szsigcode64,
+	.sv_name	= "FreeBSD ELF64 V2",
+	.sv_coredump	= __elfN(coredump),
+	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
+	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
+	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
+	.sv_minsigstksz	= MINSIGSTKSZ,
+	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA52,
+	.sv_usrstack	= USRSTACK_LA52,
+	.sv_psstrings	= PS_STRINGS_LA52,
+	.sv_psstringssz	= sizeof(struct ps_strings),
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs	= exec_setregs,
+	.sv_fixlimit	= NULL,
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_FREEBSD_FLAGS | SV_LP64,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = syscallnames,
+	.sv_shared_page_base = SHAREDPAGE_LA52,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
@@ -149,47 +236,82 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 
 static bool ppc64_elfv1_header_match(const struct image_params *params,
     const int32_t *, const uint32_t *);
+static bool ppc64_elfv1_la52_header_match(const struct image_params *params,
+    const int32_t *, const uint32_t *);
 static bool ppc64_elfv2_header_match(const struct image_params *params,
     const int32_t *, const uint32_t *);
+static bool ppc64_elfv2_la52_header_match(const struct image_params *params,
+    const int32_t *, const uint32_t *);
 
-static const Elf64_Brandinfo freebsd_brand_info_elfv1 = {
+static const Elf64_Brandinfo freebsd_brand_info_elfv1_la48 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
 	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec_v1,
+	.sysvec		= &elf64_freebsd_sysvec_v1_la48,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
 	.header_supported = &ppc64_elfv1_header_match
 };
 
-C_SYSINIT(elf64v1, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t) elf64_insert_brand_entry,
-    &freebsd_brand_info_elfv1);
-
-static const Elf64_Brandinfo freebsd_brand_info_elfv2 = {
+static const Elf64_Brandinfo freebsd_brand_info_elfv1_la52 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
 	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec_v2,
+	.sysvec		= &elf64_freebsd_sysvec_v1_la52,
+	.interp_newpath	= NULL,
+	.brand_note	= &elf64_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported = &ppc64_elfv1_la52_header_match
+};
+
+static const Elf64_Brandinfo freebsd_brand_info_elfv2_la48 = {
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_PPC64,
+	.compat_3_brand	= "FreeBSD",
+	.interp_path	= "/libexec/ld-elf.so.1",
+	.sysvec		= &elf64_freebsd_sysvec_v2_la48,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
 	.header_supported = &ppc64_elfv2_header_match
 };
 
-C_SYSINIT(elf64v2, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t) elf64_insert_brand_entry,
-    &freebsd_brand_info_elfv2);
+static const Elf64_Brandinfo freebsd_brand_info_elfv2_la52 = {
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_PPC64,
+	.compat_3_brand	= "FreeBSD",
+	.interp_path	= "/libexec/ld-elf.so.1",
+	.sysvec		= &elf64_freebsd_sysvec_v2_la52,
+	.interp_newpath	= NULL,
+	.brand_note	= &elf64_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported = &ppc64_elfv2_la52_header_match
+};
+
+static void
+ppc64_register_brand_entries(void *arg __unused)
+{
+	/*
+	 * The la52 entries must go first so they can either claim the
+	 * image or hand it to the la48 ones.
+	 */
+	elf64_insert_brand_entry(&freebsd_brand_info_elfv2_la52);
+	elf64_insert_brand_entry(&freebsd_brand_info_elfv2_la48);
+	elf64_insert_brand_entry(&freebsd_brand_info_elfv1_la52);
+	elf64_insert_brand_entry(&freebsd_brand_info_elfv1_la48);
+}
+SYSINIT(elf64_brands, SI_SUB_EXEC, SI_ORDER_FIRST,
+    ppc64_register_brand_entries, NULL);
 
 static const Elf64_Brandinfo freebsd_brand_oinfo = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_PPC64,
 	.compat_3_brand	= "FreeBSD",
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec_v1,
+	.sysvec		= &elf64_freebsd_sysvec_v1_la48,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
@@ -205,20 +327,27 @@ void elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase);
 static void
 ppc64_init_sysvecs(void *arg)
 {
-	exec_sysvec_init(&elf64_freebsd_sysvec_v2);
-	exec_sysvec_init_secondary(&elf64_freebsd_sysvec_v2,
-	    &elf64_freebsd_sysvec_v1);
+	exec_sysvec_init(&elf64_freebsd_sysvec_v2_la48);
+	exec_sysvec_init_secondary(&elf64_freebsd_sysvec_v2_la48,
+	    &elf64_freebsd_sysvec_v2_la52);
+	exec_sysvec_init_secondary(&elf64_freebsd_sysvec_v2_la48,
+	    &elf64_freebsd_sysvec_v1_la48);
+	exec_sysvec_init_secondary(&elf64_freebsd_sysvec_v2_la48,
+	    &elf64_freebsd_sysvec_v1_la52);
 	/*
-	 * Adjust elfv2 sigcode after elfv1 sysvec is initialized.
+	 * Adjust elfv2 sigcode after the elfv1 sysvecs are initialized.
 	 * exec_sysvec_init_secondary() assumes secondary sysvecs use
 	 * identical signal code, and skips allocating a second copy.
 	 * Since the ELFv2 trampoline is a strict subset of the ELFv1 code,
 	 * we can work around this by adjusting the offset. This also
 	 * avoids two copies of the trampoline code being allocated!
 	 */
-	elf64_freebsd_sysvec_v2.sv_sigcode_offset +=
+	elf64_freebsd_sysvec_v2_la48.sv_sigcode_offset +=
 	    (uintptr_t)sigcode64_elfv2 - (uintptr_t)&sigcode64;
-	elf64_freebsd_sysvec_v2.sv_szsigcode = &szsigcode64_elfv2;
+	elf64_freebsd_sysvec_v2_la48.sv_szsigcode = &szsigcode64_elfv2;
+	elf64_freebsd_sysvec_v2_la52.sv_sigcode_offset +=
+	    (uintptr_t)sigcode64_elfv2 - (uintptr_t)&sigcode64;
+	elf64_freebsd_sysvec_v2_la52.sv_szsigcode = &szsigcode64_elfv2;
 }
 SYSINIT(elf64_sysvec, SI_SUB_EXEC, SI_ORDER_ANY, ppc64_init_sysvecs, NULL);
 
@@ -240,6 +369,50 @@ ppc64_elfv2_header_match(const struct image_params *params,
 	int abi = (hdr->e_flags & 3);
 
 	return (abi == 2);
+}
+
+/*
+ * Processes get a 48-bit address space by default, see vmparam.h.  The full
+ * 52 bits are available through the la52 feature control note or
+ * PROC_LA_CTL; vm.pmap.prefer_uva_la48 flips the default like on amd64.
+ */
+static int prefer_uva_la48 = 1;
+SYSCTL_DECL(_vm_pmap);
+SYSCTL_INT(_vm_pmap, OID_AUTO, prefer_uva_la48, CTLFLAG_RDTUN,
+    &prefer_uva_la48, 0,
+    "Userspace maps are limited to LA48 unless otherwise configured");
+
+static bool
+ppc64_la52_img_compat(const struct image_params *imgp, const uint32_t *fctl0)
+{
+
+	if ((imgp->proc->p_md.md_flags & P_MD_LA52) != 0)
+		return (true);
+	if (fctl0 != NULL && (*fctl0 & NT_FREEBSD_FCTL_LA52) != 0)
+		return (true);
+	if (fctl0 == NULL || (*fctl0 & NT_FREEBSD_FCTL_LA48) != 0)
+		return (false);
+	if ((imgp->proc->p_md.md_flags & P_MD_LA48) != 0)
+		return (false);
+	return (!prefer_uva_la48);
+}
+
+static bool
+ppc64_elfv1_la52_header_match(const struct image_params *params,
+    const int32_t *osrel, const uint32_t *fctl0)
+{
+
+	return (ppc64_elfv1_header_match(params, osrel, fctl0) &&
+	    ppc64_la52_img_compat(params, fctl0));
+}
+
+static bool
+ppc64_elfv2_la52_header_match(const struct image_params *params,
+    const int32_t *osrel, const uint32_t *fctl0)
+{
+
+	return (ppc64_elfv2_header_match(params, osrel, fctl0) &&
+	    ppc64_la52_img_compat(params, fctl0));
 }
 
 static void  
