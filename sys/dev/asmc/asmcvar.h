@@ -72,6 +72,7 @@ struct asmc_softc {
 	struct cdev		*sc_kbd_bkl;
 	uint32_t		sc_kbd_bkl_level;
 	unsigned int		sc_light_control;
+	uint16_t		sc_fanmanual_saved;
 	/* Raw key access; only used when built with ASMC_DEBUG */
 	struct sysctl_oid	*sc_raw_tree;
 	char			sc_rawkey[ASMC_KEYLEN + 1];

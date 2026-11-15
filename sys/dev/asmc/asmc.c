@@ -72,6 +72,7 @@
 static int 	asmc_probe(device_t dev);
 static int 	asmc_attach(device_t dev);
 static int 	asmc_detach(device_t dev);
+static int 	asmc_suspend(device_t dev);
 static int 	asmc_resume(device_t dev);
 static void	asmc_shutdown(void *arg, int howto);
 
@@ -90,6 +91,8 @@ static int	asmc_backlight_get_info(device_t dev,
  */
 static int 	asmc_init(device_t dev);
 static int 	asmc_fan_count(device_t dev);
+static int	asmc_fan_manual_get(device_t dev, uint16_t *maskp);
+static int	asmc_fan_manual_set(device_t dev, uint16_t mask);
 static void 	asmc_sms_calibrate(device_t dev);
 static int 	asmc_sms_intrfast(void *arg);
 static void 	asmc_sms_printintr(device_t dev, uint8_t);
@@ -110,6 +113,7 @@ static device_method_t	asmc_methods[] = {
 	DEVMETHOD(device_probe,		asmc_probe),
 	DEVMETHOD(device_attach,	asmc_attach),
 	DEVMETHOD(device_detach,	asmc_detach),
+	DEVMETHOD(device_suspend,	asmc_suspend),
 	DEVMETHOD(device_resume,	asmc_resume),
 
 	/* Backlight interface */
@@ -387,14 +391,38 @@ asmc_detach(device_t dev)
 }
 
 static int
+asmc_suspend(device_t dev)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	sc->sc_fanmanual_saved = 0;
+	if (asmc_fan_manual_get(dev, &sc->sc_fanmanual_saved) != 0)
+		return (0);
+	if (sc->sc_fanmanual_saved != 0)
+		asmc_fan_manual_set(dev, 0);
+
+	return (0);
+}
+
+static int
 asmc_resume(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 	uint8_t buf[2];
 
-	buf[0] = sc->sc_light_control;
-	buf[1] = 0x00;
-	asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
+	if (sc->sc_has_light) {
+		buf[0] = sc->sc_light_control;
+		buf[1] = 0x00;
+		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
+	}
+
+	if (sc->sc_fanmanual_saved != 0) {
+		asmc_fan_manual_set(dev, sc->sc_fanmanual_saved);
+		sc->sc_fanmanual_saved = 0;
+	}
+
+	if (sc->sc_has_sms)
+		asmc_sms_init(dev);
 
 	return (0);
 }
@@ -959,6 +987,68 @@ asmc_fan_count(device_t dev)
 		return (-1);
 
 	return (buf[0]);
+}
+
+/* T2 Macs keep one key per fan; everything else packs it into FS!. */
+static int
+asmc_fan_manual_get(device_t dev, uint16_t *maskp)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	char fmkey[ASMC_KEYLEN + 1];
+	uint8_t buf[2];
+	uint16_t mask = 0;
+	int error;
+
+	if (sc->sc_is_t2) {
+		for (int i = 0; i < sc->sc_nfan; i++) {
+			snprintf(fmkey, sizeof(fmkey),
+			    ASMC_KEY_FANMANUAL_T2, i);
+			if (asmc_key_getinfo(dev, fmkey, NULL, NULL) != 0)
+				continue;
+			error = asmc_key_read(dev, fmkey, buf, 1);
+			if (error != 0)
+				return (error);
+			if (buf[0] != 0)
+				mask |= 1 << i;
+		}
+		*maskp = mask;
+		return (0);
+	}
+
+	error = asmc_key_read(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf));
+	if (error != 0)
+		return (error);
+	*maskp = (buf[0] << 8) | buf[1];
+
+	return (0);
+}
+
+static int
+asmc_fan_manual_set(device_t dev, uint16_t mask)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	char fmkey[ASMC_KEYLEN + 1];
+	uint8_t buf[2];
+	int error;
+
+	if (sc->sc_is_t2) {
+		for (int i = 0; i < sc->sc_nfan; i++) {
+			snprintf(fmkey, sizeof(fmkey),
+			    ASMC_KEY_FANMANUAL_T2, i);
+			if (asmc_key_getinfo(dev, fmkey, NULL, NULL) != 0)
+				continue;
+			buf[0] = (mask & (1 << i)) != 0;
+			error = asmc_key_write(dev, fmkey, buf, 1);
+			if (error != 0)
+				return (error);
+		}
+		return (0);
+	}
+
+	buf[0] = mask >> 8;
+	buf[1] = mask & 0xff;
+
+	return (asmc_key_write(dev, ASMC_KEY_FANMANUAL, buf, sizeof(buf)));
 }
 
 
