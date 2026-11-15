@@ -36,11 +36,13 @@
 ### Главное меню
 
 1. Boot AmeOS — загрузка с профилем по умолчанию
-2. Boot profiles — выбор профиля загрузки
-3. Boot environments (ZFS) — выбор ZFS Boot Environment
-4. Boot recovery environment — среда восстановления
-5. Hardware diagnostics — диагностика оборудования
-6. Power off — завершение работы
+2. Select kernel — выбор ядра AmeOS vs vanilla FreeBSD
+3. Boot profiles — выбор профиля загрузки
+4. Boot environments (ZFS) — выбор ZFS Boot Environment
+5. Boot recovery environment — среда восстановления
+6. Hardware diagnostics — диагностика оборудования
+7. Snapshot info — информация о сборке
+8. Power off — завершение работы
 
 ### Boot profiles
 

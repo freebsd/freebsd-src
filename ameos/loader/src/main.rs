@@ -196,7 +196,13 @@ fn main() -> io::Result<()> {
                             }
                             return Ok(());
                         }
-                        7 => break 'main,
+                        7 => {
+                            leave_terminal(terminal_guard);
+                            if let Err(e) = backend.power_off() {
+                                eprintln!("Power off failed: {}", e);
+                            }
+                            return Ok(());
+                        }
                         _ => {
                             stack.push(current);
                         }
@@ -214,9 +220,6 @@ fn main() -> io::Result<()> {
                     }
                     // Always return to parent regardless of which item was selected
                 } else if title == "Boot Profiles" {
-                    let last = current
-                        .selected_index()
-                        .map_or(true, |s| s + 1 == stack.last().map_or(0, |_| 4));
                     match selected {
                         0 => {
                             leave_terminal(terminal_guard);
@@ -235,7 +238,6 @@ fn main() -> io::Result<()> {
                         }
                         _ => {} // "Back" — fall through to pop the stack
                     }
-                    let _ = last;
                 } else if title == "Recovery Environment" {
                     match selected {
                         0 => {

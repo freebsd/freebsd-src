@@ -32,12 +32,13 @@ pub fn list_boot_environments() -> io::Result<Vec<BootEnvironment>> {
 
         for line in stdout.lines() {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 4 {
+            // bectl list -H columns: Name Active Mountpoint Space Created
+            if parts.len() >= 5 {
                 environments.push(BootEnvironment {
                     name: parts[0].to_owned(),
                     active: parts[1].contains('N') || parts[1].contains('R'),
                     mountpoint: parts[2].to_owned(),
-                    creation: parts[3].to_owned(),
+                    creation: parts[4..].join(" "),
                 });
             }
         }

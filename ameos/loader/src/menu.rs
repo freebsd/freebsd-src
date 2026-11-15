@@ -131,11 +131,17 @@ impl Screen for Menu {
     fn handle_key(&mut self, code: KeyCode) -> Action {
         match code {
             KeyCode::Up => {
+                if self.items.is_empty() {
+                    return Action::Continue;
+                }
                 self.selected = self.selected.checked_sub(1).unwrap_or(self.items.len() - 1);
                 self.status = "Ready".to_owned();
                 Action::Continue
             }
             KeyCode::Down => {
+                if self.items.is_empty() {
+                    return Action::Continue;
+                }
                 self.selected = (self.selected + 1) % self.items.len();
                 self.status = "Ready".to_owned();
                 Action::Continue

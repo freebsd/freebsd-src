@@ -12,6 +12,7 @@ pub trait BootBackend {
     fn run_memory_test(&self) -> io::Result<()>;
     fn run_disk_test(&self) -> io::Result<()>;
     fn show_cpu_info(&self) -> io::Result<()>;
+    fn power_off(&self) -> io::Result<()>;
 }
 
 pub struct StubBackend;
@@ -61,6 +62,11 @@ impl BootBackend for StubBackend {
         println!("Stub: would show CPU information");
         Ok(())
     }
+
+    fn power_off(&self) -> io::Result<()> {
+        println!("Stub: would power off the system");
+        Ok(())
+    }
 }
 
 #[cfg_attr(not(target_os = "freebsd"), allow(dead_code))]
@@ -95,11 +101,12 @@ impl FreeBSDBackend {
         #[cfg(target_os = "freebsd")]
         {
             use std::process;
-            let status = Command::new("/sbin/reboot")
-                .arg("-k")
-                .arg(&self.kernel_path)
-                .arg(flags)
-                .status()?;
+            let mut cmd = Command::new("/sbin/reboot");
+            cmd.arg("-k").arg(&self.kernel_path);
+            if !flags.is_empty() {
+                cmd.arg(flags);
+            }
+            let status = cmd.status()?;
 
             if !status.success() {
                 return Err(io::Error::new(
@@ -349,5 +356,36 @@ impl BootBackend for FreeBSDBackend {
         io::stdin().read_line(&mut input)?;
 
         Ok(())
+    }
+
+    fn power_off(&self) -> io::Result<()> {
+        println!("Powering off...");
+
+        #[cfg(target_os = "freebsd")]
+        {
+            use std::process;
+            let status = Command::new("/sbin/shutdown")
+                .arg("-p")
+                .arg("now")
+                .status()?;
+
+            if !status.success() {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Failed to execute shutdown command",
+                ));
+            }
+            process::exit(0);
+        }
+
+        #[cfg(not(target_os = "freebsd"))]
+        {
+            println!("Not on FreeBSD: power off command would be:");
+            println!("  /sbin/shutdown -p now");
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Power off is only available on FreeBSD systems",
+            ))
+        }
     }
 }
