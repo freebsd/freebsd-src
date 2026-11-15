@@ -30,6 +30,8 @@
 #include <dev/asmc/asmcmmio.h>
 #include <dev/asmc/asmc_sysctl.h>
 
+#define	ASMC_ZERO_C_TO_DK	2731	/* deciKelvin at 0 degrees C */
+
 /*
  * Shutdown/sleep cause codes (MSSD/MSSP values).
  *
@@ -331,7 +333,7 @@ asmc_sysctl_add_temp(device_t dev, struct sysctl_ctx_list *ctx)
 		    SYSCTL_CHILDREN(sc->sc_temp_tree),
 		    OID_AUTO, sc->sc_temp_sensors[i],
 		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, i,
-		    asmc_temp_sysctl, "I",
+		    asmc_temp_sysctl, "IK",
 		    asmc_temp_desc(sc->sc_temp_sensors[i]));
 	}
 }
@@ -846,33 +848,24 @@ asmc_mb_sysctl_fanmanual(SYSCTL_HANDLER_ARGS)
  * Temperature functions.
  */
 static int
-asmc_temp_getvalue(device_t dev, const char *key)
-{
-	uint8_t buf[2];
-
-	/*
-	 * Check for invalid temperatures.
-	 */
-	if (asmc_key_read(dev, key, buf, sizeof(buf)) != 0)
-		return (-1);
-
-	return (buf[0]);
-}
-
-static int
 asmc_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
 	struct asmc_softc *sc = device_get_softc(dev);
-	int error, val;
+	int error, millic, deci;
 
 	if (arg2 < 0 || arg2 >= sc->sc_temp_count)
 		return (EINVAL);
 
-	val = asmc_temp_getvalue(dev, sc->sc_temp_sensors[arg2]);
-	error = sysctl_handle_int(oidp, &val, 0, req);
+	error = asmc_sensor_read(dev, sc->sc_temp_sensors[arg2], &millic);
+	if (error != 0)
+		return (error);
 
-	return (error);
+	/* Round to the tenth of a degree that "IK" prints, then offset. */
+	deci = millic >= 0 ? (millic + 50) / 100 : (millic - 50) / 100;
+	deci += ASMC_ZERO_C_TO_DK;
+
+	return (sysctl_handle_int(oidp, &deci, 0, req));
 }
 
 static int
