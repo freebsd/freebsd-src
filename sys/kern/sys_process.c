@@ -675,7 +675,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	return (error);
 }
 
-static int
+int
 ptrace_check_allowed(struct thread *td, int req, bool pd_mode, pid_t pid)
 {
 	if (!allow_ptrace)
