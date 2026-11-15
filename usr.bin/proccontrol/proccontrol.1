@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 14, 2024
+.Dd November 9, 2026
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -77,8 +77,11 @@ Controls the write exclusive execute mode for mappings.
 .It Ar kpti
 Controls the KPTI enable, AMD64 only.
 .It Ar la48
-Control limiting usermode process address space to 48 bits of address,
-AMD64 only, on machines capable of 57-bit addressing.
+Control limiting usermode process address space to 48 bits of address.
+AMD64, on machines capable of 57-bit addressing, and powerpc64 only.
+.It Ar la52
+Control the use of the full 52-bit address space of the radix MMU,
+powerpc64 only.
 .It Ar logsigexit
 Controls the logging of exits due to a signal that would normally cause a core
 dump.
