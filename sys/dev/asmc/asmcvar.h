@@ -63,7 +63,7 @@ struct asmc_softc {
 	int			sc_rid_mem;
 	struct resource		*sc_iomem;
 	bool			sc_is_mmio;
-	int			sc_is_t2;	/* T2 fan float + per-fan manual */
+	int			sc_is_t2;	/* T2 float + per-fan manual */
 	int 			sc_sms_intrtype;
 	struct taskqueue 	*sc_sms_tq;
 	struct task 		sc_sms_task;

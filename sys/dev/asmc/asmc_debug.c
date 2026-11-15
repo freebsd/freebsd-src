@@ -153,7 +153,8 @@ asmc_raw_value_sysctl(SYSCTL_HANDLER_ARGS)
 			sc->sc_rawval[i] = (uint8_t)val;
 	}
 
-	if (asmc_key_write(dev, sc->sc_rawkey, sc->sc_rawval, sc->sc_rawlen) != 0)
+	if (asmc_key_write(dev, sc->sc_rawkey, sc->sc_rawval,
+	    sc->sc_rawlen) != 0)
 		return (EIO);
 
 	return (0);

@@ -26,7 +26,7 @@ struct asmc_softc;
  * T2-specific keys.
  */
 #define ASMC_KEY_LDKN		"LDKN"	/* RO; 1 byte, firmware version */
-#define ASMC_KEY_BCLM		"BCLM"	/* RW; 1 byte, battery charge limit 0-100 */
+#define ASMC_KEY_BCLM		"BCLM"	/* RW; 1 byte, charge limit 0-100 */
 #define ASMC_KEY_FANMANUAL_T2	"F%dMd"	/* RW; 1 byte per fan (T2) */
 
 /*

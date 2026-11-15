@@ -269,7 +269,8 @@ asmc_attach(device_t dev)
 	if (sc->sc_is_t2 &&
 	    asmc_key_getinfo(dev, ASMC_KEY_BCLM, NULL, NULL) == 0) {
 		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "battery_charge_limit",
+		    SYSCTL_CHILDREN(sysctlnode), OID_AUTO,
+		    "battery_charge_limit",
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    dev, 0, asmc_bclm_sysctl, "I",
 		    "Battery charge limit (0-100)");

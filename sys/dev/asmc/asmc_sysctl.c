@@ -46,7 +46,8 @@ struct asmc_cause {
 	const char	*sleep_desc;	/* sleep description, or NULL if same */
 };
 
-#define ASMC_CAUSE_BUFLEN	48	/* "-128 (temperature-overlimit-timeout)\0" */
+/* Widest rendering: "-128 (temperature-overlimit-timeout)\0". */
+#define	ASMC_CAUSE_BUFLEN	48
 
 static const struct asmc_cause asmc_cause_table[] = {
 	{    5,	"good-shutdown",		"good-sleep" },
@@ -59,10 +60,10 @@ static const struct asmc_cause asmc_cause_table[] = {
 	{   -3,	"temperature-multisleep",	NULL },
 	{   -4,	"sensor-fan",			NULL },
 	{  -30,	"temperature-overlimit-timeout", NULL },
-	{  -40,	"pswr-smrst",			NULL },	/* power supply watchdog reset */
+	{  -40,	"pswr-smrst",			NULL },	/* watchdog reset */
 	{  -50,	"unmapped",			NULL },
 	{  -60,	"low-battery",			NULL },
-	{  -61,	"ninja-shutdown",		NULL },	/* sudden unexpected power loss */
+	{  -61,	"ninja-shutdown",		NULL },	/* sudden power loss */
 	{  -62,	"ninja-restart",		NULL },
 	{  -70,	"palm-rest-temperature",	NULL },
 	{  -71,	"sodimm-temperature",		NULL },
