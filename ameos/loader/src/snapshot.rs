@@ -1,4 +1,5 @@
 use std::io;
+#[cfg(target_os = "freebsd")]
 use std::process::Command;
 
 pub struct SnapshotInfo {
@@ -83,18 +84,16 @@ impl SnapshotInfo {
             use std::time::{SystemTime, UNIX_EPOCH};
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs();
 
             // Moscow is UTC+3
-            let moscow_offset = 3 * 3600;
+            let moscow_offset: u64 = 3 * 3600;
             let moscow_time = now + moscow_offset;
 
             let days_since_epoch = moscow_time / 86400;
-            let epoch_year = 1970;
-            let epoch_day_of_year = 0;
 
-            let mut year = epoch_year;
+            let mut year: u64 = 1970;
             let mut days = days_since_epoch;
 
             loop {
@@ -106,13 +105,13 @@ impl SnapshotInfo {
                 year += 1;
             }
 
-            let months = if Self::is_leap_year(year) {
+            let months: [u64; 12] = if Self::is_leap_year(year) {
                 [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
             } else {
                 [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
             };
 
-            let mut month = 0;
+            let mut month = 0usize;
             let mut day = days + 1;
             for (i, &days_in_month) in months.iter().enumerate() {
                 if day <= days_in_month {
@@ -136,7 +135,7 @@ impl SnapshotInfo {
 
     #[cfg(not(target_os = "freebsd"))]
     fn is_leap_year(year: u64) -> bool {
-        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+        (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
     }
 
     pub fn display(&self) -> String {

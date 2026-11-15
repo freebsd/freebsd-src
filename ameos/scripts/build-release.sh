@@ -16,7 +16,7 @@ Usage: sh ameos/scripts/build-release.sh [--plan|--check] [--profile NAME] [--jo
 
   --plan       Show inputs and stages without creating files (any POSIX host).
   --check      Check native FreeBSD tools and resources without building.
-  --profile    base-amd64 (default) or compact-amd64.
+  --profile    base-amd64 (default), compact-amd64 or v0.2-b-amd64.
   --jobs N     Parallel build jobs; default: 2.
   --workdir    New, absolute directory outside the source checkout.
   --help       Show this help.
@@ -49,7 +49,7 @@ while [ "$#" -gt 0 ]; do
 	esac
 done
 [ "$plan:$check" != yes:yes ] || fail '--plan and --check are mutually exclusive'
-case "$profile" in base-amd64|compact-amd64) ;; *) fail 'unknown build profile' ;; esac
+case "$profile" in base-amd64|compact-amd64|v0.2-b-amd64) ;; *) fail 'unknown build profile' ;; esac
 
 case "$jobs" in ''|*[!0-9]*|0|0*) fail '--jobs must be a positive integer' ;; esac
 case "$workdir" in

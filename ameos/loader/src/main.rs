@@ -57,11 +57,15 @@ fn run_screen(screen: &mut dyn Screen) -> io::Result<Action> {
     }
 }
 
+fn leave_terminal(guard: TerminalGuard) {
+    drop(guard);
+}
+
 fn main() -> io::Result<()> {
-    let _terminal = TerminalGuard::enter()?;
+    let terminal_guard = TerminalGuard::enter()?;
 
     #[cfg(target_os = "freebsd")]
-    let backend = FreeBSDBackend::new();
+    let mut backend = FreeBSDBackend::new();
     #[cfg(not(target_os = "freebsd"))]
     let backend = StubBackend;
 
@@ -88,14 +92,21 @@ fn main() -> io::Result<()> {
 
         match action {
             Action::Continue => unreachable!(),
-            Action::Exit => break,
+            // Esc: go back up the stack, or exit from main menu
             Action::Back => {
+                if stack.is_empty() {
+                    break 'main;
+                }
+                // Discard current screen, resume the parent
+            }
+            // Enter: act on the selected item
+            Action::Select => {
                 if title == "AmeOS Loader" {
                     match selected {
                         0 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.boot_default()?;
-                            break 'main;
+                            return Ok(());
                         }
                         1 => {
                             stack.push(current);
@@ -111,10 +122,10 @@ fn main() -> io::Result<()> {
                                     } else {
                                         ""
                                     };
-                                    format!("{} - {}{}", k.name, k.description, status)
+                                    format!("{} — {}{}", k.name, k.description, status)
                                 })
                                 .collect();
-                            items.push("Back to main menu".to_owned());
+                            items.push("Back".to_owned());
                             stack.push(Box::new(Menu::new("Select Kernel", items)));
                         }
                         2 => {
@@ -125,7 +136,7 @@ fn main() -> io::Result<()> {
                                     "Default".to_owned(),
                                     "Single user mode".to_owned(),
                                     "Safe mode".to_owned(),
-                                    "Back to main menu".to_owned(),
+                                    "Back".to_owned(),
                                 ],
                             )));
                         }
@@ -143,7 +154,7 @@ fn main() -> io::Result<()> {
                                     }
                                 })
                                 .collect();
-                            items.push("Back to main menu".to_owned());
+                            items.push("Back".to_owned());
                             stack.push(Box::new(Menu::new("Boot Environments (ZFS)", items)));
                         }
                         4 => {
@@ -154,7 +165,7 @@ fn main() -> io::Result<()> {
                                     "Mount filesystems".to_owned(),
                                     "Network configuration".to_owned(),
                                     "Shell".to_owned(),
-                                    "Back to main menu".to_owned(),
+                                    "Back".to_owned(),
                                 ],
                             )));
                         }
@@ -166,118 +177,119 @@ fn main() -> io::Result<()> {
                                     "Memory test".to_owned(),
                                     "Disk test".to_owned(),
                                     "CPU information".to_owned(),
-                                    "Back to main menu".to_owned(),
+                                    "Back".to_owned(),
                                 ],
                             )));
                         }
                         6 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             match snapshot::SnapshotInfo::current() {
                                 Ok(info) => {
                                     println!("{}", info.display());
-                                    println!("\nPress Enter to continue...");
+                                    println!("Press Enter to continue...");
                                     let mut input = String::new();
-                                    std::io::stdin().read_line(&mut input)?;
+                                    io::stdin().read_line(&mut input)?;
                                 }
                                 Err(e) => {
                                     eprintln!("Failed to get snapshot info: {}", e);
                                 }
                             }
-                            break 'main;
+                            return Ok(());
                         }
-                        7 => break 'main,
-                        _ => {}
+                        7 => {
+                            leave_terminal(terminal_guard);
+                            if let Err(e) = backend.power_off() {
+                                eprintln!("Power off failed: {}", e);
+                            }
+                            return Ok(());
+                        }
+                        _ => {
+                            stack.push(current);
+                        }
                     }
                 } else if title == "Select Kernel" {
                     let kernels = kernel::list_available_kernels();
                     if selected < kernels.len() {
-                        let kernel = &kernels[selected];
-                        if kernel.available {
+                        let k = &kernels[selected];
+                        if k.available {
                             #[cfg(target_os = "freebsd")]
-                            {
-                                backend.set_kernel(kernel.path.clone());
-                            }
+                            backend.set_kernel(k.path.clone());
                             #[cfg(not(target_os = "freebsd"))]
-                            {
-                                println!("Selected kernel: {} ({})", kernel.name, kernel.path);
-                            }
+                            let _ = k;
                         }
                     }
+                    // Always return to parent regardless of which item was selected
                 } else if title == "Boot Profiles" {
                     match selected {
                         0 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.boot_default()?;
-                            break 'main;
+                            return Ok(());
                         }
                         1 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.boot_single_user()?;
-                            break 'main;
+                            return Ok(());
                         }
                         2 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.boot_safe_mode()?;
-                            break 'main;
+                            return Ok(());
                         }
-                        3 => {}
-                        _ => {}
+                        _ => {} // "Back" — fall through to pop the stack
                     }
                 } else if title == "Recovery Environment" {
                     match selected {
                         0 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.mount_filesystems()?;
-                            break 'main;
+                            return Ok(());
                         }
                         1 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.configure_network()?;
-                            break 'main;
+                            return Ok(());
                         }
                         2 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.spawn_shell()?;
-                            break 'main;
+                            return Ok(());
                         }
-                        3 => {}
-                        _ => {}
+                        _ => {} // "Back"
                     }
                 } else if title == "Hardware Diagnostics" {
                     match selected {
                         0 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.run_memory_test()?;
-                            break 'main;
+                            return Ok(());
                         }
                         1 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.run_disk_test()?;
-                            break 'main;
+                            return Ok(());
                         }
                         2 => {
-                            drop(_terminal);
+                            leave_terminal(terminal_guard);
                             backend.show_cpu_info()?;
-                            break 'main;
+                            return Ok(());
                         }
-                        3 => {}
-                        _ => {}
+                        _ => {} // "Back"
                     }
                 } else if title == "Boot Environments (ZFS)" {
                     let environments = zfs::list_boot_environments().unwrap_or_else(|_| vec![]);
                     if selected < environments.len() {
                         let be = &environments[selected];
-                        drop(_terminal);
+                        leave_terminal(terminal_guard);
                         if let Err(e) = zfs::activate_boot_environment(&be.name) {
                             eprintln!("Failed to activate boot environment: {}", e);
                         } else {
-                            println!("Boot environment '{}' activated", be.name);
-                            println!("System will boot into this environment on next reboot");
+                            println!("Boot environment '{}' activated.", be.name);
+                            println!("It will be used on next boot.");
                         }
-                        break 'main;
+                        return Ok(());
                     }
-                } else if stack.is_empty() {
-                    break;
+                    // "Back" — fall through to pop the stack
                 }
             }
         }

@@ -1,5 +1,7 @@
 use std::io;
+#[cfg(target_os = "freebsd")]
 use std::path::Path;
+#[cfg(target_os = "freebsd")]
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -21,10 +23,10 @@ impl KernelInfo {
         }
     }
 
-    fn check_availability(path: &str) -> bool {
+    fn check_availability(_path: &str) -> bool {
         #[cfg(target_os = "freebsd")]
         {
-            Path::new(path).exists()
+            Path::new(_path).exists()
         }
 
         #[cfg(not(target_os = "freebsd"))]
@@ -34,6 +36,7 @@ impl KernelInfo {
         }
     }
 
+    #[cfg_attr(not(target_os = "freebsd"), allow(dead_code))]
     pub fn get_version(&self) -> io::Result<String> {
         #[cfg(target_os = "freebsd")]
         {

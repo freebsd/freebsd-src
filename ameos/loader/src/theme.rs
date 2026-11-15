@@ -6,6 +6,7 @@ pub struct Theme {
     pub selected: Color,
     pub normal: Color,
     pub status: Color,
+    #[allow(dead_code)]
     pub background: Color,
 }
 
