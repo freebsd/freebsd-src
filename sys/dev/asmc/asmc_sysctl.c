@@ -655,10 +655,10 @@ asmc_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-asmc_fan_getvalue(device_t dev, const char *key, int fan)
+asmc_fan_getvalue(device_t dev, const char *key, int fan, int *speed)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int speed;
+	int error;
 	uint8_t buf[4];
 	char fankey[5];
 	char type[ASMC_TYPELEN + 1];
@@ -673,16 +673,18 @@ asmc_fan_getvalue(device_t dev, const char *key, int fan)
 	if (sc->sc_is_t2 &&
 	    asmc_key_getinfo(dev, fankey, NULL, type) == 0 &&
 	    strncmp(type, "flt ", 4) == 0) {
-		if (asmc_key_read(dev, fankey, buf, 4) != 0)
-			return (-1);
-		speed = (int)asmc_float_to_u32(le32dec(buf));
+		error = asmc_key_read(dev, fankey, buf, 4);
+		if (error != 0)
+			return (error);
+		*speed = (int)asmc_float_to_u32(le32dec(buf));
 	} else {
-		if (asmc_key_read(dev, fankey, buf, 2) != 0)
-			return (-1);
-		speed = (buf[0] << 6) | (buf[1] >> 2);
+		error = asmc_key_read(dev, fankey, buf, 2);
+		if (error != 0)
+			return (error);
+		*speed = (buf[0] << 6) | (buf[1] >> 2);
 	}
 
-	return (speed);
+	return (0);
 }
 
 static char *
@@ -695,7 +697,7 @@ asmc_fan_getstring(device_t dev, const char *key, int fan, uint8_t *buf,
 	snprintf(fankey, sizeof(fankey), key, fan);
 	if (asmc_key_read(dev, fankey, buf, buflen) != 0)
 		return (NULL);
-	desc = buf + 4;
+	desc = (char *)(buf + 4);
 
 	return (desc);
 }
@@ -718,17 +720,14 @@ asmc_fan_setvalue(device_t dev, const char *key, int fan, int speed)
 		speed = MIN(speed, 65535);
 		fval = asmc_u32_to_float((uint32_t)speed);
 		le32enc(buf, fval);
-		if (asmc_key_write(dev, fankey, buf, 4) != 0)
-			return (-1);
-	} else {
-		speed *= 4;
-		buf[0] = speed >> 8;
-		buf[1] = speed;
-		if (asmc_key_write(dev, fankey, buf, 2) != 0)
-			return (-1);
+		return (asmc_key_write(dev, fankey, buf, 4));
 	}
 
-	return (0);
+	speed *= 4;
+	buf[0] = speed >> 8;
+	buf[1] = speed;
+
+	return (asmc_key_write(dev, fankey, buf, 2));
 }
 
 static int
@@ -738,17 +737,18 @@ asmc_mb_sysctl_fanspeed(SYSCTL_HANDLER_ARGS)
 	int which = ASMC_FAN_ARG2_WHICH(arg2);
 	int fan = ASMC_FAN_ARG2_FAN(arg2);
 	int error;
-	int32_t v;
+	int v;
 
-	v = asmc_fan_getvalue(dev, asmc_fan_speed_keys[which].key, fan);
+	error = asmc_fan_getvalue(dev, asmc_fan_speed_keys[which].key, fan, &v);
+	if (error != 0)
+		return (error);
+
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	if (error == 0 && req->newptr != NULL &&
-	    asmc_fan_speed_keys[which].writable) {
-		unsigned int newspeed = v;
-		asmc_fan_setvalue(dev, asmc_fan_speed_keys[which].key, fan,
-		    newspeed);
-	}
+	    asmc_fan_speed_keys[which].writable)
+		error = asmc_fan_setvalue(dev, asmc_fan_speed_keys[which].key,
+		    fan, v);
 
 	return (error);
 }
@@ -759,15 +759,13 @@ asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS)
 	uint8_t buf[16];
 	device_t dev = (device_t)arg1;
 	int fan = ASMC_FAN_ARG2_FAN(arg2);
-	int error = true;
 	char *desc;
 
 	desc = asmc_fan_getstring(dev, ASMC_KEY_FANID, fan, buf, sizeof(buf));
+	if (desc == NULL)
+		return (ENXIO);
 
-	if (desc != NULL)
-		error = sysctl_handle_string(oidp, desc, 0, req);
-
-	return (error);
+	return (sysctl_handle_string(oidp, desc, 0, req));
 }
 
 static int
@@ -885,7 +883,9 @@ asmc_mb_sysctl_sms(SYSCTL_HANDLER_ARGS)
 	int16_t val;
 	int32_t v;
 
-	asmc_sms_read(dev, asmc_sms_sysctls[arg2].key, &val);
+	error = asmc_sms_read(dev, asmc_sms_sysctls[arg2].key, &val);
+	if (error != 0)
+		return (error);
 	v = (int32_t)val;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
@@ -900,7 +900,9 @@ asmc_mbp_sysctl_light(SYSCTL_HANDLER_ARGS)
 	int error;
 	int32_t v;
 
-	asmc_key_read(dev, asmc_light_keys[arg2], buf, sizeof(buf));
+	error = asmc_key_read(dev, asmc_light_keys[arg2], buf, sizeof(buf));
+	if (error != 0)
+		return (error);
 	v = buf[2];
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
@@ -926,7 +928,8 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 		sc->sc_kbd_bkl_level = v * 100 / 255;
 		buf[0] = sc->sc_light_control;
 		buf[1] = 0x00;
-		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof(buf));
+		error = asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf,
+		    sizeof(buf));
 	}
 	return (error);
 }
@@ -939,7 +942,9 @@ asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint32_t v;
 
-	asmc_key_read(dev, ASMC_KEY_LIGHTLEFT, buf, sizeof(buf));
+	error = asmc_key_read(dev, ASMC_KEY_LIGHTLEFT, buf, sizeof(buf));
+	if (error != 0)
+		return (error);
 
 	/*
 	 * This seems to be a 32 bit big endian value from buf[6] -> buf[9].
