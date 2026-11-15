@@ -32,6 +32,9 @@
 
 #define	ASMC_ZERO_C_TO_DK	2731	/* deciKelvin at 0 degrees C */
 
+/* sp78 0x8100: SMC sentinel for an unpopulated sensor, milli-degrees C. */
+#define	ASMC_TEMP_ABSENT	(-127000)
+
 /*
  * Shutdown/sleep cause codes (MSSD/MSSP values).
  *
@@ -861,6 +864,9 @@ asmc_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	error = asmc_sensor_read(dev, sc->sc_temp_sensors[arg2], &millic);
 	if (error != 0)
 		return (error);
+
+	if (millic == ASMC_TEMP_ABSENT)
+		return (ENXIO);
 
 	/* Round to the tenth of a degree that "IK" prints, then offset. */
 	deci = millic >= 0 ? (millic + 50) / 100 : (millic - 50) / 100;
