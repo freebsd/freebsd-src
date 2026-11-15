@@ -48,29 +48,35 @@
 #include <unistd.h>
 
 #include "_elftc.h"
-static bool convert_to_feature_val(const char *, uint32_t *);
-static bool edit_file_features(Elf *, int, int, char *, bool);
+static bool convert_to_feature_val(const char *, uint32_t *, unsigned int);
+static bool edit_file_features(Elf *, int, int, char *, bool, unsigned int);
 static bool get_file_features(Elf *, int, int, uint32_t *, uint64_t *, bool);
 static void print_features(void);
-static bool print_file_features(Elf *, int, int, char *, bool);
+static bool print_file_features(Elf *, int, int, char *, bool, unsigned int);
 static void usage(void) __dead2;
 
 struct ControlFeatures {
 	const char *alias;
 	unsigned long value;
 	const char *desc;
+	unsigned int machine;	/* EM_* the name belongs to, EM_NONE for all */
 };
 
 static struct ControlFeatures featurelist[] = {
-	{ "noaslr",	NT_FREEBSD_FCTL_ASLR_DISABLE,	"Disable ASLR" },
+	{ "noaslr",	NT_FREEBSD_FCTL_ASLR_DISABLE,	"Disable ASLR", EM_NONE },
 	{ "noprotmax",	NT_FREEBSD_FCTL_PROTMAX_DISABLE,
-	    "Disable implicit PROT_MAX" },
-	{ "nostackgap",	NT_FREEBSD_FCTL_STKGAP_DISABLE, "Disable stack gap" },
-	{ "wxneeded",	NT_FREEBSD_FCTL_WXNEEDED, "Requires W+X mappings" },
+	    "Disable implicit PROT_MAX", EM_NONE },
+	{ "nostackgap",	NT_FREEBSD_FCTL_STKGAP_DISABLE, "Disable stack gap",
+	    EM_NONE },
+	{ "wxneeded",	NT_FREEBSD_FCTL_WXNEEDED, "Requires W+X mappings",
+	    EM_NONE },
 	{ "la48",	NT_FREEBSD_FCTL_LA48,
-	    "amd64: Limit user virtual addresses to 48 bits" },
+	    "amd64, powerpc64: Limit user virtual addresses to 48 bits", EM_NONE },
 	{ "la57",	NT_FREEBSD_FCTL_LA57,
-	    "amd64: Allow the use of 57-bit virtual addresses when available" },
+	    "amd64: Allow the use of 57-bit virtual addresses when available",
+	    EM_X86_64 },
+	{ "la52",	NT_FREEBSD_FCTL_LA52,
+	    "powerpc64: Allow the use of 52-bit virtual addresses", EM_PPC64 },
 };
 
 static struct option long_opts[] = {
@@ -180,12 +186,12 @@ main(int argc, char **argv)
 
 		if (!editfeatures) {
 			if (!print_file_features(elf, ehdr.e_phnum, fd,
-			    argv[0], endian_swap)) {
+			    argv[0], endian_swap, ehdr.e_machine)) {
 				retval = 1;
 				goto fail;
 			}
 		} else if (!edit_file_features(elf, ehdr.e_phnum, fd,
-		    features, endian_swap)) {
+		    features, endian_swap, ehdr.e_machine)) {
 			retval = 1;
 			goto fail;
 		}
@@ -222,7 +228,8 @@ usage(void)
 }
 
 static bool
-convert_to_feature_val(const char *feature_str, uint32_t *feature_val)
+convert_to_feature_val(const char *feature_str, uint32_t *feature_val,
+    unsigned int machine)
 {
 	char *feature, *feature_tmp;
 	int i, len;
@@ -241,6 +248,10 @@ convert_to_feature_val(const char *feature_str, uint32_t *feature_val)
 	len = nitems(featurelist);
 	while ((feature = strsep(&feature_tmp, ",")) != NULL) {
 		for (i = 0; i < len; ++i) {
+			/* Names that belong to another architecture are unknown. */
+			if (featurelist[i].machine != EM_NONE &&
+			    featurelist[i].machine != machine)
+				continue;
 			if (strcmp(featurelist[i].alias, feature) == 0) {
 				input |= featurelist[i].value;
 				break;
@@ -295,7 +306,8 @@ convert_to_feature_val(const char *feature_str, uint32_t *feature_val)
 }
 
 static bool
-edit_file_features(Elf *elf, int phcount, int fd, char *val, bool endian_swap)
+edit_file_features(Elf *elf, int phcount, int fd, char *val, bool endian_swap,
+    unsigned int machine)
 {
 	uint32_t features, prev_features;
 	uint64_t off;
@@ -307,7 +319,7 @@ edit_file_features(Elf *elf, int phcount, int fd, char *val, bool endian_swap)
 	}
 
 	prev_features = features;
-	if (!convert_to_feature_val(val, &features))
+	if (!convert_to_feature_val(val, &features, machine))
 		return (false);
 	/* Avoid touching file if no change. */
 	if (features == prev_features)
@@ -338,7 +350,7 @@ print_features(void)
 
 static bool
 print_file_features(Elf *elf, int phcount, int fd, char *filename,
-    bool endian_swap)
+    bool endian_swap, unsigned int machine)
 {
 	uint32_t features;
 	unsigned long i;
@@ -350,6 +362,10 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename,
 
 	printf("File '%s' features:\n", filename);
 	for (i = 0; i < nitems(featurelist); ++i) {
+		/* The same bit has a different name on some architectures. */
+		if (featurelist[i].machine != EM_NONE &&
+		    featurelist[i].machine != machine)
+			continue;
 		printf("%-16s'%s' is ", featurelist[i].alias,
 		    featurelist[i].desc);
 
