@@ -27,7 +27,7 @@
 #include <sys/taskqueue.h>
 
 #include <dev/asmc/asmcvar.h>
-#include <dev/asmc/asmcmmio.h>
+#include <dev/asmc/asmc_mmio.h>
 #include <dev/asmc/asmc_sysctl.h>
 
 #define	ASMC_ZERO_C_TO_DK	2731	/* deciKelvin at 0 degrees C */

@@ -26,7 +26,7 @@
 #include <machine/bus.h>
 
 #include <dev/asmc/asmcvar.h>
-#include <dev/asmc/asmcmmio.h>
+#include <dev/asmc/asmc_mmio.h>
 
 /*
  * Wait for MMIO status register bit 5 (ready) with exponential backoff.

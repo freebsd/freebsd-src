@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#ifndef _DEV_ASMC_ASMCMMIO_H_
-#define _DEV_ASMC_ASMCMMIO_H_
+#ifndef _DEV_ASMC_ASMC_MMIO_H_
+#define _DEV_ASMC_ASMC_MMIO_H_
 
 struct asmc_softc;
 
@@ -53,4 +53,4 @@ uint32_t	asmc_u32_to_float(uint32_t d);
  */
 int	asmc_bclm_sysctl(SYSCTL_HANDLER_ARGS);
 
-#endif /* _DEV_ASMC_ASMCMMIO_H_ */
+#endif /* _DEV_ASMC_ASMC_MMIO_H_ */

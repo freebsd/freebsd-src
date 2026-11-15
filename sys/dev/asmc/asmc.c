@@ -58,7 +58,7 @@
 
 #include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
-#include <dev/asmc/asmcmmio.h>
+#include <dev/asmc/asmc_mmio.h>
 #include <dev/asmc/asmc_pio.h>
 #include <dev/asmc/asmc_sysctl.h>
 #include <dev/asmc/asmc_debug.h>
