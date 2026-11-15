@@ -5142,15 +5142,13 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * move the current srtt into rttvar to keep the current retransmit
 	 * times until then.
 	 */
-	if (tp->t_rxtshift > TCP_MAXRXTSHIFT / 4) {
+	if (tp->t_rxtshift > TCP_RTT_INVALIDATE) {
 #ifdef INET6
 		if (bbr->r_is_v6)
 			in6_losing(inp);
 		else
 #endif
 			in_losing(inp);
-		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
-		tp->t_srtt = 0;
 	}
 	sack_filter_clear(&bbr->r_ctl.bbr_sf, tp->snd_una);
 	tp->snd_recover = tp->snd_max;
@@ -6306,7 +6304,7 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 	}
 	/* Round it up */
 	rtt_ticks = USEC_2_TICKS((rtt + (USECS_IN_MSEC - 1)));
-	if (tp->t_srtt != 0) {
+	if (tp->t_srtt != 0 && tp->t_rxtshift <= TCP_RTT_INVALIDATE) {
 		/*
 		 * srtt is stored as fixed point with 5 bits after the
 		 * binary point (i.e., scaled by 8).  The following magic is
