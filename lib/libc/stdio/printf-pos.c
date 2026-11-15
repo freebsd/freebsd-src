@@ -337,6 +337,40 @@ reswitch:	switch (ch) {
 		case 't':
 			flags |= PTRDIFFT;
 			goto rflag;
+		case 'w':
+			flags &= ~(CHARINT|SHORTINT|LONGINT|LLONGINT|INTMAXT);
+			if (fmt[0] == 'f') {
+				flags |= FASTINT;
+				fmt++;
+			} else {
+				flags &= ~FASTINT;
+			}
+			if (fmt[0] == '8') {
+				if (!(flags & FASTINT))
+					flags |= CHARINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 1;
+			} else if (fmt[0] == '1' && fmt[1] == '6') {
+				if (!(flags & FASTINT))
+					flags |= SHORTINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '3' && fmt[1] == '2') {
+				/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '6' && fmt[1] == '4') {
+				flags |= LLONGINT;
+				fmt += 2;
+			} else {
+				if (flags & FASTINT) {
+					flags &= ~FASTINT;
+					fmt--;
+				}
+				goto error;
+			}
+			goto rflag;
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
@@ -531,6 +565,40 @@ reswitch:	switch (ch) {
 			goto rflag;
 		case 't':
 			flags |= PTRDIFFT;
+			goto rflag;
+		case 'w':
+			flags &= ~(CHARINT|SHORTINT|LONGINT|LLONGINT|INTMAXT);
+			if (fmt[0] == 'f') {
+				flags |= FASTINT;
+				fmt++;
+			} else {
+				flags &= ~FASTINT;
+			}
+			if (fmt[0] == '8') {
+				if (!(flags & FASTINT))
+					flags |= CHARINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 1;
+			} else if (fmt[0] == '1' && fmt[1] == '6') {
+				if (!(flags & FASTINT))
+					flags |= SHORTINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '3' && fmt[1] == '2') {
+				/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '6' && fmt[1] == '4') {
+				flags |= LLONGINT;
+				fmt += 2;
+			} else {
+				if (flags & FASTINT) {
+					flags &= ~FASTINT;
+					fmt--;
+				}
+				goto error;
+			}
 			goto rflag;
 		case 'z':
 			flags |= SIZET;
