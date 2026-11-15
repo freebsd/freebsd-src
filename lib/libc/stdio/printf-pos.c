@@ -340,6 +340,11 @@ reswitch:	switch (ch) {
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'B':
+		case 'b':
+			if ((error = adduarg(&types, flags)))
+				goto error;
+			break;
 		case 'C':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
@@ -530,6 +535,11 @@ reswitch:	switch (ch) {
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'B':
+		case 'b':
+			if ((error = adduarg(&types, flags)))
+				goto error;
+			break;
 		case 'C':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
