@@ -1,4 +1,5 @@
 use std::io;
+#[cfg(target_os = "freebsd")]
 use std::process::Command;
 
 pub trait BootBackend {
@@ -62,10 +63,12 @@ impl BootBackend for StubBackend {
     }
 }
 
+#[cfg_attr(not(target_os = "freebsd"), allow(dead_code))]
 pub struct FreeBSDBackend {
     kernel_path: String,
 }
 
+#[cfg_attr(not(target_os = "freebsd"), allow(dead_code))]
 impl FreeBSDBackend {
     pub fn new() -> Self {
         Self {

@@ -1,11 +1,14 @@
 use std::io;
+#[cfg(target_os = "freebsd")]
 use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct BootEnvironment {
     pub name: String,
     pub active: bool,
+    #[allow(dead_code)]
     pub mountpoint: String,
+    #[allow(dead_code)]
     pub creation: String,
 }
 

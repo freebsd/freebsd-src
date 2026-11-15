@@ -3,8 +3,8 @@ use std::io;
 
 pub enum Action {
     Continue,
-    Exit,
     Back,
+    Select,
 }
 
 pub trait Screen {

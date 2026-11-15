@@ -140,7 +140,7 @@ impl Screen for Menu {
                 self.status = "Ready".to_owned();
                 Action::Continue
             }
-            KeyCode::Enter => Action::Back,
+            KeyCode::Enter => Action::Select,
             KeyCode::Esc => Action::Back,
             _ => Action::Continue,
         }
