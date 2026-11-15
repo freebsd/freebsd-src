@@ -352,16 +352,21 @@ asmc_detach(device_t dev)
 	/* Free temperature sensor key arrays */
 	for (int i = 0; i < sc->sc_temp_count; i++)
 		free(sc->sc_temp_sensors[i], M_DEVBUF);
+	sc->sc_temp_count = 0;
 
 	/* Free sensor key arrays */
 	for (int i = 0; i < sc->sc_voltage_count; i++)
 		free(sc->sc_voltage_sensors[i], M_DEVBUF);
+	sc->sc_voltage_count = 0;
 	for (int i = 0; i < sc->sc_current_count; i++)
 		free(sc->sc_current_sensors[i], M_DEVBUF);
+	sc->sc_current_count = 0;
 	for (int i = 0; i < sc->sc_power_count; i++)
 		free(sc->sc_power_sensors[i], M_DEVBUF);
+	sc->sc_power_count = 0;
 	for (int i = 0; i < sc->sc_light_count; i++)
 		free(sc->sc_light_sensors[i], M_DEVBUF);
+	sc->sc_light_count = 0;
 
 	if (sc->sc_sms_tq) {
 		taskqueue_drain(sc->sc_sms_tq, &sc->sc_sms_task);
