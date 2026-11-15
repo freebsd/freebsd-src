@@ -2891,10 +2891,12 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	/*
 	 * Optimize a no state change request away.  While it would be OK to
 	 * write to the hardware in theory, some devices have shown odd
-	 * behavior when going from D3 -> D3.
+	 * behavior when going from D3 -> D3.  D3hot and D3cold are the same
+	 * state in the PM register.
 	 */
 	oldstate = pci_get_powerstate(child);
-	if (oldstate == state)
+	if (oldstate == state || (oldstate >= PCI_POWERSTATE_D3_HOT &&
+	    state >= PCI_POWERSTATE_D3_HOT && state <= PCI_POWERSTATE_MAX))
 		return (0);
 
 	/*
@@ -2910,7 +2912,7 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	 * this function can be called from contexts where we cannot sleep.
 	 */
 	highest = (oldstate > state) ? oldstate : state;
-	if (highest == PCI_POWERSTATE_D3)
+	if (highest >= PCI_POWERSTATE_D3_HOT)
 	    delay = 10000;
 	else if (highest == PCI_POWERSTATE_D2)
 	    delay = 200;
@@ -2932,7 +2934,8 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 			return (EOPNOTSUPP);
 		status |= PCIM_PSTAT_D2;
 		break;
-	case PCI_POWERSTATE_D3:
+	case PCI_POWERSTATE_D3_HOT:
+	case PCI_POWERSTATE_D3_COLD:
 		status |= PCIM_PSTAT_D3;
 		break;
 	default:
