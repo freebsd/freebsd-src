@@ -593,6 +593,15 @@ usb_make_device_desc(struct usb_temp_setup *temp,
 			USETW(utd->udd.bcdUSB, 0x0300);
 			utd->udd.bMaxPacketSize = 9;	/* 2**9 = 512 bytes */
 			break;
+		case USB_SPEED_SUPER_PLUS:
+			USETW(utd->udd.bcdUSB, 0x0310);
+			utd->udd.bMaxPacketSize = 9; /* 2**9 = 512 bytes */
+			break;
+		case USB_SPEED_SUPER_PLUS_X2:
+		case USB_SPEED_SUPER_PLUS_GEN2_X2:
+			USETW(utd->udd.bcdUSB, 0x0320);
+			utd->udd.bMaxPacketSize = 9; /* 2**9 = 512 bytes */
+			break;
 		default:
 			temp->err = USB_ERR_INVAL;
 			break;

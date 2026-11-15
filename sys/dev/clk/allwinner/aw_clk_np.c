@@ -93,6 +93,11 @@ aw_clk_np_set_gate(struct clknode *clk, bool enable)
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
+	if (enable && (sc->flags & AW_CLK_HAS_LOCK) != 0) {
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
+	}
+
 	return (0);
 }
 
@@ -100,7 +105,7 @@ static uint64_t
 aw_clk_np_find_best(struct aw_clk_np_sc *sc, uint64_t fparent, uint64_t *fout,
     uint32_t *factor_n, uint32_t *factor_p)
 {
-	uint64_t cur, best;
+	uint64_t cur, best = 0;
 	uint32_t n, p, max_n, max_p, min_n, min_p;
 
 	*factor_n = *factor_p = 0;
@@ -113,7 +118,8 @@ aw_clk_np_find_best(struct aw_clk_np_sc *sc, uint64_t fparent, uint64_t *fout,
 	for (p = min_p; p <= max_p; ) {
 		for (n = min_n; n <= max_n; ) {
 			cur = fparent * n / p;
-			if (abs(*fout - cur) < abs(*fout - best)) {
+			if (best == 0 || clk_freq_diff(*fout, cur) <
+			    clk_freq_diff(*fout, best)) {
 				best = cur;
 				*factor_n = n;
 				*factor_p = p;
@@ -134,7 +140,6 @@ aw_clk_np_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct aw_clk_np_sc *sc;
 	uint64_t cur, best;
 	uint32_t val, n, p, best_n, best_p;
-	int retry;
 
 	sc = clknode_get_softc(clk);
 
@@ -173,13 +178,9 @@ aw_clk_np_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
-	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
-		for (retry = 0; retry < sc->lock_retries; retry++) {
-			READ4(clk, sc->offset, &val);
-			if ((val & (1 << sc->lock_shift)) != 0)
-				break;
-			DELAY(1000);
-		}
+	if (aw_clk_has_lock_to_wait(sc->flags, sc->gate_shift, val)) {
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
 	}
 
 	*fout = best;
@@ -239,6 +240,7 @@ aw_clk_np_register(struct clkdom *clkdom, struct aw_clk_np_def *clkdef)
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
 	sc->n.value = clkdef->n.value;
 	sc->n.flags = clkdef->n.flags;
+	sc->n.min_value = clkdef->n.min_value;
 
 	sc->p.shift = clkdef->p.shift;
 	sc->p.width = clkdef->p.width;

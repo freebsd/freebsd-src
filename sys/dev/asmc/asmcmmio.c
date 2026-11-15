@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+ * Copyright (c) 2026 Abdelkader Boudih <seuros@FreeBSD.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -36,11 +36,10 @@ static int
 asmc_mmio_wait(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-	int i;
 	uint8_t status;
 	int delay_us = 10;
 
-	for (i = 0; i < ASMC_MMIO_MAX_WAIT; i++) {
+	for (int i = 0; i < ASMC_MMIO_MAX_WAIT; i++) {
 		status = bus_read_1(sc->sc_iomem, ASMC_MMIO_STATUS);
 		if (status & ASMC_MMIO_STATUS_READY)
 			return (0);
@@ -66,7 +65,7 @@ asmc_mmio_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 	mtx_lock_spin(&sc->sc_mtx);
 
 	/* Clear status if non-zero */
-	if (bus_read_1(sc->sc_iomem, ASMC_MMIO_STATUS))
+	if (bus_read_1(sc->sc_iomem, ASMC_MMIO_STATUS) != 0)
 		bus_write_1(sc->sc_iomem, ASMC_MMIO_STATUS, 0);
 
 	/* Write key name as raw 4 bytes */

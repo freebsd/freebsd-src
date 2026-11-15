@@ -66,22 +66,25 @@ enum {
 static __dead2 void
 usage(void)
 {
-
 	fprintf(stderr,
 	    "usage: %s create [-d] [-c config] [-e extentsize] [-k keepdirty]\n"
-	    "\t\t[-m mediasize] name ...\n",
+	    "\t\t[-m mediasize] [-n nodename] name ...\n",
 	    getprogname());
 	fprintf(stderr,
-	    "       %s role [-d] [-c config] <init | primary | secondary> all | name ...\n",
+	    "       %s role [-d] [-c config] [-n nodename] "
+	    "<init | primary | secondary> all | name ...\n",
 	    getprogname());
 	fprintf(stderr,
-	    "       %s list [-d] [-c config] [all | name ...]\n",
+	    "       %s list [-d] [-c config] [-n nodename] "
+	    "[all | name ...]\n",
 	    getprogname());
 	fprintf(stderr,
-	    "       %s status [-d] [-c config] [all | name ...]\n",
+	    "       %s status [-d] [-c config] [-n nodename] "
+	    "[all | name ...]\n",
 	    getprogname());
 	fprintf(stderr,
-	    "       %s dump [-d] [-c config] [all | name ...]\n",
+	    "       %s dump [-d] [-c config] [-n nodename] "
+	    "[all | name ...]\n",
 	    getprogname());
 	exit(EX_USAGE);
 }
@@ -418,22 +421,22 @@ main(int argc, char *argv[])
 
 	if (strcmp(argv[1], "create") == 0) {
 		cmd = CMD_CREATE;
-		optstr = "c:de:k:m:h";
+		optstr = "c:de:hk:m:n:";
 	} else if (strcmp(argv[1], "role") == 0) {
 		cmd = CMD_ROLE;
-		optstr = "c:dh";
+		optstr = "c:dhn:";
 	} else if (strcmp(argv[1], "list") == 0) {
 		cmd = CMD_LIST;
-		optstr = "c:dh";
+		optstr = "c:dhn:";
 	} else if (strcmp(argv[1], "status") == 0) {
 		cmd = CMD_STATUS;
-		optstr = "c:dh";
+		optstr = "c:dhn:";
 	} else if (strcmp(argv[1], "dump") == 0) {
 		cmd = CMD_DUMP;
-		optstr = "c:dh";
+		optstr = "c:dhn:";
 	} else if (strcmp(argv[1], "stop") == 0) {
 		cmd = CMD_STOP;
-		optstr = "c:dh";
+		optstr = "c:dhn:";
 	} else
 		usage();
 
@@ -464,6 +467,9 @@ main(int argc, char *argv[])
 		case 'm':
 			if (expand_number(optarg, &mediasize) == -1)
 				errx(EX_USAGE, "Invalid mediasize");
+			break;
+		case 'n':
+			nodename = optarg;
 			break;
 		case 'h':
 		default:

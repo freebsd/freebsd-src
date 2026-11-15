@@ -204,7 +204,7 @@ pmc_stat_setup_stat(int system_mode, const char *arg)
 	pmc_args.pa_logfd = pmcstat_open_log(pmc_args.pa_outputpath,
 	    PMCSTAT_OPEN_FOR_WRITE);
 	for (i = 0; i < STAT_MODE_NPMCS; i++) {
-		if ((ev = malloc(sizeof(*ev))) == NULL)
+		if ((ev = calloc(1, sizeof(*ev))) == NULL)
 			errx(EX_SOFTWARE, "ERROR: Out of memory.");
 		if (system_mode)
 			ev->ev_mode = PMC_MODE_SC;

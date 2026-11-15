@@ -419,15 +419,15 @@ disk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 
 	/*
 	 * disk names look approximately like:
-	 *	v?disk([0-9]+(p[0-9]+|s[a-z])?)?:
-	 * so skip over the initial bit. We don't have access to the devsw
-	 * to check the name.
+	 *	<name>([0-9]+(p[0-9]+|s[a-z])?)?:
+	 * so skip over the leading name. We don't have access to the devsw
+	 * to check it, and any device using disk_fmtdev() can land here, so
+	 * take whatever alphabetic prefix it wrote rather than a fixed list.
 	 */
-	if (strncmp(devspec, "disk", 4) == 0)
-		np = devspec + 4;
-	else if (strncmp(devspec, "vdisk", 5) == 0)
-		np = devspec + 5;
-	else
+	np = devspec;
+	while (isalpha(*np))
+		np++;
+	if (np == devspec)
 		return (EINVAL);
 	unit = -1;
 	/*

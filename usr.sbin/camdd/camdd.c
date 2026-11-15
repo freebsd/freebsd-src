@@ -1684,8 +1684,6 @@ camdd_worker(void *arg)
 
 	pthread_mutex_lock(&dev->mutex);
 
-	dev->flags |= CAMDD_DEV_FLAG_ACTIVE;
-
 	for (;;) {
 		struct kevent ke;
 		int retval = 0;
@@ -3343,13 +3341,18 @@ camdd_rw(struct camdd_io_opts *io_opts, camdd_argmask arglist, int num_io_opts,
 		goto bailout;
 	}
 
+	/*
+	 * Mark both devices active before starting either worker so that the
+	 * reader can queue buffers before the writer starts running.
+	 */
+	for (i = 0; i < num_io_opts; i++)
+		devs[i]->flags |= CAMDD_DEV_FLAG_ACTIVE;
+
 	for (i = 0; i < num_io_opts; i++) {
 		error = pthread_create(&threads[i], NULL, camdd_worker,
 				       (void *)devs[i]);
-		if (error != 0) {
-			warnc(error, "pthread_create() failed");
-			goto bailout;
-		}
+		if (error != 0)
+			errc(1, error, "pthread_create() failed");
 	}
 
 	for (;;) {

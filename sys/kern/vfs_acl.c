@@ -55,6 +55,7 @@
 #include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/acl.h>
+#include <sys/syscallsubr.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -63,14 +64,6 @@ CTASSERT(ACL_MAX_ENTRIES >= OLDACL_MAX_ENTRIES);
 
 MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
 
-static int	kern___acl_aclcheck_path(struct thread *td, const char *path,
-		    acl_type_t type, struct acl *aclp, int follow);
-static int	kern___acl_delete_path(struct thread *td, const char *path,
-		    acl_type_t type, int follow);
-static int	kern___acl_get_path(struct thread *td, const char *path,
-		    acl_type_t type, struct acl *aclp, int follow);
-static int	kern___acl_set_path(struct thread *td, const char *path,
-		    acl_type_t type, const struct acl *aclp, int follow);
 static int	vacl_set_acl(struct thread *td, struct vnode *vp,
 		    acl_type_t type, const struct acl *aclp);
 static int	vacl_get_acl(struct thread *td, struct vnode *vp,
@@ -366,7 +359,7 @@ sys___acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
 	    NOFOLLOW));
 }
 
-static int
+int
 kern___acl_get_path(struct thread *td, const char *path, acl_type_t type,
     struct acl *aclp, int follow)
 {
@@ -405,7 +398,7 @@ sys___acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
 	    NOFOLLOW));
 }
 
-static int
+int
 kern___acl_set_path(struct thread *td, const char *path,
     acl_type_t type, const struct acl *aclp, int follow)
 {
@@ -428,15 +421,22 @@ kern___acl_set_path(struct thread *td, const char *path,
 int
 sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 {
+	return (kern___acl_get_fd(td, uap->filedes, uap->type, uap->aclp));
+}
+
+int
+kern___acl_get_fd(struct thread *td, int filedes, acl_type_t type,
+    struct acl *aclp)
+{
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->filedes);
-	error = getvnode_path(td, uap->filedes,
+	AUDIT_ARG_FD(filedes);
+	error = getvnode_path(td, filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_GET), NULL, &fp);
 	if (error == 0) {
-		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
+		error = vacl_get_acl(td, fp->f_vnode, type, aclp);
 		fdrop(fp, td);
 	}
 	return (error);
@@ -448,15 +448,22 @@ sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 int
 sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 {
+	return (kern___acl_set_fd(td, uap->filedes, uap->type, uap->aclp));
+}
+
+int
+kern___acl_set_fd(struct thread *td, int filedes, acl_type_t type,
+    const struct acl *aclp)
+{
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->filedes);
-	error = getvnode(td, uap->filedes,
+	AUDIT_ARG_FD(filedes);
+	error = getvnode(td, filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_SET), &fp);
 	if (error == 0) {
-		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
+		error = vacl_set_acl(td, fp->f_vnode, type, aclp);
 		fdrop(fp, td);
 	}
 	return (error);
@@ -468,7 +475,6 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 int
 sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 {
-
 	return (kern___acl_delete_path(td, uap->path, uap->type, FOLLOW));
 }
 
@@ -478,11 +484,10 @@ sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 int
 sys___acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
 {
-
 	return (kern___acl_delete_path(td, uap->path, uap->type, NOFOLLOW));
 }
 
-static int
+int
 kern___acl_delete_path(struct thread *td, const char *path,
     acl_type_t type, int follow)
 {
@@ -525,7 +530,6 @@ sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 int
 sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 {
-
 	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
 }
@@ -540,7 +544,7 @@ sys___acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 	    NOFOLLOW));
 }
 
-static int
+int
 kern___acl_aclcheck_path(struct thread *td, const char *path, acl_type_t type,
     struct acl *aclp, int follow)
 {
@@ -563,15 +567,22 @@ kern___acl_aclcheck_path(struct thread *td, const char *path, acl_type_t type,
 int
 sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 {
+	return (kern___acl_aclcheck_fd(td, uap->filedes, uap->type, uap->aclp));
+}
+
+int
+kern___acl_aclcheck_fd(struct thread *td, int filedes, acl_type_t type,
+    const struct acl *aclp)
+{
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->filedes);
-	error = getvnode_path(td, uap->filedes,
+	AUDIT_ARG_FD(filedes);
+	error = getvnode_path(td, filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_CHECK), NULL, &fp);
 	if (error == 0) {
-		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);
+		error = vacl_aclcheck(td, fp->f_vnode, type, aclp);
 		fdrop(fp, td);
 	}
 	return (error);

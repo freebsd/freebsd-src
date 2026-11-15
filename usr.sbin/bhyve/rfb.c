@@ -1463,8 +1463,6 @@ rfb_init(sa_family_t family, const char *hostname, int port, int wait,
 	return (0);
 
  error:
-	if (rc->pixfmt_mtx)
-		pthread_mutex_destroy(&rc->pixfmt_mtx);
 	if (ai != NULL) {
 		assert(family != AF_UNIX);
 		freeaddrinfo(ai);

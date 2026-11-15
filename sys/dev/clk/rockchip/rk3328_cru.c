@@ -48,6 +48,12 @@
 #define	CRU_CLKGATE_CON(x)	(0x200 + (x) * 0x4)
 
 /* Registers */
+#define	RK3328_SDMMC_CON0	0x380
+#define	RK3328_SDMMC_CON1	0x384
+#define	RK3328_SDIO_CON0	0x388
+#define	RK3328_SDIO_CON1	0x38c
+#define	RK3328_EMMC_CON0	0x390
+#define	RK3328_EMMC_CON1	0x394
 #define	RK3328_GRF_SOC_CON4	0x410
 #define	RK3328_GRF_MAC_CON1	0x904
 #define	RK3328_GRF_MAC_CON2	0x908
@@ -1058,6 +1064,20 @@ static struct rk_clk rk3328_clks[] = {
 
 	/* GRF_MAC_CON2 */
 	MUXGRF(SCLK_MAC2PHY, "clk_mac2phy", mux_mac2phy_p, 0, RK3328_GRF_MAC_CON2, 10, 1),
+
+	/* MMC drive/sample phase clocks */
+	MMCPHASE(SCLK_SDMMC_DRV, "sdmmc_drv", "clk_mmc0_src",
+	    RK3328_SDMMC_CON0, 1),
+	MMCPHASE(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "clk_mmc0_src",
+	    RK3328_SDMMC_CON1, 1),
+	MMCPHASE(SCLK_SDIO_DRV, "sdio_drv", "clk_sdio_src",
+	    RK3328_SDIO_CON0, 1),
+	MMCPHASE(SCLK_SDIO_SAMPLE, "sdio_sample", "clk_sdio_src",
+	    RK3328_SDIO_CON1, 1),
+	MMCPHASE(SCLK_EMMC_DRV, "emmc_drv", "clk_emmc_src",
+	    RK3328_EMMC_CON0, 1),
+	MMCPHASE(SCLK_EMMC_SAMPLE, "emmc_sample", "clk_emmc_src",
+	    RK3328_EMMC_CON1, 1),
 
 	/*
 	 * This clock is controlled in the secure world

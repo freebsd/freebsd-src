@@ -1776,9 +1776,19 @@ vlapic_set_tmr(struct vlapic *vlapic, int vector, bool level)
 void
 vlapic_reset_tmr(struct vlapic *vlapic)
 {
-	int vector;
+	uint32_t *tmrptr;
+	int i, vector;
 
 	VLAPIC_CTR0(vlapic, "vlapic resetting all vectors to edge-triggered");
+
+	if (vlapic->ops.reset_tmr != NULL) {
+		tmrptr = &vlapic->apic_page->tmr0;
+		/* APIC register slots are 16 bytes apart. */
+		for (i = 0; i < 8; i++)
+			tmrptr[i * 4] = 0;
+		(*vlapic->ops.reset_tmr)(vlapic);
+		return;
+	}
 
 	for (vector = 0; vector <= 255; vector++)
 		vlapic_set_tmr(vlapic, vector, false);

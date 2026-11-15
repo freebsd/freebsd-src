@@ -342,40 +342,42 @@ lkpi_i2c_add_adapter(struct i2c_adapter *adapter)
 int
 lkpi_i2c_del_adapter(struct i2c_adapter *adapter)
 {
-	device_t child;
-	int unit, rv;
+	device_t parent, *children, child;
+	const char *name;
+	int count, i, rv;
 
 	if (adapter == NULL)
 		return (-EINVAL);
+	parent = adapter->dev.parent->bsddev;
 	if (bootverbose)
-		device_printf(adapter->dev.parent->bsddev,
-		    "Removing i2c adapter %s\n", adapter->name);
+		device_printf(parent, "Removing i2c adapter %s\n",
+		    adapter->name);
 	sx_xlock(&lkpi_sx_i2c);
-	unit = 0;
-	while ((child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iic", unit++)) != NULL) {
-
-		if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
-			bus_topo_lock();
-			device_delete_child(adapter->dev.parent->bsddev, child);
-			bus_topo_unlock();
-			rv = 0;
-			goto out;
-		}
-	}
-
-	unit = 0;
-	while ((child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iicbb", unit++)) != NULL) {
-
-		if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
-			bus_topo_lock();
-			device_delete_child(adapter->dev.parent->bsddev, child);
-			bus_topo_unlock();
-			rv = 0;
-			goto out;
-		}
-	}
+	/*
+	 * Look at every child: the units of the lkpi_iic and lkpi_iicbb
+	 * devices are not contiguous once other adapters have been removed,
+	 * so searching by increasing unit until the first hole would miss
+	 * the device and leave it behind.
+	 */
 	rv = -EINVAL;
-out:
+	bus_topo_lock();
+	if (device_get_children(parent, &children, &count) == 0) {
+		for (i = 0; i < count; i++) {
+			child = children[i];
+			name = device_get_name(child);
+			if (name == NULL ||
+			    (strcmp(name, "lkpi_iic") != 0 &&
+			    strcmp(name, "lkpi_iicbb") != 0))
+				continue;
+			if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
+				device_delete_child(parent, child);
+				rv = 0;
+				break;
+			}
+		}
+		free(children, M_TEMP);
+	}
+	bus_topo_unlock();
 	sx_xunlock(&lkpi_sx_i2c);
 	return (rv);
 }

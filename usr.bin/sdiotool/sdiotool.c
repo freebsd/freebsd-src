@@ -421,7 +421,7 @@ probe_bcrm(struct cam_device *dev) {
 }
 
 __unused static uint8_t*
-mmap_fw() {
+mmap_fw(void) {
 	const char fw_path[] = "/home/kibab/repos/fbsd-bbb/brcm-firmware/brcmfmac4330-sdio.bin";
 	struct stat sb;
 	uint8_t *fw_ptr;
@@ -439,7 +439,7 @@ mmap_fw() {
 }
 
 static void
-usage() {
+usage(void) {
 	printf("sdiotool -u <pass_dev_unit>\n");
 	exit(0);
 }
@@ -486,7 +486,6 @@ int
 main(int argc, char **argv) {
 	char device[] = "pass";
 	int unit = 0;
-	int func = 0;
 	__unused uint8_t *fw_ptr;
 	int ch;
 	struct cam_device *cam_dev;
@@ -495,13 +494,10 @@ main(int argc, char **argv) {
 
 	//fw_ptr = mmap_fw();
 
-	while ((ch = getopt(argc, argv, "fu:")) != -1) {
+	while ((ch = getopt(argc, argv, "u:")) != -1) {
 		switch (ch) {
 		case 'u':
 			unit = (int) strtol(optarg, NULL, 10);
-			break;
-		case 'f':
-			func = (int) strtol(optarg, NULL, 10);
 			break;
 		case '?':
 		default:
@@ -543,10 +539,11 @@ main(int argc, char **argv) {
 
 	ret = sdio_func_enable(cam_dev, 1, 1);bailout(ret);
 	uint32_t magic = brcmf_sdiod_regrl(&brcmf_dev, 0x18000000, &ret);
-	printf("Magic = %08x\n", magic);
-	if (magic != REPLY_MAGIC) {
-		errx(1, "Reply magic is incorrect: expected %08x, got %08x",
-		     REPLY_MAGIC, magic);
-	}
+	printf("Chip ID at 0x18000000 = %08x\n", magic);
+	if (ret != 0)
+		errx(1, "Backplane read failed: %d", ret);
+	if (magic != REPLY_MAGIC)
+		printf("Unknown chip ID (expected %08x for BCM4330)\n",
+		    REPLY_MAGIC);
 	cam_close_spec_device(cam_dev);
 }

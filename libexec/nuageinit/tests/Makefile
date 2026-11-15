@@ -12,6 +12,7 @@ ${PACKAGE}FILES+=	addgroup.lua
 ${PACKAGE}FILES+=	addsshkey.lua
 ${PACKAGE}FILES+=	adduser.lua
 ${PACKAGE}FILES+=	adduser_passwd.lua
+${PACKAGE}FILES+=	adduser_uid.lua
 ${PACKAGE}FILES+=	dirname.lua
 ${PACKAGE}FILES+=	err.lua
 ${PACKAGE}FILES+=	sethostname.lua

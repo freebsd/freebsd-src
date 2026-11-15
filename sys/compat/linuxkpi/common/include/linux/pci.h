@@ -399,6 +399,17 @@ int _lkpi_pci_enable_msi_range(struct pci_dev *pdev, int minvec, int maxvec);
 static inline bool
 dev_is_pci(struct device *dev)
 {
+	device_t parent = device_get_parent(dev->bsddev);
+
+	if (parent == NULL)
+		return (false);
+	/*
+	 * drmn driver is attached to PCI bus via intermediate vgapci
+	 * driver. Check for it presence in device tree branch too to
+	 * handle drm-kmod cases.
+	 */
+	if (device_get_devclass(parent) == devclass_find("vgapci"))
+		return (true);
 	return (is_pci_device(dev->bsddev));
 }
 

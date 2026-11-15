@@ -1,5 +1,6 @@
 PackageSearchPath: lib1
+PackageSearchPath: lib2
 Query: pkgconf
 WantVariable: pc_path
 ExpectedExitCode: 0
-ExpectedStdout: %TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: %TEST_FIXTURES_DIR%/lib1%DIR_SEP%%TEST_FIXTURES_DIR%/lib2

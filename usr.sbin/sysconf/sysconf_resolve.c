@@ -71,6 +71,9 @@ resolve_target(const char *target)
 	const char *env = NULL;
 	const struct bsdconf_format_def *def;
 
+	if (ucl_register() != 0)
+		err(EXIT_FAILURE, "ucl");
+
 	if (target == NULL) {
 		warnx("no target provided");
 		usage();
@@ -84,6 +87,9 @@ resolve_target(const char *target)
 			warnx("unknown target `%s'", target);
 		usage();
 	}
+
+	/* UCL files (ucl, and pkg derived from it) are libucl's to parse */
+	ucl_target = (format == ucl_format || format == pkg_format);
 
 	if (file != NULL) {
 		char path[PATH_MAX];
@@ -164,6 +170,9 @@ resolve_target(const char *target)
 		defaults_idx = 0;
 		write_idx++;
 	}
+
+	/* pkg(8) read-only base repos and the local override file */
+	pkg_prepare();
 }
 
 /*

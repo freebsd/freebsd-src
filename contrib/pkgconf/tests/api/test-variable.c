@@ -201,6 +201,112 @@ test_variable_eval_str_chained(void)
 }
 
 static void
+test_variable_eval_name_plain(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	seed_variable(&vars, "version", "1.2.3");
+
+	char *out = pkgconf_variable_eval_name(client, &vars, "version");
+	TEST_ASSERT_NONNULL(out);
+	TEST_ASSERT_STRCMP_EQ(out, "1.2.3");
+
+	free(out);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
+test_variable_eval_name_with_reference(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	seed_variable(&vars, "prefix", "/opt/foo");
+	seed_variable(&vars, "libdir", "${prefix}/lib");
+
+	char *out = pkgconf_variable_eval_name(client, &vars, "libdir");
+	TEST_ASSERT_NONNULL(out);
+	TEST_ASSERT_STRCMP_EQ(out, "/opt/foo/lib");
+
+	free(out);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
+test_variable_eval_name_absent(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	// Looking up a variable that was never defined yields no value.
+	char *out = pkgconf_variable_eval_name(client, &vars, "nonexistent");
+	TEST_ASSERT_NULL(out);
+
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
+test_variable_eval_name_sysroot_prepended(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_client_set_sysroot_dir(client, "/sysroot");
+	seed_variable(&vars, "libdir", "/opt/foo/lib");
+
+	// A plausible path that does not already begin with sysroot gets it prepended.
+	char *out = pkgconf_variable_eval_name(client, &vars, "libdir");
+	TEST_ASSERT_NONNULL(out);
+	TEST_ASSERT_STRCMP_EQ(out, "/sysroot/opt/foo/lib");
+
+	free(out);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
+test_variable_eval_name_sysroot_not_doubled(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_client_set_sysroot_dir(client, "/sysroot");
+	seed_variable(&vars, "libdir", "/sysroot/opt/foo/lib");
+
+	// A value that already begins with sysroot must not have it prepended twice.
+	char *out = pkgconf_variable_eval_name(client, &vars, "libdir");
+	TEST_ASSERT_NONNULL(out);
+	TEST_ASSERT_STRCMP_EQ(out, "/sysroot/opt/foo/lib");
+
+	free(out);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
+test_variable_eval_name_non_path_no_sysroot(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_client_set_sysroot_dir(client, "/sysroot");
+	seed_variable(&vars, "version", "1.2.3");
+
+	// A non-path value is left untouched even when sysroot is set.
+	char *out = pkgconf_variable_eval_name(client, &vars, "version");
+	TEST_ASSERT_NONNULL(out);
+	TEST_ASSERT_STRCMP_EQ(out, "1.2.3");
+
+	free(out);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
 test_variable_list_free_handles_empty(void)
 {
 	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
@@ -240,6 +346,12 @@ main(int argc, char *argv[])
 	TEST_RUN(basename, test_variable_eval_str_plain);
 	TEST_RUN(basename, test_variable_eval_str_with_reference);
 	TEST_RUN(basename, test_variable_eval_str_chained);
+	TEST_RUN(basename, test_variable_eval_name_plain);
+	TEST_RUN(basename, test_variable_eval_name_with_reference);
+	TEST_RUN(basename, test_variable_eval_name_absent);
+	TEST_RUN(basename, test_variable_eval_name_sysroot_prepended);
+	TEST_RUN(basename, test_variable_eval_name_sysroot_not_doubled);
+	TEST_RUN(basename, test_variable_eval_name_non_path_no_sysroot);
 	TEST_RUN(basename, test_variable_list_free_handles_empty);
 	TEST_RUN(basename, test_variable_list_free_handles_many);
 

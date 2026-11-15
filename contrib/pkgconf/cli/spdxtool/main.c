@@ -87,8 +87,8 @@ usage(void)
 	printf("  --creation-time                   Use string as creation time (Should be in ISO8601 format) [default: current time]\n");
 	printf("  --creation-id                     Use string as creation id [default: '_:creationinfo_1']\n");
 	printf("  --help                            this message\n");
-	printf("  --about                           print bomtool version and license to stdout\n");
-	printf("  --version                         print bomtool version to stdout\n");
+	printf("  --about                           print spdxtool version and license to stdout\n");
+	printf("  --version                         print spdxtool version to stdout\n");
 	printf("  --output FILE                     output SBOM data to file\n");
 	printf("  --spdx-base-id URL                Uset string as base of SPDX ids [default: %s]\n", xsd_any_uri_default_base);
 	printf("  --use-uri                         Use URIs not URLs as SPDX id");
@@ -177,7 +177,12 @@ main(int argc, char *argv[])
 		}
 	}
 
-	pkgconf_client_init(&pkg_client, error_handler, NULL, personality, NULL, environ_lookup_handler);
+	pkgconf_client_options_t client_options = {
+		.error_handler = error_handler,
+		.personality = personality,
+		.environ_lookup_handler = environ_lookup_handler,
+	};
+	pkgconf_client_init_with_options(&pkg_client, &client_options);
 
 	/* we have determined what features we want most likely.  in some cases, we override later. */
 	pkgconf_client_set_flags(&pkg_client, want_client_flags);
@@ -203,10 +208,15 @@ main(int argc, char *argv[])
 
 	while (pkg_optind < argc && argv[pkg_optind] != NULL)
 	{
-		if (pkgconf_buffer_len(&queryparams) > 0)
-			pkgconf_buffer_push_byte(&queryparams, ' ');
+		if ((pkgconf_buffer_len(&queryparams) > 0 &&
+			 !pkgconf_buffer_push_byte(&queryparams, ' ')) ||
+			!pkgconf_buffer_append(&queryparams, argv[pkg_optind]))
+		{
+			pkgconf_buffer_finalize(&queryparams);
+			ret = EXIT_FAILURE;
+			goto out;
+		}
 
-		pkgconf_buffer_append(&queryparams, argv[pkg_optind]);
 		pkg_optind++;
 	}
 
@@ -214,6 +224,13 @@ main(int argc, char *argv[])
 		pkgconf_queue_push(&pkgq, pkgconf_buffer_str(&queryparams));
 
 	pkgconf_buffer_finalize(&queryparams);
+
+	if (pkgq.head == NULL)
+	{
+		pkgconf_output_file_fmt(stderr, "Please specify at least one package name on the command line.\n");
+		ret = EXIT_FAILURE;
+		goto out;
+	}
 
 	if (!pkgconf_queue_solve(&pkg_client, &pkgq, &world, maximum_traverse_depth))
 	{

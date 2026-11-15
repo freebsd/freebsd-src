@@ -7,7 +7,7 @@
 .\"
 .\" Author: Jaeyoon Choi <j_yoon.choi@samsung.com>
 .\"
-.Dd July 17, 2025
+.Dd October 23, 2026
 .Dt UFSHCI 4
 .Os
 .Sh NAME
@@ -182,6 +182,18 @@ nodes are currently implemented:
 (R) Number of trackers in the UTP transfer queue.
 .It Va dev.ufshci.0.ioq.0.num_entries
 (R) Number of entries in the UTP transfer queue.
+.It Va dev.ufshci.0.force_reset
+(RW) Write a non-zero value to reset the controller now.
+This is a debug aid for exercising the recovery path.
+.It Va dev.ufshci.0.drop_next_ios
+(RW) Number of I/O requests whose doorbell the driver drops, so that they
+time out and drive the recovery path.
+This is a debug aid.
+.It Va dev.ufshci.0.drop_next_admins
+(RW) Number of admin requests whose doorbell the driver drops.
+The driver waits for its own admin requests while it brings the
+controller up, so this stalls a reset the way a dead link does.
+This is a debug aid.
 .El
 .Sh SEE ALSO
 .Xr cam 4 ,

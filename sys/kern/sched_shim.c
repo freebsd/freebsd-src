@@ -15,6 +15,7 @@
 #include <sys/proc.h>
 #include <sys/runq.h>
 #include <sys/sbuf.h>
+#define SCHED_SHIM
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -136,7 +137,8 @@ SYSINIT(sched_sysinit, SI_SUB_LAST, SI_ORDER_FIRST, sched_sysinit, NULL);
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Scheduler");
 
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, sched_name, 0,
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    sched_name, 0,
     "Scheduler name");
 
 static int

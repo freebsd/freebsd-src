@@ -171,7 +171,6 @@ struct sc_info {
 	struct pcmchan_caps	caps[2];
 
 	/* channel info table */
-	unsigned	chnum;
 	struct sc_chinfo chan[11];
 };
 
@@ -1448,7 +1447,7 @@ envy24ht_r16sl(struct sc_chinfo *ch)
 	dst = sndbuf_getfreeptr(ch->buffer) / 2;
 	src = dst / 2 + ch->offset;
 	dsize = ch->size / 2;
-	ssize = ch->size / 8;
+	ssize = ch->size / 4;
 	slot = (ch->num - ENVY24HT_CHAN_REC_ADC1) * 2;
 
 	for (i = 0; i < length; i++) {
@@ -1477,14 +1476,13 @@ envy24htchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_chan
 	device_printf(sc->dev, "envy24htchan_init(obj, devinfo, b, c, %d)\n", dir);
 #endif
 	mtx_lock(&sc->lock);
-#if 0
-	if ((sc->chnum > ENVY24HT_CHAN_PLAY_SPDIF && dir != PCMDIR_REC) ||
-	    (sc->chnum < ENVY24HT_CHAN_REC_ADC1 && dir != PCMDIR_PLAY)) {
-		mtx_unlock(&sc->lock);
-		return NULL;
-	}
-#endif
-	num = sc->chnum;
+	/*
+	 * Only 1 channel per direction is registered at the moment (see
+	 * pcm_addchan() calls in envy24ht_pci_attach()), so only the first
+	 * pair of slots in each frame is used.
+	 */
+	num = dir == PCMDIR_PLAY ? ENVY24HT_CHAN_PLAY_DAC1 :
+	    ENVY24HT_CHAN_REC_ADC1;
 
 	ch = &sc->chan[num];
 	ch->size = 8 * ENVY24HT_SAMPLE_NUM;
@@ -1498,8 +1496,7 @@ envy24htchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_chan
 		ch->channel = c;
 		ch->parent = sc;
 		ch->dir = dir;
-		/* set channel map */
-		ch->num = envy24ht_chanmap[num];
+		ch->num = num;
 		mtx_unlock(&sc->lock);
 		sndbuf_setup(ch->buffer, ch->data, ch->size);
 		mtx_lock(&sc->lock);
@@ -2481,16 +2478,8 @@ envy24ht_pci_attach(device_t dev)
 	/* set multi track mixer */
 	mixer_init(dev, &envy24htmixer_class, sc);
 
-	/* set channel information */
-	sc->chnum = 0;
-	/* for (i = 0; i < 5; i++) { */
-		pcm_addchan(dev, PCMDIR_PLAY, &envy24htchan_class, sc);
-		sc->chnum++;
-	/* } */
-	for (i = 0; i < 2 + sc->adcn; i++) {
-		pcm_addchan(dev, PCMDIR_REC, &envy24htchan_class, sc);
-		sc->chnum++;
-	}
+	pcm_addchan(dev, PCMDIR_PLAY, &envy24htchan_class, sc);
+	pcm_addchan(dev, PCMDIR_REC, &envy24htchan_class, sc);
 
 	/* set status iformation */
 	snprintf(status, SND_STATUSLEN,

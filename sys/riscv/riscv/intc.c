@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017,2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
  *
@@ -58,6 +58,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "pic_if.h"
+#include "ofw_bus_if.h"
 
 #define	INTC_NIRQS	16
 
@@ -69,6 +70,12 @@ struct intc_irqsrc {
 struct intc_softc {
 	device_t		dev;
 	struct intc_irqsrc	isrcs[INTC_NIRQS];
+	device_t		imsic;
+};
+
+struct intc_devinfo {
+	struct resource_list	di_rl;
+	struct ofw_bus_devinfo	di_dinfo;
 };
 
 static int	intc_intr(void *arg);
@@ -140,6 +147,61 @@ intc_identify(driver_t *driver, device_t parent)
 }
 
 static int
+intc_add_imsic(device_t dev)
+{
+	struct intc_softc *sc;
+	struct intc_devinfo *di;
+	pcell_t addr_cells, size_cells;
+	phandle_t parent;
+	phandle_t child;
+
+	sc = device_get_softc(dev);
+
+	child = ofw_bus_find_compatible(OF_finddevice("/"), "riscv,imsics");
+	if (child == 0)
+		return (0);
+
+	parent = OF_parent(child);
+
+	if (OF_getencprop(parent, "#address-cells", &addr_cells,
+	    sizeof(addr_cells)) == -1) {
+		device_printf(dev, "Unable to read #address-cells\n");
+		return (ENXIO);
+	}
+
+	if (OF_getencprop(parent, "#size-cells", &size_cells,
+	    sizeof(size_cells)) == -1) {
+		device_printf(dev, "Unable to read #size-cells\n");
+		return (ENXIO);
+	}
+
+	di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (di == NULL)
+		return (ENOMEM);
+
+	if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, child)) {
+		if (bootverbose)
+			device_printf(dev, "Could not set up devinfo\n");
+		free(di, M_DEVBUF);
+		return (ENXIO);
+	}
+
+	sc->imsic = device_add_child(dev, "imsic", DEVICE_UNIT_ANY);
+	if (sc->imsic == NULL) {
+		free(di, M_DEVBUF);
+		return (ENXIO);
+	}
+
+        /* Initialize and populate resource list. */
+	resource_list_init(&di->di_rl);
+	ofw_bus_reg_to_rl(dev, child, addr_cells, size_cells, &di->di_rl);
+	ofw_bus_intr_to_rl(dev, child, &di->di_rl, NULL);
+	device_set_ivars(sc->imsic, di);
+
+	return (0);
+}
+
+static int
 intc_probe(device_t dev)
 {
 	device_set_desc(dev, "RISC-V Local Interrupt Controller");
@@ -180,6 +242,8 @@ intc_attach(device_t dev)
 	pic = intr_pic_register(sc->dev, xref);
 	if (pic == NULL)
 		return (ENXIO);
+
+	intc_add_imsic(dev);
 
 	return (intr_pic_claim_root(sc->dev, xref, intc_intr, sc, INTR_ROOT_IRQ));
 }
@@ -250,7 +314,18 @@ intc_init_secondary(device_t dev, uint32_t rootnum)
 	sc = device_get_softc(dev);
 	cpu = PCPU_GET(cpuid);
 
-	/* Unmask attached interrupts */
+	/* Mask attached interrupts. */
+	for (irq = 0; irq < INTC_NIRQS; irq++) {
+		isrc = &sc->isrcs[irq].isrc;
+		if (intr_isrc_init_on_cpu(isrc, cpu))
+			intc_disable_intr(dev, isrc);
+	}
+
+	/* Initialize the child PIC. */
+	if (sc->imsic != NULL)
+		PIC_INIT_SECONDARY(sc->imsic, rootnum);
+
+	/* Unmask attached interrupts. */
 	for (irq = 0; irq < INTC_NIRQS; irq++) {
 		isrc = &sc->isrcs[irq].isrc;
 		if (intr_isrc_init_on_cpu(isrc, cpu))
@@ -288,11 +363,43 @@ intc_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
+static const struct ofw_bus_devinfo *
+intc_get_devinfo(device_t bus __unused, device_t child)
+{
+	struct intc_devinfo *di;
+
+	di = device_get_ivars(child);
+	if (di == NULL)
+		return (NULL);
+	return (&di->di_dinfo);
+}
+
+static struct resource_list *
+intc_get_resource_list(device_t bus, device_t child)
+{
+	struct intc_devinfo *di;
+
+	di = device_get_ivars(child);
+	KASSERT(di != NULL, ("%s: No devinfo", __func__));
+
+	return (&di->di_rl);
+}
+
 static device_method_t intc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	intc_identify),
 	DEVMETHOD(device_probe,		intc_probe),
 	DEVMETHOD(device_attach,	intc_attach),
+
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_get_resource_list, intc_get_resource_list),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	intc_disable_intr),
@@ -302,6 +409,12 @@ static device_method_t intc_methods[] = {
 #ifdef SMP
 	DEVMETHOD(pic_init_secondary,	intc_init_secondary),
 #endif
+	DEVMETHOD(ofw_bus_get_devinfo,	intc_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };

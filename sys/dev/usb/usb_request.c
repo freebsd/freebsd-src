@@ -68,6 +68,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_hub.h>
 #include <sys/ctype.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
@@ -1536,6 +1537,68 @@ usbd_req_get_ss_hub_descriptor(struct usb_device *udev, struct mtx *mtx,
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_req_get_bos_descriptor
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_bos_descriptor(struct usb_device *udev, struct mtx *mtx,
+    struct usb_bos_descriptor *bd)
+{
+	return (usbd_req_get_desc(udev, mtx, NULL, bd, sizeof(*bd),
+	    sizeof(*bd), 0, UDESC_BOS, 0, 3));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_get_bos_descriptor_full
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_bos_descriptor_full(struct usb_device *udev, struct mtx *mtx,
+    struct usb_bos_descriptor **bdp)
+{
+	struct usb_bos_descriptor bd;
+	struct usb_bos_descriptor *bdesc;
+	uint32_t len;
+	usb_error_t err;
+
+	*bdp = NULL;
+
+	err = usbd_req_get_bos_descriptor(udev, mtx, &bd);
+	if (err)
+		return (err);
+
+	len = UGETW(bd.wTotalLength);
+	if (len < sizeof(bd) || len > USB_BOS_DESC_MAX_LEN) {
+		DPRINTFN(0, "BOS descriptor wTotalLength %u is invalid\n",
+		    len);
+		return (USB_ERR_INVAL);
+	}
+
+	bdesc = malloc(len, M_USBDEV, M_WAITOK | M_ZERO);
+	if (bdesc == NULL)
+		return (USB_ERR_NOMEM);
+	err = usbd_req_get_desc(udev, mtx, NULL, bdesc, len, len, 0,
+	    UDESC_BOS, 0, 3);
+	if (err) {
+		free(bdesc, M_USBDEV);
+		return (err);
+	}
+	if (UGETW(bdesc->wTotalLength) != len) {
+		DPRINTFN(0, "BOS descriptor length changed\n");
+		free(bdesc, M_USBDEV);
+		return (USB_ERR_INVAL);
+	}
+	*bdp = bdesc;
+	return (0);
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_req_get_hub_status
  *
  * Returns:
@@ -1617,6 +1680,29 @@ usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 	req.bmRequestType = UT_READ_CLASS_OTHER;
 	req.bRequest = UR_GET_STATUS;
 	USETW(req.wValue, 0);
+	req.wIndex[0] = port;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, sizeof(*ps));
+
+	return (usbd_do_request_flags(udev, mtx, &req, ps, 0, NULL, 1000));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_get_ext_port_status
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_ext_port_status(struct usb_device *udev, struct mtx *mtx,
+    struct usb_ext_status *ps, uint8_t port)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_READ_CLASS_OTHER;
+	req.bRequest = UR_GET_STATUS;
+	USETW(req.wValue, 2);
 	req.wIndex[0] = port;
 	req.wIndex[1] = 0;
 	USETW(req.wLength, sizeof(*ps));
@@ -2081,8 +2167,7 @@ retry:
 	 * Try to reset the High Speed parent HUB of a LOW- or FULL-
 	 * speed device, if any.
 	 */
-	if (udev->parent_hs_hub != NULL &&
-	    udev->speed != USB_SPEED_HIGH) {
+	if (udev->parent_hs_hub != NULL && udev->speed < USB_SPEED_HIGH) {
 		DPRINTF("Trying to reset parent High Speed TT.\n");
 		if (udev->parent_hs_hub == parent_hub &&
 		    (uhub_count_active_host_ports(parent_hub, USB_SPEED_LOW) +
@@ -2103,7 +2188,7 @@ retry:
 	}
 #endif
 	/* Try to warm reset first */
-	if (parent_hub->speed == USB_SPEED_SUPER)
+	if (parent_hub->speed >= USB_SPEED_SUPER)
 		usbd_req_warm_reset_port(parent_hub, mtx, udev->port_no);
 
 	/* Try to reset the parent HUB port. */
@@ -2112,6 +2197,12 @@ retry:
 		DPRINTFN(0, "addr=%d, port reset failed, %s\n", 
 		    old_addr, usbd_errstr(err));
 		goto done;
+	}
+
+	/* The link may have been trained at another speed */
+	if (udev->speed >= USB_SPEED_SUPER) {
+		udev->speed = uhub_update_ss_port_speed(parent_hub, mtx,
+		    udev->port_no, udev->speed);
 	}
 
 	/*

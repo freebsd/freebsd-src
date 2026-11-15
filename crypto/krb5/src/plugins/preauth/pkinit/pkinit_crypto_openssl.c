@@ -209,13 +209,20 @@ create_identifiers_from_stack(STACK_OF(X509) *sk,
 #define EVP_MD_CTX_new EVP_MD_CTX_create
 #define EVP_MD_CTX_free EVP_MD_CTX_destroy
 #define ASN1_STRING_get0_data ASN1_STRING_data
+#define X509_STORE_CTX_set0_trusted_stack X509_STORE_CTX_trusted_stack
 
 /*
- * 1.1 adds DHX support, which uses the RFC 3279 DomainParameters encoding we
+ * 1.0.2 adds DHX support, which uses the RFC 3279 DomainParameters encoding we
  * need for PKINIT.  For 1.0 we must use the original DH type when creating
  * EVP_PKEY objects.
  */
+#ifndef EVP_PKEY_DHX
 #define EVP_PKEY_DHX EVP_PKEY_DH
+#endif
+
+/* Make X509_NAME_print_ex() accept a const name pointer by adding a cast. */
+#define X509_NAME_print_ex(a, b, c, d)          \
+    X509_NAME_print_ex(a, (X509_NAME *)b, c, d)
 
 /* 1.1 makes many handle types opaque and adds accessors.  Add compatibility
  * versions of the new accessors we use for pre-1.1. */
@@ -295,6 +302,10 @@ compat_ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 #define EVP_PKEY_get_bits EVP_PKEY_bits
 #define EVP_PKEY_get_base_id EVP_PKEY_base_id
 
+/* Make X509_dup() accept a const pointer by adding a cast. */
+#define X509_dup(a) X509_dup((X509 *)a)
+#define i2d_X509_NAME(a, b) i2d_X509_NAME((X509_NAME *)a, b)
+
 /*
  * Convert *dh to an EVP_PKEY object, taking ownership of *dh and setting it to
  * NULL.  On error, return NULL and do not take ownership of or change *dh.
@@ -317,6 +328,11 @@ dh_to_pkey(DH **dh)
     return pkey;
 }
 #endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
+/* Make X509V3_EXT_d2i() accept a const pointer by adding a cast. */
+#define X509V3_EXT_d2i(a) X509V3_EXT_d2i((X509_EXTENSION *)a)
+#endif
 
 /* Encode a bignum as an ASN.1 integer in DER. */
 static int
@@ -505,7 +521,7 @@ encode_spki(EVP_PKEY *pkey, krb5_data *spki_out)
     ASN1_TYPE parameter;
     ASN1_STRING param_str, pubkey_str;
 
-    if (EVP_PKEY_base_id(pkey) != EVP_PKEY_DH) {
+    if (EVP_PKEY_get_base_id(pkey) != EVP_PKEY_DH) {
         /* Only DH keys require special encoding. */
         len = i2d_PUBKEY(pkey, NULL);
         ret = alloc_data(spki_out, len);
@@ -1134,6 +1150,13 @@ oerr_cert(krb5_context context, krb5_error_code code, X509_STORE_CTX *certctx,
     return oerr(context, code, _("%s (depth %d): %s"), msg, depth, errstr);
 }
 
+/* Convert an OpenSSL ASN.1 string value to krb5_data, without copying. */
+static inline krb5_data
+asn1string_to_data(ASN1_STRING *s)
+{
+    return make_data((char *)ASN1_STRING_get0_data(s), ASN1_STRING_length(s));
+}
+
 krb5_error_code
 pkinit_init_plg_crypto(krb5_context context,
                        pkinit_plg_crypto_context *cryptoctx)
@@ -1726,7 +1749,9 @@ cms_signeddata_create(krb5_context context,
     PKCS7_SIGNED *p7s = NULL;
     PKCS7_SIGNER_INFO *p7si = NULL;
     unsigned char *p;
-    STACK_OF(X509) * cert_stack = NULL;
+    STACK_OF(X509) *cert_stack = NULL, *certstack = NULL;
+    X509_STORE *certstore = NULL;
+    X509_STORE_CTX *certctx = NULL;
     ASN1_OCTET_STRING *digest_attr = NULL;
     EVP_MD_CTX *ctx;
     unsigned char md_data[EVP_MAX_MD_SIZE], *abuf = NULL;
@@ -1755,9 +1780,6 @@ cms_signeddata_create(krb5_context context,
         goto cleanup;
 
     if (id_cryptoctx->my_cert != NULL) {
-        X509_STORE *certstore = NULL;
-        X509_STORE_CTX *certctx;
-        STACK_OF(X509) *certstack = NULL;
         char buf[DN_BUF_LEN];
         unsigned int i = 0, size = 0;
 
@@ -1775,13 +1797,15 @@ cms_signeddata_create(krb5_context context,
             goto cleanup;
         X509_STORE_CTX_init(certctx, certstore, id_cryptoctx->my_cert,
                             id_cryptoctx->intermediateCAs);
-        X509_STORE_CTX_trusted_stack(certctx, id_cryptoctx->trustedCAs);
+        X509_STORE_CTX_set0_trusted_stack(certctx, id_cryptoctx->trustedCAs);
         if (!X509_verify_cert(certctx)) {
             retval = oerr_cert(context, 0, certctx,
                                _("Failed to verify own certificate"));
             goto cleanup;
         }
         certstack = X509_STORE_CTX_get1_chain(certctx);
+        if (certstack == NULL)
+            goto cleanup;
         size = sk_X509_num(certstack);
         for (i = 0; i < size - 1; i++) {
             X509 *x = sk_X509_value(certstack, i);
@@ -1789,11 +1813,9 @@ cms_signeddata_create(krb5_context context,
             TRACE_PKINIT_CERT_CHAIN_NAME(context, (int)i, buf);
             sk_X509_push(cert_stack, X509_dup(x));
         }
-        X509_STORE_CTX_free(certctx);
-        X509_STORE_free(certstore);
-        sk_X509_pop_free(certstack, X509_free);
 
         p7s->cert = cert_stack;
+        cert_stack = NULL;
 
         /* fill-in PKCS7_SIGNER_INFO */
         if ((p7si = PKCS7_SIGNER_INFO_new()) == NULL)
@@ -1879,6 +1901,7 @@ cms_signeddata_create(krb5_context context,
         /* adder signer_info to pkcs7 signed */
         if (!PKCS7_add_signer(p7, p7si))
             goto cleanup2;
+        p7si = NULL;
     } /* we have a certificate */
 
     /* start on adding data to the pkcs7 signed */
@@ -1920,6 +1943,11 @@ cleanup2:
             X509_ALGOR_free(alg);
     }
 cleanup:
+    X509_STORE_CTX_free(certctx);
+    X509_STORE_free(certstore);
+    sk_X509_pop_free(cert_stack, X509_free);
+    sk_X509_pop_free(certstack, X509_free);
+    PKCS7_SIGNER_INFO_free(p7si);
     if (p7 != NULL)
         PKCS7_free(p7);
     free(sig);
@@ -2002,7 +2030,8 @@ cms_signeddata_verify(krb5_context context,
         unsigned char *d;
         *is_signed = 0;
         octets = CMS_get0_content(cms);
-        if (!octets || ((*octets)->type != V_ASN1_OCTET_STRING)) {
+        if (octets == NULL || *octets == NULL ||
+            (ASN1_STRING_type(*octets) != V_ASN1_OCTET_STRING)) {
             retval = KRB5KDC_ERR_PREAUTH_FAILED;
             krb5_set_error_message(context, retval,
                                    _("Invalid pkinit packet: octet string "
@@ -2057,8 +2086,10 @@ cms_signeddata_verify(krb5_context context,
         *is_signed = 0;
         /* We cannot use CMS_dataInit because there may be no digest */
         octets = CMS_get0_content(cms);
-        if (octets)
-            out = BIO_new_mem_buf((*octets)->data, (*octets)->length);
+        if (octets != NULL && *octets != NULL) {
+            out = BIO_new_mem_buf(ASN1_STRING_get0_data(*octets),
+                                  ASN1_STRING_length(*octets));
+        }
         if (out == NULL)
             goto cleanup;
     } else {
@@ -2118,7 +2149,7 @@ cms_signeddata_verify(krb5_context context,
 
         /* add trusted CAs certificates for cert verification */
         if (idctx->trustedCAs != NULL)
-            X509_STORE_CTX_trusted_stack(cert_ctx, idctx->trustedCAs);
+            X509_STORE_CTX_set0_trusted_stack(cert_ctx, idctx->trustedCAs);
         else {
             pkiDebug("unable to find any trusted CAs\n");
             goto cleanup;
@@ -2156,7 +2187,7 @@ cms_signeddata_verify(krb5_context context,
         i = X509_verify_cert(cert_ctx);
         if (i <= 0) {
             int j = X509_STORE_CTX_get_error(cert_ctx);
-            X509 *cert;
+            const X509 *cert;
 
             cert = X509_STORE_CTX_get_current_cert(cert_ctx);
             reqctx->received_cert = X509_dup(cert);
@@ -2316,9 +2347,11 @@ crypto_retrieve_X509_sans(krb5_context context,
     krb5_principal *princs = NULL;
     char **upns = NULL;
     unsigned char **dnss = NULL;
-    X509_EXTENSION *ext = NULL;
+    const X509_EXTENSION *ext = NULL;
     GENERAL_NAMES *ialt = NULL;
     GENERAL_NAME *gen = NULL;
+    const ASN1_OBJECT *otype;
+    const ASN1_TYPE *ovalue;
 
     if (princs_ret != NULL)
         *princs_ret = NULL;
@@ -2379,11 +2412,15 @@ crypto_retrieve_X509_sans(krb5_context context,
         gen = sk_GENERAL_NAME_value(ialt, i);
         switch (gen->type) {
         case GEN_OTHERNAME:
-            name.length = gen->d.otherName->value->value.sequence->length;
-            name.data = (char *)gen->d.otherName->value->value.sequence->data;
-            if (princs != NULL &&
-                OBJ_cmp(plgctx->id_pkinit_san,
-                        gen->d.otherName->type_id) == 0) {
+            otype = gen->d.otherName->type_id;
+            ovalue = gen->d.otherName->value;
+            if (princs != NULL && OBJ_cmp(plgctx->id_pkinit_san, otype) == 0) {
+                if (ovalue->type != V_ASN1_SEQUENCE) {
+                    pkiDebug("%s: id-pkinit-san name is not a sequence\n",
+                             __FUNCTION__);
+                    continue;
+                }
+                name = asn1string_to_data(ovalue->value.sequence);
 #ifdef DEBUG_ASN1
                 print_buffer_bin((unsigned char *)name.data, name.length,
                                  "/tmp/pkinit_san");
@@ -2395,8 +2432,13 @@ crypto_retrieve_X509_sans(krb5_context context,
                     p++;
                 }
             } else if (upns != NULL &&
-                       OBJ_cmp(plgctx->id_ms_san_upn,
-                               gen->d.otherName->type_id) == 0) {
+                       OBJ_cmp(plgctx->id_ms_san_upn, otype) == 0) {
+                if (ovalue->type != V_ASN1_UTF8STRING) {
+                    pkiDebug("%s: id-ms-san-upn name is not a UTF-8 string\n",
+                             __FUNCTION__);
+                    continue;
+                }
+                name = asn1string_to_data(ovalue->value.utf8string);
                 /* Prevent abuse of embedded null characters. */
                 if (memchr(name.data, '\0', name.length))
                     break;
@@ -2414,12 +2456,13 @@ crypto_retrieve_X509_sans(krb5_context context,
         case GEN_DNS:
             if (dnss != NULL) {
                 /* Prevent abuse of embedded null characters. */
-                if (memchr(gen->d.dNSName->data, '\0', gen->d.dNSName->length))
+                if (memchr(ASN1_STRING_get0_data(gen->d.dNSName), '\0',
+                           ASN1_STRING_length(gen->d.dNSName)))
                     break;
                 pkiDebug("%s: found dns name = %s\n", __FUNCTION__,
-                         gen->d.dNSName->data);
+                         ASN1_STRING_get0_data(gen->d.dNSName));
                 dnss[d] = (unsigned char *)
-                    strdup((char *)gen->d.dNSName->data);
+                    strdup((char *)ASN1_STRING_get0_data(gen->d.dNSName));
                 if (dnss[d] == NULL) {
                     pkiDebug("%s: failed to duplicate dns name\n",
                              __FUNCTION__);
@@ -3094,8 +3137,10 @@ int
 pkinit_openssl_init(void)
 {
     /* Initialize OpenSSL. */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
+#endif
     return 0;
 }
 
@@ -4011,7 +4056,7 @@ create_signature(unsigned char **sig, unsigned int *sig_len,
         return ENOMEM;
     EVP_SignInit(ctx, EVP_sha256());
     EVP_SignUpdate(ctx, data, data_len);
-    *sig_len = EVP_PKEY_size(pkey);
+    *sig_len = EVP_PKEY_get_size(pkey);
     if ((*sig = malloc(*sig_len)) == NULL)
         goto cleanup;
     EVP_SignFinal(ctx, *sig, sig_len, pkey);
@@ -4766,7 +4811,7 @@ out:
 }
 
 static krb5_error_code
-rfc2253_name(X509_NAME *name, char **str_out)
+rfc2253_name(const X509_NAME *name, char **str_out)
 {
     BIO *b = NULL;
     char *str;
@@ -4999,7 +5044,7 @@ load_cas_and_crls(krb5_context context,
                   pkinit_req_crypto_context req_cryptoctx,
                   pkinit_identity_crypto_context id_cryptoctx,
                   int catype,
-                  char *filename)
+                  const char *filename)
 {
     STACK_OF(X509_INFO) *sk = NULL;
     STACK_OF(X509) *ca_certs = NULL;
@@ -5157,7 +5202,7 @@ load_cas_and_crls_dir(krb5_context context,
                       pkinit_req_crypto_context req_cryptoctx,
                       pkinit_identity_crypto_context id_cryptoctx,
                       int catype,
-                      char *dirname)
+                      const char *dirname)
 {
     krb5_error_code retval = EINVAL;
     char **fnames = NULL, *filename;
@@ -5201,7 +5246,7 @@ crypto_load_cas_and_crls(krb5_context context,
                          pkinit_identity_crypto_context id_cryptoctx,
                          int idtype,
                          int catype,
-                         char *id)
+                         const char *id)
 {
     switch (idtype) {
     case IDTYPE_FILE:
@@ -5227,7 +5272,7 @@ create_identifiers_from_stack(STACK_OF(X509) *sk,
     int i = 0, sk_size = sk_X509_num(sk);
     krb5_external_principal_identifier **krb5_cas = NULL;
     X509 *x = NULL;
-    X509_NAME *xn = NULL;
+    const X509_NAME *xn = NULL;
     unsigned char *p = NULL;
     int len = 0;
     PKCS7_ISSUER_AND_SERIAL *is = NULL;

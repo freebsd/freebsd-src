@@ -109,6 +109,10 @@ dispatch(void *cb, const struct sockaddr *local_addr,
     state->is_tcp = is_tcp;
     state->kdc_err_context = kdc_err_context;
 
+    /* Start with a guess at the applicable realm, in case we need one to
+     * produce an error message without having decoded the request. */
+    state->active_realm = handle->kdc_realmlist[0];
+
     /* decode incoming packet, and dispatch */
 
 #ifndef NOCACHE

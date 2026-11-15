@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+ * Copyright (c) 2026 Abdelkader Boudih <seuros@FreeBSD.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

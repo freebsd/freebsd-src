@@ -15,6 +15,7 @@ SRCS = \
 	backtrace.c \
 	condvar.c \
 	kmem.c \
+	kmem_cache.c \
 	libspl.c \
         list.c \
         mkdirp.c \
@@ -34,7 +35,6 @@ SRCS = \
 # among others, will not compile when building on macOS.
 .if !defined(BOOTSTRAPPING)
 SRCS += \
-        atomic.c \
 	cred.c \
         getexecname.c \
 	kstat.c \
@@ -57,8 +57,5 @@ CFLAGS+= -I${ZFSTOP}/module/icp/include
 CFLAGS+= -include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS.atomic.c+=	-Wno-error=atomic-alignment
-.endif
 
 .include <bsd.lib.mk>

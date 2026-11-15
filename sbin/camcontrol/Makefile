@@ -18,7 +18,7 @@ CFLAGS+= -I${SRCTOP}/sbin/nvmecontrol
 SRCS+=	identify_ext.c
 SRCS+=	nc_util.c
 .PATH:	${SRCTOP}/sys/dev/nvme
-SRCS+=	nvme_util.c
+SRCS+=	nvme_util.c nvres.c nvformat.c nvfeature.c
 # This is verboten
 .if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3

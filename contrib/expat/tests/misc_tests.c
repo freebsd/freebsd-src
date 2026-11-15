@@ -25,6 +25,7 @@
    Copyright (c) 2026      Evgeny Kotkov <kotkov@apache.org>
    Copyright (c) 2026      Darren Carreras <carrerasdarren@gmail.com>
    Copyright (c) 2026      Junki Lee <junkilee80@gmail.com>
+   Copyright (c) 2026      Pu Cheng <geekshampoo@qq.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -60,6 +61,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "dummy.h" // for dummy_start_element
 #include "expat.h"
 #include "internal.h"
 #include "minicheck.h"
@@ -222,7 +224,7 @@ START_TEST(test_misc_version) {
   if (! versions_equal(&read_version, &parsed_version))
     fail("Version mismatch");
 
-  if (xcscmp(version_text, XCS("expat_2.9.0"))
+  if (xcscmp(version_text, XCS("expat_2.10.0"))
       != 0) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 }
@@ -588,6 +590,26 @@ START_TEST(test_misc_stopparser_rejects_unstarted_parser) {
     assert_true(XML_GetErrorCode(parser) == XML_ERROR_NOT_STARTED);
     XML_ParserFree(parser);
   }
+}
+END_TEST
+
+static void *
+nonzero_filling_malloc(size_t size) {
+  void *const ptr = malloc(size);
+  if (ptr != NULL)
+    memset(ptr, 0xA5, size);
+  return ptr;
+}
+
+START_TEST(test_misc_parsing_status_of_unstarted_parser) {
+  XML_Memory_Handling_Suite memsuite = {nonzero_filling_malloc, realloc, free};
+  XML_Parser parser = XML_ParserCreate_MM(NULL, &memsuite, NULL);
+  assert_true(parser != NULL);
+  XML_ParsingStatus status = {.parsing = XML_PARSING, .finalBuffer = XML_TRUE};
+  XML_GetParsingStatus(parser, &status);
+  assert_true(status.parsing == XML_INITIALIZED);
+  assert_true(status.finalBuffer == XML_FALSE);
+  XML_ParserFree(parser);
 }
 END_TEST
 
@@ -1024,6 +1046,159 @@ START_TEST(test_misc_input_2gb) {
 }
 END_TEST
 
+static void
+dummy_start_doctype(void *userData, const XML_Char *name,
+                    const XML_Char *systemId, const XML_Char *publicId,
+                    int has_internal_subset) {
+  UNUSED_P(userData);
+  UNUSED_P(name);
+  UNUSED_P(systemId);
+  UNUSED_P(publicId);
+  UNUSED_P(has_internal_subset);
+}
+
+static int
+reset_start_doctype_decl_handler_not_standalone(void *userData) {
+  XML_Parser parser = userData;
+  XML_SetStartDoctypeDeclHandler(parser, NULL);
+  return XML_STATUS_OK;
+}
+
+START_TEST(test_misc_start_doctype_decl_handler_reset) {
+  // Speed up the test, chunk size expected to not matter in this test
+  if (g_chunkSize != 0)
+    return;
+
+  const char *const doc = "<!DOCTYPE r SYSTEM \"s\"><r/>";
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+
+  XML_SetUserData(parser, parser);
+  XML_SetStartDoctypeDeclHandler(parser, dummy_start_doctype);
+  XML_SetNotStandaloneHandler(parser,
+                              reset_start_doctype_decl_handler_not_standalone);
+
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
+                                      /*isFinal=*/XML_TRUE)
+              == XML_STATUS_OK);
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
+START_TEST(test_misc_storeatts_attssize_allocation) {
+  // Speed up the test, chunk size expected to not matter in this test
+  if (g_chunkSize != 0)
+    return;
+
+  // NOTE: This has 17 attributes defined because `INIT_ATTS_SIZE` is 16.
+  //       Array size is calculated as
+  //         parser->m_attsSize = n + nDefaultAtts + INIT_ATTS_SIZE
+  //       when I expected it would have needed to be
+  //         parser->m_attsSize = n + 2 * nDefaultAtts + INIT_ATTS_SIZE .
+  //       Please see the in-code comments in `storeAtts` for the black magic
+  //       that makes it work nonetheless. The same memory is used as an array
+  //       of `ATTRIBUTE` elements first, and then as an array of `XML_Char *`
+  //       elements after.
+  const char *const doc = "<!DOCTYPE doc [\n"
+                          "  <!ELEMENT doc EMPTY>\n"
+                          "  <!ATTLIST doc\n"
+                          "              a01 CDATA '01'\n"
+                          "              a02 CDATA '02'\n"
+                          "              a03 CDATA '03'\n"
+                          "              a04 CDATA '04'\n"
+                          "              a05 CDATA '05'\n"
+                          "              a06 CDATA '06'\n"
+                          "              a07 CDATA '07'\n"
+                          "              a08 CDATA '08'\n"
+                          "              a09 CDATA '09'\n"
+                          "              a10 CDATA '10'\n"
+                          "              a11 CDATA '11'\n"
+                          "              a12 CDATA '12'\n"
+                          "              a13 CDATA '13'\n"
+                          "              a14 CDATA '14'\n"
+                          "              a15 CDATA '15'\n"
+                          "              a16 CDATA '16'\n"
+                          "              a17 CDATA '17'\n"
+                          "  >\n"
+                          "]>\n"
+                          "<doc/>\n";
+
+  init_dummy_handlers();
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+  XML_SetStartElementHandler(
+      parser, dummy_start_element); // i.e. ask for calling `storeAtts`
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
+                                      /*isFinal=*/XML_TRUE));
+  XML_ParserFree(parser);
+
+  assert_true(get_dummy_handler_flags() == DUMMY_START_ELEMENT_HANDLER_FLAG);
+}
+END_TEST
+
+static void
+comparingPiHandler(void *userData, const XML_Char *target,
+                   const XML_Char *data) {
+  UNUSED_P(userData);
+
+  XML_Char *const literalTarget = xcsdup_str("target");
+  XML_Char *const literalData = xcsdup_str("data");
+  assert_true(literalTarget != NULL);
+  assert_true(literalData != NULL);
+
+  assert_true(xcscmp(target, literalTarget) == 0);
+  assert_true(xcscmp(data, literalData) == 0);
+
+  free(literalTarget);
+  free(literalData);
+}
+
+static int XMLCALL
+piParsingExternalEntityHandler(XML_Parser parent, const XML_Char *context,
+                               const XML_Char *base, const XML_Char *systemId,
+                               const XML_Char *publicId) {
+  UNUSED_P(base);
+  UNUSED_P(systemId);
+  UNUSED_P(publicId);
+
+  const char *const doc = "<?target data?>";
+
+  XML_Parser subParser = XML_ExternalEntityParserCreate(parent, context, NULL);
+  assert_true(subParser != NULL);
+
+  // NOTE: Related test "test_empty_ext_param_entity_in_value" could be of
+  // interest
+  assert_true(_XML_Parse_SINGLE_BYTES(subParser, "", 0, /*isFinal=*/XML_FALSE)
+              == XML_STATUS_OK);
+  assert_true(_XML_Parse_SINGLE_BYTES(subParser, doc, (int)strlen(doc),
+                                      /*isFinal=*/XML_TRUE)
+              == XML_STATUS_OK);
+
+  XML_ParserFree(subParser);
+
+  return XML_STATUS_OK;
+}
+
+START_TEST(test_misc_empty_nonfinal_subparser_parse) {
+  const char *const doc = "<!DOCTYPE root [\n"
+                          "  <!ENTITY ext SYSTEM 'external.dtd'>\n"
+                          "]>\n"
+                          "<root>&ext;</root>\n";
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+  assert_true(parser != NULL);
+
+  XML_SetProcessingInstructionHandler(parser, comparingPiHandler);
+  XML_SetExternalEntityRefHandler(parser, piParsingExternalEntityHandler);
+
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
+                                      /*isFinal=*/XML_TRUE));
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
 void
 make_miscellaneous_test_case(Suite *s) {
   TCase *tc_misc = tcase_create("miscellaneous tests");
@@ -1050,6 +1225,7 @@ make_miscellaneous_test_case(Suite *s) {
   tcase_add_test(tc_misc, test_misc_char_handler_stop_without_leak);
   tcase_add_test(tc_misc, test_misc_resumeparser_not_crashing);
   tcase_add_test(tc_misc, test_misc_stopparser_rejects_unstarted_parser);
+  tcase_add_test(tc_misc, test_misc_parsing_status_of_unstarted_parser);
   tcase_add_test__if_xml_ge(tc_misc, test_renter_loop_finite_content);
   tcase_add_test(tc_misc, test_misc_expected_event_ptr_issue_980);
   tcase_add_test(tc_misc, test_misc_sync_entity_tolerated);
@@ -1064,4 +1240,7 @@ make_miscellaneous_test_case(Suite *s) {
                  test_misc_unknown_encoding_release_getter_parser_reset);
   tcase_add_test(tc_misc, test_misc_input_2gb);
   tcase_add_test(tc_misc, test_misc_low_surrogate_mozilla_bug_2053153);
+  tcase_add_test(tc_misc, test_misc_storeatts_attssize_allocation);
+  tcase_add_test(tc_misc, test_misc_start_doctype_decl_handler_reset);
+  tcase_add_test(tc_misc, test_misc_empty_nonfinal_subparser_parse);
 }

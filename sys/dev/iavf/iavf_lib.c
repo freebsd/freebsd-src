@@ -315,8 +315,11 @@ iavf_reset(struct iavf_sc *sc)
 	int		error = 0;
 
 	/* Ask the PF to reset us if we are initiating */
-	if (!iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING))
-		iavf_request_reset(sc);
+	if (!iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING)) {
+		error = iavf_request_reset(sc);
+		if (error != 0)
+			return (error);
+	}
 
 	iavf_msec_pause(100);
 	error = iavf_reset_complete(hw);
@@ -325,6 +328,12 @@ iavf_reset(struct iavf_sc *sc)
 		    __func__);
 		return (error);
 	}
+	/*
+	 * The completed reset stopped the old queues.  Record that fact so
+	 * stop and initialization need not issue DISABLE_QUEUES again.
+	 */
+	iavf_set_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+	atomic_store_rel_32(&sc->queues_enabled, 0);
 	pci_enable_busmaster(dev);
 
 	error = iavf_shutdown_adminq(hw);
@@ -909,8 +918,8 @@ iavf_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 	else {
 		SLIST_FOREACH(v, sc->vlan_filters, next) {
 			sbuf_printf(buf,
-			    "%d, flags %#06x",
-			    v->vlan, v->flags);
+			    "%d, desired %d, applied %d, uncertain %d",
+			    v->vlan, v->desired, v->applied, v->uncertain);
 			/* don't print '\n' for last entry */
 			if (++ftl_counter != ftl_len)
 				sbuf_printf(buf, "\n");
@@ -1438,18 +1447,34 @@ iavf_baudrate_from_link_speed(struct iavf_sc *sc)
  * @sc: device private softc
  * @vtag: the VLAN id to filter
  *
- * Allocate a new VLAN filter structure and insert it into the VLAN list.
+ * Record a desired membership, retaining any unacknowledged operation.
+ * Returns true only when a new membership was recorded.
  */
-void
+bool
 iavf_add_vlan_filter(struct iavf_sc *sc, u16 vtag)
 {
-	struct iavf_vlan_filter	*v;
+	struct iavf_vlan_filter *v, *first;
 
+	SLIST_FOREACH(v, sc->vlan_filters, next) {
+		if (v->vlan == vtag) {
+			v->rejected = false;
+			if (v->desired)
+				return (false);
+			v->desired = true;
+			return (true);
+		}
+	}
 	v = (struct iavf_vlan_filter *)malloc(sizeof(struct iavf_vlan_filter),
 	    M_IAVF, M_WAITOK | M_ZERO);
-	SLIST_INSERT_HEAD(sc->vlan_filters, v, next);
+	/* Admit untagged traffic before the first nonzero membership. */
+	first = SLIST_FIRST(sc->vlan_filters);
+	if (vtag != 0 && first != NULL && first->vlan == 0)
+		SLIST_INSERT_AFTER(first, v, next);
+	else
+		SLIST_INSERT_HEAD(sc->vlan_filters, v, next);
 	v->vlan = vtag;
-	v->flags = IAVF_FILTER_ADD;
+	v->desired = true;
+	return (true);
 }
 
 /**
@@ -1457,9 +1482,9 @@ iavf_add_vlan_filter(struct iavf_sc *sc, u16 vtag)
  * @sc: device private softc
  * @vtag: the VLAN id to delete
  *
- * Marks all VLAN filters matching the given vtag for deletion.
+ * Clear the desired membership, keeping the entry until deletion is confirmed.
  *
- * @returns the number of filters marked for deletion.
+ * @returns one if the membership changed, or zero if already absent.
  *
  * @remark the filters are not removed immediately, but will be removed from
  * the list by another function that synchronizes over the virtchnl interface.
@@ -1468,16 +1493,16 @@ int
 iavf_mark_del_vlan_filter(struct iavf_sc *sc, u16 vtag)
 {
 	struct iavf_vlan_filter	*v;
-	int i = 0;
 
 	SLIST_FOREACH(v, sc->vlan_filters, next) {
-		if (v->vlan == vtag) {
-			v->flags = IAVF_FILTER_DEL;
-			++i;
+		if (v->vlan == vtag && v->desired) {
+			v->desired = false;
+			v->rejected = false;
+			return (1);
 		}
 	}
 
-	return (i);
+	return (0);
 }
 
 /**
@@ -1488,8 +1513,9 @@ iavf_mark_del_vlan_filter(struct iavf_sc *sc, u16 vtag)
  * to IAVF_MAX_DIS_Q_RETRY times if the response says that it wasn't
  * successful. This is intended to workaround a bug that can appear on the PF.
  *
- * @returns zero on success, or an error code if the request could not be sent
- * or acknowledged.
+ * @returns zero on success, EBUSY when the PF replied but did not confirm
+ * that the queues were disabled, or another error if the request could not
+ * be sent or acknowledged.
  */
 int
 iavf_disable_queues_with_retries(struct iavf_sc *sc)
@@ -1498,9 +1524,9 @@ iavf_disable_queues_with_retries(struct iavf_sc *sc)
 	int max_attempts = IAVF_MAX_DIS_Q_RETRY;
 	int error = 0, msg_count = 0;
 
-	/* While the driver is detaching, it doesn't care if the queue
-	 * disable finishes successfully or not. Just send one message
-	 * to just notify the PF driver.
+	/*
+	 * The detach path cannot wait for a reply.  Send one request and let
+	 * the caller attempt a VF reset if the queues remain unconfirmed.
 	 */
 	if (in_detach)
 		max_attempts = 1;
@@ -1519,13 +1545,13 @@ iavf_disable_queues_with_retries(struct iavf_sc *sc)
 		iavf_dbg_vc(sc, "DISABLE_QUEUES messages sent: %d\n",
 		    msg_count);
 
-	if (!in_detach && msg_count >= max_attempts &&
+	if (msg_count >= max_attempts &&
 	    atomic_load_acq_32(&sc->queues_enabled)) {
-		if (iavf_mbx_log_allowed(sc))
+		if (!in_detach && iavf_mbx_log_allowed(sc))
 			device_printf(sc->dev,
 			    "%s: DISABLE_QUEUES may have failed\n", __func__);
 		if (error == 0)
-			error = EIO;
+			error = EBUSY;
 	}
 	return (error);
 }

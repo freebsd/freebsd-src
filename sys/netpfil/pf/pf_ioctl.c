@@ -6392,6 +6392,7 @@ DIOCCHANGEADDR_error:
 			e = malloc(sizeof(*e), M_PF, M_WAITOK);
 
 			e->rs_num = ie.rs_num;
+			ie.anchor[sizeof(ie.anchor) - 1] = '\0';
 			strlcpy(e->anchor, ie.anchor, sizeof(e->anchor));
 			e->ticket = ie.ticket;
 
@@ -6410,10 +6411,18 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 
+		if (error != 0) {
+			pf_trans_free(&trans);
+			break;
+		}
+
 		i = 0;
 		TAILQ_FOREACH(e, &trans.elms, entry) {
-			error = copyout(&e->ticket, &io->array[i].ticket, sizeof(e->ticket));
+			error = copyout(&e->ticket, &io->array[i].ticket,
+			    sizeof(e->ticket));
 			i++;
+			if (error)
+				break;
 		}
 
 		pf_trans_free(&trans);

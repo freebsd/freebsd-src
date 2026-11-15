@@ -47,6 +47,9 @@ MALLOC_DECLARE(M_UFSHCI);
 
 #define UFSHCI_DEFAULT_RETRY_COUNT    (4)
 
+/* A device that is still powering on does not answer the first one. */
+#define UFSHCI_MAX_LINK_STARTUP_ATTEMPTS (3)
+
 #define UFSHCI_UTR_ENTRIES	      (32)
 #define UFSHCI_UTRM_ENTRIES	      (8)
 
@@ -82,6 +85,7 @@ enum ufshci_slot_state {
 	UFSHCI_SLOT_STATE_SCHEDULED = 0x2,
 	UFSHCI_SLOT_STATE_TIMEOUT = 0x3,
 	UFSHCI_SLOT_STATE_NEED_ERROR_HANDLING = 0x4,
+	UFSHCI_SLOT_STATE_COMPLETING = 0x5,
 };
 
 struct ufshci_tracker {
@@ -128,12 +132,10 @@ struct ufshci_qops {
 	void (*disable)(struct ufshci_controller *ctrlr,
 	    struct ufshci_req_queue *req_queue);
 	int (*reserve_slot)(struct ufshci_req_queue *req_queue,
-	    struct ufshci_tracker **tr);
-	int (*reserve_admin_slot)(struct ufshci_req_queue *req_queue,
-	    struct ufshci_tracker **tr);
+	    struct ufshci_tracker **tr, bool admin);
 	void (*ring_doorbell)(struct ufshci_controller *ctrlr,
 	    struct ufshci_tracker *tr);
-	bool (*is_doorbell_cleared)(struct ufshci_controller *ctrlr,
+	bool (*is_completed)(struct ufshci_controller *ctrlr,
 	    uint8_t slot);
 	void (*clear_cpl_ntf)(struct ufshci_controller *ctrlr,
 	    struct ufshci_tracker *tr);
@@ -162,6 +164,7 @@ struct ufshci_hw_queue {
 
 	struct callout timer;		     /* recovery lock */
 	bool timer_armed;		     /* recovery lock */
+	bool watchdog_stopped;		     /* qlock */
 	enum ufshci_recovery recovery_state; /* recovery lock */
 
 	union {
@@ -180,6 +183,8 @@ struct ufshci_hw_queue {
 
 	TAILQ_HEAD(, ufshci_tracker) free_tr;
 	TAILQ_HEAD(, ufshci_tracker) outstanding_tr;
+	/* I/O held back while the queue is in recovery (qlock). */
+	STAILQ_HEAD(, ufshci_request) queued_req;
 
 	/*
 	 * A Request List using the single doorbell method uses a dedicated
@@ -412,6 +417,16 @@ struct ufshci_controller {
 	uint32_t max_rx_lanes;
 
 	uint32_t is_failed;
+	/*
+	 * The bring-up finished, so I/O may go to the device. Cleared when
+	 * a reset is requested. Read under qlock, written without it, so a
+	 * stale read costs at most one doorbell that the disable path claims.
+	 */
+	bool io_ready;
+
+	/* Debug aids: requests left to drop, per I/O and admin. */
+	uint32_t debug_drop_ios;
+	uint32_t debug_drop_admins;
 };
 
 #define ufshci_mmio_offsetof(reg) offsetof(struct ufshci_registers, reg)
@@ -436,6 +451,7 @@ uint8_t ufshci_sim_translate_scsi_to_ufs_lun(lun_id_t scsi_lun);
 uint64_t ufshci_sim_translate_ufs_to_scsi_lun(uint8_t ufs_lun);
 int ufshci_sim_attach(struct ufshci_controller *ctrlr);
 void ufshci_sim_detach(struct ufshci_controller *ctrlr);
+void ufshci_sim_controller_failed(struct ufshci_controller *ctrlr);
 void ufshci_sim_release_wlun_periph(struct ufshci_controller *ctrlr);
 struct cam_periph *ufshci_sim_find_periph(struct ufshci_controller *ctrlr,
     uint8_t wlun);
@@ -446,6 +462,7 @@ int ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
 int ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev);
 void ufshci_ctrlr_reset(struct ufshci_controller *ctrlr);
+void ufshci_ctrlr_fail(struct ufshci_controller *ctrlr);
 int ufshci_ctrlr_suspend(struct ufshci_controller *ctrlr,
     enum power_stype stype);
 int ufshci_ctrlr_resume(struct ufshci_controller *ctrlr,
@@ -508,6 +525,10 @@ void ufshci_utmr_req_queue_disable(struct ufshci_controller *ctrlr);
 int ufshci_utmr_req_queue_enable(struct ufshci_controller *ctrlr);
 void ufshci_utr_req_queue_disable(struct ufshci_controller *ctrlr);
 int ufshci_utr_req_queue_enable(struct ufshci_controller *ctrlr);
+void ufshci_req_queue_stop_watchdog(struct ufshci_req_queue *req_queue);
+void ufshci_req_queue_complete_aborted_hwq(struct ufshci_hw_queue *hwq);
+void ufshci_req_queue_resume(struct ufshci_req_queue *req_queue);
+void ufshci_req_queue_submit_queued(struct ufshci_hw_queue *hwq);
 void ufshci_req_queue_fail(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 int ufshci_req_queue_submit_request(struct ufshci_req_queue *req_queue,
@@ -527,14 +548,14 @@ void ufshci_req_sdb_disable(struct ufshci_controller *ctrlr,
 int ufshci_req_sdb_enable(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue);
 int ufshci_req_sdb_reserve_slot(struct ufshci_req_queue *req_queue,
-    struct ufshci_tracker **tr);
+    struct ufshci_tracker **tr, bool admin);
 void ufshci_req_sdb_utmr_ring_doorbell(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);
 void ufshci_req_sdb_utr_ring_doorbell(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);
-bool ufshci_req_sdb_utmr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+bool ufshci_req_sdb_utmr_is_completed(struct ufshci_controller *ctrlr,
     uint8_t slot);
-bool ufshci_req_sdb_utr_is_doorbell_cleared(struct ufshci_controller *ctrlr,
+bool ufshci_req_sdb_utr_is_completed(struct ufshci_controller *ctrlr,
     uint8_t slot);
 void ufshci_req_sdb_utmr_clear_cpl_ntf(struct ufshci_controller *ctrlr,
     struct ufshci_tracker *tr);
@@ -572,10 +593,13 @@ int ufshci_detach(device_t dev);
  * Wait for a command to complete using the ufshci_completion_poll_cb. Used in
  * limited contexts where the caller knows it's OK to block briefly while the
  * command runs. The ISR will run the callback which will set status->done to
- * true, usually within microseconds. If not, then after one second timeout
- * handler should reset the controller and abort all outstanding requests
- * including this polled one. If still not after ten seconds, then something is
- * wrong with the driver, and panic is the only way to recover.
+ * true, usually within microseconds.
+ *
+ * A command that does not complete within ten seconds is lost, and the reset
+ * task cannot rescue its own bring-up command. Returning would leave status,
+ * which lives on the caller's stack, to a late completion. Instead, fail the
+ * controller from here: the failure path completes every outstanding request,
+ * including this one, so the callback runs and the loop ends with an error.
  *
  * Most commands using this interface aren't actual I/O to the drive's media so
  * complete within a few microseconds. Adaptively spin for one tick to catch the
@@ -583,15 +607,28 @@ int ufshci_detach(device_t dev);
  * Since these are on startup, this drastically reduces startup time.
  */
 static __inline void
-ufshci_completion_poll(struct ufshci_completion_poll_status *status)
+ufshci_completion_poll(struct ufshci_controller *ctrlr,
+    struct ufshci_completion_poll_status *status)
 {
 	int timeout = ticks + 10 * hz;
 	sbintime_t delta_t = SBT_1US;
+	bool failed = false;
 
 	while (!atomic_load_acq_int(&status->done)) {
-		if (timeout - ticks < 0)
-			panic(
-			    "UFSHCI polled command failed to complete within 10s.");
+		if (timeout - ticks < 0) {
+			if (failed)
+				panic(
+				    "UFSHCI polled command stuck after controller failure.");
+			/*
+			 * The failure path completes every outstanding
+			 * request, including this one. It skips a request
+			 * that another path is completing right now, so
+			 * give that path a second to finish.
+			 */
+			ufshci_ctrlr_fail(ctrlr);
+			failed = true;
+			timeout = ticks + hz;
+		}
 		pause_sbt("ufshci_cpl", delta_t, 0, C_PREL(1));
 		delta_t = min(SBT_1MS, delta_t * 3 / 2);
 	}

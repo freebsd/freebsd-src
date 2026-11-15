@@ -912,7 +912,7 @@ mixer_ioctl_cmd(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 {
 	struct snd_mixer *m;
 	int ret = EINVAL, *arg_i = (int *)arg;
-	int v = -1, j = cmd & 0xff;
+	int v = -1, j = IOCNUM(cmd);
 
 	/*
 	 * Certain ioctls may be made on any type of device (audio, mixer,

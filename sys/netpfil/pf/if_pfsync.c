@@ -872,9 +872,9 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 		 * Ensure we don't over/under flow if our local timeout or
 		 * uptime is lower than the remote timeout.
 		 */
-		if (timeout > expire && st->expire > (timeout - expire))
-			st->expire -= (timeout - expire)
-			    * 1000;
+		if (timeout > expire &&
+		    st->expire > ((timeout - expire) * 1000))
+			st->expire -= (timeout - expire) * 1000;
 	}
 
 	if (! (st->act.rtableid == -1 ||
@@ -1029,6 +1029,7 @@ pfsync_input(struct mbuf **mp, int *offp __unused, int proto __unused)
 		rv = (*pfsync_acts[subh.action])(m, offset, count, flags, subh.action);
 		if (rv == -1) {
 			PF_RULES_RUNLOCK();
+			m_freem(m);
 			return (IPPROTO_DONE);
 		}
 
@@ -1601,6 +1602,7 @@ pfsync_in_bus(struct mbuf *m, int offset, int count, int flags, int action)
 	}
 
 	if (m->m_pkthdr.len < (offset + len)) {
+		PFSYNC_BUNLOCK(sc);
 		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
@@ -1715,7 +1717,6 @@ pfsync_in_eof(struct mbuf *m, int offset, int count, int flags, int action)
 		V_pfsyncstats.pfsyncs_badlen++;
 
 	/* we're done. free and let the caller return */
-	m_freem(m);
 	return (-1);
 }
 
@@ -1724,7 +1725,6 @@ pfsync_in_error(struct mbuf *m, int offset, int count, int flags, int action)
 {
 	V_pfsyncstats.pfsyncs_badact++;
 
-	m_freem(m);
 	return (-1);
 }
 
@@ -1732,7 +1732,6 @@ static int
 pfsyncoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *rt)
 {
-	m_freem(m);
 	return (0);
 }
 

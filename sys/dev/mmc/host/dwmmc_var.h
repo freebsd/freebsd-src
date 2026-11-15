@@ -61,6 +61,10 @@ struct dwmmc_softc {
 	struct mmc_request	*req;
 #endif
 	struct mmc_command	*curcmd;
+	struct callout		req_callout;	/* Request watchdog */
+	struct mmc_command	*tune_cmd;	/* Internal tuning command */
+	int			tune_done;
+	uint8_t			*tune_buf;	/* Tuning block buffer */
 	uint32_t		flags;
 	uint32_t		hwtype;
 	uint32_t		use_auto_stop;
@@ -70,6 +74,9 @@ struct dwmmc_softc {
 	struct timeout_task	card_delayed_task;/* Card insert delayed task */
 
 	int			(*update_ios)(struct dwmmc_softc *sc, struct mmc_ios *ios);
+	/* Optional HS200 tuning hook, called with the new clock in place. */
+	int			(*execute_tuning)(struct dwmmc_softc *sc,
+				    uint32_t opcode);
 
 	bus_dma_tag_t		desc_tag;
 	bus_dmamap_t		desc_map;
@@ -98,6 +105,13 @@ struct dwmmc_softc {
 DECLARE_CLASS(dwmmc_driver);
 
 int dwmmc_attach(device_t);
+#ifdef MMCCAM
+/*
+ * Send a tuning block command and check the returned data against the
+ * expected tuning pattern.  Returns 0 if the pattern was received intact.
+ */
+int dwmmc_send_tuning(struct dwmmc_softc *sc, uint32_t opcode);
+#endif
 int dwmmc_detach(device_t);
 
 #endif

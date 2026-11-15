@@ -486,7 +486,7 @@ auditd_expire_trails(int (*warn_expired)(char *))
 
 			/*
 			 * Get the ending time stamp encoded in the trail
-			 * name.  If we can't read it or if it is older
+			 * name. If we can't read it or if it is older
 			 * than Jan 1, 2000 then use the mtime.
 			 */
 			if (trailname_to_tstamp(dp->d_name, &tstamp) != 0 ||

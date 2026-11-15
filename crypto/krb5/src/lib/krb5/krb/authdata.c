@@ -314,14 +314,13 @@ k5_ad_internalize(krb5_context kcontext,
                   size_t *lenremain)
 {
     krb5_error_code code = 0;
-    krb5_int32 i, count;
     krb5_octet *bp;
-    size_t remain;
+    size_t remain, count, i;
 
     bp = *buffer;
     remain = *lenremain;
 
-    code = krb5_ser_unpack_int32(&count, &bp, &remain);
+    code = k5_ser_unpack_len(&count, &bp, &remain);
     if (code != 0)
         return code;
 

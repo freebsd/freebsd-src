@@ -720,9 +720,10 @@ ATF_TC_BODY(timedmutex1, tc)
 	printf("Before acquiring mutex\n");
 	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
 
-	printf("Before endeavor to reacquire timed-mutex (timeout expected)\n");
+	printf("Before endeavor to reacquire timed-mutex "
+	    "(deadlock detected)\n");
 	PTHREAD_REQUIRE_STATUS(mutex_lock(&mutex, &ts_shortlived),
-	    ETIMEDOUT);
+	    EDEADLK);
 
 	printf("Unlocking mutex\n");
 	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
@@ -745,9 +746,10 @@ ATF_TC_BODY(timedmutex2, tc)
 	printf("Before acquiring mutex with timedlock\n");
 	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 
-	printf("Before endeavor to reacquire timed-mutex (timeout expected)\n");
+	printf("Before endeavor to reacquire timed-mutex "
+	    "(deadlock detected)\n");
 	PTHREAD_REQUIRE_STATUS(mutex_lock(&mutex, &ts_shortlived),
-	    ETIMEDOUT);
+	    EDEADLK);
 
 	printf("Unlocking mutex\n");
 	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));

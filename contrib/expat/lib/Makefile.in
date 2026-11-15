@@ -28,6 +28,7 @@
 # Copyright (c) 2026      Gordon Messmer <gordon.messmer@gmail.com>
 # Copyright (c) 2026      Nick Begg <nick@stunttruck.net>
 # Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
+# Copyright (c) 2026      Funda Wang <fundawang@yeah.net>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -205,7 +206,7 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(docdir)" \
 	"$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
-libexpat_la_LIBADD =
+libexpat_la_DEPENDENCIES =
 am__libexpat_la_SOURCES_DIST = xcs.c xmlparse.c xmltok.c xmlrole.c \
 	random_arc4random.c random_arc4random.h \
 	random_arc4random_buf.c random_arc4random_buf.h \
@@ -493,8 +494,9 @@ include_HEADERS = \
 
 lib_LTLIBRARIES = libexpat.la
 @WITH_TESTS_TRUE@noinst_LTLIBRARIES = libtestpat.la
-libexpat_la_LDFLAGS = @AM_LDFLAGS@ @LIBM@ -no-undefined -version-info \
+libexpat_la_LDFLAGS = @AM_LDFLAGS@ -no-undefined -version-info \
 	@LIBCURRENT@:@LIBREVISION@:@LIBAGE@ $(am__append_1)
+libexpat_la_LIBADD = @LIBM@
 libexpat_la_SOURCES = xcs.c xmlparse.c xmltok.c xmlrole.c \
 	$(am__append_2) $(am__append_3) $(am__append_4) \
 	$(am__append_5) $(am__append_6) $(am__append_7)
@@ -507,6 +509,7 @@ doc_DATA = \
 EXTRA_DIST = \
     ascii.h \
     asciitab.h \
+    entities.h \
     expat_external.h \
     expat.h \
     fallthrough.h \

@@ -1036,6 +1036,8 @@ parse_value(struct decode_ctx *ctx, k5_json_value *val_out)
         if (ctx->depth-- == 1)
             return EINVAL;
         ret = parse_array(ctx, &array);
+        if (ret)
+            return ret;
         ctx->depth++;
         *val_out = array;
     } else if (is_digit(*ctx->p) || *ctx->p == '-') {

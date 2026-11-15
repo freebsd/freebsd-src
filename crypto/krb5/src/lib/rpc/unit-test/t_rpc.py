@@ -3,6 +3,7 @@ import re
 from k5test import *
 
 realm = K5Realm()
+realm.env['GSSRPC_ALLOW_AUTH_GSSAPI'] = 'yes'
 
 server = realm.start_server(['./server', '-t'], 'running')
 line = server.stdout.readline()
@@ -16,6 +17,9 @@ for i in range(4):
     if 'rpc_test server: bad verifier from user@KRBTEST.COM at ' not in line:
         fail('unexpected server message: ' + line)
     output(line)
+
+mark('RPCSEC_GSS service levels')
+realm.run(['./client', '-t', '-g', hostname, portstr, 'host@' + hostname])
 
 realm.addprinc('nokey/' + hostname)
 

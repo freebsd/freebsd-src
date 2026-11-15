@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.78 2026/02/05 22:05:49 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.83 2026/10/07 22:29:49 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -50,6 +50,7 @@
 	"webauthn-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com," \
 	"rsa-sha2-512-cert-v01@openssh.com," \
 	"rsa-sha2-256-cert-v01@openssh.com," \
+	"ssh-mldsa44-ed25519-cert," \
 	"ssh-ed25519," \
 	"ecdsa-sha2-nistp256," \
 	"ecdsa-sha2-nistp384," \
@@ -58,7 +59,8 @@
 	"sk-ecdsa-sha2-nistp256@openssh.com," \
 	"webauthn-sk-ecdsa-sha2-nistp256@openssh.com," \
 	"rsa-sha2-512," \
-	"rsa-sha2-256"
+	"rsa-sha2-256," \
+	"ssh-mldsa44-ed25519"
 
 #define	KEX_SERVER_ENCRYPT \
 	"chacha20-poly1305@openssh.com," \
@@ -91,7 +93,8 @@
 	"sk-ecdsa-sha2-nistp256@openssh.com," \
 	"webauthn-sk-ecdsa-sha2-nistp256@openssh.com," \
 	"rsa-sha2-512," \
-	"rsa-sha2-256"
+	"rsa-sha2-256," \
+	"ssh-mldsa44-ed25519"
 
 #define	KEX_DEFAULT_COMP	"none,zlib@openssh.com"
 #define	KEX_DEFAULT_LANG	""

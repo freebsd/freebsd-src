@@ -1,3 +1,2 @@
 #!/bin/sh
-
-logger -p security.warning "audit warning: $@"
+exec /usr/bin/logger -p security.warning "audit warning: $@"

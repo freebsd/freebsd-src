@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2003 Mathew Kanner
  * All rights reserved.
- * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -40,14 +40,14 @@ MALLOC_DECLARE(M_MIDI);
 
 #define M_RX		0x01
 #define M_TX		0x02
-#define M_RXEN		0x04
-#define M_TXEN		0x08
+#define M_TXPEND	0x04
 
 struct snd_midi;
 
-struct snd_midi *midi_init(kobj_class_t _mpu_cls, void *cookie);
+struct snd_midi *midi_init(kobj_class_t _mpu_cls, void *_cookie,
+    size_t _inqsize, size_t _outqsize);
 int	midi_uninit(struct snd_midi *_m);
-int	midi_out(struct snd_midi *_m, uint8_t *_buf, int _size);
-int	midi_in(struct snd_midi *_m, uint8_t *_buf, int _size);
+size_t	midi_out(struct snd_midi *_m, uint8_t *_buf, size_t _size);
+size_t	midi_in(struct snd_midi *_m, uint8_t *_buf, size_t _size);
 
 #endif

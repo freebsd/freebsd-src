@@ -1,0 +1,6 @@
+#!/bin/sh
+
+PROG=${TEST_BINARY_DIR}/test_roundtrip
+
+$PROG
+exit $?

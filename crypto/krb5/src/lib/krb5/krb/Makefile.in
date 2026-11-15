@@ -366,6 +366,7 @@ SRCS=	$(srcdir)/addr_comp.c	\
 	$(srcdir)/t_cc_config.c	\
 	$(srcdir)/t_copy_context.c \
 	$(srcdir)/t_in_ccache.c	\
+	$(srcdir)/t_init_creds_step.c \
 	$(srcdir)/t_response_items.c \
 	$(srcdir)/t_sname_match.c \
 	$(srcdir)/t_valid_times.c \
@@ -464,12 +465,16 @@ t_sname_match: t_sname_match.o sname_match.o $(KRB5_BASE_DEPLIBS)
 t_valid_times: t_valid_times.o valid_times.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ t_valid_times.o valid_times.o $(KRB5_BASE_LIBS)
 
+t_init_creds_step: t_init_creds_step.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_init_creds_step.o $(KRB5_BASE_LIBS)
+
 t_get_etype_info: t_get_etype_info.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ t_get_etype_info.o $(KRB5_BASE_LIBS)
 
 TEST_PROGS= t_walk_rtree t_kerb t_ser t_deltat t_expand t_authdata t_pac \
 	t_in_ccache t_cc_config t_copy_context t_princ t_etypes t_vfy_increds \
-	t_response_items t_sname_match t_valid_times t_get_etype_info
+	t_response_items t_sname_match t_valid_times t_get_etype_info \
+	t_init_creds_step
 
 check-unix: $(TEST_PROGS) runenv.sh
 	$(RUN_TEST_LOCAL_CONF) ./t_kerb \
@@ -511,6 +516,7 @@ check-unix: $(TEST_PROGS) runenv.sh
 	$(RUN_TEST) ./t_copy_context
 	$(RUN_TEST) ./t_sname_match
 	$(RUN_TEST) ./t_valid_times
+	$(RUN_TEST) ./t_init_creds_step
 
 check-pytests: t_expire_warn t_get_etype_info t_vfy_increds
 	$(RUNPYTEST) $(srcdir)/t_expire_warn.py $(PYTESTFLAGS)
@@ -543,6 +549,8 @@ clean:
 	$(OUTPRE)t_valid_times$(EXEEXT) $(OUTPRE)t_valid_times.$(OBJEXT) \
 	$(OUTPRE)t_get_etype_info$(EXEEXT) \
 	$(OUTPRE)t_get_etype_info.$(OBJEXT) \
+	$(OUTPRE)t_init_creds_step$(EXEEXT) \
+	$(OUTPRE)t_init_creds_step.$(OBJEXT) \
 	$(OUTPRE)t_parse_host_string$(EXEEXT) \
 	$(OUTPRE)t_parse_host_string.$(OBJEXT)
 

@@ -375,6 +375,13 @@ nm_os_catch_tx(struct netmap_generic_adapter *gna, int intercept)
 	struct netmap_adapter *na = &gna->up.up;
 	if_t ifp = netmap_generic_getifp(gna);
 
+	/* Each tx slot is copied into a single mbuf cluster. */
+	if (intercept && NETMAP_BUF_SIZE(na) > NM_GENERIC_MAX_BUF_SIZE) {
+		nm_prerr("%s: buf size %u exceeds emulated mode max %d",
+		    na->name, NETMAP_BUF_SIZE(na), NM_GENERIC_MAX_BUF_SIZE);
+		return (EINVAL);
+	}
+
 	nm_os_ifnet_lock();
 	if (intercept) {
 		na->if_transmit = if_gettransmitfn(ifp);
@@ -420,6 +427,9 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	M_ASSERTPKTHDR(m);
 	KASSERT((m->m_flags & M_EXT) != 0,
 	    ("%s: mbuf %p has no cluster", __func__, m));
+	KASSERT(m->m_ext.ext_size >= len,
+	    ("%s: mbuf %p cluster size %u < len %u", __func__, m,
+	    m->m_ext.ext_size, len));
 
 	if (MBUF_REFCNT(m) != 1) {
 		nm_prerr("invalid refcnt %d for %p", MBUF_REFCNT(m), m);

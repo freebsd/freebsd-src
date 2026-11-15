@@ -2580,16 +2580,17 @@ carp_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	if ((error = carp_is_supported_if(ifp)) != 0)
 		goto out;
 
-	if (ifp->if_carp == NULL) {
-		error = ENOENT;
-		goto out;
-	}
-
 	hdr->nlmsg_flags |= NLM_F_MULTI;
 	privileged = (priv_check_cred(nlp_get_cred(npt->nlp),
 	    PRIV_NETINET_CARP) == 0);
 
 	sx_xlock(&carp_sx);
+	if (ifp->if_carp == NULL) {
+		sx_xunlock(&carp_sx);
+		error = ENOENT;
+		goto out;
+	}
+
 	IFNET_FOREACH_CARP(ifp, sc) {
 		struct genlmsghdr *ghdr_new;
 

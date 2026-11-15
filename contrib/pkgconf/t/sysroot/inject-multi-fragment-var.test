@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=/sysroot
+PackageSearchPath: lib1
+Query: sysroot-inject-multi-fragment
+WantedFlags: libs
+ExpectedStdout: -L/sysroot/a -L/sysroot/b

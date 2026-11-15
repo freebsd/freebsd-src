@@ -151,7 +151,8 @@ xdrmbuf_getlong(XDR *xdrs, long *lp)
 	if (p) {
 		t = *p;
 	} else {
-		xdrmbuf_getbytes(xdrs, (char *) &t, sizeof(int32_t));
+		if (!xdrmbuf_getbytes(xdrs, (char *) &t, sizeof(int32_t)))
+			return (FALSE);
 	}
 
 	*lp = ntohl(t);

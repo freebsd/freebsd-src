@@ -746,6 +746,8 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 			arg->buf->sem_perm.key = IPC_PRIVATE;
 		*rval = IXSEQ_TO_IPCID(semid, semakptr->u.sem_perm);
 		mtx_unlock(sema_mtxp);
+
+		arg->buf->__sem_base = NULL;
 		return (0);
 	}
 

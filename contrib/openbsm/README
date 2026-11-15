@@ -1,6 +1,10 @@
-OpenBSM
+# OpenBSM
 
-  Introduction
+[![Build Status](https://travis-ci.org/openbsm/openbsm.svg?branch=master)](https://travis-ci.org/openbsm/openbsm)
+
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/11238/badge.svg)](https://scan.coverity.com/projects/openbsm)
+
+## Introduction
 
 OpenBSM is an open-source implementation of Sun's BSM event auditing file
 format and API.  Originally created for Apple Computer by McAfee Research,
@@ -17,9 +21,9 @@ Coupled with a kernel audit implementation, OpenBSM can be used to maintain
 system audit streams, and is a foundation for a full audit-enabled system.
 Portions of OpenBSM, including include files and token-building routines, are
 reusable in a kernel audit implementation, and may be found in the FreeBSD
-and Mac OS X kernels.
+and macOS kernels.
 
-  Contents
+## Contents
 
 OpenBSM consists of several directories:
 
@@ -30,6 +34,7 @@ OpenBSM consists of several directories:
     libauditd/     Common audit management functions for auditd and launchd
     libbsm/        Implementation of BSM library interfaces and man pages
     man/           System call and configuration file man pages
+    m4/            Input files for m4 macro text processor 
     modules/       Directory for auditfilterd module source
     sys/           System header files for BSM
     test/          Test token sets and geneneration program
@@ -45,18 +50,18 @@ The following programs are included with OpenBSM:
     audump         Debugging tool to parse and print audit databases
     praudit        Tool to print audit trails
 
-  Build and Installation
+## Build and Installation
 
 Please see the file INSTALL for build and installation instructions.
 
-  Contributions
+## Contributions
 
-The TrustedBSD Project would appreciate the contribution of bug fixes, 
+The TrustedBSD Project would appreciate the contribution of bug fixes,
 enhancements, etc, under the same license found in the top-level LICENSE file.
 Please see the file CREDITS to learn more about who has contributed to the
 project.
 
-  Location
+## Location
 
 Information on OpenBSM may be found on the OpenBSM home page:
 

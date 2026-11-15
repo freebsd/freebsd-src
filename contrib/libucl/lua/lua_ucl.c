@@ -28,6 +28,7 @@
 #include "ucl.h"
 #include "ucl_internal.h"
 #include "lua_ucl.h"
+#include <stddef.h>
 #include <strings.h>
 
 #include "bootstrap.h"
@@ -179,7 +180,8 @@ ucl_object_lua_push_object (lua_State *L, const ucl_object_t *obj,
 }
 
 /**
- * Push an array to lua as table indexed by integers
+ * Push an array to lua as table indexed by integers: the values of a repeated
+ * key with LUA_UCL_ALLOW_ARRAY, or the elements of an explicit array
  * @param L
  * @param obj
  * @return
@@ -188,24 +190,25 @@ static int
 ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj, int flags)
 {
 	const ucl_object_t *cur;
-	ucl_object_iter_t it;
+	ucl_object_iter_t it = NULL;
 	int i = 1, nelt = 0;
 
-	if (obj->type == UCL_ARRAY) {
+	if (!(flags & LUA_UCL_ALLOW_ARRAY) || obj->next == NULL) {
+		/*
+		 * Only the array's own elements: the values of a repeated key that
+		 * follow it are not, even if the array is the first of them
+		 */
 		nelt = obj->len;
-		it = ucl_object_iterate_new (obj);
 		lua_createtable (L, nelt, 0);
 
-		while ((cur = ucl_object_iterate_safe (it, true))) {
-			ucl_object_push_lua (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
+		while ((cur = ucl_object_iterate (obj, &it, true))) {
+			ucl_object_push_lua_common (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
 			lua_rawseti (L, -2, i);
 			i ++;
 		}
 
 		luaL_getmetatable (L, UCL_ARRAY_TYPE_META);
 		lua_setmetatable (L, -2);
-
-		ucl_object_iterate_free (it);
 	}
 	else {
 		/* Optimize allocation by preallocation of table */
@@ -216,7 +219,7 @@ ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj, int flags)
 		lua_createtable (L, nelt, 0);
 
 		LL_FOREACH (obj, cur) {
-			ucl_object_push_lua (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
+			ucl_object_push_lua_common (L, cur, (flags & ~LUA_UCL_ALLOW_ARRAY));
 			lua_rawseti (L, -2, i);
 			i ++;
 		}
@@ -502,7 +505,9 @@ ucl_object_lua_fromelt (lua_State *L, int idx, ucl_string_flags_t flags)
 		break;
 	case LUA_TNUMBER:
 		num = lua_tonumber (L, idx);
-		if (num == (int64_t)num) {
+		/* The cast is undefined for NaN and out of range values */
+		if (num >= -9223372036854775808.0 && num < 9223372036854775808.0 &&
+				num == (int64_t)num) {
 			obj = ucl_object_fromint (num);
 		}
 		else {
@@ -646,25 +651,135 @@ lua_ucl_to_string (lua_State *L, const ucl_object_t *obj, enum ucl_emitter type)
 	return 1;
 }
 
-static int
-lua_ucl_parser_init (lua_State *L)
-{
-	struct ucl_parser *parser, **pparser;
-	/*
-	 * We disable file variables and macros by default, as
-	 * the most use cases are parsing of JSON and not of the real
-	 * files. Macros in the parser are very dangerous and should be used
-	 * for trusted data only.
-	 */
-	int flags = 0;
+/*
+ * Structural budgets for input that came from somewhere we do not control:
+ * replies from external services, fetched documents, anything crossing a
+ * network boundary. These are absolute rather than derived from the input
+ * size, because a Lua caller creates the parser before it has the text.
+ *
+ * They are deliberately generous - the point is to bound a hostile reply, not
+ * to second guess a large legitimate one - and every one of them can be
+ * overridden per call site.
+ */
+#define LUA_UCL_UNTRUSTED_MAX_DEPTH 64
+#define LUA_UCL_UNTRUSTED_MAX_NODES 1000000
+#define LUA_UCL_UNTRUSTED_MAX_ALLOC (64 * 1024 * 1024)
+#define LUA_UCL_UNTRUSTED_MAX_KEY 1024
+#define LUA_UCL_UNTRUSTED_MAX_STRING (16 * 1024 * 1024)
 
-	if (lua_gettop (L) >= 1) {
-		flags = lua_tonumber (L, 1);
+static const struct {
+	const char *name;
+	size_t offset;
+} lua_ucl_limit_fields[] = {
+	{"max_depth", offsetof (struct ucl_parser_limits, max_depth)},
+	{"max_nodes", offsetof (struct ucl_parser_limits, max_nodes)},
+	{"max_alloc", offsetof (struct ucl_parser_limits, max_alloc)},
+	{"max_key_length", offsetof (struct ucl_parser_limits, max_key_length)},
+	{"max_string_length", offsetof (struct ucl_parser_limits, max_string_length)},
+};
+
+#define LUA_UCL_NLIMITS (sizeof (lua_ucl_limit_fields) / sizeof (lua_ucl_limit_fields[0]))
+
+static uint64_t *
+lua_ucl_limit_field (struct ucl_parser_limits *limits, unsigned i)
+{
+	return (uint64_t *) ((char *) limits + lua_ucl_limit_fields[i].offset);
+}
+
+/*
+ * Overlay the limits given in the table at `idx` on top of `limits`. Absent
+ * fields keep whatever the caller put there; unknown ones are an error, so a
+ * typo cannot quietly leave a limit unset.
+ */
+static void
+lua_ucl_limits_from_table (lua_State *L, int idx, struct ucl_parser_limits *limits)
+{
+	unsigned i;
+
+	luaL_checktype (L, idx, LUA_TTABLE);
+
+	lua_pushnil (L);
+
+	while (lua_next (L, idx) != 0) {
+		bool known = false;
+
+		if (lua_type (L, -2) == LUA_TSTRING) {
+			const char *k = lua_tostring (L, -2);
+
+			for (i = 0; i < LUA_UCL_NLIMITS; i++) {
+				if (strcmp (k, lua_ucl_limit_fields[i].name) == 0) {
+					known = true;
+					break;
+				}
+			}
+
+			if (!known) {
+				luaL_error (L, "unknown parser limit: %s", k);
+				return;
+			}
+		}
+		else {
+			luaL_error (L, "parser limits must be keyed by name");
+			return;
+		}
+
+		lua_pop (L, 1);
 	}
 
+	for (i = 0; i < LUA_UCL_NLIMITS; i++) {
+		lua_getfield (L, idx, lua_ucl_limit_fields[i].name);
+
+		if (lua_isnumber (L, -1)) {
+			lua_Number v = lua_tonumber (L, -1);
+
+			if (v < 0) {
+				luaL_error (L, "%s must not be negative",
+						lua_ucl_limit_fields[i].name);
+				return;
+			}
+
+			*lua_ucl_limit_field (limits, i) = (uint64_t) v;
+		}
+		else if (!lua_isnil (L, -1)) {
+			luaL_error (L, "%s must be a number", lua_ucl_limit_fields[i].name);
+			return;
+		}
+
+		lua_pop (L, 1);
+	}
+}
+
+static void
+lua_ucl_limits_to_table (lua_State *L, const struct ucl_parser_limits *limits)
+{
+	unsigned i;
+
+	lua_createtable (L, 0, LUA_UCL_NLIMITS);
+
+	for (i = 0; i < LUA_UCL_NLIMITS; i++) {
+		lua_pushnumber (L,
+				(lua_Number) *lua_ucl_limit_field (
+						(struct ucl_parser_limits *) limits, i));
+		lua_setfield (L, -2, lua_ucl_limit_fields[i].name);
+	}
+}
+
+static int
+lua_ucl_parser_push_new (lua_State *L, int flags,
+		const struct ucl_parser_limits *limits)
+{
+	struct ucl_parser *parser, **pparser;
+
 	parser = ucl_parser_new (flags);
+
 	if (parser == NULL) {
 		lua_pushnil (L);
+
+		return 1;
+	}
+
+	if (limits != NULL) {
+		ucl_parser_set_limits (parser, limits);
 	}
 
 	pparser = lua_newuserdata (L, sizeof (parser));
@@ -675,10 +790,98 @@ lua_ucl_parser_init (lua_State *L)
 	return 1;
 }
 
+static int
+lua_ucl_parser_init (lua_State *L)
+{
+	/*
+	 * We disable file variables and macros by default, as
+	 * the most use cases are parsing of JSON and not of the real
+	 * files. Macros in the parser are very dangerous and should be used
+	 * for trusted data only.
+	 */
+	int flags = 0;
+
+	if (lua_gettop (L) >= 1 && !lua_isnil (L, 1)) {
+		flags = lua_tonumber (L, 1);
+	}
+
+	return lua_ucl_parser_push_new (L, flags, NULL);
+}
+
+/*
+ * ucl.untrusted_parser([limits])
+ *
+ * Same parser, but with the structural budgets above applied, for input that
+ * did not come from the local configuration. Pass a table to override
+ * individual limits; zero means unlimited for any of them.
+ */
+static int
+lua_ucl_untrusted_parser_init (lua_State *L)
+{
+	struct ucl_parser_limits limits;
+
+	memset (&limits, 0, sizeof (limits));
+	limits.max_depth = LUA_UCL_UNTRUSTED_MAX_DEPTH;
+	limits.max_nodes = LUA_UCL_UNTRUSTED_MAX_NODES;
+	limits.max_alloc = LUA_UCL_UNTRUSTED_MAX_ALLOC;
+	limits.max_key_length = LUA_UCL_UNTRUSTED_MAX_KEY;
+	limits.max_string_length = LUA_UCL_UNTRUSTED_MAX_STRING;
+
+	if (lua_gettop (L) >= 1 && !lua_isnil (L, 1)) {
+		lua_ucl_limits_from_table (L, 1, &limits);
+	}
+
+	return lua_ucl_parser_push_new (L, UCL_PARSER_SAFE_FLAGS, &limits);
+}
+
 static struct ucl_parser *
 lua_ucl_parser_get (lua_State *L, int index)
 {
 	return *((struct ucl_parser **) luaL_checkudata(L, index, PARSER_META));
+}
+
+/*
+ * parser:set_limits({max_depth = 16, ...})
+ *
+ * Overlays the given limits on the ones already in effect, so tightening a
+ * single field does not silently drop the rest.
+ */
+static int
+lua_ucl_parser_set_limits (lua_State *L)
+{
+	struct ucl_parser *parser = lua_ucl_parser_get (L, 1);
+	struct ucl_parser_limits limits;
+
+	if (parser == NULL) {
+		return luaL_error (L, "invalid parser");
+	}
+
+	ucl_parser_get_limits (parser, &limits);
+	lua_ucl_limits_from_table (L, 2, &limits);
+	ucl_parser_set_limits (parser, &limits);
+
+	lua_pushvalue (L, 1);
+
+	return 1;
+}
+
+/*
+ * parser:get_limits() -> table
+ */
+static int
+lua_ucl_parser_get_limits (lua_State *L)
+{
+	struct ucl_parser *parser = lua_ucl_parser_get (L, 1);
+	struct ucl_parser_limits limits;
+
+	if (parser == NULL) {
+		return luaL_error (L, "invalid parser");
+	}
+
+	ucl_parser_get_limits (parser, &limits);
+	lua_ucl_limits_to_table (L, &limits);
+
+	return 1;
 }
 
 static ucl_object_t *
@@ -706,6 +909,9 @@ lua_ucl_str_to_parse_type (const char *str)
 	if (str != NULL) {
 		if (strcasecmp (str, "msgpack") == 0) {
 			type = UCL_PARSE_MSGPACK;
+		}
+		else if (strcasecmp (str, "cbor") == 0) {
+			type = UCL_PARSE_CBOR;
 		}
 		else if (strcasecmp (str, "sexp") == 0 ||
 				strcasecmp (str, "csexp") == 0) {
@@ -1295,6 +1501,12 @@ lua_ucl_parser_mt (lua_State *L)
 	lua_pushcfunction (L, lua_ucl_parser_validate);
 	lua_setfield (L, -2, "validate");
 
+	lua_pushcfunction (L, lua_ucl_parser_set_limits);
+	lua_setfield (L, -2, "set_limits");
+
+	lua_pushcfunction (L, lua_ucl_parser_get_limits);
+	lua_setfield (L, -2, "get_limits");
+
 	lua_pop (L, 1);
 }
 
@@ -1483,6 +1695,9 @@ lua_ucl_to_format (lua_State *L)
 					 strcasecmp (strtype, "messagepack") == 0) {
 				format = UCL_EMIT_MSGPACK;
 			}
+			else if (strcasecmp (strtype, "cbor") == 0) {
+				format = UCL_EMIT_CBOR;
+			}
 		}
 
 		if (lua_isboolean (L, 3)) {
@@ -1548,6 +1763,9 @@ luaopen_ucl (lua_State *L)
 
 	lua_pushcfunction (L, lua_ucl_parser_init);
 	lua_setfield (L, -2, "parser");
+
+	lua_pushcfunction (L, lua_ucl_untrusted_parser_init);
+	lua_setfield (L, -2, "untrusted_parser");
 
 	lua_pushcfunction (L, lua_ucl_to_json);
 	lua_setfield (L, -2, "to_json");

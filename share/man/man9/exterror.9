@@ -32,7 +32,7 @@ The
 .Nm
 framework allows the kernel to return additional information about an error
 along with the standard
-.Xr errno 3
+.Xr errno 2
 error code, which is terse and often lacking context.
 .Pp
 The terseness is especially visible with commonly overloaded error codes like
@@ -241,8 +241,8 @@ They pass
 .Vt kexterr
 from the failed request back to the thread that create the request.
 .Sh SEE ALSO
+.Xr errno 2 ,
 .Xr err 3 ,
-.Xr errno 3 ,
 .Xr uexterr 3 ,
 .Xr uexterr_gettext 3
 .Sh HISTORY

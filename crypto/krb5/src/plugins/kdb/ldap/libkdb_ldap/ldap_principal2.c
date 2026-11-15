@@ -80,6 +80,9 @@ getstringtime(krb5_timestamp);
 krb5_error_code
 berval2tl_data(struct berval *in, krb5_tl_data **out)
 {
+    if (in->bv_len < 2)
+        return EINVAL;
+
     *out = (krb5_tl_data *) malloc (sizeof (krb5_tl_data));
     if (*out == NULL)
         return ENOMEM;
@@ -103,15 +106,22 @@ berval2tl_data(struct berval *in, krb5_tl_data **out)
  * single result.  Set *entry_out to an object containing all principal
  * attributes.  Set *result_out to the result message to be freed with
  * ldap_msgfree().  Set both to NULL if no matching entry is found.
+ *
+ * The search can fail over to another server, which frees the handle passed
+ * in, or reconnect to the same server, which replaces the handle's LDAP
+ * connection.  *ldap_server_handle_ptr is updated to the handle now in use
+ * (NULL if none could be obtained), and callers must reload their LDAP pointer
+ * from it.
  */
 static krb5_error_code
 search_at(krb5_context context, krb5_ldap_context *ldap_context,
-          krb5_ldap_server_handle *ldap_server_handle, const char *base,
+          krb5_ldap_server_handle **ldap_server_handle_ptr, const char *base,
           int scope, const char *filter, const char *user,
           LDAPMessage **entry_out, LDAPMessage **result_out)
 {
     krb5_error_code st, tempst;
     LDAPMessage *result = NULL;
+    krb5_ldap_server_handle *ldap_server_handle = *ldap_server_handle_ptr;
     LDAP *ld = ldap_server_handle->ldap_handle;
     int nentries;
 
@@ -131,10 +141,12 @@ search_at(krb5_context context, krb5_ldap_context *ldap_context,
     if (nentries == 1) {
         *result_out = result;
         *entry_out = ldap_first_entry(ld, result);
+        *ldap_server_handle_ptr = ldap_server_handle;
         return 0;
     }
 
 cleanup:
+    *ldap_server_handle_ptr = ldap_server_handle;
     ldap_msgfree(result);
     return st;
 }
@@ -143,11 +155,12 @@ cleanup:
  * Search for an LDAP object matching princ, either at the specified dn with
  * base scope, or, if dn is NULL, in all configured subtrees with the
  * configured search scope (usually subtree).  Set *entry_out and *result_out
- * in the same way as search_at().
+ * in the same way as search_at(), which also describes
+ * *ldap_server_handle_ptr.
  */
 static krb5_error_code
 search_princ(krb5_context context, krb5_ldap_context *ldap_context,
-             krb5_ldap_server_handle *ldap_server_handle,
+             krb5_ldap_server_handle **ldap_server_handle_ptr,
              krb5_const_principal princ, const char *dn,
              LDAPMessage **entry_out, LDAPMessage **result_out)
 {
@@ -175,7 +188,7 @@ search_princ(krb5_context context, krb5_ldap_context *ldap_context,
     }
 
     if (dn != NULL) {
-        st = search_at(context, ldap_context, ldap_server_handle, dn,
+        st = search_at(context, ldap_context, ldap_server_handle_ptr, dn,
                        LDAP_SCOPE_BASE, filter, user, entry_out, result_out);
         goto cleanup;
     }
@@ -185,7 +198,7 @@ search_princ(krb5_context context, krb5_ldap_context *ldap_context,
         goto cleanup;
 
     for (i = 0; i < ntrees; i++) {
-        st = search_at(context, ldap_context, ldap_server_handle,
+        st = search_at(context, ldap_context, ldap_server_handle_ptr,
                        subtreelist[i], ldap_context->lrparams->search_scope,
                        filter, user, entry_out, result_out);
         if (st || *entry_out != NULL)
@@ -241,10 +254,12 @@ krb5_ldap_get_principal(krb5_context context, krb5_const_principal searchfor,
 
     GET_HANDLE();
 
-    st = search_princ(context, ldap_context, ldap_server_handle, searchfor,
+    st = search_princ(context, ldap_context, &ldap_server_handle, searchfor,
                       NULL, &ent, &result);
     if (st)
         goto cleanup;
+    /* The search may have moved to a different connection. */
+    ld = ldap_server_handle->ldap_handle;
     if (ent == NULL) {
         st = KRB5_KDB_NOENTRY;
         goto cleanup;
@@ -625,20 +640,24 @@ cleanup:
 static krb5_error_code
 tl_data2berval (krb5_tl_data *in, struct berval **out)
 {
-    *out = (struct berval *) malloc (sizeof (struct berval));
-    if (*out == NULL)
-        return ENOMEM;
+    struct berval *bv;
 
-    (*out)->bv_len = in->tl_data_length + 2;
-    (*out)->bv_val =  (char *) malloc ((*out)->bv_len);
-    if ((*out)->bv_val == NULL) {
-        free (*out);
+    *out = NULL;
+
+    bv = malloc(sizeof(*bv));
+    if (bv == NULL)
+        return ENOMEM;
+    bv->bv_len = in->tl_data_length + 2;
+    bv->bv_val = malloc(bv->bv_len);
+    if (bv->bv_val == NULL) {
+        free(bv);
         return ENOMEM;
     }
 
-    STORE16_INT((*out)->bv_val, in->tl_data_type);
-    memcpy ((*out)->bv_val + 2, in->tl_data_contents, in->tl_data_length);
+    STORE16_INT(bv->bv_val, in->tl_data_type);
+    memcpy(bv->bv_val + 2, in->tl_data_contents, in->tl_data_length);
 
+    *out = bv;
     return 0;
 }
 
@@ -704,17 +723,19 @@ check_dn_in_container(krb5_context context, const char *dn,
 
 static krb5_error_code
 check_dn_exists(krb5_context context,
-                krb5_ldap_server_handle *ldap_server_handle,
+                krb5_ldap_server_handle **ldap_server_handle_ptr,
                 const char *dn, krb5_boolean nonkrb_only)
 {
     krb5_error_code st = 0, tempst;
     krb5_ldap_context *ldap_context = context->dal_handle->db_context;
+    krb5_ldap_server_handle *ldap_server_handle = *ldap_server_handle_ptr;
     LDAP *ld = ldap_server_handle->ldap_handle;
     LDAPMessage *result = NULL, *ent;
     char *attrs[] = { "krbticketpolicyreference", "krbprincipalname", NULL };
     char **values;
 
     LDAP_SEARCH_1(dn, LDAP_SCOPE_BASE, 0, attrs, IGNORE_STATUS);
+    *ldap_server_handle_ptr = ldap_server_handle;
     if (st != LDAP_SUCCESS)
         return set_ldap_error(context, st, OP_SEARCH);
 
@@ -742,7 +763,7 @@ cleanup:
 
 static krb5_error_code
 validate_xargs(krb5_context context,
-               krb5_ldap_server_handle *ldap_server_handle,
+               krb5_ldap_server_handle **ldap_server_handle_ptr,
                const xargs_t *xargs, const char *standalone_dn,
                char *const *subtrees, size_t ntrees)
 {
@@ -754,7 +775,7 @@ validate_xargs(krb5_context context,
         if (st)
             return st;
         /* The supplied dn must exist without Kerberos attributes. */
-        st = check_dn_exists(context, ldap_server_handle, xargs->dn, TRUE);
+        st = check_dn_exists(context, ldap_server_handle_ptr, xargs->dn, TRUE);
         if (st)
             return st;
     }
@@ -765,7 +786,7 @@ validate_xargs(krb5_context context,
         if (st)
             return st;
         /* The supplied linkdn must exist. */
-        st = check_dn_exists(context, ldap_server_handle, xargs->linkdn,
+        st = check_dn_exists(context, ldap_server_handle_ptr, xargs->linkdn,
                              FALSE);
         if (st)
             return st;
@@ -784,20 +805,22 @@ validate_xargs(krb5_context context,
 
 static krb5_error_code
 add_alias(krb5_context context, krb5_ldap_context *ldap_context,
-          krb5_ldap_server_handle *ldap_server_handle,
+          krb5_ldap_server_handle **ldap_server_handle_ptr,
           krb5_const_principal alias, krb5_const_principal target)
 {
     krb5_error_code st;
-    LDAP *ld = ldap_server_handle->ldap_handle;
+    LDAP *ld = NULL;
     LDAPMessage *ent, *result = NULL;
     LDAPMod **mods = NULL;
     char **canon = NULL, **names = NULL, *user = NULL, *dn = NULL;
     char *strval[2] = { NULL }, errbuf[1024];
 
-    st = search_princ(context, ldap_context, ldap_server_handle, target, NULL,
-                      &ent, &result);
+    st = search_princ(context, ldap_context, ldap_server_handle_ptr, target,
+                      NULL, &ent, &result);
     if (st)
         goto cleanup;
+    /* The search may have moved to a different connection. */
+    ld = (*ldap_server_handle_ptr)->ldap_handle;
     if (ent == NULL) {
         st = KRB5_KDB_NOENTRY;
         k5_setmsg(context, st, _("target principal not found"));
@@ -915,8 +938,8 @@ krb5_ldap_put_principal(krb5_context context, krb5_db_entry *entry,
     if (st)
         goto cleanup;
     if (alias_target != NULL) {
-        st = add_alias(context, ldap_context, ldap_server_handle, entry->princ,
-                       alias_target);
+        st = add_alias(context, ldap_context, &ldap_server_handle,
+                       entry->princ, alias_target);
         krb5_free_principal(context, alias_target);
         goto cleanup;
     }
@@ -957,10 +980,12 @@ krb5_ldap_put_principal(krb5_context context, krb5_db_entry *entry,
          * unique (only one object entry has a particular krbprincipalname
          * attribute).
          */
-        st = search_princ(context, ldap_context, ldap_server_handle,
+        st = search_princ(context, ldap_context, &ldap_server_handle,
                           entry->princ, principal_dn, &ent, &result);
         if (st && st != KRB5_KDB_NOENTRY)
             goto cleanup;
+        /* The search may have moved to a different connection. */
+        ld = ldap_server_handle->ldap_handle;
         if (ent != NULL && principal_dn == NULL) {
             /* Remember this DN to be modified later. */
             principal_dn = ldap_get_dn(ld, ent);
@@ -1039,10 +1064,12 @@ krb5_ldap_put_principal(krb5_context context, krb5_db_entry *entry,
         if (st)
             goto cleanup;
 
-        st = validate_xargs(context, ldap_server_handle, &xargs,
+        st = validate_xargs(context, &ldap_server_handle, &xargs,
                             standalone_principal_dn, subtreelist, ntrees);
         if (st)
             goto cleanup;
+        /* The validation may have moved to a different connection. */
+        ld = ldap_server_handle->ldap_handle;
     }
 
     if (xargs.linkdn != NULL) {

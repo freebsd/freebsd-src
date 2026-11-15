@@ -514,6 +514,7 @@ PTHREAD_MLINKS+=pthread_condattr.3 pthread_condattr_destroy.3 \
 PTHREAD_MLINKS+=pthread_cond_timedwait.3 pthread_cond_clockwait.3
 PTHREAD_MLINKS+=pthread_getconcurrency.3 pthread_setconcurrency.3
 PTHREAD_MLINKS+=pthread_multi_np.3 pthread_single_np.3
+PTHREAD_MLINKS+=pthread_mutex_timedlock.3 pthread_mutex_clocklock.3
 PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getprioceiling.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getprotocol.3 \
@@ -529,6 +530,8 @@ PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 PTHREAD_MLINKS+=pthread_mutexattr_getkind_np.3 pthread_mutexattr_setkind_np.3
 PTHREAD_MLINKS+=pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3
 PTHREAD_MLINKS+=pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3
+PTHREAD_MLINKS+=pthread_rwlock_timedwrlock.3 pthread_rwlock_clockwrlock.3
+PTHREAD_MLINKS+=pthread_rwlock_timedrdlock.3 pthread_rwlock_clockrdlock.3
 PTHREAD_MLINKS+=pthread_schedparam.3 pthread_getschedparam.3 \
 		pthread_schedparam.3 pthread_setschedparam.3
 PTHREAD_MLINKS+=pthread_set_name_np.3 pthread_get_name_np.3 \

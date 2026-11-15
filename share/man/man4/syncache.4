@@ -19,29 +19,21 @@
 .Xr sysctl 8
 MIBs for controlling TCP SYN caching
 .Sh SYNOPSIS
-.Bl -item -compact
-.It
-.Nm sysctl Cm net.inet.tcp.syncookies
-.It
-.Nm sysctl Cm net.inet.tcp.syncookies_only
-.El
+In
+.Xr loader.conf 5 :
+.Cd net.inet.tcp.syncache.hashsize
+.Cd net.inet.tcp.syncache.bucketlimit
+.Cd net.inet.tcp.syncache.cachelimit
 .Pp
-.Bl -item -compact
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.hashsize
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.bucketlimit
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.cachelimit
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.rexmtlimit
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.count
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.see_other
-.It
-.Nm sysctl Cm net.inet.tcp.syncache.rst_on_sock_fail
-.El
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd net.inet.tcp.syncookies
+.Cd net.inet.tcp.syncookies_only
+.Cd net.inet.tcp.syncache.rexmtlimit
+.Cd net.inet.tcp.syncache.see_other
+.Cd net.inet.tcp.syncache.rst_on_sock_fail
 .Sh DESCRIPTION
 The
 .Nm
@@ -133,7 +125,7 @@ MIB.
 Several of these may be tuned by setting the corresponding
 variable in the
 .Xr loader 8 .
-.Bl -tag -width ".Va bucketlimit"
+.Bl -tag -width "rst_on_sock_fail"
 .It Va hashsize
 Size of the
 .Nm
@@ -193,7 +185,7 @@ Statistics on the performance of the
 may be obtained via
 .Xr netstat 1 ,
 which provides the following counts:
-.Bl -tag -width ".Li cookies received"
+.Bl -tag -width "spurious cookies rejected"
 .It Li "syncache entries added"
 Entries successfully inserted in the
 .Nm .

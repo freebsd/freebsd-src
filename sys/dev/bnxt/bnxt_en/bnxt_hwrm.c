@@ -696,12 +696,22 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 				&req.cq_page_dir);
 	}
 	if (enables & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_MRAV) {
+		u32 units;
+
 		ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
 		ctx_pg = ctxm->pg_info;
 		req.mrav_num_entries = htole32(ctx_pg->entries);
-		if (ctxm->mrav_num_entries_units)
+		units = ctxm->mrav_num_entries_units;
+		if (units) {
+			u32 num_mr, num_ah = ctxm->mrav_av_entries;
+
+			num_mr = ctx_pg->entries - num_ah;
+			req.mrav_num_entries =
+			    htole32(((num_mr / units) << 16) |
+			    (num_ah / units));
 			flags |=
 			HWRM_FUNC_BACKING_STORE_CFG_INPUT_FLAGS_MRAV_RESERVATION_SPLIT;
+		}
 		req.mrav_entry_size = htole16(ctxm->entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				&req.mrav_pg_size_mrav_lvl,
@@ -963,6 +973,9 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	 softc->hwrm_spec_code = resp->hwrm_intf_maj_8b << 16 |
                              resp->hwrm_intf_min_8b << 8 |
                              resp->hwrm_intf_upd_8b;
+	softc->hwrm_spec_code_ext = BNXT_HWRM_VER_CODE_EXT(
+	    resp->hwrm_intf_maj_8b, resp->hwrm_intf_min_8b,
+	    resp->hwrm_intf_upd_8b, resp->hwrm_intf_rsvd_8b);
 	if (resp->hwrm_intf_maj_8b < 1) {
 		 device_printf(softc->dev, "HWRM interface %d.%d.%d is older "
 			       "than 1.0.0.\n", resp->hwrm_intf_maj_8b,

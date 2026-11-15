@@ -319,6 +319,8 @@ greet_internalize(krb5_context kcontext,
     code = krb5_ser_unpack_int32(&length, &bp, &remain);
     if (code != 0)
         return code;
+    if (length < 0 || (size_t)length > remain)
+        return ENOMEM;
 
     /* Greeting Contents */
     if (length != 0) {

@@ -305,6 +305,20 @@ void bnxt_alloc_ktls_info(struct bnxt_softc* softc, uint16_t max_keys,
 	if (BNXT_VF(softc))
 		return;
 
+	if (softc->disable_hw_ktls) {
+		if (bootverbose)
+			device_printf(softc->dev,
+			    "HW kTLS disabled by tunable\n");
+		return;
+	}
+
+	if (softc->hwrm_spec_code_ext < BNXT_MIN_KTLS_HWRM_VERSION) {
+		if (bootverbose)
+			device_printf(softc->dev,
+			    "HWRM version is too low for HW kTLS\n");
+		return;
+	}
+
 	if (!ktls) {
 		bool partition_mode = false;
 		struct bnxt_kctx* kctx;

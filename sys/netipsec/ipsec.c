@@ -568,6 +568,13 @@ ipsec4_setspidx_ipaddr(const struct mbuf *m, struct ip *ip1,
 	spidx->prefd = sizeof(struct in_addr) << 3;
 }
 
+/*
+ * Return a held reference to the SP for the packet.  Return NULL when no
+ * SP matches and there is no PCB: the default policy applies then, and
+ * the caller checks its type, NONE or DISCARD.  The default SP lives as
+ * long as its vnet, so that needs no reference, and the reference count
+ * would be one cache line written by every CPU for each forwarded packet.
+ */
 static struct secpolicy *
 ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, struct ip *ip1,
     u_int dir, int needport)
@@ -583,7 +590,8 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, struct ip *ip1,
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
 	}
-	if (sp == NULL)		/* No SP found, use system default. */
+	/* No SP found, the PCB caches the system default. */
+	if (sp == NULL && inp != NULL)
 		sp = key_allocsp_default();
 	return (sp);
 }
@@ -601,6 +609,8 @@ ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, struct ip *ip1,
 	sp = ipsec4_getpolicy(m, inp, ip1, IPSEC_DIR_OUTBOUND, needport);
 	if (sp != NULL)
 		sp = ipsec_checkpolicy(sp, inp, error);
+	else if (V_def_policy->policy == IPSEC_POLICY_DISCARD)
+		*error = -EINVAL;	/* Packet is discarded by caller. */
 	if (sp == NULL) {
 		switch (*error) {
 		case 0: /* No IPsec required: BYPASS or NONE */
@@ -648,8 +658,11 @@ ipsec4_in_reject1(const struct mbuf *m, struct ip *ip1, struct inpcb *inp)
 	}
 
 	sp = ipsec4_getpolicy(m, inp, ip1, IPSEC_DIR_INBOUND, 0);
-	result = ipsec_in_reject(sp, inp, m);
-	key_freesp(&sp);
+	if (sp != NULL) {
+		result = ipsec_in_reject(sp, inp, m);
+		key_freesp(&sp);
+	} else
+		result = (V_def_policy->policy == IPSEC_POLICY_DISCARD);
 	if (result != 0)
 		IPSECSTAT_INC(ips_in_polvio);
 	return (result);
@@ -757,6 +770,11 @@ ipsec6_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 	spidx->prefd = sizeof(struct in6_addr) << 3;
 }
 
+/*
+ * Return a held reference to the SP for the packet.  Return NULL when no
+ * SP matches and there is no PCB: the default policy applies then, and
+ * the caller checks its type without a reference, see ipsec4_getpolicy().
+ */
 static struct secpolicy *
 ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
     int needport)
@@ -772,7 +790,8 @@ ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
 	}
-	if (sp == NULL)		/* No SP found, use system default. */
+	/* No SP found, the PCB caches the system default. */
+	if (sp == NULL && inp != NULL)
 		sp = key_allocsp_default();
 	return (sp);
 }
@@ -790,6 +809,8 @@ ipsec6_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error,
 	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_OUTBOUND, needport);
 	if (sp != NULL)
 		sp = ipsec_checkpolicy(sp, inp, error);
+	else if (V_def_policy->policy == IPSEC_POLICY_DISCARD)
+		*error = -EINVAL;	/* Packet is discarded by caller. */
 	if (sp == NULL) {
 		switch (*error) {
 		case 0: /* No IPsec required: BYPASS or NONE */
@@ -828,8 +849,11 @@ ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
 		return (0);
 #endif
 	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_INBOUND, 0);
-	result = ipsec_in_reject(sp, inp, m);
-	key_freesp(&sp);
+	if (sp != NULL) {
+		result = ipsec_in_reject(sp, inp, m);
+		key_freesp(&sp);
+	} else
+		result = (V_def_policy->policy == IPSEC_POLICY_DISCARD);
 	if (result)
 		IPSEC6STAT_INC(ips_in_polvio);
 	return (result);

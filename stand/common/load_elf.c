@@ -928,6 +928,18 @@ nosyms:
 	}
 
 	ret = lastaddr - firstaddr;
+	/*
+	 * Measure initialized load segments, not the span between them.  ELF
+	 * images can contain gaps whose contents are not defined by the file.
+	 */
+	if (archsw.arch_file_measure != NULL) {
+		for (i = 0; i < ehdr->e_phnum; i++) {
+			if (phdr[i].p_type != PT_LOAD || phdr[i].p_memsz == 0)
+				continue;
+			archsw.arch_file_measure(fp, phdr[i].p_vaddr + off,
+			    phdr[i].p_memsz);
+		}
+	}
 
 out:
 	if (dp)

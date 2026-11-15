@@ -1,0 +1,2 @@
+k = "line one of a test string that is intentionally long so heredoc mode triggers\nEOD\nline three";
+

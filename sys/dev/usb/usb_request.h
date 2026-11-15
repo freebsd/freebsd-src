@@ -60,10 +60,16 @@ usb_error_t usbd_req_get_hub_descriptor(struct usb_device *udev,
 usb_error_t usbd_req_get_ss_hub_descriptor(struct usb_device *udev,
 		    struct mtx *mtx, struct usb_hub_ss_descriptor *hd,
 		    uint8_t nports);
+usb_error_t usbd_req_get_bos_descriptor(struct usb_device *udev,
+		    struct mtx *mtx, struct usb_bos_descriptor *desc);
+usb_error_t usbd_req_get_bos_descriptor_full(struct usb_device *udev,
+		    struct mtx *mtx, struct usb_bos_descriptor **pdesc);
 usb_error_t usbd_req_get_hub_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_hub_status *st);
 usb_error_t usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_port_status *ps, uint8_t port);
+usb_error_t usbd_req_get_ext_port_status(struct usb_device *udev,
+    struct mtx *mtx, struct usb_ext_status *ps, uint8_t port);
 usb_error_t usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx,
 		    uint8_t port);
 usb_error_t usbd_req_warm_reset_port(struct usb_device *udev,

@@ -7,6 +7,7 @@
 #                               |_| XML parser
 #
 # Copyright (c) 2017-2026 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2026      Funda Wang <fundawang@yeah.net>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -30,7 +31,7 @@
 
 bin_PROGRAMS = xmlwf
 
-xmlwf_LDADD = ../lib/libexpat.la
+xmlwf_LDADD = ../lib/libexpat.la @LIBM@
 xmlwf_SOURCES = \
     ../lib/xcs.c \
     xmlwf.c \
@@ -39,7 +40,7 @@ xmlwf_SOURCES = \
     @FILEMAP@.c
 
 xmlwf_CPPFLAGS = @AM_CPPFLAGS@ -I$(srcdir)/../lib
-xmlwf_LDFLAGS = @AM_LDFLAGS@ @LIBM@
+xmlwf_LDFLAGS = @AM_LDFLAGS@
 
 if MINGW
 if UNICODE

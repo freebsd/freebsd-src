@@ -3641,6 +3641,12 @@ do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
     register_t rflags)
 {
 
+    if (acpi_susp_bounce) {
+	device_printf(sc->acpi_dev,
+	    "debug.acpi.suspend_bounce set; not suspending-to-idle\n");
+	goto bounce;
+    }
+
     intr_suspend();
 
     /*
@@ -3660,6 +3666,8 @@ do_idle(struct acpi_softc *sc, enum acpi_sleep_state *slp_state,
     cpu_idle(0);
 
     intr_resume(false);
+
+bounce:
     intr_restore(rflags);
     *slp_state |= ACPI_SS_SLEPT;
 }
@@ -3874,7 +3882,7 @@ backout:
 
     EVENTHANDLER_INVOKE(power_resume, stype);
 
-    if (ACPI_SUCCESS(status)) {
+    if (ACPI_SUCCESS(status) && !acpi_susp_bounce) {
 	if (stype == POWER_STYPE_SUSPEND_TO_IDLE)
 	    check_post_suspend_to_idle(sc->acpi_dev);
 	EVENTHANDLER_INVOKE(power_resume_check, stype);

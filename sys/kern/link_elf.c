@@ -533,6 +533,27 @@ link_elf_init(void* arg)
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_THIRD, link_elf_init, NULL);
 
 static int
+link_elf_check_symtab(const char *filename, const Elf_Sym *symtab,
+    long symcnt, const char *strtab, long strcnt)
+{
+	long i;
+
+	if (symcnt == 0)
+		return (0);
+	if (strcnt <= 0 || strtab[strcnt - 1] != '\0') {
+		link_elf_error(filename, "corrupt symbol string table");
+		return (ENOEXEC);
+	}
+	for (i = 0; i < symcnt; i++) {
+		if (symtab[i].st_name >= strcnt) {
+			link_elf_error(filename, "corrupt symbol name offset");
+			return (ENOEXEC);
+		}
+	}
+	return (0);
+}
+
+static int
 link_elf_preload_parse_symbols(elf_file_t ef)
 {
 	caddr_t pointer;
@@ -577,6 +598,10 @@ link_elf_preload_parse_symbols(elf_file_t ef)
 		return (EINVAL);
 	}
 
+	if (link_elf_check_symtab(ef->lf.filename, symtab,
+	    symcnt / sizeof(Elf_Sym), strtab, strcnt) != 0)
+		return (EINVAL);
+
 	ef->ddbsymtab = symtab;
 	ef->ddbsymcnt = symcnt / sizeof(Elf_Sym);
 	ef->ddbstrtab = strtab;
@@ -585,62 +610,82 @@ link_elf_preload_parse_symbols(elf_file_t ef)
 	return (0);
 }
 
+#define	DYN_ABSENT	((Elf_Addr)-1)
+
+static bool
+dyn_table_ok(elf_file_t ef, Elf_Addr off, uint64_t len)
+{
+	/* The kernel's own dynamic section is parsed before its size is set. */
+	if (ef->lf.size == 0)
+		return (true);
+	if (off == DYN_ABSENT)
+		return (len == 0);
+	return (off < ef->lf.size && len <= ef->lf.size - off);
+}
+
+static caddr_t
+dyn_table(elf_file_t ef, Elf_Addr off)
+{
+	return (off == DYN_ABSENT ? NULL : ef->address + off);
+}
+
 static int
 parse_dynamic(elf_file_t ef)
 {
 	Elf_Dyn *dp;
+	const Elf_Hashelt *hashtab;
+	Elf_Addr hash, strtab, symtab, got, rel, jmprel, rela;
+	Elf_Size strsz, relsz, pltrelsz, relasz;
 	int plttype = DT_REL;
 
-	for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
+	hash = strtab = symtab = got = rel = jmprel = rela = DYN_ABSENT;
+	strsz = relsz = pltrelsz = relasz = 0;
+	for (dp = ef->dynamic;; dp++) {
+		if (!dyn_table_ok(ef, (caddr_t)dp - ef->address, sizeof(*dp)))
+			goto bad;
+		if (dp->d_tag == DT_NULL)
+			break;
 		switch (dp->d_tag) {
 		case DT_HASH:
-		{
-			/* From src/libexec/rtld-elf/rtld.c */
-			const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
-			    (ef->address + dp->d_un.d_ptr);
-			ef->nbuckets = hashtab[0];
-			ef->nchains = hashtab[1];
-			ef->buckets = hashtab + 2;
-			ef->chains = ef->buckets + ef->nbuckets;
+			hash = dp->d_un.d_ptr;
 			break;
-		}
 		case DT_STRTAB:
-			ef->strtab = (caddr_t) (ef->address + dp->d_un.d_ptr);
+			strtab = dp->d_un.d_ptr;
 			break;
 		case DT_STRSZ:
-			ef->strsz = dp->d_un.d_val;
+			strsz = dp->d_un.d_val;
 			break;
 		case DT_SYMTAB:
-			ef->symtab = (Elf_Sym*) (ef->address + dp->d_un.d_ptr);
+			symtab = dp->d_un.d_ptr;
 			break;
 		case DT_SYMENT:
 			if (dp->d_un.d_val != sizeof(Elf_Sym))
 				return (ENOEXEC);
 			break;
 		case DT_PLTGOT:
-			ef->got = (Elf_Addr *) (ef->address + dp->d_un.d_ptr);
+			got = dp->d_un.d_ptr;
 			break;
 		case DT_REL:
-			ef->rel = (const Elf_Rel *) (ef->address + dp->d_un.d_ptr);
+			rel = dp->d_un.d_ptr;
 			break;
 		case DT_RELSZ:
-			ef->relsize = dp->d_un.d_val;
+			relsz = dp->d_un.d_val;
 			break;
 		case DT_RELENT:
 			if (dp->d_un.d_val != sizeof(Elf_Rel))
 				return (ENOEXEC);
 			break;
 		case DT_JMPREL:
-			ef->pltrel = (const Elf_Rel *) (ef->address + dp->d_un.d_ptr);
+			jmprel = dp->d_un.d_ptr;
 			break;
 		case DT_PLTRELSZ:
-			ef->pltrelsize = dp->d_un.d_val;
+			pltrelsz = dp->d_un.d_val;
 			break;
 		case DT_RELA:
-			ef->rela = (const Elf_Rela *) (ef->address + dp->d_un.d_ptr);
+			rela = dp->d_un.d_ptr;
 			break;
 		case DT_RELASZ:
-			ef->relasize = dp->d_un.d_val;
+			relasz = dp->d_un.d_val;
 			break;
 		case DT_RELAENT:
 			if (dp->d_un.d_val != sizeof(Elf_Rela))
@@ -659,6 +704,39 @@ parse_dynamic(elf_file_t ef)
 		}
 	}
 
+	if (hash != DYN_ABSENT) {
+		/* From src/libexec/rtld-elf/rtld.c */
+		if (!dyn_table_ok(ef, hash, 2 * sizeof(Elf_Hashelt)))
+			goto bad;
+		hashtab = (const Elf_Hashelt *)(ef->address + hash);
+		ef->nbuckets = hashtab[0];
+		ef->nchains = hashtab[1];
+		if (!dyn_table_ok(ef, hash, (2 + (uint64_t)ef->nbuckets +
+		    ef->nchains) * sizeof(Elf_Hashelt)))
+			goto bad;
+		ef->buckets = hashtab + 2;
+		ef->chains = ef->buckets + ef->nbuckets;
+	}
+	if (!dyn_table_ok(ef, symtab, (uint64_t)ef->nchains *
+	    sizeof(Elf_Sym)) ||
+	    !dyn_table_ok(ef, strtab, strsz) ||
+	    !dyn_table_ok(ef, got, got == DYN_ABSENT ? 0 : sizeof(Elf_Addr)) ||
+	    !dyn_table_ok(ef, rel, relsz) ||
+	    !dyn_table_ok(ef, jmprel, pltrelsz) ||
+	    !dyn_table_ok(ef, rela, relasz))
+		goto bad;
+
+	ef->strtab = dyn_table(ef, strtab);
+	ef->strsz = strsz;
+	ef->symtab = (const Elf_Sym *)dyn_table(ef, symtab);
+	ef->got = (Elf_Addr *)dyn_table(ef, got);
+	ef->rel = (const Elf_Rel *)dyn_table(ef, rel);
+	ef->relsize = relsz;
+	ef->pltrel = (const Elf_Rel *)dyn_table(ef, jmprel);
+	ef->pltrelsize = pltrelsz;
+	ef->rela = (const Elf_Rela *)dyn_table(ef, rela);
+	ef->relasize = relasz;
+
 	if (plttype == DT_RELA) {
 		ef->pltrela = (const Elf_Rela *)ef->pltrel;
 		ef->pltrel = NULL;
@@ -666,12 +744,20 @@ parse_dynamic(elf_file_t ef)
 		ef->pltrelsize = 0;
 	}
 
+	if (ef->lf.size != 0 && link_elf_check_symtab(ef->lf.filename,
+	    ef->symtab, ef->nchains, ef->strtab, ef->strsz) != 0)
+		return (ENOEXEC);
+
 	ef->ddbsymtab = ef->symtab;
 	ef->ddbsymcnt = ef->nchains;
 	ef->ddbstrtab = ef->strtab;
 	ef->ddbstrcnt = ef->strsz;
 
 	return elf_cpu_parse_dynamic(ef->address, ef->dynamic);
+
+bad:
+	link_elf_error(ef->lf.filename, "invalid dynamic section");
+	return (ENOEXEC);
 }
 
 #define	LS_PADDING	0x90909090
@@ -1012,6 +1098,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	int symtabindex;
 	int symstrindex;
 	int shstrindex;
+	int shstrsz;
 	int symcnt;
 	int strcnt;
 	char *shstrs;
@@ -1019,6 +1106,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	shdr = NULL;
 	lf = NULL;
 	shstrs = NULL;
+	shstrsz = 0;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename);
 	flags = FREAD;
@@ -1290,6 +1378,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	nbytes = hdr->e_shnum * hdr->e_shentsize;
 	if (nbytes == 0 || hdr->e_shoff == 0)
 		goto nosyms;
+	if (hdr->e_shentsize != sizeof(Elf_Shdr)) {
+		link_elf_error(filename, "Unsupported section header size");
+		error = ENOEXEC;
+		goto out;
+	}
 	shdr = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
 	error = vn_rdwr(UIO_READ, nd.ni_vp,
 	    (caddr_t)shdr, nbytes, hdr->e_shoff,
@@ -1300,6 +1393,12 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
 	/* Read section string table */
 	shstrindex = hdr->e_shstrndx;
+	if (shstrindex >= hdr->e_shnum) {
+		link_elf_error(filename,
+		    "file has an invalid section name string table");
+		error = ENOEXEC;
+		goto out;
+	}
 	if (shstrindex != 0 && shdr[shstrindex].sh_type == SHT_STRTAB &&
 	    shdr[shstrindex].sh_size != 0) {
 		nbytes = shdr[shstrindex].sh_size;
@@ -1309,6 +1408,21 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		    td->td_ucred, NOCRED, &resid, td);
 		if (error)
 			goto out;
+		shstrsz = nbytes;
+		if (shstrs[shstrsz - 1] != '\0') {
+			link_elf_error(filename,
+			    "corrupt section name string table");
+			error = ENOEXEC;
+			goto out;
+		}
+		for (i = 0; i < hdr->e_shnum; i++) {
+			if (shdr[i].sh_name >= shstrsz) {
+				link_elf_error(filename,
+				    "corrupt section name offset");
+				error = ENOEXEC;
+				goto out;
+			}
+		}
 	}
 
 	symtabindex = -1;
@@ -1327,6 +1441,12 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	}
 	if (symtabindex < 0 || symstrindex < 0)
 		goto nosyms;
+	if (symstrindex >= hdr->e_shnum ||
+	    shdr[symstrindex].sh_type != SHT_STRTAB) {
+		link_elf_error(filename, "file has invalid symbol strings");
+		error = ENOEXEC;
+		goto out;
+	}
 
 	symcnt = shdr[symtabindex].sh_size;
 	ef->symbase = malloc(symcnt, M_LINKER, M_WAITOK);
@@ -1343,6 +1463,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	    ef->strbase, strcnt, shdr[symstrindex].sh_offset,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
 	    &resid, td);
+	if (error != 0)
+		goto out;
+
+	error = link_elf_check_symtab(filename, (const Elf_Sym *)ef->symbase,
+	    symcnt / sizeof(Elf_Sym), ef->strbase, strcnt);
 	if (error != 0)
 		goto out;
 

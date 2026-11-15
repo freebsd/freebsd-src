@@ -50,6 +50,7 @@
 #include "ssherr.h"
 #include "log.h"
 #include "misc.h"
+#include "xmalloc.h"
 #include "servconf.h"
 #include "sshkey.h"
 #include "hostfile.h"
@@ -67,6 +68,7 @@ extern login_cap_t *lc;
 #define DAY		(24L * 60 * 60) /* 1 day in seconds */
 #define TWO_WEEKS	(2L * 7 * DAY)	/* 2 weeks in seconds */
 
+#define MIN_PASSWORD_HASH_LEN	4
 #define MAX_PASSWORD_LEN	1024
 
 /*
@@ -194,16 +196,20 @@ sys_auth_passwd(struct ssh *ssh, const char *password)
 	Authctxt *authctxt = ssh->authctxt;
 	struct passwd *pw = authctxt->pw;
 	char *encrypted_password, *salt = NULL;
+	int ret;
 
 	/* Just use the supplied fake password if authctxt is invalid */
-	char *pw_password = authctxt->valid ? shadow_pw(pw) : pw->pw_passwd;
+	char *pw_password = authctxt->valid ?
+	    shadow_pw(pw) : xstrdup(pw->pw_passwd);
 
 	if (pw_password == NULL)
 		return 0;
 
 	/* Check for users with no password. */
-	if (strcmp(pw_password, "") == 0 && strcmp(password, "") == 0)
-		return (1);
+	if (strcmp(pw_password, "") == 0 && strcmp(password, "") == 0) {
+		free(pw_password);
+		return 1;
+	}
 
 	/*
 	 * Encrypt the candidate password using the proper salt, or pass a
@@ -217,7 +223,10 @@ sys_auth_passwd(struct ssh *ssh, const char *password)
 	 * Authentication is accepted if the encrypted passwords
 	 * are identical.
 	 */
-	return encrypted_password != NULL &&
+	ret = encrypted_password != NULL &&
+	    strlen(pw_password) >= MIN_PASSWORD_HASH_LEN &&
 	    strcmp(encrypted_password, pw_password) == 0;
+	freezero(pw_password, strlen(pw_password));
+	return ret;
 }
 #endif

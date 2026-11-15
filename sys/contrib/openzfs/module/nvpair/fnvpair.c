@@ -88,7 +88,7 @@ fnvlist_pack_free(char *pack, size_t size)
 nvlist_t *
 fnvlist_unpack(char *buf, size_t buflen)
 {
-	nvlist_t *rv;
+	nvlist_t *rv = NULL;
 	VERIFY0(nvlist_unpack(buf, buflen, &rv, KM_SLEEP));
 	return (rv);
 }
@@ -96,7 +96,7 @@ fnvlist_unpack(char *buf, size_t buflen)
 nvlist_t *
 fnvlist_dup(const nvlist_t *nvl)
 {
-	nvlist_t *rv;
+	nvlist_t *rv = NULL;
 	VERIFY0(nvlist_dup(nvl, &rv, KM_SLEEP));
 	return (rv);
 }
@@ -105,18 +105,6 @@ void
 fnvlist_merge(nvlist_t *dst, nvlist_t *src)
 {
 	VERIFY0(nvlist_merge(dst, src, KM_SLEEP));
-}
-
-size_t
-fnvlist_num_pairs(nvlist_t *nvl)
-{
-	size_t count = 0;
-	nvpair_t *pair;
-
-	for (pair = nvlist_next_nvpair(nvl, 0); pair != NULL;
-	    pair = nvlist_next_nvpair(nvl, pair))
-		count++;
-	return (count);
 }
 
 void
@@ -302,7 +290,7 @@ fnvlist_remove_nvpair(nvlist_t *nvl, nvpair_t *pair)
 nvpair_t *
 fnvlist_lookup_nvpair(nvlist_t *nvl, const char *name)
 {
-	nvpair_t *rv;
+	nvpair_t *rv = NULL;
 	VERIFY0(nvlist_lookup_nvpair(nvl, name, &rv));
 	return (rv);
 }
@@ -317,7 +305,7 @@ fnvlist_lookup_boolean(const nvlist_t *nvl, const char *name)
 boolean_t
 fnvlist_lookup_boolean_value(const nvlist_t *nvl, const char *name)
 {
-	boolean_t rv;
+	boolean_t rv = B_FALSE;
 	VERIFY0(nvlist_lookup_boolean_value(nvl, name, &rv));
 	return (rv);
 }
@@ -325,7 +313,7 @@ fnvlist_lookup_boolean_value(const nvlist_t *nvl, const char *name)
 uchar_t
 fnvlist_lookup_byte(const nvlist_t *nvl, const char *name)
 {
-	uchar_t rv;
+	uchar_t rv = 0;
 	VERIFY0(nvlist_lookup_byte(nvl, name, &rv));
 	return (rv);
 }
@@ -333,7 +321,7 @@ fnvlist_lookup_byte(const nvlist_t *nvl, const char *name)
 int8_t
 fnvlist_lookup_int8(const nvlist_t *nvl, const char *name)
 {
-	int8_t rv;
+	int8_t rv = 0;
 	VERIFY0(nvlist_lookup_int8(nvl, name, &rv));
 	return (rv);
 }
@@ -341,7 +329,7 @@ fnvlist_lookup_int8(const nvlist_t *nvl, const char *name)
 int16_t
 fnvlist_lookup_int16(const nvlist_t *nvl, const char *name)
 {
-	int16_t rv;
+	int16_t rv = 0;
 	VERIFY0(nvlist_lookup_int16(nvl, name, &rv));
 	return (rv);
 }
@@ -349,7 +337,7 @@ fnvlist_lookup_int16(const nvlist_t *nvl, const char *name)
 int32_t
 fnvlist_lookup_int32(const nvlist_t *nvl, const char *name)
 {
-	int32_t rv;
+	int32_t rv = 0;
 	VERIFY0(nvlist_lookup_int32(nvl, name, &rv));
 	return (rv);
 }
@@ -357,7 +345,7 @@ fnvlist_lookup_int32(const nvlist_t *nvl, const char *name)
 int64_t
 fnvlist_lookup_int64(const nvlist_t *nvl, const char *name)
 {
-	int64_t rv;
+	int64_t rv = 0;
 	VERIFY0(nvlist_lookup_int64(nvl, name, &rv));
 	return (rv);
 }
@@ -365,7 +353,7 @@ fnvlist_lookup_int64(const nvlist_t *nvl, const char *name)
 uint8_t
 fnvlist_lookup_uint8(const nvlist_t *nvl, const char *name)
 {
-	uint8_t rv;
+	uint8_t rv = 0;
 	VERIFY0(nvlist_lookup_uint8(nvl, name, &rv));
 	return (rv);
 }
@@ -373,7 +361,7 @@ fnvlist_lookup_uint8(const nvlist_t *nvl, const char *name)
 uint16_t
 fnvlist_lookup_uint16(const nvlist_t *nvl, const char *name)
 {
-	uint16_t rv;
+	uint16_t rv = 0;
 	VERIFY0(nvlist_lookup_uint16(nvl, name, &rv));
 	return (rv);
 }
@@ -381,7 +369,7 @@ fnvlist_lookup_uint16(const nvlist_t *nvl, const char *name)
 uint32_t
 fnvlist_lookup_uint32(const nvlist_t *nvl, const char *name)
 {
-	uint32_t rv;
+	uint32_t rv = 0;
 	VERIFY0(nvlist_lookup_uint32(nvl, name, &rv));
 	return (rv);
 }
@@ -389,7 +377,7 @@ fnvlist_lookup_uint32(const nvlist_t *nvl, const char *name)
 uint64_t
 fnvlist_lookup_uint64(const nvlist_t *nvl, const char *name)
 {
-	uint64_t rv;
+	uint64_t rv = 0;
 	VERIFY0(nvlist_lookup_uint64(nvl, name, &rv));
 	return (rv);
 }
@@ -397,7 +385,7 @@ fnvlist_lookup_uint64(const nvlist_t *nvl, const char *name)
 const char *
 fnvlist_lookup_string(const nvlist_t *nvl, const char *name)
 {
-	const char *rv;
+	const char *rv = NULL;
 	VERIFY0(nvlist_lookup_string(nvl, name, &rv));
 	return (rv);
 }
@@ -405,14 +393,14 @@ fnvlist_lookup_string(const nvlist_t *nvl, const char *name)
 nvlist_t *
 fnvlist_lookup_nvlist(nvlist_t *nvl, const char *name)
 {
-	nvlist_t *rv;
+	nvlist_t *rv = NULL;
 	VERIFY0(nvlist_lookup_nvlist(nvl, name, &rv));
 	return (rv);
 }
 boolean_t *
 fnvlist_lookup_boolean_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	boolean_t *rv;
+	boolean_t *rv = NULL;
 	VERIFY0(nvlist_lookup_boolean_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -420,7 +408,7 @@ fnvlist_lookup_boolean_array(nvlist_t *nvl, const char *name, uint_t *n)
 uchar_t *
 fnvlist_lookup_byte_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	uchar_t *rv;
+	uchar_t *rv = NULL;
 	VERIFY0(nvlist_lookup_byte_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -428,7 +416,7 @@ fnvlist_lookup_byte_array(nvlist_t *nvl, const char *name, uint_t *n)
 int8_t *
 fnvlist_lookup_int8_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	int8_t *rv;
+	int8_t *rv = NULL;
 	VERIFY0(nvlist_lookup_int8_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -436,7 +424,7 @@ fnvlist_lookup_int8_array(nvlist_t *nvl, const char *name, uint_t *n)
 uint8_t *
 fnvlist_lookup_uint8_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	uint8_t *rv;
+	uint8_t *rv = NULL;
 	VERIFY0(nvlist_lookup_uint8_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -444,7 +432,7 @@ fnvlist_lookup_uint8_array(nvlist_t *nvl, const char *name, uint_t *n)
 int16_t *
 fnvlist_lookup_int16_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	int16_t *rv;
+	int16_t *rv = NULL;
 	VERIFY0(nvlist_lookup_int16_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -452,7 +440,7 @@ fnvlist_lookup_int16_array(nvlist_t *nvl, const char *name, uint_t *n)
 uint16_t *
 fnvlist_lookup_uint16_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	uint16_t *rv;
+	uint16_t *rv = NULL;
 	VERIFY0(nvlist_lookup_uint16_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -460,7 +448,7 @@ fnvlist_lookup_uint16_array(nvlist_t *nvl, const char *name, uint_t *n)
 int32_t *
 fnvlist_lookup_int32_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	int32_t *rv;
+	int32_t *rv = NULL;
 	VERIFY0(nvlist_lookup_int32_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -468,7 +456,7 @@ fnvlist_lookup_int32_array(nvlist_t *nvl, const char *name, uint_t *n)
 uint32_t *
 fnvlist_lookup_uint32_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	uint32_t *rv;
+	uint32_t *rv = NULL;
 	VERIFY0(nvlist_lookup_uint32_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -476,7 +464,7 @@ fnvlist_lookup_uint32_array(nvlist_t *nvl, const char *name, uint_t *n)
 int64_t *
 fnvlist_lookup_int64_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	int64_t *rv;
+	int64_t *rv = NULL;
 	VERIFY0(nvlist_lookup_int64_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -484,7 +472,7 @@ fnvlist_lookup_int64_array(nvlist_t *nvl, const char *name, uint_t *n)
 uint64_t *
 fnvlist_lookup_uint64_array(nvlist_t *nvl, const char *name, uint_t *n)
 {
-	uint64_t *rv;
+	uint64_t *rv = NULL;
 	VERIFY0(nvlist_lookup_uint64_array(nvl, name, &rv, n));
 	return (rv);
 }
@@ -492,7 +480,7 @@ fnvlist_lookup_uint64_array(nvlist_t *nvl, const char *name, uint_t *n)
 boolean_t
 fnvpair_value_boolean_value(const nvpair_t *nvp)
 {
-	boolean_t rv;
+	boolean_t rv = B_FALSE;
 	VERIFY0(nvpair_value_boolean_value(nvp, &rv));
 	return (rv);
 }
@@ -500,7 +488,7 @@ fnvpair_value_boolean_value(const nvpair_t *nvp)
 uchar_t
 fnvpair_value_byte(const nvpair_t *nvp)
 {
-	uchar_t rv;
+	uchar_t rv = 0;
 	VERIFY0(nvpair_value_byte(nvp, &rv));
 	return (rv);
 }
@@ -508,7 +496,7 @@ fnvpair_value_byte(const nvpair_t *nvp)
 int8_t
 fnvpair_value_int8(const nvpair_t *nvp)
 {
-	int8_t rv;
+	int8_t rv = 0;
 	VERIFY0(nvpair_value_int8(nvp, &rv));
 	return (rv);
 }
@@ -516,7 +504,7 @@ fnvpair_value_int8(const nvpair_t *nvp)
 int16_t
 fnvpair_value_int16(const nvpair_t *nvp)
 {
-	int16_t rv;
+	int16_t rv = 0;
 	VERIFY0(nvpair_value_int16(nvp, &rv));
 	return (rv);
 }
@@ -524,7 +512,7 @@ fnvpair_value_int16(const nvpair_t *nvp)
 int32_t
 fnvpair_value_int32(const nvpair_t *nvp)
 {
-	int32_t rv;
+	int32_t rv = 0;
 	VERIFY0(nvpair_value_int32(nvp, &rv));
 	return (rv);
 }
@@ -532,7 +520,7 @@ fnvpair_value_int32(const nvpair_t *nvp)
 int64_t
 fnvpair_value_int64(const nvpair_t *nvp)
 {
-	int64_t rv;
+	int64_t rv = 0;
 	VERIFY0(nvpair_value_int64(nvp, &rv));
 	return (rv);
 }
@@ -540,7 +528,7 @@ fnvpair_value_int64(const nvpair_t *nvp)
 uint8_t
 fnvpair_value_uint8(const nvpair_t *nvp)
 {
-	uint8_t rv;
+	uint8_t rv = 0;
 	VERIFY0(nvpair_value_uint8(nvp, &rv));
 	return (rv);
 }
@@ -548,7 +536,7 @@ fnvpair_value_uint8(const nvpair_t *nvp)
 uint16_t
 fnvpair_value_uint16(const nvpair_t *nvp)
 {
-	uint16_t rv;
+	uint16_t rv = 0;
 	VERIFY0(nvpair_value_uint16(nvp, &rv));
 	return (rv);
 }
@@ -556,7 +544,7 @@ fnvpair_value_uint16(const nvpair_t *nvp)
 uint32_t
 fnvpair_value_uint32(const nvpair_t *nvp)
 {
-	uint32_t rv;
+	uint32_t rv = 0;
 	VERIFY0(nvpair_value_uint32(nvp, &rv));
 	return (rv);
 }
@@ -564,7 +552,7 @@ fnvpair_value_uint32(const nvpair_t *nvp)
 uint64_t
 fnvpair_value_uint64(const nvpair_t *nvp)
 {
-	uint64_t rv;
+	uint64_t rv = 0;
 	VERIFY0(nvpair_value_uint64(nvp, &rv));
 	return (rv);
 }
@@ -572,7 +560,7 @@ fnvpair_value_uint64(const nvpair_t *nvp)
 const char *
 fnvpair_value_string(const nvpair_t *nvp)
 {
-	const char *rv;
+	const char *rv = NULL;
 	VERIFY0(nvpair_value_string(nvp, &rv));
 	return (rv);
 }
@@ -580,7 +568,7 @@ fnvpair_value_string(const nvpair_t *nvp)
 nvlist_t *
 fnvpair_value_nvlist(nvpair_t *nvp)
 {
-	nvlist_t *rv;
+	nvlist_t *rv = NULL;
 	VERIFY0(nvpair_value_nvlist(nvp, &rv));
 	return (rv);
 }
@@ -651,4 +639,3 @@ EXPORT_SYMBOL(fnvpair_value_int64);
 EXPORT_SYMBOL(fnvpair_value_uint64);
 EXPORT_SYMBOL(fnvpair_value_string);
 EXPORT_SYMBOL(fnvpair_value_nvlist);
-EXPORT_SYMBOL(fnvlist_num_pairs);

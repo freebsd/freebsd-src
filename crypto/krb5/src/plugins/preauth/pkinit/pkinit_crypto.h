@@ -440,7 +440,7 @@ krb5_error_code crypto_load_cas_and_crls
 		    defines the storage type (file, directory, etc) */
 	int catype,					/* IN
 		    defines the ca type (anchor, intermediate, crls) */
-	char *id);					/* IN
+	const char *id);				/* IN
 		    defines the location (filename, directory name, etc) */
 
 /*

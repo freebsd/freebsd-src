@@ -130,6 +130,11 @@
 #define	SDMMC_DSCADDR		0x94	/* Current Host Descriptor Address */
 #define	SDMMC_BUFADDR		0x98	/* Current Buffer Descriptor Address */
 #define	SDMMC_CARDTHRCTL	0x100	/* Card Threshold Control Register */
+#define	 SDMMC_CARD_RD_THR_EN	(1 << 0)
+#define	 SDMMC_CARD_WR_THR_EN	(1 << 2)
+#define	 SDMMC_SET_THLD(v, x)	((((v) & 0xfff) << 16) | (x))
+#define	SDMMC_VERID_240A	0x240a	/* First version with CARDTHRCTL */
+#define	SDMMC_VERID_280A	0x280a	/* First version with write threshold */
 #define	SDMMC_BACK_END_POWER_R	0x104	/* Back End Power Register */
 #define	SDMMC_DATA		0x200	/* Data FIFO Access */
 

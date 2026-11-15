@@ -524,7 +524,7 @@ usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
 		return;
 
 	/* check for SUPER-speed streams mode endpoint */
-	if (udev->speed == USB_SPEED_SUPER && ecomp != NULL &&
+	if (udev->speed >= USB_SPEED_SUPER && ecomp != NULL &&
 	    (edesc->bmAttributes & UE_XFERTYPE) == UE_BULK &&
 	    (UE_GET_BULK_STREAMS(ecomp->bmAttributes) != 0)) {
 		usbd_set_endpoint_mode(udev, ep, USB_EP_MODE_STREAMS);

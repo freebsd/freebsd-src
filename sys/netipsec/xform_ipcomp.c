@@ -321,6 +321,7 @@ ipcomp_input_cb(struct cryptop *crp)
 			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
 			xd->cryptoid = crp->crp_session;
+			ipsec_sahtree_runlock(&sahtree_tracker);
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
@@ -392,7 +393,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	return error;
 bad:
 	ipsec_sahtree_runlock(&sahtree_tracker);
-	CURVNET_RESTORE();
 	if (sav != NULL)
 		key_freesav(&sav);
 	if (m != NULL)
@@ -401,6 +401,7 @@ bad:
 		free(xd, M_IPCOMP);
 	if (crp != NULL)
 		crypto_freereq(crp);
+	CURVNET_RESTORE();
 	return error;
 }
 
@@ -669,11 +670,11 @@ ipcomp_output_cb(struct cryptop *crp)
 bad:
 	if (m)
 		m_freem(m);
-	CURVNET_RESTORE();
 	free(xd, M_IPCOMP);
 	crypto_freereq(crp);
 	key_freesav(&sav);
 	key_freesp(&sp);
+	CURVNET_RESTORE();
 	return (error);
 }
 

@@ -1283,10 +1283,10 @@ gicv5_its_acpi_probe(device_t dev)
 
 struct find_its_translate_data {
 	bus_addr_t its_frame_paddr;
+	intptr_t its_translate_xref;
 	uint8_t flags;
 	int its_found;
 	int its_translate_found;
-	u_int its_translate_xref;
 	int its_translate_pxm;
 };
 

@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2003 Mathew Kanner
  * All rights reserved.
+ * Copyright (c) 2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,17 +46,7 @@
 #include "mpu_if.h"
 #include "mpufoi_if.h"
 
-#define MPU_DATAPORT   0
-#define MPU_CMDPORT    1
-#define MPU_STATPORT   1
-#define MPU_RESET      0xff
-#define MPU_UART       0x3f
-#define MPU_ACK        0xfe
-#define MPU_STATMASK   0xc0
-#define MPU_OUTPUTBUSY 0x40
-#define MPU_INPUTBUSY  0x80
-#define MPU_TRYDATA 50
-#define MPU_DELAY   2500
+#define MPU_QUEUE_SIZE	128
 
 #define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
 #define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
@@ -73,15 +67,11 @@ static mpu401_intr_t mpu401_intr;
 
 static int mpu401_minit(struct snd_midi *, void *);
 static int mpu401_muninit(struct snd_midi *, void *);
-static int mpu401_minqsize(struct snd_midi *, void *);
-static int mpu401_moutqsize(struct snd_midi *, void *);
 static void mpu401_mcallback(struct snd_midi *, void *, int);
 
 static kobj_method_t mpu401_methods[] = {
 	KOBJMETHOD(mpu_init, mpu401_minit),
 	KOBJMETHOD(mpu_uninit, mpu401_muninit),
-	KOBJMETHOD(mpu_inqsize, mpu401_minqsize),
-	KOBJMETHOD(mpu_outqsize, mpu401_moutqsize),
 	KOBJMETHOD(mpu_callback, mpu401_mcallback),
 	KOBJMETHOD_END
 };
@@ -102,11 +92,9 @@ mpu401_intr(struct mpu401 *m)
 {
 #define MPU_INTR_BUF	16
 	uint8_t b[MPU_INTR_BUF];
-	int i;
+	size_t i;
 	int s;
 
-#define RXRDY(m) ( (STATUS(m) & MPU_INPUTBUSY) == 0)
-#define TXRDY(m) ( (STATUS(m) & MPU_OUTPUTBUSY) == 0)
 	i = 0;
 	s = STATUS(m);
 	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
@@ -129,10 +117,10 @@ mpu401_intr(struct mpu401 *m)
 		s = STATUS(m);
 	}
 
-	if ((m->flags & M_TXEN) && (m->si)) {
+	if ((m->flags & M_TXPEND) && (m->si)) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
-	return (m->flags & M_TXEN) == M_TXEN;
+	return (m->flags & M_TXPEND) == M_TXPEND;
 }
 
 struct mpu401 *
@@ -150,82 +138,52 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 
 	m->si = softintr;
 	m->cookie = cookie;
-	m->flags = 0;
 
-	m->mid = midi_init(&mpu401_class, m);
+	m->mid = midi_init(&mpu401_class, m, MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
 	if (!m->mid)
 		goto err;
 	*cb = mpu401_intr;
 	return m;
 err:
 	printf("mpu401_init error\n");
-	free(m, M_MIDI);
+	kobj_delete((kobj_t)m, M_MIDI);
 	return NULL;
 }
 
 int
 mpu401_uninit(struct mpu401 *m)
 {
-	int retval;
-
 	CMD(m, MPU_RESET);
-	retval = midi_uninit(m->mid);
-	if (retval)
-		return retval;
-	free(m, M_MIDI);
+	midi_uninit(m->mid);
+	callout_drain(&m->timer);
+	kobj_delete((kobj_t)m, M_MIDI);
 	return 0;
 }
 
 static int
-mpu401_minit(struct snd_midi *sm, void *arg)
+mpu401_minit(struct snd_midi *sm __unused, void *arg)
 {
 	struct mpu401 *m = arg;
-	int i;
 
 	CMD(m, MPU_RESET);
 	CMD(m, MPU_UART);
 	return 0;
-	i = 0;
-	while (++i < 2000) {
-		if (RXRDY(m))
-			if (READ(m) == MPU_ACK)
-				break;
-	}
-
-	if (i < 2000) {
-		CMD(m, MPU_UART);
-		return 0;
-	}
-	printf("mpu401_minit failed active sensing\n");
-	return 1;
 }
 
 static int
-mpu401_muninit(struct snd_midi *sm, void *arg)
+mpu401_muninit(struct snd_midi *sm __unused, void *arg)
 {
 	struct mpu401 *m = arg;
 
 	return MPUFOI_UNINIT(m, m->cookie);
 }
 
-static int
-mpu401_minqsize(struct snd_midi *sm, void *arg)
-{
-	return 128;
-}
-
-static int
-mpu401_moutqsize(struct snd_midi *sm, void *arg)
-{
-	return 128;
-}
-
 static void
-mpu401_mcallback(struct snd_midi *sm, void *arg, int flags)
+mpu401_mcallback(struct snd_midi *sm __unused, void *arg, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXEN && m->si) {
+	if (flags & M_TXPEND && m->si) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
 	m->flags = flags;

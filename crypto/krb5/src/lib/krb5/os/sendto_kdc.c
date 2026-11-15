@@ -1313,6 +1313,7 @@ https_read_bytes(krb5_context context, struct conn_state *conn,
             }
             in->buf = tmp;
             in->bufsize = bufsize;
+            in->buf[in->pos] = '\0';
         }
 
         st = context->tls->read(context, conn->http.tls, &in->buf[in->pos],

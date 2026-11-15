@@ -476,6 +476,9 @@ typedef enum {
 	VDEV_PROP_FGROUP,
 	VDEV_PROP_ALLOC_BIAS,
 	VDEV_PROP_ROTATIONAL,
+	VDEV_PROP_ANYRAID_CAP_TILES,
+	VDEV_PROP_ANYRAID_NUM_TILES,
+	VDEV_PROP_ANYRAID_TILE_SIZE,
 	VDEV_NUM_PROPS
 } vdev_prop_t;
 
@@ -970,6 +973,7 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_CREATE_INFO	"create_info"	/* not stored on disk */
 #define	ZPOOL_CREATE_INFO_VDEV		"create_err_vdev"
 #define	ZPOOL_CREATE_INFO_POOL		"create_err_pool"
+#define	ZPOOL_CREATE_INFO_SIZE		"create_err_size"
 #define	ZPOOL_CONFIG_REWIND_INFO	"rewind_info"	/* not stored on disk */
 #define	ZPOOL_CONFIG_UNSUP_FEAT		"unsup_feat"	/* not stored on disk */
 #define	ZPOOL_CONFIG_ENABLED_FEAT	"enabled_feat"	/* not stored on disk */
@@ -1030,10 +1034,14 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_DRAID_NGROUPS	"draid_ngroups"
 #define	ZPOOL_CONFIG_DRAID_NCHILDREN	"draid_nchildren"
 
+/* ANYRAID configuration */
+#define	ZPOOL_CONFIG_ANYRAID_PARITY_TYPE	"anyraid_parity_type"
+
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
 #define	VDEV_TYPE_REPLACING		"replacing"
 #define	VDEV_TYPE_RAIDZ			"raidz"
+#define	VDEV_TYPE_ANYMIRROR		"anymirror"
 #define	VDEV_TYPE_DRAID			"draid"
 #define	VDEV_TYPE_DRAID_SPARE		"dspare"
 #define	VDEV_TYPE_DISK			"disk"
@@ -1777,6 +1785,7 @@ typedef struct zfs_rewrite_args {
 #define	ZFS_REWRITE_PHYSICAL		0x1 /* Preserve logical birth time. */
 #define	ZFS_REWRITE_SKIP_SNAPSHOT	0x2 /* Skip snapshot-shared blocks. */
 #define	ZFS_REWRITE_SKIP_BRT		0x4 /* Skip BRT-cloned blocks. */
+#define	ZFS_REWRITE_SKIP_CURRENT	0x8 /* Skip blocks already current. */
 
 #define	ZFS_IOC_REWRITE		_IOW(0x83, 3, zfs_rewrite_args_t)
 
@@ -1823,6 +1832,8 @@ typedef enum {
 	ZFS_ERR_STREAM_LARGE_MICROZAP,
 	ZFS_ERR_TOO_MANY_SITOUTS,
 	ZFS_ERR_NO_USER_NS_SUPPORT,
+	ZFS_ERR_CRYPTO_KEY_MISMATCH,
+	ZFS_ERR_RAIDZ_EXPAND_TOO_WIDE,
 } zfs_errno_t;
 
 /*

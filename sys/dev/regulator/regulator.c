@@ -827,7 +827,8 @@ regnode_set_voltage_checked(struct regnode *regnode, struct regulator *reg,
 		max_uvolt = all_max_uvolt;
 
 	rv = REGNODE_SET_VOLTAGE(regnode, min_uvolt, max_uvolt, &udelay);
-	regnode_delay(udelay);
+	if (rv == 0)
+		regnode_delay(udelay);
 	REGNODE_UNLOCK(regnode);
 	return (rv);
 }

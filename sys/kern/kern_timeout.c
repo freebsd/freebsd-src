@@ -110,6 +110,11 @@ static int ncallout;
 SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &ncallout, 0,
     "Number of entries in callwheel and size of timeout() preallocation");
 
+static bool __read_mostly callout_spread;
+SYSCTL_BOOL(_kern, OID_AUTO, callout_spread, CTLFLAG_RWTUN,
+    &callout_spread, 0,
+    "Distribute initial callout CPU assignments after SMP startup");
+
 #ifdef	RSS
 static int pin_default_swi = 1;
 static int pin_pcpu_swi = 1;
@@ -1357,7 +1362,7 @@ callout_init(struct callout *c, int mpsafe)
 		c->c_lock = &Giant.lock_object;
 		c->c_iflags = 0;
 	}
-	c->c_cpu = cc_default_cpu;
+	c->c_cpu = callout_spread ? curcpu : cc_default_cpu;
 }
 
 void
@@ -1377,7 +1382,7 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 	*c = (struct callout ){
 		.c_lock = lock,
 		.c_iflags = flags,
-		.c_cpu = cc_default_cpu,
+		.c_cpu = callout_spread ? curcpu : cc_default_cpu,
 	};
 }
 

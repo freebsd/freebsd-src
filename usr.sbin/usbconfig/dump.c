@@ -98,7 +98,7 @@ dump_speed(uint8_t value)
 	case LIBUSB20_SPEED_SUPER:
 		return ("SUPER (5.0Gbps)");
 	case LIBUSB20_SPEED_SUPER_PLUS:
-		return ("SUPER+(10-20Gbps)");
+		return ("SUPER+ (>=10Gbps)");
 	default:
 		break;
 	}

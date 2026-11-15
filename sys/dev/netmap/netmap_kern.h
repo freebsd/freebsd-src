@@ -2414,10 +2414,12 @@ ptnet_sync_tail(struct nm_csb_ktoa *ktoa, struct netmap_kring *kring)
  * has a KASSERT(), checking that the mbuf dtor function is not NULL.
  */
 
+#define NM_GENERIC_MAX_BUF_SIZE MJUM16BYTES
+
 static inline void
 nm_generic_mbuf_dtor(struct mbuf *m)
 {
-	uma_zfree(zone_clust, m->m_ext.ext_buf);
+	uma_zfree(m_getzone(m->m_ext.ext_size), m->m_ext.ext_buf);
 }
 
 #define SET_MBUF_DESTRUCTOR(m, fn, na)	do {		\
@@ -2427,22 +2429,33 @@ nm_generic_mbuf_dtor(struct mbuf *m)
 } while (0)
 
 static inline struct mbuf *
-nm_os_get_mbuf(if_t ifp __unused, int len)
+nm_os_get_mbuf(if_t ifp __unused, uint32_t size)
 {
 	struct mbuf *m;
 	void *buf;
 
-	KASSERT(len <= MCLBYTES, ("%s: len %d", __func__, len));
+	KASSERT(size <= NM_GENERIC_MAX_BUF_SIZE,
+	    ("%s: size %u > %d", __func__, size, NM_GENERIC_MAX_BUF_SIZE));
 
 	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (__predict_false(m == NULL))
 		return (NULL);
-	buf = uma_zalloc(zone_clust, M_NOWAIT);
+	if (size <= MCLBYTES)
+		size = MCLBYTES;
+#if MJUMPAGESIZE != MCLBYTES
+	else if (size <= MJUMPAGESIZE)
+		size = MJUMPAGESIZE;
+#endif
+	else if (size <= MJUM9BYTES)
+		size = MJUM9BYTES;
+	else
+		size = MJUM16BYTES;
+	buf = uma_zalloc(m_getzone(size), M_NOWAIT);
 	if (__predict_false(buf == NULL)) {
 		m_free(m);
 		return (NULL);
 	}
-	m_extadd(m, buf, MCLBYTES, nm_generic_mbuf_dtor, NULL, NULL, 0,
+	m_extadd(m, buf, size, nm_generic_mbuf_dtor, NULL, NULL, 0,
 	    EXT_NET_DRV);
 	return (m);
 }
@@ -2451,16 +2464,15 @@ static inline void
 nm_os_mbuf_reinit(struct mbuf *m)
 {
 	void *buf;
+	uint32_t size;
 
 	KASSERT((m->m_flags & M_EXT) != 0,
 	    ("%s: mbuf %p has no external storage", __func__, m));
-	KASSERT(m->m_ext.ext_size == MCLBYTES,
-	    ("%s: mbuf %p has wrong external storage size %u", __func__, m,
-	    m->m_ext.ext_size));
 
 	buf = m->m_ext.ext_buf;
+	size = m->m_ext.ext_size;
 	m_init(m, M_NOWAIT, MT_DATA, M_PKTHDR);
-	m_extadd(m, buf, MCLBYTES, nm_generic_mbuf_dtor, NULL, NULL, 0,
+	m_extadd(m, buf, size, nm_generic_mbuf_dtor, NULL, NULL, 0,
 	    EXT_NET_DRV);
 }
 

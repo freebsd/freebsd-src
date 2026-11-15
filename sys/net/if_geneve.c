@@ -123,7 +123,6 @@ struct geneve_socket_mc_info {
 #define GENEVE_BASIC_IFCAPS (IFCAP_LINKSTATE | IFCAP_JUMBO_MTU | IFCAP_NV)
 
 #define GENEVE_VERSION	0
-#define GENEVE_VNI_MASK	(GENEVE_VNI_MAX - 1)
 
 #define GENEVE_HDR_VNI_SHIFT	8
 
@@ -2984,11 +2983,11 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	memset(&info, 0, sizeof(info));
 	info.ethertype = geneve_get_ethertype(m);
 	if (info.ethertype == ETHERTYPE_IP) {
-		iphdr = mtodo(m, offset - sizeof(struct ip));
+		iphdr = mtod(m, struct ip *);
 		info.ecn = (iphdr->ip_tos & IPTOS_ECN_MASK);
 		info.ttl = iphdr->ip_ttl;
 	} else if (info.ethertype == ETHERTYPE_IPV6) {
-		ip6hdr = mtodo(m, offset - sizeof(struct ip6_hdr));
+		ip6hdr = mtod(m, struct ip6_hdr *);
 		info.ecn = IPV6_ECN(ip6hdr);
 		info.ttl = ip6hdr->ip6_hlim;
 	}
@@ -3005,15 +3004,14 @@ geneve_udp_input(struct mbuf *m, int offset, struct inpcb *inpcb,
 	 * Drop if there is a reserved bit or unknown version set in the header.
 	 * As defined in RFC 8926 3.4
 	 */
-	if (gnvh->geneve_ver != htons(GENEVE_VERSION) ||
-	    gnvh->geneve_vni & ~GENEVE_VNI_MASK)
+	if (gnvh->geneve_ver != GENEVE_VERSION)
 		return (false);
 
 	/*
 	 * The length of the option fields, expressed in 4-byte multiples, not
 	 * including the 8-byte fixed tunnel header.
 	 */
-	optlen = ntohs(gnvh->geneve_optlen) * 4;
+	optlen = gnvh->geneve_optlen * 4;
 	error = geneve_next_option(gnvso, gnvh, &m);
 	if (error != 0)
 		return (false);

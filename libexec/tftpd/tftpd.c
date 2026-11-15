@@ -459,23 +459,24 @@ parse_header(int peer, char *recvbuffer, size_t size,
 	char **filename, char **mode)
 {
 	struct formats *pf;
-	char	*cp;
-	size_t	i;
+	char	*cp, *end;
+	size_t	len;
 
 	*mode = NULL;
 	cp = recvbuffer;
+	end = recvbuffer + size;
 
-	i = get_field(peer, recvbuffer, size);
-	if (i >= PATH_MAX) {
+	len = get_field(peer, cp, end - cp);
+	if (len >= PATH_MAX) {
 		tftp_log(LOG_ERR, "Bad option - filename too long");
 		send_error(peer, EBADOP);
 		exit(1);
 	}
 	*filename = recvbuffer;
 	tftp_log(LOG_INFO, "Filename: '%s'", *filename);
-	cp += i;
+	cp += len;
 
-	i = get_field(peer, cp, size);
+	len = get_field(peer, cp, end - cp);
 	*mode = cp;
 
 	/* Find the file transfer mode */

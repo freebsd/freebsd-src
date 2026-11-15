@@ -775,7 +775,8 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 #ifdef PCI_IOV
 	case ICE_VSI_VF:
 		ctx.flags = ICE_AQ_VSI_TYPE_VF;
-		ctx.vf_num = vsi->vf_num;
+		/* Add VSI requires the absolute VF number. */
+		ctx.vf_num = hw->func_caps.vf_base_id + vsi->vf_num;
 		break;
 #endif
 	default:
@@ -783,6 +784,9 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 	}
 
 	ice_set_default_vsi_ctx(&ctx);
+	/* Match VSI loopback permission to the switch forwarding mode. */
+	if (hw->evb_veb)
+		ctx.info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
 	ice_set_rss_vsi_ctx(&ctx, vsi->type);
 
 	/* XXX: VSIs of other types may need different port info? */
@@ -1705,20 +1709,21 @@ ice_setup_tx_ctx(struct ice_tx_queue *txq, struct ice_tlan_ctx *tlan_ctx, u16 pf
 }
 
 /**
- * ice_cfg_vsi_for_tx - Configure the hardware for Tx
- * @vsi: the VSI to configure
+ * ice_cfg_tx_queue - Configure and enable one hardware Tx queue
+ * @txq: the Tx queue to configure
  *
- * Configure the device Tx queues through firmware AdminQ commands. After
- * this, Tx queues will be ready for transmit.
+ * Use the saved ring parameters to create the queue and its scheduler leaf.
  */
 int
-ice_cfg_vsi_for_tx(struct ice_vsi *vsi)
+ice_cfg_tx_queue(struct ice_tx_queue *txq)
 {
+	struct ice_vsi *vsi = txq->vsi;
 	struct ice_aqc_add_tx_qgrp *qg;
 	struct ice_hw *hw = &vsi->sc->hw;
+	struct ice_tlan_ctx tlan_ctx = { 0 };
+	struct ice_q_ctx *q_ctx;
 	device_t dev = vsi->sc->dev;
 	int status;
-	int i;
 	int err = 0;
 	u16 qg_size, pf_q;
 
@@ -1729,45 +1734,66 @@ ice_cfg_vsi_for_tx(struct ice_vsi *vsi)
 
 	qg->num_txqs = 1;
 
-	for (i = 0; i < vsi->num_tx_queues; i++) {
-		struct ice_tlan_ctx tlan_ctx = { 0 };
-		struct ice_tx_queue *txq = &vsi->tx_queues[i];
+	pf_q = vsi->tx_qmap[txq->me];
+	qg->txqs[0].txq_id = htole16(pf_q);
 
-		/* Last configured queue */
-		if (txq->desc_count == 0)
-			break;
+	err = ice_setup_tx_ctx(txq, &tlan_ctx, pf_q);
+	if (err)
+		goto free_txqg;
 
-		pf_q = vsi->tx_qmap[txq->me];
-		qg->txqs[0].txq_id = htole16(pf_q);
+	ice_set_ctx(hw, (u8 *)&tlan_ctx, qg->txqs[0].txq_ctx,
+		    ice_tlan_ctx_info);
 
-		err = ice_setup_tx_ctx(txq, &tlan_ctx, pf_q);
-		if (err)
-			goto free_txqg;
-
-		ice_set_ctx(hw, (u8 *)&tlan_ctx, qg->txqs[0].txq_ctx,
-			    ice_tlan_ctx_info);
-
-		status = ice_ena_vsi_txq(hw->port_info, vsi->idx, txq->tc,
-					 txq->q_handle, 1, qg, qg_size, NULL);
-		if (status) {
-			device_printf(dev,
-				      "Failed to set LAN Tx queue %d (TC %d, handle %d) context, err %s aq_err %s\n",
-				      i, txq->tc, txq->q_handle,
-				      ice_status_str(status),
-				      ice_aq_str(hw->adminq.sq_last_status));
-			err = ENODEV;
-			goto free_txqg;
-		}
-
-		/* Keep track of the Tx queue TEID */
-		if (pf_q == le16toh(qg->txqs[0].txq_id))
-			txq->q_teid = le32toh(qg->txqs[0].q_teid);
+	status = ice_ena_vsi_txq(hw->port_info, vsi->idx, txq->tc,
+				 txq->q_handle, 1, qg, qg_size, NULL);
+	if (status) {
+		/* Preserve ownership if post-add setup and its rollback failed. */
+		q_ctx = ice_get_lan_q_ctx(hw, vsi->idx, txq->tc, txq->q_handle);
+		if (q_ctx != NULL && q_ctx->q_handle == txq->q_handle)
+			txq->q_teid = q_ctx->q_teid;
+		device_printf(dev,
+		    "Failed to set LAN Tx queue %u (TC %d, handle %d) context, err %s aq_err %s\n",
+		    txq->me, txq->tc, txq->q_handle,
+		    ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		err = ENODEV;
+		goto free_txqg;
 	}
+
+	/* Keep track of the Tx queue TEID */
+	if (pf_q == le16toh(qg->txqs[0].txq_id))
+		txq->q_teid = le32toh(qg->txqs[0].q_teid);
 
 free_txqg:
 	free(qg, M_ICE);
 
 	return (err);
+}
+
+/**
+ * ice_cfg_vsi_for_tx - Configure the hardware for Tx
+ * @vsi: the VSI to configure
+ *
+ * Configure the device Tx queues through firmware AdminQ commands. After
+ * this, Tx queues will be ready for transmit.
+ */
+int
+ice_cfg_vsi_for_tx(struct ice_vsi *vsi)
+{
+	int error, i;
+
+	for (i = 0; i < vsi->num_tx_queues; i++) {
+		struct ice_tx_queue *txq = &vsi->tx_queues[i];
+
+		/* Last configured queue */
+		if (txq->desc_count == 0)
+			break;
+		error = ice_cfg_tx_queue(txq);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
 }
 
 /**

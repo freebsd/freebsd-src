@@ -36,6 +36,8 @@
 #include <dev/mlx5/mlx5_core/fs_core.h>
 #include <linux/string.h>
 #include <linux/compiler.h>
+#include <linux/jhash.h>
+#include <linux/list.h>
 
 #include "eswitch.h"
 #include "fs_ft_pool.h"
@@ -658,6 +660,7 @@ static void del_sw_fte(struct fs_node *node)
 
 	deleted_fte = xa_erase(&fg->ftes_xa, fte->index);
 	WARN_ON(deleted_fte != fte);
+	hlist_del_init(&fte->hnode);
 	ida_free(&fg->fte_allocator, fte->index - fg->start_index);
 	kmem_cache_free(steering->ftes_cache, fte);
 }
@@ -691,6 +694,7 @@ static void del_sw_flow_group(struct fs_node *node)
 
 	xa_destroy(&fg->ftes_xa);
 	ida_destroy(&fg->fte_allocator);
+	kvfree(fg->fte_hash);
 	if (ft->autogroup.active &&
 	    fg->max_ftes == ft->autogroup.group_size &&
 	    fg->start_index < ft->autogroup.max_fte)
@@ -714,6 +718,7 @@ static int insert_fte(struct mlx5_flow_group *fg, struct fs_fte *fte)
 	if (ret)
 		goto err_ida_remove;
 
+	hlist_add_head(&fte->hnode, &fg->fte_hash[fte->hash & fg->fte_hash_mask]);
 	tree_add_node(&fte->node, &fg->node);
 	list_add_tail(&fte->node.list, &fg->node.children);
 	return 0;
@@ -735,6 +740,8 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_table *ft,
 		return ERR_PTR(-ENOMEM);
 
 	memcpy(fte->val, &spec->match_value, sizeof(fte->val));
+	fte->hash = jhash(fte->val, sizeof(fte->val), 0);
+	INIT_HLIST_NODE(&fte->hnode);
 	fte->node.type =  FS_TYPE_FLOW_ENTRY;
 	fte->action = *flow_act;
 	fte->flow_context = spec->flow_context;
@@ -748,6 +755,7 @@ static void dealloc_flow_group(struct mlx5_flow_steering *steering,
 			       struct mlx5_flow_group *fg)
 {
 	xa_destroy(&fg->ftes_xa);
+	kvfree(fg->fte_hash);
 	kmem_cache_free(steering->fgs_cache, fg);
 }
 
@@ -758,10 +766,23 @@ static struct mlx5_flow_group *alloc_flow_group(struct mlx5_flow_steering *steer
 						int end_index)
 {
 	struct mlx5_flow_group *fg;
+	u32 nbuckets;
 
 	fg = kmem_cache_zalloc(steering->fgs_cache, GFP_KERNEL);
 	if (!fg)
 		return ERR_PTR(-ENOMEM);
+
+	/* Aim for short chains, but do not waste memory on small groups. */
+	nbuckets = 1;
+	while (nbuckets < (u32)(end_index - start_index + 1) / 2 &&
+	    nbuckets < FS_FTE_HASH_MAX_BUCKETS)
+		nbuckets <<= 1;
+	fg->fte_hash = kvcalloc(nbuckets, sizeof(*fg->fte_hash), GFP_KERNEL);
+	if (!fg->fte_hash) {
+		kmem_cache_free(steering->fgs_cache, fg);
+		return ERR_PTR(-ENOMEM);
+	}
+	fg->fte_hash_mask = nbuckets - 1;
 
 	xa_init(&fg->ftes_xa);
 
@@ -1807,17 +1828,18 @@ static u64 matched_fgs_get_version(struct list_head *match_head)
 static struct fs_fte *
 lookup_fte_locked(struct mlx5_flow_group *g,
 		  const u32 *match_value,
+		  u32 hash,
 		  bool take_write)
 {
 	struct fs_fte *fte_tmp;
-	unsigned long index;
 
 	if (take_write)
 		nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
 	else
 		nested_down_read_ref_node(&g->node, FS_LOCK_PARENT);
-	xa_for_each_rcu(&g->ftes_xa, index, fte_tmp) {
-		if (!memcmp(match_value, fte_tmp->val, sizeof_field(struct fs_fte, val)))
+	hlist_for_each_entry(fte_tmp, &g->fte_hash[hash & g->fte_hash_mask], hnode) {
+		if (fte_tmp->hash == hash &&
+		    !memcmp(match_value, fte_tmp->val, sizeof_field(struct fs_fte, val)))
 			break;
 	}
 	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
@@ -1872,7 +1894,8 @@ search_again_locked:
 		struct fs_fte *fte_tmp;
 
 		g = iter->g;
-		fte_tmp = lookup_fte_locked(g, spec->match_value, take_write);
+		fte_tmp = lookup_fte_locked(g, spec->match_value, fte->hash,
+		    take_write);
 		if (!fte_tmp)
 			continue;
 		rule = add_rule_fg(g, spec, flow_act, dest, dest_num, fte_tmp);

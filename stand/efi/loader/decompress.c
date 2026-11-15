@@ -20,13 +20,14 @@
 #define ULL(x) ((unsigned long long)(x))
 
 /*
- * While memdisk_uefi.efi used EfiReservedMemoryType, we need to use
- * EfiLoaderData instead, the standard memory type the loader uses to pass
- * memory to the kernel. This is also safe if we're chain booting to another efi
- * progarm since the memory will be available to that program. The other type
- * isn't necessarily in the pmap, so the md driver fails.
+ * RamDisks live for the life of the next stage or longer. ACPI requires this
+ * for disks registered with the RamDisk protocol, and most operating systems
+ * will ignore this memory if not given other instructions. The FreeBSD
+ * kernel will skip it, but will properly use reserved memory for ram disks
+ * when told about them by the boot loader.
  */
-static EFI_MEMORY_TYPE mem_type = EfiLoaderData;
+
+static EFI_MEMORY_TYPE mem_type = EfiReservedMemoryType;
 
 struct decomp_state
 {
@@ -126,6 +127,28 @@ free_buffer(decomp_state *dctx)
 	if (dctx->buf)
 		BS->FreePages(dctx->buf, dctx->pages);
 	dctx->buf = 0;
+}
+
+/*
+ * The buffer size is a guess, so once the image is complete, give the pages
+ * past its end back to the firmware.
+ */
+static void
+trim_buffer(decomp_state *dctx)
+{
+	size_t used = roundup2((uintptr_t)dctx->buf_cur - (uintptr_t)dctx->buf,
+	    EFI_PAGE_SIZE);
+	size_t pages = used / EFI_PAGE_SIZE;
+
+	if (dctx->buf == 0 || pages == 0 || pages >= dctx->pages)
+		return;
+	if (EFI_ERROR(BS->FreePages(dctx->buf + used, dctx->pages - pages)))
+		return;
+	printf("Freed %llu unused bytes of the decompression buffer\n",
+	    ULL(dctx->alloc_size - used));
+	dctx->pages = pages;
+	dctx->alloc_size = used;
+	dctx->buf_end = (uint8_t *)(uintptr_t)dctx->buf + used;
 }
 
 /*
@@ -503,7 +526,9 @@ decomp_step(decomp_state *dctx, uint8_t *buf, size_t len, size_t offset)
 void
 decomp_fini(decomp_state *dctx, bool flush)
 {
-	return (dctx->fini(dctx, flush));
+	dctx->fini(dctx, flush);
+	if (!flush)
+		trim_buffer(dctx);
 }
 
 EFI_PHYSICAL_ADDRESS

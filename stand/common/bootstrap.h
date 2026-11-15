@@ -349,6 +349,9 @@ struct arch_switch
 	ssize_t	(*arch_copyout)(const vm_offset_t, void *, const size_t);
 	/* Read from file to module address space, same semantics as read() */
 	ssize_t	(*arch_readin)(readin_handle_t, vm_offset_t, const size_t);
+	/* Measure an initialized portion of a preloaded file, if supported. */
+	void (*arch_file_measure)(struct preloaded_file *, vm_offset_t,
+	    const size_t);
 	/* Perform ISA byte port I/O (only for systems with ISA) */
 	int (*arch_isainb)(int port);
 	void (*arch_isaoutb)(int port, int value);
@@ -387,5 +390,8 @@ void set_currdev(const char *devname);
 extern struct devsw md_dev;
 int md_register(void *image, size_t size, unsigned int flags);
 void md_export_to_kernel(uint64_t start, uint64_t len);
+int md_get_size(int unit, uint64_t *size);
+
+#define	MD_BLOCK_SIZE	512
 
 #endif /* !_BOOTSTRAP_H_ */

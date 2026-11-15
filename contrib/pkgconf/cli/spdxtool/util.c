@@ -16,12 +16,82 @@
 #include <ctype.h>
 #include "util.h"
 
+static bool
+util_escape_uri_string(pkgconf_buffer_t *dest, pkgconf_buffer_t *src)
+{
+	const char *p = pkgconf_buffer_str(src);
+
+	if (dest == src)
+		return false;
+
+	if (!p)
+		return true;
+
+	for (; *p; p++)
+	{
+		bool ret;
+
+		switch (*p)
+		{
+			case 0x20:
+				ret = pkgconf_buffer_append(dest, "%20");
+				break;
+			case '"':
+				ret = pkgconf_buffer_append(dest, "%22");
+				break;
+			case '%':
+				ret = pkgconf_buffer_append(dest, "%25");
+				break;
+			case '\'':
+				ret = pkgconf_buffer_append(dest, "%27");
+				break;
+			case '+':
+				ret = pkgconf_buffer_append(dest, "%2B");
+				break;
+			case ',':
+				ret = pkgconf_buffer_append(dest, "%2C");
+				break;
+			case '<':
+				ret = pkgconf_buffer_append(dest, "%3C");
+				break;
+			case '>':
+				ret = pkgconf_buffer_append(dest, "%3E");
+				break;
+			case '\\':
+				ret = pkgconf_buffer_append(dest, "%5C");
+				break;
+			case '^':
+				ret = pkgconf_buffer_append(dest, "%5E");
+				break;
+			case '`':
+				ret = pkgconf_buffer_append(dest, "%60");
+				break;
+			case '{':
+				ret = pkgconf_buffer_append(dest, "%7B");
+				break;
+			case '|':
+				ret = pkgconf_buffer_append(dest, "%7C");
+				break;
+			case '}':
+				ret = pkgconf_buffer_append(dest, "%7D");
+				break;
+			default:
+				ret = pkgconf_buffer_push_byte(dest, *p);
+		}
+
+		if (!ret)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * !doc
  *
  * .. c:function:: void spdxtool_util_set_key(pkgconf_client_t *client, const char *key, const char *key_value, const char *key_default)
  *
- *    Set key wit default value. Default value is used if key is NULL
+ *    Set key with default value. Default value is used if key is NULL
  *
  *    :param pkgconf_client_t* client: The pkgconf client being accessed.
  *    :param const char *key: Key to be preserved
@@ -179,11 +249,28 @@ spdxtool_util_get_spdx_id_int(pkgconf_client_t *client, const char *part)
 	const char *global_xsd_any_uri = spdxtool_util_get_uri_root(client);
 	char sep = spdxtool_util_get_uri_separator(client);
 	pkgconf_buffer_t current_uri = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_buffer_t escaped_uri = PKGCONF_BUFFER_INITIALIZER;
 
-	pkgconf_buffer_join(&current_uri, sep, global_xsd_any_uri, part, NULL);
-	pkgconf_buffer_append_fmt(&current_uri, "%c" SIZE_FMT_SPECIFIER, sep, ++last_id);
+	if (last_id == SIZE_MAX ||
+		!pkgconf_buffer_join(&current_uri, sep, global_xsd_any_uri, part, NULL) ||
+		!pkgconf_buffer_append_fmt(&current_uri, "%c" SIZE_FMT_SPECIFIER, sep, last_id + 1))
+	{
+		pkgconf_buffer_finalize(&current_uri);
+		return NULL;
+	}
 
-	return pkgconf_buffer_freeze(&current_uri);
+	last_id++;
+
+	if (!util_escape_uri_string(&escaped_uri, &current_uri))
+	{
+		pkgconf_buffer_finalize(&current_uri);
+		pkgconf_buffer_finalize(&escaped_uri);
+		return NULL;
+	}
+
+	pkgconf_buffer_finalize(&current_uri);
+
+	return pkgconf_buffer_freeze(&escaped_uri);
 }
 
 /*
@@ -205,10 +292,24 @@ spdxtool_util_get_spdx_id_string(pkgconf_client_t *client, const char *part, con
 	const char *global_xsd_any_uri = spdxtool_util_get_uri_root(client);
 	char sep = spdxtool_util_get_uri_separator(client);
 	pkgconf_buffer_t current_uri = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_buffer_t escaped_uri = PKGCONF_BUFFER_INITIALIZER;
 
-	pkgconf_buffer_join(&current_uri, sep, global_xsd_any_uri, part, string_id, NULL);
+	if (!pkgconf_buffer_join(&current_uri, sep, global_xsd_any_uri, part, string_id, NULL))
+	{
+		pkgconf_buffer_finalize(&current_uri);
+		return NULL;
+	}
 
-	return pkgconf_buffer_freeze(&current_uri);
+	if (!util_escape_uri_string(&escaped_uri, &current_uri))
+	{
+		pkgconf_buffer_finalize(&current_uri);
+		pkgconf_buffer_finalize(&escaped_uri);
+		return NULL;
+	}
+
+	pkgconf_buffer_finalize(&current_uri);
+
+	return pkgconf_buffer_freeze(&escaped_uri);
 }
 
 /*
@@ -314,7 +415,10 @@ spdxtool_util_tuple_lookup(pkgconf_client_t *client, pkgconf_list_t *vars, const
 		return NULL;
 
 	if (!pkgconf_variable_eval(client, vars, v, &buf, NULL))
+	{
+		pkgconf_buffer_finalize(&buf);
 		return NULL;
+	}
 
 	return pkgconf_buffer_freeze(&buf);
 }

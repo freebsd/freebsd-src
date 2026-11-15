@@ -1,0 +1,8 @@
+prefix=/test/a\ dir/b\ dir
+
+Name: fragment-escaped-space-var
+Description: test fixture
+Version: 1.0.0
+
+Libs: -L${prefix} -la
+Cflags: -I${prefix}

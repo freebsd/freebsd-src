@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.107 2026/03/03 09:57:25 dtucker Exp $ */
+/* $OpenBSD: packet.h,v 1.108 2026/09/22 00:24:47 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -23,21 +23,15 @@
 #include <termios.h>
 
 #ifdef WITH_OPENSSL
-# include <openssl/bn.h>
-# include <openssl/evp.h>
-# ifdef OPENSSL_HAS_ECC
-#  include <openssl/ec.h>
-# else /* OPENSSL_HAS_ECC */
-#  define EC_KEY	void
-#  define EC_GROUP	void
-#  define EC_POINT	void
-# endif /* OPENSSL_HAS_ECC */
-#else /* WITH_OPENSSL */
-# define BIGNUM		void
-# define EC_KEY		void
-# define EC_GROUP	void
-# define EC_POINT	void
-# define EVP_PKEY	void
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/ecdsa.h>
+#include <openssl/evp.h>
+#else /* OPENSSL */
+#define BIGNUM		void
+#define EC_GROUP	void
+#define EC_POINT	void
+#define EVP_PKEY	void
 #endif /* WITH_OPENSSL */
 
 struct kex;
@@ -76,6 +70,7 @@ struct ssh {
 
 	/* datafellows */
 	uint32_t compat;
+	char *remote_version;
 
 	/* Lists for private and public keys */
 	TAILQ_HEAD(, key_entry) private_keys;
@@ -212,17 +207,5 @@ int	sshpkt_get_end(struct ssh *ssh);
 void	sshpkt_fmt_connection_id(struct ssh *ssh, char *s, size_t l);
 const u_char	*sshpkt_ptr(struct ssh *, size_t *lenp);
 char	*connection_info_message(struct ssh *ssh);
-
-#if !defined(WITH_OPENSSL)
-# undef BIGNUM
-# undef EC_KEY
-# undef EC_GROUP
-# undef EC_POINT
-# undef EVP_PKEY
-#elif !defined(OPENSSL_HAS_ECC)
-# undef EC_KEY
-# undef EC_GROUP
-# undef EC_POINT
-#endif
 
 #endif				/* PACKET_H */

@@ -90,6 +90,9 @@ my $typename = '(int|char|short|long|unsigned|float|double' .
 # cast or compound-literal type, e.g. "(foo_t *)"
 my $cast = qr/\($typename(?: \*+)?\)/;
 
+# macros should be uppercase, underscores, or digits
+my $macro = '[A-Z_][A-Z_0-9]*\(';
+
 # mapping of old types to POSIX compatible types
 my %old2posix = (
 	'unchar' => 'uchar_t',
@@ -178,6 +181,9 @@ sub err_prefix($$) {
 		} else {
 			printf $fmt, $filename, $., $error;
 		}
+		if ($github_workflow) {
+			printf "::error file=%s,line=%s::%s\n", $filename, $., $error;
+		}
 		$err_stat = 1;
 	}
 }
@@ -189,6 +195,9 @@ sub err_prev($) {
 			printf $fmt, $filename, $. - 1, $error, $prev;
 		} else {
 			printf $fmt, $filename, $. - 1, $error;
+		}
+		if ($github_workflow) {
+			printf "::error file=%s,line=%s::%s\n", $filename, $., $error;
 		}
 		$err_stat = 1;
 	}
@@ -392,7 +401,7 @@ line: while (<$filehandle>) {
 
 	# If this looks like a top-level macro invocation, remember it so we
 	# don't mistake it for a function declaration below.
-	if (/^[A-Za-z_][A-Za-z_0-9]*\(/) {
+	if (/^$macro/) {
 		$in_macro_call = 1;
 	}
 
@@ -691,7 +700,7 @@ line: while (<$filehandle>) {
 			err("unary * followed by space");
 		}
 	}
-	if ($check_posix_types && !$in_macro_call) {
+	if ($check_posix_types && !$in_macro_call && !/\bmodule_param\(/) {
 		# try to detect old non-POSIX types.
 		# POSIX requires all non-standard typedefs to end in _t,
 		# but historically these have been used.
@@ -702,7 +711,7 @@ line: while (<$filehandle>) {
 			err("non-POSIX typedef $1 used: use $old2posix{$1} instead");
 		}
 	}
-	if (/^\s*else\W/) {
+	if (/^\s*else\b/) {
 		if ($prev =~ /^\s*\}$/) {
 			err_prefix($prev,
 			    "else and right brace should be on same line");
@@ -756,6 +765,7 @@ reset_indent()
 {
 	$cont_in = 0;
 	$cont_off = 0;
+    $cont_noerr = 0;
 }
 
 sub
@@ -792,7 +802,6 @@ process_indent($)
 
 	# regexps used below; keywords taking (), macros, and continued cases
 	my $special = '(?:(?:\}\s*)?else\s+)?(?:if|for|while|switch)\b';
-	my $macro = '[A-Z_][A-Z_0-9]*\(';
 	my $case = 'case\b[^:]*$';
 
 	# skip over enumerations, array definitions, initializers, etc.
@@ -948,7 +957,7 @@ process_indent($)
 					$cont_in = 0;
 					last;
 				}
-				if ($rest =~ /^\s*special/) {
+				if ($rest =~ /^\s*$special/) {
 					err("if/for/while/switch not started ".
 					    "on its own line");
 				}
@@ -971,7 +980,7 @@ process_indent($)
 				last;
 			}
 		} elsif (/\:/ && $cont_case && @cont_paren == 0) {
-			err("stuff after multi-line case") if ($rest !~ /$^/);
+			err("stuff after multi-line case") if ($rest !~ /^$/);
 			$cont_in = 0;
 			last;
 		}

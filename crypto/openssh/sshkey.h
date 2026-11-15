@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.74 2026/06/14 03:59:34 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.75 2026/09/16 00:31:27 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -30,23 +30,17 @@
 
 #ifdef WITH_OPENSSL
 #include <openssl/rsa.h>
+#include <openssl/ec.h>
+#include <openssl/ecdsa.h>
 #include <openssl/evp.h>
-# ifdef OPENSSL_HAS_ECC
-#  include <openssl/ec.h>
-#  include <openssl/ecdsa.h>
-# else /* OPENSSL_HAS_ECC */
-#  define EC_KEY	void
-#  define EC_GROUP	void
-#  define EC_POINT	void
-# endif /* OPENSSL_HAS_ECC */
 #define SSH_OPENSSL_VERSION OpenSSL_version(OPENSSL_VERSION)
-#else /* WITH_OPENSSL */
-# define BIGNUM		void
-# define RSA		void
-# define EC_KEY		void
-# define EC_GROUP	void
-# define EC_POINT	void
-# define EVP_PKEY	void
+#else /* OPENSSL */
+#define BIGNUM		void
+#define RSA		void
+#define EC_KEY		void
+#define EC_GROUP	void
+#define EC_POINT	void
+#define EVP_PKEY	void
 #define SSH_OPENSSL_VERSION "without OpenSSL"
 #endif /* WITH_OPENSSL */
 
@@ -259,6 +253,8 @@ char		*sshkey_alg_list(int, int, int, char);
 
 int	 sshkey_from_blob(const u_char *, size_t, struct sshkey **);
 int	 sshkey_fromb(struct sshbuf *, struct sshkey **);
+int	 sshkey_fromb_allowlist(struct sshbuf *, struct sshkey **,
+    const char *, const char *);
 int	 sshkey_froms(struct sshbuf *, struct sshkey **);
 int	 sshkey_to_blob(const struct sshkey *, u_char **, size_t *);
 int	 sshkey_to_base64(const struct sshkey *, char **);
@@ -334,16 +330,12 @@ int	check_rsa_length(const RSA *rsa); /* XXX remove */
 #endif
 #endif
 
-#if !defined(WITH_OPENSSL)
-# undef RSA
-# undef EC_KEY
-# undef EC_GROUP
-# undef EC_POINT
-# undef EVP_PKEY
-#elif !defined(OPENSSL_HAS_ECC)
-# undef EC_KEY
-# undef EC_GROUP
-# undef EC_POINT
-#endif
+#ifndef WITH_OPENSSL
+#undef RSA
+#undef EC_KEY
+#undef EC_GROUP
+#undef EC_POINT
+#undef EVP_PKEY
+#endif /* WITH_OPENSSL */
 
 #endif /* SSHKEY_H */

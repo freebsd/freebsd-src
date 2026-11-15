@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-gss.c,v 1.41 2026/07/06 07:53:30 djm Exp $ */
+/* $OpenBSD: auth2-gss.c,v 1.42 2026/07/07 02:17:18 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -215,8 +215,6 @@ input_gssapi_errtok(int type, uint32_t plen, struct ssh *ssh)
 {
 	Authctxt *authctxt = ssh->authctxt;
 	int r;
-	u_char *p;
-	size_t len;
 
 	if (authctxt == NULL)
 		fatal("No authentication or GSSAPI context");

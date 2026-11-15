@@ -46,6 +46,8 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 
+#include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
@@ -685,7 +687,7 @@ xdr_string(XDR *xdrs, char **cpp, u_int maxsize)
 bool_t
 xdr_wrapstring(XDR *xdrs, char **cpp)
 {
-	return (xdr_string(xdrs, cpp, ~0U));
+	return (xdr_string(xdrs, cpp, RPC_MAXDATASIZE));
 }
 
 /*

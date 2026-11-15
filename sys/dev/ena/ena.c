@@ -1302,6 +1302,7 @@ static void
 ena_set_io_queue_count(struct ena_adapter *adapter, uint32_t num)
 {
 	adapter->num_io_queues = num;
+	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
 	/* Force indirection table to be reinitialized */
 	ena_com_rss_destroy(adapter->ena_dev);
 }
@@ -1437,11 +1438,6 @@ ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
 				    ENA_REGS_RESET_OS_TRIGGER);
 			}
 		}
-	} else {
-		/* Reconfigure RSS to reflect the new queue count.
-		 * When dev_was_up, this happens through ena_up().
-		 */
-		rc = ena_rss_configure(adapter);
 	}
 
 	return (rc);
@@ -2144,7 +2140,6 @@ ena_up_complete(struct ena_adapter *adapter)
 		    "Failed to configure RSS\n");
 		return (rc);
 	}
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
 
 	rc = ena_change_mtu(adapter->ifp, if_getmtu(adapter->ifp));
 	if (unlikely(rc != 0))

@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <paths.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,29 +98,24 @@ ATF_TC_BODY(seqpacket, tc)
 	bool got_create_event = false;
 	bool got_destroy_event = false;
 
-	s = common_setup(SOCK_SEQPACKET, "/var/run/devd.seqpacket.pipe");
+	s = common_setup(SOCK_SEQPACKET, _PATH_DEVD_SOCKET);
 	/*
 	 * Loop until both events are detected on _different_ reads
 	 * There may be extra events due to unrelated system activity
 	 * If we never get both events, then the test will timeout.
 	 */
 	while (!(got_create_event && got_destroy_event)) {
-		int cmp;
-		ssize_t len;
-		char event[1024];
+		ssize_t len, maxrec = sysconf(_SC_DEVCTL_MAXRECORD);
+		char event[maxrec];
 
-		/* Read 1 less than sizeof(event) to allow space for NULL */
-		len = recv(s, event, sizeof(event) - 1, MSG_WAITALL);
+		len = recv(s, event, maxrec, MSG_WAITALL);
 		ATF_REQUIRE(len != -1);
-		/* NULL terminate the result */
 		event[len] = '\0';
 		printf("%s", event);
-		cmp = strncmp(event, create_pat, sizeof(create_pat) - 1);
-		if (cmp == 0)
+		if (strncmp(event, create_pat, sizeof(create_pat) - 1) == 0)
 			got_create_event = true;
 
-		cmp = strncmp(event, destroy_pat, sizeof(destroy_pat) - 1);
-		if (cmp == 0)
+		if (strncmp(event, destroy_pat, sizeof(destroy_pat) - 1) == 0)
 			got_destroy_event = true;
 	}
 

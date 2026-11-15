@@ -76,6 +76,28 @@ START_TEST(test_xcs_ncmp) {
 }
 END_TEST
 
+START_TEST(test_xcs_nstr) {
+  if (g_chunkSize != 0)
+    return;
+
+  const XML_Char haystack[] = {ASCII_h, ASCII_a, ASCII_y, ASCII_s, ASCII_t,
+                               ASCII_a, ASCII_c, ASCII_k, '\0'};
+  const XML_Char hay[] = {ASCII_h, ASCII_a, ASCII_y, '\0'};
+  const XML_Char stack[] = {ASCII_s, ASCII_t, ASCII_a, ASCII_c, ASCII_k, '\0'};
+  const XML_Char other[] = {ASCII_o, ASCII_t, ASCII_h, ASCII_e, ASCII_r, '\0'};
+
+  assert_true(xcsnstr(haystack, haystack, xcslen(haystack)) == haystack);
+  assert_true(xcsnstr(haystack, hay, xcslen(haystack)) == haystack);
+  assert_true(xcsnstr(haystack, hay, xcslen(hay)) == haystack);
+  assert_true(xcsnstr(haystack, hay, xcslen(hay) - 1) == NULL);
+  assert_true(xcsnstr(haystack, stack, xcslen(haystack))
+              == haystack + xcslen(hay));
+  assert_true(xcsnstr(haystack, other, xcslen(haystack)) == NULL);
+  assert_true(xcsnstr(haystack, empty, xcslen(haystack)) == haystack);
+  assert_true(xcsnstr(hay, haystack, xcslen(hay)) == NULL);
+}
+END_TEST
+
 void
 make_xcs_test_case(Suite *s) {
   TCase *const tc_xcs = tcase_create("xcs tests");
@@ -83,4 +105,5 @@ make_xcs_test_case(Suite *s) {
   tcase_add_test(tc_xcs, test_xcs_len);
   tcase_add_test(tc_xcs, test_xcs_cmp);
   tcase_add_test(tc_xcs, test_xcs_ncmp);
+  tcase_add_test(tc_xcs, test_xcs_nstr);
 }

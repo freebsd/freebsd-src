@@ -125,3 +125,4 @@ DRIVER_MODULE(acpi_apple, acpi, acpi_apple_driver, 0, 0);
 MODULE_DEPEND(acpi_apple, acpi, 1, 1, 1);
 MODULE_DEPEND(acpi_apple, backlight, 1, 1, 1);
 MODULE_VERSION(acpi_apple, 1);
+ACPI_PNP_INFO(acpi_apple_ids);

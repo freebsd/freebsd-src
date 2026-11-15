@@ -27,6 +27,13 @@
  *
  */
 
+/* Expands to nothing without the option; expects a `dev' in scope. */
+#ifdef ASMC_DEBUG
+#define ASMC_DPRINTF(str, ...)	device_printf(dev, str, ##__VA_ARGS__)
+#else
+#define ASMC_DPRINTF(str, ...)
+#endif
+
 #define ASMC_MAXFANS	6
 #define ASMC_MAXVAL	32	/* Maximum SMC value size */
 #define ASMC_KEYLEN	4	/* SMC key name length */
@@ -44,7 +51,7 @@ struct asmc_softc {
 	int16_t			sms_rest_x;
 	int16_t			sms_rest_y;
 	int16_t			sms_rest_z;
-	struct sysctl_oid 	*sc_fan_tree[ASMC_MAXFANS+1];
+	struct sysctl_oid 	*sc_fan_tree[ASMC_MAXFANS + 1];
 	struct sysctl_oid 	*sc_temp_tree;
 	struct sysctl_oid 	*sc_sms_tree;
 	struct sysctl_oid 	*sc_light_tree;
@@ -64,14 +71,13 @@ struct asmc_softc {
 	uint8_t			sc_sms_intr_works;
 	struct cdev		*sc_kbd_bkl;
 	uint32_t		sc_kbd_bkl_level;
-#ifdef ASMC_DEBUG
-	/* Raw key access */
+	unsigned int		sc_light_control;
+	/* Raw key access; only used when built with ASMC_DEBUG */
 	struct sysctl_oid	*sc_raw_tree;
 	char			sc_rawkey[ASMC_KEYLEN + 1];
 	uint8_t			sc_rawval[ASMC_MAXVAL];
 	uint8_t			sc_rawlen;
 	char			sc_rawtype[ASMC_TYPELEN + 1];
-#endif
 	/* Voltage/Current/Power/Light sensors */
 	char			*sc_voltage_sensors[ASMC_MAX_SENSORS];
 	int			sc_voltage_count;
@@ -90,6 +96,7 @@ struct asmc_softc {
 	int			sc_light_len;	/* ASMC_LIGHT_{SHORT,LONG}LEN */
 	int			sc_has_safespeed;
 	int			sc_has_alsl;	/* ALSL interrupt source */
+	eventhandler_tag	sc_shutdown_tag;
 };
 
 /*
@@ -197,6 +204,12 @@ struct asmc_softc {
  */
 #define ASMC_KEY_AUPO		"AUPO"	/* RW; 1 byte */
 
+/* Mac Boot State Status. */
+#define ASMC_KEY_MBSS		"MBSS"	/* RW; 2 bytes */
+
+#define ASMC_MBSS_POWEROFF	0x0001
+#define ASMC_MBSS_RESTART	0x0003
+
 /*
  * Interrupt keys.
  */
@@ -236,54 +249,17 @@ struct asmc_softc {
 #define ASMC_RPLT_MAXLEN	8	/* RPlt key data length */
 
 /*
- * Shutdown/sleep cause codes (MSSD/MSSP values).
- *
- * Positive values indicate normal operation; negative values indicate
- * fault conditions.
- * Sources: Apple SMC firmware, VirtualSMC docs, macOS
- * pmset/powermetrics output.
+ * SMC key transport, implemented in asmc.c on top of the PIO and MMIO
+ * backends.
  */
-struct asmc_cause {
-	int8_t		code;
-	const char	*desc;		/* shutdown description */
-	const char	*sleep_desc;	/* sleep description, or NULL if same */
-};
+int	asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len);
+int	asmc_key_write(device_t dev, const char *key, uint8_t *buf,
+	    uint8_t len);
+int	asmc_key_getinfo(device_t dev, const char *key, uint8_t *len,
+	    char *type);
+int	asmc_key_dump_by_index(device_t dev, int index, char *key, char *type,
+	    uint8_t *len);
 
-#define ASMC_CAUSE_BUFLEN	48	/* "-128 (temperature-overlimit-timeout)\0" */
-
-static const struct asmc_cause asmc_cause_table[] = {
-	{    5,	"good-shutdown",		"good-sleep" },
-	{    3,	"power-button",			NULL },
-	{    2,	"low-battery-sleep",		NULL },
-	{    1,	"overtemp-sleep",		NULL },
-	{    0,	"initial",			NULL },
-	{   -1,	"health-check",			NULL },
-	{   -2,	"power-supply",			NULL },
-	{   -3,	"temperature-multisleep",	NULL },
-	{   -4,	"sensor-fan",			NULL },
-	{  -30,	"temperature-overlimit-timeout",NULL },
-	{  -40,	"pswr-smrst",			NULL },	/* power supply watchdog reset */
-	{  -50,	"unmapped",			NULL },
-	{  -60,	"low-battery",			NULL },
-	{  -61,	"ninja-shutdown",		NULL },	/* sudden unexpected power loss */
-	{  -62,	"ninja-restart",		NULL },
-	{  -70,	"palm-rest-temperature",	NULL },
-	{  -71,	"sodimm-temperature",		NULL },
-	{  -72,	"heatpipe-temperature",		NULL },
-	{  -74,	"battery-temperature",		NULL },
-	{  -75,	"adapter-timeout",		NULL },
-	{  -77,	"manual-temperature",		NULL },
-	{  -78,	"adapter-current",		NULL },
-	{  -79,	"battery-current",		NULL },
-	{  -82,	"skin-temperature",		NULL },
-	{  -83,	"skin-temperature-sensors",	NULL },
-	{  -84,	"backup-temperature",		NULL },
-	{  -86,	"cpu-proximity-temperature",	NULL },
-	{  -95,	"cpu-temperature",		NULL },
-	{ -100,	"power-supply-temperature",	NULL },
-	{ -101,	"lcd-temperature",		NULL },
-	{ -102,	"rsm-power-fail",		NULL },
-	{ -103,	"battery-cuv",			NULL },	/* cell under-voltage */
-	{ -127,	"pmu-forced-shutdown",		NULL },
-	{ -128,	"unknown",			NULL },
-};
+/* Key readers shared with the sysctl layer. */
+int	asmc_sms_read(device_t dev, const char *key, int16_t *val);
+int	asmc_sensor_read(device_t dev, const char *key, int *millivalue);

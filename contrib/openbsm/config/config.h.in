@@ -15,6 +15,9 @@
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
+/* Define to 1 if you have the <capsicum_helpers.h> header file. */
+#undef HAVE_CAPSICUM_HELPERS_H
+
 /* Define to 1 if you have the `cap_enter' function. */
 #undef HAVE_CAP_ENTER
 

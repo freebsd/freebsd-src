@@ -24,9 +24,7 @@
 
 #ifdef WITH_OPENSSL
 #include <openssl/bn.h>
-#ifdef OPENSSL_HAS_ECC
-# include <openssl/ec.h>
-#endif /* OPENSSL_HAS_ECC */
+#include <openssl/ec.h>
 
 #include "ssherr.h"
 #define SSHBUF_INTERNAL
@@ -55,7 +53,6 @@ sshbuf_get_bignum2(struct sshbuf *buf, BIGNUM **valp)
 	return 0;
 }
 
-#ifdef OPENSSL_HAS_ECC
 static int
 get_ec(const u_char *d, size_t len, EC_POINT *v, const EC_GROUP *g)
 {
@@ -125,7 +122,6 @@ sshbuf_get_eckey(struct sshbuf *buf, EC_KEY *v)
 	}
 	return 0;
 }
-#endif /* OPENSSL_HAS_ECC */
 
 int
 sshbuf_put_bignum2(struct sshbuf *buf, const BIGNUM *v)
@@ -149,7 +145,6 @@ sshbuf_put_bignum2(struct sshbuf *buf, const BIGNUM *v)
 	return 0;
 }
 
-#ifdef OPENSSL_HAS_ECC
 int
 sshbuf_put_ec(struct sshbuf *buf, const EC_POINT *v, const EC_GROUP *g)
 {
@@ -186,5 +181,4 @@ sshbuf_put_ec_pkey(struct sshbuf *buf, EVP_PKEY *pkey)
 		return SSH_ERR_LIBCRYPTO_ERROR;
 	return sshbuf_put_eckey(buf, ec);
 }
-#endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */

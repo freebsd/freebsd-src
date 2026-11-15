@@ -69,6 +69,7 @@ static int max_topn;		/* maximum displayable processes */
 /* miscellaneous things */
 struct process_select ps;
 pid_t mypid;
+static pid_t hlpid = (pid_t)-1;
 
 /* pointers to display routines */
 static void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
@@ -80,7 +81,7 @@ static void (*d_carc)(int *stats) = i_carc;
 static void (*d_swap)(int *stats) = i_swap;
 static void (*d_message)(void) = i_message;
 static void (*d_header)(const char *text) = i_header;
-static void (*d_process)(int line, char *thisline) = i_process;
+static void (*d_process)(int line, char *thisline, bool hl) = i_process;
 
 static void reset_display(void);
 
@@ -98,6 +99,7 @@ static const struct option longopts[] = {
     { "batch", no_argument, NULL, 'b' },
     /* c reserved */
     { "displays", required_argument, NULL, 'd' },
+    { "grep", required_argument, NULL, 'g' },
     { "interactive", no_argument, NULL, 'i' },
     { "jail-id", no_argument, NULL, 'j' },
     { "display-mode", required_argument, NULL, 'm' },
@@ -160,6 +162,19 @@ rem_uid(int uid)
 	ps.uid[where] = ps.uid[i-1];
 	ps.uid[i-1] = -1;
     }
+}
+
+static pid_t
+parse_pid(const char *buf)
+{
+	unsigned long long num;
+	const char *errstr;
+
+	num = strtonum(buf, 0, INT_MAX, &errstr);
+	if (errstr != NULL || !find_pid(num))
+		return ((pid_t)-1);
+
+	return ((pid_t)num);
 }
 
 static int
@@ -311,7 +326,8 @@ main(int argc, const char *argv[])
 	    optind = 1;
 	}
 
-	while ((i = getopt_long(ac, __DECONST(char * const *, av), "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
+	while ((i = getopt_long(ac, __DECONST(char * const *, av),
+	    "CSIHPabg:ijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
 	{
 	    switch(i)
 	    {
@@ -349,6 +365,7 @@ main(int argc, const char *argv[])
 
 	      case 'a':
 		fmt_flags ^= FMT_SHOWARGS;
+		show_args = fmt_flags & FMT_SHOWARGS;
 		break;
 
 	      case 'd':			/* number of displays to show */
@@ -362,19 +379,20 @@ main(int argc, const char *argv[])
 		    displays = i;
 		}
 		break;
-	      case 'p': {
-		unsigned long long num;
-		const char *errstr;
 
-		num = strtonum(optarg, 0, INT_MAX, &errstr);
-		if (errstr != NULL || !find_pid(num)) {
+	      case 'g':			/* grep command name */
+		free(ps.command);
+		if ((ps.command = strdup(optarg)) == NULL)
+			err(1, NULL);
+		break;
+
+	      case 'p':
+		if ((ps.pid = parse_pid(optarg)) == (pid_t)-1) {
 			fprintf(stderr, "%s: unknown pid\n", optarg);
 			exit(1);
 		}
-		ps.pid = (pid_t)num;
 		ps.system = true;
 		break;
-	      }
 
 	      case 's':
 	      {
@@ -463,7 +481,7 @@ main(int argc, const char *argv[])
 
 	      default:
 		errx(1, 
-"[-abCHIijnPqSTtuvwz] [-d count] [-J jail] [-m cpu | io] [-o field]\n"
+"[-abCHIijnPqSTtuvwz] [-d count] [-g string] [-J jail] [-m cpu | io] [-o field]\n"
 "     [-p pid] [-s time] [-U username] [number]");
 	    }
 	}
@@ -657,8 +675,12 @@ restart:
 	    /* now show the top "n" processes. */
 	    for (i = 0; i < active_procs; i++)
 	    {
-		(*d_process)(i, format_next_process(processes, get_userid,
-			     fmt_flags));
+		char *line;
+		pid_t pid;
+
+		line = format_next_process(processes, get_userid,
+		    fmt_flags, &pid);
+		(*d_process)(i, line, pid == hlpid);
 	    }
 	}
 	else
@@ -910,6 +932,30 @@ restart:
 						quit(1);
 				}
 				clear_message();
+				break;
+
+			    case CMD_hl: /* highlight PID */
+				new_message(MT_standout,
+				    "Process ID to highlight: ");
+				if (readline(tempbuf1, sizeof(tempbuf1),
+				    false) > 0) {
+					pid_t pid;
+
+					if (tempbuf1[0] == '+' &&
+					    tempbuf1[1] == '\0') {
+						hlpid = (pid_t)-1;
+					} else if ((pid = parse_pid(tempbuf1)) ==
+					    (pid_t)-1) {
+						new_message(MT_standout,
+						    " %s: unknown pid",
+						    tempbuf1);
+						no_command = true;
+					} else
+						hlpid = pid;
+					if (!no_command)
+						clear_message();
+				} else
+					clear_message();
 				break;
 
 			    case CMD_displays:	/* change display count */

@@ -1,12 +1,17 @@
 /*-
  * Copyright (c) 2004-2009 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006, 2017 Robert N. M. Watson
  * Copyright (c) 2006 Martin Voros
  * All rights reserved.
  *
  * This code was developed in part by Robert N. M. Watson, Senior Principal
  * Scientist, SPARTA, Inc.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,6 +85,10 @@
 #else
 #include <compat/vis.h>
 #endif
+
+#include <compat/uuid.h>
+#include <compat/uuid_stream.h>
+#include <compat/uuid_to_string.h>
 
 #include <bsm/audit_internal.h>
 
@@ -1420,6 +1429,78 @@ print_arg64_tok(FILE *fp, tokenstr_t *tok, char *del, int oflags)
 		print_delim(fp, del);
 		print_string(fp, tok->tt.arg64.text, tok->tt.arg64.len);
 	}
+}
+
+static int
+fetch_arg_uuid_tok(tokenstr_t *tok, u_char *buf, int len)
+{
+	struct openbsm_uuid uuid_be;
+	int err = 0;
+
+	READ_TOKEN_U_CHAR(buf, len, tok->tt.arg_uuid.no, tok->len, err);
+	if (err)
+		return (-1);
+
+	READ_TOKEN_BYTES(buf, len, &uuid_be, sizeof(uuid_be), tok->len, err);
+	if (err)
+		return (-1);
+	openbsm_uuid_dec_be(&uuid_be,
+	    (struct openbsm_uuid *)&tok->tt.arg_uuid.uuid);
+
+	READ_TOKEN_U_INT16(buf, len, tok->tt.arg_uuid.len, tok->len, err);
+	if (err)
+		return (-1);
+
+	SET_PTR((char*)buf, len, tok->tt.arg_uuid.text, tok->tt.arg_uuid.len,
+	    tok->len, err);
+	if (err)
+	return (-1);
+
+	return (0);
+}
+
+static void
+print_arg_uuid_tok(FILE *fp, tokenstr_t *tok, char *del, int oflags)
+{
+	char *uuidstr;
+	uint32_t status;
+
+	/*
+	 * XXXRW: Not quite clear how we want to handle failures here.  For
+	 * now, just don't print the UUID.
+	 */
+	openbsm_uuid_to_string((struct openbsm_uuid *)&tok->tt.arg_uuid.uuid,
+	    &uuidstr);
+	print_tok_type(fp, tok->id, "arg_uuid", oflags);
+	if (oflags & AU_OFLAG_XML) {
+		open_attr(fp, "arg_uuid-num");
+		print_1_byte(fp, tok->tt.arg_uuid.no, "%u");
+		close_attr(fp);
+
+		if (uuidstr != NULL) {
+			open_attr(fp, "uuid");
+			print_string(fp, uuidstr, strlen(uuidstr));
+			close_attr(fp);
+		}
+
+		open_attr(fp, "desc");
+		print_string(fp, tok->tt.arg_uuid.text, tok->tt.arg_uuid.len);
+		close_attr(fp);
+		close_tag(fp, tok->id);
+	} else {
+		print_delim(fp, del);
+		print_1_byte(fp, tok->tt.arg_uuid.no, "%u");
+
+		if (uuidstr != NULL) {
+			print_delim(fp, del);
+			print_string(fp, uuidstr, strlen(uuidstr));
+		}
+
+		print_delim(fp, del);
+		print_string(fp, tok->tt.arg_uuid.text, tok->tt.arg_uuid.len);
+	}
+	if (uuidstr != NULL)
+		free(uuidstr);
 }
 
 /*
@@ -3085,6 +3166,77 @@ print_return64_tok(FILE *fp, tokenstr_t *tok, char *del, int oflags)
 	}
 }
 
+static int
+fetch_return_uuid_tok(tokenstr_t *tok, u_char *buf, int len)
+{
+	struct openbsm_uuid uuid_be;
+	int err = 0;
+
+	READ_TOKEN_U_CHAR(buf, len, tok->tt.ret_uuid.no, tok->len, err);
+	if (err)
+		return (-1);
+
+	READ_TOKEN_BYTES(buf, len, &uuid_be, sizeof(uuid_be), tok->len, err);
+	if (err)
+		return (-1);
+	openbsm_uuid_dec_be(&uuid_be,
+	    (struct openbsm_uuid *)&tok->tt.ret_uuid.uuid);
+
+	READ_TOKEN_U_INT16(buf, len, tok->tt.ret_uuid.len, tok->len, err);
+	if (err)
+		return (-1);
+
+	SET_PTR((char*)buf, len, tok->tt.ret_uuid.text, tok->tt.ret_uuid.len,
+	    tok->len, err);
+	if (err)
+		return (-1);
+
+	return (0);
+}
+
+static void
+print_return_uuid_tok(FILE *fp, tokenstr_t *tok, char *del, int oflags)
+{
+	char *uuidstr;
+
+	/*
+	 * XXXRW: Not quite clear how we want to handle failures here.  For
+	 * now, simply don't print the UUID.  Perhaps we should be printing
+	 * a message about an invalid UUID?
+	 */
+	openbsm_uuid_to_string((struct openbsm_uuid *)&tok->tt.ret_uuid.uuid,
+	    &uuidstr);
+	print_tok_type(fp, tok->id, "ret_uuid", oflags);
+	if (oflags & AU_OFLAG_XML) {
+		open_attr(fp, "ret_uuid-num");
+		print_1_byte(fp, tok->tt.ret_uuid.no, "%u");
+		close_attr(fp);
+
+		if (uuidstr != NULL) {
+			open_attr(fp, "uuid");
+			print_string(fp, uuidstr, strlen(uuidstr));
+			close_attr(fp);
+		}
+
+		open_attr(fp, "desc");
+		print_string(fp, tok->tt.ret_uuid.text, tok->tt.ret_uuid.len);
+		close_attr(fp);
+		close_tag(fp, tok->id);
+	} else {
+		print_delim(fp, del);
+		print_1_byte(fp, tok->tt.ret_uuid.no, "%u");
+
+		if (uuidstr != NULL) {
+			print_delim(fp, del);
+			print_string(fp, uuidstr, strlen(uuidstr));
+		}
+
+		print_delim(fp, del);
+		print_string(fp, tok->tt.ret_uuid.text, tok->tt.ret_uuid.len);
+	}
+	free(uuidstr);
+}
+
 /*
  * seq                          4 bytes
  */
@@ -4203,6 +4355,9 @@ au_fetch_tok(tokenstr_t *tok, u_char *buf, int len)
 	case AUT_ARG64:
 		return (fetch_arg64_tok(tok, buf, len));
 
+	case AUT_ARG_UUID:
+		return (fetch_arg_uuid_tok(tok, buf, len));
+
 	case AUT_ATTR32:
 		return (fetch_attr32_tok(tok, buf, len));
 
@@ -4265,6 +4420,9 @@ au_fetch_tok(tokenstr_t *tok, u_char *buf, int len)
 
 	case AUT_RETURN64:
 		return (fetch_return64_tok(tok, buf, len));
+
+	case AUT_RETURN_UUID:
+		return (fetch_return_uuid_tok(tok, buf, len));
 
 	case AUT_SEQ:
 		return (fetch_seq_tok(tok, buf, len));
@@ -4347,6 +4505,10 @@ au_print_flags_tok(FILE *outfp, tokenstr_t *tok, char *del, int oflags)
 
 	case AUT_ARG64:
 		print_arg64_tok(outfp, tok, del, oflags);
+		return;
+
+	case AUT_ARG_UUID:
+		print_arg_uuid_tok(outfp, tok, del, oflags);
 		return;
 
 	case AUT_DATA:
@@ -4435,6 +4597,10 @@ au_print_flags_tok(FILE *outfp, tokenstr_t *tok, char *del, int oflags)
 
 	case AUT_RETURN64:
 		print_return64_tok(outfp, tok, del, oflags);
+		return;
+
+	case AUT_RETURN_UUID:
+		print_return_uuid_tok(outfp, tok, del, oflags);
 		return;
 
 	case AUT_SEQ:

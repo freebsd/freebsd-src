@@ -34,7 +34,7 @@ Stable release tarballs are available from a number of [download mirrors](https:
 
 Portable OpenSSH is built using autoconf and make. It requires a working C compiler, standard library and headers.
 
-``libcrypto`` from one of [LibreSSL](https://www.libressl.org/), [OpenSSL](https://www.openssl.org), [AWS-LC](https://github.com/aws/aws-lc) or [BoringSSL](https://github.com/google/boringssl) may also be used.  OpenSSH may be built without either of these, but the resulting binaries will have only a subset of the cryptographic algorithms normally available.
+``libcrypto`` from one of [LibreSSL](https://www.libressl.org/), [OpenSSL](https://www.openssl.org), [AWS-LC](https://github.com/aws/aws-lc) or [BoringSSL](https://github.com/google/boringssl) may also be used.  OpenSSH may be built without any of these, but the resulting binaries will have only a subset of the cryptographic algorithms normally available.
 
 [zlib](https://www.zlib.net/) is optional; without it transport compression is not supported.
 

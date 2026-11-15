@@ -108,11 +108,38 @@ pkgconf_client_dir_list_build(pkgconf_client_t *client, const pkgconf_cross_pers
 void
 pkgconf_client_init(pkgconf_client_t *client, pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality, void *client_data, pkgconf_environ_lookup_handler_func_t environ_lookup_handler)
 {
+	pkgconf_client_options_t options = {
+		.error_handler = error_handler,
+		.error_handler_data = error_handler_data,
+		.personality = personality,
+		.client_data = client_data,
+		.environ_lookup_handler = environ_lookup_handler,
+	};
+
+	pkgconf_client_init_with_options(client, &options);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_client_init_with_options(pkgconf_client_t *client, const pkgconf_client_options_t *options)
+ *
+ *    Initialise a pkgconf client object using an options structure.
+ *
+ *    :param pkgconf_client_t* client: The client to initialise.
+ *    :param pkgconf_client_options_t* options: The options used to configure the client.
+ *    :return: nothing
+ */
+void
+pkgconf_client_init_with_options(pkgconf_client_t *client, const pkgconf_client_options_t *options)
+{
+	const pkgconf_cross_personality_t *personality = options->personality;
+
 	client->personality = personality;
-	client->client_data = client_data;
-	client->environ_lookup_handler = environ_lookup_handler;
-	client->error_handler_data = error_handler_data;
-	client->error_handler = error_handler;
+	client->client_data = options->client_data;
+	client->environ_lookup_handler = options->environ_lookup_handler;
+	client->error_handler_data = options->error_handler_data;
+	client->error_handler = options->error_handler;
 	client->auditf = NULL;
 	client->cache_table = NULL;
 	client->cache_count = 0;
@@ -122,10 +149,12 @@ pkgconf_client_init(pkgconf_client_t *client, pkgconf_error_handler_func_t error
 		pkgconf_client_set_trace_handler(client, NULL, NULL);
 #endif
 
-	if (client->unveil_handler == NULL)
+	if (options->unveil_handler != NULL)
+		pkgconf_client_set_unveil_handler(client, options->unveil_handler);
+	else if (client->unveil_handler == NULL)
 		pkgconf_client_set_unveil_handler(client, NULL);
 
-	pkgconf_client_set_error_handler(client, error_handler, error_handler_data);
+	pkgconf_client_set_error_handler(client, options->error_handler, options->error_handler_data);
 	pkgconf_client_set_warn_handler(client, NULL, NULL);
 
 	pkgconf_client_set_sysroot_dir(client, personality->sysroot_dir);
@@ -184,11 +213,36 @@ pkgconf_client_init(pkgconf_client_t *client, pkgconf_error_handler_func_t error
 pkgconf_client_t *
 pkgconf_client_new(pkgconf_error_handler_func_t error_handler, void *error_handler_data, const pkgconf_cross_personality_t *personality, void *client_data, pkgconf_environ_lookup_handler_func_t environ_lookup_handler)
 {
+	pkgconf_client_options_t options = {
+		.error_handler = error_handler,
+		.error_handler_data = error_handler_data,
+		.personality = personality,
+		.client_data = client_data,
+		.environ_lookup_handler = environ_lookup_handler,
+	};
+
+	return pkgconf_client_new_with_options(&options);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: pkgconf_client_t* pkgconf_client_new_with_options(const pkgconf_client_options_t *options)
+ *
+ *    Allocate and initialise a pkgconf client object using an options structure.
+ *
+ *    :param pkgconf_client_options_t* options: The options used to configure the client.
+ *    :return: A pkgconf client object.
+ *    :rtype: pkgconf_client_t*
+ */
+pkgconf_client_t *
+pkgconf_client_new_with_options(const pkgconf_client_options_t *options)
+{
 	pkgconf_client_t *out = calloc(1, sizeof(pkgconf_client_t));
 	if (out == NULL)
 		return NULL;
 
-	pkgconf_client_init(out, error_handler, error_handler_data, personality, client_data, environ_lookup_handler);
+	pkgconf_client_init_with_options(out, options);
 	return out;
 }
 
@@ -304,6 +358,11 @@ pkgconf_client_set_sysroot_dir(pkgconf_client_t *client, const char *sysroot_dir
 
 	client->sysroot_dir = sysroot_dir != NULL ? strdup(sysroot_dir) : NULL;
 
+	/* normalize separators so the sysroot compares equal to the (already
+	 * canonicalized) paths it is matched against during injection */
+	if (client->sysroot_dir != NULL)
+		pkgconf_path_normalize_separators(client->sysroot_dir);
+
 	PKGCONF_TRACE(client, "set sysroot_dir to: %s", client->sysroot_dir != NULL ? client->sysroot_dir : "<default>");
 
 	pkgconf_tuple_add_global(client, "pc_sysrootdir", client->sysroot_dir != NULL ? client->sysroot_dir : "");
@@ -347,6 +406,9 @@ pkgconf_client_set_buildroot_dir(pkgconf_client_t *client, const char *buildroot
 		free(client->buildroot_dir);
 
 	client->buildroot_dir = buildroot_dir != NULL ? strdup(buildroot_dir) : NULL;
+
+	if (client->buildroot_dir != NULL)
+		pkgconf_path_normalize_separators(client->buildroot_dir);
 
 	PKGCONF_TRACE(client, "set buildroot_dir to: %s", client->buildroot_dir != NULL ? client->buildroot_dir : "<default>");
 
@@ -736,6 +798,8 @@ pkgconf_client_set_unveil_handler(pkgconf_client_t *client, pkgconf_unveil_handl
 		PKGCONF_TRACE(client, "installing default unveil handler");
 		client->unveil_handler = default_unveil_handler;
 	}
+	else
+		PKGCONF_TRACE(client, "installing custom unveil handler");
 }
 
 #ifndef PKGCONF_LITE
@@ -772,12 +836,6 @@ pkgconf_client_set_trace_handler(pkgconf_client_t *client, pkgconf_error_handler
 {
 	client->trace_handler = trace_handler;
 	client->trace_handler_data = trace_handler_data;
-
-	if (client->trace_handler == NULL)
-	{
-		client->trace_handler = pkgconf_default_error_handler;
-		PKGCONF_TRACE(client, "installing default trace handler");
-	}
 }
 #endif
 
@@ -825,7 +883,10 @@ pkgconf_client_preload_path(pkgconf_client_t *client, const char *path)
 	if (pkg == NULL)
 		return false;
 
-	return pkgconf_client_preload_one(client, pkg);
+	bool ret = pkgconf_client_preload_one(client, pkg);
+	pkgconf_pkg_unref(client, pkg);
+
+	return ret;
 }
 
 /*
@@ -895,7 +956,7 @@ pkgconf_client_set_output(pkgconf_client_t *client, pkgconf_output_t *output)
  *    Looks up an environmental variable which may be mocked, otherwise fetches
  *    from the main environment.
  *
- *    :param pkgconf_client_t* client: yhe client object to use for looking up environmental variables.
+ *    :param pkgconf_client_t* client: the client object to use for looking up environmental variables.
  *    :param char* key: the environmental variable to look up.
  *    :return: the environmental variable contents else NULL
  *    :rtype: const char*

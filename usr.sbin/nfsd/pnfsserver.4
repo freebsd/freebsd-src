@@ -117,7 +117,7 @@ file system(s) exported to clients.
 However, the
 .Dq -p
 command line argument for
-.Xr nfsd
+.Xr nfsd 8
 is used to indicate that it is running as the MDS for a pNFS server.
 .Pp
 The DS(s) must all be mounted on the MDS using the following mount options:
@@ -233,7 +233,7 @@ done with the
 .Dq pnfs
 option should do I/O directly on the DSs.
 The clients mounting the MDS must be running the
-.Xr nfscbd
+.Xr nfscbd 8
 daemon for pNFS to work.
 Set
 .Bd -literal -offset indent

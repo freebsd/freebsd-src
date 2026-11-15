@@ -150,7 +150,7 @@ struct mod_pnp_match_info
 #define	DECLARE_MODULE(name, data, sub, order)				\
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
 #else
-#define	DECLARE_MODULE(name, data, sub, order)							\
+#define	DECLARE_MODULE(name, data, sub, order)				\
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, MODULE_KERNEL_MAXVER)
 #endif
 

@@ -212,7 +212,7 @@ sdio_read_1(struct cam_device *dev, uint8_t func_number, uint32_t addr, int *ret
 int
 sdio_write_1(struct cam_device *dev, uint8_t func_number, uint32_t addr, uint8_t val) {
 	uint8_t _val;
-	return sdio_rw_direct(dev, func_number, addr, 0, &val, &_val);
+	return sdio_rw_direct(dev, func_number, addr, 1, &val, &_val);
 }
 
 uint16_t

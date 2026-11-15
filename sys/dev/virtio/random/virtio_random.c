@@ -47,6 +47,8 @@
 #include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
 
+#include "virtio_if.h"
+
 struct vtrnd_softc {
 	device_t		 vtrnd_dev;
 	uint64_t		 vtrnd_features;
@@ -69,6 +71,7 @@ static int	vtrnd_setup_features(struct vtrnd_softc *);
 static int	vtrnd_alloc_virtqueue(struct vtrnd_softc *);
 static int	vtrnd_harvest(struct vtrnd_softc *, void *, size_t *);
 static void	vtrnd_enqueue(struct vtrnd_softc *sc);
+static int	vtrnd_attach_completed(device_t);
 static unsigned	vtrnd_read(void *, unsigned);
 
 #define VTRND_FEATURES	0
@@ -92,6 +95,9 @@ static device_method_t vtrnd_methods[] = {
 	DEVMETHOD(device_attach,	vtrnd_attach),
 	DEVMETHOD(device_detach,	vtrnd_detach),
 	DEVMETHOD(device_shutdown,	vtrnd_shutdown),
+
+	/* Virtio methods. */
+	DEVMETHOD(virtio_attach_completed,	vtrnd_attach_completed),
 
 	DEVMETHOD_END
 };
@@ -181,11 +187,16 @@ vtrnd_attach(device_t dev)
 	sc->inactive = false;
 	random_source_register(&random_vtrnd);
 
-	vtrnd_enqueue(sc);
-
 fail:
-	if (error)
-		vtrnd_detach(dev);
+	if (error != 0) {
+		/* Parent will free the virtqueue. */
+		if (g_vtrnd_softc == sc) {
+			atomic_store_explicit(&g_vtrnd_softc, NULL,
+			    memory_order_release);
+		}
+		sglist_free(sc->vtrnd_sg);
+		zfree(sc->vtrnd_value, M_DEVBUF);
+	}
 
 	return (error);
 }
@@ -194,7 +205,7 @@ static int
 vtrnd_detach(device_t dev)
 {
 	struct vtrnd_softc *sc;
-	uint32_t rdlen;
+	int last;
 
 	sc = device_get_softc(dev);
 	KASSERT(
@@ -208,8 +219,14 @@ vtrnd_detach(device_t dev)
 	}
 	random_source_deregister(&random_vtrnd);
 
-	/* clear the queue */
-	virtqueue_poll(sc->vtrnd_vq, &rdlen);
+	/*
+	 * Just reset the device; if it's hanging, for some reason, then polling
+	 * may put us in a bad position.
+	 */
+	virtio_stop(dev);
+	last = 0;
+	while (virtqueue_drain(sc->vtrnd_vq, &last) != NULL)
+		;
 
 	atomic_store_explicit(&g_vtrnd_softc, NULL, memory_order_release);
 	sglist_free(sc->vtrnd_sg);
@@ -326,4 +343,14 @@ vtrnd_read(void *buf, unsigned usz)
 		return (0);
 
 	return (sz);
+}
+
+static int
+vtrnd_attach_completed(device_t dev)
+{
+	struct vtrnd_softc *sc;
+
+	sc = device_get_softc(dev);
+	vtrnd_enqueue(sc);
+	return (0);
 }

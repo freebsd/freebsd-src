@@ -47,7 +47,8 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 	[UCL_EMIT_JSON_COMPACT] = {.name = "json_compact", .id = UCL_EMIT_JSON_COMPACT, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_JSON_COMPACT]},
 	[UCL_EMIT_CONFIG] = {.name = "config", .id = UCL_EMIT_CONFIG, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_CONFIG]},
 	[UCL_EMIT_YAML] = {.name = "yaml", .id = UCL_EMIT_YAML, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_YAML]},
-	[UCL_EMIT_MSGPACK] = {.name = "msgpack", .id = UCL_EMIT_MSGPACK, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_MSGPACK]}};
+	[UCL_EMIT_MSGPACK] = {.name = "msgpack", .id = UCL_EMIT_MSGPACK, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_MSGPACK]},
+	[UCL_EMIT_CBOR] = {.name = "cbor", .id = UCL_EMIT_CBOR, .func = NULL, .ops = &ucl_standartd_emitter_ops[UCL_EMIT_CBOR]}};
 
 static inline void
 _ucl_emitter_free(void *p)
@@ -149,6 +150,26 @@ void ucl_elt_string_write_squoted(const char *str, size_t size,
 	size_t len = 0;
 	const struct ucl_emitter_functions *func = ctx->func;
 
+	/*
+	 * Check if the string contains a backslash followed by a single quote.
+	 * The squoted parser treats \' as an escape sequence, but there is no
+	 * way to escape a literal backslash in squoted strings (the parser's
+	 * default case for \<other> preserves both characters). Fall back to
+	 * double-quoted output to avoid roundtrip corruption.
+	 */
+	{
+		const char *scan = str;
+		size_t remaining = size;
+		while (remaining > 1) {
+			if (scan[0] == '\\' && scan[1] == '\'') {
+				ucl_elt_string_write_json(str, size, ctx);
+				return;
+			}
+			scan++;
+			remaining--;
+		}
+	}
+
 	func->ucl_emitter_append_character('\'', 1, func->ud);
 
 	while (size) {
@@ -158,8 +179,8 @@ void ucl_elt_string_write_squoted(const char *str, size_t size,
 			}
 
 			len = 0;
-			c = ++p;
 			func->ucl_emitter_append_len("\\\'", 2, func->ud);
+			c = ++p;
 		}
 		else {
 			p++;
@@ -179,6 +200,27 @@ void ucl_elt_string_write_multiline(const char *str, size_t size,
 									struct ucl_emitter_context *ctx)
 {
 	const struct ucl_emitter_functions *func = ctx->func;
+
+	/*
+	 * If the string contains "\nEOD\n", the heredoc would be prematurely
+	 * closed on re-parse.  Fall back to JSON-style escaping in that case.
+	 */
+	if (size >= 4) {
+		const char *found = str;
+		const char *send = str + size - 4;
+		while (found <= send) {
+			found = memchr(found, '\n', send - found + 1);
+			if (found == NULL) {
+				break;
+			}
+			if (memcmp(found + 1, "EOD", 3) == 0 &&
+				(found + 4 >= str + size || found[4] == '\n')) {
+				ucl_elt_string_write_json(str, size, ctx);
+				return;
+			}
+			found++;
+		}
+	}
 
 	func->ucl_emitter_append_len("<<EOD\n", sizeof("<<EOD\n") - 1, func->ud);
 	func->ucl_emitter_append_len(str, size, func->ud);
@@ -225,16 +267,26 @@ ucl_utstring_append_int(int64_t val, void *ud)
 	return 0;
 }
 
+/*
+ * Casting a double to int is undefined for NaN and for values out of the int
+ * range, so these are always printed with "%lf"
+ */
+static inline bool
+ucl_double_fits_int(double val)
+{
+	return val > (double) INT_MIN - 1.0 && val < (double) INT_MAX + 1.0;
+}
+
 static int
 ucl_utstring_append_double(double val, void *ud)
 {
 	UT_string *buf = ud;
 	const double delta = 0.0000001;
 
-	if (val == (double) (int) val) {
+	if (ucl_double_fits_int(val) && val == (double) (int) val) {
 		utstring_printf(buf, "%.1lf", val);
 	}
-	else if (fabs(val - (double) (int) val) < delta) {
+	else if (ucl_double_fits_int(val) && fabs(val - (double) (int) val) < delta) {
 		/* Write at maximum precision */
 		utstring_printf(buf, "%.*lg", DBL_DIG, val);
 	}
@@ -286,10 +338,10 @@ ucl_file_append_double(double val, void *ud)
 	FILE *fp = ud;
 	const double delta = 0.0000001;
 
-	if (val == (double) (int) val) {
+	if (ucl_double_fits_int(val) && val == (double) (int) val) {
 		fprintf(fp, "%.1lf", val);
 	}
-	else if (fabs(val - (double) (int) val) < delta) {
+	else if (ucl_double_fits_int(val) && fabs(val - (double) (int) val) < delta) {
 		/* Write at maximum precision */
 		fprintf(fp, "%.*lg", DBL_DIG, val);
 	}
@@ -358,12 +410,13 @@ ucl_fd_append_double(double val, void *ud)
 {
 	int fd = *(int *) ud;
 	const double delta = 0.0000001;
-	char nbuf[64];
+	/* "%lf" of DBL_MAX takes more than 300 characters */
+	char nbuf[DBL_MAX_10_EXP + 64];
 
-	if (val == (double) (int) val) {
+	if (ucl_double_fits_int(val) && val == (double) (int) val) {
 		snprintf(nbuf, sizeof(nbuf), "%.1lf", val);
 	}
-	else if (fabs(val - (double) (int) val) < delta) {
+	else if (ucl_double_fits_int(val) && fabs(val - (double) (int) val) < delta) {
 		/* Write at maximum precision */
 		snprintf(nbuf, sizeof(nbuf), "%.*lg", DBL_DIG, val);
 	}

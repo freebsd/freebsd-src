@@ -46,7 +46,7 @@ __weak_reference(_thr_once, _pthread_once);
  * if init_routine is a cancellation point and is canceled, the effect
  * on once_control shall be as if pthread_once() was never called.
  */
- 
+
 static void
 once_cancel_handler(void *arg)
 {
@@ -88,7 +88,7 @@ _thr_once(pthread_once_t *once_control, void (*init_routine)(void))
 			    NULL, 0);
 		} else
 			return (EINVAL);
-        }
+	}
 
 	curthread = _get_curthread();
 	THR_CLEANUP_PUSH(curthread, once_cancel_handler, once_control);

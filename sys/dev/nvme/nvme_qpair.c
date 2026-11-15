@@ -818,6 +818,7 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 	 * a deferred abort: the tracker stays live to keep its CID
 	 * reserved, and the timeout handler escalates to a reset.
 	 */
+	atomic_subtract_int(&tr->qpair->ctrlr->outstanding_aborts, 1);
 	mtx_lock(&tr->qpair->lock);
 	if ((nvme_completion_is_error(status) || (status->cdw0 & 1) == 1) &&
 	    tr->qpair->act_tr[tr->cid] == tr &&
@@ -978,6 +979,13 @@ do_reset:
 			if (ctrlr->enable_aborts &&
 			    tr->abort_state == NVME_ABORT_NONE &&
 			    tr->req->cb_fn != nvme_abort_complete) {
+				if (atomic_fetchadd_int(
+				    &ctrlr->outstanding_aborts, 1) >
+				    (int)ctrlr->cdata.acl) {
+					atomic_subtract_int(
+					    &ctrlr->outstanding_aborts, 1);
+					continue;
+				}
 				/*
 				 * This isn't an abort command, ask for a
 				 * hardware abort. This goes to the admin

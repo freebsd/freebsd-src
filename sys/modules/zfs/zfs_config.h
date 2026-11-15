@@ -7,10 +7,6 @@
 /* Define to 1 to disable ZFS channel program support */
 /* #undef DISABLE_ZCP */
 
-/* Define to 1 if translation of program messages to the user's native
-   language is requested. */
-/* #undef ENABLE_NLS */
-
 /* __assign_str() has one arg */
 /* #undef HAVE_1ARG_ASSIGN_STR */
 
@@ -122,6 +118,9 @@
 /* struct queue_limits has a features field */
 /* #undef HAVE_BLKDEV_QUEUE_LIMITS_FEATURES */
 
+/* struct queue_limits has max_hw_wzeroes_unmap_sectors */
+/* #undef HAVE_BLKDEV_QUEUE_LIMITS_WZEROES_UNMAP */
+
 /* blkdev_reread_part() exists */
 /* #undef HAVE_BLKDEV_REREAD_PART */
 
@@ -186,14 +185,6 @@
 /* bvec_iter has bi_offset */
 /* #undef HAVE_BVEC_ITER_OFFSET */
 
-/* Define to 1 if you have the Mac OS X function
-   CFLocaleCopyPreferredLanguages in the CoreFoundation framework. */
-/* #undef HAVE_CFLOCALECOPYPREFERREDLANGUAGES */
-
-/* Define to 1 if you have the Mac OS X function CFPreferencesCopyAppValue in
-   the CoreFoundation framework. */
-/* #undef HAVE_CFPREFERENCESCOPYAPPVALUE */
-
 /* check_disk_change() exists */
 /* #undef HAVE_CHECK_DISK_CHANGE */
 
@@ -202,10 +193,6 @@
 
 /* cpu_has_feature() is GPL-only */
 /* #undef HAVE_CPU_HAS_FEATURE_GPL_ONLY */
-
-/* Define if the GNU dcgettext() function is already present or preinstalled.
-   */
-/* #undef HAVE_DCGETTEXT */
 
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
@@ -291,9 +278,6 @@
 /* GENHD_FL_NO_PART flag is available */
 /* #undef HAVE_GENHD_FL_NO_PART */
 
-/* Define if the GNU gettext() function is already present or preinstalled. */
-/* #undef HAVE_GETTEXT */
-
 /* Define to 1 if you have the 'gettid' function. */
 /* #undef HAVE_GETTID */
 
@@ -308,9 +292,6 @@
 
 /* iattr->ia_vfsuid and iattr->ia_vfsgid exist */
 /* #undef HAVE_IATTR_VFSID */
-
-/* Define if you have the iconv() function and it works. */
-#define HAVE_ICONV 1
 
 /* id mapping mechanism is mnt_idmap */
 /* #undef HAVE_IDMAP_MNTIDMAP */
@@ -396,6 +377,9 @@
 /* Define if kernel toolchain supports AVX512VL */
 /* #undef HAVE_KERNEL_AVX512VL */
 
+/* kernel crypto API is available */
+/* #undef HAVE_KERNEL_CRYPTO */
+
 /* kernel has kernel_fpu_* functions */
 /* #undef HAVE_KERNEL_FPU */
 
@@ -419,6 +403,9 @@
 
 /* kernel has kernel_neon_* functions */
 /* #undef HAVE_KERNEL_NEON */
+
+/* kernel_neon_* take a user_fpsimd_state */
+/* #undef HAVE_KERNEL_NEON_STATE */
 
 /* kernel does stack verification */
 /* #undef HAVE_KERNEL_OBJTOOL */
@@ -488,12 +475,6 @@
 
 /* building against unsupported kernel version */
 /* #undef HAVE_LINUX_EXPERIMENTAL */
-
-/* makedev() is declared in sys/mkdev.h */
-/* #undef HAVE_MAKEDEV_IN_MKDEV */
-
-/* makedev() is declared in sys/sysmacros.h */
-/* #undef HAVE_MAKEDEV_IN_SYSMACROS */
 
 /* Noting that make_request_fn() returns blk_qc_t */
 /* #undef HAVE_MAKE_REQUEST_FN_RET_QC */
@@ -743,6 +724,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Define to 1 if you have the <valgrind/valgrind.h> header file. */
+/* #undef HAVE_VALGRIND_VALGRIND_H */
+
 /* fops->clone_file_range() is available */
 /* #undef HAVE_VFS_CLONE_FILE_RANGE */
 
@@ -873,7 +857,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-1149-FreeBSD.g1f380a4f3"
+#define ZFS_META_ALIAS "zfs-2.4.99-1603-FreeBSD.g013c77e66"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -882,7 +866,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "7.2"
+#define ZFS_META_KVER_MAX "7.3"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -903,7 +887,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "1149-FreeBSD.g1f380a4f3"
+#define ZFS_META_RELEASE "1603-FreeBSD.g013c77e66"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"

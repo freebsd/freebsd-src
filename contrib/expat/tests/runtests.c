@@ -57,6 +57,7 @@
 #include "acc_tests.h"
 #include "alloc_tests.h"
 #include "basic_tests.h"
+#include "entities_tests.h"
 #include "hash_tests.h"
 #include "misc_tests.h"
 #include "ns_tests.h"
@@ -75,6 +76,7 @@ make_suite(void) {
 #endif
   make_alloc_test_case(s);
   make_basic_test_case(s);
+  make_entities_test_case(s);
   make_hash_test_case(s);
   make_miscellaneous_test_case(s);
   make_namespace_test_case(s);

@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --variable=qux maxpkg-first maxpkg-second
+ExpectedStdout: first-value second-value
+ExpectedExitCode: 0

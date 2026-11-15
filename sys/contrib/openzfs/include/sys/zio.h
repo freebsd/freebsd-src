@@ -64,20 +64,23 @@ typedef struct zio_eck {
 typedef void zio_gbh_phys_t;
 
 static inline uint64_t
-gbh_nblkptrs(uint64_t size) {
+gbh_nblkptrs(uint64_t size)
+{
 	ASSERT(IS_P2ALIGNED(size, sizeof (blkptr_t)));
 	return ((size - sizeof (zio_eck_t)) / sizeof (blkptr_t));
 }
 
 static inline zio_eck_t *
-gbh_eck(zio_gbh_phys_t *gbh, uint64_t size) {
+gbh_eck(zio_gbh_phys_t *gbh, uint64_t size)
+{
 	ASSERT(IS_P2ALIGNED(size, sizeof (blkptr_t)));
 	return ((zio_eck_t *)((uintptr_t)gbh + (size_t)size -
 	    sizeof (zio_eck_t)));
 }
 
 static inline blkptr_t *
-gbh_bp(zio_gbh_phys_t *gbh, int bp) {
+gbh_bp(zio_gbh_phys_t *gbh, int bp)
+{
 	return (&((blkptr_t *)gbh)[bp]);
 }
 
@@ -203,6 +206,7 @@ typedef uint64_t zio_flag_t;
 #define	ZIO_FLAG_NODATA		(1ULL << 12)
 #define	ZIO_FLAG_INDUCE_DAMAGE	(1ULL << 13)
 #define	ZIO_FLAG_ALLOC_THROTTLED	(1ULL << 14)
+#define	ZIO_FLAG_ZILWRITE	(1ULL << 15)
 
 #define	ZIO_FLAG_DDT_INHERIT	(ZIO_FLAG_IO_RETRY - 1)
 #define	ZIO_FLAG_GANG_INHERIT	(ZIO_FLAG_IO_RETRY - 1)
@@ -210,32 +214,32 @@ typedef uint64_t zio_flag_t;
 	/*
 	 * Flags inherited by vdev children.
 	 */
-#define	ZIO_FLAG_IO_RETRY	(1ULL << 15)	/* must be first for INHERIT */
-#define	ZIO_FLAG_PROBE		(1ULL << 16)
-#define	ZIO_FLAG_TRYHARD	(1ULL << 17)
-#define	ZIO_FLAG_OPTIONAL	(1ULL << 18)
-#define	ZIO_FLAG_DIO_READ	(1ULL << 19)
-#define	ZIO_FLAG_BYPASSED_QUEUE	(1ULL << 20)
+#define	ZIO_FLAG_IO_RETRY	(1ULL << 16)	/* must be first for INHERIT */
+#define	ZIO_FLAG_PROBE		(1ULL << 17)
+#define	ZIO_FLAG_TRYHARD	(1ULL << 18)
+#define	ZIO_FLAG_OPTIONAL	(1ULL << 19)
+#define	ZIO_FLAG_DIO_READ	(1ULL << 20)
+#define	ZIO_FLAG_BYPASSED_QUEUE	(1ULL << 21)
 #define	ZIO_FLAG_VDEV_INHERIT	(ZIO_FLAG_DONT_QUEUE - 1)
 
 	/*
 	 * Flags not inherited by any children.
 	 */
-#define	ZIO_FLAG_DONT_QUEUE	(1ULL << 21)	/* must be first for INHERIT */
-#define	ZIO_FLAG_DONT_PROPAGATE	(1ULL << 22)
-#define	ZIO_FLAG_IO_BYPASS	(1ULL << 23)
-#define	ZIO_FLAG_IO_REWRITE	(1ULL << 24)
-#define	ZIO_FLAG_RAW_COMPRESS	(1ULL << 25)
-#define	ZIO_FLAG_RAW_ENCRYPT	(1ULL << 26)
-#define	ZIO_FLAG_GANG_CHILD	(1ULL << 27)
-#define	ZIO_FLAG_DDT_CHILD	(1ULL << 28)
-#define	ZIO_FLAG_GODFATHER	(1ULL << 29)
-#define	ZIO_FLAG_NOPWRITE	(1ULL << 30)
-#define	ZIO_FLAG_REEXECUTED	(1ULL << 31)
-#define	ZIO_FLAG_DELEGATED	(1ULL << 32)
-#define	ZIO_FLAG_PREALLOCATED	(1ULL << 33)
-#define	ZIO_FLAG_POSTREAD	(1ULL << 34)
-#define	ZIO_FLAG_LIGHTWEIGHT	(1ULL << 35)
+#define	ZIO_FLAG_DONT_QUEUE	(1ULL << 22)	/* must be first for INHERIT */
+#define	ZIO_FLAG_DONT_PROPAGATE	(1ULL << 23)
+#define	ZIO_FLAG_IO_BYPASS	(1ULL << 24)
+#define	ZIO_FLAG_IO_REWRITE	(1ULL << 25)
+#define	ZIO_FLAG_RAW_COMPRESS	(1ULL << 26)
+#define	ZIO_FLAG_RAW_ENCRYPT	(1ULL << 27)
+#define	ZIO_FLAG_GANG_CHILD	(1ULL << 28)
+#define	ZIO_FLAG_DDT_CHILD	(1ULL << 29)
+#define	ZIO_FLAG_GODFATHER	(1ULL << 30)
+#define	ZIO_FLAG_NOPWRITE	(1ULL << 31)
+#define	ZIO_FLAG_REEXECUTED	(1ULL << 32)
+#define	ZIO_FLAG_DELEGATED	(1ULL << 33)
+#define	ZIO_FLAG_PREALLOCATED	(1ULL << 34)
+#define	ZIO_FLAG_POSTREAD	(1ULL << 35)
+#define	ZIO_FLAG_LIGHTWEIGHT	(1ULL << 36)
 
 #define	ZIO_ALLOCATOR_NONE	(-1)
 #define	ZIO_HAS_ALLOCATOR(zio)	((zio)->io_allocator != ZIO_ALLOCATOR_NONE)

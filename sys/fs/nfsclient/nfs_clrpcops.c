@@ -1069,12 +1069,15 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 				nfscl_freenfsclds(dsp);
 				dsp = NULL;
 				/*
-				 * If *retokp is true, return any error other
-				 * than NFSERR_STALECLIENTID,
+				 * A stale ClientID needs a full recovery.
+				 * Otherwise, if *retokp is true, return any
+				 * error other than NFSERR_STALECLIENTID,
 				 * NFSERR_BADSESSION or NFSERR_STALEDONTRECOVER
 				 * so that nfscl_recover() will not loop.
 				 */
-				if (*retokp)
+				if (error == NFSERR_STALECLIENTID)
+					*retokp = false;
+				else if (*retokp)
 					return (NFSERR_IO);
 			} else
 				*retokp = true;
@@ -1776,6 +1779,8 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 			(void)nfscl_getstateid(vp, nfhp->nfh_fh, nfhp->nfh_len,
 			    NFSV4OPEN_ACCESSREAD, 0, newcred, p, &stateid,
 			    &lckp);
+		if (retrycnt > 0)
+			pgp = NULL;
 		error = nfsrpc_readrpc(vp, uiop, pgp, newcred, &stateid, p, nap,
 		    attrflagp);
 		if (error == NFSERR_OPENMODE) {
@@ -1829,8 +1834,8 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsrv_descript *nd = &nfsd;
 	int rsize;
-	off_t tmp_off;
-	bool did_rdma, reduced, first_loop;
+	off_t tmp_off, start_off;
+	bool did_rdma, reduced;
 
 	*attrflagp = 0;
 	tsiz = uiop->uio_resid;
@@ -1843,7 +1848,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 	rsize = nmp->nm_rsize;
 	NFSUNLOCKMNT(nmp);
 	nd->nd_mrep = NULL;
-	first_loop = true;
+	start_off = uiop->uio_offset;
 	while (tsiz > 0) {
 		mr = NULL;
 		*attrflagp = 0;
@@ -1856,8 +1861,9 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 			 * within the pages, this can only be done for the first
 			 * iteration.
 			 */
-			if (first_loop && pgp != NULL &&
-			    (uiop->uio_offset & PAGE_MASK) == 0 &&
+			tmp_off = uiop->uio_offset - start_off;
+			if (pgp != NULL && (tmp_off & PAGE_MASK) == 0 &&
+			    (start_off & PAGE_MASK) == 0 &&
 			    uiop->uio_segflg == UIO_SYSSPACE &&
 			    !NFSHASNOREADREDUCE(nmp))
 				did_rdma = true;
@@ -1868,7 +1874,6 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 			else
 				mbflag = M_PROTO9;
 		}
-		first_loop = false;
 		NFSCL_REQSTART(nd, NFSPROC_READ, vp, cred);
 		nd->nd_mreq->m_flags |= mbflag;
 		if (nd->nd_flag & ND_NFSV4)
@@ -1884,7 +1889,8 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 		}
 		/* For RDMA, make the data a separate chunk. */
 		if (did_rdma)
-			mr = nfsm_build_rdma_reduction(pgp, nd, len, 0, true);
+			mr = nfsm_build_rdma_reduction(&pgp[tmp_off/PAGE_SIZE],
+			    nd, len, 0, true);
 		/*
 		 * Since I can't do a Getattr for NFSv4 for Write, there
 		 * doesn't seem any point in doing one here, either.
@@ -1917,6 +1923,11 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, struct ucred *cred,
 		}
 		NFSM_STRSIZ(retlen, len);
 		if (retlen > 0) {
+			/*
+			 * Since nfsm_build_rdma_reduction() didn't allocate
+			 * pages, the call to rpc_copy_uio_pages() only
+			 * updates the uiop fields.  It does not copy data.
+			 */
 			if (!did_rdma || !reduced)
 				error = nfsm_mbufuio(nd, uiop, retlen);
 			else
@@ -1992,6 +2003,8 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 			}
 		}
 
+		if (retrycnt > 0)
+			pgp = NULL;
 		/*
 		 * If there is no stateid for NFSv4, it means this is an
 		 * extraneous write after close. Basically a poorly
@@ -2134,6 +2147,11 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, vm_page_t *pgp, int *iomode,
 			rlen = m_length(nd->nd_mreq, NULL);
 			mr = nfsm_build_rdma_reduction(pgp, nd, len, rlen,
 			    false);
+			/*
+			 * Since nfsm_build_rdma_reduction() didn't allocate
+			 * pages, the call to rpc_copy_uio_pages() only
+			 * updates the uiop fields.  It does not copy data.
+			 */
 			error = rpc_copy_uio_pages(mr, uiop, len, false);
 		} else {
 			error = nfsm_uiombuf(nd, uiop, len);

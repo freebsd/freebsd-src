@@ -2961,6 +2961,48 @@ ATF_TC_BODY(ktls_sendto_baddst, tc)
 }
 
 /*
+ * A TLS_SET_RECORD_TYPE control message without its record type byte
+ * is refused.
+ */
+ATF_TC_WITHOUT_HEAD(ktls_transmit_short_record_type);
+ATF_TC_BODY(ktls_transmit_short_record_type, tc)
+{
+	struct tls_enable en;
+	struct msghdr msg;
+	struct cmsghdr *cmsg;
+	struct iovec iov;
+	char cbuf[CMSG_SPACE(0)];
+	char data;
+	int sockets[2];
+
+	ATF_REQUIRE_KTLS();
+	build_tls_enable(tc, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
+	    TLS_MINOR_VER_TWO, (uint64_t)random(), &en);
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, &en,
+	    sizeof(en)) == 0);
+	fd_set_blocking(sockets[1]);
+
+	memset(&msg, 0, sizeof(msg));
+	memset(cbuf, 0, sizeof(cbuf));
+	msg.msg_control = cbuf;
+	msg.msg_controllen = CMSG_LEN(0);
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = IPPROTO_TCP;
+	cmsg->cmsg_type = TLS_SET_RECORD_TYPE;
+	cmsg->cmsg_len = CMSG_LEN(0);
+	data = 0;
+	iov.iov_base = &data;
+	iov.iov_len = sizeof(data);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	ATF_REQUIRE_ERRNO(EINVAL, sendmsg(sockets[1], &msg, 0) == -1);
+
+	close_sockets(sockets);
+	free_tls_enable(&en);
+}
+
+/*
  * Make sure that listen(2) returns an error for KTLS-enabled sockets, and
  * verify that an attempt to enable KTLS on a listening socket fails.
  */
@@ -3126,6 +3168,7 @@ ATF_TP_ADD_TCS(tp)
 
 	/* Miscellaneous */
 	ATF_TP_ADD_TC(tp, ktls_sendto_baddst);
+	ATF_TP_ADD_TC(tp, ktls_transmit_short_record_type);
 	ATF_TP_ADD_TC(tp, ktls_listening_socket_tx);
 	ATF_TP_ADD_TC(tp, ktls_listening_socket_rx);
 	ATF_TP_ADD_TC(tp, ktls_receive_loopback_sendfile);

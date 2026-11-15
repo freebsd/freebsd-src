@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: mit-krb5 1.22.2\n"
+"Project-Id-Version: mit-krb5 1.22.3\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-28 19:53-0500\n"
+"POT-Creation-Date: 2026-11-06 17:59-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -80,7 +80,7 @@ msgstr ""
 #: ../../src/clients/klist/klist.c:240 ../../src/clients/ksu/main.c:133
 #: ../../src/clients/ksu/main.c:139 ../../src/clients/kswitch/kswitch.c:94
 #: ../../src/kadmin/ktutil/ktutil.c:51 ../../src/kdc/main.c:919
-#: ../../src/kprop/kprop.c:103 ../../src/kprop/kpropd.c:1060
+#: ../../src/kprop/kprop.c:103 ../../src/kprop/kpropd.c:1071
 msgid "while initializing krb5"
 msgstr ""
 
@@ -668,7 +668,7 @@ msgid "while retrieving a ticket"
 msgstr ""
 
 #: ../../src/clients/klist/klist.c:689 ../../src/clients/ksu/ccache.c:326
-#: ../../src/kprop/kpropd.c:1213 ../../src/kprop/kpropd.c:1278
+#: ../../src/kprop/kpropd.c:1224 ../../src/kprop/kpropd.c:1289
 msgid "while unparsing client name"
 msgstr ""
 
@@ -1416,7 +1416,7 @@ msgid "%s: out of memory\n"
 msgstr ""
 
 #: ../../src/kadmin/cli/kadmin.c:468 ../../src/kadmin/cli/kadmin.c:483
-#: ../../src/kprop/kpropd.c:678
+#: ../../src/kprop/kpropd.c:686
 msgid "while canonicalizing principal name"
 msgstr ""
 
@@ -1463,7 +1463,7 @@ msgstr ""
 msgid "Authenticating as principal %s with password.\n"
 msgstr ""
 
-#: ../../src/kadmin/cli/kadmin.c:580 ../../src/kprop/kpropd.c:723
+#: ../../src/kadmin/cli/kadmin.c:580 ../../src/kprop/kpropd.c:731
 #, c-format
 msgid "while initializing %s interface"
 msgstr ""
@@ -3445,7 +3445,7 @@ msgstr ""
 msgid "chpw request from %s for %.*s%s: %s"
 msgstr ""
 
-#: ../../src/kadmin/server/schpw.c:414
+#: ../../src/kadmin/server/schpw.c:419
 #, c-format
 msgid "chpw: Couldn't open admin keytab %s"
 msgstr ""
@@ -3458,7 +3458,7 @@ msgstr ""
 
 #: ../../src/kadmin/server/server_stubs.c:443
 #: ../../src/kadmin/server/server_stubs.c:736
-#: ../../src/kadmin/server/server_stubs.c:1643
+#: ../../src/kadmin/server/server_stubs.c:1655
 msgid "success"
 msgstr ""
 
@@ -3481,7 +3481,7 @@ msgid ""
 "service=%.*s%s, addr=%s"
 msgstr ""
 
-#: ../../src/kadmin/server/server_stubs.c:1639
+#: ../../src/kadmin/server/server_stubs.c:1651
 #, c-format
 msgid ""
 "Request: kadm5_init, %.*s%s, %s, client=%.*s%s, service=%.*s%s, addr=%s, "
@@ -3850,11 +3850,11 @@ msgstr ""
 msgid "while connecting to server"
 msgstr ""
 
-#: ../../src/kprop/kprop.c:269 ../../src/kprop/kpropd.c:1198
+#: ../../src/kprop/kprop.c:269 ../../src/kprop/kpropd.c:1209
 msgid "while getting local socket address"
 msgstr ""
 
-#: ../../src/kprop/kprop.c:276 ../../src/kprop/kpropd.c:1206
+#: ../../src/kprop/kprop.c:276 ../../src/kprop/kpropd.c:1217
 msgid "while converting local address"
 msgstr ""
 
@@ -3867,7 +3867,7 @@ msgid "while authenticating to server"
 msgstr ""
 
 #: ../../src/kprop/kprop.c:310 ../../src/kprop/kprop.c:508
-#: ../../src/kprop/kpropd.c:1526
+#: ../../src/kprop/kpropd.c:1537
 #, c-format
 msgid "Generic remote error: %s\n"
 msgstr ""
@@ -3895,7 +3895,7 @@ msgstr ""
 msgid "database locked"
 msgstr ""
 
-#: ../../src/kprop/kprop.c:362 ../../src/kprop/kpropd.c:553
+#: ../../src/kprop/kprop.c:362 ../../src/kprop/kpropd.c:561
 #, c-format
 msgid "while trying to lock '%s'"
 msgstr ""
@@ -3966,7 +3966,7 @@ msgstr ""
 msgid "while creating 'last_prop' file, '%s'"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:171
+#: ../../src/kprop/kpropd.c:173
 #, c-format
 msgid ""
 "\n"
@@ -3976,474 +3976,474 @@ msgid ""
 "\t[-a acl_file] [-A admin_server] [--pid-file=pid_file]\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:232
+#: ../../src/kprop/kpropd.c:234
 #, c-format
 msgid "Killing fullprop child (%d)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:261
+#: ../../src/kprop/kpropd.c:269
 msgid "while checking if stdin is a socket"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:279
+#: ../../src/kprop/kpropd.c:287
 #, c-format
 msgid "ready\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:285
+#: ../../src/kprop/kpropd.c:293
 #, c-format
 msgid "Could not write pid file %s: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:297
+#: ../../src/kprop/kpropd.c:305
 #, c-format
 msgid "Could not open /dev/null: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:304
+#: ../../src/kprop/kpropd.c:312
 #, c-format
 msgid "Could not dup the inetd socket: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:339 ../../src/kprop/kpropd.c:352
+#: ../../src/kprop/kpropd.c:347 ../../src/kprop/kpropd.c:360
 msgid "do_iprop failed.\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:391
+#: ../../src/kprop/kpropd.c:399
 #, c-format
 msgid "getaddrinfo: %s\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:397
+#: ../../src/kprop/kpropd.c:405
 msgid "while obtaining socket"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:403
+#: ../../src/kprop/kpropd.c:411
 msgid "while setting SO_REUSEADDR option"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:411
+#: ../../src/kprop/kpropd.c:419
 msgid "while unsetting IPV6_V6ONLY option"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:416
+#: ../../src/kprop/kpropd.c:424
 msgid "while binding listener socket"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:427
+#: ../../src/kprop/kpropd.c:435
 #, c-format
 msgid "waiting for a kprop connection\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:433
+#: ../../src/kprop/kpropd.c:441
 msgid "while accepting connection"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:439
+#: ../../src/kprop/kpropd.c:447
 msgid "while forking"
-msgstr ""
-
-#: ../../src/kprop/kpropd.c:454
-#, c-format
-msgid "waitpid() failed to wait for doit() (%d %s)\n"
-msgstr ""
-
-#: ../../src/kprop/kpropd.c:458
-msgid "while waiting to receive database"
 msgstr ""
 
 #: ../../src/kprop/kpropd.c:462
 #, c-format
+msgid "waitpid() failed to wait for doit() (%d %s)\n"
+msgstr ""
+
+#: ../../src/kprop/kpropd.c:466
+msgid "while waiting to receive database"
+msgstr ""
+
+#: ../../src/kprop/kpropd.c:470
+#, c-format
 msgid "Database load process for full propagation completed.\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:500
+#: ../../src/kprop/kpropd.c:508
 #, c-format
 msgid ""
 "%s: Standard input does not appear to be a network socket.\n"
 "\t(Not run from inetd, and missing the -S option?)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:513
+#: ../../src/kprop/kpropd.c:521
 msgid "while attempting setsockopt (SO_KEEPALIVE)"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:518
+#: ../../src/kprop/kpropd.c:526
 #, c-format
 msgid "Connection from %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:538
+#: ../../src/kprop/kpropd.c:546
 #, c-format
 msgid "Rejected connection from unauthorized principal %s\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:542
+#: ../../src/kprop/kpropd.c:550
 #, c-format
 msgid "Rejected connection from unauthorized principal %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:559
+#: ../../src/kprop/kpropd.c:567
 #, c-format
 msgid "while opening database file, '%s'"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:565
+#: ../../src/kprop/kpropd.c:573
 #, c-format
 msgid "while renaming %s to %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:571
+#: ../../src/kprop/kpropd.c:579
 #, c-format
 msgid "while downgrading lock on '%s'"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:578
+#: ../../src/kprop/kpropd.c:586
 #, c-format
 msgid "while unlocking '%s'"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:590
+#: ../../src/kprop/kpropd.c:598
 msgid "while sending # of received bytes"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:596
+#: ../../src/kprop/kpropd.c:604
 msgid "while trying to close database file"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:651
+#: ../../src/kprop/kpropd.c:659
 #, c-format
 msgid "Incremental propagation enabled\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:660
+#: ../../src/kprop/kpropd.c:668
 #, c-format
 msgid "%s: unable to get kiprop host based service name for realm %s\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:670
+#: ../../src/kprop/kpropd.c:678
 msgid "while trying to construct host service principal"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:687
+#: ../../src/kprop/kpropd.c:695
 #, c-format
 msgid "Initializing kadm5 as client %s\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:701
+#: ../../src/kprop/kpropd.c:709
 #, c-format
 msgid "kadm5 initialization failed!\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:710
+#: ../../src/kprop/kpropd.c:718
 msgid "while attempting to connect to primary KDC ... retrying"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:714
+#: ../../src/kprop/kpropd.c:722
 #, c-format
 msgid "Sleeping %d seconds to re-initialize kadm5 (RPC ERROR)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:730
+#: ../../src/kprop/kpropd.c:738
 #, c-format
 msgid "while initializing %s interface, retrying"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:734
+#: ../../src/kprop/kpropd.c:742
 #, c-format
 msgid "Sleeping %d seconds to re-initialize kadm5 (krb5kdc not running?)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:744
+#: ../../src/kprop/kpropd.c:752
 #, c-format
 msgid "kadm5 initialization succeeded\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:766
+#: ../../src/kprop/kpropd.c:777
 msgid "reading update log header"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:777
+#: ../../src/kprop/kpropd.c:788
 #, c-format
 msgid "Calling iprop_get_updates_1 (sno=%u sec=%u usec=%u)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:787
+#: ../../src/kprop/kpropd.c:798
 msgid "iprop_get_updates call failed"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:793
+#: ../../src/kprop/kpropd.c:804
 #, c-format
 msgid "Reinitializing iprop because get updates failed\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:814
+#: ../../src/kprop/kpropd.c:825
 #, c-format
 msgid "Still waiting for full resync\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:819
+#: ../../src/kprop/kpropd.c:830
 #, c-format
 msgid "Full resync needed\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:820
+#: ../../src/kprop/kpropd.c:831
 msgid "kpropd: Full resync needed."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:825
+#: ../../src/kprop/kpropd.c:836
 msgid "iprop_full_resync call failed"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:836
+#: ../../src/kprop/kpropd.c:847
 #, c-format
 msgid "Full resync request granted\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:837
+#: ../../src/kprop/kpropd.c:848
 msgid "Full resync request granted."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:846
+#: ../../src/kprop/kpropd.c:857
 #, c-format
 msgid "Exponential backoff\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:852
+#: ../../src/kprop/kpropd.c:863
 #, c-format
 msgid "Full resync permission denied\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:853
+#: ../../src/kprop/kpropd.c:864
 msgid "Full resync, permission denied."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:858
+#: ../../src/kprop/kpropd.c:869
 #, c-format
 msgid "Full resync error from primary\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:859
+#: ../../src/kprop/kpropd.c:870
 msgid " Full resync, error returned from primary KDC."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:867
+#: ../../src/kprop/kpropd.c:878
 #, c-format
 msgid "Full resync invalid result from primary\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:869
+#: ../../src/kprop/kpropd.c:880
 msgid "Full resync, invalid return from primary KDC."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:885
+#: ../../src/kprop/kpropd.c:896
 #, c-format
 msgid "Got incremental updates (sno=%u sec=%u usec=%u)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:897
+#: ../../src/kprop/kpropd.c:908
 #, c-format
 msgid "ulog_replay failed (%s), updates not registered\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:900
+#: ../../src/kprop/kpropd.c:911
 #, c-format
 msgid "ulog_replay failed (%s), updates not registered."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:909
+#: ../../src/kprop/kpropd.c:920
 #, c-format
 msgid "Incremental updates: %d updates / %lu us"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:912
+#: ../../src/kprop/kpropd.c:923
 #, c-format
 msgid "Incremental updates: %d updates / %lu us\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:920
+#: ../../src/kprop/kpropd.c:931
 #, c-format
 msgid "get_updates permission denied\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:921
+#: ../../src/kprop/kpropd.c:932
 msgid "get_updates, permission denied."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:926
+#: ../../src/kprop/kpropd.c:937
 #, c-format
 msgid "get_updates error from primary\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:928
+#: ../../src/kprop/kpropd.c:939
 msgid "get_updates, error returned from primary KDC."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:936
+#: ../../src/kprop/kpropd.c:947
 #, c-format
 msgid "get_updates primary busy; backoff\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:945
+#: ../../src/kprop/kpropd.c:956
 #, c-format
 msgid "KDC is synchronized with primary.\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:954
+#: ../../src/kprop/kpropd.c:965
 #, c-format
 msgid "get_updates invalid result from primary\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:957
+#: ../../src/kprop/kpropd.c:968
 msgid "get_updates, invalid return from primary KDC."
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:972
+#: ../../src/kprop/kpropd.c:983
 #, c-format
 msgid "Busy signal received from primary, backoff for %d secs\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:979
+#: ../../src/kprop/kpropd.c:990
 #, c-format
 msgid "Waiting for %d seconds before checking for updates again\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:990
+#: ../../src/kprop/kpropd.c:1001
 #, c-format
 msgid "ERROR returned by primary, bailing\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:991
+#: ../../src/kprop/kpropd.c:1002
 msgid "ERROR returned by primary KDC, bailing.\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1110
+#: ../../src/kprop/kpropd.c:1121
 msgid "copying db args"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1135
+#: ../../src/kprop/kpropd.c:1146
 msgid "Unable to get default realm"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1142
+#: ../../src/kprop/kpropd.c:1153
 msgid "Unable to set default realm"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1152
+#: ../../src/kprop/kpropd.c:1163
 msgid "while trying to construct my service name"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1159
+#: ../../src/kprop/kpropd.c:1170
 msgid "while allocating filename for temp file"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1167
+#: ../../src/kprop/kpropd.c:1178
 msgid "while initializing"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1175
+#: ../../src/kprop/kpropd.c:1186
 msgid "Unable to map log!\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1223
+#: ../../src/kprop/kpropd.c:1234
 #, c-format
 msgid "Error in krb5_auth_con_ini: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1231
+#: ../../src/kprop/kpropd.c:1242
 #, c-format
 msgid "Error in krb5_auth_con_setflags: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1244
+#: ../../src/kprop/kpropd.c:1255
 #, c-format
 msgid "Error in krb5_auth_con_setaddrs: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1252
+#: ../../src/kprop/kpropd.c:1263
 #, c-format
 msgid "Error in krb5_kt_resolve: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1261
+#: ../../src/kprop/kpropd.c:1272
 #, c-format
 msgid "Error in krb5_recvauth: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1268
+#: ../../src/kprop/kpropd.c:1279
 #, c-format
 msgid "Error in krb5_copy_prinicpal: %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1285
+#: ../../src/kprop/kpropd.c:1296
 msgid "while unparsing ticket etype"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1289
+#: ../../src/kprop/kpropd.c:1300
 #, c-format
 msgid "authenticated client: %s (etype == %s)\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1372
+#: ../../src/kprop/kpropd.c:1383
 msgid "while reading size of database from client"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1382
+#: ../../src/kprop/kpropd.c:1393
 msgid "while decoding database size from client"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1390
+#: ../../src/kprop/kpropd.c:1401
 msgid "malformed database size message from client"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1402
+#: ../../src/kprop/kpropd.c:1413
 msgid "while initializing i_vector"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1407
+#: ../../src/kprop/kpropd.c:1418
 #, c-format
 msgid "Full propagation transfer started.\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1461
+#: ../../src/kprop/kpropd.c:1472
 #, c-format
 msgid "Full propagation transfer finished.\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1521
+#: ../../src/kprop/kpropd.c:1532
 msgid "while decoding error packet from client"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1530
+#: ../../src/kprop/kpropd.c:1541
 msgid "signaled from server"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1532
+#: ../../src/kprop/kpropd.c:1543
 #, c-format
 msgid "Error text from client: %s\n"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1581
+#: ../../src/kprop/kpropd.c:1592
 #, c-format
 msgid "while trying to fork %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1585
+#: ../../src/kprop/kpropd.c:1596
 #, c-format
 msgid "while trying to exec %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1592
+#: ../../src/kprop/kpropd.c:1603
 #, c-format
 msgid "while waiting for %s"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1598
+#: ../../src/kprop/kpropd.c:1609
 #, c-format
 msgid "%s load terminated"
 msgstr ""
 
-#: ../../src/kprop/kpropd.c:1604
+#: ../../src/kprop/kpropd.c:1615
 #, c-format
 msgid "%s returned a bad exit status (%d)"
 msgstr ""
@@ -5145,7 +5145,7 @@ msgstr ""
 msgid "No key table entry found matching %s"
 msgstr ""
 
-#: ../../src/lib/gssapi/krb5/iakerb.c:605
+#: ../../src/lib/gssapi/krb5/iakerb.c:608
 msgid "The IAKERB proxy could not determine its realm"
 msgstr ""
 
@@ -5211,79 +5211,79 @@ msgstr ""
 msgid "An expected per-message token was not received"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1750
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1755
 msgid "SPNEGO cannot find mechanisms to negotiate"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1752
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1757
 msgid "SPNEGO failed to acquire creds"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1754
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1759
 msgid "SPNEGO acceptor did not select a mechanism"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1756
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1761
 msgid "SPNEGO failed to negotiate a mechanism"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1758
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1763
 msgid "SPNEGO acceptor did not return a valid token"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1760
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1765
 msgid "Invalid NegoEx signature"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1762
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1767
 msgid "Invalid NegoEx message type"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1764
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1769
 msgid "Invalid NegoEx message size"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1766
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1771
 msgid "Invalid NegoEx conversation ID"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1768
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1773
 msgid "NegoEx authentication scheme not found"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1770
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1775
 msgid "Missing NegoEx negotiate message"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1772
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1777
 msgid "Missing NegoEx authentication protocol request message"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1774
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1779
 msgid "No mutually supported NegoEx authentication schemes"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1776
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1781
 msgid "No NegoEx verify key"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1778
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1783
 msgid "Unknown NegoEx checksum scheme"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1780
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1785
 msgid "Invalid NegoEx checksum"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1782
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1787
 msgid "Unsupported critical NegoEx extension"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1784
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1789
 msgid "Unsupported NegoEx version"
 msgstr ""
 
-#: ../../src/lib/gssapi/spnego/spnego_mech.c:1786
+#: ../../src/lib/gssapi/spnego/spnego_mech.c:1791
 msgid "NegoEx message out of sequence"
 msgstr ""
 
@@ -5503,13 +5503,13 @@ msgstr ""
 msgid "Credentials cache 'KCM:%s' not found"
 msgstr ""
 
-#: ../../src/lib/krb5/ccache/cc_keyring.c:1149
+#: ../../src/lib/krb5/ccache/cc_keyring.c:1150
 msgid ""
 "Can't create new subsidiary cache because default cache is already a "
 "subsidiary"
 msgstr ""
 
-#: ../../src/lib/krb5/ccache/cc_keyring.c:1217
+#: ../../src/lib/krb5/ccache/cc_keyring.c:1218
 #, c-format
 msgid "Credentials cache keyring '%s' not found"
 msgstr ""
@@ -5653,33 +5653,33 @@ msgstr ""
 msgid "Reply has wrong form of session key for anonymous request"
 msgstr ""
 
-#: ../../src/lib/krb5/krb/get_in_tkt.c:1565
+#: ../../src/lib/krb5/krb/get_in_tkt.c:1568
 #, c-format
 msgid "Warning: Your password will expire in less than one hour on %s"
 msgstr ""
 
-#: ../../src/lib/krb5/krb/get_in_tkt.c:1569
+#: ../../src/lib/krb5/krb/get_in_tkt.c:1572
 #, c-format
 msgid "Warning: Your password will expire in %d hour%s on %s"
 msgstr ""
 
-#: ../../src/lib/krb5/krb/get_in_tkt.c:1573
+#: ../../src/lib/krb5/krb/get_in_tkt.c:1576
 #, c-format
 msgid "Warning: Your password will expire in %d days on %s"
 msgstr ""
 
-#: ../../src/lib/krb5/krb/get_in_tkt.c:1603
+#: ../../src/lib/krb5/krb/get_in_tkt.c:1606
 #, c-format
 msgid ""
 "Warning: encryption type %s used for authentication is deprecated and will "
 "be disabled"
 msgstr ""
 
-#: ../../src/lib/krb5/krb/get_in_tkt.c:1848
+#: ../../src/lib/krb5/krb/get_in_tkt.c:1851
 msgid "Failed to store credentials"
 msgstr ""
 
-#: ../../src/lib/krb5/krb/get_in_tkt.c:1943
+#: ../../src/lib/krb5/krb/get_in_tkt.c:1946
 #, c-format
 msgid "Client '%s' not found in Kerberos database"
 msgstr ""
@@ -5901,11 +5901,11 @@ msgstr ""
 msgid "Invalid token"
 msgstr ""
 
-#: ../../src/lib/krb5/os/expand_path.c:506
+#: ../../src/lib/krb5/os/expand_path.c:507
 msgid "variable missing }"
 msgstr ""
 
-#: ../../src/lib/krb5/os/locate_kdc.c:874
+#: ../../src/lib/krb5/os/locate_kdc.c:873
 #, c-format
 msgid "Cannot find KDC for realm \"%.*s\""
 msgstr ""
@@ -6347,113 +6347,113 @@ msgstr ""
 msgid "dn information missing"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:125
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:135
 #, c-format
 msgid ""
 "Operation cannot continue; more than one entry with principal name \"%s\" "
 "found"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:238
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:251
 msgid "Principal does not belong to realm"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:331
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:340
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:348
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:346
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:355
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:363
 #, c-format
 msgid "%s option not supported"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:355
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:370
 #, c-format
 msgid "unknown option: %s"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:362
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:369
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:377
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:384
 #, c-format
 msgid "%s option value missing"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:701
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:720
 msgid "DN is out of the realm subtree"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:733
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:754
 msgid "ldap object is already kerberized"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:803
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:826
 msgid "target principal not found"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:821
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:844
 msgid ""
 "cannot add alias to entry with multiple krbPrincipalName values and no "
 "krbCanonicalName attribute"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:848
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:871
 #, c-format
 msgid "Alias modification failed: %s"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:909
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:932
 msgid "Principal does not belong to the default realm"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1002
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1027
 #, c-format
 msgid "'%s' not found"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1063
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1090
 #, c-format
 msgid ""
 "link information can not be set/updated as the kerberos principal belongs to "
 "an ldap object"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1078
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1105
 #, c-format
 msgid "Failed getting object references"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1085
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1112
 #, c-format
 msgid "kerberos principal is already linked to a ldap object"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1411
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1438
 msgid "ticket policy object value: "
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1459
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1486
 #, c-format
 msgid "Principal delete failed (trying to replace entry): %s"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1469
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1496
 #, c-format
 msgid "Principal add failed: %s"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1508
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1535
 #, c-format
 msgid "User modification failed: %s"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1582
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1609
 #: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_realm.c:296
 msgid "Error reading ticket policy"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1715
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1742
 msgid "unable to decode stored principal key data"
 msgstr ""
 
-#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1773
+#: ../../src/plugins/kdb/ldap/libkdb_ldap/ldap_principal2.c:1800
 msgid "unable to decode stored principal pw history"
 msgstr ""
 
@@ -6619,148 +6619,148 @@ msgstr ""
 msgid "No pkinit_anchors supplied"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1104
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3434
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1120
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3479
 #, c-format
 msgid "%s: %s"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1134
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1150
 #, c-format
 msgid "%s (depth %d): %s"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1376
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4108
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1399
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4153
 msgid "Pass phrase for"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1492
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1515
 msgid "PKINIT cannot initialize any key exchange groups"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1676
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1686
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1892
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1902
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1699
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1709
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1915
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1925
 msgid "Failed to DER encode PKCS7"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1781
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1803
 msgid "Failed to verify own certificate"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1876
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1898
 msgid "Failed to add digest attribute"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:1990
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2018
 msgid "Failed to decode CMS message"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2008
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2037
 msgid "Invalid pkinit packet: octet string expected"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2026
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2055
 msgid "wrong oid\n"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2178
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2209
 msgid "Failed to verify received certificate"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2209
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2240
 msgid "Failed to verify CMS message"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2681
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2724
 msgid "Failed to fetch SSKDF"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2688
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2731
 msgid "Failed to instantiate SSKDF"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2701
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2744
 msgid "Failed to derive key using SSKDF"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2763
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2806
 msgid "Failed to compute digest"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:2983
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3026
 msgid "Cannot compose PKINIT KDC public key"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3245
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3290
 #, c-format
 msgid "OpenSSL has no supported key exchange groups for pkinit_dh_min_bits=%d"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3411
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3456
 msgid "Cannot load PKCS11 module"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3417
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3462
 msgid "Cannot find C_GetFunctionList in PKCS11 module"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3424
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3469
 msgid "Cannot retrieve function list in PKCS11 module"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3705
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3750
 msgid "C_FindObjectsInit"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3711
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3756
 msgid "C_FindObjects"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3714
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3759
 msgid "Found no private keys in PKCS11 token"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3793
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3838
 msgid "Failed to DER encode DigestInfo"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3844
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3889
 msgid "Failed to convert PKCS11 ECDSA signature"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3924
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:3969
 #, c-format
 msgid "PKCS11 certificate has unsupported key type %lu"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4230
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4275
 #, c-format
 msgid "Cannot read certificate file '%s'"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4238
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4283
 #, c-format
 msgid "Cannot read key file '%s'"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4467
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:4512
 msgid "Failed to decode X509 certificate from PKCS11 token"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:5046
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:5091
 #, c-format
 msgid "Cannot open file '%s'"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:5053
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:5098
 #, c-format
 msgid "Cannot read file '%s'"
 msgstr ""
 
-#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:5579
+#: ../../src/plugins/preauth/pkinit/pkinit_crypto_openssl.c:5624
 #, c-format
 msgid "PKCS11 error (%s): %s"
 msgstr ""

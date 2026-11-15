@@ -622,6 +622,13 @@ yesno:
 	case _SC_UEXTERR_MAXLEN:
 		return (UEXTERROR_MAXLEN);
 
+	case _SC_DEVCTL_MAXRECORD:
+		len = sizeof(value);
+		if (sysctlbyname("hw.bus.devctl_maxrecord", &value, &len, NULL,
+		    0) == -1)
+			return (-1);
+		return ((long)value);
+
 	default:
 		errno = EINVAL;
 		return (-1);

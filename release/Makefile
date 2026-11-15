@@ -21,10 +21,11 @@
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
 #            (by default, the directory above this one)
-#  NODISTSETS: if set, do not include dist sets or MANIFEST
 #  NOPKGBASE:  if set, include dist tarballs rather than pkgbase packages in
 #            disc1 and dvd1 installation media and build VM/cloud images using
 #            make installkernel installworld.
+#  DISTSETS: if set, include dist sets and MANIFEST.  Enabled automatically if
+#            NOPKGBASE is set.
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  XTRADIR:  xtra-bits-dir argument for <arch>/mkisoimages.sh
 #  NOPKG:    if set, do not distribute third-party packages
@@ -80,6 +81,8 @@ PKGBASE_REPO_DIR= pkgbase-repo-dir
 WSTAGEDIR!=	${IMAKE} -f Makefile.inc1 -C ${WORLDDIR} -V WSTAGEDIR
 PKG_ABI_FILE=	${WSTAGEDIR}/usr/bin/uname
 PKG_ABI=	$$(${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI)
+.else
+DISTSETS=	YES
 .endif
 
 .if ${.MAKE.OS} == "FreeBSD"
@@ -117,7 +120,7 @@ DISTRIBUTIONS+= src.txz
 .endif
 
 RELEASE_TARGETS=
-.if !defined(NODISTSETS) || empty(NODISTSETS)
+.if defined(DISTSETS) && !empty(DISTSETS)
 RELEASE_TARGETS+= ftp
 .endif
 IMAGES=
@@ -202,7 +205,7 @@ packagesystem: ${DISTRIBUTIONS}
 	sh ${.CURDIR}/scripts/make-manifest.sh $$(ls *.txz | grep -v container) > MANIFEST
 	touch ${.TARGET}
 
-.if !defined(NODISTSETS) || empty(NODISTSETS)
+.if defined(DISTSETS) && !empty(DISTSETS)
 disc1: packagesystem
 bootonly: packagesystem
 dvd: packagesystem
@@ -251,7 +254,7 @@ disc1:
 	    mtree -C -k type,mode,link,size | \
 	    sed 's|^\.|./usr/freebsd-packages|g' >> ${.TARGET}/METALOG
 .endif
-.if !defined(NODISTSETS) || empty(NODISTSETS)
+.if defined(DISTSETS) && !empty(DISTSETS)
 	# Copy MANIFEST to provide legacy dist checksums in both modes
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
@@ -303,7 +306,7 @@ bootonly:
 	    MK_TOOLCHAIN=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no)
-.if !defined(NODISTSETS) || empty(NODISTSETS)
+.if defined(DISTSETS) && !empty(DISTSETS)
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -354,7 +357,7 @@ dvd:
 	    mtree -C -k type,mode,link,size | \
 	    sed 's|^\.|./usr/freebsd-packages|g' >> ${.TARGET}/METALOG
 .endif
-.if !defined(NODISTSETS) || empty(NODISTSETS)
+.if defined(DISTSETS) && !empty(DISTSETS)
 	# Copy MANIFEST to provide legacy dist checksums in both modes
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
@@ -455,7 +458,7 @@ release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)
 	mkdir -p ${DESTDIR}
 .endif
-.if !defined(NODISTSETS) || empty(NODISTSETS)
+.if defined(DISTSETS) && !empty(DISTSETS)
 	cp -a ftp ${DESTDIR}/
 .endif
 .if !empty(IMAGES)

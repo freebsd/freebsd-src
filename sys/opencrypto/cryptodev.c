@@ -528,8 +528,8 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	sop->crid = crypto_ses2hid(cse->cses);
 bail:
 	if (error) {
-		free(key, M_CRYPTODEV);
-		free(mackey, M_CRYPTODEV);
+		zfree(key, M_CRYPTODEV);
+		zfree(mackey, M_CRYPTODEV);
 	}
 	return (error);
 }
@@ -560,9 +560,9 @@ cse_free(struct csession *cse)
 	crypto_freesession(cse->cses);
 	mtx_destroy(&cse->lock);
 	if (cse->key)
-		free(cse->key, M_CRYPTODEV);
+		zfree(cse->key, M_CRYPTODEV);
 	if (cse->mackey)
-		free(cse->mackey, M_CRYPTODEV);
+		zfree(cse->mackey, M_CRYPTODEV);
 	free(cse, M_CRYPTODEV);
 }
 

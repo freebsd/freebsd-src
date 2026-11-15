@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: escape-layers-bare-var
+WantedFlags: libs
+ExpectedStdout: -L/test/a\ dir -la -Wl,--foo\\bar

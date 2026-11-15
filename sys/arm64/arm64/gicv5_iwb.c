@@ -626,7 +626,7 @@ static int
 gicv5_iwb_acpi_attach(device_t dev)
 {
 	struct gicv5_iwb_acpi_softc *sc;
-	u_int xref;
+	intptr_t xref;
 	int its_id;
 	int error;
 	int pxm;

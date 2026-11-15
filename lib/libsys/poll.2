@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 11, 2024
+.Dd November 8, 2026
 .Dt POLL 2
 .Os
 .Sh NAME
@@ -195,6 +195,18 @@ struct timespec {
 	long    tv_nsec;        /* and nanoseconds */
 };
 .Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn poll
+and
+.Fn ppoll
+system calls are not restarted after a signal handler returns,
+regardless of the
+.Dv SA_RESTART
+flag on the interrupting signal;
+they fail with
+.Er EINTR
+instead.
 .Sh RETURN VALUES
 The
 .Fn poll

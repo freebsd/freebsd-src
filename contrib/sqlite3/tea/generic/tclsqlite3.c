@@ -1135,7 +1135,7 @@ static void tclSqlFunc(sqlite3_context *context, int argc, sqlite3_value**argv){
     switch( eType ){
       case SQLITE_BLOB: {
         data = Tcl_GetByteArrayFromObj(pVar, &n);
-        sqlite3_result_blob(context, data, n, SQLITE_TRANSIENT);
+        sqlite3_result_blob64(context, data, n, SQLITE_TRANSIENT);
         break;
       }
       case SQLITE_INTEGER: {
@@ -1527,7 +1527,7 @@ static int dbPrepareAndBind(
           ** it has no string representation or the host
           ** parameter name begins with "@". */
           data = Tcl_GetByteArrayFromObj(pVar, &n);
-          sqlite3_bind_blob(pStmt, i, data, n, SQLITE_STATIC);
+          sqlite3_bind_blob64(pStmt, i, data, n, SQLITE_STATIC);
           Tcl_IncrRefCount(pVar);
           pPreStmt->apParm[iParm++] = pVar;
         }else if( c=='b' && pVar->bytes==0 
@@ -2071,6 +2071,7 @@ static void DbHookCmd(
 **     -defaultalign ("auto"|"left"|...)       Default alignment
 **     -titalalign ("auto"|"left"|"right"|...) Default column name alignment
 **     -border ("auto"|"off"|"on")             Border for box and table styles
+**     -rowcount ("auto"|"off"|"on")           Show row counts
 **     -wrap NUMBER                            Max width of any single column
 **     -screenwidth NUMBER                     Width of the display TTY
 **     -linelimit NUMBER                       Max lines for any cell
@@ -2083,6 +2084,8 @@ static void DbHookCmd(
 **     -rowsep TEXT                            Row separator text
 **     -tablename TEXT                         Table name for style "insert"
 **     -null TEXT                              Text for NULL values
+**     -ifmt STRING                            Format for integer values
+**     -fpfmt STRING                           Format for floating-point values
 **
 ** A mapping from TCL "format" command options to sqlite3_qrf_spec fields
 ** is below.  Use this to reference the QRF documentation:
@@ -2092,7 +2095,7 @@ static void DbHookCmd(
 **     -style            eStyle
 **     -esc              eEsc
 **     -text             eText
-**     -title            eTitle, bTitle
+**     -title            eTitle, bTitles
 **     -blob             eBlob
 **     -wordwrap         bWordWrap
 **     -textjsonb        bTextJsonb
@@ -2100,6 +2103,7 @@ static void DbHookCmd(
 **     -defaultalign     eDfltAlign
 **     -titlealign       eTitleAlign
 **     -border           bBorder
+**     -rowcount         bRowCount
 **     -wrap             nWrap
 **     -screenwidth      nScreenWidth
 **     -linelimit        nLineLimit
@@ -2112,6 +2116,28 @@ static void DbHookCmd(
 **     -rowsep           zRowSep
 **     -tablename        zTableName
 **     -null             zNull
+**     -ifmt             zIFmt
+**     -fpfmt            zFpFmt
+**
+** The TCL -title option maps to eTitle and bTitles as follows:
+**
+**     -title       eTitle              bTitles 
+**     -------      -----------------   ------------
+**     off          QRF_TEXT_Auto       QRF_Off
+**     on           QRF_TEXT_Auto       QRF_On
+**     always       QRF_TEXT_Auto       QRF_Always
+**     auto         QRF_TEXT_Auto       QRF_On
+**     csv          QRF_TEXT_Csv        QRF_On
+**     html         QRF_TEXT_Html       QRF_On
+**     json         QRF_TEXT_Json       QRF_On
+**     plain        QRF_TEXT_Plain      QRF_On
+**     relaxed      QRF_TEXT_Relaxed    QRF_On
+**     sql          QRF_TEXT_Sql        QRF_On
+**     tcl          QRF_TEXT_Tcl        QRF_On
+**
+** Note in particular that for the last seven entries ("csv" through "tcl"),
+** the CLI .mode --title option sets bTitles to QRF_Always, whereas this TCL
+** interface set it to QRF_On.
 */
 static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
 #ifndef SQLITE_QRF_H
@@ -2141,7 +2167,7 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
   };
 
   memset(&qrf, 0, sizeof(qrf));
-  qrf.iVersion = 1;
+  qrf.iVersion = 2;
   qrf.pzOutput = &zResult;
   for(i=2; i<objc; i++){
     const char *zArg = Tcl_GetString(objv[i]);
@@ -2155,7 +2181,7 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
       }
       zSql  = zArg;
     }else if( i==objc-1 ){
-      Tcl_AppendResult(pDb->interp, "option has no argument: ", zArg, (char*)0);
+      Tcl_AppendResult(pDb->interp, "option has no argument: ", zArg,(char*)0);
       rc = TCL_ERROR;
       goto format_failed;
     }else if( strcmp(zArg,"-style")==0 ){
@@ -2200,7 +2226,7 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
       /* NB: --title can be "off" or "on but --text may not be.  Thus we put
       ** the "off" and "on" choices first and start the search on the
       ** thrid element of the array when processing --text */
-      static const char *azText[] = {           "off",   "on",
+      static const char *azText[] = {           "off",   "on",  "always",
         "auto",             "csv",              "html",
         "json",             "plain",            "relaxed",
         "sql",              "tcl",              0
@@ -2212,17 +2238,20 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
       };
       int txt;
       int k = zArg[2]=='e';
-      rc = Tcl_GetIndexFromObj(pDb->interp, objv[i+1], &azText[k*2], zArg,
+      rc = Tcl_GetIndexFromObj(pDb->interp, objv[i+1], &azText[k*3], zArg,
                                0, &txt);
       if( rc ) goto format_failed;
       if( k ){
         qrf.eText = aTextMap[txt];
-      }else if( txt<=1 ){
-        qrf.bTitles = txt ? QRF_Yes : QRF_No;
+      }else if( txt<=2 ){
+        assert( QRF_No==1 );
+        assert( QRF_Yes==2 );
+        assert( QRF_Always==3 );
+        qrf.bTitles = txt+QRF_No;
         qrf.eTitle = QRF_TEXT_Auto;
       }else{
         qrf.bTitles = QRF_Yes;
-        qrf.eTitle = aTextMap[txt-2];
+        qrf.eTitle = aTextMap[txt-3];
       }
       i++;
     }else if( strcmp(zArg,"-blob")==0 ){
@@ -2252,6 +2281,7 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
     }else if( strcmp(zArg,"-textjsonb")==0
            || strcmp(zArg,"-splitcolumn")==0
            || strcmp(zArg,"-border")==0
+           || strcmp(zArg,"-rowcount")==0
     ){
       int v = 0;
       rc = Tcl_GetIndexFromObj(pDb->interp, objv[i+1], azBool,
@@ -2261,11 +2291,14 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
         qrf.bTextJsonb = aBoolMap[v];
       }else if( zArg[1]=='b' ){
         qrf.bBorder = aBoolMap[v];
+      }else if( zArg[1]=='r' ){
+        qrf.bRowCount = aBoolMap[v];
       }else{
         qrf.bSplitColumn = aBoolMap[v];
       }
       i++;
-    }else if( strcmp(zArg,"-defaultalign")==0 || strcmp(zArg,"-titlealign")==0){
+    }else if( strcmp(zArg,"-defaultalign")==0
+           || strcmp(zArg,"-titlealign")==0){
       int ax = 0;
       rc = Tcl_GetIndexFromObj(pDb->interp, objv[i+1], azAlign,
                     zArg[1]=='d' ?  "default alignment (-defaultalign)" :
@@ -2379,6 +2412,28 @@ static int dbQrf(SqliteDb *pDb, int objc, Tcl_Obj *const*objv){
       i++;
     }else if( strcmp(zArg,"-null")==0 ){
       qrf.zNull = Tcl_GetString(objv[i+1]);
+      i++;
+    }else if( strcmp(zArg,"-ifmt")==0 ){
+      char *zFmt = Tcl_GetString(objv[i+1]);
+      if( zFmt[0]==0 || strcmp(zFmt,"auto")==0 ){
+        zFmt = 0;
+      }else if( sqlite3_qrf_ckformat(zFmt)!=1 ){
+        Tcl_AppendResult(pDb->interp, "bad format for -ifmt", (char*)0);
+        rc = TCL_ERROR;
+        goto format_failed;
+      }
+      qrf.zIFmt = zFmt;
+      i++;
+    }else if( strcmp(zArg,"-fpfmt")==0 ){
+      char *zFmt = Tcl_GetString(objv[i+1]);
+      if( zFmt[0]==0 || strcmp(zFmt,"auto")==0 ){
+        zFmt = 0;
+      }else if( sqlite3_qrf_ckformat(zFmt)!=2 ){
+        Tcl_AppendResult(pDb->interp, "bad format for -fpfmt", (char*)0);
+        rc = TCL_ERROR;
+        goto format_failed;
+      }
+      qrf.zFpFmt = zFmt;
       i++;
     }else if( strcmp(zArg,"-version")==0 ){
       /* Undocumented. Testing use only */
@@ -3118,6 +3173,9 @@ static int SQLITE_TCLAPI DbObjCmd(
     if( zCommit[0] == 'C' ){
       /* success, set result as number of lines processed */
       pResult = Tcl_GetObjResult(interp);
+      if( Tcl_IsShared(pResult) ){
+        pResult = Tcl_DuplicateObj(pResult);
+      }
       Tcl_SetIntObj(pResult, lineno);
       rc = TCL_OK;
     }else{
@@ -4186,10 +4244,9 @@ deserialize_error:
       ** most recent sqlite3_stmt in the statement cache.
       */
       if( strcmp(zArg, "-last-stmt-ptr")==0 ){
-        char zBuf[100];
-        sqlite3_snprintf(sizeof(zBuf), zBuf, "%p",
-                         pDb->stmtList ? pDb->stmtList->pStmt: 0);
-        Tcl_SetResult(interp, zBuf, TCL_VOLATILE);
+        extern const char *sqlite3TestPtrToText(void*);
+        void *ptr = (void*)(pDb->stmtList ? pDb->stmtList->pStmt: 0);
+        Tcl_SetResult(interp, (char*)sqlite3TestPtrToText(ptr), TCL_VOLATILE);
       }else
 #endif /* SQLITE_TEST */
       {

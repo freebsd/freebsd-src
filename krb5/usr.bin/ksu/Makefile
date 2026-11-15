@@ -13,7 +13,7 @@ BINMODE=4555
 PRECIOUSPROG=
 .endif
 
-LIBADD=	krb5 k5crypto com_err krb5profile krb5support sys
+LIBADD=	krb5 k5crypto com_err krb5profile krb5support
 
 SRCS=	authorization.c \
 	ccache.c \

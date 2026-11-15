@@ -1,4 +1,4 @@
-/* $OpenBSD: sshpty.c,v 1.35 2026/02/11 17:05:32 dtucker Exp $ */
+/* $OpenBSD: sshpty.c,v 1.36 2026/09/15 06:30:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -37,10 +37,6 @@
 
 #ifdef HAVE_PTY_H
 # include <pty.h>
-#endif
-
-#ifndef O_NOCTTY
-#define O_NOCTTY 0
 #endif
 
 #ifdef __APPLE__
@@ -211,18 +207,4 @@ pty_setowner(struct passwd *pw, const char *tty)
 				    tty, (u_int)mode, strerror(errno));
 		}
 	}
-}
-
-/* Disconnect from the controlling tty. */
-void
-disconnect_controlling_tty(void)
-{
-#ifdef TIOCNOTTY
-	int fd;
-
-	if ((fd = open(_PATH_TTY, O_RDWR | O_NOCTTY)) >= 0) {
-		(void) ioctl(fd, TIOCNOTTY, NULL);
-		close(fd);
-	}
-#endif /* TIOCNOTTY */
 }

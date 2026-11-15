@@ -104,7 +104,7 @@ kobj_data_size_roundup(size_t size)
 static void
 kobj_class_init_total_size(kobj_class_t cls)
 {
-	kobj_class_t *bases;
+	const kobj_class_t *bases;
 	size_t size;
 	int i;
 
@@ -228,7 +228,7 @@ kobj_lookup_method_mi(kobj_class_t cls,
 		      kobjop_desc_t desc)
 {
 	kobj_method_t *ce;
-	kobj_class_t *basep;
+	const kobj_class_t *basep;
 
 	ce = kobj_lookup_method_class(cls, desc);
 	if (ce)
@@ -388,7 +388,7 @@ kobj_delete(kobj_t obj, struct malloc_type *mtype)
 static inline bool
 kobj_get_instance_offset(kobj_class_t cls, kobj_class_t subclass, size_t *offs)
 {
-	kobj_class_t *bases;
+	const kobj_class_t *bases;
 	size_t tmp;
 	int i;
 

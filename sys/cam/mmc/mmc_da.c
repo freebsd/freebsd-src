@@ -1031,19 +1031,24 @@ mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 }
 
 /*
- * Send the host settings of the ccb (ios, with ios_valid telling which ones
- * to change) to the controller.
+ * Change the host settings.  The request is queued to the SIM, which may do
+ * slow work that can sleep (changing clocks, tuning) outside of the CAM
+ * locks, so wait for it to complete.  Return an MMC error code.
  */
-static void
+#define	SDDA_HOST_IOS_TIMEOUT	10000	/* ms; tuning can take a while */
+
+static int
 sdda_set_host_ios(union ccb *ccb)
 {
 
-	ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+	ccb->ccb_h.func_code = XPT_MMC_SET_TRAN_SETTINGS;
 	ccb->ccb_h.flags = CAM_DIR_NONE;
 	ccb->ccb_h.retry_count = 0;
-	ccb->ccb_h.timeout = 100;
-	ccb->ccb_h.cbfcnp = NULL;
-	xpt_action(ccb);
+	ccb->ccb_h.timeout = SDDA_HOST_IOS_TIMEOUT;
+	cam_periph_runccb(ccb, NULL, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		return (MMC_ERR_FAILED);
+	return (MMC_ERR_NONE);
 }
 
 static int
@@ -1052,27 +1057,40 @@ mmc_set_timing(struct cam_periph *periph,
 	       enum mmc_bus_timing timing)
 {
 	u_char switch_res[64];
-	int err;
+	int err, host_err;
 	uint8_t	value;
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
 	struct mmc_params *mmcp = &periph->path->device->mmc_ident_data;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
 		  ("mmc_set_timing(timing=%d)", timing));
-	switch (timing) {
-	case bus_timing_normal:
-		value = 0;
-		break;
-	case bus_timing_hs:
-		value = 1;
-		break;
-	default:
-		return (MMC_ERR_INVALID);
-	}
 	if (mmcp->card_features & CARD_FEATURE_MMC) {
+		switch (timing) {
+		case bus_timing_normal:
+			value = EXT_CSD_HS_TIMING_BC;
+			break;
+		case bus_timing_hs:
+			value = EXT_CSD_HS_TIMING_HS;
+			break;
+		case bus_timing_mmc_hs200:
+			value = EXT_CSD_HS_TIMING_HS200;
+			break;
+		default:
+			return (MMC_ERR_INVALID);
+		}
 		err = mmc_switch(periph, ccb, EXT_CSD_CMD_SET_NORMAL,
 		    EXT_CSD_HS_TIMING, value, softc->cmd6_time);
 	} else {
+		switch (timing) {
+		case bus_timing_normal:
+			value = 0;
+			break;
+		case bus_timing_hs:
+			value = 1;
+			break;
+		default:
+			return (MMC_ERR_INVALID);
+		}
 		err = mmc_sd_switch(periph, ccb, SD_SWITCH_MODE_SET, SD_SWITCH_GROUP1, value, switch_res);
 	}
 
@@ -1081,9 +1099,9 @@ mmc_set_timing(struct cam_periph *periph,
 	cts = &ccb->cts.proto_specific.mmc;
 	cts->ios.timing = timing;
 	cts->ios_valid = MMC_BT;
-	sdda_set_host_ios(ccb);
+	host_err = sdda_set_host_ios(ccb);
 
-	return (err);
+	return (err != MMC_ERR_NONE ? err : host_err);
 }
 
 static void
@@ -1106,7 +1124,7 @@ sdda_start_init_task(void *context, int pending)
 	xpt_free_ccb(new_ccb);
 }
 
-static void
+static int
 sdda_set_bus_width(struct cam_periph *periph, union ccb *ccb, int width)
 {
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
@@ -1145,14 +1163,51 @@ sdda_set_bus_width(struct cam_periph *periph, union ccb *ccb, int width)
 
 	if (err != MMC_ERR_NONE) {
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Error %d when setting bus width on the card\n", err));
-		return;
+		return (err);
 	}
 	/* Now card is done, set the host to the same width */
 	struct ccb_trans_settings_mmc *cts;
 	cts = &ccb->cts.proto_specific.mmc;
 	cts->ios.bus_width = width;
 	cts->ios_valid = MMC_BW;
-	sdda_set_host_ios(ccb);
+	return (sdda_set_host_ios(ccb));
+}
+
+static int
+sdda_set_host_clock(union ccb *ccb, int clock)
+{
+	struct ccb_trans_settings_mmc *cts;
+
+	cts = &ccb->cts.proto_specific.mmc;
+	cts->ios.clock = clock;
+	cts->ios_valid = MMC_CLK;
+	return (sdda_set_host_ios(ccb));
+}
+
+/*
+ * Run HS200 at the maximum clock advertised by the host, unless
+ * hw.mmc.hs200_clock asks for a different one (for testing, or to work
+ * around a host that is unreliable at its advertised maximum).
+ */
+#define	SDDA_HS200_CLOCK_DEFAULT	0
+static u_long sdda_hs200_clock = SDDA_HS200_CLOCK_DEFAULT;
+TUNABLE_ULONG("hw.mmc.hs200_clock", &sdda_hs200_clock);
+
+/*
+ * Switch an eMMC card to HS200 (following "6.6.2.2 HS200 timing mode
+ * selection" of the eMMC specification v5.1).  The card must already use
+ * an 8-bit bus; the host performs the tuning when it is asked to switch to
+ * the 200MHz clock.
+ */
+static int
+sdda_set_hs200(struct cam_periph *periph, union ccb *ccb, int clock)
+{
+	int err;
+
+	err = mmc_set_timing(periph, ccb, bus_timing_mmc_hs200);
+	if (err != MMC_ERR_NONE)
+		return (err);
+	return (sdda_set_host_clock(ccb, clock));
 }
 
 static inline const char
@@ -1223,6 +1278,7 @@ sdda_start_init(void *context, union ccb *start_ccb)
 	int err;
 	int host_f_max;
 	uint8_t card_type;
+	bool use_hs200 = false;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sdda_start_init\n"));
 	/* periph was held for us when this task was enqueued */
@@ -1378,9 +1434,16 @@ sdda_start_init(void *context, union ccb *start_ccb)
 				setbit(&softc->vccq_180, bus_timing_mmc_hs200);
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Card supports HS200 at 1.8V\n"));
 			}
+			/* Check whether both ends support HS200. */
+			if (isset(&softc->timings, bus_timing_mmc_hs200) &&
+			    (host_caps & MMC_CAP_MMC_HS200_180) != 0)
+				use_hs200 = true;
 		}
 	}
+	/* A host whose maximum is exactly 100MHz can still run HS200 there. */
+	use_hs200 = use_hs200 && host_f_max >= SD_SDR50_MAX;
 	int f_max;
+	int hs200_clock;
 finish_hs_tests:
 	f_max = min(host_f_max, softc->card_f_max);
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Set SD freq to %d MHz (min out of host f=%d MHz and card f=%d MHz)\n", f_max  / 1000000, host_f_max / 1000000, softc->card_f_max / 1000000));
@@ -1395,8 +1458,19 @@ finish_hs_tests:
 	}
 	/* If possible, set lower-level signaling */
 	enum mmc_bus_timing timing;
-	/* FIXME: MMCCAM supports max. bus_timing_mmc_ddr52 at the moment. */
-	for (timing = bus_timing_mmc_ddr52; timing > bus_timing_normal; timing--) {
+	if (use_hs200) {
+		/* HS200/HS400 only exist at 1.8V (or 1.2V) signaling. */
+		cts->ios.vccq = vccq_180;
+		cts->ios_valid = MMC_VCCQ;
+		if (sdda_set_host_ios(start_ccb) != MMC_ERR_NONE) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+			    ("Cannot set VCCQ to 1.8V, not using HS200\n"));
+			use_hs200 = false;
+		}
+	}
+	for (timing = bus_timing_mmc_ddr52;
+	    timing > bus_timing_normal && !use_hs200;
+	    timing--) {
 		if (isset(&softc->vccq_120, timing)) {
 			/* Set VCCQ = 1.2V */
 			cts->ios.vccq = vccq_120;
@@ -1446,7 +1520,32 @@ finish_hs_tests:
 		   bus_width_str(desired_bus_width),
 		   bus_width_str(max_host_bus_width),
 		   bus_width_str(max_card_bus_width)));
-	sdda_set_bus_width(periph, start_ccb, desired_bus_width);
+	err = sdda_set_bus_width(periph, start_ccb, desired_bus_width);
+	if (err != MMC_ERR_NONE) {
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+		    ("Cannot set bus width to %s, err %d\n",
+		    bus_width_str(desired_bus_width), err));
+	}
+
+	hs200_clock = (int)sdda_hs200_clock;
+	if (hs200_clock == 0)
+		hs200_clock = host_f_max;
+	if (use_hs200) {
+		err = sdda_set_hs200(periph, start_ccb, hs200_clock);
+	} else
+		err = MMC_ERR_NONE;
+	if (err != MMC_ERR_NONE) {
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+		    ("Cannot switch to HS200, err %d, falling back to "
+		    "high speed\n", err));
+		sdda_set_host_clock(start_ccb, MMC_TYPE_HS_52_MAX);
+		mmc_set_timing(periph, start_ccb, bus_timing_hs);
+		sdda_set_bus_width(periph, start_ccb, desired_bus_width);
+	} else if (use_hs200) {
+		softc->card_f_max = hs200_clock;
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+		    ("Card switched to HS200\n"));
+	}
 
 	softc->state = SDDA_STATE_NORMAL;
 
@@ -1930,6 +2029,15 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 		/* Complete partition switch */
 		softc->state = SDDA_STATE_NORMAL;
 		if (error != 0) {
+			/*
+			 * The switch failed.  Fail the I/O queued for the
+			 * requested partition, otherwise it would be retried
+			 * forever.
+			 */
+			if (softc->part[softc->part_requested] != NULL)
+				bioq_flush(&softc->part[
+				    softc->part_requested]->bio_queue,
+				    NULL, EIO);
 			/* TODO: Unpause retune if accessing RPMB */
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);

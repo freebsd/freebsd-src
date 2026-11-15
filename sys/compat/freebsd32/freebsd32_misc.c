@@ -3894,6 +3894,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		return (cpu_procctl(td, uap->idtype, PAIR32TO64(id_t, uap->id),
 		    uap->com, PTRIN(uap->data)));
 
+	bzero(&x, sizeof(x));
 	switch (uap->com) {
 	case PROC_ASLR_CTL:
 	case PROC_PROTMAX_CTL:

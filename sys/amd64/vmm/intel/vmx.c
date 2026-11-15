@@ -3922,6 +3922,26 @@ vmx_set_tmr(struct vlapic *vlapic, int vector, bool level)
 }
 
 static void
+vmx_reset_tmr(struct vlapic *vlapic)
+{
+	struct vlapic_vtx *vlapic_vtx;
+	struct vmcs *vmcs;
+
+	KASSERT(!vcpu_is_running(vlapic->vcpu, NULL),
+	    ("vmx_reset_tmr: vcpu cannot be running"));
+
+	vlapic_vtx = (struct vlapic_vtx *)vlapic;
+	vmcs = vlapic_vtx->vcpu->vmcs;
+
+	VMPTRLD(vmcs);
+	vmcs_write(VMCS_EOI_EXIT0, 0);
+	vmcs_write(VMCS_EOI_EXIT1, 0);
+	vmcs_write(VMCS_EOI_EXIT2, 0);
+	vmcs_write(VMCS_EOI_EXIT3, 0);
+	VMCLEAR(vmcs);
+}
+
+static void
 vmx_enable_x2apic_mode_ts(struct vlapic *vlapic)
 {
 	struct vlapic_vtx *vlapic_vtx;
@@ -4121,6 +4141,7 @@ vmx_vlapic_init(void *vcpui)
 		vlapic->ops.pending_intr = vmx_pending_intr;
 		vlapic->ops.intr_accepted = vmx_intr_accepted;
 		vlapic->ops.set_tmr = vmx_set_tmr;
+		vlapic->ops.reset_tmr = vmx_reset_tmr;
 		vlapic->ops.enable_x2apic_mode = vmx_enable_x2apic_mode_vid;
 	}
 

@@ -18,11 +18,9 @@
 
 #ifdef WITH_OPENSSL
 #include <openssl/bn.h>
+#include <openssl/ec.h>
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
-#ifdef OPENSSL_HAS_NISTP256
-# include <openssl/ec.h>
-#endif /* OPENSSL_HAS_NISTP256 */
 #endif /* WITH_OPENSSL */
 
 #include "../test_helper/test_helper.h"
@@ -162,7 +160,7 @@ sshkey_file_tests(void)
 
 	sshkey_free(k1);
 
-#ifdef OPENSSL_HAS_ECC
+
 	TEST_START("parse ECDSA from private");
 	buf = load_file("ecdsa_1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
@@ -262,7 +260,6 @@ sshkey_file_tests(void)
 	TEST_DONE();
 
 	sshkey_free(k1);
-#endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 
 	TEST_START("parse Ed25519 from private");
@@ -396,7 +393,7 @@ sshkey_file_tests(void)
 	sshkey_free(k1);
 
 #ifdef ENABLE_SK
-#if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
+#if defined(WITH_OPENSSL)
 	TEST_START("parse ECDSA-SK from private");
 	buf = load_file("ecdsa_sk1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);

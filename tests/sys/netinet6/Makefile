@@ -4,6 +4,7 @@ TESTSDIR=	${TESTSBASE}/sys/netinet6
 BINDIR=		${TESTSDIR}
 FILESDIR=	${TESTSDIR}
 
+ATF_TESTS_C=		udp6
 ATF_TESTS_PYTEST=	test_ip6_output.py
 ATF_TESTS_SH=		exthdr \
 			mld \

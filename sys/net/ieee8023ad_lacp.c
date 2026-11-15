@@ -960,6 +960,8 @@ lacp_aggregator_bandwidth(struct lacp_aggregator *la)
 	}
 
 	speed = ifmedia_baudrate(lp->lp_media);
+	if (speed == 0)
+		speed = lp->lp_ifp->if_baudrate;
 	speed *= la->la_nports;
 	if (speed == 0) {
 		LACP_DPRINTF((lp, "speed 0? media=0x%x nports=%d\n",

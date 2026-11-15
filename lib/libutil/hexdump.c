@@ -35,11 +35,11 @@
  */
 
 #include <sys/types.h>
-#include <libutil.h>
 #include <stdio.h>
+#include <libutil.h>
 
 void
-hexdump(const void *ptr, int length, const char *hdr, int flags)
+fhexdump(FILE *fp, const void *ptr, int length, const char *hdr, int flags)
 {
 	int i, j, k;
 	int cols;
@@ -59,35 +59,40 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 	cp = ptr;
 	for (i = 0; i < length; i+= cols) {
 		if (hdr != NULL)
-			printf("%s", hdr);
+			fprintf(fp, "%s", hdr);
 
 		if ((flags & HD_OMIT_COUNT) == 0)
-			printf("%04x  ", i);
+			fprintf(fp, "%04x  ", i);
 
 		if ((flags & HD_OMIT_HEX) == 0) {
 			for (j = 0; j < cols; j++) {
 				k = i + j;
 				if (k < length)
-					printf("%c%02x", delim, cp[k]);
+					fprintf(fp, "%c%02x", delim, cp[k]);
 				else
-					printf("   ");
+					fprintf(fp, "   ");
 			}
 		}
 
 		if ((flags & HD_OMIT_CHARS) == 0) {
-			printf("  |");
+			fprintf(fp, "  |");
 			for (j = 0; j < cols; j++) {
 				k = i + j;
 				if (k >= length)
-					printf(" ");
+					fprintf(fp, " ");
 				else if (cp[k] >= ' ' && cp[k] <= '~')
-					printf("%c", cp[k]);
+					fprintf(fp, "%c", cp[k]);
 				else
-					printf(".");
+					fprintf(fp, ".");
 			}
-			printf("|");
+			fprintf(fp, "|");
 		}
-		printf("\n");
+		fprintf(fp, "\n");
 	}
 }
 
+void
+hexdump(const void *ptr, int length, const char *hdr, int flags)
+{
+	fhexdump(stdout, ptr, length, hdr, flags);
+}

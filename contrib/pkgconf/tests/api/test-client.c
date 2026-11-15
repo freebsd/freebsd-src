@@ -291,6 +291,26 @@ test_client_preload_from_environ(void)
 	pkgconf_client_free(client);
 }
 
+static void
+test_client_preload_path_transfers_reference(void)
+{
+	const char *path = "test-client-preload.pc";
+	FILE *f = fopen(path, "wb");
+	TEST_ASSERT_NONNULL(f);
+	fputs("Name: preload\nDescription: preload\nVersion: 1.0\n", f);
+	fclose(f);
+
+	pkgconf_client_t *client = test_client_new();
+	TEST_ASSERT_TRUE(pkgconf_client_preload_path(client, path));
+	TEST_ASSERT_NONNULL(client->preloaded_pkgs.head);
+
+	pkgconf_pkg_t *pkg = client->preloaded_pkgs.head->data;
+	TEST_ASSERT_EQ(pkg->refcount, 1);
+
+	pkgconf_client_free(client);
+	remove(path);
+}
+
 #ifndef PKGCONF_LITE
 static void
 test_client_trace_null_client(void)
@@ -309,6 +329,7 @@ main(int argc, char *argv[])
 	TEST_RUN(basename, test_client_init_and_deinit_stack);
 	TEST_RUN(basename, test_client_init_system_paths_from_environ);
 	TEST_RUN(basename, test_client_preload_from_environ);
+	TEST_RUN(basename, test_client_preload_path_transfers_reference);
 
 	TEST_RUN(basename, test_client_sysroot_dir);
 	TEST_RUN(basename, test_client_buildroot_dir);

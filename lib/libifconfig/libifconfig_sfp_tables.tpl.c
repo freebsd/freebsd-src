@@ -60,7 +60,7 @@ for _, ent in ipairs(enums) do
 static const struct sfp_enum_metadata {*name*}_table_[] = {
 {%
         for _, item in ipairs(enum.values) do
-            _, sym, desc, disp = table.unpack(item)
+            sym, desc, disp = select(2, table.unpack(item))
             local symbol = string.upper(name).."_"..sym
 %}
 	{

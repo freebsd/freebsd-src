@@ -3284,7 +3284,8 @@ key_delsav(struct secasvar *sav)
 		rm_destroy(sav->lock);
 		free(sav->lock, M_IPSEC_MISC);
 		uma_zfree_pcpu(ipsec_key_lft_zone, sav->lft_c);
-	}
+	} else
+		key_freesah(&sav->sah);
 #ifdef IPSEC_OFFLOAD
 	/* XXXKIB should this be moved to key_cleansav()? */
 	uma_zfree_pcpu(ipsec_key_lft_zone, sav->accel_lft_sw);
@@ -5504,9 +5505,12 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 	}
 	/*
 	 * isnew == 1 -> @sah was referenced by key_getsah().
-	 * isnew == 0 -> we use the same @sah, that was used by @sav,
-	 *	and we use its reference for @newsav.
+	 * isnew == 0 -> we use the same @sah, that was used by @sav.
+	 * @sav keeps its own reference until key_delsav(): a sender that
+	 * still holds @sav reads its SAH.
 	 */
+	if (isnew == 0)
+		SAH_ADDREF(sah);
 	SECASVAR_WLOCK(sav);
 	/* XXX: replace cntr with pointer? */
 	newsav->cntr = sav->cntr;

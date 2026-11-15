@@ -980,7 +980,11 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
   struct bundle *bundle = ipcp->fsm.bundle;
   struct iface *iface = bundle->iface;
   struct in_addr myaddr, peer;
+  struct fsm_opt opt;
   unsigned n;
+
+  opt.hdr.id = TY_IPADDR;
+  opt.hdr.len = 6;
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
     ncprange_getip4addr(&ipcp->cfg.my_range, &myaddr);
@@ -1009,15 +1013,11 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
       }
 
       if (ipcp->peer_ip.s_addr == INADDR_ANY) {
-        *dec->rejend++ = TY_IPADDR;
-        *dec->rejend++ = 6;
-        memcpy(dec->rejend, &ip.s_addr, 4);
-        dec->rejend += 4;
+        memcpy(opt.data, &ip.s_addr, 4);
+        fsm_rej(dec, &opt);
       } else {
-        *dec->nakend++ = TY_IPADDR;
-        *dec->nakend++ = 6;
-        memcpy(dec->nakend, &ipcp->peer_ip.s_addr, 4);
-        dec->nakend += 4;
+        memcpy(opt.data, &ipcp->peer_ip.s_addr, 4);
+        fsm_nak(dec, &opt);
       }
       return;
     }
@@ -1027,27 +1027,23 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
      * If the destination address is not acceptable, NAK with what we
      * want to use.
      */
-    *dec->nakend++ = TY_IPADDR;
-    *dec->nakend++ = 6;
     for (n = 0; n < iface->addrs; n++)
       if (ncprange_contains(&ipcp->cfg.peer_range, &iface->addr[n].peer)) {
         /* We prefer the already-configured address */
-        ncpaddr_getip4addr(&iface->addr[n].peer, (u_int32_t *)dec->nakend);
+        ncpaddr_getip4addr(&iface->addr[n].peer, (u_int32_t *)opt.data);
         break;
       }
 
     if (n == iface->addrs)
-      memcpy(dec->nakend, &ipcp->peer_ip.s_addr, 4);
+      memcpy(opt.data, &ipcp->peer_ip.s_addr, 4);
 
-    dec->nakend += 4;
+    fsm_nak(dec, &opt);
     return;
   }
 
   ipcp->peer_ip = ip;
-  *dec->ackend++ = TY_IPADDR;
-  *dec->ackend++ = 6;
-  memcpy(dec->ackend, &ip.s_addr, 4);
-  dec->ackend += 4;
+  memcpy(opt.data, &ip.s_addr, 4);
+  fsm_ack(dec, &opt);
 }
 
 static void

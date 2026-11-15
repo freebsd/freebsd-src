@@ -324,6 +324,52 @@ pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
 		    pci_addr, size));
 }
 
+#define	DW_LINK_CTL2_TARGET_SPEED	0x000f
+
+static void
+pci_dw_set_max_link_speed(struct pci_dw_softc *sc)
+{
+	uint32_t reg;
+	uint16_t ctl2;
+	u_int cap, ptr, n;
+
+	if (sc->max_link_speed == 0)
+		return;
+	if (sc->max_link_speed > 4) {
+		device_printf(sc->dev,
+		    "'max-link-speed' property have invalid value: %u\n",
+		    sc->max_link_speed);
+		return;
+	}
+
+	/* Find the PCI Express capability of the root port. */
+	cap = 0;
+	ptr = DBI_RD1(sc, PCIR_CAP_PTR) & ~3;
+	for (n = 0; ptr != 0 && n < 48; n++) {
+		if (DBI_RD1(sc, ptr + PCICAP_ID) == PCIY_EXPRESS) {
+			cap = ptr;
+			break;
+		}
+		ptr = DBI_RD1(sc, ptr + PCICAP_NEXTPTR) & ~3;
+	}
+	if (cap == 0) {
+		device_printf(sc->dev,
+		    "Cannot find the PCI Express capability\n");
+		return;
+	}
+
+	pci_dw_dbi_protect(sc, false);
+	reg = DBI_RD4(sc, cap + PCIER_LINK_CAP);
+	reg &= ~PCIEM_LINK_CAP_MAX_SPEED;
+	reg |= sc->max_link_speed;
+	DBI_WR4(sc, cap + PCIER_LINK_CAP, reg);
+	ctl2 = DBI_RD2(sc, cap + PCIER_LINK_CTL2);
+	ctl2 &= ~DW_LINK_CTL2_TARGET_SPEED;
+	ctl2 |= sc->max_link_speed;
+	DBI_WR2(sc, cap + PCIER_LINK_CTL2, ctl2);
+	pci_dw_dbi_protect(sc, true);
+}
+
 static int
 pci_dw_setup_hw(struct pci_dw_softc *sc)
 {
@@ -420,6 +466,8 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 		break;
 	}
 	DBI_WR4(sc, DW_GEN2_CTRL, reg);
+
+	pci_dw_set_max_link_speed(sc);
 
 	reg = DBI_RD4(sc, DW_GEN2_CTRL);
 	reg |= DIRECT_SPEED_CHANGE;
@@ -761,6 +809,12 @@ pci_dw_init(device_t dev)
 	if (rv != sizeof(sc->num_lanes))
 		sc->num_lanes = 1;
 	dprintf("%s: num lanes: %d\n", __func__, sc->num_lanes);
+
+	rv = OF_getencprop(sc->node, "max-link-speed", &sc->max_link_speed,
+	    sizeof(sc->max_link_speed));
+	if (rv != sizeof(sc->max_link_speed))
+		sc->max_link_speed = 0;
+	dprintf("%s: max link speed: %u\n", __func__, sc->max_link_speed);
 
 	if (sc->num_lanes != 1 && sc->num_lanes != 2 &&
 	    sc->num_lanes != 4 && sc->num_lanes != 8) {

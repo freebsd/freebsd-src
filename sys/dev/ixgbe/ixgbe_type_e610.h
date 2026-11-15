@@ -140,6 +140,23 @@
 #define E610_SR_NVM_CTRL_WORD		0x00
 #define E610_SR_PBA_BLOCK_PTR		0x16
 
+/* Link Default Override TLV in PFA */
+#define E610_SR_LINK_DEFAULT_OVERRIDE_PTR	0x134
+#define E610_SR_PFA_LINK_OVERRIDE_WORDS		10
+#define E610_SR_PFA_LINK_OVERRIDE_PHY_WORDS	8
+#define E610_SR_PFA_LINK_OVERRIDE_OFFSET	2
+
+/* Link Options bits */
+#define IXGBE_LINK_OVERRIDE_PORT_DIS		BIT(2)
+
+#pragma pack(1)
+struct ixgbe_link_default_override_tlv {
+	u16 link_options;	/* Port Options 0: only PORT_DIS is consumed */
+	u16 phy_options;	/* Port Options 1 */
+	u16 phy_types[E610_SR_PFA_LINK_OVERRIDE_PHY_WORDS];	/* words 2-9 */
+};
+#pragma pack()
+
 /* The Orom version topology */
 #define IXGBE_OROM_VER_PATCH_SHIFT	0
 #define IXGBE_OROM_VER_PATCH_MASK	(0xff << IXGBE_OROM_VER_PATCH_SHIFT)

@@ -498,12 +498,14 @@ enum bnxt_phy_type {
 	BNXT_MEDIA_LR,
 	BNXT_MEDIA_SR,
 	BNXT_MEDIA_ER,
+	BNXT_MEDIA_FR,
 	BNXT_MEDIA_KR,
 	BNXT_MEDIA_AC,
 	BNXT_MEDIA_BASECX,
 	BNXT_MEDIA_BASET,
 	BNXT_MEDIA_BASEKX,
 	BNXT_MEDIA_BASESGMII,
+	BNXT_MEDIA_DR,
 	BNXT_MEDIA_END
 };
 
@@ -964,6 +966,8 @@ struct bnxt_ctx_mem_type {
 	struct bnxt_ctx_pg_info	*pg_info;
 };
 
+#define BNXT_CTX_MRAV_AV_SPLIT_ENTRY	0
+
 #define BNXT_CTX_QP	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QP
 #define BNXT_CTX_SRQ	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_SRQ
 #define BNXT_CTX_CQ	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_CQ
@@ -1253,6 +1257,10 @@ struct bnxt_bs_trace_info {
 
 struct bnxt_logger;
 
+#define BNXT_HWRM_VER_CODE_EXT(maj, mnr, upd, rsv)			\
+	(((uint32_t)(maj) << 24) | ((uint32_t)(mnr) << 16) |		\
+	((uint32_t)(upd) << 8) | (uint32_t)(rsv))
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -1326,6 +1334,7 @@ struct bnxt_softc {
 	uint16_t		hwrm_max_req_len;
 	uint16_t		hwrm_max_ext_req_len;
 	uint32_t		hwrm_spec_code;
+	uint32_t		hwrm_spec_code_ext;
 
 #define BNXT_MAX_QUEUE	8
 	uint8_t			max_tc;
@@ -1596,6 +1605,7 @@ struct bnxt_softc {
 	struct sysctl_ctx_list	mpc_cmp_time_stats;
 	struct sysctl_oid	*mpc_cmp_time_stats_oid;
 	uint32_t		max_ktls_entries;
+	bool			disable_hw_ktls;
 
 #define BNXT_CAGR_CQCOAL_OFFSET			0xc00
 #define BNXT_CAGR_NQAGG_MAXTIMER		0x5930000

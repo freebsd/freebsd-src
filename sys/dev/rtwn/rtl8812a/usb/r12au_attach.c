@@ -78,7 +78,7 @@ r12au_postattach(struct rtwn_softc *sc)
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
 	struct r12a_softc *rs = sc->sc_priv;
 
-	if (usbd_get_speed(uc->uc_udev) == USB_SPEED_SUPER) {
+	if (usbd_get_speed(uc->uc_udev) >= USB_SPEED_SUPER) {
 		rs->ac_usb_dma_size = 0x07;
 		rs->ac_usb_dma_time = 0x1a;
 	} else {

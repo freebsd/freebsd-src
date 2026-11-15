@@ -161,6 +161,55 @@ rk_clk_mux_set_mux(struct clknode *clk, int idx)
 	return(0);
 }
 
+/*
+ * The parents are fixed rate clocks (possibly shared with other consumers),
+ * so only select the one that is the closest to the requested rate according
+ * to the rounding flags and leave its rate alone.
+ */
+static int
+rk_clk_mux_round_parent(struct clknode *clk, uint64_t *fout, int flags,
+    int *stop)
+{
+	struct clknode *p_clk;
+	const char **p_names;
+	uint64_t pfreq, best_freq, diff, best_diff;
+	int p_idx, best_idx, round;
+
+	round = CLK_SET_ROUND(flags);
+	p_names = clknode_get_parent_names(clk);
+	best_idx = -1;
+	best_freq = 0;
+	best_diff = 0;
+	for (p_idx = 0; p_idx != clknode_get_parents_num(clk); p_idx++) {
+		p_clk = clknode_find_by_name(p_names[p_idx]);
+		if (p_clk == NULL || clknode_get_freq(p_clk, &pfreq) != 0)
+			continue;
+		if (round == CLK_SET_ROUND_DOWN && pfreq > *fout)
+			continue;
+		if (round == CLK_SET_ROUND_UP && pfreq < *fout)
+			continue;
+		if (round == CLK_SET_ROUND_EXACT && pfreq != *fout)
+			continue;
+		diff = pfreq > *fout ? pfreq - *fout : *fout - pfreq;
+		if (best_idx == -1 || diff < best_diff) {
+			best_idx = p_idx;
+			best_freq = pfreq;
+			best_diff = diff;
+		}
+	}
+	if (best_idx == -1)
+		return (ERANGE);
+
+	*stop = 1;
+	*fout = best_freq;
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
+	if (clknode_get_parent_idx(clk) != best_idx)
+		return (clknode_set_parent_by_idx(clk, best_idx));
+	return (0);
+}
+
 static int
 rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
     int flags, int *stop)
@@ -177,6 +226,8 @@ rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		*stop = 1;
 		return (ENOTSUP);
 	}
+	if ((sc->mux_flags & RK_CLK_MUX_ROUND_PARENT) != 0)
+		return (rk_clk_mux_round_parent(clk, fout, flags, stop));
 	if ((sc->mux_flags & RK_CLK_MUX_REPARENT) == 0) {
 		*stop = 0;
 		return (0);

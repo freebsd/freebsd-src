@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2004-2009 Apple Inc.
+ * Copyright (c) 2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -202,6 +208,20 @@ typedef struct {
 	u_int16_t	 len;
 	char		*text;
 } au_arg64_t;
+
+/*
+ * token ID                1 byte
+ * argument #              1 byte
+ * uuid                    16 bytes
+ * text length             2 bytes
+ * text                    N bytes + 1 terminating NULL byte
+ */
+typedef struct {
+	u_char		no;
+	u_int8_t	uuid[16];
+	u_int16_t	len;
+	char		*text;
+} au_arg_uuid_t;
 
 /*
  * how to print            1 byte
@@ -528,6 +548,20 @@ typedef struct {
 } au_ret64_t;
 
 /*
+ * token ID                1 byte
+ * return value #          1 byte
+ * uuid                    16 bytes
+ * text length             2 bytes
+ * text                    N bytes + 1 terminating NULL byte
+ */
+typedef struct {
+	u_char		 no;
+	u_int8_t	 uuid[16];
+	u_int16_t	 len;
+	char		*text;
+} au_ret_uuid_t;
+
+/*
  * sequence number         4 bytes
  */
 typedef struct {
@@ -741,6 +775,7 @@ struct tokenstr {
 	union {
 		au_arg32_t		arg32;
 		au_arg64_t		arg64;
+		au_arg_uuid_t		arg_uuid;
 		au_arb_t		arb;
 		au_attr32_t		attr32;
 		au_attr64_t		attr64;
@@ -767,6 +802,7 @@ struct tokenstr {
 		au_proc64ex_t		proc64_ex;
 		au_ret32_t		ret32;
 		au_ret64_t		ret64;
+		au_ret_uuid_t		ret_uuid;
 		au_seq_t		seq;
 		au_socket_t		socket;
 		au_socket_ex32_t	socket_ex32;

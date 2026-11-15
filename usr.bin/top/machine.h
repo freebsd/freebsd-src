@@ -82,8 +82,8 @@ struct process_select
 struct handle;
 
 char	*format_header(const char *uname_field);
-char	*format_next_process(struct handle* handle, char *(*get_userid)(int),
-	    int flags);
+char	*format_next_process(struct handle *handle, char *(*get_userid)(int),
+	    int flags, pid_t *pid);
 void	 toggle_pcpustats(void);
 void	 get_system_info(struct system_info *si);
 int	 machine_init(struct statics *statics);

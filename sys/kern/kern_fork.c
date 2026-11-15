@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 
@@ -57,6 +58,9 @@
 #include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/procdesc.h>
 #include <sys/ptrace.h>
@@ -70,9 +74,9 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
-#include <sys/unistd.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -124,6 +128,12 @@ sys_fork(struct thread *td, struct fork_args *uap)
 int
 sys_pdfork(struct thread *td, struct pdfork_args *uap)
 {
+	return (kern_pdfork(td, uap->fdp, uap->flags));
+}
+
+int
+kern_pdfork(struct thread *td, int *fdp, int flags)
+{
 	struct fork_req fr;
 	struct filecaps fcaps;
 	int error, fd, pid;
@@ -132,12 +142,12 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 	fr.fr_flags = RFFDG | RFPROC | RFPROCDESC;
 	fr.fr_pidp = &pid;
 	fr.fr_pd_fd = &fd;
-	fr.fr_pd_flags = uap->flags;
+	fr.fr_pd_flags = flags;
 	filecaps_fill(&fcaps);
-	if ((uap->flags & PD_PTRACE_CAP) == 0)
+	if ((flags & PD_PTRACE_CAP) == 0)
 		cap_rights_clear(&fcaps.fc_rights, CAP_PTRACE);
 	fr.fr_pd_fcaps = &fcaps;
-	AUDIT_ARG_FFLAGS(uap->flags);
+	AUDIT_ARG_FFLAGS(flags);
 	/*
 	 * It is necessary to return fd by reference because 0 is a valid file
 	 * descriptor number, and the child needs to be able to distinguish
@@ -147,7 +157,7 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 	if (error == 0) {
 		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
-		error = copyout(&fd, uap->fdp, sizeof(fd));
+		error = copyout(&fd, fdp, sizeof(fd));
 	}
 	return (error);
 }
@@ -204,6 +214,12 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 int
 sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
 {
+	return (kern_pdrfork(td, uap->fdp, uap->pdflags, uap->rfflags));
+}
+
+int
+kern_pdrfork(struct thread *td, int *fdp, int pdflags, int rfflags)
+{
 	struct fork_req fr;
 	struct filecaps fcaps;
 	int error, fd, pid;
@@ -211,35 +227,34 @@ sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
 	bzero(&fr, sizeof(fr));
 	fd = -1;
 
-	AUDIT_ARG_FFLAGS(uap->pdflags);
-	AUDIT_ARG_CMD(uap->rfflags);
+	AUDIT_ARG_FFLAGS(pdflags);
+	AUDIT_ARG_CMD(rfflags);
 
-	if ((uap->rfflags & (RFSTOPPED | RFHIGHPID)) != 0)
+	if ((rfflags & (RFSTOPPED | RFHIGHPID)) != 0)
 		return (EXTERROR(EINVAL,
-		    "Kernel-only flags %#jx", uap->rfflags));
+		    "Kernel-only flags %#jx", rfflags));
 
 	/* RFSPAWN must not appear with others */
-	if ((uap->rfflags & RFSPAWN) != 0) {
-		if (uap->rfflags != RFSPAWN)
+	if ((rfflags & RFSPAWN) != 0) {
+		if (rfflags != RFSPAWN)
 			return (EXTERROR(EINVAL,
-			    "RFSPAWN must be the only flag %#jx",
-			    uap->rfflags));
+			    "RFSPAWN must be the only flag %#jx", rfflags));
 		fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM | RFPROCDESC;
 		fr.fr_flags2 = FR2_DROPSIG_CAUGHT;
 	} else {
-		if ((uap->rfflags & (RFPROC | RFPROCDESC)) !=
+		if ((rfflags & (RFPROC | RFPROCDESC)) !=
 		    (RFPROC | RFPROCDESC)) {
 			return (EXTERROR(EINVAL,
-			    "RFPROC|RFPROCDESC required %#jx", uap->rfflags));
+			    "RFPROC|RFPROCDESC required %#jx", rfflags));
 		}
-		fr.fr_flags = uap->rfflags;
+		fr.fr_flags = rfflags;
 	}
 
 	fr.fr_pidp = &pid;
 	fr.fr_pd_fd = &fd;
-	fr.fr_pd_flags = uap->pdflags;
+	fr.fr_pd_flags = pdflags;
 	filecaps_fill(&fcaps);
-	if ((uap->pdflags & PD_PTRACE_CAP) == 0)
+	if ((pdflags & PD_PTRACE_CAP) == 0)
 		cap_rights_clear(&fcaps.fc_rights, CAP_PTRACE);
 	fr.fr_pd_fcaps = &fcaps;
 	error = fork1(td, &fr);
@@ -247,8 +262,8 @@ sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
 		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
 		if ((fr.fr_flags & (RFPROC | RFPROCDESC)) ==
-		    (RFPROC | RFPROCDESC) || uap->rfflags == RFSPAWN)
-			error = copyout(&fd, uap->fdp, sizeof(fd));
+		    (RFPROC | RFPROCDESC) || rfflags == RFSPAWN)
+			error = copyout(&fd, fdp, sizeof(fd));
 	}
 	return (error);
 }
@@ -1219,6 +1234,12 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	    td, td_get_sched(td), p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
+
+#ifdef HWPMC_HOOKS
+	/* First-run threads bypass the normal scheduler switch-in path. */
+	if (PMC_PROC_IS_USING_PMCS(p))
+		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
+#endif
 
 	/*
 	 * Processes normally resume in mi_switch() after being

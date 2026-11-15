@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 25, 2022
+.Dd February 6, 2026
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
@@ -170,7 +170,7 @@ configured using
 seconds) is taken by the driver.
 If present, the PingTimeout can be set to any positive value
 starting with
-.Qq Ar 1 .
+.Qq Ar 0.1 .
 .It Cm LoginTimeout
 Specify the time in seconds to wait for a login PDU to be sent or
 received after trying to establish a new session.
@@ -181,7 +181,7 @@ If this entry is not present in the conf file, the default value of
 seconds is used, as configured by
 .Qq Ar kern.iscsi.login_timeout .
 The LoginTimeout can be set to any positive value starting with
-.Qq Ar 1 .
+.Qq Ar 0.1 .
 .El
 .Sh FILES
 .Bl -tag -width indent

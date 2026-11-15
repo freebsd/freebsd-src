@@ -25,15 +25,16 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/mman.h>
 #include <netinet/in.h>
 #include <fcntl.h>
-#include <stdlib.h>
 #include <poll.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -185,7 +186,8 @@ common_cleanup(struct ctx *c)
 }
 
 static void *
-server_thread(void *arg) {
+server_thread(void *arg)
+{
 	struct ctx *c = arg;
 	SSL_CTX *srv;
 	SSL *ssl;
@@ -348,11 +350,21 @@ ATF_TC_BODY(random, tc)
 		require_sbytes(&c, (ssize_t)expect);
 	}
 
-        common_cleanup(&c);
+	common_cleanup(&c);
 }
 
 /* Truncate the file while sendfile(2) is working on it. */
-ATF_TC_WITHOUT_HEAD(truncate);
+ATF_TC(truncate);
+ATF_TC_HEAD(truncate, tc)
+{
+	/*
+	 * NOTE: Slow platforms (including CI) fail intermittently with the
+	 * default timeout. Double the default timeout to reduce false
+	 * positives.
+	 */
+	atf_tc_set_md_var(tc, "timeout", "600");
+}
+
 ATF_TC_BODY(truncate, tc)
 {
 	struct ctx c;
@@ -386,7 +398,16 @@ ATF_TC_BODY(truncate, tc)
 }
 
 /* Grow the file while sendfile(2) is working on it. */
-ATF_TC_WITHOUT_HEAD(grow);
+ATF_TC(grow);
+ATF_TC_HEAD(grow, tc) {
+	/*
+	 * NOTE: Slow platforms (including CI) fail intermittently with the
+	 * default timeout. Double the default timeout to reduce false
+	 * positives.
+	 */
+	atf_tc_set_md_var(tc, "timeout", "600");
+}
+
 ATF_TC_BODY(grow, tc)
 {
 	struct ctx c;
@@ -468,11 +489,11 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 
 	/*
 	 * Exercise short write due to no buffer space on non-blocking
-	 * socket.  Internall sendfile(2) returns -1 and errno == EAGAIN.
+	 * socket.  Internal sendfile(2) returns -1 and errno == EAGAIN.
 	 */
 	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
 	sendme_locked_wait(&c, 0, FSIZE, true);
-	ATF_REQUIRE(c.sbytes > 0);
+	ATF_REQUIRE_MSG(c.sbytes > 0, "c.sbytes <= 0: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
 	ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
@@ -482,7 +503,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * Exercise second attempt on already full buffer.
 	 */
 	sendme_locked_wait(&c, 0, FSIZE, true);
-	ATF_REQUIRE(c.sbytes == -1);
+	ATF_REQUIRE_MSG(c.sbytes == -1, "c.sbytes != -1: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_WANT_WRITE);
 	ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
 
@@ -503,7 +524,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * rather than asserts that this is a correct behavior.
 	 */
 	sendme_locked_wait(&c, FSIZE, 0, true);
-	ATF_REQUIRE(c.sbytes == 0);
+	ATF_REQUIRE_MSG(c.sbytes == 0, "c.sbytes != 0: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_SYSCALL);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
 	ATF_REQUIRE(!BIO_should_retry(SSL_get_wbio(c.srv)));
@@ -513,7 +534,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * Exercise short write due to end of file.
 	 */
 	sendme_locked_wait(&c, FSIZE - 100, 0, true);
-	ATF_REQUIRE(c.sbytes == 100);
+	ATF_REQUIRE_MSG(c.sbytes == 100, "c.sbytes != 100: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
 	ATF_REQUIRE(!BIO_should_retry(SSL_get_wbio(c.srv)));

@@ -42,6 +42,7 @@ MAN+=	fparseln.3
 MAN+=	ftime.3
 MAN+=	getlocalbase.3
 MAN+=	hexdump.3
+MLINKS+=hexdump.3 fhexdump.3
 MAN+=	humanize_number.3
 MAN+=	kinfo_getallproc.3
 MAN+=	kinfo_getfile.3

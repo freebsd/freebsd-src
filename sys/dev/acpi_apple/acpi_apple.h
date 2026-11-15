@@ -15,6 +15,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 

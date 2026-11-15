@@ -2229,21 +2229,38 @@ static const struct mrs_field mvfr1_fields[] = {
 };
 #endif /* COMPAT_FREEBSD32 */
 
-struct mrs_user_reg {
+struct mrs_sanitized_reg {
 	u_int		iss;
-	bool		is64bit;
+	u_int		flags;
 	size_t		offset;
 	const struct mrs_field *fields;
 };
 
+/* The register is safe to be expotred to userspace */
+#define	SANITIZED_REG_USER	(1u << 0)
+/* The register is accessible from 64 bit or 32 bit userspace */
+#define	SANITIZED_REG_64BIT	(1u << 1)
+
+/* A register accessible from userspace */
 #define	USER_REG(name, field_name, _is64bit)				\
 	{								\
 		.iss = name##_ISS,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
-		.is64bit = _is64bit,					\
+		.flags = SANITIZED_REG_USER |				\
+		    ((_is64bit) ? SANITIZED_REG_64BIT : 0),		\
 	}
-static const struct mrs_user_reg user_regs[] = {
+
+/* A register only accessible from the kernel */
+#define	KERNEL_REG(name, field_name)					\
+	{								\
+		.iss = name##_ISS,					\
+		.offset = __offsetof(struct cpu_desc, field_name),	\
+		.fields = field_name##_fields,				\
+		.flags = 0,						\
+	}
+
+static const struct mrs_sanitized_reg sanitized_regs[] = {
 	USER_REG(ID_AA64AFR0_EL1, id_aa64afr0, true),
 	USER_REG(ID_AA64AFR1_EL1, id_aa64afr1, true),
 
@@ -2277,7 +2294,7 @@ static const struct mrs_user_reg user_regs[] = {
 };
 
 #define	CPU_DESC_FIELD(desc, idx)					\
-    *(uint64_t *)((char *)&(desc) + user_regs[(idx)].offset)
+    *(uint64_t *)((char *)&(desc) + sanitized_regs[(idx)].offset)
 
 static bool
 user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
@@ -2434,14 +2451,18 @@ user_idreg_handler(uint64_t esr, struct trapframe *frame)
 
 	value = 0;
 	if (ISS_MSR_CRm(esr) >= 4 && ISS_MSR_CRm(esr) <= 7) {
-		for (int i = 0; i < nitems(user_regs); i++) {
-			if (user_regs[i].iss == (esr & ISS_MSR_REG_MASK)) {
-				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
-					value = CPU_DESC_FIELD(user_cpu_desc, i);
-				else
-					value = CPU_DESC_FIELD(l_user_cpu_desc, i);
+		for (int i = 0; i < nitems(sanitized_regs); i++) {
+			if (sanitized_regs[i].iss != (esr & ISS_MSR_REG_MASK))
+				continue;
+
+			if ((sanitized_regs[i].flags & SANITIZED_REG_USER) == 0)
 				break;
-			}
+
+			if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+				value = CPU_DESC_FIELD(user_cpu_desc, i);
+			else
+				value = CPU_DESC_FIELD(l_user_cpu_desc, i);
+			break;
 		}
 	} else if (ISS_MSR_CRm(esr) == 0) {
 		switch (ISS_MSR_OP2(esr)) {
@@ -2519,8 +2540,8 @@ get_kernel_reg_iss(u_int iss, uint64_t *val)
 {
 	int i;
 
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].iss == iss) {
+	for (i = 0; i < nitems(sanitized_regs); i++) {
+		if (sanitized_regs[i].iss == iss) {
 			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			return;
 		}
@@ -2539,10 +2560,10 @@ get_kernel_reg_iss_masked(u_int iss, uint64_t *valp, uint64_t mask)
 	const struct mrs_field *fields;
 	uint64_t val;
 
-	for (int i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].iss == iss) {
+	for (int i = 0; i < nitems(sanitized_regs); i++) {
+		if (sanitized_regs[i].iss == iss) {
 			val = CPU_DESC_FIELD(kern_cpu_desc, i);
-			fields = user_regs[i].fields;
+			fields = sanitized_regs[i].fields;
 			for (int j = 0; fields[j].type != 0; j++) {
 				mask = update_special_reg_field(mask,
 				    fields[j].type, val, fields[j].width,
@@ -2561,8 +2582,8 @@ get_user_reg_iss(u_int iss, uint64_t *val, bool fbsd)
 {
 	int i;
 
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].iss == iss) {
+	for (i = 0; i < nitems(sanitized_regs); i++) {
+		if (sanitized_regs[i].iss == iss) {
 			if (fbsd)
 				*val = CPU_DESC_FIELD(user_cpu_desc, i);
 			else
@@ -2624,7 +2645,7 @@ clear_set_special_reg_idx(int idx, uint64_t clear, uint64_t set)
 	uint64_t f_old, f_new;
 	uint64_t l_old, l_new;
 
-	MPASS(idx < nitems(user_regs));
+	MPASS(idx < nitems(sanitized_regs));
 
 	k_old = CPU_DESC_FIELD(kern_cpu_desc, idx);
 	k_new = (k_old & ~clear) | set;
@@ -2635,7 +2656,7 @@ clear_set_special_reg_idx(int idx, uint64_t clear, uint64_t set)
 	l_old = CPU_DESC_FIELD(l_user_cpu_desc, idx);
 	l_new = (l_old & ~clear) | set;
 
-	fields = user_regs[idx].fields;
+	fields = sanitized_regs[idx].fields;
 	for (int j = 0; fields[j].type != 0; j++) {
 		u_int type;
 
@@ -2687,7 +2708,7 @@ update_special_regs(u_int cpu)
 	}
 
 	desc = get_cpu_desc(cpu);
-	for (i = 0; i < nitems(user_regs); i++) {
+	for (i = 0; i < nitems(sanitized_regs); i++) {
 		value = CPU_DESC_FIELD(*desc, i);
 		if (cpu == 0) {
 			CPU_DESC_FIELD(kern_cpu_desc, i) = value;
@@ -2720,8 +2741,8 @@ update_special_reg_iss(u_int iss, uint64_t clear, uint64_t set)
 	/* TODO: Add said locking */
 	MPASS(PCPU_GET(cpuid) == 0);
 
-	for (int i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].iss != iss)
+	for (int i = 0; i < nitems(sanitized_regs); i++) {
+		if (sanitized_regs[i].iss != iss)
 			continue;
 
 		clear_set_special_reg_idx(i, clear, set);
@@ -2768,12 +2789,16 @@ parse_cpu_features(bool is64bit, struct cpu_desc *cpu_desc, u_long *hwcap,
 	u_long *cur_hwcap;
 	int i, j, k;
 
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].is64bit != is64bit)
+	for (i = 0; i < nitems(sanitized_regs); i++) {
+		bool reg_is64bit;
+
+		reg_is64bit =
+		    (sanitized_regs[i].flags & SANITIZED_REG_64BIT) != 0;
+		if (reg_is64bit != is64bit)
 			continue;
 
 		reg = CPU_DESC_FIELD(*cpu_desc, i);
-		fields = user_regs[i].fields;
+		fields = sanitized_regs[i].fields;
 		for (j = 0; fields[j].type != 0; j++) {
 			hwcaps = fields[j].hwcaps;
 			if (hwcaps == NULL)

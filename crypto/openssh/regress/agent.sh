@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.26 2026/06/15 06:36:52 djm Exp $
+#	$OpenBSD: agent.sh,v 1.27 2026/08/03 06:53:11 djm Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -64,6 +64,7 @@ done
 # Remove explicit identity directives from ssh_proxy
 mv $OBJ/ssh_proxy $OBJ/ssh_proxy_bak
 grep -vi identityfile $OBJ/ssh_proxy_bak > $OBJ/ssh_proxy
+echo "MaxAuthTries 64" >> $OBJ/sshd_proxy
 
 ${SSHADD} -l > /dev/null 2>&1
 r=$?

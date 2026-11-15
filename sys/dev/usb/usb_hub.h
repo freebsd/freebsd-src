@@ -36,9 +36,28 @@ struct usb_port {
 #define	USB_RESTART_MAX 5
 	uint8_t	device_index;		/* zero means not valid */
 	enum usb_hc_mode usb_mode;	/* host or device mode */
+	uint8_t	ss_speed_unknown;	/* SSP link of unknown speed */
 #if USB_HAVE_TT_SUPPORT
 	struct usb_device_request req_reset_tt __aligned(4);
 #endif
+};
+
+#define UHUB_SS_SUBLINKS_MAX_IDS 16
+
+/*
+ * The following structure define the usb_sublink_information
+ */
+struct usb_hub_ss_sublinks {
+	struct {
+		uint8_t exp;
+		uint8_t lp;
+		uint16_t val;
+		/*
+		 * Max 4 bit. For each we have 1 rx and 1 tx.
+		 * IDs may be sparse; val is zero if not advertised.
+		 * val is the speed of one lane, not of the link.
+		 */
+	} hub_status[(UHUB_SS_SUBLINKS_MAX_IDS) * 2];
 };
 
 /*
@@ -77,5 +96,7 @@ void	usb_bus_powerd(struct usb_bus *bus);
 void	uhub_root_intr(struct usb_bus *, const uint8_t *, uint8_t);
 usb_error_t uhub_query_info(struct usb_device *, uint8_t *, uint8_t *);
 void	uhub_explore_handle_re_enumerate(struct usb_device *);
+enum usb_dev_speed uhub_update_ss_port_speed(struct usb_device *, struct mtx *,
+	    uint8_t, enum usb_dev_speed);
 
 #endif					/* _USB_HUB_H_ */

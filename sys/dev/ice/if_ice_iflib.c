@@ -312,7 +312,7 @@ static struct if_shared_ctx ice_sctx = {
 	 * vectors manually instead of relying on iflib code to do this.
 	 */
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP |
-		IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SKIP_MSIX,
+		IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SKIP_MSIX | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {ICE_MIN_DESC_COUNT},
 	.isc_ntxd_min = {ICE_MIN_DESC_COUNT},
@@ -528,11 +528,11 @@ ice_if_attach_pre(if_ctx_t ctx)
 	/* Setup ControlQ lengths */
 	ice_set_ctrlq_len(hw);
 
-reinit_hw:
-
 	fw_mode = ice_get_fw_mode(hw);
 	if (fw_mode == ICE_FW_MODE_REC) {
-		device_printf(dev, "Firmware recovery mode detected. Limiting functionality. Refer to Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
+		device_printf(dev, "Firmware recovery mode detected. \
+			Limiting functionality. Refer to Intel(R) Ethernet Adapters and \
+			Devices User Guide for details on firmware recovery mode.\n");
 
 		err = ice_attach_pre_recovery_mode(sc);
 		if (err)
@@ -574,14 +574,11 @@ reinit_hw:
 	if (err)
 		goto deinit_hw;
 
-	/*
-	 * Success indicates a change was made that requires a reinitialization
-	 * of the hardware
-	 */
 	err = ice_load_pkg_file(sc);
-	if (!err) {
-		ice_deinit_hw(hw);
-		goto reinit_hw;
+	if (err == ICE_ERR_RESET_FAILED) {
+		device_printf(dev,
+                  "Failed to re-init hardware after setting Tx topology\n");
+		goto deinit_hw;
 	}
 
 	err = ice_init_link_events(sc);
@@ -3763,7 +3760,7 @@ static struct if_shared_ctx ice_subif_sctx = {
 
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP |
 		IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SKIP_MSIX |
-		IFLIB_IS_VF,
+		IFLIB_IS_VF | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {ICE_MIN_DESC_COUNT},
 	.isc_ntxd_min = {ICE_MIN_DESC_COUNT},

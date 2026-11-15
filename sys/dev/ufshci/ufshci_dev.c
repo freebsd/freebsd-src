@@ -25,7 +25,7 @@ ufshci_dev_send_query(struct ufshci_controller *ctrlr,
 	if (error)
 		return (error);
 
-	ufshci_completion_poll(status);
+	ufshci_completion_poll(ctrlr, status);
 	if (status->error) {
 		ufshci_printf(ctrlr, "%s failed!\n", fail_msg);
 		return (ENXIO);

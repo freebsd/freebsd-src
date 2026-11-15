@@ -1063,6 +1063,7 @@ ice_iov_clear_vf_queue_state(struct ice_vf *vf)
 {
 	vf->txq_configured = 0;
 	vf->rxq_configured = 0;
+	vf->txq_active = 0;
 	vf->rxq_enabled = 0;
 }
 
@@ -1211,6 +1212,46 @@ fail:
 }
 
 /**
+ * ice_iov_cleanup_vf_tx - Discard Tx software state after a completed VF reset
+ * @sc: device softc structure
+ * @vf: VF whose hardware queues have been reset and drained
+ *
+ * A failed queue disable or post-add rollback can leave a scheduler leaf or
+ * queue context behind. The reset-only AQ command drains hardware without
+ * updating these entries. Free any remaining leaves and invalidate the queue
+ * contexts only after the reset and DMA drain have been verified.
+ */
+static void
+ice_iov_cleanup_vf_tx(struct ice_softc *sc, struct ice_vf *vf)
+{
+	struct ice_port_info *pi = sc->hw.port_info;
+	struct ice_vsi *vsi = vf->vsi;
+	struct ice_sched_node *node;
+	struct ice_tx_queue *txq;
+	struct ice_q_ctx *q_ctx;
+	int i;
+
+	ice_acquire_lock(&pi->sched_lock);
+	for (i = 0; i < vsi->num_tx_queues; i++) {
+		txq = &vsi->tx_queues[i];
+		q_ctx = ice_get_lan_q_ctx(&sc->hw, vsi->idx, txq->tc,
+		    txq->q_handle);
+		if (q_ctx != NULL) {
+			if (q_ctx->q_handle == txq->q_handle && q_ctx->q_teid != 0) {
+				node = ice_sched_find_node_by_teid(pi->root,
+				    q_ctx->q_teid);
+				if (node != NULL)
+					ice_free_sched_node(pi, node);
+			}
+			q_ctx->q_handle = ICE_INVAL_Q_HANDLE;
+			q_ctx->q_teid = 0;
+		}
+		txq->q_teid = 0;
+	}
+	ice_release_lock(&pi->sched_lock);
+}
+
+/**
  * ice_reset_vf - Perform a hardware reset (VFR) on a VF
  * @sc: device softc structure
  * @vf: driver's VF structure for VF to be reset
@@ -1256,15 +1297,12 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 	/*
 	 * Remove the tracked queue leaves from the software scheduler before
 	 * issuing the reset-only AQ command.  That command drains hardware but
-	 * does not update the shared scheduler database.  Retain unresolved queue
-	 * state if cleanup fails so a later reset can retry it.
+	 * does not update the shared scheduler database. A failed queue disable
+	 * need not prevent reset recovery: retain unresolved software state until
+	 * the reset and DMA drain have been verified below.
 	 */
-	status = ice_vc_disable_queues(sc, vf, vf->txq_configured,
+	(void)ice_vc_disable_queues(sc, vf, vf->txq_active,
 	    vf->rxq_enabled);
-	if (status == 0)
-		ice_iov_clear_vf_queue_state(vf);
-	else if (error == 0)
-		error = status;
 
 	/* This zero-queue command is required to complete every VF reset. */
 	status = ice_dis_vsi_txq(hw->port_info, vf->vsi->idx, 0, 0,
@@ -1355,6 +1393,9 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 		atomic_set_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
 		return (error);
 	}
+
+	ice_iov_cleanup_vf_tx(sc, vf);
+	ice_iov_clear_vf_queue_state(vf);
 
 	if (!release_vf) {
 		/* Discard any anti-spoof MDD indication caused by the reset. */
@@ -1952,6 +1993,7 @@ ice_vc_disable_tx_queue(struct ice_softc *sc, struct ice_vf *vf, u16 qid)
 	struct ice_vsi *vsi = vf->vsi;
 	struct ice_tx_queue *txq = &vsi->tx_queues[qid];
 	struct ice_hw *hw = &sc->hw;
+	struct ice_q_ctx *q_ctx;
 	u16 q_handle, q_id;
 	u32 q_teid;
 	int status;
@@ -1969,7 +2011,16 @@ ice_vc_disable_tx_queue(struct ice_softc *sc, struct ice_vf *vf, u16 qid)
 		    ice_aq_str(hw->adminq.sq_last_status));
 		return (EIO);
 	}
-	txq->q_handle = 0;
+	/* A failed post-add rollback may have left no software scheduler node. */
+	q_ctx = ice_get_lan_q_ctx(hw, vsi->idx, txq->tc, q_handle);
+	if (status == ICE_ERR_DOES_NOT_EXIST && q_ctx != NULL &&
+	    q_ctx->q_handle == q_handle && q_ctx->q_teid != 0) {
+		device_printf(sc->dev,
+		    "VF-%d Tx queue %u still requires reset after failed setup\n",
+		    vf->vf_num, qid);
+		return (EIO);
+	}
+
 	txq->q_teid = 0;
 
 	return (0);
@@ -1984,8 +2035,8 @@ ice_vc_disable_tx_queue(struct ice_softc *sc, struct ice_vf *vf, u16 qid)
  *
  * Queue disable is idempotent. Queues which are not configured or enabled
  * have no hardware work to perform and are treated as successfully disabled.
- * Since CONFIG_VSI_QUEUES also enables Tx, disabling a Tx queue removes its
- * tracked configuration and the VF must configure it before enabling it again.
+ * Tx disable removes the hardware queue, but retains its ring parameters and
+ * queue handle so ENABLE_QUEUES can recreate it without CONFIG_VSI_QUEUES.
  */
 static int
 ice_vc_disable_queues(struct ice_softc *sc, struct ice_vf *vf,
@@ -2009,20 +2060,13 @@ ice_vc_disable_queues(struct ice_softc *sc, struct ice_vf *vf,
 		queues &= ~BIT(bit);
 	}
 
-	queues = tx_queues & vf->txq_configured;
-	if (queues == vf->txq_configured && queues != 0) {
-		error = ice_vsi_disable_tx(vsi);
-		if (error != 0)
-			return (error);
-		vf->txq_configured = 0;
-		return (0);
-	}
+	queues = tx_queues & vf->txq_active;
 	while (queues != 0) {
 		bit = ffs(queues) - 1;
 		error = ice_vc_disable_tx_queue(sc, vf, bit);
 		if (error != 0)
 			return (error);
-		vf->txq_configured &= ~BIT(bit);
+		vf->txq_active &= ~BIT(bit);
 		queues &= ~BIT(bit);
 	}
 
@@ -2209,15 +2253,13 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
-	error = ice_vc_disable_queues(sc, vf, vf->txq_configured,
+	error = ice_vc_disable_queues(sc, vf, vf->txq_active,
 	    vf->rxq_enabled);
 	if (error != 0) {
 		status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
 		goto done;
 	}
-	vf->txq_configured = 0;
-	vf->rxq_configured = 0;
-	vf->rxq_enabled = 0;
+	ice_iov_clear_vf_queue_state(vf);
 
 	/*
 	 * Clear TX and RX queues config in case VF
@@ -2264,15 +2306,14 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	 * firmware failure remains discoverable and can be cleaned up by the
 	 * next configuration attempt.
 	 */
-	vf->txq_configured = queue_map;
+	vf->txq_active = queue_map;
 	error = ice_cfg_vsi_for_tx(vsi);
 	if (error) {
 		device_printf(dev,
 			      "VF-%d: Unable to configure VSI for Tx: %s\n",
 			      vf->vf_num, ice_err_str(error));
 		status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
-		if (ice_vsi_disable_tx(vsi) == 0)
-			vf->txq_configured = 0;
+		(void)ice_vc_disable_queues(sc, vf, vf->txq_active, 0);
 		goto done;
 	}
 
@@ -2283,9 +2324,10 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			      "VF-%d: Unable to configure VSI for Rx: %s\n",
 			      vf->vf_num, ice_err_str(error));
 		status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
-		(void)ice_vc_disable_queues(sc, vf, vf->txq_configured, 0);
+		(void)ice_vc_disable_queues(sc, vf, vf->txq_active, 0);
 		goto done;
 	}
+	vf->txq_configured = queue_map;
 	vf->rxq_configured = queue_map;
 
 done:
@@ -2475,8 +2517,8 @@ ice_vc_set_rss_hena_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
  *
  * Enables VF queues selected in msg_buf for Tx/Rx traffic.
  *
- * @remark Only actually operates on Rx queues; Tx queues are enabled in
- * CONFIG_VSI_QUEUES message handler.
+ * Tx queues are initially enabled by CONFIG_VSI_QUEUES. Recreate any which
+ * were subsequently disabled using their saved configuration.
  */
 static void
 ice_vc_enable_queues_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
@@ -2505,6 +2547,21 @@ ice_vc_enable_queues_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
+	queues = vqs->tx_queues & ~vf->txq_active;
+	while (queues != 0) {
+		bit = ffs(queues) - 1;
+		vf->txq_active |= BIT(bit);
+		error = ice_cfg_tx_queue(&vsi->tx_queues[bit]);
+		if (error != 0) {
+			/* Do not ACK a retry if the failed add cannot be undone. */
+			if (ice_vc_disable_queues(sc, vf, BIT(bit), 0) != 0)
+				vf->txq_configured &= ~BIT(bit);
+			v_status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
+			goto done;
+		}
+		queues &= ~BIT(bit);
+	}
+
 	queues = vqs->rx_queues & ~vf->rxq_enabled;
 	while (queues != 0) {
 		bit = ffs(queues) - 1;
@@ -2519,7 +2576,6 @@ ice_vc_enable_queues_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		vf->rxq_enabled |= BIT(bit);
 		queues &= ~BIT(bit);
 	}
-	/* Tx queues were enabled when their contexts were configured. */
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_ENABLE_QUEUES,

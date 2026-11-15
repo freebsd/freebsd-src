@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 7, 2025
+.Dd November 7, 2026
 .Dt DEVD 8
 .Os
 .Sh NAME
@@ -131,16 +131,33 @@ wish to hook into the
 .Nm
 system without modifying the user's other
 config files.
-.Pp
+.Sh CLIENT SOCKET
 Since
 .Xr devctl 4
 allows only one active reader,
 .Nm
 multiplexes it, forwarding all events to any number of connected clients.
-Clients connect by opening the SOCK_SEQPACKET
-.Ux
+Clients connect by opening the
+.Dv SOCK_SEQPACKET
+.Xr unix 4
 domain socket at
-.Pa /var/run/devd.seqpacket.pipe .
+.Pa /var/run/devd.seqpacket.pipe ,
+also defined as
+.Va _PATH_DEVD_SOCKET
+in
+.In paths.h .
+.Pp
+The messages from
+.Xr devctl 4
+are copied verbatim to clients.
+This implies the newline termination and lack of NUL termination.
+The kernel and
+.Nm
+guarantee that a message shall be of a size less than
+.Fn sysconf _SC_DEVCTL_MAXRECORD .
+The above features allow a robust client implementation without
+a need to take care of a reassembly, see
+.Sx EXAMPLES .
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/devd.seqpacket.pipe" -compact
 .It Pa /etc/devd.conf
@@ -155,6 +172,36 @@ to communicate with its clients.
 A deprecated socket retained for use with old clients.
 .El
 .Sh EXAMPLES
+A trivial client in C:
+.Bd -literal -offset indent
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <paths.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int
+main(void)
+{
+	struct sockaddr_un sun = {
+		.sun_family = AF_LOCAL,
+		.sun_path = _PATH_DEVD_SOCKET,
+	};
+	ssize_t len, maxrec = sysconf(_SC_DEVCTL_MAXRECORD);
+	char event[maxrec];
+	int s;
+
+	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
+	connect(s, (struct sockaddr *)&sun, sizeof(sun));
+	while ((len = recv(s, event, maxrec, MSG_WAITALL)) > 0) {
+		event[len] = '\\0';
+		printf("%s", event);
+	}
+
+	return (0);
+}
+.Ed
+.Pp
 Use
 .Xr cat 1
 to monitor kernel events:
@@ -162,7 +209,8 @@ to monitor kernel events:
 .Dl cat /var/run/devd.seqpacket.pipe
 .Sh SEE ALSO
 .Xr devctl 4 ,
-.Xr devd.conf 5
+.Xr devd.conf 5 ,
+.Xr sysconf 3
 .Sh HISTORY
 The
 .Nm

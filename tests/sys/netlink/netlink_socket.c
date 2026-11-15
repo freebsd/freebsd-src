@@ -126,6 +126,12 @@ ATF_TC_BODY(overflow, tc)
 	char buf[BUFLEN];
 	int fd;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false)) {
+		atf_tc_expect_fail(
+		    "Test fails reliably in CI: "
+		    "https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=289240");
+	}
+
 	fd = fullsocket();
 
 	/* Both buffers full: block. */

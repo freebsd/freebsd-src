@@ -562,14 +562,13 @@ buffer_copy(struct sc_chinfo *ch)
 			length -= offset;
 		}
 	} else {
-		/* Position per channel is n times smaller than PCM. */
+		/* Snapshot the write position before synchronizing the buffer. */
 		pos = sndbuf_getfreeptr(ch->buffer) / n;
-		/* Get DMA buffer write position. */
 		dma_pos = hdspe_read_2(sc, HDSPE_STATUS_REG);
 		dma_pos &= HDSPE_BUF_POSITION_MASK;
-		/* Copy what is newly available. */
 		length = (dma_pos + HDSPE_CHANBUF_SIZE) - pos;
 		length %= HDSPE_CHANBUF_SIZE;
+		bus_dmamap_sync(sc->dmat, sc->rmap, BUS_DMASYNC_POSTREAD);
 	}
 
 	/* Position and length in samples (4 bytes). */
@@ -598,6 +597,12 @@ buffer_copy(struct sc_chinfo *ch)
 			row = hdspe_port_first(ports);
 	}
 
+	if (ch->dir == PCMDIR_PLAY && length > 0) {
+		bus_dmamap_sync(sc->dmat, sc->pmap, BUS_DMASYNC_PREWRITE);
+	} else if (ch->dir == PCMDIR_REC) {
+		bus_dmamap_sync(sc->dmat, sc->rmap, BUS_DMASYNC_PREREAD);
+	}
+
 	ch->position = ((pos + length) * 4) % HDSPE_CHANBUF_SIZE;
 }
 
@@ -617,6 +622,11 @@ clean(struct sc_chinfo *ch)
 	if (ch->dir == PCMDIR_PLAY)
 		buf = sc->pbuf;
 
+	if (ch->dir == PCMDIR_PLAY)
+		bus_dmamap_sync(sc->dmat, sc->pmap, BUS_DMASYNC_POSTWRITE);
+	else
+		bus_dmamap_sync(sc->dmat, sc->rmap, BUS_DMASYNC_POSTREAD);
+
 	/* Iterate through rows of ports with contiguous slots. */
 	ports = ch->ports;
 	row = hdspe_port_first_row(ports);
@@ -631,6 +641,12 @@ clean(struct sc_chinfo *ch)
 		ports &= ~row;
 		row = hdspe_port_first_row(ports);
 	}
+
+	if (ch->dir == PCMDIR_PLAY)
+		bus_dmamap_sync(sc->dmat, sc->pmap, BUS_DMASYNC_PREWRITE);
+	else
+		bus_dmamap_sync(sc->dmat, sc->rmap,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 	ch->position = 0;
 
@@ -762,8 +778,8 @@ hdspechan_trigger(kobj_t obj, void *data, int go)
 #if 0
 		device_printf(scp->dev, "hdspechan_trigger(): stop or abort\n");
 #endif
-		clean(ch);
 		hdspechan_enable(ch, 0);
+		clean(ch);
 		hdspe_stop_audio(sc);
 		break;
 
@@ -838,6 +854,8 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	device_printf(scp->dev, "hdspechan_setspeed(%d)\n", speed);
 #endif
 
+	mtx_lock(&sc->lock);
+
 	if (hdspe_running(sc) == 1)
 		goto end;
 
@@ -888,8 +906,10 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 
 	sc->speed = hr->speed;
 end:
+	speed = sc->speed;
+	mtx_unlock(&sc->lock);
 
-	return (sc->speed);
+	return (speed);
 }
 
 static uint32_t
@@ -910,6 +930,8 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 #if 0
 	device_printf(scp->dev, "hdspechan_setblocksize(%d)\n", blocksize);
 #endif
+
+	mtx_lock(&sc->lock);
 
 	if (hdspe_running(sc) == 1)
 		goto end;
@@ -941,12 +963,20 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		}
 	}
 
+	/* sndbuf_resize() may sleep. */
+	mtx_unlock(&sc->lock);
 	if (sndbuf_resize(ch->buffer,
 	    (HDSPE_CHANBUF_SIZE * AFMT_CHANNEL(ch->format)) / (hl->period * 4),
 	    (hl->period * 4)) != 0)
 		return (0);
 
 	mtx_lock(&sc->lock);
+	/* A channel may have started while the lock was dropped. */
+	if (hdspe_running(sc) == 1) {
+		mtx_unlock(&sc->lock);
+		return (0);
+	}
+
 	sc->ctrl_register &= ~HDSPE_LAT_MASK;
 	sc->ctrl_register |= hdspe_encode_latency(hl->n);
 	hdspe_write_4(sc, HDSPE_CONTROL_REG, sc->ctrl_register);
@@ -954,10 +984,12 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	mtx_unlock(&sc->lock);
 
 #if 0
-	device_printf(scp->dev, "New period=%d\n", sc->period);
+	device_printf(scp->dev, "New period=%d\n", hl->period);
 #endif
 
+	return (ch->buffer->blksz);
 end:
+	mtx_unlock(&sc->lock);
 
 	return (ch->buffer->blksz);
 }

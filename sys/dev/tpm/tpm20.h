@@ -150,6 +150,7 @@ struct tpm_sc {
 	bool		common_initialized;
 	bool		dying;
 	bool		suspended;
+	bool		no_harvest;	/* Set by the transport before tpm20_init() */
 
 	struct tpm_priv *internal_priv;
 

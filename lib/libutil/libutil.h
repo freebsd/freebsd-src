@@ -152,6 +152,8 @@ int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
  * files upon which they depend have been included.
  */
 #ifdef _STDIO_H_
+void	fhexdump(FILE *_fp, const void *_ptr, int _length, const char *_hdr,
+	    int _flags);
 char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
 	    const char _delim[3], int _flags);
 #endif

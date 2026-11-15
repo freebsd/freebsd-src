@@ -1,0 +1,7 @@
+prefix=/usr
+Cflags: -I/opt/x
+Libs: -L/opt/lib -lx
+
+Name: sysroot-inject-hardcoded
+Description: test fixture
+Version: 1.0.0

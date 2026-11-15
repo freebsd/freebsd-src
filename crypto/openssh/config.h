@@ -51,10 +51,6 @@
 /* Can't do comparisons on readv */
 /* #undef BROKEN_READV_COMPARISON */
 
-/* NetBSD read function is sometimes redirected, breaking atomicio comparisons
-   against it */
-/* #undef BROKEN_READ_COMPARISON */
-
 /* Needed for NeXT */
 /* #undef BROKEN_SAVED_UIDS */
 
@@ -383,6 +379,10 @@
    don't. */
 #define HAVE_DECL_INFINITY 1
 
+/* Define to 1 if you have the declaration of 'kSBXProfilePureComputation',
+   and to 0 if you don't. */
+/* #undef HAVE_DECL_KSBXPROFILEPURECOMPUTATION */
+
 /* Define to 1 if you have the declaration of 'le32toh', and to 0 if you
    don't. */
 #define HAVE_DECL_LE32TOH 1
@@ -691,6 +691,9 @@
 
 /* Define to 1 if you have the 'getentropy' function. */
 #define HAVE_GETENTROPY 1
+
+/* Define to 1 if you have the 'getexecpath' function. */
+/* #undef HAVE_GETEXECPATH */
 
 /* Define to 1 if you have the 'getgrouplist' function. */
 #define HAVE_GETGROUPLIST 1
@@ -1053,6 +1056,9 @@
 /* Define if you have an old version of PAM which takes only one argument to
    pam_strerror */
 /* #undef HAVE_OLD_PAM */
+
+/* Define to 1 if you have the 'openat' function. */
+#define HAVE_OPENAT 1
 
 /* Define to 1 if you have the 'openlog_r' function. */
 /* #undef HAVE_OPENLOG_R */
@@ -1821,20 +1827,8 @@
 /* Define if EVP_DigestUpdate returns void */
 /* #undef OPENSSL_EVP_DIGESTUPDATE_VOID */
 
-/* OpenSSL has ECC */
-#define OPENSSL_HAS_ECC 1
-
 /* libcrypto has ed25519 support */
 #define OPENSSL_HAS_ED25519 1
-
-/* libcrypto has NID_X9_62_prime256v1 */
-#define OPENSSL_HAS_NISTP256 1
-
-/* libcrypto has NID_secp384r1 */
-#define OPENSSL_HAS_NISTP384 1
-
-/* libcrypto has NID_secp521r1 */
-#define OPENSSL_HAS_NISTP521 1
 
 /* Define if you want the OpenSSL internally seeded PRNG only */
 #define OPENSSL_PRNG_ONLY 1
@@ -2002,6 +1996,9 @@
 
 /* Define this if you want to use libkafs' AFS support */
 /* #undef USE_AFS */
+
+/* Enable brainpool */
+#define USE_BRAINPOOLP256R1 1
 
 /* Use BSM audit module */
 /* #undef USE_BSM_AUDIT */

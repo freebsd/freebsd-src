@@ -232,6 +232,12 @@ ATF_TC_BODY(connect_bound_socket_from_2address_jail, tc)
 	socklen_t slen = sizeof(sin);
 	int s;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false)) {
+		atf_tc_expect_fail(
+		    "Test fails reliably in CI: "
+		    "https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=300696");
+	}
+
 	ATF_REQUIRE(jail(&jconf) > 0);
 	ATF_REQUIRE((s = socket(PF_INET, SOCK_DGRAM, 0)) > 0);
 	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);

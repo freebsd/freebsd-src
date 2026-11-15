@@ -29,9 +29,9 @@
  * Options
  */
 
-void		init_options(void);
-uint16_t	make_options(int peer, char *buffer, uint16_t size);
-int		parse_options(int peer, char *buffer, uint16_t size);
+void	init_options(void);
+size_t	make_options(int peer, char *buffer, size_t size);
+int	parse_options(int peer, char *buffer, size_t size);
 
 /* Call back functions */
 int	option_tsize(int peer, struct tftphdr *, int, struct stat *);

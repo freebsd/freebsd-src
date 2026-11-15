@@ -121,7 +121,7 @@ in_gre_lookup_socket(in_addr_t addr)
 
 static int
 in_gre_checkdup(const struct gre_softc *sc, in_addr_t src, in_addr_t dst,
-    uint32_t opts)
+    uint32_t opts, uint32_t key)
 {
 	struct gre_list *head;
 	struct gre_softc *tmp;
@@ -130,6 +130,7 @@ in_gre_checkdup(const struct gre_softc *sc, in_addr_t src, in_addr_t dst,
 	if (sc->gre_family == AF_INET &&
 	    sc->gre_oip.ip_src.s_addr == src &&
 	    sc->gre_oip.ip_dst.s_addr == dst &&
+	    sc->gre_ikey == key &&
 	    (sc->gre_options & GRE_UDPENCAP) == (opts & GRE_UDPENCAP))
 		return (EEXIST);
 
@@ -145,10 +146,47 @@ in_gre_checkdup(const struct gre_softc *sc, in_addr_t src, in_addr_t dst,
 		if (tmp == sc)
 			continue;
 		if (tmp->gre_oip.ip_src.s_addr == src &&
-		    tmp->gre_oip.ip_dst.s_addr == dst)
+		    tmp->gre_oip.ip_dst.s_addr == dst &&
+		    tmp->gre_ikey == key)
 			return (EADDRNOTAVAIL);
 	}
 	return (0);
+}
+
+static struct gre_softc *
+in_gre_lookup_key(in_addr_t src, in_addr_t dst, uint32_t key)
+{
+	struct gre_softc *sc, *keyless, *only;
+	uint32_t count = 0;
+
+	keyless = only = NULL;
+	CK_LIST_FOREACH(sc, &GRE_HASH(src, dst), chain) {
+		if (sc->gre_oip.ip_src.s_addr != src ||
+		    sc->gre_oip.ip_dst.s_addr != dst)
+			continue;
+		if (sc->gre_ikey == key)
+			return (sc);
+		if (sc->gre_ikey == 0)
+			keyless = sc;
+		only = sc;
+		count++;
+	}
+	if (!V_gre_key_fallback)
+		return (NULL);
+	/*
+	 * When there is no tunnel with specified key and fallback
+	 * is enabled, tunnel without key is preferred.
+	 */
+	if (keyless != NULL)
+		return (keyless);
+	/*
+	 * Otherwise, if only one tunnel configured between these
+	 * addresses, accept any key for backward compatibility.
+	 */
+	if (count == 1)
+		return (only);
+
+	return (NULL);
 }
 
 static int
@@ -156,27 +194,25 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 {
 	const struct ip *ip;
 	struct gre_softc *sc;
+	uint32_t key;
 
 	if (V_ipv4_hashtbl == NULL)
 		return (0);
 
 	NET_EPOCH_ASSERT();
+	if (!gre_getkey(m, off, &key))
+		return (0);
 	ip = mtod(m, const struct ip *);
-	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,
-	    ip->ip_src.s_addr), chain) {
-		/*
-		 * This is an inbound packet, its ip_dst is source address
-		 * in softc.
-		 */
-		if (sc->gre_oip.ip_src.s_addr == ip->ip_dst.s_addr &&
-		    sc->gre_oip.ip_dst.s_addr == ip->ip_src.s_addr) {
-			if ((GRE2IFP(sc)->if_flags & IFF_UP) == 0)
-				return (0);
-			*arg = sc;
-			return (ENCAP_DRV_LOOKUP);
-		}
-	}
-	return (0);
+	/*
+	 * This is an inbound packet, its ip_dst is source address
+	 * in softc.
+	 */
+	sc = in_gre_lookup_key(ip->ip_dst.s_addr, ip->ip_src.s_addr, key);
+	if (sc == NULL || (GRE2IFP(sc)->if_flags & IFF_UP) == 0)
+		return (0);
+
+	*arg = sc;
+	return (ENCAP_DRV_LOOKUP);
 }
 
 /*
@@ -222,16 +258,34 @@ in_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
     const struct sockaddr *sa, void *ctx)
 {
 	struct gre_socket *gs;
-	struct gre_softc *sc;
+	struct gre_softc *sc, *keyless, *only;
 	in_addr_t dst;
+	uint32_t key, count = 0;
 
 	NET_EPOCH_ASSERT();
 
+	keyless = only = NULL;
 	gs = (struct gre_socket *)ctx;
 	dst = ((const struct sockaddr_in *)sa)->sin_addr.s_addr;
+	if (!gre_getkey(m, off + sizeof(struct udphdr), &key)) {
+		m_freem(m);
+		return (true);
+	}
 	CK_LIST_FOREACH(sc, &gs->list, chain) {
-		if (sc->gre_oip.ip_dst.s_addr == dst)
+		if (sc->gre_oip.ip_dst.s_addr != dst)
+			continue;
+		if (sc->gre_ikey == key)
 			break;
+		if (sc->gre_ikey == 0)
+			keyless = sc;
+		only = sc;
+		count++;
+	}
+	if (sc == NULL && V_gre_key_fallback) {
+		if (keyless != NULL)
+			sc = keyless;
+		else if (count == 1)
+			sc = only;
 	}
 	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0){
 		gre_input(m, off + sizeof(struct udphdr), IPPROTO_UDP, sc);
@@ -394,26 +448,34 @@ in_gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t value)
 	int error;
 
 	/* NOTE: we are protected with gre_ioctl_sx lock */
-	MPASS(cmd == GRESKEY || cmd == GRESOPTS || cmd == GRESPORT);
+	MPASS(cmd == GRESKEY || cmd == GRESIKEY ||
+	    cmd == GRESOPTS || cmd == GRESPORT);
 	MPASS(sc->gre_family == AF_INET);
 
 	/*
-	 * If we are going to change encapsulation protocol, do check
-	 * for duplicate tunnels. Return EEXIST here to do not confuse
-	 * user.
+	 * If we are going to change encapsulation protocol or the key,
+	 * do check for duplicate tunnels. Return EEXIST here to do not
+	 * confuse user.
 	 */
-	if (cmd == GRESOPTS &&
-	    (sc->gre_options & GRE_UDPENCAP) != (value & GRE_UDPENCAP) &&
-	    in_gre_checkdup(sc, sc->gre_oip.ip_src.s_addr,
-		sc->gre_oip.ip_dst.s_addr, value) == EADDRNOTAVAIL)
-		return (EEXIST);
+	if ((cmd == GRESOPTS &&
+	    (sc->gre_options & GRE_UDPENCAP) != (value & GRE_UDPENCAP)) ||
+	    (cmd == GRESIKEY && sc->gre_ikey != value)) {
+		if (in_gre_checkdup(sc, sc->gre_oip.ip_src.s_addr,
+		    sc->gre_oip.ip_dst.s_addr,
+		    cmd == GRESOPTS ? value: sc->gre_options,
+		    cmd == GRESIKEY ? value: sc->gre_ikey) == EADDRNOTAVAIL)
+			return (EEXIST);
+	}
 
 	CK_LIST_REMOVE(sc, chain);
 	CK_LIST_REMOVE(sc, srchash);
 	GRE_WAIT();
 	switch (cmd) {
 	case GRESKEY:
-		sc->gre_key = value;
+		sc->gre_okey = value;
+		break;
+	case GRESIKEY:
+		sc->gre_ikey = value;
 		break;
 	case GRESOPTS:
 		sc->gre_options = value;
@@ -462,7 +524,7 @@ in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 			V_ipv4_sockets = (struct gre_sockets *)gre_hashinit();
 		}
 		error = in_gre_checkdup(sc, src->sin_addr.s_addr,
-		    dst->sin_addr.s_addr, sc->gre_options);
+		    dst->sin_addr.s_addr, sc->gre_options, sc->gre_ikey);
 		if (error == EADDRNOTAVAIL)
 			break;
 		if (error == EEXIST) {

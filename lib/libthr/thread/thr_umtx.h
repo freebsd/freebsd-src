@@ -42,7 +42,7 @@
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
-	const struct timespec *timeout) __hidden;
+	const struct timespec *timeout, clockid_t clockid) __hidden;
 int __thr_umutex_unlock(struct umutex *mtx) __hidden;
 int __thr_umutex_trylock(struct umutex *mtx) __hidden;
 int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
@@ -66,9 +66,9 @@ int _thr_ucond_signal(struct ucond *cv) __hidden;
 int _thr_ucond_broadcast(struct ucond *cv) __hidden;
 
 int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
-	const struct timespec *tsp) __hidden;
+	const struct timespec *tsp, clockid_t clockid) __hidden;
 int __thr_rwlock_wrlock(struct urwlock *rwlock,
-	const struct timespec *tsp) __hidden;
+	const struct timespec *tsp, clockid_t clockid) __hidden;
 int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
 
 /* Internal used only */
@@ -145,7 +145,7 @@ _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 
 	if (_thr_umutex_trylock2(mtx, id) == 0)
 		return (0);
-	return (__thr_umutex_timedlock(mtx, id, timeout));
+	return (__thr_umutex_timedlock(mtx, id, timeout, CLOCK_REALTIME));
 }
 
 static inline int
@@ -233,7 +233,7 @@ _thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp)
 
 	if (_thr_rwlock_tryrdlock(rwlock, flags) == 0)
 		return (0);
-	return (__thr_rwlock_rdlock(rwlock, flags, tsp));
+	return (__thr_rwlock_rdlock(rwlock, flags, tsp, CLOCK_REALTIME));
 }
 
 static inline int
@@ -242,7 +242,7 @@ _thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp)
 
 	if (_thr_rwlock_trywrlock(rwlock) == 0)
 		return (0);
-	return (__thr_rwlock_wrlock(rwlock, tsp));
+	return (__thr_rwlock_wrlock(rwlock, tsp, CLOCK_REALTIME));
 }
 
 static inline int

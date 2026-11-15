@@ -2330,6 +2330,47 @@ START_TEST(test_alloc_tracker_api_float_round_trip) {
 }
 END_TEST
 
+START_TEST(test_alloc_tracker_reset_neutrality) {
+  // Speed up the test, chunk size expected to not matter in this test
+  if (g_chunkSize != 0)
+    return;
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+
+  const char *const small = "<hello/>";
+
+  // Create a document that drives `parser->m_alloc_tracker.bytesAllocated`
+  // towards the activation threshold
+#if XML_GE == 1
+  const size_t bigSizeBytes
+      = (size_t)(1.1f * EXPAT_ALLOC_TRACKER_ACTIVATION_THRESHOLD_DEFAULT);
+  const char *const before = "<doc a='";
+  const char *const after = "'/>";
+  char *const big = malloc(bigSizeBytes);
+  assert_true(big != NULL);
+  memset(big, 'X', bigSizeBytes);
+  memcpy(big, before, strlen(before)); // without zero terminator
+  strcpy(big + (bigSizeBytes - strlen(after) - 1),
+         after);                                // with zero terminator
+  assert_true(strlen(big) == bigSizeBytes - 1); // self-test
+
+  assert_true(
+      _XML_Parse_SINGLE_BYTES(parser, big, strlen(big), /*isFinal=*/XML_TRUE)
+      == XML_STATUS_OK);
+
+  free(big);
+#endif // XML_GE == 1
+
+  XML_ParserReset(parser, NULL);
+
+  assert_true(_XML_Parse_SINGLE_BYTES(parser, small, strlen(small),
+                                      /*isFinal=*/XML_TRUE)
+              == XML_STATUS_OK);
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
 START_TEST(test_mem_api_cycle) {
   XML_Parser parser = XML_ParserCreate(NULL);
 
@@ -2445,6 +2486,7 @@ make_alloc_test_case(Suite *s) {
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_getbuffer_unlimited);
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_api);
   tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_api_float_round_trip);
+  tcase_add_test__if_xml_ge(tc_alloc, test_alloc_tracker_reset_neutrality);
 
   tcase_add_test(tc_alloc, test_mem_api_cycle);
   tcase_add_test__if_xml_ge(tc_alloc, test_mem_api_unlimited);

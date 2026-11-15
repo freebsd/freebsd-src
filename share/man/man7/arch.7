@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm arch
-.Nd Architecture-specific details
+.Nd architecture-specific details
 .Sh DESCRIPTION
 Differences between CPU architectures and platforms supported by
 .Fx .
@@ -298,12 +298,12 @@ Newer CPUs support 5-level page tables, which extend the significant bits of
 addresses to 57 bits (LA57 mode).
 The address space layout is determined by the CPU's support for LA57.
 Setting the
-.Sy vm.pmap.la57
+.Va vm.pmap.la57
 tunable to 0 forces the system into 4-level paging mode, even on hardware that
 supports 5-level paging.
 In this mode, all processes get a 48-bit address space.
 The
-.Sy vm.pmap.prefer_la48_uva
+.Va vm.pmap.prefer_la48_uva
 tunable determines whether processes running on a LA57 system are limited to
 a 48-bit address space by default.
 Some applications make use of unused upper bits in pointer values to store
@@ -322,7 +322,7 @@ Hardware is only required to implement Sv39; implementations which support
 Sv48 must also support Sv39, and implementations which support Sv57 must also
 support Sv48.
 The
-.Sy vm.pmap.mode
+.Va vm.pmap.mode
 tunable can be used to select the layout.
 .Fx
 currently supports Sv39 and Sv48 and defaults to using Sv39.
@@ -499,7 +499,8 @@ If we ever were to support the so-called x32 ABI (using 32-bit
 pointers on the amd64 architecture), it would most likely be encoded
 as amd64-x32.
 It is unfortunate that amd64 specifies the 64-bit evolution of the x86 platform
-(it matches the 'first rule') as almost everybody else uses x86_64.
+.Pq it matches the Sq first rule
+as almost everybody else uses x86_64.
 The
 .Fx
 port was so early, it predated processor name standardization after Intel joined
@@ -517,8 +518,9 @@ The
 .Fx
 source base supports amd64 and i386 with two
 distinct source bases living in subdirectories named amd64 and i386
-(though behind the scenes there's some sharing that fits into this
-framework).
+.Po though behind the scenes there's some sharing that fits into this
+framework
+.Pc .
 .It Dv CPUTYPE
 Sets the flavor of
 .Dv MACHINE_ARCH

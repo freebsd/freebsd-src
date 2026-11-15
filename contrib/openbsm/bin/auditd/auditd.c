@@ -110,7 +110,7 @@ static char	*lastfile = NULL;
 /*
  * File descriptor to our locked pid file.
  */
-static int	pidfd;
+static int	pidfd = -1;
 
 #ifndef USE_MACH_IPC
 /*

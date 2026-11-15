@@ -47,8 +47,13 @@ LIST_HEAD(pshared_hash_head, psh);
 static struct pshared_hash_head pshared_hash[HASH_SIZE];
 #define	PSHARED_KEY_HASH(key)	(((unsigned long)(key) >> 8) % HASH_SIZE)
 /* XXXKIB: lock could be split to per-hash chain, if appears contested */
-static struct urwlock pshared_lock = DEFAULT_URWLOCK;
+static struct urwlock pshared_lock __aligned(CACHE_LINE_SIZE) = DEFAULT_URWLOCK;
 static int page_size;
+
+static struct {
+	unsigned long val;
+	char pad[CACHE_LINE_SIZE - sizeof(unsigned long)];
+} pshared_gen __aligned(CACHE_LINE_SIZE);
 
 #define GC_INTERVAL_USEC 25000
 static struct timeval pshared_gc_time = {0, 0};
@@ -68,6 +73,16 @@ __thr_pshared_init(void)
 		LIST_INIT(&pshared_hash[i]);
 }
 
+/*
+ * The pshared locking bumps locklevel of the thread.  This prevents
+ * async cancellation from terminating a thread that owns
+ * pshared_lock.  Similarly, it prevents libthr suspension from
+ * stopping a thread that owns pshared_lock, which would cause a lock
+ * cascade.
+ *
+ * It also provides async signal safety, which is not needed, since
+ * locking primitives cannot be used in signal handlers safely.
+ */
 static void
 pshared_rlock(struct pthread *curthread)
 {
@@ -91,6 +106,30 @@ pshared_unlock(struct pthread *curthread)
 	_thr_rwl_unlock(&pshared_lock);
 	curthread->locklevel--;
 	_thr_ast(curthread);
+}
+
+static void
+pshared_gen_bump(void)
+{
+	atomic_add_long(&pshared_gen.val, 1);
+}
+
+static void *
+pshared_cache_lookup(struct pthread *curthread, void *key)
+{
+	if (curthread->pshared_key == key &&
+	    curthread->pshared_gen == atomic_load_long(&pshared_gen.val))
+		return (curthread->pshared_val);
+	return (NULL);
+}
+
+static void
+pshared_cache_insert(struct pthread *curthread, void *key, void *val,
+    unsigned long gen)
+{
+	curthread->pshared_key = key;
+	curthread->pshared_val = val;
+	curthread->pshared_gen = gen;
 }
 
 /*
@@ -128,6 +167,7 @@ pshared_gc(struct pthread *curthread)
 			if (error == 0)
 				continue;
 			LIST_REMOVE(h, link);
+			pshared_gen_bump();
 			munmap(h->val, page_size);
 			free(h);
 		}
@@ -212,6 +252,7 @@ pshared_remove(void *key)
 	LIST_FOREACH(h, hd, link) {
 		if (h->key == key) {
 			LIST_REMOVE(h, link);
+			pshared_gen_bump();
 			val = h->val;
 			free(h);
 			return (val);
@@ -245,6 +286,7 @@ __thr_pshared_offpage(void *key, int doalloc)
 {
 	struct pthread *curthread;
 	void *res;
+	unsigned long gen;
 	int fd, ins_done;
 
 	curthread = _get_curthread();
@@ -252,26 +294,35 @@ __thr_pshared_offpage(void *key, int doalloc)
 		pshared_destroy(curthread, key);
 		res = NULL;
 	} else {
-		pshared_rlock(curthread);
-		res = pshared_lookup(key);
-		pshared_unlock(curthread);
+		res = pshared_cache_lookup(curthread, key);
 		if (res != NULL)
 			return (res);
+		pshared_rlock(curthread);
+		gen = pshared_gen.val;
+		res = pshared_lookup(key);
+		pshared_unlock(curthread);
+		if (res != NULL) {
+			pshared_cache_insert(curthread, key, res, gen);
+			return (res);
+		}
 	}
 	fd = _umtx_op(NULL, UMTX_OP_SHM, doalloc ? UMTX_SHM_CREAT :
 	    UMTX_SHM_LOOKUP, key, NULL);
 	if (fd == -1)
 		return (NULL);
 	res = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	close(fd);
+	__sys_close(fd);
 	if (res == MAP_FAILED)
 		return (NULL);
 	pshared_wlock(curthread);
+	gen = pshared_gen.val;
 	ins_done = pshared_insert(key, &res);
 	pshared_unlock(curthread);
 	if (!ins_done) {
 		pshared_clean(key, res);
 		res = NULL;
+	} else {
+		pshared_cache_insert(curthread, key, res, gen);
 	}
 	return (res);
 }

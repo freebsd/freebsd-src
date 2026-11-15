@@ -46,15 +46,6 @@ __RCSID("$NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $");
 #include <stdlib.h>
 #include <unistd.h>
 
-/*
- * sbrk is obsolete, and libc only provides it on a subset of
- * architectures.
- */
-#if defined(__amd64__) || defined(__arm__) || defined(__i386__) || \
-    defined(__powerpc__)
-#define	HAVE_SBRK
-#endif
-
 #ifdef __FreeBSD__
 #include <limits.h>
 #define _KMEMUSER
@@ -112,9 +103,7 @@ ATF_TC_BODY(mlock_err, tc)
 	unsigned long vmin = 0;
 	size_t len = sizeof(vmin);
 #endif
-#ifdef HAVE_SBRK
 	void *invalid_ptr;
-#endif
 	void *buf;
 
 #ifdef __FreeBSD__
@@ -168,12 +157,14 @@ ATF_TC_BODY(mlock_err, tc)
 #endif
 	(void)free(buf);
 
-#ifdef HAVE_SBRK
 	/*
-	 * Try to create a pointer to an unmapped page - first after current
-	 * brk will likely do.
+	 * Try to create a pointer to an unmapped page - mmap and then
+	 * munmap a page.
 	 */
-	invalid_ptr = (void*)(((uintptr_t)sbrk(0)+page) & ~(page-1));
+	invalid_ptr = mmap(NULL, page, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, 0);
+	ATF_REQUIRE(invalid_ptr != MAP_FAILED);
+	ATF_REQUIRE(munmap(invalid_ptr, page) == 0);
 	printf("testing with (hopefully) invalid pointer %p\n", invalid_ptr);
 
 	errno = 0;
@@ -181,7 +172,6 @@ ATF_TC_BODY(mlock_err, tc)
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, munlock(invalid_ptr, page) == -1);
-#endif
 }
 
 #ifdef __FreeBSD__

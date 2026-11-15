@@ -80,6 +80,8 @@
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
+#include <vm/uma.h>
+
 #define SPI_SIZE	4
 
 VNET_DEFINE(int, esp_enable) = 1;
@@ -101,7 +103,40 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
     struct espstat, espstat,
     "ESP statistics (struct espstat, netipsec/esp_var.h");
 
-static MALLOC_DEFINE(M_ESP, "esp", "IPsec ESP");
+/*
+ * The crypto request and the state its callback needs, allocated together
+ * once per packet.  aad holds the separate AAD that ESN needs: the ESP
+ * header, the IV and the high-order half of the sequence number.
+ */
+#define	ESP_AAD_MAXLEN							\
+	(sizeof(struct newesp) + EALG_MAX_BLOCK_LEN + sizeof(uint32_t))
+struct esp_req {
+	struct cryptop		crp;
+	struct xform_data	xd;
+	uint8_t			aad[ESP_AAD_MAXLEN];
+};
+
+static uma_zone_t esp_req_zone;
+
+static struct esp_req *
+esp_getreq(crypto_session_t cryptoid)
+{
+	struct esp_req *req;
+
+	req = uma_zalloc(esp_req_zone, M_NOWAIT);
+	if (req == NULL)
+		return (NULL);
+	crypto_initreq(&req->crp, cryptoid);
+	memset(&req->xd, 0, sizeof(req->xd));
+	return (req);
+}
+
+static void
+esp_freereq(struct esp_req *req)
+{
+	crypto_destroyreq(&req->crp);
+	uma_zfree(esp_req_zone, req);
+}
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
@@ -270,6 +305,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	IPSEC_DEBUG_DECLARE(char buf[128]);
 	const struct auth_hash *esph;
 	const struct enc_xform *espx;
+	struct esp_req *req;
 	struct xform_data *xd;
 	struct cryptop *crp;
 	struct newesp *esp;
@@ -352,21 +388,16 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	ESPSTAT_ADD(esps_ibytes, m->m_pkthdr.len - (skip + hlen + alen));
 
 	/* Get crypto descriptors */
-	crp = crypto_getreq(cryptoid, M_NOWAIT);
-	if (crp == NULL) {
+	req = esp_getreq(cryptoid);
+	if (req == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptors\n",
 			__func__));
 		ESPSTAT_INC(esps_crypto);
 		error = ENOBUFS;
 		goto bad;
 	}
-
-	/* Get IPsec-specific opaque pointer */
-	xd = malloc(sizeof(*xd), M_ESP, M_NOWAIT | M_ZERO);
-	if (xd == NULL) {
-		DPRINTF(("%s: failed to allocate xform_data\n", __func__));
-		goto xd_fail;
-	}
+	crp = &req->crp;
+	xd = &req->xd;
 
 	if (esph != NULL) {
 		crp->crp_op = CRYPTO_OP_VERIFY_DIGEST;
@@ -381,12 +412,10 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 			int aad_skip;
 
 			crp->crp_aad_length += sizeof(seqh);
-			crp->crp_aad = malloc(crp->crp_aad_length, M_ESP, M_NOWAIT);
-			if (crp->crp_aad == NULL) {
-				DPRINTF(("%s: failed to allocate xform_data\n",
-					 __func__));
-				goto crp_aad_fail;
-			}
+			KASSERT(crp->crp_aad_length <= sizeof(req->aad),
+			    ("%s: AAD of %d bytes", __func__,
+			    crp->crp_aad_length));
+			crp->crp_aad = req->aad;
 
 			/* SPI */
 			m_copydata(m, skip, SPI_SIZE, crp->crp_aad);
@@ -415,7 +444,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = esp_input_cb;
-	crp->crp_opaque = xd;
+	crp->crp_opaque = req;
 
 	/* These are passed as-is to the callback */
 	xd->sav = sav;
@@ -470,12 +499,6 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	else
 		return (crypto_dispatch(crp));
 
-crp_aad_fail:
-	free(xd, M_ESP);
-xd_fail:
-	crypto_freereq(crp);
-	ESPSTAT_INC(esps_crypto);
-	error = ENOBUFS;
 bad:
 	m_freem(m);
 	key_freesav(&sav);
@@ -493,6 +516,7 @@ esp_input_cb(struct cryptop *crp)
 	uint8_t lastthree[3];
 	const struct auth_hash *esph;
 	struct mbuf *m;
+	struct esp_req *req;
 	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
@@ -502,7 +526,8 @@ esp_input_cb(struct cryptop *crp)
 	SECASVAR_RLOCK_TRACKER;
 
 	m = crp->crp_buf.cb_mbuf;
-	xd = crp->crp_opaque;
+	req = crp->crp_opaque;
+	xd = &req->xd;
 	CURVNET_SET(xd->vnet);
 	sav = xd->sav;
 	ipsec_sahtree_rlock(&sahtree_tracker);
@@ -569,9 +594,7 @@ esp_input_cb(struct cryptop *crp)
 	}
 
 	/* Release the crypto descriptors */
-	free(xd, M_ESP), xd = NULL;
-	free(crp->crp_aad, M_ESP), crp->crp_aad = NULL;
-	crypto_freereq(crp), crp = NULL;
+	esp_freereq(req), req = NULL;
 
 	/*
 	 * Packet is now decrypted.
@@ -680,12 +703,8 @@ bad:
 		key_freesav(&sav);
 	if (m != NULL)
 		m_freem(m);
-	if (xd != NULL)
-		free(xd, M_ESP);
-	if (crp != NULL) {
-		free(crp->crp_aad, M_ESP);
-		crypto_freereq(crp);
-	}
+	if (req != NULL)
+		esp_freereq(req);
 	CURVNET_RESTORE();
 	return error;
 }
@@ -697,6 +716,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
+	struct esp_req *req;
 	struct cryptop *crp;
 	const struct auth_hash *esph;
 	const struct enc_xform *espx;
@@ -870,21 +890,16 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	m_copyback(m, protoff, sizeof(u_int8_t), (u_char *) &prot);
 
 	/* Get crypto descriptor. */
-	crp = crypto_getreq(cryptoid, M_NOWAIT);
-	if (crp == NULL) {
+	req = esp_getreq(cryptoid);
+	if (req == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptor\n",
 			__func__));
 		ESPSTAT_INC(esps_crypto);
 		error = ENOBUFS;
 		goto bad;
 	}
-
-	/* IPsec-specific opaque crypto info. */
-	xd = malloc(sizeof(struct xform_data), M_ESP, M_NOWAIT | M_ZERO);
-	if (xd == NULL) {
-		DPRINTF(("%s: failed to allocate xform_data\n", __func__));
-		goto xd_fail;
-	}
+	crp = &req->crp;
+	xd = &req->xd;
 
 	/* Encryption descriptor. */
 	crp->crp_payload_start = skip + hlen;
@@ -924,7 +939,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_flags |= CRYPTO_F_CBIFSYNC;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = esp_output_cb;
-	crp->crp_opaque = xd;
+	crp->crp_opaque = req;
 
 	if (esph) {
 		/* Authentication descriptor. */
@@ -940,12 +955,10 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 			int aad_skip;
 
 			crp->crp_aad_length += sizeof(seqh);
-			crp->crp_aad = malloc(crp->crp_aad_length, M_ESP, M_NOWAIT);
-			if (crp->crp_aad == NULL) {
-				DPRINTF(("%s: failed to allocate xform_data\n",
-					 __func__));
-				goto crp_aad_fail;
-			}
+			KASSERT(crp->crp_aad_length <= sizeof(req->aad),
+			    ("%s: AAD of %d bytes", __func__,
+			    crp->crp_aad_length));
+			crp->crp_aad = req->aad;
 
 			/* SPI */
 			m_copydata(m, skip, SPI_SIZE, crp->crp_aad);
@@ -974,12 +987,6 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	else
 		return (crypto_dispatch(crp));
 
-crp_aad_fail:
-	free(xd, M_ESP);
-xd_fail:
-	crypto_freereq(crp);
-	ESPSTAT_INC(esps_crypto);
-	error = ENOBUFS;
 bad:
 	if (m)
 		m_freem(m);
@@ -993,6 +1000,7 @@ bad:
 static int
 esp_output_cb(struct cryptop *crp)
 {
+	struct esp_req *req;
 	struct xform_data *xd;
 	struct secpolicy *sp;
 	struct secasvar *sav;
@@ -1001,7 +1009,8 @@ esp_output_cb(struct cryptop *crp)
 	u_int idx;
 	int error;
 
-	xd = (struct xform_data *) crp->crp_opaque;
+	req = crp->crp_opaque;
+	xd = &req->xd;
 	CURVNET_SET(xd->vnet);
 	m = crp->crp_buf.cb_mbuf;
 	sp = xd->sp;
@@ -1033,9 +1042,7 @@ esp_output_cb(struct cryptop *crp)
 		error = EINVAL;
 		goto bad;
 	}
-	free(xd, M_ESP);
-	free(crp->crp_aad, M_ESP);
-	crypto_freereq(crp);
+	esp_freereq(req);
 	ESPSTAT_INC2(esps_hist, sav->alg_enc);
 	if (sav->tdb_authalgxform != NULL)
 		AHSTAT_INC2(ahs_hist, sav->alg_auth);
@@ -1066,9 +1073,7 @@ esp_output_cb(struct cryptop *crp)
 	CURVNET_RESTORE();
 	return (error);
 bad:
-	free(xd, M_ESP);
-	free(crp->crp_aad, M_ESP);
-	crypto_freereq(crp);
+	esp_freereq(req);
 	key_freesav(&sav);
 	key_freesp(&sp);
 	CURVNET_RESTORE();
@@ -1084,7 +1089,21 @@ static struct xformsw esp_xformsw = {
 	.xf_output =	esp_output,
 };
 
+static void
+esp_attach(void *arg __unused)
+{
+	esp_req_zone = uma_zcreate("esp_req", sizeof(struct esp_req),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	xform_attach(&esp_xformsw);
+}
 SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    xform_attach, &esp_xformsw);
+    esp_attach, NULL);
+
+static void
+esp_detach(void *arg __unused)
+{
+	xform_detach(&esp_xformsw);
+	uma_zdestroy(esp_req_zone);
+}
 SYSUNINIT(esp_xform_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    xform_detach, &esp_xformsw);
+    esp_detach, NULL);

@@ -653,6 +653,8 @@ union ufshci_reponse_upiu {
 struct ufshci_completion {
 	union ufshci_reponse_upiu response_upiu;
 	size_t size;
+	/* Overall command status of the completed request. */
+	uint8_t ocs;
 };
 
 typedef void (*ufshci_cb_fn_t)(void *, const struct ufshci_completion *, bool);

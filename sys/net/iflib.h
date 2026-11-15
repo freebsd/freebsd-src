@@ -360,7 +360,10 @@ typedef enum {
  * Driver understands page/bank i2c reads
  */
 #define	IFLIB_I2C_PAGE_BANK	0x200
-#define	IFLIB_SPARE6		0x400
+/*
+ * Non-TSO packets must not exceed isc_tx_nsegments DMA segments.
+ */
+#define	IFLIB_SPARSE_TX		0x400
 #define	IFLIB_SPARE5		0x800
 #define	IFLIB_SPARE4		0x1000
 #define	IFLIB_SPARE3		0x2000

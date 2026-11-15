@@ -1,5 +1,34 @@
 OpenBSM Version History
 
+OpenBSM 1.2 alpha 6
+
+- Make auditd(8) log directly to syslog(3) if audit_warn(5) does not
+  exist or is not executable.
+- Fix ABI incompatibility on FreeBSD 12 and newer where dev_t is 64
+  bits wide but terminal identifier ports are still 32 bits wide.
+- Fix a bug in auditdistd's internal IPC code, where the worker child
+  relied on recv(2) with MSG_WAITALL to return a short read when
+  receiving a connection from the parent.
+- Rewrite the FreeBSD version of auditd(8)'s main loop to use
+  ppoll(2).  On older kernels which do not support polling the audit
+  socket, it falls back to blocking on the read(2) call like before.
+- Fix a bug in auditdistd(8) where a log that was rotated on the
+  sender during a disconnect would not be rotated on the receiver
+  after reconnect.
+- Fix a bug that could cause an auditdistd(8) sender to stop
+  processing new entries due to a missing wakeup.
+- Fix a TOCTTOU race in auditdistd(8) which could cause it to skip a
+  log file entirely.
+- Fix memory safety bugs in the BSM token parsers.
+- Improve signal handling (particularly of SIGCHLD) in auditd(8).
+- Fix praudit(8) to exit with status 0 on success.
+- New AUT_ARG_UUID and AUT_RETURN_UUID token types are added allowing audit
+  implementations to identify objects associated with arguments and return
+  values using UUIDs.  New au_to_arg_uuid(3) and au_to_return_uuid(3) APIs
+  are added, praudit is updated, and test BSM is added.
+- Various portability improvements.
+- Various improvements to the documentation.
+
 OpenBSM 1.2 alpha 5
 
 - Add a new "qsize" parameter in audit_control and the getacqsize(3) API to

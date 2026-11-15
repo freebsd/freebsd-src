@@ -146,6 +146,52 @@ test_eval_null_args(void)
 }
 
 static void
+test_eval_malformed_bytecode(void)
+{
+	pkgconf_client_t *client = test_client_new();
+	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+	pkgconf_buffer_t out = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_buffer_t empty = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_bytecode_t bc = { NULL, 0 };
+
+	TEST_ASSERT_TRUE(pkgconf_bytecode_eval(client, &vars, &bc, &out, NULL));
+
+	bc.len = 1;
+	TEST_ASSERT_FALSE(pkgconf_bytecode_eval(client, &vars, &bc, &out, NULL));
+
+	uint8_t truncated = 0;
+	bc.base = &truncated;
+	TEST_ASSERT_FALSE(pkgconf_bytecode_eval(client, &vars, &bc, &out, NULL));
+
+	pkgconf_bytecode_op_t oversized = {
+		.tag = PKGCONF_BYTECODE_OP_TEXT,
+		.size = UINT32_MAX,
+	};
+	bc.base = (const uint8_t *) &oversized;
+	bc.len = sizeof oversized;
+	TEST_ASSERT_FALSE(pkgconf_bytecode_eval(client, &vars, &bc, &out, NULL));
+
+	pkgconf_bytecode_op_t unknown = {
+		.tag = 255,
+		.size = 0,
+	};
+	bc.base = (const uint8_t *) &unknown;
+	bc.len = sizeof unknown;
+	TEST_ASSERT_FALSE(pkgconf_bytecode_eval(client, &vars, &bc, &out, NULL));
+
+	pkgconf_buffer_t malformed = {
+		.base = (char *) &oversized,
+		.end = (char *) &oversized + sizeof oversized,
+	};
+	TEST_ASSERT_FALSE(pkgconf_bytecode_references_var(&malformed, "x"));
+	TEST_ASSERT_FALSE(pkgconf_bytecode_rewrite_selfrefs(&out, &malformed, "x", &empty));
+
+	pkgconf_buffer_finalize(&out);
+	pkgconf_variable_list_free(&vars);
+	pkgconf_client_free(client);
+}
+
+static void
 test_compile_null_args(void)
 {
 	pkgconf_buffer_t out = PKGCONF_BUFFER_INITIALIZER;
@@ -523,7 +569,13 @@ test_eval_empty_input(void)
 {
 	pkgconf_client_t *client = test_client_new();
 	pkgconf_list_t vars = PKGCONF_LIST_INITIALIZER;
+	pkgconf_buffer_t bcbuf = PKGCONF_BUFFER_INITIALIZER;
+	pkgconf_bytecode_t bc;
 	bool saw_sysroot = false;
+
+	pkgconf_bytecode_from_buffer(&bc, &bcbuf);
+	TEST_ASSERT_NULL(bc.base);
+	TEST_ASSERT_EQ(bc.len, 0);
 
 	char *out = pkgconf_bytecode_eval_str(client, &vars, "", &saw_sysroot);
 
@@ -612,6 +664,7 @@ main(int argc, char *argv[])
 	TEST_RUN(basename, test_eval_undefined_variable);
 	TEST_RUN(basename, test_eval_sysroot_detection);
 	TEST_RUN(basename, test_eval_null_args);
+	TEST_RUN(basename, test_eval_malformed_bytecode);
 
 	TEST_RUN(basename, test_emit_guards);
 	TEST_RUN(basename, test_emit_text_and_eval);

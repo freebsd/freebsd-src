@@ -1,20 +1,54 @@
 language: c
 
-compiler:
-  - clang
-  - gcc
-
-os:
-  - linux
-  - osx
+env:
+  global:
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+    #   via the "travis encrypt" command using the project repo's public key
+    - secure: "0IFnq4BvajBCaWYWSWFtci345f2Teiqjt5mXvasMW4WZ4Eqg798jscydQQIWYXDj4zq0xyH1Sci384/j4cSQVj4fc1B7MviV0RAa3c+NvRnhUpq6SwD9iGLyQ40OnQulS2t7OvFpS/J4+W8rFmkyFlrFim03SegpVMrd173Shd0yxwqZl9Vu9k3UIL1cvnrz1wFt7Krt8nW7Hi9jQRB5MdF99BG5ay8NLnPH/WdAfJW02TMF1aFQZ/igRSMHLJdDQmtHlIn7IInMeytRn+kXZVxcUdxoD9PIFSgGDd+nU1U22z52P4UlP8EltQG7IubmC/Hk73alVbhVtbSGhLW0zQLRAj0QoMFGnNBD1YtEvdHZbHIuI+4X7liG3zSImnnHC9QKsaVhJJ14M8uhZf99DR0qltPYnyzRSMf6Afm5zW0GYXxayV4hMd1/MZEdpz65G4ZNhkEBp7HeoZbLls43+DOWJTpMRjkfYXsx1yOYoVIoDB1VflTjPUX48x2h+3DgQ4r81CCqBa8HRUwTaNskNaDdRvS7wAZyZZSW9FQeTJhFuclMksEOqpFXJPODWzRPMXxVEuP0G3Lv0fTvJvL8TFTLonGye+lrkJn8syTDNRiDe9B87wxKC52LMH4xl8rzyW18TvaHh7WUf+UfJsQJ4lhOyopbplXF9DciFKyndLg="
 
 before_install:
-  - if [ $TRAVIS_OS_NAME == "linux" ]; then
-      sudo apt-get -qq update;
-      sudo apt-get -qq install byacc flex;
+  - |
+    if [ $TRAVIS_OS_NAME == "linux" ]; then
+      sudo apt-get -qq update
+      sudo apt-get -qq install byacc flex
     elif [ $TRAVIS_OS_NAME == "osx" ]; then
-      brew update;
-      brew install byacc flex openssl;
-      export CFLAGS="-I/usr/local/opt/openssl/include $CFLAGS";
-      export LDFLAGS="-L/usr/local/opt/openssl/lib $LDFLAGS";
+      brew update
+      brew install byacc flex openssl
     fi
+  - |
+    echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' >/tmp/cert.crt
+    if [ $TRAVIS_OS_NAME == "linux" ]; then
+      cat /tmp/cert.crt >> /etc/ssl/certs/ca-certificates.crt
+    elif [ $TRAVIS_OS_NAME == "osx" ]; then
+      sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain /tmp/cert.crt
+    fi
+    rm /tmp/cert.crt
+
+script: ./configure && make
+
+matrix:
+  include:
+    - os: linux
+      compiler: clang
+    - os: linux
+      compiler: gcc
+    - os: osx
+      compiler: clang
+      env:
+        - CFLAGS="-I/usr/local/opt/openssl/include $CFLAGS"
+        - LDFLAGS="-L/usr/local/opt/openssl/lib $LDFLAGS"
+    - os: osx
+      compiler: gcc
+      env:
+        - CFLAGS="-I/usr/local/opt/openssl/include $CFLAGS"
+        - LDFLAGS="-L/usr/local/opt/openssl/lib $LDFLAGS"
+
+addons:
+  coverity_scan:
+    project:
+      name: "openbsm/openbsm"
+      description: "Build submitted via Travis CI"
+    notification_email: brueffer@FreeBSD.org
+    build_command_prepend: ./configure
+    build_command: make
+    branch_pattern: coverity_scan

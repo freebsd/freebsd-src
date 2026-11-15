@@ -26,7 +26,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE. 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef	_BSM_AUDIT_FCNTL_H_
@@ -113,6 +113,10 @@
 #define	BSM_F_CHECK_OPENEVT	358	/* Darwin-specific. */
 #define	BSM_F_ADDSIGS		359	/* Darwin-specific. */
 #define	BSM_F_MARKDEPENDENCY	360	/* Darwin-specific. */
+#define	BSM_F_BARRIERFSYNC	361	/* Darwin-specific. */
+#define	BSM_F_PUNCHHOLE		362	/* Darwin-specific. */
+#define	BSM_F_TRIM_ACTIVE_FILE	363	/* Darwin-specific. */
+#define	BSM_F_SPECULATIVE_READ	364	/* Darwin-specific. */
 
 /*
  * Darwin file system specific (400-499).

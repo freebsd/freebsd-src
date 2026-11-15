@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2005-2007, 2016 Robert N. M. Watson
+.\" Copyright (c) 2005-2007, 2016-2017 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Portions of this software were developed by BAE Systems, the University of
@@ -35,6 +35,7 @@
 .Nm au_to_arg32 ,
 .Nm au_to_arg64 ,
 .Nm au_to_arg ,
+.Nm au_to_arg_uuid ,
 .Nm au_to_attr64 ,
 .Nm au_to_data ,
 .Nm au_to_exit ,
@@ -59,6 +60,7 @@
 .Nm au_to_return32 ,
 .Nm au_to_return64 ,
 .Nm au_to_return ,
+.Nm au_to_return_uuid ,
 .Nm au_to_seq ,
 .Nm au_to_sock_inet32 ,
 .Nm au_to_sock_inet128 ,
@@ -91,6 +93,8 @@
 .Fn au_to_arg64 "char n" "const char *text" "u_int64_t v"
 .Ft "token_t *"
 .Fn au_to_arg "char n" "const char *text" "u_int32_t v"
+.Ft "token_t *"
+.Fn au_to_arg_uuid "char n" "const char *text" "const void *uuidp"
 .Ft "token_t *"
 .Fn au_to_attr32 "struct vattr *attr"
 .Ft "token_t *"
@@ -149,6 +153,8 @@
 .Fn au_to_return32 "char status" "u_int32_t ret"
 .Ft "token_t *"
 .Fn au_to_return64 "char status" "u_int64_t ret"
+.Ft "token_t *"
+.Fn au_to_return_uuid "char n" "const char *text" "const void *uuidp"
 .Ft "token_t *"
 .Fn au_to_return "char status" "u_int32_t ret"
 .Ft "token_t *"

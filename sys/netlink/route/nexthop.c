@@ -778,7 +778,7 @@ newnhg(struct unhop_ctl *ctl, struct nl_parsed_nhop *attrs, struct user_nhop *un
 		 * restrict nexthops with the same gateway
 		 */
 		wn[i].nh = unhop->un_nhop_src;
-		wn[i].weight = grp[i].weight;
+		wn[i].weight = grp[i].weight > 0 ? grp[i].weight : RT_DEFAULT_WEIGHT;
 	}
 	unhop->un_nhgrp_src = wn;
 	unhop->un_nhgrp_count = count;

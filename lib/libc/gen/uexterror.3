@@ -33,7 +33,7 @@ same
 .Xr exterror 9
 infrastructure the kernel uses to return additional information about an
 error along with the standard
-.Xr errno 3
+.Xr errno 2
 error code, which is terse and often lacking context.
 .Pp
 The terseness is especially visible with commonly overloaded error codes like
@@ -109,7 +109,7 @@ Note that unlike its kernel counterpart
 the
 .Nm
 macro does not return a value and sets
-.Xr errno 3
+.Xr errno 2
 directly.
 .Pp
 The name of the file and strings passed as the second argument are
@@ -118,8 +118,8 @@ was not compiled with the
 .Cd NO_UEXTERR_STRINGS
 macro defined.
 .Sh SEE ALSO
+.Xr errno 2 ,
 .Xr err 3 ,
-.Xr errno 3 ,
 .Xr uexterr_gettext 3 ,
 .Xr exterror 9
 .Sh HISTORY

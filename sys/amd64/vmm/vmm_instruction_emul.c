@@ -936,8 +936,6 @@ emulate_movs(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 			vm_restart_instruction(vcpu);
 	}
 done:
-	KASSERT(error == 0 || error == EFAULT, ("%s: unexpected error %d",
-	    __func__, error));
 	return (error);
 }
 
@@ -1040,11 +1038,15 @@ emulate_and(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		result = val1 & val2;
 		error = vie_update_register(vcpu, reg, result, size);
 		break;
+	case 0x80:
 	case 0x81:
 	case 0x83:
 		/*
 		 * AND mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
+		 *
+		 * 80 /4		and r/m8, imm8
+		 * REX + 80 /4		and r/m8, imm8
 		 *
 		 * 81 /4		and r/m16, imm16
 		 * 81 /4		and r/m32, imm32
@@ -1054,6 +1056,8 @@ emulate_and(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		 * 83 /4		and r/m32, imm8 sign-extended to 32
 		 * REX.W + 83/4		and r/m64, imm8 sign-extended to 64
 		 */
+		if (vie->op.op_byte == 0x80)
+			size = 1;
 
 		/* get the first operand */
                 error = memread(vcpu, gpa, &val1, size, arg);
@@ -1128,11 +1132,15 @@ emulate_or(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		result = val1 | val2;
 		error = vie_update_register(vcpu, reg, result, size);
 		break;
+	case 0x80:
 	case 0x81:
 	case 0x83:
 		/*
 		 * OR mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
+		 *
+		 * 80 /1		or r/m8, imm8
+		 * REX + 80 /1		or r/m8, imm8
 		 *
 		 * 81 /1		or r/m16, imm16
 		 * 81 /1		or r/m32, imm32
@@ -1142,6 +1150,8 @@ emulate_or(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		 * 83 /1		or r/m32, imm8 sign-extended to 32
 		 * REX.W + 83/1		or r/m64, imm8 sign-extended to 64
 		 */
+		if (vie->op.op_byte == 0x80)
+			size = 1;
 
 		/* get the first operand */
                 error = memread(vcpu, gpa, &val1, size, arg);

@@ -363,7 +363,9 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_PPC_JMP_SLOT:	/* function descriptor copy */
-		lookup(lf, symidx, 1, &addr);
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
 		memcpy(where, (Elf_Addr *)addr, 3*sizeof(Elf_Addr));
 #else

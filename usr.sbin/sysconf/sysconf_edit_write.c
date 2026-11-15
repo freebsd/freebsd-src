@@ -70,6 +70,10 @@ do_writes(void)
 	struct bsdconf_option *options;
 	struct request **owner;
 
+	/* UCL files are rewritten by libucl, not bsdconf_put() */
+	if (ucl_target)
+		return (ucl_do_writes());
+
 	if ((options = calloc(nreqs + 1, sizeof(*options))) == NULL ||
 	    (owner = calloc(nreqs, sizeof(*owner))) == NULL)
 		err(EXIT_FAILURE, NULL);

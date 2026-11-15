@@ -117,6 +117,9 @@ dev/apple_bce/apple_bce_mailbox.c	optional	apple_bce pci
 dev/apple_bce/apple_bce_queue.c	optional	apple_bce pci
 dev/apple_bce/apple_bce_vhci.c	optional	apple_bce pci usb
 dev/asmc/asmc.c			optional	asmc isa
+dev/asmc/asmc_debug.c		optional	asmc isa asmc_debug
+dev/asmc/asmc_pio.c		optional	asmc isa
+dev/asmc/asmc_sysctl.c		optional	asmc isa
 dev/asmc/asmcmmio.c		optional	asmc isa
 dev/axgbe/if_axgbe_pci.c	optional	axp
 dev/axgbe/xgbe-desc.c		optional	axp

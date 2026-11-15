@@ -58,7 +58,7 @@ Point-to-Point (Layer 3) and Ethernet (Layer 2) mode using a third
 party driver. More information is available at:
 	https://tuntaposx.sourceforge.net
 
-Recent Darwin/MacOS X versions are likely unsupported.
+Tunnels on recent Darwin/MacOS X versions are likely unsupported.
 
 Linux
 -----
@@ -68,8 +68,8 @@ headers and library links in the -devel RPMs rather than the main
 binary RPMs. If you get an error about headers, or complaining about a
 missing prerequisite then you may need to install the equivalent
 development packages.  On Redhat based distros these may be openssl-devel,
-zlib-devel and pam-devel, on Debian based distros these may be
-libssl-dev, libz-dev and libpam-dev.
+zlib-devel and pam-devel, on Debian based distros these may be libc-dev,
+libcrypt-dev, libssl-dev, libz-dev and libpam-dev.
 
 
 Solaris

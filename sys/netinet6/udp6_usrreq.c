@@ -578,23 +578,27 @@ udp6_common_ctlinput(struct ip6ctlparam *ip6cp, struct inpcbinfo *pcbinfo)
 	bzero(&uh, sizeof(uh));
 	m_copydata(m, off, sizeof(*uhp), &uh);
 
-	/* Check to see if its tunneled */
-	inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_dst, uh.uh_dport,
-	    &ip6->ip6_src, uh.uh_sport, INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
-	    m->m_pkthdr.rcvif, m);
+	inp = in6_pcblookup(pcbinfo, &ip6->ip6_dst, uh.uh_dport, &ip6->ip6_src,
+	    uh.uh_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL) {
-		struct udpcb *up;
-		udp_tun_icmp_t *func;
+		INP_WLOCK_ASSERT(inp);
+		udp_notify(inp, errno);
+		INP_WUNLOCK(inp);
+	} else {
+		inp = in6_pcblookup(pcbinfo, &ip6->ip6_dst, uh.uh_dport,
+		    &ip6->ip6_src, uh.uh_sport,
+		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
+		if (inp != NULL) {
+			struct udpcb *up;
+			udp_tun_icmp_t *func;
 
-		up = intoudpcb(inp);
-		func = up->u_icmp_func;
-		INP_RUNLOCK(inp);
-		if (func != NULL)
-			func(ip6cp);
+			up = intoudpcb(inp);
+			func = up->u_icmp_func;
+			INP_RUNLOCK(inp);
+			if (func != NULL)
+				func(ip6cp);
+		}
 	}
-	in6_pcbnotify(pcbinfo, ip6cp->ip6c_finaldst, uh.uh_dport,
-	    ip6cp->ip6c_src, uh.uh_sport, errno, ip6cp->ip6c_cmdarg,
-	    udp_notify);
 }
 
 static void

@@ -565,7 +565,7 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
 
 	PCM_UNLOCKASSERT(d);
 
-	j = cmd & 0xff;
+	j = IOCNUM(cmd);
 
 	rdch = priv->rdch;
 	wrch = priv->wrch;

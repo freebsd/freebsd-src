@@ -55,7 +55,7 @@ gss_duplicate_name(OM_uint32 *minor_status, const gss_name_t src_name,
 		   gss_name_t *dest_name)
 {
 		gss_union_name_t src_union, dest_union;
-		OM_uint32 major_status = GSS_S_FAILURE;
+		OM_uint32 major_status = GSS_S_FAILURE, tmp;
 
 	major_status = val_dup_name_args(minor_status, src_name, dest_name);
 	if (major_status != GSS_S_COMPLETE)
@@ -120,8 +120,8 @@ gss_duplicate_name(OM_uint32 *minor_status, const gss_name_t src_name,
 allocation_failure:
 	if (dest_union) {
 		if (dest_union->external_name) {
-			if (dest_union->external_name->value)
-				free(dest_union->external_name->value);
+			(void) gss_release_buffer(&tmp,
+						  dest_union->external_name);
 			free(dest_union->external_name);
 		}
 		if (dest_union->name_type)

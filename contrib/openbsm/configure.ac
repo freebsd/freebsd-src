@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.2-alpha5], [trustedbsd-audit@TrustedBSD.org],[openbsm])
+AC_INIT([OpenBSM], [1.2-alpha6], [trustedbsd-audit@TrustedBSD.org],[openbsm])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
@@ -43,7 +43,7 @@ AC_SEARCH_LIBS(pidfile_open, util)
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([mach/mach.h stdint.h pthread_np.h printf.h])
+AC_CHECK_HEADERS([mach/mach.h stdint.h pthread_np.h printf.h capsicum_helpers.h])
 
 AC_DEFINE([_GNU_SOURCE],,[Use extended API on platforms that require it])
 
@@ -100,7 +100,7 @@ AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS([arc4random arc4random_buf bzero cap_enter clock_gettime closefrom faccessat fdopendir fstatat ftruncate getresgid getresuid gettimeofday inet_ntoa jail kqueue memset openat pthread_cond_timedwait_relative_np pthread_condattr_setclock pthread_mutex_lock renameat setproctitle sigtimedwait strchr strerror strlcat strlcpy strndup strrchr strstr strtol strtoul unlinkat vis])
+AC_CHECK_FUNCS([arc4random arc4random_buf bzero cap_enter clock_gettime closefrom faccessat fdopendir fstatat ftruncate getresgid getresuid gettimeofday inet_ntoa jail kqueue memset openat pthread_cond_timedwait_relative_np pthread_condattr_setclock pthread_mutex_isowned_np pthread_mutex_lock renameat setproctitle sigtimedwait strchr strerror strlcat strlcpy strndup strrchr strstr strtol strtoul unlinkat vis])
 
 # sys/queue.h exists on most systems, but its capabilities vary a great deal.
 # test for LIST_FIRST and TAILQ_FOREACH_SAFE, which appears to not exist in

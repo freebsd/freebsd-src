@@ -54,6 +54,8 @@ struct usb_endpoint_descriptor *usb_edesc_foreach(
 struct usb_endpoint_ss_comp_descriptor *usb_ed_comp_foreach(
 	    struct usb_config_descriptor *cd,
 	    struct usb_endpoint_ss_comp_descriptor *ped);
+struct usb_bos_cap_descriptor *usbd_bos_foreach(struct usb_bos_descriptor *bos,
+	    struct usb_bos_cap_descriptor *cap);
 uint8_t usbd_get_no_descriptors(struct usb_config_descriptor *cd,
 	    uint8_t type);
 uint8_t usbd_get_no_alts(struct usb_config_descriptor *cd,

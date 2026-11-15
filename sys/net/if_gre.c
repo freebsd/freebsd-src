@@ -129,12 +129,12 @@ static int	gre_set_addr_nl(struct gre_softc *, struct nl_pstate *,
 		    struct sockaddr *, struct sockaddr *);
 
 static int	gre_set_flags(struct gre_softc *, uint32_t);
-static int	gre_set_key(struct gre_softc *, uint32_t);
+static int	gre_set_key(struct gre_softc *, uint32_t, bool);
 static int	gre_set_udp_sport(struct gre_softc *, uint16_t);
 static int	gre_setopts(struct gre_softc *, u_long, uint32_t);
 
 static int	gre_set_flags_nl(struct gre_softc *, struct nl_pstate *, uint32_t);
-static int	gre_set_key_nl(struct gre_softc *, struct nl_pstate *, uint32_t);
+static int	gre_set_key_nl(struct gre_softc *, struct nl_pstate *, uint32_t, bool);
 static int	gre_set_encap_nl(struct gre_softc *, struct nl_pstate *, uint32_t);
 static int	gre_set_udp_sport_nl(struct gre_softc *, struct nl_pstate *, uint16_t);
 
@@ -158,11 +158,17 @@ VNET_DEFINE_STATIC(int, max_gre_nesting) = MAX_GRE_NEST;
 SYSCTL_INT(_net_link_gre, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(max_gre_nesting), 0, "Max nested tunnels");
 
+VNET_DEFINE(bool, gre_key_fallback) = true;
+SYSCTL_BOOL(_net_link_gre, OID_AUTO, key_fallback, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(gre_key_fallback), 0,
+    "Accept packets with unmatched key on keyless tunnel or on the only tunnel between same addresses");
+
 struct nl_parsed_gre {
 	struct sockaddr		*ifla_local;
 	struct sockaddr		*ifla_remote;
 	uint32_t		ifla_flags;
 	uint32_t		ifla_okey;
+	uint32_t		ifla_ikey;
 	uint32_t		ifla_encap_type;
 	uint16_t		ifla_encap_sport;
 };
@@ -175,6 +181,7 @@ static const struct nlattr_parser nla_p_gre[] = {
 	{ .type = IFLA_GRE_OKEY, .off = _OUT(ifla_okey), .cb = nlattr_get_uint32 },
 	{ .type = IFLA_GRE_ENCAP_TYPE, .off = _OUT(ifla_encap_type), .cb = nlattr_get_uint32 },
 	{ .type = IFLA_GRE_ENCAP_SPORT, .off = _OUT(ifla_encap_sport), .cb = nlattr_get_uint16 },
+	{ .type = IFLA_GRE_IKEY, .off = _OUT(ifla_ikey), .cb = nlattr_get_uint32 },
 };
 #undef _OUT
 NL_DECLARE_ATTR_PARSER(gre_modify_parser, nla_p_gre);
@@ -271,6 +278,12 @@ gre_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
 	if (sc == NULL)
 		goto generic;
 
+	/* Set the ikey before addresses, it is a part of the duplicate check. */
+	if (nl_has_attr(&bm, IFLA_GRE_IKEY))
+		error = gre_set_key_nl(sc, npt, params.ifla_ikey, false);
+	if (error != 0)
+		goto generic;
+
 	if (nl_has_attr(&bm, IFLA_GRE_LOCAL) && nl_has_attr(&bm, IFLA_GRE_REMOTE))
 		error = gre_set_addr_nl(sc, npt, params.ifla_local, params.ifla_remote);
 	else if (nl_has_attr(&bm, IFLA_GRE_LOCAL) || nl_has_attr(&bm, IFLA_GRE_REMOTE)) {
@@ -282,7 +295,7 @@ gre_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
 		error = gre_set_flags_nl(sc, npt, params.ifla_flags);
 
 	if (error == 0 && nl_has_attr(&bm, IFLA_GRE_OKEY))
-		error = gre_set_key_nl(sc, npt, params.ifla_okey);
+		error = gre_set_key_nl(sc, npt, params.ifla_okey, true);
 
 	if (error == 0 && nl_has_attr(&bm, IFLA_GRE_ENCAP_TYPE))
 		error = gre_set_encap_nl(sc, npt, params.ifla_encap_type);
@@ -346,10 +359,11 @@ gre_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
 	}
 
 	nlattr_add_u32(nw, IFLA_GRE_FLAGS, sc->gre_options);
-	nlattr_add_u32(nw, IFLA_GRE_OKEY, sc->gre_key);
+	nlattr_add_u32(nw, IFLA_GRE_OKEY, sc->gre_okey);
 	nlattr_add_u32(nw, IFLA_GRE_ENCAP_TYPE,
 	    sc->gre_options & GRE_UDPENCAP ? IFLA_TUNNEL_GRE_UDP : IFLA_TUNNEL_NONE);
 	nlattr_add_u16(nw, IFLA_GRE_ENCAP_SPORT, sc->gre_port);
+	nlattr_add_u32(nw, IFLA_GRE_IKEY, sc->gre_ikey);
 
 ret:
 	nlattr_set_len(nw, off2);
@@ -424,15 +438,21 @@ gre_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 }
 
 static int
-gre_set_key(struct gre_softc *sc, uint32_t key)
+gre_set_key(struct gre_softc *sc, uint32_t key, bool out)
 {
 	int error = 0;
 
 	GRE_LOCK_ASSERT();
 
-	if (sc->gre_key == key)
-		return (0);
-	error = gre_setopts(sc, GRESKEY, key);
+	if (out) {
+		if (sc->gre_okey == key)
+			return (0);
+		error = gre_setopts(sc, GRESKEY, key);
+	} else {
+		if (sc->gre_ikey == key)
+			return (0);
+		error = gre_setopts(sc, GRESIKEY, key);
+	}
 
 	return (error);
 }
@@ -502,7 +522,9 @@ gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t opt)
 		 * We can just change any parameters.
 		 */
 		if (cmd == GRESKEY)
-			sc->gre_key = opt;
+			sc->gre_okey = opt;
+		if (cmd == GRESIKEY)
+			sc->gre_ikey = opt;
 		if (cmd == GRESOPTS)
 			sc->gre_options = opt;
 		if (cmd == GRESPORT)
@@ -584,6 +606,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->gre_fibnum = ifr->ifr_fib;
 		break;
 	case GRESKEY:
+	case GRESIKEY:
 	case GRESOPTS:
 	case GRESPORT:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
@@ -592,15 +615,21 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    sizeof(opt))) != 0)
 			break;
 		if (cmd == GRESKEY)
-			error = gre_set_key(sc, opt);
+			error = gre_set_key(sc, opt, true);
+		else if (cmd == GRESIKEY)
+			error = gre_set_key(sc, opt, false);
 		else if (cmd == GRESOPTS)
 			error = gre_set_flags(sc, opt);
 		else if (cmd == GRESPORT)
 			error = gre_set_udp_sport(sc, opt);
 		break;
 	case GREGKEY:
-		error = copyout(&sc->gre_key, ifr_data_get_ptr(ifr),
-		    sizeof(sc->gre_key));
+		error = copyout(&sc->gre_okey, ifr_data_get_ptr(ifr),
+		    sizeof(sc->gre_okey));
+		break;
+	case GREGIKEY:
+		error = copyout(&sc->gre_ikey, ifr_data_get_ptr(ifr),
+		    sizeof(sc->gre_ikey));
 		break;
 	case GREGOPTS:
 		error = copyout(&sc->gre_options, ifr_data_get_ptr(ifr),
@@ -725,10 +754,10 @@ gre_update_hdr(struct gre_softc *sc, struct grehdr *gh)
 		sc->gre_hlen += 2 * sizeof(uint16_t);
 		*opts++ = 0;
 	}
-	if (sc->gre_key != 0) {
+	if (sc->gre_okey != 0) {
 		flags |= GRE_FLAGS_KP;
 		sc->gre_hlen += sizeof(uint32_t);
-		*opts++ = htonl(sc->gre_key);
+		*opts++ = htonl(sc->gre_okey);
 	}
 	if (sc->gre_options & GRE_ENABLE_SEQ) {
 		flags |= GRE_FLAGS_SP;
@@ -739,6 +768,31 @@ gre_update_hdr(struct gre_softc *sc, struct grehdr *gh)
 	gh->gre_flags = htons(flags);
 }
 
+bool
+gre_getkey(const struct mbuf *m, int off, uint32_t *key)
+{
+	int koff;
+	uint16_t flags;
+
+	if (m->m_pkthdr.len < off + sizeof(struct grehdr))
+		return (false);
+
+	m_copydata(m, off, sizeof(flags), (caddr_t)&flags);
+	flags = ntohs(flags);
+	if ((flags & GRE_FLAGS_KP) == 0) {
+		*key = 0;
+		return (true);
+	}
+	koff = off + sizeof(struct grehdr);
+	if ((flags & GRE_FLAGS_CP) != 0)
+		koff += sizeof(uint32_t);
+	if (m->m_pkthdr.len < koff + sizeof(*key))
+		return (false);
+	m_copydata(m, koff, sizeof(*key), (caddr_t)key);
+	*key = ntohl(*key);
+	return (true);
+}
+
 int
 gre_input(struct mbuf *m, int off, int proto, void *arg)
 {
@@ -746,9 +800,7 @@ gre_input(struct mbuf *m, int off, int proto, void *arg)
 	struct grehdr *gh;
 	struct ifnet *ifp;
 	uint32_t *opts;
-#ifdef notyet
 	uint32_t key;
-#endif
 	uint16_t flags;
 	int hlen, isr, af;
 
@@ -774,24 +826,14 @@ gre_input(struct mbuf *m, int off, int proto, void *arg)
 		opts++;
 	}
 	if (flags & GRE_FLAGS_KP) {
-#ifdef notyet
-        /*
-         * XXX: The current implementation uses the key only for outgoing
-         * packets. But we can check the key value here, or even in the
-         * encapcheck function.
-         */
 		key = ntohl(*opts);
-#endif
+		/* Packet with another key can only be here due to fallback. */
+		if (key != sc->gre_ikey && !V_gre_key_fallback)
+			goto drop;
 		hlen += sizeof(uint32_t);
 		opts++;
-    }
-#ifdef notyet
-	} else
-		key = 0;
+	}
 
-	if (sc->gre_key != 0 && (key != sc->gre_key || key != 0))
-		goto drop;
-#endif
 	if (flags & GRE_FLAGS_SP) {
 #ifdef notyet
 		seq = ntohl(*opts);
@@ -1094,14 +1136,18 @@ gre_set_flags_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t opt)
 }
 
 static int
-gre_set_key_nl(struct gre_softc *sc, struct nl_pstate *npt, uint32_t key)
+gre_set_key_nl(struct gre_softc *sc, struct nl_pstate *npt,
+    uint32_t key, bool dir)
 {
 	int error;
 
-	error = gre_set_key(sc, key);
+	error = gre_set_key(sc, key, dir);
 
 	if (error == EINVAL)
 		nlmsg_report_err_msg(npt, "gre key is invalid: %u", key);
+	if (error == EEXIST)
+		nlmsg_report_err_msg(npt,
+		    "tunnel with the same addresses and key %u exists", key);
 
 	return (error);
 }

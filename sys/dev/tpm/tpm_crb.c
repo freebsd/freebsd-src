@@ -28,6 +28,10 @@
 #include <sys/cdefs.h>
 #include "tpm20.h"
 
+#if defined(__amd64__) || defined(__i386__)
+#include <x86/cputypes.h>
+#endif
+
 /*
  * PTP locality registers, relative to the start of the ACPI memory resource.
  * TCG PC Client PTP 1.03, section 5.5.3.1, Table 23.
@@ -81,7 +85,7 @@ struct tpmcrb_sc;
 /* Attach/detach callbacks */
 typedef bool (sm_attach_t)(struct tpmcrb_sc *, void *, size_t);
 typedef void (sm_detach_t)(struct tpmcrb_sc *);
-/* State change notification (timeout == 0 for 'no timeout') */
+/* State change notification (timeout == 0 for no completion wait). */
 typedef bool (sm_statechange_t)(struct tpmcrb_sc *, int);
 
 struct tpmcrb_sm_cfg {
@@ -89,11 +93,16 @@ struct tpmcrb_sm_cfg {
 	sm_detach_t		*sm_detach;
 	sm_statechange_t	*sm_statechange;
 	sm_statechange_t	*sm_cmdready;
+	sm_statechange_t	*sm_cancel;
+	bool			no_idle_states;	/* CTRL_REQ is not acknowledged */
 };
 
+static sm_attach_t		acpi_start_attach;
+static sm_statechange_t		acpi_start_invoke;
 static sm_attach_t		pluton_attach;
 static sm_detach_t		pluton_detach;
 static sm_statechange_t		pluton_doorbell;
+static sm_statechange_t		pluton_cmdready;
 
 static const struct tpmcrb_sm_cfg_map {
 	int				acpi_sm;
@@ -106,13 +115,23 @@ static const struct tpmcrb_sm_cfg_map {
 		.sm_cfg = { NULL },	/* No notifications required */
 	},
 	{
+		.acpi_sm = TPM2_START_METHOD_ACPI,
+		.desc = "Trusted Platform Module 2.0, CRB mode (ACPI start)",
+		.sm_cfg = {
+			.sm_attach = &acpi_start_attach,
+			.sm_cmdready = &acpi_start_invoke,
+			.sm_cancel = &acpi_start_invoke,
+			.no_idle_states = true,
+		},
+	},
+	{
 		.acpi_sm = ACPI_TPM2_COMMAND_BUFFER_WITH_PLUTON,
 		.desc = "Trusted Platform Module 2.0, CRB mode (Pluton)",
 		.sm_cfg = {
 			.sm_attach = &pluton_attach,
 			.sm_detach = &pluton_detach,
 			.sm_statechange = &pluton_doorbell,
-			.sm_cmdready = &pluton_doorbell,
+			.sm_cmdready = &pluton_cmdready,
 		},
 	},
 };
@@ -137,6 +156,7 @@ struct tpmcrb_sc {
 			bus_space_handle_t	start_bsh;
 			bus_space_handle_t	reply_bsh;
 		} pluton;
+		ACPI_HANDLE	acpi_start_handle;
 	};
 	bus_space_tag_t	bst;
 	struct tpmcrb_mapping ctrl;
@@ -196,6 +216,30 @@ tpmcrb_ctrl_write_barrier(struct tpmcrb_sc *crb_sc, bus_size_t off,
 
 	bus_space_barrier(crb_sc->bst, crb_sc->ctrl.bsh, off, length,
 	    BUS_SPACE_BARRIER_WRITE);
+}
+
+/* Capture registers on failure, before cancellation changes their state. */
+static void
+tpmcrb_dump_state(struct tpmcrb_sc *crb_sc)
+{
+	device_t dev;
+
+	dev = crb_sc->base.dev;
+	device_printf(dev, "CRB req=%#x sts=%#x start=%#x cancel=%#x\n",
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_REQ),
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_STS),
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_START),
+	    tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_CANCEL));
+	if (crb_sc->has_locality)
+		device_printf(dev, "CRB loc_state=%#x loc_sts=%#x\n",
+		    bus_read_4(crb_sc->base.mem_res, TPM_LOC_STATE),
+		    bus_read_4(crb_sc->base.mem_res, TPM_LOC_STS));
+	if (crb_sc->sm_cfg->sm_attach == pluton_attach)
+		device_printf(dev, "Pluton mailbox start=%#x reply=%#x\n",
+		    bus_space_read_4(crb_sc->pluton.bst,
+		    crb_sc->pluton.start_bsh, 0),
+		    bus_space_read_4(crb_sc->pluton.bst,
+		    crb_sc->pluton.reply_bsh, 0));
 }
 
 char *tpmcrb_ids[] = {"MSFT0101", NULL};
@@ -334,7 +378,12 @@ tpmcrb_attach_acpi(struct tpmcrb_sc *crb_sc)
 		AcpiPutTable((ACPI_TABLE_HEADER *)tbl);
 		return (false);
 	}
-	crb_sc->has_locality = tbl->ControlAddress >= TPM_CRB_LOCALITY_SIZE &&
+	/*
+	 * Only the plain CRB start method uses the locality registers: Pluton
+	 * firmware keeps LOC_STATE assigned after a release.
+	 */
+	crb_sc->has_locality = tbl->StartMethod == TPM2_START_METHOD_CRB &&
+	    tbl->ControlAddress >= TPM_CRB_LOCALITY_SIZE &&
 	    tbl->ControlAddress - TPM_CRB_LOCALITY_SIZE ==
 	    rman_get_start(crb_sc->base.mem_res);
 
@@ -527,10 +576,34 @@ tpmcrb_request_locality(struct tpmcrb_sc *crb_sc, int locality)
 static void
 tpmcrb_relinquish_locality(struct tpmcrb_sc *crb_sc)
 {
+	struct resource *res = crb_sc->base.mem_res;
+	uint32_t mask, state;
+	int timeout;
 
-	if (crb_sc->has_locality)
-		bus_write_4(crb_sc->base.mem_res, TPM_LOC_CTRL,
-		    TPM_LOC_CTRL_RELINQUISH);
+	if (!crb_sc->has_locality)
+		return;
+
+	/* PTP 1.07, Table 37: the other fields mean something only if valid. */
+	mask = TPM_LOC_STATE_VALID | TPM_LOC_STATE_ASSIGNED;
+
+	bus_write_4(res, TPM_LOC_CTRL, TPM_LOC_CTRL_RELINQUISH);
+
+	/*
+	 * Wait for the TPM to act on the request.  Otherwise a following
+	 * tpmcrb_request_locality() can see the stale assignment and proceed
+	 * just before the locality goes away.  Read once more after the last
+	 * pause so a release during it is not reported as a failure.
+	 */
+	for (timeout = TPM_TIMEOUT_C;; timeout -= tick) {
+		state = bus_read_4(res, TPM_LOC_STATE);
+		if ((state & mask) == TPM_LOC_STATE_VALID)
+			return;
+		if (timeout <= 0)
+			break;
+		pause("TPM locality", 1);
+	}
+	device_printf(crb_sc->base.dev,
+	    "Failed to relinquish locality (loc_state=%#x)\n", state);
 }
 
 static bool
@@ -539,6 +612,8 @@ tpmcrb_cancel_cmd(struct tpmcrb_sc *crb_sc)
 	uint32_t mask = ~0;
 
 	tpmcrb_ctrl_write_4(crb_sc, TPM_CRB_CTRL_CANCEL, TPM_CRB_CTRL_CANCEL_CMD);
+	if (crb_sc->sm_cfg->sm_cancel != NULL)
+		(void)(*crb_sc->sm_cfg->sm_cancel)(crb_sc, 0);
 	if (!tpmcrb_ctrl_wait(crb_sc, TPM_CRB_CTRL_START,
 		    mask, ~mask, TPM_TIMEOUT_B)) {
 		device_printf(crb_sc->base.dev,
@@ -579,6 +654,8 @@ tpmcrb_state_idle(struct tpmcrb_sc *crb_sc, bool wait)
 {
 	int mask, timeout;
 
+	if (crb_sc->sm_cfg->no_idle_states)
+		return (true);
 	timeout = wait ? TPM_TIMEOUT_C : 0;
 
 	tpmcrb_ctrl_write_4(crb_sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_IDLE);
@@ -602,6 +679,8 @@ tpmcrb_state_ready(struct tpmcrb_sc *crb_sc, bool wait)
 {
 	int mask, timeout;
 
+	if (crb_sc->sm_cfg->no_idle_states)
+		return (true);
 	timeout = wait ? TPM_TIMEOUT_C : 0;
 
 	tpmcrb_ctrl_write_4(crb_sc, TPM_CRB_CTRL_REQ, TPM_CRB_CTRL_REQ_GO_READY);
@@ -699,8 +778,7 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	command_started = true;
 
 	if (!tpmcrb_notify_cmdready(crb_sc, timeout)) {
-		device_printf(dev,
-		    "Timeout while waiting for device to ready\n");
+		device_printf(dev, "Start method failed (cmd=%#x)\n", curr_cmd);
 		if (!tpmcrb_cancel_cmd(crb_sc)) {
 			error = EIO;
 			goto out;
@@ -710,7 +788,9 @@ tpmcrb_transmit(device_t dev, struct tpm_priv *priv, size_t length)
 	mask = ~0;
 	if (!tpmcrb_ctrl_wait(crb_sc, TPM_CRB_CTRL_START, mask, ~mask, timeout)) {
 		device_printf(dev,
-		    "Timeout while waiting for device to process cmd\n");
+		    "Timeout while waiting for device to process cmd "
+		    "(cmd=%#x timeout=%d us)\n", curr_cmd, timeout);
+		tpmcrb_dump_state(crb_sc);
 		if (!tpmcrb_cancel_cmd(crb_sc)) {
 			error = EIO;
 			goto out;
@@ -755,12 +835,14 @@ out:
 		    (tpmcrb_ctrl_read_4(crb_sc, TPM_CRB_CTRL_START) &
 		    TPM_CRB_CTRL_START_CMD) != 0)
 			(void)tpmcrb_cancel_cmd(crb_sc);
-		if (!tpmcrb_state_idle(crb_sc, false)) {
+		/*
+		 * Let the TPM finish going idle before giving up the locality.
+		 * The next transmit requests idle again if needed, so a timeout
+		 * here must not discard the response of a completed command.
+		 */
+		if (!tpmcrb_state_idle(crb_sc, true))
 			device_printf(dev,
 			    "Failed to transition to idle state post-send\n");
-			if (error == 0)
-				error = EIO;
-		}
 		tpmcrb_relinquish_locality(crb_sc);
 	}
 
@@ -768,6 +850,72 @@ out:
 }
 
 /* StartMethod Implementation Details */
+
+/*
+ * ACPI start method: TCG ACPI Specification 1.4, section 4.1.  After setting
+ * CTRL_START or CTRL_CANCEL, the driver evaluates _DSM function 1 to ask the
+ * firmware to act on the control area.  Some firmware using this method
+ * never acknowledges CTRL_REQ, so the idle and ready states are skipped.
+ */
+#define	TPM_ACPI_START_REV		0
+#define	TPM_ACPI_START_FUNC_START	1
+
+/* 6BBF6CAB-5463-4714-B7CD-F0203C0368D4 */
+static const uint8_t tpm_acpi_start_uuid[ACPI_UUID_LENGTH] = {
+	0xab, 0x6c, 0xbf, 0x6b, 0x63, 0x54, 0x14, 0x47,
+	0xb7, 0xcd, 0xf0, 0x20, 0x3c, 0x03, 0x68, 0xd4
+};
+
+static bool
+acpi_start_attach(struct tpmcrb_sc *crb_sc, void *smdataregion __unused,
+    size_t datasz __unused)
+{
+	ACPI_HANDLE handle;
+
+	handle = acpi_get_handle(crb_sc->base.dev);
+	if (handle == NULL || (acpi_DSMQuery(handle, tpm_acpi_start_uuid,
+	    TPM_ACPI_START_REV) & (1 << TPM_ACPI_START_FUNC_START)) == 0) {
+		device_printf(crb_sc->base.dev, "No ACPI start method in _DSM\n");
+		return (false);
+	}
+	crb_sc->acpi_start_handle = handle;
+#if defined(__amd64__) || defined(__i386__)
+	/* AMD advisory PA-410: fTPM commands can stall every CPU. */
+	if (cpu_vendor_id == CPU_VENDOR_AMD) {
+		device_printf(crb_sc->base.dev,
+		    "Not used as an entropy source (AMD PA-410)\n");
+		crb_sc->base.no_harvest = true;
+	}
+#endif
+	return (true);
+}
+
+static bool
+acpi_start_invoke(struct tpmcrb_sc *crb_sc, int timeout __unused)
+{
+	ACPI_BUFFER buf;
+	ACPI_OBJECT *obj;
+	ACPI_STATUS status;
+	bool ret;
+
+	status = acpi_EvaluateDSMTyped(crb_sc->acpi_start_handle,
+	    tpm_acpi_start_uuid, TPM_ACPI_START_REV, TPM_ACPI_START_FUNC_START,
+	    NULL, &buf, ACPI_TYPE_INTEGER);
+	if (ACPI_FAILURE(status)) {
+		device_printf(crb_sc->base.dev,
+		    "ACPI start method failed: %s\n",
+		    AcpiFormatException(status));
+		return (false);
+	}
+	obj = buf.Pointer;
+	ret = obj->Integer.Value == 0;
+	if (!ret)
+		device_printf(crb_sc->base.dev,
+		    "ACPI start method returned %ju\n",
+		    (uintmax_t)obj->Integer.Value);
+	AcpiOsFree(buf.Pointer);
+	return (ret);
+}
 
 /** Pluton **/
 struct tpmcrb_startmethod_pluton {
@@ -830,15 +978,15 @@ pluton_detach(struct tpmcrb_sc *crb_sc)
 }
 
 static bool
-pluton_wait_reply(struct tpmcrb_sc *crb_sc, int32_t timeout)
+pluton_wait_reg(struct tpmcrb_sc *crb_sc, bus_space_handle_t bsh,
+    uint32_t value, int32_t timeout)
 {
 	for (;;) {
 		/*
 		 * Always read at least once, and try one more time after we hit
 		 * the timeout.
 		 */
-		if (bus_space_read_4(crb_sc->pluton.bst,
-		    crb_sc->pluton.reply_bsh, 0) == 1)
+		if (bus_space_read_4(crb_sc->pluton.bst, bsh, 0) == value)
 			return (true);
 		else if (timeout <= 0)
 			break;
@@ -853,18 +1001,40 @@ pluton_wait_reply(struct tpmcrb_sc *crb_sc, int32_t timeout)
 static bool
 pluton_doorbell(struct tpmcrb_sc *crb_sc, int timeout)
 {
+
+	/*
+	 * REPLY indicates readiness for a new notification, not its completion.
+	 */
+	if (!pluton_wait_reg(crb_sc, crb_sc->pluton.reply_bsh, 1,
+	    TPM_TIMEOUT_C)) {
+		device_printf(crb_sc->base.dev,
+		    "Pluton mailbox readiness timed out\n");
+		tpmcrb_dump_state(crb_sc);
+		return (false);
+	}
+
 	bus_space_write_4(crb_sc->pluton.bst, crb_sc->pluton.start_bsh, 0, 1);
 	bus_space_barrier(crb_sc->pluton.bst, crb_sc->pluton.start_bsh, 0,
 	    sizeof(uint32_t), BUS_SPACE_BARRIER_WRITE);
 
-	/*
-	 * We assume at timeout == 0 that they're not really interested in a
-	 * reply immediately.  Otherwise, we poll for a reply at least once,
-	 * even with low timeouts.
-	 */
+	/* Wait for consumption of synchronous state-change notifications. */
 	if (timeout <= 0)
 		return (true);
-	return (pluton_wait_reply(crb_sc, timeout));
+	if (!pluton_wait_reg(crb_sc, crb_sc->pluton.start_bsh, 0, timeout)) {
+		device_printf(crb_sc->base.dev,
+		    "Pluton mailbox acknowledgement timed out\n");
+		tpmcrb_dump_state(crb_sc);
+		return (false);
+	}
+	return (true);
+}
+
+static bool
+pluton_cmdready(struct tpmcrb_sc *crb_sc, int timeout __unused)
+{
+
+	/* Command completion is polled separately through CRB_CTRL_START. */
+	return (pluton_doorbell(crb_sc, 0));
 }
 
 /* ACPI Driver */

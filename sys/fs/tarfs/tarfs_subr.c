@@ -173,6 +173,8 @@ tarfs_alloc_node(struct tarfs_mount *tmp, const char *name, size_t namelen,
 
 	if (parent != NULL && parent->type != VDIR)
 		return (ENOTDIR);
+	if (namelen > NAME_MAX)
+		return (ENAMETOOLONG);
 	tnp = malloc(sizeof(struct tarfs_node), M_TARFSNODE, M_WAITOK | M_ZERO);
 	mtx_init(&tnp->lock, "tarfs node lock", NULL, MTX_DEF);
 	tnp->gen = arc4random();
@@ -426,7 +428,7 @@ tarfs_read_file(struct tarfs_node *tnp, size_t len, struct uio *uiop)
 	TARFS_DPF(VNODE, "%s(%s, %zu, %zu)\n", __func__,
 	    tnp->name, uiop->uio_offset, resid);
 	for (i = 0; i < tnp->nblk && resid > 0; ++i) {
-		if (uiop->uio_offset > tnp->blk[i].o + tnp->blk[i].l) {
+		if (uiop->uio_offset >= tnp->blk[i].o + tnp->blk[i].l) {
 			/* skip this block */
 			continue;
 		}
@@ -454,7 +456,8 @@ tarfs_read_file(struct tarfs_node *tnp, size_t len, struct uio *uiop)
 		while (resid > 0 &&
 		    uiop->uio_offset < tnp->blk[i].o + tnp->blk[i].l) {
 			/* now actual data */
-			copylen = tnp->blk[i].l;
+			copylen = tnp->blk[i].l -
+			    (uiop->uio_offset - tnp->blk[i].o);
 			if (copylen > resid)
 				copylen = resid;
 			auio = *uiop;

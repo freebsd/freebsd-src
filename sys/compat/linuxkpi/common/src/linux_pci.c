@@ -521,6 +521,8 @@ lkpi_pci_dev_init_common(device_t dev, struct pci_dev *pdev)
 		 */
 		pdev->bus->self = pdev;
 	}
+	pdev->msi_cap = dinfo->cfg.msi.msi_location;
+	pdev->msix_cap = dinfo->cfg.msix.msix_location;
 	pdev->dev.bsddev = dev;
 	pdev->dev.parent = &linux_root_device;
 
@@ -734,6 +736,14 @@ linux_pci_detach_device(struct pci_dev *pdev)
 
 	if (pdev->pdrv != NULL)
 		pdev->pdrv->remove(pdev);
+
+	/*
+	 * As on Linux when a driver is unbound, release the devres actions now.
+	 * Waiting for the last reference to go away is wrong: devres actions
+	 * (e.g. the drm_dev_put() of devm_drm_dev_alloc()) may hold references
+	 * on this very device, which then never gets released.
+	 */
+	lkpi_devres_release_free_list(&pdev->dev);
 
 	pci_dev_put(pdev);
 

@@ -26,23 +26,30 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 8, 2020
+.Dd November 14, 2026
 .Dt HEXDUMP 3
 .Os
 .Sh NAME
+.Nm fhexdump ,
 .Nm hexdump
-.Nd "dump a block of bytes to standard out in hexadecimal form"
+.Nd "dump a block of bytes to a stream in hexadecimal form"
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
+.In stdio.h
 .In libutil.h
 .Ft void
-.Fn hexdump "void *ptr" "int length" "const char *hdr" "int flags"
+.Fn hexdump "const void *ptr" "int length" "const char *hdr" "int flags"
+.Ft void
+.Fn fhexdump "FILE *stream" "const void *ptr" "int length" "const char *hdr" "int flags"
 .Sh DESCRIPTION
 The
 .Fn hexdump
 function prints an array of bytes to standard out in hexadecimal form,
-along with the ASCII representation of the bytes, if possible.
+along with the ASCII representation of the bytes, if possible;
+.Fn fhexdump
+writes to the given output
+.Fa stream .
 By default, each line of output will start with an offset count, followed by 16
 hexadecimal values, followed by 16 ASCII characters.
 .Bl -tag -width indent
@@ -88,6 +95,10 @@ The
 .Fn hexdump
 function first appeared in
 .Fx 6.4 .
+The
+.Fn fhexdump
+function first appeared in
+.Fx 16.0 .
 .Sh AUTHORS
 This manual page was written by
 .An Scott Long .

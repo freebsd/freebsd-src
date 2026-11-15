@@ -2238,7 +2238,7 @@ create-source-src-package: _pkgbootstrap .PHONY
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GOT_CMD} tree -R | \
-		    awk '/^sys\// { next } { sub(/ -> .*/, "") } /\/$/ { next } { sub(/[*@$]$/, "") } { print }' | \
+		    awk '/^sys\// { next } { sub(/ -> .*/, "") } /\/$$/ { next } { sub(/[*@$$]$$/, "") } { print }' | \
 		    sort ) \
 		> ${SSTAGEDIR}/src.plist
 .endif
@@ -2274,7 +2274,7 @@ create-source-src-sys-package: _pkgbootstrap .PHONY
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GOT_CMD} tree -R | \
-		    awk '!/^sys\// { next } { sub(/ -> .*/, "") } /\/$/ { next } { sub(/[*@$]$/, "") } { print }' | \
+		    awk '!/^sys\// { next } { sub(/ -> .*/, "") } /\/$$/ { next } { sub(/[*@$$]$$/, "") } { print }' | \
 		    sort ) \
 		> ${SSTAGEDIR}/src-sys.plist
 .endif
