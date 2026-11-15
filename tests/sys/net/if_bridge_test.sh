@@ -1459,6 +1459,52 @@ vlan_defuntagged_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "bridge_fib" "cleanup"
+bridge_fib_head()
+{
+	atf_set descr 'unicast to a bridge uses the FIB of the bridge'
+	atf_set require.user root
+}
+
+bridge_fib_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail jbridge ${epair}a
+	vnet_mkjail jmember ${epair}b
+
+	sysctl -j jbridge net.link.bridge.member_ifaddrs=0
+	sysctl -j jbridge net.fibs=2
+
+	# The member stays in FIB 0, the bridge is in FIB 1, so the only
+	# route to 192.0.2.0/24 is in FIB 1.
+	bridge=$(ifconfig -j jbridge bridge create)
+	ifconfig -j jbridge ${bridge} fib 1
+	ifconfig -j jbridge ${bridge} addm ${epair}a
+	ifconfig -j jbridge ${epair}a up
+	ifconfig -j jbridge ${bridge} 192.0.2.1/24 up
+
+	ifconfig -j jmember ${epair}b 192.0.2.2/24 up
+
+	# Sanity check: the route only exists in the FIB of the bridge.
+	atf_check -s exit:0 -o ignore \
+	    route -j jbridge -n get -fib 1 192.0.2.2
+	atf_check -s not-exit:0 -o ignore -e ignore \
+	    route -j jbridge -n get -fib 0 192.0.2.2
+
+	# The echo reply is routed using the FIB of the received request, so
+	# this fails if the request is left in the FIB of the member.
+	atf_check -s exit:0 -o ignore jexec jmember ping -c 3 -t 1 192.0.2.1
+}
+
+bridge_fib_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -1489,4 +1535,5 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_untagged"
 	atf_add_test_case "vlan_defuntagged"
 	atf_add_test_case "bridge_svi_in_bridge"
+	atf_add_test_case "bridge_fib"
 }
