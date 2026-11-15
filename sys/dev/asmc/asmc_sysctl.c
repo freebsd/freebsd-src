@@ -542,7 +542,7 @@ static const struct {
 	    "IU", CTLTYPE_UINT | CTLFLAG_RD, 0, asmc_rgen_sysctl, 0, 0 },
 };
 
-int
+void
 asmc_sysctl_add_system(device_t dev, struct sysctl_ctx_list *ctx)
 {
 	struct sysctl_oid *sys_tree;
@@ -553,7 +553,7 @@ asmc_sysctl_add_system(device_t dev, struct sysctl_ctx_list *ctx)
 	    "System state and board identity");
 	if (sys_tree == NULL) {
 		device_printf(dev, "failed to create system sysctl node\n");
-		return (ENXIO);
+		return;
 	}
 
 	for (unsigned int k = 0; k < nitems(asmc_system_sysctls); k++) {
@@ -576,8 +576,6 @@ asmc_sysctl_add_system(device_t dev, struct sysctl_ctx_list *ctx)
 		    asmc_system_sysctls[k].fmt,
 		    asmc_system_sysctls[k].desc, NULL);
 	}
-
-	return (0);
 }
 
 /* Platform toggles under dev.asmc.n, each present only if its key reads. */

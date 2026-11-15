@@ -9,14 +9,14 @@
 
 /*
  * Sysctl subtree builders, one per dev.asmc.N node.  asmc_attach() calls these
- * in registration order; only add_system can fail, and only because the key
- * count it reads is what tells the rest of the driver the SMC is there.
+ * in registration order; a node that fails to create just leaves that subtree
+ * missing, so none of these are fatal to attach.
  */
 void	asmc_sysctl_add_fan(device_t dev, struct sysctl_ctx_list *ctx);
 void	asmc_sysctl_add_temp(device_t dev, struct sysctl_ctx_list *ctx);
 void	asmc_sysctl_add_light(device_t dev, struct sysctl_ctx_list *ctx);
 void	asmc_sysctl_add_sms(device_t dev, struct sysctl_ctx_list *ctx);
-int	asmc_sysctl_add_system(device_t dev, struct sysctl_ctx_list *ctx);
+void	asmc_sysctl_add_system(device_t dev, struct sysctl_ctx_list *ctx);
 void	asmc_sysctl_add_platform(device_t dev, struct sysctl_ctx_list *ctx);
 
 /* Registered by the core's sensor range scan, one OID per detected key. */

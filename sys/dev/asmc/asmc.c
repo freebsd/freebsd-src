@@ -281,7 +281,7 @@ asmc_attach(device_t dev)
 		    asmc_shutdown, dev, SHUTDOWN_PRI_FIRST);
 
 	/* System state / board identity subtree. */
-	(void)asmc_sysctl_add_system(dev, sysctlctx);
+	asmc_sysctl_add_system(dev, sysctlctx);
 
 	if (!sc->sc_has_sms)
 		goto nosms;
