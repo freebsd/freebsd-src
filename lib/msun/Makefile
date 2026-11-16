@@ -88,7 +88,8 @@ COMMON_SRCS= b_tgamma.c \
 	s_fminimum_mag.c s_fminimum_magf.c s_fminimum_mag_num.c \
 	s_fminimum_mag_numf.c s_fminimum_num.c s_fminimum_numf.c \
 	s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
-	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
+	s_ilogbl.c s_iseqsig.c s_iseqsigf.c s_isfinite.c s_isnan.c \
+	s_isnormal.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c s_llroundl.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
 	s_lround.c s_lroundf.c s_lroundl.c s_modff.c \
@@ -143,7 +144,7 @@ COMMON_SRCS+=	b_tgammal.c catrigl.c \
 	s_fmaximum_numl.c s_fmaximum_mag_numl.c \
 	s_fminl.c s_fminimuml.c s_fminimum_magl.c \
 	s_fminimum_numl.c s_fminimum_mag_numl.c \
-	s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
+	s_frexpl.c s_iseqsigl.c s_logbl.c s_logl.c s_nanl.c \
 	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
 	s_scalbnl.c s_sinl.c s_sincosl.c s_sinpil.c s_rsqrtl.c \
 	s_tanhl.c s_tanl.c s_tanpil.c s_truncl.c w_cabsl.c
@@ -191,7 +192,7 @@ MAN=	acos.3 acosh.3 acospi.3 asin.3 asinh.3 asinpi.3 \
 	fegetmode.3 fegetround.3 fenv.3 floor.3 fma.3 \
 	fmax.3 fmaximum.3 fmaximum_mag.3 \
 	fmaximum_mag_num.3 fmaximum_num.3 fmod.3 \
-	hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
+	hypot.3 ieee.3 ieee_test.3 ilogb.3 iseqsig.3 j0.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
 	round.3 scalbn.3 signbit.3 sin.3 sincos.3 \

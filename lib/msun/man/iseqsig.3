@@ -1,0 +1,56 @@
+.\" Copyright (c) 2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd October 12, 2026
+.Dt ISEQSIG 3
+.Os
+.Sh NAME
+.Nm iseqsig
+.Nd "signaling floating-point equality comparison"
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft int
+.Fn iseqsig "real-floating x" "real-floating y"
+.Sh DESCRIPTION
+The
+.Fn iseqsig
+macro determines whether its arguments are equal.
+Arguments of different types are compared as by the
+.Li ==
+operator, after the usual arithmetic conversions.
+Positive and negative zero compare equal.
+.Pp
+Unlike the equality operator, which is a quiet comparison,
+.Fn iseqsig
+raises the
+.Dv FE_INVALID
+floating-point exception if either argument is a NaN, quiet or
+signaling, considered a domain error.
+As
+.Va math_errhandling
+is
+.Dv MATH_ERREXCEPT ,
+.Va errno
+is not set.
+.Sh RETURN VALUES
+The
+.Fn iseqsig
+macro returns 1 if its arguments are equal and 0 otherwise.
+If either argument is a NaN, it returns 0.
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr isgreater 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn iseqsig
+macro conforms to
+.St -isoC-2023 .
+.Sh HISTORY
+The
+.Fn iseqsig
+macro first appeared in
+.Fx 16.0 .
