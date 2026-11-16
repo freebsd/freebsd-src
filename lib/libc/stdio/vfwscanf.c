@@ -651,6 +651,8 @@ literal:
 				fmt++;
 			while (*fmt != '\0' && *fmt != ']')
 				fmt++;
+			if (*fmt == '\0')
+				goto input_failure;
 			ccl.end = fmt;
 			fmt++;
 			flags |= NOSKIP;
