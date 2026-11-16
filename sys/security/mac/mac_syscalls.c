@@ -150,9 +150,10 @@ mac_label_copyin(const void *const u_mac, struct mac *const mac,
 }
 
 void
-free_copied_label(const struct mac *const mac)
+free_copied_label(struct mac *const mac)
 {
 	free(mac->m_string, M_MACTEMP);
+	mac->m_string = NULL;
 }
 
 int
@@ -321,6 +322,11 @@ mac_get_prison(struct thread *const td, struct prison *pr,
 	bool locked = true;
 
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
+
+	/*
+	 * mac.m_string is a user-controlled pointer, don't pass it to
+	 * free_copied_label() until mac_label_copyin_string() has replaced it.
+	 */
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		struct mac32 mac32;
@@ -342,7 +348,7 @@ mac_get_prison(struct thread *const td, struct prison *pr,
 	intlabel = mac_prison_label_alloc(M_NOWAIT);
 	if (intlabel == NULL) {
 		error = ENOMEM;
-		goto out;
+		goto out_nomac;
 	}
 
 	if ((mac_labeled & MPC_OBJECT_PRISON) != 0)
@@ -360,7 +366,7 @@ mac_get_prison(struct thread *const td, struct prison *pr,
 	error = mac_label_copyin_string(&mac, &u_buffer, M_WAITOK);
 	if (error) {
 		vfs_opterror(opts, "mac.label: string copy failure");
-		goto out;
+		goto out_label;
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
@@ -376,9 +382,11 @@ mac_get_prison(struct thread *const td, struct prison *pr,
 		error = copyout(buffer, u_buffer, strlen(buffer)+1);
 
 out:
-	mac_prison_label_free(intlabel);
 	free_copied_label(&mac);
 	free(buffer, M_MACTEMP);
+
+out_label:
+	mac_prison_label_free(intlabel);
 
 out_nomac:
 	if (locked) {
@@ -427,7 +435,8 @@ mac_set_prison_prepare(struct thread *const td, struct vfsoptlist *opts,
 	 */
 	if (!(mac_labeled & MPC_OBJECT_PRISON)) {
 		vfs_opterror(opts, "no labelled jail policies");
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 
 	intlabel = mac_prison_label_alloc(M_WAITOK);
@@ -435,11 +444,13 @@ mac_set_prison_prepare(struct thread *const td, struct vfsoptlist *opts,
 	if (error) {
 		mac_prison_label_free(intlabel);
 		vfs_opterror(opts, "internalize_label error");
-		return (error);
+		goto out;
 	}
 
 	*mac_set_prison_data = intlabel;
-	return (0);
+out:
+	free_copied_label(&mac);
+	return (error);
 }
 
 int
